@@ -10,7 +10,9 @@ const main = async () => {
 		console.log('Datenbankverbindung erfolgreich.');
 
 		// Datenbank synchronisieren
-		await sequelize.sync({ force: true });
+		await sequelize.sync({
+			force: true,
+		});
 		console.log('Modelle synchronisiert.');
 
 		// Beispiel-Daten
