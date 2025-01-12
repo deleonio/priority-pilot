@@ -1,8 +1,8 @@
 {
 	"scripts": {
-		"build:frontend": "openapi-generator-cli generate -i openapi.yaml -g typescript-fetch -o ../client/src/generated",
-		"build:backend": "openapi-generator-cli generate -i openapi.yaml -g nodejs-express-server -o ../server/src/generated",
-		"build": "npm run build:frontend && npm run build:backend"
+		"generate": "npm run generate:frontend && npm run generate:backend",
+		"generate:backend": "openapi-generator-cli generate -i openapi.yaml -g nodejs-express-server -o ../server/src/generated",
+		"generate:frontend": "openapi-generator-cli generate -i openapi.yaml -g typescript-fetch -o ../client/src/generated"
 	},
 	"devDependencies": {
 		"@openapitools/openapi-generator-cli": "2.4.18"
