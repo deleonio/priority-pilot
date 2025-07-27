@@ -7,7 +7,7 @@
 	},
 	"packageManager": "pnpm@9.0.0",
 	"private": true,
-	"scripts": {
-		"build": "pnpm -C api generate && pnpm -r build"
-	}
+       "scripts": {
+               "build": "pnpm -r generate && pnpm -r build"
+       }
 }
