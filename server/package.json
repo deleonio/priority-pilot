@@ -8,6 +8,7 @@
 		"build:ts": "tsc",
 		"dev": "nodemon --watch src --ext ts --exec 'pnpm build:ts && node dist/index.js'",
 		"format": "prettier --check src",
+		"generate": "openapi-generator-cli generate -i ../openapi.yml -g nodejs-express-server -o src/generated",
 		"lint": "tsc --noemit && eslint src"
 	},
 	"dependencies": {
@@ -16,6 +17,7 @@
 		"sequelize": "6.37.5"
 	},
 	"devDependencies": {
+		"@openapitools/openapi-generator-cli": "2.4.18",
 		"@types/express": "5.0.0",
 		"@types/node": "22",
 		"@types/sqlite3": "3.1.11",
