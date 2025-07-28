@@ -21,5 +21,6 @@ paths:
                   properties:
                     id:
                       type: integer
+                      required: true
                     name:
                       type: string

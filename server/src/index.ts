@@ -1,5 +1,5 @@
-import { handleUserInput } from './console.js';
 import sequelize from './database.js';
+import { launchServer } from './express/index.js';
 import { buildTaskForest } from './logics/tree.js';
 import { Task } from './models/index.js';
 
@@ -39,7 +39,8 @@ const main = async () => {
 		await task4.addDependency(task3, { through: { weight: 1.0 } });
 
 		await buildTaskForest();
-		await handleUserInput(sequelize);
+		await launchServer();
+		// await handleUserInput(sequelize);
 	} catch (error) {
 		console.error('Fehler:', error);
 	}
