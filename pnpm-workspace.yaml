@@ -1,4 +1,4 @@
 packages:
-  - "api"
-  - "client"
-  - "server"
+  - 'api'
+  - 'client'
+  - 'server'
