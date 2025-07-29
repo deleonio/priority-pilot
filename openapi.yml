@@ -1,26 +1,171 @@
 openapi: 3.0.0
 info:
-  title: My API
-  description: This is a sample API
+  title: Priority Pilot API
+  description: REST API for task management
   version: 1.0.0
 servers:
-  - url: http://localhost:3000/api
+  - url: http://localhost:8080
 paths:
-  /users:
+  /tasks:
     get:
-      summary: Get all users
+      summary: List all tasks
       responses:
         '200':
-          description: A list of users
+          description: A list of tasks
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  type: object
-                  properties:
-                    id:
-                      type: integer
-                      required: true
-                    name:
-                      type: string
+                  $ref: '#/components/schemas/Task'
+    post:
+      summary: Create a task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskInput'
+      responses:
+        '201':
+          description: Created task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+  /tasks/{id}:
+    put:
+      summary: Update a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskInput'
+      responses:
+        '200':
+          description: Updated task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+    delete:
+      summary: Delete a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Task deleted
+  /tasks/{id}/dependencies:
+    post:
+      summary: Add a dependency to a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                dependencyId:
+                  type: integer
+              required:
+                - dependencyId
+      responses:
+        '204':
+          description: Dependency added
+  /tasks/{id}/dependencies/{dependencyId}:
+    delete:
+      summary: Remove a dependency from a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: dependencyId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Dependency removed
+  /tasks/top:
+    get:
+      summary: Get the most important tasks
+      responses:
+        '200':
+          description: Top tasks
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaskWithValue'
+components:
+  schemas:
+    Task:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        status:
+          type: string
+        priority:
+          type: integer
+        estimatedEffort:
+          type: number
+        actualEffort:
+          type: number
+        description:
+          type: string
+        deadline:
+          type: string
+          format: date-time
+    TaskInput:
+      type: object
+      properties:
+        title:
+          type: string
+        status:
+          type: string
+        priority:
+          type: integer
+        estimatedEffort:
+          type: number
+        actualEffort:
+          type: number
+        description:
+          type: string
+        deadline:
+          type: string
+          format: date-time
+      required:
+        - title
+    TaskWithValue:
+      allOf:
+        - $ref: '#/components/schemas/Task'
+        - type: object
+          properties:
+            value:
+              type: number
+            totalTime:
+              type: number
