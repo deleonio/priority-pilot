@@ -34,6 +34,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/Task'
   /tasks/{id}:
+    get:
+      summary: Get a single task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Task found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
     put:
       summary: Update a task
       parameters:
@@ -125,41 +140,65 @@ components:
       properties:
         id:
           type: integer
+          description: Eindeutige ID des Tasks
         title:
           type: string
+          description: Titel oder Kurzbeschreibung
         status:
           type: string
+          description: Aktueller Bearbeitungsstatus
         priority:
           type: integer
+          description: Wichtigkeit (1-10)
         estimatedEffort:
           type: number
+          description: Geschätzter Aufwand in Stunden
         actualEffort:
           type: number
+          description: Tatsächlicher Aufwand
         description:
           type: string
+          description: Ausführliche Beschreibung
         deadline:
           type: string
           format: date-time
+          description: Fälligkeitsdatum
+        createdAt:
+          type: string
+          format: date-time
+          description: Erstellungszeitpunkt
+        updatedAt:
+          type: string
+          format: date-time
+          description: Letzte Aktualisierung
     TaskInput:
       type: object
       properties:
         title:
           type: string
+          description: Titel oder Kurzbeschreibung
         status:
           type: string
+          description: Bearbeitungsstatus
         priority:
           type: integer
+          description: Wichtigkeit (1-10)
         estimatedEffort:
           type: number
+          description: Geschätzter Aufwand in Stunden
         actualEffort:
           type: number
+          description: Tatsächlicher Aufwand
         description:
           type: string
+          description: Ausführliche Beschreibung
         deadline:
           type: string
           format: date-time
+          description: Fälligkeitsdatum
       required:
         - title
+        - estimatedEffort
     TaskWithValue:
       allOf:
         - $ref: '#/components/schemas/Task'
