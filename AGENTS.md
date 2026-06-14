@@ -22,6 +22,7 @@ Wissensbasis liegt in [`.ai-knowledge/`](.ai-knowledge/).
 
 ## Ticket-Triage
 
-Offenes, nicht zugewiesenes GitHub-Issue analysieren → Lösungsvorschlag als Kommentar →
-Label `ai:analyzed`. Vollständiger Ablauf: [.ai-knowledge/ticket-triage.md](.ai-knowledge/ticket-triage.md).
-Konkrete Commands: `/analyze-ticket`, `/propose-solution`, `/mark-analyzed`.
+Offene Issues **ohne** Label `ai:analyzed` analysieren (aus Titel + Beschreibung + Repo eine
+Lösung konzipieren) → deutscher Lösungs-Kommentar → Label `ai:analyzed` setzen. Vollständiger
+Ablauf: [.ai-knowledge/ticket-triage.md](.ai-knowledge/ticket-triage.md).
+Konkreter Command: `/triage-ticket` (analysiert, kommentiert und markiert in einem Durchlauf).
