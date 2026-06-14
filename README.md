@@ -1,8 +1,22 @@
 # Priority Pilot
 
-Priority Pilot ist ein kleines Werkzeug zur **Aufgaben-Priorisierung**. Aufgaben (Tasks)
-hängen über einen **gewichteten Abhängigkeitsgraphen** zusammen; daraus wird der
-Wertbeitrag jeder Aufgabe berechnet, um die wichtigsten zuerst sichtbar zu machen.
+Priority Pilot ist ein Werkzeug zur **Aufgaben-Priorisierung**. Es beantwortet die Frage
+_„Woran sollte ich als Nächstes arbeiten?"_, wenn Aufgaben voneinander abhängen.
+
+Aufgaben (Tasks) werden in einem **gewichteten Abhängigkeitsgraphen** modelliert: Jede
+Abhängigkeit trägt ein Gewicht, das angibt, wie stark eine Aufgabe zu einer anderen
+beiträgt. Daraus berechnet Priority Pilot pro Aufgabe einen **Wertbeitrag** (eigene
+Priorität plus gewichtete Werte der abhängigen Aufgaben) und einen **Gesamtaufwand**
+inklusive aller (transitiven) Abhängigkeiten.
+
+Damit lassen sich:
+
+- die **wertvollsten Aufgaben** zuerst sichtbar machen (nach Wertbeitrag sortierter Aufgabenwald),
+- die **nächste sinnvolle Aufgabe** finden (höchste Priorität, deren Abhängigkeiten alle erledigt sind),
+- Aufgaben und Abhängigkeiten pflegen — inklusive **Zyklus-Erkennung**.
+
+Technisch ist es ein schlanker Node.js-Dienst (Express + Sequelize/SQLite) im
+pnpm-Monorepo. Der Funktionsumfang ist bewusst klein und befindet sich im Prototyp-Stadium.
 
 ## Monorepo-Aufbau
 
