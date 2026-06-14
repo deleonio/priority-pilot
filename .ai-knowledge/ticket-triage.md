@@ -11,8 +11,12 @@ der Workflow ist damit wiederholbar (idempotent).
 
 ## Schritt 1 — Ticket(s) wählen & analysieren
 
-- Offene, noch nicht analysierte Issues finden:
-  `gh issue list --state open --search '-label:"ai:analyzed"' --limit 30`
+- Offene, noch nicht analysierte Issues finden (index-unabhängig, **sofort konsistent**):
+  `gh issue list --state open --json number,title,labels --jq '[.[] | select((.labels | map(.name)) | index("ai:analyzed") | not)] | .[] | "\(.number)\t\(.title)"'`
+  Hinweis: `gh issue list --state open --search '-label:"ai:analyzed"'` funktioniert ebenfalls,
+  nutzt aber den GitHub-Suchindex (einige Sekunden Verzögerung nach dem Labeln). Bei
+  **Batch-Läufen** die `--json`/`jq`-Variante bevorzugen, sonst kann ein gerade gelabeltes
+  Issue erneut ausgewählt werden.
 - Eine konkret übergebene Nummer hat Vorrang; sonst der Reihe nach abarbeiten (ältestes zuerst).
 - Gibt es kein passendes Issue: klar sagen und stoppen (nichts erfinden).
 - Pro Issue Details laden: `gh issue view <nr> --comments`
