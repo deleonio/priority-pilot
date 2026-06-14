@@ -1,0 +1,6 @@
+**/node_modules
+**/dist
+client/src/generated
+server/src/api.d.ts
+pnpm-lock.yaml
+**/database.sqlite

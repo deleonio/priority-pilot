@@ -1,6 +1,16 @@
 import { Task } from '../models/index.js';
 import { calculateValueContribution } from './value.js';
 
+export interface TaskTreeNode {
+	title: string;
+	priority: number;
+	estimatedEffort: number;
+	/** Gesamtzeit inkl. aller (transitiven) Abhängigkeiten. */
+	totalEstimatedEffort: number;
+	value: number;
+	dependents: TaskTreeNode[];
+}
+
 const getEstimatedEffort = async (task: Task): Promise<number> => {
 	let estimatedEffort = task.estimatedEffort;
 	const dependencies = await task.getDependencies();
@@ -11,11 +21,11 @@ const getEstimatedEffort = async (task: Task): Promise<number> => {
 };
 
 // Rekursive Funktion, um den Baum eines Tasks zu erstellen
-const buildTaskTree = async (task: Task): Promise<any> => {
+const buildTaskTree = async (task: Task): Promise<TaskTreeNode> => {
 	const dependents = await task.getDependents();
 
-	const children = [];
-	let totalEstimatedEffort = await getEstimatedEffort(task);
+	const children: TaskTreeNode[] = [];
+	const totalEstimatedEffort = await getEstimatedEffort(task);
 
 	for (const dependent of dependents) {
 		children.push(await buildTaskTree(dependent));
@@ -25,14 +35,14 @@ const buildTaskTree = async (task: Task): Promise<any> => {
 		title: task.title,
 		priority: task.priority,
 		estimatedEffort: task.estimatedEffort || 0,
-		totalEstimatedEffort, // Gesamtzeit (inkl. Abhängigkeiten)
+		totalEstimatedEffort,
 		value: await calculateValueContribution(task),
 		dependents: children,
 	};
 };
 
-// Funktion, um den gesamten Aufgabenbaum zu erstellen
-export const buildTaskForest = async (): Promise<void> => {
+// Funktion, um den gesamten Aufgabenwald (nach Wertschöpfung sortiert) zu erstellen
+export const buildTaskForest = async (): Promise<TaskTreeNode[]> => {
 	const tasks = await Task.findAll({
 		where: {
 			status: ['Open', 'In process'],
@@ -40,7 +50,7 @@ export const buildTaskForest = async (): Promise<void> => {
 	});
 
 	// Finde alle Wurzeltasks (Tasks ohne Abhängigkeiten)
-	const rootTasks = [];
+	const rootTasks: Task[] = [];
 	for (const task of tasks) {
 		const dependencies = await task.getDependencies();
 		if (dependencies.length === 0) {
@@ -49,15 +59,13 @@ export const buildTaskForest = async (): Promise<void> => {
 	}
 
 	// Erstelle Bäume für alle Wurzeltasks
-	const forest = [];
+	const forest: TaskTreeNode[] = [];
 	for (const rootTask of rootTasks) {
-		const tree = await buildTaskTree(rootTask);
-		forest.push(tree);
+		forest.push(await buildTaskTree(rootTask));
 	}
 
 	// Sortiere die Bäume nach Wertschöpfung (absteigend)
 	forest.sort((a, b) => b.value - a.value);
 
-	// Ausgabe des Baums
-	console.log(JSON.stringify(forest, null, 2));
+	return forest;
 };

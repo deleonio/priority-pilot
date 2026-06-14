@@ -1,15 +1,28 @@
-module.exports = {
-	parser: '@typescript-eslint/parser',
-	parserOptions: {
-		project: './tsconfig.json', // Stelle sicher, dass der Pfad korrekt ist
-		tsconfigRootDir: __dirname, // Basisverzeichnis
+import js from '@eslint/js';
+import tsPlugin from '@typescript-eslint/eslint-plugin';
+import tsParser from '@typescript-eslint/parser';
+
+export default [
+	{
+		ignores: ['dist/', 'src/generated/', 'src/api.d.ts'],
 	},
-	extends: [
-		'eslint:recommended',
-		'plugin:@typescript-eslint/recommended',
-		'plugin:@typescript-eslint/recommended-requiring-type-checking',
-	],
-	rules: {
-		// Deine benutzerdefinierten ESLint-Regeln
+	js.configs.recommended,
+	{
+		files: ['src/**/*.ts'],
+		languageOptions: {
+			parser: tsParser,
+			ecmaVersion: 2022,
+			sourceType: 'module',
+			globals: {
+				console: 'readonly',
+				process: 'readonly',
+			},
+		},
+		plugins: {
+			'@typescript-eslint': tsPlugin,
+		},
+		rules: {
+			...tsPlugin.configs.recommended.rules,
+		},
 	},
-};
+];

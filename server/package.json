@@ -6,29 +6,23 @@
 		"build": "pnpm build:api && pnpm build:ts",
 		"build:api": "openapi-typescript ../openapi.yml -o src/api.d.ts",
 		"build:ts": "tsc",
-		"dev": "nodemon --watch src --ext ts --exec 'pnpm build:ts && node dist/index.js'",
-		"format": "prettier --check src",
-		"generate": "openapi-generator-cli generate -i ../openapi.yml -g nodejs-express-server -o src/generated",
-		"lint": "tsc --noemit && eslint src"
+		"dev": "nodemon",
+		"lint": "pnpm build:api && tsc --noemit && eslint src"
 	},
 	"dependencies": {
-		"express": "4.21.2",
-		"sqlite3": "5.1.7",
-		"sequelize": "6.37.5"
+		"express": "5.2.1",
+		"sqlite3": "6.0.1",
+		"sequelize": "6.37.8"
 	},
 	"devDependencies": {
-		"@openapitools/openapi-generator-cli": "2.4.18",
-		"@types/express": "5.0.0",
-		"@types/node": "22",
-		"@types/sqlite3": "3.1.11",
-		"@typescript-eslint/eslint-plugin": "8.18.0",
-		"@typescript-eslint/parser": "8.18.0",
-		"eslint": "9.17.0",
-		"nodemon": "3.1.9",
-		"npm-check-updates": "17.1.13",
-		"openapi-typescript": "7.5.2",
-		"prettier": "3.4.2",
-		"ts-node": "10.9.2",
-		"typescript": "5.7.2"
+		"@eslint/js": "10.0.1",
+		"@types/express": "5.0.6",
+		"@types/node": "25",
+		"@typescript-eslint/eslint-plugin": "8.61.0",
+		"@typescript-eslint/parser": "8.61.0",
+		"eslint": "10.5.0",
+		"nodemon": "3.1.14",
+		"openapi-typescript": "7.13.0",
+		"typescript": "5.9.3"
 	}
 }

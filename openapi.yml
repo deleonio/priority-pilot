@@ -4,7 +4,7 @@ info:
   description: This is a sample API
   version: 1.0.0
 servers:
-  - url: http://localhost:3000/api
+  - url: http://localhost:3000
 paths:
   /users:
     get:
@@ -18,9 +18,11 @@ paths:
                 type: array
                 items:
                   type: object
+                  required:
+                    - id
+                    - name
                   properties:
                     id:
                       type: integer
-                      required: true
                     name:
                       type: string

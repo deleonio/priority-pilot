@@ -1,16 +1,14 @@
 {
 	"devDependencies": {
-		"npm-check-updates": "17.1.13",
-		"prettier": "3.5.3"
+		"npm-check-updates": "22.2.3",
+		"prettier": "3.8.4"
 	},
-	"engines": {
-		"node": "^22"
-	},
-	"packageManager": "pnpm@10.0.0",
 	"private": true,
+	"type": "module",
 	"scripts": {
 		"build": "pnpm -r generate && pnpm -r build",
-		"format": "prettier . -w && pnpm -r format -w",
-		"lint": "pnpm -r lint"
+		"format": "prettier --write .",
+		"lint": "pnpm -r lint",
+		"update": "ncu -u && pnpm -r exec ncu -u && pnpm install"
 	}
 }
