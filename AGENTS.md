@@ -24,9 +24,14 @@ Wissensbasis liegt in [`.ai-knowledge/`](.ai-knowledge/).
 ## Ticket-Triage
 
 Offene Issues **ohne** Label `ai:analyzed` analysieren (aus Titel + Beschreibung + Repo eine
-Lösung konzipieren) → deutscher Lösungs-Kommentar → Label `ai:analyzed` setzen. Vollständiger
-Ablauf: [.ai-knowledge/ticket-triage.md](.ai-knowledge/ticket-triage.md).
-Konkreter Command: `/triage-ticket` (analysiert, kommentiert und markiert in einem Durchlauf).
+Lösung konzipieren) → Beschreibung **lektorieren** (Form verbessern, Inhalt unverändert) → zu große
+Tickets in verknüpfte **Sub-Issues** zerlegen (max. eine Ebene, Rekursionsschutz via `ai:analyzed`)
+→ deutscher Lösungs-Kommentar mit Umsetzbarkeits-**Ampel** (🟢/🟡/🔴) → Label `ai:analyzed` setzen.
+Liegt bereits eine Analyse vor, wird sie auf Passung/Vollständigkeit geprüft und bei Bedarf
+aktualisiert (Re-Triage). Vollständiger Ablauf:
+[.ai-knowledge/ticket-triage.md](.ai-knowledge/ticket-triage.md).
+Konkreter Command: `/triage-ticket` (analysiert, lektoriert, zerlegt, kommentiert und markiert in
+einem Durchlauf).
 
 ## Ticket-Umsetzung
 

@@ -1,6 +1,6 @@
 ---
 description: Setzt offene Issues mit Label ai:ready um und weist sie dir zu
-argument-hint: "[issue-nummer]"
+argument-hint: '[issue-nummer]'
 allowed-tools: Bash(gh issue list:*), Bash(gh issue view:*), Bash(gh issue edit:*), Bash(gh pr create:*), Bash(gh pr view:*), Bash(git switch:*), Bash(git status:*), Bash(git diff:*), Bash(git add:*), Bash(git commit:*), Bash(git push:*), Bash(pnpm:*), Read, Edit, Write, Grep, Glob
 ---
 
