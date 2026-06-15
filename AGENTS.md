@@ -9,6 +9,7 @@ Wissensbasis liegt in [`.ai-knowledge/`](.ai-knowledge/).
 - [Konventionen](.ai-knowledge/conventions.md) — Formatierung, ESLint, TypeScript, Commits
 - [Ticket-Triage](.ai-knowledge/ticket-triage.md) — Analyse offener GitHub-Issues
 - [Ticket-Umsetzung](.ai-knowledge/ticket-implementation.md) — freigegebene Issues (`ai:ready`) umsetzen
+- [PR-Review (Kreuzverhör)](.ai-knowledge/pr-review.md) — Pull Requests kritisch prüfen, Findings kommentieren
 
 ## Kernregeln
 
@@ -37,10 +38,25 @@ einem Durchlauf).
 
 Offene Issues mit Label `ai:ready` (vom Menschen zur Umsetzung freigegeben), die **nicht
 zugewiesen** sind: sich selbst zuweisen → auf eigenem Branch umsetzen → `pnpm format` + Lint →
-**Draft-PR**, via `Closes #<nr>` mit dem Ticket verknüpft (erscheint im „Development"-Bereich,
+**PR (ready to review)**, via `Closes #<nr>` mit dem Ticket verknüpft (erscheint im „Development"-Bereich,
 schließt es beim Merge) → PR **beobachten** und Review-Kommentare behandeln (zutreffende fixen,
 mehrdeutige rückfragen, sonst kommentieren), bis er gemergt oder geschlossen ist. Vollständiger Ablauf:
 [.ai-knowledge/ticket-implementation.md](.ai-knowledge/ticket-implementation.md).
 Konkreter Command: `/implement-ticket`.
 
-Label-Kette: `ai:analyzed` (analysiert) → `ai:ready` (freigegeben) → Umsetzung als Draft-PR.
+Label-Kette: `ai:analyzed` (analysiert) → `ai:ready` (freigegeben) → Umsetzung als PR (ready to review) → PR-Review (`/kreuzverhoer-review`).
+
+## PR-Review (Kreuzverhör)
+
+Implementierte Pull Requests werden **kritisch wie im Kreuzverhör** geprüft: Titel/Beschreibung und
+**vollständigen Diff** lesen → kritische Fragen stellen (Löst der PR das Problem? Edge Cases?
+einfachster Weg? Performance/Security?) → Code-Qualität prüfen (Benennung, Testabdeckung,
+Projekt-Konventionen) → je Finding einen an Datei/Zeile **verankerten** Review-Kommentar (Was,
+warum, konkreter Vorschlag) → abschließendes Urteil mit Umsetzbarkeits-**Ampel** (🟢/🟡/🔴). Kein
+formales Approve/Request-Changes — der Merge bleibt beim Menschen. Vollständiger Ablauf:
+[.ai-knowledge/pr-review.md](.ai-knowledge/pr-review.md).
+Konkreter Command: `/kreuzverhoer-review`.
+
+Die im Review entstehenden Kommentare werden vom Umsetzungs-Workflow (`/implement-ticket`,
+Schritt 4) **behandelt**: zutreffende Punkte fixen, mehrdeutige rückfragen, sonst begründet
+kommentieren.
