@@ -73,7 +73,7 @@ const validateTaskFields = (body: unknown, requireTitle: boolean): ValidationRes
 		if (typeof input.title !== 'string' || input.title.trim() === '') {
 			return { ok: false, message: 'title muss ein nicht-leerer String sein.' };
 		}
-		attrs.title = input.title;
+		attrs.title = input.title.trim();
 	}
 	if (requireTitle && attrs.title === undefined) {
 		return { ok: false, message: 'title ist erforderlich.' };
@@ -94,15 +94,22 @@ const validateTaskFields = (body: unknown, requireTitle: boolean): ValidationRes
 	}
 
 	if (input.estimatedEffort !== undefined) {
-		if (typeof input.estimatedEffort !== 'number' || input.estimatedEffort < 0.1) {
-			return { ok: false, message: 'estimatedEffort muss eine Zahl >= 0.1 sein.' };
+		if (
+			typeof input.estimatedEffort !== 'number' ||
+			!Number.isFinite(input.estimatedEffort) ||
+			input.estimatedEffort < 0.1
+		) {
+			return { ok: false, message: 'estimatedEffort muss eine endliche Zahl >= 0.1 sein.' };
 		}
 		attrs.estimatedEffort = input.estimatedEffort;
 	}
 
 	if (input.actualEffort !== undefined) {
-		if (input.actualEffort !== null && (typeof input.actualEffort !== 'number' || input.actualEffort < 0)) {
-			return { ok: false, message: 'actualEffort muss eine Zahl >= 0 oder null sein.' };
+		if (
+			input.actualEffort !== null &&
+			(typeof input.actualEffort !== 'number' || !Number.isFinite(input.actualEffort) || input.actualEffort < 0)
+		) {
+			return { ok: false, message: 'actualEffort muss eine endliche Zahl >= 0 oder null sein.' };
 		}
 		attrs.actualEffort = input.actualEffort;
 	}
@@ -221,8 +228,11 @@ tasksRouter.post('/tasks/:id/dependencies', async (req: Request, res: Response<T
 		sendError(res, 400, 'dependingTaskId muss eine Ganzzahl >= 1 sein.');
 		return;
 	}
-	if (input.weight !== undefined && (typeof input.weight !== 'number' || input.weight < 0)) {
-		sendError(res, 400, 'weight muss eine Zahl >= 0 sein.');
+	if (
+		input.weight !== undefined &&
+		(typeof input.weight !== 'number' || !Number.isFinite(input.weight) || input.weight < 0)
+	) {
+		sendError(res, 400, 'weight muss eine endliche Zahl >= 0 sein.');
 		return;
 	}
 	const weight = typeof input.weight === 'number' ? input.weight : 1;
@@ -244,6 +254,8 @@ tasksRouter.post('/tasks/:id/dependencies', async (req: Request, res: Response<T
 	}
 
 	try {
+		// Idempotent: Besteht die Kante bereits, aktualisiert addDependency() nur das Gewicht der
+		// vorhandenen Join-Zeile (kein Duplikat, kein Constraint-Fehler) — die Antwort bleibt 201.
 		await dependentTask.addDependency(dependingTask, { through: { weight } });
 		res.status(201).json(serializeTask(dependentTask));
 	} catch (error) {
@@ -261,6 +273,13 @@ tasksRouter.delete('/tasks/:id/dependencies/:depId', async (req: Request, res: R
 		return;
 	}
 	if (depId === null) {
+		sendError(res, 404, 'Abhängigkeit nicht gefunden.');
+		return;
+	}
+	// Existenz der Kante prüfen, damit ein stilles "Löschen" einer nicht vorhandenen Abhängigkeit
+	// laut Vertrag mit 404 (statt 204) beantwortet wird.
+	const dependencies = await task.getDependencies();
+	if (!dependencies.some((dependency) => dependency.id === depId)) {
 		sendError(res, 404, 'Abhängigkeit nicht gefunden.');
 		return;
 	}
