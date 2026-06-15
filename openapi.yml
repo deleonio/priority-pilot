@@ -88,10 +88,12 @@ paths:
     parameters:
       - $ref: '#/components/parameters/TaskId'
     post:
-      summary: Abhängigkeit zu einem Task hinzufügen
+      summary: Abhängigkeit (Vorgänger) zu einem Task hinzufügen
       description: >-
-        Verknüpft den Task `{id}` mit einem abhängigen Task. Eine Abhängigkeit,
-        die einen Zyklus erzeugen würde, wird mit `409` abgelehnt.
+        Fügt dem Task `{id}` eine Abhängigkeit hinzu — den im Body angegebenen
+        Task, von dem `{id}` abhängt (Vorgänger/Prerequisite). Entspricht
+        `task.addDependency()`. Eine Abhängigkeit, die einen Zyklus erzeugen
+        würde, wird mit `409` abgelehnt.
       operationId: addDependency
       requestBody:
         required: true
@@ -118,11 +120,11 @@ paths:
       - name: depId
         in: path
         required: true
-        description: ID des abhängigen Tasks
+        description: ID der zu entfernenden Abhängigkeit (Vorgänger-Task, von dem `{id}` abhängt)
         schema:
           type: integer
     delete:
-      summary: Abhängigkeit von einem Task entfernen
+      summary: Abhängigkeit (Vorgänger) von einem Task entfernen
       operationId: removeDependency
       responses:
         '204':
@@ -293,7 +295,9 @@ components:
       properties:
         dependingTaskId:
           type: integer
-          description: ID des Tasks, der von `{id}` abhängt
+          description: >-
+            ID des Tasks, von dem `{id}` abhängt (Vorgänger/Prerequisite).
+            Entspricht der Spalte `dependingTaskId` im Join `dependencies`.
         weight:
           type: number
           format: float
