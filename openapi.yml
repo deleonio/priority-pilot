@@ -147,6 +147,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/TaskTreeNode'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /next:
     get:
       summary: Nächsten wichtigen Task ermitteln
@@ -156,13 +158,15 @@ paths:
       operationId: getNextTask
       responses:
         '200':
-          description: Der nächste wichtige Task
+          description: Der nächste wichtige Task oder `null`, falls keiner vorhanden ist
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Task'
-        '204':
-          description: Kein passender Task vorhanden
+                nullable: true
+                allOf:
+                  - $ref: '#/components/schemas/Task'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 components:
   parameters:
     TaskId:
@@ -187,6 +191,12 @@ components:
             $ref: '#/components/schemas/Error'
     Conflict:
       description: Konflikt — die Abhängigkeit würde einen Zyklus erzeugen
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalServerError:
+      description: Interner Serverfehler (z. B. Datenbankfehler)
       content:
         application/json:
           schema:
@@ -217,6 +227,7 @@ components:
           $ref: '#/components/schemas/TaskStatus'
         priority:
           type: integer
+          minimum: 1
           default: 3
         estimatedEffort:
           type: number
@@ -227,6 +238,7 @@ components:
         actualEffort:
           type: number
           format: float
+          minimum: 0
           nullable: true
         description:
           type: string
@@ -246,6 +258,7 @@ components:
           $ref: '#/components/schemas/TaskStatus'
         priority:
           type: integer
+          minimum: 1
           default: 3
         estimatedEffort:
           type: number
@@ -255,6 +268,7 @@ components:
         actualEffort:
           type: number
           format: float
+          minimum: 0
           nullable: true
         description:
           type: string
@@ -273,6 +287,7 @@ components:
           $ref: '#/components/schemas/TaskStatus'
         priority:
           type: integer
+          minimum: 1
         estimatedEffort:
           type: number
           format: float
@@ -280,6 +295,7 @@ components:
         actualEffort:
           type: number
           format: float
+          minimum: 0
           nullable: true
         description:
           type: string
@@ -307,6 +323,7 @@ components:
     TaskTreeNode:
       type: object
       required:
+        - id
         - title
         - priority
         - estimatedEffort
@@ -314,6 +331,8 @@ components:
         - value
         - dependents
       properties:
+        id:
+          type: integer
         title:
           type: string
         priority:
