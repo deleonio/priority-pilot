@@ -8,12 +8,18 @@ export const App = () => {
 	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
+		const controller = new AbortController();
 		api
-			.listTasks()
+			.listTasks({ signal: controller.signal })
 			.then(setTasks)
 			.catch((reason: unknown) => {
+				// Abbruch beim Unmount ist erwartet und kein Fehler.
+				if (controller.signal.aborted) {
+					return;
+				}
 				setError(reason instanceof Error ? reason.message : 'Unbekannter Fehler beim Laden der Tasks.');
 			});
+		return () => controller.abort();
 	}, []);
 
 	return (
