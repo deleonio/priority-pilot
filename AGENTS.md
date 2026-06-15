@@ -38,7 +38,8 @@ einem Durchlauf).
 Offene Issues mit Label `ai:ready` (vom Menschen zur Umsetzung freigegeben), die **nicht
 zugewiesen** sind: sich selbst zuweisen → auf eigenem Branch umsetzen → `pnpm format` + Lint →
 **Draft-PR**, via `Closes #<nr>` mit dem Ticket verknüpft (erscheint im „Development"-Bereich,
-schließt es beim Merge). Vollständiger Ablauf:
+schließt es beim Merge) → PR **beobachten** und Review-Kommentare behandeln (zutreffende fixen,
+mehrdeutige rückfragen, sonst kommentieren), bis er gemergt oder geschlossen ist. Vollständiger Ablauf:
 [.ai-knowledge/ticket-implementation.md](.ai-knowledge/ticket-implementation.md).
 Konkreter Command: `/implement-ticket`.
 
