@@ -16,9 +16,9 @@ class Task extends Model {
 	public status!: TaskStatus;
 	public priority!: number;
 	public estimatedEffort!: number;
-	public actualEffort?: number;
-	public description?: string;
-	public deadline?: Date;
+	public actualEffort?: number | null;
+	public description?: string | null;
+	public deadline?: Date | null;
 
 	public addDependency!: BelongsToManyAddAssociationMixin<Task, number>;
 	public removeDependency!: BelongsToManyRemoveAssociationMixin<Task, number>;
