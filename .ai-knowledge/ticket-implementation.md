@@ -30,12 +30,13 @@ gesetzt (zur Umsetzung freigegeben) → dieser Workflow setzt um.
   ESM, keine Type-Assertions zum Unterdrücken von Fehlern).
 - Gezielt prüfen: `pnpm format` und `pnpm --filter priority-pilot lint` (bzw. betroffenes Package).
 
-## Schritt 3 — Draft-PR erstellen & mit dem Ticket verknüpfen
+## Schritt 3 — PR (ready to review) erstellen & mit dem Ticket verknüpfen
 
 - Änderungen committen (Issue-Bezug in der Message, z. B. `… (#<nr>)`).
 - Branch pushen: `git push -u origin <branch>`.
-- **Draft-Pull-Request** erstellen:
-  `gh pr create --draft --assignee @me --title "<titel> (#<nr>)" --body "… Closes #<nr> …"`
+- **Pull-Request (ready to review)** erstellen — ein normaler PR ist ohne `--draft` sofort
+  review-bereit:
+  `gh pr create --assignee @me --title "<titel> (#<nr>)" --body "… Closes #<nr> …"`
 - **Development-Verknüpfung (Ticket ↔ PR):** Das Schlüsselwort `Closes #<nr>` im PR-Body
   (Ziel-Branch = `main`) erzeugt genau die Zuordnung im **„Development"-Bereich** — der PR wird
   dem Ticket zugeordnet und schließt es beim Merge. Einen separaten `gh`-Befehl dafür gibt es
@@ -44,7 +45,7 @@ gesetzt (zur Umsetzung freigegeben) → dieser Workflow setzt um.
   `pnpm format`-/Lint-Ergebnisse (siehe [conventions.md](conventions.md)).
 - Verknüpfung prüfen: `gh pr view <pr> --json closingIssuesReferences --jq '.closingIssuesReferences[].number'`
   muss `<nr>` enthalten.
-- Der PR bleibt **Draft** — die finale Freigabe/der Merge erfolgt durch einen Menschen.
+- Der PR ist **ready to review** (kein Draft) — die finale Freigabe/der Merge erfolgt durch einen Menschen.
 
 ## Schritt 4 — PR beobachten & Review-Kommentare behandeln
 
@@ -61,13 +62,14 @@ darauf reagieren, bis er **gemergt oder geschlossen** ist.
   - **Nicht zutreffend / kein Handlungsbedarf →** sachlich **kommentieren**, warum nichts geändert
     wird (statt stillschweigend zu ignorieren).
 - Antworten knapp halten; nicht jede Fix-Runde einzeln ankündigen — der PR-Diff ist der Nachweis.
-- Der PR bleibt **Draft**: Fixes verbessern ihn, der finale Merge bleibt beim Menschen.
+- Der PR ist **ready to review**: Fixes verbessern ihn, der finale Merge bleibt beim Menschen.
 
 > In Claude Code lässt sich das Beobachten automatisieren: Der PR kann per
 > `subscribe_pr_activity` abonniert werden, dann landen CI- und Review-Events direkt in der Session.
+> Kritische Reviews liefert der Command `/kreuzverhoer-review` (siehe [pr-review.md](pr-review.md)).
 
 ## Hinweise
 
-- Zuweisen (Schritt 1) und Push/Draft-PR (Schritt 3) schreiben **öffentlich** auf GitHub —
+- Zuweisen (Schritt 1) und Push/PR (Schritt 3) schreiben **öffentlich** auf GitHub —
   vor dem Push/PR bestätigen lassen.
-- Ergebnis des Workflows ist ein **Draft-PR**, kein Merge.
+- Ergebnis des Workflows ist ein **review-bereiter PR** (ready to review), kein Merge.

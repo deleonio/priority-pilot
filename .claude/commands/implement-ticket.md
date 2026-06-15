@@ -13,14 +13,15 @@ Pro Ticket:
 1. **Zuweisen** — sich selbst zuweisen (`gh issue edit <nr> --add-assignee @me`).
 2. **Umsetzen** — Lösung aus dem `ai:analyzed`-Kommentar bzw. Titel + Beschreibung + Repo in Code;
    auf eigenem Branch, Konventionen beachten, anschließend `pnpm format` + Lint.
-3. **Draft-PR + Ticket-Verknüpfung** — committen, Branch pushen, **Draft**-PR erstellen
-   (`gh pr create --draft --assignee @me`); `Closes #<nr>` im Body verknüpft den PR mit dem
-   Ticket (erscheint im „Development"-Bereich, schließt es beim Merge). PR-Beschreibung mit
-   format-/lint-Ergebnissen.
+3. **PR (ready to review) + Ticket-Verknüpfung** — committen, Branch pushen, PR erstellen
+   (`gh pr create --assignee @me`, **kein** `--draft` → sofort review-bereit); `Closes #<nr>` im
+   Body verknüpft den PR mit dem Ticket (erscheint im „Development"-Bereich, schließt es beim
+   Merge). PR-Beschreibung mit format-/lint-Ergebnissen.
 4. **Beobachten & Review-Kommentare behandeln** — den erstellten PR weiter beobachten (CI-Status
-   und Review-Kommentare). Pro Kommentar: zutreffende, kleine, eindeutige Punkte direkt **fixen**
+   und Review-Kommentare; z. B. via `subscribe_pr_activity` abonnieren, kritische Reviews via
+   `/kreuzverhoer-review`). Pro Kommentar: zutreffende, kleine, eindeutige Punkte direkt **fixen**
    (committen, pushen, format/Lint, kurz im Thread antworten + auflösen); bei Mehrdeutigkeit oder
    architektonisch relevanten Änderungen **vorher rückfragen**; sonst begründet **kommentieren**.
    CI-Fehler diagnostizieren und beheben. Bis **Merge oder Close** dranbleiben.
 
-Zuweisen und Push/Draft-PR schreiben öffentlich auf GitHub — vorher bestätigen lassen.
+Zuweisen und Push/PR schreiben öffentlich auf GitHub — vorher bestätigen lassen.
