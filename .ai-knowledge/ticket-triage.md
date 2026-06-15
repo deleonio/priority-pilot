@@ -19,6 +19,15 @@ verarbeitet, auch wenn sie bereits `ai:analyzed` trägt (Re-Triage, siehe Schrit
   **Batch-Läufen** die `--json`/`jq`-Variante bevorzugen, sonst kann ein gerade gelabeltes
   Issue erneut ausgewählt werden.
 - Eine konkret übergebene Nummer hat Vorrang; sonst der Reihe nach abarbeiten (ältestes zuerst).
+- **Batch-Verarbeitung:** Ohne konkrete Nummer **alle** passenden Issues in **einem** Lauf abarbeiten
+  (ältestes zuerst), nicht nur das erste. Jedes Ticket vollständig durch die Schritte 1–5 führen und
+  **erst dann** das nächste beginnen — so bleibt der Lauf jederzeit konsistent abbrechbar.
+- **Kontextbudget:** So viele Tickets pro Lauf verarbeiten, wie der Kontext zuverlässig zulässt. Wird
+  er knapp, das **aktuelle** Ticket sauber zu Ende führen (inkl. Label aus Schritt 5), dann
+  **stoppen** und die noch offenen Nummern für einen Folgelauf nennen. Da gelabelte Issues aus dem
+  Auswahlkriterium fallen, nimmt ein erneuter Lauf die Reste automatisch auf (idempotent). Bei
+  Batch-Läufen die `--json`/`jq`-Auswahl (oben) bevorzugen, sonst kann ein gerade gelabeltes Issue
+  erneut gewählt werden.
 - Gibt es kein passendes Issue: klar sagen und stoppen (nichts erfinden).
 - Pro Issue Details laden: `gh issue view <nr> --comments`
 - **Titel und Beschreibung** des Issues zusammen mit dem **Repo** zu einer Lösung konzipieren:
@@ -129,6 +138,8 @@ Bei einem zu großen Ticket:
 
 - Schritt 2 (Lektorat), 3 (Sub-Issues anlegen + verknüpfen), 4 (Kommentar) und 5 (Label) schreiben
   **öffentlich** auf GitHub (Issue-Body, neue Issues, Kommentar/Label, Benachrichtigungen) — vor der
-  Ausführung bestätigen lassen, besonders bei Batch-Verarbeitung mehrerer Issues.
+  Ausführung bestätigen lassen, besonders bei Batch-Verarbeitung mehrerer Issues. Die Bestätigung
+  kann **einmal für den ganzen Batch** eingeholt werden; danach die Issues ohne weitere Rückfrage
+  abarbeiten.
 - **Kein Produktivcode committen**; Triage bedeutet nur Analyse, Lektorat, ggf. Zerlegung,
   Kommentar und Label.
