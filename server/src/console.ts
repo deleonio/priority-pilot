@@ -1,31 +1,13 @@
 import readline from 'readline';
 import { Task } from './models/index.js';
 import { calculateValueContribution } from './logics/value.js';
+import { wouldCreateCycle } from './logics/cycle.js';
 import { Sequelize } from 'sequelize';
 
 const rl = readline.createInterface({
 	input: process.stdin,
 	output: process.stdout,
 });
-
-const checkForCycle = async (dependentTask: Task, newDependency: Task): Promise<boolean> => {
-	// Basisfall: Wenn der neue Dependency-Task der abhängige Task ist, liegt ein Zyklus vor
-	if (dependentTask.id === newDependency.id) {
-		return true;
-	}
-
-	// Hole alle direkten Abhängigkeiten des neuen Dependency-Tasks
-	const dependencies = await newDependency.getDependencies();
-
-	// Rekursiv prüfen, ob der abhängige Task in der Abhängigkeitskette ist
-	for (const dependency of dependencies) {
-		if (await checkForCycle(dependentTask, dependency)) {
-			return true;
-		}
-	}
-
-	return false; // Kein Zyklus gefunden
-};
 
 const showMenu = (): void => {
 	console.log('\nTask Management Console');
@@ -128,7 +110,7 @@ const addDependency = async (): Promise<void> => {
 				}
 
 				// Zyklusprüfung
-				const hasCycle = await checkForCycle(dependentTask, dependencyTask);
+				const hasCycle = await wouldCreateCycle(dependentTask, dependencyTask);
 				if (hasCycle) {
 					console.log('Abhängigkeit kann nicht hinzugefügt werden: Ein Zyklus würde entstehen.');
 					return resolve();
