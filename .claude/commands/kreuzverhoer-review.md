@@ -17,7 +17,7 @@ mit konkretem Datei-/Zeilenbezug belegen.
 2. **Kreuzverhör** — kritische Fragen: Löst der PR das Problem (ganz)? Edge Cases? Ist es der
    einfachste Weg? Performance- oder Security-Bedenken?
 3. **Code-Qualität** — Benennung/Lesbarkeit, Testabdeckung, Projekt-Konventionen
-   ([conventions.md](.ai-knowledge/conventions.md): Tabs, `strict`, ESM mit `.js`, keine
+   ([conventions.md](../../.ai-knowledge/conventions.md): Tabs, `strict`, ESM mit `.js`, keine
    Type-Assertions).
 4. **Findings posten** — pro Punkt ein an Datei/Zeile **verankerter** Review-Kommentar mit: _Was_
    das Problem/die Frage ist, _warum_ es zählt, _konkreter Vorschlag_. Gebündelt als Review mit

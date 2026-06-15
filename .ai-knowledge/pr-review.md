@@ -48,7 +48,7 @@ Pro Finding **ein konkreter, an Datei/Zeile verankerter Kommentar** — jeweils 
 - Gebündelt als **ein Review** mit inline verankerten Kommentaren posten, Event **`COMMENT`** (kein
   `APPROVE`/`REQUEST_CHANGES`): `gh api repos/{owner}/{repo}/pulls/<pr>/reviews` mit `event=COMMENT`,
   `body` (Zusammenfassung) und je Finding einem Eintrag in `comments[]` (`path`, `line`, `body`).
-  Einzelne Kommentare alternativ über `/pulls/<pr>/comments`.
+  Einzelne Kommentare alternativ über `repos/{owner}/{repo}/pulls/<pr>/comments`.
 - **Kein** formales Approve/Request-Changes — der Merge bleibt beim Menschen.
 
 ## Schritt 5 — Zusammenfassendes Urteil mit Ampel
