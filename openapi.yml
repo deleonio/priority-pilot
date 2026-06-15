@@ -1,28 +1,362 @@
 openapi: 3.0.0
 info:
-  title: My API
-  description: This is a sample API
+  title: Priority Pilot API
+  description: >-
+    Vertrag für die Aufgaben-Priorisierung über einen gewichteten
+    Abhängigkeitsgraphen. Aus dieser Datei werden sowohl die Server-Typen
+    (`server/src/api.d.ts`) als auch der TypeScript-Fetch-Client
+    (`client/src/generated/`) erzeugt.
   version: 1.0.0
 servers:
   - url: http://localhost:3000
 paths:
-  /users:
+  /tasks:
     get:
-      summary: Get all users
+      summary: Alle Tasks auflisten
+      operationId: listTasks
       responses:
         '200':
-          description: A list of users
+          description: Liste aller Tasks
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  type: object
-                  required:
-                    - id
-                    - name
-                  properties:
-                    id:
-                      type: integer
-                    name:
-                      type: string
+                  $ref: '#/components/schemas/Task'
+    post:
+      summary: Neuen Task anlegen
+      operationId: createTask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreate'
+      responses:
+        '201':
+          description: Task wurde angelegt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /tasks/{id}:
+    parameters:
+      - $ref: '#/components/parameters/TaskId'
+    get:
+      summary: Einen Task abrufen
+      operationId: getTask
+      responses:
+        '200':
+          description: Der angeforderte Task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      summary: Einen Task teilweise aktualisieren
+      operationId: updateTask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskUpdate'
+      responses:
+        '200':
+          description: Der aktualisierte Task
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      summary: Einen Task löschen
+      operationId: deleteTask
+      responses:
+        '204':
+          description: Task wurde gelöscht
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /tasks/{id}/dependencies:
+    parameters:
+      - $ref: '#/components/parameters/TaskId'
+    post:
+      summary: Abhängigkeit (Vorgänger) zu einem Task hinzufügen
+      description: >-
+        Fügt dem Task `{id}` eine Abhängigkeit hinzu — den im Body angegebenen
+        Task, von dem `{id}` abhängt (Vorgänger/Prerequisite). Entspricht
+        `task.addDependency()`. Eine Abhängigkeit, die einen Zyklus erzeugen
+        würde, wird mit `409` abgelehnt.
+      operationId: addDependency
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DependencyInput'
+      responses:
+        '201':
+          description: Abhängigkeit wurde angelegt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /tasks/{id}/dependencies/{depId}:
+    parameters:
+      - $ref: '#/components/parameters/TaskId'
+      - name: depId
+        in: path
+        required: true
+        description: ID der zu entfernenden Abhängigkeit (Vorgänger-Task, von dem `{id}` abhängt)
+        schema:
+          type: integer
+    delete:
+      summary: Abhängigkeit (Vorgänger) von einem Task entfernen
+      operationId: removeDependency
+      responses:
+        '204':
+          description: Abhängigkeit wurde entfernt
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /forest:
+    get:
+      summary: Aufgabenwald nach Wertschöpfung sortiert
+      description: >-
+        Liefert die Wurzel-Tasks (ohne Abhängigkeiten) als Bäume, absteigend
+        nach Wertbeitrag sortiert (siehe `buildTaskForest`).
+      operationId: getForest
+      responses:
+        '200':
+          description: Liste der Aufgabenbäume
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TaskTreeNode'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /next:
+    get:
+      summary: Nächsten wichtigen Task ermitteln
+      description: >-
+        Liefert den Task mit höchster Priorität, dessen Abhängigkeiten alle
+        abgeschlossen sind (siehe `findNextImportantTask`).
+      operationId: getNextTask
+      responses:
+        '200':
+          description: Der nächste wichtige Task oder `null`, falls keiner vorhanden ist
+          content:
+            application/json:
+              schema:
+                nullable: true
+                allOf:
+                  - $ref: '#/components/schemas/Task'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+components:
+  parameters:
+    TaskId:
+      name: id
+      in: path
+      required: true
+      description: ID des Tasks
+      schema:
+        type: integer
+  responses:
+    ValidationError:
+      description: Ungültige Eingabe
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Ressource nicht gefunden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Konflikt — die Abhängigkeit würde einen Zyklus erzeugen
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalServerError:
+      description: Interner Serverfehler (z. B. Datenbankfehler)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    TaskStatus:
+      type: string
+      enum:
+        - Open
+        - In process
+        - Done
+      default: Open
+      description: Bearbeitungsstatus des Tasks
+    Task:
+      type: object
+      required:
+        - id
+        - title
+        - status
+        - priority
+        - estimatedEffort
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        priority:
+          type: integer
+          minimum: 1
+          default: 3
+        estimatedEffort:
+          type: number
+          format: float
+          minimum: 0.1
+          default: 0.5
+          description: Geschätzter Eigenaufwand in Tagen
+        actualEffort:
+          type: number
+          format: float
+          minimum: 0
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        deadline:
+          type: string
+          format: date-time
+          nullable: true
+    TaskCreate:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        priority:
+          type: integer
+          minimum: 1
+          default: 3
+        estimatedEffort:
+          type: number
+          format: float
+          minimum: 0.1
+          default: 0.5
+        actualEffort:
+          type: number
+          format: float
+          minimum: 0
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        deadline:
+          type: string
+          format: date-time
+          nullable: true
+    TaskUpdate:
+      type: object
+      description: Alle Felder optional — gesetzte Felder werden aktualisiert.
+      properties:
+        title:
+          type: string
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        priority:
+          type: integer
+          minimum: 1
+        estimatedEffort:
+          type: number
+          format: float
+          minimum: 0.1
+        actualEffort:
+          type: number
+          format: float
+          minimum: 0
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        deadline:
+          type: string
+          format: date-time
+          nullable: true
+    DependencyInput:
+      type: object
+      required:
+        - dependingTaskId
+      properties:
+        dependingTaskId:
+          type: integer
+          description: >-
+            ID des Tasks, von dem `{id}` abhängt (Vorgänger/Prerequisite).
+            Entspricht der Spalte `dependingTaskId` im Join `dependencies`.
+        weight:
+          type: number
+          format: float
+          minimum: 0
+          default: 1
+          description: Gewicht der Abhängigkeit
+    TaskTreeNode:
+      type: object
+      required:
+        - id
+        - title
+        - priority
+        - estimatedEffort
+        - totalEstimatedEffort
+        - value
+        - dependents
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        priority:
+          type: integer
+        estimatedEffort:
+          type: number
+          format: float
+        totalEstimatedEffort:
+          type: number
+          format: float
+          description: Gesamtaufwand inkl. aller transitiven Abhängigkeiten
+        value:
+          type: number
+          format: float
+          description: Wertbeitrag des Tasks
+        dependents:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskTreeNode'
+    Error:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: Fehlerbeschreibung

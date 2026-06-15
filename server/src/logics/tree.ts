@@ -2,6 +2,7 @@ import { Task } from '../models/index.js';
 import { calculateValueContribution } from './value.js';
 
 export interface TaskTreeNode {
+	id: number;
 	title: string;
 	priority: number;
 	estimatedEffort: number;
@@ -32,6 +33,7 @@ const buildTaskTree = async (task: Task): Promise<TaskTreeNode> => {
 	}
 
 	return {
+		id: task.id,
 		title: task.title,
 		priority: task.priority,
 		estimatedEffort: task.estimatedEffort || 0,

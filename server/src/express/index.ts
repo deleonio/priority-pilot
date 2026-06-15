@@ -7,11 +7,11 @@ export const launchServer = async () => {
 	const app = express();
 	app.use(express.json());
 
+	// Platzhalter gegen den neuen API-Vertrag — die eigentlichen Task-Handler folgen in #8.
 	app.get(
-		'/users',
-		(_req, res: express.Response<paths['/users']['get']['responses']['200']['content']['application/json']>) => {
-			const users = [{ id: 1, name: 'John Doe' }];
-			res.json(users);
+		'/tasks',
+		(_req, res: express.Response<paths['/tasks']['get']['responses']['200']['content']['application/json']>) => {
+			res.json([]);
 		},
 	);
 
