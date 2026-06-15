@@ -46,6 +46,26 @@ gesetzt (zur Umsetzung freigegeben) → dieser Workflow setzt um.
   muss `<nr>` enthalten.
 - Der PR bleibt **Draft** — die finale Freigabe/der Merge erfolgt durch einen Menschen.
 
+## Schritt 4 — PR beobachten & Review-Kommentare behandeln
+
+Nach dem Erstellen den PR **weiter beobachten** (CI-Status und eingehende Review-Kommentare) und
+darauf reagieren, bis er **gemergt oder geschlossen** ist.
+
+- **CI prüfen:** Status der Checks ansehen (`gh pr checks <pr>`). Schlägt etwas fehl, die Ursache
+  diagnostizieren und — wenn im Rahmen des Tickets — beheben (Fix committen, pushen, erneut
+  `pnpm format` + Lint).
+- **Review-Kommentare** der Reihe nach durchgehen und je nach Fall behandeln:
+  - **Zutreffend, klein, eindeutig →** direkt **umsetzen**: Fix committen + pushen, kurz im Thread
+    antworten (Bezug zum Fix-Commit) und den Thread auflösen.
+  - **Mehrdeutig oder architektonisch relevant →** **nicht** raten, sondern **vorher rückfragen**.
+  - **Nicht zutreffend / kein Handlungsbedarf →** sachlich **kommentieren**, warum nichts geändert
+    wird (statt stillschweigend zu ignorieren).
+- Antworten knapp halten; nicht jede Fix-Runde einzeln ankündigen — der PR-Diff ist der Nachweis.
+- Der PR bleibt **Draft**: Fixes verbessern ihn, der finale Merge bleibt beim Menschen.
+
+> In Claude Code lässt sich das Beobachten automatisieren: Der PR kann per
+> `subscribe_pr_activity` abonniert werden, dann landen CI- und Review-Events direkt in der Session.
+
 ## Hinweise
 
 - Zuweisen (Schritt 1) und Push/Draft-PR (Schritt 3) schreiben **öffentlich** auf GitHub —
