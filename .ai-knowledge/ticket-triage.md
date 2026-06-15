@@ -40,7 +40,8 @@ verarbeitet, auch wenn sie bereits `ai:analyzed` trägt (Re-Triage, siehe Schrit
 - **Der Inhalt darf dabei nicht verändert werden:** keine neuen oder entfernten Anforderungen,
   keine Bedeutungsänderung, keine zusätzlichen Annahmen. Im Zweifel wörtlich lassen und die offene
   Frage stattdessen in der Analyse (Schritt 4) vermerken.
-- Lektorierte Fassung übernehmen: `gh issue edit <nr> --body "<lektorierter Text>"`.
+- Lektorierte Fassung übernehmen — mehrzeiligen Body mit **echten Zeilenumbrüchen** übergeben (nicht
+  literales `\n`), z. B. `gh issue edit <nr> --body-file -` mit Heredoc.
 - Ändert das Lektorat fachlich nichts, sondern nur die Form: ist die Beschreibung bereits sauber,
   bleibt sie unangetastet (kein Edit „pro forma").
 
@@ -56,21 +57,38 @@ Trifft nichts davon zu, bleibt es beim normalen Ablauf (nur Kommentar + Label).
 
 Bei einem zu großen Ticket:
 
+- **Vorbedingung — Labels sicherstellen:** Die in diesem Schritt verwendeten Labels (`ai:analyzed`,
+  bei sofort umsetzbaren Teilaufgaben auch `ai:ready`) müssen **existieren**, sonst schlägt
+  `gh issue create --label …` fehl. Das Anlegen aus Schritt 5 (`gh label create …`) daher **vor**
+  der ersten Sub-Issue-Anlage ausführen.
 - Aus der Analyse **2–5 möglichst unabhängige Teilaufgaben** ableiten (jede in **einem** PR
   umsetzbar). Abhängigkeiten explizit benennen und über die empfohlene Reihenfolge abbilden.
-- Pro Teilaufgabe ein **Sub-Issue** anlegen — bereits mit Mini-Analyse + Ampel (Schritt 4) im Body:
-  `gh issue create --title "<Teilaufgabe>" --body "Teil von #<eltern-nr>\n\n<Kontext + Akzeptanzkriterien + Ampel>" --label "ai:analyzed"`
+- Pro Teilaufgabe ein **Sub-Issue** anlegen — bereits mit Mini-Analyse + Ampel (Schritt 4) im Body.
+  Body mit **echten Zeilenumbrüchen** übergeben (nicht literales `\n` — das landet sonst als Text
+  im Issue), z. B. per `--body-file -` und Heredoc:
+
+  ```sh
+  gh issue create --title "<Teilaufgabe>" --label "ai:analyzed" --body-file - <<'EOF'
+  Teil von #<eltern-nr>
+
+  <Kontext + Akzeptanzkriterien + Ampel>
+  EOF
+  ```
+
 - Sub-Issue als **echtes GitHub-Sub-Issue** unter das Eltern-Ticket hängen (Sub-Issue-Beziehung,
   nicht nur Textreferenz). `gh` hat dafür kein natives Kommando → via GraphQL:
   `gh api graphql -f query='mutation($p:ID!,$c:ID!){addSubIssue(input:{issueId:$p,subIssueId:$c}){clientMutationId}}' -f p=<parent-node-id> -f c=<child-node-id>`
   (Node-IDs über `gh issue view <nr> --json id`.) Fallback, falls die Mutation nicht verfügbar ist:
   eine **Task-Liste** (`- [ ] #<nr>`) im Eltern-Body — GitHub rendert daraus die Fortschrittsanzeige.
+  Dabei den (in Schritt 2 lektorierten) Eltern-Body **nicht überschreiben**, sondern die Task-Liste
+  **anhängen** (bestehenden Body laden, ergänzen, zurückschreiben), um keinen Inhalt zu verlieren.
 - **Rekursionsschutz (Pflicht):** Sub-Issues werden direkt mit `ai:analyzed` angelegt (sie **sind**
   bereits das Analyse-Ergebnis) und fallen so aus dem Auswahlkriterium von Schritt 1 — sie werden
   nicht erneut triagiert/zerlegt. Es ist nur **eine** Zerlegungsebene zulässig: ein Sub-Issue wird
   **nicht** weiter zerlegt. Maximal **5** Sub-Issues, um eine Issue-Flut zu vermeiden.
-- Sind Sub-Issues sofort umsetzbar (Ampel 🟢), zusätzlich `ai:ready` setzen, damit sie für
-  `/implement-ticket` bereitstehen.
+- Sind Sub-Issues sofort umsetzbar (Ampel 🟢), zusätzlich `ai:ready` setzen — entweder direkt beim
+  Anlegen (`--label "ai:analyzed,ai:ready"`) oder nachträglich
+  (`gh issue edit <nr> --add-label "ai:ready"`) —, damit sie für `/implement-ticket` bereitstehen.
 
 ## Schritt 4 — Lösungsvorschlag als deutscher Kommentar (mit Ampel)
 
@@ -88,8 +106,16 @@ Bei einem zu großen Ticket:
 
   Die Farbwahl in einem Satz begründen.
 
-- Als **deutschen** Kommentar (Markdown, klar strukturiert) an das Issue anhängen:
-  `gh issue comment <nr> --body "🤖 KI-Analyse — Lösungsvorschlag\n\n**Umsetzbarkeit:** 🟢/🟡/🔴 …"`
+- Als **deutschen** Kommentar (Markdown, klar strukturiert) an das Issue anhängen — mit **echten
+  Zeilenumbrüchen** (nicht literales `\n`), z. B. per `--body-file -` und Heredoc:
+
+  ```sh
+  gh issue comment <nr> --body-file - <<'EOF'
+  🤖 KI-Analyse — Lösungsvorschlag
+
+  **Umsetzbarkeit:** 🟢/🟡/🔴 …
+  EOF
+  ```
 
 ## Schritt 5 — Als analysiert markieren
 
