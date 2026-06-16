@@ -1,8 +1,10 @@
 # Projekt: Priority Pilot
 
-Werkzeug zur **Aufgaben-Priorisierung** über einen gewichteten Abhängigkeitsgraphen.
-Pro Task werden Wertbeitrag (eigene Priorität + gewichtete Werte der abhängigen Tasks) und
-Gesamtaufwand inkl. transitiver Abhängigkeiten berechnet. Fachliche Details: [../README.md](../README.md).
+Werkzeug zur **Aufgaben-Priorisierung** über einen gewichteten Abhängigkeitsgraphen, kombiniert
+mit **Lebensbalance-Säulen**. Pro Task werden Wertbeitrag (eigene Priorität + gewichtete Werte der
+abhängigen Tasks, multiplikativ skaliert mit dem Säulen-Gewicht) und Gesamtaufwand inkl. transitiver
+Abhängigkeiten berechnet. Full-Stack: Express-REST-API + React/KoliBri-PWA.
+Fachliche Details: [../README.md](../README.md).
 
 ## Monorepo
 

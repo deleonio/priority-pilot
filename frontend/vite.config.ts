@@ -28,7 +28,7 @@ export default defineConfig({
 			manifest: {
 				name: 'Priority Pilot',
 				short_name: 'Priority Pilot',
-				description: 'Aufgaben-Priorisierung über einen gewichteten Abhängigkeitsgraphen.',
+				description: 'Aufgaben-Priorisierung über einen gewichteten Abhängigkeitsgraphen und Lebensbalance-Säulen.',
 				theme_color: '#1a1a1a',
 				background_color: '#ffffff',
 				display: 'standalone',

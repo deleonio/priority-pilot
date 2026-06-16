@@ -2,7 +2,9 @@
 
 Web-Oberfläche des [Priority-Pilot-Monorepos](../README.md): **Vite + React 19 + KoliBri**
 (`@public-ui`), als installierbare **PWA** (`vite-plugin-pwa`). Spricht die Server-API über den
-generierten [`client`](../client) an.
+generierten [`client`](../client) an. Bietet ein Dashboard (Kennzahlen, wichtigste Tasks,
+Deadlines, Säulen-Widget „Meine Themen"), eine Aufgabentabelle sowie Dialoge zum Pflegen von
+Abhängigkeiten und Säulen-Gewichtung.
 
 ## Frontend starten (Dev-Server)
 
@@ -11,8 +13,8 @@ pnpm --filter frontend dev
 ```
 
 Startet den **Vite-Dev-Server** (Standard: `http://localhost:5173`) mit HMR. Die API-Pfade
-`/tasks`, `/forest`, `/next` werden per Proxy an den Express-Server unter `http://localhost:3000`
-weitergeleitet ([`vite.config.ts`](vite.config.ts)) — das löst CORS im Browser.
+`/tasks`, `/pillars`, `/forest`, `/next` werden per Proxy an den Express-Server unter
+`http://localhost:3000` weitergeleitet ([`vite.config.ts`](vite.config.ts)) — das löst CORS im Browser.
 
 > **Der Server muss parallel laufen.** In einem zweiten Terminal:
 > `pnpm --filter priority-pilot dev` (siehe [`server/README.md`](../server/README.md)).
