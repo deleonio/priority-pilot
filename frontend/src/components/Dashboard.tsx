@@ -73,7 +73,7 @@ export const Dashboard = ({ tasks, forest, nextTask }: DashboardProps) => {
 					</li>
 				))}
 			</ul>
-			<div className="dashboard-next-task">
+			<section className="dashboard-next-task">
 				<h3>Nächste Aufgabe</h3>
 				{nextTask === null ? (
 					<p>Aktuell steht keine Aufgabe an (alle erledigt oder durch offene Vorgänger blockiert).</p>
@@ -85,8 +85,8 @@ export const Dashboard = ({ tasks, forest, nextTask }: DashboardProps) => {
 						(Priorität {nextTask.priority})
 					</p>
 				)}
-			</div>
-			<div className="dashboard-top-tasks">
+			</section>
+			<section className="dashboard-top-tasks">
 				<h3>Wichtigste Tasks</h3>
 				{topTasks.length === 0 ? (
 					<p>Keine offenen Aufgaben vorhanden.</p>
@@ -104,8 +104,8 @@ export const Dashboard = ({ tasks, forest, nextTask }: DashboardProps) => {
 						))}
 					</ol>
 				)}
-			</div>
-			<div className="dashboard-deadlines">
+			</section>
+			<section className="dashboard-deadlines">
 				<h3>Anstehende Deadlines</h3>
 				{upcomingDeadlines.length === 0 ? (
 					<p>Keine anstehenden Deadlines.</p>
@@ -121,7 +121,7 @@ export const Dashboard = ({ tasks, forest, nextTask }: DashboardProps) => {
 						))}
 					</ul>
 				)}
-			</div>
+			</section>
 		</section>
 	);
 };

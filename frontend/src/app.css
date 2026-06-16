@@ -139,6 +139,28 @@ body {
 	white-space: nowrap;
 }
 
+/* Ab mittlerer Breite zweispaltig: „Nächste Aufgabe" bleibt prominent über die volle Breite,
+   „Wichtigste Tasks" und „Anstehende Deadlines" stehen nebeneinander. */
+@media (min-width: 48rem) {
+	.dashboard {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 1.5rem;
+		align-items: start;
+	}
+
+	/* Abstände steuert im Grid der gap, nicht die Eigenmargin der Widgets. */
+	.dashboard > * {
+		margin-top: 0;
+	}
+
+	.dashboard h2,
+	.dashboard-cards,
+	.dashboard-next-task {
+		grid-column: 1 / -1;
+	}
+}
+
 .dashboard-top-tasks-list {
 	margin: 0;
 	padding-left: 1.25rem;
