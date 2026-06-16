@@ -117,13 +117,25 @@ Bei einem zu großen Ticket:
   EOF
   ```
 
-## Schritt 5 — Als analysiert markieren
+## Schritt 5 — Markieren (`ai:analyzed`; bei klarer Analyse 🟢 zusätzlich `ai:ready`)
 
 - Label `ai:analyzed` bei Bedarf anlegen:
   `gh label create "ai:analyzed" --color 1D76DB --description "Von der KI analysiert; Lösungsvorschlag als Kommentar vorhanden"`
 - Setzen: `gh issue edit <nr> --add-label "ai:analyzed"`
 - Damit fällt das Issue aus dem Auswahlkriterium von Schritt 1 heraus. (Beim Re-Triage ist das Label
   bereits gesetzt — dann genügt der aktualisierte Kommentar aus Schritt 1/4.)
+- **`ai:ready` nach der Ampel aus Schritt 4 steuern** — nur eine **klar umsetzbare** Analyse wird
+  direkt zur Umsetzung freigegeben, alles andere bleibt beim Menschen:
+  - **🟢 grün →** zusätzlich `ai:ready` setzen. Label bei Bedarf vorher anlegen
+    (`gh label create "ai:ready" --color 0E8A16 --description "Analyse klar; zur Umsetzung freigegeben"`),
+    dann `gh issue edit <nr> --add-label "ai:ready"`. Das Issue steht damit direkt für
+    `/implement-ticket` bereit (siehe [ticket-implementation.md](ticket-implementation.md)).
+  - **🟡 gelb / 🔴 rot →** **kein** `ai:ready` setzen — offene Fragen/Risiken klärt der Mensch und
+    gibt ggf. von Hand frei. Trägt ein Issue beim **Re-Triage** bereits `ai:ready`, ist die Ampel
+    aber auf 🟡/🔴 gekippt: nicht automatisch umsetzen lassen — im Kommentar darauf hinweisen und
+    den Menschen entscheiden lassen (`ai:ready` ggf. von Hand entfernen).
+- Konsistenz zu Schritt 3: Bei Zerlegung werden 🟢-Sub-Issues nach derselben Regel direkt mit
+  `ai:ready` angelegt.
 
 ## Hinweise
 

@@ -27,7 +27,8 @@ Wissensbasis liegt in [`.ai-knowledge/`](.ai-knowledge/).
 Offene Issues **ohne** Label `ai:analyzed` analysieren (aus Titel + Beschreibung + Repo eine
 Lösung konzipieren) → Beschreibung **lektorieren** (Form verbessern, Inhalt unverändert) → zu große
 Tickets in verknüpfte **Sub-Issues** zerlegen (max. eine Ebene, Rekursionsschutz via `ai:analyzed`)
-→ deutscher Lösungs-Kommentar mit Umsetzbarkeits-**Ampel** (🟢/🟡/🔴) → Label `ai:analyzed` setzen.
+→ deutscher Lösungs-Kommentar mit Umsetzbarkeits-**Ampel** (🟢/🟡/🔴) → Label `ai:analyzed` setzen
+(**bei klarer Analyse 🟢 zusätzlich `ai:ready`** zur direkten Umsetzungs-Freigabe; bei 🟡/🔴 nicht).
 Liegt bereits eine Analyse vor, wird sie auf Passung/Vollständigkeit geprüft und bei Bedarf
 aktualisiert (Re-Triage). Vollständiger Ablauf:
 [.ai-knowledge/ticket-triage.md](.ai-knowledge/ticket-triage.md).
@@ -36,18 +37,21 @@ einem Durchlauf).
 
 ## Ticket-Umsetzung
 
-Offene Issues mit Label `ai:ready` (vom Menschen zur Umsetzung freigegeben), die **nicht
-zugewiesen** sind: sich selbst zuweisen → auf eigenem Branch umsetzen → `pnpm format` + Lint →
-**PR (ready to review)**, via `Closes #<nr>` mit dem Ticket verknüpft (erscheint im „Development"-Bereich,
-schließt es beim Merge) → **Kreuzverhör-Loop**: den PR in Runden kritisch prüfen (`/kreuzverhoer-review`)
-und nachbessern (zutreffende Findings fixen, mehrdeutige rückfragen, sonst begründet kommentieren),
-**bis das Urteil 🟢 ist und keine Anmerkung mehr offen** ist (nach max. 3 Runden mit offenen Punkten
-den Menschen entscheiden lassen). Vollständiger Ablauf:
+Offene Issues mit Label `ai:ready` (zur Umsetzung freigegeben — bei klarer Analyse 🟢 automatisch
+durch die Triage, sonst vom Menschen), die **nicht zugewiesen** sind: sich selbst zuweisen → auf
+eigenem Branch umsetzen → `pnpm format` + Lint → **PR (ready to review)**, via `Closes #<nr>` mit dem
+Ticket verknüpft (erscheint im „Development"-Bereich, schließt es beim Merge) → **PR verfolgen**
+(abonnieren) und im **Kreuzverhör-Loop** in Runden kritisch prüfen (`/kreuzverhoer-review`) und
+nachbessern **sowie automatisch auf eingehende Review-Anmerkungen reagieren** (zutreffende Findings
+fixen, mehrdeutige rückfragen, sonst begründet kommentieren), **bis das Urteil 🟢 ist und keine
+Anmerkung mehr offen** ist (nach max. 3 Runden mit offenen Punkten den Menschen entscheiden lassen);
+die Verfolgung läuft weiter bis **Merge/Schließen**. Vollständiger Ablauf:
 [.ai-knowledge/ticket-implementation.md](.ai-knowledge/ticket-implementation.md).
 Konkreter Command: `/implement-ticket`.
 
-Label-Kette: `ai:analyzed` (analysiert) → `ai:ready` (freigegeben) → Umsetzung als PR (ready to review),
-der den Kreuzverhör-Loop (`/kreuzverhoer-review`) bis zur 🟢-Freigabe durchläuft.
+Label-Kette: `ai:analyzed` (analysiert) → `ai:ready` (freigegeben — bei 🟢 automatisch durch die
+Triage, sonst durch den Menschen) → Umsetzung als PR (ready to review), der den Kreuzverhör-Loop
+(`/kreuzverhoer-review`) durchläuft und bis Merge/Schließen verfolgt wird.
 
 ## PR-Review (Kreuzverhör)
 
@@ -61,8 +65,10 @@ formales Approve/Request-Changes — der Merge bleibt beim Menschen. Vollständi
 Konkreter Command: `/kreuzverhoer-review`.
 
 Die im Review entstehenden Kommentare werden vom Umsetzungs-Workflow (`/implement-ticket`,
-Schritt 4) im **Kreuzverhör-Loop** abgearbeitet: zutreffende Punkte fixen, mehrdeutige rückfragen,
-sonst begründet kommentieren — danach erneut kreuzverhören, bis nichts mehr offen ist.
+Schritt 5) im **Kreuzverhör-Loop** abgearbeitet — der den PR zusätzlich **abonniert und automatisch
+auf eingehende Review-Anmerkungen reagiert**: zutreffende Punkte fixen, mehrdeutige rückfragen, sonst
+begründet kommentieren — danach erneut kreuzverhören, bis nichts mehr offen ist (Verfolgung bis
+Merge/Schließen).
 
 ## Tests (Server)
 
