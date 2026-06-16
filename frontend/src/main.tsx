@@ -4,6 +4,10 @@ import { DEFAULT } from '@public-ui/theme-default';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+// KolIcons-Font laden, damit die eingebauten KoliBri-Icons (KolAlert, KolSpin, Selects …) rendern.
+// Direkter Pfad-Import statt Bare-Specifier, weil die `exports`-Map von @public-ui/components den
+// Asset-Subpfad nicht freigibt (siehe doc/HOWTO_ICON_FONTS); Vite bündelt den Font darüber selbst.
+import '../node_modules/@public-ui/components/assets/kolicons/style.css';
 import './app.css';
 
 const container = document.getElementById('root');
