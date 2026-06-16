@@ -1,6 +1,7 @@
 import express from 'express';
 import type { components } from '../api';
 import { tasksRouter, serializeTask } from './routes/tasks.js';
+import { pillarsRouter } from './routes/pillars.js';
 import { buildTaskForest } from '../logics/tree.js';
 import { findNextImportantTask } from '../logics/find.js';
 
@@ -16,6 +17,9 @@ export const createApp = () => {
 
 	// Task-CRUD- & Dependency-Routen (siehe routes/tasks.ts).
 	app.use(tasksRouter);
+
+	// Säulen-Routen: Gewichtung lesen/setzen (siehe routes/pillars.ts).
+	app.use(pillarsRouter);
 
 	// GET /forest — Aufgabenwald nach Wertschöpfung sortiert.
 	app.get('/forest', async (_req, res: express.Response<TaskTreeNodeDto[] | ErrorDto>) => {
