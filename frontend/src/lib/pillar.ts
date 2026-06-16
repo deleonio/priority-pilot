@@ -1,4 +1,4 @@
-import type { Pillar } from 'client';
+import type { Pillar, Task } from 'client';
 import { formatNumber } from './task';
 
 /**
@@ -35,3 +35,38 @@ export const isWeightSumValid = (sum: number): boolean => Math.abs(sum - TOTAL_W
 
 /** Säulen-Name samt prozentualem Anteil, z. B. „Körper (20 %)". */
 export const pillarLabelWithWeight = (pillar: Pillar): string => `${pillar.name} (${formatNumber(pillar.weight)} %)`;
+
+/** Kennzahlen einer Säule für das Dashboard-Widget „Meine Themen". */
+export interface PillarSummary {
+	pillar: Pillar;
+	/** Anzahl der dieser Säule zugeordneten Tasks. */
+	taskCount: number;
+	/** Summe des geschätzten Eigenaufwands (Tage) dieser Tasks. */
+	totalEstimatedEffort: number;
+	/**
+	 * Summe der Wertbeiträge dieser Tasks. Die Werte stammen aus dem Aufgabenwald (`valueByTaskId`),
+	 * der nur offene/in Arbeit befindliche Tasks enthält — `Done`-Tasks tragen daher 0 bei.
+	 */
+	totalValue: number;
+}
+
+/**
+ * Aggregiert je Säule die zugeordneten Tasks zu Anzahl, Gesamtaufwand und Gesamtwert — Datenbasis
+ * für das Dashboard-Widget „Meine Themen". `valueByTaskId` liefert den Wertbeitrag je Task (siehe
+ * `collectTaskValues`); fehlt ein Task dort (z. B. `Done`), zählt sein Wert als 0. Die Reihenfolge
+ * der Säulen bleibt erhalten.
+ */
+export const buildPillarSummaries = (
+	pillars: Pillar[],
+	tasks: Task[],
+	valueByTaskId: ReadonlyMap<number, number>,
+): PillarSummary[] =>
+	pillars.map((pillar) => {
+		const pillarTasks = tasks.filter((task) => task.pillarId === pillar.id);
+		return {
+			pillar,
+			taskCount: pillarTasks.length,
+			totalEstimatedEffort: pillarTasks.reduce((sum, task) => sum + task.estimatedEffort, 0),
+			totalValue: pillarTasks.reduce((sum, task) => sum + (valueByTaskId.get(task.id) ?? 0), 0),
+		};
+	});
