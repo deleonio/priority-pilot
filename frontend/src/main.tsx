@@ -5,19 +5,26 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
 
-// KoliBri-Komponenten im Default-Theme registrieren — muss vor dem ersten Render geschehen.
+const container = document.getElementById('root');
+if (container === null) {
+	throw new Error('Root-Element #root nicht gefunden.');
+}
+const root = createRoot(container);
+
+const renderApp = () => {
+	root.render(
+		<StrictMode>
+			<App />
+		</StrictMode>,
+	);
+};
+
+// KoliBri-Komponenten im Default-Theme registrieren — sollte vor dem ersten Render geschehen.
+// Schlägt die Registrierung fehl, wird die App dennoch gerendert (kein weißer Screen); die
+// KoliBri-Komponenten werten dann ggf. ohne Upgrade aus.
 register(DEFAULT, defineCustomElements)
-	.then(() => {
-		const container = document.getElementById('root');
-		if (container === null) {
-			throw new Error('Root-Element #root nicht gefunden.');
-		}
-		createRoot(container).render(
-			<StrictMode>
-				<App />
-			</StrictMode>,
-		);
-	})
+	.then(renderApp)
 	.catch((reason: unknown) => {
 		console.error('Fehler bei der KoliBri-Registrierung:', reason);
+		renderApp();
 	});
