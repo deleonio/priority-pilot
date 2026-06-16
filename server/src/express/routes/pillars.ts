@@ -111,8 +111,15 @@ pillarsRouter.put('/pillars/weights', async (req: Request, res: Response<PillarD
 		}
 
 		const weightById = new Map(entries.map((entry) => [entry.id, entry.weight]));
+		// Sequenziell (statt parallel) aktualisieren: garantiert eine konsistente Sperrreihenfolge
+		// (pillars ist nach id sortiert) und engt zugleich den Map-Lookup auf `number` ein.
 		await sequelize.transaction(async (transaction) => {
-			await Promise.all(pillars.map((pillar) => pillar.update({ weight: weightById.get(pillar.id) }, { transaction })));
+			for (const pillar of pillars) {
+				const weight = weightById.get(pillar.id);
+				if (weight !== undefined) {
+					await pillar.update({ weight }, { transaction });
+				}
+			}
 		});
 
 		res.json(pillars.map(serializePillar));
