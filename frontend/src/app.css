@@ -176,6 +176,52 @@ body {
 	margin-left: 0.5rem;
 }
 
+.dashboard-pillars {
+	margin-top: 1.5rem;
+}
+
+.dashboard-pillars h3 {
+	margin: 0 0 0.5rem;
+}
+
+.dashboard-pillars-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.dashboard-pillar {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+	padding: 0.5rem 0;
+	border-bottom: 1px solid var(--pp-border);
+}
+
+.dashboard-pillar:last-child {
+	border-bottom: none;
+}
+
+.dashboard-pillar-head {
+	display: flex;
+	justify-content: space-between;
+	gap: 1rem;
+}
+
+.dashboard-pillar-name {
+	font-weight: 600;
+}
+
+.dashboard-pillar-weight {
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.dashboard-pillar-meta {
+	color: var(--pp-text-muted);
+	font-size: 0.875rem;
+}
+
 /* --- Task-Tabelle --- */
 .task-table {
 	width: 100%;
