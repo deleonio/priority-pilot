@@ -132,8 +132,10 @@ Bei einem zu großen Ticket:
     `/implement-ticket` bereit (siehe [ticket-implementation.md](ticket-implementation.md)).
   - **🟡 gelb / 🔴 rot →** **kein** `ai:ready` setzen — offene Fragen/Risiken klärt der Mensch und
     gibt ggf. von Hand frei. Trägt ein Issue beim **Re-Triage** bereits `ai:ready`, ist die Ampel
-    aber auf 🟡/🔴 gekippt: nicht automatisch umsetzen lassen — im Kommentar darauf hinweisen und
-    den Menschen entscheiden lassen (`ai:ready` ggf. von Hand entfernen).
+    aber auf 🟡/🔴 gekippt: `ai:ready` **automatisch entfernen**
+    (`gh issue edit <nr> --remove-label "ai:ready"`), damit `/implement-ticket` das Issue nicht
+    unbeaufsichtigt aufgreift (Race Condition), und im Kommentar darauf hinweisen — die erneute
+    Freigabe entscheidet der Mensch.
 - Konsistenz zu Schritt 3: Bei Zerlegung werden 🟢-Sub-Issues nach derselben Regel direkt mit
   `ai:ready` angelegt.
 

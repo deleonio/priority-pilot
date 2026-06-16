@@ -49,9 +49,10 @@ Pro Ticket:
    Bereits begründet abgelehnte Findings nicht erneut aufmachen; bleiben nach **3 Runden**
    substanzielle/mehrdeutige Punkte offen, den Stand zusammenfassen und den **Menschen** entscheiden
    lassen (nicht endlos weiterdrehen). Das **PR-Abo bleibt aktiv** und reagiert auf **später**
-   eingehende Review-Anmerkungen/CI erneut — bis der PR **gemergt/geschlossen** ist oder der Mensch
-   stoppt (`unsubscribe_pr_activity`). Da nicht alle Zustände als Event kommen (CI-Erfolg, neue
-   Pushes), den PR-Stand zwischendurch aktiv nachprüfen (`gh pr checks`/`gh pr view`).
+   eingehende Review-Anmerkungen/CI erneut — sobald der PR **gemergt/geschlossen** ist (oder der
+   Mensch stoppt), das Abo **aktiv beenden** (`unsubscribe_pr_activity` aufrufen). Da nicht alle
+   Zustände als Event kommen (CI-Erfolg, neue Pushes), den PR-Stand zwischendurch aktiv nachprüfen
+   (`gh pr checks`/`gh pr view`).
 
 Zuweisen, ein ggf. aktualisierter Re-Analyse-Kommentar, Push/PR und die Review-Kommentare des
 Kreuzverhörs schreiben öffentlich auf GitHub — vorher bestätigen lassen. Die PR-Verfolgung läuft

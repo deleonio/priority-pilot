@@ -125,8 +125,9 @@ der finale Merge bleibt beim Menschen.
 
 **Verfolgung bleibt aktiv:** Das PR-Abo läuft darüber hinaus weiter. Kommen **später**
 Review-Anmerkungen, neue Commits oder CI-Fehler herein, wird **erneut reagiert** (neue Runde nach
-demselben Schema). Die Verfolgung endet erst, wenn der PR **gemergt oder geschlossen** ist oder der
-Mensch sie stoppt (in Claude Code: `unsubscribe_pr_activity`). Da nicht alle Zustände als Event
+demselben Schema). Die Verfolgung endet, sobald der PR **gemergt oder geschlossen** ist oder der
+Mensch sie stoppt — dann das Abo **aktiv beenden** (in Claude Code: `unsubscribe_pr_activity`
+aufrufen), damit keine unnötigen Session-Weckrufe offen bleiben. Da nicht alle Zustände als Event
 ankommen (CI-Erfolg, neue Pushes, Merge-Konflikt-Wechsel), den PR-Stand zwischendurch aktiv
 nachprüfen (`gh pr checks`, `gh pr view`) statt sich allein auf Events zu verlassen.
 
