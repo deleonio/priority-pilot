@@ -6,8 +6,14 @@ allowed-tools: Bash(gh issue list:*), Bash(gh issue view:*), Bash(gh issue creat
 
 Führe den vollständigen Ticket-Triage-Workflow aus der Wissensbasis aus: @.ai-knowledge/ticket-triage.md
 
-Ziel-Issue: $ARGUMENTS (leer = offene Issues **ohne** Label `ai:analyzed`, ältestes zuerst; eine
-konkrete Nummer wird auch bei vorhandenem `ai:analyzed` als Re-Triage verarbeitet).
+Ziel-Issue: $ARGUMENTS
+
+- **Leer** → **alle** offenen Issues **ohne** Label `ai:analyzed` als Batch abarbeiten, **ältestes
+  zuerst** — so viele Tickets pro Lauf, wie der Kontext zuverlässig zulässt (siehe »Batch &
+  Kontext« unten).
+- **Konkrete Nummer(n)** → nur diese verarbeiten; ein bereits vorhandenes `ai:analyzed` wird dabei
+  als Re-Triage behandelt (siehe Schritt 1). Mehrere Nummern (z. B. `7 8 9`) werden der Reihe nach
+  abgearbeitet.
 
 Pro Ticket alle Schritte ausführen:
 
@@ -20,5 +26,14 @@ Pro Ticket alle Schritte ausführen:
    sonst nicht — damit steht das Issue direkt für `/implement-ticket` bereit; bei 🟡/🔴 entscheidet
    der Mensch über die Freigabe.
 
-Schritt 2–5 schreiben **öffentlich** auf GitHub — vor dem Posten bestätigen lassen, besonders bei mehreren Issues.
+**Batch & Kontext:** Mehrere Tickets in **einem** Lauf verarbeiten, solange der Kontext ausreicht.
+Jedes Ticket vollständig abschließen (inkl. Label in Schritt 5), **bevor** das nächste begonnen wird
+— so ist der Lauf jederzeit sauber abbrechbar und idempotent. Wird der Kontext knapp, das **aktuelle**
+Ticket sauber zu Ende führen, dann **stoppen** und die noch offenen Nummern für einen Folgelauf
+nennen (ein erneuter Aufruf nimmt sie dank `ai:analyzed`-Filter automatisch wieder auf). Für
+Batch-Läufe die `--json`/`jq`-Auswahl aus Schritt 1 der Wissensbasis nutzen, damit ein gerade
+gelabeltes Issue nicht erneut gewählt wird.
+
+Schritt 2–5 schreiben **öffentlich** auf GitHub — vor dem Posten bestätigen lassen, besonders bei
+mehreren Issues (die Bestätigung kann **einmal für den ganzen Batch** eingeholt werden).
 Kein Produktivcode committen.
