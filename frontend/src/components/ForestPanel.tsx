@@ -8,6 +8,11 @@ interface ForestPanelProps {
 /**
  * Rekursive Darstellung eines Baumknotens samt seiner abhängigen Tasks.
  *
+ * Bewusst kein `KolTree`/`KolTreeItem`: das sind Navigations-Bäume (`_href` ist Pflicht, `_label`
+ * akzeptiert nur einen String und es gibt keinen Slot für Metadaten). Unser Baum ist read-only und
+ * zeigt je Knoten zusätzliche Kennzahlen (Priorität, Wert, Gesamtaufwand) – das lässt sich nicht
+ * sinnvoll auf die KoliBri-Tree-API abbilden, daher bleibt die Darstellung handgerollt.
+ *
  * `visited` reicht die IDs des aktuellen Pfads weiter und bricht bei einem (unerwarteten) Zyklus in
  * den Baumdaten ab, damit kein endloser Render-Loop entsteht.
  */

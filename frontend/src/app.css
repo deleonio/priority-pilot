@@ -58,25 +58,11 @@ body {
 	grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
 }
 
-.dashboard-card {
-	display: flex;
-	flex-direction: column;
-	gap: 0.25rem;
-	padding: 1rem 1.25rem;
-	border: 1px solid var(--pp-border);
-	border-radius: 0.5rem;
-	background: var(--pp-bg-muted);
-}
-
+/* Rahmen, Hintergrund und Padding liefert jetzt `KolCard`; der Count bleibt der prominente Inhalt. */
 .dashboard-card-count {
 	font-size: 2rem;
 	font-weight: 700;
 	line-height: 1;
-}
-
-.dashboard-card-label {
-	color: var(--pp-text-muted);
-	font-size: 0.875rem;
 }
 
 .dashboard-next-task {
@@ -200,21 +186,6 @@ body {
 
 .dashboard-pillar:last-child {
 	border-bottom: none;
-}
-
-.dashboard-pillar-head {
-	display: flex;
-	justify-content: space-between;
-	gap: 1rem;
-}
-
-.dashboard-pillar-name {
-	font-weight: 600;
-}
-
-.dashboard-pillar-weight {
-	font-variant-numeric: tabular-nums;
-	white-space: nowrap;
 }
 
 .dashboard-pillar-meta {

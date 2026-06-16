@@ -1,3 +1,4 @@
+import { KolCard, KolMeter } from '@public-ui/react-v19';
 import type { Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useMemo } from 'react';
@@ -79,9 +80,10 @@ export const Dashboard = ({ tasks, forest, nextTask, pillars }: DashboardProps) 
 			<h2>Dashboard</h2>
 			<ul className="dashboard-cards">
 				{cards.map((card) => (
-					<li key={card.label} className="dashboard-card">
-						<span className="dashboard-card-count">{card.count}</span>
-						<span className="dashboard-card-label">{card.label}</span>
+					<li key={card.label}>
+						<KolCard _label={card.label} _level={0}>
+							<span className="dashboard-card-count">{card.count}</span>
+						</KolCard>
 					</li>
 				))}
 			</ul>
@@ -125,10 +127,7 @@ export const Dashboard = ({ tasks, forest, nextTask, pillars }: DashboardProps) 
 					<ul className="dashboard-pillars-list">
 						{pillarSummaries.map(({ pillar, taskCount, totalValue, totalEstimatedEffort }) => (
 							<li key={pillar.id} className="dashboard-pillar">
-								<div className="dashboard-pillar-head">
-									<span className="dashboard-pillar-name">{pillar.name}</span>
-									<span className="dashboard-pillar-weight">{formatNumber(pillar.weight)} %</span>
-								</div>
+								<KolMeter _label={pillar.name} _value={pillar.weight} _max={100} />
 								<span className="dashboard-pillar-meta">
 									{taskCount} {taskCount === 1 ? 'Aufgabe' : 'Aufgaben'} · Wert {formatNumber(totalValue)} · Aufwand{' '}
 									{formatNumber(totalEstimatedEffort)} Tage

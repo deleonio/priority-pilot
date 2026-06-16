@@ -1,7 +1,7 @@
-import { KolButton } from '@public-ui/react-v19';
+import { KolBadge, KolButton } from '@public-ui/react-v19';
 import type { Task } from 'client';
 import type { DependencyRef } from '../lib/dependencies';
-import { formatDeadline, statusLabel } from '../lib/task';
+import { formatDeadline, statusBadgeColor, statusLabel } from '../lib/task';
 
 interface TaskTableProps {
 	tasks: Task[];
@@ -38,7 +38,9 @@ export const TaskTable = ({ tasks, dependencyMap, onEdit, onDelete, onEditDepend
 					<tr key={task.id}>
 						<td>{task.id}</td>
 						<td>{task.title}</td>
-						<td>{statusLabel(task.status)}</td>
+						<td>
+							<KolBadge _label={statusLabel(task.status)} _color={statusBadgeColor(task.status)} />
+						</td>
 						<td>{task.priority}</td>
 						<td>{task.estimatedEffort}</td>
 						<td>{formatDeadline(task.deadline)}</td>
