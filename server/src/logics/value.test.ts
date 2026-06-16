@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { Task } from '../models/index.js';
+import { Pillar, Task } from '../models/index.js';
 import { calculateValueContribution } from './value.js';
 import { resetDb, closeDb } from '../test/helpers.js';
 
@@ -63,5 +63,44 @@ describe('calculateValueContribution', () => {
 		await c.addDependency(a);
 		const value = await calculateValueContribution(a);
 		assert.ok(Math.abs(value - 11 / 3) < 1e-10, `Expected ${11 / 3} but got ${value}`);
+	});
+
+	it('Säule mit Gleichverteilung (weight 20): neutral, Wert = priority', async () => {
+		const pillar = await Pillar.create({ name: 'Neutral', weight: 20 });
+		const task = await Task.create({ title: 'Leaf', priority: 5, estimatedEffort: 1, pillarId: pillar.id });
+		const value = await calculateValueContribution(task);
+		assert.equal(value, 5);
+	});
+
+	it('Höher gewichtete Säule (weight 40): Faktor 2, Wert = priority * 2', async () => {
+		const pillar = await Pillar.create({ name: 'Hoch', weight: 40 });
+		const task = await Task.create({ title: 'Leaf', priority: 5, estimatedEffort: 1, pillarId: pillar.id });
+		const value = await calculateValueContribution(task);
+		assert.equal(value, 10);
+	});
+
+	it('Niedriger gewichtete Säule (weight 10): Faktor 0.5, Wert = priority * 0.5', async () => {
+		const pillar = await Pillar.create({ name: 'Niedrig', weight: 10 });
+		const task = await Task.create({ title: 'Leaf', priority: 6, estimatedEffort: 1, pillarId: pillar.id });
+		const value = await calculateValueContribution(task);
+		assert.equal(value, 3);
+	});
+
+	it('Task ohne Säule: Faktor 1 (unverändert)', async () => {
+		const task = await Task.create({ title: 'Leaf', priority: 7, estimatedEffort: 1 });
+		const value = await calculateValueContribution(task);
+		assert.equal(value, 7);
+	});
+
+	it('Säulen-Faktor wirkt auf jeden Task im Baum (Dependent mit höher gewichteter Säule)', async () => {
+		// parent.getDependents() = [child], child mit Säule weight 40 ⇒ Faktor 2
+		// child (Blatt) value = child.priority * 2 = 3 * 2 = 6
+		// parent ohne Säule ⇒ Faktor 1: value = (6 * 1 + 10) / (1 + 1) = 8
+		const pillar = await Pillar.create({ name: 'Hoch', weight: 40 });
+		const parent = await Task.create({ title: 'Parent', priority: 10, estimatedEffort: 1 });
+		const child = await Task.create({ title: 'Child', priority: 3, estimatedEffort: 1, pillarId: pillar.id });
+		await child.addDependency(parent);
+		const value = await calculateValueContribution(parent);
+		assert.equal(value, 8);
 	});
 });
