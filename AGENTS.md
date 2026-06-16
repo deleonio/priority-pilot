@@ -67,3 +67,7 @@ sonst begründet kommentieren — danach erneut kreuzverhören, bis nichts mehr 
 ## Tests (Server)
 
 `pnpm --filter priority-pilot test` — Node.js `node:test` + `tsx`, In-Memory-SQLite, alle Testdateien unter `server/src/**/*.test.ts`.
+
+## Tests (Frontend)
+
+`pnpm --filter frontend test` — Vitest + jsdom + Testing Library, Testdateien unter `frontend/src/**/*.test.tsx`.

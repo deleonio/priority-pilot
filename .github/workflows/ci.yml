@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      # install loest ueber den client-prepare-Hook die Vertragstypen aus (openapi-typescript, kein Java).
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Format-Check
+        run: pnpm exec prettier --check .
+      - name: Lint
+        run: pnpm lint
+      # Build regeneriert die Vertragstypen frisch aus openapi.yml und type-checkt dagegen —
+      # damit kann eine veraltete/inkonsistente Analyse oder API-Drift nicht nach main gelangen.
+      - name: Build
+        run: pnpm -r build
+      - name: Test
+        run: pnpm -r test

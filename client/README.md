@@ -1,14 +1,16 @@
 # `client`
 
-Generierter **TypeScript-Fetch-API-Client** für das [Priority-Pilot-Monorepo](../README.md).
-Erzeugt aus dem API-Vertrag [`../openapi.yml`](../openapi.yml) mit `openapi-generator-cli`
-(`typescript-fetch`). **Kein handgeschriebener Code** — `src/generated/` nicht von Hand bearbeiten.
+Aus dem API-Vertrag [`../openapi.yml`](../openapi.yml) generierte **API-Typen** für das
+[Priority-Pilot-Monorepo](../README.md). Erzeugt mit
+[`openapi-typescript`](https://www.npmjs.com/package/openapi-typescript) (reines JavaScript, **kein
+Java**) nach `src/schema.d.ts`. **Kein handgeschriebener Code** in `schema.d.ts`.
 
 > Dieses Paket „startet" nicht: Es ist eine reine Quellcode-Bibliothek (`exports` →
-> `src/generated/index.ts`), die das [`frontend`](../frontend) per `workspace:*` einbindet. Vite
-> transpiliert die TS-Quelle direkt (kein Pre-Bundling).
+> `src/index.ts`), die das [`frontend`](../frontend) per `workspace:*` einbindet. `src/index.ts`
+> re-exportiert die `paths` (für `openapi-fetch`) sowie bequeme Schema-Aliase (`Task`,
+> `TaskCreate`, …). Vite transpiliert die TS-Quelle direkt (kein Pre-Bundling).
 
-## Client (neu) generieren
+## Typen (neu) generieren
 
 Nach Änderungen an [`../openapi.yml`](../openapi.yml):
 
@@ -16,10 +18,8 @@ Nach Änderungen an [`../openapi.yml`](../openapi.yml):
 pnpm --filter client generate
 ```
 
-…bzw. als Teil des Monorepo-Builds über `pnpm build` im Root (`pnpm -r generate && pnpm -r build`).
-
-> **Voraussetzung:** eine **Java-JRE** — `openapi-generator-cli` läuft auf der JVM.
-> Generator-Konfiguration: [`openapitools.json`](openapitools.json).
+`src/schema.d.ts` ist nicht versioniert und wird zusätzlich bei `pnpm install` (`prepare`) sowie im
+Monorepo-Build (`pnpm build` → `pnpm -r generate`) erzeugt.
 
 ## Mehr
 

@@ -3,9 +3,9 @@ info:
   title: Priority Pilot API
   description: >-
     Vertrag für die Aufgaben-Priorisierung über einen gewichteten
-    Abhängigkeitsgraphen. Aus dieser Datei werden sowohl die Server-Typen
-    (`server/src/api.d.ts`) als auch der TypeScript-Fetch-Client
-    (`client/src/generated/`) erzeugt.
+    Abhängigkeitsgraphen. Aus dieser Datei werden via `openapi-typescript`
+    sowohl die Server-Typen (`server/src/api.d.ts`) als auch die Client-Typen
+    (`client/src/schema.d.ts`) erzeugt.
   version: 1.0.0
 servers:
   - url: http://localhost:3000

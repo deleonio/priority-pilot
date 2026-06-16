@@ -41,9 +41,9 @@ Pro Ticket:
       architektonisch relevanten Änderungen **vorher rückfragen**; sonst begründet **kommentieren**
       und auflösen.
    4. **Erneut kreuzverhören** auf dem aktualisierten Diff — zurück zu (1).
-   **Ende:** Urteil **🟢** und keine offenen Findings mehr. Bereits begründet abgelehnte Findings
-   nicht erneut aufmachen; bleiben nach **3 Runden** substanzielle/mehrdeutige Punkte offen, den
-   Stand zusammenfassen und den **Menschen** entscheiden lassen (nicht endlos weiterdrehen).
+      **Ende:** Urteil **🟢** und keine offenen Findings mehr. Bereits begründet abgelehnte Findings
+      nicht erneut aufmachen; bleiben nach **3 Runden** substanzielle/mehrdeutige Punkte offen, den
+      Stand zusammenfassen und den **Menschen** entscheiden lassen (nicht endlos weiterdrehen).
 
 Zuweisen, ein ggf. aktualisierter Re-Analyse-Kommentar, Push/PR und die Review-Kommentare des
 Kreuzverhörs schreiben öffentlich auf GitHub — vorher bestätigen lassen.

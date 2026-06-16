@@ -3,13 +3,13 @@
 	"type": "module",
 	"private": true,
 	"exports": {
-		".": "./src/generated/index.ts"
+		".": "./src/index.ts"
 	},
 	"scripts": {
-		"generate": "openapi-generator-cli generate -i ../openapi.yml -g typescript-fetch -o src/generated",
+		"generate": "openapi-typescript ../openapi.yml -o src/schema.d.ts",
 		"prepare": "pnpm generate"
 	},
 	"devDependencies": {
-		"@openapitools/openapi-generator-cli": "2.38.0"
+		"openapi-typescript": "7.13.0"
 	}
 }

@@ -6,7 +6,8 @@
 		"dev": "vite",
 		"build": "tsc --noEmit && vite build",
 		"preview": "vite preview",
-		"lint": "tsc --noEmit && eslint src"
+		"lint": "tsc --noEmit && eslint src",
+		"test": "vitest run"
 	},
 	"dependencies": {
 		"@public-ui/components": "4.2.1",
@@ -14,11 +15,14 @@
 		"@public-ui/theme-default": "4.2.1",
 		"adopted-style-sheets": "1.1.9-rc.22",
 		"client": "workspace:*",
+		"openapi-fetch": "0.17.0",
 		"react": "19.2.7",
 		"react-dom": "19.2.7"
 	},
 	"devDependencies": {
 		"@eslint/js": "10.0.1",
+		"@testing-library/dom": "10.4.1",
+		"@testing-library/react": "16.3.2",
 		"@types/react": "19.2.17",
 		"@types/react-dom": "19.2.3",
 		"@typescript-eslint/eslint-plugin": "8.61.0",
@@ -27,8 +31,10 @@
 		"eslint": "10.5.0",
 		"eslint-plugin-react-hooks": "7.1.1",
 		"eslint-plugin-react-refresh": "0.5.3",
+		"jsdom": "29.1.1",
 		"typescript": "5.9.3",
 		"vite": "8.0.16",
-		"vite-plugin-pwa": "1.3.0"
+		"vite-plugin-pwa": "1.3.0",
+		"vitest": "4.1.9"
 	}
 }

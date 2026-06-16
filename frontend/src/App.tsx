@@ -10,8 +10,14 @@ export const App = () => {
 	useEffect(() => {
 		const controller = new AbortController();
 		api
-			.listTasks({ signal: controller.signal })
-			.then(setTasks)
+			.GET('/tasks', { signal: controller.signal })
+			.then(({ data, response }) => {
+				if (!response.ok) {
+					setError(`Tasks konnten nicht geladen werden (HTTP ${response.status}).`);
+					return;
+				}
+				setTasks(data ?? []);
+			})
 			.catch((reason: unknown) => {
 				// Abbruch beim Unmount ist erwartet und kein Fehler.
 				if (controller.signal.aborted) {

@@ -1,6 +1,6 @@
 **/node_modules
 **/dist
-client/src/generated
+client/src/schema.d.ts
 server/src/api.d.ts
 pnpm-lock.yaml
 **/database.sqlite

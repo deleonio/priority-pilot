@@ -9,12 +9,13 @@ Gesamtaufwand inkl. transitiver Abhängigkeiten berechnet. Fachliche Details: [.
 pnpm-Workspace (siehe `pnpm-workspace.yaml`):
 
 - `server/` (npm-Name **`priority-pilot`**): Node.js + Express 5 + Sequelize 6 (SQLite). Gesamte Fachlogik.
-- `client/`: generierter TypeScript-Fetch-API-Client aus `openapi.yml` (kein handgeschriebener Code).
+- `client/`: aus `openapi.yml` via `openapi-typescript` generierte API-Typen (`src/schema.d.ts`, nicht versioniert) plus dünner Re-Export (`src/index.ts`).
+- `frontend/`: React 19 + KoliBri (Vite/PWA); spricht die API typsicher per `openapi-fetch` an.
 
 Gemeinsamer API-Vertrag: `openapi.yml`
 
 - Server-Typen via `openapi-typescript` (`build:api` → `server/src/api.d.ts`)
-- Client via `openapi-generator-cli` (`typescript-fetch`, braucht Java)
+- Client-Typen via `openapi-typescript` (`generate` → `client/src/schema.d.ts`) — kein Java mehr
 
 ## Befehle
 

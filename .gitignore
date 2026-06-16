@@ -1,2 +1,8 @@
 dist/
 node_modules/
+
+# Aus dem API-Vertrag (openapi.yml) generiert – wird per prepare/build erzeugt, nicht versioniert.
+server/src/api.d.ts
+
+# Laufzeit-Datenbank (wird beim Start angelegt/geseedet, kein Repo-Inhalt).
+**/database.sqlite

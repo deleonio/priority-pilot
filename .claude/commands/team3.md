@@ -14,6 +14,7 @@ Aufgabe: $ARGUMENTS
 Dieses team3 basiert auf team2 und uebernimmt nur die Verbesserungen, die sich in den letzten Laeufen klar bewaehrt haben.
 
 Wichtig:
+
 - Kein verpflichtender Repo-Gesundheitscheck am Anfang.
 - Keine teuren Routine-Builds/Lints/Tests ohne konkreten Anlass.
 - File-first und risikobasiert statt pauschal.
@@ -46,6 +47,7 @@ Wichtig:
 - Bei Unsicherheit eskaliert der Architect selbststaendig.
 
 Stufen:
+
 1. Haiku low
 2. Haiku medium
 3. Sonnet medium
@@ -61,6 +63,7 @@ Stufen:
 ### Rollen-Feedback (Pflicht)
 
 Jede Rolle liefert am Ende kurz:
+
 - Confidence (1-10)
 - Aufgaben-Klarheit (1-5)
 - 1 Satz Begruendung
@@ -75,10 +78,12 @@ Jede Rolle liefert am Ende kurz:
 ### 1) Fruehe Blocker-Erkennung (Reviewer in 2 Phasen)
 
 Phase 1 (Quick-Blocker, maximal kurz):
+
 - Criticals sofort markieren und an Developer zurueck.
 - Nicht auf kompletten Full-Review warten.
 
 Phase 2 (Code Quality):
+
 - Erst nach Critical-Fixes vollstaendig pruefen.
 - Ergebnis: Ready to Merge oder klare Restliste.
 
@@ -90,6 +95,7 @@ Phase 2 (Code Quality):
 ### 3) Self-Escalation des Architect
 
 Zur Stufe 4 eskalieren bei:
+
 - Architektur-Unsicherheit
 - moeglichen Breaking Changes
 - nicht-trivialen Generic-Transformationen
@@ -98,6 +104,7 @@ Zur Stufe 4 eskalieren bei:
 ### 4) Dokumentations-Luecken frueh pruefen
 
 Vor Implementierung kurz klaeren:
+
 - Sind AGENTS/CONTRIBUTING/MIGRATION betroffen?
 - Braucht es README/Sample-Updates?
 - Sind neue Patterns dokumentierbar?
@@ -105,6 +112,7 @@ Vor Implementierung kurz klaeren:
 ### 5) Sample-Validierung fuer Features
 
 Bei neuen Features:
+
 - Sample vorhanden
 - zentrale Varianten sichtbar
 - Edge Cases sichtbar (z. B. disabled/loading/error/empty oder auto/smooth)
@@ -112,6 +120,7 @@ Bei neuen Features:
 ### 6) Event- und Slot-Checks
 
 Bei Web Components immer mitpruefen:
+
 - Event-Propagation ueber Shadow-DOM sinnvoll (`composed`, `bubbles`)
 - Slot-Pass-Through korrekt
 - Event/Slot-Contracts in Schema/JSDoc auffindbar
@@ -178,6 +187,7 @@ User -> Architect -> Rolle -> Architect -> Rolle -> ... -> Reviewer -> Paedagoge
 - Pro Zuweisung Pflicht: Scope-Box
 
 Scope-Box:
+
 - Model
 - Effort
 - Aenderungsumfang
@@ -201,12 +211,15 @@ Scope-Box:
 ### Reviewer
 
 Phase 1:
+
 - Critical Blocker frueh identifizieren
 
 Phase 2:
+
 - WCAG, API, Type Safety, HTML, Event/Slot-Contracts, Tests, Docs-Konsistenz
 
 Prioritaet:
+
 - Critical: WCAG-Verstoss, any-Leak, API-Bruch ohne Migrationspfad, Event/Slot-Contract-Luecke
 
 ### Developer
@@ -242,6 +255,7 @@ Prioritaet:
   - ~/.claude/session-reports/YYYY-MM-DD.md
 
 Pflichtinhalte im Report:
+
 - Rollen-Feedback
 - Beobachtungen
 - konkrete Empfehlungen
@@ -286,6 +300,7 @@ Pflichtinhalte im Report:
   - Doku: nur notwendige Updates
 
 review.md muss nach Severity sortieren:
+
 - Critical
 - High
 - Low

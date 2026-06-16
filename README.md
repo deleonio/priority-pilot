@@ -22,15 +22,18 @@ pnpm-Monorepo. Der Funktionsumfang ist bewusst klein und befindet sich im Protot
 
 Verwaltet mit **pnpm Workspaces** (siehe [`pnpm-workspace.yaml`](pnpm-workspace.yaml)):
 
-| Package            | Inhalt                                                            |
-| ------------------ | ----------------------------------------------------------------- |
-| [`server`](server) | Anwendung: Node.js + Express 5 + Sequelize 6 (SQLite). Fachlogik. |
-| [`client`](client) | Generierter TypeScript-Fetch-API-Client (aus `openapi.yml`).      |
+| Package                | Inhalt                                                              |
+| ---------------------- | ------------------------------------------------------------------- |
+| [`server`](server)     | Anwendung: Node.js + Express 5 + Sequelize 6 (SQLite). Fachlogik.   |
+| [`client`](client)     | Aus `openapi.yml` generierte API-Typen (`openapi-typescript`).      |
+| [`frontend`](frontend) | React 19 + KoliBri (Vite/PWA); ruft die API per `openapi-fetch` an. |
 
-Der gemeinsame API-Vertrag liegt in [`openapi.yml`](openapi.yml). Daraus werden erzeugt:
+Der gemeinsame API-Vertrag liegt in [`openapi.yml`](openapi.yml). Daraus werden – ohne Java, nur
+mit `openapi-typescript` – erzeugt:
 
 - **Server:** `src/api.d.ts` via `openapi-typescript` (Build-Schritt `build:api`).
-- **Client:** `src/generated/` via `openapi-generator-cli` (`typescript-fetch`).
+- **Client:** `src/schema.d.ts` via `openapi-typescript`; das Frontend konsumiert die Typen mit
+  `openapi-fetch`.
 
 ## Fachlogik (Server)
 
@@ -50,7 +53,9 @@ Der gemeinsame API-Vertrag liegt in [`openapi.yml`](openapi.yml). Daraus werden 
 
 - **Node.js** `>=22`
 - **pnpm** `10` (siehe `packageManager`)
-- **Java (JRE)** – nur für `client`-Generierung (`openapi-generator-cli` läuft auf der JVM)
+
+> Kein Java mehr nötig: Die Client-Generierung läuft seit der Umstellung auf `openapi-typescript`
+> vollständig in JavaScript.
 
 ## Befehle (Repo-Root)
 
@@ -82,5 +87,7 @@ pnpm --filter priority-pilot lint    # api.d.ts + tsc --noemit + eslint
 
 ## API
 
-`GET /users` → Liste von Nutzern `{ id: number, name: string }` (Beispiel-Endpoint aus
-`openapi.yml`). Server und Vertrag laufen unter `http://localhost:3000`.
+Der vollständige Vertrag steht in [`openapi.yml`](openapi.yml). Endpunkte: `GET`/`POST` `/tasks`,
+`GET`/`PATCH`/`DELETE` `/tasks/{id}`, `POST` `/tasks/{id}/dependencies`,
+`DELETE` `/tasks/{id}/dependencies/{depId}`, `GET /forest` (Aufgabenwald nach Wert) und
+`GET /next` (nächste wichtige Aufgabe). Server und Vertrag laufen unter `http://localhost:3000`.

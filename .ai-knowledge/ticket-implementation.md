@@ -81,7 +81,7 @@ ein); sie ändert nur Analyse/Kommentare, **keinen** Produktivcode.
 
 Der frisch erstellte PR wird **nicht nur beobachtet, sondern aktiv im Kreuzverhör geprüft und
 nachgebessert** — in Runden, bis **keine Anmerkung mehr offen** ist. Eine Runde besteht aus
-*kreuzverhören → CI prüfen → Findings abarbeiten → erneut kreuzverhören*. Dabei sind zwei Rollen
+_kreuzverhören → CI prüfen → Findings abarbeiten → erneut kreuzverhören_. Dabei sind zwei Rollen
 strikt getrennt: Die **Kreuzverhör-Rolle** prüft nur und ändert keinen Code (vollständiger Ablauf:
 [pr-review.md](pr-review.md), Command `/kreuzverhoer-review`); die **Umsetzer-Rolle** behebt die
 Findings.
