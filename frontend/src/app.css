@@ -42,9 +42,41 @@ body {
 	margin: 2rem 0;
 }
 
+.dashboard,
 .task-section,
 .forest-panel {
 	margin-top: 2rem;
+}
+
+/* --- Dashboard --- */
+.dashboard-cards {
+	list-style: none;
+	margin: 0.5rem 0 0;
+	padding: 0;
+	display: grid;
+	gap: 1rem;
+	grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+}
+
+.dashboard-card {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+	padding: 1rem 1.25rem;
+	border: 1px solid var(--pp-border);
+	border-radius: 0.5rem;
+	background: var(--pp-bg-muted);
+}
+
+.dashboard-card-count {
+	font-size: 2rem;
+	font-weight: 700;
+	line-height: 1;
+}
+
+.dashboard-card-label {
+	color: var(--pp-text-muted);
+	font-size: 0.875rem;
 }
 
 /* --- Task-Tabelle --- */

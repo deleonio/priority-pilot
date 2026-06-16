@@ -2,6 +2,7 @@ import { KolAlert, KolButton, KolHeading, KolSpin } from '@public-ui/react-v19';
 import type { Task, TaskTreeNode } from 'client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from './api';
+import { Dashboard } from './components/Dashboard';
 import { DeleteTaskDialog } from './components/DeleteTaskDialog';
 import { DependencyModal } from './components/DependencyModal';
 import { ForestPanel } from './components/ForestPanel';
@@ -108,6 +109,7 @@ export const App = () => {
 
 			{tasks !== null && (
 				<>
+					<Dashboard tasks={tasks} />
 					<section className="task-section">
 						<h2>Aufgaben</h2>
 						<TaskTable
