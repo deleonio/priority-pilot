@@ -34,10 +34,13 @@ export default defineConfig({
 		}),
 	],
 	server: {
+		// Ein einzelner Regex-Kontext (statt einer manuell gepflegten Pfadliste) leitet alle
+		// API-Wurzelpfade an den Express-Server weiter und veraltet nicht still bei neuen Routen.
 		proxy: {
-			'/tasks': 'http://localhost:3000',
-			'/forest': 'http://localhost:3000',
-			'/next': 'http://localhost:3000',
+			'^/(tasks|forest|next)': {
+				target: 'http://localhost:3000',
+				changeOrigin: true,
+			},
 		},
 	},
 	optimizeDeps: {
