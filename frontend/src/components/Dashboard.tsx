@@ -173,10 +173,7 @@ export const Dashboard = ({ tasks, forest, nextTask, pillars }: DashboardProps) 
 									</span>
 									<span className="dashboard-deadline-aside">
 										{urgency !== 'later' && (
-											<KolBadge
-												_label={formatRelativeDeadline(task.deadline, now)}
-												_color={URGENCY_COLOR[urgency]}
-											/>
+											<KolBadge _label={formatRelativeDeadline(task.deadline, now)} _color={URGENCY_COLOR[urgency]} />
 										)}
 										<span className="dashboard-deadline-date">{formatDeadline(task.deadline)}</span>
 									</span>

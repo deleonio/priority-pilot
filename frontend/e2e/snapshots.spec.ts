@@ -69,7 +69,9 @@ test.describe('Priority Pilot — Visual-Snapshots', () => {
 		await page.goto('/');
 		await waitForStableView(page);
 
-		// Edit-Dialog über den „Bearbeiten"-Button der Tabellen-Toolbar (erste Zeile) öffnen.
+		// Die Task-Tabelle liegt im „Aufgaben"-Tab; dorthin wechseln, dann den Edit-Dialog über den
+		// „Bearbeiten"-Button der Tabellen-Toolbar (erste Zeile) öffnen.
+		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
 		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
 		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeVisible();
 		await waitForStableView(page);
