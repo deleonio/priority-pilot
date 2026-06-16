@@ -25,26 +25,18 @@ export interface ApiErrorOverrides {
  * Pfad-Matching bewusst exakt am Pfad-Ende (`**\/tasks` ohne nachfolgenden Slash), damit z. B.
  * `/tasks/{id}` nicht versehentlich getroffen wird (für die Snapshots ohnehin irrelevant).
  */
-export const mockApi = async (
-	page: Page,
-	fixture: ApiFixture,
-	errors: ApiErrorOverrides = {},
-): Promise<void> => {
+export const mockApi = async (page: Page, fixture: ApiFixture, errors: ApiErrorOverrides = {}): Promise<void> => {
 	const fail = (route: Parameters<Parameters<Page['route']>[1]>[0]) =>
 		route.fulfill(json({ message: 'Interner Serverfehler (Datenbank nicht erreichbar).' }, 500));
 
-	await page.route('**/tasks', (route) =>
-		errors.tasks === true ? fail(route) : route.fulfill(json(fixture.tasks)),
-	);
+	await page.route('**/tasks', (route) => (errors.tasks === true ? fail(route) : route.fulfill(json(fixture.tasks))));
 	await page.route('**/pillars', (route) =>
 		errors.pillars === true ? fail(route) : route.fulfill(json(fixture.pillars)),
 	);
 	await page.route('**/forest', (route) =>
 		errors.forest === true ? fail(route) : route.fulfill(json(fixture.forest)),
 	);
-	await page.route('**/next', (route) =>
-		errors.next === true ? fail(route) : route.fulfill(json(fixture.next)),
-	);
+	await page.route('**/next', (route) => (errors.next === true ? fail(route) : route.fulfill(json(fixture.next))));
 };
 
 /**
