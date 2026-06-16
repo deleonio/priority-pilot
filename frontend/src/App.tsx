@@ -109,7 +109,7 @@ export const App = () => {
 
 			{tasks !== null && (
 				<>
-					<Dashboard tasks={tasks} forest={forest} />
+					<Dashboard tasks={tasks} forest={forest} nextTask={nextTask} />
 					<section className="task-section">
 						<h2>Aufgaben</h2>
 						<TaskTable
@@ -120,7 +120,7 @@ export const App = () => {
 							onEditDependencies={(task) => setDialog({ kind: 'dependencies', taskId: task.id })}
 						/>
 					</section>
-					<ForestPanel forest={forest} nextTask={nextTask} />
+					<ForestPanel forest={forest} />
 				</>
 			)}
 

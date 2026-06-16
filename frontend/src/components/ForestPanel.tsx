@@ -1,10 +1,8 @@
-import type { Task, TaskTreeNode } from 'client';
+import type { TaskTreeNode } from 'client';
 import { formatNumber } from '../lib/task';
 
 interface ForestPanelProps {
 	forest: TaskTreeNode[];
-	/** Nächste wichtige Aufgabe (`GET /next`) oder `null`, falls keine ansteht. */
-	nextTask: Task | null;
 }
 
 /**
@@ -39,25 +37,14 @@ const TreeNode = ({ node, visited = new Set<number>() }: { node: TaskTreeNode; v
 };
 
 /**
- * Optionale Visualisierung: nach Wertbeitrag sortierter Aufgabenwald (`GET /forest`) und die
- * nächste wichtige Aufgabe (`GET /next`).
+ * Optionale Visualisierung: nach Wertbeitrag sortierter Aufgabenwald (`GET /forest`).
+ *
+ * Die nächste wichtige Aufgabe (`GET /next`) wird prominent im Dashboard angezeigt (siehe
+ * `Dashboard`), daher konzentriert sich dieses Panel auf die Baumdarstellung.
  */
-export const ForestPanel = ({ forest, nextTask }: ForestPanelProps) => (
+export const ForestPanel = ({ forest }: ForestPanelProps) => (
 	<section className="forest-panel">
 		<h2>Priorisierung</h2>
-		<div className="next-task">
-			<h3>Nächste Aufgabe</h3>
-			{nextTask === null ? (
-				<p>Aktuell steht keine Aufgabe an (alle erledigt oder durch offene Vorgänger blockiert).</p>
-			) : (
-				<p>
-					<strong>
-						#{nextTask.id} – {nextTask.title}
-					</strong>{' '}
-					(Priorität {nextTask.priority})
-				</p>
-			)}
-		</div>
 		<div className="forest">
 			<h3>Aufgabenwald (nach Wert sortiert)</h3>
 			{forest.length === 0 ? (
