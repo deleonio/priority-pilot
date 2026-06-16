@@ -1,5 +1,15 @@
 import { ResponseError } from 'client';
-import type { components, DependencyInput, paths, Task, TaskCreate, TaskTreeNode, TaskUpdate } from 'client';
+import type {
+	components,
+	DependencyInput,
+	paths,
+	Pillar,
+	PillarWeightsInput,
+	Task,
+	TaskCreate,
+	TaskTreeNode,
+	TaskUpdate,
+} from 'client';
 import createClient from 'openapi-fetch';
 
 // Im Dev-Betrieb leitet der Vite-Proxy (siehe vite.config.ts) die API-Pfade an
@@ -103,5 +113,21 @@ export const api = {
 		if (!response.ok) {
 			throw new ResponseError(response);
 		}
+	},
+
+	async listPillars(init: Init = {}): Promise<Pillar[]> {
+		const { data, response } = await client.GET('/pillars', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response);
+		}
+		return data;
+	},
+
+	async setPillarWeights({ pillarWeightsInput }: { pillarWeightsInput: PillarWeightsInput }): Promise<Pillar[]> {
+		const { data, response } = await client.PUT('/pillars/weights', { body: pillarWeightsInput });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response);
+		}
+		return data;
 	},
 };

@@ -300,3 +300,16 @@ body {
 	color: var(--pp-text-muted);
 	font-size: 0.875rem;
 }
+
+.pillar-weights-sum {
+	margin: 0.5rem 0 0;
+	font-weight: 600;
+}
+
+.pillar-weights-sum-ok {
+	color: #1a7f37;
+}
+
+.pillar-weights-sum-invalid {
+	color: #b42318;
+}
