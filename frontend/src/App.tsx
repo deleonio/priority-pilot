@@ -1,4 +1,4 @@
-import { KolAlert, KolButton, KolHeading, KolSpin } from '@public-ui/react-v19';
+import { KolAlert, KolButton, KolHeading, KolSpin, KolTabs } from '@public-ui/react-v19';
 import type { Pillar, Task, TaskTreeNode } from 'client';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from './api';
@@ -19,6 +19,11 @@ type Dialog =
 	| { kind: 'dependencies'; taskId: number }
 	| { kind: 'pillars' }
 	| null;
+
+// Die Hauptansichten als Tab-Leiste oben (Inhalt steckt in den zugehörigen `tab-N`-Slots von
+// `KolTabs`). Modulkonstante, damit `KolTabs` nicht bei jedem Render eine neue Tab-Liste erhält und
+// die Auswahl zurücksetzt.
+const VIEW_TABS = [{ _label: 'Dashboard' }, { _label: 'Aufgaben' }, { _label: 'Aufgabenwald' }];
 
 export const App = () => {
 	const [tasks, setTasks] = useState<Task[] | null>(null);
@@ -125,20 +130,25 @@ export const App = () => {
 			)}
 
 			{tasks !== null && (
-				<>
-					<Dashboard tasks={tasks} forest={forest} nextTask={nextTask} pillars={pillars} />
-					<section className="task-section">
-						<h2>Aufgaben</h2>
-						<TaskTable
-							tasks={tasks}
-							dependencyMap={dependencyMap}
-							onEdit={openEdit}
-							onDelete={openDelete}
-							onEditDependencies={openDependencies}
-						/>
-					</section>
-					<ForestPanel forest={forest} />
-				</>
+				<KolTabs className="app-tabs" _label="Ansichten" _tabs={VIEW_TABS}>
+					<div slot="tab-0">
+						<Dashboard tasks={tasks} forest={forest} nextTask={nextTask} pillars={pillars} />
+					</div>
+					<div slot="tab-1">
+						<section className="task-section">
+							<TaskTable
+								tasks={tasks}
+								dependencyMap={dependencyMap}
+								onEdit={openEdit}
+								onDelete={openDelete}
+								onEditDependencies={openDependencies}
+							/>
+						</section>
+					</div>
+					<div slot="tab-2">
+						<ForestPanel forest={forest} />
+					</div>
+				</KolTabs>
 			)}
 
 			{dialog?.kind === 'create' && (

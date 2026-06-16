@@ -15,7 +15,8 @@ test.describe('Priority Pilot — Visual-Snapshots', () => {
 		await mockApi(page, emptyFixture);
 		await page.goto('/');
 		await waitForStableView(page);
-		// Sicherstellen, dass der Leer-Zustand der Task-Tabelle gerendert ist.
+		// Die Task-Tabelle liegt im „Aufgaben"-Tab; dorthin wechseln und den Leer-Zustand absichern.
+		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
 		await expect(page.getByText('Noch keine Tasks vorhanden.', { exact: false })).toBeVisible();
 
 		await expect(page).toHaveScreenshot('main-empty.png', { fullPage: true });
@@ -62,7 +63,9 @@ test.describe('Priority Pilot — Visual-Snapshots', () => {
 		await page.goto('/');
 		await waitForStableView(page);
 
-		// Edit-Dialog über den „Bearbeiten"-Button der Tabellen-Toolbar (erste Zeile) öffnen.
+		// Die Task-Tabelle liegt im „Aufgaben"-Tab; dorthin wechseln, dann den Edit-Dialog über den
+		// „Bearbeiten"-Button der Tabellen-Toolbar (erste Zeile) öffnen.
+		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
 		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
 		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeVisible();
 		await waitForStableView(page);

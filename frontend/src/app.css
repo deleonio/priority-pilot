@@ -48,6 +48,18 @@ body {
 	margin-top: 2rem;
 }
 
+/* Tab-Leiste der Hauptansichten: Abstand zur Kopf-Toolbar. */
+.app-tabs {
+	margin-top: 2rem;
+}
+
+/* Innerhalb eines Tabs ist der jeweilige Bereich der einzige Inhalt – der Stapel-Abstand entfällt. */
+.app-tabs .dashboard,
+.app-tabs .task-section,
+.app-tabs .forest-panel {
+	margin-top: 0;
+}
+
 /* --- Dashboard --- */
 .dashboard-cards {
 	list-style: none;
