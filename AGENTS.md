@@ -77,3 +77,8 @@ Merge/Schließen).
 ## Tests (Frontend)
 
 `pnpm --filter frontend test` — Vitest + jsdom + Testing Library, Testdateien unter `frontend/src/**/*.test.tsx`.
+
+`pnpm --filter frontend test:e2e` — Playwright Visual-Snapshots (`toHaveScreenshot`, nur Chromium),
+Specs/Fixtures unter `frontend/e2e/`. Die API wird per `page.route` gemockt (kein Backend nötig);
+Playwright startet den Vite-Dev-Server selbst. Baselines aktualisieren bzw. neu erzeugen:
+`pnpm --filter frontend test:e2e:update`.

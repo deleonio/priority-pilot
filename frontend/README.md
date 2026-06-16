@@ -40,6 +40,23 @@ VITE_API_BASE_URL=https://api.example.com pnpm --filter frontend build
 | `preview` | `vite preview`               | Gebautes Bundle lokal serven   |
 | `lint`    | `tsc --noEmit && eslint src` | Typen + Lint                   |
 
+## E2E-Snapshots (Playwright)
+
+Visuelle Regressionstests prüfen die UI per Screenshot-Vergleich (`toHaveScreenshot`, nur Chromium).
+Die API wird in den Specs über `page.route` mit festen Fixtures **gemockt** — es läuft **kein
+Backend**; Playwright startet den Vite-Dev-Server selbst (Port `4173`). Specs, Fixtures und Helper
+liegen unter [`e2e/`](e2e/), die committeten Baseline-Bilder unter `e2e/__screenshots__/`.
+
+```bash
+pnpm --filter frontend test:e2e          # Snapshots gegen die Baselines prüfen
+pnpm --filter frontend test:e2e:update   # Baselines neu erzeugen/aktualisieren (nach gewollten UI-Änderungen)
+```
+
+> Beim ersten Lauf müssen die Playwright-Browser vorhanden sein:
+> `pnpm --filter frontend exec playwright install chromium` (nutzt den lokalen Cache).
+> Erzeuge nach bewussten UI-Änderungen die Baselines mit `test:e2e:update` neu und commite die
+> aktualisierten Bilder.
+
 ## Mehr
 
 Gesamt-Setup und API-Vertrag: [Root-README](../README.md).
