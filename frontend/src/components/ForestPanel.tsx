@@ -1,12 +1,11 @@
 import type { Task, TaskTreeNode } from 'client';
+import { formatNumber } from '../lib/task';
 
 interface ForestPanelProps {
 	forest: TaskTreeNode[];
 	/** Nächste wichtige Aufgabe (`GET /next`) oder `null`, falls keine ansteht. */
 	nextTask: Task | null;
 }
-
-const formatNumber = (value: number): string => value.toLocaleString('de-DE', { maximumFractionDigits: 2 });
 
 /**
  * Rekursive Darstellung eines Baumknotens samt seiner abhängigen Tasks.

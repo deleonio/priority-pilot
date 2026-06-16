@@ -12,6 +12,9 @@ export const STATUS_OPTIONS: { label: string; value: TaskStatus }[] = [
 export const statusLabel = (status: TaskStatus): string =>
 	STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status;
 
+/** Formatiert eine Zahl im deutschen Format mit bis zu zwei Nachkommastellen. */
+export const formatNumber = (value: number): string => value.toLocaleString('de-DE', { maximumFractionDigits: 2 });
+
 /**
  * Formatiert eine optionale Deadline als deutsches Datum, sonst „–".
  *

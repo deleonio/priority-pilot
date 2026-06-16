@@ -109,7 +109,7 @@ export const App = () => {
 
 			{tasks !== null && (
 				<>
-					<Dashboard tasks={tasks} />
+					<Dashboard tasks={tasks} forest={forest} />
 					<section className="task-section">
 						<h2>Aufgaben</h2>
 						<TaskTable
