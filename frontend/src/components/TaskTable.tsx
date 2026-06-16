@@ -1,7 +1,9 @@
-import { KolBadge, KolButton } from '@public-ui/react-v19';
+import type { KoliBriTableDataType, KoliBriTableHeaderCellWithLogic } from '@public-ui/components';
+import { KolTableStateful, KolToolbar } from '@public-ui/react-v19';
 import type { Task } from 'client';
 import type { DependencyRef } from '../lib/dependencies';
-import { formatDeadline, statusBadgeColor, statusLabel } from '../lib/task';
+import { renderIntoCell } from '../lib/reactCellRoot';
+import { formatDeadline, statusLabel } from '../lib/task';
 
 interface TaskTableProps {
 	tasks: Task[];
@@ -12,51 +14,97 @@ interface TaskTableProps {
 	onEditDependencies: (task: Task) => void;
 }
 
+/** Eine Datenzeile der Tabelle. Numerische Spalten bleiben Zahlen (für korrekte Sortierung). */
+interface TaskRow extends KoliBriTableDataType {
+	id: number;
+	title: string;
+	status: string;
+	priority: number;
+	estimatedEffort: number;
+	deadline: string;
+	predecessors: number;
+	/** Referenz auf den Original-Task, damit die Aktions-Callbacks ihn erhalten. */
+	_task: Task;
+}
+
 /** Tabellarische Übersicht aller Tasks mit Aktionen je Zeile. */
 export const TaskTable = ({ tasks, dependencyMap, onEdit, onDelete, onEditDependencies }: TaskTableProps) => {
 	if (tasks.length === 0) {
 		return <p>Noch keine Tasks vorhanden. Lege oben einen neuen Task an.</p>;
 	}
 
-	return (
-		<table className="task-table">
-			<caption className="visually-hidden">Liste aller Tasks</caption>
-			<thead>
-				<tr>
-					<th scope="col">ID</th>
-					<th scope="col">Titel</th>
-					<th scope="col">Status</th>
-					<th scope="col">Priorität</th>
-					<th scope="col">Aufwand (Tage)</th>
-					<th scope="col">Deadline</th>
-					<th scope="col">Vorgänger</th>
-					<th scope="col">Aktionen</th>
-				</tr>
-			</thead>
-			<tbody>
-				{tasks.map((task) => (
-					<tr key={task.id}>
-						<td>{task.id}</td>
-						<td>{task.title}</td>
-						<td>
-							<KolBadge _label={statusLabel(task.status)} _color={statusBadgeColor(task.status)} />
-						</td>
-						<td>{task.priority}</td>
-						<td>{task.estimatedEffort}</td>
-						<td>{formatDeadline(task.deadline)}</td>
-						<td>{dependencyMap.get(task.id)?.length ?? 0}</td>
-						<td className="task-actions">
-							<KolButton _label="Bearbeiten" _variant="secondary" _on={{ onClick: () => onEdit(task) }} />
-							<KolButton
-								_label="Abhängigkeiten"
-								_variant="secondary"
-								_on={{ onClick: () => onEditDependencies(task) }}
-							/>
-							<KolButton _label="Löschen" _variant="danger" _on={{ onClick: () => onDelete(task) }} />
-						</td>
-					</tr>
-				))}
-			</tbody>
-		</table>
-	);
+	const data: TaskRow[] = tasks.map((task) => ({
+		id: task.id,
+		title: task.title,
+		status: statusLabel(task.status),
+		priority: task.priority,
+		estimatedEffort: task.estimatedEffort,
+		deadline: formatDeadline(task.deadline),
+		predecessors: dependencyMap.get(task.id)?.length ?? 0,
+		_task: task,
+	}));
+
+	const headers: { horizontal: KoliBriTableHeaderCellWithLogic[][] } = {
+		horizontal: [
+			[
+				{ key: 'id', label: 'ID' },
+				{ key: 'title', label: 'Titel' },
+				{ key: 'status', label: 'Status' },
+				{ key: 'priority', label: 'Priorität' },
+				{ key: 'estimatedEffort', label: 'Aufwand (Tage)' },
+				{ key: 'deadline', label: 'Deadline' },
+				{ key: 'predecessors', label: 'Vorgänger' },
+				{
+					key: 'actions',
+					label: 'Aktionen',
+					// Feste Breite, damit die drei Icon-Buttons der Toolbar einzeilig bleiben (sonst Umbruch).
+					width: 170,
+					// Aktionen als `KolToolbar` (Pfeiltasten-Navigation, gruppierte Semantik). Da eine Web
+					// Component nicht deklarativ in eine KoliBri-Zelle passt, wird sie über `render` in eine
+					// pro Zelle gecachte React-Root gemountet (siehe reactCellRoot). Icon-Buttons mit
+					// `_hideLabel` (Label bleibt aria-label + Tooltip). Die KolIcons-Font kennt keinen
+					// Stift/Papierkorb → Zahnrad (Bearbeiten), Kette (Abhängigkeiten), Kreuz (Löschen).
+					render: (domNode, _cell, tupel) => {
+						const task = (tupel as TaskRow)._task;
+						renderIntoCell(
+							domNode,
+							<KolToolbar
+								_label={`Aktionen für ${task.title}`}
+								_orientation="horizontal"
+								_items={[
+									{
+										type: 'button',
+										_label: 'Bearbeiten',
+										_hideLabel: true,
+										_icons: { left: { icon: 'kolicon-cogwheel' } },
+										_variant: 'secondary',
+										_on: { onClick: () => onEdit(task) },
+									},
+									{
+										type: 'button',
+										_label: 'Abhängigkeiten',
+										_hideLabel: true,
+										_icons: { left: { icon: 'kolicon-link' } },
+										_variant: 'secondary',
+										_on: { onClick: () => onEditDependencies(task) },
+									},
+									{
+										type: 'button',
+										_label: 'Löschen',
+										_hideLabel: true,
+										_icons: { left: { icon: 'kolicon-cross' } },
+										_variant: 'danger',
+										_on: { onClick: () => onDelete(task) },
+									},
+								]}
+							/>,
+						);
+					},
+				},
+			],
+		],
+	};
+
+	// `_fixedCols: [0, 1]` fixiert die letzte Spalte (Aktionen) beim horizontalen Scrollen.
+	return <KolTableStateful _label="Liste aller Tasks" _data={data} _headers={headers} _fixedCols={[0, 1]} />;
 };

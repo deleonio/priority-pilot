@@ -12,22 +12,6 @@ export const STATUS_OPTIONS: { label: string; value: TaskStatus }[] = [
 export const statusLabel = (status: TaskStatus): string =>
 	STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status;
 
-/**
- * Semantische Hintergrundfarbe je Status für die farbcodierte Badge-Anzeige.
- * Alle Farben erreichen mit weißem Vordergrund einen WCAG-AA-Kontrast ≥ 4.5:1.
- * Offen → Neutralgrau, In Bearbeitung → Blau, Erledigt → Grün.
- */
-export const statusBadgeColor = (status: TaskStatus): string => {
-	switch (status) {
-		case TaskStatus.InProcess:
-			return '#2563eb';
-		case TaskStatus.Done:
-			return '#15803d';
-		default:
-			return '#6b7280';
-	}
-};
-
 /** Formatiert eine Zahl im deutschen Format mit bis zu zwei Nachkommastellen. */
 export const formatNumber = (value: number): string => value.toLocaleString('de-DE', { maximumFractionDigits: 2 });
 
