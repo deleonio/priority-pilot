@@ -10,7 +10,7 @@ export default [
 	},
 	js.configs.recommended,
 	{
-		files: ['src/**/*.{ts,tsx}'],
+		files: ['src/**/*.{ts,tsx}', 'e2e/**/*.ts', 'playwright.config.ts'],
 		languageOptions: {
 			parser: tsParser,
 			ecmaVersion: 2022,

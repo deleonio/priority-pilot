@@ -2,40 +2,22 @@
 // `openapi.yml` (Task/Pillar/TaskTreeNode) bzw. der Verarbeitung in `frontend/src/api.ts`
 // (z. B. `deadline` als ISO-String). Dadurch rendert die UI deterministisch in den Erfolgszustand.
 //
-// Bewusst ohne Import der `client`-Typen gehalten: Die Fixtures beschreiben die **rohen** JSON-Antworten
-// der API (`deadline` als String), während die `client`-Typen das bereits revivte UI-Modell abbilden
-// (`deadline` als `Date`). Lokale Interfaces vermeiden so eine Typ-Verwechslung beim Mocken.
+// Die Typen werden direkt aus den `client`-Schema-Typen abgeleitet, damit Schema-Drift künftig von
+// `tsc` erkannt wird. Die Fixtures beschreiben die **rohen** JSON-Antworten der API: Das `Task`-Schema
+// typisiert `deadline` ohnehin als ISO-String, während das revivte UI-Modell aus `client` (`deadline`
+// als `Date`) hier bewusst nicht verwendet wird.
+import type { components } from 'client';
+
+type Schemas = components['schemas'];
 
 /** Roh-Task, wie ihn `GET /tasks`/`GET /next` liefern (Datumsfelder als ISO-String). */
-export interface RawTask {
-	id: number;
-	title: string;
-	status: 'Open' | 'In process' | 'Done';
-	priority: number;
-	estimatedEffort: number;
-	actualEffort?: number | null;
-	description?: string | null;
-	deadline?: string | null;
-	pillarId?: number | null;
-}
+export type RawTask = Schemas['Task'];
 
 /** Säule, wie sie `GET /pillars` liefert. */
-export interface RawPillar {
-	id: number;
-	name: string;
-	weight: number;
-}
+export type RawPillar = Schemas['Pillar'];
 
 /** Baumknoten, wie ihn `GET /forest` liefert. */
-export interface RawTreeNode {
-	id: number;
-	title: string;
-	priority: number;
-	estimatedEffort: number;
-	totalEstimatedEffort: number;
-	value: number;
-	dependents: RawTreeNode[];
-}
+export type RawTreeNode = Schemas['TaskTreeNode'];
 
 /** Gemockte API-Antworten eines kompletten Lade-Vorgangs (alle vier Endpunkte). */
 export interface ApiFixture {
