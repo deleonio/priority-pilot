@@ -19,6 +19,7 @@ class Task extends Model {
 	public actualEffort?: number | null;
 	public description?: string | null;
 	public deadline?: Date | null;
+	public pillarId?: number | null;
 
 	public addDependency!: BelongsToManyAddAssociationMixin<Task, number>;
 	public removeDependency!: BelongsToManyRemoveAssociationMixin<Task, number>;
@@ -73,6 +74,12 @@ Task.init(
 		},
 		deadline: {
 			type: DataTypes.DATE,
+			allowNull: true,
+		},
+		// Zuordnung zu einer Lebensbalance-Säule. Zunächst nullable, damit Bestands-Tasks
+		// ohne Säule gültig bleiben (siehe Beziehung in models/index.ts).
+		pillarId: {
+			type: DataTypes.INTEGER,
 			allowNull: true,
 		},
 	},

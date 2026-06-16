@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { Task, Dependency } from '../models/index.js';
+import { Task, Dependency, Pillar } from '../models/index.js';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
 
 let server: TestServer;
@@ -87,6 +87,7 @@ describe('Tasks API', () => {
 				'actualEffort',
 				'description',
 				'deadline',
+				'pillarId',
 			]) {
 				assert.ok(field in body, `Fehlendes Feld: ${field}`);
 			}
@@ -224,6 +225,45 @@ describe('Tasks API', () => {
 			const body = (await res.json()) as Record<string, unknown>;
 			assert.equal(body.priority, 9);
 			assert.equal(body.title, 'T');
+		});
+	});
+
+	// ── Task → Säule-Zuordnung (pillarId) ────────────────────────────────────
+
+	describe('Task → Säule-Zuordnung (pillarId)', () => {
+		it('serializeTask liefert pillarId (null ohne Zuordnung)', async () => {
+			const res = await post('/tasks', { title: 'Ohne Säule', priority: 1, estimatedEffort: 1 });
+			const body = (await res.json()) as Record<string, unknown>;
+			assert.equal(body.pillarId, null);
+		});
+
+		it('201 mit gültiger pillarId beim Anlegen', async () => {
+			const pillar = await Pillar.create({ name: 'Körper', weight: 20 });
+			const res = await post('/tasks', { title: 'Mit Säule', priority: 1, estimatedEffort: 1, pillarId: pillar.id });
+			assert.equal(res.status, 201);
+			const body = (await res.json()) as Record<string, unknown>;
+			assert.equal(body.pillarId, pillar.id);
+		});
+
+		it('200 setzt pillarId per PATCH und wieder auf null', async () => {
+			const pillar = await Pillar.create({ name: 'Sinn', weight: 20 });
+			const task = await Task.create({ title: 'T', priority: 1, estimatedEffort: 1 });
+			const assigned = await patch(`/tasks/${task.id}`, { pillarId: pillar.id });
+			assert.equal(assigned.status, 200);
+			assert.equal(((await assigned.json()) as Record<string, unknown>).pillarId, pillar.id);
+			const cleared = await patch(`/tasks/${task.id}`, { pillarId: null });
+			assert.equal(cleared.status, 200);
+			assert.equal(((await cleared.json()) as Record<string, unknown>).pillarId, null);
+		});
+
+		it('400 wenn pillarId keine Ganzzahl', async () => {
+			const res = await post('/tasks', { title: 'T', priority: 1, estimatedEffort: 1, pillarId: 1.5 });
+			assert.equal(res.status, 400);
+		});
+
+		it('400 wenn pillarId auf keine existierende Säule verweist', async () => {
+			const res = await post('/tasks', { title: 'T', priority: 1, estimatedEffort: 1, pillarId: 99999 });
+			assert.equal(res.status, 400);
 		});
 	});
 
@@ -425,6 +465,7 @@ describe('Tasks API', () => {
 				'actualEffort',
 				'description',
 				'deadline',
+				'pillarId',
 			]) {
 				assert.ok(field in body, `Fehlendes Feld: ${field}`);
 			}

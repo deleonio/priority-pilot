@@ -1,10 +1,21 @@
 import sequelize from './database.js';
 import { launchServer } from './express/index.js';
 import { buildTaskForest } from './logics/tree.js';
-import { Task } from './models/index.js';
+import { Pillar, Task } from './models/index.js';
 
 // Daten nur auf ausdrücklichen Wunsch zurücksetzen (sonst kein stiller Datenverlust).
 const shouldReset = process.env.DB_RESET === 'true';
+
+// Die fünf festen Lebensbalance-Säulen (gleichgewichtet ⇒ je 20 %, Summe 100 %).
+const PILLAR_NAMES = ['Körper', 'Beziehungen', 'Sinn', 'Mentale Gesundheit', 'Wirksamkeit'] as const;
+
+const seedPillars = async (): Promise<void> => {
+	const existing = await Pillar.count();
+	if (existing > 0) {
+		return;
+	}
+	await Pillar.bulkCreate(PILLAR_NAMES.map((name) => ({ name, weight: 20 })));
+};
 
 const seedDemoData = async (): Promise<void> => {
 	const existing = await Task.count();
@@ -43,6 +54,9 @@ const main = async (): Promise<void> => {
 		// Datenbank synchronisieren (force nur bei DB_RESET=true)
 		await sequelize.sync({ force: shouldReset });
 		console.log('Modelle synchronisiert.');
+
+		// Die fünf Säulen in eine leere DB säen (idempotent)
+		await seedPillars();
 
 		// Beispiel-Daten nur anlegen, wenn die Datenbank leer ist
 		await seedDemoData();

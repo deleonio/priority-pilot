@@ -1,5 +1,6 @@
 import Task from './task.js';
 import Dependency from './dependency.js';
+import Pillar from './pillar.js';
 
 Task.belongsToMany(Task, {
 	as: 'dependencies',
@@ -15,4 +16,8 @@ Task.belongsToMany(Task, {
 	otherKey: 'dependentTaskId',
 });
 
-export { Task, Dependency };
+// Jeder Task gehört zu höchstens einer Säule (1:1-Annahme, FK nullable).
+Task.belongsTo(Pillar, { foreignKey: 'pillarId' });
+Pillar.hasMany(Task, { foreignKey: 'pillarId' });
+
+export { Task, Dependency, Pillar };
