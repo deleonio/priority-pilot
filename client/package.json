@@ -2,8 +2,12 @@
 	"name": "client",
 	"type": "module",
 	"private": true,
+	"exports": {
+		".": "./src/generated/index.ts"
+	},
 	"scripts": {
-		"generate": "openapi-generator-cli generate -i ../openapi.yml -g typescript-fetch -o src/generated"
+		"generate": "openapi-generator-cli generate -i ../openapi.yml -g typescript-fetch -o src/generated",
+		"prepare": "pnpm generate"
 	},
 	"devDependencies": {
 		"@openapitools/openapi-generator-cli": "2.38.0"

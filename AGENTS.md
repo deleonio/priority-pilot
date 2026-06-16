@@ -63,3 +63,7 @@ Konkreter Command: `/kreuzverhoer-review`.
 Die im Review entstehenden Kommentare werden vom Umsetzungs-Workflow (`/implement-ticket`,
 Schritt 4) im **Kreuzverhör-Loop** abgearbeitet: zutreffende Punkte fixen, mehrdeutige rückfragen,
 sonst begründet kommentieren — danach erneut kreuzverhören, bis nichts mehr offen ist.
+
+## Tests (Server)
+
+`pnpm --filter priority-pilot test` — Node.js `node:test` + `tsx`, In-Memory-SQLite, alle Testdateien unter `server/src/**/*.test.ts`.

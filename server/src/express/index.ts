@@ -10,7 +10,7 @@ type TaskTreeNodeDto = components['schemas']['TaskTreeNode'];
 type TaskDto = components['schemas']['Task'];
 type ErrorDto = components['schemas']['Error'];
 
-export const launchServer = async () => {
+export const createApp = () => {
 	const app = express();
 	app.use(express.json());
 
@@ -36,5 +36,10 @@ export const launchServer = async () => {
 		}
 	});
 
+	return app;
+};
+
+export const launchServer = async () => {
+	const app = createApp();
 	app.listen(PORT, () => console.log(`Server läuft auf http://localhost:${PORT}`));
 };
