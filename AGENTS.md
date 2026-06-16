@@ -39,12 +39,15 @@ einem Durchlauf).
 Offene Issues mit Label `ai:ready` (vom Menschen zur Umsetzung freigegeben), die **nicht
 zugewiesen** sind: sich selbst zuweisen → auf eigenem Branch umsetzen → `pnpm format` + Lint →
 **PR (ready to review)**, via `Closes #<nr>` mit dem Ticket verknüpft (erscheint im „Development"-Bereich,
-schließt es beim Merge) → PR **beobachten** und Review-Kommentare behandeln (zutreffende fixen,
-mehrdeutige rückfragen, sonst kommentieren), bis er gemergt oder geschlossen ist. Vollständiger Ablauf:
+schließt es beim Merge) → **Kreuzverhör-Loop**: den PR in Runden kritisch prüfen (`/kreuzverhoer-review`)
+und nachbessern (zutreffende Findings fixen, mehrdeutige rückfragen, sonst begründet kommentieren),
+**bis das Urteil 🟢 ist und keine Anmerkung mehr offen** ist (nach max. 3 Runden mit offenen Punkten
+den Menschen entscheiden lassen). Vollständiger Ablauf:
 [.ai-knowledge/ticket-implementation.md](.ai-knowledge/ticket-implementation.md).
 Konkreter Command: `/implement-ticket`.
 
-Label-Kette: `ai:analyzed` (analysiert) → `ai:ready` (freigegeben) → Umsetzung als PR (ready to review) → PR-Review (`/kreuzverhoer-review`).
+Label-Kette: `ai:analyzed` (analysiert) → `ai:ready` (freigegeben) → Umsetzung als PR (ready to review),
+der den Kreuzverhör-Loop (`/kreuzverhoer-review`) bis zur 🟢-Freigabe durchläuft.
 
 ## PR-Review (Kreuzverhör)
 
@@ -58,5 +61,5 @@ formales Approve/Request-Changes — der Merge bleibt beim Menschen. Vollständi
 Konkreter Command: `/kreuzverhoer-review`.
 
 Die im Review entstehenden Kommentare werden vom Umsetzungs-Workflow (`/implement-ticket`,
-Schritt 4) **behandelt**: zutreffende Punkte fixen, mehrdeutige rückfragen, sonst begründet
-kommentieren.
+Schritt 4) im **Kreuzverhör-Loop** abgearbeitet: zutreffende Punkte fixen, mehrdeutige rückfragen,
+sonst begründet kommentieren — danach erneut kreuzverhören, bis nichts mehr offen ist.
