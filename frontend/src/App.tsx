@@ -123,12 +123,15 @@ export const App = () => {
 			)}
 
 			{dialog?.kind === 'create' && <TaskFormModal task={null} onClose={closeDialog} onSaved={afterMutation} />}
-			{dialog?.kind === 'edit' && <TaskFormModal task={dialog.task} onClose={closeDialog} onSaved={afterMutation} />}
+			{dialog?.kind === 'edit' && (
+				<TaskFormModal key={dialog.task.id} task={dialog.task} onClose={closeDialog} onSaved={afterMutation} />
+			)}
 			{dialog?.kind === 'delete' && (
 				<DeleteTaskDialog task={dialog.task} onClose={closeDialog} onDeleted={afterMutation} />
 			)}
 			{dialog?.kind === 'dependencies' && dependencyTask !== null && tasks !== null && (
 				<DependencyModal
+					key={dependencyTask.id}
 					task={dependencyTask}
 					allTasks={tasks}
 					dependencies={dependencyMap.get(dependencyTask.id) ?? []}

@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import type { DependencyRef } from '../lib/dependencies';
+import { readNumber } from '../lib/inputValue';
 import { Modal } from './Modal';
 
 interface DependencyModalProps {
@@ -17,17 +18,6 @@ interface DependencyModalProps {
 	/** Nach Hinzufügen/Entfernen aufgerufen, damit der Aufruf-Kontext Tasks + Wald neu lädt. */
 	onChanged: () => void;
 }
-
-const readNumber = (value: unknown): number | null => {
-	if (typeof value === 'number') {
-		return Number.isFinite(value) ? value : null;
-	}
-	if (typeof value === 'string' && value.trim() !== '') {
-		const parsed = Number(value);
-		return Number.isFinite(parsed) ? parsed : null;
-	}
-	return null;
-};
 
 /**
  * Abhängigkeits-Editor: listet die Vorgänger eines Tasks, fügt neue mit Gewicht hinzu

@@ -12,6 +12,7 @@ import { TaskStatus } from 'client';
 import { useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
+import { readNumber, readString } from '../lib/inputValue';
 import { STATUS_OPTIONS, deadlineToDateInput } from '../lib/task';
 import { Modal } from './Modal';
 
@@ -22,21 +23,6 @@ interface TaskFormModalProps {
 	/** Nach erfolgreichem Speichern aufgerufen (Liste neu laden + Dialog schließen). */
 	onSaved: () => void;
 }
-
-/** Liest einen KoliBri-Eventwert als getrimmten String. */
-const readString = (value: unknown): string => (typeof value === 'string' ? value : value == null ? '' : String(value));
-
-/** Liest einen KoliBri-Eventwert als Zahl oder `null`, falls leer/ungültig. */
-const readNumber = (value: unknown): number | null => {
-	if (typeof value === 'number') {
-		return Number.isFinite(value) ? value : null;
-	}
-	if (typeof value === 'string' && value.trim() !== '') {
-		const parsed = Number(value);
-		return Number.isFinite(parsed) ? parsed : null;
-	}
-	return null;
-};
 
 export const TaskFormModal = ({ task, onClose, onSaved }: TaskFormModalProps) => {
 	const isEdit = task !== null;
