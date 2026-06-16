@@ -18,7 +18,14 @@ export interface DependencyRef {
 export const buildDependencyMap = (forest: TaskTreeNode[]): Map<number, DependencyRef[]> => {
 	const map = new Map<number, DependencyRef[]>();
 
+	// Pfad-basierter Zyklusschutz: Der Server lehnt zyklische Abhängigkeiten ab (409), doch sollte
+	// `/forest` wider Erwarten einen Zyklus enthalten, verhindert dieser Guard einen Stack-Overflow.
+	const path = new Set<number>();
 	const visit = (node: TaskTreeNode): void => {
+		if (path.has(node.id)) {
+			return;
+		}
+		path.add(node.id);
 		for (const child of node.dependents) {
 			const list = map.get(child.id) ?? [];
 			if (!list.some((dependency) => dependency.id === node.id)) {
@@ -27,6 +34,7 @@ export const buildDependencyMap = (forest: TaskTreeNode[]): Map<number, Dependen
 			map.set(child.id, list);
 			visit(child);
 		}
+		path.delete(node.id);
 	};
 
 	forest.forEach(visit);

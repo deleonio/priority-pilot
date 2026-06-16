@@ -8,25 +8,36 @@ interface ForestPanelProps {
 
 const formatNumber = (value: number): string => value.toLocaleString('de-DE', { maximumFractionDigits: 2 });
 
-/** Rekursive Darstellung eines Baumknotens samt seiner abhängigen Tasks. */
-const TreeNode = ({ node }: { node: TaskTreeNode }) => (
-	<li>
-		<span className="tree-node-label">
-			#{node.id} – {node.title}
-		</span>
-		<span className="tree-node-meta">
-			(Priorität {node.priority}, Wert {formatNumber(node.value)}, Gesamtaufwand{' '}
-			{formatNumber(node.totalEstimatedEffort)} Tage)
-		</span>
-		{node.dependents.length > 0 && (
-			<ul>
-				{node.dependents.map((child) => (
-					<TreeNode key={child.id} node={child} />
-				))}
-			</ul>
-		)}
-	</li>
-);
+/**
+ * Rekursive Darstellung eines Baumknotens samt seiner abhängigen Tasks.
+ *
+ * `visited` reicht die IDs des aktuellen Pfads weiter und bricht bei einem (unerwarteten) Zyklus in
+ * den Baumdaten ab, damit kein endloser Render-Loop entsteht.
+ */
+const TreeNode = ({ node, visited = new Set<number>() }: { node: TaskTreeNode; visited?: Set<number> }) => {
+	if (visited.has(node.id)) {
+		return null;
+	}
+	const nextVisited = new Set(visited).add(node.id);
+	return (
+		<li>
+			<span className="tree-node-label">
+				#{node.id} – {node.title}
+			</span>
+			<span className="tree-node-meta">
+				(Priorität {node.priority}, Wert {formatNumber(node.value)}, Gesamtaufwand{' '}
+				{formatNumber(node.totalEstimatedEffort)} Tage)
+			</span>
+			{node.dependents.length > 0 && (
+				<ul>
+					{node.dependents.map((child) => (
+						<TreeNode key={child.id} node={child} visited={nextVisited} />
+					))}
+				</ul>
+			)}
+		</li>
+	);
+};
 
 /**
  * Optionale Visualisierung: nach Wertbeitrag sortierter Aufgabenwald (`GET /forest`) und die

@@ -33,7 +33,9 @@ export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChang
 	}));
 
 	const [selectedId, setSelectedId] = useState<number | null>(null);
-	const weight = useRef(1);
+	// `null` erlaubt: ein geleertes Gewicht-Feld setzt den Ref auf `null`, damit die Validierung
+	// greift, statt still den alten Wert weiterzuverwenden.
+	const weight = useRef<number | null>(1);
 	const [error, setError] = useState<string | null>(null);
 	const [busy, setBusy] = useState(false);
 
@@ -42,7 +44,8 @@ export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChang
 			setError('Bitte einen Vorgänger-Task auswählen.');
 			return;
 		}
-		if (!Number.isFinite(weight.current) || weight.current < 0) {
+		const weightValue = weight.current;
+		if (weightValue === null || !Number.isFinite(weightValue) || weightValue < 0) {
 			setError('Das Gewicht muss eine Zahl ≥ 0 sein.');
 			return;
 		}
@@ -51,7 +54,7 @@ export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChang
 		try {
 			await api.addDependency({
 				id: task.id,
-				dependencyInput: { dependingTaskId: selectedId, weight: weight.current },
+				dependencyInput: { dependingTaskId: selectedId, weight: weightValue },
 			});
 			setSelectedId(null);
 			onChanged();
@@ -131,19 +134,13 @@ export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChang
 							_label="Gewicht (≥ 0)"
 							_min={0}
 							_step={0.1}
-							_value={weight.current}
+							_value={weight.current ?? undefined}
 							_on={{
 								onInput: (_event, value) => {
-									const parsed = readNumber(value);
-									if (parsed !== null) {
-										weight.current = parsed;
-									}
+									weight.current = readNumber(value);
 								},
 								onChange: (_event, value) => {
-									const parsed = readNumber(value);
-									if (parsed !== null) {
-										weight.current = parsed;
-									}
+									weight.current = readNumber(value);
 								},
 							}}
 						/>

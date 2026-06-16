@@ -20,13 +20,22 @@ export const Modal = ({ title, onClose, children }: ModalProps) => {
 	const dialogRef = useRef<HTMLDivElement>(null);
 	const titleId = useId();
 
+	// `onClose` über einen Ref ansprechen, damit der Setup-Effekt unabhängig von der Identität des
+	// Callbacks genau einmal läuft. Sonst würde ein nicht-memoisiertes `onClose` den Effekt erneut
+	// ausführen und dabei das falsche Element als „zuvor fokussiert" merken (Fokus-Wiederherstellung
+	// schlägt fehl).
+	const onCloseRef = useRef(onClose);
+	useEffect(() => {
+		onCloseRef.current = onClose;
+	}, [onClose]);
+
 	useEffect(() => {
 		const previouslyFocused = document.activeElement;
 		dialogRef.current?.focus();
 
 		const onKeyDown = (event: KeyboardEvent): void => {
 			if (event.key === 'Escape') {
-				onClose();
+				onCloseRef.current();
 			}
 		};
 		document.addEventListener('keydown', onKeyDown);
@@ -40,7 +49,7 @@ export const Modal = ({ title, onClose, children }: ModalProps) => {
 				previouslyFocused.focus();
 			}
 		};
-	}, [onClose]);
+	}, []);
 
 	return (
 		<div
