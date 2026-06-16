@@ -1,5 +1,6 @@
 {
 	"watch": ["src"],
 	"ext": "ts",
+	"ignore": ["src/api.d.ts"],
 	"exec": "pnpm build && node dist/index.js"
 }
