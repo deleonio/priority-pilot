@@ -19,6 +19,8 @@ export type TaskUpdate = WithDateDeadline<Schemas['TaskUpdate']>;
 export type TaskStatus = Schemas['TaskStatus'];
 export type TaskTreeNode = Schemas['TaskTreeNode'];
 export type DependencyInput = Schemas['DependencyInput'];
+export type Pillar = Schemas['Pillar'];
+export type PillarWeightsInput = Schemas['PillarWeightsInput'];
 export type ApiError = Schemas['Error'];
 
 // `TaskStatus` zusätzlich als Laufzeitwert (der Vertrag liefert nur einen String-Union-Typ),

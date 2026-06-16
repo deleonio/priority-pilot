@@ -131,6 +131,51 @@ paths:
           description: Abhängigkeit wurde entfernt
         '404':
           $ref: '#/components/responses/NotFound'
+  /pillars:
+    get:
+      summary: Alle Lebensbalance-Säulen auflisten
+      description: >-
+        Liefert die fünf festen Säulen inkl. ihres prozentualen Anteils
+        (`weight`); die Gewichte summieren sich über alle Säulen auf 100.
+      operationId: listPillars
+      responses:
+        '200':
+          description: Liste aller Säulen
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Pillar'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /pillars/weights:
+    put:
+      summary: Gewichtung (100 %-Verteilung) über alle Säulen setzen
+      description: >-
+        Setzt die prozentuale Verteilung über die Säulen. Der Body muss genau
+        alle existierenden Säulen enthalten; die Summe der Gewichte muss 100
+        ergeben und jedes Gewicht `>= 0` sein.
+      operationId: setPillarWeights
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PillarWeightsInput'
+      responses:
+        '200':
+          description: Die aktualisierte Liste aller Säulen
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Pillar'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /forest:
     get:
       summary: Aufgabenwald nach Wertschöpfung sortiert
@@ -386,6 +431,33 @@ components:
           minimum: 0
           default: 20
           description: Prozentualer Anteil der Säule (alle Säulen summieren sich auf 100)
+    PillarWeightsInput:
+      type: object
+      description: >-
+        Neue 100 %-Verteilung über die Säulen. `weights` muss genau alle
+        existierenden Säulen abdecken; die Summe aller `weight` muss 100 ergeben.
+      required:
+        - weights
+      properties:
+        weights:
+          type: array
+          minItems: 1
+          description: Gewicht je Säule (Summe = 100).
+          items:
+            type: object
+            required:
+              - id
+              - weight
+            properties:
+              id:
+                type: integer
+                minimum: 1
+                description: ID der Säule
+              weight:
+                type: number
+                format: float
+                minimum: 0
+                description: Prozentualer Anteil der Säule
     Error:
       type: object
       required:
