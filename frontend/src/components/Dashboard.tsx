@@ -19,9 +19,14 @@ interface StatCard {
  */
 export const Dashboard = ({ tasks }: DashboardProps) => {
 	const cards = useMemo<StatCard[]>(() => {
+		// Status-Häufigkeiten in einem einzigen Durchlauf zählen (O(n)).
+		const counts = new Map<string, number>();
+		for (const task of tasks) {
+			counts.set(task.status, (counts.get(task.status) ?? 0) + 1);
+		}
 		const perStatus = STATUS_OPTIONS.map((option) => ({
 			label: option.label,
-			count: tasks.filter((task) => task.status === option.value).length,
+			count: counts.get(option.value) ?? 0,
 		}));
 		return [{ label: 'Gesamt', count: tasks.length }, ...perStatus];
 	}, [tasks]);
