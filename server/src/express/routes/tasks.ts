@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { ValidationError as SequelizeValidationError } from 'sequelize';
-import { Task } from '../../models/index.js';
+import { Pillar, Task } from '../../models/index.js';
 import { wouldCreateCycle } from '../../logics/cycle.js';
 import type { components } from '../../api';
 
@@ -20,6 +20,7 @@ interface TaskAttributes {
 	actualEffort?: number | null;
 	description?: string | null;
 	deadline?: Date | null;
+	pillarId?: number | null;
 }
 
 type ValidationResult = { ok: true; attrs: TaskAttributes } | { ok: false; message: string };
@@ -37,6 +38,7 @@ export const serializeTask = (task: Task): TaskDto => ({
 	actualEffort: task.actualEffort ?? null,
 	description: task.description ?? null,
 	deadline: task.deadline ? task.deadline.toISOString() : null,
+	pillarId: task.pillarId ?? null,
 });
 
 const sendError = (res: Response<ErrorDto>, status: number, message: string): void => {
@@ -131,7 +133,29 @@ const validateTaskFields = (body: unknown, requireTitle: boolean): ValidationRes
 		}
 	}
 
+	if (input.pillarId !== undefined) {
+		if (input.pillarId === null) {
+			attrs.pillarId = null;
+		} else if (typeof input.pillarId !== 'number' || !Number.isInteger(input.pillarId) || input.pillarId < 1) {
+			return { ok: false, message: 'pillarId muss eine Ganzzahl >= 1 oder null sein.' };
+		} else {
+			attrs.pillarId = input.pillarId;
+		}
+	}
+
 	return { ok: true, attrs };
+};
+
+/**
+ * Prüft, ob die (gesetzte) Säulen-Zuordnung gültig ist. `null`/`undefined` sind erlaubt
+ * (keine Säule). Eine gesetzte, aber nicht existierende `pillarId` ist ungültig — SQLite
+ * erzwingt den Fremdschlüssel nicht selbst, daher hier explizit prüfen.
+ */
+const isPillarReferenceValid = async (pillarId: number | null | undefined): Promise<boolean> => {
+	if (typeof pillarId !== 'number') {
+		return true;
+	}
+	return (await Pillar.findByPk(pillarId)) !== null;
 };
 
 export const tasksRouter = Router();
@@ -151,6 +175,10 @@ tasksRouter.post('/tasks', async (req: Request, res: Response<TaskDto | ErrorDto
 	const validation = validateTaskFields(req.body, true);
 	if (!validation.ok) {
 		sendError(res, 400, validation.message);
+		return;
+	}
+	if (!(await isPillarReferenceValid(validation.attrs.pillarId))) {
+		sendError(res, 400, 'pillarId verweist auf keine existierende Säule.');
 		return;
 	}
 	try {
@@ -183,6 +211,10 @@ tasksRouter.patch('/tasks/:id', async (req: Request, res: Response<TaskDto | Err
 	const validation = validateTaskFields(req.body, false);
 	if (!validation.ok) {
 		sendError(res, 400, validation.message);
+		return;
+	}
+	if (!(await isPillarReferenceValid(validation.attrs.pillarId))) {
+		sendError(res, 400, 'pillarId verweist auf keine existierende Säule.');
 		return;
 	}
 	try {

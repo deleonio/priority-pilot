@@ -247,6 +247,11 @@ components:
           type: string
           format: date-time
           nullable: true
+        pillarId:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: ID der zugeordneten Lebensbalance-Säule (oder `null`)
     TaskCreate:
       type: object
       required:
@@ -277,6 +282,11 @@ components:
           type: string
           format: date-time
           nullable: true
+        pillarId:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: ID der zugeordneten Lebensbalance-Säule (oder `null`)
     TaskUpdate:
       type: object
       description: Alle Felder optional — gesetzte Felder werden aktualisiert.
@@ -304,6 +314,11 @@ components:
           type: string
           format: date-time
           nullable: true
+        pillarId:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: ID der zugeordneten Lebensbalance-Säule (oder `null`)
     DependencyInput:
       type: object
       required:
@@ -352,6 +367,25 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/TaskTreeNode'
+    Pillar:
+      type: object
+      description: Eine der fünf festen Lebensbalance-Säulen.
+      required:
+        - id
+        - name
+        - weight
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          description: 'Name der Säule (z. B. Körper, Beziehungen, Sinn, Mentale Gesundheit, Wirksamkeit)'
+        weight:
+          type: number
+          format: float
+          minimum: 0
+          default: 20
+          description: Prozentualer Anteil der Säule (alle Säulen summieren sich auf 100)
     Error:
       type: object
       required:
