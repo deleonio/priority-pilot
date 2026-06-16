@@ -47,29 +47,51 @@ gesetzt (zur Umsetzung freigegeben) → dieser Workflow setzt um.
   muss `<nr>` enthalten.
 - Der PR ist **ready to review** (kein Draft) — die finale Freigabe/der Merge erfolgt durch einen Menschen.
 
-## Schritt 4 — PR beobachten & Review-Kommentare behandeln
+## Schritt 4 — Kreuzverhör-Loop (umsetzen ⇄ prüfen, bis sauber)
 
-Nach dem Erstellen den PR **weiter beobachten** (CI-Status und eingehende Review-Kommentare) und
-darauf reagieren, bis er **gemergt oder geschlossen** ist.
+Der frisch erstellte PR wird **nicht nur beobachtet, sondern aktiv im Kreuzverhör geprüft und
+nachgebessert** — in Runden, bis **keine Anmerkung mehr offen** ist. Eine Runde besteht aus
+*kreuzverhören → CI prüfen → Findings abarbeiten → erneut kreuzverhören*. Dabei sind zwei Rollen
+strikt getrennt: Die **Kreuzverhör-Rolle** prüft nur und ändert keinen Code (vollständiger Ablauf:
+[pr-review.md](pr-review.md), Command `/kreuzverhoer-review`); die **Umsetzer-Rolle** behebt die
+Findings.
 
-- **CI prüfen:** Status der Checks ansehen (`gh pr checks <pr>`). Schlägt etwas fehl, die Ursache
-  diagnostizieren und — wenn im Rahmen des Tickets — beheben (Fix committen, pushen, erneut
-  `pnpm format` + Lint).
-- **Review-Kommentare** der Reihe nach durchgehen und je nach Fall behandeln:
-  - **Zutreffend, klein, eindeutig →** direkt **umsetzen**: Fix committen + pushen, kurz im Thread
-    antworten (Bezug zum Fix-Commit) und den Thread auflösen.
-  - **Mehrdeutig oder architektonisch relevant →** **nicht** raten, sondern **vorher rückfragen**.
-  - **Nicht zutreffend / kein Handlungsbedarf →** sachlich **kommentieren**, warum nichts geändert
-    wird (statt stillschweigend zu ignorieren).
+**Pro Runde:**
+
+1. **Kreuzverhör auslösen** — den vollständigen PR-Diff adversarial gegen Ticket-Ziel, Edge Cases,
+   Einfachheit, Performance/Security und Projekt-Konventionen prüfen (siehe [pr-review.md](pr-review.md)).
+   Jedes Finding wird als an Datei/Zeile **verankerter** Review-Kommentar gepostet, abgeschlossen mit
+   einem Urteil samt **Ampel** (🟢/🟡/🔴).
+2. **CI prüfen** — `gh pr checks <pr>`. Schlägt etwas fehl, die Ursache diagnostizieren und — im
+   Rahmen des Tickets — beheben (zählt als Finding der Runde).
+3. **Findings abarbeiten** (Umsetzer-Rolle) — jeden offenen Punkt behandeln:
+   - **Zutreffend, klein, eindeutig →** **fixen**: Fix committen + pushen, erneut `pnpm format` +
+     Lint, kurz im Thread antworten (Bezug zum Fix-Commit) und den Thread **auflösen**.
+   - **Mehrdeutig oder architektonisch relevant →** **nicht** raten, sondern **vorher rückfragen**;
+     den Punkt bis zur Antwort offen lassen.
+   - **Nicht zutreffend / kein Handlungsbedarf →** sachlich **kommentieren**, warum nichts geändert
+     wird, und den Thread auflösen (nicht stillschweigend ignorieren).
+4. **Erneut kreuzverhören** — nach den Fix-Commits den **aktualisierten** Diff erneut prüfen
+   (zurück zu Schritt 1 dieser Runde). So entsteht das „Hin und Her", bis nichts mehr offen ist.
+
+**Abbruchbedingung:** Der Loop endet, wenn das Kreuzverhör **🟢** urteilt und **keine offenen
+Findings** mehr übrig sind (alle gefixt, auflösend kommentiert oder mit dem Menschen geklärt).
+Ergebnis ist ein durchgeprüfter, review-bereiter PR — der finale Merge bleibt beim Menschen.
+
+**Schleifenschutz:**
+
 - Antworten knapp halten; nicht jede Fix-Runde einzeln ankündigen — der PR-Diff ist der Nachweis.
-- Der PR ist **ready to review**: Fixes verbessern ihn, der finale Merge bleibt beim Menschen.
+- Bereits begründet abgelehnte Findings nicht erneut aufmachen — sonst dreht sich der Loop endlos.
+- Bleiben nach **3 Runden** noch substanzielle oder mehrdeutige Findings offen, **nicht endlos
+  weiterdrehen**, sondern den Stand zusammenfassen und den **Menschen** entscheiden lassen.
 
-> In Claude Code lässt sich das Beobachten automatisieren: Der PR kann per
-> `subscribe_pr_activity` abonniert werden, dann landen CI- und Review-Events direkt in der Session.
-> Kritische Reviews liefert der Command `/kreuzverhoer-review` (siehe [pr-review.md](pr-review.md)).
+> In Claude Code lässt sich der Loop unterstützen: Den PR per `subscribe_pr_activity` abonnieren —
+> neue Commits, CI- und Review-Events landen dann direkt in der Session und stoßen die nächste
+> Kreuzverhör-Runde an.
 
 ## Hinweise
 
-- Zuweisen (Schritt 1) und Push/PR (Schritt 3) schreiben **öffentlich** auf GitHub —
-  vor dem Push/PR bestätigen lassen.
-- Ergebnis des Workflows ist ein **review-bereiter PR** (ready to review), kein Merge.
+- Zuweisen (Schritt 1), Push/PR (Schritt 3) und die Review-Kommentare des Kreuzverhörs (Schritt 4)
+  schreiben **öffentlich** auf GitHub — vor dem Posten bestätigen lassen.
+- Ergebnis des Workflows ist ein **review-bereiter PR** (ready to review), der den Kreuzverhör-Loop
+  durchlaufen hat — kein Merge.
