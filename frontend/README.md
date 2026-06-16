@@ -57,6 +57,10 @@ pnpm --filter frontend test:e2e:update   # Baselines neu erzeugen/aktualisieren 
 > Erzeuge nach bewussten UI-Änderungen die Baselines mit `test:e2e:update` neu und commite die
 > aktualisierten Bilder.
 
+> **Plattformabhängig:** Die committeten Baselines wurden hier unter **macOS** erzeugt; auf anderem
+> OS/CI weichen Font-Rendering und Antialiasing ab, sodass die Vergleiche fehlschlagen — dort sind
+> eigene Baselines (Plattform-Suffix) bzw. ein einheitlicher Docker-Renderer nötig.
+
 ## Mehr
 
 Gesamt-Setup und API-Vertrag: [Root-README](../README.md).

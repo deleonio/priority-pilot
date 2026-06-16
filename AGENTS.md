@@ -82,3 +82,7 @@ Merge/Schließen).
 Specs/Fixtures unter `frontend/e2e/`. Die API wird per `page.route` gemockt (kein Backend nötig);
 Playwright startet den Vite-Dev-Server selbst. Baselines aktualisieren bzw. neu erzeugen:
 `pnpm --filter frontend test:e2e:update`.
+
+Die E2E-Snapshots laufen **nicht** als Teil von `pnpm -r test` bzw. `pnpm --filter frontend test`
+(Vitest schließt `e2e/` aus), sondern ausschließlich separat über `test:e2e` (benötigen die
+installierten Playwright-Browser).

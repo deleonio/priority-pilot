@@ -26,7 +26,7 @@ export default defineConfig({
 		// Deterministisches, festes Viewport + Scale-Faktor für reproduzierbare Pixel.
 		viewport: { width: 1280, height: 900 },
 		deviceScaleFactor: 1,
-		// Animationen sind bei toHaveScreenshot ohnehin Default-deaktiviert; hier zur Klarheit fixiert.
+		// Feste Locale/Zeitzone, damit Datums-/Zahlenformate in den Snapshots reproduzierbar sind.
 		locale: 'de-DE',
 		timezoneId: 'Europe/Berlin',
 	},
@@ -36,6 +36,7 @@ export default defineConfig({
 			// zu verschlucken.
 			maxDiffPixelRatio: 0.01,
 			threshold: 0.2,
+			// Animationen sind bei toHaveScreenshot ohnehin Default-deaktiviert; hier zur Klarheit fixiert.
 			animations: 'disabled',
 		},
 	},
