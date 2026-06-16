@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { Task } from '../models/index.js';
+import { Task, Dependency } from '../models/index.js';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
 
 let server: TestServer;
@@ -78,7 +78,16 @@ describe('Tasks API', () => {
 		it('serializeTask liefert alle Pflichtfelder', async () => {
 			const res = await post('/tasks', { title: 'Fields', priority: 2, estimatedEffort: 0.5 });
 			const body = (await res.json()) as Record<string, unknown>;
-			for (const field of ['id', 'title', 'status', 'priority', 'estimatedEffort', 'actualEffort', 'description', 'deadline']) {
+			for (const field of [
+				'id',
+				'title',
+				'status',
+				'priority',
+				'estimatedEffort',
+				'actualEffort',
+				'description',
+				'deadline',
+			]) {
 				assert.ok(field in body, `Fehlendes Feld: ${field}`);
 			}
 		});
@@ -108,8 +117,9 @@ describe('Tasks API', () => {
 			assert.equal(res.status, 400);
 		});
 
-		it('400 wenn estimatedEffort nicht-endlich', async () => {
-			const res = await post('/tasks', { title: 'T', priority: 1, estimatedEffort: Infinity });
+		it('400 wenn estimatedEffort kein Number', async () => {
+			// Infinity/NaN überleben JSON.stringify nicht (→ null); über die API erreichbar ist nur der Typcheck.
+			const res = await post('/tasks', { title: 'T', priority: 1, estimatedEffort: 'viel' });
 			assert.equal(res.status, 400);
 		});
 
@@ -258,6 +268,10 @@ describe('Tasks API', () => {
 			await post(`/tasks/${a.id}/dependencies`, { dependingTaskId: b.id, weight: 1 });
 			const res2 = await post(`/tasks/${a.id}/dependencies`, { dependingTaskId: b.id, weight: 2 });
 			assert.equal(res2.status, 201);
+			// Keine Duplikat-Kante, und das Gewicht wurde tatsächlich aktualisiert (nicht nur Status 201).
+			const edges = await Dependency.findAll({ where: { dependentTaskId: a.id, dependingTaskId: b.id } });
+			assert.equal(edges.length, 1);
+			assert.equal(edges[0].dataValues.weight, 2);
 		});
 
 		it('400 wenn dependingTaskId fehlt', async () => {
@@ -366,7 +380,15 @@ describe('Tasks API', () => {
 			const res = await get('/forest');
 			const body = (await res.json()) as Record<string, unknown>[];
 			const node = body[0];
-			for (const field of ['id', 'title', 'priority', 'estimatedEffort', 'totalEstimatedEffort', 'value', 'dependents']) {
+			for (const field of [
+				'id',
+				'title',
+				'priority',
+				'estimatedEffort',
+				'totalEstimatedEffort',
+				'value',
+				'dependents',
+			]) {
 				assert.ok(field in node, `Fehlendes Feld: ${field}`);
 			}
 		});
@@ -394,7 +416,16 @@ describe('Tasks API', () => {
 			await Task.create({ title: 'T', priority: 1, estimatedEffort: 1 });
 			const res = await get('/next');
 			const body = (await res.json()) as Record<string, unknown>;
-			for (const field of ['id', 'title', 'status', 'priority', 'estimatedEffort', 'actualEffort', 'description', 'deadline']) {
+			for (const field of [
+				'id',
+				'title',
+				'status',
+				'priority',
+				'estimatedEffort',
+				'actualEffort',
+				'description',
+				'deadline',
+			]) {
 				assert.ok(field in body, `Fehlendes Feld: ${field}`);
 			}
 		});

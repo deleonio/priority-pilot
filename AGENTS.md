@@ -44,3 +44,7 @@ mehrdeutige rückfragen, sonst kommentieren), bis er gemergt oder geschlossen is
 Konkreter Command: `/implement-ticket`.
 
 Label-Kette: `ai:analyzed` (analysiert) → `ai:ready` (freigegeben) → Umsetzung als Draft-PR.
+
+## Tests (Server)
+
+`pnpm --filter priority-pilot test` — Node.js `node:test` + `tsx`, In-Memory-SQLite, alle Testdateien unter `server/src/**/*.test.ts`.

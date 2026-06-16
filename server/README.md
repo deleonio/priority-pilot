@@ -41,22 +41,37 @@ Paket-Verzeichnis aus):
 pnpm --filter priority-pilot exec node dist/index.js
 ```
 
+## Tests
+
+```bash
+pnpm --filter priority-pilot test
+```
+
+Runner: **Node.js `node:test`** mit **`tsx`** als TypeScript-Loader (`--import tsx`). Alle Tests
+laufen gegen eine In-Memory-SQLite-DB (`DATABASE_STORAGE=:memory:`); die Produktionsdatei
+`database.sqlite` bleibt unberührt. API-Tests starten die Express-App auf einem Ephemeral-Port
+(`:0`) und sprechen sie per globalem `fetch` an — kein supertest.
+
+Testdateien: `src/**/*.test.ts`. Helper (kein Testfile): `src/test/helpers.ts`.
+
 ## Scripts
 
-| Script      | Befehl                                             | Zweck                                         |
-| ----------- | -------------------------------------------------- | --------------------------------------------- |
-| `build`     | `build:api` + `build:ts`                           | API-Typen erzeugen und TypeScript kompilieren |
-| `build:api` | `openapi-typescript ../openapi.yml → src/api.d.ts` | Server-Typen aus dem API-Vertrag              |
-| `build:ts`  | `tsc`                                              | `src/` → `dist/`                              |
-| `dev`       | `nodemon`                                          | Watch-Modus (build + run bei Änderungen)      |
-| `lint`      | `build:api` + `tsc --noEmit` + `eslint src`        | Typen + Lint                                  |
+| Script      | Befehl                                               | Zweck                                         |
+| ----------- | ---------------------------------------------------- | --------------------------------------------- |
+| `build`     | `build:api` + `build:ts`                             | API-Typen erzeugen und TypeScript kompilieren |
+| `build:api` | `openapi-typescript ../openapi.yml → src/api.d.ts`   | Server-Typen aus dem API-Vertrag              |
+| `build:ts`  | `tsc`                                                | `src/` → `dist/`                              |
+| `dev`       | `nodemon`                                            | Watch-Modus (build + run bei Änderungen)      |
+| `lint`      | `build:api` + `tsc --noEmit` + `eslint src`          | Typen + Lint                                  |
+| `test`      | `DATABASE_STORAGE=:memory: node --import tsx --test` | Unit- & API-Tests (`node:test` + `tsx`)       |
 
 ## Umgebungsvariablen
 
-| Variable   | Default | Wirkung                                                            |
-| ---------- | ------- | ------------------------------------------------------------------ |
-| `PORT`     | `3000`  | Port des Express-Servers.                                          |
-| `DB_RESET` | `false` | Bei `true` wird die SQLite-DB beim Start verworfen (`sync force`). |
+| Variable           | Default             | Wirkung                                                            |
+| ------------------ | ------------------- | ------------------------------------------------------------------ |
+| `PORT`             | `3000`              | Port des Express-Servers.                                          |
+| `DB_RESET`         | `false`             | Bei `true` wird die SQLite-DB beim Start verworfen (`sync force`). |
+| `DATABASE_STORAGE` | `./database.sqlite` | SQLite-Speicherort; die Tests setzen `:memory:`.                   |
 
 Ohne `DB_RESET=true` bleiben Daten erhalten; Demo-Tasks werden nur in eine leere DB gesät
 ([`src/index.ts`](src/index.ts)).
