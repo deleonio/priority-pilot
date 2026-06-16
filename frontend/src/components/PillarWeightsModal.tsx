@@ -84,7 +84,9 @@ export const PillarWeightsModal = ({ pillars, onClose, onSaved }: PillarWeightsM
 								_label={`${pillar.name} (%)`}
 								_min={0}
 								_step={1}
-								_value={pillar.weight}
+								// An den Ref-Wert binden (nicht den statischen `pillar.weight`): die Komponente rendert
+								// bei jeder Eingabe neu (`setSum`), sonst würde `_value` pro Tastendruck zurückgesetzt.
+								_value={weights.current[index] ?? undefined}
 								_on={{
 									onInput: (_event, value) => {
 										weights.current[index] = readNumber(value);

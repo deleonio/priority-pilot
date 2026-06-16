@@ -93,6 +93,7 @@ export const App = () => {
 					<KolButton
 						_label="Säulen-Gewichtung"
 						_variant="secondary"
+						_disabled={loading || tasks === null}
 						_on={{ onClick: () => setDialog({ kind: 'pillars' }) }}
 					/>
 					<KolButton
