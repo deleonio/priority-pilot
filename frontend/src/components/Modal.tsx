@@ -1,6 +1,19 @@
 import { KolDialog } from '@public-ui/react-v19';
 import { useEffect, useRef, type ReactNode } from 'react';
 
+/**
+ * Das tatsächlich fokussierte Element ermitteln — auch über (offene) Shadow-DOM-Grenzen hinweg.
+ * Nötig, weil KoliBri-Trigger verschachtelt sein können (Button in `kol-toolbar` im Shadow der
+ * `kol-table-stateful`); `document.activeElement` allein liefert nur den äußersten Host.
+ */
+const deepActiveElement = (): Element | null => {
+	let element = document.activeElement;
+	while (element?.shadowRoot?.activeElement != null) {
+		element = element.shadowRoot.activeElement;
+	}
+	return element;
+};
+
 interface ModalProps {
 	/** Überschrift des Dialogs (wird als `_label` zum Card-Titel und accessible name des Dialogs). */
 	title: string;
@@ -34,6 +47,10 @@ export const Modal = ({ title, onClose, children }: ModalProps) => {
 		if (dialog === null) {
 			return;
 		}
+		// Auslöser (auch tief im Shadow-DOM, z. B. ein Button der Tabellen-Toolbar) merken, um den Fokus
+		// beim Schließen dorthin zurückzugeben — sonst landet er im `<body>`. Vor `showModal()` ausgelesen,
+		// da das Öffnen den Fokus in den Dialog zieht.
+		const trigger = deepActiveElement();
 		// `showModal()` erst aufrufen, wenn das Custom-Element registriert/aufgewertet ist — sonst ist die
 		// Methode beim Mount evtl. noch nicht vorhanden und der Dialog bleibt geschlossen. Das
 		// `active`-Flag entkoppelt StrictMode (Setup→Cleanup→Setup) sauber: nur das letzte Setup öffnet.
@@ -46,6 +63,9 @@ export const Modal = ({ title, onClose, children }: ModalProps) => {
 		return () => {
 			active = false;
 			void dialog.close();
+			if (trigger instanceof HTMLElement) {
+				trigger.focus();
+			}
 		};
 	}, []);
 

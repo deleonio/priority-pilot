@@ -56,4 +56,30 @@ test.describe('Priority Pilot — Visual-Snapshots', () => {
 
 		await expect(page).toHaveScreenshot('modal-pillar-weights.png', { fullPage: true });
 	});
+
+	test('Fokus kehrt nach dem Schließen zum auslösenden Toolbar-Button zurück', async ({ page }) => {
+		await mockApi(page, filledFixture);
+		await page.goto('/');
+		await waitForStableView(page);
+
+		// Edit-Dialog über den „Bearbeiten"-Button der Tabellen-Toolbar (erste Zeile) öffnen.
+		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
+		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeVisible();
+		await waitForStableView(page);
+
+		// Über „Abbrechen" schließen (keine Mutation → der auslösende Button bleibt im DOM erhalten).
+		await page.getByRole('button', { name: 'Abbrechen' }).click();
+		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeHidden();
+
+		// Der Fokus muss zurück auf dem auslösenden „Bearbeiten"-Button liegen (tief im Shadow-DOM der
+		// Tabelle/Toolbar), nicht im <body>.
+		const focusedLabel = await page.evaluate(() => {
+			let el: Element | null = document.activeElement;
+			while (el?.shadowRoot?.activeElement != null) {
+				el = el.shadowRoot.activeElement;
+			}
+			return el?.getAttribute('aria-label') ?? el?.textContent?.trim() ?? el?.tagName.toLowerCase() ?? null;
+		});
+		expect(focusedLabel).toContain('Bearbeiten');
+	});
 });

@@ -72,6 +72,12 @@ export const App = () => {
 
 	const closeDialog = useCallback((): void => setDialog(null), []);
 
+	// Stabile Callback-Identitäten, damit die memoisierte `TaskTable` beim Öffnen eines Dialogs nicht
+	// neu rendert (sonst Zellen-/Toolbar-Neuaufbau samt Fokusverlust am auslösenden Button).
+	const openEdit = useCallback((task: Task): void => setDialog({ kind: 'edit', task }), []);
+	const openDelete = useCallback((task: Task): void => setDialog({ kind: 'delete', task }), []);
+	const openDependencies = useCallback((task: Task): void => setDialog({ kind: 'dependencies', taskId: task.id }), []);
+
 	// Bei einer Dependency-Änderung bleibt der Dialog offen; nur die Daten werden aktualisiert.
 	const refreshKeepingDialog = useCallback((): void => {
 		void reload();
@@ -126,9 +132,9 @@ export const App = () => {
 						<TaskTable
 							tasks={tasks}
 							dependencyMap={dependencyMap}
-							onEdit={(task) => setDialog({ kind: 'edit', task })}
-							onDelete={(task) => setDialog({ kind: 'delete', task })}
-							onEditDependencies={(task) => setDialog({ kind: 'dependencies', taskId: task.id })}
+							onEdit={openEdit}
+							onDelete={openDelete}
+							onEditDependencies={openDependencies}
 						/>
 					</section>
 					<ForestPanel forest={forest} />

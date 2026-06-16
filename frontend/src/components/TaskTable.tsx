@@ -1,6 +1,7 @@
 import type { KoliBriTableDataType, KoliBriTableHeaderCellWithLogic } from '@public-ui/components';
 import { KolTableStateful, KolToolbar } from '@public-ui/react-v19';
 import type { Task } from 'client';
+import { memo } from 'react';
 import type { DependencyRef } from '../lib/dependencies';
 import { renderIntoCell } from '../lib/reactCellRoot';
 import { formatDeadline, statusLabel } from '../lib/task';
@@ -27,8 +28,14 @@ interface TaskRow extends KoliBriTableDataType {
 	_task: Task;
 }
 
-/** Tabellarische Übersicht aller Tasks mit Aktionen je Zeile. */
-export const TaskTable = ({ tasks, dependencyMap, onEdit, onDelete, onEditDependencies }: TaskTableProps) => {
+/**
+ * Tabellarische Übersicht aller Tasks mit Aktionen je Zeile.
+ *
+ * `memo`, damit das Öffnen eines Dialogs (State-Änderung in `App`) die Tabelle NICHT neu rendert —
+ * sonst würde `KolTableStateful` seine Zellen samt Toolbar neu aufbauen und der fokussierte
+ * Auslöser-Button verlöre den Fokus (Voraussetzung: die Callback-Props sind in `App` stabil).
+ */
+export const TaskTable = memo(({ tasks, dependencyMap, onEdit, onDelete, onEditDependencies }: TaskTableProps) => {
 	if (tasks.length === 0) {
 		return <p>Noch keine Tasks vorhanden. Lege oben einen neuen Task an.</p>;
 	}
@@ -107,4 +114,6 @@ export const TaskTable = ({ tasks, dependencyMap, onEdit, onDelete, onEditDepend
 
 	// `_fixedCols: [0, 1]` fixiert die letzte Spalte (Aktionen) beim horizontalen Scrollen.
 	return <KolTableStateful _label="Liste aller Tasks" _data={data} _headers={headers} _fixedCols={[0, 1]} />;
-};
+});
+
+TaskTable.displayName = 'TaskTable';
