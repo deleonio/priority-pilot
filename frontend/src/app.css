@@ -214,32 +214,9 @@ body {
 	margin-left: 0.5rem;
 }
 
-/* --- Modal-Overlay --- */
-.modal-backdrop {
-	position: fixed;
-	inset: 0;
-	background: rgba(0, 0, 0, 0.45);
-	display: flex;
-	align-items: flex-start;
-	justify-content: center;
-	padding: 2rem 1rem;
-	overflow-y: auto;
-	z-index: 1000;
-}
-
-.modal {
-	background: #fff;
-	border-radius: 0.5rem;
-	box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.25);
-	width: min(40rem, 100%);
-	padding: 1.5rem;
-	outline: none;
-}
-
-.modal-header h2 {
-	margin: 0 0 1rem;
-}
-
+/* --- Modal-Inhalt --- */
+/* Overlay, Rahmen, Titel und Schließen-Button liefert jetzt `KolDialog` (Variant `card`);
+   hier bleibt nur das Layout des Dialog-Inhalts. */
 .modal-body section {
 	margin-bottom: 1.5rem;
 }

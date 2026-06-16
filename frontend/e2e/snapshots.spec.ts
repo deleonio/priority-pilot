@@ -37,9 +37,10 @@ test.describe('Priority Pilot — Visual-Snapshots', () => {
 		await waitForStableView(page);
 
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
-		// Auf den Modal-Titel warten (eigene Wait-Bedingung, da neue KoliBri-Felder hydrieren).
-		await waitForStableView(page, 'Neuen Task anlegen');
-		await expect(page.getByRole('dialog')).toBeVisible();
+		// Dialog-Titel als role=heading abwarten — eindeutig der KolDialog (der gleichnamige Trigger ist
+		// ein Button) und Beleg, dass der Dialog offen ist; danach Hydration/Fonts der neuen Felder.
+		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
+		await waitForStableView(page);
 
 		await expect(page).toHaveScreenshot('modal-create-task.png', { fullPage: true });
 	});
@@ -50,8 +51,8 @@ test.describe('Priority Pilot — Visual-Snapshots', () => {
 		await waitForStableView(page);
 
 		await page.getByRole('button', { name: 'Säulen-Gewichtung' }).click();
-		await waitForStableView(page, 'Säulen-Gewichtung');
-		await expect(page.getByRole('dialog')).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
+		await waitForStableView(page);
 
 		await expect(page).toHaveScreenshot('modal-pillar-weights.png', { fullPage: true });
 	});

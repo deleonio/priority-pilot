@@ -1,71 +1,57 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { KolDialog } from '@public-ui/react-v19';
+import { useEffect, useRef, type ReactNode } from 'react';
 
 interface ModalProps {
-	/** Überschrift des Dialogs (auch als `aria-label` der Dialog-Region). */
+	/** Überschrift des Dialogs (wird als `_label` zum Card-Titel und accessible name des Dialogs). */
 	title: string;
-	/** Wird ausgelöst, wenn der Nutzer schließt (Escape, Backdrop-Klick, Schließen-Button). */
+	/** Wird ausgelöst, wenn der Nutzer schließt (Schließen-Button der Card, Escape, Backdrop). */
 	onClose: () => void;
 	children: ReactNode;
 }
 
 /**
- * Schlankes, vollständig React-gesteuertes Overlay (`role="dialog"`, `aria-modal`).
+ * Modal-Overlay auf Basis von `KolDialog` mit Variant `card` — die Card liefert Titel, Rahmen und
+ * einen Schließen-Button; das zugrunde liegende native `<dialog>` (`role="dialog"`) bringt Fokus-Falle,
+ * Escape-zum-Schließen und Backdrop mit.
  *
- * Bewusst kein `KolModal`: dessen Anzeige wird imperativ über `showModal()`/`close()` am
- * Custom-Element gesteuert, was sich mit Reacts deklarativem Mount/Unmount (inkl. StrictMode)
- * schlecht verträgt. Das Overlay wird stattdessen einfach konditional gerendert; KoliBri-Komponenten
- * werden im Inhalt unverändert verwendet.
+ * KolDialog wird imperativ über `showModal()` geöffnet. Das überbrücken wir deklarativ: beim Mount
+ * öffnen, und wenn der Dialog schließt (`onClose`), den State im Aufrufer zurücksetzen (der das Modal
+ * unmountet). Die Cleanup-`close()` macht den Öffnen-Effekt idempotent gegenüber StrictMode — sonst
+ * liefe beim simulierten Re-Mount ein zweites `showModal()` auf den bereits offenen Dialog.
  */
 export const Modal = ({ title, onClose, children }: ModalProps) => {
-	const dialogRef = useRef<HTMLDivElement>(null);
-	const titleId = useId();
+	const ref = useRef<HTMLKolDialogElement>(null);
 
-	// `onClose` über einen Ref ansprechen, damit der Setup-Effekt unabhängig von der Identität des
-	// Callbacks genau einmal läuft. Sonst würde ein nicht-memoisiertes `onClose` den Effekt erneut
-	// ausführen und dabei das falsche Element als „zuvor fokussiert" merken (Fokus-Wiederherstellung
-	// schlägt fehl).
+	// `onClose` über einen Ref ansprechen, damit der Öffnen-Effekt unabhängig von der Callback-Identität
+	// genau einmal (beim Mount) läuft.
 	const onCloseRef = useRef(onClose);
 	useEffect(() => {
 		onCloseRef.current = onClose;
 	}, [onClose]);
 
 	useEffect(() => {
-		const previouslyFocused = document.activeElement;
-		dialogRef.current?.focus();
-
-		const onKeyDown = (event: KeyboardEvent): void => {
-			if (event.key === 'Escape') {
-				onCloseRef.current();
+		const dialog = ref.current;
+		if (dialog === null) {
+			return;
+		}
+		// `showModal()` erst aufrufen, wenn das Custom-Element registriert/aufgewertet ist — sonst ist die
+		// Methode beim Mount evtl. noch nicht vorhanden und der Dialog bleibt geschlossen. Das
+		// `active`-Flag entkoppelt StrictMode (Setup→Cleanup→Setup) sauber: nur das letzte Setup öffnet.
+		let active = true;
+		void customElements.whenDefined('kol-dialog').then(() => {
+			if (active) {
+				void dialog.showModal();
 			}
-		};
-		document.addEventListener('keydown', onKeyDown);
-		const { overflow } = document.body.style;
-		document.body.style.overflow = 'hidden';
-
+		});
 		return () => {
-			document.removeEventListener('keydown', onKeyDown);
-			document.body.style.overflow = overflow;
-			if (previouslyFocused instanceof HTMLElement) {
-				previouslyFocused.focus();
-			}
+			active = false;
+			void dialog.close();
 		};
 	}, []);
 
 	return (
-		<div
-			className="modal-backdrop"
-			onClick={(event) => {
-				if (event.target === event.currentTarget) {
-					onClose();
-				}
-			}}
-		>
-			<div className="modal" role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} ref={dialogRef}>
-				<header className="modal-header">
-					<h2 id={titleId}>{title}</h2>
-				</header>
-				<div className="modal-body">{children}</div>
-			</div>
-		</div>
+		<KolDialog ref={ref} _label={title} _level={2} _variant="card" _on={{ onClose: () => onCloseRef.current() }}>
+			<div className="modal-body">{children}</div>
+		</KolDialog>
 	);
 };
