@@ -120,7 +120,7 @@ export const App = () => {
 
 			{tasks !== null && (
 				<>
-					<Dashboard tasks={tasks} forest={forest} nextTask={nextTask} />
+					<Dashboard tasks={tasks} forest={forest} nextTask={nextTask} pillars={pillars} />
 					<section className="task-section">
 						<h2>Aufgaben</h2>
 						<TaskTable

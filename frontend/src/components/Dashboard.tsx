@@ -1,6 +1,8 @@
-import type { Task, TaskTreeNode } from 'client';
+import type { Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useMemo } from 'react';
+import { collectTaskValues } from '../lib/forest';
+import { buildPillarSummaries } from '../lib/pillar';
 import { formatDeadline, formatNumber, STATUS_OPTIONS } from '../lib/task';
 
 interface DashboardProps {
@@ -9,6 +11,8 @@ interface DashboardProps {
 	forest: TaskTreeNode[];
 	/** Nächste wichtige Aufgabe (`GET /next`) oder `null`, falls keine ansteht. */
 	nextTask: Task | null;
+	/** Die fünf Lebensbalance-Säulen samt Gewichtung (`GET /pillars`) für das Widget „Meine Themen". */
+	pillars: Pillar[];
 }
 
 interface StatCard {
@@ -35,9 +39,11 @@ const hasDeadline = (task: Task): task is TaskWithDeadline =>
  * folgen `STATUS_OPTIONS`, damit Reihenfolge und Beschriftung mit dem Rest der UI konsistent bleiben.
  * Der `forest` ist serverseitig bereits nach Wert absteigend sortiert, daher genügt das Abschneiden
  * der ersten `TOP_TASKS_LIMIT` Wurzeln. Die Deadline-Liste zeigt nur noch nicht erledigte Aufgaben
- * mit gesetzter Deadline, aufsteigend nach Datum.
+ * mit gesetzter Deadline, aufsteigend nach Datum. Das Widget „Meine Themen" zeigt je Säule die
+ * aktuelle Gewichtung sowie Anzahl, Gesamtwert und Gesamtaufwand der zugeordneten Tasks (der Wert
+ * stammt aus dem `forest`, umfasst also nur offene/in Arbeit befindliche Tasks).
  */
-export const Dashboard = ({ tasks, forest, nextTask }: DashboardProps) => {
+export const Dashboard = ({ tasks, forest, nextTask, pillars }: DashboardProps) => {
 	const cards = useMemo<StatCard[]>(() => {
 		// Status-Häufigkeiten in einem einzigen Durchlauf zählen (O(n)).
 		const counts = new Map<string, number>();
@@ -52,6 +58,12 @@ export const Dashboard = ({ tasks, forest, nextTask }: DashboardProps) => {
 	}, [tasks]);
 
 	const topTasks = useMemo(() => forest.slice(0, TOP_TASKS_LIMIT), [forest]);
+
+	// Wertbeiträge je Task aus dem Wald ableiten und je Säule zu Kennzahlen aggregieren.
+	const pillarSummaries = useMemo(() => {
+		const valueByTaskId = collectTaskValues(forest);
+		return buildPillarSummaries(pillars, tasks, valueByTaskId);
+	}, [pillars, tasks, forest]);
 
 	const upcomingDeadlines = useMemo<TaskWithDeadline[]>(
 		() =>
@@ -103,6 +115,27 @@ export const Dashboard = ({ tasks, forest, nextTask }: DashboardProps) => {
 							</li>
 						))}
 					</ol>
+				)}
+			</section>
+			<section className="dashboard-pillars">
+				<h3>Meine Themen</h3>
+				{pillars.length === 0 ? (
+					<p>Keine Säulen vorhanden.</p>
+				) : (
+					<ul className="dashboard-pillars-list">
+						{pillarSummaries.map(({ pillar, taskCount, totalValue, totalEstimatedEffort }) => (
+							<li key={pillar.id} className="dashboard-pillar">
+								<div className="dashboard-pillar-head">
+									<span className="dashboard-pillar-name">{pillar.name}</span>
+									<span className="dashboard-pillar-weight">{formatNumber(pillar.weight)} %</span>
+								</div>
+								<span className="dashboard-pillar-meta">
+									{taskCount} {taskCount === 1 ? 'Aufgabe' : 'Aufgaben'} · Wert {formatNumber(totalValue)} · Aufwand{' '}
+									{formatNumber(totalEstimatedEffort)} Tage
+								</span>
+							</li>
+						))}
+					</ul>
 				)}
 			</section>
 			<section className="dashboard-deadlines">
