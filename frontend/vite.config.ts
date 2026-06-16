@@ -4,6 +4,17 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 // Der Dev-Proxy leitet die API-Pfade an den Express-Server (http://localhost:3000) weiter und
 // löst damit CORS im Browser, ohne den Server anpassen zu müssen.
+// Ein einzelner Regex-Kontext (statt einer manuell gepflegten Pfadliste) leitet alle
+// API-Wurzelpfade an den Express-Server weiter und veraltet nicht still bei neuen Routen.
+// Wird sowohl für den Dev-Server als auch für `vite preview` verwendet, damit in beiden
+// Modi kein CORS auftritt.
+const apiProxy = {
+	'^/(tasks|forest|next)': {
+		target: 'http://localhost:3000',
+		changeOrigin: true,
+	},
+};
+
 export default defineConfig({
 	plugins: [
 		react(),
@@ -34,14 +45,10 @@ export default defineConfig({
 		}),
 	],
 	server: {
-		// Ein einzelner Regex-Kontext (statt einer manuell gepflegten Pfadliste) leitet alle
-		// API-Wurzelpfade an den Express-Server weiter und veraltet nicht still bei neuen Routen.
-		proxy: {
-			'^/(tasks|forest|next)': {
-				target: 'http://localhost:3000',
-				changeOrigin: true,
-			},
-		},
+		proxy: apiProxy,
+	},
+	preview: {
+		proxy: apiProxy,
 	},
 	optimizeDeps: {
 		// Der generierte Client liegt als TypeScript-Quelle im Workspace vor; Vite transpiliert ihn
