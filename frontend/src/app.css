@@ -65,6 +65,31 @@ body {
 	line-height: 1;
 }
 
+/* Farbcodierter Statusbezug: schmaler Akzentbalken über der Kennzahl (rein dekorativ, aria-hidden). */
+.dashboard-card-accent {
+	display: block;
+	width: 2.5rem;
+	height: 0.25rem;
+	border-radius: 999px;
+	margin-bottom: 0.5rem;
+}
+
+.dashboard-card-accent.total {
+	background: #475467;
+}
+
+.dashboard-card-accent.open {
+	background: #1570ef;
+}
+
+.dashboard-card-accent.inprocess {
+	background: #b54708;
+}
+
+.dashboard-card-accent.done {
+	background: #1a7f37;
+}
+
 .dashboard-next-task {
 	margin-top: 1.5rem;
 	padding: 1rem 1.25rem;
@@ -123,6 +148,14 @@ body {
 	color: var(--pp-text-muted);
 	font-variant-numeric: tabular-nums;
 	white-space: nowrap;
+}
+
+/* Rechte Seite eines Deadline-Eintrags: optionales Dringlichkeits-Badge plus Datum. */
+.dashboard-deadline-aside {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	flex-shrink: 0;
 }
 
 /* Ab mittlerer Breite zweispaltig: „Nächste Aufgabe" bleibt prominent über die volle Breite,
@@ -265,4 +298,14 @@ body {
 
 .pillar-weights-sum-invalid {
 	color: #b42318;
+}
+
+/* --- Empty-State / Onboarding (keine Tasks) --- */
+.empty-state {
+	margin-top: 2rem;
+}
+
+.empty-state p {
+	margin: 0 0 1rem;
+	color: var(--pp-text-muted);
 }

@@ -5,6 +5,7 @@ import { api } from './api';
 import { Dashboard } from './components/Dashboard';
 import { DeleteTaskDialog } from './components/DeleteTaskDialog';
 import { DependencyModal } from './components/DependencyModal';
+import { EmptyState } from './components/EmptyState';
 import { ForestPanel } from './components/ForestPanel';
 import { PillarWeightsModal } from './components/PillarWeightsModal';
 import { TaskFormModal } from './components/TaskFormModal';
@@ -124,7 +125,9 @@ export const App = () => {
 				</div>
 			)}
 
-			{tasks !== null && (
+			{tasks !== null && tasks.length === 0 && <EmptyState onCreate={() => setDialog({ kind: 'create' })} />}
+
+			{tasks !== null && tasks.length > 0 && (
 				<>
 					<Dashboard tasks={tasks} forest={forest} nextTask={nextTask} pillars={pillars} />
 					<section className="task-section">

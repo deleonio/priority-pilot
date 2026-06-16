@@ -1,10 +1,24 @@
-import { KolCard, KolMeter } from '@public-ui/react-v19';
+import { KolBadge, KolCard, KolMeter } from '@public-ui/react-v19';
 import type { Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useMemo } from 'react';
 import { collectTaskValues } from '../lib/forest';
 import { buildPillarSummaries } from '../lib/pillar';
-import { formatDeadline, formatNumber, STATUS_OPTIONS } from '../lib/task';
+import {
+	type DeadlineUrgency,
+	deadlineUrgency,
+	formatDeadline,
+	formatNumber,
+	formatRelativeDeadline,
+	STATUS_OPTIONS,
+	statusAccentClass,
+} from '../lib/task';
+
+/** Badge-Hintergrundfarbe je hervorzuhebender Dringlichkeit (Textfarbe berechnet KolBadge automatisch). */
+const URGENCY_COLOR: Record<Exclude<DeadlineUrgency, 'later'>, string> = {
+	overdue: '#b42318',
+	soon: '#b54708',
+};
 
 interface DashboardProps {
 	tasks: Task[];
@@ -19,6 +33,8 @@ interface DashboardProps {
 interface StatCard {
 	label: string;
 	count: number;
+	/** CSS-Akzentklasse für den farbcodierten Statusbezug (`total` für die Gesamtzahl). */
+	accent: string;
 }
 
 /** Anzahl der im Widget „Wichtigste Tasks" angezeigten Einträge. */
@@ -54,9 +70,13 @@ export const Dashboard = ({ tasks, forest, nextTask, pillars }: DashboardProps) 
 		const perStatus = STATUS_OPTIONS.map((option) => ({
 			label: option.label,
 			count: counts.get(option.value) ?? 0,
+			accent: statusAccentClass(option.value),
 		}));
-		return [{ label: 'Gesamt', count: tasks.length }, ...perStatus];
+		return [{ label: 'Gesamt', count: tasks.length, accent: 'total' }, ...perStatus];
 	}, [tasks]);
+
+	// Einmal pro Mount bestimmter Bezugszeitpunkt für die Deadline-Dringlichkeit (stabil je Ansicht).
+	const now = useMemo(() => new Date(), []);
 
 	const topTasks = useMemo(() => forest.slice(0, TOP_TASKS_LIMIT), [forest]);
 
@@ -82,6 +102,7 @@ export const Dashboard = ({ tasks, forest, nextTask, pillars }: DashboardProps) 
 				{cards.map((card) => (
 					<li key={card.label}>
 						<KolCard _label={card.label} _level={0}>
+							<span className={`dashboard-card-accent ${card.accent}`} aria-hidden="true" />
 							<span className="dashboard-card-count">{card.count}</span>
 						</KolCard>
 					</li>
@@ -143,14 +164,25 @@ export const Dashboard = ({ tasks, forest, nextTask, pillars }: DashboardProps) 
 					<p>Keine anstehenden Deadlines.</p>
 				) : (
 					<ul className="dashboard-deadlines-list">
-						{upcomingDeadlines.map((task) => (
-							<li key={task.id} className="dashboard-deadline">
-								<span className="dashboard-deadline-title">
-									#{task.id} – {task.title}
-								</span>
-								<span className="dashboard-deadline-date">{formatDeadline(task.deadline)}</span>
-							</li>
-						))}
+						{upcomingDeadlines.map((task) => {
+							const urgency = deadlineUrgency(task.deadline, now);
+							return (
+								<li key={task.id} className="dashboard-deadline">
+									<span className="dashboard-deadline-title">
+										#{task.id} – {task.title}
+									</span>
+									<span className="dashboard-deadline-aside">
+										{urgency !== 'later' && (
+											<KolBadge
+												_label={formatRelativeDeadline(task.deadline, now)}
+												_color={URGENCY_COLOR[urgency]}
+											/>
+										)}
+										<span className="dashboard-deadline-date">{formatDeadline(task.deadline)}</span>
+									</span>
+								</li>
+							);
+						})}
 					</ul>
 				)}
 			</section>

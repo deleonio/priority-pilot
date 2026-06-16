@@ -3,6 +3,13 @@ import { emptyFixture, filledFixture } from './fixtures';
 import { mockApi, waitForStableView } from './helpers';
 
 test.describe('Priority Pilot — Visual-Snapshots', () => {
+	// Feste Zeit, damit die Deadline-Dringlichkeit im Dashboard snapshot-stabil bleibt (sonst würde
+	// die relative Restzeit täglich driften). Bezug 2026-07-09: Task #1 (Deadline 07-01) ist überfällig,
+	// Task #2 (Deadline 07-10) ist „in 1 Tag" — so sind beide Dringlichkeitsstufen im Bild belegt.
+	test.beforeEach(async ({ page }) => {
+		await page.clock.setFixedTime(new Date('2026-07-09T12:00:00.000Z'));
+	});
+
 	test('Hauptansicht befüllt', async ({ page }) => {
 		await mockApi(page, filledFixture);
 		await page.goto('/');
@@ -15,8 +22,8 @@ test.describe('Priority Pilot — Visual-Snapshots', () => {
 		await mockApi(page, emptyFixture);
 		await page.goto('/');
 		await waitForStableView(page);
-		// Sicherstellen, dass der Leer-Zustand der Task-Tabelle gerendert ist.
-		await expect(page.getByText('Noch keine Tasks vorhanden.', { exact: false })).toBeVisible();
+		// Sicherstellen, dass die Onboarding-Ansicht (statt leerer Widgets) mit ihrem CTA gerendert ist.
+		await expect(page.getByRole('button', { name: 'Ersten Task anlegen' })).toBeVisible();
 
 		await expect(page).toHaveScreenshot('main-empty.png', { fullPage: true });
 	});
