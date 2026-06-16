@@ -1,0 +1,302 @@
+:root {
+	--pp-border: #d0d5dd;
+	--pp-bg-muted: #f5f7fa;
+	--pp-text-muted: #555;
+}
+
+body {
+	margin: 0;
+	font-family:
+		system-ui,
+		-apple-system,
+		'Segoe UI',
+		Roboto,
+		sans-serif;
+	color: #1a1a1a;
+}
+
+.app {
+	max-width: 80rem;
+	margin: 0 auto;
+	padding: 2rem 1.5rem 4rem;
+}
+
+.app-header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+}
+
+.toolbar {
+	display: flex;
+	gap: 0.5rem;
+	flex-wrap: wrap;
+}
+
+.loading {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	margin: 2rem 0;
+}
+
+.dashboard,
+.task-section,
+.forest-panel {
+	margin-top: 2rem;
+}
+
+/* --- Dashboard --- */
+.dashboard-cards {
+	list-style: none;
+	margin: 0.5rem 0 0;
+	padding: 0;
+	display: grid;
+	gap: 1rem;
+	grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+}
+
+.dashboard-card {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+	padding: 1rem 1.25rem;
+	border: 1px solid var(--pp-border);
+	border-radius: 0.5rem;
+	background: var(--pp-bg-muted);
+}
+
+.dashboard-card-count {
+	font-size: 2rem;
+	font-weight: 700;
+	line-height: 1;
+}
+
+.dashboard-card-label {
+	color: var(--pp-text-muted);
+	font-size: 0.875rem;
+}
+
+.dashboard-next-task {
+	margin-top: 1.5rem;
+	padding: 1rem 1.25rem;
+	border: 1px solid var(--pp-border);
+	border-radius: 0.5rem;
+	background: var(--pp-bg-muted);
+}
+
+.dashboard-next-task h3 {
+	margin: 0 0 0.5rem;
+}
+
+.dashboard-next-task p {
+	margin: 0;
+}
+
+.dashboard-next-task-value {
+	font-size: 1.125rem;
+}
+
+.dashboard-top-tasks {
+	margin-top: 1.5rem;
+}
+
+.dashboard-top-tasks h3 {
+	margin: 0 0 0.5rem;
+}
+
+.dashboard-deadlines {
+	margin-top: 1.5rem;
+}
+
+.dashboard-deadlines h3 {
+	margin: 0 0 0.5rem;
+}
+
+.dashboard-deadlines-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.dashboard-deadline {
+	display: flex;
+	justify-content: space-between;
+	gap: 1rem;
+	padding: 0.375rem 0;
+	border-bottom: 1px solid var(--pp-border);
+}
+
+.dashboard-deadline:last-child {
+	border-bottom: none;
+}
+
+.dashboard-deadline-date {
+	color: var(--pp-text-muted);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+/* Ab mittlerer Breite zweispaltig: „Nächste Aufgabe" bleibt prominent über die volle Breite,
+   „Wichtigste Tasks" und „Anstehende Deadlines" stehen nebeneinander. */
+@media (min-width: 48rem) {
+	.dashboard {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 1.5rem;
+		align-items: start;
+	}
+
+	/* Abstände steuert im Grid der gap, nicht die Eigenmargin der Widgets. */
+	.dashboard > * {
+		margin-top: 0;
+	}
+
+	.dashboard h2,
+	.dashboard-cards,
+	.dashboard-next-task {
+		grid-column: 1 / -1;
+	}
+}
+
+.dashboard-top-tasks-list {
+	margin: 0;
+	padding-left: 1.25rem;
+}
+
+.dashboard-top-task {
+	margin: 0.25rem 0;
+}
+
+.dashboard-top-task-meta {
+	color: var(--pp-text-muted);
+	font-size: 0.875rem;
+	margin-left: 0.5rem;
+}
+
+/* --- Task-Tabelle --- */
+.task-table {
+	width: 100%;
+	border-collapse: collapse;
+	margin-top: 0.5rem;
+}
+
+.task-table th,
+.task-table td {
+	border: 1px solid var(--pp-border);
+	padding: 0.5rem 0.625rem;
+	text-align: left;
+	vertical-align: top;
+}
+
+.task-table thead th {
+	background: var(--pp-bg-muted);
+}
+
+.task-table tbody tr:nth-child(even) {
+	background: #fafbfc;
+}
+
+.task-actions {
+	display: flex;
+	gap: 0.375rem;
+	flex-wrap: wrap;
+}
+
+.visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+/* --- Aufgabenwald --- */
+.forest-panel .tree-root,
+.forest-panel ul {
+	list-style: none;
+	padding-left: 1.25rem;
+}
+
+.forest-panel .tree-root {
+	padding-left: 0;
+}
+
+.forest-panel li {
+	margin: 0.25rem 0;
+}
+
+.tree-node-meta {
+	color: var(--pp-text-muted);
+	font-size: 0.875rem;
+	margin-left: 0.5rem;
+}
+
+/* --- Modal-Overlay --- */
+.modal-backdrop {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.45);
+	display: flex;
+	align-items: flex-start;
+	justify-content: center;
+	padding: 2rem 1rem;
+	overflow-y: auto;
+	z-index: 1000;
+}
+
+.modal {
+	background: #fff;
+	border-radius: 0.5rem;
+	box-shadow: 0 0.5rem 2rem rgba(0, 0, 0, 0.25);
+	width: min(40rem, 100%);
+	padding: 1.5rem;
+	outline: none;
+}
+
+.modal-header h2 {
+	margin: 0 0 1rem;
+}
+
+.modal-body section {
+	margin-bottom: 1.5rem;
+}
+
+.form-grid {
+	display: grid;
+	gap: 1rem;
+	margin-bottom: 1rem;
+}
+
+.modal-actions {
+	display: flex;
+	gap: 0.5rem;
+	flex-wrap: wrap;
+	margin-top: 1rem;
+}
+
+.dependency-list {
+	list-style: none;
+	padding: 0;
+	margin: 0.5rem 0;
+}
+
+.dependency-list li {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	padding: 0.375rem 0;
+	border-bottom: 1px solid var(--pp-border);
+}
+
+.hint {
+	color: var(--pp-text-muted);
+	font-size: 0.875rem;
+}

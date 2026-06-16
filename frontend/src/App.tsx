@@ -1,44 +1,146 @@
-import { KolAlert, KolHeading } from '@public-ui/react-v19';
-import type { Task } from 'client';
-import { useEffect, useState } from 'react';
+import { KolAlert, KolButton, KolHeading, KolSpin } from '@public-ui/react-v19';
+import type { Task, TaskTreeNode } from 'client';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from './api';
+import { Dashboard } from './components/Dashboard';
+import { DeleteTaskDialog } from './components/DeleteTaskDialog';
+import { DependencyModal } from './components/DependencyModal';
+import { ForestPanel } from './components/ForestPanel';
+import { TaskFormModal } from './components/TaskFormModal';
+import { TaskTable } from './components/TaskTable';
+import { toApiError } from './lib/apiError';
+import { buildDependencyMap } from './lib/dependencies';
+
+type Dialog =
+	| { kind: 'create' }
+	| { kind: 'edit'; task: Task }
+	| { kind: 'delete'; task: Task }
+	| { kind: 'dependencies'; taskId: number }
+	| null;
 
 export const App = () => {
 	const [tasks, setTasks] = useState<Task[] | null>(null);
-	const [error, setError] = useState<string | null>(null);
+	const [forest, setForest] = useState<TaskTreeNode[]>([]);
+	const [nextTask, setNextTask] = useState<Task | null>(null);
+	const [loadError, setLoadError] = useState<string | null>(null);
+	const [loading, setLoading] = useState(true);
+	const [dialog, setDialog] = useState<Dialog>(null);
+
+	const reload = useCallback(async (signal?: AbortSignal): Promise<void> => {
+		setLoading(true);
+		try {
+			const [loadedTasks, loadedForest, loadedNext] = await Promise.all([
+				api.listTasks({ signal }),
+				api.getForest({ signal }),
+				api.getNextTask({ signal }),
+			]);
+			setTasks(loadedTasks);
+			setForest(loadedForest);
+			setNextTask(loadedNext ?? null);
+			setLoadError(null);
+		} catch (reason) {
+			if (signal?.aborted === true) {
+				return;
+			}
+			const apiError = await toApiError(reason);
+			setLoadError(apiError.message);
+		} finally {
+			if (signal?.aborted !== true) {
+				setLoading(false);
+			}
+		}
+	}, []);
 
 	useEffect(() => {
 		const controller = new AbortController();
-		api
-			.GET('/tasks', { signal: controller.signal })
-			.then(({ data, response }) => {
-				if (!response.ok) {
-					setError(`Tasks konnten nicht geladen werden (HTTP ${response.status}).`);
-					return;
-				}
-				setTasks(data ?? []);
-			})
-			.catch((reason: unknown) => {
-				// Abbruch beim Unmount ist erwartet und kein Fehler.
-				if (controller.signal.aborted) {
-					return;
-				}
-				setError(reason instanceof Error ? reason.message : 'Unbekannter Fehler beim Laden der Tasks.');
-			});
+		void reload(controller.signal);
 		return () => controller.abort();
-	}, []);
+	}, [reload]);
+
+	const dependencyMap = useMemo(() => buildDependencyMap(forest), [forest]);
+
+	/** Nach erfolgreicher Mutation: Dialog schließen und Daten neu laden. */
+	const afterMutation = useCallback((): void => {
+		setDialog(null);
+		void reload();
+	}, [reload]);
+
+	const closeDialog = useCallback((): void => setDialog(null), []);
+
+	// Bei einer Dependency-Änderung bleibt der Dialog offen; nur die Daten werden aktualisiert.
+	const refreshKeepingDialog = useCallback((): void => {
+		void reload();
+	}, [reload]);
+
+	const dependencyTask =
+		dialog?.kind === 'dependencies' ? (tasks?.find((task) => task.id === dialog.taskId) ?? null) : null;
 
 	return (
-		<main style={{ margin: '2rem', fontFamily: 'sans-serif' }}>
-			<KolHeading _label="Priority Pilot" _level={1} />
-			<p>Smoke-Test: Aufgaben über GET /tasks laden und roh anzeigen.</p>
-			{error !== null && (
-				<KolAlert _type="error" _label="Fehler beim Laden der Tasks">
-					{error}
+		<main className="app">
+			<header className="app-header">
+				<KolHeading _label="Priority Pilot" _level={1} />
+				<div className="toolbar">
+					<KolButton
+						_label="Neuen Task anlegen"
+						_variant="primary"
+						_on={{ onClick: () => setDialog({ kind: 'create' }) }}
+					/>
+					<KolButton
+						_label="Aktualisieren"
+						_variant="secondary"
+						_disabled={loading}
+						_on={{ onClick: () => void reload() }}
+					/>
+				</div>
+			</header>
+
+			{loadError !== null && (
+				<KolAlert _type="error" _label="Daten konnten nicht geladen werden">
+					{loadError}
 				</KolAlert>
 			)}
-			{error === null && tasks === null && <p>Lade Tasks…</p>}
-			{tasks !== null && <pre>{JSON.stringify(tasks, null, 2)}</pre>}
+
+			{tasks === null && loading && (
+				<div className="loading">
+					<KolSpin _show _variant="cycle" _label="Lädt" />
+					<span>Lade Tasks…</span>
+				</div>
+			)}
+
+			{tasks !== null && (
+				<>
+					<Dashboard tasks={tasks} forest={forest} nextTask={nextTask} />
+					<section className="task-section">
+						<h2>Aufgaben</h2>
+						<TaskTable
+							tasks={tasks}
+							dependencyMap={dependencyMap}
+							onEdit={(task) => setDialog({ kind: 'edit', task })}
+							onDelete={(task) => setDialog({ kind: 'delete', task })}
+							onEditDependencies={(task) => setDialog({ kind: 'dependencies', taskId: task.id })}
+						/>
+					</section>
+					<ForestPanel forest={forest} />
+				</>
+			)}
+
+			{dialog?.kind === 'create' && <TaskFormModal task={null} onClose={closeDialog} onSaved={afterMutation} />}
+			{dialog?.kind === 'edit' && (
+				<TaskFormModal key={dialog.task.id} task={dialog.task} onClose={closeDialog} onSaved={afterMutation} />
+			)}
+			{dialog?.kind === 'delete' && (
+				<DeleteTaskDialog task={dialog.task} onClose={closeDialog} onDeleted={afterMutation} />
+			)}
+			{dialog?.kind === 'dependencies' && dependencyTask !== null && tasks !== null && (
+				<DependencyModal
+					key={dependencyTask.id}
+					task={dependencyTask}
+					allTasks={tasks}
+					dependencies={dependencyMap.get(dependencyTask.id) ?? []}
+					onClose={closeDialog}
+					onChanged={refreshKeepingDialog}
+				/>
+			)}
 		</main>
 	);
 };

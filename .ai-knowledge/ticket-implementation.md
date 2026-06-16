@@ -9,8 +9,10 @@ Tickets = GitHub-Issues von `deleonio/priority-pilot`. Voraussetzung: `gh` ist a
 zugewiesen** sind. Die Zuweisung an sich selbst ist die „in Arbeit"-Markierung und verhindert,
 dass dasselbe Ticket doppelt gegriffen wird (idempotenter Batch).
 
-Label-Kette: `ai:analyzed` (analysiert, Vorschlag als Kommentar) → vom Menschen auf `ai:ready`
-gesetzt (zur Umsetzung freigegeben) → dieser Workflow setzt um.
+Label-Kette: `ai:analyzed` (analysiert, Vorschlag als Kommentar) → `ai:ready` (zur Umsetzung
+freigegeben) → dieser Workflow setzt um. `ai:ready` wird bei **klarer Analyse (Ampel 🟢)** bereits
+von der Triage automatisch gesetzt; bei 🟡/🔴 entscheidet der Mensch und gibt ggf. von Hand frei
+(siehe [ticket-triage.md](ticket-triage.md), Schritt 5).
 
 **Bearbeitung durch `/team3`:** Diesen Workflow setzt das cross-funktionale Multi-Agent-Team
 `/team3` um — der Ticket-Kontext wird als Aufgabe an `/team3` übergeben. Dessen Architect
@@ -76,6 +78,9 @@ ein); sie ändert nur Analyse/Kommentare, **keinen** Produktivcode.
 - Verknüpfung prüfen: `gh pr view <pr> --json closingIssuesReferences --jq '.closingIssuesReferences[].number'`
   muss `<nr>` enthalten.
 - Der PR ist **ready to review** (kein Draft) — die finale Freigabe/der Merge erfolgt durch einen Menschen.
+- **PR verfolgen** — direkt nach dem Erstellen den PR **abonnieren**, damit eingehende
+  Review-Anmerkungen, neue Commits und CI-Ergebnisse in der Session landen und automatisch die
+  nächste Runde aus Schritt 5 anstoßen (in Claude Code: `subscribe_pr_activity` für den neuen PR).
 
 ## Schritt 5 — Kreuzverhör-Loop (umsetzen ⇄ prüfen, bis sauber)
 
@@ -85,6 +90,15 @@ _kreuzverhören → CI prüfen → Findings abarbeiten → erneut kreuzverhören
 strikt getrennt: Die **Kreuzverhör-Rolle** prüft nur und ändert keinen Code (vollständiger Ablauf:
 [pr-review.md](pr-review.md), Command `/kreuzverhoer-review`); die **Umsetzer-Rolle** behebt die
 Findings.
+
+**PR verfolgen & automatisch reagieren:** Den frisch erstellten PR **abonnieren** und danach
+**automatisch auf eingehende Review-Anmerkungen reagieren**. Eine Runde wird damit nicht nur vom
+eigenen Kreuzverhör angestoßen, sondern auch von **neuen Review-Kommentaren** (von Menschen oder aus
+`/kreuzverhoer-review`), **neuen Commits** und **CI-Ergebnissen** auf dem PR. In Claude Code: direkt
+nach Schritt 4 `subscribe_pr_activity` für den neuen PR aufrufen; die Events wecken die Session und
+stoßen die nächste Runde an. Eingehende Anmerkungen werden wie eigene Findings behandelt (siehe
+„Pro Runde", Punkt 3) — bei Mehrdeutigkeit oder architektonisch relevanten Punkten **vorher
+rückfragen** statt zu raten.
 
 **Pro Runde:**
 
@@ -104,9 +118,18 @@ Findings.
 4. **Erneut kreuzverhören** — nach den Fix-Commits den **aktualisierten** Diff erneut prüfen
    (zurück zu Schritt 1 dieser Runde). So entsteht das „Hin und Her", bis nichts mehr offen ist.
 
-**Abbruchbedingung:** Der Loop endet, wenn das Kreuzverhör **🟢** urteilt und **keine offenen
-Findings** mehr übrig sind (alle gefixt, auflösend kommentiert oder mit dem Menschen geklärt).
-Ergebnis ist ein durchgeprüfter, review-bereiter PR — der finale Merge bleibt beim Menschen.
+**Abbruchbedingung (eigene Kreuzverhör-Runden):** Der selbst angestoßene Loop endet, wenn das
+Kreuzverhör **🟢** urteilt und **keine offenen Findings** mehr übrig sind (alle gefixt, auflösend
+kommentiert oder mit dem Menschen geklärt). Ergebnis ist ein durchgeprüfter, review-bereiter PR —
+der finale Merge bleibt beim Menschen.
+
+**Verfolgung bleibt aktiv:** Das PR-Abo läuft darüber hinaus weiter. Kommen **später**
+Review-Anmerkungen, neue Commits oder CI-Fehler herein, wird **erneut reagiert** (neue Runde nach
+demselben Schema). Die Verfolgung endet, sobald der PR **gemergt oder geschlossen** ist oder der
+Mensch sie stoppt — dann das Abo **aktiv beenden** (in Claude Code: `unsubscribe_pr_activity`
+aufrufen), damit keine unnötigen Session-Weckrufe offen bleiben. Da nicht alle Zustände als Event
+ankommen (CI-Erfolg, neue Pushes, Merge-Konflikt-Wechsel), den PR-Stand zwischendurch aktiv
+nachprüfen (`gh pr checks`, `gh pr view`) statt sich allein auf Events zu verlassen.
 
 **Schleifenschutz:**
 
@@ -115,14 +138,11 @@ Ergebnis ist ein durchgeprüfter, review-bereiter PR — der finale Merge bleibt
 - Bleiben nach **3 Runden** noch substanzielle oder mehrdeutige Findings offen, **nicht endlos
   weiterdrehen**, sondern den Stand zusammenfassen und den **Menschen** entscheiden lassen.
 
-> In Claude Code lässt sich der Loop unterstützen: Den PR per `subscribe_pr_activity` abonnieren —
-> neue Commits, CI- und Review-Events landen dann direkt in der Session und stoßen die nächste
-> Kreuzverhör-Runde an.
-
 ## Hinweise
 
 - Zuweisen (Schritt 1), ein ggf. aktualisierter Re-Analyse-Kommentar (Schritt 2), Push/PR
   (Schritt 4) und die Review-Kommentare des Kreuzverhörs (Schritt 5) schreiben **öffentlich** auf
   GitHub — vor dem Posten bestätigen lassen.
 - Ergebnis des Workflows ist ein **review-bereiter PR** (ready to review), der den Kreuzverhör-Loop
-  durchlaufen hat — kein Merge.
+  durchlaufen hat und **weiter verfolgt** wird — eingehende Review-Anmerkungen werden bis zum
+  Merge/Schließen automatisch nachbearbeitet. Der finale Merge bleibt beim Menschen.
