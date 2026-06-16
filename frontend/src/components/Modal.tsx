@@ -19,6 +19,8 @@ interface ModalProps {
 	title: string;
 	/** Wird ausgelöst, wenn der Nutzer schließt (Schließen-Button der Card, Escape, Backdrop). */
 	onClose: () => void;
+	/** Maximale Dialogbreite (CSS-Wert für KolDialog `_width`; bei kleineren Viewports gilt max-width:100%). */
+	width?: string;
 	children: ReactNode;
 }
 
@@ -32,7 +34,7 @@ interface ModalProps {
  * unmountet). Die Cleanup-`close()` macht den Öffnen-Effekt idempotent gegenüber StrictMode — sonst
  * liefe beim simulierten Re-Mount ein zweites `showModal()` auf den bereits offenen Dialog.
  */
-export const Modal = ({ title, onClose, children }: ModalProps) => {
+export const Modal = ({ title, onClose, width = '40rem', children }: ModalProps) => {
 	const ref = useRef<HTMLKolDialogElement>(null);
 
 	// `onClose` über einen Ref ansprechen, damit der Öffnen-Effekt unabhängig von der Callback-Identität
@@ -70,7 +72,14 @@ export const Modal = ({ title, onClose, children }: ModalProps) => {
 	}, []);
 
 	return (
-		<KolDialog ref={ref} _label={title} _level={2} _variant="card" _on={{ onClose: () => onCloseRef.current() }}>
+		<KolDialog
+			ref={ref}
+			_label={title}
+			_level={2}
+			_variant="card"
+			_width={width}
+			_on={{ onClose: () => onCloseRef.current() }}
+		>
 			<div className="modal-body">{children}</div>
 		</KolDialog>
 	);

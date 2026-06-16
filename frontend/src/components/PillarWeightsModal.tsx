@@ -1,4 +1,4 @@
-import { KolAlert, KolButton, KolInputNumber } from '@public-ui/react-v19';
+import { KolAlert, KolButton, KolInputRange } from '@public-ui/react-v19';
 import type { Pillar } from 'client';
 import { useRef, useState } from 'react';
 import { api } from '../api';
@@ -79,10 +79,13 @@ export const PillarWeightsModal = ({ pillars, onClose, onSaved }: PillarWeightsM
 					<p className="hint">Verteile 100 % auf die Säulen. Die Summe muss genau {TOTAL_WEIGHT} ergeben.</p>
 					<div className="form-grid">
 						{pillars.map((pillar, index) => (
-							<KolInputNumber
+							<KolInputRange
 								key={pillar.id}
-								_label={`${pillar.name} (%)`}
+								// Begrenzte Skala (0–100 %) → Slider. Der aktuelle Wert steht im Label, da ein reiner
+								// Slider den exakten Prozentwert nicht anzeigt (relevant, weil die Summe genau 100 ergibt).
+								_label={`${pillar.name}: ${formatNumber(weights.current[index] ?? 0)} %`}
 								_min={0}
+								_max={TOTAL_WEIGHT}
 								_step={1}
 								// An den Ref-Wert binden (nicht den statischen `pillar.weight`): die Komponente rendert
 								// bei jeder Eingabe neu (`setSum`), sonst würde `_value` pro Tastendruck zurückgesetzt.
