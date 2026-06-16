@@ -7,24 +7,27 @@ import {
 	KolSingleSelect,
 	KolTextarea,
 } from '@public-ui/react-v19';
-import type { Task, TaskCreate, TaskUpdate } from 'client';
+import type { Pillar, Task, TaskCreate, TaskUpdate } from 'client';
 import { TaskStatus } from 'client';
 import { useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { readNumber, readString } from '../lib/inputValue';
+import { NO_PILLAR_VALUE, pillarSelectOptions } from '../lib/pillar';
 import { STATUS_OPTIONS, deadlineToDateInput } from '../lib/task';
 import { Modal } from './Modal';
 
 interface TaskFormModalProps {
 	/** Zu bearbeitender Task; `null` legt einen neuen Task an. */
 	task: Task | null;
+	/** Verfügbare Lebensbalance-Säulen für die Zuordnung (`GET /pillars`). */
+	pillars: Pillar[];
 	onClose: () => void;
 	/** Nach erfolgreichem Speichern aufgerufen (Liste neu laden + Dialog schließen). */
 	onSaved: () => void;
 }
 
-export const TaskFormModal = ({ task, onClose, onSaved }: TaskFormModalProps) => {
+export const TaskFormModal = ({ task, pillars, onClose, onSaved }: TaskFormModalProps) => {
 	const isEdit = task !== null;
 
 	// Eingaben in Refs halten: KoliBri-Inputs verwalten ihren Anzeigewert selbst, daher kein
@@ -38,6 +41,8 @@ export const TaskFormModal = ({ task, onClose, onSaved }: TaskFormModalProps) =>
 		estimatedEffort: number | null;
 		description: string;
 		deadline: string;
+		/** Zugeordnete Säule oder `null` (keine Säule). */
+		pillarId: number | null;
 	}>({
 		title: task?.title ?? '',
 		status: task?.status ?? TaskStatus.Open,
@@ -45,7 +50,10 @@ export const TaskFormModal = ({ task, onClose, onSaved }: TaskFormModalProps) =>
 		estimatedEffort: task?.estimatedEffort ?? 0.5,
 		description: task?.description ?? '',
 		deadline: deadlineToDateInput(task?.deadline),
+		pillarId: task?.pillarId ?? null,
 	});
+
+	const pillarOptions = pillarSelectOptions(pillars);
 
 	const [error, setError] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);
@@ -78,6 +86,7 @@ export const TaskFormModal = ({ task, onClose, onSaved }: TaskFormModalProps) =>
 		setError(null);
 		setSaving(true);
 		try {
+			const pillarId = form.current.pillarId;
 			if (isEdit) {
 				const taskUpdate: TaskUpdate = {
 					title,
@@ -86,6 +95,7 @@ export const TaskFormModal = ({ task, onClose, onSaved }: TaskFormModalProps) =>
 					estimatedEffort,
 					description: description === '' ? null : description,
 					deadline,
+					pillarId,
 				};
 				await api.updateTask({ id: task.id, taskUpdate });
 			} else {
@@ -96,6 +106,7 @@ export const TaskFormModal = ({ task, onClose, onSaved }: TaskFormModalProps) =>
 					estimatedEffort,
 					description: description === '' ? null : description,
 					deadline,
+					pillarId,
 				};
 				await api.createTask({ taskCreate });
 			}
@@ -148,6 +159,17 @@ export const TaskFormModal = ({ task, onClose, onSaved }: TaskFormModalProps) =>
 							if (next === TaskStatus.Open || next === TaskStatus.InProcess || next === TaskStatus.Done) {
 								form.current.status = next;
 							}
+						},
+					}}
+				/>
+				<KolSingleSelect
+					_label="Säule (optional)"
+					_options={pillarOptions}
+					_value={form.current.pillarId ?? NO_PILLAR_VALUE}
+					_on={{
+						onChange: (_event, value) => {
+							const next = readNumber(value);
+							form.current.pillarId = next === null || next === NO_PILLAR_VALUE ? null : next;
 						},
 					}}
 				/>
