@@ -79,12 +79,86 @@ body {
 	font-size: 0.875rem;
 }
 
+.dashboard-next-task {
+	margin-top: 1.5rem;
+	padding: 1rem 1.25rem;
+	border: 1px solid var(--pp-border);
+	border-radius: 0.5rem;
+	background: var(--pp-bg-muted);
+}
+
+.dashboard-next-task h3 {
+	margin: 0 0 0.5rem;
+}
+
+.dashboard-next-task p {
+	margin: 0;
+}
+
+.dashboard-next-task-value {
+	font-size: 1.125rem;
+}
+
 .dashboard-top-tasks {
 	margin-top: 1.5rem;
 }
 
 .dashboard-top-tasks h3 {
 	margin: 0 0 0.5rem;
+}
+
+.dashboard-deadlines {
+	margin-top: 1.5rem;
+}
+
+.dashboard-deadlines h3 {
+	margin: 0 0 0.5rem;
+}
+
+.dashboard-deadlines-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.dashboard-deadline {
+	display: flex;
+	justify-content: space-between;
+	gap: 1rem;
+	padding: 0.375rem 0;
+	border-bottom: 1px solid var(--pp-border);
+}
+
+.dashboard-deadline:last-child {
+	border-bottom: none;
+}
+
+.dashboard-deadline-date {
+	color: var(--pp-text-muted);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+/* Ab mittlerer Breite zweispaltig: „Nächste Aufgabe" bleibt prominent über die volle Breite,
+   „Wichtigste Tasks" und „Anstehende Deadlines" stehen nebeneinander. */
+@media (min-width: 48rem) {
+	.dashboard {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 1.5rem;
+		align-items: start;
+	}
+
+	/* Abstände steuert im Grid der gap, nicht die Eigenmargin der Widgets. */
+	.dashboard > * {
+		margin-top: 0;
+	}
+
+	.dashboard h2,
+	.dashboard-cards,
+	.dashboard-next-task {
+		grid-column: 1 / -1;
+	}
 }
 
 .dashboard-top-tasks-list {
