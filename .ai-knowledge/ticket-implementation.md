@@ -12,6 +12,15 @@ dass dasselbe Ticket doppelt gegriffen wird (idempotenter Batch).
 Label-Kette: `ai:analyzed` (analysiert, Vorschlag als Kommentar) → vom Menschen auf `ai:ready`
 gesetzt (zur Umsetzung freigegeben) → dieser Workflow setzt um.
 
+**Bearbeitung durch `/team3`:** Diesen Workflow setzt das cross-funktionale Multi-Agent-Team
+`/team3` um — der Ticket-Kontext wird als Aufgabe an `/team3` übergeben. Dessen Architect
+orchestriert die Rollen (Developer, Reviewer, Tester, Documenter …) sequentiell und autonom; die
+folgenden Schritte beschreiben den fachlichen Ablauf, den das Team abarbeitet. **Abweichend** von
+der team3-Standardregel „kein Commit durch das Team" ist die Umsetzung hier **ausdrücklich** zum
+Zuweisen, Branch-Anlegen, Committen, Pushen und PR-Erstellen autorisiert (Schritt 4) — genau das
+ist das erklärte Ziel dieses Workflows. Diese Abweichung ist damit dokumentiert
+(team3-Docs-Konsistenz).
+
 ## Schritt 1 — Ticket wählen & sich zuweisen
 
 - Offene, freigegebene, noch nicht zugewiesene Issues finden (index-unabhängig, sofort konsistent):
@@ -21,7 +30,28 @@ gesetzt (zur Umsetzung freigegeben) → dieser Workflow setzt um.
 - **Sich selbst zuweisen** (claimt das Ticket): `gh issue edit <nr> --add-assignee @me`
 - Kontext + bisherige Analyse laden: `gh issue view <nr> --comments`
 
-## Schritt 2 — Umsetzen
+## Schritt 2 — Analyse gegen den aktuellen Repo-Stand verifizieren (Re-Triage)
+
+Die im `ai:analyzed`-Kommentar hinterlegte Analyse **nicht ungeprüft übernehmen**: Zwischen Analyse
+und Umsetzung kann sich der Repo-Stand geändert haben (neue/umbenannte Dateien, geänderte APIs,
+bereits erledigte Teile). Deshalb beim Lesen des Tickets die Analyse **erneut analysieren**.
+
+- **Re-Triage ausführen** — den Analyse-Workflow erneut auf das Ticket anwenden
+  ([ticket-triage.md](ticket-triage.md), Schritt 1 — Re-Triage; Command `/triage-ticket <nr>`):
+  aus Titel + (lektorierter) Beschreibung + **aktuellem** Repo erneut eine Lösung konzipieren
+  (relevante Dateien via Grep/Glob/Read) und mit der vorhandenen Analyse abgleichen.
+- **Noch konform →** die Analyse bildet den aktuellen Stand korrekt ab; unverändert weiter mit
+  Schritt 3.
+- **Nicht mehr konform / unvollständig →** die Analyse **aktualisieren** (neuer
+  `ai:analyzed`-Kommentar, der den Stand korrigiert/vervollständigt, siehe ticket-triage.md
+  Schritt 1/4) und erst auf dieser aktualisierten Analyse implementieren.
+- **Ampel kippt auf 🔴** (Anforderung passt nicht mehr zum Repo, widersprüchlich, Infos fehlen) →
+  **nicht** blind umsetzen, sondern den Stand zusammenfassen und den Menschen entscheiden lassen.
+
+Diese Verifikation ist Teil des `/team3`-Laufs (der Architect ordnet sie **vor** der Implementierung
+ein); sie ändert nur Analyse/Kommentare, **keinen** Produktivcode.
+
+## Schritt 3 — Umsetzen
 
 - Grundlage: der im `ai:analyzed`-Kommentar vorgeschlagene Lösungsweg (falls vorhanden), sonst
   aus Titel + Beschreibung + Repo ableiten.
@@ -30,7 +60,7 @@ gesetzt (zur Umsetzung freigegeben) → dieser Workflow setzt um.
   ESM, keine Type-Assertions zum Unterdrücken von Fehlern).
 - Gezielt prüfen: `pnpm format` und `pnpm --filter priority-pilot lint` (bzw. betroffenes Package).
 
-## Schritt 3 — PR (ready to review) erstellen & mit dem Ticket verknüpfen
+## Schritt 4 — PR (ready to review) erstellen & mit dem Ticket verknüpfen
 
 - Änderungen committen (Issue-Bezug in der Message, z. B. `… (#<nr>)`).
 - Branch pushen: `git push -u origin <branch>`.
@@ -47,7 +77,7 @@ gesetzt (zur Umsetzung freigegeben) → dieser Workflow setzt um.
   muss `<nr>` enthalten.
 - Der PR ist **ready to review** (kein Draft) — die finale Freigabe/der Merge erfolgt durch einen Menschen.
 
-## Schritt 4 — Kreuzverhör-Loop (umsetzen ⇄ prüfen, bis sauber)
+## Schritt 5 — Kreuzverhör-Loop (umsetzen ⇄ prüfen, bis sauber)
 
 Der frisch erstellte PR wird **nicht nur beobachtet, sondern aktiv im Kreuzverhör geprüft und
 nachgebessert** — in Runden, bis **keine Anmerkung mehr offen** ist. Eine Runde besteht aus
@@ -91,7 +121,8 @@ Ergebnis ist ein durchgeprüfter, review-bereiter PR — der finale Merge bleibt
 
 ## Hinweise
 
-- Zuweisen (Schritt 1), Push/PR (Schritt 3) und die Review-Kommentare des Kreuzverhörs (Schritt 4)
-  schreiben **öffentlich** auf GitHub — vor dem Posten bestätigen lassen.
+- Zuweisen (Schritt 1), ein ggf. aktualisierter Re-Analyse-Kommentar (Schritt 2), Push/PR
+  (Schritt 4) und die Review-Kommentare des Kreuzverhörs (Schritt 5) schreiben **öffentlich** auf
+  GitHub — vor dem Posten bestätigen lassen.
 - Ergebnis des Workflows ist ein **review-bereiter PR** (ready to review), der den Kreuzverhör-Loop
   durchlaufen hat — kein Merge.
