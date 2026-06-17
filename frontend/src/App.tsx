@@ -114,6 +114,8 @@ export const App = () => {
 					/>
 					<KolButton
 						_label="Aktualisieren"
+						_hideLabel
+						_icons={{ left: { icon: 'fa-solid fa-arrows-rotate' } }}
 						_variant="secondary"
 						_disabled={loading}
 						_on={{ onClick: () => void reload() }}

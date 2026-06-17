@@ -8,6 +8,12 @@ import { App } from './App';
 // Direkter Pfad-Import statt Bare-Specifier, weil die `exports`-Map von @public-ui/components den
 // Asset-Subpfad nicht freigibt (siehe doc/HOWTO_ICON_FONTS); Vite bündelt den Font darüber selbst.
 import '../node_modules/@public-ui/components/assets/kolicons/style.css';
+// Font Awesome (Solid) aus dem Default-Theme für Icons, die die KolIcons-Font nicht kennt — z. B.
+// das Reload-Symbol des „Aktualisieren"-Buttons (kolicons hat kein Reload-/Refresh-Icon). Wieder
+// Direkt-Pfad-Import, weil die `exports`-Map von @public-ui/theme-default nur den Paket-Einstieg
+// freigibt; `fontawesome.min.css` liefert die Glyphen, `solid.min.css` die Solid-Schriftart.
+import '../node_modules/@public-ui/theme-default/assets/fontawesome-free/css/fontawesome.min.css';
+import '../node_modules/@public-ui/theme-default/assets/fontawesome-free/css/solid.min.css';
 import './app.css';
 
 const container = document.getElementById('root');
