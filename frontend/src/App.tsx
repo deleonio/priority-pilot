@@ -26,6 +26,11 @@ type Dialog =
 // die Auswahl zurücksetzt.
 const VIEW_TABS = [{ _label: 'Dashboard' }, { _label: 'Aufgaben' }, { _label: 'Aufgabenwald' }];
 
+// Statisches Reload-Icon (Font-Awesome-Solid) für den „Aktualisieren"-Button. Als Modulkonstante,
+// damit `KolButton` nicht bei jedem Render eine neue `_icons`-Objektidentität erhält (sonst würde
+// dessen Icon-Watcher unnötig erneut feuern).
+const RELOAD_ICON = { left: { icon: 'fa-solid fa-arrows-rotate' } };
+
 export const App = () => {
 	const [tasks, setTasks] = useState<Task[] | null>(null);
 	const [forest, setForest] = useState<TaskTreeNode[]>([]);
@@ -115,7 +120,7 @@ export const App = () => {
 					<KolButton
 						_label="Aktualisieren"
 						_hideLabel
-						_icons={{ left: { icon: 'fa-solid fa-arrows-rotate' } }}
+						_icons={RELOAD_ICON}
 						_variant="secondary"
 						_disabled={loading}
 						_on={{ onClick: () => void reload() }}
