@@ -1,6 +1,6 @@
-import { KolAlert, KolButton, KolHeading, KolSpin, KolTabs } from '@public-ui/react-v19';
+import { KolAlert, KolButton, KolHeading, KolPopoverButton, KolSpin, KolTabs, KolToolbar } from '@public-ui/react-v19';
 import type { Pillar, Task, TaskTreeNode } from 'client';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from './api';
 import { Dashboard } from './components/Dashboard';
 import { DeleteTaskDialog } from './components/DeleteTaskDialog';
@@ -78,6 +78,16 @@ export const App = () => {
 
 	const closeDialog = useCallback((): void => setDialog(null), []);
 
+	// Referenz auf den Einstellungs-PopoverButton, um das Popover beim Öffnen eines Unterpunkts
+	// (z. B. der Säulen-Verteilung) wieder zu schließen.
+	const settingsRef = useRef<HTMLKolPopoverButtonElement>(null);
+
+	/** Öffnet die persönliche Säulen-Verteilung aus dem Einstellungs-Menü und schließt das Popover. */
+	const openPillars = useCallback((): void => {
+		void settingsRef.current?.hidePopover();
+		setDialog({ kind: 'pillars' });
+	}, []);
+
 	// Stabile Callback-Identitäten, damit die memoisierte `TaskTable` beim Öffnen eines Dialogs nicht
 	// neu rendert (sonst Zellen-/Toolbar-Neuaufbau samt Fokusverlust am auslösenden Button).
 	const openEdit = useCallback((task: Task): void => setDialog({ kind: 'edit', task }), []);
@@ -103,17 +113,37 @@ export const App = () => {
 						_on={{ onClick: () => setDialog({ kind: 'create' }) }}
 					/>
 					<KolButton
-						_label="Säulen-Gewichtung"
-						_variant="secondary"
-						_disabled={loading || tasks === null}
-						_on={{ onClick: () => setDialog({ kind: 'pillars' }) }}
-					/>
-					<KolButton
 						_label="Aktualisieren"
 						_variant="secondary"
 						_disabled={loading}
 						_on={{ onClick: () => void reload() }}
 					/>
+					{/* Einstellungen rechts oben: ein icon-only Zahnrad öffnet ein Popover mit einer
+					    vertikalen Toolbar als Menü. Erster Unterpunkt ist die persönliche Säulen-Verteilung;
+					    der Bereich ist so für weitere Einstellungen erweiterbar. */}
+					<KolPopoverButton
+						ref={settingsRef}
+						_label="Einstellungen"
+						_hideLabel
+						_icons={{ left: { icon: 'kolicon-settings' } }}
+						_variant="secondary"
+						_popoverAlign="bottom"
+					>
+						<KolToolbar
+							className="settings-menu"
+							_label="Einstellungen"
+							_orientation="vertical"
+							_items={[
+								{
+									type: 'button',
+									_label: 'Persönliche Säulen-Verteilung',
+									_variant: 'secondary',
+									_disabled: loading || tasks === null,
+									_on: { onClick: openPillars },
+								},
+							]}
+						/>
+					</KolPopoverButton>
 				</div>
 			</header>
 
