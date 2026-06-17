@@ -33,6 +33,13 @@ body {
 	display: flex;
 	gap: 0.5rem;
 	flex-wrap: wrap;
+	align-items: center;
+}
+
+/* Einstellungs-Popover: vertikale Toolbar als kompaktes Menü mit etwas Mindestbreite. */
+.settings-menu {
+	display: block;
+	min-width: 14rem;
 }
 
 .loading {

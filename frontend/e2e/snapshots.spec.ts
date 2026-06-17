@@ -57,7 +57,10 @@ test.describe('Priority Pilot — Visual-Snapshots', () => {
 		await page.goto('/');
 		await waitForStableView(page);
 
-		await page.getByRole('button', { name: 'Säulen-Gewichtung' }).click();
+		// Säulen-Verteilung liegt jetzt im Einstellungs-Popover (Zahnrad rechts oben) als Unterpunkt
+		// einer vertikalen Toolbar.
+		await page.getByRole('button', { name: 'Einstellungen' }).click();
+		await page.getByRole('button', { name: 'Persönliche Säulen-Verteilung' }).click();
 		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
 		await waitForStableView(page);
 
