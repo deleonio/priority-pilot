@@ -44,8 +44,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      # Kein Checkout noetig: renovatebot/github-action klont die Ziel-Repos selbst
+      # (gesteuert ueber RENOVATE_REPOSITORIES).
+
+      # RENOVATE_DRY_RUN nur im manuellen Trockenlauf setzen — sonst bliebe die Variable bei
+      # geplanten Laeufen als leerer String gesetzt (statt unset).
+      - name: Trockenlauf aktivieren
+        if: ${{ inputs.dryRun }}
+        run: echo "RENOVATE_DRY_RUN=full" >> "$GITHUB_ENV"
 
       - name: Renovate
         uses: renovatebot/github-action@v41
@@ -55,5 +61,3 @@ jobs:
           LOG_LEVEL: ${{ inputs.logLevel || 'info' }}
           # Nur dieses Repository verarbeiten.
           RENOVATE_REPOSITORIES: ${{ github.repository }}
-          # Bei manuellem Trockenlauf nichts schreiben; sonst voll ausfuehren.
-          RENOVATE_DRY_RUN: ${{ inputs.dryRun == true && 'full' || '' }}

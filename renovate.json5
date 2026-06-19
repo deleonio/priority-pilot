@@ -3,13 +3,12 @@
 	// Doku: https://docs.renovatebot.com/configuration-options/
 	$schema: 'https://docs.renovatebot.com/renovate-schema.json',
 
-	// Empfohlene Basis (inkl. GitHub-Actions-Manager, Dependency Dashboard u. a.).
+	// Empfohlene Basis (enthält u. a. GitHub-Actions-Manager, Monorepo-/Gruppierungs-Presets
+	// und das Dependency Dashboard).
 	extends: [
 		'config:recommended',
-		// Mehrere kleine Updates zu sinnvollen Gruppen-PRs zusammenfassen.
-		'group:monorepos',
-		'group:recommended',
-		// Übliche Verdächtige automatisch zusammenfassen (z. B. @types, eslint, prettier-Plugins).
+		// GitHub-Action-Versionen zusätzlich auf Commit-SHA pinnen (Supply-Chain-Härtung) —
+		// schreibt `uses: org/action@vX` zu `uses: org/action@<sha> # vX` um.
 		'helpers:pinGitHubActionDigests',
 	],
 
@@ -24,13 +23,15 @@
 	// Commit-/PR-Titel im Conventional-Commits-Stil (erzeugt z. B. "chore(deps): ...").
 	semanticCommits: 'enabled',
 
-	// Übersicht aller anstehenden Updates als gepinntes Issue.
-	dependencyDashboard: true,
+	// Das Dependency Dashboard ist über config:recommended bereits aktiv — nur der Titel wird angepasst.
 	dependencyDashboardTitle: 'Dependency Dashboard',
 
 	// Lockfile (pnpm-lock.yaml) regelmäßig aktualisieren, auch ohne Versions-Bumps.
 	lockFileMaintenance: {
 		enabled: true,
+		// Eigenes Default-Schedule ('before 4am on monday') aufheben — die Zeitsteuerung liegt
+		// allein beim Workflow-Cron, sonst liefe die Wartung außerhalb seines Fensters nie.
+		schedule: ['* * * * *'],
 	},
 
 	// Nicht zu viele offene PRs/Branches gleichzeitig.
