@@ -37,6 +37,7 @@ jobs:
     permissions:
       contents: read # Repo auschecken (Slash-Command + Wissensbasis lesen)
       issues: write # Beschreibung lektorieren, Analyse-Kommentar posten, Labels setzen
+      id-token: write # OIDC-Token der Action; ohne diese Permission fehlt ACTIONS_ID_TOKEN_REQUEST_URL
     steps:
       - name: Checkout
         uses: actions/checkout@v4
