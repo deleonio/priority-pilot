@@ -27,6 +27,14 @@ jobs:
       contents: read
       id-token: write
     steps:
+      - name: Voraussetzung pruefen (PAT-Secret)
+        env:
+          PIPELINE_TOKEN: ${{ secrets.CLAUDE_PIPELINE_TOKEN }}
+        run: |
+          if [ -z "$PIPELINE_TOKEN" ]; then
+            echo "::error::Secret CLAUDE_PIPELINE_TOKEN fehlt. In den Repo-Settings anlegen (PAT mit Contents/Issues/Pull requests = Read+Write). Ohne dieses Token kann die Pipeline weder pushen noch die Folge-Workflows ausloesen."
+            exit 1
+          fi
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -59,5 +67,6 @@ jobs:
             Ändere KEINEN Code und committe nichts — reiner Review. Die Bestätigung zum Posten
             gilt für diesen automatisierten Lauf als erteilt; arbeite ohne interaktive Rückfrage.
           claude_args: >-
+            --model claude-opus-4-8 --effort max
             --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh api:*),Bash(git fetch:*),Bash(git diff:*),Read,Grep,Glob"
             --append-system-prompt "Automatisierter Kreuzverhoer-Review in GitHub Actions (headless). Reviewe ausschliesslich PR #${{ github.event.pull_request.number }}, aendere keinen Code. Poste Findings als eine Review mit Ampel; ist der PR solide, nur eine knappe 🟢-Bestaetigung als Kommentar (KEINE Review). Erfinde keine Findings. Arbeite ohne interaktive Rueckfrage."

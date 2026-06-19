@@ -38,6 +38,14 @@ jobs:
       contents: read
       id-token: write
     steps:
+      - name: Voraussetzung pruefen (PAT-Secret)
+        env:
+          PIPELINE_TOKEN: ${{ secrets.CLAUDE_PIPELINE_TOKEN }}
+        run: |
+          if [ -z "$PIPELINE_TOKEN" ]; then
+            echo "::error::Secret CLAUDE_PIPELINE_TOKEN fehlt. In den Repo-Settings anlegen (PAT mit Contents/Issues/Pull requests = Read+Write). Ohne dieses Token kann die Pipeline weder pushen noch die Folge-Workflows ausloesen."
+            exit 1
+          fi
       - name: Checkout (PR-Head-Branch)
         uses: actions/checkout@v4
         with:
@@ -77,5 +85,6 @@ jobs:
             Der Push löst automatisch einen erneuten Kreuzverhör-Review aus. Bearbeite
             ausschließlich diesen PR. Arbeite autonom, ohne interaktive Rückfrage.
           claude_args: >-
+            --model claude-opus-4-8 --effort max
             --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh api:*),Bash(git switch:*),Bash(git checkout:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(git fetch:*),Bash(pnpm:*),Read,Edit,Write,Grep,Glob"
             --append-system-prompt "Automatisierter Fixup-Lauf in GitHub Actions (headless) fuer PR #${{ github.event.pull_request.number }}. WICHTIG gegen Endlosschleifen: Wenn das juengste Kreuzverhoer-Urteil 🟢 ist oder keine offenen, zutreffenden Findings existieren, NICHTS committen/pushen und den Lauf beenden. Nur eindeutige, zutreffende Findings fixen; mehrdeutige/grosse Punkte dem Menschen ueberlassen. Bereits abgelehnte Findings nicht erneut oeffnen. Arbeite ohne interaktive Rueckfrage."

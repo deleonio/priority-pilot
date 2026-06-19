@@ -32,6 +32,14 @@ jobs:
       contents: read # Checkout (Schreibzugriff laeuft ueber den PAT)
       id-token: write # OIDC-Token der Action (sonst fehlt ACTIONS_ID_TOKEN_REQUEST_URL)
     steps:
+      - name: Voraussetzung pruefen (PAT-Secret)
+        env:
+          PIPELINE_TOKEN: ${{ secrets.CLAUDE_PIPELINE_TOKEN }}
+        run: |
+          if [ -z "$PIPELINE_TOKEN" ]; then
+            echo "::error::Secret CLAUDE_PIPELINE_TOKEN fehlt. In den Repo-Settings anlegen (PAT mit Contents/Issues/Pull requests = Read+Write). Ohne dieses Token kann die Pipeline weder pushen noch die Folge-Workflows ausloesen."
+            exit 1
+          fi
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -68,5 +76,6 @@ jobs:
             Bearbeite ausschließlich dieses eine Issue. Die Freigabe gilt durch das Label
             `ai:ready` als erteilt: arbeite autonom, ohne auf eine interaktive Bestätigung zu warten.
           claude_args: >-
+            --model claude-opus-4-8 --effort max
             --allowedTools "Bash(gh issue:*),Bash(gh pr:*),Bash(gh label:*),Bash(gh api:*),Bash(git switch:*),Bash(git checkout:*),Bash(git branch:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(git fetch:*),Bash(pnpm:*),Read,Edit,Write,Grep,Glob,Skill,Task"
             --append-system-prompt "Automatisierter, durch das Label ai:ready autorisierter Umsetzungs-Lauf in GitHub Actions (headless). Bearbeite ausschliesslich Issue #${{ github.event.issue.number }}, Schritte 1-4 der Umsetzung; KEIN PR-Abo/Kreuzverhoer-Loop (separater Workflow). Bestaetigung gilt durch ai:ready als erteilt; arbeite autonom ohne interaktive Rueckfrage."
