@@ -3,18 +3,19 @@ import {
 	KolButton,
 	KolInputDate,
 	KolInputNumber,
+	KolInputRange,
 	KolInputText,
 	KolSingleSelect,
 	KolTextarea,
 } from '@public-ui/react-v19';
-import type { Pillar, Task, TaskCreate, TaskUpdate } from 'client';
+import type { Pillar, Task, TaskCreate, TaskPillarContribution, TaskUpdate } from 'client';
 import { TaskStatus } from 'client';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { readNumber, readString } from '../lib/inputValue';
-import { NO_PILLAR_VALUE, pillarSelectOptions } from '../lib/pillar';
-import { STATUS_OPTIONS, deadlineToDateInput } from '../lib/task';
+import { ADD_PILLAR_PLACEHOLDER, addPillarOptions, isWeightSumValid, sumWeights, TOTAL_WEIGHT } from '../lib/pillar';
+import { STATUS_OPTIONS, deadlineToDateInput, formatNumber } from '../lib/task';
 import { Modal } from './Modal';
 
 interface TaskFormModalProps {
@@ -41,8 +42,6 @@ export const TaskFormModal = ({ task, pillars, onClose, onSaved }: TaskFormModal
 		estimatedEffort: number | null;
 		description: string;
 		deadline: string;
-		/** Zugeordnete Säule oder `null` (keine Säule). */
-		pillarId: number | null;
 	}>({
 		title: task?.title ?? '',
 		status: task?.status ?? TaskStatus.Open,
@@ -50,13 +49,38 @@ export const TaskFormModal = ({ task, pillars, onClose, onSaved }: TaskFormModal
 		estimatedEffort: task?.estimatedEffort ?? 0.5,
 		description: task?.description ?? '',
 		deadline: deadlineToDateInput(task?.deadline),
-		pillarId: task?.pillarId ?? null,
 	});
 
-	const pillarOptions = pillarSelectOptions(pillars);
+	// Säulen-Beiträge im State (nicht im Ref): Hinzufügen/Entfernen und die Anteils-/Konfidenz-Slider
+	// müssen neu rendern (Live-Summe). Slider verursachen — anders als Textfelder — kein Cursor-Springen.
+	const [contributions, setContributions] = useState<TaskPillarContribution[]>(() =>
+		(task?.pillars ?? []).map((entry) => ({ ...entry })),
+	);
 
 	const [error, setError] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);
+
+	const pillarNameById = useMemo(() => new Map(pillars.map((pillar) => [pillar.id, pillar.name])), [pillars]);
+	// Nur noch nicht zugeordnete Säulen lassen sich hinzufügen (jede Säule höchstens einmal pro Task).
+	const availablePillars = pillars.filter((pillar) => !contributions.some((entry) => entry.pillarId === pillar.id));
+	const shareSum = sumWeights(contributions.map((entry) => entry.share));
+	const shareSumValid = isWeightSumValid(shareSum);
+
+	const updateContribution = (pillarId: number, patch: Partial<TaskPillarContribution>): void =>
+		setContributions((prev) => prev.map((entry) => (entry.pillarId === pillarId ? { ...entry, ...patch } : entry)));
+
+	const addPillar = (raw: unknown): void => {
+		const id = readNumber(raw);
+		if (id === null || id === ADD_PILLAR_PLACEHOLDER || contributions.some((entry) => entry.pillarId === id)) {
+			return;
+		}
+		// Neuer Beitrag erhält den noch fehlenden Anteil — so wird der erste Beitrag automatisch 100 %.
+		const remaining = Math.max(0, TOTAL_WEIGHT - shareSum);
+		setContributions((prev) => [...prev, { pillarId: id, share: remaining, confidence: 100 }]);
+	};
+
+	const removePillar = (pillarId: number): void =>
+		setContributions((prev) => prev.filter((entry) => entry.pillarId !== pillarId));
 
 	const submit = async (): Promise<void> => {
 		const title = form.current.title.trim();
@@ -82,11 +106,16 @@ export const TaskFormModal = ({ task, pillars, onClose, onSaved }: TaskFormModal
 			setError('Die Deadline ist kein gültiges Datum.');
 			return;
 		}
+		// Bei mindestens einer Säule müssen sich die Anteile zu 100 % summieren (siehe Server-Vertrag).
+		if (contributions.length > 0 && !isWeightSumValid(sumWeights(contributions.map((entry) => entry.share)))) {
+			setError(`Die Anteile der Säulen müssen zusammen ${TOTAL_WEIGHT} % ergeben.`);
+			return;
+		}
 
 		setError(null);
 		setSaving(true);
 		try {
-			const pillarId = form.current.pillarId;
+			const pillars = contributions.map((entry) => ({ ...entry }));
 			if (isEdit) {
 				const taskUpdate: TaskUpdate = {
 					title,
@@ -95,7 +124,7 @@ export const TaskFormModal = ({ task, pillars, onClose, onSaved }: TaskFormModal
 					estimatedEffort,
 					description: description === '' ? null : description,
 					deadline,
-					pillarId,
+					pillars,
 				};
 				await api.updateTask({ id: task.id, taskUpdate });
 			} else {
@@ -106,7 +135,7 @@ export const TaskFormModal = ({ task, pillars, onClose, onSaved }: TaskFormModal
 					estimatedEffort,
 					description: description === '' ? null : description,
 					deadline,
-					pillarId,
+					pillars,
 				};
 				await api.createTask({ taskCreate });
 			}
@@ -159,17 +188,6 @@ export const TaskFormModal = ({ task, pillars, onClose, onSaved }: TaskFormModal
 							if (next === TaskStatus.Open || next === TaskStatus.InProcess || next === TaskStatus.Done) {
 								form.current.status = next;
 							}
-						},
-					}}
-				/>
-				<KolSingleSelect
-					_label="Säule (optional)"
-					_options={pillarOptions}
-					_value={form.current.pillarId ?? NO_PILLAR_VALUE}
-					_on={{
-						onChange: (_event, value) => {
-							const next = readNumber(value);
-							form.current.pillarId = next === null || next === NO_PILLAR_VALUE ? null : next;
 						},
 					}}
 				/>
@@ -227,6 +245,72 @@ export const TaskFormModal = ({ task, pillars, onClose, onSaved }: TaskFormModal
 						},
 					}}
 				/>
+			</div>
+			{/* Säulen-Beiträge: der Task verteilt 100 % seines Anteils auf 0..n Säulen, je mit Konfidenz. */}
+			<div className="pillar-editor">
+				<span className="pillar-editor-label">Säulen (optional)</span>
+				{contributions.length === 0 ? (
+					<p className="hint">Keine Säule zugeordnet – der Task bleibt wertneutral.</p>
+				) : (
+					contributions.map((entry) => {
+						const name = pillarNameById.get(entry.pillarId) ?? `Säule ${entry.pillarId}`;
+						return (
+							<div key={entry.pillarId} className="pillar-row">
+								<KolInputRange
+									_label={`${name} – Anteil: ${formatNumber(entry.share)} %`}
+									_min={0}
+									_max={100}
+									_step={1}
+									_value={entry.share}
+									_on={{
+										onInput: (_event, value) => updateContribution(entry.pillarId, { share: readNumber(value) ?? 0 }),
+										onChange: (_event, value) => updateContribution(entry.pillarId, { share: readNumber(value) ?? 0 }),
+									}}
+								/>
+								<KolInputRange
+									_label={`Konfidenz: ${formatNumber(entry.confidence)} %`}
+									_min={0}
+									_max={100}
+									_step={1}
+									_value={entry.confidence}
+									_on={{
+										onInput: (_event, value) =>
+											updateContribution(entry.pillarId, { confidence: readNumber(value) ?? 0 }),
+										onChange: (_event, value) =>
+											updateContribution(entry.pillarId, { confidence: readNumber(value) ?? 0 }),
+									}}
+								/>
+								<KolButton
+									_label={`${name} entfernen`}
+									_hideLabel
+									_icons={{ left: { icon: 'kolicon-cross' } }}
+									_variant="danger"
+									_on={{ onClick: () => removePillar(entry.pillarId) }}
+								/>
+							</div>
+						);
+					})
+				)}
+				{availablePillars.length > 0 && (
+					<KolSingleSelect
+						_label="Säule hinzufügen"
+						_hideLabel
+						_options={addPillarOptions(availablePillars)}
+						_value={ADD_PILLAR_PLACEHOLDER}
+						_on={{ onChange: (_event, value) => addPillar(value) }}
+					/>
+				)}
+				{contributions.length > 0 && (
+					<p
+						className={
+							shareSumValid
+								? 'pillar-weights-sum pillar-weights-sum-ok'
+								: 'pillar-weights-sum pillar-weights-sum-invalid'
+						}
+					>
+						Summe der Anteile: {formatNumber(shareSum)} % {shareSumValid ? '✓' : `(Soll: ${TOTAL_WEIGHT} %)`}
+					</p>
+				)}
 			</div>
 			<div className="modal-actions">
 				<KolButton

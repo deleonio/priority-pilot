@@ -65,23 +65,26 @@ describe('calculateValueContribution', () => {
 		assert.ok(Math.abs(value - 11 / 3) < 1e-10, `Expected ${11 / 3} but got ${value}`);
 	});
 
-	it('Säule mit Gleichverteilung (weight 20): neutral, Wert = priority', async () => {
+	it('Säule mit Gleichverteilung (weight 20, 100 % Anteil/Konfidenz): neutral, Wert = priority', async () => {
 		const pillar = await Pillar.create({ name: 'Neutral', weight: 20 });
-		const task = await Task.create({ title: 'Leaf', priority: 5, estimatedEffort: 1, pillarId: pillar.id });
+		const task = await Task.create({ title: 'Leaf', priority: 5, estimatedEffort: 1 });
+		await task.addPillar(pillar.id, { through: { share: 100, confidence: 100 } });
 		const value = await calculateValueContribution(task);
 		assert.equal(value, 5);
 	});
 
-	it('Höher gewichtete Säule (weight 40): Faktor 2, Wert = priority * 2', async () => {
+	it('Höher gewichtete Säule (weight 40, 100 %/100 %): Faktor 2, Wert = priority * 2', async () => {
 		const pillar = await Pillar.create({ name: 'Hoch', weight: 40 });
-		const task = await Task.create({ title: 'Leaf', priority: 5, estimatedEffort: 1, pillarId: pillar.id });
+		const task = await Task.create({ title: 'Leaf', priority: 5, estimatedEffort: 1 });
+		await task.addPillar(pillar.id, { through: { share: 100, confidence: 100 } });
 		const value = await calculateValueContribution(task);
 		assert.equal(value, 10);
 	});
 
-	it('Niedriger gewichtete Säule (weight 10): Faktor 0.5, Wert = priority * 0.5', async () => {
+	it('Niedriger gewichtete Säule (weight 10, 100 %/100 %): Faktor 0.5, Wert = priority * 0.5', async () => {
 		const pillar = await Pillar.create({ name: 'Niedrig', weight: 10 });
-		const task = await Task.create({ title: 'Leaf', priority: 6, estimatedEffort: 1, pillarId: pillar.id });
+		const task = await Task.create({ title: 'Leaf', priority: 6, estimatedEffort: 1 });
+		await task.addPillar(pillar.id, { through: { share: 100, confidence: 100 } });
 		const value = await calculateValueContribution(task);
 		assert.equal(value, 3);
 	});
@@ -92,13 +95,42 @@ describe('calculateValueContribution', () => {
 		assert.equal(value, 7);
 	});
 
+	it('Zwei Säulen 50/50 (weight 40 & 20, Konfidenz 100 %): Faktor 1.5', async () => {
+		// factor = 0.5·[1 + 1·(40/20 − 1)] + 0.5·[1 + 1·(20/20 − 1)] = 0.5·2 + 0.5·1 = 1.5
+		const hoch = await Pillar.create({ name: 'Hoch', weight: 40 });
+		const neutral = await Pillar.create({ name: 'Neutral', weight: 20 });
+		const task = await Task.create({ title: 'Leaf', priority: 4, estimatedEffort: 1 });
+		await task.addPillar(hoch.id, { through: { share: 50, confidence: 100 } });
+		await task.addPillar(neutral.id, { through: { share: 50, confidence: 100 } });
+		const value = await calculateValueContribution(task);
+		assert.equal(value, 6); // 4 · 1.5
+	});
+
+	it('Konfidenz interpoliert zu neutral: weight 40, Konfidenz 50 % ⇒ Faktor 1.5', async () => {
+		// factor = 1·[1 + 0.5·(40/20 − 1)] = 1 + 0.5 = 1.5
+		const hoch = await Pillar.create({ name: 'Hoch', weight: 40 });
+		const task = await Task.create({ title: 'Leaf', priority: 4, estimatedEffort: 1 });
+		await task.addPillar(hoch.id, { through: { share: 100, confidence: 50 } });
+		const value = await calculateValueContribution(task);
+		assert.equal(value, 6); // 4 · 1.5
+	});
+
+	it('Konfidenz 0 %: Säule bleibt neutral (Faktor 1)', async () => {
+		const hoch = await Pillar.create({ name: 'Hoch', weight: 40 });
+		const task = await Task.create({ title: 'Leaf', priority: 7, estimatedEffort: 1 });
+		await task.addPillar(hoch.id, { through: { share: 100, confidence: 0 } });
+		const value = await calculateValueContribution(task);
+		assert.equal(value, 7); // 7 · 1
+	});
+
 	it('Säulen-Faktor wirkt auf jeden Task im Baum (Dependent mit höher gewichteter Säule)', async () => {
-		// parent.getDependents() = [child], child mit Säule weight 40 ⇒ Faktor 2
+		// parent.getDependents() = [child], child mit Säule weight 40 (100 %/100 %) ⇒ Faktor 2
 		// child (Blatt) value = child.priority * 2 = 3 * 2 = 6
 		// parent ohne Säule ⇒ Faktor 1: value = (6 * 1 + 10) / (1 + 1) = 8
 		const pillar = await Pillar.create({ name: 'Hoch', weight: 40 });
 		const parent = await Task.create({ title: 'Parent', priority: 10, estimatedEffort: 1 });
-		const child = await Task.create({ title: 'Child', priority: 3, estimatedEffort: 1, pillarId: pillar.id });
+		const child = await Task.create({ title: 'Child', priority: 3, estimatedEffort: 1 });
+		await child.addPillar(pillar.id, { through: { share: 100, confidence: 100 } });
 		await child.addDependency(parent);
 		const value = await calculateValueContribution(parent);
 		assert.equal(value, 8);

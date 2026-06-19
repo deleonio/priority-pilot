@@ -1,7 +1,7 @@
 import sequelize from './database.js';
 import { launchServer } from './express/index.js';
 import { buildTaskForest } from './logics/tree.js';
-import { Pillar, Task } from './models/index.js';
+import { Pillar, Task, TaskPillar } from './models/index.js';
 
 // Daten nur auf ausdrücklichen Wunsch zurücksetzen (sonst kein stiller Datenverlust).
 const shouldReset = process.env.DB_RESET === 'true';
@@ -17,11 +17,37 @@ const seedPillars = async (): Promise<void> => {
 	await Pillar.bulkCreate(PILLAR_NAMES.map((name) => ({ name, weight: 20 })));
 };
 
+/**
+ * Migriert Bestandsdaten von der früheren Einzel-Säule (`tasks.pillarId`, n:1) auf die n:m-Beiträge
+ * in `task_pillars`. `sequelize.sync()` ohne `alter` lässt eine vorhandene `pillarId`-Spalte stehen,
+ * statt sie zu entfernen — die alten Zuordnungen würden sonst verwaisen. Einmalig (nur solange
+ * `task_pillars` leer ist) jede gesetzte `pillarId` mit `share = 100` / `confidence = 100`
+ * (volle Einzahlung, volle Sicherheit) überführen. Bei `DB_RESET=true` existiert die Altspalte nicht
+ * mehr, die Migration ist dann ein No-op.
+ */
+const migrateLegacySinglePillar = async (): Promise<void> => {
+	if ((await TaskPillar.count()) > 0) {
+		return;
+	}
+	const [columns] = await sequelize.query("PRAGMA table_info('tasks')");
+	const hasLegacyColumn = (columns as { name: string }[]).some((column) => column.name === 'pillarId');
+	if (!hasLegacyColumn) {
+		return;
+	}
+	await sequelize.query(
+		'INSERT INTO task_pillars (taskId, pillarId, share, confidence) ' +
+			'SELECT id, pillarId, 100, 100 FROM tasks WHERE pillarId IS NOT NULL',
+	);
+	console.log('Bestehende Einzel-Säulen-Zuordnungen nach task_pillars migriert.');
+};
+
 const seedDemoData = async (): Promise<void> => {
 	const existing = await Task.count();
 	if (existing > 0) {
 		return;
 	}
+
+	const pillarByName = new Map((await Pillar.findAll()).map((pillar) => [pillar.name, pillar]));
 
 	const task1 = await Task.create({
 		title: 'Task 1',
@@ -43,6 +69,19 @@ const seedDemoData = async (): Promise<void> => {
 	await task1.addDependency(task2, { through: { weight: 0.5 } });
 	await task1.addDependency(task3, { through: { weight: 0.1 } });
 	await task4.addDependency(task3, { through: { weight: 1.0 } });
+
+	// Beispielhafte Mehrfach-Einzahlung: Task 1 verteilt 70/30 auf zwei Säulen (mit Konfidenz),
+	// Task 3 zahlt voll auf eine Säule ein. Übrige Tasks bleiben ohne Säule (neutral).
+	const wirksamkeit = pillarByName.get('Wirksamkeit');
+	const sinn = pillarByName.get('Sinn');
+	const koerper = pillarByName.get('Körper');
+	if (wirksamkeit && sinn) {
+		await task1.addPillar(wirksamkeit.id, { through: { share: 70, confidence: 90 } });
+		await task1.addPillar(sinn.id, { through: { share: 30, confidence: 60 } });
+	}
+	if (koerper) {
+		await task3.addPillar(koerper.id, { through: { share: 100, confidence: 100 } });
+	}
 };
 
 const main = async (): Promise<void> => {
@@ -57,6 +96,9 @@ const main = async (): Promise<void> => {
 
 		// Die fünf Säulen in eine leere DB säen (idempotent)
 		await seedPillars();
+
+		// Bestehende Einzel-Säulen-Zuordnungen einmalig auf die n:m-Beiträge migrieren
+		await migrateLegacySinglePillar();
 
 		// Beispiel-Daten nur anlegen, wenn die Datenbank leer ist
 		await seedDemoData();

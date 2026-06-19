@@ -45,7 +45,7 @@ const tasks: RawTask[] = [
 		actualEffort: 0.5,
 		description: 'Grobentwurf der Modul-Grenzen.',
 		deadline: '2026-07-01T00:00:00.000Z',
-		pillarId: 5,
+		pillars: [{ pillarId: 5, share: 100, confidence: 100 }],
 	},
 	{
 		id: 2,
@@ -56,7 +56,7 @@ const tasks: RawTask[] = [
 		actualEffort: null,
 		description: null,
 		deadline: '2026-07-10T00:00:00.000Z',
-		pillarId: 5,
+		pillars: [{ pillarId: 5, share: 100, confidence: 100 }],
 	},
 	{
 		id: 3,
@@ -67,7 +67,7 @@ const tasks: RawTask[] = [
 		actualEffort: null,
 		description: 'Dreimal pro Woche.',
 		deadline: null,
-		pillarId: 1,
+		pillars: [{ pillarId: 1, share: 100, confidence: 100 }],
 	},
 	{
 		id: 4,
@@ -78,7 +78,7 @@ const tasks: RawTask[] = [
 		actualEffort: 1.25,
 		description: null,
 		deadline: '2026-06-20T00:00:00.000Z',
-		pillarId: 3,
+		pillars: [{ pillarId: 3, share: 100, confidence: 100 }],
 	},
 ];
 

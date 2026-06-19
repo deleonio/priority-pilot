@@ -319,6 +319,27 @@ body {
 	color: #b42318;
 }
 
+/* --- Säulen-Beiträge im Task-Formular (Mehrfach-Einzahlung) --- */
+.pillar-editor {
+	display: grid;
+	gap: 0.75rem;
+	margin-bottom: 1rem;
+}
+
+.pillar-editor-label {
+	font-weight: 600;
+}
+
+.pillar-row {
+	display: grid;
+	grid-template-columns: 1fr 1fr auto;
+	gap: 0.5rem;
+	align-items: end;
+	padding: 0.5rem;
+	border: 1px solid var(--pp-border);
+	border-radius: 0.375rem;
+}
+
 /* --- Empty-State / Onboarding (keine Tasks) --- */
 .empty-state {
 	margin-top: 2rem;

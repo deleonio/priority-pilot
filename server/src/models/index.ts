@@ -1,6 +1,7 @@
 import Task from './task.js';
 import Dependency from './dependency.js';
 import Pillar from './pillar.js';
+import TaskPillar from './taskPillar.js';
 
 Task.belongsToMany(Task, {
 	as: 'dependencies',
@@ -16,8 +17,9 @@ Task.belongsToMany(Task, {
 	otherKey: 'dependentTaskId',
 });
 
-// Jeder Task gehört zu höchstens einer Säule (1:1-Annahme, FK nullable).
-Task.belongsTo(Pillar, { foreignKey: 'pillarId' });
-Pillar.hasMany(Task, { foreignKey: 'pillarId' });
+// Ein Task zahlt auf 0..n Säulen ein und eine Säule trägt 0..n Tasks (n:m). Die Join-Zeile in
+// `task_pillars` hält `share` (100 %-Verteilung je Task) und `confidence` (siehe taskPillar.ts).
+Task.belongsToMany(Pillar, { through: TaskPillar, foreignKey: 'taskId', otherKey: 'pillarId' });
+Pillar.belongsToMany(Task, { through: TaskPillar, foreignKey: 'pillarId', otherKey: 'taskId' });
 
-export { Task, Dependency, Pillar };
+export { Task, Dependency, Pillar, TaskPillar };

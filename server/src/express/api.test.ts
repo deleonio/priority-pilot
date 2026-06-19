@@ -87,7 +87,7 @@ describe('Tasks API', () => {
 				'actualEffort',
 				'description',
 				'deadline',
-				'pillarId',
+				'pillars',
 			]) {
 				assert.ok(field in body, `Fehlendes Feld: ${field}`);
 			}
@@ -228,41 +228,142 @@ describe('Tasks API', () => {
 		});
 	});
 
-	// ── Task → Säule-Zuordnung (pillarId) ────────────────────────────────────
+	// ── Task → Säulen-Beiträge (pillars, n:m) ─────────────────────────────────
 
-	describe('Task → Säule-Zuordnung (pillarId)', () => {
-		it('serializeTask liefert pillarId (null ohne Zuordnung)', async () => {
+	describe('Task → Säulen-Beiträge (pillars)', () => {
+		/** Legt zwei Säulen an und gibt ihre IDs zurück. */
+		const seedTwoPillars = async (): Promise<[number, number]> => {
+			const koerper = await Pillar.create({ name: 'Körper', weight: 20 });
+			const sinn = await Pillar.create({ name: 'Sinn', weight: 20 });
+			return [koerper.id, sinn.id];
+		};
+
+		it('serializeTask liefert pillars (leere Liste ohne Zuordnung)', async () => {
 			const res = await post('/tasks', { title: 'Ohne Säule', priority: 1, estimatedEffort: 1 });
 			const body = (await res.json()) as Record<string, unknown>;
-			assert.equal(body.pillarId, null);
+			assert.deepEqual(body.pillars, []);
 		});
 
-		it('201 mit gültiger pillarId beim Anlegen', async () => {
-			const pillar = await Pillar.create({ name: 'Körper', weight: 20 });
-			const res = await post('/tasks', { title: 'Mit Säule', priority: 1, estimatedEffort: 1, pillarId: pillar.id });
+		it('201 mit gültigen pillars (Summe 100) beim Anlegen', async () => {
+			const [koerper, sinn] = await seedTwoPillars();
+			const res = await post('/tasks', {
+				title: 'Mehrfach',
+				priority: 1,
+				estimatedEffort: 1,
+				pillars: [
+					{ pillarId: koerper, share: 60, confidence: 80 },
+					{ pillarId: sinn, share: 40 },
+				],
+			});
 			assert.equal(res.status, 201);
-			const body = (await res.json()) as Record<string, unknown>;
-			assert.equal(body.pillarId, pillar.id);
+			const body = (await res.json()) as { pillars: { pillarId: number; share: number; confidence: number }[] };
+			// Nach pillarId sortiert; confidence defaultet auf 100, wenn nicht angegeben.
+			assert.deepEqual(body.pillars, [
+				{ pillarId: koerper, share: 60, confidence: 80 },
+				{ pillarId: sinn, share: 40, confidence: 100 },
+			]);
 		});
 
-		it('200 setzt pillarId per PATCH und wieder auf null', async () => {
-			const pillar = await Pillar.create({ name: 'Sinn', weight: 20 });
+		it('200 ersetzt pillars per PATCH und leert sie mit []', async () => {
+			const [koerper, sinn] = await seedTwoPillars();
 			const task = await Task.create({ title: 'T', priority: 1, estimatedEffort: 1 });
-			const assigned = await patch(`/tasks/${task.id}`, { pillarId: pillar.id });
+			const assigned = await patch(`/tasks/${task.id}`, {
+				pillars: [{ pillarId: koerper, share: 100, confidence: 100 }],
+			});
 			assert.equal(assigned.status, 200);
-			assert.equal(((await assigned.json()) as Record<string, unknown>).pillarId, pillar.id);
-			const cleared = await patch(`/tasks/${task.id}`, { pillarId: null });
+			assert.deepEqual(((await assigned.json()) as Record<string, unknown>).pillars, [
+				{ pillarId: koerper, share: 100, confidence: 100 },
+			]);
+			// Vollständig ersetzen (andere Säule).
+			const replaced = await patch(`/tasks/${task.id}`, {
+				pillars: [{ pillarId: sinn, share: 100, confidence: 50 }],
+			});
+			assert.deepEqual(((await replaced.json()) as Record<string, unknown>).pillars, [
+				{ pillarId: sinn, share: 100, confidence: 50 },
+			]);
+			// Leeren.
+			const cleared = await patch(`/tasks/${task.id}`, { pillars: [] });
 			assert.equal(cleared.status, 200);
-			assert.equal(((await cleared.json()) as Record<string, unknown>).pillarId, null);
+			assert.deepEqual(((await cleared.json()) as Record<string, unknown>).pillars, []);
 		});
 
-		it('400 wenn pillarId keine Ganzzahl', async () => {
-			const res = await post('/tasks', { title: 'T', priority: 1, estimatedEffort: 1, pillarId: 1.5 });
+		it('PATCH ohne pillars-Feld lässt die Beiträge unverändert', async () => {
+			const [koerper] = await seedTwoPillars();
+			const task = await Task.create({ title: 'T', priority: 1, estimatedEffort: 1 });
+			await patch(`/tasks/${task.id}`, { pillars: [{ pillarId: koerper, share: 100 }] });
+			const res = await patch(`/tasks/${task.id}`, { priority: 5 });
+			const body = (await res.json()) as Record<string, unknown>;
+			assert.equal(body.priority, 5);
+			assert.deepEqual(body.pillars, [{ pillarId: koerper, share: 100, confidence: 100 }]);
+		});
+
+		it('400 wenn die Summe der share nicht 100 ergibt', async () => {
+			const [koerper, sinn] = await seedTwoPillars();
+			const res = await post('/tasks', {
+				title: 'T',
+				priority: 1,
+				estimatedEffort: 1,
+				pillars: [
+					{ pillarId: koerper, share: 30 },
+					{ pillarId: sinn, share: 30 },
+				],
+			});
 			assert.equal(res.status, 400);
 		});
 
-		it('400 wenn pillarId auf keine existierende Säule verweist', async () => {
-			const res = await post('/tasks', { title: 'T', priority: 1, estimatedEffort: 1, pillarId: 99999 });
+		it('400 bei doppelter pillarId', async () => {
+			const [koerper] = await seedTwoPillars();
+			const res = await post('/tasks', {
+				title: 'T',
+				priority: 1,
+				estimatedEffort: 1,
+				pillars: [
+					{ pillarId: koerper, share: 50 },
+					{ pillarId: koerper, share: 50 },
+				],
+			});
+			assert.equal(res.status, 400);
+		});
+
+		it('400 wenn share außerhalb 0–100', async () => {
+			const [koerper] = await seedTwoPillars();
+			const res = await post('/tasks', {
+				title: 'T',
+				priority: 1,
+				estimatedEffort: 1,
+				pillars: [{ pillarId: koerper, share: 150 }],
+			});
+			assert.equal(res.status, 400);
+		});
+
+		it('400 wenn confidence außerhalb 0–100', async () => {
+			const [koerper] = await seedTwoPillars();
+			const res = await post('/tasks', {
+				title: 'T',
+				priority: 1,
+				estimatedEffort: 1,
+				pillars: [{ pillarId: koerper, share: 100, confidence: 120 }],
+			});
+			assert.equal(res.status, 400);
+		});
+
+		it('400 wenn pillarId keine Ganzzahl', async () => {
+			const res = await post('/tasks', {
+				title: 'T',
+				priority: 1,
+				estimatedEffort: 1,
+				pillars: [{ pillarId: 1.5, share: 100 }],
+			});
+			assert.equal(res.status, 400);
+		});
+
+		it('400 wenn eine pillarId auf keine existierende Säule verweist', async () => {
+			const res = await post('/tasks', {
+				title: 'T',
+				priority: 1,
+				estimatedEffort: 1,
+				pillars: [{ pillarId: 99999, share: 100 }],
+			});
 			assert.equal(res.status, 400);
 		});
 	});
@@ -465,7 +566,7 @@ describe('Tasks API', () => {
 				'actualEffort',
 				'description',
 				'deadline',
-				'pillarId',
+				'pillars',
 			]) {
 				assert.ok(field in body, `Fehlendes Feld: ${field}`);
 			}

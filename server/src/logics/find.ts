@@ -1,11 +1,13 @@
-import { Task } from '../models/index.js';
+import { Pillar, Task } from '../models/index.js';
 
 export const findNextImportantTask = async (): Promise<Task | null> => {
-	// Alle offenen Tasks abrufen
+	// Alle offenen Tasks abrufen — inkl. Säulen-Beiträge, damit der zurückgegebene Task direkt
+	// serialisierbar ist (GET /next gibt einen vollständigen Task zurück).
 	const tasks = await Task.findAll({
 		where: {
 			status: ['Open', 'In process'],
 		},
+		include: [Pillar],
 	});
 
 	// Tasks filtern: Nur solche, deren Abhängigkeiten alle abgeschlossen sind

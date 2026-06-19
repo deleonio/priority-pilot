@@ -2,13 +2,19 @@ import {
 	BelongsToManyAddAssociationMixin,
 	BelongsToManyGetAssociationsMixin,
 	BelongsToManyRemoveAssociationMixin,
+	BelongsToManySetAssociationsMixin,
 	DataTypes,
 	Model,
 } from 'sequelize';
 import sequelize from '../database.js';
 import Dependency from './dependency.js';
+import Pillar from './pillar.js';
+import TaskPillar from './taskPillar.js';
 
 export type TaskStatus = 'Open' | 'In process' | 'Done';
+
+/** Eine Säule samt der zugehörigen Join-Zeile (`share`/`confidence`), wie sie `getPillars()` liefert. */
+export type PillarWithContribution = Pillar & { TaskPillar: TaskPillar };
 
 class Task extends Model {
 	public id!: number;
@@ -19,7 +25,6 @@ class Task extends Model {
 	public actualEffort?: number | null;
 	public description?: string | null;
 	public deadline?: Date | null;
-	public pillarId?: number | null;
 
 	public addDependency!: BelongsToManyAddAssociationMixin<Task, number>;
 	public removeDependency!: BelongsToManyRemoveAssociationMixin<Task, number>;
@@ -28,6 +33,13 @@ class Task extends Model {
 	public addDependent!: BelongsToManyAddAssociationMixin<Task, number>;
 	public removeDependent!: BelongsToManyRemoveAssociationMixin<Task, number>;
 	public getDependents!: BelongsToManyGetAssociationsMixin<Task>;
+
+	// Säulen-Beiträge (n:m über `task_pillars`); die Join-Zeile trägt `share`/`confidence`.
+	public getPillars!: BelongsToManyGetAssociationsMixin<PillarWithContribution>;
+	public setPillars!: BelongsToManySetAssociationsMixin<Pillar, number>;
+	public addPillar!: BelongsToManyAddAssociationMixin<Pillar, number>;
+	/** Eager-geladene Säulen-Beiträge (über `include: [Pillar]`); je Eintrag mit `TaskPillar`. */
+	public Pillars?: PillarWithContribution[];
 
 	public Dependency!: Dependency;
 
@@ -76,12 +88,8 @@ Task.init(
 			type: DataTypes.DATE,
 			allowNull: true,
 		},
-		// Zuordnung zu einer Lebensbalance-Säule. Zunächst nullable, damit Bestands-Tasks
-		// ohne Säule gültig bleiben (siehe Beziehung in models/index.ts).
-		pillarId: {
-			type: DataTypes.INTEGER,
-			allowNull: true,
-		},
+		// Die Säulen-Zuordnung ist n:m und liegt in `task_pillars` (siehe taskPillar.ts /
+		// models/index.ts) — daher keine `pillarId`-Spalte mehr direkt am Task.
 	},
 	{
 		sequelize,
