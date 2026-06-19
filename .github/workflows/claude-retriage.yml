@@ -1,0 +1,77 @@
+name: Claude Re-Triage
+
+# Stoesst eine KI-Neu-Analyse (Re-Triage) eines Issues an, sobald jemand mit
+# Schreibzugriff einen Issue-Kommentar mit dem Stichwort "@claude" hinterlaesst.
+# Setzt den Ticket-Triage-Ablauf fuer genau dieses eine Issue um (Re-Triage).
+# Ablauf/Hintergrund: .ai-knowledge/ticket-triage.md und .claude/commands/triage-ticket.md
+#
+# Voraussetzung: Repository-Secret CLAUDE_CODE_OAUTH_TOKEN (per `claude setup-token`).
+
+on:
+  issue_comment:
+    types: [created]
+
+# Pro Issue nur ein Lauf gleichzeitig. Kein cancel-in-progress, damit ein bereits
+# laufendes Lektorat/Posten nicht mittendrin abgebrochen wird.
+concurrency:
+  group: claude-retriage-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  re-triage:
+    # Nur ausloesen, wenn ALLE Bedingungen zutreffen:
+    #  - echtes Issue, kein PR (issue_comment feuert auch fuer PRs -> pull_request == null)
+    #  - der Kommentar enthaelt das Stichwort @claude
+    #  - der Kommentar stammt von jemandem mit Schreibzugriff (OWNER/MEMBER/COLLABORATOR),
+    #    damit Aussenstehende den Lauf (und das OAuth-Token) nicht ausloesen koennen.
+    #    Die Action prueft den Schreibzugriff zwar zusaetzlich selbst, dies ist die
+    #    vorgeschaltete, billige Absicherung (kein Runner-Start fuer Fremde).
+    if: >-
+      ${{ github.event.issue.pull_request == null
+          && contains(github.event.comment.body, '@claude')
+          && (github.event.comment.author_association == 'OWNER'
+              || github.event.comment.author_association == 'MEMBER'
+              || github.event.comment.author_association == 'COLLABORATOR') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read # Repo auschecken (Slash-Command + Wissensbasis lesen)
+      issues: write # Beschreibung lektorieren, Analyse-Kommentar posten, Labels setzen
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Re-Triage via Claude Code
+        uses: anthropics/claude-code-action@v1
+        env:
+          # Stellt sicher, dass die `gh`-Aufrufe im Triage-Ablauf authentifiziert sind.
+          GH_TOKEN: ${{ github.token }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Re-Triage fuer genau dieses eine Issue. Bewusst natuerlichsprachig formuliert
+          # (nicht als Slash-Command), da die Action keine garantierte Slash-Command-
+          # Ausfuehrung im prompt zusichert; verweist aber auf den verbindlichen Ablauf.
+          prompt: |
+            Eine Person mit Schreibzugriff hat Issue #${{ github.event.issue.number }}
+            kommentiert (Stichwort @claude) und damit eine Neu-Analyse (Re-Triage) angefordert.
+
+            Fuehre fuer GENAU DIESES EINE Issue (#${{ github.event.issue.number }}) den
+            Ticket-Triage-Workflow aus der Wissensbasis aus — verbindlicher Ablauf:
+            .ai-knowledge/ticket-triage.md (entspricht dem Slash-Command
+            `/triage-ticket ${{ github.event.issue.number }}`).
+
+            Behandle es als Re-Triage (Schritt 1 der Wissensbasis): eine bereits vorhandene
+            KI-Analyse nicht unveraendert uebernehmen, sondern auf Passung und Vollstaendigkeit
+            zur (ggf. geaenderten) Aufgabenstellung pruefen und bei Bedarf aktualisieren bzw.
+            ergaenzen. Dann wie im Ablauf: Beschreibung lektorieren (Inhalt unveraendert),
+            Loesungs-Kommentar auf Deutsch mit Umsetzbarkeits-Ampel (gruen/gelb/rot) posten und
+            Labels gemaess Ampel setzen (`ai:analyzed`; bei gruen zusaetzlich `ai:ready`, bei
+            gelb/rot ein evtl. vorhandenes `ai:ready` entfernen).
+
+            Bearbeite ausschliesslich dieses eine Issue (kein Batch). Committe keinen Produktivcode.
+          # Nur die im Triage-Ablauf benoetigten Tools zulassen (headless, keine interaktive
+          # Freigabe) und die in der Wissensbasis geforderte Bestaetigung als durch den
+          # @claude-Ausloeser erteilt behandeln.
+          claude_args: >-
+            --allowedTools "Bash(gh issue:*),Bash(gh api:*),Bash(gh label:*),Read,Grep,Glob"
+            --append-system-prompt "Automatisierter, vom Maintainer per @claude-Kommentar autorisierter Re-Triage-Lauf in GitHub Actions (headless, keine interaktive Rueckfrage moeglich). Die in der Wissensbasis geforderte Bestaetigung vor dem oeffentlichen Posten gilt durch den @claude-Ausloeser als erteilt: Poste Lektorat, Analyse-Kommentar und Labels direkt fuer Issue #${{ github.event.issue.number }}, ohne auf eine Bestaetigung zu warten. Bearbeite ausschliesslich dieses Issue und committe keinen Produktivcode."
