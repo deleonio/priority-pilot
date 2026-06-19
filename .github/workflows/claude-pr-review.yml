@@ -4,8 +4,9 @@ name: Claude PR Review (Kreuzverhoer)
 # direkt nicht-Draft geoeffnet) ODER neue Commits erhaelt (synchronize -> Re-Review nach Fixes).
 # Entspricht /kreuzverhoer-review (.ai-knowledge/pr-review.md). Aendert KEINEN Code.
 #
-# Nutzt den PAT (CLAUDE_PIPELINE_TOKEN), damit eine gepostete Findings-Review den Fixup-Workflow
-# (claude-pr-fixup.yml) ausloest. Voraussetzungen: CLAUDE_CODE_OAUTH_TOKEN, CLAUDE_PIPELINE_TOKEN.
+# Nutzt ein kurzlebiges GitHub-App-Token, damit eine gepostete Findings-Review den Fixup-Workflow
+# (claude-pr-fixup.yml) ausloest. Voraussetzungen: CLAUDE_CODE_OAUTH_TOKEN sowie eine GitHub App,
+# hinterlegt als APP_ID + APP_PRIVATE_KEY (Contents/Issues/Pull requests = Read and write).
 
 on:
   pull_request:
@@ -17,7 +18,7 @@ concurrency:
 
 jobs:
   review:
-    # Keine Draft-PRs und keine Fork-PRs (kein Review/Build von fremdem Code mit dem PAT).
+    # Keine Draft-PRs und keine Fork-PRs (kein Review/Build von fremdem Code mit dem App-Token).
     if: >-
       ${{ github.event.pull_request.draft == false
           && github.event.pull_request.head.repo.full_name == github.repository }}
@@ -27,14 +28,21 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - name: Voraussetzung pruefen (PAT-Secret)
+      - name: Voraussetzung pruefen (GitHub-App-Secrets)
         env:
-          PIPELINE_TOKEN: ${{ secrets.CLAUDE_PIPELINE_TOKEN }}
+          APP_ID: ${{ secrets.APP_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
         run: |
-          if [ -z "$PIPELINE_TOKEN" ]; then
-            echo "::error::Secret CLAUDE_PIPELINE_TOKEN fehlt. In den Repo-Settings anlegen (PAT mit Contents/Issues/Pull requests = Read+Write). Ohne dieses Token kann die Pipeline weder pushen noch die Folge-Workflows ausloesen."
+          if [ -z "$APP_ID" ] || [ -z "$APP_PRIVATE_KEY" ]; then
+            echo "::error::GitHub-App-Secrets fehlen (APP_ID und/oder APP_PRIVATE_KEY). GitHub App anlegen (Contents/Issues/Pull requests = Read and write), aufs Repo installieren und beide Secrets hinterlegen — sonst kaskadiert die Pipeline nicht."
             exit 1
           fi
+      - name: GitHub-App-Token erzeugen
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -43,10 +51,10 @@ jobs:
       - name: Kreuzverhoer-Review via Claude Code
         uses: anthropics/claude-code-action@v1
         env:
-          GH_TOKEN: ${{ secrets.CLAUDE_PIPELINE_TOKEN }} # Review als PAT -> loest den Fixup-Workflow aus
+          GH_TOKEN: ${{ steps.app-token.outputs.token }} # Review als App-Token -> loest den Fixup-Workflow aus
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          github_token: ${{ secrets.CLAUDE_PIPELINE_TOKEN }}
+          github_token: ${{ steps.app-token.outputs.token }}
           prompt: |
             Reviewe Pull Request #${{ github.event.pull_request.number }} im Kreuzverhör.
 

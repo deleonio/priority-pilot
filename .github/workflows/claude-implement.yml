@@ -6,9 +6,10 @@ name: Claude Implement (ai:ready)
 # re-verifizieren, umsetzen, PR mit "Closes #" erstellen). Der Kreuzverhoer-Review laeuft als
 # eigener Workflow (claude-pr-review.yml).
 #
-# Nutzt fuer GitHub-Operationen einen PAT (CLAUDE_PIPELINE_TOKEN), damit der erstellte PR den
+# Nutzt fuer GitHub-Operationen ein kurzlebiges GitHub-App-Token, damit der erstellte PR den
 # Review-Workflow ausloest (mit dem Standard-GITHUB_TOKEN wuerde er das nicht -> Schleifenschutz).
-# Voraussetzungen (Repo-Secrets): CLAUDE_CODE_OAUTH_TOKEN, CLAUDE_PIPELINE_TOKEN.
+# Voraussetzungen (Repo-Secrets): CLAUDE_CODE_OAUTH_TOKEN sowie eine GitHub App, hinterlegt als
+# APP_ID + APP_PRIVATE_KEY (App-Permissions: Contents/Issues/Pull requests = Read and write).
 
 on:
   issues:
@@ -29,30 +30,37 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
-      contents: read # Checkout (Schreibzugriff laeuft ueber den PAT)
+      contents: read # Checkout (Schreibzugriff laeuft ueber das App-Token)
       id-token: write # OIDC-Token der Action (sonst fehlt ACTIONS_ID_TOKEN_REQUEST_URL)
     steps:
-      - name: Voraussetzung pruefen (PAT-Secret)
+      - name: Voraussetzung pruefen (GitHub-App-Secrets)
         env:
-          PIPELINE_TOKEN: ${{ secrets.CLAUDE_PIPELINE_TOKEN }}
+          APP_ID: ${{ secrets.APP_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
         run: |
-          if [ -z "$PIPELINE_TOKEN" ]; then
-            echo "::error::Secret CLAUDE_PIPELINE_TOKEN fehlt. In den Repo-Settings anlegen (PAT mit Contents/Issues/Pull requests = Read+Write). Ohne dieses Token kann die Pipeline weder pushen noch die Folge-Workflows ausloesen."
+          if [ -z "$APP_ID" ] || [ -z "$APP_PRIVATE_KEY" ]; then
+            echo "::error::GitHub-App-Secrets fehlen (APP_ID und/oder APP_PRIVATE_KEY). GitHub App anlegen (Contents/Issues/Pull requests = Read and write), aufs Repo installieren und beide Secrets hinterlegen — sonst kaskadiert die Pipeline nicht."
             exit 1
           fi
+      - name: GitHub-App-Token erzeugen
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0 # voller Verlauf: der Umsetzungs-Flow arbeitet mit Branches
-          token: ${{ secrets.CLAUDE_PIPELINE_TOKEN }} # Pushes laufen als PAT (loesen Folge-Workflows aus)
+          token: ${{ steps.app-token.outputs.token }} # Push als App-Token -> loest Folge-Workflows aus
 
       - name: Umsetzung via Claude Code
         uses: anthropics/claude-code-action@v1
         env:
-          GH_TOKEN: ${{ secrets.CLAUDE_PIPELINE_TOKEN }} # gh nutzt den PAT -> erstellter PR loest Review aus
+          GH_TOKEN: ${{ steps.app-token.outputs.token }} # gh nutzt das App-Token -> erstellter PR loest Review aus
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          github_token: ${{ secrets.CLAUDE_PIPELINE_TOKEN }}
+          github_token: ${{ steps.app-token.outputs.token }}
           prompt: |
             Das Label `ai:ready` wurde an Issue #${{ github.event.issue.number }} gesetzt —
             setze dieses Issue jetzt um.

@@ -77,8 +77,8 @@ Konkreter Command: `/kreuzverhoer-review`.
 In **GitHub Actions** wird ein review-bereiter PR automatisch kreuzverhört
 ([`.github/workflows/claude-pr-review.yml`](.github/workflows/claude-pr-review.yml)); die Findings
 setzt [`.github/workflows/claude-pr-fixup.yml`](.github/workflows/claude-pr-fixup.yml) um und stößt
-über den Push einen erneuten Review an (Loop bis 🟢). Diese Workflows nutzen einen PAT
-(`CLAUDE_PIPELINE_TOKEN`), damit die Stufen kaskadieren.
+über den Push einen erneuten Review an (Loop bis 🟢). Diese Workflows nutzen ein
+GitHub-App-Token (Secrets `APP_ID` + `APP_PRIVATE_KEY`), damit die Stufen kaskadieren.
 
 Die im Review entstehenden Kommentare werden vom Umsetzungs-Workflow (`/implement-ticket`,
 Schritt 5) im **Kreuzverhör-Loop** abgearbeitet — der den PR zusätzlich **abonniert und automatisch
