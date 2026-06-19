@@ -1,7 +1,8 @@
 name: Claude Re-Triage
 
 # Stoesst eine KI-Neu-Analyse (Re-Triage) eines Issues an, sobald jemand mit
-# Schreibzugriff einen Issue-Kommentar mit dem Stichwort "@claude" hinterlaesst.
+# Schreibzugriff einen Issue-Kommentar mit dem Stichwort "@claude" hinterlaesst
+# ODER einen Kommentar so bearbeitet, dass er "@claude" enthaelt.
 # Setzt den Ticket-Triage-Ablauf fuer genau dieses eine Issue um (Re-Triage).
 # Ablauf/Hintergrund: .ai-knowledge/ticket-triage.md und .claude/commands/triage-ticket.md
 #
@@ -9,13 +10,17 @@ name: Claude Re-Triage
 
 on:
   issue_comment:
-    types: [created]
+    # created: neuer Kommentar; edited: nachtraeglich um "@claude" ergaenzter Kommentar.
+    types: [created, edited]
 
-# Pro Issue nur ein Lauf gleichzeitig. Kein cancel-in-progress, damit ein bereits
-# laufendes Lektorat/Posten nicht mittendrin abgebrochen wird.
+# Pro Issue nur ein Lauf gleichzeitig. cancel-in-progress: true -> eine neue Aenderung
+# (weiterer/bearbeiteter @claude-Kommentar) am selben Issue bricht den noch laufenden
+# Re-Triage-Lauf ab, damit immer nur die juengste Analyse durchlaeuft (aeltere, ueberholte
+# Laeufe werden verworfen). Ein abgebrochener Teil-Lauf ist unkritisch: der naechste Lauf
+# fuehrt die Re-Triage vollstaendig neu aus.
 concurrency:
   group: claude-retriage-${{ github.event.issue.number }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   re-triage:
