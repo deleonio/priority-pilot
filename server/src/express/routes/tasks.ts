@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { ValidationError as SequelizeValidationError } from 'sequelize';
-import { Pillar, Task } from '../../models/index.js';
+import { Transaction, ValidationError as SequelizeValidationError } from 'sequelize';
+import sequelize from '../../database.js';
+import { Pillar, Task, TaskPillar } from '../../models/index.js';
 import { wouldCreateCycle } from '../../logics/cycle.js';
 import type { components } from '../../api';
 
@@ -11,7 +12,14 @@ type TaskStatus = components['schemas']['TaskStatus'];
 
 const VALID_STATUSES: readonly TaskStatus[] = ['Open', 'In process', 'Done'];
 
-/** Validierte Task-Attribute, wie sie an das Sequelize-Modell übergeben werden. */
+/** Soll-Summe der `share`-Werte über die Säulen eines Tasks (100 %-Verteilung). */
+const TOTAL_SHARE = 100;
+/** Float-Toleranz für den Summenvergleich (z. B. 33,33 + 33,33 + 33,34). */
+const SHARE_SUM_EPSILON = 1e-6;
+/** Default-Konfidenz (volle Sicherheit), wenn ein Beitrag keine `confidence` mitschickt. */
+const DEFAULT_CONFIDENCE = 100;
+
+/** Validierte Task-Attribute (Spalten), wie sie an das Sequelize-Modell übergeben werden. */
 interface TaskAttributes {
 	title?: string;
 	status?: TaskStatus;
@@ -20,15 +28,27 @@ interface TaskAttributes {
 	actualEffort?: number | null;
 	description?: string | null;
 	deadline?: Date | null;
-	pillarId?: number | null;
 }
 
-type ValidationResult = { ok: true; attrs: TaskAttributes } | { ok: false; message: string };
+/** Ein vollständig normierter Säulen-Beitrag (confidence aufgelöst auf den Default). */
+interface PillarContribution {
+	pillarId: number;
+	share: number;
+	confidence: number;
+}
+
+type ValidationResult =
+	| { ok: true; attrs: TaskAttributes; pillars: PillarContribution[] | undefined }
+	| { ok: false; message: string };
 
 const isTaskStatus = (value: unknown): value is TaskStatus =>
 	typeof value === 'string' && VALID_STATUSES.some((status) => status === value);
 
-/** Wandelt eine Task-Instanz in die im API-Vertrag definierte Form um. */
+/**
+ * Wandelt eine Task-Instanz in die im API-Vertrag definierte Form um. Die Säulen-Beiträge stammen
+ * aus der **eager-geladenen** Assoziation `task.Pillars` (`include: [Pillar]`); fehlt sie, gilt
+ * „keine Säulen". Die Beiträge sind nach `pillarId` sortiert (deterministische Reihenfolge).
+ */
 export const serializeTask = (task: Task): TaskDto => ({
 	id: task.id,
 	title: task.title,
@@ -38,7 +58,13 @@ export const serializeTask = (task: Task): TaskDto => ({
 	actualEffort: task.actualEffort ?? null,
 	description: task.description ?? null,
 	deadline: task.deadline ? task.deadline.toISOString() : null,
-	pillarId: task.pillarId ?? null,
+	pillars: (task.Pillars ?? [])
+		.map((pillar) => ({
+			pillarId: pillar.id,
+			share: pillar.TaskPillar.share,
+			confidence: pillar.TaskPillar.confidence,
+		}))
+		.sort((a, b) => a.pillarId - b.pillarId),
 });
 
 const sendError = (res: Response<ErrorDto>, status: number, message: string): void => {
@@ -61,8 +87,55 @@ const parseId = (raw: string): number | null => {
 };
 
 /**
+ * Validiert die `pillars`-Liste (Säulen-Beiträge) rein strukturell (ohne DB-Zugriff): jede `pillarId`
+ * eine Ganzzahl `>= 1` ohne Dubletten, `share`/`confidence` Zahlen in `[0, 100]` (`confidence`
+ * optional, Default 100). Bei mindestens einem Beitrag muss die Summe der `share` 100 ergeben.
+ */
+const validatePillars = (
+	raw: unknown,
+): { ok: true; pillars: PillarContribution[] } | { ok: false; message: string } => {
+	if (!Array.isArray(raw)) {
+		return { ok: false, message: 'pillars muss eine Liste sein.' };
+	}
+	const pillars: PillarContribution[] = [];
+	const seen = new Set<number>();
+	for (const item of raw) {
+		if (typeof item !== 'object' || item === null) {
+			return { ok: false, message: 'Jeder pillars-Eintrag muss ein Objekt sein.' };
+		}
+		const { pillarId, share, confidence } = item as Record<string, unknown>;
+		if (typeof pillarId !== 'number' || !Number.isInteger(pillarId) || pillarId < 1) {
+			return { ok: false, message: 'pillarId muss eine Ganzzahl >= 1 sein.' };
+		}
+		if (typeof share !== 'number' || !Number.isFinite(share) || share < 0 || share > 100) {
+			return { ok: false, message: 'share muss eine Zahl zwischen 0 und 100 sein.' };
+		}
+		let resolvedConfidence = DEFAULT_CONFIDENCE;
+		if (confidence !== undefined) {
+			if (typeof confidence !== 'number' || !Number.isFinite(confidence) || confidence < 0 || confidence > 100) {
+				return { ok: false, message: 'confidence muss eine Zahl zwischen 0 und 100 sein.' };
+			}
+			resolvedConfidence = confidence;
+		}
+		if (seen.has(pillarId)) {
+			return { ok: false, message: `Doppelte pillarId ${pillarId} in pillars.` };
+		}
+		seen.add(pillarId);
+		pillars.push({ pillarId, share, confidence: resolvedConfidence });
+	}
+	if (pillars.length > 0) {
+		const sum = pillars.reduce((acc, entry) => acc + entry.share, 0);
+		if (Math.abs(sum - TOTAL_SHARE) > SHARE_SUM_EPSILON) {
+			return { ok: false, message: `Die Summe der share-Werte muss ${TOTAL_SHARE} ergeben (aktuell ${sum}).` };
+		}
+	}
+	return { ok: true, pillars };
+};
+
+/**
  * Validiert den Request-Body für Anlegen/Aktualisieren eines Tasks.
- * `requireTitle` erzwingt einen Titel (POST); bei PATCH sind alle Felder optional.
+ * `requireTitle` erzwingt einen Titel (POST); bei PATCH sind alle Felder optional. `pillars` ist
+ * `undefined`, wenn das Feld fehlt (PATCH lässt die Beiträge dann unverändert).
  */
 const validateTaskFields = (body: unknown, requireTitle: boolean): ValidationResult => {
 	if (typeof body !== 'object' || body === null) {
@@ -133,37 +206,51 @@ const validateTaskFields = (body: unknown, requireTitle: boolean): ValidationRes
 		}
 	}
 
-	if (input.pillarId !== undefined) {
-		if (input.pillarId === null) {
-			attrs.pillarId = null;
-		} else if (typeof input.pillarId !== 'number' || !Number.isInteger(input.pillarId) || input.pillarId < 1) {
-			return { ok: false, message: 'pillarId muss eine Ganzzahl >= 1 oder null sein.' };
-		} else {
-			attrs.pillarId = input.pillarId;
+	let pillars: PillarContribution[] | undefined;
+	if (input.pillars !== undefined) {
+		const result = validatePillars(input.pillars);
+		if (!result.ok) {
+			return result;
 		}
+		pillars = result.pillars;
 	}
 
-	return { ok: true, attrs };
+	return { ok: true, attrs, pillars };
 };
 
 /**
- * Prüft, ob die (gesetzte) Säulen-Zuordnung gültig ist. `null`/`undefined` sind erlaubt
- * (keine Säule). Eine gesetzte, aber nicht existierende `pillarId` ist ungültig — SQLite
- * erzwingt den Fremdschlüssel nicht selbst, daher hier explizit prüfen.
+ * Prüft, ob alle referenzierten Säulen existieren. `[]` ist gültig (keine Säule). SQLite erzwingt
+ * den Fremdschlüssel nicht selbst, daher hier explizit prüfen (die `pillarId` sind dublettenfrei).
  */
-const isPillarReferenceValid = async (pillarId: number | null | undefined): Promise<boolean> => {
-	if (typeof pillarId !== 'number') {
+const arePillarsExistent = async (pillars: PillarContribution[]): Promise<boolean> => {
+	if (pillars.length === 0) {
 		return true;
 	}
-	return (await Pillar.findByPk(pillarId)) !== null;
+	const ids = pillars.map((entry) => entry.pillarId);
+	const count = await Pillar.count({ where: { id: ids } });
+	return count === ids.length;
 };
+
+/** Schreibt die Säulen-Beiträge eines Tasks neu (ersetzt vorhandene) — innerhalb einer Transaktion. */
+const replaceContributions = (
+	taskId: number,
+	pillars: PillarContribution[],
+	transaction: Transaction,
+): Promise<unknown> =>
+	TaskPillar.bulkCreate(
+		pillars.map((entry) => ({ taskId, pillarId: entry.pillarId, share: entry.share, confidence: entry.confidence })),
+		{ transaction, validate: true },
+	);
+
+/** Lädt einen Task inkl. seiner Säulen-Beiträge (für die Serialisierung). */
+const findTaskWithPillars = (id: number): Promise<Task | null> => Task.findByPk(id, { include: [Pillar] });
 
 export const tasksRouter = Router();
 
-// GET /tasks — alle Tasks auflisten
+// GET /tasks — alle Tasks (inkl. Säulen-Beiträge) auflisten
 tasksRouter.get('/tasks', async (_req: Request, res: Response<TaskDto[] | ErrorDto>) => {
 	try {
-		const tasks = await Task.findAll();
+		const tasks = await Task.findAll({ include: [Pillar] });
 		res.json(tasks.map(serializeTask));
 	} catch (error) {
 		handleWriteError(res, error);
@@ -177,13 +264,24 @@ tasksRouter.post('/tasks', async (req: Request, res: Response<TaskDto | ErrorDto
 		sendError(res, 400, validation.message);
 		return;
 	}
-	if (!(await isPillarReferenceValid(validation.attrs.pillarId))) {
-		sendError(res, 400, 'pillarId verweist auf keine existierende Säule.');
+	if (validation.pillars !== undefined && !(await arePillarsExistent(validation.pillars))) {
+		sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
 		return;
 	}
 	try {
-		const task = await Task.create({ ...validation.attrs });
-		res.status(201).json(serializeTask(task));
+		const created = await sequelize.transaction(async (transaction) => {
+			const task = await Task.create({ ...validation.attrs }, { transaction });
+			if (validation.pillars !== undefined && validation.pillars.length > 0) {
+				await replaceContributions(task.id, validation.pillars, transaction);
+			}
+			return task;
+		});
+		const withPillars = await findTaskWithPillars(created.id);
+		if (!withPillars) {
+			sendError(res, 500, 'Interner Serverfehler.');
+			return;
+		}
+		res.status(201).json(serializeTask(withPillars));
 	} catch (error) {
 		handleWriteError(res, error);
 	}
@@ -192,7 +290,7 @@ tasksRouter.post('/tasks', async (req: Request, res: Response<TaskDto | ErrorDto
 // GET /tasks/:id — einen Task abrufen
 tasksRouter.get('/tasks/:id', async (req: Request, res: Response<TaskDto | ErrorDto>) => {
 	const id = parseId(req.params.id);
-	const task = id === null ? null : await Task.findByPk(id);
+	const task = id === null ? null : await findTaskWithPillars(id);
 	if (!task) {
 		sendError(res, 404, 'Task nicht gefunden.');
 		return;
@@ -213,13 +311,27 @@ tasksRouter.patch('/tasks/:id', async (req: Request, res: Response<TaskDto | Err
 		sendError(res, 400, validation.message);
 		return;
 	}
-	if (!(await isPillarReferenceValid(validation.attrs.pillarId))) {
-		sendError(res, 400, 'pillarId verweist auf keine existierende Säule.');
+	if (validation.pillars !== undefined && !(await arePillarsExistent(validation.pillars))) {
+		sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
 		return;
 	}
 	try {
-		await task.update(validation.attrs);
-		res.json(serializeTask(task));
+		await sequelize.transaction(async (transaction) => {
+			await task.update(validation.attrs, { transaction });
+			// `pillars` fehlt → Beiträge unverändert lassen; gesetzt (auch `[]`) → komplett ersetzen.
+			if (validation.pillars !== undefined) {
+				await TaskPillar.destroy({ where: { taskId: task.id }, transaction });
+				if (validation.pillars.length > 0) {
+					await replaceContributions(task.id, validation.pillars, transaction);
+				}
+			}
+		});
+		const withPillars = await findTaskWithPillars(task.id);
+		if (!withPillars) {
+			sendError(res, 404, 'Task nicht gefunden.');
+			return;
+		}
+		res.json(serializeTask(withPillars));
 	} catch (error) {
 		handleWriteError(res, error);
 	}
@@ -289,7 +401,12 @@ tasksRouter.post('/tasks/:id/dependencies', async (req: Request, res: Response<T
 		// Idempotent: Besteht die Kante bereits, aktualisiert addDependency() nur das Gewicht der
 		// vorhandenen Join-Zeile (kein Duplikat, kein Constraint-Fehler) — die Antwort bleibt 201.
 		await dependentTask.addDependency(dependingTask, { through: { weight } });
-		res.status(201).json(serializeTask(dependentTask));
+		const withPillars = await findTaskWithPillars(dependentTask.id);
+		if (!withPillars) {
+			sendError(res, 404, 'Task nicht gefunden.');
+			return;
+		}
+		res.status(201).json(serializeTask(withPillars));
 	} catch (error) {
 		handleWriteError(res, error);
 	}

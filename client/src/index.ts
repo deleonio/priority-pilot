@@ -20,6 +20,8 @@ export type TaskStatus = Schemas['TaskStatus'];
 export type TaskTreeNode = Schemas['TaskTreeNode'];
 export type DependencyInput = Schemas['DependencyInput'];
 export type Pillar = Schemas['Pillar'];
+export type TaskPillarContribution = Schemas['TaskPillarContribution'];
+export type TaskPillarContributionInput = Schemas['TaskPillarContributionInput'];
 export type PillarWeightsInput = Schemas['PillarWeightsInput'];
 export type ApiError = Schemas['Error'];
 

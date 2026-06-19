@@ -10,11 +10,13 @@ Zwei Konzepte bestimmen die Priorität einer Aufgabe (Task):
   eine Aufgabe zu einer anderen beiträgt. Daraus berechnet Priority Pilot pro Aufgabe einen
   **Wertbeitrag** (eigene Priorität plus gewichtete Werte der abhängigen Aufgaben) und einen
   **Gesamtaufwand** inklusive aller (transitiven) Abhängigkeiten.
-- **Lebensbalance-Säulen:** Jede Aufgabe lässt sich einer von fünf festen Säulen zuordnen
-  (_Körper, Beziehungen, Sinn, Mentale Gesundheit, Wirksamkeit_). Die Säulen tragen eine
-  prozentuale Gewichtung (Summe 100 %), die den Wertbeitrag ihrer Aufgaben **multiplikativ**
-  skaliert. So lässt sich die Priorisierung gezielt auf die Lebensbereiche lenken, die gerade
-  wichtig sind; bei Gleichverteilung (je 20 %) bleibt die Gewichtung neutral.
+- **Lebensbalance-Säulen:** Jede Aufgabe zahlt auf **0..n** der fünf festen Säulen ein
+  (_Körper, Beziehungen, Sinn, Mentale Gesundheit, Wirksamkeit_). Pro Aufgabe wird der
+  Investitions-Anteil zu 100 % auf ihre Säulen verteilt (`share`), je mit einer **Konfidenz**
+  (`confidence`). Die Säulen tragen zusätzlich eine prozentuale Gewichtung (Summe 100 %), die den
+  Wertbeitrag der Aufgaben **multiplikativ** skaliert. So lässt sich die Priorisierung gezielt auf
+  die Lebensbereiche lenken, die gerade wichtig sind; bei Gleichverteilung (je 20 %) bleibt die
+  Gewichtung neutral.
 
 Damit lassen sich:
 
@@ -48,13 +50,19 @@ mit `openapi-typescript` – erzeugt:
 ## Fachlogik (Server)
 
 - **Modelle** ([`task.ts`](server/src/models/task.ts), [`pillar.ts`](server/src/models/pillar.ts),
-  [`dependency.ts`](server/src/models/dependency.ts)): `Task` (Titel, Status, Priorität,
-  geschätzter/tatsächlicher Aufwand, Beschreibung, Deadline, optionale Säule) mit einer
-  `Task↔Task`-Beziehung (`weight` pro Abhängigkeit) sowie einer optionalen Zuordnung zu einer
-  `Pillar` (Lebensbalance-Säule mit prozentualem `weight`).
+  [`dependency.ts`](server/src/models/dependency.ts),
+  [`taskPillar.ts`](server/src/models/taskPillar.ts)): `Task` (Titel, Status, Priorität,
+  geschätzter/tatsächlicher Aufwand, Beschreibung, Deadline) mit einer `Task↔Task`-Beziehung
+  (`weight` pro Abhängigkeit) sowie einer **n:m**-Beziehung zu `Pillar` (Lebensbalance-Säule mit
+  prozentualem `weight`) über die Join-Tabelle `task_pillars`, die je (Task, Säule) `share`
+  (100 %-Verteilung pro Task) und `confidence` trägt.
 - **Wertberechnung** ([`logics/value.ts`](server/src/logics/value.ts)): rekursiver, gewichteter
   Wertbeitrag eines Tasks aus seinen abhängigen Tasks plus eigener Priorität, anschließend
-  **multiplikativ skaliert mit dem Säulen-Faktor** (`pillar.weight / 20`; ohne Säule neutral `1`).
+  **multiplikativ skaliert mit dem Säulen-Faktor**. Der Faktor mittelt über die Säulen-Beiträge des
+  Tasks und interpoliert je Säule – gewichtet mit der Konfidenz – zwischen neutral (`1`) und dem
+  vollen Faktor (`pillar.weight / 20`): `Σ (shareᵢ/100) · [1 + (confᵢ/100) · (weightᵢ/20 − 1)]`.
+  Ohne Säule bleibt der Task neutral (`1`); eine einzelne Säule mit 100 % Anteil und Konfidenz
+  100 % ergibt genau `pillar.weight / 20`.
 - **Aufgabenwald** ([`logics/tree.ts`](server/src/logics/tree.ts)): baut aus Wurzel-Tasks
   Bäume, summiert Aufwände inkl. Abhängigkeiten, sortiert nach Wert.
 - **Nächste Aufgabe** ([`logics/find.ts`](server/src/logics/find.ts)): wichtigste Aufgabe,
@@ -73,8 +81,10 @@ Das [`frontend`](frontend) ist eine installierbare PWA (React 19 + KoliBri) auf 
 REST-API. Es bietet:
 
 - ein **Dashboard** mit Status-Kennzahlen, nächster Aufgabe, den wichtigsten Tasks (nach Wert),
-  anstehenden Deadlines und dem Widget **„Meine Themen"** (je Säule Gewichtung, Anzahl, Wert und Aufwand),
-- eine **Aufgabentabelle** zum Anlegen, Bearbeiten und Löschen von Tasks,
+  anstehenden Deadlines und dem Widget **„Meine Themen"** (je Säule Gewichtung sowie Anzahl,
+  anteiliger Wert und Aufwand der einzahlenden Tasks),
+- eine **Aufgabentabelle** zum Anlegen, Bearbeiten und Löschen von Tasks; im Task-Formular werden
+  auch die **Säulen-Beiträge** (Anteil + Konfidenz je Säule) gepflegt,
 - Dialoge zum Pflegen der **Abhängigkeiten** eines Tasks und zum Einstellen der **Säulen-Gewichtung**.
 
 Bedienung und Dev-Server: [`frontend/README.md`](frontend/README.md).

@@ -263,6 +263,7 @@ components:
         - status
         - priority
         - estimatedEffort
+        - pillars
       properties:
         id:
           type: integer
@@ -292,11 +293,13 @@ components:
           type: string
           format: date-time
           nullable: true
-        pillarId:
-          type: integer
-          minimum: 1
-          nullable: true
-          description: ID der zugeordneten Lebensbalance-Säule (oder `null`)
+        pillars:
+          type: array
+          description: >-
+            Säulen, auf die der Task einzahlt (0..n). Der `share` verteilt 100 %
+            über die referenzierten Säulen; `confidence` ist die Konfidenz je Beitrag.
+          items:
+            $ref: '#/components/schemas/TaskPillarContribution'
     TaskCreate:
       type: object
       required:
@@ -327,11 +330,14 @@ components:
           type: string
           format: date-time
           nullable: true
-        pillarId:
-          type: integer
-          minimum: 1
-          nullable: true
-          description: ID der zugeordneten Lebensbalance-Säule (oder `null`)
+        pillars:
+          type: array
+          description: >-
+            Säulen, auf die der Task einzahlt (0..n). Wird das Feld weggelassen,
+            bleibt der Task ohne Säulen. Bei mindestens einer Säule muss die Summe
+            aller `share` 100 ergeben.
+          items:
+            $ref: '#/components/schemas/TaskPillarContributionInput'
     TaskUpdate:
       type: object
       description: Alle Felder optional — gesetzte Felder werden aktualisiert.
@@ -359,11 +365,14 @@ components:
           type: string
           format: date-time
           nullable: true
-        pillarId:
-          type: integer
-          minimum: 1
-          nullable: true
-          description: ID der zugeordneten Lebensbalance-Säule (oder `null`)
+        pillars:
+          type: array
+          description: >-
+            Ersetzt die Säulen-Beiträge des Tasks vollständig. Eine leere Liste
+            entfernt alle Beiträge; bei mindestens einer Säule muss die Summe
+            aller `share` 100 ergeben. Fehlt das Feld, bleiben die Beiträge unverändert.
+          items:
+            $ref: '#/components/schemas/TaskPillarContributionInput'
     DependencyInput:
       type: object
       required:
@@ -380,6 +389,58 @@ components:
           minimum: 0
           default: 1
           description: Gewicht der Abhängigkeit
+    TaskPillarContribution:
+      type: object
+      description: >-
+        Beitrag eines Tasks auf eine Lebensbalance-Säule (n:m). `share` verteilt
+        100 % über die Säulen eines Tasks; `confidence` ist die Konfidenz je Beitrag.
+      required:
+        - pillarId
+        - share
+        - confidence
+      properties:
+        pillarId:
+          type: integer
+          minimum: 1
+          description: ID der Säule, auf die der Task einzahlt
+        share:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: Investitions-Anteil in % (Summe über die Säulen eines Tasks = 100)
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          default: 100
+          description: Konfidenz in % (0–100), wie sicher der Beitrag auf die Säule einzahlt
+    TaskPillarContributionInput:
+      type: object
+      description: >-
+        Eingabe eines Säulen-Beitrags. `confidence` ist optional (Default 100 %).
+      required:
+        - pillarId
+        - share
+      properties:
+        pillarId:
+          type: integer
+          minimum: 1
+          description: ID der Säule, auf die der Task einzahlt
+        share:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: Investitions-Anteil in % (Summe über die Säulen eines Tasks = 100)
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          default: 100
+          description: Konfidenz in % (0–100); fehlt der Wert, gilt 100 %
     TaskTreeNode:
       type: object
       required:
