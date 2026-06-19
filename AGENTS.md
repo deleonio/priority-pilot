@@ -35,9 +35,9 @@ aktualisiert (Re-Triage). Vollständiger Ablauf:
 Konkreter Command: `/triage-ticket` (analysiert, lektoriert, zerlegt, kommentiert und markiert in
 einem Durchlauf).
 
-Eine **Re-Triage** lässt sich auch per **Issue-Kommentar mit `@claude`** anstoßen: Die GitHub
-Action [`.github/workflows/claude-retriage.yml`](.github/workflows/claude-retriage.yml) ruft den
-Triage-Ablauf automatisch für genau dieses eine Issue auf (nur bei Kommentaren von Personen mit
+Eine **Re-Triage** lässt sich auch per **Issue-Kommentar mit `@claude`** anstoßen: Die
+GitHub-Action [`.github/workflows/claude-retriage.yml`](.github/workflows/claude-retriage.yml) ruft
+den Triage-Ablauf automatisch für genau dieses eine Issue auf (nur bei Kommentaren von Personen mit
 Schreibzugriff).
 
 ## Ticket-Umsetzung
