@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 🔐 Sicherheitslücke melden
+    url: https://github.com/deleonio/priority-pilot/security/advisories/new
+    about: Sicherheitslücken bitte vertraulich melden – nicht als öffentliches Issue.
+  - name: 💬 Frage oder Diskussion
+    url: https://github.com/deleonio/priority-pilot/discussions
+    about: Allgemeine Fragen und Ideen bitte in den Discussions stellen.

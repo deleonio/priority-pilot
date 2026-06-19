@@ -1,0 +1,56 @@
+name: 🐞 Fehler melden
+description: Einen Fehler in Priority Pilot melden
+labels: ['bug']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Danke für deine Meldung! Bitte fülle die Felder möglichst vollständig aus.
+        Sicherheitslücken bitte **nicht** hier, sondern vertraulich melden – siehe
+        [SECURITY.md](../blob/main/SECURITY.md).
+  - type: textarea
+    id: description
+    attributes:
+      label: Beschreibung
+      description: Was ist passiert? Was hast du erwartet?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Schritte zur Reproduktion
+      description: Möglichst kleine Schritt-für-Schritt-Anleitung.
+      placeholder: |
+        1. …
+        2. …
+        3. …
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Betroffener Bereich
+      options:
+        - server (Backend / API)
+        - frontend (PWA)
+        - client (generierte Typen)
+        - Build / Tooling
+        - Unklar / Sonstiges
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Umgebung
+      description: Node-Version, Betriebssystem, Browser (falls Frontend).
+      placeholder: 'Node 22.x, macOS 14, Chrome 125'
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Screenshots
+      description: Relevante Fehlermeldungen, Logs oder Screenshots.
+      render: text
+    validations:
+      required: false

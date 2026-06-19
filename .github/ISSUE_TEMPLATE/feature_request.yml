@@ -1,0 +1,41 @@
+name: ✨ Feature vorschlagen
+description: Eine neue Funktion oder Verbesserung vorschlagen
+labels: ['enhancement']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Danke für deinen Vorschlag! Beschreibe Problem und gewünschte Lösung möglichst konkret.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Motivation
+      description: Welches Problem soll gelöst werden? Welcher Nutzen entsteht?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Gewünschte Lösung
+      description: Wie könnte die Funktion aussehen?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativen
+      description: Welche anderen Ansätze hast du erwogen?
+    validations:
+      required: false
+  - type: dropdown
+    id: area
+    attributes:
+      label: Betroffener Bereich
+      options:
+        - server (Backend / API)
+        - frontend (PWA)
+        - client (generierte Typen)
+        - Build / Tooling
+        - Unklar / Sonstiges
+    validations:
+      required: true
