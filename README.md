@@ -132,3 +132,13 @@ Der vollständige Vertrag steht in [`openapi.yml`](openapi.yml). Endpunkte: `GET
 `DELETE` `/tasks/{id}/dependencies/{depId}`, `GET /pillars` (Lebensbalance-Säulen),
 `PUT /pillars/weights` (100 %-Gewichtung setzen), `GET /forest` (Aufgabenwald nach Wert) und
 `GET /next` (nächste wichtige Aufgabe). Server und Vertrag laufen unter `http://localhost:3000`.
+
+## Mitwirken
+
+Beiträge sind willkommen! Bitte lies vorab die [Beitragsrichtlinien](CONTRIBUTING.md) und den
+[Verhaltenskodex](CODE_OF_CONDUCT.md). Sicherheitslücken bitte vertraulich melden – siehe
+[SECURITY.md](SECURITY.md).
+
+## Lizenz
+
+Priority Pilot steht unter der **[European Union Public Licence v. 1.2 (EUPL-1.2)](LICENSE)**.
