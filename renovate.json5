@@ -15,8 +15,8 @@
 
 	// Deutsche Issue-/PR-Sprache passt zum restlichen Repo.
 	timezone: 'Europe/Berlin',
-	// Updates gebündelt einmal pro Woche (Montag früh) — weniger PR-Rauschen.
-	schedule: ['before 6am on monday'],
+	// Zeitplanung steuert der Workflow-Cron (.github/workflows/renovate.yml), daher hier kein
+	// schedule — sonst wuerde Renovate nur im Schnittfenster aus Cron UND schedule aktiv.
 
 	// Versionen exakt halten (das Repo nutzt save-exact=true).
 	rangeStrategy: 'pin',
@@ -31,7 +31,6 @@
 	// Lockfile (pnpm-lock.yaml) regelmäßig aktualisieren, auch ohne Versions-Bumps.
 	lockFileMaintenance: {
 		enabled: true,
-		schedule: ['before 6am on monday'],
 	},
 
 	// Nicht zu viele offene PRs/Branches gleichzeitig.
