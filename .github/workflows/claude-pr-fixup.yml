@@ -1,0 +1,81 @@
+name: Claude PR Fixup (Findings umsetzen)
+
+# Reagiert auf eine eingereichte Kreuzverhoer-Review und setzt die zutreffenden Findings um
+# (Fix + Antwort im Thread + Push). Der Push loest via "synchronize" einen erneuten Review aus
+# (claude-pr-review.yml) -> Loop, bis das Urteil 🟢 ist und keine Findings mehr offen sind.
+# Entspricht Schritt 5.3 aus .ai-knowledge/ticket-implementation.md.
+#
+# Schleifenschutz:
+#  - Trigger nur auf eingereichte Reviews (pull_request_review: submitted), NICHT auf einzelne
+#    Kommentare/Antworten -> die eigenen Thread-Antworten dieses Workflows loesen ihn nicht aus.
+#  - Bei 🟢 / ohne offene, zutreffende Findings wird NICHTS committet (kein Push -> kein
+#    synchronize -> der Loop endet).
+#  - Bereits begruendet abgelehnte Findings nicht erneut aufmachen; nach mehreren Runden offene
+#    Punkte dem Menschen ueberlassen (siehe Prompt).
+#
+# Nutzt den PAT (CLAUDE_PIPELINE_TOKEN), damit der Fix-Push den Re-Review ausloest.
+# Voraussetzungen: CLAUDE_CODE_OAUTH_TOKEN, CLAUDE_PIPELINE_TOKEN.
+
+on:
+  pull_request_review:
+    types: [submitted]
+
+concurrency:
+  group: claude-fixup-${{ github.event.pull_request.number }}
+  cancel-in-progress: false # einen laufenden Fix nicht mittendrin abbrechen
+
+jobs:
+  fixup:
+    # Nur auf "kommentierende" Reviews (Kreuzverhoer nutzt event=COMMENT) an nicht-Draft-PRs aus
+    # demselben Repo (keine Fork-PRs -> kein Build/Commit auf fremdem Code mit dem PAT).
+    if: >-
+      ${{ github.event.review.state == 'commented'
+          && github.event.pull_request.draft == false
+          && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout (PR-Head-Branch)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ secrets.CLAUDE_PIPELINE_TOKEN }} # Fix-Push als PAT -> loest Re-Review aus
+
+      - name: Findings umsetzen via Claude Code
+        uses: anthropics/claude-code-action@v1
+        env:
+          GH_TOKEN: ${{ secrets.CLAUDE_PIPELINE_TOKEN }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.CLAUDE_PIPELINE_TOKEN }}
+          prompt: |
+            Auf Pull Request #${{ github.event.pull_request.number }} wurde eine Review
+            eingereicht. Arbeite die offenen Kreuzverhör-Findings ab — Schritt 5.3 aus
+            .ai-knowledge/ticket-implementation.md.
+
+            Vorgehen:
+              1. Aktuellen Stand lesen: `gh pr view`, `gh pr diff`, die Review-Threads
+                 (`gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments`)
+                 und CI (`gh pr checks`).
+              2. WENN das jüngste Kreuzverhör-Urteil 🟢 ist bzw. KEINE offenen, zutreffenden
+                 Findings existieren: NICHTS ändern, nichts committen, Lauf sofort beenden
+                 (verhindert eine Endlosschleife).
+              3. Sonst die zutreffenden, EINDEUTIGEN Findings fixen: Code ändern, `pnpm format`
+                 + Lint, committen und auf den PR-Branch `${{ github.event.pull_request.head.ref }}`
+                 pushen. Im jeweiligen Thread antworten und ihn auflösen. Mehrdeutige oder
+                 architektonisch große Punkte NICHT blind umsetzen — begründet kommentieren bzw.
+                 dem Menschen überlassen.
+              4. Bereits früher begründet abgelehnte Findings NICHT erneut aufmachen. Trägt der
+                 Branch bereits viele Fixup-Commits aus diesem Loop (Richtwert > 5) und bleiben
+                 Punkte offen, NICHT weiter fixen — Stand zusammenfassen und den Menschen
+                 (@${{ github.repository_owner }}) taggen.
+
+            Der Push löst automatisch einen erneuten Kreuzverhör-Review aus. Bearbeite
+            ausschließlich diesen PR. Arbeite autonom, ohne interaktive Rückfrage.
+          claude_args: >-
+            --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh api:*),Bash(git switch:*),Bash(git checkout:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(git fetch:*),Bash(pnpm:*),Read,Edit,Write,Grep,Glob"
+            --append-system-prompt "Automatisierter Fixup-Lauf in GitHub Actions (headless) fuer PR #${{ github.event.pull_request.number }}. WICHTIG gegen Endlosschleifen: Wenn das juengste Kreuzverhoer-Urteil 🟢 ist oder keine offenen, zutreffenden Findings existieren, NICHTS committen/pushen und den Lauf beenden. Nur eindeutige, zutreffende Findings fixen; mehrdeutige/grosse Punkte dem Menschen ueberlassen. Bereits abgelehnte Findings nicht erneut oeffnen. Arbeite ohne interaktive Rueckfrage."

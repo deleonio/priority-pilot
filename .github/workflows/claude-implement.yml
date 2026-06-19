@@ -1,0 +1,72 @@
+name: Claude Implement (ai:ready)
+
+# Setzt ein Issue um, sobald es das Label "ai:ready" erhaelt UND bereits "ai:analyzed" traegt
+# (Label-Kette aus AGENTS.md: analysiert -> freigegeben -> Umsetzung als PR).
+# Fuehrt die Schritte 1-4 aus .ai-knowledge/ticket-implementation.md aus (zuweisen, Analyse
+# re-verifizieren, umsetzen, PR mit "Closes #" erstellen). Der Kreuzverhoer-Review laeuft als
+# eigener Workflow (claude-pr-review.yml).
+#
+# Nutzt fuer GitHub-Operationen einen PAT (CLAUDE_PIPELINE_TOKEN), damit der erstellte PR den
+# Review-Workflow ausloest (mit dem Standard-GITHUB_TOKEN wuerde er das nicht -> Schleifenschutz).
+# Voraussetzungen (Repo-Secrets): CLAUDE_CODE_OAUTH_TOKEN, CLAUDE_PIPELINE_TOKEN.
+
+on:
+  issues:
+    types: [labeled]
+
+concurrency:
+  group: claude-implement-${{ github.event.issue.number }}
+  cancel-in-progress: false # eine laufende Umsetzung nicht mittendrin abbrechen
+
+jobs:
+  implement:
+    # Nur wenn GENAU das Label "ai:ready" neu gesetzt wurde, das Issue zusaetzlich "ai:analyzed"
+    # traegt und offen ist.
+    if: >-
+      ${{ github.event.label.name == 'ai:ready'
+          && contains(github.event.issue.labels.*.name, 'ai:analyzed')
+          && github.event.issue.state == 'open' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read # Checkout (Schreibzugriff laeuft ueber den PAT)
+      id-token: write # OIDC-Token der Action (sonst fehlt ACTIONS_ID_TOKEN_REQUEST_URL)
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # voller Verlauf: der Umsetzungs-Flow arbeitet mit Branches
+          token: ${{ secrets.CLAUDE_PIPELINE_TOKEN }} # Pushes laufen als PAT (loesen Folge-Workflows aus)
+
+      - name: Umsetzung via Claude Code
+        uses: anthropics/claude-code-action@v1
+        env:
+          GH_TOKEN: ${{ secrets.CLAUDE_PIPELINE_TOKEN }} # gh nutzt den PAT -> erstellter PR loest Review aus
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.CLAUDE_PIPELINE_TOKEN }}
+          prompt: |
+            Das Label `ai:ready` wurde an Issue #${{ github.event.issue.number }} gesetzt —
+            setze dieses Issue jetzt um.
+
+            Folge dem Umsetzungs-Workflow .ai-knowledge/ticket-implementation.md (entspricht
+            `/implement-ticket ${{ github.event.issue.number }}`), aber NUR die Schritte 1 bis 4:
+              1. Self-assign (`gh issue edit <nr> --add-assignee @me`).
+              2. Analyse re-verifizieren (Re-Triage gegen den aktuellen Repo-Stand). Kippt die
+                 Umsetzbarkeits-Ampel auf 🔴 → NICHT umsetzen, `ai:ready` entfernen, im Issue
+                 begründen und stoppen (Mensch entscheidet).
+              3. Auf eigenem Branch umsetzen (Projekt-Konventionen, danach `pnpm format` + Lint).
+              4. Committen, Branch pushen, PR ERSTELLEN (ready to review, KEIN Draft) mit
+                 `Closes #${{ github.event.issue.number }}` im Body und format-/lint-Ergebnissen.
+
+            Idempotenz: Ist das Issue bereits dir zugewiesen oder existiert bereits ein offener
+            PR mit `Closes #${{ github.event.issue.number }}`, NICHT erneut umsetzen — Lauf beenden.
+
+            Schritt 5 (PR-Abo + Kreuzverhör-Loop) NICHT ausführen — der Review läuft als eigener
+            Workflow. `subscribe_pr_activity` ist hier nicht verfügbar.
+
+            Bearbeite ausschließlich dieses eine Issue. Die Freigabe gilt durch das Label
+            `ai:ready` als erteilt: arbeite autonom, ohne auf eine interaktive Bestätigung zu warten.
+          claude_args: >-
+            --allowedTools "Bash(gh issue:*),Bash(gh pr:*),Bash(gh label:*),Bash(gh api:*),Bash(git switch:*),Bash(git checkout:*),Bash(git branch:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(git fetch:*),Bash(pnpm:*),Read,Edit,Write,Grep,Glob,Skill,Task"
+            --append-system-prompt "Automatisierter, durch das Label ai:ready autorisierter Umsetzungs-Lauf in GitHub Actions (headless). Bearbeite ausschliesslich Issue #${{ github.event.issue.number }}, Schritte 1-4 der Umsetzung; KEIN PR-Abo/Kreuzverhoer-Loop (separater Workflow). Bestaetigung gilt durch ai:ready als erteilt; arbeite autonom ohne interaktive Rueckfrage."

@@ -54,6 +54,11 @@ die Verfolgung läuft weiter bis **Merge/Schließen**. Vollständiger Ablauf:
 [.ai-knowledge/ticket-implementation.md](.ai-knowledge/ticket-implementation.md).
 Konkreter Command: `/implement-ticket`.
 
+In **GitHub Actions** stößt das Setzen des Labels `ai:ready` (bei vorhandenem `ai:analyzed`) die
+Umsetzung automatisch an —
+[`.github/workflows/claude-implement.yml`](.github/workflows/claude-implement.yml) (Schritte 1–4; den
+Kreuzverhör-Review übernimmt ein eigener Workflow).
+
 Label-Kette: `ai:analyzed` (analysiert) → `ai:ready` (freigegeben — bei 🟢 automatisch durch die
 Triage, sonst durch den Menschen) → Umsetzung als PR (ready to review), der den Kreuzverhör-Loop
 (`/kreuzverhoer-review`) durchläuft und bis Merge/Schließen verfolgt wird.
@@ -68,6 +73,12 @@ warum, konkreter Vorschlag) → abschließendes Urteil mit Umsetzbarkeits-**Ampe
 formales Approve/Request-Changes — der Merge bleibt beim Menschen. Vollständiger Ablauf:
 [.ai-knowledge/pr-review.md](.ai-knowledge/pr-review.md).
 Konkreter Command: `/kreuzverhoer-review`.
+
+In **GitHub Actions** wird ein review-bereiter PR automatisch kreuzverhört
+([`.github/workflows/claude-pr-review.yml`](.github/workflows/claude-pr-review.yml)); die Findings
+setzt [`.github/workflows/claude-pr-fixup.yml`](.github/workflows/claude-pr-fixup.yml) um und stößt
+über den Push einen erneuten Review an (Loop bis 🟢). Diese Workflows nutzen einen PAT
+(`CLAUDE_PIPELINE_TOKEN`), damit die Stufen kaskadieren.
 
 Die im Review entstehenden Kommentare werden vom Umsetzungs-Workflow (`/implement-ticket`,
 Schritt 5) im **Kreuzverhör-Loop** abgearbeitet — der den PR zusätzlich **abonniert und automatisch

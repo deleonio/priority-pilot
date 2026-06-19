@@ -1,0 +1,63 @@
+name: Claude PR Review (Kreuzverhoer)
+
+# Reviewt einen Pull Request im Kreuzverhoer, sobald er review-bereit ist (ready_for_review oder
+# direkt nicht-Draft geoeffnet) ODER neue Commits erhaelt (synchronize -> Re-Review nach Fixes).
+# Entspricht /kreuzverhoer-review (.ai-knowledge/pr-review.md). Aendert KEINEN Code.
+#
+# Nutzt den PAT (CLAUDE_PIPELINE_TOKEN), damit eine gepostete Findings-Review den Fixup-Workflow
+# (claude-pr-fixup.yml) ausloest. Voraussetzungen: CLAUDE_CODE_OAUTH_TOKEN, CLAUDE_PIPELINE_TOKEN.
+
+on:
+  pull_request:
+    types: [opened, ready_for_review, synchronize]
+
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true # immer nur den juengsten Commit-Stand reviewen
+
+jobs:
+  review:
+    # Keine Draft-PRs und keine Fork-PRs (kein Review/Build von fremdem Code mit dem PAT).
+    if: >-
+      ${{ github.event.pull_request.draft == false
+          && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Kreuzverhoer-Review via Claude Code
+        uses: anthropics/claude-code-action@v1
+        env:
+          GH_TOKEN: ${{ secrets.CLAUDE_PIPELINE_TOKEN }} # Review als PAT -> loest den Fixup-Workflow aus
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ secrets.CLAUDE_PIPELINE_TOKEN }}
+          prompt: |
+            Reviewe Pull Request #${{ github.event.pull_request.number }} im Kreuzverhör.
+
+            Folge dem Ablauf .ai-knowledge/pr-review.md (entspricht
+            `/kreuzverhoer-review ${{ github.event.pull_request.number }}`): vollständigen Diff
+            (`gh pr diff`) und das verknüpfte Ticket lesen, adversarial prüfen (löst der PR das
+            Problem ganz? Edge Cases? einfachster Weg? Performance/Security?), Code-Qualität und
+            Projekt-Konventionen prüfen.
+
+            Findings posten:
+              - Gibt es zutreffende Findings: als EINE Review (`gh pr review --comment`) mit an
+                Datei/Zeile verankerten Kommentaren (Was / Warum / konkreter Vorschlag) und einem
+                Abschluss-Kommentar auf Deutsch mit Ampel (🟢/🟡/🔴) am Anfang. KEIN formales
+                Approve/Request-Changes — der Merge bleibt beim Menschen.
+              - Ist der PR solide (🟢): KEINE Pseudo-Findings erfinden, nur eine knappe
+                🟢-Bestätigung als Kommentar (`gh pr comment`), KEINE Review einreichen.
+
+            Ändere KEINEN Code und committe nichts — reiner Review. Die Bestätigung zum Posten
+            gilt für diesen automatisierten Lauf als erteilt; arbeite ohne interaktive Rückfrage.
+          claude_args: >-
+            --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh api:*),Bash(git fetch:*),Bash(git diff:*),Read,Grep,Glob"
+            --append-system-prompt "Automatisierter Kreuzverhoer-Review in GitHub Actions (headless). Reviewe ausschliesslich PR #${{ github.event.pull_request.number }}, aendere keinen Code. Poste Findings als eine Review mit Ampel; ist der PR solide, nur eine knappe 🟢-Bestaetigung als Kommentar (KEINE Review). Erfinde keine Findings. Arbeite ohne interaktive Rueckfrage."
