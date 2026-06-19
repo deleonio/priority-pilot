@@ -12,10 +12,10 @@
 		'helpers:pinGitHubActionDigests',
 	],
 
-	// Deutsche Issue-/PR-Sprache passt zum restlichen Repo.
+	// Zeitzone für Renovate-interne schedules. Aktuell ohne Effekt, da die Zeitplanung allein der
+	// Workflow-Cron (.github/workflows/renovate.yml) übernimmt und es bewusst kein top-level
+	// `schedule` gibt — bleibt als Reserve, falls künftig ein internes schedule hinzukommt.
 	timezone: 'Europe/Berlin',
-	// Zeitplanung steuert der Workflow-Cron (.github/workflows/renovate.yml), daher hier kein
-	// schedule — sonst wuerde Renovate nur im Schnittfenster aus Cron UND schedule aktiv.
 
 	// Versionen exakt halten (das Repo nutzt save-exact=true).
 	rangeStrategy: 'pin',
