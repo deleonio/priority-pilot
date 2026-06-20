@@ -1,0 +1,69 @@
+{
+	// Renovate-Konfiguration für dieses pnpm-Monorepo.
+	// Doku: https://docs.renovatebot.com/configuration-options/
+	$schema: 'https://docs.renovatebot.com/renovate-schema.json',
+
+	// Empfohlene Basis (enthält u. a. GitHub-Actions-Manager, Monorepo-/Gruppierungs-Presets
+	// und das Dependency Dashboard).
+	extends: [
+		'config:recommended',
+		// GitHub-Action-Versionen zusätzlich auf Commit-SHA pinnen (Supply-Chain-Härtung) —
+		// schreibt `uses: org/action@vX` zu `uses: org/action@<sha> # vX` um.
+		'helpers:pinGitHubActionDigests',
+	],
+
+	// Zeitzone für Renovate-interne schedules. Aktuell ohne Effekt, da die Zeitplanung allein der
+	// Workflow-Cron (.github/workflows/renovate.yml) übernimmt und es bewusst kein top-level
+	// `schedule` gibt — bleibt als Reserve, falls künftig ein internes schedule hinzukommt.
+	timezone: 'Europe/Berlin',
+
+	// Versionen exakt halten (das Repo nutzt save-exact=true).
+	rangeStrategy: 'pin',
+
+	// Commit-/PR-Titel im Conventional-Commits-Stil (erzeugt z. B. "chore(deps): ...").
+	semanticCommits: 'enabled',
+
+	// Lockfile (pnpm-lock.yaml) regelmäßig aktualisieren, auch ohne Versions-Bumps.
+	lockFileMaintenance: {
+		enabled: true,
+		// Eigenes Default-Schedule ('before 4am on monday') aufheben — die Zeitsteuerung liegt
+		// allein beim Workflow-Cron, sonst liefe die Wartung außerhalb seines Fensters nie.
+		schedule: ['at any time'],
+	},
+
+	// Nicht zu viele offene PRs/Branches gleichzeitig.
+	prConcurrentLimit: 5,
+	prHourlyLimit: 2,
+
+	packageRules: [
+		{
+			// devDependencies: Patch- und Minor-Updates in einem PR bündeln.
+			matchDepTypes: ['devDependencies'],
+			matchUpdateTypes: ['patch', 'minor'],
+			groupName: 'devDependencies (non-major)',
+		},
+		{
+			// GitHub-Actions-Updates separat gruppieren.
+			matchManagers: ['github-actions'],
+			groupName: 'GitHub Actions',
+		},
+		{
+			// Node/pnpm-Engines nur als eigener PR (potenziell breaking).
+			matchPackageNames: ['node', 'pnpm'],
+			matchDepTypes: ['engines', 'packageManager'],
+			groupName: 'Toolchain (Node / pnpm)',
+		},
+		{
+			// Major-Updates immer einzeln, mit Hinweis im Titel.
+			matchUpdateTypes: ['major'],
+			labels: ['dependencies', 'major'],
+		},
+	],
+
+	// Sicherheitslücken (GitHub Advisories) priorisiert beheben.
+	vulnerabilityAlerts: {
+		labels: ['security'],
+	},
+
+	labels: ['dependencies'],
+}

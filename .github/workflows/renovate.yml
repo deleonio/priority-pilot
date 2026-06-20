@@ -1,0 +1,63 @@
+name: Renovate
+
+# Faehrt Renovate self-hosted als GitHub Action (statt/erganzend zur Mend-App).
+# Liest die Repo-Konfiguration aus renovate.json5 und legt Dependency-Update-PRs an.
+#
+# Zeitsteuerung erfolgt ueber den Cron unten (woechentlich, Montag frueh) bzw. manuell per
+# "Run workflow". Das schedule-Feld in renovate.json5 ist bewusst NICHT gesetzt, damit der
+# Workflow die alleinige Quelle der Zeitplanung ist.
+#
+# Voraussetzung (Repo-Secret): RENOVATE_TOKEN — ein PAT (klassisch: scope `repo` + `workflow`;
+# fine-grained: contents/pull-requests/workflows write) des Bot-/Maintainer-Accounts. Ein PAT
+# ist noetig, damit die von Renovate erstellten PRs den CI-Workflow ausloesen (mit dem Standard-
+# GITHUB_TOKEN wuerden Folge-Workflows nicht starten).
+
+on:
+  schedule:
+    - cron: '0 4 * * 1' # Montags 04:00 UTC (~05:00/06:00 Europe/Berlin)
+  workflow_dispatch:
+    inputs:
+      logLevel:
+        description: 'Renovate Log-Level'
+        required: false
+        default: 'info'
+        type: choice
+        options:
+          - debug
+          - info
+          - warn
+      dryRun:
+        description: 'Trockenlauf (keine PRs/Branches anlegen)'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: renovate
+  cancel-in-progress: false # laufenden Renovate-Durchlauf nicht mittendrin abbrechen
+
+permissions:
+  contents: read
+
+jobs:
+  renovate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      # Kein Checkout noetig: renovatebot/github-action klont die Ziel-Repos selbst
+      # (gesteuert ueber RENOVATE_REPOSITORIES).
+
+      # RENOVATE_DRY_RUN nur im manuellen Trockenlauf setzen — sonst bliebe die Variable bei
+      # geplanten Laeufen als leerer String gesetzt (statt unset).
+      - name: Trockenlauf aktivieren
+        if: ${{ inputs.dryRun }}
+        run: echo "RENOVATE_DRY_RUN=full" >> "$GITHUB_ENV"
+
+      - name: Renovate
+        uses: renovatebot/github-action@v41
+        with:
+          token: ${{ secrets.RENOVATE_TOKEN }}
+        env:
+          LOG_LEVEL: ${{ inputs.logLevel || 'info' }}
+          # Nur dieses Repository verarbeiten.
+          RENOVATE_REPOSITORIES: ${{ github.repository }}
