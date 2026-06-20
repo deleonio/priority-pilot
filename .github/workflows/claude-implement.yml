@@ -118,6 +118,15 @@ jobs:
           erneut umsetzen — beenden. Schritt 5 (PR-Abo/Kreuzverhoer-Loop) NICHT ausfuehren — der
           Review laeuft als eigener Workflow. Bearbeite ausschliesslich dieses eine Issue; die
           Freigabe gilt durch \`ai:ready\` als erteilt, arbeite autonom ohne Rueckfrage.
+
+          Zeitbudget (weiche Timebox): Arbeite zuegig und zielgerichtet. Stellst du fest, dass der
+          Umfang deutlich groesser ist als erwartet und du nach rund 25 Minuten noch weit von einem
+          fertigen PR entfernt bist, laufe NICHT unbegrenzt weiter: Sichere den Zwischenstand
+          (committen + Branch pushen), erstelle — falls schon sinnvoll moeglich — einen PR als
+          Draft mit \`Closes #${ISSUE_NUMBER}\` und einer kurzen Restpunkte-Liste, ODER kommentiere
+          den erreichten Stand und die offenen Punkte am Issue #${ISSUE_NUMBER}. Stoppe dann und
+          ueberlasse die Entscheidung ueber das weitere Vorgehen dem Menschen, statt das Ticket in
+          einem ueberlangen Lauf vollstaendig erzwingen zu wollen.
           EOF
 
           payload="$(jq -nc --arg t "$PROMPT_TEXT" '{text: $t}')"
