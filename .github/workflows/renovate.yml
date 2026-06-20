@@ -7,10 +7,15 @@ name: Renovate
 # "Run workflow". Das schedule-Feld in renovate.json5 ist bewusst NICHT gesetzt, damit der
 # Workflow die alleinige Quelle der Zeitplanung ist.
 #
-# Voraussetzung (Repo-Secret): RENOVATE_TOKEN — ein PAT (klassisch: scope `repo` + `workflow`;
-# fine-grained: contents/pull-requests/workflows write) des Bot-/Maintainer-Accounts. Ein PAT
-# ist noetig, damit die von Renovate erstellten PRs den CI-Workflow ausloesen (mit dem Standard-
-# GITHUB_TOKEN wuerden Folge-Workflows nicht starten).
+# Authentifizierung ueber dieselbe GitHub App wie die uebrigen Workflows (Repo-Secrets APP_ID +
+# APP_PRIVATE_KEY) — kein PAT noetig. Das kurzlebige App-Token sorgt dafuer, dass die von
+# Renovate erstellten PRs den CI-Workflow ausloesen (mit dem Standard-GITHUB_TOKEN wuerden
+# Folge-Workflows nicht starten).
+#   - Die App braucht — zusaetzlich zu Contents + Pull requests (Read and write) — die Permission
+#     "Workflows" (Read and write), sonst kann Renovate Updates in .github/workflows/ nicht pushen.
+#   - Git-Author/Username der App werden bei App-Tokens nicht zuverlaessig autodetektiert, daher
+#     unten explizit aus dem App-Slug abgeleitet (Renovate erkennt darueber seine eigenen Branches).
+# Fehlen die Secrets, wird der Lauf sauber uebersprungen (Warnung statt Fehler).
 
 on:
   schedule:
@@ -37,7 +42,7 @@ concurrency:
   cancel-in-progress: false # laufenden Renovate-Durchlauf nicht mittendrin abbrechen
 
 permissions:
-  contents: read
+  contents: read # Schreibzugriff laeuft ausschliesslich ueber das App-Token
 
 jobs:
   renovate:
@@ -47,19 +52,70 @@ jobs:
       # Kein Checkout noetig: renovatebot/github-action klont die Ziel-Repos selbst
       # (gesteuert ueber RENOVATE_REPOSITORIES).
 
+      - name: Voraussetzung pruefen (GitHub-App-Secrets)
+        id: preflight
+        env:
+          APP_ID: ${{ secrets.APP_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+        run: |
+          if [ -z "$APP_ID" ] || [ -z "$APP_PRIVATE_KEY" ]; then
+            echo "::warning::GitHub-App-Secrets fehlen (APP_ID und/oder APP_PRIVATE_KEY) — Lauf wird uebersprungen (kein Fehler). GitHub App anlegen (Contents/Pull requests/Workflows = Read and write), aufs Repo installieren und beide Werte als Repo-Secrets hinterlegen, damit Renovate laeuft."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: GitHub-App-Token erzeugen
+        id: app-token
+        if: steps.preflight.outputs.configured == 'true'
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      # Renovate autodetektiert Git-Author/Username bei App-Tokens nicht zuverlaessig — daher aus
+      # dem App-Slug ableiten (Login eines App-Bots ist "<slug>[bot]"). Renovate identifiziert
+      # darueber seine eigenen Branches/PRs und schreibt korrekte Commit-Metadaten.
+      - name: Renovate-Git-Identitaet ableiten
+        id: bot
+        if: steps.preflight.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+        run: |
+          user="${APP_SLUG}[bot]"
+          # Numerische User-ID des App-Bots fuer die GitHub-noreply-Adresse — verlinkt Renovates
+          # Commits mit dem Bot-Account. GET /users/<login> ist oeffentlich; die eckigen Klammern
+          # von "[bot]" muessen URL-kodiert werden. Schlaegt der Aufruf fehl, ohne ID weitermachen
+          # (Commits bleiben funktional, nur nicht mit dem Profil verlinkt) statt den Lauf zu killen.
+          id=$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/users/${APP_SLUG}%5Bbot%5D" | jq -r '.id // empty') || id=""
+          if [ -n "$id" ]; then
+            email="${id}+${user}@users.noreply.github.com"
+          else
+            echo "::warning::Bot-User-ID nicht ermittelbar — Commit-Attribution ohne numerische ID (funktional ok)."
+            email="${user}@users.noreply.github.com"
+          fi
+          echo "username=${user}" >> "$GITHUB_OUTPUT"
+          echo "git_author=${user} <${email}>" >> "$GITHUB_OUTPUT"
+
       # RENOVATE_DRY_RUN nur im manuellen Trockenlauf setzen — sonst bliebe die Variable bei
       # geplanten Laeufen als leerer String gesetzt (statt unset).
       - name: Trockenlauf aktivieren
-        if: ${{ inputs.dryRun }}
+        if: inputs.dryRun && steps.preflight.outputs.configured == 'true'
         run: echo "RENOVATE_DRY_RUN=full" >> "$GITHUB_ENV"
 
       - name: Renovate
         # renovatebot/github-action veroeffentlicht KEINE gleitenden Major-Tags (z. B. @v46) —
         # nur vollstaendige Semver-Tags. Daher exakte Version pinnen (Renovate haelt sie aktuell).
+        if: steps.preflight.outputs.configured == 'true'
         uses: renovatebot/github-action@v46.1.15
         with:
-          token: ${{ secrets.RENOVATE_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
         env:
           LOG_LEVEL: ${{ inputs.logLevel || 'info' }}
           # Nur dieses Repository verarbeiten.
           RENOVATE_REPOSITORIES: ${{ github.repository }}
+          # Git-Identitaet der App (siehe Ableitung oben).
+          RENOVATE_USERNAME: ${{ steps.bot.outputs.username }}
+          RENOVATE_GIT_AUTHOR: ${{ steps.bot.outputs.git_author }}
