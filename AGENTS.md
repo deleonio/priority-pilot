@@ -57,7 +57,10 @@ Konkreter Command: `/implement-ticket`.
 In **GitHub Actions** stößt das Setzen des Labels `ai:ready` (bei vorhandenem `ai:analyzed`) die
 Umsetzung automatisch an —
 [`.github/workflows/claude-implement.yml`](.github/workflows/claude-implement.yml) (Schritte 1–4; den
-Kreuzverhör-Review übernimmt ein eigener Workflow).
+Kreuzverhör-Review übernimmt ein eigener Workflow). Claude Code läuft dabei direkt im Runner mit
+einem **harten Zeitlimit von `timeout-minutes: 20`**; der Prompt weist Claude an, bei drohendem
+Limit (~18 Min) rechtzeitig den Zwischenstand zu sichern (committen/pushen, ggf. Draft-PR), statt
+einen vollen Durchlauf zu erzwingen.
 
 Label-Kette: `ai:analyzed` (analysiert) → `ai:ready` (freigegeben — bei 🟢 automatisch durch die
 Triage, sonst durch den Menschen) → Umsetzung als PR (ready to review), der den Kreuzverhör-Loop

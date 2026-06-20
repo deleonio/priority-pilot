@@ -48,6 +48,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Re-Triage via Claude Code
+        id: claude
         uses: anthropics/claude-code-action@v1
         env:
           # Stellt sicher, dass die `gh`-Aufrufe im Triage-Ablauf authentifiziert sind.
@@ -82,3 +83,24 @@ jobs:
             --model claude-opus-4-8 --effort medium
             --allowedTools "Bash(gh issue:*),Bash(gh api:*),Bash(gh label:*),Read,Grep,Glob"
             --append-system-prompt "Automatisierter, vom Maintainer per @claude-Kommentar autorisierter Re-Triage-Lauf in GitHub Actions (headless, keine interaktive Rueckfrage moeglich). Die in der Wissensbasis geforderte Bestaetigung vor dem oeffentlichen Posten gilt durch den @claude-Ausloeser als erteilt: Poste Lektorat, Analyse-Kommentar und Labels direkt fuer Issue #${{ github.event.issue.number }}, ohne auf eine Bestaetigung zu warten. Bearbeite ausschliesslich dieses Issue und committe keinen Produktivcode."
+
+      # Deterministisches Abschluss-Signal (unabhaengig von der LLM-Ausgabe): laeuft auch bei
+      # Abbruch/Timeout (if: always()) und macht im Log/Job-Summary klar sichtbar, DASS und mit
+      # welchem Ergebnis der Lauf fertig ist. outcome=cancelled signalisiert das 10-Min-Timeout.
+      - name: Ergebnis zusammenfassen
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ github.event.issue.number }}
+          OUTCOME: ${{ steps.claude.outcome }}
+          SESSION_ID: ${{ steps.claude.outputs.session_id }}
+        run: |
+          labels="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
+          {
+            echo "### Re-Triage #${ISSUE} — fertig"
+            echo ""
+            echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\` (cancelled = 10-Min-Timeout erreicht)"
+            echo "- Aktuelle Labels: ${labels:-keine}"
+            if [ -n "$SESSION_ID" ]; then echo "- Session-ID: \`${SESSION_ID}\` (\`--resume\` zum Nachschauen)"; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=Re-Triage #${ISSUE} fertig::Claude-Schritt ${OUTCOME:-unbekannt}; Labels: ${labels:-keine}"

@@ -60,6 +60,7 @@ jobs:
           token: ${{ steps.app-token.outputs.token }} # Fix-Push als App-Token
 
       - name: Findings umsetzen via Claude Code
+        id: claude
         if: steps.preflight.outputs.configured == 'true'
         uses: anthropics/claude-code-action@v1
         env:
@@ -100,3 +101,24 @@ jobs:
             --model claude-opus-4-8 --effort medium
             --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh label:*),Bash(gh api:*),Bash(git switch:*),Bash(git checkout:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(git fetch:*),Bash(pnpm:*),Read,Edit,Write,Grep,Glob"
             --append-system-prompt "Automatisierter, label-gesteuerter Fixup-Lauf in GitHub Actions (headless) fuer PR #${{ github.event.pull_request.number }}. Setze nur eindeutige, zutreffende Findings um; mehrdeutige/grosse Punkte dem Menschen ueberlassen. Schalte zum Abschluss die Labels um (ai:needs-changes -> ai:needs-review) — AUSSER der Loop soll wegen Nicht-Konvergenz anhalten, dann ai:needs-changes belassen und den Menschen taggen. Arbeite ohne interaktive Rueckfrage."
+
+      # Deterministisches Abschluss-Signal (unabhaengig von der LLM-Ausgabe): laeuft auch bei
+      # Abbruch/Timeout (if: always()) und macht im Log/Job-Summary klar sichtbar, DASS und mit
+      # welchem Ergebnis der Lauf fertig ist. outcome=cancelled signalisiert das 10-Min-Timeout.
+      - name: Ergebnis zusammenfassen
+        if: always() && steps.preflight.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR: ${{ github.event.pull_request.number }}
+          OUTCOME: ${{ steps.claude.outcome }}
+          SESSION_ID: ${{ steps.claude.outputs.session_id }}
+        run: |
+          labels="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
+          {
+            echo "### Fixup #${PR} — fertig"
+            echo ""
+            echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\` (cancelled = 10-Min-Timeout erreicht)"
+            echo "- Aktuelle Pipeline-Labels: ${labels:-keine}"
+            if [ -n "$SESSION_ID" ]; then echo "- Session-ID: \`${SESSION_ID}\` (\`--resume\` zum Nachschauen)"; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=Fixup #${PR} fertig::Claude-Schritt ${OUTCOME:-unbekannt}; Labels: ${labels:-keine}"

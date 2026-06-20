@@ -6,6 +6,11 @@ name: Claude Implement (ai:ready)
 # re-verifizieren, umsetzen, PR mit "Closes #" erstellen). Der erstellte PR erhaelt das Label
 # "ai:needs-review", woraufhin der Kreuzverhoer-Review (claude-pr-review.yml) ihn aufgreift.
 #
+# Claude Code laeuft direkt im Runner (anthropics/claude-code-action). HARTES Zeitlimit:
+# timeout-minutes: 20 — laeuft die Umsetzung laenger, bricht GitHub den Job ab. Der Prompt
+# weist Claude an, rechtzeitig (~18 Min) den Zwischenstand zu sichern, damit beim harten
+# Abbruch nicht alles verloren geht.
+#
 # Nutzt fuer GitHub-Operationen ein kurzlebiges GitHub-App-Token, damit der erstellte PR den
 # Review-Workflow ausloest (mit dem Standard-GITHUB_TOKEN wuerde er das nicht -> Schleifenschutz).
 # Voraussetzungen (Repo-Secrets): CLAUDE_CODE_OAUTH_TOKEN sowie eine GitHub App, hinterlegt als
@@ -28,7 +33,7 @@ jobs:
           && contains(github.event.issue.labels.*.name, 'ai:analyzed')
           && github.event.issue.state == 'open' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20 # hartes Limit: laeuft die Umsetzung laenger, bricht GitHub den Job ab
     permissions:
       contents: read # Checkout (Schreibzugriff laeuft ueber das App-Token)
       id-token: write # OIDC-Token der Action (sonst fehlt ACTIONS_ID_TOKEN_REQUEST_URL)
@@ -79,6 +84,7 @@ jobs:
           token: ${{ steps.app-token.outputs.token }} # Push als App-Token -> loest Folge-Workflows aus
 
       - name: Umsetzung via Claude Code
+        id: claude
         if: steps.preflight.outputs.configured == 'true'
         uses: anthropics/claude-code-action@v1
         env:
@@ -104,6 +110,14 @@ jobs:
                  ai:needs-review`; Label bei Bedarf vorher `gh label create "ai:needs-review"
                  --color 1D76DB`), damit der Kreuzverhör-Review (claude-pr-review.yml) ihn aufgreift.
 
+            HARTES Zeitlimit: Dieser Lauf wird nach 20 Minuten von GitHub hart abgebrochen. Plane
+            damit. Merkst du, dass es eng wird, sichere SPÄTESTENS nach ~18 Minuten den
+            Zwischenstand, statt einen kompletten Durchlauf zu erzwingen: committen, Branch pushen
+            und lieber einen Draft-PR mit `Closes #${{ github.event.issue.number }}` und einer
+            kurzen Restpunkte-Liste erstellen (Label `ai:needs-review` dann NICHT setzen, solange
+            unfertig). Ein PR mit dokumentiertem Teilstand ist deutlich besser als ein harter
+            Abbruch ohne jedes Ergebnis.
+
             Idempotenz: Ist das Issue bereits dir zugewiesen oder existiert bereits ein offener
             PR mit `Closes #${{ github.event.issue.number }}`, NICHT erneut umsetzen — Lauf beenden.
 
@@ -115,4 +129,25 @@ jobs:
           claude_args: >-
             --model claude-opus-4-8 --effort medium
             --allowedTools "Bash(gh issue:*),Bash(gh pr:*),Bash(gh label:*),Bash(gh api:*),Bash(git switch:*),Bash(git checkout:*),Bash(git branch:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(git fetch:*),Bash(pnpm:*),Read,Edit,Write,Grep,Glob,Skill,Task"
-            --append-system-prompt "Automatisierter, durch das Label ai:ready autorisierter Umsetzungs-Lauf in GitHub Actions (headless). Bearbeite ausschliesslich Issue #${{ github.event.issue.number }}, Schritte 1-4 der Umsetzung; KEIN PR-Abo/Kreuzverhoer-Loop (separater Workflow). Bestaetigung gilt durch ai:ready als erteilt; arbeite autonom ohne interaktive Rueckfrage."
+            --append-system-prompt "Automatisierter, durch das Label ai:ready autorisierter Umsetzungs-Lauf in GitHub Actions (headless). Bearbeite ausschliesslich Issue #${{ github.event.issue.number }}, Schritte 1-4 der Umsetzung; KEIN PR-Abo/Kreuzverhoer-Loop (separater Workflow). HARTES 20-Minuten-Timeout: sichere bei drohendem Limit (~18 Min) rechtzeitig den Zwischenstand (committen/pushen, ggf. Draft-PR), statt einen vollen Durchlauf zu erzwingen. Bestaetigung gilt durch ai:ready als erteilt; arbeite autonom ohne interaktive Rueckfrage."
+
+      # Deterministisches Abschluss-Signal (unabhaengig von der LLM-Ausgabe): laeuft auch bei
+      # Abbruch/Timeout (if: always()) und macht im Log/Job-Summary klar sichtbar, DASS und mit
+      # welchem Ergebnis der Lauf fertig ist. outcome=cancelled signalisiert das 20-Min-Timeout.
+      - name: Ergebnis zusammenfassen
+        if: always() && steps.preflight.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ISSUE: ${{ github.event.issue.number }}
+          OUTCOME: ${{ steps.claude.outcome }}
+          SESSION_ID: ${{ steps.claude.outputs.session_id }}
+        run: |
+          labels="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
+          {
+            echo "### Umsetzung #${ISSUE} — fertig"
+            echo ""
+            echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\` (cancelled = 20-Min-Timeout erreicht)"
+            echo "- Aktuelle Issue-Labels: ${labels:-keine}"
+            if [ -n "$SESSION_ID" ]; then echo "- Session-ID: \`${SESSION_ID}\` (\`--resume\` zum Nachschauen)"; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=Umsetzung #${ISSUE} fertig::Claude-Schritt ${OUTCOME:-unbekannt}; Labels: ${labels:-keine}"
