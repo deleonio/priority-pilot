@@ -53,16 +53,23 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
-      - name: Issue der auslösenden Person zuweisen
-        # Explizit an den Menschen, der ai:ready gesetzt hat — NICHT @me (das waere der App-Bot,
-        # und Bots sind nicht als Assignee zulaessig).
+      - name: Issue einem Menschen zuweisen (Best-Effort)
+        # Best-Effort: an den auslösenden Menschen, sonst den Issue-Autor. Im 🟢-Automatikpfad
+        # setzt die Triage ai:ready als App-Bot — dann ist sender ein Bot (nicht als Assignee
+        # zulaessig). Daher Bot-Logins herausfiltern; sind beide Bots, bleibt das Issue
+        # unzugewiesen (sauberer ::notice:: statt stillem Fehlschlag). NIE @me (waere der Bot).
         if: steps.preflight.outputs.configured == 'true'
         continue-on-error: true # nice-to-have; darf die Umsetzung nicht blockieren
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
-          ASSIGNEE: ${{ github.event.sender.login }}
-        run: gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-assignee "$ASSIGNEE"
+          ASSIGNEE: ${{ github.event.sender.type == 'User' && github.event.sender.login || (github.event.issue.user.type == 'User' && github.event.issue.user.login || '') }}
+        run: |
+          if [ -z "$ASSIGNEE" ]; then
+            echo "::notice::Kein menschlicher Assignee ermittelbar (Ausloeser und Issue-Autor sind Bots) — Issue bleibt unzugewiesen."
+            exit 0
+          fi
+          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-assignee "$ASSIGNEE"
 
       - name: Checkout
         if: steps.preflight.outputs.configured == 'true'
@@ -85,8 +92,8 @@ jobs:
 
             Folge dem Umsetzungs-Workflow .ai-knowledge/ticket-implementation.md (entspricht
             `/implement-ticket ${{ github.event.issue.number }}`), aber NUR die Schritte 1 bis 4:
-              1. Zuweisung übernimmt bereits der Workflow (das Issue geht an die Person, die
-                 `ai:ready` gesetzt hat). Weise dich NICHT selbst zu — `@me` wäre der App-Bot.
+              1. Zuweisung übernimmt bereits der Workflow (Best-Effort: an den auslösenden
+                 Menschen, sonst den Issue-Autor). Weise dich NICHT selbst zu — `@me` wäre der Bot.
               2. Analyse re-verifizieren (Re-Triage gegen den aktuellen Repo-Stand). Kippt die
                  Umsetzbarkeits-Ampel auf 🔴 → NICHT umsetzen, `ai:ready` entfernen, im Issue
                  begründen und stoppen (Mensch entscheidet).
