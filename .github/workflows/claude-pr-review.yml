@@ -1,54 +1,75 @@
 name: Claude PR Review (Kreuzverhoer)
 
-# Reviewt einen Pull Request im Kreuzverhoer, sobald er review-bereit ist (ready_for_review oder
-# direkt nicht-Draft geoeffnet) ODER neue Commits erhaelt (synchronize -> Re-Review nach Fixes).
-# Entspricht /kreuzverhoer-review (.ai-knowledge/pr-review.md). Aendert KEINEN Code.
+# Reviewt einen Pull Request im Kreuzverhoer, sobald er das Label "ai:needs-review" traegt (vom
+# Umsetzungs-Workflow gesetzt, oder manuell zum Opt-in). Die Pipeline wird ueber LABELS gesteuert
+# statt ueber Review-/Kommentar-Events -> stabiles Ping-Pong ohne Event-Kaskaden:
+#   - zutreffende Findings -> Label "ai:needs-changes" (loest claude-pr-fixup.yml aus)
+#   - sauber 🟢            -> Label "ai:ready-to-merge" (terminal; der Mensch merged)
+# Das ausloesende "ai:needs-review" wird dabei entfernt. Aendert KEINEN Code.
 #
-# Nutzt den PAT (CLAUDE_PIPELINE_TOKEN), damit eine gepostete Findings-Review den Fixup-Workflow
-# (claude-pr-fixup.yml) ausloest. Voraussetzungen: CLAUDE_CODE_OAUTH_TOKEN, CLAUDE_PIPELINE_TOKEN.
+# Nutzt ein kurzlebiges GitHub-App-Token, damit die gesetzten Labels die Folge-Workflows ausloesen.
+# Voraussetzungen: CLAUDE_CODE_OAUTH_TOKEN sowie eine GitHub App, hinterlegt als APP_ID +
+# APP_PRIVATE_KEY (Contents/Issues/Pull requests = Read and write).
 
 on:
   pull_request:
-    types: [opened, ready_for_review, synchronize]
+    types: [opened, ready_for_review, labeled]
 
 concurrency:
   group: claude-review-${{ github.event.pull_request.number }}
-  cancel-in-progress: true # immer nur den juengsten Commit-Stand reviewen
+  cancel-in-progress: true # immer nur den juengsten Stand reviewen
 
 jobs:
   review:
-    # Keine Draft-PRs und keine Fork-PRs (kein Review/Build von fremdem Code mit dem PAT).
+    # Nur Pipeline-PRs (Label ai:needs-review vorhanden), nicht-Draft, kein Fork.
     if: >-
       ${{ github.event.pull_request.draft == false
-          && github.event.pull_request.head.repo.full_name == github.repository }}
+          && github.event.pull_request.head.repo.full_name == github.repository
+          && contains(github.event.pull_request.labels.*.name, 'ai:needs-review') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
       contents: read
       id-token: write
     steps:
-      - name: Voraussetzung pruefen (PAT-Secret)
+      - name: Voraussetzung pruefen (GitHub-App-Secrets)
+        id: preflight
         env:
-          PIPELINE_TOKEN: ${{ secrets.CLAUDE_PIPELINE_TOKEN }}
+          APP_ID: ${{ secrets.APP_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
         run: |
-          if [ -z "$PIPELINE_TOKEN" ]; then
-            echo "::error::Secret CLAUDE_PIPELINE_TOKEN fehlt. In den Repo-Settings anlegen (PAT mit Contents/Issues/Pull requests = Read+Write). Ohne dieses Token kann die Pipeline weder pushen noch die Folge-Workflows ausloesen."
-            exit 1
+          if [ -z "$APP_ID" ] || [ -z "$APP_PRIVATE_KEY" ]; then
+            echo "::warning::GitHub-App-Secrets fehlen (APP_ID und/oder APP_PRIVATE_KEY) — Lauf wird uebersprungen (kein Fehler). GitHub App anlegen (Contents/Issues/Pull requests = Read and write), aufs Repo installieren und beide Werte als Repo-Secrets hinterlegen, damit die Pipeline laeuft."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
+      - name: GitHub-App-Token erzeugen
+        id: app-token
+        if: steps.preflight.outputs.configured == 'true'
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - name: Checkout
+        if: steps.preflight.outputs.configured == 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Kreuzverhoer-Review via Claude Code
+        if: steps.preflight.outputs.configured == 'true'
         uses: anthropics/claude-code-action@v1
         env:
-          GH_TOKEN: ${{ secrets.CLAUDE_PIPELINE_TOKEN }} # Review als PAT -> loest den Fixup-Workflow aus
+          GH_TOKEN: ${{ steps.app-token.outputs.token }} # Labels als App-Token -> loesen Folge-Workflows aus
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          github_token: ${{ secrets.CLAUDE_PIPELINE_TOKEN }}
+          github_token: ${{ steps.app-token.outputs.token }}
           prompt: |
-            Reviewe Pull Request #${{ github.event.pull_request.number }} im Kreuzverhör.
+            Reviewe Pull Request #${{ github.event.pull_request.number }} im Kreuzverhör
+            (Label `ai:needs-review` ist gesetzt). Die Pipeline koordiniert ausschließlich über
+            LABELS — schließe daher GENAU mit einer der beiden Label-Umschaltungen unten ab.
 
             Folge dem Ablauf .ai-knowledge/pr-review.md (entspricht
             `/kreuzverhoer-review ${{ github.event.pull_request.number }}`): vollständigen Diff
@@ -56,17 +77,21 @@ jobs:
             Problem ganz? Edge Cases? einfachster Weg? Performance/Security?), Code-Qualität und
             Projekt-Konventionen prüfen.
 
-            Findings posten:
-              - Gibt es zutreffende Findings: als EINE Review (`gh pr review --comment`) mit an
-                Datei/Zeile verankerten Kommentaren (Was / Warum / konkreter Vorschlag) und einem
-                Abschluss-Kommentar auf Deutsch mit Ampel (🟢/🟡/🔴) am Anfang. KEIN formales
-                Approve/Request-Changes — der Merge bleibt beim Menschen.
-              - Ist der PR solide (🟢): KEINE Pseudo-Findings erfinden, nur eine knappe
-                🟢-Bestätigung als Kommentar (`gh pr comment`), KEINE Review einreichen.
+            Abschluss — GENAU EINEN Weg gehen:
+              - Es gibt zutreffende, offene Findings → als EINE Review (`gh pr review --comment`)
+                mit an Datei/Zeile verankerten Kommentaren (Was / Warum / Vorschlag) posten, dann
+                die Labels in ZWEI getrennten Befehlen umschalten (nie kombiniert, sonst Doppel-Trigger):
+                `gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:needs-review`,
+                danach `gh pr edit ${{ github.event.pull_request.number }} --add-label ai:needs-changes`
+              - Der PR ist solide (🟢) → KEINE Pseudo-Findings erfinden, nur eine knappe
+                🟢-Bestätigung als Kommentar (`gh pr comment`), dann die Labels in ZWEI Befehlen:
+                `gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:needs-review`,
+                danach `gh pr edit ${{ github.event.pull_request.number }} --add-label ai:ready-to-merge`
 
-            Ändere KEINEN Code und committe nichts — reiner Review. Die Bestätigung zum Posten
-            gilt für diesen automatisierten Lauf als erteilt; arbeite ohne interaktive Rückfrage.
+            Fehlt ein Label, vorher anlegen (`gh label create "ai:needs-changes" --color D93F0B`
+            bzw. `"ai:ready-to-merge" --color 0E8A16`). Ändere KEINEN Code und committe nichts —
+            reiner Review. Bearbeite ausschließlich diesen PR; arbeite ohne interaktive Rückfrage.
           claude_args: >-
-            --model claude-opus-4-8 --effort max
-            --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh api:*),Bash(git fetch:*),Bash(git diff:*),Read,Grep,Glob"
-            --append-system-prompt "Automatisierter Kreuzverhoer-Review in GitHub Actions (headless). Reviewe ausschliesslich PR #${{ github.event.pull_request.number }}, aendere keinen Code. Poste Findings als eine Review mit Ampel; ist der PR solide, nur eine knappe 🟢-Bestaetigung als Kommentar (KEINE Review). Erfinde keine Findings. Arbeite ohne interaktive Rueckfrage."
+            --model claude-opus-4-8 --effort medium
+            --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh label:*),Bash(gh api:*),Bash(git fetch:*),Bash(git diff:*),Read,Grep,Glob"
+            --append-system-prompt "Automatisierter, label-gesteuerter Kreuzverhoer-Review in GitHub Actions (headless). Reviewe ausschliesslich PR #${{ github.event.pull_request.number }}, aendere keinen Code. Schliesse IMMER mit der Label-Umschaltung ab: Findings -> ai:needs-changes (statt ai:needs-review); sauber -> ai:ready-to-merge. Erfinde keine Findings. Arbeite ohne interaktive Rueckfrage."
