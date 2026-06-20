@@ -3,12 +3,13 @@ name: Claude Implement (ai:ready)
 # Setzt ein Issue um, sobald es das Label "ai:ready" erhaelt UND bereits "ai:analyzed" traegt
 # (Label-Kette aus AGENTS.md: analysiert -> freigegeben -> Umsetzung als PR).
 # Fuehrt die Schritte 1-4 aus .ai-knowledge/ticket-implementation.md aus (zuweisen, Analyse
-# re-verifizieren, umsetzen, PR mit "Closes #" erstellen). Der Kreuzverhoer-Review laeuft als
-# eigener Workflow (claude-pr-review.yml).
+# re-verifizieren, umsetzen, PR mit "Closes #" erstellen). Der erstellte PR erhaelt das Label
+# "ai:needs-review", woraufhin der Kreuzverhoer-Review (claude-pr-review.yml) ihn aufgreift.
 #
-# Nutzt fuer GitHub-Operationen einen PAT (CLAUDE_PIPELINE_TOKEN), damit der erstellte PR den
+# Nutzt fuer GitHub-Operationen ein kurzlebiges GitHub-App-Token, damit der erstellte PR den
 # Review-Workflow ausloest (mit dem Standard-GITHUB_TOKEN wuerde er das nicht -> Schleifenschutz).
-# Voraussetzungen (Repo-Secrets): CLAUDE_CODE_OAUTH_TOKEN, CLAUDE_PIPELINE_TOKEN.
+# Voraussetzungen (Repo-Secrets): CLAUDE_CODE_OAUTH_TOKEN sowie eine GitHub App, hinterlegt als
+# APP_ID + APP_PRIVATE_KEY (App-Permissions: Contents/Issues/Pull requests = Read and write).
 
 on:
   issues:
@@ -29,22 +30,43 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
-      contents: read # Checkout (Schreibzugriff laeuft ueber den PAT)
+      contents: read # Checkout (Schreibzugriff laeuft ueber das App-Token)
       id-token: write # OIDC-Token der Action (sonst fehlt ACTIONS_ID_TOKEN_REQUEST_URL)
     steps:
+      - name: Voraussetzung pruefen (GitHub-App-Secrets)
+        id: preflight
+        env:
+          APP_ID: ${{ secrets.APP_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+        run: |
+          if [ -z "$APP_ID" ] || [ -z "$APP_PRIVATE_KEY" ]; then
+            echo "::warning::GitHub-App-Secrets fehlen (APP_ID und/oder APP_PRIVATE_KEY) — Lauf wird uebersprungen (kein Fehler). GitHub App anlegen (Contents/Issues/Pull requests = Read and write), aufs Repo installieren und beide Werte als Repo-Secrets hinterlegen, damit die Pipeline laeuft."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: GitHub-App-Token erzeugen
+        id: app-token
+        if: steps.preflight.outputs.configured == 'true'
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
       - name: Checkout
+        if: steps.preflight.outputs.configured == 'true'
         uses: actions/checkout@v4
         with:
           fetch-depth: 0 # voller Verlauf: der Umsetzungs-Flow arbeitet mit Branches
-          token: ${{ secrets.CLAUDE_PIPELINE_TOKEN }} # Pushes laufen als PAT (loesen Folge-Workflows aus)
+          token: ${{ steps.app-token.outputs.token }} # Push als App-Token -> loest Folge-Workflows aus
 
       - name: Umsetzung via Claude Code
+        if: steps.preflight.outputs.configured == 'true'
         uses: anthropics/claude-code-action@v1
         env:
-          GH_TOKEN: ${{ secrets.CLAUDE_PIPELINE_TOKEN }} # gh nutzt den PAT -> erstellter PR loest Review aus
+          GH_TOKEN: ${{ steps.app-token.outputs.token }} # gh nutzt das App-Token -> erstellter PR loest Review aus
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          github_token: ${{ secrets.CLAUDE_PIPELINE_TOKEN }}
+          github_token: ${{ steps.app-token.outputs.token }}
           prompt: |
             Das Label `ai:ready` wurde an Issue #${{ github.event.issue.number }} gesetzt —
             setze dieses Issue jetzt um.
@@ -58,6 +80,9 @@ jobs:
               3. Auf eigenem Branch umsetzen (Projekt-Konventionen, danach `pnpm format` + Lint).
               4. Committen, Branch pushen, PR ERSTELLEN (ready to review, KEIN Draft) mit
                  `Closes #${{ github.event.issue.number }}` im Body und format-/lint-Ergebnissen.
+                 Dann das Label `ai:needs-review` am PR setzen (`gh pr edit <pr-nr> --add-label
+                 ai:needs-review`; Label bei Bedarf vorher `gh label create "ai:needs-review"
+                 --color 1D76DB`), damit der Kreuzverhör-Review (claude-pr-review.yml) ihn aufgreift.
 
             Idempotenz: Ist das Issue bereits dir zugewiesen oder existiert bereits ein offener
             PR mit `Closes #${{ github.event.issue.number }}`, NICHT erneut umsetzen — Lauf beenden.
@@ -68,5 +93,6 @@ jobs:
             Bearbeite ausschließlich dieses eine Issue. Die Freigabe gilt durch das Label
             `ai:ready` als erteilt: arbeite autonom, ohne auf eine interaktive Bestätigung zu warten.
           claude_args: >-
+            --model claude-opus-4-8 --effort medium
             --allowedTools "Bash(gh issue:*),Bash(gh pr:*),Bash(gh label:*),Bash(gh api:*),Bash(git switch:*),Bash(git checkout:*),Bash(git branch:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(git fetch:*),Bash(pnpm:*),Read,Edit,Write,Grep,Glob,Skill,Task"
             --append-system-prompt "Automatisierter, durch das Label ai:ready autorisierter Umsetzungs-Lauf in GitHub Actions (headless). Bearbeite ausschliesslich Issue #${{ github.event.issue.number }}, Schritte 1-4 der Umsetzung; KEIN PR-Abo/Kreuzverhoer-Loop (separater Workflow). Bestaetigung gilt durch ai:ready als erteilt; arbeite autonom ohne interaktive Rueckfrage."
