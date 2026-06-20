@@ -1,31 +1,20 @@
 name: Claude Implement (ai:ready)
 
-# Stoesst die Umsetzung eines Issues an, sobald es das Label "ai:ready" erhaelt UND bereits
-# "ai:analyzed" traegt (Label-Kette aus AGENTS.md: analysiert -> freigegeben -> Umsetzung als PR).
+# Setzt ein Issue um, sobald es das Label "ai:ready" erhaelt UND bereits "ai:analyzed" traegt
+# (Label-Kette aus AGENTS.md: analysiert -> freigegeben -> Umsetzung als PR).
+# Fuehrt die Schritte 1-4 aus .ai-knowledge/ticket-implementation.md aus (zuweisen, Analyse
+# re-verifizieren, umsetzen, PR mit "Closes #" erstellen). Der erstellte PR erhaelt das Label
+# "ai:needs-review", woraufhin der Kreuzverhoer-Review (claude-pr-review.yml) ihn aufgreift.
 #
-# Frueher lief die Umsetzung direkt hier als `anthropics/claude-code-action@v1` auf einem
-# GitHub-Runner. Eine echte Umsetzung (Branch, Code, `pnpm format`+Lint, PR) dauert aber
-# regelmaessig laenger als das auf 10 Minuten begrenzte Action-Timeout -> der Lauf wurde
-# mittendrin abgebrochen ("wird nicht fertig"). Daher ist dieser Workflow jetzt nur noch eine
-# schlanke BRUECKE: er feuert den API-Trigger einer Claude-Code-Cloud-"Routine" (Sekundensache,
-# kein Timeout-Risiko). Die eigentliche, langlaufende Umsetzung laeuft dann auf
-# Anthropic-Infrastruktur in der Routine (kein hartes 10-Minuten-Limit).
+# Claude Code laeuft direkt im Runner (anthropics/claude-code-action). HARTES Zeitlimit:
+# timeout-minutes: 20 — laeuft die Umsetzung laenger, bricht GitHub den Job ab. Der Prompt
+# weist Claude an, rechtzeitig (~18 Min) den Zwischenstand zu sichern, damit beim harten
+# Abbruch nicht alles verloren geht.
 #
-# Die Routine erstellt den PR ueber ihren GitHub-Connector (Claude GitHub App) und setzt das
-# Label "ai:needs-review" am PR, woraufhin der Kreuzverhoer-Review (claude-pr-review.yml) ihn
-# aufgreift. Weil der PR von der App (nicht vom Standard-GITHUB_TOKEN) stammt, loest er die
-# Folge-Workflows aus (Schleifenschutz bleibt gewahrt).
-#
-# Einrichtung der Routine (einmalig, im Web-UI claude.ai/code/routines):
-#   1. Neue Routine anlegen, dieses Repo auswaehlen, als Prompt die Schritte 1-4 aus
-#      .ai-knowledge/ticket-implementation.md hinterlegen (Vorlage siehe unten im Fire-Step).
-#      Die zu bearbeitende Issue-Nummer kommt zur Laufzeit im `text`-Feld des API-Triggers.
-#   2. Trigger "API" hinzufuegen -> Endpoint-URL kopieren und Token generieren (wird nur EINMAL
-#      angezeigt).
-#   3. Beide Werte als Repo-Secrets hinterlegen:
-#        CLAUDE_ROUTINE_IMPLEMENT_URL   = vollstaendige .../fire-Endpoint-URL
-#        CLAUDE_ROUTINE_IMPLEMENT_TOKEN = Bearer-Token (sk-ant-oat01-...)
-#   Fehlen die Secrets, wird der Lauf sauber uebersprungen (Warnung statt Fehler).
+# Nutzt fuer GitHub-Operationen ein kurzlebiges GitHub-App-Token, damit der erstellte PR den
+# Review-Workflow ausloest (mit dem Standard-GITHUB_TOKEN wuerde er das nicht -> Schleifenschutz).
+# Voraussetzungen (Repo-Secrets): CLAUDE_CODE_OAUTH_TOKEN sowie eine GitHub App, hinterlegt als
+# APP_ID + APP_PRIVATE_KEY (App-Permissions: Contents/Issues/Pull requests = Read and write).
 
 on:
   issues:
@@ -33,14 +22,10 @@ on:
 
 concurrency:
   group: claude-implement-${{ github.event.issue.number }}
-  # Reiht Laeufe pro Issue ein (kein Abbruch laufender/queued Laeufe); dedupliziert aber NICHT:
-  # zwei kurz aufeinanderfolgende labeled-Events feuern die Routine zweimal. Ein Doppel-Trigger
-  # wird ueber die Idempotenz-Pruefung im Routine-Prompt abgefangen (kein zweiter PR, wenn bereits
-  # ein offener PR mit `Closes #N` existiert).
-  cancel-in-progress: false
+  cancel-in-progress: false # eine laufende Umsetzung nicht mittendrin abbrechen
 
 jobs:
-  dispatch:
+  implement:
     # Nur wenn GENAU das Label "ai:ready" neu gesetzt wurde, das Issue zusaetzlich "ai:analyzed"
     # traegt und offen ist.
     if: >-
@@ -48,22 +33,30 @@ jobs:
           && contains(github.event.issue.labels.*.name, 'ai:analyzed')
           && github.event.issue.state == 'open' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 5 # nur ein API-Call + Best-Effort-Zuweisung; die Umsetzung laeuft in der Routine
+    timeout-minutes: 20 # hartes Limit: laeuft die Umsetzung laenger, bricht GitHub den Job ab
     permissions:
-      issues: write # Best-Effort-Zuweisung an einen Menschen
+      contents: read # Checkout (Schreibzugriff laeuft ueber das App-Token)
+      id-token: write # OIDC-Token der Action (sonst fehlt ACTIONS_ID_TOKEN_REQUEST_URL)
     steps:
-      - name: Voraussetzung pruefen (Routine-Secrets)
+      - name: Voraussetzung pruefen (GitHub-App-Secrets)
         id: preflight
         env:
-          ROUTINE_URL: ${{ secrets.CLAUDE_ROUTINE_IMPLEMENT_URL }}
-          ROUTINE_TOKEN: ${{ secrets.CLAUDE_ROUTINE_IMPLEMENT_TOKEN }}
+          APP_ID: ${{ secrets.APP_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
         run: |
-          if [ -z "$ROUTINE_URL" ] || [ -z "$ROUTINE_TOKEN" ]; then
-            echo "::warning::Routine-Secrets fehlen (CLAUDE_ROUTINE_IMPLEMENT_URL und/oder CLAUDE_ROUTINE_IMPLEMENT_TOKEN) — Lauf wird uebersprungen (kein Fehler). Routine unter claude.ai/code/routines anlegen, API-Trigger hinzufuegen und beide Werte als Repo-Secrets hinterlegen (Details im Workflow-Kopf)."
+          if [ -z "$APP_ID" ] || [ -z "$APP_PRIVATE_KEY" ]; then
+            echo "::warning::GitHub-App-Secrets fehlen (APP_ID und/oder APP_PRIVATE_KEY) — Lauf wird uebersprungen (kein Fehler). GitHub App anlegen (Contents/Issues/Pull requests = Read and write), aufs Repo installieren und beide Werte als Repo-Secrets hinterlegen, damit die Pipeline laeuft."
             echo "configured=false" >> "$GITHUB_OUTPUT"
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
           fi
+      - name: GitHub-App-Token erzeugen
+        id: app-token
+        if: steps.preflight.outputs.configured == 'true'
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
       - name: Issue einem Menschen zuweisen (Best-Effort)
         # Best-Effort: an den auslösenden Menschen, sonst den Issue-Autor. Im 🟢-Automatikpfad
@@ -73,7 +66,7 @@ jobs:
         if: steps.preflight.outputs.configured == 'true'
         continue-on-error: true # nice-to-have; darf die Umsetzung nicht blockieren
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
           ASSIGNEE: ${{ github.event.sender.type == 'User' && github.event.sender.login || (github.event.issue.user.type == 'User' && github.event.issue.user.login || '') }}
         run: |
@@ -83,89 +76,78 @@ jobs:
           fi
           gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-assignee "$ASSIGNEE"
 
-      - name: Routine ausloesen (Umsetzung in Claude Code Cloud)
+      - name: Checkout
         if: steps.preflight.outputs.configured == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # voller Verlauf: der Umsetzungs-Flow arbeitet mit Branches
+          token: ${{ steps.app-token.outputs.token }} # Push als App-Token -> loest Folge-Workflows aus
+
+      - name: Umsetzung via Claude Code
+        id: claude
+        if: steps.preflight.outputs.configured == 'true'
+        uses: anthropics/claude-code-action@v1
         env:
-          ROUTINE_URL: ${{ secrets.CLAUDE_ROUTINE_IMPLEMENT_URL }}
-          ROUTINE_TOKEN: ${{ secrets.CLAUDE_ROUTINE_IMPLEMENT_TOKEN }}
-          # Issue-Titel NICHT direkt ins Skript interpolieren (Script-Injection); ueber env +
-          # `jq --arg` sicher in den JSON-Body einbetten.
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-          ISSUE_TITLE: ${{ github.event.issue.title }}
-          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }} # gh nutzt das App-Token -> erstellter PR loest Review aus
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ steps.app-token.outputs.token }}
+          prompt: |
+            Das Label `ai:ready` wurde an Issue #${{ github.event.issue.number }} gesetzt —
+            setze dieses Issue jetzt um.
+
+            Folge dem Umsetzungs-Workflow .ai-knowledge/ticket-implementation.md (entspricht
+            `/implement-ticket ${{ github.event.issue.number }}`), aber NUR die Schritte 1 bis 4:
+              1. Zuweisung übernimmt bereits der Workflow (Best-Effort: an den auslösenden
+                 Menschen, sonst den Issue-Autor). Weise dich NICHT selbst zu — `@me` wäre der Bot.
+              2. Analyse re-verifizieren (Re-Triage gegen den aktuellen Repo-Stand). Kippt die
+                 Umsetzbarkeits-Ampel auf 🔴 → NICHT umsetzen, `ai:ready` entfernen, im Issue
+                 begründen und stoppen (Mensch entscheidet).
+              3. Auf eigenem Branch umsetzen (Projekt-Konventionen, danach `pnpm format` + Lint).
+              4. Committen, Branch pushen, PR ERSTELLEN (ready to review, KEIN Draft) mit
+                 `Closes #${{ github.event.issue.number }}` im Body und format-/lint-Ergebnissen.
+                 Dann das Label `ai:needs-review` am PR setzen (`gh pr edit <pr-nr> --add-label
+                 ai:needs-review`; Label bei Bedarf vorher `gh label create "ai:needs-review"
+                 --color 1D76DB`), damit der Kreuzverhör-Review (claude-pr-review.yml) ihn aufgreift.
+
+            HARTES Zeitlimit: Dieser Lauf wird nach 20 Minuten von GitHub hart abgebrochen. Plane
+            damit. Merkst du, dass es eng wird, sichere SPÄTESTENS nach ~18 Minuten den
+            Zwischenstand, statt einen kompletten Durchlauf zu erzwingen: committen, Branch pushen
+            und lieber einen Draft-PR mit `Closes #${{ github.event.issue.number }}` und einer
+            kurzen Restpunkte-Liste erstellen (Label `ai:needs-review` dann NICHT setzen, solange
+            unfertig). Ein PR mit dokumentiertem Teilstand ist deutlich besser als ein harter
+            Abbruch ohne jedes Ergebnis.
+
+            Idempotenz: Ist das Issue bereits dir zugewiesen oder existiert bereits ein offener
+            PR mit `Closes #${{ github.event.issue.number }}`, NICHT erneut umsetzen — Lauf beenden.
+
+            Schritt 5 (PR-Abo + Kreuzverhör-Loop) NICHT ausführen — der Review läuft als eigener
+            Workflow. `subscribe_pr_activity` ist hier nicht verfügbar.
+
+            Bearbeite ausschließlich dieses eine Issue. Die Freigabe gilt durch das Label
+            `ai:ready` als erteilt: arbeite autonom, ohne auf eine interaktive Bestätigung zu warten.
+          claude_args: >-
+            --model claude-opus-4-8 --effort medium
+            --allowedTools "Bash(gh issue:*),Bash(gh pr:*),Bash(gh label:*),Bash(gh api:*),Bash(git switch:*),Bash(git checkout:*),Bash(git branch:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(git fetch:*),Bash(pnpm:*),Read,Edit,Write,Grep,Glob,Skill,Task"
+            --append-system-prompt "Automatisierter, durch das Label ai:ready autorisierter Umsetzungs-Lauf in GitHub Actions (headless). Bearbeite ausschliesslich Issue #${{ github.event.issue.number }}, Schritte 1-4 der Umsetzung; KEIN PR-Abo/Kreuzverhoer-Loop (separater Workflow). HARTES 20-Minuten-Timeout: sichere bei drohendem Limit (~18 Min) rechtzeitig den Zwischenstand (committen/pushen, ggf. Draft-PR), statt einen vollen Durchlauf zu erzwingen. Bestaetigung gilt durch ai:ready als erteilt; arbeite autonom ohne interaktive Rueckfrage."
+
+      # Deterministisches Abschluss-Signal (unabhaengig von der LLM-Ausgabe): laeuft auch bei
+      # Abbruch/Timeout (if: always()) und macht im Log/Job-Summary klar sichtbar, DASS und mit
+      # welchem Ergebnis der Lauf fertig ist. outcome=cancelled signalisiert das 20-Min-Timeout.
+      - name: Ergebnis zusammenfassen
+        if: always() && steps.preflight.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ISSUE: ${{ github.event.issue.number }}
+          OUTCOME: ${{ steps.claude.outcome }}
+          SESSION_ID: ${{ steps.claude.outputs.session_id }}
         run: |
-          set -euo pipefail
-
-          # Kontext fuer die Routine: Repo + Issue-Nummer (+ Titel) als freier Text. Die
-          # eigentlichen Umsetzungs-Anweisungen (Schritte 1-4) stehen im gespeicherten
-          # Routine-Prompt; hier wird nur mitgegeben, WELCHES Issue umzusetzen ist.
-          read -r -d '' PROMPT_TEXT <<EOF || true
-          Setze GitHub-Issue #${ISSUE_NUMBER} im Repository ${REPO} um ("${ISSUE_TITLE}").
-
-          Folge dem Umsetzungs-Workflow .ai-knowledge/ticket-implementation.md (entspricht
-          \`/implement-ticket ${ISSUE_NUMBER}\`), aber NUR die Schritte 1 bis 4:
-            1. Das Issue ist im Best-Effort bereits einem Menschen zugewiesen. Weise dich NICHT
-               selbst zu.
-            2. Analyse re-verifizieren (Re-Triage gegen den aktuellen Repo-Stand). Kippt die
-               Umsetzbarkeits-Ampel auf rot -> NICHT umsetzen, \`ai:ready\` entfernen, im Issue
-               begruenden und stoppen (Mensch entscheidet).
-            3. Auf eigenem Branch umsetzen (Projekt-Konventionen, danach \`pnpm format\` + Lint).
-            4. Committen, Branch pushen, PR ERSTELLEN (ready to review, KEIN Draft) mit
-               \`Closes #${ISSUE_NUMBER}\` im Body und format-/lint-Ergebnissen. Dann das Label
-               \`ai:needs-review\` am PR setzen, damit der Kreuzverhoer-Review ihn aufgreift.
-
-          Idempotenz: Existiert bereits ein offener PR mit \`Closes #${ISSUE_NUMBER}\`, NICHT
-          erneut umsetzen — beenden. Schritt 5 (PR-Abo/Kreuzverhoer-Loop) NICHT ausfuehren — der
-          Review laeuft als eigener Workflow. Bearbeite ausschliesslich dieses eine Issue; die
-          Freigabe gilt durch \`ai:ready\` als erteilt, arbeite autonom ohne Rueckfrage.
-
-          Zeitbudget (weiche Timebox): Arbeite zuegig und zielgerichtet. Stellst du fest, dass der
-          Umfang deutlich groesser ist als erwartet und du nach rund 25 Minuten noch weit von einem
-          fertigen PR entfernt bist, laufe NICHT unbegrenzt weiter: Sichere den Zwischenstand
-          (committen + Branch pushen), erstelle — falls schon sinnvoll moeglich — einen PR als
-          Draft mit \`Closes #${ISSUE_NUMBER}\` und einer kurzen Restpunkte-Liste, ODER kommentiere
-          den erreichten Stand und die offenen Punkte am Issue #${ISSUE_NUMBER}. Stoppe dann und
-          ueberlasse die Entscheidung ueber das weitere Vorgehen dem Menschen, statt das Ticket in
-          einem ueberlangen Lauf vollstaendig erzwingen zu wollen.
-          EOF
-
-          payload="$(jq -nc --arg t "$PROMPT_TEXT" '{text: $t}')"
-
-          # Netzwerk-Robustheit: bis zu 4 Versuche mit exponentiellem Backoff (2s/4s/8s).
-          attempt=1
-          max=4
-          delay=2
-          while :; do
-            http_code="$(curl -sS -o response.json -w '%{http_code}' \
-              --connect-timeout 10 --max-time 60 \
-              -X POST "$ROUTINE_URL" \
-              -H "Authorization: Bearer $ROUTINE_TOKEN" \
-              -H "anthropic-version: 2023-06-01" \
-              -H "anthropic-beta: experimental-cc-routine-2026-04-01" \
-              -H "Content-Type: application/json" \
-              -d "$payload")" || http_code="000"
-
-            if [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
-              session_url="$(jq -r '.claude_code_session_url // empty' response.json)"
-              echo "Routine ausgeloest fuer Issue #${ISSUE_NUMBER} (HTTP $http_code)."
-              {
-                echo "### Claude Implement -> Cloud-Routine ausgeloest"
-                echo ""
-                echo "- Issue: #${ISSUE_NUMBER} — ${ISSUE_TITLE}"
-                if [ -n "$session_url" ]; then
-                  echo "- Session: ${session_url}"
-                fi
-              } >> "$GITHUB_STEP_SUMMARY"
-              exit 0
-            fi
-
-            echo "::warning::Routine-Trigger fehlgeschlagen (Versuch ${attempt}/${max}, HTTP ${http_code})."
-            cat response.json || true
-            if [ "$attempt" -ge "$max" ]; then
-              echo "::error::Routine konnte nach ${max} Versuchen nicht ausgeloest werden (letzter HTTP ${http_code})."
-              exit 1
-            fi
-            sleep "$delay"
-            attempt=$((attempt + 1))
-            delay=$((delay * 2))
-          done
+          labels="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
+          {
+            echo "### Umsetzung #${ISSUE} — fertig"
+            echo ""
+            echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\` (cancelled = 20-Min-Timeout erreicht)"
+            echo "- Aktuelle Issue-Labels: ${labels:-keine}"
+            if [ -n "$SESSION_ID" ]; then echo "- Session-ID: \`${SESSION_ID}\` (\`--resume\` zum Nachschauen)"; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=Umsetzung #${ISSUE} fertig::Claude-Schritt ${OUTCOME:-unbekannt}; Labels: ${labels:-keine}"

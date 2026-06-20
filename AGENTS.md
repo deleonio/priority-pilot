@@ -56,16 +56,11 @@ Konkreter Command: `/implement-ticket`.
 
 In **GitHub Actions** stößt das Setzen des Labels `ai:ready` (bei vorhandenem `ai:analyzed`) die
 Umsetzung automatisch an —
-[`.github/workflows/claude-implement.yml`](.github/workflows/claude-implement.yml). Dieser Workflow
-ist nur eine schlanke **Brücke**: Er feuert den API-Trigger einer **Claude-Code-Cloud-Routine**
-(`.../fire`), die eigentliche, langlaufende Umsetzung (Schritte 1–4) läuft dann auf
-Anthropic-Infrastruktur **ohne** das 10-Minuten-Timeout eines Action-Runners. Die Routine erstellt
-den PR über ihren GitHub-Connector (Claude GitHub App) und setzt `ai:needs-review`, woraufhin der
-Kreuzverhör-Review (eigener Workflow) ihn aufgreift. Voraussetzung: einmalig eine Routine unter
-[claude.ai/code/routines](https://claude.ai/code/routines) anlegen (Repo + Prompt aus Schritten 1–4),
-API-Trigger hinzufügen und die Repo-Secrets `CLAUDE_ROUTINE_IMPLEMENT_URL` +
-`CLAUDE_ROUTINE_IMPLEMENT_TOKEN` hinterlegen (Details im Kopf des Workflows). Fehlen die Secrets,
-wird der Lauf sauber übersprungen.
+[`.github/workflows/claude-implement.yml`](.github/workflows/claude-implement.yml) (Schritte 1–4; den
+Kreuzverhör-Review übernimmt ein eigener Workflow). Claude Code läuft dabei direkt im Runner mit
+einem **harten Zeitlimit von `timeout-minutes: 20`**; der Prompt weist Claude an, bei drohendem
+Limit (~18 Min) rechtzeitig den Zwischenstand zu sichern (committen/pushen, ggf. Draft-PR), statt
+einen vollen Durchlauf zu erzwingen.
 
 Label-Kette: `ai:analyzed` (analysiert) → `ai:ready` (freigegeben — bei 🟢 automatisch durch die
 Triage, sonst durch den Menschen) → Umsetzung als PR (ready to review), der den Kreuzverhör-Loop
