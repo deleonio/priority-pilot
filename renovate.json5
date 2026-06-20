@@ -23,15 +23,12 @@
 	// Commit-/PR-Titel im Conventional-Commits-Stil (erzeugt z. B. "chore(deps): ...").
 	semanticCommits: 'enabled',
 
-	// Das Dependency Dashboard ist über config:recommended bereits aktiv — nur der Titel wird angepasst.
-	dependencyDashboardTitle: 'Dependency Dashboard',
-
 	// Lockfile (pnpm-lock.yaml) regelmäßig aktualisieren, auch ohne Versions-Bumps.
 	lockFileMaintenance: {
 		enabled: true,
 		// Eigenes Default-Schedule ('before 4am on monday') aufheben — die Zeitsteuerung liegt
 		// allein beim Workflow-Cron, sonst liefe die Wartung außerhalb seines Fensters nie.
-		schedule: ['* * * * *'],
+		schedule: ['at any time'],
 	},
 
 	// Nicht zu viele offene PRs/Branches gleichzeitig.
