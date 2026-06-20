@@ -51,6 +51,40 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
+      # Fail-fast: ohne "Contents: write" auf der App-Installation scheitert der Fix-Push mit 403 —
+      # der teure Claude-Lauf liefe sinnlos durch und der Job endete faelschlich "gruen". Daher frueh
+      # abbrechen (eine Permission-Aenderung an der App muss in der Repo-Installation genehmigt werden).
+      - name: Schreibrechte des App-Tokens sicherstellen
+        id: token-perms
+        if: steps.preflight.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if perms="$(gh api "repos/$GITHUB_REPOSITORY" --jq '.permissions.push' 2>/dev/null)"; then
+            if [ "$perms" = "true" ]; then
+              echo "App-Token hat Schreibrecht (contents.push=true) — weiter."
+              exit 0
+            fi
+          else
+            echo "::warning::Konnte die Token-Permissions nicht abfragen (API-Fehler) — fahre fort und ueberlasse die Diagnose dem spaeteren Push."
+            exit 0
+          fi
+          echo "::error title=App-Token ohne Schreibrecht::Der GitHub-App-Installation fehlt 'Contents: Read and write' (contents.push=false). Fix-Push ist unmoeglich — Lauf wird abgebrochen, bevor Claude (kostenpflichtig) startet."
+          marker="<!-- claude-fixup:no-write-permission -->"
+          exists="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json comments --jq "[.comments[] | select(.body | contains(\"$marker\"))] | length" 2>/dev/null || echo 0)"
+          if [ "${exists:-0}" = "0" ]; then
+            body="$(printf '%s\n' \
+              "$marker" \
+              "🤖 **Fixup übersprungen — der GitHub-App fehlen Schreibrechte**" \
+              "" \
+              "Das App-Token dieses Laufs hat **kein \`Contents: write\`** (\`repos.permissions.push = false\`). Damit kann der Fix **nicht gepusht** werden — der Lauf bricht **sofort** ab, statt einen kostenpflichtigen Claude-Lauf ohne Ergebnis zu fahren." \
+              "" \
+              "**Fix (einmalig, durch Admin):** GitHub App \`my-github-action-bot\` auf **Contents = Read and write** und **Pull requests = Read and write** setzen und die geänderten Permissions in der **Repo-Installation bestätigen** (Re-Approve). Danach das Label \`ai:needs-changes\` an diesem PR erneut setzen." )"
+            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "$body" || true
+          fi
+          exit 1
+
       - name: Checkout (PR-Head-Branch)
         if: steps.preflight.outputs.configured == 'true'
         uses: actions/checkout@v4

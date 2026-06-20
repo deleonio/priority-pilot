@@ -15,6 +15,9 @@ name: Claude Implement (ai:ready)
 # Review-Workflow ausloest (mit dem Standard-GITHUB_TOKEN wuerde er das nicht -> Schleifenschutz).
 # Voraussetzungen (Repo-Secrets): CLAUDE_CODE_OAUTH_TOKEN sowie eine GitHub App, hinterlegt als
 # APP_ID + APP_PRIVATE_KEY (App-Permissions: Contents/Issues/Pull requests = Read and write).
+# ACHTUNG: Wird die App-Permission nachtraeglich geaendert, muss die Aenderung in der Repo-
+# Installation BESTAETIGT (Re-Approve) werden — sonst behaelt das Token die alten Rechte. Fehlt
+# "Contents: write", bricht der Schritt "Schreibrechte des App-Tokens sicherstellen" frueh ab.
 
 on:
   issues:
@@ -57,6 +60,45 @@ jobs:
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      # Fail-fast: Das App-Token traegt NUR die Permissions, die der App-INSTALLATION zugestanden
+      # UND bestaetigt wurden (eine Permission-Aenderung an der App muss in der Repo-Installation
+      # erneut genehmigt werden). Fehlt "Contents: write", scheitert spaeter `git push` mit 403 —
+      # der teure Claude-Lauf laeuft dann sinnlos durch und der Job endet faelschlich "gruen", OHNE
+      # PR. Darum hier hart und frueh abbrechen, BEVOR Claude (kostenpflichtig) startet.
+      - name: Schreibrechte des App-Tokens sicherstellen
+        id: token-perms
+        if: steps.preflight.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          if perms="$(gh api "repos/$GITHUB_REPOSITORY" --jq '.permissions.push' 2>/dev/null)"; then
+            if [ "$perms" = "true" ]; then
+              echo "App-Token hat Schreibrecht (contents.push=true) — weiter."
+              exit 0
+            fi
+          else
+            echo "::warning::Konnte die Token-Permissions nicht abfragen (API-Fehler) — fahre fort und ueberlasse die Diagnose dem spaeteren Push."
+            exit 0
+          fi
+          echo "::error title=App-Token ohne Schreibrecht::Der GitHub-App-Installation fehlt 'Contents: Read and write' (contents.push=false). Branch-Push und PR-Erstellung sind unmoeglich — Lauf wird abgebrochen, bevor Claude (kostenpflichtig) startet."
+          marker="<!-- claude-implement:no-write-permission -->"
+          exists="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json comments --jq "[.comments[] | select(.body | contains(\"$marker\"))] | length" 2>/dev/null || echo 0)"
+          if [ "${exists:-0}" = "0" ]; then
+            body="$(printf '%s\n' \
+              "$marker" \
+              "🤖 **Umsetzung übersprungen — der GitHub-App fehlen Schreibrechte**" \
+              "" \
+              "Das App-Token dieses Laufs hat **kein \`Contents: write\`** (\`repos.permissions.push = false\`). Damit sind **Branch-Push und PR-Erstellung unmöglich** — der Lauf bricht **sofort** ab, statt einen kostenpflichtigen Claude-Lauf ohne Ergebnis zu fahren (vorher endete der Job irreführend \"grün\", ohne PR)." \
+              "" \
+              "**Fix (einmalig, durch Admin):**" \
+              "1. GitHub App \`my-github-action-bot\` → *Permissions* → **Contents = Read and write** und **Pull requests = Read and write** setzen (Issues = Read and write ist bereits aktiv)." \
+              "2. **Wichtig:** Die geänderten Permissions in der **Repo-Installation bestätigen/genehmigen** (Re-Approve) — sonst behält das Token die alten (nur-lese) Rechte." \
+              "3. Danach \`ai:ready\` an diesem Issue **erneut setzen**. Idempotenz greift: solange kein offener PR mit \`Closes #${ISSUE}\` existiert, wird neu umgesetzt." )"
+            gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body "$body" || true
+          fi
+          exit 1
 
       - name: Issue einem Menschen zuweisen (Best-Effort)
         # Best-Effort: an den auslösenden Menschen, sonst den Issue-Autor. Im 🟢-Automatikpfad
