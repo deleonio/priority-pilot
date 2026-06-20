@@ -33,7 +33,11 @@ on:
 
 concurrency:
   group: claude-implement-${{ github.event.issue.number }}
-  cancel-in-progress: false # einen bereits ausgeloesten Routine-Lauf nicht doppelt anstossen
+  # Reiht Laeufe pro Issue ein (kein Abbruch laufender/queued Laeufe); dedupliziert aber NICHT:
+  # zwei kurz aufeinanderfolgende labeled-Events feuern die Routine zweimal. Ein Doppel-Trigger
+  # wird ueber die Idempotenz-Pruefung im Routine-Prompt abgefangen (kein zweiter PR, wenn bereits
+  # ein offener PR mit `Closes #N` existiert).
+  cancel-in-progress: false
 
 jobs:
   dispatch:
@@ -124,6 +128,7 @@ jobs:
           delay=2
           while :; do
             http_code="$(curl -sS -o response.json -w '%{http_code}' \
+              --connect-timeout 10 --max-time 60 \
               -X POST "$ROUTINE_URL" \
               -H "Authorization: Bearer $ROUTINE_TOKEN" \
               -H "anthropic-version: 2023-06-01" \
