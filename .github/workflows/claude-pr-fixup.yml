@@ -76,8 +76,10 @@ jobs:
                  Im jeweiligen Thread antworten und ihn auflösen. Mehrdeutige oder architektonisch
                  große Punkte NICHT blind umsetzen — begründet kommentieren bzw. dem Menschen
                  überlassen. Bereits begründet abgelehnte Findings nicht erneut aufmachen.
-              3. Abschluss: Labels umschalten, damit der Review erneut prüft:
-                 `gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:needs-changes --add-label ai:needs-review`
+              3. Abschluss: Labels in ZWEI getrennten Befehlen umschalten (nie kombiniert, sonst
+                 Doppel-Trigger), damit der Review erneut prüft:
+                 `gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:needs-changes`,
+                 danach `gh pr edit ${{ github.event.pull_request.number }} --add-label ai:needs-review`
               4. Sicherheitsnetz gegen Endlosschleifen: Trägt der Branch schon viele Fixup-Commits
                  aus diesem Loop (Richtwert > 5) und bleiben Punkte offen, NICHT weiter drehen —
                  das Label `ai:needs-changes` belassen (NICHT auf ai:needs-review schalten, sonst

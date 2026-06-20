@@ -73,11 +73,14 @@ jobs:
 
             Abschluss — GENAU EINEN Weg gehen:
               - Es gibt zutreffende, offene Findings → als EINE Review (`gh pr review --comment`)
-                mit an Datei/Zeile verankerten Kommentaren (Was / Warum / Vorschlag) posten, dann:
-                `gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:needs-review --add-label ai:needs-changes`
+                mit an Datei/Zeile verankerten Kommentaren (Was / Warum / Vorschlag) posten, dann
+                die Labels in ZWEI getrennten Befehlen umschalten (nie kombiniert, sonst Doppel-Trigger):
+                `gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:needs-review`,
+                danach `gh pr edit ${{ github.event.pull_request.number }} --add-label ai:needs-changes`
               - Der PR ist solide (🟢) → KEINE Pseudo-Findings erfinden, nur eine knappe
-                🟢-Bestätigung als Kommentar (`gh pr comment`), dann:
-                `gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:needs-review --add-label ai:ready-to-merge`
+                🟢-Bestätigung als Kommentar (`gh pr comment`), dann die Labels in ZWEI Befehlen:
+                `gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:needs-review`,
+                danach `gh pr edit ${{ github.event.pull_request.number }} --add-label ai:ready-to-merge`
 
             Fehlt ein Label, vorher anlegen (`gh label create "ai:needs-changes" --color D93F0B`
             bzw. `"ai:ready-to-merge" --color 0E8A16`). Ändere KEINEN Code und committe nichts —
