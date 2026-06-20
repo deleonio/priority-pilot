@@ -28,7 +28,7 @@ jobs:
           && contains(github.event.issue.labels.*.name, 'ai:analyzed')
           && github.event.issue.state == 'open' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 10
     permissions:
       contents: read # Checkout (Schreibzugriff laeuft ueber das App-Token)
       id-token: write # OIDC-Token der Action (sonst fehlt ACTIONS_ID_TOKEN_REQUEST_URL)
@@ -52,6 +52,25 @@ jobs:
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Issue einem Menschen zuweisen (Best-Effort)
+        # Best-Effort: an den auslösenden Menschen, sonst den Issue-Autor. Im 🟢-Automatikpfad
+        # setzt die Triage ai:ready als App-Bot — dann ist sender ein Bot (nicht als Assignee
+        # zulaessig). Daher Bot-Logins herausfiltern; sind beide Bots, bleibt das Issue
+        # unzugewiesen (sauberer ::notice:: statt stillem Fehlschlag). NIE @me (waere der Bot).
+        if: steps.preflight.outputs.configured == 'true'
+        continue-on-error: true # nice-to-have; darf die Umsetzung nicht blockieren
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ISSUE: ${{ github.event.issue.number }}
+          ASSIGNEE: ${{ github.event.sender.type == 'User' && github.event.sender.login || (github.event.issue.user.type == 'User' && github.event.issue.user.login || '') }}
+        run: |
+          if [ -z "$ASSIGNEE" ]; then
+            echo "::notice::Kein menschlicher Assignee ermittelbar (Ausloeser und Issue-Autor sind Bots) — Issue bleibt unzugewiesen."
+            exit 0
+          fi
+          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-assignee "$ASSIGNEE"
+
       - name: Checkout
         if: steps.preflight.outputs.configured == 'true'
         uses: actions/checkout@v4
@@ -73,7 +92,8 @@ jobs:
 
             Folge dem Umsetzungs-Workflow .ai-knowledge/ticket-implementation.md (entspricht
             `/implement-ticket ${{ github.event.issue.number }}`), aber NUR die Schritte 1 bis 4:
-              1. Self-assign (`gh issue edit <nr> --add-assignee @me`).
+              1. Zuweisung übernimmt bereits der Workflow (Best-Effort: an den auslösenden
+                 Menschen, sonst den Issue-Autor). Weise dich NICHT selbst zu — `@me` wäre der Bot.
               2. Analyse re-verifizieren (Re-Triage gegen den aktuellen Repo-Stand). Kippt die
                  Umsetzbarkeits-Ampel auf 🔴 → NICHT umsetzen, `ai:ready` entfernen, im Issue
                  begründen und stoppen (Mensch entscheidet).

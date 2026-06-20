@@ -26,7 +26,7 @@ jobs:
           && github.event.pull_request.draft == false
           && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
     permissions:
       contents: read
       id-token: write
@@ -67,6 +67,9 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ steps.app-token.outputs.token }}
+          # App-Bot als Ausloeser zulassen — der Review setzt das Label als Bot, sonst blockt
+          # checkHumanActor diesen Fixup-Lauf (Bot-Name aus der Fehlermeldung der Action).
+          allowed_bots: 'my-github-action-bot'
           prompt: |
             Auf Pull Request #${{ github.event.pull_request.number }} hat der Review das Label
             `ai:needs-changes` gesetzt. Arbeite die offenen Kreuzverhör-Findings ab — Schritt 5.3
