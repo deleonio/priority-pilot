@@ -52,6 +52,18 @@ jobs:
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Issue der auslösenden Person zuweisen
+        # Explizit an den Menschen, der ai:ready gesetzt hat — NICHT @me (das waere der App-Bot,
+        # und Bots sind nicht als Assignee zulaessig).
+        if: steps.preflight.outputs.configured == 'true'
+        continue-on-error: true # nice-to-have; darf die Umsetzung nicht blockieren
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ISSUE: ${{ github.event.issue.number }}
+          ASSIGNEE: ${{ github.event.sender.login }}
+        run: gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-assignee "$ASSIGNEE"
+
       - name: Checkout
         if: steps.preflight.outputs.configured == 'true'
         uses: actions/checkout@v4
@@ -73,7 +85,8 @@ jobs:
 
             Folge dem Umsetzungs-Workflow .ai-knowledge/ticket-implementation.md (entspricht
             `/implement-ticket ${{ github.event.issue.number }}`), aber NUR die Schritte 1 bis 4:
-              1. Self-assign (`gh issue edit <nr> --add-assignee @me`).
+              1. Zuweisung übernimmt bereits der Workflow (das Issue geht an die Person, die
+                 `ai:ready` gesetzt hat). Weise dich NICHT selbst zu — `@me` wäre der App-Bot.
               2. Analyse re-verifizieren (Re-Triage gegen den aktuellen Repo-Stand). Kippt die
                  Umsetzbarkeits-Ampel auf 🔴 → NICHT umsetzen, `ai:ready` entfernen, im Issue
                  begründen und stoppen (Mensch entscheidet).
