@@ -38,7 +38,7 @@ jobs:
               || github.event.comment.author_association == 'MEMBER'
               || github.event.comment.author_association == 'COLLABORATOR') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     permissions:
       contents: read # Repo auschecken (Slash-Command + Wissensbasis lesen)
       issues: write # Beschreibung lektorieren, Analyse-Kommentar posten, Labels setzen
