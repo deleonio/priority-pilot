@@ -80,6 +80,7 @@ jobs:
 
       - name: Umsetzung via Claude Code
         if: steps.preflight.outputs.configured == 'true'
+        timeout-minutes: 8 # Step-Limit < Job (10) -> bei Timeout faellt der STEP, der Fallback-Step laeuft noch
         uses: anthropics/claude-code-action@v1
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }} # gh nutzt das App-Token -> erstellter PR loest Review aus
@@ -115,4 +116,14 @@ jobs:
           claude_args: >-
             --model claude-opus-4-8 --effort medium
             --allowedTools "Bash(gh issue:*),Bash(gh pr:*),Bash(gh label:*),Bash(gh api:*),Bash(git switch:*),Bash(git checkout:*),Bash(git branch:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(git fetch:*),Bash(pnpm:*),Read,Edit,Write,Grep,Glob,Skill,Task"
-            --append-system-prompt "Automatisierter, durch das Label ai:ready autorisierter Umsetzungs-Lauf in GitHub Actions (headless). Bearbeite ausschliesslich Issue #${{ github.event.issue.number }}, Schritte 1-4 der Umsetzung; KEIN PR-Abo/Kreuzverhoer-Loop (separater Workflow). Bestaetigung gilt durch ai:ready als erteilt; arbeite autonom ohne interaktive Rueckfrage."
+            --append-system-prompt "Automatisierter, durch das Label ai:ready autorisierter Umsetzungs-Lauf in GitHub Actions (headless). Bearbeite ausschliesslich Issue #${{ github.event.issue.number }}, Schritte 1-4 der Umsetzung; KEIN PR-Abo/Kreuzverhoer-Loop (separater Workflow). Bestaetigung gilt durch ai:ready als erteilt; arbeite autonom ohne interaktive Rueckfrage. HARTES ZEITLIMIT ~8 Min (GitHub-Actions-Step-Timeout): arbeite zuegig und priorisiere einen erstellten PR + Label ai:needs-review rechtzeitig — lieber einen fokussierten PR landen als vom Limit mit halbfertigem Branch abgeschnitten werden."
+
+      - name: Hinweis bei Abbruch/Timeout
+        # Laeuft nur, wenn ein vorheriger Step fehlschlug (v.a. der Claude-Step beim 8-Min-Step-
+        # Timeout) UND das App-Token erzeugt wurde -> garantierter Kommentar statt stummem Abbruch.
+        if: failure() && steps.app-token.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh issue comment ${{ github.event.issue.number }} --repo "$GITHUB_REPOSITORY" \
+            --body "⏱️ Die automatische Umsetzung wurde abgebrochen (Zeitlimit ~8 Min oder Fehler), bevor sie abschließen konnte. Es wurde evtl. kein oder ein unvollständiger PR erstellt. @${{ github.repository_owner }} bitte prüfen und ai:ready ggf. erneut setzen." || true

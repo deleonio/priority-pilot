@@ -60,6 +60,7 @@ jobs:
 
       - name: Kreuzverhoer-Review via Claude Code
         if: steps.preflight.outputs.configured == 'true'
+        timeout-minutes: 8 # Step-Limit < Job (10) -> bei Timeout faellt der STEP, der Fallback-Step laeuft noch
         uses: anthropics/claude-code-action@v1
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }} # Labels als App-Token -> loesen Folge-Workflows aus
@@ -97,4 +98,14 @@ jobs:
           claude_args: >-
             --model claude-opus-4-8 --effort medium
             --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh label:*),Bash(gh api:*),Bash(git fetch:*),Bash(git diff:*),Read,Grep,Glob"
-            --append-system-prompt "Automatisierter, label-gesteuerter Kreuzverhoer-Review in GitHub Actions (headless). Reviewe ausschliesslich PR #${{ github.event.pull_request.number }}, aendere keinen Code. Schliesse IMMER mit der Label-Umschaltung ab: Findings -> ai:needs-changes (statt ai:needs-review); sauber -> ai:ready-to-merge. Erfinde keine Findings. Arbeite ohne interaktive Rueckfrage."
+            --append-system-prompt "Automatisierter, label-gesteuerter Kreuzverhoer-Review in GitHub Actions (headless). Reviewe ausschliesslich PR #${{ github.event.pull_request.number }}, aendere keinen Code. Schliesse IMMER mit der Label-Umschaltung ab: Findings -> ai:needs-changes (statt ai:needs-review); sauber -> ai:ready-to-merge. Erfinde keine Findings. Arbeite ohne interaktive Rueckfrage. HARTES ZEITLIMIT ~8 Min (GitHub-Actions-Step-Timeout): arbeite zuegig, analysiere nicht endlos und stelle sicher, dass Review-Kommentar UND Label-Umschaltung rechtzeitig erfolgen — lieber fokussiert posten als vom Limit abgeschnitten werden."
+
+      - name: Hinweis bei Abbruch/Timeout
+        # Laeuft nur, wenn ein vorheriger Step fehlschlug (v.a. der Claude-Step beim 8-Min-Step-
+        # Timeout) UND das App-Token erzeugt wurde -> garantierter Kommentar statt stummem Abbruch.
+        if: failure() && steps.app-token.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} --repo "$GITHUB_REPOSITORY" \
+            --body "⏱️ Der automatische Kreuzverhör-Review wurde abgebrochen (Zeitlimit ~8 Min oder Fehler), bevor er abschließen konnte. Die Labels wurden NICHT umgeschaltet — Stand unverändert. @${{ github.repository_owner }} bitte erneut anstoßen (Label ai:needs-review neu setzen) oder manuell reviewen." || true

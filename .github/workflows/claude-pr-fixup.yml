@@ -61,6 +61,7 @@ jobs:
 
       - name: Findings umsetzen via Claude Code
         if: steps.preflight.outputs.configured == 'true'
+        timeout-minutes: 8 # Step-Limit < Job (10) -> bei Timeout faellt der STEP, der Fallback-Step laeuft noch
         uses: anthropics/claude-code-action@v1
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -99,4 +100,14 @@ jobs:
           claude_args: >-
             --model claude-opus-4-8 --effort medium
             --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh label:*),Bash(gh api:*),Bash(git switch:*),Bash(git checkout:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(git fetch:*),Bash(pnpm:*),Read,Edit,Write,Grep,Glob"
-            --append-system-prompt "Automatisierter, label-gesteuerter Fixup-Lauf in GitHub Actions (headless) fuer PR #${{ github.event.pull_request.number }}. Setze nur eindeutige, zutreffende Findings um; mehrdeutige/grosse Punkte dem Menschen ueberlassen. Schalte zum Abschluss die Labels um (ai:needs-changes -> ai:needs-review) — AUSSER der Loop soll wegen Nicht-Konvergenz anhalten, dann ai:needs-changes belassen und den Menschen taggen. Arbeite ohne interaktive Rueckfrage."
+            --append-system-prompt "Automatisierter, label-gesteuerter Fixup-Lauf in GitHub Actions (headless) fuer PR #${{ github.event.pull_request.number }}. Setze nur eindeutige, zutreffende Findings um; mehrdeutige/grosse Punkte dem Menschen ueberlassen. Schalte zum Abschluss die Labels um (ai:needs-changes -> ai:needs-review) — AUSSER der Loop soll wegen Nicht-Konvergenz anhalten, dann ai:needs-changes belassen und den Menschen taggen. Arbeite ohne interaktive Rueckfrage. HARTES ZEITLIMIT ~8 Min (GitHub-Actions-Step-Timeout): arbeite zuegig, priorisiere Fix + Push + Label-Umschaltung rechtzeitig — lieber einen fokussierten Fix landen als vom Limit mitten im Lauf abgeschnitten werden."
+
+      - name: Hinweis bei Abbruch/Timeout
+        # Laeuft nur, wenn ein vorheriger Step fehlschlug (v.a. der Claude-Step beim 8-Min-Step-
+        # Timeout) UND das App-Token erzeugt wurde -> garantierter Kommentar statt stummem Abbruch.
+        if: failure() && steps.app-token.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} --repo "$GITHUB_REPOSITORY" \
+            --body "⏱️ Der automatische Fixup-Lauf wurde abgebrochen (Zeitlimit ~8 Min oder Fehler), bevor er abschließen konnte. Label ai:needs-changes bleibt gesetzt (kein Re-Trigger). @${{ github.repository_owner }} bitte prüfen / erneut anstoßen." || true
