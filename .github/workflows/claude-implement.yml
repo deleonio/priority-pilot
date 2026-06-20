@@ -3,8 +3,8 @@ name: Claude Implement (ai:ready)
 # Setzt ein Issue um, sobald es das Label "ai:ready" erhaelt UND bereits "ai:analyzed" traegt
 # (Label-Kette aus AGENTS.md: analysiert -> freigegeben -> Umsetzung als PR).
 # Fuehrt die Schritte 1-4 aus .ai-knowledge/ticket-implementation.md aus (zuweisen, Analyse
-# re-verifizieren, umsetzen, PR mit "Closes #" erstellen). Der Kreuzverhoer-Review laeuft als
-# eigener Workflow (claude-pr-review.yml).
+# re-verifizieren, umsetzen, PR mit "Closes #" erstellen). Der erstellte PR erhaelt das Label
+# "ai:needs-review", woraufhin der Kreuzverhoer-Review (claude-pr-review.yml) ihn aufgreift.
 #
 # Nutzt fuer GitHub-Operationen ein kurzlebiges GitHub-App-Token, damit der erstellte PR den
 # Review-Workflow ausloest (mit dem Standard-GITHUB_TOKEN wuerde er das nicht -> Schleifenschutz).
@@ -74,6 +74,9 @@ jobs:
               3. Auf eigenem Branch umsetzen (Projekt-Konventionen, danach `pnpm format` + Lint).
               4. Committen, Branch pushen, PR ERSTELLEN (ready to review, KEIN Draft) mit
                  `Closes #${{ github.event.issue.number }}` im Body und format-/lint-Ergebnissen.
+                 Dann das Label `ai:needs-review` am PR setzen (`gh pr edit <pr-nr> --add-label
+                 ai:needs-review`; Label bei Bedarf vorher `gh label create "ai:needs-review"
+                 --color 1D76DB`), damit der Kreuzverhör-Review (claude-pr-review.yml) ihn aufgreift.
 
             Idempotenz: Ist das Issue bereits dir zugewiesen oder existiert bereits ein offener
             PR mit `Closes #${{ github.event.issue.number }}`, NICHT erneut umsetzen — Lauf beenden.

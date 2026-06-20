@@ -74,11 +74,13 @@ formales Approve/Request-Changes — der Merge bleibt beim Menschen. Vollständi
 [.ai-knowledge/pr-review.md](.ai-knowledge/pr-review.md).
 Konkreter Command: `/kreuzverhoer-review`.
 
-In **GitHub Actions** wird ein review-bereiter PR automatisch kreuzverhört
-([`.github/workflows/claude-pr-review.yml`](.github/workflows/claude-pr-review.yml)); die Findings
-setzt [`.github/workflows/claude-pr-fixup.yml`](.github/workflows/claude-pr-fixup.yml) um und stößt
-über den Push einen erneuten Review an (Loop bis 🟢). Diese Workflows nutzen ein
-GitHub-App-Token (Secrets `APP_ID` + `APP_PRIVATE_KEY`), damit die Stufen kaskadieren.
+In **GitHub Actions** läuft das über **Labels** (stabiles Ping-Pong statt Event-Kaskaden): Der
+Umsetzungs-Workflow labelt den PR mit `ai:needs-review`;
+[`claude-pr-review.yml`](.github/workflows/claude-pr-review.yml) reviewt ihn und setzt
+`ai:needs-changes` (Findings) bzw. `ai:ready-to-merge` (🟢);
+[`claude-pr-fixup.yml`](.github/workflows/claude-pr-fixup.yml) arbeitet `ai:needs-changes` ab und
+schaltet zurück auf `ai:needs-review` — bis 🟢. Diese Workflows nutzen ein GitHub-App-Token
+(Secrets `APP_ID` + `APP_PRIVATE_KEY`), damit die Label-Wechsel die Folge-Workflows auslösen.
 
 Die im Review entstehenden Kommentare werden vom Umsetzungs-Workflow (`/implement-ticket`,
 Schritt 5) im **Kreuzverhör-Loop** abgearbeitet — der den PR zusätzlich **abonniert und automatisch
