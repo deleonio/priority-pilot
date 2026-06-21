@@ -17,7 +17,9 @@ import '../node_modules/@public-ui/theme-default/assets/fontawesome-free/css/fon
 import '../node_modules/@public-ui/theme-default/assets/fontawesome-free/css/solid.min.css';
 import './app.css';
 
-// Farbschema vor dem ersten Render synchron anwenden (Anti-FOUC), bevor React/KoliBri startet.
+// Farbschema vor dem ersten Render absichern. Der eigentliche Anti-FOUC-Anstrich passiert bereits
+// im Inline-Bootstrap in index.html (vor dem CSS-Paint); dieser Aufruf ist idempotent und greift
+// als Fallback, falls der Inline-Bootstrap fehlt, und hält die Wahl mit dem useTheme-Hook konsistent.
 applyInitialTheme();
 
 const container = document.getElementById('root');

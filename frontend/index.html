@@ -5,6 +5,28 @@
 		<link rel="icon" type="image/svg+xml" href="/icon.svg" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<title>Priority Pilot</title>
+		<!--
+			Anti-FOUC-Bootstrap: setzt `data-theme`/`color-scheme` synchron auf <html>, BEVOR das
+			(im Prod-Build als <link> extrahierte) app.css paintet und bevor das deferred Entry-Modul
+			läuft. So sieht ein Nutzer mit gespeichertem Dunkel-Modus keinen kurzen Hell-Blitz.
+			Schlüssel/Logik spiegeln src/lib/theme.ts (STORAGE_KEY 'pp-theme'); der useTheme-Hook
+			übernimmt danach die Live-Steuerung. Bewusst inline + ohne Abhängigkeiten, damit es vor
+			allem anderen greift; Fehler werden geschluckt, der App-Start ist nie blockiert.
+		-->
+		<script>
+			(function () {
+				try {
+					var stored = localStorage.getItem('pp-theme');
+					var preference = stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system';
+					var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+					var resolved = preference === 'system' ? (prefersDark ? 'dark' : 'light') : preference;
+					document.documentElement.dataset.theme = resolved;
+					document.documentElement.style.colorScheme = resolved;
+				} catch (e) {
+					/* localStorage/matchMedia evtl. blockiert — dann greift das Hell-Standard-Theme. */
+				}
+			})();
+		</script>
 	</head>
 	<body>
 		<div id="root"></div>
