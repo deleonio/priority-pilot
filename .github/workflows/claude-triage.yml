@@ -66,8 +66,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Standard-Pfad (Claude): laeuft, solange die Repo-Variable AI_AGENT NICHT auf "mistral"
+      # steht (also auch ungesetzt -> Claude bleibt Default). Umschalten auf den Mistral-Pfad:
+      # `gh variable set AI_AGENT --body mistral` (zurueck: `gh variable set AI_AGENT --body claude`).
       - name: Triage via Claude Code
         id: claude
+        if: vars.AI_AGENT != 'mistral'
         uses: anthropics/claude-code-action@v1
         env:
           # Stellt sicher, dass die `gh`-Aufrufe im Triage-Ablauf authentifiziert sind.
@@ -103,7 +107,58 @@ jobs:
             --allowedTools "Bash(gh issue:*),Bash(gh api:*),Bash(gh label:*),Read,Grep,Glob"
             --append-system-prompt "Automatisierter, durch das Anlegen des Issues bzw. das Entfernen des ai:analyzed-Labels autorisierter Triage-Lauf in GitHub Actions (headless, keine interaktive Rueckfrage moeglich). Die in der Wissensbasis geforderte Bestaetigung vor dem oeffentlichen Posten gilt durch diesen Ausloeser als erteilt: Poste Lektorat, Analyse-Kommentar und Labels direkt fuer Issue #${{ github.event.issue.number }}, ohne auf eine Bestaetigung zu warten. Bearbeite ausschliesslich dieses Issue und committe keinen Produktivcode."
 
-      # Bei hartem Timeout (Claude-Schritt cancelled) ist das Issue zu gross, um es in einem Lauf zu
+      # Mistral-Pfad (AI_AGENT == 'mistral'): Vibe laeuft headless OHNE Approval-Callback — ohne
+      # erzwungenes Auto-Approve wuerde jedes genehmigungspflichtige Tool (gh/git/pnpm/Datei-Writes)
+      # als "Tool execution not permitted" uebersprungen. default_agent=auto-approve setzt
+      # bypass_tool_permissions=true; ~/.vibe/config.toml ist der Default-Konfig-Ort (VIBE_HOME).
+      - name: Vibe-Konfig (Headless Auto-Approve)
+        if: vars.AI_AGENT == 'mistral'
+        run: |
+          mkdir -p "$HOME/.vibe"
+          cat > "$HOME/.vibe/config.toml" <<'EOF'
+          default_agent = "auto-approve"
+          bypass_tool_permissions = true
+          EOF
+
+      # Spiegelt den Claude-Schritt: gleicher Ablauf, anderer Agent. Die Vibe-Action reicht KEINE
+      # Extra-Flags durch (kein --model/--allowedTools/--append-system-prompt) — daher werden die
+      # System-Prompt-Regeln als fuehrender [KONTEXT]-Block in den prompt gefaltet; eine
+      # Tool-Restriktion wie bei Claude ist hier nicht erzwingbar (Auto-Approve gibt alle Tools frei).
+      - name: Triage via Mistral Vibe
+        id: mistral
+        if: vars.AI_AGENT == 'mistral'
+        uses: mistralai/mistral-vibe@v2.17.1
+        env:
+          # gh nutzt GH_TOKEN; im Triage genuegt das Standard-Token (Issues schreiben).
+          GH_TOKEN: ${{ github.token }}
+        with:
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          prompt: |
+            [KONTEXT/REGELN] Automatisierter, durch das Anlegen des Issues bzw. das Entfernen des
+            ai:analyzed-Labels autorisierter Triage-Lauf in GitHub Actions (headless, keine
+            interaktive Rueckfrage moeglich). Die in der Wissensbasis geforderte Bestaetigung vor
+            dem oeffentlichen Posten gilt durch diesen Ausloeser als erteilt. Nutze fuer
+            GitHub-Operationen ausschliesslich die `gh`-CLI; committe keinen Produktivcode und
+            bearbeite ausschliesslich Issue #${{ github.event.issue.number }}.
+
+            Issue #${{ github.event.issue.number }} wurde soeben angelegt bzw. das Label
+            "ai:analyzed" wurde entfernt und damit eine (Neu-)Analyse (Triage) angefordert.
+
+            Fuehre fuer GENAU DIESES EINE Issue (#${{ github.event.issue.number }}) den
+            Ticket-Triage-Workflow aus der Wissensbasis aus — verbindlicher Ablauf:
+            .ai-knowledge/ticket-triage.md (entspricht dem Slash-Command
+            `/triage-ticket ${{ github.event.issue.number }}`).
+
+            Trifft bereits eine fruehere KI-Analyse als Kommentar zu (Re-Triage), diese nicht
+            unveraendert uebernehmen, sondern auf Passung und Vollstaendigkeit pruefen und bei
+            Bedarf aktualisieren/ergaenzen. Dann wie im Ablauf: Beschreibung lektorieren (Inhalt
+            unveraendert), Loesungs-Kommentar auf Deutsch mit Umsetzbarkeits-Ampel
+            (gruen/gelb/rot) posten und Labels gemaess Ampel setzen (`ai:analyzed`; bei gruen
+            zusaetzlich `ai:ready`, bei gelb/rot kein `ai:ready`).
+
+            Bearbeite ausschliesslich dieses eine Issue (kein Batch). Committe keinen Produktivcode.
+
+      # Bei hartem Timeout (Agent-Schritt cancelled) ist das Issue zu gross, um es in einem Lauf zu
       # analysieren: mit "ai:to-big-issue" markieren (Kandidat zum Aufteilen) und ein evtl.
       # vorhandenes "ai:ready" entfernen. Laeuft im Cancellation-Grace-Fenster (if: always(), ~5 Min).
       # Zeit-Guard (WICHTIG bei cancel-in-progress: true): nur labeln, wenn der Lauf das 20-Min-Limit
@@ -111,7 +166,7 @@ jobs:
       # (Concurrency-Supersede) erzeugt ebenfalls outcome=cancelled, passiert aber frueher und faellt
       # so heraus — sonst wuerde ein nur ueberholtes Issue faelschlich als "zu gross" markiert.
       - name: Bei Timeout als zu gross markieren (ai:to-big-issue)
-        if: always() && steps.claude.outcome == 'cancelled'
+        if: always() && (steps.claude.outcome == 'cancelled' || steps.mistral.outcome == 'cancelled')
         env:
           GH_TOKEN: ${{ github.token }}
           ISSUE: ${{ github.event.issue.number }}
@@ -136,15 +191,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           ISSUE: ${{ github.event.issue.number }}
-          OUTCOME: ${{ steps.claude.outcome }}
+          AGENT: ${{ vars.AI_AGENT == 'mistral' && 'Mistral' || 'Claude' }}
+          # Outcome des tatsaechlich gelaufenen Agent-Schritts (der andere ist 'skipped').
+          OUTCOME: ${{ steps.claude.outcome != 'skipped' && steps.claude.outcome || steps.mistral.outcome }}
           SESSION_ID: ${{ steps.claude.outputs.session_id }}
         run: |
           labels="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
           {
             echo "### Triage #${ISSUE} — fertig"
             echo ""
-            echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\` (cancelled = 20-Min-Timeout erreicht)"
+            echo "- ${AGENT}-Schritt: \`${OUTCOME:-unbekannt}\` (cancelled = 20-Min-Timeout erreicht)"
             echo "- Aktuelle Labels: ${labels:-keine}"
             if [ -n "$SESSION_ID" ]; then echo "- Session-ID: \`${SESSION_ID}\` (\`--resume\` zum Nachschauen)"; fi
           } >> "$GITHUB_STEP_SUMMARY"
-          echo "::notice title=Triage #${ISSUE} fertig::Claude-Schritt ${OUTCOME:-unbekannt}; Labels: ${labels:-keine}"
+          echo "::notice title=Triage #${ISSUE} fertig::${AGENT}-Schritt ${OUTCOME:-unbekannt}; Labels: ${labels:-keine}"

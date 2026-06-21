@@ -22,6 +22,44 @@ Wissensbasis liegt in [`.ai-knowledge/`](.ai-knowledge/).
 - Alle Pull Requests müssen `pnpm format` und `pnpm lint` ausführen und die Ergebnisse in der
   PR-Beschreibung dokumentieren.
 
+## KI-Agent: Claude (Standard) oder Mistral Vibe
+
+Alle KI-Workflows (Triage, Re-Triage, Umsetzung, PR-Review, PR-Fixup) laufen wahlweise mit
+**Claude Code** (Standard) oder **Mistral Vibe** — gesteuert über die Repository-Variable
+**`AI_AGENT`**:
+
+- nicht gesetzt **oder** `claude` → Claude Code (`anthropics/claude-code-action`, Secret
+  `CLAUDE_CODE_OAUTH_TOKEN`).
+- `mistral` → Mistral Vibe (`mistralai/mistral-vibe`, Secret **`MISTRAL_API_KEY`** nötig).
+
+Umschalten (gilt sofort für **alle** KI-Workflows, keine Datei-Änderung nötig):
+
+```bash
+gh variable set AI_AGENT --body mistral   # auf Mistral Vibe
+gh variable set AI_AGENT --body claude     # zurück auf Claude (oder Variable löschen)
+```
+
+**Voraussetzung Mistral-Pfad:** Repo-Secret `MISTRAL_API_KEY` (aus <https://console.mistral.ai>,
+separat vom Server-LLM-Key). Steht `AI_AGENT=mistral`, fehlt aber der Key, schlägt der Vibe-Schritt
+fehl (kein stiller Skip — der Mistral-Pfad ist ein bewusstes Opt-in).
+
+**Bewusste Unterschiede / Grenzen des Mistral-Pfads** (die Vibe-Action reicht keine Extra-Flags
+wie `--model`/`--allowedTools`/`--append-system-prompt` durch):
+
+- **Auto-Approve erzwungen:** Headless ohne Approval-Callback würde Vibe jedes
+  genehmigungspflichtige Tool als „Tool execution not permitted" überspringen. Ein Vorab-Schritt
+  schreibt daher `~/.vibe/config.toml` mit `default_agent = "auto-approve"` /
+  `bypass_tool_permissions = true`. Folge: Der Mistral-Pfad läuft mit **vollem Tool-Zugriff** — die
+  enge `--allowedTools`-Restriktion des Claude-Pfads ist hier **nicht erzwingbar**; die Grenzen
+  setzt der Prompt (z. B. „committe keinen Produktivcode", im Review „ändere keinen Code").
+- **Modell:** nicht pro Workflow wählbar; Vibe nutzt sein Default-Modell. Pinnen ginge über
+  `~/.vibe/config.toml` (`active_model`).
+- **System-Prompt:** wird als führender `[KONTEXT/REGELN]`-Block in den `prompt` gefaltet.
+- **Keine `session_id`/`--resume`** in der Job-Summary. Das harte 20-Min-Timeout
+  (`ai:to-big-issue`) greift unverändert über `timeout-minutes` + Schritt-`outcome`.
+
+Der Canceller `claude-pr-cancel.yml` ist agent-unabhängig (reiner `gh`-Aufruf) und unverändert.
+
 ## Ticket-Triage
 
 Offene Issues **ohne** Label `ai:analyzed` analysieren (aus Titel + Beschreibung + Repo eine
