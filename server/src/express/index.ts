@@ -2,6 +2,8 @@ import express from 'express';
 import type { components } from '../api';
 import { tasksRouter, serializeTask } from './routes/tasks.js';
 import { pillarsRouter } from './routes/pillars.js';
+import { createSuggestPillarsRouter } from './routes/suggestPillars.js';
+import type { PillarClassifier } from '../llm/mistral.js';
 import { buildTaskForest } from '../logics/tree.js';
 import { findNextImportantTask } from '../logics/find.js';
 
@@ -11,7 +13,12 @@ type TaskTreeNodeDto = components['schemas']['TaskTreeNode'];
 type TaskDto = components['schemas']['Task'];
 type ErrorDto = components['schemas']['Error'];
 
-export const createApp = () => {
+/** Injizierbare Abhängigkeiten — erlaubt es Tests, den Mistral-Aufruf zu mocken. */
+export interface AppDeps {
+	pillarClassifier?: PillarClassifier;
+}
+
+export const createApp = (deps: AppDeps = {}) => {
 	const app = express();
 	app.use(express.json());
 
@@ -20,6 +27,9 @@ export const createApp = () => {
 
 	// Säulen-Routen: Gewichtung lesen/setzen (siehe routes/pillars.ts).
 	app.use(pillarsRouter);
+
+	// Mistral-gestützte Säulen-Klassifikation (siehe routes/suggestPillars.ts).
+	app.use(createSuggestPillarsRouter(deps.pillarClassifier));
 
 	// GET /forest — Aufgabenwald nach Wertschöpfung sortiert.
 	app.get('/forest', async (_req, res: express.Response<TaskTreeNodeDto[] | ErrorDto>) => {
