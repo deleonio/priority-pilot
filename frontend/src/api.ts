@@ -4,7 +4,9 @@ import type {
 	DependencyInput,
 	paths,
 	Pillar,
+	PillarSuggestion,
 	PillarWeightsInput,
+	SuggestPillarsInput,
 	Task,
 	TaskCreate,
 	TaskTreeNode,
@@ -129,5 +131,16 @@ export const api = {
 			throw new ResponseError(response);
 		}
 		return data;
+	},
+
+	async suggestPillars({
+		suggestPillarsInput,
+		signal,
+	}: { suggestPillarsInput: SuggestPillarsInput } & Init): Promise<PillarSuggestion[]> {
+		const { data, response } = await client.POST('/tasks/suggest-pillars', { body: suggestPillarsInput, signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response);
+		}
+		return data.suggestions;
 	},
 };

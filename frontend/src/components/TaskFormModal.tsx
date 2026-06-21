@@ -6,6 +6,7 @@ import {
 	KolInputRange,
 	KolInputText,
 	KolSingleSelect,
+	KolSpin,
 	KolTextarea,
 } from '@public-ui/react-v19';
 import type { Pillar, Task, TaskCreate, TaskPillarContribution, TaskUpdate } from 'client';
@@ -14,7 +15,14 @@ import { useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { readNumber, readString } from '../lib/inputValue';
-import { ADD_PILLAR_PLACEHOLDER, addPillarOptions, isWeightSumValid, sumWeights, TOTAL_WEIGHT } from '../lib/pillar';
+import {
+	ADD_PILLAR_PLACEHOLDER,
+	addPillarOptions,
+	isWeightSumValid,
+	suggestionsToContributions,
+	sumWeights,
+	TOTAL_WEIGHT,
+} from '../lib/pillar';
 import { STATUS_OPTIONS, deadlineToDateInput, formatNumber } from '../lib/task';
 import { Modal } from './Modal';
 
@@ -60,7 +68,13 @@ export const TaskFormModal = ({ task, pillars, onClose, onSaved }: TaskFormModal
 	const [error, setError] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);
 
+	// KI-Säulen-Vorschlag: eigener Lade-/Fehlerzustand, damit ein Vorschlags-Fehler den Speichern-Fluss
+	// nicht stört (und umgekehrt).
+	const [suggesting, setSuggesting] = useState(false);
+	const [suggestError, setSuggestError] = useState<string | null>(null);
+
 	const pillarNameById = useMemo(() => new Map(pillars.map((pillar) => [pillar.id, pillar.name])), [pillars]);
+	const pillarIds = useMemo(() => new Set(pillars.map((pillar) => pillar.id)), [pillars]);
 	// Nur noch nicht zugeordnete Säulen lassen sich hinzufügen (jede Säule höchstens einmal pro Task).
 	const availablePillars = pillars.filter((pillar) => !contributions.some((entry) => entry.pillarId === pillar.id));
 	const shareSum = sumWeights(contributions.map((entry) => entry.share));
@@ -81,6 +95,36 @@ export const TaskFormModal = ({ task, pillars, onClose, onSaved }: TaskFormModal
 
 	const removePillar = (pillarId: number): void =>
 		setContributions((prev) => prev.filter((entry) => entry.pillarId !== pillarId));
+
+	// Holt per KI (Server-Endpoint) einen Säulen-Vorschlag aus Titel/Beschreibung und übernimmt ihn als
+	// editierbare Beiträge. Der Nutzer kann den Vorschlag anschließend über die vorhandenen Slider/
+	// Hinzufügen/Entfernen-Bedienelemente korrigieren, bevor er speichert.
+	const suggestPillars = async (): Promise<void> => {
+		const title = form.current.title.trim();
+		if (title === '') {
+			setSuggestError('Bitte zuerst einen Titel angeben, dann lassen sich Säulen vorschlagen.');
+			return;
+		}
+		setSuggestError(null);
+		setSuggesting(true);
+		try {
+			const description = form.current.description.trim();
+			const suggestions = await api.suggestPillars({
+				suggestPillarsInput: { title, description: description === '' ? undefined : description },
+			});
+			const next = suggestionsToContributions(suggestions, pillarIds);
+			if (next.length === 0) {
+				setSuggestError('Es konnte keine passende Säule vorgeschlagen werden.');
+				return;
+			}
+			setContributions(next);
+		} catch (reason) {
+			const apiError = await toApiError(reason);
+			setSuggestError(apiError.message);
+		} finally {
+			setSuggesting(false);
+		}
+	};
 
 	const submit = async (): Promise<void> => {
 		const title = form.current.title.trim();
@@ -248,7 +292,25 @@ export const TaskFormModal = ({ task, pillars, onClose, onSaved }: TaskFormModal
 			</div>
 			{/* Säulen-Beiträge: der Task verteilt 100 % seines Anteils auf 0..n Säulen, je mit Konfidenz. */}
 			<div className="pillar-editor">
-				<span className="pillar-editor-label">Säulen (optional)</span>
+				<div className="pillar-editor-head">
+					<span className="pillar-editor-label">Säulen (optional)</span>
+					<KolButton
+						_label={suggesting ? 'Säulen werden vorgeschlagen…' : 'Säulen vorschlagen'}
+						_variant="secondary"
+						_disabled={saving || suggesting}
+						_on={{ onClick: () => void suggestPillars() }}
+					/>
+				</div>
+				{suggesting && (
+					<div className="pillar-editor-loading">
+						<KolSpin _show _variant="cycle" _label="Säulen-Vorschlag wird geladen" />
+					</div>
+				)}
+				{suggestError !== null && (
+					<KolAlert _type="error" _label="Vorschlag fehlgeschlagen">
+						{suggestError}
+					</KolAlert>
+				)}
 				{contributions.length === 0 ? (
 					<p className="hint">Keine Säule zugeordnet – der Task bleibt wertneutral.</p>
 				) : (
@@ -316,7 +378,7 @@ export const TaskFormModal = ({ task, pillars, onClose, onSaved }: TaskFormModal
 				<KolButton
 					_label={saving ? 'Speichern…' : 'Speichern'}
 					_variant="primary"
-					_disabled={saving}
+					_disabled={saving || suggesting}
 					_on={{ onClick: () => void submit() }}
 				/>
 				<KolButton _label="Abbrechen" _variant="secondary" _disabled={saving} _on={{ onClick: () => onClose() }} />
