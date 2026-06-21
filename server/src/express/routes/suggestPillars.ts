@@ -134,12 +134,14 @@ export const createSuggestPillarsRouter = (classifier: PillarClassifier = classi
 				return;
 			}
 
-			let examples: FeedbackExample[];
+			// Feedback ist Best-Effort (#45): die Korrektur-Tabelle ist ein optionales Nice-to-have. Ein
+			// Lesefehler (z. B. eine fehlerhafte Altzeile) darf die funktionierende Kern-Klassifikation
+			// nicht mit HTTP 500 reißen — in diesem Fall ohne gelernte Beispiele weiterklassifizieren.
+			let examples: FeedbackExample[] = [];
 			try {
 				examples = await loadFeedbackExamples();
-			} catch {
-				sendError(res, 500, 'Interner Serverfehler.');
-				return;
+			} catch (error) {
+				console.warn('Feedback-Beispiele konnten nicht geladen werden — klassifiziere ohne sie.', error);
 			}
 
 			try {
@@ -167,36 +169,33 @@ export const createSuggestPillarsRouter = (classifier: PillarClassifier = classi
 
 	// POST /tasks/suggest-pillars/feedback — bestätigte/korrigierte Säulen-Zuordnung als Sample
 	// speichern (Feedback-Loop, #45). Verbessert nachvollziehbar die nachfolgenden Vorschläge.
-	router.post(
-		'/tasks/suggest-pillars/feedback',
-		async (req: Request, res: Response<{ id: number } | ErrorDto>) => {
-			let pillars: Pillar[];
-			try {
-				pillars = await Pillar.findAll({ attributes: ['id'] });
-			} catch {
-				sendError(res, 500, 'Interner Serverfehler.');
-				return;
-			}
-			const validIds = new Set(pillars.map((pillar) => pillar.id));
+	router.post('/tasks/suggest-pillars/feedback', async (req: Request, res: Response<{ id: number } | ErrorDto>) => {
+		let pillars: Pillar[];
+		try {
+			pillars = await Pillar.findAll({ attributes: ['id'] });
+		} catch {
+			sendError(res, 500, 'Interner Serverfehler.');
+			return;
+		}
+		const validIds = new Set(pillars.map((pillar) => pillar.id));
 
-			const validation = validateFeedbackBody(req.body, validIds);
-			if (!validation.ok) {
-				sendError(res, 400, validation.message);
-				return;
-			}
+		const validation = validateFeedbackBody(req.body, validIds);
+		if (!validation.ok) {
+			sendError(res, 400, validation.message);
+			return;
+		}
 
-			try {
-				const created = await PillarFeedback.create({
-					title: validation.value.title,
-					description: validation.value.description ?? null,
-					pillars: validation.value.pillars,
-				});
-				res.status(201).json({ id: created.id });
-			} catch {
-				sendError(res, 500, 'Interner Serverfehler.');
-			}
-		},
-	);
+		try {
+			const created = await PillarFeedback.create({
+				title: validation.value.title,
+				description: validation.value.description ?? null,
+				pillars: validation.value.pillars,
+			});
+			res.status(201).json({ id: created.id });
+		} catch {
+			sendError(res, 500, 'Interner Serverfehler.');
+		}
+	});
 
 	return router;
 };

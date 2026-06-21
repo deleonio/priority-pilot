@@ -127,6 +127,10 @@ const clampConfidence = (value: unknown): number => {
 	return Math.min(100, Math.max(0, Math.round(numeric)));
 };
 
+/** Bestimmt die pillarIds der „weichen" Säulen (Sinn / Mentale Gesundheit) aus der gültigen Säulen-Liste. */
+const weakSignalPillarIds = (pillars: { id: number; name: string }[]): Set<number> =>
+	new Set(pillars.filter((pillar) => WEAK_SIGNAL_PILLARS.includes(pillar.name)).map((pillar) => pillar.id));
+
 /** Baut die Nutzer-Nachricht aus Task-Daten und gültiger Säulen-Liste. */
 const buildUserMessage = (input: ClassifyPillarsInput): string => {
 	const pillarList = input.pillars.map((pillar) => `  - pillarId ${pillar.id}: ${pillar.name}`).join('\n');
@@ -176,14 +180,24 @@ const fewShotMessages = (pillars: { id: number; name: string }[]): { role: strin
  * Wandelt die aus Nutzer-Korrekturen gelernten Beispiele in user/assistant-Paare. Anders als die
  * statischen {@link FEW_SHOT}-Beispiele referenzieren sie die Säulen direkt über `pillarId`; Beiträge
  * zu nicht (mehr) gültigen Säulen werden verworfen, ebenso Beispiele ohne verbleibende Säule
- * (kein leeres `{ pillars: [] }`-Sample, das das Modell zur Enthaltung verleiten würde).
+ * (kein leeres `{ pillars: [] }`-Sample, das das Modell zur Enthaltung verleiten würde). Die Konfidenz
+ * der schwachen Säulen wird — analog zu {@link extractSuggestions} — auf das Ceiling gedeckelt, damit
+ * eine vom Nutzer bestätigte Säule (oft `confidence: 100`) das In-Context-Signal nicht über die
+ * System-Prompt-Regel „Sinn/Mentale Gesundheit ≤ Ceiling" hinaus hochzieht (siehe #45).
  */
 const feedbackMessages = (input: ClassifyPillarsInput): { role: string; content: string }[] => {
 	const validIds = new Set(input.pillars.map((pillar) => pillar.id));
+	const ceilingPillarIds = weakSignalPillarIds(input.pillars);
 	return (input.examples ?? []).flatMap((example) => {
 		const resolved = example.pillars
 			.filter((entry) => validIds.has(entry.pillarId))
-			.map((entry) => ({ pillarId: entry.pillarId, confidence: clampConfidence(entry.confidence) }));
+			.map((entry) => {
+				const clamped = clampConfidence(entry.confidence);
+				const confidence = ceilingPillarIds.has(entry.pillarId)
+					? Math.min(clamped, WEAK_SIGNAL_CONFIDENCE_CEILING)
+					: clamped;
+				return { pillarId: entry.pillarId, confidence };
+			});
 		if (resolved.length === 0) {
 			return [];
 		}
@@ -206,9 +220,7 @@ const extractSuggestions = (parsed: unknown, input: ClassifyPillarsInput): Pilla
 		throw new MistralRequestError('Antwort des Modells hat nicht das erwartete Format ({ pillars: [...] }).');
 	}
 	const validIds = new Map(input.pillars.map((pillar) => [pillar.id, pillar.name]));
-	const ceilingPillarIds = new Set(
-		input.pillars.filter((pillar) => WEAK_SIGNAL_PILLARS.includes(pillar.name)).map((pillar) => pillar.id),
-	);
+	const ceilingPillarIds = weakSignalPillarIds(input.pillars);
 
 	const suggestions: PillarSuggestion[] = [];
 	const seen = new Set<number>();

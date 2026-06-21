@@ -98,6 +98,28 @@ describe('POST /tasks/suggest-pillars', () => {
 		assert.deepEqual(marathon?.pillars, [{ pillarId: pillars[0].id, confidence: 95 }]);
 	});
 
+	it('degradiert graceful: ein Lesefehler der Feedback-Tabelle liefert trotzdem 200 (ohne Beispiele)', async () => {
+		const pillars = await seedPillars();
+		const expected: PillarSuggestion[] = [{ pillarId: pillars[0].id, confidence: 80 }];
+		classifierImpl = async () => expected;
+
+		// Best-Effort: das Laden der optionalen Korrektur-Tabelle schlägt fehl …
+		const originalFindAll = PillarFeedback.findAll;
+		PillarFeedback.findAll = (async () => {
+			throw new Error('pillar_feedback kaputt');
+		}) as typeof PillarFeedback.findAll;
+		try {
+			const res = await post(server.baseUrl, { title: 'Joggen gehen' });
+			// … die Kern-Klassifikation bleibt funktionsfähig (kein HTTP 500).
+			assert.equal(res.status, 200);
+			assert.deepEqual(await res.json(), { suggestions: expected });
+			// … und der Klassifikator erhält schlicht keine gelernten Beispiele.
+			assert.deepEqual(lastInput?.examples, []);
+		} finally {
+			PillarFeedback.findAll = originalFindAll;
+		}
+	});
+
 	it('400 wenn title fehlt oder leer ist', async () => {
 		await seedPillars();
 		assert.equal((await post(server.baseUrl, {})).status, 400);
@@ -363,6 +385,45 @@ describe('classifyPillarsWithMistral (Unit, gemockter fetch)', () => {
 		assert.ok(
 			!messages.some((message) => message.content.includes('Nur Müll')),
 			'ein Beispiel ohne gültige Säule wird gar nicht angehängt',
+		);
+	});
+
+	it('deckelt die Konfidenz der schwachen Säulen auch in gelernten Feedback-Beispielen auf 60', async () => {
+		process.env.MISTRAL_API_KEY = 'test-key';
+		let sentBody: { messages: { role: string; content: string }[] } | undefined;
+		globalThis.fetch = (async (_url: string, init: { body: string }) => {
+			sentBody = JSON.parse(init.body);
+			return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ pillars: [] }) } }] }), {
+				status: 200,
+				headers: { 'Content-Type': 'application/json' },
+			});
+		}) as unknown as typeof fetch;
+
+		await classifyPillarsWithMistral({
+			...input,
+			examples: [
+				{
+					title: 'Sinn bestätigt',
+					pillars: [
+						{ pillarId: 3, confidence: 100 }, // Sinn → auf 60 gedeckelt
+						{ pillarId: 4, confidence: 90 }, // Mentale Gesundheit → auf 60 gedeckelt
+						{ pillarId: 1, confidence: 95 }, // Körper → unverändert
+					],
+				},
+			],
+		});
+
+		const messages = sentBody?.messages ?? [];
+		const expectedAssistant = JSON.stringify({
+			pillars: [
+				{ pillarId: 3, confidence: 60 },
+				{ pillarId: 4, confidence: 60 },
+				{ pillarId: 1, confidence: 95 },
+			],
+		});
+		assert.ok(
+			messages.some((message) => message.role === 'assistant' && message.content === expectedAssistant),
+			'die gelernte assistant-Antwort deckelt Sinn/Mentale Gesundheit auf 60, lässt Körper unverändert',
 		);
 	});
 });
