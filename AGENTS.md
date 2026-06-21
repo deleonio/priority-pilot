@@ -68,6 +68,12 @@ einem **harten Zeitlimit von `timeout-minutes: 20`**; der Prompt weist Claude an
 Limit (~18 Min) rechtzeitig den Zwischenstand zu sichern (committen/pushen, ggf. Draft-PR), statt
 einen vollen Durchlauf zu erzwingen.
 
+Läuft ein Issue-Job (Umsetzung, Triage, Re-Triage) dennoch in den 20-Minuten-Timeout, ist das Issue
+zu groß für einen Lauf: Der Job setzt am Issue das Label **`ai:to-big-issue`** (und die Umsetzung
+entfernt zusätzlich `ai:ready`, damit es nicht erneut aufgegriffen wird) — als Kandidat zum
+**Aufteilen** in Sub-Issues (Triage-Schritt „Zerlegen"). Die PR-Workflows (Review/Fixup) teilen sich
+dasselbe 20-Minuten-Limit, vergeben aber kein Issue-Label.
+
 Label-Kette: `ai:analyzed` (analysiert) → `ai:ready` (freigegeben — bei 🟢 automatisch durch die
 Triage, sonst durch den Menschen) → Umsetzung als PR (ready to review), der den Kreuzverhör-Loop
 (`/kreuzverhoer-review`) durchläuft und bis Merge/Schließen verfolgt wird.

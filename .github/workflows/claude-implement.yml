@@ -38,6 +38,13 @@ jobs:
       contents: read # Checkout (Schreibzugriff laeuft ueber das App-Token)
       id-token: write # OIDC-Token der Action (sonst fehlt ACTIONS_ID_TOKEN_REQUEST_URL)
     steps:
+      # Startzeit fuer die Timeout-Erkennung: nur ein nahezu vollstaendig ausgeschoepfter Lauf
+      # (>= 18 Min) gilt als Timeout (-> ai:to-big-issue). Ein frueher Abbruch (z. B. manueller
+      # Cancel) erzeugt zwar ebenfalls outcome=cancelled, liegt aber deutlich unter der Schwelle.
+      - name: Startzeit merken (fuer Timeout-Erkennung)
+        id: starttime
+        run: echo "epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
+
       - name: Voraussetzung pruefen (GitHub-App-Secrets)
         id: preflight
         env:
@@ -130,6 +137,30 @@ jobs:
             --model claude-opus-4-8 --effort medium
             --allowedTools "Bash(gh issue:*),Bash(gh pr:*),Bash(gh label:*),Bash(gh api:*),Bash(git switch:*),Bash(git checkout:*),Bash(git branch:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(git fetch:*),Bash(pnpm:*),Read,Edit,Write,Grep,Glob,Skill,Task"
             --append-system-prompt "Automatisierter, durch das Label ai:ready autorisierter Umsetzungs-Lauf in GitHub Actions (headless). Bearbeite ausschliesslich Issue #${{ github.event.issue.number }}, Schritte 1-4 der Umsetzung; KEIN PR-Abo/Kreuzverhoer-Loop (separater Workflow). HARTES 20-Minuten-Timeout: sichere bei drohendem Limit (~18 Min) rechtzeitig den Zwischenstand (committen/pushen, ggf. Draft-PR), statt einen vollen Durchlauf zu erzwingen. Bestaetigung gilt durch ai:ready als erteilt; arbeite autonom ohne interaktive Rueckfrage."
+
+      # Bei hartem Timeout (Claude-Schritt cancelled) ist das Issue zu gross, um es in einem Lauf
+      # umzusetzen: mit "ai:to-big-issue" markieren (Kandidat zum Aufteilen) und "ai:ready"
+      # entfernen, damit der Umsetzungs-Workflow es nicht erneut aufgreift. Laeuft im
+      # Cancellation-Grace-Fenster (if: always(), bis ~5 Min) — die schnellen gh-Aufrufe passen hinein.
+      # Zeit-Guard: nur labeln, wenn der Lauf das 20-Min-Limit nahezu ausgeschoepft hat (>= 18 Min) —
+      # so faellt ein frueher, ebenfalls cancelled-erzeugender Abbruch (manueller Cancel) heraus.
+      - name: Bei Timeout als zu gross markieren (ai:to-big-issue)
+        if: always() && steps.preflight.outputs.configured == 'true' && steps.claude.outcome == 'cancelled'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ISSUE: ${{ github.event.issue.number }}
+          RUN_START: ${{ steps.starttime.outputs.epoch }}
+        run: |
+          elapsed=$(( $(date +%s) - ${RUN_START:-0} ))
+          if [ "${RUN_START:-0}" -eq 0 ] || [ "$elapsed" -lt 1080 ]; then
+            echo "::notice title=Kein Timeout::Lauf nach ${elapsed}s abgebrochen (< 18 Min) — vermutlich manueller Cancel, kein ai:to-big-issue."
+            exit 0
+          fi
+          gh label create "ai:to-big-issue" --repo "$GITHUB_REPOSITORY" \
+            --color B60205 --description "KI-Job lief in den Timeout — Issue zu gross, bitte aufteilen" 2>/dev/null || true
+          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:to-big-issue"
+          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
+          echo "::warning title=Issue #${ISSUE} zu gross::20-Min-Timeout erreicht (${elapsed}s) — Label ai:to-big-issue gesetzt, ai:ready entfernt; bitte Issue aufteilen."
 
       # Deterministisches Abschluss-Signal (unabhaengig von der LLM-Ausgabe): laeuft auch bei
       # Abbruch/Timeout (if: always()) und macht im Log/Job-Summary klar sichtbar, DASS und mit

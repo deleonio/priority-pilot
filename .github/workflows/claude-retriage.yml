@@ -38,12 +38,17 @@ jobs:
               || github.event.comment.author_association == 'MEMBER'
               || github.event.comment.author_association == 'COLLABORATOR') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     permissions:
       contents: read # Repo auschecken (Slash-Command + Wissensbasis lesen)
       issues: write # Beschreibung lektorieren, Analyse-Kommentar posten, Labels setzen
       id-token: write # OIDC-Token der Action; ohne diese Permission fehlt ACTIONS_ID_TOKEN_REQUEST_URL
     steps:
+      # Startzeit fuer die Timeout-Erkennung (siehe Zeit-Guard im Label-Schritt unten).
+      - name: Startzeit merken (fuer Timeout-Erkennung)
+        id: starttime
+        run: echo "epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -84,9 +89,34 @@ jobs:
             --allowedTools "Bash(gh issue:*),Bash(gh api:*),Bash(gh label:*),Read,Grep,Glob"
             --append-system-prompt "Automatisierter, vom Maintainer per @claude-Kommentar autorisierter Re-Triage-Lauf in GitHub Actions (headless, keine interaktive Rueckfrage moeglich). Die in der Wissensbasis geforderte Bestaetigung vor dem oeffentlichen Posten gilt durch den @claude-Ausloeser als erteilt: Poste Lektorat, Analyse-Kommentar und Labels direkt fuer Issue #${{ github.event.issue.number }}, ohne auf eine Bestaetigung zu warten. Bearbeite ausschliesslich dieses Issue und committe keinen Produktivcode."
 
+      # Bei hartem Timeout (Claude-Schritt cancelled) ist das Issue zu gross, um es in einem Lauf zu
+      # analysieren: mit "ai:to-big-issue" markieren (Kandidat zum Aufteilen) und ein evtl.
+      # vorhandenes "ai:ready" entfernen. Laeuft im Cancellation-Grace-Fenster (if: always(), ~5 Min).
+      # Zeit-Guard (WICHTIG bei cancel-in-progress: true): nur labeln, wenn der Lauf das 20-Min-Limit
+      # nahezu ausgeschoepft hat (>= 18 Min). Ein durch einen neueren @claude-Kommentar verdraengter
+      # Lauf (Concurrency-Supersede) erzeugt ebenfalls outcome=cancelled, passiert aber frueher und
+      # faellt so heraus — sonst wuerde ein nur ueberholtes Issue faelschlich als "zu gross" markiert.
+      - name: Bei Timeout als zu gross markieren (ai:to-big-issue)
+        if: always() && steps.claude.outcome == 'cancelled'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ github.event.issue.number }}
+          RUN_START: ${{ steps.starttime.outputs.epoch }}
+        run: |
+          elapsed=$(( $(date +%s) - ${RUN_START:-0} ))
+          if [ "${RUN_START:-0}" -eq 0 ] || [ "$elapsed" -lt 1080 ]; then
+            echo "::notice title=Kein Timeout::Lauf nach ${elapsed}s abgebrochen (< 18 Min) — vermutlich Supersede/Cancel, kein ai:to-big-issue."
+            exit 0
+          fi
+          gh label create "ai:to-big-issue" --repo "$GITHUB_REPOSITORY" \
+            --color B60205 --description "KI-Job lief in den Timeout — Issue zu gross, bitte aufteilen" 2>/dev/null || true
+          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:to-big-issue"
+          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
+          echo "::warning title=Issue #${ISSUE} zu gross::20-Min-Timeout erreicht (${elapsed}s) — Label ai:to-big-issue gesetzt; bitte Issue aufteilen."
+
       # Deterministisches Abschluss-Signal (unabhaengig von der LLM-Ausgabe): laeuft auch bei
       # Abbruch/Timeout (if: always()) und macht im Log/Job-Summary klar sichtbar, DASS und mit
-      # welchem Ergebnis der Lauf fertig ist. outcome=cancelled signalisiert das 10-Min-Timeout.
+      # welchem Ergebnis der Lauf fertig ist. outcome=cancelled signalisiert das 20-Min-Timeout.
       - name: Ergebnis zusammenfassen
         if: always()
         env:
@@ -99,7 +129,7 @@ jobs:
           {
             echo "### Re-Triage #${ISSUE} — fertig"
             echo ""
-            echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\` (cancelled = 10-Min-Timeout erreicht)"
+            echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\` (cancelled = 20-Min-Timeout erreicht)"
             echo "- Aktuelle Labels: ${labels:-keine}"
             if [ -n "$SESSION_ID" ]; then echo "- Session-ID: \`${SESSION_ID}\` (\`--resume\` zum Nachschauen)"; fi
           } >> "$GITHUB_STEP_SUMMARY"
