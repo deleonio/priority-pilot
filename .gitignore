@@ -1,6 +1,8 @@
 dist/
 node_modules/
 
+.env
+
 # Aus dem API-Vertrag (openapi.yml) generiert – wird per prepare/build erzeugt, nicht versioniert.
 server/src/api.d.ts
 
