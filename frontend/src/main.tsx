@@ -4,6 +4,7 @@ import { DEFAULT } from '@public-ui/theme-default';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { applyInitialTheme } from './lib/theme';
 // KolIcons-Font laden, damit die eingebauten KoliBri-Icons (KolAlert, KolSpin, Selects …) rendern.
 // Direkter Pfad-Import statt Bare-Specifier, weil die `exports`-Map von @public-ui/components den
 // Asset-Subpfad nicht freigibt (siehe doc/HOWTO_ICON_FONTS); Vite bündelt den Font darüber selbst.
@@ -15,6 +16,9 @@ import '../node_modules/@public-ui/components/assets/kolicons/style.css';
 import '../node_modules/@public-ui/theme-default/assets/fontawesome-free/css/fontawesome.min.css';
 import '../node_modules/@public-ui/theme-default/assets/fontawesome-free/css/solid.min.css';
 import './app.css';
+
+// Farbschema vor dem ersten Render synchron anwenden (Anti-FOUC), bevor React/KoliBri startet.
+applyInitialTheme();
 
 const container = document.getElementById('root');
 if (container === null) {
