@@ -22,6 +22,16 @@ type ErrorDto = components['schemas']['Error'];
  */
 const MAX_FEEDBACK_EXAMPLES = 10;
 
+/**
+ * Wie viele jüngste Zeilen maximal aus `pillar_feedback` gescannt werden, um daraus die
+ * {@link MAX_FEEDBACK_EXAMPLES} nicht-leeren Beispiele zu gewinnen. Über-Fetch, weil leere
+ * Korrektur-Samples (alle Vorschläge verworfen → `pillars: []`) zwar ein gültiger Fall sind,
+ * aber als Few-Shot wertlos wären; würden sie das 10er-Fenster belegen, klassifizierte der Loop
+ * still ohne die noch vorhandenen, nützlichen Korrekturen (siehe #45). Der Scan bleibt gedeckelt,
+ * damit eine voll laufende Tabelle den Endpoint nicht ausbremst.
+ */
+const FEEDBACK_SCAN_LIMIT = MAX_FEEDBACK_EXAMPLES * 10;
+
 const sendError = (res: Response<ErrorDto>, status: number, message: string): void => {
 	res.status(status).json({ message });
 };
@@ -95,14 +105,30 @@ const validateFeedbackBody = (
 	};
 };
 
-/** Lädt die jüngsten Korrektur-Samples als gelernte Few-Shot-Beispiele für die Klassifikation. */
+/**
+ * Lädt die jüngsten **nicht-leeren** Korrektur-Samples als gelernte Few-Shot-Beispiele. Leere
+ * Samples (Nutzer hat alle Vorschläge verworfen) werden übersprungen, damit sie das Fenster der
+ * {@link MAX_FEEDBACK_EXAMPLES} nicht belegen und die noch vorhandenen, nützlichen Korrekturen
+ * nicht verdrängen (siehe #45). Dafür wird bis zu {@link FEEDBACK_SCAN_LIMIT} Zeilen über-gefetcht
+ * und erst nach dem Filtern auf die ersten N nicht-leeren begrenzt.
+ */
 const loadFeedbackExamples = async (): Promise<FeedbackExample[]> => {
-	const rows = await PillarFeedback.findAll({ order: [['createdAt', 'DESC']], limit: MAX_FEEDBACK_EXAMPLES });
-	return rows.map((row) => ({
-		title: row.title,
-		description: row.description ?? undefined,
-		pillars: row.pillars.map((entry) => ({ pillarId: entry.pillarId, confidence: entry.confidence })),
-	}));
+	const rows = await PillarFeedback.findAll({ order: [['createdAt', 'DESC']], limit: FEEDBACK_SCAN_LIMIT });
+	const examples: FeedbackExample[] = [];
+	for (const row of rows) {
+		if (row.pillars.length === 0) {
+			continue;
+		}
+		examples.push({
+			title: row.title,
+			description: row.description ?? undefined,
+			pillars: row.pillars.map((entry) => ({ pillarId: entry.pillarId, confidence: entry.confidence })),
+		});
+		if (examples.length >= MAX_FEEDBACK_EXAMPLES) {
+			break;
+		}
+	}
+	return examples;
 };
 
 /**

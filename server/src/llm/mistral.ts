@@ -184,6 +184,19 @@ const fewShotMessages = (pillars: { id: number; name: string }[]): { role: strin
  * der schwachen Säulen wird — analog zu {@link extractSuggestions} — auf das Ceiling gedeckelt, damit
  * eine vom Nutzer bestätigte Säule (oft `confidence: 100`) das In-Context-Signal nicht über die
  * System-Prompt-Regel „Sinn/Mentale Gesundheit ≤ Ceiling" hinaus hochzieht (siehe #45).
+ *
+ * Bewusste Entscheidung (Kreuzverhör #67): Das Ceiling gilt **auch** für gelernte (= bestätigte)
+ * Beispiele, nicht nur für rohe Modellausgaben. Begründung, warum die Zielsäulen aus #45 trotzdem
+ * profitieren:
+ * 1. Der Hebel des Feedback-Loops für Sinn / Mentale Gesundheit ist primär die gelernte
+ *    Assoziation Titel→Säule (welche Aufgaben überhaupt auf diese Säulen einzahlen) — die
+ *    vermittelt das Few-Shot-Paar auch bei gedeckelter Konfidenz.
+ * 2. Die im Frontend manuell ergänzten Säulen erhalten dort den UI-Default `confidence: 100`
+ *    (`TaskFormModal`), also einen nicht kalibrierten Wert. Ihn als autoritatives Signal in
+ *    den Prompt zu heben, würde Rauschen statt Kalibrierung einspeisen.
+ * 3. Ein ungedeckeltes In-Context-Signal stünde im direkten Widerspruch zur System-Prompt-Regel und
+ *    zu {@link extractSuggestions}; widersprüchliche Signale verschlechtern die Konsistenz mehr, als
+ *    ein höherer Cap nützt. Soll sich diese Annahme ändern, ist hier der eine Ort zum Lockern.
  */
 const feedbackMessages = (input: ClassifyPillarsInput): { role: string; content: string }[] => {
 	const validIds = new Set(input.pillars.map((pillar) => pillar.id));

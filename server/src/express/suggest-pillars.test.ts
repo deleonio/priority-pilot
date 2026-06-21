@@ -102,6 +102,27 @@ describe('POST /tasks/suggest-pillars', () => {
 		assert.deepEqual(marathon?.pillars, [{ pillarId: pillars[0].id, confidence: 95 }]);
 	});
 
+	it('leere Korrektur-Samples verdrängen nicht die nützlichen im Beispiel-Fenster', async () => {
+		const pillars = await seedPillars();
+		// Eine nützliche Korrektur (älter) …
+		await PillarFeedback.create({
+			title: 'Nützliche Korrektur',
+			description: null,
+			pillars: [{ pillarId: pillars[0].id, confidence: 90 }],
+		});
+		// … gefolgt von vielen jüngeren leeren Samples (alle Vorschläge verworfen). Würden diese
+		// das 10er-Fenster belegen, käme die nützliche Korrektur nie beim Klassifikator an.
+		for (let i = 0; i < 15; i++) {
+			await PillarFeedback.create({ title: `Verworfen ${i}`, description: null, pillars: [] });
+		}
+
+		await post(server.baseUrl, { title: 'Irgendein Task' });
+
+		const examples = lastInput?.examples ?? [];
+		assert.equal(examples.length, 1);
+		assert.equal(examples[0]?.title, 'Nützliche Korrektur');
+	});
+
 	it('degradiert graceful: ein Lesefehler der Feedback-Tabelle liefert trotzdem 200 (ohne Beispiele)', async () => {
 		const pillars = await seedPillars();
 		const expected: PillarSuggestion[] = [{ pillarId: pillars[0].id, confidence: 80 }];
