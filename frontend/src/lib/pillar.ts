@@ -1,4 +1,4 @@
-import type { Pillar, Task } from 'client';
+import type { Pillar, PillarSuggestion, Task, TaskPillarContribution } from 'client';
 import { formatNumber } from './task';
 
 /**
@@ -36,6 +36,39 @@ export const isWeightSumValid = (sum: number): boolean => Math.abs(sum - TOTAL_W
 
 /** Säulen-Name samt prozentualem Anteil, z. B. „Körper (20 %)". */
 export const pillarLabelWithWeight = (pillar: Pillar): string => `${pillar.name} (${formatNumber(pillar.weight)} %)`;
+
+/** Begrenzt einen Wert auf das Intervall `[min, max]`. */
+const clamp = (value: number, min: number, max: number): number => Math.min(Math.max(value, min), max);
+
+/**
+ * Wandelt KI-Vorschläge (`pillarId` + Konfidenz) in übernehmbare Säulen-Beiträge für das Formular um.
+ *
+ * - Nur Vorschläge zu **bekannten** Säulen (`validPillarIds`) mit **positiver** Konfidenz werden
+ *   übernommen — der Server kann theoretisch unbekannte IDs oder 0 %-Säulen liefern.
+ * - Die Anteile (`share`) werden **proportional zur Konfidenz** auf `TOTAL_WEIGHT` (100 %) verteilt
+ *   und auf Ganzzahlen gerundet; die letzte Säule erhält den Rundungsrest, damit die Summe exakt
+ *   `TOTAL_WEIGHT` ergibt (erfüllt `isWeightSumValid`).
+ * - Die Konfidenz wird auf `[0, 100]` geklemmt und gerundet (passend zum Slider-`_step={1}`).
+ *
+ * Das Ergebnis ist ein Vorschlag, den der Nutzer vor dem Speichern weiter **korrigieren** kann.
+ */
+export const suggestionsToContributions = (
+	suggestions: readonly PillarSuggestion[],
+	validPillarIds: ReadonlySet<number>,
+): TaskPillarContribution[] => {
+	const relevant = suggestions.filter((entry) => validPillarIds.has(entry.pillarId) && entry.confidence > 0);
+	if (relevant.length === 0) {
+		return [];
+	}
+	const totalConfidence = relevant.reduce((acc, entry) => acc + entry.confidence, 0);
+	let allocated = 0;
+	return relevant.map((entry, index) => {
+		const isLast = index === relevant.length - 1;
+		const share = isLast ? TOTAL_WEIGHT - allocated : Math.round((entry.confidence / totalConfidence) * TOTAL_WEIGHT);
+		allocated += share;
+		return { pillarId: entry.pillarId, share, confidence: Math.round(clamp(entry.confidence, 0, 100)) };
+	});
+};
 
 /** Kennzahlen einer Säule für das Dashboard-Widget „Meine Themen". */
 export interface PillarSummary {

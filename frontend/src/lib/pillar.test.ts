@@ -1,7 +1,14 @@
-import type { Pillar, Task, TaskPillarContribution } from 'client';
+import type { Pillar, PillarSuggestion, Task, TaskPillarContribution } from 'client';
 import { TaskStatus } from 'client';
 import { describe, expect, it } from 'vitest';
-import { ADD_PILLAR_PLACEHOLDER, addPillarOptions, buildPillarSummaries, isWeightSumValid, sumWeights } from './pillar';
+import {
+	ADD_PILLAR_PLACEHOLDER,
+	addPillarOptions,
+	buildPillarSummaries,
+	isWeightSumValid,
+	suggestionsToContributions,
+	sumWeights,
+} from './pillar';
 
 const pillar = (id: number, name: string, weight: number): Pillar => ({ id, name, weight });
 
@@ -54,6 +61,47 @@ describe('isWeightSumValid', () => {
 	it('lehnt eine abweichende Summe ab', () => {
 		expect(isWeightSumValid(99)).toBe(false);
 		expect(isWeightSumValid(101)).toBe(false);
+	});
+});
+
+describe('suggestionsToContributions', () => {
+	const validIds = new Set([1, 2, 3]);
+	const suggestion = (pillarId: number, confidence: number): PillarSuggestion => ({ pillarId, confidence });
+
+	it('übernimmt eine einzelne Säule mit vollem Anteil (100 %)', () => {
+		expect(suggestionsToContributions([suggestion(2, 80)], validIds)).toEqual([
+			{ pillarId: 2, share: 100, confidence: 80 },
+		]);
+	});
+
+	it('verteilt die Anteile proportional zur Konfidenz und ergibt in Summe genau 100 %', () => {
+		const result = suggestionsToContributions([suggestion(1, 75), suggestion(2, 25)], validIds);
+		expect(result).toEqual([
+			{ pillarId: 1, share: 75, confidence: 75 },
+			{ pillarId: 2, share: 25, confidence: 25 },
+		]);
+		expect(isWeightSumValid(sumWeights(result.map((entry) => entry.share)))).toBe(true);
+	});
+
+	it('legt den Rundungsrest auf die letzte Säule, sodass die Summe exakt 100 % bleibt', () => {
+		const result = suggestionsToContributions([suggestion(1, 33), suggestion(2, 33), suggestion(3, 33)], validIds);
+		expect(sumWeights(result.map((entry) => entry.share))).toBe(100);
+		expect(isWeightSumValid(sumWeights(result.map((entry) => entry.share)))).toBe(true);
+	});
+
+	it('ignoriert unbekannte Säulen und solche mit Konfidenz 0', () => {
+		const result = suggestionsToContributions([suggestion(1, 60), suggestion(99, 90), suggestion(2, 0)], validIds);
+		expect(result).toEqual([{ pillarId: 1, share: 100, confidence: 60 }]);
+	});
+
+	it('liefert eine leere Liste, wenn kein gültiger Vorschlag übrig bleibt', () => {
+		expect(suggestionsToContributions([suggestion(99, 90), suggestion(2, 0)], validIds)).toEqual([]);
+		expect(suggestionsToContributions([], validIds)).toEqual([]);
+	});
+
+	it('klemmt und rundet die Konfidenz auf [0, 100] passend zum Slider-Step', () => {
+		const result = suggestionsToContributions([suggestion(1, 142.6)], validIds);
+		expect(result).toEqual([{ pillarId: 1, share: 100, confidence: 100 }]);
 	});
 });
 

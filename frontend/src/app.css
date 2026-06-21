@@ -330,6 +330,20 @@ body {
 	font-weight: 600;
 }
 
+.pillar-editor-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem;
+}
+
+.pillar-editor-loading {
+	display: flex;
+	justify-content: center;
+	padding: 0.5rem;
+}
+
 .pillar-row {
 	display: grid;
 	grid-template-columns: 1fr 1fr auto;
