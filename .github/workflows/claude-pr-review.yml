@@ -16,8 +16,13 @@ on:
     types: [opened, ready_for_review, labeled]
 
 concurrency:
-  group: claude-review-${{ github.event.pull_request.number }}
-  cancel-in-progress: true # immer nur den juengsten Stand reviewen
+  # Gemeinsame Gruppe mit dem Fixup-Workflow (claude-pr-fixup.yml): Review und Fixup desselben PRs
+  # laufen dadurch nie parallel, sondern strikt nacheinander — ein Fixup wartet auf ein laufendes
+  # Review (und umgekehrt), und auch gleiche Workflows auf demselben PR reihen sich ein statt
+  # parallel zu laufen. cancel-in-progress: false -> warten statt abbrechen (kein Lauf wird
+  # mittendrin verworfen; auf den juengsten Stand checkt der wartende Lauf beim Start ohnehin aus).
+  group: claude-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
 
 jobs:
   review:
