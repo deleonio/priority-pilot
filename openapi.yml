@@ -176,6 +176,37 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /tasks/suggest-pillars:
+    post:
+      summary: Säulen-Einzahlung per Mistral klassifizieren
+      description: >-
+        Schlägt anhand von Titel/Beschreibung/Kontext vor, auf welche Säulen eine
+        Aufgabe einzahlt, samt Konfidenz (0–100) je Säule. Die Klassifikation
+        erfolgt über die Mistral-API (`MISTRAL_API_KEY`, Modell via `MISTRAL_MODEL`,
+        Default `mistral-small-latest`). Fehlt der Key oder gibt es keine Säulen,
+        antwortet der Endpoint mit 503; bei Upstream-/Format-Fehlern mit 502.
+      operationId: suggestPillars
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SuggestPillarsInput'
+      responses:
+        '200':
+          description: Vorgeschlagene Säulen-Einzahlungen mit Konfidenz
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuggestPillarsResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /forest:
     get:
       summary: Aufgabenwald nach Wertschöpfung sortiert
@@ -242,6 +273,18 @@ components:
             $ref: '#/components/schemas/Error'
     InternalServerError:
       description: Interner Serverfehler (z. B. Datenbankfehler)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    BadGateway:
+      description: Fehler beim Upstream-Dienst (Mistral nicht erreichbar/ungültige Antwort)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ServiceUnavailable:
+      description: Dienst nicht konfiguriert (z. B. fehlender API-Key oder keine Säulen)
       content:
         application/json:
           schema:
@@ -519,6 +562,49 @@ components:
                 format: float
                 minimum: 0
                 description: Prozentualer Anteil der Säule
+    SuggestPillarsInput:
+      type: object
+      description: Eingabe für die Säulen-Klassifikation einer Aufgabe.
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          description: Titel der Aufgabe (Pflichtfeld, nicht leer)
+        description:
+          type: string
+          description: Optionale ausführliche Beschreibung der Aufgabe
+        context:
+          type: string
+          description: Optionaler Kontext, z. B. zu abhängigen Aufgaben
+    PillarSuggestion:
+      type: object
+      description: Eine vorgeschlagene Säulen-Einzahlung mit Konfidenz.
+      required:
+        - pillarId
+        - confidence
+      properties:
+        pillarId:
+          type: integer
+          minimum: 1
+          description: ID der Säule, auf die die Aufgabe einzahlt
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: Konfidenz in % (0–100), dass die Aufgabe auf diese Säule einzahlt
+    SuggestPillarsResult:
+      type: object
+      description: Ergebnis der Säulen-Klassifikation.
+      required:
+        - suggestions
+      properties:
+        suggestions:
+          type: array
+          description: Vorgeschlagene Säulen-Einzahlungen, nach pillarId sortiert
+          items:
+            $ref: '#/components/schemas/PillarSuggestion'
     Error:
       type: object
       required:

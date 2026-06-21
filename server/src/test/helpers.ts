@@ -1,6 +1,6 @@
 import type { Server } from 'node:http';
 import sequelize from '../database.js';
-import { createApp } from '../express/index.js';
+import { createApp, type AppDeps } from '../express/index.js';
 // Import models to ensure associations are registered before sync
 import '../models/index.js';
 
@@ -17,9 +17,9 @@ export interface TestServer {
 	close: () => Promise<void>;
 }
 
-export const startTestServer = (): Promise<TestServer> => {
+export const startTestServer = (deps: AppDeps = {}): Promise<TestServer> => {
 	return new Promise((resolve, reject) => {
-		const app = createApp();
+		const app = createApp(deps);
 		const server: Server = app.listen(0, () => {
 			const addr = server.address();
 			if (!addr || typeof addr === 'string') {
