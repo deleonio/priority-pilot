@@ -1,3 +1,5 @@
+// Muss als Erstes stehen: lädt `.env` in process.env, bevor andere Module Variablen lesen.
+import './env.js';
 import sequelize from './database.js';
 import { launchServer } from './express/index.js';
 import { buildTaskForest } from './logics/tree.js';
