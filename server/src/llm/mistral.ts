@@ -75,27 +75,31 @@ const SYSTEM_PROMPT = [
 	'Verwende nur die pillarId-Werte aus der vom Nutzer übergebenen Säulen-Liste.',
 ].join('\n');
 
-/** Few-Shot-Beispiele, damit das Modell Format und Konfidenz-Niveau übernimmt. */
+/**
+ * Few-Shot-Beispiele, damit das Modell Format und Konfidenz-Niveau übernimmt. Die Säulen werden über
+ * ihren **Namen** referenziert (nicht über hartkodierte IDs) und erst in {@link fewShotMessages} gegen
+ * die real injizierte Säulen-Liste aufgelöst — so passen die Beispiel-IDs immer zur Seed-Reihenfolge.
+ */
 const FEW_SHOT = [
 	{
 		title: 'Dreimal pro Woche joggen gehen',
 		description: 'Ausdauer aufbauen und morgens 5 km laufen.',
-		pillars: [{ pillarId: 1, confidence: 95 }],
+		pillars: [{ name: 'Körper', confidence: 95 }],
 	},
 	{
 		title: 'Wochenende mit den Eltern verbringen',
 		description: 'Besuch über zwei Tage, gemeinsam kochen.',
 		pillars: [
-			{ pillarId: 2, confidence: 90 },
-			{ pillarId: 4, confidence: 40 },
+			{ name: 'Beziehungen', confidence: 90 },
+			{ name: 'Mentale Gesundheit', confidence: 40 },
 		],
 	},
 	{
 		title: 'Zertifizierung für Cloud-Architektur abschließen',
 		description: 'Lernen und Prüfung ablegen.',
 		pillars: [
-			{ pillarId: 3, confidence: 92 },
-			{ pillarId: 4, confidence: 35 },
+			{ name: 'Wirksamkeit', confidence: 92 },
+			{ name: 'Mentale Gesundheit', confidence: 35 },
 		],
 	},
 ] as const;
@@ -125,15 +129,31 @@ const buildUserMessage = (input: ClassifyPillarsInput): string => {
 	return lines.join('\n');
 };
 
-/** Wandelt die Few-Shot-Beispiele in abwechselnde user/assistant-Nachrichten. */
-const fewShotMessages = (pillars: { id: number; name: string }[]): { role: string; content: string }[] =>
-	FEW_SHOT.flatMap((example) => [
-		{
-			role: 'user',
-			content: buildUserMessage({ title: example.title, description: example.description, pillars }),
-		},
-		{ role: 'assistant', content: JSON.stringify({ pillars: example.pillars }) },
-	]);
+/**
+ * Wandelt die Few-Shot-Beispiele in abwechselnde user/assistant-Nachrichten. Die in den Beispielen
+ * über den Namen referenzierten Säulen werden gegen die übergebene Säulen-Liste zu deren realen IDs
+ * aufgelöst; nicht vorhandene Namen werden übersprungen, damit die Beispiel-Antworten immer nur
+ * gültige, zur Seed-Reihenfolge passende `pillarId`-Werte enthalten.
+ */
+const fewShotMessages = (pillars: { id: number; name: string }[]): { role: string; content: string }[] => {
+	const idByName = new Map(pillars.map((pillar) => [pillar.name, pillar.id]));
+	return FEW_SHOT.flatMap((example) => {
+		const resolved: PillarSuggestion[] = [];
+		for (const { name, confidence } of example.pillars) {
+			const pillarId = idByName.get(name);
+			if (pillarId !== undefined) {
+				resolved.push({ pillarId, confidence });
+			}
+		}
+		return [
+			{
+				role: 'user',
+				content: buildUserMessage({ title: example.title, description: example.description, pillars }),
+			},
+			{ role: 'assistant', content: JSON.stringify({ pillars: resolved }) },
+		];
+	});
+};
 
 /**
  * Liest aus der (bereits geparsten) Modell-Antwort die Säulen-Vorschläge: nur bekannte `pillarId`,

@@ -18,9 +18,7 @@ const sendError = (res: Response<ErrorDto>, status: number, message: string): vo
 };
 
 /** Validiert den Body von `POST /tasks/suggest-pillars`: `title` Pflicht, `description`/`context` optional. */
-const validateBody = (
-	body: unknown,
-): { ok: true; value: SuggestPillarsInputDto } | { ok: false; message: string } => {
+const validateBody = (body: unknown): { ok: true; value: SuggestPillarsInputDto } | { ok: false; message: string } => {
 	if (typeof body !== 'object' || body === null) {
 		return { ok: false, message: 'Request-Body muss ein Objekt sein.' };
 	}
