@@ -26,6 +26,8 @@ export type PillarWeightsInput = Schemas['PillarWeightsInput'];
 export type SuggestPillarsInput = Schemas['SuggestPillarsInput'];
 export type PillarSuggestion = Schemas['PillarSuggestion'];
 export type SuggestPillarsResult = Schemas['SuggestPillarsResult'];
+export type PillarFeedbackInput = Schemas['PillarFeedbackInput'];
+export type PillarFeedbackResult = Schemas['PillarFeedbackResult'];
 export type ApiError = Schemas['Error'];
 
 // `TaskStatus` zusätzlich als Laufzeitwert (der Vertrag liefert nur einen String-Union-Typ),

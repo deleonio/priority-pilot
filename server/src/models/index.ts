@@ -2,6 +2,7 @@ import Task from './task.js';
 import Dependency from './dependency.js';
 import Pillar from './pillar.js';
 import TaskPillar from './taskPillar.js';
+import PillarFeedback from './pillarFeedback.js';
 
 Task.belongsToMany(Task, {
 	as: 'dependencies',
@@ -22,4 +23,6 @@ Task.belongsToMany(Task, {
 Task.belongsToMany(Pillar, { through: TaskPillar, foreignKey: 'taskId', otherKey: 'pillarId' });
 Pillar.belongsToMany(Task, { through: TaskPillar, foreignKey: 'pillarId', otherKey: 'taskId' });
 
-export { Task, Dependency, Pillar, TaskPillar };
+// `pillar_feedback` steht für sich (keine Assoziation) — es speichert lose Korrektur-Samples
+// (Titel/Beschreibung + bestätigte Säulen) für den Feedback-Loop der Klassifikation (siehe #45).
+export { Task, Dependency, Pillar, TaskPillar, PillarFeedback };

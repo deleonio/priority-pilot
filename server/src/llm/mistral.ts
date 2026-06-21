@@ -15,12 +15,29 @@ export interface PillarSuggestion {
 	confidence: number;
 }
 
+/**
+ * Ein gelerntes Few-Shot-Beispiel aus einer früheren Nutzer-Korrektur (Feedback-Loop, #45): der
+ * damals eingegebene Titel/Beschreibung plus die vom Nutzer **bestätigten** Säulen-Beiträge.
+ */
+export interface FeedbackExample {
+	title: string;
+	description?: string;
+	pillars: PillarSuggestion[];
+}
+
 /** Eingabe für die Klassifikation. `pillars` gibt die gültigen Säulen-IDs samt Namen vor. */
 export interface ClassifyPillarsInput {
 	title: string;
 	description?: string;
 	context?: string;
 	pillars: { id: number; name: string }[];
+	/**
+	 * Optionale, aus Nutzer-Korrekturen gelernte Beispiele. Sie werden **nach** den statischen
+	 * {@link FEW_SHOT}-Beispielen als zusätzliche user/assistant-Paare in den Prompt gehängt und
+	 * kalibrieren so die Vorschläge personalisiert (siehe #45). Nur Beiträge zu aktuell gültigen
+	 * Säulen-IDs werden übernommen.
+	 */
+	examples?: FeedbackExample[];
 }
 
 /** Funktionssignatur des Klassifikators — injizierbar, damit Tests ohne echten API-Call laufen. */
@@ -156,6 +173,31 @@ const fewShotMessages = (pillars: { id: number; name: string }[]): { role: strin
 };
 
 /**
+ * Wandelt die aus Nutzer-Korrekturen gelernten Beispiele in user/assistant-Paare. Anders als die
+ * statischen {@link FEW_SHOT}-Beispiele referenzieren sie die Säulen direkt über `pillarId`; Beiträge
+ * zu nicht (mehr) gültigen Säulen werden verworfen, ebenso Beispiele ohne verbleibende Säule
+ * (kein leeres `{ pillars: [] }`-Sample, das das Modell zur Enthaltung verleiten würde).
+ */
+const feedbackMessages = (input: ClassifyPillarsInput): { role: string; content: string }[] => {
+	const validIds = new Set(input.pillars.map((pillar) => pillar.id));
+	return (input.examples ?? []).flatMap((example) => {
+		const resolved = example.pillars
+			.filter((entry) => validIds.has(entry.pillarId))
+			.map((entry) => ({ pillarId: entry.pillarId, confidence: clampConfidence(entry.confidence) }));
+		if (resolved.length === 0) {
+			return [];
+		}
+		return [
+			{
+				role: 'user',
+				content: buildUserMessage({ title: example.title, description: example.description, pillars: input.pillars }),
+			},
+			{ role: 'assistant', content: JSON.stringify({ pillars: resolved }) },
+		];
+	});
+};
+
+/**
  * Liest aus der (bereits geparsten) Modell-Antwort die Säulen-Vorschläge: nur bekannte `pillarId`,
  * dublettenfrei, Konfidenz auf [0,100] geclamped und für die schwachen Säulen zusätzlich gedeckelt.
  */
@@ -229,6 +271,7 @@ export const classifyPillarsWithMistral: PillarClassifier = async (input) => {
 				messages: [
 					{ role: 'system', content: SYSTEM_PROMPT },
 					...fewShotMessages(input.pillars),
+					...feedbackMessages(input),
 					{ role: 'user', content: buildUserMessage(input) },
 				],
 			}),
