@@ -2,6 +2,11 @@ import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { Pillar, PillarFeedback } from '../models/index.js';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
+
+// Die DB ist ein Singleton, das von allen describe-Blöcken geteilt wird. Daher genau
+// einmal am Dateiende schließen — nicht je describe, sonst reißt das erste after()
+// die Verbindung für die folgenden Suites ab ("connection manager was closed").
+after(closeDb);
 import {
 	classifyPillarsWithMistral,
 	MissingApiKeyError,
@@ -49,7 +54,6 @@ describe('POST /tasks/suggest-pillars', () => {
 		if (server) {
 			await server.close();
 		}
-		await closeDb();
 	});
 
 	it('200 liefert die Klassifikation und übergibt die existierenden Säulen', async () => {
@@ -196,7 +200,6 @@ describe('POST /tasks/suggest-pillars/feedback', () => {
 		if (server) {
 			await server.close();
 		}
-		await closeDb();
 	});
 
 	it('201 speichert eine Korrektur und legt eine Zeile in pillar_feedback an', async () => {
