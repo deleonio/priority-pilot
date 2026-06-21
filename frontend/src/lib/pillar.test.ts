@@ -83,8 +83,21 @@ describe('suggestionsToContributions', () => {
 		expect(isWeightSumValid(sumWeights(result.map((entry) => entry.share)))).toBe(true);
 	});
 
-	it('legt den Rundungsrest auf die letzte Säule, sodass die Summe exakt 100 % bleibt', () => {
+	it('verteilt den Rundungsrest (Largest Remainder), sodass die Summe exakt 100 % bleibt', () => {
 		const result = suggestionsToContributions([suggestion(1, 33), suggestion(2, 33), suggestion(3, 33)], validIds);
+		expect(sumWeights(result.map((entry) => entry.share))).toBe(100);
+		expect(isWeightSumValid(sumWeights(result.map((entry) => entry.share)))).toBe(true);
+	});
+
+	it('erzeugt nie einen negativen Anteil, wenn mehrere Anteile aufrunden (Hamilton statt „Rest auf letzte")', () => {
+		// Regression: naives „runden + Rest auf die letzte Säule" ergäbe hier für die letzte Säule
+		// 100 − 101 = −1. Largest-Remainder hält jeden Anteil ≥ 0 bei exakt 100 % Summe.
+		const ids = new Set([1, 2, 3, 4, 5]);
+		const result = suggestionsToContributions(
+			[suggestion(1, 24.5), suggestion(2, 24.5), suggestion(3, 24.5), suggestion(4, 25.5), suggestion(5, 1)],
+			ids,
+		);
+		expect(result.every((entry) => entry.share >= 0)).toBe(true);
 		expect(sumWeights(result.map((entry) => entry.share))).toBe(100);
 		expect(isWeightSumValid(sumWeights(result.map((entry) => entry.share)))).toBe(true);
 	});

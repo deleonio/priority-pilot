@@ -378,7 +378,7 @@ export const TaskFormModal = ({ task, pillars, onClose, onSaved }: TaskFormModal
 				<KolButton
 					_label={saving ? 'Speichern…' : 'Speichern'}
 					_variant="primary"
-					_disabled={saving}
+					_disabled={saving || suggesting}
 					_on={{ onClick: () => void submit() }}
 				/>
 				<KolButton _label="Abbrechen" _variant="secondary" _disabled={saving} _on={{ onClick: () => onClose() }} />

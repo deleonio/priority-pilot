@@ -45,9 +45,11 @@ const clamp = (value: number, min: number, max: number): number => Math.min(Math
  *
  * - Nur Vorschläge zu **bekannten** Säulen (`validPillarIds`) mit **positiver** Konfidenz werden
  *   übernommen — der Server kann theoretisch unbekannte IDs oder 0 %-Säulen liefern.
- * - Die Anteile (`share`) werden **proportional zur Konfidenz** auf `TOTAL_WEIGHT` (100 %) verteilt
- *   und auf Ganzzahlen gerundet; die letzte Säule erhält den Rundungsrest, damit die Summe exakt
- *   `TOTAL_WEIGHT` ergibt (erfüllt `isWeightSumValid`).
+ * - Die Anteile (`share`) werden **proportional zur Konfidenz** auf `TOTAL_WEIGHT` (100 %) verteilt.
+ *   Die Rundung auf Ganzzahlen nutzt das **Largest-Remainder-Verfahren** (Hamilton): jeder Anteil
+ *   bleibt in `[0, TOTAL_WEIGHT]` (nie negativ) und die Summe ergibt **exakt** `TOTAL_WEIGHT`
+ *   (erfüllt `isWeightSumValid`). Ein naives „abrunden + Rest auf die letzte Säule" könnte dagegen
+ *   bei mehreren aufgerundeten Anteilen einen negativen Rest erzeugen (Server lehnt `share < 0` ab).
  * - Die Konfidenz wird auf `[0, 100]` geklemmt und gerundet (passend zum Slider-`_step={1}`).
  *
  * Das Ergebnis ist ein Vorschlag, den der Nutzer vor dem Speichern weiter **korrigieren** kann.
@@ -61,13 +63,27 @@ export const suggestionsToContributions = (
 		return [];
 	}
 	const totalConfidence = relevant.reduce((acc, entry) => acc + entry.confidence, 0);
-	let allocated = 0;
-	return relevant.map((entry, index) => {
-		const isLast = index === relevant.length - 1;
-		const share = isLast ? TOTAL_WEIGHT - allocated : Math.round((entry.confidence / totalConfidence) * TOTAL_WEIGHT);
-		allocated += share;
-		return { pillarId: entry.pillarId, share, confidence: Math.round(clamp(entry.confidence, 0, 100)) };
-	});
+	// Largest-Remainder-Verfahren (Hamilton): erst abrunden, dann die fehlenden Ganzanteile bis
+	// `TOTAL_WEIGHT` an die Säulen mit dem größten Nachkomma-Rest vergeben. Hält jeden `share` in
+	// `[0, TOTAL_WEIGHT]` und die Summe exakt bei `TOTAL_WEIGHT`.
+	const quotas = relevant.map((entry) => (entry.confidence / totalConfidence) * TOTAL_WEIGHT);
+	const shares = quotas.map((quota) => Math.floor(quota));
+	let remainder = TOTAL_WEIGHT - shares.reduce((acc, share) => acc + share, 0);
+	const byRemainderDesc = quotas
+		.map((quota, index) => ({ index, fraction: quota - Math.floor(quota) }))
+		.sort((a, b) => b.fraction - a.fraction);
+	for (const { index } of byRemainderDesc) {
+		if (remainder <= 0) {
+			break;
+		}
+		shares[index] += 1;
+		remainder -= 1;
+	}
+	return relevant.map((entry, index) => ({
+		pillarId: entry.pillarId,
+		share: shares[index],
+		confidence: Math.round(clamp(entry.confidence, 0, 100)),
+	}));
 };
 
 /** Kennzahlen einer Säule für das Dashboard-Widget „Meine Themen". */
