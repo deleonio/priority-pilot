@@ -15,12 +15,29 @@ export interface PillarSuggestion {
 	confidence: number;
 }
 
+/**
+ * Ein gelerntes Few-Shot-Beispiel aus einer früheren Nutzer-Korrektur (Feedback-Loop, #45): der
+ * damals eingegebene Titel/Beschreibung plus die vom Nutzer **bestätigten** Säulen-Beiträge.
+ */
+export interface FeedbackExample {
+	title: string;
+	description?: string;
+	pillars: PillarSuggestion[];
+}
+
 /** Eingabe für die Klassifikation. `pillars` gibt die gültigen Säulen-IDs samt Namen vor. */
 export interface ClassifyPillarsInput {
 	title: string;
 	description?: string;
 	context?: string;
 	pillars: { id: number; name: string }[];
+	/**
+	 * Optionale, aus Nutzer-Korrekturen gelernte Beispiele. Sie werden **nach** den statischen
+	 * {@link FEW_SHOT}-Beispielen als zusätzliche user/assistant-Paare in den Prompt gehängt und
+	 * kalibrieren so die Vorschläge personalisiert (siehe #45). Nur Beiträge zu aktuell gültigen
+	 * Säulen-IDs werden übernommen.
+	 */
+	examples?: FeedbackExample[];
 }
 
 /** Funktionssignatur des Klassifikators — injizierbar, damit Tests ohne echten API-Call laufen. */
@@ -110,6 +127,10 @@ const clampConfidence = (value: unknown): number => {
 	return Math.min(100, Math.max(0, Math.round(numeric)));
 };
 
+/** Bestimmt die pillarIds der „weichen" Säulen (Sinn / Mentale Gesundheit) aus der gültigen Säulen-Liste. */
+const weakSignalPillarIds = (pillars: { id: number; name: string }[]): Set<number> =>
+	new Set(pillars.filter((pillar) => WEAK_SIGNAL_PILLARS.includes(pillar.name)).map((pillar) => pillar.id));
+
 /** Baut die Nutzer-Nachricht aus Task-Daten und gültiger Säulen-Liste. */
 const buildUserMessage = (input: ClassifyPillarsInput): string => {
 	const pillarList = input.pillars.map((pillar) => `  - pillarId ${pillar.id}: ${pillar.name}`).join('\n');
@@ -156,6 +177,54 @@ const fewShotMessages = (pillars: { id: number; name: string }[]): { role: strin
 };
 
 /**
+ * Wandelt die aus Nutzer-Korrekturen gelernten Beispiele in user/assistant-Paare. Anders als die
+ * statischen {@link FEW_SHOT}-Beispiele referenzieren sie die Säulen direkt über `pillarId`; Beiträge
+ * zu nicht (mehr) gültigen Säulen werden verworfen, ebenso Beispiele ohne verbleibende Säule
+ * (kein leeres `{ pillars: [] }`-Sample, das das Modell zur Enthaltung verleiten würde). Die Konfidenz
+ * der schwachen Säulen wird — analog zu {@link extractSuggestions} — auf das Ceiling gedeckelt, damit
+ * eine vom Nutzer bestätigte Säule (oft `confidence: 100`) das In-Context-Signal nicht über die
+ * System-Prompt-Regel „Sinn/Mentale Gesundheit ≤ Ceiling" hinaus hochzieht (siehe #45).
+ *
+ * Bewusste Entscheidung (Kreuzverhör #67): Das Ceiling gilt **auch** für gelernte (= bestätigte)
+ * Beispiele, nicht nur für rohe Modellausgaben. Begründung, warum die Zielsäulen aus #45 trotzdem
+ * profitieren:
+ * 1. Der Hebel des Feedback-Loops für Sinn / Mentale Gesundheit ist primär die gelernte
+ *    Assoziation Titel→Säule (welche Aufgaben überhaupt auf diese Säulen einzahlen) — die
+ *    vermittelt das Few-Shot-Paar auch bei gedeckelter Konfidenz.
+ * 2. Die im Frontend manuell ergänzten Säulen erhalten dort den UI-Default `confidence: 100`
+ *    (`TaskFormModal`), also einen nicht kalibrierten Wert. Ihn als autoritatives Signal in
+ *    den Prompt zu heben, würde Rauschen statt Kalibrierung einspeisen.
+ * 3. Ein ungedeckeltes In-Context-Signal stünde im direkten Widerspruch zur System-Prompt-Regel und
+ *    zu {@link extractSuggestions}; widersprüchliche Signale verschlechtern die Konsistenz mehr, als
+ *    ein höherer Cap nützt. Soll sich diese Annahme ändern, ist hier der eine Ort zum Lockern.
+ */
+const feedbackMessages = (input: ClassifyPillarsInput): { role: string; content: string }[] => {
+	const validIds = new Set(input.pillars.map((pillar) => pillar.id));
+	const ceilingPillarIds = weakSignalPillarIds(input.pillars);
+	return (input.examples ?? []).flatMap((example) => {
+		const resolved = example.pillars
+			.filter((entry) => validIds.has(entry.pillarId))
+			.map((entry) => {
+				const clamped = clampConfidence(entry.confidence);
+				const confidence = ceilingPillarIds.has(entry.pillarId)
+					? Math.min(clamped, WEAK_SIGNAL_CONFIDENCE_CEILING)
+					: clamped;
+				return { pillarId: entry.pillarId, confidence };
+			});
+		if (resolved.length === 0) {
+			return [];
+		}
+		return [
+			{
+				role: 'user',
+				content: buildUserMessage({ title: example.title, description: example.description, pillars: input.pillars }),
+			},
+			{ role: 'assistant', content: JSON.stringify({ pillars: resolved }) },
+		];
+	});
+};
+
+/**
  * Liest aus der (bereits geparsten) Modell-Antwort die Säulen-Vorschläge: nur bekannte `pillarId`,
  * dublettenfrei, Konfidenz auf [0,100] geclamped und für die schwachen Säulen zusätzlich gedeckelt.
  */
@@ -164,9 +233,7 @@ const extractSuggestions = (parsed: unknown, input: ClassifyPillarsInput): Pilla
 		throw new MistralRequestError('Antwort des Modells hat nicht das erwartete Format ({ pillars: [...] }).');
 	}
 	const validIds = new Map(input.pillars.map((pillar) => [pillar.id, pillar.name]));
-	const ceilingPillarIds = new Set(
-		input.pillars.filter((pillar) => WEAK_SIGNAL_PILLARS.includes(pillar.name)).map((pillar) => pillar.id),
-	);
+	const ceilingPillarIds = weakSignalPillarIds(input.pillars);
 
 	const suggestions: PillarSuggestion[] = [];
 	const seen = new Set<number>();
@@ -229,6 +296,7 @@ export const classifyPillarsWithMistral: PillarClassifier = async (input) => {
 				messages: [
 					{ role: 'system', content: SYSTEM_PROMPT },
 					...fewShotMessages(input.pillars),
+					...feedbackMessages(input),
 					{ role: 'user', content: buildUserMessage(input) },
 				],
 			}),

@@ -73,6 +73,11 @@ export const TaskFormModal = ({ task, pillars, onClose, onSaved }: TaskFormModal
 	const [suggesting, setSuggesting] = useState(false);
 	const [suggestError, setSuggestError] = useState<string | null>(null);
 
+	// Merkt sich, ob in diesem Dialog ein KI-Vorschlag übernommen wurde. Nur dann ist das spätere
+	// Speichern eine echte Bestätigung/Korrektur, die den Feedback-Loop füttert (#45). Ein Ref reicht:
+	// der Wert beeinflusst kein Rendern und der Dialog schließt nach dem Speichern.
+	const suggestionApplied = useRef(false);
+
 	const pillarNameById = useMemo(() => new Map(pillars.map((pillar) => [pillar.id, pillar.name])), [pillars]);
 	const pillarIds = useMemo(() => new Set(pillars.map((pillar) => pillar.id)), [pillars]);
 	// Nur noch nicht zugeordnete Säulen lassen sich hinzufügen (jede Säule höchstens einmal pro Task).
@@ -118,6 +123,7 @@ export const TaskFormModal = ({ task, pillars, onClose, onSaved }: TaskFormModal
 				return;
 			}
 			setContributions(next);
+			suggestionApplied.current = true;
 		} catch (reason) {
 			const apiError = await toApiError(reason);
 			setSuggestError(apiError.message);
@@ -182,6 +188,20 @@ export const TaskFormModal = ({ task, pillars, onClose, onSaved }: TaskFormModal
 					pillars,
 				};
 				await api.createTask({ taskCreate });
+			}
+			// Feedback-Loop (#45): Wurde ein KI-Vorschlag übernommen, ist die final gespeicherte
+			// Zuordnung dessen Bestätigung/Korrektur — als Lern-Sample festhalten. Best-Effort
+			// (fire-and-forget): ein Fehler hier darf das erfolgreiche Speichern nicht zurücknehmen.
+			if (suggestionApplied.current) {
+				void api
+					.recordPillarFeedback({
+						pillarFeedbackInput: {
+							title,
+							description: description === '' ? undefined : description,
+							pillars: pillars.map((entry) => ({ pillarId: entry.pillarId, confidence: entry.confidence })),
+						},
+					})
+					.catch(() => undefined);
 			}
 			onSaved();
 		} catch (reason) {

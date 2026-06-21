@@ -4,6 +4,7 @@ import type {
 	DependencyInput,
 	paths,
 	Pillar,
+	PillarFeedbackInput,
 	PillarSuggestion,
 	PillarWeightsInput,
 	SuggestPillarsInput,
@@ -142,5 +143,18 @@ export const api = {
 			throw new ResponseError(response);
 		}
 		return data.suggestions;
+	},
+
+	// Speichert eine vom Nutzer bestätigte/korrigierte Säulen-Zuordnung als Lern-Sample für
+	// nachfolgende Vorschläge (Feedback-Loop, #45). Best-Effort: Fehler werden vom Aufrufer
+	// bewusst geschluckt, da das Feedback ein Nice-to-have ist und das Speichern nicht blockieren darf.
+	async recordPillarFeedback({
+		pillarFeedbackInput,
+		signal,
+	}: { pillarFeedbackInput: PillarFeedbackInput } & Init): Promise<void> {
+		const { response } = await client.POST('/tasks/suggest-pillars/feedback', { body: pillarFeedbackInput, signal });
+		if (!response.ok) {
+			throw new ResponseError(response);
+		}
 	},
 };

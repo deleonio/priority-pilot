@@ -207,6 +207,33 @@ paths:
           $ref: '#/components/responses/ServiceUnavailable'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /tasks/suggest-pillars/feedback:
+    post:
+      summary: Säulen-Korrektur als Feedback speichern
+      description: >-
+        Speichert eine vom Nutzer bestätigte/korrigierte Säulen-Zuordnung (Titel/
+        Beschreibung + final gewählte Säulen). Die jüngsten Korrekturen fließen als
+        gelernte Few-Shot-Beispiele in nachfolgende Klassifikationen ein und
+        kalibrieren sie personalisiert (Feedback-Loop, siehe #45). Da es kein
+        Nutzerkonzept gibt, wirkt das Feedback global.
+      operationId: recordPillarFeedback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PillarFeedbackInput'
+      responses:
+        '201':
+          description: Das Feedback-Sample wurde gespeichert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PillarFeedbackResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /forest:
     get:
       summary: Aufgabenwald nach Wertschöpfung sortiert
@@ -605,6 +632,36 @@ components:
           description: Vorgeschlagene Säulen-Einzahlungen, nach pillarId sortiert
           items:
             $ref: '#/components/schemas/PillarSuggestion'
+    PillarFeedbackInput:
+      type: object
+      description: >-
+        Eine vom Nutzer bestätigte/korrigierte Säulen-Zuordnung, die als Lern-Sample
+        für nachfolgende Vorschläge gespeichert wird (Feedback-Loop, #45).
+      required:
+        - title
+        - pillars
+      properties:
+        title:
+          type: string
+          description: Titel der Aufgabe (Pflichtfeld, nicht leer)
+        description:
+          type: string
+          description: Optionale Beschreibung der Aufgabe
+        pillars:
+          type: array
+          description: Die final vom Nutzer gewählten Säulen samt Konfidenz
+          items:
+            $ref: '#/components/schemas/PillarSuggestion'
+    PillarFeedbackResult:
+      type: object
+      description: Ergebnis des Speicherns eines Feedback-Samples.
+      required:
+        - id
+      properties:
+        id:
+          type: integer
+          minimum: 1
+          description: ID des gespeicherten Feedback-Samples
     Error:
       type: object
       required:

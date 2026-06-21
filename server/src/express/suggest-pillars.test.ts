@@ -1,7 +1,12 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { Pillar } from '../models/index.js';
+import { Pillar, PillarFeedback } from '../models/index.js';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
+
+// Die DB ist ein Singleton, das von allen describe-Blöcken geteilt wird. Daher genau
+// einmal am Dateiende schließen — nicht je describe, sonst reißt das erste after()
+// die Verbindung für die folgenden Suites ab ("connection manager was closed").
+after(closeDb);
 import {
 	classifyPillarsWithMistral,
 	MissingApiKeyError,
@@ -49,7 +54,6 @@ describe('POST /tasks/suggest-pillars', () => {
 		if (server) {
 			await server.close();
 		}
-		await closeDb();
 	});
 
 	it('200 liefert die Klassifikation und übergibt die existierenden Säulen', async () => {
@@ -71,6 +75,74 @@ describe('POST /tasks/suggest-pillars', () => {
 			lastInput?.pillars.map((pillar) => pillar.id),
 			pillars.map((pillar) => pillar.id),
 		);
+	});
+
+	it('übergibt die jüngsten Feedback-Korrekturen als gelernte Beispiele an den Klassifikator', async () => {
+		const pillars = await seedPillars();
+		// Zwei gespeicherte Korrekturen — die jüngste zuerst erwartet (createdAt DESC).
+		await PillarFeedback.create({
+			title: 'Meditation am Morgen',
+			description: '10 Minuten Achtsamkeit',
+			pillars: [{ pillarId: pillars[3].id, confidence: 55 }],
+		});
+		await PillarFeedback.create({
+			title: 'Halbmarathon vorbereiten',
+			description: null,
+			pillars: [{ pillarId: pillars[0].id, confidence: 95 }],
+		});
+
+		await post(server.baseUrl, { title: 'Irgendein Task' });
+
+		const examples = lastInput?.examples ?? [];
+		assert.equal(examples.length, 2);
+		// Beide Korrekturen werden (egal in welcher Reihenfolge) durchgereicht.
+		const titles = examples.map((example) => example.title).sort();
+		assert.deepEqual(titles, ['Halbmarathon vorbereiten', 'Meditation am Morgen']);
+		const marathon = examples.find((example) => example.title === 'Halbmarathon vorbereiten');
+		assert.deepEqual(marathon?.pillars, [{ pillarId: pillars[0].id, confidence: 95 }]);
+	});
+
+	it('leere Korrektur-Samples verdrängen nicht die nützlichen im Beispiel-Fenster', async () => {
+		const pillars = await seedPillars();
+		// Eine nützliche Korrektur (älter) …
+		await PillarFeedback.create({
+			title: 'Nützliche Korrektur',
+			description: null,
+			pillars: [{ pillarId: pillars[0].id, confidence: 90 }],
+		});
+		// … gefolgt von vielen jüngeren leeren Samples (alle Vorschläge verworfen). Würden diese
+		// das 10er-Fenster belegen, käme die nützliche Korrektur nie beim Klassifikator an.
+		for (let i = 0; i < 15; i++) {
+			await PillarFeedback.create({ title: `Verworfen ${i}`, description: null, pillars: [] });
+		}
+
+		await post(server.baseUrl, { title: 'Irgendein Task' });
+
+		const examples = lastInput?.examples ?? [];
+		assert.equal(examples.length, 1);
+		assert.equal(examples[0]?.title, 'Nützliche Korrektur');
+	});
+
+	it('degradiert graceful: ein Lesefehler der Feedback-Tabelle liefert trotzdem 200 (ohne Beispiele)', async () => {
+		const pillars = await seedPillars();
+		const expected: PillarSuggestion[] = [{ pillarId: pillars[0].id, confidence: 80 }];
+		classifierImpl = async () => expected;
+
+		// Best-Effort: das Laden der optionalen Korrektur-Tabelle schlägt fehl …
+		const originalFindAll = PillarFeedback.findAll;
+		PillarFeedback.findAll = (async () => {
+			throw new Error('pillar_feedback kaputt');
+		}) as typeof PillarFeedback.findAll;
+		try {
+			const res = await post(server.baseUrl, { title: 'Joggen gehen' });
+			// … die Kern-Klassifikation bleibt funktionsfähig (kein HTTP 500).
+			assert.equal(res.status, 200);
+			assert.deepEqual(await res.json(), { suggestions: expected });
+			// … und der Klassifikator erhält schlicht keine gelernten Beispiele.
+			assert.deepEqual(lastInput?.examples, []);
+		} finally {
+			PillarFeedback.findAll = originalFindAll;
+		}
 	});
 
 	it('400 wenn title fehlt oder leer ist', async () => {
@@ -125,6 +197,86 @@ describe('POST /tasks/suggest-pillars', () => {
 		};
 		const res = await post(server.baseUrl, { title: 'X' });
 		assert.equal(res.status, 500);
+	});
+});
+
+describe('POST /tasks/suggest-pillars/feedback', () => {
+	let server: TestServer;
+
+	const postFeedback = (body: unknown) =>
+		fetch(`${server.baseUrl}/tasks/suggest-pillars/feedback`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify(body),
+		});
+
+	beforeEach(async () => {
+		await resetDb();
+		if (!server) {
+			server = await startTestServer({ pillarClassifier: async () => [] });
+		}
+	});
+
+	after(async () => {
+		if (server) {
+			await server.close();
+		}
+	});
+
+	it('201 speichert eine Korrektur und legt eine Zeile in pillar_feedback an', async () => {
+		const pillars = await seedPillars();
+		const res = await postFeedback({
+			title: 'Joggen gehen',
+			description: 'morgens 5 km',
+			pillars: [{ pillarId: pillars[0].id, confidence: 95 }],
+		});
+		assert.equal(res.status, 201);
+		const body = (await res.json()) as { id: number };
+		assert.equal(typeof body.id, 'number');
+
+		const stored = await PillarFeedback.findByPk(body.id);
+		assert.equal(stored?.title, 'Joggen gehen');
+		assert.deepEqual(stored?.pillars, [{ pillarId: pillars[0].id, confidence: 95 }]);
+	});
+
+	it('201 akzeptiert eine leere Säulen-Liste (Nutzer verwirft alle Vorschläge)', async () => {
+		await seedPillars();
+		const res = await postFeedback({ title: 'Ohne Säule', pillars: [] });
+		assert.equal(res.status, 201);
+	});
+
+	it('400 wenn title fehlt', async () => {
+		await seedPillars();
+		assert.equal((await postFeedback({ pillars: [] })).status, 400);
+	});
+
+	it('400 wenn pillars keine Liste ist', async () => {
+		await seedPillars();
+		assert.equal((await postFeedback({ title: 'X', pillars: 'nope' })).status, 400);
+	});
+
+	it('400 bei unbekannter pillarId', async () => {
+		await seedPillars();
+		const res = await postFeedback({ title: 'X', pillars: [{ pillarId: 9999, confidence: 50 }] });
+		assert.equal(res.status, 400);
+	});
+
+	it('400 bei Konfidenz außerhalb [0,100]', async () => {
+		const pillars = await seedPillars();
+		const res = await postFeedback({ title: 'X', pillars: [{ pillarId: pillars[0].id, confidence: 150 }] });
+		assert.equal(res.status, 400);
+	});
+
+	it('400 bei doppelter pillarId', async () => {
+		const pillars = await seedPillars();
+		const res = await postFeedback({
+			title: 'X',
+			pillars: [
+				{ pillarId: pillars[0].id, confidence: 50 },
+				{ pillarId: pillars[0].id, confidence: 60 },
+			],
+		});
+		assert.equal(res.status, 400);
 	});
 });
 
@@ -219,5 +371,83 @@ describe('classifyPillarsWithMistral (Unit, gemockter fetch)', () => {
 		process.env.MISTRAL_API_KEY = 'test-key';
 		stubFetch('', false, 429);
 		await assert.rejects(() => classifyPillarsWithMistral(input), MistralRequestError);
+	});
+
+	it('hängt gelernte Feedback-Beispiele als user/assistant-Paare an den Prompt (nur gültige Säulen)', async () => {
+		process.env.MISTRAL_API_KEY = 'test-key';
+		let sentBody: { messages: { role: string; content: string }[] } | undefined;
+		globalThis.fetch = (async (_url: string, init: { body: string }) => {
+			sentBody = JSON.parse(init.body);
+			return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ pillars: [] }) } }] }), {
+				status: 200,
+				headers: { 'Content-Type': 'application/json' },
+			});
+		}) as unknown as typeof fetch;
+
+		await classifyPillarsWithMistral({
+			...input,
+			examples: [
+				{
+					title: 'Yoga am Abend',
+					pillars: [
+						{ pillarId: 4, confidence: 50 },
+						{ pillarId: 999, confidence: 80 }, // unbekannt → verworfen
+					],
+				},
+				{ title: 'Nur Müll', pillars: [{ pillarId: 999, confidence: 80 }] }, // bleibt leer → komplett weg
+			],
+		});
+
+		const messages = sentBody?.messages ?? [];
+		const yogaUser = messages.find((message) => message.role === 'user' && message.content.includes('Yoga am Abend'));
+		assert.ok(yogaUser, 'das gültige Beispiel landet als user-Message im Prompt');
+		const expectedAssistant = JSON.stringify({ pillars: [{ pillarId: 4, confidence: 50 }] });
+		const assistantWithPillar4 = messages.find(
+			(message) => message.role === 'assistant' && message.content === expectedAssistant,
+		);
+		assert.ok(assistantWithPillar4, 'die assistant-Antwort enthält nur die gültige Säule');
+		assert.ok(
+			!messages.some((message) => message.content.includes('Nur Müll')),
+			'ein Beispiel ohne gültige Säule wird gar nicht angehängt',
+		);
+	});
+
+	it('deckelt die Konfidenz der schwachen Säulen auch in gelernten Feedback-Beispielen auf 60', async () => {
+		process.env.MISTRAL_API_KEY = 'test-key';
+		let sentBody: { messages: { role: string; content: string }[] } | undefined;
+		globalThis.fetch = (async (_url: string, init: { body: string }) => {
+			sentBody = JSON.parse(init.body);
+			return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ pillars: [] }) } }] }), {
+				status: 200,
+				headers: { 'Content-Type': 'application/json' },
+			});
+		}) as unknown as typeof fetch;
+
+		await classifyPillarsWithMistral({
+			...input,
+			examples: [
+				{
+					title: 'Sinn bestätigt',
+					pillars: [
+						{ pillarId: 3, confidence: 100 }, // Sinn → auf 60 gedeckelt
+						{ pillarId: 4, confidence: 90 }, // Mentale Gesundheit → auf 60 gedeckelt
+						{ pillarId: 1, confidence: 95 }, // Körper → unverändert
+					],
+				},
+			],
+		});
+
+		const messages = sentBody?.messages ?? [];
+		const expectedAssistant = JSON.stringify({
+			pillars: [
+				{ pillarId: 3, confidence: 60 },
+				{ pillarId: 4, confidence: 60 },
+				{ pillarId: 1, confidence: 95 },
+			],
+		});
+		assert.ok(
+			messages.some((message) => message.role === 'assistant' && message.content === expectedAssistant),
+			'die gelernte assistant-Antwort deckelt Sinn/Mentale Gesundheit auf 60, lässt Körper unverändert',
+		);
 	});
 });
