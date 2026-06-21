@@ -1,0 +1,120 @@
+name: Claude Triage (Analyse)
+
+# Stoesst die KI-Analyse (Triage) eines Issues automatisch an, sobald
+#  - ein neues Issue ANGELEGT wird (issues: opened) ODER
+#  - an einem Issue das Label "ai:analyzed" ENTFERNT wird (issues: unlabeled).
+# Damit wird ein Issue ohne manuelles Zutun analysiert; das Entfernen von
+# "ai:analyzed" erzwingt bewusst eine Neu-Analyse (z. B. nach geaenderter Beschreibung).
+# Setzt den Ticket-Triage-Ablauf fuer genau dieses eine Issue um.
+# Ablauf/Hintergrund: .ai-knowledge/ticket-triage.md und .claude/commands/triage-ticket.md
+#
+# Re-Triage per @claude-Kommentar bleibt in claude-retriage.yml; dieser Workflow deckt
+# nur die ereignisgesteuerten Faelle (Anlegen / Label-Entfernen) ab.
+#
+# Voraussetzung: Repository-Secret CLAUDE_CODE_OAUTH_TOKEN (per `claude setup-token`).
+
+on:
+  issues:
+    # opened: neu angelegtes Issue; unlabeled: ein Label wurde entfernt
+    # (gefiltert auf "ai:analyzed" im if des Jobs).
+    types: [opened, unlabeled]
+
+# Pro Issue nur ein Lauf gleichzeitig. cancel-in-progress: true -> eine neue Aenderung
+# (z. B. erneutes Entfernen/Setzen) am selben Issue bricht den noch laufenden Triage-Lauf
+# ab, damit immer nur die juengste Analyse durchlaeuft. Ein abgebrochener Teil-Lauf ist
+# unkritisch: der naechste Lauf fuehrt die Triage vollstaendig neu aus.
+concurrency:
+  group: claude-triage-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  triage:
+    # Nur ausloesen, wenn ALLE Bedingungen zutreffen:
+    #  - das Issue ist offen,
+    #  - es traegt (noch) NICHT "ai:analyzed" (sonst ist es bereits analysiert -> kein Doppellauf;
+    #    nach dem Entfernen des Labels ist diese Bedingung erfuellt, da github.event.issue.labels
+    #    bei "unlabeled" bereits den Stand NACH dem Entfernen widerspiegelt),
+    #  - UND einer der beiden Ausloeser greift:
+    #      * opened: neues Issue, das von jemandem mit Schreibzugriff stammt
+    #        (OWNER/MEMBER/COLLABORATOR) — verhindert, dass Aussenstehende den Lauf (und das
+    #        OAuth-Token) per neuem Issue ausloesen; die Action prueft den Zugriff zusaetzlich selbst.
+    #      * unlabeled: genau das Label "ai:analyzed" wurde entfernt (Label entfernen setzt bereits
+    #        Schreibzugriff voraus -> keine zusaetzliche Autorenpruefung noetig).
+    if: >-
+      ${{ github.event.issue.state == 'open'
+          && !contains(github.event.issue.labels.*.name, 'ai:analyzed')
+          && (
+               (github.event.action == 'opened'
+                 && (github.event.issue.author_association == 'OWNER'
+                     || github.event.issue.author_association == 'MEMBER'
+                     || github.event.issue.author_association == 'COLLABORATOR'))
+               || (github.event.action == 'unlabeled'
+                   && github.event.label.name == 'ai:analyzed')
+             ) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read # Repo auschecken (Slash-Command + Wissensbasis lesen)
+      issues: write # Beschreibung lektorieren, Analyse-Kommentar posten, Labels setzen
+      id-token: write # OIDC-Token der Action; ohne diese Permission fehlt ACTIONS_ID_TOKEN_REQUEST_URL
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Triage via Claude Code
+        id: claude
+        uses: anthropics/claude-code-action@v1
+        env:
+          # Stellt sicher, dass die `gh`-Aufrufe im Triage-Ablauf authentifiziert sind.
+          GH_TOKEN: ${{ github.token }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Triage fuer genau dieses eine Issue. Bewusst natuerlichsprachig formuliert
+          # (nicht als Slash-Command), da die Action keine garantierte Slash-Command-
+          # Ausfuehrung im prompt zusichert; verweist aber auf den verbindlichen Ablauf.
+          prompt: |
+            Issue #${{ github.event.issue.number }} wurde soeben angelegt bzw. das Label
+            "ai:analyzed" wurde entfernt und damit eine (Neu-)Analyse (Triage) angefordert.
+
+            Fuehre fuer GENAU DIESES EINE Issue (#${{ github.event.issue.number }}) den
+            Ticket-Triage-Workflow aus der Wissensbasis aus — verbindlicher Ablauf:
+            .ai-knowledge/ticket-triage.md (entspricht dem Slash-Command
+            `/triage-ticket ${{ github.event.issue.number }}`).
+
+            Trifft bereits eine fruehere KI-Analyse als Kommentar zu (Re-Triage), diese nicht
+            unveraendert uebernehmen, sondern auf Passung und Vollstaendigkeit pruefen und bei
+            Bedarf aktualisieren/ergaenzen. Dann wie im Ablauf: Beschreibung lektorieren (Inhalt
+            unveraendert), Loesungs-Kommentar auf Deutsch mit Umsetzbarkeits-Ampel
+            (gruen/gelb/rot) posten und Labels gemaess Ampel setzen (`ai:analyzed`; bei gruen
+            zusaetzlich `ai:ready`, bei gelb/rot kein `ai:ready`).
+
+            Bearbeite ausschliesslich dieses eine Issue (kein Batch). Committe keinen Produktivcode.
+          # Nur die im Triage-Ablauf benoetigten Tools zulassen (headless, keine interaktive
+          # Freigabe) und die in der Wissensbasis geforderte Bestaetigung als durch den
+          # Ereignis-Ausloeser (Anlegen / Label-Entfernen durch eine schreibberechtigte Person)
+          # erteilt behandeln.
+          claude_args: >-
+            --model claude-opus-4-8 --effort medium
+            --allowedTools "Bash(gh issue:*),Bash(gh api:*),Bash(gh label:*),Read,Grep,Glob"
+            --append-system-prompt "Automatisierter, durch das Anlegen des Issues bzw. das Entfernen des ai:analyzed-Labels autorisierter Triage-Lauf in GitHub Actions (headless, keine interaktive Rueckfrage moeglich). Die in der Wissensbasis geforderte Bestaetigung vor dem oeffentlichen Posten gilt durch diesen Ausloeser als erteilt: Poste Lektorat, Analyse-Kommentar und Labels direkt fuer Issue #${{ github.event.issue.number }}, ohne auf eine Bestaetigung zu warten. Bearbeite ausschliesslich dieses Issue und committe keinen Produktivcode."
+
+      # Deterministisches Abschluss-Signal (unabhaengig von der LLM-Ausgabe): laeuft auch bei
+      # Abbruch/Timeout (if: always()) und macht im Log/Job-Summary klar sichtbar, DASS und mit
+      # welchem Ergebnis der Lauf fertig ist. outcome=cancelled signalisiert das 10-Min-Timeout.
+      - name: Ergebnis zusammenfassen
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ github.event.issue.number }}
+          OUTCOME: ${{ steps.claude.outcome }}
+          SESSION_ID: ${{ steps.claude.outputs.session_id }}
+        run: |
+          labels="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
+          {
+            echo "### Triage #${ISSUE} — fertig"
+            echo ""
+            echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\` (cancelled = 10-Min-Timeout erreicht)"
+            echo "- Aktuelle Labels: ${labels:-keine}"
+            if [ -n "$SESSION_ID" ]; then echo "- Session-ID: \`${SESSION_ID}\` (\`--resume\` zum Nachschauen)"; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=Triage #${ISSUE} fertig::Claude-Schritt ${OUTCOME:-unbekannt}; Labels: ${labels:-keine}"

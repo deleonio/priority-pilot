@@ -40,6 +40,12 @@ GitHub-Action [`.github/workflows/claude-retriage.yml`](.github/workflows/claude
 den Triage-Ablauf automatisch für genau dieses eine Issue auf (nur bei Kommentaren von Personen mit
 Schreibzugriff).
 
+In **GitHub Actions** wird die Triage zusätzlich **ereignisgesteuert** angestoßen —
+[`.github/workflows/claude-triage.yml`](.github/workflows/claude-triage.yml) ruft den Triage-Ablauf
+automatisch für genau dieses eine Issue auf, sobald ein **Issue angelegt** wird (nur von Personen mit
+Schreibzugriff, damit Außenstehende den OAuth-Token-Lauf nicht auslösen) oder das Label
+**`ai:analyzed` entfernt** wird (erzwingt eine Neu-Analyse, z. B. nach geänderter Beschreibung).
+
 ## Ticket-Umsetzung
 
 Offene Issues mit Label `ai:ready` (zur Umsetzung freigegeben — bei klarer Analyse 🟢 automatisch
