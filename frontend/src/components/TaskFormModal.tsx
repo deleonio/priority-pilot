@@ -200,7 +200,7 @@ export const TaskFormModal = ({ task, parentTask = null, pillars, onClose, onSav
 				// Aufgabe ausgeschlossen.
 				if (parentTask !== null) {
 					try {
-						await api.addDependency({ id: parentTask.id, dependencyInput: { dependingTaskId: created.id } });
+						await api.addDependency({ id: parentTask.id, dependencyInput: { dependingTaskId: created.id, weight: 1 } });
 					} catch (reason) {
 						const apiError = await toApiError(reason);
 						setError(
