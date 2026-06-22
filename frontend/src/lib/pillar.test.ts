@@ -5,9 +5,12 @@ import {
 	ADD_PILLAR_PLACEHOLDER,
 	addPillarOptions,
 	buildPillarSummaries,
+	isRawDistributionValid,
 	isWeightSumValid,
+	normalizeToTotalWeight,
 	suggestionsToContributions,
 	sumWeights,
+	weightToRaw,
 } from './pillar';
 
 const pillar = (id: number, name: string, weight: number): Pillar => ({ id, name, weight });
@@ -61,6 +64,53 @@ describe('isWeightSumValid', () => {
 	it('lehnt eine abweichende Summe ab', () => {
 		expect(isWeightSumValid(99)).toBe(false);
 		expect(isWeightSumValid(101)).toBe(false);
+	});
+});
+
+describe('weightToRaw', () => {
+	it('rechnet den gespeicherten Prozentwert (0–100) auf den Rohwert (0,0–1,0) zurück', () => {
+		expect(weightToRaw(20)).toBe(0.2);
+		expect(weightToRaw(100)).toBe(1);
+		expect(weightToRaw(0)).toBe(0);
+	});
+});
+
+describe('normalizeToTotalWeight', () => {
+	it('normiert gleiche Rohwerte auf eine Gleichverteilung (5 × 1 ⇒ je 20 %)', () => {
+		const result = normalizeToTotalWeight([1, 1, 1, 1, 1]);
+		expect(result).toEqual([20, 20, 20, 20, 20]);
+		expect(isWeightSumValid(sumWeights(result))).toBe(true);
+	});
+
+	it('ist skaleninvariant: 5 × 0,1 ergibt dieselbe Verteilung wie 5 × 1', () => {
+		expect(normalizeToTotalWeight([0.1, 0.1, 0.1, 0.1, 0.1])).toEqual(normalizeToTotalWeight([1, 1, 1, 1, 1]));
+	});
+
+	it('verteilt gemischte Rohwerte proportional und ergibt in Summe 100 %', () => {
+		// 2 × 0,5 + 3 × 1 ⇒ Σroh = 4 ⇒ 12,5 / 12,5 / 25 / 25 / 25.
+		const result = normalizeToTotalWeight([0.5, 0.5, 1, 1, 1]);
+		expect(result).toEqual([12.5, 12.5, 25, 25, 25]);
+		expect(isWeightSumValid(sumWeights(result))).toBe(true);
+	});
+
+	it('normiert einen einzelnen positiven Wert auf 100 %', () => {
+		expect(normalizeToTotalWeight([0.3])).toEqual([100]);
+	});
+});
+
+describe('isRawDistributionValid', () => {
+	it('akzeptiert eine Verteilung mit mindestens einem Wert > 0', () => {
+		expect(isRawDistributionValid([0, 0.5, 1])).toBe(true);
+	});
+
+	it('lehnt eine reine Null-Verteilung ab (nicht auf 100 % normierbar)', () => {
+		expect(isRawDistributionValid([0, 0, 0])).toBe(false);
+		expect(isRawDistributionValid([])).toBe(false);
+	});
+
+	it('lehnt fehlende oder negative Werte ab', () => {
+		expect(isRawDistributionValid([0.5, null])).toBe(false);
+		expect(isRawDistributionValid([0.5, -0.1])).toBe(false);
 	});
 });
 
