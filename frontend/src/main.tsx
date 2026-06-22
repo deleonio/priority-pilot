@@ -4,6 +4,7 @@ import { DEFAULT } from '@public-ui/theme-default';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { applyInitialTheme } from './lib/theme';
 // KolIcons-Font laden, damit die eingebauten KoliBri-Icons (KolAlert, KolSpin, Selects …) rendern.
 // Direkter Pfad-Import statt Bare-Specifier, weil die `exports`-Map von @public-ui/components den
 // Asset-Subpfad nicht freigibt (siehe doc/HOWTO_ICON_FONTS); Vite bündelt den Font darüber selbst.
@@ -15,6 +16,11 @@ import '../node_modules/@public-ui/components/assets/kolicons/style.css';
 import '../node_modules/@public-ui/theme-default/assets/fontawesome-free/css/fontawesome.min.css';
 import '../node_modules/@public-ui/theme-default/assets/fontawesome-free/css/solid.min.css';
 import './app.css';
+
+// Farbschema vor dem ersten Render absichern. Der eigentliche Anti-FOUC-Anstrich passiert bereits
+// im Inline-Bootstrap in index.html (vor dem CSS-Paint); dieser Aufruf ist idempotent und greift
+// als Fallback, falls der Inline-Bootstrap fehlt, und hält die Wahl mit dem useTheme-Hook konsistent.
+applyInitialTheme();
 
 const container = document.getElementById('root');
 if (container === null) {

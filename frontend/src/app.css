@@ -1,7 +1,38 @@
+/*
+ * Farb-Tokens als CSS-Custom-Properties. `:root` hält die Hell-Werte (Standard); die
+ * Dunkel-Variante überschreibt sie unter `:root[data-theme='dark']`. Das `data-theme`-Attribut
+ * setzt der Anti-FOUC-Bootstrap in index.html bzw. der `useTheme`-Hook (src/lib/theme.ts).
+ * Custom Properties vererben sich auch über Shadow-DOM-Grenzen, sodass KoliBri-Komponenten
+ * dieselben Tokens nutzen können, soweit sie sie auswerten.
+ */
 :root {
+	color-scheme: light;
+	--pp-bg: #ffffff;
+	--pp-text: #1a1a1a;
 	--pp-border: #d0d5dd;
 	--pp-bg-muted: #f5f7fa;
 	--pp-text-muted: #555;
+	--pp-accent-total: #475467;
+	--pp-accent-open: #1570ef;
+	--pp-accent-inprocess: #b54708;
+	--pp-accent-done: #1a7f37;
+	--pp-success: #1a7f37;
+	--pp-danger: #b42318;
+}
+
+:root[data-theme='dark'] {
+	color-scheme: dark;
+	--pp-bg: #16191d;
+	--pp-text: #e6e8eb;
+	--pp-border: #3a3f46;
+	--pp-bg-muted: #21262d;
+	--pp-text-muted: #a4abb4;
+	--pp-accent-total: #98a2b3;
+	--pp-accent-open: #5aa2f5;
+	--pp-accent-inprocess: #e8924a;
+	--pp-accent-done: #52c45f;
+	--pp-success: #52c45f;
+	--pp-danger: #f97066;
 }
 
 body {
@@ -12,7 +43,8 @@ body {
 		'Segoe UI',
 		Roboto,
 		sans-serif;
-	color: #1a1a1a;
+	background-color: var(--pp-bg);
+	color: var(--pp-text);
 }
 
 .app {
@@ -94,19 +126,19 @@ body {
 }
 
 .dashboard-card-accent.total {
-	background: #475467;
+	background: var(--pp-accent-total);
 }
 
 .dashboard-card-accent.open {
-	background: #1570ef;
+	background: var(--pp-accent-open);
 }
 
 .dashboard-card-accent.inprocess {
-	background: #b54708;
+	background: var(--pp-accent-inprocess);
 }
 
 .dashboard-card-accent.done {
-	background: #1a7f37;
+	background: var(--pp-accent-done);
 }
 
 .dashboard-next-task {
@@ -312,11 +344,11 @@ body {
 }
 
 .pillar-weights-sum-ok {
-	color: #1a7f37;
+	color: var(--pp-success);
 }
 
 .pillar-weights-sum-invalid {
-	color: #b42318;
+	color: var(--pp-danger);
 }
 
 /* --- Säulen-Beiträge im Task-Formular (Mehrfach-Einzahlung) --- */

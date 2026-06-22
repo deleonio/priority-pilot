@@ -10,6 +10,7 @@ import { ForestPanel } from './components/ForestPanel';
 import { PillarWeightsModal } from './components/PillarWeightsModal';
 import { TaskFormModal } from './components/TaskFormModal';
 import { TaskTable } from './components/TaskTable';
+import { ThemeToggle } from './components/ThemeToggle';
 import { toApiError } from './lib/apiError';
 import { buildDependencyMap } from './lib/dependencies';
 
@@ -125,6 +126,8 @@ export const App = () => {
 						_disabled={loading}
 						_on={{ onClick: () => void reload() }}
 					/>
+					{/* Farbschema-Umschalter rechts oben: System/Hell/Dunkel (OS-Erkennung + Override). */}
+					<ThemeToggle />
 					{/* Einstellungen rechts oben: ein icon-only Zahnrad öffnet ein Popover mit einer
 					    vertikalen Toolbar als Menü. Erster Unterpunkt ist die persönliche Säulen-Verteilung;
 					    der Bereich ist so für weitere Einstellungen erweiterbar. */}
