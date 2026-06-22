@@ -102,6 +102,10 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ steps.app-token.outputs.token }}
+          # Erlaubte Bot-Ausloeser — die Triage setzt `ai:ready` als App-Bot (claude[bot]), sonst
+          # blockt checkHumanActor ("Workflow initiated by non-human actor"). Absicherung zusaetzlich
+          # ueber den engen Job-`if:` (genau ai:ready + ai:analyzed + offen).
+          allowed_bots: 'claude[bot],my-github-action-bot'
           prompt: |
             Das Label `ai:ready` wurde an Issue #${{ github.event.issue.number }} gesetzt —
             setze dieses Issue jetzt um.
