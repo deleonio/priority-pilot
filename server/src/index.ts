@@ -58,15 +58,15 @@ const seedDemoData = async (): Promise<void> => {
 		estimatedEffort: 1,
 		deadline: new Date('2025-01-15'),
 	});
-	const task2 = await Task.create({ title: 'Task 2', status: 'In process', priority: 2, estimatedEffort: 2 });
+	const task2 = await Task.create({ title: 'Task 2', status: 'In process', priority: 2, estimatedEffort: 0.5 });
 	const task3 = await Task.create({
 		title: 'Task 3',
 		status: 'Open',
 		priority: 3,
-		estimatedEffort: 3,
+		estimatedEffort: 0.75,
 		deadline: new Date('2025-01-20'),
 	});
-	const task4 = await Task.create({ title: 'Task 4', status: 'Open', priority: 4, estimatedEffort: 4 });
+	const task4 = await Task.create({ title: 'Task 4', status: 'Open', priority: 4, estimatedEffort: 1 });
 
 	await task1.addDependency(task2, { through: { weight: 0.5 } });
 	await task1.addDependency(task3, { through: { weight: 0.1 } });

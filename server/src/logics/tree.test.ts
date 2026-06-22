@@ -14,7 +14,7 @@ describe('buildTaskForest', () => {
 	});
 
 	it('Einzelner Task ist Wurzel ohne Kinder', async () => {
-		const task = await Task.create({ title: 'Root', priority: 3, estimatedEffort: 2 });
+		const task = await Task.create({ title: 'Root', priority: 3, estimatedEffort: 1 });
 		const forest = await buildTaskForest();
 		assert.equal(forest.length, 1);
 		assert.equal(forest[0].id, task.id);
@@ -57,12 +57,13 @@ describe('buildTaskForest', () => {
 		//   c.getDependencies() = [b]
 		//   getEstimatedEffort(b) = b.estimatedEffort + Σ getEstimatedEffort(dep in b.getDependencies())
 		//   b.getDependencies() = [a]
-		//   getEstimatedEffort(a) = a.estimatedEffort + [] = 2
-		//   getEstimatedEffort(b) = 3 + 2 = 5
-		//   getEstimatedEffort(c) = 4 + 5 = 9
-		const a = await Task.create({ title: 'A', priority: 3, estimatedEffort: 2 });
-		const b = await Task.create({ title: 'B', priority: 3, estimatedEffort: 3 });
-		const c = await Task.create({ title: 'C', priority: 3, estimatedEffort: 4 });
+		//   getEstimatedEffort(a) = a.estimatedEffort + [] = 0.125
+		//   getEstimatedEffort(b) = 0.25 + 0.125 = 0.375
+		//   getEstimatedEffort(c) = 0.5 + 0.375 = 0.875
+		// (exakte Binär-Brüche, damit die Summen ohne Float-Rundung aufgehen)
+		const a = await Task.create({ title: 'A', priority: 3, estimatedEffort: 0.125 });
+		const b = await Task.create({ title: 'B', priority: 3, estimatedEffort: 0.25 });
+		const c = await Task.create({ title: 'C', priority: 3, estimatedEffort: 0.5 });
 		await b.addDependency(a);
 		await c.addDependency(b);
 		const forest = await buildTaskForest();
@@ -70,24 +71,24 @@ describe('buildTaskForest', () => {
 		assert.equal(forest.length, 1);
 		const rootNode = forest[0];
 		assert.equal(rootNode.id, a.id);
-		assert.equal(rootNode.totalEstimatedEffort, 2);
+		assert.equal(rootNode.totalEstimatedEffort, 0.125);
 		// b is child of a
 		const bNode = rootNode.dependents[0];
 		assert.equal(bNode.id, b.id);
-		assert.equal(bNode.totalEstimatedEffort, 5);
+		assert.equal(bNode.totalEstimatedEffort, 0.375);
 		// c is child of b
 		const cNode = bNode.dependents[0];
 		assert.equal(cNode.id, c.id);
-		assert.equal(cNode.totalEstimatedEffort, 9);
+		assert.equal(cNode.totalEstimatedEffort, 0.875);
 	});
 
 	it('Forest ist absteigend nach value sortiert', async () => {
 		// Two independent trees; root with higher priority gets higher value (it's a leaf)
 		const lo = await Task.create({ title: 'Low', priority: 2, estimatedEffort: 1 });
-		const hi = await Task.create({ title: 'High', priority: 8, estimatedEffort: 1 });
+		const hi = await Task.create({ title: 'High', priority: 5, estimatedEffort: 1 });
 		const forest = await buildTaskForest();
 		assert.equal(forest.length, 2);
-		// hi (value=8) should come before lo (value=2)
+		// hi (priority 5) should come before lo (priority 2)
 		assert.ok(forest[0].value >= forest[1].value);
 		assert.equal(forest[0].id, hi.id);
 		assert.equal(forest[1].id, lo.id);

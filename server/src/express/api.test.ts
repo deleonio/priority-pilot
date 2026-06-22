@@ -66,7 +66,7 @@ describe('Tasks API', () => {
 
 	describe('POST /tasks', () => {
 		it('201 und Task-Objekt bei gültigem Body', async () => {
-			const res = await post('/tasks', { title: 'New task', priority: 5, estimatedEffort: 2 });
+			const res = await post('/tasks', { title: 'New task', priority: 5, estimatedEffort: 1 });
 			assert.equal(res.status, 201);
 			const body = (await res.json()) as Record<string, unknown>;
 			assert.equal(typeof body.id, 'number');
@@ -108,6 +108,11 @@ describe('Tasks API', () => {
 			assert.equal(res.status, 400);
 		});
 
+		it('400 wenn priority > 5', async () => {
+			const res = await post('/tasks', { title: 'T', priority: 6, estimatedEffort: 1 });
+			assert.equal(res.status, 400);
+		});
+
 		it('400 wenn priority keine Ganzzahl', async () => {
 			const res = await post('/tasks', { title: 'T', priority: 1.5, estimatedEffort: 1 });
 			assert.equal(res.status, 400);
@@ -116,6 +121,18 @@ describe('Tasks API', () => {
 		it('400 wenn estimatedEffort < 0.1', async () => {
 			const res = await post('/tasks', { title: 'T', priority: 1, estimatedEffort: 0.05 });
 			assert.equal(res.status, 400);
+		});
+
+		it('400 wenn estimatedEffort > 1', async () => {
+			const res = await post('/tasks', { title: 'T', priority: 1, estimatedEffort: 1.5 });
+			assert.equal(res.status, 400);
+		});
+
+		it('201 bei Randwerten priority=5 und estimatedEffort=0.1/1', async () => {
+			const min = await post('/tasks', { title: 'Min', priority: 1, estimatedEffort: 0.1 });
+			assert.equal(min.status, 201);
+			const max = await post('/tasks', { title: 'Max', priority: 5, estimatedEffort: 1 });
+			assert.equal(max.status, 201);
 		});
 
 		it('400 wenn estimatedEffort kein Number', async () => {
@@ -220,11 +237,23 @@ describe('Tasks API', () => {
 
 		it('PATCH erlaubt partial update (title optional)', async () => {
 			const task = await Task.create({ title: 'T', priority: 1, estimatedEffort: 1 });
-			const res = await patch(`/tasks/${task.id}`, { priority: 9 });
+			const res = await patch(`/tasks/${task.id}`, { priority: 4 });
 			assert.equal(res.status, 200);
 			const body = (await res.json()) as Record<string, unknown>;
-			assert.equal(body.priority, 9);
+			assert.equal(body.priority, 4);
 			assert.equal(body.title, 'T');
+		});
+
+		it('400 bei PATCH mit priority > 5', async () => {
+			const task = await Task.create({ title: 'T', priority: 1, estimatedEffort: 1 });
+			const res = await patch(`/tasks/${task.id}`, { priority: 6 });
+			assert.equal(res.status, 400);
+		});
+
+		it('400 bei PATCH mit estimatedEffort > 1', async () => {
+			const task = await Task.create({ title: 'T', priority: 1, estimatedEffort: 1 });
+			const res = await patch(`/tasks/${task.id}`, { estimatedEffort: 2 });
+			assert.equal(res.status, 400);
 		});
 	});
 
@@ -517,7 +546,7 @@ describe('Tasks API', () => {
 		});
 
 		it('Baumknoten hat erwartete Felder', async () => {
-			await Task.create({ title: 'Root', priority: 3, estimatedEffort: 2 });
+			await Task.create({ title: 'Root', priority: 3, estimatedEffort: 1 });
 			const res = await get('/forest');
 			const body = (await res.json()) as Record<string, unknown>[];
 			const node = body[0];
@@ -546,7 +575,7 @@ describe('Tasks API', () => {
 		});
 
 		it('200 mit nächstem Task', async () => {
-			await Task.create({ title: 'Important', priority: 9, estimatedEffort: 1 });
+			await Task.create({ title: 'Important', priority: 5, estimatedEffort: 1 });
 			const res = await get('/next');
 			assert.equal(res.status, 200);
 			const body = (await res.json()) as Record<string, unknown>;
