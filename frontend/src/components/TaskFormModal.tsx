@@ -83,6 +83,12 @@ export const TaskFormModal = ({ task, parentTask = null, pillars, onClose, onSav
 	// der Wert beeinflusst kein Rendern und der Dialog schließt nach dem Speichern.
 	const suggestionApplied = useRef(false);
 
+	// Beim Anlegen einer Unteraufgabe wird der bereits erfolgreich angelegte Task gemerkt. Schlägt nur
+	// die anschließende Verknüpfung fehl, legt ein erneuter Submit kein Duplikat an, sondern überspringt
+	// `createTask` und versucht ausschließlich die Verknüpfung erneut. Ein Ref reicht: der Wert steuert
+	// kein Rendern und der Dialog schließt nach erfolgreichem Speichern.
+	const createdTask = useRef<Task | null>(null);
+
 	const pillarNameById = useMemo(() => new Map(pillars.map((pillar) => [pillar.id, pillar.name])), [pillars]);
 	const pillarIds = useMemo(() => new Set(pillars.map((pillar) => pillar.id)), [pillars]);
 	// Nur noch nicht zugeordnete Säulen lassen sich hinzufügen (jede Säule höchstens einmal pro Task).
@@ -192,7 +198,10 @@ export const TaskFormModal = ({ task, parentTask = null, pillars, onClose, onSav
 					deadline,
 					pillars,
 				};
-				const created = await api.createTask({ taskCreate });
+				// Bei erneutem Submit nach fehlgeschlagener Verknüpfung den bereits angelegten Task
+				// wiederverwenden, statt ein Duplikat anzulegen.
+				const created = createdTask.current ?? (await api.createTask({ taskCreate }));
+				createdTask.current = created;
 				// Unteraufgabe: die neue Aufgabe als Vorgänger der Eltern-Aufgabe verknüpfen (bestehendes
 				// Abhängigkeits-/Aufgabenwald-Konzept; `dependingTaskId` ist der Vorgänger). Ein Teilfehler
 				// (Aufgabe angelegt, Verknüpfung schlägt fehl) wird verständlich gemeldet, ohne den bereits
