@@ -1,11 +1,11 @@
 name: Claude PR Review abbrechen (bei Merge/Schliessen)
 
 # Bricht laufende UND wartende Kreuzverhoer-Review- und Fixup-Laeufe eines PRs ab, sobald er
-# gemergt oder geschlossen wird. Noetig, weil die gemeinsame Concurrency-Gruppe (claude-pr-<nr>)
-# die Laeufe nur serialisiert (cancel-in-progress: false -> warten statt abbrechen) und beim
-# Schliessen/Mergen kein neuer Lauf startet, der etwas abbrechen koennte — ein gerade laufender
-# oder eingereihter Review/Fixup wuerde sonst sinnlos weiterlaufen (und ggf. auf einen gemergten
-# PR posten).
+# gemergt oder geschlossen wird. Noetig, weil die Concurrency-Gruppen (claude-pr-review-<nr> bzw.
+# claude-pr-fixup-<nr>) die Laeufe nur serialisieren (cancel-in-progress: false -> warten statt
+# abbrechen) und beim Schliessen/Mergen kein neuer Lauf startet, der etwas abbrechen koennte — ein
+# gerade laufender oder eingereihter Review/Fixup wuerde sonst sinnlos weiterlaufen (und ggf. auf
+# einen gemergten PR posten).
 #
 # Reiner gh-Aufruf (kein Claude), nutzt das Standard-GITHUB_TOKEN.
 

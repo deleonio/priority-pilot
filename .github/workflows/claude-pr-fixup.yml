@@ -15,12 +15,13 @@ on:
     types: [labeled]
 
 concurrency:
-  # Gemeinsame Gruppe mit dem Review-Workflow (claude-pr-review.yml): Review und Fixup desselben PRs
-  # laufen dadurch nie parallel, sondern strikt nacheinander — ein Fixup wartet auf ein laufendes
-  # Review (und umgekehrt), und auch gleiche Workflows auf demselben PR reihen sich ein statt
-  # parallel zu laufen. cancel-in-progress: false -> warten statt abbrechen (einen laufenden Fix
-  # nicht mittendrin verwerfen).
-  group: claude-pr-${{ github.event.pull_request.number }}
+  # EIGENE Gruppe pro Workflow (Fixup getrennt von Review) — ausfuehrliche Begruendung in
+  # claude-pr-review.yml. Kurz: eine gemeinsame Gruppe + Trigger beider Workflows auf jedes
+  # `labeled`-Event liessen No-op-Geschwister-Runs den echten Fixup aus dem einzigen Pending-Slot
+  # canceln (GitHub haelt pro Gruppe nur einen laufenden + einen wartenden Run). Getrennte Gruppen
+  # serialisieren nur noch GLEICHE Fixup-Laeufe desselben PRs. cancel-in-progress: false -> einen
+  # laufenden Fix nie mittendrin verwerfen (Push-Sicherheit).
+  group: claude-pr-fixup-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 
 jobs:

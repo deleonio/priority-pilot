@@ -16,12 +16,17 @@ on:
     types: [opened, ready_for_review, labeled]
 
 concurrency:
-  # Gemeinsame Gruppe mit dem Fixup-Workflow (claude-pr-fixup.yml): Review und Fixup desselben PRs
-  # laufen dadurch nie parallel, sondern strikt nacheinander — ein Fixup wartet auf ein laufendes
-  # Review (und umgekehrt), und auch gleiche Workflows auf demselben PR reihen sich ein statt
-  # parallel zu laufen. cancel-in-progress: false -> warten statt abbrechen (kein Lauf wird
-  # mittendrin verworfen; auf den juengsten Stand checkt der wartende Lauf beim Start ohnehin aus).
-  group: claude-pr-${{ github.event.pull_request.number }}
+  # EIGENE Gruppe pro Workflow (Review getrennt von Fixup). Frueher teilten sich Review und Fixup
+  # die Gruppe claude-pr-<nr>. Da BEIDE Workflows auf jedes `labeled`-Event triggern (nur der
+  # Job-`if` filtert das richtige Label, die Concurrency greift aber VOR dem `if`), landete bei
+  # jeder Label-Aenderung je ein Review- UND ein Fixup-Run in derselben Gruppe — auch der, dessen
+  # Job ohnehin skippt. GitHub haelt pro Gruppe nur einen laufenden + einen wartenden Run und
+  # cancelt den aelteren wartenden; so verdraengte ein No-op-Geschwister-Run (gleiches Event,
+  # falsches Label) den echten Run aus dem einzigen Pending-Slot: der Fixup wurde abgebrochen statt
+  # zu laufen. Getrennte Gruppen entkoppeln das — serialisiert wird nur noch der jeweils GLEICHE
+  # Workflow desselben PRs. cancel-in-progress: false -> laufenden Lauf nie mittendrin verwerfen
+  # (der wartende Lauf checkt beim Start ohnehin den juengsten Stand aus).
+  group: claude-pr-review-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 
 jobs:
