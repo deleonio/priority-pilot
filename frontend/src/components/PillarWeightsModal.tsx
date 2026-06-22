@@ -82,8 +82,8 @@ export const PillarWeightsModal = ({ pillars, onClose, onSaved }: PillarWeightsM
 			) : (
 				<>
 					<p className="hint">
-						Gib je Säule einen Wert von 0,0 bis 1,0 ein. Die Werte werden beim Speichern automatisch auf 100 %
-						normiert — die absolute Skala ist egal (5 × 0,1 ergibt dasselbe wie 5 × 1).
+						Gib je Säule einen Wert von 0,0 bis 1,0 ein. Die Werte werden beim Speichern automatisch auf 100 % normiert
+						— die absolute Skala ist egal (5 × 0,1 ergibt dasselbe wie 5 × 1).
 					</p>
 					<div className="form-grid">
 						{pillars.map((pillar, index) => (
