@@ -18,6 +18,37 @@ export const TOTAL_WEIGHT = 100;
 export const WEIGHT_SUM_EPSILON = 1e-6;
 
 /**
+ * Eingabe-Skala für die Roh-Gewichte in der UI: pro Säule ein freier Wert von 0,0 bis 1,0 (#82).
+ * Die absolute Skala ist bewusst egal — `5 × 0,1` und `5 × 1` ergeben nach der Normierung dieselbe
+ * Verteilung. Erst beim Speichern werden die Rohwerte auf die interne 100-%-Verteilung normiert.
+ */
+export const RAW_WEIGHT_MIN = 0;
+export const RAW_WEIGHT_MAX = 1;
+export const RAW_WEIGHT_STEP = 0.1;
+
+/** Roh-Anzeigewert (0,0–1,0) aus dem intern gespeicherten Prozentwert (0–100). */
+export const weightToRaw = (stored: number): number => stored / TOTAL_WEIGHT;
+
+/**
+ * Normiert eine Roh-Verteilung (0,0–1,0 je Eintrag) auf die interne 100-%-Verteilung, sodass die
+ * Summe genau `TOTAL_WEIGHT` ergibt (`anteilᵢ = rohᵢ / Σroh · 100`). Dadurch bleibt die gespeicherte
+ * Repräsentation — und damit die Ranking-Berechnung — unverändert; nur die Eingabe-UX wird einfacher.
+ * Der Aufrufer muss `Σroh > 0` sicherstellen (siehe `isRawDistributionValid`), sonst ist die
+ * Verteilung nicht normierbar (Division durch 0).
+ */
+export const normalizeToTotalWeight = (raws: readonly number[]): number[] => {
+	const total = raws.reduce((acc, raw) => acc + raw, 0);
+	return raws.map((raw) => (raw / total) * TOTAL_WEIGHT);
+};
+
+/**
+ * Prüft, ob eine Roh-Verteilung gültig (normierbar) ist: jeder Wert eine endliche Zahl ≥ 0 und die
+ * Summe > 0. Eine reine Null-Verteilung lässt sich nicht auf 100 % normieren und ist daher ungültig.
+ */
+export const isRawDistributionValid = (raws: readonly (number | null)[]): boolean =>
+	raws.every((raw) => raw !== null && Number.isFinite(raw) && raw >= 0) && sumWeights(raws) > 0;
+
+/**
  * Optionen für die „Säule hinzufügen"-Auswahl im Task-Formular: eine Platzhalter-Option (Sentinel
  * `ADD_PILLAR_PLACEHOLDER`) gefolgt von den noch **nicht** zugeordneten Säulen. Werte sind numerisch
  * (Säulen-`id`). `available` enthält bereits nur die wählbaren Säulen.
@@ -34,8 +65,9 @@ export const sumWeights = (weights: readonly (number | null)[]): number =>
 /** Prüft, ob die Summe der Gewichte (innerhalb der Toleranz) genau `TOTAL_WEIGHT` ergibt. */
 export const isWeightSumValid = (sum: number): boolean => Math.abs(sum - TOTAL_WEIGHT) <= WEIGHT_SUM_EPSILON;
 
-/** Säulen-Name samt prozentualem Anteil, z. B. „Körper (20 %)". */
-export const pillarLabelWithWeight = (pillar: Pillar): string => `${pillar.name} (${formatNumber(pillar.weight)} %)`;
+/** Säulen-Name samt Gewicht als Rohwert 0,0–1,0, z. B. „Körper (0,2)" (#82). */
+export const pillarLabelWithWeight = (pillar: Pillar): string =>
+	`${pillar.name} (${formatNumber(weightToRaw(pillar.weight))})`;
 
 /** Begrenzt einen Wert auf das Intervall `[min, max]`. */
 const clamp = (value: number, min: number, max: number): number => Math.min(Math.max(value, min), max);

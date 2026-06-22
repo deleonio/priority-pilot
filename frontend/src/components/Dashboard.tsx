@@ -3,7 +3,7 @@ import type { Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useMemo } from 'react';
 import { collectTaskValues } from '../lib/forest';
-import { buildPillarSummaries } from '../lib/pillar';
+import { buildPillarSummaries, weightToRaw } from '../lib/pillar';
 import {
 	type DeadlineUrgency,
 	deadlineUrgency,
@@ -148,7 +148,7 @@ export const Dashboard = ({ tasks, forest, nextTask, pillars }: DashboardProps) 
 					<ul className="dashboard-pillars-list">
 						{pillarSummaries.map(({ pillar, taskCount, totalValue, totalEstimatedEffort }) => (
 							<li key={pillar.id} className="dashboard-pillar">
-								<KolMeter _label={pillar.name} _value={pillar.weight} _max={100} />
+								<KolMeter _label={pillar.name} _value={weightToRaw(pillar.weight)} _max={1} />
 								<span className="dashboard-pillar-meta">
 									{taskCount} {taskCount === 1 ? 'Aufgabe' : 'Aufgaben'} · Wert {formatNumber(totalValue)} · Aufwand{' '}
 									{formatNumber(totalEstimatedEffort)} Tage

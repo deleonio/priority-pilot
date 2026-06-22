@@ -18,10 +18,14 @@ import { readNumber, readString } from '../lib/inputValue';
 import {
 	ADD_PILLAR_PLACEHOLDER,
 	addPillarOptions,
-	isWeightSumValid,
+	isRawDistributionValid,
+	normalizeToTotalWeight,
+	RAW_WEIGHT_MAX,
+	RAW_WEIGHT_MIN,
+	RAW_WEIGHT_STEP,
 	suggestionsToContributions,
 	sumWeights,
-	TOTAL_WEIGHT,
+	weightToRaw,
 } from '../lib/pillar';
 import { STATUS_OPTIONS, deadlineToDateInput, formatNumber } from '../lib/task';
 import { Modal } from './Modal';
@@ -66,8 +70,10 @@ export const TaskFormModal = ({ task, parentTask = null, pillars, onClose, onSav
 
 	// Säulen-Beiträge im State (nicht im Ref): Hinzufügen/Entfernen und die Anteils-/Konfidenz-Slider
 	// müssen neu rendern (Live-Summe). Slider verursachen — anders als Textfelder — kein Cursor-Springen.
+	// `share` wird als Rohwert 0,0–1,0 gehalten (#82): der gespeicherte Prozentwert (0–100) wird für die
+	// Anzeige zurückgerechnet und erst beim Speichern wieder auf 100 % normiert. `confidence` bleibt 0–100.
 	const [contributions, setContributions] = useState<TaskPillarContribution[]>(() =>
-		(task?.pillars ?? []).map((entry) => ({ ...entry })),
+		(task?.pillars ?? []).map((entry) => ({ ...entry, share: weightToRaw(entry.share) })),
 	);
 
 	const [error, setError] = useState<string | null>(null);
@@ -94,7 +100,8 @@ export const TaskFormModal = ({ task, parentTask = null, pillars, onClose, onSav
 	// Nur noch nicht zugeordnete Säulen lassen sich hinzufügen (jede Säule höchstens einmal pro Task).
 	const availablePillars = pillars.filter((pillar) => !contributions.some((entry) => entry.pillarId === pillar.id));
 	const shareSum = sumWeights(contributions.map((entry) => entry.share));
-	const shareSumValid = isWeightSumValid(shareSum);
+	// Gültig, sobald jeder Roh-Anteil ≥ 0 ist und mindestens einer > 0 (sonst nicht auf 100 % normierbar).
+	const shareValid = isRawDistributionValid(contributions.map((entry) => entry.share));
 
 	const updateContribution = (pillarId: number, patch: Partial<TaskPillarContribution>): void =>
 		setContributions((prev) => prev.map((entry) => (entry.pillarId === pillarId ? { ...entry, ...patch } : entry)));
@@ -104,9 +111,9 @@ export const TaskFormModal = ({ task, parentTask = null, pillars, onClose, onSav
 		if (id === null || id === ADD_PILLAR_PLACEHOLDER || contributions.some((entry) => entry.pillarId === id)) {
 			return;
 		}
-		// Neuer Beitrag erhält den noch fehlenden Anteil — so wird der erste Beitrag automatisch 100 %.
-		const remaining = Math.max(0, TOTAL_WEIGHT - shareSum);
-		setContributions((prev) => [...prev, { pillarId: id, share: remaining, confidence: 100 }]);
+		// Neuer Beitrag erhält den vollen Roh-Anteil 1,0 — bei gleichen Werten zahlen alle Säulen gleich
+		// stark ein (Normierung beim Speichern verteilt sie anteilig auf 100 %).
+		setContributions((prev) => [...prev, { pillarId: id, share: RAW_WEIGHT_MAX, confidence: 100 }]);
 	};
 
 	const removePillar = (pillarId: number): void =>
@@ -133,7 +140,8 @@ export const TaskFormModal = ({ task, parentTask = null, pillars, onClose, onSav
 				setSuggestError('Es konnte keine passende Säule vorgeschlagen werden.');
 				return;
 			}
-			setContributions(next);
+			// Vorschläge kommen als 100-%-Verteilung (0–100); für die Roh-Anzeige auf 0,0–1,0 zurückrechnen (#82).
+			setContributions(next.map((entry) => ({ ...entry, share: weightToRaw(entry.share) })));
 			suggestionApplied.current = true;
 		} catch (reason) {
 			const apiError = await toApiError(reason);
@@ -167,16 +175,21 @@ export const TaskFormModal = ({ task, parentTask = null, pillars, onClose, onSav
 			setError('Die Deadline ist kein gültiges Datum.');
 			return;
 		}
-		// Bei mindestens einer Säule müssen sich die Anteile zu 100 % summieren (siehe Server-Vertrag).
-		if (contributions.length > 0 && !isWeightSumValid(sumWeights(contributions.map((entry) => entry.share)))) {
-			setError(`Die Anteile der Säulen müssen zusammen ${TOTAL_WEIGHT} % ergeben.`);
+		// Roh-Anteile 0,0–1,0: mindestens ein Anteil muss > 0 sein, damit sich die Verteilung auf 100 %
+		// normieren lässt (#82).
+		if (contributions.length > 0 && !isRawDistributionValid(contributions.map((entry) => entry.share))) {
+			setError('Mindestens eine Säule muss einen Anteil > 0 haben.');
 			return;
 		}
 
 		setError(null);
 		setSaving(true);
 		try {
-			const pillars = contributions.map((entry) => ({ ...entry }));
+			// Roh-Anteile vor dem Speichern auf die interne 100-%-Verteilung normieren (gespeicherte
+			// Repräsentation und Ranking bleiben unverändert). `confidence` bleibt unverändert (0–100).
+			const normalizedShares =
+				contributions.length > 0 ? normalizeToTotalWeight(contributions.map((entry) => entry.share)) : [];
+			const pillars = contributions.map((entry, index) => ({ ...entry, share: normalizedShares[index] }));
 			if (isEdit) {
 				const taskUpdate: TaskUpdate = {
 					title,
@@ -352,7 +365,7 @@ export const TaskFormModal = ({ task, parentTask = null, pillars, onClose, onSav
 					}}
 				/>
 			</div>
-			{/* Säulen-Beiträge: der Task verteilt 100 % seines Anteils auf 0..n Säulen, je mit Konfidenz. */}
+			{/* Säulen-Beiträge: je Säule ein Roh-Anteil 0,0–1,0 (#82), beim Speichern auf 100 % normiert. */}
 			<div className="pillar-editor">
 				<div className="pillar-editor-head">
 					<span className="pillar-editor-label">Säulen (optional)</span>
@@ -381,10 +394,10 @@ export const TaskFormModal = ({ task, parentTask = null, pillars, onClose, onSav
 						return (
 							<div key={entry.pillarId} className="pillar-row">
 								<KolInputRange
-									_label={`${name} – Anteil: ${formatNumber(entry.share)} %`}
-									_min={0}
-									_max={100}
-									_step={1}
+									_label={`${name} – Anteil: ${formatNumber(entry.share)}`}
+									_min={RAW_WEIGHT_MIN}
+									_max={RAW_WEIGHT_MAX}
+									_step={RAW_WEIGHT_STEP}
 									_value={entry.share}
 									_on={{
 										onInput: (_event, value) => updateContribution(entry.pillarId, { share: readNumber(value) ?? 0 }),
@@ -427,12 +440,11 @@ export const TaskFormModal = ({ task, parentTask = null, pillars, onClose, onSav
 				{contributions.length > 0 && (
 					<p
 						className={
-							shareSumValid
-								? 'pillar-weights-sum pillar-weights-sum-ok'
-								: 'pillar-weights-sum pillar-weights-sum-invalid'
+							shareValid ? 'pillar-weights-sum pillar-weights-sum-ok' : 'pillar-weights-sum pillar-weights-sum-invalid'
 						}
 					>
-						Summe der Anteile: {formatNumber(shareSum)} % {shareSumValid ? '✓' : `(Soll: ${TOTAL_WEIGHT} %)`}
+						Summe der Roh-Anteile: {formatNumber(shareSum)}{' '}
+						{shareValid ? '✓ (wird auf 100 % normiert)' : '(mindestens eine Säule muss > 0 sein)'}
 					</p>
 				)}
 			</div>
