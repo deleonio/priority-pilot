@@ -8,3 +8,7 @@ server/src/api.d.ts
 
 # Laufzeit-Datenbank (wird beim Start angelegt/geseedet, kein Repo-Inhalt).
 **/database.sqlite
+
+# Lokale Umgebungskonfiguration (Secrets wie MISTRAL_API_KEY) — nur `.env.example` ist versioniert.
+.env
+**/.env

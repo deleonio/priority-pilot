@@ -30,6 +30,18 @@ Gemeinsamer API-Vertrag: `openapi.yml`
 
 Bevorzugt **gezielt** statt repo-weit prüfen: `pnpm --filter priority-pilot build` bzw. `... lint`.
 
+## Konfiguration (Umgebungsvariablen)
+
+Der Server lädt beim Start automatisch eine `server/.env` in `process.env` (`server/src/env.ts`,
+native `process.loadEnvFile`, Node ≥ 22 — keine zusätzliche Abhängigkeit). Vorlage:
+`server/.env.example` nach `server/.env` kopieren und ausfüllen (`.env` ist gitignored). Echte
+Umgebungsvariablen (z. B. Deployment-Secrets) haben Vorrang; ohne `.env` (CI/Deployment) wird der
+Schritt still übersprungen.
+
+- `MISTRAL_API_KEY` (Pflicht für die Säulen-Klassifikation `POST /tasks/suggest-pillars`; fehlt er,
+  antwortet der Endpoint mit **HTTP 503**), optional `MISTRAL_MODEL` (Default `mistral-small-latest`).
+- `DB_RESET`, `DATABASE_STORAGE`, `PORT` — siehe `server/.env.example`.
+
 ## Datenbank
 
 - SQLite (`server/database.sqlite`). Im Normalbetrieb **kein** Reset.
