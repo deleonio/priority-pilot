@@ -344,13 +344,15 @@ components:
         priority:
           type: integer
           minimum: 1
+          maximum: 5
           default: 3
         estimatedEffort:
           type: number
           format: float
           minimum: 0.1
+          maximum: 1
           default: 0.5
-          description: Geschätzter Eigenaufwand in Tagen
+          description: Geschätzter Eigenaufwand in Tagen (1 Tag ≙ 14 h reguläre Wachzeit)
         actualEffort:
           type: number
           format: float
@@ -382,11 +384,13 @@ components:
         priority:
           type: integer
           minimum: 1
+          maximum: 5
           default: 3
         estimatedEffort:
           type: number
           format: float
           minimum: 0.1
+          maximum: 1
           default: 0.5
         actualEffort:
           type: number
@@ -419,10 +423,12 @@ components:
         priority:
           type: integer
           minimum: 1
+          maximum: 5
         estimatedEffort:
           type: number
           format: float
           minimum: 0.1
+          maximum: 1
         actualEffort:
           type: number
           format: float

@@ -21,7 +21,7 @@ describe('findNextImportantTask', () => {
 	});
 
 	it('Ignoriert Done-Tasks', async () => {
-		await Task.create({ title: 'Done task', priority: 10, estimatedEffort: 1, status: 'Done' });
+		await Task.create({ title: 'Done task', priority: 5, estimatedEffort: 1, status: 'Done' });
 		const open = await Task.create({ title: 'Open task', priority: 2, estimatedEffort: 1 });
 		const result = await findNextImportantTask();
 		assert.ok(result !== null);
@@ -30,8 +30,8 @@ describe('findNextImportantTask', () => {
 
 	it('Wählt Task mit höchster Priorität', async () => {
 		await Task.create({ title: 'Low', priority: 2, estimatedEffort: 1 });
-		const high = await Task.create({ title: 'High', priority: 9, estimatedEffort: 1 });
-		await Task.create({ title: 'Mid', priority: 5, estimatedEffort: 1 });
+		const high = await Task.create({ title: 'High', priority: 5, estimatedEffort: 1 });
+		await Task.create({ title: 'Mid', priority: 4, estimatedEffort: 1 });
 		const result = await findNextImportantTask();
 		assert.ok(result !== null);
 		assert.equal(result.id, high.id);
@@ -40,7 +40,7 @@ describe('findNextImportantTask', () => {
 	it('Überspringt Tasks mit nicht-abgeschlossenen Abhängigkeiten', async () => {
 		// b depends on a (a is not Done), so b should be excluded
 		const a = await Task.create({ title: 'Blocker', priority: 1, estimatedEffort: 1 });
-		const b = await Task.create({ title: 'Blocked', priority: 10, estimatedEffort: 1 });
+		const b = await Task.create({ title: 'Blocked', priority: 5, estimatedEffort: 1 });
 		await b.addDependency(a); // b depends on a; a status = Open → blocks b
 		const c = await Task.create({ title: 'Free', priority: 5, estimatedEffort: 1 });
 		const result = await findNextImportantTask();
@@ -50,7 +50,7 @@ describe('findNextImportantTask', () => {
 
 	it('Wählt Task wenn alle Abhängigkeiten Done sind', async () => {
 		const done = await Task.create({ title: 'Done dep', priority: 1, estimatedEffort: 1, status: 'Done' });
-		const b = await Task.create({ title: 'Unblocked', priority: 8, estimatedEffort: 1 });
+		const b = await Task.create({ title: 'Unblocked', priority: 5, estimatedEffort: 1 });
 		await b.addDependency(done); // b depends on done (status=Done) → b is free
 		const result = await findNextImportantTask();
 		assert.ok(result !== null);
@@ -60,7 +60,7 @@ describe('findNextImportantTask', () => {
 	it('"In process"-Tasks werden berücksichtigt', async () => {
 		const inProcess = await Task.create({
 			title: 'In progress',
-			priority: 7,
+			priority: 5,
 			estimatedEffort: 1,
 			status: 'In process',
 		});

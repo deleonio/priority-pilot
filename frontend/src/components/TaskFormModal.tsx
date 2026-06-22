@@ -139,13 +139,13 @@ export const TaskFormModal = ({ task, pillars, onClose, onSaved }: TaskFormModal
 			return;
 		}
 		const priority = form.current.priority;
-		if (priority === null || !Number.isInteger(priority) || priority < 1) {
-			setError('Priorität muss eine Ganzzahl ≥ 1 sein.');
+		if (priority === null || !Number.isInteger(priority) || priority < 1 || priority > 5) {
+			setError('Priorität muss eine Ganzzahl zwischen 1 und 5 sein.');
 			return;
 		}
 		const estimatedEffort = form.current.estimatedEffort;
-		if (estimatedEffort === null || !Number.isFinite(estimatedEffort) || estimatedEffort < 0.1) {
-			setError('Geschätzter Aufwand muss eine Zahl ≥ 0,1 sein.');
+		if (estimatedEffort === null || !Number.isFinite(estimatedEffort) || estimatedEffort < 0.1 || estimatedEffort > 1) {
+			setError('Geschätzter Aufwand muss eine Zahl zwischen 0,1 und 1 sein.');
 			return;
 		}
 		const description = form.current.description.trim();
@@ -256,8 +256,9 @@ export const TaskFormModal = ({ task, pillars, onClose, onSaved }: TaskFormModal
 					}}
 				/>
 				<KolInputNumber
-					_label="Priorität (Ganzzahl ≥ 1)"
+					_label="Priorität (Ganzzahl 1–5)"
 					_min={1}
+					_max={5}
 					_step={1}
 					_value={form.current.priority ?? undefined}
 					_on={{
@@ -270,8 +271,9 @@ export const TaskFormModal = ({ task, pillars, onClose, onSaved }: TaskFormModal
 					}}
 				/>
 				<KolInputNumber
-					_label="Geschätzter Aufwand in Tagen (≥ 0,1)"
+					_label="Geschätzter Aufwand in Tagen (0,1–1)"
 					_min={0.1}
+					_max={1}
 					_step={0.1}
 					_value={form.current.estimatedEffort ?? undefined}
 					_on={{

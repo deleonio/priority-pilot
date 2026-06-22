@@ -67,6 +67,10 @@ Task.init(
 			type: DataTypes.INTEGER,
 			allowNull: false,
 			defaultValue: 3,
+			validate: {
+				min: 1,
+				max: 5,
+			},
 		},
 		estimatedEffort: {
 			type: DataTypes.FLOAT,
@@ -74,6 +78,7 @@ Task.init(
 			defaultValue: 0.5,
 			validate: {
 				min: 0.1,
+				max: 1,
 			},
 		},
 		actualEffort: {

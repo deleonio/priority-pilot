@@ -162,8 +162,13 @@ const validateTaskFields = (body: unknown, requireTitle: boolean): ValidationRes
 	}
 
 	if (input.priority !== undefined) {
-		if (typeof input.priority !== 'number' || !Number.isInteger(input.priority) || input.priority < 1) {
-			return { ok: false, message: 'priority muss eine Ganzzahl >= 1 sein.' };
+		if (
+			typeof input.priority !== 'number' ||
+			!Number.isInteger(input.priority) ||
+			input.priority < 1 ||
+			input.priority > 5
+		) {
+			return { ok: false, message: 'priority muss eine Ganzzahl zwischen 1 und 5 sein.' };
 		}
 		attrs.priority = input.priority;
 	}
@@ -172,9 +177,10 @@ const validateTaskFields = (body: unknown, requireTitle: boolean): ValidationRes
 		if (
 			typeof input.estimatedEffort !== 'number' ||
 			!Number.isFinite(input.estimatedEffort) ||
-			input.estimatedEffort < 0.1
+			input.estimatedEffort < 0.1 ||
+			input.estimatedEffort > 1
 		) {
-			return { ok: false, message: 'estimatedEffort muss eine endliche Zahl >= 0.1 sein.' };
+			return { ok: false, message: 'estimatedEffort muss eine Zahl zwischen 0.1 und 1 sein.' };
 		}
 		attrs.estimatedEffort = input.estimatedEffort;
 	}
