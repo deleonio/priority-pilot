@@ -13,6 +13,8 @@ interface TaskTableProps {
 	onEdit: (task: Task) => void;
 	onDelete: (task: Task) => void;
 	onEditDependencies: (task: Task) => void;
+	/** Legt eine neue Unteraufgabe an, die als Vorgänger mit dieser Aufgabe verknüpft wird. */
+	onAddSubtask: (task: Task) => void;
 }
 
 /** Eine Datenzeile der Tabelle. Numerische Spalten bleiben Zahlen (für korrekte Sortierung). */
@@ -35,7 +37,8 @@ interface TaskRow extends KoliBriTableDataType {
  * sonst würde `KolTableStateful` seine Zellen samt Toolbar neu aufbauen und der fokussierte
  * Auslöser-Button verlöre den Fokus (Voraussetzung: die Callback-Props sind in `App` stabil).
  */
-export const TaskTable = memo(({ tasks, dependencyMap, onEdit, onDelete, onEditDependencies }: TaskTableProps) => {
+export const TaskTable = memo((props: TaskTableProps) => {
+	const { tasks, dependencyMap, onEdit, onDelete, onEditDependencies, onAddSubtask } = props;
 	if (tasks.length === 0) {
 		return <p>Noch keine Tasks vorhanden. Lege oben einen neuen Task an.</p>;
 	}
@@ -64,13 +67,14 @@ export const TaskTable = memo(({ tasks, dependencyMap, onEdit, onDelete, onEditD
 				{
 					key: 'actions',
 					label: 'Aktionen',
-					// Feste Breite, damit die drei Icon-Buttons der Toolbar einzeilig bleiben (sonst Umbruch).
-					width: 170,
+					// Feste Breite, damit die vier Icon-Buttons der Toolbar einzeilig bleiben (sonst Umbruch).
+					width: 210,
 					// Aktionen als `KolToolbar` (Pfeiltasten-Navigation, gruppierte Semantik). Da eine Web
 					// Component nicht deklarativ in eine KoliBri-Zelle passt, wird sie über `render` in eine
 					// pro Zelle gecachte React-Root gemountet (siehe reactCellRoot). Icon-Buttons mit
 					// `_hideLabel` (Label bleibt aria-label + Tooltip). Die KolIcons-Font kennt keinen
-					// Stift/Papierkorb → Zahnrad (Bearbeiten), Kette (Abhängigkeiten), Kreuz (Löschen).
+					// Stift/Papierkorb → Zahnrad (Bearbeiten), Kette (Abhängigkeiten), Kreuz (Löschen);
+					// für „Unteraufgabe anlegen" liefert die KolIcons-Font kein Plus → Font-Awesome-Plus.
 					render: (domNode, _cell, tupel) => {
 						const task = (tupel as TaskRow)._task;
 						renderIntoCell(
@@ -94,6 +98,14 @@ export const TaskTable = memo(({ tasks, dependencyMap, onEdit, onDelete, onEditD
 										_icons: { left: { icon: 'kolicon-link' } },
 										_variant: 'secondary',
 										_on: { onClick: () => onEditDependencies(task) },
+									},
+									{
+										type: 'button',
+										_label: 'Unteraufgabe anlegen',
+										_hideLabel: true,
+										_icons: { left: { icon: 'fa-solid fa-plus' } },
+										_variant: 'secondary',
+										_on: { onClick: () => onAddSubtask(task) },
 									},
 									{
 										type: 'button',

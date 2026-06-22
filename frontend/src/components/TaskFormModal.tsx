@@ -29,6 +29,11 @@ import { Modal } from './Modal';
 interface TaskFormModalProps {
 	/** Zu bearbeitender Task; `null` legt einen neuen Task an. */
 	task: Task | null;
+	/**
+	 * Beim Anlegen optional die Eltern-Aufgabe: Die neue Aufgabe wird nach dem Speichern als deren
+	 * Vorgänger verknüpft (Unteraufgabe über das bestehende Abhängigkeits-/Aufgabenwald-Konzept).
+	 */
+	parentTask?: Task | null;
 	/** Verfügbare Lebensbalance-Säulen für die Zuordnung (`GET /pillars`). */
 	pillars: Pillar[];
 	onClose: () => void;
@@ -36,7 +41,7 @@ interface TaskFormModalProps {
 	onSaved: () => void;
 }
 
-export const TaskFormModal = ({ task, pillars, onClose, onSaved }: TaskFormModalProps) => {
+export const TaskFormModal = ({ task, parentTask = null, pillars, onClose, onSaved }: TaskFormModalProps) => {
 	const isEdit = task !== null;
 
 	// Eingaben in Refs halten: KoliBri-Inputs verwalten ihren Anzeigewert selbst, daher kein
@@ -77,6 +82,12 @@ export const TaskFormModal = ({ task, pillars, onClose, onSaved }: TaskFormModal
 	// Speichern eine echte Bestätigung/Korrektur, die den Feedback-Loop füttert (#45). Ein Ref reicht:
 	// der Wert beeinflusst kein Rendern und der Dialog schließt nach dem Speichern.
 	const suggestionApplied = useRef(false);
+
+	// Beim Anlegen einer Unteraufgabe wird der bereits erfolgreich angelegte Task gemerkt. Schlägt nur
+	// die anschließende Verknüpfung fehl, legt ein erneuter Submit kein Duplikat an, sondern überspringt
+	// `createTask` und versucht ausschließlich die Verknüpfung erneut. Ein Ref reicht: der Wert steuert
+	// kein Rendern und der Dialog schließt nach erfolgreichem Speichern.
+	const createdTask = useRef<Task | null>(null);
 
 	const pillarNameById = useMemo(() => new Map(pillars.map((pillar) => [pillar.id, pillar.name])), [pillars]);
 	const pillarIds = useMemo(() => new Set(pillars.map((pillar) => pillar.id)), [pillars]);
@@ -187,7 +198,27 @@ export const TaskFormModal = ({ task, pillars, onClose, onSaved }: TaskFormModal
 					deadline,
 					pillars,
 				};
-				await api.createTask({ taskCreate });
+				// Bei erneutem Submit nach fehlgeschlagener Verknüpfung den bereits angelegten Task
+				// wiederverwenden, statt ein Duplikat anzulegen.
+				const created = createdTask.current ?? (await api.createTask({ taskCreate }));
+				createdTask.current = created;
+				// Unteraufgabe: die neue Aufgabe als Vorgänger der Eltern-Aufgabe verknüpfen (bestehendes
+				// Abhängigkeits-/Aufgabenwald-Konzept; `dependingTaskId` ist der Vorgänger). Ein Teilfehler
+				// (Aufgabe angelegt, Verknüpfung schlägt fehl) wird verständlich gemeldet, ohne den bereits
+				// erfolgten Anlege-Vorgang zu verwerfen. Ein Zyklus-Konflikt ist bei einer neuen, kantenlosen
+				// Aufgabe ausgeschlossen.
+				if (parentTask !== null) {
+					try {
+						await api.addDependency({ id: parentTask.id, dependencyInput: { dependingTaskId: created.id, weight: 1 } });
+					} catch (reason) {
+						const apiError = await toApiError(reason);
+						setError(
+							`Die Aufgabe „${created.title}" wurde angelegt, aber die Verknüpfung als Unteraufgabe von „${parentTask.title}" ist fehlgeschlagen: ${apiError.message}`,
+						);
+						setSaving(false);
+						return;
+					}
+				}
 			}
 			// Feedback-Loop (#45): Wurde ein KI-Vorschlag übernommen, ist die final gespeicherte
 			// Zuordnung dessen Bestätigung/Korrektur — als Lern-Sample festhalten. Best-Effort
@@ -222,7 +253,16 @@ export const TaskFormModal = ({ task, pillars, onClose, onSaved }: TaskFormModal
 	})();
 
 	return (
-		<Modal title={isEdit ? `Task bearbeiten: ${task.title}` : 'Neuen Task anlegen'} onClose={onClose}>
+		<Modal
+			title={
+				isEdit
+					? `Task bearbeiten: ${task.title}`
+					: parentTask !== null
+						? `Unteraufgabe zu #${parentTask.id} – ${parentTask.title}`
+						: 'Neuen Task anlegen'
+			}
+			onClose={onClose}
+		>
 			{error !== null && (
 				<KolAlert _type="error" _label="Speichern fehlgeschlagen">
 					{error}
