@@ -15,7 +15,8 @@ import { toApiError } from './lib/apiError';
 import { buildDependencyMap } from './lib/dependencies';
 
 type Dialog =
-	| { kind: 'create' }
+	// `parentTask` gesetzt → die neu angelegte Aufgabe wird als Vorgänger mit ihr verknüpft (Unteraufgabe).
+	| { kind: 'create'; parentTask?: Task }
 	| { kind: 'edit'; task: Task }
 	| { kind: 'delete'; task: Task }
 	| { kind: 'dependencies'; taskId: number }
@@ -99,6 +100,7 @@ export const App = () => {
 	const openEdit = useCallback((task: Task): void => setDialog({ kind: 'edit', task }), []);
 	const openDelete = useCallback((task: Task): void => setDialog({ kind: 'delete', task }), []);
 	const openDependencies = useCallback((task: Task): void => setDialog({ kind: 'dependencies', taskId: task.id }), []);
+	const openAddSubtask = useCallback((task: Task): void => setDialog({ kind: 'create', parentTask: task }), []);
 
 	// Bei einer Dependency-Änderung bleibt der Dialog offen; nur die Daten werden aktualisiert.
 	const refreshKeepingDialog = useCallback((): void => {
@@ -185,6 +187,7 @@ export const App = () => {
 								onEdit={openEdit}
 								onDelete={openDelete}
 								onEditDependencies={openDependencies}
+								onAddSubtask={openAddSubtask}
 							/>
 						</section>
 					</div>
@@ -195,7 +198,13 @@ export const App = () => {
 			)}
 
 			{dialog?.kind === 'create' && (
-				<TaskFormModal task={null} pillars={pillars} onClose={closeDialog} onSaved={afterMutation} />
+				<TaskFormModal
+					task={null}
+					parentTask={dialog.parentTask ?? null}
+					pillars={pillars}
+					onClose={closeDialog}
+					onSaved={afterMutation}
+				/>
 			)}
 			{dialog?.kind === 'edit' && (
 				<TaskFormModal
