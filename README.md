@@ -101,11 +101,16 @@ Bedienung und Dev-Server: [`frontend/README.md`](frontend/README.md).
 
 ```bash
 pnpm install        # Abhängigkeiten installieren
+pnpm dev            # Frontend (Vite) + Backend (nodemon) parallel in einer Konsole
 pnpm build          # Client generieren + Server bauen (alle Packages)
 pnpm lint           # Lint über alle Packages
 pnpm format         # Prettier über das gesamte Repo (eine zentrale Config)
 pnpm update         # Dependencies via ncu auf latest + reinstall
 ```
+
+`pnpm dev` startet beide Pakete gleichzeitig (`pnpm -r --parallel dev`); die Ausgaben werden je
+Paket präfixt und `Ctrl+C` beendet beide Prozesse zusammen. Einzeln lassen sie sich weiterhin
+gezielt starten:
 
 Server gezielt:
 

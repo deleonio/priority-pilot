@@ -26,7 +26,9 @@ Gemeinsamer API-Vertrag: `openapi.yml`
 - `pnpm build` — Client generieren + Server bauen
 - `pnpm lint` — Lint über alle Packages
 - `pnpm format` — Prettier über das ganze Repo (eine zentrale Config im Root)
-- `pnpm --filter priority-pilot dev` — Server im Watch-Modus (nodemon)
+- `pnpm dev` — Frontend (Vite) **und** Backend (nodemon) parallel in einer Konsole starten
+- `pnpm --filter priority-pilot dev` — nur Server im Watch-Modus (nodemon)
+- `pnpm --filter frontend dev` — nur Frontend (Vite)
 
 Bevorzugt **gezielt** statt repo-weit prüfen: `pnpm --filter priority-pilot build` bzw. `... lint`.
 
