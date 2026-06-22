@@ -1,3 +1,4 @@
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
@@ -19,11 +20,11 @@ import { fileURLToPath } from 'node:url';
  * gesetzte echte Umgebungsvariablen bleiben so oder so maßgeblich.
  */
 const loadEnv = (): void => {
-	const envPath = fileURLToPath(new URL('../.env', import.meta.url));
+	const envPath = join(dirname(fileURLToPath(import.meta.url)), '..', '.env');
 	try {
 		process.loadEnvFile(envPath);
 	} catch (error) {
-		if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT') {
+		if ((error as { code?: string })?.code !== 'ENOENT') {
 			console.warn(`Konnte ${envPath} nicht laden:`, error);
 		}
 		// ENOENT: Keine `.env` vorhanden (CI/Deployment) — echte Umgebungsvariablen genügen.
