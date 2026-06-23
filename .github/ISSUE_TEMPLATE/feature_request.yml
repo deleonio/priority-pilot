@@ -21,6 +21,19 @@ body:
     validations:
       required: true
   - type: textarea
+    id: acceptance
+    attributes:
+      label: Akzeptanzkriterien
+      description: >-
+        Woran erkennt man, dass die Funktion fertig ist? Möglichst prüfbar formulieren
+        (Given/When/Then) – daraus werden später Tests. Optional; die Triage ergänzt fehlende
+        Kriterien.
+      placeholder: |
+        - Gegeben … wenn … dann …
+        - …
+    validations:
+      required: false
+  - type: textarea
     id: alternatives
     attributes:
       label: Alternativen

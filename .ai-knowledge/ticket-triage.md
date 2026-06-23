@@ -34,7 +34,9 @@ verarbeitet, auch wenn sie bereits `ai:analyzed` trägt (Re-Triage, siehe Schrit
   relevante Dateien via Grep/Glob/Read finden, Architektur/Konventionen aus der Wissensbasis
   berücksichtigen — nicht raten.
 - Ergebnis: Problemzusammenfassung, betroffene Dateien/Bereiche (mit Pfaden), Root Cause bzw.
-  Lösungsweg, offene Fragen/Risiken.
+  Lösungsweg, offene Fragen/Risiken sowie **prüfbare Akzeptanzkriterien** und die daraus
+  abgeleiteten **Testfälle** (ausformuliert in Schritt 4; Hintergrund:
+  [tdd-strategy.md](tdd-strategy.md)).
 - **Re-Triage bestehender Analyse:** Liegt bereits ein `ai:analyzed`-Kommentar vor (z. B. weil die
   Beschreibung nachträglich geändert/ergänzt wurde), die vorhandene Analyse **nicht unverändert
   übernehmen**. Prüfen, ob sie zur (ggf. überarbeiteten) Aufgabenstellung **noch passt** und
@@ -97,7 +99,7 @@ Bei einem zu großen Ticket:
   gh issue create --title "<Teilaufgabe>" --label "ai:analyzed" --body-file - <<'EOF'
   Teil von #<eltern-nr>
 
-  <Kontext + Akzeptanzkriterien + Ampel>
+  <Kontext + Akzeptanzkriterien + Testfälle + Ampel>
   EOF
   ```
 
@@ -121,12 +123,26 @@ Bei einem zu großen Ticket:
 - Den konzipierten Lösungsweg konkret und umsetzbar formulieren: betroffene Dateien, Schritte,
   Alternativen, Risiken, grobe Aufwandseinschätzung. Bei Zerlegung (Schritt 3) die angelegten
   Sub-Issues mit Nummern, Kurzbeschreibung und empfohlener Reihenfolge/Abhängigkeiten auflisten.
+- **Akzeptanzkriterien & Testfälle (Pflichtbestandteil, Stufe 1 der [TDD-Strategie](tdd-strategy.md)):**
+  Den Lösungsvorschlag um eine Liste **prüfbarer Akzeptanzkriterien** ergänzen (möglichst
+  Given/When/Then) und je Kriterium den konkreten **Testfall** benennen — Testebene und Zieldatei
+  nach Ticket-Typ:
+  - **Backend-Logik / API** → `node:test`-Unit (`server/src/logics/*.test.ts`) bzw. API-Test
+    (`server/src/express/*.test.ts`).
+  - **Frontend-Logik** → Vitest-Unit (`frontend/src/lib/*.test.ts`).
+  - **Feature / UI-Verhalten** → Akzeptanz-e2e (`frontend/e2e/*.spec.ts`, Stil `crud.spec.ts`).
+  - **Reines Styling/Layout** → visuelle Verifikation statt Test (kurz begründen).
+
+  Ziel: Die Umsetzung erhält eine **ausführbare** Zielvorgabe statt nur Prosa — das verhindert das
+  „Schlingern" der KI. Akzeptanzkriterien und Testfälle gehören auch in die Sub-Issue-Bodies aus
+  Schritt 3.
+
 - **Umsetzbarkeits-Ampel** an den Anfang des Kommentars stellen — signalisiert, wie gut das Ticket
   umsetzbar ist:
   - 🟢 **grün** — klar umsetzbar: Anforderungen eindeutig, betroffene Dateien bekannt, in einem PR
-    machbar.
-  - 🟡 **gelb** — bedingt umsetzbar: offene Fragen/Annahmen, größerer Umfang oder Zerlegung
-    empfohlen (siehe Schritt 3).
+    machbar **und prüfbare Akzeptanzkriterien + Testfälle liegen vor**.
+  - 🟡 **gelb** — bedingt umsetzbar: offene Fragen/Annahmen, **Akzeptanzkriterien (noch) nicht
+    prüfbar formulierbar**, größerer Umfang oder Zerlegung empfohlen (siehe Schritt 3).
   - 🔴 **rot** — noch nicht umsetzbar: Anforderungen unklar/widersprüchlich oder Infos fehlen;
     Rückfrage nötig, bevor implementiert wird.
 

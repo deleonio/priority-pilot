@@ -41,7 +41,9 @@ bereits erledigte Teile). Deshalb beim Lesen des Tickets die Analyse **erneut an
 - **Re-Triage ausführen** — den Analyse-Workflow erneut auf das Ticket anwenden
   ([ticket-triage.md](ticket-triage.md), Schritt 1 — Re-Triage; Command `/triage-ticket <nr>`):
   aus Titel + (lektorierter) Beschreibung + **aktuellem** Repo erneut eine Lösung konzipieren
-  (relevante Dateien via Grep/Glob/Read) und mit der vorhandenen Analyse abgleichen.
+  (relevante Dateien via Grep/Glob/Read) und mit der vorhandenen Analyse abgleichen — dabei auch die
+  **Akzeptanzkriterien + Testfälle** (Triage Schritt 4) auf Aktualität/Vollständigkeit prüfen, da sie
+  der Umsetzung in Schritt 3 als Zielvorgabe dienen.
 - **Noch konform →** die Analyse bildet den aktuellen Stand korrekt ab; unverändert weiter mit
   Schritt 3.
 - **Nicht mehr konform / unvollständig →** die Analyse **aktualisieren** (neuer
