@@ -18,6 +18,17 @@ jobs:
       # install loest ueber den client-prepare-Hook die Vertragstypen aus (openapi-typescript, kein Java).
       - name: Install
         run: pnpm install --frozen-lockfile
+      # Playwright-Browser cachen, damit nicht jeder Lauf Chromium neu herunterladen muss.
+      # Schluessel an den pnpm-Lockfile gekoppelt (Cache-Bust bei Playwright-Upgrade).
+      - name: Playwright-Browser-Cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
+      # Nur Chromium installieren — playwright.config.ts definiert ausschliesslich das chromium-Projekt.
+      # --with-deps zieht die System-Abhaengigkeiten nach (liegen ausserhalb des Cache-Pfads).
+      - name: Playwright-Browser installieren
+        run: pnpm --filter frontend exec playwright install --with-deps chromium
       - name: Format-Check
         run: pnpm exec prettier --check .
       - name: Lint
@@ -28,3 +39,19 @@ jobs:
         run: pnpm -r build
       - name: Test
         run: pnpm -r test
+      # E2E: Playwright startet Backend (frische In-Memory-DB) + Vite selbst (siehe playwright.config.ts) —
+      # kein separater Server-Start in der Pipeline noetig.
+      - name: E2E
+        run: pnpm --filter frontend test:e2e
+      # Bei Fehlschlag den Playwright-Report als Artefakt sichern, damit Regressionen
+      # nachvollziehbar bleiben, ohne den Lauf lokal reproduzieren zu muessen.
+      - name: Playwright-Report sichern
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+          retention-days: 7
+          if-no-files-found: ignore
