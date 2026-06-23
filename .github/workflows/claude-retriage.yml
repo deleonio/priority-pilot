@@ -79,7 +79,9 @@ jobs:
             Behandle es als Re-Triage (Schritt 1 der Wissensbasis): eine bereits vorhandene
             KI-Analyse nicht unveraendert uebernehmen, sondern auf Passung und Vollstaendigkeit
             zur (ggf. geaenderten) Aufgabenstellung pruefen und bei Bedarf aktualisieren bzw.
-            ergaenzen. Dann wie im Ablauf: Beschreibung lektorieren (Inhalt unveraendert),
+            ergaenzen. Dann wie im Ablauf: Beschreibung lektorieren (Inhalt unveraendert), am Ende
+            den Titel auf Konsistenz zur Beschreibung/zum Ziel pruefen und bei Inkonsistenz
+            inhaltlich treu optimieren (kein Edit pro forma, keine Titel-Drift),
             Loesungs-Kommentar auf Deutsch mit Umsetzbarkeits-Ampel (gruen/gelb/rot) posten und
             Labels gemaess Ampel setzen (`ai:analyzed`; bei gruen zusaetzlich `ai:ready`, bei
             gelb/rot ein evtl. vorhandenes `ai:ready` entfernen).
@@ -136,7 +138,9 @@ jobs:
             Behandle es als Re-Triage (Schritt 1 der Wissensbasis): eine bereits vorhandene
             KI-Analyse nicht unveraendert uebernehmen, sondern auf Passung und Vollstaendigkeit
             zur (ggf. geaenderten) Aufgabenstellung pruefen und bei Bedarf aktualisieren bzw.
-            ergaenzen. Dann wie im Ablauf: Beschreibung lektorieren (Inhalt unveraendert),
+            ergaenzen. Dann wie im Ablauf: Beschreibung lektorieren (Inhalt unveraendert), am Ende
+            den Titel auf Konsistenz zur Beschreibung/zum Ziel pruefen und bei Inkonsistenz
+            inhaltlich treu optimieren (kein Edit pro forma, keine Titel-Drift),
             Loesungs-Kommentar auf Deutsch mit Umsetzbarkeits-Ampel (gruen/gelb/rot) posten und
             Labels gemaess Ampel setzen (`ai:analyzed`; bei gruen zusaetzlich `ai:ready`, bei
             gelb/rot ein evtl. vorhandenes `ai:ready` entfernen).
