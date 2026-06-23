@@ -1,0 +1,42 @@
+name: Release
+
+# Tag-getriebener Release: vX.Y.Z -> Build (Tarball) -> GitHub Release -> SSH-Deploy.
+# Baut auf scripts/pack-release.sh (R1/#102) auf; Referenz: docs/deployment.md & docs/deployment-repo-plan.md (R2).
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: write # gh release create
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22 # MUSS zur Node-Major-Version des Hosts passen (native sqlite3)
+          cache: pnpm
+
+      # Baut Frontend + Backend und schnuert priority-pilot-<tag>.tar.gz im Repo-Root.
+      - name: Pack release
+        run: bash scripts/pack-release.sh "${GITHUB_REF_NAME}"
+
+      - name: GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${GITHUB_REF_NAME}" "priority-pilot-${GITHUB_REF_NAME}.tar.gz" --generate-notes
+
+      # Pull-Modell: der Host zieht das Release selbst (siehe docs/deployment.md, Abschnitt 6).
+      # Bricht erwartbar ab, solange Server/Secrets noch nicht eingerichtet sind.
+      - name: Deploy auslösen
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+        run: |
+          install -m600 <(printf '%s\n' "$SSH_KEY") /tmp/deploy_key
+          ssh -i /tmp/deploy_key -o StrictHostKeyChecking=accept-new \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" "deploy priority-pilot ${GITHUB_REF_NAME}"
