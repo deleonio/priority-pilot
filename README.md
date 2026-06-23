@@ -122,10 +122,14 @@ pnpm --filter priority-pilot lint    # api.d.ts + tsc --noemit + eslint
 
 ## Umgebungsvariablen (Server)
 
-| Variable   | Default | Wirkung                                                            |
-| ---------- | ------- | ------------------------------------------------------------------ |
-| `PORT`     | `3000`  | Port des Express-Servers.                                          |
-| `DB_RESET` | `false` | Bei `true` wird die SQLite-DB beim Start verworfen (`sync force`). |
+| Variable           | Default                | Wirkung                                                                       |
+| ------------------ | ---------------------- | ----------------------------------------------------------------------------- |
+| `PORT`             | `3000`                 | Port des Express-Servers.                                                     |
+| `DB_RESET`         | `false`                | Bei `true` wird die SQLite-DB beim Start verworfen (`sync force`).            |
+| `DB_SEED`          | `true`                 | Bei `false` werden keine Demo-Daten gesät (Säulen-Stammdaten bleiben).        |
+| `DATABASE_STORAGE` | `./database.sqlite`    | Speicherort der SQLite-DB (`:memory:` für flüchtig).                          |
+| `MISTRAL_API_KEY`  | –                      | API-Key für die Säulen-Klassifikation; ohne ihn antwortet der Endpoint `503`. |
+| `MISTRAL_MODEL`    | `mistral-small-latest` | Optionales Mistral-Modell für die Klassifikation.                             |
 
 > Ohne `DB_RESET=true` bleiben vorhandene Daten erhalten; Demo-Daten werden nur in eine
 > leere Datenbank gesät.
