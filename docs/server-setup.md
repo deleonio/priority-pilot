@@ -4,6 +4,11 @@ Runbook für die **einmalige** Einrichtung eines frischen Linux-Servers, damit P
 Git-Tag automatisch dorthin deployt werden kann. Konzept dahinter: [`deployment.md`](deployment.md);
 die Repo-Seite: [`deployment-repo-plan.md`](deployment-repo-plan.md).
 
+> **Hetzner Cloud?** Die plattformspezifischen Schritte **davor** (Server-Typ, Cloud Firewall,
+> Volume für die DB, Snapshots, Floating IP, DNS) stehen in
+> [`deployment-hetzner.md`](deployment-hetzner.md). Dieses Runbook gilt provider-unabhängig ab dem
+> fertig erreichbaren Server.
+
 > **Annahmen:** Debian 12 / Ubuntu 22.04+, **x64**, root- bzw. `sudo`-Zugriff, eine Domain, deren
 > A-Record (Schritt 9) auf den Server zeigt. Platzhalter `priority-pilot.example.de` und
 > `deploy@host` durch echte Werte ersetzen. Node-Major-Version **22** (muss zur CI passen — native

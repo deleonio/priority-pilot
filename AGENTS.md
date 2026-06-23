@@ -13,6 +13,7 @@ Wissensbasis liegt in [`.ai-knowledge/`](.ai-knowledge/).
 - [Deployment](docs/deployment.md) — Release-Build (GitHub Actions), Tarball, Host-Layout, systemd, Caddy, Rollback
 - [Deployment: Repo-Plan](docs/deployment-repo-plan.md) — was im Repo zu bauen ist (Pack-Skript, Release-Workflow, Secrets)
 - [Deployment: Server-Setup](docs/server-setup.md) — Schritt-für-Schritt-Einrichtung des Linux-Servers
+- [Deployment: Hetzner Cloud](docs/deployment-hetzner.md) — Hetzner-spezifische Plattform-Checkliste (Server-Typ, Cloud Firewall, Volume, Snapshots, DNS)
 
 ## Kernregeln
 

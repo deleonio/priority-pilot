@@ -150,6 +150,7 @@ Symlink-Switch + `systemctl restart` auf dem Host, Caddy davor):
 - [`docs/deployment.md`](docs/deployment.md) — Konzept & Ablauf (Architektur, Release-Artefakt, Caddy, systemd, Rollback).
 - [`docs/deployment-repo-plan.md`](docs/deployment-repo-plan.md) — Umsetzungsplan im Repo (Pack-Skript, Release-Workflow, Secrets).
 - [`docs/server-setup.md`](docs/server-setup.md) — Schritt-für-Schritt-Einrichtung des Linux-Servers.
+- [`docs/deployment-hetzner.md`](docs/deployment-hetzner.md) — Hetzner-Cloud-Checkliste (Server-Typ, Cloud Firewall, Volume, Snapshots, DNS).
 
 ## Mitwirken
 
