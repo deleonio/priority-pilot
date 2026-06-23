@@ -17,7 +17,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22 # MUSS zur Node-Major-Version des Hosts passen (native sqlite3)
+          node-version: 26 # MUSS zur Node-Major-Version des Hosts passen (native sqlite3)
           cache: pnpm
 
       # Baut Frontend + Backend und schnuert priority-pilot-<tag>.tar.gz im Repo-Root.

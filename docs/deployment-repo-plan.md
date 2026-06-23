@@ -92,7 +92,7 @@ curl -fsS localhost:3000/next && kill %1         # API erreichbar
 
 **Scope-Grenze:** kein Aufräumen alter Tarballs, kein Upload (das macht R2).
 
-**Entscheidung (zu treffen):** Prod-`node_modules` in CI bauen (Annahme: Host = x64-Linux + Node 22,
+**Entscheidung (zu treffen):** Prod-`node_modules` in CI bauen (Annahme: Host = x64-Linux + Node 26,
 passt zum CI-Runner) **oder** auf dem Host installieren. Standard hier: in CI bauen. Weicht die
 Host-Architektur ab → in `deploy.sh` ein `pnpm install --prod` nach dem Entpacken ergänzen (siehe
 [`server-setup.md`](server-setup.md)) und diesen `node_modules`-Kopierschritt im Pack-Skript entfernen.
@@ -122,7 +122,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22 # MUSS zur Node-Major-Version des Hosts passen (native sqlite3)
+          node-version: 26 # MUSS zur Node-Major-Version des Hosts passen (native sqlite3)
           cache: pnpm
 
       - name: Pack release

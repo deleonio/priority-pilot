@@ -93,8 +93,8 @@ Drei Punkte, die aus der Repo-Realität folgen und im Konzept leicht übersehen 
 2. **Das Backend braucht `node_modules` zur Laufzeit** — `express`, `sequelize`, `sqlite3`. `sqlite3`
    ist ein **natives Modul** (siehe `onlyBuiltDependencies` in der Root-`package.json`); die
    kompilierte Binärdatei muss zur **Architektur und Node-ABI des Hosts** passen.
-   → CI baut auf `ubuntu-latest` (x64) mit **Node 22**. Läuft der Host ebenfalls als x64-Linux mit
-   Node 22, passt das Prebuild. Bei abweichender Arch/Node-Version: Prod-Deps **auf dem Host**
+   → CI baut auf `ubuntu-latest` (x64) mit **Node 26**. Läuft der Host ebenfalls als x64-Linux mit
+   Node 26, passt das Prebuild. Bei abweichender Arch/Node-Version: Prod-Deps **auf dem Host**
    installieren (`pnpm install --prod` im `server/`-Verzeichnis) statt im Tarball mitliefern.
 3. **Die SQLite-Datenbank gehört NICHT in den Tarball / Release-Baum** — sie ist Laufzeitzustand und
    lebt in einem persistenten Daten-Verzeichnis (siehe [Abschnitt 4](#4-host-verzeichnislayout)).
@@ -123,7 +123,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22 # MUSS zur Node-Major-Version des Hosts passen (native sqlite3)
+          node-version: 26 # MUSS zur Node-Major-Version des Hosts passen (native sqlite3)
           cache: pnpm
 
       - name: Install
@@ -496,7 +496,7 @@ Danach läuft jedes Deploy nur noch über `deploy <app> <version>`.
 - **API-Präfix `/api`:** Aktuell liegen die Endpunkte an der Wurzel (`/tasks`, …). Falls perspektivisch
   ein `/api`-Präfix gewünscht ist, müssten Express-Routen, `vite.config.ts`-Proxy, `VITE_API_BASE_URL`
   und der Caddy-`@api`-Matcher gemeinsam angepasst werden. Bis dahin gelten die Wurzelpfade.
-- **Arch-/Node-Matching:** Diese Doku nimmt x64-Linux + Node 22 auf dem Host an (passend zur CI). Weicht
+- **Arch-/Node-Matching:** Diese Doku nimmt x64-Linux + Node 26 auf dem Host an (passend zur CI). Weicht
   der Host ab, Prod-Deps auf dem Host installieren statt im Tarball mitliefern.
 - **Hostname/Domain:** `example.de` ist Platzhalter (vgl. Kommentar im Deploy-Pubkey) und beim Einrichten
   durch die echte Domain zu ersetzen.

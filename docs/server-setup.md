@@ -6,12 +6,12 @@ die Repo-Seite: [`deployment-repo-plan.md`](deployment-repo-plan.md).
 
 > **Annahmen:** Debian 12 / Ubuntu 22.04+, **x64**, root- bzw. `sudo`-Zugriff, eine Domain, deren
 > A-Record (Schritt 9) auf den Server zeigt. Platzhalter `priority-pilot.example.de` und
-> `gh-deploy@host` durch echte Werte ersetzen. Node-Major-Version **22** (muss zur CI passen — native
+> `gh-deploy@host` durch echte Werte ersetzen. Node-Major-Version **26** (muss zur CI passen — native
 > `sqlite3`).
 
 ```mermaid
 flowchart TB
-    s1["1 · System + Node 22 + Caddy"] --> s2["2 · gh-deploy-User"]
+    s1["1 · System + Node 26 + Caddy"] --> s2["2 · gh-deploy-User"]
     s2 --> s3["3 · SSH-Deploy-Key (forced command)"]
     s2 --> s4["4 · Verzeichnisse + data/"]
     s4 --> s5["5 · Env-Datei (chmod 600)"]
@@ -42,8 +42,8 @@ flowchart LR
 ```bash
 sudo apt update && sudo apt -y upgrade
 
-# Node.js 22 (NodeSource)
-curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+# Node.js 26 (NodeSource)
+curl -fsSL https://deb.nodesource.com/setup_26.x | sudo -E bash -
 sudo apt install -y nodejs git
 
 # pnpm (zum optionalen Prod-Install auf dem Host; sonst nicht zwingend nötig)
@@ -61,7 +61,7 @@ curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' \
 sudo apt update && sudo apt install -y caddy
 ```
 
-**Prüfen:** `node -v` zeigt `v22.*`, `caddy version` und `gh --version` laufen.
+**Prüfen:** `node -v` zeigt `v26.*`, `caddy version` und `gh --version` laufen.
 
 ---
 
@@ -177,7 +177,7 @@ EOF
 sudo -u gh-deploy chmod +x /home/gh-deploy/deploy.sh
 ```
 
-> **Variante Host-Install** (nur falls die Host-Architektur **nicht** x64-Linux/Node 22 ist und das
+> **Variante Host-Install** (nur falls die Host-Architektur **nicht** x64-Linux/Node 26 ist und das
 > Tarball daher **ohne** `node_modules` gebaut wird): nach dem `tar`-Schritt ergänzen:
 > `( cd "$REL/server" && pnpm install --prod )`. Siehe [`deployment-repo-plan.md`](deployment-repo-plan.md) R1.
 
