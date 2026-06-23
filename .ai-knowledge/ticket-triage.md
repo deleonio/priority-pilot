@@ -54,6 +54,23 @@ verarbeitet, auch wenn sie bereits `ai:analyzed` trägt (Re-Triage, siehe Schrit
 - Ändert das Lektorat fachlich nichts, sondern nur die Form: ist die Beschreibung bereits sauber,
   bleibt sie unangetastet (kein Edit „pro forma").
 
+## Schritt 2b — Titel optimieren (Inhalt unverändert)
+
+Das Lektorat (Schritt 2) verbessert nur die **Beschreibung**; der **Titel** bleibt dabei unberührt
+und kann inhaltlich „veralten" — besonders beim **Re-Triage** (Schritt 1), wenn die Beschreibung
+nachträglich geändert wurde oder die Analyse das eigentliche Ziel präzisiert. Deshalb **am Ende der
+Analyse** prüfen, ob der Titel noch passt, und ihn andernfalls optimieren.
+
+- **Konsistenz prüfen:** Bildet der Titel die (lektorierte) **Beschreibung** und das **eigentliche
+  Ziel des Tickets** (Beschreibung + Analyse-Ergebnis aus Schritt 4, ggf. Kommentar-Diskussion) noch
+  treffend ab? Ist er kurz, präzise und inhaltlich stimmig?
+- **Nur bei tatsächlicher Inkonsistenz anpassen** — analog zum Lektorat **inhaltlich treu**: keine
+  Bedeutungsänderung, keine neuen Anforderungen, nur Anpassung an den tatsächlichen Inhalt
+  (kürzer/präziser/passend formulieren). So wird **Titel-Drift** vermieden — Titel sollen bei jedem
+  Re-Triage nicht ohne Grund „wandern".
+- Übernehmen via `gh issue edit <nr> --title "<neuer Titel>"`.
+- Ist der Titel bereits stimmig, **kein** Edit „pro forma" (gleiche Regel wie beim Lektorat).
+
 ## Schritt 3 — Zerlegen bei zu großen Tickets (optional)
 
 Ein Ticket gilt als **zu groß**, wenn **mindestens eines** zutrifft:

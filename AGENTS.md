@@ -63,15 +63,17 @@ Der Canceller `claude-pr-cancel.yml` ist agent-unabhängig (reiner `gh`-Aufruf) 
 ## Ticket-Triage
 
 Offene Issues **ohne** Label `ai:analyzed` analysieren (aus Titel + Beschreibung + Repo eine
-Lösung konzipieren) → Beschreibung **lektorieren** (Form verbessern, Inhalt unverändert) → zu große
-Tickets in verknüpfte **Sub-Issues** zerlegen (max. eine Ebene, Rekursionsschutz via `ai:analyzed`)
+Lösung konzipieren) → Beschreibung **lektorieren** (Form verbessern, Inhalt unverändert) → **Titel**
+auf Konsistenz zur lektorierten Beschreibung/zum Ziel prüfen und bei Bedarf **inhaltlich treu
+optimieren** (kein Edit „pro forma", keine Titel-Drift) → zu große Tickets in verknüpfte
+**Sub-Issues** zerlegen (max. eine Ebene, Rekursionsschutz via `ai:analyzed`)
 → deutscher Lösungs-Kommentar mit Umsetzbarkeits-**Ampel** (🟢/🟡/🔴) → Label `ai:analyzed` setzen
 (**bei klarer Analyse 🟢 zusätzlich `ai:ready`** zur direkten Umsetzungs-Freigabe; bei 🟡/🔴 nicht).
 Liegt bereits eine Analyse vor, wird sie auf Passung/Vollständigkeit geprüft und bei Bedarf
 aktualisiert (Re-Triage). Vollständiger Ablauf:
 [.ai-knowledge/ticket-triage.md](.ai-knowledge/ticket-triage.md).
-Konkreter Command: `/triage-ticket` (analysiert, lektoriert, zerlegt, kommentiert und markiert in
-einem Durchlauf).
+Konkreter Command: `/triage-ticket` (analysiert, lektoriert, optimiert den Titel, zerlegt,
+kommentiert und markiert in einem Durchlauf).
 
 Eine **Re-Triage** lässt sich auch per **Issue-Kommentar mit `@claude`** anstoßen: Die
 GitHub-Action [`.github/workflows/claude-retriage.yml`](.github/workflows/claude-retriage.yml) ruft
