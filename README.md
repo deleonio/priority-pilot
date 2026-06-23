@@ -138,6 +138,15 @@ Der vollständige Vertrag steht in [`openapi.yml`](openapi.yml). Endpunkte: `GET
 `PUT /pillars/weights` (100 %-Gewichtung setzen), `GET /forest` (Aufgabenwald nach Wert) und
 `GET /next` (nächste wichtige Aufgabe). Server und Vertrag laufen unter `http://localhost:3000`.
 
+## Deployment
+
+Deployment auf einen dedizierten Server (Build in GitHub Actions → versionierter Tarball →
+Symlink-Switch + `systemctl restart` auf dem Host, Caddy davor):
+
+- [`docs/deployment.md`](docs/deployment.md) — Konzept & Ablauf (Architektur, Release-Artefakt, Caddy, systemd, Rollback).
+- [`docs/deployment-repo-plan.md`](docs/deployment-repo-plan.md) — Umsetzungsplan im Repo (Pack-Skript, Release-Workflow, Secrets).
+- [`docs/server-setup.md`](docs/server-setup.md) — Schritt-für-Schritt-Einrichtung des Linux-Servers.
+
 ## Mitwirken
 
 Beiträge sind willkommen! Bitte lies vorab die [Beitragsrichtlinien](CONTRIBUTING.md) und den
