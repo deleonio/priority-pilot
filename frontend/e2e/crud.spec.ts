@@ -1,6 +1,5 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from '@playwright/test';
-import { TaskStatus } from 'client';
 import { waitForStableView } from './helpers';
 
 /**
@@ -65,8 +64,11 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 		await createTaskViaUi(page, title);
 
 		// Sobald ein Task existiert, erscheint die Tab-Leiste; in der „Aufgaben"-Tabelle steht der Titel.
+		// `exact: true`, weil die Aktionsspalte eine `KolToolbar` mit `_label={`Aktionen für ${title}`}`
+		// rendert (siehe `TaskTable.tsx`); ohne `exact` matcht der Titel daher zwei Zellen (Titel- und
+		// Aktionszelle) und Playwrights Strict-Mode bräche ab.
 		await openTasksTab(page);
-		await expect(page.getByRole('cell', { name: title })).toBeVisible();
+		await expect(page.getByRole('cell', { name: title, exact: true })).toBeVisible();
 	});
 
 	test('Task bearbeiten: geänderter Status und geänderte Priorität bleiben sichtbar', async ({ page }) => {
@@ -81,8 +83,11 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeVisible();
 		await waitForStableView(page);
 
-		// Status auf „Erledigt" und Priorität auf 1 ändern.
-		await page.getByLabel('Status').selectOption({ label: 'Erledigt' });
+		// Status auf „Erledigt" und Priorität auf 1 ändern. Das Status-Feld ist ein `KolSingleSelect` →
+		// ein `<input role="combobox">` (KEIN natives `<select>`, daher kein `selectOption`): anklicken
+		// öffnet die Listbox, dann die Option „Erledigt" wählen.
+		await page.getByLabel('Status').click();
+		await page.getByRole('option', { name: 'Erledigt' }).click();
 		await page.getByLabel('Priorität (Ganzzahl 1–5)').fill('1');
 		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
 		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeHidden();
@@ -97,7 +102,9 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeVisible();
 		await waitForStableView(page);
 		await expect(page.getByLabel('Priorität (Ganzzahl 1–5)')).toHaveValue('1');
-		await expect(page.getByLabel('Status')).toHaveValue(TaskStatus.Done);
+		// Das Combobox-`<input>` führt den sichtbaren Status-Text als Wert (nicht den Enum-Rohwert):
+		// `TaskStatus.Done` wird als „Erledigt" angezeigt.
+		await expect(page.getByLabel('Status')).toHaveValue('Erledigt');
 	});
 
 	test('Task löschen: verschwindet aus der Liste', async ({ page }) => {
@@ -108,7 +115,9 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 		await createTaskViaUi(page, title);
 
 		await openTasksTab(page);
-		await expect(page.getByRole('cell', { name: title })).toBeVisible();
+		// `exact: true`: ohne wäre der Titel sowohl in der Titel- als auch — über das Toolbar-`_label`
+		// „Aktionen für …" — in der Aktionszelle enthalten (Strict-Mode-Verletzung, siehe oben).
+		await expect(page.getByRole('cell', { name: title, exact: true })).toBeVisible();
 
 		await page.getByRole('button', { name: 'Löschen' }).first().click();
 		await expect(page.getByRole('heading', { name: 'Task löschen' })).toBeVisible();
@@ -118,7 +127,7 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 
 		// War es der einzige Task, kehrt die App in den leeren Anfangszustand zurück; der Titel ist weg.
 		await expect(page.getByRole('heading', { name: 'Noch keine Aufgaben' })).toBeVisible();
-		await expect(page.getByRole('cell', { name: title })).toHaveCount(0);
+		await expect(page.getByRole('cell', { name: title, exact: true })).toHaveCount(0);
 	});
 
 	test('Säulen-Gewicht ändern: Wert persistiert über einen Reload', async ({ page }) => {
@@ -138,8 +147,12 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 		// Erste Säule auf das Maximum (Rohwert 1,0), alle übrigen auf 0 setzen. Die Rohwerte werden beim
 		// Speichern auf 100 % normiert → erste Säule 100 %, Rest 0 %. Beim erneuten Laden rechnet die UI
 		// 100 % zurück auf den Rohwert 1,0 (bzw. 0 % → 0), sodass die Werte deterministisch round-trippen.
-		// `End`/`Home` setzen den nativen Range-Slider zuverlässig auf Max bzw. Min (kein `fill` auf Range).
-		const sliders = page.getByRole('slider');
+		// `End`/`Home` setzen den nativen Range-Input zuverlässig auf Max bzw. Min (kein `fill` auf Range).
+		//
+		// KoliBris `KolInputRange` exponiert KEIN `role="slider"` und kein `aria-label` aus seinem
+		// `_label`; im (offenen) Shadow-DOM steckt jedoch ein natives `<input type="range">`. Playwrights
+		// CSS durchdringt offene Shadow-Roots, daher zielen wir direkt auf diese Range-Inputs.
+		const sliders = page.locator('input[type="range"]');
 		const sliderCount = await sliders.count();
 		expect(sliderCount).toBeGreaterThan(1);
 		await sliders.first().press('End');
@@ -155,7 +168,7 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 		await waitForStableView(page);
 		await openPillarWeights();
 
-		const reloadedSliders = page.getByRole('slider');
+		const reloadedSliders = page.locator('input[type="range"]');
 		await expect(reloadedSliders.first()).toHaveValue('1');
 		await expect(reloadedSliders.nth(1)).toHaveValue('0');
 	});
