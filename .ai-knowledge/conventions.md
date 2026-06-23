@@ -7,5 +7,5 @@
 - **Module:** ESM überall (`"type": "module"`); Server-Importe mit `.js`-Endung.
 - **Runtime:** Node `>=22`, pnpm `10`.
 - **Commits:** nicht automatisch committen ohne ausdrücklichen Wunsch.
-- **Pull Requests:** vorher `pnpm format` und `pnpm lint` ausführen und die Ergebnisse in der
-  PR-Beschreibung dokumentieren.
+- **Pull Requests:** vorher `pnpm format`, `pnpm lint` und `pnpm test` ausführen und die Ergebnisse
+  in der PR-Beschreibung dokumentieren (Tests sind seit TDD-Stufe 2 Pflicht).

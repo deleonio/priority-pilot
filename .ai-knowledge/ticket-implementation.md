@@ -55,14 +55,36 @@ bereits erledigte Teile). Deshalb beim Lesen des Tickets die Analyse **erneut an
 Diese Verifikation ist Teil des `/team3`-Laufs (der Architect ordnet sie **vor** der Implementierung
 ein); sie ändert nur Analyse/Kommentare, **keinen** Produktivcode.
 
-## Schritt 3 — Umsetzen
+## Schritt 3 — Umsetzen (test-getrieben: Red-Green)
 
-- Grundlage: der im `ai:analyzed`-Kommentar vorgeschlagene Lösungsweg (falls vorhanden), sonst
-  aus Titel + Beschreibung + Repo ableiten.
-- Auf eigenem Branch arbeiten (nicht auf `main`): `git switch -c feat/issue-<nr>-<kurzname>`
-- Änderungen umsetzen — Konventionen aus [conventions.md](conventions.md) beachten (Tabs, `strict`,
-  ESM, keine Type-Assertions zum Unterdrücken von Fehlern).
-- Gezielt prüfen: `pnpm format` und `pnpm --filter priority-pilot lint` (bzw. betroffenes Package).
+Grundlage ist der **Akzeptanzkriterien + Testfälle**-Block aus der Triage
+([ticket-triage.md](ticket-triage.md) Schritt 4; Hintergrund: [tdd-strategy.md](tdd-strategy.md),
+Stufe 2). Die Umsetzung folgt **Red → Green → Refactor**: erst die Tests als ausführbarer Vertrag,
+dann der Code dagegen — so hält sich die Umsetzung an ein binäres Ziel statt an Prosa.
+
+- **Grundlage & Branch:** Lösungsweg aus dem `ai:analyzed`-Kommentar (falls vorhanden), sonst aus
+  Titel + Beschreibung + Repo. Auf eigenem Branch arbeiten (nicht auf `main`):
+  `git switch -c feat/issue-<nr>-<kurzname>`.
+- **(a) Red — Tests zuerst:** Je Akzeptanzkriterium den Testfall schreiben, **bevor** der
+  Produktivcode entsteht; die Tests müssen zunächst **fehlschlagen** (beweist, dass sie etwas
+  prüfen). Testebene/Zieldatei nach Ticket-Typ (wie in der Triage festgelegt):
+  - **Backend-Logik / API** → `node:test` (`server/src/logics/*.test.ts`,
+    `server/src/express/*.test.ts`).
+  - **Frontend-Logik** → Vitest (`frontend/src/lib/*.test.ts`).
+  - **Feature / UI-Verhalten** → Akzeptanz-e2e (`frontend/e2e/*.spec.ts`, Stil `crud.spec.ts`).
+  - **Reines Styling/Layout** → keinen Unit-Test erzwingen: wo sinnvoll per e2e absichern, sonst
+    visuell verifizieren und **im PR begründen**, warum kein Test angelegt wurde.
+
+  Die roten Tests **als ersten Commit** sichtbar machen (eigener Commit, z. B. `test: … (#<nr>)`),
+  damit der Vertrag im PR nachvollziehbar **vor** dem Code steht.
+
+- **(b) Green — Code bis grün:** Produktivcode implementieren, bis **alle** Tests grün sind
+  (`pnpm test` bzw. gezielt das betroffene Package als primärer Erfolgsindikator). Konventionen aus
+  [conventions.md](conventions.md) beachten (Tabs, `strict`, ESM, keine Type-Assertions zum
+  Unterdrücken von Fehlern). Tests **nicht** dem Code anpassen, um sie künstlich grün zu bekommen —
+  passt ein Test nicht mehr zum (geklärten) Soll, ihn **bewusst** und nachvollziehbar korrigieren.
+- **(c) Refactor & Gate:** Erst mit grünen Tests aufräumen, dann gezielt `pnpm format` und
+  `pnpm --filter priority-pilot lint` (bzw. betroffenes Package).
 
 ## Schritt 4 — PR (ready to review) erstellen & mit dem Ticket verknüpfen
 
@@ -76,7 +98,8 @@ ein); sie ändert nur Analyse/Kommentare, **keinen** Produktivcode.
   dem Ticket zugeordnet und schließt es beim Merge. Einen separaten `gh`-Befehl dafür gibt es
   nicht; das Schlüsselwort (im PR-Body oder Commit) ist der unterstützte Automatisierungsweg.
 - PR-Beschreibung enthält außerdem: kurze Umsetzungs-Zusammenfassung, betroffene Dateien und die
-  `pnpm format`-/Lint-Ergebnisse (siehe [conventions.md](conventions.md)).
+  `pnpm format`-/Lint-/**Test**-Ergebnisse (siehe [conventions.md](conventions.md); Test-Ergebnisse
+  sind seit Stufe 2 Pflicht, vgl. PR-Template).
 - Verknüpfung prüfen: `gh pr view <pr> --json closingIssuesReferences --jq '.closingIssuesReferences[].number'`
   muss `<nr>` enthalten.
 - Der PR ist **ready to review** (kein Draft) — die finale Freigabe/der Merge erfolgt durch einen Menschen.

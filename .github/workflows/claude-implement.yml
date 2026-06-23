@@ -117,9 +117,11 @@ jobs:
               2. Analyse re-verifizieren (Re-Triage gegen den aktuellen Repo-Stand). Kippt die
                  Umsetzbarkeits-Ampel auf 🔴 → NICHT umsetzen, `ai:ready` entfernen, im Issue
                  begründen und stoppen (Mensch entscheidet).
-              3. Auf eigenem Branch umsetzen (Projekt-Konventionen, danach `pnpm format` + Lint).
+              3. Auf eigenem Branch test-getrieben umsetzen (Red-Green): zuerst die Tests zu den
+                 Akzeptanzkriterien schreiben (rot, als erster Commit), dann Code bis `pnpm test`
+                 grün ist, danach `pnpm format` + Lint (Projekt-Konventionen).
               4. Committen, Branch pushen, PR ERSTELLEN (ready to review, KEIN Draft) mit
-                 `Closes #${{ github.event.issue.number }}` im Body und format-/lint-Ergebnissen.
+                 `Closes #${{ github.event.issue.number }}` im Body und format-/lint-/test-Ergebnissen.
                  Dann das Label `ai:needs-review` am PR setzen (`gh pr edit <pr-nr> --add-label
                  ai:needs-review`; Label bei Bedarf vorher `gh label create "ai:needs-review"
                  --color 1D76DB`), damit der Kreuzverhör-Review (claude-pr-review.yml) ihn aufgreift.
@@ -190,9 +192,11 @@ jobs:
               2. Analyse re-verifizieren (Re-Triage gegen den aktuellen Repo-Stand). Kippt die
                  Umsetzbarkeits-Ampel auf 🔴 → NICHT umsetzen, `ai:ready` entfernen, im Issue
                  begründen und stoppen (Mensch entscheidet).
-              3. Auf eigenem Branch umsetzen (Projekt-Konventionen, danach `pnpm format` + Lint).
+              3. Auf eigenem Branch test-getrieben umsetzen (Red-Green): zuerst die Tests zu den
+                 Akzeptanzkriterien schreiben (rot, als erster Commit), dann Code bis `pnpm test`
+                 grün ist, danach `pnpm format` + Lint (Projekt-Konventionen).
               4. Committen, Branch pushen, PR ERSTELLEN (ready to review, KEIN Draft) mit
-                 `Closes #${{ github.event.issue.number }}` im Body und format-/lint-Ergebnissen.
+                 `Closes #${{ github.event.issue.number }}` im Body und format-/lint-/test-Ergebnissen.
                  Dann das Label `ai:needs-review` am PR setzen (`gh pr edit <pr-nr> --add-label
                  ai:needs-review`; Label bei Bedarf vorher `gh label create "ai:needs-review"
                  --color 1D76DB`), damit der Kreuzverhör-Review (claude-pr-review.yml) ihn aufgreift.

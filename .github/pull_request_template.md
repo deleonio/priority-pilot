@@ -16,14 +16,15 @@ Closes #
 
 - [ ] `pnpm format` ausgeführt
 - [ ] `pnpm lint` ausgeführt
-- [ ] `pnpm test` ausgeführt (falls zutreffend)
+- [ ] `pnpm test` ausgeführt — Tests grün (Pflicht)
+- [ ] Tests bilden die Akzeptanzkriterien ab (test-first / Red-Green, siehe `.ai-knowledge/tdd-strategy.md`)
 - [ ] `pnpm build` läuft fehlerfrei (falls zutreffend)
 - [ ] Dokumentation aktualisiert (falls zutreffend)
 - [ ] Der PR ist mit einem Issue verknüpft (`Closes #<nr>`)
 
-## Ergebnisse von Format & Lint
+## Ergebnisse von Format, Lint & Test
 
-<!-- Ergebnisse von `pnpm format` und `pnpm lint` hier dokumentieren (Pflicht). -->
+<!-- Ergebnisse von `pnpm format`, `pnpm lint` und `pnpm test` hier dokumentieren (Pflicht). -->
 
 ```text
 

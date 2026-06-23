@@ -1,11 +1,14 @@
 # Strategie: Test-Driven Development für KI-Workflows
 
-> **Status: Stufe 1 adoptiert (Akzeptanzkriterien-first) — Stufen 2–3 offen.** Dieses Dokument hält
-> den Plan fest, mit dem die KI-Workflows (Triage → Umsetzung → Review) stärker test-getrieben werden.
-> **Stufe 1 (Szenario 1) ist umgesetzt:** Die Triage erzeugt prüfbare Akzeptanzkriterien + Testfälle
-> ([ticket-triage.md](ticket-triage.md) Schritt 1/4/5), die Issue-Templates fragen sie ab. Welche der
-> weiteren Stufen wann folgt, entscheidet der Mensch (siehe [Empfehlung](#empfehlung) und
-> [Offene Entscheidungen](#offene-entscheidungen)).
+> **Status: Stufen 1 + 2 adoptiert — Stufe 3 offen.** Dieses Dokument hält den Plan fest, mit dem die
+> KI-Workflows (Triage → Umsetzung → Review) stärker test-getrieben werden.
+> **Stufe 1 (Szenario 1):** Die Triage erzeugt prüfbare Akzeptanzkriterien + Testfälle
+> ([ticket-triage.md](ticket-triage.md) Schritt 1/4/5), die Issue-Templates fragen sie ab.
+> **Stufe 2 (Szenario 2):** Die Umsetzung folgt Red-Green
+> ([ticket-implementation.md](ticket-implementation.md) Schritt 3), `pnpm test` ist PR-Pflicht
+> ([pull_request_template.md](../.github/pull_request_template.md)) und das Review macht
+> fehlende/rote Tests zum Gate ([pr-review.md](pr-review.md) Schritt 3/5). Stufe 3 entscheidet der
+> Mensch (siehe [Empfehlung](#empfehlung) und [Offene Entscheidungen](#offene-entscheidungen)).
 
 ## Problem: Die KI „schlingert", weil eine _ausführbare_ Spezifikation fehlt
 
@@ -82,7 +85,7 @@ die 1:1 zu Tests werden können.
 **Kosten:** niedrig (nur Doku/Templates). **Risiko:** minimal.
 **Voraussetzung für alles Weitere** — ohne crisp AK kein sinnvolles test-first.
 
-### Szenario 2 — „Red-Green im Umsetzungs-Schritt" (Spec = Tests, KI schreibt sie zuerst selbst)
+### Szenario 2 — „Red-Green im Umsetzungs-Schritt" (Spec = Tests, KI schreibt sie zuerst selbst) ✅ adoptiert
 
 **Kerngedanke:** [ticket-implementation.md](ticket-implementation.md) Schritt 3 wird ein echter
 Red-Green-Refactor-Loop.
@@ -175,7 +178,7 @@ machen.
 
 ## Offene Entscheidungen
 
-- Wie weit gehen (Sz. 1 / 1+2 / 1+2+3)?
+- ~~Wie weit gehen (Sz. 1 / 1+2)~~ — Sz. 1 + 2 adoptiert; offen bleibt nur **Sz. 3** (Spec-Gate mit Gewaltenteilung).
 - Coverage-Schwelle einführen — und wenn ja, nur für `logics`/`lib`?
 - Soll Szenario 3 ein eigenes Label (`ai:spec-ready`) + eigene GitHub-Action bekommen, oder reicht
   die Gewaltenteilung innerhalb von `/team*` (Tester-Rolle schreibt Spec, Developer-Rolle macht grün)?

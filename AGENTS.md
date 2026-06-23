@@ -10,7 +10,7 @@ Wissensbasis liegt in [`.ai-knowledge/`](.ai-knowledge/).
 - [Ticket-Triage](.ai-knowledge/ticket-triage.md) — Analyse offener GitHub-Issues
 - [Ticket-Umsetzung](.ai-knowledge/ticket-implementation.md) — freigegebene Issues (`ai:ready`) umsetzen
 - [PR-Review (Kreuzverhör)](.ai-knowledge/pr-review.md) — Pull Requests kritisch prüfen, Findings kommentieren
-- [TDD-Strategie](.ai-knowledge/tdd-strategy.md) — test-getriebene KI-Workflows (Stufe 1 adoptiert: Akzeptanzkriterien-first)
+- [TDD-Strategie](.ai-knowledge/tdd-strategy.md) — test-getriebene KI-Workflows (Stufen 1+2 adoptiert: Akzeptanzkriterien-first + Red-Green)
 - [Deployment](docs/deployment.md) — Release-Build (GitHub Actions), Tarball, Host-Layout, systemd, Caddy, Rollback
 - [Deployment: Repo-Plan](docs/deployment-repo-plan.md) — was im Repo zu bauen ist (Pack-Skript, Release-Workflow, Secrets)
 - [Deployment: Server-Setup](docs/server-setup.md) — Schritt-für-Schritt-Einrichtung des Linux-Servers
@@ -95,7 +95,8 @@ Schreibzugriff, damit Außenstehende den OAuth-Token-Lauf nicht auslösen) oder 
 
 Offene Issues mit Label `ai:ready` (zur Umsetzung freigegeben — bei klarer Analyse 🟢 automatisch
 durch die Triage, sonst vom Menschen), die **nicht zugewiesen** sind: sich selbst zuweisen → auf
-eigenem Branch umsetzen → `pnpm format` + Lint → **PR (ready to review)**, via `Closes #<nr>` mit dem
+eigenem Branch **test-getrieben umsetzen** (Red-Green, Tests zuerst) → `pnpm format` + Lint +
+`pnpm test` → **PR (ready to review)**, via `Closes #<nr>` mit dem
 Ticket verknüpft (erscheint im „Development"-Bereich, schließt es beim Merge) → **PR verfolgen**
 (abonnieren) und im **Kreuzverhör-Loop** in Runden kritisch prüfen (`/kreuzverhoer-review`) und
 nachbessern **sowie automatisch auf eingehende Review-Anmerkungen reagieren** (zutreffende Findings

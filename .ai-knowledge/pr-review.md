@@ -32,7 +32,11 @@ Den Diff gegen diese Fragen prüfen:
 ## Schritt 3 — Code-Qualität
 
 - **Benennung & Lesbarkeit:** sprechende Namen, klare Funktionsschnitte, Kommentare nur wo nötig.
-- **Tests:** sind die Änderungen getestet? Decken die Tests die neuen Pfade und Edge Cases ab?
+- **Tests (Pflicht-Gate):** Sind die Akzeptanzkriterien des Tickets durch **grüne** Tests abgedeckt?
+  Decken sie die neuen Pfade und Edge Cases ab? Ist die test-getriebene Reihenfolge erkennbar (Tests
+  als eigener/erster Commit, vgl. [ticket-implementation.md](ticket-implementation.md) Schritt 3)?
+  **Fehlende Tests für ein Akzeptanzkriterium oder rote Tests verhindern ein 🟢** (Ausnahme: reines
+  Styling/Layout, im PR begründet).
 - **Projekt-Konventionen** ([conventions.md](conventions.md)): Tabs, `strict`, ESM mit `.js`-Importen,
   keine Type-Assertions zum Unterdrücken von Fehlern, genau eine zentrale Prettier-Config.
 - **Format/Lint:** Sind `pnpm format`/`pnpm lint` in der PR-Beschreibung belegt? Bei Zweifel nachhaken.
@@ -55,7 +59,8 @@ Pro Finding **ein konkreter, an Datei/Zeile verankerter Kommentar** — jeweils 
 
 Review-Body (deutsch) mit **Ampel** am Anfang:
 
-- 🟢 **solide** — keine relevanten Findings: knappe Bestätigung, was gut gelöst ist.
+- 🟢 **solide** — keine relevanten Findings **und die Akzeptanzkriterien sind durch grüne Tests
+  abgedeckt**: knappe Bestätigung, was gut gelöst ist.
 - 🟡 **im Kern ok** — Nachbesserungen empfohlen: die Punkte gebündelt nennen.
 - 🔴 **grundlegende Probleme** — löst das Ziel nicht / Bug / Sicherheits- oder Architekturproblem.
 
