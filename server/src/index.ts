@@ -8,6 +8,11 @@ import { Pillar, Task, TaskPillar } from './models/index.js';
 // Daten nur auf ausdrücklichen Wunsch zurücksetzen (sonst kein stiller Datenverlust).
 const shouldReset = process.env.DB_RESET === 'true';
 
+// Demo-Seed (`seedDemoData`) gezielt abschaltbar (`DB_SEED=false`), z. B. für die E2E-Tests, die von
+// einem leeren, definierten Zustand starten sollen. Der Säulen-Seed (`seedPillars`) bleibt davon
+// unberührt — die fünf Lebensbalance-Säulen sind Stammdaten, keine Demo-Daten.
+const shouldSeedDemo = process.env.DB_SEED !== 'false';
+
 // Die fünf festen Lebensbalance-Säulen (gleichgewichtet ⇒ je 20 %, Summe 100 %).
 const PILLAR_NAMES = ['Körper', 'Beziehungen', 'Sinn', 'Mentale Gesundheit', 'Wirksamkeit'] as const;
 
@@ -102,8 +107,11 @@ const main = async (): Promise<void> => {
 		// Bestehende Einzel-Säulen-Zuordnungen einmalig auf die n:m-Beiträge migrieren
 		await migrateLegacySinglePillar();
 
-		// Beispiel-Daten nur anlegen, wenn die Datenbank leer ist
-		await seedDemoData();
+		// Beispiel-Daten nur anlegen, wenn die Datenbank leer ist (und der Demo-Seed nicht via
+		// `DB_SEED=false` abgeschaltet wurde).
+		if (shouldSeedDemo) {
+			await seedDemoData();
+		}
 
 		console.log(JSON.stringify(await buildTaskForest(), null, 2));
 		await launchServer();
