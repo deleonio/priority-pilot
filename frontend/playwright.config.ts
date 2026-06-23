@@ -71,7 +71,12 @@ export default defineConfig({
 				DB_SEED: 'false',
 				DATABASE_STORAGE: ':memory:',
 			},
-			reuseExistingServer: !process.env.CI,
+			// Backend bewusst NIE wiederverwenden: ein lokal laufendes `pnpm --filter priority-pilot dev`
+			// nutzt die persistente, geseedete `./database.sqlite` — das würde den leeren, definierten
+			// Zustand (`:memory:`, ohne Demo-Seed) aushebeln und `smoke.spec.ts`/künftige CRUD-Specs
+			// gegen Fremddaten laufen lassen. Anders als beim zustandslosen Vite-Server unten ist Reuse
+			// hier nicht unkritisch, daher immer frisch starten.
+			reuseExistingServer: false,
 			timeout: 120_000,
 		},
 		// Vite-Dev-Server; sein Proxy reicht die API-Requests an das Backend oben durch.

@@ -73,7 +73,7 @@ Testdateien: `src/**/*.test.ts`. Helper (kein Testfile): `src/test/helpers.ts`.
 | `PORT`             | `3000`              | Port des Express-Servers.                                          |
 | `DB_RESET`         | `false`             | Bei `true` wird die SQLite-DB beim Start verworfen (`sync force`). |
 | `DATABASE_STORAGE` | `./database.sqlite` | SQLite-Speicherort; die Tests setzen `:memory:`.                   |
-| `DB_SEED`          | `true`              | Bei `false` wird der Demo-Seed übersprungen (Säulen bleiben); die E2E starten leer. |
+| `DB_SEED`          | `true`              | Bei `false` wird der Demo-Seed übersprungen (Säulen bleiben).      |
 
 Ohne `DB_RESET=true` bleiben Daten erhalten; Demo-Tasks werden nur in eine leere DB gesät
 ([`src/index.ts`](src/index.ts)) — mit `DB_SEED=false` bleibt selbst die leere DB ohne Demo-Tasks
