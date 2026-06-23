@@ -193,3 +193,22 @@ jobs:
             if [ -n "$SESSION_ID" ]; then echo "- Session-ID: \`${SESSION_ID}\` (\`--resume\` zum Nachschauen)"; fi
           } >> "$GITHUB_STEP_SUMMARY"
           echo "::notice title=Kreuzverhoer-Review #${PR} fertig::${AGENT}-Schritt ${OUTCOME:-unbekannt}; Labels: ${labels:-keine}"
+
+      # Deterministisches "Reviewer rot bei Findings": Der Review aendert keinen Code, sondern
+      # signalisiert sein Ergebnis ueber Labels. Damit der Gate-Workflow (claude-pr-gate.yml) den
+      # Reviewer als vollwertigen "roten Check" der Allowlist (CI + Reviewer) lesen kann, beendet
+      # dieser Schritt den Job mit Exit != 0, sobald das Ergebnis-Label ai:needs-changes ist —
+      # sauber (ai:ready-to-merge) bleibt gruen. Laeuft NACH dem Zusammenfassen, damit das Summary
+      # immer geschrieben wird; aendert KEINEN Code (Ticket #87).
+      - name: Reviewer rot, wenn Aenderungen erforderlich (ai:needs-changes)
+        if: always() && steps.preflight.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          needs_changes="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq 'any(.labels[]; .name == "ai:needs-changes")' 2>/dev/null || echo false)"
+          if [ "$needs_changes" = "true" ]; then
+            echo "::error title=Review: Aenderungen erforderlich::PR #${PR} hat ai:needs-changes — Reviewer-Check laeuft rot, damit das CI-Gate ihn als roten Check erkennt."
+            exit 1
+          fi
+          echo "Keine offenen Findings (kein ai:needs-changes) — Reviewer-Check bleibt gruen."

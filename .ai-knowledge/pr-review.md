@@ -61,6 +61,14 @@ Review-Body (deutsch) mit **Ampel** am Anfang:
 
 Danach die wichtigsten Findings als kurze Liste; Details stehen in den Inline-Kommentaren.
 
+**CI-/Quality-Gate als Vorbedingung:** Ein grünes Inhalts-Urteil (🟢) ist **notwendig, aber nicht
+hinreichend** für `ai:ready-to-merge` — die Pflicht-Checks (CI: Format/Lint/Build/Test) müssen
+ebenfalls grün sein. In der GitHub-Actions-Pipeline übernimmt das ein deterministischer
+Gate-Workflow (`.github/workflows/claude-pr-gate.yml`): Ist nach Abschluss mindestens einer der
+Allowlist-Checks **CI** oder **Reviewer** rot, setzt er `ai:needs-changes` und stößt damit den Fixup
+an — `ai:ready-to-merge` wird erst vergeben, wenn beide grün sind. Manuell
+(`/kreuzverhoer-review`) gilt dieselbe Regel: bei rotem CI nicht auf 🟢 abschließen.
+
 ## Hinweise
 
 - Posten von Review/Kommentaren schreibt **öffentlich** auf GitHub — vorher bestätigen lassen.

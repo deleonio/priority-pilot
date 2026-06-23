@@ -107,7 +107,10 @@ rückfragen** statt zu raten.
    Jedes Finding wird als an Datei/Zeile **verankerter** Review-Kommentar gepostet, abgeschlossen mit
    einem Urteil samt **Ampel** (🟢/🟡/🔴).
 2. **CI prüfen** — `gh pr checks <pr>`. Schlägt etwas fehl, die Ursache diagnostizieren und — im
-   Rahmen des Tickets — beheben (zählt als Finding der Runde).
+   Rahmen des Tickets — beheben (zählt als Finding der Runde). In der GitHub-Actions-Pipeline ist
+   dieser Schritt zusätzlich deterministisch abgesichert: Der Gate-Workflow
+   (`.github/workflows/claude-pr-gate.yml`) prüft nach Abschluss die Allowlist-Checks **CI** und
+   **Reviewer** und setzt bei rotem Ergebnis `ai:needs-changes` → der Fixup läuft an.
 3. **Findings abarbeiten** (Umsetzer-Rolle) — jeden offenen Punkt behandeln:
    - **Zutreffend, klein, eindeutig →** **fixen**: Fix committen + pushen, erneut `pnpm format` +
      Lint, kurz im Thread antworten (Bezug zum Fix-Commit) und den Thread **auflösen**.
