@@ -116,7 +116,7 @@ export const mockMutations = async (
 			return;
 		}
 		const url = new URL(request.url());
-		let body: unknown = null;
+		let body: unknown;
 		try {
 			body = request.postDataJSON();
 		} catch {
