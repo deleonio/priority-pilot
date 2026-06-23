@@ -9,46 +9,30 @@ const PORT = 4173;
 const BACKEND_PORT = 3000;
 
 /**
- * Playwright-Konfiguration für die E2E-Tests.
+ * Playwright-Konfiguration für die **funktionalen** E2E-Tests (`smoke.spec.ts`, `crud.spec.ts`).
  *
- * Zwei Betriebsarten teilen sich diese Config:
- * - **Visual-Snapshots** (`snapshots.spec.ts`) und **Formular-Klicktests** (`forms.spec.ts`) mocken
- *   die API via `page.route` — für sie ist das Backend irrelevant.
- * - **Funktionale E2E** (`smoke.spec.ts`, später die CRUD-Specs aus #B) laufen gegen ein **echtes**
- *   Express-Backend mit **temporärer Wegwerf-DB** (`:memory:`), ohne Mock.
- *
- * Dafür startet Playwright **zwei** Server: das Backend (frische In-Memory-DB, ohne Demo-Seed) und
- * den Vite-Dev-Server. Der Vite-Proxy (siehe `vite.config.ts`) reicht die API-Requests an das
- * Backend durch.
+ * Alle Specs laufen ohne `page.route`-Mock gegen ein **echtes** Express-Backend mit **temporärer
+ * Wegwerf-DB** (`:memory:`, ohne Demo-Seed). Dafür startet Playwright **zwei** Server: das Backend
+ * (frische In-Memory-DB) und den Vite-Dev-Server. Der Vite-Proxy (siehe `vite.config.ts`) reicht die
+ * API-Requests an das Backend durch.
  */
 export default defineConfig({
 	testDir: './e2e',
-	// Voll deterministisch: keine parallele Race auf denselben Dev-Server, ein fester Worker.
+	// Voll deterministisch: keine parallele Race auf denselben Dev-Server, ein fester Worker. Zugleich
+	// teilen sich alle Specs die eine In-Memory-DB des Backend-Prozesses (kein Neustart zwischen Tests).
 	fullyParallel: false,
 	workers: 1,
 	forbidOnly: !!process.env.CI,
 	retries: 0,
 	reporter: 'list',
-	// Snapshots neben den Specs ablegen (Baselines werden committet, siehe .gitignore).
-	snapshotPathTemplate: '{testDir}/__screenshots__/{testFilePath}/{arg}{ext}',
 	use: {
 		baseURL: `http://localhost:${PORT}`,
-		// Deterministisches, festes Viewport + Scale-Faktor für reproduzierbare Pixel.
+		// Festes Viewport für ein deterministisches, reproduzierbares Layout.
 		viewport: { width: 1280, height: 900 },
 		deviceScaleFactor: 1,
-		// Feste Locale/Zeitzone, damit Datums-/Zahlenformate in den Snapshots reproduzierbar sind.
+		// Feste Locale/Zeitzone, damit Datums-/Zahlenformate reproduzierbar sind.
 		locale: 'de-DE',
 		timezoneId: 'Europe/Berlin',
-	},
-	expect: {
-		toHaveScreenshot: {
-			// Toleranz gegen minimale Anti-Aliasing-/Subpixel-Unterschiede, ohne echte Regressionen
-			// zu verschlucken.
-			maxDiffPixelRatio: 0.01,
-			threshold: 0.2,
-			// Animationen sind bei toHaveScreenshot ohnehin Default-deaktiviert; hier zur Klarheit fixiert.
-			animations: 'disabled',
-		},
 	},
 	projects: [
 		{

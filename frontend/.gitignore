@@ -1,8 +1,7 @@
 /dist/
 /dev-dist/
 
-# Playwright-Ausgaben (Berichte/Diffs) — die Baseline-Snapshots unter e2e/__screenshots__/
-# werden bewusst committet und hier NICHT ignoriert.
+# Playwright-Ausgaben (Berichte/Diffs).
 /test-results/
 /playwright-report/
 /blob-report/

@@ -42,26 +42,23 @@ VITE_API_BASE_URL=https://api.example.com pnpm --filter frontend build
 | `preview` | `vite preview`               | Gebautes Bundle lokal serven   |
 | `lint`    | `tsc --noEmit && eslint src` | Typen + Lint                   |
 
-## E2E-Snapshots (Playwright)
+## E2E (Playwright)
 
-Visuelle Regressionstests prüfen die UI per Screenshot-Vergleich (`toHaveScreenshot`, nur Chromium).
-Die API wird in den Specs über `page.route` mit festen Fixtures **gemockt** — es läuft **kein
-Backend**; Playwright startet den Vite-Dev-Server selbst (Port `4173`). Specs, Fixtures und Helper
-liegen unter [`e2e/`](e2e/), die committeten Baseline-Bilder unter `e2e/__screenshots__/`.
+Unter [`e2e/`](e2e/) liegen die **funktionalen** E2E-Specs gegen das **echte** Backend (ohne Mock) —
+`smoke.spec.ts` und `crud.spec.ts` (#92). Playwright startet dafür **zwei** Server: das Express-Backend
+mit frischer temporärer In-Memory-DB (`:memory:`, `DB_RESET=true`, `DB_SEED=false`) und den
+Vite-Dev-Server; dessen Proxy reicht die API-Requests durch. `crud.spec.ts` legt über die UI selbst
+Daten **an, ändert und löscht** sie und ändert das Säulen-Gewicht — und prüft, dass die Mutation in
+der Liste bzw. nach einem Reload aus der DB ankommt. Da sich alle Specs die eine In-Memory-DB teilen
+(ein Worker, kein Neustart zwischen Tests), räumt `crud.spec.ts` in `afterEach` die angelegten Tasks
+über die echte API wieder ab.
 
 ```bash
-pnpm --filter frontend test:e2e          # Snapshots gegen die Baselines prüfen
-pnpm --filter frontend test:e2e:update   # Baselines neu erzeugen/aktualisieren (nach gewollten UI-Änderungen)
+pnpm --filter frontend test:e2e          # Funktionale E2E gegen das echte Backend ausführen
 ```
 
 > Beim ersten Lauf müssen die Playwright-Browser vorhanden sein:
 > `pnpm --filter frontend exec playwright install chromium` (nutzt den lokalen Cache).
-> Erzeuge nach bewussten UI-Änderungen die Baselines mit `test:e2e:update` neu und commite die
-> aktualisierten Bilder.
-
-> **Plattformabhängig:** Die committeten Baselines wurden hier unter **macOS** erzeugt; auf anderem
-> OS/CI weichen Font-Rendering und Antialiasing ab, sodass die Vergleiche fehlschlagen — dort sind
-> eigene Baselines (Plattform-Suffix) bzw. ein einheitlicher Docker-Renderer nötig.
 
 ## Mehr
 
