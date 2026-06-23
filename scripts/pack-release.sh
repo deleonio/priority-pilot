@@ -35,7 +35,7 @@ echo "==> Server-Prod-Bundle (nur Prod-Deps, inkl. native sqlite3)"
 # `--legacy` ist je nach pnpm-Konfiguration nötig, damit in ein leeres Zielverzeichnis deployt
 # wird; alternativ die Prod-Deps auf dem Host installieren.
 rmdir "$DEPLOY"
-pnpm --filter server --prod deploy --legacy "$DEPLOY"
+pnpm --filter ./server --prod deploy --legacy "$DEPLOY"
 
 echo "==> Release-Baum zusammenstellen"
 mkdir -p "$STAGE/server"
