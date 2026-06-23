@@ -42,8 +42,19 @@ VITE_API_BASE_URL=https://api.example.com pnpm --filter frontend build
 | `preview` | `vite preview`               | Gebautes Bundle lokal serven   |
 | `lint`    | `tsc --noEmit && eslint src` | Typen + Lint                   |
 
-## E2E-Snapshots (Playwright)
+## E2E (Playwright)
 
+Unter [`e2e/`](e2e/) liegen zwei Test-Ebenen:
+
+**Funktionale E2E gegen das echte Backend** (ohne Mock) — `smoke.spec.ts` und `crud.spec.ts` (#92).
+Playwright startet dafür **zwei** Server: das Express-Backend mit frischer temporärer In-Memory-DB
+(`:memory:`, `DB_RESET=true`, `DB_SEED=false`) und den Vite-Dev-Server; dessen Proxy reicht die
+API-Requests durch. `crud.spec.ts` legt über die UI selbst Daten **an, ändert und löscht** sie und
+ändert das Säulen-Gewicht — und prüft, dass die Mutation in der Liste bzw. nach einem Reload aus der
+DB ankommt. Da sich alle Specs die eine In-Memory-DB teilen (ein Worker, kein Neustart zwischen
+Tests), räumt `crud.spec.ts` in `afterEach` die angelegten Tasks über die echte API wieder ab.
+
+**Visuelle Snapshots / gemockte Klicktests** — `snapshots.spec.ts` und `forms.spec.ts`.
 Visuelle Regressionstests prüfen die UI per Screenshot-Vergleich (`toHaveScreenshot`, nur Chromium).
 Die API wird in den Specs über `page.route` mit festen Fixtures **gemockt** — es läuft **kein
 Backend**; Playwright startet den Vite-Dev-Server selbst (Port `4173`). Specs, Fixtures und Helper

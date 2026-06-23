@@ -1,0 +1,162 @@
+import type { Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import { TaskStatus } from 'client';
+import { waitForStableView } from './helpers';
+
+/**
+ * Funktionale End-to-End-CRUD-Specs (#92) gegen das **echte** Backend (#91). Anders als die früheren,
+ * gemockten Klicktests wird hier **nichts** via `page.route` abgefangen: Playwright startet ein echtes
+ * Express-Backend mit temporärer In-Memory-DB (`:memory:`, `DB_RESET=true`, `DB_SEED=false`, siehe
+ * `playwright.config.ts`); der Vite-Proxy reicht die API-Requests durch. Die Tests legen über die UI
+ * **selbst** Daten an, ändern und löschen sie und prüfen, dass die Mutation tatsächlich „durchsickert"
+ * — also in der echten Liste bzw. nach einem Reload aus der DB sichtbar bleibt.
+ *
+ * **Isolation:** Da die In-Memory-DB für die gesamte Lebensdauer des Backend-Prozesses bestehen bleibt
+ * (ein Worker, kein Neustart zwischen Tests), räumt `afterEach` die angelegten Tasks über die echte API
+ * wieder ab. So startet jeder Test von einem definierten, leeren Task-Zustand — unabhängig von der
+ * Ausführungsreihenfolge — und auch der `smoke.spec.ts`-Test findet danach wieder den leeren Anfang.
+ */
+test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend', () => {
+	// Eindeutige Titel je Test, damit Assertions ausschließlich auf selbst angelegte Daten zielen
+	// (kein Verlass auf Demo-Seed) und parallele/aufeinanderfolgende Läufe sich nicht stören.
+	let runId = 0;
+	const uniqueTitle = (label: string): string => `E2E ${label} #${(runId += 1)}-${Date.now()}`;
+
+	/** Löscht alle aktuell vorhandenen Tasks über die echte API (Vite-Proxy → Backend). */
+	const deleteAllTasks = async (page: Page): Promise<void> => {
+		const response = await page.request.get('/tasks');
+		const tasks = (await response.json()) as { id: number }[];
+		for (const task of tasks) {
+			await page.request.delete(`/tasks/${task.id}`);
+		}
+	};
+
+	test.afterEach(async ({ page }) => {
+		await deleteAllTasks(page);
+	});
+
+	/** Wechselt auf den „Aufgaben"-Tab (die Task-Tabelle liegt dort). */
+	const openTasksTab = async (page: Page): Promise<void> => {
+		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
+	};
+
+	/**
+	 * Legt über die UI einen Task mit dem gegebenen Titel an (Default-Felder genügen der Validierung:
+	 * Priorität 3, Aufwand 0,5, Status „Offen") und wartet, bis der Dialog geschlossen ist.
+	 */
+	const createTaskViaUi = async (page: Page, title: string): Promise<void> => {
+		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
+		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
+		await waitForStableView(page);
+
+		await page.getByLabel('Titel').fill(title);
+		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+
+		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
+	};
+
+	test('Task anlegen: erscheint in der Liste', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+		// Frischer Start ohne Demo-Seed: die Onboarding-Ansicht ist sichtbar.
+		await expect(page.getByRole('heading', { name: 'Noch keine Aufgaben' })).toBeVisible();
+
+		const title = uniqueTitle('Anlegen');
+		await createTaskViaUi(page, title);
+
+		// Sobald ein Task existiert, erscheint die Tab-Leiste; in der „Aufgaben"-Tabelle steht der Titel.
+		await openTasksTab(page);
+		await expect(page.getByRole('cell', { name: title })).toBeVisible();
+	});
+
+	test('Task bearbeiten: geänderter Status und geänderte Priorität bleiben sichtbar', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+
+		const title = uniqueTitle('Bearbeiten');
+		await createTaskViaUi(page, title);
+
+		await openTasksTab(page);
+		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
+		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeVisible();
+		await waitForStableView(page);
+
+		// Status auf „Erledigt" und Priorität auf 1 ändern.
+		await page.getByLabel('Status').selectOption({ label: 'Erledigt' });
+		await page.getByLabel('Priorität (Ganzzahl 1–5)').fill('1');
+		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeHidden();
+
+		// Der neue Status ist in der Tabelle sichtbar (deutsches Label „Erledigt").
+		await openTasksTab(page);
+		await expect(page.getByRole('cell', { name: 'Erledigt' })).toBeVisible();
+
+		// Persistenz beider Änderungen gegenprüfen: Dialog erneut öffnen — die Werte kommen frisch aus
+		// dem Backend (Liste wurde nach dem Speichern neu geladen).
+		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
+		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeVisible();
+		await waitForStableView(page);
+		await expect(page.getByLabel('Priorität (Ganzzahl 1–5)')).toHaveValue('1');
+		await expect(page.getByLabel('Status')).toHaveValue(TaskStatus.Done);
+	});
+
+	test('Task löschen: verschwindet aus der Liste', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+
+		const title = uniqueTitle('Löschen');
+		await createTaskViaUi(page, title);
+
+		await openTasksTab(page);
+		await expect(page.getByRole('cell', { name: title })).toBeVisible();
+
+		await page.getByRole('button', { name: 'Löschen' }).first().click();
+		await expect(page.getByRole('heading', { name: 'Task löschen' })).toBeVisible();
+		await waitForStableView(page);
+		await page.getByRole('button', { name: 'Endgültig löschen' }).click();
+		await expect(page.getByRole('heading', { name: 'Task löschen' })).toBeHidden();
+
+		// War es der einzige Task, kehrt die App in den leeren Anfangszustand zurück; der Titel ist weg.
+		await expect(page.getByRole('heading', { name: 'Noch keine Aufgaben' })).toBeVisible();
+		await expect(page.getByRole('cell', { name: title })).toHaveCount(0);
+	});
+
+	test('Säulen-Gewicht ändern: Wert persistiert über einen Reload', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+
+		/** Öffnet den Säulen-Gewichtungs-Dialog aus dem Einstellungs-Popover. */
+		const openPillarWeights = async (): Promise<void> => {
+			await page.getByRole('button', { name: 'Einstellungen' }).click();
+			await page.getByRole('button', { name: 'Persönliche Säulen-Verteilung' }).click();
+			await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
+			await waitForStableView(page);
+		};
+
+		await openPillarWeights();
+
+		// Erste Säule auf das Maximum (Rohwert 1,0), alle übrigen auf 0 setzen. Die Rohwerte werden beim
+		// Speichern auf 100 % normiert → erste Säule 100 %, Rest 0 %. Beim erneuten Laden rechnet die UI
+		// 100 % zurück auf den Rohwert 1,0 (bzw. 0 % → 0), sodass die Werte deterministisch round-trippen.
+		// `End`/`Home` setzen den nativen Range-Slider zuverlässig auf Max bzw. Min (kein `fill` auf Range).
+		const sliders = page.getByRole('slider');
+		const sliderCount = await sliders.count();
+		expect(sliderCount).toBeGreaterThan(1);
+		await sliders.first().press('End');
+		for (let index = 1; index < sliderCount; index += 1) {
+			await sliders.nth(index).press('Home');
+		}
+
+		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeHidden();
+
+		// Harter Reload: lädt die Säulen frisch aus dem Backend — beweist die Persistenz in der DB.
+		await page.reload();
+		await waitForStableView(page);
+		await openPillarWeights();
+
+		const reloadedSliders = page.getByRole('slider');
+		await expect(reloadedSliders.first()).toHaveValue('1');
+		await expect(reloadedSliders.nth(1)).toHaveValue('0');
+	});
+});
