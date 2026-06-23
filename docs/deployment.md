@@ -117,13 +117,13 @@ jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
-      contents: write           # für gh release create
+      contents: write # für gh release create
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22       # MUSS zur Node-Major-Version des Hosts passen (native sqlite3)
+          node-version: 22 # MUSS zur Node-Major-Version des Hosts passen (native sqlite3)
           cache: pnpm
 
       - name: Install
