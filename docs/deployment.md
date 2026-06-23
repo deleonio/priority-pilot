@@ -286,7 +286,7 @@ priority-pilot.example.de {
     root * /var/www/gh-deploy/priority-pilot/current/dist
 
     # API-Wurzelpfade an das Backend — MÜSSEN mit den echten Vertragspfaden übereinstimmen.
-    @api path /tasks* /pillars* /forest* /next*
+    @api path /tasks* /pillars* /forest* /next* /health*
     handle @api {
         reverse_proxy localhost:3001
     }

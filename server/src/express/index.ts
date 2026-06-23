@@ -12,6 +12,7 @@ const PORT = Number(process.env.PORT) || 3000;
 type TaskTreeNodeDto = components['schemas']['TaskTreeNode'];
 type TaskDto = components['schemas']['Task'];
 type ErrorDto = components['schemas']['Error'];
+type HealthDto = components['schemas']['Health'];
 
 /** Injizierbare Abhängigkeiten — erlaubt es Tests, den Mistral-Aufruf zu mocken. */
 export interface AppDeps {
@@ -30,6 +31,11 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// Mistral-gestützte Säulen-Klassifikation (siehe routes/suggestPillars.ts).
 	app.use(createSuggestPillarsRouter(deps.pillarClassifier));
+
+	// GET /health — billiger Liveness-Check (ohne DB) für Post-Deploy & Monitoring.
+	app.get('/health', (_req, res: express.Response<HealthDto>) => {
+		res.json({ status: 'ok' });
+	});
 
 	// GET /forest — Aufgabenwald nach Wertschöpfung sortiert.
 	app.get('/forest', async (_req, res: express.Response<TaskTreeNodeDto[] | ErrorDto>) => {

@@ -527,6 +527,17 @@ describe('Tasks API', () => {
 		});
 	});
 
+	// ── GET /health ────────────────────────────────────────────────────────────
+
+	describe('GET /health', () => {
+		it('200 mit { status: "ok" }', async () => {
+			const res = await get('/health');
+			assert.equal(res.status, 200);
+			const body = await res.json();
+			assert.deepEqual(body, { status: 'ok' });
+		});
+	});
+
 	// ── GET /forest ──────────────────────────────────────────────────────────
 
 	describe('GET /forest', () => {
