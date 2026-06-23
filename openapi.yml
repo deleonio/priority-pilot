@@ -234,6 +234,20 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /health:
+    get:
+      summary: Liveness-Check
+      description: >-
+        Billiger Liveness-Check für Post-Deploy-Verifikation und Monitoring —
+        robuster als der fachliche `GET /next`, da ohne Datenbank-Zugriff.
+      operationId: getHealth
+      responses:
+        '200':
+          description: Der Dienst läuft
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
   /forest:
     get:
       summary: Aufgabenwald nach Wertschöpfung sortiert
@@ -317,6 +331,16 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
   schemas:
+    Health:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+          description: Konstante Statuskennung; signalisiert einen lebenden Dienst.
     TaskStatus:
       type: string
       enum:
