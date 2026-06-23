@@ -6,12 +6,12 @@ die Repo-Seite: [`deployment-repo-plan.md`](deployment-repo-plan.md).
 
 > **Annahmen:** Debian 12 / Ubuntu 22.04+, **x64**, root- bzw. `sudo`-Zugriff, eine Domain, deren
 > A-Record (Schritt 9) auf den Server zeigt. Platzhalter `priority-pilot.example.de` und
-> `deploy@host` durch echte Werte ersetzen. Node-Major-Version **22** (muss zur CI passen — native
+> `gh-deploy@host` durch echte Werte ersetzen. Node-Major-Version **22** (muss zur CI passen — native
 > `sqlite3`).
 
 ```mermaid
 flowchart TB
-    s1["1 · System + Node 22 + Caddy"] --> s2["2 · deploy-User"]
+    s1["1 · System + Node 22 + Caddy"] --> s2["2 · gh-deploy-User"]
     s2 --> s3["3 · SSH-Deploy-Key (forced command)"]
     s2 --> s4["4 · Verzeichnisse + data/"]
     s4 --> s5["5 · Env-Datei (chmod 600)"]
@@ -65,13 +65,13 @@ sudo apt update && sudo apt install -y caddy
 
 ---
 
-## 2. Deploy-User anlegen
+## 2. gh-deploy-User anlegen
 
 ```bash
-sudo adduser --disabled-password --gecos "" deploy
+sudo adduser --disabled-password --gecos "" gh-deploy
 ```
 
-Der `deploy`-User braucht **kein** Passwort — Zugriff nur per SSH-Key (Schritt 3) und Service-Betrieb
+Der `gh-deploy`-User braucht **kein** Passwort — Zugriff nur per SSH-Key (Schritt 3) und Service-Betrieb
 per systemd (Schritt 7).
 
 ---
@@ -85,16 +85,16 @@ Auf den Server kommt nur der **öffentliche** Schlüssel, gebunden an ein Forced
 Key ausschließlich `deploy.sh` ausführen kann:
 
 ```bash
-sudo -u deploy mkdir -p /home/deploy/.ssh && sudo -u deploy chmod 700 /home/deploy/.ssh
+sudo -u gh-deploy mkdir -p /home/gh-deploy/.ssh && sudo -u gh-deploy chmod 700 /home/gh-deploy/.ssh
 
 # Inhalt von gh_deploy.pub einsetzen ↓ (ein langer ssh-ed25519-String)
-sudo -u deploy tee /home/deploy/.ssh/authorized_keys >/dev/null <<'EOF'
-command="/home/deploy/deploy.sh",no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-pty ssh-ed25519 AAAA…github-deploy@example.de
+sudo -u gh-deploy tee /home/gh-deploy/.ssh/authorized_keys >/dev/null <<'EOF'
+command="/home/gh-deploy/deploy.sh",no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-pty ssh-ed25519 AAAA…github-deploy@example.de
 EOF
-sudo -u deploy chmod 600 /home/deploy/.ssh/authorized_keys
+sudo -u gh-deploy chmod 600 /home/gh-deploy/.ssh/authorized_keys
 ```
 
-**Prüfen (nach Schritt 6):** `ssh deploy@host "irgendwas"` führt nur `deploy.sh` aus und lehnt
+**Prüfen (nach Schritt 6):** `ssh gh-deploy@host "irgendwas"` führt nur `deploy.sh` aus und lehnt
 ungültige Kommandos ab — ein Shell-Login ist nicht möglich.
 
 ---
@@ -104,7 +104,7 @@ ungültige Kommandos ab — ein Shell-Login ist nicht möglich.
 ```bash
 APP=priority-pilot
 sudo mkdir -p /var/www/gh-deploy/$APP/releases /var/www/gh-deploy/$APP/data
-sudo chown -R deploy:deploy /var/www/gh-deploy/$APP
+sudo chown -R gh-deploy:gh-deploy /var/www/gh-deploy/$APP
 ```
 
 `data/` ist **release-unabhängig** — hier lebt `database.sqlite` und überlebt jedes Deploy. Niemals
@@ -141,13 +141,13 @@ läuft.
 ```bash
 # GH-Token für das Pull-Modell (Releases herunterladen). Bei PRIVATEM Repo erforderlich;
 # bei öffentlichem Repo kann der Token-Teil entfallen.
-sudo -u deploy tee /home/deploy/.deploy-token >/dev/null <<'EOF'
+sudo -u gh-deploy tee /home/gh-deploy/.deploy-token >/dev/null <<'EOF'
 export GH_TOKEN=ghp_DEIN_TOKEN
 EOF
-sudo -u deploy chmod 600 /home/deploy/.deploy-token
+sudo -u gh-deploy chmod 600 /home/gh-deploy/.deploy-token
 
 # Das Deploy-Skript
-sudo -u deploy tee /home/deploy/deploy.sh >/dev/null <<'EOF'
+sudo -u gh-deploy tee /home/gh-deploy/deploy.sh >/dev/null <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -162,7 +162,7 @@ REPO="deleonio/$APP"          # falls Repo-Name != App-Name: hier mappen
 BASE="/var/www/gh-deploy/$APP"
 REL="$BASE/releases/$VERSION"
 
-source /home/deploy/.deploy-token   # export GH_TOKEN=...
+source /home/gh-deploy/.deploy-token   # export GH_TOKEN=...
 mkdir -p "$BASE/data"
 
 if [[ ! -d "$REL" ]]; then
@@ -174,7 +174,7 @@ ln -sfn "$REL" "$BASE/current"
 sudo systemctl restart "app@$APP"
 echo "deployed $APP $VERSION"
 EOF
-sudo -u deploy chmod +x /home/deploy/deploy.sh
+sudo -u gh-deploy chmod +x /home/gh-deploy/deploy.sh
 ```
 
 > **Variante Host-Install** (nur falls die Host-Architektur **nicht** x64-Linux/Node 22 ist und das
@@ -195,8 +195,8 @@ After=network.target
 
 [Service]
 Type=simple
-User=deploy
-Group=deploy
+User=gh-deploy
+Group=gh-deploy
 WorkingDirectory=/var/www/gh-deploy/%i/current/server
 EnvironmentFile=/etc/gh-deploy/%i.env
 ExecStart=/usr/bin/node dist/index.js
@@ -224,13 +224,13 @@ schreibbar; die Release-Bäume bleiben unter `ProtectSystem=strict` read-only.
 
 ## 8. sudoers-Zeile (eng gefasst)
 
-Damit der `deploy`-User **nur** diesen einen Service neu starten darf:
+Damit der `gh-deploy`-User **nur** diesen einen Service neu starten darf:
 
 ```bash
-echo 'deploy ALL=(root) NOPASSWD: /usr/bin/systemctl restart app@priority-pilot' \
-  | sudo tee /etc/sudoers.d/deploy-priority-pilot
-sudo chmod 440 /etc/sudoers.d/deploy-priority-pilot
-sudo visudo -cf /etc/sudoers.d/deploy-priority-pilot   # Syntax prüfen
+echo 'gh-deploy ALL=(root) NOPASSWD: /usr/bin/systemctl restart app@priority-pilot' \
+  | sudo tee /etc/sudoers.d/gh-deploy-priority-pilot
+sudo chmod 440 /etc/sudoers.d/gh-deploy-priority-pilot
+sudo visudo -cf /etc/sudoers.d/gh-deploy-priority-pilot   # Syntax prüfen
 ```
 
 Bewusst **kein** `app@*`-Wildcard (sudo `fnmatch` matcht großzügiger als erwartet) — eine Zeile pro App.
@@ -283,11 +283,11 @@ Caddy holt das TLS-Zertifikat automatisch (Let's Encrypt). **Wichtig:** Die API 
 ## 10. Erster Deploy + Verifikation
 
 Ein Tag-Push löst den Release-Workflow aus (siehe [`deployment-repo-plan.md`](deployment-repo-plan.md));
-dieser ruft am Ende `ssh deploy@host "deploy priority-pilot vX.Y.Z"`. Manuell antesten:
+dieser ruft am Ende `ssh gh-deploy@host "deploy priority-pilot vX.Y.Z"`. Manuell antesten:
 
 ```bash
 # Vom Entwickler-Rechner mit dem privaten Deploy-Key:
-ssh -i gh_deploy deploy@priority-pilot.example.de "deploy priority-pilot v0.0.1"
+ssh -i gh_deploy gh-deploy@priority-pilot.example.de "deploy priority-pilot v0.0.1"
 ```
 
 **Verifizieren (auf dem Server):**
@@ -320,7 +320,7 @@ Die DB in `data/` ist davon **nicht** betroffen. Bei Schema-ändernden Releases 
 
 ```bash
 # Konsistentes SQLite-Backup (auch im laufenden Betrieb sicher) – z. B. täglich per cron:
-sudo -u deploy sqlite3 /var/www/gh-deploy/priority-pilot/data/database.sqlite \
+sudo -u gh-deploy sqlite3 /var/www/gh-deploy/priority-pilot/data/database.sqlite \
   ".backup '/var/www/gh-deploy/priority-pilot/data/backup-$(date +%F).sqlite'"
 ```
 

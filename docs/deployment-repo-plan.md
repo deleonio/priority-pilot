@@ -158,7 +158,7 @@ Unter **Settings → Secrets and variables → Actions** anlegen:
 | ---------------- | -------- | -------------------------------------------------- |
 | `DEPLOY_SSH_KEY` | Secret   | Inhalt des **privaten** Schlüssels `gh_deploy`     |
 | `DEPLOY_HOST`    | Variable | z. B. `priority-pilot.example.de` (oder Server-IP) |
-| `DEPLOY_USER`    | Variable | `deploy`                                           |
+| `DEPLOY_USER`    | Variable | `gh-deploy`                                         |
 
 **Akzeptanzkriterium:** Alle drei vorhanden; der private Schlüssel liegt **nur** hier + in
 `authorized_keys` des Servers, nie im Repo (ist gitignored).
