@@ -149,14 +149,11 @@ Merge/Schließen).
 
 `pnpm --filter frontend test` — Vitest + jsdom + Testing Library, Testdateien unter `frontend/src/**/*.test.tsx`.
 
-`pnpm --filter frontend test:e2e` — Playwright-E2E (nur Chromium), Specs/Fixtures unter
-`frontend/e2e/`. Zwei Ebenen: **funktionale** Specs gegen das **echte** Backend (`smoke.spec.ts`,
-`crud.spec.ts` — anlegen/bearbeiten/löschen + Säulen-Gewicht; Playwright startet Backend mit
-temporärer In-Memory-DB + Vite, `crud.spec.ts` räumt in `afterEach` über die API auf) sowie
-**gemockte** Visual-Snapshots/Klicktests (`snapshots.spec.ts`, `forms.spec.ts`) per `page.route`
-(kein Backend nötig). Baselines aktualisieren bzw. neu erzeugen:
-`pnpm --filter frontend test:e2e:update`.
+`pnpm --filter frontend test:e2e` — Playwright-E2E (nur Chromium), Specs unter `frontend/e2e/`.
+**Funktionale** Specs gegen das **echte** Backend (`smoke.spec.ts`, `crud.spec.ts` —
+anlegen/bearbeiten/löschen + Säulen-Gewicht; Playwright startet Backend mit temporärer In-Memory-DB +
+Vite, `crud.spec.ts` räumt in `afterEach` über die API auf). Es wird nicht via `page.route` gemockt.
 
-Die E2E-Snapshots laufen **nicht** als Teil von `pnpm -r test` bzw. `pnpm --filter frontend test`
+Die E2E-Specs laufen **nicht** als Teil von `pnpm -r test` bzw. `pnpm --filter frontend test`
 (Vitest schließt `e2e/` aus), sondern ausschließlich separat über `test:e2e` (benötigen die
 installierten Playwright-Browser).
