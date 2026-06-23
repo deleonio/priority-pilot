@@ -40,7 +40,7 @@ pnpm --filter server --prod deploy --legacy "$DEPLOY"
 echo "==> Release-Baum zusammenstellen"
 mkdir -p "$STAGE/server"
 cp -r frontend/dist "$STAGE/dist"               # SPA      -> Reverse-Proxy / file_server
-cp -r "$DEPLOY/dist" "$STAGE/server/dist"       # Backend  -> node server/dist/index.js
+cp -r server/dist "$STAGE/server/dist"          # Backend  -> node server/dist/index.js (aus pnpm -r build)
 cp "$DEPLOY/package.json" "$STAGE/server/package.json"
 cp -r "$DEPLOY/node_modules" "$STAGE/server/node_modules"
 
