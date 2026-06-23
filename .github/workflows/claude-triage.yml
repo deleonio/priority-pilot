@@ -93,7 +93,9 @@ jobs:
             Trifft bereits eine fruehere KI-Analyse als Kommentar zu (Re-Triage), diese nicht
             unveraendert uebernehmen, sondern auf Passung und Vollstaendigkeit pruefen und bei
             Bedarf aktualisieren/ergaenzen. Dann wie im Ablauf: Beschreibung lektorieren (Inhalt
-            unveraendert), Loesungs-Kommentar auf Deutsch mit Umsetzbarkeits-Ampel
+            unveraendert), am Ende den Titel auf Konsistenz zur Beschreibung/zum Ziel pruefen und
+            bei Inkonsistenz inhaltlich treu optimieren (kein Edit pro forma, keine Titel-Drift),
+            Loesungs-Kommentar auf Deutsch mit Umsetzbarkeits-Ampel
             (gruen/gelb/rot) posten und Labels gemaess Ampel setzen (`ai:analyzed`; bei gruen
             zusaetzlich `ai:ready`, bei gelb/rot kein `ai:ready`).
 
@@ -152,7 +154,9 @@ jobs:
             Trifft bereits eine fruehere KI-Analyse als Kommentar zu (Re-Triage), diese nicht
             unveraendert uebernehmen, sondern auf Passung und Vollstaendigkeit pruefen und bei
             Bedarf aktualisieren/ergaenzen. Dann wie im Ablauf: Beschreibung lektorieren (Inhalt
-            unveraendert), Loesungs-Kommentar auf Deutsch mit Umsetzbarkeits-Ampel
+            unveraendert), am Ende den Titel auf Konsistenz zur Beschreibung/zum Ziel pruefen und
+            bei Inkonsistenz inhaltlich treu optimieren (kein Edit pro forma, keine Titel-Drift),
+            Loesungs-Kommentar auf Deutsch mit Umsetzbarkeits-Ampel
             (gruen/gelb/rot) posten und Labels gemaess Ampel setzen (`ai:analyzed`; bei gruen
             zusaetzlich `ai:ready`, bei gelb/rot kein `ai:ready`).
 
