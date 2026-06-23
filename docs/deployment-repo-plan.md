@@ -27,13 +27,13 @@ flowchart TB
 
 ## Status quo (verifiziert)
 
-| Vorhanden | Fehlt für Deployment |
-| --- | --- |
-| `ci.yml` (install · format · lint · build · test) als Qualitäts-Gate | **kein** Release-/Deploy-Workflow |
-| `pnpm -r build` erzeugt `frontend/dist` + `server/dist` (Entry `dist/index.js`, ESM) | **kein** Pack-Skript, das ein Deploy-Tarball schnürt |
-| `server/.env.example` (dokumentiert die meisten Env-Variablen) | `DB_SEED` fehlt dort; README-Env-Tabelle unvollständig |
-| Deploy-Schlüsselpaar `gh_deploy`/`gh_deploy.pub` erzeugt, gitignored | Schlüssel/Host noch nicht als GitHub-Secrets/Variables hinterlegt |
-| Release ist **tag-getrieben** (keine `version`-Felder in `package.json`) | — (so gewollt; Tag = Single Source of Truth) |
+| Vorhanden                                                                            | Fehlt für Deployment                                              |
+| ------------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| `ci.yml` (install · format · lint · build · test) als Qualitäts-Gate                 | **kein** Release-/Deploy-Workflow                                 |
+| `pnpm -r build` erzeugt `frontend/dist` + `server/dist` (Entry `dist/index.js`, ESM) | **kein** Pack-Skript, das ein Deploy-Tarball schnürt              |
+| `server/.env.example` (dokumentiert die meisten Env-Variablen)                       | `DB_SEED` fehlt dort; README-Env-Tabelle unvollständig            |
+| Deploy-Schlüsselpaar `gh_deploy`/`gh_deploy.pub` erzeugt, gitignored                 | Schlüssel/Host noch nicht als GitHub-Secrets/Variables hinterlegt |
+| Release ist **tag-getrieben** (keine `version`-Felder in `package.json`)             | — (so gewollt; Tag = Single Source of Truth)                      |
 
 ---
 
@@ -112,7 +112,7 @@ on:
     tags: ['v*.*.*']
 
 permissions:
-  contents: write          # gh release create
+  contents: write # gh release create
 
 jobs:
   release:
@@ -122,7 +122,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22                 # MUSS zur Node-Major-Version des Hosts passen (native sqlite3)
+          node-version: 22 # MUSS zur Node-Major-Version des Hosts passen (native sqlite3)
           cache: pnpm
 
       - name: Pack release
@@ -154,11 +154,11 @@ solange der Server noch nicht eingerichtet ist.
 
 Unter **Settings → Secrets and variables → Actions** anlegen:
 
-| Name | Typ | Wert |
-| --- | --- | --- |
-| `DEPLOY_SSH_KEY` | Secret | Inhalt des **privaten** Schlüssels `gh_deploy` |
-| `DEPLOY_HOST` | Variable | z. B. `priority-pilot.example.de` (oder Server-IP) |
-| `DEPLOY_USER` | Variable | `deploy` |
+| Name             | Typ      | Wert                                               |
+| ---------------- | -------- | -------------------------------------------------- |
+| `DEPLOY_SSH_KEY` | Secret   | Inhalt des **privaten** Schlüssels `gh_deploy`     |
+| `DEPLOY_HOST`    | Variable | z. B. `priority-pilot.example.de` (oder Server-IP) |
+| `DEPLOY_USER`    | Variable | `deploy`                                           |
 
 **Akzeptanzkriterium:** Alle drei vorhanden; der private Schlüssel liegt **nur** hier + in
 `authorized_keys` des Servers, nie im Repo (ist gitignored).
@@ -180,14 +180,14 @@ seedet sonst Demo-Daten in eine leere DB):
 **R3.2 — `README.md` → „Umgebungsvariablen (Server)":** Tabelle um die tatsächlich gelesenen
 Variablen erweitern (aktuell nur `PORT`, `DB_RESET`):
 
-| Variable | Default | Wirkung |
-| --- | --- | --- |
-| `PORT` | `3000` | Port des Express-Servers. |
-| `DATABASE_STORAGE` | `./database.sqlite` | Pfad der SQLite-DB (`:memory:` = flüchtig). In Produktion **absolut** + außerhalb des Release-Baums. |
-| `DB_SEED` | `true` | Seedet Demo-Daten in eine leere DB. In Produktion `false`. |
-| `DB_RESET` | `false` | `true` verwirft die DB beim Start (**Datenverlust!**). |
-| `MISTRAL_API_KEY` | – | Pflicht für `POST /tasks/suggest-pillars` (sonst HTTP 503). |
-| `MISTRAL_MODEL` | `mistral-small-latest` | Optionales Mistral-Modell. |
+| Variable           | Default                | Wirkung                                                                                              |
+| ------------------ | ---------------------- | ---------------------------------------------------------------------------------------------------- |
+| `PORT`             | `3000`                 | Port des Express-Servers.                                                                            |
+| `DATABASE_STORAGE` | `./database.sqlite`    | Pfad der SQLite-DB (`:memory:` = flüchtig). In Produktion **absolut** + außerhalb des Release-Baums. |
+| `DB_SEED`          | `true`                 | Seedet Demo-Daten in eine leere DB. In Produktion `false`.                                           |
+| `DB_RESET`         | `false`                | `true` verwirft die DB beim Start (**Datenverlust!**).                                               |
+| `MISTRAL_API_KEY`  | –                      | Pflicht für `POST /tasks/suggest-pillars` (sonst HTTP 503).                                          |
+| `MISTRAL_MODEL`    | `mistral-small-latest` | Optionales Mistral-Modell.                                                                           |
 
 **Akzeptanzkriterium:** `grep -rho 'process.env.[A-Z_]*' server/src | sort -u` enthält keine Variable,
 die in README **und** `server/.env.example` fehlt. `pnpm exec prettier --check README.md server/.env.example` grün.
