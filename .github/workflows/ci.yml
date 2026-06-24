@@ -37,11 +37,14 @@ jobs:
       # damit kann eine veraltete/inkonsistente Analyse oder API-Drift nicht nach main gelangen.
       - name: Build
         run: pnpm -r build
-      - name: Test
-        run: pnpm -r test
+      # Nur Frontend hier — die Server-Suite (priority-pilot) läuft ausschließlich über das
+      # Coverage-Gate unten, sonst würde sie pro CI-Lauf doppelt ausgeführt (Review #115).
+      - name: Test (frontend)
+        run: pnpm --filter frontend test
       # Coverage-Gate (gezielt, nicht repo-weit): node:test misst die Abdeckung der reinen
-      # Logik-Schicht (server/src/logics) und bricht unter den Schwellen ab. Frontend-lib-Coverage
-      # ist vorbereitet (vitest.config.ts), aber erst nach `pnpm add -D @vitest/coverage-v8` aktiv.
+      # Logik-Schicht (server/src/logics) und bricht unter den Schwellen ab. Deckt zugleich die
+      # komplette Server-Suite ab. Frontend-lib-Coverage ist vorbereitet (vitest.config.ts), aber
+      # erst nach `pnpm add -D @vitest/coverage-v8` aktiv.
       - name: Coverage-Gate (server/src/logics)
         run: pnpm --filter priority-pilot test:coverage
       # E2E: Playwright startet Backend (frische In-Memory-DB) + Vite selbst (siehe playwright.config.ts) —
