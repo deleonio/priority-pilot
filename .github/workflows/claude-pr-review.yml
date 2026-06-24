@@ -94,14 +94,25 @@ jobs:
             Problem ganz? Edge Cases? einfachster Weg? Performance/Security?), Code-Qualität und
             Projekt-Konventionen prüfen.
 
+            Sammelkommentar konsolidieren (kein Duplikat pro Runde): Das zusammenfassende Urteil
+            wird als GENAU EIN markierter KI-Kommentar `<!-- ai-review -->` (erste Zeile) pro PR
+            gepflegt. Vor dem Posten den bestehenden markierten Kommentar per API suchen
+            (`gh api repos/{owner}/{repo}/issues/${{ github.event.pull_request.number }}/comments`,
+            nach `<!-- ai-review -->` filtern); ist er vorhanden, ihn per
+            `gh api --method PATCH repos/{owner}/{repo}/issues/comments/<id>` AKTUALISIEREN (Comment-ID
+            bleibt gleich) statt einen neuen anzulegen — nur einmalig neu anlegen, wenn keiner existiert.
+            Der Kommentar trennt „Offene Findings" (aktuelle Runde) von einer History-Tabelle
+            „Behobene Anmerkungen" (Runde | Finding | Status ✅). Inline-Findings bleiben unverändert.
+
             Abschluss — GENAU EINEN Weg gehen:
               - Es gibt zutreffende, offene Findings → als EINE Review (`gh pr review --comment`)
-                mit an Datei/Zeile verankerten Kommentaren (Was / Warum / Vorschlag) posten, dann
+                mit an Datei/Zeile verankerten Kommentaren (Was / Warum / Vorschlag) posten, das
+                Urteil im konsolidierten Sammelkommentar (s. o.) aktualisieren, dann
                 die Labels in ZWEI getrennten Befehlen umschalten (nie kombiniert, sonst Doppel-Trigger):
                 `gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:needs-review`,
                 danach `gh pr edit ${{ github.event.pull_request.number }} --add-label ai:needs-changes`
               - Der PR ist solide (🟢) → KEINE Pseudo-Findings erfinden, nur eine knappe
-                🟢-Bestätigung als Kommentar (`gh pr comment`), dann die Labels in ZWEI Befehlen:
+                🟢-Bestätigung im konsolidierten Sammelkommentar (s. o.), dann die Labels in ZWEI Befehlen:
                 `gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:needs-review`,
                 danach `gh pr edit ${{ github.event.pull_request.number }} --add-label ai:ready-to-merge`
 
@@ -156,14 +167,25 @@ jobs:
             Problem ganz? Edge Cases? einfachster Weg? Performance/Security?), Code-Qualität und
             Projekt-Konventionen prüfen.
 
+            Sammelkommentar konsolidieren (kein Duplikat pro Runde): Das zusammenfassende Urteil
+            wird als GENAU EIN markierter KI-Kommentar `<!-- ai-review -->` (erste Zeile) pro PR
+            gepflegt. Vor dem Posten den bestehenden markierten Kommentar per API suchen
+            (`gh api repos/{owner}/{repo}/issues/${{ github.event.pull_request.number }}/comments`,
+            nach `<!-- ai-review -->` filtern); ist er vorhanden, ihn per
+            `gh api --method PATCH repos/{owner}/{repo}/issues/comments/<id>` AKTUALISIEREN (Comment-ID
+            bleibt gleich) statt einen neuen anzulegen — nur einmalig neu anlegen, wenn keiner existiert.
+            Der Kommentar trennt „Offene Findings" (aktuelle Runde) von einer History-Tabelle
+            „Behobene Anmerkungen" (Runde | Finding | Status ✅). Inline-Findings bleiben unverändert.
+
             Abschluss — GENAU EINEN Weg gehen:
               - Es gibt zutreffende, offene Findings → als EINE Review (`gh pr review --comment`)
-                mit an Datei/Zeile verankerten Kommentaren (Was / Warum / Vorschlag) posten, dann
+                mit an Datei/Zeile verankerten Kommentaren (Was / Warum / Vorschlag) posten, das
+                Urteil im konsolidierten Sammelkommentar (s. o.) aktualisieren, dann
                 die Labels in ZWEI getrennten Befehlen umschalten (nie kombiniert, sonst Doppel-Trigger):
                 `gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:needs-review`,
                 danach `gh pr edit ${{ github.event.pull_request.number }} --add-label ai:needs-changes`
               - Der PR ist solide (🟢) → KEINE Pseudo-Findings erfinden, nur eine knappe
-                🟢-Bestätigung als Kommentar (`gh pr comment`), dann die Labels in ZWEI Befehlen:
+                🟢-Bestätigung im konsolidierten Sammelkommentar (s. o.), dann die Labels in ZWEI Befehlen:
                 `gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:needs-review`,
                 danach `gh pr edit ${{ github.event.pull_request.number }} --add-label ai:ready-to-merge`
 

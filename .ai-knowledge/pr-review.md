@@ -69,6 +69,32 @@ Review-Body (deutsch) mit **Ampel** am Anfang:
 
 Danach die wichtigsten Findings als kurze Liste; Details stehen in den Inline-Kommentaren.
 
+### Einen KI-Sammelkommentar pflegen (Konsolidierung statt Duplikate)
+
+Über die Fixup-Schleife (`ai:needs-review` → Review → `ai:needs-changes` → Fixup → …) läuft der
+Kreuzverhör mehrfach am selben PR. Damit sich **nicht jede Runde ein neuer Kommentar** ansammelt und
+der PR unübersichtlich wird, pflegt der Review **genau einen** zusammenfassenden KI-Sammelkommentar
+pro PR — er wird fortgeschrieben statt dupliziert. (Die inline-an-Zeile verankerten Findings aus
+Schritt 4 bleiben davon unberührt — sie lassen sich nicht so dedupliziert fortschreiben und veralten
+ohnehin mit dem Diff; konsolidiert wird der **Sammelkommentar** mit dem Urteil.)
+
+- **Markerbasierte Identifikation:** Der Sammelkommentar trägt als erste Zeile einen versteckten
+  HTML-Marker `<!-- ai-review -->`, an dem er in Folge-Runden wiedergefunden wird.
+- **Suchen statt blind anlegen:** Vor dem Posten den **bestehenden** markierten Kommentar des KI-Bots
+  **per API suchen** — robuster als `gh pr comment --edit-last`, weil zwischenzeitlich andere
+  Bots/Menschen kommentiert haben können (so vom Owner bestätigt):
+  `gh api repos/{owner}/{repo}/issues/<pr>/comments` und nach `<!-- ai-review -->` filtern.
+- **Update statt Neuanlage:** Wird ein markierter Kommentar **gefunden**, ihn **aktualisieren/
+  fortschreiben** (`gh api --method PATCH repos/{owner}/{repo}/issues/comments/<id> -f body=…`) — die
+  Comment-ID bleibt dabei gleich. Wird **nicht gefunden** (existiert noch kein markierter Kommentar),
+  ihn **einmalig neu anlegen** (`gh pr comment` mit dem Marker als erster Zeile).
+- **Zwei Abschnitte im Sammelkommentar:**
+  - **Offene Findings** — nur die Punkte der **aktuellen** Runde (mit Ampel, Datei/Zeile, Vorschlag).
+  - **Behobene Anmerkungen** — eine **History-Tabelle** der über die Runden bereits erledigten
+    Findings (Spalten: **Runde** | Finding | Datei/Zeile | **Status** ✅). Beim Fortschreiben wandern
+    erledigte Punkte aus „Offene Findings" in diese Tabelle, sodass die historische Sicht erhalten
+    bleibt, was schon behandelt wurde.
+
 **CI-/Quality-Gate als Vorbedingung:** Ein grünes Inhalts-Urteil (🟢) ist **notwendig, aber nicht
 hinreichend** für `ai:ready-to-merge` — die Pflicht-Checks (CI: Format/Lint/Build/Test) müssen
 ebenfalls grün sein. In der GitHub-Actions-Pipeline übernimmt das ein deterministischer
