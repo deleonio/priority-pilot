@@ -1,0 +1,87 @@
+name: PR Auto-Label (ai:needs-review)
+
+# Setzt beim OEFFNEN eines (Nicht-Draft-)Pull Requests automatisch das Pipeline-Label
+# "ai:needs-review" (Ticket #116). Das ist der Einstieg in die label-gesteuerte KI-Review-
+# Pipeline: das gesetzte Label weckt den Kreuzverhoer-Review (claude-pr-review.yml).
+#
+# WICHTIG (Folge-Workflows): Von GITHUB_TOKEN gesetzte Labels loesen KEINE weiteren Workflows
+# aus. Damit das "labeled"-Event den Review wirklich startet, wird hier ein kurzlebiges
+# GitHub-App-Token (APP_ID + APP_PRIVATE_KEY) verwendet — gleiches Muster wie in
+# claude-pr-gate.yml / claude-pr-review.yml.
+#
+# Bedingungen:
+#   - nur Nicht-Drafts (draft == false): "opened" eines Drafts wird ignoriert, erst
+#     "ready_for_review" zieht das Label.
+#   - nur same-repo-PRs (kein Fork): Fork-PRs haben kein App-Token und sollen die Pipeline
+#     nicht ungefragt anstossen.
+#   - idempotent: traegt der PR bereits "ai:needs-review", laeuft der Job gar nicht erst an
+#     (kein No-op-Rauschen, keine Schleife).
+
+on:
+  pull_request:
+    types: [opened, ready_for_review]
+
+concurrency:
+  # Pro PR serialisieren, damit zwei kurz aufeinanderfolgende Events nicht doppelt labeln.
+  group: pr-needs-review-label-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  label:
+    # Nur Nicht-Drafts, nur same-repo (kein Fork) und nur, wenn das Label noch fehlt (Idempotenz).
+    if: >-
+      ${{ github.event.pull_request.draft == false
+          && github.event.pull_request.head.repo.full_name == github.repository
+          && !contains(github.event.pull_request.labels.*.name, 'ai:needs-review') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read # Schreibzugriff laeuft ueber das App-Token
+    steps:
+      - name: Voraussetzung pruefen (GitHub-App-Secrets)
+        id: preflight
+        env:
+          APP_ID: ${{ secrets.APP_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+        run: |
+          if [ -z "$APP_ID" ] || [ -z "$APP_PRIVATE_KEY" ]; then
+            echo "::warning::GitHub-App-Secrets fehlen (APP_ID und/oder APP_PRIVATE_KEY) — Lauf wird uebersprungen (kein Fehler). GitHub App anlegen (Contents/Issues/Pull requests = Read and write), aufs Repo installieren und beide Werte als Repo-Secrets hinterlegen, damit die Pipeline laeuft."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: GitHub-App-Token erzeugen
+        id: app-token
+        if: steps.preflight.outputs.configured == 'true'
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      # Reiner gh-Job (kein Checkout, kein LLM): Label bei Bedarf anlegen, dann setzen. Mit dem
+      # App-Token gesetzt, damit das "labeled"-Event den Kreuzverhoer-Review ausloest.
+      - name: Label ai:needs-review setzen
+        if: steps.preflight.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }} # App-Token -> loest Folge-Workflows aus
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          # Doppelte Absicherung der Idempotenz auch zur Laufzeit (das job-if prueft nur den
+          # Event-Snapshot): nur setzen, wenn das Label aktuell wirklich nicht vorhanden ist.
+          labels="$(gh pr view "$PR" --repo "$REPO" --json labels --jq '[.labels[].name]')"
+          if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:needs-review")')" = "true" ]; then
+            echo "PR #$PR traegt bereits ai:needs-review — nichts zu tun (No-op)."
+            exit 0
+          fi
+
+          # Label bei Bedarf anlegen (gleiche Farbe wie in den uebrigen Pipeline-Workflows).
+          gh label create "ai:needs-review" --repo "$REPO" --color 1D76DB \
+            --description "PR wartet auf den Kreuzverhoer-Review" 2>/dev/null || true
+          gh pr edit "$PR" --repo "$REPO" --add-label ai:needs-review
+
+          echo "PR #$PR: ai:needs-review gesetzt — Kreuzverhoer-Review wird ausgeloest." \
+            >> "$GITHUB_STEP_SUMMARY"
