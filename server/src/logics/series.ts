@@ -21,7 +21,7 @@ const nextOccurrence = (date: Date, rhythm: SeriesRhythm): Date => {
 		case 'weekly':
 			next.setUTCDate(next.getUTCDate() + 7);
 			break;
-		case 'monthly':
+		case 'monthly': {
 			// Ziel-Tag merken (z. B. 31)
 			const targetDate = date.getUTCDate();
 			next.setUTCMonth(next.getUTCMonth() + 1);
@@ -30,6 +30,7 @@ const nextOccurrence = (date: Date, rhythm: SeriesRhythm): Date => {
 				next.setUTCDate(0); // 0 = letzter Tag des aktuellen Monats
 			}
 			break;
+		}
 	}
 	return next;
 };
