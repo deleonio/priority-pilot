@@ -91,7 +91,7 @@ Drei Punkte, die aus der Repo-Realität folgen und im Konzept leicht übersehen 
    (`node dist/index.js`) und `server/tsconfig.json` (`outDir: ./dist`). Das Backend ist ESM
    (`"type": "module"` in `server/package.json`).
 2. **Das Backend braucht `node_modules` zur Laufzeit** — `express`, `sequelize`, `sqlite3`. `sqlite3`
-   ist ein **natives Modul** (siehe `onlyBuiltDependencies` in der Root-`package.json`); die
+   ist ein **natives Modul** (siehe Build-Allowlist `onlyBuiltDependencies` in `pnpm-workspace.yaml`); die
    kompilierte Binärdatei muss zur **Architektur und Node-ABI des Hosts** passen.
    → CI baut auf `ubuntu-latest` (x64) mit **Node 26**. Läuft der Host ebenfalls als x64-Linux mit
    Node 26, passt das Prebuild. Bei abweichender Arch/Node-Version: Prod-Deps **auf dem Host**

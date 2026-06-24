@@ -2,7 +2,7 @@ packages:
   - 'client'
   - 'frontend'
   - 'server'
-allowBuilds:
-  '@public-ui/components': true
-  esbuild: true
-  sqlite3: true
+onlyBuiltDependencies:
+  - '@public-ui/components'
+  - esbuild
+  - sqlite3
