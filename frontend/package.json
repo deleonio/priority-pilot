@@ -8,6 +8,7 @@
 		"preview": "vite preview",
 		"lint": "tsc --noEmit && eslint src e2e playwright.config.ts",
 		"test": "vitest run",
+		"test:coverage": "vitest run --coverage",
 		"test:e2e": "playwright test"
 	},
 	"dependencies": {

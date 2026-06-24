@@ -148,9 +148,10 @@ Nicht alles braucht gleich viel Strenge. Diese Politik kombiniert man mit 1–3:
   Unit-TDD-Zwang.
 - **Reines Styling/Layout:** visuelle Verifikation statt Tests (deckt sich mit dem bestehenden
   e2e-Ansatz).
-- **Optional Coverage-Schwelle** nur für `logics`/`lib` (vitest `coverage` + node:test
-  `--experimental-test-coverage`), **nicht** repo-weit — passt zum Effizienz-Prinzip „gezielt statt
-  repo-weit".
+- **Coverage-Schwelle** nur für `logics`/`lib`, **nicht** repo-weit (Effizienz-Prinzip „gezielt statt
+  repo-weit"). **Umgesetzt:** `server/src/logics` via node:test (`test:coverage`, Schwellen 90/85/85,
+  CI-Gate). **Vorbereitet:** `frontend/src/lib` in `vitest.config.ts` — Provider
+  `@vitest/coverage-v8` installieren, dann `test:coverage`.
 
 ## Wie konkret das aussieht (an bestehendem Code)
 
@@ -194,7 +195,8 @@ machen.
 ## Offene Entscheidungen
 
 - ~~Wie weit gehen (Sz. 1 / 1+2 / 1+2+3)~~ — **alle drei Stufen adoptiert**.
-- Coverage-Schwelle einführen — und wenn ja, nur für `logics`/`lib`? (weiterhin offen)
+- ~~Coverage-Schwelle einführen — nur für `logics`/`lib`?~~ — umgesetzt: Server-`logics` als CI-Gate;
+  Frontend-`lib` vorbereitet (Provider-Install ausstehend).
 - ~~Soll Szenario 3 ein eigenes Label (`ai:spec-ready`) + eigene GitHub-Action bekommen, oder reicht
   die Gewaltenteilung innerhalb von `/team*`?~~ — entschieden: **eigenes Label `ai:spec-ready` +
   eigener Workflow `claude-spec.yml`** (separater headless Lauf = Gewaltenteilung auch in der Automatik).
