@@ -51,24 +51,29 @@ const main = async (): Promise<void> => {
 	// Einstiegspunkt des Agent SDK: query() startet die Claude-Code-Maschinerie als Subprozess
 	// und streamt strukturierte Nachrichten zurueck — die programmatische Einbettung, die die
 	// fertige Action kapselt. Session-Fortsetzung waere hier ueber die `resume`-Option moeglich.
-	const response = query({
-		prompt: buildReviewPrompt(diff),
-		options: {
-			// Headless: keine Tool-Genehmigungs-Callbacks, deterministischer CI-Lauf.
-			permissionMode: 'bypassPermissions',
-		},
-	});
+	try {
+		const response = query({
+			prompt: buildReviewPrompt(diff),
+			options: {
+				// Headless: keine Tool-Genehmigungs-Callbacks, deterministischer CI-Lauf.
+				permissionMode: 'bypassPermissions',
+			},
+		});
 
-	for await (const message of response) {
-		if (message.type === 'assistant') {
-			for (const block of message.message.content) {
-				if (block.type === 'text') {
-					process.stdout.write(block.text);
+		for await (const message of response) {
+			if (message.type === 'assistant') {
+				for (const block of message.message.content) {
+					if (block.type === 'text') {
+						process.stdout.write(block.text);
+					}
 				}
 			}
 		}
+		process.stdout.write('\n');
+	} catch (error) {
+		console.error('Query failed:', error);
+		process.exit(1);
 	}
-	process.stdout.write('\n');
 };
 
 void main();

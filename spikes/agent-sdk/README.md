@@ -19,6 +19,8 @@ export CLAUDE_CODE_OAUTH_TOKEN=...     # dasselbe Token wie der Claude-Pfad heut
 
 Abhaengigkeiten holen und starten (`tsx` strippt die TS-Typen zur Laufzeit):
 
+Ohne Argument wird ein Mini-Demo-Diff verwendet.
+
 ```bash
 cd spikes/agent-sdk
 pnpm install                 # oder: npm install
