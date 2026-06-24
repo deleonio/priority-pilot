@@ -175,11 +175,7 @@ describe('Issue #134 — idempotenter Release-Schritt in release.yml', () => {
 			// Kernbug: aktuell ruft der Schritt bedingungslos `gh release create` und stirbt mit
 			// "already exists" (Exit 1). Der Vertrag verlangt einen idempotenten Exit 0 — egal ob
 			// per view-Guard oder create-||-upload-Fallback geloest.
-			assert.equal(
-				status,
-				0,
-				`Wiederholungslauf muss idempotent sein (Exit 0), schlug aber fehl. stderr:\n${stderr}`,
-			);
+			assert.equal(status, 0, `Wiederholungslauf muss idempotent sein (Exit 0), schlug aber fehl. stderr:\n${stderr}`);
 		});
 
 		it('aktualisiert das Asset idempotent (gh release upload ... --clobber)', () => {
