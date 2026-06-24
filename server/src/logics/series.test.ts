@@ -42,9 +42,7 @@ describe('generateDueInstances', () => {
 		}
 
 		// Deadlines liegen genau 7 Tage auseinander (aufsteigend sortiert).
-		const deadlines = instances
-			.map((t) => new Date(t.deadline as unknown as Date).getTime())
-			.sort((a, b) => a - b);
+		const deadlines = instances.map((t) => new Date(t.deadline as unknown as Date).getTime()).sort((a, b) => a - b);
 		assert.equal(deadlines[0], start.getTime());
 		assert.equal(deadlines[1] - deadlines[0], 7 * ONE_DAY);
 		assert.equal(deadlines[2] - deadlines[1], 7 * ONE_DAY);

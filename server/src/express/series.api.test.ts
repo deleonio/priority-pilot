@@ -108,10 +108,7 @@ describe('Series API', () => {
 	// ── AK 2: Instanz-Änderung setzt isException; Template bleibt unverändert ───────────────────
 	describe('PATCH einer generierten Instanz', () => {
 		it('Statusänderung an Instanz setzt isException, ohne das Template zu berühren', async () => {
-			const series = (await (await post('/series', validSeries())).json()) as {
-				id: number;
-				defaultPriority: number;
-			};
+			const series = (await (await post('/series', validSeries())).json()) as { id: number; defaultPriority: number };
 			const instances = (await (
 				await post(`/series/${series.id}/generate`, { until: '2026-01-20T00:00:00.000Z' })
 			).json()) as Array<{ id: number }>;
@@ -128,10 +125,7 @@ describe('Series API', () => {
 			assert.equal(updated.seriesId, series.id);
 
 			// Das Template bleibt unverändert.
-			const template = (await (await get(`/series/${series.id}`)).json()) as Record<
-				string,
-				unknown
-			>;
+			const template = (await (await get(`/series/${series.id}`)).json()) as Record<string, unknown>;
 			assert.equal(template.defaultPriority, series.defaultPriority);
 			assert.equal(template.title, 'Wöchentlich kochen');
 		});
