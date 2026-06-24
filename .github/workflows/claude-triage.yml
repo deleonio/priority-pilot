@@ -63,6 +63,30 @@ jobs:
         id: starttime
         run: echo "epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
 
+      # GitHub-App-Token (optional): Setzt die Triage `ai:spec-ready` als App-Bot, loest das den
+      # Spec-Workflow (claude-spec.yml) aus. Mit dem Standard-GITHUB_TOKEN gesetzte Labels triggern
+      # KEINE Folge-Workflows. Fehlen die App-Secrets, faellt GH_TOKEN auf github.token zurueck
+      # (Triage laeuft normal, nur der Spec-Auto-Trigger entfaellt dann).
+      - name: Voraussetzung pruefen (GitHub-App-Secrets, optional)
+        id: preflight
+        env:
+          APP_ID: ${{ secrets.APP_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+        run: |
+          if [ -z "$APP_ID" ] || [ -z "$APP_PRIVATE_KEY" ]; then
+            echo "::notice::GitHub-App-Secrets fehlen — Triage laeuft mit GITHUB_TOKEN; der Auto-Trigger der Spec-Stufe (ai:spec-ready -> claude-spec.yml) entfaellt. Fuer den Trigger eine GitHub App (Issues/Contents/Pull requests = Read and write) als APP_ID + APP_PRIVATE_KEY hinterlegen."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: GitHub-App-Token erzeugen
+        id: app-token
+        if: steps.preflight.outputs.configured == 'true'
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - name: Checkout
         uses: actions/checkout@v4
 
@@ -74,8 +98,9 @@ jobs:
         if: vars.AI_AGENT != 'mistral'
         uses: anthropics/claude-code-action@v1
         env:
-          # Stellt sicher, dass die `gh`-Aufrufe im Triage-Ablauf authentifiziert sind.
-          GH_TOKEN: ${{ github.token }}
+          # gh nutzt das App-Token (falls vorhanden) -> das gesetzte ai:spec-ready loest den
+          # Spec-Workflow aus; ohne App-Secrets Fallback auf github.token.
+          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           # Triage fuer genau dieses eine Issue. Bewusst natuerlichsprachig formuliert
@@ -97,7 +122,8 @@ jobs:
             bei Inkonsistenz inhaltlich treu optimieren (kein Edit pro forma, keine Titel-Drift),
             Loesungs-Kommentar auf Deutsch mit Umsetzbarkeits-Ampel
             (gruen/gelb/rot) posten und Labels gemaess Ampel setzen (`ai:analyzed`; bei gruen
-            zusaetzlich `ai:ready`, bei gelb/rot kein `ai:ready`).
+            zusaetzlich `ai:spec-ready` (Output der Spec-Stufe; NICHT `ai:ready`), bei gelb/rot
+            keines von beiden).
 
             Bearbeite ausschliesslich dieses eine Issue (kein Batch). Committe keinen Produktivcode.
           # Nur die im Triage-Ablauf benoetigten Tools zulassen (headless, keine interaktive
@@ -131,8 +157,9 @@ jobs:
         if: vars.AI_AGENT == 'mistral'
         uses: mistralai/mistral-vibe@v2.17.1
         env:
-          # gh nutzt GH_TOKEN; im Triage genuegt das Standard-Token (Issues schreiben).
-          GH_TOKEN: ${{ github.token }}
+          # gh nutzt das App-Token (falls vorhanden) -> ai:spec-ready loest den Spec-Workflow aus;
+          # ohne App-Secrets Fallback auf github.token.
+          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
         with:
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
           prompt: |
@@ -158,7 +185,8 @@ jobs:
             bei Inkonsistenz inhaltlich treu optimieren (kein Edit pro forma, keine Titel-Drift),
             Loesungs-Kommentar auf Deutsch mit Umsetzbarkeits-Ampel
             (gruen/gelb/rot) posten und Labels gemaess Ampel setzen (`ai:analyzed`; bei gruen
-            zusaetzlich `ai:ready`, bei gelb/rot kein `ai:ready`).
+            zusaetzlich `ai:spec-ready` (Output der Spec-Stufe; NICHT `ai:ready`), bei gelb/rot
+            keines von beiden).
 
             Bearbeite ausschliesslich dieses eine Issue (kein Batch). Committe keinen Produktivcode.
 
@@ -184,6 +212,7 @@ jobs:
           gh label create "ai:to-big-issue" --repo "$GITHUB_REPOSITORY" \
             --color B60205 --description "KI-Job lief in den Timeout — Issue zu gross, bitte aufteilen" 2>/dev/null || true
           gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:to-big-issue"
+          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:spec-ready" 2>/dev/null || true
           gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
           echo "::warning title=Issue #${ISSUE} zu gross::20-Min-Timeout erreicht (${elapsed}s) — Label ai:to-big-issue gesetzt; bitte Issue aufteilen."
 

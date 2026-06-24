@@ -31,6 +31,13 @@ ist das erklärte Ziel dieses Workflows. Diese Abweichung ist damit dokumentiert
 - Gibt es kein passendes Issue: klar sagen und stoppen (nichts erfinden).
 - **Sich selbst zuweisen** (claimt das Ticket): `gh issue edit <nr> --add-assignee @me`
 - Kontext + bisherige Analyse laden: `gh issue view <nr> --comments`
+- **Spec-Draft-PR aufgreifen (Stufe 3, Regelfall):** Die Spec-Stufe ([ticket-spec.md](ticket-spec.md))
+  hat in der Regel bereits einen **Draft-PR mit roten Tests** angelegt. Ihn finden und auschecken:
+  `gh pr list --state open --draft --json number,headRefName,closingIssuesReferences` → den PR
+  wählen, dessen `closingIssuesReferences` `<nr>` enthält, dann `git fetch origin` und
+  `git switch <headRefName>`. Existiert **kein** solcher Draft-PR (z. B. der Mensch hat `ai:ready`
+  direkt gesetzt, ohne Spec-Stufe), gilt der **Fallback-Modus** (eigener Branch + Tests selbst
+  schreiben, Schritt 3).
 
 ## Schritt 2 — Analyse gegen den aktuellen Repo-Stand verifizieren (Re-Triage)
 
@@ -41,7 +48,9 @@ bereits erledigte Teile). Deshalb beim Lesen des Tickets die Analyse **erneut an
 - **Re-Triage ausführen** — den Analyse-Workflow erneut auf das Ticket anwenden
   ([ticket-triage.md](ticket-triage.md), Schritt 1 — Re-Triage; Command `/triage-ticket <nr>`):
   aus Titel + (lektorierter) Beschreibung + **aktuellem** Repo erneut eine Lösung konzipieren
-  (relevante Dateien via Grep/Glob/Read) und mit der vorhandenen Analyse abgleichen.
+  (relevante Dateien via Grep/Glob/Read) und mit der vorhandenen Analyse abgleichen — dabei auch die
+  **Akzeptanzkriterien + Testfälle** (Triage Schritt 4) auf Aktualität/Vollständigkeit prüfen, da sie
+  der Umsetzung in Schritt 3 als Zielvorgabe dienen.
 - **Noch konform →** die Analyse bildet den aktuellen Stand korrekt ab; unverändert weiter mit
   Schritt 3.
 - **Nicht mehr konform / unvollständig →** die Analyse **aktualisieren** (neuer
@@ -53,28 +62,56 @@ bereits erledigte Teile). Deshalb beim Lesen des Tickets die Analyse **erneut an
 Diese Verifikation ist Teil des `/team3`-Laufs (der Architect ordnet sie **vor** der Implementierung
 ein); sie ändert nur Analyse/Kommentare, **keinen** Produktivcode.
 
-## Schritt 3 — Umsetzen
+## Schritt 3 — Umsetzen (test-getrieben: Red-Green)
 
-- Grundlage: der im `ai:analyzed`-Kommentar vorgeschlagene Lösungsweg (falls vorhanden), sonst
-  aus Titel + Beschreibung + Repo ableiten.
-- Auf eigenem Branch arbeiten (nicht auf `main`): `git switch -c feat/issue-<nr>-<kurzname>`
-- Änderungen umsetzen — Konventionen aus [conventions.md](conventions.md) beachten (Tabs, `strict`,
-  ESM, keine Type-Assertions zum Unterdrücken von Fehlern).
-- Gezielt prüfen: `pnpm format` und `pnpm --filter priority-pilot lint` (bzw. betroffenes Package).
+Grundlage ist der **Akzeptanzkriterien + Testfälle**-Block aus der Triage
+([ticket-triage.md](ticket-triage.md) Schritt 4; Hintergrund: [tdd-strategy.md](tdd-strategy.md)).
+Die Umsetzung folgt **Red → Green → Refactor**: die Tests sind der ausführbare Vertrag, der Code
+wird dagegen geschrieben — ein binäres Ziel statt Prosa.
+
+- **Branch:** Im **Spec-Modus** (Stufe 3, Regelfall) ist der Branch des Spec-Draft-PRs bereits
+  ausgecheckt (Schritt 1). Im **Fallback-Modus** (kein Spec-PR) einen eigenen Branch anlegen (nicht
+  auf `main`): `git switch -c feat/issue-<nr>-<kurzname>`.
+- **(a) Red — Tests stehen vor dem Code:**
+  - **Spec-Modus:** Die **roten Tests liegen bereits** vor (aus der Spec-Stufe). Sie sind der
+    **Vertrag** und werden **nicht geändert** (Gewaltenteilung: wer den Code schreibt, ändert den
+    Spec-Test nicht). Ist ein Spec-Test nachweislich falsch/unpassend zum geklärten Soll, **nicht**
+    still editieren, sondern im PR/Issue begründet zurückmelden und ggf. Re-Triage anstoßen — der
+    Mensch entscheidet.
+  - **Fallback-Modus:** Je Akzeptanzkriterium den Testfall schreiben, **bevor** der Produktivcode
+    entsteht (rot, als **erster Commit** `test: … (#<nr>)`). Testebene/Zieldatei nach Ticket-Typ:
+    - **Backend-Logik / API** → `node:test` (`server/src/logics/*.test.ts`,
+      `server/src/express/*.test.ts`).
+    - **Frontend-Logik** → Vitest (`frontend/src/lib/*.test.ts`).
+    - **Feature / UI-Verhalten** → Akzeptanz-e2e (`frontend/e2e/*.spec.ts`, Stil `crud.spec.ts`).
+    - **Reines Styling/Layout** → keinen Unit-Test erzwingen: wo sinnvoll per e2e absichern, sonst
+      visuell verifizieren und **im PR begründen**.
+- **(b) Green — Code bis grün:** Produktivcode implementieren, bis **alle** Tests grün sind
+  (`pnpm test` bzw. gezielt das betroffene Package als primärer Erfolgsindikator). Konventionen aus
+  [conventions.md](conventions.md) beachten (Tabs, `strict`, ESM, keine Type-Assertions zum
+  Unterdrücken von Fehlern). Tests **nicht** dem Code anpassen, um sie künstlich grün zu bekommen —
+  im **Spec-Modus** sind die Spec-Tests ohnehin unantastbar (s. o.); im **Fallback-Modus** einen
+  fehlerhaften eigenen Test **bewusst** und nachvollziehbar korrigieren.
+- **(c) Refactor & Gate:** Erst mit grünen Tests aufräumen, dann gezielt `pnpm format` und
+  `pnpm --filter priority-pilot lint` (bzw. betroffenes Package).
 
 ## Schritt 4 — PR (ready to review) erstellen & mit dem Ticket verknüpfen
 
 - Änderungen committen (Issue-Bezug in der Message, z. B. `… (#<nr>)`).
-- Branch pushen: `git push -u origin <branch>`.
-- **Pull-Request (ready to review)** erstellen — ein normaler PR ist ohne `--draft` sofort
-  review-bereit:
-  `gh pr create --assignee @me --title "<titel> (#<nr>)" --body "… Closes #<nr> …"`
+- Branch pushen (`git push`; im **Spec-Modus** auf den bereits bestehenden Branch des Draft-PRs).
+- **PR review-bereit machen:**
+  - **Spec-Modus (Stufe 3):** Den aus der Spec-Stufe vorhandenen **Draft-PR** aus dem Draft holen
+    (`gh pr ready <pr>`) und seine Beschreibung um die Umsetzungs-Zusammenfassung ergänzen — **keinen
+    neuen PR** anlegen (er ist via `Closes #<nr>` bereits mit dem Ticket verknüpft).
+  - **Fallback-Modus:** Einen normalen PR (ohne `--draft`, sofort review-bereit) erstellen:
+    `gh pr create --assignee @me --title "<titel> (#<nr>)" --body "… Closes #<nr> …"`.
 - **Development-Verknüpfung (Ticket ↔ PR):** Das Schlüsselwort `Closes #<nr>` im PR-Body
   (Ziel-Branch = `main`) erzeugt genau die Zuordnung im **„Development"-Bereich** — der PR wird
   dem Ticket zugeordnet und schließt es beim Merge. Einen separaten `gh`-Befehl dafür gibt es
   nicht; das Schlüsselwort (im PR-Body oder Commit) ist der unterstützte Automatisierungsweg.
 - PR-Beschreibung enthält außerdem: kurze Umsetzungs-Zusammenfassung, betroffene Dateien und die
-  `pnpm format`-/Lint-Ergebnisse (siehe [conventions.md](conventions.md)).
+  `pnpm format`-/Lint-/**Test**-Ergebnisse (siehe [conventions.md](conventions.md); Test-Ergebnisse
+  sind seit Stufe 2 Pflicht, vgl. PR-Template).
 - Verknüpfung prüfen: `gh pr view <pr> --json closingIssuesReferences --jq '.closingIssuesReferences[].number'`
   muss `<nr>` enthalten.
 - Der PR ist **ready to review** (kein Draft) — die finale Freigabe/der Merge erfolgt durch einen Menschen.

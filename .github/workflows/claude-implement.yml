@@ -3,7 +3,8 @@ name: Claude Implement (ai:ready)
 # Setzt ein Issue um, sobald es das Label "ai:ready" erhaelt UND bereits "ai:analyzed" traegt
 # (Label-Kette aus AGENTS.md: analysiert -> freigegeben -> Umsetzung als PR).
 # Fuehrt die Schritte 1-4 aus .ai-knowledge/ticket-implementation.md aus (zuweisen, Analyse
-# re-verifizieren, umsetzen, PR mit "Closes #" erstellen). Der erstellte PR erhaelt das Label
+# re-verifizieren, umsetzen — im Regelfall den Draft-PR der Spec-Stufe (claude-spec.yml) gruen
+# machen, sonst neu erstellen). Der PR erhaelt das Label
 # "ai:needs-review", woraufhin der Kreuzverhoer-Review (claude-pr-review.yml) ihn aufgreift.
 #
 # Claude Code laeuft direkt im Runner (anthropics/claude-code-action). HARTES Zeitlimit:
@@ -117,9 +118,19 @@ jobs:
               2. Analyse re-verifizieren (Re-Triage gegen den aktuellen Repo-Stand). Kippt die
                  Umsetzbarkeits-Ampel auf 🔴 → NICHT umsetzen, `ai:ready` entfernen, im Issue
                  begründen und stoppen (Mensch entscheidet).
-              3. Auf eigenem Branch umsetzen (Projekt-Konventionen, danach `pnpm format` + Lint).
-              4. Committen, Branch pushen, PR ERSTELLEN (ready to review, KEIN Draft) mit
-                 `Closes #${{ github.event.issue.number }}` im Body und format-/lint-Ergebnissen.
+              3. Spec-Modus (Regelfall): den aus der Spec-Stufe vorhandenen DRAFT-PR auschecken
+                 (`gh pr list --state open --draft --json number,headRefName,closingIssuesReferences`,
+                 den mit Issue #${{ github.event.issue.number }} in closingIssuesReferences; dann
+                 `git fetch origin && git switch <headRefName>`). Dessen ROTE Tests GRUEN machen — die
+                 Tests NICHT aendern (Gewaltenteilung); ein falscher Spec-Test wird begruendet
+                 zurueckgemeldet, nicht still editiert. Fallback (kein Draft-PR): eigenen Branch
+                 anlegen und die Tests zu den Akzeptanzkriterien selbst zuerst schreiben (rot, erster
+                 Commit). In beiden Faellen: Code bis `pnpm test` gruen, danach `pnpm format` + Lint.
+              4. Committen, Branch pushen. Im Spec-Modus den vorhandenen Draft-PR review-bereit
+                 machen (`gh pr ready <pr-nr>`) und die Beschreibung um Umsetzung +
+                 format-/lint-/test-Ergebnisse ergaenzen — KEINEN neuen PR anlegen. Im Fallback einen
+                 PR ERSTELLEN (ready to review, KEIN Draft) mit
+                 `Closes #${{ github.event.issue.number }}` im Body und format-/lint-/test-Ergebnissen.
                  Dann das Label `ai:needs-review` am PR setzen (`gh pr edit <pr-nr> --add-label
                  ai:needs-review`; Label bei Bedarf vorher `gh label create "ai:needs-review"
                  --color 1D76DB`), damit der Kreuzverhör-Review (claude-pr-review.yml) ihn aufgreift.
@@ -132,8 +143,10 @@ jobs:
             unfertig). Ein PR mit dokumentiertem Teilstand ist deutlich besser als ein harter
             Abbruch ohne jedes Ergebnis.
 
-            Idempotenz: Ist das Issue bereits dir zugewiesen oder existiert bereits ein offener
-            PR mit `Closes #${{ github.event.issue.number }}`, NICHT erneut umsetzen — Lauf beenden.
+            Idempotenz: Ein DRAFT-PR mit `Closes #${{ github.event.issue.number }}` ist der normale
+            Spec-Eingang (siehe Schritt 3) — den aufgreifen, NICHT ueberspringen. Nur abbrechen, wenn
+            bereits ein NICHT-Draft-PR (ready) mit `Closes #${{ github.event.issue.number }}`
+            existiert (Umsetzung schon gelaufen) — Lauf beenden.
 
             Schritt 5 (PR-Abo + Kreuzverhör-Loop) NICHT ausführen — der Review läuft als eigener
             Workflow. `subscribe_pr_activity` ist hier nicht verfügbar.
@@ -190,9 +203,19 @@ jobs:
               2. Analyse re-verifizieren (Re-Triage gegen den aktuellen Repo-Stand). Kippt die
                  Umsetzbarkeits-Ampel auf 🔴 → NICHT umsetzen, `ai:ready` entfernen, im Issue
                  begründen und stoppen (Mensch entscheidet).
-              3. Auf eigenem Branch umsetzen (Projekt-Konventionen, danach `pnpm format` + Lint).
-              4. Committen, Branch pushen, PR ERSTELLEN (ready to review, KEIN Draft) mit
-                 `Closes #${{ github.event.issue.number }}` im Body und format-/lint-Ergebnissen.
+              3. Spec-Modus (Regelfall): den aus der Spec-Stufe vorhandenen DRAFT-PR auschecken
+                 (`gh pr list --state open --draft --json number,headRefName,closingIssuesReferences`,
+                 den mit Issue #${{ github.event.issue.number }} in closingIssuesReferences; dann
+                 `git fetch origin && git switch <headRefName>`). Dessen ROTE Tests GRUEN machen — die
+                 Tests NICHT aendern (Gewaltenteilung); ein falscher Spec-Test wird begruendet
+                 zurueckgemeldet, nicht still editiert. Fallback (kein Draft-PR): eigenen Branch
+                 anlegen und die Tests zu den Akzeptanzkriterien selbst zuerst schreiben (rot, erster
+                 Commit). In beiden Faellen: Code bis `pnpm test` gruen, danach `pnpm format` + Lint.
+              4. Committen, Branch pushen. Im Spec-Modus den vorhandenen Draft-PR review-bereit
+                 machen (`gh pr ready <pr-nr>`) und die Beschreibung um Umsetzung +
+                 format-/lint-/test-Ergebnisse ergaenzen — KEINEN neuen PR anlegen. Im Fallback einen
+                 PR ERSTELLEN (ready to review, KEIN Draft) mit
+                 `Closes #${{ github.event.issue.number }}` im Body und format-/lint-/test-Ergebnissen.
                  Dann das Label `ai:needs-review` am PR setzen (`gh pr edit <pr-nr> --add-label
                  ai:needs-review`; Label bei Bedarf vorher `gh label create "ai:needs-review"
                  --color 1D76DB`), damit der Kreuzverhör-Review (claude-pr-review.yml) ihn aufgreift.
@@ -205,8 +228,10 @@ jobs:
             unfertig). Ein PR mit dokumentiertem Teilstand ist deutlich besser als ein harter
             Abbruch ohne jedes Ergebnis.
 
-            Idempotenz: Ist das Issue bereits dir zugewiesen oder existiert bereits ein offener
-            PR mit `Closes #${{ github.event.issue.number }}`, NICHT erneut umsetzen — Lauf beenden.
+            Idempotenz: Ein DRAFT-PR mit `Closes #${{ github.event.issue.number }}` ist der normale
+            Spec-Eingang (siehe Schritt 3) — den aufgreifen, NICHT ueberspringen. Nur abbrechen, wenn
+            bereits ein NICHT-Draft-PR (ready) mit `Closes #${{ github.event.issue.number }}`
+            existiert (Umsetzung schon gelaufen) — Lauf beenden.
 
             Schritt 5 (PR-Abo + Kreuzverhör-Loop) NICHT ausführen — der Review läuft als eigener
             Workflow. Bearbeite ausschließlich dieses eine Issue.

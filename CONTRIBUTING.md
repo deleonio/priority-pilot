@@ -58,7 +58,7 @@ Sicherheitslücken bitte **nicht** öffentlich als Issue melden — siehe [SECUR
    ```
 
 4. **Pull Request** öffnen und mit dem zugehörigen Issue verknüpfen (`Closes #<nr>`).
-   In der PR-Beschreibung bitte die Ergebnisse von `pnpm format` und `pnpm lint`
+   In der PR-Beschreibung bitte die Ergebnisse von `pnpm format`, `pnpm lint` und `pnpm test`
    dokumentieren.
 
 ## Commit-Konventionen
