@@ -23,7 +23,14 @@ mit konkretem Datei-/Zeilenbezug belegen.
    das Problem/die Frage ist, _warum_ es zählt, _konkreter Vorschlag_. Gebündelt als Review mit
    `event=COMMENT` (kein formales Approve/Request-Changes — der Merge bleibt beim Menschen).
 5. **Urteil mit Ampel** — Abschluss-Kommentar (deutsch) mit **Ampel** 🟢/🟡/🔴 am Anfang und kurzer
-   Finding-Liste. Ist der PR solide: knappe Bestätigung (🟢).
+   Finding-Liste. Ist der PR solide: knappe Bestätigung (🟢). Dieses Urteil wird als **genau ein**
+   markierter **KI-Sammelkommentar** (`<!-- ai-review -->` als erste Zeile) pro PR gepflegt — über die
+   Fixup-Schleife fortgeschrieben statt dupliziert: den **bestehenden** markierten Kommentar per
+   `gh api repos/{owner}/{repo}/issues/<pr>/comments` **suchen** und, falls vorhanden, per
+   `gh api --method PATCH …/issues/comments/<id>` **aktualisieren** statt neu anzulegen (nur einmalig
+   neu anlegen, wenn noch keiner existiert). Der Sammelkommentar trennt **Offene Findings** (aktuelle
+   Runde) von einer History-Tabelle **„Behobene Anmerkungen"** (Spalten Runde | Finding | Status ✅) —
+   Details und genaues Format siehe @.ai-knowledge/pr-review.md, Schritt 5.
 
 Review-Kommentare schreiben **öffentlich** auf GitHub — vor dem Posten bestätigen lassen.
 Kein Produktivcode ändern oder committen — reiner Review.

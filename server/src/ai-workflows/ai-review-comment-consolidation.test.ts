@@ -140,14 +140,8 @@ describe('AK-4 — Claude- und Mistral-Pfad identisch, Label-Umschaltung unverä
 	});
 
 	it('die Label-Umschaltung bleibt unverändert erhalten (steuert weiter das Ping-Pong)', () => {
-		assert.ok(
-			workflow.includes('ai:needs-changes'),
-			'die Label-Umschaltung ai:needs-changes muss erhalten bleiben',
-		);
-		assert.ok(
-			workflow.includes('ai:ready-to-merge'),
-			'die Label-Umschaltung ai:ready-to-merge muss erhalten bleiben',
-		);
+		assert.ok(workflow.includes('ai:needs-changes'), 'die Label-Umschaltung ai:needs-changes muss erhalten bleiben');
+		assert.ok(workflow.includes('ai:ready-to-merge'), 'die Label-Umschaltung ai:ready-to-merge muss erhalten bleiben');
 	});
 });
 
