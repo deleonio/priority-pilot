@@ -1,5 +1,6 @@
 import { DataTypes, Model } from 'sequelize';
 import sequelize from '../database.js';
+import type Task from './task.js';
 
 /**
  * Vergebene Gamification-Punkte für einen erledigten Task (Konzept §4.4). Genau **eine** Zeile je
@@ -13,6 +14,8 @@ class ScoreEntry extends Model {
 	public punkte!: number;
 	public pünktlich!: boolean;
 	public zeitpunkt!: Date;
+	// Eager-geladene 1:1-Assoziation (`ScoreEntry.belongsTo(Task)`, siehe models/index.ts).
+	public Task?: Task;
 }
 
 ScoreEntry.init(

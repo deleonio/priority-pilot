@@ -340,6 +340,8 @@ tasksRouter.patch('/tasks/:id', async (req: Request, res: Response<TaskDto | Err
 		return;
 	}
 	try {
+		// Status vor dem Update festhalten, um den echten Übergang nach „Done" zu erkennen.
+		const warVorherDone = task.status === 'Done';
 		await sequelize.transaction(async (transaction) => {
 			await task.update(validation.attrs, { transaction });
 			// `pillars` fehlt → Beiträge unverändert lassen; gesetzt (auch `[]`) → komplett ersetzen.
@@ -349,8 +351,9 @@ tasksRouter.patch('/tasks/:id', async (req: Request, res: Response<TaskDto | Err
 					await replaceContributions(task.id, validation.pillars, transaction);
 				}
 			}
-			// Punkte beim Übergang auf „Done" vergeben (idempotent über das unique `taskId`).
-			if (task.status === 'Done') {
+			// Punkte nur beim echten Übergang auf „Done" vergeben (vorher ≠ Done, jetzt Done) — kein
+			// überflüssiges findOrCreate bei weiteren PATCHes eines bereits erledigten Tasks.
+			if (!warVorherDone && task.status === 'Done') {
 				await awardScoreOnDone(task, transaction);
 			}
 		});
