@@ -284,6 +284,27 @@ paths:
                   - $ref: '#/components/schemas/Task'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /suggestions:
+    get:
+      summary: '"Was ist jetzt dran?"-Vorschlagsliste'
+      description: >-
+        Liefert die nach Score sortierte, post-gefilterte Vorschlagsliste
+        (Konzept §4.3): Priorität, Deadline-Nähe und Balance-Korrektur fließen
+        ein, der Überlastungsschutz begrenzt die Liste (siehe
+        `findSuggestedTasks`). Der Abhängigkeitsfilter aus `GET /next` bleibt
+        vorgeschaltet.
+      operationId: getSuggestions
+      responses:
+        '200':
+          description: Nach Score sortierte Vorschlagsliste (ggf. leer)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /scores:
     get:
       summary: Vergebene Gamification-Punkte je erledigtem Task

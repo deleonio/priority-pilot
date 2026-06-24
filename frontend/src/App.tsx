@@ -37,6 +37,7 @@ export const App = () => {
 	const [tasks, setTasks] = useState<Task[] | null>(null);
 	const [forest, setForest] = useState<TaskTreeNode[]>([]);
 	const [nextTask, setNextTask] = useState<Task | null>(null);
+	const [suggestions, setSuggestions] = useState<Task[]>([]);
 	const [pillars, setPillars] = useState<Pillar[]>([]);
 	const [loadError, setLoadError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
@@ -45,15 +46,17 @@ export const App = () => {
 	const reload = useCallback(async (signal?: AbortSignal): Promise<void> => {
 		setLoading(true);
 		try {
-			const [loadedTasks, loadedForest, loadedNext, loadedPillars] = await Promise.all([
+			const [loadedTasks, loadedForest, loadedNext, loadedSuggestions, loadedPillars] = await Promise.all([
 				api.listTasks({ signal }),
 				api.getForest({ signal }),
 				api.getNextTask({ signal }),
+				api.getSuggestions({ signal }),
 				api.listPillars({ signal }),
 			]);
 			setTasks(loadedTasks);
 			setForest(loadedForest);
 			setNextTask(loadedNext ?? null);
+			setSuggestions(loadedSuggestions);
 			setPillars(loadedPillars);
 			setLoadError(null);
 		} catch (reason) {
@@ -199,7 +202,7 @@ export const App = () => {
 			{tasks !== null && tasks.length > 0 && (
 				<KolTabs className="app-tabs" _label="Ansichten" _tabs={VIEW_TABS}>
 					<div slot="tab-0">
-						<Dashboard tasks={tasks} forest={forest} nextTask={nextTask} pillars={pillars} />
+						<Dashboard tasks={tasks} forest={forest} nextTask={nextTask} suggestions={suggestions} pillars={pillars} />
 					</div>
 					<div slot="tab-1">
 						<section className="task-section">

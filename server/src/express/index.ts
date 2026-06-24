@@ -6,7 +6,7 @@ import { createSuggestPillarsRouter } from './routes/suggestPillars.js';
 import { scoresRouter } from './routes/scores.js';
 import type { PillarClassifier } from '../llm/mistral.js';
 import { buildTaskForest } from '../logics/tree.js';
-import { findNextImportantTask } from '../logics/find.js';
+import { findNextImportantTask, findSuggestedTasks } from '../logics/find.js';
 
 const PORT = Number(process.env.PORT) || 3000;
 
@@ -57,6 +57,16 @@ export const createApp = (deps: AppDeps = {}) => {
 		try {
 			const task = await findNextImportantTask();
 			res.json(task ? serializeTask(task) : null);
+		} catch {
+			res.status(500).json({ message: 'Interner Serverfehler.' });
+		}
+	});
+
+	// GET /suggestions — „Was ist jetzt dran?"-Vorschlagsliste (sortiert, post-gefiltert).
+	app.get('/suggestions', async (_req, res: express.Response<TaskDto[] | ErrorDto>) => {
+		try {
+			const tasks = await findSuggestedTasks();
+			res.json(tasks.map(serializeTask));
 		} catch {
 			res.status(500).json({ message: 'Interner Serverfehler.' });
 		}
