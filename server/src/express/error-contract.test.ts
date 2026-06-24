@@ -60,7 +60,9 @@ describe('Fehler-Response-Vertrag: tasks & pillars', () => {
 		if (server) {
 			await server.close();
 		}
-		await closeDb();
+		// DB-Verbindung NICHT hier schließen: die zweite Suite (suggest-pillars) teilt sich
+		// dieselbe Sequelize-Instanz und braucht sie noch in ihrem beforeEach (resetDb → sync).
+		// Geschlossen wird erst am Ende der letzten Suite.
 	});
 
 	// AK 1: eine beliebige Fehler-Anfrage liefert 400 + anzeigbare message.
@@ -220,6 +222,8 @@ describe('Fehler-Response-Vertrag: POST /tasks/suggest-pillars', () => {
 		if (server) {
 			await server.close();
 		}
+		// Letzte Suite: jetzt die geteilte Sequelize-Verbindung schließen.
+		await closeDb();
 	});
 
 	it('400 wenn title fehlt → message', async () => {
