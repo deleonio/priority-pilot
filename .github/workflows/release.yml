@@ -13,11 +13,11 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 26 # MUSS zur Node-Major-Version des Hosts passen (native sqlite3)
+          node-version: 26.3.1 # MUSS zur Node-Major-Version des Hosts passen (native sqlite3)
           cache: pnpm
 
       # Baut Frontend + Backend und schnuert priority-pilot-<tag>.tar.gz im Repo-Root.
