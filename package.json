@@ -12,11 +12,5 @@
 		"format": "prettier --write .",
 		"lint": "pnpm -r lint",
 		"test": "pnpm -r test"
-	},
-	"pnpm": {
-		"onlyBuiltDependencies": [
-			"esbuild",
-			"sqlite3"
-		]
 	}
 }
