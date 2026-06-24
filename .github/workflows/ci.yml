@@ -39,6 +39,11 @@ jobs:
         run: pnpm -r build
       - name: Test
         run: pnpm -r test
+      # Coverage-Gate (gezielt, nicht repo-weit): node:test misst die Abdeckung der reinen
+      # Logik-Schicht (server/src/logics) und bricht unter den Schwellen ab. Frontend-lib-Coverage
+      # ist vorbereitet (vitest.config.ts), aber erst nach `pnpm add -D @vitest/coverage-v8` aktiv.
+      - name: Coverage-Gate (server/src/logics)
+        run: pnpm --filter priority-pilot test:coverage
       # E2E: Playwright startet Backend (frische In-Memory-DB) + Vite selbst (siehe playwright.config.ts) —
       # kein separater Server-Start in der Pipeline noetig.
       - name: E2E
