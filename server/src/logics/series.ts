@@ -23,6 +23,10 @@ const nextOccurrence = (date: Date, rhythm: SeriesRhythm): Date => {
 			break;
 		case 'monthly':
 			next.setUTCMonth(next.getUTCMonth() + 1);
+			// Fix: Klemme auf den letzten Tag des Monats, falls der Tag nicht existiert (z. B. 31.01. → 31.02. → 03.03.)
+			if (next.getUTCDate() !== date.getUTCDate()) {
+				next.setUTCDate(0); // 0 = letzter Tag des vorherigen Monats
+			}
 			break;
 	}
 	return next;

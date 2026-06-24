@@ -172,4 +172,47 @@ describe('generateDueInstances', () => {
 		});
 		assert.equal(instances.length, 0);
 	});
+
+	// ── Monthly: korrekte Termine auch bei Monatsenden (z. B. 31.01. → 28.02., nicht 03.03.) ───────
+	it('monthly mit Start am 31.01. erzeugt korrekte Termine (28.02., 31.03., 30.04.)', async () => {
+		const series = await Series.create({
+			title: 'Monatliche Prüfung',
+			rhythm: 'monthly',
+			defaultPriority: 3,
+			defaultEstimatedEffort: 0.5,
+			active: true,
+			// Start am 31. Januar 2026 (Samstag)
+			startDate: new Date('2026-01-31T00:00:00.000Z'),
+		});
+
+		// Fenster [31.01., 30.04.] → sollte 31.01., 28.02., 31.03., 30.04. enthalten (4 Termine)
+		const until = new Date('2026-04-30T00:00:00.000Z');
+		const instances = await generateDueInstances(series, { until });
+
+		assert.equal(instances.length, 4, 'genau vier monatliche Instanzen');
+
+		const deadlines = instances
+			.map((t) => new Date(t.deadline as unknown as Date))
+			.sort((a, b) => a.getTime() - b.getTime());
+
+		// 31.01.2026
+		assert.equal(deadlines[0].getUTCFullYear(), 2026);
+		assert.equal(deadlines[0].getUTCMonth(), 0); // Januar (0-indexed)
+		assert.equal(deadlines[0].getUTCDate(), 31);
+
+		// 28.02.2026 (Februar hat 28 Tage im Jahr 2026)
+		assert.equal(deadlines[1].getUTCFullYear(), 2026);
+		assert.equal(deadlines[1].getUTCMonth(), 1); // Februar
+		assert.equal(deadlines[1].getUTCDate(), 28, 'Februar-Termin ist der 28. (nicht 31.)');
+
+		// 31.03.2026
+		assert.equal(deadlines[2].getUTCFullYear(), 2026);
+		assert.equal(deadlines[2].getUTCMonth(), 2); // März
+		assert.equal(deadlines[2].getUTCDate(), 31);
+
+		// 30.04.2026 (April hat 30 Tage)
+		assert.equal(deadlines[3].getUTCFullYear(), 2026);
+		assert.equal(deadlines[3].getUTCMonth(), 3); // April
+		assert.equal(deadlines[3].getUTCDate(), 30, 'April-Termin ist der 30. (nicht 31.)');
+	});
 });
