@@ -15,10 +15,15 @@ import {
 
 const pillar = (id: number, name: string, weight: number): Pillar => ({ id, name, weight });
 
-const task = (id: number, pillars: TaskPillarContribution[], estimatedEffort: number): Task => ({
+const task = (
+	id: number,
+	pillars: TaskPillarContribution[],
+	estimatedEffort: number,
+	status: Task['status'] = TaskStatus.Open,
+): Task => ({
 	id,
 	title: `T${id}`,
-	status: TaskStatus.Open,
+	status,
 	priority: 3,
 	estimatedEffort,
 	actualEffort: null,
@@ -194,7 +199,8 @@ describe('buildPillarSummaries', () => {
 
 		// Körper: T10 voll (Aufwand 2, Wert 5) + T11 zur Hälfte (Aufwand 2, Wert 4) ⇒ 2 Tasks, 4, 9.
 		// Sinn:   nur T11 zur Hälfte (Aufwand 2, Wert 4) ⇒ 1 Task, 2, 4.
-		expect(summaries).toEqual([
+		// `toMatchObject` statt `toEqual`, da die Status-Aufschlüsselung (#124) zusätzliche Felder ergänzt.
+		expect(summaries).toMatchObject([
 			{ pillar: koerper, taskCount: 2, totalEstimatedEffort: 4, totalValue: 9 },
 			{ pillar: sinn, taskCount: 1, totalEstimatedEffort: 2, totalValue: 4 },
 		]);
@@ -205,7 +211,7 @@ describe('buildPillarSummaries', () => {
 
 		const summaries = buildPillarSummaries([koerper], tasks, new Map());
 
-		expect(summaries[0]).toEqual({ pillar: koerper, taskCount: 1, totalEstimatedEffort: 2, totalValue: 0 });
+		expect(summaries[0]).toMatchObject({ pillar: koerper, taskCount: 1, totalEstimatedEffort: 2, totalValue: 0 });
 	});
 
 	it('liefert für eine Säule ohne Tasks Nullwerte und erhält die Reihenfolge', () => {
@@ -213,5 +219,75 @@ describe('buildPillarSummaries', () => {
 
 		expect(summaries.map((summary) => summary.pillar.id)).toEqual([1, 2]);
 		expect(summaries.every((summary) => summary.taskCount === 0 && summary.totalValue === 0)).toBe(true);
+	});
+
+	// --- Status-Aufschlüsselung erledigt/offen je Säule (#124) ---
+
+	it('AK1: trennt die Aufgabenzahl je Säule nach offen (Open/In process) und erledigt (Done)', () => {
+		const tasks = [
+			task(10, [{ pillarId: 1, share: 100, confidence: 100 }], 2, TaskStatus.Open),
+			task(11, [{ pillarId: 1, share: 100, confidence: 100 }], 2, TaskStatus.InProcess),
+			task(12, [{ pillarId: 1, share: 100, confidence: 100 }], 2, TaskStatus.Done),
+		];
+
+		const [summary] = buildPillarSummaries([koerper], tasks, new Map());
+
+		// 2 offen (Open + In process), 1 erledigt (Done).
+		expect(summary.openCount).toBe(2);
+		expect(summary.doneCount).toBe(1);
+	});
+
+	it('AK2: ordnet den anteiligen (share) Aufwand eines Done-Tasks dem erledigt-Aufwand zu, nicht dem offenen', () => {
+		// share 50 % auf Körper, Status Done, Aufwand 4 ⇒ erledigt-Aufwand 2, offen-Aufwand 0.
+		const tasks = [
+			task(
+				10,
+				[
+					{ pillarId: 1, share: 50, confidence: 100 },
+					{ pillarId: 2, share: 50, confidence: 100 },
+				],
+				4,
+				TaskStatus.Done,
+			),
+		];
+
+		const [koerperSummary] = buildPillarSummaries([koerper], tasks, new Map());
+
+		expect(koerperSummary.doneEstimatedEffort).toBe(2);
+		expect(koerperSummary.openEstimatedEffort).toBe(0);
+	});
+
+	it('AK3: Summenkonsistenz — offen + erledigt ergibt je Säule wieder Anzahl bzw. Gesamtaufwand', () => {
+		const tasks = [
+			task(10, [{ pillarId: 1, share: 100, confidence: 100 }], 2, TaskStatus.Open),
+			task(
+				11,
+				[
+					{ pillarId: 1, share: 50, confidence: 100 },
+					{ pillarId: 2, share: 50, confidence: 100 },
+				],
+				3,
+				TaskStatus.Done,
+			),
+			task(12, [{ pillarId: 2, share: 100, confidence: 100 }], 5, TaskStatus.InProcess),
+		];
+
+		const summaries = buildPillarSummaries([koerper, sinn], tasks, new Map());
+
+		for (const summary of summaries) {
+			expect(summary.openCount + summary.doneCount).toBe(summary.taskCount);
+			expect(summary.openEstimatedEffort + summary.doneEstimatedEffort).toBeCloseTo(summary.totalEstimatedEffort, 6);
+		}
+	});
+
+	it('AK5: Leerfall — eine Säule ohne einzahlende Tasks weist offen=0 und erledigt=0 aus (kein NaN)', () => {
+		const [summary] = buildPillarSummaries([koerper], [], new Map());
+
+		expect(summary.openCount).toBe(0);
+		expect(summary.doneCount).toBe(0);
+		expect(summary.openEstimatedEffort).toBe(0);
+		expect(summary.doneEstimatedEffort).toBe(0);
+		expect(Number.isNaN(summary.openEstimatedEffort)).toBe(false);
+		expect(Number.isNaN(summary.doneEstimatedEffort)).toBe(false);
 	});
 });

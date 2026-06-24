@@ -58,7 +58,9 @@ const hasDeadline = (task: Task): task is TaskWithDeadline =>
  * der ersten `TOP_TASKS_LIMIT` Wurzeln. Die Deadline-Liste zeigt nur noch nicht erledigte Aufgaben
  * mit gesetzter Deadline, aufsteigend nach Datum. Das Widget „Meine Themen" zeigt je Säule die
  * aktuelle Gewichtung sowie Anzahl, Gesamtwert und Gesamtaufwand der zugeordneten Tasks (der Wert
- * stammt aus dem `forest`, umfasst also nur offene/in Arbeit befindliche Tasks).
+ * stammt aus dem `forest`, umfasst also nur offene/in Arbeit befindliche Tasks). Anzahl und Aufwand
+ * werden dabei je Säule nach Status aufgeschlüsselt (#124): offen (`Open`/`In process`) vs. erledigt
+ * (`Done`), damit erkennbar ist, wie eine Säule bereits abgearbeitet ist.
  */
 export const Dashboard = ({ tasks, forest, nextTask, pillars }: DashboardProps) => {
 	const cards = useMemo<StatCard[]>(() => {
@@ -146,15 +148,25 @@ export const Dashboard = ({ tasks, forest, nextTask, pillars }: DashboardProps) 
 					<p>Keine Säulen vorhanden.</p>
 				) : (
 					<ul className="dashboard-pillars-list">
-						{pillarSummaries.map(({ pillar, taskCount, totalValue, totalEstimatedEffort }) => (
-							<li key={pillar.id} className="dashboard-pillar">
-								<KolMeter _label={pillar.name} _value={weightToRaw(pillar.weight)} _max={1} />
-								<span className="dashboard-pillar-meta">
-									{taskCount} {taskCount === 1 ? 'Aufgabe' : 'Aufgaben'} · Wert {formatNumber(totalValue)} · Aufwand{' '}
-									{formatNumber(totalEstimatedEffort)} Tage
-								</span>
-							</li>
-						))}
+						{pillarSummaries.map(
+							({
+								pillar,
+								taskCount,
+								openCount,
+								doneCount,
+								totalValue,
+								totalEstimatedEffort,
+								openEstimatedEffort,
+								doneEstimatedEffort,
+							}) => (
+								<li key={pillar.id} className="dashboard-pillar">
+									<KolMeter _label={pillar.name} _value={weightToRaw(pillar.weight)} _max={1} />
+									<span className="dashboard-pillar-meta">
+										{`${taskCount} ${taskCount === 1 ? 'Aufgabe' : 'Aufgaben'} (${openCount} offen · ${doneCount} erledigt) · Wert ${formatNumber(totalValue)} · Aufwand ${formatNumber(totalEstimatedEffort)} Tage (${formatNumber(openEstimatedEffort)} offen · ${formatNumber(doneEstimatedEffort)} erledigt)`}
+									</span>
+								</li>
+							),
+						)}
 					</ul>
 				)}
 			</section>

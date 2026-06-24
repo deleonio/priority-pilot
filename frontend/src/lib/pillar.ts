@@ -1,4 +1,5 @@
 import type { Pillar, PillarSuggestion, Task, TaskPillarContribution } from 'client';
+import { TaskStatus } from 'client';
 import { formatNumber } from './task';
 
 /**
@@ -123,8 +124,16 @@ export interface PillarSummary {
 	pillar: Pillar;
 	/** Anzahl der Tasks, die (mit einem Beitrag) auf diese Säule einzahlen. */
 	taskCount: number;
+	/** Anzahl der **offenen** Tasks (`Open`/`In process`), die auf diese Säule einzahlen (#124). */
+	openCount: number;
+	/** Anzahl der **erledigten** Tasks (`Done`), die auf diese Säule einzahlen (#124). */
+	doneCount: number;
 	/** Anteilig (nach `share`) auf diese Säule entfallender geschätzter Eigenaufwand (Tage). */
 	totalEstimatedEffort: number;
+	/** Anteiliger geschätzter Eigenaufwand der **offenen** Tasks (`Open`/`In process`) je Säule (#124). */
+	openEstimatedEffort: number;
+	/** Anteiliger geschätzter Eigenaufwand der **erledigten** Tasks (`Done`) je Säule (#124). */
+	doneEstimatedEffort: number;
 	/**
 	 * Anteilig (nach `share`) auf diese Säule entfallende Summe der Wertbeiträge. Die Werte stammen aus
 	 * dem Aufgabenwald (`valueByTaskId`), der nur offene/in Arbeit befindliche Tasks enthält —
@@ -139,8 +148,13 @@ export interface PillarSummary {
  * verteilt, werden Aufwand und Wert **anteilig** (nach `share / 100`) auf die Säulen aufgeteilt; die
  * Anteile eines Tasks summieren sich so wieder zu seinem Gesamtaufwand bzw. -wert. `valueByTaskId`
  * liefert den Wertbeitrag je Task (siehe `collectTaskValues`); fehlt ein Task dort (z. B. `Done`),
- * zählt sein Wert als 0. `taskCount` zählt jeden einzahlenden Task einfach. Die Reihenfolge der
- * Säulen bleibt erhalten.
+ * zählt sein Wert als 0. `taskCount` zählt jeden einzahlenden Task einfach. Zusätzlich wird je Säule
+ * nach Status aufgeschlüsselt (#124): offen (`Open`/`In process`) vs. erledigt (`Done`) — sowohl für
+ * die Anzahl (`openCount`/`doneCount`) als auch für den anteiligen Aufwand
+ * (`openEstimatedEffort`/`doneEstimatedEffort`). Da die Aufteilung nur die einzahlenden Tasks
+ * partitioniert, gilt je Säule `openCount + doneCount = taskCount` und
+ * `openEstimatedEffort + doneEstimatedEffort = totalEstimatedEffort`. Die Reihenfolge der Säulen
+ * bleibt erhalten.
  */
 export const buildPillarSummaries = (
 	pillars: Pillar[],
@@ -149,7 +163,11 @@ export const buildPillarSummaries = (
 ): PillarSummary[] =>
 	pillars.map((pillar) => {
 		let taskCount = 0;
+		let openCount = 0;
+		let doneCount = 0;
 		let totalEstimatedEffort = 0;
+		let openEstimatedEffort = 0;
+		let doneEstimatedEffort = 0;
 		let totalValue = 0;
 		for (const task of tasks) {
 			const contribution = task.pillars.find((entry) => entry.pillarId === pillar.id);
@@ -157,9 +175,27 @@ export const buildPillarSummaries = (
 				continue;
 			}
 			const shareFraction = contribution.share / TOTAL_WEIGHT;
+			const effort = task.estimatedEffort * shareFraction;
+			const isDone = task.status === TaskStatus.Done;
 			taskCount += 1;
-			totalEstimatedEffort += task.estimatedEffort * shareFraction;
+			totalEstimatedEffort += effort;
 			totalValue += (valueByTaskId.get(task.id) ?? 0) * shareFraction;
+			if (isDone) {
+				doneCount += 1;
+				doneEstimatedEffort += effort;
+			} else {
+				openCount += 1;
+				openEstimatedEffort += effort;
+			}
 		}
-		return { pillar, taskCount, totalEstimatedEffort, totalValue };
+		return {
+			pillar,
+			taskCount,
+			openCount,
+			doneCount,
+			totalEstimatedEffort,
+			openEstimatedEffort,
+			doneEstimatedEffort,
+			totalValue,
+		};
 	});
