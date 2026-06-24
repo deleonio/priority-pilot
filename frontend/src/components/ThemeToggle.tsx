@@ -1,4 +1,3 @@
-import { KolButton } from '@public-ui/react-v19';
 import { useMemo } from 'react';
 import type { ThemePreference } from '../lib/theme';
 import { useTheme } from '../lib/theme';
@@ -21,13 +20,28 @@ const ICONS: Record<ThemePreference, string> = {
 	dark: 'fa-solid fa-moon',
 };
 
+/** Die für einen `KolToolbar`-Button benötigten, zustandsabhängigen Teile des Theme-Umschalters. */
+export interface ThemeToolbarItem {
+	/** Sprechendes (verstecktes) Label „Darstellung: … (umschalten zu …)". */
+	_label: string;
+	/** `_icons`-Deskriptor mit stabiler Identität pro Modus (Icon-Watcher-Schutz). */
+	_icons: { left: { icon: string } };
+	/** Schaltet zyklisch zum nächsten Modus weiter. */
+	onClick: () => void;
+}
+
 /**
- * Umschalter rechts oben für das Farbschema. Ein Klick wechselt zyklisch durch
- * System/Hell/Dunkel; das aktuelle Icon und ein sprechendes (verstecktes) Label zeigen den
- * Zustand und das nächste Ziel an. Die eigentliche Logik (Persistenz, OS-Erkennung, Anwendung)
- * kapselt der `useTheme`-Hook.
+ * Liefert den Farbschema-Umschalter als zustandsabhängigen `KolToolbar`-Button-Deskriptor.
+ *
+ * Da `KolToolbar._items` nur flache Button-Deskriptoren transportiert, lässt sich der bisherige
+ * Composite-Button nicht als Kind-Element in die Header-Toolbar einhängen. Stattdessen kapselt
+ * dieser Hook die Zustandslogik (`useTheme`: Persistenz, OS-Erkennung, Anwendung) und gibt Label,
+ * Icon und `onClick` zurück, die in `App.tsx` zu einem Toolbar-Item zusammengesetzt werden.
+ *
+ * Ein Klick wechselt zyklisch durch System/Hell/Dunkel; das aktuelle Icon und ein sprechendes
+ * (verstecktes) Label zeigen den Zustand und das nächste Ziel an (Verhalten unverändert).
  */
-export const ThemeToggle = () => {
+export const useThemeToolbarItem = (): ThemeToolbarItem => {
 	const { preference, setPreference } = useTheme();
 	const next = ORDER[(ORDER.indexOf(preference) + 1) % ORDER.length];
 
@@ -35,13 +49,12 @@ export const ThemeToggle = () => {
 	// bei jedem Render unnötig erneut feuert.
 	const icons = useMemo(() => ({ left: { icon: ICONS[preference] } }), [preference]);
 
-	return (
-		<KolButton
-			_label={`Darstellung: ${LABELS[preference]} (umschalten zu ${LABELS[next]})`}
-			_hideLabel
-			_icons={icons}
-			_variant="secondary"
-			_on={{ onClick: () => setPreference(next) }}
-		/>
+	return useMemo(
+		() => ({
+			_label: `Darstellung: ${LABELS[preference]} (umschalten zu ${LABELS[next]})`,
+			_icons: icons,
+			onClick: () => setPreference(next),
+		}),
+		[preference, next, icons, setPreference],
 	);
 };
