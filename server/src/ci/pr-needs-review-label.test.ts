@@ -35,10 +35,7 @@ function squash(text: string): string {
 
 describe('Issue #116 — Auto-Labeling-Workflow pr-needs-review-label.yml', () => {
 	it('Die Workflow-Datei existiert', () => {
-		assert.ok(
-			existsSync(workflowPath),
-			`Erwartete Workflow-Datei fehlt: ${workflowPath}`,
-		);
+		assert.ok(existsSync(workflowPath), `Erwartete Workflow-Datei fehlt: ${workflowPath}`);
 	});
 
 	describe('AK1 — Nicht-Draft-PR erhaelt ai:needs-review beim Oeffnen', () => {
@@ -54,11 +51,7 @@ describe('Issue #116 — Auto-Labeling-Workflow pr-needs-review-label.yml', () =
 
 		it('setzt das Pipeline-Label "ai:needs-review" (nicht die Kurzform "needs-review")', () => {
 			const wf = readWorkflow();
-			assert.match(
-				wf,
-				/ai:needs-review/,
-				'Workflow muss das bestehende Label "ai:needs-review" setzen',
-			);
+			assert.match(wf, /ai:needs-review/, 'Workflow muss das bestehende Label "ai:needs-review" setzen');
 			// Es muss tatsaechlich gesetzt (add-label), nicht nur erwaehnt werden.
 			assert.match(
 				squash(wf),
