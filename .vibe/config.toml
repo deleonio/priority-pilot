@@ -19,6 +19,7 @@ allowlist = [
     "fold",
     "git add",
     "git branch",
+    "git commit",
     "git diff",
     "git log",
     "git ls-files",
