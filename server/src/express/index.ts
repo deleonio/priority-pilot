@@ -21,6 +21,8 @@ export interface AppDeps {
 
 export const createApp = (deps: AppDeps = {}) => {
 	const app = express();
+
+	// JSON-Body parsen.
 	app.use(express.json());
 
 	// Task-CRUD- & Dependency-Routen (siehe routes/tasks.ts).
