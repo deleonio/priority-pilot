@@ -158,14 +158,12 @@ describe('Fehler-Response-Vertrag: tasks & pillars', () => {
 		await expectError(await put('/pillars/weights', { weights }), 400);
 	});
 
-	it('PUT /pillars/weights Body kein Objekt → 400 mit message', async () => {
+	it('PUT /pillars/weights Body ohne weights-Liste → 400 mit message', async () => {
 		await seedPillars();
-		const res = await fetch(`${server.baseUrl}/pillars/weights`, {
-			method: 'PUT',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(null),
-		});
-		await expectError(res, 400);
+		// Ein Top-Level-Array passiert den strikten express.json()-Parser (ein primitives
+		// `null` würde dort dagegen als SyntaxError abgewiesen und nie die Route erreichen).
+		// In der Route fehlt damit `weights` → 400 mit anzeigbarer message.
+		await expectError(await put('/pillars/weights', []), 400);
 	});
 
 	// AK 5: interner Fehler in /forest bzw. /next → 500 mit Body-Vertrag.
