@@ -57,14 +57,14 @@ jobs:
       - name: GitHub-App-Token erzeugen
         id: app-token
         if: steps.preflight.outputs.configured == 'true'
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
       - name: Checkout
         if: steps.preflight.outputs.configured == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           fetch-depth: 0
 
@@ -74,7 +74,7 @@ jobs:
       - name: Kreuzverhoer-Review via Claude Code
         id: claude
         if: steps.preflight.outputs.configured == 'true' && vars.AI_AGENT != 'mistral'
-        uses: anthropics/claude-code-action@v1
+        uses: anthropics/claude-code-action@74eedf1a1892082d619c3edb66b9402da6520e7f # v1.0.156
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }} # Labels als App-Token -> loesen Folge-Workflows aus
         with:
@@ -133,7 +133,7 @@ jobs:
       - name: Kreuzverhoer-Review via Mistral Vibe
         id: mistral
         if: steps.preflight.outputs.configured == 'true' && vars.AI_AGENT == 'mistral'
-        uses: mistralai/mistral-vibe@v2.17.1
+        uses: mistralai/mistral-vibe@725d3a56ce99aa69157f33cabdf28f23a69320da # v2.17.1
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }} # Labels als App-Token -> loesen Folge-Workflows aus
         with:
