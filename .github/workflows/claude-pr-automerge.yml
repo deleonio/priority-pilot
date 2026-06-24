@@ -177,9 +177,32 @@ jobs:
             exit 0
           fi
 
-          # 8) Alles gruen -> mergen (Merge-Commit, kein --delete-branch; siehe Repo-Fakten oben).
+          # 8) Letzter TOCTOU-Schutz vor dem Merge: labeled- und workflow_run-Lauf desselben PRs liegen
+          #    in unterschiedlichen Concurrency-Gruppen (PR-Nr. vs. head_branch — die PR-Nr. ist beim
+          #    workflow_run zur Expression-Zeit unbekannt, eine gemeinsame Gruppe daher nicht moeglich)
+          #    und koennen sich ueberlappen. Direkt vor dem Merge erneut pruefen, ob der PR noch offen
+          #    ist; sonst hat der Parallel-Lauf bereits gemergt -> sauberer No-op statt rotem Abbruch.
+          state_now="$(gh pr view "$pr" --repo "$REPO" --json state --jq '.state')"
+          if [ "$state_now" != "OPEN" ]; then
+            echo "PR #$pr ist nicht mehr offen (state=$state_now) — bereits gemergt/geschlossen (No-op)."
+            exit 0
+          fi
+
+          # 9) Alles gruen -> mergen (Merge-Commit, kein --delete-branch; siehe Repo-Fakten oben).
+          #    Den Merge zusaetzlich idempotent kapseln: Schlaegt er fehl, weil der PR im Rennen
+          #    inzwischen gemergt/geschlossen wurde, als No-op (gruen) behandeln statt rot abzubrechen.
           echo "Alle Bedingungen erfuellt — merge PR #$pr per Merge-Commit."
-          gh pr merge "$pr" --repo "$REPO" --merge
+          if ! merge_out="$(gh pr merge "$pr" --repo "$REPO" --merge 2>&1)"; then
+            echo "$merge_out"
+            state_after="$(gh pr view "$pr" --repo "$REPO" --json state --jq '.state' 2>/dev/null || echo UNKNOWN)"
+            if [ "$state_after" != "OPEN" ]; then
+              echo "Merge meldete einen Fehler, aber PR #$pr ist bereits $state_after — als No-op behandelt (gruen)."
+              exit 0
+            fi
+            echo "::error::Merge von PR #$pr fehlgeschlagen, PR weiterhin offen."
+            exit 1
+          fi
+          echo "$merge_out"
 
           {
             echo "### Auto-Merge #${pr} — gemergt"
