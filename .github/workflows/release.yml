@@ -24,10 +24,18 @@ jobs:
       - name: Pack release
         run: bash scripts/pack-release.sh "${GITHUB_REF_NAME}"
 
+      # Idempotent: existiert zum Tag bereits eine Release (z. B. Re-Run nach Deploy-Abbruch),
+      # wird nur das Tarball-Asset ersetzt statt erneut `create` zu rufen (das sonst mit
+      # "a release with the same tag name already exists" abbräche). Siehe Issue #134.
       - name: GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${GITHUB_REF_NAME}" "priority-pilot-${GITHUB_REF_NAME}.tar.gz" --generate-notes
+        run: |
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            gh release upload "${GITHUB_REF_NAME}" "priority-pilot-${GITHUB_REF_NAME}.tar.gz" --clobber
+          else
+            gh release create "${GITHUB_REF_NAME}" "priority-pilot-${GITHUB_REF_NAME}.tar.gz" --generate-notes
+          fi
 
       # Pull-Modell: der Host zieht das Release selbst (siehe docs/deployment.md, Abschnitt 6).
       # Bricht erwartbar ab, solange Server/Secrets noch nicht eingerichtet sind.
