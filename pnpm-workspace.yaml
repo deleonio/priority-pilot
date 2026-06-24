@@ -2,11 +2,10 @@ packages:
   - 'client'
   - 'frontend'
   - 'server'
+# Build-Allowlist nativer Module: `allowBuilds` ist die kanonische pnpm-11-Form,
+# die `pnpm approve-builds` selbst schreibt (intern -> onlyBuiltDependencies).
+# NICHT durch eine onlyBuiltDependencies-Liste ersetzen — pnpm regeneriert sonst allowBuilds.
 allowBuilds:
   '@public-ui/components': true
   esbuild: true
   sqlite3: true
-onlyBuiltDependencies:
-  - '@public-ui/components'
-  - esbuild
-  - sqlite3
