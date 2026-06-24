@@ -22,21 +22,8 @@ export interface AppDeps {
 export const createApp = (deps: AppDeps = {}) => {
 	const app = express();
 
-	// JSON-Body parsen, aber einen Parse-Fehler (malformed JSON) **nicht** an Express'
-	// Default-Handler (HTML) durchreichen, sondern dem Fehler-Vertrag entsprechend als
-	// `{ message }` beantworten — sonst erhielte das Frontend bei kaputtem Body eine nicht
-	// anzeigbare HTML-Seite (Issue #117: alle Fehlerfälle liefern eine anzeigbare Meldung).
-	const jsonParser = express.json();
-	app.use((req, res, next) => {
-		jsonParser(req, res, (err: unknown) => {
-			if (err) {
-				const body: ErrorDto = { message: 'Ungültiger JSON-Body.' };
-				res.status(400).json(body);
-				return;
-			}
-			next();
-		});
-	});
+	// JSON-Body parsen.
+	app.use(express.json());
 
 	// Task-CRUD- & Dependency-Routen (siehe routes/tasks.ts).
 	app.use(tasksRouter);
@@ -69,12 +56,6 @@ export const createApp = (deps: AppDeps = {}) => {
 		} catch {
 			res.status(500).json({ message: 'Interner Serverfehler.' });
 		}
-	});
-
-	// Unbekannte Route → 404 mit Fehler-Vertrag statt Express' Default-HTML, damit auch dieser
-	// Fehlerfall im Frontend anzeigbar ist (Issue #117).
-	app.use((_req, res: express.Response<ErrorDto>) => {
-		res.status(404).json({ message: 'Ressource nicht gefunden.' });
 	});
 
 	return app;
