@@ -26,6 +26,11 @@ interface DashboardProps {
 	forest: TaskTreeNode[];
 	/** Nächste wichtige Aufgabe (`GET /next`) oder `null`, falls keine ansteht. */
 	nextTask: Task | null;
+	/**
+	 * „Was ist jetzt dran?"-Vorschlagsliste (`GET /suggestions`): nach Score sortiert und durch den
+	 * Überlastungsschutz begrenzt (Konzept §4.3). Default leer, falls noch nicht geladen.
+	 */
+	suggestions?: Task[];
 	/** Die fünf Lebensbalance-Säulen samt Gewichtung (`GET /pillars`) für das Widget „Meine Themen". */
 	pillars: Pillar[];
 }
@@ -62,7 +67,7 @@ const hasDeadline = (task: Task): task is TaskWithDeadline =>
  * werden dabei je Säule nach Status aufgeschlüsselt (#124): offen (`Open`/`In process`) vs. erledigt
  * (`Done`), damit erkennbar ist, wie eine Säule bereits abgearbeitet ist.
  */
-export const Dashboard = ({ tasks, forest, nextTask, pillars }: DashboardProps) => {
+export const Dashboard = ({ tasks, forest, nextTask, suggestions = [], pillars }: DashboardProps) => {
 	const cards = useMemo<StatCard[]>(() => {
 		// Status-Häufigkeiten in einem einzigen Durchlauf zählen (O(n)).
 		const counts = new Map<string, number>();
@@ -121,6 +126,23 @@ export const Dashboard = ({ tasks, forest, nextTask, pillars }: DashboardProps) 
 						</strong>{' '}
 						(Priorität {nextTask.priority})
 					</p>
+				)}
+			</section>
+			<section className="dashboard-suggestions" aria-label="Was ist jetzt dran?">
+				<h3>Was ist jetzt dran?</h3>
+				{suggestions.length === 0 ? (
+					<p>Aktuell stehen keine Vorschläge an.</p>
+				) : (
+					<ol className="dashboard-suggestions-list">
+						{suggestions.map((task) => (
+							<li key={task.id} className="dashboard-suggestion">
+								<span className="dashboard-suggestion-title">
+									#{task.id} – {task.title}
+								</span>
+								<span className="dashboard-suggestion-meta">(Priorität {task.priority})</span>
+							</li>
+						))}
+					</ol>
 				)}
 			</section>
 			<section className="dashboard-top-tasks">
