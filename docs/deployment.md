@@ -144,10 +144,17 @@ jobs:
           cp -r /tmp/server/node_modules release/server/node_modules
           tar -czf "priority-pilot-${GITHUB_REF_NAME}.tar.gz" -C release .
 
+      # Idempotent: bei vorhandener Release zum Tag nur das Asset ersetzen (sonst bräche
+      # `gh release create` beim Re-Run mit "already exists" ab). Siehe Issue #134.
       - name: GitHub Release anlegen
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${GITHUB_REF_NAME}" "priority-pilot-${GITHUB_REF_NAME}.tar.gz" --generate-notes
+        run: |
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            gh release upload "${GITHUB_REF_NAME}" "priority-pilot-${GITHUB_REF_NAME}.tar.gz" --clobber
+          else
+            gh release create "${GITHUB_REF_NAME}" "priority-pilot-${GITHUB_REF_NAME}.tar.gz" --generate-notes
+          fi
 
       # Deployment anstoßen (Pull-Modell: der Host zieht das Release selbst, siehe Abschnitt 6).
       - name: Deploy auslösen
