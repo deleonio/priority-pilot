@@ -15,12 +15,17 @@ nachgebauten Workflow-Schritt — dem PR-Review aus `.github/workflows/claude-pr
 
 ## Vergleichstabelle (Action vs. Agent SDK)
 
-| Kriterium               | Worum es geht                        | Beobachtung am Prototyp          |
-| ----------------------- | ------------------------------------ | -------------------------------- |
-| Kontrolle               | Tool-Loop/Context feiner steuerbar?  | SDK feiner, aber mehr Eigenlast  |
-| Aufwand                 | Wartung selbst vs. gepflegte Action  | hoeher (Setup/Deps/Auth selbst)  |
-| Kosten/Token            | messbarer Unterschied am Prototyp?   | keiner (gleiches Modell + Loop)  |
-| AI_AGENT-Kompatibilität | Claude/Mistral-Umschalter erhaltbar? | bricht: SDK nur Claude-Seite     |
+> **Hinweis:** Der Prototyp wurde im headless Umsetzungs-Lauf aus Toolchain-Gruenden
+> (Node-/pnpm-Sandbox blockiert) **nicht ausgefuehrt**. Die Spalte „Einschätzung" ist daher
+> eine Code-/Architektur-Analyse anhand von SDK-Doku und Repo-Stand, **kein** gemessener
+> Prototyp-Lauf. Die Empfehlung (teilweise / kein Umstieg) bleibt davon unberuehrt.
+
+| Kriterium               | Worum es geht                        | Einschätzung (kein Messlauf)      |
+| ----------------------- | ------------------------------------ | --------------------------------- |
+| Kontrolle               | Tool-Loop/Context feiner steuerbar?  | SDK feiner, aber mehr Eigenlast   |
+| Aufwand                 | Wartung selbst vs. gepflegte Action  | hoeher (Setup/Deps/Auth selbst)   |
+| Kosten/Token            | messbarer Unterschied am Prototyp?   | keiner (gleiches Modell + Loop)   |
+| AI_AGENT-Kompatibilität | Claude/Mistral-Umschalter erhaltbar? | bricht: SDK nur Claude-Seite      |
 | Determinismus/CI-Fit    | reproduzierbar, Auth via Secrets     | gleichwertig, headless lauffaehig |
 
 Details je Kriterium (pipe-frei, damit die Tabelle kompakt bleibt):
