@@ -149,6 +149,8 @@ sudo -u gh-deploy chmod 600 /home/gh-deploy/.deploy-token
 # Das Deploy-Skript
 sudo -u gh-deploy tee /home/gh-deploy/deploy.sh >/dev/null <<'EOF'
 #!/usr/bin/env bash
+# bash erforderlich (Shebang/Forced-Command). Nicht `sh deploy.sh` — sonst "redirection unexpected".
+[ -n "${BASH_VERSION:-}" ] || { echo "deploy.sh muss mit bash laufen, nicht mit sh." >&2; exit 1; }
 set -euo pipefail
 
 read -r CMD APP VERSION <<< "${SSH_ORIGINAL_COMMAND:-}"
@@ -339,6 +341,7 @@ sudo -u gh-deploy sqlite3 /var/www/gh-deploy/priority-pilot/data/database.sqlite
 | `/tasks/suggest-pillars` → 503        | `MISTRAL_API_KEY` fehlt                           | Key in Env-Datei eintragen                                                  |
 | TLS schlägt fehl                      | DNS-A-Record fehlt/falsch                         | A-Record auf Server-IP, dann `systemctl reload caddy`                       |
 | Deploy bricht mit „unbekannte App" ab | Env-Datei fehlt                                   | `/etc/gh-deploy/<app>.env` anlegen (Schritt 5)                              |
+| `deploy.sh`: `Syntax error: redirection unexpected` | Skript mit `sh` statt bash gestartet | Direkt `./deploy.sh` starten (nutzt Shebang) bzw. Forced-Command; nie `sh deploy.sh` |
 
 ---
 
