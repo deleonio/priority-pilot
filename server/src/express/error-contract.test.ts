@@ -11,7 +11,6 @@
  * von `/forest` und `/next`.
  */
 import { describe, it, beforeEach, after } from 'node:test';
-import assert from 'node:assert/strict';
 import { Task, Pillar } from '../models/index.js';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
 import { expectError } from './test-helpers.js';
