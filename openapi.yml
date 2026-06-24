@@ -284,6 +284,43 @@ paths:
                   - $ref: '#/components/schemas/Task'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /scores:
+    get:
+      summary: Vergebene Gamification-Punkte je erledigtem Task
+      description: >-
+        Liefert je erledigtem Task einen Score-Eintrag (Konzept §4.4): beim
+        Statuswechsel auf `Done` werden Punkte aus `estimatedEffort × priority`
+        vergeben, pünktlich (volle) bzw. verspätet (reduzierte Punkte).
+      operationId: getScores
+      responses:
+        '200':
+          description: Liste der vergebenen Score-Einträge
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ScoreEntry'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /scores/by-pillar:
+    get:
+      summary: Balance-Stand — Punkte anteilig je Säule aggregiert
+      description: >-
+        Aggregiert die vergebenen Punkte anteilig (über `share` aus
+        `task_pillars`) je Säule — der sichtbare Balance-Stand der Säulen.
+      operationId: getScoresByPillar
+      responses:
+        '200':
+          description: Punkte-Summe je Säule
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PillarScore'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 components:
   parameters:
     TaskId:
@@ -692,6 +729,39 @@ components:
           type: integer
           minimum: 1
           description: ID des gespeicherten Feedback-Samples
+    ScoreEntry:
+      type: object
+      required:
+        - taskId
+        - punkte
+        - pünktlich
+        - zeitpunkt
+      properties:
+        taskId:
+          type: integer
+          description: ID des erledigten Tasks (genau ein Eintrag je Task).
+        punkte:
+          type: number
+          description: Vergebene Punkte (Basis `estimatedEffort × priority`, bei Verspätung reduziert).
+        pünktlich:
+          type: boolean
+          description: Ob der Task vor/zur Deadline (oder ganz ohne Deadline) erledigt wurde.
+        zeitpunkt:
+          type: string
+          format: date-time
+          description: Erledigungszeitpunkt.
+    PillarScore:
+      type: object
+      required:
+        - pillarId
+        - punkte
+      properties:
+        pillarId:
+          type: integer
+          description: ID der Säule.
+        punkte:
+          type: number
+          description: Summe der anteilig (nach `share`) auf diese Säule entfallenden Punkte.
     Error:
       type: object
       required:
