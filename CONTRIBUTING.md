@@ -10,8 +10,8 @@ Bitte behandle alle Beteiligten respektvoll.
 
 ## Voraussetzungen
 
-- **Node.js** `>=22`
-- **pnpm** `10` (siehe `packageManager` in der `package.json`)
+- **Node.js** `>=26`
+- **pnpm** `11` (siehe `packageManager` in der `package.json`)
 
 ```bash
 pnpm install   # Abhängigkeiten im gesamten Monorepo installieren

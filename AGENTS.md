@@ -20,7 +20,7 @@ Wissensbasis liegt in [`.ai-knowledge/`](.ai-knowledge/).
 - Formatieren: `pnpm format` (Prettier, eine zentrale Config im Root).
 - Linten: `pnpm lint`.
 - Bevorzugt gezielt statt repo-weit prüfen: `pnpm --filter priority-pilot build|lint`.
-- TypeScript `strict`, ESM überall, Node `>=22`.
+- TypeScript `strict`, ESM überall, Node `>=26`.
 - Nicht automatisch committen ohne ausdrücklichen Wunsch.
 - Alle Pull Requests müssen `pnpm format` und `pnpm lint` ausführen und die Ergebnisse in der
   PR-Beschreibung dokumentieren.

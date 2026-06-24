@@ -43,7 +43,7 @@ body:
     attributes:
       label: Umgebung
       description: Node-Version, Betriebssystem, Browser (falls Frontend).
-      placeholder: 'Node 22.x, macOS 14, Chrome 125'
+      placeholder: 'Node 26.x, macOS 14, Chrome 125'
     validations:
       required: false
   - type: textarea
