@@ -91,8 +91,8 @@ Bedienung und Dev-Server: [`frontend/README.md`](frontend/README.md).
 
 ## Voraussetzungen
 
-- **Node.js** `>=22`
-- **pnpm** `10` (siehe `packageManager`)
+- **Node.js** `>=26`
+- **pnpm** `11` (siehe `packageManager`)
 
 > Kein Java mehr nötig: Die Client-Generierung läuft seit der Umstellung auf `openapi-typescript`
 > vollständig in JavaScript.

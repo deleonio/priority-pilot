@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
  * antwortet dann mit HTTP 503 („MISTRAL_API_KEY ist nicht gesetzt …"), obwohl der Key vorliegt.
  *
  * Genutzt wird die native Node-Funktion `process.loadEnvFile` (stabil ab Node 22, siehe
- * conventions.md „Node >= 22") — **keine** zusätzliche Abhängigkeit nötig. Der Pfad wird explizit
+ * conventions.md „Node >= 26") — **keine** zusätzliche Abhängigkeit nötig. Der Pfad wird explizit
  * relativ zu diesem Modul aufgelöst (`server/.env`), damit das Start-Arbeitsverzeichnis egal ist:
  * `dist/env.js` → `dist/../.env` = `server/.env`. So findet auch `node server/dist/index.js` aus dem
  * Repo-Root die Datei.

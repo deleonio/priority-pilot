@@ -34,7 +34,7 @@ flowchart LR
     end
 
     gha --> rel[("GitHub Release<br/>priority-pilot-vX.Y.Z.tar.gz")]
-    gha -- "ssh deploy@host<br/>'deploy priority-pilot vX.Y.Z'" --> host
+    gha -- "ssh gh-deploy@host<br/>'deploy priority-pilot vX.Y.Z'" --> host
 
     subgraph host["Dedizierter Server"]
         direction TB
@@ -91,10 +91,10 @@ Drei Punkte, die aus der Repo-Realität folgen und im Konzept leicht übersehen 
    (`node dist/index.js`) und `server/tsconfig.json` (`outDir: ./dist`). Das Backend ist ESM
    (`"type": "module"` in `server/package.json`).
 2. **Das Backend braucht `node_modules` zur Laufzeit** — `express`, `sequelize`, `sqlite3`. `sqlite3`
-   ist ein **natives Modul** (siehe `onlyBuiltDependencies` in der Root-`package.json`); die
+   ist ein **natives Modul** (siehe Build-Allowlist `allowBuilds` in `pnpm-workspace.yaml`); die
    kompilierte Binärdatei muss zur **Architektur und Node-ABI des Hosts** passen.
-   → CI baut auf `ubuntu-latest` (x64) mit **Node 22**. Läuft der Host ebenfalls als x64-Linux mit
-   Node 22, passt das Prebuild. Bei abweichender Arch/Node-Version: Prod-Deps **auf dem Host**
+   → CI baut auf `ubuntu-latest` (x64) mit **Node 26**. Läuft der Host ebenfalls als x64-Linux mit
+   Node 26, passt das Prebuild. Bei abweichender Arch/Node-Version: Prod-Deps **auf dem Host**
    installieren (`pnpm install --prod` im `server/`-Verzeichnis) statt im Tarball mitliefern.
 3. **Die SQLite-Datenbank gehört NICHT in den Tarball / Release-Baum** — sie ist Laufzeitzustand und
    lebt in einem persistenten Daten-Verzeichnis (siehe [Abschnitt 4](#4-host-verzeichnislayout)).
@@ -123,7 +123,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22 # MUSS zur Node-Major-Version des Hosts passen (native sqlite3)
+          node-version: 26 # MUSS zur Node-Major-Version des Hosts passen (native sqlite3)
           cache: pnpm
 
       - name: Install
@@ -156,7 +156,7 @@ jobs:
         run: |
           install -m600 <(printf '%s\n' "$SSH_KEY") /tmp/deploy_key
           ssh -i /tmp/deploy_key -o StrictHostKeyChecking=accept-new \
-            deploy@example.de "deploy priority-pilot ${GITHUB_REF_NAME}"
+            gh-deploy@example.de "deploy priority-pilot ${GITHUB_REF_NAME}"
 ```
 
 Hinweise:
@@ -243,8 +243,8 @@ After=network.target
 
 [Service]
 Type=simple
-User=deploy
-Group=deploy
+User=gh-deploy
+Group=gh-deploy
 WorkingDirectory=/var/www/gh-deploy/%i/current/server
 EnvironmentFile=/etc/gh-deploy/%i.env
 ExecStart=/usr/bin/node dist/index.js
@@ -323,7 +323,7 @@ komplizierter — bei eigener Subdomain bleibt das Frontend unverändert.
 
 ## 8. `deploy.sh` (Forced Command auf dem Host)
 
-Liegt beim `deploy`-User und wird über die SSH-`authorized_keys`-`command=`-Option fest an den
+Liegt beim `gh-deploy`-User und wird über die SSH-`authorized_keys`-`command=`-Option fest an den
 Deploy-Key gebunden (Forced Command), sodass der Key **nur** dieses Skript ausführen kann. App und
 Version kommen als Klartext über die Leitung und werden **strikt validiert**.
 
@@ -342,7 +342,7 @@ REPO="deleonio/$APP"          # falls Repo-Name != App-Name: hier mappen
 BASE="/var/www/gh-deploy/$APP"
 REL="$BASE/releases/$VERSION"
 
-source /home/deploy/.deploy-token   # export GH_TOKEN=...
+source /home/gh-deploy/.deploy-token   # export GH_TOKEN=...
 
 mkdir -p "$BASE/data"               # Persistentes DB-Verzeichnis sicherstellen (idempotent)
 
@@ -359,15 +359,15 @@ echo "deployed $APP $VERSION"
 - Der Check `-f /etc/gh-deploy/$APP.env` ist das **Registrierungs-Gate**: Ein durchgereichter Tippfehler
   oder `../` läuft ins Leere statt ins Dateisystem.
 - **Pull-Modell:** Der Host zieht das Release selbst per `gh release download` (benötigt `gh` CLI + Token
-  in `/home/deploy/.deploy-token`). Alternativ Push-Modell — der Workflow `scp`t den Tarball direkt;
+  in `/home/gh-deploy/.deploy-token`). Alternativ Push-Modell — der Workflow `scp`t den Tarball direkt;
   dann braucht der Host kein GH-Token, aber der Workflow Schreibrechte ins Release-Verzeichnis.
 
 ### sudoers (eine enge Zeile pro App)
 
-`sudo visudo -f /etc/sudoers.d/deploy`:
+`sudo visudo -f /etc/sudoers.d/gh-deploy`:
 
 ```
-deploy ALL=(root) NOPASSWD: /usr/bin/systemctl restart app@priority-pilot
+gh-deploy ALL=(root) NOPASSWD: /usr/bin/systemctl restart app@priority-pilot
 ```
 
 Bewusst **kein** `app@*`-Wildcard: sudo matcht per `fnmatch` großzügiger als erwartet. Eine Zeile pro App
@@ -389,7 +389,7 @@ sequenceDiagram
     Dev->>GH: git push origin vX.Y.Z
     GH->>GH: build (client→frontend→server) + Prod-deps
     GH->>Rel: Tarball hochladen
-    GH->>Host: ssh "deploy priority-pilot vX.Y.Z"
+    GH->>Host: ssh gh-deploy@host "deploy priority-pilot vX.Y.Z"
     Host->>Host: App+Version validieren (Env-Gate)
     Rel-->>Host: gh release download (Tarball)
     Host->>Host: entpacken → releases/vX.Y.Z, data/ sicherstellen
@@ -403,7 +403,7 @@ sequenceDiagram
 2. **CI-Gate** auf `main`/PR ist grün (Lint, Build, Tests) — Voraussetzung für ein sauberes Release.
 3. **Release-Workflow** baut client→frontend→server, schnürt den Tarball (SPA + Backend +
    Prod-`node_modules`), legt das GitHub Release an.
-4. **SSH-Trigger:** Workflow ruft `ssh deploy@host "deploy priority-pilot vX.Y.Z"`.
+4. **SSH-Trigger:** Workflow ruft `ssh gh-deploy@host "deploy priority-pilot vX.Y.Z"`.
 5. **Host** validiert App+Version, lädt den Tarball (falls noch nicht vorhanden) nach
    `releases/vX.Y.Z/`, stellt `data/` sicher.
 6. **Atomarer Switch:** `current` → `releases/vX.Y.Z`.
@@ -447,7 +447,7 @@ PORT=3001                    # nächster freier Port
 
 # 1. Verzeichnis + Eigentümer
 sudo mkdir -p /var/www/gh-deploy/$APP/releases /var/www/gh-deploy/$APP/data
-sudo chown -R deploy:deploy /var/www/gh-deploy/$APP
+sudo chown -R gh-deploy:gh-deploy /var/www/gh-deploy/$APP
 
 # 2. Env-Datei (Registrierungs-Gate) — Secrets ergänzen!
 sudo mkdir -p /etc/gh-deploy
@@ -467,8 +467,8 @@ sudo systemctl enable app@$APP
 sudo systemctl reload caddy
 
 # 5. sudoers-Zeile (eng gefasst, kein Wildcard)
-echo "deploy ALL=(root) NOPASSWD: /usr/bin/systemctl restart app@$APP" \
-  | sudo tee /etc/sudoers.d/deploy-$APP
+echo "gh-deploy ALL=(root) NOPASSWD: /usr/bin/systemctl restart app@$APP" \
+  | sudo tee /etc/sudoers.d/gh-deploy-$APP
 ```
 
 Danach läuft jedes Deploy nur noch über `deploy <app> <version>`.
@@ -478,10 +478,10 @@ Danach läuft jedes Deploy nur noch über `deploy <app> <version>`.
 ## 12. Sicherheit & Betrieb
 
 - **Deploy-Key:** `gh_deploy`/`gh_deploy.pub` sind **gitignored**; der private Key liegt nur als
-  GitHub-Actions-Secret (`DEPLOY_SSH_KEY`) und in `authorized_keys` des `deploy`-Users vor — gebunden an
+  GitHub-Actions-Secret (`DEPLOY_SSH_KEY`) und in `authorized_keys` des `gh-deploy`-Users vor — gebunden an
   ein **Forced Command** (`command="…/deploy.sh"`), idealerweise mit
   `no-port-forwarding,no-pty`.
-- **Least Privilege:** `deploy`-User darf per sudo **nur** den jeweiligen Service neu starten; die
+- **Least Privilege:** `gh-deploy`-User darf per sudo **nur** den jeweiligen Service neu starten; die
   systemd-Sandbox (`ProtectSystem=strict`, `NoNewPrivileges`, `PrivateTmp`) begrenzt den Dienst selbst.
 - **Secrets** (`MISTRAL_API_KEY`) nur in `/etc/gh-deploy/*.env` (chmod 600), nie im Repo/Tarball.
 - **DB-Backup:** `data/database.sqlite` regelmäßig sichern (z. B. `sqlite3 … ".backup"` per cron),
@@ -496,7 +496,7 @@ Danach läuft jedes Deploy nur noch über `deploy <app> <version>`.
 - **API-Präfix `/api`:** Aktuell liegen die Endpunkte an der Wurzel (`/tasks`, …). Falls perspektivisch
   ein `/api`-Präfix gewünscht ist, müssten Express-Routen, `vite.config.ts`-Proxy, `VITE_API_BASE_URL`
   und der Caddy-`@api`-Matcher gemeinsam angepasst werden. Bis dahin gelten die Wurzelpfade.
-- **Arch-/Node-Matching:** Diese Doku nimmt x64-Linux + Node 22 auf dem Host an (passend zur CI). Weicht
+- **Arch-/Node-Matching:** Diese Doku nimmt x64-Linux + Node 26 auf dem Host an (passend zur CI). Weicht
   der Host ab, Prod-Deps auf dem Host installieren statt im Tarball mitliefern.
 - **Hostname/Domain:** `example.de` ist Platzhalter (vgl. Kommentar im Deploy-Pubkey) und beim Einrichten
   durch die echte Domain zu ersetzen.
