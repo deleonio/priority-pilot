@@ -8,9 +8,10 @@ Wissensbasis liegt in [`.ai-knowledge/`](.ai-knowledge/).
 - [Projekt & Aufbau](.ai-knowledge/project.md) — Zweck, Monorepo, Befehle, Datenbank
 - [Konventionen](.ai-knowledge/conventions.md) — Formatierung, ESLint, TypeScript, Commits
 - [Ticket-Triage](.ai-knowledge/ticket-triage.md) — Analyse offener GitHub-Issues
+- [Ticket-Spec](.ai-knowledge/ticket-spec.md) — rote Tests (Vertrag) für `ai:spec-ready`-Issues schreiben
 - [Ticket-Umsetzung](.ai-knowledge/ticket-implementation.md) — freigegebene Issues (`ai:ready`) umsetzen
 - [PR-Review (Kreuzverhör)](.ai-knowledge/pr-review.md) — Pull Requests kritisch prüfen, Findings kommentieren
-- [TDD-Strategie](.ai-knowledge/tdd-strategy.md) — test-getriebene KI-Workflows (Stufen 1+2 adoptiert: Akzeptanzkriterien-first + Red-Green)
+- [TDD-Strategie](.ai-knowledge/tdd-strategy.md) — test-getriebene KI-Workflows (Stufen 1+2+3 adoptiert: AK-first + Red-Green + Spec-Gate)
 - [Deployment](docs/deployment.md) — Release-Build (GitHub Actions), Tarball, Host-Layout, systemd, Caddy, Rollback
 - [Deployment: Repo-Plan](docs/deployment-repo-plan.md) — was im Repo zu bauen ist (Pack-Skript, Release-Workflow, Secrets)
 - [Deployment: Server-Setup](docs/server-setup.md) — Schritt-für-Schritt-Einrichtung des Linux-Servers
@@ -73,7 +74,8 @@ optimieren** (kein Edit „pro forma", keine Titel-Drift) → zu große Tickets 
 **Sub-Issues** zerlegen (max. eine Ebene, Rekursionsschutz via `ai:analyzed`)
 → deutscher Lösungs-Kommentar mit prüfbaren **Akzeptanzkriterien + Testfällen** und
 Umsetzbarkeits-**Ampel** (🟢/🟡/🔴) → Label `ai:analyzed` setzen
-(**bei klarer Analyse 🟢 zusätzlich `ai:ready`** zur direkten Umsetzungs-Freigabe; bei 🟡/🔴 nicht).
+(**bei klarer Analyse 🟢 zusätzlich `ai:spec-ready`** → die Spec-Stufe schreibt rote Tests und gibt
+per `ai:ready` frei; bei 🟡/🔴 nicht).
 Liegt bereits eine Analyse vor, wird sie auf Passung/Vollständigkeit geprüft und bei Bedarf
 aktualisiert (Re-Triage). Vollständiger Ablauf:
 [.ai-knowledge/ticket-triage.md](.ai-knowledge/ticket-triage.md).
@@ -91,12 +93,27 @@ automatisch für genau dieses eine Issue auf, sobald ein **Issue angelegt** wird
 Schreibzugriff, damit Außenstehende den OAuth-Token-Lauf nicht auslösen) oder das Label
 **`ai:analyzed` entfernt** wird (erzwingt eine Neu-Analyse, z. B. nach geänderter Beschreibung).
 
+## Ticket-Spec (rote Tests vor der Umsetzung)
+
+Issues mit Label `ai:spec-ready` (von der Triage bei 🟢 gesetzt) bekommen **vor** der Umsetzung ihre
+**roten Tests** — die ausführbare Spezifikation. Ein eigener Lauf legt einen Branch an, schreibt je
+Akzeptanzkriterium echte, **fehlschlagende** Tests (keinen Produktivcode), eröffnet einen
+**Draft-PR** (`Closes #<nr>`) und gibt das Issue per `ai:ready` (statt `ai:spec-ready`) zur Umsetzung
+frei. Das ist die **Gewaltenteilung** der TDD-Strategie (Stufe 3): Wer die Tests schreibt, schreibt
+**nicht** den Code — die Umsetzung macht die Tests grün, ohne sie zu ändern. Vollständiger Ablauf:
+[.ai-knowledge/ticket-spec.md](.ai-knowledge/ticket-spec.md). Konkreter Command: `/spec-ticket`.
+
+In **GitHub Actions** stößt das Setzen von `ai:spec-ready` (bei vorhandenem `ai:analyzed`) die Spec
+automatisch an — [`.github/workflows/claude-spec.yml`](.github/workflows/claude-spec.yml) (eigener
+headless Lauf, getrennt von der Umsetzung → Gewaltenteilung gilt auch in der Automatik).
+
 ## Ticket-Umsetzung
 
-Offene Issues mit Label `ai:ready` (zur Umsetzung freigegeben — bei klarer Analyse 🟢 automatisch
-durch die Triage, sonst vom Menschen), die **nicht zugewiesen** sind: sich selbst zuweisen → auf
-eigenem Branch **test-getrieben umsetzen** (Red-Green, Tests zuerst) → `pnpm format` + Lint +
-`pnpm test` → **PR (ready to review)**, via `Closes #<nr>` mit dem
+Offene Issues mit Label `ai:ready` (von der Spec-Stufe nach den roten Tests gesetzt, ersatzweise vom
+Menschen), die **nicht zugewiesen** sind: sich selbst zuweisen → den **Draft-PR der Spec-Stufe
+aufgreifen** und dessen rote Tests **grün machen, ohne sie zu ändern** (Fallback ohne Spec-PR: Tests
+selbst test-getrieben zuerst schreiben) → `pnpm format` + Lint + `pnpm test` → den Draft-PR
+**review-bereit** machen (Fallback: PR neu erstellen), via `Closes #<nr>` mit dem
 Ticket verknüpft (erscheint im „Development"-Bereich, schließt es beim Merge) → **PR verfolgen**
 (abonnieren) und im **Kreuzverhör-Loop** in Runden kritisch prüfen (`/kreuzverhoer-review`) und
 nachbessern **sowie automatisch auf eingehende Review-Anmerkungen reagieren** (zutreffende Findings
@@ -114,15 +131,17 @@ einem **harten Zeitlimit von `timeout-minutes: 20`**; der Prompt weist Claude an
 Limit (~18 Min) rechtzeitig den Zwischenstand zu sichern (committen/pushen, ggf. Draft-PR), statt
 einen vollen Durchlauf zu erzwingen.
 
-Läuft ein Issue-Job (Umsetzung, Triage, Re-Triage) dennoch in den 20-Minuten-Timeout, ist das Issue
-zu groß für einen Lauf: Der Job setzt am Issue das Label **`ai:to-big-issue`** (und die Umsetzung
-entfernt zusätzlich `ai:ready`, damit es nicht erneut aufgegriffen wird) — als Kandidat zum
+Läuft ein Issue-Job (Umsetzung, Spec, Triage, Re-Triage) dennoch in den 20-Minuten-Timeout, ist das
+Issue zu groß für einen Lauf: Der Job setzt am Issue das Label **`ai:to-big-issue`** (und die
+Umsetzung entfernt zusätzlich `ai:ready`, die Spec `ai:spec-ready`, damit es nicht erneut
+aufgegriffen wird) — als Kandidat zum
 **Aufteilen** in Sub-Issues (Triage-Schritt „Zerlegen"). Die PR-Workflows (Review/Fixup) teilen sich
 dasselbe 20-Minuten-Limit, vergeben aber kein Issue-Label.
 
-Label-Kette: `ai:analyzed` (analysiert) → `ai:ready` (freigegeben — bei 🟢 automatisch durch die
-Triage, sonst durch den Menschen) → Umsetzung als PR (ready to review), der den Kreuzverhör-Loop
-(`/kreuzverhoer-review`) durchläuft und bis Merge/Schließen verfolgt wird.
+Label-Kette: `ai:analyzed` (analysiert) → `ai:spec-ready` (bei 🟢 — Spec-Stufe schreibt rote Tests)
+→ `ai:ready` (freigegeben — von der Spec-Stufe gesetzt, ersatzweise vom Menschen) → Umsetzung macht
+die Tests grün (Draft-PR → PR ready to review), der den Kreuzverhör-Loop (`/kreuzverhoer-review`)
+durchläuft und bis Merge/Schließen verfolgt wird.
 
 ## PR-Review (Kreuzverhör)
 

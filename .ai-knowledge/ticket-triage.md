@@ -86,7 +86,7 @@ Trifft nichts davon zu, bleibt es beim normalen Ablauf (nur Kommentar + Label).
 Bei einem zu großen Ticket:
 
 - **Vorbedingung — Labels sicherstellen:** Die in diesem Schritt verwendeten Labels (`ai:analyzed`,
-  bei sofort umsetzbaren Teilaufgaben auch `ai:ready`) müssen **existieren**, sonst schlägt
+  bei sofort umsetzbaren Teilaufgaben auch `ai:spec-ready`) müssen **existieren**, sonst schlägt
   `gh issue create --label …` fehl. Das Anlegen aus Schritt 5 (`gh label create …`) daher **vor**
   der ersten Sub-Issue-Anlage ausführen.
 - Aus der Analyse **2–5 möglichst unabhängige Teilaufgaben** ableiten (jede in **einem** PR
@@ -114,9 +114,10 @@ Bei einem zu großen Ticket:
   bereits das Analyse-Ergebnis) und fallen so aus dem Auswahlkriterium von Schritt 1 — sie werden
   nicht erneut triagiert/zerlegt. Es ist nur **eine** Zerlegungsebene zulässig: ein Sub-Issue wird
   **nicht** weiter zerlegt. Maximal **5** Sub-Issues, um eine Issue-Flut zu vermeiden.
-- Sind Sub-Issues sofort umsetzbar (Ampel 🟢), zusätzlich `ai:ready` setzen — entweder direkt beim
-  Anlegen (`--label "ai:analyzed,ai:ready"`) oder nachträglich
-  (`gh issue edit <nr> --add-label "ai:ready"`) —, damit sie für `/implement-ticket` bereitstehen.
+- Sind Sub-Issues sofort umsetzbar (Ampel 🟢), zusätzlich `ai:spec-ready` setzen — entweder direkt
+  beim Anlegen (`--label "ai:analyzed,ai:spec-ready"`) oder nachträglich
+  (`gh issue edit <nr> --add-label "ai:spec-ready"`) —, damit die Spec-Stufe (`/spec-ticket`) die
+  roten Tests schreibt.
 
 ## Schritt 4 — Lösungsvorschlag als deutscher Kommentar (mit Ampel)
 
@@ -159,27 +160,30 @@ Bei einem zu großen Ticket:
   EOF
   ```
 
-## Schritt 5 — Markieren (`ai:analyzed`; bei klarer Analyse 🟢 zusätzlich `ai:ready`)
+## Schritt 5 — Markieren (`ai:analyzed`; bei klarer Analyse 🟢 zusätzlich `ai:spec-ready`)
 
 - Label `ai:analyzed` bei Bedarf anlegen:
   `gh label create "ai:analyzed" --color 1D76DB --description "Von der KI analysiert; Lösungsvorschlag als Kommentar vorhanden"`
 - Setzen: `gh issue edit <nr> --add-label "ai:analyzed"`
 - Damit fällt das Issue aus dem Auswahlkriterium von Schritt 1 heraus. (Beim Re-Triage ist das Label
   bereits gesetzt — dann genügt der aktualisierte Kommentar aus Schritt 1/4.)
-- **`ai:ready` nach der Ampel aus Schritt 4 steuern** — nur eine **klar umsetzbare** Analyse wird
-  direkt zur Umsetzung freigegeben, alles andere bleibt beim Menschen:
-  - **🟢 grün →** zusätzlich `ai:ready` setzen. Label bei Bedarf vorher anlegen
-    (`gh label create "ai:ready" --color 0E8A16 --description "Analyse klar; zur Umsetzung freigegeben"`),
-    dann `gh issue edit <nr> --add-label "ai:ready"`. Das Issue steht damit direkt für
-    `/implement-ticket` bereit (siehe [ticket-implementation.md](ticket-implementation.md)).
-  - **🟡 gelb / 🔴 rot →** **kein** `ai:ready` setzen — offene Fragen/Risiken klärt der Mensch und
-    gibt ggf. von Hand frei. Trägt ein Issue beim **Re-Triage** bereits `ai:ready`, ist die Ampel
-    aber auf 🟡/🔴 gekippt: `ai:ready` **automatisch entfernen**
-    (`gh issue edit <nr> --remove-label "ai:ready"`), damit `/implement-ticket` das Issue nicht
-    unbeaufsichtigt aufgreift (Race Condition), und im Kommentar darauf hinweisen — die erneute
-    Freigabe entscheidet der Mensch.
+- **`ai:spec-ready` nach der Ampel aus Schritt 4 steuern** — nur eine **klar umsetzbare** Analyse
+  geht in die Spec-Stufe, alles andere bleibt beim Menschen:
+  - **🟢 grün →** zusätzlich `ai:spec-ready` setzen. Label bei Bedarf vorher anlegen
+    (`gh label create "ai:spec-ready" --color FBCA04 --description "Analyse klar; rote Tests folgen vor der Umsetzung"`),
+    dann `gh issue edit <nr> --add-label "ai:spec-ready"`. Damit schreibt die Spec-Stufe
+    (`/spec-ticket`, siehe [ticket-spec.md](ticket-spec.md)) die roten Tests und gibt das Issue
+    anschließend per `ai:ready` zur Umsetzung frei. **Nicht** direkt `ai:ready` setzen — das ist der
+    Output der Spec-Stufe, nicht der Triage.
+  - **🟡 gelb / 🔴 rot →** **kein** `ai:spec-ready` (und kein `ai:ready`) setzen — offene
+    Fragen/Risiken klärt der Mensch und gibt ggf. von Hand frei. Trägt ein Issue beim **Re-Triage**
+    bereits `ai:spec-ready` oder `ai:ready`, ist die Ampel aber auf 🟡/🔴 gekippt: beide
+    **automatisch entfernen**
+    (`gh issue edit <nr> --remove-label "ai:spec-ready" --remove-label "ai:ready"`), damit
+    Spec/Umsetzung das Issue nicht unbeaufsichtigt aufgreifen (Race Condition), und im Kommentar
+    darauf hinweisen — die erneute Freigabe entscheidet der Mensch.
 - Konsistenz zu Schritt 3: Bei Zerlegung werden 🟢-Sub-Issues nach derselben Regel direkt mit
-  `ai:ready` angelegt.
+  `ai:spec-ready` angelegt.
 
 ## Hinweise
 

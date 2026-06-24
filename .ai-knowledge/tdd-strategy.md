@@ -1,14 +1,16 @@
 # Strategie: Test-Driven Development für KI-Workflows
 
-> **Status: Stufen 1 + 2 adoptiert — Stufe 3 offen.** Dieses Dokument hält den Plan fest, mit dem die
-> KI-Workflows (Triage → Umsetzung → Review) stärker test-getrieben werden.
+> **Status: Stufen 1 + 2 + 3 adoptiert.** Dieses Dokument hält den Plan fest, mit dem die
+> KI-Workflows (Triage → Spec → Umsetzung → Review) test-getrieben sind.
 > **Stufe 1 (Szenario 1):** Die Triage erzeugt prüfbare Akzeptanzkriterien + Testfälle
 > ([ticket-triage.md](ticket-triage.md) Schritt 1/4), die Issue-Templates fragen sie ab.
-> **Stufe 2 (Szenario 2):** Die Umsetzung folgt Red-Green
-> ([ticket-implementation.md](ticket-implementation.md) Schritt 3), `pnpm test` ist PR-Pflicht
-> ([pull_request_template.md](../.github/pull_request_template.md)) und das Review macht
-> fehlende/rote Tests zum Gate ([pr-review.md](pr-review.md) Schritt 3/5). Stufe 3 entscheidet der
-> Mensch (siehe [Empfehlung](#empfehlung) und [Offene Entscheidungen](#offene-entscheidungen)).
+> **Stufe 2 (Szenario 2):** Die Umsetzung folgt Red-Green, `pnpm test` ist PR-Pflicht, das Review
+> macht fehlende/rote Tests zum Gate ([pr-review.md](pr-review.md) Schritt 3/5).
+> **Stufe 3 (Szenario 3):** Eigenes Spec-Gate — die Triage setzt `ai:spec-ready` statt `ai:ready`,
+> ein eigener Lauf ([ticket-spec.md](ticket-spec.md),
+> [claude-spec.yml](../.github/workflows/claude-spec.yml)) schreibt die roten Tests auf einen
+> Draft-PR und gibt per `ai:ready` frei; die Umsetzung macht sie grün, ohne sie zu ändern
+> (Gewaltenteilung).
 
 ## Problem: Die KI „schlingert", weil eine _ausführbare_ Spezifikation fehlt
 
@@ -104,7 +106,7 @@ Red-Green-Refactor-Loop.
 **Kosten:** mittel (Workflow-Doku + Template). **Risiko:** tautologische Tests (die KI passt Tests
 dem Code an statt umgekehrt) — wird durch das Review-Mapping (Test ↔ AK) abgefedert.
 
-### Szenario 3 — „Spec-Gate mit Gewaltenteilung" (Spec = Tests, getrennt erzeugt, _vor_ `ai:ready`)
+### Szenario 3 — „Spec-Gate mit Gewaltenteilung" (Spec = Tests, getrennt erzeugt, _vor_ `ai:ready`) ✅ adoptiert
 
 **Kerngedanke:** Wer die Tests schreibt, schreibt **nicht** den Code. Die roten Tests entstehen in
 einem eigenen Schritt vor der Freigabe.
@@ -178,10 +180,11 @@ machen.
 
 ## Offene Entscheidungen
 
-- ~~Wie weit gehen (Sz. 1 / 1+2)~~ — Sz. 1 + 2 adoptiert; offen bleibt nur **Sz. 3** (Spec-Gate mit Gewaltenteilung).
-- Coverage-Schwelle einführen — und wenn ja, nur für `logics`/`lib`?
-- Soll Szenario 3 ein eigenes Label (`ai:spec-ready`) + eigene GitHub-Action bekommen, oder reicht
-  die Gewaltenteilung innerhalb von `/team*` (Tester-Rolle schreibt Spec, Developer-Rolle macht grün)?
+- ~~Wie weit gehen (Sz. 1 / 1+2 / 1+2+3)~~ — **alle drei Stufen adoptiert**.
+- Coverage-Schwelle einführen — und wenn ja, nur für `logics`/`lib`? (weiterhin offen)
+- ~~Soll Szenario 3 ein eigenes Label (`ai:spec-ready`) + eigene GitHub-Action bekommen, oder reicht
+  die Gewaltenteilung innerhalb von `/team*`?~~ — entschieden: **eigenes Label `ai:spec-ready` +
+  eigener Workflow `claude-spec.yml`** (separater headless Lauf = Gewaltenteilung auch in der Automatik).
 - ~~Verknüpfung in [AGENTS.md](../AGENTS.md) (Wissensbasis-Liste)~~ — mit Stufe 1 erledigt.
 
 ## Betroffene Dateien (bei späterer Umsetzung)

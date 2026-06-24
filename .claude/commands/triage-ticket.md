@@ -1,5 +1,5 @@
 ---
-description: Offene GitHub-Issues ohne Label ai:analyzed analysieren, lektorieren, den Titel optimieren, ggf. zerlegen, kommentieren und markieren (klare Analysen 🟢 mit ai:ready freigeben)
+description: Offene GitHub-Issues ohne Label ai:analyzed analysieren, lektorieren, den Titel optimieren, ggf. zerlegen, kommentieren und markieren (klare Analysen 🟢 mit ai:spec-ready an die Spec-Stufe übergeben)
 argument-hint: '[issue-nummer]'
 allowed-tools: Bash(gh issue list:*), Bash(gh issue view:*), Bash(gh issue create:*), Bash(gh issue comment:*), Bash(gh issue edit:*), Bash(gh api:*), Bash(gh label list:*), Bash(gh label create:*), Read, Grep, Glob
 ---
@@ -25,9 +25,11 @@ Pro Ticket alle Schritte ausführen:
 4. **Zerlegen (optional)** — zu große Tickets in 2–5 unabhängige Sub-Issues aufteilen, als echte GitHub-Sub-Issues verknüpfen, mit `ai:analyzed` anlegen (Rekursionsschutz, max. eine Ebene, max. 5).
 5. **Kommentieren** — Lösungsvorschlag als **deutschen** Kommentar anhängen, mit Umsetzbarkeits-**Ampel** (🟢/🟡/🔴) am Anfang (`gh issue comment`).
 6. **Markieren** — Label `ai:analyzed` setzen (`gh issue edit --add-label`; bei Bedarf vorher
-   `gh label create`). **Bei klarer Analyse (Ampel 🟢 aus Schritt 5) zusätzlich `ai:ready`** setzen,
-   sonst nicht — damit steht das Issue direkt für `/implement-ticket` bereit; bei 🟡/🔴 entscheidet
-   der Mensch über die Freigabe.
+   `gh label create`). **Bei klarer Analyse (Ampel 🟢 aus Schritt 5) zusätzlich `ai:spec-ready`**
+   setzen, sonst nicht — damit schreibt die Spec-Stufe (`/spec-ticket`, siehe
+   [ticket-spec.md](../../.ai-knowledge/ticket-spec.md)) die roten Tests und gibt das Issue danach
+   per `ai:ready` zur Umsetzung frei; bei 🟡/🔴 entscheidet der Mensch. **Nicht** direkt `ai:ready`
+   setzen (das ist der Output der Spec-Stufe).
 
 **Batch & Kontext:** Mehrere Tickets in **einem** Lauf verarbeiten, solange der Kontext ausreicht.
 Jedes Ticket vollständig abschließen (inkl. Label in Schritt 6), **bevor** das nächste begonnen wird

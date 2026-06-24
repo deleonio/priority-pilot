@@ -36,7 +36,10 @@ Den Diff gegen diese Fragen prüfen:
   Decken sie die neuen Pfade und Edge Cases ab? Ist die test-getriebene Reihenfolge erkennbar (Tests
   als eigener/erster Commit, vgl. [ticket-implementation.md](ticket-implementation.md) Schritt 3)?
   **Fehlende Tests für ein Akzeptanzkriterium oder rote Tests verhindern ein 🟢** (Ausnahme: reines
-  Styling/Layout, im PR begründet).
+  Styling/Layout, im PR begründet). Bei **Spec-PRs** (Stufe 3) zusätzlich: Wurden die **roten
+  Spec-Tests aus dem ersten Commit unverändert grün** gemacht? Aufgeweichte/gelöschte oder dem Code
+  angepasste Spec-Tests sind ein **Gewaltenteilungs-Bruch** → kein 🟢, außer eine Test-Korrektur ist
+  im PR begründet zurückgemeldet und freigegeben.
 - **Projekt-Konventionen** ([conventions.md](conventions.md)): Tabs, `strict`, ESM mit `.js`-Importen,
   keine Type-Assertions zum Unterdrücken von Fehlern, genau eine zentrale Prettier-Config.
 - **Format/Lint:** Sind `pnpm format`/`pnpm lint` in der PR-Beschreibung belegt? Bei Zweifel nachhaken.

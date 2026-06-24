@@ -23,13 +23,17 @@ Pro Ticket:
    Repo-Stand erneut analysieren. Noch konform → weiter. Veraltet/unvollständig →
    Analyse-Kommentar aktualisieren und darauf umsetzen. Kippt die Ampel auf 🔴 → **nicht** umsetzen,
    den Menschen entscheiden lassen. (Ändert nur Analyse/Kommentare, **keinen** Code.)
-3. **Umsetzen (test-getrieben: Red-Green)** — Lösung aus dem (ggf. aktualisierten)
-   `ai:analyzed`-Kommentar bzw. Titel + Beschreibung + Repo; auf eigenem Branch. **Erst** die Tests
-   zu den Akzeptanzkriterien schreiben (rot, als erster Commit), **dann** Code bis `pnpm test` grün
-   ist, **dann** `pnpm format` + Lint. Konventionen beachten.
-4. **PR (ready to review) + Ticket-Verknüpfung + Verfolgen** — committen, Branch pushen, PR erstellen
-   (`gh pr create --assignee @me`, **kein** `--draft` → sofort review-bereit); `Closes #<nr>` im
-   Body verknüpft den PR mit dem Ticket (erscheint im „Development"-Bereich, schließt es beim
+3. **Umsetzen (test-getrieben: Red-Green)** — **Spec-Modus (Stufe 3, Regelfall):** den Draft-PR der
+   Spec-Stufe auschecken (`gh pr list --state open --draft`, PR mit `Closes #<nr>`; `git fetch` +
+   `git switch <branch>`) und dessen **rote Tests grün machen — ohne sie zu ändern**
+   (Gewaltenteilung); ein falscher Spec-Test wird begründet **zurückgemeldet**, nicht still editiert.
+   **Fallback (kein Spec-PR):** eigener Branch, erst Tests zu den AK schreiben (rot, erster Commit),
+   dann Code. In beiden Fällen: Code bis `pnpm test` grün, dann `pnpm format` + Lint.
+4. **PR (ready to review) + Ticket-Verknüpfung + Verfolgen** — committen, Branch pushen; im
+   **Spec-Modus** den vorhandenen Draft-PR review-bereit machen (`gh pr ready <pr>`, Beschreibung
+   ergänzen), im **Fallback** einen erstellen (`gh pr create --assignee @me`, **kein** `--draft`);
+   `Closes #<nr>` im Body verknüpft den PR mit dem Ticket (erscheint im „Development"-Bereich,
+   schließt es beim
    Merge). PR-Beschreibung mit format-/lint-/test-Ergebnissen. **Direkt nach dem Erstellen den PR
    verfolgen** (`subscribe_pr_activity` für den neuen PR), damit eingehende Review-Anmerkungen, neue
    Commits und CI-Ergebnisse die nächste Runde aus Schritt 5 automatisch anstoßen.
