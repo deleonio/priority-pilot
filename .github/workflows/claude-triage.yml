@@ -162,6 +162,7 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
         with:
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          args: --trust
           prompt: |
             [KONTEXT/REGELN] Automatisierter, durch das Anlegen des Issues bzw. das Entfernen des
             ai:analyzed-Labels autorisierter Triage-Lauf in GitHub Actions (headless, keine
