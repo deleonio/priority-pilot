@@ -3,6 +3,7 @@ import Dependency from './dependency.js';
 import Pillar from './pillar.js';
 import TaskPillar from './taskPillar.js';
 import PillarFeedback from './pillarFeedback.js';
+import ScoreEntry from './scoreEntry.js';
 
 Task.belongsToMany(Task, {
 	as: 'dependencies',
@@ -23,6 +24,10 @@ Task.belongsToMany(Task, {
 Task.belongsToMany(Pillar, { through: TaskPillar, foreignKey: 'taskId', otherKey: 'pillarId' });
 Pillar.belongsToMany(Task, { through: TaskPillar, foreignKey: 'pillarId', otherKey: 'taskId' });
 
+// Ein erledigter Task hat höchstens einen Gamification-Score-Eintrag (1:1 über `taskId`, unique).
+Task.hasOne(ScoreEntry, { foreignKey: 'taskId' });
+ScoreEntry.belongsTo(Task, { foreignKey: 'taskId' });
+
 // `pillar_feedback` steht für sich (keine Assoziation) — es speichert lose Korrektur-Samples
 // (Titel/Beschreibung + bestätigte Säulen) für den Feedback-Loop der Klassifikation (siehe #45).
-export { Task, Dependency, Pillar, TaskPillar, PillarFeedback };
+export { Task, Dependency, Pillar, TaskPillar, PillarFeedback, ScoreEntry };

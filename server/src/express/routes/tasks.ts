@@ -2,8 +2,9 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { Transaction, ValidationError as SequelizeValidationError } from 'sequelize';
 import sequelize from '../../database.js';
-import { Pillar, Task, TaskPillar } from '../../models/index.js';
+import { Pillar, ScoreEntry, Task, TaskPillar } from '../../models/index.js';
 import { wouldCreateCycle } from '../../logics/cycle.js';
+import { berechneScore } from '../../logics/score.js';
 import type { components } from '../../api';
 
 type TaskDto = components['schemas']['Task'];
@@ -251,6 +252,23 @@ const replaceContributions = (
 /** Lädt einen Task inkl. seiner Säulen-Beiträge (für die Serialisierung). */
 const findTaskWithPillars = (id: number): Promise<Task | null> => Task.findByPk(id, { include: [Pillar] });
 
+/**
+ * Vergibt beim Statuswechsel auf `Done` einen Gamification-`ScoreEntry` (Konzept §4.4) — genau
+ * **einmal** je Task (`taskId` unique + `findOrCreate` ⇒ idempotent, erneutes „Done" erzeugt keinen
+ * zweiten Eintrag). Basis-Value = `estimatedEffort × priority` (Owner-Vorgabe), pünktlich/verspätet
+ * gemäß Deadline (siehe `berechneScore`).
+ */
+const awardScoreOnDone = async (task: Task, transaction: Transaction): Promise<void> => {
+	const erledigtAm = new Date();
+	const basisPunkte = task.estimatedEffort * task.priority;
+	const { punkte, pünktlich } = berechneScore(task.deadline ?? null, erledigtAm, basisPunkte);
+	await ScoreEntry.findOrCreate({
+		where: { taskId: task.id },
+		defaults: { taskId: task.id, punkte, pünktlich, zeitpunkt: erledigtAm },
+		transaction,
+	});
+};
+
 export const tasksRouter = Router();
 
 // GET /tasks — alle Tasks (inkl. Säulen-Beiträge) auflisten
@@ -330,6 +348,10 @@ tasksRouter.patch('/tasks/:id', async (req: Request, res: Response<TaskDto | Err
 				if (validation.pillars.length > 0) {
 					await replaceContributions(task.id, validation.pillars, transaction);
 				}
+			}
+			// Punkte beim Übergang auf „Done" vergeben (idempotent über das unique `taskId`).
+			if (task.status === 'Done') {
+				await awardScoreOnDone(task, transaction);
 			}
 		});
 		const withPillars = await findTaskWithPillars(task.id);
