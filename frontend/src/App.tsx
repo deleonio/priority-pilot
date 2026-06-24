@@ -1,4 +1,4 @@
-import { KolAlert, KolButton, KolHeading, KolPopoverButton, KolSpin, KolTabs, KolToolbar } from '@public-ui/react-v19';
+import { KolAlert, KolHeading, KolPopoverButton, KolSpin, KolTabs, KolToolbar } from '@public-ui/react-v19';
 import type { Pillar, Task, TaskTreeNode } from 'client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from './api';
@@ -10,7 +10,7 @@ import { ForestPanel } from './components/ForestPanel';
 import { PillarWeightsModal } from './components/PillarWeightsModal';
 import { TaskFormModal } from './components/TaskFormModal';
 import { TaskTable } from './components/TaskTable';
-import { ThemeToggle } from './components/ThemeToggle';
+import { useThemeToolbarItem } from './components/ThemeToggle';
 import { toApiError } from './lib/apiError';
 import { buildDependencyMap } from './lib/dependencies';
 
@@ -28,9 +28,9 @@ type Dialog =
 // die Auswahl zurücksetzt.
 const VIEW_TABS = [{ _label: 'Dashboard' }, { _label: 'Aufgaben' }, { _label: 'Aufgabenwald' }];
 
-// Statisches Reload-Icon (Font-Awesome-Solid) für den „Aktualisieren"-Button. Als Modulkonstante,
-// damit `KolButton` nicht bei jedem Render eine neue `_icons`-Objektidentität erhält (sonst würde
-// dessen Icon-Watcher unnötig erneut feuern).
+// Statisches Reload-Icon (Font-Awesome-Solid) für den „Aktualisieren"-Toolbar-Button. Als
+// Modulkonstante, damit das Toolbar-Item nicht bei jedem Render eine neue `_icons`-Objektidentität
+// erhält (sonst würde der Icon-Watcher unnötig erneut feuern).
 const RELOAD_ICON = { left: { icon: 'fa-solid fa-arrows-rotate' } };
 
 export const App = () => {
@@ -77,6 +77,9 @@ export const App = () => {
 
 	const dependencyMap = useMemo(() => buildDependencyMap(forest), [forest]);
 
+	// Zustandsabhängiger Theme-Umschalter als Toolbar-Button-Deskriptor (Label/Icon/onClick).
+	const themeItem = useThemeToolbarItem();
+
 	/** Nach erfolgreicher Mutation: Dialog schließen und Daten neu laden. */
 	const afterMutation = useCallback((): void => {
 		setDialog(null);
@@ -115,21 +118,40 @@ export const App = () => {
 			<header className="app-header">
 				<KolHeading _label="Priority Pilot" _level={1} />
 				<div className="toolbar">
-					<KolButton
-						_label="Neuen Task anlegen"
-						_variant="primary"
-						_on={{ onClick: () => setDialog({ kind: 'create' }) }}
+					{/* Die einfachen Header-Aktionen als echte `KolToolbar` (Toolbar-Rolle + Pfeiltasten-
+					    Navigation, sprechendes Label „Kopf-Aktionen"): „Neuen Task anlegen", „Aktualisieren"
+					    und der Darstellungs-Umschalter. Der `KolPopoverButton` „Einstellungen" bleibt bewusst
+					    außerhalb (Geschwister), da sein Kind-Inhalt sich nicht über `_items` abbilden lässt. */}
+					<KolToolbar
+						_label="Kopf-Aktionen"
+						_orientation="horizontal"
+						_items={[
+							{
+								type: 'button',
+								_label: 'Neuen Task anlegen',
+								_variant: 'primary',
+								_on: { onClick: () => setDialog({ kind: 'create' }) },
+							},
+							{
+								type: 'button',
+								_label: 'Aktualisieren',
+								_hideLabel: true,
+								_icons: RELOAD_ICON,
+								_variant: 'secondary',
+								_disabled: loading,
+								_on: { onClick: () => void reload() },
+							},
+							{
+								// Farbschema-Umschalter: System/Hell/Dunkel (OS-Erkennung + Override).
+								type: 'button',
+								_label: themeItem._label,
+								_hideLabel: true,
+								_icons: themeItem._icons,
+								_variant: 'secondary',
+								_on: { onClick: themeItem.onClick },
+							},
+						]}
 					/>
-					<KolButton
-						_label="Aktualisieren"
-						_hideLabel
-						_icons={RELOAD_ICON}
-						_variant="secondary"
-						_disabled={loading}
-						_on={{ onClick: () => void reload() }}
-					/>
-					{/* Farbschema-Umschalter rechts oben: System/Hell/Dunkel (OS-Erkennung + Override). */}
-					<ThemeToggle />
 					{/* Einstellungen rechts oben: ein icon-only Zahnrad öffnet ein Popover mit einer
 					    vertikalen Toolbar als Menü. Erster Unterpunkt ist die persönliche Säulen-Verteilung;
 					    der Bereich ist so für weitere Einstellungen erweiterbar. */}
