@@ -74,6 +74,47 @@ describe('generateDueInstances', () => {
 		assert.equal(total, 3, 'insgesamt bleiben es genau drei Instanzen');
 	});
 
+	// ── AK 4 (heikler Pfad, in #120 als WARNUNG markiert): Idempotenz hängt am unveränderlichen
+	//    `seriesOccurrence`, NICHT an der `deadline`. Wird eine Instanz verschoben (AK 2) und dasselbe
+	//    Fenster erneut generiert, darf KEINE Dublette für die verschobene Periode entstehen. Eine
+	//    naive, an `deadline` verankerte Umsetzung bestünde alle anderen Tests, scheitert aber hier. ──
+	it('verschobene Instanz wird im selben Fenster nicht dupliziert (Anker: seriesOccurrence)', async () => {
+		const series = await Series.create({
+			title: 'Aufräumen',
+			rhythm: 'weekly',
+			defaultPriority: 3,
+			defaultEstimatedEffort: 0.5,
+			active: true,
+			startDate: new Date('2026-01-01T00:00:00.000Z'),
+		});
+		const until = new Date('2026-01-20T00:00:00.000Z');
+
+		const first = await generateDueInstances(series, { until });
+		assert.equal(first.length, 3);
+
+		// AK 2: eine Instanz verschieben (deadline ändern → isException). Der Idempotenz-Anker
+		// `seriesOccurrence` bleibt dabei unverändert.
+		const moved = first[0];
+		const occurrence = new Date(moved.seriesOccurrence as unknown as Date).getTime();
+		moved.deadline = new Date('2026-03-01T00:00:00.000Z');
+		moved.isException = true;
+		await moved.save();
+
+		// Dasselbe Fenster erneut generieren: Die verschobene Periode darf NICHT neu materialisiert
+		// werden — sonst wäre die Idempotenz fälschlich an `deadline` statt `seriesOccurrence` verankert.
+		const second = await generateDueInstances(series, { until });
+		assert.equal(second.length, 0, 'verschobene Periode erzeugt keine Dublette');
+
+		const total = await Task.count({ where: { seriesId: series.id } });
+		assert.equal(total, 3, 'trotz verschobener deadline bleiben es genau drei Instanzen');
+
+		// Der Anker ist die unveränderliche `seriesOccurrence`-Spalte (nicht die verschobene deadline).
+		const reloaded = await Task.findByPk(moved.id);
+		assert.ok(reloaded);
+		const stillOccurrence = new Date(reloaded.seriesOccurrence as unknown as Date).getTime();
+		assert.equal(stillOccurrence, occurrence, 'seriesOccurrence bleibt der stabile Idempotenz-Anker');
+	});
+
 	// ── AK 3: Template-Änderung gilt nur für künftige Instanzen ────────────────────────────────
 	it('Template-Änderung wirkt nur auf künftige, nicht auf bestehende Instanzen', async () => {
 		const series = await Series.create({
