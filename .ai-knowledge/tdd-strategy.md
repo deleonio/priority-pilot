@@ -23,7 +23,11 @@ Iteration neu. Es gibt keinen fixen, einklagbaren Vertrag, an dem sich die Umset
 fest, hat die KI ein binäres Ziel (rot → grün) statt interpretierbarer Prosa — das stoppt das
 Schlingern.
 
-## Ist-Zustand — zwei Fakten, die zählen
+## Ausgangslage _vor_ dieser Änderung — zwei Fakten, die zählen
+
+> Dieser Abschnitt beschreibt den Stand **vor** der hier adoptierten TDD-Strategie. Die
+> in der Tabelle gelisteten Lücken sind durch die Stufen 1–3 inzwischen geschlossen (siehe
+> „Stand jetzt" direkt unter der Tabelle) und dienen nur noch als Begründung/Motivation.
 
 **1. Die Test-Infrastruktur ist für TDD bereits hervorragend geeignet — sie wird nur zu spät genutzt.**
 
@@ -38,7 +42,7 @@ Schlingern.
 - **Keine Coverage-Messung** konfiguriert (kein c8/nyc, keine Schwelle in `vitest.config.ts` oder
   CI). → Optionaler Hebel, siehe Querschnitts-Politik.
 
-**2. Tests sind heute ein Nachgedanke, kein Ausgangspunkt.**
+**2. Tests waren bis dahin ein Nachgedanke, kein Ausgangspunkt.**
 
 | Phase          | Datei / Stelle                                                 | Lücke                                                                           |
 | -------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------- |
@@ -48,6 +52,15 @@ Schlingern.
 | PR-Template    | `.github/pull_request_template.md`                             | `pnpm test` ist optional („falls zutreffend"), nicht Pflicht.                   |
 | Review         | [pr-review.md](pr-review.md) Schritt 3                         | Tests sind ein **Nachprüf**-Punkt, kein Vor-Gate.                               |
 | CI             | `.github/workflows/ci.yml`                                     | `pnpm -r test` läuft **nach** Build — kein test-first-Impuls.                   |
+
+**Stand jetzt** (mit dieser Änderung geschlossen — die Tabelle oben ist die Ausgangslage):
+
+- Triage → geschlossen in **Stufe 1** (strukturierte AK + Testfälle).
+- Issue-Template → geschlossen in **Stufe 1** (Feld „Akzeptanzkriterien / Wie verifiziert man?").
+- Umsetzung → geschlossen in **Stufe 2** (Red-Green: rote Tests zuerst, `format`/Lint danach).
+- PR-Template → geschlossen in **Stufe 2** (`pnpm test` ist Pflicht).
+- Review → geschlossen in **Stufe 2** (fehlende/rote Tests sind ein Gate, kein bloßer Nachprüf-Punkt).
+- CI → weiterhin **offen** (Reihenfolge/Coverage, siehe Querschnitts-Politik und „Offene Entscheidungen").
 
 ## Spec-Eintritt: heute vs. Ziel
 
