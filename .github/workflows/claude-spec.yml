@@ -151,6 +151,7 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }} # gh/Push als App-Token -> ai:ready loest Umsetzung aus
         with:
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          args: --trust
           prompt: |
             [KONTEXT/REGELN] Automatisierter, durch das Label ai:spec-ready autorisierter SPEC-Lauf in
             GitHub Actions (headless). Schreibe ausschliesslich Tests fuer Issue

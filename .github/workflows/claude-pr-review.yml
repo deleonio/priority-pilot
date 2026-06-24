@@ -149,6 +149,7 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }} # Labels als App-Token -> loesen Folge-Workflows aus
         with:
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          args: --trust
           prompt: |
             [KONTEXT/REGELN] Automatisierter, label-gesteuerter Kreuzverhoer-Review in GitHub
             Actions (headless). Reviewe ausschliesslich PR #${{ github.event.pull_request.number }},

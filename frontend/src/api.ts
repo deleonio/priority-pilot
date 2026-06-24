@@ -68,6 +68,15 @@ export const api = {
 		return data == null ? null : reviveTask(data);
 	},
 
+	// „Was ist jetzt dran?"-Vorschlagsliste (`GET /suggestions`): nach Score sortiert, post-gefiltert.
+	async getSuggestions(init: Init = {}): Promise<Task[]> {
+		const { data, response } = await client.GET('/suggestions', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response);
+		}
+		return data.map(reviveTask);
+	},
+
 	async createTask({ taskCreate }: { taskCreate: TaskCreate }): Promise<Task> {
 		const { deadline, ...rest } = taskCreate;
 		const { data, response } = await client.POST('/tasks', {
