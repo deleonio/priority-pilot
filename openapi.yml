@@ -513,8 +513,6 @@ components:
         - status
         - priority
         - estimatedEffort
-        - seriesId
-        - isException
         - pillars
       properties:
         id:
