@@ -59,6 +59,8 @@ export const serializeTask = (task: Task): TaskDto => ({
 	actualEffort: task.actualEffort ?? null,
 	description: task.description ?? null,
 	deadline: task.deadline ? task.deadline.toISOString() : null,
+	seriesId: task.seriesId ?? null,
+	isException: task.isException ?? false,
 	pillars: (task.Pillars ?? [])
 		.map((pillar) => ({
 			pillarId: pillar.id,
@@ -342,8 +344,12 @@ tasksRouter.patch('/tasks/:id', async (req: Request, res: Response<TaskDto | Err
 	try {
 		// Status vor dem Update festhalten, um den echten Übergang nach „Done" zu erkennen.
 		const warVorherDone = task.status === 'Done';
+		// AK2 (#120): Eine individuelle Änderung an einer generierten Serien-Instanz markiert sie als
+		// Ausnahme — der Generator lässt `isException`-Instanzen unangetastet und das Template bleibt
+		// unberührt. Bei gewöhnlichen Tasks (kein `seriesId`) bleibt das Feld unverändert.
+		const attrs = task.seriesId != null ? { ...validation.attrs, isException: true } : validation.attrs;
 		await sequelize.transaction(async (transaction) => {
-			await task.update(validation.attrs, { transaction });
+			await task.update(attrs, { transaction });
 			// `pillars` fehlt → Beiträge unverändert lassen; gesetzt (auch `[]`) → komplett ersetzen.
 			if (validation.pillars !== undefined) {
 				await TaskPillar.destroy({ where: { taskId: task.id }, transaction });

@@ -26,6 +26,14 @@ class Task extends Model {
 	public description?: string | null;
 	public deadline?: Date | null;
 
+	// Serien-Bezug (Habits, siehe #120): `seriesId` verweist auf das Template, aus dem diese Instanz
+	// generiert wurde (`null` ⇒ gewöhnlicher Einzel-Task). `isException` markiert eine nachträglich
+	// individuell geänderte Instanz; `seriesOccurrence` ist der unveränderliche Idempotenz-Anker des
+	// fälligen Termins (NICHT `deadline`, die verschiebbar ist).
+	public seriesId?: number | null;
+	public isException!: boolean;
+	public seriesOccurrence?: Date | null;
+
 	public addDependency!: BelongsToManyAddAssociationMixin<Task, number>;
 	public removeDependency!: BelongsToManyRemoveAssociationMixin<Task, number>;
 	public getDependencies!: BelongsToManyGetAssociationsMixin<Task>;
@@ -93,6 +101,21 @@ Task.init(
 			type: DataTypes.DATE,
 			allowNull: true,
 		},
+		// Serien-Instanz-Felder (siehe #120). Der eindeutige Idempotenz-Index liegt auf
+		// (`seriesId`, `seriesOccurrence`) — eine Periode wird je Serie höchstens einmal materialisiert.
+		seriesId: {
+			type: DataTypes.INTEGER,
+			allowNull: true,
+		},
+		isException: {
+			type: DataTypes.BOOLEAN,
+			allowNull: false,
+			defaultValue: false,
+		},
+		seriesOccurrence: {
+			type: DataTypes.DATE,
+			allowNull: true,
+		},
 		// Die Säulen-Zuordnung ist n:m und liegt in `task_pillars` (siehe taskPillar.ts /
 		// models/index.ts) — daher keine `pillarId`-Spalte mehr direkt am Task.
 	},
@@ -101,6 +124,10 @@ Task.init(
 		modelName: 'Task',
 		tableName: 'tasks',
 		timestamps: true,
+		indexes: [
+			// Idempotenz (#120 AK4): je Serie wird ein fälliger Termin höchstens einmal materialisiert.
+			{ unique: true, fields: ['seriesId', 'seriesOccurrence'] },
+		],
 	},
 );
 

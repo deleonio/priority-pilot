@@ -4,6 +4,7 @@ import { tasksRouter, serializeTask } from './routes/tasks.js';
 import { pillarsRouter } from './routes/pillars.js';
 import { createSuggestPillarsRouter } from './routes/suggestPillars.js';
 import { scoresRouter } from './routes/scores.js';
+import { seriesRouter } from './routes/series.js';
 import type { PillarClassifier } from '../llm/mistral.js';
 import { buildTaskForest } from '../logics/tree.js';
 import { findNextImportantTask } from '../logics/find.js';
@@ -37,6 +38,9 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// Gamification-Scoring: Punkte je Task lesen, Balance-Stand je Säule (siehe routes/scores.ts).
 	app.use(scoresRouter);
+
+	// Serienaufgaben (Habits): Template-CRUD + Instanz-Generierung (siehe routes/series.ts).
+	app.use(seriesRouter);
 
 	// GET /health — billiger Liveness-Check (ohne DB) für Post-Deploy & Monitoring.
 	app.get('/health', (_req, res: express.Response<HealthDto>) => {

@@ -4,6 +4,7 @@ import Pillar from './pillar.js';
 import TaskPillar from './taskPillar.js';
 import PillarFeedback from './pillarFeedback.js';
 import ScoreEntry from './scoreEntry.js';
+import Series from './series.js';
 
 Task.belongsToMany(Task, {
 	as: 'dependencies',
@@ -28,6 +29,12 @@ Pillar.belongsToMany(Task, { through: TaskPillar, foreignKey: 'pillarId', otherK
 Task.hasOne(ScoreEntry, { foreignKey: 'taskId' });
 ScoreEntry.belongsTo(Task, { foreignKey: 'taskId' });
 
+// Ein Serien-Template (`Series`) hat 0..n generierte Instanzen — jede Instanz ist ein vollwertiger
+// `Task` mit `seriesId` (siehe #120). Die Instanz ist entkoppelt: Template-Änderungen wirken nur auf
+// künftige Instanzen, Instanz-Änderungen (gesetztes `isException`) nicht aufs Template.
+Series.hasMany(Task, { foreignKey: 'seriesId' });
+Task.belongsTo(Series, { foreignKey: 'seriesId' });
+
 // `pillar_feedback` steht für sich (keine Assoziation) — es speichert lose Korrektur-Samples
 // (Titel/Beschreibung + bestätigte Säulen) für den Feedback-Loop der Klassifikation (siehe #45).
-export { Task, Dependency, Pillar, TaskPillar, PillarFeedback, ScoreEntry };
+export { Task, Dependency, Pillar, TaskPillar, PillarFeedback, ScoreEntry, Series };

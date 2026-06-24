@@ -321,8 +321,127 @@ paths:
                   $ref: '#/components/schemas/PillarScore'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /series:
+    get:
+      summary: Alle Serien-Templates auflisten
+      operationId: getSeries
+      responses:
+        '200':
+          description: Liste der Serien-Templates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Series'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      summary: Neues Serien-Template anlegen
+      operationId: createSeries
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeriesCreate'
+      responses:
+        '201':
+          description: Template angelegt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Series'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /series/{id}:
+    parameters:
+      - $ref: '#/components/parameters/SeriesId'
+    get:
+      summary: Ein Serien-Template abrufen
+      operationId: getSeriesById
+      responses:
+        '200':
+          description: Das Serien-Template
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Series'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      summary: Serien-Template teilweise aktualisieren (gilt nur für künftige Instanzen)
+      operationId: updateSeries
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeriesUpdate'
+      responses:
+        '200':
+          description: Aktualisiertes Template
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Series'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      summary: Serien-Template löschen
+      operationId: deleteSeries
+      responses:
+        '204':
+          description: Template gelöscht
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /series/{id}/generate:
+    parameters:
+      - $ref: '#/components/parameters/SeriesId'
+    post:
+      summary: Fällige Instanzen bis `until` materialisieren (idempotent)
+      description: >-
+        Erzeugt je fälligem Termin im Fenster `[startDate, until]` genau eine
+        eigenständige `Task`-Instanz mit `seriesId`. Bereits materialisierte
+        Termine werden übersprungen (keine Dubletten). Gibt nur die neu
+        erzeugten Instanzen zurück.
+      operationId: generateSeriesInstances
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeriesGenerateInput'
+      responses:
+        '201':
+          description: Neu materialisierte Instanzen
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 components:
   parameters:
+    SeriesId:
+      name: id
+      in: path
+      required: true
+      description: ID der Serie
+      schema:
+        type: integer
     TaskId:
       name: id
       in: path
@@ -394,6 +513,8 @@ components:
         - status
         - priority
         - estimatedEffort
+        - seriesId
+        - isException
         - pillars
       properties:
         id:
@@ -426,6 +547,18 @@ components:
           type: string
           format: date-time
           nullable: true
+        seriesId:
+          type: integer
+          nullable: true
+          description: >-
+            ID des Serien-Templates, aus dem diese Instanz generiert wurde
+            (`null` ⇒ gewöhnlicher Einzel-Task), siehe Serienaufgaben (#120).
+        isException:
+          type: boolean
+          default: false
+          description: >-
+            `true`, wenn diese generierte Serien-Instanz individuell geändert
+            wurde — Template-Generierung lässt solche Instanzen unberührt.
         pillars:
           type: array
           description: >-
@@ -762,6 +895,113 @@ components:
         punkte:
           type: number
           description: Summe der anteilig (nach `share`) auf diese Säule entfallenden Punkte.
+    SeriesRhythm:
+      type: string
+      enum:
+        - daily
+        - weekly
+        - monthly
+      default: weekly
+      description: Wiederholungsrhythmus eines Serien-Templates (striktes RRULE-Subset, #120).
+    Series:
+      type: object
+      description: >-
+        Serien-Template einer wiederkehrenden Aufgabe (Habit, Konzept §4.2). Jede fällige
+        Wiederholung wird als eigenständiger `Task` mit `seriesId` materialisiert.
+      required:
+        - id
+        - title
+        - rhythm
+        - defaultPriority
+        - defaultEstimatedEffort
+        - active
+        - startDate
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        rhythm:
+          $ref: '#/components/schemas/SeriesRhythm'
+        defaultPriority:
+          type: integer
+          minimum: 1
+          maximum: 5
+          default: 3
+          description: Default-Priorität künftig generierter Instanzen.
+        defaultEstimatedEffort:
+          type: number
+          format: float
+          minimum: 0.1
+          maximum: 1
+          default: 0.5
+          description: Default-Aufwand künftig generierter Instanzen.
+        active:
+          type: boolean
+          default: true
+          description: Inaktive Templates erzeugen keine Instanzen.
+        startDate:
+          type: string
+          format: date-time
+          description: Anker, ab dem die Serie läuft (erster fälliger Termin).
+    SeriesCreate:
+      type: object
+      required:
+        - title
+        - startDate
+      properties:
+        title:
+          type: string
+        rhythm:
+          $ref: '#/components/schemas/SeriesRhythm'
+        defaultPriority:
+          type: integer
+          minimum: 1
+          maximum: 5
+          default: 3
+        defaultEstimatedEffort:
+          type: number
+          format: float
+          minimum: 0.1
+          maximum: 1
+          default: 0.5
+        active:
+          type: boolean
+          default: true
+        startDate:
+          type: string
+          format: date-time
+    SeriesUpdate:
+      type: object
+      description: Alle Felder optional — gesetzte Felder gelten nur für künftige Instanzen.
+      properties:
+        title:
+          type: string
+        rhythm:
+          $ref: '#/components/schemas/SeriesRhythm'
+        defaultPriority:
+          type: integer
+          minimum: 1
+          maximum: 5
+        defaultEstimatedEffort:
+          type: number
+          format: float
+          minimum: 0.1
+          maximum: 1
+        active:
+          type: boolean
+        startDate:
+          type: string
+          format: date-time
+    SeriesGenerateInput:
+      type: object
+      required:
+        - until
+      properties:
+        until:
+          type: string
+          format: date-time
+          description: Letzter zu materialisierender Zeitpunkt (inklusive).
     Error:
       type: object
       required:
