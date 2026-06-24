@@ -22,10 +22,12 @@ const nextOccurrence = (date: Date, rhythm: SeriesRhythm): Date => {
 			next.setUTCDate(next.getUTCDate() + 7);
 			break;
 		case 'monthly':
+			// Ziel-Tag merken (z. B. 31)
+			const targetDate = date.getUTCDate();
 			next.setUTCMonth(next.getUTCMonth() + 1);
-			// Fix: Klemme auf den letzten Tag des Monats, falls der Tag nicht existiert (z. B. 31.01. → 31.02. → 03.03.)
-			if (next.getUTCDate() !== date.getUTCDate()) {
-				next.setUTCDate(0); // 0 = letzter Tag des vorherigen Monats
+			// Falls JavaScript auf einen anderen Tag rollt (z. B. 31.01. → 03.03.), auf den letzten Tag des Monats korrigieren
+			if (next.getUTCDate() !== targetDate) {
+				next.setUTCDate(0); // 0 = letzter Tag des aktuellen Monats
 			}
 			break;
 	}
