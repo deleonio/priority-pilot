@@ -51,7 +51,9 @@ test.describe('#125 Header – Toolbar', () => {
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
 
 		// „Aktualisieren" löst einen erneuten Listen-Request aus (beweist: Button verdrahtet & aktiv).
-		const reloadRequest = page.waitForRequest((request) => request.url().includes('/tasks') && request.method() === 'GET');
+		const reloadRequest = page.waitForRequest(
+			(request) => request.url().includes('/tasks') && request.method() === 'GET',
+		);
 		await toolbar.getByRole('button', { name: 'Aktualisieren' }).click();
 		await reloadRequest;
 	});
