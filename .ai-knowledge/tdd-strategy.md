@@ -3,7 +3,7 @@
 > **Status: Stufen 1 + 2 adoptiert — Stufe 3 offen.** Dieses Dokument hält den Plan fest, mit dem die
 > KI-Workflows (Triage → Umsetzung → Review) stärker test-getrieben werden.
 > **Stufe 1 (Szenario 1):** Die Triage erzeugt prüfbare Akzeptanzkriterien + Testfälle
-> ([ticket-triage.md](ticket-triage.md) Schritt 1/4/5), die Issue-Templates fragen sie ab.
+> ([ticket-triage.md](ticket-triage.md) Schritt 1/4), die Issue-Templates fragen sie ab.
 > **Stufe 2 (Szenario 2):** Die Umsetzung folgt Red-Green
 > ([ticket-implementation.md](ticket-implementation.md) Schritt 3), `pnpm test` ist PR-Pflicht
 > ([pull_request_template.md](../.github/pull_request_template.md)) und das Review macht
@@ -76,7 +76,7 @@ die 1:1 zu Tests werden können.
 
 - [ticket-triage.md](ticket-triage.md) Schritt 1 + 4: Triage formuliert **Akzeptanzkriterien +
   konkrete Testfälle** (welche Datei, welche Assertion) als festen Bestandteil des Lösungskommentars.
-- [ticket-triage.md](ticket-triage.md) Schritt 5: 🟢 setzt zusätzlich voraus, dass die AK **prüfbar**
+- [ticket-triage.md](ticket-triage.md) Schritt 4: 🟢 setzt zusätzlich voraus, dass die AK **prüfbar**
   formuliert sind (sonst 🟡).
 - `.github/ISSUE_TEMPLATE/bug_report.yml` + `feature_request.yml`: Feld „Akzeptanzkriterien / Wie
   verifiziert man die Lösung?".
@@ -188,7 +188,7 @@ machen.
 
 | Datei                                                                          | Szenario            |
 | ------------------------------------------------------------------------------ | ------------------- |
-| `.ai-knowledge/ticket-triage.md` (Schritt 1, 4, 5)                             | 1, 3                |
+| `.ai-knowledge/ticket-triage.md` (Schritt 1, 4)                                | 1, 3                |
 | `.github/ISSUE_TEMPLATE/bug_report.yml`, `feature_request.yml`                 | 1                   |
 | `.ai-knowledge/ticket-implementation.md` (Schritt 3)                           | 2, 3                |
 | `.github/pull_request_template.md`                                             | 2                   |
