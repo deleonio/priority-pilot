@@ -7,6 +7,10 @@ import type {
 	PillarFeedbackInput,
 	PillarSuggestion,
 	PillarWeightsInput,
+	Series,
+	SeriesCreate,
+	SeriesGenerateInput,
+	SeriesUpdate,
 	SuggestPillarsInput,
 	Task,
 	TaskCreate,
@@ -22,6 +26,13 @@ const baseUrl = import.meta.env.VITE_API_BASE_URL ?? '';
 const client = createClient<paths>({ baseUrl });
 
 type RawTask = components['schemas']['Task'];
+type RawSeries = components['schemas']['Series'];
+
+// Serien-`startDate` (im Vertrag ISO-String) zu einem echten `Date` revivieren — analog zu `reviveTask`.
+const reviveSeries = (raw: RawSeries): Series => {
+	const { startDate, ...rest } = raw;
+	return { ...rest, startDate: new Date(startDate) };
+};
 
 // openapi-fetch liefert rohes JSON; Datumsfelder kommen als ISO-String. Der frühere generierte
 // Client lieferte echte `Date`-Objekte — diese Funktion stellt dasselbe Verhalten wieder her.
@@ -165,5 +176,68 @@ export const api = {
 		if (!response.ok) {
 			throw new ResponseError(response);
 		}
+	},
+
+	// --- Serien-Templates (#120/#142) ---
+
+	async listSeries(init: Init = {}): Promise<Series[]> {
+		const { data, response } = await client.GET('/series', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response);
+		}
+		return data.map(reviveSeries);
+	},
+
+	async getSeries({ id }: { id: number }): Promise<Series> {
+		const { data, response } = await client.GET('/series/{id}', { params: { path: { id } } });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response);
+		}
+		return reviveSeries(data);
+	},
+
+	async createSeries({ seriesCreate }: { seriesCreate: SeriesCreate }): Promise<Series> {
+		const { startDate, ...rest } = seriesCreate;
+		const { data, response } = await client.POST('/series', {
+			body: { ...rest, startDate: startDate.toISOString() },
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response);
+		}
+		return reviveSeries(data);
+	},
+
+	async updateSeries({ id, seriesUpdate }: { id: number; seriesUpdate: SeriesUpdate }): Promise<Series> {
+		const { startDate, ...rest } = seriesUpdate;
+		const { data, response } = await client.PATCH('/series/{id}', {
+			params: { path: { id } },
+			body: startDate === undefined ? rest : { ...rest, startDate: startDate.toISOString() },
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response);
+		}
+		return reviveSeries(data);
+	},
+
+	async deleteSeries({ id }: { id: number }): Promise<void> {
+		const { response } = await client.DELETE('/series/{id}', { params: { path: { id } } });
+		if (!response.ok) {
+			throw new ResponseError(response);
+		}
+	},
+
+	// Materialisiert die bis `until` (inklusive) fälligen Instanzen einer Serie als eigenständige Tasks.
+	async generateSeriesInstances({
+		id,
+		seriesGenerateInput,
+	}: { id: number; seriesGenerateInput: SeriesGenerateInput }): Promise<Task[]> {
+		const { data, response } = await client.POST('/series/{id}/generate', {
+			params: { path: { id } },
+			body: { until: seriesGenerateInput.until.toISOString() },
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response);
+		}
+		return data.map(reviveTask);
 	},
 };
