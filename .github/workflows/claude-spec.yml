@@ -78,18 +78,6 @@ jobs:
       # Standard-Pfad (Claude): laeuft, solange die Repo-Variable AI_AGENT NICHT auf "mistral" steht
       # (auch ungesetzt -> Claude bleibt Default). Umschalten: `gh variable set AI_AGENT --body
       # mistral` (zurueck: `gh variable set AI_AGENT --body claude`).
-      # Modell-Router (#150): waehlt statt der festen Opus-Verkabelung das aufgabengerechte Modell
-      # (+ gekoppelten Effort) und reicht es als Step-Outputs an den Claude-Schritt durch.
-      - name: Modell-Router
-        id: router
-        if: steps.preflight.outputs.configured == 'true' && vars.AI_AGENT != 'mistral'
-        uses: ./.github/actions/model-router
-        with:
-          kind: spec
-          title: ${{ github.event.issue.title }}
-          description: ${{ github.event.issue.body }}
-          claude-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-
       - name: Spec via Claude Code
         id: claude
         if: steps.preflight.outputs.configured == 'true' && vars.AI_AGENT != 'mistral'
@@ -136,9 +124,9 @@ jobs:
             Bearbeite ausschliesslich dieses eine Issue. Die Freigabe gilt durch das Label
             `ai:spec-ready` als erteilt: arbeite autonom, ohne auf eine interaktive Bestaetigung zu warten.
           claude_args: >-
-            --model ${{ steps.router.outputs.model }} --effort ${{ steps.router.outputs.effort }}
+            --model claude-sonnet-4-6 --effort medium
             --allowedTools "Bash(gh issue:*),Bash(gh pr:*),Bash(gh label:*),Bash(gh api:*),Bash(git switch:*),Bash(git checkout:*),Bash(git branch:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(git fetch:*),Bash(pnpm:*),Read,Edit,Write,Grep,Glob,Skill,Task"
-            --append-system-prompt "Automatisierter, durch das Label ai:spec-ready autorisierter SPEC-Lauf in GitHub Actions (headless). Schreibe ausschliesslich Tests fuer Issue #${{ github.event.issue.number }} (KEIN Produktivcode), eroeffne einen Draft-PR und gib das Issue per ai:ready frei (ai:spec-ready entfernen). HARTES 20-Minuten-Timeout: sichere bei drohendem Limit (~18 Min) den Zwischenstand, setze ai:ready aber nur bei vollstaendigen roten Tests. Bestaetigung gilt durch ai:spec-ready als erteilt; arbeite autonom ohne interaktive Rueckfrage."
+            --append-system-prompt "Automatisierter, durch das Label ai:spec-ready autorisierter SPEC-Lauf in GitHub Actions (headless). Schreibe ausschliesslich Tests fuer Issue #${{ github.event.issue.number }} (KEIN Produktivcode), eroeffne einen Draft-PR und gib das Issue per ai:ready frei (ai:spec-ready entfernen). HARTES 20-Minuten-Timeout: sichere bei drohendem Limit (~18 Min) den Zwischenstand, setze ai:ready aber nur bei vollstaendigen roten Tests. Bestaetigung gilt durch ai:spec-ready als erteilt; arbeite autonom ohne interaktive Rueckfrage. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
 
       # Mistral-Pfad (AI_AGENT == 'mistral'): Vibe laeuft headless OHNE Approval-Callback — ohne
       # erzwungenes Auto-Approve wuerde jedes genehmigungspflichtige Tool uebersprungen.

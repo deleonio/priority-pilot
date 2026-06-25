@@ -58,37 +58,44 @@ wie `--model`/`--allowedTools`/`--append-system-prompt` durch):
   enge `--allowedTools`-Restriktion des Claude-Pfads ist hier **nicht erzwingbar**; die Grenzen
   setzt der Prompt (z. B. „committe keinen Produktivcode", im Review „ändere keinen Code").
 - **Modell:** nicht pro Workflow wählbar; Vibe nutzt sein Default-Modell. Pinnen ginge über
-  `~/.vibe/config.toml` (`active_model`). Der **Modell-Router** (s. u.) ist auf dem Mistral-Pfad
-  **nicht betroffen** — die Vibe-Action reicht kein `--model`-Flag durch, also bleibt die
-  Router-Wahl dort wirkungslos; das Modell kommt allein aus `~/.vibe/config.toml`.
+  `~/.vibe/config.toml` (`active_model`). Die **Subagent-Modell-Delegation** (s. u.) ist auf dem
+  Mistral-Pfad **nicht betroffen** — die Vibe-Action reicht kein `--model`-Flag durch und kennt keine
+  Claude-Subagenten; das Modell kommt allein aus `~/.vibe/config.toml`.
 - **System-Prompt:** wird als führender `[KONTEXT/REGELN]`-Block in den `prompt` gefaltet.
 - **Keine `session_id`/`--resume`** in der Job-Summary. Das harte 20-Min-Timeout
   (`ai:to-big-issue`) greift unverändert über `timeout-minutes` + Schritt-`outcome`.
 
 Der Canceller `claude-pr-cancel.yml` ist agent-unabhängig (reiner `gh`-Aufruf) und unverändert.
 
-### Modell-Router (Claude-Pfad)
+### Modell-Wahl per Subagent-Delegation (Claude-Pfad)
 
-Statt jeden KI-Workflow fest auf `claude-opus-4-8` zu verkabeln, wählt der **Modell-Router**
-([`.github/actions/model-router`](.github/actions/model-router)) das Modell **aufgabengerecht**: Ein
-vorgeschalteter Klassifikationsschritt (`claude-sonnet-4-6`, `--effort low`) schätzt die Komplexität
-der Aufgabe auf **genau ein Token** (`haiku` | `sonnet` | `opus`); der deterministische Kern mappt es
-auf Modell-ID **und** gekoppelten Effort und liefert beides als Step-Outputs
-(`steps.router.outputs.model` / `.effort`), die der Claude-Schritt über
-`--model … --effort …` übernimmt. Die drei Komplexitätsstufen (Token → Modell-ID / Effort):
+Statt jeden KI-Workflow fest auf `claude-opus-4-8` zu verkabeln **oder** eine zweite, vorgeschaltete
+`claude-code-action` nur zur Modell-Klassifikation zu starten, startet jeder Workflow **genau eine**
+Session deterministisch auf **`claude-sonnet-4-6`** (`--effort medium`). Dieser Sonnet-Lauf ist der
+**Koordinator**: Er schätzt die Komplexität selbst ein und delegiert die eigentliche Abarbeitung per
+**Agent-Tool** (`Task` in `--allowedTools`) an einen **Subagenten in derselben Session** — gleicher
+Checkout, erhaltener Kontext, **kein** zweiter Action-Lauf. Die Subagenten sind in
+[`.claude/agents/`](.claude/agents/) definiert und koppeln Modell an Komplexität:
 
-- `haiku` → `claude-haiku-4-5` / `low` — trivial / mechanisch.
-- `sonnet` → `claude-sonnet-4-6` / `medium` — Standardaufgabe.
-- `opus` → `claude-opus-4-8` / `high` — komplex / architektonisch.
+- [`light`](.claude/agents/light.md) → **`model: haiku`** — trivial / mechanisch (Abstufung).
+- *(Koordinator selbst)* → **`claude-sonnet-4-6`** — Standardaufgabe.
+- [`heavy`](.claude/agents/heavy.md) → **`model: opus`** — komplex / architektonisch (Eskalation).
 
-**Fallback:** Liefert die Klassifikation ein leeres, ungültiges oder mehrdeutiges Token (oder fehlt
-das Token, z. B. weil kein `CLAUDE_CODE_OAUTH_TOKEN` bereitsteht), fällt der Router **ohne harten
-Abbruch** (Exit 0) auf **`claude-sonnet-4-6`** / `medium` zurück — eine sichere Standardwahl statt
-eines Job-Fehlers. Das harte `timeout-minutes: 20` jedes Workflows bleibt davon **unberührt**.
+**Sichere Defaults:** Schätzt der Koordinator die Aufgabe als Standard ein, erledigt er sie selbst auf
+**Sonnet** — es gibt also keinen separaten Klassifikations-Schritt mehr, der scheitern könnte. Ist
+Opus über die Organisations-`availableModels`-Allowlist gesperrt, fällt der `heavy`-Subagent
+automatisch auf das geerbte Sonnet-Modell zurück. Das harte `timeout-minutes: 20` jedes Workflows
+bleibt davon **unberührt**.
 
-**Mistral-Pfad: nicht betroffen.** Der Router greift ausschließlich auf dem Claude-Pfad. Steht
-`AI_AGENT=mistral`, ist die Router-Wahl wirkungslos (die Vibe-Action reicht kein `--model` durch,
-s. o.) — das Modell kommt dort allein aus `~/.vibe/config.toml`.
+**Warum kein JS-„Router" mehr:** Der frühere Ansatz (`.github/actions/model-router`, #149/#150/#153)
+startete pro Workflow eine **zweite** `claude-code-action` nur für ein Token (`haiku|sonnet|opus`).
+Dieser ungeschützte Vorschritt riss bei jedem transienten Fehler den ganzen Lauf ab, bevor echte
+Arbeit lief — die Hauptursache der Unzuverlässigkeit. Die Subagent-Delegation erreicht dasselbe Ziel
+(Sonnet entscheidet, Haiku/Opus führen aus) mit **einem** Lauf und **ohne** CI-JavaScript.
+
+**Mistral-Pfad: nicht betroffen.** Die Delegation greift ausschließlich auf dem Claude-Pfad. Steht
+`AI_AGENT=mistral`, kennt die Vibe-Action weder `--model` noch Claude-Subagenten — das Modell kommt
+dort allein aus `~/.vibe/config.toml`.
 
 ## Ticket-Triage
 

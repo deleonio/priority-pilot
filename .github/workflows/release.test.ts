@@ -11,8 +11,8 @@ import { dirname, join } from 'node:path';
 // #152, eingegrenzter Repo-Scope laut Re-Triage: nur Bauen + rsync, Server-Seite off-repo).
 //
 // Da es sich um CI-KONFIGURATION handelt, ist die Test-Ebene ein statischer Workflow-Vertrag:
-// die Datei wird als Text geladen und gegen das Soll-Verhalten assertet — analog zum bestehenden
-// Muster .github/actions/model-router/*.test.ts, das ueber tsx in ci.yml laeuft. Der reale Deploy
+// die Datei wird als Text geladen und gegen das Soll-Verhalten assertet — gleiches Muster wie
+// model-delegation.test.ts in diesem Verzeichnis, das ueber tsx in ci.yml laeuft. Der reale Deploy
 // (rsync auf den echten Host nach Secret-Hinterlegung) wird operativ am Workflow-Lauf verifiziert.
 //
 // Diese Tests sind ROT, solange release.yml/pack-release.sh noch den alten Tag-/Release-/SSH-Pfad

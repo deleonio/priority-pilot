@@ -68,18 +68,6 @@ jobs:
       # Standard-Pfad (Claude): laeuft, solange die Repo-Variable AI_AGENT NICHT auf "mistral" steht
       # (auch ungesetzt -> Claude bleibt Default). Umschalten: `gh variable set AI_AGENT --body
       # mistral` (zurueck: `gh variable set AI_AGENT --body claude`).
-      # Modell-Router (#150): waehlt statt der festen Opus-Verkabelung das aufgabengerechte Modell
-      # (+ gekoppelten Effort) und reicht es als Step-Outputs an den Claude-Schritt durch.
-      - name: Modell-Router
-        id: router
-        if: steps.preflight.outputs.configured == 'true' && vars.AI_AGENT != 'mistral'
-        uses: ./.github/actions/model-router
-        with:
-          kind: fixup
-          title: ${{ github.event.pull_request.title }}
-          description: ${{ github.event.pull_request.body }}
-          claude-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-
       - name: Findings umsetzen via Claude Code
         id: claude
         if: steps.preflight.outputs.configured == 'true' && vars.AI_AGENT != 'mistral'
@@ -119,9 +107,9 @@ jobs:
 
             Bearbeite ausschließlich diesen PR. Arbeite autonom, ohne interaktive Rückfrage.
           claude_args: >-
-            --model ${{ steps.router.outputs.model }} --effort ${{ steps.router.outputs.effort }}
-            --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh label:*),Bash(gh api:*),Bash(git switch:*),Bash(git checkout:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(git fetch:*),Bash(pnpm:*),Read,Edit,Write,Grep,Glob"
-            --append-system-prompt "Automatisierter, label-gesteuerter Fixup-Lauf in GitHub Actions (headless) fuer PR #${{ github.event.pull_request.number }}. Setze nur eindeutige, zutreffende Findings um; mehrdeutige/grosse Punkte dem Menschen ueberlassen. Schalte zum Abschluss die Labels um (ai:needs-changes -> ai:needs-review) — AUSSER der Loop soll wegen Nicht-Konvergenz anhalten, dann ai:needs-changes belassen und den Menschen taggen. Arbeite ohne interaktive Rueckfrage."
+            --model claude-sonnet-4-6 --effort medium
+            --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh label:*),Bash(gh api:*),Bash(git switch:*),Bash(git checkout:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(git fetch:*),Bash(pnpm:*),Read,Edit,Write,Grep,Glob,Task"
+            --append-system-prompt "Automatisierter, label-gesteuerter Fixup-Lauf in GitHub Actions (headless) fuer PR #${{ github.event.pull_request.number }}. Setze nur eindeutige, zutreffende Findings um; mehrdeutige/grosse Punkte dem Menschen ueberlassen. Schalte zum Abschluss die Labels um (ai:needs-changes -> ai:needs-review) — AUSSER der Loop soll wegen Nicht-Konvergenz anhalten, dann ai:needs-changes belassen und den Menschen taggen. Arbeite ohne interaktive Rueckfrage. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
 
       # Mistral-Pfad (AI_AGENT == 'mistral'): Vibe laeuft headless OHNE Approval-Callback — ohne
       # erzwungenes Auto-Approve wuerde jedes genehmigungspflichtige Tool (gh/git/pnpm/Datei-Writes)

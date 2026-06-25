@@ -71,18 +71,6 @@ jobs:
       # Standard-Pfad (Claude): laeuft, solange die Repo-Variable AI_AGENT NICHT auf "mistral" steht
       # (auch ungesetzt -> Claude bleibt Default). Umschalten: `gh variable set AI_AGENT --body
       # mistral` (zurueck: `gh variable set AI_AGENT --body claude`).
-      # Modell-Router (#150): waehlt statt der festen Opus-Verkabelung das aufgabengerechte Modell
-      # (+ gekoppelten Effort) und reicht es als Step-Outputs an den Claude-Schritt durch.
-      - name: Modell-Router
-        id: router
-        if: steps.preflight.outputs.configured == 'true' && vars.AI_AGENT != 'mistral'
-        uses: ./.github/actions/model-router
-        with:
-          kind: review
-          title: ${{ github.event.pull_request.title }}
-          description: ${{ github.event.pull_request.body }}
-          claude-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-
       - name: Kreuzverhoer-Review via Claude Code
         id: claude
         if: steps.preflight.outputs.configured == 'true' && vars.AI_AGENT != 'mistral'
@@ -132,9 +120,9 @@ jobs:
             bzw. `"ai:ready-to-merge" --color 0E8A16`). Ändere KEINEN Code und committe nichts —
             reiner Review. Bearbeite ausschließlich diesen PR; arbeite ohne interaktive Rückfrage.
           claude_args: >-
-            --model ${{ steps.router.outputs.model }} --effort ${{ steps.router.outputs.effort }}
-            --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh label:*),Bash(gh api:*),Bash(git fetch:*),Bash(git diff:*),Read,Grep,Glob"
-            --append-system-prompt "Automatisierter, label-gesteuerter Kreuzverhoer-Review in GitHub Actions (headless). Reviewe ausschliesslich PR #${{ github.event.pull_request.number }}, aendere keinen Code. Schliesse IMMER mit der Label-Umschaltung ab: Findings -> ai:needs-changes (statt ai:needs-review); sauber -> ai:ready-to-merge. Erfinde keine Findings. Arbeite ohne interaktive Rueckfrage."
+            --model claude-sonnet-4-6 --effort medium
+            --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh label:*),Bash(gh api:*),Bash(git fetch:*),Bash(git diff:*),Read,Grep,Glob,Task"
+            --append-system-prompt "Automatisierter, label-gesteuerter Kreuzverhoer-Review in GitHub Actions (headless). Reviewe ausschliesslich PR #${{ github.event.pull_request.number }}, aendere keinen Code. Schliesse IMMER mit der Label-Umschaltung ab: Findings -> ai:needs-changes (statt ai:needs-review); sauber -> ai:ready-to-merge. Erfinde keine Findings. Arbeite ohne interaktive Rueckfrage. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
 
       # Mistral-Pfad (AI_AGENT == 'mistral'): Vibe laeuft headless OHNE Approval-Callback — ohne
       # erzwungenes Auto-Approve wuerde jedes genehmigungspflichtige Tool (gh/git) als "Tool
