@@ -194,3 +194,31 @@ Bei einem zu großen Ticket:
   abarbeiten.
 - **Kein Produktivcode committen**; Triage bedeutet nur Analyse, Lektorat, ggf. Zerlegung,
   Kommentar und Label.
+
+## Schritt 6 — Autonomes Schließen (wenn Anforderungen bereits erfüllt)
+
+Nach Schritt 5 (Labeln) prüft die KI genau **ein** Kriterium:
+
+> **Sind die im Issue beschriebenen Anforderungen bereits vollständig im Codebase umgesetzt?**
+
+Trifft das Kriterium eindeutig zu und liegt ein konkreter Beleg (Commit-SHA, PR-Nr. oder Datei/Zeile) vor, wird das Ticket geschlossen. Andernfalls bleibt es offen.
+
+**Ablauf bei Erfüllung:**
+
+```sh
+# Erst Schließ-Kommentar mit konkretem Beleg posten
+gh issue comment <nr> --body-file - <<'CLOSE'
+Die im Ticket beschriebenen Anforderungen sind bereits erfüllt.
+
+Beleg: <Commit-SHA / PR-Nr. / Datei+Zeile>
+CLOSE
+
+# Dann Ticket schließen
+gh issue close <nr> --reason "completed"
+```
+
+**Sicherheitsnetz:**
+
+- Nur schließen, wenn ein **konkreter Beleg** (Commit-SHA, PR-Nr. oder Datei/Zeile) vorliegt — kein Schließen auf Basis von Vermutungen.
+- Den Beleg **immer** im Schließ-Kommentar nennen, bevor `gh issue close` aufgerufen wird.
+- Bei Unsicherheit (🟡-Grenzfall): Ticket offen lassen, Mensch entscheiden lassen — kein spekulatives Schließen.
