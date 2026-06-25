@@ -10,8 +10,7 @@ import assert from 'node:assert/strict';
 // Der hier eingeklagte, deterministische Vertrag ist die **Validierung + das Mapping + der
 // Fallback** des Router-Outputs auf eine volle Modell-ID. Genau dieser Teil ist testbar und wird
 // als testbares Modul ausgelagert (Issue-Vorschlag). Es wird KEIN Produktivcode geschrieben; die
-// Tests werden grün, sobald `server/src/logics/model-router.ts` die hier eingeklagte Schnittstelle
-// bereitstellt.
+// Tests werden grün, sobald `model-router.ts` die hier eingeklagte Schnittstelle bereitstellt.
 import { resolveModel, ALLOWED_TOKENS, MODEL_IDS, DEFAULT_MODEL } from './model-router.js';
 
 // Die vollen Modell-IDs aus dem Ticket — die Allowlist mappt genau hierauf.

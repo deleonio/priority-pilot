@@ -1,4 +1,6 @@
-// Modell-Router-Baustein (#149) — der deterministische Vertrag hinter der LLM-Klassifikation.
+// Modell-Router-Baustein (#149, korrekt verortet in #153) — der deterministische Vertrag hinter der
+// LLM-Klassifikation. Diese Logik ist eine reine **CI-Belange** und liegt daher als CI-Artefakt im
+// Composite-Action-Verzeichnis (NICHT im Server-Runtime-Paket — sonst zöge der Server-Build sie mit).
 //
 // Die KI-Workflows verdrahten heute `--model claude-opus-4-8` fest. Der Router schätzt stattdessen
 // die Komplexität einer Aufgabe ein (ein Sonnet-Prompt liefert EIN Token `haiku|sonnet|opus`) und
