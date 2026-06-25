@@ -54,6 +54,10 @@ jobs:
       # Workflow-Lauf an einem Scratch-Issue verifiziert (CI-Konfig-Ebene).
       - name: Test (Modell-Router CI-Baustein)
         run: npx -y tsx@4.22.4 --test ".github/actions/model-router/"*.test.ts
+      # Deploy-Workflow-Vertrag (#152): statisches YAML-Assert auf release.yml (main-Trigger + Build +
+      # rsync, kein Tag/Release/SSH-Forced-Command). Gleiches tsx/node:test-Muster wie der Modell-Router.
+      - name: Test (Deploy-Workflow-Vertrag)
+        run: npx -y tsx@4.22.4 --test ".github/workflows/"*.test.ts
       # E2E: Playwright startet Backend (frische In-Memory-DB) + Vite selbst (siehe playwright.config.ts) —
       # kein separater Server-Start in der Pipeline noetig.
       - name: E2E

@@ -3,9 +3,15 @@
 Dieses Dokument beschreibt **Konzept und Ablauf** des Deployments von Priority Pilot auf einen
 eigenen (dedizierten) Linux-Server. Es ist die operative Single Source of Truth für Releases.
 
-> **Status:** Zielarchitektur + Referenz-Konfiguration. Die Server-Bausteine (systemd-Unit,
-> Caddy-Block, `deploy.sh`, Release-Workflow) sind hier vollständig spezifiziert; beim erstmaligen
-> Einrichten gegen die echten Hostnamen/Pfade prüfen. Siehe [Offene Entscheidungen](#offene-entscheidungen).
+> **Status (seit #152): vereinfachtes Deployment.** Der Ablauf ist jetzt **Merge auf `main` → Build
+> in GitHub Actions → `rsync` der `dist`-Verzeichnisse auf den Server → Backend via PM2**. Es gibt
+> **kein** Git-Tag, **kein** Tarball, **kein** GitHub Release, **kein** `deploy.sh`/Forced-Command
+> und **keinen** systemd-Symlink-Switch mehr. Maßgeblich sind [Abschnitt 1](#1-überblick--zielbild)
+> und [Abschnitt 3](#3-build--deploy-github-actions-workflow).
+>
+> ⚠️ **Legacy-Hinweis:** Die weiter unten stehenden Abschnitte 2 und 4–8 (Tarball-Struktur,
+> systemd-Template-Unit, `deploy.sh`, Release-Baum/Symlink-Switch) beschreiben den **abgelösten**
+> Tag-/Release-/systemd-Pfad und werden in einem Folgeschritt entfernt bzw. auf PM2 umgeschrieben.
 
 ---
 
@@ -18,56 +24,64 @@ Priority Pilot ist eine **Full-Stack-App im pnpm-Monorepo** (siehe [README](../R
   Entry-Point `server/dist/index.js` (ESM).
 - **Client** (`client/`): aus `openapi.yml` generierte API-Typen, nur Build-Zeit-Abhängigkeit des Frontends.
 
-Frontend und Backend werden **gemeinsam und versioniert** ausgeliefert: Ein Git-Tag (`vX.Y.Z`) löst in
-GitHub Actions einen Build aus, das Ergebnis wird als **ein Tarball** (SPA + Backend + Prod-Dependencies)
-zu einem GitHub Release gebündelt. Der Server zieht dieses Release, schaltet per Symlink um und startet
-den Dienst neu.
+Frontend und Backend werden **gemeinsam** ausgeliefert, aber **ohne Versions-Tag/Release-Artefakt**:
+Jeder **Merge auf `main`** löst in GitHub Actions einen Build aus; die gebauten `dist`-Verzeichnisse
+werden per **`rsync`** direkt in die Zielverzeichnisse auf dem Server gespiegelt. Das **Frontend** ist
+eine statische SPA und liegt danach einfach im Web-Verzeichnis. Das **Backend** läuft unter **PM2** und
+wird nach dem `rsync` **genau einmal** neu gestartet. Kein Tarball, kein GitHub Release, kein
+Symlink-Switch, kein `deploy.sh`/Forced-Command.
 
 ```mermaid
 flowchart LR
-    tag([Git-Tag vX.Y.Z]) --> gha
+    merge([Merge/Push auf main]) --> gha
 
     subgraph gha["GitHub Actions"]
         direction TB
         b1["pnpm install --frozen-lockfile"] --> b2["pnpm -r build<br/>client → frontend → server"]
-        b2 --> b3["Prod-node_modules (server)<br/>inkl. native sqlite3"] --> b4["Tarball schnüren"]
+        b2 --> b3["Server-Prod-node_modules<br/>inkl. native sqlite3"]
     end
 
-    gha --> rel[("GitHub Release<br/>priority-pilot-vX.Y.Z.tar.gz")]
-    gha -- "ssh gh-deploy@host<br/>'deploy priority-pilot vX.Y.Z'" --> host
+    gha -- "rsync frontend/dist → Web-Verzeichnis" --> host
+    gha -- "rsync server/dist (+ pkg/node_modules) → App-Verzeichnis" --> host
+    gha -- "ssh: pm2 reload priority-pilot" --> host
 
     subgraph host["Dedizierter Server"]
         direction TB
-        h1["releases/vX.Y.Z entpacken"] --> h2["current → releases/vX.Y.Z<br/>(atomarer Switch)"]
-        h2 --> h3["systemctl restart app@priority-pilot"]
+        caddy["Caddy (TLS)"] --> spa["statische SPA aus Web-Verzeichnis"]
+        caddy -- "/tasks /pillars /forest /next" --> node["Node :3001 (PM2)"]
+        node --> db[("SQLite<br/>data/database.sqlite — vom rsync ausgenommen")]
     end
-
-    rel -. "gh release download" .-> h1
-    h3 --> caddy["Caddy (TLS)"]
-    caddy --> spa["SPA aus current/dist"]
-    caddy -- "/tasks /pillars /forest /next" --> node["Node :3001"]
-    node --> db[("SQLite<br/>data/database.sqlite")]
 ```
 
-### Multi-App-Layout
+### Zielverzeichnisse auf dem Server
 
-Der Server ist als **Multi-App-Host** ausgelegt: Jede App bekommt ihren eigenen Release-Baum, eigenen
-Port und einen eigenen Service über **eine** systemd-Template-Unit. Eine neue App braucht **keine** neue
-Unit — nur Verzeichnis, Env-Datei, Caddy-Block, sudoers-Zeile und `systemctl enable` (siehe
-[Checkliste neue App](#8-checkliste-neue-app)).
+Statt eines versionierten Release-Baums mit Symlink-Switch gibt es nur noch **zwei feste
+Zielverzeichnisse**, in die `rsync` spiegelt:
 
-### Warum systemd statt PM2?
+- **Web-Verzeichnis** (`vars.DEPLOY_WEB_DIR`): die statische SPA aus `frontend/dist`, von Caddy als
+  `file_server` ausgeliefert.
+- **App-Verzeichnis** (`vars.DEPLOY_APP_DIR`): `server/dist` + Prod-`package.json` +
+  Prod-`node_modules`, gestartet als `node dist/index.js` unter PM2.
 
-Die Frage „ggf. PM2" ist berechtigt, aber für diesen Host nicht nötig:
+Die **persistente SQLite-DB** (`data/`) liegt **außerhalb** dieser Pfade und wird vom `rsync`
+zusätzlich per `--exclude` geschützt — sie bleibt über Deploys hinweg unverändert.
 
-- **systemd ist bereits da** — kein zusätzlicher Daemon, kein Node-Prozess, der andere Node-Prozesse
-  überwacht.
-- **Boot-Autostart, Restart-Policy, Logging (journald)** und **Prozess-Sandboxing**
-  (`NoNewPrivileges`, `ProtectSystem=strict`, `PrivateTmp`) kommen nativ aus systemd.
-- Eine **Template-Unit** (`[email protected]`) deckt beliebig viele Apps ab.
+### Warum jetzt PM2 statt systemd?
 
-PM2 ginge auch, würde aber einen zweiten Supervisor auf bereits systemd-verwaltete Prozesse setzen —
-redundant. Diese Doku setzt daher auf systemd.
+Frühere Stände dieser Doku setzten bewusst auf systemd (kein zweiter Supervisor, journald,
+Sandboxing). Issue #152 dreht diese Entscheidung **bewusst zugunsten von PM2** — Ziel ist hier
+**maximale Einfachheit** des Deploy-Pfads:
+
+- **Kein Privileg-/sudoers-Tanz:** Der Deploy-User braucht nur Schreibrecht auf die zwei
+  Zielverzeichnisse und darf `pm2 reload` aufrufen — kein `systemctl`/Forced-Command.
+- **Ein-Schritt-Neustart:** Nach dem `rsync` genügt ein `pm2 reload priority-pilot`
+  (idempotent: `pm2 start …`, falls der Prozess noch nicht existiert) — das Backend startet **genau
+  einmal** mit den neuen Sourcen neu.
+- **Bewusst akzeptiertes Risiko:** Kein atomarer Switch / 1-Zeilen-Rollback mehr. Der kurze Moment
+  teilgespiegelter Dateien wird zugunsten der Einfachheit in Kauf genommen.
+
+PM2-Autostart nach Server-Reboot wird einmalig über `pm2 startup` + `pm2 save` eingerichtet (siehe
+Server-Setup).
 
 ---
 
@@ -101,23 +115,30 @@ Drei Punkte, die aus der Repo-Realität folgen und im Konzept leicht übersehen 
 
 ---
 
-## 3. Build (GitHub Actions Release-Workflow)
+## 3. Build & Deploy (GitHub-Actions-Workflow)
 
-Es existiert bereits ein CI-Workflow (`.github/workflows/ci.yml`: install → format → lint → build →
-test), der auf `main` und PRs läuft und als Qualitäts-Gate dient. Das **Release** ist ein separater
-Workflow, der auf Tags reagiert. Referenz-Implementierung (`.github/workflows/release.yml`):
+Es existiert ein CI-Workflow (`.github/workflows/ci.yml`: install → format → lint → build → test),
+der auf `main` und PRs läuft und als Qualitäts-Gate dient. Das **Deployment** ist ein separater
+Workflow (`.github/workflows/release.yml`), der auf **jeden Push/Merge nach `main`** reagiert: Build,
+dann `rsync` der `dist`-Verzeichnisse, dann ein PM2-Reload. Maßgeblich ist die Datei im Repo; die
+folgende Skizze zeigt die Kernschritte:
 
 ```yaml
-name: Release
+name: Deploy
 on:
   push:
-    tags: ['v*.*.*']
+    branches: [main]
+
+permissions:
+  contents: read # kein GitHub Release mehr
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: true
 
 jobs:
-  release:
+  deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write # für gh release create
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -128,47 +149,54 @@ jobs:
 
       - name: Install
         run: pnpm install --frozen-lockfile
-      - name: Build (client → frontend → server)
+      - name: Build
         run: pnpm -r build
 
-      # Self-contained Prod-Bundle des Servers inkl. Prod-node_modules (native sqlite3 für linux-x64).
-      - name: Server-Prod-Bundle
-        run: pnpm --filter server deploy --prod --legacy /tmp/server
+      # Self-contained Prod-Bundle des Servers (Prod-node_modules inkl. native sqlite3).
+      - name: Server-Prod-Deps bündeln
+        run: pnpm --filter ./server --prod deploy --legacy server/deploy
 
-      - name: Tarball schnüren
-        run: |
-          mkdir -p release/server
-          cp -r frontend/dist            release/dist
-          cp -r /tmp/server/dist         release/server/dist
-          cp    /tmp/server/package.json release/server/package.json
-          cp -r /tmp/server/node_modules release/server/node_modules
-          tar -czf "priority-pilot-${GITHUB_REF_NAME}.tar.gz" -C release .
-
-      # Idempotent: bei vorhandener Release zum Tag nur das Asset ersetzen (sonst bräche
-      # `gh release create` beim Re-Run mit "already exists" ab). Siehe Issue #134.
-      - name: GitHub Release anlegen
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
-            gh release upload "${GITHUB_REF_NAME}" "priority-pilot-${GITHUB_REF_NAME}.tar.gz" --clobber
-          else
-            gh release create "${GITHUB_REF_NAME}" "priority-pilot-${GITHUB_REF_NAME}.tar.gz" --generate-notes
-          fi
-
-      # Deployment anstoßen (Pull-Modell: der Host zieht das Release selbst, siehe Abschnitt 6).
-      - name: Deploy auslösen
+      # SSH-Key (Deploy-User, Schreibrecht nur auf die Zielverzeichnisse) bereitstellen.
+      - name: SSH-Key bereitstellen
         env:
           SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         run: |
-          install -m600 <(printf '%s\n' "$SSH_KEY") /tmp/deploy_key
-          ssh -i /tmp/deploy_key -o StrictHostKeyChecking=accept-new \
-            gh-deploy@example.de "deploy priority-pilot ${GITHUB_REF_NAME}"
+          install -m700 -d ~/.ssh
+          install -m600 <(printf '%s\n' "$SSH_KEY") ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ vars.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      # Frontend: statische SPA ins Web-Verzeichnis spiegeln.
+      - name: rsync Frontend
+        run: |
+          rsync -az --delete -e "ssh -i ~/.ssh/deploy_key" \
+            frontend/dist/ "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}:${{ vars.DEPLOY_WEB_DIR }}/"
+
+      # Backend: server/dist + Prod-Manifest + Prod-node_modules; DB per --exclude geschützt.
+      - name: rsync Backend
+        run: |
+          rsync -az --delete --exclude 'data/' --exclude '*.sqlite' --exclude '.env' \
+            -e "ssh -i ~/.ssh/deploy_key" \
+            server/dist/ "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}:${{ vars.DEPLOY_APP_DIR }}/dist/"
+          rsync -az -e "ssh -i ~/.ssh/deploy_key" \
+            server/deploy/package.json "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}:${{ vars.DEPLOY_APP_DIR }}/package.json"
+          rsync -az --delete -e "ssh -i ~/.ssh/deploy_key" \
+            server/deploy/node_modules/ "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}:${{ vars.DEPLOY_APP_DIR }}/node_modules/"
+
+      # PM2 startet das Backend genau einmal mit den neuen Sourcen neu.
+      - name: Backend per PM2 neu starten
+        run: |
+          ssh -i ~/.ssh/deploy_key "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}" \
+            "pm2 reload priority-pilot --update-env || pm2 start ${{ vars.DEPLOY_APP_DIR }}/dist/index.js --name priority-pilot"
 ```
 
 Hinweise:
 
-- **`pnpm --filter server deploy --prod`** erzeugt ein eigenständiges Verzeichnis mit nur den
+- **Benötigte Repo-Konfiguration:** Secret `DEPLOY_SSH_KEY` (privater Deploy-Key) sowie die Variablen
+  `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_WEB_DIR`, `DEPLOY_APP_DIR`. Solange diese fehlen, bricht der
+  Deploy-Schritt erwartbar ab (Build bleibt grün).
+- **Persistenz:** Die SQLite-DB (`data/`) liegt außerhalb der gespiegelten Pfade und ist zusätzlich
+  per `--exclude` geschützt — `rsync --delete` fasst sie nie an.
+- **`pnpm --filter ./server --prod deploy`** erzeugt ein eigenständiges Verzeichnis mit nur den
   Produktions-Dependencies. Der Server hat keine Workspace-Dependencies zur Laufzeit (`client` ist nur
   Abhängigkeit des Frontends), daher ist das Bundle sauber.
 - **`DEPLOY_SSH_KEY`** ist der private Deploy-Key als GitHub-Actions-Secret. Das Schlüsselpaar liegt

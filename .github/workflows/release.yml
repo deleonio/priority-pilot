@@ -1,16 +1,25 @@
-name: Release
+name: Deploy
 
-# Tag-getriebener Release: vX.Y.Z -> Build (Tarball) -> GitHub Release -> SSH-Deploy.
-# Baut auf scripts/pack-release.sh (R1/#102) auf; Referenz: docs/deployment.md & docs/deployment-repo-plan.md (R2).
+# Einfaches Deployment (#152): Merge/Push auf main -> Build -> rsync der dist-Verzeichnisse.
+# Kein Git-Tag, kein Tarball, kein GitHub Release, kein SSH-Forced-Command/deploy.sh, kein
+# systemd-Symlink-Switch mehr. Das Backend laeuft serverseitig unter PM2 und wird nach dem
+# rsync genau einmal neu gestartet. Referenz: docs/deployment.md.
 on:
   push:
-    tags: ['v*.*.*']
+    branches: [main]
 
+# Keine erhoehten Rechte noetig: es wird kein GitHub Release mehr angelegt (contents bleibt read).
 permissions:
-  contents: write # gh release create
+  contents: read
+
+# Verhindert ueberlappende Deploys: bei schneller Folge von main-Merges wird nur der jeweils
+# letzte ausgerollt, laufende werden abgebrochen.
+concurrency:
+  group: deploy-main
+  cancel-in-progress: true
 
 jobs:
-  release:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
@@ -20,31 +29,64 @@ jobs:
           node-version: 26.3.1 # MUSS zur Node-Major-Version des Hosts passen (native sqlite3)
           cache: pnpm
 
-      # Baut Frontend + Backend und schnuert priority-pilot-<tag>.tar.gz im Repo-Root.
-      - name: Pack release
-        run: bash scripts/pack-release.sh "${GITHUB_REF_NAME}"
+      # Reproduzierbarer Build von Frontend + Backend (client -> frontend -> server).
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build
+        run: pnpm -r build
 
-      # Idempotent: existiert zum Tag bereits eine Release (z. B. Re-Run nach Deploy-Abbruch),
-      # wird nur das Tarball-Asset ersetzt statt erneut `create` zu rufen (das sonst mit
-      # "a release with the same tag name already exists" abbräche). Siehe Issue #134.
-      - name: GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
-            gh release upload "${GITHUB_REF_NAME}" "priority-pilot-${GITHUB_REF_NAME}.tar.gz" --clobber
-          else
-            gh release create "${GITHUB_REF_NAME}" "priority-pilot-${GITHUB_REF_NAME}.tar.gz" --generate-notes
-          fi
+      # Server-Prod-Bundle: nur Prod-Deps inkl. native sqlite3, ohne Store-Symlinks
+      # (rsync-tauglich). Landet in server/deploy/ und wird mit gespiegelt, damit der Host
+      # `node server/dist/index.js` ohne weiteren Install starten kann.
+      - name: Server-Prod-Deps buendeln
+        run: pnpm --filter ./server --prod deploy --legacy server/deploy
 
-      # Pull-Modell: der Host zieht das Release selbst (siehe docs/deployment.md, Abschnitt 6).
-      # Bricht erwartbar ab, solange Server/Secrets noch nicht eingerichtet sind.
-      - name: Deploy auslösen
+      # SSH-Key aus dem Secret bereitstellen (enger Deploy-User, Schreibrecht nur auf die
+      # Zielverzeichnisse). Kein Forced-Command/deploy.sh mehr — reines rsync + ein PM2-Reload.
+      - name: SSH-Key bereitstellen
         env:
           SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          install -m700 -d ~/.ssh
+          install -m600 <(printf '%s\n' "$SSH_KEY") ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ vars.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      # Frontend: statische SPA direkt ins Web-Verzeichnis spiegeln. --delete raeumt entfernte
+      # Assets weg; da das Web-Verzeichnis reiner Build-Output ist, gibt es hier nichts zu schonen.
+      - name: rsync Frontend (frontend/dist -> Web-Verzeichnis)
+        env:
           DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
           DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+          WEB_DIR: ${{ vars.DEPLOY_WEB_DIR }}
         run: |
-          install -m600 <(printf '%s\n' "$SSH_KEY") /tmp/deploy_key
-          ssh -i /tmp/deploy_key -o StrictHostKeyChecking=accept-new \
-            "${DEPLOY_USER}@${DEPLOY_HOST}" "deploy priority-pilot ${GITHUB_REF_NAME}"
+          rsync -az --delete -e "ssh -i ~/.ssh/deploy_key" \
+            frontend/dist/ "${DEPLOY_USER}@${DEPLOY_HOST}:${WEB_DIR}/"
+
+      # Backend: gebautes server/dist + Prod-Manifest + Prod-node_modules ins App-Verzeichnis.
+      # Die persistente SQLite-DB liegt ausserhalb dieser Pfade (data/) und wird zusaetzlich
+      # per --exclude geschuetzt, damit ein versehentliches Ablegen nie ueberschrieben wird.
+      - name: rsync Backend (server/dist -> App-Verzeichnis)
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+          APP_DIR: ${{ vars.DEPLOY_APP_DIR }}
+        run: |
+          rsync -az --delete \
+            --exclude 'data/' --exclude '*.sqlite' --exclude '.env' \
+            -e "ssh -i ~/.ssh/deploy_key" \
+            server/dist/ "${DEPLOY_USER}@${DEPLOY_HOST}:${APP_DIR}/dist/"
+          rsync -az -e "ssh -i ~/.ssh/deploy_key" \
+            server/deploy/package.json "${DEPLOY_USER}@${DEPLOY_HOST}:${APP_DIR}/package.json"
+          rsync -az --delete -e "ssh -i ~/.ssh/deploy_key" \
+            server/deploy/node_modules/ "${DEPLOY_USER}@${DEPLOY_HOST}:${APP_DIR}/node_modules/"
+
+      # PM2 startet das Backend mit den neuen Sourcen genau einmal neu (idempotent: start, falls
+      # der Prozess noch nicht existiert). Die DB bleibt unangetastet.
+      - name: Backend per PM2 neu starten
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+          APP_DIR: ${{ vars.DEPLOY_APP_DIR }}
+        run: |
+          ssh -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" \
+            "pm2 reload priority-pilot --update-env || pm2 start ${APP_DIR}/dist/index.js --name priority-pilot"
