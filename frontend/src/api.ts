@@ -230,7 +230,10 @@ export const api = {
 	async generateSeriesInstances({
 		id,
 		seriesGenerateInput,
-	}: { id: number; seriesGenerateInput: SeriesGenerateInput }): Promise<Task[]> {
+	}: {
+		id: number;
+		seriesGenerateInput: SeriesGenerateInput;
+	}): Promise<Task[]> {
 		const { data, response } = await client.POST('/series/{id}/generate', {
 			params: { path: { id } },
 			body: { until: seriesGenerateInput.until.toISOString() },
