@@ -2,6 +2,7 @@
 import './env.js';
 import sequelize from './database.js';
 import { launchServer } from './express/index.js';
+import { migrateSeriesColumns } from './logics/migrate.js';
 import { buildTaskForest } from './logics/tree.js';
 import { Pillar, Task, TaskPillar } from './models/index.js';
 
@@ -96,6 +97,10 @@ const main = async (): Promise<void> => {
 		// Verbindung herstellen
 		await sequelize.authenticate();
 		console.log('Datenbankverbindung erfolgreich.');
+
+		// Fehlende Serien-Spalten auf einer Bestands-DB nachziehen, BEVOR sync() den Unique-Index
+		// auf (seriesId, seriesOccurrence) anlegt (sonst SQLITE_ERROR: no such column, siehe #146).
+		await migrateSeriesColumns(sequelize);
 
 		// Datenbank synchronisieren (force nur bei DB_RESET=true)
 		await sequelize.sync({ force: shouldReset });
