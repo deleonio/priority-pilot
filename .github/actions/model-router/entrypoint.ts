@@ -47,10 +47,18 @@ export const buildRouterOutputs = (raw: string | null | undefined): RouterOutput
 	return { outputs: { model: decision.model, token: decision.token, effort }, summary, notice };
 };
 
-/** Schreibt Inhalt exit-fest an eine GitHub-Datei-Senke (`$GITHUB_OUTPUT`/`$GITHUB_STEP_SUMMARY`). */
+/**
+ * Schreibt Inhalt exit-fest an eine GitHub-Datei-Senke (`$GITHUB_OUTPUT`/`$GITHUB_STEP_SUMMARY`).
+ * IO-Fehler (z. B. nicht beschreibbare Senke) werden defensiv geschluckt, damit ein Schreibfehler
+ * einer Senke weder die übrigen Ausgaben noch die Exit-0-Garantie des Routers gefährdet.
+ */
 const appendToSink = (path: string | undefined, content: string): void => {
 	if (!path) return;
-	appendFileSync(path, content.endsWith('\n') ? content : `${content}\n`);
+	try {
+		appendFileSync(path, content.endsWith('\n') ? content : `${content}\n`);
+	} catch (err) {
+		console.error(`Modell-Router: Schreiben nach ${path} fehlgeschlagen — wird ignoriert.`, err);
+	}
 };
 
 /** Liest stdin vollständig als UTF-8-String (leerer String, wenn nichts anliegt). */
@@ -66,12 +74,19 @@ export const main = async (): Promise<void> => {
 	const { outputs, summary, notice } = buildRouterOutputs(raw);
 	appendToSink(process.env.GITHUB_OUTPUT, `model=${outputs.model}\ntoken=${outputs.token}\neffort=${outputs.effort}`);
 	appendToSink(process.env.GITHUB_STEP_SUMMARY, summary);
-	process.stdout.write(`${notice}\n`);
+	// Vollständige `::notice::`-Annotation (Modell + Token + Effort + Fallback) aus der EINEN Quelle
+	// der Wahrheit (`buildRouterOutputs.notice`) — kein Re-Parsen von `$GITHUB_OUTPUT` in der Action.
+	process.stdout.write(`::notice title=Modell-Router::${notice}\n`);
 };
 
 // Direktaufruf (als CLI-Entrypoint der Composite-Action), aber NICHT beim Import durch die Tests:
 // Die Testdateien enden auf `*.test.ts`, der Entrypoint auf `entrypoint.ts`.
 const invokedPath = process.argv[1] ?? '';
 if (invokedPath.endsWith('entrypoint.ts') || invokedPath.endsWith('entrypoint.js')) {
-	void main();
+	// Letztes Sicherheitsnetz für die Exit-0-Garantie (AK3): Selbst eine unerwartete Rejection (z. B.
+	// stdin-Fehler) darf den Composite-Step unter `set -e` nicht auf Fehler laufen lassen.
+	main().catch((err) => {
+		console.error('Modell-Router: unerwarteter Fehler — fällt auf Exit 0 zurück.', err);
+		process.exit(0);
+	});
 }

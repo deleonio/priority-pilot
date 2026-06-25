@@ -71,9 +71,10 @@ runs:
           --allowedTools "Write"
 
     # (b)+(c) Entrypoint: Token von stdin → resolveModel → Step-Outputs (model/token/effort).
-    # (d) Logging der Entscheidung nach $GITHUB_STEP_SUMMARY und ::notice:: (im Entrypoint).
-    # Das Token-File fehlt/ist leer, wenn die Klassifikation übersprungen wurde oder Müll lieferte —
-    # der Entrypoint fällt dann set-e-fest auf claude-sonnet-4-6 zurück.
+    # (d) Logging der Entscheidung nach $GITHUB_STEP_SUMMARY und als vollständige ::notice::-Annotation
+    # — beides schreibt der Entrypoint selbst (eine Quelle der Wahrheit, kein Re-Parsen von
+    # $GITHUB_OUTPUT). Das Token-File fehlt/ist leer, wenn die Klassifikation übersprungen wurde oder
+    # Müll lieferte — der Entrypoint fällt dann set-e-fest auf claude-sonnet-4-6 zurück.
     - name: Modell wählen + loggen (deterministisch)
       id: route
       shell: bash
@@ -81,4 +82,3 @@ runs:
       run: |
         token="$(cat "${{ runner.temp }}/model-token" 2>/dev/null || true)"
         printf '%s' "$token" | npx -y tsx entrypoint.ts
-        echo "::notice title=Modell-Router::model=$(grep '^model=' "$GITHUB_OUTPUT" | tail -n1 | cut -d= -f2-)"
