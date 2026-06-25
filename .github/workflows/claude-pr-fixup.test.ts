@@ -150,7 +150,11 @@ describe('AK3 — Gate-Kommandos spiegeln CI-Checks exakt', () => {
 			/prettier --check \./,
 			'ticket-implementation.md muss `prettier --check .` als CI-Spiegel nennen',
 		);
-		assert.match(doc, /pnpm lint/, 'ticket-implementation.md muss `pnpm lint` (repo-weit) als CI-Spiegel nennen');
+		assert.match(
+			doc,
+			/pnpm lint/,
+			'ticket-implementation.md muss `pnpm lint` (repo-weit) als CI-Spiegel nennen',
+		);
 	});
 });
 
@@ -158,7 +162,8 @@ describe('AK4 — CI-Format/Lint-Fehler ist als eigenständiges Finding deklarie
 	it('Claude-Prompt dokumentiert: CI-Fehler an Format/Lint ist ein eigenständiges Finding', () => {
 		const prompt = claudePrompt();
 		// Muss den Zusammenhang CI-Fehler → eigenständiges Finding oder äquivalente Formulierung enthalten
-		const pattern = /[Ff]ormat[^.]*[Ff]inding|[Ll]int[^.]*[Ff]inding|[Ff]inding[^.]*[Ff]ormat|[Ff]inding[^.]*[Ll]int|CI[^.]*[Ff]ormat[^.]*behob|CI[^.]*[Ll]int[^.]*behob|[Ff]ormat.*CI.*[Ff]inding|[Ll]int.*CI.*[Ff]inding/;
+		const pattern =
+			/[Ff]ormat[^.]*[Ff]inding|[Ll]int[^.]*[Ff]inding|[Ff]inding[^.]*[Ff]ormat|[Ff]inding[^.]*[Ll]int|CI[^.]*[Ff]ormat[^.]*behob|CI[^.]*[Ll]int[^.]*behob|[Ff]ormat.*CI.*[Ff]inding|[Ll]int.*CI.*[Ff]inding/;
 		assert.ok(
 			pattern.test(prompt),
 			'Claude-Prompt muss klarstellen, dass ein reiner CI-Format-/Lint-Fehler als eigenständiges Finding behandelt wird',
@@ -167,7 +172,8 @@ describe('AK4 — CI-Format/Lint-Fehler ist als eigenständiges Finding deklarie
 
 	it('Mistral-Prompt dokumentiert: CI-Fehler an Format/Lint ist ein eigenständiges Finding', () => {
 		const prompt = mistralPrompt();
-		const pattern = /[Ff]ormat[^.]*[Ff]inding|[Ll]int[^.]*[Ff]inding|[Ff]inding[^.]*[Ff]ormat|[Ff]inding[^.]*[Ll]int|CI[^.]*[Ff]ormat[^.]*behob|CI[^.]*[Ll]int[^.]*behob|[Ff]ormat.*CI.*[Ff]inding|[Ll]int.*CI.*[Ff]inding/;
+		const pattern =
+			/[Ff]ormat[^.]*[Ff]inding|[Ll]int[^.]*[Ff]inding|[Ff]inding[^.]*[Ff]ormat|[Ff]inding[^.]*[Ll]int|CI[^.]*[Ff]ormat[^.]*behob|CI[^.]*[Ll]int[^.]*behob|[Ff]ormat.*CI.*[Ff]inding|[Ll]int.*CI.*[Ff]inding/;
 		assert.ok(
 			pattern.test(prompt),
 			'Mistral-Prompt muss klarstellen, dass ein reiner CI-Format-/Lint-Fehler als eigenständiges Finding behandelt wird',
@@ -194,8 +200,7 @@ describe('AK5 — Prompt-Symmetrie Claude/Mistral (kein Gate-Drift)', () => {
 		assert.equal(
 			claudeGate,
 			mistralGate,
-			`Gate-Anweisung weicht zwischen Claude- und Mistral-Prompt ab — kein Drift erlaubt:\n  Claude:  ${claudeGate}\n` +
-				`  Mistral: ${mistralGate}`,
+			`Gate-Anweisung weicht zwischen Claude- und Mistral-Prompt ab — kein Drift erlaubt:\n  Claude:  ${claudeGate}\n  Mistral: ${mistralGate}`,
 		);
 	});
 
