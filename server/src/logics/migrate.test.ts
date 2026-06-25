@@ -110,10 +110,7 @@ describe('migrateSeriesColumns', () => {
 		for (const column of SERIES_COLUMNS) {
 			assert.ok(columns.includes(column), `frische Tabelle enthält ${column}`);
 		}
-		assert.ok(
-			(await taskIndexes()).includes(UNIQUE_INDEX),
-			`Unique-Index ${UNIQUE_INDEX} wurde angelegt`,
-		);
+		assert.ok((await taskIndexes()).includes(UNIQUE_INDEX), `Unique-Index ${UNIQUE_INDEX} wurde angelegt`);
 	});
 
 	// ── AK4: Der Unique-Index bleibt auf der nachgezogenen Tabelle wirksam ──────────────────────
