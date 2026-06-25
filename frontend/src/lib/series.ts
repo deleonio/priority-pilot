@@ -20,7 +20,7 @@ export interface SeriesBadge {
  *
  * Bewusst eine reine Funktion (kein DOM): die Tabelle konsumiert nur das Ergebnis fürs Rendern.
  */
-export const seriesBadge = (task: Pick<Task, 'seriesId' | 'isException'>): SeriesBadge | null => {
+export const seriesBadge = (task: Partial<Pick<Task, 'seriesId' | 'isException'>>): SeriesBadge | null => {
 	if (task.seriesId === null || task.seriesId === undefined) {
 		return null;
 	}

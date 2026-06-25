@@ -72,7 +72,17 @@ export const SeriesFormModal = ({ series, onClose, onSaved }: SeriesFormModalPro
 				const seriesUpdate: SeriesUpdate = { title, rhythm: form.current.rhythm, startDate };
 				await api.updateSeries({ id: series.id, seriesUpdate });
 			} else {
-				const seriesCreate: SeriesCreate = { title, rhythm: form.current.rhythm, startDate };
+				// Die Spec-UI (#142, AK 1) erfasst nur Titel/Startdatum/Rhythmus. Die übrigen
+				// Pflichtfelder des `SeriesCreate`-Vertrags übernehmen ihre Default-Werte (analog zum
+				// e2e-Setup in series.spec.ts): Standard-Priorität/-Aufwand künftiger Instanzen, aktiv.
+				const seriesCreate: SeriesCreate = {
+					title,
+					rhythm: form.current.rhythm,
+					startDate,
+					defaultPriority: 3,
+					defaultEstimatedEffort: 0.5,
+					active: true,
+				};
 				await api.createSeries({ seriesCreate });
 			}
 			onSaved();
