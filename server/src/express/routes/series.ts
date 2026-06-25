@@ -60,10 +60,10 @@ const serializeSeries = (series: Series): SeriesDto => ({
 });
 
 /**
- * Validiert den Request-Body für Anlegen/Aktualisieren eines Templates. `requireTitle` erzwingt
- * einen Titel (POST); bei einer Teil-Aktualisierung sind alle Felder optional.
+ * Validiert den Request-Body für Anlegen/Aktualisieren eines Templates. `isPost` signalisiert
+ * einen POST-Request (erzwingt title + startDate als Pflichtfelder); bei einer Teil-Aktualisierung sind alle Felder optional.
  */
-const validateSeriesFields = (body: unknown, requireTitle: boolean): ValidationResult => {
+const validateSeriesFields = (body: unknown, isPost: boolean): ValidationResult => {
 	if (typeof body !== 'object' || body === null) {
 		return { ok: false, message: 'Request-Body muss ein Objekt sein.' };
 	}
@@ -76,7 +76,7 @@ const validateSeriesFields = (body: unknown, requireTitle: boolean): ValidationR
 		}
 		attrs.title = input.title.trim();
 	}
-	if (requireTitle && attrs.title === undefined) {
+	if (isPost && attrs.title === undefined) {
 		return { ok: false, message: 'title ist erforderlich.' };
 	}
 
@@ -124,7 +124,7 @@ const validateSeriesFields = (body: unknown, requireTitle: boolean): ValidationR
 		}
 		attrs.startDate = new Date(input.startDate);
 	}
-	if (requireTitle && attrs.startDate === undefined) {
+	if (isPost && attrs.startDate === undefined) {
 		return { ok: false, message: 'startDate ist erforderlich.' };
 	}
 
