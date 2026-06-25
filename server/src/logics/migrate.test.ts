@@ -145,7 +145,14 @@ describe('migrateSeriesColumns', () => {
 // `sequelize.sync()` die fehlenden Spalten per `ALTER TABLE series ADD COLUMN` nachzieht.
 // Kein Produktivcode — Tests werden grün, sobald `migrate.ts` `migrateSeriesTable` exportiert.
 
-const SERIES_TABLE_COLUMNS = ['title', 'rhythm', 'defaultPriority', 'defaultEstimatedEffort', 'active', 'startDate'] as const;
+const SERIES_TABLE_COLUMNS = [
+	'title',
+	'rhythm',
+	'defaultPriority',
+	'defaultEstimatedEffort',
+	'active',
+	'startDate',
+] as const;
 
 const seriesColumns = async (): Promise<string[]> => {
 	const [rows] = await sequelize.query("PRAGMA table_info('series')");
