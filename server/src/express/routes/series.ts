@@ -38,6 +38,7 @@ const handleWriteError = (res: Response<ErrorDto>, error: unknown): void => {
 		sendError(res, 400, error.errors.map((item) => item.message).join('; '));
 		return;
 	}
+	console.error('Unerwarteter Fehler in Series-Route:', error);
 	sendError(res, 500, 'Interner Serverfehler.');
 };
 
@@ -123,6 +124,9 @@ const validateSeriesFields = (body: unknown, requireTitle: boolean): ValidationR
 		}
 		attrs.startDate = new Date(input.startDate);
 	}
+	if (requireTitle && attrs.startDate === undefined) {
+		return { ok: false, message: 'startDate ist erforderlich.' };
+	}
 
 	return { ok: true, attrs };
 };
@@ -194,8 +198,12 @@ seriesRouter.delete('/series/:id', async (req: Request, res: Response<ErrorDto>)
 		sendError(res, 404, 'Serie nicht gefunden.');
 		return;
 	}
-	await series.destroy();
-	res.status(204).send();
+	try {
+		await series.destroy();
+		res.status(204).send();
+	} catch (error) {
+		handleWriteError(res, error);
+	}
 });
 
 // POST /series/:id/generate — fällige Instanzen bis `until` materialisieren (idempotent)
