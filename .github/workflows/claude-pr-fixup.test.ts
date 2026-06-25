@@ -27,7 +27,9 @@ const ciYml = (): string => readFile('.github', 'workflows', 'ci.yml');
 const claudePrompt = (): string => {
 	const yml = fixupYml();
 	// Der Claude-Prompt steht im `prompt: |` Block des "Findings umsetzen via Claude Code"-Steps
-	const match = yml.match(/name: Findings umsetzen via Claude Code[\s\S]*?prompt: \|([\s\S]*?)claude_args:/);
+	const match = yml.match(
+		/name: Findings umsetzen via Claude Code[\s\S]*?prompt: \|([\s\S]*?)claude_args:/,
+	);
 	assert.ok(match, 'Claude-Prompt-Block nicht gefunden in claude-pr-fixup.yml');
 	return match[1];
 };
@@ -36,7 +38,9 @@ const claudePrompt = (): string => {
 const mistralPrompt = (): string => {
 	const yml = fixupYml();
 	// Der Mistral-Prompt steht im `prompt: |` Block des "Findings umsetzen via Mistral Vibe"-Steps
-	const match = yml.match(/name: Findings umsetzen via Mistral Vibe[\s\S]*?prompt: \|([\s\S]*?)(?=\n      -|\n  [a-z]|\s*$)/);
+	const match = yml.match(
+		/name: Findings umsetzen via Mistral Vibe[\s\S]*?prompt: \|([\s\S]*?)(?=\n      -|\n  [a-z]|\s*$)/,
+	);
 	assert.ok(match, 'Mistral-Prompt-Block nicht gefunden in claude-pr-fixup.yml');
 	return match[1];
 };
@@ -45,11 +49,7 @@ describe('AK1 — Lint-Gate ist repo-weit (kein --filter)', () => {
 	it('ticket-implementation.md Step 3c nennt pnpm lint ohne --filter als Gate-Kommando', () => {
 		const doc = implDoc();
 		// Muss pnpm lint repo-weit nennen — kein `--filter` als alleinstehender Lint-Befehl
-		assert.match(
-			doc,
-			/pnpm lint/,
-			'ticket-implementation.md muss `pnpm lint` (repo-weit) als Gate-Kommando nennen',
-		);
+		assert.match(doc, /pnpm lint/, 'ticket-implementation.md muss `pnpm lint` (repo-weit) als Gate-Kommando nennen');
 		// Darf NICHT `--filter priority-pilot lint` als alleinigen Lint-Befehl für das Gate nennen
 		assert.doesNotMatch(
 			doc,
@@ -60,11 +60,7 @@ describe('AK1 — Lint-Gate ist repo-weit (kein --filter)', () => {
 
 	it('Claude-Prompt in claude-pr-fixup.yml nennt pnpm lint ohne --filter als Gate', () => {
 		const prompt = claudePrompt();
-		assert.match(
-			prompt,
-			/pnpm lint/,
-			'Claude-Prompt muss `pnpm lint` (repo-weit) als Gate nennen',
-		);
+		assert.match(prompt, /pnpm lint/, 'Claude-Prompt muss `pnpm lint` (repo-weit) als Gate nennen');
 		assert.doesNotMatch(
 			prompt,
 			/pnpm --filter \S+ lint/,
@@ -74,11 +70,7 @@ describe('AK1 — Lint-Gate ist repo-weit (kein --filter)', () => {
 
 	it('Mistral-Prompt in claude-pr-fixup.yml nennt pnpm lint ohne --filter als Gate', () => {
 		const prompt = mistralPrompt();
-		assert.match(
-			prompt,
-			/pnpm lint/,
-			'Mistral-Prompt muss `pnpm lint` (repo-weit) als Gate nennen',
-		);
+		assert.match(prompt, /pnpm lint/, 'Mistral-Prompt muss `pnpm lint` (repo-weit) als Gate nennen');
 		assert.doesNotMatch(
 			prompt,
 			/pnpm --filter \S+ lint/,
@@ -133,20 +125,36 @@ describe('AK3 — Gate-Kommandos spiegeln CI-Checks exakt', () => {
 
 	it('Claude-Prompt spiegelt beide CI-Gate-Kommandos (prettier --check . und pnpm lint)', () => {
 		const prompt = claudePrompt();
-		assert.match(prompt, /prettier --check \./, 'Claude-Prompt muss `prettier --check .` als CI-Spiegel enthalten');
+		assert.match(
+			prompt,
+			/prettier --check \./,
+			'Claude-Prompt muss `prettier --check .` als CI-Spiegel enthalten',
+		);
 		assert.match(prompt, /pnpm lint/, 'Claude-Prompt muss `pnpm lint` als CI-Spiegel enthalten');
 	});
 
 	it('Mistral-Prompt spiegelt beide CI-Gate-Kommandos (prettier --check . und pnpm lint)', () => {
 		const prompt = mistralPrompt();
-		assert.match(prompt, /prettier --check \./, 'Mistral-Prompt muss `prettier --check .` als CI-Spiegel enthalten');
+		assert.match(
+			prompt,
+			/prettier --check \./,
+			'Mistral-Prompt muss `prettier --check .` als CI-Spiegel enthalten',
+		);
 		assert.match(prompt, /pnpm lint/, 'Mistral-Prompt muss `pnpm lint` als CI-Spiegel enthalten');
 	});
 
 	it('ticket-implementation.md spiegelt beide CI-Gate-Kommandos', () => {
 		const doc = implDoc();
-		assert.match(doc, /prettier --check \./, 'ticket-implementation.md muss `prettier --check .` als CI-Spiegel nennen');
-		assert.match(doc, /pnpm lint/, 'ticket-implementation.md muss `pnpm lint` (repo-weit) als CI-Spiegel nennen');
+		assert.match(
+			doc,
+			/prettier --check \./,
+			'ticket-implementation.md muss `prettier --check .` als CI-Spiegel nennen',
+		);
+		assert.match(
+			doc,
+			/pnpm lint/,
+			'ticket-implementation.md muss `pnpm lint` (repo-weit) als CI-Spiegel nennen',
+		);
 	});
 });
 
@@ -154,16 +162,20 @@ describe('AK4 — CI-Format/Lint-Fehler ist als eigenständiges Finding deklarie
 	it('Claude-Prompt dokumentiert: CI-Fehler an Format/Lint ist ein eigenständiges Finding', () => {
 		const prompt = claudePrompt();
 		// Muss den Zusammenhang CI-Fehler → eigenständiges Finding oder äquivalente Formulierung enthalten
+		const pattern =
+			/[Ff]ormat[^.]*[Ff]inding|[Ll]int[^.]*[Ff]inding|[Ff]inding[^.]*[Ff]ormat|[Ff]inding[^.]*[Ll]int|CI[^.]*[Ff]ormat[^.]*behob|CI[^.]*[Ll]int[^.]*behob|[Ff]ormat.*CI.*[Ff]inding|[Ll]int.*CI.*[Ff]inding/;
 		assert.ok(
-			/[Ff]ormat[^.]*[Ff]inding|[Ll]int[^.]*[Ff]inding|[Ff]inding[^.]*[Ff]ormat|[Ff]inding[^.]*[Ll]int|CI[^.]*[Ff]ormat[^.]*behob|CI[^.]*[Ll]int[^.]*behob|[Ff]ormat.*CI.*[Ff]inding|[Ll]int.*CI.*[Ff]inding/.test(prompt),
+			pattern.test(prompt),
 			'Claude-Prompt muss klarstellen, dass ein reiner CI-Format-/Lint-Fehler als eigenständiges Finding behandelt wird',
 		);
 	});
 
 	it('Mistral-Prompt dokumentiert: CI-Fehler an Format/Lint ist ein eigenständiges Finding', () => {
 		const prompt = mistralPrompt();
+		const pattern =
+			/[Ff]ormat[^.]*[Ff]inding|[Ll]int[^.]*[Ff]inding|[Ff]inding[^.]*[Ff]ormat|[Ff]inding[^.]*[Ll]int|CI[^.]*[Ff]ormat[^.]*behob|CI[^.]*[Ll]int[^.]*behob|[Ff]ormat.*CI.*[Ff]inding|[Ll]int.*CI.*[Ff]inding/;
 		assert.ok(
-			/[Ff]ormat[^.]*[Ff]inding|[Ll]int[^.]*[Ff]inding|[Ff]inding[^.]*[Ff]ormat|[Ff]inding[^.]*[Ll]int|CI[^.]*[Ff]ormat[^.]*behob|CI[^.]*[Ll]int[^.]*behob|[Ff]ormat.*CI.*[Ff]inding|[Ll]int.*CI.*[Ff]inding/.test(prompt),
+			pattern.test(prompt),
 			'Mistral-Prompt muss klarstellen, dass ein reiner CI-Format-/Lint-Fehler als eigenständiges Finding behandelt wird',
 		);
 	});
