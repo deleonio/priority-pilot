@@ -131,6 +131,103 @@ paths:
           description: Abhängigkeit wurde entfernt
         '404':
           $ref: '#/components/responses/NotFound'
+  /series:
+    get:
+      summary: Alle Serien-Vorlagen auflisten
+      operationId: listSeries
+      responses:
+        '200':
+          description: Liste aller Serien-Vorlagen
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Series'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      summary: Neue Serien-Vorlage anlegen
+      operationId: createSeries
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeriesCreate'
+      responses:
+        '201':
+          description: Serien-Vorlage wurde angelegt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Series'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /series/{id}:
+    parameters:
+      - $ref: '#/components/parameters/SeriesId'
+    get:
+      summary: Eine Serien-Vorlage abrufen
+      operationId: getSeries
+      responses:
+        '200':
+          description: Die angeforderte Serien-Vorlage
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Series'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      summary: Eine Serien-Vorlage teilweise aktualisieren
+      operationId: updateSeries
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SeriesUpdate'
+      responses:
+        '200':
+          description: Die aktualisierte Serien-Vorlage
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Series'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      summary: Eine Serien-Vorlage löschen
+      operationId: deleteSeries
+      responses:
+        '204':
+          description: Serien-Vorlage wurde gelöscht
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /series/{id}/generate:
+    parameters:
+      - $ref: '#/components/parameters/SeriesId'
+    post:
+      summary: Fällige Instanzen der Serie im Horizont materialisieren
+      description: >-
+        Erzeugt je fälligem Termin im Horizont (`HORIZONT_TAGE=14`) genau eine
+        Task-Instanz mit `seriesId`-Verknüpfung. Idempotent über
+        `(seriesId, seriesOccurrence)` — ein erneuter Aufruf erzeugt keine Dubletten.
+      operationId: generateSeries
+      responses:
+        '201':
+          description: Anzahl der neu erzeugten Instanzen
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeriesGenerateResult'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /pillars:
     get:
       summary: Alle Lebensbalance-Säulen auflisten
@@ -351,6 +448,13 @@ components:
       description: ID des Tasks
       schema:
         type: integer
+    SeriesId:
+      name: id
+      in: path
+      required: true
+      description: ID der Serien-Vorlage
+      schema:
+        type: integer
   responses:
     ValidationError:
       description: Ungültige Eingabe
@@ -447,6 +551,25 @@ components:
           type: string
           format: date-time
           nullable: true
+        seriesId:
+          type: integer
+          nullable: true
+          description: >-
+            ID der Serien-Vorlage, aus der dieser Task materialisiert wurde (oder
+            `null` für eigenständige Tasks).
+        isException:
+          type: boolean
+          default: false
+          description: >-
+            `true`, wenn diese Serien-Instanz in Status/Deadline abweichend vom
+            Template bearbeitet wurde (Override, AC2).
+        seriesOccurrence:
+          type: string
+          format: date-time
+          nullable: true
+          description: >-
+            Periodendatum des Serien-Termins (Idempotenz-Anker); `null` bei
+            eigenständigen Tasks.
         pillars:
           type: array
           description: >-
@@ -631,6 +754,123 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/TaskTreeNode'
+    SeriesFrequency:
+      type: string
+      enum:
+        - DAILY
+        - WEEKLY
+      description: Wiederholungsfrequenz einer Serien-Vorlage
+    Series:
+      type: object
+      description: >-
+        Vorlage für eine wiederkehrende Aufgabe. Aus ihr werden je fälligem Termin
+        im Horizont konkrete Task-Instanzen materialisiert (siehe `generateDueInstances`).
+      required:
+        - id
+        - frequency
+        - interval
+        - byWeekday
+        - startDate
+        - defaultPriority
+        - active
+      properties:
+        id:
+          type: integer
+        frequency:
+          $ref: '#/components/schemas/SeriesFrequency'
+        interval:
+          type: integer
+          minimum: 1
+          default: 1
+          description: Abstand zwischen Terminen in Einheiten der `frequency`.
+        byWeekday:
+          type: array
+          nullable: true
+          description: >-
+            Optionale Wochentags-Einschränkung (0–6) für WEEKLY; `null` ⇒ der
+            Wochentag des `startDate` gilt.
+          items:
+            type: integer
+            minimum: 0
+            maximum: 6
+        startDate:
+          type: string
+          format: date
+          description: Anker-/Startdatum der Serie (YYYY-MM-DD).
+        defaultPriority:
+          type: integer
+          minimum: 1
+          maximum: 5
+          default: 3
+          description: Priorität, die materialisierte Instanzen übernehmen.
+        active:
+          type: boolean
+          default: true
+          description: Nur aktive Serien erzeugen Instanzen.
+    SeriesCreate:
+      type: object
+      required:
+        - frequency
+        - startDate
+      properties:
+        frequency:
+          $ref: '#/components/schemas/SeriesFrequency'
+        interval:
+          type: integer
+          minimum: 1
+          default: 1
+        byWeekday:
+          type: array
+          nullable: true
+          items:
+            type: integer
+            minimum: 0
+            maximum: 6
+        startDate:
+          type: string
+          format: date
+        defaultPriority:
+          type: integer
+          minimum: 1
+          maximum: 5
+          default: 3
+        active:
+          type: boolean
+          default: true
+    SeriesUpdate:
+      type: object
+      description: Alle Felder optional — gesetzte Felder werden aktualisiert.
+      properties:
+        frequency:
+          $ref: '#/components/schemas/SeriesFrequency'
+        interval:
+          type: integer
+          minimum: 1
+        byWeekday:
+          type: array
+          nullable: true
+          items:
+            type: integer
+            minimum: 0
+            maximum: 6
+        startDate:
+          type: string
+          format: date
+        defaultPriority:
+          type: integer
+          minimum: 1
+          maximum: 5
+        active:
+          type: boolean
+    SeriesGenerateResult:
+      type: object
+      required:
+        - generated
+      properties:
+        generated:
+          type: integer
+          minimum: 0
+          description: Anzahl der in diesem Aufruf neu erzeugten Instanzen.
     Pillar:
       type: object
       description: Eine der fünf festen Lebensbalance-Säulen.

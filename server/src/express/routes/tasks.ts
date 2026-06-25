@@ -29,6 +29,7 @@ interface TaskAttributes {
 	actualEffort?: number | null;
 	description?: string | null;
 	deadline?: Date | null;
+	isException?: boolean;
 }
 
 /** Ein vollständig normierter Säulen-Beitrag (confidence aufgelöst auf den Default). */
@@ -59,6 +60,9 @@ export const serializeTask = (task: Task): TaskDto => ({
 	actualEffort: task.actualEffort ?? null,
 	description: task.description ?? null,
 	deadline: task.deadline ? task.deadline.toISOString() : null,
+	seriesId: task.seriesId ?? null,
+	isException: task.isException ?? false,
+	seriesOccurrence: task.seriesOccurrence ? new Date(task.seriesOccurrence).toISOString() : null,
 	pillars: (task.Pillars ?? [])
 		.map((pillar) => ({
 			pillarId: pillar.id,
@@ -338,6 +342,12 @@ tasksRouter.patch('/tasks/:id', async (req: Request, res: Response<TaskDto | Err
 	if (validation.pillars !== undefined && !(await arePillarsExistent(validation.pillars))) {
 		sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
 		return;
+	}
+	// AC2 (Serien-Override): Wird eine materialisierte Serien-Instanz (`seriesId` gesetzt) in Status
+	// oder Deadline abweichend bearbeitet, gilt sie als Ausnahme — `isException=true`. Der
+	// Idempotenz-Anker `seriesOccurrence` bleibt dabei unberührt (kein Neu-Generieren der Periode).
+	if (task.seriesId != null && (validation.attrs.status !== undefined || validation.attrs.deadline !== undefined)) {
+		validation.attrs.isException = true;
 	}
 	try {
 		// Status vor dem Update festhalten, um den echten Übergang nach „Done" zu erkennen.

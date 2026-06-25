@@ -26,6 +26,13 @@ class Task extends Model {
 	public description?: string | null;
 	public deadline?: Date | null;
 
+	// Serien-Verknüpfung (siehe models/series.ts): `seriesId` zeigt auf die Vorlage, `seriesOccurrence`
+	// ist der Idempotenz-Anker des Termins (Periodendatum), `isException` markiert eine vom Nutzer
+	// abweichend bearbeitete Instanz (Status-/Deadline-Override, siehe routes/tasks.ts, AC2).
+	public seriesId?: number | null;
+	public isException!: boolean;
+	public seriesOccurrence?: Date | null;
+
 	public addDependency!: BelongsToManyAddAssociationMixin<Task, number>;
 	public removeDependency!: BelongsToManyRemoveAssociationMixin<Task, number>;
 	public getDependencies!: BelongsToManyGetAssociationsMixin<Task>;
@@ -90,6 +97,21 @@ Task.init(
 			allowNull: true,
 		},
 		deadline: {
+			type: DataTypes.DATE,
+			allowNull: true,
+		},
+		// Serien-Spalten (#141): Verknüpfung auf die Vorlage (`seriesId`), Idempotenz-Anker des
+		// Termins (`seriesOccurrence`) und Override-Markierung (`isException`).
+		seriesId: {
+			type: DataTypes.INTEGER,
+			allowNull: true,
+		},
+		isException: {
+			type: DataTypes.BOOLEAN,
+			allowNull: false,
+			defaultValue: false,
+		},
+		seriesOccurrence: {
 			type: DataTypes.DATE,
 			allowNull: true,
 		},
