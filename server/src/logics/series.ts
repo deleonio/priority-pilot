@@ -11,8 +11,12 @@ export interface GenerateOptions {
 /**
  * Nächster fälliger Termin nach `date` gemäß Rhythmus. UTC-basiert (deterministisch, DST-frei):
  * `daily` +1 Tag, `weekly` +7 Tage, `monthly` +1 Monat.
+ *
+ * `anchorDay` ist der **unveränderliche** Ziel-Tag aus `series.startDate` (z. B. 31). Für `monthly`
+ * wird der Tag in jedem Schritt frisch aus diesem Anker abgeleitet und auf den letzten gültigen Tag
+ * des Zielmonats geklemmt — so driftet ein Monatsende-Anker nicht (31.01. → 28.02. → **31.03.** → 30.04.).
  */
-const nextOccurrence = (date: Date, rhythm: SeriesRhythm): Date => {
+const nextOccurrence = (date: Date, rhythm: SeriesRhythm, anchorDay: number): Date => {
 	const next = new Date(date.getTime());
 	switch (rhythm) {
 		case 'daily':
@@ -22,13 +26,12 @@ const nextOccurrence = (date: Date, rhythm: SeriesRhythm): Date => {
 			next.setUTCDate(next.getUTCDate() + 7);
 			break;
 		case 'monthly': {
-			// Ziel-Tag merken (z. B. 31)
-			const targetDate = date.getUTCDate();
+			// Vom Anker-Tag (nicht vom evtl. geklemmten Vormonats-Tag) ausgehen: erst auf den 1. setzen,
+			// damit der Monatswechsel nie überrollt, dann Monat erhöhen und Tag auf min(Anker, letzterTag) klemmen.
+			next.setUTCDate(1);
 			next.setUTCMonth(next.getUTCMonth() + 1);
-			// Falls JavaScript auf einen anderen Tag rollt (z. B. 31.01. → 03.03.), auf den letzten Tag des Monats korrigieren
-			if (next.getUTCDate() !== targetDate) {
-				next.setUTCDate(0); // 0 = letzter Tag des aktuellen Monats
-			}
+			const lastDayOfMonth = new Date(Date.UTC(next.getUTCFullYear(), next.getUTCMonth() + 1, 0)).getUTCDate();
+			next.setUTCDate(Math.min(anchorDay, lastDayOfMonth));
 			break;
 		}
 	}
@@ -53,11 +56,13 @@ export const generateDueInstances = async (series: Series, options: GenerateOpti
 	}
 
 	const untilTime = options.until.getTime();
+	// Unveränderlicher Ziel-Tag aus dem Start-Anker — verhindert Drift bei `monthly` mit Monatsende-Anker.
+	const anchorDay = series.startDate.getUTCDate();
 	const occurrences: Date[] = [];
 	let current = new Date(series.startDate.getTime());
 	while (current.getTime() <= untilTime) {
 		occurrences.push(new Date(current.getTime()));
-		current = nextOccurrence(current, series.rhythm);
+		current = nextOccurrence(current, series.rhythm, anchorDay);
 	}
 
 	// Bereits materialisierte Termine dieser Serie sammeln (Idempotenz-Anker `seriesOccurrence`).
