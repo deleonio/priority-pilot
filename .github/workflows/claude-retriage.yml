@@ -79,6 +79,18 @@ jobs:
       # Standard-Pfad (Claude): laeuft, solange die Repo-Variable AI_AGENT NICHT auf "mistral"
       # steht (auch ungesetzt -> Claude bleibt Default). Umschalten: `gh variable set AI_AGENT
       # --body mistral` (zurueck: `gh variable set AI_AGENT --body claude`).
+      # Modell-Router (#150): waehlt statt der festen Opus-Verkabelung das aufgabengerechte Modell
+      # (+ gekoppelten Effort) und reicht es als Step-Outputs an den Claude-Schritt durch.
+      - name: Modell-Router
+        id: router
+        if: vars.AI_AGENT != 'mistral'
+        uses: ./.github/actions/model-router
+        with:
+          kind: retriage
+          title: ${{ github.event.issue.title }}
+          description: ${{ github.event.issue.body }}
+          claude-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
       - name: Re-Triage via Claude Code
         id: claude
         if: vars.AI_AGENT != 'mistral'
@@ -117,7 +129,7 @@ jobs:
           # Freigabe) und die in der Wissensbasis geforderte Bestaetigung als durch den
           # @claude-Ausloeser erteilt behandeln.
           claude_args: >-
-            --model claude-opus-4-8 --effort medium
+            --model ${{ steps.router.outputs.model }} --effort ${{ steps.router.outputs.effort }}
             --allowedTools "Bash(gh issue:*),Bash(gh api:*),Bash(gh label:*),Read,Grep,Glob"
             --append-system-prompt "Automatisierter, vom Maintainer per @claude-Kommentar autorisierter Re-Triage-Lauf in GitHub Actions (headless, keine interaktive Rueckfrage moeglich). Die in der Wissensbasis geforderte Bestaetigung vor dem oeffentlichen Posten gilt durch den @claude-Ausloeser als erteilt: Poste Lektorat, Analyse-Kommentar und Labels direkt fuer Issue #${{ github.event.issue.number }}, ohne auf eine Bestaetigung zu warten. Bearbeite ausschliesslich dieses Issue und committe keinen Produktivcode."
 
