@@ -1,49 +1,11 @@
 #!/usr/bin/env bash
-# Baut Frontend + Backend und schnürt ein deploybares Release-Tarball aus dem Monorepo.
+# RETIRED (#152): Der Tag-/Tarball-/GitHub-Release-Deploy wurde durch das einfache
+# "Merge auf main -> Build -> rsync der dist-Verzeichnisse" ersetzt. Es gibt kein Tarball
+# und kein GitHub Release mehr — der Build laeuft direkt in .github/workflows/release.yml,
+# die dist-Verzeichnisse werden per rsync auf den Server gespiegelt (Backend via PM2).
 #
-# Nutzung:  scripts/pack-release.sh <vX.Y.Z>     z. B. scripts/pack-release.sh v1.2.3
-#
-# Ergebnis: priority-pilot-<vX.Y.Z>.tar.gz im Repo-Root. Entpackt enthält es:
-#   dist/                 -> gebautes SPA (Vite), wird vom Reverse-Proxy ausgeliefert
-#   server/dist/index.js  -> startfähiges Backend (ESM):
-#                            DATABASE_STORAGE=… DB_SEED=false node server/dist/index.js
-#   server/package.json   -> Prod-Manifest des Servers
-#   server/node_modules/  -> nur Prod-Deps inkl. native sqlite3 (siehe Hinweis unten)
-#
-# Hinweis zur Host-Annahme (offene Entscheidung aus #100/R1):
-#   Die Prod-`node_modules` werden hier in CI gebaut. Das setzt voraus, dass der Build-Host
-#   architektur-kompatibel zum Ziel-Host ist (Annahme: x64-Linux + Node 22, passend zum
-#   CI-Runner) — relevant für die native `sqlite3`-Bindung. Weicht die Host-Architektur ab,
-#   die Prod-Deps stattdessen auf dem Host installieren (`pnpm install --prod` nach dem
-#   Entpacken) und den `node_modules`-Kopierschritt unten entfernen.
+# Dieses Skript hat keine Funktion mehr und wird nur als Tombstone gehalten, bis das
+# Tooling das Loeschen der Datei wieder zulaesst. Siehe docs/deployment.md.
 set -euo pipefail
-
-VERSION="${1:?Usage: pack-release.sh <vX.Y.Z>}"
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-cd "$ROOT"
-
-STAGE="$(mktemp -d)"
-DEPLOY="$(mktemp -d)"
-trap 'rm -rf "$STAGE" "$DEPLOY"' EXIT
-
-echo "==> Build (client -> frontend -> server)"
-pnpm install --frozen-lockfile
-pnpm -r build
-
-echo "==> Server-Prod-Bundle (nur Prod-Deps, inkl. native sqlite3)"
-# `pnpm deploy` erzeugt ein eigenständiges Verzeichnis ohne Store-Symlinks (tarball-tauglich).
-# `--legacy` ist je nach pnpm-Konfiguration nötig, damit in ein leeres Zielverzeichnis deployt
-# wird; alternativ die Prod-Deps auf dem Host installieren.
-rmdir "$DEPLOY"
-pnpm --filter ./server --prod deploy --legacy "$DEPLOY"
-
-echo "==> Release-Baum zusammenstellen"
-mkdir -p "$STAGE/server"
-cp -r frontend/dist "$STAGE/dist"               # SPA      -> Reverse-Proxy / file_server
-cp -r server/dist "$STAGE/server/dist"          # Backend  -> node server/dist/index.js (aus pnpm -r build)
-cp "$DEPLOY/package.json" "$STAGE/server/package.json"
-cp -r "$DEPLOY/node_modules" "$STAGE/server/node_modules"
-
-OUT="$ROOT/priority-pilot-${VERSION}.tar.gz"
-tar -czf "$OUT" -C "$STAGE" .
-echo "==> Fertig: $OUT"
+echo "pack-release.sh ist seit #152 ausser Betrieb. Deployment laeuft ueber rsync (siehe docs/deployment.md)." >&2
+exit 1
