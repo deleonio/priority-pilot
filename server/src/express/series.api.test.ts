@@ -4,10 +4,10 @@ import { resetDb, closeDb, startTestServer, type TestServer } from '../test/help
 
 let server: TestServer;
 
-// Rote Spec-Tests für #120 — API-Vertrag der Serienaufgaben (Habits).
-// Deckt den CRUD-Vertrag des Serien-Templates und die Instanz-Override-Semantik (AK 2) ab.
-// KEIN Produktivcode — die Tests werden grün, sobald die `/series`-Endpunkte und die
-// `seriesId`/`isException`-Felder am Task existieren.
+// Rote Spec-Tests für #158 — erweiterte API-Verträge der Serienaufgaben.
+// Deckt CRUD-Operationen, Validierung, und Fehlerbehandlung ab.
+// KEIN Produktivcode — die Tests werden grün, sobald die entsprechenden
+// Endpunkte und Validierungen implementiert sind.
 
 describe('Series API', () => {
 	beforeEach(async () => {
@@ -37,6 +37,8 @@ describe('Series API', () => {
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(body),
 		});
+	const del = (path: string) =>
+		fetch(`${server.baseUrl}${path}`, { method: 'DELETE' });
 
 	const validSeries = () => ({
 		title: 'Wöchentlich kochen',
@@ -65,6 +67,20 @@ describe('Series API', () => {
 			const res = await post('/series', withoutTitle);
 			assert.equal(res.status, 400);
 		});
+
+		// AK-2: POST /series ohne startDate → 400
+		it('400 bei fehlendem startDate', async () => {
+			const { startDate: _omit, ...withoutStartDate } = validSeries();
+			const res = await post('/series', withoutStartDate);
+			assert.equal(res.status, 400);
+		});
+
+		// AK-3: POST /series mit startDate: "kein-datum" → 400
+		it('400 bei ungültigem startDate-Format', async () => {
+			const invalid = { ...validSeries(), startDate: 'kein-datum' };
+			const res = await post('/series', invalid);
+			assert.equal(res.status, 400);
+		});
 	});
 
 	describe('GET /series', () => {
@@ -80,6 +96,24 @@ describe('Series API', () => {
 			assert.equal(res.status, 200);
 			const body = (await res.json()) as unknown[];
 			assert.equal(body.length, 1);
+		});
+
+		// AK-4: GET /series/:id → 200 + korrektes Objekt (existierende Serie)
+		it('200 mit korrektem Objekt für existierende Serie', async () => {
+			const created = (await (await post('/series', validSeries())).json()) as { id: number };
+			const res = await get(`/series/${created.id}`);
+			assert.equal(res.status, 200);
+			const body = (await res.json()) as Record<string, unknown>;
+			assert.equal(body.id, created.id);
+			assert.equal(body.title, 'Wöchentlich kochen');
+			assert.equal(body.rhythm, 'weekly');
+			assert.equal(body.defaultPriority, 4);
+		});
+
+		// AK-5: GET /series/:id unbekannte ID → 404
+		it('404 für unbekannte Serie', async () => {
+			const res = await get('/series/9999');
+			assert.equal(res.status, 404);
 		});
 	});
 
@@ -128,6 +162,59 @@ describe('Series API', () => {
 			const template = (await (await get(`/series/${series.id}`)).json()) as Record<string, unknown>;
 			assert.equal(template.defaultPriority, series.defaultPriority);
 			assert.equal(template.title, 'Wöchentlich kochen');
+		});
+	});
+
+	// ── AK-6: PATCH /series/:id mit title → 200 + aktualisiertes Objekt
+	describe('PATCH /series/:id', () => {
+		it('200 mit aktualisiertem Objekt bei Titeländerung', async () => {
+			const created = (await (await post('/series', validSeries())).json()) as { id: number };
+			const res = await patch(`/series/${created.id}`, {
+				title: 'Täglich trainieren',
+			});
+			assert.equal(res.status, 200);
+			const body = (await res.json()) as Record<string, unknown>;
+			assert.equal(body.id, created.id);
+			assert.equal(body.title, 'Täglich trainieren');
+		});
+
+		it('404 für unbekannte Serie', async () => {
+			const res = await patch('/series/9999', {
+				title: 'Neuer Titel',
+			});
+			assert.equal(res.status, 404);
+		});
+
+		it('400 bei ungültigem rhythm', async () => {
+			const created = (await (await post('/series', validSeries())).json()) as { id: number };
+			const res = await patch(`/series/${created.id}`, {
+				rhythm: 'invalid-rhythm',
+			});
+			assert.equal(res.status, 400);
+		});
+	});
+
+	// ── AK-7: DELETE /series/:id → 204; danach GET /series zeigt leere Liste
+	describe('DELETE /series/:id', () => {
+		it('204 beim Löschen existierender Serie', async () => {
+			const created = (await (await post('/series', validSeries())).json()) as { id: number };
+			const res = await del(`/series/${created.id}`);
+			assert.equal(res.status, 204);
+		});
+
+		it('leere Liste nach Löschen der einzigen Serie', async () => {
+			const created = (await (await post('/series', validSeries())).json()) as { id: number };
+			await del(`/series/${created.id}`);
+			const res = await get('/series');
+			assert.equal(res.status, 200);
+			const body = (await res.json()) as unknown[];
+			assert.equal(body.length, 0);
+		});
+
+		// AK-8: DELETE /series/:id unbekannte ID → 404
+		it('404 für unbekannte Serie', async () => {
+			const res = await del('/series/9999');
+			assert.equal(res.status, 404);
 		});
 	});
 });
