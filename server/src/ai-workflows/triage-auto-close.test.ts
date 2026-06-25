@@ -130,7 +130,8 @@ describe('Konsistenz — Slash-Command triage-ticket.md', () => {
 	it('triage-ticket.md beschreibt einen Schritt, der Issues schließt wenn Anforderungen erfüllt sind', () => {
 		const lower = slashCmd.toLowerCase();
 		// Muss "schließ" UND eines der Kriterien-Schlüsselwörter enthalten — nicht nur "Schritt 6" für Labeling.
-		const mentionsClose = /gh issue close|autonomes? schließ|schließ[^\n]{0,80}anforderungen|anforderungen[^\n]{0,80}schließ/.test(lower);
+		const mentionsClose =
+			/gh issue close|autonomes? schließ|schließ[^\n]{0,80}anforderungen|anforderungen[^\n]{0,80}schließ/.test(lower);
 		assert.ok(
 			mentionsClose,
 			'triage-ticket.md (Slash-Command) muss den Auto-Close-Schritt beschreiben (gh issue close oder Schließen bei erfüllten Anforderungen)',
