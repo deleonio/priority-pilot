@@ -30,6 +30,7 @@ Pro Ticket alle Schritte ausführen:
    [ticket-spec.md](../../.ai-knowledge/ticket-spec.md)) die roten Tests und gibt das Issue danach
    per `ai:ready` zur Umsetzung frei; bei 🟡/🔴 entscheidet der Mensch. **Nicht** direkt `ai:ready`
    setzen (das ist der Output der Spec-Stufe).
+7. **Autonom schließen (optional)** — Prüfen, ob die im Issue beschriebenen Anforderungen bereits im Code erfüllt sind. Falls ja und ein konkreter Beleg (Commit-SHA, PR-Nr., Datei/Zeile) vorliegt: erst `gh issue comment` mit Beleg posten, dann `gh issue close <nr> --reason "completed"`. Bei Unsicherheit (🟡) offen lassen — kein spekulatives Schließen bei bereits erfüllten Anforderungen.
 
 **Batch & Kontext:** Mehrere Tickets in **einem** Lauf verarbeiten, solange der Kontext ausreicht.
 Jedes Ticket vollständig abschließen (inkl. Label in Schritt 6), **bevor** das nächste begonnen wird
@@ -39,6 +40,6 @@ nennen (ein erneuter Aufruf nimmt sie dank `ai:analyzed`-Filter automatisch wied
 Batch-Läufe die `--json`/`jq`-Auswahl aus Schritt 1 der Wissensbasis nutzen, damit ein gerade
 gelabeltes Issue nicht erneut gewählt wird.
 
-Schritt 2–6 schreiben **öffentlich** auf GitHub — vor dem Posten bestätigen lassen, besonders bei
+Schritt 2–7 schreiben **öffentlich** auf GitHub — vor dem Posten bestätigen lassen, besonders bei
 mehreren Issues (die Bestätigung kann **einmal für den ganzen Batch** eingeholt werden).
 Kein Produktivcode committen.
