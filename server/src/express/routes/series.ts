@@ -38,6 +38,7 @@ const handleWriteError = (res: Response<ErrorDto>, error: unknown): void => {
 		sendError(res, 400, error.errors.map((item) => item.message).join('; '));
 		return;
 	}
+	console.error('Unerwarteter Fehler in Series-Route:', error);
 	sendError(res, 500, 'Interner Serverfehler.');
 };
 
@@ -59,10 +60,10 @@ const serializeSeries = (series: Series): SeriesDto => ({
 });
 
 /**
- * Validiert den Request-Body für Anlegen/Aktualisieren eines Templates. `requireTitle` erzwingt
- * einen Titel (POST); bei einer Teil-Aktualisierung sind alle Felder optional.
+ * Validiert den Request-Body für Anlegen/Aktualisieren eines Templates. `isPost` signalisiert
+ * einen POST-Request (erzwingt title + startDate als Pflichtfelder); bei einer Teil-Aktualisierung sind alle Felder optional.
  */
-const validateSeriesFields = (body: unknown, requireTitle: boolean): ValidationResult => {
+const validateSeriesFields = (body: unknown, isPost: boolean): ValidationResult => {
 	if (typeof body !== 'object' || body === null) {
 		return { ok: false, message: 'Request-Body muss ein Objekt sein.' };
 	}
@@ -75,7 +76,7 @@ const validateSeriesFields = (body: unknown, requireTitle: boolean): ValidationR
 		}
 		attrs.title = input.title.trim();
 	}
-	if (requireTitle && attrs.title === undefined) {
+	if (isPost && attrs.title === undefined) {
 		return { ok: false, message: 'title ist erforderlich.' };
 	}
 
@@ -122,6 +123,9 @@ const validateSeriesFields = (body: unknown, requireTitle: boolean): ValidationR
 			return { ok: false, message: 'startDate muss ein gültiges ISO-Datum sein.' };
 		}
 		attrs.startDate = new Date(input.startDate);
+	}
+	if (isPost && attrs.startDate === undefined) {
+		return { ok: false, message: 'startDate ist erforderlich.' };
 	}
 
 	return { ok: true, attrs };
@@ -194,8 +198,12 @@ seriesRouter.delete('/series/:id', async (req: Request, res: Response<ErrorDto>)
 		sendError(res, 404, 'Serie nicht gefunden.');
 		return;
 	}
-	await series.destroy();
-	res.status(204).send();
+	try {
+		await series.destroy();
+		res.status(204).send();
+	} catch (error) {
+		handleWriteError(res, error);
+	}
 });
 
 // POST /series/:id/generate — fällige Instanzen bis `until` materialisieren (idempotent)
