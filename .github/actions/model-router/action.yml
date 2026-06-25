@@ -81,4 +81,4 @@ runs:
       working-directory: ${{ github.action_path }}
       run: |
         token="$(cat "${{ runner.temp }}/model-token" 2>/dev/null || true)"
-        printf '%s' "$token" | npx -y tsx entrypoint.ts
+        printf '%s' "$token" | npx -y tsx@4.22.4 entrypoint.ts

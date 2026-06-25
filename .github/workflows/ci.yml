@@ -53,7 +53,7 @@ jobs:
       # Entrypoints inkl. AK3-Smoke ab. Klassifikation + Step-Output `model` werden per
       # Workflow-Lauf an einem Scratch-Issue verifiziert (CI-Konfig-Ebene).
       - name: Test (Modell-Router CI-Baustein)
-        run: npx -y tsx --test ".github/actions/model-router/"*.test.ts
+        run: npx -y tsx@4.22.4 --test ".github/actions/model-router/"*.test.ts
       # E2E: Playwright startet Backend (frische In-Memory-DB) + Vite selbst (siehe playwright.config.ts) —
       # kein separater Server-Start in der Pipeline noetig.
       - name: E2E
