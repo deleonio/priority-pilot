@@ -2,7 +2,7 @@ import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import sequelize from '../database.js';
 import { Task } from '../models/index.js';
-import { migrateSeriesColumns } from './migrate.js';
+import { migrateSeriesColumns, migrateSeriesTable } from './migrate.js';
 import { closeDb } from '../test/helpers.js';
 
 // Rote Spec-Tests für #146 — fehlende Schema-Migration für die Serien-Spalten.
@@ -131,5 +131,104 @@ describe('migrateSeriesColumns', () => {
 
 		const total = await Task.count({ where: { seriesId: 1 } });
 		assert.equal(total, 1, 'nur die erste Instanz der Periode wurde materialisiert');
+	});
+});
+
+// ── Rote Spec-Tests für #163 — fehlende Schema-Migration für die `series`-Tabelle ─────────────────
+//
+// Root Cause: Auf einer `series`-Tabelle, die VOR dem vollständigen Serien-Feature angelegt wurde,
+// fehlen `title`, `rhythm`, `defaultPriority`, `defaultEstimatedEffort`, `active`, `startDate`.
+// `sequelize.sync()` ohne `alter` ergänzt vorhandene Tabellen NICHT um neue Spalten → alle
+// Series-CRUD-Operationen schlagen mit `SQLITE_ERROR: no such column: title` fehl (#163).
+//
+// Der Vertrag: eine idempotente Vorab-Migration `migrateSeriesTable(sequelize)`, die VOR
+// `sequelize.sync()` die fehlenden Spalten per `ALTER TABLE series ADD COLUMN` nachzieht.
+// Kein Produktivcode — Tests werden grün, sobald `migrate.ts` `migrateSeriesTable` exportiert.
+
+const SERIES_TABLE_COLUMNS = [
+	'title',
+	'rhythm',
+	'defaultPriority',
+	'defaultEstimatedEffort',
+	'active',
+	'startDate',
+] as const;
+
+const seriesColumns = async (): Promise<string[]> => {
+	const [rows] = await sequelize.query("PRAGMA table_info('series')");
+	return (rows as { name: string }[]).map((row) => row.name);
+};
+
+/**
+ * Erzeugt eine `series`-Tabelle im Alt-Schema (vor dem vollständigen Serien-Feature) per Raw-SQL
+ * mit nur `id`, `createdAt`, `updatedAt` — OHNE die Feature-Spalten. Bildet exakt eine
+ * Bestands-`database.sqlite` nach, auf der die Migration greifen muss.
+ */
+const createLegacySeriesTable = async (): Promise<void> => {
+	await sequelize.query(
+		'CREATE TABLE `series` (' +
+			'`id` INTEGER PRIMARY KEY AUTOINCREMENT, ' +
+			'`createdAt` DATETIME NOT NULL, ' +
+			'`updatedAt` DATETIME NOT NULL' +
+			')',
+	);
+};
+
+describe('migrateSeriesTable', () => {
+	// ── AK1: Migration auf Alt-Schema fügt die fehlenden Spalten nach ────────────────────────────
+	it('zieht auf einem Alt-Schema die fehlenden Serien-Spalten nach, sodass sync() nicht mehr bricht', async () => {
+		await createLegacySeriesTable();
+
+		const before = await seriesColumns();
+		for (const column of SERIES_TABLE_COLUMNS) {
+			assert.ok(!before.includes(column), `Alt-Schema hat ${column} noch nicht`);
+		}
+
+		await migrateSeriesTable(sequelize);
+		await assert.doesNotReject(() => sequelize.sync(), 'sync() bricht nach der Migration nicht mehr ab');
+
+		const after = await seriesColumns();
+		for (const column of SERIES_TABLE_COLUMNS) {
+			assert.ok(after.includes(column), `Serien-Tabellenspalte ${column} wurde nachgezogen`);
+		}
+	});
+
+	// ── AK5: Idempotenz — erneuter Lauf auf bereits migriertem Schema ist stabil ─────────────────
+	it('ist idempotent: erneuter Aufruf wirft nicht und erzeugt keine doppelten Spalten', async () => {
+		await sequelize.sync({ force: true });
+
+		await assert.doesNotReject(() => migrateSeriesTable(sequelize), 'erster Lauf auf neuem Schema ist no-op');
+		await assert.doesNotReject(() => migrateSeriesTable(sequelize), 'zweiter Lauf bleibt stabil');
+
+		const columns = await seriesColumns();
+		for (const column of SERIES_TABLE_COLUMNS) {
+			const occurrences = columns.filter((name) => name === column).length;
+			assert.equal(occurrences, 1, `${column} existiert genau einmal (keine Dublette)`);
+		}
+	});
+
+	// ── Frische DB (Tabelle fehlt) ist No-op; sync() legt Tabelle korrekt an ────────────────────
+	it('ist auf einer DB ohne series-Tabelle ein No-op und sync() legt die Tabelle korrekt an', async () => {
+		assert.deepEqual(await seriesColumns(), [], 'Vorbedingung: keine series-Tabelle');
+
+		await assert.doesNotReject(() => migrateSeriesTable(sequelize), 'Migration ohne Tabelle ist no-op');
+		await assert.doesNotReject(() => sequelize.sync(), 'sync() legt die Tabelle frisch an');
+
+		const columns = await seriesColumns();
+		for (const column of SERIES_TABLE_COLUMNS) {
+			assert.ok(columns.includes(column), `frische Tabelle enthält ${column}`);
+		}
+	});
+
+	// ── AK1 (Verhalten): Nach Migration wirft Series.findAll() keinen SQLITE_ERROR mehr ──────────
+	it('nach Migration antwortet Series.findAll() ohne SequelizeDatabaseError und gibt leere Liste zurück', async () => {
+		await createLegacySeriesTable();
+		await migrateSeriesTable(sequelize);
+		await sequelize.sync();
+
+		const { default: Series } = await import('../models/series.js');
+		await assert.doesNotReject(() => Series.findAll(), 'Series.findAll() wirft keinen SQLITE_ERROR mehr');
+		const rows = await Series.findAll();
+		assert.deepEqual(rows, [], 'leere Liste (keine Serien in Bestands-DB)');
 	});
 });
