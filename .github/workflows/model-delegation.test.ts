@@ -129,6 +129,10 @@ describe('AGENTS.md dokumentiert die Subagent-Delegation statt des JS-Routers', 
 	});
 
 	it('haelt den Mistral-Pfad weiterhin als „nicht betroffen" fest', () => {
-		assert.match(doc(), /nicht betroffen/i, 'AGENTS.md muss den Mistral-Pfad weiter als „nicht betroffen" kennzeichnen');
+		assert.match(
+			doc(),
+			/nicht betroffen/i,
+			'AGENTS.md muss den Mistral-Pfad weiter als „nicht betroffen" kennzeichnen',
+		);
 	});
 });

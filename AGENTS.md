@@ -78,7 +78,7 @@ Checkout, erhaltener Kontext, **kein** zweiter Action-Lauf. Die Subagenten sind 
 [`.claude/agents/`](.claude/agents/) definiert und koppeln Modell an Komplexität:
 
 - [`light`](.claude/agents/light.md) → **`model: haiku`** — trivial / mechanisch (Abstufung).
-- *(Koordinator selbst)* → **`claude-sonnet-4-6`** — Standardaufgabe.
+- _(Koordinator selbst)_ → **`claude-sonnet-4-6`** — Standardaufgabe.
 - [`heavy`](.claude/agents/heavy.md) → **`model: opus`** — komplex / architektonisch (Eskalation).
 
 **Sichere Defaults:** Schätzt der Koordinator die Aufgabe als Standard ein, erledigt er sie selbst auf
