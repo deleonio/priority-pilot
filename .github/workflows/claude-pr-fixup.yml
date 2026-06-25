@@ -90,8 +90,13 @@ jobs:
               1. Findings lesen: `gh pr view`, `gh pr diff`, die Review-Threads
                  (`gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments`)
                  und CI (`gh pr checks`).
-              2. Zutreffende, EINDEUTIGE Findings fixen: Code ändern, `pnpm format` + Lint,
-                 committen und auf den PR-Branch `${{ github.event.pull_request.head.ref }}` pushen.
+              2. Zutreffende, EINDEUTIGE Findings fixen: Code ändern, dann vor jedem Commit
+                 das lokale CI-Gate grün ziehen:
+                 `pnpm format && pnpm exec prettier --check . && pnpm lint`
+                 (repo-weit — CI lintet rekursiv, nicht nur ein Package).
+                 Erst wenn alle Checks grün, committen und auf den PR-Branch
+                 `${{ github.event.pull_request.head.ref }}` pushen.
+                 Bricht CI allein an Format-Check oder Lint, ist das selbst ein Finding.
                  Im jeweiligen Thread antworten und ihn auflösen. Mehrdeutige oder architektonisch
                  große Punkte NICHT blind umsetzen — begründet kommentieren bzw. dem Menschen
                  überlassen. Bereits begründet abgelehnte Findings nicht erneut aufmachen.
@@ -155,8 +160,13 @@ jobs:
               1. Findings lesen: `gh pr view`, `gh pr diff`, die Review-Threads
                  (`gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments`)
                  und CI (`gh pr checks`).
-              2. Zutreffende, EINDEUTIGE Findings fixen: Code ändern, `pnpm format` + Lint,
-                 committen und auf den PR-Branch `${{ github.event.pull_request.head.ref }}` pushen.
+              2. Zutreffende, EINDEUTIGE Findings fixen: Code ändern, dann vor jedem Commit
+                 das lokale CI-Gate grün ziehen:
+                 `pnpm format && pnpm exec prettier --check . && pnpm lint`
+                 (repo-weit — CI lintet rekursiv, nicht nur ein Package).
+                 Erst wenn alle Checks grün, committen und auf den PR-Branch
+                 `${{ github.event.pull_request.head.ref }}` pushen.
+                 Bricht CI allein an Format-Check oder Lint, ist das selbst ein Finding.
                  Im jeweiligen Thread antworten und ihn auflösen. Mehrdeutige oder architektonisch
                  große Punkte NICHT blind umsetzen — begründet kommentieren bzw. dem Menschen
                  überlassen. Bereits begründet abgelehnte Findings nicht erneut aufmachen.

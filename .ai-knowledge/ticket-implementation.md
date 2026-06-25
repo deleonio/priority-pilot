@@ -92,8 +92,15 @@ wird dagegen geschrieben — ein binäres Ziel statt Prosa.
   Unterdrücken von Fehlern). Tests **nicht** dem Code anpassen, um sie künstlich grün zu bekommen —
   im **Spec-Modus** sind die Spec-Tests ohnehin unantastbar (s. o.); im **Fallback-Modus** einen
   fehlerhaften eigenen Test **bewusst** und nachvollziehbar korrigieren.
-- **(c) Refactor & Gate:** Erst mit grünen Tests aufräumen, dann gezielt `pnpm format` und
-  `pnpm --filter priority-pilot lint` (bzw. betroffenes Package).
+- **(c) Refactor & Gate (CI-Spiegel, vor jedem Commit):** Erst mit grünen Tests aufräumen,
+  dann das lokale CI-Gate fahren — exakt wie `ci.yml`:
+  ```
+  pnpm format                      # schreibt Formatierung
+  pnpm exec prettier --check .     # verifiziert (wie CI-Format-Check)
+  pnpm lint                        # repo-weit (CI lintet rekursiv, nicht nur ein Package)
+  ```
+  Erst wenn alle drei Kommandos grün sind, committen/pushen. Ein Format-/Lint-Fehler darf
+  nicht in CI laufen.
 
 ## Schritt 4 — PR (ready to review) erstellen & mit dem Ticket verknüpfen
 
