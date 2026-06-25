@@ -1,0 +1,225 @@
+import { Router } from 'express';
+import type { Request, Response } from 'express';
+import { ValidationError as SequelizeValidationError } from 'sequelize';
+import { Series } from '../../models/index.js';
+import type { SeriesRhythm } from '../../models/series.js';
+import { generateDueInstances } from '../../logics/series.js';
+import { serializeTask } from './tasks.js';
+import type { components } from '../../api';
+
+type SeriesDto = components['schemas']['Series'];
+type TaskDto = components['schemas']['Task'];
+type ErrorDto = components['schemas']['Error'];
+
+const VALID_RHYTHMS: readonly SeriesRhythm[] = ['daily', 'weekly', 'monthly'];
+
+/** Validierte Template-Attribute, wie sie an das Sequelize-Modell übergeben werden. */
+interface SeriesAttributes {
+	title?: string;
+	rhythm?: SeriesRhythm;
+	defaultPriority?: number;
+	defaultEstimatedEffort?: number;
+	active?: boolean;
+	startDate?: Date;
+}
+
+type ValidationResult = { ok: true; attrs: SeriesAttributes } | { ok: false; message: string };
+
+const isRhythm = (value: unknown): value is SeriesRhythm =>
+	typeof value === 'string' && VALID_RHYTHMS.some((rhythm) => rhythm === value);
+
+const sendError = (res: Response<ErrorDto>, status: number, message: string): void => {
+	res.status(status).json({ message });
+};
+
+/** Übersetzt Schreibfehler in passende HTTP-Statuscodes (400 bei Validierung, sonst 500). */
+const handleWriteError = (res: Response<ErrorDto>, error: unknown): void => {
+	if (error instanceof SequelizeValidationError) {
+		sendError(res, 400, error.errors.map((item) => item.message).join('; '));
+		return;
+	}
+	sendError(res, 500, 'Interner Serverfehler.');
+};
+
+/** Pfad-Parameter als positive Ganzzahl parsen; sonst `null`. */
+const parseId = (raw: string): number | null => {
+	const id = Number(raw);
+	return Number.isInteger(id) && id > 0 ? id : null;
+};
+
+/** Wandelt ein Serien-Template in die im API-Vertrag definierte Form um. */
+const serializeSeries = (series: Series): SeriesDto => ({
+	id: series.id,
+	title: series.title,
+	rhythm: series.rhythm,
+	defaultPriority: series.defaultPriority,
+	defaultEstimatedEffort: series.defaultEstimatedEffort,
+	active: series.active,
+	startDate: series.startDate.toISOString(),
+});
+
+/**
+ * Validiert den Request-Body für Anlegen/Aktualisieren eines Templates. `requireTitle` erzwingt
+ * einen Titel (POST); bei einer Teil-Aktualisierung sind alle Felder optional.
+ */
+const validateSeriesFields = (body: unknown, requireTitle: boolean): ValidationResult => {
+	if (typeof body !== 'object' || body === null) {
+		return { ok: false, message: 'Request-Body muss ein Objekt sein.' };
+	}
+	const input = body as Record<string, unknown>;
+	const attrs: SeriesAttributes = {};
+
+	if (input.title !== undefined) {
+		if (typeof input.title !== 'string' || input.title.trim() === '') {
+			return { ok: false, message: 'title muss ein nicht-leerer String sein.' };
+		}
+		attrs.title = input.title.trim();
+	}
+	if (requireTitle && attrs.title === undefined) {
+		return { ok: false, message: 'title ist erforderlich.' };
+	}
+
+	if (input.rhythm !== undefined) {
+		if (!isRhythm(input.rhythm)) {
+			return { ok: false, message: 'rhythm muss "daily", "weekly" oder "monthly" sein.' };
+		}
+		attrs.rhythm = input.rhythm;
+	}
+
+	if (input.defaultPriority !== undefined) {
+		if (
+			typeof input.defaultPriority !== 'number' ||
+			!Number.isInteger(input.defaultPriority) ||
+			input.defaultPriority < 1 ||
+			input.defaultPriority > 5
+		) {
+			return { ok: false, message: 'defaultPriority muss eine Ganzzahl zwischen 1 und 5 sein.' };
+		}
+		attrs.defaultPriority = input.defaultPriority;
+	}
+
+	if (input.defaultEstimatedEffort !== undefined) {
+		if (
+			typeof input.defaultEstimatedEffort !== 'number' ||
+			!Number.isFinite(input.defaultEstimatedEffort) ||
+			input.defaultEstimatedEffort < 0.1 ||
+			input.defaultEstimatedEffort > 1
+		) {
+			return { ok: false, message: 'defaultEstimatedEffort muss eine Zahl zwischen 0.1 und 1 sein.' };
+		}
+		attrs.defaultEstimatedEffort = input.defaultEstimatedEffort;
+	}
+
+	if (input.active !== undefined) {
+		if (typeof input.active !== 'boolean') {
+			return { ok: false, message: 'active muss ein Boolean sein.' };
+		}
+		attrs.active = input.active;
+	}
+
+	if (input.startDate !== undefined) {
+		if (typeof input.startDate !== 'string' || Number.isNaN(Date.parse(input.startDate))) {
+			return { ok: false, message: 'startDate muss ein gültiges ISO-Datum sein.' };
+		}
+		attrs.startDate = new Date(input.startDate);
+	}
+
+	return { ok: true, attrs };
+};
+
+export const seriesRouter = Router();
+
+// GET /series — alle Serien-Templates auflisten
+seriesRouter.get('/series', async (_req: Request, res: Response<SeriesDto[] | ErrorDto>) => {
+	try {
+		const all = await Series.findAll({ order: [['id', 'ASC']] });
+		res.json(all.map(serializeSeries));
+	} catch (error) {
+		handleWriteError(res, error);
+	}
+});
+
+// POST /series — neues Serien-Template anlegen
+seriesRouter.post('/series', async (req: Request, res: Response<SeriesDto | ErrorDto>) => {
+	const validation = validateSeriesFields(req.body, true);
+	if (!validation.ok) {
+		sendError(res, 400, validation.message);
+		return;
+	}
+	try {
+		const created = await Series.create({ ...validation.attrs });
+		res.status(201).json(serializeSeries(created));
+	} catch (error) {
+		handleWriteError(res, error);
+	}
+});
+
+// GET /series/:id — ein Serien-Template abrufen
+seriesRouter.get('/series/:id', async (req: Request, res: Response<SeriesDto | ErrorDto>) => {
+	const id = parseId(req.params.id);
+	const series = id === null ? null : await Series.findByPk(id);
+	if (!series) {
+		sendError(res, 404, 'Serie nicht gefunden.');
+		return;
+	}
+	res.json(serializeSeries(series));
+});
+
+// PATCH /series/:id — ein Serien-Template teilweise aktualisieren (gilt nur für künftige Instanzen)
+seriesRouter.patch('/series/:id', async (req: Request, res: Response<SeriesDto | ErrorDto>) => {
+	const id = parseId(req.params.id);
+	const series = id === null ? null : await Series.findByPk(id);
+	if (!series) {
+		sendError(res, 404, 'Serie nicht gefunden.');
+		return;
+	}
+	const validation = validateSeriesFields(req.body, false);
+	if (!validation.ok) {
+		sendError(res, 400, validation.message);
+		return;
+	}
+	try {
+		await series.update(validation.attrs);
+		res.json(serializeSeries(series));
+	} catch (error) {
+		handleWriteError(res, error);
+	}
+});
+
+// DELETE /series/:id — ein Serien-Template löschen
+seriesRouter.delete('/series/:id', async (req: Request, res: Response<ErrorDto>) => {
+	const id = parseId(req.params.id);
+	const series = id === null ? null : await Series.findByPk(id);
+	if (!series) {
+		sendError(res, 404, 'Serie nicht gefunden.');
+		return;
+	}
+	await series.destroy();
+	res.status(204).send();
+});
+
+// POST /series/:id/generate — fällige Instanzen bis `until` materialisieren (idempotent)
+seriesRouter.post('/series/:id/generate', async (req: Request, res: Response<TaskDto[] | ErrorDto>) => {
+	const id = parseId(req.params.id);
+	const series = id === null ? null : await Series.findByPk(id);
+	if (!series) {
+		sendError(res, 404, 'Serie nicht gefunden.');
+		return;
+	}
+	const body: unknown = req.body;
+	if (typeof body !== 'object' || body === null) {
+		sendError(res, 400, 'Request-Body muss ein Objekt sein.');
+		return;
+	}
+	const until = (body as Record<string, unknown>).until;
+	if (typeof until !== 'string' || Number.isNaN(Date.parse(until))) {
+		sendError(res, 400, 'until muss ein gültiges ISO-Datum sein.');
+		return;
+	}
+	try {
+		const instances = await generateDueInstances(series, { until: new Date(until) });
+		res.status(201).json(instances.map(serializeTask));
+	} catch (error) {
+		handleWriteError(res, error);
+	}
+});
