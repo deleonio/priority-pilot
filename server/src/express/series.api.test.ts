@@ -37,8 +37,7 @@ describe('Series API', () => {
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(body),
 		});
-	const del = (path: string) =>
-		fetch(`${server.baseUrl}${path}`, { method: 'DELETE' });
+	const del = (path: string) => fetch(`${server.baseUrl}${path}`, { method: 'DELETE' });
 
 	const validSeries = () => ({
 		title: 'Wöchentlich kochen',
