@@ -1,0 +1,84 @@
+name: 'Modell-Router'
+description: >-
+  Schätzt die Komplexität einer KI-Aufgabe per Sonnet-Klassifikation (ein Token haiku|sonnet|opus)
+  und mappt sie deterministisch (Validierung + Fallback) auf eine volle Modell-ID + gekoppelte
+  Effort-Stufe. Liefert die Wahl als Step-Outputs (model/token/effort) und loggt die Entscheidung
+  nach $GITHUB_STEP_SUMMARY und ::notice::. Der deterministische Vertrag liegt in `model-router.ts`
+  (#149), der CI-Aufrufpfad in `entrypoint.ts` (#153).
+
+# Bewusste Designentscheidung (#153, „Offene Design-Frage"): Der Composite-Action-Pfad mit
+# Step-Output `model` ist die Primärlösung — robust und unabhängig vom unsicheren
+# Subagent-`model`-Feature. Workflows ersetzen damit `--model claude-opus-4-8` durch
+# `--model ${{ steps.router.outputs.model }}` (Verdrahtung der 6 Workflows bleibt #150).
+
+inputs:
+  kind:
+    description: 'Art des Workflows (z. B. triage, spec, implement, review) — Kontext für die Klassifikation.'
+    required: true
+  title:
+    description: 'Titel der Aufgabe / des Issues.'
+    required: true
+  description:
+    description: 'Beschreibung / Kontext der Aufgabe.'
+    required: false
+    default: ''
+  claude-token:
+    description: 'CLAUDE_CODE_OAUTH_TOKEN für den Sonnet-Klassifikationsschritt.'
+    required: false
+    default: ''
+
+outputs:
+  model:
+    description: 'Volle Modell-ID (z. B. claude-opus-4-8) — bei ungültiger Klassifikation claude-sonnet-4-6.'
+    value: ${{ steps.route.outputs.model }}
+  token:
+    description: 'Normalisiertes Komplexitäts-Token (haiku|sonnet|opus).'
+    value: ${{ steps.route.outputs.token }}
+  effort:
+    description: 'Gekoppelte Reasoning-Tiefe (low|medium|high).'
+    value: ${{ steps.route.outputs.effort }}
+
+runs:
+  using: composite
+  steps:
+    # Node für den deterministischen Entrypoint (tsx liest das Token von stdin durch resolveModel).
+    - name: Node bereitstellen
+      uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      with:
+        node-version: 26.3.1
+
+    # (a) Sonnet-Klassifikationsschritt: schätzt die Komplexität → schreibt GENAU EIN Token
+    # (haiku|sonnet|opus) in eine Datei. Läuft nur, wenn ein Token bereitsteht; sonst greift unten
+    # der deterministische Fallback (leeres Token → claude-sonnet-4-6, Exit 0).
+    - name: Komplexität klassifizieren (Sonnet)
+      id: classify
+      if: inputs.claude-token != ''
+      uses: anthropics/claude-code-action@74eedf1a1892082d619c3edb66b9402da6520e7f # v1.0.156
+      with:
+        claude_code_oauth_token: ${{ inputs.claude-token }}
+        prompt: |
+          Schätze die Komplexität der folgenden Aufgabe ein und antworte mit GENAU EINEM Token —
+          ausschließlich `haiku` (trivial/mechanisch), `sonnet` (Standard) oder `opus` (komplex/
+          architektonisch). Keine Erklärung, kein weiterer Text. Schreibe das Token (nur das Wort)
+          mit dem Write-Tool in die Datei `${{ runner.temp }}/model-token`.
+
+          Art des Workflows: ${{ inputs.kind }}
+          Titel: ${{ inputs.title }}
+          Beschreibung:
+          ${{ inputs.description }}
+        claude_args: >-
+          --model claude-sonnet-4-6 --effort low
+          --allowedTools "Write"
+
+    # (b)+(c) Entrypoint: Token von stdin → resolveModel → Step-Outputs (model/token/effort).
+    # (d) Logging der Entscheidung nach $GITHUB_STEP_SUMMARY und ::notice:: (im Entrypoint).
+    # Das Token-File fehlt/ist leer, wenn die Klassifikation übersprungen wurde oder Müll lieferte —
+    # der Entrypoint fällt dann set-e-fest auf claude-sonnet-4-6 zurück.
+    - name: Modell wählen + loggen (deterministisch)
+      id: route
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: |
+        token="$(cat "${{ runner.temp }}/model-token" 2>/dev/null || true)"
+        printf '%s' "$token" | npx -y tsx entrypoint.ts
+        echo "::notice title=Modell-Router::model=$(grep '^model=' "$GITHUB_OUTPUT" | tail -n1 | cut -d= -f2-)"

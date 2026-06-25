@@ -47,6 +47,13 @@ jobs:
       # erst nach `pnpm add -D @vitest/coverage-v8` aktiv.
       - name: Coverage-Gate (server/src/logics)
         run: pnpm --filter priority-pilot test:coverage
+      # Modell-Router CI-Baustein (#153): liegt bewusst AUSSERHALB der pnpm-Workspaces (reines
+      # CI-Artefakt, damit der Server-Build die Logik nicht mehr zieht — AK0). node:test ueber tsx
+      # deckt Mapping/Fallback (resolveModel, #149) + Effort-Kopplung/Output-Aufbereitung des
+      # Entrypoints inkl. AK3-Smoke ab. Klassifikation + Step-Output `model` werden per
+      # Workflow-Lauf an einem Scratch-Issue verifiziert (CI-Konfig-Ebene).
+      - name: Test (Modell-Router CI-Baustein)
+        run: npx -y tsx --test ".github/actions/model-router/"*.test.ts
       # E2E: Playwright startet Backend (frische In-Memory-DB) + Vite selbst (siehe playwright.config.ts) —
       # kein separater Server-Start in der Pipeline noetig.
       - name: E2E
