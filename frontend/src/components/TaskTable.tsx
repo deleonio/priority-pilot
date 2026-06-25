@@ -4,6 +4,7 @@ import type { Task } from 'client';
 import { memo } from 'react';
 import type { DependencyRef } from '../lib/dependencies';
 import { renderIntoCell } from '../lib/reactCellRoot';
+import { seriesBadge } from '../lib/series';
 import { formatDeadline, statusLabel } from '../lib/task';
 
 interface TaskTableProps {
@@ -26,6 +27,8 @@ interface TaskRow extends KoliBriTableDataType {
 	estimatedEffort: number;
 	deadline: string;
 	predecessors: number;
+	/** Serien-Kennzeichnung (leer bei Einzelaufgaben) — markiert generierte Instanzen sichtbar (#142). */
+	series: string;
 	/** Referenz auf den Original-Task, damit die Aktions-Callbacks ihn erhalten. */
 	_task: Task;
 }
@@ -51,6 +54,7 @@ export const TaskTable = memo((props: TaskTableProps) => {
 		estimatedEffort: task.estimatedEffort,
 		deadline: formatDeadline(task.deadline),
 		predecessors: dependencyMap.get(task.id)?.length ?? 0,
+		series: seriesBadge(task)?.label ?? '',
 		_task: task,
 	}));
 
@@ -63,6 +67,7 @@ export const TaskTable = memo((props: TaskTableProps) => {
 				{ key: 'priority', label: 'Priorität' },
 				{ key: 'estimatedEffort', label: 'Aufwand (Tage)' },
 				{ key: 'deadline', label: 'Deadline' },
+				{ key: 'series', label: 'Serie' },
 				{ key: 'predecessors', label: 'Vorgänger' },
 				{
 					key: 'actions',

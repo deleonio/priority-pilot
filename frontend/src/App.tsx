@@ -8,6 +8,7 @@ import { DependencyModal } from './components/DependencyModal';
 import { EmptyState } from './components/EmptyState';
 import { ForestPanel } from './components/ForestPanel';
 import { PillarWeightsModal } from './components/PillarWeightsModal';
+import { SeriesManagementModal } from './components/SeriesManagementModal';
 import { TaskFormModal } from './components/TaskFormModal';
 import { TaskTable } from './components/TaskTable';
 import { useThemeToolbarItem } from './components/ThemeToggle';
@@ -21,6 +22,7 @@ type Dialog =
 	| { kind: 'delete'; task: Task }
 	| { kind: 'dependencies'; taskId: number }
 	| { kind: 'pillars' }
+	| { kind: 'series' }
 	| null;
 
 // Die Hauptansichten als Tab-Leiste oben (Inhalt steckt in den zugehörigen `tab-N`-Slots von
@@ -137,6 +139,12 @@ export const App = () => {
 							},
 							{
 								type: 'button',
+								_label: 'Serien verwalten',
+								_variant: 'secondary',
+								_on: { onClick: () => setDialog({ kind: 'series' }) },
+							},
+							{
+								type: 'button',
 								_label: 'Aktualisieren',
 								_hideLabel: true,
 								_icons: RELOAD_ICON,
@@ -243,6 +251,7 @@ export const App = () => {
 			{dialog?.kind === 'pillars' && (
 				<PillarWeightsModal pillars={pillars} onClose={closeDialog} onSaved={afterMutation} />
 			)}
+			{dialog?.kind === 'series' && <SeriesManagementModal onClose={closeDialog} />}
 			{dialog?.kind === 'delete' && (
 				<DeleteTaskDialog task={dialog.task} onClose={closeDialog} onDeleted={afterMutation} />
 			)}

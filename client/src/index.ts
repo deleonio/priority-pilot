@@ -30,6 +30,16 @@ export type PillarFeedbackInput = Schemas['PillarFeedbackInput'];
 export type PillarFeedbackResult = Schemas['PillarFeedbackResult'];
 export type ApiError = Schemas['Error'];
 
+// Serien-Templates (#120/#142). `startDate` (im Vertrag ISO-String) wird vom Frontend-Client
+// (frontend/src/api.ts) analog zur Task-`deadline` zu echten `Date`-Objekten revived.
+type WithDateStartDate<T> = Omit<T, 'startDate'> & { startDate: Date };
+
+export type SeriesRhythm = Schemas['SeriesRhythm'];
+export type Series = WithDateStartDate<Schemas['Series']>;
+export type SeriesCreate = WithDateStartDate<Schemas['SeriesCreate']>;
+export type SeriesUpdate = Omit<Schemas['SeriesUpdate'], 'startDate'> & { startDate?: Date };
+export type SeriesGenerateInput = Omit<Schemas['SeriesGenerateInput'], 'until'> & { until: Date };
+
 // `TaskStatus` zusätzlich als Laufzeitwert (der Vertrag liefert nur einen String-Union-Typ),
 // damit Aufrufer weiterhin `TaskStatus.Open` etc. nutzen können.
 export const TaskStatus = {

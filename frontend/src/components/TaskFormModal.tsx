@@ -344,10 +344,10 @@ export const TaskFormModal = ({ task, parentTask = null, pillars, onClose, onSav
 					_value={deadlineValue}
 					_on={{
 						onChange: (_event, value) => {
-							form.current.deadline = readString(value);
+							form.current.deadline = value instanceof Date ? deadlineToDateInput(value) : readString(value);
 						},
 						onInput: (_event, value) => {
-							form.current.deadline = readString(value);
+							form.current.deadline = value instanceof Date ? deadlineToDateInput(value) : readString(value);
 						},
 					}}
 				/>
