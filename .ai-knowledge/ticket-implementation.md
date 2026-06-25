@@ -156,8 +156,9 @@ rückfragen** statt zu raten.
    (`.github/workflows/claude-pr-gate.yml`) prüft nach Abschluss die Allowlist-Checks **CI** und
    **Reviewer** und setzt bei rotem Ergebnis `ai:needs-changes` → der Fixup läuft an.
 3. **Findings abarbeiten** (Umsetzer-Rolle) — jeden offenen Punkt behandeln:
-   - **Zutreffend, klein, eindeutig →** **fixen**: Fix committen + pushen, erneut `pnpm format` +
-     Lint, kurz im Thread antworten (Bezug zum Fix-Commit) und den Thread **auflösen**.
+   - **Zutreffend, klein, eindeutig →** **fixen**: Fix committen + pushen, erneut
+     `pnpm format && pnpm exec prettier --check . && pnpm lint`, kurz im Thread antworten
+     (Bezug zum Fix-Commit) und den Thread **auflösen**.
    - **Mehrdeutig oder architektonisch relevant →** **nicht** raten, sondern **vorher rückfragen**;
      den Punkt bis zur Antwort offen lassen.
    - **Nicht zutreffend / kein Handlungsbedarf →** sachlich **kommentieren**, warum nichts geändert

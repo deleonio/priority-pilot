@@ -27,7 +27,9 @@ const ciYml = (): string => readFile('.github', 'workflows', 'ci.yml');
 const claudePrompt = (): string => {
 	const yml = fixupYml();
 	// Der Claude-Prompt steht im `prompt: |` Block des "Findings umsetzen via Claude Code"-Steps
-	const match = yml.match(/name: Findings umsetzen via Claude Code[\s\S]*?prompt: \|([\s\S]*?)claude_args:/);
+	const match = yml.match(
+		/name: Findings umsetzen via Claude Code[\s\S]*?prompt: \|([\s\S]*?)claude_args:/,
+	);
 	assert.ok(match, 'Claude-Prompt-Block nicht gefunden in claude-pr-fixup.yml');
 	return match[1];
 };
@@ -36,7 +38,9 @@ const claudePrompt = (): string => {
 const mistralPrompt = (): string => {
 	const yml = fixupYml();
 	// Der Mistral-Prompt steht im `prompt: |` Block des "Findings umsetzen via Mistral Vibe"-Steps
-	const match = yml.match(/name: Findings umsetzen via Mistral Vibe[\s\S]*?prompt: \|([\s\S]*?)(?=\n      -|\n  [a-z]|\s*$)/);
+	const match = yml.match(
+		/name: Findings umsetzen via Mistral Vibe[\s\S]*?prompt: \|([\s\S]*?)(?=\n      -|\n  [a-z]|\s*$)/,
+	);
 	assert.ok(match, 'Mistral-Prompt-Block nicht gefunden in claude-pr-fixup.yml');
 	return match[1];
 };
@@ -57,13 +61,21 @@ describe('AK1 — Lint-Gate ist repo-weit (kein --filter)', () => {
 	it('Claude-Prompt in claude-pr-fixup.yml nennt pnpm lint ohne --filter als Gate', () => {
 		const prompt = claudePrompt();
 		assert.match(prompt, /pnpm lint/, 'Claude-Prompt muss `pnpm lint` (repo-weit) als Gate nennen');
-		assert.doesNotMatch(prompt, /pnpm --filter \S+ lint/, 'Claude-Prompt darf kein `--filter`-Lint als Gate-Kommando verwenden');
+		assert.doesNotMatch(
+			prompt,
+			/pnpm --filter \S+ lint/,
+			'Claude-Prompt darf kein `--filter`-Lint als Gate-Kommando verwenden',
+		);
 	});
 
 	it('Mistral-Prompt in claude-pr-fixup.yml nennt pnpm lint ohne --filter als Gate', () => {
 		const prompt = mistralPrompt();
 		assert.match(prompt, /pnpm lint/, 'Mistral-Prompt muss `pnpm lint` (repo-weit) als Gate nennen');
-		assert.doesNotMatch(prompt, /pnpm --filter \S+ lint/, 'Mistral-Prompt darf kein `--filter`-Lint als Gate-Kommando verwenden');
+		assert.doesNotMatch(
+			prompt,
+			/pnpm --filter \S+ lint/,
+			'Mistral-Prompt darf kein `--filter`-Lint als Gate-Kommando verwenden',
+		);
 	});
 });
 
@@ -77,39 +89,67 @@ describe('AK2 — Verifizierender prettier --check . ist als Gate vorhanden', ()
 	});
 
 	it('Claude-Prompt enthält prettier --check . als Gate-Kommando', () => {
-		assert.match(claudePrompt(), /prettier --check \./, 'Claude-Prompt muss `prettier --check .` als verifizierenden Gate enthalten');
+		assert.match(
+			claudePrompt(),
+			/prettier --check \./,
+			'Claude-Prompt muss `prettier --check .` als verifizierenden Gate enthalten',
+		);
 	});
 
 	it('Mistral-Prompt enthält prettier --check . als Gate-Kommando', () => {
-		assert.match(mistralPrompt(), /prettier --check \./, 'Mistral-Prompt muss `prettier --check .` als verifizierenden Gate enthalten');
+		assert.match(
+			mistralPrompt(),
+			/prettier --check \./,
+			'Mistral-Prompt muss `prettier --check .` als verifizierenden Gate enthalten',
+		);
 	});
 });
 
 describe('AK3 — Gate-Kommandos spiegeln CI-Checks exakt', () => {
 	it('ci.yml verwendet prettier --check . als Format-Check', () => {
 		// Verifiziert, dass ci.yml tatsaechlich prettier --check . enthaelt (Referenz-Ankerpunkt)
-		assert.match(ciYml(), /prettier --check \./, 'ci.yml muss `prettier --check .` enthalten — Referenz für den CI-Spiegel');
+		assert.match(
+			ciYml(),
+			/prettier --check \./,
+			'ci.yml muss `prettier --check .` enthalten — Referenz für den CI-Spiegel',
+		);
 	});
 
 	it('ci.yml verwendet pnpm lint als Lint-Check', () => {
-		assert.match(ciYml(), /^\s*run: pnpm lint\s*$/m, 'ci.yml muss `pnpm lint` (repo-weit) als Lint-Step enthalten');
+		assert.match(
+			ciYml(),
+			/^\s*run: pnpm lint\s*$/m,
+			'ci.yml muss `pnpm lint` (repo-weit) als Lint-Step enthalten',
+		);
 	});
 
 	it('Claude-Prompt spiegelt beide CI-Gate-Kommandos (prettier --check . und pnpm lint)', () => {
 		const prompt = claudePrompt();
-		assert.match(prompt, /prettier --check \./, 'Claude-Prompt muss `prettier --check .` als CI-Spiegel enthalten');
+		assert.match(
+			prompt,
+			/prettier --check \./,
+			'Claude-Prompt muss `prettier --check .` als CI-Spiegel enthalten',
+		);
 		assert.match(prompt, /pnpm lint/, 'Claude-Prompt muss `pnpm lint` als CI-Spiegel enthalten');
 	});
 
 	it('Mistral-Prompt spiegelt beide CI-Gate-Kommandos (prettier --check . und pnpm lint)', () => {
 		const prompt = mistralPrompt();
-		assert.match(prompt, /prettier --check \./, 'Mistral-Prompt muss `prettier --check .` als CI-Spiegel enthalten');
+		assert.match(
+			prompt,
+			/prettier --check \./,
+			'Mistral-Prompt muss `prettier --check .` als CI-Spiegel enthalten',
+		);
 		assert.match(prompt, /pnpm lint/, 'Mistral-Prompt muss `pnpm lint` als CI-Spiegel enthalten');
 	});
 
 	it('ticket-implementation.md spiegelt beide CI-Gate-Kommandos', () => {
 		const doc = implDoc();
-		assert.match(doc, /prettier --check \./, 'ticket-implementation.md muss `prettier --check .` als CI-Spiegel nennen');
+		assert.match(
+			doc,
+			/prettier --check \./,
+			'ticket-implementation.md muss `prettier --check .` als CI-Spiegel nennen',
+		);
 		assert.match(doc, /pnpm lint/, 'ticket-implementation.md muss `pnpm lint` (repo-weit) als CI-Spiegel nennen');
 	});
 });
@@ -118,16 +158,20 @@ describe('AK4 — CI-Format/Lint-Fehler ist als eigenständiges Finding deklarie
 	it('Claude-Prompt dokumentiert: CI-Fehler an Format/Lint ist ein eigenständiges Finding', () => {
 		const prompt = claudePrompt();
 		// Muss den Zusammenhang CI-Fehler → eigenständiges Finding oder äquivalente Formulierung enthalten
-		const pattern =
-			/[Ff]ormat[^.]*[Ff]inding|[Ll]int[^.]*[Ff]inding|[Ff]inding[^.]*[Ff]ormat|[Ff]inding[^.]*[Ll]int|CI[^.]*[Ff]ormat[^.]*behob|CI[^.]*[Ll]int[^.]*behob|[Ff]ormat.*CI.*[Ff]inding|[Ll]int.*CI.*[Ff]inding/;
-		assert.ok(pattern.test(prompt), 'Claude-Prompt muss klarstellen, dass ein reiner CI-Format-/Lint-Fehler als eigenständiges Finding behandelt wird');
+		const pattern = /[Ff]ormat[^.]*[Ff]inding|[Ll]int[^.]*[Ff]inding|[Ff]inding[^.]*[Ff]ormat|[Ff]inding[^.]*[Ll]int|CI[^.]*[Ff]ormat[^.]*behob|CI[^.]*[Ll]int[^.]*behob|[Ff]ormat.*CI.*[Ff]inding|[Ll]int.*CI.*[Ff]inding/;
+		assert.ok(
+			pattern.test(prompt),
+			'Claude-Prompt muss klarstellen, dass ein reiner CI-Format-/Lint-Fehler als eigenständiges Finding behandelt wird',
+		);
 	});
 
 	it('Mistral-Prompt dokumentiert: CI-Fehler an Format/Lint ist ein eigenständiges Finding', () => {
 		const prompt = mistralPrompt();
-		const pattern =
-			/[Ff]ormat[^.]*[Ff]inding|[Ll]int[^.]*[Ff]inding|[Ff]inding[^.]*[Ff]ormat|[Ff]inding[^.]*[Ll]int|CI[^.]*[Ff]ormat[^.]*behob|CI[^.]*[Ll]int[^.]*behob|[Ff]ormat.*CI.*[Ff]inding|[Ll]int.*CI.*[Ff]inding/;
-		assert.ok(pattern.test(prompt), 'Mistral-Prompt muss klarstellen, dass ein reiner CI-Format-/Lint-Fehler als eigenständiges Finding behandelt wird');
+		const pattern = /[Ff]ormat[^.]*[Ff]inding|[Ll]int[^.]*[Ff]inding|[Ff]inding[^.]*[Ff]ormat|[Ff]inding[^.]*[Ll]int|CI[^.]*[Ff]ormat[^.]*behob|CI[^.]*[Ll]int[^.]*behob|[Ff]ormat.*CI.*[Ff]inding|[Ll]int.*CI.*[Ff]inding/;
+		assert.ok(
+			pattern.test(prompt),
+			'Mistral-Prompt muss klarstellen, dass ein reiner CI-Format-/Lint-Fehler als eigenständiges Finding behandelt wird',
+		);
 	});
 });
 
@@ -150,7 +194,8 @@ describe('AK5 — Prompt-Symmetrie Claude/Mistral (kein Gate-Drift)', () => {
 		assert.equal(
 			claudeGate,
 			mistralGate,
-			`Gate-Anweisung weicht zwischen Claude- und Mistral-Prompt ab — kein Drift erlaubt:\n  Claude:  ${claudeGate}\n  Mistral: ${mistralGate}`,
+			`Gate-Anweisung weicht zwischen Claude- und Mistral-Prompt ab — kein Drift erlaubt:\n  Claude:  ${claudeGate}\n` +
+				`  Mistral: ${mistralGate}`,
 		);
 	});
 
@@ -159,9 +204,16 @@ describe('AK5 — Prompt-Symmetrie Claude/Mistral (kein Gate-Drift)', () => {
 		const mp = mistralPrompt();
 
 		// Das Gate muss als Bedingung formuliert sein (vor Push / erst wenn grün / etc.)
-		const gateIsBlocking = (prompt: string) => /vor jedem (Commit|Push)|erst wenn.*grün|vor.*Push.*Gate|Gate.*grün/i.test(prompt);
+		const gateIsBlocking = (prompt: string) =>
+			/vor jedem (Commit|Push)|erst wenn.*grün|vor.*Push.*Gate|Gate.*grün/i.test(prompt);
 
-		assert.ok(gateIsBlocking(cp), 'Claude-Prompt muss das Gate als Vor-Push-Bedingung formulieren (nicht als optionalen Hinweis)');
-		assert.ok(gateIsBlocking(mp), 'Mistral-Prompt muss das Gate als Vor-Push-Bedingung formulieren (nicht als optionalen Hinweis)');
+		assert.ok(
+			gateIsBlocking(cp),
+			'Claude-Prompt muss das Gate als Vor-Push-Bedingung formulieren (nicht als optionalen Hinweis)',
+		);
+		assert.ok(
+			gateIsBlocking(mp),
+			'Mistral-Prompt muss das Gate als Vor-Push-Bedingung formulieren (nicht als optionalen Hinweis)',
+		);
 	});
 });
