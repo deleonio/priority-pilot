@@ -94,6 +94,18 @@ jobs:
       # Standard-Pfad (Claude): laeuft, solange die Repo-Variable AI_AGENT NICHT auf "mistral" steht
       # (auch ungesetzt -> Claude bleibt Default). Umschalten: `gh variable set AI_AGENT --body
       # mistral` (zurueck: `gh variable set AI_AGENT --body claude`).
+      # Modell-Router (#150): waehlt statt der festen Opus-Verkabelung das aufgabengerechte Modell
+      # (+ gekoppelten Effort) und reicht es als Step-Outputs an den Claude-Schritt durch.
+      - name: Modell-Router
+        id: router
+        if: steps.preflight.outputs.configured == 'true' && vars.AI_AGENT != 'mistral'
+        uses: ./.github/actions/model-router
+        with:
+          kind: implement
+          title: ${{ github.event.issue.title }}
+          description: ${{ github.event.issue.body }}
+          claude-token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+
       - name: Umsetzung via Claude Code
         id: claude
         if: steps.preflight.outputs.configured == 'true' && vars.AI_AGENT != 'mistral'
@@ -154,7 +166,7 @@ jobs:
             Bearbeite ausschließlich dieses eine Issue. Die Freigabe gilt durch das Label
             `ai:ready` als erteilt: arbeite autonom, ohne auf eine interaktive Bestätigung zu warten.
           claude_args: >-
-            --model claude-opus-4-8 --effort medium
+            --model ${{ steps.router.outputs.model }} --effort ${{ steps.router.outputs.effort }}
             --allowedTools "Bash(gh issue:*),Bash(gh pr:*),Bash(gh label:*),Bash(gh api:*),Bash(git switch:*),Bash(git checkout:*),Bash(git branch:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(git fetch:*),Bash(pnpm:*),Read,Edit,Write,Grep,Glob,Skill,Task"
             --append-system-prompt "Automatisierter, durch das Label ai:ready autorisierter Umsetzungs-Lauf in GitHub Actions (headless). Bearbeite ausschliesslich Issue #${{ github.event.issue.number }}, Schritte 1-4 der Umsetzung; KEIN PR-Abo/Kreuzverhoer-Loop (separater Workflow). HARTES 20-Minuten-Timeout: sichere bei drohendem Limit (~18 Min) rechtzeitig den Zwischenstand (committen/pushen, ggf. Draft-PR), statt einen vollen Durchlauf zu erzwingen. Bestaetigung gilt durch ai:ready als erteilt; arbeite autonom ohne interaktive Rueckfrage."
 

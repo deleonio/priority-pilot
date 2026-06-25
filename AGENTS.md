@@ -58,12 +58,37 @@ wie `--model`/`--allowedTools`/`--append-system-prompt` durch):
   enge `--allowedTools`-Restriktion des Claude-Pfads ist hier **nicht erzwingbar**; die Grenzen
   setzt der Prompt (z. B. „committe keinen Produktivcode", im Review „ändere keinen Code").
 - **Modell:** nicht pro Workflow wählbar; Vibe nutzt sein Default-Modell. Pinnen ginge über
-  `~/.vibe/config.toml` (`active_model`).
+  `~/.vibe/config.toml` (`active_model`). Der **Modell-Router** (s. u.) ist auf dem Mistral-Pfad
+  **nicht betroffen** — die Vibe-Action reicht kein `--model`-Flag durch, also bleibt die
+  Router-Wahl dort wirkungslos; das Modell kommt allein aus `~/.vibe/config.toml`.
 - **System-Prompt:** wird als führender `[KONTEXT/REGELN]`-Block in den `prompt` gefaltet.
 - **Keine `session_id`/`--resume`** in der Job-Summary. Das harte 20-Min-Timeout
   (`ai:to-big-issue`) greift unverändert über `timeout-minutes` + Schritt-`outcome`.
 
 Der Canceller `claude-pr-cancel.yml` ist agent-unabhängig (reiner `gh`-Aufruf) und unverändert.
+
+### Modell-Router (Claude-Pfad)
+
+Statt jeden KI-Workflow fest auf `claude-opus-4-8` zu verkabeln, wählt der **Modell-Router**
+([`.github/actions/model-router`](.github/actions/model-router)) das Modell **aufgabengerecht**: Ein
+vorgeschalteter Klassifikationsschritt (`claude-sonnet-4-6`, `--effort low`) schätzt die Komplexität
+der Aufgabe auf **genau ein Token** (`haiku` | `sonnet` | `opus`); der deterministische Kern mappt es
+auf Modell-ID **und** gekoppelten Effort und liefert beides als Step-Outputs
+(`steps.router.outputs.model` / `.effort`), die der Claude-Schritt über
+`--model … --effort …` übernimmt. Die drei Komplexitätsstufen (Token → Modell-ID / Effort):
+
+- `haiku` → `claude-haiku-4-5` / `low` — trivial / mechanisch.
+- `sonnet` → `claude-sonnet-4-6` / `medium` — Standardaufgabe.
+- `opus` → `claude-opus-4-8` / `high` — komplex / architektonisch.
+
+**Fallback:** Liefert die Klassifikation ein leeres, ungültiges oder mehrdeutiges Token (oder fehlt
+das Token, z. B. weil kein `CLAUDE_CODE_OAUTH_TOKEN` bereitsteht), fällt der Router **ohne harten
+Abbruch** (Exit 0) auf **`claude-sonnet-4-6`** / `medium` zurück — eine sichere Standardwahl statt
+eines Job-Fehlers. Das harte `timeout-minutes: 20` jedes Workflows bleibt davon **unberührt**.
+
+**Mistral-Pfad: nicht betroffen.** Der Router greift ausschließlich auf dem Claude-Pfad. Steht
+`AI_AGENT=mistral`, ist die Router-Wahl wirkungslos (die Vibe-Action reicht kein `--model` durch,
+s. o.) — das Modell kommt dort allein aus `~/.vibe/config.toml`.
 
 ## Ticket-Triage
 
