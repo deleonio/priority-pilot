@@ -38,8 +38,7 @@ const CLAUDE_WORKFLOWS = [
 	'claude-pr-fixup.yml',
 ];
 
-const readWorkflow = (name: string): string =>
-	readFileSync(join(REPO_ROOT, '.github', 'workflows', name), 'utf8');
+const readWorkflow = (name: string): string => readFileSync(join(REPO_ROOT, '.github', 'workflows', name), 'utf8');
 
 const readAgentsMd = (): string => readFileSync(join(REPO_ROOT, 'AGENTS.md'), 'utf8');
 
@@ -88,11 +87,7 @@ describe('AK1 (unveraendert): das harte 20-Minuten-Timeout bleibt in jedem Workf
 	for (const wf of CLAUDE_WORKFLOWS) {
 		it(`${wf} behaelt sein \`timeout-minutes: 20\``, () => {
 			const content = readWorkflow(wf);
-			assert.match(
-				content,
-				/timeout-minutes:\s*20/,
-				`${wf} darf das harte 20-Minuten-Timeout nicht verlieren`,
-			);
+			assert.match(content, /timeout-minutes:\s*20/, `${wf} darf das harte 20-Minuten-Timeout nicht verlieren`);
 		});
 	}
 });
@@ -107,20 +102,12 @@ describe('AK4 + AK5: AGENTS.md dokumentiert Routing-Stufen, Fallback und den nic
 
 	it('nennt den Fallback auf `claude-sonnet-4-6` bei leerer/ungueltiger Klassifikation', () => {
 		const doc = readAgentsMd();
-		assert.match(
-			doc,
-			/claude-sonnet-4-6/,
-			'AGENTS.md muss das Fallback-Modell claude-sonnet-4-6 dokumentieren',
-		);
+		assert.match(doc, /claude-sonnet-4-6/, 'AGENTS.md muss das Fallback-Modell claude-sonnet-4-6 dokumentieren');
 	});
 
 	it('verweist auf den Modell-Router (Baustein / Routing)', () => {
 		const doc = readAgentsMd();
-		assert.match(
-			doc,
-			/model-router|Modell-Router/,
-			'AGENTS.md muss den Modell-Router-Baustein referenzieren',
-		);
+		assert.match(doc, /model-router|Modell-Router/, 'AGENTS.md muss den Modell-Router-Baustein referenzieren');
 	});
 
 	it('haelt den Mistral-Pfad ausdruecklich als „nicht betroffen" vom Router fest', () => {
