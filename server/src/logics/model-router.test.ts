@@ -12,12 +12,7 @@ import assert from 'node:assert/strict';
 // als testbares Modul ausgelagert (Issue-Vorschlag). Es wird KEIN Produktivcode geschrieben; die
 // Tests werden grün, sobald `server/src/logics/model-router.ts` die hier eingeklagte Schnittstelle
 // bereitstellt.
-import {
-	resolveModel,
-	ALLOWED_TOKENS,
-	MODEL_IDS,
-	DEFAULT_MODEL,
-} from './model-router.js';
+import { resolveModel, ALLOWED_TOKENS, MODEL_IDS, DEFAULT_MODEL } from './model-router.js';
 
 // Die vollen Modell-IDs aus dem Ticket — die Allowlist mappt genau hierauf.
 const HAIKU = 'claude-haiku-4-5';

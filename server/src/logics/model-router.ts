@@ -36,8 +36,7 @@ export interface ModelDecision {
 }
 
 /** Prüft, ob ein normalisierter String ein erlaubtes Token ist (Type-Guard, ohne Assertion). */
-const isAllowedToken = (value: string): value is ModelToken =>
-	(ALLOWED_TOKENS as readonly string[]).includes(value);
+const isAllowedToken = (value: string): value is ModelToken => (ALLOWED_TOKENS as readonly string[]).includes(value);
 
 /**
  * Validiert + mappt den rohen Router-Output auf eine volle Modell-ID.
