@@ -5,7 +5,6 @@ import TaskPillar from './taskPillar.js';
 import PillarFeedback from './pillarFeedback.js';
 import ScoreEntry from './scoreEntry.js';
 import Series from './series.js';
-import SeriesPillar from './seriesPillar.js';
 
 Task.belongsToMany(Task, {
 	as: 'dependencies',
@@ -30,15 +29,12 @@ Pillar.belongsToMany(Task, { through: TaskPillar, foreignKey: 'pillarId', otherK
 Task.hasOne(ScoreEntry, { foreignKey: 'taskId' });
 ScoreEntry.belongsTo(Task, { foreignKey: 'taskId' });
 
-// Eine Serien-Vorlage materialisiert 0..n konkrete Tasks (1:n über `seriesId`).
+// Ein Serien-Template (`Series`) hat 0..n generierte Instanzen — jede Instanz ist ein vollwertiger
+// `Task` mit `seriesId` (siehe #120). Die Instanz ist entkoppelt: Template-Änderungen wirken nur auf
+// künftige Instanzen, Instanz-Änderungen (gesetztes `isException`) nicht aufs Template.
 Series.hasMany(Task, { foreignKey: 'seriesId' });
 Task.belongsTo(Series, { foreignKey: 'seriesId' });
 
-// Die Säulen-Verteilung der Vorlage ist n:m (analog `task_pillars`) und liegt in `series_pillars`;
-// sie wird beim Generieren als Snapshot auf jede Instanz kopiert (siehe logics/series.ts).
-Series.belongsToMany(Pillar, { through: SeriesPillar, foreignKey: 'seriesId', otherKey: 'pillarId' });
-Pillar.belongsToMany(Series, { through: SeriesPillar, foreignKey: 'pillarId', otherKey: 'seriesId' });
-
 // `pillar_feedback` steht für sich (keine Assoziation) — es speichert lose Korrektur-Samples
 // (Titel/Beschreibung + bestätigte Säulen) für den Feedback-Loop der Klassifikation (siehe #45).
-export { Task, Dependency, Pillar, TaskPillar, PillarFeedback, ScoreEntry, Series, SeriesPillar };
+export { Task, Dependency, Pillar, TaskPillar, PillarFeedback, ScoreEntry, Series };

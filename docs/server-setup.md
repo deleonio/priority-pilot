@@ -332,16 +332,16 @@ sudo -u gh-deploy sqlite3 /var/www/gh-deploy/priority-pilot/data/database.sqlite
 
 ## 13. Troubleshooting
 
-| Symptom                               | Wahrscheinliche Ursache                           | Prüfen / Fix                                                                |
-| ------------------------------------- | ------------------------------------------------- | --------------------------------------------------------------------------- |
-| `systemctl status` zeigt `failed`     | `node_modules`/`sqlite3`-ABI passt nicht zum Host | `journalctl -u app@priority-pilot`; ggf. Host-Install (Schritt 6, Variante) |
-| API-Calls 404                         | Caddy proxyt `/api/*` statt der Wurzelpfade       | `@api`-Matcher prüfen (Schritt 9)                                           |
-| Daten weg nach Deploy                 | `DATABASE_STORAGE` zeigt in den Release-Baum      | absoluten `data/`-Pfad setzen (Schritt 5)                                   |
-| Demo-Daten erscheinen in Prod         | `DB_SEED` nicht auf `false`                       | Env-Datei korrigieren, neu starten                                          |
-| `/tasks/suggest-pillars` → 503        | `MISTRAL_API_KEY` fehlt                           | Key in Env-Datei eintragen                                                  |
-| TLS schlägt fehl                      | DNS-A-Record fehlt/falsch                         | A-Record auf Server-IP, dann `systemctl reload caddy`                       |
-| Deploy bricht mit „unbekannte App" ab | Env-Datei fehlt                                   | `/etc/gh-deploy/<app>.env` anlegen (Schritt 5)                              |
-| `deploy.sh`: `Syntax error: redirection unexpected` | Skript mit `sh` statt bash gestartet | Direkt `./deploy.sh` starten (nutzt Shebang) bzw. Forced-Command; nie `sh deploy.sh` |
+| Symptom                                             | Wahrscheinliche Ursache                           | Prüfen / Fix                                                                         |
+| --------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `systemctl status` zeigt `failed`                   | `node_modules`/`sqlite3`-ABI passt nicht zum Host | `journalctl -u app@priority-pilot`; ggf. Host-Install (Schritt 6, Variante)          |
+| API-Calls 404                                       | Caddy proxyt `/api/*` statt der Wurzelpfade       | `@api`-Matcher prüfen (Schritt 9)                                                    |
+| Daten weg nach Deploy                               | `DATABASE_STORAGE` zeigt in den Release-Baum      | absoluten `data/`-Pfad setzen (Schritt 5)                                            |
+| Demo-Daten erscheinen in Prod                       | `DB_SEED` nicht auf `false`                       | Env-Datei korrigieren, neu starten                                                   |
+| `/tasks/suggest-pillars` → 503                      | `MISTRAL_API_KEY` fehlt                           | Key in Env-Datei eintragen                                                           |
+| TLS schlägt fehl                                    | DNS-A-Record fehlt/falsch                         | A-Record auf Server-IP, dann `systemctl reload caddy`                                |
+| Deploy bricht mit „unbekannte App" ab               | Env-Datei fehlt                                   | `/etc/gh-deploy/<app>.env` anlegen (Schritt 5)                                       |
+| `deploy.sh`: `Syntax error: redirection unexpected` | Skript mit `sh` statt bash gestartet              | Direkt `./deploy.sh` starten (nutzt Shebang) bzw. Forced-Command; nie `sh deploy.sh` |
 
 ---
 

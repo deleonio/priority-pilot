@@ -29,6 +29,8 @@ const task = (
 	actualEffort: null,
 	description: null,
 	deadline: null,
+	seriesId: null,
+	isException: false,
 	pillars,
 });
 

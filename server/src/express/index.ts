@@ -39,7 +39,7 @@ export const createApp = (deps: AppDeps = {}) => {
 	// Gamification-Scoring: Punkte je Task lesen, Balance-Stand je Säule (siehe routes/scores.ts).
 	app.use(scoresRouter);
 
-	// Serienaufgaben: Vorlagen-CRUD + Generieren fälliger Instanzen (siehe routes/series.ts).
+	// Serienaufgaben (Habits): Template-CRUD + Instanz-Generierung (siehe routes/series.ts).
 	app.use(seriesRouter);
 
 	// GET /health — billiger Liveness-Check (ohne DB) für Post-Deploy & Monitoring.

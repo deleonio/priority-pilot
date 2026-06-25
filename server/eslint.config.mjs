@@ -28,6 +28,17 @@ export default [
 		},
 		rules: {
 			...tsPlugin.configs.recommended.rules,
+			// Bewusst ungenutzte Bindungen erlauben: `_`-Präfix (Konvention) sowie der
+			// Rest-Sibling-Auslass-Idiom `const { weg: _omit, ...rest } = obj` (Feld weglassen).
+			'@typescript-eslint/no-unused-vars': [
+				'error',
+				{
+					argsIgnorePattern: '^_',
+					varsIgnorePattern: '^_',
+					caughtErrorsIgnorePattern: '^_',
+					ignoreRestSiblings: true,
+				},
+			],
 		},
 	},
 ];

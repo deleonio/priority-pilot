@@ -1,37 +1,23 @@
-import {
-	BelongsToManyAddAssociationMixin,
-	BelongsToManyGetAssociationsMixin,
-	DataTypes,
-	Model,
-} from 'sequelize';
+import { DataTypes, Model } from 'sequelize';
 import sequelize from '../database.js';
-import Pillar from './pillar.js';
-import SeriesPillar from './seriesPillar.js';
 
-/** Unterstützte Wiederholungsfrequenzen einer Serien-Vorlage. */
-export type SeriesFrequency = 'DAILY' | 'WEEKLY';
-
-/** Eine Säule samt der zugehörigen Snapshot-Join-Zeile (`share`/`confidence`). */
-export type SeriesPillarContribution = Pillar & { SeriesPillar: SeriesPillar };
+/** Wiederholungsrhythmus eines Serien-Templates (striktes RRULE-Subset, siehe #120). */
+export type SeriesRhythm = 'daily' | 'weekly' | 'monthly';
 
 /**
- * Vorlage (Template) für eine wiederkehrende Aufgabe. Aus ihr materialisiert
- * `generateDueInstances` (siehe logics/series.ts) je fälligem Termin im Horizont genau **eine**
- * konkrete `Task`-Instanz. Die Säulen-Zuordnung der Vorlage ist n:m über `series_pillars` und wird
- * beim Generieren als **Snapshot** auf die Instanz kopiert (Entkopplung künftiger Template-Edits).
+ * Serien-Template einer wiederkehrenden Aufgabe (Habit, Konzept §4.2). Das Template hält den
+ * Rhythmus und die Default-Werte; jede fällige Wiederholung wird über `generateDueInstances`
+ * (siehe `logics/series.ts`) als **eigenständiger** `Task` mit `seriesId` materialisiert. Eine
+ * Änderung am Template wirkt nur auf **künftige** Instanzen, nie rückwirkend.
  */
 class Series extends Model {
 	public id!: number;
-	public frequency!: SeriesFrequency;
-	public interval!: number;
-	public byWeekday?: number[] | null;
-	public startDate!: string;
+	public title!: string;
+	public rhythm!: SeriesRhythm;
 	public defaultPriority!: number;
+	public defaultEstimatedEffort!: number;
 	public active!: boolean;
-
-	// Säulen-Beiträge der Vorlage (n:m über `series_pillars`); die Join-Zeile trägt `share`/`confidence`.
-	public getPillars!: BelongsToManyGetAssociationsMixin<SeriesPillarContribution>;
-	public addPillar!: BelongsToManyAddAssociationMixin<Pillar, number>;
+	public startDate!: Date;
 
 	public readonly createdAt!: Date;
 	public readonly updatedAt!: Date;
@@ -44,27 +30,14 @@ Series.init(
 			autoIncrement: true,
 			primaryKey: true,
 		},
-		frequency: {
-			type: DataTypes.ENUM('DAILY', 'WEEKLY'),
+		title: {
+			type: DataTypes.STRING,
 			allowNull: false,
 		},
-		interval: {
-			type: DataTypes.INTEGER,
+		rhythm: {
+			type: DataTypes.ENUM('daily', 'weekly', 'monthly'),
 			allowNull: false,
-			defaultValue: 1,
-			validate: {
-				min: 1,
-			},
-		},
-		// Optionale Wochentags-Einschränkung (0–6) für WEEKLY; fehlt sie, gilt der Wochentag des
-		// `startDate`. Aktuell als Snapshot-fähige Liste vorgehalten (Generierung nutzt `startDate`).
-		byWeekday: {
-			type: DataTypes.JSON,
-			allowNull: true,
-		},
-		startDate: {
-			type: DataTypes.DATEONLY,
-			allowNull: false,
+			defaultValue: 'weekly',
 		},
 		defaultPriority: {
 			type: DataTypes.INTEGER,
@@ -75,10 +48,23 @@ Series.init(
 				max: 5,
 			},
 		},
+		defaultEstimatedEffort: {
+			type: DataTypes.FLOAT,
+			allowNull: false,
+			defaultValue: 0.5,
+			validate: {
+				min: 0.1,
+				max: 1,
+			},
+		},
 		active: {
 			type: DataTypes.BOOLEAN,
 			allowNull: false,
 			defaultValue: true,
+		},
+		startDate: {
+			type: DataTypes.DATE,
+			allowNull: false,
 		},
 	},
 	{

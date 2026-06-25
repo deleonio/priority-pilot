@@ -1,140 +1,218 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { Task, Pillar, Series } from '../models/index.js';
-import { generateDueInstances, HORIZONT_TAGE } from './series.js';
+import { Series, Task } from '../models/index.js';
+import { generateDueInstances } from './series.js';
 import { resetDb, closeDb } from '../test/helpers.js';
 
 beforeEach(resetDb);
 after(closeDb);
 
-// Formatiert ein Datum (Date oder ISO-String) auf den reinen Kalendertag in UTC (YYYY-MM-DD),
-// damit Vergleiche unabhängig von Uhrzeit/Zeitzone sind.
-const tag = (d: Date | string): string => new Date(d).toISOString().slice(0, 10);
+// Rote Spec-Tests für #120 — Serienaufgaben (Habits): Serien-Template + eigenständige Instanzen.
+// Der Vertrag deckt die Generierungslogik ab (AK 1, 3, 4); die Instanz-Override-Semantik (AK 2)
+// liegt im API-Test (series.api.test.ts). Es wird KEIN Produktivcode geschrieben — die Tests
+// werden grün, sobald `Series`, `seriesId`/`isException` am Task und `generateDueInstances`
+// existieren.
 
-// Anker der Serie: Montag, 01.06.2026. Wöchentliche Termine fallen damit auf jeden Montag.
-const STARTDATE = '2026-06-01';
-
-// Festes „now" für deterministische Tests: Mittwoch, 24.06.2026.
-// Horizont = 14 Tage ⇒ Fenster [2026-06-24, 2026-07-08].
-// Montage im Fenster (innen, nicht auf den Rändern): 2026-06-29 und 2026-07-06.
-const NOW = new Date('2026-06-24T12:00:00.000Z');
-
-// Fenster nach 14 Tagen rollierend weiter: [2026-07-08, 2026-07-22].
-// Neue Montage: 2026-07-13 und 2026-07-20.
-const NOW_PLUS_HORIZONT = new Date('2026-07-08T12:00:00.000Z');
-
-const createWeeklyTemplate = (overrides: Record<string, unknown> = {}) =>
-	Series.create({
-		frequency: 'WEEKLY',
-		interval: 1,
-		startDate: STARTDATE,
-		defaultPriority: 3,
-		active: true,
-		...overrides,
-	});
+const ONE_DAY = 24 * 60 * 60 * 1000;
 
 describe('generateDueInstances', () => {
-	it('HORIZONT_TAGE ist die benannte Konstante 14', () => {
-		assert.equal(HORIZONT_TAGE, 14);
-	});
+	// ── AK 1: je fälligem Termin genau EIN Task mit seriesId und eigener deadline ──────────────
+	it('wöchentliches Template erzeugt je Termin genau eine Instanz mit seriesId + eigener deadline', async () => {
+		const start = new Date('2026-01-01T00:00:00.000Z');
+		const series = await Series.create({
+			title: 'Sport',
+			rhythm: 'weekly',
+			defaultPriority: 4,
+			defaultEstimatedEffort: 0.5,
+			active: true,
+			startDate: start,
+		});
 
-	// AC1: je fälligem Termin im Horizont genau EIN Task mit seriesId, eigener deadline,
-	// gesetztem seriesOccurrence.
-	it('AC1: erzeugt je fälligem Termin genau eine Instanz mit seriesId, deadline & seriesOccurrence', async () => {
-		const series = await createWeeklyTemplate();
-		await generateDueInstances(series, NOW);
+		// Fenster [01.01., 20.01.] enthält wöchentlich: 01., 08., 15. → genau 3 Termine.
+		const until = new Date('2026-01-20T00:00:00.000Z');
+		const instances = await generateDueInstances(series, { until });
 
-		const instanzen = await Task.findAll({ where: { seriesId: series.id }, order: [['seriesOccurrence', 'ASC']] });
-		assert.equal(instanzen.length, 2);
+		assert.equal(instances.length, 3, 'genau drei wöchentliche Instanzen im Fenster');
 
-		// Erwartete Termine im Horizont (Montage 29.06. und 06.07.).
-		assert.deepEqual(
-			instanzen.map((t) => tag(t.seriesOccurrence as Date)),
-			['2026-06-29', '2026-07-06'],
-		);
-
-		for (const inst of instanzen) {
+		// Jede Instanz ist ein vollwertiger Task mit seriesId und eigener deadline.
+		for (const inst of instances) {
 			assert.equal(inst.seriesId, series.id);
-			assert.ok(inst.deadline != null, 'Instanz braucht eine eigene deadline');
-			assert.ok(inst.seriesOccurrence != null, 'Instanz braucht gesetztes seriesOccurrence');
-			// Die Instanz übernimmt die Default-Priorität des Templates.
-			assert.equal(inst.priority, 3);
+			assert.ok(inst.deadline, 'Instanz hat eine eigene deadline');
+			assert.equal(inst.isException, false, 'frisch generierte Instanz ist keine Ausnahme');
 		}
+
+		// Deadlines liegen genau 7 Tage auseinander (aufsteigend sortiert).
+		const deadlines = instances.map((t) => new Date(t.deadline as unknown as Date).getTime()).sort((a, b) => a - b);
+		assert.equal(deadlines[0], start.getTime());
+		assert.equal(deadlines[1] - deadlines[0], 7 * ONE_DAY);
+		assert.equal(deadlines[2] - deadlines[1], 7 * ONE_DAY);
+
+		// Die Instanzen sind echt persistiert (als Task mit seriesId abrufbar).
+		const persisted = await Task.findAll({ where: { seriesId: series.id } });
+		assert.equal(persisted.length, 3);
 	});
 
-	// AC4: dieselbe Periode erneut generiert ⇒ keine Dublette (Idempotenz über (seriesId, seriesOccurrence)).
-	it('AC4: erneutes Generieren derselben Periode erzeugt keine Dubletten', async () => {
-		const series = await createWeeklyTemplate();
-		await generateDueInstances(series, NOW);
-		await generateDueInstances(series, NOW);
+	// ── AK 4: erneute Generierung derselben Periode erzeugt keine Dublette (Idempotenz) ────────
+	it('zweite Generierung desselben Fensters erzeugt keine Dubletten', async () => {
+		const series = await Series.create({
+			title: 'Kochen',
+			rhythm: 'weekly',
+			defaultPriority: 3,
+			defaultEstimatedEffort: 0.5,
+			active: true,
+			startDate: new Date('2026-01-01T00:00:00.000Z'),
+		});
+		const until = new Date('2026-01-20T00:00:00.000Z');
 
-		const instanzen = await Task.findAll({ where: { seriesId: series.id } });
-		assert.equal(instanzen.length, 2);
+		const first = await generateDueInstances(series, { until });
+		assert.equal(first.length, 3);
 
-		// Jeder Occurrence-Schlüssel kommt genau einmal vor.
-		const keys = instanzen.map((t) => tag(t.seriesOccurrence as Date));
-		assert.equal(new Set(keys).size, keys.length);
+		const second = await generateDueInstances(series, { until });
+		assert.equal(second.length, 0, 'bereits materialisierte Termine werden nicht erneut erzeugt');
+
+		const total = await Task.count({ where: { seriesId: series.id } });
+		assert.equal(total, 3, 'insgesamt bleiben es genau drei Instanzen');
 	});
 
-	// AC3: geändertes Template wirkt nur auf KÜNFTIGE (noch nicht materialisierte) Termine;
-	// bestehende Instanzen bleiben unberührt.
-	it('AC3: Template-Änderung wirkt nur auf künftige Termine, bestehende Instanzen unverändert', async () => {
-		const series = await createWeeklyTemplate({ defaultPriority: 3 });
-		await generateDueInstances(series, NOW);
+	// ── AK 4 (heikler Pfad, in #120 als WARNUNG markiert): Idempotenz hängt am unveränderlichen
+	//    `seriesOccurrence`, NICHT an der `deadline`. Wird eine Instanz verschoben (AK 2) und dasselbe
+	//    Fenster erneut generiert, darf KEINE Dublette für die verschobene Periode entstehen. Eine
+	//    naive, an `deadline` verankerte Umsetzung bestünde alle anderen Tests, scheitert aber hier. ──
+	it('verschobene Instanz wird im selben Fenster nicht dupliziert (Anker: seriesOccurrence)', async () => {
+		const series = await Series.create({
+			title: 'Aufräumen',
+			rhythm: 'weekly',
+			defaultPriority: 3,
+			defaultEstimatedEffort: 0.5,
+			active: true,
+			startDate: new Date('2026-01-01T00:00:00.000Z'),
+		});
+		const until = new Date('2026-01-20T00:00:00.000Z');
 
-		const bestehende = await Task.findAll({ where: { seriesId: series.id } });
-		assert.equal(bestehende.length, 2);
-		const bestehendeIds = bestehende.map((t) => t.id).sort((a, b) => a - b);
+		const first = await generateDueInstances(series, { until });
+		assert.equal(first.length, 3);
 
-		// Template ändern und das Fenster rollierend weiterschieben.
+		// AK 2: eine Instanz verschieben (deadline ändern → isException). Der Idempotenz-Anker
+		// `seriesOccurrence` bleibt dabei unverändert.
+		const moved = first[0];
+		const occurrence = new Date(moved.seriesOccurrence as unknown as Date).getTime();
+		moved.deadline = new Date('2026-03-01T00:00:00.000Z');
+		moved.isException = true;
+		await moved.save();
+
+		// Dasselbe Fenster erneut generieren: Die verschobene Periode darf NICHT neu materialisiert
+		// werden — sonst wäre die Idempotenz fälschlich an `deadline` statt `seriesOccurrence` verankert.
+		const second = await generateDueInstances(series, { until });
+		assert.equal(second.length, 0, 'verschobene Periode erzeugt keine Dublette');
+
+		const total = await Task.count({ where: { seriesId: series.id } });
+		assert.equal(total, 3, 'trotz verschobener deadline bleiben es genau drei Instanzen');
+
+		// Der Anker ist die unveränderliche `seriesOccurrence`-Spalte (nicht die verschobene deadline).
+		const reloaded = await Task.findByPk(moved.id);
+		assert.ok(reloaded);
+		const stillOccurrence = new Date(reloaded.seriesOccurrence as unknown as Date).getTime();
+		assert.equal(stillOccurrence, occurrence, 'seriesOccurrence bleibt der stabile Idempotenz-Anker');
+	});
+
+	// ── AK 3: Template-Änderung gilt nur für künftige Instanzen ────────────────────────────────
+	it('Template-Änderung wirkt nur auf künftige, nicht auf bestehende Instanzen', async () => {
+		const series = await Series.create({
+			title: 'Lesen',
+			rhythm: 'weekly',
+			defaultPriority: 2,
+			defaultEstimatedEffort: 0.5,
+			active: true,
+			startDate: new Date('2026-01-01T00:00:00.000Z'),
+		});
+
+		// Erste Generierung mit Default-Priorität 2.
+		const existing = await generateDueInstances(series, {
+			until: new Date('2026-01-20T00:00:00.000Z'),
+		});
+		assert.equal(existing.length, 3);
+		for (const inst of existing) {
+			assert.equal(inst.priority, 2);
+		}
+
+		// Template ändern: künftige Instanzen sollen Priorität 5 erhalten.
 		series.defaultPriority = 5;
 		await series.save();
-		await generateDueInstances(series, NOW_PLUS_HORIZONT);
 
-		// Bestehende Instanzen behalten ihre alte Priorität.
-		for (const id of bestehendeIds) {
-			const reloaded = await Task.findByPk(id);
-			assert.equal(reloaded?.priority, 3, 'bestehende Instanz darf sich nicht rückwirkend ändern');
-		}
-
-		// Neue (künftige) Instanzen tragen die geänderte Priorität.
-		const neue = await Task.findAll({
-			where: { seriesId: series.id },
-			order: [['seriesOccurrence', 'ASC']],
+		// Künftiges Fenster generieren (21.01.–10.02.).
+		const future = await generateDueInstances(series, {
+			until: new Date('2026-02-10T00:00:00.000Z'),
 		});
-		const neueTermine = neue.filter((t) => !bestehendeIds.includes(t.id));
-		assert.equal(neueTermine.length, 2);
-		assert.deepEqual(
-			neueTermine.map((t) => tag(t.seriesOccurrence as Date)),
-			['2026-07-13', '2026-07-20'],
-		);
-		for (const inst of neueTermine) {
-			assert.equal(inst.priority, 5, 'künftige Instanz muss das geänderte Template widerspiegeln');
+		assert.ok(future.length > 0, 'es entstehen neue künftige Instanzen');
+		for (const inst of future) {
+			assert.equal(inst.priority, 5, 'neue Instanzen tragen die geänderte Default-Priorität');
+		}
+
+		// Bestehende Instanzen bleiben unverändert bei Priorität 2.
+		const oldInstances = await Task.findAll({
+			where: { id: existing.map((t) => t.id) },
+		});
+		for (const inst of oldInstances) {
+			assert.equal(inst.priority, 2, 'bestehende Instanzen behalten ihre alte Priorität');
 		}
 	});
 
-	// AC3 (Entkopplung): Die Säulen der Instanz sind ein SNAPSHOT aus dem Template.
-	it('AC3: Säulen werden als Snapshot aus dem Template auf die Instanz kopiert', async () => {
-		const koerper = await Pillar.create({ name: 'Körper', weight: 20 });
-		const series = await createWeeklyTemplate();
-		// Template-Säule (n:m über series_pillars, analog task_pillars).
-		await series.addPillar(koerper, { through: { share: 100, confidence: 80 } });
-
-		await generateDueInstances(series, NOW);
-
-		const instanz = await Task.findOne({ where: { seriesId: series.id } });
-		assert.ok(instanz, 'es muss eine Instanz erzeugt worden sein');
-		const saeulen = await instanz!.getPillars();
-		assert.equal(saeulen.length, 1);
-		assert.equal(saeulen[0].id, koerper.id);
-		assert.equal(saeulen[0].TaskPillar.share, 100);
-		assert.equal(saeulen[0].TaskPillar.confidence, 80);
+	// ── AK 3 (Negativ): inaktives Template generiert keine Instanzen ───────────────────────────
+	it('inaktives Template erzeugt keine Instanzen', async () => {
+		const series = await Series.create({
+			title: 'Pausiert',
+			rhythm: 'weekly',
+			defaultPriority: 3,
+			defaultEstimatedEffort: 0.5,
+			active: false,
+			startDate: new Date('2026-01-01T00:00:00.000Z'),
+		});
+		const instances = await generateDueInstances(series, {
+			until: new Date('2026-01-20T00:00:00.000Z'),
+		});
+		assert.equal(instances.length, 0);
 	});
 
-	it('inaktive Serie (active=false) erzeugt keine Instanzen', async () => {
-		const series = await createWeeklyTemplate({ active: false });
-		await generateDueInstances(series, NOW);
-		const instanzen = await Task.findAll({ where: { seriesId: series.id } });
-		assert.equal(instanzen.length, 0);
+	// ── Monthly: korrekte Termine auch bei Monatsenden (z. B. 31.01. → 28.02., nicht 03.03.) ───────
+	it('monthly mit Start am 31.01. erzeugt korrekte Termine (28.02., 31.03., 30.04.)', async () => {
+		const series = await Series.create({
+			title: 'Monatliche Prüfung',
+			rhythm: 'monthly',
+			defaultPriority: 3,
+			defaultEstimatedEffort: 0.5,
+			active: true,
+			// Start am 31. Januar 2026 (Samstag)
+			startDate: new Date('2026-01-31T00:00:00.000Z'),
+		});
+
+		// Fenster [31.01., 30.04.] → sollte 31.01., 28.02., 31.03., 30.04. enthalten (4 Termine)
+		const until = new Date('2026-04-30T00:00:00.000Z');
+		const instances = await generateDueInstances(series, { until });
+
+		assert.equal(instances.length, 4, 'genau vier monatliche Instanzen');
+
+		const deadlines = instances
+			.map((t) => new Date(t.deadline as unknown as Date))
+			.sort((a, b) => a.getTime() - b.getTime());
+
+		// 31.01.2026
+		assert.equal(deadlines[0].getUTCFullYear(), 2026);
+		assert.equal(deadlines[0].getUTCMonth(), 0); // Januar (0-indexed)
+		assert.equal(deadlines[0].getUTCDate(), 31);
+
+		// 28.02.2026 (Februar hat 28 Tage im Jahr 2026)
+		assert.equal(deadlines[1].getUTCFullYear(), 2026);
+		assert.equal(deadlines[1].getUTCMonth(), 1); // Februar
+		assert.equal(deadlines[1].getUTCDate(), 28, 'Februar-Termin ist der 28. (nicht 31.)');
+
+		// 31.03.2026
+		assert.equal(deadlines[2].getUTCFullYear(), 2026);
+		assert.equal(deadlines[2].getUTCMonth(), 2); // März
+		assert.equal(deadlines[2].getUTCDate(), 31);
+
+		// 30.04.2026 (April hat 30 Tage)
+		assert.equal(deadlines[3].getUTCFullYear(), 2026);
+		assert.equal(deadlines[3].getUTCMonth(), 3); // April
+		assert.equal(deadlines[3].getUTCDate(), 30, 'April-Termin ist der 30. (nicht 31.)');
 	});
 });

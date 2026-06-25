@@ -2,28 +2,31 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { ValidationError as SequelizeValidationError } from 'sequelize';
 import { Series } from '../../models/index.js';
+import type { SeriesRhythm } from '../../models/series.js';
 import { generateDueInstances } from '../../logics/series.js';
+import { serializeTask } from './tasks.js';
 import type { components } from '../../api';
 
 type SeriesDto = components['schemas']['Series'];
-type SeriesGenerateResultDto = components['schemas']['SeriesGenerateResult'];
+type TaskDto = components['schemas']['Task'];
 type ErrorDto = components['schemas']['Error'];
 
-/** Im Vertrag erlaubte Wiederholungsfrequenzen. */
-const VALID_FREQUENCIES = ['DAILY', 'WEEKLY'] as const;
-type SeriesFrequency = (typeof VALID_FREQUENCIES)[number];
+const VALID_RHYTHMS: readonly SeriesRhythm[] = ['daily', 'weekly', 'monthly'];
 
-/** Validierte Serien-Attribute (Spalten), wie sie an das Sequelize-Modell übergeben werden. */
+/** Validierte Template-Attribute, wie sie an das Sequelize-Modell übergeben werden. */
 interface SeriesAttributes {
-	frequency?: SeriesFrequency;
-	interval?: number;
-	byWeekday?: number[] | null;
-	startDate?: string;
+	title?: string;
+	rhythm?: SeriesRhythm;
 	defaultPriority?: number;
+	defaultEstimatedEffort?: number;
 	active?: boolean;
+	startDate?: Date;
 }
 
 type ValidationResult = { ok: true; attrs: SeriesAttributes } | { ok: false; message: string };
+
+const isRhythm = (value: unknown): value is SeriesRhythm =>
+	typeof value === 'string' && VALID_RHYTHMS.some((rhythm) => rhythm === value);
 
 const sendError = (res: Response<ErrorDto>, status: number, message: string): void => {
 	res.status(status).json({ message });
@@ -44,67 +47,43 @@ const parseId = (raw: string): number | null => {
 	return Number.isInteger(id) && id > 0 ? id : null;
 };
 
-const isFrequency = (value: unknown): value is SeriesFrequency =>
-	typeof value === 'string' && VALID_FREQUENCIES.some((frequency) => frequency === value);
-
-/** Validiert `byWeekday` strukturell: Liste ganzzahliger Wochentage 0–6 (oder `null`). */
-const validateByWeekday = (raw: unknown): { ok: true; value: number[] | null } | { ok: false; message: string } => {
-	if (raw === null) {
-		return { ok: true, value: null };
-	}
-	if (!Array.isArray(raw)) {
-		return { ok: false, message: 'byWeekday muss eine Liste von Wochentagen (0–6) oder null sein.' };
-	}
-	for (const tag of raw) {
-		if (typeof tag !== 'number' || !Number.isInteger(tag) || tag < 0 || tag > 6) {
-			return { ok: false, message: 'byWeekday-Einträge müssen Ganzzahlen zwischen 0 und 6 sein.' };
-		}
-	}
-	return { ok: true, value: raw as number[] };
-};
+/** Wandelt ein Serien-Template in die im API-Vertrag definierte Form um. */
+const serializeSeries = (series: Series): SeriesDto => ({
+	id: series.id,
+	title: series.title,
+	rhythm: series.rhythm,
+	defaultPriority: series.defaultPriority,
+	defaultEstimatedEffort: series.defaultEstimatedEffort,
+	active: series.active,
+	startDate: series.startDate.toISOString(),
+});
 
 /**
- * Validiert den Request-Body für Anlegen/Aktualisieren einer Serie. `requireCore` erzwingt die
- * Pflichtfelder `frequency` und `startDate` (POST); bei PATCH sind alle Felder optional.
+ * Validiert den Request-Body für Anlegen/Aktualisieren eines Templates. `requireTitle` erzwingt
+ * einen Titel (POST); bei einer Teil-Aktualisierung sind alle Felder optional.
  */
-const validateSeriesFields = (body: unknown, requireCore: boolean): ValidationResult => {
+const validateSeriesFields = (body: unknown, requireTitle: boolean): ValidationResult => {
 	if (typeof body !== 'object' || body === null) {
 		return { ok: false, message: 'Request-Body muss ein Objekt sein.' };
 	}
 	const input = body as Record<string, unknown>;
 	const attrs: SeriesAttributes = {};
 
-	if (input.frequency !== undefined) {
-		if (!isFrequency(input.frequency)) {
-			return { ok: false, message: 'frequency muss "DAILY" oder "WEEKLY" sein.' };
+	if (input.title !== undefined) {
+		if (typeof input.title !== 'string' || input.title.trim() === '') {
+			return { ok: false, message: 'title muss ein nicht-leerer String sein.' };
 		}
-		attrs.frequency = input.frequency;
-	} else if (requireCore) {
-		return { ok: false, message: 'frequency ist erforderlich.' };
+		attrs.title = input.title.trim();
+	}
+	if (requireTitle && attrs.title === undefined) {
+		return { ok: false, message: 'title ist erforderlich.' };
 	}
 
-	if (input.interval !== undefined) {
-		if (typeof input.interval !== 'number' || !Number.isInteger(input.interval) || input.interval < 1) {
-			return { ok: false, message: 'interval muss eine Ganzzahl >= 1 sein.' };
+	if (input.rhythm !== undefined) {
+		if (!isRhythm(input.rhythm)) {
+			return { ok: false, message: 'rhythm muss "daily", "weekly" oder "monthly" sein.' };
 		}
-		attrs.interval = input.interval;
-	}
-
-	if (input.byWeekday !== undefined) {
-		const result = validateByWeekday(input.byWeekday);
-		if (!result.ok) {
-			return result;
-		}
-		attrs.byWeekday = result.value;
-	}
-
-	if (input.startDate !== undefined) {
-		if (typeof input.startDate !== 'string' || Number.isNaN(Date.parse(input.startDate))) {
-			return { ok: false, message: 'startDate muss ein gültiges Datum sein.' };
-		}
-		attrs.startDate = input.startDate;
-	} else if (requireCore) {
-		return { ok: false, message: 'startDate ist erforderlich.' };
+		attrs.rhythm = input.rhythm;
 	}
 
 	if (input.defaultPriority !== undefined) {
@@ -119,6 +98,18 @@ const validateSeriesFields = (body: unknown, requireCore: boolean): ValidationRe
 		attrs.defaultPriority = input.defaultPriority;
 	}
 
+	if (input.defaultEstimatedEffort !== undefined) {
+		if (
+			typeof input.defaultEstimatedEffort !== 'number' ||
+			!Number.isFinite(input.defaultEstimatedEffort) ||
+			input.defaultEstimatedEffort < 0.1 ||
+			input.defaultEstimatedEffort > 1
+		) {
+			return { ok: false, message: 'defaultEstimatedEffort muss eine Zahl zwischen 0.1 und 1 sein.' };
+		}
+		attrs.defaultEstimatedEffort = input.defaultEstimatedEffort;
+	}
+
 	if (input.active !== undefined) {
 		if (typeof input.active !== 'boolean') {
 			return { ok: false, message: 'active muss ein Boolean sein.' };
@@ -126,33 +117,29 @@ const validateSeriesFields = (body: unknown, requireCore: boolean): ValidationRe
 		attrs.active = input.active;
 	}
 
+	if (input.startDate !== undefined) {
+		if (typeof input.startDate !== 'string' || Number.isNaN(Date.parse(input.startDate))) {
+			return { ok: false, message: 'startDate muss ein gültiges ISO-Datum sein.' };
+		}
+		attrs.startDate = new Date(input.startDate);
+	}
+
 	return { ok: true, attrs };
 };
 
-/** Wandelt eine Serien-Instanz in die im API-Vertrag definierte Form um. */
-export const serializeSeries = (series: Series): SeriesDto => ({
-	id: series.id,
-	frequency: series.frequency,
-	interval: series.interval,
-	byWeekday: series.byWeekday ?? null,
-	startDate: series.startDate,
-	defaultPriority: series.defaultPriority,
-	active: series.active,
-});
-
 export const seriesRouter = Router();
 
-// GET /series — alle Serien-Vorlagen auflisten
+// GET /series — alle Serien-Templates auflisten
 seriesRouter.get('/series', async (_req: Request, res: Response<SeriesDto[] | ErrorDto>) => {
 	try {
-		const all = await Series.findAll();
+		const all = await Series.findAll({ order: [['id', 'ASC']] });
 		res.json(all.map(serializeSeries));
 	} catch (error) {
 		handleWriteError(res, error);
 	}
 });
 
-// POST /series — neue Serien-Vorlage anlegen
+// POST /series — neues Serien-Template anlegen
 seriesRouter.post('/series', async (req: Request, res: Response<SeriesDto | ErrorDto>) => {
 	const validation = validateSeriesFields(req.body, true);
 	if (!validation.ok) {
@@ -167,7 +154,7 @@ seriesRouter.post('/series', async (req: Request, res: Response<SeriesDto | Erro
 	}
 });
 
-// GET /series/:id — eine Serien-Vorlage abrufen
+// GET /series/:id — ein Serien-Template abrufen
 seriesRouter.get('/series/:id', async (req: Request, res: Response<SeriesDto | ErrorDto>) => {
 	const id = parseId(req.params.id);
 	const series = id === null ? null : await Series.findByPk(id);
@@ -178,7 +165,7 @@ seriesRouter.get('/series/:id', async (req: Request, res: Response<SeriesDto | E
 	res.json(serializeSeries(series));
 });
 
-// PATCH /series/:id — eine Serien-Vorlage teilweise aktualisieren
+// PATCH /series/:id — ein Serien-Template teilweise aktualisieren (gilt nur für künftige Instanzen)
 seriesRouter.patch('/series/:id', async (req: Request, res: Response<SeriesDto | ErrorDto>) => {
 	const id = parseId(req.params.id);
 	const series = id === null ? null : await Series.findByPk(id);
@@ -199,7 +186,7 @@ seriesRouter.patch('/series/:id', async (req: Request, res: Response<SeriesDto |
 	}
 });
 
-// DELETE /series/:id — eine Serien-Vorlage löschen
+// DELETE /series/:id — ein Serien-Template löschen
 seriesRouter.delete('/series/:id', async (req: Request, res: Response<ErrorDto>) => {
 	const id = parseId(req.params.id);
 	const series = id === null ? null : await Series.findByPk(id);
@@ -211,17 +198,27 @@ seriesRouter.delete('/series/:id', async (req: Request, res: Response<ErrorDto>)
 	res.status(204).send();
 });
 
-// POST /series/:id/generate — fällige Instanzen im Horizont materialisieren (idempotent)
-seriesRouter.post('/series/:id/generate', async (req: Request, res: Response<SeriesGenerateResultDto | ErrorDto>) => {
+// POST /series/:id/generate — fällige Instanzen bis `until` materialisieren (idempotent)
+seriesRouter.post('/series/:id/generate', async (req: Request, res: Response<TaskDto[] | ErrorDto>) => {
 	const id = parseId(req.params.id);
 	const series = id === null ? null : await Series.findByPk(id);
 	if (!series) {
 		sendError(res, 404, 'Serie nicht gefunden.');
 		return;
 	}
+	const body: unknown = req.body;
+	if (typeof body !== 'object' || body === null) {
+		sendError(res, 400, 'Request-Body muss ein Objekt sein.');
+		return;
+	}
+	const until = (body as Record<string, unknown>).until;
+	if (typeof until !== 'string' || Number.isNaN(Date.parse(until))) {
+		sendError(res, 400, 'until muss ein gültiges ISO-Datum sein.');
+		return;
+	}
 	try {
-		const created = await generateDueInstances(series, new Date());
-		res.status(201).json({ generated: created.length });
+		const instances = await generateDueInstances(series, { until: new Date(until) });
+		res.status(201).json(instances.map(serializeTask));
 	} catch (error) {
 		handleWriteError(res, error);
 	}

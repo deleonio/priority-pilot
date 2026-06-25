@@ -26,9 +26,10 @@ class Task extends Model {
 	public description?: string | null;
 	public deadline?: Date | null;
 
-	// Serien-Verknüpfung (siehe models/series.ts): `seriesId` zeigt auf die Vorlage, `seriesOccurrence`
-	// ist der Idempotenz-Anker des Termins (Periodendatum), `isException` markiert eine vom Nutzer
-	// abweichend bearbeitete Instanz (Status-/Deadline-Override, siehe routes/tasks.ts, AC2).
+	// Serien-Bezug (Habits, siehe #120): `seriesId` verweist auf das Template, aus dem diese Instanz
+	// generiert wurde (`null` ⇒ gewöhnlicher Einzel-Task). `isException` markiert eine nachträglich
+	// individuell geänderte Instanz; `seriesOccurrence` ist der unveränderliche Idempotenz-Anker des
+	// fälligen Termins (NICHT `deadline`, die verschiebbar ist).
 	public seriesId?: number | null;
 	public isException!: boolean;
 	public seriesOccurrence?: Date | null;
@@ -100,8 +101,8 @@ Task.init(
 			type: DataTypes.DATE,
 			allowNull: true,
 		},
-		// Serien-Spalten (#141): Verknüpfung auf die Vorlage (`seriesId`), Idempotenz-Anker des
-		// Termins (`seriesOccurrence`) und Override-Markierung (`isException`).
+		// Serien-Instanz-Felder (siehe #120). Der eindeutige Idempotenz-Index liegt auf
+		// (`seriesId`, `seriesOccurrence`) — eine Periode wird je Serie höchstens einmal materialisiert.
 		seriesId: {
 			type: DataTypes.INTEGER,
 			allowNull: true,
@@ -123,6 +124,10 @@ Task.init(
 		modelName: 'Task',
 		tableName: 'tasks',
 		timestamps: true,
+		indexes: [
+			// Idempotenz (#120 AK4): je Serie wird ein fälliger Termin höchstens einmal materialisiert.
+			{ unique: true, fields: ['seriesId', 'seriesOccurrence'] },
+		],
 	},
 );
 
