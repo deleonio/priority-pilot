@@ -131,10 +131,10 @@ export const SeriesFormModal = ({ series, onClose, onSaved }: SeriesFormModalPro
 					_value={startDateValue}
 					_on={{
 						onInput: (_event, value) => {
-							form.current.startDate = readString(value);
+							form.current.startDate = value instanceof Date ? startDateToInput(value) : readString(value);
 						},
 						onChange: (_event, value) => {
-							form.current.startDate = readString(value);
+							form.current.startDate = value instanceof Date ? startDateToInput(value) : readString(value);
 						},
 					}}
 				/>
