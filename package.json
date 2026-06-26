@@ -9,7 +9,7 @@
 	"scripts": {
 		"build": "pnpm -r generate && pnpm -r build",
 		"dev": "pnpm -r --parallel dev",
-		"format": "pnpm -r format",
+		"format": "prettier --write .",
 		"lint": "pnpm -r lint",
 		"test": "pnpm -r test"
 	}
