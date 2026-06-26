@@ -1,0 +1,16 @@
+{
+	"workspaces": {
+		"server": {
+			"entry": ["src/index.ts"],
+			"ignore": ["src/api.d.ts"]
+		},
+		"frontend": {
+			"entry": ["src/main.tsx", "vite.config.ts", "playwright.config.ts"],
+			"ignore": []
+		},
+		"client": {
+			"entry": ["src/index.ts"],
+			"ignore": ["src/schema.d.ts"]
+		}
+	}
+}
