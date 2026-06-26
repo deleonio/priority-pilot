@@ -27,9 +27,7 @@ const ciYml = (): string => readFile('.github', 'workflows', 'ci.yml');
 const claudePrompt = (): string => {
 	const yml = fixupYml();
 	// Der Claude-Prompt steht im `prompt: |` Block des "Findings umsetzen via Claude Code"-Steps
-	const match = yml.match(
-		/name: Findings umsetzen via Claude Code[\s\S]*?prompt: \|([\s\S]*?)claude_args:/,
-	);
+	const match = yml.match(/name: Findings umsetzen via Claude Code[\s\S]*?prompt: \|([\s\S]*?)claude_args:/);
 	assert.ok(match, 'Claude-Prompt-Block nicht gefunden in claude-pr-fixup.yml');
 	return match[1];
 };
@@ -116,30 +114,18 @@ describe('AK3 — Gate-Kommandos spiegeln CI-Checks exakt', () => {
 	});
 
 	it('ci.yml verwendet pnpm lint als Lint-Check', () => {
-		assert.match(
-			ciYml(),
-			/^\s*run: pnpm lint\s*$/m,
-			'ci.yml muss `pnpm lint` (repo-weit) als Lint-Step enthalten',
-		);
+		assert.match(ciYml(), /^\s*run: pnpm lint\s*$/m, 'ci.yml muss `pnpm lint` (repo-weit) als Lint-Step enthalten');
 	});
 
 	it('Claude-Prompt spiegelt beide CI-Gate-Kommandos (prettier --check . und pnpm lint)', () => {
 		const prompt = claudePrompt();
-		assert.match(
-			prompt,
-			/prettier --check \./,
-			'Claude-Prompt muss `prettier --check .` als CI-Spiegel enthalten',
-		);
+		assert.match(prompt, /prettier --check \./, 'Claude-Prompt muss `prettier --check .` als CI-Spiegel enthalten');
 		assert.match(prompt, /pnpm lint/, 'Claude-Prompt muss `pnpm lint` als CI-Spiegel enthalten');
 	});
 
 	it('Mistral-Prompt spiegelt beide CI-Gate-Kommandos (prettier --check . und pnpm lint)', () => {
 		const prompt = mistralPrompt();
-		assert.match(
-			prompt,
-			/prettier --check \./,
-			'Mistral-Prompt muss `prettier --check .` als CI-Spiegel enthalten',
-		);
+		assert.match(prompt, /prettier --check \./, 'Mistral-Prompt muss `prettier --check .` als CI-Spiegel enthalten');
 		assert.match(prompt, /pnpm lint/, 'Mistral-Prompt muss `pnpm lint` als CI-Spiegel enthalten');
 	});
 
@@ -150,11 +136,7 @@ describe('AK3 — Gate-Kommandos spiegeln CI-Checks exakt', () => {
 			/prettier --check \./,
 			'ticket-implementation.md muss `prettier --check .` als CI-Spiegel nennen',
 		);
-		assert.match(
-			doc,
-			/pnpm lint/,
-			'ticket-implementation.md muss `pnpm lint` (repo-weit) als CI-Spiegel nennen',
-		);
+		assert.match(doc, /pnpm lint/, 'ticket-implementation.md muss `pnpm lint` (repo-weit) als CI-Spiegel nennen');
 	});
 });
 
