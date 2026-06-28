@@ -92,8 +92,15 @@ wird dagegen geschrieben — ein binäres Ziel statt Prosa.
   Unterdrücken von Fehlern). Tests **nicht** dem Code anpassen, um sie künstlich grün zu bekommen —
   im **Spec-Modus** sind die Spec-Tests ohnehin unantastbar (s. o.); im **Fallback-Modus** einen
   fehlerhaften eigenen Test **bewusst** und nachvollziehbar korrigieren.
-- **(c) Refactor & Gate:** Erst mit grünen Tests aufräumen, dann gezielt `pnpm format` und
-  `pnpm --filter priority-pilot lint` (bzw. betroffenes Package).
+- **(c) Refactor & Gate (CI-Spiegel, vor jedem Commit):** Erst mit grünen Tests aufräumen,
+  dann das lokale CI-Gate fahren — exakt wie `ci.yml`:
+  ```
+  pnpm format                      # schreibt Formatierung
+  pnpm exec prettier --check .     # verifiziert (wie CI-Format-Check)
+  pnpm lint                        # repo-weit (CI lintet rekursiv, nicht nur ein Package)
+  ```
+  Erst wenn alle drei Kommandos grün sind, committen/pushen. Ein Format-/Lint-Fehler darf
+  nicht in CI laufen.
 
 ## Schritt 4 — PR (ready to review) erstellen & mit dem Ticket verknüpfen
 
@@ -149,8 +156,9 @@ rückfragen** statt zu raten.
    (`.github/workflows/claude-pr-gate.yml`) prüft nach Abschluss die Allowlist-Checks **CI** und
    **Reviewer** und setzt bei rotem Ergebnis `ai:needs-changes` → der Fixup läuft an.
 3. **Findings abarbeiten** (Umsetzer-Rolle) — jeden offenen Punkt behandeln:
-   - **Zutreffend, klein, eindeutig →** **fixen**: Fix committen + pushen, erneut `pnpm format` +
-     Lint, kurz im Thread antworten (Bezug zum Fix-Commit) und den Thread **auflösen**.
+   - **Zutreffend, klein, eindeutig →** **fixen**: Fix committen + pushen, erneut
+     `pnpm format && pnpm exec prettier --check . && pnpm lint`, kurz im Thread antworten
+     (Bezug zum Fix-Commit) und den Thread **auflösen**.
    - **Mehrdeutig oder architektonisch relevant →** **nicht** raten, sondern **vorher rückfragen**;
      den Punkt bis zur Antwort offen lassen.
    - **Nicht zutreffend / kein Handlungsbedarf →** sachlich **kommentieren**, warum nichts geändert
