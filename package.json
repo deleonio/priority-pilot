@@ -12,6 +12,7 @@
 		"build": "pnpm -r generate && pnpm -r build",
 		"dev": "pnpm -r --parallel dev",
 		"format": "pnpm -r format",
+		"format:check": "prettier --check .",
 		"knip": "knip",
 		"lint": "pnpm -r lint",
 		"prepare": "lefthook install",
