@@ -6,6 +6,7 @@
 		".": "./src/index.ts"
 	},
 	"scripts": {
+		"format": "prettier .",
 		"generate": "openapi-typescript ../openapi.yml -o src/schema.d.ts",
 		"prepare": "pnpm generate"
 	},

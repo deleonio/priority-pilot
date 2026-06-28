@@ -4,6 +4,7 @@
 	"private": true,
 	"scripts": {
 		"dev": "vite",
+		"format": "prettier .",
 		"build": "tsc --noEmit && vite build",
 		"preview": "vite preview",
 		"lint": "tsc --noEmit && eslint src e2e playwright.config.ts",
