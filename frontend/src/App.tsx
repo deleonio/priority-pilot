@@ -98,6 +98,22 @@ export const App = () => {
 	// (z. B. der Säulen-Verteilung) wieder zu schließen.
 	const settingsRef = useRef<HTMLKolPopoverButtonElement>(null);
 
+	// Fallback-Fokusziel für Dialoge, nach denen das auslösende Element nicht mehr im DOM ist
+	// (z. B. nach erfolgreichem Löschen: der Löschen-Button fällt mit der Zeile aus dem DOM).
+	// tabIndex={-1} erlaubt programmatischen Fokus ohne visuelle Tab-Stop-Wirkung.
+	const deleteFallbackRef = useRef<HTMLElement>(null);
+
+	// Nach erfolgreichem Löschen ist der auslösende Button mit seiner Tabellenzeile aus dem DOM
+	// gefallen, sobald `reload()` aufgelöst und die Tabelle re-rendert hat. Der Modal-Cleanup setzt
+	// den Fokus zu früh (vor dem Reload, Trigger noch verbunden), sodass er anschließend auf `body`
+	// fällt. Daher den Fallback-Fokus explizit erst NACH dem Reload setzen.
+	const afterDelete = useCallback((): void => {
+		setDialog(null);
+		void reload().then(() => {
+			deleteFallbackRef.current?.focus();
+		});
+	}, [reload]);
+
 	/** Öffnet die persönliche Säulen-Verteilung aus dem Einstellungs-Menü und schließt das Popover. */
 	const openPillars = useCallback((): void => {
 		void settingsRef.current?.hidePopover();
@@ -120,7 +136,7 @@ export const App = () => {
 		dialog?.kind === 'dependencies' ? (tasks?.find((task) => task.id === dialog.taskId) ?? null) : null;
 
 	return (
-		<main className="app">
+		<main className="app" ref={deleteFallbackRef} tabIndex={-1} data-focus-fallback>
 			<header className="app-header">
 				<KolHeading _label="Priority Pilot" _level={1} />
 				<div className="toolbar">
@@ -261,7 +277,12 @@ export const App = () => {
 			)}
 			{dialog?.kind === 'series' && <SeriesManagementModal onClose={closeDialog} />}
 			{dialog?.kind === 'delete' && (
-				<DeleteTaskDialog task={dialog.task} onClose={closeDialog} onDeleted={afterMutation} />
+				<DeleteTaskDialog
+					task={dialog.task}
+					onClose={closeDialog}
+					onDeleted={afterDelete}
+					fallbackFocusRef={deleteFallbackRef}
+				/>
 			)}
 			{dialog?.kind === 'dependencies' && dependencyTask !== null && tasks !== null && (
 				<DependencyModal

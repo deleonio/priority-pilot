@@ -1,6 +1,6 @@
 import { KolAlert, KolButton } from '@public-ui/react-v19';
 import type { Task } from 'client';
-import { useState } from 'react';
+import { useState, type RefObject } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { Modal } from './Modal';
@@ -10,10 +10,12 @@ interface DeleteTaskDialogProps {
 	onClose: () => void;
 	/** Nach erfolgreichem Löschen aufgerufen (Liste neu laden + Dialog schließen). */
 	onDeleted: () => void;
+	/** Fallback-Fokusziel nach erfolgreichem Löschen, wenn der Trigger-Button nicht mehr im DOM ist. */
+	fallbackFocusRef?: RefObject<HTMLElement | null>;
 }
 
 /** Bestätigungsdialog vor dem Löschen eines Tasks (`DELETE /tasks/{id}`). */
-export const DeleteTaskDialog = ({ task, onClose, onDeleted }: DeleteTaskDialogProps) => {
+export const DeleteTaskDialog = ({ task, onClose, onDeleted, fallbackFocusRef }: DeleteTaskDialogProps) => {
 	const [error, setError] = useState<string | null>(null);
 	const [deleting, setDeleting] = useState(false);
 
@@ -31,7 +33,7 @@ export const DeleteTaskDialog = ({ task, onClose, onDeleted }: DeleteTaskDialogP
 	};
 
 	return (
-		<Modal title="Task löschen" onClose={onClose}>
+		<Modal title="Task löschen" onClose={onClose} fallbackFocusRef={fallbackFocusRef}>
 			{error !== null && (
 				<KolAlert _type="error" _label="Löschen fehlgeschlagen">
 					{error}
