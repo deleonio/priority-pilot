@@ -48,12 +48,16 @@ export const createApp = (deps: AppDeps = {}) => {
 	app.use(express.json());
 
 	// Session-Middleware (In-Memory-Store — für Single-User-Gate ausreichend).
+	const sessionSecret = process.env.SESSION_SECRET;
+	if (!sessionSecret && process.env.NODE_ENV === 'production') {
+		throw new Error('SESSION_SECRET muss in Produktion gesetzt sein');
+	}
 	app.use(
 		session({
-			secret: process.env.SESSION_SECRET ?? 'dev-secret',
+			secret: sessionSecret ?? 'dev-secret',
 			resave: false,
 			saveUninitialized: false,
-			cookie: { secure: false },
+			cookie: { secure: process.env.NODE_ENV === 'production' },
 		}),
 	);
 

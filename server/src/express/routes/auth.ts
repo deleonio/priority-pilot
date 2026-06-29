@@ -10,8 +10,9 @@ authRouter.get('/auth/google', passport.authenticate('google', { scope: ['email'
 authRouter.get(
 	'/auth/google/callback',
 	passport.authenticate('google', { failureRedirect: '/auth/error' }),
-	(_req, res) => {
-		res.redirect('/');
+	(req, res) => {
+		(req.session as unknown as { user?: unknown }).user = req.user;
+		req.session.save(() => res.redirect('/'));
 	},
 );
 
