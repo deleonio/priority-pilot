@@ -53,8 +53,12 @@ jobs:
       # Modell-Delegations-Vertrag (model-delegation.test.ts: Sonnet-Start + Subagent-Delegation statt
       # des entfernten JS-Routers). Ob die headless Action das Subagent-Modell-Override real honoriert,
       # wird per Workflow-Lauf an einem Scratch-Issue verifiziert (CI-Konfig-Ebene).
+      # pnpm dlx (nicht npx): seit tsx@4.22.4 transitiv via vite im Workspace-Baum liegt, erkennt
+      # `npx tsx` es als "lokal vorhanden" und versucht das Bin aus dem Root-`.bin` zu starten —
+      # pnpm verlinkt transitive Deps dort aber nicht, daher `sh: tsx: command not found`. pnpm dlx
+      # nutzt einen isolierten Store ausserhalb des Workspaces und ist damit immun dagegen.
       - name: Test (Workflow-/CI-Vertraege)
-        run: npx -y tsx@4.22.4 --test ".github/workflows/"*.test.ts
+        run: pnpm dlx tsx@4.22.4 --test ".github/workflows/"*.test.ts
       # E2E: Playwright startet Backend (frische In-Memory-DB) + Vite selbst (siehe playwright.config.ts) —
       # kein separater Server-Start in der Pipeline noetig.
       - name: E2E
