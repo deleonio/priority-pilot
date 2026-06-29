@@ -103,6 +103,17 @@ export const App = () => {
 	// tabIndex={-1} erlaubt programmatischen Fokus ohne visuelle Tab-Stop-Wirkung.
 	const deleteFallbackRef = useRef<HTMLElement>(null);
 
+	// Nach erfolgreichem Löschen ist der auslösende Button mit seiner Tabellenzeile aus dem DOM
+	// gefallen, sobald `reload()` aufgelöst und die Tabelle re-rendert hat. Der Modal-Cleanup setzt
+	// den Fokus zu früh (vor dem Reload, Trigger noch verbunden), sodass er anschließend auf `body`
+	// fällt. Daher den Fallback-Fokus explizit erst NACH dem Reload setzen.
+	const afterDelete = useCallback((): void => {
+		setDialog(null);
+		void reload().then(() => {
+			deleteFallbackRef.current?.focus();
+		});
+	}, [reload]);
+
 	/** Öffnet die persönliche Säulen-Verteilung aus dem Einstellungs-Menü und schließt das Popover. */
 	const openPillars = useCallback((): void => {
 		void settingsRef.current?.hidePopover();
@@ -269,7 +280,7 @@ export const App = () => {
 				<DeleteTaskDialog
 					task={dialog.task}
 					onClose={closeDialog}
-					onDeleted={afterMutation}
+					onDeleted={afterDelete}
 					fallbackFocusRef={deleteFallbackRef}
 				/>
 			)}
