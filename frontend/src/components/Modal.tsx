@@ -74,16 +74,15 @@ export const Modal = ({ title, onClose, width = '40rem', fallbackFocusRef, child
 		return () => {
 			active = false;
 			void dialog.close();
-			// Liegt der Fokus bereits außerhalb des Dialogs (z. B. durch explizites focus() im
-			// Delete-Handler auf <main>), diesen respektieren und nicht auf den Trigger zurücksetzen.
-			if (document.activeElement !== null && !dialog.contains(document.activeElement)) {
-				return;
-			}
-			if (trigger instanceof HTMLElement && trigger.isConnected) {
-				trigger.focus();
-			} else if (fallback != null) {
-				fallback.focus();
-			}
+			// dialog.close() gibt ein Promise zurück; die native-Dialog-Fokus-Wiederherstellung
+			// läuft asynchron. setTimeout(0) stellt sicher, dass wir NACH dem Close-Callback fokussieren.
+			setTimeout(() => {
+				if (trigger instanceof HTMLElement && trigger.isConnected) {
+					trigger.focus();
+				} else if (fallback != null) {
+					fallback.focus();
+				}
+			}, 0);
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);

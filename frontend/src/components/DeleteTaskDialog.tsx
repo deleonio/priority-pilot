@@ -24,9 +24,6 @@ export const DeleteTaskDialog = ({ task, onClose, onDeleted, fallbackFocusRef }:
 		setDeleting(true);
 		try {
 			await api.deleteTask({ id: task.id });
-			// Fokus vor dem Unmount explizit auf den Fallback verschieben — sonst übernimmt der noch
-			// (asynchron) im DOM hängende Trigger-Button im Modal-Cleanup den Fokus.
-			fallbackFocusRef?.current?.focus();
 			onDeleted();
 		} catch (reason) {
 			const apiError = await toApiError(reason);
