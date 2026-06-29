@@ -98,13 +98,25 @@ export const Dashboard = ({ tasks, forest, nextTask, suggestions = [], pillars, 
 	}, [pillars, tasks, forest]);
 
 	// Gesamtguthaben (Gamification-Balance, §4.4): Punkte je Säule aus dem erledigten Aufwand,
-	// daraus Anteile und Gesamtstand ableiten.
+	// daraus Anteile und Gesamtstand ableiten. Tasks ohne Säulen-Zuweisung fließen gleichmäßig
+	// nach Säulen-Gewicht ein, damit erledigte Arbeit auch ohne explizite Säule sichtbar wird.
 	const pillarBalances = useMemo(() => {
 		const punkteProSaeule = new Map<number, number>(
 			pillarSummaries.map(({ pillar, doneEstimatedEffort }) => [pillar.id, doneEstimatedEffort]),
 		);
+		const totalWeight = pillars.reduce((sum, p) => sum + p.weight, 0);
+		if (totalWeight > 0) {
+			for (const task of tasks) {
+				if (task.status === TaskStatus.Done && task.pillars.length === 0) {
+					for (const pillar of pillars) {
+						const prev = punkteProSaeule.get(pillar.id) ?? 0;
+						punkteProSaeule.set(pillar.id, prev + task.estimatedEffort * (pillar.weight / totalWeight));
+					}
+				}
+			}
+		}
 		return buildPillarBalances(pillars, punkteProSaeule);
-	}, [pillars, pillarSummaries]);
+	}, [pillars, pillarSummaries, tasks]);
 
 	const gesamtPunkte = useMemo(() => pillarBalances.reduce((acc, { punkte }) => acc + punkte, 0), [pillarBalances]);
 
