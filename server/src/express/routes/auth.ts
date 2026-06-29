@@ -3,6 +3,11 @@ import passport from 'passport';
 
 const authRouter = Router();
 
+// GET /auth/error — Ziel des OAuth-failureRedirect, liefert eindeutiges Fehler-Feedback statt SPA-Fallback/404.
+authRouter.get('/auth/error', (_req, res) => {
+	res.status(400).json({ error: 'Login fehlgeschlagen. Bitte prüfe deine Zugangsberechtigung.' });
+});
+
 // GET /auth/google — startet den OAuth-Flow
 authRouter.get('/auth/google', passport.authenticate('google', { scope: ['email', 'profile'] }));
 
@@ -11,18 +16,18 @@ authRouter.get(
 	'/auth/google/callback',
 	passport.authenticate('google', { failureRedirect: '/auth/error' }),
 	(req, res) => {
-		(req.session as unknown as { user?: unknown }).user = req.user;
+		req.session.user = req.user as { email: string; displayName: string };
 		req.session.save(() => res.redirect('/'));
 	},
 );
 
 // GET /auth/me — gibt die aktuelle Session zurück (oder 401)
 authRouter.get('/auth/me', (req, res) => {
-	if (!req.session || !(req.session as { user?: unknown }).user) {
+	if (!req.session || !req.session.user) {
 		res.status(401).json({ message: 'Nicht eingeloggt.' });
 		return;
 	}
-	const user = (req.session as unknown as { user: { email: string; displayName: string } }).user;
+	const user = req.session.user;
 	res.json({ email: user.email, displayName: user.displayName });
 });
 
@@ -49,7 +54,7 @@ authRouter.post('/auth/test-login', (req, res) => {
 		return;
 	}
 
-	(req.session as unknown as { user?: { email: string; displayName: string } }).user = {
+	req.session.user = {
 		email,
 		displayName: displayName ?? email,
 	};

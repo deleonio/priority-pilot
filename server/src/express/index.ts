@@ -33,7 +33,7 @@ const requireAuth = (req: Request, res: Response, next: NextFunction): void => {
 		next();
 		return;
 	}
-	const user = (req.session as { user?: unknown }).user;
+	const user = req.session.user;
 	if (!user) {
 		res.status(401).json({ message: 'Nicht eingeloggt.' });
 		return;
