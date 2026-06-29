@@ -17,10 +17,7 @@ const AGENT_PATH = resolve(ROOT, '.claude/agents/kreuzverhoer.md');
 describe('Issue #175 — Kreuzverhoer-Agent-Definition', () => {
 	describe('AK-1 — Datei existiert', () => {
 		it('.claude/agents/kreuzverhoer.md muss nach dem Merge existieren', () => {
-			assert.ok(
-				existsSync(AGENT_PATH),
-				'.claude/agents/kreuzverhoer.md wurde nicht gefunden – Datei anlegen',
-			);
+			assert.ok(existsSync(AGENT_PATH), '.claude/agents/kreuzverhoer.md wurde nicht gefunden – Datei anlegen');
 		});
 	});
 
@@ -28,11 +25,7 @@ describe('Issue #175 — Kreuzverhoer-Agent-Definition', () => {
 		it('enthält "name: kreuzverhoer" im Frontmatter', () => {
 			assert.ok(existsSync(AGENT_PATH), '.claude/agents/kreuzverhoer.md fehlt');
 			const content = readFileSync(AGENT_PATH, 'utf-8');
-			assert.match(
-				content,
-				/^name:\s*kreuzverhoer\s*$/m,
-				'Frontmatter muss "name: kreuzverhoer" enthalten',
-			);
+			assert.match(content, /^name:\s*kreuzverhoer\s*$/m, 'Frontmatter muss "name: kreuzverhoer" enthalten');
 		});
 	});
 
