@@ -84,6 +84,12 @@ jobs:
           # checkHumanActor diesen Lauf. Absicherung zusaetzlich ueber den Job-`if:`.
           allowed_bots: 'claude[bot],my-github-action-bot'
           prompt: |
+            Bewerte zunächst die PR-Komplexität (Diff-Umfang, Architektur-Berührpunkte,
+            Sicherheits-/Performance-Aspekte) und delegiere das eigentliche Kreuzverhoer-Review
+            via Agent-Tool an den passenden Subagenten: triviale/mechanische PRs an `light`
+            (Haiku), komplexe/architektonische PRs an `heavy` (Opus); Standard-Reviews führst
+            du selbst auf Sonnet durch (kein Subagenten-Aufruf).
+
             Reviewe Pull Request #${{ github.event.pull_request.number }} im Kreuzverhör
             (Label `ai:needs-review` ist gesetzt). Die Pipeline koordiniert ausschließlich über
             LABELS — schließe daher GENAU mit einer der beiden Label-Umschaltungen unten ab.

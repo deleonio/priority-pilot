@@ -59,12 +59,9 @@ describe('AK-1 — AGENTS.md: Aufrufpfade des Kreuzverhoer-Agents', () => {
 		assert.ok(aufrufIdx >= 0, 'Aufrufpfade-Abschnitt muss existieren');
 		const aufrufSection = afterPrReview.slice(aufrufIdx);
 		// Mindestens zwei der bekannten Trigger-Phrasen müssen im Aufrufpfade-Abschnitt stehen
-		const phrasen = [
-			'nimm das auseinander',
-			'stress-teste',
-			'challenge mich',
-			'Kreuzverhör',
-		].filter((p) => aufrufSection.toLowerCase().includes(p.toLowerCase()));
+		const phrasen = ['nimm das auseinander', 'stress-teste', 'challenge mich', 'Kreuzverhör'].filter((p) =>
+			aufrufSection.toLowerCase().includes(p.toLowerCase()),
+		);
 		assert.ok(
 			phrasen.length >= 2,
 			`AGENTS.md muss im Aufrufpfade-Abschnitt mind. 2 Chat-Trigger-Phrasen nennen; gefunden: ${phrasen.join(', ')}`,
@@ -81,8 +78,7 @@ describe('AK-1 — AGENTS.md: Aufrufpfade des Kreuzverhoer-Agents', () => {
 		// Im Aufrufpfade-Abschnitt (vor dem nächsten ##-Abschnitt) muss /kreuzverhoer-review stehen
 		const aufrufSection = afterPrReview.slice(aufrufIdx);
 		const nextSectionIdx = aufrufSection.indexOf('\n## ', 1);
-		const boundedSection =
-			nextSectionIdx > 0 ? aufrufSection.slice(0, nextSectionIdx) : aufrufSection;
+		const boundedSection = nextSectionIdx > 0 ? aufrufSection.slice(0, nextSectionIdx) : aufrufSection;
 		assert.ok(
 			boundedSection.includes('/kreuzverhoer-review'),
 			'AGENTS.md muss /kreuzverhoer-review als Slash-Command-Pfad im Aufrufpfade-Abschnitt nennen',
@@ -98,8 +94,7 @@ describe('AK-1 — AGENTS.md: Aufrufpfade des Kreuzverhoer-Agents', () => {
 		assert.ok(aufrufIdx >= 0, 'Aufrufpfade-Abschnitt muss existieren');
 		const aufrufSection = afterPrReview.slice(aufrufIdx);
 		const nextSectionIdx = aufrufSection.indexOf('\n## ', 1);
-		const boundedSection =
-			nextSectionIdx > 0 ? aufrufSection.slice(0, nextSectionIdx) : aufrufSection;
+		const boundedSection = nextSectionIdx > 0 ? aufrufSection.slice(0, nextSectionIdx) : aufrufSection;
 		// CI-Pfad muss ai:needs-review als Auslösebedingung im Aufrufpfade-Abschnitt nennen
 		assert.ok(
 			boundedSection.includes('ai:needs-review'),
@@ -112,14 +107,9 @@ describe('AK-2/AK-3/AK-4 — claude-pr-review.yml: Komplexitäts-Delegation im H
 	it('AK-2/3/4: Haupt-prompt:-Block enthält einen expliziten Komplexitätsbewertungsschritt', async () => {
 		const content = await readProjectFile('.github/workflows/claude-pr-review.yml');
 		const mainPrompt = extractMainPromptBlock(content);
-		assert.ok(
-			mainPrompt.length > 0,
-			'Haupt-prompt:-Block muss im Claude-Step von claude-pr-review.yml existieren',
-		);
+		assert.ok(mainPrompt.length > 0, 'Haupt-prompt:-Block muss im Claude-Step von claude-pr-review.yml existieren');
 		const hasKomplexitaet =
-			mainPrompt.includes('Komplexitaet') ||
-			mainPrompt.includes('Komplexität') ||
-			mainPrompt.includes('Komplexit');
+			mainPrompt.includes('Komplexitaet') || mainPrompt.includes('Komplexität') || mainPrompt.includes('Komplexit');
 		assert.ok(
 			hasKomplexitaet,
 			'Der Haupt-prompt:-Block muss eine Komplexitätsbewertung des PRs anweisen (nicht nur --append-system-prompt)',
@@ -134,10 +124,7 @@ describe('AK-2/AK-3/AK-4 — claude-pr-review.yml: Komplexitäts-Delegation im H
 			(mainPrompt.includes('light') && mainPrompt.includes('trivial')) ||
 			(mainPrompt.includes('light') && mainPrompt.includes('Haiku')) ||
 			(mainPrompt.includes('light') && mainPrompt.includes('klein'));
-		assert.ok(
-			delegiereLight,
-			'Haupt-prompt:-Block muss Delegation an `light` (Haiku) für triviale PRs anweisen',
-		);
+		assert.ok(delegiereLight, 'Haupt-prompt:-Block muss Delegation an `light` (Haiku) für triviale PRs anweisen');
 	});
 
 	it('AK-3: Haupt-prompt:-Block weist Delegation an `heavy` (Opus) für komplexe PRs an', async () => {
@@ -148,10 +135,7 @@ describe('AK-2/AK-3/AK-4 — claude-pr-review.yml: Komplexitäts-Delegation im H
 			(mainPrompt.includes('heavy') && mainPrompt.includes('komplex')) ||
 			(mainPrompt.includes('heavy') && mainPrompt.includes('Opus')) ||
 			(mainPrompt.includes('heavy') && mainPrompt.includes('architekton'));
-		assert.ok(
-			delegiereHeavy,
-			'Haupt-prompt:-Block muss Delegation an `heavy` (Opus) für komplexe PRs anweisen',
-		);
+		assert.ok(delegiereHeavy, 'Haupt-prompt:-Block muss Delegation an `heavy` (Opus) für komplexe PRs anweisen');
 	});
 
 	it('AK-4: Haupt-prompt:-Block weist Standard-Reviews auf Sonnet (ohne Subagenten) an', async () => {
@@ -160,10 +144,8 @@ describe('AK-2/AK-3/AK-4 — claude-pr-review.yml: Komplexitäts-Delegation im H
 		assert.ok(mainPrompt.length > 0, 'Haupt-prompt:-Block muss existieren');
 		// Standard-Reviews ohne Subagenten-Aufruf — "selbst" oder "Sonnet" im Kontext Standard/normal
 		const standardSonnet =
-			(mainPrompt.includes('selbst') &&
-				(mainPrompt.includes('Standard') || mainPrompt.includes('normal'))) ||
-			(mainPrompt.includes('Sonnet') &&
-				(mainPrompt.includes('Standard') || mainPrompt.includes('normal')));
+			(mainPrompt.includes('selbst') && (mainPrompt.includes('Standard') || mainPrompt.includes('normal'))) ||
+			(mainPrompt.includes('Sonnet') && (mainPrompt.includes('Standard') || mainPrompt.includes('normal')));
 		assert.ok(
 			standardSonnet,
 			'Haupt-prompt:-Block muss Standard-Reviews ohne Subagenten-Delegation auf Sonnet anweisen',

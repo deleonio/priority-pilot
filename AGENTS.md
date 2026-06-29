@@ -186,6 +186,17 @@ formales Approve/Request-Changes — der Merge bleibt beim Menschen. Vollständi
 [.ai-knowledge/pr-review.md](.ai-knowledge/pr-review.md).
 Konkreter Command: `/kreuzverhoer-review`.
 
+### Aufrufpfade
+
+Der Kreuzverhoer-Agent wird auf drei Wegen aufgerufen:
+
+1. **Chat/REPL (interaktiv):** Trigger-Phrasen aktivieren den Agenten direkt in Claude Code:
+   „Kreuzverhör", „nimm das auseinander", „stress-teste das", „challenge mich".
+2. **Slash-Command:** `/kreuzverhoer-review [PR-Nummer]` — führt das Review eines konkreten PRs
+   im Session-Modell des Aufrufers durch.
+3. **GitHub Actions (automatisch):** `claude-pr-review.yml` feuert, wenn ein PR das Label
+   `ai:needs-review` trägt — Sonnet-Koordinator, der an `heavy`/`light` delegiert.
+
 In **GitHub Actions** läuft das über **Labels** (stabiles Ping-Pong statt Event-Kaskaden): Der
 Umsetzungs-Workflow labelt den PR mit `ai:needs-review`;
 [`claude-pr-review.yml`](.github/workflows/claude-pr-review.yml) reviewt ihn und setzt
