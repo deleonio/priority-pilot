@@ -1,7 +1,7 @@
 import type { Pillar } from 'client';
 
 /** Balance-Stand einer Säule fürs Dashboard: ihr Punktestand und ihr Anteil am Gesamtstand. */
-export interface PillarBalance {
+interface PillarBalance {
 	pillar: Pillar;
 	/** Auf diese Säule entfallende (anteilig nach `share` aggregierte) Gamification-Punkte. */
 	punkte: number;

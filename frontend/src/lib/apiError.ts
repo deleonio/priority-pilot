@@ -1,7 +1,7 @@
 import { ResponseError } from 'client';
 
 /** Normalisierte Fehlerinformation aus einem fehlgeschlagenen API-Aufruf. */
-export interface ApiError {
+interface ApiError {
 	/** HTTP-Statuscode, falls der Fehler von einer Server-Antwort stammt; sonst `null`. */
 	status: number | null;
 	/** Menschenlesbare Fehlermeldung — wenn möglich die `message` aus dem Server-Fehlerobjekt. */

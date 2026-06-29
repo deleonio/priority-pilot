@@ -21,7 +21,7 @@ const ICONS: Record<ThemePreference, string> = {
 };
 
 /** Die für einen `KolToolbar`-Button benötigten, zustandsabhängigen Teile des Theme-Umschalters. */
-export interface ThemeToolbarItem {
+interface ThemeToolbarItem {
 	/** Sprechendes (verstecktes) Label „Darstellung: … (umschalten zu …)". */
 	_label: string;
 	/** `_icons`-Deskriptor mit stabiler Identität pro Modus (Icon-Watcher-Schutz). */

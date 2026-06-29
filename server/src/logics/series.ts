@@ -3,7 +3,7 @@ import type Series from '../models/series.js';
 import type { SeriesRhythm } from '../models/series.js';
 
 /** Optionen der Generierung; `until` ist der (inklusive) Materialisierungs-Horizont. */
-export interface GenerateOptions {
+interface GenerateOptions {
 	/** Letzter zu materialisierender Zeitpunkt (inklusive). */
 	until: Date;
 }

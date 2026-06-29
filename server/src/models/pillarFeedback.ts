@@ -2,7 +2,7 @@ import { DataTypes, Model } from 'sequelize';
 import sequelize from '../database.js';
 
 /** Eine vom Nutzer bestätigte/korrigierte Säulen-Einzahlung (Ground Truth): Säulen-ID + Konfidenz. */
-export interface FeedbackPillar {
+interface FeedbackPillar {
 	pillarId: number;
 	confidence: number;
 }

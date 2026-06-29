@@ -36,15 +36,8 @@ describe('Issue #165 — Lefthook + Knip Dev-Tooling-Konfiguration', () => {
 
 		it('hat ein "prepare"-Skript, das lefthook install aufruft', () => {
 			const pkg = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf-8'));
-			assert.ok(
-				pkg.scripts?.['prepare'],
-				'root package.json muss ein "prepare"-Skript besitzen',
-			);
-			assert.match(
-				pkg.scripts['prepare'],
-				/lefthook install/,
-				'"prepare"-Skript muss "lefthook install" enthalten',
-			);
+			assert.ok(pkg.scripts?.['prepare'], 'root package.json muss ein "prepare"-Skript besitzen');
+			assert.match(pkg.scripts['prepare'], /lefthook install/, '"prepare"-Skript muss "lefthook install" enthalten');
 		});
 	});
 
@@ -52,10 +45,7 @@ describe('Issue #165 — Lefthook + Knip Dev-Tooling-Konfiguration', () => {
 		const lefthookPath = resolve(ROOT, 'lefthook.yml');
 
 		it('lefthook.yml existiert im Repository-Root', () => {
-			assert.ok(
-				existsSync(lefthookPath),
-				'lefthook.yml muss im Repository-Root vorhanden sein',
-			);
+			assert.ok(existsSync(lefthookPath), 'lefthook.yml muss im Repository-Root vorhanden sein');
 		});
 
 		it('lefthook.yml enthält einen pre-commit-Block', () => {
@@ -67,31 +57,19 @@ describe('Issue #165 — Lefthook + Knip Dev-Tooling-Konfiguration', () => {
 		it('lefthook.yml pre-commit führt Prettier-Check aus (pnpm format)', () => {
 			assert.ok(existsSync(lefthookPath), 'lefthook.yml fehlt');
 			const content = readFileSync(lefthookPath, 'utf-8');
-			assert.match(
-				content,
-				/pnpm format/,
-				'lefthook.yml pre-commit muss einen pnpm-format-Schritt enthalten',
-			);
+			assert.match(content, /pnpm format/, 'lefthook.yml pre-commit muss einen pnpm-format-Schritt enthalten');
 		});
 
 		it('lefthook.yml pre-commit führt Lint aus (pnpm lint)', () => {
 			assert.ok(existsSync(lefthookPath), 'lefthook.yml fehlt');
 			const content = readFileSync(lefthookPath, 'utf-8');
-			assert.match(
-				content,
-				/pnpm lint/,
-				'lefthook.yml pre-commit muss einen pnpm-lint-Schritt enthalten',
-			);
+			assert.match(content, /pnpm lint/, 'lefthook.yml pre-commit muss einen pnpm-lint-Schritt enthalten');
 		});
 
 		it('lefthook.yml pre-commit führt Knip aus (pnpm knip)', () => {
 			assert.ok(existsSync(lefthookPath), 'lefthook.yml fehlt');
 			const content = readFileSync(lefthookPath, 'utf-8');
-			assert.match(
-				content,
-				/pnpm knip/,
-				'lefthook.yml pre-commit muss einen pnpm-knip-Schritt enthalten',
-			);
+			assert.match(content, /pnpm knip/, 'lefthook.yml pre-commit muss einen pnpm-knip-Schritt enthalten');
 		});
 	});
 });

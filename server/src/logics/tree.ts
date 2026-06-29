@@ -1,7 +1,7 @@
 import { Task } from '../models/index.js';
 import { calculateValueContribution } from './value.js';
 
-export interface TaskTreeNode {
+interface TaskTreeNode {
 	id: number;
 	title: string;
 	priority: number;

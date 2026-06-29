@@ -6,6 +6,7 @@ packages:
 # die `pnpm approve-builds` selbst schreibt (intern -> onlyBuiltDependencies).
 # NICHT durch eine onlyBuiltDependencies-Liste ersetzen — pnpm regeneriert sonst allowBuilds.
 allowBuilds:
+  '@evilmartians/lefthook': true
   '@public-ui/components': true
   esbuild: true
   sqlite3: true
