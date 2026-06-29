@@ -54,3 +54,35 @@ describe('Dashboard — Meine Themen: offen/erledigt je Säule (#124)', () => {
 		expect(text).toMatch(/1\s+erledigt/i);
 	});
 });
+
+/**
+ * #169: Das Dashboard begrüßt den Nutzer personalisiert mit „Hallo <Name>!". Der Name kommt als
+ * `displayName`-Prop (von `App.tsx` aus `localStorage` gelesen). Diese Komponententests rendern das
+ * Dashboard direkt mit der Prop und prüfen den sichtbaren Begrüßungstext. Solange `Dashboard.tsx`
+ * weder die Prop auswertet noch eine Begrüßung rendert (samt Fallback für leeren Namen), sind die
+ * Tests rot; sie werden grün, sobald die personalisierte Begrüßung implementiert ist.
+ */
+describe('Dashboard — Personalisierte Begrüßung (#169)', () => {
+	// AC1: Mit `displayName="Peter"` muss die Begrüßung „Hallo Peter!" sichtbar sein.
+	it('zeigt „Hallo Peter!" wenn displayName="Peter" übergeben wird', () => {
+		const { container } = render(
+			<Dashboard tasks={[]} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[]} displayName="Peter" />,
+		);
+
+		expect(container.textContent ?? '').toMatch(/Hallo\s+Peter!/i);
+	});
+
+	// AC2: Bei leerem displayName darf KEINE leere Begrüßung „Hallo !" erscheinen, sondern ein
+	// sinnvoller Fallback-Name (z. B. „Hallo Pilot!").
+	it('zeigt einen Fallback-Namen statt „Hallo !" wenn displayName leer ist', () => {
+		const { container } = render(
+			<Dashboard tasks={[]} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[]} displayName="" />,
+		);
+
+		const text = container.textContent ?? '';
+		// Keine leere Begrüßung ohne Namen …
+		expect(text).not.toMatch(/Hallo\s*!/);
+		// … sondern eine Begrüßung mit einem echten (Fallback-)Namen.
+		expect(text).toMatch(/Hallo\s+\w+!/i);
+	});
+});
