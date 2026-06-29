@@ -4,7 +4,7 @@ import type { Task } from 'client';
  * Kennzeichnung einer Aufgaben-Zeile als zu einer Serie gehörig (#142, AK 2). Das Badge wird aus
  * `seriesId`/`isException` eines Tasks abgeleitet und in der Aufgaben-Tabelle (`TaskTable`) gerendert.
  */
-export interface SeriesBadge {
+interface SeriesBadge {
 	/** `instance` = reguläre generierte Serien-Instanz, `exception` = individuell geänderte Instanz. */
 	variant: 'instance' | 'exception';
 	/** Sichtbares, deutsches Label für die Tabellen-Zelle. */

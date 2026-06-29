@@ -14,13 +14,13 @@ import { useCallback, useEffect, useState } from 'react';
 export type ThemePreference = 'system' | 'light' | 'dark';
 
 /** Effektiv angewandtes Theme (aus der Wahl + OS-Einstellung abgeleitet). */
-export type ResolvedTheme = 'light' | 'dark';
+type ResolvedTheme = 'light' | 'dark';
 
 /** `localStorage`-Schlüssel der gespeicherten Wahl — identisch zum Bootstrap in `index.html`. */
 export const STORAGE_KEY = 'pp-theme';
 
 /** Media-Query, über die der Dunkel-Wunsch des Betriebssystems erkannt wird. */
-export const DARK_MEDIA_QUERY = '(prefers-color-scheme: dark)';
+const DARK_MEDIA_QUERY = '(prefers-color-scheme: dark)';
 
 /** Prüft, ob ein beliebiger Wert eine gültige `ThemePreference` ist. */
 const isPreference = (value: unknown): value is ThemePreference =>
@@ -61,7 +61,7 @@ export const resolveTheme = (preference: ThemePreference, prefersDark: boolean):
  * Wendet das effektive Theme auf das `<html>`-Element an: `data-theme` steuert die
  * App-eigenen CSS-Custom-Properties, `color-scheme` lässt native Controls/Scrollbars mitziehen.
  */
-export const applyTheme = (resolved: ResolvedTheme): void => {
+const applyTheme = (resolved: ResolvedTheme): void => {
 	const root = document.documentElement;
 	root.dataset.theme = resolved;
 	root.style.colorScheme = resolved;

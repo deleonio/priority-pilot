@@ -16,7 +16,7 @@ const VOLLER_BASISWERT = 1;
 /** `share` ist ein Prozentwert (0–100); hier auf einen Bruchteil (0–1) normiert. */
 const PERCENT = 100;
 
-export interface ScoreErgebnis {
+interface ScoreErgebnis {
 	punkte: number;
 	pünktlich: boolean;
 }
@@ -37,7 +37,7 @@ export const berechneScore = (
 };
 
 /** Anteiliger Säulen-Beitrag eines Tasks (`share` in Prozent, 0–100). */
-export interface SaeulenBeitrag {
+interface SaeulenBeitrag {
 	pillarId: number;
 	share: number;
 }

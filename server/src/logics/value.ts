@@ -46,19 +46,3 @@ export const calculateValueContribution = async (task: Task): Promise<number> =>
 	// Säulen-Beiträge einbeziehen: höher gewichtete Säulen heben den Wert (multiplikativ).
 	return baseValue * (await getPillarFactor(task));
 };
-
-export const calculateAllTaskValues = async (): Promise<void> => {
-	// Alle Tasks abrufen, die offen oder in Bearbeitung sind
-	const tasks = await Task.findAll({
-		where: {
-			status: ['Open', 'In process'],
-		},
-	});
-
-	console.log('Wertschöpfung aller Tasks:');
-	for (const task of tasks) {
-		// Wertschöpfung für jeden Task berechnen
-		const value = await calculateValueContribution(task);
-		console.log(`Task: ${task.title}, Wertschöpfung: ${value.toFixed(1)}`);
-	}
-};

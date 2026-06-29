@@ -21,7 +21,7 @@ interface WeightEntry {
 type ValidationResult = { ok: true; entries: WeightEntry[] } | { ok: false; message: string };
 
 /** Wandelt eine Pillar-Instanz in die im API-Vertrag definierte Form um. */
-export const serializePillar = (pillar: Pillar): PillarDto => ({
+const serializePillar = (pillar: Pillar): PillarDto => ({
 	id: pillar.id,
 	name: pillar.name,
 	weight: pillar.weight,

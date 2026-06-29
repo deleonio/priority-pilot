@@ -11,7 +11,7 @@ import Dependency from './dependency.js';
 import Pillar from './pillar.js';
 import TaskPillar from './taskPillar.js';
 
-export type TaskStatus = 'Open' | 'In process' | 'Done';
+type TaskStatus = 'Open' | 'In process' | 'Done';
 
 /** Eine Säule samt der zugehörigen Join-Zeile (`share`/`confidence`), wie sie `getPillars()` liefert. */
 export type PillarWithContribution = Pillar & { TaskPillar: TaskPillar };

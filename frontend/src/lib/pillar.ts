@@ -1,6 +1,5 @@
 import type { Pillar, PillarSuggestion, Task, TaskPillarContribution } from 'client';
 import { TaskStatus } from 'client';
-import { formatNumber } from './task';
 
 /**
  * Sentinel-Wert der „Säule hinzufügen"-Auswahl (Platzhalter-Option). Säulen-IDs sind serverseitig
@@ -10,13 +9,13 @@ import { formatNumber } from './task';
 export const ADD_PILLAR_PLACEHOLDER = 0;
 
 /** Soll-Summe der Gewichte über alle Säulen (100 %-Verteilung; siehe Server-Vertrag). */
-export const TOTAL_WEIGHT = 100;
+const TOTAL_WEIGHT = 100;
 
 /**
  * Float-Toleranz für den Summenvergleich (z. B. 33,33 + 33,33 + 33,34). Spiegelt die
  * serverseitige Toleranz in `server/src/express/routes/pillars.ts`.
  */
-export const WEIGHT_SUM_EPSILON = 1e-6;
+const WEIGHT_SUM_EPSILON = 1e-6;
 
 /**
  * Eingabe-Skala für die Roh-Gewichte in der UI: pro Säule ein freier Wert von 0,0 bis 1,0 (#82).
@@ -65,10 +64,6 @@ export const sumWeights = (weights: readonly (number | null)[]): number =>
 
 /** Prüft, ob die Summe der Gewichte (innerhalb der Toleranz) genau `TOTAL_WEIGHT` ergibt. */
 export const isWeightSumValid = (sum: number): boolean => Math.abs(sum - TOTAL_WEIGHT) <= WEIGHT_SUM_EPSILON;
-
-/** Säulen-Name samt Gewicht als Rohwert 0,0–1,0, z. B. „Körper (0,2)" (#82). */
-export const pillarLabelWithWeight = (pillar: Pillar): string =>
-	`${pillar.name} (${formatNumber(weightToRaw(pillar.weight))})`;
 
 /** Begrenzt einen Wert auf das Intervall `[min, max]`. */
 const clamp = (value: number, min: number, max: number): number => Math.min(Math.max(value, min), max);
@@ -120,7 +115,7 @@ export const suggestionsToContributions = (
 };
 
 /** Kennzahlen einer Säule für das Dashboard-Widget „Meine Themen". */
-export interface PillarSummary {
+interface PillarSummary {
 	pillar: Pillar;
 	/** Anzahl der Tasks, die (mit einem Beitrag) auf diese Säule einzahlen. */
 	taskCount: number;

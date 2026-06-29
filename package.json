@@ -1,6 +1,8 @@
 {
 	"license": "EUPL-1.2",
 	"devDependencies": {
+		"@evilmartians/lefthook": "1.12.2",
+		"knip": "5.61.3",
 		"prettier": "3.9.1"
 	},
 	"private": true,
@@ -10,7 +12,10 @@
 		"build": "pnpm -r generate && pnpm -r build",
 		"dev": "pnpm -r --parallel dev",
 		"format": "pnpm -r format",
+		"format:check": "prettier --check .",
+		"knip": "knip",
 		"lint": "pnpm -r lint",
+		"prepare": "lefthook install",
 		"test": "pnpm -r test"
 	}
 }
