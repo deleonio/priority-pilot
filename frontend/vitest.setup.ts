@@ -35,3 +35,20 @@ if (isUnavailable('localStorage') || isUnavailable('sessionStorage')) {
 		}
 	}
 }
+
+// jsdom implementiert window.matchMedia nicht — minimaler Stub damit Theme-Code in Tests nicht crasht.
+if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
+	Object.defineProperty(window, 'matchMedia', {
+		writable: true,
+		value: (query: string) => ({
+			matches: false,
+			media: query,
+			onchange: null,
+			addListener: () => {},
+			removeListener: () => {},
+			addEventListener: () => {},
+			removeEventListener: () => {},
+			dispatchEvent: () => false,
+		}),
+	});
+}
