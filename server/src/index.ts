@@ -1,5 +1,6 @@
 // Muss als Erstes stehen: lädt `.env` in process.env, bevor andere Module Variablen lesen.
 import './env.js';
+import { logEnvConfig } from './env-startup-log.js';
 import sequelize from './database.js';
 import { launchServer } from './express/index.js';
 import { migrateSeriesColumns, migrateSeriesTable } from './logics/migrate.js';
@@ -93,6 +94,7 @@ const seedDemoData = async (): Promise<void> => {
 };
 
 const main = async (): Promise<void> => {
+	logEnvConfig();
 	try {
 		// Verbindung herstellen
 		await sequelize.authenticate();
