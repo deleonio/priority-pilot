@@ -10,3 +10,19 @@ allowBuilds:
   '@public-ui/components': true
   esbuild: true
   sqlite3: true
+# Security-Overrides fuer transitive CVEs (Dependabot-Alerts, 2026-06).
+# Patched-Versionen aus den GHSA-Advisories; version-gescopte Keys (z. B. `undici@6`)
+# treffen nur die verwundbare Major-Linie und lassen bereits saubere Majors unberuehrt.
+# Bei neuen Advisories: Eintrag aktualisieren oder entfernen, sobald der Consumer
+# (sequelize, eslint, sqlite3, openapi-typescript, vite-plugin-pwa) selbst nachzieht.
+overrides:
+  flatted: '^3.4.2' #            GHSA-rf6f-7fwh-wjgh / GHSA-25h7-pfq9-p65f (<- eslint)
+  lodash: '^4.18.0' #           GHSA-r5fr-rjxr-66jc / -f23m-r3pf-42rh / -xxjr-mmjv-4gpg (<- sequelize)
+  validator: '^13.15.22' #      GHSA-vghf-hv5q-vc2g / -9965-vmph-33xx (<- sequelize)
+  dottie: '^2.0.7' #            GHSA-r5mx-6wc6-7h9w (<- sequelize)
+  uuid: '^11.1.1' #             GHSA-w5hq-g745-h8pq (<- sequelize; v1/v4 ohne buf -> nicht exploitierbar, Bump trotzdem)
+  tar-fs@2: '^2.1.4' #          GHSA-vj76-c3g6-qr5v / -8cj5-5rvv-wf4v / -pq67-2wwv-3xjx (<- sqlite3); auf 2.x bleiben
+  undici@6: '^6.27.0' #         GHSA-vxpw-j846-p89q / -p88m-4jfj-68fv / -g8m3-5g58-fq7m / -35p6-xmwp-9g52 (<- node-gyp); 7.x ist clean
+  brace-expansion@2: '^2.0.3' # GHSA-f886-m6hf-6m8v / -v6h2-p8h4-qcjw (<- minimatch@5); 5.x ist clean
+  picomatch@2: '^2.3.2' #       GHSA-3v7f-55p6-f55p (<- chokidar/knip); 4.x ist clean
+  js-yaml@4: '^4.2.0' #         GHSA-h67p-54hq-rp68 (<- openapi-typescript/knip); auf 4.x bleiben (5.x ist breaking)
