@@ -96,7 +96,7 @@ test.describe('Dashboard — Gesamtguthaben (Issue #184)', () => {
 		const totalEl = page.locator('[data-testid="balance-total"]');
 		await expect(totalEl).toBeVisible();
 		const totalText = (await totalEl.textContent()) ?? '';
-		expect(Number.parseFloat(totalText)).toBeGreaterThan(0);
+		expect(Number.parseFloat(totalText.replace(',', '.'))).toBeGreaterThan(0);
 	});
 
 	// AK 2 — Säulen-Aufschlüsselung korrekt
