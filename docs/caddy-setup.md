@@ -24,12 +24,12 @@ und streift das Präfix ab, bevor der Request ankommt.
 
 ## Pfade
 
-| Eingehende URL | Backend-Pfad |
-|---|---|
-| `GET :80/api/v1/tasks` | `GET localhost:3000/tasks` |
-| `POST :80/api/v1/tasks` | `POST localhost:3000/tasks` |
-| `GET :80/api/v1/pillars` | `GET localhost:3000/pillars` |
-| `GET :80/` | statische `index.html` aus `/srv/priority-pilot/frontend/dist` |
+| Eingehende URL           | Backend-Pfad                                                   |
+| ------------------------ | -------------------------------------------------------------- |
+| `GET :80/api/v1/tasks`   | `GET localhost:3000/tasks`                                     |
+| `POST :80/api/v1/tasks`  | `POST localhost:3000/tasks`                                    |
+| `GET :80/api/v1/pillars` | `GET localhost:3000/pillars`                                   |
+| `GET :80/`               | statische `index.html` aus `/srv/priority-pilot/frontend/dist` |
 
 ## Abgleich mit dem Vite-Dev-Proxy
 
