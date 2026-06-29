@@ -65,6 +65,21 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           token: ${{ steps.app-token.outputs.token }} # Fix-Push als App-Token
 
+      - name: pnpm einrichten
+        if: steps.preflight.outputs.configured == 'true'
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+
+      - name: Node.js einrichten
+        if: steps.preflight.outputs.configured == 'true'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 26.3.1
+          cache: pnpm
+
+      - name: Abhaengigkeiten installieren
+        if: steps.preflight.outputs.configured == 'true'
+        run: pnpm install --frozen-lockfile
+
       # Standard-Pfad (Claude): laeuft, solange die Repo-Variable AI_AGENT NICHT auf "mistral" steht
       # (auch ungesetzt -> Claude bleibt Default). Umschalten: `gh variable set AI_AGENT --body
       # mistral` (zurueck: `gh variable set AI_AGENT --body claude`).
