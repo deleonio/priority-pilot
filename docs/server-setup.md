@@ -30,7 +30,7 @@ Laufzeit-Bild nach der Einrichtung:
 flowchart LR
     user(["Browser"]) -->|HTTPS| caddy["Caddy :443"]
     caddy -->|"/ (SPA)"| spa["current/dist"]
-    caddy -->|"/tasks /pillars /forest /next"| node["Node :3001<br/>systemd app@priority-pilot"]
+    caddy -->|"/api/v1/* → strip /api/v1 → /tasks /pillars …"| node["Node :3001<br/>systemd app@priority-pilot"]
     node --> db[("data/database.sqlite")]
     node -->|"/tasks/suggest-pillars"| mistral["Mistral API"]
 ```
@@ -251,10 +251,12 @@ priority-pilot.example.de {
     encode zstd gzip
     root * /var/www/gh-deploy/priority-pilot/current/dist
 
-    # API-Wurzelpfade ans Backend — MÜSSEN mit den Vertragspfaden übereinstimmen
-    # (frontend/vite.config.ts: ^/(tasks|pillars|forest|next), openapi.yml).
-    @api path /tasks* /pillars* /forest* /next*
-    handle @api {
+    # API: /api/v1-Präfix abstreifen und ans Backend. Das Frontend ruft alle Endpunkte
+    # unter /api/v1/* auf (frontend/src/api.ts: VITE_API_BASE_URL ?? '/api/v1',
+    # frontend/vite.config.ts). Eigener handle-Block, damit der SPA-Fallback (try_files)
+    # ihn nicht vorab abfängt (try_files steht in Caddys Direktiven-Ordnung vor handle).
+    handle /api/v1/* {
+        uri strip_prefix /api/v1
         reverse_proxy localhost:3001
     }
 
@@ -277,8 +279,9 @@ sudo caddy validate --config /etc/caddy/Caddyfile
 sudo systemctl reload caddy
 ```
 
-Caddy holt das TLS-Zertifikat automatisch (Let's Encrypt). **Wichtig:** Die API liegt an der Wurzel
-(`/tasks`, …), **nicht** unter `/api/*` — ein `/api/*`-Block würde alle API-Calls 404en.
+Caddy holt das TLS-Zertifikat automatisch (Let's Encrypt). **Wichtig (seit #171):** Das Frontend ruft
+die API unter `/api/v1/*` auf; Caddy streift das Präfix ab und reicht z. B. `/api/v1/pillars` als
+`/pillars` an das Backend weiter, das seine Router an der Wurzel mountet (`app.use(pillarsRouter)`).
 
 ---
 
@@ -335,7 +338,7 @@ sudo -u gh-deploy sqlite3 /var/www/gh-deploy/priority-pilot/data/database.sqlite
 | Symptom                                             | Wahrscheinliche Ursache                           | Prüfen / Fix                                                                         |
 | --------------------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------ |
 | `systemctl status` zeigt `failed`                   | `node_modules`/`sqlite3`-ABI passt nicht zum Host | `journalctl -u app@priority-pilot`; ggf. Host-Install (Schritt 6, Variante)          |
-| API-Calls 404                                       | Caddy proxyt `/api/*` statt der Wurzelpfade       | `@api`-Matcher prüfen (Schritt 9)                                                    |
+| API-Calls liefern HTML/404                          | Caddy kennt `/api/v1/*` nicht (SPA-Fallback greift) | `handle /api/v1/*`-Block + `strip_prefix` prüfen (Schritt 9)                       |
 | Daten weg nach Deploy                               | `DATABASE_STORAGE` zeigt in den Release-Baum      | absoluten `data/`-Pfad setzen (Schritt 5)                                            |
 | Demo-Daten erscheinen in Prod                       | `DB_SEED` nicht auf `false`                       | Env-Datei korrigieren, neu starten                                                   |
 | `/tasks/suggest-pillars` → 503                      | `MISTRAL_API_KEY` fehlt                           | Key in Env-Datei eintragen                                                           |

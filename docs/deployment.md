@@ -48,7 +48,7 @@ flowchart LR
     subgraph host["Dedizierter Server"]
         direction TB
         caddy["Caddy (TLS)"] --> spa["statische SPA aus Web-Verzeichnis"]
-        caddy -- "/tasks /pillars /forest /next" --> node["Node :3001 (PM2)"]
+        caddy -- "/api/v1/* → strip /api/v1 → /tasks /pillars …" --> node["Node :3001 (PM2)"]
         node --> db[("SQLite<br/>data/database.sqlite — vom rsync ausgenommen")]
     end
 ```
@@ -320,9 +320,12 @@ priority-pilot.example.de {
     encode zstd gzip
     root * /var/www/gh-deploy/priority-pilot/current/dist
 
-    # API-Wurzelpfade an das Backend — MÜSSEN mit den echten Vertragspfaden übereinstimmen.
-    @api path /tasks* /pillars* /forest* /next* /health*
-    handle @api {
+    # API: /api/v1-Präfix abstreifen und ans Backend. Das Frontend ruft alle Endpunkte
+    # unter /api/v1/* auf (frontend/src/api.ts, frontend/vite.config.ts). Eigener
+    # handle-Block, damit der SPA-Fallback (try_files) ihn nicht vorab abfängt
+    # (try_files steht in Caddys Direktiven-Ordnung vor handle/reverse_proxy).
+    handle /api/v1/* {
+        uri strip_prefix /api/v1
         reverse_proxy localhost:3001
     }
 
@@ -344,12 +347,12 @@ priority-pilot.example.de {
 }
 ```
 
-> **Korrektur gegenüber dem ersten Entwurf:** Die SPA ruft die API **nicht** unter `/api/*` auf,
-> sondern direkt unter den Vertrags-Wurzelpfaden `/tasks`, `/pillars`, `/forest`, `/next`
-> (plus `/tasks/suggest-pillars`). Belegt durch die Dev-Proxy-Allowlist in `frontend/vite.config.ts`
-> (`^/(tasks|pillars|forest|next)`) und `openapi.yml`. Ein `handle /api/*` würde jeden API-Call 404en.
-> **Pflege-Kopplung:** Kommt im Vertrag ein neuer Wurzelpfad hinzu, muss er **sowohl** in
-> `vite.config.ts` **als auch** im `@api`-Matcher hier ergänzt werden.
+> **Pfad-Schema (seit #171):** Die SPA ruft die API unter dem Präfix `/api/v1/*` auf
+> (`frontend/src/api.ts`: `VITE_API_BASE_URL ?? '/api/v1'`, plus Vite-Proxy in `frontend/vite.config.ts`).
+> Caddy streift `/api/v1` ab und reicht den Rest an das Backend, das seine Router an der Wurzel mountet
+> (`app.use(pillarsRouter)` → `/pillars`). Dev (Vite-Proxy) und Prod (Caddy) verhalten sich damit
+> identisch. **Pflege-Kopplung:** Ändert sich das Präfix, müssen `frontend/src/api.ts`,
+> `frontend/vite.config.ts` und dieser `handle /api/v1/*`-Block gemeinsam angepasst werden.
 
 Pfad-basiertes Routing (`example.de/priority-pilot/*`) ginge auch, macht aber SPA-Routing und Base-Path
 komplizierter — bei eigener Subdomain bleibt das Frontend unverändert.
@@ -528,9 +531,10 @@ Danach läuft jedes Deploy nur noch über `deploy <app> <version>`.
 
 ## Offene Entscheidungen
 
-- **API-Präfix `/api`:** Aktuell liegen die Endpunkte an der Wurzel (`/tasks`, …). Falls perspektivisch
-  ein `/api`-Präfix gewünscht ist, müssten Express-Routen, `vite.config.ts`-Proxy, `VITE_API_BASE_URL`
-  und der Caddy-`@api`-Matcher gemeinsam angepasst werden. Bis dahin gelten die Wurzelpfade.
+- **API-Präfix `/api/v1`:** Seit #171 ruft das Frontend die Endpunkte unter `/api/v1/*` auf; Caddy und
+  der Vite-Proxy streifen das Präfix ab, das Backend mountet weiterhin an der Wurzel (`/tasks`, …).
+  Ändert sich das Präfix, müssen `frontend/src/api.ts` (`VITE_API_BASE_URL`), `frontend/vite.config.ts`
+  und der Caddy-`handle /api/v1/*`-Block gemeinsam angepasst werden.
 - **Arch-/Node-Matching:** Diese Doku nimmt x64-Linux + Node 26 auf dem Host an (passend zur CI). Weicht
   der Host ab, Prod-Deps auf dem Host installieren statt im Tarball mitliefern.
 - **Hostname/Domain:** `example.de` ist Platzhalter (vgl. Kommentar im Deploy-Pubkey) und beim Einrichten

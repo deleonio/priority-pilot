@@ -8,17 +8,25 @@ und streift das Präfix ab, bevor der Request ankommt.
 
 ```caddyfile
 :80 {
-    root * /srv/priority-pilot/frontend/dist
-    file_server
+    root * /var/www/gh-deploy/priority-pilot/frontend/
 
     # API: Präfix abstreifen und zum Express-Backend weiterleiten.
+    # MUSS vor dem SPA-Fallback stehen und in einem eigenen handle-Block:
+    # handle-Blöcke sind gegenseitig exklusiv (erster Treffer gewinnt).
     handle /api/v1/* {
         uri strip_prefix /api/v1
         reverse_proxy localhost:3000
     }
 
-    # SPA-Fallback: alle anderen Pfade liefern index.html.
-    try_files {path} /index.html
+    # SPA-Fallback: alle übrigen Pfade liefern statische Dateien bzw. index.html.
+    # try_files MUSS in einem eigenen handle-Block stehen. Auf Top-Level würde
+    # es sonst – wegen Caddys fester Direktiven-Reihenfolge (try_files vor handle/
+    # reverse_proxy) – ZUERST laufen und /api/v1/* intern auf /index.html
+    # umschreiben, bevor der API-Block greift. Der reverse_proxy feuert dann nie.
+    handle {
+        try_files {path} /index.html
+        file_server
+    }
 }
 ```
 
