@@ -33,6 +33,8 @@ interface DashboardProps {
 	suggestions?: Task[];
 	/** Die fünf Lebensbalance-Säulen samt Gewichtung (`GET /pillars`) für das Widget „Meine Themen". */
 	pillars: Pillar[];
+	/** Anzeigename des Nutzers für die personalisierte Begrüßung (aus `localStorage`). Leer → Fallback „Pilot". */
+	displayName?: string;
 }
 
 interface StatCard {
@@ -67,7 +69,8 @@ const hasDeadline = (task: Task): task is TaskWithDeadline =>
  * werden dabei je Säule nach Status aufgeschlüsselt (#124): offen (`Open`/`In process`) vs. erledigt
  * (`Done`), damit erkennbar ist, wie eine Säule bereits abgearbeitet ist.
  */
-export const Dashboard = ({ tasks, forest, nextTask, suggestions = [], pillars }: DashboardProps) => {
+export const Dashboard = ({ tasks, forest, nextTask, suggestions = [], pillars, displayName = '' }: DashboardProps) => {
+	const greeting = displayName.trim() || 'Pilot';
 	const cards = useMemo<StatCard[]>(() => {
 		// Status-Häufigkeiten in einem einzigen Durchlauf zählen (O(n)).
 		const counts = new Map<string, number>();
@@ -105,6 +108,7 @@ export const Dashboard = ({ tasks, forest, nextTask, suggestions = [], pillars }
 	return (
 		<section className="dashboard">
 			<h2>Dashboard</h2>
+			<p className="dashboard-greeting">Hallo {greeting}!</p>
 			<ul className="dashboard-cards">
 				{cards.map((card) => (
 					<li key={card.label}>

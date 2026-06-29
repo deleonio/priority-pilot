@@ -44,6 +44,7 @@ export const App = () => {
 	const [loadError, setLoadError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [dialog, setDialog] = useState<Dialog>(null);
+	const [displayName] = useState(() => localStorage.getItem('displayName') ?? '');
 
 	const reload = useCallback(async (signal?: AbortSignal): Promise<void> => {
 		setLoading(true);
@@ -210,7 +211,7 @@ export const App = () => {
 			{tasks !== null && tasks.length > 0 && (
 				<KolTabs className="app-tabs" _label="Ansichten" _tabs={VIEW_TABS}>
 					<div slot="tab-0">
-						<Dashboard tasks={tasks} forest={forest} nextTask={nextTask} suggestions={suggestions} pillars={pillars} />
+						<Dashboard tasks={tasks} forest={forest} nextTask={nextTask} suggestions={suggestions} pillars={pillars} displayName={displayName} />
 					</div>
 					<div slot="tab-1">
 						<section className="task-section">
