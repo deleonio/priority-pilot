@@ -19,10 +19,10 @@ import type {
 } from 'client';
 import createClient from 'openapi-fetch';
 
-// Im Dev-Betrieb leitet der Vite-Proxy (siehe vite.config.ts) die API-Pfade an
-// http://localhost:3000 weiter, daher als Basis-URL standardmäßig same-origin ('').
-// Über VITE_API_BASE_URL lässt sich die API-URL bei Bedarf (z. B. für Builds) überschreiben.
-const baseUrl = import.meta.env.VITE_API_BASE_URL ?? '';
+// Im Dev-Betrieb leitet der Vite-Proxy (siehe vite.config.ts) /api/v1/*-Anfragen an
+// http://localhost:3000 weiter und streift das Präfix ab. In Prod übernimmt Caddy denselben
+// Rewrite. Über VITE_API_BASE_URL lässt sich die Basis-URL bei Bedarf überschreiben.
+const baseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
 const client = createClient<paths>({ baseUrl });
 
 type RawTask = components['schemas']['Task'];

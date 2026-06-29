@@ -23,10 +23,10 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 
 	/** Löscht alle aktuell vorhandenen Tasks über die echte API (Vite-Proxy → Backend). */
 	const deleteAllTasks = async (page: Page): Promise<void> => {
-		const response = await page.request.get('/tasks');
+		const response = await page.request.get('/api/v1/tasks');
 		const tasks = (await response.json()) as { id: number }[];
 		for (const task of tasks) {
-			await page.request.delete(`/tasks/${task.id}`);
+			await page.request.delete(`/api/v1/tasks/${task.id}`);
 		}
 	};
 

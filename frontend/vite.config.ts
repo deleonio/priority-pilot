@@ -2,16 +2,14 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
-// Der Dev-Proxy leitet die API-Pfade an den Express-Server (http://localhost:3000) weiter und
-// löst damit CORS im Browser, ohne den Server anpassen zu müssen.
-// Achtung: Die Wurzelpfade sind hier als Allowlist gepflegt (siehe openapi.yml: /tasks, /pillars,
-// /forest, /next, /suggestions, /series) — kommt im Vertrag ein neuer Wurzelpfad hinzu, muss er hier
-// ergänzt werden. Wird sowohl für den Dev-Server als auch für `vite preview` verwendet, damit in
-// beiden Modi kein CORS auftritt.
+// Der Dev-Proxy leitet alle /api/v1/*-Anfragen an den Express-Server (http://localhost:3000)
+// weiter und streift dabei das Präfix ab (/api/v1/tasks → /tasks). CORS wird damit im Browser
+// ohne Server-Änderung gelöst. Gilt für Dev-Server und `vite preview`.
 const apiProxy = {
-	'^/(tasks|pillars|forest|next|suggestions|series)': {
+	'/api/v1': {
 		target: 'http://localhost:3000',
 		changeOrigin: true,
+		rewrite: (path: string) => path.replace(/^\/api\/v1/, ''),
 	},
 };
 
