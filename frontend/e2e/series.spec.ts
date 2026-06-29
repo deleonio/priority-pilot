@@ -34,7 +34,7 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 
 	/** Legt eine Serie direkt über die echte API an (Setup für AK 2/AK 3) und gibt ihre `id` zurück. */
 	const createSeriesViaApi = async (page: Page, payload: SeriesPayload): Promise<number> => {
-		const response = await page.request.post('/series', {
+		const response = await page.request.post('/api/v1/series', {
 			data: {
 				rhythm: 'weekly',
 				defaultPriority: 3,
@@ -50,7 +50,7 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 
 	/** Materialisiert die fälligen Instanzen einer Serie bis `until` über die echte API. */
 	const generateInstancesViaApi = async (page: Page, seriesId: number, until: string): Promise<void> => {
-		const response = await page.request.post(`/series/${seriesId}/generate`, { data: { until } });
+		const response = await page.request.post(`/api/v1/series/${seriesId}/generate`, { data: { until } });
 		expect(response.ok()).toBeTruthy();
 	};
 
@@ -63,20 +63,20 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 	}
 
 	const listTasksViaApi = async (page: Page): Promise<ApiTask[]> => {
-		const response = await page.request.get('/tasks');
+		const response = await page.request.get('/api/v1/tasks');
 		expect(response.ok()).toBeTruthy();
 		return (await response.json()) as ApiTask[];
 	};
 
 	/** Räumt erst alle Tasks (inkl. generierter Instanzen), dann alle Serien über die echte API ab. */
 	const deleteAll = async (page: Page): Promise<void> => {
-		const tasks = (await (await page.request.get('/tasks')).json()) as { id: number }[];
+		const tasks = (await (await page.request.get('/api/v1/tasks')).json()) as { id: number }[];
 		for (const task of tasks) {
-			await page.request.delete(`/tasks/${task.id}`);
+			await page.request.delete(`/api/v1/tasks/${task.id}`);
 		}
-		const series = (await (await page.request.get('/series')).json()) as { id: number }[];
+		const series = (await (await page.request.get('/api/v1/series')).json()) as { id: number }[];
 		for (const entry of series) {
-			await page.request.delete(`/series/${entry.id}`);
+			await page.request.delete(`/api/v1/series/${entry.id}`);
 		}
 	};
 
@@ -117,8 +117,8 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 		// In der UI gelistet: der Serien-Titel erscheint in der Serien-Verwaltung.
 		await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
 
-		// Persistenz gegenprüfen: die Serie liegt tatsächlich über `/series` im Backend.
-		const series = (await (await page.request.get('/series')).json()) as { title: string }[];
+		// Persistenz gegenprüfen: die Serie liegt tatsächlich über `/api/v1/series` im Backend.
+		const series = (await (await page.request.get('/api/v1/series')).json()) as { title: string }[];
 		expect(series.some((entry) => entry.title === title)).toBeTruthy();
 	});
 
@@ -135,7 +135,7 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 		// Eine der beiden Instanzen individuell ändern → das Backend markiert sie als `isException`.
 		const instances = (await listTasksViaApi(page)).filter((task) => task.seriesId === seriesId);
 		expect(instances.length).toBe(2);
-		const exceptionResponse = await page.request.patch(`/tasks/${instances[0].id}`, {
+		const exceptionResponse = await page.request.patch(`/api/v1/tasks/${instances[0].id}`, {
 			data: { deadline: '2026-09-28T00:00:00.000Z' },
 		});
 		expect(exceptionResponse.ok()).toBeTruthy();
@@ -196,7 +196,7 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 		expect(movedAfter?.isException).toBe(true);
 
 		// Das Serien-Template selbst bleibt unverändert (kein Drift durch die Einzel-Änderung).
-		const seriesAfter = (await (await page.request.get(`/series/${seriesId}`)).json()) as {
+		const seriesAfter = (await (await page.request.get(`/api/v1/series/${seriesId}`)).json()) as {
 			title: string;
 			startDate: string;
 		};

@@ -14,10 +14,10 @@ test.describe('„Was ist jetzt dran?"-Liste (#122)', () => {
 	const uniqueTitle = (label: string): string => `WID ${label} #${(runId += 1)}-${Date.now()}`;
 
 	const deleteAllTasks = async (page: Page): Promise<void> => {
-		const response = await page.request.get('/tasks');
+		const response = await page.request.get('/api/v1/tasks');
 		const tasks = (await response.json()) as { id: number }[];
 		for (const task of tasks) {
-			await page.request.delete(`/tasks/${task.id}`);
+			await page.request.delete(`/api/v1/tasks/${task.id}`);
 		}
 	};
 
@@ -30,8 +30,8 @@ test.describe('„Was ist jetzt dran?"-Liste (#122)', () => {
 		const titelHoch = uniqueTitle('Hoch');
 
 		// Seed über die echte API (Vite-Proxy → Backend): gleiche Voraussetzungen außer Priorität.
-		await page.request.post('/tasks', { data: { title: titelNiedrig, priority: 2, estimatedEffort: 1 } });
-		await page.request.post('/tasks', { data: { title: titelHoch, priority: 5, estimatedEffort: 1 } });
+		await page.request.post('/api/v1/tasks', { data: { title: titelNiedrig, priority: 2, estimatedEffort: 1 } });
+		await page.request.post('/api/v1/tasks', { data: { title: titelHoch, priority: 5, estimatedEffort: 1 } });
 
 		await page.goto('/');
 		await waitForStableView(page);
