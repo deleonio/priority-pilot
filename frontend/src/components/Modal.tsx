@@ -74,6 +74,11 @@ export const Modal = ({ title, onClose, width = '40rem', fallbackFocusRef, child
 		return () => {
 			active = false;
 			void dialog.close();
+			// Liegt der Fokus bereits außerhalb des Dialogs (z. B. durch explizites focus() im
+			// Delete-Handler auf <main>), diesen respektieren und nicht auf den Trigger zurücksetzen.
+			if (document.activeElement !== null && !dialog.contains(document.activeElement)) {
+				return;
+			}
 			if (trigger instanceof HTMLElement && trigger.isConnected) {
 				trigger.focus();
 			} else if (fallback != null) {
