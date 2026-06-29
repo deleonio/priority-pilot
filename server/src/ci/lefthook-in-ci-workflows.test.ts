@@ -42,10 +42,7 @@ describe('Issue #173 — lefthook in CI-Workflows aktiv schalten', () => {
 		it('führt lefthook install explizit nach pnpm install aus', () => {
 			const wf = squash(readWorkflow(fixupWorkflowPath));
 			// pnpm install muss vorhanden sein
-			assert.ok(
-				/pnpm install/.test(wf),
-				'pnpm install fehlt in claude-pr-fixup.yml',
-			);
+			assert.ok(/pnpm install/.test(wf), 'pnpm install fehlt in claude-pr-fixup.yml');
 			// lefthook install muss explizit aufgerufen werden
 			assert.ok(
 				/lefthook install/.test(wf),
@@ -83,11 +80,7 @@ describe('Issue #173 — lefthook in CI-Workflows aktiv schalten', () => {
 
 		it('hat Node.js-Setup-Schritte (actions/setup-node)', () => {
 			const wf = readWorkflow(implementWorkflowPath);
-			assert.match(
-				wf,
-				/actions\/setup-node/,
-				'actions/setup-node fehlt in claude-implement.yml',
-			);
+			assert.match(wf, /actions\/setup-node/, 'actions/setup-node fehlt in claude-implement.yml');
 		});
 
 		it('installiert Abhängigkeiten (pnpm install --frozen-lockfile)', () => {
