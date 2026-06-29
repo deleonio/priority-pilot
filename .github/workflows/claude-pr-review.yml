@@ -4,7 +4,7 @@ name: Claude PR Review (Kreuzverhoer)
 # Umsetzungs-Workflow gesetzt, oder manuell zum Opt-in). Die Pipeline wird ueber LABELS gesteuert
 # statt ueber Review-/Kommentar-Events -> stabiles Ping-Pong ohne Event-Kaskaden:
 #   - zutreffende Findings -> Label "ai:needs-changes" (loest claude-pr-fixup.yml aus)
-#   - sauber 🟢            -> Label "ai:ready-to-merge" (terminal; der Mensch merged)
+#   - sauber 🟢            -> Label "ai:ready-to-merge" (terminal; claude-pr-gate-merge.yml mergt automatisch)
 # Das ausloesende "ai:needs-review" wird dabei entfernt. Aendert KEINEN Code.
 #
 # Nutzt ein kurzlebiges GitHub-App-Token, damit die gesetzten Labels die Folge-Workflows ausloesen.
