@@ -7,7 +7,7 @@ name: PR Auto-Label (ai:needs-review)
 # WICHTIG (Folge-Workflows): Von GITHUB_TOKEN gesetzte Labels loesen KEINE weiteren Workflows
 # aus. Damit das "labeled"-Event den Review wirklich startet, wird hier ein kurzlebiges
 # GitHub-App-Token (APP_ID + APP_PRIVATE_KEY) verwendet — gleiches Muster wie in
-# claude-pr-gate.yml / claude-pr-review.yml.
+# claude-pr-gate-merge.yml / claude-pr-review.yml.
 #
 # Bedingungen:
 #   - nur Nicht-Drafts (draft == false): "opened" eines Drafts wird ignoriert, erst

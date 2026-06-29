@@ -155,9 +155,10 @@ rückfragen** statt zu raten.
    einem Urteil samt **Ampel** (🟢/🟡/🔴).
 2. **CI prüfen** — `gh pr checks <pr>`. Schlägt etwas fehl, die Ursache diagnostizieren und — im
    Rahmen des Tickets — beheben (zählt als Finding der Runde). In der GitHub-Actions-Pipeline ist
-   dieser Schritt zusätzlich deterministisch abgesichert: Der Gate-Workflow
-   (`.github/workflows/claude-pr-gate.yml`) prüft nach Abschluss die Allowlist-Checks **CI** und
-   **Reviewer** und setzt bei rotem Ergebnis `ai:needs-changes` → der Fixup läuft an.
+   dieser Schritt zusätzlich deterministisch abgesichert: Der Gate/Auto-Merge-Workflow
+   (`.github/workflows/claude-pr-gate-merge.yml`) prüft nach Abschluss die Allowlist-Checks **CI**
+   und **Reviewer** und setzt bei rotem Ergebnis `ai:needs-changes` → der Fixup läuft an (bei beiden
+   grün + `ai:ready-to-merge` mergt derselbe Workflow den PR).
 3. **Findings abarbeiten** (Umsetzer-Rolle) — jeden offenen Punkt behandeln:
    - **Zutreffend, klein, eindeutig →** **fixen**: Fix committen + pushen, erneut
      `pnpm format && pnpm exec prettier --check . && pnpm lint`, kurz im Thread antworten

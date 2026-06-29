@@ -1,0 +1,264 @@
+name: Claude PR Gate & Auto-Merge
+
+# Deterministisches, LLM-freies CI-/Reviewer-Gate UND Auto-Merge fuer die label-gesteuerte
+# PR-Pipeline. Zusammenlegung von claude-pr-gate.yml (#87) + claude-pr-automerge.yml (#139) zu
+# EINEM Workflow, um die Run-Zahl zu senken: beide reagierten bisher auf dieselben workflow_run-
+# Abschluesse (CI + Review) und liefen so als ZWEI (meist No-op-)Runs pro Event. Jetzt ein Run.
+#
+# Beide Zweige teilen denselben App-Token-Preflight, dieselbe PR-Aufloesung und dieselbe
+# Allowlist-Check-Auswertung — sie sind die zwei Haelften EINER Entscheidung:
+#   - mind. ein Allowlist-Check (CI / Reviewer) ROT -> ai:needs-changes setzen (loest Fixup aus).
+#   - alle GRUEN + ai:ready-to-merge gesetzt + mergebar -> mergen.
+#   - sonst No-op.
+#
+# Nutzt das kurzlebige GitHub-App-Token (APP_ID + APP_PRIVATE_KEY): von GITHUB_TOKEN gesetzte Labels
+# loesen KEINE Folge-Workflows aus, vom App-Token gesetzte schon. Gleiches Preflight-Skip-Muster wie
+# Review/Fixup, damit der Lauf ohne Secrets sauber uebersprungen wird.
+#
+# Repo-Fakten (bestimmen die Merge-Strategie):
+#   - allow_merge_commit=true, squash/rebase=false -> `gh pr merge --merge` (einzig erlaubte Methode).
+#   - main ist NICHT branch-protected -> direkter Merge nach expliziter mergeable+Checks-Pruefung
+#     (kein `--auto`; das braeuchte Branch-Protection mit Pflicht-Checks).
+#   - delete_branch_on_merge=true -> KEIN `--delete-branch` (GitHub loescht den Head-Branch selbst).
+#
+# HINWEIS (workflow_run): Dieser Trigger wird ausschliesslich aus dem DEFAULT-BRANCH (main) gelesen.
+# Gate/Auto-Merge werden daher erst AKTIV, nachdem diese Datei nach main gemergt ist — sie laufen
+# NICHT auf dem eigenen PR dieses Tickets. Validierung ist erst nach dem Merge moeglich (am naechsten PR).
+
+on:
+  workflow_run:
+    # Allowlist: NUR diese beiden Workflows gaten/wecken. Externe Checks (z. B. Renovate) zaehlen
+    # bewusst nicht mit. Die Namen muessen exakt den `name:`-Feldern von ci.yml bzw.
+    # claude-pr-review.yml entsprechen.
+    workflows: ['CI', 'Claude PR Review (Kreuzverhoer)']
+    types: [completed]
+  pull_request:
+    # ai:ready-to-merge wird gesetzt (CI evtl. schon gruen). Auf den Label-Namen wird im job-if
+    # gefiltert, damit nicht jedes Label den Lauf startet.
+    types: [labeled]
+
+concurrency:
+  # Pro PR serialisieren (head_branch identifiziert den PR ueber workflow_run hinweg; beim
+  # labeled-Event die PR-Nummer), damit zwei kurz nacheinander eintreffende Events nicht doppelt
+  # labeln/mergen.
+  group: claude-pr-gatemerge-${{ github.event.workflow_run.head_branch || github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  gate-merge:
+    # Nur same-repo-Laeufe (kein Fork -> App-Token verfuegbar). Beim workflow_run zusaetzlich
+    # main-Push-Laeufe ausschliessen: ein Merge pusht nach main -> CI-on-main -> wuerde sonst hier
+    # einen No-op-Lauf fuer einen PR wecken, den es nicht gibt. Beim labeled-Event nur reagieren,
+    # wenn wirklich ai:ready-to-merge gesetzt wurde.
+    if: >-
+      ${{ (github.event_name == 'workflow_run'
+            && github.event.workflow_run.head_repository.full_name == github.repository
+            && github.event.workflow_run.head_branch != 'main')
+          || (github.event_name == 'pull_request'
+            && github.event.label.name == 'ai:ready-to-merge'
+            && github.event.pull_request.head.repo.full_name == github.repository) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read # Label/Merge laufen ueber das App-Token
+    steps:
+      - name: Voraussetzung pruefen (GitHub-App-Secrets)
+        id: preflight
+        env:
+          APP_ID: ${{ secrets.APP_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+        run: |
+          if [ -z "$APP_ID" ] || [ -z "$APP_PRIVATE_KEY" ]; then
+            echo "::warning::GitHub-App-Secrets fehlen (APP_ID und/oder APP_PRIVATE_KEY) — Lauf wird uebersprungen (kein Fehler). GitHub App anlegen (Contents/Issues/Pull requests = Read and write), aufs Repo installieren und beide Werte als Repo-Secrets hinterlegen, damit die Pipeline laeuft."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: GitHub-App-Token erzeugen
+        id: app-token
+        if: steps.preflight.outputs.configured == 'true'
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      # Reiner gh-Job (kein Checkout, kein LLM). Loest den PR EINMAL auf, wertet die Allowlist-Checks
+      # EINMAL aus und entscheidet dann: rot -> Gate (ai:needs-changes), gruen+ready -> Merge, sonst
+      # No-op. Alle Vorbedingungen sind defensiv: erst wenn wirklich zu handeln ist, schreibt der Job
+      # nach GitHub.
+      - name: Gate/Auto-Merge auswerten
+        if: steps.preflight.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }} # Label/Merge als App-Token -> loest Folge aus
+          REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          # 1) PR aufloesen. Beim labeled-Event liegt die PR-Nummer direkt vor; beim workflow_run
+          #    ueber den Head-Branch (zuverlaessiger als workflow_run.pull_requests, das fuer manche
+          #    Laeufe leer bleibt). Push-Laeufe auf main (kein PR) und geschlossene PRs -> sauberer
+          #    No-op. Mehrdeutigkeit (mehrere offene PRs mit gleichem Head-Branch, z. B. gegen
+          #    verschiedene Base-Branches) -> bewusst KEIN Raten: lieber No-op als den falschen PR
+          #    umzulabeln/zu mergen. Daher kein `--limit 1`, sondern die Anzahl explizit pruefen.
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            pr="$PR_NUMBER"
+            if [ -z "$pr" ]; then
+              echo "Kein PR im labeled-Event — nichts zu tun (No-op)."
+              exit 0
+            fi
+            pr_json="$(gh pr view "$pr" --repo "$REPO" --json number,isDraft,labels,state)"
+            if [ "$(echo "$pr_json" | jq -r '.state')" != "OPEN" ]; then
+              echo "PR #$pr ist nicht offen — nichts zu tun (No-op)."
+              exit 0
+            fi
+          else
+            list_json="$(gh pr list --repo "$REPO" --state open --head "$HEAD_BRANCH" \
+              --json number,isDraft,labels)"
+            pr_count="$(echo "$list_json" | jq 'length')"
+            if [ "$pr_count" -eq 0 ]; then
+              echo "Kein offener PR fuer Branch '$HEAD_BRANCH' — nichts zu tun (No-op)."
+              exit 0
+            fi
+            if [ "$pr_count" -gt 1 ]; then
+              echo "Mehrere offene PRs fuer Branch '$HEAD_BRANCH' — mehrdeutig, kein Gating/Merge (No-op)."
+              exit 0
+            fi
+            pr="$(echo "$list_json" | jq -r '.[0].number')"
+            pr_json="$(echo "$list_json" | jq '.[0]')"
+          fi
+          echo "Gate/Auto-Merge prueft PR #$pr."
+
+          # 2) Draft-PRs weder gaten noch mergen.
+          if [ "$(echo "$pr_json" | jq -r '.isDraft')" = "true" ]; then
+            echo "PR #$pr ist Draft — uebersprungen (No-op)."
+            exit 0
+          fi
+
+          labels="$(echo "$pr_json" | jq -r '[.labels[].name]')"
+
+          # 3) Nur PRs der KI-Pipeline (tragen ein Pipeline-Label) behandeln. Schuetzt fremde/
+          #    menschliche PRs davor, durch das Gate ungewollt einen Fixup zu triggern bzw. gemergt
+          #    zu werden.
+          in_pipeline="$(echo "$labels" | jq -r 'any(.[]; . == "ai:needs-review" or . == "ai:needs-changes" or . == "ai:ready-to-merge")')"
+          if [ "$in_pipeline" != "true" ]; then
+            echo "PR #$pr traegt kein Pipeline-Label — gehoert nicht zur KI-Pipeline (No-op)."
+            exit 0
+          fi
+
+          # 4) Allowlist-Checks (CI + Reviewer) EINMAL auswerten. WICHTIG: `gh pr checks` beendet sich
+          #    selbst mit Exit != 0, wenn Checks rot (1) oder pending (8) sind — gibt das `--json`
+          #    aber trotzdem auf stdout aus. Daher Exit-Code abfangen (|| true), OHNE die Ausgabe zu
+          #    verwerfen (ein `|| echo '[]'` wuerde genau im roten Fall die Daten wegwerfen).
+          checks="$(gh pr checks "$pr" --repo "$REPO" --json name,bucket,workflow 2>/dev/null)" || true
+          if [ -z "$checks" ]; then checks='[]'; fi
+          allow="$(echo "$checks" | jq '[.[] | select(.workflow == "CI" or .workflow == "Claude PR Review (Kreuzverhoer)")]')"
+
+          if [ "$(echo "$allow" | jq 'length')" -eq 0 ]; then
+            echo "Keine Allowlist-Checks (CI/Reviewer) gefunden — nichts zu tun (No-op)."
+            exit 0
+          fi
+
+          # 5) Laeuft noch ein Allowlist-Check (pending) -> abwarten; das naechste Event weckt erneut.
+          #    So entscheiden wir erst, wenn beide fertig sind.
+          if [ "$(echo "$allow" | jq 'any(.[]; .bucket == "pending")')" = "true" ]; then
+            echo "Mind. ein Allowlist-Check ist noch pending — warte auf Abschluss (No-op)."
+            exit 0
+          fi
+
+          any_fail="$(echo "$allow" | jq -r 'any(.[]; .bucket == "fail")')"
+          has_needs_changes="$(echo "$labels" | jq -r 'any(.[]; . == "ai:needs-changes")')"
+
+          # ====================================================================================
+          # GATE-ZWEIG: mind. ein Allowlist-Check ROT -> ai:needs-changes setzen (loest Fixup aus).
+          # ====================================================================================
+          if [ "$any_fail" = "true" ]; then
+            # Oszillationsschutz: Traegt der PR bereits ai:needs-changes, laeuft (oder steht bewusst)
+            # der Fixup-Loop schon. Erneutes Setzen waere ein No-op; den Zustand NICHT anruehren, um
+            # einen bewussten "Stop"-Zustand (> N Fixup-Commits) nicht zu ueberschreiben.
+            if [ "$has_needs_changes" = "true" ]; then
+              echo "PR #$pr traegt bereits ai:needs-changes — Loop laeuft/steht bewusst (No-op)."
+              exit 0
+            fi
+            red="$(echo "$allow" | jq -r '[.[] | select(.bucket == "fail") | (.workflow + " / " + .name)] | join(", ")')"
+            echo "Rote Allowlist-Checks an PR #$pr: $red — setze ai:needs-changes (loest Fixup aus)."
+
+            # Terminale/abgeschlossene Pipeline-Labels entfernen, dann ai:needs-changes setzen. In
+            # GETRENNTEN Befehlen (nie kombiniert), analog Review/Fixup, um Doppel-Trigger zu meiden.
+            if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:ready-to-merge")')" = "true" ]; then
+              gh pr edit "$pr" --repo "$REPO" --remove-label ai:ready-to-merge
+            fi
+            if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:needs-review")')" = "true" ]; then
+              gh pr edit "$pr" --repo "$REPO" --remove-label ai:needs-review
+            fi
+            gh label create "ai:needs-changes" --repo "$REPO" --color D93F0B \
+              --description "CI/Reviewer rot oder Findings offen -> Fixup" 2>/dev/null || true
+            gh pr edit "$pr" --repo "$REPO" --add-label ai:needs-changes
+
+            {
+              echo "### CI-Gate #${pr} — ai:needs-changes gesetzt"
+              echo ""
+              echo "- Rote Allowlist-Checks: ${red}"
+              echo "- Folge: claude-pr-fixup.yml wird ausgeloest."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # ====================================================================================
+          # MERGE-ZWEIG: alle Allowlist-Checks GRUEN. Nur mergen, wenn ai:ready-to-merge gesetzt,
+          # NICHT ai:needs-changes, und der PR sauber mergebar ist. Sonst No-op (Review vergibt das
+          # terminale ai:ready-to-merge).
+          # ====================================================================================
+          if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:ready-to-merge")')" != "true" ]; then
+            echo "PR #$pr traegt kein ai:ready-to-merge — kein Auto-Merge (No-op; Review vergibt es terminal)."
+            exit 0
+          fi
+          if [ "$has_needs_changes" = "true" ]; then
+            echo "PR #$pr traegt ai:needs-changes — Fixup laeuft noch, kein Merge (No-op)."
+            exit 0
+          fi
+
+          # Mergeable / kein Konflikt? mergeable kann unmittelbar nach Events noch UNKNOWN sein
+          # (GitHub berechnet asynchron) -> dann lieber No-op und auf das naechste Event warten.
+          view="$(gh pr view "$pr" --repo "$REPO" --json mergeable,mergeStateStatus)"
+          mergeable="$(echo "$view" | jq -r '.mergeable')"
+          if [ "$mergeable" != "MERGEABLE" ]; then
+            echo "PR #$pr ist nicht sauber mergebar (mergeable=$mergeable) — kein Merge (No-op)."
+            exit 0
+          fi
+
+          # Letzter TOCTOU-Schutz vor dem Merge: labeled- und workflow_run-Lauf desselben PRs liegen
+          # in unterschiedlichen Concurrency-Gruppen (PR-Nr. vs. head_branch — die PR-Nr. ist beim
+          # workflow_run zur Expression-Zeit unbekannt, eine gemeinsame Gruppe daher nicht moeglich)
+          # und koennen sich ueberlappen. Direkt vor dem Merge erneut pruefen, ob der PR noch offen
+          # ist; sonst hat der Parallel-Lauf bereits gemergt -> sauberer No-op statt rotem Abbruch.
+          state_now="$(gh pr view "$pr" --repo "$REPO" --json state --jq '.state')"
+          if [ "$state_now" != "OPEN" ]; then
+            echo "PR #$pr ist nicht mehr offen (state=$state_now) — bereits gemergt/geschlossen (No-op)."
+            exit 0
+          fi
+
+          # Alles gruen -> mergen (Merge-Commit, kein --delete-branch; siehe Repo-Fakten oben). Den
+          # Merge zusaetzlich idempotent kapseln: Schlaegt er fehl, weil der PR im Rennen inzwischen
+          # gemergt/geschlossen wurde, als No-op (gruen) behandeln statt rot abzubrechen.
+          echo "Alle Bedingungen erfuellt — merge PR #$pr per Merge-Commit."
+          if ! merge_out="$(gh pr merge "$pr" --repo "$REPO" --merge 2>&1)"; then
+            echo "$merge_out"
+            state_after="$(gh pr view "$pr" --repo "$REPO" --json state --jq '.state' 2>/dev/null || echo UNKNOWN)"
+            if [ "$state_after" != "OPEN" ]; then
+              echo "Merge meldete einen Fehler, aber PR #$pr ist bereits $state_after — als No-op behandelt (gruen)."
+              exit 0
+            fi
+            echo "::error::Merge von PR #$pr fehlgeschlagen, PR weiterhin offen."
+            exit 1
+          fi
+          echo "$merge_out"
+
+          {
+            echo "### Auto-Merge #${pr} — gemergt"
+            echo ""
+            echo "- CI + Reviewer gruen, ai:ready-to-merge gesetzt, mergebar."
+            echo "- Methode: Merge-Commit (\`gh pr merge --merge\`)."
+          } >> "$GITHUB_STEP_SUMMARY"

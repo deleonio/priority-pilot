@@ -3,7 +3,25 @@ name: CI
 on:
   push:
     branches: [main]
+    # Reine Doku-/Wissens-Commits (oft Auto-Commit direkt auf main) veraendern kein dist und
+    # brauchen kein CI. Greift nur, wenn ALLE geaenderten Pfade passen — gemischte Commits
+    # (Code + Doku) laufen weiterhin voll. .github/** bewusst NICHT ausgenommen (Workflow-
+    # Aenderungen muessen die Contract-Tests neu fahren). Nur auf push, NICHT auf pull_request,
+    # damit Doku-PRs ihren CI-Check (Gate-/Auto-Merge-Vorbedingung) behalten.
+    paths-ignore:
+      - '**/*.md'
+      - '.ai-knowledge/**'
+      - '.claude/**'
+      - 'AGENTS.md'
+      - 'LICENSE'
   pull_request:
+
+# Pro PR serialisieren und stale Laeufe abbrechen: schnelle Fixup-Pushes (synchronize) stapeln
+# sonst mehrere schwere E2E-Laeufe, deren Abschluss jeweils Gate/Auto-Merge weckt. main-Push-CI
+# laeuft in eigener Gruppe (ci-refs/heads/main) und wird NICHT abgebrochen (cancel nur fuer PRs).
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   ci:
@@ -48,10 +66,10 @@ jobs:
       - name: Coverage-Gate (server/src/logics)
         run: pnpm --filter priority-pilot test:coverage
       # Workflow-/CI-Vertraege (statische YAML-Asserts via node:test ueber tsx, AUSSERHALB der
-      # pnpm-Workspaces). Deckt alle `.github/workflows/*.test.ts` ab: den Deploy-Vertrag auf
-      # release.yml (#152, main-Trigger + Build + rsync, kein Tag/Release/SSH-Forced-Command) und den
-      # Modell-Delegations-Vertrag (model-delegation.test.ts: Sonnet-Start + Subagent-Delegation statt
-      # des entfernten JS-Routers). Ob die headless Action das Subagent-Modell-Override real honoriert,
+      # pnpm-Workspaces). Deckt alle `.github/workflows/*.test.ts` ab: u. a. den Fixup-Gate-Vertrag
+      # (claude-pr-fixup.test.ts) und den Modell-Delegations-Vertrag (model-delegation.test.ts:
+      # Sonnet-Start + Subagent-Delegation statt des entfernten JS-Routers). Ob die headless Action
+      # das Subagent-Modell-Override real honoriert,
       # wird per Workflow-Lauf an einem Scratch-Issue verifiziert (CI-Konfig-Ebene).
       # pnpm dlx (nicht npx): seit tsx@4.22.4 transitiv via vite im Workspace-Baum liegt, erkennt
       # `npx tsx` es als "lokal vorhanden" und versucht das Bin aus dem Root-`.bin` zu starten —

@@ -224,7 +224,7 @@ jobs:
           echo "::notice title=Kreuzverhoer-Review #${PR} fertig::${AGENT}-Schritt ${OUTCOME:-unbekannt}; Labels: ${labels:-keine}"
 
       # Deterministisches "Reviewer rot bei Findings": Der Review aendert keinen Code, sondern
-      # signalisiert sein Ergebnis ueber Labels. Damit der Gate-Workflow (claude-pr-gate.yml) den
+      # signalisiert sein Ergebnis ueber Labels. Damit der Gate/Auto-Merge-Workflow (claude-pr-gate-merge.yml) den
       # Reviewer als vollwertigen "roten Check" der Allowlist (CI + Reviewer) lesen kann, beendet
       # dieser Schritt den Job mit Exit != 0, sobald das Ergebnis-Label ai:needs-changes ist —
       # sauber (ai:ready-to-merge) bleibt gruen. Laeuft NACH dem Zusammenfassen, damit das Summary
