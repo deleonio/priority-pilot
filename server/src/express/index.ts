@@ -1,10 +1,15 @@
 import express from 'express';
+import session from 'express-session';
+import passport from 'passport';
+import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
+import type { Request, Response, NextFunction } from 'express';
 import type { components } from '../api';
 import { tasksRouter, serializeTask } from './routes/tasks.js';
 import { pillarsRouter } from './routes/pillars.js';
 import { createSuggestPillarsRouter } from './routes/suggestPillars.js';
 import { scoresRouter } from './routes/scores.js';
 import { seriesRouter } from './routes/series.js';
+import { authRouter } from './routes/auth.js';
 import type { PillarClassifier } from '../llm/mistral.js';
 import { buildTaskForest } from '../logics/tree.js';
 import { findNextImportantTask, findSuggestedTasks } from '../logics/find.js';
@@ -21,11 +26,69 @@ export interface AppDeps {
 	pillarClassifier?: PillarClassifier;
 }
 
+/** Middleware: Anfrage ohne gültige Session abweisen.
+ * Nur aktiv wenn GOOGLE_ALLOWED_EMAIL gesetzt ist — ohne Konfiguration kein Gate. */
+const requireAuth = (req: Request, res: Response, next: NextFunction): void => {
+	if (!process.env.GOOGLE_ALLOWED_EMAIL) {
+		next();
+		return;
+	}
+	const user = (req.session as { user?: unknown }).user;
+	if (!user) {
+		res.status(401).json({ message: 'Nicht eingeloggt.' });
+		return;
+	}
+	next();
+};
+
 export const createApp = (deps: AppDeps = {}) => {
 	const app = express();
 
 	// JSON-Body parsen.
 	app.use(express.json());
+
+	// Session-Middleware (In-Memory-Store — für Single-User-Gate ausreichend).
+	app.use(
+		session({
+			secret: process.env.SESSION_SECRET ?? 'dev-secret',
+			resave: false,
+			saveUninitialized: false,
+			cookie: { secure: false },
+		}),
+	);
+
+	// Passport initialisieren (ohne persistente Sessions — wir speichern den User in express-session).
+	app.use(passport.initialize());
+
+	// Google-OAuth-Strategie nur registrieren, wenn Credentials vorhanden.
+	const clientID = process.env.GOOGLE_CLIENT_ID ?? '';
+	const clientSecret = process.env.GOOGLE_CLIENT_SECRET ?? '';
+	const callbackURL = process.env.GOOGLE_CALLBACK_URL ?? 'http://localhost:3000/auth/google/callback';
+	const allowedEmail = process.env.GOOGLE_ALLOWED_EMAIL ?? '';
+
+	if (clientID && clientSecret) {
+		passport.use(
+			new GoogleStrategy({ clientID, clientSecret, callbackURL }, (_accessToken, _refreshToken, profile, done) => {
+				const email = profile.emails?.[0]?.value ?? '';
+				if (email !== allowedEmail) {
+					return done(null, false);
+				}
+				const displayName = profile.displayName ?? email;
+				return done(null, { email, displayName });
+			}),
+		);
+	}
+
+	// Auth-Routen (öffentlich).
+	app.use(authRouter);
+
+	// GET /health — billiger Liveness-Check (ohne DB) für Post-Deploy & Monitoring.
+	app.get('/health', (_req, res: express.Response<HealthDto>) => {
+		res.json({ status: 'ok' });
+	});
+
+	// Alle folgenden Routen benötigen eine gültige Session.
+	app.use(requireAuth);
 
 	// Task-CRUD- & Dependency-Routen (siehe routes/tasks.ts).
 	app.use(tasksRouter);
@@ -41,11 +104,6 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// Serienaufgaben (Habits): Template-CRUD + Instanz-Generierung (siehe routes/series.ts).
 	app.use(seriesRouter);
-
-	// GET /health — billiger Liveness-Check (ohne DB) für Post-Deploy & Monitoring.
-	app.get('/health', (_req, res: express.Response<HealthDto>) => {
-		res.json({ status: 'ok' });
-	});
 
 	// GET /forest — Aufgabenwald nach Wertschöpfung sortiert.
 	app.get('/forest', async (_req, res: express.Response<TaskTreeNodeDto[] | ErrorDto>) => {
