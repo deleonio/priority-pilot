@@ -1,5 +1,9 @@
 # Server-Einrichtung: Schritt für Schritt
 
+> **⚠️ Stand (seit PR #188):** Dieses Dokument beschreibt den alten Deploy-Ansatz (Git-Tag →
+> Tarball → `deploy.sh` → systemd). Der Deploy-Workflow (`.github/workflows/release.yml`) wurde mit
+> PR #188 entfernt. Das Runbook ist vorläufig historischer Kontext.
+
 Runbook für die **einmalige** Einrichtung eines frischen Linux-Servers, damit Priority Pilot per
 Git-Tag automatisch dorthin deployt werden kann. Konzept dahinter: [`deployment.md`](deployment.md);
 die Repo-Seite: [`deployment-repo-plan.md`](deployment-repo-plan.md).
