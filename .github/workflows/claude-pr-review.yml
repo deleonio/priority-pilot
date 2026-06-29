@@ -4,7 +4,7 @@ name: Claude PR Review (Kreuzverhoer)
 # Umsetzungs-Workflow gesetzt, oder manuell zum Opt-in). Die Pipeline wird ueber LABELS gesteuert
 # statt ueber Review-/Kommentar-Events -> stabiles Ping-Pong ohne Event-Kaskaden:
 #   - zutreffende Findings -> Label "ai:needs-changes" (loest claude-pr-fixup.yml aus)
-#   - sauber 🟢            -> Label "ai:ready-to-merge" (terminal; der Mensch merged)
+#   - sauber 🟢            -> Label "ai:ready-to-merge" (terminal; claude-pr-gate-merge.yml mergt automatisch)
 # Das ausloesende "ai:needs-review" wird dabei entfernt. Aendert KEINEN Code.
 #
 # Nutzt ein kurzlebiges GitHub-App-Token, damit die gesetzten Labels die Folge-Workflows ausloesen.
@@ -224,7 +224,7 @@ jobs:
           echo "::notice title=Kreuzverhoer-Review #${PR} fertig::${AGENT}-Schritt ${OUTCOME:-unbekannt}; Labels: ${labels:-keine}"
 
       # Deterministisches "Reviewer rot bei Findings": Der Review aendert keinen Code, sondern
-      # signalisiert sein Ergebnis ueber Labels. Damit der Gate-Workflow (claude-pr-gate.yml) den
+      # signalisiert sein Ergebnis ueber Labels. Damit der Gate/Auto-Merge-Workflow (claude-pr-gate-merge.yml) den
       # Reviewer als vollwertigen "roten Check" der Allowlist (CI + Reviewer) lesen kann, beendet
       # dieser Schritt den Job mit Exit != 0, sobald das Ergebnis-Label ai:needs-changes ist —
       # sauber (ai:ready-to-merge) bleibt gruen. Laeuft NACH dem Zusammenfassen, damit das Summary

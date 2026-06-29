@@ -23,6 +23,11 @@ flowchart TB
     R4 -. optional .-> done
 ```
 
+> **⚠️ Stand (seit PR #188):** Die Artefakte dieses Plans wurden umgesetzt und anschließend mit dem
+> CI-Refactor wieder entfernt: `scripts/pack-release.sh` (R1) und `.github/workflows/release.yml` (R2)
+> existieren im Repo nicht mehr. Dieser Plan ist historischer Kontext; ein neues Deployment-Konzept
+> ist noch offen.
+
 ---
 
 ## Status quo (verifiziert)

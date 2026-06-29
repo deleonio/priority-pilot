@@ -118,10 +118,10 @@ Drei Punkte, die aus der Repo-Realität folgen und im Konzept leicht übersehen 
 ## 3. Build & Deploy (GitHub-Actions-Workflow)
 
 Es existiert ein CI-Workflow (`.github/workflows/ci.yml`: install → format → lint → build → test),
-der auf `main` und PRs läuft und als Qualitäts-Gate dient. Das **Deployment** ist ein separater
-Workflow (`.github/workflows/release.yml`), der auf **jeden Push/Merge nach `main`** reagiert: Build,
-dann `rsync` der `dist`-Verzeichnisse, dann ein PM2-Reload. Maßgeblich ist die Datei im Repo; die
-folgende Skizze zeigt die Kernschritte:
+der auf `main` und PRs läuft und als Qualitäts-Gate dient. Das **Deployment** war in einem separaten
+Workflow (`.github/workflows/release.yml`) implementiert — **⚠️ dieser Workflow wurde mit dem CI-Refactor
+(PR #188) entfernt** (`release.yml` gelöscht). Ein neuer Deploy-Workflow muss noch eingerichtet werden.
+Die folgende Skizze zeigt das bisherige Konzept als Referenz:
 
 ```yaml
 name: Deploy
