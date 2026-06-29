@@ -9,7 +9,7 @@ Tickets = GitHub-Issues von `deleonio/priority-pilot`. Voraussetzung: `gh` ist a
 zugewiesen** sind. Die Zuweisung an sich selbst ist die „in Arbeit"-Markierung und verhindert,
 dass dasselbe Ticket doppelt gegriffen wird (idempotenter Batch).
 
-Label-Kette: `ai:analyzed` (analysiert, Vorschlag als Kommentar) → `ai:ready` (zur Umsetzung
+Label-Kette: `ai:analyzed` (analysiert, Analyse im Body-Block) → `ai:ready` (zur Umsetzung
 freigegeben) → dieser Workflow setzt um. `ai:ready` wird bei **klarer Analyse (Ampel 🟢)** bereits
 von der Triage automatisch gesetzt; bei 🟡/🔴 entscheidet der Mensch und gibt ggf. von Hand frei
 (siehe [ticket-triage.md](ticket-triage.md), Schritt 5).
@@ -30,7 +30,10 @@ ist das erklärte Ziel dieses Workflows. Diese Abweichung ist damit dokumentiert
 - Eine konkret übergebene Nummer hat Vorrang.
 - Gibt es kein passendes Issue: klar sagen und stoppen (nichts erfinden).
 - **Sich selbst zuweisen** (claimt das Ticket): `gh issue edit <nr> --add-assignee @me`
-- Kontext + bisherige Analyse laden: `gh issue view <nr> --comments`
+- Kontext + bisherige Analyse laden: den Analyse-Block aus dem **Body** lesen
+  (`gh issue view <nr> --json body -q .body`, Abschnitt zwischen `<!-- KI-ANALYSE:START … -->` und
+  `<!-- KI-ANALYSE:END -->`); fehlt er (Alt-Issue), Fallback auf den jüngsten `🤖 KI-Analyse`-Kommentar
+  (`gh issue view <nr> --comments`)
 - **Spec-Draft-PR aufgreifen (Stufe 3, Regelfall):** Die Spec-Stufe ([ticket-spec.md](ticket-spec.md))
   hat in der Regel bereits einen **Draft-PR mit roten Tests** angelegt. Ihn finden und auschecken:
   `gh pr list --state open --draft --json number,headRefName,closingIssuesReferences` → den PR
@@ -41,7 +44,7 @@ ist das erklärte Ziel dieses Workflows. Diese Abweichung ist damit dokumentiert
 
 ## Schritt 2 — Analyse gegen den aktuellen Repo-Stand verifizieren (Re-Triage)
 
-Die im `ai:analyzed`-Kommentar hinterlegte Analyse **nicht ungeprüft übernehmen**: Zwischen Analyse
+Die im `ai:analyzed`-Body-Block hinterlegte Analyse **nicht ungeprüft übernehmen**: Zwischen Analyse
 und Umsetzung kann sich der Repo-Stand geändert haben (neue/umbenannte Dateien, geänderte APIs,
 bereits erledigte Teile). Deshalb beim Lesen des Tickets die Analyse **erneut analysieren**.
 
@@ -53,8 +56,8 @@ bereits erledigte Teile). Deshalb beim Lesen des Tickets die Analyse **erneut an
   der Umsetzung in Schritt 3 als Zielvorgabe dienen.
 - **Noch konform →** die Analyse bildet den aktuellen Stand korrekt ab; unverändert weiter mit
   Schritt 3.
-- **Nicht mehr konform / unvollständig →** die Analyse **aktualisieren** (neuer
-  `ai:analyzed`-Kommentar, der den Stand korrigiert/vervollständigt, siehe ticket-triage.md
+- **Nicht mehr konform / unvollständig →** die Analyse **aktualisieren** (den Analyse-Block im Body
+  **in-place** neu schreiben, der den Stand korrigiert/vervollständigt, siehe ticket-triage.md
   Schritt 1/4) und erst auf dieser aktualisierten Analyse implementieren.
 - **Ampel kippt auf 🔴** (Anforderung passt nicht mehr zum Repo, widersprüchlich, Infos fehlen) →
   **nicht** blind umsetzen, sondern den Stand zusammenfassen und den Menschen entscheiden lassen.
@@ -188,7 +191,7 @@ nachprüfen (`gh pr checks`, `gh pr view`) statt sich allein auf Events zu verla
 
 ## Hinweise
 
-- Zuweisen (Schritt 1), ein ggf. aktualisierter Re-Analyse-Kommentar (Schritt 2), Push/PR
+- Zuweisen (Schritt 1), ein ggf. aktualisierter Re-Analyse-Body-Block (Schritt 2), Push/PR
   (Schritt 4) und die Review-Kommentare des Kreuzverhörs (Schritt 5) schreiben **öffentlich** auf
   GitHub — vor dem Posten bestätigen lassen.
 - Ergebnis des Workflows ist ein **review-bereiter PR** (ready to review), der den Kreuzverhör-Loop

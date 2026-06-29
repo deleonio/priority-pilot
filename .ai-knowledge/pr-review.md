@@ -16,7 +16,10 @@ abzunicken. Belege statt Bauchgefühl: jeder Punkt mit konkretem Datei-/Zeilenbe
 - Titel, Beschreibung und **vollständigen Diff** lesen:
   `gh pr view <pr> --json title,body,files,additions,deletions` und `gh pr diff <pr>`.
 - Verknüpftes Ticket laden (Soll-Verhalten): die `closingIssuesReferences` des PR auflösen
-  (`gh pr view <pr> --json closingIssuesReferences`) → `gh issue view <nr> --comments`.
+  (`gh pr view <pr> --json closingIssuesReferences`) → `gh issue view <nr> --json body,comments`.
+  Die **Akzeptanzkriterien** der Triage primär aus dem **Body-Block** lesen (Abschnitt zwischen
+  `<!-- KI-ANALYSE:START … -->` und `<!-- KI-ANALYSE:END -->`); fehlt er (Alt-Issue), Fallback auf den
+  jüngsten `🤖 KI-Analyse`-Kommentar. Die übrigen Kommentare bleiben Kontext (Dialog/Pings).
 - Zielzustand klären: Welches Problem soll der PR lösen, und woran ist „fertig" erkennbar?
 
 ## Schritt 2 — Kreuzverhör (kritische Fragen)

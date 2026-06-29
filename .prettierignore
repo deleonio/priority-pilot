@@ -3,4 +3,5 @@
 client/src/schema.d.ts
 server/src/api.d.ts
 pnpm-lock.yaml
+pnpm-workspace.yaml
 **/database.sqlite

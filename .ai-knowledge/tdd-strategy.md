@@ -90,7 +90,7 @@ die 1:1 zu Tests werden können.
 **Was sich ändert:**
 
 - [ticket-triage.md](ticket-triage.md) Schritt 1 + 4: Triage formuliert **Akzeptanzkriterien +
-  konkrete Testfälle** (welche Datei, welche Assertion) als festen Bestandteil des Lösungskommentars.
+  konkrete Testfälle** (welche Datei, welche Assertion) als festen Bestandteil des Analyse-Body-Blocks.
 - [ticket-triage.md](ticket-triage.md) Schritt 4: 🟢 setzt zusätzlich voraus, dass die AK **prüfbar**
   formuliert sind (sonst 🟡).
 - `.github/ISSUE_TEMPLATE/bug_report.yml` + `feature_request.yml`: Feld „Akzeptanzkriterien / Wie

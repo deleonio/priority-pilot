@@ -17,12 +17,15 @@ Auftrags (dokumentierte Abweichung).
 Pro Ticket:
 
 1. **Zuweisen** — sich selbst zuweisen (`gh issue edit <nr> --add-assignee @me`).
-2. **Analyse verifizieren (Re-Triage)** — beim Lesen des Tickets die `ai:analyzed`-Analyse **nicht
-   ungeprüft übernehmen**, sondern via `/triage-ticket <nr>` (Re-Triage, siehe
-   [ticket-triage.md](../../.ai-knowledge/ticket-triage.md) Schritt 1) gegen den **aktuellen**
-   Repo-Stand erneut analysieren. Noch konform → weiter. Veraltet/unvollständig →
-   Analyse-Kommentar aktualisieren und darauf umsetzen. Kippt die Ampel auf 🔴 → **nicht** umsetzen,
-   den Menschen entscheiden lassen. (Ändert nur Analyse/Kommentare, **keinen** Code.)
+2. **Analyse verifizieren (Re-Triage)** — beim Lesen des Tickets die `ai:analyzed`-Analyse aus dem
+   **Body-Block** lesen (`gh issue view <nr> --json body -q .body`, Abschnitt zwischen
+   `<!-- KI-ANALYSE:START … -->`/`<!-- KI-ANALYSE:END -->`; Fallback bei Alt-Issues: jüngster
+   `🤖 KI-Analyse`-Kommentar) und **nicht ungeprüft übernehmen**, sondern via `/triage-ticket <nr>`
+   (Re-Triage, siehe [ticket-triage.md](../../.ai-knowledge/ticket-triage.md) Schritt 1) gegen den
+   **aktuellen** Repo-Stand erneut analysieren. Noch konform → weiter. Veraltet/unvollständig →
+   Analyse-Block im Body aktualisieren (in-place) und darauf umsetzen. Kippt die Ampel auf 🔴 →
+   **nicht** umsetzen, den Menschen entscheiden lassen. (Ändert nur Analyse/Body/Kommentare,
+   **keinen** Code.)
 3. **Umsetzen (test-getrieben: Red-Green)** — **Spec-Modus (Stufe 3, Regelfall):** den Draft-PR der
    Spec-Stufe auschecken (`gh pr list --state open --draft`, PR mit `Closes #<nr>`; `git fetch` +
    `git switch <branch>`) und dessen **rote Tests grün machen — ohne sie zu ändern**
@@ -61,6 +64,6 @@ Pro Ticket:
    Zustände als Event kommen (CI-Erfolg, neue Pushes), den PR-Stand zwischendurch aktiv nachprüfen
    (`gh pr checks`/`gh pr view`).
 
-Zuweisen, ein ggf. aktualisierter Re-Analyse-Kommentar, Push/PR und die Review-Kommentare des
-Kreuzverhörs schreiben öffentlich auf GitHub — vorher bestätigen lassen. Die PR-Verfolgung läuft
+Zuweisen, ein ggf. aktualisierter Analyse-Body-Block samt kurzem Ping-Kommentar, Push/PR und die
+Review-Kommentare des Kreuzverhörs schreiben öffentlich auf GitHub — vorher bestätigen lassen. Die PR-Verfolgung läuft
 danach weiter, bis der PR gemergt/geschlossen ist oder du sie stoppst (`unsubscribe_pr_activity`).

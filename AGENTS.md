@@ -104,15 +104,19 @@ Lösung konzipieren) → Beschreibung **lektorieren** (Form verbessern, Inhalt u
 auf Konsistenz zur lektorierten Beschreibung/zum Ziel prüfen und bei Bedarf **inhaltlich treu
 optimieren** (kein Edit „pro forma", keine Titel-Drift) → zu große Tickets in verknüpfte
 **Sub-Issues** zerlegen (max. eine Ebene, Rekursionsschutz via `ai:analyzed`)
-→ deutscher Lösungs-Kommentar mit prüfbaren **Akzeptanzkriterien + Testfällen** und
-Umsetzbarkeits-**Ampel** (🟢/🟡/🔴) → Label `ai:analyzed` setzen
+→ die Analyse mit prüfbaren **Akzeptanzkriterien + Testfällen** und Umsetzbarkeits-**Ampel**
+(🟢/🟡/🔴) in einen markierten **Body-Block** der Beschreibung schreiben
+(`<!-- KI-ANALYSE:START stand=… -->` … `<!-- KI-ANALYSE:END -->`, bei jeder (Re-)Triage **in-place
+ersetzt** — statt eines angehängten Kommentars) + **einen kurzen Ping-Kommentar** als
+Benachrichtigung (bei offenen Fragen mit `@author`) → Label `ai:analyzed` setzen
 (**bei klarer Analyse 🟢 zusätzlich `ai:spec-ready`** → die Spec-Stufe schreibt rote Tests und gibt
 per `ai:ready` frei; bei 🟡/🔴 nicht).
-Liegt bereits eine Analyse vor, wird sie auf Passung/Vollständigkeit geprüft und bei Bedarf
-aktualisiert (Re-Triage). Vollständiger Ablauf:
+Liegt bereits eine Analyse vor (Body-Block), wird beim **Re-Triage** nur das **Delta** der Kommentare
+seit dem `stand` gelesen (nicht der ganze Thread), der Block auf Passung/Vollständigkeit geprüft und
+bei Bedarf in-place aktualisiert. Vollständiger Ablauf:
 [.ai-knowledge/ticket-triage.md](.ai-knowledge/ticket-triage.md).
-Konkreter Command: `/triage-ticket` (analysiert, lektoriert, optimiert den Titel, zerlegt,
-kommentiert und markiert in einem Durchlauf).
+Konkreter Command: `/triage-ticket` (analysiert, lektoriert, optimiert den Titel, zerlegt, schreibt
+die Analyse in die Beschreibung, pingt und markiert in einem Durchlauf).
 
 Eine **Re-Triage** lässt sich auch per **Issue-Kommentar mit `@claude`** anstoßen: Die
 GitHub-Action [`.github/workflows/claude-retriage.yml`](.github/workflows/claude-retriage.yml) ruft
