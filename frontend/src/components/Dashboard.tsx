@@ -4,6 +4,7 @@ import { TaskStatus } from 'client';
 import { useMemo } from 'react';
 import { collectTaskValues } from '../lib/forest';
 import { buildPillarSummaries, weightToRaw } from '../lib/pillar';
+import { buildPillarBalances } from '../lib/score';
 import {
 	type DeadlineUrgency,
 	deadlineUrgency,
@@ -95,6 +96,17 @@ export const Dashboard = ({ tasks, forest, nextTask, suggestions = [], pillars, 
 		const valueByTaskId = collectTaskValues(forest);
 		return buildPillarSummaries(pillars, tasks, valueByTaskId);
 	}, [pillars, tasks, forest]);
+
+	// Gesamtguthaben (Gamification-Balance, §4.4): Punkte je Säule aus dem erledigten Aufwand,
+	// daraus Anteile und Gesamtstand ableiten.
+	const pillarBalances = useMemo(() => {
+		const punkteProSaeule = new Map<number, number>(
+			pillarSummaries.map(({ pillar, doneEstimatedEffort }) => [pillar.id, doneEstimatedEffort]),
+		);
+		return buildPillarBalances(pillars, punkteProSaeule);
+	}, [pillars, pillarSummaries]);
+
+	const gesamtPunkte = useMemo(() => pillarBalances.reduce((acc, { punkte }) => acc + punkte, 0), [pillarBalances]);
 
 	const upcomingDeadlines = useMemo<TaskWithDeadline[]>(
 		() =>
@@ -194,6 +206,25 @@ export const Dashboard = ({ tasks, forest, nextTask, suggestions = [], pillars, 
 							),
 						)}
 					</ul>
+				)}
+			</section>
+			<section className="dashboard-balance">
+				<h3>Gesamtguthaben</h3>
+				{gesamtPunkte === 0 ? (
+					<p>Noch keine Punkte vergeben — schließe Tasks ab, um dein Guthaben aufzubauen.</p>
+				) : (
+					<>
+						<p className="dashboard-balance-total">
+							<span data-testid="balance-total">{formatNumber(gesamtPunkte)}</span> Punkte
+						</p>
+						<ul className="dashboard-balance-list" data-testid="balance-pillar-list">
+							{pillarBalances.map(({ pillar, punkte, anteil }) => (
+								<li key={pillar.id} className="dashboard-balance-row" data-testid="balance-pillar-row">
+									{pillar.name}: {formatNumber(punkte)} ({Math.round(anteil * 100)} %)
+								</li>
+							))}
+						</ul>
+					</>
 				)}
 			</section>
 			<section className="dashboard-deadlines">
