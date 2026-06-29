@@ -211,7 +211,14 @@ export const App = () => {
 			{tasks !== null && tasks.length > 0 && (
 				<KolTabs className="app-tabs" _label="Ansichten" _tabs={VIEW_TABS}>
 					<div slot="tab-0">
-						<Dashboard tasks={tasks} forest={forest} nextTask={nextTask} suggestions={suggestions} pillars={pillars} displayName={displayName} />
+						<Dashboard
+							tasks={tasks}
+							forest={forest}
+							nextTask={nextTask}
+							suggestions={suggestions}
+							pillars={pillars}
+							displayName={displayName}
+						/>
 					</div>
 					<div slot="tab-1">
 						<section className="task-section">

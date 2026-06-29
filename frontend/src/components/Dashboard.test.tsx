@@ -66,7 +66,6 @@ describe('Dashboard — Personalisierte Begrüßung (#169)', () => {
 	// AC1: Mit `displayName="Peter"` muss die Begrüßung „Hallo Peter!" sichtbar sein.
 	it('zeigt „Hallo Peter!" wenn displayName="Peter" übergeben wird', () => {
 		const { container } = render(
-			// @ts-expect-error displayName existiert noch nicht in DashboardProps (TDD: rot, weil ignoriert).
 			<Dashboard tasks={[]} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[]} displayName="Peter" />,
 		);
 
@@ -77,7 +76,6 @@ describe('Dashboard — Personalisierte Begrüßung (#169)', () => {
 	// sinnvoller Fallback-Name (z. B. „Hallo Pilot!").
 	it('zeigt einen Fallback-Namen statt „Hallo !" wenn displayName leer ist', () => {
 		const { container } = render(
-			// @ts-expect-error displayName existiert noch nicht in DashboardProps (TDD: rot, weil ignoriert).
 			<Dashboard tasks={[]} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[]} displayName="" />,
 		);
 
