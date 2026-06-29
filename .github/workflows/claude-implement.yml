@@ -91,6 +91,25 @@ jobs:
           fetch-depth: 0 # voller Verlauf: der Umsetzungs-Flow arbeitet mit Branches
           token: ${{ steps.app-token.outputs.token }} # Push als App-Token -> loest Folge-Workflows aus
 
+      - name: pnpm einrichten
+        if: steps.preflight.outputs.configured == 'true'
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+
+      - name: Node.js einrichten
+        if: steps.preflight.outputs.configured == 'true'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 26.4.0
+          cache: pnpm
+
+      - name: Abhaengigkeiten installieren
+        if: steps.preflight.outputs.configured == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Git-Hooks installieren (lefthook)
+        if: steps.preflight.outputs.configured == 'true'
+        run: pnpm exec lefthook install
+
       # Standard-Pfad (Claude): laeuft, solange die Repo-Variable AI_AGENT NICHT auf "mistral" steht
       # (auch ungesetzt -> Claude bleibt Default). Umschalten: `gh variable set AI_AGENT --body
       # mistral` (zurueck: `gh variable set AI_AGENT --body claude`).
@@ -125,7 +144,7 @@ jobs:
                  Tests NICHT aendern (Gewaltenteilung); ein falscher Spec-Test wird begruendet
                  zurueckgemeldet, nicht still editiert. Fallback (kein Draft-PR): eigenen Branch
                  anlegen und die Tests zu den Akzeptanzkriterien selbst zuerst schreiben (rot, erster
-                 Commit). In beiden Faellen: Code bis `pnpm test` gruen, danach `pnpm format` + Lint.
+                 Commit). In beiden Faellen: Code bis `pnpm test` gruen, danach `pnpm format` + Lint + `pnpm knip`.
               4. Committen, Branch pushen. Im Spec-Modus den vorhandenen Draft-PR review-bereit
                  machen (`gh pr ready <pr-nr>`) und die Beschreibung um Umsetzung +
                  format-/lint-/test-Ergebnisse ergaenzen — KEINEN neuen PR anlegen. Im Fallback einen
@@ -211,7 +230,7 @@ jobs:
                  Tests NICHT aendern (Gewaltenteilung); ein falscher Spec-Test wird begruendet
                  zurueckgemeldet, nicht still editiert. Fallback (kein Draft-PR): eigenen Branch
                  anlegen und die Tests zu den Akzeptanzkriterien selbst zuerst schreiben (rot, erster
-                 Commit). In beiden Faellen: Code bis `pnpm test` gruen, danach `pnpm format` + Lint.
+                 Commit). In beiden Faellen: Code bis `pnpm test` gruen, danach `pnpm format` + Lint + `pnpm knip`.
               4. Committen, Branch pushen. Im Spec-Modus den vorhandenen Draft-PR review-bereit
                  machen (`gh pr ready <pr-nr>`) und die Beschreibung um Umsetzung +
                  format-/lint-/test-Ergebnisse ergaenzen — KEINEN neuen PR anlegen. Im Fallback einen

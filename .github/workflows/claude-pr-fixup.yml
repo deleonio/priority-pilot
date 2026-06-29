@@ -80,6 +80,10 @@ jobs:
         if: steps.preflight.outputs.configured == 'true'
         run: pnpm install --frozen-lockfile
 
+      - name: Git-Hooks installieren (lefthook)
+        if: steps.preflight.outputs.configured == 'true'
+        run: pnpm exec lefthook install
+
       # Standard-Pfad (Claude): laeuft, solange die Repo-Variable AI_AGENT NICHT auf "mistral" steht
       # (auch ungesetzt -> Claude bleibt Default). Umschalten: `gh variable set AI_AGENT --body
       # mistral` (zurueck: `gh variable set AI_AGENT --body claude`).
@@ -107,7 +111,7 @@ jobs:
                  und CI (`gh pr checks`).
               2. Zutreffende, EINDEUTIGE Findings fixen: Code ändern, dann vor jedem Commit
                  das lokale CI-Gate grün ziehen:
-                 `pnpm format && pnpm exec prettier --check . && pnpm lint`
+                 `pnpm format && pnpm exec prettier --check . && pnpm lint && pnpm knip`
                  (repo-weit — CI lintet rekursiv, nicht nur ein Package).
                  Erst wenn alle Checks grün, committen und auf den PR-Branch
                  `${{ github.event.pull_request.head.ref }}` pushen.
@@ -177,7 +181,7 @@ jobs:
                  und CI (`gh pr checks`).
               2. Zutreffende, EINDEUTIGE Findings fixen: Code ändern, dann vor jedem Commit
                  das lokale CI-Gate grün ziehen:
-                 `pnpm format && pnpm exec prettier --check . && pnpm lint`
+                 `pnpm format && pnpm exec prettier --check . && pnpm lint && pnpm knip`
                  (repo-weit — CI lintet rekursiv, nicht nur ein Package).
                  Erst wenn alle Checks grün, committen und auf den PR-Branch
                  `${{ github.event.pull_request.head.ref }}` pushen.
