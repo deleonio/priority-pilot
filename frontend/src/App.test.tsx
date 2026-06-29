@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { api } from './api';
 import { App } from './App';
 import type { Task } from 'client';
@@ -26,6 +26,10 @@ vi.mock('./api', () => ({
 		getNextTask: vi.fn(),
 		getSuggestions: vi.fn(),
 		listPillars: vi.fn(),
+		// #191: `logout` existiert in `api.ts` noch nicht. Der Mock stellt die Funktion bereit, damit
+		// der AK-5-Test das Fehlerverhalten ansteuern kann; rot ist der Test, weil `App.tsx` weder den
+		// Logout-Button rendert noch dessen Fehlerfall (Meldung + erneut aktivierter Button) behandelt.
+		logout: vi.fn(),
 	},
 }));
 
@@ -78,5 +82,65 @@ describe('App — Personalisierte Begrüßung aus localStorage (#169)', () => {
 		expect(greeting).toBeTruthy();
 		// … und insbesondere KEINE leere „Hallo !" ohne Namen.
 		expect(document.body.textContent ?? '').not.toMatch(/Hallo\s*!/);
+	});
+});
+
+/**
+ * AK-5 (#191): Fehlerfall beim Logout. Schlägt `api.logout()` fehl (z. B. Netzwerk-/Serverfehler),
+ * muss die App eine sichtbare Fehlermeldung anzeigen UND den Logout-Button wieder bedienbar machen
+ * (kein dauerhaftes `disabled`, kein „verschluckter" Fehler). Der Nutzer bleibt eingeloggt.
+ *
+ * Diese Tests sind ROT, weil `App.tsx` den Logout-Button (#191) noch nicht rendert und den
+ * Fehlerfall (Meldung + Re-Aktivierung) noch nicht behandelt. Sie werden grün, sobald der
+ * Logout-Button samt Fehlerbehandlung implementiert ist.
+ *
+ * Hinweis: `@testing-library/user-event` ist im Projekt nicht installiert (siehe `package.json`),
+ * daher wird der Klick über `fireEvent` ausgelöst.
+ */
+describe('App — Logout-Fehlerfall (#191, AK-5)', () => {
+	// Hilfsfunktion: rendert die eingeloggte App und liefert den Logout-Button zurück.
+	const renderLoggedInAndGetLogout = async (): Promise<HTMLElement> => {
+		localStorage.setItem('displayName', 'Peter');
+		render(<App />);
+		// Auf das Laden der eingeloggten Ansicht warten, damit der Logout-Button gerendert ist.
+		return await screen.findByRole('button', { name: /Abmelden|Logout/i });
+	};
+
+	it('zeigt eine Fehlermeldung, wenn der Logout fehlschlägt', async () => {
+		vi.mocked(api.logout).mockRejectedValue(new Error('Logout fehlgeschlagen'));
+
+		const logoutButton = await renderLoggedInAndGetLogout();
+		fireEvent.click(logoutButton);
+
+		// Es muss eine Fehlermeldung erscheinen (rollenbasiert: KolAlert rendert eine Alert-Rolle).
+		await waitFor(() => {
+			expect(screen.getByRole('alert')).toBeTruthy();
+		});
+	});
+
+	it('aktiviert den Logout-Button nach einem Fehlschlag wieder (kein dauerhaftes disabled)', async () => {
+		vi.mocked(api.logout).mockRejectedValue(new Error('Logout fehlgeschlagen'));
+
+		const logoutButton = await renderLoggedInAndGetLogout();
+		fireEvent.click(logoutButton);
+
+		// Nach dem Fehlschlag darf der Button nicht dauerhaft deaktiviert bleiben — der Nutzer muss den
+		// Logout erneut versuchen können.
+		await waitFor(() => {
+			expect(logoutButton).not.toBeDisabled();
+		});
+	});
+
+	it('bleibt nach einem fehlgeschlagenen Logout eingeloggt (Auth-State erhalten)', async () => {
+		vi.mocked(api.logout).mockRejectedValue(new Error('Logout fehlgeschlagen'));
+
+		const logoutButton = await renderLoggedInAndGetLogout();
+		fireEvent.click(logoutButton);
+
+		// Schlägt der Logout fehl, bleibt der lokale Auth-State bestehen (keine voreilige Abmeldung).
+		await waitFor(() => {
+			expect(screen.getByRole('alert')).toBeTruthy();
+		});
+		expect(localStorage.getItem('displayName')).toBe('Peter');
 	});
 });
