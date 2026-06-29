@@ -65,13 +65,28 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           token: ${{ steps.app-token.outputs.token }} # Fix-Push als App-Token
 
+      - name: pnpm einrichten
+        if: steps.preflight.outputs.configured == 'true'
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+
+      - name: Node.js einrichten
+        if: steps.preflight.outputs.configured == 'true'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 26.3.1
+          cache: pnpm
+
+      - name: Abhaengigkeiten installieren
+        if: steps.preflight.outputs.configured == 'true'
+        run: pnpm install --frozen-lockfile
+
       # Standard-Pfad (Claude): laeuft, solange die Repo-Variable AI_AGENT NICHT auf "mistral" steht
       # (auch ungesetzt -> Claude bleibt Default). Umschalten: `gh variable set AI_AGENT --body
       # mistral` (zurueck: `gh variable set AI_AGENT --body claude`).
       - name: Findings umsetzen via Claude Code
         id: claude
         if: steps.preflight.outputs.configured == 'true' && vars.AI_AGENT != 'mistral'
-        uses: anthropics/claude-code-action@74eedf1a1892082d619c3edb66b9402da6520e7f # v1.0.156
+        uses: anthropics/claude-code-action@a92e7c70a4da9793dc164451d829089dc057a464 # v1.0.159
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         with:
@@ -136,7 +151,7 @@ jobs:
       - name: Findings umsetzen via Mistral Vibe
         id: mistral
         if: steps.preflight.outputs.configured == 'true' && vars.AI_AGENT == 'mistral'
-        uses: mistralai/mistral-vibe@725d3a56ce99aa69157f33cabdf28f23a69320da # v2.17.1
+        uses: mistralai/mistral-vibe@e607ccbb0046c9f68c8d49a85d4dab7c28239f08 # v2.18.0
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }} # gh/Push als App-Token -> Label-Wechsel loest Review aus
         with:

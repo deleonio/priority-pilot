@@ -97,7 +97,7 @@ jobs:
       - name: Umsetzung via Claude Code
         id: claude
         if: steps.preflight.outputs.configured == 'true' && vars.AI_AGENT != 'mistral'
-        uses: anthropics/claude-code-action@74eedf1a1892082d619c3edb66b9402da6520e7f # v1.0.156
+        uses: anthropics/claude-code-action@a92e7c70a4da9793dc164451d829089dc057a464 # v1.0.159
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }} # gh nutzt das App-Token -> erstellter PR loest Review aus
         with:
@@ -178,7 +178,7 @@ jobs:
       - name: Umsetzung via Mistral Vibe
         id: mistral
         if: steps.preflight.outputs.configured == 'true' && vars.AI_AGENT == 'mistral'
-        uses: mistralai/mistral-vibe@725d3a56ce99aa69157f33cabdf28f23a69320da # v2.17.1
+        uses: mistralai/mistral-vibe@e607ccbb0046c9f68c8d49a85d4dab7c28239f08 # v2.18.0
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }} # gh/Push als App-Token -> erstellter PR loest Review aus
         with:

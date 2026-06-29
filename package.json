@@ -3,7 +3,7 @@
 	"devDependencies": {
 		"@evilmartians/lefthook": "1.12.2",
 		"knip": "5.61.3",
-		"prettier": "3.8.4"
+		"prettier": "3.9.1"
 	},
 	"private": true,
 	"type": "module",

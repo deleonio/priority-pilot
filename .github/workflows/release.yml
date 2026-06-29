@@ -26,7 +26,7 @@ jobs:
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 26.3.1 # MUSS zur Node-Major-Version des Hosts passen (native sqlite3)
+          node-version: 26.4.0 # MUSS zur Node-Major-Version des Hosts passen (native sqlite3)
           cache: pnpm
 
       # Reproduzierbarer Build von Frontend + Backend (client -> frontend -> server).

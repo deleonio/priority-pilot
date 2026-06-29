@@ -39,8 +39,7 @@ interface PillarContribution {
 }
 
 type ValidationResult =
-	| { ok: true; attrs: TaskAttributes; pillars: PillarContribution[] | undefined }
-	| { ok: false; message: string };
+	{ ok: true; attrs: TaskAttributes; pillars: PillarContribution[] | undefined } | { ok: false; message: string };
 
 const isTaskStatus = (value: unknown): value is TaskStatus =>
 	typeof value === 'string' && VALID_STATUSES.some((status) => status === value);
