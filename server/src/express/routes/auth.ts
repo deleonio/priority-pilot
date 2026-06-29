@@ -16,8 +16,17 @@ authRouter.get(
 	'/auth/google/callback',
 	passport.authenticate('google', { failureRedirect: '/auth/error' }),
 	(req, res) => {
-		req.session.user = req.user as { email: string; displayName: string };
-		req.session.save(() => res.redirect('/'));
+		// User vor regenerate() sichern — req.user ist danach ggf. nicht mehr verfügbar.
+		const user = req.user as { email: string; displayName: string };
+		// Session-Fixation verhindern: neue Session-ID vor dem Setzen des Users.
+		req.session.regenerate((err) => {
+			if (err) {
+				res.redirect('/auth/error');
+				return;
+			}
+			req.session.user = user;
+			req.session.save(() => res.redirect('/'));
+		});
 	},
 );
 
@@ -38,29 +47,37 @@ authRouter.post('/auth/logout', (req, res) => {
 	});
 });
 
-// POST /auth/test-login — nur in NODE_ENV=test verfügbar
+// POST /auth/test-login — nur in NODE_ENV=test registriert.
 // Ermöglicht Tests, eine Session ohne echten Google-OAuth-Flow anzulegen.
-authRouter.post('/auth/test-login', (req, res) => {
-	if (process.env.NODE_ENV !== 'test') {
-		res.status(404).json({ message: 'Nicht gefunden.' });
-		return;
-	}
+// Konditionale Registrierung (statt Runtime-Guard) eliminiert das Auth-Bypass-Risiko
+// bei versehentlichem Deploy einer test-Konfiguration.
+if (process.env.NODE_ENV === 'test') {
+	authRouter.post('/auth/test-login', (req, res) => {
+		const allowedEmail = process.env.GOOGLE_ALLOWED_EMAIL ?? '';
+		const { email, displayName } = req.body as { email?: string; displayName?: string };
 
-	const allowedEmail = process.env.GOOGLE_ALLOWED_EMAIL ?? '';
-	const { email, displayName } = req.body as { email?: string; displayName?: string };
+		if (!email || email !== allowedEmail) {
+			res.status(403).json({ message: 'E-Mail nicht erlaubt.' });
+			return;
+		}
 
-	if (!email || email !== allowedEmail) {
-		res.status(403).json({ message: 'E-Mail nicht erlaubt.' });
-		return;
-	}
-
-	req.session.user = {
-		email,
-		displayName: displayName ?? email,
-	};
-	req.session.save(() => {
-		res.json({ message: 'Eingeloggt.' });
+		// User vor regenerate() sichern.
+		const user = {
+			email,
+			displayName: displayName ?? email,
+		};
+		// Session-Fixation verhindern: neue Session-ID vor dem Setzen des Users.
+		req.session.regenerate((err) => {
+			if (err) {
+				res.status(500).json({ message: 'Session-Fehler.' });
+				return;
+			}
+			req.session.user = user;
+			req.session.save(() => {
+				res.json({ message: 'Eingeloggt.' });
+			});
+		});
 	});
-});
+}
 
 export { authRouter };

@@ -34,7 +34,10 @@ const requireAuth = (req: Request, res: Response, next: NextFunction): void => {
 		return;
 	}
 	const user = req.session.user;
-	if (!user) {
+	// E-Mail bei jeder Anfrage gegen die aktuelle GOOGLE_ALLOWED_EMAIL prüfen —
+	// so fliegt ein nachträglich gesperrter Account auch mit bestehender Session sofort raus.
+	const allowed = process.env.GOOGLE_ALLOWED_EMAIL.trim().toLowerCase();
+	if (!user || user.email.trim().toLowerCase() !== allowed) {
 		res.status(401).json({ message: 'Nicht eingeloggt.' });
 		return;
 	}
@@ -76,6 +79,9 @@ export const createApp = (deps: AppDeps = {}) => {
 	}
 
 	if (clientID && clientSecret) {
+		// Einschränkung: `passport` ist ein Modul-Singleton. Mehrere createApp()-Aufrufe
+		// im selben Prozess überschreiben diese globale Strategie gegenseitig — daher wird
+		// pro Prozess nur eine App-Konfiguration unterstützt (ausreichend für unser Single-User-Gate).
 		passport.use(
 			new GoogleStrategy({ clientID, clientSecret, callbackURL }, (_accessToken, _refreshToken, profile, done) => {
 				const email = (profile.emails?.[0]?.value ?? '').trim().toLowerCase();

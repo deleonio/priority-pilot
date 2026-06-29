@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
 
 // Auth-Kontext muss vor dem Server-Start feststehen: createApp() liest diese
-// Werte beim Aufbau der Session-/Passport-Middleware, der Test-Login-Endpunkt
-// ist zudem nur bei NODE_ENV=test aktiv.
-process.env.NODE_ENV = 'test';
+// Werte beim Aufbau der Session-/Passport-Middleware.
+// NODE_ENV=test wird bereits im test-Skript gesetzt — nötig, weil der
+// Test-Login-Endpunkt nur bei NODE_ENV=test registriert wird und das beim
+// Modul-Load von auth.ts (vor diesen Zuweisungen) ausgewertet wird.
 process.env.GOOGLE_ALLOWED_EMAIL = 'testuser@example.com';
 process.env.SESSION_SECRET = 'test-secret-for-tests';
 process.env.GOOGLE_CLIENT_ID = 'test-client-id';
