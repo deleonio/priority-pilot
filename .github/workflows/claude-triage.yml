@@ -55,7 +55,7 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: read # Repo auschecken (Slash-Command + Wissensbasis lesen)
-      issues: write # Beschreibung lektorieren, Analyse-Kommentar posten, Labels setzen
+      issues: write # Beschreibung lektorieren + Analyse-Body-Block schreiben, Ping-Kommentar posten, Labels setzen
       id-token: write # OIDC-Token der Action; ohne diese Permission fehlt ACTIONS_ID_TOKEN_REQUEST_URL
     steps:
       # Startzeit fuer die Timeout-Erkennung (siehe Zeit-Guard im Label-Schritt unten).
@@ -115,15 +115,26 @@ jobs:
             .ai-knowledge/ticket-triage.md (entspricht dem Slash-Command
             `/triage-ticket ${{ github.event.issue.number }}`).
 
-            Trifft bereits eine fruehere KI-Analyse als Kommentar zu (Re-Triage), diese nicht
-            unveraendert uebernehmen, sondern auf Passung und Vollstaendigkeit pruefen und bei
-            Bedarf aktualisieren/ergaenzen. Dann wie im Ablauf: Beschreibung lektorieren (Inhalt
+            Trifft bereits eine fruehere KI-Analyse im Body-Block zu
+            (`<!-- KI-ANALYSE:START stand=... -->` ... `<!-- KI-ANALYSE:END -->`, Re-Triage), diese
+            nicht unveraendert uebernehmen: den `stand`-Timestamp aus dem Block auslesen und NUR die
+            Delta-Kommentare seit `stand` lesen (gh issue view <nr> --json comments
+            -q '.comments[] | select(.createdAt > "<stand>")'), NICHT den ganzen Thread; dann auf
+            Passung und Vollstaendigkeit pruefen und bei Bedarf aktualisieren/ergaenzen. Fehlt der
+            Body-Block (Alt-Issue), neu anlegen. Dann wie im Ablauf: Beschreibung lektorieren (Inhalt
             unveraendert), am Ende den Titel auf Konsistenz zur Beschreibung/zum Ziel pruefen und
             bei Inkonsistenz inhaltlich treu optimieren (kein Edit pro forma, keine Titel-Drift),
-            Loesungs-Kommentar auf Deutsch mit Umsetzbarkeits-Ampel
-            (gruen/gelb/rot) posten und Labels gemaess Ampel setzen (`ai:analyzed`; bei gruen
-            zusaetzlich `ai:spec-ready` (Output der Spec-Stufe; NICHT `ai:ready`), bei gelb/rot
-            keines von beiden).
+            die Analyse auf Deutsch mit Umsetzbarkeits-Ampel (gruen/gelb/rot) am Anfang in die
+            Beschreibung schreiben — als Block zwischen den Markern
+            `<!-- KI-ANALYSE:START stand=... -->` und `<!-- KI-ANALYSE:END -->`
+            (stand = `date -u +%Y-%m-%dT%H:%M:%SZ`, bei jedem Schreiben neu) via
+            `gh issue edit <nr> --body-file -`; bei Re-Triage NUR den Block zwischen den Markern
+            in-place ersetzen, die Original-Beschreibung oberhalb des START-Markers NICHT
+            ueberschreiben. KEINE Vollanalyse mehr als Kommentar. Danach genau EINEN kurzen
+            Ping-Kommentar posten (`gh issue comment`: Hinweis, dass die Analyse in der Beschreibung
+            steht; nur bei offenen Fragen zusaetzlich @<issue-author> + die offenen Fragen). Labels
+            gemaess Ampel setzen (`ai:analyzed`; bei gruen zusaetzlich `ai:spec-ready` (Output der
+            Spec-Stufe; NICHT `ai:ready`), bei gelb/rot keines von beiden).
 
             Bearbeite ausschliesslich dieses eine Issue (kein Batch). Committe keinen Produktivcode.
           # Nur die im Triage-Ablauf benoetigten Tools zulassen (headless, keine interaktive
@@ -133,7 +144,7 @@ jobs:
           claude_args: >-
             --model claude-sonnet-4-6 --effort medium
             --allowedTools "Bash(gh issue:*),Bash(gh api:*),Bash(gh label:*),Read,Grep,Glob,Task"
-            --append-system-prompt "Automatisierter, durch das Anlegen des Issues bzw. das Entfernen des ai:analyzed-Labels autorisierter Triage-Lauf in GitHub Actions (headless, keine interaktive Rueckfrage moeglich). Die in der Wissensbasis geforderte Bestaetigung vor dem oeffentlichen Posten gilt durch diesen Ausloeser als erteilt: Poste Lektorat, Analyse-Kommentar und Labels direkt fuer Issue #${{ github.event.issue.number }}, ohne auf eine Bestaetigung zu warten. Bearbeite ausschliesslich dieses Issue und committe keinen Produktivcode. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
+            --append-system-prompt "Automatisierter, durch das Anlegen des Issues bzw. das Entfernen des ai:analyzed-Labels autorisierter Triage-Lauf in GitHub Actions (headless, keine interaktive Rueckfrage moeglich). Die in der Wissensbasis geforderte Bestaetigung vor dem oeffentlichen Posten gilt durch diesen Ausloeser als erteilt: Schreibe Lektorat und Analyse-Body-Block, poste einen kurzen Ping-Kommentar und setze die Labels direkt fuer Issue #${{ github.event.issue.number }}, ohne auf eine Bestaetigung zu warten. Bearbeite ausschliesslich dieses Issue und committe keinen Produktivcode. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
 
       # Mistral-Pfad (AI_AGENT == 'mistral'): Vibe laeuft headless OHNE Approval-Callback — ohne
       # erzwungenes Auto-Approve wuerde jedes genehmigungspflichtige Tool (gh/git/pnpm/Datei-Writes)
@@ -179,15 +190,26 @@ jobs:
             .ai-knowledge/ticket-triage.md (entspricht dem Slash-Command
             `/triage-ticket ${{ github.event.issue.number }}`).
 
-            Trifft bereits eine fruehere KI-Analyse als Kommentar zu (Re-Triage), diese nicht
-            unveraendert uebernehmen, sondern auf Passung und Vollstaendigkeit pruefen und bei
-            Bedarf aktualisieren/ergaenzen. Dann wie im Ablauf: Beschreibung lektorieren (Inhalt
+            Trifft bereits eine fruehere KI-Analyse im Body-Block zu
+            (`<!-- KI-ANALYSE:START stand=... -->` ... `<!-- KI-ANALYSE:END -->`, Re-Triage), diese
+            nicht unveraendert uebernehmen: den `stand`-Timestamp aus dem Block auslesen und NUR die
+            Delta-Kommentare seit `stand` lesen (gh issue view <nr> --json comments
+            -q '.comments[] | select(.createdAt > "<stand>")'), NICHT den ganzen Thread; dann auf
+            Passung und Vollstaendigkeit pruefen und bei Bedarf aktualisieren/ergaenzen. Fehlt der
+            Body-Block (Alt-Issue), neu anlegen. Dann wie im Ablauf: Beschreibung lektorieren (Inhalt
             unveraendert), am Ende den Titel auf Konsistenz zur Beschreibung/zum Ziel pruefen und
             bei Inkonsistenz inhaltlich treu optimieren (kein Edit pro forma, keine Titel-Drift),
-            Loesungs-Kommentar auf Deutsch mit Umsetzbarkeits-Ampel
-            (gruen/gelb/rot) posten und Labels gemaess Ampel setzen (`ai:analyzed`; bei gruen
-            zusaetzlich `ai:spec-ready` (Output der Spec-Stufe; NICHT `ai:ready`), bei gelb/rot
-            keines von beiden).
+            die Analyse auf Deutsch mit Umsetzbarkeits-Ampel (gruen/gelb/rot) am Anfang in die
+            Beschreibung schreiben — als Block zwischen den Markern
+            `<!-- KI-ANALYSE:START stand=... -->` und `<!-- KI-ANALYSE:END -->`
+            (stand = `date -u +%Y-%m-%dT%H:%M:%SZ`, bei jedem Schreiben neu) via
+            `gh issue edit <nr> --body-file -`; bei Re-Triage NUR den Block zwischen den Markern
+            in-place ersetzen, die Original-Beschreibung oberhalb des START-Markers NICHT
+            ueberschreiben. KEINE Vollanalyse mehr als Kommentar. Danach genau EINEN kurzen
+            Ping-Kommentar posten (`gh issue comment`: Hinweis, dass die Analyse in der Beschreibung
+            steht; nur bei offenen Fragen zusaetzlich @<issue-author> + die offenen Fragen). Labels
+            gemaess Ampel setzen (`ai:analyzed`; bei gruen zusaetzlich `ai:spec-ready` (Output der
+            Spec-Stufe; NICHT `ai:ready`), bei gelb/rot keines von beiden).
 
             Bearbeite ausschliesslich dieses eine Issue (kein Batch). Committe keinen Produktivcode.
 

@@ -1,5 +1,5 @@
 ---
-description: Offene GitHub-Issues ohne Label ai:analyzed analysieren, lektorieren, den Titel optimieren, ggf. zerlegen, kommentieren und markieren (klare Analysen 🟢 mit ai:spec-ready an die Spec-Stufe übergeben)
+description: Offene GitHub-Issues ohne Label ai:analyzed analysieren, lektorieren, den Titel optimieren, ggf. zerlegen, die Analyse in die Beschreibung (Body-Block) schreiben + kurz pingen und markieren (klare Analysen 🟢 mit ai:spec-ready an die Spec-Stufe übergeben)
 argument-hint: '[issue-nummer]'
 allowed-tools: Bash(gh issue list:*), Bash(gh issue view:*), Bash(gh issue create:*), Bash(gh issue comment:*), Bash(gh issue edit:*), Bash(gh api:*), Bash(gh label list:*), Bash(gh label create:*), Read, Grep, Glob
 ---
@@ -17,13 +17,13 @@ Ziel-Issue: $ARGUMENTS
 
 Pro Ticket alle Schritte ausführen:
 
-1. **Analysieren** — aus Titel + Beschreibung + Repo eine Lösung konzipieren (relevante Dateien via Grep/Glob/Read). Liegt schon eine Analyse vor: prüfen, ob sie noch passt und vollständig ist, sonst aktualisieren/ergänzen.
+1. **Analysieren** — aus Titel + Beschreibung + Repo eine Lösung konzipieren (relevante Dateien via Grep/Glob/Read). Liegt schon eine Analyse vor (Body-Block `<!-- KI-ANALYSE:START stand=… -->`): als **Re-Triage** behandeln — `stand` aus dem Block lesen und **nur die Delta-Kommentare seit `stand`** (`gh issue view <nr> --json comments -q '.comments[] | select(.createdAt > "<stand>")'`), nicht den ganzen Thread; prüfen, ob die Analyse noch passt und vollständig ist, sonst aktualisieren/ergänzen.
 2. **Lektorieren** — Beschreibung sprachlich verbessern (Rechtschreibung, Grammatik, Verständlichkeit), **ohne den Inhalt zu verändern** (`gh issue edit --body`).
 3. **Titel optimieren** — am Ende prüfen, ob der Titel noch zur lektorierten Beschreibung und
    zum Ziel des Tickets passt; bei Inkonsistenz **inhaltlich treu** kürzer/präziser formulieren
    (`gh issue edit --title`), sonst unangetastet lassen (kein Edit „pro forma", keine Titel-Drift).
 4. **Zerlegen (optional)** — zu große Tickets in 2–5 unabhängige Sub-Issues aufteilen, als echte GitHub-Sub-Issues verknüpfen, mit `ai:analyzed` anlegen (Rekursionsschutz, max. eine Ebene, max. 5).
-5. **Kommentieren** — Lösungsvorschlag als **deutschen** Kommentar anhängen, mit Umsetzbarkeits-**Ampel** (🟢/🟡/🔴) am Anfang (`gh issue comment`).
+5. **Analyse in die Beschreibung + kurzer Ping** — den **deutschen** Lösungsvorschlag mit Umsetzbarkeits-**Ampel** (🟢/🟡/🔴) am Anfang als markierten Block (`<!-- KI-ANALYSE:START stand=… -->` … `<!-- KI-ANALYSE:END -->`, `stand` = `date -u +%Y-%m-%dT%H:%M:%SZ`) in den Issue-**Body** schreiben (`gh issue edit --body-file -`); bei Re-Triage nur den Block zwischen den Markern **in-place ersetzen**, die Original-Beschreibung oberhalb des START-Markers **nicht** überschreiben. Danach **einen kurzen Ping-Kommentar** posten (`gh issue comment` — „🤖 Analyse steht in der Beschreibung."; nur bei offenen Fragen zusätzlich `@<issue-author>` + die Fragen), **keine** Vollanalyse mehr im Kommentar.
 6. **Markieren** — Label `ai:analyzed` setzen (`gh issue edit --add-label`; bei Bedarf vorher
    `gh label create`). **Bei klarer Analyse (Ampel 🟢 aus Schritt 5) zusätzlich `ai:spec-ready`**
    setzen, sonst nicht — damit schreibt die Spec-Stufe (`/spec-ticket`, siehe

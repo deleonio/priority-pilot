@@ -15,9 +15,11 @@ schreibt **nur die roten Tests** — den Produktivcode macht ein **getrennter** 
 Pro Ticket:
 
 1. **Wählen & Branch** — Issue mit `ai:spec-ready` wählen; existiert bereits ein offener PR mit
-   `Closes #<nr>`, **nicht** erneut spezifizieren (Idempotenz). Analyse laden
-   (`gh issue view <nr> --comments`) und den **Akzeptanzkriterien + Testfälle**-Block der Triage
-   entnehmen. Branch anlegen (`git switch -c feat/issue-<nr>-<kurzname>`).
+   `Closes #<nr>`, **nicht** erneut spezifizieren (Idempotenz). Analyse aus dem **Body-Block** laden
+   (`gh issue view <nr> --json body -q .body`, Abschnitt zwischen `<!-- KI-ANALYSE:START … -->` und
+   `<!-- KI-ANALYSE:END -->`) und den **Akzeptanzkriterien + Testfälle**-Block der Triage entnehmen;
+   fehlt der Body-Block (Alt-Issue), Fallback auf den jüngsten `🤖 KI-Analyse`-Kommentar. Branch
+   anlegen (`git switch -c feat/issue-<nr>-<kurzname>`).
 2. **Rote Tests schreiben** — je Akzeptanzkriterium echte, ausführbare Tests in der zum Ticket-Typ
    passenden Datei (`server/src/logics|express/*.test.ts`, `frontend/src/lib/*.test.ts`,
    `frontend/e2e/*.spec.ts`). **Red, nicht kaputt:** prüfen echtes Soll-Verhalten, werden grün, sobald

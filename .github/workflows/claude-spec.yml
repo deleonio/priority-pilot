@@ -97,7 +97,11 @@ jobs:
             Folge dem Spec-Workflow .ai-knowledge/ticket-spec.md (entspricht
             `/spec-ticket ${{ github.event.issue.number }}`):
               1. Branch anlegen (`git switch -c feat/issue-${{ github.event.issue.number }}-<kurzname>`).
-                 Den Akzeptanzkriterien-+-Testfaelle-Block aus dem Triage-Kommentar entnehmen.
+                 Den Akzeptanzkriterien-+-Testfaelle-Block der Triage primaer aus dem BODY-Block des
+                 Issues entnehmen (`gh issue view ${{ github.event.issue.number }} --json body -q .body`,
+                 Abschnitt zwischen den Markern `<!-- KI-ANALYSE:START stand=... -->` und
+                 `<!-- KI-ANALYSE:END -->`); fehlt der Body-Block (Alt-Issue), Fallback auf den
+                 juengsten `KI-Analyse`-Kommentar.
               2. ROTE Tests schreiben — je Akzeptanzkriterium echte, ausfuehrbare Tests in der zum
                  Ticket-Typ passenden Datei (server/src/logics|express/*.test.ts,
                  frontend/src/lib/*.test.ts, frontend/e2e/*.spec.ts). Sie pruefen echtes Soll-Verhalten
@@ -167,7 +171,11 @@ jobs:
             Folge dem Spec-Workflow .ai-knowledge/ticket-spec.md (entspricht
             `/spec-ticket ${{ github.event.issue.number }}`):
               1. Branch anlegen (`git switch -c feat/issue-${{ github.event.issue.number }}-<kurzname>`).
-                 Den Akzeptanzkriterien-+-Testfaelle-Block aus dem Triage-Kommentar entnehmen.
+                 Den Akzeptanzkriterien-+-Testfaelle-Block der Triage primaer aus dem BODY-Block des
+                 Issues entnehmen (`gh issue view ${{ github.event.issue.number }} --json body -q .body`,
+                 Abschnitt zwischen den Markern `<!-- KI-ANALYSE:START stand=... -->` und
+                 `<!-- KI-ANALYSE:END -->`); fehlt der Body-Block (Alt-Issue), Fallback auf den
+                 juengsten `KI-Analyse`-Kommentar.
               2. ROTE Tests schreiben — je Akzeptanzkriterium echte, ausfuehrbare Tests in der zum
                  Ticket-Typ passenden Datei (server/src/logics|express/*.test.ts,
                  frontend/src/lib/*.test.ts, frontend/e2e/*.spec.ts). Sie pruefen echtes Soll-Verhalten

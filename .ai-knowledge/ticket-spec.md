@@ -25,9 +25,12 @@ Label-Kette: `ai:analyzed` → **`ai:spec-ready` (dieser Workflow)** → `ai:rea
 - Eine konkret übergebene Nummer hat Vorrang; sonst der Reihe nach (ältestes zuerst).
 - **Idempotenz:** Existiert bereits ein offener PR mit `Closes #<nr>` für das Issue, **nicht** erneut
   spezifizieren — der Vertrag steht schon. Lauf für dieses Issue beenden.
-- Kontext + Analyse laden: `gh issue view <nr> --comments` — daraus den **Akzeptanzkriterien +
-  Testfälle**-Block (Triage Schritt 4) entnehmen. Fehlt er, ist das Issue für die Spec-Stufe nicht
-  reif: zurück an die Triage (Re-Triage), nicht raten.
+- Kontext + Analyse laden: den **Akzeptanzkriterien + Testfälle**-Block (Triage Schritt 4) primär aus
+  dem **Body-Block** des Issues lesen (`gh issue view <nr> --json body -q .body`, Abschnitt zwischen
+  `<!-- KI-ANALYSE:START … -->` und `<!-- KI-ANALYSE:END -->`). Fehlt der Body-Block (Alt-Issue),
+  Fallback auf den jüngsten `🤖 KI-Analyse`-Kommentar (`gh issue view <nr> --comments`). Fehlt der
+  AK-Block ganz, ist das Issue für die Spec-Stufe nicht reif: zurück an die Triage (Re-Triage), nicht
+  raten.
 - Branch von `main` anlegen (nicht auf `main`): `git switch -c feat/issue-<nr>-<kurzname>`.
 
 ## Schritt 2 — Rote Tests schreiben (der Vertrag)

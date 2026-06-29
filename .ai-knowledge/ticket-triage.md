@@ -29,7 +29,9 @@ verarbeitet, auch wenn sie bereits `ai:analyzed` trägt (Re-Triage, siehe Schrit
   Batch-Läufen die `--json`/`jq`-Auswahl (oben) bevorzugen, sonst kann ein gerade gelabeltes Issue
   erneut gewählt werden.
 - Gibt es kein passendes Issue: klar sagen und stoppen (nichts erfinden).
-- Pro Issue Details laden: `gh issue view <nr> --comments`
+- Pro Issue Details laden: bei **Erst-Triage** Titel + Beschreibung (`gh issue view <nr> --json title,body`);
+  bei **Re-Triage** zusätzlich **nur die Delta-Kommentare** seit dem letzten `stand` (siehe Re-Triage
+  unten), **nicht** den ganzen Thread.
 - **Titel und Beschreibung** des Issues zusammen mit dem **Repo** zu einer Lösung konzipieren:
   relevante Dateien via Grep/Glob/Read finden, Architektur/Konventionen aus der Wissensbasis
   berücksichtigen — nicht raten.
@@ -37,12 +39,22 @@ verarbeitet, auch wenn sie bereits `ai:analyzed` trägt (Re-Triage, siehe Schrit
   Lösungsweg, offene Fragen/Risiken sowie **prüfbare Akzeptanzkriterien** und die daraus
   abgeleiteten **Testfälle** (ausformuliert in Schritt 4; Hintergrund:
   [tdd-strategy.md](tdd-strategy.md)).
-- **Re-Triage bestehender Analyse:** Liegt bereits ein `ai:analyzed`-Kommentar vor (z. B. weil die
-  Beschreibung nachträglich geändert/ergänzt wurde), die vorhandene Analyse **nicht unverändert
-  übernehmen**. Prüfen, ob sie zur (ggf. überarbeiteten) Aufgabenstellung **noch passt** und
-  **vollständig** ist. Passt sie nicht mehr oder fehlen Aspekte, die Analyse **aktualisieren bzw.
-  ergänzen** (neuer Kommentar, der den Stand korrigiert/vervollständigt) — Lücken nicht stehen
-  lassen.
+- **Re-Triage bestehender Analyse:** Trägt das Issue bereits `ai:analyzed`, lebt die Analyse in einem
+  markierten Block im **Body** (`<!-- KI-ANALYSE:START stand=… -->` … `<!-- KI-ANALYSE:END -->`).
+  1. Body laden, den Analyse-Block zwischen den Markern extrahieren und den `stand`-Timestamp auslesen:
+     `gh issue view <nr> --json body -q .body`.
+  2. **Nur die Delta-Kommentare seit `stand` lesen** (NICHT den ganzen Thread) — das sind die neuen
+     User-Antworten seit der letzten Analyse:
+     `gh issue view <nr> --json comments -q '.comments[] | select(.createdAt > "<stand>") | "\(.author.login): \(.body)"'`
+  3. Die vorhandene Analyse **nicht unverändert übernehmen**: prüfen, ob sie zur (ggf. überarbeiteten)
+     Aufgabenstellung samt Delta-Antworten **noch passt** und **vollständig** ist. Passt sie nicht mehr
+     oder fehlen Aspekte: beantwortete offene Fragen **einarbeiten/entfernen** (der Block ist immer der
+     aktuelle Stand, keine Historie), Ampel ggf. kippen, AK aktualisieren — Lücken nicht stehen lassen.
+     Das Ergebnis ersetzt in Schritt 4 den Body-Block **in-place**.
+- **Alt-Issue ohne Body-Block (Fallback/Migration):** Fehlt der `<!-- KI-ANALYSE:START -->`-Block
+  (Analyse noch als alter Kommentar), den Block in Schritt 4 **neu anlegen**; vorhandene alte
+  Analyse-Kommentare als überholt behandeln (ihr Inhalt darf zur Migration einmalig herangezogen
+  werden), danach läuft alles über den Body.
 
 ## Schritt 2 — Beschreibung lektorieren (Inhalt unverändert)
 
@@ -81,7 +93,7 @@ Ein Ticket gilt als **zu groß**, wenn **mindestens eines** zutrifft:
 - es enthält mehrere unabhängige Akzeptanzkriterien / „und"-verknüpfte Anforderungen,
 - es ließe sich nicht sinnvoll in **einem** PR umsetzen/reviewen.
 
-Trifft nichts davon zu, bleibt es beim normalen Ablauf (nur Kommentar + Label).
+Trifft nichts davon zu, bleibt es beim normalen Ablauf (nur Analyse-Block im Body + Ping + Label).
 
 Bei einem zu großen Ticket:
 
@@ -119,7 +131,7 @@ Bei einem zu großen Ticket:
   (`gh issue edit <nr> --add-label "ai:spec-ready"`) —, damit die Spec-Stufe (`/spec-ticket`) die
   roten Tests schreibt.
 
-## Schritt 4 — Lösungsvorschlag als deutscher Kommentar (mit Ampel)
+## Schritt 4 — Lösungsvorschlag im Body-Block (mit Ampel)
 
 - Den konzipierten Lösungsweg konkret und umsetzbar formulieren: betroffene Dateien, Schritte,
   Alternativen, Risiken, grobe Aufwandseinschätzung. Bei Zerlegung (Schritt 3) die angelegten
@@ -138,7 +150,7 @@ Bei einem zu großen Ticket:
   „Schlingern" der KI. Akzeptanzkriterien und Testfälle gehören auch in die Sub-Issue-Bodies aus
   Schritt 3.
 
-- **Umsetzbarkeits-Ampel** an den Anfang des Kommentars stellen — signalisiert, wie gut das Ticket
+- **Umsetzbarkeits-Ampel** an den Anfang des Analyse-Blocks stellen — signalisiert, wie gut das Ticket
   umsetzbar ist:
   - 🟢 **grün** — klar umsetzbar: Anforderungen eindeutig, betroffene Dateien bekannt, in einem PR
     machbar **und prüfbare Akzeptanzkriterien + Testfälle liegen vor**.
@@ -149,24 +161,74 @@ Bei einem zu großen Ticket:
 
   Die Farbwahl in einem Satz begründen.
 
-- Als **deutschen** Kommentar (Markdown, klar strukturiert) an das Issue anhängen — mit **echten
-  Zeilenumbrüchen** (nicht literales `\n`), z. B. per `--body-file -` und Heredoc:
+- Die Analyse als markierten **Block in den Issue-Body** schreiben (nicht mehr als angehängten
+  Kommentar) — ein deutscher, klar strukturierter Markdown-Block zwischen den Markern, der bei jeder
+  (Re-)Triage **in-place ersetzt** wird. Es gibt genau **einen** solchen Block pro Issue.
+  - Kanonische Struktur:
+
+    ```
+    <!-- KI-ANALYSE:START stand=YYYY-MM-DDTHH:MM:SSZ -->
+    ## 🤖 KI-Analyse — Lösungsvorschlag
+
+    **Umsetzbarkeit:** 🟢/🟡/🔴 <kurze Begründung>
+
+    ### Akzeptanzkriterien & Testfälle
+    <AK + Testfälle — Pflichtblock, wird von Spec/Umsetzung gelesen>
+
+    ### ❓ Offene Fragen
+    - [ ] <Frage>   (ganzer Abschnitt entfällt, wenn keine offenen Fragen)
+    <!-- KI-ANALYSE:END -->
+    ```
+
+  - `stand` = ISO-8601 UTC, bei **jedem** Schreiben neu setzen: `date -u +%Y-%m-%dT%H:%M:%SZ`.
+  - **Erst-Triage:** den Block **unten an den (lektorierten) Body anhängen**.
+  - **Re-Triage:** **nur** den Block zwischen START/END ersetzen; die Original-Beschreibung oberhalb
+    des START-Markers **unverändert** lassen (keine Historie — der Block ist immer der aktuelle Stand).
+  - Schreiben mit **echten Zeilenumbrüchen** (nicht literales `\n`) via `gh issue edit <nr> --body-file -`
+    und Heredoc — den **vollständigen** neuen Body (Original-Beschreibung + Block) übergeben
+    (Heredoc-Marker **ohne** Quotes, damit `${stand}` expandiert):
+
+  ```sh
+  stand="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  gh issue edit <nr> --body-file - <<EOF
+  <lektorierte Original-Beschreibung — bei Re-Triage unverändert>
+
+  <!-- KI-ANALYSE:START stand=${stand} -->
+  ## 🤖 KI-Analyse — Lösungsvorschlag
+
+  **Umsetzbarkeit:** 🟢/🟡/🔴 …
+  <!-- KI-ANALYSE:END -->
+  EOF
+  ```
+
+## Schritt 4b — Kurzer Ping-Kommentar (Benachrichtigung)
+
+Body-Edits lösen **keine** GitHub-Benachrichtigung aus — deshalb pro Lauf **einen kurzen
+Ping-Kommentar** (`gh issue comment`), **keine** Vollanalyse mehr (die steht ab jetzt im Body):
+
+- 1 Satz, dass die Analyse in der Beschreibung steht — Erst-Triage: „🤖 Analyse steht in der
+  Beschreibung."; Re-Triage: „🤖 Analyse aktualisiert (Beschreibung)."
+- **Nur wenn offene Fragen bestehen:** den Issue-Autor mit `@<issue-author>` adressieren und die
+  offenen Fragen als Liste anhängen, mit der Bitte, per Kommentar zu antworten — so wird die Antwort
+  beim nächsten Re-Triage als Delta-Kommentar (Schritt 1) gelesen. Kippt die Ampel beim Re-Triage auf
+  🟡/🔴 (Label-Entzug, Schritt 5), hier kurz darauf hinweisen.
 
   ```sh
   gh issue comment <nr> --body-file - <<'EOF'
-  🤖 KI-Analyse — Lösungsvorschlag
+  🤖 Analyse steht in der Beschreibung.
 
-  **Umsetzbarkeit:** 🟢/🟡/🔴 …
+  @<issue-author> Offene Fragen:
+  - [ ] <Frage>
   EOF
   ```
 
 ## Schritt 5 — Markieren (`ai:analyzed`; bei klarer Analyse 🟢 zusätzlich `ai:spec-ready`)
 
 - Label `ai:analyzed` bei Bedarf anlegen:
-  `gh label create "ai:analyzed" --color 1D76DB --description "Von der KI analysiert; Lösungsvorschlag als Kommentar vorhanden"`
+  `gh label create "ai:analyzed" --color 1D76DB --description "Von der KI analysiert; Analyse als Body-Block vorhanden"`
 - Setzen: `gh issue edit <nr> --add-label "ai:analyzed"`
 - Damit fällt das Issue aus dem Auswahlkriterium von Schritt 1 heraus. (Beim Re-Triage ist das Label
-  bereits gesetzt — dann genügt der aktualisierte Kommentar aus Schritt 1/4.)
+  bereits gesetzt — dann genügt der aktualisierte Body-Block aus Schritt 4 plus der Ping aus Schritt 4b.)
 - **`ai:spec-ready` nach der Ampel aus Schritt 4 steuern** — nur eine **klar umsetzbare** Analyse
   geht in die Spec-Stufe, alles andere bleibt beim Menschen:
   - **🟢 grün →** zusätzlich `ai:spec-ready` setzen. Label bei Bedarf vorher anlegen
@@ -180,20 +242,20 @@ Bei einem zu großen Ticket:
     bereits `ai:spec-ready` oder `ai:ready`, ist die Ampel aber auf 🟡/🔴 gekippt: beide
     **automatisch entfernen**
     (`gh issue edit <nr> --remove-label "ai:spec-ready" --remove-label "ai:ready"`), damit
-    Spec/Umsetzung das Issue nicht unbeaufsichtigt aufgreifen (Race Condition), und im Kommentar
-    darauf hinweisen — die erneute Freigabe entscheidet der Mensch.
+    Spec/Umsetzung das Issue nicht unbeaufsichtigt aufgreifen (Race Condition), und im Ping-Kommentar
+    (Schritt 4b) darauf hinweisen — die erneute Freigabe entscheidet der Mensch.
 - Konsistenz zu Schritt 3: Bei Zerlegung werden 🟢-Sub-Issues nach derselben Regel direkt mit
   `ai:spec-ready` angelegt.
 
 ## Hinweise
 
-- Schritt 2 (Lektorat), 3 (Sub-Issues anlegen + verknüpfen), 4 (Kommentar) und 5 (Label) schreiben
-  **öffentlich** auf GitHub (Issue-Body, neue Issues, Kommentar/Label, Benachrichtigungen) — vor der
-  Ausführung bestätigen lassen, besonders bei Batch-Verarbeitung mehrerer Issues. Die Bestätigung
-  kann **einmal für den ganzen Batch** eingeholt werden; danach die Issues ohne weitere Rückfrage
-  abarbeiten.
+- Schritt 2 (Lektorat), 3 (Sub-Issues anlegen + verknüpfen), 4 (Analyse-Block im Body), 4b
+  (Ping-Kommentar) und 5 (Label) schreiben **öffentlich** auf GitHub (Issue-Body, neue Issues,
+  Kommentar/Label, Benachrichtigungen) — vor der Ausführung bestätigen lassen, besonders bei
+  Batch-Verarbeitung mehrerer Issues. Die Bestätigung kann **einmal für den ganzen Batch** eingeholt
+  werden; danach die Issues ohne weitere Rückfrage abarbeiten.
 - **Kein Produktivcode committen**; Triage bedeutet nur Analyse, Lektorat, ggf. Zerlegung,
-  Kommentar und Label.
+  Analyse-Block im Body, Ping-Kommentar und Label.
 
 ## Schritt 6 — Autonomes Schließen (wenn Anforderungen bereits erfüllt)
 
