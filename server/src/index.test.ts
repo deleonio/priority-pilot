@@ -47,9 +47,7 @@ function restoreEnv(snapshot: Record<string, string | undefined>): void {
 function loggedOutput(logMock: ReturnType<typeof mock.method>): string {
 	return logMock.mock.calls
 		.map((call) =>
-			call.arguments
-				.map((argument) => (typeof argument === 'string' ? argument : JSON.stringify(argument)))
-				.join(' '),
+			call.arguments.map((argument) => (typeof argument === 'string' ? argument : JSON.stringify(argument))).join(' '),
 		)
 		.join('\n');
 }
