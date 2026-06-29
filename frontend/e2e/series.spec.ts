@@ -117,8 +117,8 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 		// In der UI gelistet: der Serien-Titel erscheint in der Serien-Verwaltung.
 		await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
 
-		// Persistenz gegenprüfen: die Serie liegt tatsächlich über `/series` im Backend.
-		const series = (await (await page.request.get('/series')).json()) as { title: string }[];
+		// Persistenz gegenprüfen: die Serie liegt tatsächlich über `/api/v1/series` im Backend.
+		const series = (await (await page.request.get('/api/v1/series')).json()) as { title: string }[];
 		expect(series.some((entry) => entry.title === title)).toBeTruthy();
 	});
 
