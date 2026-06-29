@@ -43,6 +43,7 @@ const requireAuth = (req: Request, res: Response, next: NextFunction): void => {
 
 export const createApp = (deps: AppDeps = {}) => {
 	const app = express();
+	app.set('trust proxy', 1);
 
 	// JSON-Body parsen.
 	app.use(express.json());
@@ -57,7 +58,7 @@ export const createApp = (deps: AppDeps = {}) => {
 			secret: sessionSecret ?? 'dev-secret',
 			resave: false,
 			saveUninitialized: false,
-			cookie: { secure: process.env.NODE_ENV === 'production' },
+			cookie: { secure: process.env.NODE_ENV === 'production', sameSite: 'lax' as const },
 		}),
 	);
 
@@ -70,11 +71,15 @@ export const createApp = (deps: AppDeps = {}) => {
 	const callbackURL = process.env.GOOGLE_CALLBACK_URL ?? 'http://localhost:3000/auth/google/callback';
 	const allowedEmail = process.env.GOOGLE_ALLOWED_EMAIL ?? '';
 
+	if (!allowedEmail && process.env.NODE_ENV === 'production') {
+		throw new Error('GOOGLE_ALLOWED_EMAIL muss in Produktion gesetzt sein');
+	}
+
 	if (clientID && clientSecret) {
 		passport.use(
 			new GoogleStrategy({ clientID, clientSecret, callbackURL }, (_accessToken, _refreshToken, profile, done) => {
-				const email = profile.emails?.[0]?.value ?? '';
-				if (email !== allowedEmail) {
+				const email = (profile.emails?.[0]?.value ?? '').trim().toLowerCase();
+				if (email !== allowedEmail.trim().toLowerCase()) {
 					return done(null, false);
 				}
 				const displayName = profile.displayName ?? email;
