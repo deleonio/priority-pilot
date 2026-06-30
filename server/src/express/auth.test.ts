@@ -79,16 +79,17 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 		});
 	});
 
-	// ── AC 3 — Nicht erlaubte E-Mail → 403, kein Cookie ──────────────────────
+	// ── AC 3 — Nicht erlaubte E-Mail → 401, kein Cookie ──────────────────────
+	// Status-Code auf 401 aktualisiert (war 403): AK-8 aus #193 definiert 401 als neuen Vertrag.
 
 	describe('AC 3 — Login mit nicht erlaubter E-Mail', () => {
-		it('liefert 403 und setzt kein Session-Cookie', async () => {
+		it('liefert 401 und setzt kein Session-Cookie', async () => {
 			const res = await fetch(`${server.baseUrl}/auth/test-login`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ email: 'intruder@example.com', displayName: 'Intruder' }),
 			});
-			assert.equal(res.status, 403);
+			assert.equal(res.status, 401);
 			assert.equal(res.headers.get('set-cookie'), null, 'Es darf kein Session-Cookie gesetzt werden');
 		});
 	});
