@@ -79,16 +79,17 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 		});
 	});
 
-	// ── AC 3 — Nicht erlaubte E-Mail → 403, kein Cookie ──────────────────────
+	// ── AC 3 — Nicht erlaubte E-Mail → 401, kein Cookie ──────────────────────
+	// Status-Code auf 401 aktualisiert (war 403): AK-8 aus #193 definiert 401 als neuen Vertrag.
 
 	describe('AC 3 — Login mit nicht erlaubter E-Mail', () => {
-		it('liefert 403 und setzt kein Session-Cookie', async () => {
+		it('liefert 401 und setzt kein Session-Cookie', async () => {
 			const res = await fetch(`${server.baseUrl}/auth/test-login`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ email: 'intruder@example.com', displayName: 'Intruder' }),
 			});
-			assert.equal(res.status, 403);
+			assert.equal(res.status, 401);
 			assert.equal(res.headers.get('set-cookie'), null, 'Es darf kein Session-Cookie gesetzt werden');
 		});
 	});
@@ -133,6 +134,19 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 			// Nach dem Logout darf derselbe Cookie keine gültige Session mehr ausweisen.
 			const afterLogout = await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } });
 			assert.equal(afterLogout.status, 401);
+		});
+	});
+
+	// ── AK-8 (Issue #193) — Nicht-erlaubte E-Mail → 401 via Multi-Email-Gate ──
+	describe('AK-8 — Multi-User-Gate: nicht erlaubte E-Mail → 401', () => {
+		it('POST /auth/test-login mit nicht-erlaubter E-Mail liefert 401', async () => {
+			// Nicht in der Allowlist → requireAuth soll 401 zurückgeben
+			const res = await fetch(`${server.baseUrl}/auth/test-login`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ email: 'not-allowed@evil.com', displayName: 'Evil User' }),
+			});
+			assert.equal(res.status, 401);
 		});
 	});
 });

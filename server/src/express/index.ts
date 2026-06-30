@@ -13,6 +13,7 @@ import { authRouter } from './routes/auth.js';
 import type { PillarClassifier } from '../llm/mistral.js';
 import { buildTaskForest } from '../logics/tree.js';
 import { findNextImportantTask, findSuggestedTasks } from '../logics/find.js';
+import { isEmailAllowed, getConfiguredEmails } from '../logics/allowedEmails.js';
 
 const PORT = Number(process.env.PORT) || 3000;
 
@@ -26,18 +27,21 @@ export interface AppDeps {
 	pillarClassifier?: PillarClassifier;
 }
 
+/** Prüft, ob ein Allowlist-Gate konfiguriert ist (Plural oder Singular gesetzt). */
+const hasAllowlist = (): boolean =>
+	!!(process.env.GOOGLE_ALLOWED_EMAILS?.trim() || process.env.GOOGLE_ALLOWED_EMAIL?.trim());
+
 /** Middleware: Anfrage ohne gültige Session abweisen.
- * Nur aktiv wenn GOOGLE_ALLOWED_EMAIL gesetzt ist — ohne Konfiguration kein Gate. */
+ * Nur aktiv wenn eine Allowlist konfiguriert ist — ohne Konfiguration kein Gate. */
 const requireAuth = (req: Request, res: Response, next: NextFunction): void => {
-	if (!process.env.GOOGLE_ALLOWED_EMAIL) {
+	if (!hasAllowlist()) {
 		next();
 		return;
 	}
 	const user = req.session.user;
-	// E-Mail bei jeder Anfrage gegen die aktuelle GOOGLE_ALLOWED_EMAIL prüfen —
+	// E-Mail bei jeder Anfrage gegen die aktuelle Allowlist prüfen —
 	// so fliegt ein nachträglich gesperrter Account auch mit bestehender Session sofort raus.
-	const allowed = process.env.GOOGLE_ALLOWED_EMAIL.trim().toLowerCase();
-	if (!user || user.email.trim().toLowerCase() !== allowed) {
+	if (!user || !isEmailAllowed(user.email)) {
 		res.status(401).json({ message: 'Nicht eingeloggt.' });
 		return;
 	}
@@ -72,20 +76,20 @@ export const createApp = (deps: AppDeps = {}) => {
 	const clientID = process.env.GOOGLE_CLIENT_ID ?? '';
 	const clientSecret = process.env.GOOGLE_CLIENT_SECRET ?? '';
 	const callbackURL = process.env.GOOGLE_CALLBACK_URL ?? 'http://localhost:3000/auth/google/callback';
-	const allowedEmail = process.env.GOOGLE_ALLOWED_EMAIL ?? '';
 
-	if (!allowedEmail && process.env.NODE_ENV === 'production') {
-		throw new Error('GOOGLE_ALLOWED_EMAIL muss in Produktion gesetzt sein');
+	// In Produktion muss die Allowlist gesetzt sein — getConfiguredEmails() wirft sonst.
+	if (process.env.NODE_ENV === 'production') {
+		getConfiguredEmails();
 	}
 
 	if (clientID && clientSecret) {
 		// Einschränkung: `passport` ist ein Modul-Singleton. Mehrere createApp()-Aufrufe
 		// im selben Prozess überschreiben diese globale Strategie gegenseitig — daher wird
-		// pro Prozess nur eine App-Konfiguration unterstützt (ausreichend für unser Single-User-Gate).
+		// pro Prozess nur eine App-Konfiguration unterstützt (ausreichend für unser Multi-User-Gate).
 		passport.use(
 			new GoogleStrategy({ clientID, clientSecret, callbackURL }, (_accessToken, _refreshToken, profile, done) => {
 				const email = (profile.emails?.[0]?.value ?? '').trim().toLowerCase();
-				if (email !== allowedEmail.trim().toLowerCase()) {
+				if (!isEmailAllowed(email)) {
 					return done(null, false);
 				}
 				const displayName = profile.displayName ?? email;

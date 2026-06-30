@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import passport from 'passport';
+import { isEmailAllowed } from '../../logics/allowedEmails.js';
 
 const authRouter = Router();
 
@@ -53,11 +54,11 @@ authRouter.post('/auth/logout', (req, res) => {
 // bei versehentlichem Deploy einer test-Konfiguration.
 if (process.env.NODE_ENV === 'test') {
 	authRouter.post('/auth/test-login', (req, res) => {
-		const allowedEmail = process.env.GOOGLE_ALLOWED_EMAIL ?? '';
 		const { email, displayName } = req.body as { email?: string; displayName?: string };
 
-		if (!email || email !== allowedEmail) {
-			res.status(403).json({ message: 'E-Mail nicht erlaubt.' });
+		// Multi-User-Gate (Issue #193, AK-8): nicht-erlaubte E-Mail → 401.
+		if (!email || !isEmailAllowed(email)) {
+			res.status(401).json({ message: 'Nicht eingeloggt.' });
 			return;
 		}
 
