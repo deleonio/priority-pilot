@@ -104,7 +104,6 @@ test.describe('Priority Pilot — Fokus nach dem Löschen (Issue #182)', () => {
 		await expect(page.getByRole('heading', { name: 'Task löschen' })).toBeHidden();
 
 		// Der Fokus darf nach dem Löschen nicht auf den <body> fallen (aktueller Bug → rot).
-		const activeTag = await page.evaluate(() => document.activeElement?.tagName?.toLowerCase());
-		expect(activeTag).not.toBe('body');
+		await page.waitForFunction(() => document.activeElement?.tagName?.toLowerCase() !== 'body');
 	});
 });

@@ -9,18 +9,24 @@
 		"dev": "nodemon",
 		"format": "prettier .",
 		"lint": "pnpm build:api && tsc --noemit && eslint src",
-		"test": "DATABASE_STORAGE=:memory: node --import tsx --test \"src/**/*.test.ts\"",
-		"test:coverage": "DATABASE_STORAGE=:memory: node --import tsx --test --experimental-test-coverage --test-coverage-include='src/logics/**' --test-coverage-lines=90 --test-coverage-branches=85 --test-coverage-functions=85 \"src/**/*.test.ts\""
+		"test": "NODE_ENV=test DATABASE_STORAGE=:memory: node --import tsx --test \"src/**/*.test.ts\"",
+		"test:coverage": "NODE_ENV=test DATABASE_STORAGE=:memory: node --import tsx --test --experimental-test-coverage --test-coverage-include='src/logics/**' --test-coverage-lines=90 --test-coverage-branches=85 --test-coverage-functions=85 \"src/**/*.test.ts\""
 	},
 	"dependencies": {
 		"express": "5.2.1",
+		"express-session": "^1.19.0",
+		"passport": "^0.7.0",
+		"passport-google-oauth20": "^2.0.0",
 		"sequelize": "6.37.8",
 		"sqlite3": "6.0.1"
 	},
 	"devDependencies": {
 		"@eslint/js": "10.0.1",
 		"@types/express": "5.0.6",
+		"@types/express-session": "^1.19.0",
 		"@types/node": "25.9.4",
+		"@types/passport": "^1.0.17",
+		"@types/passport-google-oauth20": "^2.0.17",
 		"@typescript-eslint/eslint-plugin": "8.62.0",
 		"@typescript-eslint/parser": "8.62.0",
 		"eslint": "10.6.0",
