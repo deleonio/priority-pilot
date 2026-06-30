@@ -30,6 +30,10 @@ vi.mock('./api', () => ({
 		// der AK-5-Test das Fehlerverhalten ansteuern kann; rot ist der Test, weil `App.tsx` weder den
 		// Logout-Button rendert noch dessen Fehlerfall (Meldung + erneut aktivierter Button) behandelt.
 		logout: vi.fn(),
+		// #192: `getMe` existiert in `api.ts` noch nicht. Der Mock stellt die Funktion bereit, damit die
+		// AK4/AK6-Tests den Lade-/Erfolgs-/Fehlerfall ansteuern können (sonst wirft `vi.mocked` einen
+		// TypeError, statt die Tests rot scheitern zu lassen).
+		getMe: vi.fn(),
 	},
 }));
 
@@ -54,6 +58,8 @@ beforeEach(() => {
 	vi.mocked(api.getNextTask).mockResolvedValue(null);
 	vi.mocked(api.getSuggestions).mockResolvedValue([]);
 	vi.mocked(api.listPillars).mockResolvedValue([]);
+	// #192: Sinnvoller Default, damit bestehende Tests nicht am User-Info-Abruf hängen bleiben.
+	vi.mocked(api.getMe).mockResolvedValue({ email: 'user@test.com', displayName: 'User' });
 });
 
 afterEach(() => {
@@ -142,5 +148,50 @@ describe('App — Logout-Fehlerfall (#191, AK-5)', () => {
 			expect(screen.getByRole('alert')).toBeTruthy();
 		});
 		expect(localStorage.getItem('displayName')).toBe('Peter');
+	});
+});
+
+/**
+ * #192: User Info Display — die App ruft die aktuellen Benutzerinformationen über `api.getMe()`
+ * (GET /auth/me) ab und zeigt sie an. Während des Abrufs gibt es einen Ladezustand, im Erfolgsfall
+ * erscheint die E-Mail, im Fehlerfall eine sichtbare Fehlermeldung (statt eines stillen Scheiterns).
+ *
+ * Diese Tests sind ROT, weil `App.tsx` `api.getMe()` weder aufruft noch dessen Lade-/Erfolgs-/
+ * Fehlerzustände rendert. Sie werden grün, sobald die User-Info-Anzeige implementiert ist.
+ */
+describe('App — User Info Display (#192)', () => {
+	// AK4: Solange `getMe` noch läuft (Promise löst nie auf), muss ein Ladezustand sichtbar sein.
+	it('zeigt einen Loading-Indicator, während die Benutzerinfos geladen werden (AK4a)', async () => {
+		// Promise löst absichtlich nie auf → die App verharrt im Ladezustand.
+		vi.mocked(api.getMe).mockReturnValue(new Promise(() => {}));
+
+		const { container } = render(<App />);
+
+		await waitFor(() => {
+			const busy = container.querySelector('[aria-busy="true"]');
+			const status = screen.queryByRole('status');
+			const loadingText = /wird geladen/i.test(document.body.textContent ?? '');
+			expect(Boolean(busy) || status !== null || loadingText).toBe(true);
+		});
+	});
+
+	// AK4b: Im Erfolgsfall erscheint die vom Backend gelieferte E-Mail im DOM.
+	it('ruft api.getMe() auf und zeigt die zurückgegebene E-Mail an (AK4b)', async () => {
+		vi.mocked(api.getMe).mockResolvedValue({ email: 'me@test.com', displayName: 'Me' });
+
+		render(<App />);
+
+		expect(await screen.findByText(/me@test\.com/i)).toBeTruthy();
+	});
+
+	// AK6: Schlägt der Abruf fehl, muss eine sichtbare Fehlermeldung erscheinen (kein stilles Scheitern).
+	it('zeigt eine Fehlermeldung, wenn der Abruf der Benutzerinfos fehlschlägt (AK6)', async () => {
+		vi.mocked(api.getMe).mockRejectedValue(new Error('Server Error'));
+
+		render(<App />);
+
+		await waitFor(() => {
+			expect(screen.getByRole('alert')).toBeTruthy();
+		});
 	});
 });
