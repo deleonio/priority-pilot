@@ -112,7 +112,7 @@ describe('App — Logout-Fehlerfall (#191, AK-5)', () => {
 
 	// #209: Der Logout-Button ist jetzt als KolToolbar-Item implementiert. KolBX-Web-Components
 	// rendern ihre _items nicht in JSDOM — der Button ist im Shadow-DOM und nicht per findByRole
-	// erreichbar. Die E2E-Tests in logout.spec.ts (#209 AK-4, #191 AK-2/3/4) decken die
+	// erreichbar. Die E2E-Tests in logout.spec.ts (#209 AK-4, #191 AK-2/3/4/5) decken die
 	// Klick-Verdrahtung und den Fehlerfall in echten Browsern ab.
 	it.skip('zeigt eine Fehlermeldung, wenn der Logout fehlschlägt', async () => {
 		vi.mocked(api.logout).mockRejectedValue(new Error('Logout fehlgeschlagen'));

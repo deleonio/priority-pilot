@@ -283,4 +283,43 @@ test.describe('#191 Logout-Button in Navigation', () => {
 		await waitForStableView(page).catch(() => undefined);
 		await expect(page.getByRole('button', { name: /Abmelden|Logout/i })).toHaveCount(0);
 	});
+
+	/**
+	 * AK-5 — Logout schlägt fehl: Fehlermeldung erscheint, Button wird wieder aktiviert,
+	 * der Nutzer bleibt eingeloggt (kein Redirect auf /login, Auth-State erhalten).
+	 * E2E-Ersatz für die in App.test.tsx mit it.skip markierten Unit-Tests (KolBX-Items
+	 * nicht per findByRole in JSDOM erreichbar).
+	 */
+	test('AK-5: bei fehlgeschlagenem Logout bleibt Nutzer eingeloggt, Fehler wird angezeigt, Button wieder aktiv', async ({
+		page,
+	}) => {
+		await stubBackend(page);
+		await setAuth(page, true);
+
+		await page.route('**/auth/logout', (route) =>
+			route.fulfill({
+				status: 500,
+				contentType: 'application/json',
+				body: JSON.stringify({ message: 'Logout fehlgeschlagen' }),
+			}),
+		);
+
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await page.getByRole('button', { name: /Abmelden|Logout/i }).click();
+
+		// Fehlermeldung ist sichtbar.
+		await expect(page.getByRole('alert')).toBeVisible();
+
+		// Kein Redirect auf /login — Nutzer bleibt auf der App-Seite.
+		await expect(page).not.toHaveURL(/\/login/);
+
+		// Auth-State bleibt erhalten (displayName nicht gelöscht).
+		const displayName = await page.evaluate(() => localStorage.getItem('displayName'));
+		expect(displayName).not.toBeNull();
+
+		// Button ist nach dem Fehlschlag wieder bedienbar (nicht dauerhaft disabled).
+		await expect(page.getByRole('button', { name: /Abmelden|Logout/i })).not.toBeDisabled();
+	});
 });
