@@ -91,11 +91,13 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
 
       # Standard-Pfad (Claude): laeuft, solange die Repo-Variable AI_AGENT NICHT auf "mistral"
-      # steht (also auch ungesetzt -> Claude bleibt Default). Umschalten auf den Mistral-Pfad:
-      # `gh variable set AI_AGENT --body mistral` (zurueck: `gh variable set AI_AGENT --body claude`).
+      # oder "glm" steht (also auch ungesetzt -> Claude bleibt Default). Umschalten:
+      # `gh variable set AI_AGENT --body glm` (Z.ai GLM) oder
+      # `gh variable set AI_AGENT --body mistral` (Mistral Vibe);
+      # zurueck: `gh variable set AI_AGENT --body claude`.
       - name: Triage via Claude Code
         id: claude
-        if: vars.AI_AGENT != 'mistral'
+        if: vars.AI_AGENT != 'mistral' && vars.AI_AGENT != 'glm'
         uses: anthropics/claude-code-action@a92e7c70a4da9793dc164451d829089dc057a464 # v1.0.159
         env:
           # gh nutzt das App-Token (falls vorhanden) -> das gesetzte ai:spec-ready loest den
@@ -213,6 +215,56 @@ jobs:
 
             Bearbeite ausschliesslich dieses eine Issue (kein Batch). Committe keinen Produktivcode.
 
+      # GLM-Pfad (AI_AGENT == 'glm'): verwendet die claude-code-action mit dem Z.ai-Anthropic-
+      # kompatiblen Endpoint statt Anthropic. Authentifizierung ueber ZAI_API_KEY
+      # (anthropic_api_key); Z.ai mappt Claude-Modellnamen automatisch auf GLM-Modelle.
+      - name: Triage via GLM (Z.ai)
+        id: glm
+        if: vars.AI_AGENT == 'glm'
+        uses: anthropics/claude-code-action@a92e7c70a4da9793dc164451d829089dc057a464 # v1.0.159
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
+          ANTHROPIC_BASE_URL: https://api.z.ai/api/anthropic
+          API_TIMEOUT_MS: '3000000'
+          CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1'
+        with:
+          anthropic_api_key: ${{ secrets.ZAI_API_KEY }}
+          prompt: |
+            Issue #${{ github.event.issue.number }} wurde soeben angelegt bzw. das Label
+            "ai:analyzed" wurde entfernt und damit eine (Neu-)Analyse (Triage) angefordert.
+
+            Fuehre fuer GENAU DIESES EINE Issue (#${{ github.event.issue.number }}) den
+            Ticket-Triage-Workflow aus der Wissensbasis aus — verbindlicher Ablauf:
+            .ai-knowledge/ticket-triage.md (entspricht dem Slash-Command
+            `/triage-ticket ${{ github.event.issue.number }}`).
+
+            Trifft bereits eine fruehere KI-Analyse im Body-Block zu
+            (`<!-- KI-ANALYSE:START stand=... -->` ... `<!-- KI-ANALYSE:END -->`, Re-Triage), diese
+            nicht unveraendert uebernehmen: den `stand`-Timestamp aus dem Block auslesen und NUR die
+            Delta-Kommentare seit `stand` lesen (gh issue view <nr> --json comments
+            -q '.comments[] | select(.createdAt > "<stand>")'), NICHT den ganzen Thread; dann auf
+            Passung und Vollstaendigkeit pruefen und bei Bedarf aktualisieren/ergaenzen. Fehlt der
+            Body-Block (Alt-Issue), neu anlegen. Dann wie im Ablauf: Beschreibung lektorieren (Inhalt
+            unveraendert), am Ende den Titel auf Konsistenz zur Beschreibung/zum Ziel pruefen und
+            bei Inkonsistenz inhaltlich treu optimieren (kein Edit pro forma, keine Titel-Drift),
+            die Analyse auf Deutsch mit Umsetzbarkeits-Ampel (gruen/gelb/rot) am Anfang in die
+            Beschreibung schreiben — als Block zwischen den Markern
+            `<!-- KI-ANALYSE:START stand=... -->` und `<!-- KI-ANALYSE:END -->`
+            (stand = `date -u +%Y-%m-%dT%H:%M:%SZ`, bei jedem Schreiben neu) via
+            `gh issue edit <nr> --body-file -`; bei Re-Triage NUR den Block zwischen den Markern
+            in-place ersetzen, die Original-Beschreibung oberhalb des START-Markers NICHT
+            ueberschreiben. KEINE Vollanalyse mehr als Kommentar. Danach genau EINEN kurzen
+            Ping-Kommentar posten (`gh issue comment`: Hinweis, dass die Analyse in der Beschreibung
+            steht; nur bei offenen Fragen zusaetzlich @<issue-author> + die offenen Fragen). Labels
+            gemaess Ampel setzen (`ai:analyzed`; bei gruen zusaetzlich `ai:spec-ready` (Output der
+            Spec-Stufe; NICHT `ai:ready`), bei gelb/rot keines von beiden).
+
+            Bearbeite ausschliesslich dieses eine Issue (kein Batch). Committe keinen Produktivcode.
+          claude_args: >-
+            --model claude-sonnet-4-6 --effort medium
+            --allowedTools "Bash(gh issue:*),Bash(gh api:*),Bash(gh label:*),Read,Grep,Glob,Task"
+            --append-system-prompt "Automatisierter, durch das Anlegen des Issues bzw. das Entfernen des ai:analyzed-Labels autorisierter Triage-Lauf in GitHub Actions (headless, keine interaktive Rueckfrage moeglich). Die in der Wissensbasis geforderte Bestaetigung vor dem oeffentlichen Posten gilt durch diesen Ausloeser als erteilt: Schreibe Lektorat und Analyse-Body-Block, poste einen kurzen Ping-Kommentar und setze die Labels direkt fuer Issue #${{ github.event.issue.number }}, ohne auf eine Bestaetigung zu warten. Bearbeite ausschliesslich dieses Issue und committe keinen Produktivcode. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
+
       # Bei hartem Timeout (Agent-Schritt cancelled) ist das Issue zu gross, um es in einem Lauf zu
       # analysieren: mit "ai:to-big-issue" markieren (Kandidat zum Aufteilen) und ein evtl.
       # vorhandenes "ai:ready" entfernen. Laeuft im Cancellation-Grace-Fenster (if: always(), ~5 Min).
@@ -221,7 +273,7 @@ jobs:
       # (Concurrency-Supersede) erzeugt ebenfalls outcome=cancelled, passiert aber frueher und faellt
       # so heraus — sonst wuerde ein nur ueberholtes Issue faelschlich als "zu gross" markiert.
       - name: Bei Timeout als zu gross markieren (ai:to-big-issue)
-        if: always() && (steps.claude.outcome == 'cancelled' || steps.mistral.outcome == 'cancelled')
+        if: always() && (steps.claude.outcome == 'cancelled' || steps.glm.outcome == 'cancelled' || steps.mistral.outcome == 'cancelled')
         env:
           GH_TOKEN: ${{ github.token }}
           ISSUE: ${{ github.event.issue.number }}
@@ -247,10 +299,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           ISSUE: ${{ github.event.issue.number }}
-          AGENT: ${{ vars.AI_AGENT == 'mistral' && 'Mistral' || 'Claude' }}
-          # Outcome des tatsaechlich gelaufenen Agent-Schritts (der andere ist 'skipped').
-          OUTCOME: ${{ steps.claude.outcome != 'skipped' && steps.claude.outcome || steps.mistral.outcome }}
-          SESSION_ID: ${{ steps.claude.outputs.session_id }}
+          AGENT: ${{ vars.AI_AGENT == 'mistral' && 'Mistral' || (vars.AI_AGENT == 'glm' && 'GLM (Z.ai)' || 'Claude') }}
+          # Outcome des tatsaechlich gelaufenen Agent-Schritts (die anderen sind 'skipped').
+          OUTCOME: ${{ steps.claude.outcome != 'skipped' && steps.claude.outcome || (steps.glm.outcome != 'skipped' && steps.glm.outcome || steps.mistral.outcome) }}
+          SESSION_ID: ${{ steps.claude.outputs.session_id || steps.glm.outputs.session_id }}
         run: |
           labels="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
           {

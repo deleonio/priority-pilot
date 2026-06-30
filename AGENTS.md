@@ -27,22 +27,43 @@ Wissensbasis liegt in [`.ai-knowledge/`](.ai-knowledge/).
 - Alle Pull Requests müssen `pnpm format` und `pnpm lint` ausführen und die Ergebnisse in der
   PR-Beschreibung dokumentieren.
 
-## KI-Agent: Claude (Standard) oder Mistral Vibe
+## KI-Agent: Claude (Standard), GLM (Z.ai) oder Mistral Vibe
 
 Alle KI-Workflows (Triage, Re-Triage, Umsetzung, PR-Review, PR-Fixup) laufen wahlweise mit
-**Claude Code** (Standard) oder **Mistral Vibe** — gesteuert über die Repository-Variable
-**`AI_AGENT`**:
+**Claude Code** (Standard), **GLM über Z.ai** oder **Mistral Vibe** — gesteuert über die
+Repository-Variable **`AI_AGENT`**:
 
 - nicht gesetzt **oder** `claude` → Claude Code (`anthropics/claude-code-action`, Secret
   `CLAUDE_CODE_OAUTH_TOKEN`).
+- `glm` → GLM über Z.ai (`anthropics/claude-code-action` + Z.ai-Endpoint, Secret **`ZAI_API_KEY`**
+  nötig). Nutzt denselben Anthropic-kompatiblen Endpoint von Z.ai — kein Proxy erforderlich.
 - `mistral` → Mistral Vibe (`mistralai/mistral-vibe`, Secret **`MISTRAL_API_KEY`** nötig).
 
 Umschalten (gilt sofort für **alle** KI-Workflows, keine Datei-Änderung nötig):
 
 ```bash
+gh variable set AI_AGENT --body glm       # auf GLM (Z.ai)
 gh variable set AI_AGENT --body mistral   # auf Mistral Vibe
 gh variable set AI_AGENT --body claude     # zurück auf Claude (oder Variable löschen)
 ```
+
+**Voraussetzung GLM-Pfad:** Repo-Secret `ZAI_API_KEY` (API-Key von
+<https://api.z.ai> — Coding Plan). Steht `AI_AGENT=glm`, fehlt aber der Key, schlägt der
+GLM-Schritt fehl (kein stiller Skip — bewusstes Opt-in wie beim Mistral-Pfad).
+
+**Merkmale des GLM-Pfads:**
+
+- **Gleiche Action wie Claude:** Der GLM-Pfad nutzt ebenfalls `anthropics/claude-code-action`,
+  aber mit `anthropic_api_key` statt `claude_code_oauth_token` und den Env-Variablen
+  `ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic` sowie
+  `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` (kein Telemetry zu Anthropic).
+- **Automatisches Modell-Mapping:** Z.ai mappt Claude-Modellnamen (z. B. `claude-sonnet-4-6`)
+  transparent auf GLM-Modelle — kein hartkodiertes Modell-Mapping nötig oder gewünscht (würde
+  automatische Updates auf neuere Modelle verhindern).
+- **Subagent-Delegation unverändert:** Prompts und `claude_args` sind identisch zum Claude-Pfad;
+  die Subagent-Delegation (Sonnet-Koordinator → `heavy`/`light`) funktioniert auf dem GLM-Pfad
+  wie auf dem Claude-Pfad.
+- **Längeres API-Timeout:** `API_TIMEOUT_MS=3000000` (50 Min intern, GitHub-Limit bleibt 20 Min).
 
 **Voraussetzung Mistral-Pfad:** Repo-Secret `MISTRAL_API_KEY` (aus <https://console.mistral.ai>,
 separat vom Server-LLM-Key). Steht `AI_AGENT=mistral`, fehlt aber der Key, schlägt der Vibe-Schritt
@@ -93,9 +114,9 @@ Dieser ungeschützte Vorschritt riss bei jedem transienten Fehler den ganzen Lau
 Arbeit lief — die Hauptursache der Unzuverlässigkeit. Die Subagent-Delegation erreicht dasselbe Ziel
 (Sonnet entscheidet, Haiku/Opus führen aus) mit **einem** Lauf und **ohne** CI-JavaScript.
 
-**Mistral-Pfad: nicht betroffen.** Die Delegation greift ausschließlich auf dem Claude-Pfad. Steht
-`AI_AGENT=mistral`, kennt die Vibe-Action weder `--model` noch Claude-Subagenten — das Modell kommt
-dort allein aus `~/.vibe/config.toml`.
+**Mistral-Pfad: nicht betroffen.** Die Delegation greift ausschließlich auf dem Claude- und
+GLM-Pfad. Steht `AI_AGENT=mistral`, kennt die Vibe-Action weder `--model` noch Claude-Subagenten —
+das Modell kommt dort allein aus `~/.vibe/config.toml`.
 
 ## Ticket-Triage
 

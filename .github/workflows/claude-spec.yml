@@ -75,12 +75,14 @@ jobs:
           fetch-depth: 0 # voller Verlauf: der Spec-Flow arbeitet mit einem Branch
           token: ${{ steps.app-token.outputs.token }} # Push als App-Token -> loest Folge-Workflows aus
 
-      # Standard-Pfad (Claude): laeuft, solange die Repo-Variable AI_AGENT NICHT auf "mistral" steht
-      # (auch ungesetzt -> Claude bleibt Default). Umschalten: `gh variable set AI_AGENT --body
-      # mistral` (zurueck: `gh variable set AI_AGENT --body claude`).
+      # Standard-Pfad (Claude): laeuft, solange die Repo-Variable AI_AGENT NICHT auf "mistral"
+      # oder "glm" steht (auch ungesetzt -> Claude bleibt Default). Umschalten:
+      # `gh variable set AI_AGENT --body glm` (Z.ai GLM) oder
+      # `gh variable set AI_AGENT --body mistral` (Mistral Vibe);
+      # zurueck: `gh variable set AI_AGENT --body claude`.
       - name: Spec via Claude Code
         id: claude
-        if: steps.preflight.outputs.configured == 'true' && vars.AI_AGENT != 'mistral'
+        if: steps.preflight.outputs.configured == 'true' && vars.AI_AGENT != 'mistral' && vars.AI_AGENT != 'glm'
         uses: anthropics/claude-code-action@a92e7c70a4da9793dc164451d829089dc057a464 # v1.0.159
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }} # gh nutzt das App-Token -> gesetztes ai:ready loest die Umsetzung aus
@@ -190,12 +192,70 @@ jobs:
             `Closes #${{ github.event.issue.number }}`, NICHT erneut spezifizieren — Lauf beenden.
             Bearbeite ausschliesslich dieses eine Issue.
 
+      # GLM-Pfad (AI_AGENT == 'glm'): verwendet die claude-code-action mit dem Z.ai-Anthropic-
+      # kompatiblen Endpoint statt Anthropic. Authentifizierung ueber ZAI_API_KEY
+      # (anthropic_api_key); Z.ai mappt Claude-Modellnamen automatisch auf GLM-Modelle.
+      - name: Spec via GLM (Z.ai)
+        id: glm
+        if: steps.preflight.outputs.configured == 'true' && vars.AI_AGENT == 'glm'
+        uses: anthropics/claude-code-action@a92e7c70a4da9793dc164451d829089dc057a464 # v1.0.159
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ANTHROPIC_BASE_URL: https://api.z.ai/api/anthropic
+          API_TIMEOUT_MS: '3000000'
+          CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1'
+        with:
+          anthropic_api_key: ${{ secrets.ZAI_API_KEY }}
+          github_token: ${{ steps.app-token.outputs.token }}
+          allowed_bots: 'claude[bot],my-github-action-bot'
+          prompt: |
+            Das Label `ai:spec-ready` wurde an Issue #${{ github.event.issue.number }} gesetzt —
+            schreibe jetzt die ROTEN Tests (den Vertrag) fuer dieses Issue.
+
+            Folge dem Spec-Workflow .ai-knowledge/ticket-spec.md (entspricht
+            `/spec-ticket ${{ github.event.issue.number }}`):
+              1. Branch anlegen (`git switch -c feat/issue-${{ github.event.issue.number }}-<kurzname>`).
+                 Den Akzeptanzkriterien-+-Testfaelle-Block der Triage primaer aus dem BODY-Block des
+                 Issues entnehmen (`gh issue view ${{ github.event.issue.number }} --json body -q .body`,
+                 Abschnitt zwischen den Markern `<!-- KI-ANALYSE:START stand=... -->` und
+                 `<!-- KI-ANALYSE:END -->`); fehlt der Body-Block (Alt-Issue), Fallback auf den
+                 juengsten `KI-Analyse`-Kommentar.
+              2. ROTE Tests schreiben — je Akzeptanzkriterium echte, ausfuehrbare Tests in der zum
+                 Ticket-Typ passenden Datei (server/src/logics|express/*.test.ts,
+                 frontend/src/lib/*.test.ts, frontend/e2e/*.spec.ts). Sie pruefen echtes Soll-Verhalten
+                 und werden gruen, sobald der Code existiert. Schreibe KEINEN Produktivcode.
+              3. Rote Tests als ERSTEN Commit (`test: rote Spec-Tests fuer #${{ github.event.issue.number }}`),
+                 Branch pushen, DRAFT-PR erstellen (`gh pr create --draft`) mit
+                 `Closes #${{ github.event.issue.number }}` im Body (kurze Liste der Akzeptanzkriterien
+                 + Hinweis "Implementierung folgt"). Setze NICHT `ai:needs-review` (der PR ist Draft).
+              4. UEBERGABE: am Issue `ai:ready` setzen und `ai:spec-ready` entfernen
+                 (`gh issue edit ${{ github.event.issue.number }} --add-label ai:ready --remove-label ai:spec-ready`;
+                 Label `ai:ready` bei Bedarf vorher `gh label create "ai:ready" --color 0E8A16`).
+                 Damit greift die Umsetzung (claude-implement.yml) den Draft-PR auf und macht ihn gruen.
+
+            Weise dich NICHT selbst zu — `@me` waere der Bot.
+
+            HARTES Zeitlimit: Dieser Lauf wird nach 20 Minuten hart abgebrochen. Merkst du, dass es
+            eng wird, sichere SPAETESTENS nach ~18 Minuten den Zwischenstand (committen, Branch pushen,
+            Draft-PR), aber setze `ai:ready` NUR, wenn die roten Tests vollstaendig stehen — sonst
+            bleibt das Issue `ai:spec-ready` fuer einen Folgelauf.
+
+            Idempotenz: Existiert bereits ein offener PR mit `Closes #${{ github.event.issue.number }}`,
+            NICHT erneut spezifizieren — Lauf beenden.
+
+            Bearbeite ausschliesslich dieses eine Issue. Die Freigabe gilt durch das Label
+            `ai:spec-ready` als erteilt: arbeite autonom, ohne auf eine interaktive Bestaetigung zu warten.
+          claude_args: >-
+            --model claude-sonnet-4-6 --effort medium
+            --allowedTools "Bash(gh issue:*),Bash(gh pr:*),Bash(gh label:*),Bash(gh api:*),Bash(git switch:*),Bash(git checkout:*),Bash(git branch:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(git fetch:*),Bash(pnpm:*),Read,Edit,Write,Grep,Glob,Skill,Task"
+            --append-system-prompt "Automatisierter, durch das Label ai:spec-ready autorisierter SPEC-Lauf in GitHub Actions (headless). Schreibe ausschliesslich Tests fuer Issue #${{ github.event.issue.number }} (KEIN Produktivcode), eroeffne einen Draft-PR und gib das Issue per ai:ready frei (ai:spec-ready entfernen). HARTES 20-Minuten-Timeout: sichere bei drohendem Limit (~18 Min) den Zwischenstand, setze ai:ready aber nur bei vollstaendigen roten Tests. Bestaetigung gilt durch ai:spec-ready als erteilt; arbeite autonom ohne interaktive Rueckfrage. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
+
       # Bei hartem Timeout (Agent-Schritt cancelled) ist das Issue zu gross fuer einen Spec-Lauf:
       # mit "ai:to-big-issue" markieren und "ai:spec-ready" entfernen, damit der Spec-Workflow es
       # nicht erneut aufgreift. Laeuft im Cancellation-Grace-Fenster (if: always(), ~5 Min).
       # Zeit-Guard: nur labeln, wenn der Lauf das 20-Min-Limit nahezu ausgeschoepft hat (>= 18 Min).
       - name: Bei Timeout als zu gross markieren (ai:to-big-issue)
-        if: always() && steps.preflight.outputs.configured == 'true' && (steps.claude.outcome == 'cancelled' || steps.mistral.outcome == 'cancelled')
+        if: always() && steps.preflight.outputs.configured == 'true' && (steps.claude.outcome == 'cancelled' || steps.glm.outcome == 'cancelled' || steps.mistral.outcome == 'cancelled')
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
@@ -219,9 +279,9 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
-          AGENT: ${{ vars.AI_AGENT == 'mistral' && 'Mistral' || 'Claude' }}
-          OUTCOME: ${{ steps.claude.outcome != 'skipped' && steps.claude.outcome || steps.mistral.outcome }}
-          SESSION_ID: ${{ steps.claude.outputs.session_id }}
+          AGENT: ${{ vars.AI_AGENT == 'mistral' && 'Mistral' || (vars.AI_AGENT == 'glm' && 'GLM (Z.ai)' || 'Claude') }}
+          OUTCOME: ${{ steps.claude.outcome != 'skipped' && steps.claude.outcome || (steps.glm.outcome != 'skipped' && steps.glm.outcome || steps.mistral.outcome) }}
+          SESSION_ID: ${{ steps.claude.outputs.session_id || steps.glm.outputs.session_id }}
         run: |
           labels="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
           {
