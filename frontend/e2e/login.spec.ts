@@ -10,9 +10,6 @@ import { expect, test } from '@playwright/test';
  * Auth-Zustand daher über `page.route('**\/auth/me', ...)`: 401 = unauthentifiziert (Login-Seite),
  * 200 = authentifiziert (Haupt-App). Den OAuth-Start (`/auth/google`) fangen wir ab, statt ihn zur
  * echten Google-Consent-Seite navigieren zu lassen.
- *
- * Diese Tests sind absichtlich ROT: Login-Seite, Auth-Gate und Error-Handling existieren noch nicht.
- * Die Implementierung folgt in der Umsetzungs-Stufe.
  */
 
 /** Antwortet auf `GET /auth/me` mit 401 (unauthentifiziert) → die App soll die Login-Seite zeigen. */

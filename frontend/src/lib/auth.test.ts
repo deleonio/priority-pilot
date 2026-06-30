@@ -1,6 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-// ROT: `./auth` (mit der Funktion `checkAuth`) existiert noch nicht — der Import schlägt fehl,
-// solange der Produktivcode in der Umsetzungs-Stufe nicht angelegt ist.
 import { checkAuth } from './auth';
 
 /**
