@@ -62,7 +62,8 @@ export const createApp = (deps: AppDeps = {}) => {
 	if (!sessionSecret && process.env.NODE_ENV === 'production') {
 		throw new Error('SESSION_SECRET muss in Produktion gesetzt sein');
 	}
-	const sessionTtlSeconds = process.env.SESSION_TTL ? parseInt(process.env.SESSION_TTL, 10) : undefined;
+	const rawTtl = process.env.SESSION_TTL ? parseInt(process.env.SESSION_TTL, 10) : undefined;
+	const sessionMaxAge = rawTtl !== undefined && !isNaN(rawTtl) ? rawTtl * 1000 : undefined;
 	app.use(
 		session({
 			secret: sessionSecret ?? 'dev-secret',
@@ -73,7 +74,7 @@ export const createApp = (deps: AppDeps = {}) => {
 				secure: process.env.NODE_ENV === 'production',
 				sameSite: 'lax' as const,
 				httpOnly: true,
-				...(sessionTtlSeconds !== undefined ? { maxAge: sessionTtlSeconds * 1000 } : {}),
+				...(sessionMaxAge !== undefined ? { maxAge: sessionMaxAge } : {}),
 			},
 		}),
 	);
