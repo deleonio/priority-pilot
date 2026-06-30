@@ -242,7 +242,8 @@ export const api = {
 		if (!response.ok) {
 			throw new Error(`Benutzerinfo nicht abrufbar (${response.status})`);
 		}
-		return response.json() as Promise<{ email: string; displayName: string }>;
+		const data = (await response.json()) as unknown;
+		return data as { email: string; displayName: string };
 	},
 
 	// Materialisiert die bis `until` (inklusive) fälligen Instanzen einer Serie als eigenständige Tasks.

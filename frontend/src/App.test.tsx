@@ -30,12 +30,12 @@ vi.mock('./api', () => ({
 		// der AK-5-Test das Fehlerverhalten ansteuern kann; rot ist der Test, weil `App.tsx` weder den
 		// Logout-Button rendert noch dessen Fehlerfall (Meldung + erneut aktivierter Button) behandelt.
 		logout: vi.fn(),
-		// #192: `getMe` existiert in `api.ts` noch nicht. Der Mock stellt die Funktion bereit, damit die
-		// AK4/AK6-Tests den Lade-/Erfolgs-/Fehlerfall ansteuern können (sonst wirft `vi.mocked` einen
-		// TypeError, statt die Tests rot scheitern zu lassen).
-		getMe: vi.fn(),
 	},
 }));
+
+// #192: Standard-`user`-Prop für `App`. Seit dem Refactoring erhält `App` die Benutzerinfo als Prop
+// (von `Root.tsx`, das `checkAuth()` einmalig aufruft) statt selbst `api.getMe()` aufzurufen.
+const testUser = { id: 1, name: 'Test User', email: 'test@example.com' };
 
 const sampleTask: Task = {
 	id: 1,
@@ -58,8 +58,6 @@ beforeEach(() => {
 	vi.mocked(api.getNextTask).mockResolvedValue(null);
 	vi.mocked(api.getSuggestions).mockResolvedValue([]);
 	vi.mocked(api.listPillars).mockResolvedValue([]);
-	// #192: Sinnvoller Default, damit bestehende Tests nicht am User-Info-Abruf hängen bleiben.
-	vi.mocked(api.getMe).mockResolvedValue({ email: 'user@test.com', displayName: 'User' });
 });
 
 afterEach(() => {
@@ -72,7 +70,7 @@ describe('App — Personalisierte Begrüßung aus localStorage (#169)', () => {
 	it('zeigt „Hallo Peter!" wenn displayName in localStorage gesetzt ist', async () => {
 		localStorage.setItem('displayName', 'Peter');
 
-		render(<App />);
+		render(<App user={testUser} />);
 
 		await waitFor(() => {
 			expect(screen.getByText(/Hallo\s+Peter!/i)).toBeTruthy();
@@ -81,7 +79,7 @@ describe('App — Personalisierte Begrüßung aus localStorage (#169)', () => {
 
 	// AC2 (App-Perspektive): Kein Eintrag → sinnvoller Fallback, keine leere „Hallo !".
 	it('zeigt einen Fallback-Namen statt „Hallo !" wenn kein displayName gesetzt ist', async () => {
-		render(<App />);
+		render(<App user={testUser} />);
 
 		// Begrüßung mit einem echten (Fallback-)Namen muss erscheinen …
 		const greeting = await screen.findByText(/Hallo\s+\w+!/i);
@@ -107,7 +105,7 @@ describe('App — Logout-Fehlerfall (#191, AK-5)', () => {
 	// Hilfsfunktion: rendert die eingeloggte App und liefert den Logout-Button zurück.
 	const renderLoggedInAndGetLogout = async (): Promise<HTMLElement> => {
 		localStorage.setItem('displayName', 'Peter');
-		render(<App />);
+		render(<App user={testUser} />);
 		// Auf das Laden der eingeloggten Ansicht warten, damit der Logout-Button gerendert ist.
 		return await screen.findByRole('button', { name: /Abmelden|Logout/i });
 	};
@@ -152,46 +150,30 @@ describe('App — Logout-Fehlerfall (#191, AK-5)', () => {
 });
 
 /**
- * #192: User Info Display — die App ruft die aktuellen Benutzerinformationen über `api.getMe()`
- * (GET /auth/me) ab und zeigt sie an. Während des Abrufs gibt es einen Ladezustand, im Erfolgsfall
- * erscheint die E-Mail, im Fehlerfall eine sichtbare Fehlermeldung (statt eines stillen Scheiterns).
- *
- * Diese Tests sind ROT, weil `App.tsx` `api.getMe()` weder aufruft noch dessen Lade-/Erfolgs-/
- * Fehlerzustände rendert. Sie werden grün, sobald die User-Info-Anzeige implementiert ist.
+ * #192: User Info Display — die App zeigt die aktuellen Benutzerinformationen (E-Mail + Name) im
+ * Header an. Seit dem Refactoring (PR #199) erhält `App` diese Daten als `user`-Prop von `Root.tsx`,
+ * das `checkAuth()` (GET /auth/me) einmalig aufruft. Die App selbst ruft `api.getMe()` nicht mehr auf
+ * — es gibt damit keinen App-internen Lade-/Fehlerzustand mehr (das übernimmt `Root.tsx`).
  */
 describe('App — User Info Display (#192)', () => {
-	// AK4: Solange `getMe` noch läuft (Promise löst nie auf), muss ein Ladezustand sichtbar sein.
-	it('zeigt einen Loading-Indicator, während die Benutzerinfos geladen werden (AK4a)', async () => {
-		// Promise löst absichtlich nie auf → die App verharrt im Ladezustand.
-		vi.mocked(api.getMe).mockReturnValue(new Promise(() => {}));
-
-		const { container } = render(<App />);
-
-		await waitFor(() => {
-			const busy = container.querySelector('[aria-busy="true"]');
-			const status = screen.queryByRole('status');
-			const loadingText = /wird geladen/i.test(document.body.textContent ?? '');
-			expect(Boolean(busy) || status !== null || loadingText).toBe(true);
-		});
+	// AK4a: Der App-interne Loading-Indicator entfällt in der neuen Architektur — `App` lädt die
+	// Benutzerinfo nicht mehr selbst (kein async getMe), sondern erhält sie synchron als Prop. Der
+	// Ladezustand der Authentifizierung liegt jetzt in `Root.tsx` (vgl. e2e/userinfo.spec.ts).
+	it.skip('zeigt einen Loading-Indicator, während die Benutzerinfos geladen werden (AK4a)', () => {
+		// Bewusst übersprungen: kein App-internes async Laden mehr.
 	});
 
-	// AK4b: Im Erfolgsfall erscheint die vom Backend gelieferte E-Mail im DOM.
-	it('ruft api.getMe() auf und zeigt die zurückgegebene E-Mail an (AK4b)', async () => {
-		vi.mocked(api.getMe).mockResolvedValue({ email: 'me@test.com', displayName: 'Me' });
-
-		render(<App />);
+	// AK4b: Die per `user`-Prop übergebene E-Mail erscheint im DOM.
+	it('zeigt die per Prop übergebene E-Mail an (AK4b)', async () => {
+		render(<App user={{ id: 7, name: 'Me', email: 'me@test.com' }} />);
 
 		expect(await screen.findByText(/me@test\.com/i)).toBeTruthy();
 	});
 
-	// AK6: Schlägt der Abruf fehl, muss eine sichtbare Fehlermeldung erscheinen (kein stilles Scheitern).
-	it('zeigt eine Fehlermeldung, wenn der Abruf der Benutzerinfos fehlschlägt (AK6)', async () => {
-		vi.mocked(api.getMe).mockRejectedValue(new Error('Server Error'));
+	// AK6: Auch der Name aus der `user`-Prop erscheint im DOM (Header-Anzeige).
+	it('zeigt den per Prop übergebenen Namen an (AK6)', async () => {
+		render(<App user={{ id: 7, name: 'Max Mustermann', email: 'max@example.com' }} />);
 
-		render(<App />);
-
-		await waitFor(() => {
-			expect(screen.getByRole('alert')).toBeTruthy();
-		});
+		expect(await screen.findByText(/Max Mustermann/i)).toBeTruthy();
 	});
 });
