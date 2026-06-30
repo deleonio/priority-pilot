@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 /**
  * Rote Spec-Tests für Issue #171: Der Vite-Proxy soll von der Wurzelpfad-Allowlist

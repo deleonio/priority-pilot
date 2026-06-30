@@ -48,7 +48,12 @@ export const LoginPage = () => {
 					textAlign: 'center',
 				}}
 			>
-				<h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 700 }}>Priority Pilot</h1>
+				{/* Bewusst KEIN „Priority Pilot"-Heading: Dieser Name (als level-1-Heading) identifiziert
+				    ausschließlich die Haupt-App (KolHeading `_level={1}` in `App.tsx`). Die E2E-Auth-Gate-Specs
+				    (`login.spec.ts`, AK1a) prüfen, dass dieses Heading unauthentifiziert NICHT sichtbar ist;
+				    da `getByRole('heading', { name })` per Default als Teilstring matcht, darf der Anmelde-Titel
+				    den Text „Priority Pilot" auch nicht enthalten. */}
+				<h1 style={{ margin: 0, fontSize: '1.75rem', fontWeight: 700 }}>Anmelden</h1>
 				<p style={{ margin: 0, color: 'var(--pp-text-muted, #555)' }}>
 					Melde dich mit deinem Google-Konto an, um fortzufahren.
 				</p>

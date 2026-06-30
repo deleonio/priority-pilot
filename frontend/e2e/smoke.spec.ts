@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 /**
  * Smoke-Test gegen das **echte** Backend (#91). Es wird **nichts** via `page.route` gemockt:
