@@ -220,3 +220,88 @@ describe('AK3 — Gate-Kommandos spiegeln CI-Checks exakt', () => {
 		assert.match(doc, /pnpm lint/, 'ticket-implementation.md muss `pnpm lint` (repo-weit) als CI-Spiegel nennen');
 	});
 });
+
+describe('AK4 — CI-Format/Lint-Fehler ist als eigenständiges Finding deklariert', () => {
+	it('Claude-Prompt dokumentiert: CI-Fehler an Format/Lint ist ein eigenständiges Finding', () => {
+		const prompt = claudePrompt();
+		const pattern =
+			/[Ff]ormat[^.]*[Ff]inding|[Ll]int[^.]*[Ff]inding|[Ff]inding[^.]*[Ff]ormat|[Ff]inding[^.]*[Ll]int|CI[^.]*[Ff]ormat[^.]*behob|CI[^.]*[Ll]int[^.]*behob|[Ff]ormat.*CI.*[Ff]inding|[Ll]int.*CI.*[Ff]inding/;
+		assert.ok(
+			pattern.test(prompt),
+			'Claude-Prompt muss klarstellen, dass ein reiner CI-Format-/Lint-Fehler als eigenständiges Finding behandelt wird',
+		);
+	});
+
+	it('GLM-Prompt dokumentiert: CI-Fehler an Format/Lint ist ein eigenständiges Finding', () => {
+		const prompt = glmPrompt();
+		const pattern =
+			/[Ff]ormat[^.]*[Ff]inding|[Ll]int[^.]*[Ff]inding|[Ff]inding[^.]*[Ff]ormat|[Ff]inding[^.]*[Ll]int|CI[^.]*[Ff]ormat[^.]*behob|CI[^.]*[Ll]int[^.]*behob|[Ff]ormat.*CI.*[Ff]inding|[Ll]int.*CI.*[Ff]inding/;
+		assert.ok(
+			pattern.test(prompt),
+			'GLM-Prompt muss klarstellen, dass ein reiner CI-Format-/Lint-Fehler als eigenständiges Finding behandelt wird',
+		);
+	});
+
+	it('Mistral-Prompt dokumentiert: CI-Fehler an Format/Lint ist ein eigenständiges Finding', () => {
+		const prompt = mistralPrompt();
+		const pattern =
+			/[Ff]ormat[^.]*[Ff]inding|[Ll]int[^.]*[Ff]inding|[Ff]inding[^.]*[Ff]ormat|[Ff]inding[^.]*[Ll]int|CI[^.]*[Ff]ormat[^.]*behob|CI[^.]*[Ll]int[^.]*behob|[Ff]ormat.*CI.*[Ff]inding|[Ll]int.*CI.*[Ff]inding/;
+		assert.ok(
+			pattern.test(prompt),
+			'Mistral-Prompt muss klarstellen, dass ein reiner CI-Format-/Lint-Fehler als eigenständiges Finding behandelt wird',
+		);
+	});
+});
+
+describe('AK5 — Prompt-Symmetrie Claude/GLM/Mistral (kein Gate-Drift)', () => {
+	it('Claude-, GLM- und Mistral-Prompt enthalten alle das Gate-Kommando prettier --check . identisch', () => {
+		const cp = claudePrompt();
+		const gp = glmPrompt();
+		const mp = mistralPrompt();
+
+		assert.match(cp, /prettier --check \./, 'Claude-Prompt fehlt `prettier --check .`');
+		assert.match(gp, /prettier --check \./, 'GLM-Prompt fehlt `prettier --check .`');
+		assert.match(mp, /prettier --check \./, 'Mistral-Prompt fehlt `prettier --check .`');
+
+		const gatePattern = /pnpm format[^\n]*prettier[^\n]*/;
+		const claudeGate = cp.match(gatePattern)?.[0]?.trim();
+		const glmGate = gp.match(gatePattern)?.[0]?.trim();
+		const mistralGate = mp.match(gatePattern)?.[0]?.trim();
+
+		assert.ok(claudeGate, 'Claude-Prompt hat keine erkennbare Gate-Zeile mit pnpm format + prettier');
+		assert.ok(glmGate, 'GLM-Prompt hat keine erkennbare Gate-Zeile mit pnpm format + prettier');
+		assert.ok(mistralGate, 'Mistral-Prompt hat keine erkennbare Gate-Zeile mit pnpm format + prettier');
+		assert.equal(
+			claudeGate,
+			glmGate,
+			`Gate-Anweisung weicht zwischen Claude- und GLM-Prompt ab — kein Drift erlaubt:\n  Claude: ${claudeGate}\n  GLM:    ${glmGate}`,
+		);
+		assert.equal(
+			claudeGate,
+			mistralGate,
+			`Gate-Anweisung weicht zwischen Claude- und Mistral-Prompt ab — kein Drift erlaubt:\n  Claude:  ${claudeGate}\n  Mistral: ${mistralGate}`,
+		);
+	});
+
+	it('Claude-, GLM- und Mistral-Prompt beschreiben das Gate als Vor-Push-Bedingung (blockierend)', () => {
+		const cp = claudePrompt();
+		const gp = glmPrompt();
+		const mp = mistralPrompt();
+
+		const gateIsBlocking = (prompt: string) =>
+			/vor jedem (Commit|Push)|erst wenn.*grün|vor.*Push.*Gate|Gate.*grün/i.test(prompt);
+
+		assert.ok(
+			gateIsBlocking(cp),
+			'Claude-Prompt muss das Gate als Vor-Push-Bedingung formulieren (nicht als optionalen Hinweis)',
+		);
+		assert.ok(
+			gateIsBlocking(gp),
+			'GLM-Prompt muss das Gate als Vor-Push-Bedingung formulieren (nicht als optionalen Hinweis)',
+		);
+		assert.ok(
+			gateIsBlocking(mp),
+			'Mistral-Prompt muss das Gate als Vor-Push-Bedingung formulieren (nicht als optionalen Hinweis)',
+		);
+	});
+});

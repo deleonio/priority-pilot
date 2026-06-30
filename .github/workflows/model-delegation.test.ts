@@ -114,3 +114,25 @@ describe('Die Subagent-Definitionen koppeln Modell an Komplexitaet', () => {
 		assert.match(doc, /^name:\s*light\s*$/m, 'light.md muss `name: light` im Frontmatter tragen');
 	});
 });
+
+describe('AGENTS.md dokumentiert die Subagent-Delegation statt des JS-Routers', () => {
+	const doc = (): string => readRepoFile('AGENTS.md');
+
+	it('beschreibt die drei Modellstufen (Sonnet-Default, Opus, Haiku)', () => {
+		assert.match(doc(), /claude-sonnet-4-6/, 'AGENTS.md muss das Default-/Koordinator-Modell claude-sonnet-4-6 nennen');
+		assert.match(doc(), /opus/i, 'AGENTS.md muss die Opus-Eskalation nennen');
+		assert.match(doc(), /haiku/i, 'AGENTS.md muss die Haiku-Abstufung nennen');
+	});
+
+	it('nennt die Subagent-Delegation (in derselben Session) als Mechanismus', () => {
+		assert.match(doc(), /[Ss]ubagent/, 'AGENTS.md muss die Subagent-Delegation als Mechanismus beschreiben');
+	});
+
+	it('haelt den Mistral-Pfad weiterhin als „nicht betroffen" fest', () => {
+		assert.match(
+			doc(),
+			/nicht betroffen/i,
+			'AGENTS.md muss den Mistral-Pfad weiter als „nicht betroffen" kennzeichnen',
+		);
+	});
+});
