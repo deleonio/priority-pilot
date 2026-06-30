@@ -226,6 +226,15 @@ export const api = {
 		}
 	},
 
+	// Zerstört die serverseitige Session. Die Frontend-Aufräumarbeit (localStorage, Redirect) erledigt
+	// der Aufrufer. Der Endpunkt liegt außerhalb des `/api/v1`-Namespace (kein openapi-fetch).
+	async logout(): Promise<void> {
+		const response = await fetch('/auth/logout', { method: 'POST' });
+		if (!response.ok) {
+			throw new Error(`Logout fehlgeschlagen (${response.status})`);
+		}
+	},
+
 	// Materialisiert die bis `until` (inklusive) fälligen Instanzen einer Serie als eigenständige Tasks.
 	async generateSeriesInstances({
 		id,
