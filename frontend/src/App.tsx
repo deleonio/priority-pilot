@@ -47,6 +47,9 @@ export const App = () => {
 	const [displayName, setDisplayName] = useState(() => localStorage.getItem('displayName') ?? '');
 	const [logoutLoading, setLogoutLoading] = useState(false);
 	const [logoutError, setLogoutError] = useState<string | null>(null);
+	const [userInfo, setUserInfo] = useState<{ email: string; displayName: string } | null>(null);
+	const [userInfoLoading, setUserInfoLoading] = useState(true);
+	const [userInfoError, setUserInfoError] = useState<string | null>(null);
 
 	const reload = useCallback(async (signal?: AbortSignal): Promise<void> => {
 		setLoading(true);
@@ -87,6 +90,28 @@ export const App = () => {
 		void reload(controller.signal);
 		return () => controller.abort();
 	}, [reload]);
+
+	useEffect(() => {
+		let cancelled = false;
+		setUserInfoLoading(true);
+		api
+			.getMe()
+			.then((info) => {
+				if (!cancelled) {
+					setUserInfo(info);
+					setUserInfoLoading(false);
+				}
+			})
+			.catch((reason) => {
+				if (!cancelled) {
+					setUserInfoError(reason instanceof Error ? reason.message : 'Benutzerinfo nicht abrufbar');
+					setUserInfoLoading(false);
+				}
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, []);
 
 	const dependencyMap = useMemo(() => buildDependencyMap(forest), [forest]);
 
@@ -240,6 +265,17 @@ export const App = () => {
 				</div>
 			</header>
 
+			{userInfoLoading && (
+				<div role="status" aria-live="polite" aria-busy="true">
+					<span>Benutzerinfo wird geladen…</span>
+				</div>
+			)}
+			{userInfo !== null && !userInfoLoading && (
+				<div className="user-info">
+					<span className="user-email">{userInfo.email}</span>
+				</div>
+			)}
+
 			{loadError !== null && (
 				<KolAlert _type="error" _label="Daten konnten nicht geladen werden">
 					{loadError}
@@ -249,6 +285,13 @@ export const App = () => {
 				<div role="alert">
 					<KolAlert _type="error" _label="Logout fehlgeschlagen">
 						{logoutError}
+					</KolAlert>
+				</div>
+			)}
+			{userInfoError !== null && (
+				<div role="alert">
+					<KolAlert _type="error" _label="Benutzerinfo nicht abrufbar">
+						{userInfoError}
 					</KolAlert>
 				</div>
 			)}
