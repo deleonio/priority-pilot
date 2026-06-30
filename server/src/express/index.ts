@@ -63,7 +63,7 @@ export const createApp = (deps: AppDeps = {}) => {
 		throw new Error('SESSION_SECRET muss in Produktion gesetzt sein');
 	}
 	const rawTtl = process.env.SESSION_TTL ? parseInt(process.env.SESSION_TTL, 10) : undefined;
-	const sessionMaxAge = rawTtl !== undefined && !isNaN(rawTtl) ? rawTtl * 1000 : undefined;
+	const sessionMaxAge = rawTtl !== undefined && !isNaN(rawTtl) && rawTtl > 0 ? rawTtl * 1000 : undefined;
 	app.use(
 		session({
 			secret: sessionSecret ?? 'dev-secret',

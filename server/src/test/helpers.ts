@@ -1,7 +1,7 @@
 import type { Server } from 'node:http';
 import sequelize from '../database.js';
 import { createApp, type AppDeps } from '../express/index.js';
-import { createSessionStore } from '../express/session.js';
+import { createSessionStore, disconnectStore } from '../express/session.js';
 // Import models to ensure associations are registered before sync
 import '../models/index.js';
 
@@ -21,7 +21,9 @@ export interface TestServer {
 }
 
 export const startTestServer = async (deps: AppDeps = {}): Promise<TestServer> => {
-	const sessionStore = await createSessionStore();
+	// Respect injected store; only create (and own) a new one if none was provided.
+	const sessionStore = deps.sessionStore ?? (await createSessionStore());
+	const ownsStore = !deps.sessionStore;
 	const app = createApp({ ...deps, sessionStore });
 	return new Promise((resolve, reject) => {
 		const server: Server = app.listen(0, () => {
@@ -33,8 +35,8 @@ export const startTestServer = async (deps: AppDeps = {}): Promise<TestServer> =
 			const baseUrl = `http://localhost:${addr.port}`;
 			resolve({
 				baseUrl,
-				close: () =>
-					new Promise<void>((res, rej) => {
+				close: async () => {
+					await new Promise<void>((res, rej) => {
 						server.close((err) => {
 							if (err && (err as Error & { code?: string }).code === 'ERR_SERVER_NOT_RUNNING') {
 								res();
@@ -44,7 +46,9 @@ export const startTestServer = async (deps: AppDeps = {}): Promise<TestServer> =
 								res();
 							}
 						});
-					}),
+					});
+					if (ownsStore) disconnectStore(sessionStore);
+				},
 			});
 		});
 		server.on('error', reject);

@@ -1,6 +1,9 @@
 import session from 'express-session';
 import { dirname, basename } from 'node:path';
 
+// Tracks disconnect callbacks per store so callers can clean up Redis connections.
+const storeDisconnectors = new Map<session.Store, () => void>();
+
 export async function createSessionStore(): Promise<session.Store> {
 	const storeType = process.env.SESSION_STORE;
 
@@ -11,8 +14,15 @@ export async function createSessionStore(): Promise<session.Store> {
 		const { createClient } = await import('redis');
 		const { RedisStore } = await import('connect-redis');
 		const client = createClient({ url: process.env.REDIS_URL });
-		await client.connect();
-		return new RedisStore({ client });
+		try {
+			await client.connect();
+		} catch (err) {
+			client.disconnect();
+			throw err;
+		}
+		const store = new RedisStore({ client });
+		storeDisconnectors.set(store, () => client.disconnect());
+		return store;
 	}
 
 	if (storeType === 'sqlite') {
@@ -30,4 +40,17 @@ export async function createSessionStore(): Promise<session.Store> {
 	}
 
 	return new session.MemoryStore();
+}
+
+/** Disconnects the backing store connection (Redis) if one exists. No-op for SQLite/MemoryStore. */
+export function disconnectStore(store: session.Store): void {
+	const disconnect = storeDisconnectors.get(store);
+	if (disconnect) {
+		try {
+			disconnect();
+		} catch {
+			// ignore errors during cleanup
+		}
+		storeDisconnectors.delete(store);
+	}
 }
