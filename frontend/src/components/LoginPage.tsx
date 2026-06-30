@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 type ErrorParam = string | null;
 
@@ -13,15 +13,11 @@ function getErrorFromSearch(): ErrorParam {
 }
 
 function getErrorMessage(error: string): string {
-	return ERROR_MESSAGES[error] ?? `Anmeldefehler: ${error}`;
+	return ERROR_MESSAGES[error] ?? 'Ein unbekannter Anmeldefehler ist aufgetreten. Bitte versuche es erneut.';
 }
 
 export const LoginPage = () => {
-	const [error, setError] = useState<ErrorParam>(null);
-
-	useEffect(() => {
-		setError(getErrorFromSearch());
-	}, []);
+	const [error] = useState<ErrorParam>(getErrorFromSearch);
 
 	const handleLogin = () => {
 		window.location.href = '/auth/google';

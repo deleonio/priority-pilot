@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { KolSpin } from '@public-ui/react-v19';
 import { App } from './App';
 import { LoginPage } from './components/LoginPage';
 import type { AuthUser } from './lib/auth';
@@ -20,7 +21,11 @@ export const Root = () => {
 	}, []);
 
 	if (authState === 'loading') {
-		return null;
+		return (
+			<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100dvh' }}>
+				<KolSpin _show _variant="cycle" _label="Authentifizierung wird geprüft …" />
+			</div>
+		);
 	}
 
 	if (authState === 'unauthenticated') {
