@@ -3,7 +3,7 @@ import { defineCustomElements } from '@public-ui/components/loader';
 import { DEFAULT } from '@public-ui/theme-default';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { App } from './App';
+import { Root } from './Root';
 import { applyInitialTheme } from './lib/theme';
 // KolIcons-Font laden, damit die eingebauten KoliBri-Icons (KolAlert, KolSpin, Selects …) rendern.
 // Direkter Pfad-Import statt Bare-Specifier, weil die `exports`-Map von @public-ui/components den
@@ -31,7 +31,7 @@ const root = createRoot(container);
 const renderApp = () => {
 	root.render(
 		<StrictMode>
-			<App />
+			<Root />
 		</StrictMode>,
 	);
 };
