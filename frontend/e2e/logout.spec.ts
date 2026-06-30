@@ -166,7 +166,11 @@ test.describe('#191 Logout-Button in Navigation', () => {
 		// Ab jetzt antwortet das Backend ohne gültige Session mit 401: ein direkter erneuter Aufruf der
 		// geschützten App-Ansicht führt NICHT zurück in den eingeloggten Zustand.
 		await page.route('**/api/v1/**', (route) =>
-			route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ message: 'Unauthorized' }) }),
+			route.fulfill({
+				status: 401,
+				contentType: 'application/json',
+				body: JSON.stringify({ message: 'Unauthorized' }),
+			}),
 		);
 
 		await page.goto('/');
