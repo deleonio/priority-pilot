@@ -5,6 +5,9 @@ export async function createSessionStore(): Promise<session.Store> {
 	const storeType = process.env.SESSION_STORE;
 
 	if (storeType === 'redis') {
+		if (!process.env.REDIS_URL) {
+			throw new Error('REDIS_URL muss gesetzt sein wenn SESSION_STORE=redis verwendet wird');
+		}
 		const { createClient } = await import('redis');
 		const { RedisStore } = await import('connect-redis');
 		const client = createClient({ url: process.env.REDIS_URL });
