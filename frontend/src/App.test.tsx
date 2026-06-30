@@ -170,8 +170,8 @@ describe('App — User Info Display (#192)', () => {
 		expect(await screen.findByText(/me@test\.com/i)).toBeTruthy();
 	});
 
-	// AK6: Auch der Name aus der `user`-Prop erscheint im DOM (Header-Anzeige).
-	it('zeigt den per Prop übergebenen Namen an (AK6)', async () => {
+	// AK3b: Auch der Name aus der `user`-Prop erscheint im DOM (Header-Anzeige).
+	it('zeigt den per Prop übergebenen Namen an (AK3b)', async () => {
 		render(<App user={{ id: 7, name: 'Max Mustermann', email: 'max@example.com' }} />);
 
 		expect(await screen.findByText(/Max Mustermann/i)).toBeTruthy();

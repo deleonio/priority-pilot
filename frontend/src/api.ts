@@ -235,17 +235,6 @@ export const api = {
 		}
 	},
 
-	// Gibt die Benutzerinformationen der aktuellen Session zurück (E-Mail, Display-Name).
-	// Außerhalb des `/api/v1`-Namespace (kein openapi-fetch).
-	async getMe(): Promise<{ email: string; displayName: string }> {
-		const response = await fetch('/auth/me');
-		if (!response.ok) {
-			throw new Error(`Benutzerinfo nicht abrufbar (${response.status})`);
-		}
-		const data = (await response.json()) as unknown;
-		return data as { email: string; displayName: string };
-	},
-
 	// Materialisiert die bis `until` (inklusive) fälligen Instanzen einer Serie als eigenständige Tasks.
 	async generateSeriesInstances({
 		id,

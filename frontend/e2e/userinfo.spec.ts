@@ -37,8 +37,6 @@ test.describe('Priority Pilot — User Info Display (#192)', () => {
 		await mockMe(page, { id: 1, name: 'Max Mustermann', email: 'max@example.com' });
 		await page.goto('/');
 
-		// Rot, weil `App.tsx` den Anzeigewert aktuell aus `localStorage` liest, nicht aus der
-		// `/auth/me`-Response — die echte E-Mail erscheint dort daher (noch) nicht.
 		await expect(page.getByText('max@example.com')).toBeVisible();
 	});
 
@@ -46,7 +44,6 @@ test.describe('Priority Pilot — User Info Display (#192)', () => {
 		await mockMe(page, { id: 1, name: 'Max Mustermann', email: 'max@example.com' });
 		await page.goto('/');
 
-		// Rot, weil der Name nicht aus der `/auth/me`-Response in den Header übernommen wird.
 		await expect(page.getByText('Max Mustermann')).toBeVisible();
 	});
 
@@ -57,8 +54,7 @@ test.describe('Priority Pilot — User Info Display (#192)', () => {
 		// Ein Serverfehler (500) ist kein „unauthentifiziert" (401): Es muss eine Fehlermeldung
 		// (alert-Role) erscheinen …
 		await expect(page.getByRole('alert')).toBeVisible();
-		// … und NICHT die Login-Seite. Rot, weil `Root.tsx` aktuell bei jedem Fehler (auch 500) auf
-		// `unauthenticated` schaltet und damit den Google-Login-Button zeigt.
+		// … und NICHT die Login-Seite.
 		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeHidden();
 	});
 });
