@@ -20,7 +20,7 @@ export const LoginPage = () => {
 	const [error] = useState<ErrorParam>(getErrorFromSearch);
 
 	const handleLogin = () => {
-		window.location.href = '/auth/google';
+		window.location.href = '/api/v1/auth/google';
 	};
 
 	return (

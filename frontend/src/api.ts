@@ -227,9 +227,10 @@ export const api = {
 	},
 
 	// Zerstört die serverseitige Session. Die Frontend-Aufräumarbeit (localStorage, Redirect) erledigt
-	// der Aufrufer. Der Endpunkt liegt außerhalb des `/api/v1`-Namespace (kein openapi-fetch).
+	// der Aufrufer. Eigener fetch statt openapi-fetch, da /auth/* nicht in der OpenAPI-Spec steht —
+	// aber wie alle anderen Endpunkte unter dem proxied `/api/v1`-Präfix (s. checkAuth() in lib/auth.ts).
 	async logout(): Promise<void> {
-		const response = await fetch('/auth/logout', { method: 'POST' });
+		const response = await fetch('/api/v1/auth/logout', { method: 'POST' });
 		if (!response.ok) {
 			throw new Error(`Logout fehlgeschlagen (${response.status})`);
 		}
