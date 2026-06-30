@@ -85,6 +85,100 @@ const setAuth = async (page: Page, loggedIn: boolean): Promise<void> => {
 	}, name);
 };
 
+/**
+ * ROTE Spec-Tests für #209 „Logout-Button im Toolbar rechts oben" (Stufe 1 TDD, einklagbarer Vertrag).
+ *
+ * Ziel: Der Logout-Button soll als echtes `_items`-Element **innerhalb** der `KolToolbar`
+ * („Kopf-Aktionen") platziert sein — nicht als freistehender `<button>` neben der Toolbar.
+ * Die Toolbar-Semantik (role="toolbar", Pfeiltasten-Navigation) gilt damit auch für den Logout.
+ *
+ * Derzeit ist der Logout-Button in App.tsx ein eigenständiger `<button class="logout-button">`
+ * außerhalb der `<KolToolbar>`. Diese Tests sind ROT, bis die Umsetzung ihn als letztes
+ * `_items`-Element der KolToolbar einbindet.
+ *
+ * Die funktionale Logout-Logik (POST /auth/logout, Redirect, Session-Cleanup) ist durch die
+ * Tests für #191 (unten) abgedeckt — hier wird ausschließlich die Platzierung geprüft.
+ */
+test.describe('#209 Logout-Button im Toolbar (rechts oben)', () => {
+	/**
+	 * AK-1: Der Logout-Button ist ein Nachkomme der KolToolbar (role="toolbar", label „Kopf-Aktionen").
+	 * Aktuell ist er ein Geschwister-Element der Toolbar — dieser Test ist ROT.
+	 */
+	test('AK-1: Logout-Button liegt innerhalb der benannten Toolbar „Kopf-Aktionen"', async ({
+		page,
+	}) => {
+		await stubBackend(page);
+		await setAuth(page, true);
+		await page.goto('/');
+		await waitForStableView(page);
+
+		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
+		await expect(toolbar).toBeVisible();
+
+		// Der Logout-Button muss innerhalb der Toolbar erreichbar sein.
+		await expect(toolbar.getByRole('button', { name: /Abmelden|Logout/i })).toBeVisible();
+	});
+
+	/**
+	 * AK-2: Nicht authentifizierte Benutzer sehen KEINEN Logout-Button in der Toolbar.
+	 * (Konsistenz: das Toolbar-Inventar bleibt ohne gültigen Auth-State unverändert.)
+	 */
+	test('AK-2: Ohne Authentifizierung kein Logout-Button in der Toolbar', async ({ page }) => {
+		await stubBackend(page);
+		await setAuth(page, false);
+		await page.goto('/');
+		await waitForStableView(page);
+
+		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
+		await expect(toolbar).toBeVisible();
+
+		await expect(toolbar.getByRole('button', { name: /Abmelden|Logout/i })).toHaveCount(0);
+	});
+
+	/**
+	 * AK-3: Der Logout-Button ist das letzte (rechteste) Toolbar-Element.
+	 * „rechts oben" bedeutet: kein weiterer Toolbar-Button folgt danach.
+	 */
+	test('AK-3: Logout-Button ist das letzte Element in der Toolbar', async ({ page }) => {
+		await stubBackend(page);
+		await setAuth(page, true);
+		await page.goto('/');
+		await waitForStableView(page);
+
+		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
+		const buttons = toolbar.getByRole('button');
+		const count = await buttons.count();
+		expect(count).toBeGreaterThan(0);
+
+		const lastButton = buttons.nth(count - 1);
+		await expect(lastButton).toHaveAccessibleName(/Abmelden|Logout/i);
+	});
+
+	/**
+	 * AK-4: Klick auf den Toolbar-Logout-Button löst POST /auth/logout aus (Verdrahtung erhalten).
+	 * Stellt sicher, dass die Umplatzierung in die Toolbar die Funktionalität nicht bricht.
+	 */
+	test('AK-4: Klick auf Toolbar-Logout-Button sendet POST /auth/logout', async ({ page }) => {
+		await stubBackend(page);
+		await setAuth(page, true);
+
+		await page.route('**/auth/logout', (route) =>
+			route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
+		);
+
+		await page.goto('/');
+		await waitForStableView(page);
+
+		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
+		const logoutRequest = page.waitForRequest((req) => /\/auth\/logout$/.test(req.url()));
+
+		await toolbar.getByRole('button', { name: /Abmelden|Logout/i }).click();
+		const request = await logoutRequest;
+
+		expect(request.method()).toBe('POST');
+	});
+});
+
 test.describe('#191 Logout-Button in Navigation', () => {
 	/**
 	 * AK-1 — Sichtbarkeit nur für authentifizierte Benutzer: Ohne `displayName` (nicht eingeloggt)
