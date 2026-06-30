@@ -44,7 +44,7 @@ export const App = () => {
 	const [loadError, setLoadError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [dialog, setDialog] = useState<Dialog>(null);
-	const [displayName] = useState(() => localStorage.getItem('displayName') ?? '');
+	const [displayName, setDisplayName] = useState(() => localStorage.getItem('displayName') ?? '');
 	const [logoutLoading, setLogoutLoading] = useState(false);
 	const [logoutError, setLogoutError] = useState<string | null>(null);
 
@@ -69,6 +69,11 @@ export const App = () => {
 				return;
 			}
 			const apiError = await toApiError(reason);
+			if (apiError.status === 401) {
+				localStorage.removeItem('displayName');
+				setDisplayName('');
+				return;
+			}
 			setLoadError(apiError.message);
 		} finally {
 			if (signal?.aborted !== true) {
@@ -94,7 +99,8 @@ export const App = () => {
 		try {
 			await api.logout();
 			localStorage.removeItem('displayName');
-			window.location.href = '/login';
+			setDisplayName('');
+			window.history.pushState({}, '', '/login');
 		} catch (reason) {
 			setLogoutError(reason instanceof Error ? reason.message : 'Logout fehlgeschlagen');
 			setLogoutLoading(false);
