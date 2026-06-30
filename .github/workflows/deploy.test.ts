@@ -52,7 +52,11 @@ describe('AK3 — Concurrency: deploy-main, cancel-in-progress', () => {
 
 describe('AK4 — Install + Build-Schritte vorhanden', () => {
 	it('deploy.yml enthaelt pnpm install --frozen-lockfile', () => {
-		assert.match(deployYml(), /pnpm install --frozen-lockfile/, 'deploy.yml muss `pnpm install --frozen-lockfile` enthalten');
+		assert.match(
+			deployYml(),
+			/pnpm install --frozen-lockfile/,
+			'deploy.yml muss `pnpm install --frozen-lockfile` enthalten',
+		);
 	});
 
 	it('deploy.yml enthaelt pnpm -r build', () => {
