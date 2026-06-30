@@ -257,6 +257,9 @@ export const App = ({ user }: { user: AuthUser }) => {
 					</KolAlert>
 				</div>
 			)}
+			<KolAlert _type="info" _label="Hallo, Christian!">
+				Hallo, Christian!
+			</KolAlert>
 
 			{tasks === null && loading && (
 				<div className="loading">
