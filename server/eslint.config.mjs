@@ -28,6 +28,10 @@ export default [
 		},
 		rules: {
 			...tsPlugin.configs.recommended.rules,
+			// Aus: typescript-eslint empfiehlt dies explizit — das Core-`no-undef` kennt TS-Globals
+			// wie `Express.User`/`NodeJS.Timeout` nicht und meldet dafür False Positives. `tsc` prüft
+			// undefinierte Bezeichner bereits zuverlässig.
+			'no-undef': 'off',
 			// Bewusst ungenutzte Bindungen erlauben: `_`-Präfix (Konvention) sowie der
 			// Rest-Sibling-Auslass-Idiom `const { weg: _omit, ...rest } = obj` (Feld weglassen).
 			'@typescript-eslint/no-unused-vars': [

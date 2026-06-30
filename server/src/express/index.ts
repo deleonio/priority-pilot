@@ -82,10 +82,16 @@ export const createApp = (deps: AppDeps = {}) => {
 	// Passport initialisieren (ohne persistente Sessions — wir speichern den User in express-session).
 	app.use(passport.initialize());
 
+	// passport.authenticate() ruft nach Erfolg intern req.logIn() auf, was serializeUser/deserializeUser
+	// voraussetzt — sonst wirft Passport "Failed to serialize user into session". Da der eigentliche
+	// User-State manuell in req.session.user gehalten wird (s. routes/auth.ts), genügt ein Passthrough.
+	passport.serializeUser((user, done) => done(null, user));
+	passport.deserializeUser((user: Express.User, done) => done(null, user));
+
 	// Google-OAuth-Strategie nur registrieren, wenn Credentials vorhanden.
 	const clientID = process.env.GOOGLE_CLIENT_ID ?? '';
 	const clientSecret = process.env.GOOGLE_CLIENT_SECRET ?? '';
-	const callbackURL = process.env.GOOGLE_CALLBACK_URL ?? 'http://localhost:3000/auth/google/callback';
+	const callbackURL = process.env.GOOGLE_CALLBACK_URL ?? 'http://localhost:5173/auth/google/callback';
 
 	// In Produktion muss die Allowlist gesetzt sein — getConfiguredEmails() wirft sonst.
 	if (process.env.NODE_ENV === 'production') {
