@@ -54,10 +54,7 @@ describe('AK-3 — createSessionStore: NODE_ENV=development ohne SESSION_STORE',
 		const store = await createSessionStore();
 		// MemoryStore hält Sessions im RAM — Eigenschaft: constructor.name enthält 'Memory' oder 'MemoryStore'
 		const name = store.constructor.name;
-		assert.ok(
-			name.toLowerCase().includes('memory'),
-			`Im Dev-Modus sollte MemoryStore geliefert werden, war: ${name}`,
-		);
+		assert.ok(name.toLowerCase().includes('memory'), `Im Dev-Modus sollte MemoryStore geliefert werden, war: ${name}`);
 	});
 });
 
@@ -131,11 +128,7 @@ describe('AK-1 — SQLite-Store: Sessions überleben Server-Neustart', () => {
 			const res = await fetch(`${server2.baseUrl}/tasks`, {
 				headers: { Cookie: sessionCookie },
 			});
-			assert.equal(
-				res.status,
-				200,
-				'Session muss nach Neustart noch gültig sein (SQLite-Persistenz)',
-			);
+			assert.equal(res.status, 200, 'Session muss nach Neustart noch gültig sein (SQLite-Persistenz)');
 		} finally {
 			await server2.close();
 		}
@@ -217,10 +210,6 @@ describe('AK-5 — Redis-Store: Zwei Server-Instanzen teilen Sessions', () => {
 		const res = await fetch(`${server2.baseUrl}/tasks`, {
 			headers: { Cookie: cookie },
 		});
-		assert.equal(
-			res.status,
-			200,
-			'Session von Instanz 1 muss auf Instanz 2 akzeptiert werden (geteilter Redis-Store)',
-		);
+		assert.equal(res.status, 200, 'Session von Instanz 1 muss auf Instanz 2 akzeptiert werden (geteilter Redis-Store)');
 	});
 });

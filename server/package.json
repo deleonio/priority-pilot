@@ -13,15 +13,19 @@
 		"test:coverage": "NODE_ENV=test DATABASE_STORAGE=:memory: node --import tsx --test --experimental-test-coverage --test-coverage-include='src/logics/**' --test-coverage-lines=90 --test-coverage-branches=85 --test-coverage-functions=85 \"src/**/*.test.ts\""
 	},
 	"dependencies": {
+		"connect-redis": "^9.0.0",
+		"connect-sqlite3": "^0.9.16",
 		"express": "5.2.1",
 		"express-session": "^1.19.0",
 		"passport": "^0.7.0",
 		"passport-google-oauth20": "^2.0.0",
+		"redis": "^6.0.1",
 		"sequelize": "6.37.8",
 		"sqlite3": "6.0.1"
 	},
 	"devDependencies": {
 		"@eslint/js": "10.0.1",
+		"@types/connect-sqlite3": "^0.9.6",
 		"@types/express": "5.0.6",
 		"@types/express-session": "^1.19.0",
 		"@types/node": "25.9.4",
