@@ -104,9 +104,7 @@ test.describe('#209 Logout-Button im Toolbar (rechts oben)', () => {
 	 * AK-1: Der Logout-Button ist ein Nachkomme der KolToolbar (role="toolbar", label „Kopf-Aktionen").
 	 * Aktuell ist er ein Geschwister-Element der Toolbar — dieser Test ist ROT.
 	 */
-	test('AK-1: Logout-Button liegt innerhalb der benannten Toolbar „Kopf-Aktionen"', async ({
-		page,
-	}) => {
+	test('AK-1: Logout-Button liegt innerhalb der benannten Toolbar „Kopf-Aktionen"', async ({ page }) => {
 		await stubBackend(page);
 		await setAuth(page, true);
 		await page.goto('/');
