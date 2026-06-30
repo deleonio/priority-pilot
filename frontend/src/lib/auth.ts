@@ -5,7 +5,7 @@ export type AuthUser = {
 };
 
 export async function checkAuth(): Promise<AuthUser | null> {
-	const response = await fetch('/auth/me');
+	const response = await fetch('/api/v1/auth/me');
 	if (response.status === 401) {
 		return null;
 	}

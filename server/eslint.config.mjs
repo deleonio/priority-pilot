@@ -41,4 +41,19 @@ export default [
 			],
 		},
 	},
+	{
+		// Test files: allow unused node:test helper imports imported for convenience/forward-compat
+		files: ['src/**/*.test.ts'],
+		rules: {
+			'@typescript-eslint/no-unused-vars': [
+				'error',
+				{
+					argsIgnorePattern: '^_',
+					varsIgnorePattern: '^_|^(before|after|beforeEach|afterEach|describe|it|test)$',
+					caughtErrorsIgnorePattern: '^_',
+					ignoreRestSiblings: true,
+				},
+			],
+		},
+	},
 ];

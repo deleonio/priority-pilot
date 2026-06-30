@@ -1,6 +1,7 @@
 import express from 'express';
 import session from 'express-session';
 import passport from 'passport';
+import type { Store } from 'express-session';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import type { Request, Response, NextFunction } from 'express';
 import type { components } from '../api';
@@ -25,6 +26,7 @@ type HealthDto = components['schemas']['Health'];
 /** Injizierbare Abhängigkeiten — erlaubt es Tests, den Mistral-Aufruf zu mocken. */
 export interface AppDeps {
 	pillarClassifier?: PillarClassifier;
+	sessionStore?: Store;
 }
 
 /** Prüft, ob ein Allowlist-Gate konfiguriert ist (Plural oder Singular gesetzt). */
@@ -55,17 +57,25 @@ export const createApp = (deps: AppDeps = {}) => {
 	// JSON-Body parsen.
 	app.use(express.json());
 
-	// Session-Middleware (In-Memory-Store — für Single-User-Gate ausreichend).
+	// Session-Middleware (Store via AppDeps oder MemoryStore als Fallback).
 	const sessionSecret = process.env.SESSION_SECRET;
 	if (!sessionSecret && process.env.NODE_ENV === 'production') {
 		throw new Error('SESSION_SECRET muss in Produktion gesetzt sein');
 	}
+	const rawTtl = process.env.SESSION_TTL ? parseInt(process.env.SESSION_TTL, 10) : undefined;
+	const sessionMaxAge = rawTtl !== undefined && !isNaN(rawTtl) && rawTtl > 0 ? rawTtl * 1000 : undefined;
 	app.use(
 		session({
 			secret: sessionSecret ?? 'dev-secret',
+			store: deps.sessionStore,
 			resave: false,
 			saveUninitialized: false,
-			cookie: { secure: process.env.NODE_ENV === 'production', sameSite: 'lax' as const },
+			cookie: {
+				secure: process.env.NODE_ENV === 'production',
+				sameSite: 'lax' as const,
+				httpOnly: true,
+				...(sessionMaxAge !== undefined ? { maxAge: sessionMaxAge } : {}),
+			},
 		}),
 	);
 
@@ -157,6 +167,8 @@ export const createApp = (deps: AppDeps = {}) => {
 };
 
 export const launchServer = async () => {
-	const app = createApp();
+	const { createSessionStore } = await import('./session.js');
+	const sessionStore = await createSessionStore();
+	const app = createApp({ sessionStore });
 	app.listen(PORT, () => console.log(`Server läuft auf http://localhost:${PORT}`));
 };
