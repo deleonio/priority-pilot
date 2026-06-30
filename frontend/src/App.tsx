@@ -44,7 +44,9 @@ export const App = () => {
 	const [loadError, setLoadError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [dialog, setDialog] = useState<Dialog>(null);
-	const [displayName] = useState(() => localStorage.getItem('displayName') ?? '');
+	const [displayName, setDisplayName] = useState(() => localStorage.getItem('displayName') ?? '');
+	const [logoutLoading, setLogoutLoading] = useState(false);
+	const [logoutError, setLogoutError] = useState<string | null>(null);
 
 	const reload = useCallback(async (signal?: AbortSignal): Promise<void> => {
 		setLoading(true);
@@ -67,6 +69,11 @@ export const App = () => {
 				return;
 			}
 			const apiError = await toApiError(reason);
+			if (apiError.status === 401) {
+				localStorage.removeItem('displayName');
+				setDisplayName('');
+				return;
+			}
 			setLoadError(apiError.message);
 		} finally {
 			if (signal?.aborted !== true) {
@@ -85,6 +92,20 @@ export const App = () => {
 
 	// Zustandsabhängiger Theme-Umschalter als Toolbar-Button-Deskriptor (Label/Icon/onClick).
 	const themeItem = useThemeToolbarItem();
+
+	const handleLogout = useCallback(async (): Promise<void> => {
+		setLogoutLoading(true);
+		setLogoutError(null);
+		try {
+			await api.logout();
+			localStorage.removeItem('displayName');
+			setDisplayName('');
+			window.history.pushState({}, '', '/login');
+		} catch (reason) {
+			setLogoutError(reason instanceof Error ? reason.message : 'Logout fehlgeschlagen');
+			setLogoutLoading(false);
+		}
+	}, []);
 
 	/** Nach erfolgreicher Mutation: Dialog schließen und Daten neu laden. */
 	const afterMutation = useCallback((): void => {
@@ -180,6 +201,16 @@ export const App = () => {
 							},
 						]}
 					/>
+					{displayName !== '' && (
+						<button
+							type="button"
+							className="logout-button"
+							disabled={logoutLoading}
+							onClick={() => void handleLogout()}
+						>
+							Abmelden
+						</button>
+					)}
 					{/* Einstellungen rechts oben: ein icon-only Zahnrad öffnet ein Popover mit einer
 					    vertikalen Toolbar als Menü. Erster Unterpunkt ist die persönliche Säulen-Verteilung;
 					    der Bereich ist so für weitere Einstellungen erweiterbar. */}
@@ -213,6 +244,13 @@ export const App = () => {
 				<KolAlert _type="error" _label="Daten konnten nicht geladen werden">
 					{loadError}
 				</KolAlert>
+			)}
+			{logoutError !== null && (
+				<div role="alert">
+					<KolAlert _type="error" _label="Logout fehlgeschlagen">
+						{logoutError}
+					</KolAlert>
+				</div>
 			)}
 
 			{tasks === null && loading && (
