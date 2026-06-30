@@ -1,0 +1,58 @@
+name: Deploy
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-main
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build
+        run: pnpm -r build
+
+      - name: Server-Prod-Deps bündeln
+        run: pnpm --filter ./server --prod deploy --legacy server/deploy
+
+      - name: SSH-Key bereitstellen
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          install -m700 -d ~/.ssh
+          install -m600 <(printf '%s\n' "$SSH_KEY") ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ vars.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: rsync Frontend
+        run: |
+          rsync -az --delete -e "ssh -i ~/.ssh/deploy_key" \
+            frontend/dist/ "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}:${{ vars.DEPLOY_WEB_DIR }}/"
+
+      - name: rsync Backend
+        run: |
+          rsync -az --delete --exclude 'data/' --exclude '*.sqlite' --exclude '.env' \
+            -e "ssh -i ~/.ssh/deploy_key" \
+            server/dist/ "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}:${{ vars.DEPLOY_APP_DIR }}/dist/"
+          rsync -az -e "ssh -i ~/.ssh/deploy_key" \
+            server/deploy/package.json "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}:${{ vars.DEPLOY_APP_DIR }}/package.json"
+          rsync -az --delete -e "ssh -i ~/.ssh/deploy_key" \
+            server/deploy/node_modules/ "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}:${{ vars.DEPLOY_APP_DIR }}/node_modules/"
+
+      - name: Backend per PM2 neu starten
+        run: |
+          ssh -i ~/.ssh/deploy_key "${{ vars.DEPLOY_USER }}@${{ vars.DEPLOY_HOST }}" \
+            "pm2 reload priority-pilot --update-env || pm2 start ${{ vars.DEPLOY_APP_DIR }}/dist/index.js --name priority-pilot"
