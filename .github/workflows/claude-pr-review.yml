@@ -68,12 +68,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Standard-Pfad (Claude): laeuft, solange die Repo-Variable AI_AGENT NICHT auf "mistral" steht
-      # (auch ungesetzt -> Claude bleibt Default). Umschalten: `gh variable set AI_AGENT --body
-      # mistral` (zurueck: `gh variable set AI_AGENT --body claude`).
+      # Standard-Pfad (Claude): laeuft, solange die Repo-Variable AI_AGENT NICHT auf "mistral"
+      # oder "glm" steht (auch ungesetzt -> Claude bleibt Default). Umschalten:
+      # `gh variable set AI_AGENT --body glm` (Z.ai GLM) oder
+      # `gh variable set AI_AGENT --body mistral` (Mistral Vibe);
+      # zurueck: `gh variable set AI_AGENT --body claude`.
       - name: Kreuzverhoer-Review via Claude Code
         id: claude
-        if: steps.preflight.outputs.configured == 'true' && vars.AI_AGENT != 'mistral'
+        if: steps.preflight.outputs.configured == 'true' && vars.AI_AGENT != 'mistral' && vars.AI_AGENT != 'glm'
         uses: anthropics/claude-code-action@a92e7c70a4da9793dc164451d829089dc057a464 # v1.0.159
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }} # Labels als App-Token -> loesen Folge-Workflows aus
@@ -200,6 +202,69 @@ jobs:
             bzw. `"ai:ready-to-merge" --color 0E8A16`). Ändere KEINEN Code und committe nichts —
             reiner Review. Bearbeite ausschließlich diesen PR; arbeite ohne interaktive Rückfrage.
 
+      # GLM-Pfad (AI_AGENT == 'glm'): verwendet die claude-code-action mit dem Z.ai-Anthropic-
+      # kompatiblen Endpoint statt Anthropic. Authentifizierung ueber ZAI_API_KEY
+      # (anthropic_api_key); Z.ai mappt Claude-Modellnamen automatisch auf GLM-Modelle.
+      - name: Kreuzverhoer-Review via GLM (Z.ai)
+        id: glm
+        if: steps.preflight.outputs.configured == 'true' && vars.AI_AGENT == 'glm'
+        uses: anthropics/claude-code-action@a92e7c70a4da9793dc164451d829089dc057a464 # v1.0.159
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ANTHROPIC_BASE_URL: https://api.z.ai/api/anthropic
+          API_TIMEOUT_MS: '3000000'
+          CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1'
+        with:
+          anthropic_api_key: ${{ secrets.ZAI_API_KEY }}
+          github_token: ${{ steps.app-token.outputs.token }}
+          allowed_bots: 'claude[bot],my-github-action-bot'
+          prompt: |
+            Bewerte zunächst die PR-Komplexität (Diff-Umfang, Architektur-Berührpunkte,
+            Sicherheits-/Performance-Aspekte) und delegiere das eigentliche Kreuzverhoer-Review
+            via Agent-Tool an den passenden Subagenten: triviale/mechanische PRs an `light`
+            (Haiku), komplexe/architektonische PRs an `heavy` (Opus); Standard-Reviews führst
+            du selbst auf Sonnet durch (kein Subagenten-Aufruf).
+
+            Reviewe Pull Request #${{ github.event.pull_request.number }} im Kreuzverhör
+            (Label `ai:needs-review` ist gesetzt). Die Pipeline koordiniert ausschließlich über
+            LABELS — schließe daher GENAU mit einer der beiden Label-Umschaltungen unten ab.
+
+            Folge dem Ablauf .ai-knowledge/pr-review.md (entspricht
+            `/kreuzverhoer-review ${{ github.event.pull_request.number }}`): vollständigen Diff
+            (`gh pr diff`) und das verknüpfte Ticket lesen, adversarial prüfen (löst der PR das
+            Problem ganz? Edge Cases? einfachster Weg? Performance/Security?), Code-Qualität und
+            Projekt-Konventionen prüfen.
+
+            Sammelkommentar konsolidieren (kein Duplikat pro Runde): Das zusammenfassende Urteil
+            wird als GENAU EIN markierter KI-Kommentar `<!-- ai-review -->` (erste Zeile) pro PR
+            gepflegt. Vor dem Posten den bestehenden markierten Kommentar per API suchen
+            (`gh api repos/{owner}/{repo}/issues/${{ github.event.pull_request.number }}/comments`,
+            nach `<!-- ai-review -->` filtern); ist er vorhanden, ihn per
+            `gh api --method PATCH repos/{owner}/{repo}/issues/comments/<id>` AKTUALISIEREN (Comment-ID
+            bleibt gleich) statt einen neuen anzulegen — nur einmalig neu anlegen, wenn keiner existiert.
+            Der Kommentar trennt „Offene Findings" (aktuelle Runde) von einer History-Tabelle
+            „Behobene Anmerkungen" (Runde | Finding | Status ✅). Inline-Findings bleiben unverändert.
+
+            Abschluss — GENAU EINEN Weg gehen:
+              - Es gibt zutreffende, offene Findings → als EINE Review (`gh pr review --comment`)
+                mit an Datei/Zeile verankerten Kommentaren (Was / Warum / Vorschlag) posten, das
+                Urteil im konsolidierten Sammelkommentar (s. o.) aktualisieren, dann
+                die Labels in ZWEI getrennten Befehlen umschalten (nie kombiniert, sonst Doppel-Trigger):
+                `gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:needs-review`,
+                danach `gh pr edit ${{ github.event.pull_request.number }} --add-label ai:needs-changes`
+              - Der PR ist solide (🟢) → KEINE Pseudo-Findings erfinden, nur eine knappe
+                🟢-Bestätigung im konsolidierten Sammelkommentar (s. o.), dann die Labels in ZWEI Befehlen:
+                `gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:needs-review`,
+                danach `gh pr edit ${{ github.event.pull_request.number }} --add-label ai:ready-to-merge`
+
+            Fehlt ein Label, vorher anlegen (`gh label create "ai:needs-changes" --color D93F0B`
+            bzw. `"ai:ready-to-merge" --color 0E8A16`). Ändere KEINEN Code und committe nichts —
+            reiner Review. Bearbeite ausschließlich diesen PR; arbeite ohne interaktive Rückfrage.
+          claude_args: >-
+            --model claude-sonnet-4-6 --effort medium
+            --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh label:*),Bash(gh api:*),Bash(git fetch:*),Bash(git diff:*),Read,Grep,Glob,Task"
+            --append-system-prompt "Automatisierter, label-gesteuerter Kreuzverhoer-Review in GitHub Actions (headless). Reviewe ausschliesslich PR #${{ github.event.pull_request.number }}, aendere keinen Code. Schliesse IMMER mit der Label-Umschaltung ab: Findings -> ai:needs-changes (statt ai:needs-review); sauber -> ai:ready-to-merge. Erfinde keine Findings. Arbeite ohne interaktive Rueckfrage. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
+
       # Deterministisches Abschluss-Signal (unabhaengig von der LLM-Ausgabe): laeuft auch bei
       # Abbruch/Timeout (if: always()) und macht im Log/Job-Summary klar sichtbar, DASS und mit
       # welchem Ergebnis der Lauf fertig ist. outcome=cancelled signalisiert das 20-Min-Timeout.
@@ -208,10 +273,10 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR: ${{ github.event.pull_request.number }}
-          AGENT: ${{ vars.AI_AGENT == 'mistral' && 'Mistral' || 'Claude' }}
-          # Outcome des tatsaechlich gelaufenen Agent-Schritts (der andere ist 'skipped').
-          OUTCOME: ${{ steps.claude.outcome != 'skipped' && steps.claude.outcome || steps.mistral.outcome }}
-          SESSION_ID: ${{ steps.claude.outputs.session_id }}
+          AGENT: ${{ vars.AI_AGENT == 'mistral' && 'Mistral' || (vars.AI_AGENT == 'glm' && 'GLM (Z.ai)' || 'Claude') }}
+          # Outcome des tatsaechlich gelaufenen Agent-Schritts (die anderen sind 'skipped').
+          OUTCOME: ${{ steps.claude.outcome != 'skipped' && steps.claude.outcome || (steps.glm.outcome != 'skipped' && steps.glm.outcome || steps.mistral.outcome) }}
+          SESSION_ID: ${{ steps.claude.outputs.session_id || steps.glm.outputs.session_id }}
         run: |
           labels="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
           {

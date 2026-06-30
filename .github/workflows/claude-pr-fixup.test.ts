@@ -32,6 +32,15 @@ const claudePrompt = (): string => {
 	return match[1];
 };
 
+// Hilfsfunktion: extrahiert den GLM-Prompt-Block aus claude-pr-fixup.yml
+const glmPrompt = (): string => {
+	const yml = fixupYml();
+	// Der GLM-Prompt steht im `prompt: |` Block des "Findings umsetzen via GLM (Z.ai)"-Steps
+	const match = yml.match(/name: Findings umsetzen via GLM \(Z\.ai\)[\s\S]*?prompt: \|([\s\S]*?)claude_args:/);
+	assert.ok(match, 'GLM-Prompt-Block nicht gefunden in claude-pr-fixup.yml');
+	return match[1];
+};
+
 // Hilfsfunktion: extrahiert den Mistral-Prompt-Block aus claude-pr-fixup.yml
 const mistralPrompt = (): string => {
 	const yml = fixupYml();
@@ -42,6 +51,54 @@ const mistralPrompt = (): string => {
 	assert.ok(match, 'Mistral-Prompt-Block nicht gefunden in claude-pr-fixup.yml');
 	return match[1];
 };
+
+describe('AK0 — GLM-Schritt nutzt claude-code-action (kein Mistral-Vibe)', () => {
+	it('GLM-Step verwendet uses: anthropics/claude-code-action, NICHT mistralai/mistral-vibe', () => {
+		const yml = fixupYml();
+		// Negativkontrolle: haette GLM versehentlich mistral-vibe als uses, wuerde dieser Test rot
+		const glmSection = yml.match(
+			/name: Findings umsetzen via GLM \(Z\.ai\)[\s\S]*?(?=\n      -\s+name:|\n  [a-z]|\s*$)/,
+		);
+		assert.ok(glmSection, 'GLM-Step-Block nicht gefunden in claude-pr-fixup.yml');
+		assert.match(
+			glmSection[0],
+			/uses:\s*anthropics\/claude-code-action/,
+			'GLM-Step muss anthropics/claude-code-action nutzen, nicht mistral-vibe',
+		);
+		assert.doesNotMatch(
+			glmSection[0],
+			/uses:\s*mistralai\/mistral-vibe/,
+			'GLM-Step darf NICHT mistralai/mistral-vibe nutzen — negativkontrolle',
+		);
+	});
+
+	it('GLM-Step setzt ANTHROPIC_BASE_URL auf den Z.ai-Endpoint', () => {
+		const yml = fixupYml();
+		const glmSection = yml.match(
+			/name: Findings umsetzen via GLM \(Z\.ai\)[\s\S]*?(?=\n      -\s+name: Ergebnis|\s*$)/,
+		);
+		assert.ok(glmSection, 'GLM-Step-Block nicht gefunden');
+		assert.match(
+			glmSection[0],
+			/ANTHROPIC_BASE_URL:\s*https:\/\/api\.z\.ai\/api\/anthropic/,
+			'GLM-Step muss ANTHROPIC_BASE_URL auf https://api.z.ai/api/anthropic setzen',
+		);
+	});
+
+	it('GLM-Step nutzt anthropic_api_key (nicht claude_code_oauth_token)', () => {
+		const yml = fixupYml();
+		const glmSection = yml.match(
+			/name: Findings umsetzen via GLM \(Z\.ai\)[\s\S]*?(?=\n      -\s+name: Ergebnis|\s*$)/,
+		);
+		assert.ok(glmSection, 'GLM-Step-Block nicht gefunden');
+		assert.match(glmSection[0], /anthropic_api_key:/, 'GLM-Step muss anthropic_api_key verwenden');
+		assert.doesNotMatch(
+			glmSection[0],
+			/claude_code_oauth_token:/,
+			'GLM-Step darf kein claude_code_oauth_token verwenden — negativkontrolle',
+		);
+	});
+});
 
 describe('AK1 — Lint-Gate ist repo-weit (kein --filter)', () => {
 	it('ticket-implementation.md Step 3c nennt pnpm lint ohne --filter als Gate-Kommando', () => {
@@ -63,6 +120,16 @@ describe('AK1 — Lint-Gate ist repo-weit (kein --filter)', () => {
 			prompt,
 			/pnpm --filter \S+ lint/,
 			'Claude-Prompt darf kein `--filter`-Lint als Gate-Kommando verwenden',
+		);
+	});
+
+	it('GLM-Prompt in claude-pr-fixup.yml nennt pnpm lint ohne --filter als Gate', () => {
+		const prompt = glmPrompt();
+		assert.match(prompt, /pnpm lint/, 'GLM-Prompt muss `pnpm lint` (repo-weit) als Gate nennen');
+		assert.doesNotMatch(
+			prompt,
+			/pnpm --filter \S+ lint/,
+			'GLM-Prompt darf kein `--filter`-Lint als Gate-Kommando verwenden',
 		);
 	});
 
@@ -91,6 +158,14 @@ describe('AK2 — Verifizierender prettier --check . ist als Gate vorhanden', ()
 			claudePrompt(),
 			/prettier --check \./,
 			'Claude-Prompt muss `prettier --check .` als verifizierenden Gate enthalten',
+		);
+	});
+
+	it('GLM-Prompt enthält prettier --check . als Gate-Kommando', () => {
+		assert.match(
+			glmPrompt(),
+			/prettier --check \./,
+			'GLM-Prompt muss `prettier --check .` als verifizierenden Gate enthalten',
 		);
 	});
 
@@ -123,6 +198,12 @@ describe('AK3 — Gate-Kommandos spiegeln CI-Checks exakt', () => {
 		assert.match(prompt, /pnpm lint/, 'Claude-Prompt muss `pnpm lint` als CI-Spiegel enthalten');
 	});
 
+	it('GLM-Prompt spiegelt beide CI-Gate-Kommandos (prettier --check . und pnpm lint)', () => {
+		const prompt = glmPrompt();
+		assert.match(prompt, /prettier --check \./, 'GLM-Prompt muss `prettier --check .` als CI-Spiegel enthalten');
+		assert.match(prompt, /pnpm lint/, 'GLM-Prompt muss `pnpm lint` als CI-Spiegel enthalten');
+	});
+
 	it('Mistral-Prompt spiegelt beide CI-Gate-Kommandos (prettier --check . und pnpm lint)', () => {
 		const prompt = mistralPrompt();
 		assert.match(prompt, /prettier --check \./, 'Mistral-Prompt muss `prettier --check .` als CI-Spiegel enthalten');
@@ -143,12 +224,21 @@ describe('AK3 — Gate-Kommandos spiegeln CI-Checks exakt', () => {
 describe('AK4 — CI-Format/Lint-Fehler ist als eigenständiges Finding deklariert', () => {
 	it('Claude-Prompt dokumentiert: CI-Fehler an Format/Lint ist ein eigenständiges Finding', () => {
 		const prompt = claudePrompt();
-		// Muss den Zusammenhang CI-Fehler → eigenständiges Finding oder äquivalente Formulierung enthalten
 		const pattern =
 			/[Ff]ormat[^.]*[Ff]inding|[Ll]int[^.]*[Ff]inding|[Ff]inding[^.]*[Ff]ormat|[Ff]inding[^.]*[Ll]int|CI[^.]*[Ff]ormat[^.]*behob|CI[^.]*[Ll]int[^.]*behob|[Ff]ormat.*CI.*[Ff]inding|[Ll]int.*CI.*[Ff]inding/;
 		assert.ok(
 			pattern.test(prompt),
 			'Claude-Prompt muss klarstellen, dass ein reiner CI-Format-/Lint-Fehler als eigenständiges Finding behandelt wird',
+		);
+	});
+
+	it('GLM-Prompt dokumentiert: CI-Fehler an Format/Lint ist ein eigenständiges Finding', () => {
+		const prompt = glmPrompt();
+		const pattern =
+			/[Ff]ormat[^.]*[Ff]inding|[Ll]int[^.]*[Ff]inding|[Ff]inding[^.]*[Ff]ormat|[Ff]inding[^.]*[Ll]int|CI[^.]*[Ff]ormat[^.]*behob|CI[^.]*[Ll]int[^.]*behob|[Ff]ormat.*CI.*[Ff]inding|[Ll]int.*CI.*[Ff]inding/;
+		assert.ok(
+			pattern.test(prompt),
+			'GLM-Prompt muss klarstellen, dass ein reiner CI-Format-/Lint-Fehler als eigenständiges Finding behandelt wird',
 		);
 	});
 
@@ -163,22 +253,29 @@ describe('AK4 — CI-Format/Lint-Fehler ist als eigenständiges Finding deklarie
 	});
 });
 
-describe('AK5 — Prompt-Symmetrie Claude/Mistral (kein Gate-Drift)', () => {
-	it('Claude- und Mistral-Prompt enthalten beide das Gate-Kommando prettier --check . identisch', () => {
+describe('AK5 — Prompt-Symmetrie Claude/GLM/Mistral (kein Gate-Drift)', () => {
+	it('Claude-, GLM- und Mistral-Prompt enthalten alle das Gate-Kommando prettier --check . identisch', () => {
 		const cp = claudePrompt();
+		const gp = glmPrompt();
 		const mp = mistralPrompt();
 
-		// Beide muessen prettier --check . enthalten
 		assert.match(cp, /prettier --check \./, 'Claude-Prompt fehlt `prettier --check .`');
+		assert.match(gp, /prettier --check \./, 'GLM-Prompt fehlt `prettier --check .`');
 		assert.match(mp, /prettier --check \./, 'Mistral-Prompt fehlt `prettier --check .`');
 
-		// Extrahiere die Gate-Zeile (pnpm format && pnpm exec prettier --check . && pnpm lint oder äquivalent)
 		const gatePattern = /pnpm format[^\n]*prettier[^\n]*/;
 		const claudeGate = cp.match(gatePattern)?.[0]?.trim();
+		const glmGate = gp.match(gatePattern)?.[0]?.trim();
 		const mistralGate = mp.match(gatePattern)?.[0]?.trim();
 
 		assert.ok(claudeGate, 'Claude-Prompt hat keine erkennbare Gate-Zeile mit pnpm format + prettier');
+		assert.ok(glmGate, 'GLM-Prompt hat keine erkennbare Gate-Zeile mit pnpm format + prettier');
 		assert.ok(mistralGate, 'Mistral-Prompt hat keine erkennbare Gate-Zeile mit pnpm format + prettier');
+		assert.equal(
+			claudeGate,
+			glmGate,
+			`Gate-Anweisung weicht zwischen Claude- und GLM-Prompt ab — kein Drift erlaubt:\n  Claude: ${claudeGate}\n  GLM:    ${glmGate}`,
+		);
 		assert.equal(
 			claudeGate,
 			mistralGate,
@@ -186,17 +283,21 @@ describe('AK5 — Prompt-Symmetrie Claude/Mistral (kein Gate-Drift)', () => {
 		);
 	});
 
-	it('Claude- und Mistral-Prompt beschreiben das Gate als Vor-Push-Bedingung (blockierend)', () => {
+	it('Claude-, GLM- und Mistral-Prompt beschreiben das Gate als Vor-Push-Bedingung (blockierend)', () => {
 		const cp = claudePrompt();
+		const gp = glmPrompt();
 		const mp = mistralPrompt();
 
-		// Das Gate muss als Bedingung formuliert sein (vor Push / erst wenn grün / etc.)
 		const gateIsBlocking = (prompt: string) =>
 			/vor jedem (Commit|Push)|erst wenn.*grün|vor.*Push.*Gate|Gate.*grün/i.test(prompt);
 
 		assert.ok(
 			gateIsBlocking(cp),
 			'Claude-Prompt muss das Gate als Vor-Push-Bedingung formulieren (nicht als optionalen Hinweis)',
+		);
+		assert.ok(
+			gateIsBlocking(gp),
+			'GLM-Prompt muss das Gate als Vor-Push-Bedingung formulieren (nicht als optionalen Hinweis)',
 		);
 		assert.ok(
 			gateIsBlocking(mp),

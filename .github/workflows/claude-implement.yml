@@ -110,12 +110,14 @@ jobs:
         if: steps.preflight.outputs.configured == 'true'
         run: pnpm exec lefthook install
 
-      # Standard-Pfad (Claude): laeuft, solange die Repo-Variable AI_AGENT NICHT auf "mistral" steht
-      # (auch ungesetzt -> Claude bleibt Default). Umschalten: `gh variable set AI_AGENT --body
-      # mistral` (zurueck: `gh variable set AI_AGENT --body claude`).
+      # Standard-Pfad (Claude): laeuft, solange die Repo-Variable AI_AGENT NICHT auf "mistral"
+      # oder "glm" steht (auch ungesetzt -> Claude bleibt Default). Umschalten:
+      # `gh variable set AI_AGENT --body glm` (Z.ai GLM) oder
+      # `gh variable set AI_AGENT --body mistral` (Mistral Vibe);
+      # zurueck: `gh variable set AI_AGENT --body claude`.
       - name: Umsetzung via Claude Code
         id: claude
-        if: steps.preflight.outputs.configured == 'true' && vars.AI_AGENT != 'mistral'
+        if: steps.preflight.outputs.configured == 'true' && vars.AI_AGENT != 'mistral' && vars.AI_AGENT != 'glm'
         uses: anthropics/claude-code-action@a92e7c70a4da9793dc164451d829089dc057a464 # v1.0.159
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }} # gh nutzt das App-Token -> erstellter PR loest Review aus
@@ -256,6 +258,70 @@ jobs:
             Schritt 5 (PR-Abo + Kreuzverhör-Loop) NICHT ausführen — der Review läuft als eigener
             Workflow. Bearbeite ausschließlich dieses eine Issue.
 
+      # GLM-Pfad (AI_AGENT == 'glm'): verwendet die claude-code-action mit dem Z.ai-Anthropic-
+      # kompatiblen Endpoint statt Anthropic. Authentifizierung ueber ZAI_API_KEY
+      # (anthropic_api_key); Z.ai mappt Claude-Modellnamen automatisch auf GLM-Modelle.
+      - name: Umsetzung via GLM (Z.ai)
+        id: glm
+        if: steps.preflight.outputs.configured == 'true' && vars.AI_AGENT == 'glm'
+        uses: anthropics/claude-code-action@a92e7c70a4da9793dc164451d829089dc057a464 # v1.0.159
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ANTHROPIC_BASE_URL: https://api.z.ai/api/anthropic
+          API_TIMEOUT_MS: '3000000'
+          CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1'
+        with:
+          anthropic_api_key: ${{ secrets.ZAI_API_KEY }}
+          github_token: ${{ steps.app-token.outputs.token }}
+          allowed_bots: 'claude[bot],my-github-action-bot'
+          prompt: |
+            Das Label `ai:ready` wurde an Issue #${{ github.event.issue.number }} gesetzt —
+            setze dieses Issue jetzt um.
+
+            Folge dem Umsetzungs-Workflow .ai-knowledge/ticket-implementation.md (entspricht
+            `/implement-ticket ${{ github.event.issue.number }}`), aber NUR die Schritte 1 bis 4:
+              1. Zuweisung übernimmt bereits der Workflow (Best-Effort: an den auslösenden
+                 Menschen, sonst den Issue-Autor). Weise dich NICHT selbst zu — `@me` wäre der Bot.
+              2. Analyse re-verifizieren (Re-Triage gegen den aktuellen Repo-Stand). Kippt die
+                 Umsetzbarkeits-Ampel auf 🔴 → NICHT umsetzen, `ai:ready` entfernen, im Issue
+                 begründen und stoppen (Mensch entscheidet).
+              3. Spec-Modus (Regelfall): den aus der Spec-Stufe vorhandenen DRAFT-PR auschecken
+                 (`gh pr list --state open --draft --json number,headRefName,closingIssuesReferences`,
+                 den mit Issue #${{ github.event.issue.number }} in closingIssuesReferences; dann
+                 `git fetch origin && git switch <headRefName>`). Dessen ROTE Tests GRUEN machen — die
+                 Tests NICHT aendern (Gewaltenteilung); ein falscher Spec-Test wird begruendet
+                 zurueckgemeldet, nicht still editiert. Fallback (kein Draft-PR): eigenen Branch
+                 anlegen und die Tests zu den Akzeptanzkriterien selbst zuerst schreiben (rot, erster
+                 Commit). In beiden Faellen: Code bis `pnpm test` gruen, danach `pnpm format` + Lint + `pnpm knip`.
+              4. Committen, Branch pushen. Im Spec-Modus den vorhandenen Draft-PR review-bereit
+                 machen (`gh pr ready <pr-nr>`) und die Beschreibung um Umsetzung +
+                 format-/lint-/test-Ergebnisse ergaenzen — KEINEN neuen PR anlegen. Im Fallback einen
+                 PR ERSTELLEN (ready to review, KEIN Draft) mit
+                 `Closes #${{ github.event.issue.number }}` im Body und format-/lint-/test-Ergebnissen.
+                 Dann das Label `ai:needs-review` am PR setzen (`gh pr edit <pr-nr> --add-label
+                 ai:needs-review`; Label bei Bedarf vorher `gh label create "ai:needs-review"
+                 --color 1D76DB`), damit der Kreuzverhör-Review (claude-pr-review.yml) ihn aufgreift.
+
+            HARTES Zeitlimit: Dieser Lauf wird nach 20 Minuten von GitHub hart abgebrochen. Plane
+            damit. Merkst du, dass es eng wird, sichere SPÄTESTENS nach ~18 Minuten den
+            Zwischenstand, statt einen kompletten Durchlauf zu erzwingen: committen, Branch pushen
+            und lieber einen Draft-PR mit `Closes #${{ github.event.issue.number }}` und einer
+            kurzen Restpunkte-Liste erstellen (Label `ai:needs-review` dann NICHT setzen, solange
+            unfertig). Ein PR mit dokumentiertem Teilstand ist deutlich besser als ein harter
+            Abbruch ohne jedes Ergebnis.
+
+            Idempotenz: Ein DRAFT-PR mit `Closes #${{ github.event.issue.number }}` ist der normale
+            Spec-Eingang (siehe Schritt 3) — den aufgreifen, NICHT ueberspringen. Nur abbrechen, wenn
+            bereits ein NICHT-Draft-PR (ready) mit `Closes #${{ github.event.issue.number }}`
+            existiert (Umsetzung schon gelaufen) — Lauf beenden.
+
+            Schritt 5 (PR-Abo + Kreuzverhör-Loop) NICHT ausführen — der Review läuft als eigener
+            Workflow. Bearbeite ausschließlich dieses eine Issue.
+          claude_args: >-
+            --model claude-sonnet-4-6 --effort medium
+            --allowedTools "Bash(gh issue:*),Bash(gh pr:*),Bash(gh label:*),Bash(gh api:*),Bash(git switch:*),Bash(git checkout:*),Bash(git branch:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(git fetch:*),Bash(pnpm:*),Read,Edit,Write,Grep,Glob,Skill,Task"
+            --append-system-prompt "Automatisierter, durch das Label ai:ready autorisierter Umsetzungs-Lauf in GitHub Actions (headless). Bearbeite ausschliesslich Issue #${{ github.event.issue.number }}, Schritte 1-4 der Umsetzung; KEIN PR-Abo/Kreuzverhoer-Loop (separater Workflow). HARTES 20-Minuten-Timeout: sichere bei drohendem Limit (~18 Min) rechtzeitig den Zwischenstand (committen/pushen, ggf. Draft-PR), statt einen vollen Durchlauf zu erzwingen. Bestaetigung gilt durch ai:ready als erteilt; arbeite autonom ohne interaktive Rueckfrage. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
+
       # Bei hartem Timeout (Agent-Schritt cancelled) ist das Issue zu gross, um es in einem Lauf
       # umzusetzen: mit "ai:to-big-issue" markieren (Kandidat zum Aufteilen) und "ai:ready"
       # entfernen, damit der Umsetzungs-Workflow es nicht erneut aufgreift. Laeuft im
@@ -263,7 +329,7 @@ jobs:
       # Zeit-Guard: nur labeln, wenn der Lauf das 20-Min-Limit nahezu ausgeschoepft hat (>= 18 Min) —
       # so faellt ein frueher, ebenfalls cancelled-erzeugender Abbruch (manueller Cancel) heraus.
       - name: Bei Timeout als zu gross markieren (ai:to-big-issue)
-        if: always() && steps.preflight.outputs.configured == 'true' && (steps.claude.outcome == 'cancelled' || steps.mistral.outcome == 'cancelled')
+        if: always() && steps.preflight.outputs.configured == 'true' && (steps.claude.outcome == 'cancelled' || steps.glm.outcome == 'cancelled' || steps.mistral.outcome == 'cancelled')
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
@@ -288,10 +354,10 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
-          AGENT: ${{ vars.AI_AGENT == 'mistral' && 'Mistral' || 'Claude' }}
-          # Outcome des tatsaechlich gelaufenen Agent-Schritts (der andere ist 'skipped').
-          OUTCOME: ${{ steps.claude.outcome != 'skipped' && steps.claude.outcome || steps.mistral.outcome }}
-          SESSION_ID: ${{ steps.claude.outputs.session_id }}
+          AGENT: ${{ vars.AI_AGENT == 'mistral' && 'Mistral' || (vars.AI_AGENT == 'glm' && 'GLM (Z.ai)' || 'Claude') }}
+          # Outcome des tatsaechlich gelaufenen Agent-Schritts (die anderen sind 'skipped').
+          OUTCOME: ${{ steps.claude.outcome != 'skipped' && steps.claude.outcome || (steps.glm.outcome != 'skipped' && steps.glm.outcome || steps.mistral.outcome) }}
+          SESSION_ID: ${{ steps.claude.outputs.session_id || steps.glm.outputs.session_id }}
         run: |
           labels="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
           {
