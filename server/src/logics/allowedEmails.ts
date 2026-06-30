@@ -46,7 +46,7 @@ const parseEmails = (raw: string): string[] => {
  * Loggt die erlaubten Adressen mit dem Präfix `[auth] Allowed emails:`.
  */
 export const getConfiguredEmails = (): string[] => {
-	const raw = process.env.GOOGLE_ALLOWED_EMAILS ?? process.env.GOOGLE_ALLOWED_EMAIL ?? '';
+	const raw = process.env.GOOGLE_ALLOWED_EMAILS?.trim() || process.env.GOOGLE_ALLOWED_EMAIL?.trim() || '';
 	const emails = parseEmails(raw);
 
 	if (emails.length === 0) {
@@ -65,7 +65,7 @@ export const getConfiguredEmails = (): string[] => {
  * konfiguriert ist (statt zu werfen) — so bleibt der Aufruf in der Middleware robust.
  */
 export const isEmailAllowed = (email: string): boolean => {
-	const raw = process.env.GOOGLE_ALLOWED_EMAILS ?? process.env.GOOGLE_ALLOWED_EMAIL ?? '';
+	const raw = process.env.GOOGLE_ALLOWED_EMAILS?.trim() || process.env.GOOGLE_ALLOWED_EMAIL?.trim() || '';
 	const emails = parseEmails(raw);
 	if (emails.length === 0) {
 		return false;
