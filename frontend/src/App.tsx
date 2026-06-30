@@ -200,22 +200,23 @@ export const App = ({ user }: { user: AuthUser }) => {
 								_variant: 'secondary',
 								_on: { onClick: themeItem.onClick },
 							},
+							...(displayName !== ''
+								? [
+										{
+											type: 'button' as const,
+											_label: 'Abmelden',
+											_variant: 'secondary' as const,
+											_disabled: logoutLoading,
+											_on: { onClick: () => void handleLogout() },
+										},
+									]
+								: []),
 						]}
 					/>
 					<div className="user-info">
 						<span className="user-email">{user.email}</span>
 						<span className="user-display-name">{user.name}</span>
 					</div>
-					{displayName !== '' && (
-						<button
-							type="button"
-							className="logout-button"
-							disabled={logoutLoading}
-							onClick={() => void handleLogout()}
-						>
-							Abmelden
-						</button>
-					)}
 					{/* Einstellungen rechts oben: ein icon-only Zahnrad öffnet ein Popover mit einer
 					    vertikalen Toolbar als Menü. Erster Unterpunkt ist die persönliche Säulen-Verteilung;
 					    der Bereich ist so für weitere Einstellungen erweiterbar. */}
