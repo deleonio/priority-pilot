@@ -1,7 +1,8 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 /**
- * Smoke-Test gegen das **echte** Backend (#91). Es wird **nichts** via `page.route` gemockt:
+ * Smoke-Test gegen das **echte** Backend (#91). Nur `GET /auth/me` wird via Fixture gemockt
+ * (Auth-Gate aus #190), alle übrigen Requests gehen unverändert an das echte Backend:
  * Playwright startet ein echtes Express-Backend mit temporärer In-Memory-DB (`:memory:`,
  * `DB_RESET=true`, `DB_SEED=false`, siehe `playwright.config.ts`), der Vite-Proxy reicht die
  * API-Requests durch.

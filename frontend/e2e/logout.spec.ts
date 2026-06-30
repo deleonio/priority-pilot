@@ -19,6 +19,11 @@ import { waitForStableView } from './helpers';
  * `page.route`: Das echte Test-Backend (In-Memory-DB) kennt weder `/auth/logout` noch eine
  * Login-Seite. Die fachlichen Lade-Endpunkte (`/tasks` …) liefern wir ebenfalls per `route`, damit die
  * App unabhängig vom Seed-Zustand in die eingeloggte Dashboard-Ansicht rendert.
+ *
+ * Seit #190 hängt vor der Haupt-App ein Auth-Gate (`Root.tsx`): Nur wenn `GET /auth/me` einen User
+ * liefert, wird die App gerendert. `stubBackend` mockt `/auth/me` daher standardmäßig als
+ * authentifiziert, damit das Gate durchlässig ist. Die Button-Sichtbarkeit wird weiterhin über den
+ * `displayName`-Eintrag in `localStorage` (vgl. `App.tsx`) gesteuert — `setAuth` bleibt unverändert.
  */
 
 const DISPLAY_NAME = 'Peter';
@@ -46,10 +51,19 @@ const fulfillJson = (body: unknown) => ({
 
 /**
  * Verdrahtet die fachlichen Lade-Endpunkte so, dass die App in die eingeloggte Dashboard-Ansicht
- * rendert (mind. ein Task ⇒ kein EmptyState). Auth-spezifische Routen (`/auth/logout`) setzt jeder
- * Test selbst, da er ihr Verhalten (Erfolg/Fehler) und die Aufruf-Erwartung individuell prüft.
+ * rendert (mind. ein Task ⇒ kein EmptyState). Mockt außerdem `GET /auth/me` als authentifiziert,
+ * damit das Auth-Gate aus #190 (`Root.tsx`) für alle Tests durchlässig ist. Auth-spezifische Routen
+ * (`/auth/logout`) setzt jeder Test selbst, da er ihr Verhalten (Erfolg/Fehler) und die
+ * Aufruf-Erwartung individuell prüft.
  */
 const stubBackend = async (page: Page): Promise<void> => {
+	await page.route('**/auth/me', (route) =>
+		route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({ id: 1, name: DISPLAY_NAME, email: 'peter@example.com' }),
+		}),
+	);
 	await page.route('**/api/v1/tasks', (route) =>
 		route.request().method() === 'GET' ? route.fulfill(fulfillJson([SAMPLE_TASK])) : route.continue(),
 	);
