@@ -28,14 +28,8 @@ export interface AppDeps {
 }
 
 /** Prüft, ob ein Allowlist-Gate konfiguriert ist (Plural oder Singular gesetzt). */
-const hasAllowlist = (): boolean => {
-	try {
-		getConfiguredEmails();
-		return true;
-	} catch {
-		return false;
-	}
-};
+const hasAllowlist = (): boolean =>
+	!!(process.env.GOOGLE_ALLOWED_EMAILS?.trim() || process.env.GOOGLE_ALLOWED_EMAIL?.trim());
 
 /** Middleware: Anfrage ohne gültige Session abweisen.
  * Nur aktiv wenn eine Allowlist konfiguriert ist — ohne Konfiguration kein Gate. */
