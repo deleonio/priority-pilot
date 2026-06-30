@@ -5,18 +5,24 @@ import { LoginPage } from './components/LoginPage';
 import type { AuthUser } from './lib/auth';
 import { checkAuth } from './lib/auth';
 
-type AuthState = 'loading' | 'authenticated' | 'unauthenticated';
+type AuthState = 'loading' | 'authenticated' | 'unauthenticated' | 'error';
 
 export const Root = () => {
 	const [authState, setAuthState] = useState<AuthState>('loading');
+	const [user, setUser] = useState<AuthUser | null>(null);
 
 	useEffect(() => {
 		checkAuth()
 			.then((user: AuthUser | null) => {
-				setAuthState(user !== null ? 'authenticated' : 'unauthenticated');
+				if (user !== null) {
+					setUser(user);
+					setAuthState('authenticated');
+				} else {
+					setAuthState('unauthenticated');
+				}
 			})
 			.catch(() => {
-				setAuthState('unauthenticated');
+				setAuthState('error');
 			});
 	}, []);
 
@@ -32,5 +38,9 @@ export const Root = () => {
 		return <LoginPage />;
 	}
 
-	return <App />;
+	if (authState === 'error') {
+		return <div role="alert">Authentifizierung fehlgeschlagen. Bitte Seite neu laden.</div>;
+	}
+
+	return <App user={user!} />;
 };

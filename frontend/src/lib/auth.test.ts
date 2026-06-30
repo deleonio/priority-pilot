@@ -2,11 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { checkAuth } from './auth';
 
 /**
- * Rote Spec-Tests (#190) für `checkAuth`: Die Funktion fragt den Auth-Status über `GET /auth/me` ab.
+ * Spec-Tests für `checkAuth`: Die Funktion fragt den Auth-Status über `GET /auth/me` ab.
  *
- * Vertrag:
+ * Vertrag (#192/PR #199 — 401/5xx-Differenzierung):
  *  - HTTP 200 → das User-Objekt `{ id, name, email }` wird zurückgegeben.
- *  - HTTP 401 / jede non-ok-Antwort → `null` (= unauthentifiziert).
+ *  - HTTP 401 → `null` (= unauthentifiziert → Login-Seite).
+ *  - jede andere non-ok-Antwort (z. B. 5xx) → wirft, damit `Root.tsx` einen Fehler-Zustand
+ *    (Fehlermeldung statt Login-Seite) anzeigen kann.
  *
  * `global.fetch` wird mit `vi.fn()` gemockt, damit der Test deterministisch und ohne echtes Backend
  * läuft.
@@ -58,13 +60,13 @@ describe('checkAuth', () => {
 		await expect(checkAuth()).resolves.toBeNull();
 	});
 
-	it('gibt bei einer non-ok-Antwort (z. B. 500) null zurück', async () => {
+	it('wirft bei einer non-ok-Antwort (z. B. 500), statt null zurückzugeben', async () => {
 		global.fetch = vi.fn().mockResolvedValue({
 			ok: false,
 			status: 500,
 			json: async () => ({ error: 'Internal Server Error' }),
 		}) as unknown as typeof fetch;
 
-		await expect(checkAuth()).resolves.toBeNull();
+		await expect(checkAuth()).rejects.toThrow();
 	});
 });

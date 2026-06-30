@@ -13,6 +13,7 @@ import { TaskFormModal } from './components/TaskFormModal';
 import { TaskTable } from './components/TaskTable';
 import { useThemeToolbarItem } from './components/ThemeToggle';
 import { toApiError } from './lib/apiError';
+import type { AuthUser } from './lib/auth';
 import { buildDependencyMap } from './lib/dependencies';
 
 type Dialog =
@@ -35,7 +36,7 @@ const VIEW_TABS = [{ _label: 'Dashboard' }, { _label: 'Aufgaben' }, { _label: 'A
 // erhält (sonst würde der Icon-Watcher unnötig erneut feuern).
 const RELOAD_ICON = { left: { icon: 'fa-solid fa-arrows-rotate' } };
 
-export const App = () => {
+export const App = ({ user }: { user: AuthUser }) => {
 	const [tasks, setTasks] = useState<Task[] | null>(null);
 	const [forest, setForest] = useState<TaskTreeNode[]>([]);
 	const [nextTask, setNextTask] = useState<Task | null>(null);
@@ -201,6 +202,10 @@ export const App = () => {
 							},
 						]}
 					/>
+					<div className="user-info">
+						<span className="user-email">{user.email}</span>
+						<span className="user-display-name">{user.name}</span>
+					</div>
 					{displayName !== '' && (
 						<button
 							type="button"

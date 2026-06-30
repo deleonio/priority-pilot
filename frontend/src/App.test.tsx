@@ -33,6 +33,10 @@ vi.mock('./api', () => ({
 	},
 }));
 
+// #192: Standard-`user`-Prop für `App`. Seit dem Refactoring erhält `App` die Benutzerinfo als Prop
+// (von `Root.tsx`, das `checkAuth()` einmalig aufruft) statt selbst `api.getMe()` aufzurufen.
+const testUser = { id: 1, name: 'Test User', email: 'test@example.com' };
+
 const sampleTask: Task = {
 	id: 1,
 	title: 'T1',
@@ -66,7 +70,7 @@ describe('App — Personalisierte Begrüßung aus localStorage (#169)', () => {
 	it('zeigt „Hallo Peter!" wenn displayName in localStorage gesetzt ist', async () => {
 		localStorage.setItem('displayName', 'Peter');
 
-		render(<App />);
+		render(<App user={testUser} />);
 
 		await waitFor(() => {
 			expect(screen.getByText(/Hallo\s+Peter!/i)).toBeTruthy();
@@ -75,7 +79,7 @@ describe('App — Personalisierte Begrüßung aus localStorage (#169)', () => {
 
 	// AC2 (App-Perspektive): Kein Eintrag → sinnvoller Fallback, keine leere „Hallo !".
 	it('zeigt einen Fallback-Namen statt „Hallo !" wenn kein displayName gesetzt ist', async () => {
-		render(<App />);
+		render(<App user={testUser} />);
 
 		// Begrüßung mit einem echten (Fallback-)Namen muss erscheinen …
 		const greeting = await screen.findByText(/Hallo\s+\w+!/i);
@@ -101,7 +105,7 @@ describe('App — Logout-Fehlerfall (#191, AK-5)', () => {
 	// Hilfsfunktion: rendert die eingeloggte App und liefert den Logout-Button zurück.
 	const renderLoggedInAndGetLogout = async (): Promise<HTMLElement> => {
 		localStorage.setItem('displayName', 'Peter');
-		render(<App />);
+		render(<App user={testUser} />);
 		// Auf das Laden der eingeloggten Ansicht warten, damit der Logout-Button gerendert ist.
 		return await screen.findByRole('button', { name: /Abmelden|Logout/i });
 	};
@@ -142,5 +146,34 @@ describe('App — Logout-Fehlerfall (#191, AK-5)', () => {
 			expect(screen.getByRole('alert')).toBeTruthy();
 		});
 		expect(localStorage.getItem('displayName')).toBe('Peter');
+	});
+});
+
+/**
+ * #192: User Info Display — die App zeigt die aktuellen Benutzerinformationen (E-Mail + Name) im
+ * Header an. Seit dem Refactoring (PR #199) erhält `App` diese Daten als `user`-Prop von `Root.tsx`,
+ * das `checkAuth()` (GET /auth/me) einmalig aufruft. Die App selbst ruft `api.getMe()` nicht mehr auf
+ * — es gibt damit keinen App-internen Lade-/Fehlerzustand mehr (das übernimmt `Root.tsx`).
+ */
+describe('App — User Info Display (#192)', () => {
+	// AK4a: Der App-interne Loading-Indicator entfällt in der neuen Architektur — `App` lädt die
+	// Benutzerinfo nicht mehr selbst (kein async getMe), sondern erhält sie synchron als Prop. Der
+	// Ladezustand der Authentifizierung liegt jetzt in `Root.tsx` (vgl. e2e/userinfo.spec.ts).
+	it.skip('zeigt einen Loading-Indicator, während die Benutzerinfos geladen werden (AK4a)', () => {
+		// Bewusst übersprungen: kein App-internes async Laden mehr.
+	});
+
+	// AK4b: Die per `user`-Prop übergebene E-Mail erscheint im DOM.
+	it('zeigt die per Prop übergebene E-Mail an (AK4b)', async () => {
+		render(<App user={{ id: 7, name: 'Me', email: 'me@test.com' }} />);
+
+		expect(await screen.findByText(/me@test\.com/i)).toBeTruthy();
+	});
+
+	// AK3b: Auch der Name aus der `user`-Prop erscheint im DOM (Header-Anzeige).
+	it('zeigt den per Prop übergebenen Namen an (AK3b)', async () => {
+		render(<App user={{ id: 7, name: 'Max Mustermann', email: 'max@example.com' }} />);
+
+		expect(await screen.findByText(/Max Mustermann/i)).toBeTruthy();
 	});
 });
