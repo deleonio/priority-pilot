@@ -135,4 +135,17 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 			assert.equal(afterLogout.status, 401);
 		});
 	});
+
+	// ── AK-8 (Issue #193) — Nicht-erlaubte E-Mail → 401 via Multi-Email-Gate ──
+	describe('AK-8 — Multi-User-Gate: nicht erlaubte E-Mail → 401', () => {
+		it('POST /auth/test-login mit nicht-erlaubter E-Mail liefert 401', async () => {
+			// Nicht in der Allowlist → requireAuth soll 401 zurückgeben
+			const res = await fetch(`${server.baseUrl}/auth/test-login`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ email: 'not-allowed@evil.com', displayName: 'Evil User' }),
+			});
+			assert.equal(res.status, 401);
+		});
+	});
 });
