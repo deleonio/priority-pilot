@@ -112,13 +112,16 @@ interface StationInputProps {
 const StationInput = ({ id, label, placeholder, value, selected, onSelect, onChangeText }: StationInputProps) => {
 	const [suggestions, setSuggestions] = useState<GeocodeSuggestion[]>([]);
 	const [open, setOpen] = useState<boolean>(false);
+	const [focusedIndex, setFocusedIndex] = useState<number>(-1);
 	const listId = `${id}-listbox`;
+	const optionIdPrefix = `${id}-option`;
 
 	useEffect(() => {
 		// Ein bereits gewählter Bahnhof (dessen Name im Feld steht) löst keine erneute Suche aus.
 		if (value.trim().length < MIN_QUERY_LENGTH || (selected !== null && selected.name === value)) {
 			setSuggestions([]);
 			setOpen(false);
+			setFocusedIndex(-1);
 			return;
 		}
 		const controller = new AbortController();
@@ -127,12 +130,14 @@ const StationInput = ({ id, label, placeholder, value, selected, onSelect, onCha
 				.then((results) => {
 					setSuggestions(results);
 					setOpen(results.length > 0);
+					setFocusedIndex(-1);
 				})
 				.catch(() => {
 					// Autocomplete-Fehler bleiben still: Der Nutzer kann weitertippen; harte Fehler
 					// werden erst bei der eigentlichen Verbindungssuche prominent gemeldet.
 					setSuggestions([]);
 					setOpen(false);
+					setFocusedIndex(-1);
 				});
 		}, AUTOCOMPLETE_DEBOUNCE_MS);
 		return () => {
@@ -140,6 +145,26 @@ const StationInput = ({ id, label, placeholder, value, selected, onSelect, onCha
 			window.clearTimeout(timer);
 		};
 	}, [value, selected]);
+
+	const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>): void => {
+		if (!open || suggestions.length === 0) return;
+		if (event.key === 'ArrowDown') {
+			event.preventDefault();
+			setFocusedIndex((prev) => (prev + 1) % suggestions.length);
+		} else if (event.key === 'ArrowUp') {
+			event.preventDefault();
+			setFocusedIndex((prev) => (prev - 1 + suggestions.length) % suggestions.length);
+		} else if (event.key === 'Enter' && focusedIndex >= 0) {
+			event.preventDefault();
+			onSelect(suggestions[focusedIndex]);
+			setOpen(false);
+			setFocusedIndex(-1);
+		} else if (event.key === 'Escape') {
+			event.preventDefault();
+			setOpen(false);
+			setFocusedIndex(-1);
+		}
+	};
 
 	return (
 		<div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -153,12 +178,14 @@ const StationInput = ({ id, label, placeholder, value, selected, onSelect, onCha
 				aria-expanded={open}
 				aria-controls={listId}
 				aria-autocomplete="list"
+				aria-activedescendant={focusedIndex >= 0 ? `${optionIdPrefix}-${focusedIndex}` : undefined}
 				autoComplete="off"
 				placeholder={placeholder}
 				value={value}
 				onChange={(event) => {
 					onChangeText(event.target.value);
 				}}
+				onKeyDown={handleKeyDown}
 				style={{ padding: '0.5rem 0.75rem', fontSize: '1rem', border: '1px solid #888', borderRadius: '0.375rem' }}
 			/>
 			{open && suggestions.length > 0 && (
@@ -184,20 +211,27 @@ const StationInput = ({ id, label, placeholder, value, selected, onSelect, onCha
 						overflowY: 'auto',
 					}}
 				>
-					{suggestions.map((suggestion) => (
-						<li key={suggestion.id} role="option" aria-selected={selected?.id === suggestion.id}>
+					{suggestions.map((suggestion, index) => (
+						<li
+							key={suggestion.id}
+							id={`${optionIdPrefix}-${index}`}
+							role="option"
+							aria-selected={selected?.id === suggestion.id}
+						>
 							<button
 								type="button"
+								tabIndex={-1}
 								onClick={() => {
 									onSelect(suggestion);
 									setOpen(false);
+									setFocusedIndex(-1);
 								}}
 								style={{
 									display: 'block',
 									width: '100%',
 									textAlign: 'left',
 									padding: '0.5rem 0.75rem',
-									background: 'transparent',
+									background: focusedIndex === index ? '#e8eefa' : 'transparent',
 									border: 'none',
 									cursor: 'pointer',
 									font: 'inherit',
