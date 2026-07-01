@@ -113,6 +113,7 @@ const StationInput = ({ id, label, placeholder, value, selected, onSelect, onCha
 	const [suggestions, setSuggestions] = useState<GeocodeSuggestion[]>([]);
 	const [open, setOpen] = useState<boolean>(false);
 	const [focusedIndex, setFocusedIndex] = useState<number>(-1);
+	const optionRefs = useRef<(HTMLLIElement | null)[]>([]);
 	const listId = `${id}-listbox`;
 	const optionIdPrefix = `${id}-option`;
 
@@ -145,6 +146,12 @@ const StationInput = ({ id, label, placeholder, value, selected, onSelect, onCha
 			window.clearTimeout(timer);
 		};
 	}, [value, selected]);
+
+	useEffect(() => {
+		if (focusedIndex >= 0) {
+			optionRefs.current[focusedIndex]?.scrollIntoView({ block: 'nearest' });
+		}
+	}, [focusedIndex]);
 
 	const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>): void => {
 		if (!open || suggestions.length === 0) return;
@@ -220,31 +227,26 @@ const StationInput = ({ id, label, placeholder, value, selected, onSelect, onCha
 					{suggestions.map((suggestion, index) => (
 						<li
 							key={suggestion.id}
+							ref={(el) => {
+								optionRefs.current[index] = el;
+							}}
 							id={`${optionIdPrefix}-${index}`}
 							role="option"
 							aria-selected={selected?.id === suggestion.id}
+							onMouseDown={(event) => {
+								event.preventDefault();
+								onSelect(suggestion);
+								setOpen(false);
+								setFocusedIndex(-1);
+							}}
+							style={{
+								padding: '0.5rem 0.75rem',
+								background: focusedIndex === index ? '#e8eefa' : 'transparent',
+								cursor: 'pointer',
+								userSelect: 'none',
+							}}
 						>
-							<button
-								type="button"
-								tabIndex={-1}
-								onClick={() => {
-									onSelect(suggestion);
-									setOpen(false);
-									setFocusedIndex(-1);
-								}}
-								style={{
-									display: 'block',
-									width: '100%',
-									textAlign: 'left',
-									padding: '0.5rem 0.75rem',
-									background: focusedIndex === index ? '#e8eefa' : 'transparent',
-									border: 'none',
-									cursor: 'pointer',
-									font: 'inherit',
-								}}
-							>
-								{suggestion.name}
-							</button>
+							{suggestion.name}
 						</li>
 					))}
 				</ul>
@@ -344,6 +346,10 @@ export const BahnPage = () => {
 		setError(null);
 		if (startStation === null || zielStation === null) {
 			setError('Bitte wähle einen Start- und einen Zielbahnhof aus der Vorschlagsliste aus.');
+			return;
+		}
+		if (startStation.id === zielStation.id) {
+			setError('Start- und Zielbahnhof dürfen nicht identisch sein.');
 			return;
 		}
 		activeSearch.current?.abort();

@@ -2,14 +2,20 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
-// Der Dev-Proxy leitet alle /api/v1/*-Anfragen an den Express-Server (http://localhost:3000)
-// weiter und streift dabei das Präfix ab (/api/v1/tasks → /tasks). CORS wird damit im Browser
+// Der Dev-Proxy leitet alle /api/v1/*- und /api/transit/*-Anfragen an den Express-Server
+// (http://localhost:3000) weiter und streift dabei das Präfix ab. CORS wird damit im Browser
 // ohne Server-Änderung gelöst. Gilt für Dev-Server und `vite preview`.
+// /api/transit/* wird benötigt, sobald der Backend-Proxy aus #224 auf dem Server aktiv ist.
 const apiProxy = {
 	'/api/v1': {
 		target: 'http://localhost:3000',
 		changeOrigin: true,
 		rewrite: (path: string) => path.replace(/^\/api\/v1/, ''),
+	},
+	'/api/transit': {
+		target: 'http://localhost:3000',
+		changeOrigin: true,
+		rewrite: (path: string) => path.replace(/^\/api/, ''),
 	},
 };
 
