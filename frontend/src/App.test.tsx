@@ -200,17 +200,9 @@ describe('App — AK-9 localStorage-Cleanup (#208)', () => {
 /**
  * #222: Homogenerer App-Header — die E-Mail-Adresse wird aus dem Header entfernt; der Avatar
  * bleibt und zeigt das Namenskürzel via _label-Prop.
- *
- * ROT-Zustand: App.tsx rendert derzeit noch `<span className="user-email">{user.email}</span>`,
- * weshalb AK1 rot ist. AK3 ist als Smoke-Test enthalten: der KolAvatar hat `_label={user.name}`
- * bereits gesetzt — der Test wird grün bleiben (keine Regression durch die Umsetzung).
- *
- * Hinweis: Der bisherige Test „zeigt die per Prop übergebene E-Mail an (AK4b)" aus #192 wird durch
- * die Umsetzung zu entfernen sein (er prüft das gegenteilige Verhalten).
  */
 describe('App — Homogenerer Header (#222)', () => {
 	// AK1: E-Mail-Adresse darf im App-Header nicht mehr erscheinen.
-	// ROT solange <span className="user-email"> noch in App.tsx existiert.
 	it('AK1: E-Mail-Adresse ist im App-Header nicht sichtbar', async () => {
 		render(<App user={{ id: 7, name: 'Erika Muster', email: 'erika@test.example.com', avatarUrl: null }} />);
 		// Warten bis die App vollständig geladen ist (Begrüßung erscheint).

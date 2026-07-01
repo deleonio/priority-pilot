@@ -14,8 +14,7 @@ import { waitForStableView } from './helpers';
  */
 test.describe('#222 App-Header — Homogenität', () => {
 	/**
-	 * AK1: Die E-Mail-Adresse ist im App-Header nach der Umsetzung NICHT mehr sichtbar.
-	 * ROT solange `<span className="user-email">` noch in App.tsx gerendert wird.
+	 * AK1: Die E-Mail-Adresse ist im App-Header nicht mehr sichtbar.
 	 */
 	test('AK1: E-Mail-Adresse ist im App-Header nicht sichtbar', async ({ page }) => {
 		await page.goto('/');
