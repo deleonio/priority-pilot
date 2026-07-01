@@ -200,6 +200,49 @@ describe('H3 — Deterministischer Doppel-Run-Guard in spec/implement', () => {
 	});
 });
 
+describe('G1 — Gate/Auto-Merge: Allowlist-Retry statt vorschnellem No-op (PR #220-Race)', () => {
+	it('claude-pr-gate-merge.yml wiederholt die Allowlist-Check-Abfrage, statt eine leere/unvollstaendige Antwort sofort als "keine Checks" zu werten', () => {
+		const yml = readWorkflow('claude-pr-gate-merge.yml');
+		// Race (empirisch beobachtet, PR #220 2026-07-01): `gh pr checks` lieferte trotz laengst
+		// laufender CI/Review-Checks wiederholt eine leere Liste. Ein Einmal-Aufruf darf das nicht
+		// mehr sofort als "nichts zu tun" werten — es muss eine Retry-Schleife geben.
+		assert.match(yml, /for attempt in 1 2 3 4 5; do/, 'Gate/Auto-Merge muss die Allowlist-Checks in einer Retry-Schleife abfragen (Haerten G1)');
+		assert.match(
+			yml,
+			/has_ci="\$\(echo "\$allow" \| jq -r 'any\(\.\[\]; \.workflow == "CI"\)'\)"/,
+			'Retry-Schleife muss explizit pruefen, ob der CI-Check als Eintrag sichtbar ist',
+		);
+		assert.match(
+			yml,
+			/has_review="\$\(echo "\$allow" \| jq -r 'any\(\.\[\]; \.workflow == "Claude PR Review \(Kreuzverhoer\)"\)'\)"/,
+			'Retry-Schleife muss explizit pruefen, ob der Reviewer-Check als Eintrag sichtbar ist',
+		);
+	});
+
+	it('claude-pr-gate-merge.yml: partielle Sichtbarkeit (nur CI ODER nur Reviewer) fuehrt zu No-op, nicht zum Weiterlaufen mit unvollstaendigen Daten', () => {
+		const yml = readWorkflow('claude-pr-gate-merge.yml');
+		assert.match(
+			yml,
+			/if \[ "\$has_ci" != "true" \] \|\| \[ "\$has_review" != "true" \]; then/,
+			'Nach Ausschoepfen der Retries muss fehlende Sichtbarkeit EINES der beiden Allowlist-Checks separat zu einem No-op fuehren (Haerten G1)',
+		);
+	});
+
+	it('claude-pr-gate-merge.yml: Retry-Schleife nutzt steigenden Backoff (kein fixes Intervall, das eine vermutete Ueberlastung verschaerfen koennte)', () => {
+		const yml = readWorkflow('claude-pr-gate-merge.yml');
+		assert.match(yml, /delays=\(2 3 5 8\)/, 'Retry-Schleife muss einen steigenden Backoff verwenden, keinen fixen Sleep');
+	});
+
+	it('claude-pr-gate-merge.yml: `gh pr checks`-Fehler landen sichtbar im Log (kein `2>/dev/null` mehr auf dem Retry-Aufruf)', () => {
+		const yml = readWorkflow('claude-pr-gate-merge.yml');
+		const retryCall = yml.match(/checks="\$\(gh pr checks "\$pr" --repo "\$REPO" --json name,bucket,workflow\)" \|\| true/);
+		assert.ok(
+			retryCall,
+			'Der `gh pr checks`-Aufruf in der Retry-Schleife darf stderr NICHT mehr unterdruecken — echte API-/Auth-Fehler muessen im Step-Log sichtbar sein, sonst sind sie von "Check noch nicht gepostet" ununterscheidbar (Reviewer-Fund)',
+		);
+	});
+});
+
 describe('S3 — Timeout-Alarm fuer PR-Workflows (review/fixup)', () => {
 	for (const wf of ['claude-pr-review.yml', 'claude-pr-fixup.yml'] as const) {
 		it(`${wf} postet bei Timeout einen sichtbaren PR-Kommentar (kein stiller PR-Stall)`, () => {
