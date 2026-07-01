@@ -2,7 +2,6 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import sequelize from '../../database.js';
 import { Pillar } from '../../models/index.js';
-import { getUserId, ownerScope } from '../requireAuth.js';
 import type { components } from '../../api';
 
 type PillarDto = components['schemas']['Pillar'];
@@ -25,6 +24,7 @@ type ValidationResult = { ok: true; entries: WeightEntry[] } | { ok: false; mess
 const serializePillar = (pillar: Pillar): PillarDto => ({
 	id: pillar.id,
 	name: pillar.name,
+	description: pillar.description,
 	weight: pillar.weight,
 });
 
@@ -72,10 +72,12 @@ const validateWeightsBody = (body: unknown): ValidationResult => {
 
 export const pillarsRouter = Router();
 
-// GET /pillars — alle Säulen (inkl. weight) auflisten
-pillarsRouter.get('/pillars', async (req: Request, res: Response<PillarDto[] | ErrorDto>) => {
+// GET /pillars — alle Säulen (inkl. weight) auflisten. Säulen sind globale Stammdaten (für alle
+// Nutzer identisch), daher bewusst **ohne** Nutzer-Scope — sonst bekäme ein eingeloggter Nutzer ohne
+// eigene Säulen eine leere Liste (und die KI-Säulen-Suggestion lieferte nichts).
+pillarsRouter.get('/pillars', async (_req: Request, res: Response<PillarDto[] | ErrorDto>) => {
 	try {
-		const pillars = await Pillar.findAll({ where: ownerScope(getUserId(req)), order: [['id', 'ASC']] });
+		const pillars = await Pillar.findAll({ order: [['id', 'ASC']] });
 		res.json(pillars.map(serializePillar));
 	} catch {
 		sendError(res, 500, 'Interner Serverfehler.');
@@ -92,8 +94,8 @@ pillarsRouter.put('/pillars/weights', async (req: Request, res: Response<PillarD
 	const { entries } = validation;
 
 	try {
-		// Nur die eigenen Säulen gewichten (Datenisolation, #207) — fremde bleiben unberührt.
-		const pillars = await Pillar.findAll({ where: ownerScope(getUserId(req)), order: [['id', 'ASC']] });
+		// Säulen sind global (für alle Nutzer identisch) — keine Nutzer-Isolation beim Gewichten.
+		const pillars = await Pillar.findAll({ order: [['id', 'ASC']] });
 
 		// Die Verteilung muss genau alle Säulen abdecken — sonst wäre die Summe nicht aussagekräftig.
 		const knownIds = new Set(pillars.map((pillar) => pillar.id));

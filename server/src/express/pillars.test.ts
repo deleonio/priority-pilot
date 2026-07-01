@@ -1,14 +1,14 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { Pillar } from '../models/index.js';
+import { SEED_PILLARS } from '../models/pillarData.js';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
 
 let server: TestServer;
 
-/** Legt die fünf gleichgewichteten Standard-Säulen an und gibt sie (nach id sortiert) zurück. */
+/** Legt die fünf gleichgewichteten Standard-Säulen (mit Kurzbeschreibung) an und gibt sie zurück. */
 const seedPillars = async (): Promise<Pillar[]> => {
-	const names = ['Körper', 'Beziehungen', 'Sinn', 'Mentale Gesundheit', 'Wirksamkeit'];
-	await Pillar.bulkCreate(names.map((name) => ({ name, weight: 20 })));
+	await Pillar.bulkCreate(SEED_PILLARS.map(({ name, description, weight }) => ({ name, description, weight })));
 	return Pillar.findAll({ order: [['id', 'ASC']] });
 };
 
@@ -44,11 +44,11 @@ describe('Pillars API', () => {
 			assert.deepEqual(await res.json(), []);
 		});
 
-		it('200 mit allen Säulen inkl. weight, nach id sortiert', async () => {
+		it('200 mit allen Säulen inkl. weight und description, nach id sortiert', async () => {
 			const pillars = await seedPillars();
 			const res = await get('/pillars');
 			assert.equal(res.status, 200);
-			const body = (await res.json()) as { id: number; name: string; weight: number }[];
+			const body = (await res.json()) as { id: number; name: string; description: string; weight: number }[];
 			assert.equal(body.length, 5);
 			assert.deepEqual(
 				body.map((p) => p.id),
@@ -57,7 +57,14 @@ describe('Pillars API', () => {
 			for (const pillar of body) {
 				assert.equal(pillar.weight, 20);
 				assert.ok(typeof pillar.name === 'string');
+				// Die Kurzbeschreibung ist Pflichtfeld (globale Stammdaten) und wird mitgeliefert.
+				assert.ok(typeof pillar.description === 'string' && pillar.description.length > 0);
 			}
+			// Säulen sind globale Stammdaten: Name↔Beschreibung passen zu den kanonischen Stammdaten.
+			assert.deepEqual(
+				body.map((p) => p.name),
+				SEED_PILLARS.map((p) => p.name),
+			);
 		});
 	});
 

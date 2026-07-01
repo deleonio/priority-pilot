@@ -6,7 +6,7 @@ import { Dashboard } from './Dashboard';
 
 afterEach(cleanup);
 
-const pillar = (id: number, name: string, weight: number): Pillar => ({ id, name, weight });
+const pillar = (id: number, name: string, weight: number): Pillar => ({ id, name, description: '', weight });
 
 const task = (
 	id: number,

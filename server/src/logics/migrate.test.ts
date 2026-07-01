@@ -2,7 +2,8 @@ import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import sequelize from '../database.js';
 import { Pillar, Task } from '../models/index.js';
-import { migrateSeriesColumns, migrateSeriesTable, migrateUserIdColumns } from './migrate.js';
+import { migrateSeriesColumns, migrateSeriesTable, migrateUserIdColumns, migratePillarDescription } from './migrate.js';
+import { SEED_PILLARS } from '../models/pillarData.js';
 import { closeDb } from '../test/helpers.js';
 
 // Rote Spec-Tests für #146 — fehlende Schema-Migration für die Serien-Spalten.
@@ -358,6 +359,9 @@ describe('migrateUserIdColumns', () => {
 	it('hält den Unique-Constraint auf (name, userId) auch nach der Migration ein', async () => {
 		await createLegacyPillarsTable();
 		await migrateUserIdColumns(sequelize);
+		// Auch die description-Spalte nachziehen (wie in main()): das Modell enthält `description`,
+		// und die folgenden Pillar.create-Aufrüge würden sonst an der fehlenden Spalte scheitern.
+		await migratePillarDescription(sequelize);
 		await sequelize.sync();
 
 		await Pillar.create({ name: 'Körper', weight: 20, userId: 1 });
@@ -388,5 +392,74 @@ describe('migrateUserIdColumns', () => {
 			() => Task.findAll({ where: { userId: 1 } }),
 			'Task.findAll filtert nach userId ohne SQLITE_ERROR',
 		);
+	});
+});
+
+describe('migratePillarDescription', () => {
+	/**
+	 * Erzeugt eine `pillars`-Tabelle im Alt-Schema direkt vor dem description-Feature: mit `userId`
+	 * (nach #207), aber OHNE `description`. Bildet eine Bestands-`database.sqlite` nach, auf der die
+	 * Migration greifen muss.
+	 */
+	const createLegacyPillarsTableBeforeDescription = async (): Promise<void> => {
+		await sequelize.query(
+			'CREATE TABLE `pillars` (' +
+				'`id` INTEGER PRIMARY KEY AUTOINCREMENT, ' +
+				'`name` VARCHAR(255) NOT NULL, ' +
+				'`weight` FLOAT NOT NULL DEFAULT 20, ' +
+				'`userId` INTEGER, ' +
+				'`createdAt` DATETIME NOT NULL, ' +
+				'`updatedAt` DATETIME NOT NULL' +
+				')',
+		);
+	};
+
+	/** Legt die fünf Standard-Säulen (ohne description, wie im Alt-Stand) plus eine eigene Säule an. */
+	const insertLegacyPillars = async (): Promise<void> => {
+		const names = [...SEED_PILLARS.map((p) => p.name), 'Eigene Säule'];
+		await sequelize.query(
+			`INSERT INTO \`pillars\` (\`name\`, \`weight\`, \`createdAt\`, \`updatedAt\`) VALUES ` +
+				names.map(() => '(?, 20, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)').join(', '),
+			{ replacements: names },
+		);
+	};
+
+	// ── AK1: Migration zieht die description-Spalte nach und backfillt die kanonischen Stammdaten
+	it('zieht die description-Spalte nach und backfillt die fünf Standard-Säulen nach Namen', async () => {
+		await createLegacyPillarsTableBeforeDescription();
+		await insertLegacyPillars();
+
+		assert.ok(!(await columnsOf('pillars')).includes('description'), 'Vorbedingung: keine description-Spalte');
+
+		await migratePillarDescription(sequelize);
+
+		assert.ok((await columnsOf('pillars')).includes('description'), 'description-Spalte wurde nachgezogen');
+
+		// Die fünf Standard-Säulen erhalten ihre kanonische Kurzbeschreibung (Lookup nach Name).
+		const [rows] = await sequelize.query('SELECT `name`, `description` FROM `pillars` ORDER BY `id`');
+		const byName = new Map((rows as { name: string; description: string }[]).map((row) => [row.name, row.description]));
+		for (const { name, description } of SEED_PILLARS) {
+			assert.equal(byName.get(name), description, `Standard-Säule „${name}" hat ihre kanonische Beschreibung`);
+		}
+		// Eine nicht-kanonische Säule bleibt ohne Beschreibung (kein Treffer in SEED_PILLARS).
+		assert.equal(byName.get('Eigene Säule'), '', 'nicht-kanonische Säule wird nicht überschrieben');
+	});
+
+	// ── Idempotenz — erneuter Lauf ist stabil und erzeugt keine Dubletten
+	it('ist idempotent: erneuter Aufruf wirft nicht und legt description nicht doppelt an', async () => {
+		await createLegacyPillarsTableBeforeDescription();
+		await insertLegacyPillars();
+
+		await migratePillarDescription(sequelize);
+		await assert.doesNotReject(() => migratePillarDescription(sequelize), 'zweiter Lauf bleibt stabil');
+
+		const occurrences = (await columnsOf('pillars')).filter((name) => name === 'description').length;
+		assert.equal(occurrences, 1, 'description existiert genau einmal (keine Dublette)');
+	});
+
+	// ── Frische DB (Tabelle fehlt) ist No-op
+	it('ist auf einer DB ohne pillars-Tabelle ein No-op', async () => {
+		assert.deepEqual(await columnsOf('pillars'), [], 'Vorbedingung: keine pillars-Tabelle');
+		await assert.doesNotReject(() => migratePillarDescription(sequelize), 'Migration ohne Tabelle ist no-op');
 	});
 });

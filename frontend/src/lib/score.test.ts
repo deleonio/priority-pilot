@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 // Der Import schlägt fehl, bis `frontend/src/lib/score.ts` die Schnittstelle bereitstellt.
 import { buildPillarBalances } from './score';
 
-const pillar = (id: number, name: string, weight: number): Pillar => ({ id, name, weight });
+const pillar = (id: number, name: string, weight: number): Pillar => ({ id, name, description: '', weight });
 
 /**
  * Vertrag für den „Balance-Stand pro Säule" im Dashboard (Konzept §4.4): aus den aggregierten

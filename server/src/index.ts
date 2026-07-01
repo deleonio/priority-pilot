@@ -8,9 +8,11 @@ import {
 	migrateSeriesTable,
 	migrateUsersAvatarUrl,
 	migrateUserIdColumns,
+	migratePillarDescription,
 } from './logics/migrate.js';
 import { buildTaskForest } from './logics/tree.js';
 import { Pillar, Task, TaskPillar } from './models/index.js';
+import { SEED_PILLARS } from './models/pillarData.js';
 
 // Daten nur auf ausdrücklichen Wunsch zurücksetzen (sonst kein stiller Datenverlust).
 const shouldReset = process.env.DB_RESET === 'true';
@@ -20,15 +22,15 @@ const shouldReset = process.env.DB_RESET === 'true';
 // unberührt — die fünf Lebensbalance-Säulen sind Stammdaten, keine Demo-Daten.
 const shouldSeedDemo = process.env.DB_SEED !== 'false';
 
-// Die fünf festen Lebensbalance-Säulen (gleichgewichtet ⇒ je 20 %, Summe 100 %).
-const PILLAR_NAMES = ['Körper', 'Beziehungen', 'Sinn', 'Mentale Gesundheit', 'Wirksamkeit'] as const;
+// Die fünf festen Lebensbalance-Säulen als kanonische Stammdaten (Name + Kurzbeschreibung +
+// Default-Gewichtung). Globale Daten — für alle Nutzer identisch (siehe SEED_PILLARS).
 
 const seedPillars = async (): Promise<void> => {
 	const existing = await Pillar.count();
 	if (existing > 0) {
 		return;
 	}
-	await Pillar.bulkCreate(PILLAR_NAMES.map((name) => ({ name, weight: 20 })));
+	await Pillar.bulkCreate(SEED_PILLARS.map(({ name, description, weight }) => ({ name, description, weight })));
 };
 
 /**
@@ -115,6 +117,9 @@ const main = async (): Promise<void> => {
 		// Fehlende userId-Spalten (Datenisolation #207) an pillars/tasks nachziehen, BEVOR sync()
 		// den Unique-Index pillars_name_user_id auf (name, userId) anlegt (sonst SQLITE_ERROR).
 		await migrateUserIdColumns(sequelize);
+		// Fehlende description-Spalte an pillars nachziehen + kanonische Stammdaten zurückfüllen
+		// (vor sync(), damit eine frische DB den Spalten-Default korrekt erhält).
+		await migratePillarDescription(sequelize);
 
 		// Datenbank synchronisieren (force nur bei DB_RESET=true)
 		await sequelize.sync({ force: shouldReset });

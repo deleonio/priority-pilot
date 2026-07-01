@@ -2,16 +2,20 @@ import { DataTypes, Model } from 'sequelize';
 import sequelize from '../database.js';
 
 /**
- * Eine der fünf festen Lebensbalance-Säulen. `weight` ist der prozentuale Anteil
- * der Säule (Default 20 ⇒ fünf Säulen summieren sich auf 100 %).
+ * Eine der fünf festen Lebensbalance-Säulen. **Globale Stammdaten** — für alle Nutzer identisch,
+ * nicht pro Nutzer isoliert (die Säulen-Auswahl im API ist daher unscoped). `weight` ist der
+ * prozentuale Anteil der Säule (Default 20 ⇒ fünf Säulen summieren sich auf 100 %). `description`
+ * ist die kanonische Kurzbeschreibung (Einstellungs-Menü); Quelle der Werte ist
+ * {@link ../models/pillarData.ts SEED_PILLARS}.
  */
 class Pillar extends Model {
 	public id!: number;
 	public name!: string;
 	public weight!: number;
+	public description!: string;
 
-	// Eigentümer der Säule (Issue #207, AK5 — Datenisolation). Nullable für Abwärtskompatibilität:
-	// bestehende, nutzerlose Säulen bleiben erhalten; neue Säulen werden an die Session-`userId` gebunden.
+	// Nur aus historischen Gründen vorhanden (Issue #207 hatte Säulen pro Nutzer isoliert; das wurde
+	// zurückgenommen, weil Säulen feste App-Stammdaten sind). Nullable; **nicht** für Filter genutzt.
 	public userId?: number | null;
 
 	public readonly createdAt!: Date;
@@ -37,7 +41,15 @@ Pillar.init(
 				min: 0,
 			},
 		},
-		// Eigentümer-Bindung (Issue #207, AK5). `null` erlaubt (Abwärtskompatibilität, s. o.).
+		// Kurzbeschreibung der Säule (globale Stammdaten, nicht nutzereditierbar). NOT NULL mit
+		// Default '' damit bestehende Zeilen beim Nachziehen der Spalte nicht verletzt werden; der
+		// Seed bzw. die Migration füllen die echten Werte (siehe SEED_PILLARS).
+		description: {
+			type: DataTypes.STRING,
+			allowNull: false,
+			defaultValue: '',
+		},
+		// Nur aus historischen Gründen nullable (siehe Klassen-Kommentar); nicht für Filter genutzt.
 		userId: {
 			type: DataTypes.INTEGER,
 			allowNull: true,
@@ -48,8 +60,8 @@ Pillar.init(
 		modelName: 'Pillar',
 		tableName: 'pillars',
 		timestamps: true,
-		// Säulennamen sind pro Nutzer eindeutig (statt global) — verschiedene Nutzer dürfen dieselbe
-		// Säule benennen. Nutzerlose Alt-Säulen (`userId = null`) bleiben davon unberührt.
+		// Historischer Unique-Index aus #207 (name, userId). Da Säulen global sind, ist `userId`
+		// effektiv immer null; der Index bleibt aus Migrationssicherheit unangetastet.
 		indexes: [{ unique: true, fields: ['name', 'userId'] }],
 	},
 );

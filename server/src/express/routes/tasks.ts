@@ -236,16 +236,17 @@ const validateTaskFields = (body: unknown, requireTitle: boolean): ValidationRes
 };
 
 /**
- * Prüft, ob alle referenzierten Säulen existieren und dem Nutzer gehören (Datenisolation, #207).
- * Im Pass-Through-Modus (`userId = undefined`) wird nur auf Existenz geprüft (keine Nutzer-Bindung).
+ * Prüft, ob alle referenzierten Säulen existieren. Säulen sind **globale Stammdaten** (für alle
+ * Nutzer identisch), daher wird nur auf Existenz geprüft — keine Nutzer-Bindung mehr (die frühere
+ * `ownerScope`-Prüfung aus #207 verwarf bei `NULL`-owned Stammdaten jede Zuweisung).
  * `[]` ist gültig (keine Säule). SQLite erzwingt den Fremdschlüssel nicht selbst.
  */
-const arePillarsExistent = async (pillars: PillarContribution[], userId: number | undefined): Promise<boolean> => {
+const arePillarsExistent = async (pillars: PillarContribution[]): Promise<boolean> => {
 	if (pillars.length === 0) {
 		return true;
 	}
 	const ids = pillars.map((entry) => entry.pillarId);
-	const count = await Pillar.count({ where: { id: ids, ...ownerScope(userId) } });
+	const count = await Pillar.count({ where: { id: ids } });
 	return count === ids.length;
 };
 
@@ -300,7 +301,7 @@ tasksRouter.post('/tasks', async (req: Request, res: Response<TaskDto | ErrorDto
 		return;
 	}
 	const userId = getUserId(req);
-	if (validation.pillars !== undefined && !(await arePillarsExistent(validation.pillars, userId))) {
+	if (validation.pillars !== undefined && !(await arePillarsExistent(validation.pillars))) {
 		sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
 		return;
 	}
@@ -351,7 +352,7 @@ tasksRouter.patch('/tasks/:id', async (req: Request, res: Response<TaskDto | Err
 		sendError(res, 400, validation.message);
 		return;
 	}
-	if (validation.pillars !== undefined && !(await arePillarsExistent(validation.pillars, getUserId(req)))) {
+	if (validation.pillars !== undefined && !(await arePillarsExistent(validation.pillars))) {
 		sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
 		return;
 	}

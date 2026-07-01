@@ -311,6 +311,11 @@ body {
 	margin-bottom: 1rem;
 }
 
+/* Eine Säule im Gewichtungs-Editor: Slider plus darunterliegende Kurzbeschreibung. */
+.pillar-weight-row .pillar-description {
+	margin: -0.5rem 0 0;
+}
+
 .modal-actions {
 	display: flex;
 	gap: 0.5rem;

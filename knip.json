@@ -1,16 +1,14 @@
 {
 	"ignore": ["spikes/**", ".github/workflows/*.test.ts"],
-	"ignoreBinaries": ["generate"],
+	"ignoreBinaries": ["generate", "fetch_state", "gh"],
 	"workspaces": {
 		"server": {
-			"entry": ["src/index.ts", "src/console.ts"],
-			"ignore": ["src/api.d.ts"],
-			"ignoreDependencies": ["sqlite3"]
+			"entry": ["src/index.ts"],
+			"ignore": ["src/api.d.ts"]
 		},
 		"frontend": {
 			"entry": ["src/main.tsx"],
-			"ignore": [],
-			"ignoreDependencies": ["@vitest/coverage-v8"]
+			"ignore": []
 		},
 		"client": {
 			"ignore": ["src/schema.d.ts"]
