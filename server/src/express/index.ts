@@ -15,6 +15,7 @@ import { buildTaskForest } from '../logics/tree.js';
 import { findNextImportantTask, findSuggestedTasks } from '../logics/find.js';
 import { isEmailAllowed, getConfiguredEmails } from '../logics/allowedEmails.js';
 import { requireAuth, getUserId } from './requireAuth.js';
+import { User } from '../models/index.js';
 
 const PORT = Number(process.env.PORT) || 3000;
 
@@ -82,14 +83,26 @@ export const createApp = (deps: AppDeps = {}) => {
 		// im selben Prozess überschreiben diese globale Strategie gegenseitig — daher wird
 		// pro Prozess nur eine App-Konfiguration unterstützt (ausreichend für unser Multi-User-Gate).
 		passport.use(
-			new GoogleStrategy({ clientID, clientSecret, callbackURL }, (_accessToken, _refreshToken, profile, done) => {
-				const email = (profile.emails?.[0]?.value ?? '').trim().toLowerCase();
-				if (!isEmailAllowed(email)) {
-					return done(null, false);
-				}
-				const displayName = profile.displayName ?? email;
-				return done(null, { email, displayName });
-			}),
+			new GoogleStrategy(
+				{ clientID, clientSecret, callbackURL },
+				async (_accessToken, _refreshToken, profile, done) => {
+					try {
+						const email = (profile.emails?.[0]?.value ?? '').trim().toLowerCase();
+						if (!isEmailAllowed(email)) {
+							return done(null, false);
+						}
+						const displayName = profile.displayName ?? email;
+						// OAuth-Nutzer haben kein Passwort — Sentinel verhindert bcrypt-Login über die /auth/login-Route.
+						const [user] = await User.findOrCreate({
+							where: { email },
+							defaults: { email, passwordHash: '__oauth__', displayName },
+						});
+						return done(null, { id: user.id, email, displayName });
+					} catch (err) {
+						return done(err as Error);
+					}
+				},
+			),
 		);
 	}
 

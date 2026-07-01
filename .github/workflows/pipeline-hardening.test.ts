@@ -377,6 +377,11 @@ describe('Label-Reihenfolge-Prinzip — Labels erst NACH allen Schreibvorgaengen
 	});
 
 	it('claude-pr-review.yml: Sammelkommentar steht vor der Label-Umschaltung (je Agent-Pfad)', () => {
-		assertContentBeforeLabel('claude-pr-review.yml', 'Sammelkommentar konsolidieren', 'Abschluss — GENAU EINEN Weg gehen', 3);
+		assertContentBeforeLabel(
+			'claude-pr-review.yml',
+			'Sammelkommentar konsolidieren',
+			'Abschluss — GENAU EINEN Weg gehen',
+			3,
+		);
 	});
 });

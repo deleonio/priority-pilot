@@ -43,12 +43,10 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction): vo
 		return;
 	}
 	const user = req.session?.user;
-	if (!user || (hasAllowlist() && !isEmailAllowed(user.email))) {
+	if (!user || typeof user.id !== 'number' || (hasAllowlist() && !isEmailAllowed(user.email))) {
 		res.status(401).json({ message: 'Nicht eingeloggt.' });
 		return;
 	}
-	if (typeof user.id === 'number') {
-		req.userId = user.id;
-	}
+	req.userId = user.id;
 	next();
 };

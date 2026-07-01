@@ -243,15 +243,16 @@ const validateTaskFields = (body: unknown, requireTitle: boolean): ValidationRes
 };
 
 /**
- * Prüft, ob alle referenzierten Säulen existieren. `[]` ist gültig (keine Säule). SQLite erzwingt
- * den Fremdschlüssel nicht selbst, daher hier explizit prüfen (die `pillarId` sind dublettenfrei).
+ * Prüft, ob alle referenzierten Säulen existieren und dem Nutzer gehören (Datenisolation, #207).
+ * Im Pass-Through-Modus (`userId = undefined`) wird nur auf Existenz geprüft (keine Nutzer-Bindung).
+ * `[]` ist gültig (keine Säule). SQLite erzwingt den Fremdschlüssel nicht selbst.
  */
-const arePillarsExistent = async (pillars: PillarContribution[]): Promise<boolean> => {
+const arePillarsExistent = async (pillars: PillarContribution[], userId: number | undefined): Promise<boolean> => {
 	if (pillars.length === 0) {
 		return true;
 	}
 	const ids = pillars.map((entry) => entry.pillarId);
-	const count = await Pillar.count({ where: { id: ids } });
+	const count = await Pillar.count({ where: { id: ids, ...ownerScope(userId) } });
 	return count === ids.length;
 };
 
@@ -305,11 +306,11 @@ tasksRouter.post('/tasks', async (req: Request, res: Response<TaskDto | ErrorDto
 		sendError(res, 400, validation.message);
 		return;
 	}
-	if (validation.pillars !== undefined && !(await arePillarsExistent(validation.pillars))) {
+	const userId = getUserId(req);
+	if (validation.pillars !== undefined && !(await arePillarsExistent(validation.pillars, userId))) {
 		sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
 		return;
 	}
-	const userId = getUserId(req);
 	try {
 		const created = await sequelize.transaction(async (transaction) => {
 			// Neuen Task an den eingeloggten Nutzer binden (Datenisolation, #207); `null` im Pass-Through.
@@ -357,7 +358,7 @@ tasksRouter.patch('/tasks/:id', async (req: Request, res: Response<TaskDto | Err
 		sendError(res, 400, validation.message);
 		return;
 	}
-	if (validation.pillars !== undefined && !(await arePillarsExistent(validation.pillars))) {
+	if (validation.pillars !== undefined && !(await arePillarsExistent(validation.pillars, getUserId(req)))) {
 		sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
 		return;
 	}
