@@ -26,11 +26,16 @@ const buildUpstreamUrl = (path: string, req: Request): string => {
 	return url.toString();
 };
 
+const UPSTREAM_TIMEOUT_MS = 10_000;
+
 /** Leitet den Request an Transitous weiter und reicht Status + JSON durch. */
 const proxy = async (path: string, req: Request, res: Response): Promise<void> => {
+	const controller = new AbortController();
+	const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
 	try {
 		const upstream = await fetch(buildUpstreamUrl(path, req), {
 			headers: { Accept: 'application/json' },
+			signal: controller.signal,
 		});
 		// Upstream-Fehler (>= 400) werden als 502 (Bad Gateway) signalisiert.
 		if (upstream.status >= 400) {
@@ -41,6 +46,8 @@ const proxy = async (path: string, req: Request, res: Response): Promise<void> =
 		res.status(upstream.status).json(body);
 	} catch {
 		res.status(502).json({ message: 'Transitous nicht erreichbar.' });
+	} finally {
+		clearTimeout(timer);
 	}
 };
 

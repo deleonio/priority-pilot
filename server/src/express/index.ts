@@ -119,7 +119,6 @@ export const createApp = (deps: AppDeps = {}) => {
 		res.json({ status: 'ok' });
 	});
 
-	// Alle folgenden Routen benötigen eine gültige Session.
 	// Öffentlicher CORS-Proxy für Transitous/MOTIS (Issue #224) — bewusst ohne requireAuth.
 	app.use('/api/transit', transitRouter);
 
