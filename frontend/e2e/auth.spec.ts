@@ -90,9 +90,7 @@ test.describe('AK 8 — Login-UI mit Fehlerbehandlung (#208)', () => {
 
 		const alert = page.getByRole('alert');
 		await expect(alert).toBeVisible();
-		// Kein leerer Alert-Text bei unbekanntem Fehlercode.
-		const text = await alert.textContent();
-		expect(text?.trim().length).toBeGreaterThan(0);
+		await expect(alert).toContainText('Ein unbekannter Anmeldefehler ist aufgetreten.');
 	});
 
 	test('AK8d: Kein Fehlerparameter → kein Alert sichtbar', async ({ page }) => {

@@ -6,14 +6,13 @@ import { waitForStableView } from './helpers';
  * ROTE Spec-Tests für #191 „feat: Logout-Button in Navigation" (Stufe 1 TDD, der einklagbare Vertrag).
  *
  * Ziel des Tickets (siehe Triage-Analyse): Der Header/die Navigation erhält einen **Logout-Button**.
- * Er ist nur für authentifizierte Benutzer sichtbar (aktueller Auth-State = `localStorage`-Eintrag
- * `displayName`, vgl. `App.tsx`). Ein Klick sendet `POST /auth/logout` (zerstört die Session), räumt
- * den lokalen Auth-State auf und leitet anschließend auf die Login-Seite (`/login`) um. Schlägt der
- * Logout fehl, bleibt der Nutzer eingeloggt und der Button wieder bedienbar (AK-5, siehe
- * `src/App.test.tsx`).
+ * Er ist nur für authentifizierte Benutzer sichtbar (Server-Side-Session via GET /auth/me;
+ * vgl. `Root.tsx`). Ein Klick sendet `POST /auth/logout` (zerstört die Session) und leitet
+ * anschließend auf die Login-Seite (`/login`) um. Schlägt der Logout fehl, bleibt der Nutzer
+ * eingeloggt und der Button wieder bedienbar (AK-5, siehe `src/App.test.tsx`).
  *
  * Diese Tests sind **rot**, bis die Umsetzung den Logout-Button samt Verdrahtung
- * (`api.logout` → `POST /auth/logout` → State-Cleanup → Redirect `/login`) in `App.tsx` ergänzt.
+ * (`api.logout` → `POST /auth/logout` → Redirect `/login`) in `App.tsx` ergänzt.
  *
  * Anders als die funktionalen CRUD-Specs mocken diese Tests die Auth-Endpunkte bewusst über
  * `page.route`: Das echte Test-Backend (In-Memory-DB) kennt weder `/auth/logout` noch eine
@@ -22,8 +21,7 @@ import { waitForStableView } from './helpers';
  *
  * Seit #190 hängt vor der Haupt-App ein Auth-Gate (`Root.tsx`): Nur wenn `GET /auth/me` einen User
  * liefert, wird die App gerendert. `stubBackend` mockt `/auth/me` daher standardmäßig als
- * authentifiziert, damit das Gate durchlässig ist. Die Button-Sichtbarkeit wird weiterhin über den
- * `displayName`-Eintrag in `localStorage` (vgl. `App.tsx`) gesteuert — `setAuth` bleibt unverändert.
+ * authentifiziert, damit das Gate durchlässig ist.
  */
 
 const DISPLAY_NAME = 'Peter';
@@ -73,18 +71,6 @@ const stubBackend = async (page: Page): Promise<void> => {
 	await page.route('**/api/v1/pillars', (route) => route.fulfill(fulfillJson([])));
 };
 
-/** Setzt VOR dem Laden den Auth-State (eingeloggt) bzw. löscht ihn (ausgeloggt). */
-const setAuth = async (page: Page, loggedIn: boolean): Promise<void> => {
-	const name: string | null = loggedIn ? DISPLAY_NAME : null;
-	await page.addInitScript((value: string | null) => {
-		if (value === null) {
-			localStorage.removeItem('displayName');
-		} else {
-			localStorage.setItem('displayName', value);
-		}
-	}, name);
-};
-
 /**
  * ROTE Spec-Tests für #209 „Logout-Button im Toolbar rechts oben" (Stufe 1 TDD, einklagbarer Vertrag).
  *
@@ -106,7 +92,6 @@ test.describe('#209 Logout-Button im Toolbar (rechts oben)', () => {
 	 */
 	test('AK-1: Logout-Button liegt innerhalb der benannten Toolbar „Kopf-Aktionen"', async ({ page }) => {
 		await stubBackend(page);
-		await setAuth(page, true);
 		await page.goto('/');
 		await waitForStableView(page);
 
@@ -145,7 +130,6 @@ test.describe('#209 Logout-Button im Toolbar (rechts oben)', () => {
 	 */
 	test('AK-3: Logout-Button ist das letzte Element in der Toolbar', async ({ page }) => {
 		await stubBackend(page);
-		await setAuth(page, true);
 		await page.goto('/');
 		await waitForStableView(page);
 
@@ -164,7 +148,6 @@ test.describe('#209 Logout-Button im Toolbar (rechts oben)', () => {
 	 */
 	test('AK-4: Klick auf Toolbar-Logout-Button sendet POST /auth/logout', async ({ page }) => {
 		await stubBackend(page);
-		await setAuth(page, true);
 
 		await page.route('**/auth/logout', (route) =>
 			route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
@@ -185,8 +168,8 @@ test.describe('#209 Logout-Button im Toolbar (rechts oben)', () => {
 
 test.describe('#191 Logout-Button in Navigation', () => {
 	/**
-	 * AK-1 — Sichtbarkeit nur für authentifizierte Benutzer: Ohne `displayName` (nicht eingeloggt)
-	 * existiert KEIN Logout-Button; mit gesetztem `displayName` (eingeloggt) ist er sichtbar.
+	 * AK-1 — Sichtbarkeit nur für authentifizierte Benutzer: Ohne gültige Session (/auth/me = 401)
+	 * existiert KEIN Logout-Button; mit gültiger Session (/auth/me = 200) ist er sichtbar.
 	 */
 	test('AK-1: Logout-Button nur für authentifizierte Benutzer sichtbar', async ({ page }) => {
 		await stubBackend(page);
@@ -216,7 +199,6 @@ test.describe('#191 Logout-Button in Navigation', () => {
 	 */
 	test('AK-2: Button-Klick sendet POST /auth/logout', async ({ page }) => {
 		await stubBackend(page);
-		await setAuth(page, true);
 
 		let logoutMethod: string | null = null;
 		await page.route('**/auth/logout', async (route) => {
@@ -241,7 +223,6 @@ test.describe('#191 Logout-Button in Navigation', () => {
 	 */
 	test('AK-3: nach Logout Redirect zur Login-Seite', async ({ page }) => {
 		await stubBackend(page);
-		await setAuth(page, true);
 
 		await page.route('**/auth/logout', (route) =>
 			route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
@@ -256,10 +237,9 @@ test.describe('#191 Logout-Button in Navigation', () => {
 	});
 
 	/**
-	 * AK-4 — Session zerstört: Nach dem Logout ist der lokale Auth-State (`displayName`) entfernt; ein
-	 * (hypothetischer) erneuter API-Aufruf würde mangels Session mit 401 abgelehnt. Geprüft wird der
-	 * beobachtbare Vertrag: der Auth-State ist bereinigt und ein bewusst auf 401 gemockter API-Endpunkt
-	 * gewährt keinen Zugriff mehr auf die eingeloggte Ansicht.
+	 * AK-4 — Session zerstört: Nach dem Logout ist die Session serverseitig beendet; ein erneuter
+	 * API-Aufruf wird mangels Session mit 401 abgelehnt. Geprüft wird der beobachtbare Vertrag:
+	 * ein bewusst auf 401 gemockter API-Endpunkt gewährt keinen Zugriff mehr auf die eingeloggte Ansicht.
 	 */
 	test('AK-4: nach Logout ist die Session zerstört (Auth-State bereinigt, neue Anfragen abgelehnt)', async ({
 		page,
@@ -301,7 +281,6 @@ test.describe('#191 Logout-Button in Navigation', () => {
 		page,
 	}) => {
 		await stubBackend(page);
-		await setAuth(page, true);
 
 		await page.route('**/auth/logout', (route) =>
 			route.fulfill({
@@ -321,10 +300,6 @@ test.describe('#191 Logout-Button in Navigation', () => {
 
 		// Kein Redirect auf /login — Nutzer bleibt auf der App-Seite.
 		await expect(page).not.toHaveURL(/\/login/);
-
-		// Auth-State bleibt erhalten (displayName nicht gelöscht).
-		const displayName = await page.evaluate(() => localStorage.getItem('displayName'));
-		expect(displayName).not.toBeNull();
 
 		// Button ist nach dem Fehlschlag wieder bedienbar (nicht dauerhaft disabled).
 		await expect(page.getByRole('button', { name: /Abmelden|Logout/i })).not.toBeDisabled();
