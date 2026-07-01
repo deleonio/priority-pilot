@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import passport from 'passport';
+import { UniqueConstraintError } from 'sequelize';
 import { isEmailAllowed } from '../../logics/allowedEmails.js';
 import { User } from '../../models/index.js';
 import { hashPassword, verifyPassword } from '../../logics/auth.js';
@@ -15,7 +16,7 @@ const authRouter = Router();
 // per frisch regenerierter Session an und antwortet mit 201.
 authRouter.post('/auth/register', async (req, res) => {
 	const { email, password } = req.body as { email?: string; password?: string };
-	if (!email || !password) {
+	if (!email || !password || !password.trim()) {
 		res.status(400).json({ message: 'E-Mail und Passwort sind erforderlich.' });
 		return;
 	}
@@ -27,7 +28,17 @@ authRouter.post('/auth/register', async (req, res) => {
 	}
 
 	const passwordHash = await hashPassword(password);
-	await User.create({ email, passwordHash, displayName: email });
+	try {
+		await User.create({ email, passwordHash, displayName: email });
+	} catch (err) {
+		// Race Condition: zwei parallele Registrierungen passieren beide den findOne-Check
+		// (beide null). Die DB-Unique-Constraint fängt den Konflikt ab → 409 statt 500.
+		if (err instanceof UniqueConstraintError) {
+			res.status(409).json({ message: 'E-Mail ist bereits registriert.' });
+			return;
+		}
+		throw err;
+	}
 
 	// Session-Fixation verhindern: neue Session-ID vor dem Setzen des Users.
 	req.session.regenerate((err) => {
@@ -51,7 +62,7 @@ authRouter.post('/auth/register', async (req, res) => {
 // um E-Mail-Enumeration zu vermeiden). Bei Erfolg frische Session + 200.
 authRouter.post('/auth/login', async (req, res) => {
 	const { email, password } = req.body as { email?: string; password?: string };
-	if (!email || !password) {
+	if (!email || !password || !password.trim()) {
 		res.status(401).json({ message: 'Ungültige Zugangsdaten.' });
 		return;
 	}
