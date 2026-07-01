@@ -360,12 +360,8 @@ export const BahnPage = () => {
 		setItineraries([]);
 		try {
 			const params = new URLSearchParams({
-				fromLat: String(startStation.lat),
-				fromLon: String(startStation.lon),
-				toLat: String(zielStation.lat),
-				toLon: String(zielStation.lon),
-				from: startStation.id,
-				to: zielStation.id,
+				fromPlace: `${startStation.lat},${startStation.lon}`,
+				toPlace: `${zielStation.lat},${zielStation.lon}`,
 			});
 			const departureIso = buildDepartureIso(date, time);
 			if (departureIso !== null) {
