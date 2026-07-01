@@ -3,7 +3,6 @@ import session from 'express-session';
 import passport from 'passport';
 import type { Store } from 'express-session';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
-import type { Request, Response, NextFunction } from 'express';
 import type { components } from '../api';
 import { tasksRouter, serializeTask } from './routes/tasks.js';
 import { pillarsRouter } from './routes/pillars.js';
@@ -15,6 +14,8 @@ import type { PillarClassifier } from '../llm/mistral.js';
 import { buildTaskForest } from '../logics/tree.js';
 import { findNextImportantTask, findSuggestedTasks } from '../logics/find.js';
 import { isEmailAllowed, getConfiguredEmails } from '../logics/allowedEmails.js';
+import { requireAuth, getUserId } from './requireAuth.js';
+import { User } from '../models/index.js';
 
 const PORT = Number(process.env.PORT) || 3000;
 
@@ -28,27 +29,6 @@ export interface AppDeps {
 	pillarClassifier?: PillarClassifier;
 	sessionStore?: Store;
 }
-
-/** Prüft, ob ein Allowlist-Gate konfiguriert ist (Plural oder Singular gesetzt). */
-const hasAllowlist = (): boolean =>
-	!!(process.env.GOOGLE_ALLOWED_EMAILS?.trim() || process.env.GOOGLE_ALLOWED_EMAIL?.trim());
-
-/** Middleware: Anfrage ohne gültige Session abweisen.
- * Nur aktiv wenn eine Allowlist konfiguriert ist — ohne Konfiguration kein Gate. */
-const requireAuth = (req: Request, res: Response, next: NextFunction): void => {
-	if (!hasAllowlist()) {
-		next();
-		return;
-	}
-	const user = req.session.user;
-	// E-Mail bei jeder Anfrage gegen die aktuelle Allowlist prüfen —
-	// so fliegt ein nachträglich gesperrter Account auch mit bestehender Session sofort raus.
-	if (!user || !isEmailAllowed(user.email)) {
-		res.status(401).json({ message: 'Nicht eingeloggt.' });
-		return;
-	}
-	next();
-};
 
 export const createApp = (deps: AppDeps = {}) => {
 	const app = express();
@@ -103,14 +83,26 @@ export const createApp = (deps: AppDeps = {}) => {
 		// im selben Prozess überschreiben diese globale Strategie gegenseitig — daher wird
 		// pro Prozess nur eine App-Konfiguration unterstützt (ausreichend für unser Multi-User-Gate).
 		passport.use(
-			new GoogleStrategy({ clientID, clientSecret, callbackURL }, (_accessToken, _refreshToken, profile, done) => {
-				const email = (profile.emails?.[0]?.value ?? '').trim().toLowerCase();
-				if (!isEmailAllowed(email)) {
-					return done(null, false);
-				}
-				const displayName = profile.displayName ?? email;
-				return done(null, { email, displayName });
-			}),
+			new GoogleStrategy(
+				{ clientID, clientSecret, callbackURL },
+				async (_accessToken, _refreshToken, profile, done) => {
+					try {
+						const email = (profile.emails?.[0]?.value ?? '').trim().toLowerCase();
+						if (!isEmailAllowed(email)) {
+							return done(null, false);
+						}
+						const displayName = profile.displayName ?? email;
+						// OAuth-Nutzer haben kein Passwort — Sentinel verhindert bcrypt-Login über die /auth/login-Route.
+						const [user] = await User.findOrCreate({
+							where: { email },
+							defaults: { email, passwordHash: '__oauth__', displayName },
+						});
+						return done(null, { id: user.id, email, displayName });
+					} catch (err) {
+						return done(err as Error);
+					}
+				},
+			),
 		);
 	}
 
@@ -140,19 +132,19 @@ export const createApp = (deps: AppDeps = {}) => {
 	// Serienaufgaben (Habits): Template-CRUD + Instanz-Generierung (siehe routes/series.ts).
 	app.use(seriesRouter);
 
-	// GET /forest — Aufgabenwald nach Wertschöpfung sortiert.
-	app.get('/forest', async (_req, res: express.Response<TaskTreeNodeDto[] | ErrorDto>) => {
+	// GET /forest — Aufgabenwald nach Wertschöpfung sortiert (auf den eingeloggten Nutzer gefiltert).
+	app.get('/forest', async (req, res: express.Response<TaskTreeNodeDto[] | ErrorDto>) => {
 		try {
-			res.json(await buildTaskForest());
+			res.json(await buildTaskForest(getUserId(req)));
 		} catch {
 			res.status(500).json({ message: 'Interner Serverfehler.' });
 		}
 	});
 
-	// GET /next — nächsten wichtigen Task ermitteln (oder null).
-	app.get('/next', async (_req, res: express.Response<TaskDto | null | ErrorDto>) => {
+	// GET /next — nächsten wichtigen Task ermitteln (oder null) — auf den eingeloggten Nutzer gefiltert.
+	app.get('/next', async (req, res: express.Response<TaskDto | null | ErrorDto>) => {
 		try {
-			const task = await findNextImportantTask();
+			const task = await findNextImportantTask(getUserId(req));
 			res.json(task ? serializeTask(task) : null);
 		} catch {
 			res.status(500).json({ message: 'Interner Serverfehler.' });
@@ -160,9 +152,9 @@ export const createApp = (deps: AppDeps = {}) => {
 	});
 
 	// GET /suggestions — „Was ist jetzt dran?"-Vorschlagsliste (sortiert, post-gefiltert).
-	app.get('/suggestions', async (_req, res: express.Response<TaskDto[] | ErrorDto>) => {
+	app.get('/suggestions', async (req, res: express.Response<TaskDto[] | ErrorDto>) => {
 		try {
-			const tasks = await findSuggestedTasks();
+			const tasks = await findSuggestedTasks(getUserId(req));
 			res.json(tasks.map(serializeTask));
 		} catch {
 			res.status(500).json({ message: 'Interner Serverfehler.' });

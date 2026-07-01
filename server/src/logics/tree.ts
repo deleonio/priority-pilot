@@ -44,10 +44,12 @@ const buildTaskTree = async (task: Task): Promise<TaskTreeNode> => {
 };
 
 // Funktion, um den gesamten Aufgabenwald (nach Wertschöpfung sortiert) zu erstellen
-export const buildTaskForest = async (): Promise<TaskTreeNode[]> => {
+export const buildTaskForest = async (userId?: number): Promise<TaskTreeNode[]> => {
 	const tasks = await Task.findAll({
 		where: {
 			status: ['Open', 'In process'],
+			// Datenisolation (#207, AK5): auf den eingeloggten Nutzer filtern, sofern vorhanden.
+			...(userId !== undefined ? { userId } : {}),
 		},
 	});
 

@@ -33,8 +33,9 @@ authRouter.post('/auth/register', async (req, res) => {
 	}
 
 	const passwordHash = await hashPassword(password);
+	let created: User;
 	try {
-		await User.create({ email: normalizedEmail, passwordHash, displayName: normalizedEmail });
+		created = await User.create({ email: normalizedEmail, passwordHash, displayName: normalizedEmail });
 	} catch (err) {
 		// Race Condition: zwei parallele Registrierungen passieren beide den findOne-Check
 		// (beide null). Die DB-Unique-Constraint fängt den Konflikt ab → 409 statt 500.
@@ -51,7 +52,7 @@ authRouter.post('/auth/register', async (req, res) => {
 			res.status(500).json({ message: 'Session-Fehler.' });
 			return;
 		}
-		req.session.user = { email: normalizedEmail, displayName: normalizedEmail };
+		req.session.user = { id: created.id, email: normalizedEmail, displayName: normalizedEmail };
 		req.session.save((saveErr) => {
 			if (saveErr) {
 				res.status(500).json({ message: 'Session konnte nicht gespeichert werden.' });
@@ -86,7 +87,7 @@ authRouter.post('/auth/login', async (req, res) => {
 		return;
 	}
 
-	const sessionUser = { email: user.email, displayName: user.displayName };
+	const sessionUser = { id: user.id, email: user.email, displayName: user.displayName };
 	// Session-Fixation verhindern: neue Session-ID vor dem Setzen des Users.
 	req.session.regenerate((err) => {
 		if (err) {
@@ -118,14 +119,14 @@ authRouter.get(
 	passport.authenticate('google', { failureRedirect: '/auth/error' }),
 	(req, res) => {
 		// User vor regenerate() sichern — req.user ist danach ggf. nicht mehr verfügbar.
-		const user = req.user as { email: string; displayName: string };
+		const user = req.user as { id: number; email: string; displayName: string };
 		// Session-Fixation verhindern: neue Session-ID vor dem Setzen des Users.
 		req.session.regenerate((err) => {
 			if (err) {
 				res.redirect('/auth/error');
 				return;
 			}
-			req.session.user = user;
+			req.session.user = { id: user.id, email: user.email, displayName: user.displayName };
 			req.session.save(() => res.redirect('/'));
 		});
 	},
@@ -153,7 +154,7 @@ authRouter.post('/auth/logout', (req, res) => {
 // Konditionale Registrierung (statt Runtime-Guard) eliminiert das Auth-Bypass-Risiko
 // bei versehentlichem Deploy einer test-Konfiguration.
 if (process.env.NODE_ENV === 'test') {
-	authRouter.post('/auth/test-login', (req, res) => {
+	authRouter.post('/auth/test-login', async (req, res) => {
 		const { email, displayName } = req.body as { email?: string; displayName?: string };
 
 		// Multi-User-Gate (Issue #193, AK-8): nicht-erlaubte E-Mail → 401.
@@ -162,18 +163,20 @@ if (process.env.NODE_ENV === 'test') {
 			return;
 		}
 
-		// User vor regenerate() sichern.
-		const user = {
-			email,
-			displayName: displayName ?? email,
-		};
+		const resolvedDisplayName = displayName ?? email;
+		// Test-Nutzer ohne Passwort: find/create analog zum OAuth-Pfad.
+		const [dbUser] = await User.findOrCreate({
+			where: { email },
+			defaults: { email, passwordHash: '__test__', displayName: resolvedDisplayName },
+		});
+
 		// Session-Fixation verhindern: neue Session-ID vor dem Setzen des Users.
 		req.session.regenerate((err) => {
 			if (err) {
 				res.status(500).json({ message: 'Session-Fehler.' });
 				return;
 			}
-			req.session.user = user;
+			req.session.user = { id: dbUser.id, email, displayName: resolvedDisplayName };
 			req.session.save(() => {
 				res.json({ message: 'Eingeloggt.' });
 			});

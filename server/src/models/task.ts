@@ -34,6 +34,10 @@ class Task extends Model {
 	public isException!: boolean;
 	public seriesOccurrence?: Date | null;
 
+	// Eigentümer des Tasks (Issue #207, AK5 — Datenisolation). Nullable für Abwärtskompatibilität:
+	// Alt-Bestände ohne Zuordnung bleiben lesbar; neue Tasks werden über die Session-`userId` gebunden.
+	public userId?: number | null;
+
 	public addDependency!: BelongsToManyAddAssociationMixin<Task, number>;
 	public removeDependency!: BelongsToManyRemoveAssociationMixin<Task, number>;
 	public getDependencies!: BelongsToManyGetAssociationsMixin<Task>;
@@ -114,6 +118,11 @@ Task.init(
 		},
 		seriesOccurrence: {
 			type: DataTypes.DATE,
+			allowNull: true,
+		},
+		// Eigentümer-Bindung (Issue #207, AK5). `null` erlaubt (Abwärtskompatibilität, s. o.).
+		userId: {
+			type: DataTypes.INTEGER,
 			allowNull: true,
 		},
 		// Die Säulen-Zuordnung ist n:m und liegt in `task_pillars` (siehe taskPillar.ts /
