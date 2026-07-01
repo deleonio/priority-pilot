@@ -3,7 +3,7 @@ import type { Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useMemo } from 'react';
 import { collectTaskValues } from '../lib/forest';
-import { buildPillarSummaries, weightToRaw } from '../lib/pillar';
+import { buildPillarSummaries } from '../lib/pillar';
 import { buildPillarBalances } from '../lib/score';
 import {
 	type DeadlineUrgency,
@@ -208,9 +208,11 @@ export const Dashboard = ({ tasks, forest, nextTask, suggestions = [], pillars, 
 								totalEstimatedEffort,
 								openEstimatedEffort,
 								doneEstimatedEffort,
+								actualShare,
 							}) => (
 								<li key={pillar.id} className="dashboard-pillar">
-									<KolMeter _label={pillar.name} _value={weightToRaw(pillar.weight)} _max={1} />
+									<KolMeter _label={pillar.name} _value={actualShare} _max={1} />
+									<span data-testid="pillar-target-weight">Ziel: {Math.round(pillar.weight)} %</span>
 									<span className="dashboard-pillar-meta">
 										{`${taskCount} ${taskCount === 1 ? 'Aufgabe' : 'Aufgaben'} (${openCount} offen · ${doneCount} erledigt) · Wert ${formatNumber(totalValue)} · Aufwand ${formatNumber(totalEstimatedEffort)} Tage (${formatNumber(openEstimatedEffort)} offen · ${formatNumber(doneEstimatedEffort)} erledigt)`}
 									</span>
