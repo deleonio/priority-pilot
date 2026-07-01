@@ -4,6 +4,10 @@ import { isEmailAllowed } from '../../logics/allowedEmails.js';
 import { User } from '../../models/index.js';
 import { hashPassword, verifyPassword } from '../../logics/auth.js';
 
+// Timing-Normalisierung: bei unbekannter E-Mail bcrypt-Vergleich simulieren,
+// damit Angreifer per Zeitmessung keine gültigen Adressen ermitteln können.
+const DUMMY_HASH = await hashPassword('__dummy__');
+
 const authRouter = Router();
 
 // POST /auth/register — E-Mail-/Passwort-Registrierung (Issue #206, AK 1).
@@ -32,7 +36,11 @@ authRouter.post('/auth/register', async (req, res) => {
 			return;
 		}
 		req.session.user = { email, displayName: email };
-		req.session.save(() => {
+		req.session.save((saveErr) => {
+			if (saveErr) {
+				res.status(500).json({ message: 'Session konnte nicht gespeichert werden.' });
+				return;
+			}
 			res.status(201).json({ email, displayName: email });
 		});
 	});
@@ -50,6 +58,7 @@ authRouter.post('/auth/login', async (req, res) => {
 
 	const user = await User.findOne({ where: { email } });
 	if (!user) {
+		await verifyPassword(password, DUMMY_HASH); // Timing normalisieren — verhindert E-Mail-Enumeration
 		res.status(401).json({ message: 'Ungültige Zugangsdaten.' });
 		return;
 	}
@@ -68,7 +77,11 @@ authRouter.post('/auth/login', async (req, res) => {
 			return;
 		}
 		req.session.user = sessionUser;
-		req.session.save(() => {
+		req.session.save((saveErr) => {
+			if (saveErr) {
+				res.status(500).json({ message: 'Session konnte nicht gespeichert werden.' });
+				return;
+			}
 			res.status(200).json(sessionUser);
 		});
 	});
