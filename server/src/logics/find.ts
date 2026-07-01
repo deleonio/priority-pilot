@@ -147,7 +147,16 @@ export const findSuggestedTasks = async (userId?: number): Promise<Task[]> => {
 	const pillars = await Pillar.findAll(userId !== undefined ? { where: { userId } } : {});
 	const soll = sollProSaeule(pillars);
 
-	const scoreEintraege = await ScoreEntry.findAll({ include: [{ model: Task, include: [Pillar] }] });
+	const scoreEintraege = await ScoreEntry.findAll({
+		include: [
+			{
+				model: Task,
+				where: userId !== undefined ? { userId } : undefined,
+				required: userId !== undefined,
+				include: [Pillar],
+			},
+		],
+	});
 	const beitraege: PunkteBeitrag[] = scoreEintraege.map((entry) => {
 		const taskPillars: PillarWithContribution[] = entry.Task?.Pillars ?? [];
 		return {

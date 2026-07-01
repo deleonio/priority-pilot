@@ -2,7 +2,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import sequelize from '../../database.js';
 import { Pillar } from '../../models/index.js';
-import { getUserId } from '../requireAuth.js';
+import { getUserId, ownerScope } from '../requireAuth.js';
 import type { components } from '../../api';
 
 type PillarDto = components['schemas']['Pillar'];
@@ -31,13 +31,6 @@ const serializePillar = (pillar: Pillar): PillarDto => ({
 const sendError = (res: Response<ErrorDto>, status: number, message: string): void => {
 	res.status(status).json({ message });
 };
-
-/**
- * Eigentümer-Filter für Säulen-Queries (Issue #207, AK5). Bei gesetzter `userId` wird auf die Säulen
- * des eingeloggten Nutzers eingeschränkt; im Pass-Through-Modus (`undefined`) bleibt der Filter leer
- * (Abwärtskompatibilität für nutzerlose Setups).
- */
-const ownerScope = (userId: number | undefined): { userId?: number } => (userId !== undefined ? { userId } : {});
 
 /**
  * Validiert den Body von `PUT /pillars/weights` rein strukturell (ohne DB-Zugriff):

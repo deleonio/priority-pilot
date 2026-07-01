@@ -5,7 +5,7 @@ import sequelize from '../../database.js';
 import { Pillar, ScoreEntry, Task, TaskPillar } from '../../models/index.js';
 import { wouldCreateCycle } from '../../logics/cycle.js';
 import { berechneScore } from '../../logics/score.js';
-import { getUserId } from '../requireAuth.js';
+import { getUserId, ownerScope } from '../requireAuth.js';
 import type { components } from '../../api';
 
 type TaskDto = components['schemas']['Task'];
@@ -88,13 +88,6 @@ const parseId = (raw: string): number | null => {
 	const id = Number(raw);
 	return Number.isInteger(id) && id > 0 ? id : null;
 };
-
-/**
- * Eigentümer-Filter für Task-Queries (Issue #207, AK5). Bei gesetzter `userId` wird auf den
- * eingeloggten Nutzer eingeschränkt; im Pass-Through-Modus (`undefined`) bleibt der Filter leer,
- * sodass reine CRUD-Setups ohne Login unverändert alle Tasks sehen (Abwärtskompatibilität).
- */
-const ownerScope = (userId: number | undefined): { userId?: number } => (userId !== undefined ? { userId } : {});
 
 /**
  * Lädt einen Task nur, wenn er dem Nutzer gehört (bzw. im Pass-Through-Modus uneingeschränkt).

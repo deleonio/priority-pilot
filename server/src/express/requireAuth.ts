@@ -27,14 +27,19 @@ export const getUserId = (req: Request): number | undefined => {
 };
 
 /**
+ * Eigentümer-Filter für Queries (Issue #207, AK5). Bei gesetzter `userId` wird auf den
+ * eingeloggten Nutzer eingeschränkt; im Pass-Through-Modus (`undefined`) bleibt der Filter leer,
+ * sodass reine CRUD-Setups ohne Login unverändert alle Ressourcen sehen (Abwärtskompatibilität).
+ */
+export const ownerScope = (userId: number | undefined): { userId?: number } => (userId !== undefined ? { userId } : {});
+
+/**
  * Middleware: Anfrage ohne gültige Session abweisen (Issue #207, AK4).
  *
  * Anders als früher unabhängig von `GOOGLE_ALLOWED_EMAIL` — sobald ein Auth-Kontext konfiguriert
  * ist (siehe {@link isAuthActive}), erzwingt jede API-Route eine gültige Session (401 sonst).
  * Ist zusätzlich eine Allowlist gesetzt, wird die E-Mail bei jedem Request erneut geprüft, damit ein
  * nachträglich gesperrter Account auch mit bestehender Session sofort herausfällt.
- *
- * Nebenwirkung: Bei erfolgreicher Prüfung wird `req.userId` aus der Session gesetzt (Datenisolation).
  */
 export const requireAuth = (req: Request, res: Response, next: NextFunction): void => {
 	if (!isAuthActive()) {
@@ -47,6 +52,5 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction): vo
 		res.status(401).json({ message: 'Nicht eingeloggt.' });
 		return;
 	}
-	req.userId = user.id;
 	next();
 };
