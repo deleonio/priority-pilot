@@ -293,3 +293,73 @@ describe('buildPillarSummaries', () => {
 		expect(Number.isNaN(summary.doneEstimatedEffort)).toBe(false);
 	});
 });
+
+// --- #219: Meter zeigt Ist-Anteil erledigter Tasks statt Zielgewichtung ---
+
+describe('#219 buildPillarSummaries — actualShare (Ist-Anteil erledigter Tasks)', () => {
+	const pillarA = pillar(1, 'Körper', 40);
+	const pillarB = pillar(2, 'Sinn', 60);
+
+	it('AK1: berechnet den Ist-Anteil proportional zum doneEstimatedEffort je Säule', () => {
+		// Säule A: doneEffort = 3, Säule B: doneEffort = 1 → A = 75 %, B = 25 %
+		const tasks = [
+			task(1, [{ pillarId: 1, share: 100, confidence: 100 }], 3, TaskStatus.Done),
+			task(2, [{ pillarId: 2, share: 100, confidence: 100 }], 1, TaskStatus.Done),
+		];
+
+		const [summaryA, summaryB] = buildPillarSummaries([pillarA, pillarB], tasks, new Map());
+
+		expect(summaryA.actualShare).toBeCloseTo(0.75, 10);
+		expect(summaryB.actualShare).toBeCloseTo(0.25, 10);
+	});
+
+	it('AK2: liefert actualShare = 0 für alle Säulen, wenn keine Task erledigt ist (kein Division-by-Zero)', () => {
+		const tasks = [
+			task(1, [{ pillarId: 1, share: 100, confidence: 100 }], 2, TaskStatus.Open),
+			task(2, [{ pillarId: 2, share: 100, confidence: 100 }], 5, TaskStatus.InProcess),
+		];
+
+		const [summaryA, summaryB] = buildPillarSummaries([pillarA, pillarB], tasks, new Map());
+
+		expect(summaryA.actualShare).toBe(0);
+		expect(summaryB.actualShare).toBe(0);
+		expect(Number.isNaN(summaryA.actualShare)).toBe(false);
+		expect(Number.isNaN(summaryB.actualShare)).toBe(false);
+	});
+
+	it('AK2: liefert actualShare = 0, wenn überhaupt keine Tasks vorhanden sind', () => {
+		const [summaryA, summaryB] = buildPillarSummaries([pillarA, pillarB], [], new Map());
+
+		expect(summaryA.actualShare).toBe(0);
+		expect(summaryB.actualShare).toBe(0);
+	});
+
+	it('AK4: actualShare liegt stets im Bereich [0, 1] bei beliebigen Aufwandswerten', () => {
+		// Verschiedene Effort-Werte, gemischte Stati
+		const tasks = [
+			task(1, [{ pillarId: 1, share: 70, confidence: 100 }], 7, TaskStatus.Done),
+			task(2, [{ pillarId: 2, share: 30, confidence: 100 }], 3, TaskStatus.Done),
+			task(3, [{ pillarId: 1, share: 100, confidence: 100 }], 5, TaskStatus.Open),
+			task(4, [{ pillarId: 2, share: 100, confidence: 100 }], 2, TaskStatus.InProcess),
+		];
+
+		const summaries = buildPillarSummaries([pillarA, pillarB], tasks, new Map());
+
+		for (const summary of summaries) {
+			expect(summary.actualShare).toBeGreaterThanOrEqual(0);
+			expect(summary.actualShare).toBeLessThanOrEqual(1);
+		}
+	});
+
+	it('AK4: Summe der actualShare-Werte ist ≤ 1 (bzw. = 1, wenn mindestens ein Done-Task existiert)', () => {
+		const tasks = [
+			task(1, [{ pillarId: 1, share: 60, confidence: 100 }], 6, TaskStatus.Done),
+			task(2, [{ pillarId: 2, share: 40, confidence: 100 }], 4, TaskStatus.Done),
+		];
+
+		const summaries = buildPillarSummaries([pillarA, pillarB], tasks, new Map());
+		const totalShare = summaries.reduce((acc, s) => acc + s.actualShare, 0);
+
+		expect(totalShare).toBeCloseTo(1, 10);
+	});
+});
