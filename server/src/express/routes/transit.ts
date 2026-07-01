@@ -1,8 +1,9 @@
+import rateLimit from 'express-rate-limit';
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 
 /**
- * Öffentlicher CORS-Proxy für die Transitous/MOTIS-API (Issue #224).
+ * Öffentlicher CORS-Proxy für die Transitous/MOTIS-API.
  *
  * Der Browser darf api.transitous.org nicht direkt aufrufen (CORS), daher reichen
  * wir die Query-Parameter serverseitig weiter. Die Endpunkte benötigen bewusst
@@ -51,7 +52,10 @@ const proxy = async (path: string, req: Request, res: Response): Promise<void> =
 	}
 };
 
+const transitLimiter = rateLimit({ windowMs: 60_000, max: 60, standardHeaders: true, legacyHeaders: false });
+
 const transitRouter = Router();
+transitRouter.use(transitLimiter);
 
 // GET /api/transit/geocode — Ortssuche (Transitous v1 geocode).
 transitRouter.get('/geocode', (req, res) => proxy('/api/v1/geocode', req, res));

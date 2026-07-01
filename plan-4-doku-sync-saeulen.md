@@ -13,12 +13,12 @@ Dieser Plan gleicht die Dokumentation an. **Kein Produktivcode, keine Tests, kei
 
 ## Betroffene Dateien (komplett)
 
-| Datei | Stelle | was fehlt |
-|---|---|---|
-| `README.md` | Z. 52–57 (Fachlogik → Modelle) | `Pillar` wird beschrieben mit `weight`/`share`/`confidence`, aber **ohne `description`**; ebenso nicht erwähnt, dass Säulen **globale Stammdaten** sind |
-| `README.md` | Z. 141 (API-Liste) | `GET /pillars` wird genannt — optional: Hinweis, dass `description` mitgeliefert wird |
-| `.ai-knowledge/project.md` | Z. 4–7 (Projekt-Kurzbeschreibung) | Säulen-Beschreibung erwähnt nur `task_pillars`-Mechanik, kein `description`-Feld |
-| `.ai-knowledge/project.md` | Z. 43 (`MISTRAL_API_KEY`) | Kontext Säulen-Klassifikation — optional: Verweis auf `description` als Klassenfikations-Signal (aktuell nicht im Prompt genutzt) |
+| Datei                      | Stelle                            | was fehlt                                                                                                                                               |
+| -------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `README.md`                | Z. 52–57 (Fachlogik → Modelle)    | `Pillar` wird beschrieben mit `weight`/`share`/`confidence`, aber **ohne `description`**; ebenso nicht erwähnt, dass Säulen **globale Stammdaten** sind |
+| `README.md`                | Z. 141 (API-Liste)                | `GET /pillars` wird genannt — optional: Hinweis, dass `description` mitgeliefert wird                                                                   |
+| `.ai-knowledge/project.md` | Z. 4–7 (Projekt-Kurzbeschreibung) | Säulen-Beschreibung erwähnt nur `task_pillars`-Mechanik, kein `description`-Feld                                                                        |
+| `.ai-knowledge/project.md` | Z. 43 (`MISTRAL_API_KEY`)         | Kontext Säulen-Klassifikation — optional: Verweis auf `description` als Klassenfikations-Signal (aktuell nicht im Prompt genutzt)                       |
 
 > Vorab zu prüfen (Completeness-Grep): `grep -rnE "Säule|pillar|description" README.md .ai-knowledge/`
 > — ob weitere Stellen (z. B. `conventions.md`, `ticket-triage.md`) tangiert sind. Erwartung: nein.
@@ -58,5 +58,5 @@ Dieser Plan gleicht die Dokumentation an. **Kein Produktivcode, keine Tests, kei
 ## Offene Frage an den Owner
 
 - Soll `description` erwähnt werden als ** potenziell künftiges Klassifikationssignal** (im
-  Mistral-Prompt aktuell *nicht* genutzt)? Wenn ja, in `project.md` Z. 43 kurz anreißen; wenn nein,
+  Mistral-Prompt aktuell _nicht_ genutzt)? Wenn ja, in `project.md` Z. 43 kurz anreißen; wenn nein,
   nur die reine Feld-Existenz dokumentieren.

@@ -1,9 +1,5 @@
 /**
- * Rote Spec-Tests für Issue #224: Öffentlicher CORS-Proxy für Transitous/MOTIS-API
- *
- * Diese Tests werden grün, sobald:
- * - server/src/express/routes/transit.ts angelegt wird (GET /api/transit/geocode + /api/transit/plan)
- * - Die Route in server/src/express/index.ts VOR requireAuth registriert wird
+ * Integrationstests für den öffentlichen CORS-Proxy zur Transitous/MOTIS-API.
  */
 import { describe, it, before, afterEach, after } from 'node:test';
 import assert from 'node:assert/strict';
