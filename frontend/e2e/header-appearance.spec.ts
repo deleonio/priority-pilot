@@ -21,8 +21,8 @@ test.describe('#222 App-Header — Homogenität', () => {
 		await page.goto('/');
 		await waitForStableView(page);
 
-		// Die gemockte E-Mail darf im Header nicht mehr als sichtbarer Text erscheinen.
-		await expect(page.getByText('test@example.com')).toBeHidden();
+		// Die gemockte E-Mail darf nicht mehr im DOM vorhanden sein (Element entfernt, nicht nur versteckt).
+		await expect(page.getByText('test@example.com')).not.toBeAttached();
 	});
 
 	/**
@@ -33,7 +33,7 @@ test.describe('#222 App-Header — Homogenität', () => {
 		await page.goto('/');
 		await waitForStableView(page);
 
-		const avatar = page.locator('header kol-avatar, .header kol-avatar, kol-avatar').first();
+		const avatar = page.locator('header kol-avatar').first();
 		await expect(avatar).toBeVisible();
 		await expect(avatar).toHaveAttribute('_label', 'Test User');
 	});
