@@ -103,3 +103,39 @@ export const migrateUsersAvatarUrl = async (db: Sequelize): Promise<void> => {
 	await db.query('ALTER TABLE `users` ADD COLUMN `avatarUrl` VARCHAR(255)');
 	console.log('Spalte avatarUrl an users nachgezogen.');
 };
+
+/**
+ * Definition der mit der Datenisolation (#207, AK5) ergänzten `userId`-Spalten an `pillars` und
+ * `tasks`. Beide sind nullable (Abwärtskompatibilität, siehe `server/src/models/{pillar,task}.ts`).
+ * Der SQLite-Typ entspricht dem Sequelize-Datentyp `DataTypes.INTEGER`.
+ */
+const USER_ID_COLUMNS = [
+	{ table: 'pillars', column: 'userId', definition: 'INTEGER' },
+	{ table: 'tasks', column: 'userId', definition: 'INTEGER' },
+] as const;
+
+/**
+ * Zieht die nullable `userId`-Spalte auf **bestehenden** `pillars`- und `tasks`-Tabellen nach (#207),
+ * BEVOR `sequelize.sync()` läuft. Analog zu `migrateSeriesColumns`: `sync()` ohne `alter` ergänzt
+ * vorhandene Tabellen NICHT um neue Spalten, versucht aber den Unique-Index `pillars_name_user_id`
+ * auf (`name`, `userId`) anzulegen — das schlägt auf einer vor #207 angelegten DB mit
+ * `SQLITE_ERROR: no such column: userId` fehl und verhindert den Server-Start. Auf `tasks` gibt es
+ * zwar keinen Index auf `userId`, doch jede authentifizierte Query filtert per `ownerScope` auf
+ * `userId` und würde sonst ebenfalls mit `no such column` brechen.
+ *
+ * Idempotent: Bereits vorhandene Spalten werden übersprungen, mehrfache Aufrufe bleiben stabil.
+ * Fehlt eine Tabelle ganz (frische DB), ist die Migration für sie ein No-op — `sync()` legt danach
+ * Tabelle inkl. Spalte korrekt an.
+ */
+export const migrateUserIdColumns = async (db: Sequelize): Promise<void> => {
+	for (const { table, column, definition } of USER_ID_COLUMNS) {
+		const [rows] = await db.query(`PRAGMA table_info('${table}')`);
+		const existing = (rows as { name: string }[]).map((row) => row.name);
+
+		if (existing.length === 0 || existing.includes(column)) {
+			continue;
+		}
+		await db.query(`ALTER TABLE \`${table}\` ADD COLUMN \`${column}\` ${definition}`);
+		console.log(`Spalte ${column} an ${table} nachgezogen.`);
+	}
+};

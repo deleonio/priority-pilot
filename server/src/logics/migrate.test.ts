@@ -1,8 +1,8 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import sequelize from '../database.js';
-import { Task } from '../models/index.js';
-import { migrateSeriesColumns, migrateSeriesTable } from './migrate.js';
+import { Pillar, Task } from '../models/index.js';
+import { migrateSeriesColumns, migrateSeriesTable, migrateUserIdColumns } from './migrate.js';
 import { closeDb } from '../test/helpers.js';
 
 // Rote Spec-Tests für #146 — fehlende Schema-Migration für die Serien-Spalten.
@@ -230,5 +230,163 @@ describe('migrateSeriesTable', () => {
 		await assert.doesNotReject(() => Series.findAll(), 'Series.findAll() wirft keinen SQLITE_ERROR mehr');
 		const rows = await Series.findAll();
 		assert.deepEqual(rows, [], 'leere Liste (keine Serien in Bestands-DB)');
+	});
+});
+
+// ── Rote Spec-Tests für #207 — fehlende Schema-Migration für die `userId`-Spalten ───────────────────
+//
+// Root Cause: Die Datenisolation (#207, AK5) ergab `userId` an `pillars` und `tasks` sowie den
+// Unique-Index `pillars_name_user_id` auf (`name`, `userId`). Auf einer Bestands-DB, die vor #207
+// angelegt wurde, fehlen diese Spalten. `sequelize.sync()` ohne `alter` ergänzt vorhandene Tabellen
+// NICHT um neue Spalten, versucht aber den Unique-Index anzulegen → bricht mit
+// `SQLITE_ERROR: no such column: userId` ab und verhindert den Server-Start.
+//
+// Der Vertrag: eine idempotente Vorab-Migration `migrateUserIdColumns(sequelize)`, die VOR
+// `sequelize.sync()` die fehlenden Spalten per `ALTER TABLE ... ADD COLUMN` nachzieht. Kein
+// Produktivcode — Tests werden grün, sobald `migrate.ts` `migrateUserIdColumns` exportiert.
+
+const PILLARS_UNIQUE_INDEX = 'pillars_name_user_id';
+
+/** Spaltennamen einer Tabelle (leer, falls die Tabelle nicht existiert). */
+const columnsOf = async (table: string): Promise<string[]> => {
+	const [rows] = await sequelize.query(`PRAGMA table_info('${table}')`);
+	return (rows as { name: string }[]).map((row) => row.name);
+};
+
+/** Index-Namen einer Tabelle. */
+const indexesOf = async (table: string): Promise<string[]> => {
+	const [rows] = await sequelize.query(`PRAGMA index_list('${table}')`);
+	return (rows as { name: string }[]).map((row) => row.name);
+};
+
+/**
+ * Erzeugt eine `pillars`-Tabelle im Alt-Schema (vor #207) per Raw-SQL — mit `id`, `name`, `weight`
+ * und Zeitstempeln, aber OHNE `userId`. Bildet exakt eine Bestands-`database.sqlite` nach, auf der
+ * die Migration greifen muss (damit sync() den Unique-Index anlegen kann).
+ */
+const createLegacyPillarsTable = async (): Promise<void> => {
+	await sequelize.query(
+		'CREATE TABLE `pillars` (' +
+			'`id` INTEGER PRIMARY KEY AUTOINCREMENT, ' +
+			'`name` VARCHAR(255) NOT NULL, ' +
+			'`weight` FLOAT NOT NULL DEFAULT 20, ' +
+			'`createdAt` DATETIME NOT NULL, ' +
+			'`updatedAt` DATETIME NOT NULL' +
+			')',
+	);
+};
+
+/**
+ * Erzeugt eine `tasks`-Tabelle im Alt-Schema direkt vor #207 (also NACH dem Serien-Feature
+ * #120/#142, aber VOR der Datenisolation) per Raw-SQL — mit allen Series-Spalten, aber OHNE
+ * `userId`. So kann `sync()` den Series-Unique-Index anlegen (Spalten vorhanden) und die Migration
+ * muss nur noch `userId` nachziehen. Bildet exakt eine Bestands-`database.sqlite` nach, auf der die
+ * Migration greifen muss.
+ */
+const createLegacyTasksTableBefore207 = async (): Promise<void> => {
+	await sequelize.query(
+		'CREATE TABLE `tasks` (' +
+			'`id` INTEGER PRIMARY KEY AUTOINCREMENT, ' +
+			"`status` TEXT NOT NULL DEFAULT 'Open', " +
+			'`title` VARCHAR(255) NOT NULL, ' +
+			'`priority` INTEGER NOT NULL DEFAULT 3, ' +
+			'`estimatedEffort` FLOAT NOT NULL DEFAULT 0.5, ' +
+			'`actualEffort` FLOAT, ' +
+			'`description` TEXT, ' +
+			'`deadline` DATETIME, ' +
+			'`seriesId` INTEGER, ' +
+			'`isException` INTEGER NOT NULL DEFAULT 0, ' +
+			'`seriesOccurrence` DATETIME, ' +
+			'`createdAt` DATETIME NOT NULL, ' +
+			'`updatedAt` DATETIME NOT NULL' +
+			')',
+	);
+};
+
+describe('migrateUserIdColumns', () => {
+	// ── AK1: Migration auf Alt-Schema fügt die fehlende userId-Spalte nach, sodass sync() nicht bricht
+	it('zieht auf einem Alt-Schema userId nach, sodass sync() nicht mehr bricht', async () => {
+		await createLegacyPillarsTable();
+		await createLegacyTasksTableBefore207();
+
+		for (const table of ['pillars', 'tasks']) {
+			const before = await columnsOf(table);
+			assert.ok(!before.includes('userId'), `Alt-Schema von ${table} hat userId noch nicht`);
+		}
+
+		await migrateUserIdColumns(sequelize);
+		await assert.doesNotReject(() => sequelize.sync(), 'sync() bricht nach der Migration nicht mehr ab');
+
+		for (const table of ['pillars', 'tasks']) {
+			const after = await columnsOf(table);
+			assert.ok(after.includes('userId'), `userId wurde an ${table} nachgezogen`);
+		}
+		assert.ok(
+			(await indexesOf('pillars')).includes(PILLARS_UNIQUE_INDEX),
+			`Unique-Index ${PILLARS_UNIQUE_INDEX} wurde angelegt`,
+		);
+	});
+
+	// ── Idempotenz — erneuter Lauf auf bereits migriertem Schema ist stabil
+	it('ist idempotent: erneuter Aufruf wirft nicht und erzeugt keine doppelten Spalten', async () => {
+		await sequelize.sync({ force: true });
+
+		await assert.doesNotReject(() => migrateUserIdColumns(sequelize), 'erster Lauf auf neuem Schema ist no-op');
+		await assert.doesNotReject(() => migrateUserIdColumns(sequelize), 'zweiter Lauf bleibt stabil');
+
+		for (const table of ['pillars', 'tasks']) {
+			const columns = await columnsOf(table);
+			const occurrences = columns.filter((name) => name === 'userId').length;
+			assert.equal(occurrences, 1, `userId existiert an ${table} genau einmal (keine Dublette)`);
+		}
+	});
+
+	// ── Frische DB (Tabellen fehlen) ist No-op; sync() legt Tabellen korrekt an
+	it('ist auf einer DB ohne pillars/tasks-Tabellen ein No-op und sync() legt sie korrekt an', async () => {
+		assert.deepEqual(await columnsOf('pillars'), [], 'Vorbedingung: keine pillars-Tabelle');
+
+		await assert.doesNotReject(() => migrateUserIdColumns(sequelize), 'Migration ohne Tabellen ist no-op');
+		await assert.doesNotReject(() => sequelize.sync(), 'sync() legt die Tabellen frisch an');
+
+		for (const table of ['pillars', 'tasks']) {
+			const columns = await columnsOf(table);
+			assert.ok(columns.includes('userId'), `frische ${table}-Tabelle enthält userId`);
+		}
+	});
+
+	// ── AK5 (Verhalten): Der Unique-Constraint auf (name, userId) bleibt nach der Migration wirksam
+	it('hält den Unique-Constraint auf (name, userId) auch nach der Migration ein', async () => {
+		await createLegacyPillarsTable();
+		await migrateUserIdColumns(sequelize);
+		await sequelize.sync();
+
+		await Pillar.create({ name: 'Körper', weight: 20, userId: 1 });
+
+		// Zweite Säule mit identischem (name, userId) verletzt den Unique-Index.
+		await assert.rejects(
+			() => Pillar.create({ name: 'Körper', weight: 30, userId: 1 }),
+			'zweiter Insert desselben (name, userId) verletzt den Unique-Constraint',
+		);
+
+		// Ein anderer Nutzer darf denselben Säulennamen verwenden (Sinn der Isolation).
+		await assert.doesNotReject(
+			() => Pillar.create({ name: 'Körper', weight: 20, userId: 2 }),
+			'verschiedene Nutzer dürfen dieselbe Säule benennen',
+		);
+
+		const total = await Pillar.count({ where: { userId: 1 } });
+		assert.equal(total, 1, 'nur die erste Säule (name, userId) wurde materialisiert');
+	});
+
+	// ── Authentifizierte Query: Task.findAll({ where: { userId } }) bricht nicht mehr
+	it('erlaubt nach Migration ein Task.findAll filtert nach userId ohne SQLITE_ERROR', async () => {
+		await createLegacyTasksTableBefore207();
+		await migrateUserIdColumns(sequelize);
+		await sequelize.sync();
+
+		await assert.doesNotReject(
+			() => Task.findAll({ where: { userId: 1 } }),
+			'Task.findAll filtert nach userId ohne SQLITE_ERROR',
+		);
 	});
 });

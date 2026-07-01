@@ -3,7 +3,12 @@ import './env.js';
 import { logEnvConfig } from './env-startup-log.js';
 import sequelize from './database.js';
 import { launchServer } from './express/index.js';
-import { migrateSeriesColumns, migrateSeriesTable, migrateUsersAvatarUrl } from './logics/migrate.js';
+import {
+	migrateSeriesColumns,
+	migrateSeriesTable,
+	migrateUsersAvatarUrl,
+	migrateUserIdColumns,
+} from './logics/migrate.js';
 import { buildTaskForest } from './logics/tree.js';
 import { Pillar, Task, TaskPillar } from './models/index.js';
 
@@ -107,6 +112,9 @@ const main = async (): Promise<void> => {
 		await migrateSeriesTable(sequelize);
 		// Fehlende avatarUrl-Spalte in users nachziehen (#217).
 		await migrateUsersAvatarUrl(sequelize);
+		// Fehlende userId-Spalten (Datenisolation #207) an pillars/tasks nachziehen, BEVOR sync()
+		// den Unique-Index pillars_name_user_id auf (name, userId) anlegt (sonst SQLITE_ERROR).
+		await migrateUserIdColumns(sequelize);
 
 		// Datenbank synchronisieren (force nur bei DB_RESET=true)
 		await sequelize.sync({ force: shouldReset });
