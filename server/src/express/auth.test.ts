@@ -149,4 +149,105 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 			assert.equal(res.status, 401);
 		});
 	});
+
+	// ── Passwort-Authentifizierung (Issue #206) ───────────────────────────────
+	// Diese Tests werden grün, sobald POST /auth/register und POST /auth/login existieren.
+
+	describe('AK 1 — POST /auth/register', () => {
+		it('neue E-Mail + Passwort → 201 + httpOnly Session-Cookie', async () => {
+			const res = await fetch(`${server.baseUrl}/auth/register`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ email: 'new@example.com', password: 'sicher123' }),
+			});
+			assert.equal(res.status, 201);
+			const setCookie = res.headers.get('set-cookie');
+			assert.ok(setCookie, 'Register muss einen Set-Cookie-Header setzen');
+			assert.ok(setCookie.toLowerCase().includes('httponly'), 'Cookie muss HttpOnly sein');
+		});
+
+		it('doppelte E-Mail → 409', async () => {
+			await fetch(`${server.baseUrl}/auth/register`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ email: 'dup@example.com', password: 'sicher123' }),
+			});
+			const res = await fetch(`${server.baseUrl}/auth/register`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ email: 'dup@example.com', password: 'anderes456' }),
+			});
+			assert.equal(res.status, 409);
+		});
+	});
+
+	describe('AK 2 — POST /auth/login', () => {
+		it('gültige Credentials → 200 + httpOnly Session-Cookie', async () => {
+			await fetch(`${server.baseUrl}/auth/register`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ email: 'login@example.com', password: 'sicher123' }),
+			});
+			const res = await fetch(`${server.baseUrl}/auth/login`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ email: 'login@example.com', password: 'sicher123' }),
+			});
+			assert.equal(res.status, 200);
+			const setCookie = res.headers.get('set-cookie');
+			assert.ok(setCookie, 'Login muss einen Set-Cookie-Header setzen');
+			assert.ok(setCookie.toLowerCase().includes('httponly'), 'Cookie muss HttpOnly sein');
+		});
+
+		it('falsches Passwort → 401', async () => {
+			await fetch(`${server.baseUrl}/auth/register`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ email: 'wrong@example.com', password: 'richtig' }),
+			});
+			const res = await fetch(`${server.baseUrl}/auth/login`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ email: 'wrong@example.com', password: 'falsch' }),
+			});
+			assert.equal(res.status, 401);
+		});
+
+		it('unbekannte E-Mail → 401', async () => {
+			const res = await fetch(`${server.baseUrl}/auth/login`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ email: 'unknown@example.com', password: 'egal' }),
+			});
+			assert.equal(res.status, 401);
+		});
+	});
+
+	describe('AK 3 — POST /auth/logout (Passwort-Session)', () => {
+		it('nach Passwort-Login + Logout ist Session ungültig: GET /auth/me → 401', async () => {
+			await fetch(`${server.baseUrl}/auth/register`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ email: 'logout-pw@example.com', password: 'sicher123' }),
+			});
+			const loginRes = await fetch(`${server.baseUrl}/auth/login`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ email: 'logout-pw@example.com', password: 'sicher123' }),
+			});
+			assert.equal(loginRes.status, 200, 'Vorbedingung: Login muss 200 liefern');
+			const setCookie = loginRes.headers.get('set-cookie');
+			assert.ok(setCookie, 'Login muss einen Cookie setzen');
+			const cookie = cookieFromSetCookie(setCookie);
+
+			const logoutRes = await fetch(`${server.baseUrl}/auth/logout`, {
+				method: 'POST',
+				headers: { Cookie: cookie },
+			});
+			assert.equal(logoutRes.status, 200);
+
+			const meRes = await fetch(`${server.baseUrl}/auth/me`, { headers: { Cookie: cookie } });
+			assert.equal(meRes.status, 401, 'Session nach Logout muss ungültig sein');
+		});
+	});
 });
