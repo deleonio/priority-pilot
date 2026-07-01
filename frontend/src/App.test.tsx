@@ -177,12 +177,7 @@ describe('App — User Info Display (#192)', () => {
 });
 
 /**
- * AK-9 (#208): localStorage-Cleanup — `App.tsx` darf `localStorage.getItem('displayName')`
- * nicht mehr für die UI-Anzeige nutzen. Die Begrüßung muss aus `user.name` (Prop) kommen.
- *
- * Diese Tests sind ROT, weil `App.tsx` aktuell noch `localStorage.getItem('displayName')`
- * in useState (Zeile 48) liest und diesen Wert für die Begrüßung verwendet. Sie werden
- * GRÜN, sobald der veraltete localStorage-Zugriff entfernt und `user.name` genutzt wird.
+ * AK-9 (#208): Begrüßung kommt aus user.name (Prop), nicht mehr aus localStorage.displayName.
  */
 describe('App — AK-9 localStorage-Cleanup (#208)', () => {
 	it('AK9a: Begrüßung zeigt user.name, nicht den veralteten localStorage-displayName', async () => {

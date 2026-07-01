@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { Page, Route } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 import { waitForStableView } from './helpers';
 
@@ -123,14 +123,20 @@ test.describe('#209 Logout-Button im Toolbar (rechts oben)', () => {
 	 */
 	test('AK-2: Ohne Authentifizierung kein Logout-Button in der Toolbar', async ({ page }) => {
 		await stubBackend(page);
-		await setAuth(page, false);
+		// Auth-Gate schließen: /auth/me antwortet mit 401 (nicht authentifiziert). Der zuletzt
+		// registrierte Handler gewinnt und überschreibt den 200-Mock aus stubBackend.
+		await page.route('**/auth/me', (route) =>
+			route.fulfill({
+				status: 401,
+				contentType: 'application/json',
+				body: JSON.stringify({ message: 'Unauthorized' }),
+			}),
+		);
 		await page.goto('/');
-		await waitForStableView(page);
 
-		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
-		await expect(toolbar).toBeVisible();
-
-		await expect(toolbar.getByRole('button', { name: /Abmelden|Logout/i })).toHaveCount(0);
+		// Ohne Authentifizierung zeigt die App die LoginPage — also keine Toolbar und kein Logout-Button.
+		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeVisible();
+		await expect(page.getByRole('button', { name: /Abmelden|Logout/i })).toHaveCount(0);
 	});
 
 	/**
@@ -185,14 +191,20 @@ test.describe('#191 Logout-Button in Navigation', () => {
 	test('AK-1: Logout-Button nur für authentifizierte Benutzer sichtbar', async ({ page }) => {
 		await stubBackend(page);
 
-		// Nicht eingeloggt: kein Logout-Button.
-		await setAuth(page, false);
+		// Nicht eingeloggt: /auth/me = 401 → LoginPage → kein Logout-Button.
+		const unauthenticated = (route: Route) =>
+			route.fulfill({
+				status: 401,
+				contentType: 'application/json',
+				body: JSON.stringify({ message: 'Unauthorized' }),
+			});
+		await page.route('**/auth/me', unauthenticated);
 		await page.goto('/');
-		await waitForStableView(page);
+		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeVisible();
 		await expect(page.getByRole('button', { name: /Abmelden|Logout/i })).toHaveCount(0);
 
-		// Eingeloggt: Logout-Button ist sichtbar.
-		await setAuth(page, true);
+		// Eingeloggt: /auth/me = 200 → App mit Toolbar → Logout-Button ist sichtbar.
+		await page.unroute('**/auth/me', unauthenticated);
 		await page.goto('/');
 		await waitForStableView(page);
 		await expect(page.getByRole('button', { name: /Abmelden|Logout/i })).toBeVisible();
@@ -253,7 +265,6 @@ test.describe('#191 Logout-Button in Navigation', () => {
 		page,
 	}) => {
 		await stubBackend(page);
-		await setAuth(page, true);
 
 		await page.route('**/auth/logout', (route) =>
 			route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }),
@@ -264,10 +275,6 @@ test.describe('#191 Logout-Button in Navigation', () => {
 
 		await page.getByRole('button', { name: /Abmelden|Logout/i }).click();
 		await expect(page).toHaveURL(/\/login(\b|\/|$)/);
-
-		// Der lokale Auth-State ist nach dem Logout entfernt (Session beendet).
-		const displayName = await page.evaluate(() => localStorage.getItem('displayName'));
-		expect(displayName).toBeNull();
 
 		// Ab jetzt antwortet das Backend ohne gültige Session mit 401: ein direkter erneuter Aufruf der
 		// geschützten App-Ansicht führt NICHT zurück in den eingeloggten Zustand.
