@@ -148,16 +148,56 @@ jobs:
             exit 0
           fi
 
-          # 4) Allowlist-Checks (CI + Reviewer) EINMAL auswerten. WICHTIG: `gh pr checks` beendet sich
-          #    selbst mit Exit != 0, wenn Checks rot (1) oder pending (8) sind — gibt das `--json`
-          #    aber trotzdem auf stdout aus. Daher Exit-Code abfangen (|| true), OHNE die Ausgabe zu
+          # 4) Allowlist-Checks (CI + Reviewer) auswerten. WICHTIG: `gh pr checks` beendet sich selbst
+          #    mit Exit != 0, wenn Checks rot (1) oder pending (8) sind — gibt das `--json` aber
+          #    trotzdem auf stdout aus. Daher Exit-Code abfangen (|| true), OHNE die Ausgabe zu
           #    verwerfen (ein `|| echo '[]'` wuerde genau im roten Fall die Daten wegwerfen).
-          checks="$(gh pr checks "$pr" --repo "$REPO" --json name,bucket,workflow 2>/dev/null)" || true
-          if [ -z "$checks" ]; then checks='[]'; fi
-          allow="$(echo "$checks" | jq '[.[] | select(.workflow == "CI" or .workflow == "Claude PR Review (Kreuzverhoer)")]')"
+          #
+          #    Race (empirisch beobachtet, PR #220 am 2026-07-01): `gh pr checks` lieferte ueber
+          #    45s hinweg wiederholt eine LEERE Liste, obwohl CI zu dem Zeitpunkt schon >4 Minuten
+          #    lief und Review laengst abgeschlossen war (kein "noch nicht gestartet"-Fall, sondern
+          #    eine transiente API-Luecke — vermutlich Rate-Limit/Replikations-Verzoegerung unter der
+          #    hohen Schreiblast des Label-Bots). Der Job wertete das als "keine Checks -> No-op"
+          #    statt als "Zustand unklar -> nochmal pruefen". Da sowohl das labeled- als auch alle
+          #    drei nachfolgenden workflow_run-Events in genau dieses Zeitfenster fielen, gab es
+          #    danach kein weiteres Event mehr, das den Gate/Merge-Job erneut geweckt haette — der PR
+          #    blieb trotz beidseitig gruen unauto-merged und musste von Hand gemergt werden.
+          #
+          #    Fix: kurze Retry-Schleife mit steigendem Backoff (2/3/5/8s statt fixem Intervall — falls
+          #    die Ursache tatsaechlich eine Rate-Limit-/Lastspitze ist, verschaerft ein fixes Intervall
+          #    sie eher, ein wachsendes entlastet), BEVOR eine leere/unvollstaendige Check-Liste als
+          #    "nichts zu tun" gilt. Bricht sofort ab, sobald BEIDE Allowlist-Workflows (CI UND
+          #    Reviewer) als Eintrag sichtbar sind — unabhaengig von ihrem bucket (pending/fail/pass
+          #    wird weiterhin unten ausgewertet). Nur das reine Fehlen eines Eintrags wird per Retry
+          #    abgefangen, kein Erraten des Ergebnisses. `2>/dev/null` bewusst entfernt (empirisch
+          #    verifiziert: `gh pr checks --json` schreibt weder bei "fail"- noch bei "pass"-Buckets
+          #    etwas auf stderr) — ein echter API-/Auth-Fehler landet dadurch sichtbar im Step-Log,
+          #    statt lautlos in einem geleerten `checks` zu verschwinden und ununterscheidbar von
+          #    "Check noch nicht gepostet" zu sein.
+          allow='[]'
+          delays=(2 3 5 8)
+          for attempt in 1 2 3 4 5; do
+            checks="$(gh pr checks "$pr" --repo "$REPO" --json name,bucket,workflow)" || true
+            if [ -z "$checks" ]; then checks='[]'; fi
+            allow="$(echo "$checks" | jq '[.[] | select(.workflow == "CI" or .workflow == "Claude PR Review (Kreuzverhoer)")]')"
+            has_ci="$(echo "$allow" | jq -r 'any(.[]; .workflow == "CI")')"
+            has_review="$(echo "$allow" | jq -r 'any(.[]; .workflow == "Claude PR Review (Kreuzverhoer)")')"
+            if [ "$has_ci" = "true" ] && [ "$has_review" = "true" ]; then
+              break
+            fi
+            if [ "$attempt" -lt 5 ]; then
+              d="${delays[$((attempt - 1))]}"
+              echo "Allowlist-Checks unvollstaendig sichtbar (CI=$has_ci, Reviewer=$has_review, Versuch $attempt/5) — ${d}s Pause, erneut pruefen."
+              sleep "$d"
+            fi
+          done
 
           if [ "$(echo "$allow" | jq 'length')" -eq 0 ]; then
             echo "Keine Allowlist-Checks (CI/Reviewer) gefunden — nichts zu tun (No-op)."
+            exit 0
+          fi
+          if [ "$has_ci" != "true" ] || [ "$has_review" != "true" ]; then
+            echo "Nach 5 Versuchen weiterhin nicht beide Allowlist-Checks sichtbar (CI=$has_ci, Reviewer=$has_review) — warte auf naechstes Event (No-op)."
             exit 0
           fi
 
