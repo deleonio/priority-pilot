@@ -25,6 +25,9 @@ importers:
       '@evilmartians/lefthook':
         specifier: 1.12.2
         version: 1.12.2
+      knip:
+        specifier: 5.61.3
+        version: 5.61.3(@types/node@25.9.4)(typescript@6.0.3)
       prettier:
         specifier: 3.9.4
         version: 3.9.4
