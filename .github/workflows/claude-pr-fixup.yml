@@ -339,8 +339,10 @@ jobs:
                  Im jeweiligen Thread antworten und ihn auflösen. Mehrdeutige oder architektonisch
                  große Punkte NICHT blind umsetzen — begründet kommentieren bzw. dem Menschen
                  überlassen. Bereits begründet abgelehnte Findings nicht erneut aufmachen.
-              3. Abschluss: Labels in ZWEI getrennten Befehlen umschalten (nie kombiniert, sonst
-                 Doppel-Trigger), damit der Review erneut prüft:
+              3. Abschluss (ALLERLETZTER Schritt, NIE davor — ERST NACHDEM alle Fixes committet UND
+                 gepusht sind): Labels in ZWEI getrennten Befehlen umschalten (nie kombiniert, sonst
+                 Doppel-Trigger), damit der Review erneut prüft (er liest den PR-Stand unmittelbar
+                 nach dem zweiten Befehl):
                  `gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:needs-changes`,
                  danach `gh pr edit ${{ github.event.pull_request.number }} --add-label ai:needs-review`
                4. Sicherheitsnetz gegen Endlosschleifen: Ein deterministischer Workflow-Step
@@ -353,7 +355,7 @@ jobs:
           claude_args: >-
             --model claude-sonnet-4-6 --effort medium
             --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh label:*),Bash(gh api:*),Bash(git switch:*),Bash(git checkout:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(git fetch:*),Bash(git merge:*),Bash(git stash:*),Bash(git reset:*),Bash(pnpm:*),Read,Edit,Write,Grep,Glob,Task"
-            --append-system-prompt "Automatisierter, label-gesteuerter Fixup-Lauf in GitHub Actions (headless) fuer PR #${{ github.event.pull_request.number }}. Setze nur eindeutige, zutreffende Findings um; mehrdeutige/grosse Punkte dem Menschen ueberlassen. Schalte zum Abschluss die Labels um (ai:needs-changes -> ai:needs-review) — AUSSER der Loop soll wegen Nicht-Konvergenz anhalten, dann ai:needs-changes belassen und den Menschen taggen. Arbeite ohne interaktive Rueckfrage. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
+            --append-system-prompt "Automatisierter, label-gesteuerter Fixup-Lauf in GitHub Actions (headless) fuer PR #${{ github.event.pull_request.number }}. Setze nur eindeutige, zutreffende Findings um; mehrdeutige/grosse Punkte dem Menschen ueberlassen. Schalte die Labels ALS ALLERLETZTEN Schritt um (ai:needs-changes -> ai:needs-review), NIE davor — erst nach Commit+Push, da der Review den PR-Stand unmittelbar danach liest. AUSSER der Loop soll wegen Nicht-Konvergenz anhalten, dann ai:needs-changes belassen und den Menschen taggen. Arbeite ohne interaktive Rueckfrage. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
 
       # Mistral-Pfad (AI_AGENT == 'mistral'): Vibe laeuft headless OHNE Approval-Callback — ohne
       # erzwungenes Auto-Approve wuerde jedes genehmigungspflichtige Tool (gh/git/pnpm/Datei-Writes)
@@ -426,8 +428,10 @@ jobs:
                  Im jeweiligen Thread antworten und ihn auflösen. Mehrdeutige oder architektonisch
                  große Punkte NICHT blind umsetzen — begründet kommentieren bzw. dem Menschen
                  überlassen. Bereits begründet abgelehnte Findings nicht erneut aufmachen.
-              3. Abschluss: Labels in ZWEI getrennten Befehlen umschalten (nie kombiniert, sonst
-                 Doppel-Trigger), damit der Review erneut prüft:
+              3. Abschluss (ALLERLETZTER Schritt, NIE davor — ERST NACHDEM alle Fixes committet UND
+                 gepusht sind): Labels in ZWEI getrennten Befehlen umschalten (nie kombiniert, sonst
+                 Doppel-Trigger), damit der Review erneut prüft (er liest den PR-Stand unmittelbar
+                 nach dem zweiten Befehl):
                  `gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:needs-changes`,
                  danach `gh pr edit ${{ github.event.pull_request.number }} --add-label ai:needs-review`
                4. Sicherheitsnetz gegen Endlosschleifen: Ein deterministischer Workflow-Step
@@ -491,8 +495,10 @@ jobs:
                  Im jeweiligen Thread antworten und ihn auflösen. Mehrdeutige oder architektonisch
                  große Punkte NICHT blind umsetzen — begründet kommentieren bzw. dem Menschen
                  überlassen. Bereits begründet abgelehnte Findings nicht erneut aufmachen.
-              3. Abschluss: Labels in ZWEI getrennten Befehlen umschalten (nie kombiniert, sonst
-                 Doppel-Trigger), damit der Review erneut prüft:
+              3. Abschluss (ALLERLETZTER Schritt, NIE davor — ERST NACHDEM alle Fixes committet UND
+                 gepusht sind): Labels in ZWEI getrennten Befehlen umschalten (nie kombiniert, sonst
+                 Doppel-Trigger), damit der Review erneut prüft (er liest den PR-Stand unmittelbar
+                 nach dem zweiten Befehl):
                  `gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:needs-changes`,
                  danach `gh pr edit ${{ github.event.pull_request.number }} --add-label ai:needs-review`
                4. Sicherheitsnetz gegen Endlosschleifen: Ein deterministischer Workflow-Step
@@ -505,7 +511,7 @@ jobs:
           claude_args: >-
             --model claude-sonnet-4-6 --effort medium
             --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh label:*),Bash(gh api:*),Bash(git switch:*),Bash(git checkout:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(git fetch:*),Bash(git merge:*),Bash(git stash:*),Bash(git reset:*),Bash(pnpm:*),Read,Edit,Write,Grep,Glob,Task"
-            --append-system-prompt "Automatisierter, label-gesteuerter Fixup-Lauf in GitHub Actions (headless) fuer PR #${{ github.event.pull_request.number }}. Setze nur eindeutige, zutreffende Findings um; mehrdeutige/grosse Punkte dem Menschen ueberlassen. Schalte zum Abschluss die Labels um (ai:needs-changes -> ai:needs-review) — AUSSER der Loop soll wegen Nicht-Konvergenz anhalten, dann ai:needs-changes belassen und den Menschen taggen. Arbeite ohne interaktive Rueckfrage. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
+            --append-system-prompt "Automatisierter, label-gesteuerter Fixup-Lauf in GitHub Actions (headless) fuer PR #${{ github.event.pull_request.number }}. Setze nur eindeutige, zutreffende Findings um; mehrdeutige/grosse Punkte dem Menschen ueberlassen. Schalte die Labels ALS ALLERLETZTEN Schritt um (ai:needs-changes -> ai:needs-review), NIE davor — erst nach Commit+Push, da der Review den PR-Stand unmittelbar danach liest. AUSSER der Loop soll wegen Nicht-Konvergenz anhalten, dann ai:needs-changes belassen und den Menschen taggen. Arbeite ohne interaktive Rueckfrage. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
 
       # Deterministisches Abschluss-Signal (unabhaengig von der LLM-Ausgabe): laeuft auch bei
       # Abbruch/Timeout (if: always()) und macht im Log/Job-Summary klar sichtbar, DASS und mit

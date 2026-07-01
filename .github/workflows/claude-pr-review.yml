@@ -149,15 +149,17 @@ jobs:
             Der Kommentar trennt „Offene Findings" (aktuelle Runde) von einer History-Tabelle
             „Behobene Anmerkungen" (Runde | Finding | Status ✅). Inline-Findings bleiben unverändert.
 
-            Abschluss — GENAU EINEN Weg gehen:
+            Abschluss — GENAU EINEN Weg gehen. Labels sind IMMER der ALLERLETZTE Schritt, NIE davor
+            — Fixup/Gate-Merge liest den PR-Stand unmittelbar nach dem zweiten Label-Befehl:
               - Es gibt zutreffende, offene Findings → als EINE Review (`gh pr review --comment`)
                 mit an Datei/Zeile verankerten Kommentaren (Was / Warum / Vorschlag) posten, das
-                Urteil im konsolidierten Sammelkommentar (s. o.) aktualisieren, dann
+                Urteil im konsolidierten Sammelkommentar (s. o.) aktualisieren, ERST DANACH
                 die Labels in ZWEI getrennten Befehlen umschalten (nie kombiniert, sonst Doppel-Trigger):
                 `gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:needs-review`,
                 danach `gh pr edit ${{ github.event.pull_request.number }} --add-label ai:needs-changes`
               - Der PR ist solide (🟢) → KEINE Pseudo-Findings erfinden, nur eine knappe
-                🟢-Bestätigung im konsolidierten Sammelkommentar (s. o.), dann die Labels in ZWEI Befehlen:
+                🟢-Bestätigung im konsolidierten Sammelkommentar (s. o.), ERST DANACH die Labels in
+                ZWEI Befehlen:
                 `gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:needs-review`,
                 danach `gh pr edit ${{ github.event.pull_request.number }} --add-label ai:ready-to-merge`
 
@@ -167,7 +169,7 @@ jobs:
           claude_args: >-
             --model claude-sonnet-4-6 --effort medium
             --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh label:*),Bash(gh api:*),Bash(git fetch:*),Bash(git diff:*),Read,Grep,Glob,Task"
-            --append-system-prompt "Automatisierter, label-gesteuerter Kreuzverhoer-Review in GitHub Actions (headless). Reviewe ausschliesslich PR #${{ github.event.pull_request.number }}, aendere keinen Code. Schliesse IMMER mit der Label-Umschaltung ab: Findings -> ai:needs-changes (statt ai:needs-review); sauber -> ai:ready-to-merge. Erfinde keine Findings. Arbeite ohne interaktive Rueckfrage. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
+            --append-system-prompt "Automatisierter, label-gesteuerter Kreuzverhoer-Review in GitHub Actions (headless). Reviewe ausschliesslich PR #${{ github.event.pull_request.number }}, aendere keinen Code. Schliesse IMMER mit der Label-Umschaltung als ALLERLETZTEN Schritt ab (NIE davor — erst nach dem Sammelkommentar, da Fixup/Gate-Merge den PR-Stand unmittelbar danach lesen): Findings -> ai:needs-changes (statt ai:needs-review); sauber -> ai:ready-to-merge. Erfinde keine Findings. Arbeite ohne interaktive Rueckfrage. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
 
       # Mistral-Pfad (AI_AGENT == 'mistral'): Vibe laeuft headless OHNE Approval-Callback — ohne
       # erzwungenes Auto-Approve wuerde jedes genehmigungspflichtige Tool (gh/git) als "Tool
@@ -223,15 +225,17 @@ jobs:
             Der Kommentar trennt „Offene Findings" (aktuelle Runde) von einer History-Tabelle
             „Behobene Anmerkungen" (Runde | Finding | Status ✅). Inline-Findings bleiben unverändert.
 
-            Abschluss — GENAU EINEN Weg gehen:
+            Abschluss — GENAU EINEN Weg gehen. Labels sind IMMER der ALLERLETZTE Schritt, NIE davor
+            — Fixup/Gate-Merge liest den PR-Stand unmittelbar nach dem zweiten Label-Befehl:
               - Es gibt zutreffende, offene Findings → als EINE Review (`gh pr review --comment`)
                 mit an Datei/Zeile verankerten Kommentaren (Was / Warum / Vorschlag) posten, das
-                Urteil im konsolidierten Sammelkommentar (s. o.) aktualisieren, dann
+                Urteil im konsolidierten Sammelkommentar (s. o.) aktualisieren, ERST DANACH
                 die Labels in ZWEI getrennten Befehlen umschalten (nie kombiniert, sonst Doppel-Trigger):
                 `gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:needs-review`,
                 danach `gh pr edit ${{ github.event.pull_request.number }} --add-label ai:needs-changes`
               - Der PR ist solide (🟢) → KEINE Pseudo-Findings erfinden, nur eine knappe
-                🟢-Bestätigung im konsolidierten Sammelkommentar (s. o.), dann die Labels in ZWEI Befehlen:
+                🟢-Bestätigung im konsolidierten Sammelkommentar (s. o.), ERST DANACH die Labels in
+                ZWEI Befehlen:
                 `gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:needs-review`,
                 danach `gh pr edit ${{ github.event.pull_request.number }} --add-label ai:ready-to-merge`
 
@@ -282,15 +286,17 @@ jobs:
             Der Kommentar trennt „Offene Findings" (aktuelle Runde) von einer History-Tabelle
             „Behobene Anmerkungen" (Runde | Finding | Status ✅). Inline-Findings bleiben unverändert.
 
-            Abschluss — GENAU EINEN Weg gehen:
+            Abschluss — GENAU EINEN Weg gehen. Labels sind IMMER der ALLERLETZTE Schritt, NIE davor
+            — Fixup/Gate-Merge liest den PR-Stand unmittelbar nach dem zweiten Label-Befehl:
               - Es gibt zutreffende, offene Findings → als EINE Review (`gh pr review --comment`)
                 mit an Datei/Zeile verankerten Kommentaren (Was / Warum / Vorschlag) posten, das
-                Urteil im konsolidierten Sammelkommentar (s. o.) aktualisieren, dann
+                Urteil im konsolidierten Sammelkommentar (s. o.) aktualisieren, ERST DANACH
                 die Labels in ZWEI getrennten Befehlen umschalten (nie kombiniert, sonst Doppel-Trigger):
                 `gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:needs-review`,
                 danach `gh pr edit ${{ github.event.pull_request.number }} --add-label ai:needs-changes`
               - Der PR ist solide (🟢) → KEINE Pseudo-Findings erfinden, nur eine knappe
-                🟢-Bestätigung im konsolidierten Sammelkommentar (s. o.), dann die Labels in ZWEI Befehlen:
+                🟢-Bestätigung im konsolidierten Sammelkommentar (s. o.), ERST DANACH die Labels in
+                ZWEI Befehlen:
                 `gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:needs-review`,
                 danach `gh pr edit ${{ github.event.pull_request.number }} --add-label ai:ready-to-merge`
 
@@ -300,7 +306,7 @@ jobs:
           claude_args: >-
             --model claude-sonnet-4-6 --effort medium
             --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh label:*),Bash(gh api:*),Bash(git fetch:*),Bash(git diff:*),Read,Grep,Glob,Task"
-            --append-system-prompt "Automatisierter, label-gesteuerter Kreuzverhoer-Review in GitHub Actions (headless). Reviewe ausschliesslich PR #${{ github.event.pull_request.number }}, aendere keinen Code. Schliesse IMMER mit der Label-Umschaltung ab: Findings -> ai:needs-changes (statt ai:needs-review); sauber -> ai:ready-to-merge. Erfinde keine Findings. Arbeite ohne interaktive Rueckfrage. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
+            --append-system-prompt "Automatisierter, label-gesteuerter Kreuzverhoer-Review in GitHub Actions (headless). Reviewe ausschliesslich PR #${{ github.event.pull_request.number }}, aendere keinen Code. Schliesse IMMER mit der Label-Umschaltung als ALLERLETZTEN Schritt ab (NIE davor — erst nach dem Sammelkommentar, da Fixup/Gate-Merge den PR-Stand unmittelbar danach lesen): Findings -> ai:needs-changes (statt ai:needs-review); sauber -> ai:ready-to-merge. Erfinde keine Findings. Arbeite ohne interaktive Rueckfrage. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
 
       # Deterministisches Abschluss-Signal (unabhaengig von der LLM-Ausgabe): laeuft auch bei
       # Abbruch/Timeout (if: always()) und macht im Log/Job-Summary klar sichtbar, DASS und mit

@@ -303,3 +303,80 @@ describe('L1-Nachtrag — Triage/Retriage instruieren Zwischenstandssicherung (~
 		});
 	}
 });
+
+// Label-Reihenfolge-Prinzip (Nachtrag nach beobachtetem Vorfall 2026-07-01): der Analyse-Workflow
+// hatte ai:spec-ready gesetzt, BEVOR die Issue-Beschreibung aktualisiert war — der Spec-Workflow
+// startete daraufhin mit veraltetem Ticket-Inhalt. Labels sind der Trigger fuer Folge-Workflows
+// (App-Token-Events); sie duerfen daher NUR als allerletzter Schritt gesetzt/entfernt werden,
+// NACHDEM alle Schreibvorgaenge (Issue-Beschreibung, Kommentar, Commit/Push, PR) abgeschlossen sind.
+// Diese Tests pruefen die TEXTLICHE Reihenfolge in den Prompts als Proxy (harte Laufzeit-Garantie
+// ist bei einem LLM nicht moeglich — das hier ist das staerkste static verfuegbare Signal).
+const allIndices = (text, needle) => {
+	const idx = [];
+	let from = 0;
+	for (;;) {
+		const i = text.indexOf(needle, from);
+		if (i === -1) break;
+		idx.push(i);
+		from = i + needle.length;
+	}
+	return idx;
+};
+
+const assertContentBeforeLabel = (wf, contentMarker, labelMarker, expectedCount) => {
+	const yml = readWorkflow(wf);
+	const contentIdx = allIndices(yml, contentMarker);
+	const labelIdx = allIndices(yml, labelMarker);
+	assert.equal(
+		contentIdx.length,
+		expectedCount,
+		`${wf}: Content-Marker "${contentMarker}" sollte ${expectedCount}x vorkommen (einmal je Agent-Pfad), gefunden: ${contentIdx.length}`,
+	);
+	assert.equal(
+		labelIdx.length,
+		expectedCount,
+		`${wf}: Label-Marker "${labelMarker}" sollte ${expectedCount}x vorkommen (einmal je Agent-Pfad), gefunden: ${labelIdx.length}`,
+	);
+	for (let i = 0; i < expectedCount; i++) {
+		assert.ok(
+			contentIdx[i] < labelIdx[i],
+			`${wf}: Agent-Pfad #${i + 1} — der Label-Schritt ("${labelMarker}") steht VOR dem Content-Schreiben ("${contentMarker}"). Labels muessen immer erst NACH allen Schreibvorgaengen gesetzt werden, sonst startet der Folge-Workflow mit veraltetem Ticket-/PR-Inhalt.`,
+		);
+	}
+};
+
+describe('Label-Reihenfolge-Prinzip — Labels erst NACH allen Schreibvorgaengen (nie davor)', () => {
+	it('claude-triage.yml: Beschreibung/Kommentar stehen vor der Label-Umschaltung (je Agent-Pfad)', () => {
+		assertContentBeforeLabel('claude-triage.yml', 'Danach genau EINEN kurzen', 'ALLERLETZTER Schritt, NIE davor', 3);
+	});
+
+	it('claude-retriage.yml: Beschreibung/Kommentar stehen vor der Label-Umschaltung (je Agent-Pfad)', () => {
+		assertContentBeforeLabel('claude-retriage.yml', 'Danach genau EINEN kurzen', 'ALLERLETZTER Schritt, NIE davor', 3);
+	});
+
+	it('claude-spec.yml: Push/Draft-PR stehen vor der ai:ready-Uebergabe (je Agent-Pfad)', () => {
+		assertContentBeforeLabel('claude-spec.yml', 'DRAFT-PR erstellen', 'UEBERGABE (ALLERLETZTER Schritt', 3);
+	});
+
+	it('claude-implement.yml: Commit/Push stehen vor der ai:needs-review-Umschaltung (je Agent-Pfad)', () => {
+		assertContentBeforeLabel(
+			'claude-implement.yml',
+			'Committen, Branch pushen.',
+			'ALLERLETZTER Schritt, NIE davor: ERST NACHDEM Push',
+			3,
+		);
+	});
+
+	it('claude-pr-fixup.yml: Commit/Push stehen vor der Label-Umschaltung (je Agent-Pfad)', () => {
+		assertContentBeforeLabel(
+			'claude-pr-fixup.yml',
+			'committen und auf den PR-Branch',
+			'Abschluss (ALLERLETZTER Schritt, NIE davor',
+			3,
+		);
+	});
+
+	it('claude-pr-review.yml: Sammelkommentar steht vor der Label-Umschaltung (je Agent-Pfad)', () => {
+		assertContentBeforeLabel('claude-pr-review.yml', 'Sammelkommentar konsolidieren', 'Abschluss — GENAU EINEN Weg gehen', 3);
+	});
+});

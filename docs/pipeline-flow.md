@@ -132,6 +132,19 @@ flowchart TD
   - **Timeout-Alarm** (review/fixup): PR-Workflows vergeben kein `ai:to-big-issue` (AGENTS.md) —
     stattdessen postet dieser Step bei Timeout einen sichtbaren PR-Kommentar, sonst staute der PR
     unsichtbar.
+- **Label-Reihenfolge-Prinzip:** Labels sind der Trigger für Folge-Workflows (App-Token-Events lösen
+  sofort den nächsten Lauf aus). Sie werden daher IMMER erst als allerletzter Schritt einer Rolle
+  gesetzt/entfernt — NIE bevor Issue-Beschreibung, Kommentar, Commit/Push oder PR vollständig
+  geschrieben sind. Nachtrag nach einem beobachteten Vorfall (2026-07-01): der Analyse-Workflow
+  hatte `ai:spec-ready` gesetzt, bevor die Issue-Beschreibung aktualisiert war — der Spec-Workflow
+  startete daraufhin mit veraltetem Ticket-Inhalt. Alle sechs Prompt-Flows (triage/retriage/spec/
+  implement/fixup/review) instruieren die Label-Umschaltung jetzt explizit als "ALLERLETZTEN
+  Schritt, NIE davor"; per Vertragstest (`pipeline-hardening.test.ts`) abgesichert (Content-Schreiben
+  muss textlich vor der Label-Anweisung stehen). Da dies eine Prompt-Anweisung bleibt (kein
+  Shell-Gate möglich, da der Analyseinhalt vom LLM selbst erzeugt wird), ist es defense-in-depth,
+  keine harte Garantie — sollte das Problem erneut auftreten, ist ein deterministischer
+  Post-Schritt (Label wird von einem separaten Workflow-Step nach Verifikation der Beschreibung
+  gesetzt, analog zur Label-Post-Assertion im Review) der nächste Härtungsschritt.
 
 ## Eintrittspunkte
 

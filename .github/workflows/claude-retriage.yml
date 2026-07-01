@@ -159,9 +159,15 @@ jobs:
             die Original-Beschreibung oberhalb des START-Markers NICHT ueberschreiben. KEINE
             Vollanalyse mehr als Kommentar. Danach genau EINEN kurzen Ping-Kommentar posten
             (`gh issue comment`: Hinweis, dass die Analyse in der Beschreibung aktualisiert wurde; nur
-            bei offenen Fragen zusaetzlich @<issue-author> + die offenen Fragen). Labels gemaess Ampel
-            setzen (`ai:analyzed`; bei gruen zusaetzlich `ai:spec-ready` (Output der Spec-Stufe; NICHT
-            `ai:ready`), bei gelb/rot ein evtl. vorhandenes `ai:spec-ready`/`ai:ready` entfernen).
+            bei offenen Fragen zusaetzlich @<issue-author> + die offenen Fragen).
+
+            ALLERLETZTER Schritt, NIE davor: Labels gemaess Ampel setzen (`ai:analyzed`; bei gruen
+            zusaetzlich `ai:spec-ready` (Output der Spec-Stufe; NICHT `ai:ready`), bei gelb/rot ein
+            evtl. vorhandenes `ai:spec-ready`/`ai:ready` entfernen). Setze Labels ERST, NACHDEM die
+            Beschreibung (Body-Block) UND der Ping-Kommentar bereits geschrieben/gepostet sind — das
+            Setzen von `ai:spec-ready` startet SOFORT die naechste Pipeline-Stufe (claude-spec.yml),
+            die die Beschreibung unmittelbar danach liest. Ist sie zu diesem Zeitpunkt noch nicht
+            aktualisiert, arbeitet die Spec-Stufe mit veraltetem Issue-Inhalt.
 
             HARTES Zeitlimit (Haerten L1): Dieser Lauf wird nach 20 Minuten hart abgebrochen. Merkst
             du, dass es eng wird, sichere SPAETESTENS nach ~18 Minuten den Zwischenstand: schreibe die
@@ -176,7 +182,7 @@ jobs:
           claude_args: >-
             --model claude-sonnet-4-6 --effort medium
             --allowedTools "Bash(gh issue:*),Bash(gh api:*),Bash(gh label:*),Read,Grep,Glob,Task"
-            --append-system-prompt "Automatisierter, vom Maintainer per @claude-Kommentar autorisierter Re-Triage-Lauf in GitHub Actions (headless, keine interaktive Rueckfrage moeglich). Die in der Wissensbasis geforderte Bestaetigung vor dem oeffentlichen Posten gilt durch den @claude-Ausloeser als erteilt: Schreibe Lektorat und Analyse-Body-Block, poste einen kurzen Ping-Kommentar und setze die Labels direkt fuer Issue #${{ github.event.issue.number }}, ohne auf eine Bestaetigung zu warten. Bearbeite ausschliesslich dieses Issue und committe keinen Produktivcode. HARTES 20-Minuten-Timeout: sichere bei drohendem Limit (~18 Min) die bisherige Analyse als Body-Block (kein Label, kein Ping-Kommentar), statt einen vollen Durchlauf zu erzwingen. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
+            --append-system-prompt "Automatisierter, vom Maintainer per @claude-Kommentar autorisierter Re-Triage-Lauf in GitHub Actions (headless, keine interaktive Rueckfrage moeglich). Die in der Wissensbasis geforderte Bestaetigung vor dem oeffentlichen Posten gilt durch den @claude-Ausloeser als erteilt: Schreibe Lektorat und Analyse-Body-Block, poste einen kurzen Ping-Kommentar und setze die Labels ALS ALLERLETZTEN Schritt (NIE davor — sonst startet die naechste Pipeline-Stufe mit veraltetem Issue-Inhalt) fuer Issue #${{ github.event.issue.number }}, ohne auf eine Bestaetigung zu warten. Bearbeite ausschliesslich dieses Issue und committe keinen Produktivcode. HARTES 20-Minuten-Timeout: sichere bei drohendem Limit (~18 Min) die bisherige Analyse als Body-Block (kein Label, kein Ping-Kommentar), statt einen vollen Durchlauf zu erzwingen. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
 
       # Mistral-Pfad (AI_AGENT == 'mistral'): Vibe laeuft headless OHNE Approval-Callback — ohne
       # erzwungenes Auto-Approve wuerde jedes genehmigungspflichtige Tool (gh/git/pnpm/Datei-Writes)
@@ -239,9 +245,15 @@ jobs:
             die Original-Beschreibung oberhalb des START-Markers NICHT ueberschreiben. KEINE
             Vollanalyse mehr als Kommentar. Danach genau EINEN kurzen Ping-Kommentar posten
             (`gh issue comment`: Hinweis, dass die Analyse in der Beschreibung aktualisiert wurde; nur
-            bei offenen Fragen zusaetzlich @<issue-author> + die offenen Fragen). Labels gemaess Ampel
-            setzen (`ai:analyzed`; bei gruen zusaetzlich `ai:spec-ready` (Output der Spec-Stufe; NICHT
-            `ai:ready`), bei gelb/rot ein evtl. vorhandenes `ai:spec-ready`/`ai:ready` entfernen).
+            bei offenen Fragen zusaetzlich @<issue-author> + die offenen Fragen).
+
+            ALLERLETZTER Schritt, NIE davor: Labels gemaess Ampel setzen (`ai:analyzed`; bei gruen
+            zusaetzlich `ai:spec-ready` (Output der Spec-Stufe; NICHT `ai:ready`), bei gelb/rot ein
+            evtl. vorhandenes `ai:spec-ready`/`ai:ready` entfernen). Setze Labels ERST, NACHDEM die
+            Beschreibung (Body-Block) UND der Ping-Kommentar bereits geschrieben/gepostet sind — das
+            Setzen von `ai:spec-ready` startet SOFORT die naechste Pipeline-Stufe (claude-spec.yml),
+            die die Beschreibung unmittelbar danach liest. Ist sie zu diesem Zeitpunkt noch nicht
+            aktualisiert, arbeitet die Spec-Stufe mit veraltetem Issue-Inhalt.
 
             HARTES Zeitlimit (Haerten L1): Dieser Lauf wird nach 20 Minuten hart abgebrochen. Merkst
             du, dass es eng wird, sichere SPAETESTENS nach ~18 Minuten den Zwischenstand: schreibe die
@@ -292,9 +304,15 @@ jobs:
             die Original-Beschreibung oberhalb des START-Markers NICHT ueberschreiben. KEINE
             Vollanalyse mehr als Kommentar. Danach genau EINEN kurzen Ping-Kommentar posten
             (`gh issue comment`: Hinweis, dass die Analyse in der Beschreibung aktualisiert wurde; nur
-            bei offenen Fragen zusaetzlich @<issue-author> + die offenen Fragen). Labels gemaess Ampel
-            setzen (`ai:analyzed`; bei gruen zusaetzlich `ai:spec-ready` (Output der Spec-Stufe; NICHT
-            `ai:ready`), bei gelb/rot ein evtl. vorhandenes `ai:spec-ready`/`ai:ready` entfernen).
+            bei offenen Fragen zusaetzlich @<issue-author> + die offenen Fragen).
+
+            ALLERLETZTER Schritt, NIE davor: Labels gemaess Ampel setzen (`ai:analyzed`; bei gruen
+            zusaetzlich `ai:spec-ready` (Output der Spec-Stufe; NICHT `ai:ready`), bei gelb/rot ein
+            evtl. vorhandenes `ai:spec-ready`/`ai:ready` entfernen). Setze Labels ERST, NACHDEM die
+            Beschreibung (Body-Block) UND der Ping-Kommentar bereits geschrieben/gepostet sind — das
+            Setzen von `ai:spec-ready` startet SOFORT die naechste Pipeline-Stufe (claude-spec.yml),
+            die die Beschreibung unmittelbar danach liest. Ist sie zu diesem Zeitpunkt noch nicht
+            aktualisiert, arbeitet die Spec-Stufe mit veraltetem Issue-Inhalt.
 
             HARTES Zeitlimit (Haerten L1): Dieser Lauf wird nach 20 Minuten hart abgebrochen. Merkst
             du, dass es eng wird, sichere SPAETESTENS nach ~18 Minuten den Zwischenstand: schreibe die
@@ -306,7 +324,7 @@ jobs:
           claude_args: >-
             --model claude-sonnet-4-6 --effort medium
             --allowedTools "Bash(gh issue:*),Bash(gh api:*),Bash(gh label:*),Read,Grep,Glob,Task"
-            --append-system-prompt "Automatisierter, vom Maintainer per @claude-Kommentar autorisierter Re-Triage-Lauf in GitHub Actions (headless, keine interaktive Rueckfrage moeglich). Die in der Wissensbasis geforderte Bestaetigung vor dem oeffentlichen Posten gilt durch den @claude-Ausloeser als erteilt: Schreibe Lektorat und Analyse-Body-Block, poste einen kurzen Ping-Kommentar und setze die Labels direkt fuer Issue #${{ github.event.issue.number }}, ohne auf eine Bestaetigung zu warten. Bearbeite ausschliesslich dieses Issue und committe keinen Produktivcode. HARTES 20-Minuten-Timeout: sichere bei drohendem Limit (~18 Min) die bisherige Analyse als Body-Block (kein Label, kein Ping-Kommentar), statt einen vollen Durchlauf zu erzwingen. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
+            --append-system-prompt "Automatisierter, vom Maintainer per @claude-Kommentar autorisierter Re-Triage-Lauf in GitHub Actions (headless, keine interaktive Rueckfrage moeglich). Die in der Wissensbasis geforderte Bestaetigung vor dem oeffentlichen Posten gilt durch den @claude-Ausloeser als erteilt: Schreibe Lektorat und Analyse-Body-Block, poste einen kurzen Ping-Kommentar und setze die Labels ALS ALLERLETZTEN Schritt (NIE davor — sonst startet die naechste Pipeline-Stufe mit veraltetem Issue-Inhalt) fuer Issue #${{ github.event.issue.number }}, ohne auf eine Bestaetigung zu warten. Bearbeite ausschliesslich dieses Issue und committe keinen Produktivcode. HARTES 20-Minuten-Timeout: sichere bei drohendem Limit (~18 Min) die bisherige Analyse als Body-Block (kein Label, kein Ping-Kommentar), statt einen vollen Durchlauf zu erzwingen. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
 
       # Bei hartem Timeout (Agent-Schritt cancelled) ist das Issue zu gross, um es in einem Lauf zu
       # analysieren: mit "ai:to-big-issue" markieren (Kandidat zum Aufteilen) und ein evtl.
