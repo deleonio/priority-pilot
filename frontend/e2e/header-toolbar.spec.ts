@@ -93,7 +93,7 @@ test.describe('#125 Header – Toolbar', () => {
 
 		// Bestehender Flow (vgl. crud.spec.ts `openPillarWeights`) bleibt grün.
 		await page.getByRole('button', { name: 'Einstellungen' }).click();
-		await page.getByRole('button', { name: 'Persönliche Säulen-Verteilung' }).click();
+		await page.getByRole('button', { name: 'Säulen-Gewichtung' }).click();
 		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
 	});
 });

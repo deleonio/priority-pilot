@@ -112,7 +112,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 	const closeDialog = useCallback((): void => setDialog(null), []);
 
 	// Referenz auf den Einstellungs-PopoverButton, um das Popover beim Öffnen eines Unterpunkts
-	// (z. B. der Säulen-Verteilung) wieder zu schließen.
+	// (z. B. der Säulen-Gewichtung) wieder zu schließen.
 	const settingsRef = useRef<HTMLKolPopoverButtonElement>(null);
 
 	// Fallback-Fokusziel für Dialoge, nach denen das auslösende Element nicht mehr im DOM ist
@@ -131,7 +131,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 		});
 	}, [reload]);
 
-	/** Öffnet die persönliche Säulen-Verteilung aus dem Einstellungs-Menü und schließt das Popover. */
+	/** Öffnet die Säulen-Gewichtung aus dem Einstellungs-Menü und schließt das Popover. */
 	const openPillars = useCallback((): void => {
 		void settingsRef.current?.hidePopover();
 		setDialog({ kind: 'pillars' });
@@ -210,8 +210,9 @@ export const App = ({ user }: { user: AuthUser }) => {
 						<span className="user-display-name">{user.name}</span>
 					</div>
 					{/* Einstellungen rechts oben: ein icon-only Zahnrad öffnet ein Popover mit einer
-					    vertikalen Toolbar als Menü. Erster Unterpunkt ist die persönliche Säulen-Verteilung;
-					    der Bereich ist so für weitere Einstellungen erweiterbar. */}
+				    vertikalen Toolbar als Menü. Erster Unterpunkt ist die Säulen-Gewichtung
+				    (globale Gewichtung der fünf Lebensbalance-Säulen);
+				    der Bereich ist so für weitere Einstellungen erweiterbar. */}
 					<KolPopoverButton
 						ref={settingsRef}
 						_label="Einstellungen"
@@ -227,7 +228,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 							_items={[
 								{
 									type: 'button',
-									_label: 'Persönliche Säulen-Verteilung',
+									_label: 'Säulen-Gewichtung',
 									_variant: 'secondary',
 									_disabled: loading || tasks === null,
 									_on: { onClick: openPillars },
@@ -250,10 +251,6 @@ export const App = ({ user }: { user: AuthUser }) => {
 					</KolAlert>
 				</div>
 			)}
-			<KolAlert _type="info" _label="Hallo, Christian!">
-				Hallo, Christian!
-			</KolAlert>
-
 			{tasks === null && loading && (
 				<div className="loading">
 					<KolSpin _show _variant="cycle" _label="Lädt" />
