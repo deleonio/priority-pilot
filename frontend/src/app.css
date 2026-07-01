@@ -74,6 +74,24 @@ body {
 	min-width: 14rem;
 }
 
+/* Avatar in der Kopf-Toolbar: rundes Google-Profilbild oder Person-Icon als Fallback. */
+.user-avatar {
+	width: 2rem;
+	height: 2rem;
+	border-radius: 50%;
+	object-fit: cover;
+	flex-shrink: 0;
+}
+
+.user-avatar--fallback {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--kol-color-primary, #0056b3);
+	color: #fff;
+	padding: 0.25rem;
+}
+
 .loading {
 	display: flex;
 	align-items: center;

@@ -92,12 +92,16 @@ export const createApp = (deps: AppDeps = {}) => {
 							return done(null, false);
 						}
 						const displayName = profile.displayName ?? email;
+						const avatarUrl = (profile.photos?.[0]?.value ?? null) as string | null;
 						// OAuth-Nutzer haben kein Passwort — Sentinel verhindert bcrypt-Login über die /auth/login-Route.
-						const [user] = await User.findOrCreate({
+						const [user, created] = await User.findOrCreate({
 							where: { email },
-							defaults: { email, passwordHash: '__oauth__', displayName },
+							defaults: { email, passwordHash: '__oauth__', displayName, avatarUrl },
 						});
-						return done(null, { id: user.id, email, displayName });
+						if (!created && user.avatarUrl !== avatarUrl) {
+							await user.update({ avatarUrl });
+						}
+						return done(null, { id: user.id, email, displayName, avatarUrl });
 					} catch (err) {
 						return done(err as Error);
 					}
