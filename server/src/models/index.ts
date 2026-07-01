@@ -5,6 +5,7 @@ import TaskPillar from './taskPillar.js';
 import PillarFeedback from './pillarFeedback.js';
 import ScoreEntry from './scoreEntry.js';
 import Series from './series.js';
+import User from './user.js';
 
 Task.belongsToMany(Task, {
 	as: 'dependencies',
@@ -37,4 +38,5 @@ Task.belongsTo(Series, { foreignKey: 'seriesId' });
 
 // `pillar_feedback` steht für sich (keine Assoziation) — es speichert lose Korrektur-Samples
 // (Titel/Beschreibung + bestätigte Säulen) für den Feedback-Loop der Klassifikation (siehe #45).
-export { Task, Dependency, Pillar, TaskPillar, PillarFeedback, ScoreEntry, Series };
+// `users` steht für sich (E-Mail-/Passwort-Auth, Issue #206) — keine Assoziationen nötig.
+export { Task, Dependency, Pillar, TaskPillar, PillarFeedback, ScoreEntry, Series, User };
