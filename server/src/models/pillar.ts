@@ -10,6 +10,10 @@ class Pillar extends Model {
 	public name!: string;
 	public weight!: number;
 
+	// Eigentümer der Säule (Issue #207, AK5 — Datenisolation). Nullable für Abwärtskompatibilität:
+	// bestehende, nutzerlose Säulen bleiben erhalten; neue Säulen werden an die Session-`userId` gebunden.
+	public userId?: number | null;
+
 	public readonly createdAt!: Date;
 	public readonly updatedAt!: Date;
 }
@@ -24,7 +28,6 @@ Pillar.init(
 		name: {
 			type: DataTypes.STRING,
 			allowNull: false,
-			unique: true,
 		},
 		weight: {
 			type: DataTypes.FLOAT,
@@ -34,12 +37,20 @@ Pillar.init(
 				min: 0,
 			},
 		},
+		// Eigentümer-Bindung (Issue #207, AK5). `null` erlaubt (Abwärtskompatibilität, s. o.).
+		userId: {
+			type: DataTypes.INTEGER,
+			allowNull: true,
+		},
 	},
 	{
 		sequelize,
 		modelName: 'Pillar',
 		tableName: 'pillars',
 		timestamps: true,
+		// Säulennamen sind pro Nutzer eindeutig (statt global) — verschiedene Nutzer dürfen dieselbe
+		// Säule benennen. Nutzerlose Alt-Säulen (`userId = null`) bleiben davon unberührt.
+		indexes: [{ unique: true, fields: ['name', 'userId'] }],
 	},
 );
 

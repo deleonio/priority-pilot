@@ -33,8 +33,9 @@ authRouter.post('/auth/register', async (req, res) => {
 	}
 
 	const passwordHash = await hashPassword(password);
+	let created: User;
 	try {
-		await User.create({ email: normalizedEmail, passwordHash, displayName: normalizedEmail });
+		created = await User.create({ email: normalizedEmail, passwordHash, displayName: normalizedEmail });
 	} catch (err) {
 		// Race Condition: zwei parallele Registrierungen passieren beide den findOne-Check
 		// (beide null). Die DB-Unique-Constraint fängt den Konflikt ab → 409 statt 500.
@@ -51,7 +52,7 @@ authRouter.post('/auth/register', async (req, res) => {
 			res.status(500).json({ message: 'Session-Fehler.' });
 			return;
 		}
-		req.session.user = { email: normalizedEmail, displayName: normalizedEmail };
+		req.session.user = { id: created.id, email: normalizedEmail, displayName: normalizedEmail };
 		req.session.save((saveErr) => {
 			if (saveErr) {
 				res.status(500).json({ message: 'Session konnte nicht gespeichert werden.' });
@@ -86,7 +87,7 @@ authRouter.post('/auth/login', async (req, res) => {
 		return;
 	}
 
-	const sessionUser = { email: user.email, displayName: user.displayName };
+	const sessionUser = { id: user.id, email: user.email, displayName: user.displayName };
 	// Session-Fixation verhindern: neue Session-ID vor dem Setzen des Users.
 	req.session.regenerate((err) => {
 		if (err) {

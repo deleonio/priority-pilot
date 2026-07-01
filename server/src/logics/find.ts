@@ -7,10 +7,12 @@ import type { PillarWithContribution } from '../models/task.js';
  * heraus — gemeinsame Vorstufe von `findNextImportantTask` (Top-1) und `findSuggestedTasks` (Liste).
  * Der Abhängigkeitsfilter (AC3) bleibt damit für beide Wege identisch.
  */
-const ladeFreieTasks = async (): Promise<Task[]> => {
+const ladeFreieTasks = async (userId?: number): Promise<Task[]> => {
 	const tasks = await Task.findAll({
 		where: {
 			status: ['Open', 'In process'],
+			// Datenisolation (#207, AK5): auf den eingeloggten Nutzer filtern, sofern vorhanden.
+			...(userId !== undefined ? { userId } : {}),
 		},
 		include: [Pillar],
 	});
@@ -26,10 +28,10 @@ const ladeFreieTasks = async (): Promise<Task[]> => {
 	return independentTasks;
 };
 
-export const findNextImportantTask = async (): Promise<Task | null> => {
+export const findNextImportantTask = async (userId?: number): Promise<Task | null> => {
 	// Alle offenen, nicht blockierten Tasks — inkl. Säulen-Beiträge, damit der zurückgegebene Task
 	// direkt serialisierbar ist (GET /next gibt einen vollständigen Task zurück).
-	const independentTasks = await ladeFreieTasks();
+	const independentTasks = await ladeFreieTasks(userId);
 
 	// Höhere Priorität zuerst
 	independentTasks.sort((a, b) => b.priority - a.priority);
@@ -135,14 +137,14 @@ const normBalance = (
  * Der Abhängigkeitsfilter aus `findNextImportantTask` bleibt vorgeschaltet (AC3); danach werden
  * Priorität, Deadline-Nähe und Balance-Korrektur kombiniert und der Überlastungsschutz angewandt.
  */
-export const findSuggestedTasks = async (): Promise<Task[]> => {
-	const kandidaten = await ladeFreieTasks();
+export const findSuggestedTasks = async (userId?: number): Promise<Task[]> => {
+	const kandidaten = await ladeFreieTasks(userId);
 	if (kandidaten.length === 0) {
 		return [];
 	}
 
 	// Balance-Stand: Soll-Anteile aus den Säulen-Gewichten, Ist-Anteile aus den vergebenen Punkten.
-	const pillars = await Pillar.findAll();
+	const pillars = await Pillar.findAll(userId !== undefined ? { where: { userId } } : {});
 	const soll = sollProSaeule(pillars);
 
 	const scoreEintraege = await ScoreEntry.findAll({ include: [{ model: Task, include: [Pillar] }] });

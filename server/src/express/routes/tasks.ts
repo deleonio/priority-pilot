@@ -5,6 +5,7 @@ import sequelize from '../../database.js';
 import { Pillar, ScoreEntry, Task, TaskPillar } from '../../models/index.js';
 import { wouldCreateCycle } from '../../logics/cycle.js';
 import { berechneScore } from '../../logics/score.js';
+import { getUserId } from '../requireAuth.js';
 import type { components } from '../../api';
 
 type TaskDto = components['schemas']['Task'];
@@ -87,6 +88,21 @@ const parseId = (raw: string): number | null => {
 	const id = Number(raw);
 	return Number.isInteger(id) && id > 0 ? id : null;
 };
+
+/**
+ * Eigentümer-Filter für Task-Queries (Issue #207, AK5). Bei gesetzter `userId` wird auf den
+ * eingeloggten Nutzer eingeschränkt; im Pass-Through-Modus (`undefined`) bleibt der Filter leer,
+ * sodass reine CRUD-Setups ohne Login unverändert alle Tasks sehen (Abwärtskompatibilität).
+ */
+const ownerScope = (userId: number | undefined): { userId?: number } => (userId !== undefined ? { userId } : {});
+
+/**
+ * Lädt einen Task nur, wenn er dem Nutzer gehört (bzw. im Pass-Through-Modus uneingeschränkt).
+ * Ein fremder Task ist damit nicht auffindbar → die Route antwortet mit 404 (statt 403), was den
+ * Vertrag „403 oder 404" erfüllt und zugleich keine Existenz fremder Tasks preisgibt.
+ */
+const findOwnTask = (id: number, userId: number | undefined): Promise<Task | null> =>
+	Task.findOne({ where: { id, ...ownerScope(userId) } });
 
 /**
  * Validiert die `pillars`-Liste (Säulen-Beiträge) rein strukturell (ohne DB-Zugriff): jede `pillarId`
@@ -273,9 +289,9 @@ const awardScoreOnDone = async (task: Task, transaction: Transaction): Promise<v
 export const tasksRouter = Router();
 
 // GET /tasks — alle Tasks (inkl. Säulen-Beiträge) auflisten
-tasksRouter.get('/tasks', async (_req: Request, res: Response<TaskDto[] | ErrorDto>) => {
+tasksRouter.get('/tasks', async (req: Request, res: Response<TaskDto[] | ErrorDto>) => {
 	try {
-		const tasks = await Task.findAll({ include: [Pillar] });
+		const tasks = await Task.findAll({ where: ownerScope(getUserId(req)), include: [Pillar] });
 		res.json(tasks.map(serializeTask));
 	} catch (error) {
 		handleWriteError(res, error);
@@ -293,9 +309,11 @@ tasksRouter.post('/tasks', async (req: Request, res: Response<TaskDto | ErrorDto
 		sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
 		return;
 	}
+	const userId = getUserId(req);
 	try {
 		const created = await sequelize.transaction(async (transaction) => {
-			const task = await Task.create({ ...validation.attrs }, { transaction });
+			// Neuen Task an den eingeloggten Nutzer binden (Datenisolation, #207); `null` im Pass-Through.
+			const task = await Task.create({ ...validation.attrs, userId: userId ?? null }, { transaction });
 			if (validation.pillars !== undefined && validation.pillars.length > 0) {
 				await replaceContributions(task.id, validation.pillars, transaction);
 			}
@@ -315,7 +333,9 @@ tasksRouter.post('/tasks', async (req: Request, res: Response<TaskDto | ErrorDto
 // GET /tasks/:id — einen Task abrufen
 tasksRouter.get('/tasks/:id', async (req: Request, res: Response<TaskDto | ErrorDto>) => {
 	const id = parseId(req.params.id);
-	const task = id === null ? null : await findTaskWithPillars(id);
+	const userId = getUserId(req);
+	// Nur eigene Tasks sind auffindbar (Datenisolation, #207) — fremde → 404.
+	const task = id === null ? null : await Task.findOne({ where: { id, ...ownerScope(userId) }, include: [Pillar] });
 	if (!task) {
 		sendError(res, 404, 'Task nicht gefunden.');
 		return;
@@ -326,7 +346,8 @@ tasksRouter.get('/tasks/:id', async (req: Request, res: Response<TaskDto | Error
 // PATCH /tasks/:id — einen Task teilweise aktualisieren
 tasksRouter.patch('/tasks/:id', async (req: Request, res: Response<TaskDto | ErrorDto>) => {
 	const id = parseId(req.params.id);
-	const task = id === null ? null : await Task.findByPk(id);
+	// Fremde Tasks sind nicht auffindbar → 404 (Datenisolation, #207, AK5).
+	const task = id === null ? null : await findOwnTask(id, getUserId(req));
 	if (!task) {
 		sendError(res, 404, 'Task nicht gefunden.');
 		return;
@@ -376,7 +397,8 @@ tasksRouter.patch('/tasks/:id', async (req: Request, res: Response<TaskDto | Err
 // DELETE /tasks/:id — einen Task löschen
 tasksRouter.delete('/tasks/:id', async (req: Request, res: Response<ErrorDto>) => {
 	const id = parseId(req.params.id);
-	const task = id === null ? null : await Task.findByPk(id);
+	// Fremde Tasks sind nicht auffindbar → 404 (Datenisolation, #207, AK5).
+	const task = id === null ? null : await findOwnTask(id, getUserId(req));
 	if (!task) {
 		sendError(res, 404, 'Task nicht gefunden.');
 		return;
@@ -417,12 +439,14 @@ tasksRouter.post('/tasks/:id/dependencies', async (req: Request, res: Response<T
 	}
 	const weight = typeof input.weight === 'number' ? input.weight : 1;
 
-	const dependentTask = await Task.findByPk(id);
+	// Beide Enden müssen dem Nutzer gehören (Datenisolation, #207) — fremde Tasks → 404.
+	const userId = getUserId(req);
+	const dependentTask = await findOwnTask(id, userId);
 	if (!dependentTask) {
 		sendError(res, 404, 'Task nicht gefunden.');
 		return;
 	}
-	const dependingTask = await Task.findByPk(input.dependingTaskId);
+	const dependingTask = await findOwnTask(input.dependingTaskId, userId);
 	if (!dependingTask) {
 		sendError(res, 404, 'Abhängiger Task (dependingTaskId) nicht gefunden.');
 		return;
@@ -452,7 +476,7 @@ tasksRouter.post('/tasks/:id/dependencies', async (req: Request, res: Response<T
 tasksRouter.delete('/tasks/:id/dependencies/:depId', async (req: Request, res: Response<ErrorDto>) => {
 	const id = parseId(req.params.id);
 	const depId = parseId(req.params.depId);
-	const task = id === null ? null : await Task.findByPk(id);
+	const task = id === null ? null : await findOwnTask(id, getUserId(req));
 	if (!task) {
 		sendError(res, 404, 'Task nicht gefunden.');
 		return;

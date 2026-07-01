@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import sequelize from '../../database.js';
 import { Pillar } from '../../models/index.js';
+import { getUserId } from '../requireAuth.js';
 import type { components } from '../../api';
 
 type PillarDto = components['schemas']['Pillar'];
@@ -30,6 +31,13 @@ const serializePillar = (pillar: Pillar): PillarDto => ({
 const sendError = (res: Response<ErrorDto>, status: number, message: string): void => {
 	res.status(status).json({ message });
 };
+
+/**
+ * Eigentümer-Filter für Säulen-Queries (Issue #207, AK5). Bei gesetzter `userId` wird auf die Säulen
+ * des eingeloggten Nutzers eingeschränkt; im Pass-Through-Modus (`undefined`) bleibt der Filter leer
+ * (Abwärtskompatibilität für nutzerlose Setups).
+ */
+const ownerScope = (userId: number | undefined): { userId?: number } => (userId !== undefined ? { userId } : {});
 
 /**
  * Validiert den Body von `PUT /pillars/weights` rein strukturell (ohne DB-Zugriff):
@@ -72,9 +80,9 @@ const validateWeightsBody = (body: unknown): ValidationResult => {
 export const pillarsRouter = Router();
 
 // GET /pillars — alle Säulen (inkl. weight) auflisten
-pillarsRouter.get('/pillars', async (_req: Request, res: Response<PillarDto[] | ErrorDto>) => {
+pillarsRouter.get('/pillars', async (req: Request, res: Response<PillarDto[] | ErrorDto>) => {
 	try {
-		const pillars = await Pillar.findAll({ order: [['id', 'ASC']] });
+		const pillars = await Pillar.findAll({ where: ownerScope(getUserId(req)), order: [['id', 'ASC']] });
 		res.json(pillars.map(serializePillar));
 	} catch {
 		sendError(res, 500, 'Interner Serverfehler.');
@@ -91,7 +99,8 @@ pillarsRouter.put('/pillars/weights', async (req: Request, res: Response<PillarD
 	const { entries } = validation;
 
 	try {
-		const pillars = await Pillar.findAll({ order: [['id', 'ASC']] });
+		// Nur die eigenen Säulen gewichten (Datenisolation, #207) — fremde bleiben unberührt.
+		const pillars = await Pillar.findAll({ where: ownerScope(getUserId(req)), order: [['id', 'ASC']] });
 
 		// Die Verteilung muss genau alle Säulen abdecken — sonst wäre die Summe nicht aussagekräftig.
 		const knownIds = new Set(pillars.map((pillar) => pillar.id));
