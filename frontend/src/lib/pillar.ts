@@ -129,6 +129,8 @@ interface PillarSummary {
 	openEstimatedEffort: number;
 	/** Anteiliger geschätzter Eigenaufwand der **erledigten** Tasks (`Done`) je Säule (#124). */
 	doneEstimatedEffort: number;
+	/** Ist-Anteil dieser Säule am gesamten erledigten Aufwand (0–1; 0 wenn keine Done-Tasks). */
+	actualShare: number;
 	/**
 	 * Anteilig (nach `share`) auf diese Säule entfallende Summe der Wertbeiträge. Die Werte stammen aus
 	 * dem Aufgabenwald (`valueByTaskId`), der nur offene/in Arbeit befindliche Tasks enthält —
@@ -150,13 +152,18 @@ interface PillarSummary {
  * partitioniert, gilt je Säule `openCount + doneCount = taskCount` und
  * `openEstimatedEffort + doneEstimatedEffort = totalEstimatedEffort`. Die Reihenfolge der Säulen
  * bleibt erhalten.
+ *
+ * Zusätzlich wird je Säule der **Ist-Anteil** (`actualShare`) am gesamten erledigten Aufwand über
+ * alle Säulen berechnet (#219): `doneEstimatedEffort / Σ doneEstimatedEffort`. Gibt es keinen
+ * erledigten Aufwand (`Σ = 0`), ist der Anteil für jede Säule `0` (kein `NaN`). Bei mindestens
+ * einem Done-Task summieren sich die Anteile über alle Säulen zu 1; jeder Anteil liegt in `[0, 1]`.
  */
 export const buildPillarSummaries = (
 	pillars: Pillar[],
 	tasks: Task[],
 	valueByTaskId: ReadonlyMap<number, number>,
-): PillarSummary[] =>
-	pillars.map((pillar) => {
+): PillarSummary[] => {
+	const summaries: PillarSummary[] = pillars.map((pillar) => {
 		let taskCount = 0;
 		let openCount = 0;
 		let doneCount = 0;
@@ -191,6 +198,13 @@ export const buildPillarSummaries = (
 			totalEstimatedEffort,
 			openEstimatedEffort,
 			doneEstimatedEffort,
+			actualShare: 0,
 			totalValue,
 		};
 	});
+	const totalDoneEffort = summaries.reduce((acc, summary) => acc + summary.doneEstimatedEffort, 0);
+	for (const summary of summaries) {
+		summary.actualShare = totalDoneEffort === 0 ? 0 : summary.doneEstimatedEffort / totalDoneEffort;
+	}
+	return summaries;
+};
