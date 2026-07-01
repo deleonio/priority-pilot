@@ -211,8 +211,7 @@ export const Dashboard = ({ tasks, forest, nextTask, suggestions = [], pillars, 
 								actualShare,
 							}) => (
 								<li key={pillar.id} className="dashboard-pillar">
-									<KolMeter _label={pillar.name} _value={actualShare} _max={1} />
-									<span data-testid="pillar-target-weight">Ziel: {Math.round(pillar.weight)} %</span>
+									<KolMeter _label={pillar.name} _value={actualShare} _max={1} _low={pillar.weight / 100} />
 									<span className="dashboard-pillar-meta">
 										{`${taskCount} ${taskCount === 1 ? 'Aufgabe' : 'Aufgaben'} (${openCount} offen · ${doneCount} erledigt) · Wert ${formatNumber(totalValue)} · Aufwand ${formatNumber(totalEstimatedEffort)} Tage (${formatNumber(openEstimatedEffort)} offen · ${formatNumber(doneEstimatedEffort)} erledigt)`}
 									</span>
