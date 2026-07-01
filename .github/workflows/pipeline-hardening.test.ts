@@ -18,8 +18,7 @@ import { dirname, join } from 'node:path';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(HERE, '..', '..');
 
-const readWorkflow = (name: string): string =>
-	readFileSync(join(REPO_ROOT, '.github', 'workflows', name), 'utf8');
+const readWorkflow = (name: string): string => readFileSync(join(REPO_ROOT, '.github', 'workflows', name), 'utf8');
 const readRepoFile = (...parts: string[]): string => readFileSync(join(REPO_ROOT, ...parts), 'utf8');
 
 // Die Workflows, die alle drei Agent-Pfade (Claude/GLM/Mistral) enthalten.
@@ -46,7 +45,11 @@ describe('C2 — Deterministischer Agent-Secret-Check (kein stiller Skip)', () =
 			assert.match(yml, /ZAI_API_KEY:/, `${wf}: Agent-Secret-Check muss ZAI_API_KEY pruefen (GLM-Pfad)`);
 			assert.match(yml, /MISTRAL_API_KEY:/, `${wf}: Agent-Secret-Check muss MISTRAL_API_KEY pruefen (Mistral-Pfad)`);
 			// Bei Fehlen muss der Lauf deterministisch abbrechen (exit 1), nicht still skippen.
-			assert.match(yml, /::error title=Agent-Secret fehlt/, `${wf}: fehlendes Secret muss ::error:: ausgeben (bewusstes Opt-in)`);
+			assert.match(
+				yml,
+				/::error title=Agent-Secret fehlt/,
+				`${wf}: fehlendes Secret muss ::error:: ausgeben (bewusstes Opt-in)`,
+			);
 		});
 	}
 
@@ -82,7 +85,7 @@ describe('C1 — Deterministischer Stop-Guard in claude-pr-fixup.yml (> 10 PR-Co
 		const agentIfs = yml.match(/if:[^\n]*stop-guard\.outputs\.stop != 'true'[^\n]*/g);
 		assert.ok(
 			agentIfs && agentIfs.length >= 3,
-			'Alle drei Agent-Schritte (Claude/Mistral/GLM) muessen `steps.stop-guard.outputs.stop != \'true\'` in ihrem if haben',
+			"Alle drei Agent-Schritte (Claude/Mistral/GLM) muessen `steps.stop-guard.outputs.stop != 'true'` in ihrem if haben",
 		);
 	});
 });
@@ -112,9 +115,7 @@ describe('H1 — Deterministische Label-Post-Assertion in claude-pr-review.yml',
 	it('review.yml: Label-Post-Assertion laeuft NUR bei Agent success/failure (NICHT bei cancelled/skipped)', () => {
 		const yml = readWorkflow('claude-pr-review.yml');
 		// Negativkontrolle: laeuft sie bei cancelled, wuerde sie das Timeout-Signal (S3) stoeren.
-		const assertionBlock = yml.match(
-			/name: Label-Post-Assertion[\s\S]*?run:/,
-		);
+		const assertionBlock = yml.match(/name: Label-Post-Assertion[\s\S]*?run:/);
 		assert.ok(assertionBlock, 'Label-Post-Assertion-Block nicht gefunden');
 		assert.match(
 			assertionBlock[0],
@@ -219,7 +220,11 @@ describe('M1 — Zentrale Node-Version (.nvmrc, kein Version-Drift)', () => {
 	it('.nvmrc existiert im Repo-Root', () => {
 		assert.ok(existsSync(join(REPO_ROOT, '.nvmrc')), '.nvmrc muss existieren (zentrale Node-Version)');
 		const content = readRepoFile('.nvmrc').trim();
-		assert.match(content, /^\d+\.\d+\.\d+$/, `.nvmrc muss eine konkrete Node-Version (x.y.z) enthalten, nicht "${content}"`);
+		assert.match(
+			content,
+			/^\d+\.\d+\.\d+$/,
+			`.nvmrc muss eine konkrete Node-Version (x.y.z) enthalten, nicht "${content}"`,
+		);
 	});
 
 	it('ci/implement/fixup/deploy nutzen node-version-file: .nvmrc (kein harter Version-Drift)', () => {
@@ -248,11 +253,7 @@ describe('M3 — retriage nur auf created (nicht edited — Spam-Vektor)', () =>
 		const onBlock = yml.match(/on:[\s\S]*?types:\s*\[([^\]]+)\]/);
 		assert.ok(onBlock, 'on-Block mit types nicht gefunden in claude-retriage.yml');
 		assert.match(onBlock[1], /\bcreated\b/, 'retriage muss auf created triggern');
-		assert.doesNotMatch(
-			onBlock[1],
-			/\bedited\b/,
-			'retriage darf NICHT auf edited triggern (Spam-Vektor — Haerten M3)',
-		);
+		assert.doesNotMatch(onBlock[1], /\bedited\b/, 'retriage darf NICHT auf edited triggern (Spam-Vektor — Haerten M3)');
 	});
 });
 
@@ -286,11 +287,7 @@ describe('C1-Nachtrag — Stop-Guard ist fail-closed bei gh-API-Ausfall (nicht f
 		// Der gh-API-Fehlerzweig muss selbst stop=true setzen (fail-closed).
 		const fetchFailBlock = stopGuardBlock[0].match(/if ! commits=[\s\S]*?fi/);
 		assert.ok(fetchFailBlock, 'gh-API-Fehler-Zweig des Stop-Guards nicht gefunden');
-		assert.match(
-			fetchFailBlock[0],
-			/stop=true/,
-			'Stop-Guard muss bei gh-API-Fehler fail-closed stop=true setzen',
-		);
+		assert.match(fetchFailBlock[0], /stop=true/, 'Stop-Guard muss bei gh-API-Fehler fail-closed stop=true setzen');
 	});
 });
 
