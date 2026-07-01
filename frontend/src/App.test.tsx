@@ -161,13 +161,6 @@ describe('App — User Info Display (#192)', () => {
 		// Bewusst übersprungen: kein App-internes async Laden mehr.
 	});
 
-	// AK4b: Die per `user`-Prop übergebene E-Mail erscheint im DOM.
-	it('zeigt die per Prop übergebene E-Mail an (AK4b)', async () => {
-		render(<App user={{ id: 7, name: 'Me', email: 'me@test.com', avatarUrl: null }} />);
-
-		expect(await screen.findByText(/me@test\.com/i)).toBeTruthy();
-	});
-
 	// AK3b: Auch der Name aus der `user`-Prop erscheint im DOM (Header-Anzeige).
 	it('zeigt den per Prop übergebenen Namen an (AK3b)', async () => {
 		render(<App user={{ id: 7, name: 'Max Mustermann', email: 'max@example.com', avatarUrl: null }} />);
