@@ -1,4 +1,4 @@
-import { KolAlert, KolHeading, KolPopoverButton, KolSpin, KolTabs, KolToolbar } from '@public-ui/react-v19';
+import { KolAlert, KolAvatar, KolHeading, KolPopoverButton, KolSpin, KolTabs, KolToolbar } from '@public-ui/react-v19';
 import type { Pillar, Task, TaskTreeNode } from 'client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from './api';
@@ -205,6 +205,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 						]}
 					/>
 					<div className="user-info">
+						<KolAvatar _label={user.name} _src={user.avatarUrl ?? undefined} />
 						<span className="user-email">{user.email}</span>
 						<span className="user-display-name">{user.name}</span>
 					</div>

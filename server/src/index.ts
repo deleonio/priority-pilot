@@ -3,7 +3,7 @@ import './env.js';
 import { logEnvConfig } from './env-startup-log.js';
 import sequelize from './database.js';
 import { launchServer } from './express/index.js';
-import { migrateSeriesColumns, migrateSeriesTable } from './logics/migrate.js';
+import { migrateSeriesColumns, migrateSeriesTable, migrateUsersAvatarUrl } from './logics/migrate.js';
 import { buildTaskForest } from './logics/tree.js';
 import { Pillar, Task, TaskPillar } from './models/index.js';
 
@@ -105,6 +105,8 @@ const main = async (): Promise<void> => {
 		await migrateSeriesColumns(sequelize);
 		// Fehlende Spalten der series-Tabelle nachziehen (#163).
 		await migrateSeriesTable(sequelize);
+		// Fehlende avatarUrl-Spalte in users nachziehen (#217).
+		await migrateUsersAvatarUrl(sequelize);
 
 		// Datenbank synchronisieren (force nur bei DB_RESET=true)
 		await sequelize.sync({ force: shouldReset });
