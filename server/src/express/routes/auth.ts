@@ -20,8 +20,9 @@ authRouter.post('/auth/register', async (req, res) => {
 		res.status(400).json({ message: 'E-Mail und Passwort sind erforderlich.' });
 		return;
 	}
+	const normalizedEmail = email.toLowerCase();
 
-	const existing = await User.findOne({ where: { email } });
+	const existing = await User.findOne({ where: { email: normalizedEmail } });
 	if (existing) {
 		res.status(409).json({ message: 'E-Mail ist bereits registriert.' });
 		return;
@@ -29,7 +30,7 @@ authRouter.post('/auth/register', async (req, res) => {
 
 	const passwordHash = await hashPassword(password);
 	try {
-		await User.create({ email, passwordHash, displayName: email });
+		await User.create({ email: normalizedEmail, passwordHash, displayName: normalizedEmail });
 	} catch (err) {
 		// Race Condition: zwei parallele Registrierungen passieren beide den findOne-Check
 		// (beide null). Die DB-Unique-Constraint fängt den Konflikt ab → 409 statt 500.
@@ -46,13 +47,13 @@ authRouter.post('/auth/register', async (req, res) => {
 			res.status(500).json({ message: 'Session-Fehler.' });
 			return;
 		}
-		req.session.user = { email, displayName: email };
+		req.session.user = { email: normalizedEmail, displayName: normalizedEmail };
 		req.session.save((saveErr) => {
 			if (saveErr) {
 				res.status(500).json({ message: 'Session konnte nicht gespeichert werden.' });
 				return;
 			}
-			res.status(201).json({ email, displayName: email });
+			res.status(201).json({ email: normalizedEmail, displayName: normalizedEmail });
 		});
 	});
 });
@@ -66,8 +67,9 @@ authRouter.post('/auth/login', async (req, res) => {
 		res.status(401).json({ message: 'Ungültige Zugangsdaten.' });
 		return;
 	}
+	const normalizedEmail = email.toLowerCase();
 
-	const user = await User.findOne({ where: { email } });
+	const user = await User.findOne({ where: { email: normalizedEmail } });
 	if (!user) {
 		await verifyPassword(password, DUMMY_HASH); // Timing normalisieren — verhindert E-Mail-Enumeration
 		res.status(401).json({ message: 'Ungültige Zugangsdaten.' });
