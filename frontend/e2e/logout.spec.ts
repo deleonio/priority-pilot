@@ -2,28 +2,6 @@ import type { Page, Route } from '@playwright/test';
 import { expect, test } from '@playwright/test';
 import { waitForStableView } from './helpers';
 
-/**
- * ROTE Spec-Tests für #191 „feat: Logout-Button in Navigation" (Stufe 1 TDD, der einklagbare Vertrag).
- *
- * Ziel des Tickets (siehe Triage-Analyse): Der Header/die Navigation erhält einen **Logout-Button**.
- * Er ist nur für authentifizierte Benutzer sichtbar (Server-Side-Session via GET /auth/me;
- * vgl. `Root.tsx`). Ein Klick sendet `POST /auth/logout` (zerstört die Session) und leitet
- * anschließend auf die Login-Seite (`/login`) um. Schlägt der Logout fehl, bleibt der Nutzer
- * eingeloggt und der Button wieder bedienbar (AK-5, siehe `src/App.test.tsx`).
- *
- * Diese Tests sind **rot**, bis die Umsetzung den Logout-Button samt Verdrahtung
- * (`api.logout` → `POST /auth/logout` → Redirect `/login`) in `App.tsx` ergänzt.
- *
- * Anders als die funktionalen CRUD-Specs mocken diese Tests die Auth-Endpunkte bewusst über
- * `page.route`: Das echte Test-Backend (In-Memory-DB) kennt weder `/auth/logout` noch eine
- * Login-Seite. Die fachlichen Lade-Endpunkte (`/tasks` …) liefern wir ebenfalls per `route`, damit die
- * App unabhängig vom Seed-Zustand in die eingeloggte Dashboard-Ansicht rendert.
- *
- * Seit #190 hängt vor der Haupt-App ein Auth-Gate (`Root.tsx`): Nur wenn `GET /auth/me` einen User
- * liefert, wird die App gerendert. `stubBackend` mockt `/auth/me` daher standardmäßig als
- * authentifiziert, damit das Gate durchlässig ist.
- */
-
 const DISPLAY_NAME = 'Peter';
 
 const SAMPLE_TASK = {
@@ -45,6 +23,134 @@ const fulfillJson = (body: unknown) => ({
 	status: 200,
 	contentType: 'application/json',
 	body: JSON.stringify(body),
+});
+
+/**
+ * ROTE Spec-Tests für #214 „Nach dem Abmelden zur Login-Seite weiterleiten".
+ *
+ * Problem: `handleLogout` in App.tsx nutzt `window.history.pushState({}, '', '/login')`, das
+ * ausschließlich die Browser-URL ändert — ohne Seiten-Reload. `Root.tsx` bleibt eingehängt
+ * (authState === 'authenticated'), `<LoginPage>` wird nie gerendert. Der Nutzer sieht weiterhin
+ * die App-Ansicht, obwohl die URL /login zeigt.
+ *
+ * Diese Tests werden grün, sobald handleLogout eine echte Navigation ausführt
+ * (`window.location.href = '/login'` oder `window.location.assign('/login')`), die einen Reload
+ * auslöst: Root.tsx remountet → checkAuth() → /auth/me 401 → <LoginPage> wird angezeigt.
+ *
+ * Testdesign: `/auth/me` gibt beim ersten Aufruf 200 zurück (App lädt), nach dem Logout 401
+ * (Session zerstört). Mit pushState wird /auth/me nach dem Klick gar nicht erneut aufgerufen
+ * (kein Reload), sodass die LoginPage nie erscheint → Tests schlagen fehl (ROT). Mit echter
+ * Navigation folgt ein Reload, /auth/me antwortet 401, LoginPage rendert → Tests grün.
+ */
+
+const stubBackend214 = async (
+	page: Page,
+	{ authMeResponse }: { authMeResponse: () => { status: number; body: object } },
+): Promise<void> => {
+	await page.route('**/auth/me', (route) => {
+		const { status, body } = authMeResponse();
+		route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+	});
+	await page.route('**/api/v1/tasks', (route) =>
+		route.request().method() === 'GET' ? route.fulfill(fulfillJson([SAMPLE_TASK])) : route.continue(),
+	);
+	await page.route('**/api/v1/forest', (route) => route.fulfill(fulfillJson([])));
+	await page.route('**/api/v1/next', (route) => route.fulfill({ status: 204, body: '' }));
+	await page.route('**/api/v1/suggestions', (route) => route.fulfill(fulfillJson([])));
+	await page.route('**/api/v1/pillars', (route) => route.fulfill(fulfillJson([])));
+};
+
+test.describe('#214 Nach Logout zur Login-Seite weiterleiten', () => {
+	/**
+	 * AK-1: Nach erfolgreichem Logout wird die Login-Seite gerendert (echte Navigation).
+	 *
+	 * pushState ändert nur die URL; Root.tsx bleibt eingehängt → LoginPage erscheint nie.
+	 * Dieser Test ist ROT bis handleLogout window.location.href (oder assign) statt pushState nutzt.
+	 */
+	test('AK-1: Nach Logout wird die Login-Seite gerendert (nicht nur URL geändert)', async ({ page }) => {
+		let sessionActive = true;
+		await stubBackend214(page, {
+			authMeResponse: () =>
+				sessionActive
+					? { status: 200, body: { id: 1, name: DISPLAY_NAME, email: 'peter@example.com' } }
+					: { status: 401, body: { message: 'Unauthorized' } },
+		});
+		await page.route('**/auth/logout', (route) => {
+			sessionActive = false;
+			route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+		});
+
+		await page.goto('/');
+		await waitForStableView(page);
+		await expect(page.getByRole('button', { name: /Abmelden|Logout/i })).toBeVisible();
+
+		await page.getByRole('button', { name: /Abmelden|Logout/i }).click();
+
+		// Echte Navigation → Root.tsx remountet → /auth/me → 401 → LoginPage erscheint.
+		// Mit pushState bleibt Root.tsx eingehängt, LoginPage wird nie gerendert → Timeout → ROT.
+		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeVisible();
+	});
+
+	/**
+	 * AK-2: Nach dem Redirect ist der Logout-Button nicht mehr im DOM (App-Baum abgebaut).
+	 *
+	 * Mit pushState bleibt der React-Baum eingehängt; der Logout-Button ist weiterhin vorhanden
+	 * (ggf. im Loading-Zustand). Erst eine echte Navigation baut den App-Baum ab.
+	 */
+	test('AK-2: Nach Logout ist der Logout-Button nicht mehr vorhanden (App abgebaut)', async ({ page }) => {
+		let sessionActive = true;
+		await stubBackend214(page, {
+			authMeResponse: () =>
+				sessionActive
+					? { status: 200, body: { id: 1, name: DISPLAY_NAME, email: 'peter@example.com' } }
+					: { status: 401, body: { message: 'Unauthorized' } },
+		});
+		await page.route('**/auth/logout', (route) => {
+			sessionActive = false;
+			route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+		});
+
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await page.getByRole('button', { name: /Abmelden|Logout/i }).click();
+
+		// LoginPage muss sichtbar sein (stellt sicher, dass die Prüfung nach echter Navigation gilt).
+		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeVisible();
+		// Kein Logout-Button auf der Login-Seite.
+		await expect(page.getByRole('button', { name: /Abmelden|Logout/i })).toHaveCount(0);
+	});
+
+	/**
+	 * AK-3: Das Redirect-Ziel nach dem Logout ist /login (korrekte Route).
+	 *
+	 * Stellt sicher, dass nicht auf / oder /home umgeleitet wird. Die URL-Prüfung allein unterscheidet
+	 * nicht zwischen pushState und echter Navigation — sie ist daher mit der LoginPage-Prüfung (AK-1)
+	 * kombiniert: beide müssen zutreffen.
+	 */
+	test('AK-3: Redirect-Ziel nach Logout ist /login (korrekte Route, LoginPage gerendert)', async ({ page }) => {
+		let sessionActive = true;
+		await stubBackend214(page, {
+			authMeResponse: () =>
+				sessionActive
+					? { status: 200, body: { id: 1, name: DISPLAY_NAME, email: 'peter@example.com' } }
+					: { status: 401, body: { message: 'Unauthorized' } },
+		});
+		await page.route('**/auth/logout', (route) => {
+			sessionActive = false;
+			route.fulfill({ status: 200, contentType: 'application/json', body: '{}' });
+		});
+
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await page.getByRole('button', { name: /Abmelden|Logout/i }).click();
+
+		// Echte Navigation ist Pflicht: LoginPage muss rendern (ROT mit pushState).
+		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeVisible();
+		// Und die URL muss /login lauten (kein Redirect auf / oder /home).
+		await expect(page).toHaveURL(/\/login(\b|\/|$)/);
+	});
 });
 
 /**
@@ -166,6 +272,27 @@ test.describe('#209 Logout-Button im Toolbar (rechts oben)', () => {
 	});
 });
 
+/**
+ * ROTE Spec-Tests für #191 „feat: Logout-Button in Navigation" (Stufe 1 TDD, der einklagbare Vertrag).
+ *
+ * Ziel des Tickets (siehe Triage-Analyse): Der Header/die Navigation erhält einen **Logout-Button**.
+ * Er ist nur für authentifizierte Benutzer sichtbar (Server-Side-Session via GET /auth/me;
+ * vgl. `Root.tsx`). Ein Klick sendet `POST /auth/logout` (zerstört die Session) und leitet
+ * anschließend auf die Login-Seite (`/login`) um. Schlägt der Logout fehl, bleibt der Nutzer
+ * eingeloggt und der Button wieder bedienbar (AK-5, siehe `src/App.test.tsx`).
+ *
+ * Diese Tests sind **rot**, bis die Umsetzung den Logout-Button samt Verdrahtung
+ * (`api.logout` → `POST /auth/logout` → Redirect `/login`) in `App.tsx` ergänzt.
+ *
+ * Anders als die funktionalen CRUD-Specs mocken diese Tests die Auth-Endpunkte bewusst über
+ * `page.route`: Das echte Test-Backend (In-Memory-DB) kennt weder `/auth/logout` noch eine
+ * Login-Seite. Die fachlichen Lade-Endpunkte (`/tasks` …) liefern wir ebenfalls per `route`, damit die
+ * App unabhängig vom Seed-Zustand in die eingeloggte Dashboard-Ansicht rendert.
+ *
+ * Seit #190 hängt vor der Haupt-App ein Auth-Gate (`Root.tsx`): Nur wenn `GET /auth/me` einen User
+ * liefert, wird die App gerendert. `stubBackend` mockt `/auth/me` daher standardmäßig als
+ * authentifiziert, damit das Gate durchlässig ist.
+ */
 test.describe('#191 Logout-Button in Navigation', () => {
 	/**
 	 * AK-1 — Sichtbarkeit nur für authentifizierte Benutzer: Ohne gültige Session (/auth/me = 401)

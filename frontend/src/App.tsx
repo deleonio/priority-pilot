@@ -96,7 +96,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 		setLogoutError(null);
 		try {
 			await api.logout();
-			window.history.pushState({}, '', '/login');
+			window.location.href = '/login';
 		} catch (reason) {
 			setLogoutError(reason instanceof Error ? reason.message : 'Logout fehlgeschlagen');
 			setLogoutLoading(false);
