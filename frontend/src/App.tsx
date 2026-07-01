@@ -206,7 +206,12 @@ export const App = ({ user }: { user: AuthUser }) => {
 					/>
 					<div className="user-info">
 						{user.avatarUrl ? (
-							<img src={user.avatarUrl} alt="Avatar" className="user-avatar" referrerPolicy="no-referrer" />
+							<img
+								src={user.avatarUrl}
+								alt={user.name + ' - Profilbild'}
+								className="user-avatar"
+								referrerPolicy="no-referrer"
+							/>
 						) : (
 							<span className="user-avatar user-avatar--fallback" aria-hidden="true">
 								<svg
