@@ -3,6 +3,8 @@ name: PR Auto-Label (ai:needs-review)
 # Setzt beim OEFFNEN eines (Nicht-Draft-)Pull Requests automatisch das Pipeline-Label
 # "ai:needs-review" (Ticket #116). Das ist der Einstieg in die label-gesteuerte KI-Review-
 # Pipeline: das gesetzte Label weckt den Kreuzverhoer-Review (claude-pr-review.yml).
+# Wird auch bei jedem Push (synchronize-Event) erneut ausgeloest, wobei alte Ergebnis-
+# Labels (ai:needs-changes, ai:ready-to-merge) entfernt werden.
 #
 # WICHTIG (Folge-Workflows): Von GITHUB_TOKEN gesetzte Labels loesen KEINE weiteren Workflows
 # aus. Damit das "labeled"-Event den Review wirklich startet, wird hier ein kurzlebiges
@@ -16,10 +18,14 @@ name: PR Auto-Label (ai:needs-review)
 #     nicht ungefragt anstossen.
 #   - idempotent: traegt der PR bereits "ai:needs-review", laeuft der Job gar nicht erst an
 #     (kein No-op-Rauschen, keine Schleife).
+#   - bei jedem menschlichen Push (synchronize + sender.type != "Bot") werden alte Ergebnis-
+#     Labels (ai:needs-changes, ai:ready-to-merge) entfernt, dann wird der Review erneut
+#     ausgeloest. Bot-Pushes (Fixup, Implement-Spec) werden ignoriert (Actor-Filter),
+#     um Race-Conditions mit nebenlaufigen Label-Switches zu vermeiden.
 
 on:
   pull_request:
-    types: [opened, ready_for_review]
+    types: [opened, ready_for_review, synchronize]
 
 concurrency:
   # Pro PR serialisieren, damit zwei kurz aufeinanderfolgende Events nicht doppelt labeln.
@@ -28,11 +34,14 @@ concurrency:
 
 jobs:
   label:
-    # Nur Nicht-Drafts, nur same-repo (kein Fork) und nur, wenn das Label noch fehlt (Idempotenz).
+    # Nur Nicht-Drafts, nur same-repo (kein Fork), nur wenn das Label noch fehlt (Idempotenz)
+    # und nur bei menschlichen Pushes (Bot-Pushes vom Fixup/Implement-Spec werden ignoriert,
+    # um Race-Conditions mit nebenläufigen Label-Switches zu vermeiden).
     if: >-
       ${{ github.event.pull_request.draft == false
           && github.event.pull_request.head.repo.full_name == github.repository
-          && !contains(github.event.pull_request.labels.*.name, 'ai:needs-review') }}
+          && !contains(github.event.pull_request.labels.*.name, 'ai:needs-review')
+          && (github.event_name == 'opened' || github.event_name == 'ready_for_review' || github.event.sender.type != 'Bot') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -59,8 +68,26 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
-      # Reiner gh-Job (kein Checkout, kein LLM): Label bei Bedarf anlegen, dann setzen. Mit dem
-      # App-Token gesetzt, damit das "labeled"-Event den Kreuzverhoer-Review ausloest.
+      # Reiner gh-Job (kein Checkout, kein LLM): Alte Ergebnis-Labels entfernen, dann
+      # ai:needs-review setzen. Mit dem App-Token gesetzt, damit das "labeled"-Event den
+      # Kreuzverhoer-Review ausloest.
+      - name: Alte Ergebnis-Labels entfernen (ai:needs-changes, ai:ready-to-merge)
+        if: steps.preflight.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          # Alte Ergebnis-Labels entfernen, falls vorhanden (Reset bei neuem Push).
+          for label in ai:needs-changes ai:ready-to-merge; do
+            if gh pr view "$PR" --repo "$REPO" --json labels --jq "[.labels[].name]" | grep -q "\"$label\""; then
+              gh pr edit "$PR" --repo "$REPO" --remove-label "$label"
+              echo "PR #$PR: Label $label entfernt (Reset)." >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+
       - name: Label ai:needs-review setzen
         if: steps.preflight.outputs.configured == 'true'
         env:

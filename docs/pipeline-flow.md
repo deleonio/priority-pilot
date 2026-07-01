@@ -43,6 +43,10 @@ flowchart TD
     implement -->|"label: ai:needs-review"| review
     autolabel -->|"label: ai:needs-review"| review
 
+    %% ---- Push-Reset-Pfad (jeder menschliche Push auf den PR-Branch) ----
+    gatemerge -.->|"menschlicher Push<br/>(Reset ai:ready-to-merge)"| autolabel
+    fixup -.->|"menschlicher Push<br/>(Reset ai:needs-changes)"| autolabel
+
     %% ---- Review-Verzweigung ----
     review -->|"label: ai:needs-changes 🔴"| fixup
     review -->|"label: ai:ready-to-merge 🟢"| gatemerge
@@ -74,14 +78,14 @@ flowchart TD
 
 ## Label-Referenz
 
-| Label               | Gesetzt von                                 | Triggert                       |
-| ------------------- | ------------------------------------------- | ------------------------------ |
-| `ai:analyzed`       | triage / retriage                           | _(Vorbedingung, kein Trigger)_ |
-| `ai:spec-ready`     | triage / retriage (bei 🟢)                  | `claude-spec.yml`              |
-| `ai:ready`          | spec                                        | `claude-implement.yml`         |
-| `ai:needs-review`   | implement, pr-needs-review-label, **fixup** | `claude-pr-review.yml`         |
-| `ai:needs-changes`  | review (🔴), **gate-merge**                 | `claude-pr-fixup.yml`          |
-| `ai:ready-to-merge` | review (🟢)                                 | `claude-pr-gate-merge.yml`     |
+| Label               | Gesetzt von                                 | Entfernt von                            | Triggert                       |
+| ------------------- | ------------------------------------------- | --------------------------------------- | ------------------------------ |
+| `ai:analyzed`       | triage / retriage                           | _(Vorbedingung, kein Trigger)_          | _(Vorbedingung, kein Trigger)_ |
+| `ai:spec-ready`     | triage / retriage (bei 🟢)                  | _(kein automatisches Entfernen)_        | `claude-spec.yml`              |
+| `ai:ready`          | spec                                        | _(kein automatisches Entfernen)_        | `claude-implement.yml`         |
+| `ai:needs-review`   | implement, pr-needs-review-label, **fixup** | review, gate-merge                      | `claude-pr-review.yml`         |
+| `ai:needs-changes`  | review (🔴), **gate-merge**                 | **pr-needs-review-label** (bei Push)   | `claude-pr-fixup.yml`          |
+| `ai:ready-to-merge` | review (🟢)                                 | **pr-needs-review-label** (bei Push)   | `claude-pr-gate-merge.yml`     |
 
 ## Schlüsselmechanik
 
@@ -91,6 +95,13 @@ flowchart TD
   kaskadiert.)
 - **`ai:analyzed`** ist Vorbedingung (kein Trigger): triage/retriage setzen es; spec/implement
   prüfen es per `contains(...)`.
+- **Push-Reset-Mechanik:** Jeder menschliche Push auf den PR-Branch (`synchronize`-Event) löst
+  `pr-needs-review-label.yml` aus. Dieser entfernt die alten Ergebnis-Labels (`ai:needs-changes`,
+  `ai:ready-to-merge`) und setzt `ai:needs-review` neu — der PR geht damit bei jedem Push wieder
+  in den Review. Bot-Pushes (Fixup, Implement-Spec) werden ignoriert (Actor-Filter), um
+  Race-Conditions mit nebenläufigen Label-Switches zu vermeiden. Das bedeutet: **`ai:ready-to-merge`
+  ist nicht terminal** — ein menschlicher Push nach grünem Review setzt den PR zurück in den
+  Review-Zustand. Soll ein PR mergen bleiben, muss er ohne weitere Pushes grün bleiben.
 - **review ↔ fixup** ist die einzige beabsichtigte Schleife, gedeckelt durch den Stop-Guard
   (> 5 Fixup-Commits mit offenen Findings → `ai:needs-changes` bleibt, Mensch wird getaggt).
 - **gate-merge** wacht zusätzlich deterministisch per `workflow_run` (CI/Review fertig): ist mind.
