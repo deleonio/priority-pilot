@@ -78,14 +78,14 @@ flowchart TD
 
 ## Label-Referenz
 
-| Label               | Gesetzt von                                 | Entfernt von                            | Triggert                       |
-| ------------------- | ------------------------------------------- | --------------------------------------- | ------------------------------ |
-| `ai:analyzed`       | triage / retriage                           | _(Vorbedingung, kein Trigger)_          | _(Vorbedingung, kein Trigger)_ |
-| `ai:spec-ready`     | triage / retriage (bei 🟢)                  | _(kein automatisches Entfernen)_        | `claude-spec.yml`              |
-| `ai:ready`          | spec                                        | _(kein automatisches Entfernen)_        | `claude-implement.yml`         |
-| `ai:needs-review`   | implement, pr-needs-review-label, **fixup** | review, gate-merge                      | `claude-pr-review.yml`         |
-| `ai:needs-changes`  | review (🔴), **gate-merge**                 | **pr-needs-review-label** (bei Push)   | `claude-pr-fixup.yml`          |
-| `ai:ready-to-merge` | review (🟢)                                 | **pr-needs-review-label** (bei Push)   | `claude-pr-gate-merge.yml`     |
+| Label               | Gesetzt von                                 | Entfernt von                         | Triggert                       |
+| ------------------- | ------------------------------------------- | ------------------------------------ | ------------------------------ |
+| `ai:analyzed`       | triage / retriage                           | _(Vorbedingung, kein Trigger)_       | _(Vorbedingung, kein Trigger)_ |
+| `ai:spec-ready`     | triage / retriage (bei 🟢)                  | _(kein automatisches Entfernen)_     | `claude-spec.yml`              |
+| `ai:ready`          | spec                                        | _(kein automatisches Entfernen)_     | `claude-implement.yml`         |
+| `ai:needs-review`   | implement, pr-needs-review-label, **fixup** | review, gate-merge                   | `claude-pr-review.yml`         |
+| `ai:needs-changes`  | review (🔴), **gate-merge**                 | **pr-needs-review-label** (bei Push) | `claude-pr-fixup.yml`          |
+| `ai:ready-to-merge` | review (🟢)                                 | **pr-needs-review-label** (bei Push) | `claude-pr-gate-merge.yml`     |
 
 ## Schlüsselmechanik
 
