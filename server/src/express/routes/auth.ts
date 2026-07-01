@@ -20,7 +20,11 @@ authRouter.post('/auth/register', async (req, res) => {
 		res.status(400).json({ message: 'E-Mail und Passwort sind erforderlich.' });
 		return;
 	}
-	const normalizedEmail = email.toLowerCase();
+	if (password.trim().length < 8 || password.length > 72) {
+		res.status(400).json({ message: 'Passwort muss 8–72 Zeichen lang sein.' });
+		return;
+	}
+	const normalizedEmail = email.trim().toLowerCase();
 
 	const existing = await User.findOne({ where: { email: normalizedEmail } });
 	if (existing) {
@@ -67,7 +71,7 @@ authRouter.post('/auth/login', async (req, res) => {
 		res.status(401).json({ message: 'Ungültige Zugangsdaten.' });
 		return;
 	}
-	const normalizedEmail = email.toLowerCase();
+	const normalizedEmail = email.trim().toLowerCase();
 
 	const user = await User.findOne({ where: { email: normalizedEmail } });
 	if (!user) {

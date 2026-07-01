@@ -58,7 +58,7 @@ jobs:
       - name: Playwright-Browser installieren
         run: pnpm --filter frontend exec playwright install --with-deps chromium
       - name: Format-Check
-        run: pnpm format
+        run: pnpm exec prettier --check .
       - name: Lint
         run: pnpm lint
       # Build regeneriert die Vertragstypen frisch aus openapi.yml und type-checkt dagegen —
