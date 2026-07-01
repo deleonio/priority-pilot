@@ -84,6 +84,96 @@ jobs:
         if: steps.preflight.outputs.configured == 'true'
         run: pnpm exec lefthook install
 
+      # Merge-Konflikte erkennen und automatisch auflösen (Merge-Strategie: git merge --no-ff)
+      # Dies muss VOR dem LLM-Schritt passieren, damit die KI auf einem sauberen Stand arbeitet.
+      - name: Merge-Konflikte prüfen und auflösen
+        id: resolve-conflicts
+        if: steps.preflight.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          TARGET_BRANCH: ${{ github.event.pull_request.base.ref }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+
+          # 1. Mergeable-Status von GitHub API prüfen
+          mergeable="$(gh pr view "$PR" --repo "$REPO" --json mergeable,mergeStateStatus --jq '.mergeable')"
+          merge_state="$(gh pr view "$PR" --repo "$REPO" --json mergeStateStatus --jq '.mergeStateStatus')"
+
+          echo "PR #$PR - mergeable: $mergeable, mergeStateStatus: $merge_state"
+
+          # 2. Falls bereits mergebar, nichts tun
+          if [ "$mergeable" = "MERGEABLE" ]; then
+            echo "conflict=false" >> "$GITHUB_OUTPUT"
+            echo "PR ist sauber mergebar - keine Konfliktauflösung nötig."
+            exit 0
+          fi
+
+          # 3. Falls nicht mergebar wegen Konflikt (nicht wegen anderen Gründen wie Checks)
+          if [ "$mergeable" != "MERGEABLE" ] && [ "$merge_state" = "DIRTY" ] || echo "$mergeable" | grep -qi "CONFLICT"; then
+            echo "Merge-Konflikt erkannt bei PR #$PR - versuche automatisch aufzulösen..."
+
+            # 4. Target-Branch fetchen
+            git fetch origin "$TARGET_BRANCH" --depth=1 --no-tags
+
+            # 5. Lokale Changes sichern (falls vorhanden von vorherigen Fixup-Läufen)
+            if ! git diff --quiet; then
+              echo "Lokale uncommitted Changes gefunden - stashen..."
+              git stash push --include-untracked --message "fixup-stash-before-merge"
+              STASHED="true"
+            else
+              STASHED="false"
+            fi
+
+            # 6. Merge versuchen (non-rebase, mit --no-ff für expliziten Merge-Commit)
+            if git merge origin/"$TARGET_BRANCH" --no-ff --no-edit -m "Auto-merge: resolve conflicts for PR #$PR [skip ci]"; then
+              echo "✅ Merge erfolgreich - Konflikt automatisch gelöst"
+              CONFLICT_RESOLVED="true"
+            else
+              echo "⚠️  Merge mit Konflikten - versuche automatische Auflösung..."
+              # git merge gibt Exit 1 bei Konflikten
+              if git diff --name-only --diff-filter=U | grep -q .; then
+                echo "❌ Echte Merge-Konflikte in Dateien erkannt"
+                echo "Die Konflikt-Marker (<<<<<<<, =======, >>>>>>>) bleiben im Working Tree."
+                echo "Die KI wird sie im nächsten Schritt analysieren und auflösen."
+                CONFLICT_RESOLVED="false"
+              else
+                echo "❌ Merge fehlgeschlagen, aber keine Konflikt-Marker gefunden (z.B. CrLf, permissions)"
+                git merge --abort
+                CONFLICT_RESOLVED="aborted"
+              fi
+            fi
+
+            # 7. Falls Merge erfolgreich oder Konflikte zur KI-Auflösung: Push
+            if [ "$CONFLICT_RESOLVED" = "true" ]; then
+              git push origin HEAD:"$HEAD_BRANCH"
+              echo "✅ Merge-Commit gepusht"
+              echo "conflict=resolved" >> "$GITHUB_OUTPUT"
+            elif [ "$CONFLICT_RESOLVED" = "false" ]; then
+              echo "conflict=needs_resolution" >> "$GITHUB_OUTPUT"
+              echo "::warning::Merge-Konflikte erkannt - KI wird sie im nächsten Schritt auflösen"
+            else
+              echo "conflict=aborted" >> "$GITHUB_OUTPUT"
+              echo "::error::Merge aborted - nicht lösbar, Mensch muss manuell eingreifen"
+            fi
+
+            # 8. Gestashte Changes wiederherstellen (falls vorhanden)
+            if [ "$STASHED" = "true" ]; then
+              echo "Stash wiederherstellen..."
+              if git stash pop; then
+                echo "Stash erfolgreich wiederhergestellt"
+              else
+                echo "::warning::Stash pop fehlgeschlagen"
+              fi
+            fi
+          else
+            # Nicht wegen Konflikt nicht mergebar (z.B. wegen fehlender Checks)
+            echo "PR nicht mergebar, aber nicht wegen Merge-Konflikt (mergeable=$mergeable, state=$merge_state)"
+            echo "conflict=false" >> "$GITHUB_OUTPUT"
+          fi
+
       # Standard-Pfad (Claude): laeuft, solange die Repo-Variable AI_AGENT NICHT auf "mistral"
       # oder "glm" steht (auch ungesetzt -> Claude bleibt Default). Umschalten:
       # `gh variable set AI_AGENT --body glm` (Z.ai GLM) oder
@@ -107,7 +197,24 @@ jobs:
             aus .ai-knowledge/ticket-implementation.md. Die Pipeline koordiniert ausschließlich
             über LABELS — schalte sie zum Abschluss exakt wie unten beschrieben um.
 
+            HINWEIS ZU MERGE-KONFLIKTEN: Ein vorheriger Schritt hat bereits versucht, Merge-Konflikte
+            automatisch aufzulösen. Prüfe mit `git status` und `git diff --name-only --diff-filter=U`
+            ob ungelöste Konflikte vorliegen (Dateien mit Konflikt-Markern <<<<<<</========/>>>>>>>).
+
             Vorgehen:
+              0. KONFLIKTAUFLÖSUNG (falls nötig):
+                 Falls `git diff --name-only --diff-filter=U` Dateien mit Merge-Konflikten anzeigt:
+                 - Analysiere JEDE Konfliktdatei mit `read`
+                 - Identifiziere die konkreten Konflikte (zwischen <<<<<<< HEAD und >>>>>>> target_branch)
+                 - Löse sie EINDEUTIG auf: Behalte die richtige Version (HEAD für PR-Änderungen,
+                   target_branch nur wenn der Konflikt dort bereits behoben wurde)
+                 - Bei komplexen inhaltlichen Konflikten (beide Seiten haben relevante Änderungen):
+                   Versuche die Änderungen intelligent zu mergen. Falls nicht eindeutig lösbar,
+                   kommentiere im PR die Konfliktstelle mit Vorschlag und belasse die Marker.
+                 - Nach der Auflösung: `git add <datei>` für alle gelösten Dateien
+                 - Commit: `git commit -m "Fix merge conflict in <datei> [skip ci]"`
+                 - Push: `git push origin ${{ github.event.pull_request.head.ref }}`
+                 - Erst DANN mit den Findings weitermachen.
               1. Findings lesen: `gh pr view`, `gh pr diff`, die Review-Threads
                  (`gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments`)
                  und CI (`gh pr checks`).
@@ -134,7 +241,7 @@ jobs:
             Bearbeite ausschließlich diesen PR. Arbeite autonom, ohne interaktive Rückfrage.
           claude_args: >-
             --model claude-sonnet-4-6 --effort medium
-            --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh label:*),Bash(gh api:*),Bash(git switch:*),Bash(git checkout:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(git fetch:*),Bash(pnpm:*),Read,Edit,Write,Grep,Glob,Task"
+            --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh label:*),Bash(gh api:*),Bash(git switch:*),Bash(git checkout:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(git fetch:*),Bash(git merge:*),Bash(git stash:*),Bash(git reset:*),Bash(pnpm:*),Read,Edit,Write,Grep,Glob,Task"
             --append-system-prompt "Automatisierter, label-gesteuerter Fixup-Lauf in GitHub Actions (headless) fuer PR #${{ github.event.pull_request.number }}. Setze nur eindeutige, zutreffende Findings um; mehrdeutige/grosse Punkte dem Menschen ueberlassen. Schalte zum Abschluss die Labels um (ai:needs-changes -> ai:needs-review) — AUSSER der Loop soll wegen Nicht-Konvergenz anhalten, dann ai:needs-changes belassen und den Menschen taggen. Arbeite ohne interaktive Rueckfrage. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
 
       # Mistral-Pfad (AI_AGENT == 'mistral'): Vibe laeuft headless OHNE Approval-Callback — ohne
@@ -172,12 +279,29 @@ jobs:
             Arbeite ohne interaktive Rueckfrage. Nutze fuer GitHub-Operationen die `gh`-CLI (Token
             ist gesetzt).
 
+            HINWEIS ZU MERGE-KONFLIKTEN: Ein vorheriger Schritt hat bereits versucht, Merge-Konflikte
+            automatisch aufzulösen. Prüfe mit `git status` und `git diff --name-only --diff-filter=U`
+            ob ungelöste Konflikte vorliegen (Dateien mit Konflikt-Markern <<<<<<</========/>>>>>>>).
+
             Auf Pull Request #${{ github.event.pull_request.number }} hat der Review das Label
             `ai:needs-changes` gesetzt. Arbeite die offenen Kreuzverhör-Findings ab — Schritt 5.3
             aus .ai-knowledge/ticket-implementation.md. Die Pipeline koordiniert ausschließlich
             über LABELS — schalte sie zum Abschluss exakt wie unten beschrieben um.
 
             Vorgehen:
+              0. KONFLIKTAUFLÖSUNG (falls nötig):
+                 Falls `git diff --name-only --diff-filter=U` Dateien mit Merge-Konflikten anzeigt:
+                 - Analysiere JEDE Konfliktdatei mit `read`
+                 - Identifiziere die konkreten Konflikte (zwischen <<<<<<< HEAD und >>>>>>> target_branch)
+                 - Löse sie EINDEUTIG auf: Behalte die richtige Version (HEAD für PR-Änderungen,
+                   target_branch nur wenn der Konflikt dort bereits behoben wurde)
+                 - Bei komplexen inhaltlichen Konflikten (beide Seiten haben relevante Änderungen):
+                   Versuche die Änderungen intelligent zu mergen. Falls nicht eindeutig lösbar,
+                   kommentiere im PR die Konfliktstelle mit Vorschlag und belasse die Marker.
+                 - Nach der Auflösung: `git add <datei>` für alle gelösten Dateien
+                 - Commit: `git commit -m "Fix merge conflict in <datei> [skip ci]"`
+                 - Push: `git push origin ${{ github.event.pull_request.head.ref }}`
+                 - Erst DANN mit den Findings weitermachen.
               1. Findings lesen: `gh pr view`, `gh pr diff`, die Review-Threads
                  (`gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments`)
                  und CI (`gh pr checks`).
@@ -225,7 +349,24 @@ jobs:
             aus .ai-knowledge/ticket-implementation.md. Die Pipeline koordiniert ausschließlich
             über LABELS — schalte sie zum Abschluss exakt wie unten beschrieben um.
 
+            HINWEIS ZU MERGE-KONFLIKTEN: Ein vorheriger Schritt hat bereits versucht, Merge-Konflikte
+            automatisch aufzulösen. Prüfe mit `git status` und `git diff --name-only --diff-filter=U`
+            ob ungelöste Konflikte vorliegen (Dateien mit Konflikt-Markern <<<<<<</========/>>>>>>>).
+
             Vorgehen:
+              0. KONFLIKTAUFLÖSUNG (falls nötig):
+                 Falls `git diff --name-only --diff-filter=U` Dateien mit Merge-Konflikten anzeigt:
+                 - Analysiere JEDE Konfliktdatei mit `read`
+                 - Identifiziere die konkreten Konflikte (zwischen <<<<<<< HEAD und >>>>>>> target_branch)
+                 - Löse sie EINDEUTIG auf: Behalte die richtige Version (HEAD für PR-Änderungen,
+                   target_branch nur wenn der Konflikt dort bereits behoben wurde)
+                 - Bei komplexen inhaltlichen Konflikten (beide Seiten haben relevante Änderungen):
+                   Versuche die Änderungen intelligent zu mergen. Falls nicht eindeutig lösbar,
+                   kommentiere im PR die Konfliktstelle mit Vorschlag und belasse die Marker.
+                 - Nach der Auflösung: `git add <datei>` für alle gelösten Dateien
+                 - Commit: `git commit -m "Fix merge conflict in <datei> [skip ci]"`
+                 - Push: `git push origin ${{ github.event.pull_request.head.ref }}`
+                 - Erst DANN mit den Findings weitermachen.
               1. Findings lesen: `gh pr view`, `gh pr diff`, die Review-Threads
                  (`gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/comments`)
                  und CI (`gh pr checks`).
@@ -252,7 +393,7 @@ jobs:
             Bearbeite ausschließlich diesen PR. Arbeite autonom, ohne interaktive Rückfrage.
           claude_args: >-
             --model claude-sonnet-4-6 --effort medium
-            --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh label:*),Bash(gh api:*),Bash(git switch:*),Bash(git checkout:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(git fetch:*),Bash(pnpm:*),Read,Edit,Write,Grep,Glob,Task"
+            --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh label:*),Bash(gh api:*),Bash(git switch:*),Bash(git checkout:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(git fetch:*),Bash(git merge:*),Bash(git stash:*),Bash(git reset:*),Bash(pnpm:*),Read,Edit,Write,Grep,Glob,Task"
             --append-system-prompt "Automatisierter, label-gesteuerter Fixup-Lauf in GitHub Actions (headless) fuer PR #${{ github.event.pull_request.number }}. Setze nur eindeutige, zutreffende Findings um; mehrdeutige/grosse Punkte dem Menschen ueberlassen. Schalte zum Abschluss die Labels um (ai:needs-changes -> ai:needs-review) — AUSSER der Loop soll wegen Nicht-Konvergenz anhalten, dann ai:needs-changes belassen und den Menschen taggen. Arbeite ohne interaktive Rueckfrage. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
 
       # Deterministisches Abschluss-Signal (unabhaengig von der LLM-Ausgabe): laeuft auch bei

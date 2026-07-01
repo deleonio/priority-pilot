@@ -224,8 +224,33 @@ jobs:
           # (GitHub berechnet asynchron) -> dann lieber No-op und auf das naechste Event warten.
           view="$(gh pr view "$pr" --repo "$REPO" --json mergeable,mergeStateStatus)"
           mergeable="$(echo "$view" | jq -r '.mergeable')"
+          merge_state="$(echo "$view" | jq -r '.mergeStateStatus')"
           if [ "$mergeable" != "MERGEABLE" ]; then
-            echo "PR #$pr ist nicht sauber mergebar (mergeable=$mergeable) — kein Merge (No-op)."
+            # Falls explizit nicht mergebar wegen Merge-Konflikten (DIRTY), setze ai:needs-changes
+            # damit der Fixup-Workflow die Konflikte auflösen kann
+            if [ "$merge_state" = "DIRTY" ]; then
+              echo "PR #$pr hat Merge-Konflikte (mergeable=$mergeable, state=$merge_state) — setze ai:needs-changes."
+              # Terminale/abgeschlossene Pipeline-Labels entfernen, dann ai:needs-changes setzen
+              if [ "$has_needs_changes" != "true" ]; then
+                if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:ready-to-merge")')" = "true" ]; then
+                  gh pr edit "$pr" --repo "$REPO" --remove-label ai:ready-to-merge
+                fi
+                if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:needs-review")')" = "true" ]; then
+                  gh pr edit "$pr" --repo "$REPO" --remove-label ai:needs-review
+                fi
+                gh label create "ai:needs-changes" --repo "$REPO" --color D93F0B \
+                  --description "CI/Reviewer rot oder Findings offen -> Fixup" 2>/dev/null || true
+                gh pr edit "$pr" --repo "$REPO" --add-label ai:needs-changes
+              fi
+              {
+                echo "### CI-Gate #${pr} — ai:needs-changes wegen Merge-Konflikt gesetzt"
+                echo ""
+                echo "- Merge-Konflikte erkannt (mergeable=$mergeable, state=$merge_state)"
+                echo "- Folge: claude-pr-fixup.yml wird ausgelöst."
+              } >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "PR #$pr ist nicht sauber mergebar (mergeable=$mergeable, state=$merge_state) — warte auf nächsten Event (No-op)."
+            fi
             exit 0
           fi
 
