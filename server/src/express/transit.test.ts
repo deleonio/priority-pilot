@@ -73,9 +73,7 @@ describe('Transit-Proxy (#224)', () => {
 	describe('GET /api/transit/plan', () => {
 		it('AK2: gibt 200 mit JSON zurück (itineraries-Array)', async () => {
 			const plan = {
-				itineraries: [
-					{ duration: 7200, legs: [{ mode: 'RAIL', from: { name: 'Berlin' }, to: { name: 'München' } }] },
-				],
+				itineraries: [{ duration: 7200, legs: [{ mode: 'RAIL', from: { name: 'Berlin' }, to: { name: 'München' } }] }],
 			};
 			mockTransitous({ '/api/v3/plan': { status: 200, body: plan } });
 
