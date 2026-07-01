@@ -103,13 +103,35 @@ flowchart TD
   ist nicht terminal** — ein menschlicher Push nach grünem Review setzt den PR zurück in den
   Review-Zustand. Soll ein PR mergen bleiben, muss er ohne weitere Pushes grün bleiben.
 - **review ↔ fixup** ist die einzige beabsichtigte Schleife, gedeckelt durch den Stop-Guard
-  (> 5 Fixup-Commits mit offenen Findings → `ai:needs-changes` bleibt, Mensch wird getaggt).
+  (> 10 PR-Commits → `ai:needs-changes` bleibt, der PR-Autor wird getaggt). Der Stop-Guard ist ein
+  **deterministischer Shell-Step** (zählt PR-Commits via `gh pr view --json commits`; eine
+  semantische Trennung nur nach Fixup-Commits ist ohne unzuverlässige `ready_for_review`-Timeline
+  nicht robust machbar — daher Heuristik alle PR-Commits, Schwelle > 10). **Hinweis:** ein
+  0-Commit-Loop (Fixup findet keine Findings und committet nichts) wird davon nicht gebremst — die
+  H1-Post-Assertion im Review alarmiert in dem Fall per PR-Kommentar.
 - **gate-merge** wacht zusätzlich deterministisch per `workflow_run` (CI/Review fertig): ist mind.
   ein Allowlist-Check (CI / Reviewer) rot → `ai:needs-changes` (stößt fixup an); sind beide grün
   und `ai:ready-to-merge` gesetzt → Merge. Dieser eine Workflow ersetzt die früheren zwei
   (Gate + Auto-Merge).
 - **cancel** beendet laufende review/fixup-Runs beim PR-Close (`pull_request.closed`) — die Kette
   endet, kein Folge-Trigger.
+- **Deterministische Gates statt LLM-Vertrauen:** Kritische Zustandsübergänge sind deterministisch
+  erzwungen, nicht dem LLM anvertraut (Prinzip „Gate statt Erinnerung"). Jedes Gate ist durch
+  Vertragstests (`.github/workflows/pipeline-hardening.test.ts`) gespiegelt und kann nicht still
+  entfernt werden:
+  - **Agent-Secret-Pre-Flight** (alle 6 KI-Workflows): fehlt das zum aktiven `AI_AGENT`-Pfad
+    gehörende Secret (`CLAUDE_CODE_OAUTH_TOKEN`/`ZAI_API_KEY`/`MISTRAL_API_KEY`), bricht der Lauf
+    deterministisch mit `::error::` ab — kein stiller Skip (AGENTS.md: „bewusstes Opt-in"). Bei
+    triage/retriage/spec/implement wird zusätzlich `ai:to-big-issue` gesetzt (Issue-Signal); bei
+    review/fixup (die kein `ai:to-big-issue` vergeben, s. u.) stattdessen ein PR-Kommentar.
+  - **Stop-Guard** (fixup): > 10 PR-Commits → Loop stoppt hart (s. o.).
+  - **Label-Post-Assertion** (review): vergisst der Agent die Label-Umschaltung, setzt der Step
+    den Safe-Default `ai:needs-changes` (statt stiller PR-Stalle).
+  - **Doppel-Run-Guard** (spec/implement): existiert schon ein PR/ready-PR mit `Closes #N`, wird
+    kein zweiter Branch erzeugt (Race bei schnell aufeinanderfolgenden Label-Events).
+  - **Timeout-Alarm** (review/fixup): PR-Workflows vergeben kein `ai:to-big-issue` (AGENTS.md) —
+    stattdessen postet dieser Step bei Timeout einen sichtbaren PR-Kommentar, sonst staute der PR
+    unsichtbar.
 
 ## Eintrittspunkte
 
