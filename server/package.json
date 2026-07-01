@@ -7,12 +7,14 @@
 		"build:api": "openapi-typescript ../openapi.yml -o src/api.d.ts",
 		"build:ts": "tsc",
 		"dev": "nodemon",
-		"format": "prettier .",
+		"format": "prettier . --check",
+		"knip": "knip",
 		"lint": "pnpm build:api && tsc --noemit && eslint src",
 		"test": "NODE_ENV=test DATABASE_STORAGE=:memory: node --import tsx --test \"src/**/*.test.ts\"",
 		"test:coverage": "NODE_ENV=test DATABASE_STORAGE=:memory: node --import tsx --test --experimental-test-coverage --test-coverage-include='src/logics/**' --test-coverage-lines=90 --test-coverage-branches=85 --test-coverage-functions=85 \"src/**/*.test.ts\""
 	},
 	"dependencies": {
+		"bcryptjs": "^3.0.2",
 		"connect-redis": "^9.0.0",
 		"connect-sqlite3": "^0.9.16",
 		"express": "5.2.1",
@@ -20,8 +22,7 @@
 		"passport": "^0.7.0",
 		"passport-google-oauth20": "^2.0.0",
 		"redis": "^6.0.1",
-		"sequelize": "6.37.8",
-		"sqlite3": "6.0.1"
+		"sequelize": "6.37.8"
 	},
 	"devDependencies": {
 		"@eslint/js": "10.0.1",
@@ -34,8 +35,10 @@
 		"@typescript-eslint/eslint-plugin": "8.62.0",
 		"@typescript-eslint/parser": "8.62.0",
 		"eslint": "10.6.0",
+		"knip": "5.61.3",
 		"nodemon": "3.1.14",
 		"openapi-typescript": "7.13.0",
+		"prettier": "3.9.1",
 		"tsx": "4.22.4",
 		"typescript": "6.0.3"
 	}
