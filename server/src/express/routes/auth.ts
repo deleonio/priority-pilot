@@ -52,7 +52,7 @@ authRouter.post('/auth/register', async (req, res) => {
 			res.status(500).json({ message: 'Session-Fehler.' });
 			return;
 		}
-		req.session.user = { id: created.id, email: normalizedEmail, displayName: normalizedEmail };
+		req.session.user = { id: created.id, email: normalizedEmail, displayName: normalizedEmail, avatarUrl: null };
 		req.session.save((saveErr) => {
 			if (saveErr) {
 				res.status(500).json({ message: 'Session konnte nicht gespeichert werden.' });
@@ -87,7 +87,7 @@ authRouter.post('/auth/login', async (req, res) => {
 		return;
 	}
 
-	const sessionUser = { id: user.id, email: user.email, displayName: user.displayName };
+	const sessionUser = { id: user.id, email: user.email, displayName: user.displayName, avatarUrl: null };
 	// Session-Fixation verhindern: neue Session-ID vor dem Setzen des Users.
 	req.session.regenerate((err) => {
 		if (err) {
@@ -119,14 +119,19 @@ authRouter.get(
 	passport.authenticate('google', { failureRedirect: '/auth/error' }),
 	(req, res) => {
 		// User vor regenerate() sichern — req.user ist danach ggf. nicht mehr verfügbar.
-		const user = req.user as { id: number; email: string; displayName: string };
+		const user = req.user as { id: number; email: string; displayName: string; avatarUrl?: string | null };
 		// Session-Fixation verhindern: neue Session-ID vor dem Setzen des Users.
 		req.session.regenerate((err) => {
 			if (err) {
 				res.redirect('/auth/error');
 				return;
 			}
-			req.session.user = { id: user.id, email: user.email, displayName: user.displayName };
+			req.session.user = {
+				id: user.id,
+				email: user.email,
+				displayName: user.displayName,
+				avatarUrl: user.avatarUrl ?? null,
+			};
 			req.session.save(() => res.redirect('/'));
 		});
 	},
@@ -139,7 +144,7 @@ authRouter.get('/auth/me', (req, res) => {
 		return;
 	}
 	const user = req.session.user;
-	res.json({ email: user.email, displayName: user.displayName });
+	res.json({ email: user.email, displayName: user.displayName, avatarUrl: user.avatarUrl ?? null });
 });
 
 // POST /auth/logout — Session beenden
@@ -155,7 +160,11 @@ authRouter.post('/auth/logout', (req, res) => {
 // bei versehentlichem Deploy einer test-Konfiguration.
 if (process.env.NODE_ENV === 'test') {
 	authRouter.post('/auth/test-login', async (req, res) => {
-		const { email, displayName } = req.body as { email?: string; displayName?: string };
+		const { email, displayName, avatarUrl } = req.body as {
+			email?: string;
+			displayName?: string;
+			avatarUrl?: string | null;
+		};
 
 		// Multi-User-Gate (Issue #193, AK-8): nicht-erlaubte E-Mail → 401.
 		if (!email || !isEmailAllowed(email)) {
@@ -176,7 +185,7 @@ if (process.env.NODE_ENV === 'test') {
 				res.status(500).json({ message: 'Session-Fehler.' });
 				return;
 			}
-			req.session.user = { id: dbUser.id, email, displayName: resolvedDisplayName };
+			req.session.user = { id: dbUser.id, email, displayName: resolvedDisplayName, avatarUrl: avatarUrl ?? null };
 			req.session.save(() => {
 				res.json({ message: 'Eingeloggt.' });
 			});

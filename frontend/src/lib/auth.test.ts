@@ -32,7 +32,8 @@ describe('checkAuth', () => {
 			json: async () => user,
 		}) as unknown as typeof fetch;
 
-		await expect(checkAuth()).resolves.toEqual(user);
+		// Issue #217: checkAuth normalisiert avatarUrl auf null, wenn die API es nicht liefert.
+		await expect(checkAuth()).resolves.toEqual({ ...user, avatarUrl: null });
 	});
 
 	it('ruft den Endpunkt /auth/me auf', async () => {
@@ -85,7 +86,12 @@ describe('Issue #217 — checkAuth: avatarUrl', () => {
 	});
 
 	it('AC-217-4: leitet avatarUrl als HTTPS-String durch wenn die API eine URL liefert', async () => {
-		const apiResponse = { id: 1, name: 'Test User', email: 'test@example.com', avatarUrl: 'https://lh3.googleusercontent.com/a/photo.jpg' };
+		const apiResponse = {
+			id: 1,
+			name: 'Test User',
+			email: 'test@example.com',
+			avatarUrl: 'https://lh3.googleusercontent.com/a/photo.jpg',
+		};
 		global.fetch = vi.fn().mockResolvedValue({
 			ok: true,
 			status: 200,
@@ -95,7 +101,9 @@ describe('Issue #217 — checkAuth: avatarUrl', () => {
 		const result = await checkAuth();
 		expect(result).not.toBeNull();
 		// AuthUser muss avatarUrl: string | null enthalten (Issue #217)
-		expect((result as unknown as Record<string, unknown>)['avatarUrl']).toBe('https://lh3.googleusercontent.com/a/photo.jpg');
+		expect((result as unknown as Record<string, unknown>)['avatarUrl']).toBe(
+			'https://lh3.googleusercontent.com/a/photo.jpg',
+		);
 	});
 
 	it('AC-217-5: liefert avatarUrl: null (nicht undefined) wenn die API kein avatarUrl-Feld hat', async () => {

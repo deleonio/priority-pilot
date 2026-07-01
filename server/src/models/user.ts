@@ -11,6 +11,7 @@ class User extends Model {
 	public email!: string;
 	public passwordHash!: string;
 	public displayName!: string;
+	public avatarUrl!: string | null;
 
 	public readonly createdAt!: Date;
 	public readonly updatedAt!: Date;
@@ -36,6 +37,10 @@ User.init(
 			type: DataTypes.STRING,
 			allowNull: false,
 			defaultValue: '',
+		},
+		avatarUrl: {
+			type: DataTypes.STRING,
+			allowNull: true,
 		},
 	},
 	{

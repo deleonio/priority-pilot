@@ -31,7 +31,7 @@ vi.mock('./api', () => ({
 
 // #192: Standard-`user`-Prop für `App`. Seit dem Refactoring erhält `App` die Benutzerinfo als Prop
 // (von `Root.tsx`, das `checkAuth()` einmalig aufruft) statt selbst `api.getMe()` aufzurufen.
-const testUser = { id: 1, name: 'Test User', email: 'test@example.com' };
+const testUser = { id: 1, name: 'Test User', email: 'test@example.com', avatarUrl: null };
 
 const sampleTask: Task = {
 	id: 1,
@@ -163,14 +163,14 @@ describe('App — User Info Display (#192)', () => {
 
 	// AK4b: Die per `user`-Prop übergebene E-Mail erscheint im DOM.
 	it('zeigt die per Prop übergebene E-Mail an (AK4b)', async () => {
-		render(<App user={{ id: 7, name: 'Me', email: 'me@test.com' }} />);
+		render(<App user={{ id: 7, name: 'Me', email: 'me@test.com', avatarUrl: null }} />);
 
 		expect(await screen.findByText(/me@test\.com/i)).toBeTruthy();
 	});
 
 	// AK3b: Auch der Name aus der `user`-Prop erscheint im DOM (Header-Anzeige).
 	it('zeigt den per Prop übergebenen Namen an (AK3b)', async () => {
-		render(<App user={{ id: 7, name: 'Max Mustermann', email: 'max@example.com' }} />);
+		render(<App user={{ id: 7, name: 'Max Mustermann', email: 'max@example.com', avatarUrl: null }} />);
 
 		expect(await screen.findByText(/Max Mustermann/i)).toBeTruthy();
 	});
@@ -182,7 +182,7 @@ describe('App — User Info Display (#192)', () => {
 describe('App — AK-9 localStorage-Cleanup (#208)', () => {
 	it('AK9a: Begrüßung zeigt user.name, nicht den veralteten localStorage-displayName', async () => {
 		localStorage.setItem('displayName', 'AlterName');
-		render(<App user={{ id: 1, name: 'NeuerName', email: 'neu@test.com' }} />);
+		render(<App user={{ id: 1, name: 'NeuerName', email: 'neu@test.com', avatarUrl: null }} />);
 
 		// Nach dem Cleanup muss user.name in der Begrüßung stehen …
 		await waitFor(() => {
@@ -194,7 +194,7 @@ describe('App — AK-9 localStorage-Cleanup (#208)', () => {
 
 	it('AK9b: displayName aus localStorage beeinflusst die Begrüßung nicht mehr', async () => {
 		localStorage.setItem('displayName', 'StoredUser');
-		const propUser = { id: 2, name: 'PropUser', email: 'prop@test.com' };
+		const propUser = { id: 2, name: 'PropUser', email: 'prop@test.com', avatarUrl: null };
 		render(<App user={propUser} />);
 
 		// Der aus der user-Prop stammende Name muss in der Begrüßung erscheinen.
