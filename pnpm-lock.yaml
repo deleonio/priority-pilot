@@ -25,6 +25,9 @@ importers:
       '@evilmartians/lefthook':
         specifier: 1.12.2
         version: 1.12.2
+      knip:
+        specifier: 5.61.3
+        version: 5.61.3(@types/node@25.9.4)(typescript@6.0.3)
       prettier:
         specifier: 3.9.4
         version: 3.9.4
@@ -134,6 +137,9 @@ importers:
 
   server:
     dependencies:
+      bcryptjs:
+        specifier: ^3.0.2
+        version: 3.0.3
       connect-redis:
         specifier: ^9.0.0
         version: 9.0.0(express-session@1.19.0)(redis@6.0.1)
@@ -1921,6 +1927,10 @@ packages:
   baseline-browser-mapping@2.10.40:
     resolution: {integrity: sha512-BSSLZ9/Cjjv7Gtj5B68ZzXcXUg8iOf3fme+FCuh8rC/Go+Kmh8cox7M3A8dolou16s64QjLPOSdngh7GxXvkSw==}
     engines: {node: '>=6.0.0'}
+    hasBin: true
+
+  bcryptjs@3.0.3:
+    resolution: {integrity: sha512-GlF5wPWnSa/X5LKM1o0wz0suXIINz1iHRLvTS+sLyi7XPbe5ycmYI3DlZqVGZZtDgl4DmasFg7gOB3JYbphV5g==}
     hasBin: true
 
   bidi-js@1.0.3:
@@ -6153,6 +6163,8 @@ snapshots:
   base64url@3.0.1: {}
 
   baseline-browser-mapping@2.10.40: {}
+
+  bcryptjs@3.0.3: {}
 
   bidi-js@1.0.3:
     dependencies:

@@ -69,11 +69,11 @@ pm2 logs priority-pilot --lines 50
 
 ## Häufige Fehler
 
-| Symptom | Ursache | Lösung |
-|---------|---------|--------|
-| `redirect_uri_mismatch` Fehler von Google | Callback-URL in Google Console falsch | URL exakt wie in `GOOGLE_CALLBACK_URL` eintragen |
-| OAuth-Flow bricht nach Redirect ab | `GOOGLE_CALLBACK_URL` Environment-Variable falsch | Variable korrigieren und Dienst neu starten |
-| CORS-Fehler im Browser | Origin nicht in Google Console erlaubt | `Authorized JavaScript origins` prüfen |
+| Symptom                                   | Ursache                                           | Lösung                                           |
+| ----------------------------------------- | ------------------------------------------------- | ------------------------------------------------ |
+| `redirect_uri_mismatch` Fehler von Google | Callback-URL in Google Console falsch             | URL exakt wie in `GOOGLE_CALLBACK_URL` eintragen |
+| OAuth-Flow bricht nach Redirect ab        | `GOOGLE_CALLBACK_URL` Environment-Variable falsch | Variable korrigieren und Dienst neu starten      |
+| CORS-Fehler im Browser                    | Origin nicht in Google Console erlaubt            | `Authorized JavaScript origins` prüfen           |
 
 ## Prüfskript (Optional)
 
