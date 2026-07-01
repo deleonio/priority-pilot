@@ -186,6 +186,12 @@ const StationInput = ({ id, label, placeholder, value, selected, onSelect, onCha
 					onChangeText(event.target.value);
 				}}
 				onKeyDown={handleKeyDown}
+				onBlur={() => {
+					window.setTimeout(() => {
+						setOpen(false);
+						setFocusedIndex(-1);
+					}, 150);
+				}}
 				style={{ padding: '0.5rem 0.75rem', fontSize: '1rem', border: '1px solid #888', borderRadius: '0.375rem' }}
 			/>
 			{open && suggestions.length > 0 && (
