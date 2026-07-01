@@ -10,6 +10,7 @@ import { createSuggestPillarsRouter } from './routes/suggestPillars.js';
 import { scoresRouter } from './routes/scores.js';
 import { seriesRouter } from './routes/series.js';
 import { authRouter } from './routes/auth.js';
+import { transitRouter } from './routes/transit.js';
 import type { PillarClassifier } from '../llm/mistral.js';
 import { buildTaskForest } from '../logics/tree.js';
 import { findNextImportantTask, findSuggestedTasks } from '../logics/find.js';
@@ -117,6 +118,10 @@ export const createApp = (deps: AppDeps = {}) => {
 	app.get('/health', (_req, res: express.Response<HealthDto>) => {
 		res.json({ status: 'ok' });
 	});
+
+	// Alle folgenden Routen benötigen eine gültige Session.
+	// Öffentlicher CORS-Proxy für Transitous/MOTIS (Issue #224) — bewusst ohne requireAuth.
+	app.use('/api/transit', transitRouter);
 
 	// Alle folgenden Routen benötigen eine gültige Session.
 	app.use(requireAuth);
