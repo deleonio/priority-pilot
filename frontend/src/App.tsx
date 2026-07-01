@@ -1,4 +1,4 @@
-import { KolAlert, KolHeading, KolPopoverButton, KolSpin, KolTabs, KolToolbar } from '@public-ui/react-v19';
+import { KolAlert, KolAvatar, KolHeading, KolPopoverButton, KolSpin, KolTabs, KolToolbar } from '@public-ui/react-v19';
 import type { Pillar, Task, TaskTreeNode } from 'client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from './api';
@@ -205,26 +205,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 						]}
 					/>
 					<div className="user-info">
-						{user.avatarUrl ? (
-							<img
-								src={user.avatarUrl}
-								alt={user.name + ' - Profilbild'}
-								className="user-avatar"
-								referrerPolicy="no-referrer"
-							/>
-						) : (
-							<span className="user-avatar user-avatar--fallback" aria-hidden="true">
-								<svg
-									xmlns="http://www.w3.org/2000/svg"
-									viewBox="0 0 24 24"
-									fill="currentColor"
-									width="100%"
-									height="100%"
-								>
-									<path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z" />
-								</svg>
-							</span>
-						)}
+						<KolAvatar _label={user.name} _src={user.avatarUrl ?? undefined} />
 						<span className="user-email">{user.email}</span>
 						<span className="user-display-name">{user.name}</span>
 					</div>

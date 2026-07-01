@@ -84,3 +84,22 @@ export const migrateSeriesTable = async (db: Sequelize): Promise<void> => {
 		console.log(`Serien-Tabellenspalte ${column.name} an series nachgezogen.`);
 	}
 };
+
+/**
+ * Zieht die nullable `avatarUrl`-Spalte auf einer **bestehenden** `users`-Tabelle nach (#217).
+ *
+ * `sequelize.sync()` ohne `alter` ergänzt vorhandene Tabellen nicht um neue Spalten —
+ * `findOrCreate` mit `avatarUrl`-Default und `user.update({ avatarUrl })` schlagen sonst mit
+ * `SQLITE_ERROR: no such column: avatarUrl` fehl. Idempotent; No-op bei frischer DB.
+ */
+export const migrateUsersAvatarUrl = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('users')");
+	const existing = new Set((columns as { name: string }[]).map((column) => column.name));
+
+	if (existing.size === 0 || existing.has('avatarUrl')) {
+		return;
+	}
+
+	await db.query('ALTER TABLE `users` ADD COLUMN `avatarUrl` VARCHAR(255)');
+	console.log('Spalte avatarUrl an users nachgezogen.');
+};
