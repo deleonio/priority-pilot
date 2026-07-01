@@ -65,6 +65,43 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
           token: ${{ steps.app-token.outputs.token }} # Fix-Push als App-Token
 
+      # Deterministischer Agent-Secret-Check (Haerten S2): das Opt-in fuer GLM/Mistral (und die
+      # OAuth-Token-Voraussetzung fuer Claude) darf NICHT still skippen — fehlt das zum aktiven
+      # AI_AGENT-Pfad gehoerige Secret, bricht der Lauf hier deterministisch ab (::error::, kein
+      # stiller Skip). Der Fixup-Check wird rot -> Gate setzt ai:needs-changes -> sichtbar. Zusaetzlich
+      # ein PR-Kommentar (statt Issue-Label wie bei triage/spec/implement — PR-Workflows vergeben
+      # bewusst kein ai:to-big-issue, s. S3/Timeout-Alarm), damit der Ausfall nicht nur im Checks-Tab
+      # sichtbar ist, sondern den PR-Autor aktiv erreicht.
+      - name: Agent-Secret prüfen (kein stiller Skip)
+        if: steps.preflight.outputs.configured == 'true'
+        env:
+          AI_AGENT: ${{ vars.AI_AGENT }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          missing=""
+          # Haerten C2-Nachtrag: GitHub-Actions-`==` (die if:-Bedingungen der Agent-Schritte)
+          # vergleicht Strings case-insensitiv, Bashs `case` NICHT. Ohne `,,`-Lowering wuerde
+          # z. B. AI_AGENT=GLM zum GLM-Schritt routen, aber hier in den `*)`-Default-Zweig fallen
+          # (CLAUDE_CODE_OAUTH_TOKEN statt ZAI_API_KEY geprueft) — der S2-Stille-Skip waere ueber
+          # Gross-/Kleinschreibung wieder offen.
+          case "${AI_AGENT,,}" in
+            glm)     [ -z "$ZAI_API_KEY" ] && missing="ZAI_API_KEY" ;;
+            mistral) [ -z "$MISTRAL_API_KEY" ] && missing="MISTRAL_API_KEY" ;;
+            *)       [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ] && missing="CLAUDE_CODE_OAUTH_TOKEN" ;;
+          esac
+          if [ -n "$missing" ]; then
+            echo "::error title=Agent-Secret fehlt::AI_AGENT='${AI_AGENT:-claude}' benoetigt Secret '$missing' — fehlt es, darf der Lauf nicht still skippen (AGENTS.md: bewusstes Opt-in). Secret als Repo-Secret hinterlegen."
+            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "🛑 **Fixup #${PR} — Agent-Secret fehlt**
+
+          AI_AGENT='${AI_AGENT:-claude}' benötigt Secret \`$missing\`, das nicht gesetzt ist. Der Lauf wurde abgebrochen (kein stiller Skip). Bitte Secret hinterlegen oder \`AI_AGENT\` zurücksetzen." 2>/dev/null || true
+            exit 1
+          fi
+          echo "Agent-Secret fuer AI_AGENT='${AI_AGENT:-claude}' vorhanden."
+
       - name: pnpm einrichten
         if: steps.preflight.outputs.configured == 'true'
         uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
@@ -73,7 +110,7 @@ jobs:
         if: steps.preflight.outputs.configured == 'true'
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 26.3.1
+          node-version-file: .nvmrc # zentrale Node-Version (gleicher Stand wie ci/implement/deploy)
           cache: pnpm
 
       - name: Abhaengigkeiten installieren
@@ -84,8 +121,15 @@ jobs:
         if: steps.preflight.outputs.configured == 'true'
         run: pnpm exec lefthook install
 
-      # Merge-Konflikte erkennen und automatisch auflösen (Merge-Strategie: git merge --no-ff)
+      # Merge-Konflikte erkennen und automatisch auflösen (Merge-Strategie: git merge --no-ff).
       # Dies muss VOR dem LLM-Schritt passieren, damit die KI auf einem sauberen Stand arbeitet.
+      # Härtung H2: GitHub berechnet `mergeable` ASYNCHRON — direkt nach einem Push ist es oft
+      # UNKNOWN/null. Früher fiel UNKNOWN in den Default-Zweig (conflict=false), sodass der LLM auf
+      # einem nicht merge-fähigen Stand lief, ohne dass die Konflikt-Behandlung griff. Jetzt: UNKNOWN
+      # wird explizit (mit kurzem Retry) behandelt; Bedingungen sind explizit geklammert (Shell-
+      # Präzedenz `&&` bindet stärker als `||`); [skip ci] im Merge-Commit ENTFERNT, damit CI den
+      # gemergten Stand validiert (sonst schlüge ein semantisch kaputter Auto-Merge erst beim
+      # finalen Fix-Push auf).
       - name: Merge-Konflikte prüfen und auflösen
         id: resolve-conflicts
         if: steps.preflight.outputs.configured == 'true'
@@ -98,81 +142,148 @@ jobs:
         run: |
           set -euo pipefail
 
-          # 1. Mergeable-Status von GitHub API prüfen
-          mergeable="$(gh pr view "$PR" --repo "$REPO" --json mergeable,mergeStateStatus --jq '.mergeable')"
-          merge_state="$(gh pr view "$PR" --repo "$REPO" --json mergeStateStatus --jq '.mergeStateStatus')"
-
+          # 1. Mergeable-Status von GitHub API (EIN Call, beide Felder).
+          fetch_state() { gh pr view "$PR" --repo "$REPO" --json mergeable,mergeStateStatus; }
+          # Fallback bei transienter gh-API-Störung: set -euo pipefail wuerde den Step sonst toeten,
+          # bevor der LLM laeuft. conflict=unknown -> LLM prueft Konflikte selbst via git status/diff.
+          if ! state_json="$(fetch_state 2>/dev/null)"; then
+            echo "conflict=unknown" >> "$GITHUB_OUTPUT"
+            echo "::warning::gh-API (mergeable) nicht erreichbar — LLM prüft Konflikte selbst via git status/diff."
+            exit 0
+          fi
+          mergeable="$(echo "$state_json" | jq -r '.mergeable')"
+          merge_state="$(echo "$state_json" | jq -r '.mergeStateStatus')"
           echo "PR #$PR - mergeable: $mergeable, mergeStateStatus: $merge_state"
 
-          # 2. Falls bereits mergebar, nichts tun
+          # 2. UNKNOWN/null-Race behandeln: GitHub berechnet mergeable ASYNCHRON direkt nach Push.
+          #    Bis zu 2x kurz warten (5s), dann aufgeben (LLM prüft via git status selbst).
+          is_unknown() { [ "$mergeable" = "UNKNOWN" ] || [ "$mergeable" = "null" ] || [ -z "$mergeable" ]; }
+          if is_unknown; then
+            echo "mergeable ist UNKNOWN/null (async Race) — warte 5s und prüfe erneut..."
+            sleep 5
+            state_json="$(fetch_state)"
+            mergeable="$(echo "$state_json" | jq -r '.mergeable')"
+            merge_state="$(echo "$state_json" | jq -r '.mergeStateStatus')"
+            echo "Nach Retry - mergeable: $mergeable, mergeStateStatus: $merge_state"
+          fi
+
+          # 3. Sauber mergebar -> nichts zu tun.
           if [ "$mergeable" = "MERGEABLE" ]; then
             echo "conflict=false" >> "$GITHUB_OUTPUT"
-            echo "PR ist sauber mergebar - keine Konfliktauflösung nötig."
+            echo "PR ist sauber mergebar — keine Konflikt-Auflösung nötig."
             exit 0
           fi
 
-          # 3. Falls nicht mergebar wegen Konflikt (nicht wegen anderen Gründen wie Checks)
-          if [ "$mergeable" != "MERGEABLE" ] && [ "$merge_state" = "DIRTY" ] || echo "$mergeable" | grep -qi "CONFLICT"; then
-            echo "Merge-Konflikt erkannt bei PR #$PR - versuche automatisch aufzulösen..."
+          # 4. Noch immer UNKNOWN -> Konflikt-Status unklar. KEIN falsches Auto-Merge, KEIN falsches
+          #    conflict=false. LLM prüft Konflikte selbst via git status/diff (Prompt deckt das ab).
+          if is_unknown; then
+            echo "conflict=unknown" >> "$GITHUB_OUTPUT"
+            echo "::warning::mergeable bleibt UNKNOWN nach Retry — LLM prüft Konflikte selbst via git status/diff."
+            exit 0
+          fi
 
-            # 4. Target-Branch fetchen
+          # 5. Konflikt (DIRTY ODER CONFLICTING) -> Auflösung versuchen. Explizit geklammert
+          #    (früher: Präzedenzfehler durch `&& ... || grep`).
+          if [ "$merge_state" = "DIRTY" ] || [ "$mergeable" = "CONFLICTING" ]; then
+            echo "Merge-Konflikt erkannt bei PR #$PR — versuche automatisch aufzulösen..."
+
             git fetch origin "$TARGET_BRANCH" --depth=1 --no-tags
 
-            # 5. Lokale Changes sichern (falls vorhanden von vorherigen Fixup-Läufen)
+            # 6. Lokale Changes sichern (falls vorhanden von vorherigen Fixup-Läufen).
+            STASHED="false"
             if ! git diff --quiet; then
-              echo "Lokale uncommitted Changes gefunden - stashen..."
+              echo "Lokale uncommitted Changes gefunden — stashen..."
               git stash push --include-untracked --message "fixup-stash-before-merge"
               STASHED="true"
-            else
-              STASHED="false"
             fi
 
-            # 6. Merge versuchen (non-rebase, mit --no-ff für expliziten Merge-Commit)
-            if git merge origin/"$TARGET_BRANCH" --no-ff --no-edit -m "Auto-merge: resolve conflicts for PR #$PR [skip ci]"; then
-              echo "✅ Merge erfolgreich - Konflikt automatisch gelöst"
+            # 7. Merge versuchen (--no-ff, KEIN [skip ci] — CI soll den gemergten Stand validieren).
+            CONFLICT_RESOLVED="false"
+            if git merge origin/"$TARGET_BRANCH" --no-ff --no-edit -m "Auto-merge: resolve conflicts for PR #$PR"; then
+              echo "✅ Merge erfolgreich — Konflikt automatisch gelöst"
               CONFLICT_RESOLVED="true"
             else
-              echo "⚠️  Merge mit Konflikten - versuche automatische Auflösung..."
-              # git merge gibt Exit 1 bei Konflikten
+              echo "⚠️ Merge mit Konflikten — prüfe auf echte Konflikt-Marker..."
               if git diff --name-only --diff-filter=U | grep -q .; then
-                echo "❌ Echte Merge-Konflikte in Dateien erkannt"
-                echo "Die Konflikt-Marker (<<<<<<<, =======, >>>>>>>) bleiben im Working Tree."
-                echo "Die KI wird sie im nächsten Schritt analysieren und auflösen."
+                echo "❌ Echte Merge-Konflikte in Dateien — Konflikt-Marker bleiben, KI löst sie im nächsten Schritt."
                 CONFLICT_RESOLVED="false"
               else
-                echo "❌ Merge fehlgeschlagen, aber keine Konflikt-Marker gefunden (z.B. CrLf, permissions)"
+                echo "❌ Merge fehlgeschlagen, aber keine Konflikt-Marker (z.B. CRLF/permissions) — abort."
                 git merge --abort
                 CONFLICT_RESOLVED="aborted"
               fi
             fi
 
-            # 7. Falls Merge erfolgreich oder Konflikte zur KI-Auflösung: Push
+            # 8. Nur bei sauber aufgelöstem Merge pushen.
             if [ "$CONFLICT_RESOLVED" = "true" ]; then
               git push origin HEAD:"$HEAD_BRANCH"
-              echo "✅ Merge-Commit gepusht"
+              echo "✅ Merge-Commit gepusht (ohne [skip ci] — CI validiert den Stand)"
               echo "conflict=resolved" >> "$GITHUB_OUTPUT"
             elif [ "$CONFLICT_RESOLVED" = "false" ]; then
               echo "conflict=needs_resolution" >> "$GITHUB_OUTPUT"
-              echo "::warning::Merge-Konflikte erkannt - KI wird sie im nächsten Schritt auflösen"
+              echo "::warning::Echte Merge-Konflikte — KI löst sie im nächsten Schritt."
             else
               echo "conflict=aborted" >> "$GITHUB_OUTPUT"
-              echo "::error::Merge aborted - nicht lösbar, Mensch muss manuell eingreifen"
+              echo "::error::Merge aborted — nicht lösbar, Mensch muss manuell eingreifen."
             fi
 
-            # 8. Gestashte Changes wiederherstellen (falls vorhanden)
+            # 9. Gestashte Changes wiederherstellen.
             if [ "$STASHED" = "true" ]; then
               echo "Stash wiederherstellen..."
-              if git stash pop; then
-                echo "Stash erfolgreich wiederhergestellt"
-              else
-                echo "::warning::Stash pop fehlgeschlagen"
-              fi
+              git stash pop || echo "::warning::Stash pop fehlgeschlagen"
             fi
           else
-            # Nicht wegen Konflikt nicht mergebar (z.B. wegen fehlender Checks)
+            # 10. Nicht wegen Konflikt nicht mergebar (z.B. BLOCKED/UNSTABLE/BEHIND wegen Checks).
             echo "PR nicht mergebar, aber nicht wegen Merge-Konflikt (mergeable=$mergeable, state=$merge_state)"
             echo "conflict=false" >> "$GITHUB_OUTPUT"
           fi
+
+      # Deterministischer Stop-Guard (Haerten C1/S1): der review<->fixup-Loop ist durch das 20-Min-
+      # Timeout gedeckelt, aber die Spec (pipeline-flow.md) verspricht einen Stop-Guard. Frueher
+      # existierte der NUR als Prompt-Anweisung (LLM soll selbst zaehlen). Dieser Step zaehlt
+      # deterministisch die PR-eigenen Commits (Spec- + Implementierungs- + Fixup-Commits — eine
+      # saubere Trennung NUR nach Fixup-Commits brauchte eine unzuverlaessige ready_for_review-
+      # Timeline; daher Heuristik: alle PR-Commits, Schwelle > 10) und stoppt den Lauf hart:
+      # ai:needs-changes BELASSEN (kein --add-label ai:needs-review), PR-Autor pingen, Agent-Schritt
+      # überspringen. Hinweis: ein 0-Commit-Loop (Fixup ohne Findings) wird hiervon NICHT gebremst —
+      # in dem Fall alarmiert die H1-Post-Assertion im Review per PR-Kommentar.
+      - name: Stop-Guard (> 10 PR-Commits)
+        id: stop-guard
+        if: steps.preflight.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          # Anzahl Commits auf dem PR-Branch (Spec+Impl+Fixup — semantisch nicht trennbar ohne
+          # unzuverlaessige ready_for_review-Timeline, daher Heuristik alle PR-Commits, Schwelle > 10).
+          # Fallback bei transienter gh-API-Stoerung (Haerten C1-Nachtrag): NICHT stillschweigend als
+          # "0 Commits" werten — das wuerde den Guard bei einem echten, anhaltenden API-Ausfall
+          # dauerhaft wirkungslos machen (exakt das Gegenteil der Absicht). Stattdessen fail-closed:
+          # der Agent-Lauf wird uebersprungen (stop=true), bis die Zaehlung wieder moeglich ist.
+          if ! commits="$(gh pr view "$PR" --repo "$REPO" --json commits --jq '.commits | length' 2>/dev/null)"; then
+            echo "stop=true" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Stop-Guard::gh-API (commits) nicht erreichbar — PR-Commits koennen nicht gezaehlt werden. Fail-closed: Fixup-Agent wird diesen Lauf uebersprungen (ai:needs-changes bleibt), statt den Guard wirkungslos zu machen."
+            gh pr comment "$PR" --repo "$REPO" --body "🛑 **Stop-Guard: gh-API nicht erreichbar**
+
+          PR #$PR — der Stop-Guard konnte die PR-Commits nicht zaehlen (gh-API-Stoerung). Fail-closed: der Fixup-Agent wird diesen Lauf uebersprungen, damit der Guard bei einem echten API-Ausfall nicht wirkungslos wird. Bitte erneut anstossen (z. B. per Push) oder manuell pruefen." 2>/dev/null || true
+            exit 0
+          fi
+          if [ "${commits:-0}" -gt 10 ]; then
+            author="$(gh pr view "$PR" --repo "$REPO" --json author --jq '.author.login' 2>/dev/null || echo '')"
+            mention="@${author:-$OWNER}"
+            echo "stop=true" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Stop-Guard::PR #$PR hat ${commits} PR-Commits (> 10) — Fixup-Loop wird gestoppt, ai:needs-changes belassen."
+            gh pr comment "$PR" --repo "$REPO" --body "🛑 **Stop-Guard: Fixup-Loop gestoppt**
+
+          PR #$PR hat **${commits} PR-Commits** (Richtwert > 10). Die Kreuzverhör-Findings konvergieren offenbar nicht automatisch.
+          ${mention}: Bitte manuell prüfen und entscheiden (Labels selbst setzen oder PR schließen). Der Loop wird nicht weitergedreht." 2>/dev/null || true
+            exit 0
+          fi
+          echo "stop=false" >> "$GITHUB_OUTPUT"
+          echo "PR #$PR hat ${commits} PR-Commits (≤ 10) — Fixup darf laufen."
 
       # Standard-Pfad (Claude): laeuft, solange die Repo-Variable AI_AGENT NICHT auf "mistral"
       # oder "glm" steht (auch ungesetzt -> Claude bleibt Default). Umschalten:
@@ -181,7 +292,7 @@ jobs:
       # zurueck: `gh variable set AI_AGENT --body claude`.
       - name: Findings umsetzen via Claude Code
         id: claude
-        if: steps.preflight.outputs.configured == 'true' && vars.AI_AGENT != 'mistral' && vars.AI_AGENT != 'glm'
+        if: steps.preflight.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true' && vars.AI_AGENT != 'mistral' && vars.AI_AGENT != 'glm'
         uses: anthropics/claude-code-action@a92e7c70a4da9793dc164451d829089dc057a464 # v1.0.159
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -212,7 +323,7 @@ jobs:
                    Versuche die Änderungen intelligent zu mergen. Falls nicht eindeutig lösbar,
                    kommentiere im PR die Konfliktstelle mit Vorschlag und belasse die Marker.
                  - Nach der Auflösung: `git add <datei>` für alle gelösten Dateien
-                 - Commit: `git commit -m "Fix merge conflict in <datei> [skip ci]"`
+                  - Commit: `git commit -m "Fix merge conflict in <datei>"`
                  - Push: `git push origin ${{ github.event.pull_request.head.ref }}`
                  - Erst DANN mit den Findings weitermachen.
               1. Findings lesen: `gh pr view`, `gh pr diff`, die Review-Threads
@@ -228,21 +339,23 @@ jobs:
                  Im jeweiligen Thread antworten und ihn auflösen. Mehrdeutige oder architektonisch
                  große Punkte NICHT blind umsetzen — begründet kommentieren bzw. dem Menschen
                  überlassen. Bereits begründet abgelehnte Findings nicht erneut aufmachen.
-              3. Abschluss: Labels in ZWEI getrennten Befehlen umschalten (nie kombiniert, sonst
-                 Doppel-Trigger), damit der Review erneut prüft:
+              3. Abschluss (ALLERLETZTER Schritt, NIE davor — ERST NACHDEM alle Fixes committet UND
+                 gepusht sind): Labels in ZWEI getrennten Befehlen umschalten (nie kombiniert, sonst
+                 Doppel-Trigger), damit der Review erneut prüft (er liest den PR-Stand unmittelbar
+                 nach dem zweiten Befehl):
                  `gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:needs-changes`,
                  danach `gh pr edit ${{ github.event.pull_request.number }} --add-label ai:needs-review`
-              4. Sicherheitsnetz gegen Endlosschleifen: Trägt der Branch schon viele Fixup-Commits
-                 aus diesem Loop (Richtwert > 5) und bleiben Punkte offen, NICHT weiter drehen —
-                 das Label `ai:needs-changes` belassen (NICHT auf ai:needs-review schalten, sonst
-                 läuft der Loop weiter), den Stand zusammenfassen und den Menschen
-                 (@${{ github.repository_owner }}) taggen.
+               4. Sicherheitsnetz gegen Endlosschleifen: Ein deterministischer Workflow-Step
+                  ("Stop-Guard") zählt die PR-Commits und stoppt den Lauf hart, sobald > 10
+                  erreicht sind (ai:needs-changes bleibt belassen, der PR-Autor wird automatisch
+                  gepingt). Du musst diese Bremse NICHT selbst im Kopf führen — arbeite die
+                  Findings sauber ab; der Step greift bei Bedarf.
 
             Bearbeite ausschließlich diesen PR. Arbeite autonom, ohne interaktive Rückfrage.
           claude_args: >-
             --model claude-sonnet-4-6 --effort medium
             --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh label:*),Bash(gh api:*),Bash(git switch:*),Bash(git checkout:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(git fetch:*),Bash(git merge:*),Bash(git stash:*),Bash(git reset:*),Bash(pnpm:*),Read,Edit,Write,Grep,Glob,Task"
-            --append-system-prompt "Automatisierter, label-gesteuerter Fixup-Lauf in GitHub Actions (headless) fuer PR #${{ github.event.pull_request.number }}. Setze nur eindeutige, zutreffende Findings um; mehrdeutige/grosse Punkte dem Menschen ueberlassen. Schalte zum Abschluss die Labels um (ai:needs-changes -> ai:needs-review) — AUSSER der Loop soll wegen Nicht-Konvergenz anhalten, dann ai:needs-changes belassen und den Menschen taggen. Arbeite ohne interaktive Rueckfrage. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
+            --append-system-prompt "Automatisierter, label-gesteuerter Fixup-Lauf in GitHub Actions (headless) fuer PR #${{ github.event.pull_request.number }}. Setze nur eindeutige, zutreffende Findings um; mehrdeutige/grosse Punkte dem Menschen ueberlassen. Schalte die Labels ALS ALLERLETZTEN Schritt um (ai:needs-changes -> ai:needs-review), NIE davor — erst nach Commit+Push, da der Review den PR-Stand unmittelbar danach liest. AUSSER der Loop soll wegen Nicht-Konvergenz anhalten, dann ai:needs-changes belassen und den Menschen taggen. Arbeite ohne interaktive Rueckfrage. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
 
       # Mistral-Pfad (AI_AGENT == 'mistral'): Vibe laeuft headless OHNE Approval-Callback — ohne
       # erzwungenes Auto-Approve wuerde jedes genehmigungspflichtige Tool (gh/git/pnpm/Datei-Writes)
@@ -263,7 +376,7 @@ jobs:
       # System-Prompt-Regeln als fuehrender [KONTEXT]-Block; keine Tool-Restriktion erzwingbar.
       - name: Findings umsetzen via Mistral Vibe
         id: mistral
-        if: steps.preflight.outputs.configured == 'true' && vars.AI_AGENT == 'mistral'
+        if: steps.preflight.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true' && vars.AI_AGENT == 'mistral'
         uses: mistralai/mistral-vibe@e607ccbb0046c9f68c8d49a85d4dab7c28239f08 # v2.18.0
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }} # gh/Push als App-Token -> Label-Wechsel loest Review aus
@@ -299,7 +412,7 @@ jobs:
                    Versuche die Änderungen intelligent zu mergen. Falls nicht eindeutig lösbar,
                    kommentiere im PR die Konfliktstelle mit Vorschlag und belasse die Marker.
                  - Nach der Auflösung: `git add <datei>` für alle gelösten Dateien
-                 - Commit: `git commit -m "Fix merge conflict in <datei> [skip ci]"`
+                  - Commit: `git commit -m "Fix merge conflict in <datei>"`
                  - Push: `git push origin ${{ github.event.pull_request.head.ref }}`
                  - Erst DANN mit den Findings weitermachen.
               1. Findings lesen: `gh pr view`, `gh pr diff`, die Review-Threads
@@ -315,15 +428,17 @@ jobs:
                  Im jeweiligen Thread antworten und ihn auflösen. Mehrdeutige oder architektonisch
                  große Punkte NICHT blind umsetzen — begründet kommentieren bzw. dem Menschen
                  überlassen. Bereits begründet abgelehnte Findings nicht erneut aufmachen.
-              3. Abschluss: Labels in ZWEI getrennten Befehlen umschalten (nie kombiniert, sonst
-                 Doppel-Trigger), damit der Review erneut prüft:
+              3. Abschluss (ALLERLETZTER Schritt, NIE davor — ERST NACHDEM alle Fixes committet UND
+                 gepusht sind): Labels in ZWEI getrennten Befehlen umschalten (nie kombiniert, sonst
+                 Doppel-Trigger), damit der Review erneut prüft (er liest den PR-Stand unmittelbar
+                 nach dem zweiten Befehl):
                  `gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:needs-changes`,
                  danach `gh pr edit ${{ github.event.pull_request.number }} --add-label ai:needs-review`
-              4. Sicherheitsnetz gegen Endlosschleifen: Trägt der Branch schon viele Fixup-Commits
-                 aus diesem Loop (Richtwert > 5) und bleiben Punkte offen, NICHT weiter drehen —
-                 das Label `ai:needs-changes` belassen (NICHT auf ai:needs-review schalten, sonst
-                 läuft der Loop weiter), den Stand zusammenfassen und den Menschen
-                 (@${{ github.repository_owner }}) taggen.
+               4. Sicherheitsnetz gegen Endlosschleifen: Ein deterministischer Workflow-Step
+                  ("Stop-Guard") zählt die PR-Commits und stoppt den Lauf hart, sobald > 10
+                  erreicht sind (ai:needs-changes bleibt belassen, der PR-Autor wird automatisch
+                  gepingt). Du musst diese Bremse NICHT selbst im Kopf führen — arbeite die
+                  Findings sauber ab; der Step greift bei Bedarf.
 
             Bearbeite ausschließlich diesen PR. Arbeite autonom, ohne interaktive Rückfrage.
 
@@ -332,7 +447,7 @@ jobs:
       # (anthropic_api_key); Z.ai mappt Claude-Modellnamen automatisch auf GLM-Modelle.
       - name: Findings umsetzen via GLM (Z.ai)
         id: glm
-        if: steps.preflight.outputs.configured == 'true' && vars.AI_AGENT == 'glm'
+        if: steps.preflight.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true' && vars.AI_AGENT == 'glm'
         uses: anthropics/claude-code-action@a92e7c70a4da9793dc164451d829089dc057a464 # v1.0.159
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -364,7 +479,7 @@ jobs:
                    Versuche die Änderungen intelligent zu mergen. Falls nicht eindeutig lösbar,
                    kommentiere im PR die Konfliktstelle mit Vorschlag und belasse die Marker.
                  - Nach der Auflösung: `git add <datei>` für alle gelösten Dateien
-                 - Commit: `git commit -m "Fix merge conflict in <datei> [skip ci]"`
+                  - Commit: `git commit -m "Fix merge conflict in <datei>"`
                  - Push: `git push origin ${{ github.event.pull_request.head.ref }}`
                  - Erst DANN mit den Findings weitermachen.
               1. Findings lesen: `gh pr view`, `gh pr diff`, die Review-Threads
@@ -380,21 +495,23 @@ jobs:
                  Im jeweiligen Thread antworten und ihn auflösen. Mehrdeutige oder architektonisch
                  große Punkte NICHT blind umsetzen — begründet kommentieren bzw. dem Menschen
                  überlassen. Bereits begründet abgelehnte Findings nicht erneut aufmachen.
-              3. Abschluss: Labels in ZWEI getrennten Befehlen umschalten (nie kombiniert, sonst
-                 Doppel-Trigger), damit der Review erneut prüft:
+              3. Abschluss (ALLERLETZTER Schritt, NIE davor — ERST NACHDEM alle Fixes committet UND
+                 gepusht sind): Labels in ZWEI getrennten Befehlen umschalten (nie kombiniert, sonst
+                 Doppel-Trigger), damit der Review erneut prüft (er liest den PR-Stand unmittelbar
+                 nach dem zweiten Befehl):
                  `gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:needs-changes`,
                  danach `gh pr edit ${{ github.event.pull_request.number }} --add-label ai:needs-review`
-              4. Sicherheitsnetz gegen Endlosschleifen: Trägt der Branch schon viele Fixup-Commits
-                 aus diesem Loop (Richtwert > 5) und bleiben Punkte offen, NICHT weiter drehen —
-                 das Label `ai:needs-changes` belassen (NICHT auf ai:needs-review schalten, sonst
-                 läuft der Loop weiter), den Stand zusammenfassen und den Menschen
-                 (@${{ github.repository_owner }}) taggen.
+               4. Sicherheitsnetz gegen Endlosschleifen: Ein deterministischer Workflow-Step
+                  ("Stop-Guard") zählt die PR-Commits und stoppt den Lauf hart, sobald > 10
+                  erreicht sind (ai:needs-changes bleibt belassen, der PR-Autor wird automatisch
+                  gepingt). Du musst diese Bremse NICHT selbst im Kopf führen — arbeite die
+                  Findings sauber ab; der Step greift bei Bedarf.
 
             Bearbeite ausschließlich diesen PR. Arbeite autonom, ohne interaktive Rückfrage.
           claude_args: >-
             --model claude-sonnet-4-6 --effort medium
             --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh label:*),Bash(gh api:*),Bash(git switch:*),Bash(git checkout:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(git fetch:*),Bash(git merge:*),Bash(git stash:*),Bash(git reset:*),Bash(pnpm:*),Read,Edit,Write,Grep,Glob,Task"
-            --append-system-prompt "Automatisierter, label-gesteuerter Fixup-Lauf in GitHub Actions (headless) fuer PR #${{ github.event.pull_request.number }}. Setze nur eindeutige, zutreffende Findings um; mehrdeutige/grosse Punkte dem Menschen ueberlassen. Schalte zum Abschluss die Labels um (ai:needs-changes -> ai:needs-review) — AUSSER der Loop soll wegen Nicht-Konvergenz anhalten, dann ai:needs-changes belassen und den Menschen taggen. Arbeite ohne interaktive Rueckfrage. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
+            --append-system-prompt "Automatisierter, label-gesteuerter Fixup-Lauf in GitHub Actions (headless) fuer PR #${{ github.event.pull_request.number }}. Setze nur eindeutige, zutreffende Findings um; mehrdeutige/grosse Punkte dem Menschen ueberlassen. Schalte die Labels ALS ALLERLETZTEN Schritt um (ai:needs-changes -> ai:needs-review), NIE davor — erst nach Commit+Push, da der Review den PR-Stand unmittelbar danach liest. AUSSER der Loop soll wegen Nicht-Konvergenz anhalten, dann ai:needs-changes belassen und den Menschen taggen. Arbeite ohne interaktive Rueckfrage. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
 
       # Deterministisches Abschluss-Signal (unabhaengig von der LLM-Ausgabe): laeuft auch bei
       # Abbruch/Timeout (if: always()) und macht im Log/Job-Summary klar sichtbar, DASS und mit
@@ -418,3 +535,18 @@ jobs:
             if [ -n "$SESSION_ID" ]; then echo "- Session-ID: \`${SESSION_ID}\` (\`--resume\` zum Nachschauen)"; fi
           } >> "$GITHUB_STEP_SUMMARY"
           echo "::notice title=Fixup #${PR} fertig::${AGENT}-Schritt ${OUTCOME:-unbekannt}; Labels: ${labels:-keine}"
+
+      # Deterministisches Timeout-Signal fuer PR-Workflows (Haerten S3): review/fixup vergeben
+      # bewusst KEIN ai:to-big-issue (AGENTS.md) — sonst staute der PR unsichtbar, wenn er in das
+      # 20-Min-Timeout laeuft. cancel-in-progress:false bedeutet: outcome=cancelled ist hier ein
+      # ECHTES Timeout (kein Supersede wie bei cancel-in-progress:true), daher kein Zeit-Guard
+      # noetig. Dieser Schritt postet bei Timeout einen sichtbaren PR-Kommentar als Alarm.
+      - name: Bei Timeout PR-Kommentar (Alarm)
+        if: always() && steps.preflight.outputs.configured == 'true' && (steps.claude.outcome == 'cancelled' || steps.glm.outcome == 'cancelled' || steps.mistral.outcome == 'cancelled')
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⚠️ **Fixup #${PR} — 20-Min-Timeout erreicht**
+
+          Der Fixup-Lauf wurde hart abgebrochen (wahrscheinlich zu großer PR oder nicht konvergierende Findings). Bitte PR-Größe reduzieren (aufteilen) oder manuell eingreifen." 2>/dev/null || true
