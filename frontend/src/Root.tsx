@@ -1,13 +1,19 @@
 import { useEffect, useState } from 'react';
 import { KolSpin } from '@public-ui/react-v19';
 import { App } from './App';
+import { BahnPage } from './components/BahnPage';
 import { LoginPage } from './components/LoginPage';
 import type { AuthUser } from './lib/auth';
 import { checkAuth } from './lib/auth';
 
 type AuthState = 'loading' | 'authenticated' | 'unauthenticated' | 'error';
 
-export const Root = () => {
+/**
+ * Authentifizierter Einstieg: prüft die Session und rendert je nach Zustand Login, App oder einen
+ * Lade-/Fehlerhinweis. Bewusst als eigene Komponente ausgelagert, damit die öffentliche `/bahn`-Route
+ * (siehe `Root`) den kompletten Auth-Flow inklusive seiner Hooks umgeht — ohne bedingte Hook-Aufrufe.
+ */
+const AuthenticatedApp = () => {
 	const [authState, setAuthState] = useState<AuthState>('loading');
 	const [user, setUser] = useState<AuthUser | null>(null);
 
@@ -43,4 +49,16 @@ export const Root = () => {
 	}
 
 	return <App user={user!} />;
+};
+
+/**
+ * Wurzel-Komponente mit der URL-Weiche für öffentliche Routen. Der öffentliche Bahn-Routenplaner
+ * unter `/bahn` (#225) wird VOR jedem Auth-Check gerendert — ohne Login-Flow und ohne Redirect.
+ * Alle übrigen Pfade laufen durch den authentifizierten Einstieg (`AuthenticatedApp`).
+ */
+export const Root = () => {
+	if (window.location.pathname === '/bahn') {
+		return <BahnPage />;
+	}
+	return <AuthenticatedApp />;
 };
