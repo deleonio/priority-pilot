@@ -15,16 +15,16 @@ unangetastet).
 
 ## Betroffene Dateien (komplett)
 
-| Datei | Stelle | Änderung |
-|---|---|---|
-| `server/src/models/pillar.ts` | Z. 13–19 (`userId`-Feld), Z. 53 (column-def), Z. 63–65 (Index) | Feld + Spalte entfernen; Index von `(name, userId)` auf `(name)` umstellen (globale Namenseindeutigkeit der 5 Stammdaten) |
-| `server/src/logics/migrate.ts` | Z. 109–115 (`USER_ID_COLUMNS` enthält `pillars`), Z. 117–141 (`migrateUserIdColumns`) | `pillars` aus `USER_ID_COLUMNS` entfernen (nur `tasks` behalten); Doku anpassen |
-| `server/src/logics/migrate.ts` | neu | `migratePillarDropUserId` anlegen (s. u.) |
-| `server/src/index.ts` | `main()` | neue Migration nach `migratePillarDescription` verdrahten |
-| `server/src/logics/migrate.test.ts` | Z. 306–392 (`describe('migrateUserIdColumns')`) | pillars-spezifische Aussagen entfernen (`columnsOf('pillars')` enthält userId, `pillars_name_user_id`-Index, „verschiedene Nutzer dürfen dieselbe Säule"); tasks-Aussagen behalten |
-| `server/src/logics/migrate.test.ts` | neu | `describe('migratePillarDropUserId')` anlegen |
-| `server/src/express/requireAuth.ts` | — | **keine Änderung** (`ownerScope` wird weiterhin für `Task` genutzt) |
-| `server/src/models/index.ts` | — | **keine Änderung** (es gibt keine `Pillar↔User`-Assoziation, s. Z. 41) |
+| Datei                               | Stelle                                                                                | Änderung                                                                                                                                                                           |
+| ----------------------------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `server/src/models/pillar.ts`       | Z. 13–19 (`userId`-Feld), Z. 53 (column-def), Z. 63–65 (Index)                        | Feld + Spalte entfernen; Index von `(name, userId)` auf `(name)` umstellen (globale Namenseindeutigkeit der 5 Stammdaten)                                                          |
+| `server/src/logics/migrate.ts`      | Z. 109–115 (`USER_ID_COLUMNS` enthält `pillars`), Z. 117–141 (`migrateUserIdColumns`) | `pillars` aus `USER_ID_COLUMNS` entfernen (nur `tasks` behalten); Doku anpassen                                                                                                    |
+| `server/src/logics/migrate.ts`      | neu                                                                                   | `migratePillarDropUserId` anlegen (s. u.)                                                                                                                                          |
+| `server/src/index.ts`               | `main()`                                                                              | neue Migration nach `migratePillarDescription` verdrahten                                                                                                                          |
+| `server/src/logics/migrate.test.ts` | Z. 306–392 (`describe('migrateUserIdColumns')`)                                       | pillars-spezifische Aussagen entfernen (`columnsOf('pillars')` enthält userId, `pillars_name_user_id`-Index, „verschiedene Nutzer dürfen dieselbe Säule"); tasks-Aussagen behalten |
+| `server/src/logics/migrate.test.ts` | neu                                                                                   | `describe('migratePillarDropUserId')` anlegen                                                                                                                                      |
+| `server/src/express/requireAuth.ts` | —                                                                                     | **keine Änderung** (`ownerScope` wird weiterhin für `Task` genutzt)                                                                                                                |
+| `server/src/models/index.ts`        | —                                                                                     | **keine Änderung** (es gibt keine `Pillar↔User`-Assoziation, s. Z. 41)                                                                                                             |
 
 > Bestätigt vorab: keine `Pillar.belongsTo(User)` / `User.hasMany(Pillar)` — `users` steht für sich.
 > Task-Queries mit `ownerScope(userId)` (tasks.ts, find.ts) bleiben korrekt (Tasks sind nutzerbezogen).
@@ -35,8 +35,7 @@ Sequenz (idempotent, läuft VOR `sync()`):
 
 1. `PRAGMA table_info('pillars')` — nur weiter, wenn Tabelle existiert **und** noch `userId` hat.
 2. Vorhandenen Unique-Index droppen: `DROP INDEX IF EXISTS \`pillars_name_user_id\``.
-3. Spalte droppen: `ALTER TABLE \`pillars\` DROP COLUMN \`userId\``
-   (SQLite ≥ 3.35 — Node ≥26 liefert das; Repo fordert ohnehin `Node >= 26`).
+3. Spalte droppen: `ALTER TABLE \`pillars\` DROP COLUMN \`userId\``(SQLite ≥ 3.35 — Node ≥26 liefert das; Repo fordert ohnehin`Node >= 26`).
 4. Neuen globalen Unique-Index anlegen: `CREATE UNIQUE INDEX \`pillars_name\` ON \`pillars\`(\`name\`)`
    — schützt die 5 Stammdaten-Namen global vor Duplikaten.
 
