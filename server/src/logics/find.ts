@@ -144,7 +144,9 @@ export const findSuggestedTasks = async (userId?: number): Promise<Task[]> => {
 	}
 
 	// Balance-Stand: Soll-Anteile aus den Säulen-Gewichten, Ist-Anteile aus den vergebenen Punkten.
-	const pillars = await Pillar.findAll(userId !== undefined ? { where: { userId } } : {});
+	// Säulen sind globale Stammdaten (für alle Nutzer identisch) — bewusst ohne `userId`-Filter,
+	// sonst bekäme ein Nutzer ohne eigene (NULL-owned) Säulen eine leere Soll-Verteilung.
+	const pillars = await Pillar.findAll();
 	const soll = sollProSaeule(pillars);
 
 	const scoreEintraege = await ScoreEntry.findAll({

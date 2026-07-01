@@ -87,28 +87,32 @@ export const PillarWeightsModal = ({ pillars, onClose, onSaved }: PillarWeightsM
 					</p>
 					<div className="form-grid">
 						{pillars.map((pillar, index) => (
-							<KolInputRange
-								key={pillar.id}
-								// Freie Roh-Skala 0,0–1,0 → Slider. Der aktuelle Wert steht im Label, da ein reiner
-								// Slider den exakten Wert nicht anzeigt.
-								_label={`${pillar.name}: ${formatNumber(weights.current[index] ?? 0)}`}
-								_min={RAW_WEIGHT_MIN}
-								_max={RAW_WEIGHT_MAX}
-								_step={RAW_WEIGHT_STEP}
-								// An den Ref-Wert binden (nicht den statischen `pillar.weight`): die Komponente rendert
-								// bei jeder Eingabe neu (`setSum`), sonst würde `_value` pro Tastendruck zurückgesetzt.
-								_value={weights.current[index] ?? undefined}
-								_on={{
-									onInput: (_event, value) => {
-										weights.current[index] = readNumber(value);
-										setSum(sumWeights(weights.current));
-									},
-									onChange: (_event, value) => {
-										weights.current[index] = readNumber(value);
-										setSum(sumWeights(weights.current));
-									},
-								}}
-							/>
+							<div key={pillar.id} className="pillar-weight-row">
+								<KolInputRange
+									// Freie Roh-Skala 0,0–1,0 → Slider. Der aktuelle Wert steht im Label, da ein reiner
+									// Slider den exakten Wert nicht anzeigt.
+									_label={`${pillar.name}: ${formatNumber(weights.current[index] ?? 0)}`}
+									_min={RAW_WEIGHT_MIN}
+									_max={RAW_WEIGHT_MAX}
+									_step={RAW_WEIGHT_STEP}
+									// An den Ref-Wert binden (nicht den statischen `pillar.weight`): die Komponente rendert
+									// bei jeder Eingabe neu (`setSum`), sonst würde `_value` pro Tastendruck zurückgesetzt.
+									_value={weights.current[index] ?? undefined}
+									_on={{
+										onInput: (_event, value) => {
+											weights.current[index] = readNumber(value);
+											setSum(sumWeights(weights.current));
+										},
+										onChange: (_event, value) => {
+											weights.current[index] = readNumber(value);
+											setSum(sumWeights(weights.current));
+										},
+									}}
+								/>
+								{/* Kurzbeschreibung der Säule (globale Stammdaten) — hilft, beim Gewichten
+							    sofort zu sehen, wofür die jeweilige Säule steht. */}
+								<p className="hint pillar-description">{pillar.description}</p>
+							</div>
 						))}
 					</div>
 					<p

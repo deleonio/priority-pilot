@@ -764,10 +764,11 @@ components:
             $ref: '#/components/schemas/TaskTreeNode'
     Pillar:
       type: object
-      description: Eine der fünf festen Lebensbalance-Säulen.
+      description: Eine der fünf festen Lebensbalance-Säulen (globale Stammdaten, für alle Nutzer identisch).
       required:
         - id
         - name
+        - description
         - weight
       properties:
         id:
@@ -775,6 +776,11 @@ components:
         name:
           type: string
           description: 'Name der Säule (z. B. Körper, Beziehungen, Sinn, Mentale Gesundheit, Wirksamkeit)'
+        description:
+          type: string
+          description: >-
+            Kurzbeschreibung der Säule (kanonische Stammdaten, nicht nutzereditierbar).
+            Wird im Einstellungs-Menü angezeigt.
         weight:
           type: number
           format: float

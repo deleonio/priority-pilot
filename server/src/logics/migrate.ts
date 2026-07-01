@@ -1,4 +1,5 @@
 import type { Sequelize } from 'sequelize';
+import { SEED_PILLARS } from '../models/pillarData.js';
 
 /**
  * Definition der mit dem Serien-Feature (#120/#142) am `Task`-Modell hinzugekommenen Spalten
@@ -138,4 +139,31 @@ export const migrateUserIdColumns = async (db: Sequelize): Promise<void> => {
 		await db.query(`ALTER TABLE \`${table}\` ADD COLUMN \`${column}\` ${definition}`);
 		console.log(`Spalte ${column} an ${table} nachgezogen.`);
 	}
+};
+
+/**
+ * Zieht die `description`-Spalte (Kurzbeschreibung der Säule) auf einer **bestehenden** `pillars`-
+ * Tabelle nach und backfillt die kanonischen Stammdaten nach Namen. Säulen sind global (nicht pro
+ * Nutzer), daher erfolgt das Zurückfüllen unabhängig von `userId` — jede Standard-Säule mit noch
+ * leerer Beschreibung erhält den Wert aus {@link SEED_PILLARS}.
+ *
+ * SQLite-Constraint: `ALTER TABLE ADD COLUMN NOT NULL` erfordert einen DEFAULT-Wert, daher wird
+ * `NOT NULL DEFAULT ''` gesetzt; der Seed bzw. dieses Backfill füllen die echten Texte. Idempotent
+ * (Spalte wie auch jeder `UPDATE … WHERE description = ''` sind wiederholt ausführbar) und No-op bei
+ * frischer DB (`sync()` legt die Spalte inkl. Default an; das Backfill findet dann nichts Leeres).
+ */
+export const migratePillarDescription = async (db: Sequelize): Promise<void> => {
+	const [rows] = await db.query("PRAGMA table_info('pillars')");
+	const existing = (rows as { name: string }[]).map((row) => row.name);
+
+	if (existing.length === 0 || existing.includes('description')) {
+		return;
+	}
+	await db.query("ALTER TABLE `pillars` ADD COLUMN `description` VARCHAR(255) NOT NULL DEFAULT ''");
+	for (const { name, description } of SEED_PILLARS) {
+		await db.query("UPDATE `pillars` SET `description` = :description WHERE `name` = :name AND `description` = ''", {
+			replacements: { description, name },
+		});
+	}
+	console.log('Spalte description an pillars nachgezogen und Stammdaten zurückgefüllt.');
 };
