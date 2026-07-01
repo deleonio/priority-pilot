@@ -14,10 +14,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
  *
  * `listTasks` liefert genau einen Task, weil `App` das Dashboard nur bei `tasks.length > 0`
  * rendert — sonst greift der EmptyState und die Begrüßung wäre nie sichtbar.
- *
- * #169: Diese Tests sind ROT, weil `App.tsx` den `displayName` noch nicht aus `localStorage`
- * liest und `Dashboard.tsx` keine personalisierte Begrüßung rendert. Sie werden grün, sobald
- * die Kette `localStorage → displayName-Prop → Begrüßungstext` implementiert ist.
  */
 vi.mock('./api', () => ({
 	api: {
@@ -65,27 +61,25 @@ afterEach(() => {
 	localStorage.clear();
 });
 
-describe('App — Personalisierte Begrüßung aus localStorage (#169)', () => {
-	// AC3: Name in localStorage → App liest ihn → Dashboard zeigt „Hallo Peter!".
-	it('zeigt „Hallo Peter!" wenn displayName in localStorage gesetzt ist', async () => {
-		localStorage.setItem('displayName', 'Peter');
-
+describe('App — Personalisierte Begrüßung aus user.name (#169, aktualisiert durch #208)', () => {
+	// Seit #208 kommt der Name aus user.name (nicht mehr localStorage.displayName).
+	it('zeigt user.name in der Begrüßung', async () => {
 		render(<App user={testUser} />);
 
 		await waitFor(() => {
-			expect(screen.getByText(/Hallo\s+Peter!/i)).toBeTruthy();
+			expect(screen.getByText(/Hallo\s+Test User!/i)).toBeTruthy();
 		});
 	});
 
-	// AC2 (App-Perspektive): Kein Eintrag → sinnvoller Fallback, keine leere „Hallo !".
-	it('zeigt einen Fallback-Namen statt „Hallo !" wenn kein displayName gesetzt ist', async () => {
+	// localStorage.displayName beeinflusst die Begrüßung nicht mehr (Cleanup #208).
+	it('ignoriert localStorage.displayName und zeigt stattdessen user.name', async () => {
+		localStorage.setItem('displayName', 'AltesDisplayName');
 		render(<App user={testUser} />);
 
-		// Begrüßung mit einem echten (Fallback-)Namen muss erscheinen …
-		const greeting = await screen.findByText(/Hallo\s+\w+!/i);
-		expect(greeting).toBeTruthy();
-		// … und insbesondere KEINE leere „Hallo !" ohne Namen.
-		expect(document.body.textContent ?? '').not.toMatch(/Hallo\s*!/);
+		await waitFor(() => {
+			expect(screen.getByText(/Hallo\s+Test User!/i)).toBeTruthy();
+		});
+		expect(document.body.textContent ?? '').not.toMatch(/AltesDisplayName/);
 	});
 });
 

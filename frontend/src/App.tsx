@@ -45,7 +45,6 @@ export const App = ({ user }: { user: AuthUser }) => {
 	const [loadError, setLoadError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [dialog, setDialog] = useState<Dialog>(null);
-	const [displayName, setDisplayName] = useState(() => localStorage.getItem('displayName') ?? '');
 	const [logoutLoading, setLogoutLoading] = useState(false);
 	const [logoutError, setLogoutError] = useState<string | null>(null);
 
@@ -71,8 +70,6 @@ export const App = ({ user }: { user: AuthUser }) => {
 			}
 			const apiError = await toApiError(reason);
 			if (apiError.status === 401) {
-				localStorage.removeItem('displayName');
-				setDisplayName('');
 				return;
 			}
 			setLoadError(apiError.message);
@@ -99,8 +96,6 @@ export const App = ({ user }: { user: AuthUser }) => {
 		setLogoutError(null);
 		try {
 			await api.logout();
-			localStorage.removeItem('displayName');
-			setDisplayName('');
 			window.history.pushState({}, '', '/login');
 		} catch (reason) {
 			setLogoutError(reason instanceof Error ? reason.message : 'Logout fehlgeschlagen');
@@ -200,17 +195,13 @@ export const App = ({ user }: { user: AuthUser }) => {
 								_variant: 'secondary',
 								_on: { onClick: themeItem.onClick },
 							},
-							...(displayName !== ''
-								? [
-										{
-											type: 'button' as const,
-											_label: 'Abmelden',
-											_variant: 'secondary' as const,
-											_disabled: logoutLoading,
-											_on: { onClick: () => void handleLogout() },
-										},
-									]
-								: []),
+							{
+								type: 'button' as const,
+								_label: 'Abmelden',
+								_variant: 'secondary' as const,
+								_disabled: logoutLoading,
+								_on: { onClick: () => void handleLogout() },
+							},
 						]}
 					/>
 					<div className="user-info">
@@ -280,7 +271,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 							nextTask={nextTask}
 							suggestions={suggestions}
 							pillars={pillars}
-							displayName={displayName}
+							displayName={user.name}
 						/>
 					</div>
 					<div slot="tab-1">
