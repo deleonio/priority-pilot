@@ -203,3 +203,40 @@ describe('App — AK-9 localStorage-Cleanup (#208)', () => {
 		});
 	});
 });
+
+/**
+ * #222: Homogenerer App-Header — die E-Mail-Adresse wird aus dem Header entfernt; der Avatar
+ * bleibt und zeigt das Namenskürzel via _label-Prop.
+ *
+ * ROT-Zustand: App.tsx rendert derzeit noch `<span className="user-email">{user.email}</span>`,
+ * weshalb AK1 rot ist. AK3 ist als Smoke-Test enthalten: der KolAvatar hat `_label={user.name}`
+ * bereits gesetzt — der Test wird grün bleiben (keine Regression durch die Umsetzung).
+ *
+ * Hinweis: Der bisherige Test „zeigt die per Prop übergebene E-Mail an (AK4b)" aus #192 wird durch
+ * die Umsetzung zu entfernen sein (er prüft das gegenteilige Verhalten).
+ */
+describe('App — Homogenerer Header (#222)', () => {
+	// AK1: E-Mail-Adresse darf im App-Header nicht mehr erscheinen.
+	// ROT solange <span className="user-email"> noch in App.tsx existiert.
+	it('AK1: E-Mail-Adresse ist im App-Header nicht sichtbar', async () => {
+		render(<App user={{ id: 7, name: 'Erika Muster', email: 'erika@test.example.com', avatarUrl: null }} />);
+		// Warten bis die App vollständig geladen ist (Begrüßung erscheint).
+		await waitFor(() => {
+			expect(screen.getByText(/Hallo/i)).toBeTruthy();
+		});
+		// Die E-Mail darf nirgendwo im gerenderten DOM stehen.
+		expect(document.body.textContent ?? '').not.toMatch(/erika@test\.example\.com/);
+	});
+
+	// AK3 (Smoke): KolAvatar muss _label={user.name} tragen, damit das Web Component das
+	// Namenskürzel generieren kann. Bereits implementiert — bleibt als Regressions-Smoke grün.
+	it('AK3 (Smoke): KolAvatar hat _label mit dem Benutzernamen gesetzt', async () => {
+		render(<App user={{ id: 7, name: 'Erika Muster', email: 'erika@test.example.com', avatarUrl: null }} />);
+		await waitFor(() => {
+			expect(screen.getByText(/Hallo/i)).toBeTruthy();
+		});
+		const avatar = document.querySelector('kol-avatar');
+		expect(avatar).not.toBeNull();
+		expect(avatar?.getAttribute('_label')).toBe('Erika Muster');
+	});
+});
