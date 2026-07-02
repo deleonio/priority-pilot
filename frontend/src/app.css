@@ -68,6 +68,18 @@ body {
 	align-items: center;
 }
 
+/* User-Info-Block rechts in der Toolbar: Avatar + Anzeigename inline. */
+.user-info {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+/* AK2 (#222): Avatar auf Toolbar-Höhe verkleinern (harmonisch mit Buttons). */
+.user-info kol-avatar {
+	--kol-avatar-size: 2rem;
+}
+
 /* Einstellungs-Popover: vertikale Toolbar als kompaktes Menü mit etwas Mindestbreite. */
 .settings-menu {
 	display: block;

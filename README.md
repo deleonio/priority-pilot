@@ -53,9 +53,10 @@ mit `openapi-typescript` – erzeugt:
   [`dependency.ts`](server/src/models/dependency.ts),
   [`taskPillar.ts`](server/src/models/taskPillar.ts)): `Task` (Titel, Status, Priorität,
   geschätzter/tatsächlicher Aufwand, Beschreibung, Deadline) mit einer `Task↔Task`-Beziehung
-  (`weight` pro Abhängigkeit) sowie einer **n:m**-Beziehung zu `Pillar` (Lebensbalance-Säule mit
-  prozentualem `weight`) über die Join-Tabelle `task_pillars`, die je (Task, Säule) `share`
-  (100 %-Verteilung pro Task) und `confidence` trägt.
+  (`weight` pro Abhängigkeit) sowie einer **n:m**-Beziehung zu `Pillar` (eine der fünf festen,
+  **für alle Nutzer identischen** Lebensbalance-Säulen — globale Stammdaten mit Kurzbeschreibung
+  `description` und prozentualem `weight`) über die Join-Tabelle `task_pillars`, die je (Task, Säule)
+  `share` (100 %-Verteilung pro Task) und `confidence` trägt.
 - **Wertberechnung** ([`logics/value.ts`](server/src/logics/value.ts)): rekursiver, gewichteter
   Wertbeitrag eines Tasks aus seinen abhängigen Tasks plus eigener Priorität, anschließend
   **multiplikativ skaliert mit dem Säulen-Faktor**. Der Faktor mittelt über die Säulen-Beiträge des

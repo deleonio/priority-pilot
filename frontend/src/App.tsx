@@ -206,7 +206,6 @@ export const App = ({ user }: { user: AuthUser }) => {
 					/>
 					<div className="user-info">
 						<KolAvatar _label={user.name} _src={user.avatarUrl ?? undefined} />
-						<span className="user-email">{user.email}</span>
 						<span className="user-display-name">{user.name}</span>
 					</div>
 					{/* Einstellungen rechts oben: ein icon-only Zahnrad öffnet ein Popover mit einer

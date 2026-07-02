@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  * Öffentliche Bahn-Routenplaner-Seite (#225), erreichbar unter `/bahn` ohne Anmeldung.
  *
  * Die Seite spricht ausschließlich den Backend-Proxy (#224) an:
- *   - `GET /api/transit/geocode?q=…`  → Bahnhof-Autocomplete (Start/Ziel)
+ *   - `GET /api/transit/geocode?text=…`  → Bahnhof-Autocomplete (Start/Ziel)
  *   - `GET /api/transit/plan?…`       → Verbindungssuche
  *
  * Bewusst mit **nativen** HTML-Elementen aufgebaut (statt KoliBri-Web-Components): Die Seite ist
@@ -90,7 +90,7 @@ const buildDepartureIso = (dateValue: string, timeValue: string): string | null 
 
 /** Ruft den Geocoder auf und liefert die Vorschlagsliste. Wirft bei HTTP-Fehlern. */
 const fetchGeocode = async (query: string, signal: AbortSignal): Promise<GeocodeSuggestion[]> => {
-	const response = await fetch(`/api/transit/geocode?q=${encodeURIComponent(query)}`, { signal });
+	const response = await fetch(`/api/transit/geocode?text=${encodeURIComponent(query)}`, { signal });
 	if (!response.ok) {
 		throw new Error(`Geocode fehlgeschlagen (HTTP ${response.status}).`);
 	}
@@ -360,12 +360,8 @@ export const BahnPage = () => {
 		setItineraries([]);
 		try {
 			const params = new URLSearchParams({
-				fromLat: String(startStation.lat),
-				fromLon: String(startStation.lon),
-				toLat: String(zielStation.lat),
-				toLon: String(zielStation.lon),
-				from: startStation.id,
-				to: zielStation.id,
+				fromPlace: `${startStation.lat},${startStation.lon}`,
+				toPlace: `${zielStation.lat},${zielStation.lon}`,
 			});
 			const departureIso = buildDepartureIso(date, time);
 			if (departureIso !== null) {

@@ -161,13 +161,6 @@ describe('App — User Info Display (#192)', () => {
 		// Bewusst übersprungen: kein App-internes async Laden mehr.
 	});
 
-	// AK4b: Die per `user`-Prop übergebene E-Mail erscheint im DOM.
-	it('zeigt die per Prop übergebene E-Mail an (AK4b)', async () => {
-		render(<App user={{ id: 7, name: 'Me', email: 'me@test.com', avatarUrl: null }} />);
-
-		expect(await screen.findByText(/me@test\.com/i)).toBeTruthy();
-	});
-
 	// AK3b: Auch der Name aus der `user`-Prop erscheint im DOM (Header-Anzeige).
 	it('zeigt den per Prop übergebenen Namen an (AK3b)', async () => {
 		render(<App user={{ id: 7, name: 'Max Mustermann', email: 'max@example.com', avatarUrl: null }} />);
@@ -201,5 +194,34 @@ describe('App — AK-9 localStorage-Cleanup (#208)', () => {
 		await waitFor(() => {
 			expect(screen.getByText(/Hallo\s+PropUser!/i)).toBeTruthy();
 		});
+	});
+});
+
+/**
+ * #222: Homogenerer App-Header — die E-Mail-Adresse wird aus dem Header entfernt; der Avatar
+ * bleibt und zeigt das Namenskürzel via _label-Prop.
+ */
+describe('App — Homogenerer Header (#222)', () => {
+	// AK1: E-Mail-Adresse darf im App-Header nicht mehr erscheinen.
+	it('AK1: E-Mail-Adresse ist im App-Header nicht sichtbar', async () => {
+		render(<App user={{ id: 7, name: 'Erika Muster', email: 'erika@test.example.com', avatarUrl: null }} />);
+		// Warten bis die App vollständig geladen ist (Begrüßung erscheint).
+		await waitFor(() => {
+			expect(screen.getByText(/Hallo/i)).toBeTruthy();
+		});
+		// Die E-Mail darf nirgendwo im gerenderten DOM stehen.
+		expect(document.body.textContent ?? '').not.toMatch(/erika@test\.example\.com/);
+	});
+
+	// AK3 (Smoke): KolAvatar muss _label={user.name} tragen, damit das Web Component das
+	// Namenskürzel generieren kann. Bereits implementiert — bleibt als Regressions-Smoke grün.
+	it('AK3 (Smoke): KolAvatar hat _label mit dem Benutzernamen gesetzt', async () => {
+		render(<App user={{ id: 7, name: 'Erika Muster', email: 'erika@test.example.com', avatarUrl: null }} />);
+		await waitFor(() => {
+			expect(screen.getByText(/Hallo/i)).toBeTruthy();
+		});
+		const avatar = document.querySelector('kol-avatar');
+		expect(avatar).not.toBeNull();
+		expect(avatar?.getAttribute('_label')).toBe('Erika Muster');
 	});
 });
