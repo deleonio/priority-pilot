@@ -30,6 +30,14 @@ import {
 import { STATUS_OPTIONS, deadlineToDateInput, formatNumber } from '../lib/task';
 import { Modal } from './Modal';
 
+/** Vorbelegung der Formularfelder beim Anlegen, z. B. aus der Schnellerfassung per LLM (#236). */
+export interface TaskFormInitialValues {
+	title?: string;
+	description?: string;
+	priority?: number;
+	estimatedEffort?: number;
+}
+
 interface TaskFormModalProps {
 	/** Zu bearbeitender Task; `null` legt einen neuen Task an. */
 	task: Task | null;
@@ -44,12 +52,7 @@ interface TaskFormModalProps {
 	 * Vorbelegung der Formularfelder beim Anlegen (`task === null`), z. B. aus der Schnellerfassung
 	 * per LLM (#236). Greift nur, wenn `task` selbst keinen Wert liefert.
 	 */
-	initialValues?: {
-		title?: string;
-		description?: string;
-		priority?: number;
-		estimatedEffort?: number;
-	};
+	initialValues?: TaskFormInitialValues;
 	onClose: () => void;
 	/** Nach erfolgreichem Speichern aufgerufen (Liste neu laden + Dialog schließen). */
 	onSaved: () => void;

@@ -5,7 +5,7 @@ import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { readString } from '../lib/inputValue';
 import { Modal } from './Modal';
-import { TaskFormModal } from './TaskFormModal';
+import { TaskFormModal, type TaskFormInitialValues } from './TaskFormModal';
 
 interface QuickCaptureModalProps {
 	/** Beim Anlegen einer Unteraufgabe: die Eltern-Aufgabe (durchgereicht an das reguläre Formular). */
@@ -17,14 +17,6 @@ interface QuickCaptureModalProps {
 	onSaved: () => void;
 }
 
-/** Aus einem geparsten Task übernommene Vorbelegung für das reguläre Formular. */
-interface Prefill {
-	title?: string;
-	description?: string;
-	priority?: number;
-	estimatedEffort?: number;
-}
-
 /**
  * Zweistufiger Anlege-Flow (#236): Vor dem regulären Formular erscheint ein Schnellerfassungs-Schritt
  * mit einer Freitext-Textarea. Von dort führen zwei Wege zum `TaskFormModal`:
@@ -34,9 +26,10 @@ interface Prefill {
  */
 export const QuickCaptureModal = ({ parentTask = null, pillars, onClose, onSaved }: QuickCaptureModalProps) => {
 	const [step, setStep] = useState<'capture' | 'form'>('capture');
-	const [prefill, setPrefill] = useState<Prefill>({});
+	const [prefill, setPrefill] = useState<TaskFormInitialValues>({});
 	const [parsing, setParsing] = useState(false);
 	const [error, setError] = useState<string | null>(null);
+	const [hasText, setHasText] = useState(false);
 
 	const text = useRef('');
 
@@ -87,9 +80,11 @@ export const QuickCaptureModal = ({ parentTask = null, pillars, onClose, onSaved
 					_on={{
 						onInput: (_event, value) => {
 							text.current = readString(value);
+							setHasText(text.current.trim().length > 0);
 						},
 						onChange: (_event, value) => {
 							text.current = readString(value);
+							setHasText(text.current.trim().length > 0);
 						},
 					}}
 				/>
@@ -103,14 +98,20 @@ export const QuickCaptureModal = ({ parentTask = null, pillars, onClose, onSaved
 				<KolButton
 					_label={parsing ? 'Verarbeiten…' : 'Verarbeiten und weiter'}
 					_variant="primary"
-					_disabled={parsing}
+					_disabled={parsing || !hasText}
 					_on={{ onClick: () => void process() }}
 				/>
 				<KolButton
 					_label="Überspringen"
 					_variant="secondary"
 					_disabled={parsing}
-					_on={{ onClick: () => setStep('form') }}
+					_on={{
+						onClick: () => {
+							const captured = text.current.trim();
+							if (captured) setPrefill({ description: captured });
+							setStep('form');
+						},
+					}}
 				/>
 			</div>
 		</Modal>
