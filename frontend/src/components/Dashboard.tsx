@@ -34,7 +34,7 @@ interface DashboardProps {
 	suggestions?: Task[];
 	/** Die fünf Lebensbalance-Säulen samt Gewichtung (`GET /pillars`) für das Widget „Meine Themen". */
 	pillars: Pillar[];
-	/** Anzeigename des Nutzers für die personalisierte Begrüßung (aus `localStorage`). Leer → Fallback „Pilot". */
+	/** Anzeigename des Nutzers für die personalisierte Begrüßung (aus `localStorage`). Leer → keine Begrüßung. */
 	displayName?: string;
 }
 
@@ -71,7 +71,7 @@ const hasDeadline = (task: Task): task is TaskWithDeadline =>
  * (`Done`), damit erkennbar ist, wie eine Säule bereits abgearbeitet ist.
  */
 export const Dashboard = ({ tasks, forest, nextTask, suggestions = [], pillars, displayName = '' }: DashboardProps) => {
-	const greeting = displayName.trim() || 'Pilot';
+	const greeting = displayName.trim();
 	const cards = useMemo<StatCard[]>(() => {
 		// Status-Häufigkeiten in einem einzigen Durchlauf zählen (O(n)).
 		const counts = new Map<string, number>();
@@ -132,7 +132,7 @@ export const Dashboard = ({ tasks, forest, nextTask, suggestions = [], pillars, 
 	return (
 		<section className="dashboard">
 			<h2>Dashboard</h2>
-			<p className="dashboard-greeting">Hallo {greeting}!</p>
+			{greeting !== '' && <p className="dashboard-greeting">Hallo {greeting}!</p>}
 			<ul className="dashboard-cards">
 				{cards.map((card) => (
 					<li key={card.label}>
@@ -211,8 +211,7 @@ export const Dashboard = ({ tasks, forest, nextTask, suggestions = [], pillars, 
 								actualShare,
 							}) => (
 								<li key={pillar.id} className="dashboard-pillar">
-									<KolMeter _label={pillar.name} _value={actualShare} _max={1} />
-									<span data-testid="pillar-target-weight">Ziel: {Math.round(pillar.weight)} %</span>
+									<KolMeter _label={pillar.name} _value={actualShare} _max={1} _low={pillar.weight / 100} />
 									<span className="dashboard-pillar-meta">
 										{`${taskCount} ${taskCount === 1 ? 'Aufgabe' : 'Aufgaben'} (${openCount} offen · ${doneCount} erledigt) · Wert ${formatNumber(totalValue)} · Aufwand ${formatNumber(totalEstimatedEffort)} Tage (${formatNumber(openEstimatedEffort)} offen · ${formatNumber(doneEstimatedEffort)} erledigt)`}
 									</span>

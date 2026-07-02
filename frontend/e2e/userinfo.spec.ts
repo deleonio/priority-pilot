@@ -33,12 +33,10 @@ const mockMeServerError = async (page: Page): Promise<void> => {
 };
 
 test.describe('Priority Pilot — User Info Display (#192)', () => {
-	test('AK3a: E-Mail aus /auth/me ist im Header/Navigation sichtbar', async ({ page }) => {
-		await mockMe(page, { id: 1, name: 'Max Mustermann', email: 'max@example.com' });
-		await page.goto('/');
-
-		await expect(page.getByText('max@example.com')).toBeVisible();
-	});
+	// AK3a ("E-Mail aus /auth/me ist im Header/Navigation sichtbar") ist durch #222 überholt: der
+	// homogenere App-Header entfernt die E-Mail bewusst aus dem DOM (siehe
+	// e2e/header-appearance.spec.ts, AK1: `not.toBeAttached()`). Beide Kriterien sind nicht
+	// gleichzeitig erfüllbar — #222 hat Vorrang, AK3a entfällt ersatzlos.
 
 	test('AK3b: Name aus /auth/me ist im Header/Navigation sichtbar', async ({ page }) => {
 		await mockMe(page, { id: 1, name: 'Max Mustermann', email: 'max@example.com' });
