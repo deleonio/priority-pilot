@@ -43,6 +43,24 @@ export interface ClassifyPillarsInput {
 /** Funktionssignatur des Klassifikators — injizierbar, damit Tests ohne echten API-Call laufen. */
 export type PillarClassifier = (input: ClassifyPillarsInput) => Promise<PillarSuggestion[]>;
 
+/**
+ * Aus einem frei formulierten Text extrahierte Task-Felder (Schnellerfassung, #235). Nur `title`
+ * ist Pflicht; die restlichen Felder liefert das Modell nur, wenn der Text sie hergibt.
+ */
+export interface ParsedTask {
+	title: string;
+	description?: string;
+	/** Priorität 1–5 (analog zur Task-Priorität). */
+	priority?: number;
+	/** Geschätzter Aufwand in Personentagen (z. B. 0.25 ≈ 2 h). */
+	estimatedEffort?: number;
+	/** Deadline als ISO-8601-Datum/Zeit-String. */
+	deadline?: string;
+}
+
+/** Funktionssignatur des Task-Text-Parsers — injizierbar, damit Tests ohne echten API-Call laufen. */
+export type ParseTaskParser = (text: string) => Promise<ParsedTask>;
+
 /** Fehlt der API-Key, ist der Dienst nicht konfiguriert → der Handler antwortet mit HTTP 503. */
 export class MissingApiKeyError extends Error {
 	constructor() {
@@ -321,4 +339,102 @@ export const classifyPillarsWithMistral: PillarClassifier = async (input) => {
 	}
 
 	return extractSuggestions(parseModelContent(payload), input);
+};
+
+/** System-Prompt für die Task-Schnellerfassung: extrahiert strukturierte Felder aus Freitext. */
+const PARSE_TASK_SYSTEM_PROMPT = [
+	'Du extrahierst aus einem frei formulierten deutschen Text die strukturierten Felder einer Aufgabe (Task).',
+	'',
+	'Gib genau diese Felder zurück (nur was der Text hergibt):',
+	'- "title" (Pflicht): kurzer, prägnanter Titel der Aufgabe.',
+	'- "description" (optional): ergänzende Details, falls im Text vorhanden.',
+	'- "priority" (optional): Ganzzahl 1–5 (1 = niedrig, 3 = mittel, 5 = hoch), falls eine Priorität genannt/erkennbar ist.',
+	'- "estimatedEffort" (optional): geschätzter Aufwand in Personentagen als Dezimalzahl (z. B. 2 Stunden ≈ 0.25).',
+	'- "deadline" (optional): Fälligkeitsdatum als ISO-8601-String (z. B. "2026-07-31T00:00:00.000Z"), falls ein Datum genannt ist.',
+	'',
+	'Antworte ausschließlich mit JSON in genau dieser Form (keine Erklärung, kein Markdown):',
+	'{ "title": <string>, "description": <string?>, "priority": <1-5?>, "estimatedEffort": <zahl?>, "deadline": <iso-string?> }',
+	'Lasse optionale Felder weg, wenn der Text keine Angabe dazu enthält.',
+].join('\n');
+
+/** Liest aus der (bereits geparsten) Modell-Antwort die Task-Felder defensiv aus. */
+const extractParsedTask = (parsed: unknown): ParsedTask => {
+	if (typeof parsed !== 'object' || parsed === null) {
+		throw new MistralRequestError('Antwort des Modells hat nicht das erwartete Format (Objekt erwartet).');
+	}
+	const raw = parsed as Record<string, unknown>;
+	if (typeof raw.title !== 'string' || raw.title.trim() === '') {
+		throw new MistralRequestError('Antwort des Modells enthielt keinen gültigen title.');
+	}
+	const result: ParsedTask = { title: raw.title.trim() };
+	if (typeof raw.description === 'string' && raw.description.trim() !== '') {
+		result.description = raw.description.trim();
+	}
+	if (typeof raw.priority === 'number' && Number.isFinite(raw.priority)) {
+		result.priority = Math.min(5, Math.max(1, Math.round(raw.priority)));
+	}
+	if (typeof raw.estimatedEffort === 'number' && Number.isFinite(raw.estimatedEffort) && raw.estimatedEffort >= 0) {
+		result.estimatedEffort = raw.estimatedEffort;
+	}
+	if (typeof raw.deadline === 'string' && raw.deadline.trim() !== '') {
+		const d = new Date(raw.deadline.trim());
+		if (!isNaN(d.getTime())) {
+			result.deadline = d.toISOString();
+		}
+	}
+	return result;
+};
+
+/**
+ * Realer Task-Text-Parser: ruft die Mistral-Chat-Completions-API auf und extrahiert strukturierte
+ * Task-Felder aus Freitext (Schnellerfassung, #235). Wirft {@link MissingApiKeyError}, wenn kein
+ * API-Key gesetzt ist, und {@link MistralRequestError} bei jedem Upstream-/Format-Problem.
+ */
+export const parseTaskTextWithMistral: ParseTaskParser = async (text) => {
+	const apiKey = process.env.MISTRAL_API_KEY;
+	if (!apiKey) {
+		throw new MissingApiKeyError();
+	}
+	const model = process.env.MISTRAL_MODEL ?? DEFAULT_MODEL;
+
+	const controller = new AbortController();
+	const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+	let response: Response;
+	try {
+		response = await fetch(MISTRAL_ENDPOINT, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${apiKey}`,
+			},
+			body: JSON.stringify({
+				model,
+				temperature: 0,
+				response_format: { type: 'json_object' },
+				messages: [
+					{ role: 'system', content: PARSE_TASK_SYSTEM_PROMPT },
+					{ role: 'user', content: text },
+				],
+			}),
+			signal: controller.signal,
+		});
+	} catch (error) {
+		const reason = error instanceof Error ? error.message : 'unbekannter Fehler';
+		throw new MistralRequestError(`Mistral-Anfrage fehlgeschlagen: ${reason}`);
+	} finally {
+		clearTimeout(timeout);
+	}
+
+	if (!response.ok) {
+		throw new MistralRequestError(`Mistral antwortete mit HTTP ${response.status}.`);
+	}
+
+	let payload: unknown;
+	try {
+		payload = await response.json();
+	} catch {
+		throw new MistralRequestError('Mistral-Antwort konnte nicht als JSON gelesen werden.');
+	}
+
+	return extractParsedTask(parseModelContent(payload));
 };

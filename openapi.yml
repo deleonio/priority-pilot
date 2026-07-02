@@ -234,6 +234,38 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /tasks/parse-text:
+    post:
+      summary: Task-Freitext per Mistral in strukturierte Felder parsen
+      description: >-
+        Extrahiert aus einem frei formulierten Text (Schnellerfassung, #235) die
+        strukturierten Felder einer Aufgabe (Titel plus optional Beschreibung,
+        Priorität, geschätzter Aufwand und Deadline). Das Parsing erfolgt über die
+        Mistral-API (`MISTRAL_API_KEY`, Modell via `MISTRAL_MODEL`, Default
+        `mistral-small-latest`). Fehlt der Key, antwortet der Endpoint mit 503; bei
+        Upstream-/Format-Fehlern mit 502.
+      operationId: parseTaskText
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParseTaskInput'
+      responses:
+        '200':
+          description: Aus dem Text extrahierte, strukturierte Task-Felder
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParsedTask'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /health:
     get:
       summary: Liveness-Check
@@ -857,6 +889,45 @@ components:
           description: Vorgeschlagene Säulen-Einzahlungen, nach pillarId sortiert
           items:
             $ref: '#/components/schemas/PillarSuggestion'
+    ParseTaskInput:
+      type: object
+      description: Eingabe für die Task-Schnellerfassung — frei formulierter Text (#235).
+      required:
+        - text
+      properties:
+        text:
+          type: string
+          maxLength: 2000
+          description: Frei formulierter Text, aus dem die Task-Felder extrahiert werden (nicht leer)
+    ParsedTask:
+      type: object
+      description: >-
+        Aus einem Freitext extrahierte, strukturierte Task-Felder (#235). Nur `title`
+        ist garantiert gesetzt; die restlichen Felder liefert das Modell nur, wenn der
+        Text sie hergibt.
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          description: Kurzer, prägnanter Titel der Aufgabe (Pflichtfeld, nicht leer)
+        description:
+          type: string
+          description: Optionale ausführliche Beschreibung der Aufgabe
+        priority:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: Optionale Priorität 1–5 (1 = niedrig, 5 = hoch)
+        estimatedEffort:
+          type: number
+          format: float
+          minimum: 0
+          description: Optionaler geschätzter Aufwand in Personentagen (z. B. 0.25 ≈ 2 h)
+        deadline:
+          type: string
+          format: date-time
+          description: Optionale Deadline als ISO-8601-Datum/Zeit-String
     PillarFeedbackInput:
       type: object
       description: >-
