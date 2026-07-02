@@ -22,25 +22,29 @@ describe('readStoredPreference / storePreference', () => {
 		vi.restoreAllMocks();
 	});
 
-	it('liefert ohne gespeicherten Wert den Standard "system"', () => {
-		expect(readStoredPreference()).toBe('system');
+	// AK1: kein gespeicherter Wert → Standard ist 'light' (nicht mehr 'system')
+	it('liefert ohne gespeicherten Wert den Standard "light"', () => {
+		expect(readStoredPreference()).toBe('light');
 	});
 
+	// AK4: gespeicherte Wahl hat Vorrang — bleibt unverändert
 	it('liest einen gültigen gespeicherten Wert', () => {
 		storePreference('dark');
 		expect(localStorage.getItem(STORAGE_KEY)).toBe('dark');
 		expect(readStoredPreference()).toBe('dark');
 	});
 
-	it('fällt bei ungültigem gespeichertem Wert auf "system" zurück', () => {
+	// AK3: ungültiger gespeicherter Wert → Fallback 'light'
+	it('fällt bei ungültigem gespeichertem Wert auf "light" zurück', () => {
 		localStorage.setItem(STORAGE_KEY, 'neon');
-		expect(readStoredPreference()).toBe('system');
+		expect(readStoredPreference()).toBe('light');
 	});
 
-	it('wirft nicht, wenn localStorage nicht verfügbar ist', () => {
+	// AK2: localStorage nicht verfügbar → kein Crash, Fallback 'light'
+	it('wirft nicht und fällt auf "light" zurück, wenn localStorage nicht verfügbar ist', () => {
 		vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
 			throw new Error('blocked');
 		});
-		expect(readStoredPreference()).toBe('system');
+		expect(readStoredPreference()).toBe('light');
 	});
 });

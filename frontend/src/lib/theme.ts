@@ -28,15 +28,15 @@ const isPreference = (value: unknown): value is ThemePreference =>
 
 /**
  * Liest die gespeicherte Wahl. Fehlt sie oder ist `localStorage` nicht verfügbar
- * (z. B. blockierte Cookies), wird auf `system` zurückgefallen.
+ * (z. B. blockierte Cookies), wird auf `light` zurückgefallen.
  */
 export const readStoredPreference = (): ThemePreference => {
 	try {
 		const stored = localStorage.getItem(STORAGE_KEY);
-		return isPreference(stored) ? stored : 'system';
+		return isPreference(stored) ? stored : 'light';
 	} catch {
 		// localStorage kann durch Browser-Einstellungen werfen — dann gilt der Standard.
-		return 'system';
+		return 'light';
 	}
 };
 
