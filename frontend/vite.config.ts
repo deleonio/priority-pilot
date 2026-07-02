@@ -2,10 +2,11 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
-// Der Dev-Proxy leitet alle /api/v1/*- und /api/transit/*-Anfragen an den Express-Server
-// (http://localhost:3000) weiter. CORS wird damit im Browser ohne Server-Änderung gelöst.
-// /api/v1/* streift das Präfix ab (Server-Routen liegen direkt unter /); /api/transit/*
-// wird unverändert durchgereicht (Server mountet transitRouter unter /api/transit).
+// Der Dev-Proxy leitet alle /api/v1/*-, /api/transit/*- und /auth/*-Anfragen an den
+// Express-Server (http://localhost:3000) weiter. CORS wird damit im Browser ohne
+// Server-Änderung gelöst. /api/v1/* streift das Präfix ab (Server-Routen liegen direkt
+// unter /); /api/transit/* und /auth/* werden unverändert durchgereicht — Letzteres
+// spiegelt den Caddy-handle-Block für den OAuth-Login-Flow (siehe docs/caddy-setup.md).
 const apiProxy = {
 	'/api/v1': {
 		target: 'http://localhost:3000',
@@ -13,6 +14,10 @@ const apiProxy = {
 		rewrite: (path: string) => path.replace(/^\/api\/v1/, ''),
 	},
 	'/api/transit': {
+		target: 'http://localhost:3000',
+		changeOrigin: true,
+	},
+	'/auth': {
 		target: 'http://localhost:3000',
 		changeOrigin: true,
 	},
@@ -27,6 +32,12 @@ export default defineConfig({
 				// KoliBri registriert seine Web-Components gebündelt; der resultierende Chunk
 				// überschreitet das Workbox-Standardlimit von 2 MiB für den Precache.
 				maximumFileSizeToCacheInBytes: 12 * 1024 * 1024,
+				// Ohne Denylist beantwortet der Service Worker JEDE Navigation mit der
+				// gecachten index.html (navigateFallback) — auch /auth/google und den
+				// Google-Callback. Der OAuth-Flow erreicht dann nie den Server (Symptom:
+				// installierte PWA/Android-Chrome bleibt auf der Login-URL hängen).
+				// API- und Auth-Pfade müssen daher immer ans Netzwerk durchgereicht werden.
+				navigateFallbackDenylist: [/^\/api\//, /^\/auth\//],
 			},
 			manifest: {
 				name: 'Priority Pilot',

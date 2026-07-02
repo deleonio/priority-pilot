@@ -59,7 +59,7 @@ Lokal übernimmt `vite.config.ts` denselben Rewrite:
 }
 ```
 
-Damit ist das API-Verhalten in Entwicklung und Produktion identisch. Die `/auth/*`-Routen sind im Dev-Modus direkt unter `http://localhost:3000/auth/...` erreichbar (kein Proxy-Eintrag nötig, da Vite diese Pfade nicht kennt).
+Damit ist das API-Verhalten in Entwicklung und Produktion identisch. Die `/auth/*`-Routen werden im Dev-Modus ebenfalls per Vite-Proxy (ohne Präfix-Strip) an `http://localhost:3000` durchgereicht — analog zum `handle /auth/*`-Block oben. So funktioniert der OAuth-Flow (Start **und** Callback auf `http://localhost:5173/auth/google/callback`) auch über den Dev-Server.
 
 ## Deployment-Hinweise
 
