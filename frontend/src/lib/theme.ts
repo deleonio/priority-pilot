@@ -33,10 +33,10 @@ const isPreference = (value: unknown): value is ThemePreference =>
 export const readStoredPreference = (): ThemePreference => {
 	try {
 		const stored = localStorage.getItem(STORAGE_KEY);
-		return isPreference(stored) ? stored : 'system';
+		return isPreference(stored) ? stored : 'light';
 	} catch {
 		// localStorage kann durch Browser-Einstellungen werfen — dann gilt der Standard.
-		return 'system';
+		return 'light';
 	}
 };
 
