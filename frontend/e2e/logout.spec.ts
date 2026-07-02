@@ -241,6 +241,8 @@ test.describe('#209 Logout-Button im Toolbar (rechts oben)', () => {
 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
 		const buttons = toolbar.getByRole('button');
+		// KolToolbar rendert seine Buttons asynchron im Shadow-DOM; erst warten, bevor gezählt wird.
+		await expect(buttons.first()).toBeVisible();
 		const count = await buttons.count();
 		expect(count).toBeGreaterThan(0);
 
