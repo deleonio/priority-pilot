@@ -192,6 +192,32 @@ jobs:
             fi
           done
 
+          # Haerten G2 (empirisch PR #223 am 2026-07-02, Signatur identisch mit dem PR-#220-Fall
+          # oben — die dortige Rate-Limit-Vermutung war sehr wahrscheinlich falsch): meldet
+          # `gh pr checks --json workflow` "Resource not accessible by integration" auf
+          # checkSuite.workflowRun, fehlt dem App-Token die Permission "Actions: Read" — das
+          # workflow-Feld ist dann fuer JEDEN Lauf unlesbar. Das ist ein DETERMINISTISCHER
+          # Konfigurationsfehler, kein transientes API-Loch: die No-ops unten wuerden ihn dauerhaft
+          # verschlucken (Gate blind, PR bleibt trotz ai:ready-to-merge unmerged, kein Event heilt
+          # das je). Daher die Signatur nach erschoepften Retries gezielt abfragen und den Lauf
+          # sichtbar ROT beenden, plus einmaliger (Marker-deduplizierter) PR-Kommentar — analog
+          # S2/S3: der PR-Autor wird aktiv erreicht statt nur den Checks-Tab pruefen zu muessen.
+          if [ "$has_ci" != "true" ] || [ "$has_review" != "true" ]; then
+            err="$(gh pr checks "$pr" --repo "$REPO" --json name,bucket,workflow 2>&1 >/dev/null)" || true
+            if [[ "$err" == *"Resource not accessible by integration"* ]]; then
+              marker='<!-- gate-permission-alarm -->'
+              existing="$(gh api "repos/$REPO/issues/$pr/comments" --paginate --jq '.[].body' 2>/dev/null || true)"
+              if [[ "$existing" != *"$marker"* ]]; then
+                gh pr comment "$pr" --repo "$REPO" --body "$marker
+          🛑 **CI-Gate #${pr} — App-Permission fehlt (Actions: Read)**
+
+          \`gh pr checks --json workflow\` meldet »Resource not accessible by integration«: Das GitHub-App-Token darf Check-Suites/Workflow-Runs nicht lesen. Gate & Auto-Merge sind damit blind — kein Auto-Merge trotz \`ai:ready-to-merge\`. Bitte der GitHub App die Permission **Actions: Read-only** geben und die aktualisierte Berechtigung in der Repo-Installation bestätigen." 2>/dev/null || true
+              fi
+              echo "::error title=App-Permission fehlt (Actions: Read)::gh pr checks kann checkSuite.workflowRun nicht lesen (Resource not accessible by integration) — der GitHub App fehlt 'Actions: Read'. Gate/Auto-Merge sind blind; Lauf endet rot statt still als No-op."
+              exit 1
+            fi
+          fi
+
           if [ "$(echo "$allow" | jq 'length')" -eq 0 ]; then
             echo "Keine Allowlist-Checks (CI/Reviewer) gefunden — nichts zu tun (No-op)."
             exit 0
