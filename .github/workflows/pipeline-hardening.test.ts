@@ -253,6 +253,36 @@ describe('G1 — Gate/Auto-Merge: Allowlist-Retry statt vorschnellem No-op (PR #
 	});
 });
 
+describe('G2 — Gate/Auto-Merge: fehlende App-Permission (Actions: Read) wird rot statt stillem No-op (PR #223)', () => {
+	// Empirisch (PR #223, 2026-07-02): fehlt der GitHub App "Actions: Read", meldet
+	// `gh pr checks --json workflow` deterministisch "Resource not accessible by integration"
+	// (checkSuite.workflowRun) — die Check-Liste bleibt fuer JEDEN Lauf leer. Die G1-Retries und
+	// die anschliessenden No-ops verschlucken das dauerhaft: das Gate ist blind, der PR bleibt
+	// trotz ai:ready-to-merge unmerged, und kein spaeteres Event heilt den Zustand.
+	it('claude-pr-gate-merge.yml erkennt die Permission-Fehlersignatur nach erschoepften Retries und beendet den Lauf rot', () => {
+		const yml = readWorkflow('claude-pr-gate-merge.yml');
+		assert.match(
+			yml,
+			/Resource not accessible by integration/,
+			'Gate muss die GraphQL-Fehlersignatur der fehlenden Actions-Read-Permission gezielt pruefen (Haerten G2)',
+		);
+		assert.match(
+			yml,
+			/::error title=App-Permission fehlt \(Actions: Read\)::/,
+			'Der Permission-Fehler muss den Lauf sichtbar rot beenden (::error + exit 1), statt als "keine Checks -> No-op" zu enden',
+		);
+	});
+
+	it('claude-pr-gate-merge.yml postet beim Permission-Fehler einen Marker-deduplizierten PR-Kommentar (kein Spam pro Event)', () => {
+		const yml = readWorkflow('claude-pr-gate-merge.yml');
+		assert.match(
+			yml,
+			/<!-- gate-permission-alarm -->/,
+			'Der Alarm-Kommentar muss einen Marker tragen, ueber den Folge-Laeufe das erneute Posten unterdruecken (das Gate feuert pro workflow_run/labeled-Event)',
+		);
+	});
+});
+
 describe('S3 — Timeout-Alarm fuer PR-Workflows (review/fixup)', () => {
 	for (const wf of ['claude-pr-review.yml', 'claude-pr-fixup.yml'] as const) {
 		it(`${wf} postet bei Timeout einen sichtbaren PR-Kommentar (kein stiller PR-Stall)`, () => {
