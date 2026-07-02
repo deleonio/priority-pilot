@@ -106,27 +106,22 @@ export const migrateUsersAvatarUrl = async (db: Sequelize): Promise<void> => {
 };
 
 /**
- * Definition der mit der Datenisolation (#207, AK5) ergänzten `userId`-Spalten an `pillars` und
- * `tasks`. Beide sind nullable (Abwärtskompatibilität, siehe `server/src/models/{pillar,task}.ts`).
- * Der SQLite-Typ entspricht dem Sequelize-Datentyp `DataTypes.INTEGER`.
+ * Definition der mit der Datenisolation (#207, AK5) ergänzten `userId`-Spalte an `tasks` (nullable,
+ * Abwärtskompatibilität). **Achtung:** `pillars.userId` gehört bewusst NICHT mehr dazu — Säulen sind
+ * globale Stammdaten; die Spalte wird von {@link migratePillarDropUserId} auf Bestands-DBs
+ * **entfernt**. Der SQLite-Typ entspricht dem Sequelize-Datentyp `DataTypes.INTEGER`.
  */
-const USER_ID_COLUMNS = [
-	{ table: 'pillars', column: 'userId', definition: 'INTEGER' },
-	{ table: 'tasks', column: 'userId', definition: 'INTEGER' },
-] as const;
+const USER_ID_COLUMNS = [{ table: 'tasks', column: 'userId', definition: 'INTEGER' }] as const;
 
 /**
- * Zieht die nullable `userId`-Spalte auf **bestehenden** `pillars`- und `tasks`-Tabellen nach (#207),
- * BEVOR `sequelize.sync()` läuft. Analog zu `migrateSeriesColumns`: `sync()` ohne `alter` ergänzt
- * vorhandene Tabellen NICHT um neue Spalten, versucht aber den Unique-Index `pillars_name_user_id`
- * auf (`name`, `userId`) anzulegen — das schlägt auf einer vor #207 angelegten DB mit
- * `SQLITE_ERROR: no such column: userId` fehl und verhindert den Server-Start. Auf `tasks` gibt es
- * zwar keinen Index auf `userId`, doch jede authentifizierte Query filtert per `ownerScope` auf
- * `userId` und würde sonst ebenfalls mit `no such column` brechen.
+ * Zieht die nullable `userId`-Spalte auf **bestehenden** `tasks`-Tabellen nach (#207), BEVOR
+ * `sequelize.sync()` läuft. Analog zu `migrateSeriesColumns`: `sync()` ohne `alter` ergänzt
+ * vorhandene Tabellen NICHT um neue Spalten. Jede authentifizierte Query filtert per `ownerScope`
+ * auf `userId` und würde sonst mit `no such column` brechen.
  *
  * Idempotent: Bereits vorhandene Spalten werden übersprungen, mehrfache Aufrufe bleiben stabil.
- * Fehlt eine Tabelle ganz (frische DB), ist die Migration für sie ein No-op — `sync()` legt danach
- * Tabelle inkl. Spalte korrekt an.
+ * Fehlt die Tabelle ganz (frische DB), ist die Migration ein No-op — `sync()` legt danach Tabelle
+ * inkl. Spalte korrekt an.
  */
 export const migrateUserIdColumns = async (db: Sequelize): Promise<void> => {
 	for (const { table, column, definition } of USER_ID_COLUMNS) {
@@ -166,4 +161,32 @@ export const migratePillarDescription = async (db: Sequelize): Promise<void> => 
 		});
 	}
 	console.log('Spalte description an pillars nachgezogen und Stammdaten zurückgefüllt.');
+};
+
+/**
+ * Entfernt die mit #207 ergänzte, mittlerweile ungenutzte `userId`-Spalte an `pillars` (Säulen sind
+ * wieder **globale Stammdaten**) und ersetzt den #207-Unique-Index `pillars_name_user_id`
+ * (`name`, `userId`) durch einen global eindeutigen Index `pillars_name` auf nur `name`.
+ *
+ * Läuft BEVOR `sequelize.sync()` (wie alle Vorab-Migrationen), damit `sync()` das neue Modell
+ * (Index auf `name`, keine `userId`-Spalte) ohne „duplicate index"- bzw. „no such column"-Konflikt
+ * anwenden kann.
+ *
+ * Reihenfolge bewusst: zuerst den alten Index **droppen** (SQLite verweigert `DROP COLUMN` auf einer
+ * Spalte, die Teil eines Index ist), dann die Spalte droppen, dann den neuen Index anlegen. Alles
+ * mit `IF [NOT] EXISTS` abgesichert → idempotent. No-op, wenn `pillars` ohne `userId` existiert oder
+ * die Tabelle fehlt (frische DB: `sync()` legt sie korrekt an). Erfordert SQLite ≥ 3.35 für
+ * `DROP COLUMN` — durch `Node >= 26` (siehe conventions.md) sichergestellt.
+ */
+export const migratePillarDropUserId = async (db: Sequelize): Promise<void> => {
+	const [rows] = await db.query("PRAGMA table_info('pillars')");
+	const existing = (rows as { name: string }[]).map((row) => row.name);
+
+	if (existing.length === 0 || !existing.includes('userId')) {
+		return;
+	}
+	await db.query('DROP INDEX IF EXISTS `pillars_name_user_id`');
+	await db.query('ALTER TABLE `pillars` DROP COLUMN `userId`');
+	await db.query('CREATE UNIQUE INDEX IF NOT EXISTS `pillars_name` ON `pillars`(`name`)');
+	console.log('Spalte userId an pillars entfernt und Unique-Index auf (name) umgestellt.');
 };

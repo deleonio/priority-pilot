@@ -9,6 +9,7 @@ import {
 	migrateUsersAvatarUrl,
 	migrateUserIdColumns,
 	migratePillarDescription,
+	migratePillarDropUserId,
 } from './logics/migrate.js';
 import { buildTaskForest } from './logics/tree.js';
 import { Pillar, Task, TaskPillar } from './models/index.js';
@@ -114,12 +115,14 @@ const main = async (): Promise<void> => {
 		await migrateSeriesTable(sequelize);
 		// Fehlende avatarUrl-Spalte in users nachziehen (#217).
 		await migrateUsersAvatarUrl(sequelize);
-		// Fehlende userId-Spalten (Datenisolation #207) an pillars/tasks nachziehen, BEVOR sync()
-		// den Unique-Index pillars_name_user_id auf (name, userId) anlegt (sonst SQLITE_ERROR).
+		// Fehlende userId-Spalte (Datenisolation #207) an tasks nachziehen, BEVOR sync() läuft.
 		await migrateUserIdColumns(sequelize);
 		// Fehlende description-Spalte an pillars nachziehen + kanonische Stammdaten zurückfüllen
 		// (vor sync(), damit eine frische DB den Spalten-Default korrekt erhält).
 		await migratePillarDescription(sequelize);
+		// Ungenutzte userId-Spalte an pillars entfernen (Säulen sind global) + Unique-Index von
+		// (name, userId) auf (name) umstellen — vor sync(), damit das neue Modell sauber greift.
+		await migratePillarDropUserId(sequelize);
 
 		// Datenbank synchronisieren (force nur bei DB_RESET=true)
 		await sequelize.sync({ force: shouldReset });
