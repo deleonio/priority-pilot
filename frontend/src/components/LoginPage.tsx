@@ -20,7 +20,9 @@ export const LoginPage = () => {
 	const [error] = useState<ErrorParam>(getErrorFromSearch);
 
 	const handleLogin = () => {
-		window.location.href = '/api/v1/auth/google';
+		// Bewusst /auth/google statt /api/v1/auth/google: Der OAuth-Flow liegt laut
+		// docs/oauth-migration.md unter /auth/* (Caddy reicht ihn ohne Präfix-Strip durch).
+		window.location.href = '/auth/google';
 	};
 
 	return (
