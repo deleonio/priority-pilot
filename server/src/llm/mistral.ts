@@ -377,7 +377,10 @@ const extractParsedTask = (parsed: unknown): ParsedTask => {
 		result.estimatedEffort = raw.estimatedEffort;
 	}
 	if (typeof raw.deadline === 'string' && raw.deadline.trim() !== '') {
-		result.deadline = raw.deadline.trim();
+		const d = new Date(raw.deadline.trim());
+		if (!isNaN(d.getTime())) {
+			result.deadline = d.toISOString();
+		}
 	}
 	return result;
 };

@@ -897,6 +897,7 @@ components:
       properties:
         text:
           type: string
+          maxLength: 2000
           description: Frei formulierter Text, aus dem die Task-Felder extrahiert werden (nicht leer)
     ParsedTask:
       type: object

@@ -27,6 +27,11 @@ export const createParseTasksRouter = (parser: ParseTaskParser = parseTaskTextWi
 			return;
 		}
 
+		if (text.length > 2000) {
+			res.status(400).json({ message: 'text darf maximal 2000 Zeichen haben.' });
+			return;
+		}
+
 		try {
 			const result = await parser(text);
 			res.json(result);

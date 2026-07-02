@@ -125,14 +125,14 @@ describe('POST /tasks/parse-text', () => {
 describe('AK3: openapi.yml enthält /tasks/parse-text', () => {
 	it('openapi.yml definiert den Pfad /tasks/parse-text', async () => {
 		const __dirname = dirname(fileURLToPath(import.meta.url));
-		const openapiPath = resolve(__dirname, '../../../../../openapi.yml');
+		const openapiPath = resolve(__dirname, '../../../../openapi.yml');
 		const content = await readFile(openapiPath, 'utf-8');
 		assert.ok(content.includes('/tasks/parse-text'), 'openapi.yml muss den Pfad /tasks/parse-text enthalten');
 	});
 
 	it('openapi.yml definiert ein Request-Schema mit dem Feld text', async () => {
 		const __dirname = dirname(fileURLToPath(import.meta.url));
-		const openapiPath = resolve(__dirname, '../../../../../openapi.yml');
+		const openapiPath = resolve(__dirname, '../../../../openapi.yml');
 		const content = await readFile(openapiPath, 'utf-8');
 		// Das Schema für den Request-Body muss ein Feld "text" definieren.
 		assert.ok(
@@ -143,7 +143,7 @@ describe('AK3: openapi.yml enthält /tasks/parse-text', () => {
 
 	it('openapi.yml definiert ein Response-Schema mit den Feldern title, priority, estimatedEffort', async () => {
 		const __dirname = dirname(fileURLToPath(import.meta.url));
-		const openapiPath = resolve(__dirname, '../../../../../openapi.yml');
+		const openapiPath = resolve(__dirname, '../../../../openapi.yml');
 		const content = await readFile(openapiPath, 'utf-8');
 		assert.ok(
 			content.includes('ParsedTask') || content.includes('parsedTask'),
