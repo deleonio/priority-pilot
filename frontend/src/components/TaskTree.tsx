@@ -63,6 +63,12 @@ const TreeNode = ({
 					<span className="task-tree-toggle-placeholder" aria-hidden="true" />
 				)}
 				<span className="task-tree-title">{node.title}</span>
+				{task !== null && task.seriesId != null && (
+					<span className="task-tree-badge task-tree-badge--series">Serie</span>
+				)}
+				{task !== null && task.isException && (
+					<span className="task-tree-badge task-tree-badge--exception">geändert</span>
+				)}
 				{task !== null && (
 					<div className="task-tree-actions">
 						<KolButton
