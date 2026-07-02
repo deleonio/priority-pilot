@@ -20,7 +20,7 @@ test.describe('Priority Pilot — Fokus nach dem Löschen (Issue #182)', () => {
 		await deleteAllTasks(page);
 	});
 
-	/** Wechselt auf den „Aufgaben"-Tab (die Task-Tabelle liegt dort). */
+	/** Wechselt auf den „Aufgaben"-Tab (die Task-Liste liegt dort). */
 	const openTasksTab = async (page: Page): Promise<void> => {
 		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
 	};
@@ -48,7 +48,7 @@ test.describe('Priority Pilot — Fokus nach dem Löschen (Issue #182)', () => {
 		await createTaskViaUi(page, title);
 
 		await openTasksTab(page);
-		await expect(page.getByRole('cell', { name: title, exact: true })).toBeVisible();
+		await expect(page.getByText(title, { exact: true })).toBeVisible();
 
 		await page.getByRole('button', { name: 'Löschen' }).first().click();
 		await expect(page.getByRole('heading', { name: 'Task löschen' })).toBeVisible();
@@ -69,7 +69,7 @@ test.describe('Priority Pilot — Fokus nach dem Löschen (Issue #182)', () => {
 		await createTaskViaUi(page, title);
 
 		await openTasksTab(page);
-		await expect(page.getByRole('cell', { name: title, exact: true })).toBeVisible();
+		await expect(page.getByText(title, { exact: true })).toBeVisible();
 
 		const deleteButton = page.getByRole('button', { name: 'Löschen' }).first();
 		await deleteButton.click();
@@ -93,8 +93,8 @@ test.describe('Priority Pilot — Fokus nach dem Löschen (Issue #182)', () => {
 		await createTaskViaUi(page, secondTitle);
 
 		await openTasksTab(page);
-		await expect(page.getByRole('cell', { name: firstTitle, exact: true })).toBeVisible();
-		await expect(page.getByRole('cell', { name: secondTitle, exact: true })).toBeVisible();
+		await expect(page.getByText(firstTitle, { exact: true })).toBeVisible();
+		await expect(page.getByText(secondTitle, { exact: true })).toBeVisible();
 
 		await page.getByRole('button', { name: 'Löschen' }).first().click();
 		await expect(page.getByRole('heading', { name: 'Task löschen' })).toBeVisible();
