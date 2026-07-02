@@ -28,7 +28,7 @@ const isPreference = (value: unknown): value is ThemePreference =>
 
 /**
  * Liest die gespeicherte Wahl. Fehlt sie oder ist `localStorage` nicht verfügbar
- * (z. B. blockierte Cookies), wird auf `system` zurückgefallen.
+ * (z. B. blockierte Cookies), wird auf `light` zurückgefallen.
  */
 export const readStoredPreference = (): ThemePreference => {
 	try {
