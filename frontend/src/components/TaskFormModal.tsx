@@ -40,12 +40,29 @@ interface TaskFormModalProps {
 	parentTask?: Task | null;
 	/** Verfügbare Lebensbalance-Säulen für die Zuordnung (`GET /pillars`). */
 	pillars: Pillar[];
+	/**
+	 * Vorbelegung der Formularfelder beim Anlegen (`task === null`), z. B. aus der Schnellerfassung
+	 * per LLM (#236). Greift nur, wenn `task` selbst keinen Wert liefert.
+	 */
+	initialValues?: {
+		title?: string;
+		description?: string;
+		priority?: number;
+		estimatedEffort?: number;
+	};
 	onClose: () => void;
 	/** Nach erfolgreichem Speichern aufgerufen (Liste neu laden + Dialog schließen). */
 	onSaved: () => void;
 }
 
-export const TaskFormModal = ({ task, parentTask = null, pillars, onClose, onSaved }: TaskFormModalProps) => {
+export const TaskFormModal = ({
+	task,
+	parentTask = null,
+	pillars,
+	initialValues,
+	onClose,
+	onSaved,
+}: TaskFormModalProps) => {
 	const isEdit = task !== null;
 
 	// Eingaben in Refs halten: KoliBri-Inputs verwalten ihren Anzeigewert selbst, daher kein
@@ -60,11 +77,11 @@ export const TaskFormModal = ({ task, parentTask = null, pillars, onClose, onSav
 		description: string;
 		deadline: string;
 	}>({
-		title: task?.title ?? '',
+		title: task?.title ?? initialValues?.title ?? '',
 		status: task?.status ?? TaskStatus.Open,
-		priority: task?.priority ?? 3,
-		estimatedEffort: task?.estimatedEffort ?? 0.5,
-		description: task?.description ?? '',
+		priority: task?.priority ?? initialValues?.priority ?? 3,
+		estimatedEffort: task?.estimatedEffort ?? initialValues?.estimatedEffort ?? 0.5,
+		description: task?.description ?? initialValues?.description ?? '',
 		deadline: deadlineToDateInput(task?.deadline),
 	});
 

@@ -28,6 +28,8 @@ export type PillarSuggestion = Schemas['PillarSuggestion'];
 export type SuggestPillarsResult = Schemas['SuggestPillarsResult'];
 export type PillarFeedbackInput = Schemas['PillarFeedbackInput'];
 export type PillarFeedbackResult = Schemas['PillarFeedbackResult'];
+export type ParseTaskInput = Schemas['ParseTaskInput'];
+export type ParsedTask = Schemas['ParsedTask'];
 export type ApiError = Schemas['Error'];
 
 // Serien-Templates (#120/#142). `startDate` (im Vertrag ISO-String) wird vom Frontend-Client

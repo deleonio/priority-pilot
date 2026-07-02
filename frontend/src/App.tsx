@@ -8,6 +8,7 @@ import { DependencyModal } from './components/DependencyModal';
 import { EmptyState } from './components/EmptyState';
 import { ForestPanel } from './components/ForestPanel';
 import { PillarWeightsModal } from './components/PillarWeightsModal';
+import { QuickCaptureModal } from './components/QuickCaptureModal';
 import { SeriesManagementModal } from './components/SeriesManagementModal';
 import { TaskFormModal } from './components/TaskFormModal';
 import { TaskTable } from './components/TaskTable';
@@ -290,8 +291,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 			)}
 
 			{dialog?.kind === 'create' && (
-				<TaskFormModal
-					task={null}
+				<QuickCaptureModal
 					parentTask={dialog.parentTask ?? null}
 					pillars={pillars}
 					onClose={closeDialog}
