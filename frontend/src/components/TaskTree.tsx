@@ -1,6 +1,6 @@
 import { KolButton, KolToolbar } from '@public-ui/react-v19';
 import type { Task, TaskTreeNode } from 'client';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 interface TaskTreeProps {
 	/** Aufgabenwald (`GET /forest`): Wurzeln und ihre `dependents` (Unteraufgaben). */
@@ -16,7 +16,6 @@ interface TaskTreeProps {
 
 interface TreeNodeProps {
 	node: TaskTreeNode;
-	depth: number;
 	expandedIds: Set<number>;
 	onToggle: (id: number) => void;
 	taskById: Map<number, Task>;
@@ -30,7 +29,6 @@ interface TreeNodeProps {
 
 const TreeNode = ({
 	node,
-	depth,
 	expandedIds,
 	onToggle,
 	taskById,
@@ -112,7 +110,6 @@ const TreeNode = ({
 						<TreeNode
 							key={child.id}
 							node={child}
-							depth={depth + 1}
 							expandedIds={expandedIds}
 							onToggle={onToggle}
 							taskById={taskById}
@@ -150,11 +147,11 @@ export const TaskTree = ({ forest, tasks, onEdit, onDelete, onEditDependencies, 
 		});
 	}, []);
 
+	const taskById = useMemo(() => new Map(tasks.map((task) => [task.id, task])), [tasks]);
+
 	if (forest.length === 0) {
 		return <p>Noch keine Tasks vorhanden. Lege oben einen neuen Task an.</p>;
 	}
-
-	const taskById = new Map(tasks.map((task) => [task.id, task]));
 
 	return (
 		<ul className="task-tree" data-testid="task-tree">
@@ -162,7 +159,6 @@ export const TaskTree = ({ forest, tasks, onEdit, onDelete, onEditDependencies, 
 				<TreeNode
 					key={node.id}
 					node={node}
-					depth={0}
 					expandedIds={expandedIds}
 					onToggle={onToggle}
 					taskById={taskById}
