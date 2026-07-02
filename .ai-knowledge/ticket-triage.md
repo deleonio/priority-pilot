@@ -143,7 +143,10 @@ Bei einem zu großen Ticket:
   - **Backend-Logik / API** → `node:test`-Unit (`server/src/logics/*.test.ts`) bzw. API-Test
     (`server/src/express/*.test.ts`).
   - **Frontend-Logik** → Vitest-Unit (`frontend/src/lib/*.test.ts`).
-  - **Feature / UI-Verhalten** → Akzeptanz-e2e (`frontend/e2e/*.spec.ts`, Stil `crud.spec.ts`).
+  - **Feature / UI-Verhalten** → Akzeptanz-e2e (`frontend/e2e/*.spec.ts`, Stil `crud.spec.ts`). Bei für
+    den Nutzer sichtbaren UI-Funktionen zusätzlich ein **Mobile-First-Akzeptanzkriterium**
+    (375px-Viewport, kein horizontales Scrollen — siehe [conventions.md](conventions.md)) mit eigenem
+    Testfall aufnehmen, Muster `login.spec.ts` AK5 / `task-tree.spec.ts` AK-6.
   - **Reines Styling/Layout** → visuelle Verifikation statt Test (kurz begründen).
 
   Ziel: Die Umsetzung erhält eine **ausführbare** Zielvorgabe statt nur Prosa — das verhindert das
