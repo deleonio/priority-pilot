@@ -30,11 +30,7 @@ describe('calculateProgress', () => {
 
 	it('zählt gemischte Status über mehrere Sub-Tasks korrekt', () => {
 		// A (Done) mit B (Done), C (In process), D (Open) → 2 von 4 erledigt.
-		const a = node(TaskStatus.Done, [
-			node(TaskStatus.Done),
-			node(TaskStatus.InProcess),
-			node(TaskStatus.Open),
-		]);
+		const a = node(TaskStatus.Done, [node(TaskStatus.Done), node(TaskStatus.InProcess), node(TaskStatus.Open)]);
 
 		expect(calculateProgress(a)).toEqual({ done: 2, total: 4 });
 	});
@@ -49,10 +45,7 @@ describe('calculateProgress', () => {
 		// Derselbe Sub-Task (geteilte Referenz) hängt an zwei Sub-Tasks von A und darf den Zähler
 		// nicht doppelt erhöhen (Dedupe über Identität, kein exponentielles Aufblähen im DAG).
 		const shared = node(TaskStatus.Done);
-		const a = node(TaskStatus.Open, [
-			node(TaskStatus.Open, [shared]),
-			node(TaskStatus.Open, [shared]),
-		]);
+		const a = node(TaskStatus.Open, [node(TaskStatus.Open, [shared]), node(TaskStatus.Open, [shared])]);
 
 		expect(calculateProgress(a)).toEqual({ done: 1, total: 4 });
 	});

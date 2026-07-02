@@ -11,6 +11,8 @@ interface TaskTableProps {
 	tasks: Task[];
 	/** Vorgänger je Task-ID (aus dem Aufgabenwald abgeleitet) — für die Spalte „Vorgänger". */
 	dependencyMap: Map<number, DependencyRef[]>;
+	/** Fortschritt (erledigt/gesamt) je Task-ID; fehlt der Eintrag, hat der Task keine Unter-Tasks. */
+	progressMap?: Map<number, { done: number; total: number }>;
 	onEdit: (task: Task) => void;
 	onDelete: (task: Task) => void;
 	onEditDependencies: (task: Task) => void;
@@ -27,6 +29,8 @@ interface TaskRow extends KoliBriTableDataType {
 	estimatedEffort: number;
 	deadline: string;
 	predecessors: number;
+	/** Fortschritt „erledigt/gesamt" inkl. Unter-Tasks; leer, wenn der Task keine Unter-Tasks hat. */
+	progress: string;
 	/** Serien-Kennzeichnung (leer bei Einzelaufgaben) — markiert generierte Instanzen sichtbar (#142). */
 	series: string;
 	/** Referenz auf den Original-Task, damit die Aktions-Callbacks ihn erhalten. */
@@ -41,7 +45,7 @@ interface TaskRow extends KoliBriTableDataType {
  * Auslöser-Button verlöre den Fokus (Voraussetzung: die Callback-Props sind in `App` stabil).
  */
 export const TaskTable = memo((props: TaskTableProps) => {
-	const { tasks, dependencyMap, onEdit, onDelete, onEditDependencies, onAddSubtask } = props;
+	const { tasks, dependencyMap, progressMap, onEdit, onDelete, onEditDependencies, onAddSubtask } = props;
 	if (tasks.length === 0) {
 		return <p>Noch keine Tasks vorhanden. Lege oben einen neuen Task an.</p>;
 	}
@@ -54,6 +58,10 @@ export const TaskTable = memo((props: TaskTableProps) => {
 		estimatedEffort: task.estimatedEffort,
 		deadline: formatDeadline(task.deadline),
 		predecessors: dependencyMap.get(task.id)?.length ?? 0,
+		progress: (() => {
+			const p = progressMap?.get(task.id);
+			return p ? `${p.done}/${p.total}` : '';
+		})(),
 		series: seriesBadge(task)?.label ?? '',
 		_task: task,
 	}));
@@ -69,6 +77,7 @@ export const TaskTable = memo((props: TaskTableProps) => {
 				{ key: 'deadline', label: 'Deadline' },
 				{ key: 'series', label: 'Serie' },
 				{ key: 'predecessors', label: 'Vorgänger' },
+				{ key: 'progress', label: 'Fortschritt' },
 				{
 					key: 'actions',
 					label: 'Aktionen',

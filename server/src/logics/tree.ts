@@ -1,3 +1,4 @@
+import type { components } from '../api';
 import { Task } from '../models/index.js';
 import { calculateValueContribution } from './value.js';
 
@@ -9,6 +10,7 @@ interface TaskTreeNode {
 	/** Gesamtzeit inkl. aller (transitiven) Abhängigkeiten. */
 	totalEstimatedEffort: number;
 	value: number;
+	status: components['schemas']['TaskStatus'];
 	dependents: TaskTreeNode[];
 }
 
@@ -39,6 +41,7 @@ const buildTaskTree = async (task: Task): Promise<TaskTreeNode> => {
 		estimatedEffort: task.estimatedEffort || 0,
 		totalEstimatedEffort,
 		value: await calculateValueContribution(task),
+		status: task.status,
 		dependents: children,
 	};
 };
