@@ -84,7 +84,7 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 		// ein `<input role="combobox">` (KEIN natives `<select>`, daher kein `selectOption`): anklicken
 		// öffnet die Listbox, dann die Option „Erledigt" wählen.
 		await page.getByLabel('Status').click();
-		await page.getByRole('option', { name: 'Erledigt' }).click();
+		await page.getByRole('option', { name: 'In Bearbeitung' }).click();
 		await page.getByLabel('Priorität (Ganzzahl 1–5)').fill('1');
 		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
 		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeHidden();
@@ -99,8 +99,8 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 		await waitForStableView(page);
 		await expect(page.getByLabel('Priorität (Ganzzahl 1–5)')).toHaveValue('1');
 		// Das Combobox-`<input>` führt den sichtbaren Status-Text als Wert (nicht den Enum-Rohwert):
-		// `TaskStatus.Done` wird als „Erledigt" angezeigt.
-		await expect(page.getByLabel('Status')).toHaveValue('Erledigt');
+		// `TaskStatus.InProcess` wird als „In Bearbeitung" angezeigt.
+		await expect(page.getByLabel('Status')).toHaveValue('In Bearbeitung');
 	});
 
 	test('Task löschen: verschwindet aus der Liste', async ({ page }) => {
