@@ -60,9 +60,15 @@ test.describe('#125 Header – Toolbar', () => {
 
 	/**
 	 * AK3 — Theme-Umschalter unverändert: Klicks wechseln das Farbschema zyklisch
-	 * System → Hell → Dunkel; das effektive Theme spiegelt sich in `data-theme` am `<html>`.
+	 * Hell → Dunkel → System (Standard ist seit #231 „Hell"); das effektive Theme spiegelt
+	 * sich in `data-theme` am `<html>`. Das Button-Label wird mitgeprüft: Es unterscheidet
+	 * „System" von „Hell" (beide lösen bei heller OS-Präferenz zu data-theme="light" auf)
+	 * und wartet zugleich den React-Re-Render nach jedem Klick ab — sonst kann eine
+	 * `data-theme`-Assertion racy auf dem noch nicht aktualisierten Startwert grün werden.
 	 */
 	test('AK3: Darstellungs-Umschalter wechselt das Farbschema zyklisch', async ({ page }) => {
+		// Feste helle OS-Präferenz, damit der „System"-Modus deterministisch auflöst.
+		await page.emulateMedia({ colorScheme: 'light' });
 		await page.goto('/');
 		await waitForStableView(page);
 
@@ -70,13 +76,19 @@ test.describe('#125 Header – Toolbar', () => {
 		const themeButton = toolbar.getByRole('button', { name: /Darstellung/ });
 		const html = page.locator('html');
 
-		// Start: „System" (Standard). Erster Klick erzwingt „Hell" → data-theme="light".
-		await themeButton.click();
+		// Start: „Hell" (Standard) → data-theme="light".
+		await expect(themeButton).toHaveAccessibleName(/^Darstellung: Hell/);
 		await expect(html).toHaveAttribute('data-theme', 'light');
 
-		// Zweiter Klick erzwingt „Dunkel" → data-theme="dark".
+		// Erster Klick erzwingt „Dunkel" → data-theme="dark".
 		await themeButton.click();
+		await expect(themeButton).toHaveAccessibleName(/^Darstellung: Dunkel/);
 		await expect(html).toHaveAttribute('data-theme', 'dark');
+
+		// Zweiter Klick wechselt zu „System" → folgt der (hellen) OS-Präferenz → data-theme="light".
+		await themeButton.click();
+		await expect(themeButton).toHaveAccessibleName(/^Darstellung: System/);
+		await expect(html).toHaveAttribute('data-theme', 'light');
 	});
 
 	/**
