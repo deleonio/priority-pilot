@@ -70,6 +70,7 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		await waitForStableView(page);
 
 		await page.getByRole('button', { name: 'Überspringen' }).click();
+		await waitForStableView(page);
 
 		// Regulärer Formular-Schritt: das Titel-Feld ist sichtbar und leer (kein vorausgefüllter Wert),
 		// die Quick-Capture-Textarea ist verschwunden.
@@ -99,6 +100,7 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		await page.getByLabel(/Beschreibe/).fill('Spontaner Einfall als Beschreibung');
 		// „Überspringen" klicken
 		await page.getByRole('button', { name: 'Überspringen' }).click();
+		await waitForStableView(page);
 
 		// Das reguläre Formular sollte sichtbar sein
 		await expect(page.getByLabel('Titel')).toBeVisible();
@@ -134,6 +136,7 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 
 		await page.getByLabel(/Beschreibe/).fill('Ich will eine wichtige Aufgabe erledigen');
 		await page.getByRole('button', { name: 'Verarbeiten und weiter' }).click();
+		await waitForStableView(page);
 
 		// Nach abgeschlossenem (gemocktem) LLM-Aufruf verschwindet der Schnellerfassungs-Schritt und
 		// das reguläre Formular erscheint mit den vorausgefüllten Werten.
