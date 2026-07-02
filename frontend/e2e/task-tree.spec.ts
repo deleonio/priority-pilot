@@ -70,7 +70,10 @@ test.describe('Priority Pilot — TaskTree (expandierbare Aufgaben-Liste, #238)'
 	const item = (page: Page, id: number) => page.getByTestId(`task-tree-item-${id}`);
 
 	/** Das Aufklapp-/Zuklapp-Steuerelement innerhalb eines Knotens (per aria-expanded prüfbar). */
-	const toggle = (page: Page, id: number) => item(page, id).getByRole('button', { name: /Auf|Zuklappen|klappen/i }).first();
+	const toggle = (page: Page, id: number) =>
+		item(page, id)
+			.getByRole('button', { name: /Auf|Zuklappen|klappen/i })
+			.first();
 
 	test('AK-1: Aufgabe mit Unteraufgaben zeigt ein Aufklapp-Symbol', async ({ page }) => {
 		const parentTitle = uniqueTitle('Eltern');

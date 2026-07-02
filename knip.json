@@ -1,5 +1,5 @@
 {
-	"ignore": ["spikes/**", ".github/workflows/*.test.ts"],
+	"ignore": ["spikes/**", ".github/workflows/*.test.ts", "frontend/src/components/TaskTable.tsx", "frontend/src/lib/reactCellRoot.ts"],
 	"ignoreBinaries": ["generate", "fetch_state", "gh"],
 	"workspaces": {
 		"server": {

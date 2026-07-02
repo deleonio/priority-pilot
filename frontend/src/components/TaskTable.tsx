@@ -5,7 +5,7 @@ import { memo } from 'react';
 import type { DependencyRef } from '../lib/dependencies';
 import { renderIntoCell } from '../lib/reactCellRoot';
 import { seriesBadge } from '../lib/series';
-import { formatDeadline, statusLabel } from '../lib/task';
+import { formatDeadline } from '../lib/task';
 
 interface TaskTableProps {
 	tasks: Task[];
@@ -49,7 +49,7 @@ export const TaskTable = memo((props: TaskTableProps) => {
 	const data: TaskRow[] = tasks.map((task) => ({
 		id: task.id,
 		title: task.title,
-		status: statusLabel(task.status),
+		status: task.status,
 		priority: task.priority,
 		estimatedEffort: task.estimatedEffort,
 		deadline: formatDeadline(task.deadline),

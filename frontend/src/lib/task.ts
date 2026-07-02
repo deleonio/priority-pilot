@@ -8,10 +8,6 @@ export const STATUS_OPTIONS: { label: string; value: TaskStatus }[] = [
 	{ label: 'Erledigt', value: TaskStatus.Done },
 ];
 
-/** Deutsches Label für einen Status (Fallback: der Rohwert). */
-export const statusLabel = (status: TaskStatus): string =>
-	STATUS_OPTIONS.find((option) => option.value === status)?.label ?? status;
-
 /** Formatiert eine Zahl im deutschen Format mit bis zu zwei Nachkommastellen. */
 export const formatNumber = (value: number): string => value.toLocaleString('de-DE', { maximumFractionDigits: 2 });
 
