@@ -3,12 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
-	MissingApiKeyError,
-	MistralRequestError,
-	type ParseTaskParser,
-	type ParsedTask,
-} from '../../llm/mistral.js';
+import { MissingApiKeyError, MistralRequestError, type ParseTaskParser, type ParsedTask } from '../../llm/mistral.js';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../../test/helpers.js';
 
 after(closeDb);
@@ -132,10 +127,7 @@ describe('AK3: openapi.yml enthält /tasks/parse-text', () => {
 		const __dirname = dirname(fileURLToPath(import.meta.url));
 		const openapiPath = resolve(__dirname, '../../../../../openapi.yml');
 		const content = await readFile(openapiPath, 'utf-8');
-		assert.ok(
-			content.includes('/tasks/parse-text'),
-			'openapi.yml muss den Pfad /tasks/parse-text enthalten',
-		);
+		assert.ok(content.includes('/tasks/parse-text'), 'openapi.yml muss den Pfad /tasks/parse-text enthalten');
 	});
 
 	it('openapi.yml definiert ein Request-Schema mit dem Feld text', async () => {

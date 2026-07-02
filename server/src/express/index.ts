@@ -7,11 +7,12 @@ import type { components } from '../api';
 import { tasksRouter, serializeTask } from './routes/tasks.js';
 import { pillarsRouter } from './routes/pillars.js';
 import { createSuggestPillarsRouter } from './routes/suggestPillars.js';
+import { createParseTasksRouter } from './routes/parseTasks.js';
 import { scoresRouter } from './routes/scores.js';
 import { seriesRouter } from './routes/series.js';
 import { authRouter } from './routes/auth.js';
 import { transitRouter } from './routes/transit.js';
-import type { PillarClassifier } from '../llm/mistral.js';
+import type { PillarClassifier, ParseTaskParser } from '../llm/mistral.js';
 import { buildTaskForest } from '../logics/tree.js';
 import { findNextImportantTask, findSuggestedTasks } from '../logics/find.js';
 import { isEmailAllowed, getConfiguredEmails } from '../logics/allowedEmails.js';
@@ -28,6 +29,7 @@ type HealthDto = components['schemas']['Health'];
 /** Injizierbare Abhängigkeiten — erlaubt es Tests, den Mistral-Aufruf zu mocken. */
 export interface AppDeps {
 	pillarClassifier?: PillarClassifier;
+	taskTextParser?: ParseTaskParser;
 	sessionStore?: Store;
 }
 
@@ -133,6 +135,9 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// Mistral-gestützte Säulen-Klassifikation (siehe routes/suggestPillars.ts).
 	app.use(createSuggestPillarsRouter(deps.pillarClassifier));
+
+	// Mistral-gestützte Task-Schnellerfassung: Freitext → strukturierte Felder (siehe routes/parseTasks.ts).
+	app.use(createParseTasksRouter(deps.taskTextParser));
 
 	// Gamification-Scoring: Punkte je Task lesen, Balance-Stand je Säule (siehe routes/scores.ts).
 	app.use(scoresRouter);
