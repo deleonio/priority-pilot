@@ -82,10 +82,6 @@ export const QuickCaptureModal = ({ parentTask = null, pillars, onClose, onSaved
 							text.current = readString(value);
 							setHasText(text.current.trim().length > 0);
 						},
-						onChange: (_event, value) => {
-							text.current = readString(value);
-							setHasText(text.current.trim().length > 0);
-						},
 					}}
 				/>
 			</div>

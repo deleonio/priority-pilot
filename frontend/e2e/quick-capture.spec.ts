@@ -87,6 +87,29 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		await expect(page.getByRole('cell', { name: title, exact: true })).toBeVisible();
 	});
 
+	test('AC2b: „Überspringen" mit Text setzt eingegebenen Text als Beschreibungs-Vorbelegung', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
+		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
+		await waitForStableView(page);
+
+		// Text in die Textarea eingeben
+		await page.getByLabel(/Beschreibe/).fill('Spontaner Einfall als Beschreibung');
+		// „Überspringen" klicken
+		await page.getByRole('button', { name: 'Überspringen' }).click();
+
+		// Das reguläre Formular sollte sichtbar sein
+		await expect(page.getByLabel('Titel')).toBeVisible();
+		// Das Beschreibungsfeld sollte den eingegebenen Text enthalten
+		await expect(page.getByLabel('Beschreibung (optional)')).toHaveValue('Spontaner Einfall als Beschreibung');
+		// Das Titel-Feld sollte leer sein
+		await expect(page.getByLabel('Titel')).toHaveValue('');
+		// Die Textarea sollte verschwunden sein
+		await expect(page.getByLabel(/Beschreibe/)).toBeHidden();
+	});
+
 	test('AC3: „Verarbeiten und weiter" ruft parse-text auf und befüllt das Formular vor', async ({ page }) => {
 		// LLM-Parsing gezielt mocken: der Endpoint liefert die vorausgefüllten Felder zurück.
 		await page.route('**/api/v1/tasks/parse-text', (route: Route) =>
