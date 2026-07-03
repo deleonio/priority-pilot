@@ -356,7 +356,11 @@ export const TaskForm = ({
 						},
 					}}
 				/>
-				{hint !== '' && <p className="hint">{hint}</p>}
+				{hint !== '' && (
+					<p className="hint" data-testid="subtask-done-hint">
+						{hint}
+					</p>
+				)}
 				<KolInputNumber
 					_label="Priorität (Ganzzahl 1–5)"
 					_min={1}

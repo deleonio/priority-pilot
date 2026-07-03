@@ -101,7 +101,7 @@ test.describe('Priority Pilot — Unteraufgaben-Done-Guard (#246)', () => {
 		await openEditDialog(page, parentId);
 
 		// Der Dialog weist auf die offenen Unteraufgaben als Grund hin.
-		await expect(page.locator('p.hint')).toBeVisible();
+		await expect(page.getByTestId('subtask-done-hint')).toBeVisible();
 	});
 
 	test('AK3 negativ: ohne Unteraufgaben ist „Erledigt" normal wählbar', async ({ page }) => {
@@ -134,6 +134,6 @@ test.describe('Priority Pilot — Unteraufgaben-Done-Guard (#246)', () => {
 		const overflow = await page.evaluate(() => document.body.scrollWidth <= window.innerWidth);
 		expect(overflow).toBe(true);
 
-		await expect(page.locator('p.hint')).toBeVisible();
+		await expect(page.getByTestId('subtask-done-hint')).toBeVisible();
 	});
 });
