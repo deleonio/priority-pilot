@@ -3,6 +3,7 @@ import type { Series, SeriesCreate, SeriesRhythm, SeriesUpdate } from 'client';
 import { useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
+import { useCtrlEnter } from '../lib/useCtrlEnter';
 import { readString } from '../lib/inputValue';
 
 interface SeriesFormModalProps {
@@ -92,6 +93,10 @@ export const SeriesFormModal = ({ series, onClose, onSaved }: SeriesFormModalPro
 			setSaving(false);
 		}
 	};
+
+	// Strg+Enter (bzw. ⌘+Enter) löst den primären CTA „Speichern" aus, solange kein Speichern läuft
+	// (analog zum `_disabled` des CTAs). Leere Pflichtfelder werden von `submit` selbst abgefangen.
+	useCtrlEnter(() => void submit(), !saving);
 
 	const startDateValue = ((): Date | undefined => {
 		if (form.current.startDate === '') {

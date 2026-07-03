@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { readString } from '../lib/inputValue';
+import { useCtrlEnter } from '../lib/useCtrlEnter';
 import { deepActiveElement } from '../lib/focus';
 import { taskFormModalTitle } from '../lib/task';
 import { Modal } from './Modal';
@@ -69,6 +70,14 @@ export const QuickCaptureModal = ({ parentTask = null, pillars, onClose, onSaved
 			setParsing(false);
 		}
 	};
+
+	// Strg+Enter (bzw. ⌘+Enter) löst im Capture-Schritt den primären CTA „Verarbeiten und weiter" aus —
+	// nur solange dessen `_disabled`-Bedingung nicht greift (kein Parsing, Text vorhanden). Im Formular-
+	// Schritt übernimmt der `TaskForm`-eigene Hook, deshalb hier bewusst an `step === 'capture'` gebunden.
+	useCtrlEnter(
+		() => void process(),
+		() => step === 'capture' && !parsing && text.current.trim().length > 0,
+	);
 
 	// Der Modal-Heading bleibt im Capture-Schritt „Neuen Task anlegen"; im Formular-Schritt spiegelt er
 	// den Anlege-Kontext (bei einer Unteraufgabe die Eltern-Aufgabe) — dieselbe Beschriftung wie im

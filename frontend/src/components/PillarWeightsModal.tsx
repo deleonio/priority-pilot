@@ -3,6 +3,7 @@ import type { Pillar } from 'client';
 import { useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
+import { useCtrlEnter } from '../lib/useCtrlEnter';
 import { readNumber } from '../lib/inputValue';
 import { formatNumber } from '../lib/task';
 import {
@@ -68,6 +69,10 @@ export const PillarWeightsModal = ({ pillars, onClose, onSaved }: PillarWeightsM
 			setSaving(false);
 		}
 	};
+
+	// Strg+Enter (bzw. ⌘+Enter) löst den primären CTA „Speichern" aus — nur wenn er nicht deaktiviert ist
+	// (kein laufendes Speichern, Säulen vorhanden, gültige Verteilung), analog zu dessen `_disabled`.
+	useCtrlEnter(() => void save(), !saving && pillars.length > 0 && distributionValid);
 
 	return (
 		<Modal title="Säulen-Gewichtung" onClose={onClose}>

@@ -3,6 +3,7 @@ import type { Task } from 'client';
 import { useState, type RefObject } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
+import { useCtrlEnter } from '../lib/useCtrlEnter';
 import { Modal } from './Modal';
 
 interface DeleteTaskDialogProps {
@@ -31,6 +32,9 @@ export const DeleteTaskDialog = ({ task, onClose, onDeleted, fallbackFocusRef }:
 			setDeleting(false);
 		}
 	};
+
+	// Strg+Enter (bzw. ⌘+Enter) löst den primären CTA „Endgültig löschen" aus, solange kein Löschen läuft.
+	useCtrlEnter(() => void confirm(), !deleting);
 
 	return (
 		<Modal title="Task löschen" onClose={onClose} fallbackFocusRef={fallbackFocusRef}>
