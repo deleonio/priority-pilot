@@ -44,7 +44,10 @@ export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChang
 	const [busy, setBusy] = useState(false);
 
 	const add = async (): Promise<void> => {
-		if (selectedId === null) {
+		// selectedIdRef statt selectedId lesen: Ctrl+Enter kann direkt nach onChange feuern,
+		// bevor React den State-Update durchgeführt hat. Der Ref ist synchron gesetzt.
+		const currentSelectedId = selectedIdRef.current;
+		if (currentSelectedId === null) {
 			setError('Bitte einen Vorgänger-Task auswählen.');
 			return;
 		}
@@ -58,8 +61,9 @@ export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChang
 		try {
 			await api.addDependency({
 				id: task.id,
-				dependencyInput: { dependingTaskId: selectedId, weight: weightValue },
+				dependencyInput: { dependingTaskId: currentSelectedId, weight: weightValue },
 			});
+			selectedIdRef.current = null;
 			setSelectedId(null);
 			onChanged();
 		} catch (reason) {
