@@ -9,6 +9,7 @@ const node = (id: number, title: string, dependents: TaskTreeNode[] = []): TaskT
 	estimatedEffort: 1,
 	totalEstimatedEffort: 1,
 	value: 1,
+	status: 'Open',
 	dependents,
 });
 

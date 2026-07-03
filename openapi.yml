@@ -771,6 +771,7 @@ components:
         - estimatedEffort
         - totalEstimatedEffort
         - value
+        - status
         - dependents
       properties:
         id:
@@ -790,6 +791,8 @@ components:
           type: number
           format: float
           description: Wertbeitrag des Tasks
+        status:
+          $ref: '#/components/schemas/TaskStatus'
         dependents:
           type: array
           items:
