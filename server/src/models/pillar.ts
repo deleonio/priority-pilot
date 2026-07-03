@@ -6,17 +6,14 @@ import sequelize from '../database.js';
  * nicht pro Nutzer isoliert (die Säulen-Auswahl im API ist daher unscoped). `weight` ist der
  * prozentuale Anteil der Säule (Default 20 ⇒ fünf Säulen summieren sich auf 100 %). `description`
  * ist die kanonische Kurzbeschreibung (Einstellungs-Menü); Quelle der Werte ist
- * {@link ../models/pillarData.ts SEED_PILLARS}.
+ * {@link ../models/pillarData.ts SEED_PILLARS}. Säulennamen sind **global eindeutig** (Unique-Index
+ * auf `name`) — die fünf Stammdaten treten nie doppelt auf.
  */
 class Pillar extends Model {
 	public id!: number;
 	public name!: string;
 	public weight!: number;
 	public description!: string;
-
-	// Nur aus historischen Gründen vorhanden (Issue #207 hatte Säulen pro Nutzer isoliert; das wurde
-	// zurückgenommen, weil Säulen feste App-Stammdaten sind). Nullable; **nicht** für Filter genutzt.
-	public userId?: number | null;
 
 	public readonly createdAt!: Date;
 	public readonly updatedAt!: Date;
@@ -49,20 +46,15 @@ Pillar.init(
 			allowNull: false,
 			defaultValue: '',
 		},
-		// Nur aus historischen Gründen nullable (siehe Klassen-Kommentar); nicht für Filter genutzt.
-		userId: {
-			type: DataTypes.INTEGER,
-			allowNull: true,
-		},
 	},
 	{
 		sequelize,
 		modelName: 'Pillar',
 		tableName: 'pillars',
 		timestamps: true,
-		// Historischer Unique-Index aus #207 (name, userId). Da Säulen global sind, ist `userId`
-		// effektiv immer null; der Index bleibt aus Migrationssicherheit unangetastet.
-		indexes: [{ unique: true, fields: ['name', 'userId'] }],
+		// Säulennamen sind global eindeutig (globale Stammdaten, nicht pro Nutzer). Der frühere
+		// #207-Index auf (name, userId) wurde mit dem userId-Cleanup durch diesen ersetzt.
+		indexes: [{ unique: true, fields: ['name'] }],
 	},
 );
 
