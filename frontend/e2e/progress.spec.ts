@@ -106,4 +106,21 @@ test.describe('Fortschrittsanzeige pro Task (#241)', () => {
 		await openTasksTab(page);
 		await expect(rowFor(page, titelA).getByText('1/2')).toBeVisible();
 	});
+
+	test('AK5: Fortschrittsanzeige ist auf mobilen Viewports (375px) sichtbar', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+
+		const titelA = uniqueTitle('A');
+		const idA = await createTask(page, titelA);
+		const idB = await createTask(page, uniqueTitle('B'));
+		// B hängt von A ab → A + 1 Sub-Task = 2 Tasks gesamt.
+		await addDependency(page, idB, idA);
+
+		await page.goto('/');
+		await waitForStableView(page);
+		await openTasksTab(page);
+
+		// Fortschrittsanzeige muss auch auf 375px-Viewport ohne horizontales Scrollen sichtbar sein.
+		await expect(rowFor(page, titelA).getByText('0/2')).toBeVisible();
+	});
 });
