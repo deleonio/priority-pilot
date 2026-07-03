@@ -102,6 +102,13 @@ export const TaskForm = ({
 	// erneutes Rendern (und kein Cursor-Springen) pro Tastendruck. Validierung beim Absenden.
 	// `priority`/`estimatedEffort` dürfen `null` sein: ein geleertes Zahlenfeld setzt den Ref auf
 	// `null`, damit die Validierung greift (statt still den alten Wert weiterzuverwenden).
+	// #246: Wäre der aktuelle Status „Done", ist er aber wegen offener Unteraufgaben nicht mehr
+	// wählbar, den Initialwert direkt auf „Offen" setzen — sonst zeigt das Feld eine Option, die
+	// nicht in `statusOptions` steht.
+	const effectiveStatus =
+		task !== null && task.status === TaskStatus.Done && !statusOptions.some((o) => o.value === TaskStatus.Done)
+			? TaskStatus.Open
+			: (task?.status ?? TaskStatus.Open);
 	const form = useRef<{
 		title: string;
 		status: TaskStatus;
@@ -111,19 +118,12 @@ export const TaskForm = ({
 		deadline: string;
 	}>({
 		title: task?.title ?? initialValues?.title ?? '',
-		status: task?.status ?? TaskStatus.Open,
+		status: effectiveStatus,
 		priority: task?.priority ?? initialValues?.priority ?? 3,
 		estimatedEffort: task?.estimatedEffort ?? initialValues?.estimatedEffort ?? 0.5,
 		description: task?.description ?? initialValues?.description ?? '',
 		deadline: task !== null ? deadlineToDateInput(task.deadline) : isoToDateInput(initialValues?.deadline),
 	});
-
-	// #246: Wäre der aktuelle Status „Done", ist er aber wegen offener Unteraufgaben nicht mehr
-	// wählbar, den Formularwert auf „Offen" zurücksetzen — sonst zeigt das Feld eine Option, die
-	// nicht in `statusOptions` steht.
-	if (form.current.status === TaskStatus.Done && !statusOptions.some((o) => o.value === TaskStatus.Done)) {
-		form.current.status = TaskStatus.Open;
-	}
 
 	// Säulen-Beiträge im State (nicht im Ref): Hinzufügen/Entfernen und die Anteils-/Konfidenz-Slider
 	// müssen neu rendern (Live-Summe). Slider verursachen — anders als Textfelder — kein Cursor-Springen.

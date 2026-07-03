@@ -101,7 +101,7 @@ test.describe('Priority Pilot — Unteraufgaben-Done-Guard (#246)', () => {
 		await openEditDialog(page, parentId);
 
 		// Der Dialog weist auf die offenen Unteraufgaben als Grund hin.
-		await expect(page.getByText(/Unteraufgabe/i).first()).toBeVisible();
+		await expect(page.locator('p.hint')).toBeVisible();
 	});
 
 	test('AK3 negativ: ohne Unteraufgaben ist „Erledigt" normal wählbar', async ({ page }) => {
@@ -117,5 +117,23 @@ test.describe('Priority Pilot — Unteraufgaben-Done-Guard (#246)', () => {
 		const doneOption = page.getByRole('option', { name: 'Erledigt' });
 		await expect(doneOption).toBeVisible();
 		await expect(doneOption).toBeEnabled();
+	});
+
+	test('AK3/AK4 Mobil: Hint und Status-Dropdown bei 375 px nutzbar', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		const parentId = await createTask(page, uniqueTitle('Eltern-Mobil'));
+		const childId = await createTask(page, uniqueTitle('Kind-Mobil'));
+		await addSubtask(page, parentId, childId);
+
+		await page.goto('/');
+		await waitForStableView(page);
+		await openTasksTab(page);
+
+		await openEditDialog(page, parentId);
+
+		const overflow = await page.evaluate(() => document.body.scrollWidth <= window.innerWidth);
+		expect(overflow).toBe(true);
+
+		await expect(page.locator('p.hint')).toBeVisible();
 	});
 });
