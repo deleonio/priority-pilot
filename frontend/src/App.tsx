@@ -93,7 +93,10 @@ export const App = ({ user }: { user: AuthUser }) => {
 	// Tasks ohne Unter-Tasks liefern `null` und tauchen bewusst nicht in der Map auf (AK3).
 	const progressMap = useMemo(() => {
 		const map = new Map<number, { done: number; total: number }>();
+		const visited = new Set<TaskTreeNode>();
 		const visit = (node: TaskTreeNode): void => {
+			if (visited.has(node)) return;
+			visited.add(node);
 			const progress = calculateProgress(node);
 			if (progress !== null) {
 				map.set(node.id, progress);

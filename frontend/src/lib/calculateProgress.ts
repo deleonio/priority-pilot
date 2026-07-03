@@ -1,4 +1,4 @@
-import type { TaskStatus } from 'client';
+import { TaskStatus } from 'client';
 
 /**
  * Minimaler Baumknoten für die Fortschrittsberechnung: Status des Tasks und seine (Unter-)Tasks.
@@ -30,7 +30,7 @@ export const calculateProgress = <T extends { status: TaskStatus; dependents: T[
 		if (visited.has(n)) return;
 		visited.add(n);
 		total++;
-		if (n.status === 'Done') done++;
+		if (n.status === TaskStatus.Done) done++;
 		for (const dep of n.dependents) count(dep);
 	};
 
