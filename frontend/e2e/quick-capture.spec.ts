@@ -266,7 +266,9 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		await expect(page.locator('kol-textarea textarea').first()).toBeFocused();
 	});
 
-	test('AK2-Autofokus-Mobile: Textarea ist auf 375-px-Viewport fokussiert, kein Layout-Überlauf (#250)', async ({ page }) => {
+	test('AK2-Autofokus-Mobile: Textarea ist auf 375-px-Viewport fokussiert, kein Layout-Überlauf (#250)', async ({
+		page,
+	}) => {
 		await page.setViewportSize({ width: 375, height: 667 });
 		await page.goto('/');
 		await waitForStableView(page);
@@ -283,7 +285,9 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		expect(noOverflow).toBe(true);
 	});
 
-	test('AK3-Regression-Schrittwechsel: Autofokus verursacht keinen JS-Fehler beim Wechsel in den Formular-Schritt (#250)', async ({ page }) => {
+	test('AK3-Regression-Schrittwechsel: Autofokus verursacht keinen JS-Fehler beim Wechsel in den Formular-Schritt (#250)', async ({
+		page,
+	}) => {
 		const pageErrors: string[] = [];
 		page.on('pageerror', (err) => pageErrors.push(err.message));
 

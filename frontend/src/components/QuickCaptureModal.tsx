@@ -39,6 +39,12 @@ export const QuickCaptureModal = ({ parentTask = null, pillars, onClose, onSaved
 	const [hasText, setHasText] = useState(false);
 
 	const text = useRef('');
+	const textareaRef = useRef<HTMLKolTextareaElement>(null);
+
+	// Autofokus auf die native textarea im Shadow DOM beim Öffnen des Capture-Schritts (#250).
+	useEffect(() => {
+		textareaRef.current?.shadowRoot?.querySelector('textarea')?.focus();
+	}, []);
 
 	// Auslöser (den „Neuen Task anlegen"-Button) beim Mount als Fallback-Fokusziel merken. Da der Dialog
 	// über beide Schritte hinweg dieselbe Instanz bleibt, greift primär die eigene Fokus-Rückgabe des
@@ -95,6 +101,7 @@ export const QuickCaptureModal = ({ parentTask = null, pillars, onClose, onSaved
 					)}
 					<div className="form-grid">
 						<KolTextarea
+							ref={textareaRef}
 							_label="Beschreibe deinen Task"
 							_rows={4}
 							_on={{
