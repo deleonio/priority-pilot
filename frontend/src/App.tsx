@@ -1,5 +1,5 @@
 import { KolAlert, KolAvatar, KolHeading, KolPopoverButton, KolSpin, KolTabs, KolToolbar } from '@public-ui/react-v19';
-import type { Pillar, Task, TaskTreeNode } from 'client';
+import type { Pillar, Task, TaskStatus, TaskTreeNode } from 'client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from './api';
 import { Dashboard } from './components/Dashboard';
@@ -32,6 +32,26 @@ type Dialog =
 // `KolTabs`). Modulkonstante, damit `KolTabs` nicht bei jedem Render eine neue Tab-Liste erhält und
 // die Auswahl zurücksetzt.
 const VIEW_TABS = [{ _label: 'Dashboard' }, { _label: 'Aufgaben' }, { _label: 'Aufgabenwald' }];
+
+/**
+ * Liefert die direkten Unteraufgaben (Dependents) des Tasks `taskId` aus dem Aufgabenwald (#246).
+ * Ein Knoten führt seine direkten Unteraufgaben in `dependents`; die Suche steigt rekursiv ab.
+ */
+const findDirectSubtasks = (forest: TaskTreeNode[], taskId: number): { status: TaskStatus }[] => {
+	const search = (node: TaskTreeNode): { status: TaskStatus }[] | null => {
+		if (node.id === taskId) return node.dependents;
+		for (const child of node.dependents) {
+			const found = search(child);
+			if (found !== null) return found;
+		}
+		return null;
+	};
+	for (const root of forest) {
+		const found = search(root);
+		if (found !== null) return found;
+	}
+	return [];
+};
 
 // Statisches Reload-Icon (Font-Awesome-Solid) für den „Aktualisieren"-Toolbar-Button. Als
 // Modulkonstante, damit das Toolbar-Item nicht bei jedem Render eine neue `_icons`-Objektidentität
@@ -325,6 +345,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 					key={dialog.task.id}
 					task={dialog.task}
 					pillars={pillars}
+					subtasks={findDirectSubtasks(forest, dialog.task.id)}
 					onClose={closeDialog}
 					onSaved={afterMutation}
 				/>
