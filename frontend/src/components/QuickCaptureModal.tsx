@@ -43,8 +43,13 @@ export const QuickCaptureModal = ({ parentTask = null, pillars, onClose, onSaved
 	const textareaRef = useRef<HTMLKolTextareaElement>(null);
 
 	// Autofokus auf die native textarea im Shadow DOM beim Öffnen des Capture-Schritts (#250).
+	// setTimeout(0) stellt sicher, dass focus() nach showModal() (Microtask via whenDefined) läuft —
+	// sonst stiehlt showModal() den Fokus wieder, weil es den Dialog-internen Fokus neu setzt.
 	useEffect(() => {
-		textareaRef.current?.shadowRoot?.querySelector('textarea')?.focus();
+		const id = setTimeout(() => {
+			textareaRef.current?.shadowRoot?.querySelector('textarea')?.focus();
+		}, 0);
+		return () => clearTimeout(id);
 	}, []);
 
 	// Auslöser (den „Neuen Task anlegen"-Button) beim Mount als Fallback-Fokusziel merken. Da der Dialog
