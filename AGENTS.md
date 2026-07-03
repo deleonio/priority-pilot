@@ -12,6 +12,8 @@ Wissensbasis liegt in [`.ai-knowledge/`](.ai-knowledge/).
 - [Ticket-Umsetzung](.ai-knowledge/ticket-implementation.md) — freigegebene Issues (`ai:ready`) umsetzen
 - [PR-Review (Kreuzverhör)](.ai-knowledge/pr-review.md) — Pull Requests kritisch prüfen, Findings kommentieren
 - [TDD-Strategie](.ai-knowledge/tdd-strategy.md) — test-getriebene KI-Workflows (Stufen 1+2+3 adoptiert: AK-first + Red-Green + Spec-Gate)
+- [Subagent-Ausführungsvertrag](.ai-knowledge/subagent-contract.md) — Vertrag für per Modell-Delegation gestartete Subagenten (`.claude/agents/`)
+- [Kreuzverhör-Haltung](.ai-knowledge/kreuzverhoer-haltung.md) — Methode des adversarialen Hinterfragens (Chat-Trigger + PR-Review)
 - [Deployment](docs/deployment.md) — Release-Build (GitHub Actions), Tarball, Host-Layout, systemd, Caddy, Rollback
 - [Deployment: Repo-Plan](docs/deployment-repo-plan.md) — was im Repo zu bauen ist (Pack-Skript, Release-Workflow, Secrets)
 - [Deployment: Server-Setup](docs/server-setup.md) — Schritt-für-Schritt-Einrichtung des Linux-Servers
@@ -23,8 +25,13 @@ Wissensbasis liegt in [`.ai-knowledge/`](.ai-knowledge/).
 - Linten: `pnpm lint`.
 - Bevorzugt gezielt statt repo-weit prüfen: `pnpm --filter priority-pilot build|lint`.
 - TypeScript `strict`, ESM überall, Node `>=26`.
-- Nicht automatisch committen ohne ausdrücklichen Wunsch.
-- Alle Pull Requests müssen `pnpm format` und `pnpm lint` ausführen und die Ergebnisse in der
+- Nicht automatisch committen ohne ausdrücklichen Wunsch. **Dokumentierte Ausnahme:** die
+  Ticket-Workflows [`/spec-ticket`](.ai-knowledge/ticket-spec.md) und
+  [`/implement-ticket`](.ai-knowledge/ticket-implementation.md) committen, pushen und
+  erstellen/aktualisieren PRs als **ausdrücklichen Teil ihres Auftrags** — das gilt nur für diese
+  beiden Workflows, nicht als allgemeine Erlaubnis.
+- Alle Pull Requests müssen `pnpm format`, `pnpm lint` **und `pnpm test`** ausführen (Tests grün ist
+  Pflicht, siehe [TDD-Strategie](.ai-knowledge/tdd-strategy.md) Stufe 2) und die Ergebnisse in der
   PR-Beschreibung dokumentieren.
 
 ## KI-Agent: Claude (Standard), GLM (Z.ai) oder Mistral Vibe
@@ -101,6 +108,10 @@ Checkout, erhaltener Kontext, **kein** zweiter Action-Lauf. Die Subagenten sind 
 - [`light`](.claude/agents/light.md) → **`model: haiku`** — trivial / mechanisch (Abstufung).
 - _(Koordinator selbst)_ → **`claude-sonnet-4-6`** — Standardaufgabe.
 - [`heavy`](.claude/agents/heavy.md) → **`model: opus`** — komplex / architektonisch (Eskalation).
+
+Beide Subagent-Definitionen verweisen für den eigentlichen Ausführungsvertrag (Scope-Disziplin,
+Ergebnis-Übergabe, Eskalation) nur auf [subagent-contract.md](.ai-knowledge/subagent-contract.md) —
+das ist die einzige Stelle, an der dieser Vertrag gepflegt wird.
 
 **Sichere Defaults:** Schätzt der Koordinator die Aufgabe als Standard ein, erledigt er sie selbst auf
 **Sonnet** — es gibt also keinen separaten Klassifikations-Schritt mehr, der scheitern könnte. Ist
