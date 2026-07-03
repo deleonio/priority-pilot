@@ -144,7 +144,7 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 		await openTasksTab(page);
 
 		// Beide Instanzen tragen den Serien-Titel in der Tabelle.
-		await expect(page.getByRole('cell', { name: title, exact: true })).toHaveCount(2);
+		await expect(page.getByText(title, { exact: true })).toHaveCount(2);
 
 		// AK 2: sichtbare Kennzeichnung „zur Serie gehörig" — das Serien-Badge erscheint in der Tabelle.
 		await expect(page.getByText('Serie', { exact: true }).first()).toBeVisible();
@@ -170,9 +170,9 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 		await waitForStableView(page);
 		await openTasksTab(page);
 
-		// Genau die A-Instanz (Deadline 07.09.2026) anhand ihrer Deadline-Zelle finden und bearbeiten.
-		const movedRow = page.getByRole('row').filter({ hasText: '07.09.2026' });
-		await movedRow.getByRole('button', { name: 'Bearbeiten' }).click();
+		// Genau die A-Instanz anhand ihrer ID (aus der API) im Task-Tree finden und bearbeiten.
+		const movedItem = page.locator(`[data-testid="task-tree-item-${moved.id}"]`);
+		await movedItem.getByRole('button', { name: 'Bearbeiten' }).click();
 		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeVisible();
 		await waitForStableView(page);
 
@@ -180,9 +180,9 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
 		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeHidden();
 
-		// UI: die Geschwister-Instanz steht unverändert mit ihrer ursprünglichen Deadline weiterhin in der Liste.
+		// UI: die Geschwister-Instanz steht unverändert weiterhin in der Liste (Deadline wird im Task-Tree nicht angezeigt).
 		await openTasksTab(page);
-		await expect(page.getByRole('cell', { name: '14.09.2026' })).toBeVisible();
+		await expect(page.locator(`[data-testid="task-tree-item-${sibling.id}"]`)).toBeVisible();
 
 		// Backend-Vertrag gegenprüfen: nur die verschobene Instanz änderte sich.
 		const after = await listTasksViaApi(page);
