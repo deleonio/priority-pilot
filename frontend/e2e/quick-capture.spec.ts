@@ -250,4 +250,64 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		const overflow = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
 		expect(overflow).toBe(true);
 	});
+
+	// --- Rote Spec-Tests für #250: Autofokus der Textarea beim Öffnen des Modals ---
+
+	test('AK1-Autofokus-Desktop: Textarea ist direkt nach dem Öffnen des Modals fokussiert (#250)', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
+		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
+		await waitForStableView(page);
+
+		// Autofokus wird programmatisch per useEffect + shadowRoot-Query gesetzt,
+		// da _autofocus in der KoliBri-4.2.1-Typbindung nicht verfügbar ist.
+		// Der Fokus muss direkt nach dem Öffnen gesetzt sein — kein manuelles Klicken nötig.
+		await expect(page.locator('kol-textarea textarea').first()).toBeFocused();
+	});
+
+	test('AK2-Autofokus-Mobile: Textarea ist auf 375-px-Viewport fokussiert, kein Layout-Überlauf (#250)', async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 375, height: 667 });
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
+		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
+		await waitForStableView(page);
+
+		// Autofokus muss auch auf schmalem Viewport gesetzt sein.
+		await expect(page.locator('kol-textarea textarea').first()).toBeFocused();
+
+		// Kein horizontaler Overflow durch den Autofokus / Modal-Layout.
+		const noOverflow = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
+		expect(noOverflow).toBe(true);
+	});
+
+	test('AK3-Regression-Schrittwechsel: Autofokus verursacht keinen JS-Fehler beim Wechsel in den Formular-Schritt (#250)', async ({
+		page,
+	}) => {
+		const pageErrors: string[] = [];
+		page.on('pageerror', (err) => pageErrors.push(err.message));
+
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
+		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
+		await waitForStableView(page);
+
+		// Text eingeben, dann Schritt wechseln.
+		await page.getByLabel(/Beschreibe/).fill('Regressions-Test Autofokus');
+		await page.getByRole('button', { name: 'Überspringen' }).click();
+		await waitForStableView(page);
+
+		// Das TaskForm muss gerendert sein — Fokus-Steuerung unverändert übernommen.
+		await expect(page.getByLabel('Titel')).toBeVisible();
+
+		// Kein JS-Fehler (kein showModal/Shadow-DOM-Fehler durch den Autofokus).
+		expect(pageErrors, `Unerwartete pageerrors: ${pageErrors.join(' | ')}`).toEqual([]);
+	});
 });

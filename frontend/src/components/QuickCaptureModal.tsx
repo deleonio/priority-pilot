@@ -40,6 +40,18 @@ export const QuickCaptureModal = ({ parentTask = null, pillars, onClose, onSaved
 	const [hasText, setHasText] = useState(false);
 
 	const text = useRef('');
+	const textareaRef = useRef<HTMLKolTextareaElement>(null);
+
+	// Autofokus auf die native textarea im Shadow DOM beim Öffnen des Capture-Schritts (#250).
+	// 50 ms überbrücken die Rendering-Latenz von showModal() in headless Chromium (CI): KoliBris
+	// showModal()-Implementierung führt nach dem Microtask (whenDefined) noch Macrotask-Arbeit aus,
+	// die den Dialog-internen Fokus neu setzt — setTimeout(0) feuert davor und verliert den Fokus.
+	useEffect(() => {
+		const id = setTimeout(() => {
+			textareaRef.current?.shadowRoot?.querySelector('textarea')?.focus();
+		}, 50);
+		return () => clearTimeout(id);
+	}, []);
 
 	// Auslöser (den „Neuen Task anlegen"-Button) beim Mount als Fallback-Fokusziel merken. Da der Dialog
 	// über beide Schritte hinweg dieselbe Instanz bleibt, greift primär die eigene Fokus-Rückgabe des
@@ -104,6 +116,7 @@ export const QuickCaptureModal = ({ parentTask = null, pillars, onClose, onSaved
 					)}
 					<div className="form-grid">
 						<KolTextarea
+							ref={textareaRef}
 							_label="Beschreibe deinen Task"
 							_rows={4}
 							_on={{
