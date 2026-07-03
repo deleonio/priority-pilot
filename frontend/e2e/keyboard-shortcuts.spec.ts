@@ -159,9 +159,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		await openTaskForm(page);
 
 		// Kein horizontaler Overflow, während der Dialog offen ist.
-		const overflowBefore = await page.evaluate(
-			() => document.documentElement.scrollWidth <= window.innerWidth,
-		);
+		const overflowBefore = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
 		expect(overflowBefore, 'Kein horizontales Scrollen bei geöffnetem Dialog').toBe(true);
 
 		const title = uniqueTitle('Mobile');
@@ -173,9 +171,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
 
 		// Layout unverändert: weiterhin kein horizontaler Overflow nach dem Absenden.
-		const overflowAfter = await page.evaluate(
-			() => document.documentElement.scrollWidth <= window.innerWidth,
-		);
+		const overflowAfter = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
 		expect(overflowAfter, 'Kein horizontales Scrollen nach dem Absenden').toBe(true);
 
 		await openTasksTab(page);

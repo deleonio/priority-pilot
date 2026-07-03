@@ -14,6 +14,7 @@ import { TaskStatus } from 'client';
 import { useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
+import { useCtrlEnter } from '../lib/useCtrlEnter';
 import { readNumber, readString } from '../lib/inputValue';
 import {
 	ADD_PILLAR_PLACEHOLDER,
@@ -285,6 +286,10 @@ export const TaskForm = ({ task, parentTask = null, pillars, initialValues, onCl
 			setSaving(false);
 		}
 	};
+
+	// Strg+Enter (bzw. ⌘+Enter) löst die primäre Aktion aus, solange kein Speichern/Vorschlag läuft
+	// (analog zum `_disabled` des Speichern-CTAs). Ein leerer Titel wird von `submit` selbst abgefangen.
+	useCtrlEnter(() => void submit(), !saving && !suggesting);
 
 	// Liefert für `KolInputDate._value` nur ein valides `Date` (UTC) oder `undefined`, damit bei
 	// unvollständiger Eingabe kein `Invalid Date` an die Komponente gereicht wird.

@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import type { DependencyRef } from '../lib/dependencies';
+import { useCtrlEnter } from '../lib/useCtrlEnter';
 import { readNumber } from '../lib/inputValue';
 import { Modal } from './Modal';
 
@@ -79,6 +80,10 @@ export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChang
 			setBusy(false);
 		}
 	};
+
+	// Strg+Enter (bzw. ⌘+Enter) löst den primären CTA „Hinzufügen" aus — nur wenn er nicht deaktiviert ist
+	// (kein laufender Request, ein Vorgänger ausgewählt), analog zu dessen `_disabled`-Bedingung.
+	useCtrlEnter(() => void add(), !busy && selectedId !== null);
 
 	return (
 		<Modal title={`Abhängigkeiten: #${task.id} – ${task.title}`} onClose={onClose}>
