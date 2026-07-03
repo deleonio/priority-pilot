@@ -18,10 +18,12 @@ rg -il "mobile|responsive|viewport|breakpoint" .          → Modal.tsx, e2e/log
 rg -n "@media" frontend/src/app.css                        → 1 Treffer (Zeile 226, Dashboard-Grid)
 rg -n "width:\s*[0-9]+px|max-width" frontend/src/app.css   → nur `.app { max-width: 80rem }`
 ```
+
 → Es existiert **keine** dokumentierte Mobile-First-Vorgabe in AGENTS.md/`.ai-knowledge/**`; dieses
 Audit ist die erste Bestandsaufnahme zum Thema, kein Abgleich gegen eine bestehende Spec.
 
 **MCP-Fakten-Check (Quelle vor Narrativ):**
+
 - `KolDialog._width` Default ist `'100%'` mit `max-width: 100%` (spec/dialog) → der Kommentar in
   `Modal.tsx:22` ist korrekt, kein Finding.
 - `KolTableStateful`s **einziges** dokumentiertes Mobile-Muster ist horizontales Scrollen

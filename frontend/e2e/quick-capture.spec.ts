@@ -147,4 +147,25 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 
 		// afterEach räumt evtl. angelegte Tasks ab; hier wird nur vorausgefüllt, nicht zwingend gespeichert.
 	});
+
+	test('AK-Mobile: Quick-Capture-Schritt ist auf 375-px-Viewport bedienbar', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
+		await waitForStableView(page);
+
+		// Textarea und beide Buttons müssen auf schmalem Viewport sichtbar und bedienbar sein.
+		const textarea = page.getByLabel(/Beschreibe/);
+		const processButton = page.getByRole('button', { name: 'Verarbeiten und weiter' });
+		const skipButton = page.getByRole('button', { name: 'Überspringen' });
+		await expect(textarea).toBeVisible();
+		await expect(processButton).toBeVisible();
+		await expect(skipButton).toBeVisible();
+
+		// Kein horizontaler Overflow auf dem Modal-Inhalt.
+		const overflow = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
+		expect(overflow).toBe(true);
+	});
 });
