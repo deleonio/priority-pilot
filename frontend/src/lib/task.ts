@@ -12,6 +12,18 @@ export const STATUS_OPTIONS: { label: string; value: TaskStatus }[] = [
 export const formatNumber = (value: number): string => value.toLocaleString('de-DE', { maximumFractionDigits: 2 });
 
 /**
+ * Dialog-Titel für das Task-Formular — einheitlich für den eigenständigen Bearbeiten-Dialog
+ * (`TaskFormModal`) und den Anlege-Flow (`QuickCaptureModal`), damit die Beschriftung nicht an zwei
+ * Stellen driftet.
+ */
+export const taskFormModalTitle = (task: Task | null, parentTask: Task | null): string =>
+	task !== null
+		? `Task bearbeiten: ${task.title}`
+		: parentTask !== null
+			? `Unteraufgabe zu #${parentTask.id} – ${parentTask.title}`
+			: 'Neuen Task anlegen';
+
+/**
  * Formatiert eine optionale Deadline als deutsches Datum, sonst „–".
  *
  * Eine Deadline ist ein Kalendertag: Anzeige und Eingabe erfolgen in UTC (`timeZone: 'UTC'` bzw.

@@ -163,6 +163,42 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		// afterEach räumt evtl. angelegte Tasks ab; hier wird nur vorausgefüllt, nicht zwingend gespeichert.
 	});
 
+	test('AC3-Race: verzögerte, minimale Antwort öffnet das Formular ohne Modal-Abriss (#236)', async ({ page }) => {
+		// Regression gegen die async-Remount-Race (#236): Wenn `setStep('form')` erst NACH einem
+		// verzögerten `await parseText` lief und der Dialog dabei ab- und neu aufgebaut wurde, warf das
+		// zweite `showModal()` „The element is not in a Document" (pageerror) und riss das ganze Modal ab.
+		// Der reale (langsame) LLM-Aufruf traf die Race, der frühere sofort-auflösende AC3-Mock nicht —
+		// daher hier bewusst LATENZ + nur ein `title` (der Normalfall bei kurzem Freitext).
+		const pageErrors: string[] = [];
+		page.on('pageerror', (err) => pageErrors.push(err.message));
+		await page.route('**/api/v1/tasks/parse-text', async (route: Route) => {
+			await new Promise((resolve) => setTimeout(resolve, 600));
+			await route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({ title: 'Nur-Titel-Task' }),
+			});
+		});
+
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
+		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
+		await waitForStableView(page);
+
+		await page.getByLabel(/Beschreibe/).fill('Einkaufen gehen');
+		await page.getByRole('button', { name: 'Verarbeiten und weiter' }).click();
+
+		// Das Formular erscheint (Modal bleibt offen), Titel ist mit dem einzigen gelieferten Feld gefüllt.
+		await expect(page.getByLabel('Titel')).toBeVisible();
+		await expect(page.getByLabel('Titel')).toHaveValue('Nur-Titel-Task');
+		await expect(page.getByLabel(/Beschreibe/)).toBeHidden();
+
+		// Negativ-Kontrolle: KEIN pageerror (insb. kein `showModal ... not in a Document`) beim Wechsel.
+		expect(pageErrors, `Unerwartete pageerrors: ${pageErrors.join(' | ')}`).toEqual([]);
+	});
+
 	test('AK4: Fehlgeschlagenes Parsing zeigt eine Fehlermeldung; „Überspringen" bleibt als Ausweg', async ({ page }) => {
 		// Fehlerpfad mocken: parse-text antwortet 500 — der Capture-Schritt darf NICHT verschwinden.
 		await page.route('**/api/v1/tasks/parse-text', (route: Route) =>
