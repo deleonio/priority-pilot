@@ -8,8 +8,9 @@ PRs = Pull Requests von `deleonio/priority-pilot`. Voraussetzung: `gh` ist authe
 **Auswahlkriterium:** Geprüft wird ein konkret übergebener PR; ohne Angabe der zuletzt
 geöffnete/aktualisierte offene PR (bzw. der aktuell per `subscribe_pr_activity` abonnierte PR).
 
-**Haltung:** konstruktiv, aber **adversarial** — jede Annahme hinterfragen statt Offensichtliches
-abzunicken. Belege statt Bauchgefühl: jeder Punkt mit konkretem Datei-/Zeilenbezug.
+**Haltung:** [Kreuzverhör](kreuzverhoer-haltung.md) — konstruktiv, aber adversarial, jede Annahme
+hinterfragen statt Offensichtliches abzunicken. Belege statt Bauchgefühl: jeder Punkt mit konkretem
+Datei-/Zeilenbezug.
 
 ## Schritt 1 — PR verstehen
 

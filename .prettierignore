@@ -5,3 +5,15 @@ server/src/api.d.ts
 pnpm-lock.yaml
 pnpm-workspace.yaml
 **/database.sqlite
+
+# Generierte Playwright-Ausgaben (frontend/.gitignore) — Prettier respektiert .gitignore nicht
+# automatisch, der neue root-weite lefthook-Check (format-root) wuerde sonst auf Artefakten
+# fremder lokaler Testlaeufe fehlschlagen statt auf echten Formatierungsfehlern.
+**/test-results
+**/playwright-report
+**/blob-report
+**/dev-dist
+
+# Nur lokal via globalem git-ignore ausgeschlossen, nicht im Repo selbst — vorsorglich auch
+# hier, damit format-root nicht auf einer Maschine ohne diese globale Regel bricht.
+.claude/settings.local.json
