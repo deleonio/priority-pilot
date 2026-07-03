@@ -356,6 +356,20 @@ tasksRouter.patch('/tasks/:id', async (req: Request, res: Response<TaskDto | Err
 		sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
 		return;
 	}
+	// Unteraufgaben-Done-Guard (#246, AK5): Ein Task darf nur auf „Done" wechseln, wenn keine seiner
+	// direkten Unteraufgaben (Dependents) offen ist.
+	if (validation.attrs.status === 'Done') {
+		const dependents = await task.getDependents();
+		const hasOpenSubtask = dependents.some((dep) => dep.status !== 'Done');
+		if (hasOpenSubtask) {
+			sendError(
+				res,
+				409,
+				'Der Task kann nicht auf „Erledigt" gesetzt werden, solange noch offene Unteraufgaben existieren.',
+			);
+			return;
+		}
+	}
 	try {
 		// Status vor dem Update festhalten, um den echten Übergang nach „Done" zu erkennen.
 		const warVorherDone = task.status === 'Done';

@@ -27,7 +27,7 @@ import {
 	sumWeights,
 	weightToRaw,
 } from '../lib/pillar';
-import { STATUS_OPTIONS, deadlineToDateInput, formatNumber } from '../lib/task';
+import { allowedStatusOptions, deadlineToDateInput, doneBlockedHint, formatNumber } from '../lib/task';
 
 /** Vorbelegung der Formularfelder beim Anlegen, z. B. aus der Schnellerfassung per LLM (#236). */
 export interface TaskFormInitialValues {
@@ -54,6 +54,11 @@ interface TaskFormProps {
 	 * per LLM (#236). Greift nur, wenn `task` selbst keinen Wert liefert.
 	 */
 	initialValues?: TaskFormInitialValues;
+	/**
+	 * Direkte Unteraufgaben des zu bearbeitenden Tasks (#246): sind sie nicht alle „Done", ist
+	 * „Erledigt" im Status-Feld nicht wählbar und ein Hinweis erklärt den Grund.
+	 */
+	subtasks?: { status: TaskStatus }[];
 	/** Schließt den Dialog (Abbrechen-Button); wird vom Modal-Container bereitgestellt. */
 	onClose: () => void;
 	/** Nach erfolgreichem Speichern aufgerufen (Liste neu laden + Dialog schließen). */
@@ -76,8 +81,22 @@ const isoToDateInput = (iso: string | undefined): string => {
  * hinweg, #236). Diese Trennung vermeidet den Remount des `KolDialog` beim Schrittwechsel capture→form
  * — genau die Race, die `showModal()` „not in a Document" werfen ließ und das Modal abriss.
  */
-export const TaskForm = ({ task, parentTask = null, pillars, initialValues, onClose, onSaved }: TaskFormProps) => {
+export const TaskForm = ({
+	task,
+	parentTask = null,
+	pillars,
+	initialValues,
+	subtasks,
+	onClose,
+	onSaved,
+}: TaskFormProps) => {
 	const isEdit = task !== null;
+
+	// Unteraufgaben-Done-Guard (#246): „Erledigt" nur anbieten, wenn alle direkten Unteraufgaben Done
+	// sind; sonst den Grund als Hinweis unter dem Status-Feld erklären.
+	const statusOptions = allowedStatusOptions(subtasks ?? []);
+	const openSubtaskCount = (subtasks ?? []).filter((s) => s.status !== TaskStatus.Done).length;
+	const hint = doneBlockedHint(openSubtaskCount);
 
 	// Eingaben in Refs halten: KoliBri-Inputs verwalten ihren Anzeigewert selbst, daher kein
 	// erneutes Rendern (und kein Cursor-Springen) pro Tastendruck. Validierung beim Absenden.
@@ -98,6 +117,13 @@ export const TaskForm = ({ task, parentTask = null, pillars, initialValues, onCl
 		description: task?.description ?? initialValues?.description ?? '',
 		deadline: task !== null ? deadlineToDateInput(task.deadline) : isoToDateInput(initialValues?.deadline),
 	});
+
+	// #246: Wäre der aktuelle Status „Done", ist er aber wegen offener Unteraufgaben nicht mehr
+	// wählbar, den Formularwert auf „Offen" zurücksetzen — sonst zeigt das Feld eine Option, die
+	// nicht in `statusOptions` steht.
+	if (form.current.status === TaskStatus.Done && !statusOptions.some((o) => o.value === TaskStatus.Done)) {
+		form.current.status = TaskStatus.Open;
+	}
 
 	// Säulen-Beiträge im State (nicht im Ref): Hinzufügen/Entfernen und die Anteils-/Konfidenz-Slider
 	// müssen neu rendern (Live-Summe). Slider verursachen — anders als Textfelder — kein Cursor-Springen.
@@ -319,7 +345,7 @@ export const TaskForm = ({ task, parentTask = null, pillars, initialValues, onCl
 				/>
 				<KolSingleSelect
 					_label="Status"
-					_options={STATUS_OPTIONS}
+					_options={statusOptions}
 					_value={form.current.status}
 					_on={{
 						onChange: (_event, value) => {
@@ -330,6 +356,7 @@ export const TaskForm = ({ task, parentTask = null, pillars, initialValues, onCl
 						},
 					}}
 				/>
+				{hint !== '' && <p className="hint">{hint}</p>}
 				<KolInputNumber
 					_label="Priorität (Ganzzahl 1–5)"
 					_min={1}

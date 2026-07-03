@@ -8,6 +8,24 @@ export const STATUS_OPTIONS: { label: string; value: TaskStatus }[] = [
 	{ label: 'Erledigt', value: TaskStatus.Done },
 ];
 
+/**
+ * Filtert die auswählbaren Status-Optionen anhand der direkten Unteraufgaben (#246): ist mindestens
+ * eine Unteraufgabe offen (nicht `Done`), fällt „Erledigt" aus der Auswahl.
+ */
+export const allowedStatusOptions = (subtasks: { status: TaskStatus }[]): { label: string; value: TaskStatus }[] => {
+	const hasOpenSubtask = subtasks.some((s) => s.status !== TaskStatus.Done);
+	if (!hasOpenSubtask) return STATUS_OPTIONS;
+	return STATUS_OPTIONS.filter((o) => o.value !== TaskStatus.Done);
+};
+
+/** Liefert den Hinweistext, warum „Erledigt" bei offenen Unteraufgaben blockiert ist (#246). */
+export const doneBlockedHint = (openCount: number): string => {
+	if (openCount === 0) return '';
+	return openCount === 1
+		? 'Es gibt noch 1 offene Unteraufgabe. Bitte alle Unteraufgaben zuerst erledigen.'
+		: `Es gibt noch ${openCount} offene Unteraufgaben. Bitte alle Unteraufgaben zuerst erledigen.`;
+};
+
 /** Formatiert eine Zahl im deutschen Format mit bis zu zwei Nachkommastellen. */
 export const formatNumber = (value: number): string => value.toLocaleString('de-DE', { maximumFractionDigits: 2 });
 
