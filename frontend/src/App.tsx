@@ -11,7 +11,7 @@ import { PillarWeightsModal } from './components/PillarWeightsModal';
 import { QuickCaptureModal } from './components/QuickCaptureModal';
 import { SeriesManagementModal } from './components/SeriesManagementModal';
 import { TaskFormModal } from './components/TaskFormModal';
-import { TaskTable } from './components/TaskTable';
+import { TaskTree } from './components/TaskTree';
 import { useThemeToolbarItem } from './components/ThemeToggle';
 import { toApiError } from './lib/apiError';
 import type { AuthUser } from './lib/auth';
@@ -274,9 +274,9 @@ export const App = ({ user }: { user: AuthUser }) => {
 					</div>
 					<div slot="tab-1">
 						<section className="task-section">
-							<TaskTable
+							<TaskTree
+								forest={forest}
 								tasks={tasks}
-								dependencyMap={dependencyMap}
 								onEdit={openEdit}
 								onDelete={openDelete}
 								onEditDependencies={openDependencies}

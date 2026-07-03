@@ -64,12 +64,10 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 		const title = uniqueTitle('Anlegen');
 		await createTaskViaUi(page, title);
 
-		// Sobald ein Task existiert, erscheint die Tab-Leiste; in der „Aufgaben"-Tabelle steht der Titel.
-		// `exact: true`, weil die Aktionsspalte eine `KolToolbar` mit `_label={`Aktionen für ${title}`}`
-		// rendert (siehe `TaskTable.tsx`); ohne `exact` matcht der Titel daher zwei Zellen (Titel- und
-		// Aktionszelle) und Playwrights Strict-Mode bräche ab.
+		// Sobald ein Task existiert, erscheint die Tab-Leiste; in der Task-Liste ist der Titel direkt
+		// als Textinhalt des span.task-tree-title sichtbar.
 		await openTasksTab(page);
-		await expect(page.getByRole('cell', { name: title, exact: true })).toBeVisible();
+		await expect(page.getByText(title, { exact: true })).toBeVisible();
 	});
 
 	test('Task bearbeiten: geänderter Status und geänderte Priorität bleiben sichtbar', async ({ page }) => {
@@ -88,14 +86,13 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 		// ein `<input role="combobox">` (KEIN natives `<select>`, daher kein `selectOption`): anklicken
 		// öffnet die Listbox, dann die Option „Erledigt" wählen.
 		await page.getByLabel('Status').click();
-		await page.getByRole('option', { name: 'Erledigt' }).click();
+		await page.getByRole('option', { name: 'In Bearbeitung' }).click();
 		await page.getByLabel('Priorität (Ganzzahl 1–5)').fill('1');
 		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
 		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeHidden();
 
-		// Der neue Status ist in der Tabelle sichtbar (deutsches Label „Erledigt").
+		// Die Task-Liste zeigt keinen Status-Text; Persistenz wird direkt im Dialog geprüft (unten).
 		await openTasksTab(page);
-		await expect(page.getByRole('cell', { name: 'Erledigt' })).toBeVisible();
 
 		// Persistenz beider Änderungen gegenprüfen: Dialog erneut öffnen — die Werte kommen frisch aus
 		// dem Backend (Liste wurde nach dem Speichern neu geladen).
@@ -104,8 +101,8 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 		await waitForStableView(page);
 		await expect(page.getByLabel('Priorität (Ganzzahl 1–5)')).toHaveValue('1');
 		// Das Combobox-`<input>` führt den sichtbaren Status-Text als Wert (nicht den Enum-Rohwert):
-		// `TaskStatus.Done` wird als „Erledigt" angezeigt.
-		await expect(page.getByLabel('Status')).toHaveValue('Erledigt');
+		// `TaskStatus.InProcess` wird als „In Bearbeitung" angezeigt.
+		await expect(page.getByLabel('Status')).toHaveValue('In Bearbeitung');
 	});
 
 	test('Task löschen: verschwindet aus der Liste', async ({ page }) => {
@@ -116,9 +113,8 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 		await createTaskViaUi(page, title);
 
 		await openTasksTab(page);
-		// `exact: true`: ohne wäre der Titel sowohl in der Titel- als auch — über das Toolbar-`_label`
-		// „Aktionen für …" — in der Aktionszelle enthalten (Strict-Mode-Verletzung, siehe oben).
-		await expect(page.getByRole('cell', { name: title, exact: true })).toBeVisible();
+		// In der Task-Liste ist der Titel direkt als Textinhalt sichtbar.
+		await expect(page.getByText(title, { exact: true })).toBeVisible();
 
 		await page.getByRole('button', { name: 'Löschen' }).first().click();
 		await expect(page.getByRole('heading', { name: 'Task löschen' })).toBeVisible();
@@ -128,7 +124,7 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 
 		// War es der einzige Task, kehrt die App in den leeren Anfangszustand zurück; der Titel ist weg.
 		await expect(page.getByRole('heading', { name: 'Noch keine Aufgaben' })).toBeVisible();
-		await expect(page.getByRole('cell', { name: title, exact: true })).toHaveCount(0);
+		await expect(page.getByText(title, { exact: true })).toHaveCount(0);
 	});
 
 	test('Säulen-Gewicht ändern: Wert persistiert über einen Reload', async ({ page }) => {

@@ -14,6 +14,16 @@ import { fileURLToPath } from 'node:url';
 const ROOT = resolve(fileURLToPath(import.meta.url), '../../..');
 const AGENT_PATH = resolve(ROOT, '.claude/agents/kreuzverhoer.md');
 
+// Agent-/Command-Dateien referenzieren geteilte Inhalte per "@relativer/pfad.md"
+// (Konvention, siehe u. a. .claude/agents/heavy.md, .claude/agents/light.md).
+// Der effektive Body entsteht erst nach Auflösung dieser Referenzen.
+function resolveIncludes(content: string): string {
+	return content.replace(/@([^\s]+\.md)/g, (match, relPath: string) => {
+		const includePath = resolve(ROOT, relPath);
+		return existsSync(includePath) ? readFileSync(includePath, 'utf-8') : match;
+	});
+}
+
 describe('Issue #175 — Kreuzverhoer-Agent-Definition', () => {
 	describe('AK-1 — Datei existiert', () => {
 		it('.claude/agents/kreuzverhoer.md muss nach dem Merge existieren', () => {
@@ -44,11 +54,11 @@ describe('Issue #175 — Kreuzverhoer-Agent-Definition', () => {
 	describe('AK-4 — Body: Kern-Prompt vorhanden', () => {
 		it('Body enthält "Hinterfrage jede Annahme"', () => {
 			assert.ok(existsSync(AGENT_PATH), '.claude/agents/kreuzverhoer.md fehlt');
-			const content = readFileSync(AGENT_PATH, 'utf-8');
+			const content = resolveIncludes(readFileSync(AGENT_PATH, 'utf-8'));
 			assert.match(
 				content,
 				/Hinterfrage jede Annahme/,
-				'Body muss "Hinterfrage jede Annahme" aus dem vorgegebenen Prompt enthalten',
+				'Body (inkl. aufgelöster @-Includes) muss "Hinterfrage jede Annahme" aus dem vorgegebenen Prompt enthalten',
 			);
 		});
 	});

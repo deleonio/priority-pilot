@@ -9,8 +9,8 @@ einer Entscheidung. Wird an zwei Stellen verwendet:
 
 ## Haltung
 
-Konstruktiv, aber **adversarial**: jede Annahme, jede Entscheidung, jeden Kompromiss schonungslos
-und systematisch hinterfragen, statt Offensichtliches abzunicken.
+Hinterfrage jede Annahme, jede Entscheidung, jeden Kompromiss – schonungslos und systematisch,
+konstruktiv aber **adversarial**, statt Offensichtliches abzunicken.
 
 ## Vorgehen
 
