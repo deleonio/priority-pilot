@@ -1,8 +1,14 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import sequelize from '../database.js';
-import { Pillar, Task } from '../models/index.js';
-import { migrateSeriesColumns, migrateSeriesTable, migrateUserIdColumns, migratePillarDescription } from './migrate.js';
+import { Task } from '../models/index.js';
+import {
+	migrateSeriesColumns,
+	migrateSeriesTable,
+	migrateUserIdColumns,
+	migratePillarDescription,
+	migratePillarDropUserId,
+} from './migrate.js';
 import { SEED_PILLARS } from '../models/pillarData.js';
 import { closeDb } from '../test/helpers.js';
 
@@ -246,8 +252,6 @@ describe('migrateSeriesTable', () => {
 // `sequelize.sync()` die fehlenden Spalten per `ALTER TABLE ... ADD COLUMN` nachzieht. Kein
 // Produktivcode — Tests werden grün, sobald `migrate.ts` `migrateUserIdColumns` exportiert.
 
-const PILLARS_UNIQUE_INDEX = 'pillars_name_user_id';
-
 /** Spaltennamen einer Tabelle (leer, falls die Tabelle nicht existiert). */
 const columnsOf = async (table: string): Promise<string[]> => {
 	const [rows] = await sequelize.query(`PRAGMA table_info('${table}')`);
@@ -305,27 +309,17 @@ const createLegacyTasksTableBefore207 = async (): Promise<void> => {
 };
 
 describe('migrateUserIdColumns', () => {
-	// ── AK1: Migration auf Alt-Schema fügt die fehlende userId-Spalte nach, sodass sync() nicht bricht
-	it('zieht auf einem Alt-Schema userId nach, sodass sync() nicht mehr bricht', async () => {
-		await createLegacyPillarsTable();
+	// ── AK1: Migration auf Alt-Schema fügt die fehlende userId-Spalte an tasks nach (nur noch tasks —
+	// pillars.userId wurde mit dem Säulen-Cleanup entfernt, siehe migratePillarDropUserId).
+	it('zieht auf einem Alt-Schema userId an tasks nach, sodass sync() nicht mehr bricht', async () => {
 		await createLegacyTasksTableBefore207();
 
-		for (const table of ['pillars', 'tasks']) {
-			const before = await columnsOf(table);
-			assert.ok(!before.includes('userId'), `Alt-Schema von ${table} hat userId noch nicht`);
-		}
+		assert.ok(!(await columnsOf('tasks')).includes('userId'), 'Alt-Schema von tasks hat userId noch nicht');
 
 		await migrateUserIdColumns(sequelize);
 		await assert.doesNotReject(() => sequelize.sync(), 'sync() bricht nach der Migration nicht mehr ab');
 
-		for (const table of ['pillars', 'tasks']) {
-			const after = await columnsOf(table);
-			assert.ok(after.includes('userId'), `userId wurde an ${table} nachgezogen`);
-		}
-		assert.ok(
-			(await indexesOf('pillars')).includes(PILLARS_UNIQUE_INDEX),
-			`Unique-Index ${PILLARS_UNIQUE_INDEX} wurde angelegt`,
-		);
+		assert.ok((await columnsOf('tasks')).includes('userId'), 'userId wurde an tasks nachgezogen');
 	});
 
 	// ── Idempotenz — erneuter Lauf auf bereits migriertem Schema ist stabil
@@ -335,51 +329,19 @@ describe('migrateUserIdColumns', () => {
 		await assert.doesNotReject(() => migrateUserIdColumns(sequelize), 'erster Lauf auf neuem Schema ist no-op');
 		await assert.doesNotReject(() => migrateUserIdColumns(sequelize), 'zweiter Lauf bleibt stabil');
 
-		for (const table of ['pillars', 'tasks']) {
-			const columns = await columnsOf(table);
-			const occurrences = columns.filter((name) => name === 'userId').length;
-			assert.equal(occurrences, 1, `userId existiert an ${table} genau einmal (keine Dublette)`);
-		}
+		const columns = await columnsOf('tasks');
+		const occurrences = columns.filter((name) => name === 'userId').length;
+		assert.equal(occurrences, 1, 'userId existiert an tasks genau einmal (keine Dublette)');
 	});
 
-	// ── Frische DB (Tabellen fehlen) ist No-op; sync() legt Tabellen korrekt an
-	it('ist auf einer DB ohne pillars/tasks-Tabellen ein No-op und sync() legt sie korrekt an', async () => {
-		assert.deepEqual(await columnsOf('pillars'), [], 'Vorbedingung: keine pillars-Tabelle');
+	// ── Frische DB (tasks-Tabelle fehlt) ist No-op; sync() legt sie korrekt an
+	it('ist auf einer DB ohne tasks-Tabelle ein No-op und sync() legt sie korrekt an', async () => {
+		assert.deepEqual(await columnsOf('tasks'), [], 'Vorbedingung: keine tasks-Tabelle');
 
-		await assert.doesNotReject(() => migrateUserIdColumns(sequelize), 'Migration ohne Tabellen ist no-op');
+		await assert.doesNotReject(() => migrateUserIdColumns(sequelize), 'Migration ohne Tabelle ist no-op');
 		await assert.doesNotReject(() => sequelize.sync(), 'sync() legt die Tabellen frisch an');
 
-		for (const table of ['pillars', 'tasks']) {
-			const columns = await columnsOf(table);
-			assert.ok(columns.includes('userId'), `frische ${table}-Tabelle enthält userId`);
-		}
-	});
-
-	// ── AK5 (Verhalten): Der Unique-Constraint auf (name, userId) bleibt nach der Migration wirksam
-	it('hält den Unique-Constraint auf (name, userId) auch nach der Migration ein', async () => {
-		await createLegacyPillarsTable();
-		await migrateUserIdColumns(sequelize);
-		// Auch die description-Spalte nachziehen (wie in main()): das Modell enthält `description`,
-		// und die folgenden Pillar.create-Aufrüge würden sonst an der fehlenden Spalte scheitern.
-		await migratePillarDescription(sequelize);
-		await sequelize.sync();
-
-		await Pillar.create({ name: 'Körper', weight: 20, userId: 1 });
-
-		// Zweite Säule mit identischem (name, userId) verletzt den Unique-Index.
-		await assert.rejects(
-			() => Pillar.create({ name: 'Körper', weight: 30, userId: 1 }),
-			'zweiter Insert desselben (name, userId) verletzt den Unique-Constraint',
-		);
-
-		// Ein anderer Nutzer darf denselben Säulennamen verwenden (Sinn der Isolation).
-		await assert.doesNotReject(
-			() => Pillar.create({ name: 'Körper', weight: 20, userId: 2 }),
-			'verschiedene Nutzer dürfen dieselbe Säule benennen',
-		);
-
-		const total = await Pillar.count({ where: { userId: 1 } });
-		assert.equal(total, 1, 'nur die erste Säule (name, userId) wurde materialisiert');
+		assert.ok((await columnsOf('tasks')).includes('userId'), 'frische tasks-Tabelle enthält userId');
 	});
 
 	// ── Authentifizierte Query: Task.findAll({ where: { userId } }) bricht nicht mehr
@@ -461,5 +423,90 @@ describe('migratePillarDescription', () => {
 	it('ist auf einer DB ohne pillars-Tabelle ein No-op', async () => {
 		assert.deepEqual(await columnsOf('pillars'), [], 'Vorbedingung: keine pillars-Tabelle');
 		await assert.doesNotReject(() => migratePillarDescription(sequelize), 'Migration ohne Tabelle ist no-op');
+	});
+});
+
+describe('migratePillarDropUserId', () => {
+	/**
+	 * Erzeugt eine `pillars`-Tabelle im Alt-Stand VOR dem userId-Cleanup: mit `userId`-Spalte und dem
+	 * historischen Unique-Index `pillars_name_user_id` auf (`name`, `userId`). Bildet eine
+	 * Bestands-`database.sqlite` nach, auf der die Migration greifen muss.
+	 */
+	const createLegacyPillarsWithUserId = async (): Promise<void> => {
+		await sequelize.query(
+			'CREATE TABLE `pillars` (' +
+				'`id` INTEGER PRIMARY KEY AUTOINCREMENT, ' +
+				'`name` VARCHAR(255) NOT NULL, ' +
+				'`weight` FLOAT NOT NULL DEFAULT 20, ' +
+				'`userId` INTEGER, ' +
+				'`createdAt` DATETIME NOT NULL, ' +
+				'`updatedAt` DATETIME NOT NULL' +
+				')',
+		);
+		await sequelize.query('CREATE UNIQUE INDEX `pillars_name_user_id` ON `pillars`(`name`, `userId`)');
+	};
+
+	// ── AK1: Migration entfernt userId-Spalte und alten Index; sync() legt den neuen (name)-Index an
+	it('entfernt die userId-Spalte und stellt den Unique-Index auf (name) um', async () => {
+		await createLegacyPillarsWithUserId();
+		assert.ok((await columnsOf('pillars')).includes('userId'), 'Vorbedingung: userId noch vorhanden');
+
+		await migratePillarDropUserId(sequelize);
+		await sequelize.sync();
+
+		const columns = await columnsOf('pillars');
+		assert.ok(!columns.includes('userId'), 'userId-Spalte wurde entfernt');
+		// Der neue, global-eindeutige Index existiert (ob von der Migration oder sync() angelegt).
+		assert.ok(
+			(await indexesOf('pillars')).some((name) => name.includes('name')),
+			'es existiert ein Namens-Index auf pillars',
+		);
+		// Der alte (name,userId)-Index ist weg.
+		assert.ok(
+			!(await indexesOf('pillars')).includes('pillars_name_user_id'),
+			'der alte Index pillars_name_user_id wurde gedroppt',
+		);
+	});
+
+	// ── Idempotenz — erneuter Lauf ist stabil
+	it('ist idempotent: erneuter Aufruf wirft nicht', async () => {
+		await createLegacyPillarsWithUserId();
+		await migratePillarDropUserId(sequelize);
+		await assert.doesNotReject(() => migratePillarDropUserId(sequelize), 'zweiter Lauf bleibt stabil');
+	});
+
+	// ── No-op, wenn keine userId-Spalte vorhanden ist (z. B. vor #207 angelegte Alt-Tabelle)
+	it('ist ein No-op, wenn pillars keine userId-Spalte hat', async () => {
+		await createLegacyPillarsTable(); // Alt-Schema ohne userId
+		assert.ok(!(await columnsOf('pillars')).includes('userId'), 'Vorbedingung: keine userId-Spalte');
+
+		await assert.doesNotReject(() => migratePillarDropUserId(sequelize), 'Migration ist no-op');
+		// Tabelle bleibt unangetastet (keine userId hinzugefügt oder fehlerhaft gedroppt).
+		const columns = await columnsOf('pillars');
+		assert.ok(!columns.includes('userId'), 'keine userId-Spalte entstanden');
+	});
+
+	// ── No-op bei fehlender Tabelle (frische DB → sync() übernimmt)
+	it('ist auf einer DB ohne pillars-Tabelle ein No-op', async () => {
+		assert.deepEqual(await columnsOf('pillars'), [], 'Vorbedingung: keine pillars-Tabelle');
+		await assert.doesNotReject(() => migratePillarDropUserId(sequelize), 'Migration ohne Tabelle ist no-op');
+	});
+
+	// ── Verhalten: nach der Migration ist der Säulenname global eindeutig (Raw-Insert, modellunabhängig)
+	it('erzwingt nach Migration+sync globale Eindeutigkeit des Säulennamens', async () => {
+		await createLegacyPillarsWithUserId();
+		await migratePillarDescription(sequelize); // description-Spalte (NOT NULL) nachziehen
+		await migratePillarDropUserId(sequelize);
+		await sequelize.sync();
+
+		const insert = (name: string) =>
+			sequelize.query(
+				'INSERT INTO `pillars` (`name`, `weight`, `description`, `createdAt`, `updatedAt`) ' +
+					"VALUES (?, 20, '', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+				{ replacements: [name] },
+			);
+
+		await assert.doesNotReject(() => insert('Körper'), 'erster Insert klappt');
+		await assert.rejects(() => insert('Körper'), 'zweiter Insert desselben Namens wird abgewiesen (global unique)');
 	});
 });

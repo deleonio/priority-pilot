@@ -139,7 +139,7 @@ pnpm --filter priority-pilot lint    # api.d.ts + tsc --noemit + eslint
 
 Der vollständige Vertrag steht in [`openapi.yml`](openapi.yml). Endpunkte: `GET`/`POST` `/tasks`,
 `GET`/`PATCH`/`DELETE` `/tasks/{id}`, `POST` `/tasks/{id}/dependencies`,
-`DELETE` `/tasks/{id}/dependencies/{depId}`, `GET /pillars` (Lebensbalance-Säulen),
+`DELETE` `/tasks/{id}/dependencies/{depId}`, `GET /pillars` (Lebensbalance-Säulen inkl. Kurzbeschreibung),
 `PUT /pillars/weights` (100 %-Gewichtung setzen), `GET /forest` (Aufgabenwald nach Wert) und
 `GET /next` (nächste wichtige Aufgabe). Server und Vertrag laufen unter `http://localhost:3000`.
 

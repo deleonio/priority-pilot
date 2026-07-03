@@ -45,6 +45,11 @@ Den Diff gegen diese Fragen prüfen:
   im PR begründet zurückgemeldet und freigegeben.
 - **Projekt-Konventionen** ([conventions.md](conventions.md)): Tabs, `strict`, ESM mit `.js`-Importen,
   keine Type-Assertions zum Unterdrücken von Fehlern, genau eine zentrale Prettier-Config.
+- **Mobile-First bei UI-Änderungen** ([conventions.md](conventions.md)): neue `@media`-Regeln als
+  `min-width` (Aufwärts-Kaskade), kein `max-width`-Downgrade vom Desktop aus. Breite Tabellen/Grids ohne
+  schmale Alternative auf Handy-Breite prüfen (horizontales Scrollen des Kerninhalts vermeiden). Fehlt
+  bei sichtbarer UI-Änderung ein 375px-Viewport-e2e-Test (siehe `login.spec.ts` AK5,
+  `task-tree.spec.ts` AK-6 als Muster), ist das ein Finding — Ausnahme nur, wenn im PR begründet.
 - **Format/Lint:** Sind `pnpm format`/`pnpm lint` in der PR-Beschreibung belegt? Bei Zweifel nachhaken.
 
 ## Schritt 4 — Findings als Review-Kommentare posten

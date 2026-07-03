@@ -12,3 +12,19 @@
 - **Coverage-Gate:** Die Logik-Schicht ist gezielt abgedeckt-gegated — `pnpm --filter priority-pilot test:coverage`
   (node:test, `server/src/logics`, Schwellen 90/85/85) läuft in der CI. `frontend/src/lib`-Coverage ist
   in `vitest.config.ts` vorbereitet und mit `pnpm add -D @vitest/coverage-v8` + `test:coverage` aktivierbar.
+- **Mobile-First (Frontend):** Neue/geänderte UI muss zuerst auf schmalen Viewports funktionieren
+  (Referenzbreite **375px**), bevor Desktop-Verbesserungen ergänzt werden — nicht umgekehrt.
+  - **CSS:** Basis-Styles gelten für den schmalsten Viewport; breitere Layouts kommen ausschließlich per
+    `@media (min-width: …)` hinzu (Aufwärts-Kaskade), kein `max-width`-Downgrade vom Desktop-Layout aus.
+    Kanonisches Beispiel im Repo: das `.dashboard`-Grid in `frontend/src/app.css`
+    (`@media (min-width: 48rem)` schaltet erst ab Tablet-Breite auf zweispaltig).
+  - **Kein horizontales Scrollen** für primären Seiteninhalt auf Handy-Breite. Breite Tabellen/Grids
+    brauchen eine schmale Alternative statt erzwungenem Scroll-Container — Beispiel: `TaskTree.tsx`
+    (aufklappbare Liste) als Ersatz für die frühere `TaskTable` (KoliBri-Tabelle mit 9 Spalten, #238).
+  - **Touch-Targets ≥ 44px:** KoliBri-Buttons erfüllen das per Default (`spec/button` `_inline: false`) —
+    nicht durch eigenes CSS verkleinern.
+  - **Verifikation ist Pflicht, kein optionales Extra:** jede neue/geänderte, für den Nutzer sichtbare
+    UI-Funktion braucht mindestens einen e2e-Test bei **375×812**-Viewport
+    (`page.setViewportSize({ width: 375, height: 812 })`), der belegt, dass der Kerninhalt ohne
+    horizontalen Overflow lesbar/bedienbar ist (`element.scrollWidth <= window.innerWidth`). Kanonisches
+    Muster im Repo: `frontend/e2e/login.spec.ts` (AK5) und `frontend/e2e/task-tree.spec.ts` (AK-6).
