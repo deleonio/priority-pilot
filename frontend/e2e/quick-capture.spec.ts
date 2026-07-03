@@ -261,8 +261,9 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
 		await waitForStableView(page);
 
-		// KoliBri propagiert _autofocus auf das native textarea im Shadow DOM.
-		// Kein manuelles Klicken nötig — der Fokus muss direkt nach dem Öffnen gesetzt sein.
+		// Autofokus wird programmatisch per useEffect + shadowRoot-Query gesetzt,
+		// da _autofocus in der KoliBri-4.2.1-Typbindung nicht verfügbar ist.
+		// Der Fokus muss direkt nach dem Öffnen gesetzt sein — kein manuelles Klicken nötig.
 		await expect(page.locator('kol-textarea textarea').first()).toBeFocused();
 	});
 
