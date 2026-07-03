@@ -53,6 +53,12 @@ der Liste bzw. nach einem Reload aus der DB ankommt. Da sich alle Specs die eine
 (ein Worker, kein Neustart zwischen Tests), räumt `crud.spec.ts` in `afterEach` die angelegten Tasks
 über die echte API wieder ab.
 
+> **Lokale `server/.env`:** Das Test-Backend lädt wie jeder Server-Start eine vorhandene
+> `server/.env`. Damit ein dort konfigurierter Auth-Kontext (`GOOGLE_*` → API-Schutz #207, jede
+> Route antwortet 401) oder ein echter `MISTRAL_API_KEY` (reale LLM-Calls) die Tests nicht kippt,
+> blankt `playwright.config.ts` diese Variablen in der `webServer`-Env explizit — die Specs mocken
+> nur `GET /auth/me` im Browser, nie eine echte Session. Details im Kommentar der Config.
+
 ```bash
 pnpm --filter frontend test:e2e          # Funktionale E2E gegen das echte Backend ausführen
 ```

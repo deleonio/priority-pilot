@@ -1,18 +1,6 @@
 import { KolDialog } from '@public-ui/react-v19';
 import { useEffect, useRef, type ReactNode, type RefObject } from 'react';
-
-/**
- * Das tatsächlich fokussierte Element ermitteln — auch über (offene) Shadow-DOM-Grenzen hinweg.
- * Nötig, weil KoliBri-Trigger verschachtelt sein können (Button in `kol-toolbar` im Shadow der
- * `kol-table-stateful`); `document.activeElement` allein liefert nur den äußersten Host.
- */
-const deepActiveElement = (): Element | null => {
-	let element = document.activeElement;
-	while (element?.shadowRoot?.activeElement != null) {
-		element = element.shadowRoot.activeElement;
-	}
-	return element;
-};
+import { deepActiveElement } from '../lib/focus';
 
 interface ModalProps {
 	/** Überschrift des Dialogs (wird als `_label` zum Card-Titel und accessible name des Dialogs). */
@@ -83,7 +71,10 @@ export const Modal = ({ title, onClose, width = '40rem', fallbackFocusRef, child
 			// dialog.close() gibt ein Promise zurück; die native-Dialog-Fokus-Wiederherstellung
 			// läuft asynchron. setTimeout(0) stellt sicher, dass wir NACH dem Close-Callback fokussieren.
 			setTimeout(() => {
-				if (trigger instanceof HTMLElement && trigger.isConnected) {
+				// `document.body` ist nie ein legitimer Auslöser: Es steht hier nur, wenn der Fokus beim
+				// Mount bereits verloren war (z. B. Dialog-Wechsel capture→form, #236). Dann soll das
+				// Fallback greifen statt den Fokus erneut auf `<body>` zu setzen.
+				if (trigger instanceof HTMLElement && trigger.isConnected && trigger !== document.body) {
 					trigger.focus();
 				} else if (fallback != null) {
 					fallback.focus();

@@ -11,7 +11,7 @@ import {
 } from '@public-ui/react-v19';
 import type { Pillar, Task, TaskCreate, TaskPillarContribution, TaskUpdate } from 'client';
 import { TaskStatus } from 'client';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, type RefObject } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { readNumber, readString } from '../lib/inputValue';
@@ -53,6 +53,12 @@ interface TaskFormModalProps {
 	 * per LLM (#236). Greift nur, wenn `task` selbst keinen Wert liefert.
 	 */
 	initialValues?: TaskFormInitialValues;
+	/**
+	 * Fallback-Fokusziel für die Fokus-Rückgabe beim Schließen (durchgereicht an `Modal`). Nötig im
+	 * Schnellerfassungs-Flow (#236): Beim Dialog-Wechsel capture→form ist der ursprüngliche Auslöser
+	 * für dieses Modal nicht mehr als `activeElement` sichtbar — der Aufrufer reicht ihn hier durch.
+	 */
+	fallbackFocusRef?: RefObject<HTMLElement | null>;
 	onClose: () => void;
 	/** Nach erfolgreichem Speichern aufgerufen (Liste neu laden + Dialog schließen). */
 	onSaved: () => void;
@@ -63,6 +69,7 @@ export const TaskFormModal = ({
 	parentTask = null,
 	pillars,
 	initialValues,
+	fallbackFocusRef,
 	onClose,
 	onSaved,
 }: TaskFormModalProps) => {
@@ -295,6 +302,7 @@ export const TaskFormModal = ({
 						: 'Neuen Task anlegen'
 			}
 			onClose={onClose}
+			fallbackFocusRef={fallbackFocusRef}
 		>
 			{error !== null && (
 				<KolAlert _type="error" _label="Speichern fehlgeschlagen">

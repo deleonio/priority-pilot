@@ -66,6 +66,11 @@ export default defineConfig({
 				GOOGLE_CLIENT_SECRET: '',
 				GOOGLE_ALLOWED_EMAILS: '',
 				GOOGLE_ALLOWED_EMAIL: '',
+				// Ebenfalls aus demselben Grund geblankt: ein echter Key aus `server/.env` würde sonst
+				// jeden ungemockt durchgereichten LLM-Aufruf (parse-text/suggest-pillars) real — und
+				// kostenpflichtig/nichtdeterministisch — ausführen. Ohne Key antwortet der Endpoint
+				// laut und deterministisch mit HTTP 503.
+				MISTRAL_API_KEY: '',
 			},
 			// Backend bewusst NIE wiederverwenden: ein lokal laufendes `pnpm --filter priority-pilot dev`
 			// nutzt die persistente, geseedete `./database.sqlite` — das würde den leeren, definierten

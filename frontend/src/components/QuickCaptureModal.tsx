@@ -1,9 +1,10 @@
 import { KolAlert, KolButton, KolSpin, KolTextarea } from '@public-ui/react-v19';
 import type { Pillar, Task } from 'client';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { readString } from '../lib/inputValue';
+import { deepActiveElement } from '../lib/focus';
 import { Modal } from './Modal';
 import { TaskFormModal, type TaskFormInitialValues } from './TaskFormModal';
 
@@ -33,6 +34,16 @@ export const QuickCaptureModal = ({ parentTask = null, pillars, onClose, onSaved
 
 	const text = useRef('');
 
+	// Auslöser (z. B. den „Neuen Task anlegen"-Button) beim Mount merken: Beim Schrittwechsel
+	// capture→form unmountet der Capture-Dialog, und das Formular-Modal sähe als Fokus-Rückgabeziel
+	// nur noch `document.body`. Der Ref reicht den echten Auslöser als Fallback-Fokusziel durch,
+	// damit der Fokus nach dem Speichern/Schließen dorthin zurückkehrt (a11y, analog Einschritt-Flow).
+	const triggerRef = useRef<HTMLElement | null>(null);
+	useEffect(() => {
+		const active = deepActiveElement();
+		triggerRef.current = active instanceof HTMLElement ? active : null;
+	}, []);
+
 	const process = async (): Promise<void> => {
 		setError(null);
 		setParsing(true);
@@ -60,6 +71,7 @@ export const QuickCaptureModal = ({ parentTask = null, pillars, onClose, onSaved
 				parentTask={parentTask}
 				pillars={pillars}
 				initialValues={prefill}
+				fallbackFocusRef={triggerRef}
 				onClose={onClose}
 				onSaved={onSaved}
 			/>

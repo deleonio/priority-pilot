@@ -84,6 +84,11 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
 
+		// Fokus-Rückgabe über den Dialog-Wechsel hinweg: Nach dem Speichern liegt der Fokus wieder auf
+		// dem auslösenden Toolbar-Button (nicht auf document.body) — der Capture-Schritt reicht den
+		// Auslöser als Fallback-Fokusziel an das Formular-Modal durch.
+		await expect(page.getByRole('button', { name: 'Neuen Task anlegen' })).toBeFocused();
+
 		await openTasksTab(page);
 		// Die Task-Liste ist seit #238 ein Tree (kein Table mehr): der Titel ist direkt als
 		// Textinhalt des span.task-tree-title sichtbar (analog crud.spec.ts).
@@ -116,8 +121,11 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 
 	test('AC3: „Verarbeiten und weiter" ruft parse-text auf und befüllt das Formular vor', async ({ page }) => {
 		// LLM-Parsing gezielt mocken: der Endpoint liefert die vorausgefüllten Felder zurück.
-		await page.route('**/api/v1/tasks/parse-text', (route: Route) =>
-			route.fulfill({
+		// Zusätzlich den Request-Body festhalten, um die Sende-Seite des Vertrags zu prüfen (AK6).
+		let parseRequestBody: unknown;
+		await page.route('**/api/v1/tasks/parse-text', (route: Route) => {
+			parseRequestBody = route.request().postDataJSON();
+			return route.fulfill({
 				status: 200,
 				contentType: 'application/json',
 				body: JSON.stringify({
@@ -126,8 +134,8 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 					priority: 4,
 					estimatedEffort: 0.5,
 				}),
-			}),
-		);
+			});
+		});
 
 		await page.goto('/');
 		await waitForStableView(page);
@@ -146,8 +154,44 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		await expect(page.getByLabel('Titel')).toHaveValue('Geparser Task-Titel');
 		await expect(page.getByLabel('Beschreibung (optional)')).toHaveValue('Auto-Beschreibung');
 		await expect(page.getByLabel('Priorität (Ganzzahl 1–5)')).toHaveValue('4');
+		// estimatedEffort-Prefill (Regex, da die Zahl locale-abhängig mit Punkt oder Komma erscheint).
+		await expect(page.getByLabel('Geschätzter Aufwand in Tagen (0,1–1)')).toHaveValue(/^0[.,]5$/);
+
+		// Sende-Seite des Vertrags (AK6): der eingegebene Freitext geht als `{ text }` an parse-text.
+		expect(parseRequestBody).toEqual({ text: 'Ich will eine wichtige Aufgabe erledigen' });
 
 		// afterEach räumt evtl. angelegte Tasks ab; hier wird nur vorausgefüllt, nicht zwingend gespeichert.
+	});
+
+	test('AK4: Fehlgeschlagenes Parsing zeigt eine Fehlermeldung; „Überspringen" bleibt als Ausweg', async ({ page }) => {
+		// Fehlerpfad mocken: parse-text antwortet 500 — der Capture-Schritt darf NICHT verschwinden.
+		await page.route('**/api/v1/tasks/parse-text', (route: Route) =>
+			route.fulfill({
+				status: 500,
+				contentType: 'application/json',
+				body: JSON.stringify({ message: 'LLM nicht erreichbar' }),
+			}),
+		);
+
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
+		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
+		await waitForStableView(page);
+
+		await page.getByLabel(/Beschreibe/).fill('Text, dessen Verarbeitung fehlschlägt');
+		await page.getByRole('button', { name: 'Verarbeiten und weiter' }).click();
+
+		// Fehlermeldung erscheint (KolAlert-Label), der Capture-Schritt bleibt stehen, kein Formular.
+		await expect(page.getByText('Verarbeitung fehlgeschlagen')).toBeVisible();
+		await expect(page.getByLabel(/Beschreibe/)).toBeVisible();
+		await expect(page.getByLabel('Titel')).toBeHidden();
+
+		// Ausweg: „Überspringen" führt weiterhin ins reguläre Formular — mit dem Text als Beschreibung.
+		await page.getByRole('button', { name: 'Überspringen' }).click();
+		await expect(page.getByLabel('Titel')).toBeVisible();
+		await expect(page.getByLabel('Beschreibung (optional)')).toHaveValue('Text, dessen Verarbeitung fehlschlägt');
 	});
 
 	test('AK-Mobile: Quick-Capture-Schritt ist auf 375-px-Viewport bedienbar', async ({ page }) => {
