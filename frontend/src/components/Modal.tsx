@@ -73,6 +73,12 @@ export const Modal = ({ title, onClose, width = '40rem', fallbackFocusRef, child
 		});
 		return () => {
 			active = false;
+			// Unmount ist KEIN User-Close: Wenn der Eigentümer das Modal unmountet (z. B. Schrittwechsel
+			// Quick-Capture → Formular, #236), darf das durch `close()` ausgelöste KolDialog-Close-Event
+			// nicht mehr `onClose` aufrufen — sonst schließt der Aufrufer (App `closeDialog`) auch den
+			// gerade gemounteten Folge-Dialog. Beim StrictMode-Re-Mount stellt der `onCloseRef`-Effekt
+			// oben den echten Callback wieder her (Effekte laufen in Deklarationsreihenfolge).
+			onCloseRef.current = () => undefined;
 			void dialog.close();
 			// dialog.close() gibt ein Promise zurück; die native-Dialog-Fokus-Wiederherstellung
 			// läuft asynchron. setTimeout(0) stellt sicher, dass wir NACH dem Close-Callback fokussieren.

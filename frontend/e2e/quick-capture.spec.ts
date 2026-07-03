@@ -85,7 +85,9 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
 
 		await openTasksTab(page);
-		await expect(page.getByRole('cell', { name: title, exact: true })).toBeVisible();
+		// Die Task-Liste ist seit #238 ein Tree (kein Table mehr): der Titel ist direkt als
+		// Textinhalt des span.task-tree-title sichtbar (analog crud.spec.ts).
+		await expect(page.getByText(title, { exact: true })).toBeVisible();
 	});
 
 	test('AC2b: „Überspringen" mit Text setzt eingegebenen Text als Beschreibungs-Vorbelegung', async ({ page }) => {
