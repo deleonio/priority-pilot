@@ -9,8 +9,8 @@ Führe den PR-Kreuzverhör-Review aus der Wissensbasis aus: @.ai-knowledge/pr-re
 Ziel-PR: $ARGUMENTS (leer = zuletzt geöffneter/aktualisierter offener PR bzw. der aktuell per
 `subscribe_pr_activity` abonnierte PR).
 
-Haltung: konstruktiv, aber **adversarial** wie im Kreuzverhör — Annahmen hinterfragen, jeden Punkt
-mit konkretem Datei-/Zeilenbezug belegen.
+Haltung (@.ai-knowledge/kreuzverhoer-haltung.md): konstruktiv, aber adversarial — Annahmen
+hinterfragen, jeden Punkt mit konkretem Datei-/Zeilenbezug belegen.
 
 1. **PR verstehen** — Titel, Beschreibung und **vollständigen Diff** lesen (`gh pr view`,
    `gh pr diff`); verknüpftes Ticket laden, um das Soll-Verhalten zu kennen.
