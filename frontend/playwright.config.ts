@@ -54,6 +54,23 @@ export default defineConfig({
 				DB_RESET: 'true',
 				DB_SEED: 'false',
 				DATABASE_STORAGE: ':memory:',
+				// Auth-Gate deterministisch AUS (Issue #207): Eine lokale `server/.env` mit
+				// Google-OAuth-Credentials würde `isAuthActive()` scharfschalten — dann antwortet jede
+				// API-Route 401, denn die Specs mocken nur `/auth/me` (Browser), nie eine echte Session.
+				// Leere Strings gewinnen gegen `.env` (`process.loadEnvFile` überschreibt keine bereits
+				// gesetzten Variablen) und sind für `?.trim()`-Checks falsy → Pass-Through-Modus.
+				// `SESSION_SECRET` bewusst NICHT auf '' setzen: ein leerer String passierte das
+				// `?? 'dev-secret'`-Fallback in `server/src/express/index.ts` und landete bei
+				// express-session als unbrauchbares Secret.
+				GOOGLE_CLIENT_ID: '',
+				GOOGLE_CLIENT_SECRET: '',
+				GOOGLE_ALLOWED_EMAILS: '',
+				GOOGLE_ALLOWED_EMAIL: '',
+				// Ebenfalls aus demselben Grund geblankt: ein echter Key aus `server/.env` würde sonst
+				// jeden ungemockt durchgereichten LLM-Aufruf (parse-text/suggest-pillars) real — und
+				// kostenpflichtig/nichtdeterministisch — ausführen. Ohne Key antwortet der Endpoint
+				// laut und deterministisch mit HTTP 503.
+				MISTRAL_API_KEY: '',
 			},
 			// Backend bewusst NIE wiederverwenden: ein lokal laufendes `pnpm --filter priority-pilot dev`
 			// nutzt die persistente, geseedete `./database.sqlite` — das würde den leeren, definierten

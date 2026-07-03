@@ -46,6 +46,9 @@ test.describe('#125 Header – Toolbar', () => {
 		// „Neuen Task anlegen" öffnet den Dialog (gleicher Flow wie in crud.spec.ts).
 		await toolbar.getByRole('button', { name: 'Neuen Task anlegen' }).click();
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
+		await waitForStableView(page);
+		await page.getByRole('button', { name: 'Überspringen' }).click();
+		await waitForStableView(page);
 		// Dialog wieder schließen, damit „Aktualisieren" frei klickbar ist.
 		await page.getByRole('button', { name: 'Abbrechen' }).click();
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();

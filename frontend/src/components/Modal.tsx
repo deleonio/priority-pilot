@@ -1,18 +1,6 @@
 import { KolDialog } from '@public-ui/react-v19';
 import { useEffect, useRef, type ReactNode, type RefObject } from 'react';
-
-/**
- * Das tatsächlich fokussierte Element ermitteln — auch über (offene) Shadow-DOM-Grenzen hinweg.
- * Nötig, weil KoliBri-Trigger verschachtelt sein können (Button in `kol-toolbar` im Shadow der
- * `kol-table-stateful`); `document.activeElement` allein liefert nur den äußersten Host.
- */
-const deepActiveElement = (): Element | null => {
-	let element = document.activeElement;
-	while (element?.shadowRoot?.activeElement != null) {
-		element = element.shadowRoot.activeElement;
-	}
-	return element;
-};
+import { deepActiveElement } from '../lib/focus';
 
 interface ModalProps {
 	/** Überschrift des Dialogs (wird als `_label` zum Card-Titel und accessible name des Dialogs). */
@@ -50,6 +38,10 @@ export const Modal = ({ title, onClose, width = '40rem', fallbackFocusRef, child
 		onCloseRef.current = onClose;
 	}, [onClose]);
 
+	// Überdauert den StrictMode-Re-Mount (Refs bleiben dabei erhalten): genau EIN `showModal()` pro
+	// Dialog-Instanz. Ein zweites würfe `InvalidStateError` auf dem bereits offenen nativen Dialog.
+	const openedRef = useRef(false);
+
 	useEffect(() => {
 		const dialog = ref.current;
 		if (dialog === null) {
@@ -64,20 +56,35 @@ export const Modal = ({ title, onClose, width = '40rem', fallbackFocusRef, child
 		const fallback = fallbackFocusRef?.current ?? null;
 		// `showModal()` erst aufrufen, wenn das Custom-Element registriert/aufgewertet ist — sonst ist die
 		// Methode beim Mount evtl. noch nicht vorhanden und der Dialog bleibt geschlossen. Das
-		// `active`-Flag entkoppelt StrictMode (Setup→Cleanup→Setup) sauber: nur das letzte Setup öffnet.
+		// `active`-Flag und `openedRef` entkoppeln StrictMode (Setup→Cleanup→Setup): es öffnet genau ein
+		// Setup — auch wenn der `whenDefined`-Microtask schon ZWISCHEN erstem Setup und Cleanup lief.
 		let active = true;
 		void customElements.whenDefined('kol-dialog').then(() => {
-			if (active) {
+			if (active && !openedRef.current) {
+				openedRef.current = true;
 				void dialog.showModal();
 			}
 		});
 		return () => {
 			active = false;
-			void dialog.close();
+			// Unmount ist KEIN User-Close: Wenn der Eigentümer das Modal unmountet (z. B. Schrittwechsel
+			// Quick-Capture → Formular, #236), darf kein Close-Event mehr `onClose` aufrufen — sonst
+			// schließt der Aufrufer (App `closeDialog`) auch den gerade gemounteten Folge-Dialog. Beim
+			// StrictMode-Re-Mount stellt der `onCloseRef`-Effekt oben den echten Callback wieder her
+			// (Effekte laufen in Deklarationsreihenfolge).
+			onCloseRef.current = () => undefined;
+			// BEWUSST kein `dialog.close()` im Cleanup: Das Entfernen aus dem DOM räumt einen offenen
+			// Modal-Dialog laut HTML-Spec ohne Close-Event aus dem Top-Layer. Ein `close()` reihte das
+			// native Close-Event dagegen als Macrotask ein — nach einem StrictMode-Re-Mount träfe es den
+			// bereits wiederhergestellten `onClose`-Callback und schlösse den Dialog sporadisch sofort
+			// wieder (timing-abhängiger e2e-Flake, beobachtet in balance.spec).
 			// dialog.close() gibt ein Promise zurück; die native-Dialog-Fokus-Wiederherstellung
 			// läuft asynchron. setTimeout(0) stellt sicher, dass wir NACH dem Close-Callback fokussieren.
 			setTimeout(() => {
-				if (trigger instanceof HTMLElement && trigger.isConnected) {
+				// `document.body` ist nie ein legitimer Auslöser: Es steht hier nur, wenn der Fokus beim
+				// Mount bereits verloren war (z. B. Dialog-Wechsel capture→form, #236). Dann soll das
+				// Fallback greifen statt den Fokus erneut auf `<body>` zu setzen.
+				if (trigger instanceof HTMLElement && trigger.isConnected && trigger !== document.body) {
 					trigger.focus();
 				} else if (fallback != null) {
 					fallback.focus();

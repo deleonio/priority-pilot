@@ -2,6 +2,7 @@ import { ResponseError } from 'client';
 import type {
 	components,
 	DependencyInput,
+	ParsedTask,
 	paths,
 	Pillar,
 	PillarFeedbackInput,
@@ -97,6 +98,16 @@ export const api = {
 			throw new ResponseError(response);
 		}
 		return reviveTask(data);
+	},
+
+	// Schnellerfassung (#236): extrahiert aus frei formuliertem Text strukturierte Task-Felder
+	// per LLM (`POST /tasks/parse-text`), die anschließend das Anlege-Formular vorausfüllen.
+	async parseText({ text }: { text: string }): Promise<ParsedTask> {
+		const { data, response } = await client.POST('/tasks/parse-text', { body: { text } });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response);
+		}
+		return data;
 	},
 
 	async updateTask({ id, taskUpdate }: { id: number; taskUpdate: TaskUpdate }): Promise<Task> {

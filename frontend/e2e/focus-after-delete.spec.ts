@@ -33,6 +33,8 @@ test.describe('Priority Pilot — Fokus nach dem Löschen (Issue #182)', () => {
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
 		await waitForStableView(page);
+		await page.getByRole('button', { name: 'Überspringen' }).click();
+		await waitForStableView(page);
 
 		await page.getByLabel('Titel').fill(title);
 		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
