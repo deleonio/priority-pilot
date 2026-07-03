@@ -14,6 +14,7 @@ import { TaskTree } from './components/TaskTree';
 import { useThemeToolbarItem } from './components/ThemeToggle';
 import { toApiError } from './lib/apiError';
 import type { AuthUser } from './lib/auth';
+import { calculateProgress } from './lib/calculateProgress';
 import { buildDependencyMap } from './lib/dependencies';
 
 type Dialog =
@@ -87,6 +88,26 @@ export const App = ({ user }: { user: AuthUser }) => {
 	}, [reload]);
 
 	const dependencyMap = useMemo(() => buildDependencyMap(forest), [forest]);
+
+	// Fortschritt (erledigt/gesamt inkl. aller Unter-Tasks) je Task-ID aus dem Aufgabenwald ableiten.
+	// Tasks ohne Unter-Tasks liefern `null` und tauchen bewusst nicht in der Map auf (AK3).
+	const progressMap = useMemo(() => {
+		const map = new Map<number, { done: number; total: number }>();
+		const visited = new Set<TaskTreeNode>();
+		const visit = (node: TaskTreeNode): void => {
+			if (visited.has(node)) return;
+			visited.add(node);
+			const progress = calculateProgress(node);
+			if (progress !== null) {
+				map.set(node.id, progress);
+			}
+			for (const dep of node.dependents) {
+				visit(dep);
+			}
+		};
+		forest.forEach(visit);
+		return map;
+	}, [forest]);
 
 	// Zustandsabhängiger Theme-Umschalter als Toolbar-Button-Deskriptor (Label/Icon/onClick).
 	const themeItem = useThemeToolbarItem();
@@ -276,6 +297,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 							<TaskTree
 								forest={forest}
 								tasks={tasks}
+								progressMap={progressMap}
 								onEdit={openEdit}
 								onDelete={openDelete}
 								onEditDependencies={openDependencies}

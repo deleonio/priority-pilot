@@ -373,6 +373,11 @@ body {
 	color: #fff;
 }
 
+.task-tree-badge--progress {
+	background: var(--kol-color-success, #2e7d32);
+	color: #fff;
+}
+
 /* --- Modal-Inhalt --- */
 /* Overlay, Rahmen, Titel und Schließen-Button liefert jetzt `KolDialog` (Variant `card`);
    hier bleibt nur das Layout des Dialog-Inhalts. */

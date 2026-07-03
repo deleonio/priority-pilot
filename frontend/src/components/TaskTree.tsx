@@ -7,6 +7,8 @@ interface TaskTreeProps {
 	forest: TaskTreeNode[];
 	/** Alle Tasks, um zu einem Baumknoten den vollständigen Task für die Aktionen aufzulösen. */
 	tasks: Task[];
+	/** Fortschritt (erledigt/gesamt) je Task-ID; fehlt der Eintrag, hat der Task keine Unter-Tasks. */
+	progressMap: Map<number, { done: number; total: number }>;
 	onEdit: (task: Task) => void;
 	onDelete: (task: Task) => void;
 	onEditDependencies: (task: Task) => void;
@@ -19,6 +21,7 @@ interface TreeNodeProps {
 	expandedIds: Set<number>;
 	onToggle: (id: number) => void;
 	taskById: Map<number, Task>;
+	progressMap: Map<number, { done: number; total: number }>;
 	onEdit: (task: Task) => void;
 	onDelete: (task: Task) => void;
 	onEditDependencies: (task: Task) => void;
@@ -32,6 +35,7 @@ const TreeNode = ({
 	expandedIds,
 	onToggle,
 	taskById,
+	progressMap,
 	onEdit,
 	onDelete,
 	onEditDependencies,
@@ -45,6 +49,7 @@ const TreeNode = ({
 	const expanded = expandedIds.has(node.id);
 	const nextVisited = new Set(visited).add(node.id);
 	const task = taskById.get(node.id) ?? null;
+	const progress = progressMap.get(node.id);
 
 	return (
 		<li className="task-tree-item" data-testid={`task-tree-item-${node.id}`}>
@@ -68,6 +73,11 @@ const TreeNode = ({
 				)}
 				{task !== null && task.isException && (
 					<span className="task-tree-badge task-tree-badge--exception">geändert</span>
+				)}
+				{progress !== undefined && (
+					<span className="task-tree-badge task-tree-badge--progress">
+						{progress.done}/{progress.total}
+					</span>
 				)}
 				{task !== null && (
 					<div className="task-tree-actions">
@@ -119,6 +129,7 @@ const TreeNode = ({
 							expandedIds={expandedIds}
 							onToggle={onToggle}
 							taskById={taskById}
+							progressMap={progressMap}
 							onEdit={onEdit}
 							onDelete={onDelete}
 							onEditDependencies={onEditDependencies}
@@ -138,7 +149,15 @@ const TreeNode = ({
  * standardmäßig eingeklappt (`hidden`); ein Aufklapp-Button je Knoten mit Unteraufgaben macht sie
  * sichtbar. Der Aufklapp-Zustand lebt lokal in dieser Komponente (`expandedIds`).
  */
-export const TaskTree = ({ forest, tasks, onEdit, onDelete, onEditDependencies, onAddSubtask }: TaskTreeProps) => {
+export const TaskTree = ({
+	forest,
+	tasks,
+	progressMap,
+	onEdit,
+	onDelete,
+	onEditDependencies,
+	onAddSubtask,
+}: TaskTreeProps) => {
 	const [expandedIds, setExpandedIds] = useState<Set<number>>(() => new Set<number>());
 
 	const onToggle = useCallback((id: number): void => {
@@ -168,6 +187,7 @@ export const TaskTree = ({ forest, tasks, onEdit, onDelete, onEditDependencies, 
 					expandedIds={expandedIds}
 					onToggle={onToggle}
 					taskById={taskById}
+					progressMap={progressMap}
 					onEdit={onEdit}
 					onDelete={onDelete}
 					onEditDependencies={onEditDependencies}
