@@ -14,7 +14,7 @@ import { TaskTree } from './components/TaskTree';
 import { useThemeToolbarItem } from './components/ThemeToggle';
 import { toApiError } from './lib/apiError';
 import type { AuthUser } from './lib/auth';
-import { calculateProgress, type ProgressNode } from './lib/calculateProgress';
+import { calculateProgress } from './lib/calculateProgress';
 import { buildDependencyMap } from './lib/dependencies';
 
 type Dialog =
@@ -94,7 +94,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 	const progressMap = useMemo(() => {
 		const map = new Map<number, { done: number; total: number }>();
 		const visit = (node: TaskTreeNode): void => {
-			const progress = calculateProgress(node as ProgressNode);
+			const progress = calculateProgress(node);
 			if (progress !== null) {
 				map.set(node.id, progress);
 			}
