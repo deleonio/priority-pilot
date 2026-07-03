@@ -23,6 +23,7 @@ export const useCtrlEnter = (callback: () => void, enabled: boolean | (() => boo
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent): void => {
+			if (e.repeat) return;
 			if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
 				const isEnabled = typeof enabledRef.current === 'function' ? enabledRef.current() : enabledRef.current;
 				if (!isEnabled) return;
