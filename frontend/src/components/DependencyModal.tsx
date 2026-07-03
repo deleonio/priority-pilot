@@ -34,6 +34,9 @@ export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChang
 	}));
 
 	const [selectedId, setSelectedId] = useState<number | null>(null);
+	// Ref parallel zum State, damit die Ctrl+Enter-Bedingung die Auswahl synchron (vor dem Re-Render)
+	// lesen kann — sonst würde ein Ctrl+Enter direkt nach der Auswahl noch den alten `null`-Wert sehen.
+	const selectedIdRef = useRef<number | null>(null);
 	// `null` erlaubt: ein geleertes Gewicht-Feld setzt den Ref auf `null`, damit die Validierung
 	// greift, statt still den alten Wert weiterzuverwenden.
 	const weight = useRef<number | null>(1);
@@ -83,7 +86,10 @@ export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChang
 
 	// Strg+Enter (bzw. ⌘+Enter) löst den primären CTA „Hinzufügen" aus — nur wenn er nicht deaktiviert ist
 	// (kein laufender Request, ein Vorgänger ausgewählt), analog zu dessen `_disabled`-Bedingung.
-	useCtrlEnter(() => void add(), !busy && selectedId !== null);
+	useCtrlEnter(
+		() => void add(),
+		() => !busy && selectedIdRef.current !== null,
+	);
 
 	return (
 		<Modal title={`Abhängigkeiten: #${task.id} – ${task.title}`} onClose={onClose}>
@@ -131,7 +137,9 @@ export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChang
 							_value={selectedId}
 							_on={{
 								onChange: (_event, value) => {
-									setSelectedId(readNumber(value));
+									const id = readNumber(value);
+									selectedIdRef.current = id;
+									setSelectedId(id);
 								},
 							}}
 						/>
