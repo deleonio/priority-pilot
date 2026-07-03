@@ -310,6 +310,74 @@ body {
 	margin-left: 0.5rem;
 }
 
+/* --- Aufgaben-Liste (expandierbarer Baum, #238) --- */
+/* Rundum ohne feste Breiten, damit die Liste auf Mobilbreite ohne horizontales Scrollen umbricht. */
+.task-tree,
+.task-tree .task-tree-children {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.task-tree .task-tree-children {
+	/* Einrückung je Ebene über die geschachtelten Listen. */
+	padding-left: 1.25rem;
+}
+
+.task-tree-item {
+	margin: 0.25rem 0;
+	min-width: 0;
+}
+
+.task-tree-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem;
+	min-width: 0;
+}
+
+.task-tree-toggle-placeholder {
+	display: inline-block;
+	/* Platzhalter in Breite des Aufklapp-Buttons, damit Blätter bündig zu Knoten mit Symbol stehen. */
+	width: 1.75rem;
+}
+
+.task-tree-title {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.task-tree-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.task-tree-badge {
+	font-size: 0.75rem;
+	padding: 0.125rem 0.375rem;
+	border-radius: 0.25rem;
+	white-space: nowrap;
+}
+
+.task-tree-badge--series {
+	background: var(--kol-color-primary, #005b99);
+	color: #fff;
+}
+
+.task-tree-badge--exception {
+	background: var(--kol-color-warning, #c66a00);
+	color: #fff;
+}
+
+.task-tree-badge--progress {
+	background: var(--kol-color-success, #2e7d32);
+	color: #fff;
+}
+
 /* --- Modal-Inhalt --- */
 /* Overlay, Rahmen, Titel und Schließen-Button liefert jetzt `KolDialog` (Variant `card`);
    hier bleibt nur das Layout des Dialog-Inhalts. */

@@ -2,12 +2,11 @@ import { expect, test, type Page } from './fixtures';
 import { waitForStableView } from './helpers';
 
 /**
- * Rote Spec-e2e für #241 — „Fortschrittsanzeige pro Task inkl. Unter-Tasks" gegen das echte Backend.
+ * Spec-e2e für #241 — „Fortschrittsanzeige pro Task inkl. Unter-Tasks" gegen das echte Backend.
  *
- * Vertrag: In der Task-Tabelle zeigt jeder Task mit Sub-Tasks einen Fortschritt „erledigt/gesamt"
- * (der Task selbst zählt mit), berechnet über den kompletten Teilbaum seiner Abhängigen. Tasks ohne
- * Sub-Tasks zeigen keinen Fortschritt. Die UI-Komponente folgt durch die Umsetzung; bis dahin ist
- * diese Spec rot.
+ * Vertrag: Im Aufgabenwald (`TaskTree`, #238) zeigt jeder Task mit Sub-Tasks einen Fortschritt
+ * „erledigt/gesamt" (der Task selbst zählt mit), berechnet über den kompletten Teilbaum seiner
+ * Abhängigen. Tasks ohne Sub-Tasks zeigen keinen Fortschritt.
  *
  * Setup wie in `suggestions.spec.ts`: Tasks und Abhängigkeiten werden über die echte API (Vite-Proxy
  * → Backend) geseedet. Eine Abhängigkeit `POST /tasks/{id}/dependencies { dependingTaskId }` bedeutet:
@@ -46,13 +45,13 @@ test.describe('Fortschrittsanzeige pro Task (#241)', () => {
 		});
 	};
 
-	/** Wechselt auf den „Aufgaben"-Tab (die Task-Tabelle liegt dort). */
+	/** Wechselt auf den „Aufgaben"-Tab (der Aufgabenwald liegt dort). */
 	const openTasksTab = async (page: Page): Promise<void> => {
 		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
 	};
 
-	/** Zeile eines Tasks anhand seines Titels. */
-	const rowFor = (page: Page, title: string) => page.getByRole('row').filter({ hasText: title });
+	/** Der Listeneintrag eines Tasks im Baum, verankert über `data-testid="task-tree-item-<id>"`. */
+	const item = (page: Page, id: number) => page.getByTestId(`task-tree-item-${id}`);
 
 	test('AK1: Task mit zwei Sub-Tasks zeigt „0/3"', async ({ page }) => {
 		const titelA = uniqueTitle('A');
@@ -67,22 +66,22 @@ test.describe('Fortschrittsanzeige pro Task (#241)', () => {
 		await waitForStableView(page);
 		await openTasksTab(page);
 
-		// A + 2 Sub-Tasks = 3 Tasks, keiner erledigt → „0/3" in der Zeile von A.
-		await expect(rowFor(page, titelA).getByText('0/3')).toBeVisible();
+		// A + 2 Sub-Tasks = 3 Tasks, keiner erledigt → „0/3" im Knoten von A.
+		await expect(item(page, idA).getByText('0/3')).toBeVisible();
 	});
 
 	test('AK3: Task ohne Sub-Tasks zeigt keinen Fortschritt (keine 1/1-Anzeige)', async ({ page }) => {
 		const titelSolo = uniqueTitle('Solo');
-		await createTask(page, titelSolo);
+		const idSolo = await createTask(page, titelSolo);
 
 		await page.goto('/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 
-		const row = rowFor(page, titelSolo);
-		await expect(row).toBeVisible();
+		const node = item(page, idSolo);
+		await expect(node).toBeVisible();
 		// Kein redundanter Fortschrittswert für eine Aufgabe ohne Abhängige.
-		await expect(row.getByText('1/1')).toHaveCount(0);
+		await expect(node.getByText('1/1')).toHaveCount(0);
 	});
 
 	test('AK4: Fortschritt aktualisiert sich nach Statusänderung eines Sub-Tasks', async ({ page }) => {
@@ -95,7 +94,7 @@ test.describe('Fortschrittsanzeige pro Task (#241)', () => {
 		await page.goto('/');
 		await waitForStableView(page);
 		await openTasksTab(page);
-		await expect(rowFor(page, titelA).getByText('0/2')).toBeVisible();
+		await expect(item(page, idA).getByText('0/2')).toBeVisible();
 
 		// B über die echte API auf „Erledigt" setzen.
 		await page.request.patch(`/api/v1/tasks/${idB}`, { data: { status: 'Done' } });
@@ -104,7 +103,7 @@ test.describe('Fortschrittsanzeige pro Task (#241)', () => {
 		await page.reload();
 		await waitForStableView(page);
 		await openTasksTab(page);
-		await expect(rowFor(page, titelA).getByText('1/2')).toBeVisible();
+		await expect(item(page, idA).getByText('1/2')).toBeVisible();
 	});
 
 	test('AK5: Fortschrittsanzeige ist auf mobilen Viewports (375px) sichtbar', async ({ page }) => {
@@ -121,6 +120,6 @@ test.describe('Fortschrittsanzeige pro Task (#241)', () => {
 		await openTasksTab(page);
 
 		// Fortschrittsanzeige muss auch auf 375px-Viewport ohne horizontales Scrollen sichtbar sein.
-		await expect(rowFor(page, titelA).getByText('0/2')).toBeVisible();
+		await expect(item(page, idA).getByText('0/2')).toBeVisible();
 	});
 });

@@ -10,7 +10,7 @@ import { ForestPanel } from './components/ForestPanel';
 import { PillarWeightsModal } from './components/PillarWeightsModal';
 import { SeriesManagementModal } from './components/SeriesManagementModal';
 import { TaskFormModal } from './components/TaskFormModal';
-import { TaskTable } from './components/TaskTable';
+import { TaskTree } from './components/TaskTree';
 import { useThemeToolbarItem } from './components/ThemeToggle';
 import { toApiError } from './lib/apiError';
 import type { AuthUser } from './lib/auth';
@@ -291,9 +291,9 @@ export const App = ({ user }: { user: AuthUser }) => {
 					</div>
 					<div slot="tab-1">
 						<section className="task-section">
-							<TaskTable
+							<TaskTree
+								forest={forest}
 								tasks={tasks}
-								dependencyMap={dependencyMap}
 								progressMap={progressMap}
 								onEdit={openEdit}
 								onDelete={openDelete}

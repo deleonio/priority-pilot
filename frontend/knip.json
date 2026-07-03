@@ -1,0 +1,5 @@
+{
+	"entry": ["src/main.tsx"],
+	"ignore": ["src/components/TaskTable.tsx", "src/lib/reactCellRoot.ts"],
+	"ignoreDependencies": ["client"]
+}
