@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface UseVoiceInputOptions {
 	onTranscript: (text: string) => void;
+	lang?: string;
 }
 
 interface UseVoiceInputResult {
@@ -49,7 +50,7 @@ const getSpeechConstructor = (): SpeechRecognitionConstructor | null => {
 	return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 };
 
-export const useVoiceInput = ({ onTranscript }: UseVoiceInputOptions): UseVoiceInputResult => {
+export const useVoiceInput = ({ onTranscript, lang = 'de-DE' }: UseVoiceInputOptions): UseVoiceInputResult => {
 	const [isRecording, setIsRecording] = useState(false);
 	const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
 	const onTranscriptRef = useRef(onTranscript);
@@ -63,7 +64,7 @@ export const useVoiceInput = ({ onTranscript }: UseVoiceInputOptions): UseVoiceI
 		if (Constructor === null) return;
 
 		const recognition = new Constructor();
-		recognition.lang = 'de-DE';
+		recognition.lang = lang;
 		recognition.continuous = false;
 		recognition.interimResults = false;
 
@@ -83,7 +84,7 @@ export const useVoiceInput = ({ onTranscript }: UseVoiceInputOptions): UseVoiceI
 		recognitionRef.current = recognition;
 		recognition.start();
 		setIsRecording(true);
-	}, []);
+	}, [lang]);
 
 	const stopRecording = useCallback(() => {
 		recognitionRef.current?.stop();
