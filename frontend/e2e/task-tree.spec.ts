@@ -195,7 +195,7 @@ test.describe('Priority Pilot — TaskTree (expandierbare Aufgaben-Liste, #238)'
 
 		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeVisible();
 		await waitForStableView(page);
-		await expect(page.getByLabel('Titel')).toHaveValue(title);
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue(title);
 	});
 
 	test('AK-6: Listenansicht ist auf Mobilbreite ohne horizontales Scrollen lesbar', async ({ page }) => {
