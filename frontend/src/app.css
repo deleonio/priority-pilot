@@ -80,12 +80,6 @@ body {
 	--kol-avatar-size: 2rem;
 }
 
-/* Einstellungs-Popover: vertikale Toolbar als kompaktes Menü mit etwas Mindestbreite. */
-.settings-menu {
-	display: block;
-	min-width: 14rem;
-}
-
 .loading {
 	display: flex;
 	align-items: center;
@@ -613,4 +607,31 @@ body {
 
 .help-page-content li {
 	margin-bottom: 0.25rem;
+}
+
+/* --- Einstellungen-Seite (#271) --- */
+.settings-page {
+	max-width: 800px;
+	margin: 0 auto;
+	padding: 1rem;
+	box-sizing: border-box;
+	width: 100%;
+	overflow-x: hidden;
+}
+
+.settings-page-header {
+	display: flex;
+	align-items: center;
+	gap: 1rem;
+	margin-bottom: 1.5rem;
+	flex-wrap: wrap;
+}
+
+.settings-tabs {
+	margin-top: 1.5rem;
+}
+
+.settings-placeholder {
+	color: var(--pp-text-muted);
+	margin: 1rem 0;
 }
