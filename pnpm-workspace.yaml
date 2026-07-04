@@ -2,6 +2,7 @@ packages:
   - 'client'
   - 'frontend'
   - 'server'
+  - 'tests'
 # Build-Allowlist nativer Module: `allowBuilds` ist die kanonische pnpm-11-Form,
 # die `pnpm approve-builds` selbst schreibt (intern -> onlyBuiltDependencies).
 # NICHT durch eine onlyBuiltDependencies-Liste ersetzen — pnpm regeneriert sonst allowBuilds.

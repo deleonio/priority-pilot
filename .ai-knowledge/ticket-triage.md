@@ -116,12 +116,16 @@ Bei einem zu großen Ticket:
   ```
 
 - Sub-Issue als **echtes GitHub-Sub-Issue** unter das Eltern-Ticket hängen (Sub-Issue-Beziehung,
-  nicht nur Textreferenz). `gh` hat dafür kein natives Kommando → via GraphQL:
+  nicht nur Textreferenz). `gh` hat dafür kein natives Kommando → via GraphQL (**Pflicht**,
+  kein optionaler Schritt):
   `gh api graphql -f query='mutation($p:ID!,$c:ID!){addSubIssue(input:{issueId:$p,subIssueId:$c}){clientMutationId}}' -f p=<parent-node-id> -f c=<child-node-id>`
-  (Node-IDs über `gh issue view <nr> --json id`.) Fallback, falls die Mutation nicht verfügbar ist:
-  eine **Task-Liste** (`- [ ] #<nr>`) im Eltern-Body — GitHub rendert daraus die Fortschrittsanzeige.
-  Dabei den (in Schritt 2 lektorierten) Eltern-Body **nicht überschreiben**, sondern die Task-Liste
-  **anhängen** (bestehenden Body laden, ergänzen, zurückschreiben), um keinen Inhalt zu verlieren.
+  (Node-IDs über `gh issue view <nr> --json id`.)
+  **Fallback nur bei API-Fehler:** Falls die GraphQL-Mutation fehlschlägt (API-Fehler, Berechtigung
+  nicht vorhanden o. ä.), als Notfallpfad eine **Task-Liste** (`- [ ] #<nr>`) im Eltern-Body
+  eintragen — GitHub rendert daraus die Fortschrittsanzeige. Dabei den (in Schritt 2 lektorierten)
+  Eltern-Body **nicht überschreiben**, sondern die Task-Liste **anhängen** (bestehenden Body laden,
+  ergänzen, zurückschreiben), um keinen Inhalt zu verlieren. Den API-Fehler und den Grund für den
+  Fallback im Ping-Kommentar (Schritt 4b) dokumentieren, damit der Mensch informiert ist.
 - **Rekursionsschutz (Pflicht):** Sub-Issues werden direkt mit `ai:analyzed` angelegt (sie **sind**
   bereits das Analyse-Ergebnis) und fallen so aus dem Auswahlkriterium von Schritt 1 — sie werden
   nicht erneut triagiert/zerlegt. Es ist nur **eine** Zerlegungsebene zulässig: ein Sub-Issue wird
