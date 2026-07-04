@@ -20,7 +20,7 @@ name: Claude Triage (Analyse)
 on:
   issues:
     # opened: neu angelegtes Issue; unlabeled: ein Label wurde entfernt
-    # (gefiltert auf "ai:analyzed" im if des Jobs).
+    # (gefiltert auf "ai:analyzed" bzw. "ai:to-big-issue" im if des Jobs).
     types: [opened, unlabeled]
 
 # Pro Issue nur ein Lauf gleichzeitig. cancel-in-progress: true -> eine neue Aenderung
@@ -152,8 +152,10 @@ jobs:
           # (nicht als Slash-Command), da die Action keine garantierte Slash-Command-
           # Ausfuehrung im prompt zusichert; verweist aber auf den verbindlichen Ablauf.
           prompt: |
-            Issue #${{ github.event.issue.number }} wurde soeben angelegt bzw. das Label
-            "ai:analyzed" wurde entfernt und damit eine (Neu-)Analyse (Triage) angefordert.
+            Issue #${{ github.event.issue.number }} wurde soeben angelegt, das Label
+            "ai:analyzed" wurde entfernt, oder das Label "ai:to-big-issue" wurde entfernt
+            (Issue nach dem Aufteilen wieder zur Triage freigegeben) — damit eine
+            (Neu-)Analyse (Triage) angefordert.
 
             Fuehre fuer GENAU DIESES EINE Issue (#${{ github.event.issue.number }}) den
             Ticket-Triage-Workflow aus der Wissensbasis aus — verbindlicher Ablauf:
@@ -201,7 +203,7 @@ jobs:
           claude_args: >-
             --model claude-sonnet-4-6 --effort medium
             --allowedTools "Bash(gh issue:*),Bash(gh api:*),Bash(gh label:*),Read,Grep,Glob,Task"
-            --append-system-prompt "Automatisierter, durch das Anlegen des Issues bzw. das Entfernen des ai:analyzed-Labels autorisierter Triage-Lauf in GitHub Actions (headless, keine interaktive Rueckfrage moeglich). Die in der Wissensbasis geforderte Bestaetigung vor dem oeffentlichen Posten gilt durch diesen Ausloeser als erteilt: Schreibe Lektorat und Analyse-Body-Block, poste einen kurzen Ping-Kommentar und setze die Labels ALS ALLERLETZTEN Schritt (NIE davor — sonst startet die naechste Pipeline-Stufe mit veraltetem Issue-Inhalt) fuer Issue #${{ github.event.issue.number }}, ohne auf eine Bestaetigung zu warten. Bearbeite ausschliesslich dieses Issue und committe keinen Produktivcode. HARTES 20-Minuten-Timeout: sichere bei drohendem Limit (~18 Min) die bisherige Analyse als Body-Block (kein Label, kein Ping-Kommentar), statt einen vollen Durchlauf zu erzwingen. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
+            --append-system-prompt "Automatisierter, durch das Anlegen des Issues, das Entfernen des ai:analyzed-Labels oder das Entfernen des ai:to-big-issue-Labels autorisierter Triage-Lauf in GitHub Actions (headless, keine interaktive Rueckfrage moeglich). Die in der Wissensbasis geforderte Bestaetigung vor dem oeffentlichen Posten gilt durch diesen Ausloeser als erteilt: Schreibe Lektorat und Analyse-Body-Block, poste einen kurzen Ping-Kommentar und setze die Labels ALS ALLERLETZTEN Schritt (NIE davor — sonst startet die naechste Pipeline-Stufe mit veraltetem Issue-Inhalt) fuer Issue #${{ github.event.issue.number }}, ohne auf eine Bestaetigung zu warten. Bearbeite ausschliesslich dieses Issue und committe keinen Produktivcode. HARTES 20-Minuten-Timeout: sichere bei drohendem Limit (~18 Min) die bisherige Analyse als Body-Block (kein Label, kein Ping-Kommentar), statt einen vollen Durchlauf zu erzwingen. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
 
       # Mistral-Pfad (AI_AGENT == 'mistral'): Vibe laeuft headless OHNE Approval-Callback — ohne
       # erzwungenes Auto-Approve wuerde jedes genehmigungspflichtige Tool (gh/git/pnpm/Datei-Writes)
@@ -232,15 +234,16 @@ jobs:
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
           args: --trust
           prompt: |
-            [KONTEXT/REGELN] Automatisierter, durch das Anlegen des Issues bzw. das Entfernen des
-            ai:analyzed-Labels autorisierter Triage-Lauf in GitHub Actions (headless, keine
+            [KONTEXT/REGELN] Automatisierter, durch das Anlegen des Issues, das Entfernen des ai:analyzed-Labels oder das Entfernen des ai:to-big-issue-Labels autorisierter Triage-Lauf in GitHub Actions (headless, keine
             interaktive Rueckfrage moeglich). Die in der Wissensbasis geforderte Bestaetigung vor
             dem oeffentlichen Posten gilt durch diesen Ausloeser als erteilt. Nutze fuer
             GitHub-Operationen ausschliesslich die `gh`-CLI; committe keinen Produktivcode und
             bearbeite ausschliesslich Issue #${{ github.event.issue.number }}.
 
-            Issue #${{ github.event.issue.number }} wurde soeben angelegt bzw. das Label
-            "ai:analyzed" wurde entfernt und damit eine (Neu-)Analyse (Triage) angefordert.
+            Issue #${{ github.event.issue.number }} wurde soeben angelegt, das Label
+            "ai:analyzed" wurde entfernt, oder das Label "ai:to-big-issue" wurde entfernt
+            (Issue nach dem Aufteilen wieder zur Triage freigegeben) — damit eine
+            (Neu-)Analyse (Triage) angefordert.
 
             Fuehre fuer GENAU DIESES EINE Issue (#${{ github.event.issue.number }}) den
             Ticket-Triage-Workflow aus der Wissensbasis aus — verbindlicher Ablauf:
@@ -297,8 +300,10 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ZAI_API_KEY }}
           prompt: |
-            Issue #${{ github.event.issue.number }} wurde soeben angelegt bzw. das Label
-            "ai:analyzed" wurde entfernt und damit eine (Neu-)Analyse (Triage) angefordert.
+            Issue #${{ github.event.issue.number }} wurde soeben angelegt, das Label
+            "ai:analyzed" wurde entfernt, oder das Label "ai:to-big-issue" wurde entfernt
+            (Issue nach dem Aufteilen wieder zur Triage freigegeben) — damit eine
+            (Neu-)Analyse (Triage) angefordert.
 
             Fuehre fuer GENAU DIESES EINE Issue (#${{ github.event.issue.number }}) den
             Ticket-Triage-Workflow aus der Wissensbasis aus — verbindlicher Ablauf:
@@ -342,7 +347,7 @@ jobs:
           claude_args: >-
             --model claude-sonnet-4-6 --effort medium
             --allowedTools "Bash(gh issue:*),Bash(gh api:*),Bash(gh label:*),Read,Grep,Glob,Task"
-            --append-system-prompt "Automatisierter, durch das Anlegen des Issues bzw. das Entfernen des ai:analyzed-Labels autorisierter Triage-Lauf in GitHub Actions (headless, keine interaktive Rueckfrage moeglich). Die in der Wissensbasis geforderte Bestaetigung vor dem oeffentlichen Posten gilt durch diesen Ausloeser als erteilt: Schreibe Lektorat und Analyse-Body-Block, poste einen kurzen Ping-Kommentar und setze die Labels ALS ALLERLETZTEN Schritt (NIE davor — sonst startet die naechste Pipeline-Stufe mit veraltetem Issue-Inhalt) fuer Issue #${{ github.event.issue.number }}, ohne auf eine Bestaetigung zu warten. Bearbeite ausschliesslich dieses Issue und committe keinen Produktivcode. HARTES 20-Minuten-Timeout: sichere bei drohendem Limit (~18 Min) die bisherige Analyse als Body-Block (kein Label, kein Ping-Kommentar), statt einen vollen Durchlauf zu erzwingen. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
+            --append-system-prompt "Automatisierter, durch das Anlegen des Issues, das Entfernen des ai:analyzed-Labels oder das Entfernen des ai:to-big-issue-Labels autorisierter Triage-Lauf in GitHub Actions (headless, keine interaktive Rueckfrage moeglich). Die in der Wissensbasis geforderte Bestaetigung vor dem oeffentlichen Posten gilt durch diesen Ausloeser als erteilt: Schreibe Lektorat und Analyse-Body-Block, poste einen kurzen Ping-Kommentar und setze die Labels ALS ALLERLETZTEN Schritt (NIE davor — sonst startet die naechste Pipeline-Stufe mit veraltetem Issue-Inhalt) fuer Issue #${{ github.event.issue.number }}, ohne auf eine Bestaetigung zu warten. Bearbeite ausschliesslich dieses Issue und committe keinen Produktivcode. HARTES 20-Minuten-Timeout: sichere bei drohendem Limit (~18 Min) die bisherige Analyse als Body-Block (kein Label, kein Ping-Kommentar), statt einen vollen Durchlauf zu erzwingen. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
 
       # Bei hartem Timeout (Agent-Schritt cancelled) ist das Issue zu gross, um es in einem Lauf zu
       # analysieren: mit "ai:to-big-issue" markieren (Kandidat zum Aufteilen) und ein evtl.
