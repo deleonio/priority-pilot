@@ -51,6 +51,14 @@ const getSpeechConstructor = (): SpeechRecognitionConstructor | null => {
 	return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 };
 
+// Modulweiter Guard über alle Hook-Instanzen (#264): Der Browser erlaubt nur EINE aktive
+// SpeechRecognition — startet Feld B, während Feld A aufnimmt, bräche der Browser A mit
+// `error: 'aborted'` ab und A zeigte fälschlich einen Fehler. Stattdessen „last click wins":
+// Ein Start beendet zuerst die laufende Aufnahme des anderen Feldes sauber (ohne Fehlertext).
+// Die Funktion ist idempotent (prüft, ob ihre Aufnahme noch aktiv ist) und muss deshalb nie
+// explizit ausgetragen werden.
+let stopActiveRecording: (() => void) | null = null;
+
 export const useVoiceInput = ({ onTranscript, lang = 'de-DE' }: UseVoiceInputOptions): UseVoiceInputResult => {
 	const [isRecording, setIsRecording] = useState(false);
 	const [voiceError, setVoiceError] = useState<string | null>(null);
@@ -65,6 +73,9 @@ export const useVoiceInput = ({ onTranscript, lang = 'de-DE' }: UseVoiceInputOpt
 		if (recognitionRef.current !== null) return;
 		const Constructor = getSpeechConstructor();
 		if (Constructor === null) return;
+
+		// Laufende Aufnahme eines anderen Feldes zuerst beenden (Guard, s. o.).
+		stopActiveRecording?.();
 
 		const recognition = new Constructor();
 		recognition.lang = lang;
@@ -100,6 +111,14 @@ export const useVoiceInput = ({ onTranscript, lang = 'de-DE' }: UseVoiceInputOpt
 		recognitionRef.current = recognition;
 		recognition.start();
 		setIsRecording(true);
+		stopActiveRecording = () => {
+			// Nur wenn DIESE Aufnahme noch aktiv ist — sonst ist der Eintrag veraltet und ein No-op.
+			if (recognitionRef.current === recognition) {
+				recognitionRef.current = null;
+				setIsRecording(false);
+				recognition.abort();
+			}
+		};
 	}, [lang]);
 
 	const stopRecording = useCallback(() => {
@@ -111,6 +130,8 @@ export const useVoiceInput = ({ onTranscript, lang = 'de-DE' }: UseVoiceInputOpt
 	useEffect(() => {
 		return () => {
 			recognitionRef.current?.abort();
+			// Ref leeren, damit ein noch registrierter Guard-Eintrag dieser Instanz zum No-op wird.
+			recognitionRef.current = null;
 		};
 	}, []);
 
