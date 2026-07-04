@@ -1,4 +1,4 @@
-import { KolAlert, KolButton, KolInputNumber, KolSingleSelect } from '@public-ui/react-v19';
+import { KolAlert, KolButton, KolInputRange, KolSingleSelect } from '@public-ui/react-v19';
 import type { Task } from 'client';
 import { useRef, useState } from 'react';
 import { api } from '../api';
@@ -6,6 +6,7 @@ import { toApiError } from '../lib/apiError';
 import type { DependencyRef } from '../lib/dependencies';
 import { useCtrlEnter } from '../lib/useCtrlEnter';
 import { readNumber } from '../lib/inputValue';
+import { formatNumber } from '../lib/task';
 import { Modal } from './Modal';
 
 interface DependencyModalProps {
@@ -40,6 +41,9 @@ export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChang
 	// `null` erlaubt: ein geleertes Gewicht-Feld setzt den Ref auf `null`, damit die Validierung
 	// greift, statt still den alten Wert weiterzuverwenden.
 	const weight = useRef<number | null>(1);
+	// State-Mirror für den Range-Slider: `_value` + `_label` müssen den aktuellen Wert erhalten,
+	// damit der Slider nicht nach jedem Re-Render auf den Initialwert zurückspringt.
+	const [weightState, setWeightState] = useState<number>(1);
 	const [error, setError] = useState<string | null>(null);
 	const [busy, setBusy] = useState(false);
 
@@ -52,8 +56,8 @@ export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChang
 			return;
 		}
 		const weightValue = weight.current;
-		if (weightValue === null || !Number.isFinite(weightValue) || weightValue < 0) {
-			setError('Das Gewicht muss eine Zahl ≥ 0 sein.');
+		if (weightValue === null || !Number.isFinite(weightValue) || weightValue < 0.1 || weightValue > 1) {
+			setError('Das Gewicht muss eine Zahl zwischen 0,1 und 1 sein.');
 			return;
 		}
 		setError(null);
@@ -147,17 +151,22 @@ export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChang
 								},
 							}}
 						/>
-						<KolInputNumber
-							_label="Gewicht (≥ 0)"
-							_min={0}
+						<KolInputRange
+							_label={`Gewicht (0,1–1): ${formatNumber(weightState)}`}
+							_min={0.1}
+							_max={1}
 							_step={0.1}
-							_value={weight.current ?? undefined}
+							_value={weightState}
 							_on={{
 								onInput: (_event, value) => {
-									weight.current = readNumber(value);
+									const next = readNumber(value) ?? weightState;
+									weight.current = next;
+									setWeightState(next);
 								},
 								onChange: (_event, value) => {
-									weight.current = readNumber(value);
+									const next = readNumber(value) ?? weightState;
+									weight.current = next;
+									setWeightState(next);
 								},
 							}}
 						/>

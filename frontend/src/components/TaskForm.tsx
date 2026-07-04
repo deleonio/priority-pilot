@@ -2,7 +2,6 @@ import {
 	KolAlert,
 	KolButton,
 	KolInputDate,
-	KolInputNumber,
 	KolInputRange,
 	KolInputText,
 	KolSingleSelect,
@@ -143,6 +142,11 @@ export const TaskForm = ({
 	// selbst, aber ein per Transkript geänderter Wert muss über `_value` ins Feld gespiegelt werden.
 	const [title, setTitle] = useState(form.current.title);
 	const [description, setDescription] = useState(form.current.description);
+	// State-Mirror für Range-Slider: `KolInputRange` muss über `_value` + `_label` den aktuellen
+	// Wert erhalten — ohne State würde der Slider nach jedem Re-Render auf den Ref-Initialwert
+	// zurückspringen (bekannte KoliBri-Falle, vgl. PillarWeightsForm.tsx:107–109).
+	const [priority, setPriority] = useState<number>(form.current.priority ?? 3);
+	const [estimatedEffort, setEstimatedEffort] = useState<number>(form.current.estimatedEffort ?? 0.5);
 
 	// #272: Einmal beim Mount lesen, ob die Auto-Sprachaufnahme aktiv ist → nur das erste (Titel-)
 	// VoiceField startet dann automatisch. Bewusst pro Formular-Instanz konstant (kein Live-Update).
@@ -392,33 +396,41 @@ export const TaskForm = ({
 						{hint}
 					</p>
 				)}
-				<KolInputNumber
-					_label="Priorität (Ganzzahl 1–5)"
+				<KolInputRange
+					_label={`Priorität (Ganzzahl 1–5): ${formatNumber(priority)}`}
 					_min={1}
 					_max={5}
 					_step={1}
-					_value={form.current.priority ?? undefined}
+					_value={priority}
 					_on={{
 						onInput: (_event, value) => {
-							form.current.priority = readNumber(value);
+							const next = readNumber(value) ?? priority;
+							form.current.priority = next;
+							setPriority(next);
 						},
 						onChange: (_event, value) => {
-							form.current.priority = readNumber(value);
+							const next = readNumber(value) ?? priority;
+							form.current.priority = next;
+							setPriority(next);
 						},
 					}}
 				/>
-				<KolInputNumber
-					_label="Geschätzter Aufwand in Tagen (0,1–1)"
+				<KolInputRange
+					_label={`Geschätzter Aufwand in Tagen (0,1–1): ${formatNumber(estimatedEffort)}`}
 					_min={0.1}
 					_max={1}
 					_step={0.1}
-					_value={form.current.estimatedEffort ?? undefined}
+					_value={estimatedEffort}
 					_on={{
 						onInput: (_event, value) => {
-							form.current.estimatedEffort = readNumber(value);
+							const next = readNumber(value) ?? estimatedEffort;
+							form.current.estimatedEffort = next;
+							setEstimatedEffort(next);
 						},
 						onChange: (_event, value) => {
-							form.current.estimatedEffort = readNumber(value);
+							const next = readNumber(value) ?? estimatedEffort;
+							form.current.estimatedEffort = next;
+							setEstimatedEffort(next);
 						},
 					}}
 				/>

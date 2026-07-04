@@ -87,7 +87,10 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 		// öffnet die Listbox, dann die Option „Erledigt" wählen.
 		await page.getByLabel('Status').click();
 		await page.getByRole('option', { name: 'In Bearbeitung' }).click();
-		await page.getByLabel('Priorität (Ganzzahl 1–5)').fill('1');
+		// Priorität ist seit #287 ein `KolInputRange` → natives `<input type="range">` im offenen
+		// Shadow-DOM. Es exponiert kein `aria-label` (`getByLabel` greift nicht), daher zielen wir per
+		// CSS auf den Range-Input; `Home` setzt ihn zuverlässig auf das Minimum (1).
+		await page.locator('input[type="range"][min="1"][max="5"][step="1"]').press('Home');
 		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
 		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeHidden();
 
@@ -99,7 +102,7 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
 		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeVisible();
 		await waitForStableView(page);
-		await expect(page.getByLabel('Priorität (Ganzzahl 1–5)')).toHaveValue('1');
+		await expect(page.locator('input[type="range"][min="1"][max="5"][step="1"]')).toHaveValue('1');
 		// Das Combobox-`<input>` führt den sichtbaren Status-Text als Wert (nicht den Enum-Rohwert):
 		// `TaskStatus.InProcess` wird als „In Bearbeitung" angezeigt.
 		await expect(page.getByLabel('Status')).toHaveValue('In Bearbeitung');
