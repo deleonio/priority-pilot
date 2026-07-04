@@ -59,6 +59,8 @@ const SERIES_TABLE_COLUMNS = [
 	{ name: 'defaultEstimatedEffort', definition: 'FLOAT NOT NULL DEFAULT 0.5' },
 	{ name: 'active', definition: 'INTEGER NOT NULL DEFAULT 1' },
 	{ name: 'startDate', definition: 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP' },
+	// Eigentümer-Bindung (#244, AK1): nullable, daher kein DEFAULT nötig.
+	{ name: 'userId', definition: 'INTEGER' },
 ] as const;
 
 /**

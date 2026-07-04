@@ -216,4 +216,70 @@ describe('Series API', () => {
 			assert.equal(res.status, 404);
 		});
 	});
+
+	// ── #244: serverseitige Serien-Materialisierung per Sammel-Endpunkt ─────────────────────────
+	// POST /series/generate-all generiert die fälligen Instanzen ALLER aktiven Serien und gibt die
+	// Anzahl der frisch erzeugten Tasks als { created: N } zurück. KEIN Produktivcode.
+	describe('POST /series/generate-all', () => {
+		// startDate deutlich in der Vergangenheit → im Fenster [start, now] liegen fällige Termine.
+		const dueSeries = () => ({
+			title: 'Fällige Wochenserie',
+			rhythm: 'weekly',
+			defaultPriority: 3,
+			defaultEstimatedEffort: 0.5,
+			active: true,
+			startDate: '2026-01-01T00:00:00.000Z',
+		});
+
+		// AK2: erzeugt für die aktive Serie fällige Tasks und liefert { created: N } mit N > 0.
+		it('200 mit { created: N > 0 } und materialisierten Tasks', async () => {
+			await post('/series', dueSeries());
+
+			const res = await post('/series/generate-all', {});
+			assert.equal(res.status, 200);
+			const body = (await res.json()) as Record<string, unknown>;
+			assert.equal(typeof body.created, 'number', 'Body enthält ein numerisches created-Feld');
+			assert.ok((body.created as number) > 0, 'es werden fällige Instanzen erzeugt (created > 0)');
+
+			// Die materialisierten Instanzen erscheinen in der regulären Task-Liste.
+			const tasks = (await (await get('/tasks')).json()) as unknown[];
+			assert.equal(tasks.length, body.created, 'jede erzeugte Instanz taucht als Task auf');
+			assert.ok(tasks.length > 0, 'es existieren Tasks nach dem Sammel-Lauf');
+		});
+
+		// AK3: inaktive Serien werden übersprungen.
+		it('inaktive Serien werden übersprungen (nur aktive erzeugen Tasks)', async () => {
+			await post('/series', dueSeries());
+			await post('/series', { ...dueSeries(), title: 'Inaktive Serie', active: false });
+
+			const res = await post('/series/generate-all', {});
+			assert.equal(res.status, 200);
+			const body = (await res.json()) as { created: number };
+			assert.ok(body.created > 0, 'die aktive Serie erzeugt fällige Instanzen');
+
+			// Nur die aktive Serie liefert Tasks; die inaktive Serie fügt keine hinzu.
+			const tasks = (await (await get('/tasks')).json()) as Array<{ seriesId: number | null }>;
+			assert.equal(tasks.length, body.created, 'genau die von der aktiven Serie erzeugten Tasks liegen vor');
+			// Alle erzeugten Tasks tragen eine seriesId (stammen aus einer Serie), keiner aus der inaktiven.
+			assert.ok(
+				tasks.every((task) => typeof task.seriesId === 'number'),
+				'alle erzeugten Tasks gehören zu einer Serie',
+			);
+		});
+
+		// AK5: Idempotenz — der zweite Aufruf erzeugt keine Duplikate.
+		it('wiederholtes Aufrufen erzeugt keine Duplikate (created === 0 beim zweiten Lauf)', async () => {
+			await post('/series', dueSeries());
+
+			const first = (await (await post('/series/generate-all', {})).json()) as { created: number };
+			assert.ok(first.created > 0, 'der erste Lauf erzeugt Instanzen');
+
+			const second = (await (await post('/series/generate-all', {})).json()) as { created: number };
+			assert.equal(second.created, 0, 'der zweite Lauf erzeugt keine weiteren Instanzen (Idempotenz)');
+
+			// Die Gesamtzahl der Tasks bleibt stabil (keine Dubletten).
+			const tasks = (await (await get('/tasks')).json()) as unknown[];
+			assert.equal(tasks.length, first.created, 'die Task-Anzahl bleibt nach dem zweiten Lauf unverändert');
+		});
+	});
 });

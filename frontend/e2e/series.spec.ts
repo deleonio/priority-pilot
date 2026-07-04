@@ -202,4 +202,52 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 		expect(seriesAfter.title).toBe(title);
 		expect(seriesAfter.startDate.slice(0, 10)).toBe('2026-09-07');
 	});
+
+	// AK7 (#244): In der Serien-Verwaltung gibt es einen Button „Fällige Instanzen generieren".
+	// Ein Klick stößt die serverseitige Materialisierung an; danach existieren neue Tasks.
+	test('AK7 (#244) — Button „Fällige Instanzen generieren" in SeriesManagementModal: Klick erzeugt Tasks', async ({
+		page,
+	}) => {
+		const title = uniqueTitle('GenerateAll');
+		// Serie mit Startdatum in der Vergangenheit → mehrere fällige Termine liegen bereit.
+		await createSeriesViaApi(page, { title, rhythm: 'weekly', startDate: '2026-01-01T00:00:00.000Z' });
+
+		await page.goto('/');
+		await waitForStableView(page);
+		await openSeriesManagement(page);
+
+		// Vorbedingung: noch keine Tasks (Serie ist angelegt, aber nichts materialisiert).
+		const before = await listTasksViaApi(page);
+		expect(before.length).toBe(0);
+
+		const generateButton = page.getByRole('button', { name: /Fällige Instanzen generieren/i });
+		await expect(generateButton).toBeVisible();
+		await generateButton.click();
+
+		// Nach dem Klick sind fällige Instanzen serverseitig materialisiert.
+		await expect(async () => {
+			const after = await listTasksViaApi(page);
+			expect(after.length).toBeGreaterThan(0);
+		}).toPass();
+	});
+
+	// AK8 (#244): Der Button ist auf einem 375px-Viewport (Mobile-First) ohne horizontales
+	// Scrollen erreichbar — er bleibt vollständig innerhalb der Viewport-Breite.
+	test('AK8 (#244) — Button „Fällige Instanzen generieren" auf 375px Viewport (Mobile-First)', async ({ page }) => {
+		const title = uniqueTitle('GenerateAllMobile');
+		await createSeriesViaApi(page, { title, rhythm: 'weekly', startDate: '2026-01-01T00:00:00.000Z' });
+
+		await page.setViewportSize({ width: 375, height: 812 });
+		await page.goto('/');
+		await waitForStableView(page);
+		await openSeriesManagement(page);
+
+		const generateButton = page.getByRole('button', { name: /Fällige Instanzen generieren/i });
+		await expect(generateButton).toBeVisible();
+
+		const box = await generateButton.boundingBox();
+		expect(box).not.toBeNull();
+		expect(box!.x).toBeGreaterThanOrEqual(0);
+		expect(box!.x + box!.width).toBeLessThanOrEqual(375);
+	});
 });

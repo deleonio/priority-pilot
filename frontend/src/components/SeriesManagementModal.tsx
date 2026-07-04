@@ -27,7 +27,9 @@ const RHYTHM_LABEL: Record<Series['rhythm'], string> = {
 export const SeriesManagementModal = ({ onClose }: SeriesManagementModalProps) => {
 	const [series, setSeries] = useState<Series[] | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const [successMessage, setSuccessMessage] = useState<string | null>(null);
 	const [subForm, setSubForm] = useState<SubForm>(null);
+	const [isGenerating, setIsGenerating] = useState(false);
 
 	const reload = useCallback(async (signal?: AbortSignal): Promise<void> => {
 		try {
@@ -55,6 +57,23 @@ export const SeriesManagementModal = ({ onClose }: SeriesManagementModalProps) =
 		void reload();
 	}, [reload]);
 
+	// Stößt die serverseitige Materialisierung aller fälligen Serien-Instanzen an (#244, AK7).
+	const generateAll = useCallback(async (): Promise<void> => {
+		if (isGenerating) return;
+		setIsGenerating(true);
+		try {
+			const { created } = await api.generateAllSeries();
+			setError(null);
+			setSuccessMessage(created > 0 ? `${created} Instanz(en) generiert` : 'Bereits aktuell');
+		} catch (reason) {
+			const apiError = await toApiError(reason);
+			setError(apiError.message);
+			setSuccessMessage(null);
+		} finally {
+			setIsGenerating(false);
+		}
+	}, [isGenerating]);
+
 	const remove = useCallback(
 		async (entry: Series): Promise<void> => {
 			try {
@@ -76,6 +95,12 @@ export const SeriesManagementModal = ({ onClose }: SeriesManagementModalProps) =
 				</KolAlert>
 			)}
 
+			{successMessage !== null && (
+				<KolAlert _type="info" _label="Ergebnis">
+					{successMessage}
+				</KolAlert>
+			)}
+
 			{subForm !== null ? (
 				<SeriesFormModal
 					key={subForm.kind === 'edit' ? subForm.series.id : 'create'}
@@ -90,6 +115,12 @@ export const SeriesManagementModal = ({ onClose }: SeriesManagementModalProps) =
 							_label="Neue Serie anlegen"
 							_variant="primary"
 							_on={{ onClick: () => setSubForm({ kind: 'create' }) }}
+						/>
+						<KolButton
+							_label="Fällige Instanzen generieren"
+							_variant="secondary"
+							_disabled={isGenerating}
+							_on={{ onClick: () => void generateAll() }}
 						/>
 					</div>
 

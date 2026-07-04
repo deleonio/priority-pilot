@@ -19,6 +19,11 @@ class Series extends Model {
 	public active!: boolean;
 	public startDate!: Date;
 
+	// Eigentümer des Templates (Issue #244, AK1 — Datenisolation), analog zu `Task.userId`. Nullable
+	// für Abwärtskompatibilität: Alt-Bestände ohne Zuordnung bleiben lesbar; neue Serien werden über
+	// die Session-`userId` gebunden.
+	public userId?: number | null;
+
 	public readonly createdAt!: Date;
 	public readonly updatedAt!: Date;
 }
@@ -65,6 +70,14 @@ Series.init(
 		startDate: {
 			type: DataTypes.DATE,
 			allowNull: false,
+		},
+		// Eigentümer-Bindung (Issue #244, AK1). `null` erlaubt (Abwärtskompatibilität, s. o.).
+		// `defaultValue: null` stellt sicher, dass eine ohne Angabe angelegte Serie `userId === null`
+		// (statt `undefined`) trägt.
+		userId: {
+			type: DataTypes.INTEGER,
+			allowNull: true,
+			defaultValue: null,
 		},
 	},
 	{

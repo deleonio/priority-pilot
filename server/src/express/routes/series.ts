@@ -3,12 +3,14 @@ import type { Request, Response } from 'express';
 import { ValidationError as SequelizeValidationError } from 'sequelize';
 import { Series } from '../../models/index.js';
 import type { SeriesRhythm } from '../../models/series.js';
-import { generateDueInstances } from '../../logics/series.js';
+import { generateDueInstances, materializeDueSeries } from '../../logics/series.js';
+import { getUserId } from '../requireAuth.js';
 import { serializeTask } from './tasks.js';
 import type { components } from '../../api';
 
 type SeriesDto = components['schemas']['Series'];
 type TaskDto = components['schemas']['Task'];
+type SeriesGenerateAllResultDto = components['schemas']['SeriesGenerateAllResult'];
 type ErrorDto = components['schemas']['Error'];
 
 const VALID_RHYTHMS: readonly SeriesRhythm[] = ['daily', 'weekly', 'monthly'];
@@ -151,12 +153,27 @@ seriesRouter.post('/series', async (req: Request, res: Response<SeriesDto | Erro
 		return;
 	}
 	try {
-		const created = await Series.create({ ...validation.attrs });
+		const created = await Series.create({ ...validation.attrs, userId: getUserId(req) ?? null });
 		res.status(201).json(serializeSeries(created));
 	} catch (error) {
 		handleWriteError(res, error);
 	}
 });
+
+// POST /series/generate-all — fällige Instanzen aller aktiven Serien materialisieren (idempotent).
+// MUSS vor den `/series/:id`-Routen stehen, damit `generate-all` nicht als `:id` gematcht wird.
+seriesRouter.post(
+	'/series/generate-all',
+	async (req: Request, res: Response<SeriesGenerateAllResultDto | ErrorDto>) => {
+		const userId = getUserId(req);
+		try {
+			const created = await materializeDueSeries(userId, new Date());
+			res.json({ created: created.length });
+		} catch (error) {
+			handleWriteError(res, error);
+		}
+	},
+);
 
 // GET /series/:id — ein Serien-Template abrufen
 seriesRouter.get('/series/:id', async (req: Request, res: Response<SeriesDto | ErrorDto>) => {

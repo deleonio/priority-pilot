@@ -1,7 +1,7 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { Series, Task } from '../models/index.js';
-import { generateDueInstances } from './series.js';
+import { generateDueInstances, materializeDueSeries } from './series.js';
 import { resetDb, closeDb } from '../test/helpers.js';
 
 beforeEach(resetDb);
@@ -214,5 +214,94 @@ describe('generateDueInstances', () => {
 		assert.equal(deadlines[3].getUTCFullYear(), 2026);
 		assert.equal(deadlines[3].getUTCMonth(), 3); // April
 		assert.equal(deadlines[3].getUTCDate(), 30, 'April-Termin ist der 30. (nicht 31.)');
+	});
+});
+
+// Rote Spec-Tests für #244 — `materializeDueSeries` bündelt die Serien-Materialisierung serverseitig:
+// es generiert die fälligen Instanzen ALLER aktiven Serien (optional auf einen User eingeschränkt) und
+// isoliert Fehler einzelner Serien, sodass ein Ausreißer den Gesamtlauf nicht abbricht. KEIN Produktivcode.
+describe('materializeDueSeries — Aggregat + Fehler-Isolation (AK6 #244)', () => {
+	// ── AK6a: aggregiert über alle aktiven Serien, überspringt inaktive ─────────────────────────
+	it('erzeugt Tasks für alle aktiven Serien und keine für inaktive', async () => {
+		await Series.create({
+			title: 'Aktiv A',
+			rhythm: 'weekly',
+			defaultPriority: 3,
+			defaultEstimatedEffort: 0.5,
+			active: true,
+			startDate: new Date('2026-01-01T00:00:00.000Z'),
+		});
+		await Series.create({
+			title: 'Aktiv B',
+			rhythm: 'weekly',
+			defaultPriority: 3,
+			defaultEstimatedEffort: 0.5,
+			active: true,
+			startDate: new Date('2026-01-01T00:00:00.000Z'),
+		});
+		const inactive = await Series.create({
+			title: 'Inaktiv',
+			rhythm: 'weekly',
+			defaultPriority: 3,
+			defaultEstimatedEffort: 0.5,
+			active: false,
+			startDate: new Date('2026-01-01T00:00:00.000Z'),
+		});
+
+		// Fenster [01.01., 20.01.] → je aktiver Serie 3 wöchentliche Termine (01., 08., 15.).
+		const until = new Date('2026-01-20T00:00:00.000Z');
+		const created = await materializeDueSeries(undefined, until);
+
+		assert.equal(created.length, 6, 'zwei aktive Serien × 3 Termine = 6 materialisierte Tasks');
+
+		// Keine Instanz gehört zur inaktiven Serie.
+		for (const task of created) {
+			assert.notEqual(task.seriesId, inactive.id, 'keine Instanz stammt aus der inaktiven Serie');
+		}
+		const inactiveTasks = await Task.count({ where: { seriesId: inactive.id } });
+		assert.equal(inactiveTasks, 0, 'die inaktive Serie erzeugt keine Tasks');
+	});
+
+	// ── AK6b: ein Fehler bei einer Serie bricht den Gesamtlauf nicht ab ──────────────────────────
+	it('ein Fehler bei einer einzelnen Serie bricht den Gesamtlauf nicht ab', async () => {
+		// Gute Serie: erzeugt regulär ihre Instanzen.
+		const good = await Series.create({
+			title: 'Gute Serie',
+			rhythm: 'weekly',
+			defaultPriority: 3,
+			defaultEstimatedEffort: 0.5,
+			active: true,
+			startDate: new Date('2026-01-01T00:00:00.000Z'),
+		});
+
+		// Fehler-Serie: leerer Titel simuliert einen Fehler beim Materialisieren der Instanz
+		// (die generierte Task-Instanz hat einen leeren Titel → DB-/Validierungsfehler im Produktivcode).
+		// Am Modell selbst erzwingen wir den leeren Titel per Direktzuweisung, damit `create`
+		// hier nicht bereits vorab scheitert.
+		const broken = await Series.create({
+			title: 'Platzhalter',
+			rhythm: 'weekly',
+			defaultPriority: 3,
+			defaultEstimatedEffort: 0.5,
+			active: true,
+			startDate: new Date('2026-01-01T00:00:00.000Z'),
+		});
+		await broken.update({ title: '' });
+
+		const until = new Date('2026-01-20T00:00:00.000Z');
+
+		// Der Lauf darf NICHT werfen — Fehler einzelner Serien werden isoliert.
+		let created: Task[] = [];
+		await assert.doesNotReject(async () => {
+			created = await materializeDueSeries(undefined, until);
+		}, 'ein einzelner Serien-Fehler darf den Gesamtlauf nicht abbrechen');
+
+		// Die guten Instanzen sind trotz des Ausreißers entstanden.
+		const goodTasks = await Task.count({ where: { seriesId: good.id } });
+		assert.equal(goodTasks, 3, 'die fehlerfreie Serie materialisiert ihre 3 Instanzen trotz des Ausreißers');
+		assert.ok(
+			created.some((task) => task.seriesId === good.id),
+			'die guten Instanzen sind Teil des Ergebnisses',
+		);
 	});
 });

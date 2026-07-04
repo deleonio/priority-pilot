@@ -454,6 +454,24 @@ paths:
           description: Template gelöscht
         '404':
           $ref: '#/components/responses/NotFound'
+  /series/generate-all:
+    post:
+      summary: Fällige Instanzen aller aktiven Serien materialisieren (idempotent)
+      description: >-
+        Stößt die serverseitige Materialisierung an: erzeugt je fälligem Termin
+        aller aktiven Serien (im Auth-Modus nur der eigenen) eine eigenständige
+        `Task`-Instanz. Bereits materialisierte Termine werden übersprungen
+        (keine Dubletten). Gibt die Anzahl der neu erzeugten Instanzen zurück.
+      operationId: generateAllSeries
+      responses:
+        '200':
+          description: Anzahl der neu materialisierten Instanzen
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeriesGenerateAllResult'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /series/{id}/generate:
     parameters:
       - $ref: '#/components/parameters/SeriesId'
@@ -1101,6 +1119,14 @@ components:
           type: string
           format: date-time
           description: Letzter zu materialisierender Zeitpunkt (inklusive).
+    SeriesGenerateAllResult:
+      type: object
+      required:
+        - created
+      properties:
+        created:
+          type: integer
+          description: Anzahl der neu materialisierten Task-Instanzen.
     Error:
       type: object
       required:

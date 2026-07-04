@@ -264,4 +264,14 @@ export const api = {
 		}
 		return data.map(reviveTask);
 	},
+
+	// Materialisiert die fälligen Instanzen aller aktiven Serien (im Auth-Modus nur der eigenen) und
+	// gibt die Anzahl der neu erzeugten Tasks zurück (#244, AK7).
+	async generateAllSeries(init: Init = {}): Promise<{ created: number }> {
+		const { data, response } = await client.POST('/series/generate-all', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response);
+		}
+		return data;
+	},
 };
