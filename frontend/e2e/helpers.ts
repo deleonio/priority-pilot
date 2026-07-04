@@ -30,3 +30,67 @@ export const waitForStableView = async (page: Page, readyText = 'Priority Pilot'
 	// 3. Fonts (inkl. KolIcons) abwarten, sonst flackern Icon-Glyphen / verschieben sich Layouts.
 	await page.evaluate(() => document.fonts.ready);
 };
+
+/**
+ * Init-Script, das die Web Speech API mockt (vor dem Seitenaufbau injiziert via `page.addInitScript`).
+ * Exportiert für Wiederverwendung in mehreren Spec-Dateien.
+ */
+export const SPEECH_MOCK_INIT_SCRIPT = `
+	(() => {
+		window.__speechRecognitionStarted = false;
+		window.__speechRecognitionStopped = false;
+		let activeInstance = null;
+
+		class MockSpeechRecognition {
+			constructor() {
+				this.lang = '';
+				this.continuous = false;
+				this.interimResults = false;
+				this.onresult = null;
+				this.onend = null;
+				this.onerror = null;
+				activeInstance = this;
+			}
+			start() {
+				window.__speechRecognitionStarted = true;
+				activeInstance = this;
+			}
+			stop() {
+				window.__speechRecognitionStopped = true;
+				if (typeof this.onend === 'function') {
+					this.onend();
+				}
+			}
+			abort() {
+				if (typeof this.onend === 'function') {
+					this.onend();
+				}
+			}
+		}
+
+		window.SpeechRecognition = MockSpeechRecognition;
+		window.webkitSpeechRecognition = MockSpeechRecognition;
+
+		window.__fireSpeechResult = (text) => {
+			if (activeInstance && typeof activeInstance.onresult === 'function') {
+				activeInstance.onresult({
+					resultIndex: 0,
+					results: { 0: { 0: { transcript: text } }, length: 1 },
+				});
+			}
+		};
+	})();
+`;
+
+/**
+ * Init-Script, das die Web Speech API explizit entfernt (für AK-4 disabled-Tests).
+ * Exportiert für Wiederverwendung in mehreren Spec-Dateien.
+ */
+export const SPEECH_UNSUPPORTED_INIT_SCRIPT = `
+	(() => {
+		try { delete window.SpeechRecognition; } catch (_e) { window.SpeechRecognition = undefined; }
+		try { delete window.webkitSpeechRecognition; } catch (_e) { window.webkitSpeechRecognition = undefined; }
+		Object.defineProperty(window, 'SpeechRecognition', { value: undefined, configurable: true });
+		Object.defineProperty(window, 'webkitSpeechRecognition', { value: undefined, configurable: true });
+	})();
+`;

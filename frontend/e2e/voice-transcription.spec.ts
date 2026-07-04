@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { waitForStableView, SPEECH_MOCK_INIT_SCRIPT } from './helpers';
 
 /**
  * Rote Spec-e2e für #251 — „Audiotranskription für die Task-Erstellung" (Weg A: Browser Web Speech API).
@@ -21,60 +21,6 @@ import { waitForStableView } from './helpers';
  * **Isolation:** Falls ein Test doch einen Task anlegt, räumt `afterEach` alle Tasks über die echte
  * API wieder ab (analog `quick-capture.spec.ts`).
  */
-
-/**
- * Init-Script (als String, vor dem Seitenaufbau injiziert), das die Web Speech API mockt:
- *  1. `MockSpeechRecognition` mit `start()`, `stop()`, `abort()`, `onresult`, `onend`,
- *  2. Zuweisung an `window.SpeechRecognition` und `window.webkitSpeechRecognition`,
- *  3. Beobachtungs-Flags `window.__speechRecognitionStarted` / `window.__speechRecognitionStopped`,
- *  4. `window.__fireSpeechResult(text)`, um aus dem Test ein Erkennungsergebnis auszulösen.
- */
-const SPEECH_MOCK_INIT_SCRIPT = `
-	(() => {
-		window.__speechRecognitionStarted = false;
-		window.__speechRecognitionStopped = false;
-		let activeInstance = null;
-
-		class MockSpeechRecognition {
-			constructor() {
-				this.lang = '';
-				this.continuous = false;
-				this.interimResults = false;
-				this.onresult = null;
-				this.onend = null;
-				this.onerror = null;
-				activeInstance = this;
-			}
-			start() {
-				window.__speechRecognitionStarted = true;
-				activeInstance = this;
-			}
-			stop() {
-				window.__speechRecognitionStopped = true;
-				if (typeof this.onend === 'function') {
-					this.onend();
-				}
-			}
-			abort() {
-				if (typeof this.onend === 'function') {
-					this.onend();
-				}
-			}
-		}
-
-		window.SpeechRecognition = MockSpeechRecognition;
-		window.webkitSpeechRecognition = MockSpeechRecognition;
-
-		window.__fireSpeechResult = (text) => {
-			if (activeInstance && typeof activeInstance.onresult === 'function') {
-				activeInstance.onresult({
-					resultIndex: 0,
-					results: { 0: { 0: { transcript: text } }, length: 1 },
-				});
-			}
-		};
-	})();
-`;
 
 declare global {
 	interface Window {
