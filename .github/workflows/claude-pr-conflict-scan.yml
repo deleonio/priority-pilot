@@ -52,7 +52,9 @@ jobs:
           set -euo pipefail
 
           # Alle offenen PRs auflisten (kein --label-Filter: alle offenen PRs prüfen, nicht nur markierte)
-          prs=$(gh pr list --state open --json number,isDraft,headRepository \
+          # --repo ist Pflicht: der Workflow hat keinen actions/checkout — ohne --repo ruft gh git auf
+          # und stirbt mit `fatal: not a git repository`.
+          prs=$(gh pr list --repo "$REPO" --state open --json number,isDraft,headRepository \
             --jq '.[] | select(.isDraft == false) | select(.headRepository.nameWithOwner == "'"$REPO"'") | .number')
 
           if [ -z "$prs" ]; then

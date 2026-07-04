@@ -206,3 +206,31 @@ describe('AK7 — Sauberer Skip bei fehlenden APP_ID/APP_PRIVATE_KEY (kein roter
 		);
 	});
 });
+
+// ─── AK8 — Repo-Scoping: kein Checkout → gh braucht --repo ────────────────────
+
+describe('AK8 — Repo-Scoping: ohne actions/checkout müssen gh-Befehle --repo tragen', () => {
+	it('gh pr list ist repo-gescoped (--repo) — kein Verlass auf einen git-Checkout', () => {
+		const yml = scanYml();
+		// Der Workflow hat bewusst KEIN actions/checkout (reine gh-API). Ohne --repo leitet gh die
+		// Repo-Identität aus dem lokalen git-Remote ab → `git` wird aufgerufen →
+		// `fatal: not a git repository`. Muster: claude-pr-gate-merge.yml / claude-spec.yml
+		// nutzen `gh pr list --repo …`. Regression aus dem echten roten CI-Lauf (#277).
+		const prListLine = yml.match(/gh pr list[^\n]*/);
+		assert.ok(prListLine, 'gh pr list-Zeile nicht gefunden');
+		assert.match(
+			prListLine[0],
+			/--repo/,
+			'gh pr list muss --repo tragen — der Workflow hat keinen Checkout, sonst `fatal: not a git repository`',
+		);
+	});
+
+	it('Alle gh pr/issue/label-Befehle sind repo-gescoped (Negativkontrolle: kein bare gh ohne --repo)', () => {
+		const yml = scanYml();
+		const ghCmds = yml.match(/gh (?:pr|issue|label) \w+[^\n]*/g) ?? [];
+		assert.ok(ghCmds.length > 0, 'keine gh pr/issue/label-Befehle gefunden');
+		for (const cmd of ghCmds) {
+			assert.match(cmd, /--repo/, `gh-Befehl ohne --repo (Workflow ohne Checkout): ${cmd.trim()}`);
+		}
+	});
+});
