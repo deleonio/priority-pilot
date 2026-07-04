@@ -147,3 +147,135 @@ describe('AK10 — Alle benoetigten Vars referenziert', () => {
 		assert.match(deployYml(), /DEPLOY_USER/, 'deploy.yml muss `DEPLOY_USER` referenzieren');
 	});
 });
+
+// ─── Issue #286 — Patch-Bump nach jedem Deploy ───────────────────────────────
+//
+// Nach dem Deploy soll die Versionsnummer in der root package.json automatisch
+// um einen Patch-Level erhoeht und per App-Token auf main gepusht werden.
+// Reihenfolge: erst bauen + deployen, DANN inkrementieren.
+// Loop-Schutz: Commit-Message enthaelt `[skip ci]`.
+//
+// Tests sind ROT bis die Umsetzung (deploy.yml + root package.json) existiert.
+
+const rootPackageJson = (): { version?: string } => {
+	const raw = readFile('package.json');
+	return JSON.parse(raw) as { version?: string };
+};
+
+describe('Patch-Bump AK1 (#286) — root package.json hat ein gültiges version-Feld', () => {
+	it('root package.json enthaelt ein version-Feld', () => {
+		const pkg = rootPackageJson();
+		assert.ok('version' in pkg, 'root package.json muss ein `version`-Feld enthalten');
+	});
+
+	it('version entspricht SemVer-Format (X.Y.Z)', () => {
+		const { version } = rootPackageJson();
+		assert.ok(version, 'version darf nicht leer sein');
+		assert.match(version as string, /^\d+\.\d+\.\d+$/, `version muss SemVer-Format X.Y.Z haben, war: ${version}`);
+	});
+});
+
+describe('Patch-Bump AK2 (#286) — Bump-Schritt steht nach pm2 reload', () => {
+	it('deploy.yml enthaelt npm version patch (relativer Bump)', () => {
+		assert.match(
+			deployYml(),
+			/npm version patch/,
+			'deploy.yml muss `npm version patch` enthalten (Patch-Bump nach Deploy)',
+		);
+	});
+
+	it('npm version patch erscheint nach pm2 reload (Reihenfolge korrekt)', () => {
+		const yml = deployYml();
+		const pm2Index = yml.indexOf('pm2 reload');
+		const bumpIndex = yml.indexOf('npm version patch');
+		assert.ok(pm2Index !== -1, 'pm2 reload muss in deploy.yml vorhanden sein');
+		assert.ok(bumpIndex !== -1, 'npm version patch muss in deploy.yml vorhanden sein');
+		assert.ok(
+			bumpIndex > pm2Index,
+			`npm version patch (pos ${bumpIndex}) muss NACH pm2 reload (pos ${pm2Index}) stehen`,
+		);
+	});
+});
+
+describe('Patch-Bump AK3 (#286) — relativer Bump (kein hartkodierter Versions-Set)', () => {
+	it('Bump-Schritt nutzt `npm version patch` (relativ, kein set X.Y.Z)', () => {
+		const yml = deployYml();
+		assert.match(yml, /npm version patch/, 'deploy.yml muss `npm version patch` verwenden (relativer Bump)');
+		// Kein hartkodiertes `npm version 1.2.3` o.Ä. — patch/minor/major sind die erlaubten Schluessel
+		assert.doesNotMatch(
+			yml,
+			/npm version \d+\.\d+\.\d+/,
+			'deploy.yml darf KEINE hartkodierte Versionsnummer im npm-version-Befehl setzen',
+		);
+	});
+
+	it('Bump-Schritt verwendet --no-git-tag-version (kein Tag, nur Bump)', () => {
+		assert.match(
+			deployYml(),
+			/npm version patch[^\n]*--no-git-tag-version|--no-git-tag-version[^\n]*npm version patch/,
+			'deploy.yml muss `npm version patch --no-git-tag-version` verwenden (kein Git-Tag, nur Versionsdatei)',
+		);
+	});
+});
+
+describe('Patch-Bump AK4 (#286) — Commit + Push mit Loop-Schutz [skip ci]', () => {
+	it('deploy.yml enthaelt git commit mit chore(release)-Message', () => {
+		assert.match(
+			deployYml(),
+			/git commit[\s\S]{0,200}chore\(release\)/,
+			'deploy.yml muss `git commit` mit Message `chore(release)` enthalten',
+		);
+	});
+
+	it('Commit-Message enthaelt [skip ci] als Loop-Schutz', () => {
+		assert.match(
+			deployYml(),
+			/\[skip ci\]/,
+			'deploy.yml muss `[skip ci]` in der Bump-Commit-Message haben (Loop-Schutz)',
+		);
+	});
+
+	it('deploy.yml enthaelt git push nach main', () => {
+		assert.match(deployYml(), /git push/, 'deploy.yml muss `git push` (Bump-Commit auf main) enthalten');
+	});
+});
+
+describe('Patch-Bump AK5 (#286) — App-Token + Git-Identitaet fuer den Push', () => {
+	it('deploy.yml verwendet create-github-app-token (App-Token)', () => {
+		assert.match(
+			deployYml(),
+			/create-github-app-token/,
+			'deploy.yml muss `actions/create-github-app-token` verwenden (Branch-Protection umgehen)',
+		);
+	});
+
+	it('deploy.yml referenziert APP_ID und APP_PRIVATE_KEY secrets', () => {
+		const yml = deployYml();
+		assert.match(yml, /APP_ID/, 'deploy.yml muss `APP_ID` referenzieren');
+		assert.match(yml, /APP_PRIVATE_KEY/, 'deploy.yml muss `APP_PRIVATE_KEY` referenzieren');
+	});
+
+	it('deploy.yml setzt Git-Identitaet (user.name und user.email) aus App-Slug', () => {
+		const yml = deployYml();
+		assert.match(
+			yml,
+			/git config[\s\S]{0,100}user\.name/,
+			'deploy.yml muss `git config user.name` setzen (Git-Identitaet des App-Tokens)',
+		);
+		assert.match(
+			yml,
+			/git config[\s\S]{0,100}user\.email/,
+			'deploy.yml muss `git config user.email` setzen (Git-Identitaet des App-Tokens)',
+		);
+	});
+});
+
+describe('Patch-Bump AK6 (#286) — permissions: contents: write', () => {
+	it('deploy.yml deklariert permissions.contents: write', () => {
+		assert.match(
+			deployYml(),
+			/contents:\s*write/,
+			'deploy.yml muss `contents: write` deklarieren (Bump-Commit auf main pushen)',
+		);
+	});
+});
