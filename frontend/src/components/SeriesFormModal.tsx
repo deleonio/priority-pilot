@@ -5,6 +5,7 @@ import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { useCtrlEnter } from '../lib/useCtrlEnter';
 import { readString } from '../lib/inputValue';
+import { readVoiceAutostartPreference } from '../lib/voiceAutostart';
 import { VoiceField } from './VoiceField';
 
 interface SeriesFormModalProps {
@@ -53,6 +54,10 @@ export const SeriesFormModal = ({ series, onClose, onSaved }: SeriesFormModalPro
 	// State-Mirror für den Titel (#264): KoliBri verwaltet den Anzeigewert selbst, aber ein per
 	// Sprach-Transkript geänderter Wert muss über `_value` ins Feld gespiegelt werden.
 	const [title, setTitle] = useState(form.current.title);
+
+	// #272: Einmal beim Mount lesen, ob die Auto-Sprachaufnahme aktiv ist → nur das Titel-VoiceField
+	// startet dann automatisch. Bewusst pro Formular-Instanz konstant (kein Live-Update).
+	const [voiceAutostart] = useState(readVoiceAutostartPreference);
 
 	const submit = async (): Promise<void> => {
 		const title = form.current.title.trim();
@@ -125,6 +130,7 @@ export const SeriesFormModal = ({ series, onClose, onSaved }: SeriesFormModalPro
 				<VoiceField
 					variant="input"
 					fieldLabel="Titel"
+					autoStart={voiceAutostart}
 					onTranscript={(text) => {
 						const newVal = form.current.title ? `${form.current.title} ${text}` : text;
 						form.current.title = newVal;

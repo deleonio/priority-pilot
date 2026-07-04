@@ -16,6 +16,7 @@ import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { useCtrlEnter } from '../lib/useCtrlEnter';
 import { readNumber, readString } from '../lib/inputValue';
+import { readVoiceAutostartPreference } from '../lib/voiceAutostart';
 import { VoiceField } from './VoiceField';
 import {
 	ADD_PILLAR_PLACEHOLDER,
@@ -142,6 +143,10 @@ export const TaskForm = ({
 	// selbst, aber ein per Transkript geänderter Wert muss über `_value` ins Feld gespiegelt werden.
 	const [title, setTitle] = useState(form.current.title);
 	const [description, setDescription] = useState(form.current.description);
+
+	// #272: Einmal beim Mount lesen, ob die Auto-Sprachaufnahme aktiv ist → nur das erste (Titel-)
+	// VoiceField startet dann automatisch. Bewusst pro Formular-Instanz konstant (kein Live-Update).
+	const [voiceAutostart] = useState(readVoiceAutostartPreference);
 
 	// KI-Säulen-Vorschlag: eigener Lade-/Fehlerzustand, damit ein Vorschlags-Fehler den Speichern-Fluss
 	// nicht stört (und umgekehrt).
@@ -344,6 +349,7 @@ export const TaskForm = ({
 				<VoiceField
 					variant="input"
 					fieldLabel="Titel"
+					autoStart={voiceAutostart}
 					onTranscript={(text) => {
 						const newVal = form.current.title ? `${form.current.title} ${text}` : text;
 						form.current.title = newVal;

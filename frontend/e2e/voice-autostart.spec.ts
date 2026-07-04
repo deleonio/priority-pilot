@@ -24,10 +24,7 @@ const VOICE_AUTOSTART_KEY = 'pp-voice-autostart';
  * Init-Script das die Web Speech API mockt (analog voice-transcription.spec.ts) und zusätzlich
  * `navigator.mediaDevices.getUserMedia` für die Berechtigungsanforderung mockt.
  */
-const buildInitScript = (opts: {
-	speechSupported: boolean;
-	mediaPermission: 'granted' | 'denied' | 'prompt';
-}) => `
+const buildInitScript = (opts: { speechSupported: boolean; mediaPermission: 'granted' | 'denied' | 'prompt' }) => `
 	(() => {
 		window.__speechRecognitionStarted = false;
 		window.__speechRecognitionStopped = false;
@@ -209,16 +206,11 @@ test.describe('#272 Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabe
 		await expect(toggle).toBeChecked();
 
 		// Wert ist in localStorage gespeichert.
-		const stored = await page.evaluate(
-			(key) => localStorage.getItem(key),
-			VOICE_AUTOSTART_KEY,
-		);
+		const stored = await page.evaluate((key) => localStorage.getItem(key), VOICE_AUTOSTART_KEY);
 		expect(stored).toBe('true');
 	});
 
-	test('AK3b: Einschalten + Berechtigung verweigert → Schalter bleibt aus und Hinweis sichtbar', async ({
-		page,
-	}) => {
+	test('AK3b: Einschalten + Berechtigung verweigert → Schalter bleibt aus und Hinweis sichtbar', async ({ page }) => {
 		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'denied' }));
 		await page.goto('/settings/general');
 		await waitForStableView(page);
