@@ -157,9 +157,15 @@ Schreibzugriff).
 
 In **GitHub Actions** wird die Triage zusätzlich **ereignisgesteuert** angestoßen —
 [`.github/workflows/claude-triage.yml`](.github/workflows/claude-triage.yml) ruft den Triage-Ablauf
-automatisch für genau dieses eine Issue auf, sobald ein **Issue angelegt** wird (nur von Personen mit
-Schreibzugriff, damit Außenstehende den OAuth-Token-Lauf nicht auslösen) oder das Label
-**`ai:analyzed` entfernt** wird (erzwingt eine Neu-Analyse, z. B. nach geänderter Beschreibung).
+automatisch für genau dieses eine Issue auf, sobald:
+
+- ein **Issue angelegt** wird (nur von Personen mit Schreibzugriff, damit Außenstehende den
+  OAuth-Token-Lauf nicht auslösen),
+- das Label **`ai:analyzed` entfernt** wird (erzwingt eine Neu-Analyse, z. B. nach geänderter
+  Beschreibung), oder
+- das Label **`ai:to-big-issue` entfernt** wird (der Mensch hat das zu große Issue aufgeteilt und
+  gibt es damit erneut zur Triage frei — `ai:to-big-issue` entfernt startet automatisch eine
+  frische Triage, unabhängig davon ob `ai:analyzed` noch gesetzt ist).
 
 ## Ticket-Spec (rote Tests vor der Umsetzung)
 

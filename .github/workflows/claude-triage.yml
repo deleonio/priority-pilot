@@ -2,9 +2,13 @@ name: Claude Triage (Analyse)
 
 # Stoesst die KI-Analyse (Triage) eines Issues automatisch an, sobald
 #  - ein neues Issue ANGELEGT wird (issues: opened) ODER
-#  - an einem Issue das Label "ai:analyzed" ENTFERNT wird (issues: unlabeled).
+#  - an einem Issue das Label "ai:analyzed" ENTFERNT wird (issues: unlabeled) ODER
+#  - an einem Issue das Label "ai:to-big-issue" ENTFERNT wird (issues: unlabeled).
 # Damit wird ein Issue ohne manuelles Zutun analysiert; das Entfernen von
 # "ai:analyzed" erzwingt bewusst eine Neu-Analyse (z. B. nach geaenderter Beschreibung).
+# Das Entfernen von "ai:to-big-issue" (nachdem ein zu grosses Issue aufgeteilt wurde)
+# stoesst ebenfalls eine (Neu-)Triage an — damit nach dem Aufteilen keine manuelle
+# Re-Triage noetig ist.
 # Setzt den Ticket-Triage-Ablauf fuer genau dieses eine Issue um.
 # Ablauf/Hintergrund: .ai-knowledge/ticket-triage.md und .claude/commands/triage-ticket.md
 #
@@ -31,25 +35,28 @@ jobs:
   triage:
     # Nur ausloesen, wenn ALLE Bedingungen zutreffen:
     #  - das Issue ist offen,
-    #  - es traegt (noch) NICHT "ai:analyzed" (sonst ist es bereits analysiert -> kein Doppellauf;
-    #    nach dem Entfernen des Labels ist diese Bedingung erfuellt, da github.event.issue.labels
-    #    bei "unlabeled" bereits den Stand NACH dem Entfernen widerspiegelt),
-    #  - UND einer der beiden Ausloeser greift:
-    #      * opened: neues Issue, das von jemandem mit Schreibzugriff stammt
+    #  - UND einer der drei Ausloeser greift:
+    #      * opened: neues Issue ohne "ai:analyzed", das von jemandem mit Schreibzugriff stammt
     #        (OWNER/MEMBER/COLLABORATOR) — verhindert, dass Aussenstehende den Lauf (und das
     #        OAuth-Token) per neuem Issue ausloesen; die Action prueft den Zugriff zusaetzlich selbst.
-    #      * unlabeled: genau das Label "ai:analyzed" wurde entfernt (Label entfernen setzt bereits
-    #        Schreibzugriff voraus -> keine zusaetzliche Autorenpruefung noetig).
+    #        Das !contains(ai:analyzed) liegt hier im opened-Zweig (nicht global), damit die beiden
+    #        unlabeled-Zweige auch dann greifen, wenn ai:analyzed noch gesetzt ist.
+    #      * unlabeled + ai:analyzed: genau das Label "ai:analyzed" wurde entfernt (Label entfernen
+    #        setzt bereits Schreibzugriff voraus -> keine zusaetzliche Autorenpruefung noetig).
+    #      * unlabeled + ai:to-big-issue: das "zu gross"-Label wurde entfernt (Mensch hat das Issue
+    #        aufgeteilt und gibt es damit erneut zur Triage frei).
     if: >-
       ${{ github.event.issue.state == 'open'
-          && !contains(github.event.issue.labels.*.name, 'ai:analyzed')
           && (
                (github.event.action == 'opened'
+                 && !contains(github.event.issue.labels.*.name, 'ai:analyzed')
                  && (github.event.issue.author_association == 'OWNER'
                      || github.event.issue.author_association == 'MEMBER'
                      || github.event.issue.author_association == 'COLLABORATOR'))
                || (github.event.action == 'unlabeled'
                    && github.event.label.name == 'ai:analyzed')
+               || (github.event.action == 'unlabeled'
+                   && github.event.label.name == 'ai:to-big-issue')
              ) }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -94,8 +101,9 @@ jobs:
       # OAuth-Token-Voraussetzung fuer Claude) darf NICHT still skippen — fehlt das zum aktiven
       # AI_AGENT-Pfad gehoerige Secret, bricht der Lauf hier deterministisch mit einem klaren
       # ::error:: ab (statt erst spaet in der claude-code-action/vibe-Action kryptisch zu sterben).
-      # Ai:to-big-issue markiert das Issue als "Mensch muss handeln", damit es nicht still stale steht
-      # (das Label triggert bewusst KEINEN Folge-Workflow, gesetzt mit github.token wie die Timeouts).
+      # Ai:to-big-issue markiert das Issue als "Mensch muss handeln", damit es nicht still stale steht.
+      # Entfernt der Mensch ai:to-big-issue wieder (nach dem Aufteilen), loest das erneut diesen
+      # Workflow aus (dritter unlabeled-Zweig in der if:-Bedingung). Gesetzt mit github.token.
       - name: Agent-Secret prüfen (kein stiller Skip)
         env:
           AI_AGENT: ${{ vars.AI_AGENT }}
