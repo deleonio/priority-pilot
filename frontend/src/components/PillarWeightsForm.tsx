@@ -16,23 +16,36 @@ import {
 	weightToRaw,
 } from '../lib/pillar';
 
-interface PillarWeightsEditorProps {
+interface PillarWeightsFormProps {
+	/** Aktuelle Säulen samt Gewichten (`GET /pillars`); Reihenfolge wie geliefert (nach id). */
 	pillars: Pillar[];
+	/** Nach erfolgreichem Speichern aufgerufen (Säulen neu laden + ggf. Dialog schließen). */
 	onSaved: () => void;
-	onSavingChange?: (saving: boolean) => void;
-	onClose?: () => void;
+	/** Optionaler Abbrechen-Handler; nur wenn gesetzt, wird der „Abbrechen"-Button gerendert (Modal). */
+	onCancel?: () => void;
 }
 
 /**
- * Reiner Gewichtungs-Editor (ohne Modal-Hülle): Slider je Säule, Normierung beim Speichern.
- * Verwendbar in Modal- und Vollseiten-Kontext.
+ * Gemeinsame Gewichtungs-Formularlogik für die Lebensbalance-Säulen: je Säule ein freier Rohwert von
+ * **0,0 bis 1,0** (#82). Beim Speichern werden die Rohwerte auf die interne 100-%-Verteilung
+ * **normiert** (`normalizeToTotalWeight`) und via `PUT /pillars/weights` abgelegt — die gespeicherte
+ * Repräsentation und damit das Ranking bleiben unverändert.
+ *
+ * Wird von `PillarWeightsModal` (mit Abbrechen) und der Settings-Seite (#271, ohne Abbrechen)
+ * genutzt. Die Eingaben liegen — wie im übrigen UI (siehe `TaskFormModal`) — in einem Ref, damit die
+ * KoliBri-Felder ihren Anzeigewert selbst verwalten (kein Cursor-Springen). Für die Live-Summe wird
+ * zusätzlich ein abgeleiteter `sum`-State bei jeder Eingabe nachgeführt.
  */
-export const PillarWeightsEditor = ({ pillars, onSaved, onSavingChange, onClose }: PillarWeightsEditorProps) => {
+export const PillarWeightsForm = ({ pillars, onSaved, onCancel }: PillarWeightsFormProps) => {
+	// Rohwerte 0,0–1,0: der gespeicherte Prozentwert wird für die Anzeige zurückgerechnet (#82).
+	// `null` erlaubt: ein geleertes Feld setzt den Eintrag auf `null`, damit die Validierung greift,
+	// statt still den alten Wert weiterzuverwenden.
 	const weights = useRef<(number | null)[]>(pillars.map((pillar) => weightToRaw(pillar.weight)));
 	const [sum, setSum] = useState(() => sumWeights(weights.current));
 	const [error, setError] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);
 
+	// Gültig, sobald jeder Wert ≥ 0 ist und mindestens einer > 0 (sonst nicht auf 100 % normierbar).
 	const distributionValid = isRawDistributionValid(weights.current);
 
 	const save = async (): Promise<void> => {
@@ -40,25 +53,29 @@ export const PillarWeightsEditor = ({ pillars, onSaved, onSavingChange, onClose 
 			setError('Jedes Gewicht muss eine Zahl ≥ 0 sein und mindestens eine Säule muss > 0 sein.');
 			return;
 		}
+		// Durch die Validierung oben sind alle Werte nicht-`null`; vor dem Speichern auf 100 % normieren.
 		const normalized = normalizeToTotalWeight(weights.current.map((weight) => weight ?? 0));
 		const entries = pillars.map((pillar, index) => ({ id: pillar.id, weight: normalized[index] }));
 
 		setError(null);
-		onSavingChange?.(true);
 		setSaving(true);
 		try {
 			await api.setPillarWeights({
 				pillarWeightsInput: { weights: entries },
 			});
+			// `setSaving(false)` auch im Erfolgsfall: die Settings-Seite unmountet nicht (anders als das
+			// Modal), sonst bliebe der Speichern-Button dauerhaft deaktiviert.
+			setSaving(false);
 			onSaved();
 		} catch (reason) {
 			const apiError = await toApiError(reason);
 			setError(apiError.message);
-			onSavingChange?.(false);
 			setSaving(false);
 		}
 	};
 
+	// Strg+Enter (bzw. ⌘+Enter) löst den primären CTA „Speichern" aus — nur wenn er nicht deaktiviert ist
+	// (kein laufendes Speichern, Säulen vorhanden, gültige Verteilung), analog zu dessen `_disabled`.
 	useCtrlEnter(() => void save(), !saving && pillars.length > 0 && distributionValid);
 
 	return (
@@ -81,10 +98,14 @@ export const PillarWeightsEditor = ({ pillars, onSaved, onSavingChange, onClose 
 						{pillars.map((pillar, index) => (
 							<div key={pillar.id} className="pillar-weight-row">
 								<KolInputRange
+									// Freie Roh-Skala 0,0–1,0 → Slider. Der aktuelle Wert steht im Label, da ein reiner
+									// Slider den exakten Wert nicht anzeigt.
 									_label={`${pillar.name}: ${formatNumber(weights.current[index] ?? 0)}`}
 									_min={RAW_WEIGHT_MIN}
 									_max={RAW_WEIGHT_MAX}
 									_step={RAW_WEIGHT_STEP}
+									// An den Ref-Wert binden (nicht den statischen `pillar.weight`): die Komponente rendert
+									// bei jeder Eingabe neu (`setSum`), sonst würde `_value` pro Tastendruck zurückgesetzt.
 									_value={weights.current[index] ?? undefined}
 									_on={{
 										onInput: (_event, value) => {
@@ -97,6 +118,8 @@ export const PillarWeightsEditor = ({ pillars, onSaved, onSavingChange, onClose 
 										},
 									}}
 								/>
+								{/* Kurzbeschreibung der Säule (globale Stammdaten) — hilft, beim Gewichten
+								    sofort zu sehen, wofür die jeweilige Säule steht. */}
 								<p className="hint pillar-description">{pillar.description}</p>
 							</div>
 						))}
@@ -121,8 +144,8 @@ export const PillarWeightsEditor = ({ pillars, onSaved, onSavingChange, onClose 
 					_disabled={saving || pillars.length === 0 || !distributionValid}
 					_on={{ onClick: () => void save() }}
 				/>
-				{onClose && (
-					<KolButton _label="Abbrechen" _variant="secondary" _disabled={saving} _on={{ onClick: () => onClose() }} />
+				{onCancel !== undefined && (
+					<KolButton _label="Abbrechen" _variant="secondary" _disabled={saving} _on={{ onClick: () => onCancel() }} />
 				)}
 			</div>
 		</>

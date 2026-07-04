@@ -8,9 +8,9 @@ import { DependencyModal } from './components/DependencyModal';
 import { EmptyState } from './components/EmptyState';
 import { ForestPanel } from './components/ForestPanel';
 import { HelpPage } from './components/HelpPage';
-import { SettingsPage } from './components/SettingsPage';
 import { QuickCaptureModal } from './components/QuickCaptureModal';
 import { SeriesManagementModal } from './components/SeriesManagementModal';
+import { SettingsPage } from './components/SettingsPage';
 import { TaskFormModal } from './components/TaskFormModal';
 import { TaskTree } from './components/TaskTree';
 import { useThemeToolbarItem } from './components/ThemeToggle';
@@ -114,8 +114,9 @@ export const App = ({ user }: { user: AuthUser }) => {
 
 	useEffect(() => {
 		const onPop = () => {
-			setShowHelp(window.location.pathname.startsWith('/hilfe'));
-			setShowSettings(window.location.pathname.startsWith('/settings'));
+			const path = window.location.pathname;
+			setShowHelp(path.startsWith('/hilfe'));
+			setShowSettings(path.startsWith('/settings'));
 		};
 		window.addEventListener('popstate', onPop);
 		return () => window.removeEventListener('popstate', onPop);
@@ -202,6 +203,13 @@ export const App = ({ user }: { user: AuthUser }) => {
 		setShowSettings(false);
 	}, []);
 
+	// Nach dem Speichern auf der Einstellungen-Seite: zurück zum Dashboard (#270) und die Daten neu
+	// laden, damit die geänderten Säulen-Gewichte sofort in Dashboard und Ranking sichtbar sind.
+	const afterSettingsSaved = useCallback((): void => {
+		closeSettings();
+		void reload();
+	}, [closeSettings, reload]);
+
 	// Stabile Callback-Identitäten, damit die memoisierte `TaskTable` beim Öffnen eines Dialogs nicht
 	// neu rendert (sonst Zellen-/Toolbar-Neuaufbau samt Fokusverlust am auslösenden Button).
 	const openEdit = useCallback((task: Task): void => setDialog({ kind: 'edit', task }), []);
@@ -217,12 +225,12 @@ export const App = ({ user }: { user: AuthUser }) => {
 	const dependencyTask =
 		dialog?.kind === 'dependencies' ? (tasks?.find((task) => task.id === dialog.taskId) ?? null) : null;
 
-	if (showHelp) {
-		return <HelpPage onBack={closeHelp} />;
+	if (showSettings) {
+		return <SettingsPage pillars={pillars} onBack={closeSettings} onSaved={afterSettingsSaved} />;
 	}
 
-	if (showSettings) {
-		return <SettingsPage pillars={pillars} onBack={closeSettings} onSaved={closeSettings} />;
+	if (showHelp) {
+		return <HelpPage onBack={closeHelp} />;
 	}
 
 	return (
