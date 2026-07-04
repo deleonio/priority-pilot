@@ -135,15 +135,33 @@ test.describe('InputRange-Felder statt InputNumber (#287)', () => {
 		// Zwei Tasks anlegen: Der Dialog zeigt den Gewichts-Slider nur, wenn mindestens ein
 		// weiterer Task als Vorgänger-Kandidat verfügbar ist (options.length > 0).
 		const predecessorTitle = uniqueTitle('Vorgänger');
-		await createTask(page, uniqueTitle('Ziel'));
+		const targetId = await createTask(page, uniqueTitle('Ziel'));
 		await createTask(page, predecessorTitle);
 		await page.reload();
 		await waitForStableView(page);
 
 		await openTasksTab(page);
-		await page.getByRole('button', { name: 'Abhängigkeiten' }).first().click();
-		await expect(page.getByRole('heading', { name: /Abhängigkeiten/ })).toBeVisible();
-		await waitForStableView(page);
+
+		// Öffnet den Abhängigkeiten-Dialog gezielt für den ZIEL-Task (per stabiler `data-testid` seines
+		// Baum-Knotens). `.first()` wäre fragil: Nach dem Hinzufügen der Abhängigkeit wird der Ziel-Task
+		// im Aufgabenwald zum Kind des Vorgängers (der dann alleinige Wurzel ist). Der Ziel-Knoten ist
+		// dann eingeklappt und `.first()` träfe nach einem Reload den Vorgänger — nicht das Ziel.
+		const openTargetDependencies = async (): Promise<void> => {
+			// Sicherstellen, dass der Ziel-Knoten sichtbar ist: Ist er als Kind eingeklappt, zuerst alle
+			// Wurzeln mit Aufklapp-Button aufklappen, bis sein Abhängigkeiten-Button sichtbar wird.
+			const targetItem = page.getByTestId(`task-tree-item-${targetId}`);
+			const targetButton = targetItem.getByRole('button', { name: 'Abhängigkeiten' });
+			if (!(await targetButton.isVisible())) {
+				for (const toggle of await page.getByRole('button', { name: 'Aufklappen' }).all()) {
+					await toggle.click();
+				}
+			}
+			await expect(targetButton).toBeVisible();
+			await targetButton.click();
+			await expect(page.getByRole('heading', { name: /Abhängigkeiten/ })).toBeVisible();
+			await waitForStableView(page);
+		};
+		await openTargetDependencies();
 
 		// Das Gewichts-Feld muss als Range-Slider mit exakt diesen Attributen vorliegen.
 		const weightSlider = page.locator('input[type="range"][min="0.1"][max="1"][step="0.1"]');
@@ -174,9 +192,7 @@ test.describe('InputRange-Felder statt InputNumber (#287)', () => {
 		await page.reload();
 		await waitForStableView(page);
 		await openTasksTab(page);
-		await page.getByRole('button', { name: 'Abhängigkeiten' }).first().click();
-		await expect(page.getByRole('heading', { name: /Abhängigkeiten/ })).toBeVisible();
-		await waitForStableView(page);
+		await openTargetDependencies();
 
 		// Vorgänger ist nach dem Reload noch in der Liste — beweist die Persistenz der Abhängigkeit.
 		await expect(page.locator('.dependency-list').getByText(predecessorTitle, { exact: false })).toBeVisible();
