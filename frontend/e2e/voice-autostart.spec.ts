@@ -280,6 +280,10 @@ test.describe('#272 Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabe
 		await page.goto('/');
 		await waitForStableView(page);
 
+		// Zum Tab „Aufgaben" wechseln – Bearbeiten-Buttons sind dort, nicht im Dashboard.
+		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
+		await waitForStableView(page);
+
 		// Bearbeiten-Button des angelegten Tasks klicken.
 		const editButton = page.getByRole('button', { name: /bearbeiten/i }).first();
 		await editButton.click();

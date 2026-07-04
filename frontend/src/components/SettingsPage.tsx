@@ -31,6 +31,7 @@ export const SettingsPage = ({ pillars, onBack, onSaved }: SettingsPageProps) =>
 	// und persistiert. Wird sie verweigert, bleibt der Schalter aus und ein Hinweis erscheint.
 	const { enabled: voiceAutostart, setEnabled: setVoiceAutostart } = useVoiceAutostart();
 	const [micDenied, setMicDenied] = useState(false);
+	const [permissionPending, setPermissionPending] = useState(false);
 
 	const onToggleVoiceAutostart = async (next: boolean): Promise<void> => {
 		if (!next) {
@@ -38,14 +39,20 @@ export const SettingsPage = ({ pillars, onBack, onSaved }: SettingsPageProps) =>
 			setMicDenied(false);
 			return;
 		}
-		const granted = await requestMicrophonePermission();
-		if (granted) {
-			setVoiceAutostart(true);
-			setMicDenied(false);
-		} else {
-			// Berechtigung verweigert → Einstellung nicht aktivieren, Hinweis zeigen.
-			setVoiceAutostart(false);
-			setMicDenied(true);
+		if (permissionPending) return;
+		setPermissionPending(true);
+		try {
+			const granted = await requestMicrophonePermission();
+			if (granted) {
+				setVoiceAutostart(true);
+				setMicDenied(false);
+			} else {
+				// Berechtigung verweigert → Einstellung nicht aktivieren, Hinweis zeigen.
+				setVoiceAutostart(false);
+				setMicDenied(true);
+			}
+		} finally {
+			setPermissionPending(false);
 		}
 	};
 
