@@ -60,12 +60,10 @@ const findDirectSubtasks = (forest: TaskTreeNode[], taskId: number): { status: T
 	return [];
 };
 
-// Statisches Reload-Icon (Font-Awesome-Solid) für den „Aktualisieren"-Toolbar-Button. Als
-// Modulkonstante, damit das Toolbar-Item nicht bei jedem Render eine neue `_icons`-Objektidentität
-// erhält (sonst würde der Icon-Watcher unnötig erneut feuern).
+// Modulkonstanten für Toolbar-Icons: stabile Objektidentität pro Render, damit der Icon-Watcher
+// nicht unnötig erneut feuert (z. B. CREATE_ICON für „Neuen Task anlegen").
 const CREATE_ICON = { left: { icon: 'fa-solid fa-plus' } };
 const SERIES_ICON = { left: { icon: 'fa-solid fa-repeat' } };
-const RELOAD_ICON = { left: { icon: 'fa-solid fa-arrows-rotate' } };
 const HELP_ICON = { left: { icon: 'fa-solid fa-circle-question' } };
 const SETTINGS_ICON = { left: { icon: 'kolicon-settings' } };
 const LOGOUT_ICON = { left: { icon: 'fa-solid fa-right-from-bracket' } };
@@ -264,15 +262,6 @@ export const App = ({ user }: { user: AuthUser }) => {
 								_icons: SERIES_ICON,
 								_variant: 'secondary',
 								_on: { onClick: () => setDialog({ kind: 'series' }) },
-							},
-							{
-								type: 'button',
-								_label: 'Aktualisieren',
-								_hideLabel: true,
-								_icons: RELOAD_ICON,
-								_variant: 'secondary',
-								_disabled: loading,
-								_on: { onClick: () => void reload() },
 							},
 							{
 								type: 'button',
