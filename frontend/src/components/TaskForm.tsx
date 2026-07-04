@@ -15,6 +15,7 @@ import { useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { useCtrlEnter } from '../lib/useCtrlEnter';
+import { useVoiceInput } from '../lib/useVoiceInput';
 import { readNumber, readString } from '../lib/inputValue';
 import {
 	ADD_PILLAR_PLACEHOLDER,
@@ -136,6 +137,22 @@ export const TaskForm = ({
 
 	const [error, setError] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);
+
+	const descTextareaRef = useRef<HTMLKolTextareaElement>(null);
+
+	const {
+		isRecording,
+		startRecording,
+		stopRecording,
+		isSupported: voiceSupported,
+	} = useVoiceInput({
+		onTranscript: (text) => {
+			const newVal = form.current.description ? `${form.current.description} ${text}` : text;
+			form.current.description = newVal;
+			const native = descTextareaRef.current?.shadowRoot?.querySelector('textarea');
+			if (native) native.value = newVal;
+		},
+	});
 
 	// KI-Säulen-Vorschlag: eigener Lade-/Fehlerzustand, damit ein Vorschlags-Fehler den Speichern-Fluss
 	// nicht stört (und umgekehrt).
@@ -409,19 +426,36 @@ export const TaskForm = ({
 						},
 					}}
 				/>
-				<KolTextarea
-					_label="Beschreibung (optional)"
-					_rows={4}
-					_value={form.current.description}
-					_on={{
-						onInput: (_event, value) => {
-							form.current.description = readString(value);
-						},
-						onChange: (_event, value) => {
-							form.current.description = readString(value);
-						},
-					}}
-				/>
+				<div className="description-field">
+					<KolTextarea
+						ref={descTextareaRef}
+						_label="Beschreibung (optional)"
+						_rows={4}
+						_value={form.current.description}
+						_on={{
+							onInput: (_event, value) => {
+								form.current.description = readString(value);
+							},
+							onChange: (_event, value) => {
+								form.current.description = readString(value);
+							},
+						}}
+					/>
+					{voiceSupported && (
+						<button
+							type="button"
+							aria-label={isRecording ? 'Aufnahme stoppen' : 'Aufnahme starten (Mikrofon)'}
+							aria-pressed={isRecording}
+							className={`mic-button${isRecording ? ' mic-button--recording' : ''}`}
+							onClick={() => {
+								if (isRecording) stopRecording();
+								else startRecording();
+							}}
+						>
+							🎤
+						</button>
+					)}
+				</div>
 			</div>
 			{/* Säulen-Beiträge: je Säule ein Roh-Anteil 0,0–1,0 (#82), beim Speichern auf 100 % normiert. */}
 			<div className="pillar-editor">

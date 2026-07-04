@@ -136,9 +136,7 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 		await micButton(page).click();
 
 		// Die Browser-Spracherkennung wurde gestartet.
-		await expect
-			.poll(() => page.evaluate(() => window.__speechRecognitionStarted === true))
-			.toBe(true);
+		await expect.poll(() => page.evaluate(() => window.__speechRecognitionStarted === true)).toBe(true);
 		// Der Button signalisiert den Aufnahme-Zustand über aria-pressed.
 		await expect(micButton(page)).toHaveAttribute('aria-pressed', 'true');
 	});
@@ -151,9 +149,7 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 		await openTaskForm(page);
 
 		await micButton(page).click();
-		await expect
-			.poll(() => page.evaluate(() => window.__speechRecognitionStarted === true))
-			.toBe(true);
+		await expect.poll(() => page.evaluate(() => window.__speechRecognitionStarted === true)).toBe(true);
 
 		// Erkennungsergebnis aus dem Test auslösen.
 		await page.evaluate(() => window.__fireSpeechResult?.('Neue Aufgabe erledigen'));
@@ -171,16 +167,12 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 
 		// Erster Klick: Start.
 		await micButton(page).click();
-		await expect
-			.poll(() => page.evaluate(() => window.__speechRecognitionStarted === true))
-			.toBe(true);
+		await expect.poll(() => page.evaluate(() => window.__speechRecognitionStarted === true)).toBe(true);
 		await expect(micButton(page)).toHaveAttribute('aria-pressed', 'true');
 
 		// Zweiter Klick: Stopp.
 		await micButton(page).click();
-		await expect
-			.poll(() => page.evaluate(() => window.__speechRecognitionStopped === true))
-			.toBe(true);
+		await expect.poll(() => page.evaluate(() => window.__speechRecognitionStopped === true)).toBe(true);
 		await expect(micButton(page)).not.toHaveAttribute('aria-pressed', 'true');
 	});
 
@@ -196,17 +188,13 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 
 		// Kompletter Flow: Start → Ergebnis → Stopp.
 		await micButton(page).click();
-		await expect
-			.poll(() => page.evaluate(() => window.__speechRecognitionStarted === true))
-			.toBe(true);
+		await expect.poll(() => page.evaluate(() => window.__speechRecognitionStarted === true)).toBe(true);
 
 		await page.evaluate(() => window.__fireSpeechResult?.('Testeingabe per Sprache'));
 		await expect(page.getByLabel('Beschreibung (optional)')).toHaveValue('Testeingabe per Sprache');
 
 		await micButton(page).click();
-		await expect
-			.poll(() => page.evaluate(() => window.__speechRecognitionStopped === true))
-			.toBe(true);
+		await expect.poll(() => page.evaluate(() => window.__speechRecognitionStopped === true)).toBe(true);
 
 		expect(pageErrors, `Unerwartete pageerrors: ${pageErrors.join(' | ')}`).toEqual([]);
 	});
