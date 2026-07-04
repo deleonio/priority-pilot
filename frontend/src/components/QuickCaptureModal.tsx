@@ -7,6 +7,7 @@ import { readString } from '../lib/inputValue';
 import { useCtrlEnter } from '../lib/useCtrlEnter';
 import { deepActiveElement } from '../lib/focus';
 import { taskFormModalTitle } from '../lib/task';
+import { readVoiceAutostartPreference } from '../lib/voiceAutostart';
 import { Modal } from './Modal';
 import { TaskForm, type TaskFormInitialValues } from './TaskForm';
 import { VoiceField } from './VoiceField';
@@ -39,6 +40,7 @@ export const QuickCaptureModal = ({ parentTask = null, pillars, onClose, onSaved
 	const [parsing, setParsing] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [hasText, setHasText] = useState(false);
+	const [voiceAutostart] = useState(readVoiceAutostartPreference);
 
 	const text = useRef('');
 	// State-Mirror für die Capture-Textarea (#264): KoliBri verwaltet den Anzeigewert selbst, aber
@@ -122,6 +124,7 @@ export const QuickCaptureModal = ({ parentTask = null, pillars, onClose, onSaved
 						<VoiceField
 							variant="textarea"
 							fieldLabel="Beschreibe deinen Task"
+							autoStart={voiceAutostart}
 							onTranscript={(transcript) => {
 								const newVal = text.current ? `${text.current} ${transcript}` : transcript;
 								text.current = newVal;

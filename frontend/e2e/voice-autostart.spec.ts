@@ -443,9 +443,7 @@ test.describe('#281 Schnellerfassung: Voice-Autostart im Capture-Textfeld', () =
 
 		await openQuickCapture(page);
 
-		await expect
-			.poll(() => page.evaluate(() => window.__speechRecognitionStarted === true))
-			.toBe(true);
+		await expect.poll(() => page.evaluate(() => window.__speechRecognitionStarted === true)).toBe(true);
 		await expect(micButton(page, 'Beschreibe deinen Task')).toHaveAttribute('aria-pressed', 'true');
 	});
 
