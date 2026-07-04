@@ -30,10 +30,7 @@ describe('docs/user-guide.md', () => {
 	// ── AK1b: README verlinkt das Handbuch ────────────────────────────────────
 	it('AK1b: README.md verlinkt auf docs/user-guide.md', () => {
 		const readme = readFileSync(readmePath, 'utf8');
-		assert.ok(
-			readme.includes('docs/user-guide.md'),
-			'README.md muss einen Link auf docs/user-guide.md enthalten',
-		);
+		assert.ok(readme.includes('docs/user-guide.md'), 'README.md muss einen Link auf docs/user-guide.md enthalten');
 	});
 
 	// ── AK2: alle Hauptfunktionen sind systematisch beschrieben ───────────────
@@ -45,10 +42,7 @@ describe('docs/user-guide.md', () => {
 		const erwarteteAbschnitte = ['Aufgaben', 'Abhängigkeiten', 'Säulen', 'Dashboard', 'Hilfe'];
 		for (const abschnitt of erwarteteAbschnitte) {
 			const heading = new RegExp(`^##\\s+.*${abschnitt}`, 'im');
-			assert.ok(
-				heading.test(guide),
-				`Handbuch muss einen Abschnitt "## …${abschnitt}…" enthalten`,
-			);
+			assert.ok(heading.test(guide), `Handbuch muss einen Abschnitt "## …${abschnitt}…" enthalten`);
 		}
 	});
 });
