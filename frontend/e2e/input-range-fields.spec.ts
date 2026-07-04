@@ -165,7 +165,7 @@ test.describe('InputRange-Felder statt InputNumber (#287)', () => {
 		await waitForStableView(page);
 
 		// Der Vorgänger erscheint in der Liste „Aktuelle Vorgänger" — beweist den erfolgreichen API-Aufruf.
-		await expect(page.getByText(predecessorTitle, { exact: false })).toBeVisible();
+		await expect(page.locator('.dependency-list').getByText(predecessorTitle, { exact: false })).toBeVisible();
 
 		// Schließen und hart neu laden: Persistenz im Backend prüfen.
 		await page.getByRole('button', { name: 'Schließen', exact: true }).click();
@@ -179,7 +179,7 @@ test.describe('InputRange-Felder statt InputNumber (#287)', () => {
 		await waitForStableView(page);
 
 		// Vorgänger ist nach dem Reload noch in der Liste — beweist die Persistenz der Abhängigkeit.
-		await expect(page.getByText(predecessorTitle, { exact: false })).toBeVisible();
+		await expect(page.locator('.dependency-list').getByText(predecessorTitle, { exact: false })).toBeVisible();
 	});
 
 	test('AK4: ArrowRight verschiebt den Prioritäts-Slider dauerhaft (kein Reset auf den Ausgangswert)', async ({
