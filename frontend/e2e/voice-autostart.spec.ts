@@ -405,3 +405,105 @@ test.describe('#272 Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabe
 		expect(overflowsHorizontally).toBe(false);
 	});
 });
+
+// ---------------------------------------------------------------------------
+// #281 — Schnellerfassung: Voice-Autostart im Capture-Textfeld
+// ---------------------------------------------------------------------------
+
+/** Öffnet die Schnellerfassung und bleibt im Capture-Schritt (NICHT überspringen). */
+const openQuickCapture = async (page: Page): Promise<void> => {
+	await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
+	await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
+	await waitForStableView(page);
+	// Sicherstellen, dass wir im Capture-Schritt sind (Textarea sichtbar, NICHT überspringen).
+	await expect(page.getByRole('textbox', { name: /Beschreibe deinen Task/i })).toBeVisible();
+};
+
+test.describe('#281 Schnellerfassung: Voice-Autostart im Capture-Textfeld', () => {
+	test.afterEach(async ({ page }) => {
+		// Keine Tasks angelegt in diesen Tests — trotzdem aufräumen für Isolation.
+		const response = await page.request.get('/api/v1/tasks');
+		const tasks = (await response.json()) as { id: number }[];
+		for (const task of tasks) {
+			await page.request.delete(`/api/v1/tasks/${task.id}`);
+		}
+	});
+
+	/**
+	 * AK1 — Auto-Start bei aktiver Einstellung:
+	 * pp-voice-autostart=true + Sprachunterstützung vorhanden → Aufnahme startet automatisch
+	 * am Capture-Feld „Beschreibe deinen Task" (window.__speechRecognitionStarted===true,
+	 * Mic-Button aria-pressed="true").
+	 */
+	test('AK1: Einstellung an → Aufnahme startet automatisch im Capture-Feld', async ({ page }) => {
+		await setVoiceAutostartInStorage(page, true);
+		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'granted' }));
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await openQuickCapture(page);
+
+		await expect.poll(() => page.evaluate(() => window.__speechRecognitionStarted === true)).toBe(true);
+		await expect(micButton(page, 'Beschreibe deinen Task')).toHaveAttribute('aria-pressed', 'true');
+	});
+
+	/**
+	 * AK2 — Kein Auto-Start bei ausgeschalteter Einstellung (Default):
+	 * pp-voice-autostart=false → keine automatische Aufnahme im Capture-Feld.
+	 */
+	test('AK2: Einstellung aus (Default) → kein Auto-Start im Capture-Feld', async ({ page }) => {
+		await setVoiceAutostartInStorage(page, false);
+		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'granted' }));
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await openQuickCapture(page);
+
+		const started = await page.evaluate(() => window.__speechRecognitionStarted === true);
+		expect(started).toBe(false);
+		await expect(micButton(page, 'Beschreibe deinen Task')).not.toHaveAttribute('aria-pressed', 'true');
+	});
+
+	/**
+	 * AK3 — Keine Sprachunterstützung → kein Absturz:
+	 * Einstellung an, aber SpeechRecognition nicht verfügbar → keine JS-Fehler,
+	 * Textfeld sichtbar und editierbar, keine Aufnahme gestartet.
+	 */
+	test('AK3: Einstellung an, SpeechRecognition nicht verfügbar → kein Absturz', async ({ page }) => {
+		const pageErrors: string[] = [];
+		page.on('pageerror', (err) => pageErrors.push(err.message));
+
+		await setVoiceAutostartInStorage(page, true);
+		await page.addInitScript(buildInitScript({ speechSupported: false, mediaPermission: 'granted' }));
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await openQuickCapture(page);
+
+		expect(pageErrors, `Unerwartete pageerrors: ${pageErrors.join(' | ')}`).toEqual([]);
+		await expect(page.getByRole('textbox', { name: /Beschreibe deinen Task/i })).toBeVisible();
+		await expect(page.getByRole('textbox', { name: /Beschreibe deinen Task/i })).toBeEditable();
+		const started = await page.evaluate(() => window.__speechRecognitionStarted === true);
+		expect(started).toBe(false);
+	});
+
+	/**
+	 * AK4 — Mobile-First (375px):
+	 * Kein horizontales Scrollen, Mic-Button sichtbar und bedienbar.
+	 */
+	test('AK4: 375px-Viewport — kein horizontales Scrollen, Mic-Button sichtbar', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await setVoiceAutostartInStorage(page, true);
+		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'granted' }));
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await openQuickCapture(page);
+
+		const overflowsHorizontally = await page.evaluate(() => {
+			return document.body.scrollWidth > window.innerWidth + 1;
+		});
+		expect(overflowsHorizontally).toBe(false);
+		await expect(micButton(page, 'Beschreibe deinen Task')).toBeVisible();
+	});
+});
