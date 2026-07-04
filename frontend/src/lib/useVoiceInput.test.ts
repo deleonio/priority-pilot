@@ -32,13 +32,13 @@ import { useVoiceInput } from './useVoiceInput';
 
 /** Minimaler Ergebnis-Event-Shape, wie ihn die Web Speech API an `onresult` reicht. */
 interface MockSpeechRecognitionEvent {
-	results: { 0: { 0: { transcript: string } }; length: number };
+	results: { 0: { 0: { transcript: string }; isFinal?: boolean }; length: number };
 	resultIndex: number;
 }
 
 /** Baut einen `SpeechRecognitionEvent`-ähnlichen Payload für einen einzelnen Transkript-Text. */
-const buildResultEvent = (transcript: string): MockSpeechRecognitionEvent => ({
-	results: { 0: { 0: { transcript } }, length: 1 },
+const buildResultEvent = (transcript: string, isFinal = true): MockSpeechRecognitionEvent => ({
+	results: { 0: { 0: { transcript }, isFinal }, length: 1 },
 	resultIndex: 0,
 });
 
@@ -46,29 +46,50 @@ const buildResultEvent = (transcript: string): MockSpeechRecognitionEvent => ({
  * Test-Double für `window.SpeechRecognition`. Die zuletzt erzeugte Instanz wird in
  * `MockSpeechRecognition.instances` festgehalten, damit der Test `onresult`/`onend` feuern und
  * `start`/`stop`/`abort` als `vi.fn()` prüfen kann.
+ *
+ * Realitätsnah wie die echte API (#283):
+ *  - `start()` feuert `onstart` (Lausch-Beginn) — abschaltbar über `autoFireOnStart`, um den
+ *    asynchronen Warmup der echten Engine zu modellieren,
+ *  - `start()` kann via `startThrows` einen Engine-Konflikt (`InvalidStateError`) simulieren,
+ *  - `abort()` feuert wie die echte API erst `onerror('aborted')`, dann `onend`.
  */
 class MockSpeechRecognition {
 	static instances: MockSpeechRecognition[] = [];
+	/** `false` → `onstart` wird NICHT automatisch gefeuert (modelliert den Warmup, #283). */
+	static autoFireOnStart = true;
+	/** `true` → `start()` wirft (modelliert einen Engine-Konflikt / Doppelstart, #283). */
+	static startThrows = false;
 
 	lang = '';
 	continuous = false;
 	interimResults = false;
 
+	onstart: (() => void) | null = null;
 	onresult: ((event: MockSpeechRecognitionEvent) => void) | null = null;
 	onend: (() => void) | null = null;
 	onerror: ((event: unknown) => void) | null = null;
 
-	start = vi.fn();
+	start = vi.fn(() => {
+		if (MockSpeechRecognition.startThrows) {
+			throw new Error('InvalidStateError');
+		}
+		if (MockSpeechRecognition.autoFireOnStart) {
+			this.onstart?.();
+		}
+	});
 	stop = vi.fn();
-	abort = vi.fn();
+	abort = vi.fn(() => {
+		this.onerror?.({ error: 'aborted' });
+		this.onend?.();
+	});
 
 	constructor() {
 		MockSpeechRecognition.instances.push(this);
 	}
 
 	/** Testhilfe: simuliert ein erkanntes Ergebnis (feuert den registrierten `onresult`-Handler). */
-	fireResult(transcript: string): void {
-		this.onresult?.(buildResultEvent(transcript));
+	fireResult(transcript: string, isFinal = true): void {
+		this.onresult?.(buildResultEvent(transcript, isFinal));
 	}
 }
 
@@ -82,6 +103,8 @@ const speechWindow = window as unknown as SpeechWindow;
 describe('useVoiceInput (#251)', () => {
 	beforeEach(() => {
 		MockSpeechRecognition.instances = [];
+		MockSpeechRecognition.autoFireOnStart = true;
+		MockSpeechRecognition.startThrows = false;
 		// Standardfall: die Standard-API existiert. Einzelne Tests überschreiben das gezielt.
 		speechWindow.SpeechRecognition = MockSpeechRecognition;
 		delete speechWindow.webkitSpeechRecognition;
@@ -230,5 +253,180 @@ describe('useVoiceInput (#251)', () => {
 
 		expect(result.current.voiceError).toBe('Spracherkennung fehlgeschlagen.');
 		expect(result.current.isRecording).toBe(false);
+	});
+
+	// --- #283: Aufnahme-Lebenslauf härten — kein stiller Ausfall, kein verlorenes Ergebnis ---
+
+	describe('Stabilität der Aufnahme (#283)', () => {
+		it('AK1 (#283): onend ohne jedes Ergebnis setzt den Hinweis „Nichts erkannt" statt still zu enden', () => {
+			const onTranscript = vi.fn();
+			const { result } = renderHook(() => useVoiceInput({ onTranscript }));
+
+			act(() => {
+				result.current.startRecording();
+			});
+			const instance = MockSpeechRecognition.instances.at(-1);
+			expect(instance).toBeDefined();
+
+			// Die Engine endet (z. B. Stille), OHNE dass je ein onresult kam.
+			act(() => {
+				instance?.onend?.();
+			});
+
+			expect(result.current.isRecording).toBe(false);
+			expect(result.current.voiceError).toBe('Nichts erkannt – bitte erneut sprechen.');
+			expect(onTranscript).not.toHaveBeenCalled();
+		});
+
+		it('AK2 (#283): endet die Engine nach einem Zwischenergebnis ohne Finale, wird das Zwischenergebnis übernommen', () => {
+			const onTranscript = vi.fn();
+			const { result } = renderHook(() => useVoiceInput({ onTranscript }));
+
+			act(() => {
+				result.current.startRecording();
+			});
+			const instance = MockSpeechRecognition.instances.at(-1);
+			expect(instance).toBeDefined();
+
+			// Nur ein Zwischenergebnis (isFinal=false) kommt an, dann endet die Engine abrupt.
+			act(() => {
+				instance?.fireResult('Neue Aufgabe erledigen', false);
+			});
+			expect(onTranscript).not.toHaveBeenCalled();
+
+			act(() => {
+				instance?.onend?.();
+			});
+
+			expect(onTranscript).toHaveBeenCalledTimes(1);
+			expect(onTranscript).toHaveBeenCalledWith('Neue Aufgabe erledigen');
+			expect(result.current.voiceError).toBeNull();
+		});
+
+		it('AK3 (#283): nach einem Finale wird ein früheres Zwischenergebnis nicht doppelt geliefert', () => {
+			const onTranscript = vi.fn();
+			const { result } = renderHook(() => useVoiceInput({ onTranscript }));
+
+			act(() => {
+				result.current.startRecording();
+			});
+			const instance = MockSpeechRecognition.instances.at(-1);
+			expect(instance).toBeDefined();
+
+			act(() => {
+				instance?.fireResult('Neue Auf', false);
+				instance?.fireResult('Neue Aufgabe erledigen', true);
+				instance?.onend?.();
+			});
+
+			expect(onTranscript).toHaveBeenCalledTimes(1);
+			expect(onTranscript).toHaveBeenCalledWith('Neue Aufgabe erledigen');
+			expect(result.current.voiceError).toBeNull();
+		});
+
+		it('AK4 (#283): onerror "no-speech" zeigt den Hinweis statt der generischen Fehlermeldung', () => {
+			const { result } = renderHook(() => useVoiceInput({ onTranscript: vi.fn() }));
+
+			act(() => {
+				result.current.startRecording();
+			});
+			const instance = MockSpeechRecognition.instances.at(-1);
+			expect(instance).toBeDefined();
+
+			act(() => {
+				instance?.onerror?.({ error: 'no-speech' });
+			});
+
+			expect(result.current.voiceError).toBe('Nichts erkannt – bitte erneut sprechen.');
+			expect(result.current.isRecording).toBe(false);
+		});
+
+		it('AK5 (#283): ein Guard-Abbruch (Feldwechsel) erzeugt trotz onerror("aborted")/onend keinen Fehler- oder Hinweistext', () => {
+			// Zwei Hook-Instanzen wie zwei VoiceFields im selben Formular (Titel + Beschreibung).
+			const first = renderHook(() => useVoiceInput({ onTranscript: vi.fn() }));
+			const second = renderHook(() => useVoiceInput({ onTranscript: vi.fn() }));
+
+			act(() => {
+				first.result.current.startRecording();
+			});
+			const firstInstance = MockSpeechRecognition.instances.at(-1);
+			expect(first.result.current.isRecording).toBe(true);
+
+			// „Last click wins": Start am zweiten Feld bricht das erste ab — der Mock feuert dabei
+			// wie die echte API onerror('aborted') + onend am ersten Feld.
+			act(() => {
+				second.result.current.startRecording();
+			});
+
+			expect(firstInstance?.abort).toHaveBeenCalledTimes(1);
+			expect(first.result.current.isRecording).toBe(false);
+			expect(first.result.current.voiceError).toBeNull();
+			expect(second.result.current.isRecording).toBe(true);
+		});
+
+		it('AK6 (#283): isRecording wird erst mit onstart true (Warmup) — ein früh eintreffendes Ergebnis geht nicht verloren', () => {
+			MockSpeechRecognition.autoFireOnStart = false;
+			const onTranscript = vi.fn();
+			const { result } = renderHook(() => useVoiceInput({ onTranscript }));
+
+			act(() => {
+				result.current.startRecording();
+			});
+			const instance = MockSpeechRecognition.instances.at(-1);
+			expect(instance?.start).toHaveBeenCalledTimes(1);
+
+			// Vor onstart lauscht die Engine noch nicht — der Zustand darf das nicht vorgaukeln.
+			expect(result.current.isRecording).toBe(false);
+
+			// Ein dennoch früh geliefertes Ergebnis wird nicht verworfen.
+			act(() => {
+				instance?.fireResult('Früh gesprochen');
+			});
+			expect(onTranscript).toHaveBeenCalledWith('Früh gesprochen');
+
+			act(() => {
+				instance?.onstart?.();
+			});
+			expect(result.current.isRecording).toBe(true);
+		});
+
+		it('AK7 (#283): wirft start() (Engine-Konflikt), bleibt der Hook bedienbar statt dauerhaft tot', () => {
+			const { result } = renderHook(() => useVoiceInput({ onTranscript: vi.fn() }));
+
+			MockSpeechRecognition.startThrows = true;
+			act(() => {
+				result.current.startRecording();
+			});
+
+			expect(result.current.isRecording).toBe(false);
+			expect(result.current.voiceError).toBe('Spracherkennung fehlgeschlagen.');
+
+			// Der nächste Startversuch funktioniert wieder (kein hängender interner Zustand).
+			MockSpeechRecognition.startThrows = false;
+			act(() => {
+				result.current.startRecording();
+			});
+
+			expect(result.current.isRecording).toBe(true);
+			expect(result.current.voiceError).toBeNull();
+		});
+
+		it('AK8 (#283): engine-seitiges "aborted" während aktiver Aufnahme zeigt den Hinweis (kein stiller Ausfall)', () => {
+			const { result } = renderHook(() => useVoiceInput({ onTranscript: vi.fn() }));
+
+			act(() => {
+				result.current.startRecording();
+			});
+			const instance = MockSpeechRecognition.instances.at(-1);
+			expect(instance).toBeDefined();
+
+			// Kein Guard/Unmount hat die Aufnahme geräumt — die Engine bricht selbst ab.
+			act(() => {
+				instance?.onerror?.({ error: 'aborted' });
+			});
+
+			expect(result.current.isRecording).toBe(false);
+			expect(result.current.voiceError).toBe('Nichts erkannt – bitte erneut sprechen.');
+		});
 	});
 });

@@ -11,11 +11,15 @@ import { VoiceField } from './VoiceField';
 
 /** Minimaler Ergebnis-Event-Shape, wie ihn die Web Speech API an `onresult` reicht. */
 interface MockSpeechRecognitionEvent {
-	results: { 0: { 0: { transcript: string } }; length: number };
+	results: { 0: { 0: { transcript: string }; isFinal?: boolean }; length: number };
 	resultIndex: number;
 }
 
-/** Test-Double für `window.SpeechRecognition`; die zuletzt erzeugte Instanz ist abfragbar. */
+/**
+ * Test-Double für `window.SpeechRecognition`; die zuletzt erzeugte Instanz ist abfragbar.
+ * Realitätsnah wie die echte API (#283): `start()` feuert `onstart` (Lausch-Beginn), `abort()`
+ * feuert erst `onerror('aborted')`, dann `onend`.
+ */
 class MockSpeechRecognition {
 	static instances: MockSpeechRecognition[] = [];
 
@@ -23,21 +27,27 @@ class MockSpeechRecognition {
 	continuous = false;
 	interimResults = false;
 
+	onstart: (() => void) | null = null;
 	onresult: ((event: MockSpeechRecognitionEvent) => void) | null = null;
 	onend: (() => void) | null = null;
 	onerror: ((event: unknown) => void) | null = null;
 
-	start = vi.fn();
+	start = vi.fn(() => {
+		this.onstart?.();
+	});
 	stop = vi.fn();
-	abort = vi.fn();
+	abort = vi.fn(() => {
+		this.onerror?.({ error: 'aborted' });
+		this.onend?.();
+	});
 
 	constructor() {
 		MockSpeechRecognition.instances.push(this);
 	}
 
 	/** Testhilfe: simuliert ein erkanntes Ergebnis (feuert den registrierten `onresult`-Handler). */
-	fireResult(transcript: string): void {
-		this.onresult?.({ results: { 0: { 0: { transcript } }, length: 1 }, resultIndex: 0 });
+	fireResult(transcript: string, isFinal = true): void {
+		this.onresult?.({ results: { 0: { 0: { transcript }, isFinal }, length: 1 }, resultIndex: 0 });
 	}
 }
 
@@ -189,5 +199,29 @@ describe('VoiceField (#264)', () => {
 			'true',
 		);
 		expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+	});
+
+	it('zeigt nach einem Ende ohne Ergebnis den Hinweis „Nichts erkannt" als role=alert (#283)', async () => {
+		render(
+			<VoiceField variant="input" fieldLabel="Titel" onTranscript={vi.fn()}>
+				<textarea aria-label="Titel" />
+			</VoiceField>,
+		);
+
+		fireEvent.click(screen.getByRole('button', { name: 'Aufnahme starten (Mikrofon): Titel' }));
+
+		const instance = MockSpeechRecognition.instances.at(-1);
+		expect(instance).toBeDefined();
+		// Die Engine endet (z. B. Stille), ohne dass je ein Ergebnis kam.
+		act(() => {
+			instance?.onend?.();
+		});
+
+		const alert = await screen.findByRole('alert');
+		expect(alert).toHaveTextContent('Nichts erkannt – bitte erneut sprechen.');
+		expect(screen.getByRole('button', { name: 'Aufnahme starten (Mikrofon): Titel' })).toHaveAttribute(
+			'aria-pressed',
+			'false',
+		);
 	});
 });
