@@ -67,9 +67,7 @@ test.describe('Priority Pilot — Tab „Erledigte Aufgaben" (#228) gegen das ec
 		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeHidden();
 	};
 
-	test('AK-1: Tab „Erledigte Aufgaben" zeigt nur Done-Tasks — offene Tasks erscheinen dort nicht', async ({
-		page,
-	}) => {
+	test('AK-1: Tab „Erledigte Aufgaben" zeigt nur Done-Tasks — offene Tasks erscheinen dort nicht', async ({ page }) => {
 		await page.goto('/');
 		await waitForStableView(page);
 
@@ -127,12 +125,12 @@ test.describe('Priority Pilot — Tab „Erledigte Aufgaben" (#228) gegen das ec
 
 		await openCompletedTab(page);
 		// Ein klarer, verständlicher Leerhinweis ist sichtbar (Wortlaut bewusst locker per Regex).
-		await expect(page.getByText(/keine erledigten Aufgaben|noch nichts erledigt|keine erledigten Tasks/i)).toBeVisible();
+		await expect(
+			page.getByText(/keine erledigten Aufgaben|noch nichts erledigt|keine erledigten Tasks/i),
+		).toBeVisible();
 	});
 
-	test('AK-4: „Wieder öffnen" entfernt den Task aus Erledigten und macht ihn wieder zu „Offen"', async ({
-		page,
-	}) => {
+	test('AK-4: „Wieder öffnen" entfernt den Task aus Erledigten und macht ihn wieder zu „Offen"', async ({ page }) => {
 		await page.goto('/');
 		await waitForStableView(page);
 

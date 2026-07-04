@@ -2,6 +2,7 @@ import { KolAlert, KolAvatar, KolHeading, KolPopoverButton, KolSpin, KolTabs, Ko
 import type { Pillar, Task, TaskStatus, TaskTreeNode } from 'client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from './api';
+import { CompletedTasksTable } from './components/CompletedTasksTable';
 import { Dashboard } from './components/Dashboard';
 import { DeleteTaskDialog } from './components/DeleteTaskDialog';
 import { DependencyModal } from './components/DependencyModal';
@@ -33,7 +34,12 @@ type Dialog =
 // Die Hauptansichten als Tab-Leiste oben (Inhalt steckt in den zugehörigen `tab-N`-Slots von
 // `KolTabs`). Modulkonstante, damit `KolTabs` nicht bei jedem Render eine neue Tab-Liste erhält und
 // die Auswahl zurücksetzt.
-const VIEW_TABS = [{ _label: 'Dashboard' }, { _label: 'Aufgaben' }, { _label: 'Aufgabenwald' }];
+const VIEW_TABS = [
+	{ _label: 'Dashboard' },
+	{ _label: 'Aufgaben' },
+	{ _label: 'Aufgabenwald' },
+	{ _label: 'Erledigte Aufgaben' },
+];
 
 /**
  * Liefert die direkten Unteraufgaben (Dependents) des Tasks `taskId` aus dem Aufgabenwald (#246).
@@ -386,6 +392,11 @@ export const App = ({ user }: { user: AuthUser }) => {
 					</div>
 					<div slot="tab-2">
 						<ForestPanel forest={forest} />
+					</div>
+					<div slot="tab-3">
+						<section className="task-section">
+							<CompletedTasksTable tasks={tasks} pillars={pillars} onReloaded={reload} />
+						</section>
 					</div>
 				</KolTabs>
 			)}

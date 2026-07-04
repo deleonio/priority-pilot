@@ -107,10 +107,6 @@ describe('AK-5 — Score-Rücknahme beim Reopen (Done → Open)', () => {
 		await patch(`/tasks/${id}`, { status: 'Done' });
 
 		const scores = await fetchScores();
-		assert.equal(
-			scores.filter((entry) => entry.taskId === id).length,
-			1,
-			'nach Done→Open→Done genau ein ScoreEntry',
-		);
+		assert.equal(scores.filter((entry) => entry.taskId === id).length, 1, 'nach Done→Open→Done genau ein ScoreEntry');
 	});
 });
