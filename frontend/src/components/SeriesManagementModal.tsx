@@ -29,6 +29,7 @@ export const SeriesManagementModal = ({ onClose }: SeriesManagementModalProps) =
 	const [error, setError] = useState<string | null>(null);
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
 	const [subForm, setSubForm] = useState<SubForm>(null);
+	const [isGenerating, setIsGenerating] = useState(false);
 
 	const reload = useCallback(async (signal?: AbortSignal): Promise<void> => {
 		try {
@@ -58,6 +59,8 @@ export const SeriesManagementModal = ({ onClose }: SeriesManagementModalProps) =
 
 	// Stößt die serverseitige Materialisierung aller fälligen Serien-Instanzen an (#244, AK7).
 	const generateAll = useCallback(async (): Promise<void> => {
+		if (isGenerating) return;
+		setIsGenerating(true);
 		try {
 			const { created } = await api.generateAllSeries();
 			setError(null);
@@ -66,8 +69,10 @@ export const SeriesManagementModal = ({ onClose }: SeriesManagementModalProps) =
 			const apiError = await toApiError(reason);
 			setError(apiError.message);
 			setSuccessMessage(null);
+		} finally {
+			setIsGenerating(false);
 		}
-	}, []);
+	}, [isGenerating]);
 
 	const remove = useCallback(
 		async (entry: Series): Promise<void> => {
@@ -114,6 +119,7 @@ export const SeriesManagementModal = ({ onClose }: SeriesManagementModalProps) =
 						<KolButton
 							_label="Fällige Instanzen generieren"
 							_variant="secondary"
+							_disabled={isGenerating}
 							_on={{ onClick: () => void generateAll() }}
 						/>
 					</div>
