@@ -89,13 +89,9 @@ describe('claude-triage.yml – if-Bedingung des triage-Jobs (Issue #253)', () =
 		assert.equal(ifCount, 1, 'Es wird genau eine if: >- Job-Bedingung erwartet');
 	});
 
-	it('AK7: Der Job triggert nur bei offenen Issues (state == \'open\')', () => {
+	it("AK7: Der Job triggert nur bei offenen Issues (state == 'open')", () => {
 		const condition = extractIfCondition(readWorkflow());
-		assert.match(
-			condition,
-			/github\.event\.issue\.state == 'open'/,
-			"Bedingung muss state == 'open' fordern (AK7)",
-		);
+		assert.match(condition, /github\.event\.issue\.state == 'open'/, "Bedingung muss state == 'open' fordern (AK7)");
 	});
 
 	it('AK1+AK2: Der unlabeled-Zweig akzeptiert das Label ai:to-big-issue', () => {
@@ -136,7 +132,7 @@ describe('claude-triage.yml – if-Bedingung des triage-Jobs (Issue #253)', () =
 		assert.doesNotMatch(
 			globalScope,
 			/!contains\(github\.event\.issue\.labels\.\*\.name, 'ai:analyzed'\)/,
-			"Der ai:analyzed-Guard darf nicht mehr global (vor dem opened-Zweig) stehen (AK1)",
+			'Der ai:analyzed-Guard darf nicht mehr global (vor dem opened-Zweig) stehen (AK1)',
 		);
 	});
 

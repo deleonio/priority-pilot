@@ -2,9 +2,12 @@ name: Claude Triage (Analyse)
 
 # Stoesst die KI-Analyse (Triage) eines Issues automatisch an, sobald
 #  - ein neues Issue ANGELEGT wird (issues: opened) ODER
-#  - an einem Issue das Label "ai:analyzed" ENTFERNT wird (issues: unlabeled).
+#  - an einem Issue das Label "ai:analyzed" ENTFERNT wird (issues: unlabeled) ODER
+#  - an einem Issue das Label "ai:to-big-issue" ENTFERNT wird (issues: unlabeled).
 # Damit wird ein Issue ohne manuelles Zutun analysiert; das Entfernen von
 # "ai:analyzed" erzwingt bewusst eine Neu-Analyse (z. B. nach geaenderter Beschreibung).
+# Das Entfernen von "ai:to-big-issue" signalisiert, dass das Issue nun (wieder) analysiert
+# werden soll — typischerweise nach dem Aufteilen oder nach Beheben eines Secret-Problems.
 # Setzt den Ticket-Triage-Ablauf fuer genau dieses eine Issue um.
 # Ablauf/Hintergrund: .ai-knowledge/ticket-triage.md und .claude/commands/triage-ticket.md
 #
@@ -16,7 +19,7 @@ name: Claude Triage (Analyse)
 on:
   issues:
     # opened: neu angelegtes Issue; unlabeled: ein Label wurde entfernt
-    # (gefiltert auf "ai:analyzed" im if des Jobs).
+    # (gefiltert auf "ai:analyzed" oder "ai:to-big-issue" im if des Jobs).
     types: [opened, unlabeled]
 
 # Pro Issue nur ein Lauf gleichzeitig. cancel-in-progress: true -> eine neue Aenderung
@@ -31,25 +34,28 @@ jobs:
   triage:
     # Nur ausloesen, wenn ALLE Bedingungen zutreffen:
     #  - das Issue ist offen,
-    #  - es traegt (noch) NICHT "ai:analyzed" (sonst ist es bereits analysiert -> kein Doppellauf;
-    #    nach dem Entfernen des Labels ist diese Bedingung erfuellt, da github.event.issue.labels
-    #    bei "unlabeled" bereits den Stand NACH dem Entfernen widerspiegelt),
     #  - UND einer der beiden Ausloeser greift:
     #      * opened: neues Issue, das von jemandem mit Schreibzugriff stammt
     #        (OWNER/MEMBER/COLLABORATOR) — verhindert, dass Aussenstehende den Lauf (und das
     #        OAuth-Token) per neuem Issue ausloesen; die Action prueft den Zugriff zusaetzlich selbst.
-    #      * unlabeled: genau das Label "ai:analyzed" wurde entfernt (Label entfernen setzt bereits
-    #        Schreibzugriff voraus -> keine zusaetzliche Autorenpruefung noetig).
+    #        Zusaetzlich: kein Doppellauf wenn das Issue bereits "ai:analyzed" traegt
+    #        (github.event.issue.labels zeigt beim opened-Event den aktuellen Stand).
+    #      * unlabeled: das Label "ai:analyzed" ODER "ai:to-big-issue" wurde entfernt.
+    #        Label entfernen setzt bereits Schreibzugriff voraus -> keine zusaetzliche Autorenpruefung.
+    #        WICHTIG: Der ai:analyzed-Guard gilt beim unlabeled-Event NICHT global — beim Entfernen
+    #        von ai:to-big-issue kann ai:analyzed noch am Issue haengen (Timeout-Szenario), der Lauf
+    #        soll dennoch starten.
     if: >-
       ${{ github.event.issue.state == 'open'
-          && !contains(github.event.issue.labels.*.name, 'ai:analyzed')
           && (
                (github.event.action == 'opened'
+                 && !contains(github.event.issue.labels.*.name, 'ai:analyzed')
                  && (github.event.issue.author_association == 'OWNER'
                      || github.event.issue.author_association == 'MEMBER'
                      || github.event.issue.author_association == 'COLLABORATOR'))
                || (github.event.action == 'unlabeled'
-                   && github.event.label.name == 'ai:analyzed')
+                   && (github.event.label.name == 'ai:analyzed'
+                       || github.event.label.name == 'ai:to-big-issue'))
              ) }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
