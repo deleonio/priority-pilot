@@ -1,0 +1,14 @@
+{
+	"name": "priority-pilot-tests",
+	"type": "module",
+	"private": true,
+	"scripts": {
+		"format": "prettier . --check",
+		"knip": "echo \"no knip in tests workspace\"",
+		"lint": "echo \"no lint in tests workspace\"",
+		"test": "node --import tsx --test \"*.test.ts\""
+	},
+	"devDependencies": {
+		"tsx": "4.22.4"
+	}
+}

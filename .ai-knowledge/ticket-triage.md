@@ -120,7 +120,7 @@ Bei einem zu großen Ticket:
   kein optionaler Schritt):
   `gh api graphql -f query='mutation($p:ID!,$c:ID!){addSubIssue(input:{issueId:$p,subIssueId:$c}){clientMutationId}}' -f p=<parent-node-id> -f c=<child-node-id>`
   (Node-IDs über `gh issue view <nr> --json id`.)
-  **Fallback nur bei API-Fehler:** Schlägt die GraphQL-Mutation fehlschlägt (API-Fehler, Berechtigung
+  **Fallback nur bei API-Fehler:** Falls die GraphQL-Mutation fehlschlägt (API-Fehler, Berechtigung
   nicht vorhanden o. ä.), als Notfallpfad eine **Task-Liste** (`- [ ] #<nr>`) im Eltern-Body
   eintragen — GitHub rendert daraus die Fortschrittsanzeige. Dabei den (in Schritt 2 lektorierten)
   Eltern-Body **nicht überschreiben**, sondern die Task-Liste **anhängen** (bestehenden Body laden,
