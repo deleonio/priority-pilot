@@ -208,3 +208,19 @@ export const buildPillarSummaries = (
 	}
 	return summaries;
 };
+
+/**
+ * Punkte je Säule für einen **einzelnen** Task (#228, AK-2): der geschätzte Eigenaufwand wird nach
+ * dem `share` anteilig (`estimatedEffort × share / 100`) auf die Säulen verteilt. Fehlt zu einer
+ * Säule ein Beitrag oder ist ihr `share = 0`, ergibt sich `0` (nie `NaN`). Gibt eine Map von
+ * `pillarId` → Punkte zurück (ein Eintrag je übergebener Säule, Reihenfolge der `pillars` egal).
+ */
+export const getTaskPillarPoints = (task: Task, pillars: Pillar[]): Map<number, number> => {
+	const points = new Map<number, number>();
+	for (const pillar of pillars) {
+		const contribution = task.pillars.find((entry) => entry.pillarId === pillar.id);
+		const share = contribution?.share ?? 0;
+		points.set(pillar.id, task.estimatedEffort * (share / TOTAL_WEIGHT));
+	}
+	return points;
+};

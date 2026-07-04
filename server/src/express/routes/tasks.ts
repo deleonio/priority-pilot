@@ -391,6 +391,12 @@ tasksRouter.patch('/tasks/:id', async (req: Request, res: Response<TaskDto | Err
 			if (!warVorherDone && task.status === 'Done') {
 				await awardScoreOnDone(task, transaction);
 			}
+			// Score-Rücknahme beim Wiedereröffnen (#228, AK-5): War der Task vorher „Done" und ist er
+			// jetzt nicht mehr erledigt, wird der beim Erledigen vergebene ScoreEntry wieder entfernt.
+			// Ein erneutes „Done" vergibt dann genau einen neuen Eintrag (keine Doppelzählung).
+			if (warVorherDone && task.status !== 'Done') {
+				await ScoreEntry.destroy({ where: { taskId: task.id }, transaction });
+			}
 		});
 		const withPillars = await findTaskWithPillars(task.id);
 		if (!withPillars) {

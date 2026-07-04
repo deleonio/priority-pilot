@@ -635,3 +635,123 @@ body {
 	color: var(--pp-text-muted);
 	margin: 1rem 0;
 }
+
+/* --- Erledigte Aufgaben (#228) --- */
+
+/* Nur für Screenreader sichtbar (visuell ausgeblendet, aber im Accessibility-Tree). */
+.visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+.completed-tasks {
+	margin-top: 1rem;
+}
+
+.completed-tasks-empty {
+	color: var(--pp-text-muted);
+	margin: 1rem 0;
+}
+
+.completed-tasks-error {
+	color: var(--pp-danger, #b00020);
+	margin: 0 0 1rem;
+}
+
+/*
+ * Mobile-First (#228, AK-6): Bei schmalen Viewports (< 48rem) wird jede Zeile zu einer eigenständigen
+ * „Karte" gestapelt, sodass nichts horizontal überläuft. Die Kopfzeile wird ausgeblendet; jede Zelle
+ * beschriftet sich über ihr `data-label`. Ab 48rem kippt die Darstellung in eine klassische Tabelle.
+ */
+.completed-tasks-table {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.completed-tasks-table thead {
+	/* Auf schmalen Viewports verbergen — die `data-label`-Beschriftung übernimmt. */
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+.completed-tasks-table tr {
+	display: block;
+	margin-bottom: 1rem;
+	padding: 0.75rem;
+	border: 1px solid var(--pp-border, #d0d0d0);
+	border-radius: 0.5rem;
+}
+
+.completed-tasks-table th[scope='row'] {
+	display: block;
+	text-align: left;
+	font-weight: 700;
+	margin-bottom: 0.5rem;
+	word-break: break-word;
+}
+
+.completed-tasks-table td {
+	display: flex;
+	justify-content: space-between;
+	gap: 0.75rem;
+	padding: 0.25rem 0;
+	word-break: break-word;
+}
+
+/* Säulen-Punkte-Zellen mit ihrem Säulennamen beschriften (Kopfzeile ist ausgeblendet). */
+.completed-tasks-table td[data-label]::before {
+	content: attr(data-label);
+	font-weight: 600;
+	color: var(--pp-text-muted);
+}
+
+@media (min-width: 48rem) {
+	.completed-tasks-table thead {
+		position: static;
+		width: auto;
+		height: auto;
+		margin: 0;
+		clip: auto;
+		overflow: visible;
+	}
+
+	.completed-tasks-table thead th {
+		text-align: left;
+		padding: 0.5rem;
+		border-bottom: 2px solid var(--pp-border, #d0d0d0);
+	}
+
+	.completed-tasks-table tr {
+		display: table-row;
+		margin: 0;
+		padding: 0;
+		border: 0;
+		border-radius: 0;
+	}
+
+	.completed-tasks-table th[scope='row'],
+	.completed-tasks-table td {
+		display: table-cell;
+		padding: 0.5rem;
+		border-bottom: 1px solid var(--pp-border, #d0d0d0);
+		margin: 0;
+	}
+
+	.completed-tasks-table td[data-label]::before {
+		content: none;
+	}
+}

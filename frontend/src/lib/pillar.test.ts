@@ -5,6 +5,7 @@ import {
 	ADD_PILLAR_PLACEHOLDER,
 	addPillarOptions,
 	buildPillarSummaries,
+	getTaskPillarPoints,
 	isRawDistributionValid,
 	isWeightSumValid,
 	normalizeToTotalWeight,
@@ -361,5 +362,82 @@ describe('#219 buildPillarSummaries — actualShare (Ist-Anteil erledigter Tasks
 		const totalShare = summaries.reduce((acc, s) => acc + s.actualShare, 0);
 
 		expect(totalShare).toBeCloseTo(1, 10);
+	});
+});
+
+// --- #228 (AK-2): Punkte je Säule für einen einzelnen (erledigten) Task ---
+
+describe('getTaskPillarPoints', () => {
+	const koerper = pillar(1, 'Körper', 40);
+	const sinn = pillar(2, 'Sinn', 60);
+	const geist = pillar(3, 'Geist', 0);
+
+	it('AK-2: verteilt estimatedEffort × share/100 je Säule (60/40 bei Aufwand 10 ⇒ Körper 6, Sinn 4)', () => {
+		const t = task(
+			10,
+			[
+				{ pillarId: 1, share: 60, confidence: 100 },
+				{ pillarId: 2, share: 40, confidence: 100 },
+			],
+			10,
+			TaskStatus.Done,
+		);
+
+		const points = getTaskPillarPoints(t, [koerper, sinn]);
+
+		expect(points.get(koerper.id)).toBeCloseTo(6, 10);
+		expect(points.get(sinn.id)).toBeCloseTo(4, 10);
+	});
+
+	it('AK-2: Leerfall — Task ohne pillars liefert für jede Säule 0 (kein NaN)', () => {
+		const t = task(11, [], 10, TaskStatus.Done);
+
+		const points = getTaskPillarPoints(t, [koerper, sinn]);
+
+		expect(points.get(koerper.id)).toBe(0);
+		expect(points.get(sinn.id)).toBe(0);
+		expect(Number.isNaN(points.get(koerper.id))).toBe(false);
+		expect(Number.isNaN(points.get(sinn.id))).toBe(false);
+	});
+
+	it('AK-2: Säule ohne Beitrag (share 0 oder gar nicht im Task) ergibt 0 (kein NaN)', () => {
+		// Geist mit share 0 (im Task enthalten), Sinn gar nicht im Task → beide 0.
+		const t = task(
+			12,
+			[
+				{ pillarId: 1, share: 100, confidence: 100 },
+				{ pillarId: 3, share: 0, confidence: 100 },
+			],
+			10,
+			TaskStatus.Done,
+		);
+
+		const points = getTaskPillarPoints(t, [koerper, sinn, geist]);
+
+		expect(points.get(koerper.id)).toBeCloseTo(10, 10);
+		expect(points.get(geist.id)).toBe(0);
+		expect(points.get(sinn.id)).toBe(0);
+		expect(Number.isNaN(points.get(sinn.id))).toBe(false);
+		expect(Number.isNaN(points.get(geist.id))).toBe(false);
+	});
+
+	it('AK-2: Summen-Check — Σ Säulenwerte = estimatedEffort × (Σ shares / 100)', () => {
+		const t = task(
+			13,
+			[
+				{ pillarId: 1, share: 30, confidence: 100 },
+				{ pillarId: 2, share: 70, confidence: 100 },
+			],
+			8,
+			TaskStatus.Done,
+		);
+
+		const points = getTaskPillarPoints(t, [koerper, sinn]);
+		const total = [...points.values()].reduce((acc, value) => acc + value, 0);
+
+		const shareSum = t.pillars.reduce((acc, entry) => acc + entry.share, 0);
+		expect(total).toBeCloseTo(t.estimatedEffort * (shareSum / 100), 10);
+		// Bei vollständiger 100 %-Verteilung entspricht die Summe genau dem Gesamtaufwand.
+		expect(total).toBeCloseTo(8, 10);
 	});
 });
