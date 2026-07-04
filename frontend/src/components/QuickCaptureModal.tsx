@@ -9,6 +9,7 @@ import { deepActiveElement } from '../lib/focus';
 import { taskFormModalTitle } from '../lib/task';
 import { Modal } from './Modal';
 import { TaskForm, type TaskFormInitialValues } from './TaskForm';
+import { VoiceField } from './VoiceField';
 
 interface QuickCaptureModalProps {
 	/** Beim Anlegen einer Unteraufgabe: die Eltern-Aufgabe (durchgereicht an das reguläre Formular). */
@@ -40,6 +41,9 @@ export const QuickCaptureModal = ({ parentTask = null, pillars, onClose, onSaved
 	const [hasText, setHasText] = useState(false);
 
 	const text = useRef('');
+	// State-Mirror für die Capture-Textarea (#264): KoliBri verwaltet den Anzeigewert selbst, aber
+	// ein per Sprach-Transkript geänderter Wert muss über `_value` ins Feld gespiegelt werden.
+	const [captureText, setCaptureText] = useState('');
 	const textareaRef = useRef<HTMLKolTextareaElement>(null);
 
 	// Autofokus auf die native textarea im Shadow DOM beim Öffnen des Capture-Schritts (#250).
@@ -115,17 +119,32 @@ export const QuickCaptureModal = ({ parentTask = null, pillars, onClose, onSaved
 						</KolAlert>
 					)}
 					<div className="form-grid">
-						<KolTextarea
-							ref={textareaRef}
-							_label="Beschreibe deinen Task"
-							_rows={4}
-							_on={{
-								onInput: (_event, value) => {
-									text.current = readString(value);
-									setHasText(text.current.trim().length > 0);
-								},
+						<VoiceField
+							variant="textarea"
+							fieldLabel="Beschreibe deinen Task"
+							onTranscript={(transcript) => {
+								const newVal = text.current ? `${text.current} ${transcript}` : transcript;
+								text.current = newVal;
+								setCaptureText(newVal);
+								// Auch nach reiner Sprach-Eingabe muss „Verarbeiten und weiter" aktiv werden.
+								setHasText(newVal.trim().length > 0);
 							}}
-						/>
+						>
+							<KolTextarea
+								ref={textareaRef}
+								_label="Beschreibe deinen Task"
+								_rows={4}
+								_value={captureText}
+								_on={{
+									onInput: (_event, value) => {
+										const newVal = readString(value);
+										text.current = newVal;
+										setCaptureText(newVal);
+										setHasText(newVal.trim().length > 0);
+									},
+								}}
+							/>
+						</VoiceField>
 					</div>
 					{parsing && (
 						<div className="pillar-editor-loading">

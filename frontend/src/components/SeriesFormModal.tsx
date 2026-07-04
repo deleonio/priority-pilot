@@ -5,6 +5,7 @@ import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { useCtrlEnter } from '../lib/useCtrlEnter';
 import { readString } from '../lib/inputValue';
+import { VoiceField } from './VoiceField';
 
 interface SeriesFormModalProps {
 	/** Zu bearbeitende Serie; `null` legt eine neue Serie an. */
@@ -48,6 +49,10 @@ export const SeriesFormModal = ({ series, onClose, onSaved }: SeriesFormModalPro
 
 	const [error, setError] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);
+
+	// State-Mirror für den Titel (#264): KoliBri verwaltet den Anzeigewert selbst, aber ein per
+	// Sprach-Transkript geänderter Wert muss über `_value` ins Feld gespiegelt werden.
+	const [title, setTitle] = useState(form.current.title);
 
 	const submit = async (): Promise<void> => {
 		const title = form.current.title.trim();
@@ -117,19 +122,33 @@ export const SeriesFormModal = ({ series, onClose, onSaved }: SeriesFormModalPro
 				</KolAlert>
 			)}
 			<div className="form-grid">
-				<KolInputText
-					_label="Titel"
-					_required
-					_value={form.current.title}
-					_on={{
-						onInput: (_event, value) => {
-							form.current.title = readString(value);
-						},
-						onChange: (_event, value) => {
-							form.current.title = readString(value);
-						},
+				<VoiceField
+					variant="input"
+					fieldLabel="Titel"
+					onTranscript={(text) => {
+						const newVal = form.current.title ? `${form.current.title} ${text}` : text;
+						form.current.title = newVal;
+						setTitle(newVal);
 					}}
-				/>
+				>
+					<KolInputText
+						_label="Titel"
+						_required
+						_value={title}
+						_on={{
+							onInput: (_event, value) => {
+								const newVal = readString(value);
+								form.current.title = newVal;
+								setTitle(newVal);
+							},
+							onChange: (_event, value) => {
+								const newVal = readString(value);
+								form.current.title = newVal;
+								setTitle(newVal);
+							},
+						}}
+					/>
+				</VoiceField>
 				<KolInputDate
 					_label="Startdatum"
 					_type="date"

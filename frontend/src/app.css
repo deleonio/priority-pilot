@@ -508,20 +508,40 @@ body {
 	margin: 0 0 1rem;
 }
 
-/* --- Beschreibungsfeld mit Mikrofon-Button (#251) --- */
-/* Textarea und Mic-Button stehen nebeneinander; die Textarea nimmt den freien Platz ein. */
-.description-field {
-	display: flex;
-	align-items: flex-start;
-	gap: 0.5rem;
+/* --- Textfelder mit Mikrofon-Button (#251, #264) --- */
+/* Der Mic-Button liegt als Overlay IN der Inputbox. Da KoliBri-Felder Shadow-DOM-Komponenten
+   sind, ankert der absolut positionierte Button am unteren Rand des Wrappers — die Inputbox ist
+   stets das unterste Element (das Label sitzt darüber), auch bei vertikalem Textarea-Resize. */
+.voice-field {
+	position: relative;
 }
 
-.description-field kol-textarea {
-	flex: 1;
+.voice-field > .mic-button {
+	position: absolute;
+	right: 0.5rem;
+	z-index: 1;
+}
+
+/* Textarea: unten rechts. */
+.voice-field--textarea > .mic-button {
+	bottom: 0.5rem;
+}
+
+/* Einzeiliger Input: vertikal in der Inputbox zentriert, von unten gerechnet. Die Inputbox-Höhe
+   des KoliBri-Default-Themes ist als Custom Property kalibrierbar. */
+.voice-field--input > .mic-button {
+	bottom: calc((var(--pp-voice-input-height, 2.75rem) - 2rem) / 2);
 }
 
 .mic-button {
-	padding: 0.5rem;
+	/* Feste Größe: Grundlage der Overlay-Positionsrechnung + ausreichendes Touch-Target. */
+	width: 2rem;
+	height: 2rem;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	line-height: 1;
+	padding: 0;
 	cursor: pointer;
 	border-radius: 50%;
 	border: 1px solid currentColor;
