@@ -15,8 +15,8 @@ import { useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { useCtrlEnter } from '../lib/useCtrlEnter';
-import { useVoiceInput } from '../lib/useVoiceInput';
 import { readNumber, readString } from '../lib/inputValue';
+import { VoiceField } from './VoiceField';
 import {
 	ADD_PILLAR_PLACEHOLDER,
 	addPillarOptions,
@@ -138,21 +138,10 @@ export const TaskForm = ({
 	const [error, setError] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);
 
+	// State-Mirror für die Textfelder mit Spracheingabe (#264): KoliBri verwaltet den Anzeigewert
+	// selbst, aber ein per Transkript geänderter Wert muss über `_value` ins Feld gespiegelt werden.
+	const [title, setTitle] = useState(form.current.title);
 	const [description, setDescription] = useState(form.current.description);
-
-	const {
-		isRecording,
-		startRecording,
-		stopRecording,
-		isSupported: voiceSupported,
-		voiceError,
-	} = useVoiceInput({
-		onTranscript: (text) => {
-			const newVal = form.current.description ? `${form.current.description} ${text}` : text;
-			form.current.description = newVal;
-			setDescription(newVal);
-		},
-	});
 
 	// KI-Säulen-Vorschlag: eigener Lade-/Fehlerzustand, damit ein Vorschlags-Fehler den Speichern-Fluss
 	// nicht stört (und umgekehrt).
@@ -352,19 +341,33 @@ export const TaskForm = ({
 				</KolAlert>
 			)}
 			<div className="form-grid">
-				<KolInputText
-					_label="Titel"
-					_required
-					_value={form.current.title}
-					_on={{
-						onInput: (_event, value) => {
-							form.current.title = readString(value);
-						},
-						onChange: (_event, value) => {
-							form.current.title = readString(value);
-						},
+				<VoiceField
+					variant="input"
+					fieldLabel="Titel"
+					onTranscript={(text) => {
+						const newVal = form.current.title ? `${form.current.title} ${text}` : text;
+						form.current.title = newVal;
+						setTitle(newVal);
 					}}
-				/>
+				>
+					<KolInputText
+						_label="Titel"
+						_required
+						_value={title}
+						_on={{
+							onInput: (_event, value) => {
+								const newVal = readString(value);
+								form.current.title = newVal;
+								setTitle(newVal);
+							},
+							onChange: (_event, value) => {
+								const newVal = readString(value);
+								form.current.title = newVal;
+								setTitle(newVal);
+							},
+						}}
+					/>
+				</VoiceField>
 				<KolSingleSelect
 					_label="Status"
 					_options={statusOptions}
@@ -426,7 +429,15 @@ export const TaskForm = ({
 						},
 					}}
 				/>
-				<div className="description-field">
+				<VoiceField
+					variant="textarea"
+					fieldLabel="Beschreibung"
+					onTranscript={(text) => {
+						const newVal = form.current.description ? `${form.current.description} ${text}` : text;
+						form.current.description = newVal;
+						setDescription(newVal);
+					}}
+				>
 					<KolTextarea
 						_label="Beschreibung (optional)"
 						_rows={4}
@@ -444,26 +455,7 @@ export const TaskForm = ({
 							},
 						}}
 					/>
-					{voiceSupported && (
-						<button
-							type="button"
-							aria-label={isRecording ? 'Aufnahme stoppen' : 'Aufnahme starten (Mikrofon)'}
-							aria-pressed={isRecording}
-							className={`mic-button${isRecording ? ' mic-button--recording' : ''}`}
-							onClick={() => {
-								if (isRecording) stopRecording();
-								else startRecording();
-							}}
-						>
-							🎤
-						</button>
-					)}
-				</div>
-				{voiceError !== null && (
-					<p className="mic-error" role="alert">
-						{voiceError}
-					</p>
-				)}
+				</VoiceField>
 			</div>
 			{/* Säulen-Beiträge: je Säule ein Roh-Anteil 0,0–1,0 (#82), beim Speichern auf 100 % normiert. */}
 			<div className="pillar-editor">
