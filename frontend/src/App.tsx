@@ -58,6 +58,11 @@ const findDirectSubtasks = (forest: TaskTreeNode[], taskId: number): { status: T
 // erhält (sonst würde der Icon-Watcher unnötig erneut feuern).
 const RELOAD_ICON = { left: { icon: 'fa-solid fa-arrows-rotate' } };
 
+// Statisches Fragezeichen-Icon (Font-Awesome-Solid) für den icon-only „Hilfe"-Button (#229). Als
+// Modulkonstante, damit das Toolbar-Item nicht bei jedem Render eine neue `_icons`-Objektidentität
+// erhält (sonst würde der Icon-Watcher unnötig erneut feuern).
+const HELP_ICON = { left: { icon: 'fa-solid fa-circle-question' } };
+
 export const App = ({ user }: { user: AuthUser }) => {
 	const [tasks, setTasks] = useState<Task[] | null>(null);
 	const [forest, setForest] = useState<TaskTreeNode[]>([]);
@@ -236,6 +241,17 @@ export const App = ({ user }: { user: AuthUser }) => {
 								_icons: themeItem._icons,
 								_variant: 'secondary',
 								_on: { onClick: themeItem.onClick },
+							},
+							{
+								// Icon-only Hilfe-Button (#229): Fragezeichen-Symbol, Label „Hilfe" liefert den
+								// zugänglichen Namen/Tooltip; `_hideLabel` hält den sichtbaren Body textfrei.
+								// Öffnet die In-App-Hilfeseite unter `/hilfe`.
+								type: 'button',
+								_label: 'Hilfe',
+								_hideLabel: true,
+								_icons: HELP_ICON,
+								_variant: 'secondary',
+								_on: { onClick: () => (window.location.href = '/hilfe') },
 							},
 							{
 								type: 'button' as const,

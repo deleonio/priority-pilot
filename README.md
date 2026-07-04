@@ -30,6 +30,10 @@ Priority Pilot ist eine Full-Stack-Anwendung im pnpm-Monorepo: Ein Node.js-Backe
 (Express + Sequelize/SQLite) stellt die REST-API bereit, ein React-Frontend (KoliBri, als PWA)
 bedient sie. Der Funktionsumfang ist bewusst klein und befindet sich im Prototyp-Stadium.
 
+Eine ausführliche, deutschsprachige Bedienungsanleitung findest du im
+[Nutzerhandbuch](docs/user-guide.md); dieselben Inhalte sind in der Anwendung über den
+Hilfe-Button (Route `/hilfe`) erreichbar.
+
 ## Monorepo-Aufbau
 
 Verwaltet mit **pnpm Workspaces** (siehe [`pnpm-workspace.yaml`](pnpm-workspace.yaml)):

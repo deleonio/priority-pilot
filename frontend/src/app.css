@@ -517,3 +517,71 @@ body {
 	margin: 0 0 1rem;
 	color: var(--pp-text-muted);
 }
+
+/* --- In-App-Hilfeseite (#229): Nutzerhandbuch als formatiertes Markdown --- */
+.help-page {
+	max-width: 48rem;
+	margin: 0 auto;
+	padding: 1.5rem 1rem;
+	box-sizing: border-box;
+	color: var(--pp-text);
+}
+
+.help-page__header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 1rem;
+	margin-bottom: 1.5rem;
+}
+
+.help-page__brand {
+	font-weight: 600;
+	color: var(--pp-text-muted);
+}
+
+/* Lange Wörter, Inline-Code und Links dürfen bei schmalen Viewports (375px, AK5) umbrechen,
+   damit die Seite nicht horizontal überläuft. */
+.help-page__content {
+	overflow-wrap: anywhere;
+	word-break: break-word;
+}
+
+.help-page__content h1 {
+	font-size: 1.75rem;
+	margin: 0 0 1rem;
+}
+
+.help-page__content h2 {
+	font-size: 1.35rem;
+	margin: 2rem 0 0.75rem;
+	border-bottom: 1px solid var(--pp-border);
+	padding-bottom: 0.25rem;
+}
+
+.help-page__content h3 {
+	font-size: 1.1rem;
+	margin: 1.5rem 0 0.5rem;
+}
+
+.help-page__content p {
+	line-height: 1.6;
+	margin: 0 0 1rem;
+}
+
+.help-page__content ul {
+	margin: 0 0 1rem;
+	padding-left: 1.5rem;
+	line-height: 1.6;
+}
+
+.help-page__content li {
+	margin-bottom: 0.35rem;
+}
+
+.help-page__content code {
+	background: var(--pp-bg-muted);
+	padding: 0.1rem 0.3rem;
+	border-radius: 0.25rem;
+	font-size: 0.9em;
+}
