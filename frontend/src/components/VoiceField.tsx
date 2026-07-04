@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { useVoiceInput } from '../lib/useVoiceInput';
 
 interface VoiceFieldProps {
@@ -8,6 +8,12 @@ interface VoiceFieldProps {
 	fieldLabel: string;
 	/** Erkannter Text (roh); das Zusammenführen mit dem Bestandswert (Anhängen) macht die Call-Site. */
 	onTranscript: (text: string) => void;
+	/**
+	 * Startet die Aufnahme automatisch **einmal** beim Mounten (#272), sofern der Browser Sprache
+	 * unterstützt. Wird von den Call-Sites nur für das erste Feld gesetzt, wenn die Allgemein-
+	 * Einstellung „Sprachaufnahme automatisch starten" aktiv ist.
+	 */
+	autoStart?: boolean;
 	children: ReactNode;
 }
 
@@ -21,8 +27,23 @@ interface VoiceFieldProps {
  * Innen-Padding des nativen Inputs ist ohne eigenes Theme nicht setzbar — langer Text kann daher
  * unter den Button laufen. Bewusster, akzeptierter Tradeoff des Overlay-Ansatzes.
  */
-export const VoiceField = ({ variant, fieldLabel, onTranscript, children }: VoiceFieldProps) => {
+export const VoiceField = ({ variant, fieldLabel, onTranscript, autoStart = false, children }: VoiceFieldProps) => {
 	const { isRecording, startRecording, stopRecording, isSupported, voiceError } = useVoiceInput({ onTranscript });
+
+	// Auto-Start (#272): beim Mount die Aufnahme starten, sofern unterstützt. Der Cleanup setzt das
+	// Ein-Schuss-Flag zurück, damit der StrictMode-Zyklus (setup → cleanup → setup) im Dev-Build die
+	// zwischenzeitlich abgebrochene Aufnahme im zweiten Setup erneut startet. Ohne
+	// Browser-Unterstützung (`isSupported=false`) ist `startRecording` ein No-op → kein Absturz.
+	const autoStarted = useRef(false);
+	useEffect(() => {
+		if (autoStart && isSupported && !autoStarted.current) {
+			autoStarted.current = true;
+			startRecording();
+		}
+		return () => {
+			autoStarted.current = false;
+		};
+	}, [autoStart, isSupported, startRecording]);
 
 	return (
 		<>
