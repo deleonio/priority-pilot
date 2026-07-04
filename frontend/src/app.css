@@ -80,12 +80,6 @@ body {
 	--kol-avatar-size: 2rem;
 }
 
-/* Einstellungs-Popover: vertikale Toolbar als kompaktes Menü mit etwas Mindestbreite. */
-.settings-menu {
-	display: block;
-	min-width: 14rem;
-}
-
 .loading {
 	display: flex;
 	align-items: center;

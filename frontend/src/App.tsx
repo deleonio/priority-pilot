@@ -1,4 +1,4 @@
-import { KolAlert, KolAvatar, KolHeading, KolPopoverButton, KolSpin, KolTabs, KolToolbar } from '@public-ui/react-v19';
+import { KolAlert, KolAvatar, KolHeading, KolSpin, KolTabs, KolToolbar } from '@public-ui/react-v19';
 import type { Pillar, Task, TaskStatus, TaskTreeNode } from 'client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from './api';
@@ -8,7 +8,6 @@ import { DependencyModal } from './components/DependencyModal';
 import { EmptyState } from './components/EmptyState';
 import { ForestPanel } from './components/ForestPanel';
 import { HelpPage } from './components/HelpPage';
-import { PillarWeightsModal } from './components/PillarWeightsModal';
 import { QuickCaptureModal } from './components/QuickCaptureModal';
 import { SeriesManagementModal } from './components/SeriesManagementModal';
 import { SettingsPage } from './components/SettingsPage';
@@ -26,7 +25,6 @@ type Dialog =
 	| { kind: 'edit'; task: Task }
 	| { kind: 'delete'; task: Task }
 	| { kind: 'dependencies'; taskId: number }
-	| { kind: 'pillars' }
 	| { kind: 'series' }
 	| null;
 
@@ -60,9 +58,10 @@ const findDirectSubtasks = (forest: TaskTreeNode[], taskId: number): { status: T
 // erhält (sonst würde der Icon-Watcher unnötig erneut feuern).
 const RELOAD_ICON = { left: { icon: 'fa-solid fa-arrows-rotate' } };
 const HELP_ICON = { left: { icon: 'fa-solid fa-circle-question' } };
+const SETTINGS_ICON = { left: { icon: 'kolicon-settings' } };
 
 export const App = ({ user }: { user: AuthUser }) => {
-	const [showHelp, setShowHelp] = useState(false);
+	const [showHelp, setShowHelp] = useState(() => window.location.pathname.startsWith('/hilfe'));
 	const [showSettings, setShowSettings] = useState(() => window.location.pathname.startsWith('/settings'));
 	const [tasks, setTasks] = useState<Task[] | null>(null);
 	const [forest, setForest] = useState<TaskTreeNode[]>([]);
@@ -168,10 +167,6 @@ export const App = ({ user }: { user: AuthUser }) => {
 
 	const closeDialog = useCallback((): void => setDialog(null), []);
 
-	// Referenz auf den Einstellungs-PopoverButton, um das Popover beim Öffnen eines Unterpunkts
-	// (z. B. der Säulen-Gewichtung) wieder zu schließen.
-	const settingsRef = useRef<HTMLKolPopoverButtonElement>(null);
-
 	// Fallback-Fokusziel für Dialoge, nach denen das auslösende Element nicht mehr im DOM ist
 	// (z. B. nach erfolgreichem Löschen: der Löschen-Button fällt mit der Zeile aus dem DOM).
 	// tabIndex={-1} erlaubt programmatischen Fokus ohne visuelle Tab-Stop-Wirkung.
@@ -188,12 +183,6 @@ export const App = ({ user }: { user: AuthUser }) => {
 		});
 	}, [reload]);
 
-	/** Öffnet die Säulen-Gewichtung aus dem Einstellungs-Menü und schließt das Popover. */
-	const openPillars = useCallback((): void => {
-		void settingsRef.current?.hidePopover();
-		setDialog({ kind: 'pillars' });
-	}, []);
-
 	const openHelp = useCallback((): void => {
 		window.history.pushState({}, '', '/hilfe');
 		setShowHelp(true);
@@ -205,7 +194,6 @@ export const App = ({ user }: { user: AuthUser }) => {
 	}, []);
 
 	const openSettings = useCallback((): void => {
-		void settingsRef.current?.hidePopover();
 		window.history.pushState({}, '', '/settings/pillars');
 		setShowSettings(true);
 	}, []);
@@ -214,6 +202,13 @@ export const App = ({ user }: { user: AuthUser }) => {
 		window.history.pushState({}, '', '/');
 		setShowSettings(false);
 	}, []);
+
+	// Nach dem Speichern auf der Einstellungen-Seite: zurück zum Dashboard (#270) und die Daten neu
+	// laden, damit die geänderten Säulen-Gewichte sofort in Dashboard und Ranking sichtbar sind.
+	const afterSettingsSaved = useCallback((): void => {
+		closeSettings();
+		void reload();
+	}, [closeSettings, reload]);
 
 	// Stabile Callback-Identitäten, damit die memoisierte `TaskTable` beim Öffnen eines Dialogs nicht
 	// neu rendert (sonst Zellen-/Toolbar-Neuaufbau samt Fokusverlust am auslösenden Button).
@@ -231,7 +226,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 		dialog?.kind === 'dependencies' ? (tasks?.find((task) => task.id === dialog.taskId) ?? null) : null;
 
 	if (showSettings) {
-		return <SettingsPage pillars={pillars} onBack={closeSettings} onSaved={afterMutation} />;
+		return <SettingsPage pillars={pillars} onBack={closeSettings} onSaved={afterSettingsSaved} />;
 	}
 
 	if (showHelp) {
@@ -243,10 +238,6 @@ export const App = ({ user }: { user: AuthUser }) => {
 			<header className="app-header">
 				<KolHeading _label="Priority Pilot" _level={1} />
 				<div className="toolbar">
-					{/* Die einfachen Header-Aktionen als echte `KolToolbar` (Toolbar-Rolle + Pfeiltasten-
-					    Navigation, sprechendes Label „Kopf-Aktionen"): „Neuen Task anlegen", „Aktualisieren"
-					    und der Darstellungs-Umschalter. Der `KolPopoverButton` „Einstellungen" bleibt bewusst
-					    außerhalb (Geschwister), da sein Kind-Inhalt sich nicht über `_items` abbilden lässt. */}
 					<KolToolbar
 						_label="Kopf-Aktionen"
 						_orientation="horizontal"
@@ -291,6 +282,14 @@ export const App = ({ user }: { user: AuthUser }) => {
 							},
 							{
 								type: 'button' as const,
+								_label: 'Einstellungen',
+								_hideLabel: true,
+								_icons: SETTINGS_ICON,
+								_variant: 'secondary' as const,
+								_on: { onClick: openSettings },
+							},
+							{
+								type: 'button' as const,
 								_label: 'Abmelden',
 								_variant: 'secondary' as const,
 								_disabled: logoutLoading,
@@ -302,39 +301,6 @@ export const App = ({ user }: { user: AuthUser }) => {
 						<KolAvatar _label={user.name} _src={user.avatarUrl ?? undefined} />
 						<span className="user-display-name">{user.name}</span>
 					</div>
-					{/* Einstellungen rechts oben: ein icon-only Zahnrad öffnet ein Popover mit einer
-				    vertikalen Toolbar als Menü. Erster Unterpunkt ist die Säulen-Gewichtung
-				    (globale Gewichtung der fünf Lebensbalance-Säulen);
-				    der Bereich ist so für weitere Einstellungen erweiterbar. */}
-					<KolPopoverButton
-						ref={settingsRef}
-						_label="Einstellungen"
-						_hideLabel
-						_icons={{ left: { icon: 'kolicon-settings' } }}
-						_variant="secondary"
-						_popoverAlign="bottom"
-					>
-						<KolToolbar
-							className="settings-menu"
-							_label="Einstellungen"
-							_orientation="vertical"
-							_items={[
-								{
-									type: 'button',
-									_label: 'Säulen-Gewichtung',
-									_variant: 'secondary',
-									_disabled: loading || tasks === null,
-									_on: { onClick: openPillars },
-								},
-								{
-									type: 'button',
-									_label: 'Einstellungen öffnen',
-									_variant: 'secondary',
-									_on: { onClick: openSettings },
-								},
-							]}
-						/>
-					</KolPopoverButton>
 				</div>
 			</header>
 
@@ -407,9 +373,6 @@ export const App = ({ user }: { user: AuthUser }) => {
 					onClose={closeDialog}
 					onSaved={afterMutation}
 				/>
-			)}
-			{dialog?.kind === 'pillars' && (
-				<PillarWeightsModal pillars={pillars} onClose={closeDialog} onSaved={afterMutation} />
 			)}
 			{dialog?.kind === 'series' && <SeriesManagementModal onClose={closeDialog} />}
 			{dialog?.kind === 'delete' && (

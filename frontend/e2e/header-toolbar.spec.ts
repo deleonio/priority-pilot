@@ -95,20 +95,20 @@ test.describe('#125 Header – Toolbar', () => {
 	});
 
 	/**
-	 * AK4 — Popover-Button bleibt außerhalb der Toolbar erreichbar: „Einstellungen" ist KEIN
-	 * Nachkomme der Toolbar, der Säulen-Gewichtungs-Dialog ist weiterhin über das Popover öffenbar.
+	 * AK4 — Einstellungs-Button liegt in der Toolbar und navigiert zu /settings/pillars.
+	 * Das bisherige Popover und der Popover-Button außerhalb der Toolbar sind entfernt (#270).
 	 */
-	test('AK4: „Einstellungen"-Popover bleibt außerhalb der Toolbar erreichbar', async ({ page }) => {
+	test('AK4: „Einstellungen"-Button liegt in der Toolbar und navigiert zu /settings/pillars', async ({ page }) => {
 		await page.goto('/');
 		await waitForStableView(page);
 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
-		// Der Einstellungs-Button ist bewusst NICHT Teil der Toolbar (Owner-Entscheidung).
-		await expect(toolbar.getByRole('button', { name: 'Einstellungen' })).toHaveCount(0);
+		// Der Einstellungs-Button liegt jetzt INNERHALB der Toolbar.
+		await expect(toolbar.getByRole('button', { name: 'Einstellungen' })).toBeVisible();
 
-		// Bestehender Flow (vgl. crud.spec.ts `openPillarWeights`) bleibt grün.
-		await page.getByRole('button', { name: 'Einstellungen' }).click();
-		await page.getByRole('button', { name: 'Säulen-Gewichtung' }).click();
+		// Klick navigiert zur Settings-Route (kein Popover mehr).
+		await toolbar.getByRole('button', { name: 'Einstellungen' }).click();
+		await expect(page).toHaveURL(/\/settings\/pillars/);
 		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
 	});
 });
