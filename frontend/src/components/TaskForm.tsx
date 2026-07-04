@@ -458,12 +458,12 @@ export const TaskForm = ({
 							🎤
 						</button>
 					)}
-					{voiceError !== null && (
-						<p className="mic-error" role="alert">
-							{voiceError}
-						</p>
-					)}
 				</div>
+				{voiceError !== null && (
+					<p className="mic-error" role="alert">
+						{voiceError}
+					</p>
+				)}
 			</div>
 			{/* Säulen-Beiträge: je Säule ein Roh-Anteil 0,0–1,0 (#82), beim Speichern auf 100 % normiert. */}
 			<div className="pillar-editor">

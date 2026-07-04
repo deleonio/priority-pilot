@@ -195,4 +195,40 @@ describe('useVoiceInput (#251)', () => {
 		expect(instance).toBeDefined();
 		expect(instance?.start).toHaveBeenCalledTimes(1);
 	});
+
+	it('AK8: onerror "not-allowed" setzt voiceError auf Mikrofon-Fehlermeldung', () => {
+		const { result } = renderHook(() => useVoiceInput({ onTranscript: vi.fn() }));
+
+		act(() => {
+			result.current.startRecording();
+		});
+
+		const instance = MockSpeechRecognition.instances.at(-1);
+		expect(instance).toBeDefined();
+
+		act(() => {
+			instance?.onerror?.({ error: 'not-allowed' });
+		});
+
+		expect(result.current.voiceError).toBe('Mikrofon-Zugriff wurde verweigert.');
+		expect(result.current.isRecording).toBe(false);
+	});
+
+	it('AK9: onerror generisch setzt voiceError auf generische Fehlermeldung', () => {
+		const { result } = renderHook(() => useVoiceInput({ onTranscript: vi.fn() }));
+
+		act(() => {
+			result.current.startRecording();
+		});
+
+		const instance = MockSpeechRecognition.instances.at(-1);
+		expect(instance).toBeDefined();
+
+		act(() => {
+			instance?.onerror?.({ error: 'network' });
+		});
+
+		expect(result.current.voiceError).toBe('Spracherkennung fehlgeschlagen.');
+		expect(result.current.isRecording).toBe(false);
+	});
 });
