@@ -53,10 +53,8 @@ describe('AK-1 — addSubIssue als Pflichtschritt', () => {
 		assert.ok(taskListIdx >= 0, 'Nach "addSubIssue" muss "Task-Liste" erwähnt sein');
 
 		// Suche nach einer Fehler-Bedingung im Fallback-Abschnitt (bis zum nächsten Hauptabschnitt)
-		const fallbackStart = afterAddSubIssue.slice(0, taskListIdx);
 		const nextSectionIdx = afterAddSubIssue.indexOf('\n## ', taskListIdx);
-		const fallbackSection =
-			nextSectionIdx > 0 ? afterAddSubIssue.slice(0, nextSectionIdx) : afterAddSubIssue;
+		const fallbackSection = nextSectionIdx > 0 ? afterAddSubIssue.slice(0, nextSectionIdx) : afterAddSubIssue;
 
 		// Prüfe, dass der Fallback-Abschnitt eine explizite API-Fehler-Bedingung erwähnt.
 		// "nicht verfügbar" existiert bereits im alten Text — dieser Test prüft, ob die neue
@@ -85,14 +83,11 @@ describe('AK-2 — Fallback-Dokumentation im Ping-Kommentar', () => {
 		// Finde den Sub-Issue-Abschnitt (von addSubIssue bis zum nächsten ## Schritt)
 		const afterAddSubIssue = content.slice(addSubIssueIdx);
 		const nextStepIdx = afterAddSubIssue.indexOf('\n## Schritt 4');
-		const subIssueSection =
-			nextStepIdx > 0 ? afterAddSubIssue.slice(0, nextStepIdx) : afterAddSubIssue;
+		const subIssueSection = nextStepIdx > 0 ? afterAddSubIssue.slice(0, nextStepIdx) : afterAddSubIssue;
 
 		// Prüfe, dass der Abschnitt Ping-Kommentar + Fallback-Dokumentation verbindet
 		const hasPingMention =
-			subIssueSection.includes('Ping') ||
-			subIssueSection.includes('4b') ||
-			subIssueSection.includes('Kommentar');
+			subIssueSection.includes('Ping') || subIssueSection.includes('4b') || subIssueSection.includes('Kommentar');
 
 		const hasErrorDocumentation =
 			subIssueSection.includes('API-Fehler') ||
@@ -102,10 +97,7 @@ describe('AK-2 — Fallback-Dokumentation im Ping-Kommentar', () => {
 			subIssueSection.includes('Grund') ||
 			subIssueSection.includes('begründen');
 
-		assert.ok(
-			hasPingMention,
-			'Der Sub-Issue-Abschnitt muss Ping-Kommentar oder Schritt 4b erwähnen',
-		);
+		assert.ok(hasPingMention, 'Der Sub-Issue-Abschnitt muss Ping-Kommentar oder Schritt 4b erwähnen');
 
 		assert.ok(
 			hasErrorDocumentation,
