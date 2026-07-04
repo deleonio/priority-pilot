@@ -77,8 +77,10 @@ export const useVoiceInput = ({ onTranscript, lang = 'de-DE' }: UseVoiceInputOpt
 		};
 
 		recognition.onend = () => {
-			recognitionRef.current = null;
-			setIsRecording(false);
+			if (recognitionRef.current === recognition) {
+				recognitionRef.current = null;
+				setIsRecording(false);
+			}
 		};
 
 		recognitionRef.current = recognition;
