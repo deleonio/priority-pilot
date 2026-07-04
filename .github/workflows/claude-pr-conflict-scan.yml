@@ -1,0 +1,106 @@
+name: PR Conflict Scan
+
+# Erkennt Merge-Konflikte in offenen PRs bei jedem Push auf main und setzt
+# ai:needs-changes, damit claude-pr-fixup.yml sie automatisch auflöst.
+# Kein eigener Auflöser — die Auflösung übernimmt claude-pr-fixup.yml.
+#
+# Muster: pr-needs-review-label.yml (App-Token), claude-pr-gate-merge.yml (DIRTY-Erkennung).
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: pr-conflict-scan
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Voraussetzung prüfen (GitHub-App-Secrets)
+        id: preflight
+        env:
+          APP_ID: ${{ secrets.APP_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+        run: |
+          if [ -z "$APP_ID" ] || [ -z "$APP_PRIVATE_KEY" ]; then
+            echo "::warning::GitHub-App-Secrets fehlen (APP_ID und/oder APP_PRIVATE_KEY) — Lauf wird übersprungen (kein Fehler). GitHub App anlegen, aufs Repo installieren und beide Werte als Repo-Secrets hinterlegen, damit die Pipeline läuft."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: GitHub-App-Token erzeugen
+        id: app-token
+        if: steps.preflight.outputs.configured == 'true'
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Alle offenen PRs auf Merge-Konflikte prüfen
+        if: steps.preflight.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          # Alle offenen PRs auflisten (kein --label-Filter: alle offenen PRs prüfen, nicht nur markierte)
+          prs=$(gh pr list --state open --json number,isDraft,headRepository \
+            --jq '.[] | select(.isDraft == false) | select(.headRepository.nameWithOwner == "'"$REPO"'") | .number')
+
+          if [ -z "$prs" ]; then
+            echo "Keine offenen Nicht-Draft-same-repo-PRs gefunden — nichts zu tun."
+            exit 0
+          fi
+
+          for pr in $prs; do
+            # Merge-Status und Labels abfragen
+            view="$(gh pr view "$pr" --repo "$REPO" --json mergeable,mergeStateStatus,labels)"
+            mergeable="$(echo "$view" | jq -r '.mergeable')"
+            merge_state="$(echo "$view" | jq -r '.mergeStateStatus')"
+
+            echo "PR #$pr: mergeable=$mergeable, mergeStateStatus=$merge_state"
+
+            # UNKNOWN: No-op — GitHub berechnet Mergebarkeit asynchron direkt nach Push (kein Fehl-Positiv)
+            if [ "$mergeable" = "UNKNOWN" ] || [ "$merge_state" = "UNKNOWN" ]; then
+              echo "PR #$pr: UNKNOWN — No-op (async, Mergebarkeit wird noch berechnet)."
+              continue
+            fi
+
+            # MERGEABLE: kein Konflikt — No-op
+            if [ "$mergeable" = "MERGEABLE" ]; then
+              echo "PR #$pr: MERGEABLE — kein Konflikt, No-op."
+              continue
+            fi
+
+            # DIRTY / CONFLICTING: Merge-Konflikt erkannt → ai:needs-changes setzen
+            if [ "$merge_state" = "DIRTY" ] || [ "$mergeable" = "CONFLICTING" ]; then
+              # Idempotenz-Guard: ai:needs-changes bereits gesetzt → idempotent überspringen (kein Label-Flackern)
+              labels="$(echo "$view" | jq -r '[.labels[].name]')"
+              if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:needs-changes")')" = "true" ]; then
+                echo "PR #$pr: ai:needs-changes bereits gesetzt — idempotent, No-op."
+                continue
+              fi
+
+              echo "PR #$pr: Merge-Konflikt erkannt (mergeable=$mergeable, state=$merge_state) — setze ai:needs-changes."
+              gh label create "ai:needs-changes" --repo "$REPO" --color D93F0B \
+                --description "CI/Reviewer rot oder Findings offen -> Fixup" 2>/dev/null || true
+              gh pr edit "$pr" --repo "$REPO" --add-label ai:needs-changes
+
+              {
+                echo "### PR #${pr} — ai:needs-changes wegen Merge-Konflikt gesetzt"
+                echo ""
+                echo "- Merge-Konflikte erkannt (mergeable=$mergeable, state=$merge_state)"
+                echo "- Folge: claude-pr-fixup.yml wird ausgelöst."
+              } >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "PR #$pr: Nicht sauber mergebar (mergeable=$mergeable, state=$merge_state) — No-op."
+            fi
+          done

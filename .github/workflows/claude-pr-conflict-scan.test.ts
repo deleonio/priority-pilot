@@ -26,16 +26,8 @@ describe('AK1 — Trigger: push auf branches: [main]', () => {
 	it('Workflow enthält on: push mit branches: [main]', () => {
 		const yml = scanYml();
 		assert.match(yml, /on:/, 'Workflow muss einen on:-Block haben');
-		assert.match(
-			yml,
-			/push:/,
-			'Workflow muss auf push triggern (Konflikte entstehen durch main-Vorlauf)',
-		);
-		assert.match(
-			yml,
-			/branches:\s*[\r\n\s]*-\s*main/,
-			'Workflow muss auf branches: [main] (oder - main) triggern',
-		);
+		assert.match(yml, /push:/, 'Workflow muss auf push triggern (Konflikte entstehen durch main-Vorlauf)');
+		assert.match(yml, /branches:\s*[\r\n\s]*-\s*main/, 'Workflow muss auf branches: [main] (oder - main) triggern');
 	});
 
 	it('Workflow triggert NICHT auf pull_request oder schedule als Primär-Trigger (nur push main)', () => {
@@ -91,8 +83,7 @@ describe('AK3 — Weiterleitung: ai:needs-changes via App-Token setzen (kein GIT
 
 	it('Workflow nutzt create-github-app-token oder APP_ID/APP_PRIVATE_KEY für das Label-Setzen', () => {
 		const yml = scanYml();
-		const hasAppToken =
-			/create-github-app-token/.test(yml) || (/APP_ID/.test(yml) && /APP_PRIVATE_KEY/.test(yml));
+		const hasAppToken = /create-github-app-token/.test(yml) || (/APP_ID/.test(yml) && /APP_PRIVATE_KEY/.test(yml));
 		assert.ok(
 			hasAppToken,
 			'Workflow muss ein App-Token nutzen (create-github-app-token oder APP_ID + APP_PRIVATE_KEY) — ' +
@@ -146,14 +137,9 @@ describe('AK5 — Idempotenz: kein Label-Flackern, kein Re-Labeln bei bereits ge
 	it('Workflow prüft, ob ai:needs-changes bereits gesetzt ist (Guard vor dem Label-Setzen)', () => {
 		const yml = scanYml();
 		// Idempotenz-Guard: Label darf nicht doppelt gesetzt werden (Flackern/Loop-Trigger)
-		assert.match(
-			yml,
-			/ai:needs-changes/,
-			'Workflow muss ai:needs-changes im Guard und/oder Label-Step erwähnen',
-		);
+		assert.match(yml, /ai:needs-changes/, 'Workflow muss ai:needs-changes im Guard und/oder Label-Step erwähnen');
 		// Muss eine Guard-Bedingung für bereits gesetztes Label geben
-		const hasGuard =
-			/labels[^\n]*needs-changes|needs-changes[^\n]*labels|already|bereits|skip|idempoten/i.test(yml);
+		const hasGuard = /labels[^\n]*needs-changes|needs-changes[^\n]*labels|already|bereits|skip|idempoten/i.test(yml);
 		assert.ok(
 			hasGuard,
 			'Workflow muss bei bereits vorhandenem ai:needs-changes einen No-op-Guard haben (verhindert Label-Flackern und Loop-Trigger)',
@@ -162,11 +148,7 @@ describe('AK5 — Idempotenz: kein Label-Flackern, kein Re-Labeln bei bereits ge
 
 	it('Workflow überspringt PRs mit MERGEABLE (sauberer Zustand) ohne Label zu setzen', () => {
 		const yml = scanYml();
-		assert.match(
-			yml,
-			/MERGEABLE/,
-			'Workflow muss MERGEABLE explizit behandeln (No-op für saubere PRs)',
-		);
+		assert.match(yml, /MERGEABLE/, 'Workflow muss MERGEABLE explizit behandeln (No-op für saubere PRs)');
 	});
 });
 
