@@ -92,7 +92,11 @@ export const SettingsPage = ({ pillars, onBack, onSaved }: SettingsPageProps) =>
 					{/* Überschrift „Säulen-Gewichtung" ist Teil des #270-Vertrags (settings-page.spec.ts):
 					    die Route /settings/pillars rendert den Säulen-Editor mit dieser Überschrift. */}
 					<KolHeading _label="Säulen-Gewichtung" _level={2} />
-					<PillarWeightsForm pillars={pillars} onSaved={onSaved} />
+					{/* Beim Direktaufruf von /settings/pillars mountet die Seite, BEVOR die Säulen geladen
+					    sind. Das Formular hält seine Rohwerte in einem beim Mount initialisierten Ref —
+					    per `key` neu mounten, sobald die Säulen eintreffen, damit die geladenen Gewichte
+					    übernommen werden. */}
+					<PillarWeightsForm key={pillars.length} pillars={pillars} onSaved={onSaved} />
 				</div>
 			</KolTabs>
 		</main>
