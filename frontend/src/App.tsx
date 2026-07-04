@@ -3,6 +3,7 @@ import type { Pillar, Task, TaskStatus, TaskTreeNode } from 'client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from './api';
 import { CompletedTasksTable } from './components/CompletedTasksTable';
+import { Footer } from './components/Footer';
 import { Dashboard } from './components/Dashboard';
 import { DeleteTaskDialog } from './components/DeleteTaskDialog';
 import { DependencyModal } from './components/DependencyModal';
@@ -18,6 +19,7 @@ import { toApiError } from './lib/apiError';
 import type { AuthUser } from './lib/auth';
 import { calculateProgress } from './lib/calculateProgress';
 import { buildDependencyMap } from './lib/dependencies';
+import { APP_VERSION } from './lib/version';
 
 type Dialog =
 	// `parentTask` gesetzt → die neu angelegte Aufgabe wird als Vorgänger mit ihr verknüpft (Unteraufgabe).
@@ -400,6 +402,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 					onChanged={refreshKeepingDialog}
 				/>
 			)}
+			<Footer version={APP_VERSION} />
 		</main>
 	);
 };
