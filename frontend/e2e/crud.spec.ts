@@ -131,10 +131,9 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 		await page.goto('/');
 		await waitForStableView(page);
 
-		/** Öffnet den Säulen-Gewichtungs-Dialog aus dem Einstellungs-Popover. */
+		/** Öffnet die Säulen-Gewichtungs-Seite über die Settings-Route. */
 		const openPillarWeights = async (): Promise<void> => {
-			await page.getByRole('button', { name: 'Einstellungen' }).click();
-			await page.getByRole('button', { name: 'Säulen-Gewichtung' }).click();
+			await page.goto('/settings/pillars');
 			await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
 			await waitForStableView(page);
 		};

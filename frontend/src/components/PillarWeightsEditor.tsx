@@ -20,13 +20,14 @@ interface PillarWeightsEditorProps {
 	pillars: Pillar[];
 	onSaved: () => void;
 	onSavingChange?: (saving: boolean) => void;
+	onClose?: () => void;
 }
 
 /**
  * Reiner Gewichtungs-Editor (ohne Modal-Hülle): Slider je Säule, Normierung beim Speichern.
  * Verwendbar in Modal- und Vollseiten-Kontext.
  */
-export const PillarWeightsEditor = ({ pillars, onSaved, onSavingChange }: PillarWeightsEditorProps) => {
+export const PillarWeightsEditor = ({ pillars, onSaved, onSavingChange, onClose }: PillarWeightsEditorProps) => {
 	const weights = useRef<(number | null)[]>(pillars.map((pillar) => weightToRaw(pillar.weight)));
 	const [sum, setSum] = useState(() => sumWeights(weights.current));
 	const [error, setError] = useState<string | null>(null);
@@ -120,6 +121,9 @@ export const PillarWeightsEditor = ({ pillars, onSaved, onSavingChange }: Pillar
 					_disabled={saving || pillars.length === 0 || !distributionValid}
 					_on={{ onClick: () => void save() }}
 				/>
+				{onClose && (
+					<KolButton _label="Abbrechen" _variant="secondary" _disabled={saving} _on={{ onClick: () => onClose() }} />
+				)}
 			</div>
 		</>
 	);
