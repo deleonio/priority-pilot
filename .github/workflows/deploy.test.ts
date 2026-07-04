@@ -171,11 +171,7 @@ describe('Patch-Bump AK1 (#286) — root package.json hat ein gültiges version-
 	it('version entspricht SemVer-Format (X.Y.Z)', () => {
 		const { version } = rootPackageJson();
 		assert.ok(version, 'version darf nicht leer sein');
-		assert.match(
-			version as string,
-			/^\d+\.\d+\.\d+$/,
-			`version muss SemVer-Format X.Y.Z haben, war: ${version}`,
-		);
+		assert.match(version as string, /^\d+\.\d+\.\d+$/, `version muss SemVer-Format X.Y.Z haben, war: ${version}`);
 	});
 });
 
@@ -240,11 +236,7 @@ describe('Patch-Bump AK4 (#286) — Commit + Push mit Loop-Schutz [skip ci]', ()
 	});
 
 	it('deploy.yml enthaelt git push nach main', () => {
-		assert.match(
-			deployYml(),
-			/git push/,
-			'deploy.yml muss `git push` (Bump-Commit auf main) enthalten',
-		);
+		assert.match(deployYml(), /git push/, 'deploy.yml muss `git push` (Bump-Commit auf main) enthalten');
 	});
 });
 
