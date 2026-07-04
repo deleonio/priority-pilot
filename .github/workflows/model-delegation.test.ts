@@ -32,6 +32,15 @@ const CLAUDE_WORKFLOWS = [
 	'claude-pr-fixup.yml',
 ];
 
+// Ausnahme von der Sonnet-Koordinator-Regel: Triage und Re-Triage laufen bewusst FEST auf
+// Opus mit maximalem Reasoning-Aufwand (`--model claude-opus-4-8 --effort max`) — die
+// Analysequalitaet der Triage ist die Grundlage aller Folgestufen (Spec -> Implement),
+// deshalb wird hier nicht delegiert, sondern direkt das staerkste Modell gestartet.
+const OPUS_MAX_WORKFLOWS = ['claude-triage.yml', 'claude-retriage.yml'];
+
+// Die uebrigen Workflows starten weiterhin auf Sonnet und delegieren per Subagent.
+const COORDINATOR_WORKFLOWS = CLAUDE_WORKFLOWS.filter((wf) => !OPUS_MAX_WORKFLOWS.includes(wf));
+
 const readWorkflow = (name: string): string => readFileSync(join(REPO_ROOT, '.github', 'workflows', name), 'utf8');
 const readRepoFile = (...parts: string[]): string => readFileSync(join(REPO_ROOT, ...parts), 'utf8');
 
@@ -58,7 +67,11 @@ describe('Der JS-Modell-Router ist vollstaendig entfernt', () => {
 					`${wf} darf keine Outputs des entfernten Router-Steps mehr lesen`,
 				);
 			});
+		});
+	}
 
+	for (const wf of COORDINATOR_WORKFLOWS) {
+		describe(wf, () => {
 			it('verkabelt das Modell NICHT wieder fest auf claude-opus-4-8', () => {
 				assert.ok(
 					!/--model\s+claude-opus-4-8/.test(readWorkflow(wf)),
@@ -69,8 +82,50 @@ describe('Der JS-Modell-Router ist vollstaendig entfernt', () => {
 	}
 });
 
-describe('Jeder Claude-Workflow startet auf Sonnet und darf Subagenten spawnen', () => {
-	for (const wf of CLAUDE_WORKFLOWS) {
+describe('Triage und Re-Triage laufen fest auf Opus mit maximalem Effort', () => {
+	for (const wf of OPUS_MAX_WORKFLOWS) {
+		describe(wf, () => {
+			it('startet die Session fest auf `--model claude-opus-4-8`', () => {
+				assert.match(
+					readWorkflow(wf),
+					/--model\s+claude-opus-4-8/,
+					`${wf} muss fest auf claude-opus-4-8 starten (optimale Analyse)`,
+				);
+			});
+
+			it('setzt `--effort max` (tiefstes Reasoning)', () => {
+				assert.match(readWorkflow(wf), /--effort\s+max/, `${wf} muss --effort max setzen`);
+			});
+
+			it('startet NICHT mehr als Sonnet-Koordinator', () => {
+				const content = readWorkflow(wf);
+				assert.ok(
+					!/--model\s+claude-sonnet-4-6/.test(content),
+					`${wf} darf nicht mehr auf claude-sonnet-4-6 starten — Triage/Re-Triage laufen fest auf Opus max`,
+				);
+				assert.ok(
+					!/Sonnet-Koordinator/.test(content),
+					`${wf} darf den Agenten nicht mehr als Sonnet-Koordinator instruieren`,
+				);
+			});
+
+			it('setzt Opus max in ALLEN claude_args-Pfaden (Claude UND GLM)', () => {
+				const occurrences = readWorkflow(wf).match(/--model\s+claude-opus-4-8\s+--effort\s+max/g) ?? [];
+				assert.ok(
+					occurrences.length >= 2,
+					`${wf} muss --model claude-opus-4-8 --effort max in beiden claude_args-Bloecken (Claude + GLM) setzen, gefunden: ${occurrences.length}`,
+				);
+			});
+
+			it('behaelt sein hartes `timeout-minutes: 20`', () => {
+				assert.match(readWorkflow(wf), /timeout-minutes:\s*20/, `${wf} darf das 20-Minuten-Timeout nicht verlieren`);
+			});
+		});
+	}
+});
+
+describe('Jeder Koordinator-Workflow startet auf Sonnet und darf Subagenten spawnen', () => {
+	for (const wf of COORDINATOR_WORKFLOWS) {
 		describe(wf, () => {
 			it('startet die Session deterministisch auf `--model claude-sonnet-4-6`', () => {
 				assert.match(
@@ -122,6 +177,11 @@ describe('AGENTS.md dokumentiert die Subagent-Delegation statt des JS-Routers', 
 		assert.match(doc(), /claude-sonnet-4-6/, 'AGENTS.md muss das Default-/Koordinator-Modell claude-sonnet-4-6 nennen');
 		assert.match(doc(), /opus/i, 'AGENTS.md muss die Opus-Eskalation nennen');
 		assert.match(doc(), /haiku/i, 'AGENTS.md muss die Haiku-Abstufung nennen');
+	});
+
+	it('dokumentiert die Opus-max-Ausnahme fuer Triage und Re-Triage', () => {
+		assert.match(doc(), /claude-opus-4-8/, 'AGENTS.md muss das feste Triage-/Re-Triage-Modell claude-opus-4-8 nennen');
+		assert.match(doc(), /--effort max/, 'AGENTS.md muss `--effort max` fuer Triage/Re-Triage nennen');
 	});
 
 	it('nennt die Subagent-Delegation (in derselben Session) als Mechanismus', () => {

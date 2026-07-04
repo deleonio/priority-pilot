@@ -97,9 +97,19 @@ Der Canceller `claude-pr-cancel.yml` ist agent-unabhängig (reiner `gh`-Aufruf) 
 
 ### Modell-Wahl per Subagent-Delegation (Claude-Pfad)
 
-Statt jeden KI-Workflow fest auf `claude-opus-4-8` zu verkabeln **oder** eine zweite, vorgeschaltete
+Statt jeden KI-Workflow fest auf ein Modell zu verkabeln **oder** eine zweite, vorgeschaltete
 `claude-code-action` nur zur Modell-Klassifikation zu starten, startet jeder Workflow **genau eine**
-Session deterministisch auf **`claude-sonnet-4-6`** (`--effort medium`). Dieser Sonnet-Lauf ist der
+Session. Für die Modell-Wahl gilt dabei:
+
+**Ausnahme — Triage & Re-Triage laufen fest auf Opus max:** `claude-triage.yml` und
+`claude-retriage.yml` starten die Session deterministisch auf **`claude-opus-4-8`** mit
+**`--effort max`** (tiefstes Reasoning). Die Triage-Analyse ist die Grundlage aller Folgestufen
+(Spec → Implement) — hier ist bewusst das stärkste Modell ohne Koordinator-Delegation verdrahtet,
+damit die Analyse optimal ausfällt. Nur triviale mechanische Nebenschritte dürfen an `light`
+(Haiku) delegiert werden; eine `heavy`-Eskalation entfällt, da die Session bereits auf Opus läuft.
+
+**Alle übrigen Claude-Workflows** (Spec, Implement, PR-Review, PR-Fixup) starten deterministisch auf
+**`claude-sonnet-4-6`** (`--effort medium`). Dieser Sonnet-Lauf ist der
 **Koordinator**: Er schätzt die Komplexität selbst ein und delegiert die eigentliche Abarbeitung per
 **Agent-Tool** (`Task` in `--allowedTools`) an einen **Subagenten in derselben Session** — gleicher
 Checkout, erhaltener Kontext, **kein** zweiter Action-Lauf. Die Subagenten sind in
@@ -116,8 +126,9 @@ das ist die einzige Stelle, an der dieser Vertrag gepflegt wird.
 **Sichere Defaults:** Schätzt der Koordinator die Aufgabe als Standard ein, erledigt er sie selbst auf
 **Sonnet** — es gibt also keinen separaten Klassifikations-Schritt mehr, der scheitern könnte. Ist
 Opus über die Organisations-`availableModels`-Allowlist gesperrt, fällt der `heavy`-Subagent
-automatisch auf das geerbte Sonnet-Modell zurück. Das harte `timeout-minutes: 20` jedes Workflows
-bleibt davon **unberührt**.
+automatisch auf das geerbte Sonnet-Modell zurück. (Achtung: Für die **fest** auf Opus verdrahteten
+Triage-/Re-Triage-Sessions gibt es diesen Fallback nicht — eine Opus-Sperre lässt diese Läufe
+fehlschlagen.) Das harte `timeout-minutes: 20` jedes Workflows bleibt davon **unberührt**.
 
 **Warum kein JS-„Router" mehr:** Der frühere Ansatz (`.github/actions/model-router`, #149/#150/#153)
 startete pro Workflow eine **zweite** `claude-code-action` nur für ein Token (`haiku|sonnet|opus`).
