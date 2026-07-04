@@ -58,6 +58,7 @@ export const useVoiceInput = ({ onTranscript }: UseVoiceInputOptions): UseVoiceI
 	const isSupported = getSpeechConstructor() !== null;
 
 	const startRecording = useCallback(() => {
+		if (recognitionRef.current !== null) return;
 		const Constructor = getSpeechConstructor();
 		if (Constructor === null) return;
 
@@ -75,6 +76,7 @@ export const useVoiceInput = ({ onTranscript }: UseVoiceInputOptions): UseVoiceI
 		};
 
 		recognition.onend = () => {
+			recognitionRef.current = null;
 			setIsRecording(false);
 		};
 
@@ -85,6 +87,7 @@ export const useVoiceInput = ({ onTranscript }: UseVoiceInputOptions): UseVoiceI
 
 	const stopRecording = useCallback(() => {
 		recognitionRef.current?.stop();
+		recognitionRef.current = null;
 		setIsRecording(false);
 	}, []);
 
