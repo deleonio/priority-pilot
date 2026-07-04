@@ -8,7 +8,8 @@ import { waitForStableView, SPEECH_MOCK_INIT_SCRIPT, SPEECH_UNSUPPORTED_INIT_SCR
  * und startet die Browser-Spracherkennung (`window.SpeechRecognition` bzw.
  * `window.webkitSpeechRecognition`). Erkannte Sprache wird als Text in das jeweils zugehörige Feld
  * geschrieben. Jeder Mic-Button trägt eine stabile `data-testid` (`mic-titel`, `mic-beschreibung`,
- * `mic-capture`). Betroffen sind:
+ * `mic-capture`) sowie ein `aria-label`, das den Regex `/Mikrofon|Aufnahme|aufnehmen/i` matcht
+ * (z. B. „Mikrofon starten"). Betroffen sind:
  *  - TaskForm: Titel-Input (AK-1, NEU) und Beschreibungs-Textarea (AK-2, existiert bereits),
  *  - QuickCaptureModal: Schnellerfassungs-Textarea (AK-3, NEU).
  *
@@ -76,7 +77,7 @@ test.describe('Audio-Transkription bei allen Inputs (#264)', () => {
 	 */
 	const micButton = (page: Page, testId: 'mic-titel' | 'mic-beschreibung' | 'mic-capture') => page.getByTestId(testId);
 
-	/** Alle Mikrofon-Buttons auf der Seite (per aria-label). */
+	/** Alle Mikrofon-Buttons auf der Seite — `aria-label` muss `/Mikrofon|Aufnahme|aufnehmen/i` matchen. */
 	const anyMicButton = (page: Page) => page.getByRole('button', { name: /Mikrofon|Aufnahme|aufnehmen/i });
 
 	test('AK1: TaskForm — Mikrofon-Button ist neben dem Titel-Input sichtbar', async ({ page }) => {
