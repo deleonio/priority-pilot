@@ -11,6 +11,7 @@ import { HelpPage } from './components/HelpPage';
 import { PillarWeightsModal } from './components/PillarWeightsModal';
 import { QuickCaptureModal } from './components/QuickCaptureModal';
 import { SeriesManagementModal } from './components/SeriesManagementModal';
+import { SettingsPage } from './components/SettingsPage';
 import { TaskFormModal } from './components/TaskFormModal';
 import { TaskTree } from './components/TaskTree';
 import { useThemeToolbarItem } from './components/ThemeToggle';
@@ -62,6 +63,7 @@ const HELP_ICON = { left: { icon: 'fa-solid fa-circle-question' } };
 
 export const App = ({ user }: { user: AuthUser }) => {
 	const [showHelp, setShowHelp] = useState(false);
+	const [showSettings, setShowSettings] = useState(() => window.location.pathname.startsWith('/settings'));
 	const [tasks, setTasks] = useState<Task[] | null>(null);
 	const [forest, setForest] = useState<TaskTreeNode[]>([]);
 	const [nextTask, setNextTask] = useState<Task | null>(null);
@@ -113,7 +115,9 @@ export const App = ({ user }: { user: AuthUser }) => {
 
 	useEffect(() => {
 		const onPop = () => {
-			setShowHelp(window.location.pathname.startsWith('/hilfe'));
+			const path = window.location.pathname;
+			setShowHelp(path.startsWith('/hilfe'));
+			setShowSettings(path.startsWith('/settings'));
 		};
 		window.addEventListener('popstate', onPop);
 		return () => window.removeEventListener('popstate', onPop);
@@ -200,6 +204,17 @@ export const App = ({ user }: { user: AuthUser }) => {
 		setShowHelp(false);
 	}, []);
 
+	const openSettings = useCallback((): void => {
+		void settingsRef.current?.hidePopover();
+		window.history.pushState({}, '', '/settings/pillars');
+		setShowSettings(true);
+	}, []);
+
+	const closeSettings = useCallback((): void => {
+		window.history.pushState({}, '', '/');
+		setShowSettings(false);
+	}, []);
+
 	// Stabile Callback-Identitäten, damit die memoisierte `TaskTable` beim Öffnen eines Dialogs nicht
 	// neu rendert (sonst Zellen-/Toolbar-Neuaufbau samt Fokusverlust am auslösenden Button).
 	const openEdit = useCallback((task: Task): void => setDialog({ kind: 'edit', task }), []);
@@ -214,6 +229,10 @@ export const App = ({ user }: { user: AuthUser }) => {
 
 	const dependencyTask =
 		dialog?.kind === 'dependencies' ? (tasks?.find((task) => task.id === dialog.taskId) ?? null) : null;
+
+	if (showSettings) {
+		return <SettingsPage pillars={pillars} onBack={closeSettings} onSaved={afterMutation} />;
+	}
 
 	if (showHelp) {
 		return <HelpPage onBack={closeHelp} />;
@@ -306,6 +325,12 @@ export const App = ({ user }: { user: AuthUser }) => {
 									_variant: 'secondary',
 									_disabled: loading || tasks === null,
 									_on: { onClick: openPillars },
+								},
+								{
+									type: 'button',
+									_label: 'Einstellungen öffnen',
+									_variant: 'secondary',
+									_on: { onClick: openSettings },
 								},
 							]}
 						/>
