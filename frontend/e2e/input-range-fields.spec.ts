@@ -126,14 +126,17 @@ test.describe('InputRange-Felder statt InputNumber (#287)', () => {
 		await expect(page.locator('input[type="range"][min="0.1"][max="1"][step="0.1"]')).toHaveValue('1');
 	});
 
-	test('AK3: Gewicht im Abhängigkeits-Dialog ist ein Range-Input [min=0.1 max=1 step=0.1]', async ({ page }) => {
+	test('AK3: Gewicht im Abhängigkeits-Dialog ist ein Range-Input [min=0.1 max=1 step=0.1], Wert persistiert nach Hinzufügen + Reload', async ({
+		page,
+	}) => {
 		await page.goto('/');
 		await waitForStableView(page);
 
 		// Zwei Tasks anlegen: Der Dialog zeigt den Gewichts-Slider nur, wenn mindestens ein
 		// weiterer Task als Vorgänger-Kandidat verfügbar ist (options.length > 0).
+		const predecessorTitle = uniqueTitle('Vorgänger');
 		await createTask(page, uniqueTitle('Ziel'));
-		await createTask(page, uniqueTitle('Vorgänger'));
+		await createTask(page, predecessorTitle);
 		await page.reload();
 		await waitForStableView(page);
 
@@ -143,7 +146,40 @@ test.describe('InputRange-Felder statt InputNumber (#287)', () => {
 		await waitForStableView(page);
 
 		// Das Gewichts-Feld muss als Range-Slider mit exakt diesen Attributen vorliegen.
-		await expect(page.locator('input[type="range"][min="0.1"][max="1"][step="0.1"]')).toBeVisible();
+		const weightSlider = page.locator('input[type="range"][min="0.1"][max="1"][step="0.1"]');
+		await expect(weightSlider).toBeVisible();
+
+		// Vorgänger-Task aus der Auswahl wählen (KolSingleSelect → role="combobox" öffnet Listbox).
+		await page.getByLabel('Vorgänger-Task').click();
+		await page.getByRole('option', { name: new RegExp(predecessorTitle) }).click();
+
+		// Slider auf 0.4 setzen: Home (→ 0.1) + 3× ArrowRight (→ 0.4).
+		await weightSlider.press('Home');
+		await weightSlider.press('ArrowRight');
+		await weightSlider.press('ArrowRight');
+		await weightSlider.press('ArrowRight');
+		await expect(weightSlider).toHaveValue('0.4');
+
+		// Abhängigkeit hinzufügen.
+		await page.getByRole('button', { name: 'Hinzufügen', exact: true }).click();
+		await waitForStableView(page);
+
+		// Der Vorgänger erscheint in der Liste „Aktuelle Vorgänger" — beweist den erfolgreichen API-Aufruf.
+		await expect(page.getByText(predecessorTitle, { exact: false })).toBeVisible();
+
+		// Schließen und hart neu laden: Persistenz im Backend prüfen.
+		await page.getByRole('button', { name: 'Schließen', exact: true }).click();
+		await expect(page.getByRole('heading', { name: /Abhängigkeiten/ })).toBeHidden();
+
+		await page.reload();
+		await waitForStableView(page);
+		await openTasksTab(page);
+		await page.getByRole('button', { name: 'Abhängigkeiten' }).first().click();
+		await expect(page.getByRole('heading', { name: /Abhängigkeiten/ })).toBeVisible();
+		await waitForStableView(page);
+
+		// Vorgänger ist nach dem Reload noch in der Liste — beweist die Persistenz der Abhängigkeit.
+		await expect(page.getByText(predecessorTitle, { exact: false })).toBeVisible();
 	});
 
 	test('AK4: ArrowRight verschiebt den Prioritäts-Slider dauerhaft (kein Reset auf den Ausgangswert)', async ({
