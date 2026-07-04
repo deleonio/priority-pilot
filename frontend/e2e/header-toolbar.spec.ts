@@ -207,6 +207,7 @@ test.describe('#298 „Aktualisieren"-Button entfernt', () => {
 
 	/**
 	 * AK2 — Regression: Die übrigen Toolbar-Buttons bleiben sichtbar & bedienbar.
+	 * Buttons: „Neuen Task anlegen", „Serien verwalten", „Hilfe", „Einstellungen", „Abmelden".
 	 * „Neuen Task anlegen" öffnet weiterhin den Anlege-Dialog.
 	 */
 	test('AK2: Übrige Toolbar-Aktionen bleiben vollständig bedienbar', async ({ page }) => {
@@ -218,6 +219,7 @@ test.describe('#298 „Aktualisieren"-Button entfernt', () => {
 		// Alle verbleibenden Buttons sind weiterhin per Accessible Name auffindbar.
 		await expect(toolbar.getByRole('button', { name: 'Neuen Task anlegen' })).toBeVisible();
 		await expect(toolbar.getByRole('button', { name: 'Serien verwalten' })).toBeVisible();
+		await expect(toolbar.getByRole('button', { name: 'Hilfe' })).toBeVisible();
 		await expect(toolbar.getByRole('button', { name: 'Einstellungen' })).toBeVisible();
 		await expect(toolbar.getByRole('button', { name: 'Abmelden' })).toBeVisible();
 
