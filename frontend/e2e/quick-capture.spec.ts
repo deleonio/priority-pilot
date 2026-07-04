@@ -153,9 +153,11 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		await expect(page.getByRole('textbox', { name: /Beschreibe/ })).toBeHidden();
 		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue('Geparser Task-Titel');
 		await expect(page.getByLabel('Beschreibung (optional)')).toHaveValue('Auto-Beschreibung');
-		await expect(page.getByLabel('Priorität (Ganzzahl 1–5)')).toHaveValue('4');
-		// estimatedEffort-Prefill (Regex, da die Zahl locale-abhängig mit Punkt oder Komma erscheint).
-		await expect(page.getByLabel('Geschätzter Aufwand in Tagen (0,1–1)')).toHaveValue(/^0[.,]5$/);
+		// Priorität/Aufwand sind seit #287 `KolInputRange` → native `<input type="range">` im offenen
+		// Shadow-DOM ohne `aria-label` (`getByLabel` greift nicht). Wir zielen per CSS auf die Range-Inputs.
+		// HTML-Range-Inputs führen ihren Wert stets in Punkt-Notation (kein locale-abhängiges Komma).
+		await expect(page.locator('input[type="range"][min="1"][max="5"][step="1"]')).toHaveValue('4');
+		await expect(page.locator('input[type="range"][min="0.1"][max="1"][step="0.1"]')).toHaveValue('0.5');
 
 		// Sende-Seite des Vertrags (AK6): der eingegebene Freitext geht als `{ text }` an parse-text.
 		expect(parseRequestBody).toEqual({ text: 'Ich will eine wichtige Aufgabe erledigen' });
