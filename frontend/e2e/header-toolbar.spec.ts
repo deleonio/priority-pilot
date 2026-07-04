@@ -29,8 +29,8 @@ test.describe('#125 Header – Toolbar', () => {
 
 		await expect(toolbar.getByRole('button', { name: 'Neuen Task anlegen' })).toBeVisible();
 		await expect(toolbar.getByRole('button', { name: 'Aktualisieren' })).toBeVisible();
-		// Der Darstellungs-Umschalter trägt ein dynamisches, sprechendes Label „Darstellung: …".
-		await expect(toolbar.getByRole('button', { name: /Darstellung/ })).toBeVisible();
+		// Hinweis (#285): Der Darstellungs-Umschalter wurde aus der Toolbar in die Einstellungen
+		// verschoben; seine frühere Anwesenheits-Assertion entfällt hier (siehe #285-Block unten).
 	});
 
 	/**
@@ -61,38 +61,12 @@ test.describe('#125 Header – Toolbar', () => {
 		await reloadRequest;
 	});
 
-	/**
-	 * AK3 — Theme-Umschalter unverändert: Klicks wechseln das Farbschema zyklisch
-	 * Hell → Dunkel → System (Standard ist seit #231 „Hell"); das effektive Theme spiegelt
-	 * sich in `data-theme` am `<html>`. Das Button-Label wird mitgeprüft: Es unterscheidet
-	 * „System" von „Hell" (beide lösen bei heller OS-Präferenz zu data-theme="light" auf)
-	 * und wartet zugleich den React-Re-Render nach jedem Klick ab — sonst kann eine
-	 * `data-theme`-Assertion racy auf dem noch nicht aktualisierten Startwert grün werden.
+	/*
+	 * AK3 (#125) — entfallen mit #285: Der zyklische Darstellungs-Umschalter lag früher als Button in
+	 * dieser Toolbar. Mit #285 wandert die Theme-Wahl als 3-Optionen-Bedienelement in den
+	 * Einstellungen-Tab „Allgemein". Der zugehörige Vertrag steht jetzt in
+	 * `settings-appearance.spec.ts` (AK5–AK7) sowie im #285-Block am Ende dieser Datei (AK4).
 	 */
-	test('AK3: Darstellungs-Umschalter wechselt das Farbschema zyklisch', async ({ page }) => {
-		// Feste helle OS-Präferenz, damit der „System"-Modus deterministisch auflöst.
-		await page.emulateMedia({ colorScheme: 'light' });
-		await page.goto('/');
-		await waitForStableView(page);
-
-		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
-		const themeButton = toolbar.getByRole('button', { name: /Darstellung/ });
-		const html = page.locator('html');
-
-		// Start: „Hell" (Standard) → data-theme="light".
-		await expect(themeButton).toHaveAccessibleName(/^Darstellung: Hell/);
-		await expect(html).toHaveAttribute('data-theme', 'light');
-
-		// Erster Klick erzwingt „Dunkel" → data-theme="dark".
-		await themeButton.click();
-		await expect(themeButton).toHaveAccessibleName(/^Darstellung: Dunkel/);
-		await expect(html).toHaveAttribute('data-theme', 'dark');
-
-		// Zweiter Klick wechselt zu „System" → folgt der (hellen) OS-Präferenz → data-theme="light".
-		await themeButton.click();
-		await expect(themeButton).toHaveAccessibleName(/^Darstellung: System/);
-		await expect(html).toHaveAttribute('data-theme', 'light');
-	});
 
 	/**
 	 * AK4 — Einstellungs-Button liegt in der Toolbar und navigiert zu /settings/pillars.
@@ -110,5 +84,119 @@ test.describe('#125 Header – Toolbar', () => {
 		await toolbar.getByRole('button', { name: 'Einstellungen' }).click();
 		await expect(page).toHaveURL(/\/settings\/pillars/);
 		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
+	});
+});
+
+/**
+ * ROTE Spec-Tests für #285 „Header-Toolbar kompakter (Icon-Buttons) und Dark-Mode-Schalter in die
+ * Einstellungen" (Stufe 1 TDD, der einklagbare Vertrag) — Teil Header.
+ *
+ * Ziel (Teil 1): Die drei Toolbar-Buttons, die im Header noch ein sichtbares Textlabel tragen —
+ * „Neuen Task anlegen", „Serien verwalten" und „Abmelden" — werden auf Icon-only umgestellt
+ * (`_hideLabel: true` + Icon), behalten aber ihren Accessible Name. Alle übrigen Buttons sind
+ * bereits Icon-only.
+ *
+ * Ziel (Teil 2, hier nur die Header-Seite): Der Darstellungs-/Theme-Umschalter wird aus der Toolbar
+ * ENTFERNT. Das neue 3-Optionen-Bedienelement in den Einstellungen prüft
+ * `settings-appearance.spec.ts` (AK5–AK7).
+ *
+ * Die Tests sind **rot**, bis `App.tsx` umgesetzt ist: Solange „Neuen Task anlegen" etc. noch ein
+ * sichtbares Label tragen bzw. der Theme-Button noch in der Toolbar liegt, schlagen AK1/AK4 fehl.
+ */
+test.describe('#285 Header – kompakte Icon-Toolbar', () => {
+	/** Die drei Buttons, die laut #285 auf Icon-only umgestellt werden. */
+	const ICON_ONLY_LABELS = ['Neuen Task anlegen', 'Serien verwalten', 'Abmelden'] as const;
+
+	/**
+	 * AK1 — Icon-only mit erhaltenem Accessible Name: Jeder Ziel-Button ist per Accessible Name
+	 * auffindbar (Regression-sicher) UND trägt am zugehörigen `kol-button`-Host das
+	 * `_hide-label`-Attribut, d. h. es wird nur das Icon gezeigt, kein sichtbares Textlabel.
+	 *
+	 * Der `role="button"` liegt im Shadow-DOM des `kol-button`-Hosts; über `getRootNode().host`
+	 * erreichen wir das Host-Element und lesen dort `_hide-label`.
+	 */
+	for (const label of ICON_ONLY_LABELS) {
+		test(`AK1: „${label}" ist Icon-only (kein sichtbares Label) mit erhaltenem Accessible Name`, async ({
+			page,
+		}) => {
+			await page.goto('/');
+			await waitForStableView(page);
+
+			const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
+			const btn = toolbar.getByRole('button', { name: label });
+
+			// Accessible Name bleibt erhalten (der Button ist weiterhin auffindbar & sprechend benannt).
+			await expect(btn).toBeVisible();
+			await expect(btn).toHaveAccessibleName(label);
+
+			// Der zugehörige kol-button-Host hat `_hide-label` gesetzt → nur Icon, kein sichtbarer Text.
+			const hasHideLabel = await btn.evaluate((el) => {
+				// Vom (Shadow-)Button über die Shadow-Grenze zum kol-button-Host aufsteigen.
+				let node: Node | null = el;
+				for (let i = 0; i < 6 && node; i++) {
+					const host = (node.getRootNode() as ShadowRoot).host as HTMLElement | undefined;
+					const candidate = host ?? (node as HTMLElement).closest?.('kol-button') ?? null;
+					if (candidate && candidate.tagName?.toLowerCase() === 'kol-button') {
+						return (
+							candidate.hasAttribute('_hide-label') || candidate.getAttribute('_hide-label') === 'true'
+						);
+					}
+					node = candidate ?? (node as HTMLElement).parentElement;
+				}
+				return false;
+			});
+			expect(hasHideLabel, `„${label}" sollte _hide-label am kol-button-Host tragen`).toBe(true);
+		});
+	}
+
+	/**
+	 * AK2 (Regression) — Bestehende Aktionen bleiben per Accessible Name klickbar: Auch nach der
+	 * Icon-only-Umstellung öffnet „Neuen Task anlegen" den Anlege-Dialog. (Die vollständige AK2-
+	 * Regression steht im #125-Block oben; dieser Test sichert die drei umgestellten Buttons ab.)
+	 */
+	test('AK2 (Regression): umgestellte Icon-Buttons bleiben per Accessible Name bedienbar', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+
+		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
+
+		// Alle drei Ziel-Buttons sind weiterhin per Accessible Name auffindbar & sichtbar.
+		for (const label of ICON_ONLY_LABELS) {
+			await expect(toolbar.getByRole('button', { name: label })).toBeVisible();
+		}
+
+		// Exemplarisch: „Neuen Task anlegen" öffnet weiterhin den Anlege-Dialog.
+		await toolbar.getByRole('button', { name: 'Neuen Task anlegen' }).click();
+		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
+	});
+
+	/**
+	 * AK3 (Mobile 375×812) — Kein horizontaler Overflow des Headers: Auf einem schmalen Viewport
+	 * verursacht die kompaktere Icon-Toolbar kein horizontales Scrollen des Dokuments.
+	 */
+	test('AK3: Header verursacht keinen horizontalen Overflow bei 375×812', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await page.goto('/');
+		await waitForStableView(page);
+
+		// Toolbar bleibt sichtbar und bedienbar.
+		await expect(page.getByRole('toolbar', { name: /Kopf-Aktionen/ })).toBeVisible();
+
+		// Kein horizontaler Überlauf des Dokuments.
+		const overflowsHorizontally = await page.evaluate(() => document.body.scrollWidth > window.innerWidth + 1);
+		expect(overflowsHorizontally).toBe(false);
+	});
+
+	/**
+	 * AK4 — Kein Darstellungs-/Theme-Button mehr in der Header-Toolbar: Der frühere Umschalter
+	 * (Accessible Name „Darstellung: …") wurde in die Einstellungen verschoben und existiert in der
+	 * Toolbar nicht mehr.
+	 */
+	test('AK4: Header-Toolbar enthält keinen Darstellungs-/Theme-Button mehr', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+
+		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
+		await expect(toolbar.getByRole('button', { name: /Darstellung/ })).toHaveCount(0);
 	});
 });
