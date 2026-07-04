@@ -168,7 +168,7 @@ test.describe('InputRange-Felder statt InputNumber (#287)', () => {
 		await expect(page.locator('.dependency-list').getByText(predecessorTitle, { exact: false })).toBeVisible();
 
 		// Schließen und hart neu laden: Persistenz im Backend prüfen.
-		await page.getByRole('button', { name: 'Schließen', exact: true }).click();
+		await page.locator('.modal-actions').getByRole('button', { name: 'Schließen', exact: true }).click();
 		await expect(page.getByRole('heading', { name: /Abhängigkeiten/ })).toBeHidden();
 
 		await page.reload();
