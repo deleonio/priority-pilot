@@ -111,6 +111,14 @@ export const App = ({ user }: { user: AuthUser }) => {
 		return () => controller.abort();
 	}, [reload]);
 
+	useEffect(() => {
+		const onPop = () => {
+			if (!window.location.pathname.startsWith('/hilfe')) setShowHelp(false);
+		};
+		window.addEventListener('popstate', onPop);
+		return () => window.removeEventListener('popstate', onPop);
+	}, []);
+
 	const dependencyMap = useMemo(() => buildDependencyMap(forest), [forest]);
 
 	// Fortschritt (erledigt/gesamt inkl. aller Unter-Tasks) je Task-ID aus dem Aufgabenwald ableiten.

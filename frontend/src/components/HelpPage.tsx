@@ -11,7 +11,10 @@ export const HelpPage = ({ onBack }: HelpPageProps) => {
 
 	useEffect(() => {
 		fetch('/user-guide.md')
-			.then((r) => r.text())
+			.then((r) => {
+				if (!r.ok) throw new Error(r.statusText);
+				return r.text();
+			})
 			.then(setContent)
 			.catch(() => setContent('# Hilfe\n\n- Handbuch konnte nicht geladen werden.'));
 	}, []);
