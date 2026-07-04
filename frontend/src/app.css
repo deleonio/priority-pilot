@@ -508,6 +508,38 @@ body {
 	margin: 0 0 1rem;
 }
 
+/* --- Beschreibungsfeld mit Mikrofon-Button (#251) --- */
+/* Textarea und Mic-Button stehen nebeneinander; die Textarea nimmt den freien Platz ein. */
+.description-field {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.5rem;
+}
+
+.description-field kol-textarea {
+	flex: 1;
+}
+
+.mic-button {
+	padding: 0.5rem;
+	cursor: pointer;
+	border-radius: 50%;
+	border: 1px solid currentColor;
+	background: transparent;
+}
+
+/* Aufnahme-Zustand: rot eingefärbt mit leichtem Hintergrund. */
+.mic-button--recording {
+	color: var(--pp-danger, red);
+	background: rgba(220, 0, 0, 0.1);
+}
+
+.mic-error {
+	font-size: 0.875rem;
+	color: var(--pp-danger, red);
+	margin: 0.25rem 0 0;
+}
+
 /* --- Empty-State / Onboarding (keine Tasks) --- */
 .empty-state {
 	margin-top: 2rem;
