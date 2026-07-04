@@ -3,6 +3,7 @@ import type { Pillar } from 'client';
 import { useState } from 'react';
 import { requestMicrophonePermission } from '../lib/micPermission';
 import { useVoiceAutostart } from '../lib/voiceAutostart';
+import { AppearanceSetting } from './AppearanceSetting';
 import { PillarWeightsForm } from './PillarWeightsForm';
 
 interface SettingsPageProps {
@@ -70,6 +71,7 @@ export const SettingsPage = ({ pillars, onBack, onSaved }: SettingsPageProps) =>
 
 			<KolTabs className="settings-tabs" _label="Einstellungen" _tabs={SETTINGS_TABS} _selected={activeTab}>
 				<div slot="tab-0" className="settings-general">
+					<AppearanceSetting />
 					<KolInputCheckbox
 						_label="Sprachaufnahme automatisch starten"
 						_variant="switch"

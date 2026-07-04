@@ -40,10 +40,7 @@ const appearanceControl = (page: Page): Locator =>
  * oder (Fallback) als `button`. Wird zum Aktivieren des jeweiligen Modus geklickt.
  */
 const appearanceOption = (page: Page, name: RegExp): Locator =>
-	page
-		.getByRole('radio', { name })
-		.or(page.getByRole('option', { name }))
-		.or(page.getByRole('button', { name }));
+	page.getByRole('radio', { name }).or(page.getByRole('option', { name })).or(page.getByRole('button', { name }));
 
 test.describe('#285 Einstellungen – Darstellungs-Umschalter (Allgemein-Tab)', () => {
 	/**

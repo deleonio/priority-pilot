@@ -109,16 +109,15 @@ test.describe('#285 Header – kompakte Icon-Toolbar', () => {
 
 	/**
 	 * AK1 — Icon-only mit erhaltenem Accessible Name: Jeder Ziel-Button ist per Accessible Name
-	 * auffindbar (Regression-sicher) UND trägt am zugehörigen `kol-button`-Host das
-	 * `_hide-label`-Attribut, d. h. es wird nur das Icon gezeigt, kein sichtbares Textlabel.
+	 * auffindbar (Regression-sicher) UND zeigt nur ein Icon, kein sichtbares Textlabel.
 	 *
-	 * Der `role="button"` liegt im Shadow-DOM des `kol-button`-Hosts; über `getRootNode().host`
-	 * erreichen wir das Host-Element und lesen dort `_hide-label`.
+	 * KOL rendert die Toolbar-Buttons als `kol-button-wc` im Shadow-DOM der Toolbar; ist `_hideLabel`
+	 * gesetzt, bekommt der Label-Span die Klasse `kol-span--hide-label` (visuell versteckt, aber im
+	 * Accessibility-Tree als Name erhalten). Das prüfen wir hier direkt am gerenderten Button:
+	 * sichtbarer Textinhalt leer + versteckter Label-Span vorhanden.
 	 */
 	for (const label of ICON_ONLY_LABELS) {
-		test(`AK1: „${label}" ist Icon-only (kein sichtbares Label) mit erhaltenem Accessible Name`, async ({
-			page,
-		}) => {
+		test(`AK1: „${label}" ist Icon-only (kein sichtbares Label) mit erhaltenem Accessible Name`, async ({ page }) => {
 			await page.goto('/');
 			await waitForStableView(page);
 
@@ -129,23 +128,15 @@ test.describe('#285 Header – kompakte Icon-Toolbar', () => {
 			await expect(btn).toBeVisible();
 			await expect(btn).toHaveAccessibleName(label);
 
-			// Der zugehörige kol-button-Host hat `_hide-label` gesetzt → nur Icon, kein sichtbarer Text.
-			const hasHideLabel = await btn.evaluate((el) => {
-				// Vom (Shadow-)Button über die Shadow-Grenze zum kol-button-Host aufsteigen.
-				let node: Node | null = el;
-				for (let i = 0; i < 6 && node; i++) {
-					const host = (node.getRootNode() as ShadowRoot).host as HTMLElement | undefined;
-					const candidate = host ?? (node as HTMLElement).closest?.('kol-button') ?? null;
-					if (candidate && candidate.tagName?.toLowerCase() === 'kol-button') {
-						return (
-							candidate.hasAttribute('_hide-label') || candidate.getAttribute('_hide-label') === 'true'
-						);
-					}
-					node = candidate ?? (node as HTMLElement).parentElement;
-				}
-				return false;
+			// Das Label ist visuell versteckt: kein sichtbarer Textinhalt, aber ein Label-Span mit der
+			// KOL-Hide-Label-Klasse (nur das Icon wird gezeigt).
+			const hidesLabel = await btn.evaluate((el) => {
+				const button = el as HTMLElement;
+				const visibleText = (button.textContent ?? '').trim();
+				const span = button.querySelector('span.kol-span--hide-label, span[class*="hide-label"]');
+				return visibleText === '' && span !== null;
 			});
-			expect(hasHideLabel, `„${label}" sollte _hide-label am kol-button-Host tragen`).toBe(true);
+			expect(hidesLabel, `„${label}" sollte nur das Icon zeigen (verstecktes Label)`).toBe(true);
 		});
 	}
 
