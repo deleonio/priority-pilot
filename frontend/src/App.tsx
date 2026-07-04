@@ -7,6 +7,7 @@ import { DeleteTaskDialog } from './components/DeleteTaskDialog';
 import { DependencyModal } from './components/DependencyModal';
 import { EmptyState } from './components/EmptyState';
 import { ForestPanel } from './components/ForestPanel';
+import { HelpPage } from './components/HelpPage';
 import { PillarWeightsModal } from './components/PillarWeightsModal';
 import { QuickCaptureModal } from './components/QuickCaptureModal';
 import { SeriesManagementModal } from './components/SeriesManagementModal';
@@ -57,8 +58,10 @@ const findDirectSubtasks = (forest: TaskTreeNode[], taskId: number): { status: T
 // Modulkonstante, damit das Toolbar-Item nicht bei jedem Render eine neue `_icons`-Objektidentität
 // erhält (sonst würde der Icon-Watcher unnötig erneut feuern).
 const RELOAD_ICON = { left: { icon: 'fa-solid fa-arrows-rotate' } };
+const HELP_ICON = { left: { icon: 'fa-solid fa-circle-question' } };
 
 export const App = ({ user }: { user: AuthUser }) => {
+	const [showHelp, setShowHelp] = useState(false);
 	const [tasks, setTasks] = useState<Task[] | null>(null);
 	const [forest, setForest] = useState<TaskTreeNode[]>([]);
 	const [nextTask, setNextTask] = useState<Task | null>(null);
@@ -179,6 +182,16 @@ export const App = ({ user }: { user: AuthUser }) => {
 		setDialog({ kind: 'pillars' });
 	}, []);
 
+	const openHelp = useCallback((): void => {
+		window.history.pushState({}, '', '/hilfe');
+		setShowHelp(true);
+	}, []);
+
+	const closeHelp = useCallback((): void => {
+		window.history.pushState({}, '', '/');
+		setShowHelp(false);
+	}, []);
+
 	// Stabile Callback-Identitäten, damit die memoisierte `TaskTable` beim Öffnen eines Dialogs nicht
 	// neu rendert (sonst Zellen-/Toolbar-Neuaufbau samt Fokusverlust am auslösenden Button).
 	const openEdit = useCallback((task: Task): void => setDialog({ kind: 'edit', task }), []);
@@ -193,6 +206,10 @@ export const App = ({ user }: { user: AuthUser }) => {
 
 	const dependencyTask =
 		dialog?.kind === 'dependencies' ? (tasks?.find((task) => task.id === dialog.taskId) ?? null) : null;
+
+	if (showHelp) {
+		return <HelpPage onBack={closeHelp} />;
+	}
 
 	return (
 		<main className="app" ref={deleteFallbackRef} tabIndex={-1} data-focus-fallback>
@@ -236,6 +253,14 @@ export const App = ({ user }: { user: AuthUser }) => {
 								_icons: themeItem._icons,
 								_variant: 'secondary',
 								_on: { onClick: themeItem.onClick },
+							},
+							{
+								type: 'button',
+								_label: 'Hilfe',
+								_hideLabel: true,
+								_icons: HELP_ICON,
+								_variant: 'secondary',
+								_on: { onClick: openHelp },
 							},
 							{
 								type: 'button' as const,

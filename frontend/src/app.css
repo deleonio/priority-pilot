@@ -517,3 +517,48 @@ body {
 	margin: 0 0 1rem;
 	color: var(--pp-text-muted);
 }
+
+/* --- Hilfe-Seite (#256) --- */
+.help-page {
+	max-width: 800px;
+	margin: 0 auto;
+	padding: 1rem;
+	box-sizing: border-box;
+	width: 100%;
+	overflow-x: hidden;
+}
+
+.help-page-header {
+	margin-bottom: 1.5rem;
+}
+
+.help-page-loading {
+	display: flex;
+	justify-content: center;
+	padding: 2rem;
+}
+
+.help-page-content {
+	overflow-x: hidden;
+	word-break: break-word;
+}
+
+.help-page-content h1,
+.help-page-content h2,
+.help-page-content h3 {
+	margin: 1rem 0 0.5rem;
+}
+
+.help-page-content p {
+	margin: 0 0 0.75rem;
+}
+
+.help-page-content ul,
+.help-page-content ol {
+	margin: 0 0 0.75rem;
+	padding-left: 1.5rem;
+}
+
+.help-page-content li {
+	margin-bottom: 0.25rem;
+}

@@ -86,9 +86,7 @@ test.describe('#256 In-App-Hilfe – Seite, Markdown-Renderer und Header-Button'
 		// Warten, bis der Markdown-Inhalt gerendert ist, damit die Breite valide gemessen wird.
 		await expect(page.locator('h1, h2').first()).toBeVisible();
 
-		const hasNoHorizontalOverflow = await page.evaluate(
-			() => document.body.scrollWidth <= window.innerWidth,
-		);
+		const hasNoHorizontalOverflow = await page.evaluate(() => document.body.scrollWidth <= window.innerWidth);
 		expect(hasNoHorizontalOverflow).toBe(true);
 	});
 });
