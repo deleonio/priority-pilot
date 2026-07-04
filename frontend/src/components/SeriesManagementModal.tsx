@@ -27,6 +27,7 @@ const RHYTHM_LABEL: Record<Series['rhythm'], string> = {
 export const SeriesManagementModal = ({ onClose }: SeriesManagementModalProps) => {
 	const [series, setSeries] = useState<Series[] | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const [successMessage, setSuccessMessage] = useState<string | null>(null);
 	const [subForm, setSubForm] = useState<SubForm>(null);
 
 	const reload = useCallback(async (signal?: AbortSignal): Promise<void> => {
@@ -58,11 +59,13 @@ export const SeriesManagementModal = ({ onClose }: SeriesManagementModalProps) =
 	// Stößt die serverseitige Materialisierung aller fälligen Serien-Instanzen an (#244, AK7).
 	const generateAll = useCallback(async (): Promise<void> => {
 		try {
-			await api.generateAllSeries();
+			const { created } = await api.generateAllSeries();
 			setError(null);
+			setSuccessMessage(created > 0 ? `${created} Instanz(en) generiert` : 'Bereits aktuell');
 		} catch (reason) {
 			const apiError = await toApiError(reason);
 			setError(apiError.message);
+			setSuccessMessage(null);
 		}
 	}, []);
 
@@ -84,6 +87,12 @@ export const SeriesManagementModal = ({ onClose }: SeriesManagementModalProps) =
 			{error !== null && (
 				<KolAlert _type="error" _label="Aktion fehlgeschlagen">
 					{error}
+				</KolAlert>
+			)}
+
+			{successMessage !== null && (
+				<KolAlert _type="info" _label="Ergebnis">
+					{successMessage}
 				</KolAlert>
 			)}
 

@@ -1,6 +1,5 @@
 import { Series, Task } from '../models/index.js';
 import type { SeriesRhythm } from '../models/series.js';
-import { ownerScope } from '../express/requireAuth.js';
 
 /** Optionen der Generierung; `until` ist der (inklusive) Materialisierungs-Horizont. */
 interface GenerateOptions {
@@ -102,7 +101,7 @@ export const generateDueInstances = async (series: Series, options: GenerateOpti
  * geloggt — ein Ausreißer bricht den Gesamtlauf nicht ab. Gibt alle neu erzeugten Instanzen zurück.
  */
 export const materializeDueSeries = async (userId: number | undefined, until: Date): Promise<Task[]> => {
-	const seriesList = await Series.findAll({ where: { active: true, ...ownerScope(userId) } });
+	const seriesList = await Series.findAll({ where: { active: true, ...(userId !== undefined ? { userId } : {}) } });
 	const created: Task[] = [];
 	for (const series of seriesList) {
 		try {
