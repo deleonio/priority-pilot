@@ -10,7 +10,7 @@ import { applyInitialTheme } from './lib/theme';
 // Asset-Subpfad nicht freigibt (siehe doc/HOWTO_ICON_FONTS); Vite bündelt den Font darüber selbst.
 import '../node_modules/@public-ui/components/assets/kolicons/style.css';
 // Font Awesome (Solid) aus dem Default-Theme für Icons, die die KolIcons-Font nicht kennt — z. B.
-// das Reload-Symbol des „Aktualisieren"-Buttons (kolicons hat kein Reload-/Refresh-Icon). Wieder
+// das Plus-Symbol („Neuen Task anlegen") oder fa-repeat/fa-circle-question/fa-right-from-bracket.
 // Direkt-Pfad-Import, weil die `exports`-Map von @public-ui/theme-default nur den Paket-Einstieg
 // freigibt; `fontawesome.min.css` liefert die Glyphen, `solid.min.css` die Solid-Schriftart.
 import '../node_modules/@public-ui/theme-default/assets/fontawesome-free/css/fontawesome.min.css';

@@ -5,7 +5,7 @@ import { waitForStableView } from './helpers';
  * ROTE Spec-Tests für #125 „Header – Toolbar" (Stufe 1 TDD, der einklagbare Vertrag).
  *
  * Ziel des Tickets (siehe Triage-Analyse, Owner-Entscheidung): Die einfachen Bedienelemente rechts
- * oben im Header — „Neuen Task anlegen", „Aktualisieren" und der Darstellungs-Umschalter — werden zu
+ * oben im Header — „Neuen Task anlegen" und der Darstellungs-Umschalter — werden zu
  * einer **echten** `KolToolbar` (Toolbar-Rolle, gemeinsame Pfeiltasten-Navigation, sprechendes
  * `_label`) gruppiert. Der `KolPopoverButton` „Einstellungen" bleibt **außerhalb** der Toolbar als
  * Geschwister-Element erhalten (er trägt Kind-Inhalt, der sich nicht über `_items` abbilden lässt).
@@ -28,7 +28,6 @@ test.describe('#125 Header – Toolbar', () => {
 		await expect(toolbar).toBeVisible();
 
 		await expect(toolbar.getByRole('button', { name: 'Neuen Task anlegen' })).toBeVisible();
-		await expect(toolbar.getByRole('button', { name: 'Aktualisieren' })).toBeVisible();
 		// Hinweis (#285): Der Darstellungs-Umschalter wurde aus der Toolbar in die Einstellungen
 		// verschoben; seine frühere Anwesenheits-Assertion entfällt hier (siehe #285-Block unten).
 	});
@@ -46,19 +45,6 @@ test.describe('#125 Header – Toolbar', () => {
 		// „Neuen Task anlegen" öffnet den Dialog (gleicher Flow wie in crud.spec.ts).
 		await toolbar.getByRole('button', { name: 'Neuen Task anlegen' }).click();
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
-		await waitForStableView(page);
-		await page.getByRole('button', { name: 'Überspringen' }).click();
-		await waitForStableView(page);
-		// Dialog wieder schließen, damit „Aktualisieren" frei klickbar ist.
-		await page.getByRole('button', { name: 'Abbrechen' }).click();
-		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
-
-		// „Aktualisieren" löst einen erneuten Listen-Request aus (beweist: Button verdrahtet & aktiv).
-		const reloadRequest = page.waitForRequest(
-			(request) => request.url().includes('/tasks') && request.method() === 'GET',
-		);
-		await toolbar.getByRole('button', { name: 'Aktualisieren' }).click();
-		await reloadRequest;
 	});
 
 	/*
@@ -189,5 +175,53 @@ test.describe('#285 Header – kompakte Icon-Toolbar', () => {
 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
 		await expect(toolbar.getByRole('button', { name: /Darstellung/ })).toHaveCount(0);
+	});
+});
+
+/**
+ * ROTE Spec-Tests für #298 „„Aktualisieren"-Schalter ersatzlos entfernen"
+ * (Stufe 1 TDD, der einklagbare Vertrag).
+ *
+ * Der „Aktualisieren"-Button wird ersatzlos aus der Header-Toolbar entfernt.
+ * Die App lädt nach jeder Mutation automatisch neu — ein manueller Reload-Button
+ * ist überflüssig.
+ */
+test.describe('#298 „Aktualisieren"-Button entfernt', () => {
+	/**
+	 * AK1 — Button entfernt: In der Toolbar „Kopf-Aktionen" existiert kein Button
+	 * mit Accessible Name „Aktualisieren" mehr.
+	 */
+	test('AK1: „Aktualisieren"-Button ist nicht mehr in der Toolbar vorhanden', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+
+		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
+		await expect(toolbar).toBeVisible();
+
+		// Der Button darf nicht mehr existieren — Count muss 0 sein.
+		await expect(toolbar.getByRole('button', { name: 'Aktualisieren' })).toHaveCount(0);
+	});
+
+	/**
+	 * AK2 — Regression: Die übrigen Toolbar-Buttons bleiben sichtbar & bedienbar.
+	 * Buttons: „Neuen Task anlegen", „Serien verwalten", „Hilfe", „Einstellungen", „Abmelden".
+	 * „Neuen Task anlegen" öffnet weiterhin den Anlege-Dialog.
+	 */
+	test('AK2: Übrige Toolbar-Aktionen bleiben vollständig bedienbar', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+
+		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
+
+		// Alle verbleibenden Buttons sind weiterhin per Accessible Name auffindbar.
+		await expect(toolbar.getByRole('button', { name: 'Neuen Task anlegen' })).toBeVisible();
+		await expect(toolbar.getByRole('button', { name: 'Serien verwalten' })).toBeVisible();
+		await expect(toolbar.getByRole('button', { name: 'Hilfe' })).toBeVisible();
+		await expect(toolbar.getByRole('button', { name: 'Einstellungen' })).toBeVisible();
+		await expect(toolbar.getByRole('button', { name: 'Abmelden' })).toBeVisible();
+
+		// „Neuen Task anlegen" öffnet weiterhin den Anlege-Dialog.
+		await toolbar.getByRole('button', { name: 'Neuen Task anlegen' }).click();
+		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
 	});
 });
