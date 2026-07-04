@@ -4,6 +4,11 @@ import { configDefaults, defineConfig } from 'vitest/config';
 // Eigene Vitest-Config (statt der vite.config.ts mit PWA/Proxy), damit der Test-Lauf schlank bleibt.
 export default defineConfig({
 	plugins: [react()],
+	// Vite erbt `define` nicht automatisch in Vitest — daher hier gespiegelt, damit die Tests den
+	// globalen `__APP_VERSION__` kennen (in der Prod-Build-Config wird er aus package.json injiziert).
+	define: {
+		__APP_VERSION__: JSON.stringify('0.0.0-test'),
+	},
 	test: {
 		environment: 'jsdom',
 		// Bindet Web Storage im jsdom-Env an jsdoms Implementierung (siehe vitest.setup.ts) —

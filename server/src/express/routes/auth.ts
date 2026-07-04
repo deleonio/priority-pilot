@@ -1,9 +1,10 @@
-import { Router } from 'express';
+import { Router, type RequestHandler } from 'express';
 import passport from 'passport';
 import { UniqueConstraintError } from 'sequelize';
 import { isEmailAllowed } from '../../logics/allowedEmails.js';
 import { User } from '../../models/index.js';
 import { hashPassword, verifyPassword } from '../../logics/auth.js';
+import { hasGoogleOAuth } from '../requireAuth.js';
 
 // Timing-Normalisierung: bei unbekannter E-Mail bcrypt-Vergleich simulieren,
 // damit Angreifer per Zeitmessung keine gültigen Adressen ermitteln können.
@@ -110,12 +111,25 @@ authRouter.get('/auth/error', (_req, res) => {
 	res.status(400).json({ error: 'Login fehlgeschlagen. Bitte prüfe deine Zugangsberechtigung.' });
 });
 
+// Guard: passport.authenticate('google') darf nur laufen, wenn die 'google'-Strategie registriert
+// wurde. Ohne Client-Credentials ist sie das nicht (siehe express/index.ts) — dann würde Passport
+// synchron "Unknown authentication strategy 'google'" werfen (ungefangener 500). Dasselbe kanonische
+// Prädikat (hasGoogleOAuth) steuert Registrierung UND Guard, sodass beide nie auseinanderlaufen.
+const requireGoogleStrategy: RequestHandler = (_req, res, next) => {
+	if (!hasGoogleOAuth()) {
+		res.status(503).json({ error: 'Google-OAuth ist nicht konfiguriert.' });
+		return;
+	}
+	next();
+};
+
 // GET /auth/google — startet den OAuth-Flow
-authRouter.get('/auth/google', passport.authenticate('google', { scope: ['email', 'profile'] }));
+authRouter.get('/auth/google', requireGoogleStrategy, passport.authenticate('google', { scope: ['email', 'profile'] }));
 
 // GET /auth/google/callback — Google leitet nach Authentifizierung hierher zurück
 authRouter.get(
 	'/auth/google/callback',
+	requireGoogleStrategy,
 	passport.authenticate('google', { failureRedirect: '/auth/error' }),
 	(req, res) => {
 		// User vor regenerate() sichern — req.user ist danach ggf. nicht mehr verfügbar.

@@ -6,7 +6,7 @@ const hasAllowlist = (): boolean =>
 	!!(process.env.GOOGLE_ALLOWED_EMAILS?.trim() || process.env.GOOGLE_ALLOWED_EMAIL?.trim());
 
 /** Prüft, ob eine Google-OAuth-Strategie konfiguriert ist (Client-Credentials vorhanden). */
-const hasGoogleOAuth = (): boolean =>
+export const hasGoogleOAuth = (): boolean =>
 	!!(process.env.GOOGLE_CLIENT_ID?.trim() && process.env.GOOGLE_CLIENT_SECRET?.trim());
 
 /**

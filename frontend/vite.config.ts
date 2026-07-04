@@ -1,6 +1,12 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+
+const rootPkg = JSON.parse(readFileSync(resolve(__dirname, '../package.json'), 'utf-8')) as {
+	version: string;
+};
 
 // Der Dev-Proxy leitet alle /api/v1/*-, /api/transit/*- und /auth/*-Anfragen an den
 // Express-Server (http://localhost:3000) weiter. CORS wird damit im Browser ohne
@@ -63,6 +69,9 @@ export default defineConfig({
 	},
 	preview: {
 		proxy: apiProxy,
+	},
+	define: {
+		__APP_VERSION__: JSON.stringify(rootPkg.version),
 	},
 	optimizeDeps: {
 		// Der generierte Client liegt als TypeScript-Quelle im Workspace vor; Vite transpiliert ihn

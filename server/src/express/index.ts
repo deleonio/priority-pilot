@@ -16,7 +16,7 @@ import type { PillarClassifier, ParseTaskParser } from '../llm/mistral.js';
 import { buildTaskForest } from '../logics/tree.js';
 import { findNextImportantTask, findSuggestedTasks } from '../logics/find.js';
 import { isEmailAllowed, getConfiguredEmails } from '../logics/allowedEmails.js';
-import { requireAuth, getUserId } from './requireAuth.js';
+import { requireAuth, getUserId, hasGoogleOAuth } from './requireAuth.js';
 import { User } from '../models/index.js';
 
 const PORT = Number(process.env.PORT) || 3000;
@@ -81,7 +81,9 @@ export const createApp = (deps: AppDeps = {}) => {
 		getConfiguredEmails();
 	}
 
-	if (clientID && clientSecret) {
+	// Registrierungs-Bedingung teilt sich dasselbe kanonische Prädikat wie der Route-Guard in
+	// routes/auth.ts (hasGoogleOAuth), damit Sender und Empfänger nie auseinanderlaufen können.
+	if (hasGoogleOAuth()) {
 		// Einschränkung: `passport` ist ein Modul-Singleton. Mehrere createApp()-Aufrufe
 		// im selben Prozess überschreiben diese globale Strategie gegenseitig — daher wird
 		// pro Prozess nur eine App-Konfiguration unterstützt (ausreichend für unser Multi-User-Gate).
