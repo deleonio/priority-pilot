@@ -26,10 +26,17 @@ import { waitForStableView } from './helpers';
 
 /**
  * Init-Script (als String, vor dem Seitenaufbau injiziert), das die Web Speech API mockt:
- *  1. `MockSpeechRecognition` mit `start()`, `stop()`, `abort()`, `onresult`, `onend`,
+ *  1. `MockSpeechRecognition` mit `start()`, `stop()`, `abort()`, `onstart`, `onresult`, `onend`,
  *  2. Zuweisung an `window.SpeechRecognition` und `window.webkitSpeechRecognition`,
  *  3. Beobachtungs-Flags `window.__speechRecognitionStarted` / `window.__speechRecognitionStopped`,
- *  4. `window.__fireSpeechResult(text)`, um aus dem Test ein Erkennungsergebnis auszulösen.
+ *  4. `window.__fireSpeechResult(text, isFinal?)`, um ein Erkennungsergebnis auszulösen,
+ *  5. `window.__fireSpeechEnd()` / `window.__fireSpeechError(error)`, um ein Engine-Ende ohne
+ *     Ergebnis bzw. einen Erkennungsfehler auszulösen (#283).
+ *
+ * Realitätsnah wie die echte API (#283): `start()` lauscht erst nach einem asynchronen Warmup
+ * (`onstart` kommt per setTimeout), `stop()` feuert `onend` asynchron, `abort()` feuert erst
+ * `onerror('aborted')`, dann `onend` — der frühere, idealisiert-synchrone Mock hatte genau die
+ * instabilen Übergänge verdeckt, um die es in #283 geht.
  */
 const SPEECH_MOCK_INIT_SCRIPT = `
 	(() => {
@@ -42,6 +49,7 @@ const SPEECH_MOCK_INIT_SCRIPT = `
 				this.lang = '';
 				this.continuous = false;
 				this.interimResults = false;
+				this.onstart = null;
 				this.onresult = null;
 				this.onend = null;
 				this.onerror = null;
@@ -50,29 +58,51 @@ const SPEECH_MOCK_INIT_SCRIPT = `
 			start() {
 				window.__speechRecognitionStarted = true;
 				activeInstance = this;
+				setTimeout(() => {
+					if (typeof this.onstart === 'function') {
+						this.onstart();
+					}
+				}, 0);
 			}
 			stop() {
 				window.__speechRecognitionStopped = true;
-				if (typeof this.onend === 'function') {
-					this.onend();
-				}
+				setTimeout(() => {
+					if (typeof this.onend === 'function') {
+						this.onend();
+					}
+				}, 0);
 			}
 			abort() {
-				if (typeof this.onend === 'function') {
-					this.onend();
-				}
+				setTimeout(() => {
+					if (typeof this.onerror === 'function') {
+						this.onerror({ error: 'aborted' });
+					}
+					if (typeof this.onend === 'function') {
+						this.onend();
+					}
+				}, 0);
 			}
 		}
 
 		window.SpeechRecognition = MockSpeechRecognition;
 		window.webkitSpeechRecognition = MockSpeechRecognition;
 
-		window.__fireSpeechResult = (text) => {
+		window.__fireSpeechResult = (text, isFinal) => {
 			if (activeInstance && typeof activeInstance.onresult === 'function') {
 				activeInstance.onresult({
 					resultIndex: 0,
-					results: { 0: { 0: { transcript: text } }, length: 1 },
+					results: { 0: { 0: { transcript: text }, isFinal: isFinal !== false }, length: 1 },
 				});
+			}
+		};
+		window.__fireSpeechEnd = () => {
+			if (activeInstance && typeof activeInstance.onend === 'function') {
+				activeInstance.onend();
+			}
+		};
+		window.__fireSpeechError = (error) => {
+			if (activeInstance && typeof activeInstance.onerror === 'function') {
+				activeInstance.onerror({ error });
 			}
 		};
 	})();
@@ -82,7 +112,9 @@ declare global {
 	interface Window {
 		__speechRecognitionStarted?: boolean;
 		__speechRecognitionStopped?: boolean;
-		__fireSpeechResult?: (text: string) => void;
+		__fireSpeechResult?: (text: string, isFinal?: boolean) => void;
+		__fireSpeechEnd?: () => void;
+		__fireSpeechError?: (error: string) => void;
 	}
 }
 
@@ -372,5 +404,104 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 		await page.evaluate(() => window.__fireSpeechResult?.('Wöchentlicher Wochenputz'));
 
 		await expect(titleInput(page)).toHaveValue('Wöchentlicher Wochenputz');
+	});
+
+	// --- #283: Stabilität der Audio-Texterfassung — kein stiller Ausfall, kein verlorener Text ---
+
+	test('AK14 (#283): endet die Erkennung ohne Ergebnis, erscheint der Hinweis „Nichts erkannt"', async ({ page }) => {
+		await page.addInitScript(SPEECH_MOCK_INIT_SCRIPT);
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await openTaskForm(page);
+
+		await micButton(page, 'Beschreibung').click();
+		await expect.poll(() => page.evaluate(() => window.__speechRecognitionStarted === true)).toBe(true);
+
+		// Die Engine endet (z. B. Stille/zu leise), OHNE dass je ein onresult kam — genau der in
+		// #283 beschriebene Fall „Button aus, nichts eingefügt".
+		await page.evaluate(() => window.__fireSpeechEnd?.());
+
+		// Der Nutzer bleibt nicht im Unklaren: Hinweis sichtbar, Aufnahme sauber beendet.
+		await expect(page.locator('.mic-error')).toHaveText('Nichts erkannt – bitte erneut sprechen.');
+		await expect(micButton(page, 'Beschreibung')).toHaveAttribute('aria-pressed', 'false');
+		await expect(page.getByLabel('Beschreibung (optional)')).toHaveValue('');
+	});
+
+	test('AK15 (#283): ein Zwischenergebnis geht beim Engine-Ende ohne Finale nicht verloren', async ({ page }) => {
+		await page.addInitScript(SPEECH_MOCK_INIT_SCRIPT);
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await openTaskForm(page);
+
+		await micButton(page, 'Beschreibung').click();
+		await expect.poll(() => page.evaluate(() => window.__speechRecognitionStarted === true)).toBe(true);
+
+		// Nur ein Zwischenergebnis (isFinal=false) kommt an, dann bricht die Engine vor dem Finale ab.
+		await page.evaluate(() => window.__fireSpeechResult?.('Zahnarzttermin vereinbaren', false));
+		await page.evaluate(() => window.__fireSpeechEnd?.());
+
+		// Der zuletzt erkannte Text wird übernommen statt verworfen — und es gibt keinen Fehlertext.
+		await expect(page.getByLabel('Beschreibung (optional)')).toHaveValue('Zahnarzttermin vereinbaren');
+		await expect(page.locator('.mic-error')).toHaveCount(0);
+	});
+
+	test('AK16 (#283): dreimal nacheinander Start → Ergebnis → jeder Text landet im Titel-Feld', async ({ page }) => {
+		await page.addInitScript(SPEECH_MOCK_INIT_SCRIPT);
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await openTaskForm(page);
+
+		// Wiederholte Aufnahmen bleiben stabil — kein Durchgang fällt aus (#283: „sporadisch wird
+		// nichts eingefügt"). Pro Runde: Start abwarten, Ergebnis feuern, Aufnahme stoppen.
+		const texte = ['Einkauf planen', 'für Samstag', 'mit Einkaufszettel'];
+		for (const text of texte) {
+			await micButton(page, 'Titel').click();
+			await expect(micButton(page, 'Titel')).toHaveAttribute('aria-pressed', 'true');
+			await page.evaluate((t) => window.__fireSpeechResult?.(t), text);
+			await micButton(page, 'Titel').click();
+			await expect(micButton(page, 'Titel')).toHaveAttribute('aria-pressed', 'false');
+		}
+
+		await expect(titleInput(page)).toHaveValue('Einkauf planen für Samstag mit Einkaufszettel');
+	});
+
+	test('AK17 (#283): onerror "no-speech" zeigt den Hinweis statt der generischen Fehlermeldung', async ({ page }) => {
+		await page.addInitScript(SPEECH_MOCK_INIT_SCRIPT);
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await openTaskForm(page);
+
+		await micButton(page, 'Titel').click();
+		await expect.poll(() => page.evaluate(() => window.__speechRecognitionStarted === true)).toBe(true);
+
+		await page.evaluate(() => window.__fireSpeechError?.('no-speech'));
+
+		await expect(page.locator('.mic-error')).toHaveText('Nichts erkannt – bitte erneut sprechen.');
+		await expect(micButton(page, 'Titel')).toHaveAttribute('aria-pressed', 'false');
+	});
+
+	test('AK18 (#283): der „Nichts erkannt"-Hinweis ist auf 375px sichtbar, ohne horizontales Scrollen', async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await page.addInitScript(SPEECH_MOCK_INIT_SCRIPT);
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await openTaskForm(page);
+
+		await micButton(page, 'Beschreibung').click();
+		await expect.poll(() => page.evaluate(() => window.__speechRecognitionStarted === true)).toBe(true);
+		await page.evaluate(() => window.__fireSpeechEnd?.());
+
+		await expect(page.locator('.mic-error')).toBeVisible();
+		const overflowsHorizontally = await page.evaluate(() => {
+			return document.body.scrollWidth > window.innerWidth + 1;
+		});
+		expect(overflowsHorizontally).toBe(false);
 	});
 });

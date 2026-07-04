@@ -39,6 +39,7 @@ const buildInitScript = (opts: { speechSupported: boolean; mediaPermission: 'gra
 				this.lang = '';
 				this.continuous = false;
 				this.interimResults = false;
+				this.onstart = null;
 				this.onresult = null;
 				this.onend = null;
 				this.onerror = null;
@@ -47,17 +48,29 @@ const buildInitScript = (opts: { speechSupported: boolean; mediaPermission: 'gra
 			start() {
 				window.__speechRecognitionStarted = true;
 				activeInstance = this;
+				setTimeout(() => {
+					if (typeof this.onstart === 'function') {
+						this.onstart();
+					}
+				}, 0);
 			}
 			stop() {
 				window.__speechRecognitionStopped = true;
-				if (typeof this.onend === 'function') {
-					this.onend();
-				}
+				setTimeout(() => {
+					if (typeof this.onend === 'function') {
+						this.onend();
+					}
+				}, 0);
 			}
 			abort() {
-				if (typeof this.onend === 'function') {
-					this.onend();
-				}
+				setTimeout(() => {
+					if (typeof this.onerror === 'function') {
+						this.onerror({ error: 'aborted' });
+					}
+					if (typeof this.onend === 'function') {
+						this.onend();
+					}
+				}, 0);
 			}
 		}
 		window.SpeechRecognition = MockSpeechRecognition;
@@ -69,11 +82,11 @@ const buildInitScript = (opts: { speechSupported: boolean; mediaPermission: 'gra
 		`
 		}
 
-		window.__fireSpeechResult = (text) => {
+		window.__fireSpeechResult = (text, isFinal) => {
 			if (activeInstance && typeof activeInstance.onresult === 'function') {
 				activeInstance.onresult({
 					resultIndex: 0,
-					results: { 0: { 0: { transcript: text } }, length: 1 },
+					results: { 0: { 0: { transcript: text }, isFinal: isFinal !== false }, length: 1 },
 				});
 			}
 		};
@@ -106,7 +119,7 @@ declare global {
 		__speechRecognitionStarted?: boolean;
 		__speechRecognitionStopped?: boolean;
 		__getUserMediaCalled?: boolean;
-		__fireSpeechResult?: (text: string) => void;
+		__fireSpeechResult?: (text: string, isFinal?: boolean) => void;
 	}
 }
 
@@ -505,5 +518,38 @@ test.describe('#281 Schnellerfassung: Voice-Autostart im Capture-Textfeld', () =
 		});
 		expect(overflowsHorizontally).toBe(false);
 		await expect(micButton(page, 'Beschreibe deinen Task')).toBeVisible();
+	});
+});
+
+// ---------------------------------------------------------------------------
+// #283 — Stabilität: Autostart verliert kein früh gesprochenes Ergebnis
+// ---------------------------------------------------------------------------
+
+test.describe('#283 Autostart: früh gesprochenes Ergebnis geht nicht verloren', () => {
+	test.afterEach(async ({ page }) => {
+		await deleteAllTasks(page);
+	});
+
+	/**
+	 * Issue-AK4 — der Mock startet die Engine asynchron (onstart per setTimeout, wie der echte
+	 * Warmup): Ein Ergebnis, das UNMITTELBAR nach dem Mount eintrifft (also möglicherweise noch vor
+	 * onstart), darf nicht verworfen werden.
+	 */
+	test('AK1: Ergebnis unmittelbar nach dem Mount landet im Titel-Feld', async ({ page }) => {
+		await setVoiceAutostartInStorage(page, true);
+		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'granted' }));
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await openTaskForm(page);
+
+		// Sobald die Aufnahme angestoßen ist (start() gerufen), SOFORT sprechen — ohne auf den
+		// Lausch-Beginn (onstart → aria-pressed) zu warten.
+		await expect.poll(() => page.evaluate(() => window.__speechRecognitionStarted === true)).toBe(true);
+		await page.evaluate(() => window.__fireSpeechResult?.('Sofort gesprochener Titel'));
+
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue('Sofort gesprochener Titel');
+		// Kein Fehler-/Hinweistext — die frühe Eingabe ist ein Erfolgsfall.
+		await expect(page.locator('.mic-error')).toHaveCount(0);
 	});
 });
