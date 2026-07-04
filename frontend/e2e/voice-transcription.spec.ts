@@ -198,4 +198,17 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 
 		expect(pageErrors, `Unerwartete pageerrors: ${pageErrors.join(' | ')}`).toEqual([]);
 	});
+
+	test('AK6: Mic-Button ist auf 375px-Viewport sichtbar', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await page.addInitScript(SPEECH_MOCK_INIT_SCRIPT);
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await openTaskForm(page);
+
+		// Auch auf schmalem Mobil-Viewport ist der Mic-Button sichtbar und im Viewport.
+		await expect(micButton(page)).toBeVisible();
+		await expect(micButton(page)).toBeInViewport();
+	});
 });
