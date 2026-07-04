@@ -113,7 +113,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 
 	useEffect(() => {
 		const onPop = () => {
-			if (!window.location.pathname.startsWith('/hilfe')) setShowHelp(false);
+			setShowHelp(window.location.pathname.startsWith('/hilfe'));
 		};
 		window.addEventListener('popstate', onPop);
 		return () => window.removeEventListener('popstate', onPop);
