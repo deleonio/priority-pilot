@@ -91,8 +91,8 @@ test.describe('Priority Pilot — Tab „Erledigte Aufgaben" (#228) gegen das ec
 		await openCompletedTab(page);
 		// Der erledigte Task ist gelistet …
 		await expect(page.getByText(doneTitle, { exact: true })).toBeVisible();
-		// … der offene Task NICHT.
-		await expect(page.getByText(openTitle, { exact: true })).toHaveCount(0);
+		// … der offene Task NICHT (im aktiven Tab nicht sichtbar; inaktive Tabs bleiben im Light-DOM).
+		await expect(page.getByText(openTitle, { exact: true })).not.toBeVisible();
 	});
 
 	test('AK-2: Je Zeile Titel + Punkte je Säule, Säulenwerte summieren sich zu den Gesamtpunkten (kein NaN)', async ({
@@ -145,8 +145,8 @@ test.describe('Priority Pilot — Tab „Erledigte Aufgaben" (#228) gegen das ec
 		// „Wieder öffnen"-Schalter je Zeile betätigen.
 		await row.getByRole('button', { name: 'Wieder öffnen' }).click();
 
-		// Der Task verschwindet aus den Erledigten …
-		await expect(page.getByText(title, { exact: true })).toHaveCount(0);
+		// Der Task verschwindet aus den Erledigten (im aktiven Tab nicht mehr sichtbar).
+		await expect(page.getByText(title, { exact: true })).not.toBeVisible();
 
 		// … und taucht wieder unter „Aufgaben" auf (Status „Offen").
 		await openTasksTab(page);
