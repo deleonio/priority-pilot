@@ -55,6 +55,17 @@ export const SeriesManagementModal = ({ onClose }: SeriesManagementModalProps) =
 		void reload();
 	}, [reload]);
 
+	// Stößt die serverseitige Materialisierung aller fälligen Serien-Instanzen an (#244, AK7).
+	const generateAll = useCallback(async (): Promise<void> => {
+		try {
+			await api.generateAllSeries();
+			setError(null);
+		} catch (reason) {
+			const apiError = await toApiError(reason);
+			setError(apiError.message);
+		}
+	}, []);
+
 	const remove = useCallback(
 		async (entry: Series): Promise<void> => {
 			try {
@@ -90,6 +101,11 @@ export const SeriesManagementModal = ({ onClose }: SeriesManagementModalProps) =
 							_label="Neue Serie anlegen"
 							_variant="primary"
 							_on={{ onClick: () => setSubForm({ kind: 'create' }) }}
+						/>
+						<KolButton
+							_label="Fällige Instanzen generieren"
+							_variant="secondary"
+							_on={{ onClick: () => void generateAll() }}
 						/>
 					</div>
 

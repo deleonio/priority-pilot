@@ -1,11 +1,13 @@
-import { Task } from '../models/index.js';
-import type Series from '../models/series.js';
+import { Series, Task } from '../models/index.js';
 import type { SeriesRhythm } from '../models/series.js';
+import { ownerScope } from '../express/requireAuth.js';
 
 /** Optionen der Generierung; `until` ist der (inklusive) Materialisierungs-Horizont. */
 interface GenerateOptions {
 	/** Letzter zu materialisierender Zeitpunkt (inklusive). */
 	until: Date;
+	/** Eigentümer, der den erzeugten Instanzen zugeordnet wird (Issue #244). `undefined` ⇒ `null`. */
+	userId?: number;
 }
 
 /**
@@ -86,8 +88,29 @@ export const generateDueInstances = async (series: Series, options: GenerateOpti
 			seriesId: series.id,
 			seriesOccurrence: occurrence,
 			isException: false,
+			userId: options.userId ?? null,
 		});
 		created.push(instance);
+	}
+	return created;
+};
+
+/**
+ * Materialisiert die fälligen Instanzen **aller aktiven Serien** bis `until` (Issue #244, AK6). Optional
+ * auf einen Eigentümer eingeschränkt (`userId`): im Auth-Modus sieht/materialisiert ein Nutzer nur seine
+ * eigenen Serien, im Pass-Through-Modus (`undefined`) alle. Fehler einzelner Serien werden isoliert und
+ * geloggt — ein Ausreißer bricht den Gesamtlauf nicht ab. Gibt alle neu erzeugten Instanzen zurück.
+ */
+export const materializeDueSeries = async (userId: number | undefined, until: Date): Promise<Task[]> => {
+	const seriesList = await Series.findAll({ where: { active: true, ...ownerScope(userId) } });
+	const created: Task[] = [];
+	for (const series of seriesList) {
+		try {
+			const instances = await generateDueInstances(series, { until, userId });
+			created.push(...instances);
+		} catch (error) {
+			console.error(`Serie ${series.id} konnte nicht materialisiert werden:`, error);
+		}
 	}
 	return created;
 };
