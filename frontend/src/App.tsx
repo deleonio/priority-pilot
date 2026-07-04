@@ -14,7 +14,6 @@ import { SeriesManagementModal } from './components/SeriesManagementModal';
 import { SettingsPage } from './components/SettingsPage';
 import { TaskFormModal } from './components/TaskFormModal';
 import { TaskTree } from './components/TaskTree';
-import { useThemeToolbarItem } from './components/ThemeToggle';
 import { toApiError } from './lib/apiError';
 import type { AuthUser } from './lib/auth';
 import { calculateProgress } from './lib/calculateProgress';
@@ -62,9 +61,12 @@ const findDirectSubtasks = (forest: TaskTreeNode[], taskId: number): { status: T
 // Statisches Reload-Icon (Font-Awesome-Solid) für den „Aktualisieren"-Toolbar-Button. Als
 // Modulkonstante, damit das Toolbar-Item nicht bei jedem Render eine neue `_icons`-Objektidentität
 // erhält (sonst würde der Icon-Watcher unnötig erneut feuern).
+const CREATE_ICON = { left: { icon: 'fa-solid fa-plus' } };
+const SERIES_ICON = { left: { icon: 'fa-solid fa-repeat' } };
 const RELOAD_ICON = { left: { icon: 'fa-solid fa-arrows-rotate' } };
 const HELP_ICON = { left: { icon: 'fa-solid fa-circle-question' } };
 const SETTINGS_ICON = { left: { icon: 'kolicon-settings' } };
+const LOGOUT_ICON = { left: { icon: 'fa-solid fa-right-from-bracket' } };
 
 export const App = ({ user }: { user: AuthUser }) => {
 	const [showHelp, setShowHelp] = useState(() => window.location.pathname.startsWith('/hilfe'));
@@ -149,9 +151,6 @@ export const App = ({ user }: { user: AuthUser }) => {
 		forest.forEach(visit);
 		return map;
 	}, [forest]);
-
-	// Zustandsabhängiger Theme-Umschalter als Toolbar-Button-Deskriptor (Label/Icon/onClick).
-	const themeItem = useThemeToolbarItem();
 
 	const handleLogout = useCallback(async (): Promise<void> => {
 		setLogoutLoading(true);
@@ -251,12 +250,16 @@ export const App = ({ user }: { user: AuthUser }) => {
 							{
 								type: 'button',
 								_label: 'Neuen Task anlegen',
+								_hideLabel: true,
+								_icons: CREATE_ICON,
 								_variant: 'primary',
 								_on: { onClick: () => setDialog({ kind: 'create' }) },
 							},
 							{
 								type: 'button',
 								_label: 'Serien verwalten',
+								_hideLabel: true,
+								_icons: SERIES_ICON,
 								_variant: 'secondary',
 								_on: { onClick: () => setDialog({ kind: 'series' }) },
 							},
@@ -268,15 +271,6 @@ export const App = ({ user }: { user: AuthUser }) => {
 								_variant: 'secondary',
 								_disabled: loading,
 								_on: { onClick: () => void reload() },
-							},
-							{
-								// Farbschema-Umschalter: System/Hell/Dunkel (OS-Erkennung + Override).
-								type: 'button',
-								_label: themeItem._label,
-								_hideLabel: true,
-								_icons: themeItem._icons,
-								_variant: 'secondary',
-								_on: { onClick: themeItem.onClick },
 							},
 							{
 								type: 'button',
@@ -297,6 +291,8 @@ export const App = ({ user }: { user: AuthUser }) => {
 							{
 								type: 'button' as const,
 								_label: 'Abmelden',
+								_hideLabel: true,
+								_icons: LOGOUT_ICON,
 								_variant: 'secondary' as const,
 								_disabled: logoutLoading,
 								_on: { onClick: () => void handleLogout() },
