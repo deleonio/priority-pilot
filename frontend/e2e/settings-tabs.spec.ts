@@ -44,9 +44,7 @@ test.describe('#271 Settings-Seite: Tabs Allgemein + Säulen', () => {
 		await expect(pillarsTab).toHaveAttribute('aria-selected', 'true');
 
 		// Der Editor enthält mindestens ein Eingabefeld für Säulen-Gewichtungen (range/number).
-		await expect(
-			page.getByRole('slider').or(page.getByRole('spinbutton')).first(),
-		).toBeVisible();
+		await expect(page.getByRole('slider').or(page.getByRole('spinbutton')).first()).toBeVisible();
 	});
 
 	/**
@@ -54,34 +52,24 @@ test.describe('#271 Settings-Seite: Tabs Allgemein + Säulen', () => {
 	 * wechselt die Anzeige zum Allgemein-Tab (Platzhalter sichtbar), der Säulen-Editor
 	 * verschwindet.
 	 */
-	test('AK3: Klick auf „Allgemein"-Tab blendet Säulen-Editor aus und zeigt Allgemein-Inhalt', async ({
-		page,
-	}) => {
+	test('AK3: Klick auf „Allgemein"-Tab blendet Säulen-Editor aus und zeigt Allgemein-Inhalt', async ({ page }) => {
 		await page.goto('/settings/pillars');
 		await waitForStableView(page);
 
 		// Ausgangszustand: Säulen-Tab aktiv, Editor sichtbar.
-		await expect(page.getByRole('tab', { name: 'Säulen', exact: true })).toHaveAttribute(
-			'aria-selected',
-			'true',
-		);
+		await expect(page.getByRole('tab', { name: 'Säulen', exact: true })).toHaveAttribute('aria-selected', 'true');
 
 		// Klick auf „Allgemein".
 		await page.getByRole('tab', { name: 'Allgemein', exact: true }).click();
 
 		// Allgemein-Tab ist jetzt aktiv.
-		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toHaveAttribute(
-			'aria-selected',
-			'true',
-		);
+		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toHaveAttribute('aria-selected', 'true');
 
 		// Der Allgemein-Tabpanel ist sichtbar (Platzhalter).
 		await expect(page.getByRole('tabpanel')).toBeVisible();
 
 		// Der Säulen-Editor ist nicht mehr sichtbar (ausgeblendet oder aus DOM entfernt).
-		await expect(
-			page.getByRole('slider').or(page.getByRole('spinbutton')).first(),
-		).toBeHidden();
+		await expect(page.getByRole('slider').or(page.getByRole('spinbutton')).first()).toBeHidden();
 	});
 
 	/**
@@ -92,28 +80,16 @@ test.describe('#271 Settings-Seite: Tabs Allgemein + Säulen', () => {
 		await page.goto('/settings/general');
 		await waitForStableView(page);
 
-		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toHaveAttribute(
-			'aria-selected',
-			'true',
-		);
-		await expect(page.getByRole('tab', { name: 'Säulen', exact: true })).toHaveAttribute(
-			'aria-selected',
-			'false',
-		);
+		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toHaveAttribute('aria-selected', 'true');
+		await expect(page.getByRole('tab', { name: 'Säulen', exact: true })).toHaveAttribute('aria-selected', 'false');
 	});
 
 	test('AK4b: Route /settings/pillars aktiviert den Säulen-Tab', async ({ page }) => {
 		await page.goto('/settings/pillars');
 		await waitForStableView(page);
 
-		await expect(page.getByRole('tab', { name: 'Säulen', exact: true })).toHaveAttribute(
-			'aria-selected',
-			'true',
-		);
-		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toHaveAttribute(
-			'aria-selected',
-			'false',
-		);
+		await expect(page.getByRole('tab', { name: 'Säulen', exact: true })).toHaveAttribute('aria-selected', 'true');
+		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toHaveAttribute('aria-selected', 'false');
 	});
 
 	/**
@@ -121,9 +97,7 @@ test.describe('#271 Settings-Seite: Tabs Allgemein + Säulen', () => {
 	 * mit Tabs kein horizontales Scrollen; beide Tabs sind sichtbar und bedienbar.
 	 * Muster: login.spec.ts AK5 / task-tree.spec.ts AK-6.
 	 */
-	test('AK5: Settings-Tabs verursachen kein horizontales Scrollen bei 375px (Mobile-First)', async ({
-		page,
-	}) => {
+	test('AK5: Settings-Tabs verursachen kein horizontales Scrollen bei 375px (Mobile-First)', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.goto('/settings/pillars');
 		await waitForStableView(page);
