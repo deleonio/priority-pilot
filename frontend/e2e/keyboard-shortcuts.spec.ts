@@ -229,8 +229,9 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		await page.goto('/');
 		await waitForStableView(page);
 
-		await page.getByRole('button', { name: 'Einstellungen' }).click();
-		await page.getByRole('button', { name: 'Säulen-Gewichtung' }).click();
+		// Neuer Flow: direkt zur Settings-Route navigieren
+		await page.goto('/settings/pillars');
+		await waitForStableView(page);
 		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
 		await waitForStableView(page);
 
@@ -242,6 +243,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		// Kein Klick auf „Speichern": der Shortcut allein muss die primäre Aktion auslösen.
 		await page.keyboard.press('Control+Enter');
 
+		// Nach Speichern navigiert die Settings-Seite zurück zum Dashboard (Heading verschwindet).
 		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeHidden();
 	});
 

@@ -19,13 +19,14 @@ import {
 interface PillarWeightsEditorProps {
 	pillars: Pillar[];
 	onSaved: () => void;
+	onSavingChange?: (saving: boolean) => void;
 }
 
 /**
  * Reiner Gewichtungs-Editor (ohne Modal-Hülle): Slider je Säule, Normierung beim Speichern.
  * Verwendbar in Modal- und Vollseiten-Kontext.
  */
-export const PillarWeightsEditor = ({ pillars, onSaved }: PillarWeightsEditorProps) => {
+export const PillarWeightsEditor = ({ pillars, onSaved, onSavingChange }: PillarWeightsEditorProps) => {
 	const weights = useRef<(number | null)[]>(pillars.map((pillar) => weightToRaw(pillar.weight)));
 	const [sum, setSum] = useState(() => sumWeights(weights.current));
 	const [error, setError] = useState<string | null>(null);
@@ -42,6 +43,7 @@ export const PillarWeightsEditor = ({ pillars, onSaved }: PillarWeightsEditorPro
 		const entries = pillars.map((pillar, index) => ({ id: pillar.id, weight: normalized[index] }));
 
 		setError(null);
+		onSavingChange?.(true);
 		setSaving(true);
 		try {
 			await api.setPillarWeights({
@@ -51,6 +53,7 @@ export const PillarWeightsEditor = ({ pillars, onSaved }: PillarWeightsEditorPro
 		} catch (reason) {
 			const apiError = await toApiError(reason);
 			setError(apiError.message);
+			onSavingChange?.(false);
 			setSaving(false);
 		}
 	};
