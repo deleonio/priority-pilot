@@ -5,27 +5,21 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-const ROOT = resolve(import.meta.dirname, '../../../../');
+const ROOT = resolve(import.meta.dirname, '../../../');
 const USER_GUIDE = resolve(ROOT, 'docs/user-guide.md');
 const README = resolve(ROOT, 'README.md');
 
 describe('Nutzerhandbuch docs/user-guide.md (#255)', () => {
 	// AK 1a: Datei existiert
 	it('AK 1a: docs/user-guide.md existiert', () => {
-		assert.ok(
-			existsSync(USER_GUIDE),
-			'docs/user-guide.md muss existieren',
-		);
+		assert.ok(existsSync(USER_GUIDE), 'docs/user-guide.md muss existieren');
 	});
 
 	// AK 1b: README.md verlinkt das Handbuch
 	it('AK 1b: README.md enthält einen Link zu docs/user-guide.md', () => {
 		assert.ok(existsSync(README), 'README.md muss existieren');
 		const readme = readFileSync(README, 'utf8');
-		assert.ok(
-			readme.includes('docs/user-guide.md'),
-			'README.md muss einen Link zu docs/user-guide.md enthalten',
-		);
+		assert.ok(readme.includes('docs/user-guide.md'), 'README.md muss einen Link zu docs/user-guide.md enthalten');
 	});
 
 	describe('AK 2: Alle Funktionsbereiche sind im Handbuch beschrieben', () => {
@@ -49,7 +43,11 @@ describe('Nutzerhandbuch docs/user-guide.md (#255)', () => {
 		});
 
 		it('AK 2.3: Abschnitt KI-Schnellerfassung ist vorhanden', () => {
-			assert.match(getContent(), /ki-schnellerfassung|schnellerfassung/i, 'Abschnitt KI-Schnellerfassung muss vorhanden sein');
+			assert.match(
+				getContent(),
+				/ki-schnellerfassung|schnellerfassung/i,
+				'Abschnitt KI-Schnellerfassung muss vorhanden sein',
+			);
 		});
 
 		it('AK 2.4: Abschnitt Abhängigkeiten ist vorhanden', () => {

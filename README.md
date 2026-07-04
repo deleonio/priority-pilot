@@ -143,6 +143,11 @@ Der vollständige Vertrag steht in [`openapi.yml`](openapi.yml). Endpunkte: `GET
 `PUT /pillars/weights` (100 %-Gewichtung setzen), `GET /forest` (Aufgabenwald nach Wert) und
 `GET /next` (nächste wichtige Aufgabe). Server und Vertrag laufen unter `http://localhost:3000`.
 
+## Nutzerhandbuch
+
+Eine vollständige Beschreibung aller Funktionen für Endnutzer:
+[**docs/user-guide.md**](docs/user-guide.md)
+
 ## Deployment
 
 Deployment auf einen dedizierten Server (Build in GitHub Actions → versionierter Tarball →
