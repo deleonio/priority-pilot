@@ -130,7 +130,10 @@ test.describe('InputRange-Felder statt InputNumber (#287)', () => {
 		await page.goto('/');
 		await waitForStableView(page);
 
+		// Zwei Tasks anlegen: Der Dialog zeigt den Gewichts-Slider nur, wenn mindestens ein
+		// weiterer Task als Vorgänger-Kandidat verfügbar ist (options.length > 0).
 		await createTask(page, uniqueTitle('Ziel'));
+		await createTask(page, uniqueTitle('Vorgänger'));
 		await page.reload();
 		await waitForStableView(page);
 
@@ -193,7 +196,10 @@ test.describe('InputRange-Felder statt InputNumber (#287)', () => {
 		await page.goto('/');
 		await waitForStableView(page);
 
+		// Zwei Tasks anlegen: Der Dialog zeigt den Gewichts-Slider nur, wenn mindestens ein
+		// weiterer Task als Vorgänger-Kandidat verfügbar ist (options.length > 0).
 		await createTask(page, uniqueTitle('Mobile-Dep'));
+		await createTask(page, uniqueTitle('Mobile-Dep-Quelle'));
 		await page.reload();
 		await waitForStableView(page);
 
