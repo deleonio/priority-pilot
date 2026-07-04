@@ -98,5 +98,10 @@ jobs:
           npm version patch --no-git-tag-version
           NEW_VERSION=$(node -p "require('./package.json').version")
           git add package.json
-          git commit -m "chore(release): v${NEW_VERSION} [skip ci]"
+          # --no-verify: der Release-Commit darf die lefthook pre-commit-Hooks
+          # (format/lint/knip) NICHT ausloesen. In der Deploy-CI synchronisiert
+          # pnpm's deps-status-check node_modules sonst auf den prod-only-Stand des
+          # vorherigen `--prod deploy`-Schritts und entfernt die devDependencies
+          # inkl. lefthook selbst → `lefthook install` (prepare) schlaegt fehl.
+          git commit --no-verify -m "chore(release): v${NEW_VERSION} [skip ci]"
           git push "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" HEAD:main

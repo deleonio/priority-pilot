@@ -240,6 +240,24 @@ describe('Patch-Bump AK4 (#286) — Commit + Push mit Loop-Schutz [skip ci]', ()
 	});
 });
 
+describe('Patch-Bump AK4b — Release-Commit umgeht lefthook-Hooks (--no-verify)', () => {
+	// Regression: Der scriptgesteuerte Release-Commit loeste in der Deploy-CI die
+	// lefthook pre-commit-Hooks (format/lint/knip) aus. pnpm's deps-status-check
+	// synchronisierte node_modules dabei auf den prod-only-Stand des vorherigen
+	// `--prod deploy`-Schritts (`pnpm install --production`) und entfernte die
+	// devDependencies inkl. lefthook selbst → `prepare`(`lefthook install`) fand das
+	// Bin nicht mehr → `sh: 1: lefthook: not found` → Commit + Deploy schlugen fehl.
+	// Der Fix: `--no-verify` — ein Ein-Zeilen-package.json-Bump braucht keine
+	// Quality-Hooks und darf sein eigenes Tooling nicht zerstoeren.
+	it('git commit im Bump-Schritt nutzt --no-verify (keine pre-commit-Hooks in CI)', () => {
+		assert.match(
+			deployYml(),
+			/git commit[^\n]*--no-verify/,
+			'deploy.yml muss `git commit --no-verify` verwenden — der Release-Commit darf die lefthook pre-commit-Hooks nicht ausloesen (diese prunen devDependencies inkl. lefthook und lassen den Deploy fehlschlagen)',
+		);
+	});
+});
+
 describe('Patch-Bump AK5 (#286) — App-Token + Git-Identitaet fuer den Push', () => {
 	it('deploy.yml verwendet create-github-app-token (App-Token)', () => {
 		assert.match(
