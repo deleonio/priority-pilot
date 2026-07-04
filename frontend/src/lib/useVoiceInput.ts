@@ -10,6 +10,7 @@ interface UseVoiceInputResult {
 	startRecording: () => void;
 	stopRecording: () => void;
 	isSupported: boolean;
+	voiceError: string | null;
 }
 
 interface SpeechRecognitionResult {
@@ -52,6 +53,7 @@ const getSpeechConstructor = (): SpeechRecognitionConstructor | null => {
 
 export const useVoiceInput = ({ onTranscript, lang = 'de-DE' }: UseVoiceInputOptions): UseVoiceInputResult => {
 	const [isRecording, setIsRecording] = useState(false);
+	const [voiceError, setVoiceError] = useState<string | null>(null);
 	const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
 	const onTranscriptRef = useRef(onTranscript);
 	onTranscriptRef.current = onTranscript;
@@ -59,6 +61,7 @@ export const useVoiceInput = ({ onTranscript, lang = 'de-DE' }: UseVoiceInputOpt
 	const isSupported = getSpeechConstructor() !== null;
 
 	const startRecording = useCallback(() => {
+		setVoiceError(null);
 		if (recognitionRef.current !== null) return;
 		const Constructor = getSpeechConstructor();
 		if (Constructor === null) return;
@@ -83,6 +86,17 @@ export const useVoiceInput = ({ onTranscript, lang = 'de-DE' }: UseVoiceInputOpt
 			}
 		};
 
+		recognition.onerror = (event: unknown) => {
+			const err = event as { error?: string };
+			if (recognitionRef.current === recognition) {
+				recognitionRef.current = null;
+				setIsRecording(false);
+			}
+			setVoiceError(
+				err?.error === 'not-allowed' ? 'Mikrofon-Zugriff wurde verweigert.' : 'Spracherkennung fehlgeschlagen.',
+			);
+		};
+
 		recognitionRef.current = recognition;
 		recognition.start();
 		setIsRecording(true);
@@ -100,5 +114,5 @@ export const useVoiceInput = ({ onTranscript, lang = 'de-DE' }: UseVoiceInputOpt
 		};
 	}, []);
 
-	return { isRecording, startRecording, stopRecording, isSupported };
+	return { isRecording, startRecording, stopRecording, isSupported, voiceError };
 };

@@ -138,19 +138,19 @@ export const TaskForm = ({
 	const [error, setError] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);
 
-	const descTextareaRef = useRef<HTMLKolTextareaElement>(null);
+	const [description, setDescription] = useState(form.current.description);
 
 	const {
 		isRecording,
 		startRecording,
 		stopRecording,
 		isSupported: voiceSupported,
+		voiceError,
 	} = useVoiceInput({
 		onTranscript: (text) => {
 			const newVal = form.current.description ? `${form.current.description} ${text}` : text;
 			form.current.description = newVal;
-			const native = descTextareaRef.current?.shadowRoot?.querySelector('textarea');
-			if (native) native.value = newVal;
+			setDescription(newVal);
 		},
 	});
 
@@ -428,16 +428,19 @@ export const TaskForm = ({
 				/>
 				<div className="description-field">
 					<KolTextarea
-						ref={descTextareaRef}
 						_label="Beschreibung (optional)"
 						_rows={4}
-						_value={form.current.description}
+						_value={description}
 						_on={{
 							onInput: (_event, value) => {
-								form.current.description = readString(value);
+								const newVal = readString(value);
+								form.current.description = newVal;
+								setDescription(newVal);
 							},
 							onChange: (_event, value) => {
-								form.current.description = readString(value);
+								const newVal = readString(value);
+								form.current.description = newVal;
+								setDescription(newVal);
 							},
 						}}
 					/>
@@ -454,6 +457,11 @@ export const TaskForm = ({
 						>
 							🎤
 						</button>
+					)}
+					{voiceError !== null && (
+						<p className="mic-error" role="alert">
+							{voiceError}
+						</p>
 					)}
 				</div>
 			</div>

@@ -534,6 +534,12 @@ body {
 	background: rgba(220, 0, 0, 0.1);
 }
 
+.mic-error {
+	font-size: 0.875rem;
+	color: var(--pp-danger, red);
+	margin: 0.25rem 0 0;
+}
+
 /* --- Empty-State / Onboarding (keine Tasks) --- */
 .empty-state {
 	margin-top: 2rem;
