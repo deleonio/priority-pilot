@@ -1061,6 +1061,10 @@ components:
           type: string
           format: date-time
           description: Anker, ab dem die Serie läuft (erster fälliger Termin).
+        description:
+          type: string
+          nullable: true
+          description: Freitext-Beschreibung des Templates (optional).
     SeriesCreate:
       type: object
       required:
@@ -1090,6 +1094,9 @@ components:
         startDate:
           type: string
           format: date-time
+        description:
+          type: string
+          nullable: true
     SeriesUpdate:
       type: object
       description: Alle Felder optional — gesetzte Felder gelten nur für künftige Instanzen.
@@ -1112,6 +1119,9 @@ components:
         startDate:
           type: string
           format: date-time
+        description:
+          type: string
+          nullable: true
     SeriesGenerateInput:
       type: object
       required:

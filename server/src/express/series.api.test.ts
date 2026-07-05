@@ -217,6 +217,62 @@ describe('Series API', () => {
 		});
 	});
 
+	// ── Rote Spec-Tests für #301 — AK-A2.1: description im API-Vertrag ──────────────────────────
+	//
+	// description ist optional (nullable): POST ohne description → null; ungültiger Typ → 400.
+	// PATCH kann description setzen und auf null zurücksetzen.
+	// KEIN Produktivcode — die Tests werden grün, sobald Modell, Route und serializeSeries
+	// das Feld unterstützen.
+	describe('AK-A2.1 — description im API-Vertrag', () => {
+		it('POST /series mit description → 201 und Response trägt description', async () => {
+			const res = await post('/series', { ...validSeries(), description: 'Notiz zur Serie' });
+			assert.equal(res.status, 201);
+			const body = (await res.json()) as Record<string, unknown>;
+			assert.equal(body.description, 'Notiz zur Serie', 'description wird persistiert und zurückgegeben');
+		});
+
+		it('POST /series ohne description → 201 und description === null', async () => {
+			const res = await post('/series', validSeries());
+			assert.equal(res.status, 201);
+			const body = (await res.json()) as Record<string, unknown>;
+			assert.equal(body.description, null, 'description ist ohne Angabe null (optional/nullable)');
+		});
+
+		it('PATCH /series/:id mit description → 200 und Response trägt neue description', async () => {
+			const created = (await (await post('/series', validSeries())).json()) as { id: number };
+			const res = await patch(`/series/${created.id}`, { description: 'geänderte Beschreibung' });
+			assert.equal(res.status, 200);
+			const body = (await res.json()) as Record<string, unknown>;
+			assert.equal(body.description, 'geänderte Beschreibung', 'description wurde aktualisiert');
+		});
+
+		it('PATCH /series/:id mit description: null → 200 und description === null (löschbar)', async () => {
+			const created = (await (
+				await post('/series', { ...validSeries(), description: 'vorherige Beschreibung' })
+			).json()) as { id: number };
+			const res = await patch(`/series/${created.id}`, { description: null });
+			assert.equal(res.status, 200);
+			const body = (await res.json()) as Record<string, unknown>;
+			assert.equal(body.description, null, 'description kann auf null gesetzt werden');
+		});
+
+		it('GET /series/:id → Response enthält das description-Feld', async () => {
+			const created = (await (await post('/series', { ...validSeries(), description: 'GET-Verifikation' })).json()) as {
+				id: number;
+			};
+			const res = await get(`/series/${created.id}`);
+			assert.equal(res.status, 200);
+			const body = (await res.json()) as Record<string, unknown>;
+			assert.ok('description' in body, 'Response enthält das description-Feld');
+			assert.equal(body.description, 'GET-Verifikation', 'serializeSeries liefert description zurück');
+		});
+
+		it('POST /series mit description: 123 (falscher Typ) → 400', async () => {
+			const res = await post('/series', { ...validSeries(), description: 123 });
+			assert.equal(res.status, 400, 'ungültiger Typ für description → 400');
+		});
+	});
+
 	// ── #244: serverseitige Serien-Materialisierung per Sammel-Endpunkt ─────────────────────────
 	// POST /series/generate-all generiert die fälligen Instanzen ALLER aktiven Serien und gibt die
 	// Anzahl der frisch erzeugten Tasks als { created: N } zurück. KEIN Produktivcode.

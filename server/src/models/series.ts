@@ -19,6 +19,10 @@ class Series extends Model {
 	public active!: boolean;
 	public startDate!: Date;
 
+	// Freitext-Beschreibung des Templates (Issue #301, AK-A2.1). Nullable/optional: Bestände ohne
+	// Beschreibung bleiben lesbar; ohne Angabe angelegte Serien tragen `description === null`.
+	public description?: string | null;
+
 	// Eigentümer des Templates (Issue #244, AK1 — Datenisolation), analog zu `Task.userId`. Nullable
 	// für Abwärtskompatibilität: Alt-Bestände ohne Zuordnung bleiben lesbar; neue Serien werden über
 	// die Session-`userId` gebunden.
@@ -76,6 +80,13 @@ Series.init(
 		// (statt `undefined`) trägt.
 		userId: {
 			type: DataTypes.INTEGER,
+			allowNull: true,
+			defaultValue: null,
+		},
+		// Freitext-Beschreibung (Issue #301). `null` erlaubt; `defaultValue: null` stellt sicher, dass
+		// eine ohne Angabe angelegte Serie `description === null` (statt `undefined`) trägt.
+		description: {
+			type: DataTypes.TEXT,
 			allowNull: true,
 			defaultValue: null,
 		},
