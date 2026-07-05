@@ -1,4 +1,4 @@
-import { Series, Task } from '../models/index.js';
+import { Series, Task, SeriesPillar, TaskPillar } from '../models/index.js';
 import type { SeriesRhythm } from '../models/series.js';
 
 /** Optionen der Generierung; `until` ist der (inklusive) Materialisierungs-Horizont. */
@@ -74,6 +74,9 @@ export const generateDueInstances = async (series: Series, options: GenerateOpti
 			.map((task) => new Date(task.seriesOccurrence as Date).getTime()),
 	);
 
+	// Snapshot der Pillar-Vorlage einmal vor der Schleife laden (AK3: Snapshot-Zeitpunkt).
+	const pillarRows = await SeriesPillar.findAll({ where: { seriesId: series.id } });
+
 	const created: Task[] = [];
 	for (const occurrence of occurrences) {
 		if (materialized.has(occurrence.getTime())) {
@@ -83,12 +86,23 @@ export const generateDueInstances = async (series: Series, options: GenerateOpti
 			title: series.title,
 			priority: series.priority,
 			estimatedEffort: series.estimatedEffort,
+			description: series.description ?? null,
 			deadline: occurrence,
 			seriesId: series.id,
 			seriesOccurrence: occurrence,
 			isException: false,
 			userId: options.userId ?? null,
 		});
+		if (pillarRows.length > 0) {
+			await TaskPillar.bulkCreate(
+				pillarRows.map((r) => ({
+					taskId: instance.id,
+					pillarId: r.pillarId,
+					share: r.share,
+					confidence: r.confidence,
+				})),
+			);
+		}
 		created.push(instance);
 	}
 	return created;
