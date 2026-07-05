@@ -62,6 +62,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 	const [dialog, setDialog] = useState<Dialog>(null);
 	const [logoutLoading, setLogoutLoading] = useState(false);
 	const [logoutError, setLogoutError] = useState<string | null>(null);
+	const [updateError, setUpdateError] = useState<string | null>(null);
 
 	const reload = useCallback(async (signal?: AbortSignal): Promise<void> => {
 		setLoading(true);
@@ -208,16 +209,24 @@ export const App = ({ user }: { user: AuthUser }) => {
 	const handleDoneToggle = useCallback(
 		async (task: Task): Promise<void> => {
 			const next = task.status === TaskStatus.Done ? TaskStatus.Open : TaskStatus.Done;
-			await api.updateTask({
-				id: task.id,
-				taskUpdate: {
-					title: task.title,
-					status: next,
-					priority: task.priority,
-					estimatedEffort: task.estimatedEffort,
-				},
-			});
-			await reload();
+			try {
+				setUpdateError(null);
+				await api.updateTask({
+					id: task.id,
+					taskUpdate: {
+						title: task.title,
+						description: task.description,
+						status: next,
+						priority: task.priority,
+						estimatedEffort: task.estimatedEffort,
+						deadline: task.deadline,
+					},
+				});
+				await reload();
+			} catch (reason) {
+				const apiError = await toApiError(reason);
+				setUpdateError(apiError.message);
+			}
 		},
 		[reload],
 	);
@@ -306,6 +315,13 @@ export const App = ({ user }: { user: AuthUser }) => {
 				<div role="alert">
 					<KolAlert _type="error" _label="Logout fehlgeschlagen">
 						{logoutError}
+					</KolAlert>
+				</div>
+			)}
+			{updateError !== null && (
+				<div role="alert">
+					<KolAlert _type="error" _label="Aufgabe konnte nicht aktualisiert werden">
+						{updateError}
 					</KolAlert>
 				</div>
 			)}
