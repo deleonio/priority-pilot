@@ -40,11 +40,7 @@ describe('buildAdvisorUserMessage — Aufmerksamkeits-Daten im Prompt (#328)', (
 
 		// Die am stärksten vernachlässigte Säule wird im Prompt namentlich als Aufmerksamkeits-Signal
 		// geführt, damit das Modell die Vorschläge auf sie hin gewichtet.
-		assert.match(
-			message,
-			/Beziehungen/,
-			'Der Prompt nennt die am stärksten vernachlässigte Säule (Beziehungen)',
-		);
+		assert.match(message, /Beziehungen/, 'Der Prompt nennt die am stärksten vernachlässigte Säule (Beziehungen)');
 		// Und weist sie erkennbar als vernachlässigt aus (Wortstamm „vernachlässig", tolerant gegen Formulierung).
 		assert.match(message, /vernachlässig/i, 'Der Prompt markiert die Säule als vernachlässigt');
 	});
