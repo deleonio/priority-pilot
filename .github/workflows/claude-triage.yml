@@ -146,6 +146,14 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ steps.app-token.outputs.token || github.token }}
+          # Erlaubt NUR, dass claude-issue-unblock.yml per App-Bot "ai:analyzed" entfernen und
+          # damit die Re-Analyse eines freigegebenen Nachfolge-Issues anstossen darf (siehe
+          # .ai-knowledge/ticket-triage.md, Schritt 3) — sonst blockt checkHumanActor genau
+          # diesen einen, dokumentierten Trigger. Alle uebrigen Trigger (opened/unlabeled)
+          # bleiben unveraendert ueber die Job-if-Bedingung auf Schreibzugriff bzw. die zwei
+          # konkreten Labels beschraenkt; Fremd-Bots faellt das nicht zu.
+          allowed_bots: 'claude[bot],my-github-action-bot'
           # Triage fuer genau dieses eine Issue. Bewusst natuerlichsprachig formuliert
           # (nicht als Slash-Command), da die Action keine garantierte Slash-Command-
           # Ausfuehrung im prompt zusichert; verweist aber auf den verbindlichen Ablauf.
@@ -294,6 +302,14 @@ jobs:
           CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1'
         with:
           anthropic_api_key: ${{ secrets.ZAI_API_KEY }}
+          github_token: ${{ steps.app-token.outputs.token || github.token }}
+          # Erlaubt NUR, dass claude-issue-unblock.yml per App-Bot "ai:analyzed" entfernen und
+          # damit die Re-Analyse eines freigegebenen Nachfolge-Issues anstossen darf (siehe
+          # .ai-knowledge/ticket-triage.md, Schritt 3) — sonst blockt checkHumanActor genau
+          # diesen einen, dokumentierten Trigger. Alle uebrigen Trigger (opened/unlabeled)
+          # bleiben unveraendert ueber die Job-if-Bedingung auf Schreibzugriff bzw. die zwei
+          # konkreten Labels beschraenkt; Fremd-Bots faellt das nicht zu.
+          allowed_bots: 'claude[bot],my-github-action-bot'
           prompt: |
             Issue #${{ github.event.issue.number }} wurde soeben angelegt bzw. das Label
             "ai:analyzed" wurde entfernt und damit eine (Neu-)Analyse (Triage) angefordert.
