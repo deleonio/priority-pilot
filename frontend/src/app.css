@@ -765,3 +765,43 @@ body {
 	font-size: 0.875rem;
 	border-top: 1px solid var(--pp-border);
 }
+
+/* --- Säulen-Berater (Aktivitäten-Ratgeber) --- */
+.advisor-results {
+	list-style: none;
+	padding: 0;
+	margin: 0.5rem 0 0;
+	display: grid;
+	gap: 0.75rem;
+}
+
+.advisor-result {
+	padding-bottom: 0.75rem;
+	border-bottom: 1px solid var(--pp-border);
+}
+
+.advisor-result:last-child {
+	border-bottom: none;
+	padding-bottom: 0;
+}
+
+.advisor-result-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.advisor-activity {
+	font-weight: 600;
+}
+
+.advisor-pillars {
+	display: inline-flex;
+	flex-wrap: wrap;
+	gap: 0.25rem;
+}
+
+.advisor-reason {
+	margin: 0.25rem 0 0;
+}

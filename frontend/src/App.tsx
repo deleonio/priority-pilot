@@ -11,6 +11,7 @@ import { DependencyModal } from './components/DependencyModal';
 import { EmptyState } from './components/EmptyState';
 import { ForestPanel } from './components/ForestPanel';
 import { HelpPage } from './components/HelpPage';
+import { PillarAdvisorModal } from './components/PillarAdvisorModal';
 import { QuickCaptureModal } from './components/QuickCaptureModal';
 import { SeriesManagementModal } from './components/SeriesManagementModal';
 import { SettingsPage } from './components/SettingsPage';
@@ -29,6 +30,7 @@ type Dialog =
 	| { kind: 'delete'; task: Task }
 	| { kind: 'dependencies'; taskId: number }
 	| { kind: 'series' }
+	| { kind: 'advisor' }
 	| null;
 
 // Die Hauptansichten als Tab-Leiste oben (Inhalt steckt in den zugehörigen `tab-N`-Slots von
@@ -45,6 +47,7 @@ const VIEW_TABS = [
 // nicht unnötig erneut feuert (z. B. CREATE_ICON für „Neuen Task anlegen").
 const CREATE_ICON = { left: { icon: 'fa-solid fa-plus' } };
 const SERIES_ICON = { left: { icon: 'fa-solid fa-repeat' } };
+const ADVISOR_ICON = { left: { icon: 'fa-solid fa-lightbulb' } };
 const HELP_ICON = { left: { icon: 'fa-solid fa-circle-question' } };
 const SETTINGS_ICON = { left: { icon: 'fa-solid fa-gear' } };
 const LOGOUT_ICON = { left: { icon: 'fa-solid fa-right-from-bracket' } };
@@ -310,6 +313,14 @@ export const App = ({ user }: { user: AuthUser }) => {
 								_on: { onClick: () => setDialog({ kind: 'series' }) },
 							},
 							{
+								type: 'button',
+								_label: 'Säulen-Berater',
+								_hideLabel: true,
+								_icons: ADVISOR_ICON,
+								_variant: 'secondary',
+								_on: { onClick: () => setDialog({ kind: 'advisor' }) },
+							},
+							{
 								type: 'button' as const,
 								_label: 'Einstellungen',
 								_hideLabel: true,
@@ -426,6 +437,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 				/>
 			)}
 			{dialog?.kind === 'series' && <SeriesManagementModal pillars={pillars} onClose={closeDialog} />}
+			{dialog?.kind === 'advisor' && <PillarAdvisorModal pillars={pillars} onClose={closeDialog} />}
 			{dialog?.kind === 'delete' && (
 				<DeleteTaskDialog
 					task={dialog.task}
