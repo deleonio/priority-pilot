@@ -8,11 +8,12 @@ import { tasksRouter, serializeTask } from './routes/tasks.js';
 import { pillarsRouter } from './routes/pillars.js';
 import { createSuggestPillarsRouter } from './routes/suggestPillars.js';
 import { createParseTasksRouter } from './routes/parseTasks.js';
+import { createPillarAdvisorRouter } from './routes/pillarAdvisor.js';
 import { scoresRouter } from './routes/scores.js';
 import { seriesRouter } from './routes/series.js';
 import { authRouter } from './routes/auth.js';
 import { transitRouter } from './routes/transit.js';
-import type { PillarClassifier, ParseTaskParser } from '../llm/mistral.js';
+import type { PillarClassifier, ParseTaskParser, ActivityAdvisor } from '../llm/mistral.js';
 import { buildTaskForest } from '../logics/tree.js';
 import { findNextImportantTask, findSuggestedTasks } from '../logics/find.js';
 import { isEmailAllowed, getConfiguredEmails } from '../logics/allowedEmails.js';
@@ -30,6 +31,7 @@ type HealthDto = components['schemas']['Health'];
 export interface AppDeps {
 	pillarClassifier?: PillarClassifier;
 	taskTextParser?: ParseTaskParser;
+	activityAdvisor?: ActivityAdvisor;
 	sessionStore?: Store;
 }
 
@@ -140,6 +142,10 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// Mistral-gestützte Task-Schnellerfassung: Freitext → strukturierte Felder (siehe routes/parseTasks.ts).
 	app.use(createParseTasksRouter(deps.taskTextParser));
+
+	// Mistral-gestützter Aktivitäten-Berater: welche Aktivitäten zahlen auf welche Säulen ein
+	// (siehe routes/pillarAdvisor.ts).
+	app.use(createPillarAdvisorRouter(deps.activityAdvisor));
 
 	// Gamification-Scoring: Punkte je Task lesen, Balance-Stand je Säule (siehe routes/scores.ts).
 	app.use(scoresRouter);

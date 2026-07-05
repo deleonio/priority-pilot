@@ -26,6 +26,10 @@ Die fünf Säulen gewichten deine Aufgaben nach Lebensbereich:
 
 Passe die Gewichtung über **Einstellungen → Säulen-Gewichtung** an.
 
+### Säulen-Berater
+
+Über das **Glühbirnen-Symbol** im Header öffnest du den Säulen-Berater: Er schlägt dir Aktivitäten vor und zeigt, auf welche Säulen sie einzahlen würden. Beschreibe optional deine Frage oder Situation — ohne Frage bekommst du Vorschläge über alle Säulen hinweg.
+
 ## Tastaturkürzel
 
 - `Strg + Enter` — neuen Task anlegen (im Eingabefeld)
