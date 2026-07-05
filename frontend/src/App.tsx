@@ -112,7 +112,34 @@ export const App = ({ user }: { user: AuthUser }) => {
 		return () => window.removeEventListener('popstate', onPop);
 	}, []);
 
+	// Bei jedem Tab-Wechsel die Daten neu laden: So zeigt jede Ansicht den aktuellen Server-Stand —
+	// insbesondere wandert eine frisch per Toggle erledigte Aufgabe (#315) erst mit diesem Reload
+	// atomar (ein React-Commit) aus dem Aufgabenbaum in die Erledigte-Tabelle (#228). Stabile
+	// Callback-Identität, damit `KolTabs` nicht bei jedem Render neu verdrahtet.
+	const tabsCallbacks = useMemo(
+		() => ({
+			onSelect: (): void => {
+				void reload();
+			},
+		}),
+		[reload],
+	);
+
 	const dependencyMap = useMemo(() => buildDependencyMap(forest), [forest]);
+
+	// Alle Aufgaben-IDs, die aktuell im Aufgabenwald stehen (inkl. Unteraufgaben). Frisch per Toggle
+	// erledigte Aufgaben bleiben bis zum nächsten Reload im (dann veralteten) Wald „sticky" — die
+	// Erledigte-Tabelle blendet genau diese IDs aus, damit ein Titel nie doppelt im DOM steht (#228).
+	const forestTaskIds = useMemo(() => {
+		const ids = new Set<number>();
+		const visit = (node: TaskTreeNode): void => {
+			if (ids.has(node.id)) return;
+			ids.add(node.id);
+			node.dependents.forEach(visit);
+		};
+		forest.forEach(visit);
+		return ids;
+	}, [forest]);
 
 	// Fortschritt (erledigt/gesamt inkl. aller Unter-Tasks) je Task-ID aus dem Aufgabenwald ableiten.
 	// Tasks ohne Unter-Tasks liefern `null` und tauchen bewusst nicht in der Map auf (AK3).
@@ -224,8 +251,11 @@ export const App = ({ user }: { user: AuthUser }) => {
 					},
 				});
 				if (markingDone) {
-					// Optimistic update: keeps the task in the forest view so the Done→Open
-					// toggle remains accessible. Forest API only returns Open/In-process tasks.
+					// Kein reload(): Der Wald (`GET /forest`) enthält nur offene Aufgaben — nach einem Reload
+					// verschwände die Zeile samt Toggle sofort. Der optimistische Status-Update hält die Zeile
+					// im Aufgabenbaum „sticky" für ein Sofort-Undo (#315 AK1); die Erledigte-Tabelle blendet
+					// solche noch im Wald stehenden Aufgaben aus (`forestTaskIds`), damit der Titel nicht
+					// doppelt im DOM steht (#228). Der nächste Reload (z. B. Tab-Wechsel) löst das auf.
 					setTasks((prev) => (prev === null ? null : prev.map((t) => (t.id === task.id ? { ...t, status: next } : t))));
 				} else {
 					await reload();
@@ -342,7 +372,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 			{tasks !== null && tasks.length === 0 && <EmptyState onCreate={() => setDialog({ kind: 'create' })} />}
 
 			{tasks !== null && tasks.length > 0 && (
-				<KolTabs className="app-tabs" _label="Ansichten" _tabs={VIEW_TABS}>
+				<KolTabs className="app-tabs" _label="Ansichten" _tabs={VIEW_TABS} _on={tabsCallbacks}>
 					<div slot="tab-0">
 						<Dashboard
 							tasks={tasks}
@@ -372,7 +402,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 					</div>
 					<div slot="tab-3">
 						<section className="task-section">
-							<CompletedTasksTable tasks={tasks} pillars={pillars} onReloaded={reload} />
+							<CompletedTasksTable tasks={tasks} pillars={pillars} forestTaskIds={forestTaskIds} onReloaded={reload} />
 						</section>
 					</div>
 				</KolTabs>

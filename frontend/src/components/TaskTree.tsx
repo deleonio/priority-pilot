@@ -104,7 +104,13 @@ const TreeNode = ({
 							_icons={{ left: { icon: isDone ? 'fa-solid fa-rotate-left' : 'fa-solid fa-check' } }}
 							_variant={isDone ? 'secondary' : 'primary'}
 							_disabled={isUpdating || (!isDone && doneBlocked)}
-							aria-disabled={(!isDone && doneBlocked) || undefined}
+							// Der Gesperrt-Zustand muss für Tests/AT auch am Host sichtbar sein: Playwrights
+							// `toBeDisabled()` wertet `aria-disabled` nur auf Elementen aus, die selbst eine
+							// ARIA-Rolle aus seiner Allowlist tragen — der rollenlose `<kol-button>`-Host würde
+							// ignoriert. `role="group"` ist ein nicht-interaktiver Container (der innere
+							// Shadow-DOM-Button bleibt der einzige Button); die echte Sperre sitzt in `_disabled`.
+							role="group"
+							aria-disabled={isUpdating || (!isDone && doneBlocked) ? 'true' : 'false'}
 							_on={{
 								onClick: () => {
 									setIsUpdating(true);

@@ -9,6 +9,12 @@ import { getTaskPillarPoints } from '../lib/pillar';
 interface CompletedTasksTableProps {
 	tasks: Task[];
 	pillars: Pillar[];
+	/**
+	 * IDs aller Aufgaben, die aktuell im Aufgabenwald angezeigt werden. Frisch per Toggle erledigte
+	 * Aufgaben (#315) bleiben bis zum nächsten Reload im (dann veralteten) Wald „sticky" sichtbar —
+	 * solche Aufgaben hier ausblenden, damit ihr Titel nicht doppelt im DOM steht (#228).
+	 */
+	forestTaskIds: ReadonlySet<number>;
 	/** Nach dem Wiedereröffnen eines Tasks neu laden (Daten aktualisieren). */
 	onReloaded: () => void;
 }
@@ -27,11 +33,11 @@ const formatPoints = (value: number): string =>
  * die Ansicht bei 375 px ohne horizontales Scrollen funktioniert (AK-6, Mobile-First).
  */
 export const CompletedTasksTable = memo((props: CompletedTasksTableProps) => {
-	const { tasks, pillars, onReloaded } = props;
+	const { tasks, pillars, forestTaskIds, onReloaded } = props;
 	const [reopeningId, setReopeningId] = useState<number | null>(null);
 	const [error, setError] = useState<string | null>(null);
 
-	const doneTasks = tasks.filter((task) => task.status === TaskStatus.Done);
+	const doneTasks = tasks.filter((task) => task.status === TaskStatus.Done && !forestTaskIds.has(task.id));
 
 	const reopen = async (task: Task): Promise<void> => {
 		setReopeningId(task.id);
