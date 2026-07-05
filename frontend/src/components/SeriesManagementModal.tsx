@@ -1,12 +1,14 @@
 import { KolAlert, KolButton, KolSpin } from '@public-ui/react-v19';
-import type { Series } from 'client';
+import type { Pillar, Series } from 'client';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { Modal } from './Modal';
-import { SeriesFormModal } from './SeriesFormModal';
+import { TaskForm } from './TaskForm';
 
 interface SeriesManagementModalProps {
+	/** Verfügbare Lebensbalance-Säulen für die Serien-Zuordnung im eingebetteten `TaskForm`. */
+	pillars: Pillar[];
 	onClose: () => void;
 }
 
@@ -22,9 +24,10 @@ const RHYTHM_LABEL: Record<Series['rhythm'], string> = {
 /**
  * Serien-Verwaltung (#142, AK 1): listet alle Serien-Templates über `/series` und erlaubt das
  * Anlegen, Bearbeiten und Löschen. Einstieg über die Kopf-Toolbar-Aktion „Serien verwalten".
- * Das Anlege-/Bearbeiten-Formular (`SeriesFormModal`) wird innerhalb dieses Dialogs eingeblendet.
+ * Das Anlege-/Bearbeiten-Formular (`TaskForm` im Serie-Modus, #297) wird innerhalb dieses Dialogs
+ * eingeblendet.
  */
-export const SeriesManagementModal = ({ onClose }: SeriesManagementModalProps) => {
+export const SeriesManagementModal = ({ pillars, onClose }: SeriesManagementModalProps) => {
 	const [series, setSeries] = useState<Series[] | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -102,12 +105,21 @@ export const SeriesManagementModal = ({ onClose }: SeriesManagementModalProps) =
 			)}
 
 			{subForm !== null ? (
-				<SeriesFormModal
-					key={subForm.kind === 'edit' ? subForm.series.id : 'create'}
-					series={subForm.kind === 'edit' ? subForm.series : null}
-					onClose={() => setSubForm(null)}
-					onSaved={afterSaved}
-				/>
+				<div
+					className="series-form"
+					role="group"
+					aria-label={subForm.kind === 'edit' ? 'Serie bearbeiten' : 'Neue Serie anlegen'}
+				>
+					<TaskForm
+						key={subForm.kind === 'edit' ? subForm.series.id : 'create'}
+						task={null}
+						series={subForm.kind === 'edit' ? subForm.series : null}
+						initialMode="series"
+						pillars={pillars}
+						onClose={() => setSubForm(null)}
+						onSaved={afterSaved}
+					/>
+				</div>
 			) : (
 				<>
 					<div className="modal-actions">

@@ -396,7 +396,7 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 		await page.getByRole('button', { name: 'Serien verwalten' }).click();
 		await waitForStableView(page);
 		await page.getByRole('button', { name: 'Neue Serie anlegen' }).click();
-		await expect(page.getByRole('heading', { name: 'Neue Serie anlegen' })).toBeVisible();
+		await expect(page.getByRole('group', { name: 'Neue Serie anlegen' })).toBeVisible();
 		await waitForStableView(page);
 
 		await micButton(page, 'Titel').click();

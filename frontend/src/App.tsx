@@ -436,7 +436,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 					onSaved={afterMutation}
 				/>
 			)}
-			{dialog?.kind === 'series' && <SeriesManagementModal onClose={closeDialog} />}
+			{dialog?.kind === 'series' && <SeriesManagementModal pillars={pillars} onClose={closeDialog} />}
 			{dialog?.kind === 'advisor' && <PillarAdvisorModal pillars={pillars} onClose={closeDialog} />}
 			{dialog?.kind === 'delete' && (
 				<DeleteTaskDialog

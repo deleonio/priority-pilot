@@ -14,7 +14,7 @@ import { waitForStableView } from './helpers';
  * Die Umsetzung erfolgt über einen noch fehlenden Hook `useCtrlEnter`
  * (`frontend/src/lib/useCtrlEnter.ts`), der in die betroffenen Formulare/Dialoge eingebunden wird
  * (TaskForm, QuickCaptureModal, DeleteTaskDialog, DependencyModal, PillarWeightsModal,
- * SeriesFormModal). Bis dahin ist diese Spec rot: die Tests prüfen ausschließlich das
+ * Serien-Formular). Bis dahin ist diese Spec rot: die Tests prüfen ausschließlich das
  * beobachtbare Soll-Verhalten (Aktion ausgelöst / nicht ausgelöst), nicht den Hook selbst.
  *
  * **Isolation:** Tests, die einen Task anlegen, räumen über `afterEach` alle Tasks via echter API
@@ -247,7 +247,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeHidden();
 	});
 
-	// --- SeriesFormModal -------------------------------------------------------------------------
+	// --- Serien-Formular -------------------------------------------------------------------------
 	// UI-Flow eindeutig aus `series.spec.ts` ableitbar: Kopf-Toolbar „Serien verwalten" → „Neue Serie
 	// anlegen" → Titel + Startdatum füllen → primärer CTA „Speichern". Nach dem Speichern wird die
 	// Serie gelistet. `afterEach` (deleteAllTasks) räumt nur Tasks ab, daher die Serie hier explizit
@@ -262,7 +262,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 
 		const title = uniqueTitle('Serie');
 		await page.getByRole('button', { name: 'Neue Serie anlegen' }).click();
-		await expect(page.getByRole('heading', { name: 'Neue Serie anlegen' })).toBeVisible();
+		await expect(page.getByRole('group', { name: 'Neue Serie anlegen' })).toBeVisible();
 		await waitForStableView(page);
 
 		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
@@ -272,7 +272,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		await page.keyboard.press('Control+Enter');
 
 		// Das Formular schließt sich und die Serie erscheint in der Serien-Liste.
-		await expect(page.getByRole('heading', { name: 'Neue Serie anlegen' })).toBeHidden();
+		await expect(page.getByRole('group', { name: 'Neue Serie anlegen' })).toBeHidden();
 		await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
 
 		// Persistenz gegenprüfen und die angelegte Serie wieder abräumen (afterEach löscht nur Tasks).
@@ -350,5 +350,5 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 
 	// --- Bewusst NICHT als eigener Shortcut-Test abgedeckt --------------------------------------
 	// Alle sechs betroffenen Dialoge (TaskForm via AK1–AK5, DeleteTaskDialog AK6, PillarWeightsModal
-	// AK7, SeriesFormModal AK8, QuickCaptureModal AK9, DependencyModal AK10) sind oben abgedeckt.
+	// AK7, Serien-Formular AK8, QuickCaptureModal AK9, DependencyModal AK10) sind oben abgedeckt.
 });

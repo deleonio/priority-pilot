@@ -66,6 +66,12 @@ interface TaskFormProps {
 	 */
 	series?: Series | null;
 	/**
+	 * Vorgewählter Formularmodus beim Anlegen (`task`/`series` sind `null`). Ermöglicht das direkte
+	 * Öffnen im Serie-Modus (#297: Serie-Anlegen aus der Serien-Verwaltung). Beim Bearbeiten ohne
+	 * Wirkung — dort steht der Modus über `series`/`task` fest. Standard: `'task'`.
+	 */
+	initialMode?: 'task' | 'series';
+	/**
 	 * Beim Anlegen optional die Eltern-Aufgabe: Die neue Aufgabe wird nach dem Speichern als deren
 	 * Vorgänger verknüpft (Unteraufgabe über das bestehende Abhängigkeits-/Aufgabenwald-Konzept).
 	 */
@@ -113,6 +119,7 @@ const startDateToInput = (startDate: Date | undefined): string => {
 export const TaskForm = ({
 	task,
 	series = null,
+	initialMode = 'task',
 	parentTask = null,
 	pillars,
 	initialValues,
@@ -127,7 +134,7 @@ export const TaskForm = ({
 
 	// Aktiver Formularmodus: „Serie" beim Serien-Edit fest vorgegeben, sonst Standard „Aufgabe".
 	// Im Anlege-Modus wechselt der Umschalter zwischen beiden; im Bearbeiten-Modus ist er gesperrt.
-	const [mode, setMode] = useState<'task' | 'series'>(seriesEdit ? 'series' : 'task');
+	const [mode, setMode] = useState<'task' | 'series'>(seriesEdit ? 'series' : initialMode);
 	const isSeriesMode = mode === 'series';
 
 	// Eingaben in Refs halten: KoliBri-Inputs verwalten ihren Anzeigewert selbst, daher kein
