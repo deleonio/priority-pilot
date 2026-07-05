@@ -1,5 +1,5 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
-import type { Pillar, Task } from 'client';
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import type { Pillar, Series, Task } from 'client';
 import { TaskStatus } from 'client';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -23,8 +23,18 @@ vi.mock('@public-ui/react-v19', () => ({
 			{_description}
 		</div>
 	),
-	KolButton: ({ _label, _on }: { _label?: string; _on?: { onClick?: (_e: MouseEvent) => void } }) => (
-		<button onClick={(e) => _on?.onClick?.(e.nativeEvent)}>{_label}</button>
+	KolButton: ({
+		_label,
+		_disabled,
+		_on,
+	}: {
+		_label?: string;
+		_disabled?: boolean;
+		_on?: { onClick?: (_e: MouseEvent) => void };
+	}) => (
+		<button disabled={_disabled} onClick={(e) => _on?.onClick?.(e.nativeEvent)}>
+			{_label}
+		</button>
 	),
 	KolInputText: ({
 		_label,
@@ -46,7 +56,24 @@ vi.mock('@public-ui/react-v19', () => ({
 	KolInputRange: ({ _label }: { _label?: string }) => <input type="range" aria-label={_label} />,
 	KolSingleSelect: ({ _label }: { _label?: string }) => <select aria-label={_label} />,
 	KolSpin: () => <span aria-busy="true" />,
-	KolTextarea: ({ _label }: { _label?: string }) => <textarea aria-label={_label} />,
+	KolTextarea: ({
+		_label,
+		_value,
+		_on,
+	}: {
+		_label?: string;
+		_value?: string;
+		_on?: { onChange?: (_e: unknown, v: string) => void; onInput?: (_e: unknown, v: string) => void };
+	}) => (
+		<textarea
+			aria-label={_label}
+			defaultValue={_value}
+			onChange={(e) => {
+				_on?.onChange?.(e.nativeEvent, e.target.value);
+				_on?.onInput?.(e.nativeEvent, e.target.value);
+			}}
+		/>
+	),
 }));
 
 // VoiceField: kapselt SpeechRecognition, für diesen Test nicht relevant.
@@ -54,11 +81,17 @@ vi.mock('./VoiceField', () => ({
 	VoiceField: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
-// API-Mock: suggestPillars (für #305) und createTask (für #315, AK3c) sind hier relevant.
+// API-Mock: suggestPillars (#305) und createTask (#315, AK3c) sind hier relevant. Für #316 kommen
+// die Serien-Pfade (createSeries/updateSeries), der Task-Edit-Pfad (updateTask) sowie parseText
+// (LLM-Vorbelegung, AK6) hinzu.
 vi.mock('../api', () => ({
 	api: {
 		suggestPillars: vi.fn(),
 		createTask: vi.fn(),
+		updateTask: vi.fn(),
+		createSeries: vi.fn(),
+		updateSeries: vi.fn(),
+		parseText: vi.fn(),
 	},
 }));
 
@@ -67,6 +100,9 @@ import { TaskForm } from './TaskForm';
 
 const mockSuggestPillars = api.suggestPillars as ReturnType<typeof vi.fn>;
 const mockCreateTask = api.createTask as ReturnType<typeof vi.fn>;
+const mockUpdateTask = api.updateTask as ReturnType<typeof vi.fn>;
+const mockCreateSeries = api.createSeries as ReturnType<typeof vi.fn>;
+const mockUpdateSeries = api.updateSeries as ReturnType<typeof vi.fn>;
 
 // --- Fixtures ---
 
@@ -87,6 +123,32 @@ const defaultProps = {
 	onClose: vi.fn(),
 	onSaved: vi.fn(),
 };
+
+/**
+ * Serien-Fixture für #316: ein bestehendes Serien-Template. Beim Bearbeiten reicht der Container das
+ * Template über die (erwartete) neue Prop `series` an das Formular; der Umschalter startet dann fest
+ * im Serie-Modus (gesperrt) und die Serienfelder (`startDate`, `rhythm`) sind statt `deadline` sichtbar.
+ */
+const minimalSeries = (): Series => ({
+	id: 7,
+	title: 'Wöchentlicher Sport',
+	rhythm: 'weekly',
+	priority: 3,
+	estimatedEffort: 0.5,
+	active: true,
+	startDate: new Date('2026-09-07T00:00:00.000Z'),
+	pillars: [],
+});
+
+/**
+ * Rendert TaskForm im (erwarteten) Serien-Edit-Modus mit der noch nicht existierenden `series`-Prop.
+ * Der lokale Cast ist die bewusste, einzige Typ-Grenze des TDD-Vertrags: Er hält den Typecheck grün,
+ * bis die Umsetzung die `series?: Series | null`-Prop zur `TaskFormProps`-Schnittstelle hinzufügt.
+ * Zur Laufzeit sind diese Tests rot, solange TaskForm die Prop (und den Serien-Edit-Modus) ignoriert.
+ */
+const SeriesEditForm = TaskForm as unknown as (
+	props: typeof defaultProps & { task: null; series: Series },
+) => ReactNode;
 
 afterEach(() => {
 	cleanup();
@@ -236,5 +298,268 @@ describe('TaskForm — Status-Feld entfernt (#315, AK3)', () => {
 		expect(mockCreateTask).toHaveBeenCalledTimes(1);
 		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as [{ taskCreate: Record<string, unknown> }];
 		expect(taskCreate).not.toHaveProperty('status');
+	});
+});
+
+/**
+ * Rote TDD-Verträge für #316 (Sub-C2 von #296) — TaskForm bekommt einen Task/Serie-Umschalter und
+ * einen Serien-Abschnitt; das Speichern verzweigt je nach Modus zum passenden API-Pfad.
+ *
+ * **Erwartete (noch nicht existierende) Schnittstelle**, gegen die diese Tests fahren:
+ *  - Ein Umschalter mit `data-testid="mode-toggle"`, der zwei bedienbare Optionen „Aufgabe" und
+ *    „Serie" (als Buttons) enthält. Klick auf „Serie" wechselt in den Serie-Modus.
+ *  - Im Serie-Modus sind die Serienfelder sichtbar: `startDate` (Label „Startdatum") und
+ *    `rhythm` (Label „Rhythmus"); das `deadline`-Feld („Deadline (optional)") verschwindet.
+ *  - Im Task-Modus ist `deadline` sichtbar, die Serienfelder nicht.
+ *  - Beim Bearbeiten ist der Umschalter gesperrt (die Optionen sind `disabled`) und initial korrekt
+ *    gesetzt: eine neue Prop `series?: Series | null` startet das Formular im Serie-Modus (Serien-
+ *    Edit), ein `task` (ohne `series`) im Task-Modus (Task-Edit).
+ *  - Speichern verzweigt: Serie-Anlegen → `api.createSeries`, Task-Anlegen → `api.createTask`,
+ *    Serie-Edit → `api.updateSeries`, Task-Edit → `api.updateTask`.
+ *
+ * Diese Specs sind rot, solange TaskForm weder den Umschalter/Serien-Abschnitt rendert noch die
+ * Serien-Pfade aufruft (bzw. die `series`-Prop kennt).
+ */
+
+/** Wechselt das Formular über den Umschalter in den Serie-Modus (klickt die „Serie"-Option). */
+const switchToSeriesMode = async (): Promise<void> => {
+	const toggle = screen.getByTestId('mode-toggle');
+	const seriesOption = within(toggle).getByRole('button', { name: /serie/i });
+	await act(async () => {
+		fireEvent.click(seriesOption);
+	});
+};
+
+/** Setzt den Titel im (bereits gerenderten) Formular — `submit` bricht sonst bei leerem Titel ab. */
+const fillTitle = async (value: string): Promise<void> => {
+	const titleInput = screen.getByRole('textbox', { name: /titel/i });
+	await act(async () => {
+		fireEvent.change(titleInput, { target: { value } });
+		fireEvent.blur(titleInput);
+	});
+};
+
+/** Löst den Speichern-Button aus. */
+const clickSave = async (): Promise<void> => {
+	await act(async () => {
+		fireEvent.click(screen.getByRole('button', { name: 'Speichern' }));
+	});
+};
+
+describe('AK4 — Umschalter & Feld-Sichtbarkeit je Modus (#316)', () => {
+	it('Anlegen: Task/Serie-Umschalter ist sichtbar und bedienbar', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		const toggle = screen.getByTestId('mode-toggle');
+		expect(toggle).toBeInTheDocument();
+		// Beide Modi sind als bedienbare Optionen vorhanden und nicht gesperrt (Anlegen).
+		const taskOption = within(toggle).getByRole('button', { name: /aufgabe/i });
+		const seriesOption = within(toggle).getByRole('button', { name: /serie/i });
+		expect(taskOption).toBeEnabled();
+		expect(seriesOption).toBeEnabled();
+	});
+
+	it('Anlegen/Task-Modus: `deadline` ist sichtbar', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		// Standard beim Anlegen ist der Task-Modus: das Deadline-Feld steht im DOM.
+		expect(screen.getByLabelText('Deadline (optional)')).toBeInTheDocument();
+		// Serienfelder gibt es (noch) nicht.
+		expect(screen.queryByLabelText('Startdatum')).toBeNull();
+		expect(screen.queryByLabelText('Rhythmus')).toBeNull();
+	});
+
+	it('Serie-Modus: `startDate` + `rhythm` sichtbar, `deadline` ausgeblendet', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		await switchToSeriesMode();
+
+		// Serienfelder erscheinen …
+		expect(screen.getByLabelText('Startdatum')).toBeInTheDocument();
+		expect(screen.getByLabelText('Rhythmus')).toBeInTheDocument();
+		// … und das Deadline-Feld verschwindet.
+		expect(screen.queryByLabelText('Deadline (optional)')).toBeNull();
+	});
+
+	it('Bearbeiten (Task-Edit): Umschalter ist gesperrt (Optionen disabled)', async () => {
+		await act(async () => {
+			render(<TaskForm task={minimalNewTask()} {...defaultProps} />);
+		});
+
+		const toggle = screen.getByTestId('mode-toggle');
+		expect(within(toggle).getByRole('button', { name: /aufgabe/i })).toBeDisabled();
+		expect(within(toggle).getByRole('button', { name: /serie/i })).toBeDisabled();
+	});
+
+	it('Bearbeiten (Task-Edit): initial im Task-Modus — `deadline` sichtbar, keine Serienfelder', async () => {
+		await act(async () => {
+			render(<TaskForm task={minimalNewTask()} {...defaultProps} />);
+		});
+
+		expect(screen.getByLabelText('Deadline (optional)')).toBeInTheDocument();
+		expect(screen.queryByLabelText('Startdatum')).toBeNull();
+		expect(screen.queryByLabelText('Rhythmus')).toBeNull();
+	});
+
+	it('Bearbeiten (Serien-Edit): initial im Serie-Modus — Serienfelder sichtbar, kein `deadline`', async () => {
+		await act(async () => {
+			render(<SeriesEditForm task={null} series={minimalSeries()} {...defaultProps} />);
+		});
+
+		expect(screen.getByLabelText('Startdatum')).toBeInTheDocument();
+		expect(screen.getByLabelText('Rhythmus')).toBeInTheDocument();
+		expect(screen.queryByLabelText('Deadline (optional)')).toBeNull();
+	});
+
+	it('Bearbeiten (Serien-Edit): Umschalter ist gesperrt', async () => {
+		await act(async () => {
+			render(<SeriesEditForm task={null} series={minimalSeries()} {...defaultProps} />);
+		});
+
+		const toggle = screen.getByTestId('mode-toggle');
+		expect(within(toggle).getByRole('button', { name: /aufgabe/i })).toBeDisabled();
+		expect(within(toggle).getByRole('button', { name: /serie/i })).toBeDisabled();
+	});
+});
+
+describe('AK5 — Speichern verzweigt korrekt (#316)', () => {
+	it('Serie-Anlegen → api.createSeries (nicht api.createTask)', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockCreateSeries.mockResolvedValue(minimalSeries());
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		await switchToSeriesMode();
+		await fillTitle('Neue Serie über TaskForm');
+		await clickSave();
+
+		expect(mockCreateSeries).toHaveBeenCalledTimes(1);
+		expect(mockCreateTask).not.toHaveBeenCalled();
+	});
+
+	it('Serie-Anlegen → createSeries erhält pillars + description + priority + estimatedEffort', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockCreateSeries.mockResolvedValue(minimalSeries());
+
+		await act(async () => {
+			render(
+				<TaskForm task={null} initialValues={{ description: 'Serienbeschreibung' }} {...defaultProps} />,
+			);
+		});
+
+		await switchToSeriesMode();
+		await fillTitle('Serie mit Feldern');
+		await clickSave();
+
+		expect(mockCreateSeries).toHaveBeenCalledTimes(1);
+		const [{ seriesCreate }] = mockCreateSeries.mock.calls[0] as [{ seriesCreate: Record<string, unknown> }];
+		expect(seriesCreate).toHaveProperty('pillars');
+		expect(seriesCreate).toHaveProperty('description');
+		expect(seriesCreate).toHaveProperty('priority');
+		expect(seriesCreate).toHaveProperty('estimatedEffort');
+	});
+
+	it('Task-Anlegen → api.createTask (nicht api.createSeries)', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockCreateTask.mockResolvedValue(minimalNewTask());
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		await fillTitle('Neue Aufgabe (Task-Modus)');
+		await clickSave();
+
+		expect(mockCreateTask).toHaveBeenCalledTimes(1);
+		expect(mockCreateSeries).not.toHaveBeenCalled();
+	});
+
+	it('Serien-Edit → api.updateSeries (nicht api.updateTask)', async () => {
+		mockUpdateSeries.mockResolvedValue(minimalSeries());
+
+		await act(async () => {
+			render(<SeriesEditForm task={null} series={minimalSeries()} {...defaultProps} />);
+		});
+
+		await fillTitle('Serie umbenannt');
+		await clickSave();
+
+		expect(mockUpdateSeries).toHaveBeenCalledTimes(1);
+		expect(mockUpdateTask).not.toHaveBeenCalled();
+		const [{ id }] = mockUpdateSeries.mock.calls[0] as [{ id: number }];
+		expect(id).toBe(minimalSeries().id);
+	});
+
+	it('Task-Edit → api.updateTask (nicht api.updateSeries)', async () => {
+		mockUpdateTask.mockResolvedValue(minimalNewTask());
+
+		await act(async () => {
+			render(<TaskForm task={minimalNewTask()} {...defaultProps} />);
+		});
+
+		await fillTitle('Aufgabe umbenannt');
+		await clickSave();
+
+		expect(mockUpdateTask).toHaveBeenCalledTimes(1);
+		expect(mockUpdateSeries).not.toHaveBeenCalled();
+	});
+});
+
+describe('AK6 — QuickCapture/LLM + Säulen-Vorschlag in Serie-Modus (#316)', () => {
+	it('Serie-Modus: „Säulen vorschlagen" löst /tasks/suggest-pillars aus', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		await switchToSeriesMode();
+		await fillTitle('Serie mit Säulen-Vorschlag');
+
+		// Der „Säulen vorschlagen"-Button funktioniert auch im Serie-Modus (gleicher Endpoint wie im Task-Modus).
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: /Säulen vorschlagen/i }));
+		});
+
+		expect(mockSuggestPillars).toHaveBeenCalled();
+		expect(mockSuggestPillars).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				suggestPillarsInput: expect.objectContaining({ title: 'Serie mit Säulen-Vorschlag' }),
+			}),
+		);
+	});
+
+	it('Serie-Modus: LLM-Vorbelegung (initialValues) füllt Titel/Beschreibung', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(
+				<TaskForm
+					task={null}
+					initialValues={{ title: 'Aus LLM', description: 'LLM-Beschreibung' }}
+					{...defaultProps}
+				/>,
+			);
+		});
+
+		await switchToSeriesMode();
+
+		// Die aus dem LLM-Parsing (#236) vorbelegten Werte stehen auch im Serie-Modus in den Feldern.
+		expect((screen.getByRole('textbox', { name: /titel/i }) as HTMLInputElement).value).toBe('Aus LLM');
+		expect((screen.getByLabelText(/Beschreibung/i) as HTMLTextAreaElement).value).toBe('LLM-Beschreibung');
 	});
 });
