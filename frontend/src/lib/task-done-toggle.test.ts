@@ -1,6 +1,5 @@
 import { TaskStatus } from 'client';
 import { describe, expect, it } from 'vitest';
-// eslint-disable-next-line import/no-unresolved -- RED: Export existiert noch nicht in lib/task.ts.
 import { isDoneBlockedBySubtasks } from './task';
 
 /**

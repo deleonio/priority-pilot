@@ -17,7 +17,7 @@ interface TaskTreeProps {
 	/** Legt eine neue Unteraufgabe an, die als Vorgänger mit dieser Aufgabe verknüpft wird. */
 	onAddSubtask: (task: Task) => void;
 	/** Schaltet eine Aufgabe per binärem Toggle zwischen „Erledigt" und „Offen" um (#315). */
-	onDoneToggle: (task: Task) => void;
+	onDoneToggle: (task: Task) => Promise<void>;
 }
 
 interface TreeNodeProps {
@@ -30,7 +30,7 @@ interface TreeNodeProps {
 	onDelete: (task: Task) => void;
 	onEditDependencies: (task: Task) => void;
 	onAddSubtask: (task: Task) => void;
-	onDoneToggle: (task: Task) => void;
+	onDoneToggle: (task: Task) => Promise<void>;
 	/** IDs des aktuellen Pfads — bricht bei einem (unerwarteten) Zyklus im Wald den Abstieg ab. */
 	visited: Set<number>;
 }
@@ -48,6 +48,8 @@ const TreeNode = ({
 	onDoneToggle,
 	visited,
 }: TreeNodeProps) => {
+	const [isUpdating, setIsUpdating] = useState(false);
+
 	if (visited.has(node.id)) {
 		return null;
 	}
@@ -101,8 +103,13 @@ const TreeNode = ({
 							_hideLabel
 							_icons={{ left: { icon: isDone ? 'fa-solid fa-rotate-left' : 'fa-solid fa-check' } }}
 							_variant={isDone ? 'secondary' : 'primary'}
-							_disabled={!isDone && doneBlocked}
-							_on={{ onClick: () => onDoneToggle(task) }}
+							_disabled={isUpdating || (!isDone && doneBlocked)}
+							_on={{
+								onClick: () => {
+									setIsUpdating(true);
+									void onDoneToggle(task).finally(() => setIsUpdating(false));
+								},
+							}}
 						/>
 						{!isDone && doneBlocked && (
 							<span className="task-tree-done-blocked-hint" data-testid={`done-blocked-hint-${task.id}`}>
