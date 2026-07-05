@@ -10,7 +10,7 @@ import { waitForStableView } from './helpers';
  * **Rote Spec-Tests (Stufe 1, TDD-Gewaltenteilung):** Diese Tests beschreiben das Soll-Verhalten,
  * bevor der Produktivcode existiert — sie werden grün, sobald die Umsetzung
  *   - eine Serien-Verwaltung (Einstieg „Serien verwalten" in der Kopf-Toolbar, Liste + Anlegen über
- *     eine `SeriesFormModal`) bereitstellt (AK 1) und
+ *     ein Serien-Formular) bereitstellt (AK 1) und
  *   - generierte Instanzen in der Aufgaben-Tabelle als zur Serie gehörig kennzeichnet, inkl.
  *     Ausnahme-Hinweis bei individuell geänderten Instanzen (AK 2, AK 3).
  *
@@ -253,14 +253,14 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 });
 
 /**
- * Rote Spec-Tests für #297 (Sub-D #293): Ablösung von `SeriesFormModal` durch `TaskForm`.
+ * Spec-Tests für #297 (Sub-D #293): Ablösung des alten Serien-Formulars durch `TaskForm`.
  *
  * Nach dem Cleanup öffnet „Neue Serie anlegen" und „Bearbeiten" in `SeriesManagementModal`
- * nicht mehr `SeriesFormModal`, sondern den bloßen `<TaskForm>`-Body im Serie-Modus.
- * Erkennbar am `data-testid="mode-toggle"` (aus `TaskForm`) — dieses Testid fehlt im
- * alten `SeriesFormModal`, weshalb AK1 und AK2 aktuell rot sind.
+ * nicht mehr das alte Serien-Formular-Card, sondern den bloßen `<TaskForm>`-Body im
+ * Serie-Modus. Erkennbar am `data-testid="mode-toggle"` (aus `TaskForm`) — dieses Testid
+ * fehlte im alten Serien-Formular.
  */
-test.describe('Priority Pilot — #297: SeriesFormModal durch TaskForm ersetzen', () => {
+test.describe('Priority Pilot — #297: Altes Serien-Formular durch TaskForm ersetzen', () => {
 	let runId = 0;
 	const uniqueTitle = (label: string): string => `E2E #297 ${label} #${(runId += 1)}-${Date.now()}`;
 
@@ -296,7 +296,7 @@ test.describe('Priority Pilot — #297: SeriesFormModal durch TaskForm ersetzen'
 	};
 
 	// AK1 — Anlegen über TaskForm: Klick auf „Neue Serie anlegen" öffnet TaskForm-Serie-Modus.
-	// ROT: aktuell zeigt SeriesFormModal kein data-testid="mode-toggle" → toBeVisible() schlägt fehl.
+	// (War rot, solange das alte Serien-Formular ohne data-testid="mode-toggle" geöffnet wurde.)
 	test('AK1 — „Neue Serie anlegen" öffnet TaskForm im Serie-Modus (mode-toggle sichtbar, Serie aktiv)', async ({
 		page,
 	}) => {
@@ -319,7 +319,7 @@ test.describe('Priority Pilot — #297: SeriesFormModal durch TaskForm ersetzen'
 		await expect(page.getByLabel('Rhythmus')).toBeVisible();
 		await expect(page.getByLabel('Deadline (optional)')).toBeHidden();
 
-		// Das alte SeriesFormModal-Heading darf NICHT mehr erscheinen.
+		// Das Heading des alten Serien-Formulars darf NICHT mehr erscheinen.
 		await expect(page.getByRole('heading', { name: 'Neue Serie anlegen' })).toBeHidden();
 	});
 
@@ -354,7 +354,7 @@ test.describe('Priority Pilot — #297: SeriesFormModal durch TaskForm ersetzen'
 	});
 
 	// AK2 — Bearbeiten über TaskForm: Klick auf „Bearbeiten" öffnet TaskForm im gesperrten Serie-Modus.
-	// ROT: aktuell öffnet SeriesManagementModal das alte SeriesFormModal ohne mode-toggle → toBeVisible() fehlschlägt.
+	// (War rot, solange SeriesManagementModal das alte Serien-Formular ohne mode-toggle öffnete.)
 	test('AK2 — „Bearbeiten" öffnet TaskForm im gesperrten Serie-Edit-Modus mit vorbefülltem Titel', async ({ page }) => {
 		const title = uniqueTitle('Bearbeiten');
 		await createSeriesViaApi(page, { title, startDate: '2026-09-07T00:00:00.000Z' });
