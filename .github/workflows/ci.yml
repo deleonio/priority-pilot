@@ -14,19 +14,44 @@ on:
       - '.claude/**'
       - 'AGENTS.md'
       - 'LICENSE'
+  # ready_for_review ergaenzt die Default-Typen (opened/synchronize/reopened), damit CI beim
+  # Draft->Ready-Uebergang startet — der Moment, in dem implement den Spec-Draft review-bereit
+  # macht. Ohne diesen Typ liefe CI erst beim naechsten Push nach dem Ready-Schalten an.
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
 
-# Pro PR serialisieren und stale Laeufe abbrechen: schnelle Fixup-Pushes (synchronize) stapeln
-# sonst mehrere schwere E2E-Laeufe, deren Abschluss jeweils Gate/Auto-Merge weckt. main-Push-CI
-# laeuft in eigener Gruppe (ci-refs/heads/main) und wird NICHT abgebrochen (cancel nur fuer PRs).
+# Pro Branch/PR serialisieren und stale Laeufe IMMER abbrechen: ein neuer CI-Lauf im selben
+# Branch macht den vorherigen obsolet (nur der jeweils letzte Commit zaehlt). Das verhindert,
+# dass schnelle Fixup-Pushes (synchronize) oder Auto-Commits auf main mehrere schwere E2E-Laeufe
+# stapeln, deren Abschluss jeweils Gate/Auto-Merge weckt. main-Push-CI laeuft in eigener Gruppe
+# (ci-refs/heads/main), PR-CI je PR-Nummer — beide brechen ihren eigenen Vorlauf ab. Deploy ist
+# entkoppelt (eigener push-Trigger + eigene concurrency), ein Cancel hier gefaehrdet ihn nicht.
+# Gilt Workflow-weit: bricht ALLE Jobs (verify + alle e2e-Shards) eines stale Laufs gemeinsam ab.
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: true
 
+# GATE-KONTRAKT (nicht brechen): Gate/Auto-Merge (claude-pr-gate-merge.yml) keyt auf den Workflow-
+# NAMEN `CI` (`select(.workflow == "CI")`, `any(.[]; .workflow == "CI")`), NICHT auf einen Job-Namen.
+# Solange dieser Workflow `name: CI` heisst, zaehlen ALLE Job-Checks (verify + e2e-Shards) als „CI":
+# ein roter -> Gate setzt ai:needs-changes; alle gruen -> mergebar. `workflow_run` feuert pro Run
+# (nicht pro Job), das Fan-out bleibt also EIN Gate-Trigger. Jobs duerfen frei aufgeteilt/umbenannt
+# werden — der Workflow-Name `CI` aber nicht.
 jobs:
-  ci:
+  # Nicht-E2E-Halbzeit: Format/Lint/Build/Unit/Coverage/Contracts. Laeuft PARALLEL zu den e2e-Shards
+  # (frueher seriell VOR E2E). Der build-Step regeneriert die Vertragstypen frisch aus openapi.yml
+  # und type-checkt dagegen — so kann API-Drift nicht nach main gelangen (E2E braucht ihn nicht, s. u.).
+  verify:
+    # Kein CI auf Draft-PRs: der Spec-Draft traegt per Design ROTE Tests, ein voller Lauf (inkl. E2E)
+    # waere Verschwendung + rotes Rauschen. CI startet erst, wenn implement den PR ready markiert
+    # (ready_for_review). push-Events (main) haben kein pull_request-Objekt -> laufen immer.
+    # Spiegelt das Muster aus pr-needs-review-label.yml (draft == false).
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     services:
+      # Nur hier: die Server-Coverage-Suite (session.test.ts AK-5) verlangt eine laufende Redis-Instanz
+      # unter redis://localhost:6379. Der E2E-Job braucht Redis NICHT — das E2E-Backend setzt
+      # SESSION_STORE nicht und nutzt daher den Non-Redis-Store (siehe server/src/express/session.ts).
       redis:
         image: redis:7
         ports:
@@ -46,17 +71,6 @@ jobs:
       # install loest ueber den client-prepare-Hook die Vertragstypen aus (openapi-typescript, kein Java).
       - name: Install
         run: pnpm install --frozen-lockfile
-      # Playwright-Browser cachen, damit nicht jeder Lauf Chromium neu herunterladen muss.
-      # Schluessel an den pnpm-Lockfile gekoppelt (Cache-Bust bei Playwright-Upgrade).
-      - name: Playwright-Browser-Cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
-      # Nur Chromium installieren — playwright.config.ts definiert ausschliesslich das chromium-Projekt.
-      # --with-deps zieht die System-Abhaengigkeiten nach (liegen ausserhalb des Cache-Pfads).
-      - name: Playwright-Browser installieren
-        run: pnpm --filter frontend exec playwright install --with-deps chromium
       - name: Format-Check
         run: pnpm exec prettier --check .
       - name: Lint
@@ -77,27 +91,74 @@ jobs:
         run: pnpm --filter priority-pilot test:coverage
       # Workflow-/CI-Vertraege (statische YAML-Asserts via node:test ueber tsx, AUSSERHALB der
       # pnpm-Workspaces). Deckt alle `.github/workflows/*.test.ts` ab: u. a. den Fixup-Gate-Vertrag
-      # (claude-pr-fixup.test.ts) und den Modell-Delegations-Vertrag (model-delegation.test.ts:
-      # Sonnet-Start + Subagent-Delegation statt des entfernten JS-Routers). Ob die headless Action
-      # das Subagent-Modell-Override real honoriert,
-      # wird per Workflow-Lauf an einem Scratch-Issue verifiziert (CI-Konfig-Ebene).
+      # (claude-pr-fixup.test.ts), den Modell-Delegations-Vertrag (model-delegation.test.ts) und den
+      # E2E-Shard-Matrix-Vertrag (pipeline-hardening.test.ts E1: Matrix-Groesse == Shard-Nenner,
+      # Schutz gegen stillen Test-Drop). Ob die headless Action das Subagent-Modell-Override real
+      # honoriert, wird per Workflow-Lauf an einem Scratch-Issue verifiziert (CI-Konfig-Ebene).
       # pnpm dlx (nicht npx): seit tsx@4.22.4 transitiv via vite im Workspace-Baum liegt, erkennt
       # `npx tsx` es als "lokal vorhanden" und versucht das Bin aus dem Root-`.bin` zu starten —
       # pnpm verlinkt transitive Deps dort aber nicht, daher `sh: tsx: command not found`. pnpm dlx
       # nutzt einen isolierten Store ausserhalb des Workspaces und ist damit immun dagegen.
       - name: Test (Workflow-/CI-Vertraege)
         run: pnpm dlx tsx@4.22.4 --test ".github/workflows/"*.test.ts
-      # E2E: Playwright startet Backend (frische In-Memory-DB) + Vite selbst (siehe playwright.config.ts) —
-      # kein separater Server-Start in der Pipeline noetig.
-      - name: E2E
-        run: pnpm --filter frontend test:e2e
-      # Bei Fehlschlag den Playwright-Report als Artefakt sichern, damit Regressionen
-      # nachvollziehbar bleiben, ohne den Lauf lokal reproduzieren zu muessen.
+
+  # E2E gesharded ueber eine Matrix: jeder Shard ist eine EIGENE Runner-VM mit eigenem localhost —
+  # dadurch kollidieren die festen Ports (Backend 3000 / Vite 4173) NICHT zwischen den Shards, und
+  # `workers: 1` / `fullyParallel: false` in playwright.config.ts bleiben unangetastet (jeder Shard
+  # ist fuer sich deterministisch, teilt weiterhin eine In-Memory-DB pro Backend-Prozess).
+  # Playwright startet Backend + Vite selbst (playwright.config.ts webServer) — daher KEIN separater
+  # Pipeline-Build-Step: das Backend baut sich beim Start selbst (server/nodemon.json exec:
+  # `pnpm build && node dist/index.js`, inkl. build:api), das Frontend laeuft ueber `vite dev`. Deshalb
+  # muessen die devDependencies installiert bleiben. KEIN Redis (E2E-Backend nutzt den MemoryStore,
+  # da SESSION_STORE/NODE_ENV ungesetzt — siehe server/src/express/session.ts). Skaliert linear: neue
+  # Specs verteilen sich auf die Shards, statt die Pipeline seriell zu verlaengern (E2E war ~58%).
+  # ACHTUNG: Wird `shard: [...]` geaendert, MUSS der Nenner in `--shard=…/N` mitgezogen werden —
+  # der Contract-Test E1 (pipeline-hardening.test.ts) bricht sonst rot (Schutz gegen stillen Test-Drop).
+  e2e:
+    # Kein CI auf Draft-PRs (identisch zu verify) — sonst liefen die teuren E2E-Shards auf dem
+    # noch roten Spec-Draft. Startet erst ab ready_for_review; push-Events laufen immer.
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    strategy:
+      # Einen roten Shard NICHT die anderen abbrechen lassen — volles Fehlersignal ueber alle Shards.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc # zentrale Node-Version (gleicher Stand wie verify/implement/fixup/deploy)
+          cache: pnpm
+      # install loest ueber den client-prepare-Hook die Vertragstypen aus (openapi-typescript, kein Java).
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      # Playwright-Browser cachen, damit nicht jeder Lauf Chromium neu herunterladen muss.
+      # Schluessel an den pnpm-Lockfile gekoppelt (Cache-Bust bei Playwright-Upgrade). Alle Shards
+      # teilen denselben Key: nach dem ersten Populate ist es fuer die uebrigen ein Cache-Hit.
+      - name: Playwright-Browser-Cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
+      # Nur Chromium installieren — playwright.config.ts definiert ausschliesslich das chromium-Projekt.
+      # --with-deps zieht die System-Abhaengigkeiten nach (liegen ausserhalb des Cache-Pfads).
+      - name: Playwright-Browser installieren
+        run: pnpm --filter frontend exec playwright install --with-deps chromium
+      # `exec playwright test --shard` (NICHT `test:e2e -- --shard`): pnpm reicht `--` sonst literal
+      # ans Skript durch (bekannte Falle) — `exec` startet das Bin direkt. Nenner /4 == Matrix-Groesse
+      # (Contract-Test E1). Playwrights Shard-Zuteilung ist deterministisch (stabile Test-Sortierung),
+      # sichert reproduzierbare Verteilung ueber Wiederholungslaeufe.
+      - name: E2E (shard ${{ matrix.shard }}/4)
+        run: pnpm --filter frontend exec playwright test --shard=${{ matrix.shard }}/4
+      # Bei Fehlschlag den Playwright-Report als Artefakt sichern, damit Regressionen nachvollziehbar
+      # bleiben. Name je Shard eindeutig — actions/upload-artifact@v4 bricht bei doppelten Namen ab.
       - name: Playwright-Report sichern
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: playwright-report
+          name: playwright-report-shard-${{ matrix.shard }}
           path: |
             frontend/playwright-report
             frontend/test-results

@@ -328,6 +328,63 @@ describe('M1 — Zentrale Node-Version (.nvmrc, kein Version-Drift)', () => {
 	});
 });
 
+describe('E1 — E2E-Shard-Matrix: Matrix-Groesse == Shard-Nenner (kein stiller Test-Drop)', () => {
+	// Sharding ist nur vollstaendig, wenn die Matrix genau so viele Shards definiert, wie der
+	// Playwright-Aufruf `--shard=<i>/<N>` als Nenner nutzt. Divergieren sie (z. B. Matrix [1,2,3]
+	// bei `/4`), laeuft der Shard 4/4 NIE — ein Viertel der E2E-Suite verschwindet lautlos, die
+	// CI bleibt gruen. Dieser Test macht daraus einen roten, kausalen Check.
+	it('ci.yml: Anzahl matrix.shard-Eintraege deckt sich mit dem --shard=…/N-Nenner', () => {
+		const yml = readWorkflow('ci.yml');
+
+		// Nenner aus dem Playwright-Aufruf (…--shard=${{ matrix.shard }}/<N>).
+		const shardCall = yml.match(/--shard=\$\{\{\s*matrix\.shard\s*\}\}\/(\d+)/);
+		assert.ok(shardCall, 'ci.yml muss playwright mit `--shard=${{ matrix.shard }}/N` aufrufen (E2E-Sharding)');
+		const denom = Number(shardCall[1]);
+
+		// Matrix-Liste: `shard: [1, 2, 3, 4]`. Bewusst NUR numerische Listen matchen — sonst greift
+		// der Regex faelschlich in Prosa-Kommentaren (z. B. `shard: [...]` im Erklaertext).
+		const matrixLine = yml.match(/shard:\s*\[\s*(\d+(?:\s*,\s*\d+)*)\s*\]/);
+		assert.ok(matrixLine, 'ci.yml muss eine numerische `matrix.shard`-Liste definieren (z. B. shard: [1, 2, 3, 4])');
+		const shards = matrixLine[1].split(',').map((s) => Number(s.trim()));
+
+		assert.equal(
+			shards.length,
+			denom,
+			`Shard-Nenner (/${denom}) muss der Matrix-Groesse (${shards.length}) entsprechen — sonst werden Tests still gedroppt`,
+		);
+		// Vollstaendigkeits-/Luecken-Check: die Matrix muss exakt 1..N sein (kein doppelter/fehlender Shard).
+		assert.deepEqual(
+			[...shards].sort((a, b) => a - b),
+			Array.from({ length: denom }, (_, i) => i + 1),
+			`matrix.shard muss exakt 1..${denom} enthalten (kein doppelter/fehlender/luecken­behafteter Shard)`,
+		);
+	});
+});
+
+describe('E2 — CI laeuft NICHT auf Draft-PRs (spart Compute; Draft = rote Spec-Tests by design)', () => {
+	// Der Spec-Draft traegt per Design rote Tests; ein voller CI-Lauf (inkl. E2E) darauf ist
+	// Verschwendung. CI startet erst am Draft->Ready-Uebergang. Dieser Test verhindert, dass der
+	// Draft-Guard oder der ready_for_review-Trigger still wieder entfernt wird.
+	it('ci.yml: beide Jobs sind per if auf Nicht-Draft (oder Nicht-PR-Event) begrenzt', () => {
+		const yml = readWorkflow('ci.yml');
+		// Ein Draft-Guard je Job (verify + e2e) = mindestens zwei Vorkommen.
+		const guards = yml.match(/github\.event\.pull_request\.draft == false/g) || [];
+		assert.ok(
+			guards.length >= 2,
+			`ci.yml muss den Draft-Guard (github.event.pull_request.draft == false) an beiden Jobs tragen — gefunden: ${guards.length}`,
+		);
+	});
+
+	it('ci.yml: triggert auf ready_for_review (sonst kein CI beim Draft->Ready-Uebergang)', () => {
+		const yml = readWorkflow('ci.yml');
+		assert.match(
+			yml,
+			/types:\s*\[[^\]]*\bready_for_review\b[^\]]*\]/,
+			'ci.yml muss pull_request.types mit ready_for_review deklarieren (sonst startet CI erst beim naechsten Push nach Ready)',
+		);
+	});
+});
+
 describe('M3 — retriage nur auf created (nicht edited — Spam-Vektor)', () => {
 	it('claude-retriage.yml triggert nur auf issue_comment created, NICHT edited', () => {
 		const yml = readWorkflow('claude-retriage.yml');

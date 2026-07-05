@@ -175,4 +175,102 @@ test.describe('Priority Pilot — Tab „Erledigte Aufgaben" (#228) gegen das ec
 		const scrollWidth = await page.evaluate(() => document.body.scrollWidth);
 		expect(scrollWidth).toBeLessThanOrEqual(375);
 	});
+
+	/**
+	 * Roter TDD-Vertrag für #307: „Wieder öffnen" wird zu einem Icon-Button innerhalb einer neuen
+	 * `KolToolbar` (`[role="toolbar"]`) je Zeile. Der Accessible Name bleibt „Wieder öffnen" (durch AK-4
+	 * oben gedeckt), aber es gibt keinen sichtbaren Klartext mehr. Diese Specs sind rot, bis
+	 * `CompletedTasksTable.tsx` den Button in eine Toolbar mit `_hideLabel` überführt.
+	 */
+	test.describe('#307 — „Wieder öffnen" als Icon-Button in einer Toolbar', () => {
+		test('AK-307-3: „Wieder öffnen" liegt in einer Toolbar der Zeile', async ({ page }) => {
+			await page.goto('/');
+			await waitForStableView(page);
+
+			const title = uniqueTitle('Toolbar-Reopen');
+			await createTaskViaUi(page, title);
+			await markTaskDoneViaUi(page);
+
+			await openCompletedTab(page);
+			const row = page.getByRole('row').filter({ hasText: title });
+			await expect(row).toBeVisible();
+
+			// Neu: eine `KolToolbar` (`[role="toolbar"]`) je Zeile, in der der „Wieder öffnen"-Icon-Button
+			// liegt. Aktuell rot, weil es keine Toolbar gibt.
+			const toolbar = row.locator('[role="toolbar"]');
+			await expect(toolbar).toBeVisible();
+			await expect(toolbar.getByRole('button', { name: 'Wieder öffnen' })).toBeVisible();
+		});
+
+		test('AK-307-3b: „Wieder öffnen"-Button trägt kein sichtbares Text-Label (Icon-only)', async ({ page }) => {
+			await page.goto('/');
+			await waitForStableView(page);
+
+			const title = uniqueTitle('Icon-Reopen');
+			await createTaskViaUi(page, title);
+			await markTaskDoneViaUi(page);
+
+			await openCompletedTab(page);
+			const row = page.getByRole('row').filter({ hasText: title });
+			await expect(row).toBeVisible();
+
+			const reopenButton = row.locator('[role="toolbar"]').getByRole('button', { name: 'Wieder öffnen' });
+			await expect(reopenButton).toBeVisible();
+
+			// Kein sichtbarer Klartext „Wieder öffnen" im Button-DOM: KoliBri legt den Label-Text bei
+			// `_hideLabel={true}` in einen `aria-hidden`-Span (Accessible Name bleibt erhalten).
+			const hasVisibleLabelText = await reopenButton.evaluate((el) => {
+				const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+				let node = walker.nextNode();
+				while (node !== null) {
+					const text = (node.textContent ?? '').trim();
+					if (text.includes('Wieder öffnen')) {
+						let ancestor: HTMLElement | null = node.parentElement;
+						let hidden = false;
+						while (ancestor !== null && ancestor !== el.parentElement) {
+							const style = window.getComputedStyle(ancestor);
+							if (
+								ancestor.getAttribute('aria-hidden') === 'true' ||
+								style.display === 'none' ||
+								style.visibility === 'hidden' ||
+								style.clip === 'rect(0px, 0px, 0px, 0px)'
+							) {
+								hidden = true;
+								break;
+							}
+							ancestor = ancestor.parentElement;
+						}
+						if (!hidden) {
+							return true;
+						}
+					}
+					node = walker.nextNode();
+				}
+				return false;
+			});
+			expect(hasVisibleLabelText).toBe(false);
+		});
+
+		test('AK-307-5: Icon-Button „Wieder öffnen" liegt auch bei 375px in einer Toolbar', async ({ page }) => {
+			await page.setViewportSize({ width: 375, height: 667 });
+			await page.goto('/');
+			await waitForStableView(page);
+
+			const title = uniqueTitle('Mobil-Reopen');
+			await createTaskViaUi(page, title);
+			await markTaskDoneViaUi(page);
+
+			await openCompletedTab(page);
+			const row = page.getByRole('row').filter({ hasText: title });
+			await expect(row).toBeVisible();
+
+			// Auch mobil ist die Toolbar mit dem „Wieder öffnen"-Icon-Button vorhanden und sichtbar.
+			const reopenButton = row.locator('[role="toolbar"]').getByRole('button', { name: 'Wieder öffnen' });
+			await expect(reopenButton).toBeVisible();
+
+			// Kein horizontales Scrollen: Der Inhalt passt in die 375px-Breite.
+			const scrollWidth = await page.evaluate(() => document.body.scrollWidth);
+			expect(scrollWidth).toBeLessThanOrEqual(375);
+		});
+	});
 });
