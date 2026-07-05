@@ -1,6 +1,6 @@
-import { cleanup, render } from '@testing-library/react';
+import { cleanup, fireEvent, render } from '@testing-library/react';
 import type { ActivityAdvice, Pillar } from 'client';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AdvisorResults } from './PillarAdvisorModal';
 
 afterEach(cleanup);
@@ -49,5 +49,67 @@ describe('AdvisorResults — Ergebnisliste des Säulen-Beraters', () => {
 
 		expect(container.querySelector('.advisor-results')).toBeNull();
 		expect(container.textContent).toMatch(/keine Vorschläge/i);
+	});
+});
+
+/**
+ * Rote Spec-Tests für #327 (AK2): Jeder Vorschlag bekommt genau EINE Aktion „Als Aufgabe übernehmen".
+ * Ihr Klick meldet die Aktivität (`entry.activity`) über die neue Callback-Prop `onAdoptActivity` nach
+ * oben — von dort öffnet der Aufrufer die Schnellerfassung mit dem Text vorbelegt.
+ *
+ * Die Tests laufen ROT, weil `AdvisorResults` die Prop `onAdoptActivity` und die „Als Aufgabe
+ * übernehmen"-Aktion je Vorschlag noch nicht kennt.
+ */
+describe('AdvisorResults — „Als Aufgabe übernehmen" je Vorschlag (#327)', () => {
+	const pillars = [pillar(1, 'Körper'), pillar(2, 'Beziehungen')];
+
+	/** Die „Als Aufgabe übernehmen"-Buttons (gerenderte `kol-button`-Custom-Elemente). */
+	const adoptButtons = (container: HTMLElement): Element[] =>
+		[...container.querySelectorAll('kol-button')].filter((el) => el.getAttribute('_label') === 'Als Aufgabe übernehmen');
+
+	it('rendert je Vorschlag genau eine Aktion „Als Aufgabe übernehmen"', () => {
+		const advice: ActivityAdvice[] = [
+			{ activity: 'Joggen im Park', reason: 'Bewegung.', pillarIds: [1] },
+			{ activity: 'Spieleabend mit Freunden', reason: 'Gemeinsame Zeit.', pillarIds: [2] },
+		];
+
+		const { container } = render(
+			// @ts-expect-error: onAdoptActivity ist noch nicht implementiert (rote Spec).
+			<AdvisorResults advice={advice} pillars={pillars} onAdoptActivity={vi.fn()} />,
+		);
+
+		const items = container.querySelectorAll('.advisor-result');
+		expect(items).toHaveLength(2);
+		// Genau eine Aktion insgesamt je Vorschlag (zwei Vorschläge → zwei Buttons).
+		expect(adoptButtons(container)).toHaveLength(2);
+		// Und genau eine Aktion INNERHALB jedes einzelnen Vorschlags.
+		for (const item of items) {
+			const inItem = [...item.querySelectorAll('kol-button')].filter(
+				(el) => el.getAttribute('_label') === 'Als Aufgabe übernehmen',
+			);
+			expect(inItem).toHaveLength(1);
+		}
+	});
+
+	it('meldet beim Klick die Aktivität des jeweiligen Vorschlags an onAdoptActivity', () => {
+		const onAdoptActivity = vi.fn();
+		const advice: ActivityAdvice[] = [
+			{ activity: 'Joggen im Park', reason: 'Bewegung.', pillarIds: [1] },
+			{ activity: 'Spieleabend mit Freunden', reason: 'Gemeinsame Zeit.', pillarIds: [2] },
+		];
+
+		const { container } = render(
+			// @ts-expect-error: onAdoptActivity ist noch nicht implementiert (rote Spec).
+			<AdvisorResults advice={advice} pillars={pillars} onAdoptActivity={onAdoptActivity} />,
+		);
+
+		const buttons = adoptButtons(container);
+		expect(buttons).toHaveLength(2);
+
+		fireEvent.click(buttons[0]);
+		expect(onAdoptActivity).toHaveBeenCalledWith('Joggen im Park');
+
+		fireEvent.click(buttons[1]);
+		expect(onAdoptActivity).toHaveBeenCalledWith('Spieleabend mit Freunden');
 	});
 });
