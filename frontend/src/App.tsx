@@ -1,5 +1,6 @@
 import { KolAlert, KolAvatar, KolHeading, KolSpin, KolTabs, KolToolbar } from '@public-ui/react-v19';
-import type { Pillar, Task, TaskStatus, TaskTreeNode } from 'client';
+import type { Pillar, Task, TaskTreeNode } from 'client';
+import { TaskStatus } from 'client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from './api';
 import { CompletedTasksTable } from './components/CompletedTasksTable';
@@ -40,26 +41,6 @@ const VIEW_TABS = [
 	{ _label: 'Erledigte Aufgaben' },
 ];
 
-/**
- * Liefert die direkten Unteraufgaben (Dependents) des Tasks `taskId` aus dem Aufgabenwald (#246).
- * Ein Knoten führt seine direkten Unteraufgaben in `dependents`; die Suche steigt rekursiv ab.
- */
-const findDirectSubtasks = (forest: TaskTreeNode[], taskId: number): { status: TaskStatus }[] => {
-	const search = (node: TaskTreeNode): { status: TaskStatus }[] | null => {
-		if (node.id === taskId) return node.dependents;
-		for (const child of node.dependents) {
-			const found = search(child);
-			if (found !== null) return found;
-		}
-		return null;
-	};
-	for (const root of forest) {
-		const found = search(root);
-		if (found !== null) return found;
-	}
-	return [];
-};
-
 // Modulkonstanten für Toolbar-Icons: stabile Objektidentität pro Render, damit der Icon-Watcher
 // nicht unnötig erneut feuert (z. B. CREATE_ICON für „Neuen Task anlegen").
 const CREATE_ICON = { left: { icon: 'fa-solid fa-plus' } };
@@ -81,6 +62,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 	const [dialog, setDialog] = useState<Dialog>(null);
 	const [logoutLoading, setLogoutLoading] = useState(false);
 	const [logoutError, setLogoutError] = useState<string | null>(null);
+	const [updateError, setUpdateError] = useState<string | null>(null);
 
 	const reload = useCallback(async (signal?: AbortSignal): Promise<void> => {
 		setLoading(true);
@@ -130,7 +112,34 @@ export const App = ({ user }: { user: AuthUser }) => {
 		return () => window.removeEventListener('popstate', onPop);
 	}, []);
 
+	// Bei jedem Tab-Wechsel die Daten neu laden: So zeigt jede Ansicht den aktuellen Server-Stand —
+	// insbesondere wandert eine frisch per Toggle erledigte Aufgabe (#315) erst mit diesem Reload
+	// atomar (ein React-Commit) aus dem Aufgabenbaum in die Erledigte-Tabelle (#228). Stabile
+	// Callback-Identität, damit `KolTabs` nicht bei jedem Render neu verdrahtet.
+	const tabsCallbacks = useMemo(
+		() => ({
+			onSelect: (): void => {
+				void reload();
+			},
+		}),
+		[reload],
+	);
+
 	const dependencyMap = useMemo(() => buildDependencyMap(forest), [forest]);
+
+	// Alle Aufgaben-IDs, die aktuell im Aufgabenwald stehen (inkl. Unteraufgaben). Frisch per Toggle
+	// erledigte Aufgaben bleiben bis zum nächsten Reload im (dann veralteten) Wald „sticky" — die
+	// Erledigte-Tabelle blendet genau diese IDs aus, damit ein Titel nie doppelt im DOM steht (#228).
+	const forestTaskIds = useMemo(() => {
+		const ids = new Set<number>();
+		const visit = (node: TaskTreeNode): void => {
+			if (ids.has(node.id)) return;
+			ids.add(node.id);
+			node.dependents.forEach(visit);
+		};
+		forest.forEach(visit);
+		return ids;
+	}, [forest]);
 
 	// Fortschritt (erledigt/gesamt inkl. aller Unter-Tasks) je Task-ID aus dem Aufgabenwald ableiten.
 	// Tasks ohne Unter-Tasks liefern `null` und tauchen bewusst nicht in der Map auf (AK3).
@@ -222,6 +231,43 @@ export const App = ({ user }: { user: AuthUser }) => {
 	const openDependencies = useCallback((task: Task): void => setDialog({ kind: 'dependencies', taskId: task.id }), []);
 	const openAddSubtask = useCallback((task: Task): void => setDialog({ kind: 'create', parentTask: task }), []);
 
+	// Binärer Erledigt-Toggle (#315): schaltet die Aufgabe zwischen „Erledigt" und „Offen" um und lädt
+	// die Daten neu. Der Toggle-Guard gegen offene Unteraufgaben sitzt in der Liste (`TaskTree`).
+	const handleDoneToggle = useCallback(
+		async (task: Task): Promise<void> => {
+			const next = task.status === TaskStatus.Done ? TaskStatus.Open : TaskStatus.Done;
+			const markingDone = task.status !== TaskStatus.Done;
+			try {
+				setUpdateError(null);
+				await api.updateTask({
+					id: task.id,
+					taskUpdate: {
+						title: task.title,
+						description: task.description,
+						status: next,
+						priority: task.priority,
+						estimatedEffort: task.estimatedEffort,
+						deadline: task.deadline,
+					},
+				});
+				if (markingDone) {
+					// Kein reload(): Der Wald (`GET /forest`) enthält nur offene Aufgaben — nach einem Reload
+					// verschwände die Zeile samt Toggle sofort. Der optimistische Status-Update hält die Zeile
+					// im Aufgabenbaum „sticky" für ein Sofort-Undo (#315 AK1); die Erledigte-Tabelle blendet
+					// solche noch im Wald stehenden Aufgaben aus (`forestTaskIds`), damit der Titel nicht
+					// doppelt im DOM steht (#228). Der nächste Reload (z. B. Tab-Wechsel) löst das auf.
+					setTasks((prev) => (prev === null ? null : prev.map((t) => (t.id === task.id ? { ...t, status: next } : t))));
+				} else {
+					await reload();
+				}
+			} catch (reason) {
+				const apiError = await toApiError(reason);
+				setUpdateError(apiError.message);
+			}
+		},
+		[reload],
+	);
+
 	// Bei einer Dependency-Änderung bleibt der Dialog offen; nur die Daten werden aktualisiert.
 	const refreshKeepingDialog = useCallback((): void => {
 		void reload();
@@ -309,6 +355,13 @@ export const App = ({ user }: { user: AuthUser }) => {
 					</KolAlert>
 				</div>
 			)}
+			{updateError !== null && (
+				<div role="alert">
+					<KolAlert _type="error" _label="Aufgabe konnte nicht aktualisiert werden">
+						{updateError}
+					</KolAlert>
+				</div>
+			)}
 			{tasks === null && loading && (
 				<div className="loading">
 					<KolSpin _show _variant="cycle" _label="Lädt" />
@@ -319,7 +372,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 			{tasks !== null && tasks.length === 0 && <EmptyState onCreate={() => setDialog({ kind: 'create' })} />}
 
 			{tasks !== null && tasks.length > 0 && (
-				<KolTabs className="app-tabs" _label="Ansichten" _tabs={VIEW_TABS}>
+				<KolTabs className="app-tabs" _label="Ansichten" _tabs={VIEW_TABS} _on={tabsCallbacks}>
 					<div slot="tab-0">
 						<Dashboard
 							tasks={tasks}
@@ -340,6 +393,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 								onDelete={openDelete}
 								onEditDependencies={openDependencies}
 								onAddSubtask={openAddSubtask}
+								onDoneToggle={handleDoneToggle}
 							/>
 						</section>
 					</div>
@@ -348,7 +402,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 					</div>
 					<div slot="tab-3">
 						<section className="task-section">
-							<CompletedTasksTable tasks={tasks} pillars={pillars} onReloaded={reload} />
+							<CompletedTasksTable tasks={tasks} pillars={pillars} forestTaskIds={forestTaskIds} onReloaded={reload} />
 						</section>
 					</div>
 				</KolTabs>
@@ -367,7 +421,6 @@ export const App = ({ user }: { user: AuthUser }) => {
 					key={dialog.task.id}
 					task={dialog.task}
 					pillars={pillars}
-					subtasks={findDirectSubtasks(forest, dialog.task.id)}
 					onClose={closeDialog}
 					onSaved={afterMutation}
 				/>

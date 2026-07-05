@@ -55,16 +55,11 @@ test.describe('Priority Pilot — Tab „Erledigte Aufgaben" (#228) gegen das ec
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
 	};
 
-	/** Setzt einen bestehenden Task über den Bearbeiten-Dialog auf „Erledigt". */
+	/** Klickt den „Erledigen"-Toggle des ersten Tasks und wartet auf den Seiten-Reload. */
 	const markTaskDoneViaUi = async (page: Page): Promise<void> => {
 		await openTasksTab(page);
-		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
-		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeVisible();
+		await page.getByRole('button', { name: 'Erledigen' }).first().click();
 		await waitForStableView(page);
-		await page.getByLabel('Status').click();
-		await page.getByRole('option', { name: 'Erledigt' }).click();
-		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
-		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeHidden();
 	};
 
 	test('AK-1: Tab „Erledigte Aufgaben" zeigt nur Done-Tasks — offene Tasks erscheinen dort nicht', async ({ page }) => {
@@ -76,17 +71,10 @@ test.describe('Priority Pilot — Tab „Erledigte Aufgaben" (#228) gegen das ec
 		await createTaskViaUi(page, doneTitle);
 		await createTaskViaUi(page, openTitle);
 
-		// Genau einen der beiden Tasks erledigen.
+		// Genau einen der beiden Tasks erledigen (der zuerst angelegte steht oben).
 		await openTasksTab(page);
-		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
-		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeVisible();
+		await page.getByRole('button', { name: 'Erledigen' }).first().click();
 		await waitForStableView(page);
-		// Sicherstellen, dass wir den Erledigt-Task bearbeiten (Titel-Feld gegenprüfen wäre ideal,
-		// aber die Reihenfolge ist deterministisch: der zuerst angelegte steht oben).
-		await page.getByLabel('Status').click();
-		await page.getByRole('option', { name: 'Erledigt' }).click();
-		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
-		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeHidden();
 
 		await openCompletedTab(page);
 		// Der erledigte Task ist gelistet …
@@ -148,13 +136,9 @@ test.describe('Priority Pilot — Tab „Erledigte Aufgaben" (#228) gegen das ec
 		// Der Task verschwindet aus den Erledigten (im aktiven Tab nicht mehr sichtbar).
 		await expect(page.getByText(title, { exact: true })).not.toBeVisible();
 
-		// … und taucht wieder unter „Aufgaben" auf (Status „Offen").
+		// … und taucht wieder unter „Aufgaben" auf.
 		await openTasksTab(page);
 		await expect(page.getByText(title, { exact: true })).toBeVisible();
-		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
-		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeVisible();
-		await waitForStableView(page);
-		await expect(page.getByLabel('Status')).toHaveValue('Offen');
 	});
 
 	test('AK-6: Erledigte-Ansicht bei 375px ohne horizontales Scrollen', async ({ page }) => {

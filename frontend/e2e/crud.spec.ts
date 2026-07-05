@@ -70,7 +70,7 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 		await expect(page.getByText(title, { exact: true })).toBeVisible();
 	});
 
-	test('Task bearbeiten: geänderter Status und geänderte Priorität bleiben sichtbar', async ({ page }) => {
+	test('Task bearbeiten: geänderte Priorität bleibt sichtbar', async ({ page }) => {
 		await page.goto('/');
 		await waitForStableView(page);
 
@@ -82,30 +82,19 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeVisible();
 		await waitForStableView(page);
 
-		// Status auf „Erledigt" und Priorität auf 1 ändern. Das Status-Feld ist ein `KolSingleSelect` →
-		// ein `<input role="combobox">` (KEIN natives `<select>`, daher kein `selectOption`): anklicken
-		// öffnet die Listbox, dann die Option „Erledigt" wählen.
-		await page.getByLabel('Status').click();
-		await page.getByRole('option', { name: 'In Bearbeitung' }).click();
-		// Priorität ist seit #287 ein `KolInputRange` → natives `<input type="range">` im offenen
-		// Shadow-DOM. Es exponiert kein `aria-label` (`getByLabel` greift nicht), daher zielen wir per
-		// CSS auf den Range-Input; `Home` setzt ihn zuverlässig auf das Minimum (1).
+		// Priorität auf Minimum (1) setzen. `KolInputRange` → natives `<input type="range">` im
+		// Shadow-DOM; `Home` setzt zuverlässig auf das Minimum.
 		await page.locator('input[type="range"][min="1"][max="5"][step="1"]').press('Home');
 		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
 		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeHidden();
 
-		// Die Task-Liste zeigt keinen Status-Text; Persistenz wird direkt im Dialog geprüft (unten).
 		await openTasksTab(page);
 
-		// Persistenz beider Änderungen gegenprüfen: Dialog erneut öffnen — die Werte kommen frisch aus
-		// dem Backend (Liste wurde nach dem Speichern neu geladen).
+		// Persistenz prüfen: Dialog erneut öffnen — Werte kommen frisch aus dem Backend.
 		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
 		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeVisible();
 		await waitForStableView(page);
 		await expect(page.locator('input[type="range"][min="1"][max="5"][step="1"]')).toHaveValue('1');
-		// Das Combobox-`<input>` führt den sichtbaren Status-Text als Wert (nicht den Enum-Rohwert):
-		// `TaskStatus.InProcess` wird als „In Bearbeitung" angezeigt.
-		await expect(page.getByLabel('Status')).toHaveValue('In Bearbeitung');
 	});
 
 	test('Task löschen: verschwindet aus der Liste', async ({ page }) => {

@@ -48,16 +48,11 @@ test.describe('Dashboard — Gesamtguthaben (Issue #184)', () => {
 		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
 	};
 
-	/** Öffnet den Bearbeiten-Dialog des ersten Tasks und setzt den Status auf „Erledigt". */
+	/** Klickt den „Erledigen"-Toggle des ersten Tasks und wartet auf den Seiten-Reload. */
 	const setFirstTaskDone = async (page: Page): Promise<void> => {
 		await openTasksTab(page);
-		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
-		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeVisible();
+		await page.getByRole('button', { name: 'Erledigen' }).first().click();
 		await waitForStableView(page);
-		await page.getByLabel('Status').click();
-		await page.getByRole('option', { name: 'Erledigt' }).click();
-		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
-		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeHidden();
 	};
 
 	// AK 3 — Leerstand-Text bei 0 erledigten Tasks

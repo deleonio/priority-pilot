@@ -129,3 +129,7 @@ export const statusAccentClass = (status: TaskStatus): string => {
 			return 'done';
 	}
 };
+
+/** Prüft, ob das Auf-„Erledigt"-Schalten durch offene direkte Unteraufgaben gesperrt ist (#315). */
+export const isDoneBlockedBySubtasks = (subtasks: { status: TaskStatus }[]): boolean =>
+	subtasks.some((s) => s.status !== TaskStatus.Done);
