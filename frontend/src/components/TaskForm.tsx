@@ -66,8 +66,7 @@ interface TaskFormProps {
 	 */
 	series?: Series | null;
 	/**
-	 * Vorgewählter Formularmodus beim Anlegen (`task`/`series` sind `null`). Ermöglicht das direkte
-	 * Öffnen im Serie-Modus (#297: Serie-Anlegen aus der Serien-Verwaltung). Beim Bearbeiten ohne
+	 * Vorgewählter Formularmodus beim Anlegen (`task`/`series` sind `null`). Beim Bearbeiten ohne
 	 * Wirkung — dort steht der Modus über `series`/`task` fest. Standard: `'task'`.
 	 */
 	initialMode?: 'task' | 'series';
