@@ -521,6 +521,73 @@ test.describe('#281 Schnellerfassung: Voice-Autostart im Capture-Textfeld', () =
 	});
 });
 
+/** Öffnet den Säulen-Berater über die Header-Toolbar. */
+const openAdvisor = async (page: Page): Promise<void> => {
+	await page.getByRole('button', { name: 'Säulen-Berater' }).click();
+	await expect(page.getByRole('heading', { name: 'Säulen-Berater' })).toBeVisible();
+	await waitForStableView(page);
+};
+
+test.describe('Säulen-Berater: Voice-Autostart im Fragefeld', () => {
+	/**
+	 * AK1 — Auto-Start bei aktiver Einstellung:
+	 * pp-voice-autostart=true + Sprachunterstützung vorhanden → Aufnahme startet automatisch
+	 * am Fragefeld „Deine Frage oder Situation" (window.__speechRecognitionStarted===true,
+	 * Mic-Button aria-pressed="true").
+	 */
+	test('AK1: Einstellung an → Aufnahme startet automatisch im Fragefeld', async ({ page }) => {
+		await setVoiceAutostartInStorage(page, true);
+		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'granted' }));
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await openAdvisor(page);
+
+		await expect.poll(() => page.evaluate(() => window.__speechRecognitionStarted === true)).toBe(true);
+		await expect(micButton(page, 'Deine Frage oder Situation')).toHaveAttribute('aria-pressed', 'true');
+	});
+
+	/**
+	 * AK2 — Kein Auto-Start bei ausgeschalteter Einstellung (Default):
+	 * pp-voice-autostart=false → keine automatische Aufnahme im Fragefeld.
+	 */
+	test('AK2: Einstellung aus (Default) → kein Auto-Start im Fragefeld', async ({ page }) => {
+		await setVoiceAutostartInStorage(page, false);
+		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'granted' }));
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await openAdvisor(page);
+
+		const started = await page.evaluate(() => window.__speechRecognitionStarted === true);
+		expect(started).toBe(false);
+		await expect(micButton(page, 'Deine Frage oder Situation')).not.toHaveAttribute('aria-pressed', 'true');
+	});
+
+	/**
+	 * AK3 — Keine Sprachunterstützung → kein Absturz:
+	 * Einstellung an, aber SpeechRecognition nicht verfügbar → keine JS-Fehler,
+	 * Textfeld sichtbar und editierbar, keine Aufnahme gestartet.
+	 */
+	test('AK3: Einstellung an, SpeechRecognition nicht verfügbar → kein Absturz', async ({ page }) => {
+		const pageErrors: string[] = [];
+		page.on('pageerror', (err) => pageErrors.push(err.message));
+
+		await setVoiceAutostartInStorage(page, true);
+		await page.addInitScript(buildInitScript({ speechSupported: false, mediaPermission: 'granted' }));
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await openAdvisor(page);
+
+		expect(pageErrors, `Unerwartete pageerrors: ${pageErrors.join(' | ')}`).toEqual([]);
+		await expect(page.getByRole('textbox', { name: /Deine Frage oder Situation/i })).toBeVisible();
+		await expect(page.getByRole('textbox', { name: /Deine Frage oder Situation/i })).toBeEditable();
+		const started = await page.evaluate(() => window.__speechRecognitionStarted === true);
+		expect(started).toBe(false);
+	});
+});
+
 // ---------------------------------------------------------------------------
 // #283 — Stabilität: Autostart verliert kein früh gesprochenes Ergebnis
 // ---------------------------------------------------------------------------

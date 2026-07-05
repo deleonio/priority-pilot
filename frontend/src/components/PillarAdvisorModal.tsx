@@ -5,7 +5,9 @@ import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { readString } from '../lib/inputValue';
 import { useCtrlEnter } from '../lib/useCtrlEnter';
+import { readVoiceAutostartPreference } from '../lib/voiceAutostart';
 import { Modal } from './Modal';
+import { VoiceField } from './VoiceField';
 
 interface PillarAdvisorModalProps {
 	/** Die Lebensbalance-Säulen — für die Anzeige der Säulen-Namen zu den vorgeschlagenen Aktivitäten. */
@@ -60,8 +62,12 @@ export const PillarAdvisorModal = ({ pillars, onClose }: PillarAdvisorModalProps
 	const [error, setError] = useState<string | null>(null);
 	// `null` = noch keine Beratung angefragt (kein „Keine Vorschläge"-Hinweis vor der ersten Anfrage).
 	const [advice, setAdvice] = useState<ActivityAdvice[] | null>(null);
+	const [voiceAutostart] = useState(readVoiceAutostartPreference);
 
 	const question = useRef('');
+	// State-Mirror für die Frage-Textarea: KoliBri verwaltet den Anzeigewert selbst, aber ein per
+	// Sprach-Transkript geänderter Wert muss über `_value` ins Feld gespiegelt werden.
+	const [questionText, setQuestionText] = useState('');
 
 	const consult = async (): Promise<void> => {
 		setError(null);
@@ -98,16 +104,30 @@ export const PillarAdvisorModal = ({ pillars, onClose }: PillarAdvisorModalProps
 				</KolAlert>
 			)}
 			<div className="form-grid">
-				<KolTextarea
-					_label="Deine Frage oder Situation (optional)"
-					_rows={3}
-					_hint="z. B. „Was kann ich am Wochenende für mich tun?“"
-					_on={{
-						onInput: (_event, value) => {
-							question.current = readString(value);
-						},
+				<VoiceField
+					variant="textarea"
+					fieldLabel="Deine Frage oder Situation"
+					autoStart={voiceAutostart}
+					onTranscript={(transcript) => {
+						const newVal = question.current ? `${question.current} ${transcript}` : transcript;
+						question.current = newVal;
+						setQuestionText(newVal);
 					}}
-				/>
+				>
+					<KolTextarea
+						_label="Deine Frage oder Situation (optional)"
+						_rows={3}
+						_hint="z. B. „Was kann ich am Wochenende für mich tun?“"
+						_value={questionText}
+						_on={{
+							onInput: (_event, value) => {
+								const newVal = readString(value);
+								question.current = newVal;
+								setQuestionText(newVal);
+							},
+						}}
+					/>
+				</VoiceField>
 			</div>
 			{loading && (
 				<div className="pillar-editor-loading">
