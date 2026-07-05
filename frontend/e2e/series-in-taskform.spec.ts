@@ -152,4 +152,29 @@ test.describe('Priority Pilot — Task/Serie-Umschalter im Anlege-Formular (#316
 		);
 		expect(hasNoHorizontalScroll).toBeTruthy();
 	});
+
+	// AK3 (#330): Beim Umschalten zwischen den Modi bleiben Titel und Beschreibung erhalten — auch bei
+	// mehrfachem Wechsel (Aufgabe → Serie → Aufgabe). Die eingegebenen Werte gehen nicht verloren.
+	test('AK3 (#330) — Titel/Beschreibung bleiben beim Mode-Toggle erhalten (Aufgabe → Serie → Aufgabe)', async ({
+		page,
+	}) => {
+		await page.goto('/');
+		await waitForStableView(page);
+		await openCreateForm(page);
+
+		const title = uniqueTitle('Wert-Erhalt');
+		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
+
+		// Umschalten auf „Serie" — Startdatum erscheint, der Titel-Wert überlebt.
+		await modeToggle(page).getByRole('button', { name: /serie/i }).click();
+		await expect(page.getByLabel('Startdatum')).toBeVisible();
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue(title);
+
+		// Zurück auf „Aufgabe" — Deadline erscheint wieder, der Titel-Wert überlebt auch den Rückwechsel.
+		await modeToggle(page)
+			.getByRole('button', { name: /aufgabe/i })
+			.click();
+		await expect(page.getByLabel('Deadline (optional)')).toBeVisible();
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue(title);
+	});
 });

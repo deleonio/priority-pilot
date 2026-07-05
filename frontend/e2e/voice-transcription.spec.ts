@@ -308,11 +308,9 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 		await page.goto('/');
 		await waitForStableView(page);
 
-		// Serien-Verwaltung öffnen und das Anlege-Formular aufklappen.
-		await page.getByRole('button', { name: 'Serien verwalten' }).click();
-		await waitForStableView(page);
-		await page.getByRole('button', { name: 'Neue Serie anlegen' }).click();
-		await expect(page.getByRole('group', { name: 'Neue Serie anlegen' })).toBeVisible();
+		// Serien-Formular über QuickCapture-Flow öffnen und auf Serie-Modus umschalten.
+		await openTaskForm(page);
+		await page.getByTestId('mode-toggle').getByRole('button', { name: /serie/i }).click();
 		await waitForStableView(page);
 
 		await micButton(page, 'Titel').click();

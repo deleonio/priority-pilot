@@ -12,8 +12,8 @@ interface SeriesManagementModalProps {
 	onClose: () => void;
 }
 
-/** Sub-Dialog der Serien-Verwaltung: Liste oder Anlege-/Bearbeiten-Formular. */
-type SubForm = { kind: 'create' } | { kind: 'edit'; series: Series } | null;
+/** Sub-Dialog der Serien-Verwaltung: Liste oder Bearbeiten-Formular. */
+type SubForm = { kind: 'edit'; series: Series } | null;
 
 const RHYTHM_LABEL: Record<Series['rhythm'], string> = {
 	daily: 'Täglich',
@@ -22,10 +22,11 @@ const RHYTHM_LABEL: Record<Series['rhythm'], string> = {
 };
 
 /**
- * Serien-Verwaltung (#142, AK 1): listet alle Serien-Templates über `/series` und erlaubt das
- * Anlegen, Bearbeiten und Löschen. Einstieg über die Kopf-Toolbar-Aktion „Serien verwalten".
- * Das Anlege-/Bearbeiten-Formular (`TaskForm` im Serie-Modus, #297) wird innerhalb dieses Dialogs
- * eingeblendet.
+ * Serien-Verwaltung (#142, AK 1): nur Übersicht/Verwaltung — listet alle Serien-Templates über
+ * `/series` und erlaubt das Bearbeiten, Löschen und Generieren fälliger Instanzen. Das Anlegen neuer
+ * Serien läuft über den vereinheitlichten Einstieg „Neuen Task anlegen" (QuickCapture, #330).
+ * Einstieg über die Kopf-Toolbar-Aktion „Serien verwalten". Das Bearbeiten-Formular (`TaskForm` im
+ * Serie-Modus, #297) wird innerhalb dieses Dialogs eingeblendet.
  */
 export const SeriesManagementModal = ({ pillars, onClose }: SeriesManagementModalProps) => {
 	const [series, setSeries] = useState<Series[] | null>(null);
@@ -105,16 +106,11 @@ export const SeriesManagementModal = ({ pillars, onClose }: SeriesManagementModa
 			)}
 
 			{subForm !== null ? (
-				<div
-					className="series-form"
-					role="group"
-					aria-label={subForm.kind === 'edit' ? 'Serie bearbeiten' : 'Neue Serie anlegen'}
-				>
+				<div className="series-form" role="group" aria-label="Serie bearbeiten">
 					<TaskForm
-						key={subForm.kind === 'edit' ? subForm.series.id : 'create'}
+						key={subForm.series.id}
 						task={null}
-						series={subForm.kind === 'edit' ? subForm.series : null}
-						initialMode="series"
+						series={subForm.series}
 						pillars={pillars}
 						onClose={() => setSubForm(null)}
 						onSaved={afterSaved}
@@ -123,11 +119,6 @@ export const SeriesManagementModal = ({ pillars, onClose }: SeriesManagementModa
 			) : (
 				<>
 					<div className="modal-actions">
-						<KolButton
-							_label="Neue Serie anlegen"
-							_variant="primary"
-							_on={{ onClick: () => setSubForm({ kind: 'create' }) }}
-						/>
 						<KolButton
 							_label="Fällige Instanzen generieren"
 							_variant="secondary"
@@ -144,7 +135,7 @@ export const SeriesManagementModal = ({ pillars, onClose }: SeriesManagementModa
 					)}
 
 					{series !== null && series.length === 0 && (
-						<p className="hint">Noch keine Serie angelegt. Lege oben eine neue Serie an.</p>
+						<p className="hint">Noch keine Serie angelegt. Lege eine neue Serie über „Neuen Task anlegen" an.</p>
 					)}
 
 					{series !== null && series.length > 0 && (

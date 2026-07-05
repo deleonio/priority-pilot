@@ -96,24 +96,33 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 	};
 
 	// AK 1: Serie anlegen/bearbeiten/löschen → über `/series` persistiert und in der UI gelistet.
+	// Nach #330: kein separater „Neue Serie anlegen"-Button mehr im SeriesManagementModal —
+	// Anlegen läuft über QuickCapture („Neuen Task anlegen" → Überspringen → Serie-Modus).
 	test('AK1 — Serie über die UI anlegen: wird persistiert und in der Serien-Liste angezeigt', async ({ page }) => {
 		await page.goto('/');
 		await waitForStableView(page);
 
-		await openSeriesManagement(page);
-
 		const title = uniqueTitle('Anlegen');
-		await page.getByRole('button', { name: 'Neue Serie anlegen' }).click();
-		await expect(page.getByRole('group', { name: 'Neue Serie anlegen' })).toBeVisible();
+
+		// QuickCapture-Flow: „Neuen Task anlegen" → LLM-Schritt überspringen → TaskForm im Serie-Modus.
+		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
+		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
+		await waitForStableView(page);
+		await page.getByRole('button', { name: 'Überspringen' }).click();
+		await waitForStableView(page);
+
+		// Auf „Serie"-Modus umschalten.
+		await page.getByTestId('mode-toggle').getByRole('button', { name: /serie/i }).click();
 		await waitForStableView(page);
 
 		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
 		// `startDate` ist im Vertrag (`SeriesCreate`) Pflicht — Startdatum als Anker der Serie setzen.
 		await page.getByLabel('Startdatum').fill('2026-09-07');
 		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
-		await expect(page.getByRole('group', { name: 'Neue Serie anlegen' })).toBeHidden();
+		await waitForStableView(page);
 
 		// In der UI gelistet: der Serien-Titel erscheint in der Serien-Verwaltung.
+		await openSeriesManagement(page);
 		await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
 
 		// Persistenz gegenprüfen: die Serie liegt tatsächlich über `/api/v1/series` im Backend.
@@ -295,64 +304,6 @@ test.describe('Priority Pilot — #297: Altes Serien-Formular durch TaskForm ers
 		await waitForStableView(page);
 	};
 
-	// AK1 — Anlegen über TaskForm: Klick auf „Neue Serie anlegen" öffnet TaskForm-Serie-Modus.
-	// (War rot, solange das alte Serien-Formular ohne data-testid="mode-toggle" geöffnet wurde.)
-	test('AK1 — „Neue Serie anlegen" öffnet TaskForm im Serie-Modus (mode-toggle sichtbar, Serie aktiv)', async ({
-		page,
-	}) => {
-		await page.goto('/');
-		await waitForStableView(page);
-		await openSeriesManagement(page);
-
-		await page.getByRole('button', { name: 'Neue Serie anlegen' }).click();
-		await waitForStableView(page);
-
-		// TaskForm-Serie-Modus muss sichtbar sein — erkennbar am mode-toggle.
-		const toggle = page.getByTestId('mode-toggle');
-		await expect(toggle).toBeVisible();
-
-		// Der „Serie"-Button im Toggle ist primär (aktiver Modus).
-		await expect(toggle.getByRole('button', { name: /serie/i })).toBeVisible();
-
-		// Serienfelder erscheinen: Startdatum + Rhythmus statt Deadline.
-		await expect(page.getByLabel('Startdatum')).toBeVisible();
-		await expect(page.getByLabel('Rhythmus')).toBeVisible();
-		await expect(page.getByLabel('Deadline (optional)')).toBeHidden();
-
-		// Das Heading des alten Serien-Formulars darf NICHT mehr erscheinen.
-		await expect(page.getByRole('heading', { name: 'Neue Serie anlegen' })).toBeHidden();
-	});
-
-	// AK1 Vollfluss — Speichern legt die Serie an und zeigt sie in der Liste.
-	// ROT: schlägt wegen AK1-Voraussetzung (mode-toggle) fehl, bevor das Formular befüllt werden kann.
-	test('AK1 — Anlegen über TaskForm-Serie-Modus: Serie wird persistiert und in der Liste angezeigt', async ({
-		page,
-	}) => {
-		await page.goto('/');
-		await waitForStableView(page);
-		await openSeriesManagement(page);
-
-		const title = uniqueTitle('Anlegen');
-		await page.getByRole('button', { name: 'Neue Serie anlegen' }).click();
-		await waitForStableView(page);
-
-		// Vorbedingung: TaskForm-Serie-Modus muss aktiv sein.
-		await expect(page.getByTestId('mode-toggle')).toBeVisible();
-
-		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
-		await page.getByLabel('Startdatum').fill('2026-09-07');
-		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
-		await waitForStableView(page);
-
-		// Nach dem Speichern: Formular geschlossen, Serie in der Liste sichtbar.
-		await expect(page.getByTestId('mode-toggle')).toBeHidden();
-		await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
-
-		// Persistenz-Gegenkontrolle über die API.
-		const all = (await (await page.request.get('/api/v1/series')).json()) as { title: string }[];
-		expect(all.some((s) => s.title === title)).toBeTruthy();
-	});
-
 	// AK2 — Bearbeiten über TaskForm: Klick auf „Bearbeiten" öffnet TaskForm im gesperrten Serie-Modus.
 	// (War rot, solange SeriesManagementModal das alte Serien-Formular ohne mode-toggle öffnete.)
 	test('AK2 — „Bearbeiten" öffnet TaskForm im gesperrten Serie-Edit-Modus mit vorbefülltem Titel', async ({ page }) => {
@@ -426,32 +377,106 @@ test.describe('Priority Pilot — #297: Altes Serien-Formular durch TaskForm ers
 		const all = (await (await page.request.get('/api/v1/series')).json()) as { title: string }[];
 		expect(all.some((s) => s.title === title)).toBeFalsy();
 	});
+});
 
-	// AK5 — Mobile-First 375px: TaskForm-Serie-Flow in SeriesManagementModal ohne horizontales Scrollen.
-	// ROT: schlägt durch AK1-Vorbedingung (mode-toggle nicht sichtbar) fehl.
-	test('AK5 — TaskForm-Serie-Flow auf 375px Viewport ohne horizontales Scrollen', async ({ page }) => {
+/**
+ * Rote Spec-Tests für #330: Vereinheitlichter Anlege-Einstieg für Task und Serie.
+ *
+ * Der separate „Neue Serie anlegen"-Button in `SeriesManagementModal` entfällt — das Anlegen läuft
+ * ausschließlich über „Neuen Task anlegen" → QuickCapture → `TaskForm` mit Mode-Toggle. Die
+ * Verwaltungsfunktionen (Liste, Bearbeiten, Löschen, Generieren) bleiben im Modal erhalten.
+ *
+ * AK5a ist der Kern-Rot-Test: `toHaveCount(0)` schlägt aktuell fehl, weil der Button noch existiert.
+ * Nach Umsetzung (Button entfernt) wird der Block grün.
+ */
+test.describe('Priority Pilot — #330: Vereinheitlichter Anlege-Einstieg (SeriesManagementModal ohne Anlegen-Button)', () => {
+	let runId = 0;
+	const uniqueTitle = (label: string): string => `E2E #330 ${label} #${(runId += 1)}-${Date.now()}`;
+
+	interface SeriesPayload {
+		title: string;
+		rhythm?: 'daily' | 'weekly' | 'monthly';
+		startDate: string;
+	}
+
+	const createSeriesViaApi = async (page: Page, payload: SeriesPayload): Promise<number> => {
+		const response = await page.request.post('/api/v1/series', {
+			data: { rhythm: 'weekly', priority: 3, estimatedEffort: 0.5, active: true, ...payload },
+		});
+		expect(response.ok()).toBeTruthy();
+		return ((await response.json()) as { id: number }).id;
+	};
+
+	const deleteAll = async (page: Page): Promise<void> => {
+		const tasks = (await (await page.request.get('/api/v1/tasks')).json()) as { id: number }[];
+		for (const task of tasks) await page.request.delete(`/api/v1/tasks/${task.id}`);
+		const series = (await (await page.request.get('/api/v1/series')).json()) as { id: number }[];
+		for (const entry of series) await page.request.delete(`/api/v1/series/${entry.id}`);
+	};
+
+	test.afterEach(async ({ page }) => {
+		await deleteAll(page);
+	});
+
+	const openSeriesManagement = async (page: Page): Promise<void> => {
+		await page.getByRole('button', { name: 'Serien verwalten' }).click();
+		await expect(page.getByRole('heading', { name: 'Serien', exact: true })).toBeVisible();
+		await waitForStableView(page);
+	};
+
+	// AK5a — Der separate „Neue Serie anlegen"-Button ist im SeriesManagementModal entfernt.
+	// ROT: schlägt aktuell fehl, weil der Button noch existiert (toHaveCount(0) → tatsächlich 1).
+	test('AK5 (#330) — SeriesManagementModal enthält keinen separaten „Neue Serie anlegen"-Button', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+		await openSeriesManagement(page);
+
+		// Kern-Assertion: kein Anlegen-Button mehr im Modal.
+		await expect(page.getByRole('button', { name: 'Neue Serie anlegen' })).toHaveCount(0);
+
+		// Das Modal ist trotzdem geöffnet (die Verwaltung existiert weiterhin).
+		await expect(page.getByRole('heading', { name: 'Serien', exact: true })).toBeVisible();
+	});
+
+	// AK5b — Verwaltungsfunktionen (Liste / Bearbeiten / Löschen / Generieren) bleiben ohne Anlegen-Button erhalten.
+	test('AK5 (#330) — Serien-Verwaltung zeigt Liste/Bearbeiten/Löschen/Generieren ohne Anlegen-Button', async ({
+		page,
+	}) => {
+		const title = uniqueTitle('Verwaltung');
+		await createSeriesViaApi(page, { title, startDate: '2026-09-07T00:00:00.000Z' });
+
+		await page.goto('/');
+		await waitForStableView(page);
+		await openSeriesManagement(page);
+
+		// Kein Anlegen-Button.
+		await expect(page.getByRole('button', { name: 'Neue Serie anlegen' })).toHaveCount(0);
+
+		// Die Serie steht in der Liste.
+		await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
+
+		// Verwaltungsfunktionen bleiben bedienbar.
+		await expect(page.getByRole('button', { name: 'Bearbeiten' }).first()).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Löschen' }).first()).toBeVisible();
+		await expect(page.getByRole('button', { name: /Fällige Instanzen generieren/i })).toBeVisible();
+	});
+
+	// AK5c — Mobile-First 375px: SeriesManagementModal ohne Anlegen-Button und ohne horizontales Scrollen.
+	test('AK5 (#330) — SeriesManagementModal auf 375px ohne Anlegen-Button und ohne horizontales Scrollen', async ({
+		page,
+	}) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.goto('/');
 		await waitForStableView(page);
 		await openSeriesManagement(page);
 
-		await page.getByRole('button', { name: 'Neue Serie anlegen' }).click();
-		await waitForStableView(page);
+		// Kein Anlegen-Button.
+		await expect(page.getByRole('button', { name: 'Neue Serie anlegen' })).toHaveCount(0);
 
-		// TaskForm-Serie-Modus muss sichtbar sein.
-		const toggle = page.getByTestId('mode-toggle');
-		await expect(toggle).toBeVisible();
-
-		// Kein Element überragt den 375px-Viewport.
-		const toggleBox = await toggle.boundingBox();
-		expect(toggleBox).not.toBeNull();
-		expect(toggleBox!.x).toBeGreaterThanOrEqual(0);
-		expect(toggleBox!.x + toggleBox!.width).toBeLessThanOrEqual(375);
-
-		const titleField = page.getByRole('textbox', { name: 'Titel' });
-		await expect(titleField).toBeVisible();
-		const titleBox = await titleField.boundingBox();
-		expect(titleBox).not.toBeNull();
-		expect(titleBox!.x + titleBox!.width).toBeLessThanOrEqual(375);
+		// Kein horizontales Scrollen: die Scrollbreite überschreitet die Viewport-Breite nicht.
+		const hasNoHorizontalScroll = await page.evaluate(
+			() => document.scrollingElement !== null && document.scrollingElement.scrollWidth <= window.innerWidth,
+		);
+		expect(hasNoHorizontalScroll).toBeTruthy();
 	});
 });

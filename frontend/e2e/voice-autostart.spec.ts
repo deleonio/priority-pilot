@@ -321,10 +321,8 @@ test.describe('#272 Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabe
 		await page.goto('/');
 		await waitForStableView(page);
 
-		await page.getByRole('button', { name: 'Serien verwalten' }).click();
-		await waitForStableView(page);
-		await page.getByRole('button', { name: 'Neue Serie anlegen' }).click();
-		await expect(page.getByRole('group', { name: 'Neue Serie anlegen' })).toBeVisible();
+		await openTaskForm(page);
+		await page.getByTestId('mode-toggle').getByRole('button', { name: /serie/i }).click();
 		await waitForStableView(page);
 		await expect(page.getByRole('textbox', { name: 'Titel' })).toBeVisible();
 
@@ -384,10 +382,8 @@ test.describe('#272 Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabe
 		await page.goto('/');
 		await waitForStableView(page);
 
-		await page.getByRole('button', { name: 'Serien verwalten' }).click();
-		await waitForStableView(page);
-		await page.getByRole('button', { name: 'Neue Serie anlegen' }).click();
-		await expect(page.getByRole('group', { name: 'Neue Serie anlegen' })).toBeVisible();
+		await openTaskForm(page);
+		await page.getByTestId('mode-toggle').getByRole('button', { name: /serie/i }).click();
 		await waitForStableView(page);
 
 		const started = await page.evaluate(() => window.__speechRecognitionStarted === true);

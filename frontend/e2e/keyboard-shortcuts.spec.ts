@@ -248,21 +248,25 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 	});
 
 	// --- Serien-Formular -------------------------------------------------------------------------
-	// UI-Flow eindeutig aus `series.spec.ts` ableitbar: Kopf-Toolbar „Serien verwalten" → „Neue Serie
-	// anlegen" → Titel + Startdatum füllen → primärer CTA „Speichern". Nach dem Speichern wird die
-	// Serie gelistet. `afterEach` (deleteAllTasks) räumt nur Tasks ab, daher die Serie hier explizit
-	// über die echte API wieder löschen, damit der Test isoliert bleibt.
+	// UI-Flow eindeutig aus `series.spec.ts` ableitbar: QuickCapture-Schritt → „Überspringen" →
+	// Serie-Modus (mode-toggle) → Titel + Startdatum füllen → primärer CTA „Speichern" via Strg+Enter.
+	// Nach dem Speichern wird das Modal geschlossen. `afterEach` (deleteAllTasks) räumt nur Tasks ab,
+	// daher die Serie hier explizit über die echte API wieder löschen, damit der Test isoliert bleibt.
 	test('AK8: Strg+Enter im Serien-Formular löst „Speichern" aus (Serie wird angelegt)', async ({ page }) => {
 		await page.goto('/');
 		await waitForStableView(page);
 
-		await page.getByRole('button', { name: 'Serien verwalten' }).click();
-		await expect(page.getByRole('heading', { name: 'Serien', exact: true })).toBeVisible();
+		const title = uniqueTitle('Serie');
+
+		// QuickCapture-Flow: „Neuen Task anlegen" → LLM-Schritt überspringen → TaskForm im Serie-Modus.
+		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
+		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
+		await waitForStableView(page);
+		await page.getByRole('button', { name: 'Überspringen' }).click();
 		await waitForStableView(page);
 
-		const title = uniqueTitle('Serie');
-		await page.getByRole('button', { name: 'Neue Serie anlegen' }).click();
-		await expect(page.getByRole('group', { name: 'Neue Serie anlegen' })).toBeVisible();
+		// Auf „Serie"-Modus umschalten.
+		await page.getByTestId('mode-toggle').getByRole('button', { name: /serie/i }).click();
 		await waitForStableView(page);
 
 		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
@@ -271,9 +275,8 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		// Kein Klick auf „Speichern": der Shortcut allein muss die primäre Aktion auslösen.
 		await page.keyboard.press('Control+Enter');
 
-		// Das Formular schließt sich und die Serie erscheint in der Serien-Liste.
-		await expect(page.getByRole('group', { name: 'Neue Serie anlegen' })).toBeHidden();
-		await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
+		// Das Modal schließt sich und die Serie wird angelegt (Heading verschwindet).
+		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
 
 		// Persistenz gegenprüfen und die angelegte Serie wieder abräumen (afterEach löscht nur Tasks).
 		const series = (await (await page.request.get('/api/v1/series')).json()) as { id: number; title: string }[];
