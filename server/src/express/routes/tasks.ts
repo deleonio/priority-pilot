@@ -5,6 +5,7 @@ import sequelize from '../../database.js';
 import { Pillar, ScoreEntry, Task, TaskPillar } from '../../models/index.js';
 import { wouldCreateCycle } from '../../logics/cycle.js';
 import { berechneScore } from '../../logics/score.js';
+import { PillarContribution, validatePillars, arePillarsExistent } from '../../logics/pillarContributions.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
 import type { components } from '../../api';
 
@@ -13,13 +14,6 @@ type ErrorDto = components['schemas']['Error'];
 type TaskStatus = components['schemas']['TaskStatus'];
 
 const VALID_STATUSES: readonly TaskStatus[] = ['Open', 'In process', 'Done'];
-
-/** Soll-Summe der `share`-Werte über die Säulen eines Tasks (100 %-Verteilung). */
-const TOTAL_SHARE = 100;
-/** Float-Toleranz für den Summenvergleich (z. B. 33,33 + 33,33 + 33,34). */
-const SHARE_SUM_EPSILON = 1e-6;
-/** Default-Konfidenz (volle Sicherheit), wenn ein Beitrag keine `confidence` mitschickt. */
-const DEFAULT_CONFIDENCE = 100;
 
 /** Validierte Task-Attribute (Spalten), wie sie an das Sequelize-Modell übergeben werden. */
 interface TaskAttributes {
@@ -30,13 +24,6 @@ interface TaskAttributes {
 	actualEffort?: number | null;
 	description?: string | null;
 	deadline?: Date | null;
-}
-
-/** Ein vollständig normierter Säulen-Beitrag (confidence aufgelöst auf den Default). */
-interface PillarContribution {
-	pillarId: number;
-	share: number;
-	confidence: number;
 }
 
 type ValidationResult =
@@ -96,52 +83,6 @@ const parseId = (raw: string): number | null => {
  */
 const findOwnTask = (id: number, userId: number | undefined): Promise<Task | null> =>
 	Task.findOne({ where: { id, ...ownerScope(userId) } });
-
-/**
- * Validiert die `pillars`-Liste (Säulen-Beiträge) rein strukturell (ohne DB-Zugriff): jede `pillarId`
- * eine Ganzzahl `>= 1` ohne Dubletten, `share`/`confidence` Zahlen in `[0, 100]` (`confidence`
- * optional, Default 100). Bei mindestens einem Beitrag muss die Summe der `share` 100 ergeben.
- */
-const validatePillars = (
-	raw: unknown,
-): { ok: true; pillars: PillarContribution[] } | { ok: false; message: string } => {
-	if (!Array.isArray(raw)) {
-		return { ok: false, message: 'pillars muss eine Liste sein.' };
-	}
-	const pillars: PillarContribution[] = [];
-	const seen = new Set<number>();
-	for (const item of raw) {
-		if (typeof item !== 'object' || item === null) {
-			return { ok: false, message: 'Jeder pillars-Eintrag muss ein Objekt sein.' };
-		}
-		const { pillarId, share, confidence } = item as Record<string, unknown>;
-		if (typeof pillarId !== 'number' || !Number.isInteger(pillarId) || pillarId < 1) {
-			return { ok: false, message: 'pillarId muss eine Ganzzahl >= 1 sein.' };
-		}
-		if (typeof share !== 'number' || !Number.isFinite(share) || share < 0 || share > 100) {
-			return { ok: false, message: 'share muss eine Zahl zwischen 0 und 100 sein.' };
-		}
-		let resolvedConfidence = DEFAULT_CONFIDENCE;
-		if (confidence !== undefined) {
-			if (typeof confidence !== 'number' || !Number.isFinite(confidence) || confidence < 0 || confidence > 100) {
-				return { ok: false, message: 'confidence muss eine Zahl zwischen 0 und 100 sein.' };
-			}
-			resolvedConfidence = confidence;
-		}
-		if (seen.has(pillarId)) {
-			return { ok: false, message: `Doppelte pillarId ${pillarId} in pillars.` };
-		}
-		seen.add(pillarId);
-		pillars.push({ pillarId, share, confidence: resolvedConfidence });
-	}
-	if (pillars.length > 0) {
-		const sum = pillars.reduce((acc, entry) => acc + entry.share, 0);
-		if (Math.abs(sum - TOTAL_SHARE) > SHARE_SUM_EPSILON) {
-			return { ok: false, message: `Die Summe der share-Werte muss ${TOTAL_SHARE} ergeben (aktuell ${sum}).` };
-		}
-	}
-	return { ok: true, pillars };
-};
 
 /**
  * Validiert den Request-Body für Anlegen/Aktualisieren eines Tasks.
@@ -225,29 +166,17 @@ const validateTaskFields = (body: unknown, requireTitle: boolean): ValidationRes
 
 	let pillars: PillarContribution[] | undefined;
 	if (input.pillars !== undefined) {
+		if (!Array.isArray(input.pillars)) {
+			return { ok: false, message: 'pillars muss eine Liste sein.' };
+		}
 		const result = validatePillars(input.pillars);
 		if (!result.ok) {
-			return result;
+			return { ok: false, message: 'Ungültige Säulen-Beiträge.' };
 		}
 		pillars = result.pillars;
 	}
 
 	return { ok: true, attrs, pillars };
-};
-
-/**
- * Prüft, ob alle referenzierten Säulen existieren. Säulen sind **globale Stammdaten** (für alle
- * Nutzer identisch), daher wird nur auf Existenz geprüft — keine Nutzer-Bindung mehr (die frühere
- * `ownerScope`-Prüfung aus #207 verwarf bei `NULL`-owned Stammdaten jede Zuweisung).
- * `[]` ist gültig (keine Säule). SQLite erzwingt den Fremdschlüssel nicht selbst.
- */
-const arePillarsExistent = async (pillars: PillarContribution[]): Promise<boolean> => {
-	if (pillars.length === 0) {
-		return true;
-	}
-	const ids = pillars.map((entry) => entry.pillarId);
-	const count = await Pillar.count({ where: { id: ids } });
-	return count === ids.length;
 };
 
 /** Schreibt die Säulen-Beiträge eines Tasks neu (ersetzt vorhandene) — innerhalb einer Transaktion. */
@@ -301,7 +230,7 @@ tasksRouter.post('/tasks', async (req: Request, res: Response<TaskDto | ErrorDto
 		return;
 	}
 	const userId = getUserId(req);
-	if (validation.pillars !== undefined && !(await arePillarsExistent(validation.pillars))) {
+	if (validation.pillars !== undefined && !(await arePillarsExistent(validation.pillars.map((p) => p.pillarId)))) {
 		sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
 		return;
 	}
@@ -352,7 +281,7 @@ tasksRouter.patch('/tasks/:id', async (req: Request, res: Response<TaskDto | Err
 		sendError(res, 400, validation.message);
 		return;
 	}
-	if (validation.pillars !== undefined && !(await arePillarsExistent(validation.pillars))) {
+	if (validation.pillars !== undefined && !(await arePillarsExistent(validation.pillars.map((p) => p.pillarId)))) {
 		sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
 		return;
 	}

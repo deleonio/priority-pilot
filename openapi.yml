@@ -1033,6 +1033,7 @@ components:
         - estimatedEffort
         - active
         - startDate
+        - pillars
       properties:
         id:
           type: integer
