@@ -25,7 +25,7 @@ const sendError = (res: Response<ErrorDto>, status: number, message: string): vo
  * Frage" — der Berater schlägt dann Aktivitäten über alle Säulen hinweg vor.
  */
 const validateBody = (body: unknown): { ok: true; question?: string } | { ok: false; message: string } => {
-	if (body !== undefined && (typeof body !== 'object' || body === null)) {
+	if (body !== undefined && (typeof body !== 'object' || body === null || Array.isArray(body))) {
 		return { ok: false, message: 'Request-Body muss ein Objekt sein.' };
 	}
 	const { question } = (body ?? {}) as Record<string, unknown>;

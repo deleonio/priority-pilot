@@ -30,6 +30,7 @@ export type PillarFeedbackInput = Schemas['PillarFeedbackInput'];
 export type PillarFeedbackResult = Schemas['PillarFeedbackResult'];
 export type ActivityAdvisorInput = Schemas['ActivityAdvisorInput'];
 export type ActivityAdvice = Schemas['ActivityAdvice'];
+export type ActivityAdvisorResult = Schemas['ActivityAdvisorResult'];
 export type ParseTaskInput = Schemas['ParseTaskInput'];
 export type ParsedTask = Schemas['ParsedTask'];
 export type ApiError = Schemas['Error'];
