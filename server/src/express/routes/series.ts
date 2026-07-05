@@ -23,6 +23,7 @@ interface SeriesAttributes {
 	estimatedEffort?: number;
 	active?: boolean;
 	startDate?: Date;
+	description?: string | null;
 }
 
 type ValidationResult = { ok: true; attrs: SeriesAttributes } | { ok: false; message: string };
@@ -59,6 +60,7 @@ const serializeSeries = (series: Series): SeriesDto => ({
 	estimatedEffort: series.estimatedEffort,
 	active: series.active,
 	startDate: series.startDate.toISOString(),
+	description: series.description ?? null,
 });
 
 /**
@@ -134,6 +136,13 @@ const validateSeriesFields = (body: unknown, isPost: boolean): ValidationResult 
 	}
 	if (isPost && attrs.startDate === undefined) {
 		return { ok: false, message: 'startDate ist erforderlich.' };
+	}
+
+	if (input.description !== undefined) {
+		if (input.description !== null && typeof input.description !== 'string') {
+			return { ok: false, message: 'description muss ein String oder null sein.' };
+		}
+		attrs.description = input.description;
 	}
 
 	return { ok: true, attrs };

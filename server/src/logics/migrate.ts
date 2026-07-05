@@ -61,6 +61,8 @@ const SERIES_TABLE_COLUMNS = [
 	{ name: 'startDate', definition: 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP' },
 	// Eigentümer-Bindung (#244, AK1): nullable, daher kein DEFAULT nötig.
 	{ name: 'userId', definition: 'INTEGER' },
+	// Freitext-Beschreibung (#301): nullable, daher kein NOT NULL/DEFAULT nötig.
+	{ name: 'description', definition: 'TEXT' },
 ] as const;
 
 /**

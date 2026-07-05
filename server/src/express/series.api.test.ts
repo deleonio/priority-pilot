@@ -257,9 +257,9 @@ describe('Series API', () => {
 		});
 
 		it('GET /series/:id → Response enthält das description-Feld', async () => {
-			const created = (await (
-				await post('/series', { ...validSeries(), description: 'GET-Verifikation' })
-			).json()) as { id: number };
+			const created = (await (await post('/series', { ...validSeries(), description: 'GET-Verifikation' })).json()) as {
+				id: number;
+			};
 			const res = await get(`/series/${created.id}`);
 			assert.equal(res.status, 200);
 			const body = (await res.json()) as Record<string, unknown>;
