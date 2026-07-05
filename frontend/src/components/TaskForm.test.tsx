@@ -456,9 +456,7 @@ describe('AK5 — Speichern verzweigt korrekt (#316)', () => {
 		mockCreateSeries.mockResolvedValue(minimalSeries());
 
 		await act(async () => {
-			render(
-				<TaskForm task={null} initialValues={{ description: 'Serienbeschreibung' }} {...defaultProps} />,
-			);
+			render(<TaskForm task={null} initialValues={{ description: 'Serienbeschreibung' }} {...defaultProps} />);
 		});
 
 		await switchToSeriesMode();
