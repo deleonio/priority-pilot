@@ -104,6 +104,7 @@ const TreeNode = ({
 							_icons={{ left: { icon: isDone ? 'fa-solid fa-rotate-left' : 'fa-solid fa-check' } }}
 							_variant={isDone ? 'secondary' : 'primary'}
 							_disabled={isUpdating || (!isDone && doneBlocked)}
+							aria-disabled={(!isDone && doneBlocked) || undefined}
 							_on={{
 								onClick: () => {
 									setIsUpdating(true);

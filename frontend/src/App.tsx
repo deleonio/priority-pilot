@@ -209,6 +209,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 	const handleDoneToggle = useCallback(
 		async (task: Task): Promise<void> => {
 			const next = task.status === TaskStatus.Done ? TaskStatus.Open : TaskStatus.Done;
+			const markingDone = task.status !== TaskStatus.Done;
 			try {
 				setUpdateError(null);
 				await api.updateTask({
@@ -222,7 +223,13 @@ export const App = ({ user }: { user: AuthUser }) => {
 						deadline: task.deadline,
 					},
 				});
-				await reload();
+				if (markingDone) {
+					// Optimistic update: keeps the task in the forest view so the Done→Open
+					// toggle remains accessible. Forest API only returns Open/In-process tasks.
+					setTasks((prev) => (prev === null ? null : prev.map((t) => (t.id === task.id ? { ...t, status: next } : t))));
+				} else {
+					await reload();
+				}
 			} catch (reason) {
 				const apiError = await toApiError(reason);
 				setUpdateError(apiError.message);
