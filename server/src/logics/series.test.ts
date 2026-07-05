@@ -141,7 +141,11 @@ describe('generateDueInstances', () => {
 		for (const inst of existing) {
 			assert.equal(inst.priority, 2);
 			// #295 AK3: bestehende Instanz trägt description-Snapshot
-			assert.equal(inst.description, 'Täglich 30 Minuten lesen', 'bestehende Instanz trägt die ursprüngliche description');
+			assert.equal(
+				inst.description,
+				'Täglich 30 Minuten lesen',
+				'bestehende Instanz trägt die ursprüngliche description',
+			);
 		}
 
 		// #295 AK3: bestehende Instanzen tragen die ursprünglichen task_pillars
@@ -237,7 +241,11 @@ describe('generateDueInstances', () => {
 		assert.equal(instances.length, 1, 'genau eine Instanz erzeugt');
 		const instance = instances[0];
 
-		assert.equal(instance.description, 'Täglich meditieren und Geist stärken', 'Instanz trägt die description aus dem Template');
+		assert.equal(
+			instance.description,
+			'Täglich meditieren und Geist stärken',
+			'Instanz trägt die description aus dem Template',
+		);
 
 		const taskPillars = await TaskPillar.findAll({ where: { taskId: instance.id } });
 		assert.equal(taskPillars.length, 2, 'Instanz hat zwei task_pillars');
