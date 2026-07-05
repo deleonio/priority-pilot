@@ -87,18 +87,18 @@ test.describe('Priority Pilot — Erledigt-Toggle in der Aufgaben-Liste (#315)',
 		await expect(doneToggle(page, id)).toBeVisible();
 
 		// Ausgangslage: die frisch angelegte Aufgabe ist offen.
-		expect(await fetchStatus(page, id)).toBe('open');
+		expect(await fetchStatus(page, id)).toBe('Open');
 
 		await doneToggle(page, id).click();
 
 		// PATCH /tasks/{id} hat den Status persistiert.
-		await expect.poll(async () => fetchStatus(page, id)).toBe('done');
+		await expect.poll(async () => fetchStatus(page, id)).toBe('Done');
 
-		// Persistenz nach Reload: Status bleibt „done".
+		// Persistenz nach Reload: Status bleibt „Done".
 		await page.reload();
 		await waitForStableView(page);
 		await openTasksTab(page);
-		expect(await fetchStatus(page, id)).toBe('done');
+		expect(await fetchStatus(page, id)).toBe('Done');
 	});
 
 	test('AK1: Toggle schaltet Done→Open zurück, PATCH persistiert und übersteht Reload', async ({ page }) => {
@@ -110,16 +110,16 @@ test.describe('Priority Pilot — Erledigt-Toggle in der Aufgaben-Liste (#315)',
 
 		// Erst auf Done schalten …
 		await doneToggle(page, id).click();
-		await expect.poll(async () => fetchStatus(page, id)).toBe('done');
+		await expect.poll(async () => fetchStatus(page, id)).toBe('Done');
 
 		// … dann wieder zurück auf Open.
 		await doneToggle(page, id).click();
-		await expect.poll(async () => fetchStatus(page, id)).toBe('open');
+		await expect.poll(async () => fetchStatus(page, id)).toBe('Open');
 
 		await page.reload();
 		await waitForStableView(page);
 		await openTasksTab(page);
-		expect(await fetchStatus(page, id)).toBe('open');
+		expect(await fetchStatus(page, id)).toBe('Open');
 	});
 
 	test('AK2: bei offener direkter Unteraufgabe ist der Toggle gesperrt und ein Hinweis sichtbar', async ({ page }) => {
@@ -138,7 +138,7 @@ test.describe('Priority Pilot — Erledigt-Toggle in der Aufgaben-Liste (#315)',
 		await expect(doneBlockedHint(page, parentId)).toBeVisible();
 
 		// Der gesperrte Toggle darf den Status nicht ändern.
-		expect(await fetchStatus(page, parentId)).toBe('open');
+		expect(await fetchStatus(page, parentId)).toBe('Open');
 	});
 
 	test('AK2: sind alle direkten Unteraufgaben Done, ist der Toggle wieder aktiv', async ({ page }) => {
@@ -157,7 +157,7 @@ test.describe('Priority Pilot — Erledigt-Toggle in der Aufgaben-Liste (#315)',
 			.click();
 		await expect(item(page, childId)).toBeVisible();
 		await doneToggle(page, childId).click();
-		await expect.poll(async () => fetchStatus(page, childId)).toBe('done');
+		await expect.poll(async () => fetchStatus(page, childId)).toBe('Done');
 
 		// Mit ausschließlich erledigten Unteraufgaben ist der Eltern-Toggle aktiv und ohne Hinweis.
 		await expect(doneToggle(page, parentId)).toBeEnabled();
@@ -165,7 +165,7 @@ test.describe('Priority Pilot — Erledigt-Toggle in der Aufgaben-Liste (#315)',
 
 		// Und er lässt sich nun betätigen.
 		await doneToggle(page, parentId).click();
-		await expect.poll(async () => fetchStatus(page, parentId)).toBe('done');
+		await expect.poll(async () => fetchStatus(page, parentId)).toBe('Done');
 	});
 
 	test('AK4: der Toggle ist auf 375×812 ohne horizontales Scrollen bedienbar', async ({ page }) => {
@@ -192,6 +192,6 @@ test.describe('Priority Pilot — Erledigt-Toggle in der Aufgaben-Liste (#315)',
 		}
 
 		await toggle.click();
-		await expect.poll(async () => fetchStatus(page, id)).toBe('done');
+		await expect.poll(async () => fetchStatus(page, id)).toBe('Done');
 	});
 });
