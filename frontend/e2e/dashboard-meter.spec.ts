@@ -48,13 +48,14 @@ test.describe('Dashboard — Meter Ist-Anteil (Issue #219)', () => {
 
 	const setFirstTaskDone = async (page: Page): Promise<void> => {
 		await openTasksTab(page);
-		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
-		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeVisible();
-		await waitForStableView(page);
-		await page.getByLabel('Status').click();
-		await page.getByRole('option', { name: 'Erledigt' }).click();
-		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
-		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeHidden();
+		const patchDone = page.waitForResponse(
+			(resp) => resp.url().includes('/api/v1/tasks/') && resp.request().method() === 'PATCH',
+		);
+		await page
+			.getByRole('button', { name: /Erledigen/ })
+			.first()
+			.click();
+		await patchDone;
 	};
 
 	// AK3 — Zielwert (Einstellungs-Gewichtung) ist als Meter-Schwelle über Farbe/Statustext erkennbar
