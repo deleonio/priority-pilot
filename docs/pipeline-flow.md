@@ -17,6 +17,7 @@ flowchart TD
         retriage[claude-retriage.yml<br/>Re-Analyse]:::wf
         spec[claude-spec.yml<br/>rote Tests + Draft-PR]:::wf
         implement[claude-implement.yml<br/>Umsetzung + PR ready]:::wf
+        unblock[claude-issue-unblock.yml<br/>Nachfolger freigeben]:::wf
     end
 
     %% ====== PR-Phase ======
@@ -64,6 +65,10 @@ flowchart TD
     %% ---- Abschluss ----
     merged -.->|pull_request.closed| cancel
 
+    %% ---- Merge-getriebenes Unblocking aufeinander aufbauender Issues ----
+    merged -.->|"pull_request.closed + merged"| unblock
+    unblock -->|"Nachfolger: − ai:analyzed → Re-Triage"| triage
+
     classDef wf fill:#1f6feb,stroke:#0b3d91,color:#fff;
     classDef evt fill:#2da44e,stroke:#116329,color:#fff;
     classDef done fill:#8957e5,stroke:#4c2889,color:#fff;
@@ -78,14 +83,14 @@ flowchart TD
 
 ## Label-Referenz
 
-| Label               | Gesetzt von                                 | Entfernt von                         | Triggert                       |
-| ------------------- | ------------------------------------------- | ------------------------------------ | ------------------------------ |
-| `ai:analyzed`       | triage / retriage                           | _(Vorbedingung, kein Trigger)_       | _(Vorbedingung, kein Trigger)_ |
-| `ai:spec-ready`     | triage / retriage (bei 🟢)                  | _(kein automatisches Entfernen)_     | `claude-spec.yml`              |
-| `ai:ready`          | spec                                        | _(kein automatisches Entfernen)_     | `claude-implement.yml`         |
-| `ai:needs-review`   | implement, pr-needs-review-label, **fixup** | review, gate-merge                   | `claude-pr-review.yml`         |
-| `ai:needs-changes`  | review (🔴), **gate-merge**                 | **pr-needs-review-label** (bei Push) | `claude-pr-fixup.yml`          |
-| `ai:ready-to-merge` | review (🟢)                                 | **pr-needs-review-label** (bei Push) | `claude-pr-gate-merge.yml`     |
+| Label               | Gesetzt von                                 | Entfernt von                                           | Triggert                                                             |
+| ------------------- | ------------------------------------------- | ------------------------------------------------------ | -------------------------------------------------------------------- |
+| `ai:analyzed`       | triage / retriage                           | **claude-issue-unblock** (Merge des Blockers), manuell | _Setzen:_ Vorbedingung; _Entfernen:_ `claude-triage.yml` (Re-Triage) |
+| `ai:spec-ready`     | triage / retriage (bei 🟢)                  | _(kein automatisches Entfernen)_                       | `claude-spec.yml`                                                    |
+| `ai:ready`          | spec                                        | _(kein automatisches Entfernen)_                       | `claude-implement.yml`                                               |
+| `ai:needs-review`   | implement, pr-needs-review-label, **fixup** | review, gate-merge                                     | `claude-pr-review.yml`                                               |
+| `ai:needs-changes`  | review (🔴), **gate-merge**                 | **pr-needs-review-label** (bei Push)                   | `claude-pr-fixup.yml`                                                |
+| `ai:ready-to-merge` | review (🟢)                                 | **pr-needs-review-label** (bei Push)                   | `claude-pr-gate-merge.yml`                                           |
 
 ## Schlüsselmechanik
 
@@ -113,8 +118,16 @@ flowchart TD
   ein Allowlist-Check (CI / Reviewer) rot → `ai:needs-changes` (stößt fixup an); sind beide grün
   und `ai:ready-to-merge` gesetzt → Merge. Dieser eine Workflow ersetzt die früheren zwei
   (Gate + Auto-Merge).
-- **cancel** beendet laufende review/fixup-Runs beim PR-Close (`pull_request.closed`) — die Kette
-  endet, kein Folge-Trigger.
+- **cancel** beendet laufende review/fixup-Runs beim PR-Close (`pull_request.closed`).
+- **unblock** (`claude-issue-unblock.yml`) reagiert auf den **Merge** eines PRs (`pull_request.closed`
+  - `merged == true`): Blockt das gemergte Issue nativ (GitHub-Issue-Dependencies) Nachfolge-Issues
+    und sind dadurch **alle** deren Blocker geschlossen (Fan-in-Gate, autoritativ per Blocker-`state`),
+    entfernt der Workflow deren `ai:analyzed` **per App-Token** → das re-triggert `claude-triage.yml`,
+    die den Nachfolger gegen den nun gemergten Code-Stand **neu analysiert** (🟢 → `ai:spec-ready`,
+    🟡/🔴 → nur `ai:analyzed` + Hinweise). So laufen aufeinander aufbauende Sub-Issues Glied für Glied.
+    Bewusst **kein** direktes `ai:spec-ready` — die erneute Machbarkeitsprüfung ist der Kern des
+    Ansatzes. Guards: nur offene Kandidaten mit `ai:analyzed`, ohne `ai:spec-ready`/`ai:ready`,
+    Sammelknoten (`ai:to-big-issue`) übersprungen.
 - **Deterministische Gates statt LLM-Vertrauen:** Kritische Zustandsübergänge sind deterministisch
   erzwungen, nicht dem LLM anvertraut (Prinzip „Gate statt Erinnerung"). Jedes Gate ist durch
   Vertragstests (`.github/workflows/pipeline-hardening.test.ts`) gespiegelt und kann nicht still

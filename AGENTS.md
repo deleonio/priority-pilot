@@ -172,6 +172,16 @@ automatisch für genau dieses eine Issue auf, sobald ein **Issue angelegt** wird
 Schreibzugriff, damit Außenstehende den OAuth-Token-Lauf nicht auslösen) oder das Label
 **`ai:analyzed` entfernt** wird (erzwingt eine Neu-Analyse, z. B. nach geänderter Beschreibung).
 
+Dieses Entfernen von `ai:analyzed` geschieht auch **automatisch beim Merge eines Vorgänger-Issues**:
+Sind Sub-Issues über native GitHub-Issue-Dependencies (`blocked-by`) sequenziell verkettet (A1 → A2 →
+A3, gesetzt bei der Zerlegung in der Triage), gibt
+[`.github/workflows/claude-issue-unblock.yml`](.github/workflows/claude-issue-unblock.yml) den
+nächsten Nachfolger frei, sobald **alle** seine Blocker gemergt/geschlossen sind (Fan-in-Gate) — indem
+es dessen `ai:analyzed` **per App-Token** entfernt und so die Re-Triage gegen den nun gemergten
+Code-Stand anstößt (die dann 🟢 → `ai:spec-ready` setzt oder mit Hinweisen beim Menschen bleibt). So
+laufen aufeinander aufbauende Tickets Glied für Glied, ohne dass „gleiche Dateien"-Sub-Issues
+gleichzeitig in Umsetzung kollidieren.
+
 ## Ticket-Spec (rote Tests vor der Umsetzung)
 
 Issues mit Label `ai:spec-ready` (von der Triage bei 🟢 gesetzt) bekommen **vor** der Umsetzung ihre

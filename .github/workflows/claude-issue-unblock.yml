@@ -1,0 +1,165 @@
+name: Claude Issue Unblock (Nachfolger freigeben)
+
+# Gibt abhängige Nachfolge-Issues frei, sobald ihr Vorgänger gemergt wurde (#…).
+#
+# Kette: Ein großes Ticket wird in sequenzielle Sub-Issues zerlegt (A1 → A2 → A3),
+# die per nativer GitHub-Issue-Dependency verknüpft sind (A1 *blockt* A2, A2 *blockt* A3).
+# Nur der erste, unblockierte Sub-Issue trägt `ai:spec-ready`; die Nachfolger warten auf
+# `ai:analyzed`. Wird der PR eines Vorgängers gemergt, prüft dieser Workflow, ob dadurch
+# ALLE Blocker eines Nachfolgers aufgelöst sind (Fan-in-Gate). Wenn ja, wird `ai:analyzed`
+# ENTFERNT → das re-triggert claude-triage.yml, die den Nachfolger gegen den nun gemergten
+# Code-Stand NEU analysiert und selbst entscheidet: 🟢 → `ai:spec-ready` (Kette läuft weiter),
+# 🟡/🔴 → nur `ai:analyzed` + Hinweise (Mensch reagiert). Der Workflow setzt bewusst KEIN
+# `ai:spec-ready` selbst — die erneute Machbarkeitsprüfung ist der Kern des Ansatzes.
+#
+# WICHTIG (Folge-Workflows / Token-Trigger-Falle): Von GITHUB_TOKEN entfernte Labels lösen
+# KEINE weiteren Workflows aus. Damit das "unlabeled"-Event von `ai:analyzed` die Re-Triage
+# (claude-triage.yml) wirklich startet, wird `ai:analyzed` mit einem kurzlebigen
+# GitHub-App-Token (APP_ID + APP_PRIVATE_KEY) entfernt — gleiches Muster wie
+# pr-needs-review-label.yml / claude-pr-conflict-scan.yml.
+#
+# Selbsttest-Hinweis: Ein neuer pull_request-Workflow lässt sich nicht am eigenen
+# Einführungs-PR verifizieren (er ist zum Merge-Zeitpunkt noch nicht auf main). Die Logik
+# ist deshalb durch statische Verträge abgesichert (claude-issue-unblock.test.ts).
+
+on:
+  pull_request:
+    types: [closed]
+
+concurrency:
+  # Pro gemergtem PR serialisieren; nicht abbrechen (jeder Merge soll vollständig auswerten).
+  group: claude-issue-unblock-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  unblock:
+    # Nur bei tatsächlichem Merge (nicht bei jedem Schließen) und nur für same-repo-PRs.
+    if: >-
+      ${{ github.event.pull_request.merged == true
+          && github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read # Label-Schreibzugriff läuft über das App-Token
+    steps:
+      - name: Voraussetzung prüfen (GitHub-App-Secrets)
+        id: preflight
+        env:
+          APP_ID: ${{ secrets.APP_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+        run: |
+          if [ -z "$APP_ID" ] || [ -z "$APP_PRIVATE_KEY" ]; then
+            echo "::warning::GitHub-App-Secrets fehlen (APP_ID und/oder APP_PRIVATE_KEY) — Lauf wird übersprungen (kein Fehler). GitHub App anlegen (Issues/Contents/Pull requests = Read and write), aufs Repo installieren und beide Werte als Repo-Secrets hinterlegen, damit die Freigabe kaskadiert."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: GitHub-App-Token erzeugen
+        id: app-token
+        if: steps.preflight.outputs.configured == 'true'
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.2.2
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      # Reiner gh-Job (kein Checkout, kein LLM): gemergtes Issue ermitteln, native Nachfolger
+      # (blocking) finden, Fan-in-Gate (blocked_by) prüfen und ai:analyzed per App-Token
+      # entfernen. Alle gh-Befehle sind --repo-gescoped (ohne Checkout leitet gh sonst die
+      # Repo-Identität aus dem lokalen git-Remote ab → `fatal: not a git repository`).
+      - name: Nachfolger des gemergten Issues freigeben
+        if: steps.preflight.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }} # App-Token → unlabeled-Event triggert Re-Triage
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          # 1) Gemergte Issues über closingIssuesReferences (nicht über den Branch-Namen raten).
+          merged_issues="$(gh pr view "$PR" --repo "$REPO" --json closingIssuesReferences \
+            --jq '.closingIssuesReferences[].number')"
+          if [ -z "$merged_issues" ]; then
+            echo "PR #$PR schließt kein Issue (kein Closes #…) — nichts freizugeben (No-op)."
+            exit 0
+          fi
+
+          # Menge der gemergten Issue-Nummern als JSON-Array — für den Fan-in-Ausschluss unten:
+          # ein PR kann mehrere Issues schließen; alle gelten als aufgelöst (Close-Propagation ist async).
+          merged_json="$(printf '%s\n' $merged_issues | jq -R 'select(length>0)' | jq -s '.')"
+
+          for A in $merged_issues; do
+            # 2) Wen blockt A nativ? (GitHub-Issue-Dependencies). Leere/fehlende Relation → No-op.
+            blocked="$(gh api "repos/$REPO/issues/$A/dependencies/blocking" --jq '.[].number' 2>/dev/null || true)"
+            if [ -z "$blocked" ]; then
+              echo "Issue #$A blockt keine anderen Issues — nichts freizugeben."
+              continue
+            fi
+
+            for B in $blocked; do
+              # 3) Kandidat-Zustand + Labels laden (REST → state ist "open"/"closed" kleingeschrieben).
+              #    Fail-safe: ein transienter API-Fehler bei EINEM Nachfolger darf den ganzen Lauf
+              #    (und damit die übrigen Nachfolger desselben Merges) nicht abreißen.
+              Bjson="$(gh api "repos/$REPO/issues/$B" 2>/dev/null || true)"
+              if [ -z "$Bjson" ]; then
+                echo "#$B nicht abrufbar (API) — skip (Fail-safe)."
+                continue
+              fi
+              Bstate="$(echo "$Bjson" | jq -r '.state')"
+              Blabels="$(echo "$Bjson" | jq -r '[.labels[].name]')"
+
+              if [ "$Bstate" != "open" ]; then
+                echo "#$B ist nicht offen ($Bstate) — skip."
+                continue
+              fi
+
+              has_label() { echo "$Blabels" | jq -e --arg l "$1" 'any(.[]; . == $l)' >/dev/null; }
+
+              # Guard: nur analysierte, noch nicht in der Kette laufende, nicht-Sammelknoten.
+              if ! has_label "ai:analyzed"; then
+                echo "#$B trägt kein ai:analyzed — nicht freizugeben (skip)."
+                continue
+              fi
+              if has_label "ai:spec-ready" || has_label "ai:ready"; then
+                echo "#$B ist bereits in der Kette (ai:spec-ready/ai:ready) — skip (Idempotenz)."
+                continue
+              fi
+              if has_label "ai:to-big-issue"; then
+                echo "#$B ist ein Sammelknoten (ai:to-big-issue) — skip."
+                continue
+              fi
+
+              # 4) Fan-in-Gate: sind ALLE Blocker von B geschlossen? Autoritativ pro Blocker den
+              #    state prüfen. Die gerade gemergte(n) Issue(s) (merged_json) werden als aufgelöst
+              #    behandelt, um die asynchrone Close-Propagation nach dem Merge nicht abzuwarten
+              #    (Race-Schutz) — inkl. des Falls, dass ein PR mehrere Blocker desselben B schließt.
+              blockers="$(gh api "repos/$REPO/issues/$B/dependencies/blocked_by" 2>/dev/null || true)"
+              if [ -z "$blockers" ]; then
+                echo "#$B: blocked_by nicht abrufbar (API) — skip (Fail-safe, kein voreiliges Unblock)."
+                continue
+              fi
+              # Hinweis (jq-Scoping): Die Blocker-Nummer VOR dem index() als $n binden — innerhalb
+              # von `$merged | index(...)` bezöge sich `.number` sonst auf $merged (das Array), nicht
+              # auf das Blocker-Objekt. Ein geschlossener Blocker fällt bereits durch .state == "open".
+              open_others="$(echo "$blockers" \
+                | jq --argjson merged "$merged_json" '[.[] | (.number|tostring) as $n | select(.state == "open" and (($merged | index($n)) == null))] | length')"
+              if [ "$open_others" != "0" ]; then
+                echo "#$B hat noch $open_others offene Blocker (außer den gemergten) — Fan-in-Gate, skip."
+                continue
+              fi
+
+              # 5) Freigeben. Content-first (pipeline-flow.md "Label-Reihenfolge-Prinzip"): erst den
+              #    informierenden Ping posten, DANN ai:analyzed entfernen — das Entfernen ist der
+              #    Trigger (App-Token → Re-Triage prüft gegen den neuen Code-Stand) und kommt zuletzt.
+              echo "#$B: alle Blocker aufgelöst (Vorgänger #$A gemergt) — informiere und entferne ai:analyzed → Re-Triage."
+              gh issue comment "$B" --repo "$REPO" --body-file - <<EOF
+          🤖 Vorgänger #$A gemergt, alle Blocker aufgelöst → Neu-Analyse gegen den aktuellen Code-Stand angestoßen (Label \`ai:analyzed\` entfernt). Die Re-Triage entscheidet, ob das Issue jetzt umsetzbar ist (🟢 → \`ai:spec-ready\`) oder ob es Hinweise für dich gibt (🟡/🔴).
+          EOF
+              gh issue edit "$B" --repo "$REPO" --remove-label "ai:analyzed"
+              {
+                echo "### Issue #${B} — freigegeben (Vorgänger #${A} gemergt)"
+                echo ""
+                echo "- Alle Blocker aufgelöst → \`ai:analyzed\` entfernt → claude-triage.yml re-analysiert gegen den neuen Code-Stand."
+              } >> "$GITHUB_STEP_SUMMARY"
+            done
+          done

@@ -126,6 +126,15 @@ Bei einem zu großen Ticket:
   Eltern-Body **nicht überschreiben**, sondern die Task-Liste **anhängen** (bestehenden Body laden,
   ergänzen, zurückschreiben), um keinen Inhalt zu verlieren. Den API-Fehler und den Grund für den
   Fallback im Ping-Kommentar (Schritt 4b) dokumentieren, damit der Mensch informiert ist.
+- **Bei sequenziellen Abhängigkeiten — native `blocked-by`-Relation setzen (Pflicht):** Bauen die
+  Sub-Issues aufeinander auf (gleiche Dateien, „A2 nach A1", Reihenfolge A1 → A2 → A3), die
+  Abhängigkeit **maschinenlesbar** als native GitHub-Issue-Dependency hinterlegen — nicht nur als
+  Prosa —, damit sie beim Merge automatisch aufgelöst wird (letzter Punkt in diesem Schritt). Jeder
+  Nachfolger wird von seinem direkten Vorgänger **geblockt** (A1 blockt A2, A2 blockt A3):
+  `gh api graphql -f query='mutation($b:ID!,$k:ID!){addBlockedBy(input:{issueId:$b,blockingIssueId:$k}){clientMutationId}}' -f b=<nachfolger-node-id> -f k=<vorgänger-node-id>`
+  (Node-IDs über `gh issue view <nr> --json id`.) Nur **echte** Reihenfolge-Abhängigkeiten verknüpfen;
+  unabhängige Sub-Issues bleiben ohne `blocked-by`. Die Kanten gedrosselt setzen — die Dependency-API
+  kann bei zu schnellen Schreibzugriffen sekundär rate-limiten.
 - **Rekursionsschutz (Pflicht):** Sub-Issues werden direkt mit `ai:analyzed` angelegt (sie **sind**
   bereits das Analyse-Ergebnis) und fallen so aus dem Auswahlkriterium von Schritt 1 — sie werden
   nicht erneut triagiert/zerlegt. Es ist nur **eine** Zerlegungsebene zulässig: ein Sub-Issue wird
@@ -133,7 +142,14 @@ Bei einem zu großen Ticket:
 - Sind Sub-Issues sofort umsetzbar (Ampel 🟢), zusätzlich `ai:spec-ready` setzen — entweder direkt
   beim Anlegen (`--label "ai:analyzed,ai:spec-ready"`) oder nachträglich
   (`gh issue edit <nr> --add-label "ai:spec-ready"`) —, damit die Spec-Stufe (`/spec-ticket`) die
-  roten Tests schreibt.
+  roten Tests schreibt. **Bei sequenziellen Ketten (`blocked-by`, s. o.) nur den ersten,
+  unblockierten Sub-Issue** auf `ai:spec-ready` heben; die geblockten Nachfolger bleiben bei
+  `ai:analyzed` (auch wenn selbst 🟢) und werden **automatisch freigegeben, sobald ihr Vorgänger
+  gemergt ist**: [`claude-issue-unblock.yml`](../.github/workflows/claude-issue-unblock.yml) entfernt
+  dann ihr `ai:analyzed` (per App-Token) und stößt eine Re-Triage gegen den neuen Code-Stand an, die
+  ihrerseits `ai:spec-ready` setzt (🟢) oder mit Hinweisen beim Menschen bleibt (🟡/🔴). So läuft die
+  Kette Glied für Glied, ohne dass mehrere „gleiche Dateien"-Sub-Issues gleichzeitig in Umsetzung
+  gehen und kollidieren.
 
 ## Schritt 4 — Lösungsvorschlag im Body-Block (mit Ampel)
 
