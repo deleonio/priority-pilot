@@ -171,7 +171,9 @@ test.describe('Priority Pilot — Task/Serie-Umschalter im Anlege-Formular (#316
 		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue(title);
 
 		// Zurück auf „Aufgabe" — Deadline erscheint wieder, der Titel-Wert überlebt auch den Rückwechsel.
-		await modeToggle(page).getByRole('button', { name: /aufgabe/i }).click();
+		await modeToggle(page)
+			.getByRole('button', { name: /aufgabe/i })
+			.click();
 		await expect(page.getByLabel('Deadline (optional)')).toBeVisible();
 		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue(title);
 	});
