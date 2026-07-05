@@ -53,6 +53,7 @@ export const AdvisorResults = ({ advice, pillars, onAdoptActivity }: AdvisorResu
 						<KolButton
 							_label="Als Aufgabe übernehmen"
 							_variant="secondary"
+							// Natives onClick statt _on.onClick: jsdom legt _on nur als inerte Property ab (kein DOM-Listener), sodass der Klick im Test nicht feuern würde.
 							onClick={() => onAdoptActivity(entry.activity)}
 						/>
 					)}
