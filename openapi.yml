@@ -176,6 +176,41 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /pillars/advisor:
+    post:
+      summary: Aktivitäten-Berater für die Säulen (Mistral)
+      description: >-
+        Kleiner Berater auf Basis der Säulen: schlägt konkrete Aktivitäten vor und
+        ordnet jede Aktivität den Säulen zu, auf die sie einzahlen würde. Als Rubrik
+        dienen die Kurzbeschreibungen der Säulen aus den Einstellungen
+        (`Pillar.description`). Optional lenkt eine frei formulierte Frage bzw.
+        Situationsbeschreibung die Vorschläge; ohne Frage deckt der Berater alle
+        Säulen ab. Die Beratung erfolgt über die Mistral-API (`MISTRAL_API_KEY`,
+        Modell via `MISTRAL_MODEL`, Default `mistral-small-latest`). Fehlt der Key
+        oder gibt es keine Säulen, antwortet der Endpoint mit 503; bei
+        Upstream-/Format-Fehlern mit 502.
+      operationId: advisePillarActivities
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivityAdvisorInput'
+      responses:
+        '200':
+          description: Vorgeschlagene Aktivitäten samt Säulen-Zuordnung und Begründung
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActivityAdvisorResult'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '502':
+          $ref: '#/components/responses/BadGateway'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /tasks/suggest-pillars:
     post:
       summary: Säulen-Einzahlung per Mistral klassifizieren
@@ -867,6 +902,50 @@ components:
                 format: float
                 minimum: 0
                 description: Prozentualer Anteil der Säule
+    ActivityAdvisorInput:
+      type: object
+      description: >-
+        Eingabe für den Aktivitäten-Berater. Die optionale Frage (z. B. „Was kann
+        ich am Wochenende für mich tun?") lenkt die Vorschläge; ohne Frage schlägt
+        der Berater Aktivitäten über alle Säulen hinweg vor.
+      properties:
+        question:
+          type: string
+          maxLength: 500
+          description: Optionale Frage bzw. Situationsbeschreibung des Nutzers
+    ActivityAdvice:
+      type: object
+      description: >-
+        Ein Vorschlag des Aktivitäten-Beraters — eine konkrete Aktivität samt der
+        Säulen, auf die sie einzahlen würde, und einer kurzen Begründung.
+      required:
+        - activity
+        - reason
+        - pillarIds
+      properties:
+        activity:
+          type: string
+          description: Kurzer, konkreter Name der vorgeschlagenen Aktivität
+        reason:
+          type: string
+          description: Kurze Begründung, warum die Aktivität auf die genannten Säulen einzahlt
+        pillarIds:
+          type: array
+          description: IDs der Säulen, auf die die Aktivität einzahlen würde
+          items:
+            type: integer
+            minimum: 1
+    ActivityAdvisorResult:
+      type: object
+      description: Ergebnis des Aktivitäten-Beraters.
+      required:
+        - advice
+      properties:
+        advice:
+          type: array
+          description: Vorgeschlagene Aktivitäten samt Säulen-Zuordnung
+          items:
+            $ref: '#/components/schemas/ActivityAdvice'
     SuggestPillarsInput:
       type: object
       description: Eingabe für die Säulen-Klassifikation einer Aufgabe.

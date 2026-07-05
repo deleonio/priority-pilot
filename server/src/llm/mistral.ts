@@ -287,10 +287,12 @@ const parseModelContent = (payload: unknown): unknown => {
 };
 
 /**
- * Realer Klassifikator: ruft die Mistral-Chat-Completions-API auf. Wirft {@link MissingApiKeyError},
- * wenn kein API-Key gesetzt ist, und {@link MistralRequestError} bei jedem Upstream-/Format-Problem.
+ * Gemeinsamer Unterbau aller Mistral-Aufrufe: schickt die Nachrichten an die Chat-Completions-API
+ * (JSON-Mode, Temperatur 0, Timeout) und liefert den geparsten JSON-Inhalt der Modell-Antwort.
+ * Wirft {@link MissingApiKeyError}, wenn kein API-Key gesetzt ist, und {@link MistralRequestError}
+ * bei jedem Upstream-/Format-Problem.
  */
-export const classifyPillarsWithMistral: PillarClassifier = async (input) => {
+const requestModelJson = async (messages: { role: string; content: string }[]): Promise<unknown> => {
 	const apiKey = process.env.MISTRAL_API_KEY;
 	if (!apiKey) {
 		throw new MissingApiKeyError();
@@ -311,12 +313,7 @@ export const classifyPillarsWithMistral: PillarClassifier = async (input) => {
 				model,
 				temperature: 0,
 				response_format: { type: 'json_object' },
-				messages: [
-					{ role: 'system', content: SYSTEM_PROMPT },
-					...fewShotMessages(input.pillars),
-					...feedbackMessages(input),
-					{ role: 'user', content: buildUserMessage(input) },
-				],
+				messages,
 			}),
 			signal: controller.signal,
 		});
@@ -338,7 +335,21 @@ export const classifyPillarsWithMistral: PillarClassifier = async (input) => {
 		throw new MistralRequestError('Mistral-Antwort konnte nicht als JSON gelesen werden.');
 	}
 
-	return extractSuggestions(parseModelContent(payload), input);
+	return parseModelContent(payload);
+};
+
+/**
+ * Realer Klassifikator: ruft die Mistral-Chat-Completions-API auf. Wirft {@link MissingApiKeyError},
+ * wenn kein API-Key gesetzt ist, und {@link MistralRequestError} bei jedem Upstream-/Format-Problem.
+ */
+export const classifyPillarsWithMistral: PillarClassifier = async (input) => {
+	const parsed = await requestModelJson([
+		{ role: 'system', content: SYSTEM_PROMPT },
+		...fewShotMessages(input.pillars),
+		...feedbackMessages(input),
+		{ role: 'user', content: buildUserMessage(input) },
+	]);
+	return extractSuggestions(parsed, input);
 };
 
 /** System-Prompt für die Task-Schnellerfassung: extrahiert strukturierte Felder aus Freitext. */
@@ -391,50 +402,124 @@ const extractParsedTask = (parsed: unknown): ParsedTask => {
  * API-Key gesetzt ist, und {@link MistralRequestError} bei jedem Upstream-/Format-Problem.
  */
 export const parseTaskTextWithMistral: ParseTaskParser = async (text) => {
-	const apiKey = process.env.MISTRAL_API_KEY;
-	if (!apiKey) {
-		throw new MissingApiKeyError();
-	}
-	const model = process.env.MISTRAL_MODEL ?? DEFAULT_MODEL;
+	const parsed = await requestModelJson([
+		{ role: 'system', content: PARSE_TASK_SYSTEM_PROMPT },
+		{ role: 'user', content: text },
+	]);
+	return extractParsedTask(parsed);
+};
 
-	const controller = new AbortController();
-	const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-	let response: Response;
-	try {
-		response = await fetch(MISTRAL_ENDPOINT, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Authorization: `Bearer ${apiKey}`,
-			},
-			body: JSON.stringify({
-				model,
-				temperature: 0,
-				response_format: { type: 'json_object' },
-				messages: [
-					{ role: 'system', content: PARSE_TASK_SYSTEM_PROMPT },
-					{ role: 'user', content: text },
-				],
-			}),
-			signal: controller.signal,
+/** Ein Vorschlag des Aktivitäten-Beraters: Aktivität, Begründung und die Säulen, auf die sie einzahlt. */
+export interface ActivityAdvice {
+	activity: string;
+	reason: string;
+	pillarIds: number[];
+}
+
+/**
+ * Eingabe für den Aktivitäten-Berater. `pillars` gibt die gültigen Säulen samt der kanonischen
+ * Kurzbeschreibung aus den Einstellungen vor (die Rubrik kommt also aus der DB, nicht aus einem
+ * hartkodierten Prompt-Text). `question` ist die optionale Frage/Situation des Nutzers.
+ */
+export interface AdviseActivitiesInput {
+	question?: string;
+	pillars: { id: number; name: string; description: string }[];
+}
+
+/** Funktionssignatur des Beraters — injizierbar, damit Tests ohne echten API-Call laufen. */
+export type ActivityAdvisor = (input: AdviseActivitiesInput) => Promise<ActivityAdvice[]>;
+
+/** Obergrenze der zurückgegebenen Vorschläge — hält die Antwort klein und die UI übersichtlich. */
+const MAX_ADVICE_ENTRIES = 8;
+
+/**
+ * System-Prompt des Aktivitäten-Beraters. Bewusst ohne feste Säulen-Rubrik: Namen und
+ * Kurzbeschreibungen der Säulen werden pro Anfrage aus den Einstellungen (DB) in die
+ * Nutzer-Nachricht injiziert (siehe {@link buildAdvisorUserMessage}).
+ */
+const ADVISOR_SYSTEM_PROMPT = [
+	'Du bist der Aktivitäten-Berater eines Lebensbalance-Tools. Der Nutzer pflegt Lebensbalance-Säulen;',
+	'jede Aktivität kann auf eine oder mehrere Säulen „einzahlen".',
+	'',
+	'Deine Aufgabe: Schlage konkrete, alltagstaugliche Aktivitäten vor und ordne jede Aktivität den',
+	'Säulen zu, auf die sie einzahlt. Maßgeblich für die Zuordnung sind ausschließlich die vom Nutzer',
+	'übergebenen Säulen samt ihrer Kurzbeschreibungen.',
+	'',
+	'Regeln:',
+	`- Gib 4 bis ${MAX_ADVICE_ENTRIES} Vorschläge zurück.`,
+	'- Stellt der Nutzer eine Frage oder beschreibt eine Situation, richte die Vorschläge danach aus.',
+	'- Ohne Frage: Verteile die Vorschläge so, dass jede Säule mindestens einmal bedient wird.',
+	'- Jede Aktivität nennt nur Säulen, auf die sie plausibel einzahlt (mindestens eine).',
+	'- "reason" ist eine kurze deutsche Begründung (ein Satz), warum die Aktivität auf diese Säulen einzahlt.',
+	'',
+	'Antworte ausschließlich mit JSON in genau dieser Form (keine Erklärung, kein Markdown):',
+	'{ "advice": [ { "activity": <string>, "reason": <string>, "pillarIds": [<ganzzahl>] } ] }',
+	'Verwende nur die pillarId-Werte aus der übergebenen Säulen-Liste.',
+].join('\n');
+
+/** Baut die Nutzer-Nachricht des Beraters: Säulen-Rubrik aus den Einstellungen + optionale Frage. */
+const buildAdvisorUserMessage = (input: AdviseActivitiesInput): string => {
+	const pillarList = input.pillars
+		.map((pillar) => `  - pillarId ${pillar.id}: ${pillar.name} — ${pillar.description}`)
+		.join('\n');
+	const lines = ['Säulen (nur diese pillarId-Werte verwenden):', pillarList, ''];
+	if (input.question) {
+		lines.push(`Frage/Situation des Nutzers: ${input.question}`);
+	} else {
+		lines.push('Der Nutzer hat keine konkrete Frage — schlage Aktivitäten über alle Säulen hinweg vor.');
+	}
+	return lines.join('\n');
+};
+
+/**
+ * Liest aus der (bereits geparsten) Modell-Antwort die Berater-Vorschläge defensiv aus: nur Einträge
+ * mit nicht-leerer Aktivität und mindestens einer bekannten Säule, `pillarIds` dublettenfrei und
+ * sortiert, insgesamt auf {@link MAX_ADVICE_ENTRIES} begrenzt.
+ */
+const extractActivityAdvice = (parsed: unknown, input: AdviseActivitiesInput): ActivityAdvice[] => {
+	if (typeof parsed !== 'object' || parsed === null || !Array.isArray((parsed as { advice?: unknown }).advice)) {
+		throw new MistralRequestError('Antwort des Modells hat nicht das erwartete Format ({ advice: [...] }).');
+	}
+	const validIds = new Set(input.pillars.map((pillar) => pillar.id));
+
+	const advice: ActivityAdvice[] = [];
+	for (const raw of (parsed as { advice: unknown[] }).advice) {
+		if (typeof raw !== 'object' || raw === null) {
+			continue;
+		}
+		const { activity, reason, pillarIds } = raw as Record<string, unknown>;
+		if (typeof activity !== 'string' || activity.trim() === '' || !Array.isArray(pillarIds)) {
+			continue;
+		}
+		const ids = [
+			...new Set(
+				pillarIds.filter((id): id is number => typeof id === 'number' && Number.isInteger(id) && validIds.has(id)),
+			),
+		].sort((a, b) => a - b);
+		if (ids.length === 0) {
+			continue;
+		}
+		advice.push({
+			activity: activity.trim(),
+			reason: typeof reason === 'string' ? reason.trim() : '',
+			pillarIds: ids,
 		});
-	} catch (error) {
-		const reason = error instanceof Error ? error.message : 'unbekannter Fehler';
-		throw new MistralRequestError(`Mistral-Anfrage fehlgeschlagen: ${reason}`);
-	} finally {
-		clearTimeout(timeout);
+		if (advice.length >= MAX_ADVICE_ENTRIES) {
+			break;
+		}
 	}
+	return advice;
+};
 
-	if (!response.ok) {
-		throw new MistralRequestError(`Mistral antwortete mit HTTP ${response.status}.`);
-	}
-
-	let payload: unknown;
-	try {
-		payload = await response.json();
-	} catch {
-		throw new MistralRequestError('Mistral-Antwort konnte nicht als JSON gelesen werden.');
-	}
-
-	return extractParsedTask(parseModelContent(payload));
+/**
+ * Realer Aktivitäten-Berater: ruft die Mistral-Chat-Completions-API auf und schlägt Aktivitäten
+ * samt Säulen-Zuordnung vor. Wirft {@link MissingApiKeyError}, wenn kein API-Key gesetzt ist, und
+ * {@link MistralRequestError} bei jedem Upstream-/Format-Problem.
+ */
+export const adviseActivitiesWithMistral: ActivityAdvisor = async (input) => {
+	const parsed = await requestModelJson([
+		{ role: 'system', content: ADVISOR_SYSTEM_PROMPT },
+		{ role: 'user', content: buildAdvisorUserMessage(input) },
+	]);
+	return extractActivityAdvice(parsed, input);
 };

@@ -122,6 +122,12 @@ Im Aufgabenformular kannst du für jede Säule angeben:
 
 Bei der KI-Schnellerfassung klassifiziert die KI automatisch, welche Säulen zur neuen Aufgabe passen, und schlägt Anteile und Konfidenzwerte vor.
 
+### Säulen-Berater (Aktivitäten-Ratgeber)
+
+Der Säulen-Berater (Glühbirnen-Symbol im Header) ist ein kleiner KI-Ratgeber: Er schlägt dir konkrete Aktivitäten vor und zeigt, auf welche Säulen sie einzahlen würden — samt kurzer Begründung. Als Grundlage dienen die Kurzbeschreibungen der Säulen aus den Einstellungen.
+
+Optional kannst du eine Frage oder deine Situation beschreiben (z. B. „Was kann ich am Wochenende für mich tun?"); der Berater richtet die Vorschläge dann danach aus. Ohne Frage bekommst du Vorschläge über alle Säulen hinweg. Die Beratung läuft — wie die KI-Schnellerfassung — über die Mistral-API und benötigt einen konfigurierten `MISTRAL_API_KEY`.
+
 ### Säulen-Gewichtung anpassen
 
 Die globale Säulen-Gewichtung steuert, welche Lebensbereiche gerade Priorität haben sollen. Du erreichst sie über das Einstellungs-Symbol im Header oder über das Dashboard-Widget „Meine Themen".

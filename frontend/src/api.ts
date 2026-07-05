@@ -1,5 +1,7 @@
 import { ResponseError } from 'client';
 import type {
+	ActivityAdvice,
+	ActivityAdvisorInput,
 	components,
 	DependencyInput,
 	ParsedTask,
@@ -174,6 +176,19 @@ export const api = {
 			throw new ResponseError(response);
 		}
 		return data.suggestions;
+	},
+
+	// Aktivitäten-Berater (`POST /pillars/advisor`): schlägt per Mistral konkrete Aktivitäten vor
+	// und ordnet sie den Säulen zu, auf die sie einzahlen würden — optional gelenkt durch eine Frage.
+	async advisePillarActivities({
+		activityAdvisorInput,
+		signal,
+	}: { activityAdvisorInput: ActivityAdvisorInput } & Init): Promise<ActivityAdvice[]> {
+		const { data, response } = await client.POST('/pillars/advisor', { body: activityAdvisorInput, signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response);
+		}
+		return data.advice;
 	},
 
 	// Speichert eine vom Nutzer bestätigte/korrigierte Säulen-Zuordnung als Lern-Sample für
