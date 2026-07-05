@@ -144,7 +144,9 @@ export const createPillarAdvisorRouter = (advisor: ActivityAdvisor = adviseActiv
 				const advice = await advisor({
 					question: validation.question,
 					pillars: pillars.map((pillar) => ({ id: pillar.id, name: pillar.name, description: pillar.description })),
-					attention: attention.map((entry) => ({ pillarId: entry.pillarId, score: entry.score })),
+					attention: attention
+						.filter((entry) => entry.score > NEGLECTED_SCORE_THRESHOLD)
+						.map((entry) => ({ pillarId: entry.pillarId, score: entry.score })),
 				});
 				// Das `attention`-Feld nur anhängen, wenn mindestens eine Säule als vernachlässigt gilt —
 				// so bleibt die Antwort ohne echtes Signal frei von Rauschen (und deckungsgleich mit dem
