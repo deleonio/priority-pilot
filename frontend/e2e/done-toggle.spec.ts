@@ -121,9 +121,7 @@ test.describe('Priority Pilot — Erledigt-Toggle in der Aufgaben-Liste (#315)',
 		expect(await fetchStatus(page, id)).toBe('open');
 	});
 
-	test('AK2: bei offener direkter Unteraufgabe ist der Toggle gesperrt und ein Hinweis sichtbar', async ({
-		page,
-	}) => {
+	test('AK2: bei offener direkter Unteraufgabe ist der Toggle gesperrt und ein Hinweis sichtbar', async ({ page }) => {
 		const parentId = await createTask(page, uniqueTitle('Eltern'));
 		const childId = await createTask(page, uniqueTitle('Kind-offen'));
 		await addSubtask(page, parentId, childId);

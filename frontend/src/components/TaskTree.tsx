@@ -1,6 +1,8 @@
 import { KolButton, KolToolbar } from '@public-ui/react-v19';
 import type { Task, TaskTreeNode } from 'client';
+import { TaskStatus } from 'client';
 import { useCallback, useMemo, useState } from 'react';
+import { isDoneBlockedBySubtasks } from '../lib/task';
 
 interface TaskTreeProps {
 	/** Aufgabenwald (`GET /forest`): Wurzeln und ihre `dependents` (Unteraufgaben). */
@@ -14,6 +16,8 @@ interface TaskTreeProps {
 	onEditDependencies: (task: Task) => void;
 	/** Legt eine neue Unteraufgabe an, die als Vorgänger mit dieser Aufgabe verknüpft wird. */
 	onAddSubtask: (task: Task) => void;
+	/** Schaltet eine Aufgabe per binärem Toggle zwischen „Erledigt" und „Offen" um (#315). */
+	onDoneToggle: (task: Task) => void;
 }
 
 interface TreeNodeProps {
@@ -26,6 +30,7 @@ interface TreeNodeProps {
 	onDelete: (task: Task) => void;
 	onEditDependencies: (task: Task) => void;
 	onAddSubtask: (task: Task) => void;
+	onDoneToggle: (task: Task) => void;
 	/** IDs des aktuellen Pfads — bricht bei einem (unerwarteten) Zyklus im Wald den Abstieg ab. */
 	visited: Set<number>;
 }
@@ -40,6 +45,7 @@ const TreeNode = ({
 	onDelete,
 	onEditDependencies,
 	onAddSubtask,
+	onDoneToggle,
 	visited,
 }: TreeNodeProps) => {
 	if (visited.has(node.id)) {
@@ -50,6 +56,14 @@ const TreeNode = ({
 	const nextVisited = new Set(visited).add(node.id);
 	const task = taskById.get(node.id) ?? null;
 	const progress = progressMap.get(node.id);
+
+	// Erledigt-Toggle-Guard (#315): der Toggle auf „Erledigt" ist gesperrt, solange nicht alle
+	// direkten Unteraufgaben erledigt sind. Das Wieder-Öffnen bleibt jederzeit erlaubt.
+	const directSubtaskStatuses = node.dependents.map((d) => ({
+		status: taskById.get(d.id)?.status ?? TaskStatus.Open,
+	}));
+	const doneBlocked = isDoneBlockedBySubtasks(directSubtaskStatuses);
+	const isDone = task?.status === TaskStatus.Done;
 
 	return (
 		<li className="task-tree-item" data-testid={`task-tree-item-${node.id}`}>
@@ -78,6 +92,24 @@ const TreeNode = ({
 					<span className="task-tree-badge task-tree-badge--progress">
 						{progress.done}/{progress.total}
 					</span>
+				)}
+				{task !== null && (
+					<>
+						<KolButton
+							data-testid={`done-toggle-${task.id}`}
+							_label={isDone ? 'Wieder öffnen' : 'Erledigen'}
+							_hideLabel
+							_icons={{ left: { icon: isDone ? 'fa-solid fa-rotate-left' : 'fa-solid fa-check' } }}
+							_variant={isDone ? 'secondary' : 'primary'}
+							_disabled={!isDone && doneBlocked}
+							_on={{ onClick: () => onDoneToggle(task) }}
+						/>
+						{!isDone && doneBlocked && (
+							<span className="task-tree-done-blocked-hint" data-testid={`done-blocked-hint-${task.id}`}>
+								Bitte erst alle Unteraufgaben erledigen
+							</span>
+						)}
+					</>
 				)}
 				{task !== null && (
 					<div className="task-tree-actions">
@@ -136,6 +168,7 @@ const TreeNode = ({
 							onDelete={onDelete}
 							onEditDependencies={onEditDependencies}
 							onAddSubtask={onAddSubtask}
+							onDoneToggle={onDoneToggle}
 							visited={nextVisited}
 						/>
 					))}
@@ -159,6 +192,7 @@ export const TaskTree = ({
 	onDelete,
 	onEditDependencies,
 	onAddSubtask,
+	onDoneToggle,
 }: TaskTreeProps) => {
 	const [expandedIds, setExpandedIds] = useState<Set<number>>(() => new Set<number>());
 
@@ -194,6 +228,7 @@ export const TaskTree = ({
 					onDelete={onDelete}
 					onEditDependencies={onEditDependencies}
 					onAddSubtask={onAddSubtask}
+					onDoneToggle={onDoneToggle}
 					visited={new Set<number>()}
 				/>
 			))}

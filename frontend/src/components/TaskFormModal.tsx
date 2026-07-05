@@ -1,4 +1,4 @@
-import type { Pillar, Task, TaskStatus } from 'client';
+import type { Pillar, Task } from 'client';
 import type { RefObject } from 'react';
 import { taskFormModalTitle } from '../lib/task';
 import { Modal } from './Modal';
@@ -19,11 +19,6 @@ interface TaskFormModalProps {
 	 * per LLM (#236). Greift nur, wenn `task` selbst keinen Wert liefert.
 	 */
 	initialValues?: TaskFormInitialValues;
-	/**
-	 * Direkte Unteraufgaben des zu bearbeitenden Tasks (#246): steuert im `TaskForm`, ob „Erledigt"
-	 * wählbar ist.
-	 */
-	subtasks?: { status: TaskStatus }[];
 	/** Fallback-Fokusziel für die Fokus-Rückgabe beim Schließen (durchgereicht an `Modal`). */
 	fallbackFocusRef?: RefObject<HTMLElement | null>;
 	onClose: () => void;
@@ -41,7 +36,6 @@ export const TaskFormModal = ({
 	parentTask = null,
 	pillars,
 	initialValues,
-	subtasks,
 	fallbackFocusRef,
 	onClose,
 	onSaved,
@@ -52,7 +46,6 @@ export const TaskFormModal = ({
 			parentTask={parentTask}
 			pillars={pillars}
 			initialValues={initialValues}
-			subtasks={subtasks}
 			onClose={onClose}
 			onSaved={onSaved}
 		/>

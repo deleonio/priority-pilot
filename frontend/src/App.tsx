@@ -1,5 +1,6 @@
 import { KolAlert, KolAvatar, KolHeading, KolSpin, KolTabs, KolToolbar } from '@public-ui/react-v19';
-import type { Pillar, Task, TaskStatus, TaskTreeNode } from 'client';
+import type { Pillar, Task, TaskTreeNode } from 'client';
+import { TaskStatus } from 'client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from './api';
 import { CompletedTasksTable } from './components/CompletedTasksTable';
@@ -39,26 +40,6 @@ const VIEW_TABS = [
 	{ _label: 'Aufgabenwald' },
 	{ _label: 'Erledigte Aufgaben' },
 ];
-
-/**
- * Liefert die direkten Unteraufgaben (Dependents) des Tasks `taskId` aus dem Aufgabenwald (#246).
- * Ein Knoten führt seine direkten Unteraufgaben in `dependents`; die Suche steigt rekursiv ab.
- */
-const findDirectSubtasks = (forest: TaskTreeNode[], taskId: number): { status: TaskStatus }[] => {
-	const search = (node: TaskTreeNode): { status: TaskStatus }[] | null => {
-		if (node.id === taskId) return node.dependents;
-		for (const child of node.dependents) {
-			const found = search(child);
-			if (found !== null) return found;
-		}
-		return null;
-	};
-	for (const root of forest) {
-		const found = search(root);
-		if (found !== null) return found;
-	}
-	return [];
-};
 
 // Modulkonstanten für Toolbar-Icons: stabile Objektidentität pro Render, damit der Icon-Watcher
 // nicht unnötig erneut feuert (z. B. CREATE_ICON für „Neuen Task anlegen").
@@ -222,6 +203,25 @@ export const App = ({ user }: { user: AuthUser }) => {
 	const openDependencies = useCallback((task: Task): void => setDialog({ kind: 'dependencies', taskId: task.id }), []);
 	const openAddSubtask = useCallback((task: Task): void => setDialog({ kind: 'create', parentTask: task }), []);
 
+	// Binärer Erledigt-Toggle (#315): schaltet die Aufgabe zwischen „Erledigt" und „Offen" um und lädt
+	// die Daten neu. Der Toggle-Guard gegen offene Unteraufgaben sitzt in der Liste (`TaskTree`).
+	const handleDoneToggle = useCallback(
+		async (task: Task): Promise<void> => {
+			const next = task.status === TaskStatus.Done ? TaskStatus.Open : TaskStatus.Done;
+			await api.updateTask({
+				id: task.id,
+				taskUpdate: {
+					title: task.title,
+					status: next,
+					priority: task.priority,
+					estimatedEffort: task.estimatedEffort,
+				},
+			});
+			await reload();
+		},
+		[reload],
+	);
+
 	// Bei einer Dependency-Änderung bleibt der Dialog offen; nur die Daten werden aktualisiert.
 	const refreshKeepingDialog = useCallback((): void => {
 		void reload();
@@ -340,6 +340,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 								onDelete={openDelete}
 								onEditDependencies={openDependencies}
 								onAddSubtask={openAddSubtask}
+								onDoneToggle={handleDoneToggle}
 							/>
 						</section>
 					</div>
@@ -367,7 +368,6 @@ export const App = ({ user }: { user: AuthUser }) => {
 					key={dialog.task.id}
 					task={dialog.task}
 					pillars={pillars}
-					subtasks={findDirectSubtasks(forest, dialog.task.id)}
 					onClose={closeDialog}
 					onSaved={afterMutation}
 				/>

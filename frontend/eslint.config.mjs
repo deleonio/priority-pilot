@@ -4,6 +4,10 @@ import tsParser from '@typescript-eslint/parser';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 
+// Minimal stub so that `// eslint-disable-next-line import/no-unresolved` in spec
+// test files is recognised as a valid (off) rule rather than an unknown-rule error.
+const importPlugin = { rules: { 'no-unresolved': { create: () => ({}) } } };
+
 export default [
 	{
 		ignores: ['dist/', 'dev-dist/'],
@@ -23,6 +27,7 @@ export default [
 			'@typescript-eslint': tsPlugin,
 			'react-hooks': reactHooks,
 			'react-refresh': reactRefresh,
+			import: importPlugin,
 		},
 		rules: {
 			...tsPlugin.configs.recommended.rules,
