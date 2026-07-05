@@ -144,7 +144,7 @@ describe('migrateSeriesColumns', () => {
 // ── Rote Spec-Tests für #163 — fehlende Schema-Migration für die `series`-Tabelle ─────────────────
 //
 // Root Cause: Auf einer `series`-Tabelle, die VOR dem vollständigen Serien-Feature angelegt wurde,
-// fehlen `title`, `rhythm`, `defaultPriority`, `defaultEstimatedEffort`, `active`, `startDate`.
+// fehlen `title`, `rhythm`, `priority`, `estimatedEffort`, `active`, `startDate`.
 // `sequelize.sync()` ohne `alter` ergänzt vorhandene Tabellen NICHT um neue Spalten → alle
 // Series-CRUD-Operationen schlagen mit `SQLITE_ERROR: no such column: title` fehl (#163).
 //
@@ -152,14 +152,7 @@ describe('migrateSeriesColumns', () => {
 // `sequelize.sync()` die fehlenden Spalten per `ALTER TABLE series ADD COLUMN` nachzieht.
 // Kein Produktivcode — Tests werden grün, sobald `migrate.ts` `migrateSeriesTable` exportiert.
 
-const SERIES_TABLE_COLUMNS = [
-	'title',
-	'rhythm',
-	'defaultPriority',
-	'defaultEstimatedEffort',
-	'active',
-	'startDate',
-] as const;
+const SERIES_TABLE_COLUMNS = ['title', 'rhythm', 'priority', 'estimatedEffort', 'active', 'startDate'] as const;
 
 const seriesColumns = async (): Promise<string[]> => {
 	const [rows] = await sequelize.query("PRAGMA table_info('series')");

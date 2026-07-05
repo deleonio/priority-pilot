@@ -25,8 +25,8 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 	interface SeriesPayload {
 		title: string;
 		rhythm?: 'daily' | 'weekly' | 'monthly';
-		defaultPriority?: number;
-		defaultEstimatedEffort?: number;
+		priority?: number;
+		estimatedEffort?: number;
 		active?: boolean;
 		startDate: string;
 	}
@@ -36,8 +36,8 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 		const response = await page.request.post('/api/v1/series', {
 			data: {
 				rhythm: 'weekly',
-				defaultPriority: 3,
-				defaultEstimatedEffort: 0.5,
+				priority: 3,
+				estimatedEffort: 0.5,
 				active: true,
 				...payload,
 			},

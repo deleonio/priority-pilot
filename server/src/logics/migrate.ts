@@ -55,13 +55,41 @@ export const migrateSeriesColumns = async (db: Sequelize): Promise<void> => {
 const SERIES_TABLE_COLUMNS = [
 	{ name: 'title', definition: "VARCHAR(255) NOT NULL DEFAULT ''" },
 	{ name: 'rhythm', definition: "TEXT NOT NULL DEFAULT 'weekly'" },
-	{ name: 'defaultPriority', definition: 'INTEGER NOT NULL DEFAULT 3' },
-	{ name: 'defaultEstimatedEffort', definition: 'FLOAT NOT NULL DEFAULT 0.5' },
+	{ name: 'priority', definition: 'INTEGER NOT NULL DEFAULT 3' },
+	{ name: 'estimatedEffort', definition: 'FLOAT NOT NULL DEFAULT 0.5' },
 	{ name: 'active', definition: 'INTEGER NOT NULL DEFAULT 1' },
 	{ name: 'startDate', definition: 'DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP' },
 	// Eigentümer-Bindung (#244, AK1): nullable, daher kein DEFAULT nötig.
 	{ name: 'userId', definition: 'INTEGER' },
 ] as const;
+
+/**
+ * Benennt die Serien-Spalten `defaultPriority` → `priority` und `defaultEstimatedEffort` →
+ * `estimatedEffort` auf einer **bestehenden** `series`-Tabelle um (#300), BEVOR `migrateSeriesTable`
+ * und `sequelize.sync()` laufen.
+ *
+ * Reihenfolge kritisch: Liefe `migrateSeriesTable` mit den neuen Spaltennamen zuerst auf einer
+ * Bestands-DB mit Alt-Spalten, legte es leere Neu-Spalten an → das anschließende RENAME schlüge fehl.
+ *
+ * PRAGMA-geführt und idempotent: Es wird nur umbenannt, wenn die Alt-Spalte existiert und die
+ * Neu-Spalte noch nicht. No-op, wenn die Tabelle noch nicht existiert (frische DB: `sync()` legt sie
+ * direkt mit den neuen Namen an).
+ */
+export async function migrateSeriesRenameFields(seq: Sequelize): Promise<void> {
+	// Tabelle existiert nicht → No-Op
+	const [tableCheck] = await seq.query("SELECT name FROM sqlite_master WHERE type='table' AND name='series'");
+	if ((tableCheck as unknown[]).length === 0) return;
+
+	const [rows] = await seq.query("PRAGMA table_info('series')");
+	const cols = (rows as { name: string }[]).map((r) => r.name);
+
+	if (cols.includes('defaultPriority') && !cols.includes('priority')) {
+		await seq.query('ALTER TABLE `series` RENAME COLUMN `defaultPriority` TO `priority`');
+	}
+	if (cols.includes('defaultEstimatedEffort') && !cols.includes('estimatedEffort')) {
+		await seq.query('ALTER TABLE `series` RENAME COLUMN `defaultEstimatedEffort` TO `estimatedEffort`');
+	}
+}
 
 /**
  * Zieht fehlende Spalten auf einer **bestehenden** `series`-Tabelle nach, bevor `sequelize.sync()`

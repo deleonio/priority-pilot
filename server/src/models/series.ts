@@ -14,8 +14,8 @@ class Series extends Model {
 	public id!: number;
 	public title!: string;
 	public rhythm!: SeriesRhythm;
-	public defaultPriority!: number;
-	public defaultEstimatedEffort!: number;
+	public priority!: number;
+	public estimatedEffort!: number;
 	public active!: boolean;
 	public startDate!: Date;
 
@@ -44,7 +44,7 @@ Series.init(
 			allowNull: false,
 			defaultValue: 'weekly',
 		},
-		defaultPriority: {
+		priority: {
 			type: DataTypes.INTEGER,
 			allowNull: false,
 			defaultValue: 3,
@@ -53,7 +53,7 @@ Series.init(
 				max: 5,
 			},
 		},
-		defaultEstimatedEffort: {
+		estimatedEffort: {
 			type: DataTypes.FLOAT,
 			allowNull: false,
 			defaultValue: 0.5,

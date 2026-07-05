@@ -42,8 +42,8 @@ describe('Series API', () => {
 	const validSeries = () => ({
 		title: 'Wöchentlich kochen',
 		rhythm: 'weekly',
-		defaultPriority: 4,
-		defaultEstimatedEffort: 0.5,
+		priority: 4,
+		estimatedEffort: 0.5,
 		active: true,
 		startDate: '2026-01-01T00:00:00.000Z',
 	});
@@ -57,7 +57,7 @@ describe('Series API', () => {
 			assert.equal(typeof body.id, 'number');
 			assert.equal(body.title, 'Wöchentlich kochen');
 			assert.equal(body.rhythm, 'weekly');
-			assert.equal(body.defaultPriority, 4);
+			assert.equal(body.priority, 4);
 			assert.equal(body.active, true);
 		});
 
@@ -106,7 +106,7 @@ describe('Series API', () => {
 			assert.equal(body.id, created.id);
 			assert.equal(body.title, 'Wöchentlich kochen');
 			assert.equal(body.rhythm, 'weekly');
-			assert.equal(body.defaultPriority, 4);
+			assert.equal(body.priority, 4);
 		});
 
 		// AK-5: GET /series/:id unbekannte ID → 404
@@ -141,7 +141,7 @@ describe('Series API', () => {
 	// ── AK 2: Instanz-Änderung setzt isException; Template bleibt unverändert ───────────────────
 	describe('PATCH einer generierten Instanz', () => {
 		it('Statusänderung an Instanz setzt isException, ohne das Template zu berühren', async () => {
-			const series = (await (await post('/series', validSeries())).json()) as { id: number; defaultPriority: number };
+			const series = (await (await post('/series', validSeries())).json()) as { id: number; priority: number };
 			const instances = (await (
 				await post(`/series/${series.id}/generate`, { until: '2026-01-20T00:00:00.000Z' })
 			).json()) as Array<{ id: number }>;
@@ -159,7 +159,7 @@ describe('Series API', () => {
 
 			// Das Template bleibt unverändert.
 			const template = (await (await get(`/series/${series.id}`)).json()) as Record<string, unknown>;
-			assert.equal(template.defaultPriority, series.defaultPriority);
+			assert.equal(template.priority, series.priority);
 			assert.equal(template.title, 'Wöchentlich kochen');
 		});
 	});
@@ -225,8 +225,8 @@ describe('Series API', () => {
 		const dueSeries = () => ({
 			title: 'Fällige Wochenserie',
 			rhythm: 'weekly',
-			defaultPriority: 3,
-			defaultEstimatedEffort: 0.5,
+			priority: 3,
+			estimatedEffort: 0.5,
 			active: true,
 			startDate: '2026-01-01T00:00:00.000Z',
 		});
@@ -280,6 +280,74 @@ describe('Series API', () => {
 			// Die Gesamtzahl der Tasks bleibt stabil (keine Dubletten).
 			const tasks = (await (await get('/tasks')).json()) as unknown[];
 			assert.equal(tasks.length, first.created, 'die Task-Anzahl bleibt nach dem zweiten Lauf unverändert');
+		});
+	});
+
+	// ── Rote Spec-Tests für #300 — AK-A1.2: API-Kontrakt mit umbenannten Feldern ────────────────
+	//
+	// Nach dem Rename (defaultPriority → priority, defaultEstimatedEffort → estimatedEffort) muss
+	// die API die neuen Feldnamen in Request-Body und Response verwenden. KEIN Produktivcode —
+	// die Tests werden grün, sobald Routes, Modell und OpenAPI-Kontrakt umgestellt sind.
+	describe('AK-A1.2 — umbenannte Felder priority / estimatedEffort', () => {
+		const validSeriesRenamed = () => ({
+			title: 'Täglich lesen',
+			rhythm: 'daily',
+			priority: 3,
+			estimatedEffort: 0.5,
+			active: true,
+			startDate: '2026-01-01T00:00:00.000Z',
+		});
+
+		// POST /series mit neuen Feldnamen → 201, Response enthält priority/estimatedEffort
+		it('POST /series mit priority/estimatedEffort → 201 und Response trägt die neuen Feldnamen', async () => {
+			const res = await post('/series', validSeriesRenamed());
+			assert.equal(res.status, 201);
+			const body = (await res.json()) as Record<string, unknown>;
+			assert.equal(typeof body.id, 'number', 'Response enthält eine numerische id');
+			assert.equal(body.priority, 3, 'Response enthält priority mit korrektem Wert');
+			assert.equal(body.estimatedEffort, 0.5, 'Response enthält estimatedEffort mit korrektem Wert');
+			assert.ok(!('defaultPriority' in body), 'Response enthält KEIN defaultPriority mehr');
+			assert.ok(!('defaultEstimatedEffort' in body), 'Response enthält KEIN defaultEstimatedEffort mehr');
+		});
+
+		// GET /series/:id → Response enthält priority/estimatedEffort, nicht die alten Namen
+		it('GET /series/:id → Response trägt priority/estimatedEffort (kein defaultPriority/defaultEstimatedEffort)', async () => {
+			const created = (await (
+				await post('/series', { ...validSeriesRenamed(), priority: 5, estimatedEffort: 0.8 })
+			).json()) as {
+				id: number;
+			};
+			const res = await get(`/series/${created.id}`);
+			assert.equal(res.status, 200);
+			const body = (await res.json()) as Record<string, unknown>;
+			assert.equal(body.priority, 5, 'priority wird mit dem gespeicherten Wert zurückgegeben');
+			assert.equal(body.estimatedEffort, 0.8, 'estimatedEffort wird mit dem gespeicherten Wert zurückgegeben');
+			assert.ok(!('defaultPriority' in body), 'GET-Response enthält KEIN defaultPriority');
+			assert.ok(!('defaultEstimatedEffort' in body), 'GET-Response enthält KEIN defaultEstimatedEffort');
+		});
+
+		// PATCH /series/:id mit priority → 200 + aktualisiertes Objekt mit priority
+		it('PATCH /series/:id mit priority → 200 und aktualisierter priority in Response', async () => {
+			const created = (await (await post('/series', validSeriesRenamed())).json()) as { id: number };
+			const res = await patch(`/series/${created.id}`, { priority: 2 });
+			assert.equal(res.status, 200);
+			const body = (await res.json()) as Record<string, unknown>;
+			assert.equal(body.priority, 2, 'priority wurde auf 2 aktualisiert');
+			assert.ok(!('defaultPriority' in body), 'PATCH-Response enthält KEIN defaultPriority');
+		});
+
+		// POST /series ohne priority → 400 (Pflichtfeld)
+		it('POST /series ohne priority → 400', async () => {
+			const { priority: _omit, ...withoutPriority } = validSeriesRenamed();
+			const res = await post('/series', withoutPriority);
+			assert.equal(res.status, 400);
+		});
+
+		// POST /series ohne estimatedEffort → 400 (Pflichtfeld)
+		it('POST /series ohne estimatedEffort → 400', async () => {
+			const { estimatedEffort: _omit, ...withoutEffort } = validSeriesRenamed();
+			const res = await post('/series', withoutEffort);
+			assert.equal(res.status, 400);
 		});
 	});
 });

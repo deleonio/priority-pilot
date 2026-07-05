@@ -19,8 +19,8 @@ const VALID_RHYTHMS: readonly SeriesRhythm[] = ['daily', 'weekly', 'monthly'];
 interface SeriesAttributes {
 	title?: string;
 	rhythm?: SeriesRhythm;
-	defaultPriority?: number;
-	defaultEstimatedEffort?: number;
+	priority?: number;
+	estimatedEffort?: number;
 	active?: boolean;
 	startDate?: Date;
 }
@@ -55,8 +55,8 @@ const serializeSeries = (series: Series): SeriesDto => ({
 	id: series.id,
 	title: series.title,
 	rhythm: series.rhythm,
-	defaultPriority: series.defaultPriority,
-	defaultEstimatedEffort: series.defaultEstimatedEffort,
+	priority: series.priority,
+	estimatedEffort: series.estimatedEffort,
 	active: series.active,
 	startDate: series.startDate.toISOString(),
 });
@@ -89,28 +89,34 @@ const validateSeriesFields = (body: unknown, isPost: boolean): ValidationResult 
 		attrs.rhythm = input.rhythm;
 	}
 
-	if (input.defaultPriority !== undefined) {
+	if (input.priority !== undefined) {
 		if (
-			typeof input.defaultPriority !== 'number' ||
-			!Number.isInteger(input.defaultPriority) ||
-			input.defaultPriority < 1 ||
-			input.defaultPriority > 5
+			typeof input.priority !== 'number' ||
+			!Number.isInteger(input.priority) ||
+			input.priority < 1 ||
+			input.priority > 5
 		) {
-			return { ok: false, message: 'defaultPriority muss eine Ganzzahl zwischen 1 und 5 sein.' };
+			return { ok: false, message: 'priority muss eine Ganzzahl zwischen 1 und 5 sein.' };
 		}
-		attrs.defaultPriority = input.defaultPriority;
+		attrs.priority = input.priority;
+	}
+	if (isPost && attrs.priority === undefined) {
+		return { ok: false, message: 'priority ist erforderlich.' };
 	}
 
-	if (input.defaultEstimatedEffort !== undefined) {
+	if (input.estimatedEffort !== undefined) {
 		if (
-			typeof input.defaultEstimatedEffort !== 'number' ||
-			!Number.isFinite(input.defaultEstimatedEffort) ||
-			input.defaultEstimatedEffort < 0.1 ||
-			input.defaultEstimatedEffort > 1
+			typeof input.estimatedEffort !== 'number' ||
+			!Number.isFinite(input.estimatedEffort) ||
+			input.estimatedEffort < 0.1 ||
+			input.estimatedEffort > 1
 		) {
-			return { ok: false, message: 'defaultEstimatedEffort muss eine Zahl zwischen 0.1 und 1 sein.' };
+			return { ok: false, message: 'estimatedEffort muss eine Zahl zwischen 0.1 und 1 sein.' };
 		}
-		attrs.defaultEstimatedEffort = input.defaultEstimatedEffort;
+		attrs.estimatedEffort = input.estimatedEffort;
+	}
+	if (isPost && attrs.estimatedEffort === undefined) {
+		return { ok: false, message: 'estimatedEffort ist erforderlich.' };
 	}
 
 	if (input.active !== undefined) {
