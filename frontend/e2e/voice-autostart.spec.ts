@@ -6,7 +6,7 @@ import { waitForStableView } from './helpers';
  * (Schalter)" (Stufe 1 TDD, der einklagbare Vertrag).
  *
  * Der Allgemein-Tab (aus #271) erhält einen Schalter „Sprachaufnahme automatisch starten"
- * (Default: aus). Ist er an, wird beim Öffnen von TaskForm und SeriesFormModal das erste
+ * (Default: aus). Ist er an, wird beim Öffnen von TaskForm und Serien-Formular das erste
  * Titel-VoiceField fokussiert und sein Mikrofon automatisch gestartet.
  *
  * Beim Einschalten wird die Mikrofon-Berechtigung via getUserMedia angefordert:
@@ -313,9 +313,9 @@ test.describe('#272 Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabe
 
 	/**
 	 * AK5 — Auto-Start Serien-Formular: Einstellung an → Aufnahme startet automatisch beim Öffnen
-	 * von SeriesFormModal (Anlegen und Bearbeiten).
+	 * des Serien-Formulars (Anlegen und Bearbeiten).
 	 */
-	test('AK5: SeriesFormModal — Titel-Mic startet automatisch beim Anlegen (Einstellung an)', async ({ page }) => {
+	test('AK5: Serien-Formular — Titel-Mic startet automatisch beim Anlegen (Einstellung an)', async ({ page }) => {
 		await setVoiceAutostartInStorage(page, true);
 		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'granted' }));
 		await page.goto('/');
@@ -324,7 +324,7 @@ test.describe('#272 Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabe
 		await page.getByRole('button', { name: 'Serien verwalten' }).click();
 		await waitForStableView(page);
 		await page.getByRole('button', { name: 'Neue Serie anlegen' }).click();
-		await expect(page.getByRole('heading', { name: 'Neue Serie anlegen' })).toBeVisible();
+		await expect(page.getByRole('group', { name: 'Neue Serie anlegen' })).toBeVisible();
 		await waitForStableView(page);
 		await expect(page.getByRole('textbox', { name: 'Titel' })).toBeVisible();
 
@@ -362,7 +362,7 @@ test.describe('#272 Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabe
 
 	/**
 	 * AK7 — Kein Auto-Start, wenn aus: Einstellung aus (Default) → keine automatische Aufnahme
-	 * in TaskForm oder SeriesFormModal.
+	 * in TaskForm oder Serien-Formular.
 	 */
 	test('AK7a: Einstellung aus → kein Auto-Start in TaskForm', async ({ page }) => {
 		// Explizit false setzen (entspricht Default).
@@ -378,7 +378,7 @@ test.describe('#272 Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabe
 		await expect(micButton(page, 'Titel')).not.toHaveAttribute('aria-pressed', 'true');
 	});
 
-	test('AK7b: Einstellung aus → kein Auto-Start in SeriesFormModal', async ({ page }) => {
+	test('AK7b: Einstellung aus → kein Auto-Start im Serien-Formular', async ({ page }) => {
 		await setVoiceAutostartInStorage(page, false);
 		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'granted' }));
 		await page.goto('/');
@@ -387,7 +387,7 @@ test.describe('#272 Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabe
 		await page.getByRole('button', { name: 'Serien verwalten' }).click();
 		await waitForStableView(page);
 		await page.getByRole('button', { name: 'Neue Serie anlegen' }).click();
-		await expect(page.getByRole('heading', { name: 'Neue Serie anlegen' })).toBeVisible();
+		await expect(page.getByRole('group', { name: 'Neue Serie anlegen' })).toBeVisible();
 		await waitForStableView(page);
 
 		const started = await page.evaluate(() => window.__speechRecognitionStarted === true);

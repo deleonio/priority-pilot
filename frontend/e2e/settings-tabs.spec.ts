@@ -115,3 +115,93 @@ test.describe('#271 Settings-Seite: Tabs Allgemein + Säulen', () => {
 		expect(overflowsHorizontally).toBe(false);
 	});
 });
+
+/**
+ * ROTE Spec-Tests für #323 „Settings-Tab springt nach Toggle-Interaktion zurück auf Säulen".
+ *
+ * Bug: Auf dem „Allgemein"-Tab führt das Umschalten des „Sprachaufnahme automatisch starten"-
+ * Schalters zu einem Re-Render, bei dem `_selected={activeTab}` (Säulen) erneut kontrolliert an
+ * `KolTabs` durchgereicht wird — der View springt zurück auf den Säulen-Tab.
+ *
+ * Ursache (KI-Analyse): `SettingsPage.tsx:28` nutzt `const [activeTab] = useState(...)` ohne Setter;
+ * der Tab-State wird nie aktualisiert. `_selected` ist ein kontrolliertes Prop und überschreibt bei
+ * jedem Render den vom Nutzer gewählten Tab.
+ *
+ * AK1/AK2 sind bewusst **rot**, bis der Bug behoben ist. AK3 validiert (grün), dass die Gegenrichtung
+ * keine Regression bekommt.
+ */
+const buildMediaMock = (mediaPermission: 'granted' | 'denied'): string => `
+	(() => {
+		window.__getUserMediaCalled = false;
+		if (!navigator.mediaDevices) {
+			Object.defineProperty(navigator, 'mediaDevices', { value: {}, writable: true, configurable: true });
+		}
+		navigator.mediaDevices.getUserMedia = async () => {
+			window.__getUserMediaCalled = true;
+			if ('${mediaPermission}' === 'granted') {
+				return { getTracks: () => [], getAudioTracks: () => [] };
+			} else {
+				throw Object.assign(new Error('Permission denied'), { name: 'NotAllowedError' });
+			}
+		};
+	})();
+`;
+
+test.describe('#323 Settings-Tab bleibt nach Toggle-Interaktion stabil', () => {
+	test('AK1: Toggle mit erteilter Berechtigung springt nicht auf Säulen-Tab zurück', async ({ page }) => {
+		// AK1 — Kernfall: Berechtigung erteilt, „Allgemein" bleibt aktiv, Säulen-Editor bleibt verborgen.
+		await page.addInitScript(buildMediaMock('granted'));
+		await page.goto('/settings/pillars');
+		await waitForStableView(page);
+
+		const allgemeinTab = page.getByRole('tab', { name: 'Allgemein', exact: true });
+		await allgemeinTab.click();
+		await waitForStableView(page);
+		await expect(allgemeinTab).toHaveAttribute('aria-selected', 'true');
+
+		const toggle = page
+			.getByRole('checkbox', { name: /Sprachaufnahme automatisch starten/i })
+			.or(page.getByRole('switch', { name: /Sprachaufnahme automatisch starten/i }));
+		await toggle.click();
+		await waitForStableView(page);
+
+		await expect(allgemeinTab).toHaveAttribute('aria-selected', 'true');
+		await expect(page.getByRole('slider').or(page.getByRole('spinbutton')).first()).toBeHidden();
+	});
+
+	test('AK2: Toggle mit verweigerter Berechtigung springt nicht auf Säulen-Tab zurück', async ({ page }) => {
+		// AK2 — Berechtigung verweigert: „Allgemein" bleibt aktiv (Hinweis erscheint, kein Tab-Wechsel).
+		await page.addInitScript(buildMediaMock('denied'));
+		await page.goto('/settings/pillars');
+		await waitForStableView(page);
+
+		const allgemeinTab = page.getByRole('tab', { name: 'Allgemein', exact: true });
+		await allgemeinTab.click();
+		await waitForStableView(page);
+		await expect(allgemeinTab).toHaveAttribute('aria-selected', 'true');
+
+		const toggle = page
+			.getByRole('checkbox', { name: /Sprachaufnahme automatisch starten/i })
+			.or(page.getByRole('switch', { name: /Sprachaufnahme automatisch starten/i }));
+		await toggle.click();
+		await waitForStableView(page);
+
+		await expect(allgemeinTab).toHaveAttribute('aria-selected', 'true');
+	});
+
+	test('AK3: Interaktion im Säulen-Tab springt nicht auf Allgemein-Tab zurück', async ({ page }) => {
+		// AK3 — Gegenrichtung (keine Regression): Säulen-Gewicht ändern, „Säulen" bleibt aktiv.
+		await page.goto('/settings/pillars');
+		await waitForStableView(page);
+
+		const pillarsTab = page.getByRole('tab', { name: 'Säulen', exact: true });
+		await expect(pillarsTab).toHaveAttribute('aria-selected', 'true');
+
+		const control = page.getByRole('slider').or(page.getByRole('spinbutton')).first();
+		await control.focus();
+		await control.press('ArrowRight');
+		await waitForStableView(page);
+
+		await expect(pillarsTab).toHaveAttribute('aria-selected', 'true');
+	});
+});
