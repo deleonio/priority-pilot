@@ -13,11 +13,15 @@ interface PillarAdvisorModalProps {
 	/** Die Lebensbalance-Säulen — für die Anzeige der Säulen-Namen zu den vorgeschlagenen Aktivitäten. */
 	pillars: Pillar[];
 	onClose: () => void;
+	/** Übernimmt einen Vorschlag als neue Aufgabe (öffnet die Schnellerfassung vorbelegt, #327). */
+	onAdoptActivity?: (text: string) => void;
 }
 
 interface AdvisorResultsProps {
 	advice: ActivityAdvice[];
 	pillars: Pillar[];
+	/** Übernimmt einen Vorschlag als neue Aufgabe (öffnet die Schnellerfassung vorbelegt, #327). */
+	onAdoptActivity?: (text: string) => void;
 }
 
 /**
@@ -25,7 +29,7 @@ interface AdvisorResultsProps {
  * `pillarIds` gegen die Säulen-Liste aufgelöst) und die kurze Begründung. Als eigene Komponente
  * exportiert, damit die Zuordnung pillarId → Säulen-Name isoliert testbar ist.
  */
-export const AdvisorResults = ({ advice, pillars }: AdvisorResultsProps) => {
+export const AdvisorResults = ({ advice, pillars, onAdoptActivity }: AdvisorResultsProps) => {
 	const pillarNameById = useMemo(() => new Map(pillars.map((pillar) => [pillar.id, pillar.name])), [pillars]);
 
 	if (advice.length === 0) {
@@ -45,6 +49,13 @@ export const AdvisorResults = ({ advice, pillars }: AdvisorResultsProps) => {
 						</span>
 					</div>
 					{entry.reason !== '' && <p className="hint advisor-reason">{entry.reason}</p>}
+					{onAdoptActivity !== undefined && (
+						<KolButton
+							_label="Als Aufgabe übernehmen"
+							_variant="secondary"
+							onClick={() => onAdoptActivity(entry.activity)}
+						/>
+					)}
 				</li>
 			))}
 		</ul>
@@ -57,7 +68,7 @@ export const AdvisorResults = ({ advice, pillars }: AdvisorResultsProps) => {
  * dienen serverseitig die Kurzbeschreibungen der Säulen aus den Einstellungen. Die Frage ist
  * optional — ohne Frage schlägt der Berater Aktivitäten über alle Säulen hinweg vor.
  */
-export const PillarAdvisorModal = ({ pillars, onClose }: PillarAdvisorModalProps) => {
+export const PillarAdvisorModal = ({ pillars, onClose, onAdoptActivity }: PillarAdvisorModalProps) => {
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	// `null` = noch keine Beratung angefragt (kein „Keine Vorschläge"-Hinweis vor der ersten Anfrage).
@@ -134,7 +145,9 @@ export const PillarAdvisorModal = ({ pillars, onClose }: PillarAdvisorModalProps
 					<KolSpin _show _variant="cycle" _label="Berater denkt nach" />
 				</div>
 			)}
-			{!loading && advice !== null && <AdvisorResults advice={advice} pillars={pillars} />}
+			{!loading && advice !== null && (
+				<AdvisorResults advice={advice} pillars={pillars} onAdoptActivity={onAdoptActivity} />
+			)}
 			<div className="modal-actions">
 				<KolButton
 					_label={loading ? 'Beraten…' : 'Beraten lassen'}

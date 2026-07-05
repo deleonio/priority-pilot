@@ -65,7 +65,9 @@ describe('AdvisorResults — „Als Aufgabe übernehmen" je Vorschlag (#327)', (
 
 	/** Die „Als Aufgabe übernehmen"-Buttons (gerenderte `kol-button`-Custom-Elemente). */
 	const adoptButtons = (container: HTMLElement): Element[] =>
-		[...container.querySelectorAll('kol-button')].filter((el) => el.getAttribute('_label') === 'Als Aufgabe übernehmen');
+		[...container.querySelectorAll('kol-button')].filter(
+			(el) => el.getAttribute('_label') === 'Als Aufgabe übernehmen',
+		);
 
 	it('rendert je Vorschlag genau eine Aktion „Als Aufgabe übernehmen"', () => {
 		const advice: ActivityAdvice[] = [
@@ -73,10 +75,7 @@ describe('AdvisorResults — „Als Aufgabe übernehmen" je Vorschlag (#327)', (
 			{ activity: 'Spieleabend mit Freunden', reason: 'Gemeinsame Zeit.', pillarIds: [2] },
 		];
 
-		const { container } = render(
-			// @ts-expect-error: onAdoptActivity ist noch nicht implementiert (rote Spec).
-			<AdvisorResults advice={advice} pillars={pillars} onAdoptActivity={vi.fn()} />,
-		);
+		const { container } = render(<AdvisorResults advice={advice} pillars={pillars} onAdoptActivity={vi.fn()} />);
 
 		const items = container.querySelectorAll('.advisor-result');
 		expect(items).toHaveLength(2);
@@ -99,7 +98,6 @@ describe('AdvisorResults — „Als Aufgabe übernehmen" je Vorschlag (#327)', (
 		];
 
 		const { container } = render(
-			// @ts-expect-error: onAdoptActivity ist noch nicht implementiert (rote Spec).
 			<AdvisorResults advice={advice} pillars={pillars} onAdoptActivity={onAdoptActivity} />,
 		);
 

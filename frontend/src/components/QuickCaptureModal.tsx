@@ -20,6 +20,8 @@ interface QuickCaptureModalProps {
 	onClose: () => void;
 	/** Nach erfolgreichem Speichern aufgerufen (Liste neu laden + Dialog schließen). */
 	onSaved: () => void;
+	/** Optionaler Vorbelegungstext für die Capture-Textarea (z. B. aus dem Berater übernommen, #327). */
+	initialText?: string;
 }
 
 /**
@@ -34,18 +36,24 @@ interface QuickCaptureModalProps {
  * ließ das zweite `showModal()` auf dem noch nicht verbundenen Dialog „not in a Document" werfen und riss
  * das ganze Modal ab. Ohne Remount entfällt diese Race vollständig — es gibt nur ein `showModal()`.
  */
-export const QuickCaptureModal = ({ parentTask = null, pillars, onClose, onSaved }: QuickCaptureModalProps) => {
+export const QuickCaptureModal = ({
+	parentTask = null,
+	pillars,
+	onClose,
+	onSaved,
+	initialText,
+}: QuickCaptureModalProps) => {
 	const [step, setStep] = useState<'capture' | 'form'>('capture');
 	const [prefill, setPrefill] = useState<TaskFormInitialValues>({});
 	const [parsing, setParsing] = useState(false);
 	const [error, setError] = useState<string | null>(null);
-	const [hasText, setHasText] = useState(false);
+	const [hasText, setHasText] = useState(initialText !== undefined && initialText.trim().length > 0);
 	const [voiceAutostart] = useState(readVoiceAutostartPreference);
 
-	const text = useRef('');
+	const text = useRef(initialText ?? '');
 	// State-Mirror für die Capture-Textarea (#264): KoliBri verwaltet den Anzeigewert selbst, aber
 	// ein per Sprach-Transkript geänderter Wert muss über `_value` ins Feld gespiegelt werden.
-	const [captureText, setCaptureText] = useState('');
+	const [captureText, setCaptureText] = useState(initialText ?? '');
 	const textareaRef = useRef<HTMLKolTextareaElement>(null);
 
 	// Autofokus auf die native textarea im Shadow DOM beim Öffnen des Capture-Schritts (#250).

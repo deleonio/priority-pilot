@@ -25,7 +25,7 @@ import { APP_VERSION } from './lib/version';
 
 type Dialog =
 	// `parentTask` gesetzt → die neu angelegte Aufgabe wird als Vorgänger mit ihr verknüpft (Unteraufgabe).
-	| { kind: 'create'; parentTask?: Task }
+	| { kind: 'create'; parentTask?: Task; initialText?: string }
 	| { kind: 'edit'; task: Task }
 	| { kind: 'delete'; task: Task }
 	| { kind: 'dependencies'; taskId: number }
@@ -422,6 +422,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 			{dialog?.kind === 'create' && (
 				<QuickCaptureModal
 					parentTask={dialog.parentTask ?? null}
+					initialText={dialog.initialText}
 					pillars={pillars}
 					onClose={closeDialog}
 					onSaved={afterMutation}
@@ -437,7 +438,13 @@ export const App = ({ user }: { user: AuthUser }) => {
 				/>
 			)}
 			{dialog?.kind === 'series' && <SeriesManagementModal pillars={pillars} onClose={closeDialog} />}
-			{dialog?.kind === 'advisor' && <PillarAdvisorModal pillars={pillars} onClose={closeDialog} />}
+			{dialog?.kind === 'advisor' && (
+				<PillarAdvisorModal
+					pillars={pillars}
+					onClose={closeDialog}
+					onAdoptActivity={(text) => setDialog({ kind: 'create', initialText: text })}
+				/>
+			)}
 			{dialog?.kind === 'delete' && (
 				<DeleteTaskDialog
 					task={dialog.task}

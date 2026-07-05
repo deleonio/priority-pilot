@@ -35,7 +35,6 @@ describe('QuickCaptureModal — Vorbelegung per initialText (#327)', () => {
 	const props = { pillars, onClose: vi.fn(), onSaved: vi.fn() };
 
 	it('belegt die Capture-Textarea mit dem übergebenen initialText vor', () => {
-		// @ts-expect-error: initialText ist noch nicht implementiert (rote Spec).
 		const { container } = render(<QuickCaptureModal {...props} initialText="Laufen gehen" />);
 
 		const textarea = container.querySelector('kol-textarea');
@@ -43,7 +42,6 @@ describe('QuickCaptureModal — Vorbelegung per initialText (#327)', () => {
 	});
 
 	it('aktiviert „Verarbeiten und weiter" ohne weitere Eingabe, wenn initialText gesetzt ist', () => {
-		// @ts-expect-error: initialText ist noch nicht implementiert (rote Spec).
 		const { container } = render(<QuickCaptureModal {...props} initialText="Laufen gehen" />);
 
 		expect(isDisabled(processButton(container))).toBe(false);
