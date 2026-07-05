@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { useVoiceInput } from '../lib/useVoiceInput';
 
 interface VoiceFieldProps {
@@ -14,6 +14,14 @@ interface VoiceFieldProps {
 	 * Einstellung „Sprachaufnahme automatisch starten" aktiv ist.
 	 */
 	autoStart?: boolean;
+	/**
+	 * Optionaler Hinweistext unterhalb des Feldes (#326). Wird bewusst als Geschwister **außerhalb**
+	 * des `.voice-field`-Wrappers gerendert, damit der variabel hohe Hinweis die Höhe des
+	 * Positionierungs-Kontextes nicht verändert — sonst ankert der `bottom`-positionierte Mic-Button
+	 * am Hint-Unterrand statt an der sichtbaren Inputbox. KoliBris eigenes `_hint` würde den Text
+	 * innerhalb des Custom-Elements (also im Wrapper) rendern und genau diesen Fehler auslösen.
+	 */
+	hint?: string;
 	children: ReactNode;
 }
 
@@ -27,7 +35,14 @@ interface VoiceFieldProps {
  * Innen-Padding des nativen Inputs ist ohne eigenes Theme nicht setzbar — langer Text kann daher
  * unter den Button laufen. Bewusster, akzeptierter Tradeoff des Overlay-Ansatzes.
  */
-export const VoiceField = ({ variant, fieldLabel, onTranscript, autoStart = false, children }: VoiceFieldProps) => {
+export const VoiceField = ({
+	variant,
+	fieldLabel,
+	onTranscript,
+	autoStart = false,
+	hint,
+	children,
+}: VoiceFieldProps) => {
 	const { isRecording, startRecording, stopRecording, isSupported, voiceError } = useVoiceInput({ onTranscript });
 
 	// Auto-Start (#272): beim Mount die Aufnahme starten, sofern unterstützt. Der Cleanup setzt das
@@ -35,6 +50,7 @@ export const VoiceField = ({ variant, fieldLabel, onTranscript, autoStart = fals
 	// zwischenzeitlich abgebrochene Aufnahme im zweiten Setup erneut startet. Ohne
 	// Browser-Unterstützung (`isSupported=false`) ist `startRecording` ein No-op → kein Absturz.
 	const autoStarted = useRef(false);
+	const hintId = useId();
 	useEffect(() => {
 		if (autoStart && isSupported && !autoStarted.current) {
 			autoStarted.current = true;
@@ -65,6 +81,11 @@ export const VoiceField = ({ variant, fieldLabel, onTranscript, autoStart = fals
 					</button>
 				)}
 			</div>
+			{hint !== undefined && hint !== '' && (
+				<p id={hintId} role="note" className="voice-field-hint">
+					{hint}
+				</p>
+			)}
 			{voiceError !== null && (
 				<p className="mic-error" role="alert">
 					{voiceError}

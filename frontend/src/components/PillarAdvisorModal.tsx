@@ -108,6 +108,7 @@ export const PillarAdvisorModal = ({ pillars, onClose }: PillarAdvisorModalProps
 					variant="textarea"
 					fieldLabel="Deine Frage oder Situation"
 					autoStart={voiceAutostart}
+					hint="z. B. „Was kann ich am Wochenende für mich tun?“"
 					onTranscript={(transcript) => {
 						const newVal = question.current ? `${question.current} ${transcript}` : transcript;
 						question.current = newVal;
@@ -117,7 +118,6 @@ export const PillarAdvisorModal = ({ pillars, onClose }: PillarAdvisorModalProps
 					<KolTextarea
 						_label="Deine Frage oder Situation (optional)"
 						_rows={3}
-						_hint="z. B. „Was kann ich am Wochenende für mich tun?“"
 						_value={questionText}
 						_on={{
 							onInput: (_event, value) => {
