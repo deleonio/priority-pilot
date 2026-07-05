@@ -65,7 +65,7 @@ const findDirectSubtasks = (forest: TaskTreeNode[], taskId: number): { status: T
 const CREATE_ICON = { left: { icon: 'fa-solid fa-plus' } };
 const SERIES_ICON = { left: { icon: 'fa-solid fa-repeat' } };
 const HELP_ICON = { left: { icon: 'fa-solid fa-circle-question' } };
-const SETTINGS_ICON = { left: { icon: 'kolicon-settings' } };
+const SETTINGS_ICON = { left: { icon: 'fa-solid fa-gear' } };
 const LOGOUT_ICON = { left: { icon: 'fa-solid fa-right-from-bracket' } };
 
 export const App = ({ user }: { user: AuthUser }) => {
@@ -264,20 +264,20 @@ export const App = ({ user }: { user: AuthUser }) => {
 								_on: { onClick: () => setDialog({ kind: 'series' }) },
 							},
 							{
-								type: 'button',
-								_label: 'Hilfe',
-								_hideLabel: true,
-								_icons: HELP_ICON,
-								_variant: 'secondary',
-								_on: { onClick: openHelp },
-							},
-							{
 								type: 'button' as const,
 								_label: 'Einstellungen',
 								_hideLabel: true,
 								_icons: SETTINGS_ICON,
 								_variant: 'secondary' as const,
 								_on: { onClick: openSettings },
+							},
+							{
+								type: 'button' as const,
+								_label: 'Hilfe',
+								_hideLabel: true,
+								_icons: HELP_ICON,
+								_variant: 'secondary' as const,
+								_on: { onClick: openHelp },
 							},
 							{
 								type: 'button' as const,

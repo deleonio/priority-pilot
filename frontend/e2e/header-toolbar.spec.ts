@@ -225,3 +225,110 @@ test.describe('#298 „Aktualisieren"-Button entfernt', () => {
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
 	});
 });
+
+/**
+ * ROTE Spec-Tests für #312 „Reihenfolge von „Hilfe" und „Einstellungen" tauschen und
+ * Einstellungen-Icon auf Zahnrad ändern" (Stufe 1 TDD, der einklagbare Vertrag).
+ *
+ * Zwei Änderungen in App.tsx:
+ * 1. Reihenfolge der `_items`-Einträge: „Einstellungen" VOR „Hilfe" (aktuell umgekehrt).
+ * 2. `SETTINGS_ICON`: `kolicon-settings` → Zahnrad (z. B. `fa-solid fa-gear` oder `kolicon-cogwheel`).
+ *
+ * AK1 + AK2 sind rot, bis App.tsx umgesetzt ist. AK3 + AK4 sind Regressions-Verträge.
+ */
+test.describe('#312 Toolbar-Reihenfolge und Zahnrad-Icon', () => {
+	/**
+	 * AK1 — Reihenfolge getauscht: „Einstellungen" erscheint in DOM-Reihenfolge vor „Hilfe".
+	 * Aktuell ist die Reihenfolge Hilfe → Einstellungen → ROT bis zum Fix.
+	 */
+	test('AK1: „Einstellungen" liegt im DOM vor „Hilfe"', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+
+		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
+		await expect(toolbar).toBeVisible();
+
+		const buttons = toolbar.getByRole('button');
+		const names: string[] = await buttons.evaluateAll((els) =>
+			els.map((el) => (el as HTMLElement).getAttribute('aria-label') ?? (el as HTMLElement).textContent?.trim() ?? ''),
+		);
+
+		const idxSettings = names.findIndex((n) => /Einstellungen/i.test(n));
+		const idxHelp = names.findIndex((n) => /Hilfe/i.test(n));
+
+		expect(idxSettings, 'Index von „Einstellungen" muss gefunden werden').toBeGreaterThanOrEqual(0);
+		expect(idxHelp, 'Index von „Hilfe" muss gefunden werden').toBeGreaterThanOrEqual(0);
+		expect(idxSettings, '„Einstellungen" muss vor „Hilfe" erscheinen').toBeLessThan(idxHelp);
+	});
+
+	/**
+	 * AK2 — Zahnrad-Icon: Der „Einstellungen"-Button trägt ein Zahnrad-Icon;
+	 * `kolicon-settings` ist entfernt.
+	 * Aktuell ist `kolicon-settings` gesetzt → ROT bis zum Fix.
+	 */
+	test('AK2: „Einstellungen"-Button hat Zahnrad-Icon, kein kolicon-settings mehr', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+
+		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
+		const settingsBtn = toolbar.getByRole('button', { name: 'Einstellungen' });
+		await expect(settingsBtn).toBeVisible();
+
+		const iconState = await settingsBtn.evaluate((el) => {
+			const root = el as HTMLElement;
+			// Alle Icon-Spans im Light-DOM und flachen Shadow-DOM-Ebene sammeln.
+			const allText = root.innerHTML + (root.shadowRoot?.innerHTML ?? '');
+			const hasOldIcon = /kolicon-settings/.test(allText);
+			const hasGearIcon = /fa-gear|kolicon-cogwheel/.test(allText);
+			return { hasOldIcon, hasGearIcon };
+		});
+
+		expect(iconState.hasOldIcon, 'kolicon-settings darf nicht mehr vorhanden sein').toBe(false);
+		expect(iconState.hasGearIcon, 'Ein Zahnrad-Icon (fa-gear oder kolicon-cogwheel) muss vorhanden sein').toBe(true);
+	});
+
+	/**
+	 * AK3 — Keine Navigations-Regression: Beide Buttons navigieren weiterhin korrekt.
+	 * „Einstellungen" → /settings/pillars, „Hilfe" → /hilfe.
+	 */
+	test('AK3: „Einstellungen" navigiert zu /settings/pillars und „Hilfe" zu /hilfe', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+
+		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
+
+		// „Einstellungen" navigiert zur Settings-Route.
+		await toolbar.getByRole('button', { name: 'Einstellungen' }).click();
+		await expect(page).toHaveURL(/\/settings\/pillars/);
+		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
+
+		// Zurück und „Hilfe" testen.
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await toolbar.getByRole('button', { name: 'Hilfe' }).click();
+		await expect(page).toHaveURL(/\/hilfe/);
+		// Hilfe-Seite ist sichtbar (irgendeine Überschrift auf der Hilfe-Seite).
+		await expect(page.getByRole('main')).toBeVisible();
+	});
+
+	/**
+	 * AK4 — Mobile-First (375×812): Kein horizontaler Overflow; beide Buttons sichtbar und bedienbar.
+	 */
+	test('AK4: Kein horizontaler Overflow bei 375×812; beide Buttons sichtbar', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await page.goto('/');
+		await waitForStableView(page);
+
+		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
+		await expect(toolbar).toBeVisible();
+
+		// Kein horizontales Scrollen.
+		const overflowsHorizontally = await page.evaluate(() => document.body.scrollWidth > window.innerWidth + 1);
+		expect(overflowsHorizontally, 'Kein horizontaler Overflow auf 375px').toBe(false);
+
+		// Beide Buttons bleiben in neuer Reihenfolge sichtbar.
+		await expect(toolbar.getByRole('button', { name: 'Einstellungen' })).toBeVisible();
+		await expect(toolbar.getByRole('button', { name: 'Hilfe' })).toBeVisible();
+	});
+});
