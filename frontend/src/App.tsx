@@ -272,11 +272,11 @@ export const App = ({ user }: { user: AuthUser }) => {
 								_on: { onClick: openSettings },
 							},
 							{
-								type: 'button',
+								type: 'button' as const,
 								_label: 'Hilfe',
 								_hideLabel: true,
 								_icons: HELP_ICON,
-								_variant: 'secondary',
+								_variant: 'secondary' as const,
 								_on: { onClick: openHelp },
 							},
 							{
