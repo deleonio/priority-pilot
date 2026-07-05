@@ -1,8 +1,13 @@
 import { DataTypes, Model } from 'sequelize';
 import sequelize from '../database.js';
+import type Pillar from './pillar.js';
+import type SeriesPillar from './seriesPillar.js';
 
 /** Wiederholungsrhythmus eines Serien-Templates (striktes RRULE-Subset, siehe #120). */
 export type SeriesRhythm = 'daily' | 'weekly' | 'monthly';
+
+/** Eine Säule samt der zugehörigen Join-Zeile (`share`/`confidence`) der Serien-Vorlage (#302). */
+type SeriesPillarWithContribution = Pillar & { SeriesPillar: SeriesPillar };
 
 /**
  * Serien-Template einer wiederkehrenden Aufgabe (Habit, Konzept §4.2). Das Template hält den
@@ -27,6 +32,9 @@ class Series extends Model {
 	// für Abwärtskompatibilität: Alt-Bestände ohne Zuordnung bleiben lesbar; neue Serien werden über
 	// die Session-`userId` gebunden.
 	public userId?: number | null;
+
+	/** Eager-geladene Säulen-Vorlage (über `include: [Pillar]`); je Eintrag mit `SeriesPillar` (#302). */
+	public Pillars?: SeriesPillarWithContribution[];
 
 	public readonly createdAt!: Date;
 	public readonly updatedAt!: Date;

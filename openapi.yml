@@ -1033,6 +1033,7 @@ components:
         - estimatedEffort
         - active
         - startDate
+        - pillars
       properties:
         id:
           type: integer
@@ -1065,6 +1066,13 @@ components:
           type: string
           nullable: true
           description: Freitext-Beschreibung des Templates (optional).
+        pillars:
+          type: array
+          description: >-
+            Säulen-Vorlage des Templates (0..n). Der `share` verteilt 100 %
+            über die referenzierten Säulen; `confidence` ist die Konfidenz je Beitrag.
+          items:
+            $ref: '#/components/schemas/TaskPillarContribution'
     SeriesCreate:
       type: object
       required:
@@ -1097,6 +1105,14 @@ components:
         description:
           type: string
           nullable: true
+        pillars:
+          type: array
+          description: >-
+            Säulen-Vorlage des Templates (0..n). Wird das Feld weggelassen,
+            bleibt das Template ohne Säulen. Bei mindestens einer Säule muss die
+            Summe aller `share` 100 ergeben.
+          items:
+            $ref: '#/components/schemas/TaskPillarContributionInput'
     SeriesUpdate:
       type: object
       description: Alle Felder optional — gesetzte Felder gelten nur für künftige Instanzen.
@@ -1122,6 +1138,14 @@ components:
         description:
           type: string
           nullable: true
+        pillars:
+          type: array
+          description: >-
+            Ersetzt die Säulen-Vorlage des Templates vollständig. Eine leere Liste
+            entfernt alle Beiträge; bei mindestens einer Säule muss die Summe aller
+            `share` 100 ergeben. Fehlt das Feld, bleibt die Vorlage unverändert.
+          items:
+            $ref: '#/components/schemas/TaskPillarContributionInput'
     SeriesGenerateInput:
       type: object
       required:

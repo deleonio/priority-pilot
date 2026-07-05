@@ -1,6 +1,7 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
+import { Pillar } from '../models/index.js';
 
 let server: TestServer;
 
@@ -404,6 +405,161 @@ describe('Series API', () => {
 			const { estimatedEffort: _omit, ...withoutEffort } = validSeriesRenamed();
 			const res = await post('/series', withoutEffort);
 			assert.equal(res.status, 400);
+		});
+	});
+
+	// ── Rote Spec-Tests für #302 — AK1: series_pillars-Vorlage ──────────────────────────────────
+	//
+	// Serien tragen eine Pillar-Vorlage (Beiträge {pillarId, share, confidence}). Sie wird in
+	// series_pillars persistiert, in POST/PATCH validiert (Summe share = 100, keine Duplikate,
+	// bekannte + ganzzahlige pillarId) und in POST/PATCH/GET-Responses als nach pillarId
+	// sortiertes pillars-Array zurückgegeben. Fehlt pillars, gilt Rückwärtskompatibilität
+	// (pillars: []). Die Vorlage teilt sich die Validierung mit den Task-Beiträgen (#294 A3).
+	// KEIN Produktivcode — die Tests werden grün, sobald Modell, Route und Serialisierung das Feld
+	// unterstützen.
+	describe('AK1/#302 — series_pillars: Pillar-Vorlage in Series', () => {
+		const seedTwoPillars = async (): Promise<[number, number]> => {
+			const koerper = await Pillar.create({ name: 'Körper', weight: 20 });
+			const sinn = await Pillar.create({ name: 'Sinn', weight: 20 });
+			return [koerper.id, sinn.id];
+		};
+
+		it('POST /series mit gültigen pillars → 201, persistiert und nach pillarId sortiert', async () => {
+			const [koerper, sinn] = await seedTwoPillars();
+			const res = await post('/series', {
+				...validSeries(),
+				pillars: [
+					// bewusst unsortiert übergeben, um die Sortierung nach pillarId zu prüfen
+					{ pillarId: sinn, share: 40 },
+					{ pillarId: koerper, share: 60, confidence: 80 },
+				],
+			});
+			assert.equal(res.status, 201);
+			const body = (await res.json()) as {
+				id: number;
+				pillars: { pillarId: number; share: number; confidence: number }[];
+			};
+			// Response enthält die Beiträge, nach pillarId sortiert; confidence defaultet auf 100.
+			assert.deepEqual(body.pillars, [
+				{ pillarId: koerper, share: 60, confidence: 80 },
+				{ pillarId: sinn, share: 40, confidence: 100 },
+			]);
+
+			// Die Beiträge sind persistiert und werden per GET erneut geliefert.
+			const fetched = (await (await get(`/series/${body.id}`)).json()) as {
+				pillars: { pillarId: number; share: number; confidence: number }[];
+			};
+			assert.deepEqual(fetched.pillars, [
+				{ pillarId: koerper, share: 60, confidence: 80 },
+				{ pillarId: sinn, share: 40, confidence: 100 },
+			]);
+		});
+
+		it('POST /series ohne pillars → 201 mit pillars: [] (Rückwärtskompatibilität)', async () => {
+			const res = await post('/series', validSeries());
+			assert.equal(res.status, 201);
+			const body = (await res.json()) as Record<string, unknown>;
+			assert.deepEqual(body.pillars, [], 'ohne Angabe ist pillars ein leeres Array');
+		});
+
+		it('POST /series mit Summe share ≠ 100 → 400', async () => {
+			const [koerper, sinn] = await seedTwoPillars();
+			const res = await post('/series', {
+				...validSeries(),
+				pillars: [
+					{ pillarId: koerper, share: 30 },
+					{ pillarId: sinn, share: 30 },
+				],
+			});
+			assert.equal(res.status, 400);
+		});
+
+		it('POST /series mit unbekannter pillarId → 400', async () => {
+			await seedTwoPillars();
+			const res = await post('/series', {
+				...validSeries(),
+				pillars: [{ pillarId: 99999, share: 100 }],
+			});
+			assert.equal(res.status, 400);
+		});
+
+		it('POST /series mit doppelter pillarId → 400', async () => {
+			const [koerper] = await seedTwoPillars();
+			const res = await post('/series', {
+				...validSeries(),
+				pillars: [
+					{ pillarId: koerper, share: 50 },
+					{ pillarId: koerper, share: 50 },
+				],
+			});
+			assert.equal(res.status, 400);
+		});
+
+		it('POST /series mit nicht-ganzzahliger pillarId (1.5) → 400', async () => {
+			await seedTwoPillars();
+			const res = await post('/series', {
+				...validSeries(),
+				pillars: [{ pillarId: 1.5, share: 100 }],
+			});
+			assert.equal(res.status, 400);
+		});
+
+		it('GET /series/:id → Response enthält pillars-Array', async () => {
+			const [koerper] = await seedTwoPillars();
+			const created = (await (
+				await post('/series', { ...validSeries(), pillars: [{ pillarId: koerper, share: 100 }] })
+			).json()) as { id: number };
+			const res = await get(`/series/${created.id}`);
+			assert.equal(res.status, 200);
+			const body = (await res.json()) as Record<string, unknown>;
+			assert.ok('pillars' in body, 'Response enthält das pillars-Feld');
+			assert.deepEqual(body.pillars, [{ pillarId: koerper, share: 100, confidence: 100 }]);
+		});
+
+		it('PATCH /series/:id mit pillars → ersetzt die Vorlage vollständig', async () => {
+			const [koerper, sinn] = await seedTwoPillars();
+			const created = (await (
+				await post('/series', { ...validSeries(), pillars: [{ pillarId: koerper, share: 100 }] })
+			).json()) as { id: number };
+
+			const res = await patch(`/series/${created.id}`, {
+				pillars: [{ pillarId: sinn, share: 100, confidence: 50 }],
+			});
+			assert.equal(res.status, 200);
+			const body = (await res.json()) as {
+				pillars: { pillarId: number; share: number; confidence: number }[];
+			};
+			// Der alte Beitrag (koerper) ist ersetzt, nicht ergänzt.
+			assert.deepEqual(body.pillars, [{ pillarId: sinn, share: 100, confidence: 50 }]);
+		});
+
+		it('PATCH /series/:id mit pillars: [] → leert die Vorlage', async () => {
+			const [koerper] = await seedTwoPillars();
+			const created = (await (
+				await post('/series', { ...validSeries(), pillars: [{ pillarId: koerper, share: 100 }] })
+			).json()) as { id: number };
+
+			const res = await patch(`/series/${created.id}`, { pillars: [] });
+			assert.equal(res.status, 200);
+			const body = (await res.json()) as Record<string, unknown>;
+			assert.deepEqual(body.pillars, [], 'pillars: [] leert die Vorlage');
+		});
+
+		it('PATCH /series/:id ohne pillars → lässt die Vorlage unverändert', async () => {
+			const [koerper] = await seedTwoPillars();
+			const created = (await (
+				await post('/series', { ...validSeries(), pillars: [{ pillarId: koerper, share: 100 }] })
+			).json()) as { id: number };
+
+			// Ein PATCH, der pillars NICHT enthält, darf die bestehende Vorlage nicht antasten.
+			const res = await patch(`/series/${created.id}`, { title: 'Neuer Titel' });
+			assert.equal(res.status, 200);
+			const body = (await res.json()) as {
+				title: string;
+				pillars: { pillarId: number; share: number; confidence: number }[];
+			};
+			assert.equal(body.title, 'Neuer Titel');
+			assert.deepEqual(body.pillars, [{ pillarId: koerper, share: 100, confidence: 100 }]);
 		});
 	});
 });

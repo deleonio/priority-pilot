@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { ValidationError as SequelizeValidationError } from 'sequelize';
-import { Series } from '../../models/index.js';
+import { Transaction, ValidationError as SequelizeValidationError } from 'sequelize';
+import sequelize from '../../database.js';
+import { Pillar, Series, SeriesPillar } from '../../models/index.js';
 import type { SeriesRhythm } from '../../models/series.js';
 import { generateDueInstances, materializeDueSeries } from '../../logics/series.js';
+import { arePillarsExistent, validatePillars, type PillarContribution } from '../../logics/pillarContributions.js';
 import { getUserId } from '../requireAuth.js';
 import { serializeTask } from './tasks.js';
 import type { components } from '../../api';
@@ -26,7 +28,8 @@ interface SeriesAttributes {
 	description?: string | null;
 }
 
-type ValidationResult = { ok: true; attrs: SeriesAttributes } | { ok: false; message: string };
+type ValidationResult =
+	{ ok: true; attrs: SeriesAttributes; pillars: PillarContribution[] | undefined } | { ok: false; message: string };
 
 const isRhythm = (value: unknown): value is SeriesRhythm =>
 	typeof value === 'string' && VALID_RHYTHMS.some((rhythm) => rhythm === value);
@@ -51,7 +54,11 @@ const parseId = (raw: string): number | null => {
 	return Number.isInteger(id) && id > 0 ? id : null;
 };
 
-/** Wandelt ein Serien-Template in die im API-Vertrag definierte Form um. */
+/**
+ * Wandelt ein Serien-Template in die im API-Vertrag definierte Form um. Die Säulen-Vorlage stammt
+ * aus der **eager-geladenen** Assoziation `series.Pillars` (`include: [Pillar]`); fehlt sie, gilt
+ * „keine Säulen". Die Beiträge sind nach `pillarId` sortiert (deterministische Reihenfolge).
+ */
 const serializeSeries = (series: Series): SeriesDto => ({
 	id: series.id,
 	title: series.title,
@@ -61,6 +68,13 @@ const serializeSeries = (series: Series): SeriesDto => ({
 	active: series.active,
 	startDate: series.startDate.toISOString(),
 	description: series.description ?? null,
+	pillars: (series.Pillars ?? [])
+		.map((pillar) => ({
+			pillarId: pillar.id,
+			share: pillar.SeriesPillar.share,
+			confidence: pillar.SeriesPillar.confidence,
+		}))
+		.sort((a, b) => a.pillarId - b.pillarId),
 });
 
 /**
@@ -145,15 +159,46 @@ const validateSeriesFields = (body: unknown, isPost: boolean): ValidationResult 
 		attrs.description = input.description;
 	}
 
-	return { ok: true, attrs };
+	let pillars: PillarContribution[] | undefined;
+	if (input.pillars !== undefined) {
+		if (!Array.isArray(input.pillars)) {
+			return { ok: false, message: 'pillars muss eine Liste sein.' };
+		}
+		const result = validatePillars(input.pillars);
+		if (!result.ok) {
+			return { ok: false, message: 'pillars ist ungültig (Beiträge, Summe der share oder Duplikate).' };
+		}
+		pillars = result.pillars;
+	}
+
+	return { ok: true, attrs, pillars };
 };
+
+/** Lädt ein Serien-Template inkl. seiner Säulen-Vorlage (für die Serialisierung). */
+const findSeriesWithPillars = (id: number): Promise<Series | null> => Series.findByPk(id, { include: [Pillar] });
+
+/** Schreibt die Säulen-Vorlage einer Serie neu (ersetzt vorhandene) — innerhalb einer Transaktion. */
+const replaceContributions = (
+	seriesId: number,
+	pillars: PillarContribution[],
+	transaction: Transaction,
+): Promise<unknown> =>
+	SeriesPillar.bulkCreate(
+		pillars.map((entry) => ({
+			seriesId,
+			pillarId: entry.pillarId,
+			share: entry.share,
+			confidence: entry.confidence,
+		})),
+		{ transaction, validate: true },
+	);
 
 export const seriesRouter = Router();
 
 // GET /series — alle Serien-Templates auflisten
 seriesRouter.get('/series', async (_req: Request, res: Response<SeriesDto[] | ErrorDto>) => {
 	try {
-		const all = await Series.findAll({ order: [['id', 'ASC']] });
+		const all = await Series.findAll({ order: [['id', 'ASC']], include: [Pillar] });
 		res.json(all.map(serializeSeries));
 	} catch (error) {
 		handleWriteError(res, error);
@@ -167,9 +212,27 @@ seriesRouter.post('/series', async (req: Request, res: Response<SeriesDto | Erro
 		sendError(res, 400, validation.message);
 		return;
 	}
+	if (
+		validation.pillars !== undefined &&
+		!(await arePillarsExistent(validation.pillars.map((entry) => entry.pillarId)))
+	) {
+		sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
+		return;
+	}
 	try {
-		const created = await Series.create({ ...validation.attrs, userId: getUserId(req) ?? null });
-		res.status(201).json(serializeSeries(created));
+		const created = await sequelize.transaction(async (transaction) => {
+			const series = await Series.create({ ...validation.attrs, userId: getUserId(req) ?? null }, { transaction });
+			if (validation.pillars !== undefined && validation.pillars.length > 0) {
+				await replaceContributions(series.id, validation.pillars, transaction);
+			}
+			return series;
+		});
+		const withPillars = await findSeriesWithPillars(created.id);
+		if (!withPillars) {
+			sendError(res, 500, 'Interner Serverfehler.');
+			return;
+		}
+		res.status(201).json(serializeSeries(withPillars));
 	} catch (error) {
 		handleWriteError(res, error);
 	}
@@ -193,7 +256,7 @@ seriesRouter.post(
 // GET /series/:id — ein Serien-Template abrufen
 seriesRouter.get('/series/:id', async (req: Request, res: Response<SeriesDto | ErrorDto>) => {
 	const id = parseId(req.params.id);
-	const series = id === null ? null : await Series.findByPk(id);
+	const series = id === null ? null : await findSeriesWithPillars(id);
 	if (!series) {
 		sendError(res, 404, 'Serie nicht gefunden.');
 		return;
@@ -204,7 +267,7 @@ seriesRouter.get('/series/:id', async (req: Request, res: Response<SeriesDto | E
 // PATCH /series/:id — ein Serien-Template teilweise aktualisieren (gilt nur für künftige Instanzen)
 seriesRouter.patch('/series/:id', async (req: Request, res: Response<SeriesDto | ErrorDto>) => {
 	const id = parseId(req.params.id);
-	const series = id === null ? null : await Series.findByPk(id);
+	const series = id === null ? null : await Series.findByPk(id, { include: [Pillar] });
 	if (!series) {
 		sendError(res, 404, 'Serie nicht gefunden.');
 		return;
@@ -214,9 +277,30 @@ seriesRouter.patch('/series/:id', async (req: Request, res: Response<SeriesDto |
 		sendError(res, 400, validation.message);
 		return;
 	}
+	if (
+		validation.pillars !== undefined &&
+		!(await arePillarsExistent(validation.pillars.map((entry) => entry.pillarId)))
+	) {
+		sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
+		return;
+	}
 	try {
-		await series.update(validation.attrs);
-		res.json(serializeSeries(series));
+		await sequelize.transaction(async (transaction) => {
+			await series.update(validation.attrs, { transaction });
+			// `pillars` fehlt → Vorlage unverändert lassen; gesetzt (auch `[]`) → komplett ersetzen.
+			if (validation.pillars !== undefined) {
+				await SeriesPillar.destroy({ where: { seriesId: series.id }, transaction });
+				if (validation.pillars.length > 0) {
+					await replaceContributions(series.id, validation.pillars, transaction);
+				}
+			}
+		});
+		const withPillars = await findSeriesWithPillars(series.id);
+		if (!withPillars) {
+			sendError(res, 404, 'Serie nicht gefunden.');
+			return;
+		}
+		res.json(serializeSeries(withPillars));
 	} catch (error) {
 		handleWriteError(res, error);
 	}

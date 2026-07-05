@@ -5,6 +5,7 @@ import TaskPillar from './taskPillar.js';
 import PillarFeedback from './pillarFeedback.js';
 import ScoreEntry from './scoreEntry.js';
 import Series from './series.js';
+import SeriesPillar from './seriesPillar.js';
 import User from './user.js';
 
 Task.belongsToMany(Task, {
@@ -36,7 +37,12 @@ ScoreEntry.belongsTo(Task, { foreignKey: 'taskId' });
 Series.hasMany(Task, { foreignKey: 'seriesId' });
 Task.belongsTo(Series, { foreignKey: 'seriesId' });
 
+// Ein Serien-Template trägt eine Säulen-**Vorlage** (n:m, #302): 0..n Säulen mit `share`/`confidence`
+// in `series_pillars`. Analog zu Task↔Pillar, aber auf der Template-Ebene (siehe seriesPillar.ts).
+Series.belongsToMany(Pillar, { through: SeriesPillar, foreignKey: 'seriesId', otherKey: 'pillarId' });
+Pillar.belongsToMany(Series, { through: SeriesPillar, foreignKey: 'pillarId', otherKey: 'seriesId' });
+
 // `pillar_feedback` steht für sich (keine Assoziation) — es speichert lose Korrektur-Samples
 // (Titel/Beschreibung + bestätigte Säulen) für den Feedback-Loop der Klassifikation (siehe #45).
 // `users` steht für sich (E-Mail-/Passwort-Auth, Issue #206) — keine Assoziationen nötig.
-export { Task, Dependency, Pillar, TaskPillar, PillarFeedback, ScoreEntry, Series, User };
+export { Task, Dependency, Pillar, TaskPillar, PillarFeedback, ScoreEntry, Series, SeriesPillar, User };
