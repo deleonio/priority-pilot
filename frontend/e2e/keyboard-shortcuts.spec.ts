@@ -262,7 +262,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 
 		const title = uniqueTitle('Serie');
 		await page.getByRole('button', { name: 'Neue Serie anlegen' }).click();
-		await expect(page.getByRole('heading', { name: 'Neue Serie anlegen' })).toBeVisible();
+		await expect(page.getByRole('group', { name: 'Neue Serie anlegen' })).toBeVisible();
 		await waitForStableView(page);
 
 		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
@@ -272,7 +272,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		await page.keyboard.press('Control+Enter');
 
 		// Das Formular schließt sich und die Serie erscheint in der Serien-Liste.
-		await expect(page.getByRole('heading', { name: 'Neue Serie anlegen' })).toBeHidden();
+		await expect(page.getByRole('group', { name: 'Neue Serie anlegen' })).toBeHidden();
 		await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
 
 		// Persistenz gegenprüfen und die angelegte Serie wieder abräumen (afterEach löscht nur Tasks).

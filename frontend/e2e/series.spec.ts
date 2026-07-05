@@ -104,14 +104,14 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 
 		const title = uniqueTitle('Anlegen');
 		await page.getByRole('button', { name: 'Neue Serie anlegen' }).click();
-		await expect(page.getByRole('heading', { name: 'Neue Serie anlegen' })).toBeVisible();
+		await expect(page.getByRole('group', { name: 'Neue Serie anlegen' })).toBeVisible();
 		await waitForStableView(page);
 
 		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
 		// `startDate` ist im Vertrag (`SeriesCreate`) Pflicht — Startdatum als Anker der Serie setzen.
 		await page.getByLabel('Startdatum').fill('2026-09-07');
 		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
-		await expect(page.getByRole('heading', { name: 'Neue Serie anlegen' })).toBeHidden();
+		await expect(page.getByRole('group', { name: 'Neue Serie anlegen' })).toBeHidden();
 
 		// In der UI gelistet: der Serien-Titel erscheint in der Serien-Verwaltung.
 		await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
