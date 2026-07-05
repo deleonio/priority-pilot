@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { Series, Task } from '../models/index.js';
+import { Series, Task, Pillar, SeriesPillar, TaskPillar } from '../models/index.js';
 import { generateDueInstances, materializeDueSeries } from './series.js';
 import { resetDb, closeDb } from '../test/helpers.js';
 
@@ -117,14 +117,21 @@ describe('generateDueInstances', () => {
 
 	// ── AK 3: Template-Änderung gilt nur für künftige Instanzen ────────────────────────────────
 	it('Template-Änderung wirkt nur auf künftige, nicht auf bestehende Instanzen', async () => {
+		// #295: AK3-Erweiterung — Snapshot-Vertrag gilt auch für description + Pillars.
+		const pillar = await Pillar.create({ name: 'Fokus', weight: 100 });
+
 		const series = await Series.create({
 			title: 'Lesen',
 			rhythm: 'weekly',
 			priority: 2,
 			estimatedEffort: 0.5,
 			active: true,
+			description: 'Täglich 30 Minuten lesen',
 			startDate: new Date('2026-01-01T00:00:00.000Z'),
 		});
+
+		// Pillar-Vorlage für die initiale Serie anlegen.
+		await SeriesPillar.create({ seriesId: series.id, pillarId: pillar.id, share: 100, confidence: 80 });
 
 		// Erste Generierung mit Default-Priorität 2.
 		const existing = await generateDueInstances(series, {
@@ -133,11 +140,26 @@ describe('generateDueInstances', () => {
 		assert.equal(existing.length, 3);
 		for (const inst of existing) {
 			assert.equal(inst.priority, 2);
+			// #295 AK3: bestehende Instanz trägt description-Snapshot
+			assert.equal(inst.description, 'Täglich 30 Minuten lesen', 'bestehende Instanz trägt die ursprüngliche description');
+		}
+
+		// #295 AK3: bestehende Instanzen tragen die ursprünglichen task_pillars
+		for (const inst of existing) {
+			const pillars = await TaskPillar.findAll({ where: { taskId: inst.id } });
+			assert.equal(pillars.length, 1, 'bestehende Instanz hat einen task_pillar');
+			assert.equal(pillars[0].pillarId, pillar.id, 'korrekter pillarId');
+			assert.equal(pillars[0].share, 100, 'ursprünglicher share');
+			assert.equal(pillars[0].confidence, 80, 'ursprüngliche confidence');
 		}
 
 		// Template ändern: künftige Instanzen sollen Priorität 5 erhalten.
 		series.priority = 5;
+		series.description = 'Geänderte Beschreibung';
 		await series.save();
+
+		// Pillar-Vorlage ebenfalls ändern: confidence von 80 → 50
+		await SeriesPillar.update({ confidence: 50 }, { where: { seriesId: series.id, pillarId: pillar.id } });
 
 		// Künftiges Fenster generieren (21.01.–10.02.).
 		const future = await generateDueInstances(series, {
@@ -146,6 +168,15 @@ describe('generateDueInstances', () => {
 		assert.ok(future.length > 0, 'es entstehen neue künftige Instanzen');
 		for (const inst of future) {
 			assert.equal(inst.priority, 5, 'neue Instanzen tragen die geänderte Default-Priorität');
+			// #295 AK3: neue Instanzen erben die geänderte description
+			assert.equal(inst.description, 'Geänderte Beschreibung', 'neue Instanzen tragen die geänderte description');
+		}
+
+		// #295 AK3: neue Instanzen erben die geänderte Pillar-Vorlage
+		for (const inst of future) {
+			const pillars = await TaskPillar.findAll({ where: { taskId: inst.id } });
+			assert.equal(pillars.length, 1, 'neue Instanz hat einen task_pillar');
+			assert.equal(pillars[0].confidence, 50, 'neue Instanz trägt die geänderte confidence');
 		}
 
 		// Bestehende Instanzen bleiben unverändert bei Priorität 2.
@@ -154,6 +185,15 @@ describe('generateDueInstances', () => {
 		});
 		for (const inst of oldInstances) {
 			assert.equal(inst.priority, 2, 'bestehende Instanzen behalten ihre alte Priorität');
+			// #295 AK3: bestehende Instanzen behalten ihre alte description
+			assert.equal(inst.description, 'Täglich 30 Minuten lesen', 'bestehende Instanzen behalten ihre alte description');
+		}
+
+		// #295 AK3: bestehende Instanzen behalten ihre alten task_pillars (confidence = 80, nicht 50)
+		for (const inst of oldInstances) {
+			const pillars = await TaskPillar.findAll({ where: { taskId: inst.id } });
+			assert.equal(pillars.length, 1, 'bestehende Instanz hat weiterhin einen task_pillar');
+			assert.equal(pillars[0].confidence, 80, 'bestehende Instanz behält die alte confidence (Snapshot-Vertrag)');
 		}
 	});
 
@@ -171,6 +211,68 @@ describe('generateDueInstances', () => {
 			until: new Date('2026-01-20T00:00:00.000Z'),
 		});
 		assert.equal(instances.length, 0);
+	});
+
+	// ── AK 2 (#295): Instanz erbt description + Pillars aus der Serien-Vorlage ─────────────────
+	it('erzeugte Instanz trägt description und task_pillars aus der Serien-Vorlage', async () => {
+		const pillarA = await Pillar.create({ name: 'Körper', weight: 50 });
+		const pillarB = await Pillar.create({ name: 'Geist', weight: 50 });
+
+		const series = await Series.create({
+			title: 'Meditation',
+			rhythm: 'weekly',
+			priority: 3,
+			estimatedEffort: 0.5,
+			active: true,
+			description: 'Täglich meditieren und Geist stärken',
+			startDate: new Date('2026-01-01T00:00:00.000Z'),
+		});
+
+		await SeriesPillar.create({ seriesId: series.id, pillarId: pillarA.id, share: 70, confidence: 90 });
+		await SeriesPillar.create({ seriesId: series.id, pillarId: pillarB.id, share: 30, confidence: 60 });
+
+		const instances = await generateDueInstances(series, {
+			until: new Date('2026-01-01T00:00:00.000Z'),
+		});
+		assert.equal(instances.length, 1, 'genau eine Instanz erzeugt');
+		const instance = instances[0];
+
+		assert.equal(instance.description, 'Täglich meditieren und Geist stärken', 'Instanz trägt die description aus dem Template');
+
+		const taskPillars = await TaskPillar.findAll({ where: { taskId: instance.id } });
+		assert.equal(taskPillars.length, 2, 'Instanz hat zwei task_pillars');
+
+		const rowA = taskPillars.find((p) => p.pillarId === pillarA.id);
+		const rowB = taskPillars.find((p) => p.pillarId === pillarB.id);
+		assert.ok(rowA, 'Säule A ist in den task_pillars vorhanden');
+		assert.ok(rowB, 'Säule B ist in den task_pillars vorhanden');
+		assert.equal(rowA!.share, 70, 'Säule A: share korrekt kopiert');
+		assert.equal(rowA!.confidence, 90, 'Säule A: confidence korrekt kopiert');
+		assert.equal(rowB!.share, 30, 'Säule B: share korrekt kopiert');
+		assert.equal(rowB!.confidence, 60, 'Säule B: confidence korrekt kopiert');
+	});
+
+	it('Serie ohne Pillar-Vorlage erzeugt Instanz ohne task_pillars (kein Fehler); description null bleibt null', async () => {
+		const series = await Series.create({
+			title: 'Laufen',
+			rhythm: 'weekly',
+			priority: 3,
+			estimatedEffort: 0.5,
+			active: true,
+			description: null,
+			startDate: new Date('2026-01-01T00:00:00.000Z'),
+		});
+
+		const instances = await generateDueInstances(series, {
+			until: new Date('2026-01-01T00:00:00.000Z'),
+		});
+		assert.equal(instances.length, 1, 'eine Instanz erzeugt');
+		const instance = instances[0];
+
+		assert.equal(instance.description, null, 'description ist null wenn im Template null');
+
+		const taskPillars = await TaskPillar.findAll({ where: { taskId: instance.id } });
+		assert.equal(taskPillars.length, 0, 'keine task_pillars wenn Vorlage leer');
 	});
 
 	// ── Monthly: korrekte Termine auch bei Monatsenden (z. B. 31.01. → 28.02., nicht 03.03.) ───────
