@@ -455,3 +455,105 @@ test.describe('Priority Pilot — #297: Altes Serien-Formular durch TaskForm ers
 		expect(titleBox!.x + titleBox!.width).toBeLessThanOrEqual(375);
 	});
 });
+
+/**
+ * Rote Spec-Tests für #330: Vereinheitlichter Anlege-Einstieg für Task und Serie.
+ *
+ * Der separate „Neue Serie anlegen"-Button in `SeriesManagementModal` entfällt — das Anlegen läuft
+ * ausschließlich über „Neuen Task anlegen" → QuickCapture → `TaskForm` mit Mode-Toggle. Die
+ * Verwaltungsfunktionen (Liste, Bearbeiten, Löschen, Generieren) bleiben im Modal erhalten.
+ *
+ * AK5a ist der Kern-Rot-Test: `toHaveCount(0)` schlägt aktuell fehl, weil der Button noch existiert.
+ * Nach Umsetzung (Button entfernt) wird der Block grün.
+ */
+test.describe('Priority Pilot — #330: Vereinheitlichter Anlege-Einstieg (SeriesManagementModal ohne Anlegen-Button)', () => {
+	let runId = 0;
+	const uniqueTitle = (label: string): string => `E2E #330 ${label} #${(runId += 1)}-${Date.now()}`;
+
+	interface SeriesPayload {
+		title: string;
+		rhythm?: 'daily' | 'weekly' | 'monthly';
+		startDate: string;
+	}
+
+	const createSeriesViaApi = async (page: Page, payload: SeriesPayload): Promise<number> => {
+		const response = await page.request.post('/api/v1/series', {
+			data: { rhythm: 'weekly', priority: 3, estimatedEffort: 0.5, active: true, ...payload },
+		});
+		expect(response.ok()).toBeTruthy();
+		return ((await response.json()) as { id: number }).id;
+	};
+
+	const deleteAll = async (page: Page): Promise<void> => {
+		const tasks = (await (await page.request.get('/api/v1/tasks')).json()) as { id: number }[];
+		for (const task of tasks) await page.request.delete(`/api/v1/tasks/${task.id}`);
+		const series = (await (await page.request.get('/api/v1/series')).json()) as { id: number }[];
+		for (const entry of series) await page.request.delete(`/api/v1/series/${entry.id}`);
+	};
+
+	test.afterEach(async ({ page }) => {
+		await deleteAll(page);
+	});
+
+	const openSeriesManagement = async (page: Page): Promise<void> => {
+		await page.getByRole('button', { name: 'Serien verwalten' }).click();
+		await expect(page.getByRole('heading', { name: 'Serien', exact: true })).toBeVisible();
+		await waitForStableView(page);
+	};
+
+	// AK5a — Der separate „Neue Serie anlegen"-Button ist im SeriesManagementModal entfernt.
+	// ROT: schlägt aktuell fehl, weil der Button noch existiert (toHaveCount(0) → tatsächlich 1).
+	test('AK5 (#330) — SeriesManagementModal enthält keinen separaten „Neue Serie anlegen"-Button', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+		await openSeriesManagement(page);
+
+		// Kern-Assertion: kein Anlegen-Button mehr im Modal.
+		await expect(page.getByRole('button', { name: 'Neue Serie anlegen' })).toHaveCount(0);
+
+		// Das Modal ist trotzdem geöffnet (die Verwaltung existiert weiterhin).
+		await expect(page.getByRole('heading', { name: 'Serien', exact: true })).toBeVisible();
+	});
+
+	// AK5b — Verwaltungsfunktionen (Liste / Bearbeiten / Löschen / Generieren) bleiben ohne Anlegen-Button erhalten.
+	test('AK5 (#330) — Serien-Verwaltung zeigt Liste/Bearbeiten/Löschen/Generieren ohne Anlegen-Button', async ({
+		page,
+	}) => {
+		const title = uniqueTitle('Verwaltung');
+		await createSeriesViaApi(page, { title, startDate: '2026-09-07T00:00:00.000Z' });
+
+		await page.goto('/');
+		await waitForStableView(page);
+		await openSeriesManagement(page);
+
+		// Kein Anlegen-Button.
+		await expect(page.getByRole('button', { name: 'Neue Serie anlegen' })).toHaveCount(0);
+
+		// Die Serie steht in der Liste.
+		await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
+
+		// Verwaltungsfunktionen bleiben bedienbar.
+		await expect(page.getByRole('button', { name: 'Bearbeiten' }).first()).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Löschen' }).first()).toBeVisible();
+		await expect(page.getByRole('button', { name: /Fällige Instanzen generieren/i })).toBeVisible();
+	});
+
+	// AK5c — Mobile-First 375px: SeriesManagementModal ohne Anlegen-Button und ohne horizontales Scrollen.
+	test('AK5 (#330) — SeriesManagementModal auf 375px ohne Anlegen-Button und ohne horizontales Scrollen', async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await page.goto('/');
+		await waitForStableView(page);
+		await openSeriesManagement(page);
+
+		// Kein Anlegen-Button.
+		await expect(page.getByRole('button', { name: 'Neue Serie anlegen' })).toHaveCount(0);
+
+		// Kein horizontales Scrollen: die Scrollbreite überschreitet die Viewport-Breite nicht.
+		const hasNoHorizontalScroll = await page.evaluate(
+			() => document.scrollingElement !== null && document.scrollingElement.scrollWidth <= window.innerWidth,
+		);
+		expect(hasNoHorizontalScroll).toBeTruthy();
+	});
+});
