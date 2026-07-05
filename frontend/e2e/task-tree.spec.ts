@@ -223,4 +223,100 @@ test.describe('Priority Pilot — TaskTree (expandierbare Aufgaben-Liste, #238)'
 		});
 		expect(overflowsHorizontally).toBe(false);
 	});
+
+	/**
+	 * Roter TDD-Vertrag für #307: „Bearbeiten" wird vom separaten Button VOR der Toolbar zu einem
+	 * Icon-Button und rückt als ERSTES Element in die Aktions-Toolbar (`kol-toolbar` → `[role="toolbar"]`).
+	 * Der Accessible Name bleibt „Bearbeiten" (durch AK-5 oben gedeckt), aber es gibt keinen sichtbaren
+	 * Klartext mehr. Diese Specs sind rot, bis `TaskTree.tsx` den Edit-Button als erstes Toolbar-Item
+	 * mit `_hideLabel` rendert.
+	 */
+	test.describe('#307 — „Bearbeiten" als Icon-Button in der Aktions-Toolbar', () => {
+		/** Die Aktions-Toolbar eines Knotens (`KolToolbar` rendert `[role="toolbar"]`). */
+		const toolbar = (page: Page, id: number) => item(page, id).locator('[role="toolbar"]');
+
+		test('AK-307-1: „Bearbeiten" ist das erste Element der Aktions-Toolbar', async ({ page }) => {
+			const title = uniqueTitle('Toolbar-Edit');
+			const id = await createTask(page, title);
+
+			await page.goto('/');
+			await waitForStableView(page);
+			await openTasksTab(page);
+
+			// Die Toolbar existiert und ihr erster Button ist „Bearbeiten" (vor Abhängigkeiten/
+			// Unteraufgabe/Löschen). Aktuell rot: „Bearbeiten" steht als separater Button VOR der Toolbar.
+			await expect(toolbar(page, id)).toBeVisible();
+			const firstButton = toolbar(page, id).getByRole('button').first();
+			await expect(firstButton).toHaveAccessibleName('Bearbeiten');
+		});
+
+		test('AK-307-1b: „Bearbeiten"-Button trägt kein sichtbares Text-Label (Icon-only)', async ({ page }) => {
+			const title = uniqueTitle('Icon-Edit');
+			const id = await createTask(page, title);
+
+			await page.goto('/');
+			await waitForStableView(page);
+			await openTasksTab(page);
+
+			const editButton = toolbar(page, id).getByRole('button', { name: 'Bearbeiten' });
+			await expect(editButton).toBeVisible();
+
+			// KoliBri rendert bei `_hideLabel={true}` den Label-Text in einem `aria-hidden`-Span, damit der
+			// Accessible Name erhalten bleibt, der Text aber optisch verborgen ist. Kein sichtbarer
+			// Klartext „Bearbeiten" darf im Button-DOM erscheinen.
+			const hasVisibleLabelText = await editButton.evaluate((el) => {
+				const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+				let node = walker.nextNode();
+				while (node !== null) {
+					const text = (node.textContent ?? '').trim();
+					if (text.includes('Bearbeiten')) {
+						// Prüfen, ob ein Vorfahre aria-hidden oder optisch versteckt ist.
+						let ancestor: HTMLElement | null = node.parentElement;
+						let hidden = false;
+						while (ancestor !== null && ancestor !== el.parentElement) {
+							const style = window.getComputedStyle(ancestor);
+							if (
+								ancestor.getAttribute('aria-hidden') === 'true' ||
+								style.display === 'none' ||
+								style.visibility === 'hidden' ||
+								style.clip === 'rect(0px, 0px, 0px, 0px)'
+							) {
+								hidden = true;
+								break;
+							}
+							ancestor = ancestor.parentElement;
+						}
+						if (!hidden) {
+							return true;
+						}
+					}
+					node = walker.nextNode();
+				}
+				return false;
+			});
+			expect(hasVisibleLabelText).toBe(false);
+		});
+
+		test('AK-307-5: Icon-Button „Bearbeiten" ist auf 375px in der Toolbar sichtbar', async ({ page }) => {
+			await page.setViewportSize({ width: 375, height: 812 });
+
+			const title = uniqueTitle('Mobil-Edit');
+			const id = await createTask(page, title);
+
+			await page.goto('/');
+			await waitForStableView(page);
+			await openTasksTab(page);
+
+			// Der Edit-Icon-Button liegt in der Toolbar und ist auch mobil sichtbar (innerhalb des Viewports).
+			const editButton = toolbar(page, id).getByRole('button', { name: 'Bearbeiten' });
+			await expect(editButton).toBeVisible();
+
+			const box = await editButton.boundingBox();
+			expect(box).not.toBeNull();
+			if (box !== null) {
+				expect(box.x).toBeGreaterThanOrEqual(0);
+				expect(box.x + box.width).toBeLessThanOrEqual(375 + 1);
+			}
+		});
+	});
 });
