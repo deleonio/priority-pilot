@@ -23,13 +23,9 @@ vi.mock('@public-ui/react-v19', () => ({
 			{_description}
 		</div>
 	),
-	KolButton: ({
-		_label,
-		_on,
-	}: {
-		_label?: string;
-		_on?: { onClick?: (_e: MouseEvent) => void };
-	}) => <button onClick={(e) => _on?.onClick?.(e.nativeEvent)}>{_label}</button>,
+	KolButton: ({ _label, _on }: { _label?: string; _on?: { onClick?: (_e: MouseEvent) => void } }) => (
+		<button onClick={(e) => _on?.onClick?.(e.nativeEvent)}>{_label}</button>
+	),
 	KolInputText: ({
 		_label,
 		_value,
@@ -47,9 +43,7 @@ vi.mock('@public-ui/react-v19', () => ({
 		/>
 	),
 	KolInputDate: ({ _label }: { _label?: string }) => <input type="date" aria-label={_label} />,
-	KolInputRange: ({ _label }: { _label?: string }) => (
-		<input type="range" aria-label={_label} />
-	),
+	KolInputRange: ({ _label }: { _label?: string }) => <input type="range" aria-label={_label} />,
 	KolSingleSelect: ({ _label }: { _label?: string }) => <select aria-label={_label} />,
 	KolSpin: () => <span aria-busy="true" />,
 	KolTextarea: ({ _label }: { _label?: string }) => <textarea aria-label={_label} />,
@@ -82,6 +76,7 @@ const minimalNewTask = (): Task => ({
 	status: TaskStatus.Open,
 	priority: 3,
 	estimatedEffort: 0.5,
+	isException: false,
 	pillars: [],
 });
 
@@ -103,13 +98,7 @@ describe('TaskForm — Auto-Trigger „Säulen vorschlagen" (#305)', () => {
 		mockSuggestPillars.mockResolvedValue([]);
 
 		await act(async () => {
-			render(
-				<TaskForm
-					task={null}
-					initialValues={{ title: 'Steuererklärung 2025' }}
-					{...defaultProps}
-				/>,
-			);
+			render(<TaskForm task={null} initialValues={{ title: 'Steuererklärung 2025' }} {...defaultProps} />);
 		});
 
 		expect(mockSuggestPillars).toHaveBeenCalledTimes(1);
@@ -170,9 +159,7 @@ describe('TaskForm — Auto-Trigger „Säulen vorschlagen" (#305)', () => {
 
 		// Erster Mount kann noch laufen; anschließend Re-Render simulieren.
 		await act(async () => {
-			rerender(
-				<TaskForm task={null} initialValues={{ title: 'Wiederholungstest' }} {...defaultProps} />,
-			);
+			rerender(<TaskForm task={null} initialValues={{ title: 'Wiederholungstest' }} {...defaultProps} />);
 		});
 
 		expect(mockSuggestPillars).toHaveBeenCalledTimes(1);
@@ -183,9 +170,7 @@ describe('TaskForm — Auto-Trigger „Säulen vorschlagen" (#305)', () => {
 		mockSuggestPillars.mockResolvedValue([{ pillarId: 1, confidence: 80 }]);
 
 		await act(async () => {
-			render(
-				<TaskForm task={null} initialValues={{ title: 'Karriere planen' }} {...defaultProps} />,
-			);
+			render(<TaskForm task={null} initialValues={{ title: 'Karriere planen' }} {...defaultProps} />);
 		});
 
 		// Nach dem Auto-Trigger soll mindestens eine pillar-row im DOM erscheinen

@@ -10,7 +10,7 @@ import {
 } from '@public-ui/react-v19';
 import type { Pillar, Task, TaskCreate, TaskPillarContribution, TaskUpdate } from 'client';
 import { TaskStatus } from 'client';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { useCtrlEnter } from '../lib/useCtrlEnter';
@@ -162,6 +162,11 @@ export const TaskForm = ({
 	// der Wert beeinflusst kein Rendern und der Dialog schließt nach dem Speichern.
 	const suggestionApplied = useRef(false);
 
+	// #305: Verhindert, dass der Auto-Trigger für „Säulen vorschlagen" beim Mount mehr als einmal
+	// feuert (React StrictMode mountet Komponenten im Dev-Modus doppelt). Ein Ref reicht: der Wert
+	// steuert kein Rendern.
+	const autoTriggered = useRef(false);
+
 	// Beim Anlegen einer Unteraufgabe wird der bereits erfolgreich angelegte Task gemerkt. Schlägt nur
 	// die anschließende Verknüpfung fehl, legt ein erneuter Submit kein Duplikat an, sondern überspringt
 	// `createTask` und versucht ausschließlich die Verknüpfung erneut. Ein Ref reicht: der Wert steuert
@@ -223,6 +228,18 @@ export const TaskForm = ({
 			setSuggesting(false);
 		}
 	};
+
+	// #305: Beim Anlegen (task === null) mit vorbelegtem Titel (z. B. aus der Schnellerfassung, #236)
+	// direkt einmal einen KI-Säulen-Vorschlag anstoßen — ohne dass der Nutzer den Button drücken muss.
+	// Der Ref-Guard sichert die „einmal"-Garantie gegen den StrictMode-Doppelmount ab; die leere
+	// Dependency-Liste bindet den Effekt bewusst an den Mount (kein onChange/onBlur-Trigger).
+	useEffect(() => {
+		if (!isEdit && (initialValues?.title?.trim() ?? '') !== '' && !autoTriggered.current) {
+			autoTriggered.current = true;
+			void suggestPillars();
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
 
 	const submit = async (): Promise<void> => {
 		const title = form.current.title.trim();
