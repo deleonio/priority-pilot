@@ -134,6 +134,23 @@ describe('AdvisorResults — Hinweis auf vernachlässigte Säulen (#328)', () =>
 		expect(container.textContent).toMatch(/Beziehungen/);
 	});
 
+	it('verwendet „werden" bei mehreren vernachlässigten Säulen', () => {
+		const { container } = render(
+			<AdvisorResults
+				advice={advice}
+				pillars={pillars}
+				attention={[
+					{ pillarId: 2, neglected: true },
+					{ pillarId: 3, neglected: true },
+				]}
+			/>,
+		);
+
+		expect(container.textContent).toMatch(/werden aktuell vernachlässigt/i);
+		expect(container.textContent).toMatch(/Beziehungen/);
+		expect(container.textContent).toMatch(/Sinn/);
+	});
+
 	it('zeigt keinen Vernachlässigungs-Hinweis, wenn keine Säule vernachlässigt ist', () => {
 		const { container } = render(
 			<AdvisorResults advice={advice} pillars={pillars} attention={[{ pillarId: 2, neglected: false }]} />,

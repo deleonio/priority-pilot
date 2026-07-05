@@ -47,7 +47,9 @@ export const AdvisorResults = ({ advice, pillars, onAdoptActivity, attention }: 
 	return (
 		<>
 			{neglectedPillars.length > 0 && (
-				<p className="hint advisor-attention">{neglectedPillars.join(', ')} wird aktuell vernachlässigt.</p>
+				<p className="hint advisor-attention">
+					{neglectedPillars.join(', ')} {neglectedPillars.length === 1 ? 'wird' : 'werden'} aktuell vernachlässigt.
+				</p>
 			)}
 			<ul className="advisor-results">
 				{advice.map((entry, index) => (
