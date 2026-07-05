@@ -22,8 +22,8 @@ describe('generateDueInstances', () => {
 		const series = await Series.create({
 			title: 'Sport',
 			rhythm: 'weekly',
-			defaultPriority: 4,
-			defaultEstimatedEffort: 0.5,
+			priority: 4,
+			estimatedEffort: 0.5,
 			active: true,
 			startDate: start,
 		});
@@ -57,8 +57,8 @@ describe('generateDueInstances', () => {
 		const series = await Series.create({
 			title: 'Kochen',
 			rhythm: 'weekly',
-			defaultPriority: 3,
-			defaultEstimatedEffort: 0.5,
+			priority: 3,
+			estimatedEffort: 0.5,
 			active: true,
 			startDate: new Date('2026-01-01T00:00:00.000Z'),
 		});
@@ -82,8 +82,8 @@ describe('generateDueInstances', () => {
 		const series = await Series.create({
 			title: 'Aufräumen',
 			rhythm: 'weekly',
-			defaultPriority: 3,
-			defaultEstimatedEffort: 0.5,
+			priority: 3,
+			estimatedEffort: 0.5,
 			active: true,
 			startDate: new Date('2026-01-01T00:00:00.000Z'),
 		});
@@ -120,8 +120,8 @@ describe('generateDueInstances', () => {
 		const series = await Series.create({
 			title: 'Lesen',
 			rhythm: 'weekly',
-			defaultPriority: 2,
-			defaultEstimatedEffort: 0.5,
+			priority: 2,
+			estimatedEffort: 0.5,
 			active: true,
 			startDate: new Date('2026-01-01T00:00:00.000Z'),
 		});
@@ -136,7 +136,7 @@ describe('generateDueInstances', () => {
 		}
 
 		// Template ändern: künftige Instanzen sollen Priorität 5 erhalten.
-		series.defaultPriority = 5;
+		series.priority = 5;
 		await series.save();
 
 		// Künftiges Fenster generieren (21.01.–10.02.).
@@ -162,8 +162,8 @@ describe('generateDueInstances', () => {
 		const series = await Series.create({
 			title: 'Pausiert',
 			rhythm: 'weekly',
-			defaultPriority: 3,
-			defaultEstimatedEffort: 0.5,
+			priority: 3,
+			estimatedEffort: 0.5,
 			active: false,
 			startDate: new Date('2026-01-01T00:00:00.000Z'),
 		});
@@ -178,8 +178,8 @@ describe('generateDueInstances', () => {
 		const series = await Series.create({
 			title: 'Monatliche Prüfung',
 			rhythm: 'monthly',
-			defaultPriority: 3,
-			defaultEstimatedEffort: 0.5,
+			priority: 3,
+			estimatedEffort: 0.5,
 			active: true,
 			// Start am 31. Januar 2026 (Samstag)
 			startDate: new Date('2026-01-31T00:00:00.000Z'),
@@ -226,24 +226,24 @@ describe('materializeDueSeries — Aggregat + Fehler-Isolation (AK6 #244)', () =
 		await Series.create({
 			title: 'Aktiv A',
 			rhythm: 'weekly',
-			defaultPriority: 3,
-			defaultEstimatedEffort: 0.5,
+			priority: 3,
+			estimatedEffort: 0.5,
 			active: true,
 			startDate: new Date('2026-01-01T00:00:00.000Z'),
 		});
 		await Series.create({
 			title: 'Aktiv B',
 			rhythm: 'weekly',
-			defaultPriority: 3,
-			defaultEstimatedEffort: 0.5,
+			priority: 3,
+			estimatedEffort: 0.5,
 			active: true,
 			startDate: new Date('2026-01-01T00:00:00.000Z'),
 		});
 		const inactive = await Series.create({
 			title: 'Inaktiv',
 			rhythm: 'weekly',
-			defaultPriority: 3,
-			defaultEstimatedEffort: 0.5,
+			priority: 3,
+			estimatedEffort: 0.5,
 			active: false,
 			startDate: new Date('2026-01-01T00:00:00.000Z'),
 		});
@@ -268,8 +268,8 @@ describe('materializeDueSeries — Aggregat + Fehler-Isolation (AK6 #244)', () =
 		const good = await Series.create({
 			title: 'Gute Serie',
 			rhythm: 'weekly',
-			defaultPriority: 3,
-			defaultEstimatedEffort: 0.5,
+			priority: 3,
+			estimatedEffort: 0.5,
 			active: true,
 			startDate: new Date('2026-01-01T00:00:00.000Z'),
 		});
@@ -281,8 +281,8 @@ describe('materializeDueSeries — Aggregat + Fehler-Isolation (AK6 #244)', () =
 		const broken = await Series.create({
 			title: 'Platzhalter',
 			rhythm: 'weekly',
-			defaultPriority: 3,
-			defaultEstimatedEffort: 0.5,
+			priority: 3,
+			estimatedEffort: 0.5,
 			active: true,
 			startDate: new Date('2026-01-01T00:00:00.000Z'),
 		});

@@ -81,8 +81,8 @@ export const generateDueInstances = async (series: Series, options: GenerateOpti
 		}
 		const instance = await Task.create({
 			title: series.title,
-			priority: series.defaultPriority,
-			estimatedEffort: series.defaultEstimatedEffort,
+			priority: series.priority,
+			estimatedEffort: series.estimatedEffort,
 			deadline: occurrence,
 			seriesId: series.id,
 			seriesOccurrence: occurrence,

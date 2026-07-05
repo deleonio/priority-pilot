@@ -1029,8 +1029,8 @@ components:
         - id
         - title
         - rhythm
-        - defaultPriority
-        - defaultEstimatedEffort
+        - priority
+        - estimatedEffort
         - active
         - startDate
       properties:
@@ -1040,13 +1040,13 @@ components:
           type: string
         rhythm:
           $ref: '#/components/schemas/SeriesRhythm'
-        defaultPriority:
+        priority:
           type: integer
           minimum: 1
           maximum: 5
           default: 3
           description: Default-Priorität künftig generierter Instanzen.
-        defaultEstimatedEffort:
+        estimatedEffort:
           type: number
           format: float
           minimum: 0.1
@@ -1065,18 +1065,20 @@ components:
       type: object
       required:
         - title
+        - priority
+        - estimatedEffort
         - startDate
       properties:
         title:
           type: string
         rhythm:
           $ref: '#/components/schemas/SeriesRhythm'
-        defaultPriority:
+        priority:
           type: integer
           minimum: 1
           maximum: 5
           default: 3
-        defaultEstimatedEffort:
+        estimatedEffort:
           type: number
           format: float
           minimum: 0.1
@@ -1096,11 +1098,11 @@ components:
           type: string
         rhythm:
           $ref: '#/components/schemas/SeriesRhythm'
-        defaultPriority:
+        priority:
           type: integer
           minimum: 1
           maximum: 5
-        defaultEstimatedEffort:
+        estimatedEffort:
           type: number
           format: float
           minimum: 0.1

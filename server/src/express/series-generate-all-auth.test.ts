@@ -48,8 +48,8 @@ describe('POST /series/generate-all — User-Isolation (AK4 #244)', () => {
 	const dueSeries = (title: string) => ({
 		title,
 		rhythm: 'weekly',
-		defaultPriority: 3,
-		defaultEstimatedEffort: 0.5,
+		priority: 3,
+		estimatedEffort: 0.5,
 		active: true,
 		startDate: '2026-01-01T00:00:00.000Z',
 	});

@@ -46,7 +46,7 @@ describe('migrateSeriesRenameFields', () => {
 	it('benennt defaultPriority → priority und defaultEstimatedEffort → estimatedEffort um; Bestandswerte bleiben erhalten', async () => {
 		await createLegacySeriesWithOldFields();
 		await sequelize.query(
-			"INSERT INTO `series` (`title`, `rhythm`, `defaultPriority`, `defaultEstimatedEffort`, `active`, `startDate`, `createdAt`, `updatedAt`) " +
+			'INSERT INTO `series` (`title`, `rhythm`, `defaultPriority`, `defaultEstimatedEffort`, `active`, `startDate`, `createdAt`, `updatedAt`) ' +
 				"VALUES ('Test-Serie', 'weekly', 4, 0.8, 1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
 		);
 

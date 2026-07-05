@@ -14,8 +14,8 @@ describe('Series-Modell — userId (AK1 #244)', () => {
 		const series = await Series.create({
 			title: 'Mit Owner',
 			rhythm: 'weekly',
-			defaultPriority: 3,
-			defaultEstimatedEffort: 0.5,
+			priority: 3,
+			estimatedEffort: 0.5,
 			active: true,
 			startDate: new Date('2026-01-01T00:00:00.000Z'),
 			userId: 1,
@@ -28,8 +28,8 @@ describe('Series-Modell — userId (AK1 #244)', () => {
 		const series = await Series.create({
 			title: 'Ohne Owner',
 			rhythm: 'weekly',
-			defaultPriority: 3,
-			defaultEstimatedEffort: 0.5,
+			priority: 3,
+			estimatedEffort: 0.5,
 			active: true,
 			startDate: new Date('2026-01-01T00:00:00.000Z'),
 		});
@@ -41,8 +41,8 @@ describe('Series-Modell — userId (AK1 #244)', () => {
 		const created = await Series.create({
 			title: 'Persistenz',
 			rhythm: 'weekly',
-			defaultPriority: 3,
-			defaultEstimatedEffort: 0.5,
+			priority: 3,
+			estimatedEffort: 0.5,
 			active: true,
 			startDate: new Date('2026-01-01T00:00:00.000Z'),
 			userId: 42,

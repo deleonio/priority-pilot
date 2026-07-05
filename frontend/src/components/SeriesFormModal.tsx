@@ -90,8 +90,8 @@ export const SeriesFormModal = ({ series, onClose, onSaved }: SeriesFormModalPro
 					title,
 					rhythm: form.current.rhythm,
 					startDate,
-					defaultPriority: 3,
-					defaultEstimatedEffort: 0.5,
+					priority: 3,
+					estimatedEffort: 0.5,
 					active: true,
 				};
 				await api.createSeries({ seriesCreate });

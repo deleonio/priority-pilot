@@ -42,8 +42,8 @@ describe('Series API', () => {
 	const validSeries = () => ({
 		title: 'Wöchentlich kochen',
 		rhythm: 'weekly',
-		defaultPriority: 4,
-		defaultEstimatedEffort: 0.5,
+		priority: 4,
+		estimatedEffort: 0.5,
 		active: true,
 		startDate: '2026-01-01T00:00:00.000Z',
 	});
@@ -57,7 +57,7 @@ describe('Series API', () => {
 			assert.equal(typeof body.id, 'number');
 			assert.equal(body.title, 'Wöchentlich kochen');
 			assert.equal(body.rhythm, 'weekly');
-			assert.equal(body.defaultPriority, 4);
+			assert.equal(body.priority, 4);
 			assert.equal(body.active, true);
 		});
 
@@ -106,7 +106,7 @@ describe('Series API', () => {
 			assert.equal(body.id, created.id);
 			assert.equal(body.title, 'Wöchentlich kochen');
 			assert.equal(body.rhythm, 'weekly');
-			assert.equal(body.defaultPriority, 4);
+			assert.equal(body.priority, 4);
 		});
 
 		// AK-5: GET /series/:id unbekannte ID → 404
@@ -141,7 +141,7 @@ describe('Series API', () => {
 	// ── AK 2: Instanz-Änderung setzt isException; Template bleibt unverändert ───────────────────
 	describe('PATCH einer generierten Instanz', () => {
 		it('Statusänderung an Instanz setzt isException, ohne das Template zu berühren', async () => {
-			const series = (await (await post('/series', validSeries())).json()) as { id: number; defaultPriority: number };
+			const series = (await (await post('/series', validSeries())).json()) as { id: number; priority: number };
 			const instances = (await (
 				await post(`/series/${series.id}/generate`, { until: '2026-01-20T00:00:00.000Z' })
 			).json()) as Array<{ id: number }>;
@@ -159,7 +159,7 @@ describe('Series API', () => {
 
 			// Das Template bleibt unverändert.
 			const template = (await (await get(`/series/${series.id}`)).json()) as Record<string, unknown>;
-			assert.equal(template.defaultPriority, series.defaultPriority);
+			assert.equal(template.priority, series.priority);
 			assert.equal(template.title, 'Wöchentlich kochen');
 		});
 	});
@@ -225,8 +225,8 @@ describe('Series API', () => {
 		const dueSeries = () => ({
 			title: 'Fällige Wochenserie',
 			rhythm: 'weekly',
-			defaultPriority: 3,
-			defaultEstimatedEffort: 0.5,
+			priority: 3,
+			estimatedEffort: 0.5,
 			active: true,
 			startDate: '2026-01-01T00:00:00.000Z',
 		});
@@ -312,7 +312,9 @@ describe('Series API', () => {
 
 		// GET /series/:id → Response enthält priority/estimatedEffort, nicht die alten Namen
 		it('GET /series/:id → Response trägt priority/estimatedEffort (kein defaultPriority/defaultEstimatedEffort)', async () => {
-			const created = (await (await post('/series', { ...validSeriesRenamed(), priority: 5, estimatedEffort: 0.8 })).json()) as {
+			const created = (await (
+				await post('/series', { ...validSeriesRenamed(), priority: 5, estimatedEffort: 0.8 })
+			).json()) as {
 				id: number;
 			};
 			const res = await get(`/series/${created.id}`);

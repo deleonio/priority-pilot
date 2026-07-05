@@ -5,6 +5,7 @@ import sequelize from './database.js';
 import { launchServer } from './express/index.js';
 import {
 	migrateSeriesColumns,
+	migrateSeriesRenameFields,
 	migrateSeriesTable,
 	migrateUsersAvatarUrl,
 	migrateUserIdColumns,
@@ -111,6 +112,11 @@ const main = async (): Promise<void> => {
 		// Fehlende Serien-Spalten auf einer Bestands-DB nachziehen, BEVOR sync() den Unique-Index
 		// auf (seriesId, seriesOccurrence) anlegt (sonst SQLITE_ERROR: no such column, siehe #146).
 		await migrateSeriesColumns(sequelize);
+		// Serien-Spalten defaultPriority/defaultEstimatedEffort → priority/estimatedEffort umbenennen
+		// (#300). MUSS vor migrateSeriesTable und sync() laufen: liefe migrateSeriesTable mit den neuen
+		// Spaltennamen zuerst, legte es auf einer Bestands-DB mit Alt-Spalten leere Neu-Spalten an →
+		// das RENAME schlüge fehl.
+		await migrateSeriesRenameFields(sequelize);
 		// Fehlende Spalten der series-Tabelle nachziehen (#163).
 		await migrateSeriesTable(sequelize);
 		// Fehlende avatarUrl-Spalte in users nachziehen (#217).
