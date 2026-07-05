@@ -1,6 +1,6 @@
 import { KolAlert, KolButton, KolHeading, KolInputCheckbox, KolTabs } from '@public-ui/react-v19';
 import type { Pillar } from 'client';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { requestMicrophonePermission } from '../lib/micPermission';
 import { useVoiceAutostart } from '../lib/voiceAutostart';
 import { AppearanceSetting } from './AppearanceSetting';
@@ -23,9 +23,19 @@ const SETTINGS_TABS = [{ _label: 'Allgemein' }, { _label: 'Säulen' }];
  * `/settings/general` → Allgemein (0), alles andere (inkl. `/settings/pillars`) → Säulen (1).
  */
 export const SettingsPage = ({ pillars, onBack, onSaved }: SettingsPageProps) => {
-	// `_selected` genau EINMAL aus der URL berechnen (kein Setter): so setzt ein Re-Render den
-	// gewählten Tab nicht auf den URL-Wert zurück, ein manueller Tab-Wechsel bleibt erhalten.
-	const [activeTab] = useState(() => (window.location.pathname.startsWith('/settings/general') ? 0 : 1));
+	// Aktiven Tab als kontrollierten State führen. Initialwert aus der URL; `setActiveTab` wird bei
+	// manuellem Tab-Wechsel (onSelect) aufgerufen, damit Re-Renders den gewählten Tab nicht zurücksetzen.
+	const [activeTab, setActiveTab] = useState(() => (window.location.pathname.startsWith('/settings/general') ? 0 : 1));
+
+	// Stabile Callback-Identität, damit KolTabs nicht bei jedem Render neu verdrahtet (#323).
+	const tabsCallbacks = useMemo(
+		() => ({
+			onSelect: (_event: Event, selected: number): void => {
+				setActiveTab(selected);
+			},
+		}),
+		[],
+	);
 
 	// #272: Schalter „Sprachaufnahme automatisch starten" (Default aus). Beim Einschalten wird die
 	// Mikrofon-Berechtigung angefordert; nur bei erteilter Berechtigung wird die Einstellung aktiviert
@@ -69,7 +79,13 @@ export const SettingsPage = ({ pillars, onBack, onSaved }: SettingsPageProps) =>
 				<KolHeading _label="Priority Pilot" _level={1} />
 			</header>
 
-			<KolTabs className="settings-tabs" _label="Einstellungen" _tabs={SETTINGS_TABS} _selected={activeTab}>
+			<KolTabs
+				className="settings-tabs"
+				_label="Einstellungen"
+				_tabs={SETTINGS_TABS}
+				_selected={activeTab}
+				_on={tabsCallbacks}
+			>
 				<div slot="tab-0" className="settings-general">
 					<AppearanceSetting />
 					<KolInputCheckbox
