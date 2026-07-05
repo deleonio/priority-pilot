@@ -22,6 +22,8 @@ interface AdvisorResultsProps {
 	pillars: Pillar[];
 	/** Übernimmt einen Vorschlag als neue Aufgabe (öffnet die Schnellerfassung vorbelegt, #327). */
 	onAdoptActivity?: (text: string) => void;
+	/** Serverseitig berechnete Aufmerksamkeits-Signale je Säule (#328). */
+	attention?: { pillarId: number; neglected: boolean }[];
 }
 
 /**
@@ -29,37 +31,50 @@ interface AdvisorResultsProps {
  * `pillarIds` gegen die Säulen-Liste aufgelöst) und die kurze Begründung. Als eigene Komponente
  * exportiert, damit die Zuordnung pillarId → Säulen-Name isoliert testbar ist.
  */
-export const AdvisorResults = ({ advice, pillars, onAdoptActivity }: AdvisorResultsProps) => {
+export const AdvisorResults = ({ advice, pillars, onAdoptActivity, attention }: AdvisorResultsProps) => {
 	const pillarNameById = useMemo(() => new Map(pillars.map((pillar) => [pillar.id, pillar.name])), [pillars]);
+
+	// Namen der als vernachlässigt markierten Säulen (#328) — für den Aufmerksamkeits-Hinweis.
+	const neglectedPillars =
+		attention
+			?.filter((entry) => entry.neglected)
+			.map((entry) => pillarNameById.get(entry.pillarId) ?? `Säule ${entry.pillarId}`) ?? [];
 
 	if (advice.length === 0) {
 		return <p className="hint">Der Berater hat keine Vorschläge geliefert — versuche es mit einer anderen Frage.</p>;
 	}
 
 	return (
-		<ul className="advisor-results">
-			{advice.map((entry, index) => (
-				<li key={index} className="advisor-result">
-					<div className="advisor-result-head">
-						<span className="advisor-activity">{entry.activity}</span>
-						<span className="advisor-pillars">
-							{entry.pillarIds.map((pillarId) => (
-								<KolBadge key={pillarId} _label={pillarNameById.get(pillarId) ?? `Säule ${pillarId}`} />
-							))}
-						</span>
-					</div>
-					{entry.reason !== '' && <p className="hint advisor-reason">{entry.reason}</p>}
-					{onAdoptActivity !== undefined && (
-						<KolButton
-							_label="Als Aufgabe übernehmen"
-							_variant="secondary"
-							// Natives onClick statt _on.onClick: jsdom legt _on nur als inerte Property ab (kein DOM-Listener), sodass der Klick im Test nicht feuern würde.
-							onClick={() => onAdoptActivity(entry.activity)}
-						/>
-					)}
-				</li>
-			))}
-		</ul>
+		<>
+			{neglectedPillars.length > 0 && (
+				<p className="hint advisor-attention">
+					{neglectedPillars.join(', ')} {neglectedPillars.length === 1 ? 'wird' : 'werden'} aktuell vernachlässigt.
+				</p>
+			)}
+			<ul className="advisor-results">
+				{advice.map((entry, index) => (
+					<li key={index} className="advisor-result">
+						<div className="advisor-result-head">
+							<span className="advisor-activity">{entry.activity}</span>
+							<span className="advisor-pillars">
+								{entry.pillarIds.map((pillarId) => (
+									<KolBadge key={pillarId} _label={pillarNameById.get(pillarId) ?? `Säule ${pillarId}`} />
+								))}
+							</span>
+						</div>
+						{entry.reason !== '' && <p className="hint advisor-reason">{entry.reason}</p>}
+						{onAdoptActivity !== undefined && (
+							<KolButton
+								_label="Als Aufgabe übernehmen"
+								_variant="secondary"
+								// Natives onClick statt _on.onClick: jsdom legt _on nur als inerte Property ab (kein DOM-Listener), sodass der Klick im Test nicht feuern würde.
+								onClick={() => onAdoptActivity(entry.activity)}
+							/>
+						)}
+					</li>
+				))}
+			</ul>
+		</>
 	);
 };
 
@@ -74,6 +89,8 @@ export const PillarAdvisorModal = ({ pillars, onClose, onAdoptActivity }: Pillar
 	const [error, setError] = useState<string | null>(null);
 	// `null` = noch keine Beratung angefragt (kein „Keine Vorschläge"-Hinweis vor der ersten Anfrage).
 	const [advice, setAdvice] = useState<ActivityAdvice[] | null>(null);
+	// Serverseitige Aufmerksamkeits-Signale je Säule (#328) — für den Vernachlässigungs-Hinweis.
+	const [attention, setAttention] = useState<{ pillarId: number; neglected: boolean }[] | null>(null);
 	const [voiceAutostart] = useState(readVoiceAutostartPreference);
 
 	const question = useRef('');
@@ -89,7 +106,10 @@ export const PillarAdvisorModal = ({ pillars, onClose, onAdoptActivity }: Pillar
 			const result = await api.advisePillarActivities({
 				activityAdvisorInput: trimmed === '' ? {} : { question: trimmed },
 			});
-			setAdvice(result);
+			setAdvice(result.advice);
+			setAttention(
+				result.attention?.map((entry) => ({ pillarId: entry.pillarId, neglected: entry.neglected })) ?? null,
+			);
 		} catch (reason) {
 			const apiError = await toApiError(reason);
 			setError(apiError.message);
@@ -147,7 +167,12 @@ export const PillarAdvisorModal = ({ pillars, onClose, onAdoptActivity }: Pillar
 				</div>
 			)}
 			{!loading && advice !== null && (
-				<AdvisorResults advice={advice} pillars={pillars} onAdoptActivity={onAdoptActivity} />
+				<AdvisorResults
+					advice={advice}
+					pillars={pillars}
+					onAdoptActivity={onAdoptActivity}
+					attention={attention ?? undefined}
+				/>
 			)}
 			<div className="modal-actions">
 				<KolButton

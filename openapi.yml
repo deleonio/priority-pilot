@@ -946,6 +946,32 @@ components:
           description: Vorgeschlagene Aktivitäten samt Säulen-Zuordnung
           items:
             $ref: '#/components/schemas/ActivityAdvice'
+        attention:
+          type: array
+          description: Serverseitig berechnete Aufmerksamkeits-Signale je Säule (optional)
+          items:
+            $ref: '#/components/schemas/PillarAttentionEntry'
+    PillarAttentionEntry:
+      type: object
+      description: Aufmerksamkeits-Signal je Säule.
+      required:
+        - pillarId
+        - score
+        - neglected
+      properties:
+        pillarId:
+          type: integer
+          minimum: 1
+          description: ID der Säule
+        score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Aufmerksamkeits-Score (0–1)
+        neglected:
+          type: boolean
+          description: Ob die Säule als vernachlässigt eingestuft wird
     SuggestPillarsInput:
       type: object
       description: Eingabe für die Säulen-Klassifikation einer Aufgabe.

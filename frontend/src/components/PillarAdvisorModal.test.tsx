@@ -111,3 +111,57 @@ describe('AdvisorResults — „Als Aufgabe übernehmen" je Vorschlag (#327)', (
 		expect(onAdoptActivity).toHaveBeenCalledWith('Spieleabend mit Freunden');
 	});
 });
+
+/**
+ * Rote Spec-Tests für #328 (AK3 — UI-Hinweis): Reicht der Server je Säule einen Aufmerksamkeits-Score
+ * durch (`attention`-Prop), blendet die Ergebnisliste für die vernachlässigten Säulen einen Hinweis
+ * „wird aktuell vernachlässigt" ein — als Nudge, welche Säulen gerade zu kurz kommen.
+ *
+ * Die Tests laufen ROT, weil `AdvisorResults` die Prop `attention` und den Vernachlässigungs-Hinweis
+ * noch nicht kennt.
+ */
+describe('AdvisorResults — Hinweis auf vernachlässigte Säulen (#328)', () => {
+	const pillars = [pillar(1, 'Körper'), pillar(2, 'Beziehungen'), pillar(3, 'Sinn')];
+	const advice: ActivityAdvice[] = [{ activity: 'Joggen im Park', reason: 'Bewegung.', pillarIds: [1] }];
+
+	it('zeigt für eine vernachlässigte Säule den Hinweis „wird aktuell vernachlässigt"', () => {
+		const { container } = render(
+			<AdvisorResults advice={advice} pillars={pillars} attention={[{ pillarId: 2, neglected: true }]} />,
+		);
+
+		expect(container.textContent).toMatch(/wird aktuell vernachlässigt/i);
+		// Der Hinweis bezieht sich namentlich auf die vernachlässigte Säule.
+		expect(container.textContent).toMatch(/Beziehungen/);
+	});
+
+	it('verwendet „werden" bei mehreren vernachlässigten Säulen', () => {
+		const { container } = render(
+			<AdvisorResults
+				advice={advice}
+				pillars={pillars}
+				attention={[
+					{ pillarId: 2, neglected: true },
+					{ pillarId: 3, neglected: true },
+				]}
+			/>,
+		);
+
+		expect(container.textContent).toMatch(/werden aktuell vernachlässigt/i);
+		expect(container.textContent).toMatch(/Beziehungen/);
+		expect(container.textContent).toMatch(/Sinn/);
+	});
+
+	it('zeigt keinen Vernachlässigungs-Hinweis, wenn keine Säule vernachlässigt ist', () => {
+		const { container } = render(
+			<AdvisorResults advice={advice} pillars={pillars} attention={[{ pillarId: 2, neglected: false }]} />,
+		);
+
+		expect(container.textContent).not.toMatch(/wird aktuell vernachlässigt/i);
+	});
+
+	it('zeigt keinen Vernachlässigungs-Hinweis ohne attention-Daten', () => {
+		const { container } = render(<AdvisorResults advice={advice} pillars={pillars} />);
+
+		expect(container.textContent).not.toMatch(/wird aktuell vernachlässigt/i);
+	});
+});

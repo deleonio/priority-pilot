@@ -1,7 +1,7 @@
 import { ResponseError } from 'client';
 import type {
-	ActivityAdvice,
 	ActivityAdvisorInput,
+	ActivityAdvisorResult,
 	components,
 	DependencyInput,
 	ParsedTask,
@@ -183,12 +183,12 @@ export const api = {
 	async advisePillarActivities({
 		activityAdvisorInput,
 		signal,
-	}: { activityAdvisorInput: ActivityAdvisorInput } & Init): Promise<ActivityAdvice[]> {
+	}: { activityAdvisorInput: ActivityAdvisorInput } & Init): Promise<ActivityAdvisorResult> {
 		const { data, response } = await client.POST('/pillars/advisor', { body: activityAdvisorInput, signal });
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response);
 		}
-		return data.advice;
+		return data;
 	},
 
 	// Speichert eine vom Nutzer bestätigte/korrigierte Säulen-Zuordnung als Lern-Sample für

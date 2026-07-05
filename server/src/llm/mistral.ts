@@ -424,6 +424,12 @@ export interface ActivityAdvice {
 export interface AdviseActivitiesInput {
 	question?: string;
 	pillars: { id: number; name: string; description: string }[];
+	/**
+	 * Optionale, serverseitig berechnete Aufmerksamkeits-Daten je Säule (#328). Ist das Feld gesetzt,
+	 * hebt {@link buildAdvisorUserMessage} die am stärksten vernachlässigte Säule (höchster Score) im
+	 * Prompt hervor, damit das Modell die Vorschläge zu ihren Gunsten gewichtet.
+	 */
+	attention?: { pillarId: number; score: number }[];
 }
 
 /** Funktionssignatur des Beraters — injizierbar, damit Tests ohne echten API-Call laufen. */
@@ -457,8 +463,13 @@ const ADVISOR_SYSTEM_PROMPT = [
 	'Verwende nur die pillarId-Werte aus der übergebenen Säulen-Liste.',
 ].join('\n');
 
-/** Baut die Nutzer-Nachricht des Beraters: Säulen-Rubrik aus den Einstellungen + optionale Frage. */
-const buildAdvisorUserMessage = (input: AdviseActivitiesInput): string => {
+/**
+ * Baut die Nutzer-Nachricht des Beraters: Säulen-Rubrik aus den Einstellungen + optionale Frage.
+ * Liegen Aufmerksamkeits-Daten vor (#328), wird die am stärksten vernachlässigte Säule (höchster
+ * Attention-Score) namentlich als Hinweis angehängt, damit das Modell die Vorschläge zugunsten der
+ * vernachlässigten Säule gewichtet. Exportiert, damit die Durchreichung isoliert testbar ist.
+ */
+export const buildAdvisorUserMessage = (input: AdviseActivitiesInput): string => {
 	const pillarList = input.pillars
 		.map((pillar) => `  - pillarId ${pillar.id}: ${pillar.name} — ${pillar.description}`)
 		.join('\n');
@@ -467,6 +478,16 @@ const buildAdvisorUserMessage = (input: AdviseActivitiesInput): string => {
 		lines.push(`Frage/Situation des Nutzers: ${input.question}`);
 	} else {
 		lines.push('Der Nutzer hat keine konkrete Frage — schlage Aktivitäten über alle Säulen hinweg vor.');
+	}
+	if (input.attention && input.attention.length > 0) {
+		const pillarNameById = new Map(input.pillars.map((pillar) => [pillar.id, pillar.name]));
+		const [top] = [...input.attention].sort((a, b) => b.score - a.score);
+		if (top) {
+			const name = pillarNameById.get(top.pillarId) ?? `Säule ${top.pillarId}`;
+			lines.push(
+				`\nAufmerksamkeits-Hinweis: Die Säule „${name}" wird aktuell vernachlässigt (höchster Attention-Score). Richte die Vorschläge bevorzugt auf diese Säule aus.`,
+			);
+		}
 	}
 	return lines.join('\n');
 };
