@@ -54,10 +54,11 @@ vi.mock('./VoiceField', () => ({
 	VoiceField: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
-// API-Mock: suggestPillars ist der einzige hier relevante Endpoint.
+// API-Mock: suggestPillars (für #305) und createTask (für #315, AK3c) sind hier relevant.
 vi.mock('../api', () => ({
 	api: {
 		suggestPillars: vi.fn(),
+		createTask: vi.fn(),
 	},
 }));
 
@@ -65,6 +66,7 @@ import { api } from '../api';
 import { TaskForm } from './TaskForm';
 
 const mockSuggestPillars = api.suggestPillars as ReturnType<typeof vi.fn>;
+const mockCreateTask = api.createTask as ReturnType<typeof vi.fn>;
 
 // --- Fixtures ---
 
@@ -177,5 +179,62 @@ describe('TaskForm — Auto-Trigger „Säulen vorschlagen" (#305)', () => {
 		// (genau wie nach dem manuellen Klick auf „Säulen vorschlagen").
 		const pillarRows = document.querySelectorAll('.pillar-row');
 		expect(pillarRows.length).toBeGreaterThan(0);
+	});
+});
+
+/**
+ * Roter TDD-Vertrag für #315 (AK3) — das „Status"-Feld verschwindet aus dem Task-Formular.
+ *
+ * Der Status wird künftig ausschließlich über den binären Erledigt-Toggle in der Aufgaben-Liste
+ * gesetzt (nicht mehr im Formular). Daher darf im Create- wie im Edit-Formular kein „Status"-Select
+ * mehr im DOM erscheinen, und das Create-Payload (`taskCreate`) darf kein `status`-Feld mehr
+ * enthalten.
+ *
+ * Der KoliBri-Mock macht aus `<KolSingleSelect _label="Status" />` ein `<select aria-label="Status" />`.
+ * Diese Specs sind rot, solange TaskForm das Status-Select noch rendert und `status` ins Payload
+ * schreibt.
+ */
+describe('TaskForm — Status-Feld entfernt (#315, AK3)', () => {
+	it('AK3a: kein Status-Feld im Create-Formular', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		expect(screen.queryByLabelText('Status')).toBeNull();
+	});
+
+	it('AK3b: kein Status-Feld im Edit-Formular', async () => {
+		await act(async () => {
+			render(<TaskForm task={minimalNewTask()} {...defaultProps} />);
+		});
+
+		expect(screen.queryByLabelText('Status')).toBeNull();
+	});
+
+	it('AK3c: Create-Payload enthält kein status-Feld', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockCreateTask.mockResolvedValue(minimalNewTask());
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		// Titel setzen (submit bricht bei leerem Titel ab).
+		const titleInput = screen.getByRole('textbox', { name: /titel/i });
+		await act(async () => {
+			fireEvent.change(titleInput, { target: { value: 'Neue Aufgabe ohne Status' } });
+			fireEvent.blur(titleInput);
+		});
+
+		// Speichern auslösen.
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Speichern' }));
+		});
+
+		expect(mockCreateTask).toHaveBeenCalledTimes(1);
+		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as [{ taskCreate: Record<string, unknown> }];
+		expect(taskCreate).not.toHaveProperty('status');
 	});
 });
