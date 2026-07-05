@@ -72,7 +72,8 @@ test.describe('Priority Pilot — Erledigt-Toggle in der Aufgaben-Liste (#315)',
 	};
 
 	const item = (page: Page, id: number) => page.getByTestId(`task-tree-item-${id}`);
-	const doneToggle = (page: Page, id: number) => page.getByTestId(`done-toggle-${id}`);
+	const doneToggle = (page: Page, id: number) =>
+		item(page, id).getByRole('button', { name: /Erledigen|Wieder öffnen/ });
 	const doneBlockedHint = (page: Page, id: number) => page.getByTestId(`done-blocked-hint-${id}`);
 
 	test('AK1: Toggle schaltet Open→Done, PATCH persistiert und übersteht Reload', async ({ page }) => {
