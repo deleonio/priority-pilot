@@ -355,9 +355,7 @@ test.describe('Priority Pilot — #297: SeriesFormModal durch TaskForm ersetzen'
 
 	// AK2 — Bearbeiten über TaskForm: Klick auf „Bearbeiten" öffnet TaskForm im gesperrten Serie-Modus.
 	// ROT: aktuell öffnet SeriesManagementModal das alte SeriesFormModal ohne mode-toggle → toBeVisible() fehlschlägt.
-	test('AK2 — „Bearbeiten" öffnet TaskForm im gesperrten Serie-Edit-Modus mit vorbefülltem Titel', async ({
-		page,
-	}) => {
+	test('AK2 — „Bearbeiten" öffnet TaskForm im gesperrten Serie-Edit-Modus mit vorbefülltem Titel', async ({ page }) => {
 		const title = uniqueTitle('Bearbeiten');
 		await createSeriesViaApi(page, { title, startDate: '2026-09-07T00:00:00.000Z' });
 

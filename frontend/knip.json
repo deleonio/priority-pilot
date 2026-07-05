@@ -1,5 +1,5 @@
 {
 	"entry": ["src/main.tsx"],
-	"ignore": ["src/components/TaskTable.tsx", "src/lib/reactCellRoot.ts"],
+	"ignore": ["src/components/TaskTable.tsx", "src/lib/reactCellRoot.ts", "src/components/SeriesFormModal.tsx"],
 	"ignoreDependencies": ["client"]
 }
