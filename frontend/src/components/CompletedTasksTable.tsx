@@ -1,4 +1,4 @@
-import { KolButton } from '@public-ui/react-v19';
+import { KolToolbar } from '@public-ui/react-v19';
 import type { Pillar, Task } from 'client';
 import { TaskStatus } from 'client';
 import { memo, useState } from 'react';
@@ -83,11 +83,20 @@ export const CompletedTasksTable = memo((props: CompletedTasksTableProps) => {
 									</td>
 								))}
 								<td>
-									<KolButton
-										_label="Wieder öffnen"
-										_variant="secondary"
-										_disabled={reopeningId === task.id}
-										_on={{ onClick: () => void reopen(task) }}
+									<KolToolbar
+										_label={`Aktionen für ${task.title}`}
+										_orientation="horizontal"
+										_items={[
+											{
+												type: 'button',
+												_label: 'Wieder öffnen',
+												_hideLabel: true,
+												_icons: { left: { icon: 'fa-solid fa-repeat' } },
+												_variant: 'secondary',
+												_disabled: reopeningId === task.id,
+												_on: { onClick: () => void reopen(task) },
+											},
+										]}
 									/>
 								</td>
 							</tr>

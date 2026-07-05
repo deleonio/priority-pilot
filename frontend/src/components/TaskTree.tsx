@@ -81,16 +81,18 @@ const TreeNode = ({
 				)}
 				{task !== null && (
 					<div className="task-tree-actions">
-						<KolButton
-							className="task-tree-edit"
-							_label="Bearbeiten"
-							_variant="secondary"
-							_on={{ onClick: () => onEdit(task) }}
-						/>
 						<KolToolbar
-							_label={`Weitere Aktionen für ${task.title}`}
+							_label={`Aktionen für ${task.title}`}
 							_orientation="horizontal"
 							_items={[
+								{
+									type: 'button',
+									_label: 'Bearbeiten',
+									_hideLabel: true,
+									_icons: { left: { icon: 'fa-solid fa-pen' } },
+									_variant: 'secondary',
+									_on: { onClick: () => onEdit(task) },
+								},
 								{
 									type: 'button',
 									_label: 'Abhängigkeiten',
