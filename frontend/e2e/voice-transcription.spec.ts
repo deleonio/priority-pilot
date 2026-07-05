@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { SPEECH_MOCK_INIT_SCRIPT, waitForStableView } from './helpers';
 
 /**
  * e2e-Spec für #251 — „Audiotranskription für die Task-Erstellung" (Weg A: Browser Web Speech API) —
@@ -23,90 +23,6 @@ import { waitForStableView } from './helpers';
  * **Isolation:** Falls ein Test doch einen Task anlegt, räumt `afterEach` alle Tasks über die echte
  * API wieder ab (analog `quick-capture.spec.ts`).
  */
-
-/**
- * Init-Script (als String, vor dem Seitenaufbau injiziert), das die Web Speech API mockt:
- *  1. `MockSpeechRecognition` mit `start()`, `stop()`, `abort()`, `onstart`, `onresult`, `onend`,
- *  2. Zuweisung an `window.SpeechRecognition` und `window.webkitSpeechRecognition`,
- *  3. Beobachtungs-Flags `window.__speechRecognitionStarted` / `window.__speechRecognitionStopped`,
- *  4. `window.__fireSpeechResult(text, isFinal?)`, um ein Erkennungsergebnis auszulösen,
- *  5. `window.__fireSpeechEnd()` / `window.__fireSpeechError(error)`, um ein Engine-Ende ohne
- *     Ergebnis bzw. einen Erkennungsfehler auszulösen (#283).
- *
- * Realitätsnah wie die echte API (#283): `start()` lauscht erst nach einem asynchronen Warmup
- * (`onstart` kommt per setTimeout), `stop()` feuert `onend` asynchron, `abort()` feuert erst
- * `onerror('aborted')`, dann `onend` — der frühere, idealisiert-synchrone Mock hatte genau die
- * instabilen Übergänge verdeckt, um die es in #283 geht.
- */
-const SPEECH_MOCK_INIT_SCRIPT = `
-	(() => {
-		window.__speechRecognitionStarted = false;
-		window.__speechRecognitionStopped = false;
-		let activeInstance = null;
-
-		class MockSpeechRecognition {
-			constructor() {
-				this.lang = '';
-				this.continuous = false;
-				this.interimResults = false;
-				this.onstart = null;
-				this.onresult = null;
-				this.onend = null;
-				this.onerror = null;
-				activeInstance = this;
-			}
-			start() {
-				window.__speechRecognitionStarted = true;
-				activeInstance = this;
-				setTimeout(() => {
-					if (typeof this.onstart === 'function') {
-						this.onstart();
-					}
-				}, 0);
-			}
-			stop() {
-				window.__speechRecognitionStopped = true;
-				setTimeout(() => {
-					if (typeof this.onend === 'function') {
-						this.onend();
-					}
-				}, 0);
-			}
-			abort() {
-				setTimeout(() => {
-					if (typeof this.onerror === 'function') {
-						this.onerror({ error: 'aborted' });
-					}
-					if (typeof this.onend === 'function') {
-						this.onend();
-					}
-				}, 0);
-			}
-		}
-
-		window.SpeechRecognition = MockSpeechRecognition;
-		window.webkitSpeechRecognition = MockSpeechRecognition;
-
-		window.__fireSpeechResult = (text, isFinal) => {
-			if (activeInstance && typeof activeInstance.onresult === 'function') {
-				activeInstance.onresult({
-					resultIndex: 0,
-					results: { 0: { 0: { transcript: text }, isFinal: isFinal !== false }, length: 1 },
-				});
-			}
-		};
-		window.__fireSpeechEnd = () => {
-			if (activeInstance && typeof activeInstance.onend === 'function') {
-				activeInstance.onend();
-			}
-		};
-		window.__fireSpeechError = (error) => {
-			if (activeInstance && typeof activeInstance.onerror === 'function') {
-				activeInstance.onerror({ error });
-			}
-		};
-	})();
-`;
 
 declare global {
 	interface Window {

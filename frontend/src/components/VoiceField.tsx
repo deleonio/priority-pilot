@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { useVoiceInput } from '../lib/useVoiceInput';
 
 interface VoiceFieldProps {
@@ -50,6 +50,7 @@ export const VoiceField = ({
 	// zwischenzeitlich abgebrochene Aufnahme im zweiten Setup erneut startet. Ohne
 	// Browser-Unterstützung (`isSupported=false`) ist `startRecording` ein No-op → kein Absturz.
 	const autoStarted = useRef(false);
+	const hintId = useId();
 	useEffect(() => {
 		if (autoStart && isSupported && !autoStarted.current) {
 			autoStarted.current = true;
@@ -80,7 +81,11 @@ export const VoiceField = ({
 					</button>
 				)}
 			</div>
-			{hint !== undefined && hint !== '' && <p className="voice-field-hint">{hint}</p>}
+			{hint !== undefined && hint !== '' && (
+				<p id={hintId} role="note" className="voice-field-hint">
+					{hint}
+				</p>
+			)}
 			{voiceError !== null && (
 				<p className="mic-error" role="alert">
 					{voiceError}

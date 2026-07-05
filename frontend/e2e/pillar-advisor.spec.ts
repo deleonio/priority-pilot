@@ -1,24 +1,6 @@
 import type { Route } from '@playwright/test';
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
-
-// Injiziert eine Mock-SpeechRecognition in den Browser, damit der Mic-Button angezeigt wird
-// (VoiceField rendert den Button nur wenn `isSupported` — d. h. window.SpeechRecognition — truthy).
-// Muster aus voice-transcription.spec.ts.
-const SPEECH_MOCK_INIT_SCRIPT = `
-	(() => {
-		window.__speechRecognitionStarted = false;
-		let activeInstance = null;
-		class MockSpeechRecognition {
-			constructor() { activeInstance = this; }
-			start() { window.__speechRecognitionStarted = true; if (typeof this.onstart === 'function') setTimeout(() => this.onstart(), 0); }
-			stop() { if (typeof this.onend === 'function') setTimeout(() => this.onend(), 0); }
-			abort() {}
-		}
-		window.SpeechRecognition = MockSpeechRecognition;
-		window.webkitSpeechRecognition = MockSpeechRecognition;
-	})();
-`;
+import { SPEECH_MOCK_INIT_SCRIPT, waitForStableView } from './helpers';
 
 /**
  * E2E-Spec für den Säulen-Berater (Aktivitäten-Ratgeber): Über das Glühbirnen-Symbol im Header
