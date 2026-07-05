@@ -451,6 +451,27 @@ describe('AK5 — Speichern verzweigt korrekt (#316)', () => {
 		expect(mockCreateTask).not.toHaveBeenCalled();
 	});
 
+	it('Serie-Anlegen: leeres startDate fällt auf UTC-Mitternacht des heutigen Tages zurück', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockCreateSeries.mockResolvedValue(minimalSeries());
+
+		const todayUTC = new Date().toISOString().slice(0, 10);
+		const expectedStartDate = new Date(todayUTC + 'T00:00:00Z');
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		await switchToSeriesMode();
+		await fillTitle('Serie ohne explizites Startdatum');
+		await clickSave();
+
+		expect(mockCreateSeries).toHaveBeenCalledTimes(1);
+		const [{ seriesCreate }] = mockCreateSeries.mock.calls[0] as [{ seriesCreate: Record<string, unknown> }];
+		expect(seriesCreate).toHaveProperty('startDate');
+		expect((seriesCreate['startDate'] as Date).getTime()).toBe(expectedStartDate.getTime());
+	});
+
 	it('Serie-Anlegen → createSeries erhält pillars + description + priority + estimatedEffort', async () => {
 		mockSuggestPillars.mockResolvedValue([]);
 		mockCreateSeries.mockResolvedValue(minimalSeries());

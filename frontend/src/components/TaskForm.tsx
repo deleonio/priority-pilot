@@ -293,7 +293,9 @@ export const TaskForm = ({
 		// Serien-`startDate`: leeres Feld greift auf „heute" zurück (kein Pflicht-Validierungsfehler beim
 		// Serie-Anlegen). Ein gesetztes Datum wird als UTC-Kalendertag interpretiert.
 		const startDate =
-			form.current.startDate.trim() === '' ? new Date() : new Date(`${form.current.startDate}T00:00:00Z`);
+			form.current.startDate.trim() === ''
+				? new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00Z')
+				: new Date(`${form.current.startDate}T00:00:00Z`);
 		if (isSeriesMode && Number.isNaN(startDate.getTime())) {
 			setError('Das Startdatum ist kein gültiges Datum.');
 			return;
