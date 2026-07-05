@@ -251,3 +251,209 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 		expect(box!.x + box!.width).toBeLessThanOrEqual(375);
 	});
 });
+
+/**
+ * Rote Spec-Tests für #297 (Sub-D #293): Ablösung von `SeriesFormModal` durch `TaskForm`.
+ *
+ * Nach dem Cleanup öffnet „Neue Serie anlegen" und „Bearbeiten" in `SeriesManagementModal`
+ * nicht mehr `SeriesFormModal`, sondern den bloßen `<TaskForm>`-Body im Serie-Modus.
+ * Erkennbar am `data-testid="mode-toggle"` (aus `TaskForm`) — dieses Testid fehlt im
+ * alten `SeriesFormModal`, weshalb AK1 und AK2 aktuell rot sind.
+ */
+test.describe('Priority Pilot — #297: SeriesFormModal durch TaskForm ersetzen', () => {
+	let runId = 0;
+	const uniqueTitle = (label: string): string => `E2E #297 ${label} #${(runId += 1)}-${Date.now()}`;
+
+	interface SeriesPayload {
+		title: string;
+		rhythm?: 'daily' | 'weekly' | 'monthly';
+		startDate: string;
+	}
+
+	const createSeriesViaApi = async (page: Page, payload: SeriesPayload): Promise<number> => {
+		const response = await page.request.post('/api/v1/series', {
+			data: { rhythm: 'weekly', priority: 3, estimatedEffort: 0.5, active: true, ...payload },
+		});
+		expect(response.ok()).toBeTruthy();
+		return ((await response.json()) as { id: number }).id;
+	};
+
+	const deleteAll = async (page: Page): Promise<void> => {
+		const tasks = (await (await page.request.get('/api/v1/tasks')).json()) as { id: number }[];
+		for (const task of tasks) await page.request.delete(`/api/v1/tasks/${task.id}`);
+		const series = (await (await page.request.get('/api/v1/series')).json()) as { id: number }[];
+		for (const entry of series) await page.request.delete(`/api/v1/series/${entry.id}`);
+	};
+
+	test.afterEach(async ({ page }) => {
+		await deleteAll(page);
+	});
+
+	const openSeriesManagement = async (page: Page): Promise<void> => {
+		await page.getByRole('button', { name: 'Serien verwalten' }).click();
+		await expect(page.getByRole('heading', { name: 'Serien', exact: true })).toBeVisible();
+		await waitForStableView(page);
+	};
+
+	// AK1 — Anlegen über TaskForm: Klick auf „Neue Serie anlegen" öffnet TaskForm-Serie-Modus.
+	// ROT: aktuell zeigt SeriesFormModal kein data-testid="mode-toggle" → toBeVisible() schlägt fehl.
+	test('AK1 — „Neue Serie anlegen" öffnet TaskForm im Serie-Modus (mode-toggle sichtbar, Serie aktiv)', async ({
+		page,
+	}) => {
+		await page.goto('/');
+		await waitForStableView(page);
+		await openSeriesManagement(page);
+
+		await page.getByRole('button', { name: 'Neue Serie anlegen' }).click();
+		await waitForStableView(page);
+
+		// TaskForm-Serie-Modus muss sichtbar sein — erkennbar am mode-toggle.
+		const toggle = page.getByTestId('mode-toggle');
+		await expect(toggle).toBeVisible();
+
+		// Der „Serie"-Button im Toggle ist primär (aktiver Modus).
+		await expect(toggle.getByRole('button', { name: /serie/i })).toBeVisible();
+
+		// Serienfelder erscheinen: Startdatum + Rhythmus statt Deadline.
+		await expect(page.getByLabel('Startdatum')).toBeVisible();
+		await expect(page.getByLabel('Rhythmus')).toBeVisible();
+		await expect(page.getByLabel('Deadline (optional)')).toBeHidden();
+
+		// Das alte SeriesFormModal-Heading darf NICHT mehr erscheinen.
+		await expect(page.getByRole('heading', { name: 'Neue Serie anlegen' })).toBeHidden();
+	});
+
+	// AK1 Vollfluss — Speichern legt die Serie an und zeigt sie in der Liste.
+	// ROT: schlägt wegen AK1-Voraussetzung (mode-toggle) fehl, bevor das Formular befüllt werden kann.
+	test('AK1 — Anlegen über TaskForm-Serie-Modus: Serie wird persistiert und in der Liste angezeigt', async ({
+		page,
+	}) => {
+		await page.goto('/');
+		await waitForStableView(page);
+		await openSeriesManagement(page);
+
+		const title = uniqueTitle('Anlegen');
+		await page.getByRole('button', { name: 'Neue Serie anlegen' }).click();
+		await waitForStableView(page);
+
+		// Vorbedingung: TaskForm-Serie-Modus muss aktiv sein.
+		await expect(page.getByTestId('mode-toggle')).toBeVisible();
+
+		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
+		await page.getByLabel('Startdatum').fill('2026-09-07');
+		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+		await waitForStableView(page);
+
+		// Nach dem Speichern: Formular geschlossen, Serie in der Liste sichtbar.
+		await expect(page.getByTestId('mode-toggle')).toBeHidden();
+		await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
+
+		// Persistenz-Gegenkontrolle über die API.
+		const all = (await (await page.request.get('/api/v1/series')).json()) as { title: string }[];
+		expect(all.some((s) => s.title === title)).toBeTruthy();
+	});
+
+	// AK2 — Bearbeiten über TaskForm: Klick auf „Bearbeiten" öffnet TaskForm im gesperrten Serie-Modus.
+	// ROT: aktuell öffnet SeriesManagementModal das alte SeriesFormModal ohne mode-toggle → toBeVisible() fehlschlägt.
+	test('AK2 — „Bearbeiten" öffnet TaskForm im gesperrten Serie-Edit-Modus mit vorbefülltem Titel', async ({
+		page,
+	}) => {
+		const title = uniqueTitle('Bearbeiten');
+		await createSeriesViaApi(page, { title, startDate: '2026-09-07T00:00:00.000Z' });
+
+		await page.goto('/');
+		await waitForStableView(page);
+		await openSeriesManagement(page);
+
+		// Bearbeiten-Button der ersten Serie klicken.
+		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
+		await waitForStableView(page);
+
+		// TaskForm-Serie-Modus muss sichtbar sein.
+		const toggle = page.getByTestId('mode-toggle');
+		await expect(toggle).toBeVisible();
+
+		// Beim Bearbeiten sind beide Toggle-Buttons gesperrt (isEdit = true).
+		await expect(toggle.getByRole('button', { name: /aufgabe/i })).toBeDisabled();
+		await expect(toggle.getByRole('button', { name: /serie/i })).toBeDisabled();
+
+		// Der Titel-Wert ist vorbefüllt.
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue(title);
+
+		// Serienfelder sichtbar (Startdatum, Rhythmus), keine Deadline.
+		await expect(page.getByLabel('Startdatum')).toBeVisible();
+		await expect(page.getByLabel('Deadline (optional)')).toBeHidden();
+	});
+
+	// AK2 Vollfluss — Speichern nach Bearbeiten aktualisiert den Titel in der Liste.
+	test('AK2 — Bearbeiten und Speichern: neuer Titel erscheint in der Serien-Liste', async ({ page }) => {
+		const titleOld = uniqueTitle('Alt');
+		const titleNew = uniqueTitle('Neu');
+		await createSeriesViaApi(page, { title: titleOld, startDate: '2026-09-07T00:00:00.000Z' });
+
+		await page.goto('/');
+		await waitForStableView(page);
+		await openSeriesManagement(page);
+
+		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
+		await waitForStableView(page);
+
+		// Vorbedingung: TaskForm-Serie-Modus muss aktiv sein.
+		await expect(page.getByTestId('mode-toggle')).toBeVisible();
+
+		await page.getByRole('textbox', { name: 'Titel' }).fill(titleNew);
+		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+		await waitForStableView(page);
+
+		// Neuer Titel in der Liste sichtbar, alter nicht mehr.
+		await expect(page.getByText(titleNew, { exact: true }).first()).toBeVisible();
+		await expect(page.getByText(titleOld, { exact: true })).toBeHidden();
+	});
+
+	// AK3 — Verwaltungsfunktionen (Liste / Löschen / Generieren) bleiben nach dem Cleanup funktional.
+	test('AK3 — Löschen aus der Serien-Liste funktioniert weiterhin', async ({ page }) => {
+		const title = uniqueTitle('Loeschen');
+		await createSeriesViaApi(page, { title, startDate: '2026-09-07T00:00:00.000Z' });
+
+		await page.goto('/');
+		await waitForStableView(page);
+		await openSeriesManagement(page);
+
+		await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
+		await page.getByRole('button', { name: 'Löschen' }).first().click();
+		await waitForStableView(page);
+
+		await expect(page.getByText(title, { exact: true })).toBeHidden();
+
+		const all = (await (await page.request.get('/api/v1/series')).json()) as { title: string }[];
+		expect(all.some((s) => s.title === title)).toBeFalsy();
+	});
+
+	// AK5 — Mobile-First 375px: TaskForm-Serie-Flow in SeriesManagementModal ohne horizontales Scrollen.
+	// ROT: schlägt durch AK1-Vorbedingung (mode-toggle nicht sichtbar) fehl.
+	test('AK5 — TaskForm-Serie-Flow auf 375px Viewport ohne horizontales Scrollen', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await page.goto('/');
+		await waitForStableView(page);
+		await openSeriesManagement(page);
+
+		await page.getByRole('button', { name: 'Neue Serie anlegen' }).click();
+		await waitForStableView(page);
+
+		// TaskForm-Serie-Modus muss sichtbar sein.
+		const toggle = page.getByTestId('mode-toggle');
+		await expect(toggle).toBeVisible();
+
+		// Kein Element überragt den 375px-Viewport.
+		const toggleBox = await toggle.boundingBox();
+		expect(toggleBox).not.toBeNull();
+		expect(toggleBox!.x).toBeGreaterThanOrEqual(0);
+		expect(toggleBox!.x + toggleBox!.width).toBeLessThanOrEqual(375);
+
+		const titleField = page.getByRole('textbox', { name: 'Titel' });
+		await expect(titleField).toBeVisible();
+		const titleBox = await titleField.boundingBox();
+		expect(titleBox).not.toBeNull();
+		expect(titleBox!.x + titleBox!.width).toBeLessThanOrEqual(375);
+	});
+});
