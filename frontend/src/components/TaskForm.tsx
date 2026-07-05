@@ -8,7 +8,17 @@ import {
 	KolSpin,
 	KolTextarea,
 } from '@public-ui/react-v19';
-import type { Pillar, Task, TaskCreate, TaskPillarContribution, TaskUpdate } from 'client';
+import type {
+	Pillar,
+	Series,
+	SeriesCreate,
+	SeriesRhythm,
+	SeriesUpdate,
+	Task,
+	TaskCreate,
+	TaskPillarContribution,
+	TaskUpdate,
+} from 'client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
@@ -40,9 +50,21 @@ export interface TaskFormInitialValues {
 	deadline?: string;
 }
 
+/** Auswahl-Optionen des Serien-Rhythmus (Vertrag `SeriesRhythm`). */
+const RHYTHM_OPTIONS: { label: string; value: SeriesRhythm }[] = [
+	{ label: 'Täglich', value: 'daily' },
+	{ label: 'Wöchentlich', value: 'weekly' },
+	{ label: 'Monatlich', value: 'monthly' },
+];
+
 interface TaskFormProps {
 	/** Zu bearbeitender Task; `null` legt einen neuen Task an. */
 	task: Task | null;
+	/**
+	 * Zu bearbeitendes Serien-Template (#316). Wird eine Serie übergeben, startet das Formular im
+	 * (gesperrten) Serie-Modus (Serien-Edit) und ruft beim Speichern `updateSeries` statt `updateTask`.
+	 */
+	series?: Series | null;
 	/**
 	 * Beim Anlegen optional die Eltern-Aufgabe: Die neue Aufgabe wird nach dem Speichern als deren
 	 * Vorgänger verknüpft (Unteraufgabe über das bestehende Abhängigkeits-/Aufgabenwald-Konzept).
@@ -70,6 +92,17 @@ const isoToDateInput = (iso: string | undefined): string => {
 	return Number.isNaN(parsed.getTime()) ? '' : deadlineToDateInput(parsed);
 };
 
+/** Wandelt ein `Date` (Serien-`startDate`, UTC) in den Wert eines `<input type="date">` (YYYY-MM-DD). */
+const startDateToInput = (startDate: Date | undefined): string => {
+	if (startDate === undefined || Number.isNaN(startDate.getTime())) {
+		return '';
+	}
+	const year = startDate.getUTCFullYear().toString().padStart(4, '0');
+	const month = (startDate.getUTCMonth() + 1).toString().padStart(2, '0');
+	const day = startDate.getUTCDate().toString().padStart(2, '0');
+	return `${year}-${month}-${day}`;
+};
+
 /**
  * Formular-Body für das Anlegen/Bearbeiten eines Tasks — **ohne** eigenen Dialog-Rahmen. Der Rahmen
  * (`Modal`/`KolDialog`) wird vom Container gestellt: `TaskFormModal` (Bearbeiten, eigenständig) bzw.
@@ -77,8 +110,25 @@ const isoToDateInput = (iso: string | undefined): string => {
  * hinweg, #236). Diese Trennung vermeidet den Remount des `KolDialog` beim Schrittwechsel capture→form
  * — genau die Race, die `showModal()` „not in a Document" werfen ließ und das Modal abriss.
  */
-export const TaskForm = ({ task, parentTask = null, pillars, initialValues, onClose, onSaved }: TaskFormProps) => {
-	const isEdit = task !== null;
+export const TaskForm = ({
+	task,
+	series = null,
+	parentTask = null,
+	pillars,
+	initialValues,
+	onClose,
+	onSaved,
+}: TaskFormProps) => {
+	// #316: Serien-Edit (bearbeiten einer Serie) vs. Task-Edit (bearbeiten eines Tasks). `isEdit`
+	// gilt für beide Bearbeiten-Fälle (Umschalter gesperrt); im Anlege-Fall ist beides `false`.
+	const seriesEdit = series != null;
+	const taskEdit = task !== null;
+	const isEdit = taskEdit || seriesEdit;
+
+	// Aktiver Formularmodus: „Serie" beim Serien-Edit fest vorgegeben, sonst Standard „Aufgabe".
+	// Im Anlege-Modus wechselt der Umschalter zwischen beiden; im Bearbeiten-Modus ist er gesperrt.
+	const [mode, setMode] = useState<'task' | 'series'>(seriesEdit ? 'series' : 'task');
+	const isSeriesMode = mode === 'series';
 
 	// Eingaben in Refs halten: KoliBri-Inputs verwalten ihren Anzeigewert selbst, daher kein
 	// erneutes Rendern (und kein Cursor-Springen) pro Tastendruck. Validierung beim Absenden.
@@ -90,12 +140,16 @@ export const TaskForm = ({ task, parentTask = null, pillars, initialValues, onCl
 		estimatedEffort: number | null;
 		description: string;
 		deadline: string;
+		startDate: string;
+		rhythm: SeriesRhythm;
 	}>({
-		title: task?.title ?? initialValues?.title ?? '',
-		priority: task?.priority ?? initialValues?.priority ?? 3,
-		estimatedEffort: task?.estimatedEffort ?? initialValues?.estimatedEffort ?? 0.5,
-		description: task?.description ?? initialValues?.description ?? '',
+		title: task?.title ?? series?.title ?? initialValues?.title ?? '',
+		priority: task?.priority ?? series?.priority ?? initialValues?.priority ?? 3,
+		estimatedEffort: task?.estimatedEffort ?? series?.estimatedEffort ?? initialValues?.estimatedEffort ?? 0.5,
+		description: task?.description ?? series?.description ?? initialValues?.description ?? '',
 		deadline: task !== null ? deadlineToDateInput(task.deadline) : isoToDateInput(initialValues?.deadline),
+		startDate: series != null ? startDateToInput(series.startDate) : '',
+		rhythm: series?.rhythm ?? 'weekly',
 	});
 
 	// Säulen-Beiträge im State (nicht im Ref): Hinzufügen/Entfernen und die Anteils-/Konfidenz-Slider
@@ -236,6 +290,16 @@ export const TaskForm = ({ task, parentTask = null, pillars, initialValues, onCl
 			setError('Die Deadline ist kein gültiges Datum.');
 			return;
 		}
+		// Serien-`startDate`: leeres Feld greift auf „heute" zurück (kein Pflicht-Validierungsfehler beim
+		// Serie-Anlegen). Ein gesetztes Datum wird als UTC-Kalendertag interpretiert.
+		const startDate =
+			form.current.startDate.trim() === ''
+				? new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00Z')
+				: new Date(`${form.current.startDate}T00:00:00Z`);
+		if (isSeriesMode && Number.isNaN(startDate.getTime())) {
+			setError('Das Startdatum ist kein gültiges Datum.');
+			return;
+		}
 		// Roh-Anteile 0,0–1,0: mindestens ein Anteil muss > 0 sein, damit sich die Verteilung auf 100 %
 		// normieren lässt (#82).
 		if (contributions.length > 0 && !isRawDistributionValid(contributions.map((entry) => entry.share))) {
@@ -251,7 +315,33 @@ export const TaskForm = ({ task, parentTask = null, pillars, initialValues, onCl
 			const normalizedShares =
 				contributions.length > 0 ? normalizeToTotalWeight(contributions.map((entry) => entry.share)) : [];
 			const pillars = contributions.map((entry, index) => ({ ...entry, share: normalizedShares[index] }));
-			if (isEdit) {
+			if (seriesEdit) {
+				// Serien-Edit (#316): gesetzte Felder gelten für künftige Instanzen. `startDate` nur mitschicken,
+				// wenn das Feld gefüllt ist (leer → unverändert lassen).
+				const seriesUpdate: SeriesUpdate = {
+					title,
+					priority,
+					estimatedEffort,
+					description: description === '' ? null : description,
+					pillars,
+					startDate: form.current.startDate.trim() === '' ? undefined : startDate,
+					rhythm: form.current.rhythm,
+				};
+				await api.updateSeries({ id: series.id, seriesUpdate });
+			} else if (isSeriesMode) {
+				// Serie-Anlegen (#316): eigenständiges Template statt Task. `active: true` immer mitschicken.
+				const seriesCreate: SeriesCreate = {
+					title,
+					priority,
+					estimatedEffort,
+					description: description === '' ? null : description,
+					pillars,
+					startDate,
+					rhythm: form.current.rhythm,
+					active: true,
+				};
+				await api.createSeries({ seriesCreate });
+			} else if (taskEdit) {
 				const taskUpdate: TaskUpdate = {
 					title,
 					priority,
@@ -328,6 +418,15 @@ export const TaskForm = ({ task, parentTask = null, pillars, initialValues, onCl
 		return Number.isNaN(parsed.getTime()) ? undefined : parsed;
 	})();
 
+	// Analog für das Serien-`startDate`: nur ein valides `Date` (UTC) oder `undefined`.
+	const startDateValue = ((): Date | undefined => {
+		if (form.current.startDate === '') {
+			return undefined;
+		}
+		const parsed = new Date(`${form.current.startDate}T00:00:00Z`);
+		return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+	})();
+
 	return (
 		<>
 			{error !== null && (
@@ -335,6 +434,22 @@ export const TaskForm = ({ task, parentTask = null, pillars, initialValues, onCl
 					{error}
 				</KolAlert>
 			)}
+			{/* #316: Umschalter Aufgabe/Serie. Beim Anlegen bedienbar (wechselt den Modus), beim
+			    Bearbeiten gesperrt — der Datensatz-Typ (Task vs. Serie) steht dann fest. */}
+			<div className="mode-toggle" data-testid="mode-toggle" role="group" aria-label="Typ: Aufgabe oder Serie">
+				<KolButton
+					_label="Aufgabe"
+					_variant={isSeriesMode ? 'secondary' : 'primary'}
+					_disabled={isEdit}
+					_on={{ onClick: () => setMode('task') }}
+				/>
+				<KolButton
+					_label="Serie"
+					_variant={isSeriesMode ? 'primary' : 'secondary'}
+					_disabled={isEdit}
+					_on={{ onClick: () => setMode('series') }}
+				/>
+			</div>
 			<div className="form-grid">
 				<VoiceField
 					variant="input"
@@ -402,19 +517,51 @@ export const TaskForm = ({ task, parentTask = null, pillars, initialValues, onCl
 						},
 					}}
 				/>
-				<KolInputDate
-					_label="Deadline (optional)"
-					_type="date"
-					_value={deadlineValue}
-					_on={{
-						onChange: (_event, value) => {
-							form.current.deadline = value instanceof Date ? deadlineToDateInput(value) : readString(value);
-						},
-						onInput: (_event, value) => {
-							form.current.deadline = value instanceof Date ? deadlineToDateInput(value) : readString(value);
-						},
-					}}
-				/>
+				{isSeriesMode ? (
+					<>
+						{/* Serie-Modus (#316): Startdatum (Anker der Serie) + Rhythmus statt Deadline. */}
+						<KolInputDate
+							_label="Startdatum"
+							_type="date"
+							_value={startDateValue}
+							_on={{
+								onChange: (_event, value) => {
+									form.current.startDate = value instanceof Date ? startDateToInput(value) : readString(value);
+								},
+								onInput: (_event, value) => {
+									form.current.startDate = value instanceof Date ? startDateToInput(value) : readString(value);
+								},
+							}}
+						/>
+						<KolSingleSelect
+							_label="Rhythmus"
+							_options={RHYTHM_OPTIONS}
+							_value={form.current.rhythm}
+							_on={{
+								onChange: (_event, value) => {
+									const next = readString(value);
+									if (next === 'daily' || next === 'weekly' || next === 'monthly') {
+										form.current.rhythm = next;
+									}
+								},
+							}}
+						/>
+					</>
+				) : (
+					<KolInputDate
+						_label="Deadline (optional)"
+						_type="date"
+						_value={deadlineValue}
+						_on={{
+							onChange: (_event, value) => {
+								form.current.deadline = value instanceof Date ? deadlineToDateInput(value) : readString(value);
+							},
+							onInput: (_event, value) => {
+								form.current.deadline = value instanceof Date ? deadlineToDateInput(value) : readString(value);
+							},
+						}}
+					/>
+				)}
 				<VoiceField
 					variant="textarea"
 					fieldLabel="Beschreibung"
