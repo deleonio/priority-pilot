@@ -94,4 +94,26 @@ describe('Push-Datenisolation — Subscriptions gehören genau einem Nutzer', ()
 		assert.equal(rows.length, 2);
 		assert.notEqual(rows[0].userId, rows[1].userId, 'jede Subscription trägt eine eigene userId');
 	});
+
+	it('B subscribe auf Endpoint von A übernimmt die Subscription nicht (kein Owner-Reassign)', async () => {
+		const cookieA = await login('a@example.com');
+		const cookieB = await login('b@example.com');
+		await subscribe(cookieA, 'https://push.example.com/shared');
+
+		// userId von A sichern, bevor B den Endpoint subscribt
+		const rows = await PushSubscription.findAll();
+		const ownerIdBeforeAttack = rows[0].userId;
+
+		// B versucht denselben Endpoint zu subscriben — idempotentes 201, darf aber Eigentümer nicht ändern
+		const res = await subscribe(cookieB, 'https://push.example.com/shared');
+		assert.equal(res.status, 201);
+
+		const rowsAfter = await PushSubscription.findAll();
+		assert.equal(rowsAfter.length, 1, 'keine neue Zeile für denselben Endpoint');
+		assert.equal(
+			rowsAfter[0].userId,
+			ownerIdBeforeAttack,
+			'userId darf nicht auf B wechseln (Owner-Reassign verhindert)',
+		);
+	});
 });

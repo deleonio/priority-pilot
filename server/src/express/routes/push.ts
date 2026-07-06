@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
+import { UniqueConstraintError } from 'sequelize';
 import { PushSubscription } from '../../models/index.js';
-import { getUserId } from '../requireAuth.js';
+import { getUserId, ownerScope } from '../requireAuth.js';
 import { getVapidPublicKey, isPushConfigured } from '../../logics/push.js';
 import type { components } from '../../api';
 
@@ -69,7 +70,8 @@ pushRouter.get('/push/vapid-public-key', (_req: Request, res: Response<VapidPubl
 });
 
 // POST /push/subscribe — Browser-Subscription unter dem eingeloggten Nutzer speichern. Idempotent:
-// eine bereits bekannte `endpoint`-Zeile wird aktualisiert (Schlüssel + Eigentümer), statt dupliziert.
+// eine bereits bekannte `endpoint`-Zeile dieses Nutzers wird aktualisiert (Schlüssel), statt dupliziert;
+// fremde Endpoints werden nicht übernommen.
 pushRouter.post('/push/subscribe', async (req: Request, res: Response<PushSubscriptionAckDto | ErrorDto>) => {
 	if (!isPushConfigured()) {
 		sendError(res, 503, 'Web-Push ist nicht konfiguriert (VAPID-Schlüssel fehlen).');
@@ -84,14 +86,21 @@ pushRouter.post('/push/subscribe', async (req: Request, res: Response<PushSubscr
 	const userId = getUserId(req);
 
 	try {
-		const existing = await PushSubscription.findOne({ where: { endpoint } });
+		const existing = await PushSubscription.findOne({ where: { endpoint, ...ownerScope(userId) } });
 		if (existing) {
-			await existing.update({ p256dh, auth, expirationTime, userId });
-		} else {
-			await PushSubscription.create({ endpoint, p256dh, auth, expirationTime, userId });
+			await existing.update({ p256dh, auth, expirationTime });
+			res.status(201).json({ endpoint });
+			return;
 		}
+		await PushSubscription.create({ endpoint, p256dh, auth, expirationTime, userId });
 		res.status(201).json({ endpoint });
-	} catch {
+	} catch (err) {
+		if (err instanceof UniqueConstraintError) {
+			// Endpoint already exists under a different user (concurrent subscribe or cross-user race).
+			// Return idempotent 201 — the subscription exists in the DB, just under another owner.
+			res.status(201).json({ endpoint });
+			return;
+		}
 		sendError(res, 500, 'Interner Serverfehler.');
 	}
 });

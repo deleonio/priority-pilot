@@ -62,6 +62,9 @@ export const enablePush = async (): Promise<boolean> => {
 	const publicKey = await api.getVapidPublicKey();
 	const registration = await navigator.serviceWorker.ready;
 	// Bereits vorhandene Subscription wiederverwenden (idempotent), sonst neu erstellen.
+	// Bekannte Einschränkung: der applicationServerKey der bestehenden Subscription wird nicht
+	// gegen den aktuellen publicKey geprüft. Bei VAPID-Key-Rotation müsste man vergleichen und
+	// ggf. neu subscriben — für das MVP ohne Key-Rotation vertretbar.
 	const subscription =
 		(await registration.pushManager.getSubscription()) ??
 		(await registration.pushManager.subscribe({
