@@ -136,7 +136,9 @@ describe('taskFormModalTitle (#334)', () => {
 	});
 
 	it('AK4: Bearbeiten im Task-Modus nennt den Typ „Aufgabe bearbeiten: <title>"', () => {
-		expect(taskFormModalTitle(makeTask(1, 'Steuererklärung'), null, 'task')).toBe('Aufgabe bearbeiten: Steuererklärung');
+		expect(taskFormModalTitle(makeTask(1, 'Steuererklärung'), null, 'task')).toBe(
+			'Aufgabe bearbeiten: Steuererklärung',
+		);
 	});
 
 	it('AK4: Bearbeiten im Serie-Modus nennt den Typ „Serie bearbeiten: <title>"', () => {

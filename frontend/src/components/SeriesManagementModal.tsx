@@ -92,7 +92,11 @@ export const SeriesManagementModal = ({ pillars, onClose }: SeriesManagementModa
 	);
 
 	return (
-		<Modal title="Serien" onClose={onClose} width="44rem">
+		<Modal
+			title={subForm !== null ? `Serie bearbeiten: ${subForm.series.title}` : 'Serien'}
+			onClose={onClose}
+			width="44rem"
+		>
 			{error !== null && (
 				<KolAlert _type="error" _label="Aktion fehlgeschlagen">
 					{error}

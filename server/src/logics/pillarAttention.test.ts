@@ -135,7 +135,7 @@ describe('calculatePillarAttention — Relative Unterversorgung (#337)', () => {
 		const pillarX: PillarAttentionInput = {
 			pillarId: 20,
 			weight: 20,
-			actualShare: 0.10,
+			actualShare: 0.1,
 			openCount: 2,
 			doneCount: 2,
 			updatedAt: new Date('2026-03-05T12:00:00.000Z'),
@@ -145,7 +145,7 @@ describe('calculatePillarAttention — Relative Unterversorgung (#337)', () => {
 		const pillarY: PillarAttentionInput = {
 			pillarId: 21,
 			weight: 40,
-			actualShare: 0.20,
+			actualShare: 0.2,
 			openCount: 2,
 			doneCount: 2,
 			updatedAt: new Date('2026-03-05T12:00:00.000Z'),
@@ -203,17 +203,8 @@ describe('calculatePillarAttention — Relative Unterversorgung (#337)', () => {
 
 		// Mit naiver neuer Formel OHNE Guard: (0-0)/0 = NaN ❌
 		// Mit korrekter neuer Formel MIT Guard (weight=0 → relUndersupply=0): score=0 ✓
-		assert.ok(
-			!isNaN(score),
-			`Score sollte nicht NaN sein, erhalten: ${score}`,
-		);
-		assert.ok(
-			isFinite(score),
-			`Score sollte finit sein, erhalten: ${score}`,
-		);
-		assert.ok(
-			score >= 0 && score <= 1,
-			`Score sollte im Bereich [0, 1] liegen, erhalten: ${score}`,
-		);
+		assert.ok(!isNaN(score), `Score sollte nicht NaN sein, erhalten: ${score}`);
+		assert.ok(isFinite(score), `Score sollte finit sein, erhalten: ${score}`);
+		assert.ok(score >= 0 && score <= 1, `Score sollte im Bereich [0, 1] liegen, erhalten: ${score}`);
 	});
 });
