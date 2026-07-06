@@ -5,7 +5,7 @@
   <!-- Kompass/Ring-Element (links) -->
   <g transform="translate(40, 60)">
     <!-- Äußerer Ring -->
-    <circle cx="60" cy="0" r="50" fill="none" stroke="#1a1a1a" stroke-width="3" />
+    <circle cx="60" cy="0" r="50" fill="none" stroke="currentColor" stroke-width="3" />
     
     <!-- 5 Säulen-Segmente (miniaturisiert, 72° pro Segment) -->
     <path d="M60 -50 A50 50 0 0 1 107.6 -15.5" fill="none" stroke="#4a90e2" stroke-width="6" stroke-linecap="round" />
@@ -18,16 +18,16 @@
     <path d="M28 -35 L16 -20 L22 -28 Z" fill="#ffffff" />
     
     <!-- Zentrum -->
-    <circle cx="60" cy="0" r="4" fill="#1a1a1a" />
+    <circle cx="60" cy="0" r="4" fill="currentColor" />
   </g>
   
   <!-- Text: Priority Pilot -->
   <g transform="translate(140, 60)">
     <!-- Priority -->
-    <text x="0" y="-15" font-family="Inter, system-ui, sans-serif" font-size="32" font-weight="700" fill="#1a1a1a">Priority</text>
+    <text x="0" y="-15" font-family="Inter, system-ui, sans-serif" font-size="32" font-weight="700" fill="currentColor">Priority</text>
     
     <!-- Pilot -->
-    <text x="0" y="25" font-family="Inter, system-ui, sans-serif" font-size="32" font-weight="400" fill="#1a1a1a">Pilot</text>
+    <text x="0" y="25" font-family="Inter, system-ui, sans-serif" font-size="32" font-weight="400" fill="currentColor">Pilot</text>
     
     <!-- Dekoratives Element: Kleiner Pfeil zwischen den Wörtern -->
     <path d="M120 -10 L140 10 L135 5 Z" fill="#4a90e2" />
