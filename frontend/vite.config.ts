@@ -33,8 +33,11 @@ export default defineConfig({
 	plugins: [
 		react(),
 		VitePWA({
-			registerType: 'autoUpdate',
+			registerType: 'prompt',
 			workbox: {
+				cleanupOutdatedCaches: true,
+				clientsClaim: true,
+				skipWaiting: false,
 				// KoliBri registriert seine Web-Components gebündelt; der resultierende Chunk
 				// überschreitet das Workbox-Standardlimit von 2 MiB für den Precache.
 				maximumFileSizeToCacheInBytes: 12 * 1024 * 1024,

@@ -12,6 +12,7 @@ import { EmptyState } from './components/EmptyState';
 import { ForestPanel } from './components/ForestPanel';
 import { HelpPage } from './components/HelpPage';
 import { InstallPrompt } from './components/InstallPrompt';
+import { UpdatePrompt } from './components/UpdatePrompt';
 import { PillarAdvisorModal } from './components/PillarAdvisorModal';
 import { QuickCaptureModal } from './components/QuickCaptureModal';
 import { SeriesTab } from './components/SeriesTab';
@@ -477,6 +478,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 				/>
 			)}
 			<InstallPrompt />
+			<UpdatePrompt />
 			<Footer version={APP_VERSION} />
 		</main>
 	);
