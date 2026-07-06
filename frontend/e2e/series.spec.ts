@@ -111,14 +111,14 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 		await page.getByRole('button', { name: 'Überspringen' }).click();
 		await waitForStableView(page);
 
-		// Auf „Serie"-Modus umschalten.
-		await page.getByTestId('mode-toggle').getByRole('button', { name: /serie/i }).click();
+		// Auf „Serie"-Modus umschalten (Switch statt Button-Paar, #334).
+		await page.getByTestId('mode-switch').getByRole('switch').click();
 		await waitForStableView(page);
 
 		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
 		// `startDate` ist im Vertrag (`SeriesCreate`) Pflicht — Startdatum als Anker der Serie setzen.
 		await page.getByLabel('Startdatum').fill('2026-09-07');
-		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+		await page.getByRole('button', { name: 'Anlegen', exact: true }).click();
 		await waitForStableView(page);
 
 		// In der UI gelistet: der Serien-Titel erscheint in der Serien-Verwaltung.
@@ -182,12 +182,14 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 		// Genau die A-Instanz anhand ihrer ID (aus der API) im Task-Tree finden und bearbeiten.
 		const movedItem = page.locator(`[data-testid="task-tree-item-${moved.id}"]`);
 		await movedItem.getByRole('button', { name: 'Bearbeiten' }).click();
-		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeVisible();
+		// AK4 (#334): Der Edit-Titel nennt den Typ eindeutig („Aufgabe bearbeiten: …").
+		await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeVisible();
 		await waitForStableView(page);
 
 		await page.getByLabel('Deadline (optional)').fill('2026-09-28');
-		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
-		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeHidden();
+		// AK7 (#334): Der Submit-Button im Bearbeiten-Modus heißt „Bearbeiten".
+		await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+		await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeHidden();
 
 		// UI: die Geschwister-Instanz steht unverändert weiterhin in der Liste (Deadline wird im Task-Tree nicht angezeigt).
 		await openTasksTab(page);
@@ -266,8 +268,8 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
  *
  * Nach dem Cleanup öffnet „Neue Serie anlegen" und „Bearbeiten" in `SeriesManagementModal`
  * nicht mehr das alte Serien-Formular-Card, sondern den bloßen `<TaskForm>`-Body im
- * Serie-Modus. Erkennbar am `data-testid="mode-toggle"` (aus `TaskForm`) — dieses Testid
- * fehlte im alten Serien-Formular.
+ * Serie-Modus. Erkennbar am typspezifischen Dialogtitel „Serie bearbeiten: <title>" (#334) —
+ * im Bearbeiten-Modus ist der Switch (`data-testid="mode-switch"`) nicht im DOM.
  */
 test.describe('Priority Pilot — #297: Altes Serien-Formular durch TaskForm ersetzen', () => {
 	let runId = 0;
@@ -318,13 +320,11 @@ test.describe('Priority Pilot — #297: Altes Serien-Formular durch TaskForm ers
 		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
 		await waitForStableView(page);
 
-		// TaskForm-Serie-Modus muss sichtbar sein.
-		const toggle = page.getByTestId('mode-toggle');
-		await expect(toggle).toBeVisible();
+		// AK4 (#334): Der Edit-Titel nennt den Typ eindeutig („Serie bearbeiten: <title>").
+		await expect(page.getByRole('heading', { name: `Serie bearbeiten: ${title}` })).toBeVisible();
 
-		// Beim Bearbeiten sind beide Toggle-Buttons gesperrt (isEdit = true).
-		await expect(toggle.getByRole('button', { name: /aufgabe/i })).toBeDisabled();
-		await expect(toggle.getByRole('button', { name: /serie/i })).toBeDisabled();
+		// AK3 (#334): Im Bearbeiten-Modus ist der Switch nicht im DOM (nicht nur disabled).
+		await expect(page.getByTestId('mode-switch')).not.toBeAttached();
 
 		// Der Titel-Wert ist vorbefüllt.
 		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue(title);
@@ -347,11 +347,12 @@ test.describe('Priority Pilot — #297: Altes Serien-Formular durch TaskForm ers
 		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
 		await waitForStableView(page);
 
-		// Vorbedingung: TaskForm-Serie-Modus muss aktiv sein.
-		await expect(page.getByTestId('mode-toggle')).toBeVisible();
+		// Vorbedingung: TaskForm-Serie-Edit-Modus — der Switch ist nicht im DOM (AK3, #334).
+		await expect(page.getByTestId('mode-switch')).not.toBeAttached();
 
 		await page.getByRole('textbox', { name: 'Titel' }).fill(titleNew);
-		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+		// AK7 (#334): Der Submit-Button im Bearbeiten-Modus heißt „Bearbeiten".
+		await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
 		await waitForStableView(page);
 
 		// Neuer Titel in der Liste sichtbar, alter nicht mehr.

@@ -52,6 +52,26 @@ vi.mock('@public-ui/react-v19', () => ({
 			onBlur={(e) => _on?.onBlur?.(e.nativeEvent)}
 		/>
 	),
+	KolInputCheckbox: ({
+		_label,
+		_checked,
+		_variant,
+		_on,
+	}: {
+		_label?: string;
+		_checked?: boolean;
+		_variant?: string;
+		_on?: { onChange?: (_e: unknown, v: boolean) => void };
+	}) => (
+		<input
+			type="checkbox"
+			role="switch"
+			aria-label={_label}
+			data-variant={_variant}
+			defaultChecked={_checked}
+			onChange={(e) => _on?.onChange?.(e.nativeEvent, e.target.checked)}
+		/>
+	),
 	KolInputDate: ({ _label }: { _label?: string }) => <input type="date" aria-label={_label} />,
 	KolInputRange: ({ _label }: { _label?: string }) => <input type="range" aria-label={_label} />,
 	KolSingleSelect: ({ _label }: { _label?: string }) => <select aria-label={_label} />,
@@ -290,9 +310,9 @@ describe('TaskForm — Status-Feld entfernt (#315, AK3)', () => {
 			fireEvent.blur(titleInput);
 		});
 
-		// Speichern auslösen.
+		// Anlegen auslösen (Submit-Button im Create-Modus, #334 AK7).
 		await act(async () => {
-			fireEvent.click(screen.getByRole('button', { name: 'Speichern' }));
+			fireEvent.click(screen.getByRole('button', { name: 'Anlegen' }));
 		});
 
 		expect(mockCreateTask).toHaveBeenCalledTimes(1);
@@ -321,12 +341,11 @@ describe('TaskForm — Status-Feld entfernt (#315, AK3)', () => {
  * Serien-Pfade aufruft (bzw. die `series`-Prop kennt).
  */
 
-/** Wechselt das Formular über den Umschalter in den Serie-Modus (klickt die „Serie"-Option). */
+/** Wechselt das Formular über den Switch in den Serie-Modus (klickt den Switch im mode-switch-Wrapper). */
 const switchToSeriesMode = async (): Promise<void> => {
-	const toggle = screen.getByTestId('mode-toggle');
-	const seriesOption = within(toggle).getByRole('button', { name: /serie/i });
+	const switchEl = screen.getByRole('switch');
 	await act(async () => {
-		fireEvent.click(seriesOption);
+		fireEvent.click(switchEl);
 	});
 };
 
@@ -339,28 +358,35 @@ const fillTitle = async (value: string): Promise<void> => {
 	});
 };
 
-/** Löst den Speichern-Button aus. */
+/** Löst den Submit-Button im Anlege-Modus aus („Anlegen", #334 AK7). */
 const clickSave = async (): Promise<void> => {
 	await act(async () => {
-		fireEvent.click(screen.getByRole('button', { name: 'Speichern' }));
+		fireEvent.click(screen.getByRole('button', { name: 'Anlegen' }));
+	});
+};
+
+/** Löst den Submit-Button im Bearbeiten-Modus aus („Bearbeiten", #334 AK7). */
+const clickSaveEdit = async (): Promise<void> => {
+	await act(async () => {
+		fireEvent.click(screen.getByRole('button', { name: 'Bearbeiten' }));
 	});
 };
 
 describe('AK4 — Umschalter & Feld-Sichtbarkeit je Modus (#316)', () => {
-	it('Anlegen: Task/Serie-Umschalter ist sichtbar und bedienbar', async () => {
+	it('AK1: Anlegen-Modus zeigt einen Switch (kein Button-Paar) (#334)', async () => {
 		mockSuggestPillars.mockResolvedValue([]);
 
 		await act(async () => {
 			render(<TaskForm task={null} {...defaultProps} />);
 		});
 
-		const toggle = screen.getByTestId('mode-toggle');
-		expect(toggle).toBeInTheDocument();
-		// Beide Modi sind als bedienbare Optionen vorhanden und nicht gesperrt (Anlegen).
-		const taskOption = within(toggle).getByRole('button', { name: /aufgabe/i });
-		const seriesOption = within(toggle).getByRole('button', { name: /serie/i });
-		expect(taskOption).toBeEnabled();
-		expect(seriesOption).toBeEnabled();
+		// rot bis die Implementierung den Switch mit data-testid="mode-switch" rendert.
+		const switchWrapper = screen.getByTestId('mode-switch');
+		expect(switchWrapper).toBeInTheDocument();
+		const switchEl = within(switchWrapper).getByRole('switch');
+		expect(switchEl).toBeEnabled();
+		// Kein Button-Paar mehr für die Modus-Auswahl.
+		expect(screen.queryByRole('button', { name: /serie/i })).toBeNull();
 	});
 
 	it('Anlegen/Task-Modus: `deadline` ist sichtbar', async () => {
@@ -393,14 +419,12 @@ describe('AK4 — Umschalter & Feld-Sichtbarkeit je Modus (#316)', () => {
 		expect(screen.queryByLabelText('Deadline (optional)')).toBeNull();
 	});
 
-	it('Bearbeiten (Task-Edit): Umschalter ist gesperrt (Optionen disabled)', async () => {
+	it('AK3: Bearbeiten (Task-Edit): Switch ist nicht im DOM (#334)', async () => {
 		await act(async () => {
 			render(<TaskForm task={minimalNewTask()} {...defaultProps} />);
 		});
 
-		const toggle = screen.getByTestId('mode-toggle');
-		expect(within(toggle).getByRole('button', { name: /aufgabe/i })).toBeDisabled();
-		expect(within(toggle).getByRole('button', { name: /serie/i })).toBeDisabled();
+		expect(screen.queryByTestId('mode-switch')).toBeNull();
 	});
 
 	it('Bearbeiten (Task-Edit): initial im Task-Modus — `deadline` sichtbar, keine Serienfelder', async () => {
@@ -423,14 +447,12 @@ describe('AK4 — Umschalter & Feld-Sichtbarkeit je Modus (#316)', () => {
 		expect(screen.queryByLabelText('Deadline (optional)')).toBeNull();
 	});
 
-	it('Bearbeiten (Serien-Edit): Umschalter ist gesperrt', async () => {
+	it('AK3: Bearbeiten (Serien-Edit): Switch ist nicht im DOM (#334)', async () => {
 		await act(async () => {
 			render(<SeriesEditForm task={null} series={minimalSeries()} {...defaultProps} />);
 		});
 
-		const toggle = screen.getByTestId('mode-toggle');
-		expect(within(toggle).getByRole('button', { name: /aufgabe/i })).toBeDisabled();
-		expect(within(toggle).getByRole('button', { name: /serie/i })).toBeDisabled();
+		expect(screen.queryByTestId('mode-switch')).toBeNull();
 	});
 });
 
@@ -515,7 +537,7 @@ describe('AK5 — Speichern verzweigt korrekt (#316)', () => {
 		});
 
 		await fillTitle('Serie umbenannt');
-		await clickSave();
+		await clickSaveEdit();
 
 		expect(mockUpdateSeries).toHaveBeenCalledTimes(1);
 		expect(mockUpdateTask).not.toHaveBeenCalled();
@@ -531,7 +553,7 @@ describe('AK5 — Speichern verzweigt korrekt (#316)', () => {
 		});
 
 		await fillTitle('Aufgabe umbenannt');
-		await clickSave();
+		await clickSaveEdit();
 
 		expect(mockUpdateTask).toHaveBeenCalledTimes(1);
 		expect(mockUpdateSeries).not.toHaveBeenCalled();
@@ -580,5 +602,42 @@ describe('AK6 — QuickCapture/LLM + Säulen-Vorschlag in Serie-Modus (#316)', (
 		// Die aus dem LLM-Parsing (#236) vorbelegten Werte stehen auch im Serie-Modus in den Feldern.
 		expect((screen.getByRole('textbox', { name: /titel/i }) as HTMLInputElement).value).toBe('Aus LLM');
 		expect((screen.getByLabelText(/Beschreibung/i) as HTMLTextAreaElement).value).toBe('LLM-Beschreibung');
+	});
+});
+
+/**
+ * Roter TDD-Vertrag für #334 (AK7) — der Submit-Button benennt den Vorgang statt eines generischen
+ * „Speichern": Anlegen → „Anlegen", Bearbeiten (Task wie Serie) → „Bearbeiten".
+ *
+ * Diese Specs sind rot, solange TaskForm den Submit-Button noch „Speichern" nennt.
+ */
+describe('AK7 — Submit-Button benennt den Vorgang (#334)', () => {
+	it('Anlegen-Modus: Submit-Button heißt „Anlegen"', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		expect(screen.getByRole('button', { name: 'Anlegen' })).toBeInTheDocument();
+		expect(screen.queryByRole('button', { name: 'Speichern' })).toBeNull();
+	});
+
+	it('Task-Edit-Modus: Submit-Button heißt „Bearbeiten"', async () => {
+		await act(async () => {
+			render(<TaskForm task={minimalNewTask()} {...defaultProps} />);
+		});
+
+		expect(screen.getByRole('button', { name: 'Bearbeiten' })).toBeInTheDocument();
+		expect(screen.queryByRole('button', { name: 'Speichern' })).toBeNull();
+	});
+
+	it('Serien-Edit-Modus: Submit-Button heißt „Bearbeiten"', async () => {
+		await act(async () => {
+			render(<SeriesEditForm task={null} series={minimalSeries()} {...defaultProps} />);
+		});
+
+		expect(screen.getByRole('button', { name: 'Bearbeiten' })).toBeInTheDocument();
+		expect(screen.queryByRole('button', { name: 'Speichern' })).toBeNull();
 	});
 });
