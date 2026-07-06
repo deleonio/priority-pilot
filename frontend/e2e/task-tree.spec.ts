@@ -11,10 +11,11 @@ import { waitForStableView } from './helpers';
  *
  * Wie `crud.spec.ts` läuft dies gegen das **echte** Backend (In-Memory-DB, Vite-Proxy). Der
  * Baum-Aufbau erfolgt bewusst über die API (schneller/robuster als Klick-Choreografie): Das Backend
- * modelliert eine Unteraufgabe als Abhängigkeit — ein Kind-Task hat den Eltern-Task als Vorgänger
- * (`POST /tasks/{childId}/dependencies` mit `{ dependingTaskId: parentId }`). Im Aufgabenwald
- * (`GET /forest`) erscheint das Kind dann als `dependents`-Eintrag des Elternteils. Wurzeln des
- * Waldes sind Tasks ohne Vorgänger.
+ * modelliert eine Unteraufgabe als Abhängigkeit — exakt wie der reale „Unteraufgabe anlegen"-Flow in
+ * `TaskForm.tsx` ist das Kind der **Vorgänger** der Eltern-Aufgabe
+ * (`POST /tasks/{parentId}/dependencies` mit `{ dependingTaskId: childId }`, #336). Im Aufgabenwald
+ * (`GET /forest`) erscheint das Kind dann als `dependents`-Eintrag (Unteraufgabe) des Elternteils.
+ * Wurzeln des Waldes sind Tasks, die selbst keine Unteraufgabe einer anderen Aufgabe sind.
  *
  * `afterEach` räumt alle Tasks über die echte API ab, damit jeder Test vom leeren Zustand startet.
  */
@@ -33,13 +34,13 @@ test.describe('Priority Pilot — TaskTree (expandierbare Aufgaben-Liste, #238)'
 	};
 
 	/**
-	 * Verknüpft `childId` als Unteraufgabe von `parentId`: Der Eltern-Task wird zum Vorgänger des
-	 * Kindes (`POST /tasks/{childId}/dependencies` mit `dependingTaskId = parentId`). Damit taucht das
-	 * Kind im Wald unter `parent.dependents` auf.
+	 * Verknüpft `childId` als Unteraufgabe von `parentId` — exakt wie `TaskForm.tsx`: das Kind wird zum
+	 * **Vorgänger** der Eltern-Aufgabe (`POST /tasks/{parentId}/dependencies` mit
+	 * `dependingTaskId = childId`, #336). Damit taucht das Kind im Wald unter `parent.dependents` auf.
 	 */
 	const addSubtask = async (page: Page, parentId: number, childId: number): Promise<void> => {
-		const response = await page.request.post(`/api/v1/tasks/${childId}/dependencies`, {
-			data: { dependingTaskId: parentId },
+		const response = await page.request.post(`/api/v1/tasks/${parentId}/dependencies`, {
+			data: { dependingTaskId: childId },
 		});
 		expect(response.ok()).toBeTruthy();
 	};

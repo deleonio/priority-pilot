@@ -11,6 +11,13 @@ interface TaskTreeNode {
 	totalEstimatedEffort: number;
 	value: number;
 	status: components['schemas']['TaskStatus'];
+	/**
+	 * Direkte Unteraufgaben dieses Knotens (Eltern → Kind). Eine Unteraufgabe wird als **Vorgänger**
+	 * der Eltern-Aufgabe angelegt (`parent.getDependencies() ∋ child`, siehe `TaskForm.tsx`); der Wald
+	 * bildet daher die `getDependencies()` als Kinder ab (#336). Der Feldname bleibt aus
+	 * API-Kompatibilität `dependents`, meint hier aber die Unteraufgaben (Kinder), nicht die Dependents
+	 * im Graph-Sinn.
+	 */
 	dependents: TaskTreeNode[];
 }
 
@@ -25,13 +32,15 @@ const getEstimatedEffort = async (task: Task): Promise<number> => {
 
 // Rekursive Funktion, um den Baum eines Tasks zu erstellen
 const buildTaskTree = async (task: Task): Promise<TaskTreeNode> => {
-	const dependents = await task.getDependents();
+	// Kinder = direkte Unteraufgaben = Vorgänger dieses Tasks (`getDependencies()`), analog zum
+	// Aufwands-Rollup oben. Damit erscheint die Eltern-Aufgabe über ihren Unteraufgaben (#336, AK4).
+	const subtasks = await task.getDependencies();
 
 	const children: TaskTreeNode[] = [];
 	const totalEstimatedEffort = await getEstimatedEffort(task);
 
-	for (const dependent of dependents) {
-		children.push(await buildTaskTree(dependent));
+	for (const subtask of subtasks) {
+		children.push(await buildTaskTree(subtask));
 	}
 
 	return {
@@ -56,11 +65,12 @@ export const buildTaskForest = async (userId?: number): Promise<TaskTreeNode[]> 
 		},
 	});
 
-	// Finde alle Wurzeltasks (Tasks ohne Abhängigkeiten)
+	// Wurzeln = Tasks, die selbst keine Unteraufgabe (Vorgänger) einer anderen Aufgabe sind — also
+	// Tasks ohne Dependents (#336, AK4). Ihre Unteraufgaben hängen als `getDependencies()` darunter.
 	const rootTasks: Task[] = [];
 	for (const task of tasks) {
-		const dependencies = await task.getDependencies();
-		if (dependencies.length === 0) {
+		const dependents = await task.getDependents();
+		if (dependents.length === 0) {
 			rootTasks.push(task);
 		}
 	}

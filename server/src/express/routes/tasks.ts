@@ -285,11 +285,15 @@ tasksRouter.patch('/tasks/:id', async (req: Request, res: Response<TaskDto | Err
 		sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
 		return;
 	}
-	// Unteraufgaben-Done-Guard (#246, AK5): Ein Task darf nur auf „Done" wechseln, wenn keine seiner
-	// direkten Unteraufgaben (Dependents) offen ist.
+	// Unteraufgaben-Done-Guard (#246, AK5; Kanten-Richtung korrigiert in #336): Ein Task darf nur auf
+	// „Done" wechseln, wenn keine seiner direkten Unteraufgaben offen ist. Eine Unteraufgabe wird über
+	// den realen „Unteraufgabe anlegen"-Flow (`TaskForm.tsx`) als **Vorgänger** der Eltern-Aufgabe
+	// angelegt (`POST /tasks/{parentId}/dependencies` mit `dependingTaskId = childId`) → die direkten
+	// Unteraufgaben stehen in `parent.getDependencies()`, nicht in `getDependents()`. Zuvor prüfte der
+	// Guard die entgegengesetzte Richtung und griff für real angelegte Unteraufgaben daher nie.
 	if (validation.attrs.status === 'Done') {
-		const dependents = await task.getDependents();
-		const hasOpenSubtask = dependents.some((dep) => dep.status !== 'Done');
+		const subtasks = await task.getDependencies();
+		const hasOpenSubtask = subtasks.some((sub) => sub.status !== 'Done');
 		if (hasOpenSubtask) {
 			sendError(
 				res,

@@ -9,9 +9,9 @@ import { waitForStableView } from './helpers';
  * Abhängigen. Tasks ohne Sub-Tasks zeigen keinen Fortschritt.
  *
  * Setup wie in `suggestions.spec.ts`: Tasks und Abhängigkeiten werden über die echte API (Vite-Proxy
- * → Backend) geseedet. Eine Abhängigkeit `POST /tasks/{id}/dependencies { dependingTaskId }` bedeutet:
- * `{id}` hängt von `dependingTaskId` ab — im Aufgabenwald erscheint `{id}` also als Dependent (Sub-Task)
- * von `dependingTaskId`.
+ * → Backend) geseedet. Eine Unteraufgabe wird — exakt wie `TaskForm.tsx` — als **Vorgänger** der
+ * Eltern-Aufgabe angelegt (`POST /tasks/{parentId}/dependencies { dependingTaskId: childId }`, #336);
+ * im Aufgabenwald erscheint das Kind dann als Sub-Task (`dependents`-Eintrag) des Elternteils.
  */
 test.describe('Fortschrittsanzeige pro Task (#241)', () => {
 	let runId = 0;
@@ -38,10 +38,14 @@ test.describe('Fortschrittsanzeige pro Task (#241)', () => {
 		return task.id;
 	};
 
-	/** Macht `dependentId` zum Sub-Task von `prerequisiteId` (dependent hängt vom Vorgänger ab). */
-	const addDependency = async (page: Page, dependentId: number, prerequisiteId: number): Promise<void> => {
-		await page.request.post(`/api/v1/tasks/${dependentId}/dependencies`, {
-			data: { dependingTaskId: prerequisiteId },
+	/**
+	 * Macht `childId` zur Unteraufgabe von `parentId` — exakt wie `TaskForm.tsx`: das Kind wird zum
+	 * **Vorgänger** der Eltern-Aufgabe (`POST /tasks/{parentId}/dependencies` mit
+	 * `dependingTaskId = childId`, #336). Im Wald erscheint das Kind als Sub-Task unter `parent`.
+	 */
+	const addSubtask = async (page: Page, parentId: number, childId: number): Promise<void> => {
+		await page.request.post(`/api/v1/tasks/${parentId}/dependencies`, {
+			data: { dependingTaskId: childId },
 		});
 	};
 
@@ -58,9 +62,9 @@ test.describe('Fortschrittsanzeige pro Task (#241)', () => {
 		const idA = await createTask(page, titelA);
 		const idB = await createTask(page, uniqueTitle('B'));
 		const idC = await createTask(page, uniqueTitle('C'));
-		// B und C hängen von A ab → beide sind Sub-Tasks von A.
-		await addDependency(page, idB, idA);
-		await addDependency(page, idC, idA);
+		// B und C sind Unteraufgaben von A.
+		await addSubtask(page, idA, idB);
+		await addSubtask(page, idA, idC);
 
 		await page.goto('/');
 		await waitForStableView(page);
@@ -88,8 +92,8 @@ test.describe('Fortschrittsanzeige pro Task (#241)', () => {
 		const titelA = uniqueTitle('A');
 		const idA = await createTask(page, titelA);
 		const idB = await createTask(page, uniqueTitle('B'));
-		// B hängt von A ab → A + 1 Sub-Task = 2 Tasks, keiner erledigt → „0/2".
-		await addDependency(page, idB, idA);
+		// B ist Unteraufgabe von A → A + 1 Sub-Task = 2 Tasks, keiner erledigt → „0/2".
+		await addSubtask(page, idA, idB);
 
 		await page.goto('/');
 		await waitForStableView(page);
@@ -112,8 +116,8 @@ test.describe('Fortschrittsanzeige pro Task (#241)', () => {
 		const titelA = uniqueTitle('A');
 		const idA = await createTask(page, titelA);
 		const idB = await createTask(page, uniqueTitle('B'));
-		// B hängt von A ab → A + 1 Sub-Task = 2 Tasks gesamt.
-		await addDependency(page, idB, idA);
+		// B ist Unteraufgabe von A → A + 1 Sub-Task = 2 Tasks gesamt.
+		await addSubtask(page, idA, idB);
 
 		await page.goto('/');
 		await waitForStableView(page);
