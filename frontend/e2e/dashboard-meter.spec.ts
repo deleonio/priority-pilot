@@ -34,7 +34,7 @@ test.describe('Dashboard — Meter Ist-Anteil (Issue #219)', () => {
 		await page.getByRole('button', { name: 'Überspringen' }).click();
 		await waitForStableView(page);
 		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
-		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+		await page.getByRole('button', { name: 'Anlegen', exact: true }).click();
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
 	};
 

@@ -50,7 +50,7 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 		await waitForStableView(page);
 
 		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
-		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+		await page.getByRole('button', { name: 'Anlegen', exact: true }).click();
 
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
 	};
@@ -79,20 +79,20 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 
 		await openTasksTab(page);
 		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
-		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeVisible();
+		await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeVisible();
 		await waitForStableView(page);
 
 		// Priorität auf Minimum (1) setzen. `KolInputRange` → natives `<input type="range">` im
 		// Shadow-DOM; `Home` setzt zuverlässig auf das Minimum.
 		await page.locator('input[type="range"][min="1"][max="5"][step="1"]').press('Home');
-		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
-		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeHidden();
+		await page.locator('kol-dialog').getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+		await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeHidden();
 
 		await openTasksTab(page);
 
 		// Persistenz prüfen: Dialog erneut öffnen — Werte kommen frisch aus dem Backend.
 		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
-		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeVisible();
+		await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeVisible();
 		await waitForStableView(page);
 		await expect(page.locator('input[type="range"][min="1"][max="5"][step="1"]')).toHaveValue('1');
 	});

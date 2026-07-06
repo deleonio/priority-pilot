@@ -13,7 +13,7 @@ import { waitForStableView } from './helpers';
  * die echte API wieder ab, damit die In-Memory-DB zwischen den Tests sauber bleibt.
  *
  * **Erwartete (noch nicht existierende) UI**, gegen die diese Tests fahren:
- *  - Im Anlege-Dialog gibt es einen Umschalter mit `data-testid="mode-toggle"` und den Optionen
+ *  - Im Anlege-Dialog gibt es einen Umschalter mit `data-testid="mode-switch"` (Switch, #334) und dem Label
  *    „Aufgabe"/„Serie".
  *  - Nach Umschalten auf „Serie" sind die Felder „Startdatum" und „Rhythmus" sichtbar, „Deadline
  *    (optional)" ist ausgeblendet.
@@ -51,20 +51,19 @@ test.describe('Priority Pilot — Task/Serie-Umschalter im Anlege-Formular (#316
 		await waitForStableView(page);
 	};
 
-	/** Liefert den Umschalter-Container (data-testid="mode-toggle"). */
-	const modeToggle = (page: Page) => page.getByTestId('mode-toggle');
+	/** Liefert den Switch-Wrapper (data-testid="mode-switch", #334). */
+	const modeSwitch = (page: Page) => page.getByTestId('mode-switch');
 
-	// AK4 (e2e): Der Umschalter ist im Anlege-Dialog sichtbar und beide Optionen sind bedienbar.
-	test('AK4 — Umschalter „Aufgabe/Serie" ist im Anlege-Dialog sichtbar und bedienbar', async ({ page }) => {
+	// AK1 (e2e, #334): Der Switch ist im Anlege-Dialog sichtbar und bedienbar (kein Button-Paar mehr).
+	test('AK1 (#334) — Switch „Aufgabe/Serie" ist im Anlege-Dialog sichtbar und bedienbar', async ({ page }) => {
 		await page.goto('/');
 		await waitForStableView(page);
 		await openCreateForm(page);
 
-		const toggle = modeToggle(page);
-		await expect(toggle).toBeVisible();
-		await expect(toggle.getByRole('button', { name: /aufgabe/i })).toBeVisible();
-		await expect(toggle.getByRole('button', { name: /serie/i })).toBeVisible();
-		await expect(toggle.getByRole('button', { name: /serie/i })).toBeEnabled();
+		const wrapper = modeSwitch(page);
+		await expect(wrapper).toBeVisible();
+		await expect(wrapper.getByRole('checkbox')).toBeVisible();
+		await expect(wrapper.getByRole('checkbox')).toBeEnabled();
 	});
 
 	// AK4 (e2e): Nach Umschalten auf „Serie" erscheinen `startDate` + `rhythm`, `deadline` verschwindet.
@@ -76,7 +75,7 @@ test.describe('Priority Pilot — Task/Serie-Umschalter im Anlege-Formular (#316
 		// Im Task-Modus (Standard) ist die Deadline sichtbar.
 		await expect(page.getByLabel('Deadline (optional)')).toBeVisible();
 
-		await modeToggle(page).getByRole('button', { name: /serie/i }).click();
+		await modeSwitch(page).getByRole('checkbox').click();
 
 		// Serienfelder erscheinen …
 		await expect(page.getByLabel('Startdatum')).toBeVisible();
@@ -91,7 +90,7 @@ test.describe('Priority Pilot — Task/Serie-Umschalter im Anlege-Formular (#316
 		await waitForStableView(page);
 		await openCreateForm(page);
 
-		await modeToggle(page).getByRole('button', { name: /serie/i }).click();
+		await modeSwitch(page).getByRole('checkbox').click();
 
 		const title = uniqueTitle('Serie-Anlegen');
 		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
@@ -102,7 +101,7 @@ test.describe('Priority Pilot — Task/Serie-Umschalter im Anlege-Formular (#316
 		const seriesRequestPromise = page.waitForRequest(
 			(req) => req.method() === 'POST' && /\/api\/v1\/series(\?|$)/.test(req.url()),
 		);
-		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+		await page.getByRole('button', { name: 'Anlegen', exact: true }).click();
 		const seriesRequest = await seriesRequestPromise;
 		expect(seriesRequest.url()).toContain('/series');
 
@@ -126,13 +125,31 @@ test.describe('Priority Pilot — Task/Serie-Umschalter im Anlege-Formular (#316
 		const taskRequestPromise = page.waitForRequest(
 			(req) => req.method() === 'POST' && /\/api\/v1\/tasks(\?|$)/.test(req.url()),
 		);
-		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+		await page.getByRole('button', { name: 'Anlegen', exact: true }).click();
 		const taskRequest = await taskRequestPromise;
 		expect(taskRequest.url()).toContain('/tasks');
 
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
 		const tasks = (await (await page.request.get('/api/v1/tasks')).json()) as { title: string }[];
 		expect(tasks.some((entry) => entry.title === title)).toBeTruthy();
+	});
+
+	// AK2 (e2e, #334): Der Anlege-Titel wechselt live beim Umschalten des Switch.
+	test('AK2 (#334) — Anlege-Titel wechselt live beim Umschalten des Switch', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+		await openCreateForm(page);
+
+		// Nach dem Überspringen: TaskForm im Task-Modus — Titel „Aufgabe anlegen".
+		await expect(page.getByRole('heading', { name: 'Aufgabe anlegen' })).toBeVisible();
+
+		// Switch auf Serie umschalten → Titel „Serie anlegen".
+		await modeSwitch(page).getByRole('checkbox').click();
+		await expect(page.getByRole('heading', { name: 'Serie anlegen' })).toBeVisible();
+
+		// Zurück auf Aufgabe → Titel „Aufgabe anlegen".
+		await modeSwitch(page).getByRole('checkbox').click();
+		await expect(page.getByRole('heading', { name: 'Aufgabe anlegen' })).toBeVisible();
 	});
 
 	// AK7 (e2e): Bei 375×812 lässt sich der Serie-Abschnitt ohne horizontales Scrollen bedienen.
@@ -142,7 +159,7 @@ test.describe('Priority Pilot — Task/Serie-Umschalter im Anlege-Formular (#316
 		await waitForStableView(page);
 		await openCreateForm(page);
 
-		await modeToggle(page).getByRole('button', { name: /serie/i }).click();
+		await modeSwitch(page).getByRole('checkbox').click();
 		await expect(page.getByLabel('Startdatum')).toBeVisible();
 		await expect(page.getByLabel('Rhythmus')).toBeVisible();
 
@@ -166,14 +183,12 @@ test.describe('Priority Pilot — Task/Serie-Umschalter im Anlege-Formular (#316
 		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
 
 		// Umschalten auf „Serie" — Startdatum erscheint, der Titel-Wert überlebt.
-		await modeToggle(page).getByRole('button', { name: /serie/i }).click();
+		await modeSwitch(page).getByRole('checkbox').click();
 		await expect(page.getByLabel('Startdatum')).toBeVisible();
 		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue(title);
 
 		// Zurück auf „Aufgabe" — Deadline erscheint wieder, der Titel-Wert überlebt auch den Rückwechsel.
-		await modeToggle(page)
-			.getByRole('button', { name: /aufgabe/i })
-			.click();
+		await modeSwitch(page).getByRole('checkbox').click();
 		await expect(page.getByLabel('Deadline (optional)')).toBeVisible();
 		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue(title);
 	});

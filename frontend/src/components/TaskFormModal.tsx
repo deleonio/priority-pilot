@@ -40,7 +40,7 @@ export const TaskFormModal = ({
 	onClose,
 	onSaved,
 }: TaskFormModalProps) => (
-	<Modal title={taskFormModalTitle(task, parentTask)} onClose={onClose} fallbackFocusRef={fallbackFocusRef}>
+	<Modal title={taskFormModalTitle(task, parentTask, 'task')} onClose={onClose} fallbackFocusRef={fallbackFocusRef}>
 		<TaskForm
 			task={task}
 			parentTask={parentTask}

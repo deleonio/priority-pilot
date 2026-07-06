@@ -1,3 +1,4 @@
+import type { Task } from 'client';
 import { TaskStatus } from 'client';
 import { describe, expect, it } from 'vitest';
 import {
@@ -6,6 +7,7 @@ import {
 	doneBlockedHint,
 	formatRelativeDeadline,
 	statusAccentClass,
+	taskFormModalTitle,
 } from './task';
 
 /** Fixer Bezugszeitpunkt für deterministische Dringlichkeits-Tests (UTC-Mittag). */
@@ -105,5 +107,57 @@ describe('doneBlockedHint', () => {
 
 	it('ohne offene Unteraufgaben ist der Hinweis leer', () => {
 		expect(doneBlockedHint(0)).toBe('');
+	});
+});
+
+/**
+ * Roter TDD-Vertrag für #334 „Switch statt Button-Paar + dynamische Dialogtitel".
+ *
+ * `taskFormModalTitle` bekommt einen dritten Parameter `mode?: 'task' | 'series'`, der den Titel im
+ * Anlege- wie im Bearbeiten-Modus typspezifisch macht (AK2 + AK4):
+ *  - Anlegen (task === null, parentTask === null): „Aufgabe anlegen" / „Serie anlegen" je Switch-Stellung.
+ *  - Bearbeiten (task !== null): „Aufgabe bearbeiten: <title>" / „Serie bearbeiten: <title>".
+ *  - Unteraufgabe (parentTask !== null): unverändert „Unteraufgabe zu #<id> – <title>".
+ *  - Ohne Modus (Fallback): „Neuen Task anlegen".
+ *
+ * Der lokale Cast `{ id, title } as Task` ist die bewusste Typ-Grenze des Vertrags — nur die für den
+ * Titel relevanten Felder werden gesetzt. Diese Specs sind rot, solange `taskFormModalTitle` den
+ * `mode`-Parameter ignoriert bzw. die alten Titel („Task bearbeiten: …", „Neuen Task anlegen") liefert.
+ */
+describe('taskFormModalTitle (#334)', () => {
+	const makeTask = (id: number, title: string): Task => ({ id, title }) as Task;
+
+	it('AK2: Anlegen im Task-Modus → „Aufgabe anlegen"', () => {
+		expect(taskFormModalTitle(null, null, 'task')).toBe('Aufgabe anlegen');
+	});
+
+	it('AK2: Anlegen im Serie-Modus → „Serie anlegen"', () => {
+		expect(taskFormModalTitle(null, null, 'series')).toBe('Serie anlegen');
+	});
+
+	it('AK4: Bearbeiten im Task-Modus nennt den Typ „Aufgabe bearbeiten: <title>"', () => {
+		expect(taskFormModalTitle(makeTask(1, 'Steuererklärung'), null, 'task')).toBe(
+			'Aufgabe bearbeiten: Steuererklärung',
+		);
+	});
+
+	it('AK4: Bearbeiten im Serie-Modus nennt den Typ „Serie bearbeiten: <title>"', () => {
+		expect(taskFormModalTitle(makeTask(7, 'Wöchentlicher Sport'), null, 'series')).toBe(
+			'Serie bearbeiten: Wöchentlicher Sport',
+		);
+	});
+
+	it('Unteraufgabe (parentTask gesetzt) bleibt unverändert', () => {
+		expect(taskFormModalTitle(null, makeTask(42, 'Elternaufgabe'), 'task')).toBe('Unteraufgabe zu #42 – Elternaufgabe');
+	});
+
+	it('Bearbeiten einer Unteraufgabe (task UND parentTask gesetzt) zeigt Unteraufgaben-Titel', () => {
+		expect(taskFormModalTitle(makeTask(5, 'Unteraufgabe'), makeTask(42, 'Elternaufgabe'), 'task')).toBe(
+			'Aufgabe bearbeiten: Unteraufgabe',
+		);
+	});
+
+	it('Fallback ohne Modus → „Neuen Task anlegen"', () => {
+		expect(taskFormModalTitle(null, null)).toBe('Neuen Task anlegen');
 	});
 });

@@ -111,7 +111,7 @@ test.describe('Berater-Vorschlag in Quick Capture übernehmen (#327)', () => {
 
 		// Das reguläre Formular erscheint mit dem gemockten Titel; speichern schließt den Dialog.
 		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue(title);
-		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+		await page.getByRole('button', { name: 'Anlegen', exact: true }).click();
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
 
 		// Der Task erscheint in der Aufgaben-Liste.

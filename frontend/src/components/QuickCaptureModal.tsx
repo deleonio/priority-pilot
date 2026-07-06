@@ -49,6 +49,8 @@ export const QuickCaptureModal = ({
 	const [error, setError] = useState<string | null>(null);
 	const [hasText, setHasText] = useState(initialText !== undefined && initialText.trim().length > 0);
 	const [voiceAutostart] = useState(readVoiceAutostartPreference);
+	// #334: Spiegelt den im TaskForm gewählten Modus (Aufgabe/Serie) für den Dialog-Titel.
+	const [formMode, setFormMode] = useState<'task' | 'series'>('task');
 
 	const text = useRef(initialText ?? '');
 	// State-Mirror für die Capture-Textarea (#264): KoliBri verwaltet den Anzeigewert selbst, aber
@@ -108,7 +110,7 @@ export const QuickCaptureModal = ({
 	// Der Modal-Heading bleibt im Capture-Schritt „Neuen Task anlegen"; im Formular-Schritt spiegelt er
 	// den Anlege-Kontext (bei einer Unteraufgabe die Eltern-Aufgabe) — dieselbe Beschriftung wie im
 	// eigenständigen `TaskFormModal`.
-	const title = step === 'capture' ? 'Neuen Task anlegen' : taskFormModalTitle(null, parentTask);
+	const title = step === 'capture' ? 'Neuen Task anlegen' : taskFormModalTitle(null, parentTask, formMode);
 
 	return (
 		<Modal title={title} onClose={onClose} fallbackFocusRef={triggerRef}>
@@ -120,6 +122,7 @@ export const QuickCaptureModal = ({
 					initialValues={prefill}
 					onClose={onClose}
 					onSaved={onSaved}
+					onModeChange={setFormMode}
 				/>
 			) : (
 				<>

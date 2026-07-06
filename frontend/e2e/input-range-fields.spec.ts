@@ -59,7 +59,7 @@ test.describe('InputRange-Felder statt InputNumber (#287)', () => {
 	/** Öffnet den Bearbeiten-Dialog des ersten Tasks und wartet, bis das Formular stabil steht. */
 	const openFirstTaskEdit = async (page: Page): Promise<void> => {
 		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
-		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeVisible();
+		await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeVisible();
 		await waitForStableView(page);
 	};
 
@@ -83,8 +83,8 @@ test.describe('InputRange-Felder statt InputNumber (#287)', () => {
 		// Auf das Minimum (1) setzen und speichern.
 		await priority.press('Home');
 		await expect(priority).toHaveValue('1');
-		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
-		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeHidden();
+		await page.locator('kol-dialog').getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+		await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeHidden();
 
 		// Harter Reload: die Werte kommen frisch aus dem Backend — beweist die Persistenz.
 		await page.reload();
@@ -115,8 +115,8 @@ test.describe('InputRange-Felder statt InputNumber (#287)', () => {
 		// Auf das Maximum (1) setzen und speichern.
 		await effort.press('End');
 		await expect(effort).toHaveValue('1');
-		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
-		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeHidden();
+		await page.locator('kol-dialog').getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+		await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeHidden();
 
 		await page.reload();
 		await waitForStableView(page);

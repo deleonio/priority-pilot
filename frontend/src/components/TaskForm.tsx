@@ -1,6 +1,7 @@
 import {
 	KolAlert,
 	KolButton,
+	KolInputCheckbox,
 	KolInputDate,
 	KolInputRange,
 	KolInputText,
@@ -86,6 +87,8 @@ interface TaskFormProps {
 	onClose: () => void;
 	/** Nach erfolgreichem Speichern aufgerufen (Liste neu laden + Dialog schließen). */
 	onSaved: () => void;
+	/** Meldet einen Moduswechsel (Aufgabe/Serie) an den Container — z. B. für den Dialog-Titel (#334). */
+	onModeChange?: (mode: 'task' | 'series') => void;
 }
 
 /** Liefert für `KolInputDate` ein `date`-Input-taugliches `YYYY-MM-DD` aus einem ISO-String, sonst ''. */
@@ -124,6 +127,7 @@ export const TaskForm = ({
 	initialValues,
 	onClose,
 	onSaved,
+	onModeChange,
 }: TaskFormProps) => {
 	// #316: Serien-Edit (bearbeiten einer Serie) vs. Task-Edit (bearbeiten eines Tasks). `isEdit`
 	// gilt für beide Bearbeiten-Fälle (Umschalter gesperrt); im Anlege-Fall ist beides `false`.
@@ -440,22 +444,24 @@ export const TaskForm = ({
 					{error}
 				</KolAlert>
 			)}
-			{/* #316: Umschalter Aufgabe/Serie. Beim Anlegen bedienbar (wechselt den Modus), beim
-			    Bearbeiten gesperrt — der Datensatz-Typ (Task vs. Serie) steht dann fest. */}
-			<div className="mode-toggle" data-testid="mode-toggle" role="group" aria-label="Typ: Aufgabe oder Serie">
-				<KolButton
-					_label="Aufgabe"
-					_variant={isSeriesMode ? 'secondary' : 'primary'}
-					_disabled={isEdit}
-					_on={{ onClick: () => setMode('task') }}
-				/>
-				<KolButton
-					_label="Serie"
-					_variant={isSeriesMode ? 'primary' : 'secondary'}
-					_disabled={isEdit}
-					_on={{ onClick: () => setMode('series') }}
-				/>
-			</div>
+			{/* #334: Umschalter Aufgabe/Serie als Switch. Nur beim Anlegen sichtbar; beim Bearbeiten
+			    steht der Datensatz-Typ (Task vs. Serie) fest und der Switch entfällt komplett. */}
+			{!isEdit && (
+				<div data-testid="mode-switch">
+					<KolInputCheckbox
+						_label="Serie"
+						_checked={isSeriesMode}
+						_variant="switch"
+						_on={{
+							onChange: (_e, checked) => {
+								const newMode = checked === true ? 'series' : 'task';
+								setMode(newMode);
+								onModeChange?.(newMode);
+							},
+						}}
+					/>
+				</div>
+			)}
 			<div className="form-grid">
 				<VoiceField
 					variant="input"
@@ -681,7 +687,7 @@ export const TaskForm = ({
 			</div>
 			<div className="modal-actions">
 				<KolButton
-					_label={saving ? 'Speichern…' : 'Speichern'}
+					_label={saving ? (isEdit ? 'Bearbeiten…' : 'Anlegen…') : isEdit ? 'Bearbeiten' : 'Anlegen'}
 					_variant="primary"
 					_disabled={saving || suggesting}
 					_on={{ onClick: () => void submit() }}
