@@ -10,10 +10,11 @@ export interface DependencyRef {
  * Leitet aus dem Aufgabenwald (`GET /forest`) für jeden Task die Liste seiner direkten
  * Abhängigkeiten (Vorgänger/Prerequisites) ab.
  *
- * Der Server liefert keine pro-Task-Abhängigkeitsliste; der Wald bildet den Graphen jedoch über
- * `dependents` (die Tasks, die vom jeweiligen Knoten abhängen) ab. Durch Umkehren dieser Kanten
- * ergibt sich je Task die Menge seiner Vorgänger. Hinweis: Der Wald enthält nur Tasks mit Status
- * `Open`/`In process` — Kanten zu/von `Done`-Tasks erscheinen daher nicht.
+ * Seit #336 bildet der Wald Eltern → Kind ab: die direkten Kinder eines Knotens (`node.dependents`)
+ * sind seine über „Unteraufgabe anlegen" verknüpften Vorgänger (`parent.getDependencies()`). Die
+ * direkten Vorgänger eines Tasks sind damit genau seine Kinder im Wald — kein Umkehren der Kanten
+ * mehr nötig. Hinweis: Der Wald enthält nur Tasks mit Status `Open`/`In process` — Kanten zu/von
+ * `Done`-Tasks erscheinen daher nicht.
  */
 export const buildDependencyMap = (forest: TaskTreeNode[]): Map<number, DependencyRef[]> => {
 	const map = new Map<number, DependencyRef[]>();
@@ -26,12 +27,16 @@ export const buildDependencyMap = (forest: TaskTreeNode[]): Map<number, Dependen
 			return;
 		}
 		path.add(node.id);
-		for (const child of node.dependents) {
-			const list = map.get(child.id) ?? [];
-			if (!list.some((dependency) => dependency.id === node.id)) {
-				list.push({ id: node.id, title: node.title });
+		if (node.dependents.length > 0) {
+			const list = map.get(node.id) ?? [];
+			for (const child of node.dependents) {
+				if (!list.some((dependency) => dependency.id === child.id)) {
+					list.push({ id: child.id, title: child.title });
+				}
 			}
-			map.set(child.id, list);
+			map.set(node.id, list);
+		}
+		for (const child of node.dependents) {
 			visit(child);
 		}
 		path.delete(node.id);
