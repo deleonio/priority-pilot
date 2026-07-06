@@ -13,7 +13,7 @@ import { ForestPanel } from './components/ForestPanel';
 import { HelpPage } from './components/HelpPage';
 import { PillarAdvisorModal } from './components/PillarAdvisorModal';
 import { QuickCaptureModal } from './components/QuickCaptureModal';
-import { SeriesManagementModal } from './components/SeriesManagementModal';
+import { SeriesTab } from './components/SeriesTab';
 import { SettingsPage } from './components/SettingsPage';
 import { TaskFormModal } from './components/TaskFormModal';
 import { TaskTree } from './components/TaskTree';
@@ -29,7 +29,6 @@ type Dialog =
 	| { kind: 'edit'; task: Task }
 	| { kind: 'delete'; task: Task }
 	| { kind: 'dependencies'; taskId: number }
-	| { kind: 'series' }
 	| { kind: 'advisor' }
 	| null;
 
@@ -39,6 +38,7 @@ type Dialog =
 const VIEW_TABS = [
 	{ _label: 'Dashboard' },
 	{ _label: 'Aufgaben' },
+	{ _label: 'Serien' },
 	{ _label: 'Aufgabenwald' },
 	{ _label: 'Erledigte Aufgaben' },
 ];
@@ -46,7 +46,6 @@ const VIEW_TABS = [
 // Modulkonstanten für Toolbar-Icons: stabile Objektidentität pro Render, damit der Icon-Watcher
 // nicht unnötig erneut feuert (z. B. CREATE_ICON für „Neuen Task anlegen").
 const CREATE_ICON = { left: { icon: 'fa-solid fa-plus' } };
-const SERIES_ICON = { left: { icon: 'fa-solid fa-repeat' } };
 const ADVISOR_ICON = { left: { icon: 'fa-solid fa-lightbulb' } };
 const HELP_ICON = { left: { icon: 'fa-solid fa-circle-question' } };
 const SETTINGS_ICON = { left: { icon: 'fa-solid fa-gear' } };
@@ -306,14 +305,6 @@ export const App = ({ user }: { user: AuthUser }) => {
 							},
 							{
 								type: 'button',
-								_label: 'Serien verwalten',
-								_hideLabel: true,
-								_icons: SERIES_ICON,
-								_variant: 'secondary',
-								_on: { onClick: () => setDialog({ kind: 'series' }) },
-							},
-							{
-								type: 'button',
 								_label: 'Säulen-Berater',
 								_hideLabel: true,
 								_icons: ADVISOR_ICON,
@@ -382,7 +373,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 
 			{tasks !== null && tasks.length === 0 && <EmptyState onCreate={() => setDialog({ kind: 'create' })} />}
 
-			{tasks !== null && tasks.length > 0 && (
+			{tasks !== null && (
 				<KolTabs className="app-tabs" _label="Ansichten" _tabs={VIEW_TABS} _on={tabsCallbacks}>
 					<div slot="tab-0">
 						<Dashboard
@@ -409,9 +400,12 @@ export const App = ({ user }: { user: AuthUser }) => {
 						</section>
 					</div>
 					<div slot="tab-2">
-						<ForestPanel forest={forest} />
+						<SeriesTab pillars={pillars} />
 					</div>
 					<div slot="tab-3">
+						<ForestPanel forest={forest} />
+					</div>
+					<div slot="tab-4">
 						<section className="task-section">
 							<CompletedTasksTable tasks={tasks} pillars={pillars} forestTaskIds={forestTaskIds} onReloaded={reload} />
 						</section>
@@ -437,7 +431,6 @@ export const App = ({ user }: { user: AuthUser }) => {
 					onSaved={afterMutation}
 				/>
 			)}
-			{dialog?.kind === 'series' && <SeriesManagementModal pillars={pillars} onClose={closeDialog} />}
 			{dialog?.kind === 'advisor' && (
 				<PillarAdvisorModal
 					pillars={pillars}

@@ -176,7 +176,9 @@ test.describe('Priority Pilot — #335: Serien-Verwaltung als eigener Tab', () =
 	});
 
 	// AK4 — Löschen entfernt die Serie: Zeile verschwindet, API bestätigt die Löschung.
-	test('AK4 — „Löschen" entfernt die Serie: Zeile verschwindet und die API bestätigt die Löschung', async ({ page }) => {
+	test('AK4 — „Löschen" entfernt die Serie: Zeile verschwindet und die API bestätigt die Löschung', async ({
+		page,
+	}) => {
 		const title = uniqueTitle('Loeschen');
 		const seriesId = await createSeriesViaApi(page, { title, startDate: '2026-09-07T00:00:00.000Z' });
 
