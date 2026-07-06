@@ -83,10 +83,13 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 		await deleteAll(page);
 	});
 
-	/** Öffnet die Serien-Verwaltung über die Kopf-Toolbar (unabhängig davon, ob schon Tasks existieren). */
+	/**
+	 * Öffnet die Serien-Verwaltung. Nach #335 liegt sie in einem eigenen Tab „Serien" (statt im alten
+	 * Header-Button + Modal); der Serien-Baum (`series-tree`) ist danach sichtbar.
+	 */
 	const openSeriesManagement = async (page: Page): Promise<void> => {
-		await page.getByRole('button', { name: 'Serien verwalten' }).click();
-		await expect(page.getByRole('heading', { name: 'Serien', exact: true })).toBeVisible();
+		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
+		await expect(page.getByTestId('series-tree')).toBeVisible();
 		await waitForStableView(page);
 	};
 
@@ -298,9 +301,10 @@ test.describe('Priority Pilot — #297: Altes Serien-Formular durch TaskForm ers
 		await deleteAll(page);
 	});
 
+	// Nach #335: Serien-Verwaltung im eigenen Tab „Serien" statt Header-Button + Modal.
 	const openSeriesManagement = async (page: Page): Promise<void> => {
-		await page.getByRole('button', { name: 'Serien verwalten' }).click();
-		await expect(page.getByRole('heading', { name: 'Serien', exact: true })).toBeVisible();
+		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
+		await expect(page.getByTestId('series-tree')).toBeVisible();
 		await waitForStableView(page);
 	};
 
@@ -418,9 +422,10 @@ test.describe('Priority Pilot — #330: Vereinheitlichter Anlege-Einstieg (Serie
 		await deleteAll(page);
 	});
 
+	// Nach #335: Serien-Verwaltung im eigenen Tab „Serien" statt Header-Button + Modal.
 	const openSeriesManagement = async (page: Page): Promise<void> => {
-		await page.getByRole('button', { name: 'Serien verwalten' }).click();
-		await expect(page.getByRole('heading', { name: 'Serien', exact: true })).toBeVisible();
+		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
+		await expect(page.getByTestId('series-tree')).toBeVisible();
 		await waitForStableView(page);
 	};
 
@@ -431,11 +436,11 @@ test.describe('Priority Pilot — #330: Vereinheitlichter Anlege-Einstieg (Serie
 		await waitForStableView(page);
 		await openSeriesManagement(page);
 
-		// Kern-Assertion: kein Anlegen-Button mehr im Modal.
+		// Kern-Assertion: kein Anlegen-Button mehr in der Serien-Verwaltung.
 		await expect(page.getByRole('button', { name: 'Neue Serie anlegen' })).toHaveCount(0);
 
-		// Das Modal ist trotzdem geöffnet (die Verwaltung existiert weiterhin).
-		await expect(page.getByRole('heading', { name: 'Serien', exact: true })).toBeVisible();
+		// Die Serien-Verwaltung ist trotzdem geöffnet (nach #335 der Serien-Tab mit dem Serien-Baum).
+		await expect(page.getByTestId('series-tree')).toBeVisible();
 	});
 
 	// AK5b — Verwaltungsfunktionen (Liste / Bearbeiten / Löschen / Generieren) bleiben ohne Anlegen-Button erhalten.
