@@ -39,7 +39,7 @@ export default defineConfig({
 				// überschreitet das Workbox-Standardlimit von 2 MiB für den Precache.
 				maximumFileSizeToCacheInBytes: 12 * 1024 * 1024,
 				// Ohne Denylist beantwortet der Service Worker JEDE Navigation mit der
-				// gecachten index.html (navigateFallback) — auch /auth/google und den
+				// gecachten index.html (navigateFallback) – auch /auth/google und den
 				// Google-Callback. Der OAuth-Flow erreicht dann nie den Server (Symptom:
 				// installierte PWA/Android-Chrome bleibt auf der Login-URL hängen).
 				// API- und Auth-Pfade müssen daher immer ans Netzwerk durchgereicht werden.
@@ -55,10 +55,58 @@ export default defineConfig({
 				start_url: '/',
 				icons: [
 					{
+						src: 'icons/icon-192x192.svg',
+						sizes: '192x192',
+						type: 'image/svg+xml',
+						purpose: 'any',
+					},
+					{
+						src: 'icons/icon-512x512.svg',
+						sizes: '512x512',
+						type: 'image/svg+xml',
+						purpose: 'any',
+					},
+					{
+						src: 'icons/icon-192x192-maskable.svg',
+						sizes: '192x192',
+						type: 'image/svg+xml',
+						purpose: 'maskable',
+					},
+					{
+						src: 'icons/icon-512x512-maskable.svg',
+						sizes: '512x512',
+						type: 'image/svg+xml',
+						purpose: 'maskable',
+					},
+					{
 						src: 'icon.svg',
 						sizes: 'any',
 						type: 'image/svg+xml',
 						purpose: 'any maskable',
+					},
+				],
+				shortcuts: [
+					{
+						name: 'Neue Aufgabe',
+						url: '/?new-task=true',
+						icons: [
+							{
+								src: 'icons/icon-192x192.svg',
+								sizes: '192x192',
+								purpose: 'any',
+							},
+						],
+					},
+					{
+						name: 'Dashboard',
+						url: '/',
+						icons: [
+							{
+								src: 'icons/icon-192x192.svg',
+								sizes: '192x192',
+								purpose: 'any',
+							},
+						],
 					},
 				],
 			},
