@@ -2,6 +2,7 @@ import { KolButton, KolPopoverButton, KolToolbar } from '@public-ui/react-v19';
 import type { Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useCallback, useMemo, useRef, useState } from 'react';
+import { invertForest } from '../lib/invertForest';
 import { isDoneBlockedBySubtasks } from '../lib/task';
 
 interface TaskTreeProps {
@@ -33,6 +34,12 @@ interface TreeNodeProps {
 	onDoneToggle: (task: Task) => Promise<void>;
 	/** IDs des aktuellen Pfads — bricht bei einem (unerwarteten) Zyklus im Wald den Abstieg ab. */
 	visited: Set<number>;
+	/**
+	 * Semantische Knoten je Task-ID aus dem **unveränderten** Wald. Im invertierten Anzeige-Wald
+	 * enthält `node.dependents` die Oberaufgabe (Elternteil), nicht die Unteraufgaben — der Guard
+	 * (`isDoneBlockedBySubtasks`) muss aber weiterhin auf den semantischen Unteraufgaben rechnen.
+	 */
+	semanticNodeById: Map<number, TaskTreeNode>;
 }
 
 const TreeNode = ({
@@ -47,6 +54,7 @@ const TreeNode = ({
 	onAddSubtask,
 	onDoneToggle,
 	visited,
+	semanticNodeById,
 }: TreeNodeProps) => {
 	const [isUpdating, setIsUpdating] = useState(false);
 	// #361: Die vier sekundären Aktionen liegen hinter einem „…"-Popover. KolPopoverButton regelt
@@ -65,7 +73,8 @@ const TreeNode = ({
 
 	// Erledigt-Toggle-Guard (#315): der Toggle auf „Erledigt" ist gesperrt, solange nicht alle
 	// direkten Unteraufgaben erledigt sind. Das Wieder-Öffnen bleibt jederzeit erlaubt.
-	const directSubtaskStatuses = node.dependents.map((d) => ({
+	const semanticSubtasks = semanticNodeById.get(node.id)?.dependents ?? [];
+	const directSubtaskStatuses = semanticSubtasks.map((d) => ({
 		status: taskById.get(d.id)?.status ?? TaskStatus.Open,
 	}));
 	const doneBlocked = isDoneBlockedBySubtasks(directSubtaskStatuses);
@@ -218,6 +227,7 @@ const TreeNode = ({
 							onAddSubtask={onAddSubtask}
 							onDoneToggle={onDoneToggle}
 							visited={nextVisited}
+							semanticNodeById={semanticNodeById}
 						/>
 					))}
 				</ul>
@@ -258,13 +268,31 @@ export const TaskTree = ({
 
 	const taskById = useMemo(() => new Map(tasks.map((task) => [task.id, task])), [tasks]);
 
+	// Semantische Knoten je Task-ID aus dem unveränderten Wald: Der Guard braucht die echten
+	// Unteraufgaben, während der invertierte Anzeige-Wald unter `dependents` die Oberaufgaben führt.
+	const semanticNodeById = useMemo(() => {
+		const map = new Map<number, TaskTreeNode>();
+		const collect = (nodes: TaskTreeNode[]): void => {
+			for (const node of nodes) {
+				map.set(node.id, node);
+				collect(node.dependents);
+			}
+		};
+		collect(forest);
+		return map;
+	}, [forest]);
+
+	// Anzeige-Wald in umgekehrter Leserichtung (#363): Unter-/Einzelaufgaben als Wurzeln, die
+	// Oberaufgaben als aufklappbare Anzeige-Kinder darüber.
+	const displayForest = useMemo(() => invertForest(forest), [forest]);
+
 	if (forest.length === 0) {
 		return <p>Noch keine Tasks vorhanden. Lege oben einen neuen Task an.</p>;
 	}
 
 	return (
 		<ul className="task-tree" data-testid="task-tree">
-			{forest.map((node) => (
+			{displayForest.map((node) => (
 				<TreeNode
 					key={node.id}
 					node={node}
@@ -278,6 +306,7 @@ export const TaskTree = ({
 					onAddSubtask={onAddSubtask}
 					onDoneToggle={onDoneToggle}
 					visited={new Set<number>()}
+					semanticNodeById={semanticNodeById}
 				/>
 			))}
 		</ul>
