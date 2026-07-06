@@ -81,7 +81,7 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		// Der reguläre Weg funktioniert weiter: Titel ausfüllen, speichern → Task erscheint in der Liste.
 		const title = uniqueTitle('Überspringen');
 		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
-		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+		await page.getByRole('button', { name: 'Anlegen', exact: true }).click();
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
 
 		// Fokus-Rückgabe über den Dialog-Wechsel hinweg: Nach dem Speichern liegt der Fokus wieder auf

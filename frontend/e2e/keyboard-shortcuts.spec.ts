@@ -181,7 +181,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 
 	/**
 	 * Legt über die UI einen Task mit dem gegebenen Titel an und wartet, bis der Dialog geschlossen ist
-	 * (analog `crud.spec.ts`: Schnellerfassung „Überspringen", Titel füllen, „Speichern").
+	 * (analog `crud.spec.ts`: Schnellerfassung „Überspringen", Titel füllen, „Anlegen").
 	 */
 	const createTaskViaUi = async (page: Page, title: string): Promise<void> => {
 		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
@@ -190,7 +190,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		await page.getByRole('button', { name: 'Überspringen' }).click();
 		await waitForStableView(page);
 		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
-		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+		await page.getByRole('button', { name: 'Anlegen', exact: true }).click();
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
 	};
 

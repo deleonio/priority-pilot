@@ -83,7 +83,7 @@ test.describe('InputRange-Felder statt InputNumber (#287)', () => {
 		// Auf das Minimum (1) setzen und speichern.
 		await priority.press('Home');
 		await expect(priority).toHaveValue('1');
-		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+		await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
 		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeHidden();
 
 		// Harter Reload: die Werte kommen frisch aus dem Backend — beweist die Persistenz.
@@ -115,7 +115,7 @@ test.describe('InputRange-Felder statt InputNumber (#287)', () => {
 		// Auf das Maximum (1) setzen und speichern.
 		await effort.press('End');
 		await expect(effort).toHaveValue('1');
-		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+		await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
 		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeHidden();
 
 		await page.reload();
