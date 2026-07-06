@@ -2,24 +2,29 @@ import { expect, test, type Page } from './fixtures';
 import { waitForStableView } from './helpers';
 
 /**
- * Roter TDD-Vertrag für #238 „Aufgaben-Übersicht von Table zu List". Die bisherige `KolTableStateful`-
- * Tabelle (siehe `TaskTable.tsx`) wird im „Aufgaben"-Tab durch die noch nicht existierende
- * `TaskTree`-Komponente ersetzt: eine expandierbare Liste, in der Unteraufgaben eingeklappt sind und
- * per Aufklapp-Symbol sichtbar gemacht werden. Diese Specs prüfen ausschließlich das neue Verhalten;
- * sie sind rot, bis `TaskTree.tsx` (mit `data-testid`-Verankerung) implementiert und in `App.tsx`
- * eingebunden ist.
+ * Roter TDD-Vertrag für #363 „Aufgabenliste invertieren". Die `TaskTree`-Komponente (#238) stellt die
+ * Hierarchie heute **von der Oberaufgabe zur Unteraufgabe** dar: Die Oberaufgabe liegt auf oberster
+ * Ebene, ihre Unteraufgaben hängen eingerückt darunter. Gewünscht ist die **umgekehrte Leserichtung**:
+ * Unter-/Einzelaufgaben liegen auf der obersten Ebene, und erst das **Aufklappen** bringt die
+ * Oberaufgabe als eingerückten (Kind-)Knoten darunter zum Vorschein.
+ *
+ * Umgesetzt wird das als reine **Frontend-Inversion** über den (noch nicht existierenden) Helper
+ * `frontend/src/lib/invertForest.ts`, den `TaskTree.tsx` rendert. Der Server-Vertrag (`GET /forest`)
+ * bleibt unverändert (Oberaufgaben = Wurzeln, `dependents` = Unteraufgaben) — damit Fortschritt, Guard
+ * und Rollup unverändert korrekt rechnen (AK4). Diese Specs kodieren die **neue** Anzeige-Richtung und
+ * sind rot, bis die Inversion in `TaskTree.tsx` verdrahtet ist.
  *
  * Wie `crud.spec.ts` läuft dies gegen das **echte** Backend (In-Memory-DB, Vite-Proxy). Der
  * Baum-Aufbau erfolgt bewusst über die API (schneller/robuster als Klick-Choreografie): Das Backend
  * modelliert eine Unteraufgabe als Abhängigkeit — exakt wie der reale „Unteraufgabe anlegen"-Flow in
  * `TaskForm.tsx` ist das Kind der **Vorgänger** der Eltern-Aufgabe
- * (`POST /tasks/{parentId}/dependencies` mit `{ dependingTaskId: childId }`, #336). Im Aufgabenwald
- * (`GET /forest`) erscheint das Kind dann als `dependents`-Eintrag (Unteraufgabe) des Elternteils.
- * Wurzeln des Waldes sind Tasks, die selbst keine Unteraufgabe einer anderen Aufgabe sind.
+ * (`POST /tasks/{parentId}/dependencies` mit `{ dependingTaskId: childId }`, #336). Im semantischen
+ * Aufgabenwald (`GET /forest`) erscheint das Kind als `dependents`-Eintrag (Unteraufgabe) des
+ * Elternteils; die **invertierte Anzeige** dreht diese Kante um.
  *
  * `afterEach` räumt alle Tasks über die echte API ab, damit jeder Test vom leeren Zustand startet.
  */
-test.describe('Priority Pilot — TaskTree (expandierbare Aufgaben-Liste, #238)', () => {
+test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)', () => {
 	let runId = 0;
 	const uniqueTitle = (label: string): string => `Tree ${label} #${(runId += 1)}-${Date.now()}`;
 
@@ -76,7 +81,39 @@ test.describe('Priority Pilot — TaskTree (expandierbare Aufgaben-Liste, #238)'
 			.getByRole('button', { name: /Auf|Zuklappen|klappen/i })
 			.first();
 
-	test('AK-1: Aufgabe mit Unteraufgaben zeigt ein Aufklapp-Symbol', async ({ page }) => {
+	test('AK1: Unteraufgabe liegt oben und zeigt ein Aufklapp-Symbol zur Oberaufgabe', async ({ page }) => {
+		const childTitle = uniqueTitle('Kind');
+		const parentId = await createTask(page, uniqueTitle('Eltern'));
+		const childId = await createTask(page, childTitle);
+		await addSubtask(page, parentId, childId);
+
+		await page.goto('/');
+		await waitForStableView(page);
+		await openTasksTab(page);
+
+		// Invertiert: Die Unteraufgabe (Kind) liegt auf oberster Ebene und trägt das Aufklapp-Symbol,
+		// über das sich ihre Oberaufgabe aufklappen lässt.
+		await expect(tree(page)).toBeVisible();
+		await expect(item(page, childId)).toBeVisible();
+		await expect(item(page, childId)).toContainText(childTitle);
+		await expect(toggle(page, childId)).toBeVisible();
+	});
+
+	test('AK2: Einzelaufgabe ohne Über-/Unteraufgabe liegt oben ohne Aufklapp-Symbol', async ({ page }) => {
+		const soloTitle = uniqueTitle('Solo');
+		const soloId = await createTask(page, soloTitle);
+
+		await page.goto('/');
+		await waitForStableView(page);
+		await openTasksTab(page);
+
+		await expect(tree(page)).toBeVisible();
+		await expect(item(page, soloId)).toBeVisible();
+		await expect(item(page, soloId)).toContainText(soloTitle);
+		await expect(item(page, soloId).getByRole('button', { name: /klappen/i })).toHaveCount(0);
+	});
+
+	test('AK1/AK3: Aufklappen zeigt die Oberaufgabe als eingerückten Nachfahren', async ({ page }) => {
 		const parentTitle = uniqueTitle('Eltern');
 		const parentId = await createTask(page, parentTitle);
 		const childId = await createTask(page, uniqueTitle('Kind'));
@@ -86,44 +123,18 @@ test.describe('Priority Pilot — TaskTree (expandierbare Aufgaben-Liste, #238)'
 		await waitForStableView(page);
 		await openTasksTab(page);
 
-		await expect(tree(page)).toBeVisible();
+		// Eingeklappter Anfangszustand: Die Oberaufgabe ist noch nicht sichtbar.
+		await expect(item(page, parentId)).toBeHidden();
+
+		await toggle(page, childId).click();
+
+		// Nach dem Aufklappen erscheint die Oberaufgabe als Nachfahre unter der Unteraufgabe.
+		await expect(item(page, parentId)).toBeVisible();
 		await expect(item(page, parentId)).toContainText(parentTitle);
-		await expect(toggle(page, parentId)).toBeVisible();
+		await expect(item(page, childId).getByTestId(`task-tree-item-${parentId}`)).toBeVisible();
 	});
 
-	test('AK-7: Aufgabe ohne Unteraufgaben zeigt kein Aufklapp-Symbol', async ({ page }) => {
-		const soloTitle = uniqueTitle('Solo');
-		const soloId = await createTask(page, soloTitle);
-
-		await page.goto('/');
-		await waitForStableView(page);
-		await openTasksTab(page);
-
-		await expect(tree(page)).toBeVisible();
-		await expect(item(page, soloId)).toContainText(soloTitle);
-		await expect(item(page, soloId).getByRole('button', { name: /klappen/i })).toHaveCount(0);
-	});
-
-	test('AK-2: Aufklappen zeigt die Unteraufgaben in der Liste', async ({ page }) => {
-		const parentId = await createTask(page, uniqueTitle('Eltern'));
-		const childTitle = uniqueTitle('Kind');
-		const childId = await createTask(page, childTitle);
-		await addSubtask(page, parentId, childId);
-
-		await page.goto('/');
-		await waitForStableView(page);
-		await openTasksTab(page);
-
-		// Eingeklappter Anfangszustand: Das Kind ist noch nicht sichtbar.
-		await expect(item(page, childId)).toBeHidden();
-
-		await toggle(page, parentId).click();
-
-		await expect(item(page, childId)).toBeVisible();
-		await expect(item(page, childId)).toContainText(childTitle);
-	});
-
-	test('AK-4: Zuklappen verbirgt die Unteraufgaben wieder', async ({ page }) => {
+	test('AK3: Zuklappen verbirgt die Oberaufgabe wieder', async ({ page }) => {
 		const parentId = await createTask(page, uniqueTitle('Eltern'));
 		const childId = await createTask(page, uniqueTitle('Kind'));
 		await addSubtask(page, parentId, childId);
@@ -132,18 +143,21 @@ test.describe('Priority Pilot — TaskTree (expandierbare Aufgaben-Liste, #238)'
 		await waitForStableView(page);
 		await openTasksTab(page);
 
-		await toggle(page, parentId).click();
-		await expect(item(page, childId)).toBeVisible();
+		await toggle(page, childId).click();
+		await expect(item(page, parentId)).toBeVisible();
 
-		await toggle(page, parentId).click();
-		await expect(item(page, childId)).toBeHidden();
+		await toggle(page, childId).click();
+		await expect(item(page, parentId)).toBeHidden();
 	});
 
-	test('AK-3: Rekursives Aufklappen funktioniert über mehrere Ebenen', async ({ page }) => {
-		const rootId = await createTask(page, uniqueTitle('Wurzel'));
+	test('AK1/AK3: Aufklappen führt über mehrere Ebenen nach oben zur Wurzel-Oberaufgabe', async ({
+		page,
+	}) => {
+		// Semantische Kette: Wurzel-Oberaufgabe → Mitte → Blatt (jeweils Unteraufgabe des Vorgängers).
+		const rootTitle = uniqueTitle('Wurzel');
+		const rootId = await createTask(page, rootTitle);
 		const midId = await createTask(page, uniqueTitle('Mitte'));
-		const leafTitle = uniqueTitle('Blatt');
-		const leafId = await createTask(page, leafTitle);
+		const leafId = await createTask(page, uniqueTitle('Blatt'));
 		await addSubtask(page, rootId, midId);
 		await addSubtask(page, midId, leafId);
 
@@ -151,37 +165,63 @@ test.describe('Priority Pilot — TaskTree (expandierbare Aufgaben-Liste, #238)'
 		await waitForStableView(page);
 		await openTasksTab(page);
 
-		// Nur die Wurzel ist zunächst sichtbar; tiefere Ebenen sind verborgen.
+		// Invertiert liegt das Blatt oben; die höheren Ebenen sind zunächst verborgen.
+		await expect(item(page, leafId)).toBeVisible();
 		await expect(item(page, midId)).toBeHidden();
-		await expect(item(page, leafId)).toBeHidden();
+		await expect(item(page, rootId)).toBeHidden();
 
-		await toggle(page, rootId).click();
+		await toggle(page, leafId).click();
 		await expect(item(page, midId)).toBeVisible();
-		// Solange die mittlere Ebene nicht aufgeklappt ist, bleibt das Blatt verborgen.
-		await expect(item(page, leafId)).toBeHidden();
+		// Solange die mittlere Ebene nicht aufgeklappt ist, bleibt die Wurzel-Oberaufgabe verborgen.
+		await expect(item(page, rootId)).toBeHidden();
 
 		await toggle(page, midId).click();
-		await expect(item(page, leafId)).toBeVisible();
-		await expect(item(page, leafId)).toContainText(leafTitle);
+		await expect(item(page, rootId)).toBeVisible();
+		await expect(item(page, rootId)).toContainText(rootTitle);
 	});
 
-	test('AK-8: Knoten-Zuordnung ist korrekt (Kind liegt unter seinem Elternteil)', async ({ page }) => {
+	test('AK1: Knoten-Zuordnung ist korrekt (Oberaufgabe liegt unter ihrer Unteraufgabe)', async ({
+		page,
+	}) => {
 		const parentAId = await createTask(page, uniqueTitle('Eltern-A'));
-		const parentBId = await createTask(page, uniqueTitle('Eltern-B'));
-		const childTitle = uniqueTitle('Kind-von-A');
-		const childId = await createTask(page, childTitle);
+		const soloTitle = uniqueTitle('Solo-B');
+		const soloBId = await createTask(page, soloTitle);
+		const childId = await createTask(page, uniqueTitle('Kind-von-A'));
 		await addSubtask(page, parentAId, childId);
 
 		await page.goto('/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 
-		await toggle(page, parentAId).click();
+		await toggle(page, childId).click();
 
-		// Das Kind ist als Nachfahre von Eltern-A verschachtelt — nicht unter Eltern-B, das kein
-		// Aufklapp-Symbol besitzt (keine Unteraufgaben).
-		await expect(item(page, parentAId).getByTestId(`task-tree-item-${childId}`)).toBeVisible();
-		await expect(item(page, parentBId).getByRole('button', { name: /klappen/i })).toHaveCount(0);
+		// Die Oberaufgabe A ist als Nachfahre der Unteraufgabe verschachtelt — die eigenständige
+		// Einzelaufgabe B liegt separat oben und besitzt kein Aufklapp-Symbol (keine Oberaufgabe).
+		await expect(item(page, childId).getByTestId(`task-tree-item-${parentAId}`)).toBeVisible();
+		await expect(item(page, soloBId).getByRole('button', { name: /klappen/i })).toHaveCount(0);
+	});
+
+	test('AK1 (mehrfach): eine Oberaufgabe erscheint unter jeder ihrer Unteraufgaben', async ({ page }) => {
+		const parentTitle = uniqueTitle('Eltern-doppelt');
+		const parentId = await createTask(page, parentTitle);
+		const childOneId = await createTask(page, uniqueTitle('Kind-1'));
+		const childTwoId = await createTask(page, uniqueTitle('Kind-2'));
+		await addSubtask(page, parentId, childOneId);
+		await addSubtask(page, parentId, childTwoId);
+
+		await page.goto('/');
+		await waitForStableView(page);
+		await openTasksTab(page);
+
+		// Beide Unteraufgaben liegen oben und tragen je ein Aufklapp-Symbol.
+		await expect(toggle(page, childOneId)).toBeVisible();
+		await expect(toggle(page, childTwoId)).toBeVisible();
+
+		// Die geteilte Oberaufgabe erscheint unter jeder Unteraufgabe (Mehrfach-Darstellung gewünscht).
+		await toggle(page, childOneId).click();
+		await toggle(page, childTwoId).click();
+		await expect(item(page, childOneId).getByTestId(`task-tree-item-${parentId}`)).toBeVisible();
+		await expect(item(page, childTwoId).getByTestId(`task-tree-item-${parentId}`)).toBeVisible();
 	});
 
 	test('AK-5: Edit-Button öffnet den Dialog mit der richtigen Aufgabe', async ({ page }) => {
@@ -199,20 +239,24 @@ test.describe('Priority Pilot — TaskTree (expandierbare Aufgaben-Liste, #238)'
 		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue(title);
 	});
 
-	test('AK-6: Listenansicht ist auf Mobilbreite ohne horizontales Scrollen lesbar', async ({ page }) => {
+	test('AK5: invertierte Liste ist auf Mobilbreite ohne horizontales Scrollen lesbar', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 
-		const parentTitle = uniqueTitle('Mobil-Eltern');
-		const parentId = await createTask(page, parentTitle);
-		const childId = await createTask(page, uniqueTitle('Mobil-Kind'));
+		const childTitle = uniqueTitle('Mobil-Kind');
+		const parentId = await createTask(page, uniqueTitle('Mobil-Eltern'));
+		const childId = await createTask(page, childTitle);
 		await addSubtask(page, parentId, childId);
 
 		await page.goto('/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 
+		// Invertiert liegt die Unteraufgabe oben; nach dem Aufklappen wird die (eingerückte) Oberaufgabe
+		// sichtbar — auch dann darf nichts horizontal überlaufen.
 		await expect(tree(page)).toBeVisible();
-		await expect(item(page, parentId)).toContainText(parentTitle);
+		await expect(item(page, childId)).toContainText(childTitle);
+		await toggle(page, childId).click();
+		await expect(item(page, parentId)).toBeVisible();
 
 		// Kein horizontaler Überlauf: Der Baum-Container ragt nicht über die Viewport-Breite hinaus.
 		const overflowsHorizontally = await page.evaluate(() => {
