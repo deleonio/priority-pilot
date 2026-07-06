@@ -11,7 +11,7 @@ const rootPkg = JSON.parse(readFileSync(resolve(__dirname, '../package.json'), '
 // Der Dev-Proxy leitet alle /api/v1/*-, /api/transit/*- und /auth/*-Anfragen an den
 // Express-Server (http://localhost:3000) weiter. CORS wird damit im Browser ohne
 // Server-Änderung gelöst. /api/v1/* streift das Präfix ab (Server-Routen liegen direkt
-// unter /); /api/transit/* und /auth/* werden unverändert durchgereicht — Letzteres
+// unter /); /api/transit/* und /auth/* werden unverändert durchgereicht – Letzteres
 // spiegelt den Caddy-handle-Block für den OAuth-Login-Flow (siehe docs/caddy-setup.md).
 const apiProxy = {
 	'/api/v1': {
@@ -57,30 +57,57 @@ export default defineConfig({
 				display: 'standalone',
 				start_url: '/',
 				icons: [
+					// SVG Icons (primär)
 					{
 						src: 'icons/icon-192x192.svg',
-						sizes: 'any',
+						sizes: '192x192',
 						type: 'image/svg+xml',
 						purpose: 'any',
 					},
 					{
 						src: 'icons/icon-512x512.svg',
-						sizes: 'any',
+						sizes: '512x512',
 						type: 'image/svg+xml',
 						purpose: 'any',
 					},
 					{
 						src: 'icons/icon-192x192-maskable.svg',
-						sizes: 'any',
+						sizes: '192x192',
 						type: 'image/svg+xml',
 						purpose: 'maskable',
 					},
 					{
 						src: 'icons/icon-512x512-maskable.svg',
-						sizes: 'any',
+						sizes: '512x512',
 						type: 'image/svg+xml',
 						purpose: 'maskable',
 					},
+					// PNG Fallbacks für breitere PWA-Kompatibilität
+					{
+						src: 'icons/icon-192x192.png',
+						sizes: '192x192',
+						type: 'image/png',
+						purpose: 'any',
+					},
+					{
+						src: 'icons/icon-512x512.png',
+						sizes: '512x512',
+						type: 'image/png',
+						purpose: 'any',
+					},
+					{
+						src: 'icons/icon-192x192-maskable.png',
+						sizes: '192x192',
+						type: 'image/png',
+						purpose: 'maskable',
+					},
+					{
+						src: 'icons/icon-512x512-maskable.png',
+						sizes: '512x512',
+						type: 'image/png',
+						purpose: 'maskable',
+					},
+					// Legacy Favicon (SVG)
 					{
 						src: 'icon.svg',
 						sizes: 'any',
@@ -95,7 +122,7 @@ export default defineConfig({
 						icons: [
 							{
 								src: 'icons/icon-192x192.svg',
-								sizes: 'any',
+								sizes: '192x192',
 								purpose: 'any',
 							},
 						],

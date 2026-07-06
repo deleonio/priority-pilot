@@ -1,4 +1,30 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="Priority Pilot">
-	<rect width="192" height="192" fill="#1a1a1a" />
-	<path d="M96 54 L131 147 H113 L96 100 L79 147 H61 Z" fill="#ffffff" />
+  <!-- Maskable-Version: Vollflächiger Hintergrund, wichtiger Inhalt in 80% Safe-Zone -->
+  <rect width="192" height="192" rx="36" fill="#1a1a1a" />
+  
+  <!-- Kompass/Pilot-Motiv: Ring mit 5 Säulen-Segmenten (in Safe-Zone) -->
+  <!-- Äußerer Ring (Kompass) - etwas kleiner für Safe-Zone -->
+  <circle cx="96" cy="96" r="68" fill="none" stroke="#ffffff" stroke-width="4" />
+  
+  <!-- 5 Säulen als Segmente im Ring -->
+  <!-- Segment 1: Körper -->
+  <path d="M96 28 A68 68 0 0 1 164 96" fill="none" stroke="#4a90e2" stroke-width="8" stroke-linecap="round" />
+  
+  <!-- Segment 2: Beziehungen -->
+  <path d="M164 96 A68 68 0 0 1 96 164" fill="none" stroke="#50c878" stroke-width="8" stroke-linecap="round" />
+  
+  <!-- Segment 3: Sinn -->
+  <path d="M96 164 A68 68 0 0 1 28 96" fill="none" stroke="#ff6b6b" stroke-width="8" stroke-linecap="round" />
+  
+  <!-- Segment 4: Mentale Gesundheit -->
+  <path d="M28 96 A68 68 0 0 1 96 28" fill="none" stroke="#ffd93d" stroke-width="8" stroke-linecap="round" />
+  
+  <!-- Segment 5: Wirksamkeit (hervorgehoben als "nächster Schritt") -->
+  <path d="M96 28 A68 68 0 0 1 164 96" fill="none" stroke="#ffffff" stroke-width="10" stroke-linecap="round" />
+  
+  <!-- Chevron/Pfeil als "nächster Schritt" Indikator -->
+  <path d="M96 50 L112 64 L96 58 Z" fill="#ffffff" />
+  
+  <!-- Zentrum: Kleiner Punkt als Navigationszentrum -->
+  <circle cx="96" cy="96" r="6" fill="#ffffff" />
 </svg>
