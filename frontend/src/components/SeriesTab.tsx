@@ -124,12 +124,13 @@ export const SeriesTab = ({ pillars }: SeriesTabProps) => {
 				</div>
 			)}
 
-			{series !== null && series.length === 0 && (
-				<p className="hint">Noch keine Serie angelegt. Lege eine neue Serie über „Neuen Task anlegen" an.</p>
-			)}
-
-			{series !== null && series.length > 0 && (
+			{series !== null && (
 				<ul className="series-tree" data-testid="series-tree">
+					{series.length === 0 && (
+						<li className="series-tree-hint">
+							Noch keine Serie angelegt. Lege eine neue Serie über „Neuen Task anlegen" an.
+						</li>
+					)}
 					{series.map((entry) => (
 						<li key={entry.id} className="series-tree-item" data-testid={`series-tree-item-${entry.id}`}>
 							<div className="series-tree-row">

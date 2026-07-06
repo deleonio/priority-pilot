@@ -523,6 +523,12 @@ body {
 	min-width: 0;
 }
 
+.series-tree-hint {
+	color: var(--pp-text-muted);
+	font-size: 0.875rem;
+	list-style: none;
+}
+
 .series-tree-row {
 	display: flex;
 	flex-wrap: wrap;
