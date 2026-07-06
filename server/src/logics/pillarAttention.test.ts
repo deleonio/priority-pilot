@@ -93,3 +93,127 @@ describe('calculatePillarAttention — Score-Aggregation je Säule (#328)', () =
 		assert.deepEqual(calculatePillarAttention([], now), []);
 	});
 });
+
+describe('calculatePillarAttention — Relative Unterversorgung (#337)', () => {
+	const NEGLECTED_SCORE_THRESHOLD = 0.5;
+	const now = new Date('2026-07-05T12:00:00.000Z');
+
+	/** Hilfsfunktion: Score-Zugriff aus dem Ergebnis-Array. */
+	const scoreOf = (result: { pillarId: number; score: number }[], pillarId: number): number => {
+		const entry = result.find((item) => item.pillarId === pillarId);
+		assert.ok(entry, `Ergebnis enthält einen Eintrag für Säule ${pillarId}`);
+		return entry.score;
+	};
+
+	it('AK1: unterversorgte, moderat veraltete Säule ohne Backlog überschreitet die Schwelle', () => {
+		// Eingabe: völlig vernachlässigte Säule (weight=20 % Soll, actualShare=0), keine offenen Tasks,
+		// ~5 Monate alt (2025-11-05).
+		const neglected: PillarAttentionInput = {
+			pillarId: 10,
+			weight: 20,
+			actualShare: 0,
+			openCount: 0,
+			doneCount: 0,
+			updatedAt: new Date('2025-11-05T12:00:00.000Z'),
+		};
+
+		const result = calculatePillarAttention([neglected], now);
+		const score = scoreOf(result, 10);
+
+		// Mit alter Formel (undersupply maximal 0,2): undersupply=0.2, openRatio=0/(0+0+1)=0,
+		// staleness ≈ 242/365 ≈ 0.663 → score ≈ 0.2*0.4 + 0*0.3 + 0.663*0.3 ≈ 0.279 < 0.5 ❌
+		// Mit neuer Formel (relativeUndersupply): relUndersupply=(0.2-0)/0.2=1.0, openRatio=0, staleness≈0.663
+		// → score = 1.0*0.4 + 0*0.3 + 0.663*0.3 ≈ 0.599 > 0.5 ✓
+		assert.ok(
+			score > NEGLECTED_SCORE_THRESHOLD,
+			`Score der völlig vernachlässigten Säule ${score} sollte > ${NEGLECTED_SCORE_THRESHOLD} sein`,
+		);
+	});
+
+	it('AK2: gleiche relative Unterversorgung → gleicher Score, unabhängig von Gewichtsskala', () => {
+		// Säule X: weight=20, actualShare=0.10 → 50 % unter Soll
+		const pillarX: PillarAttentionInput = {
+			pillarId: 20,
+			weight: 20,
+			actualShare: 0.10,
+			openCount: 2,
+			doneCount: 2,
+			updatedAt: new Date('2026-03-05T12:00:00.000Z'),
+		};
+
+		// Säule Y: weight=40, actualShare=0.20 → 50 % unter Soll (identische relative Unterversorgung)
+		const pillarY: PillarAttentionInput = {
+			pillarId: 21,
+			weight: 40,
+			actualShare: 0.20,
+			openCount: 2,
+			doneCount: 2,
+			updatedAt: new Date('2026-03-05T12:00:00.000Z'),
+		};
+
+		const result = calculatePillarAttention([pillarX, pillarY], now);
+		const scoreX = scoreOf(result, 20);
+		const scoreY = scoreOf(result, 21);
+
+		// Mit alter Formel: X undersupply=0.1, Y undersupply=0.2 → unterschiedliche Scores ❌
+		// Mit neuer Formel: relUndersupply für beide = (weight/100 - actualShare)/(weight/100) = 0.5
+		// → identische Scores ✓
+		assert.equal(
+			scoreX,
+			scoreY,
+			`Bei gleicher relativer Unterversorgung (beide 50 %) sollten die Scores identisch sein: ${scoreX} vs ${scoreY}`,
+		);
+	});
+
+	it('AK3: gut versorgte, frische Säule bleibt unter der Schwelle (Regressions-Guard)', () => {
+		// Eingabe: weight=20, actualShare=0.25 (über Soll), keine offenen Tasks, frisch aktualisiert.
+		const wellSupplied: PillarAttentionInput = {
+			pillarId: 30,
+			weight: 20,
+			actualShare: 0.25,
+			openCount: 0,
+			doneCount: 4,
+			updatedAt: now,
+		};
+
+		const result = calculatePillarAttention([wellSupplied], now);
+		const score = scoreOf(result, 30);
+
+		// Mit alter UND neuer Formel sollte diese Säule unter der Schwelle bleiben
+		// (keine Unterversorgung, frisch, keine Tasks).
+		assert.ok(
+			score <= NEGLECTED_SCORE_THRESHOLD,
+			`Score der gut versorgten Säule ${score} sollte ≤ ${NEGLECTED_SCORE_THRESHOLD} sein (Regressions-Guard)`,
+		);
+	});
+
+	it('AK4: weight=0 erzeugt keinen NaN-Score (Guard gegen Division durch Null)', () => {
+		// Eingabe: weight=0 (Edge-Case), keine anderen Signale.
+		const zeroWeight: PillarAttentionInput = {
+			pillarId: 40,
+			weight: 0,
+			actualShare: 0,
+			openCount: 0,
+			doneCount: 0,
+			updatedAt: now,
+		};
+
+		const result = calculatePillarAttention([zeroWeight], now);
+		const score = scoreOf(result, 40);
+
+		// Mit naiver neuer Formel OHNE Guard: (0-0)/0 = NaN ❌
+		// Mit korrekter neuer Formel MIT Guard (weight=0 → relUndersupply=0): score=0 ✓
+		assert.ok(
+			!isNaN(score),
+			`Score sollte nicht NaN sein, erhalten: ${score}`,
+		);
+		assert.ok(
+			isFinite(score),
+			`Score sollte finit sein, erhalten: ${score}`,
+		);
+		assert.ok(
+			score >= 0 && score <= 1,
+			`Score sollte im Bereich [0, 1] liegen, erhalten: ${score}`,
+		);
+	});
+});
