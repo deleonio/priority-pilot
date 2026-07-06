@@ -907,12 +907,24 @@ components:
       description: >-
         Eingabe für den Aktivitäten-Berater. Die optionale Frage (z. B. „Was kann
         ich am Wochenende für mich tun?") lenkt die Vorschläge; ohne Frage schlägt
-        der Berater Aktivitäten über alle Säulen hinweg vor.
+        der Berater Aktivitäten über alle Säulen hinweg vor. Optional kann der Client
+        die aktuelle Säulen-Verteilung (Soll vs. Ist, wie im Dashboard „Meine Themen")
+        mitschicken; der Berater priorisiert dann die am stärksten unterversorgten
+        (schwächsten) Säulen.
       properties:
         question:
           type: string
           maxLength: 500
           description: Optionale Frage bzw. Situationsbeschreibung des Nutzers
+        distribution:
+          type: array
+          description: >-
+            Aktuelle Säulen-Verteilung aus dem Client (Dashboard „Meine Themen"): je
+            Säule ihr Soll-Anteil (`weight`, 0–100 %) und ihr Ist-Anteil
+            (`actualShare`, 0–1). Der Berater richtet die Vorschläge bevorzugt auf die
+            am stärksten unterversorgten Säulen aus.
+          items:
+            $ref: '#/components/schemas/PillarDistributionEntry'
     ActivityAdvice:
       type: object
       description: >-
@@ -946,32 +958,32 @@ components:
           description: Vorgeschlagene Aktivitäten samt Säulen-Zuordnung
           items:
             $ref: '#/components/schemas/ActivityAdvice'
-        attention:
-          type: array
-          description: Serverseitig berechnete Aufmerksamkeits-Signale je Säule (optional)
-          items:
-            $ref: '#/components/schemas/PillarAttentionEntry'
-    PillarAttentionEntry:
+    PillarDistributionEntry:
       type: object
-      description: Aufmerksamkeits-Signal je Säule.
+      description: >-
+        Verteilungs-Eintrag einer Säule aus dem Client (Dashboard „Meine Themen"):
+        Soll-Anteil (`weight`) und Ist-Anteil (`actualShare`).
       required:
         - pillarId
-        - score
-        - neglected
+        - weight
+        - actualShare
       properties:
         pillarId:
           type: integer
           minimum: 1
           description: ID der Säule
-        score:
+        weight:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: Soll-Anteil der Säule in Prozent (0–100)
+        actualShare:
           type: number
           format: float
           minimum: 0
           maximum: 1
-          description: Aufmerksamkeits-Score (0–1)
-        neglected:
-          type: boolean
-          description: Ob die Säule als vernachlässigt eingestuft wird
+          description: Ist-Anteil der Säule (0–1), wie im Client berechnet
     SuggestPillarsInput:
       type: object
       description: Eingabe für die Säulen-Klassifikation einer Aufgabe.

@@ -641,3 +641,66 @@ describe('AK7 — Submit-Button benennt den Vorgang (#334)', () => {
 		expect(screen.queryByRole('button', { name: 'Speichern' })).toBeNull();
 	});
 });
+
+/**
+ * Rote Spec-Tests für #343 — „Serien speichern nicht die Säulenzuordnung".
+ *
+ * **Bug:** Im Serien-Edit-Modus ist `task === null`, deshalb bleibt der `contributions`-State beim
+ * Mount leer, obwohl `series.pillars` bereits eine Säulenzuordnung enthält. Beim erneuten Speichern
+ * geht die Zuordnung damit verloren (das `updateSeries`-Payload enthält `pillars: []`).
+ *
+ * **Erwartetes Soll (Fix, hier NICHT umgesetzt):** Der `contributions`-Initialwert fällt im
+ * Serien-Edit-Modus auf `series?.pillars` zurück, sodass die bestehende Zuordnung ins Formular
+ * geladen und beim Speichern erhalten bleibt.
+ *
+ * Diese Specs sind rot, solange TaskForm `series.pillars` beim Mount ignoriert.
+ */
+describe('AK — Säulenzuordnung im Serien-Edit-Modus (#343)', () => {
+	it('AK1 — Vorbelegung: bestehende Säulenzuordnung wird ins Formular geladen', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(
+				<SeriesEditForm
+					task={null}
+					series={{ ...minimalSeries(), pillars: [{ pillarId: 1, share: 100, confidence: 90 }] }}
+					{...defaultProps}
+				/>,
+			);
+		});
+
+		// Die aus `series.pillars` vorbelegte Zuordnung erscheint als Beitragszeile mit dem Säulennamen.
+		// Der Säulenname steht (über den KoliBri-Mock als `aria-label`) im Anteils-Slider der Zeile.
+		const pillarRows = document.querySelectorAll('.pillar-row');
+		expect(pillarRows.length).toBeGreaterThan(0);
+		expect(screen.getByLabelText(/Körper/)).toBeInTheDocument();
+	});
+
+	it('AK2 — Erhalt beim Speichern: updateSeries behält die Säulenzuordnung', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockUpdateSeries.mockResolvedValue({ ...minimalSeries(), pillars: [{ pillarId: 1, share: 100, confidence: 90 }] });
+
+		await act(async () => {
+			render(
+				<SeriesEditForm
+					task={null}
+					series={{ ...minimalSeries(), pillars: [{ pillarId: 1, share: 100, confidence: 90 }] }}
+					{...defaultProps}
+				/>,
+			);
+		});
+
+		// Kein fillTitle nötig — series.title ist bereits vorbelegt.
+		await clickSave();
+
+		expect(mockUpdateSeries).toHaveBeenCalledTimes(1);
+		const [{ id, seriesUpdate }] = mockUpdateSeries.mock.calls[0] as [
+			{ id: number; seriesUpdate: { pillars: Array<{ pillarId: number; share: number; confidence: number }> } },
+		];
+		expect(id).toBe(7);
+		expect(seriesUpdate.pillars).toHaveLength(1);
+		expect(seriesUpdate.pillars[0].pillarId).toBe(1);
+		expect(seriesUpdate.pillars[0].confidence).toBe(90);
+		expect(seriesUpdate.pillars[0].share).toBeCloseTo(100);
+	});
+});

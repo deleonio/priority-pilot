@@ -83,10 +83,13 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 		await deleteAll(page);
 	});
 
-	/** Öffnet die Serien-Verwaltung über die Kopf-Toolbar (unabhängig davon, ob schon Tasks existieren). */
+	/**
+	 * Öffnet die Serien-Verwaltung. Nach #335 liegt sie in einem eigenen Tab „Serien" (statt im alten
+	 * Header-Button + Modal); der Serien-Baum (`series-tree`) ist danach sichtbar.
+	 */
 	const openSeriesManagement = async (page: Page): Promise<void> => {
-		await page.getByRole('button', { name: 'Serien verwalten' }).click();
-		await expect(page.getByRole('heading', { name: 'Serien', exact: true })).toBeVisible();
+		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
+		await expect(page.getByTestId('series-tree')).toBeVisible();
 		await waitForStableView(page);
 	};
 
@@ -300,9 +303,10 @@ test.describe('Priority Pilot — #297: Altes Serien-Formular durch TaskForm ers
 		await deleteAll(page);
 	});
 
+	// Nach #335: Serien-Verwaltung im eigenen Tab „Serien" statt Header-Button + Modal.
 	const openSeriesManagement = async (page: Page): Promise<void> => {
-		await page.getByRole('button', { name: 'Serien verwalten' }).click();
-		await expect(page.getByRole('heading', { name: 'Serien', exact: true })).toBeVisible();
+		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
+		await expect(page.getByTestId('series-tree')).toBeVisible();
 		await waitForStableView(page);
 	};
 
@@ -419,9 +423,10 @@ test.describe('Priority Pilot — #330: Vereinheitlichter Anlege-Einstieg (Serie
 		await deleteAll(page);
 	});
 
+	// Nach #335: Serien-Verwaltung im eigenen Tab „Serien" statt Header-Button + Modal.
 	const openSeriesManagement = async (page: Page): Promise<void> => {
-		await page.getByRole('button', { name: 'Serien verwalten' }).click();
-		await expect(page.getByRole('heading', { name: 'Serien', exact: true })).toBeVisible();
+		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
+		await expect(page.getByTestId('series-tree')).toBeVisible();
 		await waitForStableView(page);
 	};
 
@@ -432,11 +437,11 @@ test.describe('Priority Pilot — #330: Vereinheitlichter Anlege-Einstieg (Serie
 		await waitForStableView(page);
 		await openSeriesManagement(page);
 
-		// Kern-Assertion: kein Anlegen-Button mehr im Modal.
+		// Kern-Assertion: kein Anlegen-Button mehr in der Serien-Verwaltung.
 		await expect(page.getByRole('button', { name: 'Neue Serie anlegen' })).toHaveCount(0);
 
-		// Das Modal ist trotzdem geöffnet (die Verwaltung existiert weiterhin).
-		await expect(page.getByRole('heading', { name: 'Serien', exact: true })).toBeVisible();
+		// Die Serien-Verwaltung ist trotzdem geöffnet (nach #335 der Serien-Tab mit dem Serien-Baum).
+		await expect(page.getByTestId('series-tree')).toBeVisible();
 	});
 
 	// AK5b — Verwaltungsfunktionen (Liste / Bearbeiten / Löschen / Generieren) bleiben ohne Anlegen-Button erhalten.
@@ -479,5 +484,104 @@ test.describe('Priority Pilot — #330: Vereinheitlichter Anlege-Einstieg (Serie
 			() => document.scrollingElement !== null && document.scrollingElement.scrollWidth <= window.innerWidth,
 		);
 		expect(hasNoHorizontalScroll).toBeTruthy();
+	});
+});
+
+/**
+ * Rote Spec-Tests für #343 — „Serien speichern nicht die Säulenzuordnung" (Round-Trip gegen das echte
+ * Backend). Beim Bearbeiten einer Serie wird die bestehende Säulenzuordnung nicht ins Formular geladen;
+ * beim anschließenden Speichern (ohne Änderung) geht sie verloren.
+ *
+ * **Erwartetes Soll:** Nach dem Bearbeiten + Speichern ohne Änderung bleibt die Säulenzuordnung im
+ * Backend erhalten, und beim erneuten Öffnen des Formulars ist die Säulen-Zeile sichtbar.
+ *
+ * Diese Specs sind rot, solange TaskForm `series.pillars` beim Serien-Edit ignoriert.
+ */
+test.describe('Priority Pilot — Serien behalten die Säulenzuordnung (#343)', () => {
+	interface ApiSeries {
+		id: number;
+		title: string;
+		pillars: Array<{ pillarId: number; share: number; confidence: number }>;
+	}
+
+	/** Räumt erst alle Tasks (inkl. generierter Instanzen), dann alle Serien über die echte API ab. */
+	const deleteAll = async (page: Page): Promise<void> => {
+		const tasks = (await (await page.request.get('/api/v1/tasks')).json()) as { id: number }[];
+		for (const task of tasks) {
+			await page.request.delete(`/api/v1/tasks/${task.id}`);
+		}
+		const series = (await (await page.request.get('/api/v1/series')).json()) as { id: number }[];
+		for (const entry of series) {
+			await page.request.delete(`/api/v1/series/${entry.id}`);
+		}
+	};
+
+	test.afterEach(async ({ page }) => {
+		await deleteAll(page);
+	});
+
+	/** Öffnet die Serien-Verwaltung (Tab „Serien"), wartet auf den Serien-Baum. */
+	const openSeriesManagement = async (page: Page): Promise<void> => {
+		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
+		await expect(page.getByTestId('series-tree')).toBeVisible();
+		await waitForStableView(page);
+	};
+
+	test('AK3 — Bearbeiten + Speichern ohne Änderung erhält die Säulenzuordnung (Round-Trip)', async ({ page }) => {
+		// 1. Erste verfügbare Säule aus dem Backend holen.
+		const pillars = (await (await page.request.get('/api/v1/pillars')).json()) as Array<{ id: number; name: string }>;
+		expect(pillars.length).toBeGreaterThan(0);
+		const pillar = pillars[0];
+
+		// 2. Serie mit dieser Säule via API anlegen.
+		const title = `E2E Serie Säulen #343-${Date.now()}`;
+		const createResponse = await page.request.post('/api/v1/series', {
+			data: {
+				title,
+				rhythm: 'weekly',
+				priority: 3,
+				estimatedEffort: 0.5,
+				active: true,
+				startDate: '2026-09-07T00:00:00.000Z',
+				pillars: [{ pillarId: pillar.id, share: 100, confidence: 80 }],
+			},
+		});
+		expect(createResponse.ok()).toBeTruthy();
+		const created = (await createResponse.json()) as ApiSeries;
+		expect(created.pillars.length).toBeGreaterThan(0);
+
+		// 3. App laden.
+		await page.goto('/');
+		await waitForStableView(page);
+
+		// 4. Serien-Tab öffnen.
+		await openSeriesManagement(page);
+
+		// 5. „Bearbeiten" klicken.
+		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
+		await waitForStableView(page);
+
+		// 6. Guard: TaskForm im Serien-Edit-Modus ist offen.
+		await expect(page.getByTestId('mode-toggle')).toBeVisible();
+
+		// 7. Speichern ohne Änderung.
+		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+
+		// 8. Auf stabile Sicht nach dem Speichern warten.
+		await waitForStableView(page);
+
+		// 9. Backend-Vertrag: die Säulenzuordnung wurde NICHT gelöscht.
+		const afterResponse = await page.request.get(`/api/v1/series/${created.id}`);
+		expect(afterResponse.ok()).toBeTruthy();
+		const after = (await afterResponse.json()) as ApiSeries;
+		expect(after.pillars.length).toBeGreaterThan(0);
+
+		// 10. Formular erneut öffnen.
+		await openSeriesManagement(page);
+		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
+		await waitForStableView(page);
+
+		// 11. Die Säulen-Zeile ist im Formular sichtbar (die Zuordnung wurde ins Formular geladen).
+		await expect(page.locator('.pillar-row').first()).toBeVisible();
 	});
 });

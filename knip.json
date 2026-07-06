@@ -3,7 +3,8 @@
 		"spikes/**",
 		".github/workflows/*.test.ts",
 		"frontend/src/components/TaskTable.tsx",
-		"frontend/src/lib/reactCellRoot.ts"
+		"frontend/src/lib/reactCellRoot.ts",
+		"frontend/src/components/SeriesManagementModal.tsx"
 	],
 	"ignoreBinaries": ["generate", "fetch_state", "gh"],
 	"workspaces": {
