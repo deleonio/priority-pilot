@@ -4,7 +4,7 @@ import { useRegisterSW } from 'virtual:pwa-register/react';
 export const UpdatePrompt = () => {
 	const {
 		needRefresh: [needRefresh],
-		offlineReady: [offlineReady],
+		offlineReady: [offlineReady, setOfflineReady],
 		updateServiceWorker,
 	} = useRegisterSW();
 
@@ -29,6 +29,13 @@ export const UpdatePrompt = () => {
 			{offlineReady && (
 				<KolAlert _type="success" _label="Offline">
 					<p>App ist offline-bereit</p>
+					<button
+						data-testid="pwa-offline-close"
+						onClick={() => setOfflineReady(false)}
+						style={{ marginTop: '0.5rem', cursor: 'pointer' }}
+					>
+						Schließen
+					</button>
 				</KolAlert>
 			)}
 		</>

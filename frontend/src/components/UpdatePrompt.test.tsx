@@ -4,10 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
- * Rote Spec-Tests (#353) für den PWA-Update-Fluss (registerType: 'prompt', Update-Prompt).
- *
- * Die Tests sind bewusst ROT: Die Komponente `./UpdatePrompt` existiert noch nicht und die
- * Vite-Config nutzt aktuell `registerType: 'autoUpdate'` ohne die drei Workbox-Optionen.
+ * Spec-Tests (#353) für den PWA-Update-Fluss (registerType: 'prompt', Update-Prompt).
  *
  * `virtual:pwa-register/react` ist ein von vite-plugin-pwa bereitgestelltes virtuelles Modul,
  * das unter Vitest nicht auflösbar ist. Wir mocken es daher modulweit und steuern den von
@@ -32,7 +29,6 @@ vi.mock('virtual:pwa-register/react', () => ({
 }));
 
 // Import NACH vi.mock, damit die Komponente den gemockten Hook erhält.
-// './UpdatePrompt' existiert noch nicht → Import schlägt (rot) fehl, bis die Komponente entsteht.
 import { UpdatePrompt } from './UpdatePrompt';
 
 afterEach(cleanup);
@@ -89,6 +85,18 @@ describe('UpdatePrompt (#353)', () => {
 		render(<UpdatePrompt />);
 
 		expect(screen.queryByText(/App ist offline-bereit/i)).not.toBeInTheDocument();
+	});
+
+	it('AK4c: Klick auf „Schließen" ruft setOfflineReady(false) auf', () => {
+		offlineReadyValue = true;
+
+		render(<UpdatePrompt />);
+
+		expect(setOfflineReady).not.toHaveBeenCalled();
+
+		fireEvent.click(screen.getByTestId('pwa-offline-close'));
+
+		expect(setOfflineReady).toHaveBeenCalledWith(false);
 	});
 
 	// AK5 — Kein Banner ohne Signal
