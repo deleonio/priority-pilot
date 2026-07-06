@@ -90,8 +90,12 @@ test.describe('#125 Header – Toolbar', () => {
  * sichtbares Label tragen bzw. der Theme-Button noch in der Toolbar liegt, schlagen AK1/AK4 fehl.
  */
 test.describe('#285 Header – kompakte Icon-Toolbar', () => {
-	/** Die drei Buttons, die laut #285 auf Icon-only umgestellt werden. */
-	const ICON_ONLY_LABELS = ['Neuen Task anlegen', 'Serien verwalten', 'Abmelden'] as const;
+	/**
+	 * Die Buttons, die laut #285 auf Icon-only umgestellt werden.
+	 * Nach #335 (AK6) entfällt „Serien verwalten" aus der Header-Toolbar (eigener Serien-Tab),
+	 * daher ist er hier nicht mehr aufgeführt.
+	 */
+	const ICON_ONLY_LABELS = ['Neuen Task anlegen', 'Abmelden'] as const;
 
 	/**
 	 * AK1 — Icon-only mit erhaltenem Accessible Name: Jeder Ziel-Button ist per Accessible Name
@@ -214,8 +218,8 @@ test.describe('#298 „Aktualisieren"-Button entfernt', () => {
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
 
 		// Alle verbleibenden Buttons sind weiterhin per Accessible Name auffindbar.
+		// Nach #335 (AK6) ist „Serien verwalten" nicht mehr dabei (eigener Serien-Tab).
 		await expect(toolbar.getByRole('button', { name: 'Neuen Task anlegen' })).toBeVisible();
-		await expect(toolbar.getByRole('button', { name: 'Serien verwalten' })).toBeVisible();
 		await expect(toolbar.getByRole('button', { name: 'Hilfe' })).toBeVisible();
 		await expect(toolbar.getByRole('button', { name: 'Einstellungen' })).toBeVisible();
 		await expect(toolbar.getByRole('button', { name: 'Abmelden' })).toBeVisible();
@@ -330,5 +334,43 @@ test.describe('#312 Toolbar-Reihenfolge und Zahnrad-Icon', () => {
 		// Beide Buttons bleiben in neuer Reihenfolge sichtbar.
 		await expect(toolbar.getByRole('button', { name: 'Einstellungen' })).toBeVisible();
 		await expect(toolbar.getByRole('button', { name: 'Hilfe' })).toBeVisible();
+	});
+});
+
+/**
+ * ROTE Spec-Tests für #335 „Serien-Verwaltung als eigenen Tab statt Modal anbieten"
+ * (Stufe 1 TDD, der einklagbare Vertrag) — Header-Seite (AK6).
+ *
+ * Die Serien-Verwaltung wandert aus dem `SeriesManagementModal` (Einstieg über den Header-Button
+ * „Serien verwalten") in einen eigenen Tab „Serien". Der Header-Button „Serien verwalten" wird dabei
+ * ersatzlos entfernt.
+ *
+ * Diese Tests sind **rot**, solange der Button „Serien verwalten" noch in der Header-Toolbar liegt.
+ */
+test.describe('#335 Header — „Serien verwalten"-Button entfernt (AK6)', () => {
+	/**
+	 * AK6 — Der Header-Button „Serien verwalten" existiert nicht mehr in der Toolbar (Count 0);
+	 * die Serien-Verwaltung liegt nun im eigenen Serien-Tab.
+	 */
+	test('AK6: „Serien verwalten"-Button ist nicht mehr in der Header-Toolbar (Count 0)', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+
+		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
+		await expect(toolbar).toBeVisible();
+
+		// Der Button darf nirgends mehr existieren — weder in der Toolbar noch sonst im Dokument.
+		await expect(toolbar.getByRole('button', { name: 'Serien verwalten' })).toHaveCount(0);
+		await expect(page.getByRole('button', { name: 'Serien verwalten' })).toHaveCount(0);
+	});
+
+	/**
+	 * AK6 (Ersatz) — Die Serien-Verwaltung ist stattdessen über einen eigenen Tab „Serien" erreichbar.
+	 */
+	test('AK6: Serien-Verwaltung ist über den eigenen Tab „Serien" erreichbar', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await expect(page.getByRole('tab', { name: 'Serien', exact: true })).toBeVisible();
 	});
 });
