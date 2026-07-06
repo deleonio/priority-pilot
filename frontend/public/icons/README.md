@@ -30,11 +30,13 @@ Das Icon kombiniert zwei Kernkonzepte von Priority Pilot:
 - `icon-512x512-maskable.svg` - Maskable-Version (512×512, Safe-Zone)
 - `icon-192x192-maskable.svg` - Maskable-Version (192×192, Safe-Zone)
 
-### PNG-Icons (lokal generieren)
+### PNG-Icons (optional, lokal generiert)
 
-PNG-Fallbacks sind **nicht im PWA-Manifest referenziert** und via `.gitignore` für neue Commits ausgeschlossen. Das PWA-Manifest referenziert ausschließlich SVG-Icons — moderne Browser und Android-Launcher unterstützen SVG nativ. Leere historische Platzhalter-Blobs lassen sich mit `git rm --cached frontend/public/icons/icon-*.png` vollständig aus dem Index entfernen.
+Die PNGs werden **nicht** im Repository eingecheckt (siehe `.gitignore`), sondern
+bei Bedarf lokal aus den SVGs generiert:
 
-Zur Generierung der PNGs aus den SVGs:
+> **Hinweis**: Moderne Browser nutzen die SVG-Icons direkt; das PWA-Manifest
+> referenziert ausschließlich SVGs. Zur Generierung der PNGs aus den SVGs:
 
 ## PNG-Generierung
 
@@ -88,6 +90,6 @@ Zusätzlich gibt es ein Logo für Header/Login:
 - [x] Maskable-tauglich für PWA
 - [x] Konsistent mit Light/Dark-Theme
 - [x] SVG-Format (primär)
-- [x] PNG-Fallbacks (nicht im Repo, via generate-icons.sh lokal generierbar)
+- [x] PNG-Fallbacks (lokal via `generate-icons.sh`, nicht eingecheckt)
 - [x] Barrierefreiheit (`role="img"`, `aria-label="Priority Pilot"`)
 - [ ] Build-Verifikation (`pnpm --filter frontend build`)
