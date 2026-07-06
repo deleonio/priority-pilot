@@ -70,8 +70,18 @@ test.describe('Fortschrittsanzeige pro Task (#241)', () => {
 		await waitForStableView(page);
 		await openTasksTab(page);
 
+		// Im invertierten Baum (#363) sind B und C Wurzeln; A erscheint als aufklappbares Kind unter
+		// jeder — deshalb genau einen Sub-Task (B) aufklappen und den A-Knoten darunter prüfen.
+		await expect(item(page, idB)).toBeVisible();
+		await item(page, idB)
+			.getByRole('button', { name: /klappen/i })
+			.first()
+			.click();
+		const aUnderB = item(page, idB).getByTestId(`task-tree-item-${idA}`);
+		await expect(aUnderB).toBeVisible();
+
 		// A + 2 Sub-Tasks = 3 Tasks, keiner erledigt → „0/3" im Knoten von A.
-		await expect(item(page, idA).getByText('0/3')).toBeVisible();
+		await expect(aUnderB.getByText('0/3')).toBeVisible();
 	});
 
 	test('AK3: Task ohne Sub-Tasks zeigt keinen Fortschritt (keine 1/1-Anzeige)', async ({ page }) => {
@@ -98,16 +108,28 @@ test.describe('Fortschrittsanzeige pro Task (#241)', () => {
 		await page.goto('/');
 		await waitForStableView(page);
 		await openTasksTab(page);
-		await expect(item(page, idA).getByText('0/2')).toBeVisible();
+
+		// Im invertierten Baum (#363) ist B die Wurzel; A erst durch Aufklappen von B sichtbar machen.
+		await expect(item(page, idB)).toBeVisible();
+		await item(page, idB)
+			.getByRole('button', { name: /klappen/i })
+			.first()
+			.click();
+		await expect(item(page, idB).getByTestId(`task-tree-item-${idA}`).getByText('0/2')).toBeVisible();
 
 		// B über die echte API auf „Erledigt" setzen.
 		await page.request.patch(`/api/v1/tasks/${idB}`, { data: { status: 'Done' } });
 
-		// Nach dem Reload zeigt A „1/2".
+		// Nach dem Reload zeigt A „1/2" — B erneut aufklappen (der Baum startet eingeklappt).
 		await page.reload();
 		await waitForStableView(page);
 		await openTasksTab(page);
-		await expect(item(page, idA).getByText('1/2')).toBeVisible();
+		await expect(item(page, idB)).toBeVisible();
+		await item(page, idB)
+			.getByRole('button', { name: /klappen/i })
+			.first()
+			.click();
+		await expect(item(page, idB).getByTestId(`task-tree-item-${idA}`).getByText('1/2')).toBeVisible();
 	});
 
 	test('AK5: Fortschrittsanzeige ist auf mobilen Viewports (375px) sichtbar', async ({ page }) => {
@@ -123,7 +145,14 @@ test.describe('Fortschrittsanzeige pro Task (#241)', () => {
 		await waitForStableView(page);
 		await openTasksTab(page);
 
+		// Im invertierten Baum (#363) ist B die Wurzel; A erst durch Aufklappen von B sichtbar machen.
+		await expect(item(page, idB)).toBeVisible();
+		await item(page, idB)
+			.getByRole('button', { name: /klappen/i })
+			.first()
+			.click();
+
 		// Fortschrittsanzeige muss auch auf 375px-Viewport ohne horizontales Scrollen sichtbar sein.
-		await expect(item(page, idA).getByText('0/2')).toBeVisible();
+		await expect(item(page, idB).getByTestId(`task-tree-item-${idA}`).getByText('0/2')).toBeVisible();
 	});
 });

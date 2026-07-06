@@ -132,6 +132,12 @@ test.describe('Priority Pilot — Erledigt-Toggle in der Aufgaben-Liste (#315)',
 		await waitForStableView(page);
 		await openTasksTab(page);
 
+		// Im invertierten Baum ist childId die Wurzel — parentId (Oberaufgabe) muss erst aufgeklappt werden.
+		await expect(item(page, childId)).toBeVisible();
+		await item(page, childId)
+			.getByRole('button', { name: /klappen/i })
+			.first()
+			.click();
 		await expect(item(page, parentId)).toBeVisible();
 
 		// #246-Guard auf den Toggle angewendet: gesperrt + erklärender Hinweis.
@@ -151,14 +157,17 @@ test.describe('Priority Pilot — Erledigt-Toggle in der Aufgaben-Liste (#315)',
 		await waitForStableView(page);
 		await openTasksTab(page);
 
-		// Unteraufgabe aufklappen und erledigen.
-		await item(page, parentId)
-			.getByRole('button', { name: /klappen/i })
-			.first()
-			.click();
+		// Im invertierten Baum ist childId die Wurzel — Unteraufgabe direkt erledigen.
 		await expect(item(page, childId)).toBeVisible();
 		await doneToggle(page, childId).click();
 		await expect.poll(async () => fetchStatus(page, childId)).toBe('Done');
+
+		// Oberaufgabe aufklappen (childId als Wurzel expandieren).
+		await item(page, childId)
+			.getByRole('button', { name: /klappen/i })
+			.first()
+			.click();
+		await expect(item(page, parentId)).toBeVisible();
 
 		// Mit ausschließlich erledigten Unteraufgaben ist der Eltern-Toggle aktiv und ohne Hinweis.
 		await expect(doneToggle(page, parentId)).toBeEnabled();
