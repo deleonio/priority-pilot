@@ -163,7 +163,7 @@ export const TaskForm = ({
 	// `share` wird als Rohwert 0,0–1,0 gehalten (#82): der gespeicherte Prozentwert (0–100) wird für die
 	// Anzeige zurückgerechnet und erst beim Speichern wieder auf 100 % normiert. `confidence` bleibt 0–100.
 	const [contributions, setContributions] = useState<TaskPillarContribution[]>(() =>
-		(task?.pillars ?? []).map((entry) => ({ ...entry, share: weightToRaw(entry.share) })),
+		(task?.pillars ?? series?.pillars ?? []).map((entry) => ({ ...entry, share: weightToRaw(entry.share) })),
 	);
 
 	const [error, setError] = useState<string | null>(null);
