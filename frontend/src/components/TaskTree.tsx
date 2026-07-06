@@ -1,7 +1,7 @@
-import { KolButton, KolToolbar } from '@public-ui/react-v19';
+import { KolButton, KolPopoverButton, KolToolbar } from '@public-ui/react-v19';
 import type { Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { isDoneBlockedBySubtasks } from '../lib/task';
 
 interface TaskTreeProps {
@@ -49,36 +49,10 @@ const TreeNode = ({
 	visited,
 }: TreeNodeProps) => {
 	const [isUpdating, setIsUpdating] = useState(false);
-	// #361: Die vier sekundären Aktionen liegen hinter einem „…"-Popover, das initial verborgen ist.
-	const [actionsOpen, setActionsOpen] = useState(false);
-	const actionsRef = useRef<HTMLDivElement | null>(null);
-
-	// Click-outside/Escape schließt das Popover wieder. Die Listener hängen nur, solange offen.
-	useEffect(() => {
-		if (!actionsOpen) {
-			return;
-		}
-		const onPointerDown = (event: PointerEvent): void => {
-			if (actionsRef.current !== null && !actionsRef.current.contains(event.target as Node)) {
-				setActionsOpen(false);
-			}
-		};
-		const onKeyDown = (event: KeyboardEvent): void => {
-			if (event.key === 'Escape') {
-				setActionsOpen(false);
-				actionsRef.current
-					?.querySelector<HTMLElement>('kol-button.task-tree-more')
-					?.shadowRoot?.querySelector<HTMLButtonElement>('button')
-					?.focus();
-			}
-		};
-		document.addEventListener('pointerdown', onPointerDown);
-		document.addEventListener('keydown', onKeyDown);
-		return () => {
-			document.removeEventListener('pointerdown', onPointerDown);
-			document.removeEventListener('keydown', onKeyDown);
-		};
-	}, [actionsOpen]);
+	// #361: Die vier sekundären Aktionen liegen hinter einem „…"-Popover. KolPopoverButton regelt
+	// Öffnen/Schließen, Click-outside, Escape und Fokusrückgabe über die native Popover-API selbst;
+	// der Ref dient nur dazu, das Panel nach einer Aktion programmatisch zu schließen.
+	const popoverRef = useRef<HTMLKolPopoverButtonElement | null>(null);
 
 	if (visited.has(node.id)) {
 		return null;
@@ -156,17 +130,16 @@ const TreeNode = ({
 					</>
 				)}
 				{task !== null && (
-					<div className="task-tree-actions" ref={actionsRef}>
-						<KolButton
+					<div className="task-tree-actions">
+						<KolPopoverButton
+							ref={popoverRef}
 							className="task-tree-more"
 							_label="Weitere Aktionen"
 							_hideLabel
-							_ariaExpanded={actionsOpen}
 							_icons={{ left: { icon: 'fa-solid fa-ellipsis' } }}
 							_variant="secondary"
-							_on={{ onClick: () => setActionsOpen((open) => !open) }}
-						/>
-						<div className="task-tree-actions-popover" hidden={!actionsOpen}>
+							_popoverAlign="bottom"
+						>
 							<KolToolbar
 								_label={`Aktionen für ${task.title}`}
 								_orientation="horizontal"
@@ -179,7 +152,7 @@ const TreeNode = ({
 										_variant: 'secondary',
 										_on: {
 											onClick: () => {
-												setActionsOpen(false);
+												void popoverRef.current?.hidePopover();
 												onEdit(task);
 											},
 										},
@@ -192,7 +165,7 @@ const TreeNode = ({
 										_variant: 'secondary',
 										_on: {
 											onClick: () => {
-												setActionsOpen(false);
+												void popoverRef.current?.hidePopover();
 												onEditDependencies(task);
 											},
 										},
@@ -205,7 +178,7 @@ const TreeNode = ({
 										_variant: 'secondary',
 										_on: {
 											onClick: () => {
-												setActionsOpen(false);
+												void popoverRef.current?.hidePopover();
 												onAddSubtask(task);
 											},
 										},
@@ -216,11 +189,16 @@ const TreeNode = ({
 										_hideLabel: true,
 										_icons: { left: { icon: 'kolicon-cross' } },
 										_variant: 'danger',
-										_on: { onClick: () => onDelete(task) },
+										_on: {
+											onClick: () => {
+												void popoverRef.current?.hidePopover();
+												onDelete(task);
+											},
+										},
 									},
 								]}
 							/>
-						</div>
+						</KolPopoverButton>
 					</div>
 				)}
 			</div>
