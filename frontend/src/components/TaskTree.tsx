@@ -161,8 +161,7 @@ const TreeNode = ({
 										_variant: 'secondary',
 										_on: {
 											onClick: () => {
-												void popoverRef.current?.hidePopover();
-												onEdit(task);
+												void Promise.resolve(popoverRef.current?.hidePopover()).then(() => onEdit(task));
 											},
 										},
 									},
@@ -174,8 +173,7 @@ const TreeNode = ({
 										_variant: 'secondary',
 										_on: {
 											onClick: () => {
-												void popoverRef.current?.hidePopover();
-												onEditDependencies(task);
+												void Promise.resolve(popoverRef.current?.hidePopover()).then(() => onEditDependencies(task));
 											},
 										},
 									},
@@ -187,8 +185,7 @@ const TreeNode = ({
 										_variant: 'secondary',
 										_on: {
 											onClick: () => {
-												void popoverRef.current?.hidePopover();
-												onAddSubtask(task);
+												void Promise.resolve(popoverRef.current?.hidePopover()).then(() => onAddSubtask(task));
 											},
 										},
 									},
@@ -200,8 +197,7 @@ const TreeNode = ({
 										_variant: 'danger',
 										_on: {
 											onClick: () => {
-												void popoverRef.current?.hidePopover();
-												onDelete(task);
+												void Promise.resolve(popoverRef.current?.hidePopover()).then(() => onDelete(task));
 											},
 										},
 									},
