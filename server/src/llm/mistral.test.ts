@@ -1,52 +1,65 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-// ROTER Spec-Test (#328 / AK2 — Durchreichung/Vertrag): Der Advisor-Prompt soll die serverseitig
-// berechneten Aufmerksamkeits-Daten je Säule mitführen. Dafür bekommt `AdviseActivitiesInput` ein
-// optionales `attention`-Feld und `buildAdvisorUserMessage` reicht es in den Prompt durch.
-//
-// ROT, weil `buildAdvisorUserMessage` noch nicht exportiert ist und `AdviseActivitiesInput` das Feld
-// `attention` noch nicht kennt. KEIN Produktivcode.
 import { buildAdvisorUserMessage, type AdviseActivitiesInput } from './mistral.js';
 
 /**
- * Vertrag für `buildAdvisorUserMessage(input)` in Bezug auf die Aufmerksamkeits-Durchreichung (#328):
- * Enthält die Eingabe ein `attention`-Array (`{ pillarId, score }[]`), muss der erzeugte Prompt-
- * String die betroffenen Säulen als „vernachlässigt" (bzw. mit ihrem Attention-Signal) ausweisen, so
- * dass das Modell die Vorschläge zugunsten der vernachlässigten Säulen gewichtet. Ohne `attention`
- * bleibt der Prompt frei von einem solchen Hinweis (kein Rauschen).
+ * Vertrag für `buildAdvisorUserMessage(input)` in Bezug auf die Säulen-Verteilung (Nachfolge #337):
+ * Enthält die Eingabe ein `distribution`-Array (`{ pillarId, weight, actualShare }[]`, so wie es der
+ * Client aus dem Dashboard „Meine Themen" mitschickt), muss der erzeugte Prompt die Säulen absteigend
+ * nach Unterversorgung (Soll − Ist) aufführen und das Modell anweisen, die Vorschläge primär auf die
+ * schwächsten (am stärksten unterversorgten) Säulen auszurichten. Ohne `distribution` bleibt der
+ * Prompt frei von einem solchen Hinweis (kein Rauschen).
  *
- * Die Tests fixieren nur die nachweisbare Durchreichung (der Säulen-Name der als am stärksten
- * vernachlässigt markierten Säule taucht im Attention-Kontext auf), nicht den exakten Wortlaut.
+ * Die Tests fixieren nur die nachweisbare Durchreichung (Name/Reihenfolge der schwächsten Säule und
+ * der Prioritäts-Hinweis), nicht den exakten Wortlaut.
  */
-describe('buildAdvisorUserMessage — Aufmerksamkeits-Daten im Prompt (#328)', () => {
+describe('buildAdvisorUserMessage — Säulen-Verteilung im Prompt', () => {
 	const pillars = [
 		{ id: 1, name: 'Körper', description: 'Physische Gesundheit: Bewegung, Ernährung, Schlaf, Vorsorge.' },
 		{ id: 2, name: 'Beziehungen', description: 'Soziale Verbundenheit: Familie, Freunde, Partnerschaft.' },
 		{ id: 3, name: 'Sinn', description: 'Das „Wofür": Werte, Lebensziele, Spiritualität, Ehrenamt.' },
 	];
 
-	it('führt die vernachlässigte Säule (höchster Attention-Score) im Prompt-Text auf', () => {
+	it('priorisiert die Säulen absteigend nach Unterversorgung — unabhängig von der Eingabe-Reihenfolge', () => {
 		const input: AdviseActivitiesInput = {
+			// Eingabe-Reihenfolge bewusst NICHT gleich der Unterversorgungs-Reihenfolge, damit der Test
+			// echtes Sortieren erzwingt (nicht nur Filtern): am stärksten unterversorgt (Beziehungen)
+			// steht in der Eingabe zuletzt, am schwächsten unterversorgt (Sinn) in der Mitte.
 			pillars,
-			// Säule 2 (Beziehungen) hat den höchsten Score → am stärksten vernachlässigt.
-			attention: [
-				{ pillarId: 1, score: 0.1 },
-				{ pillarId: 2, score: 0.9 },
-				{ pillarId: 3, score: 0.2 },
+			distribution: [
+				{ pillarId: 1, weight: 20, actualShare: 0.1 }, // Körper: Soll 0.2, Ist 0.1 → Unterversorgung 50 %
+				{ pillarId: 3, weight: 20, actualShare: 0.15 }, // Sinn:   Soll 0.2, Ist 0.15 → Unterversorgung 25 %
+				{ pillarId: 2, weight: 20, actualShare: 0.0 }, // Beziehungen: Soll 0.2, Ist 0 → Unterversorgung 100 %
 			],
 		};
 
 		const message = buildAdvisorUserMessage(input);
 
-		// Die am stärksten vernachlässigte Säule wird im Prompt namentlich als Aufmerksamkeits-Signal
-		// geführt, damit das Modell die Vorschläge auf sie hin gewichtet.
-		assert.match(message, /Beziehungen/, 'Der Prompt nennt die am stärksten vernachlässigte Säule (Beziehungen)');
-		// Und weist sie erkennbar als vernachlässigt aus (Wortstamm „vernachlässig", tolerant gegen Formulierung).
-		assert.match(message, /vernachlässig/i, 'Der Prompt markiert die Säule als vernachlässigt');
+		// Der Prompt weist das Modell erkennbar an, die schwächsten Säulen zu priorisieren.
+		assert.match(message, /Priorität/i, 'Der Prompt enthält einen Prioritäts-Hinweis');
+		assert.match(message, /schwächste/i, 'Der Prompt spricht die schwächsten Säulen an');
+
+		// In der Prioritäts-Zeile müssen die Säulen nach Unterversorgung absteigend stehen:
+		// Beziehungen (100 %) → Körper (50 %) → Sinn (25 %). Diese Reihenfolge weicht bewusst von der
+		// Eingabe-Reihenfolge (Körper, Sinn, Beziehungen) ab — der Test wird also ROT, sobald die
+		// Sortierung fehlt (Negativ-Kontrolle: ohne `.sort` stünde Beziehungen zuletzt).
+		const priorityLine = message.split('\n').find((line) => /Priorität/i.test(line)) ?? '';
+		const iBeziehungen = priorityLine.indexOf('Beziehungen');
+		const iKoerper = priorityLine.indexOf('Körper');
+		const iSinn = priorityLine.indexOf('Sinn');
+		assert.ok(
+			iBeziehungen !== -1 && iKoerper !== -1 && iSinn !== -1,
+			'Die Prioritäts-Zeile nennt alle drei unterversorgten Säulen',
+		);
+		assert.ok(
+			iBeziehungen < iKoerper && iKoerper < iSinn,
+			`Prioritäts-Reihenfolge muss nach Unterversorgung absteigend sein (Beziehungen < Körper < Sinn), war: "${priorityLine}"`,
+		);
 	});
 
-	it('ohne attention-Feld erscheint kein Vernachlässigungs-Hinweis im Prompt', () => {
+	it('ohne distribution-Feld erscheint kein Prioritäts-/Unterversorgungs-Hinweis im Prompt', () => {
 		const message = buildAdvisorUserMessage({ pillars });
-		assert.doesNotMatch(message, /vernachlässig/i, 'ohne attention-Daten bleibt der Prompt frei vom Hinweis');
+		assert.doesNotMatch(message, /Unterversorgung/i, 'ohne Verteilung bleibt der Prompt frei vom Hinweis');
+		assert.doesNotMatch(message, /Priorität/i, 'ohne Verteilung nennt der Prompt keine Priorität');
 	});
 });

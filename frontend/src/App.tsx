@@ -21,6 +21,8 @@ import { toApiError } from './lib/apiError';
 import type { AuthUser } from './lib/auth';
 import { calculateProgress } from './lib/calculateProgress';
 import { buildDependencyMap } from './lib/dependencies';
+import { collectTaskValues } from './lib/forest';
+import { buildPillarSummaries } from './lib/pillar';
 import { APP_VERSION } from './lib/version';
 
 type Dialog =
@@ -129,6 +131,22 @@ export const App = ({ user }: { user: AuthUser }) => {
 	);
 
 	const dependencyMap = useMemo(() => buildDependencyMap(forest), [forest]);
+
+	// Aktuelle Säulen-Verteilung (Soll `weight` vs. Ist `actualShare`), exakt wie im Dashboard-Widget
+	// „Meine Themen" berechnet — wird dem Säulen-Berater mitgeschickt, damit er die Vorschläge primär
+	// auf die schwächsten (am stärksten unterversorgten) Säulen ausrichtet. `undefined`, solange die
+	// Aufgaben noch nicht geladen sind (dann berät er ohne Verteilung über alle Säulen hinweg).
+	const advisorDistribution = useMemo(() => {
+		if (tasks === null) {
+			return undefined;
+		}
+		const valueByTaskId = collectTaskValues(forest);
+		return buildPillarSummaries(pillars, tasks, valueByTaskId).map((summary) => ({
+			pillarId: summary.pillar.id,
+			weight: summary.pillar.weight,
+			actualShare: summary.actualShare,
+		}));
+	}, [pillars, tasks, forest]);
 
 	// Alle Aufgaben-IDs, die aktuell im Aufgabenwald stehen (inkl. Unteraufgaben). Frisch per Toggle
 	// erledigte Aufgaben bleiben bis zum nächsten Reload im (dann veralteten) Wald „sticky" — die
@@ -441,6 +459,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 			{dialog?.kind === 'advisor' && (
 				<PillarAdvisorModal
 					pillars={pillars}
+					distribution={advisorDistribution}
 					onClose={closeDialog}
 					onAdoptActivity={(text) => setDialog({ kind: 'create', initialText: text })}
 				/>
