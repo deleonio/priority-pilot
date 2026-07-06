@@ -126,6 +126,8 @@ Bei der KI-Schnellerfassung klassifiziert die KI automatisch, welche Säulen zur
 
 Der Säulen-Berater (Glühbirnen-Symbol im Header) ist ein kleiner KI-Ratgeber: Er schlägt dir konkrete Aktivitäten vor und zeigt, auf welche Säulen sie einzahlen würden — samt kurzer Begründung. Als Grundlage dienen die Kurzbeschreibungen der Säulen aus den Einstellungen.
 
+Der Berater kennt dabei deine aktuelle Säulen-Verteilung (Soll vs. Ist, wie im Dashboard-Widget „Meine Themen") und richtet die Vorschläge **primär auf die schwächsten Säulen** aus — also jene, die aktuell am stärksten unter ihrem Soll-Anteil liegen.
+
 Optional kannst du eine Frage oder deine Situation beschreiben (z. B. „Was kann ich am Wochenende für mich tun?"); der Berater richtet die Vorschläge dann danach aus. Ohne Frage bekommst du Vorschläge über alle Säulen hinweg. Die Beratung läuft — wie die KI-Schnellerfassung — über die Mistral-API und benötigt einen konfigurierten `MISTRAL_API_KEY`.
 
 ### Säulen-Gewichtung anpassen

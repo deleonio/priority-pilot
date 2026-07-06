@@ -417,6 +417,18 @@ export interface ActivityAdvice {
 }
 
 /**
+ * Ein Verteilungs-Eintrag einer Säule, so wie ihn der Client (Dashboard „Meine Themen") darstellt:
+ * Soll-Anteil (`weight`, 0–100 %) und Ist-Anteil (`actualShare`, 0–1).
+ */
+export interface PillarDistribution {
+	pillarId: number;
+	/** Soll-Anteil der Säule in Prozent (0–100). */
+	weight: number;
+	/** Ist-Anteil der Säule (0–1), wie im Client berechnet. */
+	actualShare: number;
+}
+
+/**
  * Eingabe für den Aktivitäten-Berater. `pillars` gibt die gültigen Säulen samt der kanonischen
  * Kurzbeschreibung aus den Einstellungen vor (die Rubrik kommt also aus der DB, nicht aus einem
  * hartkodierten Prompt-Text). `question` ist die optionale Frage/Situation des Nutzers.
@@ -425,11 +437,13 @@ export interface AdviseActivitiesInput {
 	question?: string;
 	pillars: { id: number; name: string; description: string }[];
 	/**
-	 * Optionale, serverseitig berechnete Aufmerksamkeits-Daten je Säule (#328). Ist das Feld gesetzt,
-	 * hebt {@link buildAdvisorUserMessage} die am stärksten vernachlässigte Säule (höchster Score) im
-	 * Prompt hervor, damit das Modell die Vorschläge zu ihren Gunsten gewichtet.
+	 * Optionale, vom Client mitgeschickte Säulen-Verteilung (Soll `weight` vs. Ist `actualShare`, so
+	 * wie sie im Dashboard „Meine Themen" dargestellt ist). Ist das Feld gesetzt, listet
+	 * {@link buildAdvisorUserMessage} die Säulen absteigend nach Unterversorgung auf und weist das
+	 * Modell an, die Vorschläge primär auf die schwächsten (am stärksten unterversorgten) Säulen
+	 * auszurichten.
 	 */
-	attention?: { pillarId: number; score: number }[];
+	distribution?: PillarDistribution[];
 }
 
 /** Funktionssignatur des Beraters — injizierbar, damit Tests ohne echten API-Call laufen. */
@@ -454,7 +468,8 @@ const ADVISOR_SYSTEM_PROMPT = [
 	'Regeln:',
 	`- Gib 4 bis ${MAX_ADVICE_ENTRIES} Vorschläge zurück.`,
 	'- Stellt der Nutzer eine Frage oder beschreibt eine Situation, richte die Vorschläge danach aus.',
-	'- Ohne Frage: Verteile die Vorschläge so, dass jede Säule mindestens einmal bedient wird.',
+	'- Ist eine Säulen-Verteilung mit Unterversorgung angegeben, richte die Vorschläge primär auf die schwächsten (am stärksten unterversorgten) Säulen aus.',
+	'- Ohne Frage und ohne genannte Unterversorgung: Verteile die Vorschläge so, dass jede Säule mindestens einmal bedient wird.',
 	'- Jede Aktivität nennt nur Säulen, auf die sie plausibel einzahlt (mindestens eine).',
 	'- "reason" ist eine kurze deutsche Begründung (ein Satz), warum die Aktivität auf diese Säulen einzahlt.',
 	'',
@@ -464,10 +479,22 @@ const ADVISOR_SYSTEM_PROMPT = [
 ].join('\n');
 
 /**
+ * Relative Unterversorgung einer Säule aus Soll (`weight`, 0–100 %) und Ist (`actualShare`, 0–1):
+ * `clamp((weight/100 − actualShare) / (weight/100), 0, 1)`. Je größer der Wert, desto schwächer
+ * (stärker unter ihrem Soll bedient) ist die Säule. Guard: `weight ≤ 0` → 0 (keine Soll-Vorgabe,
+ * kein Unterversorgungs-Signal, kein `NaN`).
+ */
+const relativeUndersupply = (weight: number, actualShare: number): number => {
+	const soll = weight / 100;
+	return soll <= 0 ? 0 : Math.min(1, Math.max(0, (soll - actualShare) / soll));
+};
+
+/**
  * Baut die Nutzer-Nachricht des Beraters: Säulen-Rubrik aus den Einstellungen + optionale Frage.
- * Liegen Aufmerksamkeits-Daten vor (#328), wird die am stärksten vernachlässigte Säule (höchster
- * Attention-Score) namentlich als Hinweis angehängt, damit das Modell die Vorschläge zugunsten der
- * vernachlässigten Säule gewichtet. Exportiert, damit die Durchreichung isoliert testbar ist.
+ * Liegt eine Säulen-Verteilung vor (`distribution`, so wie sie im Client dargestellt ist), werden die
+ * Säulen absteigend nach Unterversorgung (Soll − Ist) aufgelistet und das Modell wird angewiesen, die
+ * Vorschläge primär auf die schwächsten (am stärksten unterversorgten) Säulen auszurichten.
+ * Exportiert, damit die Durchreichung isoliert testbar ist.
  */
 export const buildAdvisorUserMessage = (input: AdviseActivitiesInput): string => {
 	const pillarList = input.pillars
@@ -479,13 +506,26 @@ export const buildAdvisorUserMessage = (input: AdviseActivitiesInput): string =>
 	} else {
 		lines.push('Der Nutzer hat keine konkrete Frage — schlage Aktivitäten über alle Säulen hinweg vor.');
 	}
-	if (input.attention && input.attention.length > 0) {
+	if (input.distribution && input.distribution.length > 0) {
 		const pillarNameById = new Map(input.pillars.map((pillar) => [pillar.id, pillar.name]));
-		const [top] = [...input.attention].sort((a, b) => b.score - a.score);
-		if (top) {
-			const name = pillarNameById.get(top.pillarId) ?? `Säule ${top.pillarId}`;
+		// Nach Unterversorgung absteigend sortieren: die schwächste (am stärksten unterversorgte) Säule zuerst.
+		const ranked = input.distribution
+			.map((entry) => ({ ...entry, undersupply: relativeUndersupply(entry.weight, entry.actualShare) }))
+			.sort((a, b) => b.undersupply - a.undersupply);
+		const table = ranked
+			.map((entry) => {
+				const name = pillarNameById.get(entry.pillarId) ?? `Säule ${entry.pillarId}`;
+				return `  - ${name} (pillarId ${entry.pillarId}): Soll ${Math.round(entry.weight)} %, Ist ${Math.round(entry.actualShare * 100)} % → Unterversorgung ${Math.round(entry.undersupply * 100)} %`;
+			})
+			.join('\n');
+		lines.push('', 'Aktuelle Säulen-Verteilung (Soll vs. Ist, absteigend nach Unterversorgung):', table);
+		const weakest = ranked
+			.filter((entry) => entry.undersupply > 0)
+			.map((entry) => pillarNameById.get(entry.pillarId) ?? `Säule ${entry.pillarId}`);
+		if (weakest.length > 0) {
 			lines.push(
-				`\nAufmerksamkeits-Hinweis: Die Säule „${name}" wird aktuell vernachlässigt (höchster Attention-Score). Richte die Vorschläge bevorzugt auf diese Säule aus.`,
+				'',
+				`Priorität: Richte die Vorschläge primär auf die schwächsten (am stärksten unterversorgten) Säulen aus — in dieser Reihenfolge: ${weakest.join(', ')}.`,
 			);
 		}
 	}
