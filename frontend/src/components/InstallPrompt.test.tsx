@@ -1,31 +1,28 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, cleanup } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { InstallPrompt } from './InstallPrompt';
+
+afterEach(cleanup);
 
 // Mock für window.matchMedia
 const mockMatchMedia = (matches: boolean) => {
 	return {
 		matches,
 		media: '',
-		addListener: jest.fn(),
-		removeListener: jest.fn(),
-		addEventListener: jest.fn(),
-		removeEventListener: jest.fn(),
-		dispatchEvent: jest.fn(),
+		addListener: vi.fn(),
+		removeListener: vi.fn(),
+		addEventListener: vi.fn(),
+		removeEventListener: vi.fn(),
+		dispatchEvent: vi.fn(),
 	};
 };
-
-// Mock für BeforeInstallPromptEvent
-class MockBeforeInstallPromptEvent {
-	prompt = jest.fn().mockResolvedValue({ outcome: 'accepted' });
-	userChoice = Promise.resolve({ outcome: 'accepted' });
-}
 
 describe('InstallPrompt', () => {
 	beforeEach(() => {
 		// Mock window.matchMedia
 		Object.defineProperty(window, 'matchMedia', {
 			writable: true,
-			value: jest.fn().mockImplementation((query) => {
+			value: vi.fn().mockImplementation((query) => {
 				if (query === '(display-mode: standalone)') {
 					return mockMatchMedia(false);
 				}
@@ -44,7 +41,7 @@ describe('InstallPrompt', () => {
 		// Mock standalone mode
 		Object.defineProperty(window, 'matchMedia', {
 			writable: true,
-			value: jest.fn().mockImplementation((query) => {
+			value: vi.fn().mockImplementation((query) => {
 				if (query === '(display-mode: standalone)') {
 					return mockMatchMedia(true);
 				}
@@ -57,13 +54,13 @@ describe('InstallPrompt', () => {
 	});
 
 	it('should render install prompt when beforeinstallprompt event is triggered', () => {
-		const mockEvent = new MockBeforeInstallPromptEvent();
-
 		// Dispatch beforeinstallprompt event
-		window.dispatchEvent(new CustomEvent('beforeinstallprompt', {
-			cancelable: true,
-			// Cast to include our mock
-		}) as unknown as BeforeInstallPromptEvent);
+		window.dispatchEvent(
+			new CustomEvent('beforeinstallprompt', {
+				cancelable: true,
+				// Cast to include our mock
+			}) as unknown as BeforeInstallPromptEvent,
+		);
 
 		// Simulate the event being captured
 		// In a real scenario, we'd need to mock the event listener setup
@@ -77,27 +74,26 @@ describe('InstallPrompt', () => {
 	it('should show iOS install instructions for iOS Safari', () => {
 		// Mock iOS Safari user agent
 		Object.defineProperty(window.navigator, 'userAgent', {
-			value: 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1',
+			value:
+				'Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1',
 			configurable: true,
 		});
 
-		// Mock beforeinstallprompt event
-		const mockEvent = new MockBeforeInstallPromptEvent();
 		// We need to simulate the state where the prompt should be shown
 		// This is a simplified test - in reality we'd need to mock the event listener
-		
+
 		render(<InstallPrompt />);
 		// For iOS, we expect the iOS-specific instructions
 		// This test is limited by the mocking complexity
 	});
 
 	it('should call onDismiss when dismiss button is clicked', () => {
-		const mockDismiss = jest.fn();
-		
+		const mockDismiss = vi.fn();
+
 		// Mock beforeinstallprompt to show the prompt
 		// This is a simplified test
 		render(<InstallPrompt onDismiss={mockDismiss} />);
-		
+
 		// Since we can't easily trigger the prompt to show in this test,
 		// we'll just verify the component accepts the onDismiss prop
 		// A more complete test would mock the event and user interaction
