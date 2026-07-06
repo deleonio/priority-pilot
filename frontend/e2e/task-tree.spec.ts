@@ -445,8 +445,9 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 			await openTasksTab(page);
 
 			// Ohne das „…"-Popover zu öffnen, sind beide Toggles direkt sichtbar.
-			await expect(page.getByTestId(`done-toggle-${parentId}`)).toBeVisible();
-			await expect(toggle(page, parentId)).toBeVisible();
+			// Im invertierten Wald (#363) ist `childId` die sichtbare Wurzel — dessen Toggles prüfen.
+			await expect(page.getByTestId(`done-toggle-${childId}`)).toBeVisible();
+			await expect(toggle(page, childId)).toBeVisible();
 		});
 
 		test('AK-361-5: Mobile-First — kein horizontaler Überlauf bei geöffnetem Popover', async ({ page }) => {

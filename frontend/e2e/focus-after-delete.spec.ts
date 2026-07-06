@@ -74,17 +74,18 @@ test.describe('Priority Pilot — Fokus nach dem Löschen (Issue #182)', () => {
 		await openTasksTab(page);
 		await expect(page.getByText(title, { exact: true })).toBeVisible();
 
-		await page.getByRole('button', { name: 'Weitere Aktionen' }).first().click();
-		const deleteButton = page.getByRole('button', { name: 'Löschen' }).first();
-		await deleteButton.click();
+		const moreButton = page.getByRole('button', { name: 'Weitere Aktionen' }).first();
+		await moreButton.click();
+		await page.getByRole('button', { name: 'Löschen' }).first().click();
 		await expect(page.getByRole('heading', { name: 'Task löschen' })).toBeVisible();
 		await waitForStableView(page);
 		await page.getByRole('button', { name: 'Abbrechen' }).click();
 		await expect(page.getByRole('heading', { name: 'Task löschen' })).toBeHidden();
 
-		// Der Task bleibt erhalten, der auslösende Button ist weiterhin im DOM → bestehende
-		// Fokus-Restore-Logik bringt den Fokus exakt dorthin zurück (kann bereits grün sein).
-		await expect(deleteButton).toBeFocused();
+		// „Löschen" liegt im Popover; beim Klick schließt hidePopover() das Popover und gibt den
+		// Fokus synchron an den Invoker „Weitere Aktionen" zurück — Modal.tsx speichert diesen als
+		// Trigger. Nach dem Abbrechen kehrt der Fokus deshalb zu „Weitere Aktionen" zurück.
+		await expect(moreButton).toBeFocused();
 	});
 
 	test('AC3: Nach dem Löschen des ersten von zwei Tasks ist activeElement nicht document.body', async ({ page }) => {
