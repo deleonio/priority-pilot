@@ -2,9 +2,6 @@
 # Skript zum Generieren von PNG-Icons aus SVG-Vorlagen
 # Benötigt: rsvg-convert (aus librsvg) oder inkscape
 
-# Farben
-BG_COLOR="#1a1a1a"
-
 # Funktion zum Erstellen eines PNG-Icons aus SVG
 create_png_from_svg() {
     local svg_file=$1
