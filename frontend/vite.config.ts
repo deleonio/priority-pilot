@@ -60,51 +60,26 @@ export default defineConfig({
 					// SVG Icons (primär)
 					{
 						src: 'icons/icon-192x192.svg',
-						sizes: '192x192',
+						sizes: 'any',
 						type: 'image/svg+xml',
 						purpose: 'any',
 					},
 					{
 						src: 'icons/icon-512x512.svg',
-						sizes: '512x512',
+						sizes: 'any',
 						type: 'image/svg+xml',
 						purpose: 'any',
 					},
 					{
 						src: 'icons/icon-192x192-maskable.svg',
-						sizes: '192x192',
+						sizes: 'any',
 						type: 'image/svg+xml',
 						purpose: 'maskable',
 					},
 					{
 						src: 'icons/icon-512x512-maskable.svg',
-						sizes: '512x512',
+						sizes: 'any',
 						type: 'image/svg+xml',
-						purpose: 'maskable',
-					},
-					// PNG Fallbacks für breitere PWA-Kompatibilität
-					{
-						src: 'icons/icon-192x192.png',
-						sizes: '192x192',
-						type: 'image/png',
-						purpose: 'any',
-					},
-					{
-						src: 'icons/icon-512x512.png',
-						sizes: '512x512',
-						type: 'image/png',
-						purpose: 'any',
-					},
-					{
-						src: 'icons/icon-192x192-maskable.png',
-						sizes: '192x192',
-						type: 'image/png',
-						purpose: 'maskable',
-					},
-					{
-						src: 'icons/icon-512x512-maskable.png',
-						sizes: '512x512',
-						type: 'image/png',
 						purpose: 'maskable',
 					},
 					// Legacy Favicon (SVG)
@@ -122,7 +97,7 @@ export default defineConfig({
 						icons: [
 							{
 								src: 'icons/icon-192x192.svg',
-								sizes: '192x192',
+								sizes: 'any',
 								purpose: 'any',
 							},
 						],
