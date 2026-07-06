@@ -38,6 +38,9 @@ export default defineConfig({
 				cleanupOutdatedCaches: true,
 				clientsClaim: true,
 				skipWaiting: false,
+				// Push-Handler (push/notificationclick) aus public/push-sw.js in den generierten
+				// Workbox-SW einbinden (Issue #355). Die Datei liegt in public/ und wird nach / kopiert.
+				importScripts: ['/push-sw.js'],
 				// KoliBri registriert seine Web-Components gebündelt; der resultierende Chunk
 				// überschreitet das Workbox-Standardlimit von 2 MiB für den Precache.
 				maximumFileSizeToCacheInBytes: 12 * 1024 * 1024,

@@ -2,6 +2,7 @@ import { KolAlert, KolButton, KolHeading, KolInputCheckbox, KolTabs } from '@pub
 import type { Pillar } from 'client';
 import { useMemo, useState } from 'react';
 import { requestMicrophonePermission } from '../lib/micPermission';
+import { usePushSubscription } from '../lib/push';
 import { useVoiceAutostart } from '../lib/voiceAutostart';
 import { AppearanceSetting } from './AppearanceSetting';
 import { PillarWeightsForm } from './PillarWeightsForm';
@@ -67,6 +68,16 @@ export const SettingsPage = ({ pillars, onBack, onSaved }: SettingsPageProps) =>
 		}
 	};
 
+	// #355: Schalter „Push-Nachrichten aktivieren". Beim Einschalten wird die Berechtigung angefragt
+	// und eine Subscription erstellt/ans Backend gemeldet; beim Ausschalten wird sie ab-/gekündigt.
+	const {
+		supported: pushSupported,
+		enabled: pushEnabled,
+		pending: pushPending,
+		failed: pushFailed,
+		toggle: togglePush,
+	} = usePushSubscription();
+
 	return (
 		<main className="settings-page">
 			<header className="settings-page-header">
@@ -103,6 +114,31 @@ export const SettingsPage = ({ pillars, onBack, onSaved }: SettingsPageProps) =>
 						<KolAlert _type="warning" _label="Mikrofon-Zugriff verweigert">
 							Der Zugriff auf das Mikrofon wurde verweigert. Die automatische Sprachaufnahme bleibt deaktiviert. Bitte
 							erteile die Berechtigung im Browser und versuche es erneut.
+						</KolAlert>
+					)}
+					{pushSupported ? (
+						<KolInputCheckbox
+							_label="Push-Nachrichten aktivieren"
+							_variant="switch"
+							_checked={pushEnabled}
+							_disabled={pushPending}
+							_hint="Erlaube Priority Pilot, dir Erinnerungen (z. B. an fällige Aufgaben) als Push-Nachricht zu senden – auch wenn die App gerade nicht geöffnet ist."
+							_on={{
+								onChange: (_event, value) => {
+									void togglePush(value === true);
+								},
+							}}
+						/>
+					) : (
+						<KolAlert _type="info" _label="Push-Nachrichten nicht verfügbar">
+							Dieser Browser unterstützt keine Push-Nachrichten. Installiere die App bzw. nutze einen aktuellen Browser,
+							um Erinnerungen zu erhalten.
+						</KolAlert>
+					)}
+					{pushFailed && (
+						<KolAlert _type="warning" _label="Push-Nachrichten nicht aktiviert">
+							Push-Nachrichten konnten nicht aktiviert werden. Bitte erteile die Benachrichtigungs-Berechtigung im
+							Browser und versuche es erneut.
 						</KolAlert>
 					)}
 				</div>

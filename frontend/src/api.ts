@@ -8,6 +8,7 @@ import type {
 	paths,
 	Pillar,
 	PillarFeedbackInput,
+	PushSubscriptionInput,
 	PillarSuggestion,
 	PillarWeightsInput,
 	Series,
@@ -288,5 +289,33 @@ export const api = {
 			throw new ResponseError(response);
 		}
 		return data;
+	},
+
+	// --- Web-Push (#355) ---
+
+	// Öffentlichen VAPID-Schlüssel abrufen (nötig für PushManager.subscribe). Wirft bei 503, wenn
+	// Web-Push serverseitig nicht konfiguriert ist.
+	async getVapidPublicKey(init: Init = {}): Promise<string> {
+		const { data, response } = await client.GET('/push/vapid-public-key', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response);
+		}
+		return data.publicKey;
+	},
+
+	// Browser-Subscription am Backend anmelden (idempotent auf dem endpoint).
+	async subscribePush({ subscription }: { subscription: PushSubscriptionInput }): Promise<void> {
+		const { response } = await client.POST('/push/subscribe', { body: subscription });
+		if (!response.ok) {
+			throw new ResponseError(response);
+		}
+	},
+
+	// Browser-Subscription am Backend abmelden.
+	async unsubscribePush({ endpoint }: { endpoint: string }): Promise<void> {
+		const { response } = await client.POST('/push/unsubscribe', { body: { endpoint } });
+		if (!response.ok) {
+			throw new ResponseError(response);
+		}
 	},
 };
