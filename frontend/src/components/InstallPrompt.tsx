@@ -39,6 +39,7 @@ export const InstallPrompt = ({ onDismiss }: InstallPromptProps) => {
 
 		// Event-Listener für beforeinstallprompt
 		const handleBeforeInstallPrompt = (e: BeforeInstallPromptEvent) => {
+			if (localStorage.getItem(DISMISS_KEY) === 'true') return;
 			// Verhindere, dass der Browser den Standard-Prompt zeigt
 			e.preventDefault();
 			// Speichere das Event für später
