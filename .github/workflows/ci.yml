@@ -53,7 +53,7 @@ jobs:
       # unter redis://localhost:6379. Der E2E-Job braucht Redis NICHT — das E2E-Backend setzt
       # SESSION_STORE nicht und nutzt daher den Non-Redis-Store (siehe server/src/express/session.ts).
       redis:
-        image: redis:7
+        image: redis:8
         ports:
           - 6379:6379
         options: >-
@@ -62,9 +62,9 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version-file: .nvmrc # zentrale Node-Version (gleicher Stand wie implement/fixup/deploy)
           cache: pnpm
@@ -125,9 +125,9 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version-file: .nvmrc # zentrale Node-Version (gleicher Stand wie verify/implement/fixup/deploy)
           cache: pnpm
@@ -138,7 +138,7 @@ jobs:
       # Schluessel an den pnpm-Lockfile gekoppelt (Cache-Bust bei Playwright-Upgrade). Alle Shards
       # teilen denselben Key: nach dem ersten Populate ist es fuer die uebrigen ein Cache-Hit.
       - name: Playwright-Browser-Cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
@@ -156,7 +156,7 @@ jobs:
       # bleiben. Name je Shard eindeutig — actions/upload-artifact@v4 bricht bei doppelten Namen ab.
       - name: Playwright-Report sichern
         if: failure()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: playwright-report-shard-${{ matrix.shard }}
           path: |
