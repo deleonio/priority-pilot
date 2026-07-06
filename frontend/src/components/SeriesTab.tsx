@@ -66,14 +66,16 @@ export const SeriesTab = ({ pillars }: SeriesTabProps) => {
 	const generateAll = useCallback(async (): Promise<void> => {
 		if (isGenerating) return;
 		setIsGenerating(true);
+		setSuccessMessage(null);
 		try {
 			const { created } = await api.generateAllSeries();
 			setError(null);
-			setSuccessMessage(created > 0 ? `${created} Instanz(en) generiert` : 'Bereits aktuell');
+			const msg = created > 0 ? `${created} Instanz(en) generiert` : 'Bereits aktuell';
+			setSuccessMessage(msg);
+			setTimeout(() => setSuccessMessage(null), 5000);
 		} catch (reason) {
 			const apiError = await toApiError(reason);
 			setError(apiError.message);
-			setSuccessMessage(null);
 		} finally {
 			setIsGenerating(false);
 		}
