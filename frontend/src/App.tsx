@@ -65,6 +65,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 	const [logoutLoading, setLogoutLoading] = useState(false);
 	const [logoutError, setLogoutError] = useState<string | null>(null);
 	const [updateError, setUpdateError] = useState<string | null>(null);
+	const [activeTab, setActiveTab] = useState(0);
 
 	const reload = useCallback(async (signal?: AbortSignal): Promise<void> => {
 		setLoading(true);
@@ -120,7 +121,8 @@ export const App = ({ user }: { user: AuthUser }) => {
 	// Callback-Identität, damit `KolTabs` nicht bei jedem Render neu verdrahtet.
 	const tabsCallbacks = useMemo(
 		() => ({
-			onSelect: (): void => {
+			onSelect: (_event: Event, selected: number): void => {
+				setActiveTab(selected);
 				void reload();
 			},
 		}),
@@ -399,9 +401,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 							/>
 						</section>
 					</div>
-					<div slot="tab-2">
-						<SeriesTab pillars={pillars} />
-					</div>
+					<div slot="tab-2">{activeTab === 2 && <SeriesTab pillars={pillars} />}</div>
 					<div slot="tab-3">
 						<ForestPanel forest={forest} />
 					</div>
