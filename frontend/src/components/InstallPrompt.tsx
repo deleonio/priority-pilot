@@ -5,6 +5,8 @@ type InstallPromptProps = {
 	onDismiss?: () => void;
 };
 
+const DISMISS_KEY = 'pwa-install-dismissed';
+
 export const InstallPrompt = ({ onDismiss }: InstallPromptProps) => {
 	const [showPrompt, setShowPrompt] = useState(false);
 	const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
@@ -27,9 +29,11 @@ export const InstallPrompt = ({ onDismiss }: InstallPromptProps) => {
 
 		// iOS Safari feuert kein beforeinstallprompt-Event. Damit der iOS-Branch
 		// überhaupt erreichbar ist, muss showPrompt hier gesetzt werden – aber nur,
-		// wenn die App nicht bereits im Standalone-Modus läuft.
+		// wenn die App nicht bereits im Standalone-Modus läuft und der Nutzer
+		// den Prompt nicht bereits dauerhaft geschlossen hat.
 		const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches;
-		if (isIOSSafari && !isStandaloneMode) {
+		const wasDismissed = localStorage.getItem(DISMISS_KEY) === 'true';
+		if (isIOSSafari && !isStandaloneMode && !wasDismissed) {
 			setShowPrompt(true);
 		}
 
@@ -85,13 +89,14 @@ export const InstallPrompt = ({ onDismiss }: InstallPromptProps) => {
 				setIsInstalled(true);
 			}
 
-			if (onDismiss) {
+			if (outcome !== 'accepted' && onDismiss) {
 				onDismiss();
 			}
 		}
 	};
 
 	const handleDismiss = () => {
+		localStorage.setItem(DISMISS_KEY, 'true');
 		setShowPrompt(false);
 		setDeferredPrompt(null);
 		if (onDismiss) {
