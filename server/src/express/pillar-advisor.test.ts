@@ -91,6 +91,54 @@ describe('POST /pillars/advisor', () => {
 		assert.equal(lastInput?.question, undefined);
 	});
 
+	it('200 reicht die vom Client mitgeschickte Säulen-Verteilung an den Berater durch', async () => {
+		const pillars = await seedPillars();
+		const distribution = [
+			{ pillarId: pillars[0].id, weight: 20, actualShare: 0.4 },
+			{ pillarId: pillars[1].id, weight: 20, actualShare: 0 },
+		];
+
+		assert.equal((await post({ distribution })).status, 200);
+		// Die Verteilung kommt unverändert (Soll/Ist je Säule) beim Berater an.
+		assert.deepEqual(lastInput?.distribution, distribution);
+	});
+
+	it('200 filtert unbekannte pillarIds aus der Verteilung heraus (nur konfigurierte Säulen)', async () => {
+		const pillars = await seedPillars();
+		const known = { pillarId: pillars[0].id, weight: 20, actualShare: 0.1 };
+
+		assert.equal(
+			(await post({ distribution: [known, { pillarId: 99999, weight: 20, actualShare: 0.5 }] })).status,
+			200,
+		);
+		assert.deepEqual(lastInput?.distribution, [known]);
+	});
+
+	it('200 ohne verbleibende gültige Verteilungs-Einträge: distribution kommt als undefined an', async () => {
+		await seedPillars();
+
+		assert.equal((await post({ distribution: [{ pillarId: 99999, weight: 20, actualShare: 0.5 }] })).status, 200);
+		assert.equal(lastInput?.distribution, undefined);
+	});
+
+	it('400 wenn distribution kein Array ist', async () => {
+		await seedPillars();
+		assert.equal((await post({ distribution: { pillarId: 1, weight: 20, actualShare: 0.1 } })).status, 400);
+	});
+
+	it('400 wenn ein Verteilungs-Eintrag ungültige Werte hat (actualShare > 1, weight > 100, kein pillarId)', async () => {
+		const pillars = await seedPillars();
+		assert.equal(
+			(await post({ distribution: [{ pillarId: pillars[0].id, weight: 20, actualShare: 1.5 }] })).status,
+			400,
+		);
+		assert.equal(
+			(await post({ distribution: [{ pillarId: pillars[0].id, weight: 150, actualShare: 0.1 }] })).status,
+			400,
+		);
+		assert.equal((await post({ distribution: [{ weight: 20, actualShare: 0.1 }] })).status, 400);
+	});
+
 	it('400 wenn question kein String ist', async () => {
 		await seedPillars();
 		assert.equal((await post({ question: 42 })).status, 400);

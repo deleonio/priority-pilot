@@ -28,7 +28,7 @@ Passe die Gewichtung über **Einstellungen → Säulen-Gewichtung** an.
 
 ### Säulen-Berater
 
-Über das **Glühbirnen-Symbol** im Header öffnest du den Säulen-Berater: Er schlägt dir Aktivitäten vor und zeigt, auf welche Säulen sie einzahlen würden. Beschreibe optional deine Frage oder Situation — ohne Frage bekommst du Vorschläge über alle Säulen hinweg.
+Über das **Glühbirnen-Symbol** im Header öffnest du den Säulen-Berater: Er schlägt dir Aktivitäten vor und zeigt, auf welche Säulen sie einzahlen würden. Dabei kennt er deine aktuelle Säulen-Verteilung (Soll vs. Ist, wie unter „Meine Themen") und richtet die Vorschläge **primär auf die schwächsten Säulen** aus. Beschreibe optional deine Frage oder Situation — ohne Frage bekommst du Vorschläge über alle Säulen hinweg.
 
 ## Tastaturkürzel
 

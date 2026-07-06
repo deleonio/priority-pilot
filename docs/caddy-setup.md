@@ -59,7 +59,7 @@ Lokal übernimmt `vite.config.ts` denselben Rewrite:
 }
 ```
 
-Damit ist das API-Verhalten in Entwicklung und Produktion identisch. Die `/auth/*`-Routen werden im Dev-Modus ebenfalls per Vite-Proxy (ohne Präfix-Strip) an `http://localhost:3000` durchgereicht — analog zum `handle /auth/*`-Block oben. So funktioniert der OAuth-Flow (Start **und** Callback auf `http://localhost:5173/auth/google/callback`) auch über den Dev-Server.
+Damit ist das API-Verhalten in Entwicklung und Produktion identisch. Die `/auth/*`-Routen werden im Dev-Modus ebenfalls per Vite-Proxy (ohne Präfix-Strip) an `http://localhost:3000` durchgereicht — analog zum `handle /auth/*`-Block oben. Der OAuth-Start (`/auth/google`) geht vom Frontend durch den Proxy ans Backend. Der OAuth-Callback von Google trifft **direkt** auf `http://localhost:3000/auth/google/callback` (Backend-Port), da Google die Callback-URL direkt aufruft und der Vite-Proxy nur ausgehende Requests bedient.
 
 ## Deployment-Hinweise
 
