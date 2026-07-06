@@ -4,16 +4,16 @@ import { Task } from '../models/index.js';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
 
 /**
- * Roter TDD-Vertrag für #246 „Unteraufgaben-Done-Guard" (AK5, Backend).
+ * TDD-Vertrag für #246 „Unteraufgaben-Done-Guard" (AK5, Backend), Kanten-Richtung korrigiert in #336.
  *
  * Eine Aufgabe darf nur dann auf „Done" gesetzt werden, wenn keine ihrer **direkten** Unteraufgaben
- * offen ist. „Unteraufgabe von parent" wird über die Dependency-Kante modelliert: der Eltern-Task ist
- * Vorgänger des Kindes (`POST /tasks/{childId}/dependencies` mit `{ dependingTaskId: parentId }`).
- * Damit gilt `parent.getDependents()` = [child]; das Kind erscheint im Wald als Unteraufgabe unter
- * parent. Die Regel: `parent` kann nur „Done" werden, wenn alle `getDependents()` „Done" sind.
- *
- * Diese Specs sind rot, bis der PATCH-Handler in `routes/tasks.ts` den Guard implementiert und bei
- * einem verbotenen Done-Übergang 409 mit einer Hinweis-`message` zurückgibt.
+ * offen ist. „Unteraufgabe von parent" wird — exakt wie der reale „Unteraufgabe anlegen"-Flow in
+ * `TaskForm.tsx` — als **Vorgänger** der Eltern-Aufgabe modelliert
+ * (`POST /tasks/{parentId}/dependencies` mit `{ dependingTaskId: childId }`). Damit gilt
+ * `parent.getDependencies()` = [child]; das Kind erscheint im Wald als Unteraufgabe unter parent. Die
+ * Regel: `parent` kann nur „Done" werden, wenn alle seine `getDependencies()` „Done" sind. (Vor #336
+ * verknüpfte die Fixture invers zu `TaskForm.tsx`, sodass der Guard für real angelegte Unteraufgaben
+ * nie griff — siehe #336.)
  *
  * Der Testserver läuft ohne Auth-Konfiguration (kein SESSION_SECRET/OAuth/Allowlist) → `requireAuth`
  * ist Pass-Through, exakt wie in `api.test.ts`.
@@ -49,12 +49,12 @@ describe('PATCH /tasks/:id — Unteraufgaben-Done-Guard (#246, AK5)', () => {
 		});
 
 	/**
-	 * Verknüpft `childId` als Unteraufgabe von `parentId`: der Eltern-Task wird zum Vorgänger des
-	 * Kindes (`POST /tasks/{childId}/dependencies` mit `dependingTaskId = parentId`). Damit gilt
-	 * `parent.getDependents()` = [child].
+	 * Verknüpft `childId` als Unteraufgabe von `parentId` — exakt wie `TaskForm.tsx`: das Kind wird
+	 * zum **Vorgänger** der Eltern-Aufgabe (`POST /tasks/{parentId}/dependencies` mit
+	 * `dependingTaskId = childId`). Damit gilt `parent.getDependencies()` = [child] (#336).
 	 */
 	const addSubtask = async (parentId: number, childId: number): Promise<void> => {
-		const res = await post(`/tasks/${childId}/dependencies`, { dependingTaskId: parentId });
+		const res = await post(`/tasks/${parentId}/dependencies`, { dependingTaskId: childId });
 		assert.equal(res.status, 201, 'Unteraufgabe-Verknüpfung sollte 201 liefern');
 	};
 
@@ -62,6 +62,20 @@ describe('PATCH /tasks/:id — Unteraufgaben-Done-Guard (#246, AK5)', () => {
 		const task = await Task.create({ title: 'Solo', priority: 3, estimatedEffort: 1 });
 
 		const res = await patch(`/tasks/${task.id}`, { status: 'Done' });
+
+		assert.equal(res.status, 200);
+		const body = (await res.json()) as Record<string, unknown>;
+		assert.equal(body.status, 'Done');
+	});
+
+	it('AK1 (#336): Blatt-Unteraufgabe ist immer erledigbar, auch bei offener Eltern-Aufgabe → 200', async () => {
+		// Realer TaskForm-Flow: child ist Unteraufgabe (Vorgänger) von parent; parent bleibt offen.
+		const parent = await Task.create({ title: 'Parent', priority: 3, estimatedEffort: 1, status: 'Open' });
+		const child = await Task.create({ title: 'Child', priority: 3, estimatedEffort: 1, status: 'Open' });
+		await addSubtask(parent.id, child.id);
+
+		// Das Blatt (child) hat selbst keine Unteraufgaben → Done gelingt, unabhängig vom offenen parent.
+		const res = await patch(`/tasks/${child.id}`, { status: 'Done' });
 
 		assert.equal(res.status, 200);
 		const body = (await res.json()) as Record<string, unknown>;

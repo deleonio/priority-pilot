@@ -29,34 +29,28 @@ describe('buildTaskForest', () => {
 		assert.equal(forest[0].id, open.id);
 	});
 
-	it('Task mit Abhängigkeit ist kein Wurzel-Knoten', async () => {
-		// b.addDependency(a): b depends on a
-		// So a has no dependency (a is root), b has a dependency (b is not root)
+	it('Task mit Unteraufgabe: die abhängige Aufgabe ist Wurzel, ihr Vorgänger das Kind (#336)', async () => {
+		// b.addDependency(a): b hängt von a ab → a ist Unteraufgabe (Vorgänger) von b.
+		// Orientierung seit #336: Wurzeln sind Tasks ohne Dependents; Kinder = getDependencies().
+		// b hat keine Dependents → b ist Wurzel; a ist Kind (Unteraufgabe) unter b.
 		const a = await Task.create({ title: 'A', priority: 3, estimatedEffort: 1 });
 		const b = await Task.create({ title: 'B', priority: 2, estimatedEffort: 1 });
 		await b.addDependency(a);
 		const forest = await buildTaskForest();
-		// Only a is a root (no dependencies)
+		// Only b is a root (nothing depends on b)
 		assert.equal(forest.length, 1);
-		assert.equal(forest[0].id, a.id);
-		// a's dependents should contain b
+		assert.equal(forest[0].id, b.id);
+		// b's children (Unteraufgaben) should contain a
 		assert.equal(forest[0].dependents.length, 1);
-		assert.equal(forest[0].dependents[0].id, b.id);
+		assert.equal(forest[0].dependents[0].id, a.id);
 	});
 
 	it('totalEstimatedEffort ist eigener Aufwand + transitiver Abhängigkeiten', async () => {
-		// c.addDependency(b): c depends on b
-		// b.addDependency(a): b depends on a
-		// So a is root; a's dependencies (Vorgänger) = []
-		// b's dependencies = [a]; c's dependencies = [b]
-		// totalEstimatedEffort(a) = effort(a) + Σ transitive getDependencies()
-		//   a has getDependencies() = [] → totalEstimatedEffort(a) = 2
-		// totalEstimatedEffort(b) = effort(b) + effort(a) = 3 + 2 = 5
-		// totalEstimatedEffort(c) = effort(c) + effort(b) + effort(a) ... but wait:
-		//   getEstimatedEffort(c) = c.estimatedEffort + Σ getEstimatedEffort(dep in c.getDependencies())
-		//   c.getDependencies() = [b]
-		//   getEstimatedEffort(b) = b.estimatedEffort + Σ getEstimatedEffort(dep in b.getDependencies())
-		//   b.getDependencies() = [a]
+		// c.addDependency(b): c depends on b (b ist Unteraufgabe von c)
+		// b.addDependency(a): b depends on a (a ist Unteraufgabe von b)
+		// Orientierung seit #336: Wurzeln = Tasks ohne Dependents; Kinder = getDependencies().
+		//   c hat keine Dependents → c ist Wurzel. c → b → a hängt darunter.
+		// totalEstimatedEffort summiert weiterhin die getDependencies() (Unteraufgaben):
 		//   getEstimatedEffort(a) = a.estimatedEffort + [] = 0.125
 		//   getEstimatedEffort(b) = 0.25 + 0.125 = 0.375
 		//   getEstimatedEffort(c) = 0.5 + 0.375 = 0.875
@@ -67,19 +61,19 @@ describe('buildTaskForest', () => {
 		await b.addDependency(a);
 		await c.addDependency(b);
 		const forest = await buildTaskForest();
-		// a is root
+		// c is root (nothing depends on c)
 		assert.equal(forest.length, 1);
 		const rootNode = forest[0];
-		assert.equal(rootNode.id, a.id);
-		assert.equal(rootNode.totalEstimatedEffort, 0.125);
-		// b is child of a
+		assert.equal(rootNode.id, c.id);
+		assert.equal(rootNode.totalEstimatedEffort, 0.875);
+		// b is child (Unteraufgabe) of c
 		const bNode = rootNode.dependents[0];
 		assert.equal(bNode.id, b.id);
 		assert.equal(bNode.totalEstimatedEffort, 0.375);
-		// c is child of b
-		const cNode = bNode.dependents[0];
-		assert.equal(cNode.id, c.id);
-		assert.equal(cNode.totalEstimatedEffort, 0.875);
+		// a is child (Unteraufgabe) of b
+		const aNode = bNode.dependents[0];
+		assert.equal(aNode.id, a.id);
+		assert.equal(aNode.totalEstimatedEffort, 0.125);
 	});
 
 	it('Forest ist absteigend nach value sortiert', async () => {

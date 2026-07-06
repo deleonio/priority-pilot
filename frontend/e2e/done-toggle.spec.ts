@@ -11,8 +11,8 @@ import { waitForStableView } from './helpers';
  * (375×812) ohne horizontales Scrollen bedienbar (AK4).
  *
  * Wie `task-tree.spec.ts` läuft dies gegen das **echte** Backend (In-Memory-DB, Vite-Proxy). Der
- * Baum-Aufbau erfolgt über die API: eine Unteraufgabe ist eine Abhängigkeit — der Kind-Task hat den
- * Eltern-Task als Vorgänger (`POST /tasks/{childId}/dependencies` mit `{ dependingTaskId: parentId }`).
+ * Baum-Aufbau erfolgt über die API — exakt wie `TaskForm.tsx`: eine Unteraufgabe ist der **Vorgänger**
+ * der Eltern-Aufgabe (`POST /tasks/{parentId}/dependencies` mit `{ dependingTaskId: childId }`, #336).
  * `afterEach` räumt alle Tasks ab, damit jeder Test vom leeren Zustand startet.
  *
  * `data-testid`-Konventionen (legt der Implementierer an):
@@ -37,12 +37,13 @@ test.describe('Priority Pilot — Erledigt-Toggle in der Aufgaben-Liste (#315)',
 	};
 
 	/**
-	 * Verknüpft `childId` als Unteraufgabe von `parentId`: der Eltern-Task wird zum Vorgänger des
-	 * Kindes. Damit erscheint das Kind im Wald unter `parent.dependents`.
+	 * Verknüpft `childId` als Unteraufgabe von `parentId` — exakt wie `TaskForm.tsx`: das Kind wird zum
+	 * **Vorgänger** der Eltern-Aufgabe (`POST /tasks/{parentId}/dependencies` mit
+	 * `dependingTaskId = childId`, #336). Damit erscheint das Kind im Wald unter `parent.dependents`.
 	 */
 	const addSubtask = async (page: Page, parentId: number, childId: number): Promise<void> => {
-		const response = await page.request.post(`/api/v1/tasks/${childId}/dependencies`, {
-			data: { dependingTaskId: parentId },
+		const response = await page.request.post(`/api/v1/tasks/${parentId}/dependencies`, {
+			data: { dependingTaskId: childId },
 		});
 		expect(response.ok()).toBeTruthy();
 	};

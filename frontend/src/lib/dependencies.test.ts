@@ -14,23 +14,23 @@ const node = (id: number, title: string, dependents: TaskTreeNode[] = []): TaskT
 });
 
 describe('buildDependencyMap', () => {
-	it('kehrt dependents-Kanten zu Vorgänger-Listen um', () => {
-		// Wurzel A hat den Dependent B (B hängt von A ab) → A ist Vorgänger von B.
+	it('liest die Vorgänger eines Tasks aus seinen Kindern (Unteraufgaben) im Wald (#336)', () => {
+		// Wald-Kante A → B bedeutet seit #336: B ist Unteraufgabe/Vorgänger von A.
 		const a = node(1, 'A', [node(2, 'B')]);
 		const map = buildDependencyMap([a]);
 
-		expect(map.get(2)).toEqual([{ id: 1, title: 'A' }]);
-		expect(map.get(1)).toBeUndefined();
+		expect(map.get(1)).toEqual([{ id: 2, title: 'B' }]);
+		expect(map.get(2)).toBeUndefined();
 	});
 
-	it('dedupliziert mehrfach erreichbare Vorgänger', () => {
-		// A → C und B → C; C wird über beide Wurzeln erreicht, soll aber je Vorgänger nur einmal auftauchen.
-		const shared = node(3, 'C');
-		const map = buildDependencyMap([node(1, 'A', [shared]), node(2, 'B', [shared])]);
+	it('sammelt mehrere Vorgänger je Task und dedupliziert doppelte Kanten', () => {
+		// A hat die Kinder B und C (beide Vorgänger von A); ein doppelt referenziertes Kind zählt einmal.
+		const c = node(3, 'C');
+		const map = buildDependencyMap([node(1, 'A', [node(2, 'B'), c, c])]);
 
-		expect(map.get(3)).toEqual([
-			{ id: 1, title: 'A' },
+		expect(map.get(1)).toEqual([
 			{ id: 2, title: 'B' },
+			{ id: 3, title: 'C' },
 		]);
 	});
 
