@@ -150,9 +150,7 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 		await expect(item(page, parentId)).toBeHidden();
 	});
 
-	test('AK1/AK3: Aufklappen führt über mehrere Ebenen nach oben zur Wurzel-Oberaufgabe', async ({
-		page,
-	}) => {
+	test('AK1/AK3: Aufklappen führt über mehrere Ebenen nach oben zur Wurzel-Oberaufgabe', async ({ page }) => {
 		// Semantische Kette: Wurzel-Oberaufgabe → Mitte → Blatt (jeweils Unteraufgabe des Vorgängers).
 		const rootTitle = uniqueTitle('Wurzel');
 		const rootId = await createTask(page, rootTitle);
@@ -180,9 +178,7 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 		await expect(item(page, rootId)).toContainText(rootTitle);
 	});
 
-	test('AK1: Knoten-Zuordnung ist korrekt (Oberaufgabe liegt unter ihrer Unteraufgabe)', async ({
-		page,
-	}) => {
+	test('AK1: Knoten-Zuordnung ist korrekt (Oberaufgabe liegt unter ihrer Unteraufgabe)', async ({ page }) => {
 		const parentAId = await createTask(page, uniqueTitle('Eltern-A'));
 		const soloTitle = uniqueTitle('Solo-B');
 		const soloBId = await createTask(page, soloTitle);
