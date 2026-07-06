@@ -539,6 +539,79 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /push/vapid-public-key:
+    get:
+      summary: Öffentlichen VAPID-Schlüssel für Web-Push abrufen
+      description: >-
+        Liefert den öffentlichen VAPID-Schlüssel, den das Frontend für
+        `PushManager.subscribe({ applicationServerKey })` benötigt (Issue #355).
+        503, wenn Web-Push serverseitig nicht konfiguriert ist (VAPID-Schlüssel
+        fehlen).
+      operationId: getVapidPublicKey
+      responses:
+        '200':
+          description: Der öffentliche VAPID-Schlüssel
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VapidPublicKey'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+  /push/subscribe:
+    post:
+      summary: Web-Push-Subscription des Nutzers speichern
+      description: >-
+        Speichert die vom Browser (`PushManager.subscribe()`) erzeugte
+        Subscription unter dem eingeloggten Nutzer (Datenisolation #207).
+        Idempotent: eine bereits bekannte `endpoint`-URL wird aktualisiert statt
+        dupliziert. 503, wenn Web-Push nicht konfiguriert ist.
+      operationId: subscribePush
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushSubscriptionInput'
+      responses:
+        '201':
+          description: Subscription gespeichert/aktualisiert
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PushSubscriptionAck'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /push/unsubscribe:
+    post:
+      summary: Web-Push-Subscription des Nutzers löschen
+      description: >-
+        Entfernt die Subscription des eingeloggten Nutzers zum angegebenen
+        `endpoint`. Idempotent: unbekannter Endpoint ⇒ trotzdem 200. 503, wenn
+        Web-Push nicht konfiguriert ist.
+      operationId: unsubscribePush
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PushUnsubscribeInput'
+      responses:
+        '200':
+          description: Subscription entfernt (oder war nicht vorhanden)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PushSubscriptionAck'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 components:
   parameters:
     SeriesId:
@@ -1288,3 +1361,59 @@ components:
         message:
           type: string
           description: Fehlerbeschreibung
+    VapidPublicKey:
+      type: object
+      required:
+        - publicKey
+      properties:
+        publicKey:
+          type: string
+          description: Öffentlicher VAPID-Schlüssel (URL-safe Base64) für PushManager.subscribe().
+    PushSubscriptionKeys:
+      type: object
+      required:
+        - p256dh
+        - auth
+      properties:
+        p256dh:
+          type: string
+          description: Öffentlicher ECDH-Schlüssel des Clients (aus PushSubscription.getKey('p256dh')).
+        auth:
+          type: string
+          description: Auth-Secret des Clients (aus PushSubscription.getKey('auth')).
+    PushSubscriptionInput:
+      type: object
+      required:
+        - endpoint
+        - keys
+      description: >-
+        Die vom Browser über `PushManager.subscribe().toJSON()` gelieferte
+        Subscription. `endpoint` identifiziert den Push-Dienst-Kanal eindeutig;
+        `keys` trägt die Verschlüsselungsschlüssel für die Payload.
+      properties:
+        endpoint:
+          type: string
+          description: Eindeutige Push-Dienst-URL dieses Clients.
+        expirationTime:
+          type: integer
+          format: int64
+          nullable: true
+          description: Ablaufzeitpunkt in Epoch-Millisekunden (meist null).
+        keys:
+          $ref: '#/components/schemas/PushSubscriptionKeys'
+    PushUnsubscribeInput:
+      type: object
+      required:
+        - endpoint
+      properties:
+        endpoint:
+          type: string
+          description: Push-Dienst-URL der abzumeldenden Subscription.
+    PushSubscriptionAck:
+      type: object
+      required:
+        - endpoint
+      properties:
+        endpoint:
+          type: string
+          description: Bestätigter Endpoint der gespeicherten bzw. entfernten Subscription.

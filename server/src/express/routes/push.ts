@@ -1,0 +1,120 @@
+import { Router } from 'express';
+import type { Request, Response } from 'express';
+import { PushSubscription } from '../../models/index.js';
+import { getUserId } from '../requireAuth.js';
+import { getVapidPublicKey, isPushConfigured } from '../../logics/push.js';
+import type { components } from '../../api';
+
+type VapidPublicKeyDto = components['schemas']['VapidPublicKey'];
+type PushSubscriptionAckDto = components['schemas']['PushSubscriptionAck'];
+type ErrorDto = components['schemas']['Error'];
+
+/** Ein validierter Subscription-Body (Ausschnitt des Browser-`PushSubscription`-JSON). */
+interface ValidSubscription {
+	endpoint: string;
+	p256dh: string;
+	auth: string;
+	expirationTime: number | null;
+}
+
+type ValidationResult = { ok: true; value: ValidSubscription } | { ok: false; message: string };
+
+const sendError = (res: Response<ErrorDto>, status: number, message: string): void => {
+	res.status(status).json({ message });
+};
+
+/**
+ * Validiert den Body von `POST /push/subscribe` rein strukturell: `endpoint` muss ein nicht-leerer
+ * String sein und `keys` die beiden nicht-leeren Schlüssel `p256dh`/`auth` enthalten (so liefert es
+ * `PushManager.subscribe().toJSON()`). `expirationTime` ist optional (Zahl oder `null`).
+ */
+const validateSubscription = (body: unknown): ValidationResult => {
+	if (typeof body !== 'object' || body === null) {
+		return { ok: false, message: 'Request-Body muss ein Objekt sein.' };
+	}
+	const { endpoint, keys, expirationTime } = body as Record<string, unknown>;
+	if (typeof endpoint !== 'string' || endpoint.trim() === '') {
+		return { ok: false, message: 'endpoint muss ein nicht-leerer String sein.' };
+	}
+	if (typeof keys !== 'object' || keys === null) {
+		return { ok: false, message: 'keys muss ein Objekt mit p256dh und auth sein.' };
+	}
+	const { p256dh, auth } = keys as Record<string, unknown>;
+	if (typeof p256dh !== 'string' || p256dh.trim() === '') {
+		return { ok: false, message: 'keys.p256dh muss ein nicht-leerer String sein.' };
+	}
+	if (typeof auth !== 'string' || auth.trim() === '') {
+		return { ok: false, message: 'keys.auth muss ein nicht-leerer String sein.' };
+	}
+	if (expirationTime !== undefined && expirationTime !== null && typeof expirationTime !== 'number') {
+		return { ok: false, message: 'expirationTime muss eine Zahl oder null sein.' };
+	}
+	return {
+		ok: true,
+		value: { endpoint, p256dh, auth, expirationTime: typeof expirationTime === 'number' ? expirationTime : null },
+	};
+};
+
+export const pushRouter = Router();
+
+// GET /push/vapid-public-key — liefert den öffentlichen VAPID-Schlüssel, den das Frontend für
+// `PushManager.subscribe({ applicationServerKey })` benötigt. 503, wenn Web-Push nicht konfiguriert ist.
+pushRouter.get('/push/vapid-public-key', (_req: Request, res: Response<VapidPublicKeyDto | ErrorDto>) => {
+	const publicKey = getVapidPublicKey();
+	if (!publicKey) {
+		sendError(res, 503, 'Web-Push ist nicht konfiguriert (VAPID-Schlüssel fehlen).');
+		return;
+	}
+	res.json({ publicKey });
+});
+
+// POST /push/subscribe — Browser-Subscription unter dem eingeloggten Nutzer speichern. Idempotent:
+// eine bereits bekannte `endpoint`-Zeile wird aktualisiert (Schlüssel + Eigentümer), statt dupliziert.
+pushRouter.post('/push/subscribe', async (req: Request, res: Response<PushSubscriptionAckDto | ErrorDto>) => {
+	if (!isPushConfigured()) {
+		sendError(res, 503, 'Web-Push ist nicht konfiguriert (VAPID-Schlüssel fehlen).');
+		return;
+	}
+	const validation = validateSubscription(req.body);
+	if (!validation.ok) {
+		sendError(res, 400, validation.message);
+		return;
+	}
+	const { endpoint, p256dh, auth, expirationTime } = validation.value;
+	const userId = getUserId(req);
+
+	try {
+		const existing = await PushSubscription.findOne({ where: { endpoint } });
+		if (existing) {
+			await existing.update({ p256dh, auth, expirationTime, userId });
+		} else {
+			await PushSubscription.create({ endpoint, p256dh, auth, expirationTime, userId });
+		}
+		res.status(201).json({ endpoint });
+	} catch {
+		sendError(res, 500, 'Interner Serverfehler.');
+	}
+});
+
+// POST /push/unsubscribe — die Subscription des eingeloggten Nutzers zum `endpoint` löschen.
+// Idempotent: unbekannter Endpoint ⇒ trotzdem 200 (nichts zu tun), damit das Frontend robust bleibt.
+pushRouter.post('/push/unsubscribe', async (req: Request, res: Response<PushSubscriptionAckDto | ErrorDto>) => {
+	if (!isPushConfigured()) {
+		sendError(res, 503, 'Web-Push ist nicht konfiguriert (VAPID-Schlüssel fehlen).');
+		return;
+	}
+	const { endpoint } = (req.body ?? {}) as Record<string, unknown>;
+	if (typeof endpoint !== 'string' || endpoint.trim() === '') {
+		sendError(res, 400, 'endpoint muss ein nicht-leerer String sein.');
+		return;
+	}
+	const userId = getUserId(req);
+
+	try {
+		// Nur die eigene Subscription entfernen (Datenisolation): endpoint + userId müssen passen.
+		await PushSubscription.destroy({ where: { endpoint, ...(userId !== undefined ? { userId } : {}) } });
+		res.status(200).json({ endpoint });
+	} catch {
+		sendError(res, 500, 'Interner Serverfehler.');
+	}
+});

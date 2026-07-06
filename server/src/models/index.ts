@@ -7,6 +7,7 @@ import ScoreEntry from './scoreEntry.js';
 import Series from './series.js';
 import SeriesPillar from './seriesPillar.js';
 import User from './user.js';
+import PushSubscription from './pushSubscription.js';
 
 Task.belongsToMany(Task, {
 	as: 'dependencies',
@@ -45,4 +46,17 @@ Pillar.belongsToMany(Series, { through: SeriesPillar, foreignKey: 'pillarId', ot
 // `pillar_feedback` steht für sich (keine Assoziation) — es speichert lose Korrektur-Samples
 // (Titel/Beschreibung + bestätigte Säulen) für den Feedback-Loop der Klassifikation (siehe #45).
 // `users` steht für sich (E-Mail-/Passwort-Auth, Issue #206) — keine Assoziationen nötig.
-export { Task, Dependency, Pillar, TaskPillar, PillarFeedback, ScoreEntry, Series, SeriesPillar, User };
+// `push_subscriptions` steht für sich (Web-Push, Issue #355) — pro Nutzer über `userId` gefiltert,
+// ohne Sequelize-Assoziation (der Versand-Helper filtert direkt über die `userId`-Spalte).
+export {
+	Task,
+	Dependency,
+	Pillar,
+	TaskPillar,
+	PillarFeedback,
+	ScoreEntry,
+	Series,
+	SeriesPillar,
+	User,
+	PushSubscription,
+};

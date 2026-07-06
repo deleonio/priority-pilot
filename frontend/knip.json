@@ -1,5 +1,10 @@
 {
 	"entry": ["src/main.tsx"],
-	"ignore": ["src/components/TaskTable.tsx", "src/lib/reactCellRoot.ts", "src/components/SeriesManagementModal.tsx"],
+	"ignore": [
+		"src/components/TaskTable.tsx",
+		"src/lib/reactCellRoot.ts",
+		"src/components/SeriesManagementModal.tsx",
+		"public/push-sw.js"
+	],
 	"ignoreDependencies": ["client"]
 }
