@@ -297,7 +297,8 @@ test.describe('#272 Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabe
 		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
 		await waitForStableView(page);
 
-		// Bearbeiten-Button des angelegten Tasks klicken.
+		// Bearbeiten-Button des angelegten Tasks klicken (liegt im „…"-Popover, #361).
+		await page.getByRole('button', { name: 'Weitere Aktionen' }).first().click();
 		const editButton = page.getByRole('button', { name: /bearbeiten/i }).first();
 		await editButton.click();
 		await waitForStableView(page);

@@ -58,6 +58,7 @@ test.describe('InputRange-Felder statt InputNumber (#287)', () => {
 
 	/** Öffnet den Bearbeiten-Dialog des ersten Tasks und wartet, bis das Formular stabil steht. */
 	const openFirstTaskEdit = async (page: Page): Promise<void> => {
+		await page.getByRole('button', { name: 'Weitere Aktionen' }).first().click();
 		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
 		await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeVisible();
 		await waitForStableView(page);
@@ -148,16 +149,17 @@ test.describe('InputRange-Felder statt InputNumber (#287)', () => {
 		// dann eingeklappt und `.first()` träfe nach einem Reload den Vorgänger — nicht das Ziel.
 		const openTargetDependencies = async (): Promise<void> => {
 			// Sicherstellen, dass der Ziel-Knoten sichtbar ist: Ist er als Kind eingeklappt, zuerst alle
-			// Wurzeln mit Aufklapp-Button aufklappen, bis sein Abhängigkeiten-Button sichtbar wird.
+			// Wurzeln mit Aufklapp-Button aufklappen, bis der „…"-Button des Ziel-Knotens sichtbar wird.
 			const targetItem = page.getByTestId(`task-tree-item-${targetId}`);
-			const targetButton = targetItem.getByRole('button', { name: 'Abhängigkeiten' });
-			if (!(await targetButton.isVisible())) {
+			const moreButton = targetItem.getByRole('button', { name: 'Weitere Aktionen' });
+			if (!(await moreButton.isVisible())) {
 				for (const toggle of await page.getByRole('button', { name: 'Aufklappen' }).all()) {
 					await toggle.click();
 				}
 			}
-			await expect(targetButton).toBeVisible();
-			await targetButton.click();
+			await expect(moreButton).toBeVisible();
+			await moreButton.click();
+			await targetItem.getByRole('button', { name: 'Abhängigkeiten' }).click();
 			await expect(page.getByRole('heading', { name: /Abhängigkeiten/ })).toBeVisible();
 			await waitForStableView(page);
 		};
@@ -256,6 +258,7 @@ test.describe('InputRange-Felder statt InputNumber (#287)', () => {
 		await waitForStableView(page);
 
 		await openTasksTab(page);
+		await page.getByRole('button', { name: 'Weitere Aktionen' }).first().click();
 		await page.getByRole('button', { name: 'Abhängigkeiten' }).first().click();
 		await expect(page.getByRole('heading', { name: /Abhängigkeiten/ })).toBeVisible();
 		await waitForStableView(page);

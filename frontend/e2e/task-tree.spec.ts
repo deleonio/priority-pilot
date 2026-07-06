@@ -81,6 +81,13 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 			.getByRole('button', { name: /Auf|Zuklappen|klappen/i })
 			.first();
 
+	/** Öffnet das „Weitere Aktionen"-Popover („…") eines Knotens (#361). */
+	const openActionsPopover = async (page: Page, id: number): Promise<void> => {
+		await item(page, id)
+			.getByRole('button', { name: /Weitere Aktionen/i })
+			.click();
+	};
+
 	test('AK1: Unteraufgabe liegt oben und zeigt ein Aufklapp-Symbol zur Oberaufgabe', async ({ page }) => {
 		const childTitle = uniqueTitle('Kind');
 		const parentId = await createTask(page, uniqueTitle('Eltern'));
@@ -228,6 +235,8 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 		await waitForStableView(page);
 		await openTasksTab(page);
 
+		// „Bearbeiten" liegt jetzt im „…"-Popover (#361): erst öffnen, dann klicken.
+		await openActionsPopover(page, id);
 		await item(page, id).getByRole('button', { name: 'Bearbeiten' }).click();
 
 		await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeVisible();
@@ -284,8 +293,12 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 			await waitForStableView(page);
 			await openTasksTab(page);
 
-			// Die Toolbar existiert und ihr erster Button ist „Bearbeiten" (vor Abhängigkeiten/
-			// Unteraufgabe/Löschen). Aktuell rot: „Bearbeiten" steht als separater Button VOR der Toolbar.
+			// Die Toolbar liegt jetzt hinter dem „…"-Popover (#361): initial verborgen. Nach dem Öffnen
+			// ist ihr erster Button „Bearbeiten" (vor Abhängigkeiten/Unteraufgabe/Löschen).
+			await expect(toolbar(page, id)).toBeHidden();
+
+			await openActionsPopover(page, id);
+
 			await expect(toolbar(page, id)).toBeVisible();
 			const firstButton = toolbar(page, id).getByRole('button').first();
 			await expect(firstButton).toHaveAccessibleName('Bearbeiten');
@@ -298,6 +311,9 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 			await page.goto('/');
 			await waitForStableView(page);
 			await openTasksTab(page);
+
+			// „Bearbeiten" liegt jetzt im „…"-Popover (#361): erst öffnen.
+			await openActionsPopover(page, id);
 
 			const editButton = toolbar(page, id).getByRole('button', { name: 'Bearbeiten' });
 			await expect(editButton).toBeVisible();
@@ -348,15 +364,129 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 			await waitForStableView(page);
 			await openTasksTab(page);
 
-			// Der Edit-Icon-Button liegt in der Toolbar und ist auch mobil sichtbar (innerhalb des Viewports).
-			const editButton = toolbar(page, id).getByRole('button', { name: 'Bearbeiten' });
-			await expect(editButton).toBeVisible();
+			// Der „…"-Button liegt in der Zeile und ist auch mobil sichtbar (innerhalb des Viewports).
+			const moreButton = item(page, id).getByRole('button', { name: /Weitere Aktionen/i });
+			await expect(moreButton).toBeVisible();
 
-			const box = await editButton.boundingBox();
+			const box = await moreButton.boundingBox();
 			expect(box).not.toBeNull();
 			if (box !== null) {
 				expect(box.x).toBeGreaterThanOrEqual(0);
 				expect(box.x + box.width).toBeLessThanOrEqual(375 + 1);
+			}
+
+			// Nach dem Öffnen ist der Edit-Icon-Button im Popover sichtbar.
+			await openActionsPopover(page, id);
+			const editButton = toolbar(page, id).getByRole('button', { name: 'Bearbeiten' });
+			await expect(editButton).toBeVisible();
+		});
+	});
+
+	/**
+	 * Roter TDD-Vertrag für #361: Die vier sekundären Aktionen (Bearbeiten, Abhängigkeiten,
+	 * Unteraufgabe anlegen, Löschen) rücken aus der stets sichtbaren `KolToolbar` in ein Popover, das
+	 * über einen „…"-Button mit dem Accessible Name „Weitere Aktionen" geöffnet wird. Done-Toggle und
+	 * Aufklapp-Toggle bleiben direkt sichtbar. Diese Specs sind rot, bis `TaskTree.tsx` den „…"-Trigger
+	 * rendert und die Toolbar in das Popover verlagert.
+	 */
+	test.describe('#361 — Sekundäre Aktionen via Popover', () => {
+		test('AK-361-1: „…"-Trigger ersetzt die Inline-Toolbar (Desktop + Mobil)', async ({ page }) => {
+			const id = await createTask(page, uniqueTitle('Popover-Trigger'));
+
+			await page.goto('/');
+			await waitForStableView(page);
+			await openTasksTab(page);
+
+			// Der „…"-Trigger ist sichtbar; die Aktions-Toolbar bleibt initial verborgen.
+			await expect(item(page, id).getByRole('button', { name: /Weitere Aktionen/i })).toBeVisible();
+			await expect(item(page, id).locator('[role="toolbar"]')).toBeHidden();
+
+			// Auch auf Mobilbreite: Trigger sichtbar, Toolbar verborgen.
+			await page.setViewportSize({ width: 375, height: 812 });
+			await expect(item(page, id).getByRole('button', { name: /Weitere Aktionen/i })).toBeVisible();
+			await expect(item(page, id).locator('[role="toolbar"]')).toBeHidden();
+		});
+
+		test('AK-361-2: Popover öffnet die vier sekundären Aktionen', async ({ page }) => {
+			const id = await createTask(page, uniqueTitle('Vier-Aktionen'));
+
+			await page.goto('/');
+			await waitForStableView(page);
+			await openTasksTab(page);
+
+			await openActionsPopover(page, id);
+
+			await expect(item(page, id).getByRole('button', { name: 'Bearbeiten' })).toBeVisible();
+			await expect(item(page, id).getByRole('button', { name: 'Abhängigkeiten' })).toBeVisible();
+			await expect(item(page, id).getByRole('button', { name: 'Unteraufgabe anlegen' })).toBeVisible();
+			await expect(item(page, id).getByRole('button', { name: 'Löschen' })).toBeVisible();
+		});
+
+		test('AK-361-3: Aktion wirkt über das Popover (Bearbeiten öffnet den Dialog)', async ({ page }) => {
+			const id = await createTask(page, uniqueTitle('Popover-Aktion'));
+
+			await page.goto('/');
+			await waitForStableView(page);
+			await openTasksTab(page);
+
+			await openActionsPopover(page, id);
+			await item(page, id).getByRole('button', { name: 'Bearbeiten' }).click();
+
+			await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeVisible();
+		});
+
+		test('AK-361-4: Done- und Aufklapp-Toggle bleiben außerhalb des Popovers sichtbar', async ({ page }) => {
+			const parentId = await createTask(page, uniqueTitle('Toggle-Eltern'));
+			const childId = await createTask(page, uniqueTitle('Toggle-Kind'));
+			await addSubtask(page, parentId, childId);
+
+			await page.goto('/');
+			await waitForStableView(page);
+			await openTasksTab(page);
+
+			// Ohne das „…"-Popover zu öffnen, sind beide Toggles direkt sichtbar.
+			// Im invertierten Wald (#363) ist `childId` die sichtbare Wurzel — dessen Toggles prüfen.
+			await expect(page.getByTestId(`done-toggle-${childId}`)).toBeVisible();
+			await expect(toggle(page, childId)).toBeVisible();
+		});
+
+		test('AK-361-5: Mobile-First — kein horizontaler Überlauf bei geöffnetem Popover', async ({ page }) => {
+			await page.setViewportSize({ width: 375, height: 812 });
+
+			const id = await createTask(page, uniqueTitle('Mobil-Popover'));
+
+			await page.goto('/');
+			await waitForStableView(page);
+			await openTasksTab(page);
+
+			await openActionsPopover(page, id);
+
+			// Kein horizontaler Überlauf: Die Seite ragt nicht über die Viewport-Breite hinaus.
+			const overflowsHorizontally = await page.evaluate(() => {
+				const root = document.querySelector('[data-testid="task-tree"]');
+				if (root === null) {
+					return true;
+				}
+				return root.scrollWidth > window.innerWidth + 1;
+			});
+			expect(overflowsHorizontally).toBe(false);
+		});
+
+		test('AK-361-6: „…"-Button erfüllt das Touch-Target-Minimum (44×44)', async ({ page }) => {
+			const id = await createTask(page, uniqueTitle('Touch-Target'));
+
+			await page.goto('/');
+			await waitForStableView(page);
+			await openTasksTab(page);
+
+			const moreButton = item(page, id).getByRole('button', { name: /Weitere Aktionen/i });
+			await expect(moreButton).toBeVisible();
+
+			const box = await moreButton.boundingBox();
+			expect(box).not.toBeNull();
+			if (box !== null) {
+				expect(box.height).toBeGreaterThanOrEqual(44);
+				expect(box.width).toBeGreaterThanOrEqual(44);
 			}
 		});
 	});

@@ -1,7 +1,7 @@
-import { KolButton, KolToolbar } from '@public-ui/react-v19';
+import { KolButton, KolPopoverButton, KolToolbar } from '@public-ui/react-v19';
 import type { Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { invertForest } from '../lib/invertForest';
 import { isDoneBlockedBySubtasks } from '../lib/task';
 
@@ -42,6 +42,18 @@ interface TreeNodeProps {
 	semanticNodeById: Map<number, TaskTreeNode>;
 }
 
+/**
+ * Traversiert Shadow- und Light-DOM ab `el` nach unten und liefert das erste native `<button>`.
+ * #361: Nach programmatischem `hidePopover()` gibt die native Popover-API den Fokus nicht an den
+ * Invoker zurück (er wandert zu `document.body`). Wir fokussieren den inneren Button daher explizit,
+ * damit das anschließend geöffnete Modal den korrekten Trigger für die Fokusrückgabe erfasst.
+ */
+const findInnerButton = (el: Element | null | undefined): HTMLElement | null => {
+	if (el == null) return null;
+	if (el instanceof HTMLButtonElement) return el;
+	return findInnerButton(el.shadowRoot?.firstElementChild ?? el.firstElementChild);
+};
+
 const TreeNode = ({
 	node,
 	expandedIds,
@@ -57,6 +69,10 @@ const TreeNode = ({
 	semanticNodeById,
 }: TreeNodeProps) => {
 	const [isUpdating, setIsUpdating] = useState(false);
+	// #361: Die vier sekundären Aktionen liegen hinter einem „…"-Popover. KolPopoverButton regelt
+	// Öffnen/Schließen, Click-outside, Escape und Fokusrückgabe über die native Popover-API selbst;
+	// der Ref dient nur dazu, das Panel nach einer Aktion programmatisch zu schließen.
+	const popoverRef = useRef<HTMLKolPopoverButtonElement | null>(null);
 
 	if (visited.has(node.id)) {
 		return null;
@@ -136,44 +152,73 @@ const TreeNode = ({
 				)}
 				{task !== null && (
 					<div className="task-tree-actions">
-						<KolToolbar
-							_label={`Aktionen für ${task.title}`}
-							_orientation="horizontal"
-							_items={[
-								{
-									type: 'button',
-									_label: 'Bearbeiten',
-									_hideLabel: true,
-									_icons: { left: { icon: 'fa-solid fa-pen' } },
-									_variant: 'secondary',
-									_on: { onClick: () => onEdit(task) },
-								},
-								{
-									type: 'button',
-									_label: 'Abhängigkeiten',
-									_hideLabel: true,
-									_icons: { left: { icon: 'kolicon-link' } },
-									_variant: 'secondary',
-									_on: { onClick: () => onEditDependencies(task) },
-								},
-								{
-									type: 'button',
-									_label: 'Unteraufgabe anlegen',
-									_hideLabel: true,
-									_icons: { left: { icon: 'fa-solid fa-plus' } },
-									_variant: 'secondary',
-									_on: { onClick: () => onAddSubtask(task) },
-								},
-								{
-									type: 'button',
-									_label: 'Löschen',
-									_hideLabel: true,
-									_icons: { left: { icon: 'kolicon-cross' } },
-									_variant: 'danger',
-									_on: { onClick: () => onDelete(task) },
-								},
-							]}
-						/>
+						<KolPopoverButton
+							ref={popoverRef}
+							className="task-tree-more"
+							_label="Weitere Aktionen"
+							_hideLabel
+							_icons={{ left: { icon: 'fa-solid fa-ellipsis' } }}
+							_variant="secondary"
+							_popoverAlign="bottom"
+						>
+							<KolToolbar
+								_label={`Aktionen für ${task.title}`}
+								_orientation="horizontal"
+								_items={[
+									{
+										type: 'button',
+										_label: 'Bearbeiten',
+										_hideLabel: true,
+										_icons: { left: { icon: 'fa-solid fa-pen' } },
+										_variant: 'secondary',
+										_on: {
+											onClick: () => {
+												void Promise.resolve(popoverRef.current?.hidePopover()).then(() => onEdit(task));
+											},
+										},
+									},
+									{
+										type: 'button',
+										_label: 'Abhängigkeiten',
+										_hideLabel: true,
+										_icons: { left: { icon: 'kolicon-link' } },
+										_variant: 'secondary',
+										_on: {
+											onClick: () => {
+												void Promise.resolve(popoverRef.current?.hidePopover()).then(() => onEditDependencies(task));
+											},
+										},
+									},
+									{
+										type: 'button',
+										_label: 'Unteraufgabe anlegen',
+										_hideLabel: true,
+										_icons: { left: { icon: 'fa-solid fa-plus' } },
+										_variant: 'secondary',
+										_on: {
+											onClick: () => {
+												void Promise.resolve(popoverRef.current?.hidePopover()).then(() => onAddSubtask(task));
+											},
+										},
+									},
+									{
+										type: 'button',
+										_label: 'Löschen',
+										_hideLabel: true,
+										_icons: { left: { icon: 'kolicon-cross' } },
+										_variant: 'danger',
+										_on: {
+											onClick: () => {
+												void popoverRef.current?.hidePopover().then(() => {
+													findInnerButton(popoverRef.current)?.focus();
+													onDelete(task);
+												});
+											},
+										},
+									},
+								]}
+							/>
+						</KolPopoverButton>
 					</div>
 				)}
 			</div>

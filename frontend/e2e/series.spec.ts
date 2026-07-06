@@ -184,6 +184,7 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 
 		// Genau die A-Instanz anhand ihrer ID (aus der API) im Task-Tree finden und bearbeiten.
 		const movedItem = page.locator(`[data-testid="task-tree-item-${moved.id}"]`);
+		await movedItem.getByRole('button', { name: 'Weitere Aktionen' }).click();
 		await movedItem.getByRole('button', { name: 'Bearbeiten' }).click();
 		// AK4 (#334): Der Edit-Titel nennt den Typ eindeutig („Aufgabe bearbeiten: …").
 		await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeVisible();

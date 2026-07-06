@@ -348,6 +348,17 @@ body {
 	flex-wrap: wrap;
 	align-items: center;
 	gap: 0.5rem;
+	/* Anker für das absolut positionierte „…"-Popover (#361). */
+	position: relative;
+}
+
+/*
+ * Touch-Target-Minimum (44×44) für den „…"-Trigger (#361): KoliBri erzwingt die Mindestgröße
+ * bereits im Shadow-DOM über `--a11y-min-size`; wir lassen den Host im Fluss, damit das Panel
+ * daran verankert werden kann.
+ */
+.task-tree-more {
+	display: inline-flex;
 }
 
 .task-tree-badge {
