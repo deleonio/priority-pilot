@@ -87,17 +87,6 @@ export default defineConfig({
 				],
 				shortcuts: [
 					{
-						name: 'Neue Aufgabe',
-						url: '/?new-task=true',
-						icons: [
-							{
-								src: 'icons/icon-192x192.svg',
-								sizes: '192x192',
-								purpose: 'any',
-							},
-						],
-					},
-					{
 						name: 'Dashboard',
 						url: '/',
 						icons: [

@@ -22,7 +22,16 @@ export const InstallPrompt = ({ onDismiss }: InstallPromptProps) => {
 		const userAgent = window.navigator.userAgent.toLowerCase();
 		const isIOSDevice = /iphone|ipad|ipod/.test(userAgent);
 		const isSafari = /safari/.test(userAgent) && !/chrome|crios|fxios|edg/.test(userAgent);
-		setIsIOS(isIOSDevice && isSafari);
+		const isIOSSafari = isIOSDevice && isSafari;
+		setIsIOS(isIOSSafari);
+
+		// iOS Safari feuert kein beforeinstallprompt-Event. Damit der iOS-Branch
+		// überhaupt erreichbar ist, muss showPrompt hier gesetzt werden – aber nur,
+		// wenn die App nicht bereits im Standalone-Modus läuft.
+		const isStandaloneMode = window.matchMedia('(display-mode: standalone)').matches;
+		if (isIOSSafari && !isStandaloneMode) {
+			setShowPrompt(true);
+		}
 
 		// Event-Listener für beforeinstallprompt
 		const handleBeforeInstallPrompt = (e: BeforeInstallPromptEvent) => {
