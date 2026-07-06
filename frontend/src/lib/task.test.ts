@@ -151,6 +151,12 @@ describe('taskFormModalTitle (#334)', () => {
 		expect(taskFormModalTitle(null, makeTask(42, 'Elternaufgabe'), 'task')).toBe('Unteraufgabe zu #42 – Elternaufgabe');
 	});
 
+	it('Bearbeiten einer Unteraufgabe (task UND parentTask gesetzt) zeigt Unteraufgaben-Titel', () => {
+		expect(taskFormModalTitle(makeTask(5, 'Unteraufgabe'), makeTask(42, 'Elternaufgabe'), 'task')).toBe(
+			'Aufgabe bearbeiten: Unteraufgabe',
+		);
+	});
+
 	it('Fallback ohne Modus → „Neuen Task anlegen"', () => {
 		expect(taskFormModalTitle(null, null)).toBe('Neuen Task anlegen');
 	});

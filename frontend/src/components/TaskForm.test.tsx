@@ -68,7 +68,7 @@ vi.mock('@public-ui/react-v19', () => ({
 			role="switch"
 			aria-label={_label}
 			data-variant={_variant}
-			defaultChecked={_checked}
+			checked={_checked ?? false}
 			onChange={(e) => _on?.onChange?.(e.nativeEvent, e.target.checked)}
 		/>
 	),

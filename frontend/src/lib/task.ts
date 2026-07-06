@@ -35,8 +35,8 @@ export const formatNumber = (value: number): string => value.toLocaleString('de-
  * Stellen driftet.
  */
 export const taskFormModalTitle = (task: Task | null, parentTask: Task | null, mode?: 'task' | 'series'): string => {
-	if (parentTask !== null) return `Unteraufgabe zu #${parentTask.id} – ${parentTask.title}`;
 	if (task !== null) return mode === 'series' ? `Serie bearbeiten: ${task.title}` : `Aufgabe bearbeiten: ${task.title}`;
+	if (parentTask !== null) return `Unteraufgabe zu #${parentTask.id} – ${parentTask.title}`;
 	if (mode === 'task') return 'Aufgabe anlegen';
 	if (mode === 'series') return 'Serie anlegen';
 	return 'Neuen Task anlegen';

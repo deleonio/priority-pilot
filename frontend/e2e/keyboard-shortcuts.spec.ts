@@ -253,7 +253,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 	// Serie-Modus (Switch, #334) → Titel + Startdatum füllen → primärer CTA („Anlegen") via Strg+Enter.
 	// Nach dem Speichern wird das Modal geschlossen. `afterEach` (deleteAllTasks) räumt nur Tasks ab,
 	// daher die Serie hier explizit über die echte API wieder löschen, damit der Test isoliert bleibt.
-	test('AK8: Strg+Enter im Serien-Formular löst „Speichern" aus (Serie wird angelegt)', async ({ page }) => {
+	test('AK8: Strg+Enter im Serien-Formular löst „Anlegen" aus (Serie wird angelegt)', async ({ page }) => {
 		await page.goto('/');
 		await waitForStableView(page);
 
