@@ -13,7 +13,7 @@ import { waitForStableView } from './helpers';
  * die echte API wieder ab, damit die In-Memory-DB zwischen den Tests sauber bleibt.
  *
  * **Erwartete (noch nicht existierende) UI**, gegen die diese Tests fahren:
- *  - Im Anlege-Dialog gibt es einen Umschalter mit `data-testid="mode-toggle"` und den Optionen
+ *  - Im Anlege-Dialog gibt es einen Umschalter mit `data-testid="mode-switch"` (Switch, #334) und dem Label
  *    „Aufgabe"/„Serie".
  *  - Nach Umschalten auf „Serie" sind die Felder „Startdatum" und „Rhythmus" sichtbar, „Deadline
  *    (optional)" ist ausgeblendet.
@@ -62,8 +62,8 @@ test.describe('Priority Pilot — Task/Serie-Umschalter im Anlege-Formular (#316
 
 		const wrapper = modeSwitch(page);
 		await expect(wrapper).toBeVisible();
-		await expect(wrapper.getByRole('switch')).toBeVisible();
-		await expect(wrapper.getByRole('switch')).toBeEnabled();
+		await expect(wrapper.getByRole('checkbox')).toBeVisible();
+		await expect(wrapper.getByRole('checkbox')).toBeEnabled();
 	});
 
 	// AK4 (e2e): Nach Umschalten auf „Serie" erscheinen `startDate` + `rhythm`, `deadline` verschwindet.
@@ -75,7 +75,7 @@ test.describe('Priority Pilot — Task/Serie-Umschalter im Anlege-Formular (#316
 		// Im Task-Modus (Standard) ist die Deadline sichtbar.
 		await expect(page.getByLabel('Deadline (optional)')).toBeVisible();
 
-		await modeSwitch(page).getByRole('switch').click();
+		await modeSwitch(page).getByRole('checkbox').click();
 
 		// Serienfelder erscheinen …
 		await expect(page.getByLabel('Startdatum')).toBeVisible();
@@ -90,7 +90,7 @@ test.describe('Priority Pilot — Task/Serie-Umschalter im Anlege-Formular (#316
 		await waitForStableView(page);
 		await openCreateForm(page);
 
-		await modeSwitch(page).getByRole('switch').click();
+		await modeSwitch(page).getByRole('checkbox').click();
 
 		const title = uniqueTitle('Serie-Anlegen');
 		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
@@ -144,11 +144,11 @@ test.describe('Priority Pilot — Task/Serie-Umschalter im Anlege-Formular (#316
 		await expect(page.getByRole('heading', { name: 'Aufgabe anlegen' })).toBeVisible();
 
 		// Switch auf Serie umschalten → Titel „Serie anlegen".
-		await modeSwitch(page).getByRole('switch').click();
+		await modeSwitch(page).getByRole('checkbox').click();
 		await expect(page.getByRole('heading', { name: 'Serie anlegen' })).toBeVisible();
 
 		// Zurück auf Aufgabe → Titel „Aufgabe anlegen".
-		await modeSwitch(page).getByRole('switch').click();
+		await modeSwitch(page).getByRole('checkbox').click();
 		await expect(page.getByRole('heading', { name: 'Aufgabe anlegen' })).toBeVisible();
 	});
 
@@ -159,7 +159,7 @@ test.describe('Priority Pilot — Task/Serie-Umschalter im Anlege-Formular (#316
 		await waitForStableView(page);
 		await openCreateForm(page);
 
-		await modeSwitch(page).getByRole('switch').click();
+		await modeSwitch(page).getByRole('checkbox').click();
 		await expect(page.getByLabel('Startdatum')).toBeVisible();
 		await expect(page.getByLabel('Rhythmus')).toBeVisible();
 
@@ -183,12 +183,12 @@ test.describe('Priority Pilot — Task/Serie-Umschalter im Anlege-Formular (#316
 		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
 
 		// Umschalten auf „Serie" — Startdatum erscheint, der Titel-Wert überlebt.
-		await modeSwitch(page).getByRole('switch').click();
+		await modeSwitch(page).getByRole('checkbox').click();
 		await expect(page.getByLabel('Startdatum')).toBeVisible();
 		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue(title);
 
 		// Zurück auf „Aufgabe" — Deadline erscheint wieder, der Titel-Wert überlebt auch den Rückwechsel.
-		await modeSwitch(page).getByRole('switch').click();
+		await modeSwitch(page).getByRole('checkbox').click();
 		await expect(page.getByLabel('Deadline (optional)')).toBeVisible();
 		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue(title);
 	});

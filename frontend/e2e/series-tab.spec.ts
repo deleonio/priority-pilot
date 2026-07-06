@@ -9,7 +9,7 @@ import { waitForStableView } from './helpers';
  * Header-Button „Serien verwalten") herausgelöst und als eigener Tab „Serien" neben „Aufgaben"
  * angeboten. Der Tab zeigt die Serien im TaskTree-Stil (`series-tree` als Wurzelcontainer,
  * `series-tree-item-<id>` je Serie) mit einer Aktions-Toolbar (Bearbeiten/Löschen). „Bearbeiten"
- * öffnet weiterhin `TaskForm` im Serie-Modus (Modal, erkennbar am `data-testid="mode-toggle"`),
+ * öffnet weiterhin `TaskForm` im Serie-Modus (Modal; der Umschalter ist im Bearbeiten-Modus ausgeblendet, #334),
  * „Löschen" entfernt die Serie. „Fällige Instanzen generieren" bleibt im Serien-Tab funktional.
  *
  * Wie `crud.spec.ts` / `series.spec.ts` läuft dies gegen das **echte** Backend (In-Memory-DB,
@@ -138,7 +138,7 @@ test.describe('Priority Pilot — #335: Serien-Verwaltung als eigener Tab', () =
 		await expect(toolbar.getByRole('button', { name: 'Löschen' })).toBeVisible();
 	});
 
-	// AK3 — Bearbeiten öffnet TaskForm im Serie-Modus (Modal) & speichert: mode-toggle sichtbar,
+	// AK3 — Bearbeiten öffnet TaskForm im Serie-Modus (Modal) & speichert: Switch ausgeblendet (#334),
 	// Titel vorbefüllt; Speichern aktualisiert die Zeile.
 	test('AK3 — „Bearbeiten" öffnet TaskForm im Serie-Modus mit vorbefülltem Titel; Speichern aktualisiert die Zeile', async ({
 		page,
@@ -155,15 +155,15 @@ test.describe('Priority Pilot — #335: Serien-Verwaltung als eigener Tab', () =
 		await seriesItem(page, seriesId).getByRole('button', { name: 'Bearbeiten' }).click();
 		await waitForStableView(page);
 
-		// TaskForm im Serie-Modus (Modal): mode-toggle sichtbar.
-		await expect(page.getByTestId('mode-toggle')).toBeVisible();
+		// TaskForm im Serie-Modus (Modal): Der Umschalter ist im Bearbeiten-Modus ausgeblendet (#334).
+		await expect(page.getByTestId('mode-switch')).not.toBeAttached();
 
 		// Titel ist vorbefüllt.
 		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue(titleOld);
 
 		// Titel ändern und speichern.
 		await page.getByRole('textbox', { name: 'Titel' }).fill(titleNew);
-		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+		await page.locator('kol-dialog').getByRole('button', { name: 'Bearbeiten', exact: true }).click();
 		await waitForStableView(page);
 
 		// Die Zeile ist aktualisiert: neuer Titel sichtbar, alter nicht mehr.

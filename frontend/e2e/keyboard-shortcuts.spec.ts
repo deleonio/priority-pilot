@@ -107,7 +107,8 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		await page.waitForTimeout(500);
 
 		// Nichts ist passiert: der Dialog ist weiterhin offen (Heading bleibt sichtbar).
-		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
+		// Nach dem Überspringen der Schnellerfassung zeigt das Formular den Titel „Aufgabe anlegen" (#334).
+		await expect(page.getByRole('heading', { name: 'Aufgabe anlegen' })).toBeVisible();
 		await expect(page.getByRole('textbox', { name: 'Titel' })).toBeVisible();
 
 		// Gegenprobe: es wurde kein Task angelegt.
@@ -249,7 +250,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 
 	// --- Serien-Formular -------------------------------------------------------------------------
 	// UI-Flow eindeutig aus `series.spec.ts` ableitbar: QuickCapture-Schritt → „Überspringen" →
-	// Serie-Modus (mode-toggle) → Titel + Startdatum füllen → primärer CTA „Speichern" via Strg+Enter.
+	// Serie-Modus (Switch, #334) → Titel + Startdatum füllen → primärer CTA („Anlegen") via Strg+Enter.
 	// Nach dem Speichern wird das Modal geschlossen. `afterEach` (deleteAllTasks) räumt nur Tasks ab,
 	// daher die Serie hier explizit über die echte API wieder löschen, damit der Test isoliert bleibt.
 	test('AK8: Strg+Enter im Serien-Formular löst „Speichern" aus (Serie wird angelegt)', async ({ page }) => {
@@ -265,8 +266,8 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		await page.getByRole('button', { name: 'Überspringen' }).click();
 		await waitForStableView(page);
 
-		// Auf „Serie"-Modus umschalten.
-		await page.getByTestId('mode-toggle').getByRole('button', { name: /serie/i }).click();
+		// Auf „Serie"-Modus umschalten (Switch, #334).
+		await page.getByTestId('mode-switch').getByRole('checkbox').click();
 		await waitForStableView(page);
 
 		await page.getByRole('textbox', { name: 'Titel' }).fill(title);

@@ -691,7 +691,8 @@ describe('AK — Säulenzuordnung im Serien-Edit-Modus (#343)', () => {
 		});
 
 		// Kein fillTitle nötig — series.title ist bereits vorbelegt.
-		await clickSave();
+		// Serien-Edit-Modus: Der Submit-Button heißt „Bearbeiten" (#334 AK7).
+		await clickSaveEdit();
 
 		expect(mockUpdateSeries).toHaveBeenCalledTimes(1);
 		const [{ id, seriesUpdate }] = mockUpdateSeries.mock.calls[0] as [

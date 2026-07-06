@@ -310,7 +310,7 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 
 		// Serien-Formular über QuickCapture-Flow öffnen und auf Serie-Modus umschalten.
 		await openTaskForm(page);
-		await page.getByTestId('mode-toggle').getByRole('button', { name: /serie/i }).click();
+		await page.getByTestId('mode-switch').getByRole('checkbox').click();
 		await waitForStableView(page);
 
 		await micButton(page, 'Titel').click();

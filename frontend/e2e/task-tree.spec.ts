@@ -193,7 +193,7 @@ test.describe('Priority Pilot — TaskTree (expandierbare Aufgaben-Liste, #238)'
 
 		await item(page, id).getByRole('button', { name: 'Bearbeiten' }).click();
 
-		await expect(page.getByRole('heading', { name: /Task bearbeiten/ })).toBeVisible();
+		await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeVisible();
 		await waitForStableView(page);
 		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue(title);
 	});

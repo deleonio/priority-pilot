@@ -322,7 +322,7 @@ test.describe('#272 Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabe
 		await waitForStableView(page);
 
 		await openTaskForm(page);
-		await page.getByTestId('mode-toggle').getByRole('button', { name: /serie/i }).click();
+		await page.getByTestId('mode-switch').getByRole('checkbox').click();
 		await waitForStableView(page);
 		await expect(page.getByRole('textbox', { name: 'Titel' })).toBeVisible();
 
@@ -383,7 +383,7 @@ test.describe('#272 Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabe
 		await waitForStableView(page);
 
 		await openTaskForm(page);
-		await page.getByTestId('mode-toggle').getByRole('button', { name: /serie/i }).click();
+		await page.getByTestId('mode-switch').getByRole('checkbox').click();
 		await waitForStableView(page);
 
 		const started = await page.evaluate(() => window.__speechRecognitionStarted === true);

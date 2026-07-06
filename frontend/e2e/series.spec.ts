@@ -115,7 +115,7 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 		await waitForStableView(page);
 
 		// Auf „Serie"-Modus umschalten (Switch statt Button-Paar, #334).
-		await page.getByTestId('mode-switch').getByRole('switch').click();
+		await page.getByTestId('mode-switch').getByRole('checkbox').click();
 		await waitForStableView(page);
 
 		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
@@ -191,7 +191,7 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 
 		await page.getByLabel('Deadline (optional)').fill('2026-09-28');
 		// AK7 (#334): Der Submit-Button im Bearbeiten-Modus heißt „Bearbeiten".
-		await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+		await page.locator('kol-dialog').getByRole('button', { name: 'Bearbeiten', exact: true }).click();
 		await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeHidden();
 
 		// UI: die Geschwister-Instanz steht unverändert weiterhin in der Liste (Deadline wird im Task-Tree nicht angezeigt).
@@ -311,7 +311,7 @@ test.describe('Priority Pilot — #297: Altes Serien-Formular durch TaskForm ers
 	};
 
 	// AK2 — Bearbeiten über TaskForm: Klick auf „Bearbeiten" öffnet TaskForm im gesperrten Serie-Modus.
-	// (War rot, solange SeriesManagementModal das alte Serien-Formular ohne mode-toggle öffnete.)
+	// (War rot, solange SeriesManagementModal das alte Serien-Formular ohne den Umschalter öffnete.)
 	test('AK2 — „Bearbeiten" öffnet TaskForm im gesperrten Serie-Edit-Modus mit vorbefülltem Titel', async ({ page }) => {
 		const title = uniqueTitle('Bearbeiten');
 		await createSeriesViaApi(page, { title, startDate: '2026-09-07T00:00:00.000Z' });
@@ -356,7 +356,7 @@ test.describe('Priority Pilot — #297: Altes Serien-Formular durch TaskForm ers
 
 		await page.getByRole('textbox', { name: 'Titel' }).fill(titleNew);
 		// AK7 (#334): Der Submit-Button im Bearbeiten-Modus heißt „Bearbeiten".
-		await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+		await page.locator('kol-dialog').getByRole('button', { name: 'Bearbeiten', exact: true }).click();
 		await waitForStableView(page);
 
 		// Neuer Titel in der Liste sichtbar, alter nicht mehr.
@@ -562,10 +562,10 @@ test.describe('Priority Pilot — Serien behalten die Säulenzuordnung (#343)', 
 		await waitForStableView(page);
 
 		// 6. Guard: TaskForm im Serien-Edit-Modus ist offen.
-		await expect(page.getByTestId('mode-toggle')).toBeVisible();
+		await expect(page.getByTestId('mode-switch')).not.toBeAttached();
 
 		// 7. Speichern ohne Änderung.
-		await page.getByRole('button', { name: 'Speichern', exact: true }).click();
+		await page.locator('kol-dialog').getByRole('button', { name: 'Bearbeiten', exact: true }).click();
 
 		// 8. Auf stabile Sicht nach dem Speichern warten.
 		await waitForStableView(page);
