@@ -11,6 +11,7 @@ import { DependencyModal } from './components/DependencyModal';
 import { EmptyState } from './components/EmptyState';
 import { ForestPanel } from './components/ForestPanel';
 import { HelpPage } from './components/HelpPage';
+import { InstallPrompt } from './components/InstallPrompt';
 import { PillarAdvisorModal } from './components/PillarAdvisorModal';
 import { QuickCaptureModal } from './components/QuickCaptureModal';
 import { SeriesTab } from './components/SeriesTab';
@@ -475,6 +476,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 					onChanged={refreshKeepingDialog}
 				/>
 			)}
+			<InstallPrompt />
 			<Footer version={APP_VERSION} />
 		</main>
 	);

@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Priority Pilot">
+	<rect width="512" height="512" rx="96" fill="#1a1a1a" />
+	<path d="M256 96 L400 416 H320 L256 272 L192 416 H112 Z" fill="#ffffff" />
+</svg>
