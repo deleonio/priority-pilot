@@ -71,8 +71,8 @@ const handleWriteError = (res: Response<ErrorDto>, error: unknown): void => {
 };
 
 /** Pfad-Parameter als positive Ganzzahl parsen; sonst `null`. */
-const parseId = (raw: string): number | null => {
-	const id = Number(raw);
+const parseId = (raw: string | string[]): number | null => {
+	const id = Number(Array.isArray(raw) ? raw[0] : raw);
 	return Number.isInteger(id) && id > 0 ? id : null;
 };
 
