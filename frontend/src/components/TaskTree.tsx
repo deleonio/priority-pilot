@@ -66,6 +66,10 @@ const TreeNode = ({
 		const onKeyDown = (event: KeyboardEvent): void => {
 			if (event.key === 'Escape') {
 				setActionsOpen(false);
+				actionsRef.current
+					?.querySelector<HTMLElement>('kol-button.task-tree-more')
+					?.shadowRoot?.querySelector<HTMLButtonElement>('button')
+					?.focus();
 			}
 		};
 		document.addEventListener('pointerdown', onPointerDown);
@@ -173,7 +177,12 @@ const TreeNode = ({
 										_hideLabel: true,
 										_icons: { left: { icon: 'fa-solid fa-pen' } },
 										_variant: 'secondary',
-										_on: { onClick: () => onEdit(task) },
+										_on: {
+											onClick: () => {
+												setActionsOpen(false);
+												onEdit(task);
+											},
+										},
 									},
 									{
 										type: 'button',
@@ -181,7 +190,12 @@ const TreeNode = ({
 										_hideLabel: true,
 										_icons: { left: { icon: 'kolicon-link' } },
 										_variant: 'secondary',
-										_on: { onClick: () => onEditDependencies(task) },
+										_on: {
+											onClick: () => {
+												setActionsOpen(false);
+												onEditDependencies(task);
+											},
+										},
 									},
 									{
 										type: 'button',
@@ -189,7 +203,12 @@ const TreeNode = ({
 										_hideLabel: true,
 										_icons: { left: { icon: 'fa-solid fa-plus' } },
 										_variant: 'secondary',
-										_on: { onClick: () => onAddSubtask(task) },
+										_on: {
+											onClick: () => {
+												setActionsOpen(false);
+												onAddSubtask(task);
+											},
+										},
 									},
 									{
 										type: 'button',

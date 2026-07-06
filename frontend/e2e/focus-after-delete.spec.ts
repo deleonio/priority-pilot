@@ -52,6 +52,7 @@ test.describe('Priority Pilot — Fokus nach dem Löschen (Issue #182)', () => {
 		await openTasksTab(page);
 		await expect(page.getByText(title, { exact: true })).toBeVisible();
 
+		await page.getByRole('button', { name: 'Weitere Aktionen' }).first().click();
 		await page.getByRole('button', { name: 'Löschen' }).first().click();
 		await expect(page.getByRole('heading', { name: 'Task löschen' })).toBeVisible();
 		await waitForStableView(page);
@@ -73,6 +74,7 @@ test.describe('Priority Pilot — Fokus nach dem Löschen (Issue #182)', () => {
 		await openTasksTab(page);
 		await expect(page.getByText(title, { exact: true })).toBeVisible();
 
+		await page.getByRole('button', { name: 'Weitere Aktionen' }).first().click();
 		const deleteButton = page.getByRole('button', { name: 'Löschen' }).first();
 		await deleteButton.click();
 		await expect(page.getByRole('heading', { name: 'Task löschen' })).toBeVisible();
@@ -98,6 +100,7 @@ test.describe('Priority Pilot — Fokus nach dem Löschen (Issue #182)', () => {
 		await expect(page.getByText(firstTitle, { exact: true })).toBeVisible();
 		await expect(page.getByText(secondTitle, { exact: true })).toBeVisible();
 
+		await page.getByRole('button', { name: 'Weitere Aktionen' }).first().click();
 		await page.getByRole('button', { name: 'Löschen' }).first().click();
 		await expect(page.getByRole('heading', { name: 'Task löschen' })).toBeVisible();
 		await waitForStableView(page);

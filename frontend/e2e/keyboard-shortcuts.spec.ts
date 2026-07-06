@@ -208,6 +208,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		await openTasksTab(page);
 		await expect(page.getByText(title, { exact: true })).toBeVisible();
 
+		await page.getByRole('button', { name: 'Weitere Aktionen' }).first().click();
 		await page.getByRole('button', { name: 'Löschen' }).first().click();
 		await expect(page.getByRole('heading', { name: 'Task löschen' })).toBeVisible();
 		await waitForStableView(page);

@@ -58,6 +58,7 @@ test.describe('InputRange-Felder statt InputNumber (#287)', () => {
 
 	/** Öffnet den Bearbeiten-Dialog des ersten Tasks und wartet, bis das Formular stabil steht. */
 	const openFirstTaskEdit = async (page: Page): Promise<void> => {
+		await page.getByRole('button', { name: 'Weitere Aktionen' }).first().click();
 		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
 		await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeVisible();
 		await waitForStableView(page);

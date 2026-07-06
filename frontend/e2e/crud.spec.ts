@@ -78,6 +78,7 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 		await createTaskViaUi(page, title);
 
 		await openTasksTab(page);
+		await page.getByRole('button', { name: 'Weitere Aktionen' }).first().click();
 		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
 		await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeVisible();
 		await waitForStableView(page);
@@ -91,6 +92,7 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 		await openTasksTab(page);
 
 		// Persistenz prüfen: Dialog erneut öffnen — Werte kommen frisch aus dem Backend.
+		await page.getByRole('button', { name: 'Weitere Aktionen' }).first().click();
 		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
 		await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeVisible();
 		await waitForStableView(page);
@@ -108,6 +110,7 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 		// In der Task-Liste ist der Titel direkt als Textinhalt sichtbar.
 		await expect(page.getByText(title, { exact: true })).toBeVisible();
 
+		await page.getByRole('button', { name: 'Weitere Aktionen' }).first().click();
 		await page.getByRole('button', { name: 'Löschen' }).first().click();
 		await expect(page.getByRole('heading', { name: 'Task löschen' })).toBeVisible();
 		await waitForStableView(page);
