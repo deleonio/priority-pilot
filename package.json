@@ -2,8 +2,8 @@
 	"version": "0.1.29",
 	"license": "EUPL-1.2",
 	"devDependencies": {
-		"@evilmartians/lefthook": "1.12.2",
-		"knip": "5.61.3",
+		"@evilmartians/lefthook": "1.13.6",
+		"knip": "5.88.1",
 		"prettier": "3.9.4"
 	},
 	"private": true,
