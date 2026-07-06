@@ -92,7 +92,7 @@ export default defineConfig({
 						icons: [
 							{
 								src: 'icons/icon-192x192.svg',
-								sizes: '192x192',
+								sizes: 'any',
 								purpose: 'any',
 							},
 						],

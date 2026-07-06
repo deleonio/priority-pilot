@@ -76,23 +76,21 @@ export const InstallPrompt = ({ onDismiss }: InstallPromptProps) => {
 	}, []);
 
 	const handleInstall = async () => {
-		if (deferredPrompt) {
-			// Zeige den Installations-Prompt
-			deferredPrompt.prompt();
-			// Warte auf die Antwort des Nutzers
+		if (!deferredPrompt) return;
+		try {
+			await deferredPrompt.prompt();
 			const { outcome } = await deferredPrompt.userChoice;
-			// Setze Prompt zurück
 			setDeferredPrompt(null);
-			// Verstecke unseren Prompt
 			setShowPrompt(false);
-
 			if (outcome === 'accepted') {
 				setIsInstalled(true);
-			}
-
-			if (outcome !== 'accepted' && onDismiss) {
+			} else if (onDismiss) {
 				onDismiss();
 			}
+		} catch {
+			// prompt() kann bei veralteten Events werfen – UI sauber zurücksetzen
+			setDeferredPrompt(null);
+			setShowPrompt(false);
 		}
 	};
 
