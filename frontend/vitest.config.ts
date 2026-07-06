@@ -1,9 +1,38 @@
 import react from '@vitejs/plugin-react';
+import type { Plugin } from 'vite';
 import { configDefaults, defineConfig } from 'vitest/config';
+
+// In Vitest 4.x / jsdom-Env gibt import.meta.url die Vite-Dev-Server-URL zurück (http://…),
+// nicht die file://-URL. fileURLToPath() schlägt dadurch fehl. Wir patchen import.meta.url
+// in Test-Dateien zur Build-Zeit auf den echten Dateipfad.
+const fixImportMetaUrl = (): Plugin => ({
+	name: 'fix-import-meta-url-in-tests',
+	transform(code, id) {
+		if (!id.includes('node_modules') && (id.endsWith('.test.ts') || id.endsWith('.test.tsx'))) {
+			const escaped = JSON.stringify(`file://${id}`);
+			return { code: code.replaceAll('import.meta.url', escaped), map: null };
+		}
+	},
+});
+
+// Stub-Plugin für das virtuelle PWA-Modul: Vitest kennt keinen VitePWA-Plugin-Kontext,
+// deshalb stellen wir das virtuelle Modul als leeren Stub bereit — vi.mock() überschreibt
+// ihn im jeweiligen Test vollständig.
+const pwaVirtualStub = (): Plugin => ({
+	name: 'vite-plugin-pwa-virtual-stub',
+	resolveId(id) {
+		if (id === 'virtual:pwa-register/react') return '\0virtual:pwa-register/react';
+	},
+	load(id) {
+		if (id === '\0virtual:pwa-register/react') {
+			return 'export const useRegisterSW = () => ({ needRefresh: [false, () => {}], offlineReady: [false, () => {}], updateServiceWorker: async () => {} });';
+		}
+	},
+});
 
 // Eigene Vitest-Config (statt der vite.config.ts mit PWA/Proxy), damit der Test-Lauf schlank bleibt.
 export default defineConfig({
-	plugins: [react()],
+	plugins: [react(), pwaVirtualStub(), fixImportMetaUrl()],
 	// Vite erbt `define` nicht automatisch in Vitest — daher hier gespiegelt, damit die Tests den
 	// globalen `__APP_VERSION__` kennen (in der Prod-Build-Config wird er aus package.json injiziert).
 	define: {
