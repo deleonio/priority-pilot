@@ -348,6 +348,41 @@ body {
 	flex-wrap: wrap;
 	align-items: center;
 	gap: 0.5rem;
+	/* Anker für das absolut positionierte „…"-Popover (#361). */
+	position: relative;
+}
+
+/*
+ * Touch-Target-Minimum (44×44) für den „…"-Trigger (#361): KoliBri erzwingt die Mindestgröße
+ * bereits im Shadow-DOM über `--a11y-min-size`; wir lassen den Host im Fluss, damit das Panel
+ * daran verankert werden kann.
+ */
+.task-tree-more {
+	display: inline-flex;
+}
+
+/*
+ * Aktions-Popover (#361): Die vier sekundären Aktionen liegen über einem absolut positionierten
+ * Panel, das aus dem Fluss genommen ist, damit die Zeile mobil (375px) nicht horizontal überläuft.
+ * Rechtsbündig am „…"-Trigger verankert und nach links begrenzt, um nicht über den Viewport-Rand
+ * hinauszuragen.
+ */
+.task-tree-actions-popover {
+	position: absolute;
+	top: 100%;
+	right: 0;
+	z-index: 10;
+	margin-top: 0.25rem;
+	max-width: min(100vw, 20rem);
+	padding: 0.25rem;
+	border-radius: 0.375rem;
+	background: var(--pp-bg, #fff);
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* `hidden` überschreibt das Flex-Layout des KolToolbar-Panels sicher (DOM-verborgen für Tests). */
+.task-tree-actions-popover[hidden] {
+	display: none;
 }
 
 .task-tree-badge {

@@ -1,7 +1,7 @@
 import { KolButton, KolToolbar } from '@public-ui/react-v19';
 import type { Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { isDoneBlockedBySubtasks } from '../lib/task';
 
 interface TaskTreeProps {
@@ -49,6 +49,32 @@ const TreeNode = ({
 	visited,
 }: TreeNodeProps) => {
 	const [isUpdating, setIsUpdating] = useState(false);
+	// #361: Die vier sekundären Aktionen liegen hinter einem „…"-Popover, das initial verborgen ist.
+	const [actionsOpen, setActionsOpen] = useState(false);
+	const actionsRef = useRef<HTMLDivElement | null>(null);
+
+	// Click-outside/Escape schließt das Popover wieder. Die Listener hängen nur, solange offen.
+	useEffect(() => {
+		if (!actionsOpen) {
+			return;
+		}
+		const onPointerDown = (event: PointerEvent): void => {
+			if (actionsRef.current !== null && !actionsRef.current.contains(event.target as Node)) {
+				setActionsOpen(false);
+			}
+		};
+		const onKeyDown = (event: KeyboardEvent): void => {
+			if (event.key === 'Escape') {
+				setActionsOpen(false);
+			}
+		};
+		document.addEventListener('pointerdown', onPointerDown);
+		document.addEventListener('keydown', onKeyDown);
+		return () => {
+			document.removeEventListener('pointerdown', onPointerDown);
+			document.removeEventListener('keydown', onKeyDown);
+		};
+	}, [actionsOpen]);
 
 	if (visited.has(node.id)) {
 		return null;
@@ -126,45 +152,56 @@ const TreeNode = ({
 					</>
 				)}
 				{task !== null && (
-					<div className="task-tree-actions">
-						<KolToolbar
-							_label={`Aktionen für ${task.title}`}
-							_orientation="horizontal"
-							_items={[
-								{
-									type: 'button',
-									_label: 'Bearbeiten',
-									_hideLabel: true,
-									_icons: { left: { icon: 'fa-solid fa-pen' } },
-									_variant: 'secondary',
-									_on: { onClick: () => onEdit(task) },
-								},
-								{
-									type: 'button',
-									_label: 'Abhängigkeiten',
-									_hideLabel: true,
-									_icons: { left: { icon: 'kolicon-link' } },
-									_variant: 'secondary',
-									_on: { onClick: () => onEditDependencies(task) },
-								},
-								{
-									type: 'button',
-									_label: 'Unteraufgabe anlegen',
-									_hideLabel: true,
-									_icons: { left: { icon: 'fa-solid fa-plus' } },
-									_variant: 'secondary',
-									_on: { onClick: () => onAddSubtask(task) },
-								},
-								{
-									type: 'button',
-									_label: 'Löschen',
-									_hideLabel: true,
-									_icons: { left: { icon: 'kolicon-cross' } },
-									_variant: 'danger',
-									_on: { onClick: () => onDelete(task) },
-								},
-							]}
+					<div className="task-tree-actions" ref={actionsRef}>
+						<KolButton
+							className="task-tree-more"
+							_label="Weitere Aktionen"
+							_hideLabel
+							_ariaExpanded={actionsOpen}
+							_icons={{ left: { icon: 'fa-solid fa-ellipsis' } }}
+							_variant="secondary"
+							_on={{ onClick: () => setActionsOpen((open) => !open) }}
 						/>
+						<div className="task-tree-actions-popover" hidden={!actionsOpen}>
+							<KolToolbar
+								_label={`Aktionen für ${task.title}`}
+								_orientation="horizontal"
+								_items={[
+									{
+										type: 'button',
+										_label: 'Bearbeiten',
+										_hideLabel: true,
+										_icons: { left: { icon: 'fa-solid fa-pen' } },
+										_variant: 'secondary',
+										_on: { onClick: () => onEdit(task) },
+									},
+									{
+										type: 'button',
+										_label: 'Abhängigkeiten',
+										_hideLabel: true,
+										_icons: { left: { icon: 'kolicon-link' } },
+										_variant: 'secondary',
+										_on: { onClick: () => onEditDependencies(task) },
+									},
+									{
+										type: 'button',
+										_label: 'Unteraufgabe anlegen',
+										_hideLabel: true,
+										_icons: { left: { icon: 'fa-solid fa-plus' } },
+										_variant: 'secondary',
+										_on: { onClick: () => onAddSubtask(task) },
+									},
+									{
+										type: 'button',
+										_label: 'Löschen',
+										_hideLabel: true,
+										_icons: { left: { icon: 'kolicon-cross' } },
+										_variant: 'danger',
+										_on: { onClick: () => onDelete(task) },
+									},
+								]}
+							/>
+						</div>
 					</div>
 				)}
 			</div>
