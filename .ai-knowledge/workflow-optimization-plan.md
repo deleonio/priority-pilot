@@ -264,7 +264,7 @@ die eigentliche Übergabekette bleibt unverändert (vgl. M9-Analyse). Verifizier
 
 ---
 
-### M7 — Prompt↔`append-system-prompt`-Dopplung & AGENTS.md-Bloat ⬜ (Optional, modest)
+### M7 — Prompt↔`append-system-prompt`-Dopplung & AGENTS.md-Bloat ⚠️ teilweise erledigt (2026-07-08)
 
 **Problem:** Der ~1,9 KB `append-system-prompt` dupliziert großflächig den `prompt:`-Block
 (20-Min-Handling, „Labels als ALLERLETZTER Schritt", Modell-Strategie stehen in beiden). AGENTS.md
@@ -274,6 +274,40 @@ zusätzlich die volle `.ai-knowledge/*.md`.
 **Fix:** Redundanz Prompt↔System-Prompt entschlacken (eine kanonische Stelle); prüfen, ob AGENTS.md
 für reine Analyse-Läufe schlanker referenziert werden kann. **Contract-Impact:** Prompt-Text.
 **Ertrag:** modest — Prompt-Caching mildert (grob 1× je Lauf, nicht je Turn).
+
+**Umsetzung (bewusst NUR der risikoarme Teil, Prompt-Seite):** Nicht blind entschlackt — die
+Label-Reihenfolge- und Timeout-Direktiven im `append-system-prompt` sind **Defense-in-Depth mit
+dokumentierter Vorfall-Historie** (`docs/pipeline-flow.md`: „Nachtrag nach einem beobachteten
+Vorfall 2026-07-01" — Label wurde vor vollständiger Beschreibung gesetzt) und blieben **unangetastet**.
+Entfernt wurden nur zwei sauber verifizierte, echte Dopplungen ohne Sicherheitsbezug:
+
+1. **`claude-spec.yml` + `claude-implement.yml`** (je 2 Agent-Pfade): die Floskel „Bestaetigung gilt
+   durch ai:X als erteilt; arbeite autonom ohne interaktive Rueckfrage" im System-Prompt entfernt —
+   der `prompt:`-Block endet bereits wortgleich mit „Die Freigabe gilt durch das Label X als
+   erteilt: arbeite autonom, ohne auf eine interaktive Bestätigung zu warten" (verifiziert per
+   Grep vor der Änderung, nicht nur vermutet).
+2. **`claude-pr-review.yml`** (2 Agent-Pfade): die vollständige „Modell-Strategie"-Delegationserklärung
+   im System-Prompt (Sonnet-Koordinator, heavy/light) ersetzt durch einen Kurzverweis
+   („Delegations-Strategie s. Prompt-Anfang") — die volle Erklärung steht bereits wortgleich am
+   Prompt-Anfang (`Bewerte zunächst die PR-Komplexität … delegiere … an light/heavy`). Für
+   `claude-triage.yml`/`claude-spec.yml`/`claude-implement.yml`/`claude-pr-fixup.yml` ist die
+   Modell-Strategie-Erklärung dagegen die EINZIGE Stelle, die Delegation überhaupt erwähnt — dort
+   NICHT entfernt (kein Duplikat, sondern die einzige Informationsquelle).
+
+**Bewusst NICHT angefasst:**
+
+- **AGENTS.md-Bloat:** Claude Code liest `CLAUDE.md`/`AGENTS.md` automatisch als Projektkontext —
+  das ist Framework-Verhalten, keine per-Workflow-YAML-Einstellung, die sich hier abschalten
+  lässt. Eine Verschlankung würde AGENTS.md selbst umstrukturieren (Inhalt kürzen/auslagern) —
+  deutlich größerer, riskanterer Eingriff mit ungewissem Nutzen (AGENTS.md ist bereits ein
+  Index mit Links auf `.ai-knowledge/*.md`, nicht die Volltexte). Nicht im Rahmen dieser Runde.
+- **`claude-pr-fixup.yml`:** hat bereits die knappste Fassung („Arbeite ohne interaktive
+  Rueckfrage.", 4 Wörter) — marginale Einsparung, Aufwand/Risiko nicht gerechtfertigt.
+
+**Verifiziert:** alle 177 Contract-Tests grün (inkl. `model-delegation.test.ts`s
+Text-Präsenz-Checks auf „heavy"/„light", die durch den Kurzverweis weiterhin erfüllt sind), YAML
+aller 3 geänderten Dateien valide. Grobe Ersparnis: ~650 Zeichen über 6 Bearbeitungsstellen — real,
+aber wie im Ertrag vorhergesagt „modest", kein großer Hebel.
 
 ---
 
@@ -513,7 +547,10 @@ cancel-in-progress`, Draft-Skips, Label-Gating, Stop-Guards).
 ## Reihenfolge-Empfehlung
 
 1. ~~**Sofort ohne Risiko:** M1, M2~~ ✅ erledigt (2026-07-07, alle Tests grün, kein Contract-Break).
-2. **Messrunde (offen):** M3-A/B, M5-Job-Zeiten — Daten sammeln.
-3. **Topologie-Weichen (User-Freigabe + separater Reviewer, offen):** M4. ~~M6~~, ~~M8~~, ~~M9~~
-   ✅ erledigt.
-4. **Feinschliff (offen):** M7; M1/M5-Werte anhand realer Logs nachschärfen (Optimierungsrunde 2).
+2. ~~**Messrunde:** M5-Job-Zeiten~~ ✅ gemessen (Zahl bestätigt richtig). ~~M3~~ ✅ erledigt
+   (2026-07-08, ohne Live-A/B — User hat den Mess-Gate bewusst übersprungen).
+3. **Topologie-Weichen (User-Freigabe + separater Reviewer, offen):** M4 — einzige offene
+   Maßnahme. ~~M6~~, ~~M8~~, ~~M9~~ ✅ erledigt.
+4. ~~**Feinschliff:** M7~~ ⚠️ teilweise erledigt (2026-07-08, nur risikoarmer Prompt-Teil;
+   AGENTS.md-Bloat bewusst nicht angefasst). M1/M5-Werte anhand realer Logs nachschärfen bleibt
+   offen (Optimierungsrunde 2, braucht Produktions-Run-Historie).
