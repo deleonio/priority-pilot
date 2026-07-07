@@ -156,4 +156,15 @@ describe('logics/dueTaskReminders — fachlicher Push-Trigger „fällige Aufgab
 		assert.equal(calls.length, 0);
 		assert.equal(await NotificationLog.count(), 0);
 	});
+
+	it('ignoriert Tasks mit userId = null — kein Broadcast an alle Subscriptions', async () => {
+		await seedSubscription(1, 'https://push.example.com/a');
+		await createTask({ title: 'Aufgabe ohne Nutzer', deadline: new Date(NOW.getTime() - 1000), userId: null });
+		const calls: { endpoint: string; body: string }[] = [];
+
+		const result = await runDueTaskReminders(NOW, okSender(calls));
+
+		assert.equal(result.usersNotified, 0, 'Tasks ohne userId dürfen keine Push-Nachricht auslösen');
+		assert.equal(calls.length, 0);
+	});
 });

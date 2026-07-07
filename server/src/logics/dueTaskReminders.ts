@@ -21,7 +21,7 @@ interface DueTask {
 }
 
 interface DueTaskGroup {
-	userId: number | undefined;
+	userId: number;
 	tasks: DueTask[];
 }
 
@@ -37,6 +37,7 @@ export const collectDueTaskReminders = async (now: Date): Promise<DueTaskGroup[]
 		where: {
 			status: { [Op.ne]: 'Done' },
 			deadline: { [Op.ne]: null, [Op.lte]: threshold },
+			userId: { [Op.ne]: null },
 		},
 	});
 	if (dueTasks.length === 0) {
@@ -49,13 +50,13 @@ export const collectDueTaskReminders = async (now: Date): Promise<DueTaskGroup[]
 	});
 	const sentKeys = new Set(alreadySent.map((row) => row.dedupeKey));
 
-	const groups = new Map<number | undefined, DueTaskGroup>();
+	const groups = new Map<number, DueTaskGroup>();
 	for (const task of dueTasks) {
 		const deadline = task.deadline as Date;
 		if (sentKeys.has(dedupeKeyFor(task.id, deadline))) {
 			continue;
 		}
-		const userId = task.userId ?? undefined;
+		const userId = task.userId as number;
 		const group = groups.get(userId) ?? { userId, tasks: [] };
 		group.tasks.push({ id: task.id, title: task.title, deadline });
 		groups.set(userId, group);
@@ -87,7 +88,7 @@ export const runDueTaskReminders = async (
 		await sendPushToUser(group.userId, buildPayload(group.tasks), send);
 		await NotificationLog.bulkCreate(
 			group.tasks.map((task) => ({
-				userId: group.userId ?? null,
+				userId: group.userId,
 				kind: KIND,
 				dedupeKey: dedupeKeyFor(task.id, task.deadline),
 				sentAt: now,
