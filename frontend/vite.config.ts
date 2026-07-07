@@ -11,7 +11,7 @@ const rootPkg = JSON.parse(readFileSync(resolve(__dirname, '../package.json'), '
 // Der Dev-Proxy leitet alle /api/v1/*-, /api/transit/*- und /auth/*-Anfragen an den
 // Express-Server (http://localhost:3000) weiter. CORS wird damit im Browser ohne
 // Server-Änderung gelöst. /api/v1/* streift das Präfix ab (Server-Routen liegen direkt
-// unter /); /api/transit/* und /auth/* werden unverändert durchgereicht — Letzteres
+// unter /); /api/transit/* und /auth/* werden unverändert durchgereicht – Letzteres
 // spiegelt den Caddy-handle-Block für den OAuth-Login-Flow (siehe docs/caddy-setup.md).
 const apiProxy = {
 	'/api/v1': {
@@ -60,6 +60,7 @@ export default defineConfig({
 				display: 'standalone',
 				start_url: '/',
 				icons: [
+					// SVG Icons (primär)
 					{
 						src: 'icons/icon-192x192.svg',
 						sizes: 'any',
@@ -84,11 +85,12 @@ export default defineConfig({
 						type: 'image/svg+xml',
 						purpose: 'maskable',
 					},
+					// Legacy Favicon (SVG)
 					{
 						src: 'icon.svg',
 						sizes: 'any',
 						type: 'image/svg+xml',
-						purpose: 'any maskable',
+						purpose: 'any',
 					},
 				],
 				shortcuts: [
