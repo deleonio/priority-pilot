@@ -174,7 +174,7 @@ export const useVoiceInput = ({ onTranscript, lang = 'de-DE' }: UseVoiceInputOpt
 				// Doppelstart-/Engine-Konflikt (InvalidStateError): Zustand nicht hängen lassen (#283) —
 				// mit gesetzter Ref wäre der Mic-Button sonst bis zum Neuladen tot.
 				recognitionRef.current = null;
-				setVoiceError('Spracherkennung fehlgeschlagen.');
+				reportError('Spracherkennung fehlgeschlagen.');
 				return;
 			}
 			stopActiveRecording = () => {
