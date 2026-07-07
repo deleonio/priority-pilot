@@ -104,7 +104,7 @@ test.describe('Abhängigkeits-Editor: Entfernen-Icon-Button (#368)', () => {
 		// rot: aktuell trägt der Button kein Icon → kein `kol-icon` im Shadow-DOM.
 		const hasIcon = await kolButton.evaluate((el: Element) => {
 			const shadowBtn = (el as HTMLElement & { shadowRoot: ShadowRoot | null }).shadowRoot?.querySelector('button');
-			return shadowBtn?.querySelector('kol-icon') != null;
+			return shadowBtn?.querySelector('i.kol-icon') != null;
 		});
 		expect(hasIcon).toBe(true);
 
@@ -112,7 +112,7 @@ test.describe('Abhängigkeits-Editor: Entfernen-Icon-Button (#368)', () => {
 		const visibleLabel = await kolButton.evaluate((el: Element) => {
 			const shadowRoot = (el as HTMLElement & { shadowRoot: ShadowRoot | null }).shadowRoot;
 			if (!shadowRoot) return null;
-			const labelSpan = shadowRoot.querySelector('.label') as HTMLElement | null;
+			const labelSpan = shadowRoot.querySelector('.kol-span__label') as HTMLElement | null;
 			if (!labelSpan) return '';
 			const style = window.getComputedStyle(labelSpan);
 			// sr-only-Muster: absolut positioniert + geclippt → visuell unsichtbar.
@@ -139,7 +139,7 @@ test.describe('Abhängigkeits-Editor: Entfernen-Icon-Button (#368)', () => {
 
 		// Vorgänger ist zunächst in der Liste sichtbar.
 		const list = page.locator('.dependency-list');
-		await expect(list.getByText(predecessorTitle, { exact: false })).toBeVisible();
+		await expect(list.locator('li > span').filter({ hasText: predecessorTitle })).toBeVisible();
 
 		// rot: Der Klick adressiert den zeilenspezifischen Button per Vorgänger-ID im Namen.
 		// Aktuell heißt der Button nur „Entfernen" → kein Treffer → Klick läuft in Timeout.
@@ -148,7 +148,7 @@ test.describe('Abhängigkeits-Editor: Entfernen-Icon-Button (#368)', () => {
 		await waitForStableView(page);
 
 		// Nach dem Klick ist der Vorgänger aus der Liste verschwunden (Funktion unverändert).
-		await expect(list.getByText(predecessorTitle, { exact: false })).toBeHidden();
+		await expect(list.locator('li > span').filter({ hasText: predecessorTitle })).toHaveCount(0);
 	});
 
 	test('AK3: Zwei Vorgänger → unterscheidbare, zeilenspezifische zugängliche Namen', async ({ page }) => {
