@@ -45,21 +45,22 @@ test.describe('#270 Einstellungen – Zahnrad-Toolbar-Button und Route /settings
 	});
 
 	/**
-	 * AK2 — Navigation per Klick: Klick auf das Zahnrad navigiert zu `/settings/pillars`; die
-	 * Settings-Seite mit dem Säulen-Editor (Überschrift „Säulen-Gewichtung") ist sichtbar.
+	 * AK2 — Navigation per Klick (#382): Klick auf das Zahnrad navigiert zu `/settings/general`;
+	 * der „Allgemein"-Tab ist aktiv (`aria-selected="true"`), „Säulen" ist inaktiv.
 	 */
-	test('AK2: Klick auf das Zahnrad navigiert zu /settings/pillars und zeigt den Säulen-Editor', async ({ page }) => {
+	test('AK2: Klick auf das Zahnrad navigiert zu /settings/general und aktiviert den Allgemein-Tab', async ({ page }) => {
 		await page.goto('/');
 		await waitForStableView(page);
 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
 		await toolbar.getByRole('button', { name: /Einstellungen/i }).click();
 
-		// URL muss auf die neue Settings-Route wechseln.
-		await expect(page).toHaveURL(/\/settings\/pillars/);
+		// URL muss auf /settings/general wechseln (nicht mehr /settings/pillars — #382).
+		await expect(page).toHaveURL(/\/settings\/general/);
 
-		// Der Säulen-Editor wird direkt auf der Seite gerendert (kein Modal mehr).
-		await expect(page.getByRole('heading', { name: /Säulen-Gewichtung/i })).toBeVisible();
+		// „Allgemein"-Tab ist aktiv; „Säulen"-Tab ist inaktiv.
+		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toHaveAttribute('aria-selected', 'true');
+		await expect(page.getByRole('tab', { name: 'Säulen', exact: true })).toHaveAttribute('aria-selected', 'false');
 	});
 
 	/**
@@ -112,11 +113,11 @@ test.describe('#270 Einstellungen – Zahnrad-Toolbar-Button und Route /settings
 	});
 
 	/**
-	 * AK6 — Mobile-First: Auf einem 375-px-Viewport erzeugt `/settings/pillars` kein horizontales
-	 * Scrollen (`document.body.scrollWidth <= window.innerWidth`); das Zahnrad in der Toolbar bleibt
-	 * sichtbar und bedienbar.
+	 * AK6 — Mobile-First (#382): Auf einem 375-px-Viewport erzeugt `/settings/general` kein
+	 * horizontales Scrollen; das Zahnrad navigiert auf `/settings/general` und der „Allgemein"-Tab
+	 * ist aktiv.
 	 */
-	test('AK6: /settings/pillars auf 375 px – kein horizontales Scrollen, Zahnrad bedienbar', async ({ page }) => {
+	test('AK6: /settings/general auf 375 px – kein horizontales Scrollen, Allgemein-Tab aktiv', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 
 		await page.goto('/');
@@ -128,9 +129,10 @@ test.describe('#270 Einstellungen – Zahnrad-Toolbar-Button und Route /settings
 		await expect(gearButton).toBeVisible();
 		await gearButton.click();
 
-		await expect(page).toHaveURL(/\/settings\/pillars/);
-		// Warten, bis der Editor gerendert ist, damit die Breite valide gemessen wird.
-		await expect(page.getByRole('heading', { name: /Säulen-Gewichtung/i })).toBeVisible();
+		// URL muss /settings/general sein (nicht /settings/pillars — #382).
+		await expect(page).toHaveURL(/\/settings\/general/);
+		// Warten, bis die Tabs gerendert sind, damit die Breite valide gemessen wird.
+		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toHaveAttribute('aria-selected', 'true');
 
 		const hasNoHorizontalOverflow = await page.evaluate(() => document.body.scrollWidth <= window.innerWidth);
 		expect(hasNoHorizontalOverflow).toBe(true);
