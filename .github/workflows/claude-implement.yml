@@ -5,7 +5,12 @@ name: Claude Implement (ai:ready)
 # Fuehrt die Schritte 1-4 aus .ai-knowledge/ticket-implementation.md aus (zuweisen, Analyse
 # re-verifizieren, umsetzen — im Regelfall den Draft-PR der Spec-Stufe (claude-spec.yml) gruen
 # machen, sonst neu erstellen). Der PR erhaelt das Label
-# "ai:needs-review", woraufhin der Kreuzverhoer-Review (claude-pr-review.yml) ihn aufgreift.
+# "ai:needs-review" von DIESEM Workflow SELBST, als expliziten letzten Schritt (M9-Revidiert,
+# 2026-07-08): `pr-needs-review-label.yml` reagiert bewusst NICHT auf bot-erzeugte Draft->ready-
+# Uebergaenge (nur auf menschliche Aktoren, s. dort) — so entscheidet diese Umsetzung selbst,
+# wann genau der Kreuzverhoer-Review (claude-pr-review.yml) startet (erst wenn Beschreibung +
+# Testergebnisse wirklich vollstaendig sind), statt dass ein fruehes ready_for_review-Event das
+# Review auf einem noch unfertigen PR anstoesst.
 #
 # Claude Code laeuft direkt im Runner (anthropics/claude-code-action). HARTES Zeitlimit:
 # timeout-minutes: 20 — laeuft die Umsetzung laenger, bricht GitHub den Job ab. Der Prompt
@@ -220,7 +225,10 @@ jobs:
                  stehen, das Label `ai:needs-review` am PR setzen (`gh pr edit <pr-nr> --add-label
                  ai:needs-review`; Label bei Bedarf vorher `gh label create "ai:needs-review"
                  --color 1D76DB`) — das setzt sofort den Kreuzverhör-Review (claude-pr-review.yml)
-                 in Gang, der den PR-Stand unmittelbar danach liest.
+                 in Gang, der den PR-Stand unmittelbar danach liest. Du entscheidest damit selbst
+                 ueber den genauen Zeitpunkt: `pr-needs-review-label.yml` reagiert bewusst NICHT auf
+                 den Draft→ready-Uebergang von App-Bot-erzeugten PRs (nur auf menschliche Aktoren) —
+                 das Label kommt ausschliesslich von dir, hier, erst wenn wirklich alles fertig ist.
 
             HARTES Zeitlimit: Dieser Lauf wird nach 20 Minuten von GitHub hart abgebrochen. Plane
             damit. Merkst du, dass es eng wird, sichere SPÄTESTENS nach ~18 Minuten den
@@ -243,7 +251,7 @@ jobs:
           claude_args: >-
             --model claude-sonnet-4-6 --effort medium --max-turns 60
             --allowedTools "Bash(gh issue:*),Bash(gh pr:*),Bash(gh label:*),Bash(gh api:*),Bash(git switch:*),Bash(git checkout:*),Bash(git branch:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(git fetch:*),Bash(pnpm:*),Read,Edit,Write,Grep,Glob,Skill,Task"
-            --append-system-prompt "Automatisierter, durch das Label ai:ready autorisierter Umsetzungs-Lauf in GitHub Actions (headless). Bearbeite ausschliesslich Issue #${{ github.event.issue.number }}, Schritte 1-4 der Umsetzung; KEIN PR-Abo/Kreuzverhoer-Loop (separater Workflow). Setze ai:needs-review ALS ALLERLETZTEN Schritt, NIE davor — erst nach Commit+Push+PR, da der Kreuzverhoer-Review den PR-Stand unmittelbar danach liest. HARTES 20-Minuten-Timeout: sichere bei drohendem Limit (~18 Min) rechtzeitig den Zwischenstand (committen/pushen, ggf. Draft-PR), statt einen vollen Durchlauf zu erzwingen. Bestaetigung gilt durch ai:ready als erteilt; arbeite autonom ohne interaktive Rueckfrage. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
+            --append-system-prompt "Automatisierter, durch das Label ai:ready autorisierter Umsetzungs-Lauf in GitHub Actions (headless). Bearbeite ausschliesslich Issue #${{ github.event.issue.number }}, Schritte 1-4 der Umsetzung; KEIN PR-Abo/Kreuzverhoer-Loop (separater Workflow). Setze ai:needs-review ALS ALLERLETZTEN Schritt, NIE davor — erst nach Commit+Push+PR, da der Kreuzverhoer-Review den PR-Stand unmittelbar danach liest; pr-needs-review-label.yml reagiert bewusst NICHT auf deine bot-erzeugten PRs, DU allein steuerst den Zeitpunkt. HARTES 20-Minuten-Timeout: sichere bei drohendem Limit (~18 Min) rechtzeitig den Zwischenstand (committen/pushen, ggf. Draft-PR), statt einen vollen Durchlauf zu erzwingen. Bestaetigung gilt durch ai:ready als erteilt; arbeite autonom ohne interaktive Rueckfrage. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
 
       # Mistral-Pfad (AI_AGENT == 'mistral'): Vibe laeuft headless OHNE Approval-Callback — ohne
       # erzwungenes Auto-Approve wuerde jedes genehmigungspflichtige Tool (gh/git/pnpm/Datei-Writes)
@@ -308,7 +316,10 @@ jobs:
                  stehen, das Label `ai:needs-review` am PR setzen (`gh pr edit <pr-nr> --add-label
                  ai:needs-review`; Label bei Bedarf vorher `gh label create "ai:needs-review"
                  --color 1D76DB`) — das setzt sofort den Kreuzverhör-Review (claude-pr-review.yml)
-                 in Gang, der den PR-Stand unmittelbar danach liest.
+                 in Gang, der den PR-Stand unmittelbar danach liest. Du entscheidest damit selbst
+                 ueber den genauen Zeitpunkt: `pr-needs-review-label.yml` reagiert bewusst NICHT auf
+                 den Draft→ready-Uebergang von App-Bot-erzeugten PRs (nur auf menschliche Aktoren) —
+                 das Label kommt ausschliesslich von dir, hier, erst wenn wirklich alles fertig ist.
 
             HARTES Zeitlimit: Dieser Lauf wird nach 20 Minuten von GitHub hart abgebrochen. Plane
             damit. Merkst du, dass es eng wird, sichere SPÄTESTENS nach ~18 Minuten den
@@ -370,7 +381,10 @@ jobs:
                  stehen, das Label `ai:needs-review` am PR setzen (`gh pr edit <pr-nr> --add-label
                  ai:needs-review`; Label bei Bedarf vorher `gh label create "ai:needs-review"
                  --color 1D76DB`) — das setzt sofort den Kreuzverhör-Review (claude-pr-review.yml)
-                 in Gang, der den PR-Stand unmittelbar danach liest.
+                 in Gang, der den PR-Stand unmittelbar danach liest. Du entscheidest damit selbst
+                 ueber den genauen Zeitpunkt: `pr-needs-review-label.yml` reagiert bewusst NICHT auf
+                 den Draft→ready-Uebergang von App-Bot-erzeugten PRs (nur auf menschliche Aktoren) —
+                 das Label kommt ausschliesslich von dir, hier, erst wenn wirklich alles fertig ist.
 
             HARTES Zeitlimit: Dieser Lauf wird nach 20 Minuten von GitHub hart abgebrochen. Plane
             damit. Merkst du, dass es eng wird, sichere SPÄTESTENS nach ~18 Minuten den
@@ -390,7 +404,7 @@ jobs:
           claude_args: >-
             --model claude-sonnet-4-6 --effort medium --max-turns 60
             --allowedTools "Bash(gh issue:*),Bash(gh pr:*),Bash(gh label:*),Bash(gh api:*),Bash(git switch:*),Bash(git checkout:*),Bash(git branch:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(git fetch:*),Bash(pnpm:*),Read,Edit,Write,Grep,Glob,Skill,Task"
-            --append-system-prompt "Automatisierter, durch das Label ai:ready autorisierter Umsetzungs-Lauf in GitHub Actions (headless). Bearbeite ausschliesslich Issue #${{ github.event.issue.number }}, Schritte 1-4 der Umsetzung; KEIN PR-Abo/Kreuzverhoer-Loop (separater Workflow). Setze ai:needs-review ALS ALLERLETZTEN Schritt, NIE davor — erst nach Commit+Push+PR, da der Kreuzverhoer-Review den PR-Stand unmittelbar danach liest. HARTES 20-Minuten-Timeout: sichere bei drohendem Limit (~18 Min) rechtzeitig den Zwischenstand (committen/pushen, ggf. Draft-PR), statt einen vollen Durchlauf zu erzwingen. Bestaetigung gilt durch ai:ready als erteilt; arbeite autonom ohne interaktive Rueckfrage. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
+            --append-system-prompt "Automatisierter, durch das Label ai:ready autorisierter Umsetzungs-Lauf in GitHub Actions (headless). Bearbeite ausschliesslich Issue #${{ github.event.issue.number }}, Schritte 1-4 der Umsetzung; KEIN PR-Abo/Kreuzverhoer-Loop (separater Workflow). Setze ai:needs-review ALS ALLERLETZTEN Schritt, NIE davor — erst nach Commit+Push+PR, da der Kreuzverhoer-Review den PR-Stand unmittelbar danach liest; pr-needs-review-label.yml reagiert bewusst NICHT auf deine bot-erzeugten PRs, DU allein steuerst den Zeitpunkt. HARTES 20-Minuten-Timeout: sichere bei drohendem Limit (~18 Min) rechtzeitig den Zwischenstand (committen/pushen, ggf. Draft-PR), statt einen vollen Durchlauf zu erzwingen. Bestaetigung gilt durch ai:ready als erteilt; arbeite autonom ohne interaktive Rueckfrage. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
 
       # Bei hartem Timeout (Agent-Schritt cancelled) ist das Issue zu gross, um es in einem Lauf
       # umzusetzen: mit "ai:to-big-issue" markieren (Kandidat zum Aufteilen) und "ai:ready"

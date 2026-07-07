@@ -101,13 +101,18 @@ Statt jeden KI-Workflow fest auf ein Modell zu verkabeln **oder** eine zweite, v
 `claude-code-action` nur zur Modell-Klassifikation zu starten, startet jeder Workflow **genau eine**
 Session. Für die Modell-Wahl gilt dabei:
 
-**Ausnahme — Triage & Re-Triage laufen fest auf Opus max:** `claude-triage.yml` (deckt BEIDE
-Trigger — Issue-Anlegen/Label-Entfernen UND `@claude`-Kommentar — in einem Workflow ab) startet die
-Session deterministisch auf **`claude-opus-4-8`** mit **`--effort max`** (tiefstes Reasoning). Die
-Triage-Analyse ist die Grundlage aller Folgestufen (Spec → Implement) — hier ist bewusst das
-stärkste Modell ohne Koordinator-Delegation verdrahtet, damit die Analyse optimal ausfällt. Nur
-triviale mechanische Nebenschritte dürfen an `light` (Haiku) delegiert werden; eine
-`heavy`-Eskalation entfällt, da die Session bereits auf Opus läuft.
+**Ausnahme — Triage & Re-Triage laufen fest auf Opus, Effort abhängig vom Auslöser:**
+`claude-triage.yml` (deckt BEIDE Trigger — Issue-Anlegen/Label-Entfernen UND `@claude`-Kommentar —
+in einem Workflow ab) startet die Session deterministisch auf **`claude-opus-4-8`**, ohne
+Koordinator-Delegation. Die **Reasoning-Tiefe unterscheidet sich per Trigger** (`--effort
+${{ github.event_name == 'issue_comment' && 'high' || 'max' }}`, M3): Die **Erst-Analyse**
+(`issues`-Event: Issue angelegt/Label entfernt) läuft auf **`--effort max`** — sie ist die
+kontextlose Wurzel, die Spec → Implement → Review → Fixup speist, hier zählt maximale
+Analysequalität am meisten. Eine **Re-Triage** (`issue_comment`-Event, `@claude`-Kommentar) läuft
+auf **`--effort high`** — dort ist bereits ein Mensch mit Korrektur-Kontext aktiv, der
+Grenznutzen von `max` gegenüber `high` ist geringer. Nur triviale mechanische Nebenschritte dürfen
+an `light` (Haiku) delegiert werden; eine `heavy`-Eskalation entfällt, da die Session bereits auf
+Opus läuft.
 
 **Alle übrigen Claude-Workflows** (Spec, Implement, PR-Review, PR-Fixup) starten deterministisch auf
 **`claude-sonnet-4-6`** (`--effort medium`). Dieser Sonnet-Lauf ist der
@@ -253,7 +258,12 @@ Der Kreuzverhoer-Agent wird auf drei Wegen aufgerufen:
    `ai:needs-review` trägt — Sonnet-Koordinator, der an `heavy`/`light` delegiert.
 
 In **GitHub Actions** läuft das über **Labels** (stabiles Ping-Pong statt Event-Kaskaden): Der
-Umsetzungs-Workflow labelt den PR mit `ai:needs-review`;
+Umsetzungs-Workflow macht den PR review-bereit (`gh pr ready` bzw. neuer Nicht-Draft-PR) und
+labelt ihn erst danach **selbst** mit `ai:needs-review` — als expliziten, kontrollierten letzten
+Schritt (erst nachdem Beschreibung + Testergebnisse vollständig sind). Der separate
+[`pr-needs-review-label.yml`](.github/workflows/pr-needs-review-label.yml) reagiert bewusst
+**NICHT** auf diese bot-erzeugten Draft→ready-Übergänge (nur auf menschliche Aktoren) — sonst
+würde er der Umsetzung zuvorkommen und den Review auf einem noch unfertigen PR starten;
 [`claude-pr-review.yml`](.github/workflows/claude-pr-review.yml) reviewt ihn und setzt
 `ai:needs-changes` (Findings) bzw. `ai:ready-to-merge` (🟢);
 [`claude-pr-fixup.yml`](.github/workflows/claude-pr-fixup.yml) arbeitet `ai:needs-changes` ab und

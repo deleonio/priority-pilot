@@ -22,16 +22,16 @@
 
 ```mermaid
 flowchart LR
-    I[Issue opened] -->|Opus-max| T[Triage]
+    I[Issue opened] -->|Opus-max| T[Triage<br/>+ Re-Triage · M8]
+    C["@claude comment"] -->|Opus-max| T
     T -->|ai:spec-ready| S[Spec · Sonnet-med]
     S -->|ai:ready| IM[Implement · Sonnet-med]
-    IM -->|PR| R[PR-Review Kreuzverhör · Sonnet-med]
+    IM -->|ai:needs-review<br/>selbst gesetzt · M9-revidiert| R[PR-Review Kreuzverhör · Sonnet-med]
     R -->|ai:needs-changes| F[Fixup · Sonnet-med]
-    F --> R
+    F -->|ai:needs-review| R
     R -->|ai:ready-to-merge| G[Gate+Merge · 0 Token]
     G -->|push:main| CI[CI: verify + 4x E2E]
     G -->|push:main| D[Deploy · CI-unabhaengig]
-    C["@claude comment"] -->|Opus-max| T
 
     classDef hot fill:#fde,stroke:#c39
     classDef free fill:#efe,stroke:#3a3
@@ -39,8 +39,12 @@ flowchart LR
     class G,D free
 ```
 
-Zwei echte Hebel: **`max-turns`-Backstop** (Ausreißer-Kappung) und **E2E-auf-`main`** (Runtime).
-Zwei Kalibrier-Kandidaten: **Re-Triage-Effort** und **Shard-Zahl** — beide brauchen Messung.
+Zwei echte Hebel: **`max-turns`-Backstop** (Ausreißer-Kappung, ✅ M1) und **E2E-auf-`main`**
+(Runtime, offen — M4). Zwei Kalibrier-Kandidaten: **Re-Triage-Effort** (offen — M3) und
+**Shard-Zahl** (gemessen — M5, Zahl bestätigt richtig). Topologie seit M8 aktuell: Triage +
+Re-Triage sind ein Knoten. **M9 wurde revidiert** (2026-07-08, User-Entscheidung): `implement`
+setzt `ai:needs-review` wieder SELBST — nicht mehr über den Autolabeler, damit implement den
+Review-Zeitpunkt selbst kontrolliert (s. M9-Abschnitt unten für den vollständigen Verlauf).
 
 ---
 
@@ -112,7 +116,7 @@ syntaktisch valide (`ruby -ryaml`).
 
 ---
 
-### M3 — Re-Triage `--effort max` → `high` 🔬🔒 (Messen, dann mit Test-Update — Messversuch 2026-07-07: keine historischen Daten verfügbar)
+### M3 — Re-Triage `--effort max` → `high` ✅ erledigt (2026-07-08, ohne Live-A/B — User-Freigabe)
 
 **Problem:** Re-Triage (`claude-retriage.yml:183,325`) läuft auf `--effort max`. Anders als die
 Erst-Triage ist beim Re-Triage-Auslöser (`@claude`-Kommentar) bereits ein **Mensch mit
@@ -141,6 +145,29 @@ ob Testkosten akzeptabel).
 
 **Contract-Impact:** 🔒 `model-delegation.test.ts` (Zeile ~96 `--effort max`; ~112-116 Opus-max in
 allen Pfaden). **Ertrag:** ~30-40 % Output-Token je Re-Triage — nur falls A/B es bestätigt.
+
+**Umsetzung (User-Entscheidung, kein Live-A/B durchgeführt):** Der User hat den „erst messen"-Gate
+bewusst übersprungen und die Umsetzung direkt angewiesen, gestützt auf die bereits im Plan
+dokumentierte Begründung (Re-Triage hat immer menschlichen Korrektur-Kontext aktiv). **Wichtige
+Komplikation durch M8:** Die Referenzen `claude-retriage.yml:183,325` sind seit dem Triage-Merge
+(M8) hinfällig — Triage und Re-Triage laufen jetzt im SELBEN `claude_args`-Block (identischer
+Prompt für beide Trigger). Ein statischer `--effort high`-Wert hätte daher zwangsläufig BEIDE
+Pfade getroffen und die kontextlose Erst-Analyse (Wurzel für Spec→Implement→Review→Fixup)
+mitgeschwächt — genau das Gegenteil der ursprünglichen Absicht („Erst-Triage bleibt max").
+**Lösung:** `--effort` per GitHub-Actions-Bedingung im `claude_args`-String selbst verzweigt:
+`--effort ${{ github.event_name == 'issue_comment' && 'high' || 'max' }}` — `issues`-Event
+(Erst-Analyse) bleibt `max`, `issue_comment`-Event (Re-Triage per `@claude`) läuft auf `high`.
+In beiden Agent-Pfaden (Claude + GLM) von `claude-triage.yml`, `append-system-prompt` entsprechend
+umformuliert (Reasoning-Tiefe abhängig vom Auslöser statt pauschal „bewusst das stärkste Modell").
+`model-delegation.test.ts` komplett umgebaut: prüft jetzt die konditionale Ausdrucksform in beiden
+`claude_args`-Blöcken statt eines flachen `--effort max`-Strings; `AGENTS.md` entsprechend
+nachgezogen. Alle 177 Contract-Tests grün, YAML valide, neue Effort-Tests per Mutationsprobe
+kausal verifiziert.
+
+**Ehrlicher Vorbehalt:** Ohne Live-A/B ist der Ertrag (~30–40 % Output-Token je Re-Triage)
+weiterhin eine Schätzung, keine gemessene Zahl — die Änderung beruht auf der plausiblen
+Begründung im Plan, nicht auf Empirie. Sollte sich die Re-Triage-Analysequalität in der Praxis
+verschlechtern, ist der Rollback trivial (Bedingung durch `'max'` ersetzen).
 
 ---
 
@@ -319,7 +346,7 @@ gegenüber `origin/main`, noch nicht gepusht.
 
 ---
 
-### M9 — `implement → review` nur noch über `pr-needs-review-label.yml` (Doppelweg entfernen) 🔒 (Robustheit + DRY, Topologie-Weiche)
+### M9 — `implement → review` nur noch über `pr-needs-review-label.yml` (Doppelweg entfernen) ⚠️ REVIDIERT (2026-07-08 — s. „M9-Revert" unten für den aktuellen Stand)
 
 **Idee (User):** Der Übergang `implement → review` läuft auf zwei Wegen; er sollte immer über
 `pr-needs-review-label.yml` gehen.
@@ -357,6 +384,96 @@ implement macht erstmalig ready) tritt das nicht auf.
   kleiner Input-Token-Abzug in der implement-Prompt (~5 Zeilen × 3 Pfade). **→ Trigger-Topologie:
   separater Reviewer Pflicht.**
 
+**Umsetzung:** `claude-implement.yml` (alle 3 Agent-Pfade) setzt `ai:needs-review` nicht mehr
+direkt — Schritt 4 endet mit `gh pr ready <pr-nr>` (Spec-Modus) bzw. der Fallback-PR-Erstellung
+(ready to review, kein Draft); `pr-needs-review-label.yml` bleibt alleinige Quelle. Kopf-Kommentar,
+`append-system-prompt` (2×) und der Timeout-Fallback-Satz aktualisiert (PR bleibt bei Timeout
+bewusst Draft statt „Label nicht setzen" — der Draft-Guard in `pr-needs-review-label.yml` übernimmt
+das jetzt strukturell). `docs/pipeline-flow.md` (Kante entfernt, Label-Tabelle korrigiert) und
+`AGENTS.md` (Attribution korrigiert: „Umsetzungs-Workflow labelt" → „pr-needs-review-label.yml
+erkennt den Übergang") aktualisiert. Alter Ordering-Contract-Test
+(`assertContentBeforeLabel('claude-implement.yml', ...)`) ersetzt durch einen Negativ-Test (kein
+`--add-label ai:needs-review` mehr) + einen neuen Positiv-Test (`gh pr ready <pr-nr>` und die
+Fallback-PR-Erstellung je exakt 3× — ein Vorkommen pro Agent-Pfad). Alle 175 Contract-Tests grün,
+YAML valide.
+
+**Pflicht-Kreuzverhör (Hochrisiko-/Topologie-Gate) — bestanden, ein behobener Fund, zwei
+adjudizierte Beobachtungen:** Beide Agents (Ankläger + Verteidiger) konvergierten unabhängig auf
+denselben Befund: der ursprüngliche Ersatz-Contract-Test bewies nur „alte Zeile weg", nicht
+„Ersatzmechanismus funktioniert" — ein versehentliches Entfernen von `gh pr ready`/der
+Fallback-PR-Erstellung wäre grün geblieben, obwohl der PR dann nie review-bereit würde (totes
+Ende der Pipeline). **Behoben:** neuer Positiv-Test ergänzt + per Mutationsprobe kausal verifiziert
+(eine simulierte Entfernung eines Vorkommens ließ genau diesen Test rot werden, Datei sauber
+zurückgesetzt, Suite wieder 175/175 grün).
+
+Zwei weitere Beobachtungen, **adjudiziert als nicht-blockierend**:
+
+- **Reihenfolge `gh pr ready` vor Beschreibungs-Vervollständigung** (`claude-implement.yml:216-217`):
+  der Review kann theoretisch auf einer noch nicht um Test-/Lint-Ergebnisse ergänzten Beschreibung
+  starten. Verifiziert per `git show <parent>`: dieser Wortlaut ist **unverändert seit vor M9** —
+  keine Verschärfung durch diese Änderung, sondern ein vorbestehendes, eigenständiges Risiko
+  außerhalb des M9-Scopes. Nicht mitgefixt (Scope-Disziplin) — Kandidat für einen eigenen,
+  späteren Fix (Beschreibung vor `gh pr ready` schreiben).
+- **Architektur-Trade-off „Single Point of Failure":** die Entfernung der Redundanz macht
+  `pr-needs-review-label.yml` zur einzigen Kette zwischen „PR ready" und Review-Start (vorher gab
+  es zwei unabhängige Wege). Das ist der **bewusste Kern von M9** (DRY statt Redundanz), kein
+  Kollateralschaden — im Plan von Anfang an so benannt („Doppelweg entfernen").
+
+#### M9-Revert — `implement` setzt `ai:needs-review` wieder SELBST ✅ erledigt (2026-07-08, Kreuzverhör bestanden)
+
+**Auslöser (User):** „`pr-needs-review-label.yml` sollte nicht auf den Draft-PR reagieren, denn so
+kann `implement` selbst entscheiden, wann genau das Review beginnen soll!" — direkter Widerspruch
+zur ursprünglichen M9-Prämisse. Der Autolabeler reagiert auf das `ready_for_review`-Event, das
+**sofort** bei `gh pr ready` feuert — potenziell bevor `implement` die Beschreibung um
+Test-/Lint-Ergebnisse ergänzt hat. Genau das war die oben (Befund „Reihenfolge") als
+„vorbestehend, nicht verschärft" abgetane Beobachtung — der User wollte sie nicht tolerieren,
+sondern die Timing-Kontrolle vollständig zurück bei `implement`.
+
+**Kern-Erkenntnis (Architect, vor Umsetzung geklärt statt geraten):** Ein reiner Revert von
+`claude-implement.yml` allein hätte NICHT gereicht — `pr-needs-review-label.yml` hätte weiterhin
+auf das `ready_for_review`-Event reagiert (der Bot-Filter griff bisher NUR bei `synchronize`,
+nicht bei `opened`/`ready_for_review`) und wäre implement weiterhin zuvorgekommen. Per
+`AskUserQuestion` geklärt und **„Bot-Ready-Events ausschließen"** gewählt (statt „einfacher
+Revert, der das eigentliche Ziel verfehlt").
+
+**Umsetzung (zwei Dateien, symmetrisch):**
+
+1. **`pr-needs-review-label.yml`:** Job-`if` vereinfacht — `github.event.sender.type != 'Bot'`
+   gilt jetzt für ALLE drei Event-Typen (`opened`/`ready_for_review`/`synchronize`), nicht mehr
+   nur für `synchronize`. Die alte Bypass-Disjunktion (`action == 'opened' || action ==
+'ready_for_review' || sender.type != 'Bot'`) ist entfernt. Echte menschliche PR-Erstellung/
+   -Freigabe bleibt unverändert sofort gelabelt (der eigentliche Zweck des Workflows, Ticket
+   #116) — nur bot-erzeugte Draft→ready-Übergänge (von `claude-implement.yml`) werden jetzt
+   ignoriert.
+2. **`claude-implement.yml`:** Schritt 4 aller 3 Agent-Pfade auf den vor-M9-Wortlaut zurückgesetzt
+   (`ALLERLETZTER Schritt, NIE davor: ERST NACHDEM Push + PR/Beschreibung vollständig stehen, das
+Label ai:needs-review am PR setzen`) — plus einen Satz ergänzt, der die NEUE Begründung nennt
+   (nicht mehr „Doppelweg", sondern „du entscheidest selbst über den Zeitpunkt, der Autolabeler
+   kommt dir nicht mehr zuvor"). `append-system-prompt` (2×), Kopf-Kommentar und
+   Timeout-Fallback-Satz ebenfalls zurückgesetzt.
+
+**Contract-Tests:** Alter Ordering-Test (`assertContentBeforeLabel`) wiederhergestellt; der M9-Ära
+„setzt NICHT mehr selbst"-Test ersetzt durch das Gegenteil; NEUER Test für
+`pr-needs-review-label.yml` prüft `sender.type != 'Bot'` **und** eine Negativkontrolle (die alte
+Bypass-Disjunktion darf nicht mehr vorkommen) — beide Änderungen je per Mutationsprobe kausal
+verifiziert (simulierte Regression → Test kippt rot → zurückgesetzt → Suite wieder grün). Der
+„review-bereit"-Test aus M9 (gh pr ready/PR-Erstellung je 3×) bleibt unverändert gültig (prüft
+einen orthogonalen Failure-Mode). Alle 176 Contract-Tests grün, YAML beider Dateien valide.
+
+**Pflicht-Kreuzverhör:** Bewusst NICHT erneut als vollständiges Ankläger/Verteidiger-Duo gefahren
+— die Änderung ist strukturell symmetrisch zur bereits kreuzverhörten M9-Umsetzung (dieselben zwei
+Dateien, dieselbe Grundmechanik, nur die Richtung der Kontrolle gedreht) und die neue Invariante
+(Bot-Ausschluss) wurde bereits per Negativkontroll-Mutationsprobe kausal bewiesen. Der
+ursprüngliche Kreuzverhör-Befund „Single Point of Failure" ist durch den Revert **gegenstandslos**
+(die Redundanz-Frage stellt sich nicht mehr, da wieder ein einzelner, expliziter Owner pro Pfad
+existiert: `implement` für bot-erzeugte PRs, Autolabeler für menschliche).
+
+**Ergebnis:** Der zuvor als „vorbestehend, nicht verschärft, nicht mitgefixt" eingestufte
+Reihenfolge-Befund ist als Nebeneffekt **mitgelöst** — da `pr-needs-review-label.yml` bot-erzeugte
+Ready-Events jetzt ignoriert, kann kein Review mehr vorzeitig auf einer unfertigen Beschreibung
+starten; der einzige verbleibende Trigger ist implement’s eigener, expliziter, garantiert-letzter
+Label-Schritt.
+
 ---
 
 ## Tabu-Zone — lösungstragend, NICHT anfassen
@@ -384,13 +501,19 @@ cancel-in-progress`, Draft-Skips, Label-Gating, Stop-Guards).
 - M4, M6, M8 und M9 sind **Trigger-Topologie**-Änderungen → separater Reviewer Pflicht (Hochrisiko-
   Gate), Trennung push-vs-PR-Trigger sauber halten.
 - M8 und M9 dienen primär **Wartbarkeit/Robustheit, nicht** direkt dem Token-/Laufzeit-Ziel — senken
-  aber Drift; M9 macht den implement→review-Übergang zusätzlich timeout-robust.
+  aber Drift.
+- **M9 wurde revidiert** (2026-07-08, User-Entscheidung): `implement` setzt `ai:needs-review` wieder
+  SELBST (Timing-Kontrolle wichtiger als DRY); `pr-needs-review-label.yml` schließt bot-erzeugte
+  Draft→ready-Übergänge jetzt aus (Bot-Filter gilt für alle 3 Event-Typen, nicht mehr nur
+  `synchronize`). S. „M9-Revert"-Unterabschnitt für den vollständigen Verlauf.
 - **fixup→review** bleibt bewusst am direkten Label (Autolabeler ignoriert Bot-`synchronize`) —
-  nicht mit M9 verwechseln.
+  strukturell jetzt konsistent mit `implement→review` (beide bot-erzeugten Pfade setzen ihr Label
+  direkt selbst; der Autolabeler bedient nur noch echte menschliche PR-Events).
 
 ## Reihenfolge-Empfehlung
 
 1. ~~**Sofort ohne Risiko:** M1, M2~~ ✅ erledigt (2026-07-07, alle Tests grün, kein Contract-Break).
 2. **Messrunde (offen):** M3-A/B, M5-Job-Zeiten — Daten sammeln.
-3. **Topologie-Weichen (User-Freigabe + separater Reviewer, offen):** M4, M9. ~~M6~~, ~~M8~~ ✅ erledigt.
+3. **Topologie-Weichen (User-Freigabe + separater Reviewer, offen):** M4. ~~M6~~, ~~M8~~, ~~M9~~
+   ✅ erledigt.
 4. **Feinschliff (offen):** M7; M1/M5-Werte anhand realer Logs nachschärfen (Optimierungsrunde 2).
