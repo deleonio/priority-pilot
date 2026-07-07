@@ -104,10 +104,13 @@ const alignPopoverPanelLeft = (host: HTMLKolPopoverButtonElement): (() => void) 
 	let panelObs: MutationObserver | null = null;
 
 	const watchPanel = () => {
-		panelObs?.disconnect();
-		panelObs = null;
 		const panel = root.querySelector<HTMLElement>('.kol-popover-button__popover');
-		if (!panel) return;
+		if (!panel) {
+			panelObs?.disconnect();
+			panelObs = null;
+			return;
+		}
+		if (panelObs) return; // Observer läuft bereits — unnötiges Recycling vermeiden
 		correct();
 		panelObs = new MutationObserver(correct);
 		panelObs.observe(panel, { attributes: true, attributeFilter: ['style'] });
