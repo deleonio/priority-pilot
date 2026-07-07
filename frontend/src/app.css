@@ -362,7 +362,7 @@ body {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 0.5rem;
+	gap: var(--task-tree-row-gap);
 	/* Optisch unter dem Titel einrücken (Toggle-Breite + Header-Gap, gemeinsame Quelle). */
 	padding-left: calc(var(--task-tree-toggle-width) + var(--task-tree-row-gap));
 }
