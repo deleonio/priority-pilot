@@ -250,7 +250,7 @@ für reine Analyse-Läufe schlanker referenziert werden kann. **Contract-Impact:
 
 ---
 
-### M8 — `claude-triage.yml` + `claude-retriage.yml` zu EINEM Workflow zusammenführen 🔒 (Wartbarkeit, Topologie-Weiche)
+### M8 — `claude-triage.yml` + `claude-retriage.yml` zu EINEM Workflow zusammenführen ✅ erledigt (2026-07-08, Kreuzverhör bestanden)
 
 **Idee (User):** Re-Triage-Trigger (`issue_comment.created` mit `@claude`) einfach dem Triage-
 Workflow zuordnen — ein Workflow mit beiden `on:`-Triggern statt zwei Dateien.
@@ -283,6 +283,39 @@ gleiche Arbeit, jedes Event = 1 Opus-max-Lauf; kein Doppellauf-Bug vorhanden). D
 (2 Knoten + Label-Tabelle), `AGENTS.md` (`model-delegation.test.ts:183-184`).
 `claude-issue-unblock.test.ts` bleibt gültig (zeigt schon auf `claude-triage.yml`).
 **→ Trigger-Topologie-Änderung: separater Reviewer Pflicht.**
+
+**Umsetzung:** `claude-triage.yml` trägt jetzt `on: issues` (unverändert) + `on: issue_comment:
+[created]` (neu); Job-`if` verzweigt sauber per `github_event_name` in zwei geklammerte Zweige
+(Ur-Bedingungen 1:1 übernommen, keine gelockert). Label-Cleanup auf die Re-Triage-Formulierung
+vereinheitlicht (sicheres Superset, No-op für den `opened`-Fall — kein Issue mit frisch gesetztem
+Label kann bereits `ai:spec-ready`/`ai:ready` tragen). `claude-retriage.yml` gelöscht. Alle
+Spiegel-Stellen aktualisiert: `model-delegation.test.ts` (Arrays), `pipeline-hardening.test.ts`
+(Arrays + M3-Test auf `issue_comment:`-Teilblock der Merge-Datei umgezeigt — ein eigener Bug im
+neuen Kopf-Kommentar von `claude-triage.yml` [„issue_comment: created" als Prosa] hätte die
+Regex fast in die Irre geführt, beim ersten Testlauf gefangen und gefixt), `docs/pipeline-flow.md`
+(1 Knoten, Kanten, Label-Tabelle, Eintrittspunkte), `AGENTS.md` (2 Fundstellen). Alle 174
+Workflow-Contract-Tests grün, YAML valide.
+
+**Pflicht-Kreuzverhör (Hochrisiko-/Topologie-Gate) — bestanden, ein adjudizierter Befund:**
+Ankläger (Agent) fand: der `issue_comment`-Pfad läuft jetzt durch denselben Claude-/GLM-Schritt
+wie der `issues`-Pfad und erbt dadurch `allowed_bots`/`github_token:` (App-Token), die er vorher
+nie hatte — als „Rechte-Eskalation" geframt. **Architect-Cross-Check** (eigene Sonde, nicht nur
+Ankläger/Verteidiger-Aussage vertraut): `GH_TOKEN` — das Token, mit dem die `gh`-CLI-Tool-Calls
+des LLM tatsächlich arbeiten — war in der ALTEN `claude-retriage.yml` bereits das App-Token
+(verifiziert per `git show <parent>:claude-retriage.yml`). Die reale Handlungsfähigkeit des LLM
+hat sich also NICHT geändert; `github_token`/`allowed_bots` sind actioninterne Mechanismen (Human-
+Actor-Check), die für den `issue_comment`-Pfad durch den vorgeschalteten Job-`if`
+(`author_association` ∈ OWNER/MEMBER/COLLABORATOR) bereits strukturell inert sind. **Adjudiziert:
+kein Blocker, akzeptierter Trade-off** — dokumentiert statt still verworfen. Verteidiger (Agent)
+lieferte zusätzlich eine echte Mutationsprobe (M3-Test kippt gezielt bei `edited` hinzufügen, bleibt
+grün nach Rücksetzen) und einen positiven Nebenbefund: die neue gemeinsame Concurrency-Gruppe
+schließt eine vorher LATENTE Race (beide alten Dateien hatten getrennte Gruppen — ein `@claude`-
+Kommentar und ein zeitgleiches Label-Entfernen konnten vorher parallel auf denselben Issue-Body
+schreiben; das ist jetzt strukturell ausgeschlossen).
+
+**Hinweis:** Der Commit landete durch den bekannten Auto-Commit-Mechanismus der Umgebung
+(`c1dbd0e`), nicht durch einen expliziten Push des Teams — Stand: 1 Commit lokal voraus
+gegenüber `origin/main`, noch nicht gepusht.
 
 ---
 
@@ -359,5 +392,5 @@ cancel-in-progress`, Draft-Skips, Label-Gating, Stop-Guards).
 
 1. ~~**Sofort ohne Risiko:** M1, M2~~ ✅ erledigt (2026-07-07, alle Tests grün, kein Contract-Break).
 2. **Messrunde (offen):** M3-A/B, M5-Job-Zeiten — Daten sammeln.
-3. **Topologie-Weichen (User-Freigabe + separater Reviewer, offen):** M4, M8, M9. ~~M6~~ ✅ erledigt.
+3. **Topologie-Weichen (User-Freigabe + separater Reviewer, offen):** M4, M9. ~~M6~~, ~~M8~~ ✅ erledigt.
 4. **Feinschliff (offen):** M7; M1/M5-Werte anhand realer Logs nachschärfen (Optimierungsrunde 2).
