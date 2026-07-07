@@ -92,6 +92,7 @@ const alignPopoverPanelLeft = (host: HTMLKolPopoverButtonElement): (() => void) 
 			panel.style.width = 'max-content';
 		}
 		const panelWidth = panel.getBoundingClientRect().width;
+		if (panelWidth === 0) return; // Panel versteckt (display:none) — DOM-Writes und Reflow sparen
 		const triggerLeft = trigger.getBoundingClientRect().left;
 		const maxLeft = Math.max(0, window.innerWidth - panelWidth);
 		const desiredLeft = `${Math.min(triggerLeft, maxLeft)}px`;
@@ -148,7 +149,20 @@ const TreeNode = ({
 	useEffect(() => {
 		const host = popoverRef.current;
 		if (!host) return;
-		return alignPopoverPanelLeft(host);
+		let cleanup: () => void = () => {};
+		const setup = () => {
+			cleanup = alignPopoverPanelLeft(host);
+		};
+		// KoliBri-Custom-Elements werden asynchron aufgewertet — shadowRoot ist bei schnellem
+		// Mount u. U. noch null. Wir warten ggf. auf die Custom-Element-Definition.
+		if (host.shadowRoot) {
+			setup();
+		} else {
+			void customElements.whenDefined('kol-popover-button').then(() => {
+				if (host.isConnected) setup();
+			});
+		}
+		return () => cleanup();
 	}, []);
 
 	if (visited.has(node.id)) {
