@@ -12,8 +12,13 @@ name: Claude PR Review (Kreuzverhoer)
 # APP_PRIVATE_KEY (Contents/Issues/Pull requests = Read and write).
 
 on:
+  # NUR labeled: Der Job-`if` unten verlangt das Label "ai:needs-review", das der Autolabeler
+  # (pr-needs-review-label.yml) erst NACH opened/ready_for_review setzt -> zu dem Zeitpunkt fehlt
+  # das Label noch, diese beiden Typen erzeugten hier nur uebersprungene Jobs (kein Token-Verbrauch,
+  # aber unnoetiges Job-Rauschen). Das eigentliche opened/ready_for_review wird bereits von
+  # pr-needs-review-label.yml abgedeckt, das ai:needs-review setzt und damit DIESES labeled-Event ausloest.
   pull_request:
-    types: [opened, ready_for_review, labeled]
+    types: [labeled]
 
 concurrency:
   # EIGENE Gruppe pro Workflow (Review getrennt von Fixup). Frueher teilten sich Review und Fixup

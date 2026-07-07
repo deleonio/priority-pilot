@@ -216,7 +216,7 @@ geplant); Rebalancing/`--with-deps`-Test berühren E1 nicht. **Ertrag:** kein Sh
 
 ---
 
-### M6 — `claude-pr-review.yml` `types` → `[labeled]` ⬜ (Aufräumen, Topologie-nah)
+### M6 — `claude-pr-review.yml` `types` → `[labeled]` ✅ erledigt (2026-07-07)
 
 **Problem:** Trigger `[opened, ready_for_review, labeled]`, aber das Job-`if` verlangt
 `ai:needs-review`. Beim `opened`/`ready_for_review`-Event ist das Label noch nicht gesetzt (es setzt
@@ -226,6 +226,14 @@ erzeugen nur übersprungene Jobs.
 **Fix:** `types: [labeled]`. **Vorher:** `pipeline-hardening.test.ts` prüfen, ob es diese Typen
 festschreibt. **Contract-Impact:** möglich (Trigger-Topologie). **Ertrag:** 0 Token, weniger
 Skip-Jobs/Rauschen.
+
+**Umsetzung:** Pre-Flight-Grep bestätigte: kein Contract-Test fixiert die `on:`-Typen von
+`claude-pr-review.yml` (nur `ci.yml`s `ready_for_review` ist über E2 gesperrt — unberührt);
+`docs/pipeline-flow.md` beschreibt nur die Label-Kanten, nicht die rohen Event-Typen — kein
+Doku-Drift. Risikoarm, da `opened`/`ready_for_review` bereits durch `pr-needs-review-label.yml`
+abgedeckt sind (das `ai:needs-review` setzt und damit das verbleibende `labeled`-Event auslöst) —
+die eigentliche Übergabekette bleibt unverändert (vgl. M9-Analyse). Verifiziert: YAML valide
+(`ruby -ryaml`), alle 185 Workflow-Contract-Tests weiterhin grün.
 
 ---
 
@@ -351,5 +359,5 @@ cancel-in-progress`, Draft-Skips, Label-Gating, Stop-Guards).
 
 1. ~~**Sofort ohne Risiko:** M1, M2~~ ✅ erledigt (2026-07-07, alle Tests grün, kein Contract-Break).
 2. **Messrunde (offen):** M3-A/B, M5-Job-Zeiten — Daten sammeln.
-3. **Topologie-Weichen (User-Freigabe + separater Reviewer, offen):** M4, M6, M8, M9.
+3. **Topologie-Weichen (User-Freigabe + separater Reviewer, offen):** M4, M8, M9. ~~M6~~ ✅ erledigt.
 4. **Feinschliff (offen):** M7; M1/M5-Werte anhand realer Logs nachschärfen (Optimierungsrunde 2).
