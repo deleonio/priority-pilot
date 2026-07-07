@@ -649,4 +649,56 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 			}
 		});
 	});
+
+	/**
+	 * Roter TDD-Vertrag für #380: Das „…"-Popover-Panel soll links neben dem Trigger öffnen
+	 * (nicht mehr darunter). Assertion: rechte Kante des Panels ≤ linke Kante des Triggers (≤ 1px).
+	 * Dieser Test ist rot, bis `TaskTree.tsx` `_popoverAlign="left"` setzt und der
+	 * `alignPopoverPanelLeft`-Workaround auf `width: max-content` reduziert wurde.
+	 */
+	test.describe('#380 — Popover öffnet links vom Trigger', () => {
+		/** x-Koordinate der RECHTEN Kante des gerenderten Popover-Panels (Shadow-DOM-pierce). */
+		const toolbarRightX = async (page: Page, id: number): Promise<number | null> =>
+			page.evaluate((taskId) => {
+				const taskItem = document.querySelector(`[data-testid="task-tree-item-${taskId}"]`);
+				if (!taskItem) return null;
+				const pierce = (root: Document | ShadowRoot | Element): Element | null => {
+					const direct = root.querySelector('[role="toolbar"]');
+					if (direct) return direct;
+					for (const el of Array.from(root.querySelectorAll('*'))) {
+						if (el.shadowRoot) {
+							const found = pierce(el.shadowRoot);
+							if (found) return found;
+						}
+					}
+					return null;
+				};
+				const toolbar = pierce(taskItem);
+				return toolbar ? toolbar.getBoundingClientRect().right : null;
+			}, id);
+
+		test('AK-380-1: Popover-Panel öffnet links — rechte Panel-Kante ≤ linke Trigger-Kante (≤ 1px Toleranz)', async ({
+			page,
+		}) => {
+			const id = await createTask(page, uniqueTitle('LinksOffen-380'));
+
+			await page.goto('/');
+			await waitForStableView(page);
+			await openTasksTab(page);
+
+			const moreButton = item(page, id).getByRole('button', { name: /Weitere Aktionen/i });
+			const triggerBox = await moreButton.boundingBox();
+			expect(triggerBox).not.toBeNull();
+
+			await openActionsPopover(page, id);
+			await expect(item(page, id).locator('[role="toolbar"]')).toBeVisible();
+
+			const panelRight = await toolbarRightX(page, id);
+			expect(panelRight).not.toBeNull();
+			if (triggerBox !== null && panelRight !== null) {
+				// Rechte Kante des Panels ≤ linke Kante des Triggers (Panel steht links neben dem Trigger).
+				expect(panelRight).toBeLessThanOrEqual(triggerBox.x + 1);
+			}
+		});
+	});
 });
