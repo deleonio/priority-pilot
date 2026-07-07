@@ -79,6 +79,8 @@ export const SettingsPage = ({ pillars, onBack, onSaved }: SettingsPageProps) =>
 		toggle: togglePush,
 	} = usePushSubscription();
 
+	const [pushTestResult, setPushTestResult] = useState<'success' | 'error' | null>(null);
+
 	return (
 		<main className="settings-page">
 			<header className="settings-page-header">
@@ -142,10 +144,27 @@ export const SettingsPage = ({ pillars, onBack, onSaved }: SettingsPageProps) =>
 							_variant="secondary"
 							_on={{
 								onClick: () => {
-									void api.sendTestPush();
+									api
+										.sendTestPush()
+										.then(() => {
+											setPushTestResult('success');
+										})
+										.catch(() => {
+											setPushTestResult('error');
+										});
 								},
 							}}
 						/>
+					)}
+					{pushTestResult === 'success' && (
+						<KolAlert _type="success" _label="Test-Push gesendet">
+							Zitat unterwegs.
+						</KolAlert>
+					)}
+					{pushTestResult === 'error' && (
+						<KolAlert _type="error" _label="Fehler">
+							Push fehlgeschlagen.
+						</KolAlert>
 					)}
 					{pushFailed && (
 						<KolAlert _type="warning" _label="Push-Nachrichten nicht aktiviert">
