@@ -83,7 +83,7 @@ describe('Der JS-Modell-Router ist vollstaendig entfernt', () => {
 	}
 });
 
-describe('Triage und Re-Triage laufen fest auf Opus mit maximalem Effort', () => {
+describe('Triage laeuft fest auf Opus; Effort haengt vom Trigger ab (M3, 2026-07-08)', () => {
 	for (const wf of OPUS_MAX_WORKFLOWS) {
 		describe(wf, () => {
 			it('startet die Session fest auf `--model claude-opus-4-8`', () => {
@@ -94,15 +94,29 @@ describe('Triage und Re-Triage laufen fest auf Opus mit maximalem Effort', () =>
 				);
 			});
 
-			it('setzt `--effort max` (tiefstes Reasoning)', () => {
-				assert.match(readWorkflow(wf), /--effort\s+max/, `${wf} muss --effort max setzen`);
+			it('setzt `--effort max` fuer die kontextlose Erst-Analyse (issues-Event) — Wurzel aller Folgestufen', () => {
+				const content = readWorkflow(wf);
+				assert.match(
+					content,
+					/github\.event_name\s*==\s*'issue_comment'\s*&&\s*'high'\s*\|\|\s*'max'/,
+					`${wf} muss den issues-Zweig (opened/unlabeled) auf --effort max belassen (kontextlose Wurzel, speist Spec/Implement/Review/Fixup)`,
+				);
+			});
+
+			it('setzt `--effort high` fuer Re-Triage (issue_comment-Event) — Mensch mit Korrektur-Kontext bereits aktiv, geringerer Grenznutzen von max', () => {
+				const content = readWorkflow(wf);
+				assert.match(
+					content,
+					/--effort\s+\$\{\{\s*github\.event_name\s*==\s*'issue_comment'\s*&&\s*'high'\s*\|\|\s*'max'\s*\}\}/,
+					`${wf} muss --effort konditional setzen (high bei @claude-Kommentar, max sonst)`,
+				);
 			});
 
 			it('startet NICHT mehr als Sonnet-Koordinator', () => {
 				const content = readWorkflow(wf);
 				assert.ok(
 					!/--model\s+claude-sonnet-4-6/.test(content),
-					`${wf} darf nicht mehr auf claude-sonnet-4-6 starten — Triage/Re-Triage laufen fest auf Opus max`,
+					`${wf} darf nicht mehr auf claude-sonnet-4-6 starten — Triage/Re-Triage laufen fest auf Opus`,
 				);
 				assert.ok(
 					!/Sonnet-Koordinator/.test(content),
@@ -110,11 +124,20 @@ describe('Triage und Re-Triage laufen fest auf Opus mit maximalem Effort', () =>
 				);
 			});
 
-			it('setzt Opus max in ALLEN claude_args-Pfaden (Claude UND GLM)', () => {
-				const occurrences = readWorkflow(wf).match(/--model\s+claude-opus-4-8\s+--effort\s+max/g) ?? [];
+			it('setzt Opus + die konditionale Effort-Logik in ALLEN claude_args-Pfaden (Claude UND GLM)', () => {
+				const content = readWorkflow(wf);
+				const modelHits = content.match(/--model\s+claude-opus-4-8/g) ?? [];
+				const effortHits =
+					content.match(
+						/--effort\s+\$\{\{\s*github\.event_name\s*==\s*'issue_comment'\s*&&\s*'high'\s*\|\|\s*'max'\s*\}\}/g,
+					) ?? [];
 				assert.ok(
-					occurrences.length >= 2,
-					`${wf} muss --model claude-opus-4-8 --effort max in beiden claude_args-Bloecken (Claude + GLM) setzen, gefunden: ${occurrences.length}`,
+					modelHits.length >= 2,
+					`${wf} muss --model claude-opus-4-8 in beiden claude_args-Bloecken (Claude + GLM) setzen, gefunden: ${modelHits.length}`,
+				);
+				assert.ok(
+					effortHits.length >= 2,
+					`${wf} muss die konditionale --effort-Logik in beiden claude_args-Bloecken (Claude + GLM) setzen, gefunden: ${effortHits.length}`,
 				);
 			});
 

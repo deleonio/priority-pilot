@@ -116,7 +116,7 @@ syntaktisch valide (`ruby -ryaml`).
 
 ---
 
-### M3 — Re-Triage `--effort max` → `high` 🔬🔒 (Messen, dann mit Test-Update — Messversuch 2026-07-07: keine historischen Daten verfügbar)
+### M3 — Re-Triage `--effort max` → `high` ✅ erledigt (2026-07-08, ohne Live-A/B — User-Freigabe)
 
 **Problem:** Re-Triage (`claude-retriage.yml:183,325`) läuft auf `--effort max`. Anders als die
 Erst-Triage ist beim Re-Triage-Auslöser (`@claude`-Kommentar) bereits ein **Mensch mit
@@ -145,6 +145,29 @@ ob Testkosten akzeptabel).
 
 **Contract-Impact:** 🔒 `model-delegation.test.ts` (Zeile ~96 `--effort max`; ~112-116 Opus-max in
 allen Pfaden). **Ertrag:** ~30-40 % Output-Token je Re-Triage — nur falls A/B es bestätigt.
+
+**Umsetzung (User-Entscheidung, kein Live-A/B durchgeführt):** Der User hat den „erst messen"-Gate
+bewusst übersprungen und die Umsetzung direkt angewiesen, gestützt auf die bereits im Plan
+dokumentierte Begründung (Re-Triage hat immer menschlichen Korrektur-Kontext aktiv). **Wichtige
+Komplikation durch M8:** Die Referenzen `claude-retriage.yml:183,325` sind seit dem Triage-Merge
+(M8) hinfällig — Triage und Re-Triage laufen jetzt im SELBEN `claude_args`-Block (identischer
+Prompt für beide Trigger). Ein statischer `--effort high`-Wert hätte daher zwangsläufig BEIDE
+Pfade getroffen und die kontextlose Erst-Analyse (Wurzel für Spec→Implement→Review→Fixup)
+mitgeschwächt — genau das Gegenteil der ursprünglichen Absicht („Erst-Triage bleibt max").
+**Lösung:** `--effort` per GitHub-Actions-Bedingung im `claude_args`-String selbst verzweigt:
+`--effort ${{ github.event_name == 'issue_comment' && 'high' || 'max' }}` — `issues`-Event
+(Erst-Analyse) bleibt `max`, `issue_comment`-Event (Re-Triage per `@claude`) läuft auf `high`.
+In beiden Agent-Pfaden (Claude + GLM) von `claude-triage.yml`, `append-system-prompt` entsprechend
+umformuliert (Reasoning-Tiefe abhängig vom Auslöser statt pauschal „bewusst das stärkste Modell").
+`model-delegation.test.ts` komplett umgebaut: prüft jetzt die konditionale Ausdrucksform in beiden
+`claude_args`-Blöcken statt eines flachen `--effort max`-Strings; `AGENTS.md` entsprechend
+nachgezogen. Alle 177 Contract-Tests grün, YAML valide, neue Effort-Tests per Mutationsprobe
+kausal verifiziert.
+
+**Ehrlicher Vorbehalt:** Ohne Live-A/B ist der Ertrag (~30–40 % Output-Token je Re-Triage)
+weiterhin eine Schätzung, keine gemessene Zahl — die Änderung beruht auf der plausiblen
+Begründung im Plan, nicht auf Empirie. Sollte sich die Re-Triage-Analysequalität in der Praxis
+verschlechtern, ist der Rollback trivial (Bedingung durch `'max'` ersetzen).
 
 ---
 
