@@ -52,7 +52,7 @@ Status: ⬜ offen · 🔬 messen zuerst · 🔒 contract-gated · ✅ erledigt
 
 ---
 
-### M1 — `--max-turns`-Runaway-Backstop in alle LLM-Workflows ⬜ (Sofort, sicher)
+### M1 — `--max-turns`-Runaway-Backstop in alle LLM-Workflows ✅ erledigt (2026-07-07)
 
 **Problem:** Kein `max_turns`/`task_budget` in irgendeinem `claude_args`. Einzige Grenze ist die
 Wanduhr `timeout-minutes: 20`. Ein entgleister Lauf (nicht-konvergierender Fixup, `--effort max`
@@ -73,9 +73,15 @@ Grep→Fix→Test→Re-Test-Schleife zu zerschneiden (halbfertiger Commit wäre 
 **Contract-Impact:** keiner (additiv). **Ertrag:** 0 im Normalbetrieb, Ausreißer-Versicherung.
 **Nach Umsetzung:** Werte anhand realer Turn-Zahlen aus Run-Logs nachschärfen (Optimierungsrunde 2).
 
+**Umsetzung:** `--max-turns 30` in `claude-triage.yml`, `claude-retriage.yml`, `claude-spec.yml`,
+`claude-pr-review.yml`; `--max-turns 60` in `claude-implement.yml`, `claude-pr-fixup.yml` — je
+Claude- und GLM-Pfad (Mistral Vibe nutzt kein `claude_args`, kein Backstop dort verfügbar).
+YAML-Syntax verifiziert (`ruby -ryaml`), alle 185 `.github/workflows/*.test.ts`-Contract-Tests
+weiterhin grün (keine Test-Anpassung nötig — additiv, kein Contract berührt).
+
 ---
 
-### M2 — Review-Prompt auf Diff-Scoping seit letztem Review ⬜ (Sofort, sicher)
+### M2 — Review-Prompt auf Diff-Scoping seit letztem Review ✅ erledigt (2026-07-07)
 
 **Problem:** `pr-needs-review-label.yml` (`synchronize`) setzt bei **jedem** menschlichen Push die
 Review-Labels neu → voller Kreuzverhör-Review (Sonnet) des **gesamten** PR, kein inkrementelles
@@ -89,6 +95,20 @@ explizit „NICHT den ganzen Thread" liest — beim Review fehlt das Äquivalent
 
 **Contract-Impact:** keiner (Prompt-Text). **Ertrag:** Input+Reasoning je Fixup-Push.
 **Risiko:** niedrig — Regression-Guard: erster Review muss weiterhin den vollen Diff sehen.
+
+**Umsetzung (Abweichung vom ursprünglichen Ansatz):** Ursprünglich angedacht war, den Marker
+`<!-- ai-review -->` um eine SHA zu erweitern (`<!-- ai-review sha=... -->`), um den Delta-Diff zu
+verankern. **Verworfen** nach Pre-Flight-Grep: `server/src/ai-workflows/ai-review-comment-
+consolidation.test.ts` (AK-1/AK-4) hat `<!-- ai-review -->` als **exakten** String-Contract
+verankert (`MARKER = '<!-- ai-review -->'`, `includes`/`countOccurrences`-Prüfung) — eine
+Format-Änderung hätte den Test ohne Not gebrochen. Stattdessen: Diff-Scoping über den bereits von
+der GitHub-API gelieferten `updatedAt`-Zeitstempel des bestehenden Sammelkommentars (`gh pr view
+--json commits` gefiltert auf `committedDate > updatedAt`, dann `git diff`) — **kein
+Format-/Contract-Change nötig**, Marker bleibt exakt `<!-- ai-review -->`. Eingefügt in allen 3
+Agent-Pfaden (Claude/Mistral/GLM) von `claude-pr-review.yml` + gespiegelt in
+`.ai-knowledge/pr-review.md` (neuer Bullet „Diff-Scoping bei Folge-Review"). Verifiziert: alle 185
+Workflow-Contract-Tests UND alle 12 `ai-review-comment-consolidation.test.ts`-Tests grün, YAML
+syntaktisch valide (`ruby -ryaml`).
 
 ---
 
@@ -289,7 +309,7 @@ cancel-in-progress`, Draft-Skips, Label-Gating, Stop-Guards).
 
 ## Reihenfolge-Empfehlung
 
-1. **Sofort ohne Risiko:** M1, M2 (additiv/Prompt, kein Contract-Break).
-2. **Messrunde:** M3-A/B, M5-Job-Zeiten — Daten sammeln.
-3. **Topologie-Weichen (User-Freigabe + separater Reviewer):** M4, M6.
-4. **Feinschliff:** M7; M1/M5-Werte anhand realer Logs nachschärfen (Optimierungsrunde 2).
+1. ~~**Sofort ohne Risiko:** M1, M2~~ ✅ erledigt (2026-07-07, alle Tests grün, kein Contract-Break).
+2. **Messrunde (offen):** M3-A/B, M5-Job-Zeiten — Daten sammeln.
+3. **Topologie-Weichen (User-Freigabe + separater Reviewer, offen):** M4, M6, M8, M9.
+4. **Feinschliff (offen):** M7; M1/M5-Werte anhand realer Logs nachschärfen (Optimierungsrunde 2).

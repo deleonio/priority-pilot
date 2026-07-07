@@ -199,7 +199,7 @@ jobs:
             Bearbeite ausschliesslich dieses eine Issue. Die Freigabe gilt durch das Label
             `ai:spec-ready` als erteilt: arbeite autonom, ohne auf eine interaktive Bestaetigung zu warten.
           claude_args: >-
-            --model claude-sonnet-4-6 --effort medium
+            --model claude-sonnet-4-6 --effort medium --max-turns 30
             --allowedTools "Bash(gh issue:*),Bash(gh pr:*),Bash(gh label:*),Bash(gh api:*),Bash(git switch:*),Bash(git checkout:*),Bash(git branch:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(git fetch:*),Bash(pnpm:*),Read,Edit,Write,Grep,Glob,Skill,Task"
             --append-system-prompt "Automatisierter, durch das Label ai:spec-ready autorisierter SPEC-Lauf in GitHub Actions (headless). Schreibe ausschliesslich Tests fuer Issue #${{ github.event.issue.number }} (KEIN Produktivcode), eroeffne einen Draft-PR und gib das Issue ALS ALLERLETZTEN Schritt (NIE davor, erst nach Push+PR) per ai:ready frei (ai:spec-ready entfernen) — das startet sofort die Umsetzung, die den PR-Stand unmittelbar danach liest. HARTES 20-Minuten-Timeout: sichere bei drohendem Limit (~18 Min) den Zwischenstand, setze ai:ready aber nur bei vollstaendigen roten Tests. Bestaetigung gilt durch ai:spec-ready als erteilt; arbeite autonom ohne interaktive Rueckfrage. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
 
@@ -319,7 +319,7 @@ jobs:
             Bearbeite ausschliesslich dieses eine Issue. Die Freigabe gilt durch das Label
             `ai:spec-ready` als erteilt: arbeite autonom, ohne auf eine interaktive Bestaetigung zu warten.
           claude_args: >-
-            --model claude-sonnet-4-6 --effort medium
+            --model claude-sonnet-4-6 --effort medium --max-turns 30
             --allowedTools "Bash(gh issue:*),Bash(gh pr:*),Bash(gh label:*),Bash(gh api:*),Bash(git switch:*),Bash(git checkout:*),Bash(git branch:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(git fetch:*),Bash(pnpm:*),Read,Edit,Write,Grep,Glob,Skill,Task"
             --append-system-prompt "Automatisierter, durch das Label ai:spec-ready autorisierter SPEC-Lauf in GitHub Actions (headless). Schreibe ausschliesslich Tests fuer Issue #${{ github.event.issue.number }} (KEIN Produktivcode), eroeffne einen Draft-PR und gib das Issue ALS ALLERLETZTEN Schritt (NIE davor, erst nach Push+PR) per ai:ready frei (ai:spec-ready entfernen) — das startet sofort die Umsetzung, die den PR-Stand unmittelbar danach liest. HARTES 20-Minuten-Timeout: sichere bei drohendem Limit (~18 Min) den Zwischenstand, setze ai:ready aber nur bei vollstaendigen roten Tests. Bestaetigung gilt durch ai:spec-ready als erteilt; arbeite autonom ohne interaktive Rueckfrage. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
 

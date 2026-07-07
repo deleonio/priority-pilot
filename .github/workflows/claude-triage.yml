@@ -205,7 +205,7 @@ jobs:
           # Ereignis-Ausloeser (Anlegen / Label-Entfernen durch eine schreibberechtigte Person)
           # erteilt behandeln.
           claude_args: >-
-            --model claude-opus-4-8 --effort max
+            --model claude-opus-4-8 --effort max --max-turns 30
             --allowedTools "Bash(gh issue:*),Bash(gh api:*),Bash(gh label:*),Read,Grep,Glob,Task"
             --append-system-prompt "Automatisierter, durch das Anlegen des Issues bzw. das Entfernen des ai:analyzed-Labels autorisierter Triage-Lauf in GitHub Actions (headless, keine interaktive Rueckfrage moeglich). Die in der Wissensbasis geforderte Bestaetigung vor dem oeffentlichen Posten gilt durch diesen Ausloeser als erteilt: Schreibe Lektorat und Analyse-Body-Block, poste einen kurzen Ping-Kommentar und setze die Labels ALS ALLERLETZTEN Schritt (NIE davor — sonst startet die naechste Pipeline-Stufe mit veraltetem Issue-Inhalt) fuer Issue #${{ github.event.issue.number }}, ohne auf eine Bestaetigung zu warten. Bearbeite ausschliesslich dieses Issue und committe keinen Produktivcode. HARTES 20-Minuten-Timeout: sichere bei drohendem Limit (~18 Min) die bisherige Analyse als Body-Block (kein Label, kein Ping-Kommentar), statt einen vollen Durchlauf zu erzwingen. Modell-Strategie: Du laeufst fest auf Opus (claude-opus-4-8, --effort max) — fuer die Triage-Analyse ist bewusst das staerkste Modell verdrahtet, damit die Analyse optimal ausfaellt. Fuehre die Analyse vollstaendig selbst durch (keine Eskalation an heavy noetig — du BIST bereits das staerkste Modell); allenfalls triviale mechanische Nebenschritte darfst du per Agent-Tool an light (Haiku) delegieren."
 
@@ -354,7 +354,7 @@ jobs:
 
             Bearbeite ausschliesslich dieses eine Issue (kein Batch). Committe keinen Produktivcode.
           claude_args: >-
-            --model claude-opus-4-8 --effort max
+            --model claude-opus-4-8 --effort max --max-turns 30
             --allowedTools "Bash(gh issue:*),Bash(gh api:*),Bash(gh label:*),Read,Grep,Glob,Task"
             --append-system-prompt "Automatisierter, durch das Anlegen des Issues bzw. das Entfernen des ai:analyzed-Labels autorisierter Triage-Lauf in GitHub Actions (headless, keine interaktive Rueckfrage moeglich). Die in der Wissensbasis geforderte Bestaetigung vor dem oeffentlichen Posten gilt durch diesen Ausloeser als erteilt: Schreibe Lektorat und Analyse-Body-Block, poste einen kurzen Ping-Kommentar und setze die Labels ALS ALLERLETZTEN Schritt (NIE davor — sonst startet die naechste Pipeline-Stufe mit veraltetem Issue-Inhalt) fuer Issue #${{ github.event.issue.number }}, ohne auf eine Bestaetigung zu warten. Bearbeite ausschliesslich dieses Issue und committe keinen Produktivcode. HARTES 20-Minuten-Timeout: sichere bei drohendem Limit (~18 Min) die bisherige Analyse als Body-Block (kein Label, kein Ping-Kommentar), statt einen vollen Durchlauf zu erzwingen. Modell-Strategie: Du laeufst fest auf Opus (claude-opus-4-8, --effort max) — fuer die Triage-Analyse ist bewusst das staerkste Modell verdrahtet, damit die Analyse optimal ausfaellt. Fuehre die Analyse vollstaendig selbst durch (keine Eskalation an heavy noetig — du BIST bereits das staerkste Modell); allenfalls triviale mechanische Nebenschritte darfst du per Agent-Tool an light (Haiku) delegieren."
 

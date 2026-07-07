@@ -149,6 +149,17 @@ jobs:
             Der Kommentar trennt „Offene Findings" (aktuelle Runde) von einer History-Tabelle
             „Behobene Anmerkungen" (Runde | Finding | Status ✅). Inline-Findings bleiben unverändert.
 
+            DIFF-SCOPING bei Folge-Review (Kosten-/Zeitersparnis): Existiert bereits ein markierter
+            Sammelkommentar, ist dies ein Folge-Review nach einem Fixup-Push — dann NICHT den
+            kompletten PR-Diff erneut komplett durchgehen. Stattdessen dessen `updatedAt`-Zeitstempel
+            aus der API-Antwort (s. o.) auslesen und NUR die Commits/den Diff SEIT diesem Zeitpunkt
+            prüfen (`gh pr view --json commits --jq '.commits[] | select(.committedDate > "<updatedAt>")'`,
+            darauf `git diff <ältester-neuer-commit>^..HEAD`) auf neue oder weiterhin bestehende
+            Findings prüfen; bereits in „Behobene Anmerkungen" geführte Punkte NICHT erneut aufrollen.
+            Ticket-Kontext und Architektur-Berührpunkte dabei weiterhin im Blick behalten (nicht rein
+            diff-lokal urteilen). Fehlt der markierte Kommentar (ERSTREVIEW), IMMER den vollständigen
+            Diff prüfen.
+
             Abschluss — GENAU EINEN Weg gehen. Labels sind IMMER der ALLERLETZTE Schritt, NIE davor
             — Fixup/Gate-Merge liest den PR-Stand unmittelbar nach dem zweiten Label-Befehl:
               - Es gibt zutreffende, offene Findings → als EINE Review (`gh pr review --comment`)
@@ -167,7 +178,7 @@ jobs:
             bzw. `"ai:ready-to-merge" --color 0E8A16`). Ändere KEINEN Code und committe nichts —
             reiner Review. Bearbeite ausschließlich diesen PR; arbeite ohne interaktive Rückfrage.
           claude_args: >-
-            --model claude-sonnet-4-6 --effort medium
+            --model claude-sonnet-4-6 --effort medium --max-turns 30
             --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh label:*),Bash(gh api:*),Bash(git fetch:*),Bash(git diff:*),Read,Grep,Glob,Task"
             --append-system-prompt "Automatisierter, label-gesteuerter Kreuzverhoer-Review in GitHub Actions (headless). Reviewe ausschliesslich PR #${{ github.event.pull_request.number }}, aendere keinen Code. Schliesse IMMER mit der Label-Umschaltung als ALLERLETZTEN Schritt ab (NIE davor — erst nach dem Sammelkommentar, da Fixup/Gate-Merge den PR-Stand unmittelbar danach lesen): Findings -> ai:needs-changes (statt ai:needs-review); sauber -> ai:ready-to-merge. Erfinde keine Findings. Arbeite ohne interaktive Rueckfrage. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
 
@@ -224,6 +235,17 @@ jobs:
             bleibt gleich) statt einen neuen anzulegen — nur einmalig neu anlegen, wenn keiner existiert.
             Der Kommentar trennt „Offene Findings" (aktuelle Runde) von einer History-Tabelle
             „Behobene Anmerkungen" (Runde | Finding | Status ✅). Inline-Findings bleiben unverändert.
+
+            DIFF-SCOPING bei Folge-Review (Kosten-/Zeitersparnis): Existiert bereits ein markierter
+            Sammelkommentar, ist dies ein Folge-Review nach einem Fixup-Push — dann NICHT den
+            kompletten PR-Diff erneut komplett durchgehen. Stattdessen dessen `updatedAt`-Zeitstempel
+            aus der API-Antwort (s. o.) auslesen und NUR die Commits/den Diff SEIT diesem Zeitpunkt
+            prüfen (`gh pr view --json commits --jq '.commits[] | select(.committedDate > "<updatedAt>")'`,
+            darauf `git diff <ältester-neuer-commit>^..HEAD`) auf neue oder weiterhin bestehende
+            Findings prüfen; bereits in „Behobene Anmerkungen" geführte Punkte NICHT erneut aufrollen.
+            Ticket-Kontext und Architektur-Berührpunkte dabei weiterhin im Blick behalten (nicht rein
+            diff-lokal urteilen). Fehlt der markierte Kommentar (ERSTREVIEW), IMMER den vollständigen
+            Diff prüfen.
 
             Abschluss — GENAU EINEN Weg gehen. Labels sind IMMER der ALLERLETZTE Schritt, NIE davor
             — Fixup/Gate-Merge liest den PR-Stand unmittelbar nach dem zweiten Label-Befehl:
@@ -286,6 +308,17 @@ jobs:
             Der Kommentar trennt „Offene Findings" (aktuelle Runde) von einer History-Tabelle
             „Behobene Anmerkungen" (Runde | Finding | Status ✅). Inline-Findings bleiben unverändert.
 
+            DIFF-SCOPING bei Folge-Review (Kosten-/Zeitersparnis): Existiert bereits ein markierter
+            Sammelkommentar, ist dies ein Folge-Review nach einem Fixup-Push — dann NICHT den
+            kompletten PR-Diff erneut komplett durchgehen. Stattdessen dessen `updatedAt`-Zeitstempel
+            aus der API-Antwort (s. o.) auslesen und NUR die Commits/den Diff SEIT diesem Zeitpunkt
+            prüfen (`gh pr view --json commits --jq '.commits[] | select(.committedDate > "<updatedAt>")'`,
+            darauf `git diff <ältester-neuer-commit>^..HEAD`) auf neue oder weiterhin bestehende
+            Findings prüfen; bereits in „Behobene Anmerkungen" geführte Punkte NICHT erneut aufrollen.
+            Ticket-Kontext und Architektur-Berührpunkte dabei weiterhin im Blick behalten (nicht rein
+            diff-lokal urteilen). Fehlt der markierte Kommentar (ERSTREVIEW), IMMER den vollständigen
+            Diff prüfen.
+
             Abschluss — GENAU EINEN Weg gehen. Labels sind IMMER der ALLERLETZTE Schritt, NIE davor
             — Fixup/Gate-Merge liest den PR-Stand unmittelbar nach dem zweiten Label-Befehl:
               - Es gibt zutreffende, offene Findings → als EINE Review (`gh pr review --comment`)
@@ -304,7 +337,7 @@ jobs:
             bzw. `"ai:ready-to-merge" --color 0E8A16`). Ändere KEINEN Code und committe nichts —
             reiner Review. Bearbeite ausschließlich diesen PR; arbeite ohne interaktive Rückfrage.
           claude_args: >-
-            --model claude-sonnet-4-6 --effort medium
+            --model claude-sonnet-4-6 --effort medium --max-turns 30
             --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh label:*),Bash(gh api:*),Bash(git fetch:*),Bash(git diff:*),Read,Grep,Glob,Task"
             --append-system-prompt "Automatisierter, label-gesteuerter Kreuzverhoer-Review in GitHub Actions (headless). Reviewe ausschliesslich PR #${{ github.event.pull_request.number }}, aendere keinen Code. Schliesse IMMER mit der Label-Umschaltung als ALLERLETZTEN Schritt ab (NIE davor — erst nach dem Sammelkommentar, da Fixup/Gate-Merge den PR-Stand unmittelbar danach lesen): Findings -> ai:needs-changes (statt ai:needs-review); sauber -> ai:ready-to-merge. Erfinde keine Findings. Arbeite ohne interaktive Rueckfrage. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
 
