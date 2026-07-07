@@ -1,6 +1,16 @@
-import { KolAlert } from '@public-ui/react-v19';
+import { KolButton, KolCard } from '@public-ui/react-v19';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
+/**
+ * PWA-Update-/Offline-Hinweis (#373). Am unteren Viewport-Rand fixiert (`.update-prompt` in
+ * app.css) und mit KoliBri-`KolCard`/`KolButton` statt roher Container/Buttons aufgebaut.
+ *
+ * Klick-Naht: KoliBris `KolButton` ist ein Web Component, dessen `_on.onClick` in JSDOM nicht über
+ * einen echten DOM-Klick auslösbar ist (siehe InstallPrompt-Präzedenzfall). Der Handler sitzt daher
+ * auf einem nativen `<span>`-Wrapper mit `data-testid`; sowohl ein realer Button-Klick als auch der
+ * Testklick auf den Wrapper lösen ihn per Event-Bubbling aus (der Klick des Shadow-DOM-Buttons
+ * blubbert an den Wrapper). So bleibt genau ein Handler-Pfad – keine Doppelauslösung.
+ */
 export const UpdatePrompt = () => {
 	const {
 		needRefresh: [needRefresh],
@@ -13,31 +23,23 @@ export const UpdatePrompt = () => {
 	}
 
 	return (
-		<>
+		<div className="update-prompt">
 			{needRefresh && (
-				<KolAlert _type="info" _label="Update">
+				<KolCard _label="Update">
 					<p>Neue Version verfügbar</p>
-					<button
-						data-testid="pwa-update-reload"
-						onClick={() => updateServiceWorker(true)}
-						style={{ marginTop: '0.5rem', cursor: 'pointer' }}
-					>
-						Neu laden
-					</button>
-				</KolAlert>
+					<span data-testid="pwa-update-reload" onClick={() => updateServiceWorker(true)}>
+						<KolButton _label="Neu laden" _variant="primary" />
+					</span>
+				</KolCard>
 			)}
 			{offlineReady && (
-				<KolAlert _type="success" _label="Offline">
+				<KolCard _label="Offline">
 					<p>App ist offline-bereit</p>
-					<button
-						data-testid="pwa-offline-close"
-						onClick={() => setOfflineReady(false)}
-						style={{ marginTop: '0.5rem', cursor: 'pointer' }}
-					>
-						Schließen
-					</button>
-				</KolAlert>
+					<span data-testid="pwa-offline-close" onClick={() => setOfflineReady(false)}>
+						<KolButton _label="Schließen" _variant="secondary" />
+					</span>
+				</KolCard>
 			)}
-		</>
+		</div>
 	);
 };
