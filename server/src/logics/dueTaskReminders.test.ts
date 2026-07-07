@@ -167,4 +167,16 @@ describe('logics/dueTaskReminders — fachlicher Push-Trigger „fällige Aufgab
 		assert.equal(result.usersNotified, 0, 'Tasks ohne userId dürfen keine Push-Nachricht auslösen');
 		assert.equal(calls.length, 0);
 	});
+
+	it('legt keinen NotificationLog-Eintrag an, wenn der Nutzer keine Subscription hat', async () => {
+		// keine seedSubscription für userId 1
+		await createTask({ title: 'fällig', deadline: new Date(NOW.getTime() - 1000), userId: 1 });
+		const calls: { endpoint: string; body: string }[] = [];
+
+		const result = await runDueTaskReminders(NOW, okSender(calls));
+
+		assert.equal(result.usersNotified, 0, 'kein Push → nicht als "notified" zählen');
+		assert.equal(calls.length, 0);
+		assert.equal(await NotificationLog.count(), 0, 'ohne gesendeten Push kein Log-Eintrag');
+	});
 });

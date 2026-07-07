@@ -84,16 +84,20 @@ export const runDueTaskReminders = async (
 	send?: PushSender,
 ): Promise<{ usersNotified: number }> => {
 	const groups = await collectDueTaskReminders(now);
+	let usersNotified = 0;
 	for (const group of groups) {
-		await sendPushToUser(group.userId, buildPayload(group.tasks), send);
-		await NotificationLog.bulkCreate(
-			group.tasks.map((task) => ({
-				userId: group.userId,
-				kind: KIND,
-				dedupeKey: dedupeKeyFor(task.id, task.deadline),
-				sentAt: now,
-			})),
-		);
+		const { sent } = await sendPushToUser(group.userId, buildPayload(group.tasks), send);
+		if (sent > 0) {
+			await NotificationLog.bulkCreate(
+				group.tasks.map((task) => ({
+					userId: group.userId,
+					kind: KIND,
+					dedupeKey: dedupeKeyFor(task.id, task.deadline),
+					sentAt: now,
+				})),
+			);
+			usersNotified++;
+		}
 	}
-	return { usersNotified: groups.length };
+	return { usersNotified };
 };
