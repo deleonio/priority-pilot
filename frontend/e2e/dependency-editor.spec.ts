@@ -115,9 +115,12 @@ test.describe('Abhängigkeits-Editor: Entfernen-Icon-Button (#368)', () => {
 			const labelSpan = shadowRoot.querySelector('.kol-span__label') as HTMLElement | null;
 			if (!labelSpan) return '';
 			const style = window.getComputedStyle(labelSpan);
-			// sr-only-Muster: absolut positioniert + geclippt → visuell unsichtbar.
+			// sr-only-Muster: KoliBri 4.2.1 setzt aria-hidden, ältere Versionen clip/display/visibility.
 			const isSrOnly =
-				style.display === 'none' || (style.position === 'absolute' && style.clip === 'rect(0px, 0px, 0px, 0px)');
+				labelSpan.getAttribute('aria-hidden') === 'true' ||
+				style.display === 'none' ||
+				style.visibility === 'hidden' ||
+				(style.position === 'absolute' && style.clip === 'rect(0px, 0px, 0px, 0px)');
 			return isSrOnly ? '' : (labelSpan.textContent?.trim() ?? '');
 		});
 		expect(visibleLabel).toBe('');
