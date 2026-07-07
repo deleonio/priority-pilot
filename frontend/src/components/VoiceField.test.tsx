@@ -224,4 +224,52 @@ describe('VoiceField (#264)', () => {
 			'false',
 		);
 	});
+
+	// --- #379: Auto-Start ohne Spracheingabe zeigt keinen role=alert ---
+	//
+	// Der obige #283-Test („zeigt nach einem Ende ohne Ergebnis den Hinweis …") deckt zugleich
+	// AK6 (#379) ab: MANUELLER Mic-Klick ohne Ergebnis → role=alert bleibt sichtbar (Regression).
+	// Ergänzt wird hier AK5: Beim AUTO-Start (autoStart-Prop) darf ein ergebnisloses Ende KEINEN
+	// role=alert erzeugen — sonst blinkt bei jedem stillen Formular-Öffnen ein Hinweis auf.
+	describe('Auto-Start ohne Spracheingabe (#379)', () => {
+		it('AK5 (#379): Auto-Start + onend ohne Ergebnis zeigt keinen role=alert', () => {
+			render(
+				<VoiceField autoStart variant="input" fieldLabel="Titel" onTranscript={vi.fn()}>
+					<textarea aria-label="Titel" />
+				</VoiceField>,
+			);
+
+			// autoStart hat die Aufnahme beim Mount automatisch gestartet.
+			const instance = MockSpeechRecognition.instances.at(-1);
+			expect(instance).toBeDefined();
+
+			// Die automatisch gestartete Aufnahme endet ohne jedes Ergebnis (Stille).
+			act(() => {
+				instance?.onend?.();
+			});
+
+			expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+		});
+
+		it('AK6 (#379, Regression): manueller Mic-Klick ohne Ergebnis zeigt weiterhin role=alert', async () => {
+			// Ohne autoStart: bewusste Nutzeraktion → Hinweis bleibt erhalten (deckt sich mit dem
+			// #283-Test oben, hier als explizite Abgrenzung zum Auto-Start wiederholt).
+			render(
+				<VoiceField variant="input" fieldLabel="Titel" onTranscript={vi.fn()}>
+					<textarea aria-label="Titel" />
+				</VoiceField>,
+			);
+
+			fireEvent.click(screen.getByRole('button', { name: 'Aufnahme starten (Mikrofon): Titel' }));
+
+			const instance = MockSpeechRecognition.instances.at(-1);
+			expect(instance).toBeDefined();
+			act(() => {
+				instance?.onend?.();
+			});
+
+			const alert = await screen.findByRole('alert');
+			expect(alert).toHaveTextContent('Nichts erkannt – bitte erneut sprechen.');
+		});
+	});
 });

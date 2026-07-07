@@ -429,4 +429,113 @@ describe('useVoiceInput (#251)', () => {
 			expect(result.current.voiceError).toBe('Nichts erkannt – bitte erneut sprechen.');
 		});
 	});
+
+	// --- #379: Auto-Audio-Record ohne Spracheingabe soll KEINEN Fehler-/Hinweistext zeigen ---
+	//
+	// Ein automatisch (beim Mounten des ersten Feldes) gestarteter Lausch-Versuch ist spekulativ:
+	// Der Nutzer hat ihn NICHT bewusst ausgelöst. Endet er ohne Ergebnis (Stille → onend, oder
+	// engine-seitiges 'no-speech'/'aborted'), darf das keinen Hinweis erzeugen — sonst blinkt bei
+	// jedem stillen Formular-Öffnen „Nichts erkannt" auf. Bei MANUELLEM Start (Mic-Klick) bleibt der
+	// Hinweis dagegen erhalten (bewusste Nutzeraktion, siehe #283-Block oben → dessen AK1/AK8).
+	//
+	// Vertrag des noch fehlenden Parameters:
+	//   startRecording(options?: { auto?: boolean }): void
+	// Solange `startRecording` diese Option nicht kennt, verhält sich der Auto-Start wie der
+	// manuelle Start und setzt `voiceError` → die folgenden Tests sind ROT.
+	describe('Auto-Start ohne Spracheingabe (#379)', () => {
+		it('AK1 (#379): Auto-Start + onend ohne Ergebnis setzt KEINEN Hinweis (voiceError bleibt null)', () => {
+			const onTranscript = vi.fn();
+			const { result } = renderHook(() => useVoiceInput({ onTranscript }));
+
+			act(() => {
+				result.current.startRecording({ auto: true });
+			});
+			const instance = MockSpeechRecognition.instances.at(-1);
+			expect(instance).toBeDefined();
+
+			// Die automatisch gestartete Aufnahme endet ohne jedes Ergebnis (Stille).
+			act(() => {
+				instance?.onend?.();
+			});
+
+			expect(result.current.isRecording).toBe(false);
+			expect(result.current.voiceError).toBeNull();
+			expect(onTranscript).not.toHaveBeenCalled();
+		});
+
+		it('AK2 (#379): Auto-Start + onerror "no-speech" setzt KEINEN Hinweis (voiceError bleibt null)', () => {
+			const { result } = renderHook(() => useVoiceInput({ onTranscript: vi.fn() }));
+
+			act(() => {
+				result.current.startRecording({ auto: true });
+			});
+			const instance = MockSpeechRecognition.instances.at(-1);
+			expect(instance).toBeDefined();
+
+			act(() => {
+				instance?.onerror?.({ error: 'no-speech' });
+			});
+
+			expect(result.current.isRecording).toBe(false);
+			expect(result.current.voiceError).toBeNull();
+		});
+
+		it('AK2 (#379): Auto-Start + onerror "aborted" setzt KEINEN Hinweis (voiceError bleibt null)', () => {
+			const { result } = renderHook(() => useVoiceInput({ onTranscript: vi.fn() }));
+
+			act(() => {
+				result.current.startRecording({ auto: true });
+			});
+			const instance = MockSpeechRecognition.instances.at(-1);
+			expect(instance).toBeDefined();
+
+			act(() => {
+				instance?.onerror?.({ error: 'aborted' });
+			});
+
+			expect(result.current.isRecording).toBe(false);
+			expect(result.current.voiceError).toBeNull();
+		});
+
+		it('AK4 (#379): Auto-Start liefert erkannten Text weiterhin an onTranscript', () => {
+			const onTranscript = vi.fn();
+			const { result } = renderHook(() => useVoiceInput({ onTranscript }));
+
+			act(() => {
+				result.current.startRecording({ auto: true });
+			});
+			const instance = MockSpeechRecognition.instances.at(-1);
+			expect(instance).toBeDefined();
+
+			// Trotz Auto-Start wird ein finales Ergebnis normal durchgereicht — die Unterdrückung
+			// betrifft nur den Fehler-/Hinweisfall, nie die eigentliche Transkription.
+			act(() => {
+				instance?.fireResult('Steuererklärung abgeben');
+			});
+
+			expect(onTranscript).toHaveBeenCalledTimes(1);
+			expect(onTranscript).toHaveBeenCalledWith('Steuererklärung abgeben');
+			expect(result.current.voiceError).toBeNull();
+		});
+
+		it('AK3 (#379, Regression): MANUELLER Start + onend ohne Ergebnis zeigt weiterhin den Hinweis', () => {
+			// Deckt sich mit „AK1 (#283)" oben — hier explizit als Abgrenzung zum Auto-Start
+			// wiederholt: ohne `{ auto: true }` bleibt das bewährte Verhalten erhalten.
+			const onTranscript = vi.fn();
+			const { result } = renderHook(() => useVoiceInput({ onTranscript }));
+
+			act(() => {
+				result.current.startRecording();
+			});
+			const instance = MockSpeechRecognition.instances.at(-1);
+			expect(instance).toBeDefined();
+
+			act(() => {
+				instance?.onend?.();
+			});
+
+			expect(result.current.isRecording).toBe(false);
+			expect(result.current.voiceError).toBe('Nichts erkannt – bitte erneut sprechen.');
+		});
+	});
 });
