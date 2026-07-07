@@ -612,6 +612,24 @@ paths:
           $ref: '#/components/responses/ServiceUnavailable'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /push/test:
+    post:
+      summary: Test-Push mit zufälligem Zitat senden
+      description: >-
+        Sendet einen Test-Push an alle Subscriptions des eingeloggten Nutzers.
+        Das Zitat wird zufällig aus 10 fixen Lebensweisheiten gewählt. 503, wenn
+        Web-Push nicht konfiguriert ist.
+      operationId: sendTestPush
+      tags: [push]
+      responses:
+        '200':
+          description: Test-Push abgeschickt (auch wenn keine Subscription vorhanden, sent=0)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TestPushResult'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
 components:
   parameters:
     SeriesId:
@@ -1417,3 +1435,26 @@ components:
         endpoint:
           type: string
           description: Bestätigter Endpoint der gespeicherten bzw. entfernten Subscription.
+    TestPushResult:
+      type: object
+      required:
+        - sent
+        - quote
+      properties:
+        sent:
+          type: integer
+          description: Anzahl der erfolgreich zugestellten Push-Nachrichten.
+        quote:
+          $ref: '#/components/schemas/Quote'
+    Quote:
+      type: object
+      required:
+        - text
+        - author
+      properties:
+        text:
+          type: string
+          description: Zitat-Text.
+        author:
+          type: string
+          description: Urheber des Zitats.

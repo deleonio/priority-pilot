@@ -318,4 +318,14 @@ export const api = {
 			throw new ResponseError(response);
 		}
 	},
+
+	// Test-Push mit einem zufälligen Zitat an alle eigenen Subscriptions auslösen (#386). Liefert die
+	// Zahl der Zustellungen und das gewählte Zitat zurück.
+	async sendTestPush(init: Init = {}): Promise<{ sent: number; quote: { text: string; author: string } }> {
+		const { data, response } = await client.POST('/push/test', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response);
+		}
+		return data;
+	},
 };

@@ -1,6 +1,7 @@
 import { KolAlert, KolButton, KolHeading, KolInputCheckbox, KolTabs } from '@public-ui/react-v19';
 import type { Pillar } from 'client';
 import { useMemo, useState } from 'react';
+import { api } from '../api';
 import { requestMicrophonePermission } from '../lib/micPermission';
 import { usePushSubscription } from '../lib/push';
 import { useVoiceAutostart } from '../lib/voiceAutostart';
@@ -134,6 +135,17 @@ export const SettingsPage = ({ pillars, onBack, onSaved }: SettingsPageProps) =>
 							Dieser Browser unterstützt keine Push-Nachrichten. Installiere die App bzw. nutze einen aktuellen Browser,
 							um Erinnerungen zu erhalten.
 						</KolAlert>
+					)}
+					{pushEnabled && (
+						<KolButton
+							_label="Push testen"
+							_variant="secondary"
+							_on={{
+								onClick: () => {
+									void api.sendTestPush();
+								},
+							}}
+						/>
 					)}
 					{pushFailed && (
 						<KolAlert _type="warning" _label="Push-Nachrichten nicht aktiviert">
