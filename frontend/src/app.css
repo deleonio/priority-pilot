@@ -313,6 +313,16 @@ body {
 	padding: 0;
 }
 
+.task-tree {
+	/*
+	 * Eine Quelle für die Aufklapp-Button-Breite und den Header-Gap: Sowohl der Blatt-Platzhalter
+	 * als auch die optische Einrückung der Controls-Zeile (#376) leiten sich hieraus ab, damit die
+	 * beiden Werte nicht unbemerkt auseinanderdriften.
+	 */
+	--task-tree-toggle-width: 1.75rem;
+	--task-tree-row-gap: 0.5rem;
+}
+
 .task-tree .task-tree-children {
 	/* Mobile-First: reduzierte Einrückung auf schmalen Viewports (360px), Desktop per min-width. */
 	padding-left: 0.75rem;
@@ -344,7 +354,7 @@ body {
 .task-tree-row-header {
 	display: flex;
 	align-items: center;
-	gap: 0.5rem;
+	gap: var(--task-tree-row-gap);
 	min-width: 0;
 }
 
@@ -352,9 +362,9 @@ body {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 0.5rem;
-	/* Optisch unter dem Titel einrücken (Toggle-Breite + Gap). */
-	padding-left: calc(1.75rem + 0.5rem);
+	gap: var(--task-tree-row-gap);
+	/* Optisch unter dem Titel einrücken (Toggle-Breite + Header-Gap, gemeinsame Quelle). */
+	padding-left: calc(var(--task-tree-toggle-width) + var(--task-tree-row-gap));
 }
 
 @media (min-width: 600px) {
@@ -379,7 +389,7 @@ body {
 	display: inline-block;
 	flex-shrink: 0;
 	/* Platzhalter in Breite des Aufklapp-Buttons, damit Blätter bündig zu Knoten mit Symbol stehen. */
-	width: 1.75rem;
+	width: var(--task-tree-toggle-width);
 }
 
 .task-tree-title {
