@@ -54,7 +54,7 @@ export const VoiceField = ({
 	useEffect(() => {
 		if (autoStart && isSupported && !autoStarted.current) {
 			autoStarted.current = true;
-			startRecording();
+			startRecording({ auto: true });
 		}
 		return () => {
 			autoStarted.current = false;

@@ -7,7 +7,7 @@ interface UseVoiceInputOptions {
 
 interface UseVoiceInputResult {
 	isRecording: boolean;
-	startRecording: () => void;
+	startRecording: (options?: { auto?: boolean }) => void;
 	stopRecording: () => void;
 	isSupported: boolean;
 	voiceError: string | null;
@@ -71,113 +71,123 @@ export const useVoiceInput = ({ onTranscript, lang = 'de-DE' }: UseVoiceInputOpt
 
 	const isSupported = getSpeechConstructor() !== null;
 
-	const startRecording = useCallback(() => {
-		setVoiceError(null);
-		if (recognitionRef.current !== null) return;
-		const Constructor = getSpeechConstructor();
-		if (Constructor === null) return;
+	const startRecording = useCallback(
+		(options?: { auto?: boolean }) => {
+			const isAuto = options?.auto === true;
+			setVoiceError(null);
+			if (recognitionRef.current !== null) return;
+			const Constructor = getSpeechConstructor();
+			if (Constructor === null) return;
 
-		// Laufende Aufnahme eines anderen Feldes zuerst beenden (Guard, s. o.).
-		stopActiveRecording?.();
+			// Laufende Aufnahme eines anderen Feldes zuerst beenden (Guard, s. o.).
+			stopActiveRecording?.();
 
-		const recognition = new Constructor();
-		recognition.lang = lang;
-		recognition.continuous = false;
-		// Zwischenergebnisse mitlesen (#283): endet die Engine vor dem finalen Ergebnis, wäre der
-		// bereits erkannte Text sonst verloren — er wird gepuffert und bei onend nachgeliefert.
-		recognition.interimResults = true;
+			const recognition = new Constructor();
+			recognition.lang = lang;
+			recognition.continuous = false;
+			// Zwischenergebnisse mitlesen (#283): endet die Engine vor dem finalen Ergebnis, wäre der
+			// bereits erkannte Text sonst verloren — er wird gepuffert und bei onend nachgeliefert.
+			recognition.interimResults = true;
 
-		// Lebenslauf DIESER Aufnahme (#283): Kam schon Text beim Aufrufer an, und was ist das letzte
-		// Zwischenergebnis? Entscheidet bei onend zwischen Nachliefern und „Nichts erkannt"-Hinweis.
-		let delivered = false;
-		let interimTranscript = '';
+			// Lebenslauf DIESER Aufnahme (#283): Kam schon Text beim Aufrufer an, und was ist das letzte
+			// Zwischenergebnis? Entscheidet bei onend zwischen Nachliefern und „Nichts erkannt"-Hinweis.
+			let delivered = false;
+			let interimTranscript = '';
 
-		recognition.onstart = () => {
-			// Erst jetzt lauscht die Engine wirklich (#283): Den Aufnahme-Zustand nicht schon während
-			// des Warmups signalisieren, sonst spricht der Nutzer ins Leere (Autostart!).
-			if (recognitionRef.current === recognition) {
-				setIsRecording(true);
-			}
-		};
+			// Bei automatischem Start (#379): Fehler/Hinweis bei Stille unterdrücken — der Nutzer hat
+			// nichts ausgelöst. Nur ein manueller Mic-Klick zeigt Fehler wie bisher.
+			const reportError = (msg: string) => {
+				if (!isAuto) setVoiceError(msg);
+			};
 
-		recognition.onresult = (event: SpeechRecognitionEvent) => {
-			let finalTranscript = '';
-			let interim = '';
-			for (let i = event.resultIndex; i < event.results.length; i += 1) {
-				const result = event.results[i];
-				const transcript = result[0]?.transcript ?? '';
-				if (result.isFinal !== false) {
-					finalTranscript += transcript;
-				} else {
-					interim += transcript;
+			recognition.onstart = () => {
+				// Erst jetzt lauscht die Engine wirklich (#283): Den Aufnahme-Zustand nicht schon während
+				// des Warmups signalisieren, sonst spricht der Nutzer ins Leere (Autostart!).
+				if (recognitionRef.current === recognition) {
+					setIsRecording(true);
 				}
-			}
-			if (finalTranscript !== '') {
-				delivered = true;
-				interimTranscript = '';
-				onTranscriptRef.current(finalTranscript);
-			} else if (interim !== '') {
-				interimTranscript = interim;
-			}
-		};
+			};
 
-		recognition.onend = () => {
-			// Nur reagieren, solange DIESE Aufnahme noch aktiv ist — nach manuellem Stopp,
-			// Guard-Wechsel, Unmount oder onerror ist die Ref bereits geräumt.
-			if (recognitionRef.current !== recognition) return;
-			recognitionRef.current = null;
-			setIsRecording(false);
-			if (!delivered && interimTranscript.trim() !== '') {
-				// Engine endete vor dem Finale: letztes Zwischenergebnis übernehmen statt verwerfen.
-				delivered = true;
-				onTranscriptRef.current(interimTranscript);
-				return;
-			}
-			if (!delivered) {
-				// Ende ohne jedes Ergebnis nicht still verschlucken (#283) — sonst wirkt der
-				// Button „aus" und der Nutzer erfährt nie, dass nichts ankam.
-				setVoiceError('Nichts erkannt – bitte erneut sprechen.');
-			}
-		};
+			recognition.onresult = (event: SpeechRecognitionEvent) => {
+				let finalTranscript = '';
+				let interim = '';
+				for (let i = event.resultIndex; i < event.results.length; i += 1) {
+					const result = event.results[i];
+					const transcript = result[0]?.transcript ?? '';
+					if (result.isFinal !== false) {
+						finalTranscript += transcript;
+					} else {
+						interim += transcript;
+					}
+				}
+				if (finalTranscript !== '') {
+					delivered = true;
+					interimTranscript = '';
+					onTranscriptRef.current(finalTranscript);
+				} else if (interim !== '') {
+					interimTranscript = interim;
+				}
+			};
 
-		recognition.onerror = (event: unknown) => {
-			const err = event as { error?: string };
-			// Absichtliche Abbrüche (Guard-Wechsel, Unmount, manueller Stopp) haben die Ref bereits
-			// geräumt — die echte API feuert dabei onerror('aborted'); das ist kein Fehlerfall und
-			// darf keinen Fehlertext erzeugen (#283, verdeckt vom früheren idealisierten Mock).
-			if (recognitionRef.current !== recognition) return;
-			recognitionRef.current = null;
-			setIsRecording(false);
-			if (err?.error === 'not-allowed') {
-				setVoiceError('Mikrofon-Zugriff wurde verweigert.');
-			} else if (err?.error === 'no-speech' || err?.error === 'aborted') {
-				// Kein Sprach-Input bzw. engine-seitiger Abbruch einer aktiven Aufnahme: dem Nutzer
-				// den Wiederholungsweg zeigen statt einer generischen Fehlermeldung.
-				setVoiceError('Nichts erkannt – bitte erneut sprechen.');
-			} else {
-				setVoiceError('Spracherkennung fehlgeschlagen.');
-			}
-		};
-
-		recognitionRef.current = recognition;
-		try {
-			recognition.start();
-		} catch {
-			// Doppelstart-/Engine-Konflikt (InvalidStateError): Zustand nicht hängen lassen (#283) —
-			// mit gesetzter Ref wäre der Mic-Button sonst bis zum Neuladen tot.
-			recognitionRef.current = null;
-			setVoiceError('Spracherkennung fehlgeschlagen.');
-			return;
-		}
-		stopActiveRecording = () => {
-			// Nur wenn DIESE Aufnahme noch aktiv ist — sonst ist der Eintrag veraltet und ein No-op.
-			if (recognitionRef.current === recognition) {
+			recognition.onend = () => {
+				// Nur reagieren, solange DIESE Aufnahme noch aktiv ist — nach manuellem Stopp,
+				// Guard-Wechsel, Unmount oder onerror ist die Ref bereits geräumt.
+				if (recognitionRef.current !== recognition) return;
 				recognitionRef.current = null;
 				setIsRecording(false);
-				recognition.abort();
+				if (!delivered && interimTranscript.trim() !== '') {
+					// Engine endete vor dem Finale: letztes Zwischenergebnis übernehmen statt verwerfen.
+					delivered = true;
+					onTranscriptRef.current(interimTranscript);
+					return;
+				}
+				if (!delivered) {
+					// Ende ohne jedes Ergebnis nicht still verschlucken (#283) — sonst wirkt der
+					// Button „aus" und der Nutzer erfährt nie, dass nichts ankam.
+					reportError('Nichts erkannt – bitte erneut sprechen.');
+				}
+			};
+
+			recognition.onerror = (event: unknown) => {
+				const err = event as { error?: string };
+				// Absichtliche Abbrüche (Guard-Wechsel, Unmount, manueller Stopp) haben die Ref bereits
+				// geräumt — die echte API feuert dabei onerror('aborted'); das ist kein Fehlerfall und
+				// darf keinen Fehlertext erzeugen (#283, verdeckt vom früheren idealisierten Mock).
+				if (recognitionRef.current !== recognition) return;
+				recognitionRef.current = null;
+				setIsRecording(false);
+				if (err?.error === 'not-allowed') {
+					reportError('Mikrofon-Zugriff wurde verweigert.');
+				} else if (err?.error === 'no-speech' || err?.error === 'aborted') {
+					// Kein Sprach-Input bzw. engine-seitiger Abbruch einer aktiven Aufnahme: dem Nutzer
+					// den Wiederholungsweg zeigen statt einer generischen Fehlermeldung.
+					reportError('Nichts erkannt – bitte erneut sprechen.');
+				} else {
+					reportError('Spracherkennung fehlgeschlagen.');
+				}
+			};
+
+			recognitionRef.current = recognition;
+			try {
+				recognition.start();
+			} catch {
+				// Doppelstart-/Engine-Konflikt (InvalidStateError): Zustand nicht hängen lassen (#283) —
+				// mit gesetzter Ref wäre der Mic-Button sonst bis zum Neuladen tot.
+				recognitionRef.current = null;
+				setVoiceError('Spracherkennung fehlgeschlagen.');
+				return;
 			}
-		};
-	}, [lang]);
+			stopActiveRecording = () => {
+				// Nur wenn DIESE Aufnahme noch aktiv ist — sonst ist der Eintrag veraltet und ein No-op.
+				if (recognitionRef.current === recognition) {
+					recognitionRef.current = null;
+					setIsRecording(false);
+					recognition.abort();
+				}
+			};
+		},
+		[lang],
+	);
 
 	const stopRecording = useCallback(() => {
 		recognitionRef.current?.stop();
