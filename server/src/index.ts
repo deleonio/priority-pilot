@@ -13,8 +13,10 @@ import {
 	migratePillarDropUserId,
 } from './logics/migrate.js';
 import { buildTaskForest } from './logics/tree.js';
+import { runDueTaskReminders } from './logics/dueTaskReminders.js';
 import { Pillar, Task, TaskPillar } from './models/index.js';
 import { SEED_PILLARS } from './models/pillarData.js';
+import { startScheduler } from './scheduler/index.js';
 
 // Daten nur auf ausdrücklichen Wunsch zurücksetzen (sonst kein stiller Datenverlust).
 const shouldReset = process.env.DB_RESET === 'true';
@@ -148,6 +150,10 @@ const main = async (): Promise<void> => {
 
 		console.log(JSON.stringify(await buildTaskForest(), null, 2));
 		await launchServer();
+
+		// Fachlicher Push-Trigger „fällige Aufgaben" (Issue #355). No-Op ohne VAPID-Keys oder ohne
+		// explizites PUSH_REMINDERS_ENABLED=true (siehe scheduler/index.ts).
+		startScheduler([runDueTaskReminders]);
 	} catch (error) {
 		console.error('Fehler:', error);
 	}
