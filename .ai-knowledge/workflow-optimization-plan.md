@@ -112,7 +112,7 @@ syntaktisch valide (`ruby -ryaml`).
 
 ---
 
-### M3 — Re-Triage `--effort max` → `high` 🔬🔒 (Messen, dann mit Test-Update)
+### M3 — Re-Triage `--effort max` → `high` 🔬🔒 (Messen, dann mit Test-Update — Messversuch 2026-07-07: keine historischen Daten verfügbar)
 
 **Problem:** Re-Triage (`claude-retriage.yml:183,325`) läuft auf `--effort max`. Anders als die
 Erst-Triage ist beim Re-Triage-Auslöser (`@claude`-Kommentar) bereits ein **Mensch mit
@@ -120,7 +120,19 @@ Korrektur-Kontext** aktiv → Grenznutzen von `max` gegenüber `high` plausibel 
 
 **Erst-Triage bleibt `max`** — sie ist die kontextlose Wurzel, die vier Sonnet-Stufen speist.
 
-**Vorgehen (kein Blind-Change):**
+**Messversuch (2026-07-07):** `gh run list --workflow=claude-retriage.yml --limit 10` geprüft — alle
+10 jüngsten Läufe hatten `conclusion: skipped` (Job-`if` griff nicht: kein `@claude`-Kommentar von
+OWNER/MEMBER/COLLABORATOR). **Kein einziger echter Re-Triage-Lauf in der jüngeren Historie** — daher
+keine Bestandsdaten für ein Vorher/Nachher ableitbar. Ein Vergleichslauf (Erst-Triage, Opus max) auf
+`claude-triage.yml` lief real **8 min 43 s** (Issue-abhängig, keine Turn-/Token-Zahl aus `gh run view`
+ablesbar — nur Wall-Clock).
+
+**Vorgehen (weiterhin offen, jetzt konkretisiert):** Ein A/B ist NUR über einen **bewusst getriggerten
+Live-Lauf** möglich (`@claude`-Kommentar an einem echten oder Scratch-Issue) — das kostet echte
+Opus-Tokens und postet echt sichtbar in der laufenden Produktions-Pipeline (aktuell erkennbar aktiv:
+mehrere parallele Issue-/PR-Läufe zur selben Zeit). Das ist eine **Ressourcen-/Scope-Entscheidung**,
+keine rein technische — daher NICHT autonom ausgelöst, sondern beim User rückgefragt (welches Issue,
+ob Testkosten akzeptabel).
 
 1. A/B an einem Scratch-Issue: Re-Triage-Analyse `max` vs. `high` — Qualität (Ampel, AK-Schärfe)
    und Output-Token vergleichen.
@@ -158,21 +170,49 @@ Trennung push-vs-PR-Trigger sauber halten. **Ertrag:** eine volle E2E-Matrix je 
 
 ---
 
-### M5 — Shard-Zahl & `--with-deps` kalibrieren 🔬 (Erst messen)
+### M5 — Shard-Zahl & `--with-deps` kalibrieren ✅ gemessen (2026-07-07), Empfehlung: Zahl behalten
 
 **Problem:** `shard: [1,2,3,4]` ist nirgends empirisch hergeleitet. Jeder Shard trägt Fixkosten
 (Checkout + `pnpm install` + `playwright install --with-deps chromium`). Bei kleiner Netto-Testzeit
 übersteigt 4× Fixkosten irgendwann den Parallelitätsgewinn.
 
-**Vorgehen:**
+**Messung (4 echte CI-Läufe via `gh run view --json jobs`, Step-Timestamps):**
 
-1. Reale Job-Zeiten aus den letzten CI-Läufen ziehen (Netto-Testzeit vs. Setup-Overhead je Shard).
-2. Shard-Zahl am Optimum ausrichten (oft 2). **Nenner `--shard=…/N` mitziehen** (`ci.yml:126` +
-   `pipeline-hardening.test.ts` E1).
-3. Prüfen, ob `--with-deps` auf `ubuntu-latest` nötig ist (Playwright-System-Libs teils vorinstalliert)
-   — Weglassen spart den `apt`-Schritt je Shard.
+- Job-Gesamtzeit je Shard: **~104–162 s** (Set-up bis Complete), `verify`-Job: **~118–130 s** —
+  beide Stufen laufen parallel, Wall-Clock der `e2e`-Stufe = die des langsamsten Shards.
+- Setup-Overhead je Shard (Checkout + pnpm/node-Setup + Install + Playwright-Cache +
+  `Playwright-Browser installieren`): **~46–58 s**. Eigentliche Testausführung (Step „E2E (shard
+  N/4)"): **~57–99 s**. → Overhead-Anteil **~35–40 %** des Shard-Compute, nicht dominant, aber real.
+- **`--with-deps`-Schritt** („Playwright-Browser installieren", Browser-Binary selbst ist gecacht):
+  **~14–23 s je Shard** — bei 4 Shards **~60–90 s Compute-Minuten/Lauf**, die bei bereits
+  vorhandenen System-Libs auf `ubuntu-latest` ggf. entfallen könnten (noch nicht verifiziert, ob
+  `--with-deps` weglassen tatsächlich fehlerfrei bleibt).
+- **Neuer, wichtigerer Befund — Shard-Unwucht:** Shard 4 ist in **allen 4 gesampelten Läufen**
+  spürbar schneller als Shard 2/3 (Beispiel-Lauf: Shard 4 = 104 s vs. Shard 3 = 156 s — **52 s
+  Differenz**, konsistent über alle Stichproben). Playwright verteilt `--shard` nach Spec-**Anzahl**,
+  nicht nach historischer Laufzeit — die Wall-Clock-Bremse ist die **Unwucht**, nicht die Shard-Zahl.
 
-**Contract-Impact:** 🔒 E1 (Matrix-Größe == Nenner). **Ertrag:** weniger Fix-Overhead — ungemessen.
+**Rechnung — 4 Shards vs. 1 Shard (serialisiert):** Summe der reinen Testzeit ≈ 331 s (5,5 min).
+Bei 1 Shard: Wall-Clock ≈ 331 s + ~50 s Overhead ≈ 381 s (6,4 min) — **fast 2,5× langsamer** als
+heute (~156 s Wall-Clock bei 4 Shards). Da CI bei **jedem menschlichen Push** neu läuft und das
+Gate/Auto-Merge speist, zählt die Wall-Clock-Latenz für die gesamte autonome Pipeline-Kadenz.
+**Entsharden wäre hier ein Fehltrade** — Parallelität zahlt sich klar aus.
+
+**Empfehlung (ersetzt die alte Annahme „Shard-Zahl reduzieren"):**
+
+1. **Shard-Zahl (4) beibehalten** — durch Messung widerlegt, dass Reduktion hier lohnt.
+2. **Spec-Dateien über die Shards neu ausbalancieren** (z. B. Playwright-Sharding mit einer nach
+   historischer Laufzeit sortierten Spec-Liste statt alphabetischer Default-Reihenfolge) — würde die
+   ~40–60 s Wall-Clock-Bremse durch Shard-4-Unwucht kostenlos (kein Mehr-Compute) eliminieren. Noch
+   NICHT umgesetzt — Playwright-Sharding-Mechanik (Blob-Reports/`--shard` mit sortierter Spec-Liste)
+   muss erst geprüft werden, ob sie ohne Contract-Bruch (E1: Matrix-Größe == Nenner) machbar ist.
+3. **`--with-deps` probeweise entfernen** und beobachten, ob `playwright install chromium` (ohne
+   `--with-deps`) auf `ubuntu-latest` weiterhin grün bleibt — bei Erfolg ~60–90 s Compute-Minuten/Lauf
+   gespart, ohne Wall-Clock-Nachteil.
+
+**Contract-Impact:** 🔒 E1 (Matrix-Größe == Nenner) nur bei Shard-**Zahl**-Änderung (hier nicht
+geplant); Rebalancing/`--with-deps`-Test berühren E1 nicht. **Ertrag:** kein Shard-Zahl-Sparpotenzial
+(widerlegt); Rebalancing + `--with-deps`-Test zusammen ggf. ~1–2,5 min Wall-Clock+Compute pro Lauf.
 
 ---
 
