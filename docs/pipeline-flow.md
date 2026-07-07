@@ -10,6 +10,7 @@ flowchart TD
     %% ====== Eintritt ======
     start([Issue geöffnet<br/>OWNER/MEMBER/COLLAB]):::evt
     cmt([Kommentar mit @claude<br/>OWNER/MEMBER/COLLAB]):::evt
+    pushmain([Push auf main<br/>z. B. nach Merge]):::evt
 
     %% ====== Issue-Phase ======
     subgraph ISSUE [Issue-Phase]
@@ -27,10 +28,11 @@ flowchart TD
         fixup[claude-pr-fixup.yml<br/>Findings umsetzen]:::wf
         gatemerge[claude-pr-gate-merge.yml<br/>Gate + Auto-Merge]:::wf
         cancel[claude-pr-cancel.yml]:::wf
+        conflictscan[claude-pr-conflict-scan.yml<br/>Konflikt-Scan]:::wf
     end
 
     merged([PR gemergt ✅]):::done
-    human([⚠️ Mensch<br/>> 5 Fixup-Commits]):::stop
+    human([⚠️ Mensch<br/>> 10 PR-Commits]):::stop
 
     %% ---- Issue-Trigger ----
     start -->|issues.opened| triage
@@ -69,6 +71,11 @@ flowchart TD
     merged -.->|"pull_request.closed + merged"| unblock
     unblock -->|"Nachfolger: − ai:analyzed → Re-Triage"| triage
 
+    %% ---- Konflikt-Scan bei Push auf main (z. B. nach Merge) ----
+    merged -.->|"pusht nach main"| pushmain
+    pushmain -.->|"push: main"| conflictscan
+    conflictscan -->|"offener PR mit Merge-Konflikt<br/>→ label: ai:needs-changes"| fixup
+
     classDef wf fill:#1f6feb,stroke:#0b3d91,color:#fff;
     classDef evt fill:#2da44e,stroke:#116329,color:#fff;
     classDef done fill:#8957e5,stroke:#4c2889,color:#fff;
@@ -83,14 +90,15 @@ flowchart TD
 
 ## Label-Referenz
 
-| Label               | Gesetzt von                                 | Entfernt von                                           | Triggert                                                             |
-| ------------------- | ------------------------------------------- | ------------------------------------------------------ | -------------------------------------------------------------------- |
-| `ai:analyzed`       | triage / retriage                           | **claude-issue-unblock** (Merge des Blockers), manuell | _Setzen:_ Vorbedingung; _Entfernen:_ `claude-triage.yml` (Re-Triage) |
-| `ai:spec-ready`     | triage / retriage (bei 🟢)                  | _(kein automatisches Entfernen)_                       | `claude-spec.yml`                                                    |
-| `ai:ready`          | spec                                        | _(kein automatisches Entfernen)_                       | `claude-implement.yml`                                               |
-| `ai:needs-review`   | implement, pr-needs-review-label, **fixup** | review, gate-merge                                     | `claude-pr-review.yml`                                               |
-| `ai:needs-changes`  | review (🔴), **gate-merge**                 | **pr-needs-review-label** (bei Push)                   | `claude-pr-fixup.yml`                                                |
-| `ai:ready-to-merge` | review (🟢)                                 | **pr-needs-review-label** (bei Push)                   | `claude-pr-gate-merge.yml`                                           |
+| Label               | Gesetzt von                                                          | Entfernt von                                                        | Triggert                                                             |
+| ------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `ai:analyzed`       | triage / retriage                                                    | **claude-issue-unblock** (Merge des Blockers), manuell              | _Setzen:_ Vorbedingung; _Entfernen:_ `claude-triage.yml` (Re-Triage) |
+| `ai:spec-ready`     | triage / retriage (bei 🟢)                                           | _(kein automatisches Entfernen)_                                    | `claude-spec.yml`                                                    |
+| `ai:ready`          | spec                                                                 | _(kein automatisches Entfernen)_                                    | `claude-implement.yml`                                               |
+| `ai:needs-review`   | implement, pr-needs-review-label, **fixup**                          | review, gate-merge                                                  | `claude-pr-review.yml`                                               |
+| `ai:needs-changes`  | review (🔴), **gate-merge**, **conflict-scan**                       | **fixup**, **pr-needs-review-label** (bei Push)                     | `claude-pr-fixup.yml`                                                |
+| `ai:ready-to-merge` | review (🟢)                                                          | **gate-merge** (rot/Konflikt), **pr-needs-review-label** (bei Push) | `claude-pr-gate-merge.yml`                                           |
+| `ai:to-big-issue`   | triage/retriage/spec/implement (Timeout oder fehlendes Agent-Secret) | manuell (nach Aufteilen / Secret-Fix)                               | _Entfernen:_ `claude-triage.yml` (Neu-Analyse)                       |
 
 ## Schlüsselmechanik
 
@@ -114,11 +122,22 @@ flowchart TD
   nicht robust machbar — daher Heuristik alle PR-Commits, Schwelle > 10). **Hinweis:** ein
   0-Commit-Loop (Fixup findet keine Findings und committet nichts) wird davon nicht gebremst — die
   H1-Post-Assertion im Review alarmiert in dem Fall per PR-Kommentar.
-- **gate-merge** wacht zusätzlich deterministisch per `workflow_run` (CI/Review fertig): ist mind.
-  ein Allowlist-Check (CI / Reviewer) rot → `ai:needs-changes` (stößt fixup an); sind beide grün
-  und `ai:ready-to-merge` gesetzt → Merge. Dieser eine Workflow ersetzt die früheren zwei
+- **gate-merge** wacht zusätzlich deterministisch per `workflow_run` (Allowlist `['CI', 'Claude PR
+Review (Kreuzverhoer)']`, `completed`) **und** per `pull_request` `labeled` (nur `ai:ready-to-merge`):
+  ist mind. ein Allowlist-Check (CI / Reviewer) rot → `ai:needs-changes` (stößt fixup an); ist der PR
+  wegen Merge-Konflikt nicht mergebar (`mergeStateStatus == DIRTY`) → ebenfalls `ai:needs-changes`;
+  sind beide grün und `ai:ready-to-merge` gesetzt und der PR sauber mergebar → Merge
+  (`gh pr merge --merge`). Der `workflow_run`-Trigger wird nur aus dem Default-Branch (main) gelesen
+  und schließt `head_branch == 'main'`-Läufe aus. Dieser eine Workflow ersetzt die früheren zwei
   (Gate + Auto-Merge).
-- **cancel** beendet laufende review/fixup-Runs beim PR-Close (`pull_request.closed`).
+- **conflict-scan** (`claude-pr-conflict-scan.yml`) läuft bei jedem **Push auf main** (typischerweise
+  nach einem Merge), prüft **alle** offenen Nicht-Draft-same-repo-PRs auf Mergebarkeit und setzt bei
+  Merge-Konflikt (`DIRTY`/`CONFLICTING`) **per App-Token** `ai:needs-changes` → das stößt
+  `claude-pr-fixup.yml` an, der den Konflikt auflöst (conflict-scan löst selbst NICHT auf). Guards:
+  `UNKNOWN`/`MERGEABLE` → No-op; trägt der PR bereits `ai:needs-changes`, wird idempotent
+  übersprungen. Kein LLM, kein Checkout, kein Agent-Secret-Check.
+- **cancel** beendet laufende review/fixup-Runs beim PR-Close (`pull_request.closed`) — reiner
+  `gh`-Aufruf mit `GITHUB_TOKEN` (kein App-Token nötig: bricht nur Runs ab, setzt keine Labels).
 - **unblock** (`claude-issue-unblock.yml`) reagiert auf den **Merge** eines PRs (`pull_request.closed`
   - `merged == true`): Blockt das gemergte Issue nativ (GitHub-Issue-Dependencies) Nachfolge-Issues
     und sind dadurch **alle** deren Blocker geschlossen (Fan-in-Gate, autoritativ per Blocker-`state`),
@@ -161,7 +180,14 @@ flowchart TD
 
 ## Eintrittspunkte
 
-- **Neues Issue** (`issues.opened`) von OWNER/MEMBER/COLLABORATOR → `claude-triage.yml`.
-- **`@claude`-Kommentar** an einem Issue (`issue_comment`) von OWNER/MEMBER/COLLABORATOR →
-  `claude-retriage.yml`. (Der einzige `@claude`-gesteuerte Workflow; die PR-Seite wird ausschließlich
-  über Labels gesteuert, um Event-Kaskaden zu vermeiden.)
+- **Neues Issue** (`issues.opened`) von OWNER/MEMBER/COLLABORATOR und ohne `ai:analyzed` →
+  `claude-triage.yml`.
+- **Entfernen von `ai:analyzed` oder `ai:to-big-issue`** (`issues.unlabeled`) → `claude-triage.yml`
+  (erzwungene Neu-Analyse; das Entfernen setzt bereits Schreibzugriff voraus). Über diesen Pfad
+  triggern auch `claude-issue-unblock.yml` (App-Token entfernt `ai:analyzed` beim Merge des Blockers)
+  und ein Mensch, der ein aufgeteiltes/behobenes `ai:to-big-issue` entfernt.
+- **`@claude`-Kommentar** an einem Issue (`issue_comment.created`, NICHT `edited`) von
+  OWNER/MEMBER/COLLABORATOR → `claude-retriage.yml`. (Der einzige `@claude`-gesteuerte Workflow; die
+  PR-Seite wird ausschließlich über Labels gesteuert, um Event-Kaskaden zu vermeiden.)
+- **Push auf main** (`push` auf `main`, z. B. nach einem Merge) → `claude-pr-conflict-scan.yml`
+  (scannt alle offenen PRs auf Merge-Konflikte).
