@@ -285,7 +285,9 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 		/** Die Aktions-Toolbar eines Knotens (`KolToolbar` rendert `[role="toolbar"]`). */
 		const toolbar = (page: Page, id: number) => item(page, id).locator('[role="toolbar"]');
 
-		test('AK-307-1: „Bearbeiten" ist das erste Element der Aktions-Toolbar', async ({ page }) => {
+		test('AK-307-1: „Bearbeiten" ist als Icon-Button in der Aktions-Toolbar (zweites Element nach dem Toggle)', async ({
+			page,
+		}) => {
 			const title = uniqueTitle('Toolbar-Edit');
 			const id = await createTask(page, title);
 
@@ -294,14 +296,15 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 			await openTasksTab(page);
 
 			// Die Toolbar liegt jetzt hinter dem „…"-Popover (#361): initial verborgen. Nach dem Öffnen
-			// ist ihr erster Button „Bearbeiten" (vor Abhängigkeiten/Unteraufgabe/Löschen).
+			// ist ihr erstes Element der Erledigt-Toggle (#387); „Bearbeiten" folgt als zweiter Button
+			// (vor Abhängigkeiten/Unteraufgabe/Löschen).
 			await expect(toolbar(page, id)).toBeHidden();
 
 			await openActionsPopover(page, id);
 
 			await expect(toolbar(page, id)).toBeVisible();
-			const firstButton = toolbar(page, id).getByRole('button').first();
-			await expect(firstButton).toHaveAccessibleName('Bearbeiten');
+			const secondButton = toolbar(page, id).getByRole('button').nth(1);
+			await expect(secondButton).toHaveAccessibleName('Bearbeiten');
 		});
 
 		test('AK-307-1b: „Bearbeiten"-Button trägt kein sichtbares Text-Label (Icon-only)', async ({ page }) => {
@@ -385,9 +388,9 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 	/**
 	 * Roter TDD-Vertrag für #361: Die vier sekundären Aktionen (Bearbeiten, Abhängigkeiten,
 	 * Unteraufgabe anlegen, Löschen) rücken aus der stets sichtbaren `KolToolbar` in ein Popover, das
-	 * über einen „…"-Button mit dem Accessible Name „Weitere Aktionen" geöffnet wird. Done-Toggle und
-	 * Aufklapp-Toggle bleiben direkt sichtbar. Diese Specs sind rot, bis `TaskTree.tsx` den „…"-Trigger
-	 * rendert und die Toolbar in das Popover verlagert.
+	 * über einen „…"-Button mit dem Accessible Name „Weitere Aktionen" geöffnet wird. Der Done-Toggle liegt
+	 * seit #387 im Popover als erstes Toolbar-Item; nur der Aufklapp-Toggle bleibt direkt sichtbar. Diese
+	 * Specs sind rot, bis `TaskTree.tsx` den „…"-Trigger rendert und die Toolbar in das Popover verlagert.
 	 */
 	test.describe('#361 — Sekundäre Aktionen via Popover', () => {
 		test('AK-361-1: „…"-Trigger ersetzt die Inline-Toolbar (Desktop + Mobil)', async ({ page }) => {

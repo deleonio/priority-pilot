@@ -199,9 +199,7 @@ test.describe('Priority Pilot — Aufgabenliste responsiv bei 360px (#376)', () 
 		expect(overflowsHorizontally).toBe(false);
 	});
 
-	test('AK2: Erledigt-Toggle und „…"-Button liegen bei 360px vollständig im Viewport und erfüllen 44×44', async ({
-		page,
-	}) => {
+	test('AK2: der „…"-Button liegt bei 360px vollständig im Viewport und erfüllt 44×44', async ({ page }) => {
 		await page.setViewportSize(VIEWPORT);
 
 		const { deepestId, orderedFromRoot } = await seedWorstCaseChain(page, uniqueTitle('Buttons'));
@@ -212,26 +210,23 @@ test.describe('Priority Pilot — Aufgabenliste responsiv bei 360px (#376)', () 
 
 		await expandFully(page, orderedFromRoot);
 
-		// Beide Zeilen-Buttons der Worst-Case-Zeile: der (aufgrund offener Unteraufgabe ggf. gesperrte,
-		// aber weiterhin gerenderte) Erledigt-Toggle und der „…"-Button. Rein geometrische Prüfung:
-		// vollständig im Viewport (`box.x + box.width <= VIEWPORT.width + 1`) und Touch-Target-Minimum 44×44.
-		const doneToggle = page.getByTestId(`done-toggle-${deepestId}`);
+		// Seit #387 ist der Erledigt-Toggle nicht mehr direkt in der Zeile — einziger direkter Zeilen-Button
+		// ist der „…". Rein geometrische Prüfung: vollständig im Viewport (`box.x + box.width <= VIEWPORT.width
+		// + 1`) und Touch-Target-Minimum 44×44.
 		const moreButton = item(page, deepestId).getByRole('button', { name: /Weitere Aktionen/i });
 
-		for (const button of [doneToggle, moreButton]) {
-			await expect(button).toBeVisible();
-			const box = await button.boundingBox();
-			expect(box).not.toBeNull();
-			if (box !== null) {
-				expect(box.x).toBeGreaterThanOrEqual(0);
-				expect(box.x + box.width).toBeLessThanOrEqual(VIEWPORT.width + 1);
-				expect(box.width).toBeGreaterThanOrEqual(44);
-				expect(box.height).toBeGreaterThanOrEqual(44);
-			}
+		await expect(moreButton).toBeVisible();
+		const box = await moreButton.boundingBox();
+		expect(box).not.toBeNull();
+		if (box !== null) {
+			expect(box.x).toBeGreaterThanOrEqual(0);
+			expect(box.x + box.width).toBeLessThanOrEqual(VIEWPORT.width + 1);
+			expect(box.width).toBeGreaterThanOrEqual(44);
+			expect(box.height).toBeGreaterThanOrEqual(44);
 		}
 	});
 
-	test('AK3: „…"-Popover samt aller 4 Aktionen liegt bei 360px vollständig im Viewport', async ({ page }) => {
+	test('AK3: „…"-Popover samt aller 5 Aktionen liegt bei 360px vollständig im Viewport', async ({ page }) => {
 		await page.setViewportSize(VIEWPORT);
 
 		const { deepestId, orderedFromRoot } = await seedWorstCaseChain(page, uniqueTitle('Popover'));
@@ -243,10 +238,16 @@ test.describe('Priority Pilot — Aufgabenliste responsiv bei 360px (#376)', () 
 		await expandFully(page, orderedFromRoot);
 		await openActionsPopover(page, deepestId);
 
-		// Alle vier Aktionen liegen vollständig im Viewport (kein Abschneiden am rechten/linken Rand).
-		const buttonNames = ['Bearbeiten', 'Abhängigkeiten', 'Unteraufgabe anlegen', 'Löschen'];
-		for (const name of buttonNames) {
-			const button = item(page, deepestId).getByRole('button', { name });
+		// Alle fünf Toolbar-Items liegen vollständig im Viewport (kein Abschneiden am rechten/linken Rand):
+		// der Erledigt-Toggle (erstes Item, #387) plus die vier sekundären Aktionen.
+		const toolbar = item(page, deepestId).locator('[role="toolbar"]');
+		const doneToggle = toolbar.getByRole('button', { name: /Erledigt|Wieder öffnen/i });
+		const secondaryNames = ['Bearbeiten', 'Abhängigkeiten', 'Unteraufgabe anlegen', 'Löschen'];
+		const buttons = [doneToggle, ...secondaryNames.map((name) => item(page, deepestId).getByRole('button', { name }))];
+
+		await expect(toolbar.getByRole('button')).toHaveCount(5);
+
+		for (const button of buttons) {
 			await expect(button).toBeVisible();
 			const box = await button.boundingBox();
 			expect(box).not.toBeNull();

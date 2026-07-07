@@ -74,7 +74,20 @@ test.describe('Priority Pilot — Erledigt-Toggle in der Aufgaben-Liste (#315)',
 	};
 
 	const item = (page: Page, id: number) => page.getByTestId(`task-tree-item-${id}`);
-	const doneToggle = (page: Page, id: number) => page.getByTestId(`done-toggle-${id}`);
+
+	/** Die Aktions-Toolbar eines Knotens (`KolToolbar` rendert `[role="toolbar"]`), im „…"-Popover verborgen. */
+	const toolbar = (page: Page, id: number) => item(page, id).locator('[role="toolbar"]');
+
+	/** Der Erledigt-Toggle liegt jetzt als erstes Toolbar-Item hinter dem „…"-Popover (#387). */
+	const doneToggle = (page: Page, id: number) =>
+		toolbar(page, id).getByRole('button', { name: /Erledigt|Wieder öffnen/i });
+
+	/** Öffnet das „Weitere Aktionen"-Popover („…") eines Knotens (#361). */
+	const openActionsPopover = async (page: Page, id: number): Promise<void> => {
+		await item(page, id)
+			.getByRole('button', { name: /Weitere Aktionen/i })
+			.click();
+	};
 
 	test('AK1: Toggle schaltet Open→Done, PATCH persistiert und übersteht Reload', async ({ page }) => {
 		const id = await createTask(page, uniqueTitle('Erledigt'));
@@ -84,11 +97,13 @@ test.describe('Priority Pilot — Erledigt-Toggle in der Aufgaben-Liste (#315)',
 		await openTasksTab(page);
 
 		await expect(item(page, id)).toBeVisible();
-		await expect(doneToggle(page, id)).toBeVisible();
 
 		// Ausgangslage: die frisch angelegte Aufgabe ist offen.
 		expect(await fetchStatus(page, id)).toBe('Open');
 
+		// Der Toggle liegt jetzt hinter dem „…"-Popover (#387) — erst öffnen.
+		await openActionsPopover(page, id);
+		await expect(doneToggle(page, id)).toBeVisible();
 		await doneToggle(page, id).click();
 
 		// PATCH /tasks/{id} hat den Status persistiert.
@@ -108,11 +123,12 @@ test.describe('Priority Pilot — Erledigt-Toggle in der Aufgaben-Liste (#315)',
 		await waitForStableView(page);
 		await openTasksTab(page);
 
-		// Erst auf Done schalten …
+		// Erst auf Done schalten … (Toggle liegt hinter dem „…"-Popover, #387).
+		await openActionsPopover(page, id);
 		await doneToggle(page, id).click();
 		await expect.poll(async () => fetchStatus(page, id)).toBe('Done');
 
-		// … dann wieder zurück auf Open.
+		// … dann wieder zurück auf Open — kein Neuöffnen nötig, das Popover bleibt offen (#387).
 		await expect(doneToggle(page, id)).toBeVisible();
 		await doneToggle(page, id).click();
 		await expect.poll(async () => fetchStatus(page, id)).toBe('Open');
@@ -140,11 +156,12 @@ test.describe('Priority Pilot — Erledigt-Toggle in der Aufgaben-Liste (#315)',
 			.click();
 		await expect(item(page, parentId)).toBeVisible();
 
+		// Der Toggle liegt hinter dem „…"-Popover (#387) — erst öffnen.
+		await openActionsPopover(page, parentId);
+
 		// #246-Guard auf den Toggle angewendet: gesperrt + erklärender Grund im zugänglichen Namen.
 		await expect(doneToggle(page, parentId)).toBeDisabled();
-		await expect(doneToggle(page, parentId).getByRole('button')).toHaveAccessibleName(
-			/bitte erst alle Unteraufgaben erledigen/i,
-		);
+		await expect(doneToggle(page, parentId)).toHaveAccessibleName(/bitte erst alle Unteraufgaben erledigen/i);
 
 		// Der gesperrte Toggle darf den Status nicht ändern.
 		expect(await fetchStatus(page, parentId)).toBe('Open');
@@ -159,8 +176,9 @@ test.describe('Priority Pilot — Erledigt-Toggle in der Aufgaben-Liste (#315)',
 		await waitForStableView(page);
 		await openTasksTab(page);
 
-		// Im invertierten Baum ist childId die Wurzel — Unteraufgabe direkt erledigen.
+		// Im invertierten Baum ist childId die Wurzel — Unteraufgabe über ihr „…"-Popover (#387) erledigen.
 		await expect(item(page, childId)).toBeVisible();
+		await openActionsPopover(page, childId);
 		await doneToggle(page, childId).click();
 		await expect.poll(async () => fetchStatus(page, childId)).toBe('Done');
 
@@ -171,9 +189,12 @@ test.describe('Priority Pilot — Erledigt-Toggle in der Aufgaben-Liste (#315)',
 			.click();
 		await expect(item(page, parentId)).toBeVisible();
 
+		// Toggle der Oberaufgabe hinter dem „…"-Popover öffnen (#387).
+		await openActionsPopover(page, parentId);
+
 		// Mit ausschließlich erledigten Unteraufgaben ist der Eltern-Toggle aktiv und ohne Sperrgrund im Namen.
 		await expect(doneToggle(page, parentId)).toBeEnabled();
-		await expect(doneToggle(page, parentId).getByRole('button')).toHaveAccessibleName('Erledigt');
+		await expect(doneToggle(page, parentId)).toHaveAccessibleName('Erledigt');
 
 		// Und er lässt sich nun betätigen.
 		await doneToggle(page, parentId).click();
@@ -188,6 +209,8 @@ test.describe('Priority Pilot — Erledigt-Toggle in der Aufgaben-Liste (#315)',
 		await waitForStableView(page);
 		await openTasksTab(page);
 
+		// Der Toggle liegt hinter dem „…"-Popover (#387) — erst öffnen.
+		await openActionsPopover(page, id);
 		const toggle = doneToggle(page, id);
 		await expect(toggle).toBeVisible();
 
@@ -289,9 +312,7 @@ test.describe('#387 — Erledigt-Toggle in der „…"-Toolbar', () => {
 			.click();
 	};
 
-	test('AK1: der Toggle ist vor Öffnen des Popovers nicht direkt sichtbar, danach in der Toolbar', async ({
-		page,
-	}) => {
+	test('AK1: der Toggle ist vor Öffnen des Popovers nicht direkt sichtbar, danach in der Toolbar', async ({ page }) => {
 		const id = await createTask(page, uniqueTitle('Sichtbarkeit'));
 
 		await page.goto('/');
@@ -311,9 +332,7 @@ test.describe('#387 — Erledigt-Toggle in der „…"-Toolbar', () => {
 		await expect(doneToggle(page, id)).toBeVisible();
 	});
 
-	test('AK2: Popover öffnen → Klick schaltet Open→Done, PATCH persistiert und übersteht Reload', async ({
-		page,
-	}) => {
+	test('AK2: Popover öffnen → Klick schaltet Open→Done, PATCH persistiert und übersteht Reload', async ({ page }) => {
 		const id = await createTask(page, uniqueTitle('Erledigt'));
 
 		await page.goto('/');
