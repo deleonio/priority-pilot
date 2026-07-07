@@ -92,7 +92,10 @@ test.describe('Abhängigkeits-Editor: Entfernen-Icon-Button (#368)', () => {
 		await openTargetDependencies(page, targetId);
 
 		// Der Entfernen-Button ist per Rolle + zugänglichem Namen auffindbar (Icon-only braucht aria-Label).
-		const removeButton = page.locator('.dependency-list li').first().getByRole('button', { name: /entfernen/i });
+		const removeButton = page
+			.locator('.dependency-list li')
+			.first()
+			.getByRole('button', { name: /entfernen/i });
 		await expect(removeButton).toBeVisible();
 
 		// KoliBri rendert KolButton in ein offenes Shadow-DOM; das Icon steckt als `kol-icon` im Button.

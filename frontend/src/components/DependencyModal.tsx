@@ -119,7 +119,9 @@ export const DependencyModal = ({ task, allTasks, dependencies, onClose, onChang
 									#{dependency.id} – {dependency.title}
 								</span>
 								<KolButton
-									_label="Entfernen"
+									_label={`Vorgänger #${dependency.id} – ${dependency.title} entfernen`}
+									_hideLabel
+									_icons={{ left: { icon: 'kolicon-cross' } }}
 									_variant="danger"
 									_disabled={busy}
 									_on={{ onClick: () => void remove(dependency.id) }}
