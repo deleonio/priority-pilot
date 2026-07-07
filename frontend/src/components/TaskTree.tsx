@@ -1,7 +1,7 @@
 import { KolButton, KolPopoverButton, KolToolbar } from '@public-ui/react-v19';
 import type { Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { invertForest } from '../lib/invertForest';
 import { isDoneBlockedBySubtasks } from '../lib/task';
 
@@ -54,6 +54,54 @@ const findInnerButton = (el: Element | null | undefined): HTMLElement | null => 
 	return findInnerButton(el.shadowRoot?.firstElementChild ?? el.firstElementChild);
 };
 
+/**
+ * #369: `KolPopoverButton` positioniert das Popover-Panel per floating-ui zentriert unter dem
+ * „…"-Trigger — `_popoverAlign` kennt nur die vier Himmelsrichtungen (`AlignPropType`), keine
+ * `-start`-Ausrichtung für Linksbündigkeit. Das Panel (`.kol-popover-button__popover`) liegt im
+ * offenen Shadow-DOM von `kol-popover-button` und ist damit von außen per CSS nicht erreichbar
+ * (kein `::part`). Wir korrigieren die von floating-ui gesetzte `left`-Position deshalb direkt im
+ * Shadow-DOM: Ein `MutationObserver` reagiert auf jede floating-ui-Neuberechnung (inkl. der
+ * initialen Erzeugung des Panels).
+ *
+ * Das Panel ist `position: fixed` mit `left`/`right: auto` — die CSS-Shrink-to-fit-Breite bemisst
+ * sich am verfügbaren Platz zwischen `left` und dem Viewport-Rand. `width: max-content` erzwingt
+ * stattdessen die inhaltsbasierte Breite (alle 4 Aktionen in einer Zeile), unabhängig vom
+ * verfügbaren Platz.
+ *
+ * Linksbündigkeit ist nur möglich, wenn rechts vom Trigger genug Platz für diese Breite bleibt.
+ * `.app` hat `max-width: 80rem` (= 1280px, exakt der feste E2E-Viewport aus `playwright.config.ts`)
+ * ohne Rand-Reserve — der Trigger sitzt als letztes Toolbar-Element dadurch nur ~68px vom rechten
+ * Viewport-Rand entfernt, das ~200px breite Panel passt dort nicht hin. Striktes Linksbündig-Setzen
+ * schöbe „Löschen" & Co. über den Viewport-Rand hinaus (nicht mehr klickbar — bricht reale Bedienung
+ * und andere E2E-Specs wie `crud.spec.ts`/`focus-after-delete.spec.ts`). Wir klemmen die Position
+ * deshalb an den Viewport: linksbündig, wo Platz ist, sonst so weit wie nötig nach links geschoben,
+ * damit das komplette Panel sichtbar/bedienbar bleibt.
+ */
+const alignPopoverPanelLeft = (host: HTMLKolPopoverButtonElement): (() => void) => {
+	const root = host.shadowRoot;
+	if (!root) return () => {};
+
+	const correct = () => {
+		const panel = root.querySelector<HTMLElement>('.kol-popover-button__popover');
+		const trigger = root.querySelector<HTMLElement>('.kol-popover-button');
+		if (!panel || !trigger) return;
+		if (panel.style.width !== 'max-content') {
+			panel.style.width = 'max-content';
+		}
+		const panelWidth = panel.getBoundingClientRect().width;
+		const triggerLeft = trigger.getBoundingClientRect().left;
+		const maxLeft = Math.max(0, window.innerWidth - panelWidth);
+		const desiredLeft = `${Math.min(triggerLeft, maxLeft)}px`;
+		if (panel.style.left !== desiredLeft) {
+			panel.style.left = desiredLeft;
+		}
+	};
+
+	const observer = new MutationObserver(correct);
+	observer.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
+	return () => observer.disconnect();
+};
+
 const TreeNode = ({
 	node,
 	expandedIds,
@@ -73,6 +121,12 @@ const TreeNode = ({
 	// Öffnen/Schließen, Click-outside, Escape und Fokusrückgabe über die native Popover-API selbst;
 	// der Ref dient nur dazu, das Panel nach einer Aktion programmatisch zu schließen.
 	const popoverRef = useRef<HTMLKolPopoverButtonElement | null>(null);
+
+	useEffect(() => {
+		const host = popoverRef.current;
+		if (!host) return;
+		return alignPopoverPanelLeft(host);
+	}, []);
 
 	if (visited.has(node.id)) {
 		return null;

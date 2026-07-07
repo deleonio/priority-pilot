@@ -521,9 +521,7 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 				return toolbar ? toolbar.getBoundingClientRect().left : null;
 			}, id);
 
-		test('AK-369-1: Popover-Panel ist linksbündig zum „…"-Trigger ausgerichtet (≤ 1px Toleranz)', async ({
-			page,
-		}) => {
+		test('AK-369-1: Popover-Panel ist linksbündig zum „…"-Trigger ausgerichtet (≤ 1px Toleranz)', async ({ page }) => {
 			const id = await createTask(page, uniqueTitle('Linksbündig-369'));
 
 			await page.goto('/');
@@ -545,9 +543,7 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 			}
 		});
 
-		test('AK-369-2: Alle 4 Aktions-Buttons stehen auf Desktop in einer Zeile (kein Umbruch)', async ({
-			page,
-		}) => {
+		test('AK-369-2: Alle 4 Aktions-Buttons stehen auf Desktop in einer Zeile (kein Umbruch)', async ({ page }) => {
 			const id = await createTask(page, uniqueTitle('Zeile-Desktop-369'));
 
 			await page.goto('/');
