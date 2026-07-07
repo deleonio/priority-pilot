@@ -60,8 +60,11 @@ const findInnerButton = (el: Element | null | undefined): HTMLElement | null => 
  * `_popoverAlign="left"` lässt floating-ui das Panel links neben dem Trigger platzieren.
  * Die CSS-Shrink-to-fit-Breite bemisst sich am verfügbaren Platz; `width: max-content`
  * erzwingt die inhaltsbasierte Breite (alle 4 Aktionen in einer Zeile), unabhängig vom
- * verfügbaren Platz. Der Wert muss direkt im Shadow-DOM gesetzt werden, da `.kol-popover-button__popover`
- * unpublizierte KoliBri-API ist (@public-ui/react-v19 v4.2.1) — bei KoliBri-Upgrades prüfen.
+ * verfügbaren Platz. Überschreitet das Panel den rechten Viewport-Rand, korrigiert
+ * `correct()` `left` um den Überlauf (funktioniert, da KoliBri keinen MutationObserver
+ * auf Panel-Style-Änderungen setzt — nur ResizeObserver/Scroll/Resize via autoUpdate).
+ * Alle Shadow-DOM-Zugriffe sind unpublizierte KoliBri-API (@public-ui/react-v19 v4.2.1) —
+ * bei KoliBri-Upgrades prüfen.
  */
 const alignPopoverPanelLeft = (host: HTMLKolPopoverButtonElement): (() => void) => {
 	const root = host.shadowRoot;
@@ -72,6 +75,15 @@ const alignPopoverPanelLeft = (host: HTMLKolPopoverButtonElement): (() => void) 
 		if (!panel) return;
 		if (panel.style.width !== 'max-content') {
 			panel.style.width = 'max-content';
+		}
+		const rect = panel.getBoundingClientRect();
+		if (rect.width === 0) return; // Panel versteckt (display:none) — DOM-Writes und Reflow sparen
+		const overflow = Math.ceil(rect.right) - window.innerWidth;
+		if (overflow > 0) {
+			const newLeft = `${Math.round((parseFloat(panel.style.left) || 0) - overflow)}px`;
+			if (panel.style.left !== newLeft) {
+				panel.style.left = newLeft;
+			}
 		}
 	};
 
