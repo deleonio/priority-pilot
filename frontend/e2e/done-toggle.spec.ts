@@ -6,9 +6,10 @@ import { waitForStableView } from './helpers';
  *
  * Jede Zeile im `TaskTree` erhält einen binären Toggle, der den Status Open↔Done schaltet
  * (`PATCH /tasks/{id}`) und nach Reload persistiert (AK1). Hat eine Aufgabe mindestens eine offene
- * direkte Unteraufgabe, ist der Toggle gesperrt (`disabled`) und ein Hinweis erklärt den Grund
- * (AK2); sind alle Unteraufgaben Done, ist der Toggle wieder aktiv. Der Toggle ist auf Mobilbreite
- * (375×812) ohne horizontales Scrollen bedienbar (AK4).
+ * direkte Unteraufgabe, ist der Toggle gesperrt (`disabled`) und sein (per `_hideLabel` visuell
+ * verborgener, aber zugänglicher) Label-Text erklärt den Grund (AK2); sind alle Unteraufgaben Done,
+ * ist der Toggle wieder aktiv. Der Toggle ist auf Mobilbreite (375×812) ohne horizontales Scrollen
+ * bedienbar (AK4).
  *
  * Wie `task-tree.spec.ts` läuft dies gegen das **echte** Backend (In-Memory-DB, Vite-Proxy). Der
  * Baum-Aufbau erfolgt über die API — exakt wie `TaskForm.tsx`: eine Unteraufgabe ist der **Vorgänger**
@@ -16,8 +17,8 @@ import { waitForStableView } from './helpers';
  * `afterEach` räumt alle Tasks ab, damit jeder Test vom leeren Zustand startet.
  *
  * `data-testid`-Konventionen (legt der Implementierer an):
- * - `done-toggle-{id}`      — der binäre Toggle-Button pro Aufgabe
- * - `done-blocked-hint-{id}` — der Hinweis-Text bei gesperrtem Toggle
+ * - `done-toggle-{id}` — der binäre Toggle-Button pro Aufgabe; im gesperrten Zustand enthält sein
+ *   zugänglicher Name auch den Sperrgrund (Assertion via `toHaveAccessibleName`).
  *
  * Diese Specs sind rot, bis `TaskTree.tsx` den Toggle rendert, `PATCH /tasks/{id}` auslöst und den
  * #246-Guard auf den Toggle anwendet.
@@ -74,10 +75,9 @@ test.describe('Priority Pilot — Erledigt-Toggle in der Aufgaben-Liste (#315)',
 
 	const item = (page: Page, id: number) => page.getByTestId(`task-tree-item-${id}`);
 	const doneToggle = (page: Page, id: number) => page.getByTestId(`done-toggle-${id}`);
-	const doneBlockedHint = (page: Page, id: number) => page.getByTestId(`done-blocked-hint-${id}`);
 
 	test('AK1: Toggle schaltet Open→Done, PATCH persistiert und übersteht Reload', async ({ page }) => {
-		const id = await createTask(page, uniqueTitle('Erledigen'));
+		const id = await createTask(page, uniqueTitle('Erledigt'));
 
 		await page.goto('/');
 		await waitForStableView(page);
@@ -140,9 +140,11 @@ test.describe('Priority Pilot — Erledigt-Toggle in der Aufgaben-Liste (#315)',
 			.click();
 		await expect(item(page, parentId)).toBeVisible();
 
-		// #246-Guard auf den Toggle angewendet: gesperrt + erklärender Hinweis.
+		// #246-Guard auf den Toggle angewendet: gesperrt + erklärender Grund im zugänglichen Namen.
 		await expect(doneToggle(page, parentId)).toBeDisabled();
-		await expect(doneBlockedHint(page, parentId)).toBeVisible();
+		await expect(doneToggle(page, parentId).getByRole('button')).toHaveAccessibleName(
+			/bitte erst alle Unteraufgaben erledigen/i,
+		);
 
 		// Der gesperrte Toggle darf den Status nicht ändern.
 		expect(await fetchStatus(page, parentId)).toBe('Open');
@@ -169,9 +171,9 @@ test.describe('Priority Pilot — Erledigt-Toggle in der Aufgaben-Liste (#315)',
 			.click();
 		await expect(item(page, parentId)).toBeVisible();
 
-		// Mit ausschließlich erledigten Unteraufgaben ist der Eltern-Toggle aktiv und ohne Hinweis.
+		// Mit ausschließlich erledigten Unteraufgaben ist der Eltern-Toggle aktiv und ohne Sperrgrund im Namen.
 		await expect(doneToggle(page, parentId)).toBeEnabled();
-		await expect(doneBlockedHint(page, parentId)).toHaveCount(0);
+		await expect(doneToggle(page, parentId).getByRole('button')).toHaveAccessibleName('Erledigt');
 
 		// Und er lässt sich nun betätigen.
 		await doneToggle(page, parentId).click();
