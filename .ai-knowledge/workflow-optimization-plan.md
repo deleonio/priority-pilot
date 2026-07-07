@@ -182,6 +182,82 @@ für reine Analyse-Läufe schlanker referenziert werden kann. **Contract-Impact:
 
 ---
 
+### M8 — `claude-triage.yml` + `claude-retriage.yml` zu EINEM Workflow zusammenführen 🔒 (Wartbarkeit, Topologie-Weiche)
+
+**Idee (User):** Re-Triage-Trigger (`issue_comment.created` mit `@claude`) einfach dem Triage-
+Workflow zuordnen — ein Workflow mit beiden `on:`-Triggern statt zwei Dateien.
+
+**Befund — machbar & technisch sicher:** Die beiden sind **~95 % identisch**: gleiches Modell
+(`claude-opus-4-8 --effort max`), gleiches `--allowedTools`, wortgleicher Prompt-Kern (Delta-
+Kommentar-Logik, Body-Block, Labels-zuletzt, 18-Min-Rettung), beide zeigen auf
+`.ai-knowledge/ticket-triage.md`, beide haben die App-Token-Preflight. Der Split war laut
+Datei-Kommentar **organisatorisch, nicht technisch**. Ein Workflow darf beide Trigger tragen; die
+Steps nutzen `github.event.issue.number` (existiert bei `issues` UND `issue_comment`).
+
+**WICHTIG — ehrliche Einordnung:** Spart **weder Tokens/Lauf noch Laufzeit** (gleiches Modell,
+gleiche Arbeit, jedes Event = 1 Opus-max-Lauf; kein Doppellauf-Bug vorhanden). Der Gewinn ist
+**Wartbarkeit/Drift-Reduktion** (Prompt heute in 2 Dateien × bis zu 3 Backend-Pfaden gepflegt) und
+**ein einziger Tuning-Punkt** — macht M1/M3/M7 an einer statt zwei Stellen umsetzbar.
+
+**Zu erhaltende Invarianten (sonst bricht Auth/Anti-Spam):**
+
+1. Auth verzweigt pro Event: `issue.author_association` (opened) vs. `comment.author_association`
+   - `@claude` im Body (comment) — compound-`if` mit `github.event_name`-Zweigen.
+2. PR-Guard auf dem Comment-Pfad: `github.event.issue.pull_request == null` (issue_comment feuert
+   auch für PRs).
+3. Spam-Vektor: `issue_comment` nur `created`, NIE `edited`.
+4. Unlabeled-Pfad-Auth: „Label-Entfernen setzt Schreibzugriff voraus" bleibt.
+5. Concurrency koppelt sich (eine Gruppe `claude-triage-${issue}`): @claude-Kommentar canceled
+   laufenden Open-Triage — „jüngste Analyse gewinnt", bewusst bestätigen.
+6. Label-Cleanup auf die Re-Triage-Formulierung vereinheitlichen (sicheres Superset).
+
+**Contract-Impact:** 🔒 `model-delegation.test.ts:27-28,39` (Datei-Arrays), `pipeline-hardening.test.ts:26-27,388-396(Spam-Guard),435,493` (auf Merge-Datei umzeigen), `docs/pipeline-flow.md`
+(2 Knoten + Label-Tabelle), `AGENTS.md` (`model-delegation.test.ts:183-184`).
+`claude-issue-unblock.test.ts` bleibt gültig (zeigt schon auf `claude-triage.yml`).
+**→ Trigger-Topologie-Änderung: separater Reviewer Pflicht.**
+
+---
+
+### M9 — `implement → review` nur noch über `pr-needs-review-label.yml` (Doppelweg entfernen) 🔒 (Robustheit + DRY, Topologie-Weiche)
+
+**Idee (User):** Der Übergang `implement → review` läuft auf zwei Wegen; er sollte immer über
+`pr-needs-review-label.yml` gehen.
+
+**Befund — korrekt für implement, sogar robuster:** Heute setzt `implement` `ai:needs-review`
+**direkt** (`claude-implement.yml:220`, Weg B) UND macht den PR ready → `pr-needs-review-label.yml`
+setzt es **ebenfalls** (Weg A). Entscheidend: der Bot-Actor-Filter in `pr-needs-review-label.yml:44`
+(`sender.type != 'Bot'`) greift **nur bei `synchronize`** — bei `opened`/`ready_for_review` läuft der
+Autolabeler auch für den App-Bot. Also feuert Weg A in **beiden** implement-Modi (neuer Ready-PR =
+`opened`; Draft→ready = `ready_for_review`). Weg B ist damit redundant.
+
+**Weg A ist die robustere Route:** Er hängt am PR-Ready-Event, nicht am letzten Prompt-Schritt.
+Läuft `implement` nach `gh pr ready`, aber vor seinem „ALLERLETZTER Schritt"-Label ins Timeout,
+hat Weg A das Review schon ausgelöst. Die „unvollständig"-Invariante bleibt erhalten: `implement`
+lässt bei Teilumsetzung den PR als Draft (`claude-implement.yml:229`), und `pr-needs-review-label.yml:41`
+hat den `draft == false`-Guard → kein Review auf Drafts.
+
+**Fix:** In `claude-implement.yml` (alle 3 Prompt-Pfade) das direkte `ai:needs-review`-Setzen +
+`gh label create ai:needs-review` entfernen; implement steuert das Review nur noch über Draft-vs-
+Ready-Status. Der Autolabeler bleibt alleinige Quelle der ready→review-Übersetzung.
+
+**NICHT universell — fixup bleibt außen vor:** Die `fixup → review`-Schleife geht bewusst NICHT über
+den Autolabeler: Fixup pusht auf einen bereits-ready PR = `synchronize` = Bot → `pr-needs-review-label.yml:44`
+überspringt es (Race-Vermeidung, Zeile 21-24). Fixup MUSS `ai:needs-review` direkt setzen — das
+direkte Setzen dort ist **load-bearing**, nicht redundant.
+
+**Vor Umsetzung validieren:** Re-Entry-Fall — ein erneuter `implement`-Lauf gegen einen bereits-ready
+PR erzeugt nur `synchronize` (Bot) → Autolabeler überspringt. Im Normalfluss (spec legt Draft an →
+implement macht erstmalig ready) tritt das nicht auf.
+
+**Contract-Impact:** 🔒 `docs/pipeline-flow.md:45-47,98` (Kante `implement -->|ai:needs-review| review`
+
+- Label-Tabelle „Setzt: implement, pr-needs-review-label, fixup" → implement streichen); prüfen, ob
+  `pipeline-hardening.test.ts` das direkte implement-Label festschreibt. **Ertrag:** Robustheit + DRY;
+  kleiner Input-Token-Abzug in der implement-Prompt (~5 Zeilen × 3 Pfade). **→ Trigger-Topologie:
+  separater Reviewer Pflicht.**
+
+---
+
 ## Tabu-Zone — lösungstragend, NICHT anfassen
 
 - **Opus-max bei der Erst-Triage** — Wurzel des ausführbaren Vertrags (AK+Testfälle), speist Spec →
@@ -204,8 +280,12 @@ cancel-in-progress`, Draft-Skips, Label-Gating, Stop-Guards).
 
 - Keine Run-Logs eingesehen → alle %-Angaben sind Größenordnungen, keine Messung.
 - M3 und M5 sind **Kalibrier**-Maßnahmen: A/B bzw. Job-Zeit-Messung **vor** der Änderung.
-- M4 und M6 sind **Trigger-Topologie**-Änderungen → separater Reviewer Pflicht (Hochrisiko-Gate),
-  Trennung push-vs-PR-Trigger sauber halten.
+- M4, M6, M8 und M9 sind **Trigger-Topologie**-Änderungen → separater Reviewer Pflicht (Hochrisiko-
+  Gate), Trennung push-vs-PR-Trigger sauber halten.
+- M8 und M9 dienen primär **Wartbarkeit/Robustheit, nicht** direkt dem Token-/Laufzeit-Ziel — senken
+  aber Drift; M9 macht den implement→review-Übergang zusätzlich timeout-robust.
+- **fixup→review** bleibt bewusst am direkten Label (Autolabeler ignoriert Bot-`synchronize`) —
+  nicht mit M9 verwechseln.
 
 ## Reihenfolge-Empfehlung
 
