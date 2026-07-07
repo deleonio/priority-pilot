@@ -4,8 +4,8 @@ import { isPushConfigured } from '../logics/push.js';
  * Server-interner, dependency-freier Scheduler (Issue #355 — fachlicher Push-Trigger). Läuft nur,
  * wenn Web-Push konfiguriert ist UND explizit über `PUSH_REMINDERS_ENABLED=true` aktiviert wurde
  * (kein stiller Hintergrundlauf ohne bewusstes Opt-in). Prüft in festem Intervall, ob die
- * konfigurierte Tagesstunde (`PUSH_REMINDERS_HOUR`, lokale Server-Zeit) erreicht ist, und ruft dann
- * jeden registrierten Trigger genau einmal pro Kalendertag auf.
+ * konfigurierte Tagesstunde (`PUSH_REMINDERS_HOUR`, UTC) erreicht ist, und ruft dann
+ * jeden registrierten Trigger genau einmal pro UTC-Kalendertag auf.
  */
 
 /** Ein fachlicher Trigger (z. B. `runDueTaskReminders`) — erhält den aktuellen Zeitpunkt des Ticks. */
@@ -27,9 +27,9 @@ const configuredHour = (): number => {
 
 const dayKey = (date: Date): string => date.toISOString().slice(0, 10);
 
-/** Ob ein Tick auslösen soll: die konfigurierte Stunde ist erreicht UND heute wurde noch nicht gefeuert. */
+/** Ob ein Tick auslösen soll: die konfigurierte UTC-Stunde ist erreicht UND heute (UTC) wurde noch nicht gefeuert. */
 const shouldFire = (current: Date, lastFiredDay: string | undefined, hour: number): boolean =>
-	current.getHours() >= hour && dayKey(current) !== lastFiredDay;
+	current.getUTCHours() >= hour && dayKey(current) !== lastFiredDay;
 
 interface TickerOptions {
 	now?: () => Date;

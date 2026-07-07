@@ -95,6 +95,7 @@ export const runDueTaskReminders = async (
 					dedupeKey: dedupeKeyFor(task.id, task.deadline),
 					sentAt: now,
 				})),
+				{ ignoreDuplicates: true },
 			);
 			usersNotified++;
 		}
