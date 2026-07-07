@@ -115,12 +115,24 @@ test.describe('Abhängigkeits-Editor: Entfernen-Icon-Button (#368)', () => {
 			const labelSpan = shadowRoot.querySelector('.kol-span__label') as HTMLElement | null;
 			if (!labelSpan) return '';
 			const style = window.getComputedStyle(labelSpan);
-			// sr-only-Muster: KoliBri 4.2.1 setzt aria-hidden, ältere Versionen clip/display/visibility.
+			// KoliBri 4.2.1 rendert `_hideLabel` NICHT als sr-only-Label: das sichtbare `.kol-span__label`
+			// wird gar nicht erzeugt (renderLabel liefert null, der Button erhält `.kol-button--hide-label`).
+			// Die einzige verbleibende `.kol-span__label` steckt im Tooltip (`.kol-tooltip__floating`),
+			// das per CSS standardmäßig `display: none; opacity: 0` ist und nur bei Hover/Fokus erscheint.
+			// Ältere Versionen nutzten aria-hidden bzw. clip/display/visibility direkt am Label.
+			const hiddenTooltip = (() => {
+				const tooltip = labelSpan.closest('.kol-tooltip__floating, .kol-button__tooltip');
+				if (!tooltip) return false;
+				const tooltipStyle = window.getComputedStyle(tooltip);
+				return tooltipStyle.display === 'none' || tooltipStyle.visibility === 'hidden' || tooltipStyle.opacity === '0';
+			})();
 			const isSrOnly =
 				labelSpan.getAttribute('aria-hidden') === 'true' ||
 				style.display === 'none' ||
 				style.visibility === 'hidden' ||
-				(style.position === 'absolute' && style.clip === 'rect(0px, 0px, 0px, 0px)');
+				(style.position === 'absolute' && style.clip === 'rect(0px, 0px, 0px, 0px)') ||
+				labelSpan.closest('.kol-button--hide-label, .kol-span--hide-label') !== null ||
+				hiddenTooltip;
 			return isSrOnly ? '' : (labelSpan.textContent?.trim() ?? '');
 		});
 		expect(visibleLabel).toBe('');
