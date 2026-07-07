@@ -232,7 +232,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 	}, []);
 
 	const openSettings = useCallback((): void => {
-		window.history.pushState({}, '', '/settings/pillars');
+		window.history.pushState({}, '', '/settings/general');
 		setShowSettings(true);
 	}, []);
 

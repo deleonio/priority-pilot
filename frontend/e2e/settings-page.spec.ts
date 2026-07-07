@@ -48,7 +48,9 @@ test.describe('#270 Einstellungen – Zahnrad-Toolbar-Button und Route /settings
 	 * AK2 — Navigation per Klick (#382): Klick auf das Zahnrad navigiert zu `/settings/general`;
 	 * der „Allgemein"-Tab ist aktiv (`aria-selected="true"`), „Säulen" ist inaktiv.
 	 */
-	test('AK2: Klick auf das Zahnrad navigiert zu /settings/general und aktiviert den Allgemein-Tab', async ({ page }) => {
+	test('AK2: Klick auf das Zahnrad navigiert zu /settings/general und aktiviert den Allgemein-Tab', async ({
+		page,
+	}) => {
 		await page.goto('/');
 		await waitForStableView(page);
 
