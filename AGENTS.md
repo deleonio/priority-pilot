@@ -101,12 +101,13 @@ Statt jeden KI-Workflow fest auf ein Modell zu verkabeln **oder** eine zweite, v
 `claude-code-action` nur zur Modell-Klassifikation zu starten, startet jeder Workflow **genau eine**
 Session. Für die Modell-Wahl gilt dabei:
 
-**Ausnahme — Triage & Re-Triage laufen fest auf Opus max:** `claude-triage.yml` und
-`claude-retriage.yml` starten die Session deterministisch auf **`claude-opus-4-8`** mit
-**`--effort max`** (tiefstes Reasoning). Die Triage-Analyse ist die Grundlage aller Folgestufen
-(Spec → Implement) — hier ist bewusst das stärkste Modell ohne Koordinator-Delegation verdrahtet,
-damit die Analyse optimal ausfällt. Nur triviale mechanische Nebenschritte dürfen an `light`
-(Haiku) delegiert werden; eine `heavy`-Eskalation entfällt, da die Session bereits auf Opus läuft.
+**Ausnahme — Triage & Re-Triage laufen fest auf Opus max:** `claude-triage.yml` (deckt BEIDE
+Trigger — Issue-Anlegen/Label-Entfernen UND `@claude`-Kommentar — in einem Workflow ab) startet die
+Session deterministisch auf **`claude-opus-4-8`** mit **`--effort max`** (tiefstes Reasoning). Die
+Triage-Analyse ist die Grundlage aller Folgestufen (Spec → Implement) — hier ist bewusst das
+stärkste Modell ohne Koordinator-Delegation verdrahtet, damit die Analyse optimal ausfällt. Nur
+triviale mechanische Nebenschritte dürfen an `light` (Haiku) delegiert werden; eine
+`heavy`-Eskalation entfällt, da die Session bereits auf Opus läuft.
 
 **Alle übrigen Claude-Workflows** (Spec, Implement, PR-Review, PR-Fixup) starten deterministisch auf
 **`claude-sonnet-4-6`** (`--effort medium`). Dieser Sonnet-Lauf ist der
@@ -161,16 +162,13 @@ bei Bedarf in-place aktualisiert. Vollständiger Ablauf:
 Konkreter Command: `/triage-ticket` (analysiert, lektoriert, optimiert den Titel, zerlegt, schreibt
 die Analyse in die Beschreibung, pingt und markiert in einem Durchlauf).
 
-Eine **Re-Triage** lässt sich auch per **Issue-Kommentar mit `@claude`** anstoßen: Die
-GitHub-Action [`.github/workflows/claude-retriage.yml`](.github/workflows/claude-retriage.yml) ruft
-den Triage-Ablauf automatisch für genau dieses eine Issue auf (nur bei Kommentaren von Personen mit
-Schreibzugriff).
-
 In **GitHub Actions** wird die Triage zusätzlich **ereignisgesteuert** angestoßen —
 [`.github/workflows/claude-triage.yml`](.github/workflows/claude-triage.yml) ruft den Triage-Ablauf
 automatisch für genau dieses eine Issue auf, sobald ein **Issue angelegt** wird (nur von Personen mit
-Schreibzugriff, damit Außenstehende den OAuth-Token-Lauf nicht auslösen) oder das Label
-**`ai:analyzed` entfernt** wird (erzwingt eine Neu-Analyse, z. B. nach geänderter Beschreibung).
+Schreibzugriff, damit Außenstehende den OAuth-Token-Lauf nicht auslösen), das Label
+**`ai:analyzed` entfernt** wird (erzwingt eine Neu-Analyse, z. B. nach geänderter Beschreibung), oder
+jemand mit Schreibzugriff einen **Issue-Kommentar mit `@claude`** hinterlässt (Re-Triage auf Zuruf —
+zweiter Trigger desselben Workflows, kein separater).
 
 Dieses Entfernen von `ai:analyzed` geschieht auch **automatisch beim Merge eines Vorgänger-Issues**:
 Sind Sub-Issues über native GitHub-Issue-Dependencies (`blocked-by`) sequenziell verkettet (A1 → A2 →

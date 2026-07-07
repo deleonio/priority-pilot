@@ -3,7 +3,8 @@
 Dieser Überblick zeigt, wie ein Ticket von der Analyse bis zum Merge durch die GitHub-Actions-
 Workflows läuft. **Kanten = Trigger**, **fett = Label-Events**, gestrichelt = `workflow_run`/sonstige
 Events. Stand: Gate + Auto-Merge sind zu **einem** Workflow (`claude-pr-gate-merge.yml`)
-zusammengelegt.
+zusammengelegt; Triage + Re-Triage sind zu **einem** Workflow (`claude-triage.yml`, zwei Trigger:
+`issues` + `issue_comment`) zusammengelegt.
 
 ```mermaid
 flowchart TD
@@ -14,8 +15,7 @@ flowchart TD
 
     %% ====== Issue-Phase ======
     subgraph ISSUE [Issue-Phase]
-        triage[claude-triage.yml<br/>Analyse]:::wf
-        retriage[claude-retriage.yml<br/>Re-Analyse]:::wf
+        triage[claude-triage.yml<br/>Analyse + Re-Analyse]:::wf
         spec[claude-spec.yml<br/>rote Tests + Draft-PR]:::wf
         implement[claude-implement.yml<br/>Umsetzung + PR ready]:::wf
         unblock[claude-issue-unblock.yml<br/>Nachfolger freigeben]:::wf
@@ -36,9 +36,8 @@ flowchart TD
 
     %% ---- Issue-Trigger ----
     start -->|issues.opened| triage
-    cmt -->|issue_comment| retriage
+    cmt -->|issue_comment| triage
     triage -->|"label: ai:spec-ready 🟢"| spec
-    retriage -->|"label: ai:spec-ready 🟢"| spec
     spec -->|"label: ai:ready"| implement
 
     %% ---- Übergang Issue -> PR ----
@@ -90,15 +89,15 @@ flowchart TD
 
 ## Label-Referenz
 
-| Label               | Gesetzt von                                                          | Entfernt von                                                        | Triggert                                                             |
-| ------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| `ai:analyzed`       | triage / retriage                                                    | **claude-issue-unblock** (Merge des Blockers), manuell              | _Setzen:_ Vorbedingung; _Entfernen:_ `claude-triage.yml` (Re-Triage) |
-| `ai:spec-ready`     | triage / retriage (bei 🟢)                                           | _(kein automatisches Entfernen)_                                    | `claude-spec.yml`                                                    |
-| `ai:ready`          | spec                                                                 | _(kein automatisches Entfernen)_                                    | `claude-implement.yml`                                               |
-| `ai:needs-review`   | implement, pr-needs-review-label, **fixup**                          | review, gate-merge                                                  | `claude-pr-review.yml`                                               |
-| `ai:needs-changes`  | review (🔴), **gate-merge**, **conflict-scan**                       | **fixup**, **pr-needs-review-label** (bei Push)                     | `claude-pr-fixup.yml`                                                |
-| `ai:ready-to-merge` | review (🟢)                                                          | **gate-merge** (rot/Konflikt), **pr-needs-review-label** (bei Push) | `claude-pr-gate-merge.yml`                                           |
-| `ai:to-big-issue`   | triage/retriage/spec/implement (Timeout oder fehlendes Agent-Secret) | manuell (nach Aufteilen / Secret-Fix)                               | _Entfernen:_ `claude-triage.yml` (Neu-Analyse)                       |
+| Label               | Gesetzt von                                                 | Entfernt von                                                        | Triggert                                                             |
+| ------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `ai:analyzed`       | triage (Triage- oder Re-Triage-Pfad)                        | **claude-issue-unblock** (Merge des Blockers), manuell              | _Setzen:_ Vorbedingung; _Entfernen:_ `claude-triage.yml` (Re-Triage) |
+| `ai:spec-ready`     | triage (bei 🟢, Triage- oder Re-Triage-Pfad)                | _(kein automatisches Entfernen)_                                    | `claude-spec.yml`                                                    |
+| `ai:ready`          | spec                                                        | _(kein automatisches Entfernen)_                                    | `claude-implement.yml`                                               |
+| `ai:needs-review`   | implement, pr-needs-review-label, **fixup**                 | review, gate-merge                                                  | `claude-pr-review.yml`                                               |
+| `ai:needs-changes`  | review (🔴), **gate-merge**, **conflict-scan**              | **fixup**, **pr-needs-review-label** (bei Push)                     | `claude-pr-fixup.yml`                                                |
+| `ai:ready-to-merge` | review (🟢)                                                 | **gate-merge** (rot/Konflikt), **pr-needs-review-label** (bei Push) | `claude-pr-gate-merge.yml`                                           |
+| `ai:to-big-issue`   | triage/spec/implement (Timeout oder fehlendes Agent-Secret) | manuell (nach Aufteilen / Secret-Fix)                               | _Entfernen:_ `claude-triage.yml` (Neu-Analyse)                       |
 
 ## Schlüsselmechanik
 
@@ -187,7 +186,8 @@ Review (Kreuzverhoer)']`, `completed`) **und** per `pull_request` `labeled` (nur
   triggern auch `claude-issue-unblock.yml` (App-Token entfernt `ai:analyzed` beim Merge des Blockers)
   und ein Mensch, der ein aufgeteiltes/behobenes `ai:to-big-issue` entfernt.
 - **`@claude`-Kommentar** an einem Issue (`issue_comment.created`, NICHT `edited`) von
-  OWNER/MEMBER/COLLABORATOR → `claude-retriage.yml`. (Der einzige `@claude`-gesteuerte Workflow; die
-  PR-Seite wird ausschließlich über Labels gesteuert, um Event-Kaskaden zu vermeiden.)
+  OWNER/MEMBER/COLLABORATOR → `claude-triage.yml` (Re-Triage-Pfad, zweiter Trigger desselben
+  Workflows seit M8). (Der einzige `@claude`-gesteuerte Trigger; die PR-Seite wird ausschließlich
+  über Labels gesteuert, um Event-Kaskaden zu vermeiden.)
 - **Push auf main** (`push` auf `main`, z. B. nach einem Merge) → `claude-pr-conflict-scan.yml`
   (scannt alle offenen PRs auf Merge-Konflikte).

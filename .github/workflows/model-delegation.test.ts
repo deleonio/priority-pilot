@@ -22,21 +22,22 @@ import { dirname, join } from 'node:path';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(HERE, '..', '..');
 
-// Die sechs Claude-getriebenen KI-Workflows, die zuvor den Router fest verdrahtet hatten.
+// Die fuenf Claude-getriebenen KI-Workflows, die zuvor den Router fest verdrahtet hatten.
+// (claude-triage.yml deckt seit M8, 2026-07-08, sowohl Triage ALS AUCH Re-Triage in einem
+// Workflow ab — vormals zwei getrennte Dateien claude-triage.yml + claude-retriage.yml.)
 const CLAUDE_WORKFLOWS = [
 	'claude-triage.yml',
-	'claude-retriage.yml',
 	'claude-spec.yml',
 	'claude-implement.yml',
 	'claude-pr-review.yml',
 	'claude-pr-fixup.yml',
 ];
 
-// Ausnahme von der Sonnet-Koordinator-Regel: Triage und Re-Triage laufen bewusst FEST auf
+// Ausnahme von der Sonnet-Koordinator-Regel: Triage/Re-Triage laufen bewusst FEST auf
 // Opus mit maximalem Reasoning-Aufwand (`--model claude-opus-4-8 --effort max`) — die
 // Analysequalitaet der Triage ist die Grundlage aller Folgestufen (Spec -> Implement),
 // deshalb wird hier nicht delegiert, sondern direkt das staerkste Modell gestartet.
-const OPUS_MAX_WORKFLOWS = ['claude-triage.yml', 'claude-retriage.yml'];
+const OPUS_MAX_WORKFLOWS = ['claude-triage.yml'];
 
 // Die uebrigen Workflows starten weiterhin auf Sonnet und delegieren per Subagent.
 const COORDINATOR_WORKFLOWS = CLAUDE_WORKFLOWS.filter((wf) => !OPUS_MAX_WORKFLOWS.includes(wf));

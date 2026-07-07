@@ -22,9 +22,10 @@ const readWorkflow = (name: string): string => readFileSync(join(REPO_ROOT, '.gi
 const readRepoFile = (...parts: string[]): string => readFileSync(join(REPO_ROOT, ...parts), 'utf8');
 
 // Die Workflows, die alle drei Agent-Pfade (Claude/GLM/Mistral) enthalten.
+// (claude-triage.yml deckt seit M8, 2026-07-08, sowohl Triage ALS AUCH Re-Triage in einem
+// Workflow ab — vormals zwei getrennte Dateien claude-triage.yml + claude-retriage.yml.)
 const CLAUDE_WORKFLOWS = [
 	'claude-triage.yml',
-	'claude-retriage.yml',
 	'claude-spec.yml',
 	'claude-implement.yml',
 	'claude-pr-review.yml',
@@ -385,15 +386,21 @@ describe('E2 — CI laeuft NICHT auf Draft-PRs (spart Compute; Draft = rote Spec
 	});
 });
 
-describe('M3 — retriage nur auf created (nicht edited — Spam-Vektor)', () => {
-	it('claude-retriage.yml triggert nur auf issue_comment created, NICHT edited', () => {
-		const yml = readWorkflow('claude-retriage.yml');
+describe('M3 — Re-Triage (issue_comment) nur auf created (nicht edited — Spam-Vektor)', () => {
+	it('claude-triage.yml triggert den issue_comment-Pfad nur auf created, NICHT edited', () => {
+		const yml = readWorkflow('claude-triage.yml');
 		// Haerten M3: edited ist ein Spam-/Missbrauchsvektor (nachtraegliches @claude in alten
 		// Kommentar ohne sichtbaren neuen Kommentar). Nur created feuert zuverlaessig und sichtbar.
-		const onBlock = yml.match(/on:[\s\S]*?types:\s*\[([^\]]+)\]/);
-		assert.ok(onBlock, 'on-Block mit types nicht gefunden in claude-retriage.yml');
-		assert.match(onBlock[1], /\bcreated\b/, 'retriage muss auf created triggern');
-		assert.doesNotMatch(onBlock[1], /\bedited\b/, 'retriage darf NICHT auf edited triggern (Spam-Vektor — Haerten M3)');
+		// Seit M8 (2026-07-08) traegt claude-triage.yml ZWEI on:-Trigger (issues + issue_comment) —
+		// gezielt den issue_comment-Teilblock matchen, nicht den ersten types:-Treffer (issues).
+		const onBlock = yml.match(/issue_comment:[\s\S]*?types:\s*\[([^\]]+)\]/);
+		assert.ok(onBlock, 'issue_comment-Teilblock mit types nicht gefunden in claude-triage.yml');
+		assert.match(onBlock[1], /\bcreated\b/, 'issue_comment-Trigger muss auf created feuern');
+		assert.doesNotMatch(
+			onBlock[1],
+			/\bedited\b/,
+			'issue_comment-Trigger darf NICHT auf edited feuern (Spam-Vektor — Haerten M3)',
+		);
 	});
 });
 
@@ -431,17 +438,15 @@ describe('C1-Nachtrag — Stop-Guard ist fail-closed bei gh-API-Ausfall (nicht f
 	});
 });
 
-describe('L1-Nachtrag — Triage/Retriage instruieren Zwischenstandssicherung (~18 Min)', () => {
-	for (const wf of ['claude-triage.yml', 'claude-retriage.yml'] as const) {
-		it(`${wf}: Agent-Prompt enthaelt eine ~18-Min-Zwischenstand-Anweisung (Symmetrie zu spec/implement)`, () => {
-			const yml = readWorkflow(wf);
-			assert.match(
-				yml,
-				/SPAETESTENS nach ~18 Minuten den Zwischenstand/,
-				`${wf} muss die Agents anweisen, bei drohendem Timeout (~18 Min) den bisherigen Analyse-Zwischenstand zu sichern (Haerten L1)`,
-			);
-		});
-	}
+describe('L1-Nachtrag — Triage/Re-Triage instruieren Zwischenstandssicherung (~18 Min)', () => {
+	it('claude-triage.yml: Agent-Prompt enthaelt eine ~18-Min-Zwischenstand-Anweisung (Symmetrie zu spec/implement)', () => {
+		const yml = readWorkflow('claude-triage.yml');
+		assert.match(
+			yml,
+			/SPAETESTENS nach ~18 Minuten den Zwischenstand/,
+			'claude-triage.yml muss die Agents anweisen, bei drohendem Timeout (~18 Min) den bisherigen Analyse-Zwischenstand zu sichern (Haerten L1)',
+		);
+	});
 });
 
 // Label-Reihenfolge-Prinzip (Nachtrag nach beobachtetem Vorfall 2026-07-01): der Analyse-Workflow
@@ -486,12 +491,8 @@ const assertContentBeforeLabel = (wf, contentMarker, labelMarker, expectedCount)
 };
 
 describe('Label-Reihenfolge-Prinzip — Labels erst NACH allen Schreibvorgaengen (nie davor)', () => {
-	it('claude-triage.yml: Beschreibung/Kommentar stehen vor der Label-Umschaltung (je Agent-Pfad)', () => {
+	it('claude-triage.yml: Beschreibung/Kommentar stehen vor der Label-Umschaltung (je Agent-Pfad, Triage UND Re-Triage)', () => {
 		assertContentBeforeLabel('claude-triage.yml', 'Danach genau EINEN kurzen', 'ALLERLETZTER Schritt, NIE davor', 3);
-	});
-
-	it('claude-retriage.yml: Beschreibung/Kommentar stehen vor der Label-Umschaltung (je Agent-Pfad)', () => {
-		assertContentBeforeLabel('claude-retriage.yml', 'Danach genau EINEN kurzen', 'ALLERLETZTER Schritt, NIE davor', 3);
 	});
 
 	it('claude-spec.yml: Push/Draft-PR stehen vor der ai:ready-Uebergabe (je Agent-Pfad)', () => {
