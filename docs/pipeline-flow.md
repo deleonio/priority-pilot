@@ -40,14 +40,15 @@ flowchart TD
     triage -->|"label: ai:spec-ready 🟢"| spec
     spec -->|"label: ai:ready"| implement
 
-    %% ---- Übergang Issue -> PR ----
-    implement -->|Draft→ready PR| autolabel
+    %% ---- Übergang Issue -> PR (implement setzt ai:needs-review SELBST als kontrollierten
+    %% letzten Schritt — pr-needs-review-label.yml reagiert bewusst NICHT auf bot-erzeugte
+    %% Draft→ready-Uebergaenge, nur auf menschliche PR-Erstellung/-Freigabe) ----
     implement -->|"label: ai:needs-review"| review
-    autolabel -->|"label: ai:needs-review"| review
 
-    %% ---- Push-Reset-Pfad (jeder menschliche Push auf den PR-Branch) ----
+    %% ---- Push-Reset-Pfad (jeder menschliche Push auf den PR-Branch) + menschlich erstellte PRs ----
     gatemerge -.->|"menschlicher Push<br/>(Reset ai:ready-to-merge)"| autolabel
     fixup -.->|"menschlicher Push<br/>(Reset ai:needs-changes)"| autolabel
+    autolabel -->|"label: ai:needs-review<br/>(nur menschliche Aktoren)"| review
 
     %% ---- Review-Verzweigung ----
     review -->|"label: ai:needs-changes 🔴"| fixup
@@ -89,15 +90,15 @@ flowchart TD
 
 ## Label-Referenz
 
-| Label               | Gesetzt von                                                 | Entfernt von                                                        | Triggert                                                             |
-| ------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| `ai:analyzed`       | triage (Triage- oder Re-Triage-Pfad)                        | **claude-issue-unblock** (Merge des Blockers), manuell              | _Setzen:_ Vorbedingung; _Entfernen:_ `claude-triage.yml` (Re-Triage) |
-| `ai:spec-ready`     | triage (bei 🟢, Triage- oder Re-Triage-Pfad)                | _(kein automatisches Entfernen)_                                    | `claude-spec.yml`                                                    |
-| `ai:ready`          | spec                                                        | _(kein automatisches Entfernen)_                                    | `claude-implement.yml`                                               |
-| `ai:needs-review`   | implement, pr-needs-review-label, **fixup**                 | review, gate-merge                                                  | `claude-pr-review.yml`                                               |
-| `ai:needs-changes`  | review (🔴), **gate-merge**, **conflict-scan**              | **fixup**, **pr-needs-review-label** (bei Push)                     | `claude-pr-fixup.yml`                                                |
-| `ai:ready-to-merge` | review (🟢)                                                 | **gate-merge** (rot/Konflikt), **pr-needs-review-label** (bei Push) | `claude-pr-gate-merge.yml`                                           |
-| `ai:to-big-issue`   | triage/spec/implement (Timeout oder fehlendes Agent-Secret) | manuell (nach Aufteilen / Secret-Fix)                               | _Entfernen:_ `claude-triage.yml` (Neu-Analyse)                       |
+| Label               | Gesetzt von                                                  | Entfernt von                                                        | Triggert                                                             |
+| ------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `ai:analyzed`       | triage (Triage- oder Re-Triage-Pfad)                         | **claude-issue-unblock** (Merge des Blockers), manuell              | _Setzen:_ Vorbedingung; _Entfernen:_ `claude-triage.yml` (Re-Triage) |
+| `ai:spec-ready`     | triage (bei 🟢, Triage- oder Re-Triage-Pfad)                 | _(kein automatisches Entfernen)_                                    | `claude-spec.yml`                                                    |
+| `ai:ready`          | spec                                                         | _(kein automatisches Entfernen)_                                    | `claude-implement.yml`                                               |
+| `ai:needs-review`   | implement, pr-needs-review-label (nur menschlich), **fixup** | review, gate-merge                                                  | `claude-pr-review.yml`                                               |
+| `ai:needs-changes`  | review (🔴), **gate-merge**, **conflict-scan**               | **fixup**, **pr-needs-review-label** (bei Push)                     | `claude-pr-fixup.yml`                                                |
+| `ai:ready-to-merge` | review (🟢)                                                  | **gate-merge** (rot/Konflikt), **pr-needs-review-label** (bei Push) | `claude-pr-gate-merge.yml`                                           |
+| `ai:to-big-issue`   | triage/spec/implement (Timeout oder fehlendes Agent-Secret)  | manuell (nach Aufteilen / Secret-Fix)                               | _Entfernen:_ `claude-triage.yml` (Neu-Analyse)                       |
 
 ## Schlüsselmechanik
 
@@ -114,6 +115,13 @@ flowchart TD
   Race-Conditions mit nebenläufigen Label-Switches zu vermeiden. Das bedeutet: **`ai:ready-to-merge`
   ist nicht terminal** — ein menschlicher Push nach grünem Review setzt den PR zurück in den
   Review-Zustand. Soll ein PR mergen bleiben, muss er ohne weitere Pushes grün bleiben.
+- **`pr-needs-review-label.yml` labelt NUR menschliche Aktoren** — für alle drei Event-Typen
+  (`opened`/`ready_for_review`/`synchronize`), nicht nur bei `synchronize` wie ursprünglich.
+  Grund: `claude-implement.yml` macht seine PRs per App-Bot-Token review-bereit und setzt
+  `ai:needs-review` danach **selbst** als expliziten letzten Schritt (erst nachdem Beschreibung
+  - Testergebnisse vollständig sind) — der Autolabeler darf dem nicht zuvorkommen, sonst startet
+    der Review auf einem noch unfertigen PR. Echte menschlich erstellte/freigegebene PRs labelt
+    `pr-needs-review-label.yml` weiterhin sofort (sein eigentlicher Zweck, Ticket #116).
 - **review ↔ fixup** ist die einzige beabsichtigte Schleife, gedeckelt durch den Stop-Guard
   (> 10 PR-Commits → `ai:needs-changes` bleibt, der PR-Autor wird getaggt). Der Stop-Guard ist ein
   **deterministischer Shell-Step** (zählt PR-Commits via `gh pr view --json commits`; eine

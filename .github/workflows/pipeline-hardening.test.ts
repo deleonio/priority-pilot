@@ -500,11 +500,51 @@ describe('Label-Reihenfolge-Prinzip — Labels erst NACH allen Schreibvorgaengen
 	});
 
 	it('claude-implement.yml: Commit/Push stehen vor der ai:needs-review-Umschaltung (je Agent-Pfad)', () => {
+		// M9 zurueckgerollt (2026-07-08, User-Entscheidung): implement soll SELBST entscheiden,
+		// wann genau der Review startet — dafuer muss implement das Label selbst setzen (nicht ein
+		// Autolabeler, der auf ein frueheres GitHub-Event reagiert). Siehe die begleitende
+		// pr-needs-review-label.yml-Aenderung: die schliesst bot-erzeugte Draft->ready-Uebergaenge
+		// jetzt bewusst aus, damit implement hier nicht ueberholt wird.
 		assertContentBeforeLabel(
 			'claude-implement.yml',
 			'Committen, Branch pushen.',
 			'ALLERLETZTER Schritt, NIE davor: ERST NACHDEM Push',
 			3,
+		);
+	});
+
+	it('pr-needs-review-label.yml: labelt NUR menschliche Aktoren, fuer ALLE drei Event-Typen (kein Vorpreschen vor implement)', () => {
+		// Gegenstueck zum Revert oben: pr-needs-review-label.yml darf bot-erzeugte
+		// opened/ready_for_review-Events NICHT mehr labeln (das war die vor-M9-Luecke, die den
+		// Autolabeler implement.yml's eigenen, kontrollierten Label-Schritt zuvorkommen liess).
+		const yml = readWorkflow('pr-needs-review-label.yml');
+		const ifBlock = yml.match(/if:\s*>-\s*\n([\s\S]*?)\n\s*runs-on:/);
+		assert.ok(ifBlock, 'Job-if-Block nicht gefunden in pr-needs-review-label.yml');
+		assert.match(ifBlock[1], /sender\.type\s*!=\s*'Bot'/, 'pr-needs-review-label.yml muss sender.type != Bot pruefen');
+		// Negativkontrolle: die alte Bypass-Disjunktion (opened/ready_for_review umgehen den
+		// Bot-Filter) darf NICHT mehr vorkommen.
+		assert.doesNotMatch(
+			ifBlock[1],
+			/action\s*==\s*'opened'\s*\|\|\s*.*action\s*==\s*'ready_for_review'\s*\|\|/,
+			'pr-needs-review-label.yml darf opened/ready_for_review nicht mehr am Bot-Filter vorbeilassen',
+		);
+	});
+
+	it('claude-implement.yml: macht den PR in ALLEN drei Agent-Pfaden tatsaechlich review-bereit (kein totes Ende)', () => {
+		// Der eigentliche PR-ready-Mechanismus (gh pr ready / PR-Erstellung) muss unabhaengig von
+		// der Label-Frage in allen 3 Agent-Pfaden erhalten bleiben (Claude/Mistral/GLM).
+		const yml = readWorkflow('claude-implement.yml');
+		const readyHits = (yml.match(/gh pr ready <pr-nr>/g) ?? []).length;
+		const createHits = (yml.match(/PR ERSTELLEN \(ready to review/g) ?? []).length;
+		assert.equal(
+			readyHits,
+			3,
+			`claude-implement.yml muss \`gh pr ready <pr-nr>\` (Spec-Modus) in allen 3 Agent-Pfaden anweisen, gefunden: ${readyHits}`,
+		);
+		assert.equal(
+			createHits,
+			3,
+			`claude-implement.yml muss die Fallback-PR-Erstellung (ready to review, kein Draft) in allen 3 Agent-Pfaden anweisen, gefunden: ${createHits}`,
 		);
 	});
 

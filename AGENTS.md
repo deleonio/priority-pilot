@@ -253,7 +253,12 @@ Der Kreuzverhoer-Agent wird auf drei Wegen aufgerufen:
    `ai:needs-review` trägt — Sonnet-Koordinator, der an `heavy`/`light` delegiert.
 
 In **GitHub Actions** läuft das über **Labels** (stabiles Ping-Pong statt Event-Kaskaden): Der
-Umsetzungs-Workflow labelt den PR mit `ai:needs-review`;
+Umsetzungs-Workflow macht den PR review-bereit (`gh pr ready` bzw. neuer Nicht-Draft-PR) und
+labelt ihn erst danach **selbst** mit `ai:needs-review` — als expliziten, kontrollierten letzten
+Schritt (erst nachdem Beschreibung + Testergebnisse vollständig sind). Der separate
+[`pr-needs-review-label.yml`](.github/workflows/pr-needs-review-label.yml) reagiert bewusst
+**NICHT** auf diese bot-erzeugten Draft→ready-Übergänge (nur auf menschliche Aktoren) — sonst
+würde er der Umsetzung zuvorkommen und den Review auf einem noch unfertigen PR starten;
 [`claude-pr-review.yml`](.github/workflows/claude-pr-review.yml) reviewt ihn und setzt
 `ai:needs-changes` (Findings) bzw. `ai:ready-to-merge` (🟢);
 [`claude-pr-fixup.yml`](.github/workflows/claude-pr-fixup.yml) arbeitet `ai:needs-changes` ab und
