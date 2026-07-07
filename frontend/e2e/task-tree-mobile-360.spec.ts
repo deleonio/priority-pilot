@@ -322,7 +322,7 @@ test.describe('Priority Pilot — Aufgabenliste responsiv bei 360px (#376)', () 
 
 			// Der Erledigt-Toggle ist nicht mehr direkt in der Zeile sichtbar (er liegt jetzt im Popover).
 			await expect(toolbar(page, id)).toBeHidden();
-			await expect(page.getByTestId(`done-toggle-${id}`)).toBeHidden();
+			await expect(item(page, id).locator('[data-testid^="done-toggle-"]')).toHaveCount(0);
 
 			// Einziger direkter Zeilen-Aktionsbutton: „…". Vollständig im Viewport und Touch-Target ≥ 44×44.
 			const moreButton = item(page, id).getByRole('button', { name: /Weitere Aktionen/i });

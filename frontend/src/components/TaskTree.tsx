@@ -233,6 +233,7 @@ const TreeNode = ({
 											_label: doneToggleLabel,
 											_hideLabel: true,
 											_icons: { left: { icon: isDone ? 'fa-solid fa-rotate-left' : 'fa-solid fa-check' } },
+											// secondary (Outline) auch bei doneBlocked: visuelles Feedback für gesperrten Zustand
 											_variant: isDone || doneBlocked ? 'secondary' : 'primary',
 											_disabled: isUpdating || (!isDone && doneBlocked),
 											_on: {
