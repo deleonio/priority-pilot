@@ -116,7 +116,8 @@ test.describe('Abhängigkeits-Editor: Entfernen-Icon-Button (#368)', () => {
 			if (!labelSpan) return '';
 			const style = window.getComputedStyle(labelSpan);
 			// sr-only-Muster: absolut positioniert + geclippt → visuell unsichtbar.
-			const isSrOnly = style.position === 'absolute' && style.clip === 'rect(0px, 0px, 0px, 0px)';
+			const isSrOnly =
+				style.display === 'none' || (style.position === 'absolute' && style.clip === 'rect(0px, 0px, 0px, 0px)');
 			return isSrOnly ? '' : (labelSpan.textContent?.trim() ?? '');
 		});
 		expect(visibleLabel).toBe('');
