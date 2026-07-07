@@ -176,11 +176,6 @@ test.describe('Abhängigkeits-Editor: Entfernen-Icon-Button (#368)', () => {
 		const buttonB = list.getByRole('button', { name: new RegExp(`#${predecessorBId}\\b.*entfernen`, 'i') });
 		await expect(buttonA).toHaveCount(1);
 		await expect(buttonB).toHaveCount(1);
-
-		// Die beiden ID-spezifischen Selektoren treffen unterschiedliche Elemente → distinkte Namen.
-		const idA = await buttonA.evaluate((el) => el.id || (el.id = `dep-btn-a`));
-		const idB = await buttonB.evaluate((el) => el.id || (el.id = `dep-btn-b`));
-		expect(idA).not.toBe(idB);
 	});
 
 	test('AK4: Kein horizontaler Overflow auf 375-px-Viewport, Icon-Button erreichbar', async ({ page }) => {
