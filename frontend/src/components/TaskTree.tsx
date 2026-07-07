@@ -196,125 +196,129 @@ const TreeNode = ({
 	return (
 		<li className="task-tree-item" data-testid={`task-tree-item-${node.id}`}>
 			<div className="task-tree-row">
-				{hasChildren ? (
-					<KolButton
-						className="task-tree-toggle"
-						_label={expanded ? 'Zuklappen' : 'Aufklappen'}
-						_hideLabel
-						_ariaExpanded={expanded}
-						_icons={{ left: { icon: expanded ? 'fa-solid fa-chevron-down' : 'fa-solid fa-chevron-right' } }}
-						_variant="secondary"
-						_on={{ onClick: () => onToggle(node.id) }}
-					/>
-				) : (
-					<span className="task-tree-toggle-placeholder" aria-hidden="true" />
-				)}
-				<span className="task-tree-title">{node.title}</span>
-				{task !== null && task.seriesId != null && (
-					<span className="task-tree-badge task-tree-badge--series">Serie</span>
-				)}
-				{task !== null && task.isException && (
-					<span className="task-tree-badge task-tree-badge--exception">geändert</span>
-				)}
-				{progress !== undefined && (
-					<span className="task-tree-badge task-tree-badge--progress">
-						{progress.done}/{progress.total}
-					</span>
-				)}
-				{task !== null && (
-					<KolButton
-						data-testid={`done-toggle-${task.id}`}
-						_label={doneToggleLabel}
-						_hideLabel
-						_icons={{ left: { icon: isDone ? 'fa-solid fa-rotate-left' : 'fa-solid fa-check' } }}
-						_variant={isDone ? 'secondary' : 'primary'}
-						_disabled={isUpdating || (!isDone && doneBlocked)}
-						// Der Gesperrt-Zustand muss für Tests/AT auch am Host sichtbar sein: Playwrights
-						// `toBeDisabled()` wertet `aria-disabled` nur auf Elementen aus, die selbst eine
-						// ARIA-Rolle aus seiner Allowlist tragen — der rollenlose `<kol-button>`-Host würde
-						// ignoriert. `role="group"` ist ein nicht-interaktiver Container (der innere
-						// Shadow-DOM-Button bleibt der einzige Button); die echte Sperre sitzt in `_disabled`.
-						role="group"
-						aria-disabled={isUpdating || (!isDone && doneBlocked) ? 'true' : 'false'}
-						_on={{
-							onClick: () => {
-								setIsUpdating(true);
-								void onDoneToggle(task).finally(() => setIsUpdating(false));
-							},
-						}}
-					/>
-				)}
-				{task !== null && (
-					<div className="task-tree-actions">
-						<KolPopoverButton
-							ref={popoverRef}
-							className="task-tree-more"
-							_label="Weitere Aktionen"
+				<div className="task-tree-row-header">
+					{hasChildren ? (
+						<KolButton
+							className="task-tree-toggle"
+							_label={expanded ? 'Zuklappen' : 'Aufklappen'}
 							_hideLabel
-							_icons={{ left: { icon: 'fa-solid fa-ellipsis' } }}
+							_ariaExpanded={expanded}
+							_icons={{ left: { icon: expanded ? 'fa-solid fa-chevron-down' : 'fa-solid fa-chevron-right' } }}
 							_variant="secondary"
-							_popoverAlign="bottom"
-						>
-							<KolToolbar
-								_label={`Aktionen für ${task.title}`}
-								_orientation="horizontal"
-								_items={[
-									{
-										type: 'button',
-										_label: 'Bearbeiten',
-										_hideLabel: true,
-										_icons: { left: { icon: 'fa-solid fa-pen' } },
-										_variant: 'secondary',
-										_on: {
-											onClick: () => {
-												void Promise.resolve(popoverRef.current?.hidePopover()).then(() => onEdit(task));
+							_on={{ onClick: () => onToggle(node.id) }}
+						/>
+					) : (
+						<span className="task-tree-toggle-placeholder" aria-hidden="true" />
+					)}
+					<span className="task-tree-title">{node.title}</span>
+				</div>
+				<div className="task-tree-row-controls">
+					{task !== null && task.seriesId != null && (
+						<span className="task-tree-badge task-tree-badge--series">Serie</span>
+					)}
+					{task !== null && task.isException && (
+						<span className="task-tree-badge task-tree-badge--exception">geändert</span>
+					)}
+					{progress !== undefined && (
+						<span className="task-tree-badge task-tree-badge--progress">
+							{progress.done}/{progress.total}
+						</span>
+					)}
+					{task !== null && (
+						<KolButton
+							data-testid={`done-toggle-${task.id}`}
+							_label={doneToggleLabel}
+							_hideLabel
+							_icons={{ left: { icon: isDone ? 'fa-solid fa-rotate-left' : 'fa-solid fa-check' } }}
+							_variant={isDone ? 'secondary' : 'primary'}
+							_disabled={isUpdating || (!isDone && doneBlocked)}
+							// Der Gesperrt-Zustand muss für Tests/AT auch am Host sichtbar sein: Playwrights
+							// `toBeDisabled()` wertet `aria-disabled` nur auf Elementen aus, die selbst eine
+							// ARIA-Rolle aus seiner Allowlist tragen — der rollenlose `<kol-button>`-Host würde
+							// ignoriert. `role="group"` ist ein nicht-interaktiver Container (der innere
+							// Shadow-DOM-Button bleibt der einzige Button); die echte Sperre sitzt in `_disabled`.
+							role="group"
+							aria-disabled={isUpdating || (!isDone && doneBlocked) ? 'true' : 'false'}
+							_on={{
+								onClick: () => {
+									setIsUpdating(true);
+									void onDoneToggle(task).finally(() => setIsUpdating(false));
+								},
+							}}
+						/>
+					)}
+					{task !== null && (
+						<div className="task-tree-actions">
+							<KolPopoverButton
+								ref={popoverRef}
+								className="task-tree-more"
+								_label="Weitere Aktionen"
+								_hideLabel
+								_icons={{ left: { icon: 'fa-solid fa-ellipsis' } }}
+								_variant="secondary"
+								_popoverAlign="bottom"
+							>
+								<KolToolbar
+									_label={`Aktionen für ${task.title}`}
+									_orientation="horizontal"
+									_items={[
+										{
+											type: 'button',
+											_label: 'Bearbeiten',
+											_hideLabel: true,
+											_icons: { left: { icon: 'fa-solid fa-pen' } },
+											_variant: 'secondary',
+											_on: {
+												onClick: () => {
+													void Promise.resolve(popoverRef.current?.hidePopover()).then(() => onEdit(task));
+												},
 											},
 										},
-									},
-									{
-										type: 'button',
-										_label: 'Abhängigkeiten',
-										_hideLabel: true,
-										_icons: { left: { icon: 'kolicon-link' } },
-										_variant: 'secondary',
-										_on: {
-											onClick: () => {
-												void Promise.resolve(popoverRef.current?.hidePopover()).then(() => onEditDependencies(task));
+										{
+											type: 'button',
+											_label: 'Abhängigkeiten',
+											_hideLabel: true,
+											_icons: { left: { icon: 'kolicon-link' } },
+											_variant: 'secondary',
+											_on: {
+												onClick: () => {
+													void Promise.resolve(popoverRef.current?.hidePopover()).then(() => onEditDependencies(task));
+												},
 											},
 										},
-									},
-									{
-										type: 'button',
-										_label: 'Unteraufgabe anlegen',
-										_hideLabel: true,
-										_icons: { left: { icon: 'fa-solid fa-plus' } },
-										_variant: 'secondary',
-										_on: {
-											onClick: () => {
-												void Promise.resolve(popoverRef.current?.hidePopover()).then(() => onAddSubtask(task));
+										{
+											type: 'button',
+											_label: 'Unteraufgabe anlegen',
+											_hideLabel: true,
+											_icons: { left: { icon: 'fa-solid fa-plus' } },
+											_variant: 'secondary',
+											_on: {
+												onClick: () => {
+													void Promise.resolve(popoverRef.current?.hidePopover()).then(() => onAddSubtask(task));
+												},
 											},
 										},
-									},
-									{
-										type: 'button',
-										_label: 'Löschen',
-										_hideLabel: true,
-										_icons: { left: { icon: 'kolicon-cross' } },
-										_variant: 'danger',
-										_on: {
-											onClick: () => {
-												void popoverRef.current?.hidePopover().then(() => {
-													findInnerButton(popoverRef.current)?.focus();
-													onDelete(task);
-												});
+										{
+											type: 'button',
+											_label: 'Löschen',
+											_hideLabel: true,
+											_icons: { left: { icon: 'kolicon-cross' } },
+											_variant: 'danger',
+											_on: {
+												onClick: () => {
+													void popoverRef.current?.hidePopover().then(() => {
+														findInnerButton(popoverRef.current)?.focus();
+														onDelete(task);
+													});
+												},
 											},
 										},
-									},
-								]}
-							/>
-						</KolPopoverButton>
-					</div>
-				)}
+									]}
+								/>
+							</KolPopoverButton>
+						</div>
+					)}
+				</div>
 			</div>
 			{hasChildren && (
 				<ul className="task-tree-children" hidden={!expanded}>

@@ -314,8 +314,14 @@ body {
 }
 
 .task-tree .task-tree-children {
-	/* Einrückung je Ebene über die geschachtelten Listen. */
-	padding-left: 1.25rem;
+	/* Mobile-First: reduzierte Einrückung auf schmalen Viewports (360px), Desktop per min-width. */
+	padding-left: 0.75rem;
+}
+
+@media (min-width: 600px) {
+	.task-tree .task-tree-children {
+		padding-left: 1.25rem;
+	}
 }
 
 .task-tree-item {
@@ -323,31 +329,68 @@ body {
 	min-width: 0;
 }
 
+/*
+ * Mobile-First-Zweizeilenlayout (#376): Zeile 1 = Toggle + Titel, Zeile 2 = Badges + Aktionen.
+ * Verhindert horizontalen Overflow bei tiefer Einrückung (≥6 Ebenen) auf schmalen Viewports (360px).
+ * Ab 600px werden Header und Controls wieder in einer Zeile zusammengeführt.
+ */
 .task-tree-row {
 	display: flex;
-	flex-wrap: wrap;
+	flex-direction: column;
+	gap: 0.25rem;
+	min-width: 0;
+}
+
+.task-tree-row-header {
+	display: flex;
 	align-items: center;
 	gap: 0.5rem;
 	min-width: 0;
 }
 
+.task-tree-row-controls {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem;
+	/* Optisch unter dem Titel einrücken (Toggle-Breite + Gap). */
+	padding-left: calc(1.75rem + 0.5rem);
+}
+
+@media (min-width: 600px) {
+	.task-tree-row {
+		flex-direction: row;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.task-tree-row-header {
+		flex: 1 1 auto;
+	}
+
+	.task-tree-row-controls {
+		padding-left: 0;
+		flex-wrap: nowrap;
+	}
+}
+
 .task-tree-toggle-placeholder {
 	display: inline-block;
+	flex-shrink: 0;
 	/* Platzhalter in Breite des Aufklapp-Buttons, damit Blätter bündig zu Knoten mit Symbol stehen. */
 	width: 1.75rem;
 }
 
 .task-tree-title {
 	flex: 1 1 auto;
-	min-width: 0;
+	min-width: 80px;
 	overflow-wrap: anywhere;
 }
 
 .task-tree-actions {
 	display: flex;
-	flex-wrap: wrap;
 	align-items: center;
-	gap: 0.5rem;
 	/* Anker für das absolut positionierte „…"-Popover (#361). */
 	position: relative;
 }
