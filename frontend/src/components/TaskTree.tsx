@@ -55,30 +55,16 @@ const findInnerButton = (el: Element | null | undefined): HTMLElement | null => 
 };
 
 /**
- * #369: `KolPopoverButton` positioniert das Popover-Panel per floating-ui zentriert unter dem
- * „…"-Trigger — `_popoverAlign` kennt nur die vier Himmelsrichtungen (`AlignPropType`), keine
- * `-start`-Ausrichtung für Linksbündigkeit. Das Panel (`.kol-popover-button__popover`) liegt im
- * offenen Shadow-DOM von `kol-popover-button` und ist damit von außen per CSS nicht erreichbar
- * (kein `::part`). Wir korrigieren die von floating-ui gesetzte `left`-Position deshalb direkt im
- * Shadow-DOM: Ein `MutationObserver` reagiert auf jede floating-ui-Neuberechnung (inkl. der
- * initialen Erzeugung des Panels).
- *
- * Das Panel ist `position: fixed` mit `left`/`right: auto` — die CSS-Shrink-to-fit-Breite bemisst
- * sich am verfügbaren Platz zwischen `left` und dem Viewport-Rand. `width: max-content` erzwingt
- * stattdessen die inhaltsbasierte Breite (alle 4 Aktionen in einer Zeile), unabhängig vom
- * verfügbaren Platz.
- *
- * Linksbündigkeit ist nur möglich, wenn rechts vom Trigger genug Platz für diese Breite bleibt.
- * `.app` hat `max-width: 80rem` (= 1280px, exakt der feste E2E-Viewport aus `playwright.config.ts`)
- * ohne Rand-Reserve — der Trigger sitzt als letztes Toolbar-Element dadurch nur ~68px vom rechten
- * Viewport-Rand entfernt, das ~200px breite Panel passt dort nicht hin. Striktes Linksbündig-Setzen
- * schöbe „Löschen" & Co. über den Viewport-Rand hinaus (nicht mehr klickbar — bricht reale Bedienung
- * und andere E2E-Specs wie `crud.spec.ts`/`focus-after-delete.spec.ts`). Wir klemmen die Position
- * deshalb an den Viewport: linksbündig, wo Platz ist, sonst so weit wie nötig nach links geschoben,
- * damit das komplette Panel sichtbar/bedienbar bleibt.
- *
- * `.kol-popover-button__popover` und `.kol-popover-button` sind unpublizierte KoliBri-API
- * (@public-ui/react-v19 v4.2.1) — bei KoliBri-Upgrades prüfen, ob die Klassennamen noch stimmen.
+ * #369/#380: Das Panel (`.kol-popover-button__popover`) liegt im offenen Shadow-DOM von
+ * `kol-popover-button` und ist damit von außen per CSS nicht erreichbar (kein `::part`).
+ * `_popoverAlign="left"` lässt floating-ui das Panel links neben dem Trigger platzieren.
+ * Die CSS-Shrink-to-fit-Breite bemisst sich am verfügbaren Platz; `width: max-content`
+ * erzwingt die inhaltsbasierte Breite (alle 4 Aktionen in einer Zeile), unabhängig vom
+ * verfügbaren Platz. Überschreitet das Panel den rechten Viewport-Rand, korrigiert
+ * `correct()` `left` um den Überlauf (funktioniert, da KoliBri keinen MutationObserver
+ * auf Panel-Style-Änderungen setzt — nur ResizeObserver/Scroll/Resize via autoUpdate).
+ * Alle Shadow-DOM-Zugriffe sind unpublizierte KoliBri-API (@public-ui/react-v19 v4.2.1) —
+ * bei KoliBri-Upgrades prüfen.
  */
 const alignPopoverPanelLeft = (host: HTMLKolPopoverButtonElement): (() => void) => {
 	const root = host.shadowRoot;
@@ -86,18 +72,18 @@ const alignPopoverPanelLeft = (host: HTMLKolPopoverButtonElement): (() => void) 
 
 	const correct = () => {
 		const panel = root.querySelector<HTMLElement>('.kol-popover-button__popover');
-		const trigger = root.querySelector<HTMLElement>('.kol-popover-button');
-		if (!panel || !trigger) return;
+		if (!panel) return;
 		if (panel.style.width !== 'max-content') {
 			panel.style.width = 'max-content';
 		}
-		const panelWidth = panel.getBoundingClientRect().width;
-		if (panelWidth === 0) return; // Panel versteckt (display:none) — DOM-Writes und Reflow sparen
-		const triggerLeft = trigger.getBoundingClientRect().left;
-		const maxLeft = Math.max(0, window.innerWidth - panelWidth);
-		const desiredLeft = `${Math.min(triggerLeft, maxLeft)}px`;
-		if (panel.style.left !== desiredLeft) {
-			panel.style.left = desiredLeft;
+		const rect = panel.getBoundingClientRect();
+		if (rect.width === 0) return; // Panel versteckt (display:none) — DOM-Writes und Reflow sparen
+		const overflow = Math.ceil(rect.right) - window.innerWidth;
+		if (overflow > 0) {
+			const newLeft = `${Math.round((parseFloat(panel.style.left) || 0) - overflow)}px`;
+			if (panel.style.left !== newLeft) {
+				panel.style.left = newLeft;
+			}
 		}
 	};
 
@@ -256,7 +242,7 @@ const TreeNode = ({
 								_hideLabel
 								_icons={{ left: { icon: 'fa-solid fa-ellipsis' } }}
 								_variant="secondary"
-								_popoverAlign="bottom"
+								_popoverAlign="left"
 							>
 								<KolToolbar
 									_label={`Aktionen für ${task.title}`}
