@@ -30,6 +30,13 @@ test.describe('Priority Pilot — Aufgabenliste responsiv bei 360px (#376)', () 
 	let runId = 0;
 	const uniqueTitle = (label: string): string => `Mobile360 ${label} #${(runId += 1)}-${Date.now()}`;
 
+	/**
+	 * Referenz-Viewport dieses Vertrags: Samsung-Galaxy-S24-Klasse (360×780 CSS-px, #376). Viewport-Breite
+	 * und die „vollständig im Viewport"-Assertion (`box.x + box.width <= width + 1`) teilen sich diese eine
+	 * Quelle, damit beide nicht unbemerkt auseinanderlaufen.
+	 */
+	const VIEWPORT = { width: 360, height: 780 } as const;
+
 	/** Legt einen Task über die echte API an und liefert seine ID zurück. */
 	const createTask = async (page: Page, title: string): Promise<number> => {
 		const response = await page.request.post('/api/v1/tasks', {
@@ -169,7 +176,7 @@ test.describe('Priority Pilot — Aufgabenliste responsiv bei 360px (#376)', () 
 	};
 
 	test('AK1: kein horizontaler Overflow bei 360px (tiefe Kette + Serie/Ausnahme/Fortschritt)', async ({ page }) => {
-		await page.setViewportSize({ width: 360, height: 780 });
+		await page.setViewportSize(VIEWPORT);
 
 		const { deepestId, orderedFromRoot } = await seedWorstCaseChain(page, uniqueTitle('WorstCase'));
 
@@ -195,7 +202,7 @@ test.describe('Priority Pilot — Aufgabenliste responsiv bei 360px (#376)', () 
 	test('AK2: Erledigt-Toggle und „…"-Button liegen bei 360px vollständig im Viewport und erfüllen 44×44', async ({
 		page,
 	}) => {
-		await page.setViewportSize({ width: 360, height: 780 });
+		await page.setViewportSize(VIEWPORT);
 
 		const { deepestId, orderedFromRoot } = await seedWorstCaseChain(page, uniqueTitle('Buttons'));
 
@@ -207,7 +214,7 @@ test.describe('Priority Pilot — Aufgabenliste responsiv bei 360px (#376)', () 
 
 		// Beide Zeilen-Buttons der Worst-Case-Zeile: der (aufgrund offener Unteraufgabe ggf. gesperrte,
 		// aber weiterhin gerenderte) Erledigt-Toggle und der „…"-Button. Rein geometrische Prüfung:
-		// vollständig im Viewport (`box.x + box.width <= 360 + 1`) und Touch-Target-Minimum 44×44.
+		// vollständig im Viewport (`box.x + box.width <= VIEWPORT.width + 1`) und Touch-Target-Minimum 44×44.
 		const doneToggle = page.getByTestId(`done-toggle-${deepestId}`);
 		const moreButton = item(page, deepestId).getByRole('button', { name: /Weitere Aktionen/i });
 
@@ -217,7 +224,7 @@ test.describe('Priority Pilot — Aufgabenliste responsiv bei 360px (#376)', () 
 			expect(box).not.toBeNull();
 			if (box !== null) {
 				expect(box.x).toBeGreaterThanOrEqual(0);
-				expect(box.x + box.width).toBeLessThanOrEqual(360 + 1);
+				expect(box.x + box.width).toBeLessThanOrEqual(VIEWPORT.width + 1);
 				expect(box.width).toBeGreaterThanOrEqual(44);
 				expect(box.height).toBeGreaterThanOrEqual(44);
 			}
@@ -225,7 +232,7 @@ test.describe('Priority Pilot — Aufgabenliste responsiv bei 360px (#376)', () 
 	});
 
 	test('AK3: „…"-Popover samt aller 4 Aktionen liegt bei 360px vollständig im Viewport', async ({ page }) => {
-		await page.setViewportSize({ width: 360, height: 780 });
+		await page.setViewportSize(VIEWPORT);
 
 		const { deepestId, orderedFromRoot } = await seedWorstCaseChain(page, uniqueTitle('Popover'));
 
@@ -245,7 +252,7 @@ test.describe('Priority Pilot — Aufgabenliste responsiv bei 360px (#376)', () 
 			expect(box).not.toBeNull();
 			if (box !== null) {
 				expect(box.x).toBeGreaterThanOrEqual(0);
-				expect(box.x + box.width).toBeLessThanOrEqual(360 + 1);
+				expect(box.x + box.width).toBeLessThanOrEqual(VIEWPORT.width + 1);
 			}
 		}
 
@@ -259,7 +266,7 @@ test.describe('Priority Pilot — Aufgabenliste responsiv bei 360px (#376)', () 
 	test('AK4: langer Titel behält bei 360px eine sinnvolle Mindestbreite (kein zeichenweiser Zerfall)', async ({
 		page,
 	}) => {
-		await page.setViewportSize({ width: 360, height: 780 });
+		await page.setViewportSize(VIEWPORT);
 
 		const longTitle = `Sehr langer Aufgabentitel der auf schmalen mobilen Viewports nicht in winzige Ein- oder Zwei-Zeichen-Fragmente zerfallen darf ${Date.now()}`;
 		const { deepestId, orderedFromRoot } = await seedWorstCaseChain(page, longTitle);
