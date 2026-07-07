@@ -13,8 +13,9 @@ import { scoresRouter } from './routes/scores.js';
 import { seriesRouter } from './routes/series.js';
 import { authRouter } from './routes/auth.js';
 import { transitRouter } from './routes/transit.js';
-import { pushRouter } from './routes/push.js';
+import { createPushRouter } from './routes/push.js';
 import type { PillarClassifier, ParseTaskParser, ActivityAdvisor } from '../llm/mistral.js';
+import type { PushSender } from '../logics/push.js';
 import { buildTaskForest } from '../logics/tree.js';
 import { findNextImportantTask, findSuggestedTasks } from '../logics/find.js';
 import { isEmailAllowed, getConfiguredEmails } from '../logics/allowedEmails.js';
@@ -34,6 +35,7 @@ export interface AppDeps {
 	taskTextParser?: ParseTaskParser;
 	activityAdvisor?: ActivityAdvisor;
 	sessionStore?: Store;
+	pushSender?: PushSender;
 }
 
 export const createApp = (deps: AppDeps = {}) => {
@@ -156,7 +158,7 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// Web-Push: Subscription an-/abmelden + öffentlichen VAPID-Schlüssel ausliefern (siehe routes/push.ts).
 	// Bewusst kein client-aufrufbarer „send"-Endpunkt — der Versand läuft server-intern (logics/push.ts).
-	app.use(pushRouter);
+	app.use(createPushRouter(deps.pushSender));
 
 	// GET /forest — Aufgabenwald nach Wertschöpfung sortiert (auf den eingeloggten Nutzer gefiltert).
 	app.get('/forest', async (req, res: express.Response<TaskTreeNodeDto[] | ErrorDto>) => {

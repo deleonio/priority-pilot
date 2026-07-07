@@ -1,6 +1,7 @@
 import { KolAlert, KolButton, KolHeading, KolInputCheckbox, KolTabs } from '@public-ui/react-v19';
 import type { Pillar } from 'client';
 import { useMemo, useState } from 'react';
+import { api } from '../api';
 import { requestMicrophonePermission } from '../lib/micPermission';
 import { usePushSubscription } from '../lib/push';
 import { useVoiceAutostart } from '../lib/voiceAutostart';
@@ -78,6 +79,8 @@ export const SettingsPage = ({ pillars, onBack, onSaved }: SettingsPageProps) =>
 		toggle: togglePush,
 	} = usePushSubscription();
 
+	const [pushTestResult, setPushTestResult] = useState<'success' | 'error' | null>(null);
+
 	return (
 		<main className="settings-page">
 			<header className="settings-page-header">
@@ -133,6 +136,34 @@ export const SettingsPage = ({ pillars, onBack, onSaved }: SettingsPageProps) =>
 						<KolAlert _type="info" _label="Push-Nachrichten nicht verfügbar">
 							Dieser Browser unterstützt keine Push-Nachrichten. Installiere die App bzw. nutze einen aktuellen Browser,
 							um Erinnerungen zu erhalten.
+						</KolAlert>
+					)}
+					{pushEnabled && (
+						<KolButton
+							_label="Push testen"
+							_variant="secondary"
+							_on={{
+								onClick: () => {
+									api
+										.sendTestPush()
+										.then(() => {
+											setPushTestResult('success');
+										})
+										.catch(() => {
+											setPushTestResult('error');
+										});
+								},
+							}}
+						/>
+					)}
+					{pushTestResult === 'success' && (
+						<KolAlert _type="success" _label="Test-Push gesendet">
+							Zitat unterwegs.
+						</KolAlert>
+					)}
+					{pushTestResult === 'error' && (
+						<KolAlert _type="error" _label="Fehler">
+							Push fehlgeschlagen.
 						</KolAlert>
 					)}
 					{pushFailed && (
