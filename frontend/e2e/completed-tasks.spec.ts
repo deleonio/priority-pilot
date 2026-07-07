@@ -55,10 +55,10 @@ test.describe('Priority Pilot — Tab „Erledigte Aufgaben" (#228) gegen das ec
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
 	};
 
-	/** Klickt den „Erledigen"-Toggle des ersten Tasks und wartet auf den Seiten-Reload. */
+	/** Klickt den „Erledigt"-Toggle des ersten Tasks und wartet auf den Seiten-Reload. */
 	const markTaskDoneViaUi = async (page: Page): Promise<void> => {
 		await openTasksTab(page);
-		await page.getByRole('button', { name: 'Erledigen' }).first().click();
+		await page.getByRole('button', { name: 'Erledigt' }).first().click();
 		await waitForStableView(page);
 	};
 
@@ -73,7 +73,7 @@ test.describe('Priority Pilot — Tab „Erledigte Aufgaben" (#228) gegen das ec
 
 		// Genau einen der beiden Tasks erledigen (der zuerst angelegte steht oben).
 		await openTasksTab(page);
-		await page.getByRole('button', { name: 'Erledigen' }).first().click();
+		await page.getByRole('button', { name: 'Erledigt' }).first().click();
 		await waitForStableView(page);
 
 		await openCompletedTab(page);
