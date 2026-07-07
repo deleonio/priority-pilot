@@ -2,50 +2,51 @@
 # Skript zum Generieren von PNG-Icons aus SVG-Vorlagen
 # Benötigt: rsvg-convert (aus librsvg) oder inkscape
 
-# Farben
-BG_COLOR="#1a1a1a"
-FG_COLOR="#ffffff"
-
-# Funktion zum Erstellen eines PNG-Icons
-create_icon() {
-    local size=$1
-    local output=$2
-    local viewbox=$3
-    local rx=$4
-    local path_data=$5
+# Funktion zum Erstellen eines PNG-Icons aus SVG
+create_png_from_svg() {
+    local svg_file=$1
+    local size=$2
+    local output=$3
     
-    # Erstelle temporäre SVG-Datei
-    cat > /tmp/icon_temp.svg << SVGEOF
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 $viewbox $viewbox" role="img" aria-label="Priority Pilot">
-	<rect width="$viewbox" height="$viewbox" rx="$rx" fill="$BG_COLOR" />
-	<path d="$path_data" fill="$FG_COLOR" />
-</svg>
-SVGEOF
-    
-    # Konvertiere zu PNG
     if command -v rsvg-convert &> /dev/null; then
-        rsvg-convert -w $size -h $size /tmp/icon_temp.svg -o $output
+        rsvg-convert -w $size -h $size "$svg_file" -o "$output"
     elif command -v inkscape &> /dev/null; then
-        inkscape --export-type=png --export-filename=$output --export-width=$size --export-height=$size /tmp/icon_temp.svg
+        inkscape --export-type=png --export-filename="$output" --export-width=$size --export-height=$size "$svg_file"
     else
         echo "Weder rsvg-convert noch inkscape gefunden. PNG-Icons können nicht generiert werden."
         echo "Installiere librsvg (rsvg-convert) oder inkscape."
-        exit 1
+        return 1
     fi
-    
-    rm /tmp/icon_temp.svg
 }
 
-# 192x192 Icon
-echo "Generiere icon-192x192.png..."
-create_icon 192 "icon-192x192.png" 192 36 "M96 36 L144 164 H120 L96 104 L72 164 H48 Z"
+echo "Generiere PNG-Icons aus SVG-Vorlagen..."
 
-# 512x512 Icon
-echo "Generiere icon-512x512.png..."
-create_icon 512 "icon-512x512.png" 512 96 "M256 96 L400 416 H320 L256 272 L192 416 H112 Z"
+# 192x192 Icons
+for purpose in "" "-maskable"; do
+    suffix="${purpose}"
+    svg_file="icon-192x192${suffix}.svg"
+    png_file="icon-192x192${suffix}.png"
+    
+    if [ -f "$svg_file" ]; then
+        echo "Generiere ${png_file}..."
+        create_png_from_svg "$svg_file" 192 "$png_file"
+    else
+        echo "SVG-Datei ${svg_file} nicht gefunden."
+    fi
+done
 
-# Maskable Icons (gleiche Größe, aber für maskable purpose)
-cp icon-192x192.png icon-192x192-maskable.png
-cp icon-512x512.png icon-512x512-maskable.png
+# 512x512 Icons
+for purpose in "" "-maskable"; do
+    suffix="${purpose}"
+    svg_file="icon-512x512${suffix}.svg"
+    png_file="icon-512x512${suffix}.png"
+    
+    if [ -f "$svg_file" ]; then
+        echo "Generiere ${png_file}..."
+        create_png_from_svg "$svg_file" 512 "$png_file"
+    else
+        echo "SVG-Datei ${svg_file} nicht gefunden."
+    fi
+done
 
-echo "Icons generiert!"
+echo "PNG-Icons generiert!"

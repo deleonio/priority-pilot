@@ -145,6 +145,13 @@ const TreeNode = ({
 	}));
 	const doneBlocked = isDoneBlockedBySubtasks(directSubtaskStatuses);
 	const isDone = task?.status === TaskStatus.Done;
+	// Der Sperrgrund steht nur noch im (per `_hideLabel` visuell verborgenen) Button-Label, nicht
+	// mehr als eigener sichtbarer Hinweistext daneben — vermeidet redundante Doppel-Anzeige.
+	const doneToggleLabel = isDone
+		? 'Wieder öffnen'
+		: doneBlocked
+			? 'Erledigt (bitte erst alle Unteraufgaben erledigen)'
+			: 'Erledigt';
 
 	return (
 		<li className="task-tree-item" data-testid={`task-tree-item-${node.id}`}>
@@ -175,34 +182,27 @@ const TreeNode = ({
 					</span>
 				)}
 				{task !== null && (
-					<>
-						<KolButton
-							data-testid={`done-toggle-${task.id}`}
-							_label={isDone ? 'Wieder öffnen' : 'Erledigen'}
-							_hideLabel
-							_icons={{ left: { icon: isDone ? 'fa-solid fa-rotate-left' : 'fa-solid fa-check' } }}
-							_variant={isDone ? 'secondary' : 'primary'}
-							_disabled={isUpdating || (!isDone && doneBlocked)}
-							// Der Gesperrt-Zustand muss für Tests/AT auch am Host sichtbar sein: Playwrights
-							// `toBeDisabled()` wertet `aria-disabled` nur auf Elementen aus, die selbst eine
-							// ARIA-Rolle aus seiner Allowlist tragen — der rollenlose `<kol-button>`-Host würde
-							// ignoriert. `role="group"` ist ein nicht-interaktiver Container (der innere
-							// Shadow-DOM-Button bleibt der einzige Button); die echte Sperre sitzt in `_disabled`.
-							role="group"
-							aria-disabled={isUpdating || (!isDone && doneBlocked) ? 'true' : 'false'}
-							_on={{
-								onClick: () => {
-									setIsUpdating(true);
-									void onDoneToggle(task).finally(() => setIsUpdating(false));
-								},
-							}}
-						/>
-						{!isDone && doneBlocked && (
-							<span className="task-tree-done-blocked-hint" data-testid={`done-blocked-hint-${task.id}`}>
-								Bitte erst alle Unteraufgaben erledigen
-							</span>
-						)}
-					</>
+					<KolButton
+						data-testid={`done-toggle-${task.id}`}
+						_label={doneToggleLabel}
+						_hideLabel
+						_icons={{ left: { icon: isDone ? 'fa-solid fa-rotate-left' : 'fa-solid fa-check' } }}
+						_variant={isDone ? 'secondary' : 'primary'}
+						_disabled={isUpdating || (!isDone && doneBlocked)}
+						// Der Gesperrt-Zustand muss für Tests/AT auch am Host sichtbar sein: Playwrights
+						// `toBeDisabled()` wertet `aria-disabled` nur auf Elementen aus, die selbst eine
+						// ARIA-Rolle aus seiner Allowlist tragen — der rollenlose `<kol-button>`-Host würde
+						// ignoriert. `role="group"` ist ein nicht-interaktiver Container (der innere
+						// Shadow-DOM-Button bleibt der einzige Button); die echte Sperre sitzt in `_disabled`.
+						role="group"
+						aria-disabled={isUpdating || (!isDone && doneBlocked) ? 'true' : 'false'}
+						_on={{
+							onClick: () => {
+								setIsUpdating(true);
+								void onDoneToggle(task).finally(() => setIsUpdating(false));
+							},
+						}}
+					/>
 				)}
 				{task !== null && (
 					<div className="task-tree-actions">

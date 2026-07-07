@@ -351,7 +351,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		await page.keyboard.press('Control+Enter');
 
 		// Der Vorgänger erscheint in der Liste „Aktuelle Vorgänger" (Dialog bleibt offen).
-		await expect(page.locator('.dependency-list').getByText(new RegExp(predecessorTitle))).toBeVisible();
+		await expect(page.locator('.dependency-list li > span').filter({ hasText: predecessorTitle })).toBeVisible();
 	});
 
 	// --- Bewusst NICHT als eigener Shortcut-Test abgedeckt --------------------------------------

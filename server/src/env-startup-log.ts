@@ -4,6 +4,8 @@ const DEFAULTS = {
 	DATABASE_STORAGE: './database.sqlite',
 	DB_RESET: 'false',
 	DB_SEED: 'true',
+	PUSH_REMINDERS_ENABLED: 'false',
+	PUSH_REMINDERS_HOUR: '8',
 } as const;
 
 function displayValue(key: string, value: string | undefined, isSecret: boolean): string {
@@ -27,6 +29,8 @@ export function logEnvConfig(): void {
 		['MISTRAL_API_KEY', displayValue('MISTRAL_API_KEY', process.env.MISTRAL_API_KEY, true)],
 		['VAPID_PUBLIC_KEY', displayValue('VAPID_PUBLIC_KEY', process.env.VAPID_PUBLIC_KEY, true)],
 		['VAPID_PRIVATE_KEY', displayValue('VAPID_PRIVATE_KEY', process.env.VAPID_PRIVATE_KEY, true)],
+		['PUSH_REMINDERS_ENABLED', displayValue('PUSH_REMINDERS_ENABLED', process.env.PUSH_REMINDERS_ENABLED, false)],
+		['PUSH_REMINDERS_HOUR', displayValue('PUSH_REMINDERS_HOUR', process.env.PUSH_REMINDERS_HOUR, false)],
 	];
 
 	console.log('ENV-Konfiguration beim Start:');

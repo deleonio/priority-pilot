@@ -48,10 +48,10 @@ test.describe('Dashboard — Gesamtguthaben (Issue #184)', () => {
 		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
 	};
 
-	/** Klickt den „Erledigen"-Toggle des ersten Tasks und wartet auf den Seiten-Reload. */
+	/** Klickt den „Erledigt"-Toggle des ersten Tasks und wartet auf den Seiten-Reload. */
 	const setFirstTaskDone = async (page: Page): Promise<void> => {
 		await openTasksTab(page);
-		await page.getByRole('button', { name: 'Erledigen' }).first().click();
+		await page.getByRole('button', { name: 'Erledigt' }).first().click();
 		await waitForStableView(page);
 	};
 

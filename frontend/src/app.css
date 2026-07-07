@@ -837,6 +837,32 @@ body {
 	}
 }
 
+/* --- PWA-Update-/Offline-Hinweis (#373) --- */
+/*
+ * Am unteren Viewport-Rand fixiert, sodass der Hinweis auch beim Scrollen sichtbar bleibt. Der
+ * Overlay-Container selbst fängt keine Klicks ab (`pointer-events: none`), damit der Bereich neben
+ * den Karten weiter mit der App interagierbar bleibt; nur die Karten sind interaktiv.
+ * Mobile-First (AK4): `left`/`right: 0` plus Innenabstand halten den Inhalt bei 375px umbruchsicher.
+ */
+.update-prompt {
+	position: fixed;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	z-index: 1000;
+	padding: 1rem;
+	/* iOS-Safe-Area: Innenabstand unten um den unteren Sicherheitsabstand ergänzen. */
+	padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	pointer-events: none;
+}
+
+.update-prompt kol-card {
+	pointer-events: auto;
+}
+
 /* --- App-Fußzeile (#290) --- */
 .app-footer {
 	margin-top: 2rem;

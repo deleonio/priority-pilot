@@ -8,6 +8,7 @@ import Series from './series.js';
 import SeriesPillar from './seriesPillar.js';
 import User from './user.js';
 import PushSubscription from './pushSubscription.js';
+import NotificationLog from './notificationLog.js';
 
 Task.belongsToMany(Task, {
 	as: 'dependencies',
@@ -48,6 +49,8 @@ Pillar.belongsToMany(Series, { through: SeriesPillar, foreignKey: 'pillarId', ot
 // `users` steht für sich (E-Mail-/Passwort-Auth, Issue #206) — keine Assoziationen nötig.
 // `push_subscriptions` steht für sich (Web-Push, Issue #355) — pro Nutzer über `userId` gefiltert,
 // ohne Sequelize-Assoziation (der Versand-Helper filtert direkt über die `userId`-Spalte).
+// `notification_logs` steht für sich (fachlicher Push-Trigger, Issue #355) — die Isolation läuft über
+// den `dedupeKey` der jeweiligen Auslöser-Entität, keine Assoziation nötig.
 export {
 	Task,
 	Dependency,
@@ -59,4 +62,5 @@ export {
 	SeriesPillar,
 	User,
 	PushSubscription,
+	NotificationLog,
 };

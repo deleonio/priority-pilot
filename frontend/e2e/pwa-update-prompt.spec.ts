@@ -45,3 +45,50 @@ test.describe('Priority Pilot — PWA Update-Prompt Mobile-First (#353)', () => 
 		expect(scrollWidth).toBeLessThanOrEqual(clientWidth + 1);
 	});
 });
+
+/**
+ * CSS-Kontrakt-Tests (#373) für die Fixierung der Update-/Offline-Card am unteren Bildschirmrand.
+ *
+ * Der echte Update-Fluss (needRefresh via SW-Lebenszyklus) ist in Playwright nicht deterministisch
+ * reproduzierbar (siehe #353-Block oben). Deshalb prüfen wir hier den reinen CSS-Kontrakt der Klasse
+ * `.update-prompt`, indem wir ein Stellvertreter-Element mit dieser Klasse in das geladene Dokument
+ * einfügen und die berechneten Styles auslesen. So wird verifiziert, dass die App das globale CSS
+ * für `.update-prompt` (position: fixed, am unteren Rand) ausliefert.
+ */
+test.describe('Priority Pilot — UpdatePrompt KoliBri-Card Fixierung (#373)', () => {
+	// AK1 — Am unteren Rand fixiert: .update-prompt trägt position: fixed.
+	test('AK1: .update-prompt-Klasse hat position:fixed', async ({ page }) => {
+		await mockAuthenticated(page);
+		await page.goto('/');
+
+		const position = await page.evaluate(() => {
+			const el = document.createElement('div');
+			el.className = 'update-prompt';
+			document.body.appendChild(el);
+			const pos = getComputedStyle(el).position;
+			el.remove();
+			return pos;
+		});
+
+		expect(position).toBe('fixed');
+	});
+
+	// AK4 — Mobile-First (375×812): die fixierte Card sitzt am unteren Rand (bottom: 0).
+	test('AK4: .update-prompt ist am unteren Rand fixiert (bottom:0) bei 375×812', async ({ page }) => {
+		await mockAuthenticated(page);
+		await page.setViewportSize({ width: 375, height: 812 });
+		await page.goto('/');
+
+		const bottom = await page.evaluate(() => {
+			const el = document.createElement('div');
+			el.className = 'update-prompt';
+			document.body.appendChild(el);
+			const b = getComputedStyle(el).bottom;
+			el.remove();
+			return b;
+		});
+
+		// Ohne CSS-Klasse ist bottom 'auto' → RED; mit `.update-prompt { bottom: 0 }` → GREEN.
+		expect(bottom).toBe('0px');
+	});
+});

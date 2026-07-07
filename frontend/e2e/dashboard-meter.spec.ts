@@ -52,7 +52,7 @@ test.describe('Dashboard — Meter Ist-Anteil (Issue #219)', () => {
 			(resp) => resp.url().includes('/api/v1/tasks/') && resp.request().method() === 'PATCH',
 		);
 		await page
-			.getByRole('button', { name: /Erledigen/ })
+			.getByRole('button', { name: /Erledigt/ })
 			.first()
 			.click();
 		await patchDone;
