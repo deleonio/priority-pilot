@@ -76,6 +76,9 @@ const findInnerButton = (el: Element | null | undefined): HTMLElement | null => 
  * und andere E2E-Specs wie `crud.spec.ts`/`focus-after-delete.spec.ts`). Wir klemmen die Position
  * deshalb an den Viewport: linksbündig, wo Platz ist, sonst so weit wie nötig nach links geschoben,
  * damit das komplette Panel sichtbar/bedienbar bleibt.
+ *
+ * `.kol-popover-button__popover` und `.kol-popover-button` sind unpublizierte KoliBri-API
+ * (@public-ui/react-v19 v4.2.1) — bei KoliBri-Upgrades prüfen, ob die Klassennamen noch stimmen.
  */
 const alignPopoverPanelLeft = (host: HTMLKolPopoverButtonElement): (() => void) => {
 	const root = host.shadowRoot;
@@ -97,9 +100,29 @@ const alignPopoverPanelLeft = (host: HTMLKolPopoverButtonElement): (() => void) 
 		}
 	};
 
-	const observer = new MutationObserver(correct);
-	observer.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ['style'] });
-	return () => observer.disconnect();
+	let panelObs: MutationObserver | null = null;
+
+	const watchPanel = () => {
+		panelObs?.disconnect();
+		panelObs = null;
+		const panel = root.querySelector<HTMLElement>('.kol-popover-button__popover');
+		if (!panel) return;
+		correct();
+		panelObs = new MutationObserver(correct);
+		panelObs.observe(panel, { attributes: true, attributeFilter: ['style'] });
+	};
+
+	const rootObs = new MutationObserver(watchPanel);
+	rootObs.observe(root, { childList: true, subtree: true });
+
+	const onResize = () => requestAnimationFrame(correct);
+	window.addEventListener('resize', onResize);
+
+	return () => {
+		rootObs.disconnect();
+		panelObs?.disconnect();
+		window.removeEventListener('resize', onResize);
+	};
 };
 
 const TreeNode = ({
