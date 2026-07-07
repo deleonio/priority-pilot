@@ -52,7 +52,7 @@ Status: ⬜ offen · 🔬 messen zuerst · 🔒 contract-gated · ✅ erledigt
 
 ---
 
-### M1 — `--max-turns`-Runaway-Backstop in alle LLM-Workflows ⬜ (Sofort, sicher)
+### M1 — `--max-turns`-Runaway-Backstop in alle LLM-Workflows ✅ erledigt (2026-07-07)
 
 **Problem:** Kein `max_turns`/`task_budget` in irgendeinem `claude_args`. Einzige Grenze ist die
 Wanduhr `timeout-minutes: 20`. Ein entgleister Lauf (nicht-konvergierender Fixup, `--effort max`
@@ -73,9 +73,15 @@ Grep→Fix→Test→Re-Test-Schleife zu zerschneiden (halbfertiger Commit wäre 
 **Contract-Impact:** keiner (additiv). **Ertrag:** 0 im Normalbetrieb, Ausreißer-Versicherung.
 **Nach Umsetzung:** Werte anhand realer Turn-Zahlen aus Run-Logs nachschärfen (Optimierungsrunde 2).
 
+**Umsetzung:** `--max-turns 30` in `claude-triage.yml`, `claude-retriage.yml`, `claude-spec.yml`,
+`claude-pr-review.yml`; `--max-turns 60` in `claude-implement.yml`, `claude-pr-fixup.yml` — je
+Claude- und GLM-Pfad (Mistral Vibe nutzt kein `claude_args`, kein Backstop dort verfügbar).
+YAML-Syntax verifiziert (`ruby -ryaml`), alle 185 `.github/workflows/*.test.ts`-Contract-Tests
+weiterhin grün (keine Test-Anpassung nötig — additiv, kein Contract berührt).
+
 ---
 
-### M2 — Review-Prompt auf Diff-Scoping seit letztem Review ⬜ (Sofort, sicher)
+### M2 — Review-Prompt auf Diff-Scoping seit letztem Review ✅ erledigt (2026-07-07)
 
 **Problem:** `pr-needs-review-label.yml` (`synchronize`) setzt bei **jedem** menschlichen Push die
 Review-Labels neu → voller Kreuzverhör-Review (Sonnet) des **gesamten** PR, kein inkrementelles
@@ -90,9 +96,23 @@ explizit „NICHT den ganzen Thread" liest — beim Review fehlt das Äquivalent
 **Contract-Impact:** keiner (Prompt-Text). **Ertrag:** Input+Reasoning je Fixup-Push.
 **Risiko:** niedrig — Regression-Guard: erster Review muss weiterhin den vollen Diff sehen.
 
+**Umsetzung (Abweichung vom ursprünglichen Ansatz):** Ursprünglich angedacht war, den Marker
+`<!-- ai-review -->` um eine SHA zu erweitern (`<!-- ai-review sha=... -->`), um den Delta-Diff zu
+verankern. **Verworfen** nach Pre-Flight-Grep: `server/src/ai-workflows/ai-review-comment-
+consolidation.test.ts` (AK-1/AK-4) hat `<!-- ai-review -->` als **exakten** String-Contract
+verankert (`MARKER = '<!-- ai-review -->'`, `includes`/`countOccurrences`-Prüfung) — eine
+Format-Änderung hätte den Test ohne Not gebrochen. Stattdessen: Diff-Scoping über den bereits von
+der GitHub-API gelieferten `updatedAt`-Zeitstempel des bestehenden Sammelkommentars (`gh pr view
+--json commits` gefiltert auf `committedDate > updatedAt`, dann `git diff`) — **kein
+Format-/Contract-Change nötig**, Marker bleibt exakt `<!-- ai-review -->`. Eingefügt in allen 3
+Agent-Pfaden (Claude/Mistral/GLM) von `claude-pr-review.yml` + gespiegelt in
+`.ai-knowledge/pr-review.md` (neuer Bullet „Diff-Scoping bei Folge-Review"). Verifiziert: alle 185
+Workflow-Contract-Tests UND alle 12 `ai-review-comment-consolidation.test.ts`-Tests grün, YAML
+syntaktisch valide (`ruby -ryaml`).
+
 ---
 
-### M3 — Re-Triage `--effort max` → `high` 🔬🔒 (Messen, dann mit Test-Update)
+### M3 — Re-Triage `--effort max` → `high` 🔬🔒 (Messen, dann mit Test-Update — Messversuch 2026-07-07: keine historischen Daten verfügbar)
 
 **Problem:** Re-Triage (`claude-retriage.yml:183,325`) läuft auf `--effort max`. Anders als die
 Erst-Triage ist beim Re-Triage-Auslöser (`@claude`-Kommentar) bereits ein **Mensch mit
@@ -100,7 +120,19 @@ Korrektur-Kontext** aktiv → Grenznutzen von `max` gegenüber `high` plausibel 
 
 **Erst-Triage bleibt `max`** — sie ist die kontextlose Wurzel, die vier Sonnet-Stufen speist.
 
-**Vorgehen (kein Blind-Change):**
+**Messversuch (2026-07-07):** `gh run list --workflow=claude-retriage.yml --limit 10` geprüft — alle
+10 jüngsten Läufe hatten `conclusion: skipped` (Job-`if` griff nicht: kein `@claude`-Kommentar von
+OWNER/MEMBER/COLLABORATOR). **Kein einziger echter Re-Triage-Lauf in der jüngeren Historie** — daher
+keine Bestandsdaten für ein Vorher/Nachher ableitbar. Ein Vergleichslauf (Erst-Triage, Opus max) auf
+`claude-triage.yml` lief real **8 min 43 s** (Issue-abhängig, keine Turn-/Token-Zahl aus `gh run view`
+ablesbar — nur Wall-Clock).
+
+**Vorgehen (weiterhin offen, jetzt konkretisiert):** Ein A/B ist NUR über einen **bewusst getriggerten
+Live-Lauf** möglich (`@claude`-Kommentar an einem echten oder Scratch-Issue) — das kostet echte
+Opus-Tokens und postet echt sichtbar in der laufenden Produktions-Pipeline (aktuell erkennbar aktiv:
+mehrere parallele Issue-/PR-Läufe zur selben Zeit). Das ist eine **Ressourcen-/Scope-Entscheidung**,
+keine rein technische — daher NICHT autonom ausgelöst, sondern beim User rückgefragt (welches Issue,
+ob Testkosten akzeptabel).
 
 1. A/B an einem Scratch-Issue: Re-Triage-Analyse `max` vs. `high` — Qualität (Ampel, AK-Schärfe)
    und Output-Token vergleichen.
@@ -138,25 +170,53 @@ Trennung push-vs-PR-Trigger sauber halten. **Ertrag:** eine volle E2E-Matrix je 
 
 ---
 
-### M5 — Shard-Zahl & `--with-deps` kalibrieren 🔬 (Erst messen)
+### M5 — Shard-Zahl & `--with-deps` kalibrieren ✅ gemessen (2026-07-07), Empfehlung: Zahl behalten
 
 **Problem:** `shard: [1,2,3,4]` ist nirgends empirisch hergeleitet. Jeder Shard trägt Fixkosten
 (Checkout + `pnpm install` + `playwright install --with-deps chromium`). Bei kleiner Netto-Testzeit
 übersteigt 4× Fixkosten irgendwann den Parallelitätsgewinn.
 
-**Vorgehen:**
+**Messung (4 echte CI-Läufe via `gh run view --json jobs`, Step-Timestamps):**
 
-1. Reale Job-Zeiten aus den letzten CI-Läufen ziehen (Netto-Testzeit vs. Setup-Overhead je Shard).
-2. Shard-Zahl am Optimum ausrichten (oft 2). **Nenner `--shard=…/N` mitziehen** (`ci.yml:126` +
-   `pipeline-hardening.test.ts` E1).
-3. Prüfen, ob `--with-deps` auf `ubuntu-latest` nötig ist (Playwright-System-Libs teils vorinstalliert)
-   — Weglassen spart den `apt`-Schritt je Shard.
+- Job-Gesamtzeit je Shard: **~104–162 s** (Set-up bis Complete), `verify`-Job: **~118–130 s** —
+  beide Stufen laufen parallel, Wall-Clock der `e2e`-Stufe = die des langsamsten Shards.
+- Setup-Overhead je Shard (Checkout + pnpm/node-Setup + Install + Playwright-Cache +
+  `Playwright-Browser installieren`): **~46–58 s**. Eigentliche Testausführung (Step „E2E (shard
+  N/4)"): **~57–99 s**. → Overhead-Anteil **~35–40 %** des Shard-Compute, nicht dominant, aber real.
+- **`--with-deps`-Schritt** („Playwright-Browser installieren", Browser-Binary selbst ist gecacht):
+  **~14–23 s je Shard** — bei 4 Shards **~60–90 s Compute-Minuten/Lauf**, die bei bereits
+  vorhandenen System-Libs auf `ubuntu-latest` ggf. entfallen könnten (noch nicht verifiziert, ob
+  `--with-deps` weglassen tatsächlich fehlerfrei bleibt).
+- **Neuer, wichtigerer Befund — Shard-Unwucht:** Shard 4 ist in **allen 4 gesampelten Läufen**
+  spürbar schneller als Shard 2/3 (Beispiel-Lauf: Shard 4 = 104 s vs. Shard 3 = 156 s — **52 s
+  Differenz**, konsistent über alle Stichproben). Playwright verteilt `--shard` nach Spec-**Anzahl**,
+  nicht nach historischer Laufzeit — die Wall-Clock-Bremse ist die **Unwucht**, nicht die Shard-Zahl.
 
-**Contract-Impact:** 🔒 E1 (Matrix-Größe == Nenner). **Ertrag:** weniger Fix-Overhead — ungemessen.
+**Rechnung — 4 Shards vs. 1 Shard (serialisiert):** Summe der reinen Testzeit ≈ 331 s (5,5 min).
+Bei 1 Shard: Wall-Clock ≈ 331 s + ~50 s Overhead ≈ 381 s (6,4 min) — **fast 2,5× langsamer** als
+heute (~156 s Wall-Clock bei 4 Shards). Da CI bei **jedem menschlichen Push** neu läuft und das
+Gate/Auto-Merge speist, zählt die Wall-Clock-Latenz für die gesamte autonome Pipeline-Kadenz.
+**Entsharden wäre hier ein Fehltrade** — Parallelität zahlt sich klar aus.
+
+**Empfehlung (ersetzt die alte Annahme „Shard-Zahl reduzieren"):**
+
+1. **Shard-Zahl (4) beibehalten** — durch Messung widerlegt, dass Reduktion hier lohnt.
+2. **Spec-Dateien über die Shards neu ausbalancieren** (z. B. Playwright-Sharding mit einer nach
+   historischer Laufzeit sortierten Spec-Liste statt alphabetischer Default-Reihenfolge) — würde die
+   ~40–60 s Wall-Clock-Bremse durch Shard-4-Unwucht kostenlos (kein Mehr-Compute) eliminieren. Noch
+   NICHT umgesetzt — Playwright-Sharding-Mechanik (Blob-Reports/`--shard` mit sortierter Spec-Liste)
+   muss erst geprüft werden, ob sie ohne Contract-Bruch (E1: Matrix-Größe == Nenner) machbar ist.
+3. **`--with-deps` probeweise entfernen** und beobachten, ob `playwright install chromium` (ohne
+   `--with-deps`) auf `ubuntu-latest` weiterhin grün bleibt — bei Erfolg ~60–90 s Compute-Minuten/Lauf
+   gespart, ohne Wall-Clock-Nachteil.
+
+**Contract-Impact:** 🔒 E1 (Matrix-Größe == Nenner) nur bei Shard-**Zahl**-Änderung (hier nicht
+geplant); Rebalancing/`--with-deps`-Test berühren E1 nicht. **Ertrag:** kein Shard-Zahl-Sparpotenzial
+(widerlegt); Rebalancing + `--with-deps`-Test zusammen ggf. ~1–2,5 min Wall-Clock+Compute pro Lauf.
 
 ---
 
-### M6 — `claude-pr-review.yml` `types` → `[labeled]` ⬜ (Aufräumen, Topologie-nah)
+### M6 — `claude-pr-review.yml` `types` → `[labeled]` ✅ erledigt (2026-07-07)
 
 **Problem:** Trigger `[opened, ready_for_review, labeled]`, aber das Job-`if` verlangt
 `ai:needs-review`. Beim `opened`/`ready_for_review`-Event ist das Label noch nicht gesetzt (es setzt
@@ -166,6 +226,14 @@ erzeugen nur übersprungene Jobs.
 **Fix:** `types: [labeled]`. **Vorher:** `pipeline-hardening.test.ts` prüfen, ob es diese Typen
 festschreibt. **Contract-Impact:** möglich (Trigger-Topologie). **Ertrag:** 0 Token, weniger
 Skip-Jobs/Rauschen.
+
+**Umsetzung:** Pre-Flight-Grep bestätigte: kein Contract-Test fixiert die `on:`-Typen von
+`claude-pr-review.yml` (nur `ci.yml`s `ready_for_review` ist über E2 gesperrt — unberührt);
+`docs/pipeline-flow.md` beschreibt nur die Label-Kanten, nicht die rohen Event-Typen — kein
+Doku-Drift. Risikoarm, da `opened`/`ready_for_review` bereits durch `pr-needs-review-label.yml`
+abgedeckt sind (das `ai:needs-review` setzt und damit das verbleibende `labeled`-Event auslöst) —
+die eigentliche Übergabekette bleibt unverändert (vgl. M9-Analyse). Verifiziert: YAML valide
+(`ruby -ryaml`), alle 185 Workflow-Contract-Tests weiterhin grün.
 
 ---
 
@@ -179,6 +247,82 @@ zusätzlich die volle `.ai-knowledge/*.md`.
 **Fix:** Redundanz Prompt↔System-Prompt entschlacken (eine kanonische Stelle); prüfen, ob AGENTS.md
 für reine Analyse-Läufe schlanker referenziert werden kann. **Contract-Impact:** Prompt-Text.
 **Ertrag:** modest — Prompt-Caching mildert (grob 1× je Lauf, nicht je Turn).
+
+---
+
+### M8 — `claude-triage.yml` + `claude-retriage.yml` zu EINEM Workflow zusammenführen 🔒 (Wartbarkeit, Topologie-Weiche)
+
+**Idee (User):** Re-Triage-Trigger (`issue_comment.created` mit `@claude`) einfach dem Triage-
+Workflow zuordnen — ein Workflow mit beiden `on:`-Triggern statt zwei Dateien.
+
+**Befund — machbar & technisch sicher:** Die beiden sind **~95 % identisch**: gleiches Modell
+(`claude-opus-4-8 --effort max`), gleiches `--allowedTools`, wortgleicher Prompt-Kern (Delta-
+Kommentar-Logik, Body-Block, Labels-zuletzt, 18-Min-Rettung), beide zeigen auf
+`.ai-knowledge/ticket-triage.md`, beide haben die App-Token-Preflight. Der Split war laut
+Datei-Kommentar **organisatorisch, nicht technisch**. Ein Workflow darf beide Trigger tragen; die
+Steps nutzen `github.event.issue.number` (existiert bei `issues` UND `issue_comment`).
+
+**WICHTIG — ehrliche Einordnung:** Spart **weder Tokens/Lauf noch Laufzeit** (gleiches Modell,
+gleiche Arbeit, jedes Event = 1 Opus-max-Lauf; kein Doppellauf-Bug vorhanden). Der Gewinn ist
+**Wartbarkeit/Drift-Reduktion** (Prompt heute in 2 Dateien × bis zu 3 Backend-Pfaden gepflegt) und
+**ein einziger Tuning-Punkt** — macht M1/M3/M7 an einer statt zwei Stellen umsetzbar.
+
+**Zu erhaltende Invarianten (sonst bricht Auth/Anti-Spam):**
+
+1. Auth verzweigt pro Event: `issue.author_association` (opened) vs. `comment.author_association`
+   - `@claude` im Body (comment) — compound-`if` mit `github.event_name`-Zweigen.
+2. PR-Guard auf dem Comment-Pfad: `github.event.issue.pull_request == null` (issue_comment feuert
+   auch für PRs).
+3. Spam-Vektor: `issue_comment` nur `created`, NIE `edited`.
+4. Unlabeled-Pfad-Auth: „Label-Entfernen setzt Schreibzugriff voraus" bleibt.
+5. Concurrency koppelt sich (eine Gruppe `claude-triage-${issue}`): @claude-Kommentar canceled
+   laufenden Open-Triage — „jüngste Analyse gewinnt", bewusst bestätigen.
+6. Label-Cleanup auf die Re-Triage-Formulierung vereinheitlichen (sicheres Superset).
+
+**Contract-Impact:** 🔒 `model-delegation.test.ts:27-28,39` (Datei-Arrays), `pipeline-hardening.test.ts:26-27,388-396(Spam-Guard),435,493` (auf Merge-Datei umzeigen), `docs/pipeline-flow.md`
+(2 Knoten + Label-Tabelle), `AGENTS.md` (`model-delegation.test.ts:183-184`).
+`claude-issue-unblock.test.ts` bleibt gültig (zeigt schon auf `claude-triage.yml`).
+**→ Trigger-Topologie-Änderung: separater Reviewer Pflicht.**
+
+---
+
+### M9 — `implement → review` nur noch über `pr-needs-review-label.yml` (Doppelweg entfernen) 🔒 (Robustheit + DRY, Topologie-Weiche)
+
+**Idee (User):** Der Übergang `implement → review` läuft auf zwei Wegen; er sollte immer über
+`pr-needs-review-label.yml` gehen.
+
+**Befund — korrekt für implement, sogar robuster:** Heute setzt `implement` `ai:needs-review`
+**direkt** (`claude-implement.yml:220`, Weg B) UND macht den PR ready → `pr-needs-review-label.yml`
+setzt es **ebenfalls** (Weg A). Entscheidend: der Bot-Actor-Filter in `pr-needs-review-label.yml:44`
+(`sender.type != 'Bot'`) greift **nur bei `synchronize`** — bei `opened`/`ready_for_review` läuft der
+Autolabeler auch für den App-Bot. Also feuert Weg A in **beiden** implement-Modi (neuer Ready-PR =
+`opened`; Draft→ready = `ready_for_review`). Weg B ist damit redundant.
+
+**Weg A ist die robustere Route:** Er hängt am PR-Ready-Event, nicht am letzten Prompt-Schritt.
+Läuft `implement` nach `gh pr ready`, aber vor seinem „ALLERLETZTER Schritt"-Label ins Timeout,
+hat Weg A das Review schon ausgelöst. Die „unvollständig"-Invariante bleibt erhalten: `implement`
+lässt bei Teilumsetzung den PR als Draft (`claude-implement.yml:229`), und `pr-needs-review-label.yml:41`
+hat den `draft == false`-Guard → kein Review auf Drafts.
+
+**Fix:** In `claude-implement.yml` (alle 3 Prompt-Pfade) das direkte `ai:needs-review`-Setzen +
+`gh label create ai:needs-review` entfernen; implement steuert das Review nur noch über Draft-vs-
+Ready-Status. Der Autolabeler bleibt alleinige Quelle der ready→review-Übersetzung.
+
+**NICHT universell — fixup bleibt außen vor:** Die `fixup → review`-Schleife geht bewusst NICHT über
+den Autolabeler: Fixup pusht auf einen bereits-ready PR = `synchronize` = Bot → `pr-needs-review-label.yml:44`
+überspringt es (Race-Vermeidung, Zeile 21-24). Fixup MUSS `ai:needs-review` direkt setzen — das
+direkte Setzen dort ist **load-bearing**, nicht redundant.
+
+**Vor Umsetzung validieren:** Re-Entry-Fall — ein erneuter `implement`-Lauf gegen einen bereits-ready
+PR erzeugt nur `synchronize` (Bot) → Autolabeler überspringt. Im Normalfluss (spec legt Draft an →
+implement macht erstmalig ready) tritt das nicht auf.
+
+**Contract-Impact:** 🔒 `docs/pipeline-flow.md:45-47,98` (Kante `implement -->|ai:needs-review| review`
+
+- Label-Tabelle „Setzt: implement, pr-needs-review-label, fixup" → implement streichen); prüfen, ob
+  `pipeline-hardening.test.ts` das direkte implement-Label festschreibt. **Ertrag:** Robustheit + DRY;
+  kleiner Input-Token-Abzug in der implement-Prompt (~5 Zeilen × 3 Pfade). **→ Trigger-Topologie:
+  separater Reviewer Pflicht.**
 
 ---
 
@@ -204,12 +348,16 @@ cancel-in-progress`, Draft-Skips, Label-Gating, Stop-Guards).
 
 - Keine Run-Logs eingesehen → alle %-Angaben sind Größenordnungen, keine Messung.
 - M3 und M5 sind **Kalibrier**-Maßnahmen: A/B bzw. Job-Zeit-Messung **vor** der Änderung.
-- M4 und M6 sind **Trigger-Topologie**-Änderungen → separater Reviewer Pflicht (Hochrisiko-Gate),
-  Trennung push-vs-PR-Trigger sauber halten.
+- M4, M6, M8 und M9 sind **Trigger-Topologie**-Änderungen → separater Reviewer Pflicht (Hochrisiko-
+  Gate), Trennung push-vs-PR-Trigger sauber halten.
+- M8 und M9 dienen primär **Wartbarkeit/Robustheit, nicht** direkt dem Token-/Laufzeit-Ziel — senken
+  aber Drift; M9 macht den implement→review-Übergang zusätzlich timeout-robust.
+- **fixup→review** bleibt bewusst am direkten Label (Autolabeler ignoriert Bot-`synchronize`) —
+  nicht mit M9 verwechseln.
 
 ## Reihenfolge-Empfehlung
 
-1. **Sofort ohne Risiko:** M1, M2 (additiv/Prompt, kein Contract-Break).
-2. **Messrunde:** M3-A/B, M5-Job-Zeiten — Daten sammeln.
-3. **Topologie-Weichen (User-Freigabe + separater Reviewer):** M4, M6.
-4. **Feinschliff:** M7; M1/M5-Werte anhand realer Logs nachschärfen (Optimierungsrunde 2).
+1. ~~**Sofort ohne Risiko:** M1, M2~~ ✅ erledigt (2026-07-07, alle Tests grün, kein Contract-Break).
+2. **Messrunde (offen):** M3-A/B, M5-Job-Zeiten — Daten sammeln.
+3. **Topologie-Weichen (User-Freigabe + separater Reviewer, offen):** M4, M8, M9. ~~M6~~ ✅ erledigt.
+4. **Feinschliff (offen):** M7; M1/M5-Werte anhand realer Logs nachschärfen (Optimierungsrunde 2).

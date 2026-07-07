@@ -97,6 +97,14 @@ ohnehin mit dem Diff; konsolidiert wird der **Sammelkommentar** mit dem Urteil.)
   fortschreiben** (`gh api --method PATCH repos/{owner}/{repo}/issues/comments/<id> -f body=…`) — die
   Comment-ID bleibt dabei gleich. Wird **nicht gefunden** (existiert noch kein markierter Kommentar),
   ihn **einmalig neu anlegen** (`gh pr comment` mit dem Marker als erster Zeile).
+- **Diff-Scoping bei Folge-Review (Kosten-/Zeitersparnis):** Wird ein bestehender Sammelkommentar
+  gefunden (Folge-Review nach einem Fixup-Push), NICHT den kompletten PR-Diff erneut komplett
+  durchgehen. Stattdessen dessen `updatedAt`-Zeitstempel aus der API-Antwort auslesen und nur die
+  Commits/den Diff **seit diesem Zeitpunkt** prüfen (`gh pr view --json commits` gefiltert auf
+  `committedDate > updatedAt`, darauf `git diff`) — bereits in „Behobene Anmerkungen" geführte Punkte
+  nicht erneut aufrollen. Ticket-Kontext und Architektur-Berührpunkte bleiben dabei im Blick (nicht
+  rein diff-lokal urteilen). Fehlt der markierte Kommentar (Erstreview), immer den vollständigen Diff
+  prüfen (Schritt 1 bleibt unverändert).
 - **Zwei Abschnitte im Sammelkommentar:**
   - **Offene Findings** — nur die Punkte der **aktuellen** Runde (mit Ampel, Datei/Zeile, Vorschlag).
   - **Behobene Anmerkungen** — eine **History-Tabelle** der über die Runden bereits erledigten
