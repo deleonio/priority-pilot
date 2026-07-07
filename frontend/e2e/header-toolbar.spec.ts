@@ -55,10 +55,10 @@ test.describe('#125 Header – Toolbar', () => {
 	 */
 
 	/**
-	 * AK4 — Einstellungs-Button liegt in der Toolbar und navigiert zu /settings/pillars.
+	 * AK4 — Einstellungs-Button liegt in der Toolbar und navigiert zu /settings/general (#382).
 	 * Das bisherige Popover und der Popover-Button außerhalb der Toolbar sind entfernt (#270).
 	 */
-	test('AK4: „Einstellungen"-Button liegt in der Toolbar und navigiert zu /settings/pillars', async ({ page }) => {
+	test('AK4: „Einstellungen"-Button liegt in der Toolbar und navigiert zu /settings/general', async ({ page }) => {
 		await page.goto('/');
 		await waitForStableView(page);
 
@@ -66,10 +66,10 @@ test.describe('#125 Header – Toolbar', () => {
 		// Der Einstellungs-Button liegt jetzt INNERHALB der Toolbar.
 		await expect(toolbar.getByRole('button', { name: 'Einstellungen' })).toBeVisible();
 
-		// Klick navigiert zur Settings-Route (kein Popover mehr).
+		// Klick navigiert zur Settings-Route (kein Popover mehr); seit #382 öffnet sich „Allgemein".
 		await toolbar.getByRole('button', { name: 'Einstellungen' }).click();
-		await expect(page).toHaveURL(/\/settings\/pillars/);
-		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
+		await expect(page).toHaveURL(/\/settings\/general/);
+		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toHaveAttribute('aria-selected', 'true');
 	});
 });
 
@@ -293,18 +293,18 @@ test.describe('#312 Toolbar-Reihenfolge und Zahnrad-Icon', () => {
 
 	/**
 	 * AK3 — Keine Navigations-Regression: Beide Buttons navigieren weiterhin korrekt.
-	 * „Einstellungen" → /settings/pillars, „Hilfe" → /hilfe.
+	 * „Einstellungen" → /settings/general (#382), „Hilfe" → /hilfe.
 	 */
-	test('AK3: „Einstellungen" navigiert zu /settings/pillars und „Hilfe" zu /hilfe', async ({ page }) => {
+	test('AK3: „Einstellungen" navigiert zu /settings/general und „Hilfe" zu /hilfe', async ({ page }) => {
 		await page.goto('/');
 		await waitForStableView(page);
 
 		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
 
-		// „Einstellungen" navigiert zur Settings-Route.
+		// „Einstellungen" navigiert zur Settings-Route; seit #382 öffnet sich „Allgemein".
 		await toolbar.getByRole('button', { name: 'Einstellungen' }).click();
-		await expect(page).toHaveURL(/\/settings\/pillars/);
-		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
+		await expect(page).toHaveURL(/\/settings\/general/);
+		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toHaveAttribute('aria-selected', 'true');
 
 		// Zurück und „Hilfe" testen.
 		await page.goto('/');
