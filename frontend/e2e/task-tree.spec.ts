@@ -438,7 +438,7 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 			await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeVisible();
 		});
 
-		test('AK-361-4: Done- und Aufklapp-Toggle bleiben außerhalb des Popovers sichtbar', async ({ page }) => {
+		test('AK-361-4: Aufklapp-Toggle bleibt direkt sichtbar; Done-Toggle liegt im Popover (#387)', async ({ page }) => {
 			const parentId = await createTask(page, uniqueTitle('Toggle-Eltern'));
 			const childId = await createTask(page, uniqueTitle('Toggle-Kind'));
 			await addSubtask(page, parentId, childId);
@@ -447,10 +447,13 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 			await waitForStableView(page);
 			await openTasksTab(page);
 
-			// Ohne das „…"-Popover zu öffnen, sind beide Toggles direkt sichtbar.
 			// Im invertierten Wald (#363) ist `childId` die sichtbare Wurzel — dessen Toggles prüfen.
-			await expect(page.getByTestId(`done-toggle-${childId}`)).toBeVisible();
+			// Der Aufklapp-Toggle ist direkt sichtbar.
 			await expect(toggle(page, childId)).toBeVisible();
+
+			// Der Done-Toggle liegt seit #387 als erstes Toolbar-Item hinter dem „…"-Popover — ohne Öffnen verborgen.
+			await expect(item(page, childId).locator('[role="toolbar"]')).toBeHidden();
+			await expect(item(page, childId).locator('[data-testid^="done-toggle-"]')).toHaveCount(0);
 		});
 
 		test('AK-361-5: Mobile-First — kein horizontaler Überlauf bei geöffnetem Popover', async ({ page }) => {
