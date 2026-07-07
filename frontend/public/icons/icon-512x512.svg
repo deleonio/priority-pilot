@@ -3,9 +3,8 @@
   <rect width="512" height="512" rx="96" fill="#1a1a1a" />
   
   <!-- Kompass/Pilot-Motiv: Ring mit 5 Säulen-Segmenten -->
-  <!-- Äußerer Ring (Kompass) -->
-  <circle cx="256" cy="256" r="200" fill="none" stroke="#ffffff" stroke-width="12" />
-  
+  <!-- Die 5 Segment-Bögen unten bilden den Ring bereits vollständig ab (gleicher Radius, breiterer
+       Stroke) - ein zusätzlicher Ring-Kreis wäre komplett von ihnen überdeckt. -->
   <!-- 5 Säulen als Segmente im Ring (72° pro Segment) -->
   <!-- Segment 1: Körper (0°–72°) -->
   <path d="M256 56 A200 200 0 0 1 446 194" fill="none" stroke="#4a90e2" stroke-width="24" stroke-linecap="round" />
