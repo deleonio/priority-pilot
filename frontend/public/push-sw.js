@@ -25,8 +25,8 @@ self.addEventListener('push', (event) => {
 	const title = payload.title || 'Priority Pilot';
 	const options = {
 		body: payload.body || '',
-		icon: '/icons/icon-192x192.svg',
-		badge: '/icons/icon-192x192.svg',
+		icon: '/icons/icon-192x192.png',
+		badge: '/icons/icon-192x192.png',
 		// Ziel-URL für den notificationclick-Handler mitgeben (Default: App-Wurzel).
 		data: { url: payload.url || '/' },
 	};
