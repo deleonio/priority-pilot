@@ -161,7 +161,7 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }} # Labels als App-Token -> loesen Folge-Workflows aus
         with:
-          claude_code_oauth_token: ${{ env.AI_BACKEND == 'zai' && '' || secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_code_oauth_token: ${{ env.AI_BACKEND != 'zai' && secrets.CLAUDE_CODE_OAUTH_TOKEN || '' }}
           github_token: ${{ steps.app-token.outputs.token }}
           # Erlaubte Bot-Ausloeser — das Label wird vom App-Bot (claude[bot]) gesetzt, sonst blockt
           # checkHumanActor diesen Lauf. Absicherung zusaetzlich ueber den Job-`if:`.

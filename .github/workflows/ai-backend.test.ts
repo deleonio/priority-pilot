@@ -131,10 +131,12 @@ describe('Jeder Claude-Workflow verkabelt das Label-gesteuerte z.ai-Backend', ()
 			});
 
 			it('gated claude_code_oauth_token auf env.AI_BACKEND (z.ai-Pfad ohne OAuth)', () => {
+				// GHA-Falsy-Falle: `condition && '' || fallback` evaluiert IMMER zum fallback, weil ''
+				// falsy ist. Korrekte Form ist `condition && truthy_value || ''` (Negation der Bedingung).
 				assert.match(
 					readWorkflow(wf),
-					/claude_code_oauth_token:\s*\$\{\{\s*env\.AI_BACKEND\s*==\s*'zai'/,
-					`${wf} muss claude_code_oauth_token konditional auf env.AI_BACKEND == 'zai' setzen`,
+					/claude_code_oauth_token:\s*\$\{\{\s*env\.AI_BACKEND\s*!=\s*'zai'/,
+					`${wf} muss claude_code_oauth_token mit != 'zai' gatten (nicht ==, GHA-Falsy-Falle bei &&''||)`,
 				);
 			});
 

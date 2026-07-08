@@ -225,7 +225,7 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }} # gh nutzt das App-Token -> erstellter PR loest Review aus
         with:
-          claude_code_oauth_token: ${{ env.AI_BACKEND == 'zai' && '' || secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_code_oauth_token: ${{ env.AI_BACKEND != 'zai' && secrets.CLAUDE_CODE_OAUTH_TOKEN || '' }}
           github_token: ${{ steps.app-token.outputs.token }}
           # Erlaubte Bot-Ausloeser — die Triage setzt `ai:ready` als App-Bot (claude[bot]), sonst
           # blockt checkHumanActor ("Workflow initiated by non-human actor"). Absicherung zusaetzlich

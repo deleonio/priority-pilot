@@ -338,7 +338,7 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         with:
-          claude_code_oauth_token: ${{ env.AI_BACKEND == 'zai' && '' || secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_code_oauth_token: ${{ env.AI_BACKEND != 'zai' && secrets.CLAUDE_CODE_OAUTH_TOKEN || '' }}
           github_token: ${{ steps.app-token.outputs.token }}
           # Erlaubte Bot-Ausloeser — der Review setzt das Label als Bot (claude[bot]), sonst blockt
           # checkHumanActor diesen Fixup-Lauf. Absicherung zusaetzlich ueber den Job-`if:`.

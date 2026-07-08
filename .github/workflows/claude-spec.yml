@@ -209,7 +209,7 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }} # gh nutzt das App-Token -> gesetztes ai:ready loest die Umsetzung aus
         with:
-          claude_code_oauth_token: ${{ env.AI_BACKEND == 'zai' && '' || secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_code_oauth_token: ${{ env.AI_BACKEND != 'zai' && secrets.CLAUDE_CODE_OAUTH_TOKEN || '' }}
           github_token: ${{ steps.app-token.outputs.token }}
           # Erlaubte Bot-Ausloeser — die Triage setzt `ai:spec-ready` als App-Bot (claude[bot]),
           # sonst blockt checkHumanActor. Absicherung zusaetzlich ueber den engen Job-`if:`.

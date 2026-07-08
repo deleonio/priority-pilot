@@ -197,7 +197,7 @@ jobs:
           # Spec-Workflow aus; ohne App-Secrets Fallback auf github.token.
           GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
         with:
-          claude_code_oauth_token: ${{ env.AI_BACKEND == 'zai' && '' || secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_code_oauth_token: ${{ env.AI_BACKEND != 'zai' && secrets.CLAUDE_CODE_OAUTH_TOKEN || '' }}
           github_token: ${{ steps.app-token.outputs.token || github.token }}
           # Erlaubt NUR, dass claude-issue-unblock.yml per App-Bot "ai:analyzed" entfernen und
           # damit die Re-Analyse eines freigegebenen Nachfolge-Issues anstossen darf (siehe
