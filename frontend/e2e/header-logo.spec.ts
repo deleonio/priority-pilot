@@ -117,3 +117,42 @@ test.describe('#395 Header – Logo-Button', () => {
 		expect(overflowsHorizontally, 'Kein horizontaler Overflow auf 375px').toBe(false);
 	});
 });
+
+// ---------------------------------------------------------------------------
+// Rote Spec-Tests für #402 — Wort-Bildmarke im Header (AK2 + AK4)
+// ---------------------------------------------------------------------------
+
+test.describe('#402 Header – Wort-Bildmarke statt reinem Icon-Logo', () => {
+	/**
+	 * AK2 — Header zeigt die horizontale Wortmarke:
+	 * Das img im Logo-Button verweist auf logo-with-name.horizontal.png.
+	 */
+	test('AK2: Logo-Button img src zeigt auf logo-with-name.horizontal.png', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+
+		const header = page.getByRole('banner');
+		const logoImg = header.getByRole('button', { name: /Zum Dashboard/i }).locator('img');
+		await expect(logoImg).toBeVisible();
+
+		const src = await logoImg.getAttribute('src');
+		expect(src, 'img src soll auf logo-with-name.horizontal.png enden').toMatch(/logo-with-name\.horizontal\.png$/);
+	});
+
+	/**
+	 * AK4 — Mobile-First (375px): Die breitere Wortmarke überschreitet den 375px-Viewport nicht.
+	 */
+	test('AK4: Wortmarken-img überschreitet 375px-Viewport-Breite nicht', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await page.goto('/');
+		await waitForStableView(page);
+
+		const header = page.getByRole('banner');
+		const logoImg = header.getByRole('button', { name: /Zum Dashboard/i }).locator('img');
+		await expect(logoImg).toBeVisible();
+
+		const box = await logoImg.boundingBox();
+		expect(box, 'Wortmarken-img muss eine Boundingbox haben').not.toBeNull();
+		expect(box!.width, `Wortmarken-img (${box!.width}px) darf 375px nicht überschreiten`).toBeLessThanOrEqual(375);
+	});
+});
