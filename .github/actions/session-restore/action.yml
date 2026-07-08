@@ -1,0 +1,80 @@
+name: Session-Archiv wiederherstellen
+description: >-
+  Laedt das archivierte Claude-Code-Sitzungsarchiv fuer ein Issue (GitHub Actions Cache, falls
+  vorhanden) und liefert ein fertiges --resume-Argument fuer die benannte Phase. Fail-open: jeder
+  Fehler (Cache-Miss, korruptes Archiv, fehlende Dateien) fuehrt zu leeren Outputs -- nie zu einem
+  Abbruch des aufrufenden Workflows.
+
+inputs:
+  issue:
+    description: Issue-Nummer, die das Archiv adressiert
+    required: true
+  phase:
+    description: Phasenname der Session (analyse, spec, impl, review, fix)
+    required: true
+
+outputs:
+  resume-arg:
+    description: "Leer ODER '--resume <session-id>', fertig in claude_args spleissbar"
+    value: ${{ steps.restore.outputs.resume-arg }}
+  session-id:
+    description: Session-ID der wiederhergestellten Phase (leer bei Miss)
+    value: ${{ steps.restore.outputs.session-id }}
+  restored:
+    description: "'true', wenn eine vorhandene Session wiederhergestellt wurde, sonst 'false'"
+    value: ${{ steps.restore.outputs.restored }}
+
+runs:
+  using: composite
+  steps:
+    # Kein `restore-keys`-Praefix: pro Issue existiert genau EIN Cache-Eintrag (stabiler Key,
+    # siehe session-save) statt eines Laufs pro Key -- das haelt den Repo-Cache-Verbrauch klein.
+    - name: Archiv aus Cache laden
+      id: cache
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ runner.temp }}/claude-session-archive/issue-${{ inputs.issue }}
+        key: claude-session-issue-${{ inputs.issue }}
+
+    - name: Session in Claude-Projektordner einspielen
+      id: restore
+      shell: bash
+      env:
+        ISSUE: ${{ inputs.issue }}
+        PHASE: ${{ inputs.phase }}
+      run: |
+        source "${{ github.action_path }}/../session-lib.sh"
+        archive_dir="$(archive_dir_for_issue "$ISSUE")"
+        sessions_file="$archive_dir/sessions.json"
+
+        # Jeder Fehlerpfad muendet hier -- niemals in einem non-zero Exit der Action.
+        miss() {
+          echo "::notice title=Session-Archiv::Issue #$ISSUE Phase $PHASE -- kein Archiv gefunden, frischer Start."
+          {
+            echo "resume-arg="
+            echo "session-id="
+            echo "restored=false"
+          } >> "$GITHUB_OUTPUT"
+          exit 0
+        }
+
+        [ -f "$sessions_file" ] || miss
+        session_id="$(jq -er --arg phase "$PHASE" '.[$phase].session_id // empty' "$sessions_file" 2>/dev/null)" || miss
+        [ -n "$session_id" ] || miss
+
+        session_file="$archive_dir/$PHASE/$session_id.jsonl"
+        [ -s "$session_file" ] || miss
+
+        project_dir="$(claude_project_dir)"
+        mkdir -p "$project_dir" 2>/dev/null || miss
+        cp "$session_file" "$project_dir/$session_id.jsonl" 2>/dev/null || miss
+        if [ -d "$archive_dir/$PHASE/$session_id" ]; then
+          cp -r "$archive_dir/$PHASE/$session_id" "$project_dir/$session_id" 2>/dev/null || true
+        fi
+
+        echo "::notice title=Session-Archiv::Issue #$ISSUE Phase $PHASE -- Session $session_id wiederhergestellt (--resume)."
+        {
+          echo "resume-arg=--resume $session_id"
+          echo "session-id=$session_id"
+          echo "restored=true"
+        } >> "$GITHUB_OUTPUT"

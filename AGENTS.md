@@ -121,6 +121,21 @@ Schreibzugriff, damit Außenstehende den OAuth-Token-Lauf nicht auslösen), das 
 jemand mit Schreibzugriff einen **Issue-Kommentar mit `@claude`** hinterlässt (Re-Triage auf Zuruf —
 zweiter Trigger desselben Workflows, kein separater).
 
+**Named Session Resume (Phase `analyse`):** `claude-triage.yml` archiviert die Claude-Code-Session
+jedes Laufs issuebezogen im GitHub Actions Cache (Key `claude-session-issue-<N>`, Composite Actions
+[`.github/actions/session-restore`](.github/actions/session-restore/action.yml) und
+[`session-save`](.github/actions/session-save/action.yml)). Eine Re-Triage desselben Issues laedt
+das Archiv vor dem Agent-Schritt und haengt bei Treffer `--resume <session-id>` an `claude_args` —
+die Re-Triage setzt dann den Konversationskontext der letzten (Re-)Triage fort, statt kontextlos neu
+zu beginnen; das Delta-seit-`stand`-Vorgehen oben bleibt unveraendert die Fallback-/Grundregel. Rein
+additiv und fail-open: Cache-Miss oder ein korruptes Archiv liefern leere Outputs, der Lauf startet
+dann wie bisher frisch. Der Save-Schritt braucht `actions: write` (Workflow-Permission bzw. an der
+GitHub-App-Installation zusaetzlich zu Contents/Issues/Pull requests) fuer `gh cache delete` (der
+Cache-Key ist pro Issue stabil/immutable, daher vor jedem Save ein Loeschen des alten Eintrags) —
+fehlt sie, degradiert das Archiv fail-open zu read-only (Restore vom alten Stand, Save no-opt still).
+Bislang nur fuer die Phase `analyse` umgesetzt; Ausrollen auf `spec`/`impl`/`review`/`fix` ist als
+Folgeschritt vorgesehen.
+
 Dieses Entfernen von `ai:analyzed` geschieht auch **automatisch beim Merge eines Vorgänger-Issues**:
 Sind Sub-Issues über native GitHub-Issue-Dependencies (`blocked-by`) sequenziell verkettet (A1 → A2 →
 A3, gesetzt bei der Zerlegung in der Triage), gibt

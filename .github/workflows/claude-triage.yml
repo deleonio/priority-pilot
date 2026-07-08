@@ -92,6 +92,7 @@ jobs:
       contents: read # Repo auschecken (Slash-Command + Wissensbasis lesen)
       issues: write # Beschreibung lektorieren + Analyse-Body-Block schreiben, Ping-Kommentar posten, Labels setzen
       id-token: write # OIDC-Token der Action; ohne diese Permission fehlt ACTIONS_ID_TOKEN_REQUEST_URL
+      actions: write # `gh cache delete` im Session-Archiv-Sichern-Schritt (Cache-Key ist pro Issue immutable)
     steps:
       # Startzeit fuer die Timeout-Erkennung (siehe Zeit-Guard im Label-Schritt unten).
       - name: Startzeit merken (fuer Timeout-Erkennung)
@@ -146,6 +147,18 @@ jobs:
           fi
           echo "Agent-Secret (CLAUDE_CODE_OAUTH_TOKEN) vorhanden."
 
+      # Named Session Resume (Phase "analyse"): laedt ein evtl. archiviertes Sitzungsarchiv dieses
+      # Issues (GitHub Actions Cache) und liefert bei Treffer ein fertiges --resume-Argument, damit
+      # eine Re-Triage (Label entfernt / @claude-Kommentar) den Konversationskontext der letzten
+      # Analyse fortsetzt statt kontextlos neu zu beginnen. Fail-open: Cache-Miss/korruptes Archiv
+      # -> leere Outputs, frischer Start wie bisher.
+      - name: Session-Archiv wiederherstellen (Phase analyse)
+        id: session-restore
+        uses: ./.github/actions/session-restore
+        with:
+          issue: ${{ github.event.issue.number }}
+          phase: analyse
+
       - name: Triage via Claude Code
         id: claude
         uses: anthropics/claude-code-action@558b1d6cab4085c7753fe402c10bef0fbb92ac7a # v1.0.165
@@ -186,7 +199,11 @@ jobs:
             -q '.comments[] | select(.createdAt > "<stand>")'), NICHT den ganzen Thread; dann auf
             Passung und Vollstaendigkeit zur (ggf. geaenderten) Aufgabenstellung pruefen,
             beantwortete offene Fragen einarbeiten/entfernen und bei Bedarf aktualisieren/ergaenzen.
-            Fehlt der Body-Block (Alt-Issue oder Erstanalyse), neu anlegen. Dann wie im Ablauf:
+            Fehlt der Body-Block (Alt-Issue oder Erstanalyse), neu anlegen. Wurde diese Session per
+            `--resume` fortgesetzt (derselbe Konversationskontext wie die letzte (Re-)Triage dieses
+            Issues), nutze diesen Kontext zusaetzlich zum Delta seit `stand` -- der Body-Block
+            bleibt aber so oder so die massgebliche, persistierte Wahrheitsquelle, das Delta-Vorgehen
+            oben gilt unveraendert (kein Widerspruch, nur zusaetzlicher Kontext bei Resume). Dann wie im Ablauf:
             Beschreibung lektorieren (Inhalt unveraendert), am Ende den Titel auf Konsistenz zur
             Beschreibung/zum Ziel pruefen und bei Inkonsistenz inhaltlich treu optimieren (kein
             Edit pro forma, keine Titel-Drift), die Analyse auf Deutsch mit Umsetzbarkeits-Ampel
@@ -221,8 +238,24 @@ jobs:
           # schreibberechtigte Person) erteilt behandeln.
           claude_args: >-
             --model claude-opus-4-8 --effort ${{ github.event_name == 'issue_comment' && 'high' || 'max' }} --max-turns 30
+            ${{ steps.session-restore.outputs.resume-arg }}
             --allowedTools "Bash(gh issue:*),Bash(gh api:*),Bash(gh label:*),Read,Grep,Glob,Task"
             --append-system-prompt "Automatisierter, durch das Anlegen des Issues, das Entfernen des ai:analyzed-/ai:to-big-issue-Labels ODER einen @claude-Kommentar autorisierter Triage-Lauf in GitHub Actions (headless, keine interaktive Rueckfrage moeglich). Die in der Wissensbasis geforderte Bestaetigung vor dem oeffentlichen Posten gilt durch den jeweiligen Ausloeser als erteilt: Schreibe Lektorat und Analyse-Body-Block, poste einen kurzen Ping-Kommentar und setze die Labels ALS ALLERLETZTEN Schritt (NIE davor — sonst startet die naechste Pipeline-Stufe mit veraltetem Issue-Inhalt) fuer Issue #${{ github.event.issue.number }}, ohne auf eine Bestaetigung zu warten. Bearbeite ausschliesslich dieses Issue und committe keinen Produktivcode. HARTES 20-Minuten-Timeout: sichere bei drohendem Limit (~18 Min) die bisherige Analyse als Body-Block (kein Label, kein Ping-Kommentar), statt einen vollen Durchlauf zu erzwingen. Modell-Strategie: Du laeufst fest auf Opus (claude-opus-4-8) — fuer die Analyse ist bewusst das staerkste Modell verdrahtet, damit sie optimal ausfaellt. Reasoning-Tiefe haengt vom Ausloeser ab: bei der kontextlosen Erst-Analyse (Issue angelegt/Label entfernt) laeufst du auf --effort max; bei einer Re-Triage per @claude-Kommentar ist bereits ein Mensch mit Korrektur-Kontext aktiv, dort laeufst du auf --effort high (geringerer Grenznutzen von max). Fuehre die Analyse vollstaendig selbst durch (keine Eskalation an heavy noetig — du BIST bereits das staerkste Modell); allenfalls triviale mechanische Nebenschritte darfst du per Agent-Tool an light (Haiku) delegieren."
+
+      # Named Session Resume (Phase "analyse"): sichert die eben beendete/abgebrochene Session ins
+      # Sitzungsarchiv (GitHub Actions Cache), damit die naechste (Re-)Triage dieses Issues per
+      # --resume anknuepfen kann. Bewusst VOR dem Timeout-Label-Schritt und mit if: always(), damit
+      # auch ein in den 20-Minuten-Timeout gelaufener Lauf seinen Teil-Fortschritt sichert (nach
+      # Entfernen von ai:to-big-issue soll der Folgelauf dort weitermachen koennen). Fail-open:
+      # jeder Fehler endet in einer Warnung, nie in einem Abbruch dieses Jobs.
+      - name: Session-Archiv sichern (Phase analyse)
+        if: always()
+        uses: ./.github/actions/session-save
+        with:
+          issue: ${{ github.event.issue.number }}
+          phase: analyse
+          session-id: ${{ steps.claude.outputs.session_id }}
+          gh-token: ${{ steps.app-token.outputs.token || github.token }}
 
       # Bei hartem Timeout (Agent-Schritt cancelled) ist das Issue zu gross, um es in einem Lauf zu
       # analysieren: mit "ai:to-big-issue" markieren (Kandidat zum Aufteilen) und ein evtl.
