@@ -1,4 +1,5 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { StrictMode } from 'react';
 import type { ReactNode } from 'react';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -304,11 +305,17 @@ describe('UpdatePrompt — System-Notification bei Update (#394)', () => {
 	};
 
 	// Render + Auflösen der `navigator.serviceWorker.ready`-Promise abwarten.
+	// StrictMode lässt den Effekt auf derselben Instanz zweimal ablaufen (Dev/Test-Modus):
+	// setup → cleanup → setup. Der useRef-Guard muss den zweiten Lauf blockieren (AK3).
 	// Gibt das Render-Ergebnis zurück, damit AK3 dieselbe Instanz via `rerender` erneut rendern kann.
 	const renderAndFlush = async () => {
 		let result!: ReturnType<typeof render>;
 		await act(async () => {
-			result = render(<UpdatePrompt />);
+			result = render(
+				<StrictMode>
+					<UpdatePrompt />
+				</StrictMode>,
+			);
 		});
 		await flushMicrotasks();
 		return result;
@@ -366,16 +373,22 @@ describe('UpdatePrompt — System-Notification bei Update (#394)', () => {
 	});
 
 	// AK3 — Keine Doppel-Notification im selben needRefresh-Zyklus.
+	// StrictMode in `renderAndFlush` ruft den Effekt auf derselben Instanz zweimal auf
+	// (setup → cleanup → setup). Der useRef-Guard blockiert den zweiten Lauf und verhindert
+	// so die doppelte Zustellung. Ohne Guard würde notificationCount() hier 2 ergeben.
 	it('AK3: erneutes Rendern im selben needRefresh-Zyklus → weiterhin genau eine Notification', async () => {
 		needRefreshValue = true;
 		stubNotification('granted');
 		stubServiceWorker();
 
 		const { rerender } = await renderAndFlush();
-		// Re-Render DERSELBEN Instanz ohne Zustandswechsel: der useRef-Guard muss eine zweite
-		// Zustellung verhindern (frisch gemountete Instanz hätte jeweils einen eigenen Ref).
+		// Zusätzliches Re-Render ohne Dependency-Wechsel (verifiziert kein zweites Effect-Aufruf).
 		await act(async () => {
-			rerender(<UpdatePrompt />);
+			rerender(
+				<StrictMode>
+					<UpdatePrompt />
+				</StrictMode>,
+			);
 		});
 		await flushMicrotasks();
 
