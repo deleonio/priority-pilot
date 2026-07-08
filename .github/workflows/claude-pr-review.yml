@@ -227,6 +227,14 @@ jobs:
             --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh label:*),Bash(gh api:*),Bash(git fetch:*),Bash(git diff:*),Read,Grep,Glob,Task"
             --append-system-prompt "Automatisierter, label-gesteuerter Kreuzverhoer-Review in GitHub Actions (headless). Reviewe ausschliesslich PR #${{ github.event.pull_request.number }}, aendere keinen Code. Schliesse IMMER mit der Label-Umschaltung als ALLERLETZTEN Schritt ab (NIE davor — erst nach dem Sammelkommentar, da Fixup/Gate-Merge den PR-Stand unmittelbar danach lesen): Findings -> ai:needs-changes (statt ai:needs-review); sauber -> ai:ready-to-merge. Erfinde keine Findings. HARTES 20-Minuten-Timeout, weiches Limit bei 14 Min (Soft-Abort): pruefe vor jedem groesseren Pruefaspekt `date +%s` gegen ${{ steps.starttime.outputs.soft_deadline_epoch }}; ist das erreicht, halte die Teil-Findings im Sammelkommentar als unvollstaendig fest, setze ai:continued UND entferne+setze ai:needs-review neu (Selbst-Retrigger, der Folgelauf setzt per --resume fort) statt ai:needs-changes/ai:ready-to-merge zu setzen, dann beende den Turn. Arbeite ohne interaktive Rueckfrage. Delegations-Strategie s. Prompt-Anfang (heavy/light je nach PR-Komplexitaet)."
 
+      - name: Kosten-Zusammenfassung
+        if: always()
+        continue-on-error: true
+        uses: ./.github/actions/cost-summary
+        with:
+          execution-file: ${{ steps.claude.outputs.execution_file }}
+          label: Review
+
       # Named Session Resume (Phase "review"): sichert die eben beendete/abgebrochene Session ins
       # Sitzungsarchiv, damit ein Selbst-Retrigger-Folgelauf per --resume anknuepfen kann.
       # if: always() -- auch ein in den harten Timeout gelaufener Lauf sichert seinen Teil-Fortschritt.

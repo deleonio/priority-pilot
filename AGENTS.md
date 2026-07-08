@@ -17,6 +17,8 @@ Wissensbasis liegt in [`.ai-knowledge/`](.ai-knowledge/).
 - [Deployment](docs/deployment.md) — Release-Build (GitHub Actions), Tarball, Host-Layout, systemd, Caddy, Rollback
 - [Deployment: Repo-Plan](docs/deployment-repo-plan.md) — was im Repo zu bauen ist (Pack-Skript, Release-Workflow, Secrets)
 - [Deployment: Server-Setup](docs/server-setup.md) — Schritt-für-Schritt-Einrichtung des Linux-Servers
+- [Workflow-Tool: Kosten-Reporting](docs/workflow-tool-costs.md) — Snippet für Token-/USD-EUR-Schätzung am Ende eines Claude-Code-Workflow-Skripts
+- [CI-Kosten-Zusammenfassung](docs/ci-cost-summary.md) — Token-/USD-EUR-Schätzung je GitHub-Actions-Lauf der KI-Pipeline (`.github/actions/cost-summary`)
 
 ## Kernregeln
 

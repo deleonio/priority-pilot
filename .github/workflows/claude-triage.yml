@@ -260,6 +260,14 @@ jobs:
             --allowedTools "Bash(gh issue:*),Bash(gh api:*),Bash(gh label:*),Read,Grep,Glob,Task"
             --append-system-prompt "Automatisierter, durch das Anlegen des Issues, das Entfernen des ai:analyzed-/ai:to-big-issue-Labels ODER einen @claude-Kommentar autorisierter Triage-Lauf in GitHub Actions (headless, keine interaktive Rueckfrage moeglich). Die in der Wissensbasis geforderte Bestaetigung vor dem oeffentlichen Posten gilt durch den jeweiligen Ausloeser als erteilt: Schreibe Lektorat und Analyse-Body-Block, poste einen kurzen Ping-Kommentar und setze die Labels ALS ALLERLETZTEN Schritt (NIE davor — sonst startet die naechste Pipeline-Stufe mit veraltetem Issue-Inhalt) fuer Issue #${{ github.event.issue.number }}, ohne auf eine Bestaetigung zu warten. Bearbeite ausschliesslich dieses Issue und committe keinen Produktivcode. HARTES 20-Minuten-Timeout, weiches Limit bei 14 Min (Soft-Abort): pruefe vor jedem groesseren Teilschritt `date +%s` gegen ${{ steps.starttime.outputs.soft_deadline_epoch }}; ist das erreicht, sichere die bisherige Analyse als Body-Block (kein Label, kein Ping-Kommentar) und beende den Turn, statt einen vollen Durchlauf zu erzwingen. Modell-Strategie: Du laeufst fest auf Opus (claude-opus-4-8) — fuer die Analyse ist bewusst das staerkste Modell verdrahtet, damit sie optimal ausfaellt. Reasoning-Tiefe haengt vom Ausloeser ab: bei der kontextlosen Erst-Analyse (Issue angelegt/Label entfernt) laeufst du auf --effort max; bei einer Re-Triage per @claude-Kommentar ist bereits ein Mensch mit Korrektur-Kontext aktiv, dort laeufst du auf --effort high (geringerer Grenznutzen von max). Fuehre die Analyse vollstaendig selbst durch (keine Eskalation an heavy noetig — du BIST bereits das staerkste Modell); allenfalls triviale mechanische Nebenschritte darfst du per Agent-Tool an light (Haiku) delegieren."
 
+      - name: Kosten-Zusammenfassung
+        if: always()
+        continue-on-error: true
+        uses: ./.github/actions/cost-summary
+        with:
+          execution-file: ${{ steps.claude.outputs.execution_file }}
+          label: Triage
+
       # Named Session Resume (Phase "analyse"): sichert die eben beendete/abgebrochene Session ins
       # Sitzungsarchiv (GitHub Actions Cache), damit die naechste (Re-)Triage dieses Issues per
       # --resume anknuepfen kann. Bewusst VOR dem Timeout-Label-Schritt und mit if: always(), damit
