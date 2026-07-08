@@ -57,6 +57,27 @@ describe('buildTaskForest', () => {
 		assert.deepEqual(forest[0].dependents, []);
 	});
 
+	it('Fortschritt zählt erledigte Unteraufgaben weiter, obwohl sie ausgeblendet sind (#392 ∩ #241)', async () => {
+		// Regression-Schutz für den Konflikt #392 (erledigte Unteraufgaben aus dem Baum entfernt) vs.
+		// #241 (Fortschritt „erledigt/gesamt"): `progress` wird über die UNGEFILTERTE Kette gezählt,
+		// bleibt also korrekt, obwohl das erledigte Kind nicht mehr in `dependents` steht.
+		const child = await Task.create({ title: 'Kind', priority: 3, estimatedEffort: 1 });
+		const parent = await Task.create({ title: 'Eltern', priority: 3, estimatedEffort: 1 });
+		await parent.addDependency(child);
+		await child.update({ status: 'Done' });
+		const forest = await buildTaskForest();
+		// Kind ausgeblendet …
+		assert.deepEqual(forest[0].dependents, []);
+		// … aber der Fortschritt zählt es weiter: Eltern + Kind = 2 gesamt, 1 erledigt.
+		assert.deepEqual(forest[0].progress, { done: 1, total: 2 });
+	});
+
+	it('Fortschritt ist null für einen Task ohne Unteraufgaben (#241)', async () => {
+		await Task.create({ title: 'Solo', priority: 3, estimatedEffort: 1 });
+		const forest = await buildTaskForest();
+		assert.equal(forest[0].progress, null);
+	});
+
 	it('totalEstimatedEffort ist eigener Aufwand + transitiver Abhängigkeiten', async () => {
 		// c.addDependency(b): c depends on b (b ist Unteraufgabe von c)
 		// b.addDependency(a): b depends on a (a ist Unteraufgabe von b)

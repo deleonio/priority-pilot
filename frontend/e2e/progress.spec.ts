@@ -120,16 +120,19 @@ test.describe('Fortschrittsanzeige pro Task (#241)', () => {
 		// B über die echte API auf „Erledigt" setzen.
 		await page.request.patch(`/api/v1/tasks/${idB}`, { data: { status: 'Done' } });
 
-		// Nach dem Reload zeigt A „1/2" — B erneut aufklappen (der Baum startet eingeklappt).
+		// Nach dem Reload: Die erledigte Unteraufgabe B verschwindet aus dem Baum (#392), A rückt als
+		// neue Wurzel nach. Der Fortschritt (#241) zählt B serverseitig aber weiter (`node.progress`
+		// über die ungefilterte Abhängigkeitskette) → A zeigt aktualisiert „1/2", obwohl B nicht mehr
+		// sichtbar ist. Genau dieser Schnittpunkt #392 ∩ #241 wird hier abgesichert.
 		await page.reload();
 		await waitForStableView(page);
 		await openTasksTab(page);
-		await expect(item(page, idB)).toBeVisible();
-		await item(page, idB)
-			.getByRole('button', { name: /klappen/i })
-			.first()
-			.click();
-		await expect(item(page, idB).getByTestId(`task-tree-item-${idA}`).getByText('1/2')).toBeVisible();
+
+		// B ist ausgeblendet …
+		await expect(item(page, idB)).toHaveCount(0);
+		// … A ist jetzt selbst Wurzel und zeigt den aktualisierten Fortschritt „1/2".
+		await expect(item(page, idA)).toBeVisible();
+		await expect(item(page, idA).getByText('1/2')).toBeVisible();
 	});
 
 	test('AK5: Fortschrittsanzeige ist auf mobilen Viewports (375px) sichtbar', async ({ page }) => {

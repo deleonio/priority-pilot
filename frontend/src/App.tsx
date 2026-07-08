@@ -21,7 +21,6 @@ import { TaskFormModal } from './components/TaskFormModal';
 import { TaskTree } from './components/TaskTree';
 import { toApiError } from './lib/apiError';
 import type { AuthUser } from './lib/auth';
-import { calculateProgress } from './lib/calculateProgress';
 import { buildDependencyMap } from './lib/dependencies';
 import { collectTaskValues } from './lib/forest';
 import { buildPillarSummaries } from './lib/pillar';
@@ -179,16 +178,18 @@ export const App = ({ user }: { user: AuthUser }) => {
 	}, [forest]);
 
 	// Fortschritt (erledigt/gesamt inkl. aller Unter-Tasks) je Task-ID aus dem Aufgabenwald ableiten.
-	// Tasks ohne Unter-Tasks liefern `null` und tauchen bewusst nicht in der Map auf (AK3).
+	// Der Wert kommt serverseitig berechnet aus `node.progress` (#241): Er zählt über die UNGEFILTERTE
+	// Abhängigkeitskette — also auch über erledigte Unteraufgaben, die aus `dependents` ausgeblendet sind
+	// (#392) — und bleibt dadurch korrekt. Tasks ohne Unter-Tasks liefern `null` und tauchen bewusst
+	// nicht in der Map auf (AK3).
 	const progressMap = useMemo(() => {
 		const map = new Map<number, { done: number; total: number }>();
 		const visited = new Set<TaskTreeNode>();
 		const visit = (node: TaskTreeNode): void => {
 			if (visited.has(node)) return;
 			visited.add(node);
-			const progress = calculateProgress(node);
-			if (progress !== null) {
-				map.set(node.id, progress);
+			if (node.progress != null) {
+				map.set(node.id, node.progress);
 			}
 			for (const dep of node.dependents) {
 				visit(dep);

@@ -73,6 +73,17 @@ test.describe('Priority Pilot — 5-s-Auto-Entfernung abgehakter Aufgaben (#392)
 			.click();
 	};
 
+	// Barriere gegen einen Fake-Clock-Race (#392, CI-flaky): `handleDoneToggle` plant den 5-s-Entfern-
+	// Timer erst NACH `await api.updateTask()` — synchron unmittelbar nach dem optimistischen Update, das
+	// den Toggle auf „Wieder öffnen" umschaltet. Erst dann darf `page.clock.fastForward(5000)` feuern,
+	// sonst spult die Uhr in langsamen Umgebungen vor, bevor der Timer überhaupt existiert → er wird auf
+	// „jetzt + 5 s" gelegt und feuert nie (Zeile bleibt sichtbar). `expect.poll` bestätigt nur den
+	// Server-Stand, nicht den geplanten Client-Timer — deshalb zusätzlich auf den umgeschalteten Toggle
+	// warten.
+	const expectMarkedDoneInUi = async (page: Page, id: number): Promise<void> => {
+		await expect(toolbar(page, id).getByRole('button', { name: /Wieder öffnen/i })).toBeVisible();
+	};
+
 	test('AK1: Karenzzeit — Aufgabe bleibt nach Abhaken zunächst sichtbar (< 5 s)', async ({ page }) => {
 		// Clock vor goto installieren, damit App-seitige setTimeout-Aufrufe kontrollierbar sind.
 		await page.clock.install();
@@ -91,6 +102,7 @@ test.describe('Priority Pilot — 5-s-Auto-Entfernung abgehakter Aufgaben (#392)
 
 		// PATCH muss persistiert haben.
 		await expect.poll(async () => fetchStatus(page, id)).toBe('Done');
+		await expectMarkedDoneInUi(page, id);
 
 		// Nach 4 Sekunden ist die Aufgabe noch sichtbar — kein automatisches Entfernen vor Ablauf.
 		await page.clock.fastForward(4000);
@@ -118,6 +130,7 @@ test.describe('Priority Pilot — 5-s-Auto-Entfernung abgehakter Aufgaben (#392)
 		await openActionsPopover(page, childId);
 		await doneToggle(page, childId).click();
 		await expect.poll(async () => fetchStatus(page, childId)).toBe('Done');
+		await expectMarkedDoneInUi(page, childId);
 
 		// 5 Sekunden vergehen → automatischer reload(), erledigte Aufgabe fällt aus GET /forest heraus.
 		await page.clock.fastForward(5000);
@@ -148,6 +161,7 @@ test.describe('Priority Pilot — 5-s-Auto-Entfernung abgehakter Aufgaben (#392)
 		await openActionsPopover(page, id);
 		await doneToggle(page, id).click();
 		await expect.poll(async () => fetchStatus(page, id)).toBe('Done');
+		await expectMarkedDoneInUi(page, id);
 
 		// 2 Sekunden später: noch im Fenster → „Wieder öffnen" klicken.
 		await page.clock.fastForward(2000);
@@ -182,6 +196,7 @@ test.describe('Priority Pilot — 5-s-Auto-Entfernung abgehakter Aufgaben (#392)
 		await openActionsPopover(page, id);
 		await doneToggle(page, id).click();
 		await expect.poll(async () => fetchStatus(page, id)).toBe('Done');
+		await expectMarkedDoneInUi(page, id);
 
 		// 5 Sekunden → automatisches Entfernen.
 		await page.clock.fastForward(5000);

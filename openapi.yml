@@ -937,6 +937,23 @@ components:
           description: Wertbeitrag des Tasks
         status:
           $ref: '#/components/schemas/TaskStatus'
+        progress:
+          type: object
+          nullable: true
+          description: >-
+            Fortschritt (erledigt/gesamt) inkl. des Knotens selbst und aller transitiven
+            Unteraufgaben, gezählt über die UNGEFILTERTE Abhängigkeitskette — also auch über
+            erledigte Unteraufgaben, die aus `dependents` ausgeblendet sind (#392). Dadurch bleibt
+            die Fortschrittsanzeige (#241) korrekt, obwohl erledigte Unteraufgaben nicht mehr im
+            Baum erscheinen. `null`, wenn der Task keine Unteraufgaben hat.
+          required:
+            - done
+            - total
+          properties:
+            done:
+              type: integer
+            total:
+              type: integer
         dependents:
           type: array
           items:

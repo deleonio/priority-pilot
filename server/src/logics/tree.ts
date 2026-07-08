@@ -12,6 +12,13 @@ interface TaskTreeNode {
 	value: number;
 	status: components['schemas']['TaskStatus'];
 	/**
+	 * Fortschritt (erledigt/gesamt) inkl. des Knotens selbst und aller transitiven Unteraufgaben,
+	 * gezählt über die UNGEFILTERTE Abhängigkeitskette — auch über erledigte Unteraufgaben, die aus
+	 * `dependents` ausgeblendet sind (#392). So bleibt die Anzeige (#241) korrekt. `null`, wenn der
+	 * Task keine Unteraufgaben hat.
+	 */
+	progress: { done: number; total: number } | null;
+	/**
 	 * Direkte Unteraufgaben dieses Knotens (Eltern → Kind). Eine Unteraufgabe wird als **Vorgänger**
 	 * der Eltern-Aufgabe angelegt (`parent.getDependencies() ∋ child`, siehe `TaskForm.tsx`); der Wald
 	 * bildet daher die `getDependencies()` als Kinder ab (#336). Der Feldname bleibt aus
@@ -22,6 +29,47 @@ interface TaskTreeNode {
 }
 
 const ACTIVE_STATUSES = ['Open', 'In process'] as const;
+
+/**
+ * Zählt den Fortschritt eines Tasks inkl. seiner selbst und aller transitiven Unteraufgaben
+ * (`getDependencies()`), dedupliziert über die Task-ID (schützt vor Zyklen/geteilten Knoten im DAG).
+ * Bewusst UNGEFILTERT (auch erledigte Unteraufgaben zählen), damit die Fortschrittsanzeige (#241)
+ * korrekt bleibt, obwohl erledigte Unteraufgaben aus dem angezeigten Baum entfernt sind (#392).
+ * Liefert `null`, wenn der Task keine direkten Unteraufgaben hat (keine redundante 1/1-Anzeige, AK3).
+ * Semantik identisch zum früheren Frontend-`calculateProgress` (Dedup per ID statt Objekt-Identität —
+ * bei Diamant-DAGs sogar korrekter, weil `buildTaskTree` pro Aufruf frische Knoten materialisiert).
+ *
+ * Aufwand: bewusst ein eigener Teilbaum-Walk je Knoten (O(Knoten × Teilbaum) `getDependencies`-Fetches
+ * pro Wald-Aufbau). Für den Personal-Task-Umfang unkritisch; ein bottom-up-Memoize wäre nur mit
+ * Set-Union pro Knoten korrekt (sonst Diamant-Doppelzählung) und lohnt hier den Zusatz-Komplexität nicht.
+ */
+const computeProgress = async (task: Task): Promise<{ done: number; total: number } | null> => {
+	const directDependencies = await task.getDependencies();
+	if (directDependencies.length === 0) {
+		return null;
+	}
+
+	const visited = new Set<number>();
+	let done = 0;
+	let total = 0;
+
+	const walk = async (node: Task): Promise<void> => {
+		if (visited.has(node.id)) {
+			return;
+		}
+		visited.add(node.id);
+		total += 1;
+		if (node.status === 'Done') {
+			done += 1;
+		}
+		for (const dependency of await node.getDependencies()) {
+			await walk(dependency);
+		}
+	};
+
+	await walk(task);
+	return { done, total };
+};
 
 const getEstimatedEffort = async (task: Task): Promise<number> => {
 	let estimatedEffort = task.estimatedEffort;
@@ -59,6 +107,7 @@ const buildTaskTree = async (task: Task): Promise<TaskTreeNode> => {
 		totalEstimatedEffort,
 		value: await calculateValueContribution(task),
 		status: task.status,
+		progress: await computeProgress(task),
 		dependents: children,
 	};
 };
