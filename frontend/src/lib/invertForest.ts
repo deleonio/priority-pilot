@@ -13,8 +13,8 @@ import type { TaskTreeNode } from 'client';
  * - Die neuen Wurzeln sind nach `value` absteigend sortiert (konsistent zu `buildTaskForest`).
  *
  * Rein: Der übergebene semantische Wald wird nicht mutiert (neue Knoten via Spread), damit Guard
- * (`isDoneBlockedBySubtasks`) und Fortschritt (`calculateProgress`) weiter auf den unveränderten
- * semantischen Unteraufgaben rechnen.
+ * (`isDoneBlockedBySubtasks`) und Fortschritt (serverseitig `node.progress`) weiter auf den
+ * unveränderten semantischen Unteraufgaben aufsetzen.
  */
 export function invertForest(forest: TaskTreeNode[]): TaskTreeNode[] {
 	const parentMap = new Map<number, TaskTreeNode>();

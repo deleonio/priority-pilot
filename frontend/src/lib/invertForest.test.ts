@@ -20,8 +20,8 @@ import { invertForest } from './invertForest';
  * - Die neuen Wurzeln sind nach `value` **absteigend** sortiert (konsistent zu `buildTaskForest`).
  *
  * Wichtig für AK4: `invertForest` ist **rein** — der übergebene semantische Wald wird **nicht**
- * mutiert, damit Guard (`isDoneBlockedBySubtasks`) und Fortschritt (`calculateProgress`) weiterhin auf
- * den unveränderten semantischen Unteraufgaben rechnen.
+ * mutiert, damit Guard (`isDoneBlockedBySubtasks`) und Fortschritt (serverseitig `node.progress`)
+ * weiterhin auf den unveränderten semantischen Unteraufgaben aufsetzen.
  *
  * Die Tests sind rot, bis `frontend/src/lib/invertForest.ts` existiert.
  */

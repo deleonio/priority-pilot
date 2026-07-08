@@ -21,7 +21,6 @@ import { TaskFormModal } from './components/TaskFormModal';
 import { TaskTree } from './components/TaskTree';
 import { toApiError } from './lib/apiError';
 import type { AuthUser } from './lib/auth';
-import { calculateProgress } from './lib/calculateProgress';
 import { buildDependencyMap } from './lib/dependencies';
 import { collectTaskValues } from './lib/forest';
 import { buildPillarSummaries } from './lib/pillar';
@@ -49,6 +48,8 @@ const VIEW_TABS = [
 
 // Modulkonstanten für Toolbar-Icons: stabile Objektidentität pro Render, damit der Icon-Watcher
 // nicht unnötig erneut feuert (z. B. CREATE_ICON für „Neuen Task anlegen").
+const DONE_REMOVAL_DELAY_MS = 5000;
+
 const CREATE_ICON = { left: { icon: 'fa-solid fa-plus' } };
 const ADVISOR_ICON = { left: { icon: 'fa-solid fa-lightbulb' } };
 const HELP_ICON = { left: { icon: 'fa-solid fa-circle-question' } };
@@ -70,6 +71,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 	const [logoutError, setLogoutError] = useState<string | null>(null);
 	const [updateError, setUpdateError] = useState<string | null>(null);
 	const [activeTab, setActiveTab] = useState(0);
+	const doneRemovalTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
 
 	const reload = useCallback(async (signal?: AbortSignal): Promise<void> => {
 		setLoading(true);
@@ -119,6 +121,16 @@ export const App = ({ user }: { user: AuthUser }) => {
 		return () => window.removeEventListener('popstate', onPop);
 	}, []);
 
+	useEffect(() => {
+		const timers = doneRemovalTimers.current;
+		return () => {
+			for (const handle of timers.values()) {
+				clearTimeout(handle);
+			}
+			timers.clear();
+		};
+	}, []);
+
 	// Bei jedem Tab-Wechsel die Daten neu laden: So zeigt jede Ansicht den aktuellen Server-Stand —
 	// insbesondere wandert eine frisch per Toggle erledigte Aufgabe (#315) erst mit diesem Reload
 	// atomar (ein React-Commit) aus dem Aufgabenbaum in die Erledigte-Tabelle (#228). Stabile
@@ -166,16 +178,18 @@ export const App = ({ user }: { user: AuthUser }) => {
 	}, [forest]);
 
 	// Fortschritt (erledigt/gesamt inkl. aller Unter-Tasks) je Task-ID aus dem Aufgabenwald ableiten.
-	// Tasks ohne Unter-Tasks liefern `null` und tauchen bewusst nicht in der Map auf (AK3).
+	// Der Wert kommt serverseitig berechnet aus `node.progress` (#241): Er zählt über die UNGEFILTERTE
+	// Abhängigkeitskette — also auch über erledigte Unteraufgaben, die aus `dependents` ausgeblendet sind
+	// (#392) — und bleibt dadurch korrekt. Tasks ohne Unter-Tasks liefern `null` und tauchen bewusst
+	// nicht in der Map auf (AK3).
 	const progressMap = useMemo(() => {
 		const map = new Map<number, { done: number; total: number }>();
 		const visited = new Set<TaskTreeNode>();
 		const visit = (node: TaskTreeNode): void => {
 			if (visited.has(node)) return;
 			visited.add(node);
-			const progress = calculateProgress(node);
-			if (progress !== null) {
-				map.set(node.id, progress);
+			if (node.progress != null) {
+				map.set(node.id, node.progress);
 			}
 			for (const dep of node.dependents) {
 				visit(dep);
@@ -286,9 +300,20 @@ export const App = ({ user }: { user: AuthUser }) => {
 					// verschwände die Zeile samt Toggle sofort. Der optimistische Status-Update hält die Zeile
 					// im Aufgabenbaum „sticky" für ein Sofort-Undo (#315 AK1); die Erledigte-Tabelle blendet
 					// solche noch im Wald stehenden Aufgaben aus (`forestTaskIds`), damit der Titel nicht
-					// doppelt im DOM steht (#228). Der nächste Reload (z. B. Tab-Wechsel) löst das auf.
+					// doppelt im DOM steht (#228). Nach DONE_REMOVAL_DELAY_MS löst ein automatischer Reload
+					// die Zeile auf (#392).
 					setTasks((prev) => (prev === null ? null : prev.map((t) => (t.id === task.id ? { ...t, status: next } : t))));
+					const handle = setTimeout(() => {
+						doneRemovalTimers.current.delete(task.id);
+						void reload();
+					}, DONE_REMOVAL_DELAY_MS);
+					doneRemovalTimers.current.set(task.id, handle);
 				} else {
+					const handle = doneRemovalTimers.current.get(task.id);
+					if (handle !== undefined) {
+						clearTimeout(handle);
+						doneRemovalTimers.current.delete(task.id);
+					}
 					await reload();
 				}
 			} catch (reason) {
