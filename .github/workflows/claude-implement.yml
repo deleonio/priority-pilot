@@ -160,23 +160,27 @@ jobs:
           echo "Kein ready-PR für Issue #$ISSUE — Umsetzung darf laufen (Draft-PR = Spec-Eingang wird aufgehoben)."
           echo "skip=false" >> "$GITHUB_OUTPUT"
 
+      # Kreuzverhoer-Finding (2026-07-08): bisher nur an preflight gekoppelt — im No-op-Fall
+      # (Doppel-Run-Guard: ready-PR existiert schon) lief die volle Installation trotzdem durch,
+      # bevor der Claude-Schritt sie wirkungslos ignorierte. Jetzt zusaetzlich an
+      # steps.doppel-guard.outputs.skip gekoppelt.
       - name: pnpm einrichten
-        if: steps.preflight.outputs.configured == 'true'
+        if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
       - name: Node.js einrichten
-        if: steps.preflight.outputs.configured == 'true'
+        if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version-file: .nvmrc # zentrale Node-Version (gleicher Stand wie ci/fixup/deploy)
           cache: pnpm
 
       - name: Abhaengigkeiten installieren
-        if: steps.preflight.outputs.configured == 'true'
+        if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Git-Hooks installieren (lefthook)
-        if: steps.preflight.outputs.configured == 'true'
+        if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         run: pnpm exec lefthook install
 
       # Standard-Pfad (Claude): laeuft, solange die Repo-Variable AI_AGENT NICHT auf "mistral"
