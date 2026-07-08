@@ -158,9 +158,8 @@ Review (Kreuzverhoer)']`, `completed`) **und** per `pull_request` `labeled` (nur
   erzwungen, nicht dem LLM anvertraut (Prinzip „Gate statt Erinnerung"). Jedes Gate ist durch
   Vertragstests (`.github/workflows/pipeline-hardening.test.ts`) gespiegelt und kann nicht still
   entfernt werden:
-  - **Agent-Secret-Pre-Flight** (alle 6 KI-Workflows): fehlt das zum aktiven `AI_AGENT`-Pfad
-    gehörende Secret (`CLAUDE_CODE_OAUTH_TOKEN`/`ZAI_API_KEY`/`MISTRAL_API_KEY`), bricht der Lauf
-    deterministisch mit `::error::` ab — kein stiller Skip (AGENTS.md: „bewusstes Opt-in"). Bei
+  - **Agent-Secret-Pre-Flight** (alle 6 KI-Workflows): fehlt `CLAUDE_CODE_OAUTH_TOKEN`, bricht der
+    Lauf deterministisch mit `::error::` ab — kein stiller Skip (AGENTS.md: „bewusstes Opt-in"). Bei
     triage/retriage/spec/implement wird zusätzlich `ai:to-big-issue` gesetzt (Issue-Signal); bei
     review/fixup (die kein `ai:to-big-issue` vergeben, s. u.) stattdessen ein PR-Kommentar.
   - **Stop-Guard** (fixup): > 10 PR-Commits → Loop stoppt hart (s. o.).

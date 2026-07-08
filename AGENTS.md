@@ -34,66 +34,16 @@ Wissensbasis liegt in [`.ai-knowledge/`](.ai-knowledge/).
   Pflicht, siehe [TDD-Strategie](.ai-knowledge/tdd-strategy.md) Stufe 2) und die Ergebnisse in der
   PR-Beschreibung dokumentieren.
 
-## KI-Agent: Claude (Standard), GLM (Z.ai) oder Mistral Vibe
+## KI-Agent: Claude Code
 
-Alle KI-Workflows (Triage, Re-Triage, Umsetzung, PR-Review, PR-Fixup) laufen wahlweise mit
-**Claude Code** (Standard), **GLM über Z.ai** oder **Mistral Vibe** — gesteuert über die
-Repository-Variable **`AI_AGENT`**:
+Alle KI-Workflows (Triage, Re-Triage, Umsetzung, PR-Review, PR-Fixup) laufen fest auf
+**Claude Code** (`anthropics/claude-code-action`, Secret `CLAUDE_CODE_OAUTH_TOKEN`). GLM (Z.ai) und
+Mistral Vibe waren als alternative Agent-Pfade über die Repo-Variable `AI_AGENT` waehlbar und wurden
+am 2026-07-08 ersatzlos entfernt (M11, `.ai-knowledge/workflow-optimization-plan.md`) — die drei
+Pfade brachten keine Laufzeit-/Tokenersparnis (nur einer lief je Lauf), aber realen
+Wartungs-/Drift-Aufwand ueber bis zu drei Prompt-Kopien je Datei.
 
-- nicht gesetzt **oder** `claude` → Claude Code (`anthropics/claude-code-action`, Secret
-  `CLAUDE_CODE_OAUTH_TOKEN`).
-- `glm` → GLM über Z.ai (`anthropics/claude-code-action` + Z.ai-Endpoint, Secret **`ZAI_API_KEY`**
-  nötig). Nutzt denselben Anthropic-kompatiblen Endpoint von Z.ai — kein Proxy erforderlich.
-- `mistral` → Mistral Vibe (`mistralai/mistral-vibe`, Secret **`MISTRAL_API_KEY`** nötig).
-
-Umschalten (gilt sofort für **alle** KI-Workflows, keine Datei-Änderung nötig):
-
-```bash
-gh variable set AI_AGENT --body glm       # auf GLM (Z.ai)
-gh variable set AI_AGENT --body mistral   # auf Mistral Vibe
-gh variable set AI_AGENT --body claude     # zurück auf Claude (oder Variable löschen)
-```
-
-**Voraussetzung GLM-Pfad:** Repo-Secret `ZAI_API_KEY` (API-Key von
-<https://api.z.ai> — Coding Plan). Steht `AI_AGENT=glm`, fehlt aber der Key, schlägt der
-GLM-Schritt fehl (kein stiller Skip — bewusstes Opt-in wie beim Mistral-Pfad).
-
-**Merkmale des GLM-Pfads:**
-
-- **Gleiche Action wie Claude:** Der GLM-Pfad nutzt ebenfalls `anthropics/claude-code-action`,
-  aber mit `anthropic_api_key` statt `claude_code_oauth_token` und den Env-Variablen
-  `ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic` sowie
-  `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1` (kein Telemetry zu Anthropic).
-- **Automatisches Modell-Mapping:** Z.ai mappt Claude-Modellnamen (z. B. `claude-sonnet-4-6`)
-  transparent auf GLM-Modelle — kein hartkodiertes Modell-Mapping nötig oder gewünscht (würde
-  automatische Updates auf neuere Modelle verhindern).
-- **Subagent-Delegation unverändert:** Prompts und `claude_args` sind identisch zum Claude-Pfad;
-  die Subagent-Delegation (Sonnet-Koordinator → `heavy`/`light`) funktioniert auf dem GLM-Pfad
-  wie auf dem Claude-Pfad.
-- **Längeres API-Timeout:** `API_TIMEOUT_MS=3000000` (50 Min intern, GitHub-Limit bleibt 20 Min).
-
-**Voraussetzung Mistral-Pfad:** Repo-Secret `MISTRAL_API_KEY` (aus <https://console.mistral.ai>,
-separat vom Server-LLM-Key). Steht `AI_AGENT=mistral`, fehlt aber der Key, schlägt der Vibe-Schritt
-fehl (kein stiller Skip — der Mistral-Pfad ist ein bewusstes Opt-in).
-
-**Bewusste Unterschiede / Grenzen des Mistral-Pfads** (die Vibe-Action reicht keine Extra-Flags
-wie `--model`/`--allowedTools`/`--append-system-prompt` durch):
-
-- **Auto-Approve erzwungen:** Headless ohne Approval-Callback würde Vibe jedes
-  genehmigungspflichtige Tool als „Tool execution not permitted" überspringen. Ein Vorab-Schritt
-  schreibt daher `~/.vibe/config.toml` mit `default_agent = "auto-approve"` /
-  `bypass_tool_permissions = true`. Folge: Der Mistral-Pfad läuft mit **vollem Tool-Zugriff** — die
-  enge `--allowedTools`-Restriktion des Claude-Pfads ist hier **nicht erzwingbar**; die Grenzen
-  setzt der Prompt (z. B. „committe keinen Produktivcode", im Review „ändere keinen Code").
-- **Modell:** nicht pro Workflow wählbar; Vibe nutzt sein Default-Modell. Pinnen ginge über
-  `~/.vibe/config.toml` (`active_model`). Die **Subagent-Modell-Delegation** (s. u.) ist auf dem
-  Mistral-Pfad **nicht betroffen** — die Vibe-Action reicht kein `--model`-Flag durch und kennt keine
-  Claude-Subagenten; das Modell kommt allein aus `~/.vibe/config.toml`.
-- **System-Prompt:** wird als führender `[KONTEXT/REGELN]`-Block in den `prompt` gefaltet.
-- **Keine `session_id`/`--resume`** in der Job-Summary. Das harte 20-Min-Timeout
-  (`ai:to-big-issue`) greift unverändert über `timeout-minutes` + Schritt-`outcome`.
-
-Der Canceller `claude-pr-cancel.yml` ist agent-unabhängig (reiner `gh`-Aufruf) und unverändert.
+Der Canceller `claude-pr-cancel.yml` ist reiner `gh`-Aufruf und unverändert.
 
 ### Modell-Wahl per Subagent-Delegation (Claude-Pfad)
 
@@ -142,10 +92,6 @@ Dieser ungeschützte Vorschritt riss bei jedem transienten Fehler den ganzen Lau
 Arbeit lief — die Hauptursache der Unzuverlässigkeit. Die Subagent-Delegation erreicht dasselbe Ziel
 (Sonnet entscheidet, Haiku/Opus führen aus) mit **einem** Lauf und **ohne** CI-JavaScript.
 
-**Mistral-Pfad: nicht betroffen.** Die Delegation greift ausschließlich auf dem Claude- und
-GLM-Pfad. Steht `AI_AGENT=mistral`, kennt die Vibe-Action weder `--model` noch Claude-Subagenten —
-das Modell kommt dort allein aus `~/.vibe/config.toml`.
-
 ## Ticket-Triage
 
 Offene Issues **ohne** Label `ai:analyzed` analysieren (aus Titel + Beschreibung + Repo eine
@@ -174,6 +120,21 @@ Schreibzugriff, damit Außenstehende den OAuth-Token-Lauf nicht auslösen), das 
 **`ai:analyzed` entfernt** wird (erzwingt eine Neu-Analyse, z. B. nach geänderter Beschreibung), oder
 jemand mit Schreibzugriff einen **Issue-Kommentar mit `@claude`** hinterlässt (Re-Triage auf Zuruf —
 zweiter Trigger desselben Workflows, kein separater).
+
+**Named Session Resume (Phase `analyse`):** `claude-triage.yml` archiviert die Claude-Code-Session
+jedes Laufs issuebezogen im GitHub Actions Cache (Key `claude-session-issue-<N>`, Composite Actions
+[`.github/actions/session-restore`](.github/actions/session-restore/action.yml) und
+[`session-save`](.github/actions/session-save/action.yml)). Eine Re-Triage desselben Issues laedt
+das Archiv vor dem Agent-Schritt und haengt bei Treffer `--resume <session-id>` an `claude_args` —
+die Re-Triage setzt dann den Konversationskontext der letzten (Re-)Triage fort, statt kontextlos neu
+zu beginnen; das Delta-seit-`stand`-Vorgehen oben bleibt unveraendert die Fallback-/Grundregel. Rein
+additiv und fail-open: Cache-Miss oder ein korruptes Archiv liefern leere Outputs, der Lauf startet
+dann wie bisher frisch. Der Save-Schritt braucht `actions: write` (Workflow-Permission bzw. an der
+GitHub-App-Installation zusaetzlich zu Contents/Issues/Pull requests) fuer `gh cache delete` (der
+Cache-Key ist pro Issue stabil/immutable, daher vor jedem Save ein Loeschen des alten Eintrags) —
+fehlt sie, degradiert das Archiv fail-open zu read-only (Restore vom alten Stand, Save no-opt still).
+Bislang nur fuer die Phase `analyse` umgesetzt; Ausrollen auf `spec`/`impl`/`review`/`fix` ist als
+Folgeschritt vorgesehen.
 
 Dieses Entfernen von `ai:analyzed` geschieht auch **automatisch beim Merge eines Vorgänger-Issues**:
 Sind Sub-Issues über native GitHub-Issue-Dependencies (`blocked-by`) sequenziell verkettet (A1 → A2 →

@@ -510,6 +510,143 @@ Label-Schritt.
 
 ---
 
+### M10 — Claude/GLM-Prompt-Dopplung per YAML-Anchor/Alias entfernt ✅ erledigt (2026-07-08, Kreuzverhör bestanden)
+
+**Herkunft:** Eigenständiges Kreuzverhör (Ankläger vs. Verteidiger, Architect-Cross-Check) über
+`.github/workflows/**` am 2026-07-07/08 — unabhängig von diesem Dokument entstanden (paralleler
+Session-Strang), hier nachträglich als M10 dokumentiert, um mit M1-M9 konsistent zu bleiben. Anders
+als M7 (Redundanz zwischen `prompt:` und `append-system-prompt:` **innerhalb** eines Schritts) geht
+es hier um wortgleiche Dopplung **zwischen** dem Claude- und dem GLM-Schritt derselben Datei (beide
+nutzen `anthropics/claude-code-action`, nur mit unterschiedlichem Auth-Backend — Prompt und
+`claude_args` waren Copy-Paste-identisch).
+
+**Problem:** In `claude-spec.yml`, `claude-pr-review.yml`, `claude-pr-fixup.yml` und
+`claude-triage.yml` waren `prompt:`- und `claude_args:`-Blöcke zwischen Claude- und GLM-Schritt
+byte-identisch dupliziert (bis zu ~250 Zeilen je Datei). Laufzeit-/Tokenkosten pro Lauf sind 0 (nur
+ein Branch feuert), aber jede Prompt-Änderung musste bislang an bis zu 2 Stellen je Datei synchron
+gehalten werden — ein Drift-Risiko, das die Aufgabenstellung ausdrücklich als Qualitätsrisiko
+einordnet, nicht nur als Kostenfrage. `claude-implement.yml` wich aufgrund zwischenzeitlicher Edits
+(M9-Revert) im `prompt:`-Text leicht ab (Claude-Pfad erwähnt zusätzlich `subscribe_pr_activity`) —
+dort wurde **nur** `claude_args:` gemerged, `prompt:` blieb bewusst dupliziert stehen.
+
+**Fix:** YAML-Anchor/Alias (`&name` / `*name`) statt textueller Dopplung. Der Claude-Schritt trägt
+den Anchor (`prompt: &implement_prompt |`), der GLM-Schritt referenziert ihn (`prompt:
+*implement_prompt`). YAML löst das beim Parsen zum exakt selben String auf, bevor GitHub Actions
+`${{ }}`-Ausdrücke auswertet — die Automation sieht zur Laufzeit **byte-identisch** dieselbe
+Konfiguration wie vorher.
+
+**Dateien:** `claude-spec.yml`, `claude-pr-review.yml`, `claude-pr-fixup.yml`, `claude-triage.yml`
+(`prompt:` + `claude_args:` gemerged), `claude-implement.yml` (nur `claude_args:` gemerged, `prompt:`
+divergiert echt und blieb dupliziert). Mistral bleibt zum Zeitpunkt dieser Maßnahme unangetastet
+(andere Action, kein `claude_args:`, eigener `[KONTEXT]`-Block). **Überholt durch M11** (2026-07-08):
+GLM und Mistral sind seither vollständig entfernt, die hier eingeführten Anchors/Aliases (nur noch
+ein Konsument je Feld) wieder rückgebaut.
+
+**Contract-Impact:** keiner am Verhalten (additiv/strukturell, verifiziert — s. u.), aber 3
+Contract-Test-Dateien mussten angepasst werden, weil sie roh-textbasiert zählen (`assert.equal`
+auf Vorkommen-Anzahl "1× je Agent-Pfad"): `pipeline-hardening.test.ts`, `model-delegation.test.ts`,
+`claude-pr-fixup.test.ts`. Lösung: `resolveAliases()`-Helper (in allen 3 Dateien identisch
+eingefügt) inlined jede `*name`-Referenz vor dem Text-Check zurück zum vollen Block und entfernt die
+`&name`-Markierung von der Definitionsstelle — die Tests laufen dadurch auf exakt dem Text, den sie
+vor M10 gesehen hätten, bleiben aber empfindlich für einen kaputten/fehlenden Anchor (Tippfehler im
+Namen ließe den Marker nicht mehr auffindbar sein → Test schlägt weiterhin real durch).
+
+**Ertrag:** ~110 Zeilen Netto-Reduktion über 5 Dateien (223 Zeilen entfernt, 112 hinzugefügt, davon
+~80 reine Testinfrastruktur); Wartungsfläche für Prompt-Änderungen je Datei von 2 auf 1 Stelle
+halbiert. Kein Token-/Laufzeit-Ertrag pro Lauf (unterscheidet sich damit von M1/M2/M3 — reiner
+Wartbarkeits-/Drift-Hebel wie M8).
+
+**Verifiziert (empirisch, nicht nur behauptet):**
+
+1. **YAML-Roundtrip-Beweis:** `js-yaml` löst jede Datei vor UND nach dem Refactor zu JSON auf;
+   `diff` zwischen beiden JSON-Ständen ist leer für alle 5 Dateien — das ist der stärkste verfügbare
+   Beweis, dass sich die von GitHub Actions tatsächlich verarbeitete Konfiguration nicht geändert
+   hat (Negativkontrolle: ein absichtlich falscher Alias-Name ließ den JSON-Diff sofort auffallen,
+   bevor die korrekte Fassung geschrieben wurde — s. Root-Cause unten).
+2. `ruby -ryaml` lädt alle 5 Dateien fehlerfrei (Projekt-Standard-Check).
+3. Alle 177 `.github/workflows/*.test.ts`-Contract-Tests grün.
+
+**Root-Cause eines Zwischenfalls (Selbstkorrektur während der Umsetzung):** Ein erster
+Extraktions-Versuch per Skript behandelte eine Leerzeile **innerhalb** eines Prompt-Blocks
+fälschlich als Blockende (YAML-Literalblöcke `|` erlauben Leerzeilen im Fließtext) und hat dadurch
+Restfragmente des alten Textes hinter dem neuen Alias-Verweis stehen lassen — `js-yaml` schlug beim
+Nachverifizieren sofort mit `YAMLException: bad indentation` fehl (**kein** stiller Fehler). Die 5
+Dateien wurden über `git checkout HEAD --` sauber zurückgesetzt, das Extraktionsskript korrigiert
+(Leerzeilen zählen als Teil des Blocks, nicht als Terminator) und danach der volle Roundtrip-Beweis
+neu geführt. Kein kaputter Stand wurde committet.
+
+**Kein Pflicht-Kreuzverhör (Hochrisiko-/Topologie-Gate greift nicht):** M10 ändert weder
+`on:`-Trigger noch Job-Reihenfolge noch Labels/Concurrency — reine Inhalts-Deduplizierung mit durch
+JSON-Diff bewiesener Verhaltensgleichheit. Das Gate ist für Pipeline-/Trigger-Topologie-Änderungen
+reserviert (s. M4/M6/M8/M9); hier greift stattdessen der Determinismus-/Negativkontroll-Beweis (B).
+
+---
+
+### M11 — GLM- und Mistral-Agentenpfade ersatzlos entfernt ✅ erledigt (2026-07-08, kein Kreuzverhör-Befund — direkte User-Entscheidung)
+
+**Herkunft:** Keine Kreuzverhör-Findung, sondern eine direkte Anweisung des Users im Anschluss an
+M10: _„ich würde erstmal mistral und GLM ersatzlos entfernen und mit claude code erstmal sauber den
+gesamtprozess umsetzen"_. Bewusste Vereinfachung vor weiterer Optimierung, keine gemessene
+Kostenersparnis als Motivation (die Tabu-Zone hatte den 3-Wege-Switch zuvor korrekt als „kein
+Laufzeit-Token, nur Wartungs-Bloat" eingeordnet — dieser Bloat wird hier beseitigt, nicht die
+Laufzeitkosten, die ohnehin 0 waren).
+
+**Scope-Abgrenzung (kritisch, per Pre-Flight-Grep verifiziert):** „Mistral" kommt im Repo in zwei
+unabhängigen Bedeutungen vor — die hier entfernte CI-Agentenwahl (`AI_AGENT`) und eine echte
+Produktfunktion (`server/src/llm/mistral.ts`, Pillar-Advisor/Task-Klassifikation nutzen die
+Mistral-API als LLM-Provider, eigenes `MISTRAL_API_KEY`-Secret in der Server-Laufzeitumgebung,
+**nicht** das gleichnamige CI-Repo-Secret). Die Produktfunktion wurde nicht angefasst.
+
+**Fix:** In allen 5 Kern-Workflows (`claude-implement.yml`, `claude-spec.yml`,
+`claude-pr-review.yml`, `claude-pr-fixup.yml`, `claude-triage.yml`) je: den GLM-Step, den
+Mistral-Step und den vorgeschalteten `Vibe-Konfig`-Step vollständig gelöscht; den
+Agent-Secret-Check vom dreiarmigen `case`-Statement auf einen einzelnen
+`[ -z "$CLAUDE_CODE_OAUTH_TOKEN" ]`-Check reduziert (kein `,,`-Lowering mehr nötig — es gibt nur noch
+einen Wert); die `vars.AI_AGENT`-Klauseln aus dem Claude-Step-`if:` entfernt; die
+`AGENT`/`OUTCOME`/`SESSION_ID`-Ternary-Ketten in „Ergebnis zusammenfassen" auf den alleinigen
+Claude-Pfad vereinfacht (`AGENT` als Literal „Claude" im Log-Text, kein Env-Var mehr); die
+Timeout-Erkennungs- und (in `claude-pr-review.yml`) die Label-Post-Assertion-`if:`-Bedingungen von
+3-Wege- auf reine `steps.claude.outcome`-Prüfungen reduziert. Die M10-Anchors (`&name`/`*name`),
+die die Claude/GLM-Dopplung überbrückten, sind mit dem GLM-Step obsolet geworden und wurden auf
+schlichte `prompt: |` / `claude_args: >-`-Blöcke zurückgebaut — ein Anchor ohne verbleibenden Alias
+ist tote Indirektion.
+
+**Dateien:** die 5 Kern-Workflows (s. o.); 3 Contract-Test-Dateien (`claude-pr-fixup.test.ts`:
+`glmPrompt()`/`mistralPrompt()`-Helper + `describe`-Blöcke AK0 und AK5 vollständig gelöscht, GLM-/
+Mistral-`it`s aus AK1–AK4 entfernt; `model-delegation.test.ts`: Claude-UND-GLM-Doppelcheck auf
+Einzelcheck reduziert, „Mistral-Pfad nicht betroffen"-Test gelöscht; `pipeline-hardening.test.ts`:
+`ZAI_API_KEY`/`MISTRAL_API_KEY`-Assertions gestrichen, `C2-Nachtrag`-Describe zur
+Case-Insensitivität komplett gelöscht (kein `case`-Statement mehr), alle
+`assertContentBeforeLabel(..., 3)`-Aufrufe sowie zwei Occurrence-Zähler von 3 auf 1 geändert); alle
+3 Test-Dateien haben zudem den M10-`resolveAliases()`-Helper entfernt (keine Anchors mehr im Zielbild,
+der Helper wäre toter Code). Dokumentation: `AGENTS.md` (Abschnitt „KI-Agent" von ~60 Zeilen auf
+einen kurzen Absatz gekürzt, „Mistral-Pfad: nicht betroffen"-Absatz in der Subagent-Delegation
+gelöscht), `docs/pipeline-flow.md` (Agent-Secret-Pre-Flight-Bullet auf `CLAUDE_CODE_OAUTH_TOKEN`
+allein reduziert), Tabu-Zone-Bullet „3 Agent-Pfade" (oben) entfernt.
+
+**Contract-Impact:** erwartet und akzeptiert (Tests spiegeln die Topologie, s. Leitplanke oben) —
+177 → 158 Contract-Tests (19 GLM-/Mistral-spezifische Tests entfallen ersatzlos, keine verbleibende
+Assertion wurde geschwächt, nur auf „1 statt 3 Agent-Pfade" nachgeführt).
+
+**Ertrag:** ~1.000 Netto-Zeilen entfernt über 10 Dateien (1.138 Zeilen gelöscht, 131 hinzugefügt).
+Kein Laufzeit-/Token-Ertrag (die entfernten Pfade liefen nie parallel mit); der Ertrag ist reine
+Wartbarkeits-/Klarheitsverbesserung — künftige Prompt-/Gate-Änderungen treffen nur noch eine Stelle
+statt bis zu drei, der M10-Anchor-Mechanismus wird nicht mehr gebraucht.
+
+**Verifiziert:** `ruby -ryaml` lädt alle 5 Workflow-Dateien fehlerfrei; alle 158
+`.github/workflows/*.test.ts`-Contract-Tests grün; Grep-Sweep auf `AI_AGENT`/`ZAI_API_KEY`/
+`steps.glm`/`steps.mistral`/`mistral-vibe`/`resolveAliases` außerhalb der bewusst unangetasteten
+Produkt-Dateien liefert keine Treffer mehr; `git diff` zu `server/src/llm/mistral.ts` und den
+Produkt-Doku-Stellen (README.md, docs/deployment*.md, docs/server-setup.md, docs/user-guide.md,
+.ai-knowledge/project.md, openapi.yml) ist leer.
+
+**Kein Pflicht-Kreuzverhör (Hochrisiko-/Topologie-Gate greift nicht):** M11 ändert weder `on:`-
+Trigger noch Concurrency noch Label-Fluss — reine Entfernung toter/redundanter Zweige, die job-`if`-
+seitig ohnehin nie parallel zum Claude-Pfad liefen. Verifiziert per Grep-Sweep + vollständiger
+Contract-Suite statt separatem Reviewer.
+
+---
+
 ## Tabu-Zone — lösungstragend, NICHT anfassen
 
 - **Opus-max bei der Erst-Triage** — Wurzel des ausführbaren Vertrags (AK+Testfälle), speist Spec →
@@ -523,8 +660,6 @@ Label-Schritt.
 - **Trigger-Breite** (`synchronize`/`labeled`/`ready_for_review`/`workflow_run`) — jeder Typ schließt
   eine als Contract-Test einklagbare Lücke. Doppelläufe bereits abgesichert (`concurrency:
 cancel-in-progress`, Draft-Skips, Label-Gating, Stop-Guards).
-- **Die 3 Agent-Pfade Claude/GLM/Mistral** — nur einer läuft (`if: vars.AI_AGENT`), **kein**
-  Laufzeit-Token, nur Wartungs-Bloat (deshalb Contract-Tests).
 - **Deterministische gh/Script-Jobs** (Gate-Merge, Conflict-Scan, Issue-Unblock, PR-Cancel,
   needs-review-Label) — 0 Token.
 
@@ -551,6 +686,11 @@ cancel-in-progress`, Draft-Skips, Label-Gating, Stop-Guards).
    (2026-07-08, ohne Live-A/B — User hat den Mess-Gate bewusst übersprungen).
 3. **Topologie-Weichen (User-Freigabe + separater Reviewer, offen):** M4 — einzige offene
    Maßnahme. ~~M6~~, ~~M8~~, ~~M9~~ ✅ erledigt.
-4. ~~**Feinschliff:** M7~~ ⚠️ teilweise erledigt (2026-07-08, nur risikoarmer Prompt-Teil;
+4. ~~**Wartbarkeit:** M10~~ ✅ erledigt (2026-07-08, kein Topologie-Gate nötig — reine
+   Anchor/Alias-Deduplizierung, per JSON-Roundtrip-Diff als verhaltensgleich bewiesen); **von M11
+   ueberholt** (Anchors zurueckgebaut, da GLM/Mistral als Alias-Konsument entfallen).
+5. ~~**Vereinfachung:** M11~~ ✅ erledigt (2026-07-08, User-Entscheidung — GLM/Mistral ersatzlos
+   entfernt, ~1.000 Netto-Zeilen ueber 10 Dateien).
+6. ~~**Feinschliff:** M7~~ ⚠️ teilweise erledigt (2026-07-08, nur risikoarmer Prompt-Teil;
    AGENTS.md-Bloat bewusst nicht angefasst). M1/M5-Werte anhand realer Logs nachschärfen bleibt
    offen (Optimierungsrunde 2, braucht Produktions-Run-Historie).
