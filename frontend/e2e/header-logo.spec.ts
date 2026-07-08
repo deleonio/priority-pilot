@@ -87,14 +87,16 @@ test.describe('#395 Header – Logo-Button', () => {
 	});
 
 	/**
-	 * AK4 — Keine Regression der H1: Die Ebene-1-Überschrift „Priority Pilot" bleibt sichtbar.
-	 * Deckt helpers.ts `waitForStableView`, login.spec.ts und smoke.spec.ts ab.
+	 * AK4 — App-Namen-H1 entfernt, Seiten-H1 „Dashboard" vorhanden (invertiert durch #406):
+	 * „Priority Pilot" als Level-1-Überschrift ist nicht mehr im Dokument;
+	 * stattdessen existiert genau eine visually-hidden H1 „Dashboard".
 	 */
-	test('AK4: H1 „Priority Pilot" bleibt sichtbar (keine Regression)', async ({ page }) => {
+	test('AK4: H1 „Priority Pilot" entfernt — Seiten-H1 „Dashboard" vorhanden', async ({ page }) => {
 		await page.goto('/');
 		await waitForStableView(page);
 
-		await expect(page.getByRole('heading', { name: 'Priority Pilot', level: 1 })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Priority Pilot', level: 1 })).toHaveCount(0);
+		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toHaveCount(1);
 	});
 
 	/**

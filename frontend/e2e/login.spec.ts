@@ -41,8 +41,8 @@ test.describe('Priority Pilot — Login-Page für Google OAuth (#190)', () => {
 
 		// Der auffällige Google-Login-Button ist sichtbar …
 		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeVisible();
-		// … und die Haupt-App (KolHeading „Priority Pilot", level 1) ist es NICHT.
-		await expect(page.getByRole('heading', { name: 'Priority Pilot', level: 1 })).toBeHidden();
+		// … und die Haupt-App (sr-only H1 „Dashboard") ist es NICHT.
+		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeHidden();
 	});
 
 	test('AK1b: Login-Seite ist fullscreen — App-Toolbar und Tabs nicht sichtbar', async ({ page }) => {
@@ -98,8 +98,8 @@ test.describe('Priority Pilot — Login-Page für Google OAuth (#190)', () => {
 		await mockAuthenticated(page);
 		await page.goto('/');
 
-		// Die Haupt-App (KolHeading „Priority Pilot", level 1) ist sichtbar …
-		await expect(page.getByRole('heading', { name: 'Priority Pilot', level: 1 })).toBeVisible();
+		// Die Haupt-App (sr-only H1 „Dashboard") ist im DOM …
+		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
 		// … und der Login-Button ist es NICHT.
 		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeHidden();
 	});
