@@ -277,6 +277,13 @@ jobs:
           phase: analyse
           session-id: ${{ steps.claude.outputs.session_id }}
           gh-token: ${{ steps.app-token.outputs.token || github.token }}
+          # Elapsed-Guard (Kreuzverhoer-Finding M2, 2026-07-08): dieser Workflow ist der einzige
+          # der 5 mit `cancel-in-progress: true` -- ein durch einen neueren Trigger verdraengter
+          # Lauf darf NICHT speichern, wenn er fruehzeitig (< 18 Min) abgebrochen wurde, sonst
+          # koennte er den bereits vom neueren Lauf gespeicherten frischeren Archiv-Stand
+          # ueberschreiben (Cache-Key ist ein einzelner Slot pro Issue, kein Append).
+          outcome: ${{ steps.claude.outcome }}
+          run-start-epoch: ${{ steps.starttime.outputs.epoch }}
 
       # Bei hartem Timeout (Agent-Schritt cancelled) ist das Issue zu gross, um es in einem Lauf zu
       # analysieren: mit "ai:to-big-issue" markieren (Kandidat zum Aufteilen) und ein evtl.
