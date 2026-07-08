@@ -4,7 +4,8 @@
 		"src/components/TaskTable.tsx",
 		"src/lib/reactCellRoot.ts",
 		"src/components/SeriesManagementModal.tsx",
-		"public/push-sw.js"
+		"public/push-sw.js",
+		"public/icons/generate-icons-linux.mjs"
 	],
 	"ignoreDependencies": ["client"]
 }
