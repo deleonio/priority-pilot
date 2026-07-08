@@ -1,0 +1,77 @@
+name: KI-Backend konfigurieren (Claude-Default, z.ai per Issue-Label)
+description: |
+  Entscheidet pro Lauf, ob Claude Code gegen Anthropic (Default) oder den Anthropic-kompatiblen
+  z.ai-Endpoint laeuft — gesteuert ueber das Label `ai:use-zai` auf dem Issue. Issue-Stufen
+  (Triage/Spec/Implement) lesen die Labels des Issues; PR-Stufen (Review/Fixup) lesen die Labels des
+  PR zusaetzlich zu denen des verlinkten Issues (Closes #N), sodass EIN Label auf dem Issue die ganze
+  Pipeline steuert. Fail-open: ist nichts aufloesbar, gilt der Claude-Default. Schreibt AI_BACKEND
+  (anthropic|zai) nach $GITHUB_ENV; bei zai kommen ANTHROPIC_BASE_URL + ANTHROPIC_AUTH_TOKEN (Bearer,
+  aus Secret ZAI_API_KEY) + ANTHROPIC_DEFAULT_*_MODEL-Alias-Map dazu. AUTH_TOKEN out-rankt das
+  OAuth-Token sauber; ist das Label gesetzt, aber ZAI_API_KEY fehlt, bricht der Schritt
+  deterministisch ab (::error, kein stiller Skip). Volle --model-IDs verlassen Claude Code literal
+  und vertrauen auf z.ai serverseitiges Mapping (Issue #403). Siehe AGENTS.md "KI-Agent".
+
+inputs:
+  entity-type:
+    description: 'Welche Entitaet das Label traegt: "issue" oder "pr".'
+    required: true
+  entity-number:
+    description: 'Nummer des Issues oder PRs, dessen Labels geprueft werden.'
+    required: true
+  gh-token:
+    description: 'GitHub-Token fuer die gh-Label-Abfrage (github.token oder App-Token).'
+    required: true
+  zai-api-key:
+    description: 'z.ai-API-Key aus dem Secret ZAI_API_KEY.'
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: KI-Backend aus Label `ai:use-zai` ableiten
+      shell: bash
+      env:
+        ENTITY_TYPE: ${{ inputs.entity-type }}
+        ENTITY_NUMBER: ${{ inputs.entity-number }}
+        GH_TOKEN: ${{ inputs.gh-token }}
+        ZAI_API_KEY: ${{ inputs.zai-api-key }}
+      run: |
+        set +e
+        # Labels der Entitaet sammeln (Issue ODER PR + ggf. verlinktes Issue). Fail-open: jeder
+        # gh-Fehler liefert leer -> Claude-Default, kein Abbruch wegen einer transienten API-Stoerung.
+        collect_labels() {
+          if [ "$ENTITY_TYPE" = "issue" ]; then
+            gh issue view "$ENTITY_NUMBER" --repo "$GITHUB_REPOSITORY" --json labels -q '.labels[].name' 2>/dev/null
+          elif [ "$ENTITY_TYPE" = "pr" ]; then
+            gh pr view "$ENTITY_NUMBER" --repo "$GITHUB_REPOSITORY" --json labels -q '.labels[].name' 2>/dev/null
+            linked="$(gh pr view "$ENTITY_NUMBER" --repo "$GITHUB_REPOSITORY" \
+              --json closingIssuesReferences -q '.closingIssuesReferences[0].number' 2>/dev/null)"
+            if [ -n "$linked" ]; then
+              gh issue view "$linked" --repo "$GITHUB_REPOSITORY" --json labels -q '.labels[].name' 2>/dev/null
+            fi
+          fi
+        }
+
+        if collect_labels | grep -qx 'ai:use-zai'; then
+          if [ -z "$ZAI_API_KEY" ]; then
+            echo "::error title=KI-Backend z.ai::Label 'ai:use-zai' gesetzt, aber Secret ZAI_API_KEY fehlt — als Repo-Secret hinterlegen (oder Label entfernen fuer Claude-Default)."
+            exit 1
+          fi
+          # GLM-Coding-Plan-Map (gleiche Werte wie das lokale .claude/settings.local.json).
+          # Alias-Aufloesung (opus/sonnet/haiku/fable) -> u. a. Subagent-Delegation; volle
+          # --model-IDs verlasst Claude Code literal, z.ai mappt serverseitig.
+          {
+            echo "AI_BACKEND=zai"
+            echo "ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic"
+            echo "ANTHROPIC_AUTH_TOKEN=$ZAI_API_KEY"
+            echo "ANTHROPIC_DEFAULT_HAIKU_MODEL=glm-4.5-air"
+            echo "ANTHROPIC_DEFAULT_SONNET_MODEL=glm-4.7"
+            echo "ANTHROPIC_DEFAULT_OPUS_MODEL=glm-5.1"
+            echo "ANTHROPIC_DEFAULT_FABLE_MODEL=glm-5.2"
+          } >> "$GITHUB_ENV"
+          echo "KI-Backend=z.ai aktiv (Label 'ai:use-zai' an $ENTITY_TYPE #$ENTITY_NUMBER) — Endpoint umgeleitet, Auth via ANTHROPIC_AUTH_TOKEN (out-rankt OAuth)."
+        else
+          echo "AI_BACKEND=anthropic" >> "$GITHUB_ENV"
+          echo "KI-Backend=Claude/Anthropic (Default — kein Label 'ai:use-zai' an $ENTITY_TYPE #$ENTITY_NUMBER). OAuth via CLAUDE_CODE_OAUTH_TOKEN unberuehrt."
+        fi

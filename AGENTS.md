@@ -47,6 +47,28 @@ Wartungs-/Drift-Aufwand ueber bis zu drei Prompt-Kopien je Datei.
 
 Der Canceller `claude-pr-cancel.yml` ist reiner `gh`-Aufruf und unverändert.
 
+### Optionales Backend: z.ai statt Anthropic (Issue #403)
+
+Seit M11 gibt es bewusst nur **einen** Agent-Pfad (Claude Code). Wer trotzdem GLM (Z.ai) fahren will,
+startet keinen zweiten Pfad, sondern lenkt Claude Codes API-Calls um — gesteuert pro Lauf über das
+Label **`ai:use-zai`**:
+
+- **Default (kein Label):** Claude-Code läuft gegen **Anthropic** via OAuth
+  (`CLAUDE_CODE_OAUTH_TOKEN`). Nichts ändert sich.
+- **Label `ai:use-zai` am Issue:** die Composite-Action
+  [`configure-ai-backend`](.github/actions/configure-ai-backend/action.yml) leitet den Lauf auf den
+  Anthropic-kompatiblen **z.ai**-Endpoint (`https://api.z.ai/api/anthropic`) um. Auth wechselt auf
+  `ANTHROPIC_AUTH_TOKEN` (Bearer, aus dem Secret **`ZAI_API_KEY`**), das das OAuth-Token sauber
+  out-rankt. Die Alias-Map (`ANTHROPIC_DEFAULT_OPUS_MODEL=glm-5.1` u. a.) greift für die
+  Subagent-Delegation (`heavy`=opus, `light`=haiku).
+- **Ein Label steuert die ganze Pipeline:** Issue-Stufen (Triage/Spec/Implement) lesen die Labels des
+  Issues; PR-Stufen (Review/Fixup) lesen die Labels des PR **zusätzlich** zu denen des verlinkten
+  Issues (`Closes #N`). Fail-open: ist nichts auflösbar, gilt der Claude-Default.
+
+Vollständige `--model`-IDs (`claude-opus-4-8`, `claude-sonnet-4-6`) verlassen Claude Code **literal**
+und vertrauen auf z.ai serverseitiges Mapping (Entscheidung Endpoint-only, Issue #403). Lehnt z.ai
+einen Modellnamen ab, ist der dokumentierte Fallback, `--model` zu parametrisieren (Follow-up).
+
 ### Modell-Wahl per Subagent-Delegation (Claude-Pfad)
 
 Statt jeden KI-Workflow fest auf ein Modell zu verkabeln **oder** eine zweite, vorgeschaltete

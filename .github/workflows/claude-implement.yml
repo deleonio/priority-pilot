@@ -102,6 +102,18 @@ jobs:
           fetch-depth: 0 # voller Verlauf: der Umsetzungs-Flow arbeitet mit Branches
           token: ${{ steps.app-token.outputs.token }} # Push als App-Token -> loest Folge-Workflows aus
 
+      # KI-Backend (Issue #403): Label `ai:use-zai` am Issue waehlt pro Lauf z.ai statt Anthropic
+      # (Default). Schreibt AI_BACKEND=anthropic|zai nach $GITHUB_ENV; bei zai kommen Endpoint +
+      # ANTHROPIC_AUTH_TOKEN (Secret ZAI_API_KEY) dazu. Muss VOR Preflight + claude-code-action.
+      - name: KI-Backend konfigurieren
+        if: steps.preflight.outputs.configured == 'true'
+        uses: ./.github/actions/configure-ai-backend
+        with:
+          entity-type: issue
+          entity-number: ${{ github.event.issue.number }}
+          gh-token: ${{ steps.app-token.outputs.token }}
+          zai-api-key: ${{ secrets.ZAI_API_KEY }}
+
       # Deterministischer Agent-Secret-Check (Haerten S2): die OAuth-Token-Voraussetzung fuer
       # Claude darf NICHT still skippen — fehlt CLAUDE_CODE_OAUTH_TOKEN, bricht der Lauf hier
       # deterministisch ab. Ai:to-big-issue + ai:ready entfernen, damit KEIN Re-Loop. Setzt mit
@@ -110,9 +122,14 @@ jobs:
         if: steps.preflight.outputs.configured == 'true'
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          AI_BACKEND: ${{ env.AI_BACKEND }}
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
+          if [ "${AI_BACKEND:-}" = "zai" ]; then
+            echo "KI-Backend=zai — Auth via ZAI_API_KEY (in configure-ai-backend validiert). OAuth-Preflight entfaellt."
+            exit 0
+          fi
           if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
             echo "::error title=Agent-Secret fehlt::CLAUDE_CODE_OAUTH_TOKEN fehlt — fehlt es, darf der Lauf nicht still skippen (AGENTS.md: bewusstes Opt-in). Secret als Repo-Secret hinterlegen."
             gh label create "ai:to-big-issue" --repo "$GITHUB_REPOSITORY" \
@@ -208,7 +225,7 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }} # gh nutzt das App-Token -> erstellter PR loest Review aus
         with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_code_oauth_token: ${{ env.AI_BACKEND != 'zai' && secrets.CLAUDE_CODE_OAUTH_TOKEN || '' }}
           github_token: ${{ steps.app-token.outputs.token }}
           # Erlaubte Bot-Ausloeser — die Triage setzt `ai:ready` als App-Bot (claude[bot]), sonst
           # blockt checkHumanActor ("Workflow initiated by non-human actor"). Absicherung zusaetzlich
