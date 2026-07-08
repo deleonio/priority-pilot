@@ -423,13 +423,18 @@ describe('C1-Nachtrag — Stop-Guard ist fail-closed bei gh-API-Ausfall (nicht f
 	});
 });
 
-describe('L1-Nachtrag — Triage/Re-Triage instruieren Zwischenstandssicherung (~18 Min)', () => {
-	it('claude-triage.yml: Agent-Prompt enthaelt eine ~18-Min-Zwischenstand-Anweisung (Symmetrie zu spec/implement)', () => {
+describe('L1-Nachtrag — Triage/Re-Triage instruieren Zwischenstandssicherung (Soft-Abort, praezises Zeitlimit)', () => {
+	it('claude-triage.yml: Agent-Prompt enthaelt eine praezise, epoch-basierte Zwischenstand-Anweisung (Soft-Abort, Symmetrie zu spec/implement)', () => {
 		const yml = readWorkflow('claude-triage.yml');
 		assert.match(
 			yml,
-			/SPAETESTENS nach ~18 Minuten den Zwischenstand/,
-			'claude-triage.yml muss die Agents anweisen, bei drohendem Timeout (~18 Min) den bisherigen Analyse-Zwischenstand zu sichern (Haerten L1)',
+			/soft_deadline_epoch/,
+			'claude-triage.yml muss ein praezises, per Epoch berechnetes weiches Zeitlimit an den Agent-Prompt rendern (Soft-Abort, Haerten L1)',
+		);
+		assert.match(
+			yml,
+			/schreibe die bisherige Analyse \(auch wenn unvollstaendig\) als Body-Block/,
+			'claude-triage.yml muss die Agents anweisen, bei drohendem Timeout den bisherigen Analyse-Zwischenstand als Body-Block zu sichern (Haerten L1)',
 		);
 	});
 });

@@ -61,6 +61,11 @@ runs:
         [ -f "$sessions_file" ] || miss
         session_id="$(jq -er --arg phase "$PHASE" '.[$phase].session_id // empty' "$sessions_file" 2>/dev/null)" || miss
         [ -n "$session_id" ] || miss
+        # Defense-in-depth: nur ein UUID-foermiger Wert wird in --resume gespleisst/nach
+        # GITHUB_OUTPUT geschrieben (Kreuzverhoer-Finding 2026-07-08) -- die Quelle ist zwar nur
+        # Claudes eigener Output bzw. unser eigenes Archiv, nicht direkt extern steuerbar, aber die
+        # Pruefung ist so billig, dass sie sich lohnt.
+        [[ "$session_id" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]] || miss
 
         session_file="$archive_dir/$PHASE/$session_id.jsonl"
         [ -s "$session_file" ] || miss

@@ -46,7 +46,17 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      actions: write # `gh cache delete` + actions/cache im Session-Archiv-Schritt (Soft-Abort, 2026-07-08)
     steps:
+      # Startzeit fuer das weiche Zeitlimit (Soft-Abort, 2026-07-08): soft_deadline_epoch = jetzt +
+      # 840s (14 Min, 6 Min Puffer bis zum harten 20-Min-Kill). Der Epoch-Wert wird unten als
+      # literale Zahl in den Prompt gerendert.
+      - name: Startzeit merken (fuer weiches Zeitlimit)
+        id: starttime
+        run: |
+          now=$(date +%s)
+          echo "soft_deadline_epoch=$((now + 840))" >> "$GITHUB_OUTPUT"
+
       - name: Voraussetzung pruefen (GitHub-App-Secrets)
         id: preflight
         env:
@@ -95,6 +105,33 @@ jobs:
             exit 1
           fi
           echo "Agent-Secret (CLAUDE_CODE_OAUTH_TOKEN) vorhanden."
+
+      # Soft-Abort-Obergrenze (2026-07-08): merkt sich, ob "ai:continued" bereits VOR diesem Lauf
+      # gesetzt war. Der Cap-Step nach dem Claude-Schritt liest diesen Wert, um eine zweite
+      # Fortsetzung in Folge zu verhindern (siehe dort).
+      - name: Fortsetzungs-Stand pruefen (ai:continued)
+        id: continued-before
+        if: steps.preflight.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          already="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels \
+            --jq 'any(.labels[]; .name == "ai:continued")' 2>/dev/null || echo false)"
+          echo "already=${already:-false}" >> "$GITHUB_OUTPUT"
+
+      # Named Session Resume (Phase "review", Soft-Abort-Rollout 2026-07-08): PRs haben keine
+      # Issue-Nummer im Event -- die "issue"-Eingabe der Composite-Action ist nur ein generischer
+      # Cache-Key/Ordnername, daher wird hier bewusst die PR-Nummer uebergeben. Fail-open wie in
+      # claude-triage.yml.
+      - name: Session-Archiv wiederherstellen (Phase review)
+        id: session-restore
+        if: steps.preflight.outputs.configured == 'true'
+        continue-on-error: true
+        uses: ./.github/actions/session-restore
+        with:
+          issue: ${{ github.event.pull_request.number }}
+          phase: review
 
       - name: Kreuzverhoer-Review via Claude Code
         id: claude
@@ -160,13 +197,81 @@ jobs:
                 `gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:needs-review`,
                 danach `gh pr edit ${{ github.event.pull_request.number }} --add-label ai:ready-to-merge`
 
+            Trägt der PR das Label `ai:continued` (von einem vorherigen Zwischenstopp), entferne es
+            in beiden Fällen zusätzlich als letzten Schritt
+            (`gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:continued`).
+
             Fehlt ein Label, vorher anlegen (`gh label create "ai:needs-changes" --color D93F0B`
             bzw. `"ai:ready-to-merge" --color 0E8A16`). Ändere KEINEN Code und committe nichts —
             reiner Review. Bearbeite ausschließlich diesen PR; arbeite ohne interaktive Rückfrage.
+
+            Weiches Zeitlimit (Soft-Abort): Dieser Lauf wird nach 20 Minuten HART abgebrochen (kein
+            SIGTERM-Handling möglich). Prüfe daher VOR jedem größeren Prüfaspekt (nächste Datei,
+            nächster Architektur-Berührpunkt) mit
+            `test "$(date +%s)" -ge ${{ steps.starttime.outputs.soft_deadline_epoch }}`, ob das
+            weiche Limit (14 Min nach Start, 6 Min Puffer) erreicht ist. Ist das der Fall, STOPPE
+            SOFORT die weitere Prüfung kontrolliert und fuehre NUR noch dies aus: die bisherigen
+            Teil-Findings im Sammelkommentar `<!-- ai-review -->` festhalten und deutlich als
+            "Review noch nicht vollständig — Fortsetzung folgt" markieren (NICHT als abschließendes
+            Urteil), dann `gh pr edit ${{ github.event.pull_request.number }} --add-label
+            ai:continued` setzen (Label bei Bedarf vorher `gh label create "ai:continued" --color
+            FBCA04` anlegen) UND `ai:needs-review` entfernen+sofort wieder setzen
+            (Selbst-Retrigger — NICHT auf `ai:needs-changes`/`ai:ready-to-merge` umschalten, das
+            Review ist noch nicht abgeschlossen). Danach den Turn beenden.
           claude_args: >-
             --model claude-sonnet-4-6 --effort medium --max-turns 30
+            ${{ steps.session-restore.outputs.resume-arg }}
             --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh label:*),Bash(gh api:*),Bash(git fetch:*),Bash(git diff:*),Read,Grep,Glob,Task"
-            --append-system-prompt "Automatisierter, label-gesteuerter Kreuzverhoer-Review in GitHub Actions (headless). Reviewe ausschliesslich PR #${{ github.event.pull_request.number }}, aendere keinen Code. Schliesse IMMER mit der Label-Umschaltung als ALLERLETZTEN Schritt ab (NIE davor — erst nach dem Sammelkommentar, da Fixup/Gate-Merge den PR-Stand unmittelbar danach lesen): Findings -> ai:needs-changes (statt ai:needs-review); sauber -> ai:ready-to-merge. Erfinde keine Findings. Arbeite ohne interaktive Rueckfrage. Delegations-Strategie s. Prompt-Anfang (heavy/light je nach PR-Komplexitaet)."
+            --append-system-prompt "Automatisierter, label-gesteuerter Kreuzverhoer-Review in GitHub Actions (headless). Reviewe ausschliesslich PR #${{ github.event.pull_request.number }}, aendere keinen Code. Schliesse IMMER mit der Label-Umschaltung als ALLERLETZTEN Schritt ab (NIE davor — erst nach dem Sammelkommentar, da Fixup/Gate-Merge den PR-Stand unmittelbar danach lesen): Findings -> ai:needs-changes (statt ai:needs-review); sauber -> ai:ready-to-merge. Erfinde keine Findings. HARTES 20-Minuten-Timeout, weiches Limit bei 14 Min (Soft-Abort): pruefe vor jedem groesseren Pruefaspekt `date +%s` gegen ${{ steps.starttime.outputs.soft_deadline_epoch }}; ist das erreicht, halte die Teil-Findings im Sammelkommentar als unvollstaendig fest, setze ai:continued UND entferne+setze ai:needs-review neu (Selbst-Retrigger, der Folgelauf setzt per --resume fort) statt ai:needs-changes/ai:ready-to-merge zu setzen, dann beende den Turn. Arbeite ohne interaktive Rueckfrage. Delegations-Strategie s. Prompt-Anfang (heavy/light je nach PR-Komplexitaet)."
+
+      # Named Session Resume (Phase "review"): sichert die eben beendete/abgebrochene Session ins
+      # Sitzungsarchiv, damit ein Selbst-Retrigger-Folgelauf per --resume anknuepfen kann.
+      # if: always() -- auch ein in den harten Timeout gelaufener Lauf sichert seinen Teil-Fortschritt.
+      - name: Session-Archiv sichern (Phase review)
+        if: always() && steps.preflight.outputs.configured == 'true'
+        continue-on-error: true
+        uses: ./.github/actions/session-save
+        with:
+          issue: ${{ github.event.pull_request.number }}
+          phase: review
+          session-id: ${{ steps.claude.outputs.session_id }}
+          gh-token: ${{ steps.app-token.outputs.token }}
+
+      # Soft-Abort-Obergrenze (2026-07-08): das Label "ai:continued" wird NUR von Claude selbst
+      # gesetzt (expliziter Teil der Stopp-Checkliste) -- eindeutig von einem normal beendeten
+      # Review (Findings ODER 🟢) unterscheidbar. Begrenzt automatische Selbst-Fortsetzungen auf
+      # genau EINE; bei Erschoepfung wird "ai:needs-review" entfernt (Loop stoppt) OHNE ein
+      # automatisches Ergebnis-Label zu setzen (kein Fixup mit erfundenen Findings, kein falsches
+      # ai:ready-to-merge) -- reiner Alarm-Kommentar fuer den Menschen. `handled=true` unterdrueckt
+      # die nachfolgende Label-Post-Assertion, die sonst den Safe-Default ai:needs-changes erzwingen
+      # wuerde.
+      - name: Soft-Abort-Fortsetzung erkennen und begrenzen (ai:continued)
+        id: soft-abort-cap
+        if: always() && steps.preflight.outputs.configured == 'true' && steps.claude.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR: ${{ github.event.pull_request.number }}
+          ALREADY_CONTINUED: ${{ steps.continued-before.outputs.already }}
+        run: |
+          has_continued="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels \
+            --jq 'any(.labels[]; .name == "ai:continued")' 2>/dev/null || echo false)"
+
+          if [ "${has_continued:-false}" != "true" ]; then
+            echo "handled=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "${ALREADY_CONTINUED:-false}" = "true" ]; then
+            echo "::warning title=PR #${PR} Fortsetzungs-Obergrenze::Zweiter Zwischenstopp in Folge -- automatische Fortsetzung ausgeschoepft."
+            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-review" 2>/dev/null || true
+            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label "ai:continued" 2>/dev/null || true
+            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "🛑 **Kreuzverhör-Review #${PR} — Fortsetzungs-Obergrenze erreicht**
+
+          2 Versuche (Original + 1 automatische Fortsetzung) ausgeschöpft, ohne das Review abzuschließen. Kein automatisches Ergebnis-Label gesetzt — bitte manuell reviewen." 2>/dev/null || true
+          else
+            echo "::notice title=PR #${PR} Soft-Abort::Erster Zwischenstopp -- Folgelauf per Selbst-Retrigger (ai:needs-review) unterwegs."
+          fi
+          echo "handled=true" >> "$GITHUB_OUTPUT"
 
       # Deterministisches Abschluss-Signal (unabhaengig von der LLM-Ausgabe): laeuft auch bei
       # Abbruch/Timeout (if: always()) und macht im Log/Job-Summary klar sichtbar, DASS und mit
@@ -212,7 +317,10 @@ jobs:
       # greift der Fixup (sichtbar) statt einer stillen Stalle. Laeuft NICHT bei cancelled (Timeout
       # -> S3 alarmiert) und nicht bei skipped (Preflight).
       - name: Label-Post-Assertion (Safe-Default ai:needs-changes)
-        if: always() && steps.preflight.outputs.configured == 'true' && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure')
+        # steps.soft-abort-cap.outputs.handled == 'true' -- der Soft-Abort-Cap-Step hat diesen Lauf
+        # bereits als bewussten Zwischenstopp (oder dessen Erschoepfung) behandelt; die Post-
+        # Assertion soll dieses Ergebnis NICHT mit dem Safe-Default ai:needs-changes ueberschreiben.
+        if: always() && steps.preflight.outputs.configured == 'true' && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure') && steps.soft-abort-cap.outputs.handled != 'true'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR: ${{ github.event.pull_request.number }}
@@ -262,9 +370,20 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR: ${{ github.event.pull_request.number }}
         run: |
-          needs_changes="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq 'any(.labels[]; .name == "ai:needs-changes")' 2>/dev/null || echo false)"
+          labels_json="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name]' 2>/dev/null || echo '[]')"
+          needs_changes="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:needs-changes")')"
+          needs_review="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:needs-review")')"
+          ready_to_merge="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:ready-to-merge")')"
+
           if [ "$needs_changes" = "true" ]; then
             echo "::error title=Review: Aenderungen erforderlich::PR #${PR} hat ai:needs-changes — Reviewer-Check laeuft rot, damit das CI-Gate ihn als roten Check erkennt."
+            exit 1
+          fi
+          # Soft-Abort-Obergrenze erschoepft (siehe Cap-Step oben): weder ai:needs-review noch ein
+          # Ergebnis-Label vorhanden -- das Review ist stecken geblieben, braucht menschliches
+          # Eingreifen. Auch das soll rot laufen statt still gruen zu bleiben.
+          if [ "$needs_review" != "true" ] && [ "$ready_to_merge" != "true" ]; then
+            echo "::error title=Review stecken geblieben::PR #${PR} hat kein Pipeline-Ergebnis-Label (Fortsetzungs-Obergrenze erreicht) — Reviewer-Check laeuft rot, bis ein Mensch eingreift."
             exit 1
           fi
           echo "Keine offenen Findings (kein ai:needs-changes) — Reviewer-Check bleibt gruen."

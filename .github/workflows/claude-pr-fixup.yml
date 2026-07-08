@@ -36,7 +36,19 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      actions: write # `gh cache delete` + actions/cache im Session-Archiv-Schritt (Soft-Abort, 2026-07-08)
     steps:
+      # Startzeit fuer das weiche Zeitlimit (Soft-Abort, 2026-07-08): soft_deadline_epoch = jetzt +
+      # 840s (14 Min, 6 Min Puffer bis zum harten 20-Min-Kill). PR-Workflows hatten bisher keine
+      # eigene Startzeit-Erfassung (cancel-in-progress:false macht outcome=cancelled hier ohnehin
+      # eindeutig einen echten Timeout, ein Zeit-Guard war daher nie noetig) -- der Epoch-Wert wird
+      # unten als literale Zahl in den Prompt gerendert.
+      - name: Startzeit merken (fuer weiches Zeitlimit)
+        id: starttime
+        run: |
+          now=$(date +%s)
+          echo "soft_deadline_epoch=$((now + 840))" >> "$GITHUB_OUTPUT"
+
       - name: Voraussetzung pruefen (GitHub-App-Secrets)
         id: preflight
         env:
@@ -271,6 +283,33 @@ jobs:
           echo "stop=false" >> "$GITHUB_OUTPUT"
           echo "PR #$PR hat ${commits} PR-Commits (≤ 10) — Fixup darf laufen."
 
+      # Soft-Abort-Obergrenze (2026-07-08): merkt sich, ob "ai:continued" bereits VOR diesem Lauf
+      # gesetzt war. Der Cap-Step nach dem Claude-Schritt liest diesen Wert, um eine zweite
+      # Fortsetzung in Folge zu verhindern (siehe dort).
+      - name: Fortsetzungs-Stand pruefen (ai:continued)
+        id: continued-before
+        if: steps.preflight.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          already="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels \
+            --jq 'any(.labels[]; .name == "ai:continued")' 2>/dev/null || echo false)"
+          echo "already=${already:-false}" >> "$GITHUB_OUTPUT"
+
+      # Named Session Resume (Phase "fix", Soft-Abort-Rollout 2026-07-08): PRs haben keine
+      # Issue-Nummer im Event -- die "issue"-Eingabe der Composite-Action ist nur ein generischer
+      # Cache-Key/Ordnername, daher wird hier bewusst die PR-Nummer uebergeben. Fail-open wie in
+      # claude-triage.yml.
+      - name: Session-Archiv wiederherstellen (Phase fix)
+        id: session-restore
+        if: steps.preflight.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true'
+        continue-on-error: true
+        uses: ./.github/actions/session-restore
+        with:
+          issue: ${{ github.event.pull_request.number }}
+          phase: fix
+
       - name: Findings umsetzen via Claude Code
         id: claude
         if: steps.preflight.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true'
@@ -325,18 +364,78 @@ jobs:
                  Doppel-Trigger), damit der Review erneut prüft (er liest den PR-Stand unmittelbar
                  nach dem zweiten Befehl):
                  `gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:needs-changes`,
-                 danach `gh pr edit ${{ github.event.pull_request.number }} --add-label ai:needs-review`
+                 danach `gh pr edit ${{ github.event.pull_request.number }} --add-label ai:needs-review`.
+                 Trägt der PR das Label `ai:continued` (von einem vorherigen Zwischenstopp), entferne
+                 es hier zusätzlich (`gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:continued`).
                4. Sicherheitsnetz gegen Endlosschleifen: Ein deterministischer Workflow-Step
                   ("Stop-Guard") zählt die PR-Commits und stoppt den Lauf hart, sobald > 10
                   erreicht sind (ai:needs-changes bleibt belassen, der PR-Autor wird automatisch
                   gepingt). Du musst diese Bremse NICHT selbst im Kopf führen — arbeite die
                   Findings sauber ab; der Step greift bei Bedarf.
 
+            Weiches Zeitlimit (Soft-Abort): Dieser Lauf wird nach 20 Minuten HART abgebrochen (kein
+            SIGTERM-Handling möglich). Prüfe daher VOR jedem größeren Teilschritt (nächster Fix,
+            `pnpm lint`/`pnpm knip`-Lauf) mit
+            `test "$(date +%s)" -ge ${{ steps.starttime.outputs.soft_deadline_epoch }}`, ob das
+            weiche Limit (14 Min nach Start, 6 Min Puffer) erreicht ist. Ist das der Fall, STOPPE
+            SOFORT den aktuellen Fix kontrolliert und fuehre NUR noch dies aus: committen und
+            pushen, offene/verbleibende Findings als kurzen PR-Kommentar festhalten, dann
+            `gh pr edit ${{ github.event.pull_request.number }} --add-label ai:continued` setzen
+            (Label bei Bedarf vorher `gh label create "ai:continued" --color FBCA04` anlegen) UND
+            `ai:needs-changes` entfernen+sofort wieder setzen (Selbst-Retrigger — NICHT auf
+            `ai:needs-review` umschalten, die Findings sind noch nicht vollständig abgearbeitet).
+            Danach den Turn beenden.
+
             Bearbeite ausschließlich diesen PR. Arbeite autonom, ohne interaktive Rückfrage.
           claude_args: >-
             --model claude-sonnet-4-6 --effort medium --max-turns 60
+            ${{ steps.session-restore.outputs.resume-arg }}
             --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh label:*),Bash(gh api:*),Bash(git switch:*),Bash(git checkout:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(git fetch:*),Bash(git merge:*),Bash(git stash:*),Bash(git reset:*),Bash(pnpm:*),Read,Edit,Write,Grep,Glob,Task"
-            --append-system-prompt "Automatisierter, label-gesteuerter Fixup-Lauf in GitHub Actions (headless) fuer PR #${{ github.event.pull_request.number }}. Setze nur eindeutige, zutreffende Findings um; mehrdeutige/grosse Punkte dem Menschen ueberlassen. Schalte die Labels ALS ALLERLETZTEN Schritt um (ai:needs-changes -> ai:needs-review), NIE davor — erst nach Commit+Push, da der Review den PR-Stand unmittelbar danach liest. AUSSER der Loop soll wegen Nicht-Konvergenz anhalten, dann ai:needs-changes belassen und den Menschen taggen. Arbeite ohne interaktive Rueckfrage. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
+            --append-system-prompt "Automatisierter, label-gesteuerter Fixup-Lauf in GitHub Actions (headless) fuer PR #${{ github.event.pull_request.number }}. Setze nur eindeutige, zutreffende Findings um; mehrdeutige/grosse Punkte dem Menschen ueberlassen. Schalte die Labels ALS ALLERLETZTEN Schritt um (ai:needs-changes -> ai:needs-review), NIE davor — erst nach Commit+Push, da der Review den PR-Stand unmittelbar danach liest. AUSSER der Loop soll wegen Nicht-Konvergenz anhalten, dann ai:needs-changes belassen und den Menschen taggen. HARTES 20-Minuten-Timeout, weiches Limit bei 14 Min (Soft-Abort): pruefe vor jedem groesseren Teilschritt `date +%s` gegen ${{ steps.starttime.outputs.soft_deadline_epoch }}; ist das erreicht, sichere den Zwischenstand (committen/pushen, PR-Kommentar mit offenen Punkten), setze ai:continued UND entferne+setze ai:needs-changes neu (Selbst-Retrigger, der Folgelauf setzt per --resume fort) statt auf ai:needs-review umzuschalten, dann beende den Turn. Arbeite ohne interaktive Rueckfrage. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
+
+      # Named Session Resume (Phase "fix"): sichert die eben beendete/abgebrochene Session ins
+      # Sitzungsarchiv, damit ein Selbst-Retrigger-Folgelauf per --resume anknuepfen kann.
+      # if: always() -- auch ein in den harten Timeout gelaufener Lauf sichert seinen Teil-Fortschritt.
+      - name: Session-Archiv sichern (Phase fix)
+        if: always() && steps.preflight.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true'
+        continue-on-error: true
+        uses: ./.github/actions/session-save
+        with:
+          issue: ${{ github.event.pull_request.number }}
+          phase: fix
+          session-id: ${{ steps.claude.outputs.session_id }}
+          gh-token: ${{ steps.app-token.outputs.token }}
+
+      # Soft-Abort-Obergrenze (2026-07-08): das Label "ai:continued" wird NUR von Claude selbst
+      # gesetzt (als expliziter Teil des Stopp-Checkliste-Schritts) -- so bleibt der Fall vom
+      # bestehenden "Findings sind mehrdeutig, nichts umgesetzt" Pfad unterscheidbar, der ebenfalls
+      # ai:needs-changes unveraendert laesst, aber KEIN ai:continued setzt. Begrenzt automatische
+      # Selbst-Fortsetzungen auf genau EINE.
+      - name: Soft-Abort-Fortsetzung erkennen und begrenzen (ai:continued)
+        if: always() && steps.preflight.outputs.configured == 'true' && steps.claude.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR: ${{ github.event.pull_request.number }}
+          ALREADY_CONTINUED: ${{ steps.continued-before.outputs.already }}
+        run: |
+          has_continued="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels \
+            --jq 'any(.labels[]; .name == "ai:continued")' 2>/dev/null || echo false)"
+
+          if [ "${has_continued:-false}" != "true" ]; then
+            # Kein Soft-Abort-Fall (normal beendet ODER Findings mehrdeutig ohne Aenderung) --
+            # nichts zu tun.
+            exit 0
+          fi
+
+          if [ "${ALREADY_CONTINUED:-false}" = "true" ]; then
+            echo "::warning title=PR #${PR} Fortsetzungs-Obergrenze::Zweiter Zwischenstopp in Folge -- automatische Fortsetzung ausgeschoepft."
+            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label "ai:continued" 2>/dev/null || true
+            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "🛑 **Fixup #${PR} — Fortsetzungs-Obergrenze erreicht**
+
+          2 Versuche (Original + 1 automatische Fortsetzung) ausgeschöpft, ohne die Findings vollständig abzuarbeiten. \`ai:needs-changes\` bleibt bestehen — bitte manuell prüfen." 2>/dev/null || true
+          else
+            echo "::notice title=PR #${PR} Soft-Abort::Erster Zwischenstopp -- Folgelauf per Selbst-Retrigger (ai:needs-changes) unterwegs."
+          fi
 
       # Deterministisches Abschluss-Signal (unabhaengig von der LLM-Ausgabe): laeuft auch bei
       # Abbruch/Timeout (if: always()) und macht im Log/Job-Summary klar sichtbar, DASS und mit

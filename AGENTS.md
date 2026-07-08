@@ -121,20 +121,21 @@ Schreibzugriff, damit Außenstehende den OAuth-Token-Lauf nicht auslösen), das 
 jemand mit Schreibzugriff einen **Issue-Kommentar mit `@claude`** hinterlässt (Re-Triage auf Zuruf —
 zweiter Trigger desselben Workflows, kein separater).
 
-**Named Session Resume (Phase `analyse`):** `claude-triage.yml` archiviert die Claude-Code-Session
-jedes Laufs issuebezogen im GitHub Actions Cache (Key `claude-session-issue-<N>`, Composite Actions
+**Named Session Resume (alle 5 Phasen):** Jeder der fünf Claude-Code-Workflows
+(`claude-triage.yml`/`analyse`, `claude-spec.yml`/`spec`, `claude-implement.yml`/`impl`,
+`claude-pr-review.yml`/`review`, `claude-pr-fixup.yml`/`fix`) archiviert die Claude-Code-Session
+jedes Laufs im GitHub Actions Cache (Key `claude-session-issue-<N>`; bei PR-Workflows dient die
+PR-Nummer als `<N>`, da dort keine Issue-Nummer im Event steckt), über die Composite Actions
 [`.github/actions/session-restore`](.github/actions/session-restore/action.yml) und
-[`session-save`](.github/actions/session-save/action.yml)). Eine Re-Triage desselben Issues laedt
-das Archiv vor dem Agent-Schritt und haengt bei Treffer `--resume <session-id>` an `claude_args` —
-die Re-Triage setzt dann den Konversationskontext der letzten (Re-)Triage fort, statt kontextlos neu
-zu beginnen; das Delta-seit-`stand`-Vorgehen oben bleibt unveraendert die Fallback-/Grundregel. Rein
+[`session-save`](.github/actions/session-save/action.yml). Ein Folgelauf derselben Phase laedt das
+Archiv vor dem Agent-Schritt und haengt bei Treffer `--resume <session-id>` an `claude_args` — er
+setzt dann den Konversationskontext des letzten Laufs fort, statt kontextlos neu zu beginnen; das
+Delta-seit-`stand`-Vorgehen der Triage oben bleibt unveraendert die Fallback-/Grundregel. Rein
 additiv und fail-open: Cache-Miss oder ein korruptes Archiv liefern leere Outputs, der Lauf startet
 dann wie bisher frisch. Der Save-Schritt braucht `actions: write` (Workflow-Permission bzw. an der
 GitHub-App-Installation zusaetzlich zu Contents/Issues/Pull requests) fuer `gh cache delete` (der
 Cache-Key ist pro Issue stabil/immutable, daher vor jedem Save ein Loeschen des alten Eintrags) —
 fehlt sie, degradiert das Archiv fail-open zu read-only (Restore vom alten Stand, Save no-opt still).
-Bislang nur fuer die Phase `analyse` umgesetzt; Ausrollen auf `spec`/`impl`/`review`/`fix` ist als
-Folgeschritt vorgesehen.
 
 Dieses Entfernen von `ai:analyzed` geschieht auch **automatisch beim Merge eines Vorgänger-Issues**:
 Sind Sub-Issues über native GitHub-Issue-Dependencies (`blocked-by`) sequenziell verkettet (A1 → A2 →
@@ -180,16 +181,43 @@ In **GitHub Actions** stößt das Setzen des Labels `ai:ready` (bei vorhandenem 
 Umsetzung automatisch an —
 [`.github/workflows/claude-implement.yml`](.github/workflows/claude-implement.yml) (Schritte 1–4; den
 Kreuzverhör-Review übernimmt ein eigener Workflow). Claude Code läuft dabei direkt im Runner mit
-einem **harten Zeitlimit von `timeout-minutes: 20`**; der Prompt weist Claude an, bei drohendem
-Limit (~18 Min) rechtzeitig den Zwischenstand zu sichern (committen/pushen, ggf. Draft-PR), statt
-einen vollen Durchlauf zu erzwingen.
+einem **harten Zeitlimit von `timeout-minutes: 20`** — GitHub killt den Prozess dabei ohne jede
+Vorwarnung (kein SIGTERM-Handling, siehe unten).
 
-Läuft ein Issue-Job (Umsetzung, Spec, Triage, Re-Triage) dennoch in den 20-Minuten-Timeout, ist das
-Issue zu groß für einen Lauf: Der Job setzt am Issue das Label **`ai:to-big-issue`** (und die
-Umsetzung entfernt zusätzlich `ai:ready`, die Spec `ai:spec-ready`, damit es nicht erneut
-aufgegriffen wird) — als Kandidat zum
-**Aufteilen** in Sub-Issues (Triage-Schritt „Zerlegen"). Die PR-Workflows (Review/Fixup) teilen sich
-dasselbe 20-Minuten-Limit, vergeben aber kein Issue-Label.
+**Soft-Abort (weiches Zeitlimit, 2026-07-08):** Da weder `anthropics/claude-code-action` noch die
+Claude-Code-CLI selbst einen echten Soft-Timeout unterstützen (offener Upstream-Bug
+[#29096](https://github.com/anthropics/claude-code/issues/29096) — Prozesse werden bei
+SIGTERM/SIGINT verwaist, kein SessionEnd-Hook), bekommt Claude in allen fünf Workflows stattdessen
+eine **präzise, selbst prüfbare Deadline**: ein `starttime`-Step berechnet `soft_deadline_epoch =
+jetzt + 840s` (14 Min, 6 Min Puffer bis zum harten 20-Min-Kill) und rendert diesen Epoch-Wert als
+literale Zahl in den Prompt. Claude prüft vor jedem größeren Teilschritt `date +%s` dagegen und
+folgt bei Erreichen einer konkreten **Stopp-Checkliste**: laufenden Schritt zu Ende bringen →
+Zwischenstand sichern (committen/pushen bzw. Body-Block) → kurze Notiz was fertig/offen ist →
+**kein** Abschluss-Label setzen → eigenes Auslöser-Label entfernen+neu setzen (löst per
+`labeled`-Event einen Folgelauf aus, der per Session-Resume an derselben Stelle fortsetzt, s. o.) →
+Turn beenden. Bei `claude-triage.yml` entfällt der Selbst-Retrigger (ihr Trigger ist das _Entfernen_
+eines Labels, kein einfacher Toggle) — dort bleibt es beim bisherigen Verhalten: Body-Block mit
+Teil-Analyse sichern, kein Label, kein Ping-Kommentar.
+
+**Obergrenze (Marker-Label `ai:continued`):** Ein deterministischer Workflow-Step nach dem
+Claude-Schritt erkennt einen bewussten Zwischenstopp und begrenzt automatische
+Selbst-Fortsetzungen auf **genau eine**, bevor er auf den Erschöpfungs-Pfad zurückfällt (verhindert
+eine Endlosschleife bei einem grundsätzlich zu großen Ticket). Bei `claude-spec.yml`/
+`claude-implement.yml` erkennt dieser Step den Zwischenstopp anhand des Label-/PR-Zustands
+(Auslöser-Label wieder da, Abschluss-Signal fehlt); bei `claude-pr-fixup.yml`/`claude-pr-review.yml`
+setzt Claude das Marker-Label `ai:continued` als expliziten Teil der Stopp-Checkliste selbst (sonst
+wäre der Fall nicht vom bestehenden „Findings sind mehrdeutig, nichts geändert"-Pfad unterscheidbar,
+der ebenfalls das Auslöser-Label unverändert lässt).
+
+Läuft ein Issue-Job (Umsetzung, Spec, Triage, Re-Triage) dennoch in den 20-Minuten-Timeout — oder ist
+die Obergrenze von einer automatischen Fortsetzung bereits ausgeschöpft —, ist das Issue zu groß für
+einen Lauf: Der Job setzt am Issue das Label **`ai:to-big-issue`** (und die Umsetzung entfernt
+zusätzlich `ai:ready`, die Spec `ai:spec-ready`, damit es nicht erneut aufgegriffen wird) — als
+Kandidat zum **Aufteilen** in Sub-Issues (Triage-Schritt „Zerlegen"). Die PR-Workflows
+(Review/Fixup) teilen sich dasselbe 20-Minuten-Limit und dieselbe Obergrenzen-Logik, vergeben bei
+Erschöpfung aber bewusst **kein** Issue-Label — nur einen Alarm-Kommentar (Review entfernt zusätzlich
+sein Auslöser-Label `ai:needs-review`, ohne ein neues Ergebnis-Label zu setzen, damit weder ein
+Fixup mit erfundenen Findings noch ein falsches `ai:ready-to-merge` ausgelöst wird).
 
 Label-Kette: `ai:analyzed` (analysiert) → `ai:spec-ready` (bei 🟢 — Spec-Stufe schreibt rote Tests)
 → `ai:ready` (freigegeben — von der Spec-Stufe gesetzt, ersatzweise vom Menschen) → Umsetzung macht
