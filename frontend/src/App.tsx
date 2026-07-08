@@ -344,7 +344,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 		<main className="app" ref={deleteFallbackRef} tabIndex={-1} data-focus-fallback>
 			<header role="banner" className="app-header">
 				<button type="button" className="logo-btn" aria-label="Zum Dashboard" onClick={handleLogoDashboard}>
-					<img src="/logo/logo.png" alt="" />
+					<img src="/logo/logo-with-name.horizontal.png" alt="" />
 				</button>
 				<KolHeading _label="Priority Pilot" _level={1} />
 				<div className="toolbar">
