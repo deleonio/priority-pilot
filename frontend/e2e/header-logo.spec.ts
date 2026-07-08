@@ -156,3 +156,119 @@ test.describe('#402 Header – Wort-Bildmarke statt reinem Icon-Logo', () => {
 		expect(box!.width, `Wortmarken-img (${box!.width}px) darf 375px nicht überschreiten`).toBeLessThanOrEqual(375);
 	});
 });
+
+// ---------------------------------------------------------------------------
+// Rote Spec-Tests für #406 — Wort-Bild-Marke vergrößern + App-Namen-H1 entfernen
+// ---------------------------------------------------------------------------
+
+/**
+ * ROTE Spec-Tests für #406 „Wort-Bild-Marke im Header vergrößern und Text-H1 entfernen".
+ *
+ * Ziel: Die redundante Text-H1 „Priority Pilot" verschwindet aus dem Header (der App-Name steckt
+ * bereits in der Wort-Bild-Marke). Die Wort-Bild-Marke wächst mit dem Viewport (statt fixer 2.5rem).
+ * Die semantische Ebene-1-Überschrift der Hauptansicht wird als visuell verborgene (sr-only) H1
+ * „Dashboard" bereitgestellt, damit die Seite genau eine H1 behält.
+ *
+ * Diese Tests sind **rot**, bis App.tsx/CSS die Text-H1 entfernen, die sr-only „Dashboard"-H1
+ * ergänzen und die Logo-Höhe responsiv machen.
+ */
+test.describe('#406 Wort-Bild-Marke vergrößern + App-Namen-H1 entfernen', () => {
+	/**
+	 * AK1 — Keine App-Namen-H1 mehr: Es existiert keine Ebene-1-Überschrift „Priority Pilot".
+	 * RED, solange die KolHeading _level={1} „Priority Pilot" im Header gerendert wird (count=1).
+	 */
+	test('AK1: Keine H1 „Priority Pilot" mehr im Dokument', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await expect(page.getByRole('heading', { name: 'Priority Pilot', level: 1 })).toHaveCount(0);
+	});
+
+	/**
+	 * AK2 — Header ohne sichtbaren Text-H1: Logo-Button, Kopf-Toolbar und user-info bleiben sichtbar,
+	 * aber die Text-H1 „Priority Pilot" ist nicht mehr sichtbar.
+	 * RED, solange die H1 „Priority Pilot" sichtbar im Header steht.
+	 */
+	test('AK2: Header zeigt Logo-Button, Toolbar und user-info — kein sichtbarer Text-H1', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+
+		const header = page.getByRole('banner');
+		await expect(header).toBeVisible();
+
+		// Logo-Button bleibt sichtbar.
+		const logoBtn = header.getByRole('button', { name: /Zum Dashboard/i });
+		await expect(logoBtn).toBeVisible();
+
+		// Kopf-Toolbar bleibt sichtbar.
+		await expect(header.getByRole('toolbar', { name: /Kopf-Aktionen/i })).toBeVisible();
+
+		// user-info (Avatar + Anzeigename) bleibt sichtbar.
+		await expect(header.locator('.user-info').first()).toBeVisible();
+
+		// Der redundante Text-H1 „Priority Pilot" darf nicht mehr sichtbar sein.
+		await expect(page.getByRole('heading', { name: 'Priority Pilot', level: 1 })).toHaveCount(0);
+		await expect(page.getByText('Priority Pilot', { exact: true })).toBeHidden();
+	});
+
+	/**
+	 * AK3 — Wort-Bild-Marke wächst mit dem Viewport: Die Logo-Höhe bei 1280px ist größer als bei
+	 * 375px und größer als der bisherige Fixwert von 40px (2.5rem).
+	 * RED, solange die CSS-Höhe fest auf 2.5rem (≈40px) steht.
+	 */
+	test('AK3: Logo-Höhe wächst mit dem Viewport und übersteigt den bisherigen Fixwert (40px)', async ({ page }) => {
+		await page.setViewportSize({ width: 1280, height: 800 });
+		await page.goto('/');
+		await waitForStableView(page);
+
+		const logoBtn = page.getByRole('banner').getByRole('button', { name: /Zum Dashboard/i });
+		const boxWide = await logoBtn.locator('img').boundingBox();
+		expect(boxWide, 'Logo-Bild muss bei 1280px eine Boundingbox haben').not.toBeNull();
+
+		await page.setViewportSize({ width: 375, height: 812 });
+		await page.reload();
+		await waitForStableView(page);
+
+		const boxNarrow = await logoBtn.locator('img').boundingBox();
+		expect(boxNarrow, 'Logo-Bild muss bei 375px eine Boundingbox haben').not.toBeNull();
+
+		expect(
+			boxWide!.height,
+			`Logo bei 1280px (${boxWide!.height}px) muss höher sein als bei 375px (${boxNarrow!.height}px)`,
+		).toBeGreaterThan(boxNarrow!.height);
+		expect(
+			boxWide!.height,
+			`Logo bei 1280px (${boxWide!.height}px) muss den bisherigen Fixwert von 40px übersteigen`,
+		).toBeGreaterThan(40);
+	});
+
+	/**
+	 * AK4 — Genau eine sr-only H1 „Dashboard": Die Hauptansicht behält eine einzige Ebene-1-Überschrift
+	 * „Dashboard" (visuell verborgen, aber semantisch vorhanden).
+	 * RED, solange keine „Dashboard"-H1 existiert (count=0).
+	 */
+	test('AK4: Genau eine H1 „Dashboard" in der Hauptansicht', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toHaveCount(1);
+	});
+
+	/**
+	 * AK5 — Mobile-First (375px): Bei 375px-Viewport bleibt das Logo sichtbar und es entsteht kein
+	 * horizontaler Overflow.
+	 */
+	test('AK5: Logo sichtbar und kein horizontaler Overflow bei 375px-Viewport', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await page.goto('/');
+		await waitForStableView(page);
+
+		const logoBtn = page.getByRole('banner').getByRole('button', { name: /Zum Dashboard/i });
+		await expect(logoBtn).toBeVisible();
+
+		const overflowsHorizontally = await page.evaluate(
+			() => document.documentElement.scrollWidth > window.innerWidth + 1,
+		);
+		expect(overflowsHorizontally, 'Kein horizontaler Overflow auf 375px').toBe(false);
+	});
+});
