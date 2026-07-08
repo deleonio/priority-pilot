@@ -233,9 +233,9 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 
 		// Neuer Flow: direkt zur Settings-Route navigieren
 		await page.goto('/settings/pillars');
-		await waitForStableView(page);
+		await waitForStableView(page, 'Priority Pilot');
 		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
-		await waitForStableView(page);
+		await waitForStableView(page, 'Priority Pilot');
 
 		// Ersten Slider auf das Maximum setzen (gültige Verteilung sichergestellt), CTA bleibt aktiv.
 		const sliders = page.locator('input[type="range"]');

@@ -130,7 +130,7 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 		const openPillarWeights = async (): Promise<void> => {
 			await page.goto('/settings/pillars');
 			await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
-			await waitForStableView(page);
+			await waitForStableView(page, 'Priority Pilot');
 		};
 
 		await openPillarWeights();

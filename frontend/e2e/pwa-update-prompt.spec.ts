@@ -32,7 +32,7 @@ test.describe('Priority Pilot — PWA Update-Prompt Mobile-First (#353)', () => 
 		await page.goto('/');
 
 		// Sicherstellen, dass die Haupt-App gerendert ist, bevor wir die Layout-Breite prüfen.
-		await expect(page.getByRole('heading', { name: 'Priority Pilot', level: 1 })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
 
 		// Bei 375px darf das Dokument nicht breiter als der Viewport sein (kein horizontaler Scroll).
 		const { scrollWidth, clientWidth } = await page.evaluate(() => ({

@@ -15,7 +15,7 @@ test('App lädt gegen das echte Backend und zeigt den leeren Anfangszustand', as
 	await page.goto('/');
 
 	// Grundgerüst steht (Backend hat geantwortet, React ist gerendert).
-	await expect(page.getByRole('heading', { name: 'Priority Pilot', level: 1 })).toBeVisible();
+	await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
 
 	// Ohne Demo-Seed startet die DB leer → die Onboarding-Ansicht (EmptyState) erscheint.
 	await expect(page.getByRole('heading', { name: 'Noch keine Aufgaben' })).toBeVisible();

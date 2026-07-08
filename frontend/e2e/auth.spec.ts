@@ -38,16 +38,16 @@ test.describe('AK 7 — Frontend-Guard (#208)', () => {
 
 		// LoginPage muss sichtbar sein …
 		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeVisible();
-		// … die Haupt-App (KolHeading „Priority Pilot" level 1) darf NICHT sichtbar sein.
-		await expect(page.getByRole('heading', { name: 'Priority Pilot', level: 1 })).toBeHidden();
+		// … die Haupt-App (sr-only H1 „Dashboard") darf NICHT im Dokument sein.
+		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeHidden();
 	});
 
 	test('AK7b: Authentifizierter Benutzer sieht Haupt-App, nicht die LoginPage', async ({ page }) => {
 		await mockAuthenticated(page);
 		await page.goto('/');
 
-		// Haupt-App muss sichtbar sein …
-		await expect(page.getByRole('heading', { name: 'Priority Pilot', level: 1 })).toBeVisible();
+		// Haupt-App muss sichtbar sein (sr-only H1 „Dashboard" im DOM) …
+		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
 		// … LoginPage darf NICHT erscheinen.
 		await expect(page.getByRole('button', { name: /Login with Google/i })).toBeHidden();
 	});
@@ -61,7 +61,7 @@ test.describe('AK 7 — Frontend-Guard (#208)', () => {
 		// Auth-State auf eingeloggt setzen und Seite neu laden.
 		await mockAuthenticated(page);
 		await page.reload();
-		await expect(page.getByRole('heading', { name: 'Priority Pilot', level: 1 })).toBeVisible();
+		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
 	});
 });
 

@@ -1,4 +1,4 @@
-import { KolAlert, KolAvatar, KolHeading, KolSpin, KolTabs, KolToolbar } from '@public-ui/react-v19';
+import { KolAlert, KolAvatar, KolSpin, KolTabs, KolToolbar } from '@public-ui/react-v19';
 import type { Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -344,9 +344,8 @@ export const App = ({ user }: { user: AuthUser }) => {
 		<main className="app" ref={deleteFallbackRef} tabIndex={-1} data-focus-fallback>
 			<header role="banner" className="app-header">
 				<button type="button" className="logo-btn" aria-label="Zum Dashboard" onClick={handleLogoDashboard}>
-					<img src="/logo/logo-with-name.horizontal.png" alt="" />
+					<img src="/logo/logo-with-name.horizontal.png" alt="Priority Pilot" />
 				</button>
-				<KolHeading _label="Priority Pilot" _level={1} />
 				<div className="toolbar">
 					<KolToolbar
 						_label="Kopf-Aktionen"
@@ -401,6 +400,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 					</div>
 				</div>
 			</header>
+			<h1 className="visually-hidden">Dashboard</h1>
 
 			{loadError !== null && (
 				<KolAlert _type="error" _label="Daten konnten nicht geladen werden">
