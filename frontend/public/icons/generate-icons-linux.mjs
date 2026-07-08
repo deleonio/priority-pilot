@@ -164,7 +164,7 @@ function scale(pixels, srcW, srcH, dstW, dstH) {
 
 /**
  * Convert source pixels to RGBA, applying chroma key on cream background.
- * Cream: R >= 230 AND G >= 228 AND B >= 226 (covers #FEFAF6 ≈ 254,250,246 and its
+ * Cream: R >= 230 AND G >= 226 AND B >= 222 (covers #FEFAF6 ≈ 254,250,246 and its
  * antialiasing variants) while preserving the colored motif (orange, red, etc.).
  */
 function toRgbaWithChromaKey(src, srcChannels) {

@@ -3,6 +3,8 @@
 # `../logo/logo.png`. Nutzt `sips` (macOS-Bordmittel). Unter Linux/CI ersatzweise ImageMagick
 # (`convert`/`magick`) mit denselben Zielgrößen/Optionen verwenden.
 set -euo pipefail
+# DEPRECATION: Unter Linux/CI generate-icons-linux.mjs verwenden (pure Node.js, keine externen Dependencies).
+# Dieses Skript funktioniert nur auf macOS (nutzt sips).
 
 cd "$(dirname "$0")"
 
@@ -13,9 +15,9 @@ fi
 
 SRC="../logo/logo.png"
 CROPPED="/tmp/pp-icon-cropped.png"
-# Mattenfarbe, mit der sips transparente Bereiche beim Skalieren/Padding auffüllt (aus dem
-# Logo-Hintergrund abgetastet), damit "any"- und "maskable"-Varianten optisch konsistent sind.
-MATTE="FEFAF6"
+# Mattenfarbe (Weiß), mit der sips transparente Bereiche beim Skalieren/Padding für maskable-Icons auffüllt,
+# damit die zentrale Safe-Zone bei Android-Icon-Masken (Kreis/Squircle-Beschnitt) sicher erhalten bleibt.
+MATTE="FFFFFF"
 
 if [ ! -f "$SRC" ]; then
 	echo "Quelle ${SRC} nicht gefunden." >&2
