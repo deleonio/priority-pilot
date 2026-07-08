@@ -34,7 +34,7 @@ test.describe('Dashboard — drei Statuskacheln (Issue #390)', () => {
 		await page.getByRole('tab', { name: 'Dashboard', exact: true }).click();
 		await waitForStableView(page);
 
-		// Genau drei Kacheln sichtbar (aktuell vier, weil „In Bearbeitung" noch da ist).
+		// Genau drei Kacheln sichtbar (Gesamt, Offen, Erledigt).
 		await expect(page.locator('.dashboard-cards > li')).toHaveCount(3);
 
 		// Keine InProcess-Akzentkachel vorhanden.
