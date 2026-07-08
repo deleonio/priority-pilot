@@ -83,6 +83,19 @@ jobs:
         with:
           fetch-depth: 0
 
+      # KI-Backend (Issue #403): Label `ai:use-zai` am PR ODER dessen verlinktem Issue waehlt pro
+      # Lauf z.ai statt Anthropic (Default). Schreibt AI_BACKEND=anthropic|zai nach $GITHUB_ENV; bei
+      # zai kommen Endpoint + ANTHROPIC_AUTH_TOKEN (Secret ZAI_API_KEY) dazu. Muss VOR Preflight +
+      # claude-code-action.
+      - name: KI-Backend konfigurieren
+        if: steps.preflight.outputs.configured == 'true'
+        uses: ./.github/actions/configure-ai-backend
+        with:
+          entity-type: pr
+          entity-number: ${{ github.event.pull_request.number }}
+          gh-token: ${{ steps.app-token.outputs.token }}
+          zai-api-key: ${{ secrets.ZAI_API_KEY }}
+
       # Deterministischer Agent-Secret-Check (Haerten S2): die OAuth-Token-Voraussetzung fuer
       # Claude darf NICHT still skippen — fehlt CLAUDE_CODE_OAUTH_TOKEN, bricht der Lauf hier
       # deterministisch ab (::error::, kein stiller Skip). Der Reviewer-Check wird rot -> Gate
@@ -94,9 +107,14 @@ jobs:
         if: steps.preflight.outputs.configured == 'true'
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          AI_BACKEND: ${{ env.AI_BACKEND }}
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR: ${{ github.event.pull_request.number }}
         run: |
+          if [ "${AI_BACKEND:-}" = "zai" ]; then
+            echo "KI-Backend=zai — Auth via ZAI_API_KEY (in configure-ai-backend validiert). OAuth-Preflight entfaellt."
+            exit 0
+          fi
           if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
             echo "::error title=Agent-Secret fehlt::CLAUDE_CODE_OAUTH_TOKEN fehlt — fehlt es, darf der Lauf nicht still skippen (AGENTS.md: bewusstes Opt-in). Secret als Repo-Secret hinterlegen."
             gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "🛑 **Kreuzverhör-Review #${PR} — Agent-Secret fehlt**
@@ -143,7 +161,7 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }} # Labels als App-Token -> loesen Folge-Workflows aus
         with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_code_oauth_token: ${{ env.AI_BACKEND == 'zai' && '' || secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ steps.app-token.outputs.token }}
           # Erlaubte Bot-Ausloeser — das Label wird vom App-Bot (claude[bot]) gesetzt, sonst blockt
           # checkHumanActor diesen Lauf. Absicherung zusaetzlich ueber den Job-`if:`.
