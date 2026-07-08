@@ -7,11 +7,18 @@ description: >-
 
 inputs:
   issue:
-    description: Issue-Nummer, die das Archiv adressiert
+    description: Issue- ODER PR-Nummer, die das Archiv adressiert (s. `id-type`)
     required: true
   phase:
     description: Phasenname der Session (analyse, spec, impl, review, fix)
     required: true
+  id-type:
+    description: >-
+      "issue" (Standard) oder "pr" -- bestimmt den Cache-Key-Namensraum
+      (claude-session-issue-<N> bzw. claude-session-pr-<N>). PR-basierte Phasen
+      (review/fix) uebergeben "pr", da im Event nur die PR-Nummer verfuegbar ist.
+    required: false
+    default: issue
 
 outputs:
   resume-arg:
@@ -27,14 +34,14 @@ outputs:
 runs:
   using: composite
   steps:
-    # Kein `restore-keys`-Praefix: pro Issue existiert genau EIN Cache-Eintrag (stabiler Key,
+    # Kein `restore-keys`-Praefix: pro Issue/PR existiert genau EIN Cache-Eintrag (stabiler Key,
     # siehe session-save) statt eines Laufs pro Key -- das haelt den Repo-Cache-Verbrauch klein.
     - name: Archiv aus Cache laden
       id: cache
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
-        path: ${{ runner.temp }}/claude-session-archive/issue-${{ inputs.issue }}
-        key: claude-session-issue-${{ inputs.issue }}
+        path: ${{ runner.temp }}/claude-session-archive/${{ inputs.id-type }}-${{ inputs.issue }}
+        key: claude-session-${{ inputs.id-type }}-${{ inputs.issue }}
 
     - name: Session in Claude-Projektordner einspielen
       id: restore
@@ -42,14 +49,15 @@ runs:
       env:
         ISSUE: ${{ inputs.issue }}
         PHASE: ${{ inputs.phase }}
+        ID_TYPE: ${{ inputs.id-type }}
       run: |
         source "${{ github.action_path }}/../session-lib.sh"
-        archive_dir="$(archive_dir_for_issue "$ISSUE")"
+        archive_dir="$(archive_dir_for "$ID_TYPE" "$ISSUE")"
         sessions_file="$archive_dir/sessions.json"
 
         # Jeder Fehlerpfad muendet hier -- niemals in einem non-zero Exit der Action.
         miss() {
-          echo "::notice title=Session-Archiv::Issue #$ISSUE Phase $PHASE -- kein Archiv gefunden, frischer Start."
+          echo "::notice title=Session-Archiv::${ID_TYPE} #$ISSUE Phase $PHASE -- kein Archiv gefunden, frischer Start."
           {
             echo "resume-arg="
             echo "session-id="
@@ -77,7 +85,7 @@ runs:
           cp -r "$archive_dir/$PHASE/$session_id" "$project_dir/$session_id" 2>/dev/null || true
         fi
 
-        echo "::notice title=Session-Archiv::Issue #$ISSUE Phase $PHASE -- Session $session_id wiederhergestellt (--resume)."
+        echo "::notice title=Session-Archiv::${ID_TYPE} #$ISSUE Phase $PHASE -- Session $session_id wiederhergestellt (--resume)."
         {
           echo "resume-arg=--resume $session_id"
           echo "session-id=$session_id"

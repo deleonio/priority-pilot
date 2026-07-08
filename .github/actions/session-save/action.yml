@@ -1,23 +1,43 @@
 name: Session-Archiv sichern
 description: >-
-  Sichert die aktuelle Claude-Code-Sitzung einer Phase ins issuebezogene Sitzungsarchiv (GitHub
-  Actions Cache), damit ein spaeterer Lauf derselben Phase per --resume fortsetzen kann. Fail-open:
-  jeder Fehler (fehlende Session-Datei, gh-cache-Problem) endet in einer Warnung, nie in einem
-  Abbruch des aufrufenden Workflows.
+  Sichert die aktuelle Claude-Code-Sitzung einer Phase ins issue-/PR-bezogene Sitzungsarchiv
+  (GitHub Actions Cache), damit ein spaeterer Lauf derselben Phase per --resume fortsetzen kann.
+  Fail-open: jeder Fehler (fehlende Session-Datei, gh-cache-Problem) endet in einer Warnung, nie
+  in einem Abbruch des aufrufenden Workflows.
 
 inputs:
   issue:
-    description: Issue-Nummer, die das Archiv adressiert
+    description: Issue- ODER PR-Nummer, die das Archiv adressiert (s. `id-type`)
     required: true
   phase:
     description: Phasenname der Session (analyse, spec, impl, review, fix)
     required: true
+  id-type:
+    description: >-
+      "issue" (Standard) oder "pr" -- muss zum selben Wert passen, mit dem `session-restore`
+      fuer diese Phase aufgerufen wurde (sonst landet der Save-Schritt in einem anderen
+      Cache-Key-Namensraum als der Restore-Schritt).
+    required: false
+    default: issue
   session-id:
     description: 'Session-ID des gerade beendeten Agent-Schritts (leer -> nichts zu sichern)'
     required: true
   gh-token:
     description: 'Token mit `actions: write` fuer `gh cache delete` (Key ist sonst immutable)'
     required: true
+  outcome:
+    description: >-
+      Optional: `outcome` des Agent-Schritts (z. B. `steps.claude.outcome`). Nur relevant fuer
+      Workflows mit `cancel-in-progress: true` -- ermoeglicht den Elapsed-Guard unten (leer/
+      andere Werte als "cancelled" -> Guard greift nie, Save laeuft wie gehabt).
+    required: false
+    default: ''
+  run-start-epoch:
+    description: >-
+      Optional: Unix-Epoch des Job-Starts (z. B. `steps.starttime.outputs.epoch`) fuer den
+      Elapsed-Guard. Ohne Wert (Default) greift der Guard nie.
+    required: false
+    default: ''
 
 runs:
   using: composite
@@ -28,7 +48,10 @@ runs:
       env:
         ISSUE: ${{ inputs.issue }}
         PHASE: ${{ inputs.phase }}
+        ID_TYPE: ${{ inputs.id-type }}
         SESSION_ID: ${{ inputs.session-id }}
+        OUTCOME: ${{ inputs.outcome }}
+        RUN_START_EPOCH: ${{ inputs.run-start-epoch }}
       run: |
         source "${{ github.action_path }}/../session-lib.sh"
 
@@ -37,19 +60,44 @@ runs:
           exit 0
         }
 
+        # Elapsed-Guard (Kreuzverhoer-Finding M2, 2026-07-08): nur relevant fuer Workflows mit
+        # `cancel-in-progress: true` (aktuell nur claude-triage.yml). Ein durch einen neueren
+        # Trigger verdraengter ("cancelled") Lauf darf NICHT speichern, wenn er frueh im
+        # Cancellation-Grace-Fenster abgebrochen wurde -- sonst koennte er einen bereits vom
+        # neueren, noch laufenden Lauf gespeicherten frischeren Archiv-Stand ueberschreiben
+        # (der Cache-Key ist pro Issue/PR ein einzelner Slot, kein Append). Schwelle (1080s/18min)
+        # spiegelt den bestehenden Timeout-Label-Guard. Ohne RUN_START_EPOCH (Default '') greift
+        # der Guard nie -- rueckwirkungsfrei fuer alle Workflows, die diese Inputs nicht setzen.
+        if [ "$OUTCOME" = "cancelled" ] && [ -n "$RUN_START_EPOCH" ]; then
+          elapsed=$(( $(date +%s) - RUN_START_EPOCH ))
+          if [ "$elapsed" -lt 1080 ]; then
+            echo "::notice title=Session-Archiv::${ID_TYPE} #$ISSUE Phase $PHASE -- Lauf nach ${elapsed}s abgebrochen (< 18 Min), vermutlich durch neueren Trigger verdraengt (Concurrency-Supersede) statt echtem Timeout. Speichern uebersprungen, um einen frischeren Archiv-Stand nicht zu ueberschreiben."
+            skip
+          fi
+        fi
+
         if [ -z "$SESSION_ID" ]; then
-          echo "::notice title=Session-Archiv::Keine Session-ID -- nichts zu sichern (Phase $PHASE, Issue #$ISSUE)."
+          echo "::notice title=Session-Archiv::Keine Session-ID -- nichts zu sichern (Phase $PHASE, ${ID_TYPE} #$ISSUE)."
           skip
         fi
 
         project_dir="$(claude_project_dir)"
         session_file="$project_dir/$SESSION_ID.jsonl"
         if [ ! -s "$session_file" ]; then
-          echo "::warning title=Session-Archiv::Erwartete Session-Datei $session_file fehlt oder ist leer -- Sicherung uebersprungen (Phase $PHASE, Issue #$ISSUE)."
+          echo "::warning title=Session-Archiv::Erwartete Session-Datei $session_file fehlt oder ist leer -- Sicherung uebersprungen (Phase $PHASE, ${ID_TYPE} #$ISSUE)."
           skip
         fi
 
-        archive_dir="$(archive_dir_for_issue "$ISSUE")"
+        # Verifikations-Diagnostik (Kreuzverhoer-Finding H2/M1, 2026-07-08): das gesamte Feature
+        # steht und faellt mit der Annahme, dass `claude_project_dir()` denselben Ordner trifft,
+        # den claude-code-action tatsaechlich beschreibt -- bisher nur lokal (macOS) verifiziert,
+        # nie gegen einen echten ubuntu-latest-Runner. Dieser Log-Eintrag ist dauerhaft (kein
+        # Wegwerf-Debug-Step), da er beim naechsten natuerlichen Trigger im Actions-Log belegt,
+        # ob die Mangling-Annahme (nur "/" -> "-") in der Praxis zutrifft, ohne dass dafuer
+        # eigens ein Testlauf provoziert werden muesste.
+        echo "::notice title=Session-Archiv (Diagnose)::Claude-Projektordner: $project_dir | Inhalt: $(ls -1 "$project_dir" 2>/dev/null | tr '\n' ' ')"
+
+        archive_dir="$(archive_dir_for "$ID_TYPE" "$ISSUE")"
         mkdir -p "$archive_dir/$PHASE" 2>/dev/null || {
           echo "::warning title=Session-Archiv::Archivverzeichnis $archive_dir/$PHASE nicht anlegbar -- Sicherung uebersprungen."
           skip
@@ -65,19 +113,36 @@ runs:
 
         sessions_file="$archive_dir/sessions.json"
         [ -f "$sessions_file" ] || echo '{}' > "$sessions_file"
-        tmp_file="$(mktemp)"
-        if jq --arg phase "$PHASE" --arg sid "$SESSION_ID" --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-          '.[$phase] = {session_id: $sid, updated_at: $ts}' "$sessions_file" > "$tmp_file" 2>/dev/null; then
-          mv "$tmp_file" "$sessions_file"
-        else
+
+        update_sessions_file() {
+          tmp_file="$(mktemp)"
+          if jq --arg phase "$PHASE" --arg sid "$SESSION_ID" --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '.[$phase] = {session_id: $sid, updated_at: $ts}' "$sessions_file" > "$tmp_file" 2>/dev/null; then
+            mv "$tmp_file" "$sessions_file"
+            return 0
+          fi
           rm -f "$tmp_file"
-          echo "::warning title=Session-Archiv::sessions.json konnte nicht aktualisiert werden -- Sicherung uebersprungen (Phase $PHASE, Issue #$ISSUE)."
-          skip
+          return 1
+        }
+
+        # Selbstheilung (Kreuzverhoer-Finding L4, 2026-07-08): schlaegt das Update fehl (z. B.
+        # korruptes JSON aus einer fruehen, nie ausgereiften Archiv-Version), einmalig auf '{}'
+        # zuruecksetzen und erneut versuchen, statt das Archiv dauerhaft im Miss-Zustand
+        # festzuhalten. Nur unser eigener atomarer jq+mv-Pfad schreibt diese Datei -- ein zweiter
+        # Fehlschlag in Folge deutet auf ein tieferes Problem (z. B. jq selbst fehlt), dann
+        # bleibt fail-open (skip) die richtige Antwort.
+        if ! update_sessions_file; then
+          echo "::warning title=Session-Archiv::sessions.json war nicht lesbar -- wird zurueckgesetzt und einmalig neu versucht (Phase $PHASE, ${ID_TYPE} #$ISSUE)."
+          echo '{}' > "$sessions_file"
+          if ! update_sessions_file; then
+            echo "::warning title=Session-Archiv::sessions.json konnte auch nach Reset nicht aktualisiert werden -- Sicherung uebersprungen (Phase $PHASE, ${ID_TYPE} #$ISSUE)."
+            skip
+          fi
         fi
 
         echo "changed=true" >> "$GITHUB_OUTPUT"
 
-    # Der Cache-Key ist pro Issue stabil (kein Key-pro-Lauf) -- actions/cache ist pro Key
+    # Der Cache-Key ist pro Issue/PR stabil (kein Key-pro-Lauf) -- actions/cache ist pro Key
     # immutable, daher muss der alte Eintrag vor dem Save weg. Fail-open: schlaegt das Loeschen
     # fehl (fehlende Rechte/API-Hickup), no-opt der nachfolgende Save beim bestehenden Key still,
     # das Archiv bleibt nur auf dem vorherigen Stand -- kein Job-Abbruch.
@@ -87,13 +152,14 @@ runs:
       env:
         GH_TOKEN: ${{ inputs.gh-token }}
         ISSUE: ${{ inputs.issue }}
+        ID_TYPE: ${{ inputs.id-type }}
       run: |
-        gh cache delete "claude-session-issue-$ISSUE" --repo "$GITHUB_REPOSITORY" 2>/dev/null || true
+        gh cache delete "claude-session-${ID_TYPE}-${ISSUE}" --repo "$GITHUB_REPOSITORY" 2>/dev/null || true
 
     - name: Archiv in Cache speichern
       if: steps.copy.outputs.changed == 'true'
       uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       continue-on-error: true
       with:
-        path: ${{ runner.temp }}/claude-session-archive/issue-${{ inputs.issue }}
-        key: claude-session-issue-${{ inputs.issue }}
+        path: ${{ runner.temp }}/claude-session-archive/${{ inputs.id-type }}-${{ inputs.issue }}
+        key: claude-session-${{ inputs.id-type }}-${{ inputs.issue }}
