@@ -1,5 +1,14 @@
 # Agent-SDK-Spike — Vergleich & Empfehlung (Issue #114)
 
+> **Hinweis (2026-07-08):** GLM (Z.ai) und Mistral Vibe wurden als CI-Agentenpfade ersatzlos
+> entfernt (M11, `.ai-knowledge/workflow-optimization-plan.md`) — Claude Code ist seither der
+> einzige Pfad. Die Kernempfehlung unten ("Umschalter erhalten, solange Mistral eine echte Option
+> bleiben soll") ist damit gegenstandslos: es gibt keinen `AI_AGENT=claude|mistral`-Umschalter mehr
+> zu erhalten. GLM wird in diesem Dokument an keiner Stelle separat erwähnt (der Spike entstand vor
+> der GLM-Einführung) — die Aussagen unten beziehen sich ausschließlich auf den historischen
+> Claude/Mistral-Vergleich. Der Rest des Dokuments (Action-vs-SDK-Trade-offs) bleibt als
+> Recherchestand für eine mögliche spätere SDK-Diskussion gültig.
+
 Zeitlich begrenzter Prototyp: lohnt ein (Teil-)Umstieg von der heute genutzten
 `anthropics/claude-code-action` auf den **Agent SDK** (`@anthropic-ai/claude-agent-sdk`,
 Einstieg ueber `query()`)? Beantwortet **nicht** als Migration, sondern an **einem**
