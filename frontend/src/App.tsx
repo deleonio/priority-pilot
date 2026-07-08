@@ -242,6 +242,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 	const closeHelp = useCallback((): void => {
 		window.history.pushState({}, '', '/');
 		setShowHelp(false);
+		setActiveTab(0);
 	}, []);
 
 	const openSettings = useCallback((): void => {
@@ -252,7 +253,13 @@ export const App = ({ user }: { user: AuthUser }) => {
 	const closeSettings = useCallback((): void => {
 		window.history.pushState({}, '', '/');
 		setShowSettings(false);
+		setActiveTab(0);
 	}, []);
+
+	const handleLogoDashboard = useCallback((): void => {
+		setActiveTab(0);
+		void reload();
+	}, [reload]);
 
 	// Nach dem Speichern auf der Einstellungen-Seite: zurück zum Dashboard (#270) und die Daten neu
 	// laden, damit die geänderten Säulen-Gewichte sofort in Dashboard und Ranking sichtbar sind.
@@ -334,7 +341,10 @@ export const App = ({ user }: { user: AuthUser }) => {
 
 	return (
 		<main className="app" ref={deleteFallbackRef} tabIndex={-1} data-focus-fallback>
-			<header className="app-header">
+			<header role="banner" className="app-header">
+				<button type="button" className="logo-btn" aria-label="Zum Dashboard" onClick={handleLogoDashboard}>
+					<img src="/logo/logo.png" alt="" />
+				</button>
 				<KolHeading _label="Priority Pilot" _level={1} />
 				<div className="toolbar">
 					<KolToolbar
@@ -420,7 +430,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 			{tasks !== null && tasks.length === 0 && <EmptyState onCreate={() => setDialog({ kind: 'create' })} />}
 
 			{tasks !== null && (
-				<KolTabs className="app-tabs" _label="Ansichten" _tabs={VIEW_TABS} _on={tabsCallbacks}>
+				<KolTabs className="app-tabs" _label="Ansichten" _tabs={VIEW_TABS} _selected={activeTab} _on={tabsCallbacks}>
 					<div slot="tab-0">
 						<Dashboard
 							tasks={tasks}

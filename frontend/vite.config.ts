@@ -60,37 +60,29 @@ export default defineConfig({
 				display: 'standalone',
 				start_url: '/',
 				icons: [
-					// SVG Icons (primär)
 					{
-						src: 'icons/icon-192x192.svg',
-						sizes: 'any',
-						type: 'image/svg+xml',
+						src: 'icons/icon-192x192.png',
+						sizes: '192x192',
+						type: 'image/png',
 						purpose: 'any',
 					},
 					{
-						src: 'icons/icon-512x512.svg',
-						sizes: 'any',
-						type: 'image/svg+xml',
+						src: 'icons/icon-512x512.png',
+						sizes: '512x512',
+						type: 'image/png',
 						purpose: 'any',
 					},
 					{
-						src: 'icons/icon-192x192-maskable.svg',
-						sizes: 'any',
-						type: 'image/svg+xml',
+						src: 'icons/icon-192x192-maskable.png',
+						sizes: '192x192',
+						type: 'image/png',
 						purpose: 'maskable',
 					},
 					{
-						src: 'icons/icon-512x512-maskable.svg',
-						sizes: 'any',
-						type: 'image/svg+xml',
+						src: 'icons/icon-512x512-maskable.png',
+						sizes: '512x512',
+						type: 'image/png',
 						purpose: 'maskable',
-					},
-					// Legacy Favicon (SVG)
-					{
-						src: 'icon.svg',
-						sizes: 'any',
-						type: 'image/svg+xml',
-						purpose: 'any',
 					},
 				],
 				shortcuts: [
@@ -99,8 +91,8 @@ export default defineConfig({
 						url: '/',
 						icons: [
 							{
-								src: 'icons/icon-192x192.svg',
-								sizes: 'any',
+								src: 'icons/icon-192x192.png',
+								sizes: '192x192',
 								purpose: 'any',
 							},
 						],

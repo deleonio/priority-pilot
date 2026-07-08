@@ -1,0 +1,74 @@
+name: Kosten-Zusammenfassung
+description: >-
+  Liest total_cost_usd und Token-Verbrauch aus der execution_file der
+  anthropics/claude-code-action und schreibt eine grobe USD/EUR-Schaetzung in die
+  Job-Summary. Fail-open: fehlende/leere/kaputte execution_file fuehrt nie zum Abbruch
+  des aufrufenden Workflows.
+
+inputs:
+  execution-file:
+    description: 'Pfad zur execution_file (steps.<id>.outputs.execution_file der claude-code-action)'
+    required: true
+  label:
+    description: 'Kurzer Anzeigename fuer die Job-Summary (z. B. Triage, Spec, Umsetzung, Review, Fixup)'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Kosten aus execution_file lesen
+      shell: bash
+      env:
+        EXECUTION_FILE: ${{ inputs.execution-file }}
+        LABEL: ${{ inputs.label }}
+      run: |
+        # EUR-Kurs + Hinweis: total_cost_usd ist bereits eine Client-seitige Schaetzung der
+        # claude-code-action (nicht die autoritative Abrechnung) -- die EUR-Umrechnung hier ist
+        # also eine Schaetzung einer Schaetzung. Fuer echte Abrechnung: Claude Console bzw.
+        # Usage-Cost-API. Kurs bei Bedarf manuell nachziehen.
+        EUR_PER_USD=0.92
+
+        skip() {
+          echo "::notice title=Kosten-Zusammenfassung::${LABEL} -- $1"
+          exit 0
+        }
+
+        [ -n "$EXECUTION_FILE" ] || skip "keine execution_file (Claude-Schritt uebersprungen oder vor Start abgebrochen)."
+        [ -s "$EXECUTION_FILE" ] || skip "execution_file leer oder nicht vorhanden ($EXECUTION_FILE)."
+
+        # execution_file ist laut claude-code-action ein JSON-Array von Agent-SDK-Messages; falls
+        # stattdessen JSONL (ein Objekt pro Zeile) geschrieben wird, faengt der zweite Versuch das ab.
+        result="$(jq -c '[.[] | select(.type=="result")] | last // empty' "$EXECUTION_FILE" 2>/dev/null)"
+        if [ -z "$result" ]; then
+          result="$(jq -c 'select(.type=="result")' "$EXECUTION_FILE" 2>/dev/null | tail -n1)"
+        fi
+        [ -n "$result" ] || skip "kein result-Eintrag in execution_file gefunden."
+
+        cost_usd="$(jq -r '.total_cost_usd // empty' <<<"$result")"
+        [ -n "$cost_usd" ] || skip "kein total_cost_usd im result-Eintrag."
+
+        input_tokens="$(jq -r '.usage.input_tokens // 0' <<<"$result")"
+        output_tokens="$(jq -r '.usage.output_tokens // 0' <<<"$result")"
+        cache_read="$(jq -r '.usage.cache_read_input_tokens // 0' <<<"$result")"
+        cache_write="$(jq -r '.usage.cache_creation_input_tokens // 0' <<<"$result")"
+        turns="$(jq -r '.num_turns // "?"' <<<"$result")"
+
+        cost_eur="$(awk -v u="$cost_usd" -v r="$EUR_PER_USD" 'BEGIN{printf "%.4f", u*r}')"
+
+        {
+          echo "### Kosten-Schaetzung -- ${LABEL}"
+          echo ""
+          echo "| Groesse | Wert |"
+          echo "|---|---|"
+          echo "| Turns | $turns |"
+          echo "| Input-Tokens | $input_tokens |"
+          echo "| Output-Tokens | $output_tokens |"
+          echo "| Cache-Read-Tokens | $cache_read |"
+          echo "| Cache-Write-Tokens | $cache_write |"
+          echo "| Kosten (USD, Schaetzung der Action) | \$${cost_usd} |"
+          echo "| Kosten (EUR, grobe Umrechnung @ ${EUR_PER_USD}) | ~€${cost_eur} |"
+          echo ""
+          echo "_total_cost_usd ist eine Client-seitige Schaetzung von claude-code-action, keine autoritative Abrechnung. Fuer echte Kosten: Claude Console bzw. Usage-Cost-API._"
+        } >> "$GITHUB_STEP_SUMMARY"
+
+        echo "::notice title=Kosten-Zusammenfassung::${LABEL} -- \$${cost_usd} (~€${cost_eur}), ${input_tokens}+${output_tokens} Tokens (input+output)."

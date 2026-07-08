@@ -1,208 +1,364 @@
-# Nutzerhandbuch — Priority Pilot
+# Priority Pilot – Nutzerhandbuch
 
-Priority Pilot hilft dir, die richtige Aufgabe zur richtigen Zeit zu erledigen. Dieses Handbuch erklärt alle Funktionen der Anwendung.
+Willkommen bei **Priority Pilot**. Die App beantwortet eine einzige Frage:
+_„Woran sollte ich als Nächstes arbeiten?"_ – und zwar dann, wenn Aufgaben
+voneinander abhängen und zugleich auf unterschiedliche Lebensbereiche einzahlen.
+
+Zwei Ideen stecken dahinter:
+
+- **Wertbeitrag statt Bauchgefühl.** Aus Priorität, Aufwand und den (gewichteten)
+  Abhängigkeiten berechnet Priority Pilot pro Aufgabe einen Wert. Die wertvollsten
+  Aufgaben und die sinnvolle nächste Aufgabe werden dadurch sichtbar.
+- **Lebensbalance-Säulen.** Jede Aufgabe zahlt auf eine oder mehrere von fünf festen
+  Lebens­bereichen ein. Über eine Gewichtung steuerst du, welche Bereiche gerade
+  wichtig sind – und siehst, ob deine Zeit dorthin fließt.
+
+Dieses Handbuch erklärt alle Funktionen der Anwendung.
+
+---
+
+## Anmeldung
+
+Priority Pilot ist ein persönliches Werkzeug – deine Daten sind an dein Konto
+gebunden. Die Anmeldung erfolgt ausschließlich über **Google**:
+
+- Auf der Startseite auf **„Login with Google"** klicken.
+- Nach der Google-Anmeldung landest du direkt im Dashboard.
+
+Der Zugang ist auf freigeschaltete E-Mail-Adressen beschränkt. Ist deine Adresse
+nicht zugelassen, erscheint ein entsprechender Hinweis – wende dich dann an den
+Administrator.
+
+Über die Kopfzeile kannst du dich jederzeit wieder **abmelden** (Icon ganz rechts).
+
+---
+
+## Überblick: Kopfzeile und Ansichten
+
+Ganz oben findest du die **Kopf-Aktionen** (als Icon-Buttons):
+
+- **Neuen Task anlegen** (Plus) – der zentrale Einstieg für neue Aufgaben _und_ Serien.
+- **Säulen-Berater** (Glühbirne) – KI-Vorschläge für Aktivitäten.
+- **Einstellungen** (Zahnrad) – Darstellung, Spracheingabe, Push, Säulen-Gewichtung.
+- **Hilfe** (Fragezeichen) – dieses Handbuch.
+- **Abmelden** – beendet die Sitzung.
+
+Rechts daneben stehen dein Profilbild und dein Name.
+
+Darunter wechselst du über eine **Tab-Leiste** zwischen den fünf Hauptansichten:
+
+1. **Dashboard** – Überblick und Empfehlungen
+2. **Aufgaben** – deine Aufgaben anlegen und pflegen
+3. **Serien** – wiederkehrende Aufgaben
+4. **Aufgabenwald** – die Priorisierung als Baum
+5. **Erledigte Aufgaben** – Abgeschlossenes und dein Punktestand
 
 ---
 
 ## Dashboard
 
-Das Dashboard ist die Startseite von Priority Pilot. Es gibt dir einen schnellen Überblick über deinen aktuellen Arbeitsstand.
+Das Dashboard ist die Startseite und reine Anzeige. Wenn ein Name hinterlegt ist,
+begrüßt es dich mit **„Hallo {Name}!"**. Von oben nach unten:
 
-### Statusübersicht
-
-Oben auf dem Dashboard siehst du Kennzahlen auf einen Blick: Gesamtanzahl der Aufgaben, Anzahl offener und erledigter Aufgaben sowie dein aktueller Punktestand.
-
-### Nächster Task
-
-Der Bereich „Nächster Task" zeigt die Aufgabe mit dem höchsten Wertbeitrag, bei der alle Vorgänger bereits erledigt sind. Das ist die Aufgabe, mit der du jetzt am produktivsten wärst.
-
-### Top-5-Aufgaben nach Wert
-
-Eine Liste der fünf Aufgaben mit dem höchsten berechneten Wertbeitrag. Der Wertbeitrag berücksichtigt sowohl die eigene Priorität einer Aufgabe als auch den gewichteten Beitrag aller abhängigen Aufgaben und die Säulen-Gewichtung.
-
-### Anstehende Deadlines
-
-Hier siehst du Aufgaben, deren Deadline in Kürze erreicht wird. So geraten wichtige Fristen nicht in Vergessenheit.
-
-### Säulen-Übersicht (Meine Themen)
-
-Das Widget „Meine Themen" zeigt für jede der fünf Lebensbalance-Säulen:
-
-- die aktuelle Gewichtung in Prozent,
-- wie viele Aufgaben auf diese Säule einzahlen,
-- den anteiligen Wertbeitrag und den geschätzten Gesamtaufwand.
+- **Statuskacheln:** **Gesamt**, **Offen** und **Erledigt** – die Anzahl deiner
+  Aufgaben auf einen Blick.
+- **Nächste Aufgabe:** die wichtigste Aufgabe, deren Vorgänger alle erledigt sind.
+  Steht nichts an, erscheint ein Hinweis (alles erledigt oder durch offene
+  Vorgänger blockiert).
+- **Was ist jetzt dran?** Eine nummerierte Vorschlagsliste, nach Priorität sortiert
+  und bewusst kurz gehalten, damit sie nicht überfordert.
+- **Wichtigste Tasks:** die Top 5 nach berechnetem **Wert**.
+- **Meine Themen:** je Säule ein Fortschrittsbalken, der den **tatsächlichen Anteil**
+  (wohin dein Aufwand fließt) gegen die **Zielgewichtung** der Säule stellt. Darunter
+  Anzahl der einzahlenden Aufgaben (offen/erledigt), anteiliger Wert und Aufwand.
+- **Gesamtguthaben:** dein Punktestand aus erledigten Aufgaben, aufgeschlüsselt je
+  Säule (siehe „Erledigte Aufgaben und Punkte").
+- **Anstehende Deadlines:** offene Aufgaben mit Fälligkeit, nach Datum sortiert.
+  Ein farbiges Kennzeichen warnt vor **überfälligen** (rot) und **bald fälligen**
+  (orange, heute bis in 3 Tagen) Aufgaben.
 
 ---
 
 ## Aufgaben verwalten
 
-In der Aufgabentabelle verwaltest du alle deine Aufgaben. Du erreichst sie über den Navigationspunkt „Aufgaben".
+Im Tab **Aufgaben** stehen deine Aufgaben als aufklappbare **Baumliste**. Aufgaben
+mit Unteraufgaben zeigen einen Aufklapp-Pfeil (standardmäßig eingeklappt).
 
-### Aufgabe anlegen
+Rechts an jeder Zeile können **Kennzeichen** stehen:
 
-Klicke auf „Neue Aufgabe". Es öffnet sich ein Formular mit folgenden Feldern:
+- **Serie** – die Aufgabe stammt aus einer Serie.
+- **geändert** – eine Serien-Instanz, die du abweichend bearbeitet hast.
+- **Fortschritt** als `erledigt/gesamt` – nur bei Aufgaben mit Unteraufgaben; zählt
+  alle darunterliegenden Unteraufgaben mit.
 
-| Feld                      | Beschreibung                                                               |
-| ------------------------- | -------------------------------------------------------------------------- |
-| **Titel**                 | Pflichtfeld. Kurzer, prägnanter Name der Aufgabe.                          |
-| **Beschreibung**          | Optionale Erläuterung oder Kontext.                                        |
-| **Priorität**             | Ganzzahl von 1 (niedrig) bis 5 (hoch). Beeinflusst den Wertbeitrag direkt. |
-| **Geschätzter Aufwand**   | Voraussichtlicher Zeitaufwand (z. B. in Stunden).                          |
-| **Tatsächlicher Aufwand** | Erfasster Aufwand nach Erledigung.                                         |
-| **Deadline**              | Optionales Fälligkeitsdatum.                                               |
-| **Status**                | `Open`, `In Bearbeitung` oder `Erledigt`.                                  |
+### Aktionen je Aufgabe
 
-Bestätige mit „Speichern". Die neue Aufgabe erscheint sofort in der Tabelle.
+Alle Aktionen stecken hinter dem **„…"-Menü** (Weitere Aktionen) am Zeilenende:
 
-### Aufgabe bearbeiten
+- **Erledigt / Wieder öffnen** – schaltet die Aufgabe zwischen offen und erledigt um.
+  Eine Aufgabe lässt sich erst abschließen, wenn **alle direkten Unteraufgaben
+  erledigt** sind (der Schalter ist sonst gesperrt). Wieder öffnen ist jederzeit
+  möglich – auch als schnelles Rückgängig direkt nach dem Erledigen.
+- **Bearbeiten** – öffnet das Aufgabenformular.
+- **Abhängigkeiten** – öffnet den Vorgänger-Editor.
+- **Unteraufgabe anlegen** – legt eine neue Aufgabe an, die automatisch als Vorgänger
+  mit der aktuellen verknüpft wird.
+- **Löschen** – entfernt die Aufgabe nach Rückfrage.
 
-Klicke auf eine Aufgabe in der Tabelle, um sie zu öffnen. Ändere die gewünschten Felder und speichere.
-
-### Aufgabe löschen
-
-Öffne die Aufgabe und wähle „Löschen". Verknüpfte Abhängigkeiten werden dabei ebenfalls entfernt.
-
----
-
-## KI-Schnellerfassung
-
-Die KI-Schnellerfassung erlaubt es, Aufgaben per Freitext anzulegen, ohne das Formular manuell auszufüllen.
-
-### Ablauf (zweistufig)
-
-1. **Freitext eingeben:** Beschreibe deine Aufgabe in natürlicher Sprache, z. B.:
-   `„Bis Freitag Bericht für Kunden fertigstellen, Priorität hoch, ca. 3 Stunden"`
-2. **KI parst den Text:** Im ersten Schritt extrahiert die KI Titel, Priorität, Aufwand und Deadline aus dem Text. Im zweiten Schritt klassifiziert sie die Aufgabe automatisch den passenden Lebensbalance-Säulen zu.
-3. **Vorschau prüfen:** Die erkannten Felder werden als Vorschau angezeigt. Du kannst sie vor dem Speichern noch anpassen.
-
-Bestätige mit „Übernehmen", um die Aufgabe anzulegen.
-
-> **Hinweis:** Für die KI-Schnellerfassung und die automatische Säulen-Klassifikation muss der Server mit einem gültigen `MISTRAL_API_KEY` gestartet worden sein. Fehlt der Key, antwortet der Endpunkt mit einem Fehler.
+Frisch erledigte Aufgaben wandern beim nächsten Ansichtswechsel automatisch in den
+Tab **Erledigte Aufgaben**.
 
 ---
 
-## Abhängigkeiten
+## Aufgaben anlegen
 
-Aufgaben können voneinander abhängen. Eine Abhängigkeit bedeutet: Aufgabe B kann erst sinnvoll begonnen werden, wenn Aufgabe A erledigt ist.
+Neue Aufgaben legst du immer über **„Neuen Task anlegen"** in der Kopfzeile an.
+Der Ablauf ist zweistufig:
 
-### Vorgänger setzen
+### Schritt 1 – Schnellerfassung
 
-Öffne eine Aufgabe und wechsle zum Reiter „Abhängigkeiten". Wähle aus der Liste eine oder mehrere Vorgänger-Aufgaben aus und klicke „Hinzufügen".
+Beschreibe deine Aufgabe frei im Feld **„Beschreibe deinen Task"**, z. B.:
+_„Bis Freitag den Kundenbericht fertigstellen, hohe Priorität, etwa ein halber Tag."_
 
-### Gewicht konfigurieren
+Danach hast du zwei Möglichkeiten:
 
-Jede Abhängigkeit trägt ein **Gewicht** (Standard: 1,0). Das Gewicht gibt an, wie stark der Vorgänger zum Wertbeitrag des Nachfolgers beiträgt. Ein höheres Gewicht erhöht den berechneten Wert des Vorgängers entsprechend.
+- **Verarbeiten und weiter** – eine KI liest den Text und füllt Titel, Beschreibung,
+  Priorität, Aufwand und Deadline im Formular vor.
+- **Überspringen** – öffnet direkt das leere Formular; bereits eingegebener Text
+  wandert in die Beschreibung.
 
-### Zykluserkennung
+### Schritt 2 – Formular
 
-Priority Pilot erkennt automatisch zyklische Abhängigkeiten (z. B. A → B → A) und lehnt sie mit einem Hinweis ab. So bleibt der Abhängigkeitsgraph immer azyklisch.
+Im selben Dialog erscheint das Aufgabenformular. Felder:
+
+- **Titel** (Pflichtfeld) – kurzer, prägnanter Name.
+- **Priorität** – Schieberegler, ganze Zahl von **1 bis 5** (Standard 3). Höher =
+  wichtiger; fließt direkt in den Wert ein.
+- **Geschätzter Aufwand in Tagen** – Schieberegler von **0,1 bis 1** (Standard 0,5).
+- **Deadline (optional)** – Fälligkeitsdatum. Es zählt der reine Kalendertag,
+  unabhängig von der Zeitzone.
+- **Beschreibung (optional)** – weiterer Kontext.
+- **Säulen (optional)** – auf welche Lebensbereiche die Aufgabe einzahlt
+  (siehe „Lebensbalance-Säulen").
+
+Speichern mit **„Anlegen"** (bzw. **„Bearbeiten"**), verwerfen mit **„Abbrechen"**.
+
+> **Aufgabe oder Serie?** Beim Anlegen gibt es oben einen Schalter **„Serie"**.
+> Aus = einmalige Aufgabe, Ein = wiederkehrende Serie (siehe „Serien").
 
 ---
 
-## Säulen
+## Spracheingabe
 
-Die fünf Lebensbalance-Säulen strukturieren, in welche Lebensbereiche eine Aufgabe einzahlt:
+Textfelder wie **Titel**, **Beschreibung**, die **Schnellerfassung** und das Feld
+des Säulen-Beraters lassen sich per Sprache füllen – sofern dein Browser
+Spracherkennung unterstützt.
 
-| Säule                  | Bedeutung                                     |
-| ---------------------- | --------------------------------------------- |
-| **Körper**             | Physische Gesundheit, Bewegung, Ernährung     |
-| **Beziehungen**        | Familie, Freundschaften, soziale Verbindungen |
-| **Sinn**               | Bedeutung, Werte, persönliches Wachstum       |
-| **Mentale Gesundheit** | Wohlbefinden, Stressabbau, Erholung           |
-| **Wirksamkeit**        | Beruf, Projekte, produktive Leistung          |
+- Im Feld erscheint ein **Mikrofon-Button**. Ein Klick startet die Aufnahme, ein
+  weiterer stoppt sie. Erkannter Text wird an den bestehenden Inhalt angehängt.
+- Erkannte Sprache: **Deutsch**. Es kann immer nur ein Feld gleichzeitig aufnehmen.
+- Optional startet die Aufnahme **automatisch** beim Öffnen der Formulare – aktivierbar
+  über _Einstellungen → Allgemein → „Sprachaufnahme automatisch starten"_.
 
-### Beitrag je Aufgabe (Anteil %, Konfidenz %)
+---
 
-Im Aufgabenformular kannst du für jede Säule angeben:
+## Abhängigkeiten (Vorgänger)
 
-- **Anteil (%):** Wie viel Prozent des Aufgaben-Investments auf diese Säule entfallen. Die Anteile aller Säulen einer Aufgabe summieren sich auf 100 %.
-- **Konfidenz (%):** Wie sicher du dir bist, dass die Aufgabe wirklich auf diese Säule einzahlt (0 % = unsicher, 100 % = sehr sicher).
+Aufgaben können voneinander abhängen: Ein **Vorgänger** muss erledigt sein, bevor die
+abhängige Aufgabe sinnvoll begonnen werden kann. Öffne dazu **„Abhängigkeiten"** im
+„…"-Menü einer Aufgabe.
 
-### KI-Klassifizierung
+- **Aktuelle Vorgänger** listet die verknüpften Aufgaben; jede lässt sich einzeln
+  entfernen. (Bereits erledigte Vorgänger erscheinen hier nicht mehr.)
+- **Vorgänger hinzufügen:** eine Aufgabe auswählen, ein **Gewicht (0,1–1)** setzen und
+  **„Hinzufügen"**. Das Gewicht steuert, wie stark der Vorgänger zum Wert der
+  abhängigen Aufgabe beiträgt.
 
-Bei der KI-Schnellerfassung klassifiziert die KI automatisch, welche Säulen zur neuen Aufgabe passen, und schlägt Anteile und Konfidenzwerte vor.
+Priority Pilot verhindert **zyklische Abhängigkeiten** (z. B. A → B → A) und lehnt sie
+mit einem verständlichen Hinweis ab. So bleibt der Abhängigkeitsgraph immer
+widerspruchsfrei – und die „Nächste Aufgabe" ist stets die wichtigste, deren
+Vorgänger alle erledigt sind.
 
-### Säulen-Berater (Aktivitäten-Ratgeber)
+---
 
-Der Säulen-Berater (Glühbirnen-Symbol im Header) ist ein kleiner KI-Ratgeber: Er schlägt dir konkrete Aktivitäten vor und zeigt, auf welche Säulen sie einzahlen würden — samt kurzer Begründung. Als Grundlage dienen die Kurzbeschreibungen der Säulen aus den Einstellungen.
+## Lebensbalance-Säulen
 
-Der Berater kennt dabei deine aktuelle Säulen-Verteilung (Soll vs. Ist, wie im Dashboard-Widget „Meine Themen") und richtet die Vorschläge **primär auf die schwächsten Säulen** aus — also jene, die aktuell am stärksten unter ihrem Soll-Anteil liegen.
+Fünf feste Säulen beschreiben, in welche Lebensbereiche eine Aufgabe einzahlt. Sie
+sind für alle Nutzer identisch:
 
-Optional kannst du eine Frage oder deine Situation beschreiben (z. B. „Was kann ich am Wochenende für mich tun?"); der Berater richtet die Vorschläge dann danach aus. Ohne Frage bekommst du Vorschläge über alle Säulen hinweg. Die Beratung läuft — wie die KI-Schnellerfassung — über die Mistral-API und benötigt einen konfigurierten `MISTRAL_API_KEY`.
+- **Körper** – physische Gesundheit: Bewegung, Ernährung, Schlaf, Vorsorge.
+- **Beziehungen** – soziale Verbundenheit: Familie, Freunde, Partnerschaft.
+- **Sinn** – das „Wofür": Werte, Lebensziele, Spiritualität, Ehrenamt.
+- **Mentale Gesundheit** – psychisches Wohlbefinden: Stressabbau, Ruhe, Achtsamkeit.
+- **Wirksamkeit** – etwas bewirken: Beruf, Projekte, Lernen, sichtbarer Output.
+
+### Beitrag je Aufgabe (Anteil und Konfidenz)
+
+Im Aufgabenformular ordnest du unter **„Säulen"** eine oder mehrere Säulen zu. Je Säule:
+
+- **Anteil** – wie stark die Aufgabe auf diese Säule einzahlt. Die Anteile aller
+  Säulen einer Aufgabe werden beim Speichern automatisch auf 100 % normiert – die
+  absolute Skala ist egal.
+- **Konfidenz (%)** – wie sicher die Zuordnung ist (0 % = unsicher, 100 % = sicher).
+
+Ohne Säulen-Zuordnung bleibt die Aufgabe **wertneutral**. Mit **„Säulen vorschlagen"**
+kann eine KI aus Titel und Beschreibung passende Säulen samt Anteil und Konfidenz
+vorschlagen.
 
 ### Säulen-Gewichtung anpassen
 
-Die globale Säulen-Gewichtung steuert, welche Lebensbereiche gerade Priorität haben sollen. Du erreichst sie über das Einstellungs-Symbol im Header oder über das Dashboard-Widget „Meine Themen".
+Über _Einstellungen → Säulen_ legst du fest, welche Bereiche gerade Priorität haben.
+Jede Säule bekommt einen Wert von 0,0 bis 1,0; beim Speichern wird auf 100 %
+normiert. Bei Gleichverteilung ist die Gewichtung neutral. Erhöhst du z. B. „Körper",
+steigen Aufgaben, die stark auf „Körper" einzahlen, im Wert – und rücken damit in der
+Priorisierung nach oben.
 
-Vergib jeder Säule einen Prozentsatz; die Summe muss 100 % ergeben. Bei Gleichverteilung (je 20 %) hat die Gewichtung keinen Einfluss auf die Reihenfolge. Erhöhst du z. B. „Körper" auf 40 %, steigen Aufgaben, die stark auf „Körper" einzahlen, im Wertbeitrag.
+---
+
+## Säulen-Berater
+
+Der **Säulen-Berater** (Glühbirne in der Kopfzeile) ist ein KI-Ratgeber für
+Aktivitäten:
+
+- Er schlägt konkrete Aktivitäten vor und zeigt, auf welche Säulen sie einzahlen –
+  mit kurzer Begründung.
+- Er kennt deine aktuelle Verteilung aus „Meine Themen" und richtet die Vorschläge
+  **bevorzugt auf die schwächsten (am stärksten unterversorgten) Säulen** aus.
+- Optional beschreibst du deine Frage oder Situation (z. B. „Was kann ich am
+  Wochenende für mich tun?"). Ohne Frage bekommst du Vorschläge über alle Säulen
+  hinweg. Das Feld unterstützt **Spracheingabe**.
+- Klick auf **„Beraten lassen"**. Jeden Vorschlag kannst du mit **„Als Aufgabe
+  übernehmen"** direkt in die Schnellerfassung übernehmen.
+
+---
+
+## Serien (wiederkehrende Aufgaben)
+
+Mit **Serien** legst du wiederkehrende Aufgaben als Vorlage an. Aus einer Serie
+erzeugt Priority Pilot regelmäßig neue Aufgaben-Instanzen.
+
+- **Neue Serie anlegen:** über **„Neuen Task anlegen"** und den Schalter **„Serie"**
+  einschalten. Statt einer Deadline setzt du dann ein **Startdatum** und einen
+  **Rhythmus**: **Täglich**, **Wöchentlich** oder **Monatlich**. Priorität, Aufwand,
+  Beschreibung und Säulen werden als Vorlage für jede Instanz übernommen.
+- **Verwalten:** im Tab **Serien** siehst du alle Serien mit ihrem Rhythmus. Dort
+  kannst du sie **bearbeiten** oder **löschen**.
+- **Fällige Instanzen generieren:** der gleichnamige Button erzeugt die aktuell
+  fälligen Aufgaben aus allen Serien.
+
+Aus einer Serie entstandene Aufgaben tragen im Aufgabenbaum das Kennzeichen **Serie**;
+weichst du eine Instanz individuell ab, kommt **geändert** hinzu.
 
 ---
 
 ## Aufgabenwald
 
-Der Aufgabenwald zeigt alle Aufgaben als Bäume, geordnet nach ihrem Wertbeitrag.
+Der Tab **Aufgabenwald** zeigt die Priorisierung als **Baumstruktur**, sortiert nach
+Wert – die wichtigste Aufgabe steht oben.
 
-### Funktionsweise
+- Jeder Knoten zeigt `#ID – Titel` sowie **Priorität**, **Wert** und den
+  **Gesamtaufwand in Tagen** (inklusive aller Abhängigkeiten).
+- Abhängige Aufgaben stehen eingerückt darunter.
 
-- **Wurzeln** sind Aufgaben ohne weitere abhängige Aufgaben (die nichts voraussetzen) oder Aufgaben, die selbst keine Vorgänger haben und am wertvollsten sind.
-- **Kindknoten** sind die Aufgaben, die von der übergeordneten Aufgabe abhängen.
-- Jeder Knoten zeigt Titel, Status, Priorität und den berechneten Wertbeitrag.
-- Die Bäume sind nach Wertbeitrag sortiert — die wichtigste Aufgabe steht ganz oben.
-
-Der Aufgabenwald ist eine **Leseansicht**: Hier navigierst du durch Zusammenhänge und erkennst, welche Aufgaben den größten Hebel haben. Bearbeitungen nimmst du in der Aufgabentabelle vor.
-
----
-
-## Serien
-
-Mit Serien legst du wiederkehrende Aufgaben an. Eine Serie erzeugt automatisch neue Aufgabeninstanzen nach einem festgelegten Rhythmus.
-
-### Serie anlegen
-
-Wähle „Neue Serie" und fülle die Felder aus:
-
-| Feld                  | Beschreibung                                                          |
-| --------------------- | --------------------------------------------------------------------- |
-| **Titel**             | Name der wiederkehrenden Aufgabe.                                     |
-| **Rhythmus**          | Wie oft die Aufgabe wiederkehrt (täglich, wöchentlich, monatlich, …). |
-| **Standardpriorität** | Priorität, die neue Instanzen automatisch erhalten.                   |
-
-### Serien verwalten
-
-In der Serien-Übersicht siehst du alle aktiven Serien. Du kannst Rhythmus und Standardpriorität nachträglich ändern.
-
-### Ausnahmen
-
-Einzelne Instanzen einer Serie lassen sich individuell anpassen oder überspringen, ohne die Serie selbst zu verändern.
+Der Aufgabenwald ist eine **Leseansicht**: Hier erkennst du Zusammenhänge und welche
+Aufgaben den größten Hebel haben. Bearbeitet wird im Tab „Aufgaben".
 
 ---
 
-## Punkte / Gamification
+## Erledigte Aufgaben und Punkte
 
-Priority Pilot belohnt das Erledigen von Aufgaben mit Punkten. Dein Gesamtpunktestand ist im Dashboard sichtbar.
+Im Tab **Erledigte Aufgaben** stehen alle abgeschlossenen Aufgaben. Je Säule wird
+angezeigt, wie viele **Punkte** die Aufgabe dort eingebracht hat. Mit **„Wieder
+öffnen"** holst du eine Aufgabe zurück in den offenen Zustand.
 
-### Berechnung
+### Punkte (Gamification)
 
-```
-Punkte = Tatsächlicher Aufwand × Priorität
-```
+Beim Erledigen einer Aufgabe werden Punkte vergeben:
 
-- **Tatsächlicher Aufwand:** Der erfasste Aufwand beim Abschließen der Aufgabe.
-- **Priorität:** Der Wert 1–5, der beim Anlegen gesetzt wurde.
+- Der volle Wert ergibt sich aus **geschätztem Aufwand × Priorität** und wird
+  anteilig auf die Säulen der Aufgabe verteilt.
+- **Pünktlich** (ohne Deadline oder bis zur Deadline) gibt es die volle Punktzahl,
+  **verspätet** (nach der Deadline) eine reduzierte. Pünktliches Erledigen zahlt sich
+  also aus.
 
-### Abzug bei Verspätung
-
-Wird eine Aufgabe nach der gesetzten Deadline als erledigt markiert, wird ein Abzug berechnet. Pünktliches Erledigen zahlt sich also aus.
+Dein Gesamtstand und die Aufteilung je Säule erscheinen im Dashboard unter
+**„Gesamtguthaben"**.
 
 ---
 
-## Header-Aktionen
+## Einstellungen
 
-Die Kopfzeile der Anwendung enthält globale Aktionen, die jederzeit erreichbar sind.
+Über das **Zahnrad** in der Kopfzeile öffnest du die Einstellungen mit zwei Bereichen:
 
-| Aktion                | Beschreibung                                                                                                                     |
-| --------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| **Aktualisieren**     | Lädt alle Daten neu vom Server. Nützlich, wenn du Priority Pilot auf mehreren Geräten nutzt.                                     |
-| **Theme**             | Wechselt zwischen System-Theme, Hell und Dunkel. Die Einstellung wird im Browser gespeichert.                                    |
-| **Säulen-Gewichtung** | Öffnet den Dialog zum Anpassen der globalen Säulen-Gewichtung (entspricht den Einstellungen im Dashboard-Widget „Meine Themen"). |
-| **Abmelden**          | Beendet die aktuelle Sitzung und leitet zur Anmeldeseite weiter.                                                                 |
+### Allgemein
+
+- **Darstellung** – Farbschema **System**, **Hell** oder **Dunkel**. „System" folgt
+  deinem Betriebssystem. Die Wahl wird im Browser gespeichert.
+- **Sprachaufnahme automatisch starten** – ist der Schalter aktiv, wird beim Öffnen
+  der Formulare das erste Feld fokussiert und dessen Mikrofon automatisch gestartet.
+  Beim Einschalten wird der Mikrofon-Zugriff angefragt.
+- **Push-Nachrichten aktivieren** – siehe „Benachrichtigungen".
+
+### Säulen
+
+Der Editor für die **Säulen-Gewichtung** (siehe „Lebensbalance-Säulen").
+
+---
+
+## Benachrichtigungen (Push)
+
+Priority Pilot kann dich per **Push-Nachricht** an fällige Aufgaben erinnern – auch
+wenn die App gerade nicht geöffnet ist.
+
+- Aktivieren über _Einstellungen → Allgemein → „Push-Nachrichten aktivieren"_. Beim
+  Einschalten fragt der Browser nach der Benachrichtigungs-Erlaubnis.
+- Mit **„Push testen"** kannst du eine Testnachricht auslösen.
+- Unterstützt dein Browser keine Push-Nachrichten, erscheint ein Hinweis – meist hilft
+  es, die App zu installieren (siehe unten).
+
+---
+
+## App installieren und aktualisieren
+
+Priority Pilot ist eine **installierbare Web-App (PWA)** und funktioniert auch offline.
+
+- **Installieren:** Erscheint das Banner **„App installieren"**, kannst du die App mit
+  **„Installieren"** auf dein Gerät legen. Unter iOS/Safari nutzt du dazu **Teilen →
+  Zum Home-Bildschirm**.
+- **Aktualisieren:** Ist eine neue Version verfügbar, erscheint unten eine Karte mit
+  **„Neu laden"**. Ein Klick lädt die aktuelle Version.
+
+Die laufende Versionsnummer steht in der **Fußzeile**.
+
+---
+
+## Bahn-Routenplaner (öffentlich)
+
+Unter der Adresse **`/bahn`** gibt es einen eigenständigen, **öffentlich** (ohne
+Anmeldung) erreichbaren **Bahn-Routenplaner**:
+
+- **Start-** und **Zielbahnhof** eingeben (mit Vorschlagsliste), dazu **Datum** und
+  **Uhrzeit**.
+- **„Verbindungen suchen"** zeigt Verbindungen mit Abfahrt, Ankunft, Dauer, Umstiegen
+  und Pünktlichkeit.
+
+Dieser Planer ist ein eigenständiges Extra und unabhängig von deinen Aufgaben.
+
+---
+
+## Tastaturkürzel
+
+- **Strg + Enter** (bzw. **⌘ + Enter**) – löst in Dialogen die primäre Aktion aus
+  (z. B. Anlegen/Bearbeiten, „Verarbeiten und weiter", Vorgänger „Hinzufügen",
+  „Beraten lassen").
+- **Esc** oder Klick außerhalb – schließt Dialoge und Menüs.
+
+---
+
+## Weitere Hinweise
+
+- Alle Daten werden **serverseitig** gespeichert; Änderungen sind sofort persistent
+  und auf all deinen Geräten verfügbar.
+- Die KI-Funktionen (Schnellerfassung, Säulen-Vorschlag, Säulen-Berater) benötigen
+  einen serverseitig konfigurierten Zugang. Ist er nicht eingerichtet, bleiben die
+  übrigen Funktionen uneingeschränkt nutzbar.
