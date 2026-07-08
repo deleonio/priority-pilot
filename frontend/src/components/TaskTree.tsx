@@ -211,29 +211,6 @@ const TreeNode = ({
 						</span>
 					)}
 					{task !== null && (
-						<KolButton
-							data-testid={`done-toggle-${task.id}`}
-							_label={doneToggleLabel}
-							_hideLabel
-							_icons={{ left: { icon: isDone ? 'fa-solid fa-rotate-left' : 'fa-solid fa-check' } }}
-							_variant={isDone ? 'secondary' : 'primary'}
-							_disabled={isUpdating || (!isDone && doneBlocked)}
-							// Der Gesperrt-Zustand muss für Tests/AT auch am Host sichtbar sein: Playwrights
-							// `toBeDisabled()` wertet `aria-disabled` nur auf Elementen aus, die selbst eine
-							// ARIA-Rolle aus seiner Allowlist tragen — der rollenlose `<kol-button>`-Host würde
-							// ignoriert. `role="group"` ist ein nicht-interaktiver Container (der innere
-							// Shadow-DOM-Button bleibt der einzige Button); die echte Sperre sitzt in `_disabled`.
-							role="group"
-							aria-disabled={isUpdating || (!isDone && doneBlocked) ? 'true' : 'false'}
-							_on={{
-								onClick: () => {
-									setIsUpdating(true);
-									void onDoneToggle(task).finally(() => setIsUpdating(false));
-								},
-							}}
-						/>
-					)}
-					{task !== null && (
 						<div className="task-tree-actions">
 							<KolPopoverButton
 								ref={popoverRef}
@@ -248,6 +225,24 @@ const TreeNode = ({
 									_label={`Aktionen für ${task.title}`}
 									_orientation="horizontal"
 									_items={[
+										{
+											// #387: Der binäre Erledigt-Toggle (#315) liegt als erstes Toolbar-Item hinter dem
+											// „…"-Popover, statt direkt in der Zeile. Bewusst KEIN `hidePopover()` im onClick, damit
+											// mehrfaches Umschalten ohne Neuöffnen des Menüs möglich bleibt.
+											type: 'button',
+											_label: doneToggleLabel,
+											_hideLabel: true,
+											_icons: { left: { icon: isDone ? 'fa-solid fa-rotate-left' : 'fa-solid fa-check' } },
+											// secondary (Outline) auch bei doneBlocked: visuelles Feedback für gesperrten Zustand
+											_variant: isDone || doneBlocked ? 'secondary' : 'primary',
+											_disabled: isUpdating || (!isDone && doneBlocked),
+											_on: {
+												onClick: () => {
+													setIsUpdating(true);
+													void onDoneToggle(task).finally(() => setIsUpdating(false));
+												},
+											},
+										},
 										{
 											type: 'button',
 											_label: 'Bearbeiten',

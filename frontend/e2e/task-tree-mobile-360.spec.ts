@@ -199,9 +199,7 @@ test.describe('Priority Pilot — Aufgabenliste responsiv bei 360px (#376)', () 
 		expect(overflowsHorizontally).toBe(false);
 	});
 
-	test('AK2: Erledigt-Toggle und „…"-Button liegen bei 360px vollständig im Viewport und erfüllen 44×44', async ({
-		page,
-	}) => {
+	test('AK2: der „…"-Button liegt bei 360px vollständig im Viewport und erfüllt 44×44', async ({ page }) => {
 		await page.setViewportSize(VIEWPORT);
 
 		const { deepestId, orderedFromRoot } = await seedWorstCaseChain(page, uniqueTitle('Buttons'));
@@ -212,26 +210,23 @@ test.describe('Priority Pilot — Aufgabenliste responsiv bei 360px (#376)', () 
 
 		await expandFully(page, orderedFromRoot);
 
-		// Beide Zeilen-Buttons der Worst-Case-Zeile: der (aufgrund offener Unteraufgabe ggf. gesperrte,
-		// aber weiterhin gerenderte) Erledigt-Toggle und der „…"-Button. Rein geometrische Prüfung:
-		// vollständig im Viewport (`box.x + box.width <= VIEWPORT.width + 1`) und Touch-Target-Minimum 44×44.
-		const doneToggle = page.getByTestId(`done-toggle-${deepestId}`);
+		// Seit #387 ist der Erledigt-Toggle nicht mehr direkt in der Zeile — einziger direkter Zeilen-Button
+		// ist der „…". Rein geometrische Prüfung: vollständig im Viewport (`box.x + box.width <= VIEWPORT.width
+		// + 1`) und Touch-Target-Minimum 44×44.
 		const moreButton = item(page, deepestId).getByRole('button', { name: /Weitere Aktionen/i });
 
-		for (const button of [doneToggle, moreButton]) {
-			await expect(button).toBeVisible();
-			const box = await button.boundingBox();
-			expect(box).not.toBeNull();
-			if (box !== null) {
-				expect(box.x).toBeGreaterThanOrEqual(0);
-				expect(box.x + box.width).toBeLessThanOrEqual(VIEWPORT.width + 1);
-				expect(box.width).toBeGreaterThanOrEqual(44);
-				expect(box.height).toBeGreaterThanOrEqual(44);
-			}
+		await expect(moreButton).toBeVisible();
+		const box = await moreButton.boundingBox();
+		expect(box).not.toBeNull();
+		if (box !== null) {
+			expect(box.x).toBeGreaterThanOrEqual(0);
+			expect(box.x + box.width).toBeLessThanOrEqual(VIEWPORT.width + 1);
+			expect(box.width).toBeGreaterThanOrEqual(44);
+			expect(box.height).toBeGreaterThanOrEqual(44);
 		}
 	});
 
-	test('AK3: „…"-Popover samt aller 4 Aktionen liegt bei 360px vollständig im Viewport', async ({ page }) => {
+	test('AK3: „…"-Popover samt aller 5 Aktionen liegt bei 360px vollständig im Viewport', async ({ page }) => {
 		await page.setViewportSize(VIEWPORT);
 
 		const { deepestId, orderedFromRoot } = await seedWorstCaseChain(page, uniqueTitle('Popover'));
@@ -243,10 +238,16 @@ test.describe('Priority Pilot — Aufgabenliste responsiv bei 360px (#376)', () 
 		await expandFully(page, orderedFromRoot);
 		await openActionsPopover(page, deepestId);
 
-		// Alle vier Aktionen liegen vollständig im Viewport (kein Abschneiden am rechten/linken Rand).
-		const buttonNames = ['Bearbeiten', 'Abhängigkeiten', 'Unteraufgabe anlegen', 'Löschen'];
-		for (const name of buttonNames) {
-			const button = item(page, deepestId).getByRole('button', { name });
+		// Alle fünf Toolbar-Items liegen vollständig im Viewport (kein Abschneiden am rechten/linken Rand):
+		// der Erledigt-Toggle (erstes Item, #387) plus die vier sekundären Aktionen.
+		const toolbar = item(page, deepestId).locator('[role="toolbar"]');
+		const doneToggle = toolbar.getByRole('button', { name: /Erledigt|Wieder öffnen/i });
+		const secondaryNames = ['Bearbeiten', 'Abhängigkeiten', 'Unteraufgabe anlegen', 'Löschen'];
+		const buttons = [doneToggle, ...secondaryNames.map((name) => item(page, deepestId).getByRole('button', { name }))];
+
+		await expect(toolbar.getByRole('button')).toHaveCount(5);
+
+		for (const button of buttons) {
 			await expect(button).toBeVisible();
 			const box = await button.boundingBox();
 			expect(box).not.toBeNull();
@@ -293,4 +294,106 @@ test.describe('Priority Pilot — Aufgabenliste responsiv bei 360px (#376)', () 
 	// AK5 — Mobile-First-Kaskade: neue Breiten-Regeln ausschließlich additiv via `@media (min-width: …)`,
 	// kein Downgrade des Desktop-Layouts. Bewusst KEIN automatischer Test: Dies ist eine rein statische
 	// Eigenschaft der CSS-Kaskade und wird per Code-Review/PR-Begründung geprüft (siehe Issue #376).
+
+	/**
+	 * Roter TDD-Vertrag für #387 „Mobile Ansicht der Aufgabenliste kompakter (Erledigt-Schalter in die
+	 * Toolbar)". Der binäre Erledigt-Toggle (`done-toggle-{id}`, #315) verlässt die direkt sichtbare Zeile
+	 * und rückt als **erstes** Element in die Aktions-Toolbar hinter dem „…"-Popover (#361). Dadurch bleibt
+	 * bei 360px nur noch der „…"-Button als direkter Zeilen-Button neben Titel/Badges; die Zeile wird
+	 * kompakter. Diese Specs sind rot, bis `TaskTree.tsx`/`app.css` den Toggle ins Popover verschieben und
+	 * die Blatt-Zeile kompakter rendern.
+	 */
+	test.describe('#387 — Erledigt-Toggle in der Toolbar, kompaktere Zeile bei 360px', () => {
+		/** Die Aktions-Toolbar eines Knotens (`KolToolbar` rendert `[role="toolbar"]`). */
+		const toolbar = (page: Page, id: number) => item(page, id).locator('[role="toolbar"]');
+
+		test('AK5: nur der „…"-Button liegt bei 360px direkt in der Zeile (≥ 44×44, kein Toggle direkt sichtbar)', async ({
+			page,
+		}) => {
+			await page.setViewportSize(VIEWPORT);
+
+			const id = await createTask(page, uniqueTitle('Nur-Mehr-Button'));
+
+			await page.goto('/');
+			await waitForStableView(page);
+			await openTasksTab(page);
+
+			await expect(item(page, id)).toBeVisible();
+
+			// Der Erledigt-Toggle ist nicht mehr direkt in der Zeile sichtbar (er liegt jetzt im Popover).
+			await expect(toolbar(page, id)).toBeHidden();
+			await expect(item(page, id).locator('[data-testid^="done-toggle-"]')).toHaveCount(0);
+
+			// Einziger direkter Zeilen-Aktionsbutton: „…". Vollständig im Viewport und Touch-Target ≥ 44×44.
+			const moreButton = item(page, id).getByRole('button', { name: /Weitere Aktionen/i });
+			await expect(moreButton).toBeVisible();
+			const box = await moreButton.boundingBox();
+			expect(box).not.toBeNull();
+			if (box !== null) {
+				expect(box.x).toBeGreaterThanOrEqual(0);
+				expect(box.x + box.width).toBeLessThanOrEqual(VIEWPORT.width + 1);
+				expect(box.width).toBeGreaterThanOrEqual(44);
+				expect(box.height).toBeGreaterThanOrEqual(44);
+			}
+		});
+
+		test('AK6: nach Öffnen des Popovers liegen alle 5 Items bei 360px vollständig im Viewport', async ({ page }) => {
+			await page.setViewportSize(VIEWPORT);
+
+			const id = await createTask(page, uniqueTitle('Fünf-Items'));
+
+			await page.goto('/');
+			await waitForStableView(page);
+			await openTasksTab(page);
+
+			await openActionsPopover(page, id);
+			await expect(toolbar(page, id)).toBeVisible();
+
+			// Fünf Items: der Erledigt-Toggle (erstes Item) plus die vier sekundären Aktionen.
+			const toggle = toolbar(page, id).getByRole('button', { name: /Erledigt|Wieder öffnen/i });
+			const secondaryNames = ['Bearbeiten', 'Abhängigkeiten', 'Unteraufgabe anlegen', 'Löschen'];
+			const buttons = [toggle, ...secondaryNames.map((name) => item(page, id).getByRole('button', { name }))];
+
+			await expect(toolbar(page, id).getByRole('button')).toHaveCount(5);
+
+			for (const button of buttons) {
+				await expect(button).toBeVisible();
+				const box = await button.boundingBox();
+				expect(box).not.toBeNull();
+				if (box !== null) {
+					expect(box.x).toBeGreaterThanOrEqual(0);
+					expect(box.x + box.width).toBeLessThanOrEqual(VIEWPORT.width + 1);
+				}
+			}
+
+			// Auch mit fünf Items im geöffneten Popover kein horizontaler Seiten-Overflow.
+			const overflowsHorizontally = await page.evaluate(
+				() => document.documentElement.scrollWidth > window.innerWidth + 1,
+			);
+			expect(overflowsHorizontally).toBe(false);
+		});
+
+		test('AK7: Blatt-Zeile ohne Badges rendert bei 360×780 kompakt/einzeilig (Höhe ≤ 80px)', async ({ page }) => {
+			await page.setViewportSize(VIEWPORT);
+
+			// Einzelaufgabe ohne Ober-/Unteraufgabe und ohne Serie/Ausnahme/Fortschritt → keine Badges,
+			// kein Aufklapp-Symbol; kurzer Titel, damit die Zeile nicht umbrechen muss.
+			const id = await createTask(page, uniqueTitle('Blatt'));
+
+			await page.goto('/');
+			await waitForStableView(page);
+			await openTasksTab(page);
+
+			const leaf = item(page, id);
+			await expect(leaf).toBeVisible();
+
+			// Ohne den (nun ins Popover verschobenen) Erledigt-Toggle rendert die schlichte Blatt-Zeile
+			// kompakter/einzeilig — die Bounding-Box-Höhe bleibt ≤ 80px.
+			const box = await leaf.boundingBox();
+			expect(box).not.toBeNull();
+			if (box !== null) {
+				expect(box.height).toBeLessThanOrEqual(80);
+			}
+		});
+	});
 });

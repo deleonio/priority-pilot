@@ -285,7 +285,9 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 		/** Die Aktions-Toolbar eines Knotens (`KolToolbar` rendert `[role="toolbar"]`). */
 		const toolbar = (page: Page, id: number) => item(page, id).locator('[role="toolbar"]');
 
-		test('AK-307-1: „Bearbeiten" ist das erste Element der Aktions-Toolbar', async ({ page }) => {
+		test('AK-307-1: „Bearbeiten" ist als Icon-Button in der Aktions-Toolbar (zweites Element nach dem Toggle)', async ({
+			page,
+		}) => {
 			const title = uniqueTitle('Toolbar-Edit');
 			const id = await createTask(page, title);
 
@@ -294,14 +296,15 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 			await openTasksTab(page);
 
 			// Die Toolbar liegt jetzt hinter dem „…"-Popover (#361): initial verborgen. Nach dem Öffnen
-			// ist ihr erster Button „Bearbeiten" (vor Abhängigkeiten/Unteraufgabe/Löschen).
+			// ist ihr erstes Element der Erledigt-Toggle (#387); „Bearbeiten" folgt als zweiter Button
+			// (vor Abhängigkeiten/Unteraufgabe/Löschen).
 			await expect(toolbar(page, id)).toBeHidden();
 
 			await openActionsPopover(page, id);
 
 			await expect(toolbar(page, id)).toBeVisible();
-			const firstButton = toolbar(page, id).getByRole('button').first();
-			await expect(firstButton).toHaveAccessibleName('Bearbeiten');
+			const secondButton = toolbar(page, id).getByRole('button').nth(1);
+			await expect(secondButton).toHaveAccessibleName('Bearbeiten');
 		});
 
 		test('AK-307-1b: „Bearbeiten"-Button trägt kein sichtbares Text-Label (Icon-only)', async ({ page }) => {
@@ -385,9 +388,9 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 	/**
 	 * Roter TDD-Vertrag für #361: Die vier sekundären Aktionen (Bearbeiten, Abhängigkeiten,
 	 * Unteraufgabe anlegen, Löschen) rücken aus der stets sichtbaren `KolToolbar` in ein Popover, das
-	 * über einen „…"-Button mit dem Accessible Name „Weitere Aktionen" geöffnet wird. Done-Toggle und
-	 * Aufklapp-Toggle bleiben direkt sichtbar. Diese Specs sind rot, bis `TaskTree.tsx` den „…"-Trigger
-	 * rendert und die Toolbar in das Popover verlagert.
+	 * über einen „…"-Button mit dem Accessible Name „Weitere Aktionen" geöffnet wird. Der Done-Toggle liegt
+	 * seit #387 im Popover als erstes Toolbar-Item; nur der Aufklapp-Toggle bleibt direkt sichtbar. Diese
+	 * Specs sind rot, bis `TaskTree.tsx` den „…"-Trigger rendert und die Toolbar in das Popover verlagert.
 	 */
 	test.describe('#361 — Sekundäre Aktionen via Popover', () => {
 		test('AK-361-1: „…"-Trigger ersetzt die Inline-Toolbar (Desktop + Mobil)', async ({ page }) => {
@@ -435,7 +438,7 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 			await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeVisible();
 		});
 
-		test('AK-361-4: Done- und Aufklapp-Toggle bleiben außerhalb des Popovers sichtbar', async ({ page }) => {
+		test('AK-361-4: Aufklapp-Toggle bleibt direkt sichtbar; Done-Toggle liegt im Popover (#387)', async ({ page }) => {
 			const parentId = await createTask(page, uniqueTitle('Toggle-Eltern'));
 			const childId = await createTask(page, uniqueTitle('Toggle-Kind'));
 			await addSubtask(page, parentId, childId);
@@ -444,10 +447,13 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 			await waitForStableView(page);
 			await openTasksTab(page);
 
-			// Ohne das „…"-Popover zu öffnen, sind beide Toggles direkt sichtbar.
 			// Im invertierten Wald (#363) ist `childId` die sichtbare Wurzel — dessen Toggles prüfen.
-			await expect(page.getByTestId(`done-toggle-${childId}`)).toBeVisible();
+			// Der Aufklapp-Toggle ist direkt sichtbar.
 			await expect(toggle(page, childId)).toBeVisible();
+
+			// Der Done-Toggle liegt seit #387 als erstes Toolbar-Item hinter dem „…"-Popover — ohne Öffnen verborgen.
+			await expect(item(page, childId).locator('[role="toolbar"]').first()).toBeHidden();
+			await expect(item(page, childId).locator('[data-testid^="done-toggle-"]')).toHaveCount(0);
 		});
 
 		test('AK-361-5: Mobile-First — kein horizontaler Überlauf bei geöffnetem Popover', async ({ page }) => {
@@ -699,6 +705,81 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 				// Rechte Kante des Panels ≤ linke Kante des Triggers (Panel steht links neben dem Trigger).
 				expect(panelRight).toBeLessThanOrEqual(triggerBox.x + 1);
 			}
+		});
+	});
+
+	/**
+	 * Roter TDD-Vertrag für #387: Der binäre Erledigt-Toggle (`done-toggle-{id}`, #315) wird aus der
+	 * direkt sichtbaren Zeile (`.task-tree-row-controls`) entfernt und wandert als **erstes** Element in
+	 * die Aktions-Toolbar (`KolToolbar` → `[role="toolbar"]`), die hinter dem „…"-Popover liegt (#361).
+	 * Damit trägt die Toolbar nun fünf Items statt vier: Erledigt, Bearbeiten, Abhängigkeiten,
+	 * Unteraufgabe anlegen, Löschen. Der Aufklapp-Toggle bleibt direkt in der Zeile sichtbar. Diese
+	 * Specs sind rot, bis `TaskTree.tsx` den Toggle als erstes Toolbar-Item ins Popover verschiebt.
+	 */
+	test.describe('#387 — Erledigt-Toggle im Popover', () => {
+		/** Die Aktions-Toolbar eines Knotens (`KolToolbar` rendert `[role="toolbar"]`). */
+		const toolbar = (page: Page, id: number) => item(page, id).locator('[role="toolbar"]');
+
+		test('AK-387-1: Erledigt-Toggle liegt nach Öffnen des Popovers in der Toolbar', async ({ page }) => {
+			const id = await createTask(page, uniqueTitle('Toolbar-Toggle'));
+
+			await page.goto('/');
+			await waitForStableView(page);
+			await openTasksTab(page);
+
+			await openActionsPopover(page, id);
+
+			await expect(toolbar(page, id)).toBeVisible();
+			await expect(toolbar(page, id).getByRole('button', { name: /Erledigt|Wieder öffnen/i })).toBeVisible();
+		});
+
+		test('AK-387-2: Erledigt-Toggle ist vor Öffnen des Popovers nicht direkt sichtbar', async ({ page }) => {
+			const id = await createTask(page, uniqueTitle('Verborgen'));
+
+			await page.goto('/');
+			await waitForStableView(page);
+			await openTasksTab(page);
+
+			// Ohne das „…"-Popover zu öffnen, ist die Toolbar (und damit der Toggle) verborgen. Der
+			// Aufklapp-Toggle bleibt hingegen direkt sichtbar — nur der Erledigt-Toggle wandert ins Popover.
+			await expect(item(page, id)).toBeVisible();
+			await expect(toolbar(page, id)).toBeHidden();
+			await expect(toolbar(page, id).getByRole('button', { name: /Erledigt|Wieder öffnen/i })).toBeHidden();
+		});
+
+		test('AK-387-3: Erledigt-Toggle ist das erste Element der Aktions-Toolbar', async ({ page }) => {
+			const id = await createTask(page, uniqueTitle('Erstes-Item'));
+
+			await page.goto('/');
+			await waitForStableView(page);
+			await openTasksTab(page);
+
+			await openActionsPopover(page, id);
+
+			await expect(toolbar(page, id)).toBeVisible();
+			// Der Erledigt-Toggle rückt VOR „Bearbeiten" (das nun das zweite Element ist, #307).
+			const firstButton = toolbar(page, id).getByRole('button').first();
+			await expect(firstButton).toHaveAccessibleName(/Erledigt|Wieder öffnen/i);
+		});
+
+		test('AK-387-4: die Toolbar trägt jetzt fünf Items (Erledigt + 4 sekundäre Aktionen)', async ({ page }) => {
+			const id = await createTask(page, uniqueTitle('Fünf-Items'));
+
+			await page.goto('/');
+			await waitForStableView(page);
+			await openTasksTab(page);
+
+			await openActionsPopover(page, id);
+
+			await expect(toolbar(page, id)).toBeVisible();
+			await expect(toolbar(page, id).getByRole('button')).toHaveCount(5);
+
+			// Alle fünf Items sind vorhanden: Erledigt-Toggle zuerst, dann die vier sekundären Aktionen.
+			await expect(toolbar(page, id).getByRole('button', { name: /Erledigt|Wieder öffnen/i })).toBeVisible();
+			await expect(toolbar(page, id).getByRole('button', { name: 'Bearbeiten' })).toBeVisible();
+			await expect(toolbar(page, id).getByRole('button', { name: 'Abhängigkeiten' })).toBeVisible();
+			await expect(toolbar(page, id).getByRole('button', { name: 'Unteraufgabe anlegen' })).toBeVisible();
+			await expect(toolbar(page, id).getByRole('button', { name: 'Löschen' })).toBeVisible();
 		});
 	});
 });

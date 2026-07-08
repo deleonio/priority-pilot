@@ -55,10 +55,16 @@ test.describe('Priority Pilot — Tab „Erledigte Aufgaben" (#228) gegen das ec
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();
 	};
 
-	/** Klickt den „Erledigt"-Toggle des ersten Tasks und wartet auf den Seiten-Reload. */
+	/** Öffnet das Aktionen-Popover des ersten Tasks und klickt den „Erledigt"-Toggle (#387). */
 	const markTaskDoneViaUi = async (page: Page): Promise<void> => {
 		await openTasksTab(page);
-		await page.getByRole('button', { name: 'Erledigt' }).first().click();
+		await page
+			.getByRole('button', { name: /Weitere Aktionen/i })
+			.first()
+			.click();
+		const doneButton = page.getByRole('button', { name: 'Erledigt' }).first();
+		await expect(doneButton).toBeVisible();
+		await doneButton.click();
 		await waitForStableView(page);
 	};
 
@@ -73,7 +79,13 @@ test.describe('Priority Pilot — Tab „Erledigte Aufgaben" (#228) gegen das ec
 
 		// Genau einen der beiden Tasks erledigen (der zuerst angelegte steht oben).
 		await openTasksTab(page);
-		await page.getByRole('button', { name: 'Erledigt' }).first().click();
+		await page
+			.getByRole('button', { name: /Weitere Aktionen/i })
+			.first()
+			.click();
+		const firstDoneButton = page.getByRole('button', { name: 'Erledigt' }).first();
+		await expect(firstDoneButton).toBeVisible();
+		await firstDoneButton.click();
 		await waitForStableView(page);
 
 		await openCompletedTab(page);
