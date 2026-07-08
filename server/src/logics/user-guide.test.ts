@@ -71,7 +71,11 @@ describe('Nutzerhandbuch docs/user-guide.md (#255)', () => {
 		});
 
 		it('AK 2.9: Abschnitt Header-Aktionen ist vorhanden', () => {
-			assert.match(getContent(), /header-aktionen|header aktionen/i, 'Abschnitt Header-Aktionen muss vorhanden sein');
+			assert.match(
+				getContent(),
+				/header-aktionen|header aktionen|kopf-aktionen|kopf aktionen/i,
+				'Abschnitt Header-Aktionen muss vorhanden sein',
+			);
 		});
 	});
 

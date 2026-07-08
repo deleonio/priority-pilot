@@ -1,4 +1,5 @@
 import { KolButton, KolCard } from '@public-ui/react-v19';
+import { useEffect, useRef } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
 /**
@@ -17,6 +18,34 @@ export const UpdatePrompt = () => {
 		offlineReady: [offlineReady, setOfflineReady],
 		updateServiceWorker,
 	} = useRegisterSW();
+
+	// Guard verhindert Doppel-Notification im selben needRefresh-Zyklus (#394).
+	const notifiedRef = useRef(false);
+
+	useEffect(() => {
+		if (!needRefresh) {
+			notifiedRef.current = false;
+			return;
+		}
+		if (notifiedRef.current) return;
+		if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+
+		notifiedRef.current = true;
+
+		if (navigator.serviceWorker) {
+			navigator.serviceWorker.ready.then((registration) => {
+				registration.showNotification('Neue Version verfügbar', {
+					body: 'Lade die Seite neu, um die neue Version zu verwenden.',
+					tag: 'app-update',
+				});
+			});
+		} else {
+			new Notification('Neue Version verfügbar', {
+				body: 'Lade die Seite neu, um die neue Version zu verwenden.',
+				tag: 'app-update',
+			});
+		}
+	}, [needRefresh]);
 
 	if (!needRefresh && !offlineReady) {
 		return null;
