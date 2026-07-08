@@ -452,7 +452,7 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 			await expect(toggle(page, childId)).toBeVisible();
 
 			// Der Done-Toggle liegt seit #387 als erstes Toolbar-Item hinter dem „…"-Popover — ohne Öffnen verborgen.
-			await expect(item(page, childId).locator('[role="toolbar"]')).toBeHidden();
+			await expect(item(page, childId).locator('[role="toolbar"]').first()).toBeHidden();
 			await expect(item(page, childId).locator('[data-testid^="done-toggle-"]')).toHaveCount(0);
 		});
 
