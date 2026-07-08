@@ -170,7 +170,7 @@ test.describe('#272 Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabe
 	test('AK2: Schalter ist ohne localStorage-Eintrag standardmäßig aus (Default false)', async ({ page }) => {
 		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'granted' }));
 		await page.goto('/settings/general');
-		await waitForStableView(page);
+		await waitForStableView(page, 'Priority Pilot');
 
 		// Der Schalter im Allgemein-Tab muss sichtbar und aus sein.
 		const toggle = page
@@ -203,7 +203,7 @@ test.describe('#272 Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabe
 	test('AK3a: Einschalten + Berechtigung erteilt → Schalter an und Einstellung gespeichert', async ({ page }) => {
 		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'granted' }));
 		await page.goto('/settings/general');
-		await waitForStableView(page);
+		await waitForStableView(page, 'Priority Pilot');
 
 		const toggle = page
 			.getByRole('checkbox', { name: /Sprachaufnahme automatisch starten/i })
@@ -226,7 +226,7 @@ test.describe('#272 Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabe
 	test('AK3b: Einschalten + Berechtigung verweigert → Schalter bleibt aus und Hinweis sichtbar', async ({ page }) => {
 		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'denied' }));
 		await page.goto('/settings/general');
-		await waitForStableView(page);
+		await waitForStableView(page, 'Priority Pilot');
 
 		const toggle = page
 			.getByRole('checkbox', { name: /Sprachaufnahme automatisch starten/i })
@@ -253,7 +253,7 @@ test.describe('#272 Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabe
 		await setVoiceAutostartInStorage(page, true);
 		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'granted' }));
 		await page.goto('/settings/general');
-		await waitForStableView(page);
+		await waitForStableView(page, 'Priority Pilot');
 
 		const toggle = page
 			.getByRole('checkbox', { name: /Sprachaufnahme automatisch starten/i })
@@ -400,7 +400,7 @@ test.describe('#272 Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabe
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'granted' }));
 		await page.goto('/settings/general');
-		await waitForStableView(page);
+		await waitForStableView(page, 'Priority Pilot');
 
 		// Der Schalter muss sichtbar und bedienbar sein.
 		const toggle = page

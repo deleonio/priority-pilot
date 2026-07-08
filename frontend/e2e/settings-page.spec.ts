@@ -72,7 +72,7 @@ test.describe('#270 Einstellungen – Zahnrad-Toolbar-Button und Route /settings
 	 */
 	test('AK3: Direktaufruf von /settings/pillars rendert die Settings-Seite', async ({ page }) => {
 		await page.goto('/settings/pillars');
-		await waitForStableView(page);
+		await waitForStableView(page, 'Priority Pilot');
 
 		// Die Settings-Seite mit dem Säulen-Editor ist sichtbar (Dashboard-Inhalt wäre falsch).
 		await expect(page.getByRole('heading', { name: /Säulen-Gewichtung/i })).toBeVisible();
@@ -84,7 +84,7 @@ test.describe('#270 Einstellungen – Zahnrad-Toolbar-Button und Route /settings
 	 */
 	test('AK4: Zurück-Button führt von /settings/pillars zurück zum Dashboard', async ({ page }) => {
 		await page.goto('/settings/pillars');
-		await waitForStableView(page);
+		await waitForStableView(page, 'Priority Pilot');
 
 		await expect(page.getByRole('heading', { name: /Säulen-Gewichtung/i })).toBeVisible();
 
@@ -102,7 +102,7 @@ test.describe('#270 Einstellungen – Zahnrad-Toolbar-Button und Route /settings
 	 */
 	test('AK5: „Speichern" löst einen PUT /pillars/weights aus', async ({ page }) => {
 		await page.goto('/settings/pillars');
-		await waitForStableView(page);
+		await waitForStableView(page, 'Priority Pilot');
 
 		await expect(page.getByRole('heading', { name: /Säulen-Gewichtung/i })).toBeVisible();
 

@@ -24,7 +24,7 @@ test.describe('#271 Settings-Seite: Tabs Allgemein + Säulen', () => {
 	 */
 	test('AK1: Settings-Seite zeigt zwei Tabs „Allgemein" und „Säulen"', async ({ page }) => {
 		await page.goto('/settings/pillars');
-		await waitForStableView(page);
+		await waitForStableView(page, 'Priority Pilot');
 
 		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toBeVisible();
 		await expect(page.getByRole('tab', { name: 'Säulen', exact: true })).toBeVisible();
@@ -37,7 +37,7 @@ test.describe('#271 Settings-Seite: Tabs Allgemein + Säulen', () => {
 	 */
 	test('AK2: Säulen-Tab zeigt den Säulen-Gewichtungs-Editor', async ({ page }) => {
 		await page.goto('/settings/pillars');
-		await waitForStableView(page);
+		await waitForStableView(page, 'Priority Pilot');
 
 		// Der Säulen-Tab ist aktiv — der Editor ist sichtbar.
 		const pillarsTab = page.getByRole('tab', { name: 'Säulen', exact: true });
@@ -54,7 +54,7 @@ test.describe('#271 Settings-Seite: Tabs Allgemein + Säulen', () => {
 	 */
 	test('AK3: Klick auf „Allgemein"-Tab blendet Säulen-Editor aus und zeigt Allgemein-Inhalt', async ({ page }) => {
 		await page.goto('/settings/pillars');
-		await waitForStableView(page);
+		await waitForStableView(page, 'Priority Pilot');
 
 		// Ausgangszustand: Säulen-Tab aktiv, Editor sichtbar.
 		await expect(page.getByRole('tab', { name: 'Säulen', exact: true })).toHaveAttribute('aria-selected', 'true');
@@ -78,7 +78,7 @@ test.describe('#271 Settings-Seite: Tabs Allgemein + Säulen', () => {
 	 */
 	test('AK4a: Route /settings/general aktiviert den Allgemein-Tab', async ({ page }) => {
 		await page.goto('/settings/general');
-		await waitForStableView(page);
+		await waitForStableView(page, 'Priority Pilot');
 
 		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toHaveAttribute('aria-selected', 'true');
 		await expect(page.getByRole('tab', { name: 'Säulen', exact: true })).toHaveAttribute('aria-selected', 'false');
@@ -86,7 +86,7 @@ test.describe('#271 Settings-Seite: Tabs Allgemein + Säulen', () => {
 
 	test('AK4b: Route /settings/pillars aktiviert den Säulen-Tab', async ({ page }) => {
 		await page.goto('/settings/pillars');
-		await waitForStableView(page);
+		await waitForStableView(page, 'Priority Pilot');
 
 		await expect(page.getByRole('tab', { name: 'Säulen', exact: true })).toHaveAttribute('aria-selected', 'true');
 		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toHaveAttribute('aria-selected', 'false');
@@ -100,7 +100,7 @@ test.describe('#271 Settings-Seite: Tabs Allgemein + Säulen', () => {
 	test('AK5: Settings-Tabs verursachen kein horizontales Scrollen bei 375px (Mobile-First)', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.goto('/settings/pillars');
-		await waitForStableView(page);
+		await waitForStableView(page, 'Priority Pilot');
 
 		// Beide Tabs müssen auf dem schmalen Viewport sichtbar und bedienbar sein.
 		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toBeVisible();
@@ -152,18 +152,18 @@ test.describe('#323 Settings-Tab bleibt nach Toggle-Interaktion stabil', () => {
 		// AK1 — Kernfall: Berechtigung erteilt, „Allgemein" bleibt aktiv, Säulen-Editor bleibt verborgen.
 		await page.addInitScript(buildMediaMock('granted'));
 		await page.goto('/settings/pillars');
-		await waitForStableView(page);
+		await waitForStableView(page, 'Priority Pilot');
 
 		const allgemeinTab = page.getByRole('tab', { name: 'Allgemein', exact: true });
 		await allgemeinTab.click();
-		await waitForStableView(page);
+		await waitForStableView(page, 'Priority Pilot');
 		await expect(allgemeinTab).toHaveAttribute('aria-selected', 'true');
 
 		const toggle = page
 			.getByRole('checkbox', { name: /Sprachaufnahme automatisch starten/i })
 			.or(page.getByRole('switch', { name: /Sprachaufnahme automatisch starten/i }));
 		await toggle.click();
-		await waitForStableView(page);
+		await waitForStableView(page, 'Priority Pilot');
 
 		await expect(allgemeinTab).toHaveAttribute('aria-selected', 'true');
 		await expect(page.getByRole('slider').or(page.getByRole('spinbutton')).first()).toBeHidden();
@@ -173,18 +173,18 @@ test.describe('#323 Settings-Tab bleibt nach Toggle-Interaktion stabil', () => {
 		// AK2 — Berechtigung verweigert: „Allgemein" bleibt aktiv (Hinweis erscheint, kein Tab-Wechsel).
 		await page.addInitScript(buildMediaMock('denied'));
 		await page.goto('/settings/pillars');
-		await waitForStableView(page);
+		await waitForStableView(page, 'Priority Pilot');
 
 		const allgemeinTab = page.getByRole('tab', { name: 'Allgemein', exact: true });
 		await allgemeinTab.click();
-		await waitForStableView(page);
+		await waitForStableView(page, 'Priority Pilot');
 		await expect(allgemeinTab).toHaveAttribute('aria-selected', 'true');
 
 		const toggle = page
 			.getByRole('checkbox', { name: /Sprachaufnahme automatisch starten/i })
 			.or(page.getByRole('switch', { name: /Sprachaufnahme automatisch starten/i }));
 		await toggle.click();
-		await waitForStableView(page);
+		await waitForStableView(page, 'Priority Pilot');
 
 		await expect(allgemeinTab).toHaveAttribute('aria-selected', 'true');
 	});
@@ -192,7 +192,7 @@ test.describe('#323 Settings-Tab bleibt nach Toggle-Interaktion stabil', () => {
 	test('AK3: Interaktion im Säulen-Tab springt nicht auf Allgemein-Tab zurück', async ({ page }) => {
 		// AK3 — Gegenrichtung (keine Regression): Säulen-Gewicht ändern, „Säulen" bleibt aktiv.
 		await page.goto('/settings/pillars');
-		await waitForStableView(page);
+		await waitForStableView(page, 'Priority Pilot');
 
 		const pillarsTab = page.getByRole('tab', { name: 'Säulen', exact: true });
 		await expect(pillarsTab).toHaveAttribute('aria-selected', 'true');
@@ -200,7 +200,7 @@ test.describe('#323 Settings-Tab bleibt nach Toggle-Interaktion stabil', () => {
 		const control = page.getByRole('slider').or(page.getByRole('spinbutton')).first();
 		await control.focus();
 		await control.press('ArrowRight');
-		await waitForStableView(page);
+		await waitForStableView(page, 'Priority Pilot');
 
 		await expect(pillarsTab).toHaveAttribute('aria-selected', 'true');
 	});
