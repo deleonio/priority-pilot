@@ -11,8 +11,6 @@ import {
 	formatDeadline,
 	formatNumber,
 	formatRelativeDeadline,
-	STATUS_OPTIONS,
-	statusAccentClass,
 } from '../lib/task';
 
 /** Badge-Hintergrundfarbe je hervorzuhebender Dringlichkeit (Textfarbe berechnet KolBadge automatisch). */
@@ -61,7 +59,7 @@ const hasDeadline = (task: Task): task is TaskWithDeadline =>
  * absteigend) sowie den anstehenden Deadlines.
  *
  * Reine Ableitung aus den bereits geladenen Daten (keine eigene API-Anfrage). Die Status-Karten
- * folgen `STATUS_OPTIONS`, damit Reihenfolge und Beschriftung mit dem Rest der UI konsistent bleiben.
+ * zeigen genau drei Kacheln: Gesamt, Offen (Open+InProcess), Erledigt.
  * Der `forest` ist serverseitig bereits nach Wert absteigend sortiert, daher genügt das Abschneiden
  * der ersten `TOP_TASKS_LIMIT` Wurzeln. Die Deadline-Liste zeigt nur noch nicht erledigte Aufgaben
  * mit gesetzter Deadline, aufsteigend nach Datum. Das Widget „Meine Themen" zeigt je Säule die
@@ -73,17 +71,17 @@ const hasDeadline = (task: Task): task is TaskWithDeadline =>
 export const Dashboard = ({ tasks, forest, nextTask, suggestions = [], pillars, displayName = '' }: DashboardProps) => {
 	const greeting = displayName.trim();
 	const cards = useMemo<StatCard[]>(() => {
-		// Status-Häufigkeiten in einem einzigen Durchlauf zählen (O(n)).
-		const counts = new Map<string, number>();
+		let openCount = 0;
+		let doneCount = 0;
 		for (const task of tasks) {
-			counts.set(task.status, (counts.get(task.status) ?? 0) + 1);
+			if (task.status === TaskStatus.Done) doneCount++;
+			else if (task.status === TaskStatus.Open || task.status === TaskStatus.InProcess) openCount++;
 		}
-		const perStatus = STATUS_OPTIONS.map((option) => ({
-			label: option.label,
-			count: counts.get(option.value) ?? 0,
-			accent: statusAccentClass(option.value),
-		}));
-		return [{ label: 'Gesamt', count: tasks.length, accent: 'total' }, ...perStatus];
+		return [
+			{ label: 'Gesamt', count: tasks.length, accent: 'total' },
+			{ label: 'Offen', count: openCount, accent: 'open' },
+			{ label: 'Erledigt', count: doneCount, accent: 'done' },
+		];
 	}, [tasks]);
 
 	// Einmal pro Mount bestimmter Bezugszeitpunkt für die Deadline-Dringlichkeit (stabil je Ansicht).
