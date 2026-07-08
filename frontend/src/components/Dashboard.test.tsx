@@ -81,3 +81,42 @@ describe('Dashboard — Personalisierte Begrüßung (#169)', () => {
 		expect(container.querySelector('.dashboard-greeting')).toBeNull();
 	});
 });
+
+/**
+ * #390: Die Statuskacheln des Dashboards zeigen nur noch drei Einträge (Gesamt, Offen, Erledigt).
+ * Die Kachel „In Bearbeitung" entfällt; Tasks mit Status InProcess fließen in die Kachel „Offen" ein.
+ * Diese Tests sind rot, solange `Dashboard.tsx` noch über `STATUS_OPTIONS` iteriert (vier Kacheln).
+ */
+describe('Dashboard — Statuskacheln: genau drei Kacheln (Issue #390)', () => {
+	it('AK1: zeigt genau drei Kacheln — keine Kachel „In Bearbeitung"', () => {
+		const tasks = [
+			task(1, [], 1, TaskStatus.Open),
+			task(2, [], 1, TaskStatus.InProcess),
+			task(3, [], 1, TaskStatus.Done),
+		];
+		const { container } = render(
+			<Dashboard tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[]} />,
+		);
+
+		const items = container.querySelectorAll('.dashboard-cards > li');
+		// Erwartet: Gesamt + Offen + Erledigt = 3 (aktuell 4, weil STATUS_OPTIONS drei Einträge hat).
+		expect(items).toHaveLength(3);
+
+		// Der Akzent-Span für die InProcess-Kachel darf nicht erscheinen.
+		expect(container.querySelector('.dashboard-cards .dashboard-card-accent.inprocess')).toBeNull();
+	});
+
+	it('AK2: ein Task mit Status InProcess erhöht die Kachel „Offen" um 1', () => {
+		const tasks = [task(1, [], 1, TaskStatus.Open), task(2, [], 1, TaskStatus.InProcess)];
+		const { container } = render(
+			<Dashboard tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[]} />,
+		);
+
+		// Nach der Umsetzung trägt die „Offen"-Kachel den Akzent „open" und einen Count von 2.
+		const openAccent = container.querySelector('.dashboard-cards .dashboard-card-accent.open');
+		expect(openAccent).not.toBeNull();
+		const offenLi = openAccent?.closest('li');
+		const count = offenLi?.querySelector('.dashboard-card-count');
+		expect(count?.textContent).toBe('2');
+	});
+});

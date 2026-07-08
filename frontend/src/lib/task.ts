@@ -2,7 +2,7 @@ import type { Task } from 'client';
 import { TaskStatus } from 'client';
 
 /** Auswahl-Optionen für das Status-Feld (Reihenfolge wie im Workflow). */
-export const STATUS_OPTIONS: { label: string; value: TaskStatus }[] = [
+const STATUS_OPTIONS: { label: string; value: TaskStatus }[] = [
 	{ label: 'Offen', value: TaskStatus.Open },
 	{ label: 'In Bearbeitung', value: TaskStatus.InProcess },
 	{ label: 'Erledigt', value: TaskStatus.Done },
