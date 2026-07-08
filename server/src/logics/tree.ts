@@ -21,9 +21,13 @@ interface TaskTreeNode {
 	dependents: TaskTreeNode[];
 }
 
+const ACTIVE_STATUSES = ['Open', 'In process'] as const;
+
 const getEstimatedEffort = async (task: Task): Promise<number> => {
 	let estimatedEffort = task.estimatedEffort;
-	const dependencies = await task.getDependencies();
+	const dependencies = (await task.getDependencies()).filter((dep) =>
+		ACTIVE_STATUSES.includes(dep.status as (typeof ACTIVE_STATUSES)[number]),
+	);
 	for (const dependency of dependencies) {
 		estimatedEffort += await getEstimatedEffort(dependency);
 	}
@@ -34,7 +38,11 @@ const getEstimatedEffort = async (task: Task): Promise<number> => {
 const buildTaskTree = async (task: Task): Promise<TaskTreeNode> => {
 	// Kinder = direkte Unteraufgaben = Vorgänger dieses Tasks (`getDependencies()`), analog zum
 	// Aufwands-Rollup oben. Damit erscheint die Eltern-Aufgabe über ihren Unteraufgaben (#336, AK4).
-	const subtasks = await task.getDependencies();
+	// Erledigte Unteraufgaben werden ausgeblendet — sie blockieren nicht mehr und müssen nicht
+	// mehr gezeigt werden.
+	const subtasks = (await task.getDependencies()).filter((dep) =>
+		ACTIVE_STATUSES.includes(dep.status as (typeof ACTIVE_STATUSES)[number]),
+	);
 
 	const children: TaskTreeNode[] = [];
 	const totalEstimatedEffort = await getEstimatedEffort(task);
@@ -69,7 +77,9 @@ export const buildTaskForest = async (userId?: number): Promise<TaskTreeNode[]> 
 	// Tasks ohne Dependents (#336, AK4). Ihre Unteraufgaben hängen als `getDependencies()` darunter.
 	const rootTasks: Task[] = [];
 	for (const task of tasks) {
-		const dependents = await task.getDependents();
+		const dependents = (await task.getDependents()).filter((dep) =>
+			ACTIVE_STATUSES.includes(dep.status as (typeof ACTIVE_STATUSES)[number]),
+		);
 		if (dependents.length === 0) {
 			rootTasks.push(task);
 		}

@@ -45,6 +45,18 @@ describe('buildTaskForest', () => {
 		assert.equal(forest[0].dependents[0].id, a.id);
 	});
 
+	it('Erledigte Unteraufgabe verschwindet aus dem Baum (#392)', async () => {
+		const child = await Task.create({ title: 'Kind', priority: 3, estimatedEffort: 1 });
+		const parent = await Task.create({ title: 'Eltern', priority: 3, estimatedEffort: 1 });
+		await parent.addDependency(child);
+		// Kind erledigen → parent sollte als Wurzel erscheinen, Kind nicht mehr im Baum
+		await child.update({ status: 'Done' });
+		const forest = await buildTaskForest();
+		assert.equal(forest.length, 1);
+		assert.equal(forest[0].id, parent.id);
+		assert.deepEqual(forest[0].dependents, []);
+	});
+
 	it('totalEstimatedEffort ist eigener Aufwand + transitiver Abhängigkeiten', async () => {
 		// c.addDependency(b): c depends on b (b ist Unteraufgabe von c)
 		// b.addDependency(a): b depends on a (a ist Unteraufgabe von b)
