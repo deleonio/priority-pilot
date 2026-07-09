@@ -21,13 +21,16 @@ import { dirname, join } from 'node:path';
 // Testebene: reine YAML-/Doku-Aenderung → Verifikation per Datei-Grep (node:test, laeuft in ci.yml).
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = join(HERE, '..', '..');
+// HERE = /Users/moppitz/Workspace/priority-pilot/server/src/workflows
+// REPO_ROOT = ../../.. = /Users/moppitz/Workspace/priority-pilot
+const REPO_ROOT = join(HERE, '..', '..', '..');
 
 const ISSUE_WORKFLOWS = ['claude-triage.yml', 'claude-spec.yml', 'claude-implement.yml'] as const;
 const PR_WORKFLOWS = ['claude-pr-review.yml', 'claude-pr-fixup.yml'] as const;
 const CLAUDE_WORKFLOWS = [...ISSUE_WORKFLOWS, ...PR_WORKFLOWS];
 
-const readWorkflow = (name: string): string => readFileSync(join(REPO_ROOT, '.github', 'workflows', name), 'utf8');
+const WORKFLOWS_DIR = join(REPO_ROOT, '.github', 'workflows');
+const readWorkflow = (name: string): string => readFileSync(join(WORKFLOWS_DIR, name), 'utf8');
 const readRepoFile = (...parts: string[]): string => readFileSync(join(REPO_ROOT, ...parts), 'utf8');
 
 describe('Composite-Action configure-ai-backend existiert und ist korrekt', () => {
@@ -52,14 +55,14 @@ describe('Composite-Action configure-ai-backend existiert und ist korrekt', () =
 		assert.match(action, /grep -qx 'ai:use-zai'/, 'Label-Abgleich muss zeilengenau erfolgen (grep -qx)');
 	});
 
-	it('leitet bei ai:use-zai auf den z.ai-Endpoint um und setzt AI_BACKEND=zai + ANTHROPIC_AUTH_TOKEN aus dem Secret', () => {
+	it('leitet bei ai:use-zai auf den z.ai-Endpoint um und setzt AI_BACKEND=zai + ANTHROPIC_API_KEY aus dem Secret', () => {
 		const action = readRepoFile('.github', 'actions', 'configure-ai-backend', 'action.yml');
 		assert.match(action, /https:\/\/api\.z\.ai\/api\/anthropic/, 'z.ai-Endpunkt muss fest verdrahtet sein');
 		assert.match(action, /AI_BACKEND=zai/, 'AI_BACKEND=zai muss nach $GITHUB_ENV geschrieben werden');
 		assert.match(
 			action,
-			/ANTHROPIC_AUTH_TOKEN=\$\{?ZAI_API_KEY|ANTHROPIC_AUTH_TOKEN=\$ZAI_API_KEY/,
-			'ANTHROPIC_AUTH_TOKEN muss aus dem ZAI_API_KEY-Secret gespeist werden',
+			/ANTHROPIC_API_KEY=\$ZAI_API_KEY/,
+			'ANTHROPIC_API_KEY muss aus dem ZAI_API_KEY-Secret gespeist werden (--bare erzwingt diese Variable)',
 		);
 		assert.match(action, /ANTHROPIC_BASE_URL=/, 'ANTHROPIC_BASE_URL muss gesetzt werden');
 	});
@@ -198,4 +201,112 @@ describe('AGENTS.md dokumentiert das umschaltbare Backend', () => {
 	it('dokumentiert die GLM-Modell-Map (Alias-Aufloesung fuer Subagenten)', () => {
 		assert.match(doc(), /glm-/i, 'AGENTS.md muss die GLM-Modell-Map erwaehnen');
 	});
+});
+
+describe('--bare Modus in allen Claude-Workflows', () => {
+	for (const wf of CLAUDE_WORKFLOWS) {
+		it(`${wf} nutzt --bare in claude_args`, () => {
+			const content = readWorkflow(wf);
+			assert.match(
+				content,
+				/claude_args:\s*[\s\S]*?--bare/,
+				`${wf} muss --bare in den claude_args enthalten, um OAuth zu blockieren und Umgebungsvariablen für z.ai zu erzwingen`,
+			);
+		});
+
+		it(`${wf} hat --bare VOR --model in claude_args`, () => {
+			const content = readWorkflow(wf);
+			const barePos = content.indexOf('--bare');
+			const modelPos = content.indexOf('--model', barePos);
+			assert.ok(
+				barePos >= 0 && modelPos > barePos,
+				`${wf}: --bare muss vor --model in claude_args stehen (bare > model bei ${barePos} > ${modelPos})`,
+			);
+		});
+	}
+});
+
+describe('Dokumentation für --bare Modus', () => {
+	it('AGENTS.md dokumentiert --bare für alle Workflows', () => {
+		const docContent = readRepoFile('AGENTS.md');
+		assert.match(docContent, /--bare/, 'AGENTS.md muss --bare erwähnen');
+		assert.match(docContent, /Bare-Modus/, 'AGENTS.md muss den Bare-Modus dokumentieren');
+	});
+
+	it('bare-mode.md existiert als zentrale Dokumentation', () => {
+		assert.ok(
+			existsSync(join(REPO_ROOT, '.ai-knowledge', 'bare-mode.md')),
+			'.ai-knowledge/bare-mode.md muss als zentrale Dokumentation existieren',
+		);
+	});
+
+	it('configure-ai-backend Action dokumentiert --bare', () => {
+		const actionContent = readRepoFile('.github', 'actions', 'configure-ai-backend', 'action.yml');
+		assert.match(actionContent, /--bare/, 'configure-ai-backend muss --bare in der Beschreibung erwähnen');
+	});
+
+	// Soft-Abort Tests (--max-tokens wird NICHT verwendet, da es den Soft-Abort untergraben wuerde)
+	// Siehe: .ai-knowledge/bare-mode.md für die Begründung
+	describe('--max-tokens wird bewusst NICHT verwendet', () => {
+		for (const wf of CLAUDE_WORKFLOWS) {
+			it(`${wf} enthält KEIN --max-tokens (Soft-Abort hat Vorrang)`, () => {
+				const content = readWorkflow(wf);
+				assert.doesNotMatch(
+					content,
+					/--max-tokens/,
+					`${wf} darf KEIN --max-tokens enthalten — der Soft-Abort-Mechanismus (Session-Resume + Label-Steuerung) hat Vorrang`,
+				);
+			});
+		}
+	});
+
+	// Tool-Whitelisting Tests
+	it('claude-triage.yml hat minimales Tool-Set', () => {
+		const content = readWorkflow('claude-triage.yml');
+		assert.match(
+			content,
+			/--allowedTools\s*"Bash\(gh issue:\*\),Bash\(gh api:\*\),Bash\(gh label:\*\),Read,Grep,Glob,Task"/,
+		);
+	});
+
+	it('claude-pr-review.yml hat minimales Tool-Set', () => {
+		const content = readWorkflow('claude-pr-review.yml');
+		assert.match(
+			content,
+			/--allowedTools\s*"Bash\(gh pr:\*\),Bash\(gh issue view:\*\),Bash\(gh label:\*\),Bash\(gh api:\*\),Bash\(git fetch:\*\),Bash\(git diff:\*\),Read,Grep,Glob,Task"/,
+		);
+	});
+
+	it('kein Workflow enthält Skill', () => {
+		for (const wf of CLAUDE_WORKFLOWS) {
+			const content = readWorkflow(wf);
+			assert.doesNotMatch(content, /--allowedTools[^\n]*Skill/, `${wf} darf Skill nicht enthalten`);
+		}
+	});
+
+	// Umgebungsvariablen Tests
+	for (const wf of CLAUDE_WORKFLOWS) {
+		it(`${wf} setzt CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`, () => {
+			const content = readWorkflow(wf);
+			assert.match(
+				content,
+				/CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC:\s*["']1["']/,
+				`${wf} muss CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC="1" oder '1' setzen`,
+			);
+		});
+
+		it(`${wf} setzt BASH_MAX_OUTPUT_LENGTH=20000`, () => {
+			const content = readWorkflow(wf);
+			assert.match(
+				content,
+				/BASH_MAX_OUTPUT_LENGTH:\s*["']20000["']/,
+				`${wf} muss BASH_MAX_OUTPUT_LENGTH="20000" oder '20000' setzen`,
+			);
+		});
+
+		it(`${wf} setzt CLAUDE_HIDE_BANNER=1`, () => {
+			const content = readWorkflow(wf);
+			assert.match(content, /CLAUDE_HIDE_BANNER:\s*["']1["']/, `${wf} muss CLAUDE_HIDE_BANNER="1" oder '1' setzen`);
+		});
+	}
 });

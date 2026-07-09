@@ -33,6 +33,10 @@ jobs:
           && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1'
+      BASH_MAX_OUTPUT_LENGTH: '20000'
+      CLAUDE_HIDE_BANNER: '1'
     permissions:
       contents: read
       id-token: write
@@ -409,7 +413,7 @@ jobs:
 
             Bearbeite ausschließlich diesen PR. Arbeite autonom, ohne interaktive Rückfrage.
           claude_args: >-
-            --model claude-sonnet-4-6 --effort medium
+            --bare --model claude-sonnet-4-6 --effort medium
             ${{ steps.session-restore.outputs.resume-arg }}
             --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh label:*),Bash(gh api:*),Bash(git switch:*),Bash(git checkout:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(git fetch:*),Bash(git merge:*),Bash(git stash:*),Bash(git reset:*),Bash(pnpm:*),Read,Edit,Write,Grep,Glob,Task"
             --append-system-prompt "Automatisierter, label-gesteuerter Fixup-Lauf in GitHub Actions (headless) fuer PR #${{ github.event.pull_request.number }}. Setze nur eindeutige, zutreffende Findings um; mehrdeutige/grosse Punkte dem Menschen ueberlassen. Schalte die Labels ALS ALLERLETZTEN Schritt um (ai:needs-changes -> ai:needs-review), NIE davor — erst nach Commit+Push, da der Review den PR-Stand unmittelbar danach liest. AUSSER der Loop soll wegen Nicht-Konvergenz anhalten, dann ai:needs-changes belassen und den Menschen taggen. HARTES 20-Minuten-Timeout, weiches Limit bei 14 Min (Soft-Abort): pruefe vor jedem groesseren Teilschritt `date +%s` gegen ${{ steps.starttime.outputs.soft_deadline_epoch }}; ist das erreicht, sichere den Zwischenstand (committen/pushen, PR-Kommentar mit offenen Punkten), setze ai:continued UND entferne+setze ai:needs-changes neu (Selbst-Retrigger, der Folgelauf setzt per --resume fort) statt auf ai:needs-review umzuschalten, dann beende den Turn. Arbeite ohne interaktive Rueckfrage. Modell-Strategie: Du laeufst als Sonnet-Koordinator. Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
