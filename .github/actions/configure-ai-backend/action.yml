@@ -5,8 +5,8 @@ description: |
   (Triage/Spec/Implement) lesen die Labels des Issues; PR-Stufen (Review/Fixup) lesen die Labels des
   PR zusaetzlich zu denen des verlinkten Issues (Closes #N), sodass EIN Label auf dem Issue die ganze
   Pipeline steuert. Fail-open: ist nichts aufloesbar, gilt der Claude-Default. Schreibt AI_BACKEND
-  (anthropic|zai) nach $GITHUB_ENV; bei zai kommen ANTHROPIC_BASE_URL + ANTHROPIC_AUTH_TOKEN (Bearer,
-  aus Secret ZAI_API_KEY) + ANTHROPIC_DEFAULT_*_MODEL-Alias-Map dazu. AUTH_TOKEN out-rankt das
+  (anthropic|zai) nach $GITHUB_ENV; bei zai kommen ANTHROPIC_BASE_URL + ANTHROPIC_API_KEY (Bearer,
+  aus Secret ZAI_API_KEY) + ANTHROPIC_DEFAULT_*_MODEL-Alias-Map dazu. API_KEY out-rankt das
   OAuth-Token sauber; ist das Label gesetzt, aber ZAI_API_KEY fehlt, bricht der Schritt
   deterministisch ab (::error, kein stiller Skip). Volle --model-IDs verlassen Claude Code literal
   und vertrauen auf z.ai serverseitiges Mapping (Issue #403). Siehe AGENTS.md "KI-Agent".
@@ -64,13 +64,13 @@ runs:
           {
             echo "AI_BACKEND=zai"
             echo "ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic"
-            echo "ANTHROPIC_AUTH_TOKEN=$ZAI_API_KEY"
+            echo "ANTHROPIC_API_KEY=$ZAI_API_KEY"
             echo "ANTHROPIC_DEFAULT_HAIKU_MODEL=glm-4.5-air"
             echo "ANTHROPIC_DEFAULT_SONNET_MODEL=glm-4.7"
             echo "ANTHROPIC_DEFAULT_OPUS_MODEL=glm-5.1"
             echo "ANTHROPIC_DEFAULT_FABLE_MODEL=glm-5.2"
           } >> "$GITHUB_ENV"
-          echo "KI-Backend=z.ai aktiv (Label 'ai:use-zai' an $ENTITY_TYPE #$ENTITY_NUMBER) — Endpoint umgeleitet, Auth via ANTHROPIC_AUTH_TOKEN (out-rankt OAuth)."
+          echo "KI-Backend=z.ai aktiv (Label 'ai:use-zai' an $ENTITY_TYPE #$ENTITY_NUMBER) — Endpoint umgeleitet, Auth via ANTHROPIC_API_KEY (out-rankt OAuth)."
         else
           echo "AI_BACKEND=anthropic" >> "$GITHUB_ENV"
           echo "KI-Backend=Claude/Anthropic (Default — kein Label 'ai:use-zai' an $ENTITY_TYPE #$ENTITY_NUMBER). OAuth via CLAUDE_CODE_OAUTH_TOKEN unberuehrt."

@@ -1,5 +1,8 @@
 default_agent = "auto-approve"
 bypass_tool_permissions = true
+applied_migrations = [
+    "bash_read_only_defaults_v1",
+]
 
 [tools.bash]
 allowlist = [
