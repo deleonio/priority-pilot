@@ -224,3 +224,13 @@ export const getTaskPillarPoints = (task: Task, pillars: Pillar[]): Map<number, 
 	}
 	return points;
 };
+
+/**
+ * Berechnet den Schwellwert für das Säulen-Meter (Issue #410).
+ * Statt den vollen Zielwert als Schwellwert zu nutzen (was zu einer permanenten "suboptimal"-Anzeige
+ * führt), gilt ein Wert als optimal, wenn er >= 75% des Zielwerts erreicht.
+ *
+ * @param target - Der Zielwert als Prozent (0-100), z.B. 20 für 20%
+ * @returns Der Schwellwert als Dezimalbruch (0-1), z.B. 0.15 für 15%
+ */
+export const calculateMeterThreshold = (target: number): number => (target * 0.75) / TOTAL_WEIGHT;

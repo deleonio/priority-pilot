@@ -185,9 +185,7 @@ describe('Dashboard — Säulen-Meter mit 75%-Schwellwert (Issue #410)', () => {
 		// Säule mit Zielwert 20% → Schwellwert 15%
 		// Ist-Wert 14% (unter 15%) → soll suboptimal angezeigt werden
 		const koerper = pillar(1, 'Körper', 20);
-		const tasks = [
-			task(10, [{ pillarId: 1, share: 100, confidence: 100 }], 1.4, TaskStatus.Done),
-		];
+		const tasks = [task(10, [{ pillarId: 1, share: 100, confidence: 100 }], 1.4, TaskStatus.Done)];
 
 		const { container } = render(
 			<Dashboard tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />,
@@ -197,7 +195,6 @@ describe('Dashboard — Säulen-Meter mit 75%-Schwellwert (Issue #410)', () => {
 		expect(meter).not.toBeNull();
 
 		// Der Wert (actualShare) ist unter dem Schwellwert (low)
-		const value = meter?.getAttribute('_value');
 		const low = meter?.getAttribute('_low');
 
 		// actualShare sollte 0.14 sein (1.4 / (1.4 + andere doneEfforts))
@@ -210,9 +207,7 @@ describe('Dashboard — Säulen-Meter mit 75%-Schwellwert (Issue #410)', () => {
 		// Säule mit Zielwert 20% → Schwellwert 15%
 		// Ist-Wert 16% (über 15%) → soll optimal angezeigt werden
 		const koerper = pillar(1, 'Körper', 20);
-		const tasks = [
-			task(10, [{ pillarId: 1, share: 100, confidence: 100 }], 1.6, TaskStatus.Done),
-		];
+		const tasks = [task(10, [{ pillarId: 1, share: 100, confidence: 100 }], 1.6, TaskStatus.Done)];
 
 		const { container } = render(
 			<Dashboard tasks={tasks} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />,
