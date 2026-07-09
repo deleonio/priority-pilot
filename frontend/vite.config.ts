@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { copyFileSync, existsSync, mkdirSync } from 'node:fs';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -32,6 +33,37 @@ const apiProxy = {
 export default defineConfig({
 	plugins: [
 		react(),
+		{
+			name: 'serve-docs-user-guide',
+			configureServer(server) {
+				server.middlewares.use('/user-guide.md', async (req, res) => {
+					const fs = await import('node:fs/promises');
+					const path = await import('node:path');
+					const filePath = path.resolve(__dirname, '../docs/user-guide.md');
+					try {
+						const content = await fs.readFile(filePath, 'utf-8');
+						res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+						return res.end(content);
+					} catch {
+						res.statusCode = 404;
+						return res.end('Handbuch nicht gefunden');
+					}
+				});
+			},
+			apply: 'serve',
+		},
+		{
+			name: 'copy-docs-user-guide',
+			apply: 'build',
+			generateBundle() {
+				const source = resolve(__dirname, '../docs/user-guide.md');
+				const destDir = resolve(__dirname, 'dist');
+				if (!existsSync(destDir)) {
+					mkdirSync(destDir, { recursive: true });
+				}
+				copyFileSync(source, resolve(destDir, 'user-guide.md'));
+			},
+		},
 		VitePWA({
 			registerType: 'prompt',
 			workbox: {

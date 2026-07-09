@@ -11,3 +11,9 @@ Ausfuehrungsvertrag (Session/Scope/Ergebnis-Uebergabe/Eskalation):
 
 Eskalationsstufe: Bei Unklarheit, Mehrdeutigkeit oder unerwartetem Aufwand abbrechen und an den
 Koordinator melden — der entscheidet ueber Eskalation an `heavy` (Opus).
+
+**MCP-Server für Frontend-Implementierung:**
+Auch für einfache Frontend-Aufgaben: Nutze den KoliBri MCP-Server (`@kolibri`) für schnelle
+Beispielsuche (Tool: `search`) oder Code-Abruf (Tool: `fetch`).
+
+Server ist vorkonfiguriert in `.claude/settings.json` und `.vibe/config.toml`.

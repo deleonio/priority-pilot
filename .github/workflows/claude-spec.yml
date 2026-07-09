@@ -42,6 +42,7 @@ jobs:
       CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1'
       BASH_MAX_OUTPUT_LENGTH: '20000'
       CLAUDE_HIDE_BANNER: '1'
+      API_TIMEOUT_MS: '3000000'
     permissions:
       contents: read # Checkout (Schreibzugriff laeuft ueber das App-Token)
       id-token: write # OIDC-Token der Action (sonst fehlt ACTIONS_ID_TOKEN_REQUEST_URL)
@@ -75,7 +76,7 @@ jobs:
         if: steps.preflight.outputs.configured == 'true'
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
-          app-id: ${{ secrets.APP_ID }}
+          client-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
       - name: Checkout
@@ -205,7 +206,12 @@ jobs:
         with:
           issue: ${{ github.event.issue.number }}
           phase: spec
+          fallback-phase: analyse
 
+      # Kein manueller Supersede-Check: issue-getriggerte Läufe tragen head_branch=main und sind
+      # über die Runs-API NICHT auf das konkrete Issue scopebar. Ein namensbasierter Filter würde
+      # quer über verschiedene Issues fälschlich überspringen. Die native concurrency-Gruppe
+      # (claude-spec-<issue-nr>) serialisiert bereits pro Issue -> kein Supersede-Check nötig.
       - name: Spec via Claude Code
         id: claude
         if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
@@ -294,7 +300,6 @@ jobs:
           issue: ${{ github.event.issue.number }}
           phase: spec
           session-id: ${{ steps.claude.outputs.session_id }}
-          gh-token: ${{ steps.app-token.outputs.token }}
 
       # Soft-Abort-Obergrenze (2026-07-08): erkennt einen BEWUSSTEN Zwischenstopp (Claude hat
       # sauber beendet -- outcome success, nicht cancelled -- und ai:spec-ready selbst wieder
@@ -372,6 +377,13 @@ jobs:
           SESSION_ID: ${{ steps.claude.outputs.session_id }}
         run: |
           labels="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "::notice title=✅ Spec erfolgreich::Issue #${ISSUE} — Rote Tests geschrieben"
+          elif [ "$OUTCOME" = "cancelled" ]; then
+            echo "::warning title=⏸️ Spec abgebrochen::Lauf durch neueren Trigger verdrängt (kein Fehler)"
+          else
+            echo "::error title=❌ Spec fehlgeschlagen::Claude-Lauf gescheitert"
+          fi
           {
             echo "### Spec #${ISSUE} — fertig"
             echo ""
