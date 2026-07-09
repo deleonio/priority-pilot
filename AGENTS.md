@@ -116,6 +116,22 @@ Dieser ungeschützte Vorschritt riss bei jedem transienten Fehler den ganzen Lau
 Arbeit lief — die Hauptursache der Unzuverlässigkeit. Die Subagent-Delegation erreicht dasselbe Ziel
 (Sonnet entscheidet, Haiku/Opus führen aus) mit **einem** Lauf und **ohne** CI-JavaScript.
 
+### Bare-Modus (--bare) für alle Workflows
+
+**Alle fünf Claude-Workflows** (Triage, Spec, Implement, PR-Review, PR-Fixup) nutzen standardmäßig den
+`--bare`-Flag der Claude-Code-CLI. Dies bewirkt:
+
+- **Bis zu 10x schnellerer Start:** Keine Suche nach lokalen Konfigurationen, Hooks oder Plugins
+- **Erzwungene Verwendung von Umgebungsvariablen:** Blockiert den automatischen OAuth-Login von Anthropic,
+  sodass Claude Code **ausschließlich** die gesetzten Variablen (`ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY`)
+  verwendet — entscheidend für Drittanbieter wie **z.ai/DeepSeek** (siehe Issue #403)
+- **Reiner Fokus:** Nur Kernwerkzeuge verfügbar (Bash, Read, Edit, Write); MCP-Server, Skills und
+  Plugins sind deaktiviert → deterministisches, reproduzierbares Verhalten
+
+Dies ist besonders in CI/CD-Umgebungen wie GitHub Actions essenziell: schneller Start, sauberes
+Verhalten ohne "Hintergrundgeräusche" und Garantie, dass z.ai-Läufe (Label `ai:use-zai`) tatsächlich den
+DeepSeek-Endpoint nutzen. Vollständige Dokumentation: [.ai-knowledge/bare-mode.md](.ai-knowledge/bare-mode.md).
+
 ## Ticket-Triage
 
 Offene Issues **ohne** Label `ai:analyzed` analysieren (aus Titel + Beschreibung + Repo eine

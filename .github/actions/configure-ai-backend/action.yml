@@ -9,7 +9,12 @@ description: |
   aus Secret ZAI_API_KEY) + ANTHROPIC_DEFAULT_*_MODEL-Alias-Map dazu. API_KEY out-rankt das
   OAuth-Token sauber; ist das Label gesetzt, aber ZAI_API_KEY fehlt, bricht der Schritt
   deterministisch ab (::error, kein stiller Skip). Volle --model-IDs verlassen Claude Code literal
-  und vertrauen auf z.ai serverseitiges Mapping (Issue #403). Siehe AGENTS.md "KI-Agent".
+  und vertrauen auf z.ai serverseitiges Mapping (Issue #403).
+
+  HINWEIS: Alle Aufrufer-Workflows nutzen --bare (Claude-Code-CLI-Flag), was den Start bis zu
+  10x beschleunigt, den automatischen OAuth-Login blockiert und die hier gesetzten Umgebungsvariablen
+  (ANTHROPIC_BASE_URL, ANTHROPIC_API_KEY) erzwingt — besonders wichtig fuer z.ai, da dort OAuth
+  nicht funktioniert. Siehe AGENTS.md "KI-Agent" und "--bare"-Dokumentation in .ai-knowledge/.
 
 inputs:
   entity-type:

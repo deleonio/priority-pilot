@@ -43,6 +43,10 @@ jobs:
           && contains(github.event.pull_request.labels.*.name, 'ai:needs-review') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1'
+      BASH_MAX_OUTPUT_LENGTH: '20000'
+      CLAUDE_HIDE_BANNER: '1'
     permissions:
       contents: read
       id-token: write
@@ -253,7 +257,7 @@ jobs:
             (Selbst-Retrigger — NICHT auf `ai:needs-changes`/`ai:ready-to-merge` umschalten, das
             Review ist noch nicht abgeschlossen). Danach den Turn beenden.
           claude_args: >-
-            --model claude-sonnet-4-6 --effort medium
+            --bare --model claude-sonnet-4-6 --effort medium
             ${{ steps.session-restore.outputs.resume-arg }}
             --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh label:*),Bash(gh api:*),Bash(git fetch:*),Bash(git diff:*),Read,Grep,Glob,Task"
             --append-system-prompt "Automatisierter, label-gesteuerter Kreuzverhoer-Review in GitHub Actions (headless). Reviewe ausschliesslich PR #${{ github.event.pull_request.number }}, aendere keinen Code. Schliesse IMMER mit der Label-Umschaltung als ALLERLETZTEN Schritt ab (NIE davor — erst nach dem Sammelkommentar, da Fixup/Gate-Merge den PR-Stand unmittelbar danach lesen): Findings -> ai:needs-changes (statt ai:needs-review); sauber -> ai:ready-to-merge. Erfinde keine Findings. HARTES 20-Minuten-Timeout, weiches Limit bei 14 Min (Soft-Abort): pruefe vor jedem groesseren Pruefaspekt `date +%s` gegen ${{ steps.starttime.outputs.soft_deadline_epoch }}; ist das erreicht, halte die Teil-Findings im Sammelkommentar als unvollstaendig fest, setze ai:continued UND entferne+setze ai:needs-review neu (Selbst-Retrigger, der Folgelauf setzt per --resume fort) statt ai:needs-changes/ai:ready-to-merge zu setzen, dann beende den Turn. Arbeite ohne interaktive Rueckfrage. Delegations-Strategie s. Prompt-Anfang (heavy/light je nach PR-Komplexitaet)."
