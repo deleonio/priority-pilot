@@ -23,8 +23,9 @@ inputs:
     description: 'Session-ID des gerade beendeten Agent-Schritts (leer -> nichts zu sichern)'
     required: true
   gh-token:
-    description: 'Token mit `actions: write` fuer `gh cache delete` (Key ist sonst immutable)'
-    required: true
+    description: 'DEPRECATED: Wird nicht mehr verwendet. `gh cache delete` nutzt jetzt das standardmaessige GITHUB_TOKEN des Workflows.'
+    required: false
+    default: ''
   outcome:
     description: >-
       Optional: `outcome` des Agent-Schritts (z. B. `steps.claude.outcome`). Nur relevant fuer
@@ -150,7 +151,6 @@ runs:
       if: steps.copy.outputs.changed == 'true'
       shell: bash
       env:
-        GH_TOKEN: ${{ inputs.gh-token }}
         ISSUE: ${{ inputs.issue }}
         ID_TYPE: ${{ inputs.id-type }}
       run: |

@@ -79,7 +79,7 @@ jobs:
         if: steps.preflight.outputs.configured == 'true'
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
-          app-id: ${{ secrets.APP_ID }}
+          client-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
       - name: Checkout
@@ -290,7 +290,6 @@ jobs:
           phase: review
           id-type: pr
           session-id: ${{ steps.claude.outputs.session_id }}
-          gh-token: ${{ steps.app-token.outputs.token }}
 
       # Soft-Abort-Obergrenze (2026-07-08): das Label "ai:continued" wird NUR von Claude selbst
       # gesetzt (expliziter Teil der Stopp-Checkliste) -- eindeutig von einem normal beendeten
