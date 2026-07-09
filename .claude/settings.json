@@ -1,0 +1,13 @@
+{
+	"mcp": {
+		"servers": {
+			"kolibri": {
+				"url": "https://public-ui-kolibri-mcp.vercel.app/mcp",
+				"type": "http"
+			}
+		}
+	},
+	"permissions": {
+		"allow": ["McpServer(kolibri)"]
+	}
+}

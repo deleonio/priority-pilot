@@ -4,6 +4,13 @@ applied_migrations = [
     "bash_read_only_defaults_v1",
 ]
 
+[mcp]
+enabled = true
+
+[mcp.servers.kolibri]
+type = "http"
+url = "https://public-ui-kolibri-mcp.vercel.app/mcp"
+
 [tools.bash]
 allowlist = [
     "basename",
