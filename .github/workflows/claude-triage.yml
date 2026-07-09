@@ -139,9 +139,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      # KI-Backend (Issue #403): Label `ai:use-zai` am Issue waehlt pro Lauf z.ai statt Anthropic
-      # (Default). Schreibt AI_BACKEND=anthropic|zai nach $GITHUB_ENV; bei zai kommen Endpoint +
-      # ANTHROPIC_AUTH_TOKEN (Secret ZAI_API_KEY) dazu. Muss VOR Preflight + claude-code-action.
+      # KI-Backend (Issue #403): Label `ai:use-zai` oder `ai:use-hermes` am Issue waehlt pro Lauf
+      # z.ai oder Hermes statt Anthropic (Default). Schreibt AI_BACKEND=anthropic|zai|hermes nach
+      # $GITHUB_ENV; bei zai kommen Endpoint + ANTHROPIC_API_KEY (Secret ZAI_API_KEY) dazu;
+      # bei hermes wird API_SERVER_ENABLED + API_SERVER_KEY gesetzt.
+      # Muss VOR Preflight + Agent-Schritt.
       - name: KI-Backend konfigurieren
         uses: ./.github/actions/configure-ai-backend
         with:
@@ -149,24 +151,33 @@ jobs:
           entity-number: ${{ github.event.issue.number }}
           gh-token: ${{ steps.app-token.outputs.token || github.token }}
           zai-api-key: ${{ secrets.ZAI_API_KEY }}
+          hermes-api-key: ${{ secrets.HERMES_API_KEY }}
 
       # Deterministischer Agent-Secret-Check (Haerten S2): die OAuth-Token-Voraussetzung fuer
-      # Claude darf NICHT still skippen — fehlt CLAUDE_CODE_OAUTH_TOKEN, bricht der Lauf hier
-      # deterministisch mit einem klaren ::error:: ab (statt erst spaet in der claude-code-action
-      # kryptisch zu sterben). Ai:to-big-issue markiert das Issue als "Mensch muss handeln", damit
-      # es nicht still stale steht (das Label triggert bewusst KEINEN Folge-Workflow, gesetzt mit
-      # github.token wie die Timeouts).
+      # das gewählte Backend darf NICHT still skippen — fehlt das Secret, bricht der Lauf hier
+      # deterministisch mit einem klaren ::error:: ab. Ai:to-big-issue markiert das Issue als
+      # "Mensch muss handeln", damit es nicht still stale steht (das Label triggert bewusst
+      # KEINEN Folge-Workflow, gesetzt mit github.token wie die Timeouts).
       - name: Agent-Secret prüfen (kein stiller Skip)
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          HERMES_API_KEY: ${{ secrets.HERMES_API_KEY }}
           AI_BACKEND: ${{ env.AI_BACKEND }}
           GH_TOKEN: ${{ github.token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
-          if [ "${AI_BACKEND:-}" = "zai" ]; then
-            echo "KI-Backend=zai — Auth via ZAI_API_KEY (in configure-ai-backend validiert). OAuth-Preflight entfaellt."
-            exit 0
-          fi
+          case "${AI_BACKEND:-}" in
+            zai)
+              echo "KI-Backend=zai — Auth via ZAI_API_KEY (in configure-ai-backend validiert). OAuth-Preflight entfaellt."
+              exit 0
+              ;;
+            hermes)
+              echo "KI-Backend=hermes — Auth via HERMES_API_KEY (in configure-ai-backend validiert). OAuth-Preflight entfaellt."
+              exit 0
+              ;;
+          esac
+
+          # Default: Anthropic (Claude Code)
           if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
             echo "::error title=Agent-Secret fehlt::CLAUDE_CODE_OAUTH_TOKEN fehlt — fehlt es, darf der Lauf nicht still skippen (AGENTS.md: bewusstes Opt-in). Secret als Repo-Secret hinterlegen."
             gh label create "ai:to-big-issue" --repo "$GITHUB_REPOSITORY" \
@@ -198,8 +209,53 @@ jobs:
       # über die Runs-API NICHT auf das konkrete Issue scopebar. Die native concurrency-Gruppe
       # (claude-triage-<issue-nr>, cancel-in-progress: true) cancelt einen älteren Lauf desselben
       # Issues bei einem neuen Trigger bereits nativ -> ein manueller Supersede-Check ist redundant.
-      - name: Triage via Claude Code
+
+      # KI-Backend: Falls ai:use-hermes gesetzt ist, wird Hermes Agent verwendet,
+      # sonst Claude Code (Default) oder z.ai. Die configure-ai-backend Action hat
+      # bereits AI_BACKEND, ANTHROPIC_BASE_URL und ANTHROPIC_API_KEY gesetzt.
+      - name: Modell-Konfiguration für Hermes vorbereiten
+        id: hermes-config
+        run: |
+          # Setze Hermes-spezifische Modell-Defaults basierend auf AI_BACKEND
+          case "${{ env.AI_BACKEND }}" in
+            hermes)
+              # Hermes mit Nous Portal oder direktem Provider
+              echo "HERMES_PROVIDER=${{ env.HERMES_PROVIDER || 'anthropic' }}" >> "$GITHUB_ENV"
+              echo "HERMES_MODEL=${{ env.HERMES_MODEL || (github.event_name == 'issue_comment' && 'claude-opus-4-8' || 'claude-opus-4-8') }}" >> "$GITHUB_ENV"
+              echo "HERMES_EFFORT=${{ github.event_name == 'issue_comment' && 'high' || 'max' }}" >> "$GITHUB_ENV"
+              ;;
+            zai)
+              echo "HERMES_PROVIDER=zai" >> "$GITHUB_ENV"
+              echo "HERMES_MODEL=${{ github.event_name == 'issue_comment' && 'glm-5.1' || 'glm-5.2' }}" >> "$GITHUB_ENV"
+              echo "HERMES_EFFORT=${{ github.event_name == 'issue_comment' && 'high' || 'max' }}" >> "$GITHUB_ENV"
+              ;;
+            *)
+              # Default: Anthropic
+              echo "HERMES_PROVIDER=anthropic" >> "$GITHUB_ENV"
+              echo "HERMES_MODEL=${{ github.event_name == 'issue_comment' && 'claude-opus-4-8' || 'claude-opus-4-8' }}" >> "$GITHUB_ENV"
+              echo "HERMES_EFFORT=${{ github.event_name == 'issue_comment' && 'high' || 'max' }}" >> "$GITHUB_ENV"
+              ;;
+          esac
+
+      - name: Triage via Hermes Agent
+        id: hermes
+        if: env.AI_BACKEND == 'hermes'
+        uses: ./.github/actions/hermes-agent-action
+        with:
+          hermes_args: >-
+            --bare
+            --allowedTools "Bash(gh issue:*),Bash(gh api:*),Bash(gh label:*),Read,Grep,Glob,Task"
+            --append-system-prompt "Automatisierter, durch das Anlegen des Issues, das Entfernen des ai:analyzed-/ai:to-big-issue-Labels ODER einen @claude-Kommentar autorisierter Triage-Lauf in GitHub Actions (headless, keine interaktive Rueckfrage moeglich). Die in der Wissensbasis geforderte Bestaetigung vor dem oeffentlichen Posten gilt durch den jeweiligen Ausloeser als erteilt: Schreibe Lektorat und Analyse-Body-Block, poste einen kurzen Ping-Kommentar und setze die Labels ALS ALLERLETZTEN Schritt (NIE davor — sonst startet die naechste Pipeline-Stufe mit veraltetem Issue-Inhalt) fuer Issue #${{ github.event.issue.number }}, ohne auf eine Bestaetigung zu warten. Bearbeite ausschliesslich dieses Issue und committe keinen Produktivcode. HARTES 20-Minuten-Timeout, weiches Limit bei 14 Min (Soft-Abort): pruefe vor jedem groesseren Teilschritt \`date +%s\` gegen ${{ steps.starttime.outputs.soft_deadline_epoch }}; ist das erreicht, sichere die bisherige Analyse als Body-Block (kein Label, kein Ping-Kommentar) und beende den Turn, statt einen vollen Durchlauf zu erzwingen. Modell-Strategie: Du laeufst als Opäquivalent (Opus) — fuer die Analyse ist bewusst das staerkste Modell verdrahtet. Reasoning-Tiefe: max. Fuehre die Analyse vollstaendig selbst durch; allenfalls triviale mechanische Nebenschritte darfst du per Agent-Tool an light (Haiku) delegieren."
+          resume_arg: ${{ steps.session-restore.outputs.resume-arg }}
+          github_token: ${{ steps.app-token.outputs.token || github.token }}
+          hermes_api_key: ${{ env.HERMES_API_SERVER_KEY || '' }}
+          ai_backend: ${{ env.AI_BACKEND }}
+          provider: ${{ env.HERMES_PROVIDER }}
+          model: ${{ env.HERMES_MODEL }}
+
+      - name: Triage via Claude Code (Fallback)
         id: claude
+        if: env.AI_BACKEND != 'hermes'
         uses: anthropics/claude-code-action@558b1d6cab4085c7753fe402c10bef0fbb92ac7a # v1.0.165
         env:
           # gh nutzt das App-Token (falls vorhanden) -> das gesetzte ai:spec-ready loest den
@@ -208,18 +264,7 @@ jobs:
         with:
           claude_code_oauth_token: ${{ env.AI_BACKEND != 'zai' && secrets.CLAUDE_CODE_OAUTH_TOKEN || '' }}
           github_token: ${{ steps.app-token.outputs.token || github.token }}
-          # Erlaubt NUR, dass claude-issue-unblock.yml per App-Bot "ai:analyzed" entfernen und
-          # damit die Re-Analyse eines freigegebenen Nachfolge-Issues anstossen darf (siehe
-          # .ai-knowledge/ticket-triage.md, Schritt 3) — sonst blockt checkHumanActor genau
-          # diesen einen, dokumentierten Trigger (nur der issues/unlabeled-Pfad kann bot-ausgeloest
-          # sein; der issue_comment-Pfad ist immer menschlich, braucht diese Erlaubnis aber nicht
-          # separat, da sie ihm nicht schadet). Alle uebrigen Trigger (opened/unlabeled) bleiben
-          # unveraendert ueber die Job-if-Bedingung auf Schreibzugriff bzw. die zwei konkreten
-          # Labels beschraenkt; Fremd-Bots faellt das nicht zu.
           allowed_bots: 'claude[bot],my-github-action-bot'
-          # (Re-)Triage fuer genau dieses eine Issue. Bewusst natuerlichsprachig formuliert
-          # (nicht als Slash-Command), da die Action keine garantierte Slash-Command-
-          # Ausfuehrung im prompt zusichert; verweist aber auf den verbindlichen Ablauf.
           prompt: |
             Für Issue #${{ github.event.issue.number }} wurde eine (Neu-)Analyse (Triage bzw.
             Re-Triage) angefordert — durch Anlegen des Issues, Entfernen des Labels
@@ -275,22 +320,39 @@ jobs:
             Fortschritt verwirft. Danach den Turn beenden (keine weiteren Schritte mehr versuchen).
 
             Bearbeite ausschliesslich dieses eine Issue (kein Batch). Committe keinen Produktivcode.
-          # Nur die im Triage-Ablauf benoetigten Tools zulassen (headless, keine interaktive
-          # Freigabe) und die in der Wissensbasis geforderte Bestaetigung als durch den
-          # jeweiligen Ereignis-Ausloeser (Anlegen/Label-Entfernen/@claude-Kommentar durch eine
-          # schreibberechtigte Person) erteilt behandeln.
           claude_args: >-
-            --bare --model claude-opus-4-8 --effort ${{ github.event_name == 'issue_comment' && 'high' || 'max' }}
+            --bare --model ${{ env.AI_BACKEND == 'zai' && 'glm-5.2' || 'claude-opus-4-8' }} --effort ${{ github.event_name == 'issue_comment' && 'high' || 'max' }}
             ${{ steps.session-restore.outputs.resume-arg }}
             --allowedTools "Bash(gh issue:*),Bash(gh api:*),Bash(gh label:*),Read,Grep,Glob,Task"
-            --append-system-prompt "Automatisierter, durch das Anlegen des Issues, das Entfernen des ai:analyzed-/ai:to-big-issue-Labels ODER einen @claude-Kommentar autorisierter Triage-Lauf in GitHub Actions (headless, keine interaktive Rueckfrage moeglich). Die in der Wissensbasis geforderte Bestaetigung vor dem oeffentlichen Posten gilt durch den jeweiligen Ausloeser als erteilt: Schreibe Lektorat und Analyse-Body-Block, poste einen kurzen Ping-Kommentar und setze die Labels ALS ALLERLETZTEN Schritt (NIE davor — sonst startet die naechste Pipeline-Stufe mit veraltetem Issue-Inhalt) fuer Issue #${{ github.event.issue.number }}, ohne auf eine Bestaetigung zu warten. Bearbeite ausschliesslich dieses Issue und committe keinen Produktivcode. HARTES 20-Minuten-Timeout, weiches Limit bei 14 Min (Soft-Abort): pruefe vor jedem groesseren Teilschritt `date +%s` gegen ${{ steps.starttime.outputs.soft_deadline_epoch }}; ist das erreicht, sichere die bisherige Analyse als Body-Block (kein Label, kein Ping-Kommentar) und beende den Turn, statt einen vollen Durchlauf zu erzwingen. Modell-Strategie: Du laeufst fest auf Opus (claude-opus-4-8) — fuer die Analyse ist bewusst das staerkste Modell verdrahtet, damit sie optimal ausfaellt. Reasoning-Tiefe haengt vom Ausloeser ab: bei der kontextlosen Erst-Analyse (Issue angelegt/Label entfernt) laeufst du auf --effort max; bei einer Re-Triage per @claude-Kommentar ist bereits ein Mensch mit Korrektur-Kontext aktiv, dort laeufst du auf --effort high (geringerer Grenznutzen von max). Fuehre die Analyse vollstaendig selbst durch (keine Eskalation an heavy noetig — du BIST bereits das staerkste Modell); allenfalls triviale mechanische Nebenschritte darfst du per Agent-Tool an light (Haiku) delegieren."
+            --append-system-prompt "Automatisierter, durch das Anlegen des Issues, das Entfernen des ai:analyzed-/ai:to-big-issue-Labels ODER einen @claude-Kommentar autorisierter Triage-Lauf in GitHub Actions (headless, keine interaktive Rueckfrage moeglich). Die in der Wissensbasis geforderte Bestaetigung vor dem oeffentlichen Posten gilt durch den jeweiligen Ausloeser als erteilt: Schreibe Lektorat und Analyse-Body-Block, poste einen kurzen Ping-Kommentar und setze die Labels ALS ALLERLETZTEN Schritt (NIE davor — sonst startet die naechste Pipeline-Stufe mit veraltetem Issue-Inhalt) fuer Issue #${{ github.event.issue.number }}, ohne auf eine Bestaetigung zu warten. Bearbeite ausschliesslich dieses Issue und committe keinen Produktivcode. HARTES 20-Minuten-Timeout, weiches Limit bei 14 Min (Soft-Abort): pruefe vor jedem groesseren Teilschritt \`date +%s\` gegen ${{ steps.starttime.outputs.soft_deadline_epoch }}; ist das erreicht, sichere die bisherige Analyse als Body-Block (kein Label, kein Ping-Kommentar) und beende den Turn, statt einen vollen Durchlauf zu erzwingen. Modell-Strategie: Du laeufst auf Opus — fuer die Analyse ist bewusst das staerkste Modell verdrahtet, damit sie optimal ausfaellt. Reasoning-Tiefe haengt vom Ausloeser ab: bei der kontextlosen Erst-Analyse (Issue angelegt/Label entfernt) laeufst du auf --effort max; bei einer Re-Triage per @claude-Kommentar ist bereits ein Mensch mit Korrektur-Kontext aktiv, dort laeufst du auf --effort high (geringerer Grenznutzen von max). Fuehre die Analyse vollstaendig selbst durch (keine Eskalation an heavy noetig — du BIST bereits das staerkste Modell); allenfalls triviale mechanische Nebenschritte darfst du per Agent-Tool an light (Haiku) delegieren."
+
+      # Vereinheitlichung der Agent-Ausgaben: Je nach verwendetem Backend (hermes oder claude)
+      # werden die Ausgabewerte hier zusammengeführt, damit die nachgelagerten Schritte
+      # unabhängig vom Backend funktionieren.
+      - name: Agent-Ausgaben vereinheitlichen
+        id: agent-output
+        if: always()
+        run: |
+          # Bestimme, welches Backend verwendet wurde
+          if [ "${{ env.AI_BACKEND }}" = "hermes" ]; then
+            # Hermes wurde verwendet
+            AGENT_STEP="hermes"
+          else
+            # Claude Code wurde verwendet
+            AGENT_STEP="claude"
+          fi
+
+          # Gib die vereinheitlichten Werte aus
+          echo "execution_file=${{ steps[AGENT_STEP].outputs.execution_file }}" >> "$GITHUB_OUTPUT"
+          echo "session_id=${{ steps[AGENT_STEP].outputs.session_id }}" >> "$GITHUB_OUTPUT"
+          echo "outcome=${{ steps[AGENT_STEP].outputs.outcome }}" >> "$GITHUB_OUTPUT"
 
       - name: Kosten-Zusammenfassung
         if: always()
         continue-on-error: true
         uses: ./.github/actions/cost-summary
         with:
-          execution-file: ${{ steps.claude.outputs.execution_file }}
+          execution-file: ${{ steps.agent-output.outputs.execution_file }}
           label: Triage
 
       # Named Session Resume (Phase "analyse"): sichert die eben beendete/abgebrochene Session ins
@@ -308,24 +370,24 @@ jobs:
         with:
           issue: ${{ github.event.issue.number }}
           phase: analyse
-          session-id: ${{ steps.claude.outputs.session_id }}
+          session-id: ${{ steps.agent-output.outputs.session_id }}
           # Elapsed-Guard (Kreuzverhoer-Finding M2, 2026-07-08): dieser Workflow ist der einzige
           # der 5 mit `cancel-in-progress: true` -- ein durch einen neueren Trigger verdraengter
           # Lauf darf NICHT speichern, wenn er fruehzeitig (< 18 Min) abgebrochen wurde, sonst
           # koennte er den bereits vom neueren Lauf gespeicherten frischeren Archiv-Stand
           # ueberschreiben (Cache-Key ist ein einzelner Slot pro Issue, kein Append).
-          outcome: ${{ steps.claude.outcome }}
+          outcome: ${{ steps.agent-output.outputs.outcome }}
           run-start-epoch: ${{ steps.starttime.outputs.epoch }}
 
       # Bei hartem Timeout (Agent-Schritt cancelled) ist das Issue zu gross, um es in einem Lauf zu
       # analysieren: mit "ai:to-big-issue" markieren (Kandidat zum Aufteilen) und ein evtl.
       # vorhandenes "ai:ready" entfernen. Laeuft im Cancellation-Grace-Fenster (if: always(), ~5 Min).
       # Zeit-Guard (WICHTIG bei cancel-in-progress: true): nur labeln, wenn der Lauf das 20-Min-Limit
-      # nahezu ausgeschoepft hat (>= 18 Min). Ein durch ein neueres Issue-Event verdraengter Lauf
-      # (Concurrency-Supersede) erzeugt ebenfalls outcome=cancelled, passiert aber frueher und faellt
-      # so heraus — sonst wuerde ein nur ueberholtes Issue faelschlich als "zu gross" markiert.
+      # nahezu ausgeschöpft hat (>= 18 Min). Ein durch ein neueres Issue-Event verdrängter Lauf
+      # (Concurrency-Supersede) erzeugt ebenfalls outcome=cancelled, passiert aber früher und fällt
+      # so heraus — sonst würde ein nur überholtes Issue fälschlich als "zu gross" markiert.
       - name: Bei Timeout als zu gross markieren (ai:to-big-issue)
-        if: always() && steps.claude.outcome == 'cancelled'
+        if: always() && steps.agent-output.outputs.outcome == 'cancelled'
         env:
           GH_TOKEN: ${{ github.token }}
           ISSUE: ${{ github.event.issue.number }}
@@ -351,22 +413,23 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           ISSUE: ${{ github.event.issue.number }}
-          OUTCOME: ${{ steps.claude.outcome }}
-          SESSION_ID: ${{ steps.claude.outputs.session_id }}
+          OUTCOME: ${{ steps.agent-output.outputs.outcome }}
+          SESSION_ID: ${{ steps.agent-output.outputs.session_id }}
         run: |
           labels="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
+          AGENT_NAME="${{ env.AI_BACKEND == 'hermes' && 'Hermes' || 'Claude' }}"
           if [ "$OUTCOME" = "success" ]; then
             echo "::notice title=✅ Triage erfolgreich::Issue #${ISSUE} vollständig analysiert"
           elif [ "$OUTCOME" = "cancelled" ]; then
             echo "::warning title=⏸️ Triage abgebrochen::Lauf durch neueren Trigger verdrängt (kein Fehler)"
           else
-            echo "::error title=❌ Triage fehlgeschlagen::Claude-Lauf gescheitert"
+            echo "::error title=❌ Triage fehlgeschlagen::${AGENT_NAME}-Lauf gescheitert"
           fi
           {
             echo "### (Re-)Triage #${ISSUE} — fertig"
             echo ""
-            echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\` (cancelled = 20-Min-Timeout erreicht oder Supersede)"
+            echo "- ${AGENT_NAME}-Schritt: \`${OUTCOME:-unbekannt}\` (cancelled = 20-Min-Timeout erreicht oder Supersede)"
             echo "- Aktuelle Labels: ${labels:-keine}"
             if [ -n "$SESSION_ID" ]; then echo "- Session-ID: \`${SESSION_ID}\` (\`--resume\` zum Nachschauen)"; fi
           } >> "$GITHUB_STEP_SUMMARY"
-          echo "::notice title=(Re-)Triage #${ISSUE} fertig::Claude-Schritt ${OUTCOME:-unbekannt}; Labels: ${labels:-keine}"
+          echo "::notice title=(Re-)Triage #${ISSUE} fertig::${AGENT_NAME}-Schritt ${OUTCOME:-unbekannt}; Labels: ${labels:-keine}"

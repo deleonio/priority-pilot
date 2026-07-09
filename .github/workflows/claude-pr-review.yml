@@ -88,10 +88,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      # KI-Backend (Issue #403): Label `ai:use-zai` am PR ODER dessen verlinktem Issue waehlt pro
-      # Lauf z.ai statt Anthropic (Default). Schreibt AI_BACKEND=anthropic|zai nach $GITHUB_ENV; bei
-      # zai kommen Endpoint + ANTHROPIC_AUTH_TOKEN (Secret ZAI_API_KEY) dazu. Muss VOR Preflight +
-      # claude-code-action.
+      # KI-Backend (Issue #403): Label `ai:use-zai` oder `ai:use-hermes` am PR ODER dessen
+      # verlinktem Issue waehlt pro Lauf z.ai oder Hermes statt Anthropic (Default). Schreibt
+      # AI_BACKEND=anthropic|zai|hermes nach $GITHUB_ENV; bei z.ai kommen Endpoint + ANTHROPIC_AUTH_TOKEN
+      # (Secret ZAI_API_KEY) dazu; bei hermes wird API_SERVER_ENABLED + API_SERVER_KEY gesetzt.
+      # Muss VOR Preflight + Agent-Schritt.
       - name: KI-Backend konfigurieren
         if: steps.preflight.outputs.configured == 'true'
         uses: ./.github/actions/configure-ai-backend
@@ -100,9 +101,30 @@ jobs:
           entity-number: ${{ github.event.pull_request.number }}
           gh-token: ${{ steps.app-token.outputs.token }}
           zai-api-key: ${{ secrets.ZAI_API_KEY }}
+          hermes-api-key: ${{ secrets.HERMES_API_KEY }}
+
+      # Modell-Konfiguration für Hermes/Review
+      - name: Modell-Konfiguration für Hermes vorbereiten
+        id: hermes-config
+        if: steps.preflight.outputs.configured == 'true'
+        run: |
+          case "${{ env.AI_BACKEND }}" in
+            hermes)
+              echo "HERMES_PROVIDER=${{ env.HERMES_PROVIDER || 'anthropic' }}" >> "$GITHUB_ENV"
+              echo "HERMES_MODEL=${{ env.HERMES_MODEL || 'claude-sonnet-4-6' }}" >> "$GITHUB_ENV"
+              ;;
+            zai)
+              echo "HERMES_PROVIDER=zai" >> "$GITHUB_ENV"
+              echo "HERMES_MODEL=glm-4.7" >> "$GITHUB_ENV"
+              ;;
+            *)
+              echo "HERMES_PROVIDER=anthropic" >> "$GITHUB_ENV"
+              echo "HERMES_MODEL=claude-sonnet-4-6" >> "$GITHUB_ENV"
+              ;;
+          esac
 
       # Deterministischer Agent-Secret-Check (Haerten S2): die OAuth-Token-Voraussetzung fuer
-      # Claude darf NICHT still skippen — fehlt CLAUDE_CODE_OAUTH_TOKEN, bricht der Lauf hier
+      # das gewählte Backend darf NICHT still skippen — fehlt das Secret, bricht der Lauf hier
       # deterministisch ab (::error::, kein stiller Skip). Der Reviewer-Check wird rot -> Gate
       # setzt ai:needs-changes -> sichtbar. Zusaetzlich ein PR-Kommentar (statt Issue-Label wie
       # bei triage/spec/implement — PR-Workflows vergeben bewusst kein ai:to-big-issue, s.
@@ -112,14 +134,23 @@ jobs:
         if: steps.preflight.outputs.configured == 'true'
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          HERMES_API_KEY: ${{ secrets.HERMES_API_KEY }}
           AI_BACKEND: ${{ env.AI_BACKEND }}
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR: ${{ github.event.pull_request.number }}
         run: |
-          if [ "${AI_BACKEND:-}" = "zai" ]; then
-            echo "KI-Backend=zai — Auth via ZAI_API_KEY (in configure-ai-backend validiert). OAuth-Preflight entfaellt."
-            exit 0
-          fi
+          case "${AI_BACKEND:-}" in
+            zai)
+              echo "KI-Backend=zai — Auth via ZAI_API_KEY (in configure-ai-backend validiert). OAuth-Preflight entfaellt."
+              exit 0
+              ;;
+            hermes)
+              echo "KI-Backend=hermes — Auth via HERMES_API_KEY (in configure-ai-backend validiert). OAuth-Preflight entfaellt."
+              exit 0
+              ;;
+          esac
+
+          # Default: Anthropic (Claude Code)
           if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
             echo "::error title=Agent-Secret fehlt::CLAUDE_CODE_OAUTH_TOKEN fehlt — fehlt es, darf der Lauf nicht still skippen (AGENTS.md: bewusstes Opt-in). Secret als Repo-Secret hinterlegen."
             gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "🛑 **Kreuzverhör-Review #${PR} — Agent-Secret fehlt**
@@ -159,6 +190,22 @@ jobs:
           phase: review
           id-type: pr
 
+      - name: Kreuzverhoer-Review via Hermes Agent
+        id: hermes
+        if: steps.preflight.outputs.configured == 'true' && env.AI_BACKEND == 'hermes'
+        uses: ./.github/actions/hermes-agent-action
+        with:
+          hermes_args: >-
+            --bare
+            --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh label:*),Bash(gh api:*),Bash(git fetch:*),Bash(git diff:*),Read,Grep,Glob,Task"
+            --append-system-prompt "Automatisierter, label-gesteuerter Kreuzverhoer-Review in GitHub Actions (headless). Reviewe ausschliesslich PR #${{ github.event.pull_request.number }}, aendere keinen Code. Schliesse IMMER mit der Label-Umschaltung als ALLERLETZTEN Schritt ab (NIE davor — erst nach dem Sammelkommentar, da Fixup/Gate-Merge den PR-Stand unmittelbar danach lesen): Findings -> ai:needs-changes (statt ai:needs-review); sauber -> ai:ready-to-merge. Erfinde keine Findings. HARTES 20-Minuten-Timeout, weiches Limit bei 14 Min (Soft-Abort): pruefe vor jedem groesseren Pruefaspekt `date +%s` gegen ${{ steps.starttime.outputs.soft_deadline_epoch }}; ist das erreicht, halte die Teil-Findings im Sammelkommentar als unvollstaendig fest, setze ai:continued UND entferne+setze ai:needs-review neu (Selbst-Retrigger, der Folgelauf setzt per --resume fort) statt ai:needs-changes/ai:ready-to-merge zu setzen, dann beende den Turn. Arbeite ohne interaktive Rueckfrage. Delegations-Strategie: Bewerte zunaechst die PR-Komplexitaet und delegiere via Agent-Tool an heavy (Opus) fuer komplexe/architektonische PRs oder light (Haiku) fuer triviale/mechanische PRs; Standard-Reviews fuehrst du selbst auf Sonnet durch."
+          resume_arg: ${{ steps.session-restore.outputs.resume-arg }}
+          github_token: ${{ steps.app-token.outputs.token }}
+          hermes_api_key: ${{ env.HERMES_API_SERVER_KEY || '' }}
+          ai_backend: ${{ env.AI_BACKEND }}
+          provider: ${{ env.HERMES_PROVIDER || 'anthropic' }}
+          model: claude-sonnet-4-6
+
       - name: Supersede-Check
         id: supersede-check
         # Scope auf DENSELBEN PR (head_branch): Der Filter matcht sonst nur den Workflow-NAMEN und
@@ -179,9 +226,9 @@ jobs:
             echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Kreuzverhoer-Review via Claude Code
+      - name: Kreuzverhoer-Review via Claude Code (Fallback)
         id: claude
-        if: steps.preflight.outputs.configured == 'true' && steps.supersede-check.outputs.skip != 'true'
+        if: steps.preflight.outputs.configured == 'true' && steps.supersede-check.outputs.skip != 'true' && env.AI_BACKEND != 'hermes'
         uses: anthropics/claude-code-action@558b1d6cab4085c7753fe402c10bef0fbb92ac7a # v1.0.165
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }} # Labels als App-Token -> loesen Folge-Workflows aus
@@ -270,12 +317,26 @@ jobs:
             --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh label:*),Bash(gh api:*),Bash(git fetch:*),Bash(git diff:*),Read,Grep,Glob,Task"
             --append-system-prompt "Automatisierter, label-gesteuerter Kreuzverhoer-Review in GitHub Actions (headless). Reviewe ausschliesslich PR #${{ github.event.pull_request.number }}, aendere keinen Code. Schliesse IMMER mit der Label-Umschaltung als ALLERLETZTEN Schritt ab (NIE davor — erst nach dem Sammelkommentar, da Fixup/Gate-Merge den PR-Stand unmittelbar danach lesen): Findings -> ai:needs-changes (statt ai:needs-review); sauber -> ai:ready-to-merge. Erfinde keine Findings. HARTES 20-Minuten-Timeout, weiches Limit bei 14 Min (Soft-Abort): pruefe vor jedem groesseren Pruefaspekt `date +%s` gegen ${{ steps.starttime.outputs.soft_deadline_epoch }}; ist das erreicht, halte die Teil-Findings im Sammelkommentar als unvollstaendig fest, setze ai:continued UND entferne+setze ai:needs-review neu (Selbst-Retrigger, der Folgelauf setzt per --resume fort) statt ai:needs-changes/ai:ready-to-merge zu setzen, dann beende den Turn. Arbeite ohne interaktive Rueckfrage. Delegations-Strategie s. Prompt-Anfang (heavy/light je nach PR-Komplexitaet)."
 
+      # Vereinheitlichung der Agent-Ausgaben
+      - name: Agent-Ausgaben vereinheitlichen
+        id: agent-output
+        if: always()
+        run: |
+          if [ "${{ env.AI_BACKEND }}" = "hermes" ]; then
+            AGENT_STEP="hermes"
+          else
+            AGENT_STEP="claude"
+          fi
+          echo "execution_file=${{ steps[AGENT_STEP].outputs.execution_file }}" >> "$GITHUB_OUTPUT"
+          echo "session_id=${{ steps[AGENT_STEP].outputs.session_id }}" >> "$GITHUB_OUTPUT"
+          echo "outcome=${{ steps[AGENT_STEP].outputs.outcome }}" >> "$GITHUB_OUTPUT"
+
       - name: Kosten-Zusammenfassung
         if: always()
         continue-on-error: true
         uses: ./.github/actions/cost-summary
         with:
-          execution-file: ${{ steps.claude.outputs.execution_file }}
+          execution-file: ${{ steps.agent-output.outputs.execution_file }}
           label: Review
 
       # Named Session Resume (Phase "review"): sichert die eben beendete/abgebrochene Session ins
@@ -289,7 +350,7 @@ jobs:
           issue: ${{ github.event.pull_request.number }}
           phase: review
           id-type: pr
-          session-id: ${{ steps.claude.outputs.session_id }}
+          session-id: ${{ steps.agent-output.outputs.session_id }}
 
       # Soft-Abort-Obergrenze (2026-07-08): das Label "ai:continued" wird NUR von Claude selbst
       # gesetzt (expliziter Teil der Stopp-Checkliste) -- eindeutig von einem normal beendeten
@@ -301,7 +362,7 @@ jobs:
       # wuerde.
       - name: Soft-Abort-Fortsetzung erkennen und begrenzen (ai:continued)
         id: soft-abort-cap
-        if: always() && steps.preflight.outputs.configured == 'true' && steps.claude.outcome == 'success'
+        if: always() && steps.preflight.outputs.configured == 'true' && steps.agent-output.outputs.outcome == 'success'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR: ${{ github.event.pull_request.number }}
@@ -335,8 +396,8 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR: ${{ github.event.pull_request.number }}
-          OUTCOME: ${{ steps.claude.outcome }}
-          SESSION_ID: ${{ steps.claude.outputs.session_id }}
+          OUTCOME: ${{ steps.agent-output.outputs.outcome }}
+          SESSION_ID: ${{ steps.agent-output.outputs.session_id }}
         run: |
           labels="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
           if [ "$OUTCOME" = "success" ]; then
@@ -363,7 +424,7 @@ jobs:
       # ECHTES Timeout (kein Supersede wie bei cancel-in-progress:true), daher kein Zeit-Guard
       # noetig. Dieser Schritt postet bei Timeout einen sichtbaren PR-Kommentar als Alarm.
       - name: Bei Timeout PR-Kommentar (Alarm)
-        if: always() && steps.preflight.outputs.configured == 'true' && steps.claude.outcome == 'cancelled'
+        if: always() && steps.preflight.outputs.configured == 'true' && steps.agent-output.outputs.outcome == 'cancelled'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR: ${{ github.event.pull_request.number }}
@@ -383,7 +444,7 @@ jobs:
         # steps.soft-abort-cap.outputs.handled == 'true' -- der Soft-Abort-Cap-Step hat diesen Lauf
         # bereits als bewussten Zwischenstopp (oder dessen Erschoepfung) behandelt; die Post-
         # Assertion soll dieses Ergebnis NICHT mit dem Safe-Default ai:needs-changes ueberschreiben.
-        if: always() && steps.preflight.outputs.configured == 'true' && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure') && steps.soft-abort-cap.outputs.handled != 'true'
+        if: always() && steps.preflight.outputs.configured == 'true' && (steps.agent-output.outputs.outcome == 'success' || steps.agent-output.outputs.outcome == 'failure') && steps.soft-abort-cap.outputs.handled != 'true'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR: ${{ github.event.pull_request.number }}

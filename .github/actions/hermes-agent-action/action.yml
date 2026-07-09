@@ -1,0 +1,179 @@
+name: Hermes Agent
+description: |
+  Führt Hermes Agent als Ersatz für anthropics/claude-code-action aus.
+  Unterstützt Anthropic-kompatible APIs (Claude, z.ai, OpenRouter, etc.) und native Hermes-Funktionen.
+
+  Verwendet Docker für deterministische Ausführung in GitHub Actions.
+
+  Voraussetzungen (Repo-Secrets):
+  - HERMES_API_KEY (für API-Server-Modus)
+  - ODER provider-spezifische Keys (z. B. ANTHROPIC_API_KEY, GLM_API_KEY)
+
+inputs:
+  hermes_args:
+    description: 'Argumente für hermes chat (z. B. --provider --model --allowedTools)'
+    required: true
+    type: string
+  github_token:
+    description: 'GitHub Token für gh-Befehle'
+    required: true
+    type: string
+  hermes_api_key:
+    description: 'API-Key für Hermes API-Server (optional, falls API_SERVER_ENABLED=true)'
+    required: false
+    type: string
+  ai_backend:
+    description: 'KI-Backend (anthropic|zai|hermes|openrouter)'
+    required: false
+    type: string
+    default: 'anthropic'
+  provider:
+    description: 'Provider für Hermes (z. B. anthropic, zai, openrouter)'
+    required: false
+    type: string
+    default: ''
+  model:
+    description: 'Modell (z. B. claude-sonnet-4-6, glm-4.7)'
+    required: false
+    type: string
+    default: ''
+  resume_arg:
+    description: 'Session-Resume Argument (z. B. --resume session-id)'
+    required: false
+    type: string
+    default: ''
+
+outputs:
+  session_id:
+    description: 'Hermes Session-ID (für Resume)'
+    value: ${{ steps.run-hermes.outputs.session_id }}
+  execution_file:
+    description: 'Ausführungsdatei (für Kosten-Zusammenfassung)'
+    value: ${{ steps.run-hermes.outputs.execution_file }}
+  outcome:
+    description: 'Ergebnis (success|cancelled|failure)'
+    value: ${{ steps.run-hermes.outputs.outcome }}
+
+runs:
+  using: composite
+  steps:
+    # Umgebungsvariablen für Docker vorbereiten
+    - name: Umgebungsvariablen konfigurieren
+      id: configure-env
+      shell: bash
+      run: |
+        # Setze Provider-spezifische Variablen basierend auf ai_backend
+        case "${{ inputs.ai_backend }}" in
+          zai)
+            echo "HERMES_PROVIDER=zai" >> "$GITHUB_ENV"
+            echo "HERMES_MODEL=${{ inputs.model || 'glm-4.7' }}" >> "$GITHUB_ENV"
+            echo "ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic" >> "$GITHUB_ENV"
+            echo "ANTHROPIC_API_KEY=${{ secrets.ZAI_API_KEY }}" >> "$GITHUB_ENV"
+            ;;
+          openrouter)
+            echo "HERMES_PROVIDER=openrouter" >> "$GITHUB_ENV"
+            echo "HERMES_MODEL=${{ inputs.model || 'anthropic/claude-sonnet-4-6' }}" >> "$GITHUB_ENV"
+            echo "OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}" >> "$GITHUB_ENV"
+            ;;
+          hermes)
+            echo "HERMES_PROVIDER=custom" >> "$GITHUB_ENV"
+            echo "HERMES_MODEL=${{ inputs.model || 'hermes-agent' }}" >> "$GITHUB_ENV"
+            echo "HERMES_API_SERVER_ENABLED=true" >> "$GITHUB_ENV"
+            echo "HERMES_API_SERVER_KEY=${{ inputs.hermes_api_key }}" >> "$GITHUB_ENV"
+            echo "ANTHROPIC_BASE_URL=http://localhost:8642/v1" >> "$GITHUB_ENV"
+            echo "ANTHROPIC_API_KEY=${{ inputs.hermes_api_key }}" >> "$GITHUB_ENV"
+            ;;
+          *)
+            # Default: Anthropic
+            echo "HERMES_PROVIDER=anthropic" >> "$GITHUB_ENV"
+            echo "HERMES_MODEL=${{ inputs.model || 'claude-sonnet-4-6' }}" >> "$GITHUB_ENV"
+            echo "CLAUDE_CODE_OAUTH_TOKEN=${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}" >> "$GITHUB_ENV"
+            ;;
+        esac
+
+        # Übernehme explizite Provider/Model-Inputs falls gesetzt
+        if [ -n "${{ inputs.provider }}" ]; then
+          echo "HERMES_PROVIDER=${{ inputs.provider }}" >> "$GITHUB_ENV"
+        fi
+        if [ -n "${{ inputs.model }}" ]; then
+          echo "HERMES_MODEL=${{ inputs.model }}" >> "$GITHUB_ENV"
+        fi
+
+    # Hermes in Docker ausführen
+    - name: Hermes Agent ausführen
+      id: run-hermes
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+        # Performance-Optimierungen (wie bei Claude Code)
+        HERMES_DISABLE_TELEMETRY: '1'
+        BASH_MAX_OUTPUT_LENGTH: '20000'
+        HERMES_HIDE_BANNER: '1'
+        API_TIMEOUT_MS: '3000000'
+      run: |
+        # Baue Docker-Befehl
+        DOCKER_ARGS=()
+        DOCKER_ARGS+=("-e" "GH_TOKEN=$GH_TOKEN")
+        DOCKER_ARGS+=("-e" "HERMES_PROVIDER=$HERMES_PROVIDER")
+        DOCKER_ARGS+=("-e" "HERMES_MODEL=$HERMES_MODEL")
+        DOCKER_ARGS+=("-e" "HERMES_DISABLE_TELEMETRY=$HERMES_DISABLE_TELEMETRY")
+        DOCKER_ARGS+=("-e" "BASH_MAX_OUTPUT_LENGTH=$BASH_MAX_OUTPUT_LENGTH")
+        DOCKER_ARGS+=("-e" "HERMES_HIDE_BANNER=$HERMES_HIDE_BANNER")
+        DOCKER_ARGS+=("-e" "API_TIMEOUT_MS=$API_TIMEOUT_MS")
+
+        # Provider-spezifische Keys
+        if [ -n "$ANTHROPIC_BASE_URL" ]; then
+          DOCKER_ARGS+=("-e" "ANTHROPIC_BASE_URL=$ANTHROPIC_BASE_URL")
+        fi
+        if [ -n "$ANTHROPIC_API_KEY" ]; then
+          DOCKER_ARGS+=("-e" "ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY")
+        fi
+        if [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
+          DOCKER_ARGS+=("-e" "CLAUDE_CODE_OAUTH_TOKEN=$CLAUDE_CODE_OAUTH_TOKEN")
+        fi
+        if [ -n "$OPENROUTER_API_KEY" ]; then
+          DOCKER_ARGS+=("-e" "OPENROUTER_API_KEY=$OPENROUTER_API_KEY")
+        fi
+        if [ -n "$ZAI_API_KEY" ]; then
+          DOCKER_ARGS+=("-e" "ZAI_API_KEY=$ZAI_API_KEY")
+          DOCKER_ARGS+=("-e" "GLM_API_KEY=$ZAI_API_KEY")
+        fi
+        if [ -n "$HERMES_API_SERVER_ENABLED" ]; then
+          DOCKER_ARGS+=("-e" "API_SERVER_ENABLED=$HERMES_API_SERVER_ENABLED")
+          DOCKER_ARGS+=("-e" "API_SERVER_KEY=$HERMES_API_SERVER_KEY")
+          DOCKER_ARGS+=("-e" "API_SERVER_HOST=0.0.0.0")
+          DOCKER_ARGS+=("-e" "API_SERVER_PORT=8642")
+        fi
+
+        # Führe Hermes aus
+        # Hermess Args aus inputs hermes_args + resume_arg kombinieren
+        COMBINED_ARGS="${{ inputs.hermes_args }} ${{ inputs.resume_arg }}"
+
+        echo "Starte Hermes mit Args: $COMBINED_ARGS"
+
+        # Docker run mit den gesetzten Variablen
+        docker run \
+          --rm \
+          -v "$PWD:/workspace" \
+          -w "/workspace" \
+          "${DOCKER_ARGS[@]}" \
+          ghcr.io/nousresearch/hermes-agent:latest \
+          hermes chat \
+            --bare \
+            --provider "$HERMES_PROVIDER" \
+            --model "$HERMES_MODEL" \
+            $COMBINED_ARGS \
+            2>&1 | tee hermes-execution.log
+
+        # Extrahiere Session-ID aus der Ausführung (Hermes gibt diese in Logs aus)
+        # Falls nicht verfügbar, generiere eine Dummy-ID für Kompatibilität
+        SESSION_ID=$(grep -oP 'session-[a-f0-9-]{36}' hermes-execution.log | head -1 || echo "session-$(date +%s)")
+        echo "session_id=$SESSION_ID" >> "$GITHUB_OUTPUT"
+        echo "execution_file=hermes-execution.log" >> "$GITHUB_OUTPUT"
+
+        # Bestimme Outcome basierend auf Exit-Code
+        if [ $? -eq 0 ]; then
+          echo "outcome=success" >> "$GITHUB_OUTPUT"
+        else
+          echo "outcome=failure" >> "$GITHUB_OUTPUT"
+        fi

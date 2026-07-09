@@ -1,20 +1,21 @@
-name: KI-Backend konfigurieren (Claude-Default, z.ai per Issue-Label)
+name: KI-Backend konfigurieren (Claude-Default, z.ai per Issue-Label, Hermes)
 description: |
-  Entscheidet pro Lauf, ob Claude Code gegen Anthropic (Default) oder den Anthropic-kompatiblen
-  z.ai-Endpoint laeuft — gesteuert ueber das Label `ai:use-zai` auf dem Issue. Issue-Stufen
-  (Triage/Spec/Implement) lesen die Labels des Issues; PR-Stufen (Review/Fixup) lesen die Labels des
-  PR zusaetzlich zu denen des verlinkten Issues (Closes #N), sodass EIN Label auf dem Issue die ganze
-  Pipeline steuert. Fail-open: ist nichts aufloesbar, gilt der Claude-Default. Schreibt AI_BACKEND
-  (anthropic|zai) nach $GITHUB_ENV; bei zai kommen ANTHROPIC_BASE_URL + ANTHROPIC_API_KEY (Bearer,
-  aus Secret ZAI_API_KEY) + ANTHROPIC_DEFAULT_*_MODEL-Alias-Map dazu. API_KEY out-rankt das
-  OAuth-Token sauber; ist das Label gesetzt, aber ZAI_API_KEY fehlt, bricht der Schritt
-  deterministisch ab (::error, kein stiller Skip). Volle --model-IDs verlassen Claude Code literal
-  und vertrauen auf z.ai serverseitiges Mapping (Issue #403).
+  Entscheidet pro Lauf, ob Claude Code gegen Anthropic (Default), den Anthropic-kompatiblen
+  z.ai-Endpoint oder Hermes Agent laeuft — gesteuert ueber die Labels `ai:use-zai` bzw. `ai:use-hermes`
+  auf dem Issue. Issue-Stufen (Triage/Spec/Implement) lesen die Labels des Issues; PR-Stufen
+  (Review/Fixup) lesen die Labels des PR zusaetzlich zu denen des verlinkten Issues (Closes #N),
+  sodass EIN Label auf dem Issue die ganze Pipeline steuert. Fail-open: ist nichts aufloesbar,
+  gilt der Claude-Default. Schreibt AI_BACKEND (anthropic|zai|hermes) nach $GITHUB_ENV;
+  bei z.ai kommen ANTHROPIC_BASE_URL + ANTHROPIC_API_KEY (Bearer, aus Secret ZAI_API_KEY) +
+  ANTHROPIC_DEFAULT_*_MODEL-Alias-Map dazu; bei hermes wird API_SERVER_ENABLED + API_SERVER_KEY
+  gesetzt. API_KEY out-rankt das OAuth-Token sauber; ist das Label gesetzt, aber der Key fehlt,
+  bricht der Schritt deterministisch ab (::error, kein stiller Skip). Volle --model-IDs verlassen
+  Claude Code/Hermes literal und vertrauen auf serverseitiges Mapping.
 
-  HINWEIS: Alle Aufrufer-Workflows nutzen --bare (Claude-Code-CLI-Flag), was den Start bis zu
-  10x beschleunigt, den automatischen OAuth-Login blockiert und die hier gesetzten Umgebungsvariablen
-  (ANTHROPIC_BASE_URL, ANTHROPIC_API_KEY) erzwingt — besonders wichtig fuer z.ai, da dort OAuth
-  nicht funktioniert. Siehe AGENTS.md "KI-Agent" und "--bare"-Dokumentation in .ai-knowledge/.
+  HINWEIS: Alle Aufrufer-Workflows nutzen --bare (Claude-Code-CLI-Flag) bzw. das Hermes-Aequivalent,
+  was den Start beschleunigt, den automatischen OAuth-Login blockiert und die hier gesetzten
+  Umgebungsvariablen (ANTHROPIC_BASE_URL, ANTHROPIC_API_KEY) erzwingt. Siehe AGENTS.md "KI-Agent"
+  und "--bare"-Dokumentation in .ai-knowledge/.
 
 inputs:
   entity-type:
@@ -30,17 +31,22 @@ inputs:
     description: 'z.ai-API-Key aus dem Secret ZAI_API_KEY.'
     required: false
     default: ''
+  hermes-api-key:
+    description: 'Hermes API-Key aus dem Secret HERMES_API_KEY (für API-Server-Modus).'
+    required: false
+    default: ''
 
 runs:
   using: composite
   steps:
-    - name: KI-Backend aus Label `ai:use-zai` ableiten
+    - name: KI-Backend aus Labels ableiten
       shell: bash
       env:
         ENTITY_TYPE: ${{ inputs.entity-type }}
         ENTITY_NUMBER: ${{ inputs.entity-number }}
         GH_TOKEN: ${{ inputs.gh-token }}
         ZAI_API_KEY: ${{ inputs.zai-api-key }}
+        HERMES_API_KEY: ${{ inputs.hermes-api-key }}
       run: |
         set +e
         # Labels der Entitaet sammeln (Issue ODER PR + ggf. verlinktes Issue). Fail-open: jeder
@@ -58,14 +64,32 @@ runs:
           fi
         }
 
-        if collect_labels | grep -qx 'ai:use-zai'; then
+        labels=$(collect_labels)
+
+        # Pruefe auf ai:use-hermes (Hermes Agent)
+        if echo "$labels" | grep -qx 'ai:use-hermes'; then
+          if [ -z "$HERMES_API_KEY" ]; then
+            echo "::error title=KI-Backend Hermes::Label 'ai:use-hermes' gesetzt, aber Secret HERMES_API_KEY fehlt — als Repo-Secret hinterlegen (oder Label entfernen fuer Claude-Default)."
+            exit 1
+          fi
+          {
+            echo "AI_BACKEND=hermes"
+            echo "HERMES_API_SERVER_ENABLED=true"
+            echo "HERMES_API_SERVER_KEY=$HERMES_API_KEY"
+            echo "ANTHROPIC_BASE_URL=http://localhost:8642/v1"
+            echo "ANTHROPIC_API_KEY=$HERMES_API_KEY"
+          } >> "$GITHUB_ENV"
+          echo "KI-Backend=Hermes Agent aktiv (Label 'ai:use-hermes' an $ENTITY_TYPE #$ENTITY_NUMBER) — API-Server auf Port 8642."
+          
+        # Pruefe auf ai:use-zai (z.ai / DeepSeek)
+        elif echo "$labels" | grep -qx 'ai:use-zai'; then
           if [ -z "$ZAI_API_KEY" ]; then
             echo "::error title=KI-Backend z.ai::Label 'ai:use-zai' gesetzt, aber Secret ZAI_API_KEY fehlt — als Repo-Secret hinterlegen (oder Label entfernen fuer Claude-Default)."
             exit 1
           fi
           # GLM-Coding-Plan-Map (gleiche Werte wie das lokale .claude/settings.local.json).
           # Alias-Aufloesung (opus/sonnet/haiku/fable) -> u. a. Subagent-Delegation; volle
-          # --model-IDs verlasst Claude Code literal, z.ai mappt serverseitig.
+          # --model-IDs verlasst Claude Code/Hermes literal, z.ai mappt serverseitig.
           {
             echo "AI_BACKEND=zai"
             echo "ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic"
@@ -78,5 +102,5 @@ runs:
           echo "KI-Backend=z.ai aktiv (Label 'ai:use-zai' an $ENTITY_TYPE #$ENTITY_NUMBER) — Endpoint umgeleitet, Auth via ANTHROPIC_API_KEY (out-rankt OAuth)."
         else
           echo "AI_BACKEND=anthropic" >> "$GITHUB_ENV"
-          echo "KI-Backend=Claude/Anthropic (Default — kein Label 'ai:use-zai' an $ENTITY_TYPE #$ENTITY_NUMBER). OAuth via CLAUDE_CODE_OAUTH_TOKEN unberuehrt."
+          echo "KI-Backend=Claude/Anthropic (Default — kein Label 'ai:use-hermes' oder 'ai:use-zai' an $ENTITY_TYPE #$ENTITY_NUMBER). OAuth via CLAUDE_CODE_OAUTH_TOKEN unberuehrt."
         fi
