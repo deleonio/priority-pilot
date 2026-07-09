@@ -224,3 +224,23 @@ export const getTaskPillarPoints = (task: Task, pillars: Pillar[]): Map<number, 
 	}
 	return points;
 };
+
+/**
+ * Berechnet den niedrigen Schwellwert für das Säulen-Meter (Issue #410).
+ *
+ * - Werte < 75% des Zielwerts gelten als "suboptimal"
+ * - Werte >= 75% und < 100% gelten als "neutral"
+ * - Werte >= 100% gelten als "optimal"
+ *
+ * @param target - Der Zielwert als Prozent (0-100), z.B. 20 für 20%
+ * @returns Der niedrige Schwellwert (75% des Zielwerts) als Dezimalbruch (0-1), z.B. 0.15 für 15%
+ */
+export const calculateMeterThreshold = (target: number): number => (target * 0.75) / TOTAL_WEIGHT;
+
+/**
+ * Berechnet den hohen Schwellwert (100% des Zielwerts) für das Säulen-Meter (Issue #410).
+ *
+ * @param target - Der Zielwert als Prozent (0-100), z.B. 20 für 20%
+ * @returns Der mittlere Schwellwert (100% des Zielwerts) als Dezimalbruch (0-1), z.B. 0.20 für 20%
+ */
+export const calculateMeterHighThreshold = (target: number): number => target / TOTAL_WEIGHT;
