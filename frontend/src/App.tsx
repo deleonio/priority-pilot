@@ -1,4 +1,4 @@
-import { KolAlert, KolAvatar, KolSpin, KolTabs, KolToolbar } from '@public-ui/react-v19';
+import { KolAlert, KolAvatar, KolInputRadio, KolSpin, KolTabs, KolToolbar } from '@public-ui/react-v19';
 import type { Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -19,6 +19,7 @@ import { SeriesTab } from './components/SeriesTab';
 import { SettingsPage } from './components/SettingsPage';
 import { TaskFormModal } from './components/TaskFormModal';
 import { TaskTree } from './components/TaskTree';
+import { filterForestByTitle } from './lib/filterForestByTitle';
 import { toApiError } from './lib/apiError';
 import type { AuthUser } from './lib/auth';
 import { buildDependencyMap } from './lib/dependencies';
@@ -38,13 +39,7 @@ type Dialog =
 // Die Hauptansichten als Tab-Leiste oben (Inhalt steckt in den zugehörigen `tab-N`-Slots von
 // `KolTabs`). Modulkonstante, damit `KolTabs` nicht bei jedem Render eine neue Tab-Liste erhält und
 // die Auswahl zurücksetzt.
-const VIEW_TABS = [
-	{ _label: 'Dashboard' },
-	{ _label: 'Aufgaben' },
-	{ _label: 'Serien' },
-	{ _label: 'Aufgabenwald' },
-	{ _label: 'Erledigte Aufgaben' },
-];
+const VIEW_TABS = [{ _label: 'Dashboard' }, { _label: 'Aufgaben' }, { _label: 'Serien' }, { _label: 'Aufgabenwald' }];
 
 // Modulkonstanten für Toolbar-Icons: stabile Objektidentität pro Render, damit der Icon-Watcher
 // nicht unnötig erneut feuert (z. B. CREATE_ICON für „Neuen Task anlegen").
@@ -72,6 +67,10 @@ export const App = ({ user }: { user: AuthUser }) => {
 	const [updateError, setUpdateError] = useState<string | null>(null);
 	const [activeTab, setActiveTab] = useState(0);
 	const doneRemovalTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+
+	// Aufgaben-Tab: Suchtext und Offen/Erledigt-Switch (State wird beim Umschalten erhalten, AK6).
+	const [taskSearch, setTaskSearch] = useState('');
+	const [taskViewMode, setTaskViewMode] = useState<'open' | 'done'>('open');
 
 	const reload = useCallback(async (signal?: AbortSignal): Promise<void> => {
 		setLoading(true);
@@ -198,6 +197,18 @@ export const App = ({ user }: { user: AuthUser }) => {
 		forest.forEach(visit);
 		return map;
 	}, [forest]);
+
+	// Gefilterter Aufgabenwald für den offenen Baum (Titel-Suchfilter).
+	const filteredForest = useMemo(() => filterForestByTitle(forest, taskSearch), [forest, taskSearch]);
+
+	// Gefilterte erledigte Aufgaben für die Tabelle (Titel-Suchfilter).
+	const filteredCompletedTasks = useMemo(() => {
+		if (tasks === null) return [];
+		const doneTasks = tasks.filter((task) => task.status === TaskStatus.Done && !forestTaskIds.has(task.id));
+		if (taskSearch.trim() === '') return doneTasks;
+		const query = taskSearch.trim().toLowerCase();
+		return doneTasks.filter((task) => task.title.toLowerCase().includes(query));
+	}, [tasks, forestTaskIds, taskSearch]);
 
 	const handleLogout = useCallback(async (): Promise<void> => {
 		setLogoutLoading(true);
@@ -444,26 +455,82 @@ export const App = ({ user }: { user: AuthUser }) => {
 					</div>
 					<div slot="tab-1">
 						<section className="task-section">
-							<TaskTree
-								forest={forest}
-								tasks={tasks}
-								progressMap={progressMap}
-								onEdit={openEdit}
-								onDelete={openDelete}
-								onEditDependencies={openDependencies}
-								onAddSubtask={openAddSubtask}
-								onDoneToggle={handleDoneToggle}
-							/>
+							<div className="task-filter-bar">
+								<KolInputRadio
+									_label="Aufgaben-Ansicht"
+									_hideLabel
+									_options={[
+										{ label: 'Offen', value: 'open' },
+										{ label: 'Erledigt', value: 'done' },
+									]}
+									_value={taskViewMode}
+									_on={{
+										onChange: (_event, value) => {
+											setTaskViewMode(value as 'open' | 'done');
+										},
+									}}
+								/>
+								<input
+									type="text"
+									className="task-filter-search"
+									placeholder="Nach Titel filtern…"
+									aria-label="Nach Titel filtern"
+									value={taskSearch}
+									onChange={(e) => setTaskSearch(e.target.value)}
+								/>
+							</div>
+							{taskViewMode === 'open' ? (
+								filteredForest.length === 0 ? (
+									taskSearch.trim() === '' ? (
+										<TaskTree
+											forest={filteredForest}
+											tasks={tasks}
+											progressMap={progressMap}
+											onEdit={openEdit}
+											onDelete={openDelete}
+											onEditDependencies={openDependencies}
+											onAddSubtask={openAddSubtask}
+											onDoneToggle={handleDoneToggle}
+										/>
+									) : (
+										<p className="empty-state">Keine Aufgaben gefunden. Passen Sie ggf. die Filter an.</p>
+									)
+								) : (
+									<TaskTree
+										forest={filteredForest}
+										tasks={tasks}
+										progressMap={progressMap}
+										onEdit={openEdit}
+										onDelete={openDelete}
+										onEditDependencies={openDependencies}
+										onAddSubtask={openAddSubtask}
+										onDoneToggle={handleDoneToggle}
+									/>
+								)
+							) : filteredCompletedTasks.length === 0 ? (
+								taskSearch.trim() === '' ? (
+									<CompletedTasksTable
+										tasks={filteredCompletedTasks}
+										pillars={pillars}
+										forestTaskIds={forestTaskIds}
+										onReloaded={reload}
+									/>
+								) : (
+									<p className="empty-state">Keine Aufgaben gefunden. Passen Sie ggf. die Filter an.</p>
+								)
+							) : (
+								<CompletedTasksTable
+									tasks={filteredCompletedTasks}
+									pillars={pillars}
+									forestTaskIds={forestTaskIds}
+									onReloaded={reload}
+								/>
+							)}
 						</section>
 					</div>
 					<div slot="tab-2">{activeTab === 2 && <SeriesTab pillars={pillars} />}</div>
 					<div slot="tab-3">
 						<ForestPanel forest={forest} />
-					</div>
-					<div slot="tab-4">
-						<section className="task-section">
-							<CompletedTasksTable tasks={tasks} pillars={pillars} forestTaskIds={forestTaskIds} onReloaded={reload} />
-						</section>
 					</div>
 				</KolTabs>
 			)}

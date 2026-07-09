@@ -140,7 +140,6 @@ test.describe('Priority Pilot — Aufgaben-Tab mit Filter und Switch (#399) gege
 
 		const matchTitle = uniqueTitle('Matching Parent');
 		const nonMatchTitle = uniqueTitle('Non-Matching');
-		const childMatchTitle = uniqueTitle('Child Matching');
 
 		// Struktur: Matching Parent → Child Matching + Non-Matching Child
 		await createTaskViaUi(page, matchTitle);
