@@ -5,6 +5,7 @@ import {
 	ADD_PILLAR_PLACEHOLDER,
 	addPillarOptions,
 	buildPillarSummaries,
+	calculateMeterHighThreshold,
 	calculateMeterThreshold,
 	getTaskPillarPoints,
 	isRawDistributionValid,
@@ -488,5 +489,45 @@ describe('#410 calculateMeterThreshold — Schwellwert für Säulen-Meter', () =
 		expect(calculateMeterThreshold(33.33)).toBeCloseTo(0.249975, 10);
 		// Zielwert 16.67% → Schwellwert 0.125025 (16.67 * 0.75 / 100)
 		expect(calculateMeterThreshold(16.67)).toBeCloseTo(0.125025, 10);
+	});
+});
+
+// --- #410: Säulen-Meter — mittlerer Schwellwert (100% des Zielwerts) ---
+
+describe('#410 calculateMeterHighThreshold — mittlerer Schwellwert für Säulen-Meter', () => {
+	it('AK1: berechnet den hohen Schwellwert als 100% des Zielwerts', () => {
+		// Zielwert 20% → mittlerer Schwellwert 20%
+		expect(calculateMeterHighThreshold(20)).toBeCloseTo(0.2, 10);
+		// Zielwert 25% → mittlerer Schwellwert 25%
+		expect(calculateMeterHighThreshold(25)).toBeCloseTo(0.25, 10);
+		// Zielwert 10% → mittlerer Schwellwert 10%
+		expect(calculateMeterHighThreshold(10)).toBeCloseTo(0.1, 10);
+	});
+
+	it('AK2: der mittlere Schwellwert ist immer 100% des Zielwerts', () => {
+		// Verschiedene Zielwerte, alle mit dem Faktor 1.0
+		expect(calculateMeterHighThreshold(40)).toBeCloseTo(0.4, 10);
+		expect(calculateMeterHighThreshold(60)).toBeCloseTo(0.6, 10);
+		expect(calculateMeterHighThreshold(100)).toBeCloseTo(1, 10);
+	});
+
+	it('AK3: der mittlere Schwellwert wird als Dezimalbruch (0–1) zurückgegeben', () => {
+		// Zielwert 20% → mittlerer Schwellwert 0.2 (nicht 20)
+		const threshold = calculateMeterHighThreshold(20);
+		expect(threshold).toBeGreaterThanOrEqual(0);
+		expect(threshold).toBeLessThanOrEqual(1);
+	});
+
+	it('AK4: der mittlere Schwellwert liegt immer im Bereich [0, 1]', () => {
+		// Szenario: 5 Säulen mit je 20% Gewicht
+		expect(calculateMeterHighThreshold(20)).toBeCloseTo(0.2, 10);
+		// Szenario: 4 Säulen mit je 25% Gewicht
+		expect(calculateMeterHighThreshold(25)).toBeCloseTo(0.25, 10);
+		// Szenario: 2 Säulen mit je 50% Gewicht
+		expect(calculateMeterHighThreshold(50)).toBeCloseTo(0.5, 10);
+	});
+
+	it('AK5: Bei Zielwert 0% ist auch der mittlere Schwellwert 0%', () => {
+		expect(calculateMeterHighThreshold(0)).toBe(0);
 	});
 });
