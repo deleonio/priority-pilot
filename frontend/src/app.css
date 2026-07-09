@@ -999,36 +999,31 @@ body {
 	margin-bottom: 1.5rem;
 }
 
-.task-filter-bar kol-input-radio {
+.task-filter-bar .task-view-switch {
 	flex-shrink: 0;
 }
 
+/* Such-Eingabe (KolInputText, type=search) und „Filtern"-Button (KolButton) in einer Zeile. */
 .task-filter-search {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
 	flex: 1;
 	min-width: 0;
-	padding: 0.5rem 0.75rem;
-	border: 1px solid var(--pp-border);
-	border-radius: 0.375rem;
-	background-color: var(--pp-bg);
-	color: var(--pp-text);
-	font-size: 0.875rem;
-	font-family: inherit;
 }
 
-.task-filter-search::placeholder {
-	color: var(--pp-text-muted);
+.task-filter-search__field {
+	flex: 1;
+	min-width: 0;
 }
 
-.task-filter-search:focus {
-	outline: 2px solid var(--pp-accent-open);
-	outline-offset: 1px;
+.task-filter-search__submit {
+	flex-shrink: 0;
 }
 
 /* Empty-State Meldung für Filter ohne Treffer */
 .empty-state {
-	padding: 1rem;
 	color: var(--pp-text-muted);
 	text-align: center;
 	border-radius: 0.375rem;
-	background-color: var(--pp-bg-muted);
 }
