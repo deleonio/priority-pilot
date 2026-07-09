@@ -290,14 +290,18 @@ describe('Dokumentation für --bare Modus', () => {
 			const content = readWorkflow(wf);
 			assert.match(
 				content,
-				/CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC:\s*"1"/,
-				`${wf} muss CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC="1" setzen`,
+				/CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC:\s*["']1["']/,
+				`${wf} muss CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC="1" oder '1' setzen`,
 			);
 		});
 
 		it(`${wf} setzt BASH_MAX_OUTPUT_LENGTH=20000`, () => {
 			const content = readWorkflow(wf);
-			assert.match(content, /BASH_MAX_OUTPUT_LENGTH:\s*"20000"/, `${wf} muss BASH_MAX_OUTPUT_LENGTH="20000" setzen`);
+			assert.match(
+				content,
+				/BASH_MAX_OUTPUT_LENGTH:\s*["']20000["']/,
+				`${wf} muss BASH_MAX_OUTPUT_LENGTH="20000" oder '20000' setzen`,
+			);
 		});
 
 		it(`${wf} setzt CLAUDE_HIDE_BANNER=1`, () => {
