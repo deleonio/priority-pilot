@@ -225,7 +225,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           running=$(gh api repos/${GITHUB_REPOSITORY}/actions/runs \
-            --jq ".workflow_runs[] | select(.name == \"Claude Implement\" and (.status == \"queued\" or .status == \"in_progress\")) | .id" 2>/dev/null | head -1)
+            --jq ".workflow_runs[] | select(.name == \"Claude Implement\" and (.status == \"queued\" or .status == \"in_progress\") and .id != ${{ github.run_id }}) | .id" 2>/dev/null | head -1)
           if [ -n "$running" ]; then
             echo "::notice::Ein Implement-Lauf für Issue #${{ github.event.issue.number }} läuft bereits — dieser Trigger wird übersprungen."
             echo "skip=true" >> "$GITHUB_OUTPUT"
