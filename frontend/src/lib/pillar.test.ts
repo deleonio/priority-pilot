@@ -5,6 +5,7 @@ import {
 	ADD_PILLAR_PLACEHOLDER,
 	addPillarOptions,
 	buildPillarSummaries,
+	calculateMeterThreshold,
 	getTaskPillarPoints,
 	isRawDistributionValid,
 	isWeightSumValid,
@@ -439,5 +440,53 @@ describe('getTaskPillarPoints', () => {
 		expect(total).toBeCloseTo(t.estimatedEffort * (shareSum / 100), 10);
 		// Bei vollständiger 100 %-Verteilung entspricht die Summe genau dem Gesamtaufwand.
 		expect(total).toBeCloseTo(8, 10);
+	});
+});
+
+// --- #410: Säulen-Meter optimieren — Schwellwert 75% des Zielwerts ---
+
+describe('#410 calculateMeterThreshold — Schwellwert für Säulen-Meter', () => {
+	it('AK1: berechnet den Schwellwert als 75% des Zielwerts (Gewichtung)', () => {
+		// Zielwert 20% → Schwellwert 15%
+		expect(calculateMeterThreshold(20)).toBeCloseTo(0.15, 10);
+		// Zielwert 25% → Schwellwert 18.75%
+		expect(calculateMeterThreshold(25)).toBeCloseTo(0.1875, 10);
+		// Zielwert 10% → Schwellwert 7.5%
+		expect(calculateMeterThreshold(10)).toBeCloseTo(0.075, 10);
+	});
+
+	it('AK2: der Schwellwert ist immer 75% des Zielwerts, unabhängig von der Gewichtung', () => {
+		// Verschiedene Zielwerte, alle mit demselben Faktor 0.75
+		expect(calculateMeterThreshold(40)).toBeCloseTo(0.3, 10);
+		expect(calculateMeterThreshold(60)).toBeCloseTo(0.45, 10);
+		expect(calculateMeterThreshold(100)).toBeCloseTo(0.75, 10);
+	});
+
+	it('AK3: der Schwellwert wird als Dezimalbruch (0–1) zurückgegeben, nicht als Prozent', () => {
+		// Zielwert 20% → Schwellwert 0.15 (nicht 15)
+		const threshold = calculateMeterThreshold(20);
+		expect(threshold).toBeGreaterThanOrEqual(0);
+		expect(threshold).toBeLessThanOrEqual(1);
+		expect(threshold).not.toBeGreaterThan(1);
+	});
+
+	it('AK4: der Schwellwert liegt immer im Bereich [0, 1]', () => {
+		// Szenario: 5 Säulen mit je 20% Gewicht
+		expect(calculateMeterThreshold(20)).toBeCloseTo(0.15, 10);
+		// Szenario: 4 Säulen mit je 25% Gewicht
+		expect(calculateMeterThreshold(25)).toBeCloseTo(0.1875, 10);
+		// Szenario: 2 Säulen mit je 50% Gewicht
+		expect(calculateMeterThreshold(50)).toBeCloseTo(0.375, 10);
+	});
+
+	it('AK5: Bei Zielwert 0% ist auch der Schwellwert 0%', () => {
+		expect(calculateMeterThreshold(0)).toBe(0);
+	});
+
+	it('AK6: Rundungsgenauigkeit — der Schwellwert ist auf 10 Dezimalstellen genau', () => {
+		// Zielwert 33.33% → Schwellwert 0.249975 (33.33 * 0.75 / 100)
+		expect(calculateMeterThreshold(33.33)).toBeCloseTo(0.249975, 10);
+		// Zielwert 16.67% → Schwellwert 0.125025 (16.67 * 0.75 / 100)
+		expect(calculateMeterThreshold(16.67)).toBeCloseTo(0.125025, 10);
 	});
 });
