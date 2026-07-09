@@ -222,6 +222,7 @@ jobs:
         with:
           issue: ${{ github.event.issue.number }}
           phase: impl
+          fallback-phase: spec
 
       # Kein manueller Supersede-Check: issue-getriggerte Läufe tragen head_branch=main und sind
       # über die Runs-API NICHT auf das konkrete Issue scopebar. Ein namensbasierter Filter würde

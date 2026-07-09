@@ -19,6 +19,14 @@ inputs:
       (review/fix) uebergeben "pr", da im Event nur die PR-Nummer verfuegbar ist.
     required: false
     default: issue
+  fallback-phase:
+    description: >-
+      Optional: Vorgaenger-Phase, deren Session als FALLBACK wiederhergestellt wird, wenn die
+      eigene Phase (`phase`) noch keine eigene gespeicherte Session hat (erster Lauf). Nur im
+      issue-Namensraum (spec->analyse, impl->spec). Leer (Default) = kein Fallback (Verhalten wie
+      bisher). Review bleibt bewusst OHNE Fallback (Kreuzverhoer-Unabhaengigkeit).
+    required: false
+    default: ''
 
 outputs:
   resume-arg:
@@ -30,6 +38,9 @@ outputs:
   restored:
     description: "'true', wenn eine vorhandene Session wiederhergestellt wurde, sonst 'false'"
     value: ${{ steps.restore.outputs.restored }}
+  restored-from:
+    description: 'Phasenname, aus dem tatsaechlich wiederhergestellt wurde (eigene ODER fallback-phase); leer bei Miss'
+    value: ${{ steps.restore.outputs.restored-from }}
 
 runs:
   using: composite
@@ -50,6 +61,7 @@ runs:
         ISSUE: ${{ inputs.issue }}
         PHASE: ${{ inputs.phase }}
         ID_TYPE: ${{ inputs.id-type }}
+        FALLBACK_PHASE: ${{ inputs.fallback-phase }}
       run: |
         source "${{ github.action_path }}/../session-lib.sh"
         archive_dir="$(archive_dir_for "$ID_TYPE" "$ISSUE")"
@@ -62,32 +74,57 @@ runs:
             echo "resume-arg="
             echo "session-id="
             echo "restored=false"
+            echo "restored-from="
           } >> "$GITHUB_OUTPUT"
           exit 0
         }
 
-        [ -f "$sessions_file" ] || miss
-        session_id="$(jq -er --arg phase "$PHASE" '.[$phase].session_id // empty' "$sessions_file" 2>/dev/null)" || miss
-        [ -n "$session_id" ] || miss
-        # Defense-in-depth: nur ein UUID-foermiger Wert wird in --resume gespleisst/nach
-        # GITHUB_OUTPUT geschrieben (Kreuzverhoer-Finding 2026-07-08) -- die Quelle ist zwar nur
-        # Claudes eigener Output bzw. unser eigenes Archiv, nicht direkt extern steuerbar, aber die
-        # Pruefung ist so billig, dass sie sich lohnt.
-        [[ "$session_id" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]] || miss
+        # Hilfsfunktion: versucht eine Phase wiederherzustellen
+        # Return 0 bei Erfolg, 1 bei Miss (setzt keine Outputs, nur interne Variablen)
+        try_phase() {
+          local target_phase="$1"
+          local target_id
+          target_id="$(jq -er --arg phase "$target_phase" '.[$phase].session_id // empty' "$sessions_file" 2>/dev/null)" || return 1
+          [ -n "$target_id" ] || return 1
+          # UUID-Validierung
+          [[ "$target_id" =~ ^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$ ]] || return 1
 
-        session_file="$archive_dir/$PHASE/$session_id.jsonl"
-        [ -s "$session_file" ] || miss
+          local target_file="$archive_dir/$target_phase/$target_id.jsonl"
+          [ -s "$target_file" ] || return 1
+
+          # Erfolg: setze interne Variablen
+          RESOLVED_PHASE="$target_phase"
+          RESOLVED_ID="$target_id"
+          RESOLVED_FILE="$target_file"
+          return 0
+        }
+
+        [ -f "$sessions_file" ] || miss
+
+        # Zwei-Versuch-Logik: zuerst eigene Phase, dann Fallback
+        RESOLVED_PHASE=""
+        RESOLVED_ID=""
+        RESOLVED_FILE=""
+
+        # 1. Versuche eigene Phase
+        if try_phase "$PHASE"; then
+          echo "::notice title=Session-Archiv::${ID_TYPE} #$ISSUE Phase $PHASE -- Session $RESOLVED_ID wiederhergestellt (--resume)."
+        elif [ -n "$FALLBACK_PHASE" ] && try_phase "$FALLBACK_PHASE"; then
+          echo "::notice title=Session-Archiv::${ID_TYPE} #$ISSUE Phase $PHASE -- Fallback auf Vorgaenger-Phase '$FALLBACK_PHASE' mit Session $RESOLVED_ID wiederhergestellt (--resume)."
+        else
+          miss
+        fi
 
         project_dir="$(claude_project_dir)"
         mkdir -p "$project_dir" 2>/dev/null || miss
-        cp "$session_file" "$project_dir/$session_id.jsonl" 2>/dev/null || miss
-        if [ -d "$archive_dir/$PHASE/$session_id" ]; then
-          cp -r "$archive_dir/$PHASE/$session_id" "$project_dir/$session_id" 2>/dev/null || true
+        cp "$RESOLVED_FILE" "$project_dir/$RESOLVED_ID.jsonl" 2>/dev/null || miss
+        if [ -d "$archive_dir/$RESOLVED_PHASE/$RESOLVED_ID" ]; then
+          cp -r "$archive_dir/$RESOLVED_PHASE/$RESOLVED_ID" "$project_dir/$RESOLVED_ID" 2>/dev/null || true
         fi
 
-        echo "::notice title=Session-Archiv::${ID_TYPE} #$ISSUE Phase $PHASE -- Session $session_id wiederhergestellt (--resume)."
         {
-          echo "resume-arg=--resume $session_id"
-          echo "session-id=$session_id"
+          echo "resume-arg=--resume $RESOLVED_ID"
+          echo "session-id=$RESOLVED_ID"
           echo "restored=true"
+          echo "restored-from=$RESOLVED_PHASE"
         } >> "$GITHUB_OUTPUT"

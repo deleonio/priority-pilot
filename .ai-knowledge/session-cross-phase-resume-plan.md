@@ -1,6 +1,6 @@
 # Plan: Selektives Cross-Phase Session-Resume (Issue-Namespace)
 
-> Status: Vorschlag / noch nicht umgesetzt. Aufbewahrt zur späteren Umsetzung.
+> Status: **UMGESETZT** (2026-07-09). Alle Änderungen implementiert und getestet.
 
 ## Context
 
