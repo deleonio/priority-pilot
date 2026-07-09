@@ -1003,18 +1003,21 @@ body {
 	flex-shrink: 0;
 }
 
-/* Such-Eingabe (KolInputText, type=search) und „Filtern"-Button (KolButton) in einer Zeile. */
+/* Such-Eingabe (KolInputText, type=search) und „Filtern"-Button (KolButton) in einer Zeile.
+   flex-basis 100% → auf schmalen Viewports rutscht die Zeile unter den Switch und nimmt die volle
+   Breite ein; das Feld schrumpft dank min-width:0, der Button bleibt fest. Kein H-Overflow (AK7). */
 .task-filter-search {
 	display: flex;
 	align-items: center;
 	gap: 0.5rem;
-	flex: 1;
+	flex: 1 1 100%;
 	min-width: 0;
 }
 
 .task-filter-search__field {
-	flex: 1;
+	flex: 1 1 auto;
 	min-width: 0;
+	width: 100%;
 }
 
 .task-filter-search__submit {

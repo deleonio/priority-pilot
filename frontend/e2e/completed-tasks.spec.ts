@@ -31,17 +31,20 @@ test.describe('Priority Pilot — Erledigt-Ansicht (#228/#307) gegen das echte B
 	});
 
 	// Seit #399 gibt es keinen separaten „Erledigte Aufgaben"-Tab mehr: Offen und Erledigt sind ein
-	// einziger „Aufgaben"-Tab mit einem Offen/Erledigt-Umschalter (KolInputRadio). Die Navigation läuft
-	// daher über den Tab plus den passenden Radio-Wert.
+	// einziger „Aufgaben"-Tab mit einem Offen/Erledigt-Umschalter (KolInputCheckbox variant="switch",
+	// Rolle checkbox „Erledigte Aufgaben anzeigen": ungeprüft = offen, geprüft = erledigt). Die
+	// Navigation läuft daher über den Tab plus check/uncheck des Umschalters (idempotent).
+	const viewSwitch = (page: Page) => page.getByRole('checkbox', { name: /Erledigte Aufgaben/i });
+
 	const openTasksTab = async (page: Page): Promise<void> => {
 		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
-		await page.getByRole('radio', { name: 'Offen' }).click();
+		await viewSwitch(page).uncheck();
 		await waitForStableView(page);
 	};
 
 	const openCompletedTab = async (page: Page): Promise<void> => {
 		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
-		await page.getByRole('radio', { name: 'Erledigt' }).click();
+		await viewSwitch(page).check();
 		await waitForStableView(page);
 	};
 
@@ -56,7 +59,7 @@ test.describe('Priority Pilot — Erledigt-Ansicht (#228/#307) gegen das echte B
 		await page.getByRole('button', { name: 'Überspringen' }).click();
 		await waitForStableView(page);
 
-		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
+		await page.getByRole('textbox', { name: 'Titel', exact: true }).fill(title);
 		await page.getByRole('button', { name: 'Anlegen', exact: true }).click();
 
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();

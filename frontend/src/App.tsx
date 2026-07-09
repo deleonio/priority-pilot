@@ -1,4 +1,13 @@
-import { KolAlert, KolAvatar, KolInputRadio, KolSpin, KolTabs, KolToolbar } from '@public-ui/react-v19';
+import {
+	KolAlert,
+	KolAvatar,
+	KolButton,
+	KolInputCheckbox,
+	KolInputText,
+	KolSpin,
+	KolTabs,
+	KolToolbar,
+} from '@public-ui/react-v19';
 import type { Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -69,8 +78,13 @@ export const App = ({ user }: { user: AuthUser }) => {
 	const doneRemovalTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
 
 	// Aufgaben-Tab: Suchtext und Offen/Erledigt-Switch (State wird beim Umschalten erhalten, AK6).
+	// `searchDraft` ist der Eingabe-Entwurf im Suchfeld; der Filter wird erst per „Filtern"-Button
+	// oder Enter in `taskSearch` übernommen (deferred filter). `taskSearch` treibt die gefilterten Listen.
 	const [taskSearch, setTaskSearch] = useState('');
+	const [searchDraft, setSearchDraft] = useState('');
 	const [taskViewMode, setTaskViewMode] = useState<'open' | 'done'>('open');
+	// Übernimmt den aktuellen Eingabe-Entwurf als aktiven Filter (Button-Klick oder Enter im Suchfeld).
+	const applyTaskFilter = useCallback((value: string): void => setTaskSearch(value), []);
 
 	const reload = useCallback(async (signal?: AbortSignal): Promise<void> => {
 		setLoading(true);
@@ -456,28 +470,45 @@ export const App = ({ user }: { user: AuthUser }) => {
 					<div slot="tab-1">
 						<section className="task-section">
 							<div className="task-filter-bar">
-								<KolInputRadio
-									_label="Aufgaben-Ansicht"
-									_hideLabel
-									_options={[
-										{ label: 'Offen', value: 'open' },
-										{ label: 'Erledigt', value: 'done' },
-									]}
-									_value={taskViewMode}
+								<KolInputCheckbox
+									className="task-view-switch"
+									_label="Erledigte Aufgaben anzeigen"
+									_variant="switch"
+									_checked={taskViewMode === 'done'}
 									_on={{
-										onChange: (_event, value) => {
-											setTaskViewMode(value as 'open' | 'done');
+										onChange: (_event, checked) => {
+											setTaskViewMode(checked === true ? 'done' : 'open');
 										},
 									}}
 								/>
-								<input
-									type="text"
-									className="task-filter-search"
-									placeholder="Nach Titel filtern…"
-									aria-label="Nach Titel filtern"
-									value={taskSearch}
-									onChange={(e) => setTaskSearch(e.target.value)}
-								/>
+								<div className="task-filter-search">
+									<KolInputText
+										className="task-filter-search__field"
+										_label="Nach Titel filtern"
+										_hideLabel
+										_type="search"
+										_placeholder="Nach Titel filtern…"
+										_value={searchDraft}
+										_on={{
+											onInput: (event: Event) => {
+												setSearchDraft((event.target as HTMLInputElement).value);
+											},
+											// Enter übernimmt den Entwurf sofort als aktiven Filter (neben dem „Filtern"-Button).
+											onKeyDown: (event: KeyboardEvent) => {
+												if (event.key === 'Enter') {
+													applyTaskFilter((event.target as HTMLInputElement).value);
+												}
+											},
+										}}
+									/>
+									<KolButton
+										className="task-filter-search__submit"
+										_label="Filtern"
+										_variant="primary"
+										_icons="fa-solid fa-magnifying-glass"
+										_on={{ onClick: () => applyTaskFilter(searchDraft) }}
+									/>
+								</div>
 							</div>
 							{taskViewMode === 'open' ? (
 								filteredForest.length === 0 ? (
