@@ -189,8 +189,22 @@ jobs:
           issue: ${{ github.event.issue.number }}
           phase: analyse
 
+      - name: Supersede-Check
+        id: supersede-check
+        if: github.event_name == 'issue_comment'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          running=$(gh api repos/${GITHUB_REPOSITORY}/actions/runs \
+            --jq ".workflow_runs[] | select(.name == \"Claude Triage (Analyse)\" and (.status == \"queued\" or .status == \"in_progress\")) | .id" 2>/dev/null | head -1)
+          if [ -n "$running" ]; then
+            echo "::notice::Ein Triage-Lauf für Issue #${{ github.event.issue.number }} läuft bereits — dieser Trigger wird übersprungen."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Triage via Claude Code
         id: claude
+        if: steps.supersede-check.outputs.skip != 'true'
         uses: anthropics/claude-code-action@558b1d6cab4085c7753fe402c10bef0fbb92ac7a # v1.0.165
         env:
           # gh nutzt das App-Token (falls vorhanden) -> das gesetzte ai:spec-ready loest den
@@ -347,10 +361,17 @@ jobs:
           SESSION_ID: ${{ steps.claude.outputs.session_id }}
         run: |
           labels="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "::notice title=✅ Triage erfolgreich::Issue #${ISSUE} vollständig analysiert"
+          elif [ "$OUTCOME" = "cancelled" ]; then
+            echo "::warning title=⏸️ Triage abgebrochen::Lauf durch neueren Trigger verdrängt (kein Fehler)"
+          else
+            echo "::error title=❌ Triage fehlgeschlagen::Claude-Lauf gescheitert"
+          fi
           {
             echo "### (Re-)Triage #${ISSUE} — fertig"
             echo ""
-            echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\` (cancelled = 20-Min-Timeout erreicht)"
+            echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\` (cancelled = 20-Min-Timeout erreicht oder Supersede)"
             echo "- Aktuelle Labels: ${labels:-keine}"
             if [ -n "$SESSION_ID" ]; then echo "- Session-ID: \`${SESSION_ID}\` (\`--resume\` zum Nachschauen)"; fi
           } >> "$GITHUB_STEP_SUMMARY"

@@ -218,9 +218,22 @@ jobs:
           issue: ${{ github.event.issue.number }}
           phase: impl
 
+      - name: Supersede-Check
+        id: supersede-check
+        if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          running=$(gh api repos/${GITHUB_REPOSITORY}/actions/runs \
+            --jq ".workflow_runs[] | select(.name == \"Claude Implement\" and (.status == \"queued\" or .status == \"in_progress\")) | .id" 2>/dev/null | head -1)
+          if [ -n "$running" ]; then
+            echo "::notice::Ein Implement-Lauf für Issue #${{ github.event.issue.number }} läuft bereits — dieser Trigger wird übersprungen."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Umsetzung via Claude Code
         id: claude
-        if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
+        if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true' && steps.supersede-check.outputs.skip != 'true'
         uses: anthropics/claude-code-action@558b1d6cab4085c7753fe402c10bef0fbb92ac7a # v1.0.165
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }} # gh nutzt das App-Token -> erstellter PR loest Review aus
@@ -401,10 +414,17 @@ jobs:
           SESSION_ID: ${{ steps.claude.outputs.session_id }}
         run: |
           labels="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "::notice title=✅ Umsetzung erfolgreich::Issue #${ISSUE} — Tests grün gemacht"
+          elif [ "$OUTCOME" = "cancelled" ]; then
+            echo "::warning title=⏸️ Umsetzung abgebrochen::Lauf durch neueren Trigger verdrängt (kein Fehler)"
+          else
+            echo "::error title=❌ Umsetzung fehlgeschlagen::Claude-Lauf gescheitert"
+          fi
           {
             echo "### Umsetzung #${ISSUE} — fertig"
             echo ""
-            echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\` (cancelled = 20-Min-Timeout erreicht)"
+            echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\` (cancelled = 20-Min-Timeout erreicht oder Supersede)"
             echo "- Aktuelle Issue-Labels: ${labels:-keine}"
             if [ -n "$SESSION_ID" ]; then echo "- Session-ID: \`${SESSION_ID}\` (\`--resume\` zum Nachschauen)"; fi
           } >> "$GITHUB_STEP_SUMMARY"
