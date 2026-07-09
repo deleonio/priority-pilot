@@ -8,6 +8,13 @@
 		}
 	},
 	"permissions": {
-		"allow": ["McpServer(kolibri)"]
+		"allow": [
+			"McpServer(kolibri)",
+			"McpTool(hello_kolibri)",
+			"McpTool(search)",
+			"McpTool(fetch)",
+			"McpResource(kolibri://info)",
+			"McpResource(kolibri://best-practices)"
+		]
 	}
 }
