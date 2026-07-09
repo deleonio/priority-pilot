@@ -45,13 +45,13 @@ Ganz oben findest du die **Kopf-Aktionen** (als Icon-Buttons):
 
 Rechts daneben stehen dein Profilbild und dein Name.
 
-Darunter wechselst du über eine **Tab-Leiste** zwischen den fünf Hauptansichten:
+Darunter wechselst du über eine **Tab-Leiste** zwischen den vier Hauptansichten:
 
 1. **Dashboard** – Überblick und Empfehlungen
-2. **Aufgaben** – deine Aufgaben anlegen und pflegen
+2. **Aufgaben** – deine Aufgaben anlegen und pflegen; ein Umschalter wechselt hier
+   zwischen **offenen** und **erledigten** Aufgaben
 3. **Serien** – wiederkehrende Aufgaben
 4. **Aufgabenwald** – die Priorisierung als Baum
-5. **Erledigte Aufgaben** – Abgeschlossenes und dein Punktestand
 
 ---
 
@@ -84,6 +84,15 @@ begrüßt es dich mit **„Hallo {Name}!"**. Von oben nach unten:
 Im Tab **Aufgaben** stehen deine Aufgaben als aufklappbare **Baumliste**. Aufgaben
 mit Unteraufgaben zeigen einen Aufklapp-Pfeil (standardmäßig eingeklappt).
 
+Oben im Tab findest du zwei Bedienelemente:
+
+- einen **Umschalter Offen/Erledigt**, der zwischen dem Baum der offenen Aufgaben und
+  der Tabelle der erledigten Aufgaben wechselt, und
+- ein **Suchfeld**, das die aktuelle Ansicht nach **Titel** filtert (Teiltreffer,
+  Groß-/Kleinschreibung egal). Im offenen Baum bleiben passende Aufgaben samt ihrem
+  Kontext (Oberaufgaben) erhalten. Der Suchtext bleibt beim Umschalten bestehen; bei
+  keinem Treffer erscheint ein Leerhinweis.
+
 Rechts an jeder Zeile können **Kennzeichen** stehen:
 
 - **Serie** – die Aufgabe stammt aus einer Serie.
@@ -105,8 +114,8 @@ Alle Aktionen stecken hinter dem **„…"-Menü** (Weitere Aktionen) am Zeilene
   mit der aktuellen verknüpft wird.
 - **Löschen** – entfernt die Aufgabe nach Rückfrage.
 
-Frisch erledigte Aufgaben wandern beim nächsten Ansichtswechsel automatisch in den
-Tab **Erledigte Aufgaben**.
+Frisch erledigte Aufgaben wandern beim nächsten Ansichtswechsel automatisch in die
+**Erledigt**-Ansicht des Aufgaben-Tabs.
 
 ---
 
@@ -267,9 +276,10 @@ Aufgaben den größten Hebel haben. Bearbeitet wird im Tab „Aufgaben".
 
 ## Erledigte Aufgaben und Punkte
 
-Im Tab **Erledigte Aufgaben** stehen alle abgeschlossenen Aufgaben. Je Säule wird
-angezeigt, wie viele **Punkte** die Aufgabe dort eingebracht hat. Mit **„Wieder
-öffnen"** holst du eine Aufgabe zurück in den offenen Zustand.
+In der **Erledigt**-Ansicht des Aufgaben-Tabs (Umschalter oben) stehen alle
+abgeschlossenen Aufgaben. Je Säule wird angezeigt, wie viele **Punkte** die Aufgabe
+dort eingebracht hat. Mit **„Wieder öffnen"** holst du eine Aufgabe zurück in den
+offenen Zustand.
 
 ### Punkte (Gamification)
 
