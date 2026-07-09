@@ -92,6 +92,7 @@ jobs:
       CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1'
       BASH_MAX_OUTPUT_LENGTH: '20000'
       CLAUDE_HIDE_BANNER: '1'
+      API_TIMEOUT_MS: '3000000'
     permissions:
       contents: read # Repo auschecken (Slash-Command + Wissensbasis lesen)
       issues: write # Beschreibung lektorieren + Analyse-Body-Block schreiben, Ping-Kommentar posten, Labels setzen

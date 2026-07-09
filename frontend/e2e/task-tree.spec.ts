@@ -241,7 +241,9 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 
 		await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeVisible();
 		await waitForStableView(page);
-		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue(title);
+		// exact: true — der Aufgaben-Tab enthält zusätzlich das Filter-Suchfeld „Nach Titel filtern",
+		// dessen zugänglicher Name den Substring „Titel" trägt; ohne exact matcht der Locator beide.
+		await expect(page.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(title);
 	});
 
 	test('AK5: invertierte Liste ist auf Mobilbreite ohne horizontales Scrollen lesbar', async ({ page }) => {

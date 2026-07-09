@@ -2,17 +2,17 @@ import { expect, test, type Page } from './fixtures';
 import { waitForStableView } from './helpers';
 
 /**
- * Rote Spec-Tests (#228): Tab „Erledigte Aufgaben" — Tabelle NUR mit erledigten Tasks, Punkte je
- * Säule, Leerhinweis, „Wieder öffnen"-Schalter und Mobile-First (375px).
+ * Spec-Tests (#228 / #307): die Erledigt-Ansicht — Tabelle NUR mit erledigten Tasks, Punkte je Säule,
+ * Leerhinweis, „Wieder öffnen"-Icon-Button (in einer Toolbar) und Mobile-First (375px).
+ *
+ * Seit #399 ist dies kein eigener Tab mehr, sondern die „Erledigt"-Ansicht innerhalb des einen
+ * „Aufgaben"-Tabs (Offen/Erledigt-Umschalter). Die Navigations-Helfer unten kapseln das.
  *
  * Wie `crud.spec.ts` laufen diese Specs gegen das **echte** Backend (In-Memory-DB, kein `page.route`).
  * Die Tests legen ihre Daten über die UI/echte API selbst an und räumen in `afterEach` wieder auf, damit
  * jeder Lauf von einem definierten, leeren Zustand startet (ein Worker, kein Neustart zwischen Tests).
- *
- * Der Tab „Erledigte Aufgaben", die Punkte-Spalten je Säule und der „Wieder öffnen"-Schalter existieren
- * noch NICHT — die Tests sind rot, bis die Umsetzung sie bereitstellt.
  */
-test.describe('Priority Pilot — Tab „Erledigte Aufgaben" (#228) gegen das echte Backend', () => {
+test.describe('Priority Pilot — Erledigt-Ansicht (#228/#307) gegen das echte Backend', () => {
 	// Eindeutige Titel je Test, damit Assertions ausschließlich auf selbst angelegte Daten zielen.
 	let runId = 0;
 	const uniqueTitle = (label: string): string => `E2E ${label} #${(runId += 1)}-${Date.now()}`;
@@ -30,12 +30,22 @@ test.describe('Priority Pilot — Tab „Erledigte Aufgaben" (#228) gegen das ec
 		await deleteAllTasks(page);
 	});
 
+	// Seit #399 gibt es keinen separaten „Erledigte Aufgaben"-Tab mehr: Offen und Erledigt sind ein
+	// einziger „Aufgaben"-Tab mit einem Offen/Erledigt-Umschalter (KolInputCheckbox variant="switch",
+	// Rolle checkbox „Erledigte Aufgaben anzeigen": ungeprüft = offen, geprüft = erledigt). Die
+	// Navigation läuft daher über den Tab plus check/uncheck des Umschalters (idempotent).
+	const viewSwitch = (page: Page) => page.getByRole('checkbox', { name: /Erledigte Aufgaben/i });
+
 	const openTasksTab = async (page: Page): Promise<void> => {
 		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
+		await viewSwitch(page).uncheck();
+		await waitForStableView(page);
 	};
 
 	const openCompletedTab = async (page: Page): Promise<void> => {
-		await page.getByRole('tab', { name: 'Erledigte Aufgaben', exact: true }).click();
+		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
+		await viewSwitch(page).check();
+		await waitForStableView(page);
 	};
 
 	/**
@@ -49,7 +59,7 @@ test.describe('Priority Pilot — Tab „Erledigte Aufgaben" (#228) gegen das ec
 		await page.getByRole('button', { name: 'Überspringen' }).click();
 		await waitForStableView(page);
 
-		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
+		await page.getByRole('textbox', { name: 'Titel', exact: true }).fill(title);
 		await page.getByRole('button', { name: 'Anlegen', exact: true }).click();
 
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeHidden();

@@ -42,6 +42,7 @@ jobs:
       CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1'
       BASH_MAX_OUTPUT_LENGTH: '20000'
       CLAUDE_HIDE_BANNER: '1'
+      API_TIMEOUT_MS: '3000000'
     permissions:
       contents: read # Checkout (Schreibzugriff laeuft ueber das App-Token)
       id-token: write # OIDC-Token der Action (sonst fehlt ACTIONS_ID_TOKEN_REQUEST_URL)

@@ -39,7 +39,75 @@ Wissensbasis liegt in [`.ai-knowledge/`](.ai-knowledge/).
 ## KI-Agent: Claude Code
 
 Alle KI-Workflows (Triage, Re-Triage, Umsetzung, PR-Review, PR-Fixup) laufen fest auf
-**Claude Code** (`anthropics/claude-code-action`, Secret `CLAUDE_CODE_OAUTH_TOKEN`). GLM (Z.ai) und
+**Claude Code** (`anthropics/claude-code-action`, Secret `CLAUDE_CODE_OAUTH_TOKEN`).
+
+### Kolibri MCP-Server für Frontend-Implementierung
+
+Für die Umsetzung von Frontend-Komponenten steht den KI-Agenten der **KoliBri MCP-Server** zur
+Verfügung, der Zugriff auf 200+ KoliBri-Komponenten-Beispiele, Szenarien und Dokumentation bietet.
+
+**Remote HTTP Server (empfohlen, zero installation):**
+
+- URL: `https://public-ui-kolibri-mcp.vercel.app/mcp`
+- Typ: `http` (StreamableHTTP Transport)
+
+**Verfügbare Tools:**
+
+- `hello_kolibri` — Testverbindung und Server-Metadaten
+- `search` — Suche nach KoliBri-Komponenten (Samples, Szenarien, Dokumente)
+- `fetch` — Hole spezifisches Beispiel/Dokument per ID
+
+**Verfügbare Resources:**
+
+- `kolibri://info` — Informationen über verfügbare Samples
+- `kolibri://best-practices` — Wichtige Richtlinien für KoliBri Web Components
+
+**Nutzung im Workflow:**
+
+Die KI-Agenten sollen den MCP-Server aktiv nutzen, um:
+
+1. Passende Komponenten-Beispiele für die Umsetzung zu finden
+2. Best Practices und Integrationsrichtlinien zu prüfen
+3. Code-Beispiele direkt in die Implementierung zu übernehmen
+4. Validierung und Barrierefreiheits-Anforderungen zu verstehen
+
+**Beispiel-Anfrage an den MCP-Server:**
+
+```
+@kolibri Zeige mir Beispiele für die Umsetzung eines Button mit Icon
+@kolibri Wie integriere ich KoliBri Web Components richtig?
+@kolibri Suche nach Table-Komponenten mit Paginierung
+```
+
+**Konfiguration:**
+
+- Claude Code: `.claude/settings.json` (MCP-Server in Git committed)
+- Mistral Vibe: `.vibe/config.toml` (MCP-Server in Git committed)
+- Lokale Entwicklung: `kolibri-mcp` CLI oder Remote-URL verwenden
+
+**Hinweis für GitHub Actions (CI):**
+Die Workflows laufen im `--bare`-Modus, in dem MCP-Server standardmäßig deaktiviert sind. Um den
+KoliBri MCP-Server in CI zu nutzen, müssen die Workflows angepasst werden:
+
+**Option A (empfohlen):** MCP-Server direkt per CLI-Flag in den Workflow-Arguments angeben:
+
+```yaml
+claude_args: >-
+  --model claude-sonnet-4-6 --effort medium
+  --mcp https://public-ui-kolibri-mcp.vercel.app/mcp
+  ...
+```
+
+**Option B:** Den `--bare`-Flag aus den Workflows entfernen (verliert Startgeschwindigkeitsvorteil).
+
+Derzeit sind die Workflows im Bare-Modus konfiguriert — eine Anpassung ist für MCP-Nutzung in CI
+notwendig. Lokale Entwicklung und Nicht-CI-Läufe nutzen die Konfiguration aus `settings.json` bzw.
+`config.toml`.
+
+**Remote-Server:** Immer aktuell, keine Installation erforderlich.
+**Offline-Nutzung:** Server lokal installieren: `npx @public-ui/mcp` oder `npm install -g @public-ui/mcp`.
+
+**Logging:** Für Debugging kann `MCP_LOGGING=true` gesetzt werden (Logs gehen nach stderr). GLM (Z.ai) und
 Mistral Vibe waren als alternative Agent-Pfade über die Repo-Variable `AI_AGENT` waehlbar und wurden
 am 2026-07-08 ersatzlos entfernt (M11, `.ai-knowledge/workflow-optimization-plan.md`) — die drei
 Pfade brachten keine Laufzeit-/Tokenersparnis (nur einer lief je Lauf), aber realen
@@ -219,8 +287,9 @@ headless Lauf, getrennt von der Umsetzung → Gewaltenteilung gilt auch in der A
 Offene Issues mit Label `ai:ready` (von der Spec-Stufe nach den roten Tests gesetzt, ersatzweise vom
 Menschen), die **nicht zugewiesen** sind: sich selbst zuweisen → den **Draft-PR der Spec-Stufe
 aufgreifen** und dessen rote Tests **grün machen, ohne sie zu ändern** (Fallback ohne Spec-PR: Tests
-selbst test-getrieben zuerst schreiben) → `pnpm format` + Lint + `pnpm test` → den Draft-PR
-**review-bereit** machen (Fallback: PR neu erstellen), via `Closes #<nr>` mit dem
+selbst test-getrieben zuerst schreiben) → **KoliBri MCP-Server nutzen für Frontend-Aufgaben** (siehe
+[Kolibri MCP-Server](#kolibri-mcp-server-für-frontend-implementierung)) → `pnpm format` + Lint + `pnpm test` →
+den Draft-PR **review-bereit** machen (Fallback: PR neu erstellen), via `Closes #<nr>` mit dem
 Ticket verknüpft (erscheint im „Development"-Bereich, schließt es beim Merge) → **PR verfolgen**
 (abonnieren) und im **Kreuzverhör-Loop** in Runden kritisch prüfen (`/kreuzverhoer-review`) und
 nachbessern **sowie automatisch auf eingehende Review-Anmerkungen reagieren** (zutreffende Findings
