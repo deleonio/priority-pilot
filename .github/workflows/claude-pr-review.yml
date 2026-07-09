@@ -43,6 +43,10 @@ jobs:
           && contains(github.event.pull_request.labels.*.name, 'ai:needs-review') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1'
+      BASH_MAX_OUTPUT_LENGTH: '20000'
+      CLAUDE_HIDE_BANNER: '1'
     permissions:
       contents: read
       id-token: write

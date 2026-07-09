@@ -62,11 +62,96 @@ In automatisierten Umgebungen wie GitHub Actions ist `--bare` **standardmäßig 
 
 ---
 
+## Zusätzliche Performance-Optimierungen
+
+Neben `--bare` nutzt Priority Pilot weitere **sichere** Umgebungsvariablen, um Claude Code in CI/CD zu optimieren:
+
+### Aktivierte Variablen (in allen Workflows)
+
+| Variable                                   | Wert    | Wirkung                                                                                                                        |
+| ------------------------------------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC` | `1`     | Deaktiviert Telemetrie, Sentry-Fehlerberichte und automatische Hintergrund-Updates — schützt Privatsphäre und spart Bandbreite |
+| `BASH_MAX_OUTPUT_LENGTH`                   | `20000` | Begrenzt Terminal-Ausgaben auf 20.000 Zeichen, verhindert "Zuspammen" des KI-Kontexts durch riesige Logs (z. B. `npm install`) |
+| `CLAUDE_CODE_HIDE_BANNER`                  | `1`     | Unterdrückt den CLI-Banner bei jedem Start — weniger Lärm in den Logs                                                          |
+
+### Bewusst NICHT genutzte Optionen
+
+| Option                   | Entscheidung        | Begründung                                                                                                                                                                                                                                                     |
+| ------------------------ | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--max-tokens`           | **Nicht verwendet** | Würde den bestehenden **Soft-Abort-Mechanismus** untergraben. Priority Pilot hat einen kontrollierten Abbau (Session-Resume mit `date +%s`-Prüfung gegen `soft_deadline_epoch`), der Zwischenstand sichert — `--max-tokens` bricht abrupt ab ohne diese Logik. |
+| `CLAUDE_CODE_NO_FLICKER` | **Nicht aktiviert** | Experimenteller Renderer, nicht stabil genug für Produktions-Pipelines                                                                                                                                                                                         |
+
+### Warum kein `--max-tokens`?
+
+Priority Pilot setzt auf einen **kooperativen Soft-Abort-Approach**:
+
+1. **Weiches Zeitlimit:** 14 Minuten nach Start (`soft_deadline_epoch = jetzt + 840s`)
+2. **Harte Grenze:** 20 Minuten (GitHub Actions `timeout-minutes`)
+3. **6 Minuten Puffer:** Der Agent prüft selbst vor jedem größeren Schritt `date +%s` gegen die Deadline
+4. **Sauberer Abbau:** Bei Erreichen der Deadline sichert der Agent:
+   - Zwischenstand committen/pushen
+   - Draft-PR aktualisieren mit TODO-Notiz
+   - Label-Management für Selbst-Retrigger
+   - Kein Label setzen (kein falsches Signal)
+5. **Session-Resume:** Der Folgelauf setzt mit `--resume` am gleichen Kontext fort
+
+Ein `--max-tokens`-Limit würde diesen kontrollierten Prozess **abrupt unterbrechen** und den Zwischenstand **verworfen** — genau das, was der Soft-Abort vermeiden soll.
+
+---
+
 ## Integration in Priority Pilot
 
 ### GitHub Actions Workflows
 
-Alle fünf Haupt-Workflows nutzen `--bare` standardmäßig:
+Alle fünf Haupt-Workflows nutzen `--bare` **und die Performance-Optimierungen** standardmäßig:
+
+| Workflow               | Modell | `--bare` | `DISABLE_NONESSENTIAL_TRAFFIC` | `BASH_MAX_OUTPUT_LENGTH` | `HIDE_BANNER` |
+| ---------------------- | ------ | -------- | ------------------------------ | ------------------------ | ------------- |
+| `claude-triage.yml`    | Opus   | ✅       | ✅                             | ✅ (20000)               | ✅            |
+| `claude-spec.yml`      | Sonnet | ✅       | ✅                             | ✅ (20000)               | ✅            |
+| `claude-implement.yml` | Sonnet | ✅       | ✅                             | ✅ (20000)               | ✅            |
+| `claude-pr-review.yml` | Sonnet | ✅       | ✅                             | ✅ (20000)               | ✅            |
+| `claude-pr-fixup.yml`  | Sonnet | ✅       | ✅                             | ✅ (20000)               | ✅            |
+
+### Konfiguration in den Workflows
+
+```yaml
+# In allen 5 Workflows (env-Block auf Job-Ebene)
+env:
+  CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
+  BASH_MAX_OUTPUT_LENGTH: "20000"
+  CLAUDE_HIDE_BANNER: "1"
+
+# Im Claude-Schritt
+- name: Triage via Claude Code
+  uses: anthropics/claude-code-action@v1
+  with:
+    claude_args: >-
+      --bare --model claude-opus-4-8 --effort max
+      --allowedTools "Bash(gh issue:*),Bash(gh api:*),..."
+```
+
+### Soft-Abort Implementation
+
+Jeder Workflow enthält:
+
+```yaml
+- name: Startzeit merken (fuer Timeout-Erkennung + weiches Zeitlimit)
+  id: starttime
+  run: |
+    now=$(date +%s)
+    echo "epoch=$now" >> "$GITHUB_OUTPUT"
+    echo "soft_deadline_epoch=$((now + 840))" >> "$GITHUB_OUTPUT"
+
+# Im claude_args (Prompt-Auszug)
+Pruefe daher VOR jedem groesseren Teilschritt mit
+`test "$(date +%s)" -ge ${{ steps.starttime.outputs.soft_deadline_epoch }}`
+ob das weiche Limit (14 Min nach Start, 6 Min Puffer) erreicht ist.
+```
+
+---
+
+## Migration von existierenden Setups
 
 | Workflow               | Modell | `--bare` | Begründung                              |
 | ---------------------- | ------ | -------- | --------------------------------------- |

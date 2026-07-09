@@ -88,6 +88,10 @@ jobs:
                   || github.event.comment.author_association == 'COLLABORATOR')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1'
+      BASH_MAX_OUTPUT_LENGTH: '20000'
+      CLAUDE_HIDE_BANNER: '1'
     permissions:
       contents: read # Repo auschecken (Slash-Command + Wissensbasis lesen)
       issues: write # Beschreibung lektorieren + Analyse-Body-Block schreiben, Ping-Kommentar posten, Labels setzen
