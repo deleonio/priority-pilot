@@ -222,6 +222,10 @@ jobs:
           issue: ${{ github.event.issue.number }}
           phase: impl
 
+      # Kein manueller Supersede-Check: issue-getriggerte Läufe tragen head_branch=main und sind
+      # über die Runs-API NICHT auf das konkrete Issue scopebar. Ein namensbasierter Filter würde
+      # quer über verschiedene Issues fälschlich überspringen. Die native concurrency-Gruppe
+      # (claude-implement-<issue-nr>) serialisiert bereits pro Issue -> kein Supersede-Check nötig.
       - name: Umsetzung via Claude Code
         id: claude
         if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
@@ -405,6 +409,13 @@ jobs:
           SESSION_ID: ${{ steps.claude.outputs.session_id }}
         run: |
           labels="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "::notice title=✅ Umsetzung erfolgreich::Issue #${ISSUE} — Tests grün gemacht"
+          elif [ "$OUTCOME" = "cancelled" ]; then
+            echo "::warning title=⏸️ Umsetzung abgebrochen::Lauf durch neueren Trigger verdrängt (kein Fehler)"
+          else
+            echo "::error title=❌ Umsetzung fehlgeschlagen::Claude-Lauf gescheitert"
+          fi
           {
             echo "### Umsetzung #${ISSUE} — fertig"
             echo ""

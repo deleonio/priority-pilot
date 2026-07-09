@@ -193,6 +193,10 @@ jobs:
           issue: ${{ github.event.issue.number }}
           phase: analyse
 
+      # Kein manueller Supersede-Check: issue-getriggerte Läufe tragen head_branch=main und sind
+      # über die Runs-API NICHT auf das konkrete Issue scopebar. Die native concurrency-Gruppe
+      # (claude-triage-<issue-nr>, cancel-in-progress: true) cancelt einen älteren Lauf desselben
+      # Issues bei einem neuen Trigger bereits nativ -> ein manueller Supersede-Check ist redundant.
       - name: Triage via Claude Code
         id: claude
         uses: anthropics/claude-code-action@558b1d6cab4085c7753fe402c10bef0fbb92ac7a # v1.0.165
@@ -351,10 +355,17 @@ jobs:
           SESSION_ID: ${{ steps.claude.outputs.session_id }}
         run: |
           labels="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "::notice title=✅ Triage erfolgreich::Issue #${ISSUE} vollständig analysiert"
+          elif [ "$OUTCOME" = "cancelled" ]; then
+            echo "::warning title=⏸️ Triage abgebrochen::Lauf durch neueren Trigger verdrängt (kein Fehler)"
+          else
+            echo "::error title=❌ Triage fehlgeschlagen::Claude-Lauf gescheitert"
+          fi
           {
             echo "### (Re-)Triage #${ISSUE} — fertig"
             echo ""
-            echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\` (cancelled = 20-Min-Timeout erreicht)"
+            echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\` (cancelled = 20-Min-Timeout erreicht oder Supersede)"
             echo "- Aktuelle Labels: ${labels:-keine}"
             if [ -n "$SESSION_ID" ]; then echo "- Session-ID: \`${SESSION_ID}\` (\`--resume\` zum Nachschauen)"; fi
           } >> "$GITHUB_STEP_SUMMARY"
