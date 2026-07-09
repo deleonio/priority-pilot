@@ -336,9 +336,29 @@ jobs:
           phase: fix
           id-type: pr
 
+      - name: Supersede-Check
+        id: supersede-check
+        # Scope auf DENSELBEN PR (head_branch): Der Filter matcht sonst nur den Workflow-NAMEN und
+        # die native concurrency-Gruppe ist pro PR -> ein Fixup-Lauf eines ANDEREN PRs (gleicher
+        # Name, in_progress) würde diesen Lauf fälschlich als "superseded" überspringen. head_branch
+        # ist pro PR eindeutig und grenzt korrekt auf Geschwister-Läufe desselben PRs ein.
+        # HEAD_BRANCH wird via $ENV IN jq gelesen (NICHT in die Query interpoliert): ", $ und ` sind
+        # gültige git-Branch-Zeichen und würden eine interpolierte jq-Query brechen/injizieren.
+        if: steps.preflight.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          running=$(gh api repos/${GITHUB_REPOSITORY}/actions/runs \
+            --jq '.workflow_runs[] | select(.name == "Claude PR Fixup" and (.status == "queued" or .status == "in_progress") and .head_branch == $ENV.HEAD_BRANCH and .id != ${{ github.run_id }}) | .id' 2>/dev/null | head -1)
+          if [ -n "$running" ]; then
+            echo "::notice::Ein Fixup-Lauf für PR #${{ github.event.pull_request.number }} läuft bereits — dieser Trigger wird übersprungen."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Findings umsetzen via Claude Code
         id: claude
-        if: steps.preflight.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true'
+        if: steps.preflight.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true' && steps.supersede-check.outputs.skip != 'true'
         uses: anthropics/claude-code-action@558b1d6cab4085c7753fe402c10bef0fbb92ac7a # v1.0.165
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -484,10 +504,19 @@ jobs:
           SESSION_ID: ${{ steps.claude.outputs.session_id }}
         run: |
           labels="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "::notice title=✅ Fixup erfolgreich::PR #${PR} — Findings umgesetzt"
+          elif [ "$OUTCOME" = "cancelled" ]; then
+            echo "::warning title=⏸️ Fixup abgebrochen::Lauf durch neueren Trigger verdrängt (kein Fehler)"
+          elif [ "$OUTCOME" = "skipped" ]; then
+            echo "::notice title=⏭️ Fixup übersprungen::Supersede — ein aktuellerer Fixup-Lauf desselben PRs übernimmt (kein Fehler)"
+          else
+            echo "::error title=❌ Fixup fehlgeschlagen::Claude-Lauf gescheitert"
+          fi
           {
             echo "### Fixup #${PR} — fertig"
             echo ""
-            echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\` (cancelled = 20-Min-Timeout erreicht)"
+            echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\` (cancelled = 20-Min-Timeout; skipped = Supersede durch neueren Lauf)"
             echo "- Aktuelle Pipeline-Labels: ${labels:-keine}"
             if [ -n "$SESSION_ID" ]; then echo "- Session-ID: \`${SESSION_ID}\` (\`--resume\` zum Nachschauen)"; fi
           } >> "$GITHUB_STEP_SUMMARY"
