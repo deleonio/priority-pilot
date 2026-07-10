@@ -2,13 +2,9 @@ pre-commit:
   parallel: true
   commands:
     format:
-      run: pnpm format
-    # pnpm -r format prueft nur innerhalb der Workspace-Packages (frontend/server/client) und
-    # deckt Root-Dateien (*.md, .ai-knowledge/**, .github/**, .claude/**) nicht ab. CI prueft
-    # root-weit (ci.yml: `pnpm exec prettier --check .`) - dieser Command spiegelt das lokal,
-    # damit unformatierte Root-Dateien nicht erst in der CI auffallen (review-mobile-first.md).
-    format-root:
-      run: pnpm exec prettier --check .
+      glob: '*.{ts,tsx,js,jsx,mjs,cjs,json,jsonc,md,css,scss,html,yml,yaml}'
+      run: pnpm exec prettier --ignore-unknown --write {staged_files}
+      stage_fixed: true
     lint:
       run: pnpm lint
     knip:
