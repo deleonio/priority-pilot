@@ -27,9 +27,7 @@ const ciYml = (): string => readFile('.github', 'workflows', 'ci.yml');
 const hermesPrompt = (): string => {
 	const yml = fixupYml();
 	// Der Prompt steht im Heredoc des "Findings umsetzen via Hermes"-Steps
-	const match = yml.match(
-		/Findings umsetzen via Hermes[\s\S]*?cat > \/tmp\/hermes-prompt\.txt << 'HERMES_EOF'\s*\n([\s\S]*?)HERMES_EOF/,
-	);
+	const match = yml.match(/Findings umsetzen via Hermes[\s\S]*?cat > \/tmp\/hermes-prompt\.txt << 'HERMES_EOF'\s*\n([\s\S]*?)HERMES_EOF/);
 	assert.ok(match, 'Hermes-Prompt-Block nicht gefunden in hermes-pr-fixup.yml');
 	return match[1];
 };
@@ -37,9 +35,7 @@ const hermesPrompt = (): string => {
 describe('AK1 — Lint-Gate ist repo-weit (kein --filter)', () => {
 	it('ticket-implementation.md Step 3c nennt pnpm lint ohne --filter als Gate-Kommando', () => {
 		const doc = implDoc();
-		// Muss pnpm lint repo-weit nennen — kein `--filter` als alleinstehender Lint-Befehl
 		assert.match(doc, /pnpm lint/, 'ticket-implementation.md muss `pnpm lint` (repo-weit) als Gate-Kommando nennen');
-		// Darf NICHT `--filter priority-pilot lint` als alleinigen Lint-Befehl für das Gate nennen
 		assert.doesNotMatch(
 			doc,
 			/pnpm --filter priority-pilot lint/,
@@ -47,13 +43,13 @@ describe('AK1 — Lint-Gate ist repo-weit (kein --filter)', () => {
 		);
 	});
 
-	it('Claude-Prompt in hermes-pr-fixup.yml nennt pnpm lint ohne --filter als Gate', () => {
-		const prompt = claudePrompt();
-		assert.match(prompt, /pnpm lint/, 'Claude-Prompt muss `pnpm lint` (repo-weit) als Gate nennen');
+	it('Hermes-Prompt in hermes-pr-fixup.yml nennt pnpm lint ohne --filter als Gate', () => {
+		const prompt = hermesPrompt();
+		assert.match(prompt, /pnpm lint/, 'Hermes-Prompt muss `pnpm lint` (repo-weit) als Gate nennen');
 		assert.doesNotMatch(
 			prompt,
 			/pnpm --filter \S+ lint/,
-			'Claude-Prompt darf kein `--filter`-Lint als Gate-Kommando verwenden',
+			'Hermes-Prompt darf kein `--filter`-Lint als Gate-Kommando verwenden',
 		);
 	});
 });
@@ -67,18 +63,17 @@ describe('AK2 — Verifizierender prettier --check . ist als Gate vorhanden', ()
 		);
 	});
 
-	it('Claude-Prompt enthält prettier --check . als Gate-Kommando', () => {
+	it('Hermes-Prompt enthält prettier --check . als Gate-Kommando', () => {
 		assert.match(
-			claudePrompt(),
+			hermesPrompt(),
 			/prettier --check \./,
-			'Claude-Prompt muss `prettier --check .` als verifizierenden Gate enthalten',
+			'Hermes-Prompt muss `prettier --check .` als verifizierenden Gate enthalten',
 		);
 	});
 });
 
 describe('AK3 — Gate-Kommandos spiegeln CI-Checks exakt', () => {
 	it('ci.yml verwendet prettier --check . als Format-Check', () => {
-		// Verifiziert, dass ci.yml tatsaechlich prettier --check . enthaelt (Referenz-Ankerpunkt)
 		assert.match(
 			ciYml(),
 			/prettier --check \./,
@@ -90,10 +85,10 @@ describe('AK3 — Gate-Kommandos spiegeln CI-Checks exakt', () => {
 		assert.match(ciYml(), /^\s*run: pnpm lint\s*$/m, 'ci.yml muss `pnpm lint` (repo-weit) als Lint-Step enthalten');
 	});
 
-	it('Claude-Prompt spiegelt beide CI-Gate-Kommandos (prettier --check . und pnpm lint)', () => {
-		const prompt = claudePrompt();
-		assert.match(prompt, /prettier --check \./, 'Claude-Prompt muss `prettier --check .` als CI-Spiegel enthalten');
-		assert.match(prompt, /pnpm lint/, 'Claude-Prompt muss `pnpm lint` als CI-Spiegel enthalten');
+	it('Hermes-Prompt spiegelt beide CI-Gate-Kommandos (prettier --check . und pnpm lint)', () => {
+		const prompt = hermesPrompt();
+		assert.match(prompt, /prettier --check \./, 'Hermes-Prompt muss `prettier --check .` als CI-Spiegel enthalten');
+		assert.match(prompt, /pnpm lint/, 'Hermes-Prompt muss `pnpm lint` als CI-Spiegel enthalten');
 	});
 
 	it('ticket-implementation.md spiegelt beide CI-Gate-Kommandos', () => {
@@ -108,13 +103,13 @@ describe('AK3 — Gate-Kommandos spiegeln CI-Checks exakt', () => {
 });
 
 describe('AK4 — CI-Format/Lint-Fehler ist als eigenständiges Finding deklariert', () => {
-	it('Claude-Prompt dokumentiert: CI-Fehler an Format/Lint ist ein eigenständiges Finding', () => {
-		const prompt = claudePrompt();
+	it('Hermes-Prompt dokumentiert: CI-Fehler an Format/Lint ist ein eigenständiges Finding', () => {
+		const prompt = hermesPrompt();
 		const pattern =
 			/[Ff]ormat[^.]*[Ff]inding|[Ll]int[^.]*[Ff]inding|[Ff]inding[^.]*[Ff]ormat|[Ff]inding[^.]*[Ll]int|CI[^.]*[Ff]ormat[^.]*behob|CI[^.]*[Ll]int[^.]*behob|[Ff]ormat.*CI.*[Ff]inding|[Ll]int.*CI.*[Ff]inding/;
 		assert.ok(
 			pattern.test(prompt),
-			'Claude-Prompt muss klarstellen, dass ein reiner CI-Format-/Lint-Fehler als eigenständiges Finding behandelt wird',
+			'Hermes-Prompt muss klarstellen, dass ein reiner CI-Format-/Lint-Fehler als eigenständiges Finding behandelt wird',
 		);
 	});
 });
