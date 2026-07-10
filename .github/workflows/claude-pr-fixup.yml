@@ -41,7 +41,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-      actions: write # `gh cache delete` + actions/cache im Session-Archiv-Schritt (Soft-Abort, 2026-07-08)
+      actions: read # Artefakt-Suche/-Download (`gh api`) im Session-Archiv-Schritt + Supersede-Check (Runs-API)
     steps:
       # Startzeit fuer das weiche Zeitlimit (Soft-Abort, 2026-07-08): soft_deadline_epoch = jetzt +
       # 840s (14 Min, 6 Min Puffer bis zum harten 20-Min-Kill). PR-Workflows hatten bisher keine
@@ -323,10 +323,10 @@ jobs:
 
       # Named Session Resume (Phase "fix", Soft-Abort-Rollout 2026-07-08): PRs haben keine
       # Issue-Nummer im Event, daher wird hier die PR-Nummer uebergeben -- `id-type: pr` haelt den
-      # Cache-Key-Namensraum (claude-session-pr-<N>) getrennt vom issue-basierten
-      # (claude-session-issue-<N>) der anderen drei Phasen (Kreuzverhoer-Finding M3, 2026-07-08:
-      # ohne diese Trennung waere "claude-session-issue-<N>" fuer eine PR-Nummer irrefuehrend
-      # benannt). Fail-open wie in claude-triage.yml.
+      # Artefakt-Namensraum (claude-session-pr-<N>-<phase>) getrennt vom issue-basierten
+      # (claude-session-issue-<N>-<phase>) der anderen drei Phasen (Kreuzverhoer-Finding M3,
+      # 2026-07-08: ohne diese Trennung waere "claude-session-issue-<N>" fuer eine PR-Nummer
+      # irrefuehrend benannt). Fail-open wie in claude-triage.yml.
       - name: Session-Archiv wiederherstellen (Phase fix)
         id: session-restore
         if: steps.preflight.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true'

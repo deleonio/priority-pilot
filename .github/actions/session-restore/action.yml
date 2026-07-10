@@ -1,9 +1,12 @@
 name: Session-Archiv wiederherstellen
 description: >-
-  Laedt das archivierte Claude-Code-Sitzungsarchiv fuer ein Issue (GitHub Actions Cache, falls
-  vorhanden) und liefert ein fertiges --resume-Argument fuer die benannte Phase. Fail-open: jeder
-  Fehler (Cache-Miss, korruptes Archiv, fehlende Dateien) fuehrt zu leeren Outputs -- nie zu einem
-  Abbruch des aufrufenden Workflows.
+  Laedt das archivierte Claude-Code-Sitzungsarchiv fuer ein Issue/PR (juengstes Workflow-Artefakt
+  der jeweiligen Phase, falls vorhanden) und liefert ein fertiges --resume-Argument fuer die
+  benannte Phase. Artefakte statt Actions-Cache seit 2026-07-10: GitHub vergibt fuer untrusted
+  Trigger (issues/issue_comment/pull_request_target) nur noch read-only Cache-Tokens (Changelog
+  2026-06-26) -- Hintergrund in session-save/action.yml. Fail-open: jeder Fehler (kein Artefakt,
+  korruptes Archiv, fehlende Dateien) fuehrt zu leeren Outputs -- nie zu einem Abbruch des
+  aufrufenden Workflows.
 
 inputs:
   issue:
@@ -14,8 +17,8 @@ inputs:
     required: true
   id-type:
     description: >-
-      "issue" (Standard) oder "pr" -- bestimmt den Cache-Key-Namensraum
-      (claude-session-issue-<N> bzw. claude-session-pr-<N>). PR-basierte Phasen
+      "issue" (Standard) oder "pr" -- bestimmt den Artefakt-Namensraum
+      (claude-session-issue-<N>-<phase> bzw. claude-session-pr-<N>-<phase>). PR-basierte Phasen
       (review/fix) uebergeben "pr", da im Event nur die PR-Nummer verfuegbar ist.
     required: false
     default: issue
@@ -27,6 +30,13 @@ inputs:
       bisher). Review bleibt bewusst OHNE Fallback (Kreuzverhoer-Unabhaengigkeit).
     required: false
     default: ''
+  gh-token:
+    description: >-
+      Token fuer Artefakt-Suche und -Download (`gh api`, braucht `actions: read` -- anders als
+      der fruehere Cache-Restore, der ueber das Runtime-Token lief). Default ist das
+      GITHUB_TOKEN des aufrufenden Workflows.
+    required: false
+    default: ${{ github.token }}
 
 outputs:
   resume-arg:
@@ -45,16 +55,7 @@ outputs:
 runs:
   using: composite
   steps:
-    # Kein `restore-keys`-Praefix: pro Issue/PR existiert genau EIN Cache-Eintrag (stabiler Key,
-    # siehe session-save) statt eines Laufs pro Key -- das haelt den Repo-Cache-Verbrauch klein.
-    - name: Archiv aus Cache laden
-      id: cache
-      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-      with:
-        path: ${{ runner.temp }}/claude-session-archive/${{ inputs.id-type }}-${{ inputs.issue }}
-        key: claude-session-${{ inputs.id-type }}-${{ inputs.issue }}
-
-    - name: Session in Claude-Projektordner einspielen
+    - name: Session aus Artefakt einspielen
       id: restore
       shell: bash
       env:
@@ -62,10 +63,10 @@ runs:
         PHASE: ${{ inputs.phase }}
         ID_TYPE: ${{ inputs.id-type }}
         FALLBACK_PHASE: ${{ inputs.fallback-phase }}
+        GH_TOKEN: ${{ inputs.gh-token }}
       run: |
         source "${{ github.action_path }}/../session-lib.sh"
         archive_dir="$(archive_dir_for "$ID_TYPE" "$ISSUE")"
-        sessions_file="$archive_dir/sessions.json"
 
         # Jeder Fehlerpfad muendet hier -- niemals in einem non-zero Exit der Action.
         miss() {
@@ -79,10 +80,38 @@ runs:
           exit 0
         }
 
-        # Hilfsfunktion: versucht eine Phase wiederherzustellen
+        # Laedt das JUENGSTE, nicht abgelaufene Artefakt der Phase nach $archive_dir/<phase>/.
+        # Gleichnamige Artefakte aus verschiedenen Laeufen koexistieren (jeder Save erzeugt ein
+        # neues); "latest wins" ersetzt den frueheren Ein-Slot-Cache-Key samt Loesch-Tanz.
+        # Return 0 bei Erfolg, 1 bei Miss/Fehler (Aufrufer behandelt beides als Phase-Miss).
+        fetch_phase_artifact() {
+          local target_phase="$1"
+          local dest="$archive_dir/$target_phase"
+          local name artifact_id zip_file
+          name="$(artifact_name_for "$ID_TYPE" "$ISSUE" "$target_phase")"
+          artifact_id="$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=$name&per_page=100" \
+            --jq '[.artifacts[] | select(.expired | not)] | sort_by(.created_at) | last | .id // empty' 2>/dev/null)" || return 1
+          [ -n "$artifact_id" ] || return 1
+          zip_file="${RUNNER_TEMP:-/tmp}/$name.zip"
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" > "$zip_file" 2>/dev/null || { rm -f "$zip_file"; return 1; }
+          mkdir -p "$dest" 2>/dev/null || { rm -f "$zip_file"; return 1; }
+          if ! unzip -q -o "$zip_file" -d "$dest" 2>/dev/null; then
+            rm -f "$zip_file"
+            rm -rf "$dest"
+            return 1
+          fi
+          rm -f "$zip_file"
+        }
+
+        # Hilfsfunktion: versucht eine Phase wiederherzustellen (Artefakt laden + validieren).
         # Return 0 bei Erfolg, 1 bei Miss (setzt keine Outputs, nur interne Variablen)
         try_phase() {
           local target_phase="$1"
+          fetch_phase_artifact "$target_phase" || return 1
+
+          # sessions.json liegt im Phasen-Ordner (Schema unveraendert: {phase: {session_id, ...}})
+          local sessions_file="$archive_dir/$target_phase/sessions.json"
+          [ -f "$sessions_file" ] || return 1
           local target_id
           target_id="$(jq -er --arg phase "$target_phase" '.[$phase].session_id // empty' "$sessions_file" 2>/dev/null)" || return 1
           [ -n "$target_id" ] || return 1
@@ -98,8 +127,6 @@ runs:
           RESOLVED_FILE="$target_file"
           return 0
         }
-
-        [ -f "$sessions_file" ] || miss
 
         # Zwei-Versuch-Logik: zuerst eigene Phase, dann Fallback
         RESOLVED_PHASE=""

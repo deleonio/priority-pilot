@@ -1,6 +1,15 @@
 # Plan: Selektives Cross-Phase Session-Resume (Issue-Namespace)
 
 > Status: **UMGESETZT** (2026-07-09). Alle Änderungen implementiert und getestet.
+>
+> **Nachtrag 2026-07-10:** Das Speicher-Backend ist von Actions-Cache auf
+> **Workflow-Artefakte** umgestellt (GitHubs Changelog 2026-06-26 „Read-only
+> Actions cache for untrusted triggers" machte Cache-Saves aus den
+> Issue-Workflows unmöglich: „cache write denied: token has no writable
+> scopes"). Namensschema jetzt `claude-session-<issue|pr>-<N>-<phase>` (ein
+> Artefakt pro Phase, „latest wins" statt immutabler Ein-Slot-Key). Die
+> Cross-Phase-Fallback-Logik dieses Plans gilt unverändert; maßgeblich ist
+> die Beschreibung in AGENTS.md („Named Session Resume").
 
 ## Context
 

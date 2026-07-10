@@ -9,10 +9,12 @@ name: Cache-Aufraeumen
 # Eviction bzw. dem 10-GB-Limit liegen bleibt. Dieser Job erzwingt stattdessen eine harte 1-Tag-
 # Obergrenze fuer genau diese beiden Cache-Arten.
 #
-# `claude-session-*`-Caches (Named Session Resume, siehe .github/actions/session-save) sind
-# bewusst AUSGENOMMEN: die haben eine eigene Lifecycle-Verwaltung (Loeschen des alten Eintrags vor
-# jedem Save) und muessen laenger als einen Tag ueberdauern koennen, falls ein Issue/PR erst nach
-# mehreren Tagen erneut ai:ready bekommt.
+# `claude-session-*`-Caches (Named Session Resume, siehe .github/actions/session-save) sind seit
+# der Artefakt-Umstellung (2026-07-10) VERWAIST: das Sitzungsarchiv liegt jetzt in
+# Workflow-Artefakten (GitHubs Read-only-Cache fuer untrusted Trigger, Changelog 2026-06-26,
+# machte Cache-Saves aus den Issue-Workflows unmoeglich). Es werden keine neuen
+# claude-session-Caches mehr geschrieben -- Altbestaende werden hier mit abgeraeumt (ohne
+# Altersgrenze, sie sind ersatzlos tot), bis keiner mehr auftaucht.
 
 on:
   schedule:
@@ -30,7 +32,7 @@ jobs:
   cleanup:
     runs-on: ubuntu-latest
     steps:
-      - name: pnpm-/Playwright-Caches aelter als 24h loeschen
+      - name: pnpm-/Playwright-Caches aelter als 24h + verwaiste Session-Caches loeschen
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -39,11 +41,13 @@ jobs:
 
           gh cache list --repo "$GITHUB_REPOSITORY" --limit 100 \
             --json id,key,createdAt \
-            --jq '.[] | select(.key | startswith("node-cache-") or startswith("Linux-playwright-")) | [.id, .key, .createdAt] | @tsv' \
+            --jq '.[] | select(.key | startswith("node-cache-") or startswith("Linux-playwright-") or startswith("claude-session-")) | [.id, .key, .createdAt] | @tsv' \
           | while IFS=$'\t' read -r id key created; do
               created_epoch=$(date -u -d "$created" +%s)
-              if [ "$created_epoch" -lt "$cutoff_epoch" ]; then
-                echo "Loesche Cache '$key' (id=$id, erstellt $created, > 24h alt)"
+              # claude-session-*: verwaiste Altbestaende (Archiv liegt jetzt in Artefakten) --
+              # ohne Altersgrenze loeschen; alles andere erst nach 24h.
+              if [ "${key#claude-session-}" != "$key" ] || [ "$created_epoch" -lt "$cutoff_epoch" ]; then
+                echo "Loesche Cache '$key' (id=$id, erstellt $created)"
                 gh cache delete "$id" --repo "$GITHUB_REPOSITORY" || echo "::warning::Loeschen von Cache $id fehlgeschlagen (uebersprungen)"
               else
                 echo "Behalte Cache '$key' (id=$id, erstellt $created, < 24h alt)"

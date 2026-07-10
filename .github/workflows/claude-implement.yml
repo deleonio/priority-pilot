@@ -48,7 +48,7 @@ jobs:
     permissions:
       contents: read # Checkout (Schreibzugriff laeuft ueber das App-Token)
       id-token: write # OIDC-Token der Action (sonst fehlt ACTIONS_ID_TOKEN_REQUEST_URL)
-      actions: write # `gh cache delete` + actions/cache im Session-Archiv-Schritt (Soft-Abort, 2026-07-08)
+      actions: read # Artefakt-Suche/-Download (`gh api`) im Session-Archiv-Wiederherstellen-Schritt
     steps:
       # Startzeit fuer die Timeout-Erkennung: nur ein nahezu vollstaendig ausgeschoepfter Lauf
       # (>= 18 Min) gilt als Timeout (-> ai:to-big-issue). Ein frueher Abbruch (z. B. manueller
