@@ -62,13 +62,19 @@ export const validatePillars = (raw: unknown[]): { ok: true; pillars: PillarCont
 };
 
 /**
- * DB-gestützte Prüfung, ob alle referenzierten Säulen als globale Stammdaten existieren. Säulen sind
- * für alle Nutzer identisch, daher wird nur auf Existenz geprüft. `[]` ist trivial `true`.
+ * DB-gestützte Prüfung, ob alle referenzierten Säulen für einen Nutzer existieren (Teil 2, #428).
+ * Säulen sind jetzt nutzer-eigen; optionaler `userId`-Parameter scoping die Prüfung auf die Säulen
+ * des Nutzers (ownerScope). Ohne userId (undefined) bleibt die Prüfung global (Abwärtskompatibilität).
+ * `[]` ist trivial `true`.
  */
-export const arePillarsExistent = async (pillarIds: number[]): Promise<boolean> => {
+export const arePillarsExistent = async (pillarIds: number[], userId?: number): Promise<boolean> => {
 	if (pillarIds.length === 0) {
 		return true;
 	}
-	const count = await Pillar.count({ where: { id: pillarIds } });
+	const where: { id: number[]; userId?: number } = { id: pillarIds };
+	if (userId !== undefined) {
+		where.userId = userId;
+	}
+	const count = await Pillar.count({ where });
 	return count === pillarIds.length;
 };

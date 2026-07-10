@@ -195,15 +195,13 @@ describe('API-Schutz & Datenisolation (#207)', () => {
 		});
 	});
 
-	// ── AK 5 — Säulen: nutzer-eigene Stammdaten (#421, Epic #420, Teil 1) ────
+	// ── AK 5 — Säulen: nutzer-eigene Stammdaten (#421, Epic #420, Teil 2) ────
 	//
-	// Mit #421 sind Säulen wieder nutzer-eigen: jeder frisch registrierte Nutzer erhält beim Anlegen
-	// seine EIGENEN fünf Standard-Säulen (Seed in der Registrierung). Die Route `GET /pillars` bleibt
-	// in Teil 1 bewusst UNSCOPED — die Isolation auf Route-Ebene (Query-Filter nach userId) folgt in
-	// Teil 2. Der Endpunkt braucht aber weiterhin eine gültige Session (kein 401).
+	// Mit #428 (Teil 2) sind Säulen nutzer-eigen UND die Route ist auf `ownerScope(userId)` umgestellt.
+	// Jeder Nutzer sieht nur seine eigenen Säulen (Query-Filter nach userId), nicht die anderer Nutzer.
 
-	describe('AK 5 — Säulen sind nutzer-eigen, Route noch unscoped (#421, Teil 1)', () => {
-		it('sät jedem Nutzer eigene Säulen; GET /pillars ist erreichbar und (Teil 1) noch unscoped', async () => {
+	describe('AK 5 — Säulen sind nutzer-eigen, Route ist scoped (#428, Teil 2)', () => {
+		it('sät jedem Nutzer eigene Säulen; GET /pillars ist erreichbar und zeigt nur eigene Säulen', async () => {
 			const cookieA = await register('alice@example.com', 'passwort-alice');
 			const cookieB = await register('bob@example.com', 'passwort-bob');
 
@@ -220,14 +218,15 @@ describe('API-Schutz & Datenisolation (#207)', () => {
 			assert.equal(pillarsA.status, 200);
 			assert.equal(pillarsB.status, 200);
 
-			const listA = (await pillarsA.json()) as unknown[];
-			const listB = (await pillarsB.json()) as unknown[];
+			const listA = (await pillarsA.json()) as { id: number; userId?: number }[];
+			const listB = (await pillarsB.json()) as { id: number; userId?: number }[];
 
-			// Beide Nutzer haben je fünf eigene Säulen bekommen ⇒ die (noch unscoped) Route liefert die
-			// Vereinigung (2×5). Route-Scoping folgt in Teil 2; die Daten-Isolation (pillars.userId) ist
-			// in pillar-per-user-seed.test.ts per Raw-SQL abgesichert.
-			assert.equal(listA.length, 10, `unscoped Route zeigt beide Säulen-Sätze, sieht ${listA.length}`);
-			assert.equal(listB.length, listA.length, 'die noch unscoped Route liefert beiden dieselbe Liste');
+			// Beide Nutzer haben je fünf eigene Säulen bekommen ⇒ die scoped Route liefert nur die eigenen.
+			assert.equal(listA.length, 5, `Alice sieht nur ihre eigenen 5 Säulen, sieht ${listA.length}`);
+			assert.equal(listB.length, 5, `Bob sieht nur seine eigenen 5 Säulen, sieht ${listB.length}`);
+
+			// IDs sind verschieden (verschiedene Nutzer-Kopien)
+			assert.notEqual(listA[0]?.id, listB[0]?.id, 'Alice und Bob haben verschiedene Säulen-IDs (eigene Kopien)');
 		});
 	});
 });
