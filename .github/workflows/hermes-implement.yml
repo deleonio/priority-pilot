@@ -1,0 +1,258 @@
+name: Hermes Implement (ai:ready)
+
+# Setzt ein Issue um, sobald es das Label "ai:ready" erhält UND bereits
+# "ai:analyzed" trägt. Ersetzt claude-implement.yml (MIG-001, 2026-07-10).
+#
+# Setzt Hermes Agent (Nous Research) mit DeepSeek Flash über OpenRouter.
+# Voraussetzung: Repo-Secret OPENROUTER_API_KEY
+
+on:
+  issues:
+    types: [labeled]
+
+concurrency:
+  group: hermes-implement-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  implement:
+    if: >-
+      ${{ github.event.label.name == 'ai:ready'
+          && contains(github.event.issue.labels.*.name, 'ai:analyzed')
+          && github.event.issue.state == 'open' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      HERMES_HOME: /tmp/hermes-ci
+    permissions:
+      contents: read
+      id-token: write
+      actions: read
+    steps:
+      - name: Startzeit merken (für Timeout-Erkennung + weiches Zeitlimit)
+        id: starttime
+        run: |
+          now=$(date +%s)
+          echo "epoch=$now" >> "$GITHUB_OUTPUT"
+          echo "soft_deadline_epoch=$((now + 840))" >> "$GITHUB_OUTPUT"
+
+      - name: Voraussetzung prüfen (GitHub-App-Secrets)
+        id: preflight
+        env:
+          APP_ID: ${{ secrets.APP_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+        run: |
+          if [ -z "$APP_ID" ] || [ -z "$APP_PRIVATE_KEY" ]; then
+            echo "::warning::GitHub-App-Secrets fehlen — Lauf wird übersprungen."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: GitHub-App-Token erzeugen
+        id: app-token
+        if: steps.preflight.outputs.configured == 'true'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Issue einem Menschen zuweisen (Best-Effort)
+        if: steps.preflight.outputs.configured == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ISSUE: ${{ github.event.issue.number }}
+          ASSIGNEE: ${{ github.event.sender.type == 'User' && github.event.sender.login || (github.event.issue.user.type == 'User' && github.event.issue.user.login || '') }}
+        run: |
+          if [ -z "$ASSIGNEE" ]; then
+            echo "::notice::Kein menschlicher Assignee ermittelbar."
+            exit 0
+          fi
+          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-assignee "$ASSIGNEE"
+
+      - name: Checkout
+        if: steps.preflight.outputs.configured == 'true'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Hermes installieren
+        if: steps.preflight.outputs.configured == 'true'
+        run: |
+          curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Hermes konfigurieren
+        if: steps.preflight.outputs.configured == 'true'
+        run: |
+          hermes config set model.provider openrouter
+          hermes config set model.base_url https://openrouter.ai/api/v1
+          hermes config set agent.max_turns 90
+
+      - name: API-Key prüfen (OPENROUTER_API_KEY)
+        if: steps.preflight.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          if [ -z "$OPENROUTER_API_KEY" ]; then
+            echo "::error title=API-Key fehlt::OPENROUTER_API_KEY nicht gesetzt"
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
+            exit 1
+          fi
+
+      - name: Doppel-Run-Guard (ready-PR existiert bereits)
+        id: doppel-guard
+        if: steps.preflight.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          if ! existing="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
+            --json number,isDraft,closingIssuesReferences \
+            --jq "[.[] | select(.isDraft == false) | select((.closingIssuesReferences // []) | any(.number == ${ISSUE}))] | length" 2>/dev/null)"; then
+            echo "::warning::Doppel-Run-Guard: gh-API nicht erreichbar — fail-open."
+            existing=0
+          fi
+          if [ "${existing:-0}" -gt 0 ]; then
+            echo "::notice::Umsetzung übersprungen — ready-PR existiert bereits für Issue #$ISSUE."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: pnpm einrichten
+        if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+
+      - name: Node.js einrichten
+        if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Abhängigkeiten installieren
+        if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Git-Hooks installieren (lefthook)
+        if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
+        run: pnpm exec lefthook install
+
+      - name: Fortsetzungs-Stand prüfen (ai:continued)
+        id: continued-before
+        if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          already="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq 'any(.labels[]; .name == "ai:continued")' 2>/dev/null || echo false)"
+          echo "already=${already:-false}" >> "$GITHUB_OUTPUT"
+
+      - name: Umsetzung via Hermes (DeepSeek Flash)
+        id: hermes
+        if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          cat > /tmp/hermes-prompt.txt << 'HERMES_EOF'
+          Das Label `ai:ready` wurde an Issue #ISSUE_NR gesetzt — setze dieses Issue jetzt um.
+
+          Folge dem Umsetzungs-Workflow .ai-knowledge/ticket-implementation.md, aber NUR Schritte 1 bis 4:
+            1. Zuweisung übernimmt bereits der Workflow (nicht selbst zuweisen).
+            2. Analyse re-verifizieren (Re-Triage gegen aktuellen Repo-Stand). Kippt die Ampel auf 🔴 → NICHT umsetzen, ai:ready entfernen, begründet kommentieren und stoppen.
+            3. Spec-Modus (Regelfall): den vorhandenen DRAFT-PR auschecken (gh pr list --state open --draft --json number,headRefName,closingIssuesReferences, den mit Issue #ISSUE_NR; dann git fetch origin && git switch <headRefName>). Dessen ROTE Tests GRÜN machen — Tests NICHT ändern (Gewaltenteilung). Fallback (kein Draft-PR): eigenen Branch + Tests selbst schreiben. In beiden Fällen: Code bis pnpm test grün, dann pnpm format + pnpm lint + pnpm knip.
+            4. Committen, Branch pushen. Im Spec-Modus Draft-PR review-bereit machen (gh pr ready <nr>), Beschreibung ergänzen. ALLERLETZTER Schritt: Label ai:needs-review am PR setzen.
+
+          WEICHES ZEITLIMIT (Soft-Abort):
+            Prüfe VOR jedem größeren Teilschritt date +%s gegen SOFT_DEADLINE. Ist das Limit erreicht: Zwischenstand committen+pushen, Draft-PR mit TODO-Liste (KEIN ai:needs-review). ai:ready entfernen+sofort wieder setzen (Selbst-Retrigger). Turn beenden.
+
+          Idempotenz: Draft-PR mit Closes #ISSUE_NR ist normaler Spec-Eingang — aufgreifen. Nicht-Draft-PR = Umsetzung schon gelaufen → Lauf beenden.
+
+          WERKZEUGE: Bash (gh, git, pnpm), Datei-Tools. GH_TOKEN für gh-Befehle.
+          Keine interaktive Bestätigung — Label ai:ready autorisiert.
+          HERMES_EOF
+
+          sed -i "s/#ISSUE_NR/${{ github.event.issue.number }}/g" /tmp/hermes-prompt.txt
+          sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/hermes-prompt.txt
+
+          hermes chat -q "$(cat /tmp/hermes-prompt.txt)" \
+            -Q --yolo --provider openrouter \
+            -m "deepseek/deepseek-v4-flash" \
+            -t "terminal,file" \
+            --ignore-user-config --max-turns 90 \
+            --accept-hooks \
+            2>&1 | tee /tmp/hermes-output.log
+
+      - name: Hermes-Session-ID erfassen
+        if: always()
+        id: session
+        run: |
+          if [ -f /tmp/hermes-output.log ]; then
+            sid="$(grep '^session_id:' /tmp/hermes-output.log | head -1 | sed 's/^session_id:[[:space:]]*//')"
+            if [ -n "$sid" ]; then
+              echo "session_id=$sid" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - name: Soft-Abort-Fortsetzung erkennen und begrenzen (ai:continued)
+        if: always() && steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true' && steps.hermes.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ISSUE: ${{ github.event.issue.number }}
+          ALREADY_CONTINUED: ${{ steps.continued-before.outputs.already }}
+        run: |
+          has_ready="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq 'any(.labels[]; .name == "ai:ready")' 2>/dev/null || echo false)"
+          non_draft_pr="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --json number,isDraft,closingIssuesReferences \
+            --jq "[.[] | select(.isDraft == false) | select((.closingIssuesReferences // []) | any(.number == ${ISSUE}))] | length" 2>/dev/null || echo 0)"
+          if [ "${non_draft_pr:-0}" -gt 0 ]; then
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:continued" 2>/dev/null || true
+            exit 0
+          fi
+          if [ "$has_ready" != "true" ]; then exit 0; fi
+          if [ "${ALREADY_CONTINUED:-false}" = "true" ]; then
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:to-big-issue" 2>/dev/null || true
+          else
+            gh label create "ai:continued" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:continued"
+          fi
+
+      - name: Bei Timeout als zu gross markieren (ai:to-big-issue)
+        if: always() && steps.preflight.outputs.configured == 'true' && steps.hermes.outcome == 'cancelled'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ISSUE: ${{ github.event.issue.number }}
+          RUN_START: ${{ steps.starttime.outputs.epoch }}
+        run: |
+          elapsed=$(( $(date +%s) - ${RUN_START:-0} ))
+          if [ "${RUN_START:-0}" -eq 0 ] || [ "$elapsed" -lt 1080 ]; then exit 0; fi
+          gh label create "ai:to-big-issue" --repo "$GITHUB_REPOSITORY" --color B60205 2>/dev/null || true
+          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:to-big-issue"
+          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
+
+      - name: Ergebnis zusammenfassen
+        if: always() && steps.preflight.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          ISSUE: ${{ github.event.issue.number }}
+          OUTCOME: ${{ steps.hermes.outcome }}
+          SESSION_ID: ${{ steps.session.outputs.session_id }}
+        run: |
+          labels="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "::notice title=✅ Umsetzung erfolgreich::Issue #${ISSUE}"
+          elif [ "$OUTCOME" = "cancelled" ]; then
+            echo "::warning title=⏸️ Umsetzung abgebrochen"
+          else
+            echo "::error title=❌ Umsetzung fehlgeschlagen"
+          fi
+          {
+            echo "### Umsetzung #${ISSUE} — fertig"
+            echo "- Hermes-Schritt: \`${OUTCOME:-unbekannt}\`"
+            echo "- Labels: ${labels:-keine}"
+            if [ -n "$SESSION_ID" ]; then echo "- Session-ID: \`${SESSION_ID}\`"; fi
+          } >> "$GITHUB_STEP_SUMMARY"

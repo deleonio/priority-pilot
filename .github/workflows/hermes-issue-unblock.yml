@@ -1,4 +1,4 @@
-name: Claude Issue Unblock (Nachfolger freigeben)
+name: Issue Unblock (Nachfolger freigeben)
 
 # Gibt abhängige Nachfolge-Issues frei, sobald ihr Vorgänger gemergt wurde (#…).
 #
@@ -7,16 +7,16 @@ name: Claude Issue Unblock (Nachfolger freigeben)
 # Nur der erste, unblockierte Sub-Issue trägt `ai:spec-ready`; die Nachfolger warten auf
 # `ai:analyzed`. Wird der PR eines Vorgängers gemergt, prüft dieser Workflow, ob dadurch
 # ALLE Blocker eines Nachfolgers aufgelöst sind (Fan-in-Gate). Wenn ja, wird `ai:analyzed`
-# ENTFERNT → das re-triggert claude-triage.yml, die den Nachfolger gegen den nun gemergten
+# ENTFERNT → das re-triggert hermes-triage.yml, die den Nachfolger gegen den nun gemergten
 # Code-Stand NEU analysiert und selbst entscheidet: 🟢 → `ai:spec-ready` (Kette läuft weiter),
 # 🟡/🔴 → nur `ai:analyzed` + Hinweise (Mensch reagiert). Der Workflow setzt bewusst KEIN
 # `ai:spec-ready` selbst — die erneute Machbarkeitsprüfung ist der Kern des Ansatzes.
 #
 # WICHTIG (Folge-Workflows / Token-Trigger-Falle): Von GITHUB_TOKEN entfernte Labels lösen
 # KEINE weiteren Workflows aus. Damit das "unlabeled"-Event von `ai:analyzed` die Re-Triage
-# (claude-triage.yml) wirklich startet, wird `ai:analyzed` mit einem kurzlebigen
+# (hermes-triage.yml) wirklich startet, wird `ai:analyzed` mit einem kurzlebigen
 # GitHub-App-Token (APP_ID + APP_PRIVATE_KEY) entfernt — gleiches Muster wie
-# pr-needs-review-label.yml / claude-pr-conflict-scan.yml.
+# hermes-pr-needs-review-label.yml / hermes-pr-conflict-scan.yml.
 #
 # Selbsttest-Hinweis: Ein neuer pull_request-Workflow lässt sich nicht am eigenen
 # Einführungs-PR verifizieren (er ist zum Merge-Zeitpunkt noch nicht auf main). Die Logik

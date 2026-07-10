@@ -29,8 +29,8 @@ on:
   workflow_run:
     # Allowlist: NUR diese beiden Workflows gaten/wecken. Externe Checks (z. B. Renovate) zaehlen
     # bewusst nicht mit. Die Namen muessen exakt den `name:`-Feldern von ci.yml bzw.
-    # claude-pr-review.yml entsprechen.
-    workflows: ['CI', 'Claude PR Review (Kreuzverhoer)']
+    # hermes-pr-review.yml entsprechen.
+    workflows: ['CI', 'Hermes PR Review (Kreuzverhoer)']
     types: [completed]
   pull_request:
     # ai:ready-to-merge wird gesetzt (CI evtl. schon gruen). Auf den Label-Namen wird im job-if
@@ -41,7 +41,7 @@ concurrency:
   # Pro PR serialisieren (head_branch identifiziert den PR ueber workflow_run hinweg; beim
   # labeled-Event die PR-Nummer), damit zwei kurz nacheinander eintreffende Events nicht doppelt
   # labeln/mergen.
-  group: claude-pr-gatemerge-${{ github.event.workflow_run.head_branch || github.event.pull_request.number }}
+  group: hermes-pr-gatemerge-${{ github.event.workflow_run.head_branch || github.event.pull_request.number }}
   cancel-in-progress: false
 
 jobs:
@@ -267,7 +267,7 @@ jobs:
               echo "### CI-Gate #${pr} — ai:needs-changes gesetzt"
               echo ""
               echo "- Rote Allowlist-Checks: ${red}"
-              echo "- Folge: claude-pr-fixup.yml wird ausgeloest."
+              echo "- Folge: hermes-pr-fixup.yml wird ausgeloest."
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
@@ -312,7 +312,7 @@ jobs:
                 echo "### CI-Gate #${pr} — ai:needs-changes wegen Merge-Konflikt gesetzt"
                 echo ""
                 echo "- Merge-Konflikte erkannt (mergeable=$mergeable, state=$merge_state)"
-                echo "- Folge: claude-pr-fixup.yml wird ausgelöst."
+                echo "- Folge: hermes-pr-fixup.yml wird ausgelöst."
               } >> "$GITHUB_STEP_SUMMARY"
             else
               echo "PR #$pr ist nicht sauber mergebar (mergeable=$mergeable, state=$merge_state) — warte auf nächsten Event (No-op)."
