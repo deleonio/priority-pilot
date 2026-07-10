@@ -62,7 +62,7 @@ describe('Composite-Action configure-ai-backend existiert und ist korrekt', () =
 		assert.match(
 			action,
 			/ANTHROPIC_API_KEY=\$ZAI_API_KEY/,
-			'ANTHROPIC_API_KEY muss aus dem ZAI_API_KEY-Secret gespeist werden (--bare erzwingt diese Variable)',
+			'ANTHROPIC_API_KEY muss aus dem ZAI_API_KEY-Secret gespeist werden (out-rankt OAuth fuer den z.ai-Endpoint)',
 		);
 		assert.match(action, /ANTHROPIC_BASE_URL=/, 'ANTHROPIC_BASE_URL muss gesetzt werden');
 	});
@@ -203,50 +203,29 @@ describe('AGENTS.md dokumentiert das umschaltbare Backend', () => {
 	});
 });
 
-describe('--bare Modus in allen Claude-Workflows', () => {
+describe('kein Claude-Workflow nutzt --bare (crasht Claude Code ab v2.1.201)', () => {
+	// Regression-Guard: --bare ueberspringt u. a. das von claude-code-action geschriebene
+	// Settings-/Auth-Setup. Ab Claude Code v2.1.201 stirbt der Lauf dadurch SOFORT beim ersten
+	// Turn (is_error:true, ~23ms, total_cost_usd:0), bevor ueberhaupt ein API-Call passiert —
+	// der Job meldet trotzdem "success", die gesamte Pipeline lief scheinbar gruen durch, ohne
+	// etwas zu tun. Empirisch belegt: identische CLI-Version, einziger Delta war --bare; Laeufe
+	// OHNE --bare (z. B. 2026-07-08) liefen normal (is_error:false, echte Kosten). Die frueher hier
+	// unterstellte Wirkung ("blockiert OAuth / erzwingt ANTHROPIC_API_KEY") stand so nicht im
+	// offiziellen `claude --help` ("Minimal mode: skip hooks, LSP, plugin sync, ...").
 	for (const wf of CLAUDE_WORKFLOWS) {
-		it(`${wf} nutzt --bare in claude_args`, () => {
-			const content = readWorkflow(wf);
-			assert.match(
-				content,
-				/claude_args:\s*[\s\S]*?--bare/,
-				`${wf} muss --bare in den claude_args enthalten, um OAuth zu blockieren und Umgebungsvariablen für z.ai zu erzwingen`,
-			);
-		});
-
-		it(`${wf} hat --bare VOR --model in claude_args`, () => {
-			const content = readWorkflow(wf);
-			const barePos = content.indexOf('--bare');
-			const modelPos = content.indexOf('--model', barePos);
-			assert.ok(
-				barePos >= 0 && modelPos > barePos,
-				`${wf}: --bare muss vor --model in claude_args stehen (bare > model bei ${barePos} > ${modelPos})`,
+		it(`${wf} enthält KEIN --bare in claude_args`, () => {
+			assert.doesNotMatch(
+				readWorkflow(wf),
+				/--bare/,
+				`${wf} darf --bare NICHT enthalten — es crasht Claude Code (ab v2.1.201) sofort beim ersten Turn`,
 			);
 		});
 	}
 });
 
-describe('Dokumentation für --bare Modus', () => {
-	it('AGENTS.md dokumentiert --bare für alle Workflows', () => {
-		const docContent = readRepoFile('AGENTS.md');
-		assert.match(docContent, /--bare/, 'AGENTS.md muss --bare erwähnen');
-		assert.match(docContent, /Bare-Modus/, 'AGENTS.md muss den Bare-Modus dokumentieren');
-	});
-
-	it('bare-mode.md existiert als zentrale Dokumentation', () => {
-		assert.ok(
-			existsSync(join(REPO_ROOT, '.ai-knowledge', 'bare-mode.md')),
-			'.ai-knowledge/bare-mode.md muss als zentrale Dokumentation existieren',
-		);
-	});
-
-	it('configure-ai-backend Action dokumentiert --bare', () => {
-		const actionContent = readRepoFile('.github', 'actions', 'configure-ai-backend', 'action.yml');
-		assert.match(actionContent, /--bare/, 'configure-ai-backend muss --bare in der Beschreibung erwähnen');
-	});
-
-	// Soft-Abort Tests (--max-tokens wird NICHT verwendet, da es den Soft-Abort untergraben wuerde)
-	// Siehe: .ai-knowledge/bare-mode.md für die Begründung
+describe('CLI-Args-Härtung der Claude-Workflows', () => {
+	// Soft-Abort Tests: --max-tokens wird bewusst NICHT verwendet, da es den Soft-Abort-Mechanismus
+	// (Session-Resume + Label-Steuerung) untergraben wuerde — dieser hat Vorrang.
 	describe('--max-tokens wird bewusst NICHT verwendet', () => {
 		for (const wf of CLAUDE_WORKFLOWS) {
 			it(`${wf} enthält KEIN --max-tokens (Soft-Abort hat Vorrang)`, () => {

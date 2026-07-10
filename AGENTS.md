@@ -87,10 +87,8 @@ Die KI-Agenten sollen den MCP-Server aktiv nutzen, um:
 - Lokale Entwicklung: `kolibri-mcp` CLI oder Remote-URL verwenden
 
 **Hinweis für GitHub Actions (CI):**
-Die Workflows laufen im `--bare`-Modus, in dem MCP-Server standardmäßig deaktiviert sind. Um den
-KoliBri MCP-Server in CI zu nutzen, müssen die Workflows angepasst werden:
-
-**Option A (empfohlen):** MCP-Server direkt per CLI-Flag in den Workflow-Arguments angeben:
+Um den KoliBri MCP-Server in einem CI-Workflow zu nutzen, den Server direkt per CLI-Flag in den
+Workflow-Arguments angeben:
 
 ```yaml
 claude_args: >-
@@ -99,11 +97,7 @@ claude_args: >-
   ...
 ```
 
-**Option B:** Den `--bare`-Flag aus den Workflows entfernen (verliert Startgeschwindigkeitsvorteil).
-
-Derzeit sind die Workflows im Bare-Modus konfiguriert — eine Anpassung ist für MCP-Nutzung in CI
-notwendig. Lokale Entwicklung und Nicht-CI-Läufe nutzen die Konfiguration aus `settings.json` bzw.
-`config.toml`.
+Lokale Entwicklung und Nicht-CI-Läufe nutzen die Konfiguration aus `settings.json` bzw. `config.toml`.
 
 **Remote-Server:** Immer aktuell, keine Installation erforderlich.
 **Offline-Nutzung:** Server lokal installieren: `npx @public-ui/mcp` oder `npm install -g @public-ui/mcp`.
@@ -218,22 +212,20 @@ Dieser ungeschützte Vorschritt riss bei jedem transienten Fehler den ganzen Lau
 Arbeit lief — die Hauptursache der Unzuverlässigkeit. Die Subagent-Delegation erreicht dasselbe Ziel
 (Sonnet entscheidet, Haiku/Opus führen aus) mit **einem** Lauf und **ohne** CI-JavaScript.
 
-### Bare-Modus (--bare) für alle Workflows
+### ⚠️ Kein `--bare` in den Workflows
 
-**Alle fünf Claude-Workflows** (Triage, Spec, Implement, PR-Review, PR-Fixup) nutzen standardmäßig den
-`--bare`-Flag der Claude-Code-CLI. Dies bewirkt:
+**Der `--bare`-Flag darf NICHT in die `claude_args` der Claude-Workflows.** Er überspringt u. a. das
+von `anthropics/claude-code-action` geschriebene Settings-/Auth-Setup; ab Claude Code **v2.1.201**
+stirbt der Lauf dadurch sofort beim ersten Turn (`is_error:true`, ~23 ms, `total_cost_usd:0`), bevor
+überhaupt ein API-Call passiert — der Job meldet trotzdem „success“, sodass die **gesamte Pipeline
+scheinbar grün durchläuft, ohne etwas zu tun**. Empirisch belegt (2026-07-10): identische CLI-Version,
+einziger Unterschied war `--bare`; Läufe ohne `--bare` liefen normal. `claude --help` beschreibt
+`--bare` lediglich als „Minimal mode: skip hooks, LSP, plugin sync, …“ — nicht als OAuth-/Auth-Schalter.
+Der Regression-Guard dafür steht in `server/src/workflows/ai-backend.test.ts`.
 
-- **Bis zu 10x schnellerer Start:** Keine Suche nach lokalen Konfigurationen, Hooks oder Plugins
-- **Erzwungene Verwendung von Umgebungsvariablen:** Blockiert den automatischen OAuth-Login von Anthropic,
-  sodass Claude Code **ausschließlich** die gesetzten Variablen (`ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY`)
-  verwendet — entscheidend für Drittanbieter wie **z.ai/DeepSeek** (siehe Issue #403) und **OpenRouter**
-- **Reiner Fokus:** Nur Kernwerkzeuge verfügbar (Bash, Read, Edit, Write); MCP-Server, Skills und
-  Plugins sind deaktiviert → deterministisches, reproduzierbares Verhalten
-
-Dies ist besonders in CI/CD-Umgebungen wie GitHub Actions essenziell: schneller Start, sauberes
-Verhalten ohne "Hintergrundgeräusche" und Garantie, dass Drittanbieter-Läufe (Labels `ai:use-zai`
-bzw. `ai:use-openrouter`) tatsächlich den jeweiligen Endpoint nutzen. Vollständige Dokumentation:
-[.ai-knowledge/bare-mode.md](.ai-knowledge/bare-mode.md).
+Die Drittanbieter-Backends (`ai:use-zai`, `ai:use-openrouter`) brauchen `--bare` nicht: Die
+Composite-Action `configure-ai-backend` setzt `ANTHROPIC_BASE_URL` + `ANTHROPIC_API_KEY` in die
+Umgebung, und der z.ai-Pfad gated `claude_code_oauth_token` ohnehin auf `env.AI_BACKEND != 'zai'`.
 
 ## Ticket-Triage
 

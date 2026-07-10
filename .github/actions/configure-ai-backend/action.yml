@@ -13,11 +13,12 @@ description: |
   ebenfalls ab (::error). Volle --model-IDs verlassen Claude Code literal und vertrauen auf
   das serverseitige Mapping des jeweiligen Backends.
 
-  HINWEIS: Alle Aufrufer-Workflows nutzen --bare (Claude-Code-CLI-Flag), was den Start bis zu
-  10x beschleunigt, den automatischen OAuth-Login blockiert und die hier gesetzten Umgebungsvariablen
-  (ANTHROPIC_BASE_URL, ANTHROPIC_API_KEY) erzwingt — besonders wichtig fuer Drittanbieter-Backends,
-  da dort OAuth nicht funktioniert. Siehe AGENTS.md "KI-Agent" und "--bare"-Dokumentation in
-  .ai-knowledge/.
+  HINWEIS: Auf dem z.ai/OpenRouter-Pfad wird das OAuth-Token nicht gesetzt (claude_code_oauth_token
+  ist auf env.AI_BACKEND != 'zai' gegated) und ANTHROPIC_API_KEY out-rankt es ohnehin — die hier
+  gesetzten Umgebungsvariablen greifen also ohne Zusatz-Flag. Der frueher genutzte --bare-Flag ist
+  bewusst ENTFERNT: er ueberspringt das Settings-/Auth-Setup der claude-code-action und laesst ab
+  Claude Code v2.1.201 jeden Lauf sofort scheitern (is_error, ~23ms, $0). Regression-Guard:
+  server/src/workflows/ai-backend.test.ts.
 
 inputs:
   entity-type:
