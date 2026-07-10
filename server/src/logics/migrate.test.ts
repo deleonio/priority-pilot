@@ -2,13 +2,7 @@ import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import sequelize from '../database.js';
 import { Task } from '../models/index.js';
-import {
-	migrateSeriesColumns,
-	migrateSeriesTable,
-	migrateUserIdColumns,
-	migratePillarDescription,
-	migratePillarDropUserId,
-} from './migrate.js';
+import { migrateSeriesColumns, migrateSeriesTable, migrateUserIdColumns, migratePillarDescription } from './migrate.js';
 import { SEED_PILLARS } from '../models/pillarData.js';
 import { closeDb } from '../test/helpers.js';
 
@@ -259,29 +253,6 @@ const columnsOf = async (table: string): Promise<string[]> => {
 	return (rows as { name: string }[]).map((row) => row.name);
 };
 
-/** Index-Namen einer Tabelle. */
-const indexesOf = async (table: string): Promise<string[]> => {
-	const [rows] = await sequelize.query(`PRAGMA index_list('${table}')`);
-	return (rows as { name: string }[]).map((row) => row.name);
-};
-
-/**
- * Erzeugt eine `pillars`-Tabelle im Alt-Schema (vor #207) per Raw-SQL — mit `id`, `name`, `weight`
- * und Zeitstempeln, aber OHNE `userId`. Bildet exakt eine Bestands-`database.sqlite` nach, auf der
- * die Migration greifen muss (damit sync() den Unique-Index anlegen kann).
- */
-const createLegacyPillarsTable = async (): Promise<void> => {
-	await sequelize.query(
-		'CREATE TABLE `pillars` (' +
-			'`id` INTEGER PRIMARY KEY AUTOINCREMENT, ' +
-			'`name` VARCHAR(255) NOT NULL, ' +
-			'`weight` FLOAT NOT NULL DEFAULT 20, ' +
-			'`createdAt` DATETIME NOT NULL, ' +
-			'`updatedAt` DATETIME NOT NULL' +
-			')',
-	);
-};
-
 /**
  * Erzeugt eine `tasks`-Tabelle im Alt-Schema direkt vor #207 (also NACH dem Serien-Feature
  * #120/#142, aber VOR der Datenisolation) per Raw-SQL — mit allen Series-Spalten, aber OHNE
@@ -310,8 +281,8 @@ const createLegacyTasksTableBefore207 = async (): Promise<void> => {
 };
 
 describe('migrateUserIdColumns', () => {
-	// ── AK1: Migration auf Alt-Schema fügt die fehlende userId-Spalte an tasks nach (nur noch tasks —
-	// pillars.userId wurde mit dem Säulen-Cleanup entfernt, siehe migratePillarDropUserId).
+	// ── AK1: Migration auf Alt-Schema fügt die fehlende userId-Spalte an tasks nach (nur tasks —
+	// pillars.userId zieht separat migratePillarPerUser (#421) nach).
 	it('zieht auf einem Alt-Schema userId an tasks nach, sodass sync() nicht mehr bricht', async () => {
 		await createLegacyTasksTableBefore207();
 
@@ -427,87 +398,7 @@ describe('migratePillarDescription', () => {
 	});
 });
 
-describe('migratePillarDropUserId', () => {
-	/**
-	 * Erzeugt eine `pillars`-Tabelle im Alt-Stand VOR dem userId-Cleanup: mit `userId`-Spalte und dem
-	 * historischen Unique-Index `pillars_name_user_id` auf (`name`, `userId`). Bildet eine
-	 * Bestands-`database.sqlite` nach, auf der die Migration greifen muss.
-	 */
-	const createLegacyPillarsWithUserId = async (): Promise<void> => {
-		await sequelize.query(
-			'CREATE TABLE `pillars` (' +
-				'`id` INTEGER PRIMARY KEY AUTOINCREMENT, ' +
-				'`name` VARCHAR(255) NOT NULL, ' +
-				'`weight` FLOAT NOT NULL DEFAULT 20, ' +
-				'`userId` INTEGER, ' +
-				'`createdAt` DATETIME NOT NULL, ' +
-				'`updatedAt` DATETIME NOT NULL' +
-				')',
-		);
-		await sequelize.query('CREATE UNIQUE INDEX `pillars_name_user_id` ON `pillars`(`name`, `userId`)');
-	};
-
-	// ── AK1: Migration entfernt userId-Spalte und alten Index; sync() legt den neuen (name)-Index an
-	it('entfernt die userId-Spalte und stellt den Unique-Index auf (name) um', async () => {
-		await createLegacyPillarsWithUserId();
-		assert.ok((await columnsOf('pillars')).includes('userId'), 'Vorbedingung: userId noch vorhanden');
-
-		await migratePillarDropUserId(sequelize);
-		await sequelize.sync();
-
-		const columns = await columnsOf('pillars');
-		assert.ok(!columns.includes('userId'), 'userId-Spalte wurde entfernt');
-		// Der neue, global-eindeutige Index existiert (ob von der Migration oder sync() angelegt).
-		assert.ok(
-			(await indexesOf('pillars')).some((name) => name.includes('name')),
-			'es existiert ein Namens-Index auf pillars',
-		);
-		// Der alte (name,userId)-Index ist weg.
-		assert.ok(
-			!(await indexesOf('pillars')).includes('pillars_name_user_id'),
-			'der alte Index pillars_name_user_id wurde gedroppt',
-		);
-	});
-
-	// ── Idempotenz — erneuter Lauf ist stabil
-	it('ist idempotent: erneuter Aufruf wirft nicht', async () => {
-		await createLegacyPillarsWithUserId();
-		await migratePillarDropUserId(sequelize);
-		await assert.doesNotReject(() => migratePillarDropUserId(sequelize), 'zweiter Lauf bleibt stabil');
-	});
-
-	// ── No-op, wenn keine userId-Spalte vorhanden ist (z. B. vor #207 angelegte Alt-Tabelle)
-	it('ist ein No-op, wenn pillars keine userId-Spalte hat', async () => {
-		await createLegacyPillarsTable(); // Alt-Schema ohne userId
-		assert.ok(!(await columnsOf('pillars')).includes('userId'), 'Vorbedingung: keine userId-Spalte');
-
-		await assert.doesNotReject(() => migratePillarDropUserId(sequelize), 'Migration ist no-op');
-		// Tabelle bleibt unangetastet (keine userId hinzugefügt oder fehlerhaft gedroppt).
-		const columns = await columnsOf('pillars');
-		assert.ok(!columns.includes('userId'), 'keine userId-Spalte entstanden');
-	});
-
-	// ── No-op bei fehlender Tabelle (frische DB → sync() übernimmt)
-	it('ist auf einer DB ohne pillars-Tabelle ein No-op', async () => {
-		assert.deepEqual(await columnsOf('pillars'), [], 'Vorbedingung: keine pillars-Tabelle');
-		await assert.doesNotReject(() => migratePillarDropUserId(sequelize), 'Migration ohne Tabelle ist no-op');
-	});
-
-	// ── Verhalten: nach der Migration ist der Säulenname global eindeutig (Raw-Insert, modellunabhängig)
-	it('erzwingt nach Migration+sync globale Eindeutigkeit des Säulennamens', async () => {
-		await createLegacyPillarsWithUserId();
-		await migratePillarDescription(sequelize); // description-Spalte (NOT NULL) nachziehen
-		await migratePillarDropUserId(sequelize);
-		await sequelize.sync();
-
-		const insert = (name: string) =>
-			sequelize.query(
-				'INSERT INTO `pillars` (`name`, `weight`, `description`, `createdAt`, `updatedAt`) ' +
-					"VALUES (?, 20, '', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
-				{ replacements: [name] },
-			);
-
-		await assert.doesNotReject(() => insert('Körper'), 'erster Insert klappt');
-		await assert.rejects(() => insert('Körper'), 'zweiter Insert desselben Namens wird abgewiesen (global unique)');
-	});
-});
+// Hinweis: Die frühere Suite `migratePillarDropUserId` wurde mit #421 entfernt. Säulen sind wieder
+// nutzer-eigen (Spalte `userId` + Unique-Index `pillars_name_user_id`); die Umstellung deckt
+// `migrate-pillar-per-user.test.ts` ab. Die alte Drop-Migration widerspricht dem neuen Modell und ist
+// mit ihr entfallen.

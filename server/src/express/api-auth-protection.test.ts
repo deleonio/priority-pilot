@@ -195,23 +195,26 @@ describe('API-Schutz & Datenisolation (#207)', () => {
 		});
 	});
 
-	// ── AK 5 — Datenisolation: User A sieht nur eigene Säulen ───────────────
+	// ── AK 5 — Säulen: nutzer-eigene Stammdaten (#421, Epic #420, Teil 1) ────
+	//
+	// Mit #421 sind Säulen wieder nutzer-eigen: jeder frisch registrierte Nutzer erhält beim Anlegen
+	// seine EIGENEN fünf Standard-Säulen (Seed in der Registrierung). Die Route `GET /pillars` bleibt
+	// in Teil 1 bewusst UNSCOPED — die Isolation auf Route-Ebene (Query-Filter nach userId) folgt in
+	// Teil 2. Der Endpunkt braucht aber weiterhin eine gültige Session (kein 401).
 
-	describe('AK 5 — Datenisolation zwischen zwei Nutzern (Säulen)', () => {
-		it('GET /pillars liefert für verschiedene Nutzer getrennte Listen', async () => {
+	describe('AK 5 — Säulen sind nutzer-eigen, Route noch unscoped (#421, Teil 1)', () => {
+		it('sät jedem Nutzer eigene Säulen; GET /pillars ist erreichbar und (Teil 1) noch unscoped', async () => {
 			const cookieA = await register('alice@example.com', 'passwort-alice');
 			const cookieB = await register('bob@example.com', 'passwort-bob');
 
-			// Alice setzt ihre Säulengewichte (setzt implizit Standardsäulen für Alice)
+			// Session vorhanden ⇒ der Säulen-Endpunkt darf nicht mit 401 abweisen.
 			const putResA = await fetchJson('/pillars/weights', {
 				method: 'PUT',
 				headers: withCookie(cookieA),
 				body: JSON.stringify({ weights: [{ id: 1, weight: 100 }] }),
 			});
-			// 200 oder 400 — wichtig ist, dass der Endpoint erreichbar ist (Session vorhanden)
 			assert.notEqual(putResA.status, 401, 'PUT /pillars/weights mit Session darf nicht 401 liefern');
 
-			// Alice und Bob haben getrennte Säulen-Kontexte
 			const pillarsA = await fetch(`${server.baseUrl}/pillars`, { headers: withCookie(cookieA) });
 			const pillarsB = await fetch(`${server.baseUrl}/pillars`, { headers: withCookie(cookieB) });
 			assert.equal(pillarsA.status, 200);
@@ -220,14 +223,11 @@ describe('API-Schutz & Datenisolation (#207)', () => {
 			const listA = (await pillarsA.json()) as unknown[];
 			const listB = (await pillarsB.json()) as unknown[];
 
-			// Bobs Säulenliste soll leer sein (er hat keine angelegt) — Isolation ist gewährleistet
-			assert.equal(listB.length, 0, `Bob soll 0 Säulen sehen (keine eigenen), sieht ${listB.length}`);
-			// Alices Liste kann Säulen enthalten (je nach Implementierung der Standardsäulen)
-			// Entscheidend ist: Bob sieht Alices Säulen NICHT
-			assert.ok(
-				listA.length >= listB.length || listA.length === 0,
-				'Alices und Bobs Säulenlisten müssen isoliert sein',
-			);
+			// Beide Nutzer haben je fünf eigene Säulen bekommen ⇒ die (noch unscoped) Route liefert die
+			// Vereinigung (2×5). Route-Scoping folgt in Teil 2; die Daten-Isolation (pillars.userId) ist
+			// in pillar-per-user-seed.test.ts per Raw-SQL abgesichert.
+			assert.equal(listA.length, 10, `unscoped Route zeigt beide Säulen-Sätze, sieht ${listA.length}`);
+			assert.equal(listB.length, listA.length, 'die noch unscoped Route liefert beiden dieselbe Liste');
 		});
 	});
 });

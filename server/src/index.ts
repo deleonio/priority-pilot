@@ -10,7 +10,7 @@ import {
 	migrateUsersAvatarUrl,
 	migrateUserIdColumns,
 	migratePillarDescription,
-	migratePillarDropUserId,
+	migratePillarPerUser,
 } from './logics/migrate.js';
 import { buildTaskForest } from './logics/tree.js';
 import { runDueTaskReminders } from './logics/dueTaskReminders.js';
@@ -128,9 +128,10 @@ const main = async (): Promise<void> => {
 		// Fehlende description-Spalte an pillars nachziehen + kanonische Stammdaten zurückfüllen
 		// (vor sync(), damit eine frische DB den Spalten-Default korrekt erhält).
 		await migratePillarDescription(sequelize);
-		// Ungenutzte userId-Spalte an pillars entfernen (Säulen sind global) + Unique-Index von
-		// (name, userId) auf (name) umstellen — vor sync(), damit das neue Modell sauber greift.
-		await migratePillarDropUserId(sequelize);
+		// Säulen auf nutzer-eigene Stammdaten umstellen (#421): userId nachziehen, Unique-Index auf
+		// (name, userId) umstellen, je Nutzer eigene Klone anlegen und task_pillars/series_pillars
+		// umhängen — vor sync(), damit das neue Modell (userId + Index) sauber greift.
+		await migratePillarPerUser(sequelize);
 
 		// Datenbank synchronisieren (force nur bei DB_RESET=true)
 		await sequelize.sync({ force: shouldReset });
