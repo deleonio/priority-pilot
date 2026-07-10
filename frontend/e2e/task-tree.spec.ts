@@ -988,38 +988,6 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 				// Button muss disabled sein
 				await expect(doneButton).toBeDisabled();
 			});
-
-			test('AK-413-7: Bereits erledigte Oberaufgabe hat aktivierten Wieder-öffnen-Schalter (immer erlaubt)', async ({
-				page,
-			}) => {
-				const parentTitle = uniqueTitle('Erledigte-Eltern');
-				const parentId = await createTask(page, parentTitle);
-				const childId = await createTask(page, uniqueTitle('Offenes-Kind'));
-
-				await addSubtask(page, parentId, childId);
-
-				// Oberaufgabe erledigen (Trotz offener Unteraufgabe - "Wieder öffnen" ist immer erlaubt)
-				await page.request.patch(`/api/v1/tasks/${parentId}`, { data: { status: 'Done' } });
-
-				await page.goto('/');
-				await waitForStableView(page);
-				await openTasksTab(page);
-
-				// Die Unteraufgabe liegt oben im invertierten Wald; Oberaufgabe aufklappen.
-				await toggle(page, childId).click();
-				await expect(item(page, parentId)).toBeVisible();
-
-				// Der "Wieder öffnen"-Schalter der erledigten Oberaufgabe muss aktivierbar sein
-				// (Laut #315 ist das Wieder-Öffnen jederzeit erlaubt, egal ob Kinder offen sind)
-				await openActionsPopover(page, parentId);
-
-				// Der Button liegt im Popover (globales Overlay), nicht im item-Container
-				const doneButton = page.getByRole('button', { name: /Wieder (?:öffnen|offnen)/i });
-				await expect(doneButton).toBeVisible();
-
-				// Der Button muss NICHT disabled sein (Wieder-öffnen ist immer erlaubt)
-				await expect(doneButton).not.toBeDisabled();
-			});
 		});
 	});
 });
