@@ -447,6 +447,7 @@ jobs:
         with:
           execution-file: ${{ steps.claude.outputs.execution_file }}
           label: Fixup
+          ai-backend: ${{ env.AI_BACKEND }}
 
       # Named Session Resume (Phase "fix"): sichert die eben beendete/abgebrochene Session ins
       # Sitzungsarchiv, damit ein Selbst-Retrigger-Folgelauf per --resume anknuepfen kann.

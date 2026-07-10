@@ -12,6 +12,10 @@ inputs:
   label:
     description: 'Kurzer Anzeigename fuer die Job-Summary (z. B. Triage, Spec, Umsetzung, Review, Fixup)'
     required: true
+  ai-backend:
+    description: 'KI-Backend des Laufs (anthropic, zai, openrouter). Default: anthropic'
+    required: false
+    default: 'anthropic'
 
 runs:
   using: composite
@@ -21,6 +25,7 @@ runs:
       env:
         EXECUTION_FILE: ${{ inputs.execution-file }}
         LABEL: ${{ inputs.label }}
+        AI_BACKEND: ${{ inputs.ai-backend }}
       run: |
         # EUR-Kurs + Hinweis: total_cost_usd ist bereits eine Client-seitige Schaetzung der
         # claude-code-action (nicht die autoritative Abrechnung) -- die EUR-Umrechnung hier ist
@@ -45,15 +50,63 @@ runs:
         [ -n "$result" ] || skip "kein result-Eintrag in execution_file gefunden."
 
         cost_usd="$(jq -r '.total_cost_usd // empty' <<<"$result")"
-        [ -n "$cost_usd" ] || skip "kein total_cost_usd im result-Eintrag."
-
         input_tokens="$(jq -r '.usage.input_tokens // 0' <<<"$result")"
         output_tokens="$(jq -r '.usage.output_tokens // 0' <<<"$result")"
         cache_read="$(jq -r '.usage.cache_read_input_tokens // 0' <<<"$result")"
         cache_write="$(jq -r '.usage.cache_creation_input_tokens // 0' <<<"$result")"
         turns="$(jq -r '.num_turns // "?"' <<<"$result")"
 
-        cost_eur="$(awk -v u="$cost_usd" -v r="$EUR_PER_USD" 'BEGIN{printf "%.4f", u*r}')"
+        # Gesamt-Tokens (auch wenn cost_usd=0 bei Drittanbietern)
+        total_tokens=$(( input_tokens + output_tokens ))
+
+        # Bei Drittanbieter-Backends (z.ai / OpenRouter) kann claude-code-action keine
+        # Kosten berechnen -- total_cost_usd ist dann 0 oder fehlt. Statt "$0" vorzutaeuschen,
+        # eine aussagekraeftige Meldung mit den verfuegbaren Token-Daten zeigen.
+        if [ "${AI_BACKEND:-anthropic}" != "anthropic" ]; then
+          case "$AI_BACKEND" in
+            openrouter) backend_label="OpenRouter (DeepSeek-Modelle ~12-29x guenstiger)" ;;
+            zai)        backend_label="z.ai (GLM-Modelle)" ;;
+            *)          backend_label="$AI_BACKEND" ;;
+          esac
+
+          if [ "$total_tokens" -gt 0 ]; then
+            {
+              echo "### Kosten-Schaetzung -- ${LABEL}"
+              echo ""
+              echo "| Groesse | Wert |"
+              echo "|---|---|"
+              echo "| Turns | $turns |"
+              echo "| Input-Tokens | $input_tokens |"
+              echo "| Output-Tokens | $output_tokens |"
+              echo "| Cache-Read-Tokens | $cache_read |"
+              echo "| Cache-Write-Tokens | $cache_write |"
+              echo "| Backend | ${backend_label} |"
+              echo "| Kosten | Keine Client-Schaetzung verfuegbar (Drittanbieter-Backend) |"
+              echo ""
+              echo "_total_cost_usd steht nur fuer Anthropic-native API-Calls zur Verfuegung. Fuer echte Abrechnung: OpenRouter Dashboard bzw. z.ai Console._"
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::notice title=Kosten-Zusammenfassung::${LABEL} -- ${backend_label}, ${input_tokens}+${output_tokens} Tokens. Kostenschaetzung nicht verfuegbar (Drittanbieter)."
+          else
+            {
+              echo "### Kosten-Schaetzung -- ${LABEL}"
+              echo ""
+              echo "| Groesse | Wert |"
+              echo "|---|---|"
+              echo "| Turns | $turns |"
+              echo "| Backend | ${backend_label} |"
+              echo "| Token-Daten | Nicht verfuegbar (Drittanbieter-Backend) |"
+              echo "| Kosten | Nicht verfuegbar |"
+              echo ""
+              echo "_Weder Kosten- noch Token-Daten im execution_file -- bei Drittanbieter-Backends liefert claude-code-action diese Daten oft nicht. Fuer echte Werte: OpenRouter Dashboard bzw. z.ai Console._"
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::notice title=Kosten-Zusammenfassung::${LABEL} -- ${backend_label}, keine Token-Daten verfuegbar (Drittanbieter-Backend)."
+          fi
+          exit 0
+        fi
+
+        [ -n "$cost_usd" ] || skip "kein total_cost_usd im result-Eintrag."
+
+        cost_eur="$(awk -v u="$cost_usd" -v r="$EUR_PER_USD" 'BEGIN{printf "%.4f", u*r}')
 
         {
           echo "### Kosten-Schaetzung -- ${LABEL}"

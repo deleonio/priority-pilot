@@ -293,6 +293,7 @@ jobs:
         with:
           execution-file: ${{ steps.claude.outputs.execution_file }}
           label: Triage
+          ai-backend: ${{ env.AI_BACKEND }}
 
       # Named Session Resume (Phase "analyse"): sichert die eben beendete/abgebrochene Session ins
       # Sitzungsarchiv (GitHub Actions Cache), damit die naechste (Re-)Triage dieses Issues per

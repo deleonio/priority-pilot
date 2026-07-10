@@ -278,6 +278,7 @@ jobs:
         with:
           execution-file: ${{ steps.claude.outputs.execution_file }}
           label: Review
+          ai-backend: ${{ env.AI_BACKEND }}
 
       # Named Session Resume (Phase "review"): sichert die eben beendete/abgebrochene Session ins
       # Sitzungsarchiv, damit ein Selbst-Retrigger-Folgelauf per --resume anknuepfen kann.
