@@ -149,6 +149,7 @@ jobs:
           entity-number: ${{ github.event.issue.number }}
           gh-token: ${{ steps.app-token.outputs.token || github.token }}
           zai-api-key: ${{ secrets.ZAI_API_KEY }}
+          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
 
       # Deterministischer Agent-Secret-Check (Haerten S2): die OAuth-Token-Voraussetzung fuer
       # Claude darf NICHT still skippen — fehlt CLAUDE_CODE_OAUTH_TOKEN, bricht der Lauf hier
@@ -163,8 +164,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
-          if [ "${AI_BACKEND:-}" = "zai" ]; then
-            echo "KI-Backend=zai — Auth via ZAI_API_KEY (in configure-ai-backend validiert). OAuth-Preflight entfaellt."
+          if [ "${AI_BACKEND:-}" = "zai" ] || [ "${AI_BACKEND:-}" = "openrouter" ]; then
+            echo "KI-Backend=${AI_BACKEND} — Auth via API-Key (in configure-ai-backend validiert). OAuth-Preflight entfaellt."
             exit 0
           fi
           if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
@@ -206,7 +207,7 @@ jobs:
           # Spec-Workflow aus; ohne App-Secrets Fallback auf github.token.
           GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
         with:
-          claude_code_oauth_token: ${{ env.AI_BACKEND != 'zai' && secrets.CLAUDE_CODE_OAUTH_TOKEN || '' }}
+          claude_code_oauth_token: ${{ env.AI_BACKEND != 'zai' && env.AI_BACKEND != 'openrouter' && secrets.CLAUDE_CODE_OAUTH_TOKEN || '' }}
           github_token: ${{ steps.app-token.outputs.token || github.token }}
           # Erlaubt NUR, dass claude-issue-unblock.yml per App-Bot "ai:analyzed" entfernen und
           # damit die Re-Analyse eines freigegebenen Nachfolge-Issues anstossen darf (siehe

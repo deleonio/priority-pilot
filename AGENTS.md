@@ -19,6 +19,7 @@ Wissensbasis liegt in [`.ai-knowledge/`](.ai-knowledge/).
 - [Deployment: Server-Setup](docs/server-setup.md) — Schritt-für-Schritt-Einrichtung des Linux-Servers
 - [Workflow-Tool: Kosten-Reporting](docs/workflow-tool-costs.md) — Snippet für Token-/USD-EUR-Schätzung am Ende eines Claude-Code-Workflow-Skripts
 - [CI-Kosten-Zusammenfassung](docs/ci-cost-summary.md) — Token-/USD-EUR-Schätzung je GitHub-Actions-Lauf der KI-Pipeline (`.github/actions/cost-summary`)
+- [OpenRouter-Kostenanalyse](.ai-knowledge/openrouter-cost-analysis.md) — Modellpreise, Alternativen, Kostenvergleich (DeepSeek/Gemini/GPT via OpenRouter)
 
 ## Kernregeln
 
@@ -137,6 +138,39 @@ Vollständige `--model`-IDs (`claude-opus-4-8`, `claude-sonnet-4-6`) verlassen C
 und vertrauen auf z.ai serverseitiges Mapping (Entscheidung Endpoint-only, Issue #403). Lehnt z.ai
 einen Modellnamen ab, ist der dokumentierte Fallback, `--model` zu parametrisieren (Follow-up).
 
+### Optionales Backend: OpenRouter (kosteneffiziente Alternativ-Modelle)
+
+Zusätzlich zu z.ai gibt es eine Integration für **OpenRouter** — der
+Anthropic-kompatible API-Endpunkt (`/api/anthropic`) leitet Claude Code auf OpenRouter um,
+gesteuert pro Lauf über das Label **`ai:use-openrouter`**:
+
+- **Default (kein Label):** Claude-Code läuft gegen **Anthropic** via OAuth
+  (`CLAUDE_CODE_OAUTH_TOKEN`). Nichts ändert sich.
+- **Label `ai:use-openrouter` am Issue:** die Composite-Action
+  [`configure-ai-backend`](.github/actions/configure-ai-backend/action.yml) leitet den
+  Lauf auf den OpenRouter **Anthropic-API-Endpoint** (`https://openrouter.ai/api/anthropic`) um.
+  Auth wechselt auf `ANTHROPIC_API_KEY` (Bearer, aus dem Secret **`OPENROUTER_API_KEY`**).
+  Die Alias-Map (`ANTHROPIC_DEFAULT_*_MODEL`) greift für die Subagent-Delegation.
+- **Ein Label steuert die ganze Pipeline:** gleicher Mechanismus wie bei `ai:use-zai` (Issue-
+  und PR-Stufen). Sind **beide** Labels (`ai:use-zai` UND `ai:use-openrouter`) an einem Issue
+  gesetzt, bricht die Action deterministisch ab (Konflikt, kein stiller Fallback).
+- **Modell-Mapping** (kosteneffiziente DeepSeek-Modelle über OpenRouter, Preise pro 1M Tokens):
+  - **Opus** → `deepseek/deepseek-v4-pro` ($0.43/$0.87, 12–29× günstiger)
+  - **Sonnet** → `deepseek/deepseek-v3.2` ($0.23/$0.34, 13–44× günstiger)
+  - **Haiku** → `deepseek/deepseek-v4-flash` ($0.09/$0.18, 11–28× günstiger)
+  - **Fable** → `deepseek/deepseek-r1-0528` ($0.50/$2.15, 20–23× günstiger)
+
+Volle `--model`-IDs (`claude-opus-4-8`, `claude-sonnet-4-6`) verlassen Claude Code **literal**
+und werden über die `ANTHROPIC_DEFAULT_*_MODEL`-Aliase gemappt, bevor OpenRouter sie
+serverseitig auflöst. Der **Coding-Agent bleibt Claude Code** — lediglich die API-Calls laufen
+über OpenRouter.
+
+**Voraussetzungen:**
+
+1. Repo-Secret `OPENROUTER_API_KEY` (API-Key von https://openrouter.ai/keys) hinterlegen.
+2. Label `ai:use-openrouter` am Issue setzen.
+3. Fertig — die Pipeline läuft automatisch über OpenRouter, kein Workflow-Umbau nötig.
+
 ### Modell-Wahl per Subagent-Delegation (Claude-Pfad)
 
 Statt jeden KI-Workflow fest auf ein Modell zu verkabeln **oder** eine zweite, vorgeschaltete
@@ -192,13 +226,14 @@ Arbeit lief — die Hauptursache der Unzuverlässigkeit. Die Subagent-Delegation
 - **Bis zu 10x schnellerer Start:** Keine Suche nach lokalen Konfigurationen, Hooks oder Plugins
 - **Erzwungene Verwendung von Umgebungsvariablen:** Blockiert den automatischen OAuth-Login von Anthropic,
   sodass Claude Code **ausschließlich** die gesetzten Variablen (`ANTHROPIC_BASE_URL`, `ANTHROPIC_API_KEY`)
-  verwendet — entscheidend für Drittanbieter wie **z.ai/DeepSeek** (siehe Issue #403)
+  verwendet — entscheidend für Drittanbieter wie **z.ai/DeepSeek** (siehe Issue #403) und **OpenRouter**
 - **Reiner Fokus:** Nur Kernwerkzeuge verfügbar (Bash, Read, Edit, Write); MCP-Server, Skills und
   Plugins sind deaktiviert → deterministisches, reproduzierbares Verhalten
 
 Dies ist besonders in CI/CD-Umgebungen wie GitHub Actions essenziell: schneller Start, sauberes
-Verhalten ohne "Hintergrundgeräusche" und Garantie, dass z.ai-Läufe (Label `ai:use-zai`) tatsächlich den
-DeepSeek-Endpoint nutzen. Vollständige Dokumentation: [.ai-knowledge/bare-mode.md](.ai-knowledge/bare-mode.md).
+Verhalten ohne "Hintergrundgeräusche" und Garantie, dass Drittanbieter-Läufe (Labels `ai:use-zai`
+bzw. `ai:use-openrouter`) tatsächlich den jeweiligen Endpoint nutzen. Vollständige Dokumentation:
+[.ai-knowledge/bare-mode.md](.ai-knowledge/bare-mode.md).
 
 ## Ticket-Triage
 

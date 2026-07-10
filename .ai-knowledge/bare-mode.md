@@ -45,6 +45,7 @@ Dies führt zu einem **deterministischen, reproduzierbaren Verhalten** — ideal
 **Primärer Anwendungsfall:** Betrieb von Claude Code mit alternativen Anbietern wie:
 
 - **DeepSeek (z.ai)** — über `ai:use-zai` Label
+- **OpenRouter** — über `ai:use-openrouter` Label (kosteneffiziente DeepSeek-Modelle)
 - **OpenAI** — über `OPENAI_API_KEY` + Endpoint
 - **Ollama** — lokal oder Remote
 - **Jeder andere Anthropic-kompatible Anbieter**
@@ -173,7 +174,8 @@ Die Kombination aus `--bare` und der `configure-ai-backend`-Action ermöglicht n
     entity-type: issue
     entity-number: ${{ github.event.issue.number }}
     gh-token: ${{ steps.app-token.outputs.token }}
-    zai-api-key: ${{ secrets.ZAI_API_KEY }}
+    zai-api-key: *** secrets.ZAI_API_KEY }}
+    openrouter-api-key: *** secrets.OPENROUTER_API_KEY }}
 
 # Später im Claude-Schritt
 - name: Umsetzung via Claude Code
@@ -183,15 +185,47 @@ Die Kombination aus `--bare` und der `configure-ai-backend`-Action ermöglicht n
       --bare --model claude-sonnet-4-6 --effort medium
       --allowedTools "..."
   env:
-    ANTHROPIC_BASE_URL: ${{ env.AI_BACKEND == 'zai' && 'https://api.z.ai/api/anthropic' || '' }}
-    ANTHROPIC_API_KEY: ${{ env.AI_BACKEND == 'zai' && secrets.ZAI_API_KEY || '' }}
+    ANTHROPIC_BASE_URL: ${{ env.AI_BACKEND == 'zai' && 'https://api.z.ai/api/anthropic' || env.AI_BACKEND == 'openrouter' && 'https://openrouter.ai/api/anthropic' || '' }}
+    ANTHROPIC_API_KEY: ${{ env.AI_BACKEND == 'zai' && secrets.ZAI_API_KEY || env.AI_BACKEND == 'openrouter' && secrets.OPENROUTER_API_KEY || '' }}
 ```
 
-Wenn das Issue das Label `ai:use-zai` trägt:
+### OpenRouter-Konfiguration
 
-1. Setzt `configure-ai-backend` die Umgebungsvariablen `AI_BACKEND=zai`, `ANTHROPIC_BASE_URL` und `ANTHROPIC_API_KEY`
-2. `--bare` blockiert den OAuth-Login
-3. Claude Code verwendet **ausschließlich** die Umgebungsvariablen für die Verbindung zu z.ai
+Analog zu z.ai steuert das Label `ai:use-openrouter` die Umleitung auf OpenRouter:
+
+```yaml
+# configure-ai-backend setzt bei Label "ai:use-openrouter":
+AI_BACKEND=openrouter
+ANTHROPIC_BASE_URL=https://openrouter.ai/api/anthropic
+ANTHROPIC_API_KEY=<OPENROUTER_API_KEY>
+ANTHROPIC_DEFAULT_OPUS_MODEL=deepseek/deepseek-v4-pro     # $0.43/$0.87 pro 1M
+ANTHROPIC_DEFAULT_SONNET_MODEL=deepseek/deepseek-v3.2     # $0.23/$0.34 pro 1M
+ANTHROPIC_DEFAULT_HAIKU_MODEL=deepseek/deepseek-v4-flash  # $0.09/$0.18 pro 1M
+ANTHROPIC_DEFAULT_FABLE_MODEL=deepseek/deepseek-r1-0528   # $0.50/$2.15 pro 1M
+```
+
+**Modell-Wahl (DeepSeek über OpenRouter):**
+
+| Claude-Modell | OpenRouter-Modell            | Prompt/1M | Completion/1M | Ersparnis vs. Claude |
+| ------------- | ---------------------------- | --------- | ------------- | -------------------- |
+| Opus 4.8      | `deepseek/deepseek-v4-pro`   | $0.43     | $0.87         | 12–29× günstiger     |
+| Sonnet 4.6    | `deepseek/deepseek-v3.2`     | $0.23     | $0.34         | 13–44× günstiger     |
+| Haiku 4.5     | `deepseek/deepseek-v4-flash` | $0.09     | $0.18         | 11–28× günstiger     |
+| Fable 5       | `deepseek/deepseek-r1-0528`  | $0.50     | $2.15         | 20–23× günstiger     |
+
+**Voraussetzungen:**
+
+1. Repo-Secret `OPENROUTER_API_KEY` (von https://openrouter.ai/keys) als Secret hinterlegen
+2. Label `ai:use-openrouter` am Issue setzen
+3. Kein weiterer Workflow-Umbau nötig
+
+**API-Key besorgen:**
+
+1. Account auf https://openrouter.ai erstellen
+2. Unter https://openrouter.ai/keys einen API-Key generieren
+3. Als GitHub-Repo-Secret `OPENROUTER_API_KEY` speichern
+
+Wenn das Issue das Label `ai:use-zai` trägt: `AI_BACKEND=zai`, `ANTHROPIC_BASE_URL` und `ANTHROPIC_API_KEY` 2. `--bare` blockiert den OAuth-Login 3. Claude Code verwendet **ausschließlich** die Umgebungsvariablen für die Verbindung zu z.ai
 
 ---
 

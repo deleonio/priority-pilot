@@ -1,20 +1,23 @@
-name: KI-Backend konfigurieren (Claude-Default, z.ai per Issue-Label)
+name: KI-Backend konfigurieren (Claude-Default, z.ai/OpenRouter per Issue-Label)
 description: |
-  Entscheidet pro Lauf, ob Claude Code gegen Anthropic (Default) oder den Anthropic-kompatiblen
-  z.ai-Endpoint laeuft — gesteuert ueber das Label `ai:use-zai` auf dem Issue. Issue-Stufen
-  (Triage/Spec/Implement) lesen die Labels des Issues; PR-Stufen (Review/Fixup) lesen die Labels des
-  PR zusaetzlich zu denen des verlinkten Issues (Closes #N), sodass EIN Label auf dem Issue die ganze
-  Pipeline steuert. Fail-open: ist nichts aufloesbar, gilt der Claude-Default. Schreibt AI_BACKEND
-  (anthropic|zai) nach $GITHUB_ENV; bei zai kommen ANTHROPIC_BASE_URL + ANTHROPIC_API_KEY (Bearer,
-  aus Secret ZAI_API_KEY) + ANTHROPIC_DEFAULT_*_MODEL-Alias-Map dazu. API_KEY out-rankt das
-  OAuth-Token sauber; ist das Label gesetzt, aber ZAI_API_KEY fehlt, bricht der Schritt
-  deterministisch ab (::error, kein stiller Skip). Volle --model-IDs verlassen Claude Code literal
-  und vertrauen auf z.ai serverseitiges Mapping (Issue #403).
+  Entscheidet pro Lauf, ob Claude Code gegen Anthropic (Default), den Anthropic-kompatiblen
+  z.ai-Endpoint ODER OpenRouter laeuft — gesteuert ueber die Labels `ai:use-zai` bzw.
+  `ai:use-openrouter` auf dem Issue. Issue-Stufen (Triage/Spec/Implement) lesen die Labels des
+  Issues; PR-Stufen (Review/Fixup) lesen die Labels des PR zusaetzlich zu denen des verlinkten
+  Issues (Closes #N), sodass EIN Label auf dem Issue die ganze Pipeline steuert. Fail-open: ist
+  nichts aufloesbar, gilt der Claude-Default. Schreibt AI_BACKEND (anthropic|zai|openrouter) nach
+  $GITHUB_ENV; bei zai/openrouter kommen ANTHROPIC_BASE_URL + ANTHROPIC_API_KEY (Bearer) +
+  ANTHROPIC_DEFAULT_*_MODEL-Alias-Map dazu. API_KEY out-rankt das OAuth-Token sauber; ist das
+  Label gesetzt, aber der zugehoerige API-Key fehlt, bricht der Schritt deterministisch ab
+  (::error, kein stiller Skip). Sind BEIDE Labels gesetzt (Konflikt), bricht der Schritt
+  ebenfalls ab (::error). Volle --model-IDs verlassen Claude Code literal und vertrauen auf
+  das serverseitige Mapping des jeweiligen Backends.
 
   HINWEIS: Alle Aufrufer-Workflows nutzen --bare (Claude-Code-CLI-Flag), was den Start bis zu
   10x beschleunigt, den automatischen OAuth-Login blockiert und die hier gesetzten Umgebungsvariablen
-  (ANTHROPIC_BASE_URL, ANTHROPIC_API_KEY) erzwingt — besonders wichtig fuer z.ai, da dort OAuth
-  nicht funktioniert. Siehe AGENTS.md "KI-Agent" und "--bare"-Dokumentation in .ai-knowledge/.
+  (ANTHROPIC_BASE_URL, ANTHROPIC_API_KEY) erzwingt — besonders wichtig fuer Drittanbieter-Backends,
+  da dort OAuth nicht funktioniert. Siehe AGENTS.md "KI-Agent" und "--bare"-Dokumentation in
+  .ai-knowledge/.
 
 inputs:
   entity-type:
@@ -30,17 +33,22 @@ inputs:
     description: 'z.ai-API-Key aus dem Secret ZAI_API_KEY.'
     required: false
     default: ''
+  openrouter-api-key:
+    description: 'OpenRouter-API-Key aus dem Secret OPENROUTER_API_KEY.'
+    required: false
+    default: ''
 
 runs:
   using: composite
   steps:
-    - name: KI-Backend aus Label `ai:use-zai` ableiten
+    - name: KI-Backend aus Label `ai:use-zai` oder `ai:use-openrouter` ableiten
       shell: bash
       env:
         ENTITY_TYPE: ${{ inputs.entity-type }}
         ENTITY_NUMBER: ${{ inputs.entity-number }}
         GH_TOKEN: ${{ inputs.gh-token }}
         ZAI_API_KEY: ${{ inputs.zai-api-key }}
+        OPENROUTER_API_KEY: ${{ inputs.openrouter-api-key }}
       run: |
         set +e
         # Labels der Entitaet sammeln (Issue ODER PR + ggf. verlinktes Issue). Fail-open: jeder
@@ -58,7 +66,22 @@ runs:
           fi
         }
 
+        use_zai=false
+        use_openrouter=false
         if collect_labels | grep -qx 'ai:use-zai'; then
+          use_zai=true
+        fi
+        if collect_labels | grep -qx 'ai:use-openrouter'; then
+          use_openrouter=true
+        fi
+
+        # Konflikt: beide Labels gesetzt -> deterministisch abbrechen
+        if [ "$use_zai" = true ] && [ "$use_openrouter" = true ]; then
+          echo "::error title=KI-Backend-Konflikt::Labels 'ai:use-zai' UND 'ai:use-openrouter' sind beide gesetzt — nur EINES erlaubt. Bitte entferne eines der Labels."
+          exit 1
+        fi
+
+        if [ "$use_zai" = true ]; then
           if [ -z "$ZAI_API_KEY" ]; then
             echo "::error title=KI-Backend z.ai::Label 'ai:use-zai' gesetzt, aber Secret ZAI_API_KEY fehlt — als Repo-Secret hinterlegen (oder Label entfernen fuer Claude-Default)."
             exit 1
@@ -76,7 +99,30 @@ runs:
             echo "ANTHROPIC_DEFAULT_FABLE_MODEL=glm-5.2"
           } >> "$GITHUB_ENV"
           echo "KI-Backend=z.ai aktiv (Label 'ai:use-zai' an $ENTITY_TYPE #$ENTITY_NUMBER) — Endpoint umgeleitet, Auth via ANTHROPIC_API_KEY (out-rankt OAuth)."
+
+        elif [ "$use_openrouter" = true ]; then
+          if [ -z "$OPENROUTER_API_KEY" ]; then
+            echo "::error title=KI-Backend OpenRouter::Label 'ai:use-openrouter' gesetzt, aber Secret OPENROUTER_API_KEY fehlt — als Repo-Secret hinterlegen (oder Label entfernen fuer Claude-Default)."
+            exit 1
+          fi
+          # OpenRouter-Modell-Map: kosteneffiziente Alternativen zu Claude-Modellen.
+          # deepseek-v4-pro  (Opus-Ersatz)  : $0.43/$0.87  pro 1M (12-29x guenstiger als Opus 4.8)
+          # deepseek-v3.2    (Sonnet-Ersatz): $0.23/$0.34  pro 1M (13-44x guenstiger als Sonnet 4.6)
+          # deepseek-v4-flash (Haiku-Ersatz) : $0.09/$0.18  pro 1M (11-28x guenstiger als Haiku 4.5)
+          # deepseek-r1-0528 (Fable-Ersatz)  : $0.50/$2.15  pro 1M (20-23x guenstiger als Fable 5)
+          # Volle --model-IDs verlaesst Claude Code literal, OpenRouter mappt serverseitig.
+          {
+            echo "AI_BACKEND=openrouter"
+            echo "ANTHROPIC_BASE_URL=https://openrouter.ai/api/anthropic"
+            echo "ANTHROPIC_API_KEY=$OPENROUTER_API_KEY"
+            echo "ANTHROPIC_DEFAULT_HAIKU_MODEL=deepseek/deepseek-v4-flash"
+            echo "ANTHROPIC_DEFAULT_SONNET_MODEL=deepseek/deepseek-v3.2"
+            echo "ANTHROPIC_DEFAULT_OPUS_MODEL=deepseek/deepseek-v4-pro"
+            echo "ANTHROPIC_DEFAULT_FABLE_MODEL=deepseek/deepseek-r1-0528"
+          } >> "$GITHUB_ENV"
+          echo "KI-Backend=OpenRouter aktiv (Label 'ai:use-openrouter' an $ENTITY_TYPE #$ENTITY_NUMBER) — Endpoint umgeleitet, Auth via ANTHROPIC_API_KEY (out-rankt OAuth)."
+
         else
           echo "AI_BACKEND=anthropic" >> "$GITHUB_ENV"
-          echo "KI-Backend=Claude/Anthropic (Default — kein Label 'ai:use-zai' an $ENTITY_TYPE #$ENTITY_NUMBER). OAuth via CLAUDE_CODE_OAUTH_TOKEN unberuehrt."
+          echo "KI-Backend=Claude/Anthropic (Default — kein Label 'ai:use-zai'/'ai:use-openrouter' an $ENTITY_TYPE #$ENTITY_NUMBER). OAuth via CLAUDE_CODE_OAUTH_TOKEN unberuehrt."
         fi
