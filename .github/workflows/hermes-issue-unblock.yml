@@ -28,7 +28,7 @@ on:
 
 concurrency:
   # Pro gemergtem PR serialisieren; nicht abbrechen (jeder Merge soll vollständig auswerten).
-  group: claude-issue-unblock-${{ github.event.pull_request.number }}
+  group: hermes-issue-unblock-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 
 jobs:
@@ -159,7 +159,7 @@ jobs:
               {
                 echo "### Issue #${B} — freigegeben (Vorgänger #${A} gemergt)"
                 echo ""
-                echo "- Alle Blocker aufgelöst → \`ai:analyzed\` entfernt → claude-triage.yml re-analysiert gegen den neuen Code-Stand."
+                echo "- Alle Blocker aufgelöst → \`ai:analyzed\` entfernt → hermes-triage.yml re-analysiert gegen den neuen Code-Stand."
               } >> "$GITHUB_STEP_SUMMARY"
             done
           done

@@ -125,6 +125,7 @@ jobs:
       # ──────────────────────────────────────────────
       - name: API-Key prüfen (OPENROUTER_API_KEY)
         env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
@@ -221,6 +222,9 @@ jobs:
             --ignore-user-config --max-turns 90 \
             --accept-hooks \
             2>&1 | tee /tmp/hermes-output.log
+          # Wichtig: set -o pipefail propagiert den Exit-Code von hermes chat
+          # durch das `2>&1 | tee`. Ohne das wäre der Exit-Code immer 0 (tee).
+          test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
 
       # ──────────────────────────────────────────────
       # 6. Hermes-Output parsen & Session-ID sichern
