@@ -166,7 +166,7 @@ jobs:
         run: |
           # Prompt per Heredoc schreiben — 'HERMES_EOF' (single-quoted) verhindert
           # bash-Variable-Expansion innerhalb des Heredocs, während GitHub Actions
-          # ${{ ... }}-Ausdrücke VOR der Schritt-Ausführung evaluiert.
+          # \${} Expressions VOR der Schritt-Ausführung evaluiert.
           cat > /tmp/hermes-prompt.txt << 'HERMES_EOF'
           Führe für GENAU DIESES EINE Issue (#ISSUE_NR) den Ticket-Triage-Workflow aus der Wissensbasis aus — verbindlicher Ablauf: .ai-knowledge/ticket-triage.md.
 
