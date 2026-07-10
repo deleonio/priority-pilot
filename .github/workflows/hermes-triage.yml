@@ -1,0 +1,290 @@
+name: Hermes Triage (Analyse)
+
+# Stösst die KI-Analyse (Triage) eines Issues automatisch an — ersetzt den
+# bisherigen claude-triage.yml Workflow (MIG-001, 2026-07-10).
+#
+# Triggert bei:
+#  - neuem Issue (issues: opened)
+#  - Entfernen von Label "ai:analyzed" oder "ai:to-big-issue" (issues: unlabeled)
+#  - @claude-Kommentar einer Person mit Schreibzugriff (issue_comment: created)
+#
+# Setzt Hermes Agent (Nous Research) mit DeepSeek Flash über OpenRouter ein
+# statt Claude Code. Grund: OpenRouter funktioniert nicht zuverlässig mit
+# Claude Codes Anthropic-kompatiblem Endpoint.
+#
+# Voraussetzung: Repo-Secret OPENROUTER_API_KEY (https://openrouter.ai/keys)
+#
+# Änderungen zu claude-triage.yml:
+#  - Kein CLAUDE_CODE_OAUTH_TOKEN mehr (entfällt komplett)
+#  - Keine configure-ai-backend Composite Action (Hermes nutzt OpenRouter nativ)
+#  - Kein session-restore/session-save (Hermes-Session-Resume folgt in MIG-002)
+#  - Kein cost-summary (liest claude execution file — Hermes-cost folgt in MIG-003)
+#  - Prompt angepasst: Hermes-spezifisch, keine Claude-Modell-Strategie
+#  - Modell: deepseek/deepseek-v4-flash via OpenRouter (preiswert, schnell)
+
+on:
+  issues:
+    types: [opened, unlabeled]
+  issue_comment:
+    types: [created]
+
+# Dieselbe Concurrency wie zuvor: Pro Issue nur ein Lauf gleichzeitig.
+# cancel-in-progress: true -> ein neuerer Trigger desselben Issues bricht
+# einen noch laufenden Lauf ab (immer die aktuellste Analyse).
+concurrency:
+  group: hermes-triage-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  triage:
+    # Identische Trigger-Bedingungen wie claude-triage.yml — unverändert.
+    if: >-
+      ${{ (github.event_name == 'issues'
+            && github.event.issue.state == 'open'
+            && (
+                 (github.event.action == 'opened'
+                   && !contains(github.event.issue.labels.*.name, 'ai:analyzed')
+                   && (github.event.issue.author_association == 'OWNER'
+                       || github.event.issue.author_association == 'MEMBER'
+                       || github.event.issue.author_association == 'COLLABORATOR'))
+                 || (github.event.action == 'unlabeled'
+                     && (github.event.label.name == 'ai:analyzed'
+                         || github.event.label.name == 'ai:to-big-issue'))
+               ))
+          || (github.event_name == 'issue_comment'
+              && github.event.issue.pull_request == null
+              && contains(github.event.comment.body, '@claude')
+              && (github.event.comment.author_association == 'OWNER'
+                  || github.event.comment.author_association == 'MEMBER'
+                  || github.event.comment.author_association == 'COLLABORATOR')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20 # Hartes GitHub-Limit für den Job
+    env:
+      # Hermes speichert Config + Sessions in ein RAM-Verzeichnis (nicht ~/.hermes)
+      HERMES_HOME: /tmp/hermes-ci
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+    steps:
+      # ──────────────────────────────────────────────
+      # 1. Startzeit (für Timeout-Erkennung + Soft-Abort)
+      # ──────────────────────────────────────────────
+      - name: Startzeit merken (für Timeout-Erkennung + weiches Zeitlimit)
+        id: starttime
+        run: |
+          now=$(date +%s)
+          echo "epoch=$now" >> "$GITHUB_OUTPUT"
+          echo "soft_deadline_epoch=$((now + 840))" >> "$GITHUB_OUTPUT"
+
+      # ──────────────────────────────────────────────
+      # 2. GitHub-App-Setup (für Label/Push als Bot)
+      # ──────────────────────────────────────────────
+      - name: Voraussetzung prüfen (GitHub-App-Secrets, optional)
+        id: preflight
+        env:
+          APP_ID: ${{ secrets.APP_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+        run: |
+          if [ -z "$APP_ID" ] || [ -z "$APP_PRIVATE_KEY" ]; then
+            echo "::notice::GitHub-App-Secrets fehlen — (Re-)Triage läuft mit GITHUB_TOKEN; der Auto-Trigger der Spec-Stufe (ai:spec-ready -> claude-spec.yml) entfällt. Für den Trigger eine GitHub App (Issues/Contents/Pull requests = Read and write) als APP_ID + APP_PRIVATE_KEY hinterlegen."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: GitHub-App-Token erzeugen
+        id: app-token
+        if: steps.preflight.outputs.configured == 'true'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      # ──────────────────────────────────────────────
+      # 3. Hermes installieren & konfigurieren
+      # ──────────────────────────────────────────────
+      - name: Hermes installieren
+        run: |
+          curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      # Konfiguration wird pro Lauf frisch in $HERMES_HOME geschrieben.
+      # Der `hermes chat`-Aufruf unten setzt --provider und -m, daher reicht
+      # hier eine minimale Config (Base-URL und max_turns).
+      - name: Hermes konfigurieren (OpenRouter + DeepSeek Flash)
+        run: |
+          hermes config set model.provider openrouter
+          hermes config set model.base_url https://openrouter.ai/api/v1
+          hermes config set agent.max_turns 90
+
+      # ──────────────────────────────────────────────
+      # 4. API-Key-Prüfung (OPENROUTER_API_KEY)
+      # ──────────────────────────────────────────────
+      - name: API-Key prüfen (OPENROUTER_API_KEY)
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          if [ -z "$OPENROUTER_API_KEY" ]; then
+            echo "::error title=API-Key fehlt::OPENROUTER_API_KEY nicht gesetzt — als Repo-Secret hinterlegen (https://openrouter.ai/keys). Ohne Key läuft Hermes nicht."
+            gh label create "ai:to-big-issue" --repo "$GITHUB_REPOSITORY" \
+              --color B60205 --description "KI-Job lief rot (Konfiguration/Secret) — bitte prüfen" 2>/dev/null || true
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:to-big-issue" 2>/dev/null || true
+            exit 1
+          fi
+          echo "OPENROUTER_API_KEY vorhanden."
+
+      # ──────────────────────────────────────────────
+      # 5. Triage via Hermes
+      # ──────────────────────────────────────────────
+      # Der Prompt wird via Heredoc in eine Datei geschrieben (vermeidet
+      # Shell-Quoting-Probleme bei langen Texten mit Anführungszeichen).
+      # Der eigentliche Aufruf nutzt dann -q "$(cat ...)".
+      #
+      # Flags im Detail:
+      #   -q                       Single-query non-interactive
+      #   -Q                       Quiet — keine Banner/Spinner im CI-Log
+      #   --yolo                   Keine Gefahren-Bestätigung (CI headless)
+      #   --provider openrouter    API läuft über OpenRouter
+      #   -m <model>               DeepSeek Flash (schnell, günstig)
+      #   -t "terminal,file"       Nur Shell- und Datei-Tools zulassen
+      #   --ignore-user-config     Kein lokales ~/.hermes/config.yaml einlesen
+      #   --max-turns 90           Obergrenze für Tool-Calls
+      #   --accept-hooks           Automatische Freigabe von Shell-Hooks
+      #
+      # GH_TOKEN für gh-Befehle (Issue lesen/schreiben, Labels setzen).
+      # OPENROUTER_API_KEY für die LLM-API.
+      - name: Triage via Hermes (DeepSeek Flash)
+        id: hermes
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
+        run: |
+          # Prompt per Heredoc schreiben — 'HERMES_EOF' (single-quoted) verhindert
+          # bash-Variable-Expansion innerhalb des Heredocs, während GitHub Actions
+          # ${{ ... }}-Ausdrücke VOR der Schritt-Ausführung evaluiert.
+          cat > /tmp/hermes-prompt.txt << 'HERMES_EOF'
+          Führe für GENAU DIESES EINE Issue (#ISSUE_NR) den Ticket-Triage-Workflow aus der Wissensbasis aus — verbindlicher Ablauf: .ai-knowledge/ticket-triage.md.
+
+          Wichtige Hinweise für den Hermes-Agenten:
+
+          TRIGGER-ERKENNUNG (Re-Triage oder Erst-Triage):
+            Die Analyse läuft entweder zum ersten Mal (Erst-Triage) oder als aktualisierte Analyse (Re-Triage). Das erkennst du am Body-Block: existiert bereits <!-- KI-ANALYSE:START stand=... --> ... <!-- KI-ANALYSE:END --> im Issue-Body, ist es eine Re-Triage. Dann den stand-Timestamp auslesen und NUR die Delta-Kommentare seit stand lesen (gh issue view #ISSUE_NR --json comments --jq '.comments[] | select(.createdAt > "<stand>")'), NICHT den ganzen Thread. Fehlt der Body-Block, ist es eine Erst-Analyse.
+
+          ABLAUF:
+            1. Lektoriere die Issue-Beschreibung (Form verbessern, Inhalt unverändert, via gh issue edit --body-file -).
+            2. Prüfe den Titel auf Konsistenz zur Beschreibung/zum Ziel und optimiere ihn bei Inkonsistenz inhaltlich treu (kein Edit pro forma, keine Titel-Drift, via gh issue edit --title ...).
+            3. Zerlege zu große Tickets in verknüpfte Sub-Issues (max. eine Ebene, Rekursionsschutz via Label 'ai:analyzed').
+            4. Schreibe die Analyse mit prüfbaren Akzeptanzkriterien + Testfällen und Umsetzbarkeits-Ampel (🟢/🟡/🔴) in einen markierten Block in der Issue-Beschreibung (gh issue edit --body-file -).
+            5. Setze genau EINEN kurzen Ping-Kommentar (gh issue comment; bei offenen Fragen mit @author).
+            6. Labels als ALLERLETZTEN Schritt — NIE davor (sonst startet die nächste Pipeline-Stufe mit veraltetem Issue-Inhalt).
+
+          BODY-BLOCK-FORMAT:
+            Der Analyse-Block muss zwischen diesen Markern stehen:
+            <!-- KI-ANALYSE:START stand=<aktuelles Datum in ISO-8601> -->
+            ...
+            <!-- KI-ANALYSE:END -->
+            Bei Re-Triage: existierenden Block zwischen den Markern IN-PLACE ersetzen (per sed im Body-File oder gh issue edit mit vollständigem Body). Die Original-Beschreibung oberhalb des START-Markers NICHT überschreiben.
+            Bei Erst-Analyse: Block neu in die Beschreibung einfügen (gh issue view --json body um den aktuellen Body zu holen, dann mit cat/printf den Block anhängen).
+
+          LABEL-SETZEN (immer als ALLERLETZTER Schritt, nach Body-Block UND Ping-Kommentar):
+            - Immer 'ai:analyzed' setzen.
+            - Bei 🟢 zusätzlich 'ai:spec-ready' (startet die Spec-Stufe).
+            - Bei 🟡/🔴: evtl. vorhandenes 'ai:spec-ready'/'ai:ready' entfernen.
+            Verwende gh issue edit --add-label/--remove-label dafür. Fehlende Labels vorher mit gh label create anlegen.
+
+          WERKZEUGE:
+            Du hast Zugriff auf die Bash (für gh issue/gh api/gh label/gh pr/gh repo) und Datei-Lese-Werkzeuge. Die gh-Befehle sind über GH_TOKEN authentifiziert. Lies die Wissensbasis aus .ai-knowledge/ticket-triage.md für den vollständigen Ablauf. Lese die Issue-Daten via gh issue view und die Wissensbasis via read_file.
+
+          WEICHES ZEITLIMIT (Soft-Abort):
+            Dieser Lauf wird nach 20 Minuten von GitHub HART abgebrochen. Prüfe daher VOR jedem größeren Teilschritt (neue Analyse-Runde, längere Recherche), ob das weiche Limit (14 Minuten nach Start) erreicht ist — berechne es mit: date +%s und vergleiche mit SOFT_DEADLINE.
+            Ist das Limit erreicht: schreibe die bisherige Analyse (auch unvollständig) als Body-Block in die Beschreibung. Setze KEIN Label und poste KEINEN Ping-Kommentar. Beende den Turn sofort (keine weiteren Schritte). So bleibt das Issue für einen sauberen Folgelauf offen.
+
+          WICHTIG:
+            - Bearbeite ausschließlich dieses eine Issue (kein Batch).
+            - Committe keinen Produktivcode.
+            - Keine interaktive Bestätigung nötig — der Trigger autorisiert den Lauf.
+            - Du arbeitest autonom. Schreibe Lektorat, Analyse-Body-Block, Ping-Kommentar und setze die Labels im vorgegebenen Ablauf.
+          HERMES_EOF
+
+          # GitHub-Actions-Expressions durch Werte ersetzen (cat + sed)
+          sed -i "s/#ISSUE_NR/${{ github.event.issue.number }}/g" /tmp/hermes-prompt.txt
+          sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/hermes-prompt.txt
+
+          hermes chat -q "$(cat /tmp/hermes-prompt.txt)" \
+            -Q --yolo --provider openrouter \
+            -m "deepseek/deepseek-v4-flash" \
+            -t "terminal,file" \
+            --ignore-user-config --max-turns 90 \
+            --accept-hooks \
+            2>&1 | tee /tmp/hermes-output.log
+
+      # ──────────────────────────────────────────────
+      # 6. Hermes-Output parsen & Session-ID sichern
+      # ──────────────────────────────────────────────
+      - name: Hermes-Session-ID erfassen
+        if: always()
+        id: session
+        run: |
+          if [ -f /tmp/hermes-output.log ]; then
+            sid="$(grep '^session_id:' /tmp/hermes-output.log | head -1 | sed 's/^session_id:[[:space:]]*//')"
+            if [ -n "$sid" ]; then
+              echo "session_id=$sid" >> "$GITHUB_OUTPUT"
+              echo "::notice::Hermes Session-ID: $sid"
+            fi
+          fi
+
+      # ──────────────────────────────────────────────
+      # 7. Bei hartem Timeout als zu gross markieren
+      # ──────────────────────────────────────────────
+      - name: Bei Timeout als zu gross markieren (ai:to-big-issue)
+        if: always() && steps.hermes.outcome == 'cancelled'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
+          ISSUE: ${{ github.event.issue.number }}
+          RUN_START: ${{ steps.starttime.outputs.epoch }}
+        run: |
+          elapsed=$(( $(date +%s) - ${RUN_START:-0} ))
+          if [ "${RUN_START:-0}" -eq 0 ] || [ "$elapsed" -lt 1080 ]; then
+            echo "::notice title=Kein Timeout::Lauf nach ${elapsed}s abgebrochen (< 18 Min) — vermutlich Supersede/Cancel, kein ai:to-big-issue."
+            exit 0
+          fi
+          gh label create "ai:to-big-issue" --repo "$GITHUB_REPOSITORY" \
+            --color B60205 --description "KI-Job lief in den Timeout — Issue zu gross, bitte aufteilen" 2>/dev/null || true
+          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:to-big-issue"
+          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:spec-ready" 2>/dev/null || true
+          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
+          echo "::warning title=Issue #${ISSUE} zu gross::20-Min-Timeout erreicht (${elapsed}s) — Label ai:to-big-issue gesetzt; bitte Issue aufteilen."
+
+      # ──────────────────────────────────────────────
+      # 8. Ergebnis zusammenfassen
+      # ──────────────────────────────────────────────
+      - name: Ergebnis zusammenfassen
+        if: always()
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
+          ISSUE: ${{ github.event.issue.number }}
+          OUTCOME: ${{ steps.hermes.outcome }}
+          SESSION_ID: ${{ steps.session.outputs.session_id }}
+        run: |
+          labels="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "::notice title=✅ Triage erfolgreich::Issue #${ISSUE} vollständig analysiert"
+          elif [ "$OUTCOME" = "cancelled" ]; then
+            echo "::warning title=⏸️ Triage abgebrochen::Lauf durch neueren Trigger verdrängt oder 20-Min-Timeout (kein Fehler)"
+          else
+            echo "::error title=❌ Triage fehlgeschlagen::Hermes-Lauf gescheitert (Code ${OUTCOME:-unbekannt})"
+          fi
+          {
+            echo "### (Re-)Triage #${ISSUE} — fertig"
+            echo ""
+            echo "- Hermes-Schritt: \`${OUTCOME:-unbekannt}\` (cancelled = 20-Min-Timeout erreicht oder Supersede)"
+            echo "- Aktuelle Labels: ${labels:-keine}"
+            if [ -n "$SESSION_ID" ]; then
+              echo "- Hermes Session-ID: \`${SESSION_ID}\`"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=(Re-)Triage #${ISSUE} fertig::Hermes-Schritt ${OUTCOME:-unbekannt}; Labels: ${labels:-keine}"
