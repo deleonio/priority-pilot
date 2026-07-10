@@ -81,6 +81,8 @@ jobs:
 
       - name: API-Key prüfen (OPENROUTER_API_KEY)
         if: steps.preflight.outputs.configured == 'true'
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           if [ -z "$OPENROUTER_API_KEY" ]; then
             echo "::error title=API-Key fehlt::OPENROUTER_API_KEY nicht gesetzt"
@@ -148,6 +150,8 @@ jobs:
             --ignore-user-config --max-turns 90 \
             --accept-hooks \
             2>&1 | tee /tmp/hermes-output.log
+          # PIPESTATUS: Exit-Code von hermes chat durch pipe propagieren
+          test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
 
       - name: Hermes-Session-ID erfassen
         if: always()

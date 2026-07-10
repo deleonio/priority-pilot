@@ -222,8 +222,7 @@ jobs:
             --ignore-user-config --max-turns 90 \
             --accept-hooks \
             2>&1 | tee /tmp/hermes-output.log
-          # Wichtig: set -o pipefail propagiert den Exit-Code von hermes chat
-          # durch das `2>&1 | tee`. Ohne das wäre der Exit-Code immer 0 (tee).
+          # PIPESTATUS: Exit-Code von hermes chat durch pipe propagieren
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
 
       # ──────────────────────────────────────────────

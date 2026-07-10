@@ -27,7 +27,9 @@ const ciYml = (): string => readFile('.github', 'workflows', 'ci.yml');
 const hermesPrompt = (): string => {
 	const yml = fixupYml();
 	// Der Prompt steht im Heredoc des "Findings umsetzen via Hermes"-Steps
-	const match = yml.match(/Findings umsetzen via Hermes[\s\S]*?cat > \/tmp\/hermes-prompt\.txt << 'HERMES_EOF'\s*\n([\s\S]*?)HERMES_EOF/);
+	const match = yml.match(
+		/Findings umsetzen via Hermes[\s\S]*?cat > \/tmp\/hermes-prompt\.txt << 'HERMES_EOF'\s*\n([\s\S]*?)HERMES_EOF/,
+	);
 	assert.ok(match, 'Hermes-Prompt-Block nicht gefunden in hermes-pr-fixup.yml');
 	return match[1];
 };
