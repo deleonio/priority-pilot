@@ -1014,7 +1014,7 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 				await openActionsPopover(page, parentId);
 
 				// Der Button liegt im Popover (globales Overlay), nicht im item-Container
-				const doneButton = page.getByRole('button', { name: /Wieder öffnen/i });
+				const doneButton = page.getByRole('button', { name: /Wieder (?:öffnen|offnen)/i });
 				await expect(doneButton).toBeVisible();
 
 				// Der Button muss NICHT disabled sein (Wieder-öffnen ist immer erlaubt)
