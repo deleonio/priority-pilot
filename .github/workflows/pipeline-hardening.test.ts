@@ -127,6 +127,91 @@ describe('H1 — Deterministische Label-Post-Assertion in claude-pr-review.yml',
 			'Label-Post-Assertion darf NICHT bei cancelled laufen',
 		);
 	});
+
+	it('review.yml: 0-Commit-Loop-Bremse — zweiter Safe-Default in Folge stoppt den Loop statt ihn weiterzudrehen', () => {
+		const yml = readWorkflow('claude-pr-review.yml');
+		const assertionBlock = yml.match(/name: Label-Post-Assertion[\s\S]*?(?=\n {6}- name:)/);
+		assert.ok(assertionBlock, 'Label-Post-Assertion-Block nicht gefunden');
+		const block = assertionBlock[0];
+		// Marker-Label wird gelesen ...
+		assert.match(
+			block,
+			/ai:review-no-result/,
+			'Label-Post-Assertion muss den Loop-Marker ai:review-no-result verwenden',
+		);
+		// ... und beim ERSTEN Safe-Default gesetzt.
+		assert.match(
+			block,
+			/--add-label ai:review-no-result/,
+			'Erster Safe-Default muss den Marker ai:review-no-result setzen',
+		);
+		// Verhaltens-Assert: ist der Marker schon da (zweiter Lauf in Folge), darf KEIN erneutes
+		// ai:needs-changes gesetzt werden — der Loop wird gestoppt statt weitergedreht.
+		const secondPass = block.match(/if \[ "\$has_nolabel" = "true" \]; then[\s\S]*?exit 0\n {12}fi/);
+		assert.ok(secondPass, 'Zweiter-Lauf-Zweig (has_nolabel == true) nicht gefunden');
+		assert.doesNotMatch(
+			secondPass[0],
+			/--add-label ai:needs-changes/,
+			'Bei bereits gesetztem Marker darf der Loop NICHT mit einem erneuten ai:needs-changes weitergedreht werden',
+		);
+	});
+
+	it('review.yml: der Loop-Marker wird bei regulaerem Ergebnis-Label wieder entfernt (Zaehler-Reset)', () => {
+		const yml = readWorkflow('claude-pr-review.yml');
+		const assertionBlock = yml.match(/name: Label-Post-Assertion[\s\S]*?(?=\n {6}- name:)/);
+		assert.ok(assertionBlock, 'Label-Post-Assertion-Block nicht gefunden');
+		assert.match(
+			assertionBlock[0],
+			/--remove-label ai:review-no-result/,
+			'Bei gesetztem Ergebnis-Label muss der Marker ai:review-no-result entfernt werden (Reset)',
+		);
+	});
+
+	it('pr-needs-review-label.yml: ein menschlicher Push (synchronize) setzt den Loop-Marker ai:review-no-result zurueck', () => {
+		const yml = readWorkflow('pr-needs-review-label.yml');
+		// synchronize (Push) muss ein Trigger sein — sonst startet ein lokaler Fix keinen frischen Zyklus.
+		assert.match(
+			yml,
+			/types:\s*\[opened,\s*ready_for_review,\s*synchronize\]/,
+			'pr-needs-review-label.yml muss auf synchronize (Push) triggern',
+		);
+		// Der Reset-Schritt muss auch den 0-Commit-Loop-Marker entfernen (nicht nur die Ergebnis-Labels),
+		// damit ein Push nach gestopptem Loop wieder einen frischen Safe-Default-Versuch erlaubt.
+		assert.match(
+			yml,
+			/for label in ai:needs-changes ai:ready-to-merge ai:review-no-result;/,
+			'Der Push-Reset muss ai:review-no-result mit-entfernen (frischer Loop-Start nach lokalem Fix)',
+		);
+		// Der Reset darf NUR fuer menschliche Aktoren laufen (Bot-Fixup-Commits sollen den Zaehler
+		// nicht zuruecksetzen) — abgesichert ueber den job-if sender.type != 'Bot'.
+		assert.match(
+			yml,
+			/github\.event\.sender\.type != 'Bot'/,
+			'Der Autolabeler (und damit der Marker-Reset) darf nur bei menschlichen Aktoren laufen',
+		);
+	});
+
+	it('pr-needs-review-label.yml: das job-if darf ai:needs-review NICHT gaten (sonst wird der Marker-Reset im Koexistenz-Fenster uebersprungen)', () => {
+		const yml = readWorkflow('pr-needs-review-label.yml');
+		// Nur den job-if-Ausdruck betrachten (nicht die erlaeuternden Kommentare, die "ai:needs-review"
+		// durchaus erwaehnen). Der Block reicht vom "if: >-" bis zur naechsten Schluessel-Zeile.
+		const jobIf = yml.match(/\n {4}if: >-\n([\s\S]*?)\n {4}[a-z]/);
+		assert.ok(jobIf, 'job-if-Ausdruck in pr-needs-review-label.yml nicht gefunden');
+		// Haengte die Idempotenz am job-if, wuerde ein Menschen-Push bei bereits gesetztem
+		// ai:needs-review den GANZEN Job (inkl. Loop-Marker-Reset) ueberspringen. Die Idempotenz
+		// gehoert deshalb in den Setz-Schritt (Runtime-No-op), NICHT ins job-if.
+		assert.doesNotMatch(
+			jobIf[1],
+			/contains\([^)]*'ai:needs-review'\)/,
+			'Das job-if darf ai:needs-review nicht mehr gaten — der Marker-Reset muss auch bei schon gesetztem Label laufen',
+		);
+		// Gegenprobe: die Label-Idempotenz existiert als Runtime-No-op im Setz-Schritt weiter.
+		assert.match(
+			yml,
+			/traegt bereits ai:needs-review — nichts zu tun \(No-op\)/,
+			'Die Label-Idempotenz muss als Runtime-Check im Setz-Schritt erhalten bleiben',
+		);
+	});
 });
 
 describe('H2 — Merge-Konflikt-Step in claude-pr-fixup.yml (UNKNOWN-Race, kein [skip ci])', () => {
