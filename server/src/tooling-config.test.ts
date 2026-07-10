@@ -54,10 +54,11 @@ describe('Issue #165 — Lefthook + Knip Dev-Tooling-Konfiguration', () => {
 			assert.match(content, /pre-commit/, 'lefthook.yml muss einen pre-commit-Block definieren');
 		});
 
-		it('lefthook.yml pre-commit führt Prettier-Check aus (pnpm format)', () => {
+		it('lefthook.yml pre-commit führt Prettier aus (pnpm format oder pnpm exec prettier)', () => {
 			assert.ok(existsSync(lefthookPath), 'lefthook.yml fehlt');
 			const content = readFileSync(lefthookPath, 'utf-8');
-			assert.match(content, /pnpm format/, 'lefthook.yml pre-commit muss einen pnpm-format-Schritt enthalten');
+			// Issue #417: format-Schritt wurde von pnpm format (--check) auf pnpm exec prettier --write umgestellt.
+			assert.match(content, /prettier/, 'lefthook.yml pre-commit muss einen Prettier-Schritt enthalten');
 		});
 
 		it('lefthook.yml pre-commit führt Lint aus (pnpm lint)', () => {
