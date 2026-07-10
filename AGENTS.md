@@ -12,13 +12,12 @@ Wissensbasis liegt in [`.ai-knowledge/`](.ai-knowledge/).
 - [Ticket-Umsetzung](.ai-knowledge/ticket-implementation.md) — freigegebene Issues (`ai:ready`) umsetzen
 - [PR-Review (Kreuzverhör)](.ai-knowledge/pr-review.md) — Pull Requests kritisch prüfen, Findings kommentieren
 - [TDD-Strategie](.ai-knowledge/tdd-strategy.md) — test-getriebene KI-Workflows (Stufen 1+2+3 adoptiert: AK-first + Red-Green + Spec-Gate)
-- [Subagent-Ausführungsvertrag](.ai-knowledge/subagent-contract.md) — Vertrag für per Modell-Delegation gestartete Subagenten (`.claude/agents/`)
+- [Subagent-Ausführungsvertrag](.ai-knowledge/subagent-contract.md) — historisch (bei Claude Code, nicht mehr aktiv)
 - [Kreuzverhör-Haltung](.ai-knowledge/kreuzverhoer-haltung.md) — Methode des adversarialen Hinterfragens (Chat-Trigger + PR-Review)
 - [Deployment](docs/deployment.md) — Release-Build (GitHub Actions), Tarball, Host-Layout, systemd, Caddy, Rollback
 - [Deployment: Repo-Plan](docs/deployment-repo-plan.md) — was im Repo zu bauen ist (Pack-Skript, Release-Workflow, Secrets)
 - [Deployment: Server-Setup](docs/server-setup.md) — Schritt-für-Schritt-Einrichtung des Linux-Servers
-- [Workflow-Tool: Kosten-Reporting](docs/workflow-tool-costs.md) — Snippet für Token-/USD-EUR-Schätzung am Ende eines Claude-Code-Workflow-Skripts
-- [CI-Kosten-Zusammenfassung](docs/ci-cost-summary.md) — Token-/USD-EUR-Schätzung je GitHub-Actions-Lauf der KI-Pipeline (`.github/actions/cost-summary`)
+- [Workflow-Tool: Kosten-Reporting](docs/workflow-tool-costs.md) — Snippet für Token-/USD-EUR-Schätzung
 - [OpenRouter-Kostenanalyse](.ai-knowledge/openrouter-cost-analysis.md) — Modellpreise, Alternativen, Kostenvergleich (DeepSeek/Gemini/GPT via OpenRouter)
 
 ## Kernregeln
@@ -37,195 +36,78 @@ Wissensbasis liegt in [`.ai-knowledge/`](.ai-knowledge/).
   Pflicht, siehe [TDD-Strategie](.ai-knowledge/tdd-strategy.md) Stufe 2) und die Ergebnisse in der
   PR-Beschreibung dokumentieren.
 
-## KI-Agent: Claude Code
+## KI-Agent: Hermes Agent
 
-Alle KI-Workflows (Triage, Re-Triage, Umsetzung, PR-Review, PR-Fixup) laufen fest auf
-**Claude Code** (`anthropics/claude-code-action`, Secret `CLAUDE_CODE_OAUTH_TOKEN`).
+Alle KI-Workflows (Triage, Re-Triage, Spec, Umsetzung, PR-Review, PR-Fixup) laufen auf
+**Hermes Agent** (Nous Research) mit **DeepSeek Flash** über **OpenRouter**.
+
+- [Hermes Agent Docs](https://hermes-agent.nousresearch.com/docs/)
+- Modell: `deepseek/deepseek-v4-flash` via `--provider openrouter`
+- Secret: `OPENROUTER_API_KEY` (https://openrouter.ai/keys)
+- CLI: `hermes chat -q '<prompt>'` (single-query, non-interactive)
+
+Hermes wird im CI-Lauf frisch installiert (keine dedizierte GitHub Action nötig):
+
+```bash
+curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
+echo "$HOME/.local/bin" >> $GITHUB_PATH
+hermes config set model.provider openrouter
+hermes config set model.base_url https://openrouter.ai/api/v1
+```
+
+**CI-Flags:**
+
+| Flag | Zweck |
+|------|-------|
+| `-q '<prompt>'` | Single-query, non-interactive |
+| `-Q` | Quiet — keine Banner/Spinner |
+| `--yolo` | Keine Gefahren-Bestätigung (headless) |
+| `--provider openrouter` | API-Routing über OpenRouter |
+| `-m deepseek/deepseek-v4-flash` | Modell-Festlegung |
+| `-t "terminal,file"` | Nur Terminal und Datei-Tools |
+| `--ignore-user-config` | Kein lokales Config-File einlesen |
+| `--max-turns 90` | Tool-Call-Obergrenze |
+| `--accept-hooks` | Shell-Hooks automatisch freigeben |
+
+**Prompt:** Per Heredoc in eine Datei geschrieben, dann via `-q "$(cat /tmp/hermes-prompt.txt)"` übergeben — vermeidet Shell-Quoting-Probleme.
+
+Alle KI-Workflows teilen dasselbe Modell (`deepseek/deepseek-v4-flash`). Es gibt keine
+Modell-Hierarchie (Opus/Sonnet/Haiku) und keine Subagent-Delegation mehr — Hermes führt
+die Aufgabe selbst aus, mit dem konfigurierten Modell.
 
 ### Kolibri MCP-Server für Frontend-Implementierung
 
-Für die Umsetzung von Frontend-Komponenten steht den KI-Agenten der **KoliBri MCP-Server** zur
-Verfügung, der Zugriff auf 200+ KoliBri-Komponenten-Beispiele, Szenarien und Dokumentation bietet.
-
-**Remote HTTP Server (empfohlen, zero installation):**
-
-- URL: `https://public-ui-kolibri-mcp.vercel.app/mcp`
-- Typ: `http` (StreamableHTTP Transport)
-
-**Verfügbare Tools:**
-
-- `hello_kolibri` — Testverbindung und Server-Metadaten
-- `search` — Suche nach KoliBri-Komponenten (Samples, Szenarien, Dokumente)
-- `fetch` — Hole spezifisches Beispiel/Dokument per ID
-
-**Verfügbare Resources:**
-
-- `kolibri://info` — Informationen über verfügbare Samples
-- `kolibri://best-practices` — Wichtige Richtlinien für KoliBri Web Components
-
-**Nutzung im Workflow:**
-
-Die KI-Agenten sollen den MCP-Server aktiv nutzen, um:
-
-1. Passende Komponenten-Beispiele für die Umsetzung zu finden
-2. Best Practices und Integrationsrichtlinien zu prüfen
-3. Code-Beispiele direkt in die Implementierung zu übernehmen
-4. Validierung und Barrierefreiheits-Anforderungen zu verstehen
-
-**Beispiel-Anfrage an den MCP-Server:**
-
-```
-@kolibri Zeige mir Beispiele für die Umsetzung eines Button mit Icon
-@kolibri Wie integriere ich KoliBri Web Components richtig?
-@kolibri Suche nach Table-Komponenten mit Paginierung
-```
-
-**Konfiguration:**
-
-- Claude Code: `.claude/settings.json` (MCP-Server in Git committed)
-- Mistral Vibe: `.vibe/config.toml` (MCP-Server in Git committed)
-- Lokale Entwicklung: `kolibri-mcp` CLI oder Remote-URL verwenden
-
-**Hinweis für GitHub Actions (CI):**
-Um den KoliBri MCP-Server in einem CI-Workflow zu nutzen, den Server direkt per CLI-Flag in den
-Workflow-Arguments angeben:
+Der KoliBri MCP-Server ist in Hermes' `config.yaml` als MCP-Server konfiguriert und steht
+den Agenten automatisch zur Verfügung:
 
 ```yaml
-claude_args: >-
-  --model claude-sonnet-4-6 --effort medium
-  --mcp https://public-ui-kolibri-mcp.vercel.app/mcp
-  ...
+mcp_servers:
+  kolibri:
+    url: https://public-ui-kolibri-mcp.vercel.app/mcp
+    type: http
 ```
 
-Lokale Entwicklung und Nicht-CI-Läufe nutzen die Konfiguration aus `settings.json` bzw. `config.toml`.
+**Verfügbare Tools:** `search` (Komponenten-Suche), `fetch` (Beispiel/Dokument holen).
 
-**Remote-Server:** Immer aktuell, keine Installation erforderlich.
-**Offline-Nutzung:** Server lokal installieren: `npx @public-ui/mcp` oder `npm install -g @public-ui/mcp`.
+**Hinweis für GitHub Actions (CI):** Läuft Hermes lokal, wird der MCP-Server aus
+`~/.hermes/config.yaml` gelesen. Im CI-Lauf ist MCP nicht konfiguriert (bewusst) —
+Frontend-Arbeit findet im Implement-Workflow statt, der die lokale Codebasis liest.
 
-**Logging:** Für Debugging kann `MCP_LOGGING=true` gesetzt werden (Logs gehen nach stderr). GLM (Z.ai) und
-Mistral Vibe waren als alternative Agent-Pfade über die Repo-Variable `AI_AGENT` waehlbar und wurden
-am 2026-07-08 ersatzlos entfernt (M11, `.ai-knowledge/workflow-optimization-plan.md`) — die drei
-Pfade brachten keine Laufzeit-/Tokenersparnis (nur einer lief je Lauf), aber realen
-Wartungs-/Drift-Aufwand ueber bis zu drei Prompt-Kopien je Datei.
+### OpenRouter (Modell-Provider)
 
-Der Canceller `claude-pr-cancel.yml` ist reiner `gh`-Aufruf und unverändert.
+Hermes unterstützt OpenRouter **nativ** — kein Workaround, keine `configure-ai-backend`-Action.
+Einfach `--provider openrouter` + `OPENROUTER_API_KEY`.
+Preise: DeepSeek Flash $0.09/$0.18 pro 1M Tokens (Input/Output).
 
-### Optionales Backend: z.ai statt Anthropic (Issue #403)
+### Weiches Zeitlimit (Soft-Abort)
 
-Seit M11 gibt es bewusst nur **einen** Agent-Pfad (Claude Code). Wer trotzdem GLM (Z.ai) fahren will,
-startet keinen zweiten Pfad, sondern lenkt Claude Codes API-Calls um — gesteuert pro Lauf über das
-Label **`ai:use-zai`**:
+Der `starttime`-Step berechnet `soft_deadline_epoch = now + 840s` (14 Min, 6 Min Puffer
+bis zum harten 20-Min-Kill). Der Prompt weist Hermes an, vor jedem größeren Teilschritt
+`date +%s` gegen den Soft-Deadline-Wert zu prüfen. Bei Erreichen: Zwischenstand sichern,
+Selbst-Retrigger (Label entfernen + sofort neu setzen), Turn beenden.
 
-- **Default (kein Label):** Claude-Code läuft gegen **Anthropic** via OAuth
-  (`CLAUDE_CODE_OAUTH_TOKEN`). Nichts ändert sich.
-- **Label `ai:use-zai` am Issue:** die Composite-Action
-  [`configure-ai-backend`](.github/actions/configure-ai-backend/action.yml) leitet den Lauf auf den
-  Anthropic-kompatiblen **z.ai**-Endpoint (`https://api.z.ai/api/anthropic`) um. Auth wechselt auf
-  `ANTHROPIC_AUTH_TOKEN` (Bearer, aus dem Secret **`ZAI_API_KEY`**), das das OAuth-Token sauber
-  out-rankt. Die Alias-Map (`ANTHROPIC_DEFAULT_OPUS_MODEL=glm-5.1` u. a.) greift für die
-  Subagent-Delegation (`heavy`=opus, `light`=haiku).
-- **Ein Label steuert die ganze Pipeline:** Issue-Stufen (Triage/Spec/Implement) lesen die Labels des
-  Issues; PR-Stufen (Review/Fixup) lesen die Labels des PR **zusätzlich** zu denen des verlinkten
-  Issues (`Closes #N`). Fail-open: ist nichts auflösbar, gilt der Claude-Default.
-
-Vollständige `--model`-IDs (`claude-opus-4-8`, `claude-sonnet-4-6`) verlassen Claude Code **literal**
-und vertrauen auf z.ai serverseitiges Mapping (Entscheidung Endpoint-only, Issue #403). Lehnt z.ai
-einen Modellnamen ab, ist der dokumentierte Fallback, `--model` zu parametrisieren (Follow-up).
-
-### Optionales Backend: OpenRouter (kosteneffiziente Alternativ-Modelle)
-
-Zusätzlich zu z.ai gibt es eine Integration für **OpenRouter** — der
-Anthropic-kompatible API-Endpunkt (`/api/anthropic`) leitet Claude Code auf OpenRouter um,
-gesteuert pro Lauf über das Label **`ai:use-openrouter`**:
-
-- **Default (kein Label):** Claude-Code läuft gegen **Anthropic** via OAuth
-  (`CLAUDE_CODE_OAUTH_TOKEN`). Nichts ändert sich.
-- **Label `ai:use-openrouter` am Issue:** die Composite-Action
-  [`configure-ai-backend`](.github/actions/configure-ai-backend/action.yml) leitet den
-  Lauf auf den OpenRouter **Anthropic-API-Endpoint** (`https://openrouter.ai/api/anthropic`) um.
-  Auth wechselt auf `ANTHROPIC_API_KEY` (Bearer, aus dem Secret **`OPENROUTER_API_KEY`**).
-  Die Alias-Map (`ANTHROPIC_DEFAULT_*_MODEL`) greift für die Subagent-Delegation.
-- **Ein Label steuert die ganze Pipeline:** gleicher Mechanismus wie bei `ai:use-zai` (Issue-
-  und PR-Stufen). Sind **beide** Labels (`ai:use-zai` UND `ai:use-openrouter`) an einem Issue
-  gesetzt, bricht die Action deterministisch ab (Konflikt, kein stiller Fallback).
-- **Modell-Mapping** (kosteneffiziente DeepSeek-Modelle über OpenRouter, Preise pro 1M Tokens):
-  - **Opus** → `deepseek/deepseek-v4-pro` ($0.43/$0.87, 12–29× günstiger)
-  - **Sonnet** → `deepseek/deepseek-v3.2` ($0.23/$0.34, 13–44× günstiger)
-  - **Haiku** → `deepseek/deepseek-v4-flash` ($0.09/$0.18, 11–28× günstiger)
-  - **Fable** → `deepseek/deepseek-r1-0528` ($0.50/$2.15, 20–23× günstiger)
-
-Volle `--model`-IDs (`claude-opus-4-8`, `claude-sonnet-4-6`) verlassen Claude Code **literal**
-und werden über die `ANTHROPIC_DEFAULT_*_MODEL`-Aliase gemappt, bevor OpenRouter sie
-serverseitig auflöst. Der **Coding-Agent bleibt Claude Code** — lediglich die API-Calls laufen
-über OpenRouter.
-
-**Voraussetzungen:**
-
-1. Repo-Secret `OPENROUTER_API_KEY` (API-Key von https://openrouter.ai/keys) hinterlegen.
-2. Label `ai:use-openrouter` am Issue setzen.
-3. Fertig — die Pipeline läuft automatisch über OpenRouter, kein Workflow-Umbau nötig.
-
-### Modell-Wahl per Subagent-Delegation (Claude-Pfad)
-
-Statt jeden KI-Workflow fest auf ein Modell zu verkabeln **oder** eine zweite, vorgeschaltete
-`claude-code-action` nur zur Modell-Klassifikation zu starten, startet jeder Workflow **genau eine**
-Session. Für die Modell-Wahl gilt dabei:
-
-**Ausnahme — Triage & Re-Triage laufen fest auf Opus, Effort abhängig vom Auslöser:**
-`claude-triage.yml` (deckt BEIDE Trigger — Issue-Anlegen/Label-Entfernen UND `@claude`-Kommentar —
-in einem Workflow ab) startet die Session deterministisch auf **`claude-opus-4-8`**, ohne
-Koordinator-Delegation. Die **Reasoning-Tiefe unterscheidet sich per Trigger** (`--effort
-${{ github.event_name == 'issue_comment' && 'high' || 'max' }}`, M3): Die **Erst-Analyse**
-(`issues`-Event: Issue angelegt/Label entfernt) läuft auf **`--effort max`** — sie ist die
-kontextlose Wurzel, die Spec → Implement → Review → Fixup speist, hier zählt maximale
-Analysequalität am meisten. Eine **Re-Triage** (`issue_comment`-Event, `@claude`-Kommentar) läuft
-auf **`--effort high`** — dort ist bereits ein Mensch mit Korrektur-Kontext aktiv, der
-Grenznutzen von `max` gegenüber `high` ist geringer. Nur triviale mechanische Nebenschritte dürfen
-an `light` (Haiku) delegiert werden; eine `heavy`-Eskalation entfällt, da die Session bereits auf
-Opus läuft.
-
-**Alle übrigen Claude-Workflows** (Spec, Implement, PR-Review, PR-Fixup) starten deterministisch auf
-**`claude-sonnet-4-6`** (`--effort medium`). Dieser Sonnet-Lauf ist der
-**Koordinator**: Er schätzt die Komplexität selbst ein und delegiert die eigentliche Abarbeitung per
-**Agent-Tool** (`Task` in `--allowedTools`) an einen **Subagenten in derselben Session** — gleicher
-Checkout, erhaltener Kontext, **kein** zweiter Action-Lauf. Die Subagenten sind in
-[`.claude/agents/`](.claude/agents/) definiert und koppeln Modell an Komplexität:
-
-- [`light`](.claude/agents/light.md) → **`model: haiku`** — trivial / mechanisch (Abstufung).
-- _(Koordinator selbst)_ → **`claude-sonnet-4-6`** — Standardaufgabe.
-- [`heavy`](.claude/agents/heavy.md) → **`model: opus`** — komplex / architektonisch (Eskalation).
-
-Beide Subagent-Definitionen verweisen für den eigentlichen Ausführungsvertrag (Scope-Disziplin,
-Ergebnis-Übergabe, Eskalation) nur auf [subagent-contract.md](.ai-knowledge/subagent-contract.md) —
-das ist die einzige Stelle, an der dieser Vertrag gepflegt wird.
-
-**Sichere Defaults:** Schätzt der Koordinator die Aufgabe als Standard ein, erledigt er sie selbst auf
-**Sonnet** — es gibt also keinen separaten Klassifikations-Schritt mehr, der scheitern könnte. Ist
-Opus über die Organisations-`availableModels`-Allowlist gesperrt, fällt der `heavy`-Subagent
-automatisch auf das geerbte Sonnet-Modell zurück. (Achtung: Für die **fest** auf Opus verdrahteten
-Triage-/Re-Triage-Sessions gibt es diesen Fallback nicht — eine Opus-Sperre lässt diese Läufe
-fehlschlagen.) Das harte `timeout-minutes: 20` jedes Workflows bleibt davon **unberührt**.
-
-**Warum kein JS-„Router" mehr:** Der frühere Ansatz (`.github/actions/model-router`, #149/#150/#153)
-startete pro Workflow eine **zweite** `claude-code-action` nur für ein Token (`haiku|sonnet|opus`).
-Dieser ungeschützte Vorschritt riss bei jedem transienten Fehler den ganzen Lauf ab, bevor echte
-Arbeit lief — die Hauptursache der Unzuverlässigkeit. Die Subagent-Delegation erreicht dasselbe Ziel
-(Sonnet entscheidet, Haiku/Opus führen aus) mit **einem** Lauf und **ohne** CI-JavaScript.
-
-### ⚠️ Kein `--bare` in den Workflows
-
-**Der `--bare`-Flag darf NICHT in die `claude_args` der Claude-Workflows.** Er überspringt u. a. das
-von `anthropics/claude-code-action` geschriebene Settings-/Auth-Setup; ab Claude Code **v2.1.201**
-stirbt der Lauf dadurch sofort beim ersten Turn (`is_error:true`, ~23 ms, `total_cost_usd:0`), bevor
-überhaupt ein API-Call passiert — der Job meldet trotzdem „success“, sodass die **gesamte Pipeline
-scheinbar grün durchläuft, ohne etwas zu tun**. Empirisch belegt (2026-07-10): identische CLI-Version,
-einziger Unterschied war `--bare`; Läufe ohne `--bare` liefen normal. `claude --help` beschreibt
-`--bare` lediglich als „Minimal mode: skip hooks, LSP, plugin sync, …“ — nicht als OAuth-/Auth-Schalter.
-Der Regression-Guard dafür steht in `server/src/workflows/ai-backend.test.ts`.
-
-Die Drittanbieter-Backends (`ai:use-zai`, `ai:use-openrouter`) brauchen `--bare` nicht: Die
-Composite-Action `configure-ai-backend` setzt `ANTHROPIC_BASE_URL` + `ANTHROPIC_API_KEY` in die
-Umgebung, und der z.ai-Pfad gated `claude_code_oauth_token` ohnehin auf `env.AI_BACKEND != 'zai'`.
+**Obergrenze (Marker-Label `ai:continued`):** Ein deterministischer Workflow-Step nach
+dem Hermes-Schritt begrenzt automatische Selbst-Fortsetzungen auf genau eine.
 
 ## Ticket-Triage
 
@@ -249,52 +131,22 @@ Konkreter Command: `/triage-ticket` (analysiert, lektoriert, optimiert den Titel
 die Analyse in die Beschreibung, pingt und markiert in einem Durchlauf).
 
 In **GitHub Actions** wird die Triage zusätzlich **ereignisgesteuert** angestoßen —
-[`.github/workflows/claude-triage.yml`](.github/workflows/claude-triage.yml) ruft den Triage-Ablauf
+[`.github/workflows/hermes-triage.yml`](.github/workflows/hermes-triage.yml) ruft den Triage-Ablauf
 automatisch für genau dieses eine Issue auf, sobald ein **Issue angelegt** wird (nur von Personen mit
-Schreibzugriff, damit Außenstehende den OAuth-Token-Lauf nicht auslösen), das Label
+Schreibzugriff), das Label
 **`ai:analyzed` entfernt** wird (erzwingt eine Neu-Analyse, z. B. nach geänderter Beschreibung), oder
 jemand mit Schreibzugriff einen **Issue-Kommentar mit `@claude`** hinterlässt (Re-Triage auf Zuruf —
 zweiter Trigger desselben Workflows, kein separater).
 
-**Named Session Resume (alle 5 Phasen):** Jeder der fünf Claude-Code-Workflows
-(`claude-triage.yml`/`analyse`, `claude-spec.yml`/`spec`, `claude-implement.yml`/`impl`,
-`claude-pr-review.yml`/`review`, `claude-pr-fixup.yml`/`fix`) archiviert die Claude-Code-Session
-jedes Laufs als **Workflow-Artefakt** über die Composite Actions
-[`.github/actions/session-restore`](.github/actions/session-restore/action.yml) und
-[`session-save`](.github/actions/session-save/action.yml). Artefakte statt Actions-Cache seit
-2026-07-10: GitHub vergibt seit dem 2026-06-26 (Changelog „Read-only Actions cache for untrusted
-triggers") fuer Laeufe aus untrusted Triggern (`issues`/`issue_comment`/`pull_request_target`)
-nur noch read-only Cache-Tokens — Cache-Saves der Issue-Workflows scheiterten seitdem mit „cache
-write denied: token has no writable scopes"; Artefakt-Uploads sind nicht betroffen. **EIN Artefakt
-pro Phase, zwei getrennte Namensraeume** (Kreuzverhoer-Finding M3, 2026-07-08): Issue-basierte
-Phasen (`analyse`/`spec`/`impl`) nutzen `claude-session-issue-<N>-<phase>`; PR-basierte Phasen
-(`review`/`fix`, kein Issue-Bezug im Event) nutzen `claude-session-pr-<N>-<phase>`
-(`id-type: pr`-Input) — dadurch ist EIN Archiv NICHT ueber alle 5 Phasen eines Tickets
-konsolidiert, sondern jede Phase hat ihr eigenes; Kontinuitaet gilt jeweils NUR innerhalb
-derselben Phase ueber wiederholte Laeufe hinweg (das ist auch der eigentliche Anwendungsfall:
-Re-Triage bzw. die Review-/Fixup-Ping-Pong-Runden). Ein Folgelauf derselben Phase laedt vor dem
-Agent-Schritt das JUENGSTE, nicht abgelaufene Artefakt seiner Phase (gleichnamige Artefakte aus
-verschiedenen Laeufen koexistieren, „latest wins" — der fruehere Loesch-Tanz des immutablen
-Cache-Keys entfaellt) und haengt bei Treffer `--resume <session-id>` an `claude_args` — er setzt
-dann den Konversationskontext des letzten Laufs fort, statt kontextlos neu zu beginnen; das
-Delta-seit-`stand`-Vorgehen der Triage oben bleibt unveraendert die Fallback-/Grundregel. Rein
-additiv und fail-open: kein Artefakt oder ein korruptes Archiv liefern leere Outputs, der Lauf
-startet dann wie bisher frisch. Der Restore-Schritt braucht `actions: read` (Workflow-Permission)
-fuer Artefakt-Suche und -Download per `gh api`; der Upload im Save-Schritt laeuft ueber das
-Runtime-Token des Runners und braucht keine eigene Permission. Artefakt-Retention: 30 Tage (ein
-Issue/PR ohne Folgelauf in 30 Tagen braucht seinen Kontext nicht mehr). `claude-triage.yml`
-(einziger Workflow mit `cancel-in-progress: true`) hat zusaetzlich einen Elapsed-Guard: ein durch
-einen neueren Trigger verdraengter, fruehzeitig abgebrochener Lauf speichert NICHT, damit sein
-verspaetetes Artefakt nicht das juengste wird und den frischeren Stand des neueren Laufs verdeckt.
-Die tragenden Annahmen (Claude Codes Sitzungsordner-Mangling, Pfadstabilitaet zwischen Laeufen auf
-`ubuntu-latest`) sind bislang nur lokal verifiziert, nicht gegen einen echten Runner — ein
-dauerhafter Diagnose-Log im Save-Schritt (`ls` des Claude-Projektordners) belegt das beim
-naechsten natuerlichen Trigger.
+### Named Session Resume (aktuell nicht aktiv)
+
+Die Session-Resume-Funktionalität (MIG-002) ist noch nicht migriert. Derzeit startet
+jeder Lauf frisch ohne Kontext aus vorherigen Läufen derselben Phase.
 
 Dieses Entfernen von `ai:analyzed` geschieht auch **automatisch beim Merge eines Vorgänger-Issues**:
 Sind Sub-Issues über native GitHub-Issue-Dependencies (`blocked-by`) sequenziell verkettet (A1 → A2 →
 A3, gesetzt bei der Zerlegung in der Triage), gibt
-[`.github/workflows/claude-issue-unblock.yml`](.github/workflows/claude-issue-unblock.yml) den
+[`.github/workflows/hermes-issue-unblock.yml`](.github/workflows/hermes-issue-unblock.yml) den
 nächsten Nachfolger frei, sobald **alle** seine Blocker gemergt/geschlossen sind (Fan-in-Gate) — indem
 es dessen `ai:analyzed` **per App-Token** entfernt und so die Re-Triage gegen den nun gemergten
 Code-Stand anstößt (die dann 🟢 → `ai:spec-ready` setzt oder mit Hinweisen beim Menschen bleibt). So
@@ -312,7 +164,7 @@ frei. Das ist die **Gewaltenteilung** der TDD-Strategie (Stufe 3): Wer die Tests
 [.ai-knowledge/ticket-spec.md](.ai-knowledge/ticket-spec.md). Konkreter Command: `/spec-ticket`.
 
 In **GitHub Actions** stößt das Setzen von `ai:spec-ready` (bei vorhandenem `ai:analyzed`) die Spec
-automatisch an — [`.github/workflows/claude-spec.yml`](.github/workflows/claude-spec.yml) (eigener
+automatisch an — [`.github/workflows/hermes-spec.yml`](.github/workflows/hermes-spec.yml) (eigener
 headless Lauf, getrennt von der Umsetzung → Gewaltenteilung gilt auch in der Automatik).
 
 ## Ticket-Umsetzung
@@ -334,34 +186,31 @@ Konkreter Command: `/implement-ticket`.
 
 In **GitHub Actions** stößt das Setzen des Labels `ai:ready` (bei vorhandenem `ai:analyzed`) die
 Umsetzung automatisch an —
-[`.github/workflows/claude-implement.yml`](.github/workflows/claude-implement.yml) (Schritte 1–4; den
-Kreuzverhör-Review übernimmt ein eigener Workflow). Claude Code läuft dabei direkt im Runner mit
-einem **harten Zeitlimit von `timeout-minutes: 20`** — GitHub killt den Prozess dabei ohne jede
-Vorwarnung (kein SIGTERM-Handling, siehe unten).
+[`.github/workflows/hermes-implement.yml`](.github/workflows/hermes-implement.yml) (Schritte 1–4; den
+Kreuzverhör-Review übernimmt ein eigener Workflow). Hermes läuft dabei direkt im Runner mit
+einem **harten Zeitlimit von `timeout-minutes: 20`**.
 
-**Soft-Abort (weiches Zeitlimit, 2026-07-08):** Da weder `anthropics/claude-code-action` noch die
-Claude-Code-CLI selbst einen echten Soft-Timeout unterstützen (offener Upstream-Bug
-[#29096](https://github.com/anthropics/claude-code/issues/29096) — Prozesse werden bei
-SIGTERM/SIGINT verwaist, kein SessionEnd-Hook), bekommt Claude in allen fünf Workflows stattdessen
-eine **präzise, selbst prüfbare Deadline**: ein `starttime`-Step berechnet `soft_deadline_epoch =
+**Soft-Abort (weiches Zeitlimit, 2026-07-08):** Da Hermes keinen echten
+Soft-Timeout unterstützt, bekommt der Agent in allen fünf Workflows eine
+**präzise, selbst prüfbare Deadline**: ein `starttime`-Step berechnet `soft_deadline_epoch =
 jetzt + 840s` (14 Min, 6 Min Puffer bis zum harten 20-Min-Kill) und rendert diesen Epoch-Wert als
-literale Zahl in den Prompt. Claude prüft vor jedem größeren Teilschritt `date +%s` dagegen und
+literale Zahl in den Prompt. Hermes prüft vor jedem größeren Teilschritt `date +%s` dagegen und
 folgt bei Erreichen einer konkreten **Stopp-Checkliste**: laufenden Schritt zu Ende bringen →
 Zwischenstand sichern (committen/pushen bzw. Body-Block) → kurze Notiz was fertig/offen ist →
 **kein** Abschluss-Label setzen → eigenes Auslöser-Label entfernen+neu setzen (löst per
-`labeled`-Event einen Folgelauf aus, der per Session-Resume an derselben Stelle fortsetzt, s. o.) →
-Turn beenden. Bei `claude-triage.yml` entfällt der Selbst-Retrigger (ihr Trigger ist das _Entfernen_
+`labeled`-Event einen Folgelauf aus) →
+Turn beenden. Bei `hermes-triage.yml` entfällt der Selbst-Retrigger (ihr Trigger ist das _Entfernen_
 eines Labels, kein einfacher Toggle) — dort bleibt es beim bisherigen Verhalten: Body-Block mit
 Teil-Analyse sichern, kein Label, kein Ping-Kommentar.
 
 **Obergrenze (Marker-Label `ai:continued`):** Ein deterministischer Workflow-Step nach dem
-Claude-Schritt erkennt einen bewussten Zwischenstopp und begrenzt automatische
+Hermes-Schritt erkennt einen bewussten Zwischenstopp und begrenzt automatische
 Selbst-Fortsetzungen auf **genau eine**, bevor er auf den Erschöpfungs-Pfad zurückfällt (verhindert
-eine Endlosschleife bei einem grundsätzlich zu großen Ticket). Bei `claude-spec.yml`/
-`claude-implement.yml` erkennt dieser Step den Zwischenstopp anhand des Label-/PR-Zustands
-(Auslöser-Label wieder da, Abschluss-Signal fehlt); bei `claude-pr-fixup.yml`/`claude-pr-review.yml`
-setzt Claude das Marker-Label `ai:continued` als expliziten Teil der Stopp-Checkliste selbst (sonst
-wäre der Fall nicht vom bestehenden „Findings sind mehrdeutig, nichts geändert"-Pfad unterscheidbar,
+eine Endlosschleife bei einem grundsätzlich zu großen Ticket). Bei `hermes-spec.yml`/
+`hermes-implement.yml` erkennt dieser Step den Zwischenstopp anhand des Label-/PR-Zustands
+(Auslöser-Label wieder da, Abschluss-Signal fehlt); bei `hermes-pr-fixup.yml`/`hermes-pr-review.yml`
+setzt Hermes das Marker-Label `ai:continued` als expliziten Teil der Stopp-Checkliste selbst (sonst
+wäre der Fall nicht vom bestehenden "Findings sind mehrdeutig, nichts geändert"-Pfad unterscheidbar,
 der ebenfalls das Auslöser-Label unverändert lässt).
 
 Läuft ein Issue-Job (Umsetzung, Spec, Triage, Re-Triage) dennoch in den 20-Minuten-Timeout — oder ist
@@ -394,12 +243,12 @@ Konkreter Command: `/kreuzverhoer-review`.
 
 Der Kreuzverhoer-Agent wird auf drei Wegen aufgerufen:
 
-1. **Chat/REPL (interaktiv):** Trigger-Phrasen aktivieren den Agenten direkt in Claude Code:
+1. **Chat/REPL (interaktiv):** Trigger-Phrasen aktivieren den Agenten direkt:
    „Kreuzverhör", „nimm das auseinander", „stress-teste das", „challenge mich".
 2. **Slash-Command:** `/kreuzverhoer-review [PR-Nummer]` — führt das Review eines konkreten PRs
    im Session-Modell des Aufrufers durch.
-3. **GitHub Actions (automatisch):** `claude-pr-review.yml` feuert, wenn ein PR das Label
-   `ai:needs-review` trägt — Sonnet-Koordinator, der an `heavy`/`light` delegiert.
+3. **GitHub Actions (automatisch):** `hermes-pr-review.yml` feuert, wenn ein PR das Label
+   `ai:needs-review` trägt — Hermes reviewt den PR.
 
 In **GitHub Actions** läuft das über **Labels** (stabiles Ping-Pong statt Event-Kaskaden): Der
 Umsetzungs-Workflow macht den PR review-bereit (`gh pr ready` bzw. neuer Nicht-Draft-PR) und
@@ -408,9 +257,9 @@ Schritt (erst nachdem Beschreibung + Testergebnisse vollständig sind). Der sepa
 [`pr-needs-review-label.yml`](.github/workflows/pr-needs-review-label.yml) reagiert bewusst
 **NICHT** auf diese bot-erzeugten Draft→ready-Übergänge (nur auf menschliche Aktoren) — sonst
 würde er der Umsetzung zuvorkommen und den Review auf einem noch unfertigen PR starten;
-[`claude-pr-review.yml`](.github/workflows/claude-pr-review.yml) reviewt ihn und setzt
+[`hermes-pr-review.yml`](.github/workflows/hermes-pr-review.yml) reviewt ihn und setzt
 `ai:needs-changes` (Findings) bzw. `ai:ready-to-merge` (🟢);
-[`claude-pr-fixup.yml`](.github/workflows/claude-pr-fixup.yml) arbeitet `ai:needs-changes` ab und
+[`hermes-pr-fixup.yml`](.github/workflows/hermes-pr-fixup.yml) arbeitet `ai:needs-changes` ab und
 schaltet zurück auf `ai:needs-review` — bis 🟢. Diese Workflows nutzen ein GitHub-App-Token
 (Secrets `APP_ID` + `APP_PRIVATE_KEY`), damit die Label-Wechsel die Folge-Workflows auslösen.
 
