@@ -515,6 +515,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 									taskSearch.trim() === '' ? (
 										<TaskTree
 											forest={filteredForest}
+											originalForest={forest}
 											tasks={tasks}
 											progressMap={progressMap}
 											onEdit={openEdit}
@@ -529,6 +530,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 								) : (
 									<TaskTree
 										forest={filteredForest}
+										originalForest={forest}
 										tasks={tasks}
 										progressMap={progressMap}
 										onEdit={openEdit}

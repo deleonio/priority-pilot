@@ -86,6 +86,9 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 		await item(page, id)
 			.getByRole('button', { name: /Weitere Aktionen/i })
 			.click();
+		// Warten, bis das Popover sichtbar ist (der Erledigt-Button ist das erste Item im Popover)
+		// Der Button kann "Erledigt" oder "Wieder öffnen" heißen
+		await page.getByRole('button', { name: /Erledigt|Wieder öffnen/i }).waitFor({ state: 'visible' });
 	};
 
 	test('AK1: Unteraufgabe liegt oben und zeigt ein Aufklapp-Symbol zur Oberaufgabe', async ({ page }) => {
@@ -782,6 +785,209 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 			await expect(toolbar(page, id).getByRole('button', { name: 'Abhängigkeiten' })).toBeVisible();
 			await expect(toolbar(page, id).getByRole('button', { name: 'Unteraufgabe anlegen' })).toBeVisible();
 			await expect(toolbar(page, id).getByRole('button', { name: 'Löschen' })).toBeVisible();
+		});
+
+		/**
+		 * Roter TDD-Vertrag für #413: Der „Erledigt"-Schalter darf nur dann aktiv sein, wenn ein Task
+		 * KEINE Unteraufgaben hat (Leaf Task). Dies muss unabhängig davon gelten, wo der Task im
+		 * Baum gerendert wird. Wenn durch Filterung eine Oberaufgabe auf die oberste Tree-Ebene geholt
+		 * wird, darf der Schalter nicht fälschlicherweise aktiviert werden. Die Logik muss sich auf
+		 * die tatsächliche Aufgabenstruktur (vorhandene Unteraufgaben?) stützen, nicht auf die
+		 * Anzeigeposition im gerenderten Baum.
+		 */
+		test.describe('#413 — Erledigt-Schalter nur bei Leaf Tasks aktiv (unabhängig von Anzeigeposition)', () => {
+			test('AK-413-1: Oberaufgabe mit offenen Unteraufgaben hat gesperrten Erledigt-Schalter', async ({ page }) => {
+				const parentTitle = uniqueTitle('Eltern-mit-Kind');
+				const parentId = await createTask(page, parentTitle);
+				const childId = await createTask(page, uniqueTitle('Offenes-Kind'));
+
+				await addSubtask(page, parentId, childId);
+
+				await page.goto('/');
+				await waitForStableView(page);
+				await openTasksTab(page);
+
+				// Im invertierten Wald liegt das Kind oben; die Oberaufgabe ist initial verborgen.
+				await expect(item(page, childId)).toBeVisible();
+				await expect(item(page, parentId)).toBeHidden();
+
+				// Oberaufgabe aufklappen
+				await toggle(page, childId).click();
+				await expect(item(page, parentId)).toBeVisible();
+
+				// Der Erledigt-Schalter der Oberaufgabe muss gesperrt sein, da sie ein offenes Kind hat.
+				await openActionsPopover(page, parentId);
+
+				// Der Button liegt im Popover (globales Overlay), nicht im item-Container
+				const doneButton = page.getByRole('button', { name: /Erledigt|Wieder öffnen/i });
+				await expect(doneButton).toBeVisible();
+
+				// Der Button muss disabled sein (prueft das native disabled-Attribut)
+				await expect(doneButton).toBeDisabled();
+			});
+
+			test('AK-413-2: Leaf-Task ohne Unteraufgaben hat aktivierten Erledigt-Schalter', async ({ page }) => {
+				const soloTitle = uniqueTitle('Solo-Task');
+				const soloId = await createTask(page, soloTitle);
+
+				await page.goto('/');
+				await waitForStableView(page);
+				await openTasksTab(page);
+
+				await expect(item(page, soloId)).toBeVisible();
+
+				// Der Erledigt-Schalter eines Leaf-Task muss aktivierbar sein.
+				await openActionsPopover(page, soloId);
+
+				// Der Button liegt im Popover (globales Overlay), nicht im item-Container
+				const doneButton = page.getByRole('button', { name: /Erledigt|Wieder öffnen/i });
+				await expect(doneButton).toBeVisible();
+
+				// Der Button muss NICHT disabled sein.
+				await expect(doneButton).not.toBeDisabled();
+			});
+
+			test('AK-413-3: Oberaufgabe mit nur erledigten Unteraufgaben hat aktivierten Erledigt-Schalter', async ({
+				page,
+			}) => {
+				const parentTitle = uniqueTitle('Eltern-mit-erledigten-Kindern');
+				const parentId = await createTask(page, parentTitle);
+				const childOneId = await createTask(page, uniqueTitle('Erledigtes-Kind-1'));
+				const childTwoId = await createTask(page, uniqueTitle('Erledigtes-Kind-2'));
+
+				await addSubtask(page, parentId, childOneId);
+				await addSubtask(page, parentId, childTwoId);
+
+				// Beide Unteraufgaben erledigen
+				await page.request.patch(`/api/v1/tasks/${childOneId}`, { data: { status: 'Done' } });
+				await page.request.patch(`/api/v1/tasks/${childTwoId}`, { data: { status: 'Done' } });
+
+				await page.goto('/');
+				await waitForStableView(page);
+				await openTasksTab(page);
+
+				// Die Kinder sind Done und daher vom Server aus dem Forest gefiltert (`buildTaskForest`
+				// filtert auf status ['Open', 'In process']). Die Oberaufgabe erscheint als Blatt direkt sichtbar.
+				await expect(item(page, parentId)).toBeVisible();
+
+				// Der Erledigt-Schalter der Oberaufgabe muss aktivierbar sein, da alle Kinder erledigt sind.
+				await openActionsPopover(page, parentId);
+
+				// Der Button liegt im Popover (globales Overlay), nicht im item-Container
+				const doneButton = page.getByRole('button', { name: /Erledigt|Wieder öffnen/i });
+				await expect(doneButton).toBeVisible();
+
+				// Der Button muss NICHT disabled sein (alle Kinder sind Done).
+				await expect(doneButton).not.toBeDisabled();
+			});
+
+			test('AK-413-4: Bei Filterung bleibt Schalter-Status korrekt (Oberaufgabe oben = gesperrt)', async ({ page }) => {
+				const parentTitle = uniqueTitle('Gefilterte-Eltern');
+				const parentId = await createTask(page, parentTitle);
+				const childId = await createTask(page, uniqueTitle('Nicht-matching-Kind'));
+
+				await addSubtask(page, parentId, childId);
+
+				await page.goto('/');
+				await waitForStableView(page);
+				await openTasksTab(page);
+
+				// Nach dem Oberaufgabe-Titel filtern (nicht dem Unteraufgabe-Titel)
+				const searchInput = page.getByPlaceholder('Nach Titel filtern…');
+				await searchInput.fill(parentTitle);
+
+				// Filter anwenden
+				await page.getByRole('button', { name: 'Filtern' }).click();
+				await waitForStableView(page);
+
+				// Nach dem Filtern sollte die Oberaufgabe direkt sichtbar sein (da sie dem Filter entspricht)
+				await expect(item(page, parentId)).toBeVisible();
+				// Die nicht matching Unteraufgabe sollte verborgen sein
+				await expect(item(page, childId)).toBeHidden();
+
+				// Der Erledigt-Schalter der Oberaufgabe muss trotzdem gesperrt sein, da sie semantisch
+				// ein offenes Kind hat (auch wenn es durch den Filter verborgen ist).
+				await openActionsPopover(page, parentId);
+
+				// Der Button liegt im Popover (globales Overlay), nicht im item-Container
+				const doneButton = page.getByRole('button', { name: /Erledigt|Wieder öffnen/i });
+				await expect(doneButton).toBeVisible();
+
+				// Der Button muss disabled sein (semantische Struktur, nicht Anzeigeposition!)
+				await expect(doneButton).toBeDisabled();
+			});
+
+			test('AK-413-5: Bei Filterung bleibt Schalter-Status korrekt (Oberaufgabe oben = aktiv wenn alle Kinder Done)', async ({
+				page,
+			}) => {
+				const parentTitle = uniqueTitle('Gefilterte-Eltern-Done');
+				const parentId = await createTask(page, parentTitle);
+				const childId = await createTask(page, uniqueTitle('Erledigtes-Kind'));
+
+				await addSubtask(page, parentId, childId);
+
+				// Unteraufgabe erledigen
+				await page.request.patch(`/api/v1/tasks/${childId}`, { data: { status: 'Done' } });
+
+				await page.goto('/');
+				await waitForStableView(page);
+				await openTasksTab(page);
+
+				// Nach dem Oberaufgabe-Titel filtern
+				const searchInput = page.getByPlaceholder('Nach Titel filtern…');
+				await searchInput.fill(parentTitle);
+
+				// Filter anwenden
+				await page.getByRole('button', { name: 'Filtern' }).click();
+				await waitForStableView(page);
+
+				// Oberaufgabe sichtbar, Unteraufgabe verborgen durch Filter
+				await expect(item(page, parentId)).toBeVisible();
+				await expect(item(page, childId)).toBeHidden();
+
+				// Der Erledigt-Schalter muss aktivierbar sein (alle Kinder sind Done)
+				await openActionsPopover(page, parentId);
+
+				// Der Button liegt im Popover (globales Overlay), nicht im item-Container
+				const doneButton = page.getByRole('button', { name: /Erledigt|Wieder öffnen/i });
+				await expect(doneButton).toBeVisible();
+
+				// Button nicht disabled
+				await expect(doneButton).not.toBeDisabled();
+			});
+
+			test('AK-413-6: Schalter-Status korrekt bei gemischten Unteraufgaben (ein offen, einer Done)', async ({
+				page,
+			}) => {
+				const parentTitle = uniqueTitle('Eltern-mixed');
+				const parentId = await createTask(page, parentTitle);
+				const openChildId = await createTask(page, uniqueTitle('Offenes-Kind'));
+				const doneChildId = await createTask(page, uniqueTitle('Erledigtes-Kind'));
+
+				await addSubtask(page, parentId, openChildId);
+				await addSubtask(page, parentId, doneChildId);
+
+				// Eine Unteraufgabe erledigen, die andere nicht
+				await page.request.patch(`/api/v1/tasks/${doneChildId}`, { data: { status: 'Done' } });
+
+				await page.goto('/');
+				await waitForStableView(page);
+				await openTasksTab(page);
+
+				// Oberaufgabe aufklappen
+				await toggle(page, openChildId).click();
+				await expect(item(page, parentId)).toBeVisible();
+
+				// Der Erledigt-Schalter muss gesperrt sein (mindestens ein offenes Kind)
+				await openActionsPopover(page, parentId);
+
+				// Der Button liegt im Popover (globales Overlay), nicht im item-Container
+				const doneButton = page.getByRole('button', { name: /Erledigt|Wieder öffnen/i });
+				await expect(doneButton).toBeVisible();
+
+				// Button muss disabled sein
+				await expect(doneButton).toBeDisabled();
+			});
 		});
 	});
 });

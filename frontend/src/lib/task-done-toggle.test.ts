@@ -30,3 +30,58 @@ describe('isDoneBlockedBySubtasks — Guard für binären Erledigt-Toggle (#315)
 		expect(isDoneBlockedBySubtasks([{ status: TaskStatus.InProcess }])).toBe(true);
 	});
 });
+
+/**
+ * Roter TDD-Vertrag für #413 — Der „Erledigt"-Schalter darf nur bei Leaf Tasks aktiv sein.
+ *
+ * Die Funktion `isDoneBlockedBySubtasks` entscheidet korrekt, ob eine Aufgabe per Toggle auf
+ * „Erledigt" geschaltet werden darf. Diese Tests stellen sicher, dass die Entscheidung nur
+ * von der tatsächlichen Aufgabenstruktur abhängt, nicht von der Anzeigeposition im Baum.
+ *
+ * Insbesondere bei gefilterter Darstellung (z.B. Suchfilter) darf eine Oberaufgabe nicht
+ * fälschlicherweise einen aktivierten Schalter erhalten, wenn sie semantisch noch offene
+ * Unteraufgaben hat.
+ */
+describe('isDoneBlockedBySubtasks — Unabhängig von Anzeigeposition (#413)', () => {
+	it('AK-413-1: Oberaufgabe mit einem offenen Kind sperrt den Toggle', () => {
+		expect(isDoneBlockedBySubtasks([{ status: TaskStatus.Open }, { status: TaskStatus.Done }])).toBe(true);
+	});
+
+	it('AK-413-2: Oberaufgabe mit einem „In process"-Kind sperrt den Toggle', () => {
+		expect(
+			isDoneBlockedBySubtasks([
+				{ status: TaskStatus.Done },
+				{ status: TaskStatus.Done },
+				{ status: TaskStatus.InProcess },
+			]),
+		).toBe(true);
+	});
+
+	it('AK-413-3: Oberaufgabe mit allen erledigten Kindern sperrt den Toggle nicht', () => {
+		expect(
+			isDoneBlockedBySubtasks([{ status: TaskStatus.Done }, { status: TaskStatus.Done }, { status: TaskStatus.Done }]),
+		).toBe(false);
+	});
+
+	it('AK-413-4: Oberaufgabe mit nur einem erledigten Kind sperrt den Toggle nicht', () => {
+		expect(isDoneBlockedBySubtasks([{ status: TaskStatus.Done }])).toBe(false);
+	});
+
+	it('AK-413-5: Leaf-Task (keine Unteraufgaben) sperrt den Toggle nicht', () => {
+		expect(isDoneBlockedBySubtasks([])).toBe(false);
+	});
+
+	it('AK-413-6: Gemischte Unteraufgaben (mindestens eine offen) sperrt den Toggle', () => {
+		expect(
+			isDoneBlockedBySubtasks([{ status: TaskStatus.Done }, { status: TaskStatus.Open }, { status: TaskStatus.Done }]),
+		).toBe(true);
+	});
+
+	it('AK-413-7: Alle Kinder „In process" sperrt den Toggle', () => {
+		expect(isDoneBlockedBySubtasks([{ status: TaskStatus.InProcess }, { status: TaskStatus.InProcess }])).toBe(true);
+	});
+
+	it('AK-413-8: Einziges Kind „In process" sperrt den Toggle', () => {
+		expect(isDoneBlockedBySubtasks([{ status: TaskStatus.InProcess }])).toBe(true);
+	});
+});
