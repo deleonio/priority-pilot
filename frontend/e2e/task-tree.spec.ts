@@ -822,8 +822,8 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 				const doneButton = page.getByRole('button', { name: /Erledigt|Wieder öffnen/i });
 				await expect(doneButton).toBeVisible();
 
-				// Der Button muss disabled sein (_disabled bei KoliBri prüfen über aria-disabled)
-				await expect(doneButton).toHaveAttribute('aria-disabled', 'true');
+				// Der Button muss disabled sein (prueft das native disabled-Attribut)
+				await expect(doneButton).toBeDisabled();
 			});
 
 			test('AK-413-2: Leaf-Task ohne Unteraufgaben hat aktivierten Erledigt-Schalter', async ({ page }) => {
@@ -844,7 +844,7 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 				await expect(doneButton).toBeVisible();
 
 				// Der Button muss NICHT disabled sein.
-				await expect(doneButton).not.toHaveAttribute('aria-disabled', 'true');
+				await expect(doneButton).not.toBeDisabled();
 			});
 
 			test('AK-413-3: Oberaufgabe mit nur erledigten Unteraufgaben hat aktivierten Erledigt-Schalter', async ({
@@ -878,7 +878,7 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 				await expect(doneButton).toBeVisible();
 
 				// Der Button muss NICHT disabled sein (alle Kinder sind Done).
-				await expect(doneButton).not.toHaveAttribute('aria-disabled', 'true');
+				await expect(doneButton).not.toBeDisabled();
 			});
 
 			test('AK-413-4: Bei Filterung bleibt Schalter-Status korrekt (Oberaufgabe oben = gesperrt)', async ({ page }) => {
@@ -893,7 +893,7 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 				await openTasksTab(page);
 
 				// Nach dem Oberaufgabe-Titel filtern (nicht dem Unteraufgabe-Titel)
-				const searchInput = page.getByRole('textbox', { name: 'Titel filtern' });
+				const searchInput = page.getByRole('textbox', { name: 'Nach Titel filtern' });
 				await searchInput.fill(parentTitle);
 
 				// Filter anwenden
@@ -914,7 +914,7 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 				await expect(doneButton).toBeVisible();
 
 				// Der Button muss disabled sein (semantische Struktur, nicht Anzeigeposition!)
-				await expect(doneButton).toHaveAttribute('aria-disabled', 'true');
+				await expect(doneButton).toBeDisabled();
 			});
 
 			test('AK-413-5: Bei Filterung bleibt Schalter-Status korrekt (Oberaufgabe oben = aktiv wenn alle Kinder Done)', async ({
@@ -934,7 +934,7 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 				await openTasksTab(page);
 
 				// Nach dem Oberaufgabe-Titel filtern
-				const searchInput = page.getByRole('textbox', { name: 'Titel filtern' });
+				const searchInput = page.getByRole('textbox', { name: 'Nach Titel filtern' });
 				await searchInput.fill(parentTitle);
 
 				// Filter anwenden
@@ -953,7 +953,7 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 				await expect(doneButton).toBeVisible();
 
 				// Button nicht disabled
-				await expect(doneButton).not.toHaveAttribute('aria-disabled', 'true');
+				await expect(doneButton).not.toBeDisabled();
 			});
 
 			test('AK-413-6: Schalter-Status korrekt bei gemischten Unteraufgaben (ein offen, einer Done)', async ({
@@ -986,7 +986,7 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 				await expect(doneButton).toBeVisible();
 
 				// Button muss disabled sein
-				await expect(doneButton).toHaveAttribute('aria-disabled', 'true');
+				await expect(doneButton).toBeDisabled();
 			});
 		});
 	});
