@@ -2,13 +2,14 @@ import { DataTypes, Model } from 'sequelize';
 import sequelize from '../database.js';
 
 /**
- * Eine der fünf festen Lebensbalance-Säulen. Säulen werden mit #427 **pro Nutzer** geführt: Jede
- * Säule trägt eine `userId` (nullable für Alt-Bestände vor der Migration). `weight` ist der
- * prozentuale Anteil der Säule (Default 20 ⇒ fünf Säulen summieren sich auf 100 %). `description`
- * ist die kanonische Kurzbeschreibung (Einstellungs-Menü); Quelle der Werte ist
+ * Eine der fünf festen Lebensbalance-Säulen. **Nutzer-eigene Stammdaten** (#421, Epic #420, Teil 1):
+ * jeder Nutzer besitzt seine eigene Kopie der Standard-Säulen, gebunden über die nullbare `userId`.
+ * `weight` ist der prozentuale Anteil der Säule (Default 20 ⇒ fünf Säulen summieren sich auf 100 %).
+ * `description` ist die kanonische Kurzbeschreibung (Einstellungs-Menü); Quelle der Werte ist
  * {@link ../models/pillarData.ts SEED_PILLARS}. Säulennamen sind **pro Nutzer eindeutig**
- * (Unique-Index auf `name`, `userId`) — derselbe Name darf für verschiedene Nutzer existieren, für
- * denselben Nutzer aber nur einmal.
+ * (Unique-Index auf `name`, `userId`) — derselbe Name ist für verschiedene Nutzer erlaubt.
+ * NULL-owned Zeilen (`userId IS NULL`) sind historische globale Stammdaten, die die Migration
+ * unangetastet lässt.
  */
 class Pillar extends Model {
 	public id!: number;
@@ -48,8 +49,8 @@ Pillar.init(
 			allowNull: false,
 			defaultValue: '',
 		},
-		// Eigentümer der Säule (#427). Nullable für Alt-Bestände (globale Säulen vor der Migration);
-		// migratePillarsPerUser überführt diese in Pro-Nutzer-Säulen mit gesetzter userId.
+		// Eigentümer-Bindung (#421): nullbar für Abwärtskompatibilität mit den historischen globalen
+		// (NULL-owned) Stammdaten. Neue Säulen werden pro Nutzer mit gesetzter userId angelegt.
 		userId: {
 			type: DataTypes.INTEGER,
 			allowNull: true,
@@ -60,9 +61,9 @@ Pillar.init(
 		modelName: 'Pillar',
 		tableName: 'pillars',
 		timestamps: true,
-		// Säulennamen sind pro Nutzer eindeutig (#427): derselbe Name darf für verschiedene Nutzer
-		// existieren, für denselben Nutzer aber nur einmal.
-		indexes: [{ unique: true, fields: ['name', 'userId'] }],
+		// Säulennamen sind pro Nutzer eindeutig (#421): derselbe Name für verschiedene Nutzer ist
+		// erlaubt, Duplikate beim selben Nutzer werden abgewiesen.
+		indexes: [{ unique: true, fields: ['name', 'userId'], name: 'pillars_name_user_id' }],
 	},
 );
 

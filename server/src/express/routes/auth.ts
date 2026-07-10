@@ -2,7 +2,9 @@ import { Router, type RequestHandler } from 'express';
 import passport from 'passport';
 import { UniqueConstraintError } from 'sequelize';
 import { isEmailAllowed } from '../../logics/allowedEmails.js';
-import { User } from '../../models/index.js';
+import sequelize from '../../database.js';
+import { Pillar, User } from '../../models/index.js';
+import { SEED_PILLARS } from '../../models/pillarData.js';
 import { hashPassword, verifyPassword } from '../../logics/auth.js';
 import { hasGoogleOAuth } from '../requireAuth.js';
 
@@ -36,7 +38,19 @@ authRouter.post('/auth/register', async (req, res) => {
 	const passwordHash = await hashPassword(password);
 	let created: User;
 	try {
-		created = await User.create({ email: normalizedEmail, passwordHash, displayName: normalizedEmail });
+		created = await sequelize.transaction(async (t) => {
+			const user = await User.create(
+				{ email: normalizedEmail, passwordHash, displayName: normalizedEmail },
+				{ transaction: t },
+			);
+			// Säulen pro Nutzer (#421, AK4): dem frisch angelegten Nutzer seine eigenen fünf Standard-Säulen
+			// säen (je 20 %). Atomisch mit User.create — kein halbfertiger Account möglich.
+			await Pillar.bulkCreate(
+				SEED_PILLARS.map(({ name, description, weight }) => ({ name, description, weight, userId: user.id })),
+				{ transaction: t },
+			);
+			return user;
+		});
 	} catch (err) {
 		// Race Condition: zwei parallele Registrierungen passieren beide den findOne-Check
 		// (beide null). Die DB-Unique-Constraint fängt den Konflikt ab → 409 statt 500.

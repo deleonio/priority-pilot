@@ -139,9 +139,9 @@ export const migrateUsersAvatarUrl = async (db: Sequelize): Promise<void> => {
 
 /**
  * Definition der mit der Datenisolation (#207, AK5) ergänzten `userId`-Spalte an `tasks` (nullable,
- * Abwärtskompatibilität). Die separate `pillars.userId`-Spalte (#427 — Säulen pro Nutzer) wird von
- * {@link migratePillarAddUserId} nachgezogen. Der SQLite-Typ entspricht dem Sequelize-Datentyp
- * `DataTypes.INTEGER`.
+ * Abwärtskompatibilität). **Achtung:** `pillars.userId` gehört bewusst NICHT mehr dazu — Säulen sind
+ * globale Stammdaten; die Spalte wird von {@link migratePillarDropUserId} auf Bestands-DBs
+ * **entfernt**. Der SQLite-Typ entspricht dem Sequelize-Datentyp `DataTypes.INTEGER`.
  */
 const USER_ID_COLUMNS = [{ table: 'tasks', column: 'userId', definition: 'INTEGER' }] as const;
 
@@ -196,122 +196,115 @@ export const migratePillarDescription = async (db: Sequelize): Promise<void> => 
 };
 
 /**
- * Zieht die `userId`-Spalte auf einer **bestehenden** `pillars`-Tabelle nach und stellt den
- * Unique-Index von `pillars_name` (`name`) auf `pillars_name_user_id` (`name`, `userId`) um (#427 —
- * Säulen werden wieder **pro Nutzer** geführt, Umkehr des #207-Cleanups).
+ * Stellt die früher globalen Säulen auf **nutzer-eigene** Stammdaten um (#421, Epic #420, Teil 1),
+ * BEVOR `sequelize.sync()` läuft. Auf einer Bestands-DB:
  *
- * Läuft BEVOR `sequelize.sync()` (wie alle Vorab-Migrationen), damit `sync()` das neue Modell (Index
- * auf `name`, `userId`) ohne „no such column: userId"-Konflikt anwenden kann. Der Index-Name
- * entspricht dem Sequelize-Default für den Modell-Index (`pillars_name_user_id`), sodass `sync()` ihn
- * als bereits vorhanden erkennt und nicht erneut anzulegen versucht.
+ *   1. zieht die nullbare Spalte `userId` an `pillars` nach (falls noch nicht vorhanden),
+ *   2. droppt den alten globalen Unique-Index `pillars_name` auf (`name`),
+ *   3. legt den neuen Unique-Index `pillars_name_user_id` auf (`name`, `userId`) an,
+ *   4. klont für JEDEN Nutzer eine eigene Kopie jeder globalen (NULL-owned) Säule
+ *      (Name/Gewicht/Beschreibung),
+ *   5. hängt `task_pillars` der Nutzer-Tasks (`tasks.userId`) von der globalen Säule auf die
+ *      nutzer-eigene Kopie um (gleicher Name),
+ *   6. hängt `series_pillars` analog nach `series.userId` um.
  *
- * Reihenfolge bewusst: zuerst den alten `pillars_name`-Index **droppen**, dann die nullable
- * `userId`-Spalte ergänzen (SQLite: `ADD COLUMN` ohne `NOT NULL` braucht keinen Default), dann den
- * neuen zusammengesetzten Index anlegen. Alles mit `IF [NOT] EXISTS` abgesichert → idempotent. No-op,
- * wenn `userId` bereits existiert oder die Tabelle fehlt (frische DB: `sync()` legt sie korrekt an).
+ * NULL-owned Säulen und die Zuordnungen von Tasks/Serien ohne `userId` bleiben unverändert bestehen.
+ *
+ * Vollständig idempotent: Spalte, Index und Klone werden per PRAGMA- bzw. COUNT-Checks abgesichert;
+ * ein zweiter Lauf legt keine Klon-Dubletten an und ändert keine bereits umgehängten Beiträge.
+ * No-op bei frischer DB (keine `pillars`-Tabelle) — `sync()` legt Tabelle inkl. Spalte und Index an.
  */
-export const migratePillarAddUserId = async (db: Sequelize): Promise<void> => {
-	const [rows] = await db.query("PRAGMA table_info('pillars')");
-	const existing = (rows as { name: string }[]).map((row) => row.name);
+export const migratePillarPerUser = async (db: Sequelize): Promise<void> => {
+	const [pillarCols] = await db.query("PRAGMA table_info('pillars')");
+	const pillarColumns = (pillarCols as { name: string }[]).map((row) => row.name);
 
-	if (existing.length === 0 || existing.includes('userId')) {
-		return;
-	}
-	await db.query('DROP INDEX IF EXISTS `pillars_name`');
-	await db.query('ALTER TABLE `pillars` ADD COLUMN `userId` INTEGER');
-	await db.query('CREATE UNIQUE INDEX IF NOT EXISTS `pillars_name_user_id` ON `pillars`(`name`, `userId`)');
-	console.log('Spalte userId an pillars nachgezogen und Unique-Index auf (name, userId) umgestellt.');
-};
-
-/**
- * Legt für einen (neuen) Nutzer den kanonischen Startbestand der fünf {@link SEED_PILLARS} an —
- * jede Säule mit dessen `userId`, Name, Kurzbeschreibung und Default-Gewichtung (Σ weight = 100).
- * Säulen werden mit #427 **pro Nutzer** geführt; diese Funktion ist der Pro-Nutzer-Ersatz für den
- * früheren globalen Säulen-Seed.
- *
- * Raw-SQL (konsistent mit den übrigen Migrationen und unabhängig vom Modell-Zustand). Der Aufrufer
- * ist für die Einmaligkeit verantwortlich (z. B. nur bei der Nutzeranlage) — der Unique-Index
- * (`name`, `userId`) verhindert Dubletten.
- */
-export const seedPillarsForUser = async (db: Sequelize, userId: number): Promise<void> => {
-	for (const { name, description, weight } of SEED_PILLARS) {
-		await db.query(
-			'INSERT INTO `pillars` (`name`, `weight`, `description`, `userId`, `createdAt`, `updatedAt`) ' +
-				'VALUES (:name, :weight, :description, :userId, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
-			{ replacements: { name, weight, description, userId } },
-		);
-	}
-};
-
-/**
- * Überführt eine Bestands-DB mit **globalen** Säulen (`userId IS NULL`) in das Pro-Nutzer-Modell
- * (#427). Für jeden Nutzer, dessen Tasks über `task_pillars` auf eine globale Säule zeigen, wird
- * eine gleichnamige Pro-Nutzer-Kopie angelegt und die betroffenen `task_pillars`-Zeilen darauf
- * umgebogen (Match über den Säulennamen). Anschließend werden die alten globalen Säulen entfernt.
- * Kein Beitrag geht verloren, keine Join-Zeile verwaist.
- *
- * Idempotent: Nach dem ersten Lauf existieren keine globalen Säulen mehr → jeder weitere Aufruf ist
- * ein No-op (Schritt 2). No-op auch bei fehlender `pillars`-Tabelle (frische DB) oder wenn bereits
- * ausschließlich Pro-Nutzer-Säulen vorliegen. Raw-SQL, unabhängig vom aktuellen Modell-Zustand.
- */
-export const migratePillarsPerUser = async (db: Sequelize): Promise<void> => {
-	// 1. Keine pillars-Tabelle (frische DB) → No-op.
-	const [tableInfo] = await db.query("PRAGMA table_info('pillars')");
-	if ((tableInfo as unknown[]).length === 0) {
+	// Keine pillars-Tabelle (frische DB) → No-op; sync() übernimmt Anlegen von Tabelle + Index.
+	if (pillarColumns.length === 0) {
 		return;
 	}
 
-	// 2. Keine globalen Säulen (userId IS NULL) → nichts zu migrieren (auch der Idempotenz-Anker).
-	const [globalRows] = await db.query('SELECT COUNT(*) AS n FROM `pillars` WHERE `userId` IS NULL');
-	if ((globalRows as { n: number }[])[0].n === 0) {
-		return;
+	// 1. userId-Spalte nachziehen (nullbar, daher kein DEFAULT nötig).
+	if (!pillarColumns.includes('userId')) {
+		await db.query('ALTER TABLE `pillars` ADD COLUMN `userId` INTEGER');
+		console.log('Spalte userId an pillars nachgezogen (#421).');
 	}
 
-	// 3. Distinct (Task-Owner, globale Säule) aus den vorhandenen Join-Zeilen ermitteln.
-	const [pairs] = await db.query(
-		'SELECT DISTINCT t.`userId` AS userId, tp.`pillarId` AS pillarId, ' +
-			'p.`name` AS name, p.`weight` AS weight, p.`description` AS description ' +
-			'FROM `task_pillars` tp ' +
-			'JOIN `tasks` t ON t.`id` = tp.`taskId` ' +
-			'JOIN `pillars` p ON p.`id` = tp.`pillarId` ' +
-			'WHERE p.`userId` IS NULL AND t.`userId` IS NOT NULL',
+	// 2. + 3. Alten globalen Index droppen, neuen Unique-Index (name, userId) anlegen.
+	const [indexRows] = await db.query("PRAGMA index_list('pillars')");
+	const indexNames = (indexRows as { name: string }[]).map((row) => row.name);
+	if (indexNames.includes('pillars_name')) {
+		await db.query('DROP INDEX IF EXISTS `pillars_name`');
+	}
+	if (!indexNames.includes('pillars_name_user_id')) {
+		await db.query('CREATE UNIQUE INDEX IF NOT EXISTS `pillars_name_user_id` ON `pillars`(`name`, `userId`)');
+	}
+
+	// Welche (optionalen) Tabellen existieren? Auf schlanken Bestands-/Test-DBs können `tasks`,
+	// `series` und deren Join-Tabellen fehlen — dann entfällt das jeweilige Umhängen.
+	const [tableRows] = await db.query("SELECT `name` FROM `sqlite_master` WHERE `type` = 'table'");
+	const tables = new Set((tableRows as { name: string }[]).map((row) => row.name));
+
+	// users-Tabelle nötig für die nutzer-eigenen Klone; fehlt sie, gibt es nichts umzustellen.
+	if (!tables.has('users')) {
+		return;
+	}
+	const [userRows] = await db.query('SELECT `id` FROM `users`');
+	const userIds = (userRows as { id: number }[]).map((row) => row.id);
+
+	// Die globalen (NULL-owned) Säulen als Klon-Vorlage.
+	const [globalRows] = await db.query(
+		'SELECT `id`, `name`, `weight`, `description` FROM `pillars` WHERE `userId` IS NULL',
 	);
+	const globalPillars = globalRows as { id: number; name: string; weight: number; description: string }[];
 
-	for (const pair of pairs as {
-		userId: number;
-		pillarId: number;
-		name: string;
-		weight: number;
-		description: string;
-	}[]) {
-		// 3a. Pro-Nutzer-Kopie anlegen (oder eine bereits vorhandene wiederverwenden).
-		const [existing] = await db.query('SELECT `id` FROM `pillars` WHERE `name` = :name AND `userId` = :userId', {
-			replacements: { name: pair.name, userId: pair.userId },
+	for (const userId of userIds) {
+		// 4. Klonen — nur wenn der Nutzer noch keine eigenen Säulen hat (Idempotenz).
+		const [ownRows] = await db.query('SELECT COUNT(*) AS c FROM `pillars` WHERE `userId` = ?', {
+			replacements: [userId],
 		});
-		let targetId: number;
-		if ((existing as { id: number }[]).length > 0) {
-			targetId = (existing as { id: number }[])[0].id;
-		} else {
-			await db.query(
-				'INSERT INTO `pillars` (`name`, `weight`, `description`, `userId`, `createdAt`, `updatedAt`) ' +
-					'VALUES (:name, :weight, :description, :userId, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
-				{ replacements: { name: pair.name, weight: pair.weight, description: pair.description, userId: pair.userId } },
-			);
-			const [inserted] = await db.query('SELECT `id` FROM `pillars` WHERE `name` = :name AND `userId` = :userId', {
-				replacements: { name: pair.name, userId: pair.userId },
-			});
-			targetId = (inserted as { id: number }[])[0].id;
+		const ownCount = Number((ownRows as { c: number }[])[0]?.c ?? 0);
+		if (ownCount === 0) {
+			for (const pillar of globalPillars) {
+				await db.query(
+					'INSERT INTO `pillars` (`name`, `weight`, `description`, `userId`, `createdAt`, `updatedAt`) ' +
+						'VALUES (:name, :weight, :description, :userId, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)',
+					{ replacements: { name: pillar.name, weight: pillar.weight, description: pillar.description, userId } },
+				);
+			}
 		}
 
-		// 3b. task_pillars der Tasks dieses Nutzers von der globalen auf die Pro-Nutzer-Säule umbiegen.
-		await db.query(
-			'UPDATE `task_pillars` SET `pillarId` = :targetId ' +
-				'WHERE `pillarId` = :oldId AND `taskId` IN (SELECT `id` FROM `tasks` WHERE `userId` = :userId)',
-			{ replacements: { targetId, oldId: pair.pillarId, userId: pair.userId } },
-		);
-	}
+		// 5. task_pillars der Nutzer-Tasks von globalen Säulen auf die nutzer-eigene Kopie umhängen.
+		if (tables.has('task_pillars') && tables.has('tasks')) {
+			await db.query(
+				'UPDATE `task_pillars` SET `pillarId` = (' +
+					'SELECT `own`.`id` FROM `pillars` `own` ' +
+					'JOIN `pillars` `global` ON `global`.`name` = `own`.`name` ' +
+					'WHERE `own`.`userId` = :userId AND `global`.`id` = `task_pillars`.`pillarId` AND `global`.`userId` IS NULL' +
+					') WHERE `task_pillars`.`taskId` IN (SELECT `id` FROM `tasks` WHERE `userId` = :userId) ' +
+					'AND EXISTS (' +
+					'SELECT 1 FROM `pillars` `own` ' +
+					'JOIN `pillars` `global` ON `global`.`name` = `own`.`name` ' +
+					'WHERE `own`.`userId` = :userId AND `global`.`id` = `task_pillars`.`pillarId` AND `global`.`userId` IS NULL' +
+					')',
+				{ replacements: { userId } },
+			);
+		}
 
-	// 4. Alte globale Säulen (userId IS NULL) entfernen.
-	await db.query('DELETE FROM `pillars` WHERE `userId` IS NULL');
-	console.log('Globale Säulen auf Pro-Nutzer-Säulen migriert (#427).');
+		// 6. series_pillars der Nutzer-Serien analog nach series.userId umhängen.
+		if (tables.has('series_pillars') && tables.has('series')) {
+			await db.query(
+				'UPDATE `series_pillars` SET `pillarId` = (' +
+					'SELECT `own`.`id` FROM `pillars` `own` ' +
+					'JOIN `pillars` `global` ON `global`.`name` = `own`.`name` ' +
+					'WHERE `own`.`userId` = :userId AND `global`.`id` = `series_pillars`.`pillarId` AND `global`.`userId` IS NULL' +
+					') WHERE `series_pillars`.`seriesId` IN (SELECT `id` FROM `series` WHERE `userId` = :userId) ' +
+					'AND EXISTS (' +
+					'SELECT 1 FROM `pillars` `own` ' +
+					'JOIN `pillars` `global` ON `global`.`name` = `own`.`name` ' +
+					'WHERE `own`.`userId` = :userId AND `global`.`id` = `series_pillars`.`pillarId` AND `global`.`userId` IS NULL' +
+					')',
+				{ replacements: { userId } },
+			);
+		}
+	}
 };
