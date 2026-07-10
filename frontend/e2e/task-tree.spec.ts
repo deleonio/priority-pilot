@@ -86,6 +86,9 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 		await item(page, id)
 			.getByRole('button', { name: /Weitere Aktionen/i })
 			.click();
+		// Warten, bis das Popover sichtbar ist (der Erledigt-Button ist das erste Item im Popover)
+		// Der Button kann "Erledigt" oder "Wieder öffnen" heißen
+		await page.getByRole('button', { name: /Erledigt|Wieder öffnen/i }).waitFor({ state: 'visible' });
 	};
 
 	test('AK1: Unteraufgabe liegt oben und zeigt ein Aufklapp-Symbol zur Oberaufgabe', async ({ page }) => {
@@ -816,7 +819,7 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 				await openActionsPopover(page, parentId);
 
 				// Der Button liegt im Popover (globales Overlay), nicht im item-Container
-				const doneButton = page.getByRole('button', { name: /Erledigt/i });
+				const doneButton = page.getByRole('button', { name: /Erledigt|Wieder öffnen/i });
 				await expect(doneButton).toBeVisible();
 
 				// Der Button muss disabled sein (_disabled bei KoliBri prüfen über aria-disabled)
@@ -837,7 +840,7 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 				await openActionsPopover(page, soloId);
 
 				// Der Button liegt im Popover (globales Overlay), nicht im item-Container
-				const doneButton = page.getByRole('button', { name: /Erledigt/i });
+				const doneButton = page.getByRole('button', { name: /Erledigt|Wieder öffnen/i });
 				await expect(doneButton).toBeVisible();
 
 				// Der Button muss NICHT disabled sein.
@@ -871,7 +874,7 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 				await openActionsPopover(page, parentId);
 
 				// Der Button liegt im Popover (globales Overlay), nicht im item-Container
-				const doneButton = page.getByRole('button', { name: /Erledigt/i });
+				const doneButton = page.getByRole('button', { name: /Erledigt|Wieder öffnen/i });
 				await expect(doneButton).toBeVisible();
 
 				// Der Button muss NICHT disabled sein (alle Kinder sind Done).
@@ -907,7 +910,7 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 				await openActionsPopover(page, parentId);
 
 				// Der Button liegt im Popover (globales Overlay), nicht im item-Container
-				const doneButton = page.getByRole('button', { name: /Erledigt/i });
+				const doneButton = page.getByRole('button', { name: /Erledigt|Wieder öffnen/i });
 				await expect(doneButton).toBeVisible();
 
 				// Der Button muss disabled sein (semantische Struktur, nicht Anzeigeposition!)
@@ -946,7 +949,7 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 				await openActionsPopover(page, parentId);
 
 				// Der Button liegt im Popover (globales Overlay), nicht im item-Container
-				const doneButton = page.getByRole('button', { name: /Erledigt/i });
+				const doneButton = page.getByRole('button', { name: /Erledigt|Wieder öffnen/i });
 				await expect(doneButton).toBeVisible();
 
 				// Button nicht disabled
@@ -979,7 +982,7 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 				await openActionsPopover(page, parentId);
 
 				// Der Button liegt im Popover (globales Overlay), nicht im item-Container
-				const doneButton = page.getByRole('button', { name: /Erledigt/i });
+				const doneButton = page.getByRole('button', { name: /Erledigt|Wieder öffnen/i });
 				await expect(doneButton).toBeVisible();
 
 				// Button muss disabled sein
