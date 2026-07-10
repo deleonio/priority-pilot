@@ -1,9 +1,13 @@
 name: Session-Archiv sichern
 description: >-
   Sichert die aktuelle Claude-Code-Sitzung einer Phase ins issue-/PR-bezogene Sitzungsarchiv
-  (GitHub Actions Cache), damit ein spaeterer Lauf derselben Phase per --resume fortsetzen kann.
-  Fail-open: jeder Fehler (fehlende Session-Datei, gh-cache-Problem) endet in einer Warnung, nie
-  in einem Abbruch des aufrufenden Workflows.
+  (Workflow-Artefakt, EIN Artefakt pro Phase), damit ein spaeterer Lauf derselben Phase per
+  --resume fortsetzen kann. Artefakte statt Actions-Cache seit 2026-07-10: GitHub vergibt fuer
+  untrusted Trigger (issues/issue_comment/pull_request_target) nur noch read-only Cache-Tokens
+  (Changelog 2026-06-26, "Read-only Actions cache for untrusted triggers") -- Cache-Saves aus den
+  Issue-Workflows scheiterten seitdem mit "cache write denied: token has no writable scopes".
+  Artefakt-Uploads sind davon nicht betroffen. Fail-open: jeder Fehler (fehlende Session-Datei,
+  Upload-Problem) endet in einer Warnung, nie in einem Abbruch des aufrufenden Workflows.
 
 inputs:
   issue:
@@ -16,14 +20,14 @@ inputs:
     description: >-
       "issue" (Standard) oder "pr" -- muss zum selben Wert passen, mit dem `session-restore`
       fuer diese Phase aufgerufen wurde (sonst landet der Save-Schritt in einem anderen
-      Cache-Key-Namensraum als der Restore-Schritt).
+      Artefakt-Namensraum als der Restore-Schritt).
     required: false
     default: issue
   session-id:
     description: 'Session-ID des gerade beendeten Agent-Schritts (leer -> nichts zu sichern)'
     required: true
   gh-token:
-    description: 'DEPRECATED: Wird nicht mehr verwendet. `gh cache delete` nutzt jetzt das standardmaessige GITHUB_TOKEN des Workflows.'
+    description: 'DEPRECATED: Wird nicht mehr verwendet (der Artefakt-Upload laeuft ueber das Runtime-Token des Runners, ganz ohne gh).'
     required: false
     default: ''
   outcome:
@@ -64,11 +68,12 @@ runs:
         # Elapsed-Guard (Kreuzverhoer-Finding M2, 2026-07-08): nur relevant fuer Workflows mit
         # `cancel-in-progress: true` (aktuell nur claude-triage.yml). Ein durch einen neueren
         # Trigger verdraengter ("cancelled") Lauf darf NICHT speichern, wenn er frueh im
-        # Cancellation-Grace-Fenster abgebrochen wurde -- sonst koennte er einen bereits vom
-        # neueren, noch laufenden Lauf gespeicherten frischeren Archiv-Stand ueberschreiben
-        # (der Cache-Key ist pro Issue/PR ein einzelner Slot, kein Append). Schwelle (1080s/18min)
-        # spiegelt den bestehenden Timeout-Label-Guard. Ohne RUN_START_EPOCH (Default '') greift
-        # der Guard nie -- rueckwirkungsfrei fuer alle Workflows, die diese Inputs nicht setzen.
+        # Cancellation-Grace-Fenster abgebrochen wurde -- der Restore-Schritt nimmt immer das
+        # JUENGSTE Artefakt des Namens ("latest wins"), und ein verspaetet hochladender,
+        # verdraengter Lauf wuerde sonst ein neueres, inhaltlich aber aelteres Artefakt erzeugen
+        # als der Lauf, der ihn verdraengt hat. Schwelle (1080s/18min) spiegelt den bestehenden
+        # Timeout-Label-Guard. Ohne RUN_START_EPOCH (Default '') greift der Guard nie --
+        # rueckwirkungsfrei fuer alle Workflows, die diese Inputs nicht setzen.
         if [ "$OUTCOME" = "cancelled" ] && [ -n "$RUN_START_EPOCH" ]; then
           elapsed=$(( $(date +%s) - RUN_START_EPOCH ))
           if [ "$elapsed" -lt 1080 ]; then
@@ -99,6 +104,12 @@ runs:
         echo "::notice title=Session-Archiv (Diagnose)::Claude-Projektordner: $project_dir | Inhalt: $(ls -1 "$project_dir" 2>/dev/null | tr '\n' ' ')"
 
         archive_dir="$(archive_dir_for "$ID_TYPE" "$ISSUE")"
+        # Phasen-Ordner vorher leeren: der Restore-Schritt desselben Jobs hat hier ggf. das
+        # vorige Artefakt (alte Session-Datei + sessions.json) entpackt -- ohne Leeren wuerde
+        # jeder Save die kompletten Altbestaende mit ins naechste Artefakt hochladen und das
+        # Archiv ueber wiederholte Laeufe unbegrenzt anwachsen lassen. Das Artefakt soll immer
+        # GENAU EINE Session (die juengste) der Phase enthalten.
+        rm -rf "$archive_dir/$PHASE" 2>/dev/null || true
         mkdir -p "$archive_dir/$PHASE" 2>/dev/null || {
           echo "::warning title=Session-Archiv::Archivverzeichnis $archive_dir/$PHASE nicht anlegbar -- Sicherung uebersprungen."
           skip
@@ -112,7 +123,12 @@ runs:
           cp -r "$project_dir/$SESSION_ID" "$archive_dir/$PHASE/$SESSION_ID" 2>/dev/null || true
         fi
 
-        sessions_file="$archive_dir/sessions.json"
+        # sessions.json liegt IM Phasen-Ordner (seit der Artefakt-Umstellung): hochgeladen wird
+        # genau der Phasen-Ordner, das Artefakt einer Phase traegt seine Metadaten also selbst.
+        # Da jeder Save einen frischen Runner-Ordner beschreibt, startet die Datei hier immer
+        # leer -- das Schema ({phase: {session_id, updated_at}}) bleibt bewusst identisch zum
+        # bisherigen archivweiten sessions.json, damit der Restore-Pfad unveraendert liest.
+        sessions_file="$archive_dir/$PHASE/sessions.json"
         [ -f "$sessions_file" ] || echo '{}' > "$sessions_file"
 
         update_sessions_file() {
@@ -143,23 +159,21 @@ runs:
 
         echo "changed=true" >> "$GITHUB_OUTPUT"
 
-    # Der Cache-Key ist pro Issue/PR stabil (kein Key-pro-Lauf) -- actions/cache ist pro Key
-    # immutable, daher muss der alte Eintrag vor dem Save weg. Fail-open: schlaegt das Loeschen
-    # fehl (fehlende Rechte/API-Hickup), no-opt der nachfolgende Save beim bestehenden Key still,
-    # das Archiv bleibt nur auf dem vorherigen Stand -- kein Job-Abbruch.
-    - name: Alten Cache-Eintrag loeschen (Key ist immutable)
+    # Ein Artefakt pro Phase und Lauf (Name: claude-session-<id-type>-<N>-<phase>, siehe
+    # artifact_name_for in session-lib.sh -- Name hier dupliziert, weil `with:`-Ausdruecke kein
+    # Bash sehen). Gleichnamige Artefakte AUS VERSCHIEDENEN LAEUFEN koexistieren; der
+    # Restore-Schritt waehlt das juengste ("latest wins"), damit entfaellt der fruehere
+    # Loesch-Tanz des immutablen Cache-Keys komplett. Der Upload laeuft ueber das Runtime-Token
+    # des Runners und ist von GitHubs Read-only-Cache-Restriktion fuer untrusted Trigger
+    # (Changelog 2026-06-26) nicht betroffen. retention-days 30: ein Issue/PR ohne Folgelauf
+    # innerhalb von 30 Tagen braucht seinen Konversationskontext nicht mehr.
+    - name: Archiv als Artefakt hochladen
       if: steps.copy.outputs.changed == 'true'
-      shell: bash
-      env:
-        ISSUE: ${{ inputs.issue }}
-        ID_TYPE: ${{ inputs.id-type }}
-      run: |
-        gh cache delete "claude-session-${ID_TYPE}-${ISSUE}" --repo "$GITHUB_REPOSITORY" 2>/dev/null || true
-
-    - name: Archiv in Cache speichern
-      if: steps.copy.outputs.changed == 'true'
-      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       continue-on-error: true
       with:
-        path: ${{ runner.temp }}/claude-session-archive/${{ inputs.id-type }}-${{ inputs.issue }}
-        key: claude-session-${{ inputs.id-type }}-${{ inputs.issue }}
+        name: claude-session-${{ inputs.id-type }}-${{ inputs.issue }}-${{ inputs.phase }}
+        path: ${{ runner.temp }}/claude-session-archive/${{ inputs.id-type }}-${{ inputs.issue }}/${{ inputs.phase }}
+        retention-days: 30
+        if-no-files-found: warn
+        include-hidden-files: true

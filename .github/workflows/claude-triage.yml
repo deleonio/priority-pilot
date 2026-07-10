@@ -97,7 +97,7 @@ jobs:
       contents: read # Repo auschecken (Slash-Command + Wissensbasis lesen)
       issues: write # Beschreibung lektorieren + Analyse-Body-Block schreiben, Ping-Kommentar posten, Labels setzen
       id-token: write # OIDC-Token der Action; ohne diese Permission fehlt ACTIONS_ID_TOKEN_REQUEST_URL
-      actions: write # `gh cache delete` im Session-Archiv-Sichern-Schritt (Cache-Key ist pro Issue immutable)
+      actions: read # Artefakt-Suche/-Download (`gh api`) im Session-Archiv-Wiederherstellen-Schritt
     steps:
       # Startzeit fuer die Timeout-Erkennung (siehe Zeit-Guard im Label-Schritt unten) UND fuer das
       # weiche Zeitlimit (Soft-Abort, 2026-07-08): soft_deadline_epoch = jetzt + 840s (14 Min) --
@@ -178,10 +178,11 @@ jobs:
           echo "Agent-Secret (CLAUDE_CODE_OAUTH_TOKEN) vorhanden."
 
       # Named Session Resume (Phase "analyse"): laedt ein evtl. archiviertes Sitzungsarchiv dieses
-      # Issues (GitHub Actions Cache) und liefert bei Treffer ein fertiges --resume-Argument, damit
-      # eine Re-Triage (Label entfernt / @claude-Kommentar) den Konversationskontext der letzten
-      # Analyse fortsetzt statt kontextlos neu zu beginnen. Fail-open: Cache-Miss/korruptes Archiv
-      # -> leere Outputs, frischer Start wie bisher.
+      # Issues (juengstes Workflow-Artefakt der Phase; Artefakte statt Actions-Cache seit
+      # 2026-07-10, GitHubs Read-only-Cache fuer untrusted Trigger) und liefert bei Treffer ein
+      # fertiges --resume-Argument, damit eine Re-Triage (Label entfernt / @claude-Kommentar) den
+      # Konversationskontext der letzten Analyse fortsetzt statt kontextlos neu zu beginnen.
+      # Fail-open: kein Artefakt/korruptes Archiv -> leere Outputs, frischer Start wie bisher.
       - name: Session-Archiv wiederherstellen (Phase analyse)
         id: session-restore
         # continue-on-error: die interne Fail-open-Logik der Action faengt bekannte Fehlerfaelle
@@ -296,7 +297,7 @@ jobs:
           ai-backend: ${{ env.AI_BACKEND }}
 
       # Named Session Resume (Phase "analyse"): sichert die eben beendete/abgebrochene Session ins
-      # Sitzungsarchiv (GitHub Actions Cache), damit die naechste (Re-)Triage dieses Issues per
+      # Sitzungsarchiv (Workflow-Artefakt), damit die naechste (Re-)Triage dieses Issues per
       # --resume anknuepfen kann. Bewusst VOR dem Timeout-Label-Schritt und mit if: always(), damit
       # auch ein in den 20-Minuten-Timeout gelaufener Lauf seinen Teil-Fortschritt sichert (nach
       # Entfernen von ai:to-big-issue soll der Folgelauf dort weitermachen koennen). Fail-open:
@@ -314,8 +315,8 @@ jobs:
           # Elapsed-Guard (Kreuzverhoer-Finding M2, 2026-07-08): dieser Workflow ist der einzige
           # der 5 mit `cancel-in-progress: true` -- ein durch einen neueren Trigger verdraengter
           # Lauf darf NICHT speichern, wenn er fruehzeitig (< 18 Min) abgebrochen wurde, sonst
-          # koennte er den bereits vom neueren Lauf gespeicherten frischeren Archiv-Stand
-          # ueberschreiben (Cache-Key ist ein einzelner Slot pro Issue, kein Append).
+          # koennte sein verspaetet hochgeladenes Artefakt das juengste werden und den frischeren
+          # Stand des neueren Laufs verdecken (der Restore nimmt immer das juengste Artefakt).
           outcome: ${{ steps.claude.outcome }}
           run-start-epoch: ${{ steps.starttime.outputs.epoch }}
 

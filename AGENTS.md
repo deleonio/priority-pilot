@@ -267,31 +267,37 @@ zweiter Trigger desselben Workflows, kein separater).
 **Named Session Resume (alle 5 Phasen):** Jeder der fünf Claude-Code-Workflows
 (`claude-triage.yml`/`analyse`, `claude-spec.yml`/`spec`, `claude-implement.yml`/`impl`,
 `claude-pr-review.yml`/`review`, `claude-pr-fixup.yml`/`fix`) archiviert die Claude-Code-Session
-jedes Laufs im GitHub Actions Cache über die Composite Actions
+jedes Laufs als **Workflow-Artefakt** über die Composite Actions
 [`.github/actions/session-restore`](.github/actions/session-restore/action.yml) und
-[`session-save`](.github/actions/session-save/action.yml). **Zwei getrennte Key-Namensraeume**
-(Kreuzverhoer-Finding M3, 2026-07-08): Issue-basierte Phasen (`analyse`/`spec`/`impl`) nutzen
-`claude-session-issue-<N>`; PR-basierte Phasen (`review`/`fix`, kein Issue-Bezug im Event) nutzen
-`claude-session-pr-<N>` (`id-type: pr`-Input) — dadurch ist EIN Archiv NICHT ueber alle 5 Phasen
-eines Tickets konsolidiert, sondern es existieren zwei unabhaengige Archive (eines pro Issue,
-eines pro zugehoerigem PR); Kontinuitaet gilt jeweils NUR innerhalb derselben Phase ueber
-wiederholte Laeufe hinweg (das ist auch der eigentliche Anwendungsfall: Re-Triage bzw. die
-Review-/Fixup-Ping-Pong-Runden). Ein Folgelauf derselben Phase laedt das jeweilige Archiv vor dem
-Agent-Schritt und haengt bei Treffer `--resume <session-id>` an `claude_args` — er setzt dann den
-Konversationskontext des letzten Laufs fort, statt kontextlos neu zu beginnen; das
+[`session-save`](.github/actions/session-save/action.yml). Artefakte statt Actions-Cache seit
+2026-07-10: GitHub vergibt seit dem 2026-06-26 (Changelog „Read-only Actions cache for untrusted
+triggers") fuer Laeufe aus untrusted Triggern (`issues`/`issue_comment`/`pull_request_target`)
+nur noch read-only Cache-Tokens — Cache-Saves der Issue-Workflows scheiterten seitdem mit „cache
+write denied: token has no writable scopes"; Artefakt-Uploads sind nicht betroffen. **EIN Artefakt
+pro Phase, zwei getrennte Namensraeume** (Kreuzverhoer-Finding M3, 2026-07-08): Issue-basierte
+Phasen (`analyse`/`spec`/`impl`) nutzen `claude-session-issue-<N>-<phase>`; PR-basierte Phasen
+(`review`/`fix`, kein Issue-Bezug im Event) nutzen `claude-session-pr-<N>-<phase>`
+(`id-type: pr`-Input) — dadurch ist EIN Archiv NICHT ueber alle 5 Phasen eines Tickets
+konsolidiert, sondern jede Phase hat ihr eigenes; Kontinuitaet gilt jeweils NUR innerhalb
+derselben Phase ueber wiederholte Laeufe hinweg (das ist auch der eigentliche Anwendungsfall:
+Re-Triage bzw. die Review-/Fixup-Ping-Pong-Runden). Ein Folgelauf derselben Phase laedt vor dem
+Agent-Schritt das JUENGSTE, nicht abgelaufene Artefakt seiner Phase (gleichnamige Artefakte aus
+verschiedenen Laeufen koexistieren, „latest wins" — der fruehere Loesch-Tanz des immutablen
+Cache-Keys entfaellt) und haengt bei Treffer `--resume <session-id>` an `claude_args` — er setzt
+dann den Konversationskontext des letzten Laufs fort, statt kontextlos neu zu beginnen; das
 Delta-seit-`stand`-Vorgehen der Triage oben bleibt unveraendert die Fallback-/Grundregel. Rein
-additiv und fail-open: Cache-Miss oder ein korruptes Archiv liefern leere Outputs, der Lauf startet
-dann wie bisher frisch. Der Save-Schritt braucht `actions: write` (Workflow-Permission bzw. an der
-GitHub-App-Installation zusaetzlich zu Contents/Issues/Pull requests) fuer `gh cache delete` (der
-Cache-Key ist pro Issue/PR stabil/immutable, daher vor jedem Save ein Loeschen des alten
-Eintrags) — fehlt sie, degradiert das Archiv fail-open zu read-only (Restore vom alten Stand, Save
-no-opt still). `claude-triage.yml` (einziger Workflow mit `cancel-in-progress: true`) hat
-zusaetzlich einen Elapsed-Guard: ein durch einen neueren Trigger verdraengter, fruehzeitig
-abgebrochener Lauf speichert NICHT, um einen bereits gespeicherten frischeren Stand nicht zu
-ueberschreiben. Die tragenden Annahmen (Claude Codes Sitzungsordner-Mangling, Pfadstabilitaet
-zwischen Laeufen auf `ubuntu-latest`) sind bislang nur lokal verifiziert, nicht gegen einen echten
-Runner — ein dauerhafter Diagnose-Log im Save-Schritt (`ls` des Claude-Projektordners) belegt das
-beim naechsten natuerlichen Trigger.
+additiv und fail-open: kein Artefakt oder ein korruptes Archiv liefern leere Outputs, der Lauf
+startet dann wie bisher frisch. Der Restore-Schritt braucht `actions: read` (Workflow-Permission)
+fuer Artefakt-Suche und -Download per `gh api`; der Upload im Save-Schritt laeuft ueber das
+Runtime-Token des Runners und braucht keine eigene Permission. Artefakt-Retention: 30 Tage (ein
+Issue/PR ohne Folgelauf in 30 Tagen braucht seinen Kontext nicht mehr). `claude-triage.yml`
+(einziger Workflow mit `cancel-in-progress: true`) hat zusaetzlich einen Elapsed-Guard: ein durch
+einen neueren Trigger verdraengter, fruehzeitig abgebrochener Lauf speichert NICHT, damit sein
+verspaetetes Artefakt nicht das juengste wird und den frischeren Stand des neueren Laufs verdeckt.
+Die tragenden Annahmen (Claude Codes Sitzungsordner-Mangling, Pfadstabilitaet zwischen Laeufen auf
+`ubuntu-latest`) sind bislang nur lokal verifiziert, nicht gegen einen echten Runner — ein
+dauerhafter Diagnose-Log im Save-Schritt (`ls` des Claude-Projektordners) belegt das beim
+naechsten natuerlichen Trigger.
 
 Dieses Entfernen von `ai:analyzed` geschieht auch **automatisch beim Merge eines Vorgänger-Issues**:
 Sind Sub-Issues über native GitHub-Issue-Dependencies (`blocked-by`) sequenziell verkettet (A1 → A2 →
