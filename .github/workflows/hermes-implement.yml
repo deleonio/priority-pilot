@@ -90,6 +90,29 @@ jobs:
           hermes config set model.base_url https://openrouter.ai/api/v1
           hermes config set agent.max_turns 90
 
+      - name: Session-Archiv herunterladen (Phase impl)
+        id: session-dl
+        if: steps.preflight.outputs.configured == 'true'
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: hermes-session-issue-${{ github.event.issue.number }}-impl
+          path: /tmp/hermes-session-restore
+
+      - name: Session wiederherstellen
+        id: session-restore
+        if: steps.preflight.outputs.configured == 'true' && steps.session-dl.outcome == 'success'
+        run: |
+          if [ -f /tmp/hermes-session-restore/hermes-session.tar.gz ]; then
+            mkdir -p "$HERMES_HOME"
+            tar -xzf /tmp/hermes-session-restore/hermes-session.tar.gz -C "$HERMES_HOME"
+            if [ -f "$HERMES_HOME/session_id.txt" ]; then
+              RID=$(cat "$HERMES_HOME/session_id.txt")
+              echo "resume_arg=$RID" >> "$GITHUB_OUTPUT"
+              echo "::notice::Session #$RID wiederhergestellt"
+            fi
+          fi
+
       - name: API-Key prüfen (OPENROUTER_API_KEY)
         if: steps.preflight.outputs.configured == 'true'
         env:
@@ -180,7 +203,13 @@ jobs:
           sed -i "s/#ISSUE_NR/${{ github.event.issue.number }}/g" /tmp/hermes-prompt.txt
           sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/hermes-prompt.txt
 
+          RESUME_ARG=""
+          if [ -n "${{ steps.session-restore.outputs.resume_arg }}" ]; then
+            RESUME_ARG="--resume ${{ steps.session-restore.outputs.resume_arg }}"
+          fi
+
           hermes chat -q "$(cat /tmp/hermes-prompt.txt)" \
+            $RESUME_ARG \
             -Q --yolo --provider openrouter \
             -m "deepseek/deepseek-v4-flash" \
             -t "terminal,file" \
@@ -200,6 +229,27 @@ jobs:
               echo "session_id=$sid" >> "$GITHUB_OUTPUT"
             fi
           fi
+
+      - name: Session-Archiv packen
+        if: always() && steps.session.outputs.session_id != ''
+        continue-on-error: true
+        run: |
+          SID="${{ steps.session.outputs.session_id }}"
+          if [ -n "$SID" ] && [ -d "$HERMES_HOME" ]; then
+            echo "$SID" > "$HERMES_HOME/session_id.txt"
+            tar -czf /tmp/hermes-session.tar.gz -C "$HERMES_HOME" .
+            echo "::notice::Session #$SID gepackt"
+          fi
+
+      - name: Session hochladen
+        if: always() && steps.session.outputs.session_id != ''
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: hermes-session-issue-${{ github.event.issue.number }}-impl
+          path: /tmp/hermes-session.tar.gz
+          retention-days: 30
+          overwrite: true
 
       - name: Soft-Abort-Fortsetzung erkennen und begrenzen (ai:continued)
         if: always() && steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true' && steps.hermes.outcome == 'success'

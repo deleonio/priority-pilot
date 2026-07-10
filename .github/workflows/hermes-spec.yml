@@ -213,6 +213,27 @@ jobs:
             fi
           fi
 
+      - name: Session-Archiv packen
+        if: always() && steps.session.outputs.session_id != ''
+        continue-on-error: true
+        run: |
+          SID="${{ steps.session.outputs.session_id }}"
+          if [ -n "$SID" ] && [ -d "$HERMES_HOME" ]; then
+            echo "$SID" > "$HERMES_HOME/session_id.txt"
+            tar -czf /tmp/hermes-session.tar.gz -C "$HERMES_HOME" .
+            echo "::notice::Session #$SID gepackt"
+          fi
+
+      - name: Session hochladen
+        if: always() && steps.session.outputs.session_id != ''
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: hermes-session-issue-${{ github.event.issue.number }}-spec
+          path: /tmp/hermes-session.tar.gz
+          retention-days: 30
+          overwrite: true
+
         # Session-Archiv für Folgelauf sichern
         if: always()
         id: session
