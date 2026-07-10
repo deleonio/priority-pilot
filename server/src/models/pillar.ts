@@ -2,18 +2,20 @@ import { DataTypes, Model } from 'sequelize';
 import sequelize from '../database.js';
 
 /**
- * Eine der fünf festen Lebensbalance-Säulen. **Globale Stammdaten** — für alle Nutzer identisch,
- * nicht pro Nutzer isoliert (die Säulen-Auswahl im API ist daher unscoped). `weight` ist der
+ * Eine der fünf festen Lebensbalance-Säulen. Säulen werden mit #427 **pro Nutzer** geführt: Jede
+ * Säule trägt eine `userId` (nullable für Alt-Bestände vor der Migration). `weight` ist der
  * prozentuale Anteil der Säule (Default 20 ⇒ fünf Säulen summieren sich auf 100 %). `description`
  * ist die kanonische Kurzbeschreibung (Einstellungs-Menü); Quelle der Werte ist
- * {@link ../models/pillarData.ts SEED_PILLARS}. Säulennamen sind **global eindeutig** (Unique-Index
- * auf `name`) — die fünf Stammdaten treten nie doppelt auf.
+ * {@link ../models/pillarData.ts SEED_PILLARS}. Säulennamen sind **pro Nutzer eindeutig**
+ * (Unique-Index auf `name`, `userId`) — derselbe Name darf für verschiedene Nutzer existieren, für
+ * denselben Nutzer aber nur einmal.
  */
 class Pillar extends Model {
 	public id!: number;
 	public name!: string;
 	public weight!: number;
 	public description!: string;
+	public userId!: number | null;
 
 	public readonly createdAt!: Date;
 	public readonly updatedAt!: Date;
@@ -46,15 +48,21 @@ Pillar.init(
 			allowNull: false,
 			defaultValue: '',
 		},
+		// Eigentümer der Säule (#427). Nullable für Alt-Bestände (globale Säulen vor der Migration);
+		// migratePillarsPerUser überführt diese in Pro-Nutzer-Säulen mit gesetzter userId.
+		userId: {
+			type: DataTypes.INTEGER,
+			allowNull: true,
+		},
 	},
 	{
 		sequelize,
 		modelName: 'Pillar',
 		tableName: 'pillars',
 		timestamps: true,
-		// Säulennamen sind global eindeutig (globale Stammdaten, nicht pro Nutzer). Der frühere
-		// #207-Index auf (name, userId) wurde mit dem userId-Cleanup durch diesen ersetzt.
-		indexes: [{ unique: true, fields: ['name'] }],
+		// Säulennamen sind pro Nutzer eindeutig (#427): derselbe Name darf für verschiedene Nutzer
+		// existieren, für denselben Nutzer aber nur einmal.
+		indexes: [{ unique: true, fields: ['name', 'userId'] }],
 	},
 );
 
