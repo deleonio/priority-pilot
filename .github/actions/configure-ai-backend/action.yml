@@ -1,16 +1,18 @@
-name: KI-Backend konfigurieren (Claude-Default, z.ai per Issue-Label, Hermes)
+name: KI-Backend konfigurieren (Claude-Default, z.ai/Hermes/OpenRouter per Issue-Label)
 description: |
   Entscheidet pro Lauf, ob Claude Code gegen Anthropic (Default), den Anthropic-kompatiblen
-  z.ai-Endpoint oder Hermes Agent laeuft — gesteuert ueber die Labels `ai:use-zai` bzw. `ai:use-hermes`
-  auf dem Issue. Issue-Stufen (Triage/Spec/Implement) lesen die Labels des Issues; PR-Stufen
-  (Review/Fixup) lesen die Labels des PR zusaetzlich zu denen des verlinkten Issues (Closes #N),
-  sodass EIN Label auf dem Issue die ganze Pipeline steuert. Fail-open: ist nichts aufloesbar,
-  gilt der Claude-Default. Schreibt AI_BACKEND (anthropic|zai|hermes) nach $GITHUB_ENV;
-  bei z.ai kommen ANTHROPIC_BASE_URL + ANTHROPIC_API_KEY (Bearer, aus Secret ZAI_API_KEY) +
-  ANTHROPIC_DEFAULT_*_MODEL-Alias-Map dazu; bei hermes wird API_SERVER_ENABLED + API_SERVER_KEY
-  gesetzt. API_KEY out-rankt das OAuth-Token sauber; ist das Label gesetzt, aber der Key fehlt,
-  bricht der Schritt deterministisch ab (::error, kein stiller Skip). Volle --model-IDs verlassen
-  Claude Code/Hermes literal und vertrauen auf serverseitiges Mapping.
+  z.ai-Endpoint, den Hermes Agent oder OpenRouter (via Hermes) laeuft — gesteuert ueber die Labels
+  `ai:use-zai`, `ai:use-hermes` bzw. `ai:use-openrouter` auf dem Issue. Issue-Stufen
+  (Triage/Spec/Implement) lesen die Labels des Issues; PR-Stufen (Review/Fixup) lesen die Labels des
+  PR zusaetzlich zu denen des verlinkten Issues (Closes #N), sodass EIN Label auf dem Issue die ganze
+  Pipeline steuert. Fail-open: ist nichts aufloesbar, gilt der Claude-Default. Schreibt AI_BACKEND
+  (anthropic|zai|hermes|openrouter) nach $GITHUB_ENV; bei z.ai kommen ANTHROPIC_BASE_URL +
+  ANTHROPIC_API_KEY (Bearer, aus Secret ZAI_API_KEY) + ANTHROPIC_DEFAULT_*_MODEL-Alias-Map dazu;
+  bei hermes wird API_SERVER_ENABLED + API_SERVER_KEY gesetzt; bei openrouter routet der Lauf ueber
+  hermes-agent-action (--provider openrouter), Auth via Secret OPENROUTER_API_KEY. API_KEY out-rankt
+  das OAuth-Token sauber; ist das Label gesetzt, aber der Key fehlt, bricht der Schritt deterministisch
+  ab (::error, kein stiller Skip). Volle --model-IDs verlassen Claude Code/Hermes literal und vertrauen
+  auf serverseitiges Mapping.
 
   HINWEIS: Alle Aufrufer-Workflows nutzen --bare (Claude-Code-CLI-Flag) bzw. das Hermes-Aequivalent,
   was den Start beschleunigt, den automatischen OAuth-Login blockiert und die hier gesetzten
@@ -35,6 +37,10 @@ inputs:
     description: 'Hermes API-Key aus dem Secret HERMES_API_KEY (für API-Server-Modus).'
     required: false
     default: ''
+  openrouter-api-key:
+    description: 'OpenRouter-API-Key aus dem Secret OPENROUTER_API_KEY (für den OpenRouter-via-Hermes-Pfad).'
+    required: false
+    default: ''
 
 runs:
   using: composite
@@ -47,6 +53,7 @@ runs:
         GH_TOKEN: ${{ inputs.gh-token }}
         ZAI_API_KEY: ${{ inputs.zai-api-key }}
         HERMES_API_KEY: ${{ inputs.hermes-api-key }}
+        OPENROUTER_API_KEY: ${{ inputs.openrouter-api-key }}
       run: |
         set +e
         # Labels der Entitaet sammeln (Issue ODER PR + ggf. verlinktes Issue). Fail-open: jeder
@@ -100,7 +107,17 @@ runs:
             echo "ANTHROPIC_DEFAULT_FABLE_MODEL=glm-5.2"
           } >> "$GITHUB_ENV"
           echo "KI-Backend=z.ai aktiv (Label 'ai:use-zai' an $ENTITY_TYPE #$ENTITY_NUMBER) — Endpoint umgeleitet, Auth via ANTHROPIC_API_KEY (out-rankt OAuth)."
+
+        # Pruefe auf ai:use-openrouter (OpenRouter via Hermes). Der Key wird NICHT nach $GITHUB_ENV
+        # geschrieben — der Aufrufer-Workflow reicht das Secret direkt als Input an hermes-agent-action.
+        elif echo "$labels" | grep -qx 'ai:use-openrouter'; then
+          if [ -z "$OPENROUTER_API_KEY" ]; then
+            echo "::error title=KI-Backend OpenRouter::Label 'ai:use-openrouter' gesetzt, aber Secret OPENROUTER_API_KEY fehlt — als Repo-Secret hinterlegen (oder Label entfernen fuer Claude-Default)."
+            exit 1
+          fi
+          echo "AI_BACKEND=openrouter" >> "$GITHUB_ENV"
+          echo "KI-Backend=OpenRouter aktiv (Label 'ai:use-openrouter' an $ENTITY_TYPE #$ENTITY_NUMBER) — Routing ueber hermes-agent-action (--provider openrouter), Auth via OPENROUTER_API_KEY."
         else
           echo "AI_BACKEND=anthropic" >> "$GITHUB_ENV"
-          echo "KI-Backend=Claude/Anthropic (Default — kein Label 'ai:use-hermes' oder 'ai:use-zai' an $ENTITY_TYPE #$ENTITY_NUMBER). OAuth via CLAUDE_CODE_OAUTH_TOKEN unberuehrt."
+          echo "KI-Backend=Claude/Anthropic (Default — kein Label 'ai:use-hermes', 'ai:use-zai' oder 'ai:use-openrouter' an $ENTITY_TYPE #$ENTITY_NUMBER). OAuth via CLAUDE_CODE_OAUTH_TOKEN unberuehrt."
         fi

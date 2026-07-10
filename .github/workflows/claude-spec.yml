@@ -100,6 +100,7 @@ jobs:
           gh-token: ${{ steps.app-token.outputs.token }}
           zai-api-key: ${{ secrets.ZAI_API_KEY }}
           hermes-api-key: ${{ secrets.HERMES_API_KEY }}
+          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
 
       # Deterministischer Agent-Secret-Check (Haerten S2): die OAuth-Token-Voraussetzung fuer
       # das gewählte Backend darf NICHT still skippen — fehlt das Secret, bricht der Lauf hier
@@ -122,6 +123,10 @@ jobs:
               ;;
             hermes)
               echo "KI-Backend=hermes — Auth via HERMES_API_KEY (in configure-ai-backend validiert). OAuth-Preflight entfaellt."
+              exit 0
+              ;;
+            openrouter)
+              echo "KI-Backend=openrouter — Auth via OPENROUTER_API_KEY (in configure-ai-backend validiert). OAuth-Preflight entfaellt."
               exit 0
               ;;
           esac
@@ -239,6 +244,11 @@ jobs:
               echo "HERMES_PROVIDER=zai" >> "$GITHUB_ENV"
               echo "HERMES_MODEL=glm-4.7" >> "$GITHUB_ENV"
               ;;
+            openrouter)
+              echo "HERMES_PROVIDER=openrouter" >> "$GITHUB_ENV"
+              # TODO: Default-Modell-ID gegen den realen OpenRouter-Katalog verifizieren/anpassen.
+              echo "HERMES_MODEL=${{ env.HERMES_MODEL || 'anthropic/claude-sonnet-4.5' }}" >> "$GITHUB_ENV"
+              ;;
             *)
               echo "HERMES_PROVIDER=anthropic" >> "$GITHUB_ENV"
               echo "HERMES_MODEL=claude-sonnet-4-6" >> "$GITHUB_ENV"
@@ -247,23 +257,23 @@ jobs:
 
       - name: Spec via Hermes Agent
         id: hermes
-        if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true' && env.AI_BACKEND == 'hermes'
+        if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true' && (env.AI_BACKEND == 'hermes' || env.AI_BACKEND == 'openrouter')
         uses: ./.github/actions/hermes-agent-action
         with:
           hermes_args: >-
-            --bare
             --allowedTools "Bash(gh issue:*),Bash(gh pr:*),Bash(gh label:*),Bash(gh api:*),Bash(git switch:*),Bash(git checkout:*),Bash(git branch:*),Bash(git add:*),Bash(git commit:*),Bash(git push:*),Bash(git status:*),Bash(git diff:*),Bash(git fetch:*),Bash(pnpm:*),Read,Edit,Write,Grep,Glob,Task"
             --append-system-prompt "Automatisierter, durch das Label ai:spec-ready autorisierter SPEC-Lauf in GitHub Actions (headless). Schreibe ausschliesslich Tests fuer Issue #${{ github.event.issue.number }} (KEIN Produktivcode), eroeffne einen Draft-PR und gib das Issue ALS ALLERLETZTEN Schritt (NIE davor, erst nach Push+PR) per ai:ready frei (ai:spec-ready entfernen) — das startet sofort die Umsetzung, die den PR-Stand unmittelbar danach liest. HARTES 20-Minuten-Timeout, weiches Limit bei 14 Min (Soft-Abort): pruefe vor jedem groesseren Teilschritt \`date +%s\` gegen ${{ steps.starttime.outputs.soft_deadline_epoch }}; ist das erreicht, sichere den Zwischenstand (committen/pushen, TODO-Notiz), setze KEIN ai:ready, sondern entferne+setze ai:spec-ready neu (Selbst-Retrigger, der Folgelauf setzt per --resume fort) und beende den Turn. Modell-Strategie: Du laeufst als Sonnet-Koordinator (Sonnet-Koordinator). Schaetze die Komplexitaet der Aufgabe ein und delegiere die eigentliche Abarbeitung per Agent-Tool an einen Subagenten in derselben Session: heavy (Opus) fuer komplexe/architektonische Aufgaben, light (Haiku) fuer triviale/mechanische Aufgaben; Standard- und Koordinationsarbeit erledigst du selbst auf Sonnet."
           resume_arg: ${{ steps.session-restore.outputs.resume-arg }}
           github_token: ${{ steps.app-token.outputs.token }}
           hermes_api_key: ${{ env.HERMES_API_SERVER_KEY || '' }}
+          openrouter_api_key: ${{ secrets.OPENROUTER_API_KEY }}
           ai_backend: ${{ env.AI_BACKEND }}
           provider: ${{ env.HERMES_PROVIDER }}
           model: ${{ env.HERMES_MODEL }}
 
       - name: Spec via Claude Code (Fallback)
         id: claude
-        if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true' && env.AI_BACKEND != 'hermes'
+        if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true' && env.AI_BACKEND != 'hermes' && env.AI_BACKEND != 'openrouter'
         uses: anthropics/claude-code-action@558b1d6cab4085c7753fe402c10bef0fbb92ac7a # v1.0.165
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }} # gh nutzt das App-Token -> gesetztes ai:ready loest die Umsetzung aus
@@ -332,15 +342,26 @@ jobs:
       - name: Agent-Ausgaben vereinheitlichen
         id: agent-output
         if: always()
+        env:
+          # Step-Auswahl im Expression-Layer (NICHT via steps[bash-var]). outcome für Claude aus der
+          # built-in Step-Conclusion (.outcome), nicht .outputs.outcome.
+          IS_HERMES: ${{ (env.AI_BACKEND == 'hermes' || env.AI_BACKEND == 'openrouter') && 'true' || 'false' }}
+          HERMES_EXEC: ${{ steps.hermes.outputs.execution_file }}
+          HERMES_SESSION: ${{ steps.hermes.outputs.session_id }}
+          HERMES_OUTCOME: ${{ steps.hermes.outputs.outcome }}
+          CLAUDE_EXEC: ${{ steps.claude.outputs.execution_file }}
+          CLAUDE_SESSION: ${{ steps.claude.outputs.session_id }}
+          CLAUDE_OUTCOME: ${{ steps.claude.outcome }}
         run: |
-          if [ "${{ env.AI_BACKEND }}" = "hermes" ]; then
-            AGENT_STEP="hermes"
+          if [ "$IS_HERMES" = "true" ]; then
+            echo "execution_file=$HERMES_EXEC" >> "$GITHUB_OUTPUT"
+            echo "session_id=$HERMES_SESSION" >> "$GITHUB_OUTPUT"
+            echo "outcome=$HERMES_OUTCOME" >> "$GITHUB_OUTPUT"
           else
-            AGENT_STEP="claude"
+            echo "execution_file=$CLAUDE_EXEC" >> "$GITHUB_OUTPUT"
+            echo "session_id=$CLAUDE_SESSION" >> "$GITHUB_OUTPUT"
+            echo "outcome=$CLAUDE_OUTCOME" >> "$GITHUB_OUTPUT"
           fi
-          echo "execution_file=${{ steps[AGENT_STEP].outputs.execution_file }}" >> "$GITHUB_OUTPUT"
-          echo "session_id=${{ steps[AGENT_STEP].outputs.session_id }}" >> "$GITHUB_OUTPUT"
-          echo "outcome=${{ steps[AGENT_STEP].outputs.outcome }}" >> "$GITHUB_OUTPUT"
 
       - name: Kosten-Zusammenfassung
         if: always()
@@ -438,7 +459,7 @@ jobs:
           SESSION_ID: ${{ steps.agent-output.outputs.session_id }}
         run: |
           labels="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
-          AGENT_NAME="${{ env.AI_BACKEND == 'hermes' && 'Hermes' || 'Claude' }}"
+          AGENT_NAME="${{ env.AI_BACKEND == 'hermes' && 'Hermes' || (env.AI_BACKEND == 'openrouter' && 'OpenRouter' || 'Claude') }}"
           if [ "$OUTCOME" = "success" ]; then
             echo "::notice title=✅ Spec erfolgreich::Issue #${ISSUE} — Rote Tests geschrieben"
           elif [ "$OUTCOME" = "cancelled" ]; then

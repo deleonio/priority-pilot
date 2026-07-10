@@ -22,6 +22,20 @@ inputs:
     description: 'API-Key für Hermes API-Server (optional, falls API_SERVER_ENABLED=true)'
     required: false
     type: string
+  # Provider-Keys als INPUTS (nicht via secrets-Context — der ist in Composite-Actions nicht
+  # verfügbar; der Aufrufer-Workflow reicht die Secrets durch). Alle optional/leer per Default.
+  openrouter_api_key:
+    description: 'OpenRouter-API-Key (Secret OPENROUTER_API_KEY), Pflicht für ai_backend=openrouter.'
+    required: false
+    default: ''
+  zai_api_key:
+    description: 'z.ai-API-Key (Secret ZAI_API_KEY), nur falls z.ai über Hermes geroutet wird.'
+    required: false
+    default: ''
+  claude_code_oauth_token:
+    description: 'Claude-Code-OAuth-Token (Secret CLAUDE_CODE_OAUTH_TOKEN), nur für den Anthropic-Default über Hermes.'
+    required: false
+    default: ''
   ai_backend:
     description: 'KI-Backend (anthropic|zai|hermes|openrouter)'
     required: false
@@ -68,12 +82,14 @@ runs:
             echo "HERMES_PROVIDER=zai" >> "$GITHUB_ENV"
             echo "HERMES_MODEL=${{ inputs.model || 'glm-4.7' }}" >> "$GITHUB_ENV"
             echo "ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic" >> "$GITHUB_ENV"
-            echo "ANTHROPIC_API_KEY=${{ secrets.ZAI_API_KEY }}" >> "$GITHUB_ENV"
+            echo "ANTHROPIC_API_KEY=${{ inputs.zai_api_key }}" >> "$GITHUB_ENV"
             ;;
           openrouter)
+            # OpenRouter-Modell-IDs sind provider-präfixiert (z. B. anthropic/…, deepseek/…).
+            # TODO: Default-ID gegen den realen OpenRouter-Katalog verifizieren/anpassen.
             echo "HERMES_PROVIDER=openrouter" >> "$GITHUB_ENV"
-            echo "HERMES_MODEL=${{ inputs.model || 'anthropic/claude-sonnet-4-6' }}" >> "$GITHUB_ENV"
-            echo "OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}" >> "$GITHUB_ENV"
+            echo "HERMES_MODEL=${{ inputs.model || 'anthropic/claude-sonnet-4.5' }}" >> "$GITHUB_ENV"
+            echo "OPENROUTER_API_KEY=${{ inputs.openrouter_api_key }}" >> "$GITHUB_ENV"
             ;;
           hermes)
             echo "HERMES_PROVIDER=custom" >> "$GITHUB_ENV"
@@ -87,7 +103,7 @@ runs:
             # Default: Anthropic
             echo "HERMES_PROVIDER=anthropic" >> "$GITHUB_ENV"
             echo "HERMES_MODEL=${{ inputs.model || 'claude-sonnet-4-6' }}" >> "$GITHUB_ENV"
-            echo "CLAUDE_CODE_OAUTH_TOKEN=${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}" >> "$GITHUB_ENV"
+            echo "CLAUDE_CODE_OAUTH_TOKEN=${{ inputs.claude_code_oauth_token }}" >> "$GITHUB_ENV"
             ;;
         esac
 
@@ -105,6 +121,9 @@ runs:
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.github_token }}
+        # Args via env (NICHT direkt in die Shell interpoliert — GitHub-Actions-Injection-Schutz).
+        HERMES_ARGS: ${{ inputs.hermes_args }}
+        RESUME_ARG: ${{ inputs.resume_arg }}
         # Performance-Optimierungen (wie bei Claude Code)
         HERMES_DISABLE_TELEMETRY: '1'
         BASH_MAX_OUTPUT_LENGTH: '20000'
@@ -145,13 +164,23 @@ runs:
           DOCKER_ARGS+=("-e" "API_SERVER_PORT=8642")
         fi
 
-        # Führe Hermes aus
-        # Hermess Args aus inputs hermes_args + resume_arg kombinieren
-        COMBINED_ARGS="${{ inputs.hermes_args }} ${{ inputs.resume_arg }}"
+        # Hermes-Args (statisch im Workflow definiert) in ein Array zerlegen, das eingebettete Quotes
+        # EHRT: `--allowedTools "Bash(gh issue:*),…"` und `--append-system-prompt "…"` bleiben je EIN
+        # Argument. Unquoted `$COMBINED_ARGS` würde word-splitten + globben und die Quotes zerreißen.
+        # xargs interpretiert Quotes/Whitespace, aber KEINE Backticks/$()/Globs — die Prompts enthalten
+        # literale Backticks (`date +%s`) und `*`; deshalb bewusst NICHT `eval`.
+        ARG_ARRAY=()
+        while IFS= read -r _arg; do ARG_ARRAY+=("$_arg"); done \
+          < <(printf '%s' "$HERMES_ARGS $RESUME_ARG" | xargs -n1 printf '%s\n')
 
-        echo "Starte Hermes mit Args: $COMBINED_ARGS"
+        echo "Starte Hermes mit ${#ARG_ARRAY[@]} Argumenten"
 
-        # Docker run mit den gesetzten Variablen
+        # Docker run mit den gesetzten Variablen. errexit temporär aus, damit ein Docker-Fehler
+        # NICHT das Skript vor der Outcome-Erfassung abbricht; Docker-Exit via PIPESTATUS[0]
+        # (nicht $? nach der tee-Pipe / nachfolgenden echos — das war der alte Bug).
+        # TODO(H2): Image auf einen Digest pinnen, sobald ghcr.io/nousresearch/hermes-agent verifiziert
+        # ist (`:latest` ist mutabel und widerspricht der SHA-Pin-Konvention des Repos).
+        set +e
         docker run \
           --rm \
           -v "$PWD:/workspace" \
@@ -162,8 +191,10 @@ runs:
             --bare \
             --provider "$HERMES_PROVIDER" \
             --model "$HERMES_MODEL" \
-            $COMBINED_ARGS \
+            "${ARG_ARRAY[@]}" \
             2>&1 | tee hermes-execution.log
+        DOCKER_RC=${PIPESTATUS[0]}
+        set -e
 
         # Extrahiere Session-ID aus der Ausführung (Hermes gibt diese in Logs aus)
         # Falls nicht verfügbar, generiere eine Dummy-ID für Kompatibilität
@@ -171,8 +202,11 @@ runs:
         echo "session_id=$SESSION_ID" >> "$GITHUB_OUTPUT"
         echo "execution_file=hermes-execution.log" >> "$GITHUB_OUTPUT"
 
-        # Bestimme Outcome basierend auf Exit-Code
-        if [ $? -eq 0 ]; then
+        # Outcome anhand des ECHTEN Docker-Exit-Codes bestimmen. Der Schritt bleibt bewusst GRÜN
+        # (kein `exit $DOCKER_RC`) — die gesamte nachgelagerte Pipeline ist outcome-getrieben (if:
+        # always() liest steps.agent-output.outputs.outcome) und entspricht so dem Claude-Pfad, dessen
+        # Agent-Schritt bei Fehlern ebenfalls nicht hart abbricht, sondern das Ergebnis als Output trägt.
+        if [ "$DOCKER_RC" -eq 0 ]; then
           echo "outcome=success" >> "$GITHUB_OUTPUT"
         else
           echo "outcome=failure" >> "$GITHUB_OUTPUT"

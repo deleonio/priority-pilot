@@ -150,10 +150,18 @@ describe('Jeder Claude-Workflow verkabelt das Label-gesteuerte z.ai-Backend', ()
 					/AI_BACKEND:\s*\$\{\{\s*env\.AI_BACKEND/,
 					`${wf} muss AI_BACKEND (aus env) in den Preflight-env aufnehmen`,
 				);
+				// Backend-bewusster Preflight per `case "${AI_BACKEND:-}" in` mit zai-Fruehreturn (exit 0).
+				// (Ersetzt die frühere `if [ … = "zai" ]`-Form; Verhalten identisch, Struktur erweitert
+				//  um weitere Backend-Arme wie hermes/openrouter.)
 				assert.match(
 					content,
-					/AI_BACKEND:-\}.*=.*"zai"/,
-					`${wf} muss einen Fruehreturn fuer AI_BACKEND=zai im Preflight enthalten`,
+					/case\s+"\$\{AI_BACKEND:-\}"\s+in/,
+					`${wf} muss den Agent-Secret-Preflight per case "\${AI_BACKEND:-}" verzweigen`,
+				);
+				assert.match(
+					content,
+					/zai\)[\s\S]{0,200}?exit 0/,
+					`${wf} muss einen Fruehreturn (exit 0) fuer AI_BACKEND=zai im Preflight enthalten`,
 				);
 				// Die von pipeline-hardening.test.ts (C2) gepinnten Literale duerfen NICHT verloren gehen:
 				assert.match(
@@ -201,6 +209,114 @@ describe('AGENTS.md dokumentiert das umschaltbare Backend', () => {
 	it('dokumentiert die GLM-Modell-Map (Alias-Aufloesung fuer Subagenten)', () => {
 		assert.match(doc(), /glm-/i, 'AGENTS.md muss die GLM-Modell-Map erwaehnen');
 	});
+});
+
+// Vertrag-Tests — OpenRouter-Backend via Hermes (Label `ai:use-openrouter`).
+//
+// OpenRouter wird NICHT über einen Anthropic-kompatiblen Endpoint (wie z.ai) geführt, sondern über
+// die Composite-Action hermes-agent-action (`hermes chat --provider openrouter`). configure-ai-backend
+// löst das Label auf und setzt AI_BACKEND=openrouter; die Workflows routen dann AI_BACKEND ∈
+// {hermes, openrouter} an hermes-agent-action und speisen OPENROUTER_API_KEY als Input (NICHT über den
+// in Composite-Actions nicht verfügbaren `secrets`-Context) durch.
+describe('configure-ai-backend unterstützt OpenRouter (Label ai:use-openrouter)', () => {
+	const action = (): string => readRepoFile('.github', 'actions', 'configure-ai-backend', 'action.yml');
+
+	it('nimmt openrouter-api-key als Input entgegen', () => {
+		assert.match(action(), /openrouter-api-key/, 'Input `openrouter-api-key` muss vorhanden sein');
+	});
+
+	it('entscheidet backend anhand des Labels ai:use-openrouter (zeilengenau, grep -qx) und setzt AI_BACKEND=openrouter', () => {
+		const a = action();
+		assert.match(a, /grep -qx 'ai:use-openrouter'/, 'Label-Abgleich muss zeilengenau erfolgen (grep -qx)');
+		assert.match(a, /AI_BACKEND=openrouter/, 'muss AI_BACKEND=openrouter nach $GITHUB_ENV schreiben');
+	});
+
+	it('bricht deterministisch ab, wenn ai:use-openrouter gesetzt ist aber OPENROUTER_API_KEY fehlt', () => {
+		const a = action();
+		assert.match(
+			a,
+			/OPENROUTER_API_KEY[\s\S]{0,120}?::error title=KI-Backend OpenRouter/,
+			'fehlendes OPENROUTER_API_KEY muss einen ::error (kein stiller Skip) auslösen',
+		);
+	});
+});
+
+describe('hermes-agent-action ist secrets-frei (Composite-Action) und kennt OpenRouter', () => {
+	const action = (): string => readRepoFile('.github', 'actions', 'hermes-agent-action', 'action.yml');
+
+	it('referenziert NIRGENDS den secrets-Context (in Composite-Actions nicht verfügbar)', () => {
+		// Regression-Guard gegen den ursprünglichen C3-Bug: `${{ secrets.* }}` in einer Composite-Action
+		// wird beim Dispatch nicht aufgelöst und lässt den Step fehlschlagen. Keys kommen als Inputs.
+		assert.doesNotMatch(
+			action(),
+			/\$\{\{\s*secrets\./,
+			'hermes-agent-action darf keinen secrets-Context verwenden — Keys ausschließlich als Inputs durchreichen',
+		);
+	});
+
+	it('nimmt openrouter_api_key als Input entgegen und mappt ihn in den openrouter-Zweig', () => {
+		const a = action();
+		assert.match(a, /openrouter_api_key:/, 'Input `openrouter_api_key` muss vorhanden sein');
+		assert.match(
+			a,
+			/OPENROUTER_API_KEY=\$\{\{\s*inputs\.openrouter_api_key/,
+			'der openrouter-Zweig muss OPENROUTER_API_KEY aus inputs.openrouter_api_key speisen',
+		);
+	});
+
+	it('bestimmt outcome anhand des echten Docker-Exit-Codes (PIPESTATUS, nicht $? nach der Pipe)', () => {
+		assert.match(action(), /PIPESTATUS\[0\]/, 'outcome muss über PIPESTATUS[0] (echter docker-Exit) bestimmt werden');
+	});
+});
+
+describe('Jeder Claude-Workflow verkabelt den OpenRouter-Pfad (via Hermes)', () => {
+	for (const wf of CLAUDE_WORKFLOWS) {
+		describe(wf, () => {
+			it('speist openrouter-api-key aus secrets.OPENROUTER_API_KEY in configure-ai-backend', () => {
+				assert.match(
+					readWorkflow(wf),
+					/openrouter-api-key:\s*\$\{\{\s*secrets\.OPENROUTER_API_KEY/,
+					`${wf} muss openrouter-api-key aus secrets.OPENROUTER_API_KEY speisen`,
+				);
+			});
+
+			it('routet AI_BACKEND=openrouter an hermes-agent-action und reicht openrouter_api_key durch', () => {
+				const content = readWorkflow(wf);
+				assert.match(
+					content,
+					/env\.AI_BACKEND\s*==\s*'openrouter'/,
+					`${wf} muss den Hermes-Schritt auch für AI_BACKEND == 'openrouter' auslösen`,
+				);
+				assert.match(
+					content,
+					/openrouter_api_key:\s*\$\{\{\s*secrets\.OPENROUTER_API_KEY/,
+					`${wf} muss openrouter_api_key an hermes-agent-action durchreichen`,
+				);
+			});
+
+			it('schließt openrouter aus dem Claude-Fallback aus', () => {
+				assert.match(
+					readWorkflow(wf),
+					/env\.AI_BACKEND\s*!=\s*'openrouter'/,
+					`${wf} muss den Claude-Fallback für AI_BACKEND != 'openrouter' gaten`,
+				);
+			});
+		});
+	}
+});
+
+describe('Agent-Ausgaben-Vereinheitlichung wählt den Step im Expression-Layer (kein steps[bash-var])', () => {
+	for (const wf of CLAUDE_WORKFLOWS) {
+		it(`${wf} indexiert steps NICHT mit einer Bash-Variable`, () => {
+			// Regression-Guard gegen C2: `${{ steps[AGENT_STEP].outputs.* }}` — die Bash-Variable ist im
+			// Expression-Layer unsichtbar, alle Agent-Outputs würden leer/fehlerhaft.
+			assert.doesNotMatch(
+				readWorkflow(wf),
+				/steps\[AGENT_STEP\]/,
+				`${wf} darf steps nicht mit einer Bash-Variable (AGENT_STEP) indexieren — Auswahl im Expression-Layer treffen`,
+			);
+		});
+	}
 });
 
 describe('--bare Modus in allen Claude-Workflows', () => {

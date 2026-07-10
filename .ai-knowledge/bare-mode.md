@@ -44,7 +44,9 @@ Dies führt zu einem **deterministischen, reproduzierbaren Verhalten** — ideal
 
 **Primärer Anwendungsfall:** Betrieb von Claude Code mit alternativen Anbietern wie:
 
-- **DeepSeek (z.ai)** — über `ai:use-zai` Label
+- **DeepSeek (z.ai)** — über `ai:use-zai` Label (Anthropic-kompatibler Endpoint, via `claude-code-action`)
+- **Hermes Agent** — über `ai:use-hermes` Label (Routing via `hermes-agent-action`/Docker, Secret `HERMES_API_KEY`)
+- **OpenRouter** — über `ai:use-openrouter` Label (via `hermes-agent-action`, `--provider openrouter`, Secret `OPENROUTER_API_KEY`)
 - **OpenAI** — über `OPENAI_API_KEY` + Endpoint
 - **Ollama** — lokal oder Remote
 - **Jeder andere Anthropic-kompatible Anbieter**

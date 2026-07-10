@@ -115,20 +115,29 @@ Wartungs-/Drift-Aufwand ueber bis zu drei Prompt-Kopien je Datei.
 
 Der Canceller `claude-pr-cancel.yml` ist reiner `gh`-Aufruf und unverändert.
 
-### Optionales Backend: z.ai statt Anthropic (Issue #403)
+### Optionales Backend: z.ai / Hermes / OpenRouter statt Anthropic (Issue #403)
 
-Seit M11 gibt es bewusst nur **einen** Agent-Pfad (Claude Code). Wer trotzdem GLM (Z.ai) fahren will,
-startet keinen zweiten Pfad, sondern lenkt Claude Codes API-Calls um — gesteuert pro Lauf über das
-Label **`ai:use-zai`**:
+Seit M11 gibt es bewusst nur **einen** Standard-Agent-Pfad (Claude Code). Wer ein anderes Backend
+fahren will, startet keinen dauerhaft zweiten Pfad, sondern schaltet pro Lauf per Label um — gesteuert
+über die Composite-Action [`configure-ai-backend`](.github/actions/configure-ai-backend/action.yml),
+die `AI_BACKEND` (anthropic|zai|hermes|openrouter) nach `$GITHUB_ENV` schreibt:
 
 - **Default (kein Label):** Claude-Code läuft gegen **Anthropic** via OAuth
   (`CLAUDE_CODE_OAUTH_TOKEN`). Nichts ändert sich.
-- **Label `ai:use-zai` am Issue:** die Composite-Action
-  [`configure-ai-backend`](.github/actions/configure-ai-backend/action.yml) leitet den Lauf auf den
-  Anthropic-kompatiblen **z.ai**-Endpoint (`https://api.z.ai/api/anthropic`) um. Auth wechselt auf
-  `ANTHROPIC_AUTH_TOKEN` (Bearer, aus dem Secret **`ZAI_API_KEY`**), das das OAuth-Token sauber
-  out-rankt. Die Alias-Map (`ANTHROPIC_DEFAULT_OPUS_MODEL=glm-5.1` u. a.) greift für die
-  Subagent-Delegation (`heavy`=opus, `light`=haiku).
+- **Label `ai:use-zai`:** leitet den Lauf auf den Anthropic-kompatiblen **z.ai**-Endpoint
+  (`https://api.z.ai/api/anthropic`) um. Auth wechselt auf `ANTHROPIC_AUTH_TOKEN` (Bearer, aus dem
+  Secret **`ZAI_API_KEY`**), das das OAuth-Token sauber out-rankt. Die Alias-Map
+  (`ANTHROPIC_DEFAULT_OPUS_MODEL=glm-5.1` u. a.) greift für die Subagent-Delegation (`heavy`=opus,
+  `light`=haiku). Läuft weiterhin über `anthropics/claude-code-action`.
+- **Label `ai:use-hermes`:** routet den Lauf über die Composite-Action
+  [`hermes-agent-action`](.github/actions/hermes-agent-action/action.yml) (`hermes chat`, Docker),
+  statt über `claude-code-action`. Auth via Secret **`HERMES_API_KEY`** (API-Server-Modus, Port 8642).
+- **Label `ai:use-openrouter`:** routet ebenfalls über `hermes-agent-action`, aber mit
+  `--provider openrouter`. Auth via Secret **`OPENROUTER_API_KEY`** (als Action-Input durchgereicht —
+  Composite-Actions haben **keinen** `secrets`-Context). Modell-IDs sind provider-präfixiert
+  (z. B. `anthropic/claude-sonnet-4.5`); Default gegen den realen OpenRouter-Katalog verifizieren.
+- **Deterministischer Abbruch (kein stiller Skip):** ist das jeweilige Label gesetzt, aber das
+  zugehörige Secret fehlt, bricht der Preflight mit `::error` ab.
 - **Ein Label steuert die ganze Pipeline:** Issue-Stufen (Triage/Spec/Implement) lesen die Labels des
   Issues; PR-Stufen (Review/Fixup) lesen die Labels des PR **zusätzlich** zu denen des verlinkten
   Issues (`Closes #N`). Fail-open: ist nichts auflösbar, gilt der Claude-Default.

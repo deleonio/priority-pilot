@@ -87,9 +87,12 @@ describe('Triage laeuft fest auf Opus; Effort haengt vom Trigger ab (M3, 2026-07
 	for (const wf of OPUS_MAX_WORKFLOWS) {
 		describe(wf, () => {
 			it('startet die Session fest auf `--model claude-opus-4-8`', () => {
+				// Das Modell ist seit Issue #403 bedingt verkabelt: `ai:use-zai` lenkt auf glm-5.2 um,
+				// der Default (kein Label) bleibt claude-opus-4-8. Er muss als Fallback-Default im
+				// --model-Ausdruck stehen.
 				assert.match(
 					readWorkflow(wf),
-					/--model\s+claude-opus-4-8/,
+					/--model\s+\$\{\{[^}]*claude-opus-4-8[^}]*\}\}/,
 					`${wf} muss fest auf claude-opus-4-8 starten (optimale Analyse)`,
 				);
 			});
@@ -126,7 +129,7 @@ describe('Triage laeuft fest auf Opus; Effort haengt vom Trigger ab (M3, 2026-07
 
 			it('setzt Opus + die konditionale Effort-Logik im claude_args-Pfad', () => {
 				const content = readWorkflow(wf);
-				const modelHits = content.match(/--model\s+claude-opus-4-8/g) ?? [];
+				const modelHits = content.match(/--model\s+\$\{\{[^}]*claude-opus-4-8[^}]*\}\}/g) ?? [];
 				const effortHits =
 					content.match(
 						/--effort\s+\$\{\{\s*github\.event_name\s*==\s*'issue_comment'\s*&&\s*'high'\s*\|\|\s*'max'\s*\}\}/g,
@@ -152,9 +155,12 @@ describe('Jeder Koordinator-Workflow startet auf Sonnet und darf Subagenten spaw
 	for (const wf of COORDINATOR_WORKFLOWS) {
 		describe(wf, () => {
 			it('startet die Session deterministisch auf `--model claude-sonnet-4-6`', () => {
+				// Das Modell ist seit Issue #403 bedingt verkabelt: `ai:use-zai` lenkt auf glm-4.7 um,
+				// der Default (kein Label) bleibt claude-sonnet-4-6. Er muss als Fallback-Default im
+				// --model-Ausdruck stehen (claude-pr-review/fixup behalten die literal-Form).
 				assert.match(
 					readWorkflow(wf),
-					/--model\s+claude-sonnet-4-6/,
+					/--model\s+\$\{\{[^}]*claude-sonnet-4-6[^}]*\}\}|--model\s+claude-sonnet-4-6/,
 					`${wf} muss die Session fest auf claude-sonnet-4-6 starten (Koordinator)`,
 				);
 			});

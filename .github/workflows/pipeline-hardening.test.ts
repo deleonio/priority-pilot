@@ -118,7 +118,7 @@ describe('H1 — Deterministische Label-Post-Assertion in claude-pr-review.yml',
 		assert.ok(assertionBlock, 'Label-Post-Assertion-Block nicht gefunden');
 		assert.match(
 			assertionBlock[0],
-			/steps\.claude\.outcome == 'success'/,
+			/steps\.agent-output\.outputs\.outcome == 'success'/,
 			'Label-Post-Assertion darf nur bei success/failure laufen, nicht bei cancelled (S3 übernimmt Timeout)',
 		);
 		assert.doesNotMatch(
