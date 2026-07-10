@@ -57,17 +57,17 @@ hermes config set model.base_url https://openrouter.ai/api/v1
 
 **CI-Flags:**
 
-| Flag | Zweck |
-|------|-------|
-| `-q '<prompt>'` | Single-query, non-interactive |
-| `-Q` | Quiet — keine Banner/Spinner |
-| `--yolo` | Keine Gefahren-Bestätigung (headless) |
-| `--provider openrouter` | API-Routing über OpenRouter |
-| `-m deepseek/deepseek-v4-flash` | Modell-Festlegung |
-| `-t "terminal,file"` | Nur Terminal und Datei-Tools |
-| `--ignore-user-config` | Kein lokales Config-File einlesen |
-| `--max-turns 90` | Tool-Call-Obergrenze |
-| `--accept-hooks` | Shell-Hooks automatisch freigeben |
+| Flag                            | Zweck                                 |
+| ------------------------------- | ------------------------------------- |
+| `-q '<prompt>'`                 | Single-query, non-interactive         |
+| `-Q`                            | Quiet — keine Banner/Spinner          |
+| `--yolo`                        | Keine Gefahren-Bestätigung (headless) |
+| `--provider openrouter`         | API-Routing über OpenRouter           |
+| `-m deepseek/deepseek-v4-flash` | Modell-Festlegung                     |
+| `-t "terminal,file"`            | Nur Terminal und Datei-Tools          |
+| `--ignore-user-config`          | Kein lokales Config-File einlesen     |
+| `--max-turns 90`                | Tool-Call-Obergrenze                  |
+| `--accept-hooks`                | Shell-Hooks automatisch freigeben     |
 
 **Prompt:** Per Heredoc in eine Datei geschrieben, dann via `-q "$(cat /tmp/hermes-prompt.txt)"` übergeben — vermeidet Shell-Quoting-Probleme.
 
