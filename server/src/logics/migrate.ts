@@ -239,6 +239,33 @@ export const migratePillarPerUser = async (db: Sequelize): Promise<void> => {
 		await db.query('CREATE UNIQUE INDEX IF NOT EXISTS `pillars_name_user_id` ON `pillars`(`name`, `userId`)');
 	}
 
+	// 2b. Inline-UNIQUE auf `name` entfernen — Altlast aus `name: { unique: true }` im alten Modell.
+	// SQLite erzeugt dafür einen Auto-Index (`sqlite_autoindex_*`), der nicht per DROP INDEX
+	// entfernt werden kann. Stattdessen die Tabelle ohne die Spalten-Constraint neu anlegen.
+	// Der neue Composite-Index `pillars_name_user_id` übernimmt die Eindeutigkeit korrekt.
+	const hasAutoIndex = indexNames.some((n) => n.startsWith('sqlite_autoindex_pillars_'));
+	if (hasAutoIndex) {
+		await db.query('PRAGMA foreign_keys = OFF');
+		await db.query(
+			'CREATE TABLE `pillars_new` (' +
+				'`id` INTEGER PRIMARY KEY AUTOINCREMENT, ' +
+				'`name` VARCHAR(255) NOT NULL, ' +
+				"`weight` FLOAT NOT NULL DEFAULT '20', " +
+				'`createdAt` DATETIME NOT NULL, ' +
+				'`updatedAt` DATETIME NOT NULL, ' +
+				"`description` VARCHAR(255) NOT NULL DEFAULT '', " +
+				'`userId` INTEGER' +
+				')',
+		);
+		await db.query('INSERT INTO `pillars_new` SELECT * FROM `pillars`');
+		await db.query('DROP TABLE `pillars`');
+		await db.query('ALTER TABLE `pillars_new` RENAME TO `pillars`');
+		// Composite-Index neu anlegen (wurde mit der Tabelle gelöscht)
+		await db.query('CREATE UNIQUE INDEX IF NOT EXISTS `pillars_name_user_id` ON `pillars`(`name`, `userId`)');
+		await db.query('PRAGMA foreign_keys = ON');
+		console.log('Inline-UNIQUE constraint von pillars.name entfernt.');
+	}
+
 	// Welche (optionalen) Tabellen existieren? Auf schlanken Bestands-/Test-DBs können `tasks`,
 	// `series` und deren Join-Tabellen fehlen — dann entfällt das jeweilige Umhängen.
 	const [tableRows] = await db.query("SELECT `name` FROM `sqlite_master` WHERE `type` = 'table'");
