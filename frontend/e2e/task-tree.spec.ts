@@ -866,8 +866,8 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 				await waitForStableView(page);
 				await openTasksTab(page);
 
-				// Die Unteraufgaben liegen oben im invertierten Wald; Oberaufgabe aufklappen.
-				await toggle(page, childOneId).click();
+				// Die Kinder sind Done und daher vom Server aus dem Forest gefiltert (`buildTaskForest`
+				// filtert auf status ['Open', 'In process']). Die Oberaufgabe erscheint als Blatt direkt sichtbar.
 				await expect(item(page, parentId)).toBeVisible();
 
 				// Der Erledigt-Schalter der Oberaufgabe muss aktivierbar sein, da alle Kinder erledigt sind.
