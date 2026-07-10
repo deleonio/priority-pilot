@@ -379,6 +379,15 @@ jobs:
       # den Safe-Default ai:needs-changes, sobald nach Agent-Ende kein Ergebnis-Label existiert — so
       # greift der Fixup (sichtbar) statt einer stillen Stalle. Laeuft NICHT bei cancelled (Timeout
       # -> S3 alarmiert) und nicht bei skipped (Preflight).
+      #
+      # 0-Commit-Loop-Bremse (Haerten H1-Nachtrag): der Safe-Default ai:needs-changes loest den Fixup
+      # aus; findet der aber nichts (Review hatte kein echtes Finding, nur die Label-Umschaltung
+      # vergessen), schaltet er zurueck auf ai:needs-review -> Review -> ggf. wieder kein Label -> der
+      # Kreis dreht sich ohne neue Commits (der Fixup-Stop-Guard greift nur bei > 10 Commits, NICHT
+      # bei 0). Deshalb markiert der erste Safe-Default den PR mit ai:review-no-result; feuert der
+      # Safe-Default ein ZWEITES Mal in Folge (Marker schon da), wird der Loop HART gestoppt statt
+      # weitergedreht: kein ai:needs-changes mehr, Mensch pingen, Reviewer-Check rot lassen. Setzt der
+      # Agent regulaer ein Ergebnis-Label, wird der Marker wieder entfernt (Zaehler-Reset).
       - name: Label-Post-Assertion (Safe-Default ai:needs-changes)
         # steps.soft-abort-cap.outputs.handled == 'true' -- der Soft-Abort-Cap-Step hat diesen Lauf
         # bereits als bewussten Zwischenstopp (oder dessen Erschoepfung) behandelt; die Post-
@@ -399,21 +408,49 @@ jobs:
           has_changes="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:needs-changes")')"
           has_ready="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:ready-to-merge")')"
           has_review="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:needs-review")')"
+          # Marker der 0-Commit-Loop-Bremse: war er VOR diesem Lauf gesetzt, hatte schon der
+          # vorige Review kein Ergebnis-Label -> dieser hier ist der zweite in Folge.
+          has_nolabel="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:review-no-result")')"
 
-          # Fall A: kein Ergebnis-Label nach Agent-Ende -> Safe-Default ai:needs-changes
+          # Fall A: kein Ergebnis-Label nach Agent-Ende.
           if [ "$has_changes" != "true" ] && [ "$has_ready" != "true" ]; then
             if [ "$has_review" = "true" ]; then
               gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-review
             fi
+
+            # Fall A2: Marker schon da -> ZWEITER Review in Folge ohne Ergebnis-Label. Der
+            # Safe-Default konvergiert offensichtlich nicht (0-Commit-Loop). Loop HART stoppen:
+            # KEIN ai:needs-changes setzen (das wuerde den Fixup und damit den Kreis erneut
+            # antreiben), Marker belassen, Mensch pingen. Ohne ai:needs-review und ohne
+            # Ergebnis-Label laeuft der abschliessende Reviewer-Check rot (Mensch muss eingreifen).
+            if [ "$has_nolabel" = "true" ]; then
+              gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "🛑 **Review kreist ohne Ergebnis-Label — Loop gestoppt**
+
+          Zwei Review-Läufe in Folge haben weder \`ai:needs-changes\` noch \`ai:ready-to-merge\` gesetzt — der Safe-Default konvergiert nicht (0-Commit-Loop). Der Workflow dreht den Kreis NICHT weiter (kein erneuter Fixup). **Bitte manuell reviewen und ein Ergebnis-Label selbst setzen** (\`ai:needs-review\` zum Fortsetzen, \`ai:ready-to-merge\` zum Mergen) oder den PR schließen." 2>/dev/null || true
+              echo "::error title=Review-Loop ohne Ergebnis-Label gestoppt::Zweiter Review in Folge ohne ai:needs-changes/ai:ready-to-merge — 0-Commit-Loop-Bremse greift (kein Fixup-Retrigger), Reviewer-Check bleibt rot bis zum manuellen Eingriff."
+              exit 0
+            fi
+
+            # Fall A1: erster Review ohne Ergebnis-Label -> Marker setzen + Safe-Default
+            # ai:needs-changes (eine Chance fuer den Fixup). Feuert der Safe-Default erneut, greift
+            # oben die Bremse.
+            gh label create "ai:review-no-result" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
+            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:review-no-result
             gh label create "ai:needs-changes" --repo "$GITHUB_REPOSITORY" --color D93F0B 2>/dev/null || true
             gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-changes
             # Alarm-Kommentar (H-2 Mitigation): ein moeglicher 0-Commit-Loop (Review vergisst Label
             # -> Fixup ohne Findings -> Review -> ...) wird so fuer den Menschen sichtbar.
             gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⚠️ **Review ohne Ergebnis-Label — Safe-Default**
 
-          Der Review-Agent hat weder \`ai:needs-changes\` noch \`ai:ready-to-merge\` gesetzt. Workflow setzt Safe-Default \`ai:needs-changes\`. **Manuelle Prüfung nötig** — falls der Fixup keine Findings findet und der Loop kreist, bitte manuell reviewen/entscheiden." 2>/dev/null || true
-            echo "::error title=Review ohne Ergebnis-Label::Agent hat weder ai:needs-changes noch ai:ready-to-merge gesetzt — Safe-Default ai:needs-changes + Alarm-Kommentar (Fixup wird ausgelöst)."
+          Der Review-Agent hat weder \`ai:needs-changes\` noch \`ai:ready-to-merge\` gesetzt. Workflow setzt Safe-Default \`ai:needs-changes\`. **Manuelle Prüfung nötig** — bleibt beim nächsten Review erneut das Ergebnis-Label aus, stoppt der Workflow den Loop automatisch." 2>/dev/null || true
+            echo "::error title=Review ohne Ergebnis-Label::Agent hat weder ai:needs-changes noch ai:ready-to-merge gesetzt — Safe-Default ai:needs-changes + Marker ai:review-no-result (bei erneutem Ausbleiben wird der Loop gestoppt)."
             exit 0
+          fi
+
+          # Ergebnis-Label ist gesetzt (Agent hat regulaer abgeschlossen) -> Loop-Marker
+          # zuruecksetzen, damit ein spaeteres einmaliges Vergessen wieder als "erster" Fall zaehlt.
+          if [ "$has_nolabel" = "true" ]; then
+            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:review-no-result 2>/dev/null || true
           fi
           # Fall B: Ergebnis-Label gesetzt, aber ai:needs-review nicht entfernt -> nachträglich entfernen
           if [ "$has_review" = "true" ]; then
