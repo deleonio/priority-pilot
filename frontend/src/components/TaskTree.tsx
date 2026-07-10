@@ -8,6 +8,8 @@ import { isDoneBlockedBySubtasks } from '../lib/task';
 interface TaskTreeProps {
 	/** Aufgabenwald (`GET /forest`): Wurzeln und ihre `dependents` (Unteraufgaben). */
 	forest: TaskTreeNode[];
+	/** Ursprünglicher, ungefilterter Aufgabenwald für die semantische Struktur (abhängig vom Filter, identisch mit forest oder vollständiger). */
+	originalForest: TaskTreeNode[];
 	/** Alle Tasks, um zu einem Baumknoten den vollständigen Task für die Aktionen aufzulösen. */
 	tasks: Task[];
 	/** Fortschritt (erledigt/gesamt) je Task-ID; fehlt der Eintrag, hat der Task keine Unter-Tasks. */
@@ -334,6 +336,7 @@ const TreeNode = ({
  */
 export const TaskTree = ({
 	forest,
+	originalForest,
 	tasks,
 	progressMap,
 	onEdit,
@@ -368,9 +371,9 @@ export const TaskTree = ({
 				collect(node.dependents);
 			}
 		};
-		collect(forest);
+		collect(originalForest);
 		return map;
-	}, [forest]);
+	}, [originalForest]);
 
 	// Anzeige-Wald in umgekehrter Leserichtung (#363): Unter-/Einzelaufgaben als Wurzeln, die
 	// Oberaufgaben als aufklappbare Anzeige-Kinder darüber.

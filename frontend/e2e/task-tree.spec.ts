@@ -893,7 +893,7 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 				await openTasksTab(page);
 
 				// Nach dem Oberaufgabe-Titel filtern (nicht dem Unteraufgabe-Titel)
-				const searchInput = page.getByRole('textbox', { name: 'Nach Titel filtern' });
+				const searchInput = page.getByPlaceholder('Nach Titel filtern…');
 				await searchInput.fill(parentTitle);
 
 				// Filter anwenden
@@ -934,7 +934,7 @@ test.describe('Priority Pilot — TaskTree invertiert (Unteraufgaben oben, #363)
 				await openTasksTab(page);
 
 				// Nach dem Oberaufgabe-Titel filtern
-				const searchInput = page.getByRole('textbox', { name: 'Nach Titel filtern' });
+				const searchInput = page.getByPlaceholder('Nach Titel filtern…');
 				await searchInput.fill(parentTitle);
 
 				// Filter anwenden
