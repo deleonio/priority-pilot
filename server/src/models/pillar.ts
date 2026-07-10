@@ -2,18 +2,21 @@ import { DataTypes, Model } from 'sequelize';
 import sequelize from '../database.js';
 
 /**
- * Eine der fünf festen Lebensbalance-Säulen. **Globale Stammdaten** — für alle Nutzer identisch,
- * nicht pro Nutzer isoliert (die Säulen-Auswahl im API ist daher unscoped). `weight` ist der
- * prozentuale Anteil der Säule (Default 20 ⇒ fünf Säulen summieren sich auf 100 %). `description`
- * ist die kanonische Kurzbeschreibung (Einstellungs-Menü); Quelle der Werte ist
- * {@link ../models/pillarData.ts SEED_PILLARS}. Säulennamen sind **global eindeutig** (Unique-Index
- * auf `name`) — die fünf Stammdaten treten nie doppelt auf.
+ * Eine der fünf festen Lebensbalance-Säulen. **Nutzer-eigene Stammdaten** (#421, Epic #420, Teil 1):
+ * jeder Nutzer besitzt seine eigene Kopie der Standard-Säulen, gebunden über die nullbare `userId`.
+ * `weight` ist der prozentuale Anteil der Säule (Default 20 ⇒ fünf Säulen summieren sich auf 100 %).
+ * `description` ist die kanonische Kurzbeschreibung (Einstellungs-Menü); Quelle der Werte ist
+ * {@link ../models/pillarData.ts SEED_PILLARS}. Säulennamen sind **pro Nutzer eindeutig**
+ * (Unique-Index auf `name`, `userId`) — derselbe Name ist für verschiedene Nutzer erlaubt.
+ * NULL-owned Zeilen (`userId IS NULL`) sind historische globale Stammdaten, die die Migration
+ * unangetastet lässt.
  */
 class Pillar extends Model {
 	public id!: number;
 	public name!: string;
 	public weight!: number;
 	public description!: string;
+	public userId!: number | null;
 
 	public readonly createdAt!: Date;
 	public readonly updatedAt!: Date;
@@ -46,15 +49,21 @@ Pillar.init(
 			allowNull: false,
 			defaultValue: '',
 		},
+		// Eigentümer-Bindung (#421): nullbar für Abwärtskompatibilität mit den historischen globalen
+		// (NULL-owned) Stammdaten. Neue Säulen werden pro Nutzer mit gesetzter userId angelegt.
+		userId: {
+			type: DataTypes.INTEGER,
+			allowNull: true,
+		},
 	},
 	{
 		sequelize,
 		modelName: 'Pillar',
 		tableName: 'pillars',
 		timestamps: true,
-		// Säulennamen sind global eindeutig (globale Stammdaten, nicht pro Nutzer). Der frühere
-		// #207-Index auf (name, userId) wurde mit dem userId-Cleanup durch diesen ersetzt.
-		indexes: [{ unique: true, fields: ['name'] }],
+		// Säulennamen sind pro Nutzer eindeutig (#421): derselbe Name für verschiedene Nutzer ist
+		// erlaubt, Duplikate beim selben Nutzer werden abgewiesen.
+		indexes: [{ unique: true, fields: ['name', 'userId'], name: 'pillars_name_user_id' }],
 	},
 );
 

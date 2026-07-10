@@ -2,7 +2,8 @@ import { Router, type RequestHandler } from 'express';
 import passport from 'passport';
 import { UniqueConstraintError } from 'sequelize';
 import { isEmailAllowed } from '../../logics/allowedEmails.js';
-import { User } from '../../models/index.js';
+import { Pillar, User } from '../../models/index.js';
+import { SEED_PILLARS } from '../../models/pillarData.js';
 import { hashPassword, verifyPassword } from '../../logics/auth.js';
 import { hasGoogleOAuth } from '../requireAuth.js';
 
@@ -46,6 +47,12 @@ authRouter.post('/auth/register', async (req, res) => {
 		}
 		throw err;
 	}
+
+	// Säulen pro Nutzer (#421, AK4): dem frisch angelegten Nutzer seine eigenen fünf Standard-Säulen
+	// säen (je 20 %). Nur bei der erstmaligen Anlage — Login/erneute Registrierung säen nicht nach.
+	await Pillar.bulkCreate(
+		SEED_PILLARS.map(({ name, description, weight }) => ({ name, description, weight, userId: created.id })),
+	);
 
 	// Session-Fixation verhindern: neue Session-ID vor dem Setzen des Users.
 	req.session.regenerate((err) => {
