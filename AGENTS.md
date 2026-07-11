@@ -53,7 +53,9 @@ Aufgaben-Strenge: **DeepSeek Pro** für Analyse/Spec/Review (präzises Reasoning
 Hermes wird im CI-Lauf frisch installiert (keine dedizierte GitHub Action nötig):
 
 ```bash
-curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
+# uv-Paketcache wiederherstellen (beschleunigt Folgeläufe):
+#   actions/cache@v4 mit key: uv-hermes-${{ runner.os }}-W$(date +%Y%V)
+curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-browser --skip-setup
 echo "$HOME/.local/bin" >> $GITHUB_PATH
 hermes config set model.provider openrouter
 hermes config set model.base_url https://openrouter.ai/api/v1
@@ -110,13 +112,26 @@ Preise: DeepSeek Pro $0.43/$0.87, DeepSeek Flash $0.09/$0.18 pro 1M Tokens (Inpu
 
 ### Weiches Zeitlimit (Soft-Abort)
 
-Der `starttime`-Step berechnet `soft_deadline_epoch = now + 840s` (14 Min, 6 Min Puffer
-bis zum harten 20-Min-Kill). Der Prompt weist Hermes an, vor jedem größeren Teilschritt
-`date +%s` gegen den Soft-Deadline-Wert zu prüfen. Bei Erreichen: Zwischenstand sichern,
-Selbst-Retrigger (Label entfernen + sofort neu setzen), Turn beenden.
+Statt harten `timeout-minutes` nutzt Hermes ein **weiches Timeout**, das der Agent selbst kontrolliert:
 
-**Obergrenze (Marker-Label `ai:continued`):** Ein deterministischer Workflow-Step nach
-dem Hermes-Schritt begrenzt automatische Selbst-Fortsetzungen auf genau eine.
+- **Phase 1 (Triage/Review)**: Soft-Deadline 7 Minuten (`now+420`)
+- **Phase 2 (Fixup)**: Soft-Deadline 10 Minuten (`now+600`)
+- **Phase 3 (Spec/Implement)**: Soft-Deadline 14 Minuten (`now+840`)
+
+Der `starttime`-Step setzt die Soft-Deadline. Hermes prüft VOR jedem größeren Teilschritt (`date +%s`) ob die Deadline erreicht ist. Bei Erreichen:
+
+1. **Arbeit sichern** — Zwischenstand in Body-Block/Dokumentation schreiben
+2. **Kein Abschluss-Label** setzen — verhindert automatische Weiterleitung
+3. **Trigger-Label entfernen** + **sofort neu setzen** (z.B. `ai:analyzed` entfernen + wieder setzen)
+4. **Turn beenden** — automatische Neu-Anmeldung durch Label-Änderung
+
+Dadurch bricht **nur der aktuelle Teil** ab, nicht der ganze Job, und die Arbeit ist dokumentiert.
+
+**Obergrenze (Marker-Label `ai:continued`):** Um Endlosschleifen zu verhindern, startet der Workflow nach einem Soft-Abort genau einen Selbst-Retrigger durch:
+
+1. Auslöser-Label entfernen (z.B. `ai:analyzed`)
+2. Sofort wieder setzen → neuer Workflow-Lauf wird angestoßen
+   Maximal eine Wiederholung, dann muss der Agent manuell eingreifen.
 
 ## Ticket-Triage
 

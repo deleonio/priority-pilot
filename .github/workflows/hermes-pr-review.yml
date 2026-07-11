@@ -26,7 +26,6 @@ jobs:
           && github.event.pull_request.head.repo.full_name == github.repository
           && contains(github.event.pull_request.labels.*.name, 'ai:needs-review') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     env:
       HERMES_HOME: /tmp/hermes-ci
     permissions:
@@ -38,7 +37,7 @@ jobs:
         id: starttime
         run: |
           now=$(date +%s)
-          echo "soft_deadline_epoch=$((now + 840))" >> "$GITHUB_OUTPUT"
+          echo "soft_deadline_epoch=$((now + 420))" >> "$GITHUB_OUTPUT"  # 7 min (Kurz-Tier)
 
       - name: Voraussetzung prüfen (GitHub-App-Secrets)
         id: preflight
@@ -66,10 +65,24 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Cache-Key für uv berechnen
+        id: uv-cache-key
+        run: echo "week=$(date +%Y-W%V)" >> "$GITHUB_OUTPUT"
+
+      - name: uv-Paketcache wiederherstellen
+        id: uv-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            ~/.local/share/uv
+          key: uv-hermes-${{ runner.os }}-${{ steps.uv-cache-key.outputs.week }}
+          restore-keys: uv-hermes-${{ runner.os }}-
+
       - name: Hermes installieren
         if: steps.preflight.outputs.configured == 'true'
         run: |
-          curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
+          curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-browser --skip-setup
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Hermes konfigurieren
