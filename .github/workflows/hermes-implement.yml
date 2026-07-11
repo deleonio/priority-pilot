@@ -3,8 +3,8 @@ name: Hermes Implement (ai:ready)
 # Setzt ein Issue um, sobald es das Label "ai:ready" erhält UND bereits
 # "ai:analyzed" trägt. Ersetzt claude-implement.yml (MIG-001, 2026-07-10).
 #
-# Setzt Hermes Agent (Nous Research) mit DeepSeek Flash über OpenRouter.
-# Voraussetzung: Repo-Secret OPENROUTER_API_KEY
+# Setzt Hermes Agent (Nous Research) mit GLM 5.1 über Nous Portal.
+# Voraussetzung: Repo-Secret NOUS_PORTAL_TOKEN
 
 on:
   issues:
@@ -115,8 +115,8 @@ jobs:
       - name: Hermes konfigurieren
         if: steps.preflight.outputs.configured == 'true'
         run: |
-          hermes config set model.provider openrouter
-          hermes config set model.base_url https://openrouter.ai/api/v1
+          hermes config set model.provider nous
+          hermes auth add nous --token "${{ secrets.NOUS_PORTAL_TOKEN }}"
           hermes config set agent.max_turns 90
           pip install mcp -q
           hermes mcp add kolibri --url https://public-ui-kolibri-mcp.vercel.app/mcp
@@ -144,15 +144,15 @@ jobs:
             fi
           fi
 
-      - name: API-Key prüfen (OPENROUTER_API_KEY)
+      - name: API-Key prüfen (NOUS_PORTAL_TOKEN)
         if: steps.preflight.outputs.configured == 'true'
         env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
-          if [ -z "$OPENROUTER_API_KEY" ]; then
-            echo "::error title=API-Key fehlt::OPENROUTER_API_KEY nicht gesetzt"
+          if [ -z "$NOUS_PORTAL_TOKEN" ]; then
+            echo "::error title=Token fehlt::NOUS_PORTAL_TOKEN nicht gesetzt"
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
             exit 1
           fi
@@ -206,11 +206,11 @@ jobs:
           already="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq 'any(.labels[]; .name == "ai:continued")' 2>/dev/null || echo false)"
           echo "already=${already:-false}" >> "$GITHUB_OUTPUT"
 
-      - name: Umsetzung via Hermes (DeepSeek Flash)
+      - name: Umsetzung via Hermes (GLM 5.1)
         id: hermes
         if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
         run: |
           cat > /tmp/hermes-prompt.txt << 'HERMES_EOF'
@@ -241,8 +241,8 @@ jobs:
 
           hermes chat -q "$(cat /tmp/hermes-prompt.txt)" \
             $RESUME_ARG \
-            -Q --yolo --provider openrouter \
-            -m "deepseek/deepseek-v4-flash" \
+            -Q --yolo --provider nous \
+            -m "z-ai/glm-5.1" \
             -t "terminal,file" \
             --max-turns 90 \
             --accept-hooks \

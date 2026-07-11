@@ -8,18 +8,18 @@ name: Hermes Triage (Analyse)
 #  - Entfernen von Label "ai:analyzed" oder "ai:to-big-issue" (issues: unlabeled)
 #  - @claude-Kommentar einer Person mit Schreibzugriff (issue_comment: created)
 #
-# Setzt Hermes Agent (Nous Research) mit DeepSeek Pro über OpenRouter ein
+# Setzt Hermes Agent (Nous Research) mit GLM 5.2 über Nous Portal ein
 # statt Claude Code.
 #
-# Voraussetzung: Repo-Secret OPENROUTER_API_KEY (https://openrouter.ai/keys)
+# Voraussetzung: Repo-Secret NOUS_PORTAL_TOKEN (https://portal.nousresearch.com)
 #
 # Änderungen zu claude-triage.yml:
 #  - Kein CLAUDE_CODE_OAUTH_TOKEN mehr (entfällt komplett)
-#  - Keine configure-ai-backend Composite Action (Hermes nutzt OpenRouter nativ)
+#  - Keine configure-ai-backend Composite Action (Hermes nutzt Nous Portal nativ)
 #  - Kein session-restore/session-save (Hermes-Session-Resume folgt in MIG-002)
 #  - Kein cost-summary (liest claude execution file — Hermes-cost folgt in MIG-003)
 #  - Prompt angepasst: Hermes-spezifisch, keine Claude-Modell-Strategie
-#  - Modell: deepseek/deepseek-v4-pro via OpenRouter (präzises Reasoning)
+#   - Modell: z-ai/glm-5.2 via Nous Portal (präzises Reasoning)
 
 on:
   issues:
@@ -142,10 +142,10 @@ jobs:
       # Konfiguration wird pro Lauf frisch in $HERMES_HOME geschrieben.
       # Der `hermes chat`-Aufruf unten setzt --provider und -m, daher reicht
       # hier eine minimale Config (Base-URL und max_turns).
-      - name: Hermes konfigurieren (OpenRouter + DeepSeek Pro)
+      - name: Hermes konfigurieren (Nous Portal + GLM 5.2)
         run: |
-          hermes config set model.provider openrouter
-          hermes config set model.base_url https://openrouter.ai/api/v1
+          hermes config set model.provider nous
+          hermes auth add nous --token "${{ secrets.NOUS_PORTAL_TOKEN }}"
           hermes config set agent.max_turns 90
           pip install mcp -q
           hermes mcp add kolibri --url https://public-ui-kolibri-mcp.vercel.app/mcp
@@ -177,23 +177,23 @@ jobs:
           fi
 
       # ──────────────────────────────────────────────
-      # 5. API-Key-Prüfung (OPENROUTER_API_KEY)
+      # 5. Token-Prüfung (NOUS_PORTAL_TOKEN)
       # ──────────────────────────────────────────────
-      - name: API-Key prüfen (OPENROUTER_API_KEY)
+      - name: Token prüfen (NOUS_PORTAL_TOKEN)
         if: steps.preflight.outputs.configured == 'true'
         env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
-          if [ -z "$OPENROUTER_API_KEY" ]; then
-            echo "::error title=API-Key fehlt::OPENROUTER_API_KEY nicht gesetzt — als Repo-Secret hinterlegen (https://openrouter.ai/keys). Ohne Key läuft Hermes nicht."
+          if [ -z "$NOUS_PORTAL_TOKEN" ]; then
+            echo "::error title=Token fehlt::NOUS_PORTAL_TOKEN nicht gesetzt — als Repo-Secret hinterlegen (https://portal.nousresearch.com). Ohne Token läuft Hermes nicht."
             gh label create "ai:to-big-issue" --repo "$GITHUB_REPOSITORY" \
               --color B60205 --description "KI-Job lief rot (Konfiguration/Secret) — bitte prüfen" 2>/dev/null || true
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:to-big-issue" 2>/dev/null || true
             exit 1
           fi
-          echo "OPENROUTER_API_KEY vorhanden."
+          echo "NOUS_PORTAL_TOKEN vorhanden."
 
       # ──────────────────────────────────────────────
       # 5. Triage via Hermes
@@ -206,20 +206,20 @@ jobs:
       #   -q                       Single-query non-interactive
       #   -Q                       Quiet — keine Banner/Spinner im CI-Log
       #   --yolo                   Keine Gefahren-Bestätigung (CI headless)
-      #   --provider openrouter    API läuft über OpenRouter
-      #   -m deepseek/deepseek-v4-pro    DeepSeek Pro (präzises Reasoning)
+      #   --provider nous          API läuft über Nous Portal
+      #   -m z-ai/glm-5.2           GLM 5.2 (präzises Reasoning)
       #   -t "terminal,file"       Nur Shell- und Datei-Tools zulassen
       #   --max-turns 90           Obergrenze für Tool-Calls
       #   --accept-hooks           Automatische Freigabe von Shell-Hooks
       #   MCP: KoliBri-Server konfiguriert, Tools: mcp_kolibri_search/fetch
       #
       # GH_TOKEN für gh-Befehle (Issue lesen/schreiben, Labels setzen).
-      # OPENROUTER_API_KEY für die LLM-API.
-      - name: Triage via Hermes (DeepSeek Pro)
+      # NOUS_PORTAL_TOKEN für die LLM-API (via hermes auth).
+      - name: Triage via Hermes (GLM 5.2)
         id: hermes
         if: steps.preflight.outputs.configured == 'true'
         env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
         run: |
           # Prompt per Heredoc schreiben — 'HERMES_EOF' (single-quoted) verhindert
@@ -280,8 +280,8 @@ jobs:
 
           hermes chat -q "$(cat /tmp/hermes-prompt.txt)" \
             $RESUME_ARG \
-            -Q --yolo --provider openrouter \
-            -m "deepseek/deepseek-v4-pro" \
+            -Q --yolo --provider nous \
+            -m "z-ai/glm-5.2" \
             -t "terminal,file" \
             --max-turns 90 \
             --accept-hooks \

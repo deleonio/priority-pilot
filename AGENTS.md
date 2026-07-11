@@ -39,15 +39,16 @@ Wissensbasis liegt in [`.ai-knowledge/`](.ai-knowledge/).
 ## KI-Agent: Hermes Agent
 
 Alle KI-Workflows (Triage, Re-Triage, Spec, Umsetzung, PR-Review, PR-Fixup) laufen auf
-**Hermes Agent** (Nous Research) über **OpenRouter**. Die Modellwahl folgt der
-Aufgaben-Strenge: **DeepSeek Pro** für Analyse/Spec/Review (präzises Reasoning),
-**DeepSeek Flash** für Implementierung/Fixup (schnell und günstig).
+**Hermes Agent** (Nous Research) über den **Nous Portal** Provider. Die Modellwahl folgt der
+Aufgaben-Strenge: **GLM 5.2** für Analyse/Spec/Review (großer Context, präzises Reasoning),
+**GLM 5.1** für Implementierung/Fixup (stark im Coding, schneller Durchsatz).
 
 - [Hermes Agent Docs](https://hermes-agent.nousresearch.com/docs/)
 - Modelle:
-  - `deepseek/deepseek-v4-pro` (Analyse, Spec, Review — präzises Reasoning)
-  - `deepseek/deepseek-v4-flash` (Umsetzung, Fixup — schnell, günstig)
-- Secret: `OPENROUTER_API_KEY` (https://openrouter.ai/keys)
+  - `z-ai/glm-5.2` (Analyse, Spec, Review — 1M Context, präzises Reasoning)
+  - `z-ai/glm-5.1` (Umsetzung, Fixup — stark im Coding)
+- Provider: **Nous Portal** (OAuth, Abrechnung über Nous-Subscription)
+- Auth: `hermes auth` (OAuth-Login, kein API-Key nötig)
 - CLI: `hermes chat -q '<prompt>'` (single-query, non-interactive)
 
 Hermes wird im CI-Lauf frisch installiert (keine dedizierte GitHub Action nötig):
@@ -57,30 +58,30 @@ Hermes wird im CI-Lauf frisch installiert (keine dedizierte GitHub Action nötig
 #   actions/cache@v4 mit key: uv-hermes-${{ runner.os }}-W$(date +%Y%V)
 curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-browser --skip-setup
 echo "$HOME/.local/bin" >> $GITHUB_PATH
-hermes config set model.provider openrouter
-hermes config set model.base_url https://openrouter.ai/api/v1
+hermes config set model.provider nous
+# Nous Portal nutzt OAuth — in CI wird der Token als Secret injiziert:
+hermes auth add nous --token "${{ secrets.NOUS_PORTAL_TOKEN }}"
 ```
 
 **CI-Flags:**
 
-| Flag                    | Zweck                                                                |
-| ----------------------- | -------------------------------------------------------------------- |
-| `-q '<prompt>'`         | Single-query, non-interactive                                        |
-| `-Q`                    | Quiet — keine Banner/Spinner                                         |
-| `--yolo`                | Keine Gefahren-Bestätigung (headless)                                |
-| `--provider openrouter` | API-Routing über OpenRouter                                          |
-| `-m <modell>`           | Modell-Festlegung (Pro oder Flash)                                   |
-| `-t "terminal,file"`    | Nur Terminal und Datei-Tools                                         |
-| `--ignore-user-config`  | Entfernt — alle Workflows nutzen jetzt MCP (siehe KoliBri-Abschnitt) |
-| `--max-turns 90`        | Tool-Call-Obergrenze                                                 |
-| `--accept-hooks`        | Shell-Hooks automatisch freigeben                                    |
+| Flag                 | Zweck                                    |
+| -------------------- | ---------------------------------------- |
+| `-q '<prompt>'`      | Single-query, non-interactive            |
+| `-Q`                 | Quiet — keine Banner/Spinner             |
+| `--yolo`             | Keine Gefahren-Bestätigung (headless)    |
+| `--provider nous`    | API-Routing über Nous Portal             |
+| `-m <modell>`        | Modell-Festlegung (GLM 5.2 oder GLM 5.1) |
+| `-t "terminal,file"` | Nur Terminal und Datei-Tools             |
+| `--max-turns 90`     | Tool-Call-Obergrenze                     |
+| `--accept-hooks`     | Shell-Hooks automatisch freigeben        |
 
 **Prompt:** Per Heredoc in eine Datei geschrieben, dann via `-q "$(cat /tmp/hermes-prompt.txt)"` übergeben — vermeidet Shell-Quoting-Probleme.
 
 Fünf Workflows teilen sich zwei Modelle nach Aufgaben-Strenge:
 
-- **Analyse (Triage) + Spec + Review** → `deepseek/deepseek-v4-pro`
-- **Umsetzung (Implement) + Fixup** → `deepseek/deepseek-v4-flash`
+- **Analyse (Triage) + Spec + Review** → `z-ai/glm-5.2`
+- **Umsetzung (Implement) + Fixup** → `z-ai/glm-5.1`
 
 ### Kolibri MCP-Server für Frontend-Implementierung
 
@@ -104,11 +105,11 @@ stehen dem Agenten automatisch zur Verfügung, sobald der MCP-Server läuft.
 Die Workflows nutzen seit der MCP-Aktivierung **nicht mehr** `--ignore-user-config`,
 damit die `mcp_servers`-Konfiguration wirkt.
 
-### OpenRouter (Modell-Provider)
+### Nous Portal (Modell-Provider)
 
-Hermes unterstützt OpenRouter **nativ** — kein Workaround, keine `configure-ai-backend`-Action.
-Einfach `--provider openrouter` + `OPENROUTER_API_KEY`.
-Preise: DeepSeek Pro $0.43/$0.87, DeepSeek Flash $0.09/$0.18 pro 1M Tokens (Input/Output).
+Hermes nutzt den Nous Portal Provider **nativ** — OAuth-Login, keine API-Keys nötig.
+Abrechnung läuft über die Nous-Subscription (portal.nousresearch.com).
+Preise: GLM 5.2 $0.35/$1.10, GLM 5.1 $0.966/$3.036 pro 1M Tokens (Input/Output).
 
 ### Weiches Zeitlimit (Soft-Abort)
 
