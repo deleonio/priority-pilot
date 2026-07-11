@@ -146,11 +146,11 @@ const clampConfidence = (value: unknown): number => {
 };
 
 /** Bestimmt die pillarIds der „weichen" Säulen (Sinn / Mentale Gesundheit) aus der gültigen Säulen-Liste. */
-const weakSignalPillarIds = (pillars: { id: number; name: string }[]): Set<number> =>
+export const weakSignalPillarIds = (pillars: { id: number; name: string }[]): Set<number> =>
 	new Set(pillars.filter((pillar) => WEAK_SIGNAL_PILLARS.includes(pillar.name)).map((pillar) => pillar.id));
 
 /** Baut die Nutzer-Nachricht aus Task-Daten und gültiger Säulen-Liste. */
-const buildUserMessage = (input: ClassifyPillarsInput): string => {
+export const buildUserMessage = (input: ClassifyPillarsInput): string => {
 	const pillarList = input.pillars.map((pillar) => `  - pillarId ${pillar.id}: ${pillar.name}`).join('\n');
 	const lines = [
 		'Gültige Säulen (nur diese pillarId-Werte verwenden):',
