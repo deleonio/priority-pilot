@@ -57,7 +57,7 @@ jobs:
                   || github.event.comment.author_association == 'MEMBER'
                   || github.event.comment.author_association == 'COLLABORATOR')) }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20 # Hartes GitHub-Limit für den Job
+    timeout-minutes: 12 # Kurz-Tier: Analyse/Review
     env:
       # Hermes speichert Config + Sessions in ein RAM-Verzeichnis (nicht ~/.hermes)
       HERMES_HOME: /tmp/hermes-ci
@@ -74,7 +74,7 @@ jobs:
         run: |
           now=$(date +%s)
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
-          echo "soft_deadline_epoch=$((now + 840))" >> "$GITHUB_OUTPUT"
+          echo "soft_deadline_epoch=$((now + 420))" >> "$GITHUB_OUTPUT"  # 7 min (Kurz-Tier)
 
       # ──────────────────────────────────────────────
       # 2. GitHub-App-Setup (für Label/Push als Bot)
@@ -103,11 +103,28 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       # ──────────────────────────────────────────────
-      # 3. Hermes installieren & konfigurieren
+      # 3. uv-Paketcache (beschleunigt Hermes-Installation)
+      # ──────────────────────────────────────────────
+      - name: Cache-Key für uv berechnen
+        id: uv-cache-key
+        run: echo "week=$(date +%Y-W%V)" >> "$GITHUB_OUTPUT"
+
+      - name: uv-Paketcache wiederherstellen
+        id: uv-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            ~/.local/share/uv
+          key: uv-hermes-${{ runner.os }}-${{ steps.uv-cache-key.outputs.week }}
+          restore-keys: uv-hermes-${{ runner.os }}-
+
+      # ──────────────────────────────────────────────
+      # 4. Hermes installieren & konfigurieren
       # ──────────────────────────────────────────────
       - name: Hermes installieren
         run: |
-          curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
+          curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-browser --skip-setup
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       # Konfiguration wird pro Lauf frisch in $HERMES_HOME geschrieben.
@@ -228,7 +245,7 @@ jobs:
             Du hast Zugriff auf die Bash (für gh issue/gh api/gh label/gh pr/gh repo), Datei-Lese-Werkzeuge sowie KoliBri-MCP-Tools (mcp_kolibri_search, mcp_kolibri_fetch für KoliBri-Komponenten). Die gh-Befehle sind über GH_TOKEN authentifiziert. Lies die Wissensbasis aus .ai-knowledge/ticket-triage.md für den vollständigen Ablauf. Lese die Issue-Daten via gh issue view und die Wissensbasis via read_file.
 
           WEICHES ZEITLIMIT (Soft-Abort):
-            Dieser Lauf wird nach 20 Minuten von GitHub HART abgebrochen. Prüfe daher VOR jedem größeren Teilschritt (neue Analyse-Runde, längere Recherche), ob das weiche Limit (14 Minuten nach Start) erreicht ist — berechne es mit: date +%s und vergleiche mit SOFT_DEADLINE.
+            Dieser Lauf wird nach 12 Minuten von GitHub HART abgebrochen. Prüfe daher VOR jedem größeren Teilschritt (neue Analyse-Runde, längere Recherche), ob das weiche Limit (7 Minuten nach Start) erreicht ist — berechne es mit: date +%s und vergleiche mit SOFT_DEADLINE.
             Ist das Limit erreicht: schreibe die bisherige Analyse (auch unvollständig) als Body-Block in die Beschreibung. Setze KEIN Label und poste KEINEN Ping-Kommentar. Beende den Turn sofort (keine weiteren Schritte). So bleibt das Issue für einen sauberen Folgelauf offen.
 
           WICHTIG:
@@ -308,8 +325,8 @@ jobs:
           RUN_START: ${{ steps.starttime.outputs.epoch }}
         run: |
           elapsed=$(( $(date +%s) - ${RUN_START:-0} ))
-          if [ "${RUN_START:-0}" -eq 0 ] || [ "$elapsed" -lt 1080 ]; then
-            echo "::notice title=Kein Timeout::Lauf nach ${elapsed}s abgebrochen (< 18 Min) — vermutlich Supersede/Cancel, kein ai:to-big-issue."
+          if [ "${RUN_START:-0}" -eq 0 ] || [ "$elapsed" -lt 600 ]; then
+            echo "::notice title=Kein Timeout::Lauf nach ${elapsed}s abgebrochen (< 10 Min) — vermutlich Supersede/Cancel, kein ai:to-big-issue."
             exit 0
           fi
           gh label create "ai:to-big-issue" --repo "$GITHUB_REPOSITORY" \

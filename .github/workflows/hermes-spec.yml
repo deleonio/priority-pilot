@@ -64,10 +64,26 @@ jobs:
           fetch-depth: 0
           token: ${{ steps.app-token.outputs.token }}
 
+      - name: Cache-Key für uv berechnen
+        id: uv-cache-key
+        if: steps.preflight.outputs.configured == 'true'
+        run: echo "week=$(date +%Y-W%V)" >> "$GITHUB_OUTPUT"
+
+      - name: uv-Paketcache wiederherstellen
+        id: uv-cache
+        if: steps.preflight.outputs.configured == 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            ~/.local/share/uv
+          key: uv-hermes-${{ runner.os }}-${{ steps.uv-cache-key.outputs.week }}
+          restore-keys: uv-hermes-${{ runner.os }}-
+
       - name: Hermes installieren
         if: steps.preflight.outputs.configured == 'true'
         run: |
-          curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
+          curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-browser --skip-setup
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Hermes konfigurieren

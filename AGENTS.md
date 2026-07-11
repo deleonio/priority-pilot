@@ -53,7 +53,9 @@ Aufgaben-Strenge: **DeepSeek Pro** für Analyse/Spec/Review (präzises Reasoning
 Hermes wird im CI-Lauf frisch installiert (keine dedizierte GitHub Action nötig):
 
 ```bash
-curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
+# uv-Paketcache wiederherstellen (beschleunigt Folgeläufe):
+#   actions/cache@v4 mit key: uv-hermes-${{ runner.os }}-W$(date +%Y%V)
+curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-browser --skip-setup
 echo "$HOME/.local/bin" >> $GITHUB_PATH
 hermes config set model.provider openrouter
 hermes config set model.base_url https://openrouter.ai/api/v1
@@ -110,9 +112,16 @@ Preise: DeepSeek Pro $0.43/$0.87, DeepSeek Flash $0.09/$0.18 pro 1M Tokens (Inpu
 
 ### Weiches Zeitlimit (Soft-Abort)
 
-Der `starttime`-Step berechnet `soft_deadline_epoch = now + 840s` (14 Min, 6 Min Puffer
-bis zum harten 20-Min-Kill). Der Prompt weist Hermes an, vor jedem größeren Teilschritt
-`date +%s` gegen den Soft-Deadline-Wert zu prüfen. Bei Erreichen: Zwischenstand sichern,
+Drei Zeitstufen nach Aufgaben-Typ, immer mit ~40% Puffer bis zum harten Kill:
+
+| Tier       | Phasen          | Hard Timeout | Soft-Deadline      |
+| ---------- | --------------- | ------------ | ------------------ |
+| **Kurz**   | Triage, Review  | **12 min**   | 7 min (`now+420`)  |
+| **Mittel** | Fixup           | **15 min**   | 10 min (`now+600`) |
+| **Lang**   | Spec, Implement | **20 min**   | 14 min (`now+840`) |
+
+Der `starttime`-Step berechnet den passenden Epoch-Wert. Hermes prüft vor jedem größeren
+Teilschritt `date +%s` dagegen. Bei Erreichen: Zwischenstand sichern,
 Selbst-Retrigger (Label entfernen + sofort neu setzen), Turn beenden.
 
 **Obergrenze (Marker-Label `ai:continued`):** Ein deterministischer Workflow-Step nach
