@@ -164,3 +164,42 @@ ANTHROPIC_DEFAULT_FABLE_MODEL=deepseek/deepseek-r1-0528   # $0.50/$2.15
 **Hinweis:** Die tatsächlichen Token-Verbräuche der Priority-Pilot-Workflows liegen oft höher
 (200K–500K Prompt wegen der umfangreichen System-Prompts). Die prozentuale Ersparnis bleibt
 jedoch konstant, da die Preisverhältnisse linear skalieren.
+
+Verfügbare Modelle:
+
+1. anthropic/claude-fable-5
+1. anthropic/claude-opus-4.8
+1. anthropic/claude-opus-4.8-fast
+1. anthropic/claude-sonnet-5
+1. anthropic/claude-haiku-4.5
+1. openai/gpt-5.6-sol
+1. openai/gpt-5.6-sol-pro
+1. openai/gpt-5.6-terra
+1. openai/gpt-5.6-terra-pro
+1. openai/gpt-5.6-luna
+1. openai/gpt-5.6-luna-pro
+1. openai/gpt-5.5
+1. openai/gpt-5.5-pro
+1. openai/gpt-5.4-mini
+1. google/gemini-3.1-pro-preview
+1. google/gemini-3.5-flash
+1. x-ai/grok-4.5
+1. deepseek/deepseek-v4-pro
+1. deepseek/deepseek-v4-flash
+1. qwen/qwen3.7-max
+1. qwen/qwen3.7-plus
+1. qwen/qwen3.6-35b-a3b
+1. moonshotai/kimi-k2.6
+1. moonshotai/kimi-k2.7-code
+1. minimax/minimax-m3
+1. z-ai/glm-5.2
+1. z-ai/glm-5.1
+1. xiaomi/mimo-v2.5-pro
+1. tencent/hy3
+1. stepfun/step-3.7-flash
+1. nvidia/nemotron-3-super-120b-a12b
+1. sakana/fugu-ultra
+1. poolside/laguna-m.1:free
+1. tencent/hy3:free
+1. nvidia/nemotron-3-super-120b-a12b:free
+1. nvidia/nemotron-3-ultra-550b-a55b:free
