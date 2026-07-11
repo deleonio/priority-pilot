@@ -8,8 +8,8 @@ name: Hermes PR Review (Kreuzverhoer)
 #   - sauber 🟢 → ai:ready-to-merge (→ Gate)
 # Ändert KEINEN Code.
 #
-# Setzt Hermes Agent (Nous Research) mit DeepSeek Pro über OpenRouter.
-# Voraussetzung: Repo-Secret OPENROUTER_API_KEY
+# Setzt Hermes Agent (Nous Research) mit GLM 5.2 über Nous Portal.
+# Voraussetzung: Repo-Secret NOUS_PORTAL_TOKEN
 
 on:
   pull_request:
@@ -35,6 +35,13 @@ jobs:
       pull-requests: write
       issues: write
     steps:
+      - name: Startzeit merken (für Timeout-Erkennung + weiches Zeitlimit)
+        id: starttime
+        run: |
+          now=$(date +%s)
+          echo "epoch=$now" >> "$GITHUB_OUTPUT"
+          echo "soft_deadline_epoch=$((now + 900))" >> "$GITHUB_OUTPUT"  # 15 min (Puffer vor 20-Min-GitHub-Timeout)
+
       - name: Voraussetzung prüfen (GitHub-App-Secrets)
         id: preflight
         env:
@@ -96,8 +103,8 @@ jobs:
       - name: Hermes konfigurieren
         if: steps.preflight.outputs.configured == 'true'
         run: |
-          hermes config set model.provider openrouter
-          hermes config set model.base_url https://openrouter.ai/api/v1
+          hermes config set model.provider nous
+          hermes auth add nous --token "${{ secrets.NOUS_PORTAL_TOKEN }}"
           hermes config set agent.max_turns 90
           pip install mcp -q
           hermes mcp add kolibri --url https://public-ui-kolibri-mcp.vercel.app/mcp
@@ -124,13 +131,13 @@ jobs:
             fi
           fi
 
-      - name: API-Key prüfen (OPENROUTER_API_KEY)
+      - name: API-Key prüfen (NOUS_PORTAL_TOKEN)
         if: steps.preflight.outputs.configured == 'true'
         env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
         run: |
-          if [ -z "$OPENROUTER_API_KEY" ]; then
-            echo "::error title=API-Key fehlt::OPENROUTER_API_KEY nicht gesetzt"
+          if [ -z "$NOUS_PORTAL_TOKEN" ]; then
+            echo "::error title=Token fehlt::NOUS_PORTAL_TOKEN nicht gesetzt"
             exit 1
           fi
 
@@ -148,11 +155,11 @@ jobs:
             echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Kreuzverhör-Review via Hermes (DeepSeek Pro)
+      - name: Kreuzverhör-Review via Hermes (GLM 5.2)
         id: hermes
         if: steps.preflight.outputs.configured == 'true' && steps.supersede-check.outputs.skip != 'true'
         env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
         run: |
           cat > /tmp/hermes-prompt.txt << 'HERMES_EOF'
@@ -170,12 +177,16 @@ jobs:
 
           Bei Folge-Review (markierter Kommentar existiert): NUR den Diff SEIT dem letzten Review prüfen (über updatedAt des Kommentars). Bereits in "Behobene Anmerkungen" geführte Punkte NICHT erneut aufrollen.
 
+          WEICHES ZEITLIMIT (Soft-Abort):
+            Beginne SOFORT mit der Arbeit. Prüfe VOR jedem größeren Teilschritt mit date +%s gegen SOFT_DEADLINE. Ist das Limit erreicht: Zwischenstand als Sammelkommentar (auch unvollständig) festhalten, ai:continued setzen, ai:needs-review entfernen+sofort wieder setzen (Selbst-Retrigger). Turn beenden.
+
           Fehlende Labels vorher mit gh label create anlegen.
 
           WICHTIG: Ändere KEINEN Code, committe nichts. Reiner Review. Keine interaktive Rückfrage.
           HERMES_EOF
 
           sed -i "s/#PR_NR/${{ github.event.pull_request.number }}/g" /tmp/hermes-prompt.txt
+          sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/hermes-prompt.txt
 
           RESUME_ARG=""
           if [ -n "${{ steps.session-restore.outputs.resume_arg }}" ]; then
@@ -184,8 +195,8 @@ jobs:
 
           hermes chat -q "$(cat /tmp/hermes-prompt.txt)" \
             $RESUME_ARG \
-            -Q --yolo --provider openrouter \
-            -m "deepseek/deepseek-v4-pro" \
+            -Q --yolo --provider nous \
+            -m "z-ai/glm-5.2" \
             -t "terminal,file" \
             --max-turns 90 \
             --accept-hooks \

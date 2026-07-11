@@ -65,6 +65,16 @@ abgerufen (ohne Authentifizierung — öffentliche Preisdaten).
 
 ---
 
+## Z.AI GLM-Modelle (über Nous Portal / OpenRouter)
+
+| Modell              | Prompt/1M | Completion/1M | Kontext |
+| ------------------- | --------- | ------------- | ------- |
+| `z-ai/glm-5.2`      | $0.35     | $1.10         | 1,048K  |
+| `z-ai/glm-5.1`      | $0.966    | $3.036        | 203K    |
+| `z-ai/glm-5-turbo`  | $1.20     | $4.00         | 262K    |
+| `z-ai/glm-5`        | $0.60     | $1.92         | 203K    |
+| `z-ai/glm-5v-turbo` | $1.20     | $4.00         | 203K    |
+
 ## Empfohlenes Mapping für Priority Pilot
 
 ### Opus-Ersatz: `deepseek/deepseek-v4-pro`
@@ -145,6 +155,29 @@ Reasoning-Aufgaben, die selten extreme Kontextlängen brauchen.
 | `google/gemini-3.5-flash`                | $1.50/$9 — teurer als DeepSeek V4 Pro bei schlechterem Reasoning              |
 
 ## Zusammenfassung der gewählten Konfiguration
+
+### Aktuelle Konfiguration: Nous Portal + GLM-Modelle
+
+```
+ANALYSE_MODEL=z-ai/glm-5.2       # $0.35/$1.10  (Triage, Spec, Review)
+IMPLEMENTATION_MODEL=z-ai/glm-5.1 # $0.966/$3.036 (Implement, Fixup)
+Provider=nous (Nous Portal OAuth)
+```
+
+**Token-Preis pro Workflow-Lauf (Schätzung, 50K Prompt + 10K Completion):**
+
+| Backend               | GLM 5.2 (Triage/Spec/Review) | GLM 5.1 (Impl/Fixup) |
+| --------------------- | ---------------------------- | -------------------- |
+| Nous Portal / GLM     | $0.029                       | $0.079               |
+| OpenRouter / DeepSeek | $0.03                        | $0.006               |
+| Claude/Anthropic      | $0.50                        | $0.30                |
+
+**Hinweis:** GLM 5.1 ist teurer als DeepSeek Flash, bietet aber deutlich stärkere
+Coding-Fähigkeiten. GLM 5.2 ist günstiger als DeepSeek Pro bei 1M-Kontext und starkem
+Reasoning. Die Nous-Subscription bündelt Inferenz + Tool-Gateway (Web, TTS, Browser)
+in einem Abo.
+
+### Historisch: OpenRouter + DeepSeek (vor Migration)
 
 ```
 ANTHROPIC_DEFAULT_OPUS_MODEL=deepseek/deepseek-v4-pro     # $0.43/$0.87

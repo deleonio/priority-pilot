@@ -6,8 +6,8 @@ name: Hermes PR Fixup (Findings umsetzen)
 # Label-Steuerung:
 #   review → ai:needs-changes → fixup → ai:needs-review → review → ... bis 🟢
 #
-# Setzt Hermes Agent (Nous Research) mit DeepSeek Flash über OpenRouter.
-# Voraussetzung: Repo-Secret OPENROUTER_API_KEY
+# Setzt Hermes Agent (Nous Research) mit GLM 5.1 über Nous Portal.
+# Voraussetzung: Repo-Secret NOUS_PORTAL_TOKEN
 
 on:
   pull_request:
@@ -32,11 +32,12 @@ jobs:
       actions: read
       pull-requests: write
     steps:
-      - name: Startzeit merken (für weiches Zeitlimit)
+      - name: Startzeit merken (für Timeout-Erkennung + weiches Zeitlimit)
         id: starttime
         run: |
           now=$(date +%s)
-          echo "soft_deadline_epoch=$((now + 600))" >> "$GITHUB_OUTPUT"  # 10 min (Mittel-Tier)
+          echo "epoch=$now" >> "$GITHUB_OUTPUT"
+          echo "soft_deadline_epoch=$((now + 600))" >> "$GITHUB_OUTPUT"  # 10 min (Puffer vor 20-Min-GitHub-Timeout)
 
       - name: Voraussetzung prüfen (GitHub-App-Secrets)
         id: preflight
@@ -101,8 +102,8 @@ jobs:
       - name: Hermes konfigurieren
         if: steps.preflight.outputs.configured == 'true'
         run: |
-          hermes config set model.provider openrouter
-          hermes config set model.base_url https://openrouter.ai/api/v1
+          hermes config set model.provider nous
+          hermes auth add nous --token "${{ secrets.NOUS_PORTAL_TOKEN }}"
           hermes config set agent.max_turns 90
           pip install mcp -q
           hermes mcp add kolibri --url https://public-ui-kolibri-mcp.vercel.app/mcp
@@ -129,13 +130,13 @@ jobs:
             fi
           fi
 
-      - name: API-Key prüfen (OPENROUTER_API_KEY)
+      - name: API-Key prüfen (NOUS_PORTAL_TOKEN)
         if: steps.preflight.outputs.configured == 'true'
         env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
         run: |
-          if [ -z "$OPENROUTER_API_KEY" ]; then
-            echo "::error title=API-Key fehlt::OPENROUTER_API_KEY nicht gesetzt"
+          if [ -z "$NOUS_PORTAL_TOKEN" ]; then
+            echo "::error title=Token fehlt::NOUS_PORTAL_TOKEN nicht gesetzt"
             exit 1
           fi
 
@@ -229,11 +230,11 @@ jobs:
             --jq '.workflow_runs[] | select(.name == "Hermes PR Fixup (Findings umsetzen)" and (.status == "queued" or .status == "in_progress") and .head_branch == $ENV.HEAD_BRANCH and .id != ${{ github.run_id }}) | .id' 2>/dev/null | head -1)
           if [ -n "$running" ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; fi
 
-      - name: Findings umsetzen via Hermes (DeepSeek Flash)
+      - name: Findings umsetzen via Hermes (GLM 5.1)
         id: hermes
         if: steps.preflight.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true' && steps.supersede-check.outputs.skip != 'true'
         env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
         run: |
           cat > /tmp/hermes-prompt.txt << 'HERMES_EOF'
@@ -241,11 +242,13 @@ jobs:
 
           Vorgehen:
             0. KONFLIKTAUFLÖSUNG (falls nötig): Prüfe mit git status und git diff --name-only --diff-filter=U auf Merge-Konflikte. Bei Konflikten: analysieren, eindeutig auflösen, git add, git commit, git push. Erst DANN mit Findings weitermachen.
-            1. Findings lesen: gh pr view, gh pr diff, Review-Threads (gh api .../pulls/PR_NR/comments) und CI (gh pr checks).
-            2. Zutreffende, EINDEUTIGE Findings fixen: Code ändern, vor jedem Commit lokale Checks: pnpm format && pnpm exec prettier --check . && pnpm lint && pnpm knip. Erst wenn alle grün, committen und pushen. Im jeweiligen Thread antworten und auflösen. Mehrdeutige/große Punkte dem Menschen überlassen.
-            3. ABSCHLUSS (ALLERLETZTER Schritt, NIE davor — erst nach Commit+Push): Labels in ZWEI getrennten Befehlen: gh pr edit PR_NR --remove-label ai:needs-changes, dann --add-label ai:needs-review.
+            1. Beginne SOFORT mit der Arbeit — keine Wartezeit!
+            2. Findings lesen: gh pr view, gh pr diff, Review-Threads (gh api .../pulls/PR_NR/comments) und CI (gh pr checks).
+            3. Zutreffende, EINDEUTIGE Findings fixen: Code ändern, vor jedem Commit lokale Checks: pnpm format && pnpm exec prettier --check . && pnpm lint && pnpm knip. Erst wenn alle grün, committen und pushen. Im jeweiligen Thread antworten und auflösen. Mehrdeutige/große Punkte dem Menschen überlassen.
+            4. ABSCHLUSS (ALLERLETZTER Schritt, NIE davor — erst nach Commit+Push): Labels in ZWEI getrennten Befehlen: gh pr edit PR_NR --remove-label ai:needs-changes, dann --add-label ai:needs-review.
 
-          WEICHES ZEITLIMIT (Soft-Abort): Prüfe VOR jedem größeren Teilschritt date +%s gegen SOFT_DEADLINE. Ist das Limit erreicht: committen+pushen, offene Findings als PR-Kommentar festhalten. gh pr edit PR_NR --add-label ai:continued, dann ai:needs-changes entfernen+sofort wieder setzen (Selbst-Retrigger). KEIN ai:needs-review. Turn beenden.
+          WEICHES ZEITLIMIT (Soft-Abort):
+            Beginne SOFORT mit der Arbeit. Prüfe VOR jedem größeren Teilschritt date +%s gegen SOFT_DEADLINE. Ist das Limit erreicht: committen+pushen, offene Findings als PR-Kommentar festhalten. gh pr edit PR_NR --add-label ai:continued, dann ai:needs-changes entfernen+sofort wieder setzen (Selbst-Retrigger). KEIN ai:needs-review. Turn beenden.
 
           Stop-Guard: Ein Workflow-Step zählt die PR-Commits und stoppt bei > 10 — du musst das nicht selbst im Kopf führen.
 
@@ -262,8 +265,8 @@ jobs:
 
           hermes chat -q "$(cat /tmp/hermes-prompt.txt)" \
             $RESUME_ARG \
-            -Q --yolo --provider openrouter \
-            -m "deepseek/deepseek-v4-flash" \
+            -Q --yolo --provider nous \
+            -m "z-ai/glm-5.1" \
             -t "terminal,file" \
             --max-turns 90 \
             --accept-hooks \
