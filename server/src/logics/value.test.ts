@@ -4,6 +4,21 @@ import { Pillar, Task } from '../models/index.js';
 import { calculateValueContribution } from './value.js';
 import { resetDb, closeDb } from '../test/helpers.js';
 
+/**
+ * Helfer: Berechnet den erwarteten Faktor mit dynamischem Neutralgewicht 100/N.
+ *
+ * Formel (Issue #423):
+ *   factor = Σ (shareᵢ/100) · [1 + (confᵢ/100) · (weightᵢ · N / 100 − 1)]
+ *
+ * Für einen einzelnen Beitrag (share=100, conf=c):
+ *   factor = 1 + (c/100) · (weight · N / 100 − 1)
+ */
+const expectedFactor = (weight: number, N: number, confidence: number, share: number = 100): number => {
+	const s = share / 100;
+	const c = confidence / 100;
+	return s * (1 + c * ((weight * N) / 100 - 1));
+};
+
 beforeEach(resetDb);
 after(closeDb);
 
@@ -134,5 +149,103 @@ describe('calculateValueContribution', () => {
 		await child.addDependency(parent);
 		const value = await calculateValueContribution(parent);
 		assert.equal(value, 5.5);
+	});
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Issue #423 — Dynamischer Säulen-Faktor bei beliebiger Säulenzahl N
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('Issue #423 — Säulen-Faktor mit dynamischem Neutralgewicht (rote Spec-Tests)', () => {
+	// ── AK1: Gleichverteilung ⇒ Faktor 1 ──────────────────────────────────
+	for (const N of [1, 2, 4, 10]) {
+		it(`AK1: N=${N} gleichgewichtete Säulen (je ${(100 / N).toFixed(3)} %) ⇒ Faktor 1`, async () => {
+			const userId = 1;
+			// N Säulen mit je 100/N Gewicht anlegen
+			const pillarIds: number[] = [];
+			for (let i = 0; i < N; i++) {
+				const p = await Pillar.create({ name: `S${i + 1}`, weight: 100 / N, userId });
+				pillarIds.push(p.id);
+			}
+
+			const task = await Task.create({ title: 'AK1', priority: 3, estimatedEffort: 1, userId });
+			const equalShare = 100 / N;
+			for (const pid of pillarIds) {
+				await task.addPillar(pid, { through: { share: equalShare, confidence: 100 } });
+			}
+
+			const value = await calculateValueContribution(task);
+			assert.ok(Math.abs(value - 3) < 1e-10, `N=${N}: expected value=3 (Faktor 1) but got ${value}`);
+		});
+	}
+
+	// ── AK3: Über-/untergewichtete Säulen ─────────────────────────────────
+	it('AK3: N=3, übergewichtete Säule (weight=60, neutral=33.3) ⇒ Faktor 1.8', async () => {
+		const userId = 1;
+		await Pillar.create({ name: 'A', weight: 10, userId });
+		await Pillar.create({ name: 'B', weight: 30, userId });
+		const pc = await Pillar.create({ name: 'C', weight: 60, userId });
+
+		const task = await Task.create({ title: 'AK3-over', priority: 5, estimatedEffort: 1, userId });
+		await task.addPillar(pc.id, { through: { share: 100, confidence: 100 } });
+
+		const value = await calculateValueContribution(task);
+		const expected = 5 * expectedFactor(60, 3, 100); // 5 * 1.8 = 9
+		assert.ok(Math.abs(value - expected) < 1e-10, `Expected ${expected} but got ${value}`);
+	});
+
+	it('AK3: N=3, untergewichtete Säule (weight=10, neutral=33.3) ⇒ Faktor 0.3', async () => {
+		const userId = 1;
+		const pa = await Pillar.create({ name: 'A', weight: 10, userId });
+		await Pillar.create({ name: 'B', weight: 30, userId });
+		await Pillar.create({ name: 'C', weight: 60, userId });
+
+		const task = await Task.create({ title: 'AK3-under', priority: 5, estimatedEffort: 1, userId });
+		await task.addPillar(pa.id, { through: { share: 100, confidence: 100 } });
+
+		const value = await calculateValueContribution(task);
+		const expected = 5 * expectedFactor(10, 3, 100); // 5 * 0.3 = 1.5
+		assert.ok(Math.abs(value - expected) < 1e-10, `Expected ${expected} but got ${value}`);
+	});
+
+	it('AK3: Konfidenz interpoliert: N=3, weight=60, conf=50 ⇒ Faktor 1.4', async () => {
+		const userId = 1;
+		await Pillar.create({ name: 'A', weight: 10, userId });
+		await Pillar.create({ name: 'B', weight: 30, userId });
+		const pc = await Pillar.create({ name: 'C', weight: 60, userId });
+
+		const task = await Task.create({ title: 'AK3-conf', priority: 5, estimatedEffort: 1, userId });
+		await task.addPillar(pc.id, { through: { share: 100, confidence: 50 } });
+
+		const value = await calculateValueContribution(task);
+		// factor = 1 + 0.5*(1.8−1) = 1.4, value = 5 * 1.4 = 7
+		const expected = 5 * expectedFactor(60, 3, 50); // 5 * 1.4 = 7
+		assert.ok(Math.abs(value - expected) < 1e-10, `Expected ${expected} but got ${value}`);
+	});
+
+	// ── AK4: Edge-Cases — kein NaN/Infinity ──────────────────────────────
+	it('AK4: N=0 (keine Säulen für den Nutzer) ⇒ Faktor 1, kein NaN/Infinity', async () => {
+		// Keine Pillars im System für userId=99
+		const task = await Task.create({
+			title: 'AK4-nopillars',
+			priority: 3,
+			estimatedEffort: 1,
+			userId: 99,
+		});
+		// Task hat keine Beiträge (keine Säulen existieren) ⇒ Faktor 1
+		const value = await calculateValueContribution(task);
+		assert.equal(value, 3);
+	});
+
+	it('AK4: Task ohne Säulen-Beiträge (aber Säulen existieren) ⇒ Faktor 1', async () => {
+		const userId = 1;
+		// Säulen existieren für den Nutzer
+		await Pillar.create({ name: 'A', weight: 50, userId });
+		await Pillar.create({ name: 'B', weight: 50, userId });
+
+		const task = await Task.create({ title: 'AK4-nocontrib', priority: 3, estimatedEffort: 1, userId });
+		// Task ist KEINER Säule zugewiesen
+		const value = await calculateValueContribution(task);
+		assert.equal(value, 3);
 	});
 });
