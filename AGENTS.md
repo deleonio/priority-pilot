@@ -69,7 +69,7 @@ hermes config set model.base_url https://openrouter.ai/api/v1
 | `--provider openrouter` | API-Routing über OpenRouter                                          |
 | `-m <modell>`           | Modell-Festlegung (Pro oder Flash)                                   |
 | `-t "terminal,file"`    | Nur Terminal und Datei-Tools                                         |
-| `--ignore-user-config`  | Nur bei Triage (kein MCP nötig), sonst weggelassen zugunsten von MCP |
+| `--ignore-user-config`  | Entfernt — alle Workflows nutzen jetzt MCP (siehe KoliBri-Abschnitt) |
 | `--max-turns 90`        | Tool-Call-Obergrenze                                                 |
 | `--accept-hooks`        | Shell-Hooks automatisch freigeben                                    |
 
@@ -94,8 +94,8 @@ mcp_servers:
 
 **Verfügbare Tools:** `search` (Komponenten-Suche), `fetch` (Beispiel/Dokument holen).
 
-**Hinweis für GitHub Actions (CI):** Der MCP-Server wird in den CI-Workflows (spec,
-implement, review, fixup) nach der Installation via `pip install mcp` und
+**Hinweis für GitHub Actions (CI):** Der MCP-Server wird in allen CI-Workflows (triage,
+spec, implement, review, fixup) nach der Installation via `pip install mcp` und
 `hermes mcp add kolibri` eingerichtet — siehe den Schritt „Hermes konfigurieren" in
 jedem Workflow. Die Tools heißen `mcp_kolibri_search` und `mcp_kolibri_fetch` und
 stehen dem Agenten automatisch zur Verfügung, sobald der MCP-Server läuft.

@@ -118,6 +118,8 @@ jobs:
           hermes config set model.provider openrouter
           hermes config set model.base_url https://openrouter.ai/api/v1
           hermes config set agent.max_turns 90
+          pip install mcp -q
+          hermes mcp add kolibri --url https://public-ui-kolibri-mcp.vercel.app/mcp
 
       # ──────────────────────────────────────────────
       # 4. Session-Resume (aus vorherigem Lauf fortsetzen)
@@ -177,9 +179,9 @@ jobs:
       #   --provider openrouter    API läuft über OpenRouter
       #   -m deepseek/deepseek-v4-pro    DeepSeek Pro (präzises Reasoning)
       #   -t "terminal,file"       Nur Shell- und Datei-Tools zulassen
-      #   --ignore-user-config     Kein lokales ~/.hermes/config.yaml einlesen
       #   --max-turns 90           Obergrenze für Tool-Calls
       #   --accept-hooks           Automatische Freigabe von Shell-Hooks
+      #   MCP: KoliBri-Server konfiguriert, Tools: mcp_kolibri_search/fetch
       #
       # GH_TOKEN für gh-Befehle (Issue lesen/schreiben, Labels setzen).
       # OPENROUTER_API_KEY für die LLM-API.
@@ -223,7 +225,7 @@ jobs:
             Verwende gh issue edit --add-label/--remove-label dafür. Fehlende Labels vorher mit gh label create anlegen.
 
           WERKZEUGE:
-            Du hast Zugriff auf die Bash (für gh issue/gh api/gh label/gh pr/gh repo) und Datei-Lese-Werkzeuge. Die gh-Befehle sind über GH_TOKEN authentifiziert. Lies die Wissensbasis aus .ai-knowledge/ticket-triage.md für den vollständigen Ablauf. Lese die Issue-Daten via gh issue view und die Wissensbasis via read_file.
+            Du hast Zugriff auf die Bash (für gh issue/gh api/gh label/gh pr/gh repo), Datei-Lese-Werkzeuge sowie KoliBri-MCP-Tools (mcp_kolibri_search, mcp_kolibri_fetch für KoliBri-Komponenten). Die gh-Befehle sind über GH_TOKEN authentifiziert. Lies die Wissensbasis aus .ai-knowledge/ticket-triage.md für den vollständigen Ablauf. Lese die Issue-Daten via gh issue view und die Wissensbasis via read_file.
 
           WEICHES ZEITLIMIT (Soft-Abort):
             Dieser Lauf wird nach 20 Minuten von GitHub HART abgebrochen. Prüfe daher VOR jedem größeren Teilschritt (neue Analyse-Runde, längere Recherche), ob das weiche Limit (14 Minuten nach Start) erreicht ist — berechne es mit: date +%s und vergleiche mit SOFT_DEADLINE.
@@ -250,7 +252,7 @@ jobs:
             -Q --yolo --provider openrouter \
             -m "deepseek/deepseek-v4-pro" \
             -t "terminal,file" \
-            --ignore-user-config --max-turns 90 \
+            --max-turns 90 \
             --accept-hooks \
             2>&1 | tee /tmp/hermes-output.log
           # PIPESTATUS: Exit-Code von hermes chat durch pipe propagieren
