@@ -33,7 +33,7 @@ jobs:
         run: |
           now=$(date +%s)
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
-          echo "soft_deadline_epoch=$((now + 840))" >> "$GITHUB_OUTPUT"
+          echo "soft_deadline_epoch=$((now + 1200))" >> "$GITHUB_OUTPUT"
 
       - name: Voraussetzung prüfen (GitHub-App-Secrets)
         id: preflight
