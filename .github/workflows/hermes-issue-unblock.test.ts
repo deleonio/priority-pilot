@@ -188,7 +188,7 @@ describe('AK6 — Label-Entfernen per App-Token (GITHUB_TOKEN triggert keine Re-
 		// GITHUB_TOKEN zurück wenn App-Token nicht verfügbar)
 		assert.match(
 			yml,
-			/GH_TOKEN:\s*$\{\{\s*steps\.gh-token\.outputs\.token/,
+			/GH_TOKEN:\s*\$\{\{\s*steps\.gh-token\.outputs\.token/,
 			'Der gh-Step muss den gh-token-Fallback (steps.gh-token.outputs.token) als GH_TOKEN nutzen — der bevorzugt das App-Token',
 		);
 		// Der gh-token-Step selbst muss versuchen, das App-Token zu nutzen
