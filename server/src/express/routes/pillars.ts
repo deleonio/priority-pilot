@@ -235,7 +235,7 @@ pillarsRouter.post('/pillars', requireAuth, async (req: Request, res: Response<P
 		// Prüfen, ob der Name für diesen Nutzer bereits existiert (Unique-Constraint auf (name, userId)).
 		const existing = await Pillar.findOne({ where: { name, ...ownerScope(userId) } });
 		if (existing) {
-			sendError(res, 400, 'Eine Säule mit diesem Namen existiert bereits.');
+			sendError(res, 409, 'Eine Säule mit diesem Namen existiert bereits.');
 			return;
 		}
 
@@ -290,7 +290,7 @@ pillarsRouter.patch('/pillars/:id', requireAuth, async (req: Request, res: Respo
 				where: { name: input.name, ...ownerScope(userId) },
 			});
 			if (existing && existing.id !== id) {
-				sendError(res, 400, 'Eine Säule mit diesem Namen existiert bereits.');
+				sendError(res, 409, 'Eine Säule mit diesem Namen existiert bereits.');
 				return;
 			}
 		}

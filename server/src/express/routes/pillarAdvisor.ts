@@ -8,6 +8,7 @@ import {
 	type ActivityAdvisor,
 	type PillarDistribution,
 } from '../../llm/mistral.js';
+import { getUserId, ownerScope } from '../requireAuth.js';
 import type { components } from '../../api';
 
 type ActivityAdviceDto = components['schemas']['ActivityAdvice'];
@@ -100,7 +101,7 @@ export const createPillarAdvisorRouter = (advisor: ActivityAdvisor = adviseActiv
 
 		let pillars: Pillar[];
 		try {
-			pillars = await Pillar.findAll({ order: [['id', 'ASC']] });
+			pillars = await Pillar.findAll({ where: ownerScope(getUserId(req)), order: [['id', 'ASC']] });
 			if (pillars.length === 0) {
 				sendError(res, 503, 'Es sind keine Säulen konfiguriert.');
 				return;
