@@ -17,7 +17,7 @@ on:
 
 concurrency:
   group: hermes-pr-review-${{ github.event.pull_request.number }}
-  cancel-in-progress: false
+  cancel-in-progress: true # Fixup-Loop: neuer Review bricht laufenden Review ab (sinnvoll bei Code-Änderungen)
 
 jobs:
   review:

@@ -15,7 +15,7 @@ on:
 
 concurrency:
   group: hermes-pr-fixup-${{ github.event.pull_request.number }}
-  cancel-in-progress: false
+  cancel-in-progress: true # Neuer Fixup-Lauf bricht laufenden ab (nur nach neuem Review-Urteil)
 
 jobs:
   fixup:
