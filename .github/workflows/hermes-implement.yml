@@ -21,7 +21,6 @@ jobs:
           && contains(github.event.issue.labels.*.name, 'ai:analyzed')
           && github.event.issue.state == 'open' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     env:
       HERMES_HOME: /tmp/hermes-ci
     permissions:

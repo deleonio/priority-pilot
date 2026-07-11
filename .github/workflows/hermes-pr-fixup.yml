@@ -24,7 +24,6 @@ jobs:
           && github.event.pull_request.draft == false
           && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15 # Mittel-Tier: Fixup
     env:
       HERMES_HOME: /tmp/hermes-ci
     permissions:

@@ -112,20 +112,26 @@ Preise: DeepSeek Pro $0.43/$0.87, DeepSeek Flash $0.09/$0.18 pro 1M Tokens (Inpu
 
 ### Weiches Zeitlimit (Soft-Abort)
 
-Drei Zeitstufen nach Aufgaben-Typ, immer mit ~40% Puffer bis zum harten Kill:
+Statt harten `timeout-minutes` nutzt Hermes ein **weiches Timeout**, das der Agent selbst kontrolliert:
 
-| Tier       | Phasen          | Hard Timeout | Soft-Deadline      |
-| ---------- | --------------- | ------------ | ------------------ |
-| **Kurz**   | Triage, Review  | **12 min**   | 7 min (`now+420`)  |
-| **Mittel** | Fixup           | **15 min**   | 10 min (`now+600`) |
-| **Lang**   | Spec, Implement | **20 min**   | 14 min (`now+840`) |
+- **Phase 1 (Triage/Review)**: Soft-Deadline 7 Minuten (`now+420`)
+- **Phase 2 (Fixup)**: Soft-Deadline 10 Minuten (`now+600`)
+- **Phase 3 (Spec/Implement)**: Soft-Deadline 14 Minuten (`now+840`)
 
-Der `starttime`-Step berechnet den passenden Epoch-Wert. Hermes prüft vor jedem größeren
-Teilschritt `date +%s` dagegen. Bei Erreichen: Zwischenstand sichern,
-Selbst-Retrigger (Label entfernen + sofort neu setzen), Turn beenden.
+Der `starttime`-Step setzt die Soft-Deadline. Hermes prüft VOR jedem größeren Teilschritt (`date +%s`) ob die Deadline erreicht ist. Bei Erreichen:
 
-**Obergrenze (Marker-Label `ai:continued`):** Ein deterministischer Workflow-Step nach
-dem Hermes-Schritt begrenzt automatische Selbst-Fortsetzungen auf genau eine.
+1. **Arbeit sichern** — Zwischenstand in Body-Block/Dokumentation schreiben
+2. **Kein Abschluss-Label** setzen — verhindert automatische Weiterleitung
+3. **Trigger-Label entfernen** + **sofort neu setzen** (z.B. `ai:analyzed` entfernen + wieder setzen)
+4. **Turn beenden** — automatische Neu-Anmeldung durch Label-Änderung
+
+Dadurch bricht **nur der aktuelle Teil** ab, nicht der ganze Job, und die Arbeit ist dokumentiert.
+
+**Obergrenze (Marker-Label `ai:continued`):** Um Endlosschleifen zu verhindern, startet der Workflow nach einem Soft-Abort genau einen Selbst-Retrigger durch:
+
+1. Auslöser-Label entfernen (z.B. `ai:analyzed`)
+2. Sofort wieder setzen → neuer Workflow-Lauf wird angestoßen
+   Maximal eine Wiederholung, dann muss der Agent manuell eingreifen.
 
 ## Ticket-Triage
 

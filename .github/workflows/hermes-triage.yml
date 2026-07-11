@@ -57,7 +57,6 @@ jobs:
                   || github.event.comment.author_association == 'MEMBER'
                   || github.event.comment.author_association == 'COLLABORATOR')) }}
     runs-on: ubuntu-latest
-    timeout-minutes: 12 # Kurz-Tier: Analyse/Review
     env:
       # Hermes speichert Config + Sessions in ein RAM-Verzeichnis (nicht ~/.hermes)
       HERMES_HOME: /tmp/hermes-ci
