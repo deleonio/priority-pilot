@@ -124,7 +124,7 @@ jobs:
         id: supersede-check
         if: steps.preflight.outputs.configured == 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
         run: |
           running=$(gh api repos/${GITHUB_REPOSITORY}/actions/runs \
