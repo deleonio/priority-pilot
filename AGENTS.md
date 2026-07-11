@@ -39,10 +39,14 @@ Wissensbasis liegt in [`.ai-knowledge/`](.ai-knowledge/).
 ## KI-Agent: Hermes Agent
 
 Alle KI-Workflows (Triage, Re-Triage, Spec, Umsetzung, PR-Review, PR-Fixup) laufen auf
-**Hermes Agent** (Nous Research) mit **DeepSeek Flash** über **OpenRouter**.
+**Hermes Agent** (Nous Research) über **OpenRouter**. Die Modellwahl folgt der
+Aufgaben-Strenge: **DeepSeek Pro** für Analyse/Spec/Review (präzises Reasoning),
+**DeepSeek Flash** für Implementierung/Fixup (schnell und günstig).
 
 - [Hermes Agent Docs](https://hermes-agent.nousresearch.com/docs/)
-- Modell: `deepseek/deepseek-v4-flash` via `--provider openrouter`
+- Modelle:
+  - `deepseek/deepseek-v4-pro` (Analyse, Spec, Review — präzises Reasoning)
+  - `deepseek/deepseek-v4-flash` (Umsetzung, Fixup — schnell, günstig)
 - Secret: `OPENROUTER_API_KEY` (https://openrouter.ai/keys)
 - CLI: `hermes chat -q '<prompt>'` (single-query, non-interactive)
 
@@ -57,23 +61,24 @@ hermes config set model.base_url https://openrouter.ai/api/v1
 
 **CI-Flags:**
 
-| Flag                            | Zweck                                 |
-| ------------------------------- | ------------------------------------- |
-| `-q '<prompt>'`                 | Single-query, non-interactive         |
-| `-Q`                            | Quiet — keine Banner/Spinner          |
-| `--yolo`                        | Keine Gefahren-Bestätigung (headless) |
-| `--provider openrouter`         | API-Routing über OpenRouter           |
-| `-m deepseek/deepseek-v4-flash` | Modell-Festlegung                     |
-| `-t "terminal,file"`            | Nur Terminal und Datei-Tools          |
-| `--ignore-user-config`          | Kein lokales Config-File einlesen     |
-| `--max-turns 90`                | Tool-Call-Obergrenze                  |
-| `--accept-hooks`                | Shell-Hooks automatisch freigeben     |
+| Flag                    | Zweck                                                                |
+| ----------------------- | -------------------------------------------------------------------- |
+| `-q '<prompt>'`         | Single-query, non-interactive                                        |
+| `-Q`                    | Quiet — keine Banner/Spinner                                         |
+| `--yolo`                | Keine Gefahren-Bestätigung (headless)                                |
+| `--provider openrouter` | API-Routing über OpenRouter                                          |
+| `-m <modell>`           | Modell-Festlegung (Pro oder Flash)                                   |
+| `-t "terminal,file"`    | Nur Terminal und Datei-Tools                                         |
+| `--ignore-user-config`  | Entfernt — alle Workflows nutzen jetzt MCP (siehe KoliBri-Abschnitt) |
+| `--max-turns 90`        | Tool-Call-Obergrenze                                                 |
+| `--accept-hooks`        | Shell-Hooks automatisch freigeben                                    |
 
 **Prompt:** Per Heredoc in eine Datei geschrieben, dann via `-q "$(cat /tmp/hermes-prompt.txt)"` übergeben — vermeidet Shell-Quoting-Probleme.
 
-Alle KI-Workflows teilen dasselbe Modell (`deepseek/deepseek-v4-flash`). Es gibt keine
-Modell-Hierarchie (Opus/Sonnet/Haiku) und keine Subagent-Delegation mehr — Hermes führt
-die Aufgabe selbst aus, mit dem konfigurierten Modell.
+Fünf Workflows teilen sich zwei Modelle nach Aufgaben-Strenge:
+
+- **Analyse (Triage) + Spec + Review** → `deepseek/deepseek-v4-pro`
+- **Umsetzung (Implement) + Fixup** → `deepseek/deepseek-v4-flash`
 
 ### Kolibri MCP-Server für Frontend-Implementierung
 
@@ -89,15 +94,19 @@ mcp_servers:
 
 **Verfügbare Tools:** `search` (Komponenten-Suche), `fetch` (Beispiel/Dokument holen).
 
-**Hinweis für GitHub Actions (CI):** Läuft Hermes lokal, wird der MCP-Server aus
-`~/.hermes/config.yaml` gelesen. Im CI-Lauf ist MCP nicht konfiguriert (bewusst) —
-Frontend-Arbeit findet im Implement-Workflow statt, der die lokale Codebasis liest.
+**Hinweis für GitHub Actions (CI):** Der MCP-Server wird in allen CI-Workflows (triage,
+spec, implement, review, fixup) nach der Installation via `pip install mcp` und
+`hermes mcp add kolibri` eingerichtet — siehe den Schritt „Hermes konfigurieren" in
+jedem Workflow. Die Tools heißen `mcp_kolibri_search` und `mcp_kolibri_fetch` und
+stehen dem Agenten automatisch zur Verfügung, sobald der MCP-Server läuft.
+Die Workflows nutzen seit der MCP-Aktivierung **nicht mehr** `--ignore-user-config`,
+damit die `mcp_servers`-Konfiguration wirkt.
 
 ### OpenRouter (Modell-Provider)
 
 Hermes unterstützt OpenRouter **nativ** — kein Workaround, keine `configure-ai-backend`-Action.
 Einfach `--provider openrouter` + `OPENROUTER_API_KEY`.
-Preise: DeepSeek Flash $0.09/$0.18 pro 1M Tokens (Input/Output).
+Preise: DeepSeek Pro $0.43/$0.87, DeepSeek Flash $0.09/$0.18 pro 1M Tokens (Input/Output).
 
 ### Weiches Zeitlimit (Soft-Abort)
 

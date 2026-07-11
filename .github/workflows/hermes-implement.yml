@@ -89,6 +89,8 @@ jobs:
           hermes config set model.provider openrouter
           hermes config set model.base_url https://openrouter.ai/api/v1
           hermes config set agent.max_turns 90
+          pip install mcp -q
+          hermes mcp add kolibri --url https://public-ui-kolibri-mcp.vercel.app/mcp
 
       - name: Session-Archiv herunterladen (Phase impl)
         id: session-dl
@@ -196,7 +198,7 @@ jobs:
 
           Idempotenz: Draft-PR mit Closes #ISSUE_NR ist normaler Spec-Eingang — aufgreifen. Nicht-Draft-PR = Umsetzung schon gelaufen → Lauf beenden.
 
-          WERKZEUGE: Bash (gh, git, pnpm), Datei-Tools. GH_TOKEN für gh-Befehle.
+          WERKZEUGE: Bash (gh, git, pnpm), Datei-Tools sowie KoliBri-MCP-Tools (mcp_kolibri_search, mcp_kolibri_fetch für KoliBri-Komponenten). GH_TOKEN für gh-Befehle.
           Keine interaktive Bestätigung — Label ai:ready autorisiert.
           HERMES_EOF
 
@@ -213,7 +215,7 @@ jobs:
             -Q --yolo --provider openrouter \
             -m "deepseek/deepseek-v4-flash" \
             -t "terminal,file" \
-            --ignore-user-config --max-turns 90 \
+            --max-turns 90 \
             --accept-hooks \
             2>&1 | tee /tmp/hermes-output.log
           # PIPESTATUS: Exit-Code von hermes chat durch pipe propagieren
