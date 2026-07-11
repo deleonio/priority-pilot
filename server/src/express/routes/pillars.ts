@@ -363,10 +363,39 @@ pillarsRouter.delete('/pillars/:id', requireAuth, async (req: Request, res: Resp
 				}
 			}
 
-			// 3. Säule selbst löschen.
+			// 3. Verbleibende Beiträge pro Serie renormieren (Summe → 100%).
+			// Analog zu Schritt 2, aber auf SeriesPillar-Ebene: Serien-Vorlagen kopieren
+			// ihre Shares via `generateDueInstances` direkt in neue Task-Instanzen, ohne
+			// die API-Summenvalidierung zu durchlaufen (#422).
+			const seriesWithContributions = await SeriesPillar.findAll({
+				attributes: ['seriesId'],
+				group: ['seriesId'],
+				having: sequelize.where(sequelize.fn('count', sequelize.col('seriesId')), '>', 0),
+				transaction,
+			});
+
+			for (const { seriesId } of seriesWithContributions) {
+				const remaining = await SeriesPillar.findAll({
+					where: { seriesId },
+					transaction,
+				});
+
+				if (remaining.length > 0) {
+					const totalShare = remaining.reduce((sum, c) => sum + c.share, 0);
+
+					if (totalShare > 0) {
+						const factor = 100 / totalShare;
+						for (const contribution of remaining) {
+							await contribution.update({ share: contribution.share * factor }, { transaction });
+						}
+					}
+				}
+			}
+
+			// 4. Säule selbst löschen.
 			await pillar.destroy({ transaction });
 
-			// 4. Rest-Gewichte der übrigen Säulen proportional auf 100 renormieren.
+			// 5. Rest-Gewichte der übrigen Säulen proportional auf 100 renormieren.
 			const remainingPillars = await Pillar.findAll({
 				where: ownerScope(userId),
 				transaction,
