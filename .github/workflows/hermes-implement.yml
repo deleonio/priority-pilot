@@ -27,6 +27,8 @@ jobs:
       contents: read
       id-token: write
       actions: read
+      pull-requests: write
+      issues: write
     steps:
       - name: Startzeit merken (für Timeout-Erkennung + weiches Zeitlimit)
         id: starttime
@@ -55,11 +57,23 @@ jobs:
           client-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
+      - name: GH_TOKEN-Fallback setzen (App-Token oder GITHUB_TOKEN)
+        id: gh-token
+        run: |
+          APP_TOK="${{ steps.app-token.outputs.token }}"
+          if [ -n "$APP_TOK" ] && [ "$APP_TOK" != "null" ]; then
+            echo "token=$APP_TOK" >> "$GITHUB_OUTPUT"
+            echo "::notice::Nutze GitHub-App-Token für gh-Befehle."
+          else
+            echo "token=${{ github.token }}" >> "$GITHUB_OUTPUT"
+            echo "::warning::App-Token nicht verfügbar — nutze GITHUB_TOKEN (Achtung: Label-Wechsel lösen ggf. keine Folge-Workflows aus)."
+          fi
+
       - name: Issue einem Menschen zuweisen (Best-Effort)
         if: steps.preflight.outputs.configured == 'true'
         continue-on-error: true
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
           ASSIGNEE: ${{ github.event.sender.type == 'User' && github.event.sender.login || (github.event.issue.user.type == 'User' && github.event.issue.user.login || '') }}
         run: |
@@ -74,7 +88,7 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{ steps.gh-token.outputs.token }}
 
       - name: Cache-Key für uv berechnen
         id: uv-cache-key
@@ -134,7 +148,7 @@ jobs:
         if: steps.preflight.outputs.configured == 'true'
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
           if [ -z "$OPENROUTER_API_KEY" ]; then
@@ -147,7 +161,7 @@ jobs:
         id: doppel-guard
         if: steps.preflight.outputs.configured == 'true'
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
           if ! existing="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
@@ -186,7 +200,7 @@ jobs:
         id: continued-before
         if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
           already="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq 'any(.labels[]; .name == "ai:continued")' 2>/dev/null || echo false)"
@@ -197,7 +211,7 @@ jobs:
         if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
         run: |
           cat > /tmp/hermes-prompt.txt << 'HERMES_EOF'
           Das Label `ai:ready` wurde an Issue #ISSUE_NR gesetzt — setze dieses Issue jetzt um.
@@ -271,7 +285,7 @@ jobs:
       - name: Soft-Abort-Fortsetzung erkennen und begrenzen (ai:continued)
         if: always() && steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true' && steps.hermes.outcome == 'success'
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
           ALREADY_CONTINUED: ${{ steps.continued-before.outputs.already }}
         run: |
@@ -294,7 +308,7 @@ jobs:
       - name: Bei Timeout als zu gross markieren (ai:to-big-issue)
         if: always() && steps.preflight.outputs.configured == 'true' && steps.hermes.outcome == 'cancelled'
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
           RUN_START: ${{ steps.starttime.outputs.epoch }}
         run: |
@@ -307,7 +321,7 @@ jobs:
       - name: Ergebnis zusammenfassen
         if: always() && steps.preflight.outputs.configured == 'true'
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
           OUTCOME: ${{ steps.hermes.outcome }}
           SESSION_ID: ${{ steps.session.outputs.session_id }}

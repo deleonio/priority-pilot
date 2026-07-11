@@ -70,6 +70,8 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read # Schreibzugriff laeuft ueber das App-Token
+      pull-requests: write
+      issues: write
     steps:
       - name: Voraussetzung pruefen (GitHub-App-Secrets)
         id: preflight
@@ -92,13 +94,25 @@ jobs:
           client-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
+      - name: GH_TOKEN-Fallback setzen (App-Token oder GITHUB_TOKEN)
+        id: gh-token
+        run: |
+          APP_TOK="${{ steps.app-token.outputs.token }}"
+          if [ -n "$APP_TOK" ] && [ "$APP_TOK" != "null" ]; then
+            echo "token=$APP_TOK" >> "$GITHUB_OUTPUT"
+            echo "::notice::Nutze GitHub-App-Token für gh-Befehle."
+          else
+            echo "token=${{ github.token }}" >> "$GITHUB_OUTPUT"
+            echo "::warning::App-Token nicht verfügbar — nutze GITHUB_TOKEN (Achtung: Label-Wechsel lösen ggf. keine Folge-Workflows aus)."
+          fi
+
       # Reiner gh-Job (kein Checkout, kein LLM): Alte Ergebnis-Labels entfernen, dann
       # ai:needs-review setzen. Mit dem App-Token gesetzt, damit das "labeled"-Event den
       # Kreuzverhoer-Review ausloest.
       - name: Alte Ergebnis-Labels + Loop-Marker entfernen (ai:needs-changes, ai:ready-to-merge, ai:review-no-result)
         if: steps.preflight.outputs.configured == 'true'
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
         run: |
@@ -118,7 +132,7 @@ jobs:
       - name: Label ai:needs-review setzen
         if: steps.preflight.outputs.configured == 'true'
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }} # App-Token -> loest Folge-Workflows aus
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }} # App-Token -> loest Folge-Workflows aus
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
         run: |
