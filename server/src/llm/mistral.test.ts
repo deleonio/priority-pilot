@@ -1,6 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildAdvisorUserMessage, type AdviseActivitiesInput } from './mistral.js';
+import {
+	buildAdvisorUserMessage,
+	buildUserMessage,
+	weakSignalPillarIds,
+	type AdviseActivitiesInput,
+	type ClassifyPillarsInput,
+} from './mistral.js';
 
 /**
  * Vertrag für `buildAdvisorUserMessage(input)` in Bezug auf die Säulen-Verteilung (Nachfolge #337):
@@ -61,5 +67,122 @@ describe('buildAdvisorUserMessage — Säulen-Verteilung im Prompt', () => {
 		const message = buildAdvisorUserMessage({ pillars });
 		assert.doesNotMatch(message, /Unterversorgung/i, 'ohne Verteilung bleibt der Prompt frei vom Hinweis');
 		assert.doesNotMatch(message, /Priorität/i, 'ohne Verteilung nennt der Prompt keine Priorität');
+	});
+});
+
+/**
+ * AK1 (#424): Der an Mistral gesendete User-Prompt enthält je gültiger Säule pillarId, Name
+ * UND Beschreibung (falls vorhanden). Ohne Beschreibung erscheint nur pillarId + Name.
+ */
+describe('buildUserMessage — Beschreibung im Prompt (AK1, #424)', () => {
+	it('enthält description im Prompt, wenn die Säule eine Beschreibung hat', () => {
+		// Die erwartete Schnittstelle: pillars enthält optional `description`.
+		const pillars: { id: number; name: string; description?: string }[] = [
+			{ id: 1, name: 'Körper', description: 'Physische Gesundheit: Bewegung, Ernährung, Schlaf.' },
+			{ id: 2, name: 'Garten', description: 'Pflanzen pflegen, Rasen mähen, Ernte.' },
+		];
+		const input = { title: 'Tomaten pflanzen', pillars } as ClassifyPillarsInput;
+
+		const message = buildUserMessage(input);
+
+		// Beschreibungen erscheinen im Prompt
+		assert.ok(
+			message.includes('Physische Gesundheit: Bewegung, Ernährung, Schlaf.'),
+			'Prompt enthält die Beschreibung von Körper',
+		);
+		assert.ok(
+			message.includes('Pflanzen pflegen, Rasen mähen, Ernte.'),
+			'Prompt enthält die Beschreibung von Garten (Custom-Säule)',
+		);
+		// pillarId und Name sind weiterhin vorhanden
+		assert.ok(message.includes('pillarId 1'), 'Prompt nennt pillarId 1');
+		assert.ok(message.includes('pillarId 2'), 'Prompt nennt pillarId 2');
+		assert.ok(message.includes('Körper'), 'Prompt nennt den Namen Körper');
+		assert.ok(message.includes('Garten'), 'Prompt nennt den Namen Garten');
+	});
+
+	it('ohne description erscheint kein Beschreibungs-Platzhalter (leere Beschreibung → nur Name)', () => {
+		const pillars: { id: number; name: string; description?: string }[] = [
+			{ id: 1, name: 'Körper' },
+			{ id: 2, name: 'Wirksamkeit', description: '' },
+		];
+		const input = { title: 'Test', pillars } as ClassifyPillarsInput;
+
+		const message = buildUserMessage(input);
+
+		// Keine leeren Beschreibungs-Trennzeichen
+		assert.ok(message.includes('pillarId 1: Körper'), 'Körper ohne description erscheint sauber');
+		assert.ok(message.includes('pillarId 2: Wirksamkeit'), 'Wirksamkeit ohne description erscheint sauber');
+		// Kein hängendes Trennzeichen wie "— "
+		const pillar2Line = message.split('\n').find((line) => line.includes('pillarId 2'));
+		assert.ok(pillar2Line, 'pillarId 2 Zeile existiert');
+		assert.ok(
+			!pillar2Line!.endsWith('— ') && !pillar2Line!.includes('—  —'),
+			'Kein hängendes oder doppeltes Trennzeichen bei leerer Beschreibung',
+		);
+	});
+
+	it('prompt-Bau mit gemischten Säulen (mit/ohne Beschreibung) enthält Beschreibungen nur wo vorhanden', () => {
+		const pillars: { id: number; name: string; description?: string }[] = [
+			{ id: 1, name: 'Körper', description: 'Bewegung und Ernährung' },
+			{ id: 2, name: 'Beziehungen' },
+			{ id: 3, name: 'Garten', description: 'Alles rund um Pflanzen und Beet' },
+		];
+		const input = { title: 'Rasen mähen', description: 'Vorgarten und Hinterhof', pillars } as ClassifyPillarsInput;
+
+		const message = buildUserMessage(input);
+
+		assert.ok(message.includes('Bewegung und Ernährung'), 'Körper-Beschreibung ist im Prompt');
+		assert.ok(message.includes('Alles rund um Pflanzen und Beet'), 'Garten-Beschreibung ist im Prompt');
+		// Beziehungen: kein " — " nach dem Namen
+		const bezLine = message.split('\n').find((line) => line.includes('Beziehungen'));
+		assert.ok(bezLine, 'Beziehungen-Zeile existiert');
+		assert.ok(!bezLine!.includes('—'), 'Beziehungen hat keine Beschreibung → kein Trennzeichen');
+		// Task-Details sind unverändert vorhanden
+		assert.ok(message.includes('Rasen mähen'), 'Task-Titel im Prompt');
+		assert.ok(message.includes('Vorgarten und Hinterhof'), 'Task-Beschreibung im Prompt');
+	});
+});
+
+/**
+ * AK2 (#424): Klassifikation mit ausschließlich nutzerdefinierten Säulen (keine Seed-Namen)
+ * liefert gültige pillarIds aus der übergebenen Liste; Weak-Signal-Nachschärfung greift
+ * dann schlicht nicht (kein Fehler).
+ */
+describe('weakSignalPillarIds — Custom-Säulen (AK2, #424)', () => {
+	it('mit ausschließlich Seed-Namen findet Sinn und Mentale Gesundheit', () => {
+		const ids = weakSignalPillarIds([
+			{ id: 1, name: 'Körper' },
+			{ id: 3, name: 'Sinn' },
+			{ id: 4, name: 'Mentale Gesundheit' },
+			{ id: 5, name: 'Wirksamkeit' },
+		]);
+		assert.ok(ids.has(3), 'Sinn wird erkannt');
+		assert.ok(ids.has(4), 'Mentale Gesundheit wird erkannt');
+		assert.ok(!ids.has(1), 'Körper ist keine Weak-Signal-Säule');
+		assert.equal(ids.size, 2, 'Genau zwei Weak-Signal-Säulen');
+	});
+
+	it('mit ausschließlich Custom-Namen → leeres Set, kein Fehler', () => {
+		const ids = weakSignalPillarIds([
+			{ id: 1, name: 'Garten' },
+			{ id: 2, name: 'Haushalt' },
+			{ id: 3, name: 'Hobby' },
+		]);
+		assert.equal(ids.size, 0, 'Keine Weak-Signal-Säulen bei reinen Custom-Namen');
+		assert.ok(ids instanceof Set, 'Rückgabe ist ein Set (kein Fehler)');
+	});
+
+	it('mit gemischten Seed- und Custom-Namen findet nur die Seed-Weak-Signals', () => {
+		const ids = weakSignalPillarIds([
+			{ id: 1, name: 'Garten' },
+			{ id: 2, name: 'Sinn' },
+			{ id: 3, name: 'Hobby' },
+			{ id: 4, name: 'Mentale Gesundheit' },
+		]);
+		assert.equal(ids.size, 2, 'Nur zwei Weak-Signal-Säulen');
+		assert.ok(ids.has(2), 'Sinn wird erkannt (auch neben Custom-Namen)');
+		assert.ok(ids.has(4), 'Mentale Gesundheit wird erkannt');
+		assert.ok(!ids.has(1), 'Garten ist keine Weak-Signal-Säule');
 	});
 });

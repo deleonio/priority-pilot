@@ -11,6 +11,7 @@ import {
 	classifyPillarsWithMistral,
 	MissingApiKeyError,
 	MistralRequestError,
+	weakSignalPillarIds,
 	type ClassifyPillarsInput,
 	type PillarClassifier,
 	type PillarSuggestion,
@@ -448,6 +449,103 @@ describe('classifyPillarsWithMistral (Unit, gemockter fetch)', () => {
 		assert.ok(
 			messages.some((message) => message.role === 'assistant' && message.content === expectedAssistant),
 			'die gelernte assistant-Antwort deckelt Sinn/Mentale Gesundheit auf 60, lässt Körper unverändert',
+		);
+	});
+
+	it('AK4 (#424): Feedback-Beispiele mit gelöschten pillarIds brechen die Klassifikation nicht', async () => {
+		// Wenn ein Feedback-Eintrag pillarIds referenziert, die nicht (mehr) in der
+		// gültigen Säulen-Liste stehen, müssen diese einfach herausgefiltert werden —
+		// ohne Ausnahme, ohne Crash. Das gesamte Feedback-Sample wird verworfen, wenn
+		// danach keine gültige pillarId mehr übrig ist.
+		process.env.MISTRAL_API_KEY = 'test-key';
+		let sentBody: { messages: { role: string; content: string }[] } | undefined;
+		globalThis.fetch = (async (_url: string, init: { body: string }) => {
+			sentBody = JSON.parse(init.body);
+			return new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ pillars: [] }) } }] }), {
+				status: 200,
+				headers: { 'Content-Type': 'application/json' },
+			});
+		}) as unknown as typeof fetch;
+
+		const customPillars = [
+			{ id: 10, name: 'Garten' },
+			{ id: 20, name: 'Haushalt' },
+		];
+		await classifyPillarsWithMistral({
+			title: 'Test',
+			pillars: customPillars,
+			examples: [
+				{
+					title: 'Alte Korrektur',
+					description: 'pillarId 5 existiert nicht mehr',
+					pillars: [
+						{ pillarId: 5, confidence: 80 }, // gelöschte Säule
+						{ pillarId: 10, confidence: 60 }, // noch gültig
+					],
+				},
+				{
+					title: 'Nur tote IDs',
+					pillars: [
+						{ pillarId: 5, confidence: 80 },
+						{ pillarId: 999, confidence: 50 },
+					],
+				},
+			],
+		});
+
+		// Die Klassifikation läuft ohne Fehler (keine Exception).
+		// Das erste Sample wird mit nur pillarId 10 angehängt (5 gefiltert).
+		// Das zweite Sample (nur tote IDs) wird komplett verworfen.
+		const messages = sentBody?.messages ?? [];
+		const alteKorrekturUser = messages.find(
+			(message) => message.role === 'user' && message.content.includes('Alte Korrektur'),
+		);
+		assert.ok(alteKorrekturUser, 'Gültiges Feedback-Sample (mit gemischten IDs) wird als user-Message angehängt');
+		const expectedAssistant = JSON.stringify({ pillars: [{ pillarId: 10, confidence: 60 }] });
+		const matchingAssistant = messages.find(
+			(message) => message.role === 'assistant' && message.content === expectedAssistant,
+		);
+		assert.ok(
+			matchingAssistant,
+			'assistant-Antwort enthält nur die noch gültige pillarId (10), pillarId 5 wurde gefiltert',
+		);
+		// Das zweite Sample (nur tote IDs) taucht gar nicht im Prompt auf.
+		assert.ok(
+			!messages.some((message) => message.content.includes('Nur tote IDs')),
+			'Sample ohne gültige pillarId wird komplett verworfen',
+		);
+	});
+
+	it('AK5 (#424): Ende-zu-Ende — Klassifikation mit Custom-Säulen funktioniert fehlerfrei', async () => {
+		// Vollständiger Durchlauf: Klassifikation mit ausschließlich Custom-Säulen,
+		// ohne Seed-Namen. Die Weak-Signal-Nachschärfung greift dann einfach nicht.
+		process.env.MISTRAL_API_KEY = 'test-key';
+		const customPillars = [
+			{ id: 10, name: 'Garten' },
+			{ id: 20, name: 'Haushalt' },
+			{ id: 30, name: 'Kreativität' },
+		];
+		stubFetch(
+			JSON.stringify({
+				pillars: [
+					{ pillarId: 10, confidence: 95 },
+					{ pillarId: 30, confidence: 70 },
+				],
+			}),
+		);
+
+		const result = await classifyPillarsWithMistral({ title: 'Rasen mähen', pillars: customPillars });
+
+		// Gültige pillarIds aus der Custom-Liste, keine Seed-IDs
+		assert.equal(result.length, 2);
+		assert.deepEqual(result, [
+			{ pillarId: 10, confidence: 95 },
+			{ pillarId: 30, confidence: 70 },
+		]);
+		// Keine Weak-Signal-Ceiling-Effekte: Custom-Säulen werden nicht gedeckelt
+		assert.ok(
+			result.every((s) => s.confidence > 60 || !weakSignalPillarIds(customPillars).has(s.pillarId)),
+			'Custom-Säulen werden nicht von Weak-Signal-Ceiling betroffen',
 		);
 	});
 });

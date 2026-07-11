@@ -176,7 +176,11 @@ export const createSuggestPillarsRouter = (classifier: PillarClassifier = classi
 					title: validation.value.title,
 					description: validation.value.description ?? undefined,
 					context: validation.value.context ?? undefined,
-					pillars: pillars.map((pillar) => ({ id: pillar.id, name: pillar.name })),
+					pillars: pillars.map((pillar) => ({
+						id: pillar.id,
+						name: pillar.name,
+						description: pillar.description ?? undefined,
+					})),
 					examples,
 				});
 				res.json({ suggestions });

@@ -289,4 +289,59 @@ describe('adviseActivitiesWithMistral (Unit, gemockter fetch)', () => {
 		}
 		assert.ok(userMessage.content.includes('Was tut mir diese Woche gut?'), 'Prompt enthält die Frage');
 	});
+
+	it('AK3 (#424): filtert unbekannte pillarIds aus den Vorschlägen (nur Nutzer-Säulen)', async () => {
+		// Der Berater soll NUR pillarIds des Nutzers ausspielen — fremde/ungültige IDs
+		// werden von extractActivityAdvice herausgefiltert, selbst wenn das LLM sie liefert.
+		process.env.MISTRAL_API_KEY = 'test-key';
+		stubFetch(
+			JSON.stringify({
+				advice: [
+					{ activity: 'Eigene Aktivität', reason: 'Nur gültige Säulen.', pillarIds: [1, 3] },
+					{ activity: 'Fremde Säule', reason: 'Sollte rausgefiltert werden.', pillarIds: [999, 1] },
+					{ activity: 'Nur fremd', reason: 'Keine gültige Säule.', pillarIds: [9999] },
+				],
+			}),
+		);
+
+		const result = await adviseActivitiesWithMistral(input);
+
+		// Nur Vorschläge mit mindestens einer gültigen pillarId bleiben erhalten.
+		assert.equal(result.length, 2, 'Zwei Vorschläge mit gültigen pillarIds');
+		assert.deepEqual(result[0], { activity: 'Eigene Aktivität', reason: 'Nur gültige Säulen.', pillarIds: [1, 3] });
+		assert.deepEqual(result[1], { activity: 'Fremde Säule', reason: 'Sollte rausgefiltert werden.', pillarIds: [1] });
+		// Keine Vorschläge mit ausschließlich unbekannten pillarIds.
+		assert.ok(!result.some((r) => r.activity === 'Nur fremd'), 'Vorschlag ohne gültige pillarId wurde verworfen');
+	});
+
+	it('AK3 (#424): Berater mit ausschließlich Custom-Säulen (keine Seed-Namen) funktioniert', async () => {
+		process.env.MISTRAL_API_KEY = 'test-key';
+		const customPillars: AdviseActivitiesInput = {
+			pillars: [
+				{ id: 10, name: 'Garten', description: 'Alles rund um Pflanzen und Beet.' },
+				{ id: 20, name: 'Haushalt', description: 'Putzen, Wäsche, Reparaturen.' },
+				{ id: 30, name: 'Kreativität', description: 'Malen, Schreiben, Basteln.' },
+			],
+		};
+		stubFetch(
+			JSON.stringify({
+				advice: [
+					{ activity: 'Hochbeet bepflanzen', reason: 'Draußen aktiv.', pillarIds: [10] },
+					{ activity: 'Keller aufräumen', reason: 'Ordnung schaffen.', pillarIds: [20] },
+				],
+			}),
+		);
+
+		const result = await adviseActivitiesWithMistral(customPillars);
+
+		assert.equal(result.length, 2, 'Zwei Vorschläge für Custom-Säulen');
+		// Alle pillarIds stammen aus der Custom-Liste
+		for (const advice of result) {
+			for (const pid of advice.pillarIds) {
+				assert.ok([10, 20, 30].includes(pid), `pillarId ${pid} ist eine Custom-Säule des Nutzers`);
+			}
+		}
+		// Keine Seed-Namen (1–5) tauchen auf
+		assert.ok(!result.some((r) => r.pillarIds.some((pid) => pid <= 5)), 'Keine Seed-pillarIds in Custom-Ergebnissen');
+	});
 });
