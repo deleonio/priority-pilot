@@ -234,17 +234,6 @@ jobs:
           retention-days: 30
           overwrite: true
 
-      - name: Hermes-Session-ID erfassen
-        if: always()
-        id: session
-        run: |
-          if [ -f /tmp/hermes-output.log ]; then
-            sid="$(grep '^session_id:' /tmp/hermes-output.log | head -1 | sed 's/^session_id:[[:space:]]*//')"
-            if [ -n "$sid" ]; then
-              echo "session_id=$sid" >> "$GITHUB_OUTPUT"
-            fi
-          fi
-
       - name: Bei Timeout als zu gross markieren (ai:to-big-issue)
         if: always() && steps.preflight.outputs.configured == 'true' && steps.hermes.outcome == 'cancelled'
         env:
