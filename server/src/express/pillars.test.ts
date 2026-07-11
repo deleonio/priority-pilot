@@ -217,6 +217,24 @@ describe('Pillars API', () => {
 			assert.equal(res.status, 400);
 		});
 
+		it('400 bei fremder (nicht zu Nutzer gehörender) Säulen-id', async () => {
+			const bobCookie = await login('bob@example.com');
+
+			// Alice hat Säulen
+			await seedPillarsForUser(1);
+			// Bob hat Säulen
+			await seedPillarsForUser(2);
+
+			const alicePillars = await Pillar.findAll({ where: { userId: 1 }, order: [['id', 'ASC']] });
+			const bobPillars = await Pillar.findAll({ where: { userId: 2 }, order: [['id', 'ASC']] });
+
+			// Bob versucht, eine von Alices Säulen in seiner Gewichtung zu verwenden
+			const weights = bobPillars.map((p) => ({ id: p.id, weight: 20 }));
+			weights[0] = { id: alicePillars[0]!.id, weight: 20 };
+			const res = await put('/pillars/weights', { weights }, bobCookie);
+			assert.equal(res.status, 400, 'fremde Säulen-id in weights wird abgewiesen');
+		});
+
 		it('400 bei doppelter id', async () => {
 			const aliceCookie = await login('alice@example.com');
 			const userId = 1;
@@ -293,12 +311,12 @@ describe('Pillars API', () => {
 				assert.equal(res.status, 400, 'leerer Name wird abgewiesen');
 			});
 
-			it('400 bei Dublette (name, userId) (AK1)', async () => {
+			it('409 bei Dublette (name, userId) (AK2)', async () => {
 				const aliceCookie = await login('alice@example.com');
 				await post('/pillars', { name: 'Meditation', description: 'Erste' }, aliceCookie);
 
 				const res = await post('/pillars', { name: 'Meditation', description: 'Zweite' }, aliceCookie);
-				assert.equal(res.status, 400, 'Dublette für denselben Nutzer wird abgewiesen');
+				assert.equal(res.status, 409, 'Dublette für denselben Nutzer wird mit 409 abgewiesen (AK2)');
 			});
 
 			it('401 ohne Auth (nicht eingeloggt)', async () => {
@@ -340,6 +358,30 @@ describe('Pillars API', () => {
 
 				const res = await patch(`/pillars/${aliceId}`, { name: '' }, aliceCookie);
 				assert.equal(res.status, 400, 'leerer Name wird abgewiesen');
+			});
+
+			it('409 bei Umbenennung auf bereits vergebenen Namen (AK2)', async () => {
+				const aliceCookie = await login('alice@example.com');
+
+				await post('/pillars', { name: 'Sport', description: 'Erste' }, aliceCookie);
+				await post('/pillars', { name: 'Büro', description: 'Zweite' }, aliceCookie);
+
+				// 'Büro' auf 'Sport' umbenennen → 409 (Name bereits vergeben)
+				const bisRes = await Pillar.findAll({ where: { name: 'Büro' } });
+				const bueroId = bisRes[0]!.id;
+				const res = await patch(`/pillars/${bueroId}`, { name: 'Sport' }, aliceCookie);
+				assert.equal(res.status, 409, 'Umbenennung auf bereits existierenden Namen wird mit 409 abgewiesen (AK2)');
+			});
+
+			it('200 bei Umbenennung auf denselben Namen (idempotent, kein Konflikt)', async () => {
+				const aliceCookie = await login('alice@example.com');
+				const created = (await (await post('/pillars', { name: 'Yoga', description: '' }, aliceCookie)).json()) as {
+					id: number;
+				};
+
+				// Gleicher Name → kein Konflikt (es ist dieselbe Säule)
+				const res = await patch(`/pillars/${created.id}`, { name: 'Yoga' }, aliceCookie);
+				assert.equal(res.status, 200, 'Umbenennung auf denselben Namen ist idempotent');
 			});
 
 			it('401 ohne Auth', async () => {
@@ -419,6 +461,37 @@ describe('Pillars API', () => {
 				const bobCookie = await login('bob@example.com');
 				const res = await del(`/pillars/${aliceId}`, bobCookie);
 				assert.equal(res.status, 404, 'Bob darf Alices Säule nicht löschen');
+			});
+
+			it('204 ermöglicht Löschen der letzten Säule (Task wird neutral)', async () => {
+				const aliceCookie = await login('alice@example.com');
+
+				// Nur eine Säule anlegen
+				const created = (await (await post('/pillars', { name: 'Einzige', description: '' }, aliceCookie)).json()) as {
+					id: number;
+				};
+				const taskRes = await fetch(`${server.baseUrl}/tasks`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json', cookie: aliceCookie },
+					body: JSON.stringify({
+						title: 'Task mit einziger Säule',
+						status: 'Open',
+						priority: 3,
+						estimatedEffort: 1,
+						pillars: [{ pillarId: created.id, share: 100, confidence: 100 }],
+					}),
+				});
+				assert.equal(taskRes.status, 201);
+				const taskId = (await taskRes.json()).id as number;
+
+				// Letzte Säule löschen
+				const deleteRes = await del(`/pillars/${created.id}`, aliceCookie);
+				assert.equal(deleteRes.status, 204, 'letzte Säule kann gelöscht werden');
+
+				// Task hat keine Beiträge mehr → neutral
+				const { TaskPillar } = await import('../models/index.js');
+				const contributions = await TaskPillar.findAll({ where: { taskId } });
+				assert.equal(contributions.length, 0, 'Task hat nach Löschen der letzten Säule keine Beiträge mehr');
 			});
 
 			it('401 ohne Auth', async () => {
