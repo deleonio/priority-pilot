@@ -33,12 +33,6 @@ jobs:
       id-token: write
       actions: read
     steps:
-      - name: Startzeit merken (für weiches Zeitlimit)
-        id: starttime
-        run: |
-          now=$(date +%s)
-          echo "soft_deadline_epoch=$((now + 420))" >> "$GITHUB_OUTPUT"  # 7 min (Kurz-Tier)
-
       - name: Voraussetzung prüfen (GitHub-App-Secrets)
         id: preflight
         env:
@@ -126,16 +120,6 @@ jobs:
             exit 1
           fi
 
-      - name: Fortsetzungs-Stand prüfen (ai:continued)
-        id: continued-before
-        if: steps.preflight.outputs.configured == 'true'
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          PR: ${{ github.event.pull_request.number }}
-        run: |
-          already="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq 'any(.labels[]; .name == "ai:continued")' 2>/dev/null || echo false)"
-          echo "already=${already:-false}" >> "$GITHUB_OUTPUT"
-
       - name: Supersede-Check
         id: supersede-check
         if: steps.preflight.outputs.configured == 'true'
@@ -172,13 +156,10 @@ jobs:
 
           Fehlende Labels vorher mit gh label create anlegen.
 
-          WEICHES ZEITLIMIT (Soft-Abort): Prüfe VOR jedem größeren Prüfaspekt date +%s gegen SOFT_DEADLINE. Ist das Limit erreicht: Teil-Findings im <!-- ai-review -->-Kommentar als unvollständig festhalten, gh pr edit PR_NR --add-label ai:continued, dann ai:needs-review entfernen+sofort wieder setzen (Selbst-Retrigger). KEIN ai:needs-changes/ai:ready-to-merge setzen. Turn beenden.
-
           WICHTIG: Ändere KEINEN Code, committe nichts. Reiner Review. Keine interaktive Rückfrage.
           HERMES_EOF
 
           sed -i "s/#PR_NR/${{ github.event.pull_request.number }}/g" /tmp/hermes-prompt.txt
-          sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/hermes-prompt.txt
 
           RESUME_ARG=""
           if [ -n "${{ steps.session-restore.outputs.resume_arg }}" ]; then
@@ -225,25 +206,8 @@ jobs:
           retention-days: 30
           overwrite: true
 
-      - name: Soft-Abort-Fortsetzung erkennen und begrenzen (ai:continued)
-        id: soft-abort-cap
-        if: always() && steps.preflight.outputs.configured == 'true' && steps.hermes.outcome == 'success'
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          PR: ${{ github.event.pull_request.number }}
-          ALREADY_CONTINUED: ${{ steps.continued-before.outputs.already }}
-        run: |
-          has_continued="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq 'any(.labels[]; .name == "ai:continued")' 2>/dev/null || echo false)"
-          if [ "${has_continued:-false}" != "true" ]; then echo "handled=false" >> "$GITHUB_OUTPUT"; exit 0; fi
-          if [ "${ALREADY_CONTINUED:-false}" = "true" ]; then
-            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-review" 2>/dev/null || true
-            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label "ai:continued" 2>/dev/null || true
-            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "🛑 Review-Fortsetzungs-Obergrenze erreicht — bitte manuell prüfen." 2>/dev/null || true
-          fi
-          echo "handled=true" >> "$GITHUB_OUTPUT"
-
       - name: Label-Post-Assertion (Safe-Default ai:needs-changes + Allowlist-Check-Guard)
-        if: always() && steps.preflight.outputs.configured == 'true' && (steps.hermes.outcome == 'success' || steps.hermes.outcome == 'failure') && steps.soft-abort-cap.outputs.handled != 'true'
+        if: always() && steps.preflight.outputs.configured == 'true' && (steps.hermes.outcome == 'success' || steps.hermes.outcome == 'failure')
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR: ${{ github.event.pull_request.number }}
