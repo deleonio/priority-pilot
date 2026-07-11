@@ -1,0 +1,248 @@
+name: Mistral Vibe Triage (Analyse)
+
+# Stösst die KI-Analyse (Triage) eines Issues automatisch an — Mistral Vibe Alternative.
+#
+# Triggert bei:
+#  - neuem Issue (issues: opened)
+#  - Entfernen von Label "ai:analyzed" oder "ai:to-big-issue" (issues: unlabeled)
+#  - @vibe-Kommentar einer Person mit Schreibzugriff (issue_comment: created)
+#
+# Setzt Mistral Vibe Coding Agent über die Mistral API ein.
+# Voraussetzung: Repo-Secret MISTRAL_API_KEY (https://console.mistral.ai/)
+#
+# Zusätzliche Bedingung: Issue muss das Label "ai:use-mistral" tragen.
+
+on:
+  issues:
+    types: [opened, unlabeled]
+  issue_comment:
+    types: [created]
+
+concurrency:
+  group: vibe-triage-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  triage:
+    if: >-
+      ${{ (github.event_name == 'issues'
+            && github.event.issue.state == 'open'
+            && contains(github.event.issue.labels.*.name, 'ai:use-mistral')
+            && (
+                 (github.event.action == 'opened'
+                   && !contains(github.event.issue.labels.*.name, 'ai:analyzed')
+                   && (github.event.issue.author_association == 'OWNER'
+                       || github.event.issue.author_association == 'MEMBER'
+                       || github.event.issue.author_association == 'COLLABORATOR'))
+                 || (github.event.action == 'unlabeled'
+                     && (github.event.label.name == 'ai:analyzed'
+                         || github.event.label.name == 'ai:to-big-issue'))
+               ))
+          || (github.event_name == 'issue_comment'
+              && github.event.issue.pull_request == null
+              && contains(github.event.comment.body, '@vibe')
+              && contains(github.event.issue.labels.*.name, 'ai:use-mistral')
+              && (github.event.comment.author_association == 'OWNER'
+                  || github.event.comment.author_association == 'MEMBER'
+                  || github.event.comment.author_association == 'COLLABORATOR')) }}
+    runs-on: ubuntu-latest
+    env:
+      VIBE_HOME: /tmp/vibe-ci
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+      pull-requests: write
+    steps:
+      - name: Startzeit merken (für Timeout-Erkennung + weiches Zeitlimit)
+        id: starttime
+        run: |
+          now=$(date +%s)
+          echo "epoch=$now" >> "$GITHUB_OUTPUT"
+          echo "soft_deadline_epoch=$((now + 420))" >> "$GITHUB_OUTPUT"  # 7 min (Kurz-Tier)
+
+      - name: Voraussetzung prüfen (GitHub-App-Secrets)
+        id: preflight
+        env:
+          APP_ID: ${{ secrets.APP_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+        run: |
+          if [ -z "$APP_ID" ] || [ -z "$APP_PRIVATE_KEY" ]; then
+            echo "::warning::GitHub-App-Secrets fehlen — Lauf wird übersprungen. GitHub App anlegen (Issues/Contents/Pull requests = Read and write), aufs Repo installieren und beide Werte als Repo-Secrets (APP_ID + APP_PRIVATE_KEY) hinterlegen."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: GitHub-App-Token erzeugen
+        id: app-token
+        if: steps.preflight.outputs.configured == 'true'
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: GH_TOKEN-Fallback setzen (App-Token oder GITHUB_TOKEN)
+        id: gh-token
+        run: |
+          APP_TOK="${{ steps.app-token.outputs.token }}"
+          if [ -n "$APP_TOK" ] && [ "$APP_TOK" != "null" ]; then
+            echo "token=$APP_TOK" >> "$GITHUB_OUTPUT"
+            echo "::notice::Nutze GitHub-App-Token für gh-Befehle."
+          else
+            echo "token=${{ github.token }}" >> "$GITHUB_OUTPUT"
+            echo "::warning::App-Token nicht verfügbar — nutze GITHUB_TOKEN (Achtung: Label-Wechsel lösen ggf. keine Folge-Workflows aus)."
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Mistral Vibe installieren
+        if: steps.preflight.outputs.configured == 'true'
+        run: |
+          curl -fsSL https://vibe.mistral.ai/install.sh | bash -s -- --skip-browser --skip-setup
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - name: Mistral Vibe konfigurieren
+        if: steps.preflight.outputs.configured == 'true'
+        run: |
+          vibe config set model.provider mistral
+          vibe config set model.base_url https://api.mistral.ai/v1
+          vibe config set agent.max_turns 90
+
+      - name: API-Key prüfen (MISTRAL_API_KEY)
+        if: steps.preflight.outputs.configured == 'true'
+        env:
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          if [ -z "$MISTRAL_API_KEY" ]; then
+            echo "::error title=API-Key fehlt::MISTRAL_API_KEY nicht gesetzt — als Repo-Secret hinterlegen (https://console.mistral.ai/). Ohne Key läuft Vibe nicht."
+            gh label create "ai:to-big-issue" --repo "$GITHUB_REPOSITORY" \
+              --color B60205 --description "KI-Job lief rot (Konfiguration/Secret) — bitte prüfen" 2>/dev/null || true
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:to-big-issue" 2>/dev/null || true
+            exit 1
+          fi
+          echo "MISTRAL_API_KEY vorhanden."
+
+      - name: Triage via Mistral Vibe
+        id: vibe
+        if: steps.preflight.outputs.configured == 'true'
+        env:
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+        run: |
+          cat > /tmp/vibe-prompt.txt << 'VIBE_EOF'
+          Führe für GENAU DIESES EINE Issue (#ISSUE_NR) den Ticket-Triage-Workflow aus der Wissensbasis aus — verbindlicher Ablauf: .ai-knowledge/ticket-triage.md.
+
+          Wichtige Hinweise für den Mistral Vibe Agenten:
+
+          TRIGGER-ERKENNUNG (Re-Triage oder Erst-Triage):
+            Die Analyse läuft entweder zum ersten Mal (Erst-Triage) oder als aktualisierte Analyse (Re-Triage). Das erkennst du am Body-Block: existiert bereits <!-- KI-ANALYSE:START stand=... --> ... <!-- KI-ANALYSE:END --> im Issue-Body, ist es eine Re-Triage. Dann den stand-Timestamp auslesen und NUR die Delta-Kommentare seit stand lesen (gh issue view #ISSUE_NR --json comments --jq '.comments[] | select(.createdAt > "<stand>")'), NICHT den ganzen Thread. Fehlt der Body-Block, ist es eine Erst-Analyse.
+
+          ABLAUF:
+            1. Lektoriere die Issue-Beschreibung (Form verbessern, Inhalt unverändert, via gh issue edit --body-file -).
+            2. Prüfe den Titel auf Konsistenz zur Beschreibung/zum Ziel und optimiere ihn bei Inkonsistenz inhaltlich treu (kein Edit pro forma, keine Titel-Drift, via gh issue edit --title ...).
+            3. Zerlege zu große Tickets in verknüpfte Sub-Issues (max. eine Ebene, Rekursionsschutz via Label 'ai:analyzed').
+            4. Schreibe die Analyse mit prüfbaren Akzeptanzkriterien + Testfällen und Umsetzbarkeits-Ampel (🟢/🟡/🔴) in einen markierten Block in der Issue-Beschreibung (gh issue edit --body-file -).
+            5. Setze genau EINEN kurzen Ping-Kommentar (gh issue comment; bei offenen Fragen mit @author).
+            6. Labels als ALLERLETZTEN Schritt — NIE davor (sonst startet die nächste Pipeline-Stufe mit veraltetem Issue-Inhalt).
+
+          BODY-BLOCK-FORMAT:
+            Der Analyse-Block muss zwischen diesen Markern stehen:
+            <!-- KI-ANALYSE:START stand=<aktuelles Datum in ISO-8601> -->
+            ...
+            <!-- KI-ANALYSE:END -->
+            Bei Re-Triage: existierenden Block zwischen den Markern IN-PLACE ersetzen (per sed im Body-File oder gh issue edit mit vollständigem Body). Die Original-Beschreibung oberhalb des START-Markers NICHT überschreiben.
+            Bei Erst-Analyse: Block neu in die Beschreibung einfügen (gh issue view --json body um den aktuellen Body zu holen, dann mit cat/printf den Block anhängen).
+
+          LABEL-SETZEN (immer als ALLERLETZTER Schritt, nach Body-Block UND Ping-Kommentar):
+            - Immer 'ai:analyzed' setzen.
+            - Bei 🟢 zusätzlich 'ai:spec-ready' (startet die Spec-Stufe).
+            - Bei 🟡/🔴: evtl. vorhandenes 'ai:spec-ready'/'ai:ready' entfernen.
+            Verwende gh issue edit --add-label/--remove-label dafür. Fehlende Labels vorher mit gh label create anlegen.
+
+          WERKZEUGE:
+            Du hast Zugriff auf die Bash (für gh issue/gh api/gh label/gh pr/gh repo), Datei-Lese-Werkzeuge. Die gh-Befehle sind über GH_TOKEN authentifiziert. Lies die Wissensbasis aus .ai-knowledge/ticket-triage.md für den vollständigen Ablauf. Lese die Issue-Daten via gh issue view und die Wissensbasis via read_file.
+
+          WEICHES ZEITLIMIT (Soft-Abort):
+            Dieser Lauf wird nach 12 Minuten von GitHub HART abgebrochen. Prüfe daher VOR jedem größeren Teilschritt (neue Analyse-Runde, längere Recherche), ob das weiche Limit (7 Minuten nach Start) erreicht ist — berechne es mit: date +%s und vergleiche mit SOFT_DEADLINE.
+            Ist das Limit erreicht: schreibe die bisherige Analyse (auch unvollständig) als Body-Block in die Beschreibung. Setze KEIN Label und poste KEINEN Ping-Kommentar. Beende den Turn sofort (keine weiteren Schritte). So bleibt das Issue für einen sauberen Folgelauf offen.
+
+          WICHTIG:
+            - Bearbeite ausschließlich dieses eine Issue (kein Batch).
+            - Committe keinen Produktivcode.
+            - Keine interaktive Bestätigung nötig — der Trigger autorisiert den Lauf.
+            - Du arbeitest autonom. Schreibe Lektorat, Analyse-Body-Block, Ping-Kommentar und setze die Labels im vorgegebenen Ablauf.
+          VIBE_EOF
+
+          sed -i "s/#ISSUE_NR/${{ github.event.issue.number }}/g" /tmp/vibe-prompt.txt
+          sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/vibe-prompt.txt
+
+          vibe chat -q "$(cat /tmp/vibe-prompt.txt)" \
+            -Q --yolo --provider mistral \
+            -m "mistral-large-latest" \
+            -t "terminal,file" \
+            --max-turns 90 \
+            --accept-hooks \
+            2>&1 | tee /tmp/vibe-output.log
+          test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
+
+      - name: Mistral Vibe Session-ID erfassen
+        if: always()
+        id: session
+        run: |
+          if [ -f /tmp/vibe-output.log ]; then
+            sid="$(grep '^session_id:' /tmp/vibe-output.log | head -1 | sed 's/^session_id:[[:space:]]*//')"
+            if [ -n "$sid" ]; then
+              echo "session_id=$sid" >> "$GITHUB_OUTPUT"
+              echo "::notice::Mistral Vibe Session-ID: $sid"
+            fi
+          fi
+
+      - name: Bei hartem Timeout als zu gross markieren
+        if: always() && steps.preflight.outputs.configured == 'true' && steps.vibe.outcome == 'cancelled'
+        env:
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          ISSUE: ${{ github.event.issue.number }}
+          RUN_START: ${{ steps.starttime.outputs.epoch }}
+        run: |
+          elapsed=$(( $(date +%s) - ${RUN_START:-0} ))
+          if [ "${RUN_START:-0}" -eq 0 ] || [ "$elapsed" -lt 600 ]; then
+            echo "::notice title=Kein Timeout::Lauf nach ${elapsed}s abgebrochen (< 10 Min) — vermutlich Supersede/Cancel, kein ai:to-big-issue."
+            exit 0
+          fi
+          gh label create "ai:to-big-issue" --repo "$GITHUB_REPOSITORY" \
+            --color B60205 --description "KI-Job lief in den Timeout — Issue zu gross, bitte aufteilen" 2>/dev/null || true
+          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:to-big-issue"
+          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:spec-ready" 2>/dev/null || true
+          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
+          echo "::warning title=Issue #${ISSUE} zu gross::20-Min-Timeout erreicht (${elapsed}s) — Label ai:to-big-issue gesetzt; bitte Issue aufteilen."
+
+      - name: Ergebnis zusammenfassen
+        if: always() && steps.preflight.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          ISSUE: ${{ github.event.issue.number }}
+          OUTCOME: ${{ steps.vibe.outcome }}
+          SESSION_ID: ${{ steps.session.outputs.session_id }}
+        run: |
+          labels="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "::notice title=✅ Triage erfolgreich::Issue #${ISSUE} vollständig analysiert"
+          elif [ "$OUTCOME" = "cancelled" ]; then
+            echo "::warning title=⏸️ Triage abgebrochen::Lauf durch neueren Trigger verdrängt oder 20-Min-Timeout (kein Fehler)"
+          else
+            echo "::error title=❌ Triage fehlgeschlagen::Mistral Vibe-Lauf gescheitert (Code ${OUTCOME:-unbekannt})"
+          fi
+          {
+            echo "### (Re-)Triage #${ISSUE} — fertig"
+            echo ""
+            echo "- Mistral Vibe Schritt: \`${OUTCOME:-unbekannt}\` (cancelled = 20-Min-Timeout erreicht oder Supersede)"
+            echo "- Aktuelle Labels: ${labels:-keine}"
+            if [ -n "$SESSION_ID" ]; then
+              echo "- Mistral Vibe Session-ID: \`${SESSION_ID}\`"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=(Re-)Triage #${ISSUE} fertig::Mistral Vibe Schritt ${OUTCOME:-unbekannt}; Labels: ${labels:-keine}"
