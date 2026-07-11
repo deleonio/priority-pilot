@@ -345,8 +345,24 @@ jobs:
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           PR: ${{ github.event.pull_request.number }}
         run: |
-          labels_json="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name]' 2>/dev/null || echo '[]')"
-          needs_changes="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:needs-changes")')"
-          ready_to_merge="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:ready-to-merge")')"
+          # Retry: API-Read-After-Write kann bei gh pr edit --add-label + direktem
+          # gh pr view das Label auf einem Replica noch nicht sehen (Race).
+          for i in 1 2 3; do
+            labels_json="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name]' 2>/dev/null || echo '[]')"
+            needs_changes="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:needs-changes")')"
+            ready_to_merge="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:ready-to-merge")')"
+            if [ "$needs_changes" = "true" ] || [ "$ready_to_merge" = "true" ]; then break; fi
+            if [ "$i" -lt 3 ]; then sleep 2; fi
+          done
+
+          # Fallback: VERDICT aus Hermes-Output — falls API-Label immer noch nicht sichtbar ist
+          if [ "$ready_to_merge" != "true" ] && [ -f /tmp/hermes-output.log ]; then
+            verdict="$(grep -oP '^VERDICT:\s*\K.*' /tmp/hermes-output.log | tail -1 | tr -d '[:space:]' || true)"
+            if [ "$verdict" = "ready-to-merge" ]; then
+              echo "::notice::ai:ready-to-merge im API-Read unsichtbar, aber VERDICT=ready-to-merge im Output — als gesetzt gewertet."
+              ready_to_merge='true'
+            fi
+          fi
+
           if [ "$needs_changes" = "true" ]; then echo "::error title=Review: Änderungen erforderlich::PR #${PR}" && exit 1; fi
           if [ "$ready_to_merge" != "true" ]; then echo "::error title=Review stecken geblieben::PR #${PR}" && exit 1; fi
