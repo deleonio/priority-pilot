@@ -213,7 +213,7 @@ jobs:
           HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
         run: |
           running=$(gh api repos/${GITHUB_REPOSITORY}/actions/runs \
-            --jq '.workflow_runs[] | select(.name == "Hermes PR Fixup" and (.status == "queued" or .status == "in_progress") and .head_branch == $ENV.HEAD_BRANCH and .id != ${{ github.run_id }}) | .id' 2>/dev/null | head -1)
+            --jq '.workflow_runs[] | select(.name == "Hermes PR Fixup (Findings umsetzen)" and (.status == "queued" or .status == "in_progress") and .head_branch == $ENV.HEAD_BRANCH and .id != ${{ github.run_id }}) | .id' 2>/dev/null | head -1)
           if [ -n "$running" ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; fi
 
       - name: Findings umsetzen via Hermes (DeepSeek Flash)

@@ -128,7 +128,7 @@ jobs:
           HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
         run: |
           running=$(gh api repos/${GITHUB_REPOSITORY}/actions/runs \
-            --jq '.workflow_runs[] | select(.name == "Hermes PR Review" and (.status == "queued" or .status == "in_progress") and .head_branch == $ENV.HEAD_BRANCH and .id != ${{ github.run_id }}) | .id' 2>/dev/null | head -1)
+            --jq '.workflow_runs[] | select(.name == "Hermes PR Review (Kreuzverhoer)" and (.status == "queued" or .status == "in_progress") and .head_branch == $ENV.HEAD_BRANCH and .id != ${{ github.run_id }}) | .id' 2>/dev/null | head -1)
           if [ -n "$running" ]; then
             echo "::notice::Review-Lauf läuft bereits — übersprungen."
             echo "skip=true" >> "$GITHUB_OUTPUT"
@@ -151,6 +151,8 @@ jobs:
             - PR ist solide (🟢) → KEINE Pseudo-Findings, knappe 🟢-Bestätigung, ERST DANACH: ai:needs-review entfernen, ai:ready-to-merge setzen
 
           Sammelkommentar konsolidieren: Urteil als GENAU EINEN <!-- ai-review -->-Kommentar pflegen. Vorhandenen suchen und aktualisieren statt neu anzulegen.
+
+          VERDICT-MARKER: Gib GANZ AM ENDE deiner letzten Antwort eine Zeile aus: `VERDICT: ready-to-merge` (bei 🟢) oder `VERDICT: needs-changes` (bei Findings). Der Workflow parst diese Zeile als Fallback, falls du die Labels nicht selbst setzen konntest (z.B. bei Token-Problemen).
 
           Bei Folge-Review (markierter Kommentar existiert): NUR den Diff SEIT dem letzten Review prüfen (über updatedAt des Kommentars). Bereits in "Behobene Anmerkungen" geführte Punkte NICHT erneut aufrollen.
 
@@ -217,6 +219,13 @@ jobs:
           has_ready="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:ready-to-merge")')"
           has_review="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:needs-review")')"
 
+          # VERDICT aus Hermes-Output parsen (Fallback, falls Agent Labels nicht selbst setzen konnte)
+          verdict=""
+          if [ -f /tmp/hermes-output.log ]; then
+            verdict="$(grep -oP '^VERDICT:\s*\K.*' /tmp/hermes-output.log | tail -1 | tr -d '[:space:]' || true)"
+          fi
+          echo "Hermes-Verdict aus Output: '${verdict:-keins}'"
+
           # Allowlist-Checks (CI + Reviewer) auf grünen Status prüfen
           # Wir nutzen dieselbe Retry-Logik wie der Gate-Workflow
           allow='[]'
@@ -242,16 +251,32 @@ jobs:
             any_fail="$(echo "$allow" | jq -r 'any(.[]; .bucket == "fail")')"
           fi
 
-          # Safe-Default: Kein Ergebnis-Label oder Allowlist-Check rot → ai:needs-changes setzen
+          # Safe-Default-Logik: Kein Ergebnis-Label, Allowlist-Check rot ODER verdict=needs-changes → ai:needs-changes setzen
           should_set_needs_changes='false'
           reason=''
 
-          if [ "$has_changes" != "true" ] && [ "$has_ready" != "true" ]; then
-            # Kein Ergebnis-Label gesetzt → Safe-Default
+          # 1) Wenn Hermes verdict=needs-changes gemeldet hat, immer ai:needs-changes setzen
+          if [ "$verdict" = "needs-changes" ] && [ "$has_changes" != "true" ]; then
             should_set_needs_changes='true'
-            reason='Review ohne Ergebnis-Label'
+            reason='Hermes-Verdict: needs-changes'
+          # 2) Kein Ergebnis-Label gesetzt → Safe-Default (nur wenn verdict nicht ready-to-merge)
+          elif [ "$has_changes" != "true" ] && [ "$has_ready" != "true" ]; then
+            if [ "$verdict" = "ready-to-merge" ]; then
+              # Hermes sagte 🟢, konnte Label aber nicht setzen → korrigieren statt Safe-Default
+              echo "Hermes-Verdict ist ready-to-merge, aber kein Label gesetzt → korrigiere."
+              if [ "$has_review" = "true" ]; then
+                gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-review 2>/dev/null || true
+              fi
+              gh label create "ai:ready-to-merge" --repo "$GITHUB_REPOSITORY" --color 0E8A16 2>/dev/null || true
+              gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:ready-to-merge
+              should_set_needs_changes='false'
+            else
+              # Kein verdict und kein Label → Safe-Default
+              should_set_needs_changes='true'
+              reason='Review ohne Ergebnis-Label'
+            fi
+          # 3) ai:ready-to-merge gesetzt, aber Allowlist-Check rot → korrigieren
           elif [ "$has_ready" = "true" ] && [ "$any_fail" = "true" ]; then
-            # ai:ready-to-merge gesetzt, aber Allowlist-Check rot → korrigieren
             should_set_needs_changes='true'
             reason='ai:ready-to-merge gesetzt, aber Allowlist-Check rot'
           fi

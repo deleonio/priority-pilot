@@ -179,9 +179,9 @@ jobs:
           for attempt in 1 2 3 4 5; do
             checks="$(gh pr checks "$pr" --repo "$REPO" --json name,bucket,workflow)" || true
             if [ -z "$checks" ]; then checks='[]'; fi
-            allow="$(echo "$checks" | jq '[.[] | select(.workflow == "CI" or .workflow == "Claude PR Review (Kreuzverhoer)")]')"
+            allow="$(echo "$checks" | jq '[.[] | select(.workflow == "CI" or .workflow == "Hermes PR Review (Kreuzverhoer)")]')"
             has_ci="$(echo "$allow" | jq -r 'any(.[]; .workflow == "CI")')"
-            has_review="$(echo "$allow" | jq -r 'any(.[]; .workflow == "Claude PR Review (Kreuzverhoer)")')"
+            has_review="$(echo "$allow" | jq -r 'any(.[]; .workflow == "Hermes PR Review (Kreuzverhoer)")')"
             if [ "$has_ci" = "true" ] && [ "$has_review" = "true" ]; then
               break
             fi
