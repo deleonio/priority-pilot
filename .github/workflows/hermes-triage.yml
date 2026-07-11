@@ -64,6 +64,7 @@ jobs:
       contents: read
       issues: write
       id-token: write
+      pull-requests: write
     steps:
       # ──────────────────────────────────────────────
       # 1. Startzeit (für Timeout-Erkennung + Soft-Abort)
@@ -78,14 +79,14 @@ jobs:
       # ──────────────────────────────────────────────
       # 2. GitHub-App-Setup (für Label/Push als Bot)
       # ──────────────────────────────────────────────
-      - name: Voraussetzung prüfen (GitHub-App-Secrets, optional)
+      - name: Voraussetzung prüfen (GitHub-App-Secrets)
         id: preflight
         env:
           APP_ID: ${{ secrets.APP_ID }}
           APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
         run: |
           if [ -z "$APP_ID" ] || [ -z "$APP_PRIVATE_KEY" ]; then
-            echo "::notice::GitHub-App-Secrets fehlen — (Re-)Triage läuft mit GITHUB_TOKEN; der Auto-Trigger der Spec-Stufe (ai:spec-ready -> claude-spec.yml) entfällt. Für den Trigger eine GitHub App (Issues/Contents/Pull requests = Read and write) als APP_ID + APP_PRIVATE_KEY hinterlegen."
+            echo "::warning::GitHub-App-Secrets fehlen — Lauf wird übersprungen. GitHub App anlegen (Issues/Contents/Pull requests = Read and write), aufs Repo installieren und beide Werte als Repo-Secrets (APP_ID + APP_PRIVATE_KEY) hinterlegen."
             echo "configured=false" >> "$GITHUB_OUTPUT"
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
@@ -98,8 +99,20 @@ jobs:
           client-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
+      - name: GH_TOKEN-Fallback setzen (App-Token oder GITHUB_TOKEN)
+        id: gh-token
+        run: |
+          APP_TOK="${{ steps.app-token.outputs.token }}"
+          if [ -n "$APP_TOK" ] && [ "$APP_TOK" != "null" ]; then
+            echo "token=$APP_TOK" >> "$GITHUB_OUTPUT"
+            echo "::notice::Nutze GitHub-App-Token für gh-Befehle."
+          else
+            echo "token=${{ github.token }}" >> "$GITHUB_OUTPUT"
+            echo "::warning::App-Token nicht verfügbar — nutze GITHUB_TOKEN (Achtung: Label-Wechsel lösen ggf. keine Folge-Workflows aus)."
+          fi
+
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@v7
 
       # ──────────────────────────────────────────────
       # 3. uv-Paketcache (beschleunigt Hermes-Installation)
@@ -167,9 +180,10 @@ jobs:
       # 5. API-Key-Prüfung (OPENROUTER_API_KEY)
       # ──────────────────────────────────────────────
       - name: API-Key prüfen (OPENROUTER_API_KEY)
+        if: steps.preflight.outputs.configured == 'true'
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
           if [ -z "$OPENROUTER_API_KEY" ]; then
@@ -203,9 +217,10 @@ jobs:
       # OPENROUTER_API_KEY für die LLM-API.
       - name: Triage via Hermes (DeepSeek Pro)
         id: hermes
+        if: steps.preflight.outputs.configured == 'true'
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
         run: |
           # Prompt per Heredoc schreiben — 'HERMES_EOF' (single-quoted) verhindert
           # bash-Variable-Expansion innerhalb des Heredocs, während GitHub Actions
@@ -317,9 +332,9 @@ jobs:
       # 8. Bei hartem Timeout als zu gross markieren
       # ──────────────────────────────────────────────
       - name: Bei Timeout als zu gross markieren (ai:to-big-issue)
-        if: always() && steps.hermes.outcome == 'cancelled'
+        if: always() && steps.preflight.outputs.configured == 'true' && steps.hermes.outcome == 'cancelled'
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
           RUN_START: ${{ steps.starttime.outputs.epoch }}
         run: |
@@ -339,9 +354,9 @@ jobs:
       # 9. Ergebnis zusammenfassen
       # ──────────────────────────────────────────────
       - name: Ergebnis zusammenfassen
-        if: always()
+        if: always() && steps.preflight.outputs.configured == 'true'
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
           OUTCOME: ${{ steps.hermes.outcome }}
           SESSION_ID: ${{ steps.session.outputs.session_id }}

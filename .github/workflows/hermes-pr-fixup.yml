@@ -15,7 +15,7 @@ on:
 
 concurrency:
   group: hermes-pr-fixup-${{ github.event.pull_request.number }}
-  cancel-in-progress: false
+  cancel-in-progress: true # Neuer Fixup-Lauf bricht laufenden ab (nur nach neuem Review-Urteil)
 
 jobs:
   fixup:
@@ -30,6 +30,7 @@ jobs:
       contents: read
       id-token: write
       actions: read
+      pull-requests: write
     steps:
       - name: Startzeit merken (für weiches Zeitlimit)
         id: starttime
@@ -57,13 +58,25 @@ jobs:
           client-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
+      - name: GH_TOKEN-Fallback setzen (App-Token oder GITHUB_TOKEN)
+        id: gh-token
+        run: |
+          APP_TOK="${{ steps.app-token.outputs.token }}"
+          if [ -n "$APP_TOK" ] && [ "$APP_TOK" != "null" ]; then
+            echo "token=$APP_TOK" >> "$GITHUB_OUTPUT"
+            echo "::notice::Nutze GitHub-App-Token für gh-Befehle."
+          else
+            echo "token=${{ github.token }}" >> "$GITHUB_OUTPUT"
+            echo "::warning::App-Token nicht verfügbar — nutze GITHUB_TOKEN (Achtung: Label-Wechsel lösen ggf. keine Folge-Workflows aus)."
+          fi
+
       - name: Checkout (PR-Head-Branch)
         if: steps.preflight.outputs.configured == 'true'
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{ steps.gh-token.outputs.token }}
 
       - name: Cache-Key für uv berechnen
         id: uv-cache-key
@@ -150,7 +163,7 @@ jobs:
         id: resolve-conflicts
         if: steps.preflight.outputs.configured == 'true'
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           PR: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
           TARGET_BRANCH: ${{ github.event.pull_request.base.ref }}
@@ -189,7 +202,7 @@ jobs:
         id: stop-guard
         if: steps.preflight.outputs.configured == 'true'
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           PR: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
         run: |
@@ -209,11 +222,11 @@ jobs:
         id: supersede-check
         if: steps.preflight.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
         run: |
           running=$(gh api repos/${GITHUB_REPOSITORY}/actions/runs \
-            --jq '.workflow_runs[] | select(.name == "Hermes PR Fixup" and (.status == "queued" or .status == "in_progress") and .head_branch == $ENV.HEAD_BRANCH and .id != ${{ github.run_id }}) | .id' 2>/dev/null | head -1)
+            --jq '.workflow_runs[] | select(.name == "Hermes PR Fixup (Findings umsetzen)" and (.status == "queued" or .status == "in_progress") and .head_branch == $ENV.HEAD_BRANCH and .id != ${{ github.run_id }}) | .id' 2>/dev/null | head -1)
           if [ -n "$running" ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; fi
 
       - name: Findings umsetzen via Hermes (DeepSeek Flash)
@@ -221,7 +234,7 @@ jobs:
         if: steps.preflight.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true' && steps.supersede-check.outputs.skip != 'true'
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
         run: |
           cat > /tmp/hermes-prompt.txt << 'HERMES_EOF'
           Auf Pull Request #PR_NR hat der Review das Label `ai:needs-changes` gesetzt. Arbeite die offenen Kreuzverhör-Findings ab.
@@ -290,7 +303,7 @@ jobs:
       - name: Soft-Abort-Fortsetzung erkennen und begrenzen (ai:continued)
         if: always() && steps.preflight.outputs.configured == 'true' && steps.hermes.outcome == 'success'
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           PR: ${{ github.event.pull_request.number }}
           ALREADY_CONTINUED: ${{ steps.continued-before.outputs.already }}
         run: |
@@ -303,7 +316,7 @@ jobs:
       - name: Ergebnis zusammenfassen
         if: always() && steps.preflight.outputs.configured == 'true'
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           PR: ${{ github.event.pull_request.number }}
           OUTCOME: ${{ steps.hermes.outcome }}
           SESSION_ID: ${{ steps.session.outputs.session_id }}

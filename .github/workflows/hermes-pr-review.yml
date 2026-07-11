@@ -17,7 +17,7 @@ on:
 
 concurrency:
   group: hermes-pr-review-${{ github.event.pull_request.number }}
-  cancel-in-progress: false
+  cancel-in-progress: true # Fixup-Loop: neuer Review bricht laufenden Review ab (sinnvoll bei Code-Änderungen)
 
 jobs:
   review:
@@ -32,13 +32,9 @@ jobs:
       contents: read
       id-token: write
       actions: read
+      pull-requests: write
+      issues: write
     steps:
-      - name: Startzeit merken (für weiches Zeitlimit)
-        id: starttime
-        run: |
-          now=$(date +%s)
-          echo "soft_deadline_epoch=$((now + 420))" >> "$GITHUB_OUTPUT"  # 7 min (Kurz-Tier)
-
       - name: Voraussetzung prüfen (GitHub-App-Secrets)
         id: preflight
         env:
@@ -59,9 +55,21 @@ jobs:
           client-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
+      - name: GH_TOKEN-Fallback setzen (App-Token oder GITHUB_TOKEN)
+        id: gh-token
+        run: |
+          APP_TOK="${{ steps.app-token.outputs.token }}"
+          if [ -n "$APP_TOK" ] && [ "$APP_TOK" != "null" ]; then
+            echo "token=$APP_TOK" >> "$GITHUB_OUTPUT"
+            echo "::notice::Nutze GitHub-App-Token für gh-Befehle."
+          else
+            echo "token=${{ github.token }}" >> "$GITHUB_OUTPUT"
+            echo "::warning::App-Token nicht verfügbar — nutze GITHUB_TOKEN (Achtung: Label-Wechsel lösen ggf. keine Folge-Workflows aus)."
+          fi
+
       - name: Checkout
         if: steps.preflight.outputs.configured == 'true'
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -126,25 +134,15 @@ jobs:
             exit 1
           fi
 
-      - name: Fortsetzungs-Stand prüfen (ai:continued)
-        id: continued-before
-        if: steps.preflight.outputs.configured == 'true'
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          PR: ${{ github.event.pull_request.number }}
-        run: |
-          already="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq 'any(.labels[]; .name == "ai:continued")' 2>/dev/null || echo false)"
-          echo "already=${already:-false}" >> "$GITHUB_OUTPUT"
-
       - name: Supersede-Check
         id: supersede-check
         if: steps.preflight.outputs.configured == 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
         run: |
           running=$(gh api repos/${GITHUB_REPOSITORY}/actions/runs \
-            --jq '.workflow_runs[] | select(.name == "Hermes PR Review" and (.status == "queued" or .status == "in_progress") and .head_branch == $ENV.HEAD_BRANCH and .id != ${{ github.run_id }}) | .id' 2>/dev/null | head -1)
+            --jq '.workflow_runs[] | select(.name == "Hermes PR Review (Kreuzverhoer)" and (.status == "queued" or .status == "in_progress") and .head_branch == $ENV.HEAD_BRANCH and .id != ${{ github.run_id }}) | .id' 2>/dev/null | head -1)
           if [ -n "$running" ]; then
             echo "::notice::Review-Lauf läuft bereits — übersprungen."
             echo "skip=true" >> "$GITHUB_OUTPUT"
@@ -155,7 +153,7 @@ jobs:
         if: steps.preflight.outputs.configured == 'true' && steps.supersede-check.outputs.skip != 'true'
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
         run: |
           cat > /tmp/hermes-prompt.txt << 'HERMES_EOF'
           Reviewe Pull Request #PR_NR im Kreuzverhör (Label `ai:needs-review` ist gesetzt).
@@ -168,17 +166,16 @@ jobs:
 
           Sammelkommentar konsolidieren: Urteil als GENAU EINEN <!-- ai-review -->-Kommentar pflegen. Vorhandenen suchen und aktualisieren statt neu anzulegen.
 
+          VERDICT-MARKER: Gib GANZ AM ENDE deiner letzten Antwort eine Zeile aus: `VERDICT: ready-to-merge` (bei 🟢) oder `VERDICT: needs-changes` (bei Findings). Der Workflow parst diese Zeile als Fallback, falls du die Labels nicht selbst setzen konntest (z.B. bei Token-Problemen).
+
           Bei Folge-Review (markierter Kommentar existiert): NUR den Diff SEIT dem letzten Review prüfen (über updatedAt des Kommentars). Bereits in "Behobene Anmerkungen" geführte Punkte NICHT erneut aufrollen.
 
           Fehlende Labels vorher mit gh label create anlegen.
-
-          WEICHES ZEITLIMIT (Soft-Abort): Prüfe VOR jedem größeren Prüfaspekt date +%s gegen SOFT_DEADLINE. Ist das Limit erreicht: Teil-Findings im <!-- ai-review -->-Kommentar als unvollständig festhalten, gh pr edit PR_NR --add-label ai:continued, dann ai:needs-review entfernen+sofort wieder setzen (Selbst-Retrigger). KEIN ai:needs-changes/ai:ready-to-merge setzen. Turn beenden.
 
           WICHTIG: Ändere KEINEN Code, committe nichts. Reiner Review. Keine interaktive Rückfrage.
           HERMES_EOF
 
           sed -i "s/#PR_NR/${{ github.event.pull_request.number }}/g" /tmp/hermes-prompt.txt
-          sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/hermes-prompt.txt
 
           RESUME_ARG=""
           if [ -n "${{ steps.session-restore.outputs.resume_arg }}" ]; then
@@ -225,33 +222,23 @@ jobs:
           retention-days: 30
           overwrite: true
 
-      - name: Soft-Abort-Fortsetzung erkennen und begrenzen (ai:continued)
-        id: soft-abort-cap
-        if: always() && steps.preflight.outputs.configured == 'true' && steps.hermes.outcome == 'success'
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          PR: ${{ github.event.pull_request.number }}
-          ALREADY_CONTINUED: ${{ steps.continued-before.outputs.already }}
-        run: |
-          has_continued="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq 'any(.labels[]; .name == "ai:continued")' 2>/dev/null || echo false)"
-          if [ "${has_continued:-false}" != "true" ]; then echo "handled=false" >> "$GITHUB_OUTPUT"; exit 0; fi
-          if [ "${ALREADY_CONTINUED:-false}" = "true" ]; then
-            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-review" 2>/dev/null || true
-            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label "ai:continued" 2>/dev/null || true
-            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "🛑 Review-Fortsetzungs-Obergrenze erreicht — bitte manuell prüfen." 2>/dev/null || true
-          fi
-          echo "handled=true" >> "$GITHUB_OUTPUT"
-
       - name: Label-Post-Assertion (Safe-Default ai:needs-changes + Allowlist-Check-Guard)
-        if: always() && steps.preflight.outputs.configured == 'true' && (steps.hermes.outcome == 'success' || steps.hermes.outcome == 'failure') && steps.soft-abort-cap.outputs.handled != 'true'
+        if: always() && steps.preflight.outputs.configured == 'true' && (steps.hermes.outcome == 'success' || steps.hermes.outcome == 'failure')
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           PR: ${{ github.event.pull_request.number }}
         run: |
           labels_json="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name]' 2>/dev/null || echo '[]')"
           has_changes="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:needs-changes")')"
           has_ready="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:ready-to-merge")')"
           has_review="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:needs-review")')"
+
+          # VERDICT aus Hermes-Output parsen (Fallback, falls Agent Labels nicht selbst setzen konnte)
+          verdict=""
+          if [ -f /tmp/hermes-output.log ]; then
+            verdict="$(grep -oP '^VERDICT:\s*\K.*' /tmp/hermes-output.log | tail -1 | tr -d '[:space:]' || true)"
+          fi
+          echo "Hermes-Verdict aus Output: '${verdict:-keins}'"
 
           # Allowlist-Checks (CI + Reviewer) auf grünen Status prüfen
           # Wir nutzen dieselbe Retry-Logik wie der Gate-Workflow
@@ -278,16 +265,32 @@ jobs:
             any_fail="$(echo "$allow" | jq -r 'any(.[]; .bucket == "fail")')"
           fi
 
-          # Safe-Default: Kein Ergebnis-Label oder Allowlist-Check rot → ai:needs-changes setzen
+          # Safe-Default-Logik: Kein Ergebnis-Label, Allowlist-Check rot ODER verdict=needs-changes → ai:needs-changes setzen
           should_set_needs_changes='false'
           reason=''
 
-          if [ "$has_changes" != "true" ] && [ "$has_ready" != "true" ]; then
-            # Kein Ergebnis-Label gesetzt → Safe-Default
+          # 1) Wenn Hermes verdict=needs-changes gemeldet hat, immer ai:needs-changes setzen
+          if [ "$verdict" = "needs-changes" ] && [ "$has_changes" != "true" ]; then
             should_set_needs_changes='true'
-            reason='Review ohne Ergebnis-Label'
+            reason='Hermes-Verdict: needs-changes'
+          # 2) Kein Ergebnis-Label gesetzt → Safe-Default (nur wenn verdict nicht ready-to-merge)
+          elif [ "$has_changes" != "true" ] && [ "$has_ready" != "true" ]; then
+            if [ "$verdict" = "ready-to-merge" ]; then
+              # Hermes sagte 🟢, konnte Label aber nicht setzen → korrigieren statt Safe-Default
+              echo "Hermes-Verdict ist ready-to-merge, aber kein Label gesetzt → korrigiere."
+              if [ "$has_review" = "true" ]; then
+                gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-review 2>/dev/null || true
+              fi
+              gh label create "ai:ready-to-merge" --repo "$GITHUB_REPOSITORY" --color 0E8A16 2>/dev/null || true
+              gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:ready-to-merge
+              should_set_needs_changes='false'
+            else
+              # Kein verdict und kein Label → Safe-Default
+              should_set_needs_changes='true'
+              reason='Review ohne Ergebnis-Label'
+            fi
+          # 3) ai:ready-to-merge gesetzt, aber Allowlist-Check rot → korrigieren
           elif [ "$has_ready" = "true" ] && [ "$any_fail" = "true" ]; then
-            # ai:ready-to-merge gesetzt, aber Allowlist-Check rot → korrigieren
             should_set_needs_changes='true'
             reason='ai:ready-to-merge gesetzt, aber Allowlist-Check rot'
           fi
@@ -308,7 +311,7 @@ jobs:
       - name: Bei Timeout PR-Kommentar (Alarm)
         if: always() && steps.preflight.outputs.configured == 'true' && steps.hermes.outcome == 'cancelled'
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           PR: ${{ github.event.pull_request.number }}
         run: |
           gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⚠️ **Review #${PR} — 20-Min-Timeout erreicht** Bitte manuell prüfen." 2>/dev/null || true
@@ -316,7 +319,7 @@ jobs:
       - name: Ergebnis zusammenfassen
         if: always() && steps.preflight.outputs.configured == 'true'
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           PR: ${{ github.event.pull_request.number }}
           OUTCOME: ${{ steps.hermes.outcome }}
           SESSION_ID: ${{ steps.session.outputs.session_id }}
@@ -339,11 +342,27 @@ jobs:
       - name: Reviewer rot, wenn Änderungen erforderlich (ai:needs-changes)
         if: always() && steps.preflight.outputs.configured == 'true'
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           PR: ${{ github.event.pull_request.number }}
         run: |
-          labels_json="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name]' 2>/dev/null || echo '[]')"
-          needs_changes="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:needs-changes")')"
-          ready_to_merge="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:ready-to-merge")')"
+          # Retry: API-Read-After-Write kann bei gh pr edit --add-label + direktem
+          # gh pr view das Label auf einem Replica noch nicht sehen (Race).
+          for i in 1 2 3; do
+            labels_json="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name]' 2>/dev/null || echo '[]')"
+            needs_changes="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:needs-changes")')"
+            ready_to_merge="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:ready-to-merge")')"
+            if [ "$needs_changes" = "true" ] || [ "$ready_to_merge" = "true" ]; then break; fi
+            if [ "$i" -lt 3 ]; then sleep 2; fi
+          done
+
+          # Fallback: VERDICT aus Hermes-Output — falls API-Label immer noch nicht sichtbar ist
+          if [ "$ready_to_merge" != "true" ] && [ -f /tmp/hermes-output.log ]; then
+            verdict="$(grep -oP '^VERDICT:\s*\K.*' /tmp/hermes-output.log | tail -1 | tr -d '[:space:]' || true)"
+            if [ "$verdict" = "ready-to-merge" ]; then
+              echo "::notice::ai:ready-to-merge im API-Read unsichtbar, aber VERDICT=ready-to-merge im Output — als gesetzt gewertet."
+              ready_to_merge='true'
+            fi
+          fi
+
           if [ "$needs_changes" = "true" ]; then echo "::error title=Review: Änderungen erforderlich::PR #${PR}" && exit 1; fi
           if [ "$ready_to_merge" != "true" ]; then echo "::error title=Review stecken geblieben::PR #${PR}" && exit 1; fi

@@ -8,6 +8,7 @@ import {
 	type FeedbackExample,
 	type PillarClassifier,
 } from '../../llm/mistral.js';
+import { getUserId, ownerScope } from '../requireAuth.js';
 import type { components } from '../../api';
 
 type SuggestPillarsInputDto = components['schemas']['SuggestPillarsInput'];
@@ -150,7 +151,7 @@ export const createSuggestPillarsRouter = (classifier: PillarClassifier = classi
 
 			let pillars: Pillar[];
 			try {
-				pillars = await Pillar.findAll({ order: [['id', 'ASC']] });
+				pillars = await Pillar.findAll({ where: ownerScope(getUserId(req)), order: [['id', 'ASC']] });
 			} catch {
 				sendError(res, 500, 'Interner Serverfehler.');
 				return;
@@ -198,7 +199,7 @@ export const createSuggestPillarsRouter = (classifier: PillarClassifier = classi
 	router.post('/tasks/suggest-pillars/feedback', async (req: Request, res: Response<{ id: number } | ErrorDto>) => {
 		let pillars: Pillar[];
 		try {
-			pillars = await Pillar.findAll({ attributes: ['id'] });
+			pillars = await Pillar.findAll({ where: ownerScope(getUserId(req)), attributes: ['id'] });
 		} catch {
 			sendError(res, 500, 'Interner Serverfehler.');
 			return;

@@ -61,6 +61,8 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read # Label/Merge laufen ueber das App-Token
+      pull-requests: write
+      issues: write
     steps:
       - name: Voraussetzung pruefen (GitHub-App-Secrets)
         id: preflight
@@ -82,6 +84,18 @@ jobs:
           client-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
+      - name: GH_TOKEN-Fallback setzen (App-Token oder GITHUB_TOKEN)
+        id: gh-token
+        run: |
+          APP_TOK="${{ steps.app-token.outputs.token }}"
+          if [ -n "$APP_TOK" ] && [ "$APP_TOK" != "null" ]; then
+            echo "token=$APP_TOK" >> "$GITHUB_OUTPUT"
+            echo "::notice::Nutze GitHub-App-Token für gh-Befehle."
+          else
+            echo "token=${{ github.token }}" >> "$GITHUB_OUTPUT"
+            echo "::warning::App-Token nicht verfügbar — nutze GITHUB_TOKEN (Achtung: Label-Wechsel lösen ggf. keine Folge-Workflows aus)."
+          fi
+
       # Reiner gh-Job (kein Checkout, kein LLM). Loest den PR EINMAL auf, wertet die Allowlist-Checks
       # EINMAL aus und entscheidet dann: rot -> Gate (ai:needs-changes), gruen+ready -> Merge, sonst
       # No-op. Alle Vorbedingungen sind defensiv: erst wenn wirklich zu handeln ist, schreibt der Job
@@ -89,7 +103,7 @@ jobs:
       - name: Gate/Auto-Merge auswerten
         if: steps.preflight.outputs.configured == 'true'
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }} # Label/Merge als App-Token -> loest Folge aus
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }} # App-Token → loest Folge aus (Fallback: GITHUB_TOKEN)
           REPO: ${{ github.repository }}
           EVENT_NAME: ${{ github.event_name }}
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
@@ -179,9 +193,9 @@ jobs:
           for attempt in 1 2 3 4 5; do
             checks="$(gh pr checks "$pr" --repo "$REPO" --json name,bucket,workflow)" || true
             if [ -z "$checks" ]; then checks='[]'; fi
-            allow="$(echo "$checks" | jq '[.[] | select(.workflow == "CI" or .workflow == "Claude PR Review (Kreuzverhoer)")]')"
+            allow="$(echo "$checks" | jq '[.[] | select(.workflow == "CI" or .workflow == "Hermes PR Review (Kreuzverhoer)")]')"
             has_ci="$(echo "$allow" | jq -r 'any(.[]; .workflow == "CI")')"
-            has_review="$(echo "$allow" | jq -r 'any(.[]; .workflow == "Claude PR Review (Kreuzverhoer)")')"
+            has_review="$(echo "$allow" | jq -r 'any(.[]; .workflow == "Hermes PR Review (Kreuzverhoer)")')"
             if [ "$has_ci" = "true" ] && [ "$has_review" = "true" ]; then
               break
             fi

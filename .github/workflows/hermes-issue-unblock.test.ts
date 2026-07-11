@@ -47,9 +47,12 @@ describe('AK1 — Trigger: pull_request closed + merged == true', () => {
 
 	it('Negativkontrolle: kein Trigger auf issues.labeled/opened (das ist Sache von triage/spec/implement)', () => {
 		const yml = unblockYml();
+		// Der Workflow triggert ausschließlich auf pull_request — kein issues-Event.
+		// Das Regex zielt auf einen on:-Block mit issues: (z.B. `on:\n  issues:`),
+		// nicht auf issues: im permissions:-Block oder in Kommentaren.
 		assert.doesNotMatch(
 			yml,
-			/^\s*issues:/m,
+			/^on:\s*\n\s*issues:/m,
 			'Der Unblock-Workflow darf NICHT auf issues-Events triggern — er reagiert ausschließlich auf gemergte PRs',
 		);
 	});
@@ -175,16 +178,24 @@ describe('AK6 — Label-Entfernen per App-Token (GITHUB_TOKEN triggert keine Re-
 		// Das Entfernen von ai:analyzed darf nicht unter dem Standard-github.token laufen —
 		// sonst feuert das unlabeled-Event nicht und die Re-Triage bleibt aus.
 		const removeStepUsesGithubToken =
-			/remove-label[\s\S]{0,400}GH_TOKEN:\s*\$\{\{\s*github\.token/.test(yml) ||
-			/GH_TOKEN:\s*\$\{\{\s*github\.token[\s\S]{0,400}remove-label/.test(yml);
+			/remove-label[\s\S]{0,400}GH_TOKEN:\s*$\{\{\s*github\.token/.test(yml) ||
+			/GH_TOKEN:\s*$\{\{\s*github\.token[\s\S]{0,400}remove-label/.test(yml);
 		assert.ok(
 			!removeStepUsesGithubToken,
-			'Das Entfernen von ai:analyzed darf NICHT unter GH_TOKEN: ${{ github.token }} laufen — es muss das App-Token (steps.app-token.outputs.token) nutzen, sonst keine Re-Triage',
+			'Das Entfernen von ai:analyzed darf NICHT unter GH_TOKEN: ${{ github.token }} laufen — es muss das App-Token (steps.gh-token.outputs.token, mit Fallback auf App-Token) nutzen, sonst keine Re-Triage',
 		);
+		// GH_TOKEN nutzt den gh-token-Fallback-Step (bevorzugt App-Token, fällt auf
+		// GITHUB_TOKEN zurück wenn App-Token nicht verfügbar)
 		assert.match(
 			yml,
-			/GH_TOKEN:\s*\$\{\{\s*steps\.app-token\.outputs\.token/,
-			'Der gh-Step muss das App-Token (steps.app-token.outputs.token) als GH_TOKEN nutzen',
+			/GH_TOKEN:\s*\$\{\{\s*steps\.gh-token\.outputs\.token/,
+			'Der gh-Step muss den gh-token-Fallback (steps.gh-token.outputs.token) als GH_TOKEN nutzen — der bevorzugt das App-Token',
+		);
+		// Der gh-token-Step selbst muss versuchen, das App-Token zu nutzen
+		assert.match(
+			yml,
+			/steps\.app-token\.outputs\.token/,
+			'Der gh-token-Fallback-Step muss das App-Token (steps.app-token.outputs.token) referenzieren — es ist der primäre Versuch',
 		);
 	});
 });
