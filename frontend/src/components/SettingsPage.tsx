@@ -6,6 +6,7 @@ import { requestMicrophonePermission } from '../lib/micPermission';
 import { usePushSubscription } from '../lib/push';
 import { useVoiceAutostart } from '../lib/voiceAutostart';
 import { AppearanceSetting } from './AppearanceSetting';
+import { PillarManager } from './PillarManager';
 import { PillarWeightsForm } from './PillarWeightsForm';
 
 interface SettingsPageProps {
@@ -176,7 +177,9 @@ export const SettingsPage = ({ pillars, onBack, onSaved }: SettingsPageProps) =>
 				<div slot="tab-1">
 					{/* Überschrift „Säulen-Gewichtung" ist Teil des #270-Vertrags (settings-page.spec.ts):
 					    die Route /settings/pillars rendert den Säulen-Editor mit dieser Überschrift. */}
-					<KolHeading _label="Säulen-Gewichtung" _level={2} />
+					<KolHeading _label="Säulen" _level={2} />
+					<PillarManager key={`manager-${pillars.length}`} pillars={pillars} onPillarsChanged={onSaved} />
+					<KolHeading _label="Säulen-Gewichtung" _level={3} />
 					{/* Beim Direktaufruf von /settings/pillars mountet die Seite, BEVOR die Säulen geladen
 					    sind. Das Formular hält seine Rohwerte in einem beim Mount initialisierten Ref —
 					    per `key` neu mounten, sobald die Säulen eintreffen, damit die geladenen Gewichte

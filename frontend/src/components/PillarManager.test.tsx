@@ -15,7 +15,6 @@ vi.mock('./Modal', () => ({
 
 // Die Komponente existiert NOCH nicht. Der Import wird fehlschlagen (rote Tests).
 // Sobald die Umsetzung die Komponente erstellt, werden die Tests grün.
-// @ts-expect-error — Komponente wird von der Umsetzung erstellt (#425)
 import { PillarManager } from './PillarManager';
 
 afterEach(cleanup);

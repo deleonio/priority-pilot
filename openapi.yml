@@ -135,8 +135,8 @@ paths:
     get:
       summary: Alle Lebensbalance-Säulen auflisten
       description: >-
-        Liefert die fünf festen Säulen inkl. ihres prozentualen Anteils
-        (`weight`); die Gewichte summieren sich über alle Säulen auf 100.
+        Liefert die Säulen inkl. ihres prozentualen Anteils (`weight`);
+        die Gewichte summieren sich über alle Säulen auf 100.
       operationId: listPillars
       responses:
         '200':
@@ -147,6 +147,81 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Pillar'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      summary: Neue Säule anlegen
+      description: >-
+        Legt eine neue Säule für den eingeloggten Nutzer an. Neue Säulen
+        starten mit weight = 0. Bei Namenskonflikt 409.
+      operationId: createPillar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePillarInput'
+      responses:
+        '201':
+          description: Säule wurde angelegt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pillar'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /pillars/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID der Säule
+        schema:
+          type: integer
+    patch:
+      summary: Säule teilweise aktualisieren (umbenennen / Beschreibung ändern)
+      description: >-
+        Mindestens eines der Felder (name, description) muss gesetzt sein.
+        Bei Namenskonflikt 409.
+      operationId: updatePillar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePillarInput'
+      responses:
+        '200':
+          description: Die aktualisierte Säule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pillar'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      summary: Säule löschen
+      description: >-
+        Löscht eine Säule inklusive aller Beiträge (task_pillars,
+        series_pillars) und renormiert verbleibende Beiträge/Gewichte.
+      operationId: deletePillar
+      responses:
+        '204':
+          description: Säule wurde gelöscht
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalServerError'
   /pillars/weights:
@@ -1010,6 +1085,28 @@ components:
                 format: float
                 minimum: 0
                 description: Prozentualer Anteil der Säule
+    CreatePillarInput:
+      type: object
+      description: Eingabe zum Anlegen einer neuen Säule.
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: Name der Säule (Pflichtfeld, nicht leer)
+        description:
+          type: string
+          description: Optionale Beschreibung der Säule
+    UpdatePillarInput:
+      type: object
+      description: Eingabe zum Aktualisieren einer Säule. Mindestens eines der Felder muss gesetzt sein.
+      properties:
+        name:
+          type: string
+          description: Neuer Name der Säule (nicht leer, falls gesetzt)
+        description:
+          type: string
+          description: Neue Beschreibung der Säule
     ActivityAdvisorInput:
       type: object
       description: >-
