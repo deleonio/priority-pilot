@@ -4,7 +4,7 @@ name: Hermes Spec (ai:spec-ready)
 # das Label "ai:spec-ready" erhält UND bereits "ai:analyzed" trägt.
 # Ersetzt claude-spec.yml (MIG-001, 2026-07-10).
 #
-# Setzt Hermes Agent (Nous Research) mit DeepSeek Flash über OpenRouter.
+# Setzt Hermes Agent (Nous Research) mit DeepSeek Pro über OpenRouter.
 # Voraussetzung: Repo-Secret OPENROUTER_API_KEY
 
 on:
@@ -76,10 +76,8 @@ jobs:
           hermes config set model.provider openrouter
           hermes config set model.base_url https://openrouter.ai/api/v1
           hermes config set agent.max_turns 90
-
-      # ──────────────────────────────────────────────
-      # Session-Resume (aus vorherigem Lauf fortsetzen)
-      # ──────────────────────────────────────────────
+          pip install mcp -q
+          hermes mcp add kolibri --url https://public-ui-kolibri-mcp.vercel.app/mcp
       - name: Session-Archiv herunterladen (Phase spec)
         id: session-dl
         if: steps.preflight.outputs.configured == 'true'
@@ -155,7 +153,7 @@ jobs:
         if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         run: pnpm exec lefthook install
 
-      - name: Spec via Hermes (DeepSeek Flash)
+      - name: Spec via Hermes (DeepSeek Pro)
         id: hermes
         if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         env:
@@ -172,7 +170,7 @@ jobs:
             4. ÜBERGABE (ALLERLETZTER Schritt, NIE davor): am Issue ai:ready setzen und ai:spec-ready entfernen (gh issue edit ISSUE_NR --add-label ai:ready --remove-label ai:spec-ready). Fehlende Labels vorher mit gh label create anlegen.
 
           WERKZEUGE:
-            Du hast Bash (für gh, git, pnpm) und Datei-Tools. Nutze gh issue, gh pr, git, pnpm, read_file, write_file. GH_TOKEN authentifiziert gh-Befehle.
+            Du hast Bash (für gh, git, pnpm), Datei-Tools sowie KoliBri-MCP-Tools (mcp_kolibri_search, mcp_kolibri_fetch für KoliBri-Komponenten). Nutze gh issue, gh pr, git, pnpm, read_file, write_file. GH_TOKEN authentifiziert gh-Befehle.
 
           WEICHES ZEITLIMIT (Soft-Abort):
             Prüfe VOR jedem größeren Teilschritt mit date +%s gegen SOFT_DEADLINE. Ist das Limit erreicht: Zwischenstand committen + pushen (Branch/Draft-PR mit TODO-Notiz). ai:ready NICHT setzen. Stattdessen ai:spec-ready entfernen+sofort wieder setzen (Selbst-Retrigger). Dann Turn beenden.
@@ -194,9 +192,9 @@ jobs:
           hermes chat -q "$(cat /tmp/hermes-prompt.txt)" \
             $RESUME_ARG \
             -Q --yolo --provider openrouter \
-            -m "deepseek/deepseek-v4-flash" \
+            -m "deepseek/deepseek-v4-pro" \
             -t "terminal,file" \
-            --ignore-user-config --max-turns 90 \
+            --max-turns 90 \
             --accept-hooks \
             2>&1 | tee /tmp/hermes-output.log
           # PIPESTATUS: Exit-Code von hermes chat durch pipe propagieren

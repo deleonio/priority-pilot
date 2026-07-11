@@ -8,7 +8,7 @@ name: Hermes PR Review (Kreuzverhoer)
 #   - sauber 🟢 → ai:ready-to-merge (→ Gate)
 # Ändert KEINEN Code.
 #
-# Setzt Hermes Agent (Nous Research) mit DeepSeek Flash über OpenRouter.
+# Setzt Hermes Agent (Nous Research) mit DeepSeek Pro über OpenRouter.
 # Voraussetzung: Repo-Secret OPENROUTER_API_KEY
 
 on:
@@ -78,6 +78,8 @@ jobs:
           hermes config set model.provider openrouter
           hermes config set model.base_url https://openrouter.ai/api/v1
           hermes config set agent.max_turns 90
+          pip install mcp -q
+          hermes mcp add kolibri --url https://public-ui-kolibri-mcp.vercel.app/mcp
 
       - name: Session-Archiv herunterladen (Phase review)
         id: session-dl
@@ -135,7 +137,7 @@ jobs:
             echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Kreuzverhör-Review via Hermes (DeepSeek Flash)
+      - name: Kreuzverhör-Review via Hermes (DeepSeek Pro)
         id: hermes
         if: steps.preflight.outputs.configured == 'true' && steps.supersede-check.outputs.skip != 'true'
         env:
@@ -173,9 +175,9 @@ jobs:
           hermes chat -q "$(cat /tmp/hermes-prompt.txt)" \
             $RESUME_ARG \
             -Q --yolo --provider openrouter \
-            -m "deepseek/deepseek-v4-flash" \
+            -m "deepseek/deepseek-v4-pro" \
             -t "terminal,file" \
-            --ignore-user-config --max-turns 90 \
+            --max-turns 90 \
             --accept-hooks \
             2>&1 | tee /tmp/hermes-output.log
           # PIPESTATUS: Exit-Code von hermes chat durch pipe propagieren
