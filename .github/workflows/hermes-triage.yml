@@ -11,7 +11,7 @@ name: Hermes Triage (Analyse)
 # Setzt Hermes Agent (Nous Research) mit GLM 5.2 über Nous Portal ein
 # statt Claude Code.
 #
-# Voraussetzung: Repo-Secret NOUS_PORTAL_TOKEN (https://portal.nousresearch.com)
+# Voraussetzung: Repo-Secret NOUS_AUTH_JSON_B64 (base64-codiertes auth.json für Nous Portal)
 #
 # Änderungen zu claude-triage.yml:
 #  - Kein CLAUDE_CODE_OAUTH_TOKEN mehr (entfällt komplett)
@@ -145,7 +145,8 @@ jobs:
       - name: Hermes konfigurieren (Nous Portal + GLM 5.2)
         run: |
           hermes config set model.provider nous
-          hermes auth add nous --token "${{ secrets.NOUS_PORTAL_TOKEN }}"
+          hermes config set model.base_url https://inference-api.nousresearch.com/v1
+          echo "${{ secrets.NOUS_AUTH_JSON_B64 }}" | base64 -d > "$HERMES_HOME/auth.json"
           hermes config set agent.max_turns 90
           pip install mcp -q
           hermes mcp add kolibri --url https://public-ui-kolibri-mcp.vercel.app/mcp
@@ -177,23 +178,23 @@ jobs:
           fi
 
       # ──────────────────────────────────────────────
-      # 5. Token-Prüfung (NOUS_PORTAL_TOKEN)
+      # 5. Auth-Prüfung (NOUS_AUTH_JSON_B64)
       # ──────────────────────────────────────────────
-      - name: Token prüfen (NOUS_PORTAL_TOKEN)
+      - name: Auth prüfen (NOUS_AUTH_JSON_B64)
         if: steps.preflight.outputs.configured == 'true'
         env:
-          NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
+          NOUS_AUTH_JSON_B64: ${{ secrets.NOUS_AUTH_JSON_B64 }}
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
-          if [ -z "$NOUS_PORTAL_TOKEN" ]; then
-            echo "::error title=Token fehlt::NOUS_PORTAL_TOKEN nicht gesetzt — als Repo-Secret hinterlegen (https://portal.nousresearch.com). Ohne Token läuft Hermes nicht."
+          if [ ! -f "$HERMES_HOME/auth.json" ]; then
+            echo "::error title=Auth fehlt::NOUS_AUTH_JSON_B64 nicht gesetzt oder auth.json konnte nicht dekodiert werden — als Repo-Secret hinterlegen (base64-codierter Inhalt von ~/.hermes/auth.json, siehe https://hermes-agent.nousresearch.com/docs). Ohne Auth läuft Hermes nicht."
             gh label create "ai:to-big-issue" --repo "$GITHUB_REPOSITORY" \
               --color B60205 --description "KI-Job lief rot (Konfiguration/Secret) — bitte prüfen" 2>/dev/null || true
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:to-big-issue" 2>/dev/null || true
             exit 1
           fi
-          echo "NOUS_PORTAL_TOKEN vorhanden."
+          echo "auth.json vorhanden (NOUS_AUTH_JSON_B64 dekodiert)."
 
       # ————————————————————————————————————————————————————————————————————————
       # 5. Triage via Hermes
@@ -213,12 +214,12 @@ jobs:
       #   --accept-hooks           Automatische Freigabe von Shell-Hooks
       #
       # GH_TOKEN für gh-Befehle (Issue lesen/schreiben, Labels setzen).
-      # NOUS_PORTAL_TOKEN für die LLM-API (via hermes auth).
+      # NOUS_AUTH_JSON_B64 für die LLM-API (via auth.json).
       - name: Triage via Hermes (GLM 5.2)
         id: hermes
         if: steps.preflight.outputs.configured == 'true'
         env:
-          NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
+          NOUS_AUTH_JSON_B64: ${{ secrets.NOUS_AUTH_JSON_B64 }}
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
         run: |
           # Prompt per Heredoc schreiben — 'HERMES_EOF' (single-quoted) verhindert

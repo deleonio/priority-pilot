@@ -59,8 +59,9 @@ Hermes wird im CI-Lauf frisch installiert (keine dedizierte GitHub Action nötig
 curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-browser --skip-setup
 echo "$HOME/.local/bin" >> $GITHUB_PATH
 hermes config set model.provider nous
-# Nous Portal nutzt OAuth — in CI wird der Token als Secret injiziert:
-hermes auth add nous --token "${{ secrets.NOUS_PORTAL_TOKEN }}"
+# Nous Portal nutzt OAuth — in CI wird der auth.json als Base64 injiziert:
+echo "${{ secrets.NOUS_AUTH_JSON_B64 }}" | base64 -d > "$HERMES_HOME/auth.json"
+hermes config set model.base_url https://inference-api.nousresearch.com/v1
 ```
 
 **CI-Flags:**

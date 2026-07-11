@@ -9,7 +9,7 @@ name: Hermes PR Review (Kreuzverhoer)
 # Ändert KEINEN Code.
 #
 # Setzt Hermes Agent (Nous Research) mit GLM 5.2 über Nous Portal.
-# Voraussetzung: Repo-Secret NOUS_PORTAL_TOKEN
+# Voraussetzung: Repo-Secret NOUS_AUTH_JSON_B64
 
 on:
   pull_request:
@@ -104,7 +104,8 @@ jobs:
         if: steps.preflight.outputs.configured == 'true'
         run: |
           hermes config set model.provider nous
-          hermes auth add nous --token "${{ secrets.NOUS_PORTAL_TOKEN }}"
+          hermes config set model.base_url https://inference-api.nousresearch.com/v1
+          echo "${{ secrets.NOUS_AUTH_JSON_B64 }}" | base64 -d > "$HERMES_HOME/auth.json"
           hermes config set agent.max_turns 90
           pip install mcp -q
           hermes mcp add kolibri --url https://public-ui-kolibri-mcp.vercel.app/mcp
@@ -131,13 +132,13 @@ jobs:
             fi
           fi
 
-      - name: API-Key prüfen (NOUS_PORTAL_TOKEN)
+      - name: Auth prüfen (NOUS_AUTH_JSON_B64)
         if: steps.preflight.outputs.configured == 'true'
         env:
-          NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
+          NOUS_AUTH_JSON_B64: ${{ secrets.NOUS_AUTH_JSON_B64 }}
         run: |
-          if [ -z "$NOUS_PORTAL_TOKEN" ]; then
-            echo "::error title=Token fehlt::NOUS_PORTAL_TOKEN nicht gesetzt"
+          if [ ! -f "$HERMES_HOME/auth.json" ]; then
+            echo "::error title=Auth fehlt::NOUS_AUTH_JSON_B64 nicht gesetzt oder auth.json konnte nicht dekodiert werden — als Repo-Secret hinterlegen (base64-codierter Inhalt von ~/.hermes/auth.json, siehe https://hermes-agent.nousresearch.com/docs)"
             exit 1
           fi
 
@@ -159,7 +160,7 @@ jobs:
         id: hermes
         if: steps.preflight.outputs.configured == 'true' && steps.supersede-check.outputs.skip != 'true'
         env:
-          NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
+          NOUS_AUTH_JSON_B64: ${{ secrets.NOUS_AUTH_JSON_B64 }}
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
         run: |
           cat > /tmp/hermes-prompt.txt << 'HERMES_EOF'
