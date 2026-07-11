@@ -234,7 +234,7 @@ jobs:
           retention-days: 30
           overwrite: true
 
-        # Session-Archiv für Folgelauf sichern
+      - name: Hermes-Session-ID erfassen
         if: always()
         id: session
         run: |
