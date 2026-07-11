@@ -30,7 +30,7 @@ export interface ClassifyPillarsInput {
 	title: string;
 	description?: string;
 	context?: string;
-	pillars: { id: number; name: string }[];
+	pillars: { id: number; name: string; description?: string }[];
 	/**
 	 * Optionale, aus Nutzer-Korrekturen gelernte Beispiele. Sie werden **nach** den statischen
 	 * {@link FEW_SHOT}-Beispielen als zusätzliche user/assistant-Paare in den Prompt gehängt und
@@ -151,7 +151,12 @@ export const weakSignalPillarIds = (pillars: { id: number; name: string }[]): Se
 
 /** Baut die Nutzer-Nachricht aus Task-Daten und gültiger Säulen-Liste. */
 export const buildUserMessage = (input: ClassifyPillarsInput): string => {
-	const pillarList = input.pillars.map((pillar) => `  - pillarId ${pillar.id}: ${pillar.name}`).join('\n');
+	const pillarList = input.pillars
+		.map((pillar) => {
+			const base = `  - pillarId ${pillar.id}: ${pillar.name}`;
+			return pillar.description ? `${base} — ${pillar.description}` : base;
+		})
+		.join('\n');
 	const lines = [
 		'Gültige Säulen (nur diese pillarId-Werte verwenden):',
 		pillarList,
