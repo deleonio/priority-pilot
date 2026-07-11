@@ -35,6 +35,13 @@ jobs:
       pull-requests: write
       issues: write
     steps:
+      - name: Startzeit merken (für Timeout-Erkennung + weiches Zeitlimit)
+        id: starttime
+        run: |
+          now=$(date +%s)
+          echo "epoch=$now" >> "$GITHUB_OUTPUT"
+          echo "soft_deadline_epoch=$((now + 900))" >> "$GITHUB_OUTPUT"  # 15 min (Puffer vor 20-Min-GitHub-Timeout)
+
       - name: Voraussetzung prüfen (GitHub-App-Secrets)
         id: preflight
         env:
@@ -170,12 +177,16 @@ jobs:
 
           Bei Folge-Review (markierter Kommentar existiert): NUR den Diff SEIT dem letzten Review prüfen (über updatedAt des Kommentars). Bereits in "Behobene Anmerkungen" geführte Punkte NICHT erneut aufrollen.
 
+          WEICHES ZEITLIMIT (Soft-Abort):
+            Beginne SOFORT mit der Arbeit. Prüfe VOR jedem größeren Teilschritt mit date +%s gegen SOFT_DEADLINE. Ist das Limit erreicht: Zwischenstand als Sammelkommentar (auch unvollständig) festhalten, ai:continued setzen, ai:needs-review entfernen+sofort wieder setzen (Selbst-Retrigger). Turn beenden.
+
           Fehlende Labels vorher mit gh label create anlegen.
 
           WICHTIG: Ändere KEINEN Code, committe nichts. Reiner Review. Keine interaktive Rückfrage.
           HERMES_EOF
 
           sed -i "s/#PR_NR/${{ github.event.pull_request.number }}/g" /tmp/hermes-prompt.txt
+          sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/hermes-prompt.txt
 
           RESUME_ARG=""
           if [ -n "${{ steps.session-restore.outputs.resume_arg }}" ]; then

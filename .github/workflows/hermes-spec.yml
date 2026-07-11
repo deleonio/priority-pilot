@@ -36,7 +36,7 @@ jobs:
         run: |
           now=$(date +%s)
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
-          echo "soft_deadline_epoch=$((now + 840))" >> "$GITHUB_OUTPUT"
+          echo "soft_deadline_epoch=$((now + 720))" >> "$GITHUB_OUTPUT"  # 12 min (Puffer vor 20-Min-GitHub-Timeout)
 
       - name: Voraussetzung prüfen (GitHub-App-Secrets)
         id: preflight
@@ -193,16 +193,17 @@ jobs:
           Das Label `ai:spec-ready` wurde an Issue #ISSUE_NR gesetzt — schreibe jetzt die ROTEN Tests (den Vertrag) für dieses Issue.
 
           Folge dem Spec-Workflow .ai-knowledge/ticket-spec.md:
-            1. Branch anlegen: git switch -c feat/issue-ISSUE_NR-<kurzname>. Den Akzeptanzkriterien-Block primär aus dem BODY-Block des Issues entnehmen (gh issue view ISSUE_NR --json body -q .body, Abschnitt zwischen <!-- KI-ANALYSE:START stand=... --> und <!-- KI-ANALYSE:END -->).
-            2. ROTE Tests schreiben — je Akzeptanzkriterium echte, ausführbare Tests (server/src/**/*.test.ts, frontend/src/**/*.test.ts, frontend/e2e/*.spec.ts). Sie prüfen echtes Soll-Verhalten und werden grün, sobald der Code existiert. KEINEN Produktivcode schreiben.
-            3. Rote Tests als ERSTEN Commit (test: rote Spec-Tests fuer #ISSUE_NR), Branch pushen, git push -u origin HEAD. DRAFT-PR erstellen (gh pr create --draft) mit Closes #ISSUE_NR im Body. KEIN ai:needs-review setzen (PR ist Draft).
-            4. ÜBERGABE (ALLERLETZTER Schritt, NIE davor): am Issue ai:ready setzen und ai:spec-ready entfernen (gh issue edit ISSUE_NR --add-label ai:ready --remove-label ai:spec-ready). Fehlende Labels vorher mit gh label create anlegen.
+            1. Beginne SOFORT mit der Arbeit — keine Wartezeit!
+            2. Branch anlegen: git switch -c feat/issue-ISSUE_NR-<kurzname>. Den Akzeptanzkriterien-Block primär aus dem BODY-Block des Issues entnehmen (gh issue view ISSUE_NR --json body -q .body, Abschnitt zwischen <!-- KI-ANALYSE:START stand=... --> und <!-- KI-ANALYSE:END -->).
+            3. ROTE Tests schreiben — je Akzeptanzkriterium echte, ausführbare Tests (server/src/**/*.test.ts, frontend/src/**/*.test.ts, frontend/e2e/*.spec.ts). Sie prüfen echtes Soll-Verhalten und werden grün, sobald der Code existiert. KEINEN Produktivcode schreiben.
+            4. Rote Tests als ERSTEN Commit (test: rote Spec-Tests für #ISSUE_NR), Branch pushen, git push -u origin HEAD. DRAFT-PR erstellen (gh pr create --draft) mit Closes #ISSUE_NR im Body. KEIN ai:needs-review setzen (PR ist Draft).
+            5. ÜBERGABE (ALLERLETZTER Schritt, NIE davor): am Issue ai:ready setzen und ai:spec-ready entfernen (gh issue edit ISSUE_NR --add-label ai:ready --remove-label ai:spec-ready). Fehlende Labels vorher mit gh label create anlegen.
 
           WERKZEUGE:
             Du hast Bash (für gh, git, pnpm), Datei-Tools sowie KoliBri-MCP-Tools (mcp_kolibri_search, mcp_kolibri_fetch für KoliBri-Komponenten). Nutze gh issue, gh pr, git, pnpm, read_file, write_file. GH_TOKEN authentifiziert gh-Befehle.
 
           WEICHES ZEITLIMIT (Soft-Abort):
-            Prüfe VOR jedem größeren Teilschritt mit date +%s gegen SOFT_DEADLINE. Ist das Limit erreicht: Zwischenstand committen + pushen (Branch/Draft-PR mit TODO-Notiz). ai:ready NICHT setzen. Stattdessen ai:spec-ready entfernen+sofort wieder setzen (Selbst-Retrigger). Dann Turn beenden.
+            Beginne SOFORT mit der Arbeit. Prüfe VOR jedem größeren Teilschritt mit date +%s gegen SOFT_DEADLINE. Ist das Limit erreicht: Zwischenstand committen + pushen (Branch/Draft-PR mit TODO-Notiz). ai:ready NICHT setzen. Stattdessen ai:spec-ready entfernen+sofort wieder setzen (Selbst-Retrigger). Dann Turn beenden.
 
           WICHTIG:
             - Bearbeite ausschließlich dieses eine Issue.
@@ -261,7 +262,7 @@ jobs:
           retention-days: 30
           overwrite: true
 
-      - name: Bei Timeout als zu gross markieren (ai:to-big-issue)
+      - name: Bei Timeout als zu groß markieren (ai:to-big-issue)
         if: always() && steps.preflight.outputs.configured == 'true' && steps.hermes.outcome == 'cancelled'
         env:
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}

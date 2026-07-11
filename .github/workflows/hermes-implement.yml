@@ -35,7 +35,7 @@ jobs:
         run: |
           now=$(date +%s)
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
-          echo "soft_deadline_epoch=$((now + 1200))" >> "$GITHUB_OUTPUT"
+          echo "soft_deadline_epoch=$((now + 900))" >> "$GITHUB_OUTPUT"  # 15 min (Puffer vor 20-Min-GitHub-Timeout)
 
       - name: Voraussetzung prüfen (GitHub-App-Secrets)
         id: preflight
@@ -218,12 +218,13 @@ jobs:
 
           Folge dem Umsetzungs-Workflow .ai-knowledge/ticket-implementation.md, aber NUR Schritte 1 bis 4:
             1. Zuweisung übernimmt bereits der Workflow (nicht selbst zuweisen).
-            2. Analyse re-verifizieren (Re-Triage gegen aktuellen Repo-Stand). Kippt die Ampel auf 🔴 → NICHT umsetzen, ai:ready entfernen, begründet kommentieren und stoppen.
-            3. Spec-Modus (Regelfall): den vorhandenen DRAFT-PR auschecken (gh pr list --state open --draft --json number,headRefName,closingIssuesReferences, den mit Issue #ISSUE_NR; dann git fetch origin && git switch <headRefName>). Dessen ROTE Tests GRÜN machen — Tests NICHT ändern (Gewaltenteilung). Fallback (kein Draft-PR): eigenen Branch + Tests selbst schreiben. In beiden Fällen: Code bis pnpm test grün, dann pnpm format + pnpm lint + pnpm knip.
-            4. Committen, Branch pushen. Im Spec-Modus Draft-PR review-bereit machen (gh pr ready <nr>), Beschreibung ergänzen. ALLERLETZTER Schritt: Label ai:needs-review am PR setzen.
+            2. Beginne SOFORT mit der Arbeit — keine Wartezeit!
+            3. Analyse re-verifizieren (Re-Triage gegen aktuellen Repo-Stand). Kippt die Ampel auf 🔴 → NICHT umsetzen, ai:ready entfernen, begründet kommentieren und stoppen.
+            4. Spec-Modus (Regelfall): den vorhandenen DRAFT-PR auschecken (gh pr list --state open --draft --json number,headRefName,closingIssuesReferences, den mit Issue #ISSUE_NR; dann git fetch origin && git switch <headRefName>). Dessen ROTE Tests GRÜN machen — Tests NICHT ändern (Gewaltenteilung). Fallback (kein Draft-PR): eigenen Branch + Tests selbst schreiben. In beiden Fällen: Code bis pnpm test grün, dann pnpm format + pnpm lint + pnpm knip.
+            5. Committen, Branch pushen. Im Spec-Modus Draft-PR review-bereit machen (gh pr ready <nr>), Beschreibung ergänzen. ALLERLETZTER Schritt: Label ai:needs-review am PR setzen.
 
           WEICHES ZEITLIMIT (Soft-Abort):
-            Prüfe VOR jedem größeren Teilschritt date +%s gegen SOFT_DEADLINE. Ist das Limit erreicht: Zwischenstand committen+pushen, Draft-PR mit TODO-Liste (KEIN ai:needs-review). ai:ready entfernen+sofort wieder setzen (Selbst-Retrigger). Turn beenden.
+            Beginne SOFORT mit der Arbeit. Prüfe VOR jedem größeren Teilschritt date +%s gegen SOFT_DEADLINE. Ist das Limit erreicht: Zwischenstand committen+pushen, Draft-PR mit TODO-Liste (KEIN ai:needs-review). ai:ready entfernen+sofort wieder setzen (Selbst-Retrigger). Turn beenden.
 
           Idempotenz: Draft-PR mit Closes #ISSUE_NR ist normaler Spec-Eingang — aufgreifen. Nicht-Draft-PR = Umsetzung schon gelaufen → Lauf beenden.
 
@@ -305,7 +306,7 @@ jobs:
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:continued"
           fi
 
-      - name: Bei Timeout als zu gross markieren (ai:to-big-issue)
+      - name: Bei Timeout als zu groß markieren (ai:to-big-issue)
         if: always() && steps.preflight.outputs.configured == 'true' && steps.hermes.outcome == 'cancelled'
         env:
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
