@@ -242,7 +242,7 @@ jobs:
           fi
           echo "handled=true" >> "$GITHUB_OUTPUT"
 
-      - name: Label-Post-Assertion (Safe-Default ai:needs-changes)
+      - name: Label-Post-Assertion (Safe-Default ai:needs-changes + Allowlist-Check-Guard)
         if: always() && steps.preflight.outputs.configured == 'true' && (steps.hermes.outcome == 'success' || steps.hermes.outcome == 'failure') && steps.soft-abort-cap.outputs.handled != 'true'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
@@ -252,11 +252,57 @@ jobs:
           has_changes="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:needs-changes")')"
           has_ready="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:ready-to-merge")')"
           has_review="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:needs-review")')"
+
+          # Allowlist-Checks (CI + Reviewer) auf grünen Status prüfen
+          # Wir nutzen dieselbe Retry-Logik wie der Gate-Workflow
+          allow='[]'
+          delays=(2 3 5 8)
+          for attempt in 1 2 3 4 5; do
+            checks="$(gh pr checks "$PR" --repo "$GITHUB_REPOSITORY" --json name,bucket,workflow 2>/dev/null || echo '[]')"
+            if [ -z "$checks" ]; then checks='[]'; fi
+            allow="$(echo "$checks" | jq '[.[] | select(.workflow == "CI" or .workflow == "Hermes PR Review (Kreuzverhoer)")]')"
+            has_ci="$(echo "$allow" | jq -r 'any(.[]; .workflow == "CI")')"
+            has_reviewer="$(echo "$allow" | jq -r 'any(.[]; .workflow == "Hermes PR Review (Kreuzverhoer)")')"
+            if [ "$has_ci" = "true" ] && [ "$has_reviewer" = "true" ]; then
+              break
+            fi
+            if [ "$attempt" -lt 5 ]; then
+              d="${delays[$((attempt - 1))]}"
+              sleep "$d"
+            fi
+          done
+
+          # Fehlende Checks sind kein Fehler hier (wir sind der Reviewer selbst, der läuft), aber wenn beide sichtbar sind, prüfen wir ob grün
+          any_fail='false'
+          if [ "$(echo "$allow" | jq 'length')" -gt 0 ]; then
+            any_fail="$(echo "$allow" | jq -r 'any(.[]; .bucket == "fail")')"
+          fi
+
+          # Safe-Default: Kein Ergebnis-Label oder Allowlist-Check rot → ai:needs-changes setzen
+          should_set_needs_changes='false'
+          reason=''
+
           if [ "$has_changes" != "true" ] && [ "$has_ready" != "true" ]; then
-            if [ "$has_review" = "true" ]; then gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-review; fi
+            # Kein Ergebnis-Label gesetzt → Safe-Default
+            should_set_needs_changes='true'
+            reason='Review ohne Ergebnis-Label'
+          elif [ "$has_ready" = "true" ] && [ "$any_fail" = "true" ]; then
+            # ai:ready-to-merge gesetzt, aber Allowlist-Check rot → korrigieren
+            should_set_needs_changes='true'
+            reason='ai:ready-to-merge gesetzt, aber Allowlist-Check rot'
+          fi
+
+          if [ "$should_set_needs_changes" = "true" ]; then
+            # Terminale/abgeschlossene Pipeline-Labels entfernen, dann ai:needs-changes setzen
+            if [ "$has_ready" = "true" ]; then
+              gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:ready-to-merge 2>/dev/null || true
+            fi
+            if [ "$has_review" = "true" ]; then
+              gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-review 2>/dev/null || true
+            fi
             gh label create "ai:needs-changes" --repo "$GITHUB_REPOSITORY" --color D93F0B 2>/dev/null || true
             gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-changes
-            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⚠️ Review ohne Ergebnis-Label — Safe-Default ai:needs-changes." 2>/dev/null || true
+            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⚠️ Review: $reason — Safe-Default ai:needs-changes." 2>/dev/null || true
           fi
 
       - name: Bei Timeout PR-Kommentar (Alarm)
