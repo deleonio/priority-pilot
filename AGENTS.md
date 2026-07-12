@@ -42,11 +42,11 @@ Alle KI-Workflows (Triage, Re-Triage, Spec, Umsetzung, PR-Review, PR-Fixup) lauf
 **Hermes Agent** (Nous Research). Es stehen **drei Provider** zur Verfügung, wählbar per
 Issue-/PR-Label:
 
-| Label | Provider | Auth | Modelle | Kontext |
-| --- | --- | --- | --- | --- |
-| *(kein Label — Default)* | **OpenRouter** | `OPENROUTER_API_KEY` | DeepSeek Pro / Flash | 1.048K |
-| `ai:use-nous` | **Nous Portal** | `NOUS_PORTAL_TOKEN` (API-Key) | DeepSeek Pro / Flash | 1.048K |
-| `ai:use-zai` | **Z.AI** | `ZAI_API_KEY` | GLM 5.2 / GLM 5.1 | 1.048K / 203K |
+| Label                    | Provider        | Auth                          | Modelle              | Kontext       |
+| ------------------------ | --------------- | ----------------------------- | -------------------- | ------------- |
+| _(kein Label — Default)_ | **OpenRouter**  | `OPENROUTER_API_KEY`          | DeepSeek Pro / Flash | 1.048K        |
+| `ai:use-nous`            | **Nous Portal** | `NOUS_PORTAL_TOKEN` (API-Key) | DeepSeek Pro / Flash | 1.048K        |
+| `ai:use-zai`             | **Z.AI**        | `ZAI_API_KEY`                 | GLM 5.2 / GLM 5.1    | 1.048K / 203K |
 
 Die Modellwahl folgt der Aufgaben-Strenge: **Pro-Modell** für Analyse/Spec/Review
 (präzises Reasoning), **Flash/Coding-Modell** für Implementierung/Fixup (schnell, günstig).
@@ -72,24 +72,24 @@ echo "$HOME/.local/bin" >> $GITHUB_PATH
 
 **Provider-Wechsel in CI per Label:**
 
-| Label | `hermes config set` | Auth | `--provider` |
-| --- | --- | --- | --- |
-| *(kein Label)* | `model.provider openrouter` + `base_url https://openrouter.ai/api/v1` | `OPENROUTER_API_KEY` | `openrouter` |
-| `ai:use-nous` | `model.provider nous` + `base_url https://inference-api.nousresearch.com/v1` | `NOUS_PORTAL_TOKEN` (API-Key via `hermes auth add`) | `nous` |
-| `ai:use-zai` | `model.provider zai` | `ZAI_API_KEY` | `zai` |
+| Label          | `hermes config set`                                                          | Auth                                                | `--provider` |
+| -------------- | ---------------------------------------------------------------------------- | --------------------------------------------------- | ------------ |
+| _(kein Label)_ | `model.provider openrouter` + `base_url https://openrouter.ai/api/v1`        | `OPENROUTER_API_KEY`                                | `openrouter` |
+| `ai:use-nous`  | `model.provider nous` + `base_url https://inference-api.nousresearch.com/v1` | `NOUS_PORTAL_TOKEN` (API-Key via `hermes auth add`) | `nous`       |
+| `ai:use-zai`   | `model.provider zai`                                                         | `ZAI_API_KEY`                                       | `zai`        |
 
 **CI-Flags:**
 
-| Flag                    | Zweck                                                                |
-| ----------------------- | -------------------------------------------------------------------- |
-| `-q '<prompt>'`         | Single-query, non-interactive                                        |
-| `-Q`                    | Quiet — keine Banner/Spinner                                         |
-| `--yolo`                | Keine Gefahren-Bestätigung (headless)                                |
-| `--provider <name>`     | API-Routing (openrouter / nous / zai)                                |
-| `-m <modell>`           | Modell-Festlegung (Pro/Flash oder GLM)                               |
-| `-t "terminal,file"`    | Nur Terminal und Datei-Tools                                         |
-| `--max-turns 90`        | Tool-Call-Obergrenze                                                 |
-| `--accept-hooks`        | Shell-Hooks automatisch freigeben                                    |
+| Flag                 | Zweck                                  |
+| -------------------- | -------------------------------------- |
+| `-q '<prompt>'`      | Single-query, non-interactive          |
+| `-Q`                 | Quiet — keine Banner/Spinner           |
+| `--yolo`             | Keine Gefahren-Bestätigung (headless)  |
+| `--provider <name>`  | API-Routing (openrouter / nous / zai)  |
+| `-m <modell>`        | Modell-Festlegung (Pro/Flash oder GLM) |
+| `-t "terminal,file"` | Nur Terminal und Datei-Tools           |
+| `--max-turns 90`     | Tool-Call-Obergrenze                   |
+| `--accept-hooks`     | Shell-Hooks automatisch freigeben      |
 
 **Prompt:** Per Heredoc in eine Datei geschrieben, dann via `-q "$(cat /tmp/hermes-prompt.txt)"` übergeben — vermeidet Shell-Quoting-Probleme.
 
