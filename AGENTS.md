@@ -46,7 +46,7 @@ Issue-/PR-Label:
 | --- | --- | --- | --- | --- |
 | *(kein Label — Default)* | **OpenRouter** | `OPENROUTER_API_KEY` | DeepSeek Pro / Flash | 1.048K |
 | `ai:use-nous` | **Nous Portal** | `NOUS_PORTAL_TOKEN` (API-Key) | DeepSeek Pro / Flash | 1.048K |
-| `ai:use-zai` | **Z.AI** | `GLM_API_KEY` | GLM 5.2 / GLM 5.1 | 1.048K / 203K |
+| `ai:use-zai` | **Z.AI** | `ZAI_API_KEY` | GLM 5.2 / GLM 5.1 | 1.048K / 203K |
 
 Die Modellwahl folgt der Aufgaben-Strenge: **Pro-Modell** für Analyse/Spec/Review
 (präzises Reasoning), **Flash/Coding-Modell** für Implementierung/Fixup (schnell, günstig).
@@ -76,7 +76,7 @@ echo "$HOME/.local/bin" >> $GITHUB_PATH
 | --- | --- | --- | --- |
 | *(kein Label)* | `model.provider openrouter` + `base_url https://openrouter.ai/api/v1` | `OPENROUTER_API_KEY` | `openrouter` |
 | `ai:use-nous` | `model.provider nous` + `base_url https://inference-api.nousresearch.com/v1` | `NOUS_PORTAL_TOKEN` (API-Key via `hermes auth add`) | `nous` |
-| `ai:use-zai` | `model.provider zai` | `GLM_API_KEY` | `zai` |
+| `ai:use-zai` | `model.provider zai` | `ZAI_API_KEY` | `zai` |
 
 **CI-Flags:**
 
@@ -125,7 +125,7 @@ damit die `mcp_servers`-Konfiguration wirkt.
 In CI nutzt Hermes standardmäßig **OpenRouter** als Provider — Authentifizierung per API-Key
 (`OPENROUTER_API_KEY` als GitHub Secret). Über Issue-/PR-Labels kann auf **Nous Portal**
 (`ai:use-nous`, API-Key via `NOUS_PORTAL_TOKEN` + `hermes auth add nous --type api-key`) oder
-**Z.AI direkt** (`ai:use-zai`, API-Key via `GLM_API_KEY`) gewechselt werden.
+**Z.AI direkt** (`ai:use-zai`, API-Key via `ZAI_API_KEY`) gewechselt werden.
 Bei `ai:use-zai` wechseln die Modelle automatisch auf GLM 5.2/5.1 statt DeepSeek Pro/Flash.
 Lokal läuft Hermes über den **Nous Portal** Provider (OAuth, `hermes auth`).
 
