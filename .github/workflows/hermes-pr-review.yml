@@ -8,8 +8,13 @@ name: Hermes PR Review (Kreuzverhoer)
 #   - sauber 🟢 → ai:ready-to-merge (→ Gate)
 # Ändert KEINEN Code.
 #
-# Setzt Hermes Agent (Nous Research) mit GLM 5.2 über Nous Portal.
-# Voraussetzung: Repo-Secret NOUS_PORTAL_TOKEN
+# Setzt Hermes Agent (Nous Research) — Provider wählbar per PR-Label:
+#   ai:use-openrouter (Default): DeepSeek via OpenRouter (OPENROUTER_API_KEY)
+#   ai:use-nous:         Nous Portal direkt (NOUS_PORTAL_TOKEN)
+#   ai:use-zai:          Z.AI direkt (ZAI_API_KEY, GLM-Modelle)
+# Ohne Label → OpenRouter + DeepSeek.
+#
+# Voraussetzungen: OPENROUTER_API_KEY, NOUS_PORTAL_TOKEN, ZAI_API_KEY
 
 on:
   pull_request:
@@ -100,11 +105,30 @@ jobs:
           curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-browser --skip-setup
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      - name: Hermes konfigurieren
+      - name: Hermes konfigurieren (Provider anhand PR-Label)
         if: steps.preflight.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          PR: ${{ github.event.pull_request.number }}
         run: |
-          hermes config set model.provider nous
-          hermes auth add nous --token "${{ secrets.NOUS_PORTAL_TOKEN }}"
+          # Provider anhand des PR-Labels wählen
+          LABELS=$(gh pr view $PR --repo $GITHUB_REPOSITORY --json labels --jq '.labels[].name' 2>/dev/null || echo "")
+          if echo "$LABELS" | grep -q 'ai:use-nous'; then
+            echo "::notice::Provider: Nous Portal (ai:use-nous)"
+            hermes config set model.provider nous
+            hermes config set model.base_url https://inference-api.nousresearch.com/v1
+            hermes auth add nous --type api-key --api-key "${{ secrets.NOUS_PORTAL_TOKEN }}" --label ci
+          elif echo "$LABELS" | grep -q 'ai:use-zai'; then
+            echo "::notice::Provider: Z.AI direkt (ai:use-zai)"
+            hermes config set model.provider zai
+            # zai needs no base_url, uses built-in endpoint probing
+            export ZAI_API_KEY="${{ secrets.ZAI_API_KEY }}"
+            echo "ZAI_API_KEY=$ZAI_API_KEY" >> "$GITHUB_ENV"
+          else
+            echo "::notice::Provider: OpenRouter (Default)"
+            hermes config set model.provider openrouter
+            hermes config set model.base_url https://openrouter.ai/api/v1
+          fi
           hermes config set agent.max_turns 90
           pip install mcp -q
           hermes mcp add kolibri --url https://public-ui-kolibri-mcp.vercel.app/mcp
@@ -131,14 +155,33 @@ jobs:
             fi
           fi
 
-      - name: API-Key prüfen (NOUS_PORTAL_TOKEN)
+      - name: Auth prüfen (provider-spezifisch)
         if: steps.preflight.outputs.configured == 'true'
         env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
+          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          PR: ${{ github.event.pull_request.number }}
         run: |
-          if [ -z "$NOUS_PORTAL_TOKEN" ]; then
-            echo "::error title=Token fehlt::NOUS_PORTAL_TOKEN nicht gesetzt"
-            exit 1
+          LABELS=$(gh pr view $PR --repo $GITHUB_REPOSITORY --json labels --jq '.labels[].name' 2>/dev/null || echo "")
+          if echo "$LABELS" | grep -q 'ai:use-nous'; then
+            if [ -z "$NOUS_PORTAL_TOKEN" ]; then
+              echo "::error title=Auth fehlt::NOUS_PORTAL_TOKEN nicht gesetzt — als Repo-Secret hinterlegen"
+              exit 1
+            fi
+            echo "NOUS_PORTAL_TOKEN vorhanden."
+          elif echo "$LABELS" | grep -q 'ai:use-zai'; then
+            if [ -z "$ZAI_API_KEY" ]; then
+              echo "::error title=Auth fehlt::ZAI_API_KEY nicht gesetzt — als Repo-Secret hinterlegen"
+              exit 1
+            fi
+            echo "ZAI_API_KEY vorhanden."
+          else
+            if [ -z "$OPENROUTER_API_KEY" ]; then
+              echo "::error title=Auth fehlt::OPENROUTER_API_KEY nicht gesetzt — als Repo-Secret hinterlegen (siehe https://openrouter.ai/keys)"
+              exit 1
+            fi
           fi
 
       - name: Supersede-Check
@@ -155,13 +198,25 @@ jobs:
             echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Kreuzverhör-Review via Hermes (GLM 5.2)
+      - name: Kreuzverhör-Review via Hermes (Provider per Label)
         id: hermes
         if: steps.preflight.outputs.configured == 'true' && steps.supersede-check.outputs.skip != 'true'
         env:
-          NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          PR: ${{ github.event.pull_request.number }}
         run: |
+          # Provider und Modell anhand des PR-Labels wählen
+          LABELS=$(gh pr view $PR --repo $GITHUB_REPOSITORY --json labels --jq '.labels[].name' 2>/dev/null || echo "")
+          PROVIDER_FLAG="--provider openrouter"
+          MODEL="deepseek/deepseek-v4-pro"
+          if echo "$LABELS" | grep -q 'ai:use-nous'; then
+            PROVIDER_FLAG="--provider nous"
+          elif echo "$LABELS" | grep -q 'ai:use-zai'; then
+            PROVIDER_FLAG="--provider zai"
+            MODEL="z-ai/glm-5.2"
+          fi
+
           cat > /tmp/hermes-prompt.txt << 'HERMES_EOF'
           Reviewe Pull Request #PR_NR im Kreuzverhör (Label `ai:needs-review` ist gesetzt).
 
@@ -195,8 +250,8 @@ jobs:
 
           hermes chat -q "$(cat /tmp/hermes-prompt.txt)" \
             $RESUME_ARG \
-            -Q --yolo --provider nous \
-            -m "z-ai/glm-5.2" \
+            -Q --yolo $PROVIDER_FLAG \
+            -m "$MODEL" \
             -t "terminal,file" \
             --max-turns 90 \
             --accept-hooks \

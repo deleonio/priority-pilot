@@ -39,49 +39,64 @@ Wissensbasis liegt in [`.ai-knowledge/`](.ai-knowledge/).
 ## KI-Agent: Hermes Agent
 
 Alle KI-Workflows (Triage, Re-Triage, Spec, Umsetzung, PR-Review, PR-Fixup) laufen auf
-**Hermes Agent** (Nous Research) über den **Nous Portal** Provider. Die Modellwahl folgt der
-Aufgaben-Strenge: **GLM 5.2** für Analyse/Spec/Review (großer Context, präzises Reasoning),
-**GLM 5.1** für Implementierung/Fixup (stark im Coding, schneller Durchsatz).
+**Hermes Agent** (Nous Research). Es stehen **drei Provider** zur Verfügung, wählbar per
+Issue-/PR-Label:
+
+| Label | Provider | Auth | Modelle | Kontext |
+| --- | --- | --- | --- | --- |
+| *(kein Label — Default)* | **OpenRouter** | `OPENROUTER_API_KEY` | DeepSeek Pro / Flash | 1.048K |
+| `ai:use-nous` | **Nous Portal** | `NOUS_PORTAL_TOKEN` (API-Key) | DeepSeek Pro / Flash | 1.048K |
+| `ai:use-zai` | **Z.AI** | `ZAI_API_KEY` | GLM 5.2 / GLM 5.1 | 1.048K / 203K |
+
+Die Modellwahl folgt der Aufgaben-Strenge: **Pro-Modell** für Analyse/Spec/Review
+(präzises Reasoning), **Flash/Coding-Modell** für Implementierung/Fixup (schnell, günstig).
+Bei `ai:use-zai` wechseln die Modelle auf GLM 5.2 (Reasoning) bzw. GLM 5.1 (Coding).
 
 - [Hermes Agent Docs](https://hermes-agent.nousresearch.com/docs/)
-- Modelle:
-  - `z-ai/glm-5.2` (Analyse, Spec, Review — 1M Context, präzises Reasoning)
+- Default-Modelle (OpenRouter / Nous Portal):
+  - `deepseek/deepseek-v4-pro` (Analyse, Spec, Review — präzises Reasoning)
+  - `deepseek/deepseek-v4-flash` (Umsetzung, Fixup — schnell, günstig)
+- Z.AI-Modelle (bei `ai:use-zai`):
+  - `z-ai/glm-5.2` (Analyse, Spec, Review — 1M Context, starkes Reasoning)
   - `z-ai/glm-5.1` (Umsetzung, Fixup — stark im Coding)
-- Provider: **Nous Portal** (OAuth, Abrechnung über Nous-Subscription)
-- Auth: `hermes auth` (OAuth-Login, kein API-Key nötig)
+- Lokal: Nous Portal (OAuth, `hermes auth`), Default `z-ai/glm-5.2`
 - CLI: `hermes chat -q '<prompt>'` (single-query, non-interactive)
 
 Hermes wird im CI-Lauf frisch installiert (keine dedizierte GitHub Action nötig):
 
 ```bash
-# uv-Paketcache wiederherstellen (beschleunigt Folgeläufe):
-#   actions/cache@v4 mit key: uv-hermes-${{ runner.os }}-W$(date +%Y%V)
 curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-browser --skip-setup
 echo "$HOME/.local/bin" >> $GITHUB_PATH
-hermes config set model.provider nous
-# Nous Portal nutzt OAuth — in CI wird der Token als Secret injiziert:
-hermes auth add nous --token "${{ secrets.NOUS_PORTAL_TOKEN }}"
+# Provider wird anhand des Labels gewählt (Default: OpenRouter)
 ```
+
+**Provider-Wechsel in CI per Label:**
+
+| Label | `hermes config set` | Auth | `--provider` |
+| --- | --- | --- | --- |
+| *(kein Label)* | `model.provider openrouter` + `base_url https://openrouter.ai/api/v1` | `OPENROUTER_API_KEY` | `openrouter` |
+| `ai:use-nous` | `model.provider nous` + `base_url https://inference-api.nousresearch.com/v1` | `NOUS_PORTAL_TOKEN` (API-Key via `hermes auth add`) | `nous` |
+| `ai:use-zai` | `model.provider zai` | `ZAI_API_KEY` | `zai` |
 
 **CI-Flags:**
 
-| Flag                 | Zweck                                    |
-| -------------------- | ---------------------------------------- |
-| `-q '<prompt>'`      | Single-query, non-interactive            |
-| `-Q`                 | Quiet — keine Banner/Spinner             |
-| `--yolo`             | Keine Gefahren-Bestätigung (headless)    |
-| `--provider nous`    | API-Routing über Nous Portal             |
-| `-m <modell>`        | Modell-Festlegung (GLM 5.2 oder GLM 5.1) |
-| `-t "terminal,file"` | Nur Terminal und Datei-Tools             |
-| `--max-turns 90`     | Tool-Call-Obergrenze                     |
-| `--accept-hooks`     | Shell-Hooks automatisch freigeben        |
+| Flag                    | Zweck                                                                |
+| ----------------------- | -------------------------------------------------------------------- |
+| `-q '<prompt>'`         | Single-query, non-interactive                                        |
+| `-Q`                    | Quiet — keine Banner/Spinner                                         |
+| `--yolo`                | Keine Gefahren-Bestätigung (headless)                                |
+| `--provider <name>`     | API-Routing (openrouter / nous / zai)                                |
+| `-m <modell>`           | Modell-Festlegung (Pro/Flash oder GLM)                               |
+| `-t "terminal,file"`    | Nur Terminal und Datei-Tools                                         |
+| `--max-turns 90`        | Tool-Call-Obergrenze                                                 |
+| `--accept-hooks`        | Shell-Hooks automatisch freigeben                                    |
 
 **Prompt:** Per Heredoc in eine Datei geschrieben, dann via `-q "$(cat /tmp/hermes-prompt.txt)"` übergeben — vermeidet Shell-Quoting-Probleme.
 
 Fünf Workflows teilen sich zwei Modelle nach Aufgaben-Strenge:
 
-- **Analyse (Triage) + Spec + Review** → `z-ai/glm-5.2`
-- **Umsetzung (Implement) + Fixup** → `z-ai/glm-5.1`
+- **Analyse (Triage) + Spec + Review** → `deepseek/deepseek-v4-pro` (bzw. `z-ai/glm-5.2` bei `ai:use-zai`)
+- **Umsetzung (Implement) + Fixup** → `deepseek/deepseek-v4-flash` (bzw. `z-ai/glm-5.1` bei `ai:use-zai`)
 
 ### Kolibri MCP-Server für Frontend-Implementierung
 
@@ -105,11 +120,18 @@ stehen dem Agenten automatisch zur Verfügung, sobald der MCP-Server läuft.
 Die Workflows nutzen seit der MCP-Aktivierung **nicht mehr** `--ignore-user-config`,
 damit die `mcp_servers`-Konfiguration wirkt.
 
-### Nous Portal (Modell-Provider)
+### Provider (OpenRouter / Nous Portal / Z.AI)
 
-Hermes nutzt den Nous Portal Provider **nativ** — OAuth-Login, keine API-Keys nötig.
-Abrechnung läuft über die Nous-Subscription (portal.nousresearch.com).
-Preise: GLM 5.2 $0.35/$1.10, GLM 5.1 $0.966/$3.036 pro 1M Tokens (Input/Output).
+In CI nutzt Hermes standardmäßig **OpenRouter** als Provider — Authentifizierung per API-Key
+(`OPENROUTER_API_KEY` als GitHub Secret). Über Issue-/PR-Labels kann auf **Nous Portal**
+(`ai:use-nous`, API-Key via `NOUS_PORTAL_TOKEN` + `hermes auth add nous --type api-key`) oder
+**Z.AI direkt** (`ai:use-zai`, API-Key via `ZAI_API_KEY`) gewechselt werden.
+Bei `ai:use-zai` wechseln die Modelle automatisch auf GLM 5.2/5.1 statt DeepSeek Pro/Flash.
+Lokal läuft Hermes über den **Nous Portal** Provider (OAuth, `hermes auth`).
+
+Preise (pro 1M Tokens Input/Output):
+DeepSeek Pro $0.43/$0.87, DeepSeek Flash $0.09/$0.18 (OpenRouter),
+GLM 5.2 $0.35/$1.10, GLM 5.1 $0.966/$3.036 (OpenRouter/Z.AI).
 
 ### Weiches Zeitlimit (Soft-Abort)
 
