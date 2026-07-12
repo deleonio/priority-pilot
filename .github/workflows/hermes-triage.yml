@@ -8,10 +8,13 @@ name: Hermes Triage (Analyse)
 #  - Entfernen von Label "ai:analyzed" oder "ai:to-big-issue" (issues: unlabeled)
 #  - @claude-Kommentar einer Person mit Schreibzugriff (issue_comment: created)
 #
-# Setzt Hermes Agent (Nous Research) mit GLM 5.2 über Nous Portal ein
-# statt Claude Code.
+# Setzt Hermes Agent (Nous Research) — Provider wählbar per Issue-Label:
+#   ai:use-openrouter (Default): DeepSeek via OpenRouter (OPENROUTER_API_KEY)
+#   ai:use-nous:         Nous Portal direkt (NOUS_AUTH_JSON_B64)
+#   ai:use-zai:          Z.AI direkt (GLM_API_KEY, GLM-Modelle)
+# Ohne Label → OpenRouter + DeepSeek.
 #
-# Voraussetzung: Repo-Secret NOUS_AUTH_JSON_B64 (base64-codiertes auth.json für Nous Portal)
+# Voraussetzungen: OPENROUTER_API_KEY, NOUS_AUTH_JSON_B64, GLM_API_KEY
 #
 # Änderungen zu claude-triage.yml:
 #  - Kein CLAUDE_CODE_OAUTH_TOKEN mehr (entfällt komplett)
@@ -19,7 +22,7 @@ name: Hermes Triage (Analyse)
 #  - Kein session-restore/session-save (Hermes-Session-Resume folgt in MIG-002)
 #  - Kein cost-summary (liest claude execution file — Hermes-cost folgt in MIG-003)
 #  - Prompt angepasst: Hermes-spezifisch, keine Claude-Modell-Strategie
-#   - Modell: z-ai/glm-5.2 via Nous Portal (präzises Reasoning)
+#   - Modell: z-ai/glm-5.2 via OpenRouter (präzises Reasoning)
 
 on:
   issues:
@@ -141,12 +144,30 @@ jobs:
 
       # Konfiguration wird pro Lauf frisch in $HERMES_HOME geschrieben.
       # Der `hermes chat`-Aufruf unten setzt --provider und -m, daher reicht
-      # hier eine minimale Config (Base-URL und max_turns).
-      - name: Hermes konfigurieren (Nous Portal + GLM 5.2)
+      # hier die Provider-Auswahl + base_url + max_turns.
+      - name: Hermes konfigurieren (Provider anhand Issue-Label)
+        env:
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          ISSUE: ${{ github.event.issue.number }}
         run: |
-          hermes config set model.provider nous
-          hermes config set model.base_url https://inference-api.nousresearch.com/v1
-          echo "${{ secrets.NOUS_AUTH_JSON_B64 }}" | base64 -d > "$HERMES_HOME/auth.json"
+          # Provider anhand des Issue-Labels wählen
+          LABELS=$(gh issue view $ISSUE --repo $GITHUB_REPOSITORY --json labels --jq '.labels[].name' 2>/dev/null || echo "")
+          if echo "$LABELS" | grep -q 'ai:use-nous'; then
+            echo "::notice::Provider: Nous Portal (ai:use-nous)"
+            hermes config set model.provider nous
+            hermes config set model.base_url https://inference-api.nousresearch.com/v1
+            echo "${{ secrets.NOUS_AUTH_JSON_B64 }}" | base64 -d > "$HERMES_HOME/auth.json"
+          elif echo "$LABELS" | grep -q 'ai:use-zai'; then
+            echo "::notice::Provider: Z.AI direkt (ai:use-zai)"
+            hermes config set model.provider zai
+            # zai needs no base_url, uses built-in endpoint probing
+            export GLM_API_KEY="${{ secrets.GLM_API_KEY }}"
+            echo "GLM_API_KEY=$GLM_API_KEY" >> "$GITHUB_ENV"
+          else
+            echo "::notice::Provider: OpenRouter (Default)"
+            hermes config set model.provider openrouter
+            hermes config set model.base_url https://openrouter.ai/api/v1
+          fi
           hermes config set agent.max_turns 90
           pip install mcp -q
           hermes mcp add kolibri --url https://public-ui-kolibri-mcp.vercel.app/mcp
@@ -178,23 +199,40 @@ jobs:
           fi
 
       # ──────────────────────────────────────────────
-      # 5. Auth-Prüfung (NOUS_AUTH_JSON_B64)
+      # 5. Auth-Prüfung (provider-spezifisch)
       # ──────────────────────────────────────────────
-      - name: Auth prüfen (NOUS_AUTH_JSON_B64)
+      - name: Auth prüfen (provider-spezifisch)
         if: steps.preflight.outputs.configured == 'true'
         env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           NOUS_AUTH_JSON_B64: ${{ secrets.NOUS_AUTH_JSON_B64 }}
+          GLM_API_KEY: ${{ secrets.GLM_API_KEY }}
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
-          if [ ! -f "$HERMES_HOME/auth.json" ]; then
-            echo "::error title=Auth fehlt::NOUS_AUTH_JSON_B64 nicht gesetzt oder auth.json konnte nicht dekodiert werden — als Repo-Secret hinterlegen (base64-codierter Inhalt von ~/.hermes/auth.json, siehe https://hermes-agent.nousresearch.com/docs). Ohne Auth läuft Hermes nicht."
-            gh label create "ai:to-big-issue" --repo "$GITHUB_REPOSITORY" \
-              --color B60205 --description "KI-Job lief rot (Konfiguration/Secret) — bitte prüfen" 2>/dev/null || true
-            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:to-big-issue" 2>/dev/null || true
-            exit 1
+          LABELS=$(gh issue view $ISSUE --repo $GITHUB_REPOSITORY --json labels --jq '.labels[].name' 2>/dev/null || echo "")
+          if echo "$LABELS" | grep -q 'ai:use-nous'; then
+            if [ -z "$NOUS_AUTH_JSON_B64" ]; then
+              echo "::error title=Auth fehlt::NOUS_AUTH_JSON_B64 nicht gesetzt — als Repo-Secret hinterlegen"
+              exit 1
+            fi
+            echo "NOUS_AUTH_JSON_B64 vorhanden."
+          elif echo "$LABELS" | grep -q 'ai:use-zai'; then
+            if [ -z "$GLM_API_KEY" ]; then
+              echo "::error title=Auth fehlt::GLM_API_KEY nicht gesetzt — als Repo-Secret hinterlegen"
+              exit 1
+            fi
+            echo "GLM_API_KEY vorhanden."
+          else
+            if [ -z "$OPENROUTER_API_KEY" ]; then
+              echo "::error title=Auth fehlt::OPENROUTER_API_KEY nicht gesetzt — als Repo-Secret hinterlegen (siehe https://openrouter.ai/keys). Ohne API-Key läuft Hermes nicht."
+              gh label create "ai:to-big-issue" --repo "$GITHUB_REPOSITORY" \
+                --color B60205 --description "KI-Job lief rot (Konfiguration/Secret) — bitte prüfen" 2>/dev/null || true
+              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:to-big-issue" 2>/dev/null || true
+              exit 1
+            fi
+            echo "OPENROUTER_API_KEY vorhanden."
           fi
-          echo "auth.json vorhanden (NOUS_AUTH_JSON_B64 dekodiert)."
 
       # ————————————————————————————————————————————————————————————————————————
       # 5. Triage via Hermes
@@ -207,21 +245,33 @@ jobs:
       #   -q                       Single-query non-interactive
       #   -Q                       Quiet — keine Banner/Spinner im CI-Log
       #   --yolo                   Keine Gefahren-Bestätigung (CI headless)
-      #   --provider nous          API läuft über Nous Portal
-      #   -m z-ai/glm-5.2           GLM 5.2 (präzises Reasoning)
+      #   --provider <provider>    API-Routing (openrouter/nous/zai, per Label gewählt)
+      #   -m <modell>              Modell (DeepSeek Pro/GLM 5.2 per Label)
       #   -t "terminal,file"       Nur Shell- und Datei-Tools zulassen
       #   --max-turns 90           Obergrenze für Tool-Calls
       #   --accept-hooks           Automatische Freigabe von Shell-Hooks
       #
       # GH_TOKEN für gh-Befehle (Issue lesen/schreiben, Labels setzen).
-      # NOUS_AUTH_JSON_B64 für die LLM-API (via auth.json).
-      - name: Triage via Hermes (GLM 5.2)
+      # API-Key je nach Provider (OPENROUTER_API_KEY / NOUS_AUTH / GLM_API_KEY).
+      - name: Triage via Hermes (Provider per Label)
         id: hermes
         if: steps.preflight.outputs.configured == 'true'
         env:
-          NOUS_AUTH_JSON_B64: ${{ secrets.NOUS_AUTH_JSON_B64 }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          ISSUE: ${{ github.event.issue.number }}
         run: |
+          # Provider und Modell anhand des Issue-Labels wählen
+          LABELS=$(gh issue view $ISSUE --repo $GITHUB_REPOSITORY --json labels --jq '.labels[].name' 2>/dev/null || echo "")
+          PROVIDER_FLAG="--provider openrouter"
+          MODEL="deepseek/deepseek-v4-pro"
+          if echo "$LABELS" | grep -q 'ai:use-nous'; then
+            PROVIDER_FLAG="--provider nous"
+          elif echo "$LABELS" | grep -q 'ai:use-zai'; then
+            PROVIDER_FLAG="--provider zai"
+            MODEL="z-ai/glm-5.2"
+          fi
+
           # Prompt per Heredoc schreiben — 'HERMES_EOF' (single-quoted) verhindert
           # bash-Variable-Expansion innerhalb des Heredocs, während GitHub Actions
           # ${} Expressions VOR der Schritt-Ausführung evaluiert.
@@ -281,8 +331,8 @@ jobs:
 
           hermes chat -q "$(cat /tmp/hermes-prompt.txt)" \
             $RESUME_ARG \
-            -Q --yolo --provider nous \
-            -m "z-ai/glm-5.2" \
+            -Q --yolo $PROVIDER_FLAG \
+            -m "$MODEL" \
             -t "terminal,file" \
             --max-turns 90 \
             --accept-hooks \

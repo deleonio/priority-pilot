@@ -39,16 +39,19 @@ Wissensbasis liegt in [`.ai-knowledge/`](.ai-knowledge/).
 ## KI-Agent: Hermes Agent
 
 Alle KI-Workflows (Triage, Re-Triage, Spec, Umsetzung, PR-Review, PR-Fixup) laufen auf
-**Hermes Agent** (Nous Research) über den **Nous Portal** Provider. Die Modellwahl folgt der
-Aufgaben-Strenge: **GLM 5.2** für Analyse/Spec/Review (großer Context, präzises Reasoning),
+**Hermes Agent** (Nous Research). Es sind **zwei Provider** konfiguriert — lokal und in CI:
+**Lokal** = Nous Portal (OAuth, `hermes auth`), **CI** = OpenRouter (`OPENROUTER_API_KEY`).
+Beide Provider verwenden dieselben GLM-Modelle. Die Modellwahl folgt der Aufgaben-Strenge:
+**GLM 5.2** für Analyse/Spec/Review (großer Context, präzises Reasoning),
 **GLM 5.1** für Implementierung/Fixup (stark im Coding, schneller Durchsatz).
 
 - [Hermes Agent Docs](https://hermes-agent.nousresearch.com/docs/)
 - Modelle:
   - `z-ai/glm-5.2` (Analyse, Spec, Review — 1M Context, präzises Reasoning)
   - `z-ai/glm-5.1` (Umsetzung, Fixup — stark im Coding)
-- Provider: **Nous Portal** (OAuth, Abrechnung über Nous-Subscription)
-- Auth: `hermes auth` (OAuth-Login, kein API-Key nötig)
+- Provider: **Lokal** = Nous Portal (OAuth), **CI** = OpenRouter (API-Key)
+- Auth lokal: `hermes auth` (OAuth-Login, kein API-Key nötig)
+- Auth CI: `OPENROUTER_API_KEY` (als GitHub Secret)
 - CLI: `hermes chat -q '<prompt>'` (single-query, non-interactive)
 
 Hermes wird im CI-Lauf frisch installiert (keine dedizierte GitHub Action nötig):
@@ -58,24 +61,22 @@ Hermes wird im CI-Lauf frisch installiert (keine dedizierte GitHub Action nötig
 #   actions/cache@v4 mit key: uv-hermes-${{ runner.os }}-W$(date +%Y%V)
 curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-browser --skip-setup
 echo "$HOME/.local/bin" >> $GITHUB_PATH
-hermes config set model.provider nous
-# Nous Portal nutzt OAuth — in CI wird der auth.json als Base64 injiziert:
-echo "${{ secrets.NOUS_AUTH_JSON_B64 }}" | base64 -d > "$HERMES_HOME/auth.json"
-hermes config set model.base_url https://inference-api.nousresearch.com/v1
+hermes config set model.provider openrouter
+hermes config set model.base_url https://openrouter.ai/api/v1
 ```
 
 **CI-Flags:**
 
-| Flag                 | Zweck                                    |
-| -------------------- | ---------------------------------------- |
-| `-q '<prompt>'`      | Single-query, non-interactive            |
-| `-Q`                 | Quiet — keine Banner/Spinner             |
-| `--yolo`             | Keine Gefahren-Bestätigung (headless)    |
-| `--provider nous`    | API-Routing über Nous Portal             |
-| `-m <modell>`        | Modell-Festlegung (GLM 5.2 oder GLM 5.1) |
-| `-t "terminal,file"` | Nur Terminal und Datei-Tools             |
-| `--max-turns 90`     | Tool-Call-Obergrenze                     |
-| `--accept-hooks`     | Shell-Hooks automatisch freigeben        |
+| Flag                    | Zweck                                    |
+| ----------------------- | ---------------------------------------- |
+| `-q '<prompt>'`         | Single-query, non-interactive            |
+| `-Q`                    | Quiet — keine Banner/Spinner             |
+| `--yolo`                | Keine Gefahren-Bestätigung (headless)    |
+| `--provider openrouter` | API-Routing über OpenRouter (CI)         |
+| `-m <modell>`           | Modell-Festlegung (GLM 5.2 oder GLM 5.1) |
+| `-t "terminal,file"`    | Nur Terminal und Datei-Tools             |
+| `--max-turns 90`        | Tool-Call-Obergrenze                     |
+| `--accept-hooks`        | Shell-Hooks automatisch freigeben        |
 
 **Prompt:** Per Heredoc in eine Datei geschrieben, dann via `-q "$(cat /tmp/hermes-prompt.txt)"` übergeben — vermeidet Shell-Quoting-Probleme.
 
@@ -106,11 +107,16 @@ stehen dem Agenten automatisch zur Verfügung, sobald der MCP-Server läuft.
 Die Workflows nutzen seit der MCP-Aktivierung **nicht mehr** `--ignore-user-config`,
 damit die `mcp_servers`-Konfiguration wirkt.
 
-### Nous Portal (Modell-Provider)
+### OpenRouter (CI-Modell-Provider)
 
-Hermes nutzt den Nous Portal Provider **nativ** — OAuth-Login, keine API-Keys nötig.
-Abrechnung läuft über die Nous-Subscription (portal.nousresearch.com).
-Preise: GLM 5.2 $0.35/$1.10, GLM 5.1 $0.966/$3.036 pro 1M Tokens (Input/Output).
+In CI nutzt Hermes **OpenRouter** als Provider — Authentifizierung per API-Key
+(`OPENROUTER_API_KEY` als GitHub Secret). Lokal dagegen läuft Hermes über den
+**Nous Portal** Provider (OAuth, `hermes auth`). Beide Provider verwenden dieselben
+GLM-Modelle.
+
+**Lokal = Nous Portal (OAuth), CI = OpenRouter (API-Key)**
+
+Preise bei OpenRouter: GLM 5.2 $0.35/$1.10, GLM 5.1 $0.966/$3.036 pro 1M Tokens (Input/Output).
 
 ### Weiches Zeitlimit (Soft-Abort)
 
