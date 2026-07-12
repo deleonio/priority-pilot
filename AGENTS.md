@@ -47,10 +47,11 @@ Issue-/PR-Label:
 | _(kein Label — Default)_ | **OpenRouter**  | `OPENROUTER_API_KEY`          | DeepSeek Pro / Flash | 1.048K        |
 | `ai:use-nous`            | **Nous Portal** | `NOUS_PORTAL_TOKEN` (API-Key) | DeepSeek Pro / Flash | 1.048K        |
 | `ai:use-zai`             | **Z.AI**        | `ZAI_API_KEY`                 | GLM 5.2 / GLM 5.1    | 1.048K / 203K |
+| `ai:use-mistral`         | **Mistral Vibe**| `MISTRAL_API_KEY`            | Mistral Vibe Models  | Varies        |
 
 Die Modellwahl folgt der Aufgaben-Strenge: **Pro-Modell** für Analyse/Spec/Review
 (präzises Reasoning), **Flash/Coding-Modell** für Implementierung/Fixup (schnell, günstig).
-Bei `ai:use-zai` wechseln die Modelle auf GLM 5.2 (Reasoning) bzw. GLM 5.1 (Coding).
+Bei `ai:use-zai` wechseln die Modelle auf GLM 5.2 (Reasoning) bzw. GLM 5.1 (Coding). Bei `ai:use-mistral` wird **Mistral Vibe** statt Hermes verwendet (komplett separater Agent).
 
 - [Hermes Agent Docs](https://hermes-agent.nousresearch.com/docs/)
 - Default-Modelle (OpenRouter / Nous Portal):
@@ -77,6 +78,7 @@ echo "$HOME/.local/bin" >> $GITHUB_PATH
 | _(kein Label)_ | `model.provider openrouter` + `base_url https://openrouter.ai/api/v1`        | `OPENROUTER_API_KEY`                                | `openrouter` |
 | `ai:use-nous`  | `model.provider nous` + `base_url https://inference-api.nousresearch.com/v1` | `NOUS_PORTAL_TOKEN` (API-Key via `hermes auth add`) | `nous`       |
 | `ai:use-zai`   | `model.provider zai`                                                         | `ZAI_API_KEY`                                       | `zai`        |
+| `ai:use-mistral`| **Mistral Vibe** (separate Workflows, überspringt Hermes)                   | `MISTRAL_API_KEY`                                  | N/A          |
 
 **CI-Flags:**
 
@@ -95,8 +97,8 @@ echo "$HOME/.local/bin" >> $GITHUB_PATH
 
 Fünf Workflows teilen sich zwei Modelle nach Aufgaben-Strenge:
 
-- **Analyse (Triage) + Spec + Review** → `deepseek/deepseek-v4-pro` (bzw. `z-ai/glm-5.2` bei `ai:use-zai`)
-- **Umsetzung (Implement) + Fixup** → `deepseek/deepseek-v4-flash` (bzw. `z-ai/glm-5.1` bei `ai:use-zai`)
+- **Analyse (Triage) + Spec + Review** → `deepseek/deepseek-v4-pro` (bzw. `z-ai/glm-5.2` bei `ai:use-zai`, Mistral Vibe Modelle bei `ai:use-mistral`)
+- **Umsetzung (Implement) + Fixup** → `deepseek/deepseek-v4-flash` (bzw. `z-ai/glm-5.1` bei `ai:use-zai`, Mistral Vibe Modelle bei `ai:use-mistral`)
 
 ### Kolibri MCP-Server für Frontend-Implementierung
 

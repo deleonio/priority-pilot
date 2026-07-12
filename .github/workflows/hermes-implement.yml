@@ -24,7 +24,8 @@ jobs:
     if: >-
       ${{ github.event.label.name == 'ai:ready'
           && contains(github.event.issue.labels.*.name, 'ai:analyzed')
-          && github.event.issue.state == 'open' }}
+          && github.event.issue.state == 'open'
+            && !contains(github.event.issue.labels.*.name, 'ai:use-mistral') }}
     runs-on: ubuntu-latest
     env:
       HERMES_HOME: /tmp/hermes-ci

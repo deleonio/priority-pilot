@@ -36,7 +36,8 @@ jobs:
     # Nur bei tatsächlichem Merge (nicht bei jedem Schließen) und nur für same-repo-PRs.
     if: >-
       ${{ github.event.pull_request.merged == true
-          && github.event.pull_request.head.repo.full_name == github.repository }}
+          && github.event.pull_request.head.repo.full_name == github.repository
+              && !contains(github.event.pull_request.labels.*.name, 'ai:use-mistral') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
