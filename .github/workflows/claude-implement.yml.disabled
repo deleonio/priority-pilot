@@ -27,7 +27,7 @@ on:
     types: [labeled]
 
 concurrency:
-  group: claude-implement-${{ github.event.issue.number }}
+  group: ai-implement-${{ github.event.issue.number }}-${{ contains(github.event.issue.labels.*.name, 'ai:use-claude') && 'claude' || contains(github.event.issue.labels.*.name, 'ai:use-mistral') && 'mistral' || contains(github.event.issue.labels.*.name, 'ai:use-nous') && 'nous' || contains(github.event.issue.labels.*.name, 'ai:use-zai') && 'zai' || 'claude' }}
   cancel-in-progress: false # eine laufende Umsetzung nicht mittendrin abbrechen
 
 jobs:

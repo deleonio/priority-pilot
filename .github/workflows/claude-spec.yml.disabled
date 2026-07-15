@@ -25,7 +25,7 @@ on:
     types: [labeled]
 
 concurrency:
-  group: claude-spec-${{ github.event.issue.number }}
+  group: ai-spec-${{ github.event.issue.number }}-${{ contains(github.event.issue.labels.*.name, 'ai:use-claude') && 'claude' || contains(github.event.issue.labels.*.name, 'ai:use-mistral') && 'mistral' || contains(github.event.issue.labels.*.name, 'ai:use-nous') && 'nous' || contains(github.event.issue.labels.*.name, 'ai:use-zai') && 'zai' || 'claude' }}
   cancel-in-progress: false # einen laufenden Spec-Lauf nicht mittendrin abbrechen
 
 jobs:

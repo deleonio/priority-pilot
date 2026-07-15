@@ -39,7 +39,7 @@ on:
 # Triage-/Re-Triage-Lauf ab, damit immer nur die juengste Analyse durchlaeuft. Ein abgebrochener
 # Teil-Lauf ist unkritisch: der naechste Lauf fuehrt die (Re-)Triage vollstaendig neu aus.
 concurrency:
-  group: claude-triage-${{ github.event.issue.number }}
+  group: ai-triage-${{ github.event.issue.number }}-${{ contains(github.event.issue.labels.*.name, 'ai:use-claude') && 'claude' || contains(github.event.issue.labels.*.name, 'ai:use-mistral') && 'mistral' || contains(github.event.issue.labels.*.name, 'ai:use-nous') && 'nous' || contains(github.event.issue.labels.*.name, 'ai:use-zai') && 'zai' || 'claude' }}
   cancel-in-progress: true
 
 jobs:
