@@ -9,7 +9,7 @@ name: Mistral Vibe Implement (ai:ready)
 #   ai:use-zai:          Z.AI direkt (MISTRAL_API_KEY, GLM-Modelle)
 # Ohne Label ? OpenRouter + DeepSeek.
 #
-# Voraussetzungen: MISTRAL_API_KEY, MISTRAL_API_KEY, MISTRAL_API_KEY
+# Voraussetzungen: MISTRAL_API_KEY
 
 on:
   issues:
@@ -171,8 +171,6 @@ jobs:
       - name: Auth pruefen (provider-spezifisch)
         if: steps.preflight.outputs.configured == 'true'
         env:
-          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
-          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
           MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
