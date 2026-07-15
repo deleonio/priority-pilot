@@ -21,7 +21,7 @@ concurrency:
   # canceln (GitHub haelt pro Gruppe nur einen laufenden + einen wartenden Run). Getrennte Gruppen
   # serialisieren nur noch GLEICHE Fixup-Laeufe desselben PRs. cancel-in-progress: false -> einen
   # laufenden Fix nie mittendrin verwerfen (Push-Sicherheit).
-  group: claude-pr-fixup-${{ github.event.pull_request.number }}
+  group: ai-pr-fixup-${{ github.event.pull_request.number }}-${{ contains(github.event.pull_request.labels.*.name, 'ai:use-claude') && 'claude' || contains(github.event.pull_request.labels.*.name, 'ai:use-mistral') && 'mistral' || contains(github.event.pull_request.labels.*.name, 'ai:use-nous') && 'nous' || contains(github.event.pull_request.labels.*.name, 'ai:use-zai') && 'zai' || 'claude' }}
   cancel-in-progress: false
 
 jobs:
