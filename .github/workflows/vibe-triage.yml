@@ -34,7 +34,7 @@ on:
 # cancel-in-progress: true -> ein neuerer Trigger desselben Issues bricht
 # einen noch laufenden Lauf ab (immer die aktuellste Analyse).
 concurrency:
-  group: vibe-triage-${{ github.event.issue.number }}
+  group: ai-triage-${{ github.event.issue.number }}-${{ contains(github.event.issue.labels.*.name, 'ai:use-mistral') && 'mistral' || contains(github.event.issue.labels.*.name, 'ai:use-nous') && 'nous' || contains(github.event.issue.labels.*.name, 'ai:use-zai') && 'zai' || 'mistral' }}
   cancel-in-progress: true
 
 jobs:

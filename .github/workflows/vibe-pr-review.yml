@@ -21,7 +21,7 @@ on:
     types: [labeled]
 
 concurrency:
-  group: vibe-pr-review-${{ github.event.pull_request.number }}
+  group: ai-pr-review-${{ github.event.pull_request.number }}-${{ contains(github.event.pull_request.labels.*.name, 'ai:use-mistral') && 'mistral' || contains(github.event.pull_request.labels.*.name, 'ai:use-nous') && 'nous' || contains(github.event.pull_request.labels.*.name, 'ai:use-zai') && 'zai' || 'mistral' }}
   cancel-in-progress: true # Fixup-Loop: neuer Review bricht laufenden Review ab (sinnvoll bei Code-Aenderungen)
 
 jobs:

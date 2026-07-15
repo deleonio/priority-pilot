@@ -17,7 +17,7 @@ on:
     types: [labeled]
 
 concurrency:
-  group: vibe-spec-${{ github.event.issue.number }}
+  group: ai-spec-${{ github.event.issue.number }}-${{ contains(github.event.issue.labels.*.name, 'ai:use-mistral') && 'mistral' || contains(github.event.issue.labels.*.name, 'ai:use-nous') && 'nous' || contains(github.event.issue.labels.*.name, 'ai:use-zai') && 'zai' || 'mistral' }}
   cancel-in-progress: false
 
 jobs:

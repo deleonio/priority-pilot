@@ -19,7 +19,7 @@ on:
     types: [labeled]
 
 concurrency:
-  group: vibe-pr-fixup-${{ github.event.pull_request.number }}
+  group: ai-pr-fixup-${{ github.event.pull_request.number }}-${{ contains(github.event.pull_request.labels.*.name, 'ai:use-mistral') && 'mistral' || contains(github.event.pull_request.labels.*.name, 'ai:use-nous') && 'nous' || contains(github.event.pull_request.labels.*.name, 'ai:use-zai') && 'zai' || 'mistral' }}
   cancel-in-progress: true # Neuer Fixup-Lauf bricht laufenden ab (nur nach neuem Review-Urteil)
 
 jobs:
