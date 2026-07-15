@@ -25,7 +25,8 @@ jobs:
     if: >-
       ${{ github.event.label.name == 'ai:spec-ready'
           && contains(github.event.issue.labels.*.name, 'ai:analyzed')
-          && github.event.issue.state == 'open' && contains(github.event.issue.labels.*.name, 'ai:use-mistral') }}
+          && github.event.issue.state == 'open'
+          && (contains(github.event.issue.labels.*.name, 'ai:use-mistral') || contains(github.event.issue.labels.*.name, 'ai:use-nous') || contains(github.event.issue.labels.*.name, 'ai:use-zai') || !contains(github.event.issue.labels.*.name, 'ai:use-claude')) }}
     runs-on: ubuntu-latest
     env:
       VIBE_HOME: /tmp/vibe-ci
