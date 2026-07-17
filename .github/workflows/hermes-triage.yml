@@ -63,6 +63,7 @@ jobs:
                   || github.event.comment.author_association == 'COLLABORATOR')) }}
     runs-on: ubuntu-latest
     env:
+      PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       # Hermes speichert Config + Sessions in ein RAM-Verzeichnis (nicht ~/.hermes)
       HERMES_HOME: /tmp/hermes-ci
     permissions:

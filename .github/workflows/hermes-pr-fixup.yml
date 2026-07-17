@@ -31,6 +31,7 @@ jobs:
               && !contains(github.event.pull_request.labels.*.name, 'ai:use-mistral') }}
     runs-on: ubuntu-latest
     env:
+      PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       HERMES_HOME: /tmp/hermes-ci
     permissions:
       contents: read
