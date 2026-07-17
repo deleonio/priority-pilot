@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VIBE_HOME: /tmp/vibe-ci
-      PATH: /home/runner/.local/bin:$PATH
+      PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/runner/.local/bin
     permissions:
       contents: read
       id-token: write

@@ -28,7 +28,7 @@ jobs:
           && (contains(github.event.issue.labels.*.name, 'ai:use-mistral') || contains(github.event.issue.labels.*.name, 'ai:use-nous') || contains(github.event.issue.labels.*.name, 'ai:use-zai') || !contains(github.event.issue.labels.*.name, 'ai:use-claude')) }}
     runs-on: ubuntu-latest
     env:
-      PATH: /home/runner/.local/bin:$PATH
+      PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/runner/.local/bin
       VIBE_HOME: /tmp/vibe-ci
     permissions:
       contents: read
