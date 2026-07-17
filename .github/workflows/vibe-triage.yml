@@ -42,7 +42,7 @@ jobs:
     # Identische Trigger-Bedingungen wie claude-triage.yml -- unveraendert.
     if: >-
       ${{ (github.event_name == 'issues'
-            && github.event.issue.state == 'open' && contains(github.event.issue.labels.*.name, 'ai:use-mistral')
+            && github.event.issue.state == 'open' && (contains(github.event.issue.labels.*.name, 'ai:use-mistral') || contains(github.event.issue.labels.*.name, 'ai:use-nous') || contains(github.event.issue.labels.*.name, 'ai:use-zai') || !contains(github.event.issue.labels.*.name, 'ai:use-claude'))
             && (
                  (github.event.action == 'opened'
                    && !contains(github.event.issue.labels.*.name, 'ai:analyzed')
@@ -55,7 +55,7 @@ jobs:
                ))
           || (github.event_name == 'issue_comment'
               && github.event.issue.pull_request == null
-              && contains(github.event.comment.body, '@vibe') && contains(github.event.issue.labels.*.name, 'ai:use-mistral')
+              && contains(github.event.comment.body, '@vibe') && (contains(github.event.issue.labels.*.name, 'ai:use-mistral') || contains(github.event.issue.labels.*.name, 'ai:use-nous') || contains(github.event.issue.labels.*.name, 'ai:use-zai') || !contains(github.event.issue.labels.*.name, 'ai:use-claude'))
               && (github.event.comment.author_association == 'OWNER'
                   || github.event.comment.author_association == 'MEMBER'
                   || github.event.comment.author_association == 'COLLABORATOR')) }}

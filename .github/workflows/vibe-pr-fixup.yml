@@ -27,7 +27,8 @@ jobs:
     if: >-
       ${{ github.event.label.name == 'ai:needs-changes'
           && github.event.pull_request.draft == false
-          && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'ai:use-mistral') }}
+          && github.event.pull_request.head.repo.full_name == github.repository
+          && (contains(github.event.pull_request.labels.*.name, 'ai:use-mistral') || contains(github.event.pull_request.labels.*.name, 'ai:use-nous') || contains(github.event.pull_request.labels.*.name, 'ai:use-zai') || !contains(github.event.pull_request.labels.*.name, 'ai:use-claude')) }}
     runs-on: ubuntu-latest
     env:
       VIBE_HOME: /tmp/vibe-ci
