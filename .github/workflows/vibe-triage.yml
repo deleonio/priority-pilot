@@ -63,6 +63,7 @@ jobs:
     env:
       # Mistral Vibe speichert Config + Sessions in ein RAM-Verzeichnis (nicht ~/.vibe)
       VIBE_HOME: /tmp/vibe-ci
+      PATH: /home/runner/.local/bin:$PATH
     permissions:
       contents: read
       issues: write
