@@ -21,7 +21,7 @@ const REPO_ROOT = join(HERE, '..', '..');
 const readWorkflow = (name: string): string => readFileSync(join(REPO_ROOT, '.github', 'workflows', name), 'utf8');
 const readRepoFile = (...parts: string[]): string => readFileSync(join(REPO_ROOT, ...parts), 'utf8');
 
-// Die fuenf Claude-getriebenen KI-Workflows.
+// Die Workflows, die alle drei Agent-Pfade (Claude/GLM/Mistral) enthalten.
 // (claude-triage.yml deckt seit M8, 2026-07-08, sowohl Triage ALS AUCH Re-Triage in einem
 // Workflow ab — vormals zwei getrennte Dateien claude-triage.yml + claude-retriage.yml.)
 const CLAUDE_WORKFLOWS = [
@@ -41,8 +41,10 @@ describe('C2 — Deterministischer Agent-Secret-Check (kein stiller Skip)', () =
 				/name: Agent-Secret pr[fü]fen \(kein stiller Skip\)/,
 				`${wf} muss den deterministischen Agent-Secret-Check-Step enthalten (Haerten C2/S2)`,
 			);
-			// Der Step muss auf das Claude-Secret pruefen.
+			// Der Step muss auf die drei Secrets pro Pfad pruefen (case-Statement).
 			assert.match(yml, /CLAUDE_CODE_OAUTH_TOKEN:/, `${wf}: Agent-Secret-Check muss CLAUDE_CODE_OAUTH_TOKEN pruefen`);
+			assert.match(yml, /ZAI_API_KEY:/, `${wf}: Agent-Secret-Check muss ZAI_API_KEY pruefen (GLM-Pfad)`);
+			assert.match(yml, /MISTRAL_API_KEY:/, `${wf}: Agent-Secret-Check muss MISTRAL_API_KEY pruefen (Mistral-Pfad)`);
 			// Bei Fehlen muss der Lauf deterministisch abbrechen (exit 1), nicht still skippen.
 			assert.match(
 				yml,
@@ -78,13 +80,13 @@ describe('C1 — Deterministischer Stop-Guard in claude-pr-fixup.yml (> 10 PR-Co
 		assert.match(yml, /gh pr comment/, 'Stop-Guard muss den PR-Autor via Kommentar pingen');
 	});
 
-	it('fixup.yml: der Agent-Schritt respektiert den Stop-Guard (stop != true)', () => {
+	it('fixup.yml: die Agent-Schritte respektieren den Stop-Guard (stop != true)', () => {
 		const yml = readWorkflow('claude-pr-fixup.yml');
 		// Negativkontrolle: ohne die if-Bedingung wuerde der Agent trotz Stop laufen.
 		const agentIfs = yml.match(/if:[^\n]*stop-guard\.outputs\.stop != 'true'[^\n]*/g);
 		assert.ok(
-			agentIfs && agentIfs.length >= 1,
-			"Der Agent-Schritt muss `steps.stop-guard.outputs.stop != 'true'` in seinem if haben",
+			agentIfs && agentIfs.length >= 3,
+			"Alle drei Agent-Schritte (Claude/Mistral/GLM) muessen `steps.stop-guard.outputs.stop != 'true'` in ihrem if haben",
 		);
 	});
 });
@@ -125,91 +127,6 @@ describe('H1 — Deterministische Label-Post-Assertion in claude-pr-review.yml',
 			assertionBlock[0].split('run:')[0],
 			/outcome == 'cancelled'/,
 			'Label-Post-Assertion darf NICHT bei cancelled laufen',
-		);
-	});
-
-	it('review.yml: 0-Commit-Loop-Bremse — zweiter Safe-Default in Folge stoppt den Loop statt ihn weiterzudrehen', () => {
-		const yml = readWorkflow('claude-pr-review.yml');
-		const assertionBlock = yml.match(/name: Label-Post-Assertion[\s\S]*?(?=\n {6}- name:)/);
-		assert.ok(assertionBlock, 'Label-Post-Assertion-Block nicht gefunden');
-		const block = assertionBlock[0];
-		// Marker-Label wird gelesen ...
-		assert.match(
-			block,
-			/ai:review-no-result/,
-			'Label-Post-Assertion muss den Loop-Marker ai:review-no-result verwenden',
-		);
-		// ... und beim ERSTEN Safe-Default gesetzt.
-		assert.match(
-			block,
-			/--add-label ai:review-no-result/,
-			'Erster Safe-Default muss den Marker ai:review-no-result setzen',
-		);
-		// Verhaltens-Assert: ist der Marker schon da (zweiter Lauf in Folge), darf KEIN erneutes
-		// ai:needs-changes gesetzt werden — der Loop wird gestoppt statt weitergedreht.
-		const secondPass = block.match(/if \[ "\$has_nolabel" = "true" \]; then[\s\S]*?exit 0\n {12}fi/);
-		assert.ok(secondPass, 'Zweiter-Lauf-Zweig (has_nolabel == true) nicht gefunden');
-		assert.doesNotMatch(
-			secondPass[0],
-			/--add-label ai:needs-changes/,
-			'Bei bereits gesetztem Marker darf der Loop NICHT mit einem erneuten ai:needs-changes weitergedreht werden',
-		);
-	});
-
-	it('review.yml: der Loop-Marker wird bei regulaerem Ergebnis-Label wieder entfernt (Zaehler-Reset)', () => {
-		const yml = readWorkflow('claude-pr-review.yml');
-		const assertionBlock = yml.match(/name: Label-Post-Assertion[\s\S]*?(?=\n {6}- name:)/);
-		assert.ok(assertionBlock, 'Label-Post-Assertion-Block nicht gefunden');
-		assert.match(
-			assertionBlock[0],
-			/--remove-label ai:review-no-result/,
-			'Bei gesetztem Ergebnis-Label muss der Marker ai:review-no-result entfernt werden (Reset)',
-		);
-	});
-
-	it('pr-needs-review-label.yml: ein menschlicher Push (synchronize) setzt den Loop-Marker ai:review-no-result zurueck', () => {
-		const yml = readWorkflow('pr-needs-review-label.yml');
-		// synchronize (Push) muss ein Trigger sein — sonst startet ein lokaler Fix keinen frischen Zyklus.
-		assert.match(
-			yml,
-			/types:\s*\[opened,\s*ready_for_review,\s*synchronize\]/,
-			'pr-needs-review-label.yml muss auf synchronize (Push) triggern',
-		);
-		// Der Reset-Schritt muss auch den 0-Commit-Loop-Marker entfernen (nicht nur die Ergebnis-Labels),
-		// damit ein Push nach gestopptem Loop wieder einen frischen Safe-Default-Versuch erlaubt.
-		assert.match(
-			yml,
-			/for label in ai:needs-changes ai:ready-to-merge ai:review-no-result;/,
-			'Der Push-Reset muss ai:review-no-result mit-entfernen (frischer Loop-Start nach lokalem Fix)',
-		);
-		// Der Reset darf NUR fuer menschliche Aktoren laufen (Bot-Fixup-Commits sollen den Zaehler
-		// nicht zuruecksetzen) — abgesichert ueber den job-if sender.type != 'Bot'.
-		assert.match(
-			yml,
-			/github\.event\.sender\.type != 'Bot'/,
-			'Der Autolabeler (und damit der Marker-Reset) darf nur bei menschlichen Aktoren laufen',
-		);
-	});
-
-	it('pr-needs-review-label.yml: das job-if darf ai:needs-review NICHT gaten (sonst wird der Marker-Reset im Koexistenz-Fenster uebersprungen)', () => {
-		const yml = readWorkflow('pr-needs-review-label.yml');
-		// Nur den job-if-Ausdruck betrachten (nicht die erlaeuternden Kommentare, die "ai:needs-review"
-		// durchaus erwaehnen). Der Block reicht vom "if: >-" bis zur naechsten Schluessel-Zeile.
-		const jobIf = yml.match(/\n {4}if: >-\n([\s\S]*?)\n {4}[a-z]/);
-		assert.ok(jobIf, 'job-if-Ausdruck in pr-needs-review-label.yml nicht gefunden');
-		// Haengte die Idempotenz am job-if, wuerde ein Menschen-Push bei bereits gesetztem
-		// ai:needs-review den GANZEN Job (inkl. Loop-Marker-Reset) ueberspringen. Die Idempotenz
-		// gehoert deshalb in den Setz-Schritt (Runtime-No-op), NICHT ins job-if.
-		assert.doesNotMatch(
-			jobIf[1],
-			/contains\([^)]*'ai:needs-review'\)/,
-			'Das job-if darf ai:needs-review nicht mehr gaten — der Marker-Reset muss auch bei schon gesetztem Label laufen',
-		);
-		// Gegenprobe: die Label-Idempotenz existiert als Runtime-No-op im Setz-Schritt weiter.
-		assert.match(
-			yml,
-			/traegt bereits ai:needs-review — nichts zu tun \(No-op\)/,
-			'Die Label-Idempotenz muss als Runtime-Check im Setz-Schritt erhalten bleiben',
 		);
 	});
 });
@@ -272,13 +189,13 @@ describe('H3 — Deterministischer Doppel-Run-Guard in spec/implement', () => {
 		assert.match(yml, /skip=true/, 'Doppel-Run-Guard muss skip=true setzen bei existierendem ready-PR');
 	});
 
-	it('spec.yml + implement.yml: der Agent-Schritt respektiert den Doppel-Run-Guard', () => {
+	it('spec.yml + implement.yml: Agent-Schritte respektieren den Doppel-Run-Guard', () => {
 		for (const wf of ['claude-spec.yml', 'claude-implement.yml'] as const) {
 			const yml = readWorkflow(wf);
 			const agentIfs = yml.match(/if:[^\n]*doppel-guard\.outputs\.skip != 'true'[^\n]*/g);
 			assert.ok(
-				agentIfs && agentIfs.length >= 1,
-				`${wf}: der Agent-Schritt muss \`steps.doppel-guard.outputs.skip != 'true'\` in seinem if haben`,
+				agentIfs && agentIfs.length >= 3,
+				`${wf}: alle drei Agent-Schritte muessen \`steps.doppel-guard.outputs.skip != 'true'\` in ihrem if haben`,
 			);
 		}
 	});
@@ -491,6 +408,19 @@ describe('M3 — Re-Triage (issue_comment) nur auf created (nicht edited — Spa
 // Bugs, die die eigentlich schon geschlossenen Haerten-Punkte C1/C2 ueber Rand-Faelle wieder
 // geoeffnet haetten, plus ein komplett uebersehener Roadmap-Punkt (L1).
 
+describe('C2-Nachtrag — Agent-Secret-Check ist case-insensitiv (AI_AGENT=GLM/Glm/glm)', () => {
+	for (const wf of CLAUDE_WORKFLOWS) {
+		it(`${wf}: Secret-Check lowered AI_AGENT vor dem case-Vergleich (GHA-if ist case-insensitiv, Bash-case nicht)`, () => {
+			const yml = readWorkflow(wf);
+			assert.match(
+				yml,
+				/case "\$\{AI_AGENT,,\}" in/,
+				`${wf}: case-Statement muss \${AI_AGENT,,} (lowercase) vergleichen — sonst routet AI_AGENT=GLM (Grossschreibung) am Secret-Check vorbei in den *)-Default-Zweig und prueft das falsche Secret`,
+			);
+		});
+	}
+});
+
 describe('C1-Nachtrag — Stop-Guard ist fail-closed bei gh-API-Ausfall (nicht fail-open)', () => {
 	it('fixup.yml: bei gh-API-Fehler wird stop=true gesetzt, NICHT commits=0 (das wuerde den Guard wirkungslos machen)', () => {
 		const yml = readWorkflow('claude-pr-fixup.yml');
@@ -508,18 +438,13 @@ describe('C1-Nachtrag — Stop-Guard ist fail-closed bei gh-API-Ausfall (nicht f
 	});
 });
 
-describe('L1-Nachtrag — Triage/Re-Triage instruieren Zwischenstandssicherung (Soft-Abort, praezises Zeitlimit)', () => {
-	it('claude-triage.yml: Agent-Prompt enthaelt eine praezise, epoch-basierte Zwischenstand-Anweisung (Soft-Abort, Symmetrie zu spec/implement)', () => {
+describe('L1-Nachtrag — Triage/Re-Triage instruieren Zwischenstandssicherung (~18 Min)', () => {
+	it('claude-triage.yml: Agent-Prompt enthaelt eine ~18-Min-Zwischenstand-Anweisung (Symmetrie zu spec/implement)', () => {
 		const yml = readWorkflow('claude-triage.yml');
 		assert.match(
 			yml,
-			/soft_deadline_epoch/,
-			'claude-triage.yml muss ein praezises, per Epoch berechnetes weiches Zeitlimit an den Agent-Prompt rendern (Soft-Abort, Haerten L1)',
-		);
-		assert.match(
-			yml,
-			/schreibe die bisherige Analyse \(auch wenn unvollstaendig\) als Body-Block/,
-			'claude-triage.yml muss die Agents anweisen, bei drohendem Timeout den bisherigen Analyse-Zwischenstand als Body-Block zu sichern (Haerten L1)',
+			/SPAETESTENS nach ~18 Minuten den Zwischenstand/,
+			'claude-triage.yml muss die Agents anweisen, bei drohendem Timeout (~18 Min) den bisherigen Analyse-Zwischenstand zu sichern (Haerten L1)',
 		);
 	});
 });
@@ -566,15 +491,15 @@ const assertContentBeforeLabel = (wf, contentMarker, labelMarker, expectedCount)
 };
 
 describe('Label-Reihenfolge-Prinzip — Labels erst NACH allen Schreibvorgaengen (nie davor)', () => {
-	it('claude-triage.yml: Beschreibung/Kommentar stehen vor der Label-Umschaltung (Triage UND Re-Triage)', () => {
-		assertContentBeforeLabel('claude-triage.yml', 'Danach genau EINEN kurzen', 'ALLERLETZTER Schritt, NIE davor', 1);
+	it('claude-triage.yml: Beschreibung/Kommentar stehen vor der Label-Umschaltung (je Agent-Pfad, Triage UND Re-Triage)', () => {
+		assertContentBeforeLabel('claude-triage.yml', 'Danach genau EINEN kurzen', 'ALLERLETZTER Schritt, NIE davor', 3);
 	});
 
-	it('claude-spec.yml: Push/Draft-PR stehen vor der ai:ready-Uebergabe', () => {
-		assertContentBeforeLabel('claude-spec.yml', 'DRAFT-PR erstellen', 'UEBERGABE (ALLERLETZTER Schritt', 1);
+	it('claude-spec.yml: Push/Draft-PR stehen vor der ai:ready-Uebergabe (je Agent-Pfad)', () => {
+		assertContentBeforeLabel('claude-spec.yml', 'DRAFT-PR erstellen', 'UEBERGABE (ALLERLETZTER Schritt', 3);
 	});
 
-	it('claude-implement.yml: Commit/Push stehen vor der ai:needs-review-Umschaltung', () => {
+	it('claude-implement.yml: Commit/Push stehen vor der ai:needs-review-Umschaltung (je Agent-Pfad)', () => {
 		// M9 zurueckgerollt (2026-07-08, User-Entscheidung): implement soll SELBST entscheiden,
 		// wann genau der Review startet — dafuer muss implement das Label selbst setzen (nicht ein
 		// Autolabeler, der auf ein frueheres GitHub-Event reagiert). Siehe die begleitende
@@ -584,7 +509,7 @@ describe('Label-Reihenfolge-Prinzip — Labels erst NACH allen Schreibvorgaengen
 			'claude-implement.yml',
 			'Committen, Branch pushen.',
 			'ALLERLETZTER Schritt, NIE davor: ERST NACHDEM Push',
-			1,
+			3,
 		);
 	});
 
@@ -605,39 +530,39 @@ describe('Label-Reihenfolge-Prinzip — Labels erst NACH allen Schreibvorgaengen
 		);
 	});
 
-	it('claude-implement.yml: macht den PR tatsaechlich review-bereit (kein totes Ende)', () => {
+	it('claude-implement.yml: macht den PR in ALLEN drei Agent-Pfaden tatsaechlich review-bereit (kein totes Ende)', () => {
 		// Der eigentliche PR-ready-Mechanismus (gh pr ready / PR-Erstellung) muss unabhaengig von
-		// der Label-Frage erhalten bleiben.
+		// der Label-Frage in allen 3 Agent-Pfaden erhalten bleiben (Claude/Mistral/GLM).
 		const yml = readWorkflow('claude-implement.yml');
 		const readyHits = (yml.match(/gh pr ready <pr-nr>/g) ?? []).length;
 		const createHits = (yml.match(/PR ERSTELLEN \(ready to review/g) ?? []).length;
 		assert.equal(
 			readyHits,
-			1,
-			`claude-implement.yml muss \`gh pr ready <pr-nr>\` (Spec-Modus) anweisen, gefunden: ${readyHits}`,
+			3,
+			`claude-implement.yml muss \`gh pr ready <pr-nr>\` (Spec-Modus) in allen 3 Agent-Pfaden anweisen, gefunden: ${readyHits}`,
 		);
 		assert.equal(
 			createHits,
-			1,
-			`claude-implement.yml muss die Fallback-PR-Erstellung (ready to review, kein Draft) anweisen, gefunden: ${createHits}`,
+			3,
+			`claude-implement.yml muss die Fallback-PR-Erstellung (ready to review, kein Draft) in allen 3 Agent-Pfaden anweisen, gefunden: ${createHits}`,
 		);
 	});
 
-	it('claude-pr-fixup.yml: Commit/Push stehen vor der Label-Umschaltung', () => {
+	it('claude-pr-fixup.yml: Commit/Push stehen vor der Label-Umschaltung (je Agent-Pfad)', () => {
 		assertContentBeforeLabel(
 			'claude-pr-fixup.yml',
 			'committen und auf den PR-Branch',
 			'Abschluss (ALLERLETZTER Schritt, NIE davor',
-			1,
+			3,
 		);
 	});
 
-	it('claude-pr-review.yml: Sammelkommentar steht vor der Label-Umschaltung', () => {
+	it('claude-pr-review.yml: Sammelkommentar steht vor der Label-Umschaltung (je Agent-Pfad)', () => {
 		assertContentBeforeLabel(
 			'claude-pr-review.yml',
 			'Sammelkommentar konsolidieren',
 			'Abschluss — GENAU EINEN Weg gehen',
-			1,
+			3,
 		);
 	});
 });

@@ -1,0 +1,37 @@
+name: Claude PR Review abbrechen (bei Merge/Schliessen)
+
+# Bricht laufende UND wartende Kreuzverhoer-Review- und Fixup-Laeufe eines PRs ab, sobald er
+# gemergt oder geschlossen wird. Noetig, weil die Concurrency-Gruppen (claude-pr-review-<nr> bzw.
+# claude-pr-fixup-<nr>) die Laeufe nur serialisieren (cancel-in-progress: false -> warten statt
+# abbrechen) und beim Schliessen/Mergen kein neuer Lauf startet, der etwas abbrechen koennte — ein
+# gerade laufender oder eingereihter Review/Fixup wuerde sonst sinnlos weiterlaufen (und ggf. auf
+# einen gemergten PR posten).
+#
+# Reiner gh-Aufruf (kein Claude), nutzt das Standard-GITHUB_TOKEN.
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  actions: write # laufende Workflow-Runs abbrechen
+
+jobs:
+  cancel:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Laufende Review-/Fixup-Runs des PR-Branches abbrechen
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          for wf in claude-pr-review.yml claude-pr-fixup.yml; do
+            gh run list --repo "$REPO" --workflow "$wf" --branch "$HEAD_REF" \
+              --json databaseId,status \
+              --jq '.[] | select(.status=="in_progress" or .status=="queued") | .databaseId' \
+              | while read -r id; do
+                  echo "Breche Run $id ($wf) ab"
+                  gh run cancel --repo "$REPO" "$id" || true
+                done
+          done

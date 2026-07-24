@@ -1,10 +1,10 @@
 name: PR Conflict Scan
 
 # Erkennt Merge-Konflikte in offenen PRs bei jedem Push auf main und setzt
-# ai:needs-changes, damit hermes-pr-fixup.yml sie automatisch auflöst.
-# Kein eigener Auflöser — die Auflösung übernimmt hermes-pr-fixup.yml.
+# ai:needs-changes, damit claude-pr-fixup.yml sie automatisch auflöst.
+# Kein eigener Auflöser — die Auflösung übernimmt claude-pr-fixup.yml.
 #
-# Muster: pr-needs-review-label.yml (App-Token), hermes-pr-gate-merge.yml (DIRTY-Erkennung).
+# Muster: pr-needs-review-label.yml (App-Token), claude-pr-gate-merge.yml (DIRTY-Erkennung).
 
 on:
   push:
@@ -21,8 +21,6 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
-      pull-requests: write
-      issues: write
     steps:
       - name: Voraussetzung prüfen (GitHub-App-Secrets)
         id: preflight
@@ -42,25 +40,13 @@ jobs:
         if: steps.preflight.outputs.configured == 'true'
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
-          client-id: ${{ secrets.APP_ID }}
+          app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
-
-      - name: GH_TOKEN-Fallback setzen (App-Token oder GITHUB_TOKEN)
-        id: gh-token
-        run: |
-          APP_TOK="${{ steps.app-token.outputs.token }}"
-          if [ -n "$APP_TOK" ] && [ "$APP_TOK" != "null" ]; then
-            echo "token=$APP_TOK" >> "$GITHUB_OUTPUT"
-            echo "::notice::Nutze GitHub-App-Token für gh-Befehle."
-          else
-            echo "token=${{ github.token }}" >> "$GITHUB_OUTPUT"
-            echo "::warning::App-Token nicht verfügbar — nutze GITHUB_TOKEN (Achtung: Label-Wechsel lösen ggf. keine Folge-Workflows aus)."
-          fi
 
       - name: Alle offenen PRs auf Merge-Konflikte prüfen
         if: steps.preflight.outputs.configured == 'true'
         env:
-          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
@@ -114,7 +100,7 @@ jobs:
                 echo "### PR #${pr} — ai:needs-changes wegen Merge-Konflikt gesetzt"
                 echo ""
                 echo "- Merge-Konflikte erkannt (mergeable=$mergeable, state=$merge_state)"
-                echo "- Folge: hermes-pr-fixup.yml wird ausgelöst."
+                echo "- Folge: claude-pr-fixup.yml wird ausgelöst."
               } >> "$GITHUB_STEP_SUMMARY"
             else
               echo "PR #$pr: Nicht sauber mergebar (mergeable=$mergeable, state=$merge_state) — No-op."

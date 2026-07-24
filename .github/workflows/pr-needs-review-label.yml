@@ -2,20 +2,14 @@ name: PR Auto-Label (ai:needs-review)
 
 # Setzt beim OEFFNEN eines (Nicht-Draft-)Pull Requests automatisch das Pipeline-Label
 # "ai:needs-review" (Ticket #116). Das ist der Einstieg in die label-gesteuerte KI-Review-
-# Pipeline: das gesetzte Label weckt den Kreuzverhoer-Review (hermes-pr-review.yml).
+# Pipeline: das gesetzte Label weckt den Kreuzverhoer-Review (claude-pr-review.yml).
 # Wird auch bei jedem Push (synchronize-Event) erneut ausgeloest, wobei alte Ergebnis-
-# Labels (ai:needs-changes, ai:ready-to-merge) UND der Loop-Marker ai:review-no-result
-# entfernt werden. Der Marker-Reset ist wichtig: ein menschlicher Push ist echter Fortschritt,
-# der die 0-Commit-Loop-Bremse (hermes-pr-review.yml) neu starten muss — sonst wuerde ein
-# lokaler Fix + Push zwar den Review erneut ausloesen, aber bei einem einzelnen Label-Flake des
-# Agenten sofort wieder in den Hard-Stop laufen, statt dem frischen Versuch den Safe-Default zu
-# goennen. sender.type != 'Bot' (job-if) stellt sicher, dass NUR Menschen-Pushes zuruecksetzen,
-# nicht die Fixup-Bot-Commits.
+# Labels (ai:needs-changes, ai:ready-to-merge) entfernt werden.
 #
 # WICHTIG (Folge-Workflows): Von GITHUB_TOKEN gesetzte Labels loesen KEINE weiteren Workflows
 # aus. Damit das "labeled"-Event den Review wirklich startet, wird hier ein kurzlebiges
 # GitHub-App-Token (APP_ID + APP_PRIVATE_KEY) verwendet — gleiches Muster wie in
-# hermes-pr-gate-merge.yml / hermes-pr-review.yml.
+# claude-pr-gate-merge.yml / claude-pr-review.yml.
 #
 # Bedingungen:
 #   - nur Nicht-Drafts (draft == false): "opened" eines Drafts wird ignoriert, erst
@@ -26,9 +20,9 @@ name: PR Auto-Label (ai:needs-review)
 #     (kein No-op-Rauschen, keine Schleife).
 #   - NUR menschliche Aktoren (sender.type != "Bot"), UND ZWAR FUER ALLE DREI Event-Typen
 #     (opened/ready_for_review/synchronize gleichermassen — vormals galt der Bot-Filter nur
-#     bei synchronize). Grund: hermes-implement.yml macht PRs per App-Bot-Token review-bereit
+#     bei synchronize). Grund: claude-implement.yml macht PRs per App-Bot-Token review-bereit
 #     (`gh pr ready` bzw. `gh pr create`) und setzt `ai:needs-review` danach SELBST als
-#     expliziten, kontrollierten letzten Schritt (siehe hermes-implement.yml) — dieser
+#     expliziten, kontrollierten letzten Schritt (siehe claude-implement.yml) — dieser
 #     Workflow darf dem NICHT zuvorkommen, sonst startet der Review auf einem PR, dessen
 #     Beschreibung/Testergebnisse implement noch gar nicht fertig geschrieben hat. Fuer echte
 #     menschliche PRs (Ticket #116, der eigentliche Zweck dieses Workflows) bleibt das
@@ -46,32 +40,21 @@ concurrency:
 
 jobs:
   label:
-    # Nur Nicht-Drafts, nur same-repo (kein Fork) und nur bei MENSCHLICHEN Aktoren — fuer ALLE drei
-    # Event-Typen (opened/ready_for_review/synchronize). Bot-Aktoren (implement/spec machen PRs per
-    # App-Token review-bereit) werden hier bewusst NICHT gelabelt: implement setzt ai:needs-review
-    # fuer seine eigenen PRs SELBST als kontrollierten letzten Schritt (erst NACHDEM Beschreibung/
-    # Testergebnisse vollstaendig stehen) — dieser Autolabeler soll dem nicht zuvorkommen.
-    #
-    # BEWUSST KEIN "!contains(ai:needs-review)"-Gate mehr im job-if: die Idempotenz des Labels
-    # steckt im Setz-Schritt (Runtime-Check, No-op wenn schon vorhanden). Haengte die Idempotenz am
-    # job-if, wuerde ein Menschen-Push den GESAMTEN Job (inkl. Loop-Marker-Reset) ueberspringen,
-    # sobald ai:needs-review bereits klebt. Genau das ist im aktiven Loop erreichbar: nach dem
-    # ersten Safe-Default (A1) reicht der Fixup per ai:needs-review an den Review zurueck, waehrend
-    # der Marker ai:review-no-result noch haengt (needs-review + Marker koexistieren). Ein lokaler
-    # Fix + Push in diesem Fenster muss den Marker trotzdem zuruecksetzen, sonst laeuft der frische
-    # Versuch beim naechsten Flake sofort in den Hard-Stop (A2) — der Push wuerde faelschlich dem
-    # alten Loop zugerechnet. Ohne das Gate laeuft der Job, setzt den Marker zurueck, und der
-    # Setz-Schritt no-op't das schon vorhandene ai:needs-review.
+    # Nur Nicht-Drafts, nur same-repo (kein Fork), nur wenn das Label noch fehlt (Idempotenz)
+    # und nur bei MENSCHLICHEN Aktoren — fuer ALLE drei Event-Typen (opened/ready_for_review/
+    # synchronize). Bot-Aktoren (implement/spec machen PRs per App-Token review-bereit) werden
+    # hier bewusst NICHT gelabelt: implement setzt ai:needs-review fuer seine eigenen PRs SELBST
+    # als kontrollierten letzten Schritt (erst NACHDEM Beschreibung/Testergebnisse vollstaendig
+    # stehen) — dieser Autolabeler soll dem nicht zuvorkommen.
     if: >-
       ${{ github.event.pull_request.draft == false
           && github.event.pull_request.head.repo.full_name == github.repository
+          && !contains(github.event.pull_request.labels.*.name, 'ai:needs-review')
           && github.event.sender.type != 'Bot' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read # Schreibzugriff laeuft ueber das App-Token
-      pull-requests: write
-      issues: write
     steps:
       - name: Voraussetzung pruefen (GitHub-App-Secrets)
         id: preflight
@@ -91,38 +74,23 @@ jobs:
         if: steps.preflight.outputs.configured == 'true'
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
-          client-id: ${{ secrets.APP_ID }}
+          app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
-
-      - name: GH_TOKEN-Fallback setzen (App-Token oder GITHUB_TOKEN)
-        id: gh-token
-        run: |
-          APP_TOK="${{ steps.app-token.outputs.token }}"
-          if [ -n "$APP_TOK" ] && [ "$APP_TOK" != "null" ]; then
-            echo "token=$APP_TOK" >> "$GITHUB_OUTPUT"
-            echo "::notice::Nutze GitHub-App-Token für gh-Befehle."
-          else
-            echo "token=${{ github.token }}" >> "$GITHUB_OUTPUT"
-            echo "::warning::App-Token nicht verfügbar — nutze GITHUB_TOKEN (Achtung: Label-Wechsel lösen ggf. keine Folge-Workflows aus)."
-          fi
 
       # Reiner gh-Job (kein Checkout, kein LLM): Alte Ergebnis-Labels entfernen, dann
       # ai:needs-review setzen. Mit dem App-Token gesetzt, damit das "labeled"-Event den
       # Kreuzverhoer-Review ausloest.
-      - name: Alte Ergebnis-Labels + Loop-Marker entfernen (ai:needs-changes, ai:ready-to-merge, ai:review-no-result)
+      - name: Alte Ergebnis-Labels entfernen (ai:needs-changes, ai:ready-to-merge)
         if: steps.preflight.outputs.configured == 'true'
         env:
-          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
 
-          # Alte Ergebnis-Labels UND den 0-Commit-Loop-Marker entfernen, falls vorhanden (Reset
-          # bei neuem Push). ai:review-no-result gehoert dazu: ein menschlicher Push ist Fortschritt
-          # und muss die Loop-Bremse in claude-pr-review.yml neu starten, sonst laeuft der frische
-          # Versuch bei einem einzelnen Label-Flake sofort wieder in den Hard-Stop.
-          for label in ai:needs-changes ai:ready-to-merge ai:review-no-result; do
+          # Alte Ergebnis-Labels entfernen, falls vorhanden (Reset bei neuem Push).
+          for label in ai:needs-changes ai:ready-to-merge; do
             if gh pr view "$PR" --repo "$REPO" --json labels --jq "[.labels[].name]" | grep -q "\"$label\""; then
               gh pr edit "$PR" --repo "$REPO" --remove-label "$label"
               echo "PR #$PR: Label $label entfernt (Reset)." >> "$GITHUB_STEP_SUMMARY"
@@ -132,15 +100,14 @@ jobs:
       - name: Label ai:needs-review setzen
         if: steps.preflight.outputs.configured == 'true'
         env:
-          GH_TOKEN: ${{ steps.gh-token.outputs.token }} # App-Token -> loest Folge-Workflows aus
+          GH_TOKEN: ${{ steps.app-token.outputs.token }} # App-Token -> loest Folge-Workflows aus
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
 
-          # Idempotenz des Labels (das job-if prueft es bewusst NICHT mehr, damit der Marker-Reset
-          # oben auch bei schon gesetztem ai:needs-review laeuft): nur setzen, wenn das Label
-          # aktuell wirklich nicht vorhanden ist — sonst No-op.
+          # Doppelte Absicherung der Idempotenz auch zur Laufzeit (das job-if prueft nur den
+          # Event-Snapshot): nur setzen, wenn das Label aktuell wirklich nicht vorhanden ist.
           labels="$(gh pr view "$PR" --repo "$REPO" --json labels --jq '[.labels[].name]')"
           if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:needs-review")')" = "true" ]; then
             echo "PR #$PR traegt bereits ai:needs-review — nichts zu tun (No-op)."

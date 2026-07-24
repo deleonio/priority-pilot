@@ -31,7 +31,7 @@ concurrency:
   # zu laufen. Getrennte Gruppen entkoppeln das — serialisiert wird nur noch der jeweils GLEICHE
   # Workflow desselben PRs. cancel-in-progress: false -> laufenden Lauf nie mittendrin verwerfen
   # (der wartende Lauf checkt beim Start ohnehin den juengsten Stand aus).
-  group: ai-pr-review-${{ github.event.pull_request.number }}-${{ contains(github.event.pull_request.labels.*.name, 'ai:use-claude') && 'claude' || contains(github.event.pull_request.labels.*.name, 'ai:use-mistral') && 'mistral' || contains(github.event.pull_request.labels.*.name, 'ai:use-nous') && 'nous' || contains(github.event.pull_request.labels.*.name, 'ai:use-zai') && 'zai' || 'claude' }}
+  group: claude-pr-review-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 
 jobs:
@@ -43,26 +43,10 @@ jobs:
           && contains(github.event.pull_request.labels.*.name, 'ai:needs-review') }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    env:
-      PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-      CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1'
-      BASH_MAX_OUTPUT_LENGTH: '20000'
-      CLAUDE_HIDE_BANNER: '1'
-      API_TIMEOUT_MS: '3000000'
     permissions:
       contents: read
       id-token: write
-      actions: read # Artefakt-Suche/-Download (`gh api`) im Session-Archiv-Schritt + Supersede-Check (Runs-API)
     steps:
-      # Startzeit fuer das weiche Zeitlimit (Soft-Abort, 2026-07-08): soft_deadline_epoch = jetzt +
-      # 840s (14 Min, 6 Min Puffer bis zum harten 20-Min-Kill). Der Epoch-Wert wird unten als
-      # literale Zahl in den Prompt gerendert.
-      - name: Startzeit merken (fuer weiches Zeitlimit)
-        id: starttime
-        run: |
-          now=$(date +%s)
-          echo "soft_deadline_epoch=$((now + 840))" >> "$GITHUB_OUTPUT"
-
       - name: Voraussetzung pruefen (GitHub-App-Secrets)
         id: preflight
         env:
@@ -80,7 +64,7 @@ jobs:
         if: steps.preflight.outputs.configured == 'true'
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
-          client-id: ${{ secrets.APP_ID }}
+          app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
       - name: Checkout
@@ -89,106 +73,56 @@ jobs:
         with:
           fetch-depth: 0
 
-      # KI-Backend (Issue #403): Label `ai:use-zai` am PR ODER dessen verlinktem Issue waehlt pro
-      # Lauf z.ai statt Anthropic (Default). Schreibt AI_BACKEND=anthropic|zai nach $GITHUB_ENV; bei
-      # zai kommen Endpoint + ANTHROPIC_AUTH_TOKEN (Secret ZAI_API_KEY) dazu. Muss VOR Preflight +
-      # claude-code-action.
-      - name: KI-Backend konfigurieren
-        if: steps.preflight.outputs.configured == 'true'
-        uses: ./.github/actions/configure-ai-backend
-        with:
-          entity-type: pr
-          entity-number: ${{ github.event.pull_request.number }}
-          gh-token: ${{ steps.app-token.outputs.token }}
-          zai-api-key: ${{ secrets.ZAI_API_KEY }}
-          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
-
-      # Deterministischer Agent-Secret-Check (Haerten S2): die OAuth-Token-Voraussetzung fuer
-      # Claude darf NICHT still skippen — fehlt CLAUDE_CODE_OAUTH_TOKEN, bricht der Lauf hier
-      # deterministisch ab (::error::, kein stiller Skip). Der Reviewer-Check wird rot -> Gate
-      # setzt ai:needs-changes -> sichtbar. Zusaetzlich ein PR-Kommentar (statt Issue-Label wie
-      # bei triage/spec/implement — PR-Workflows vergeben bewusst kein ai:to-big-issue, s.
-      # S3/Timeout-Alarm), damit der PR-Autor aktiv erreicht wird statt nur den Checks-Tab
-      # pruefen zu muessen.
+      # Deterministischer Agent-Secret-Check (Haerten S2): das Opt-in fuer GLM/Mistral (und die
+      # OAuth-Token-Voraussetzung fuer Claude) darf NICHT still skippen — fehlt das zum aktiven
+      # AI_AGENT-Pfad gehoerige Secret, bricht der Lauf hier deterministisch ab (::error::, kein
+      # stiller Skip). Der Reviewer-Check wird rot -> Gate setzt ai:needs-changes -> sichtbar.
+      # Zusaetzlich ein PR-Kommentar (statt Issue-Label wie bei triage/spec/implement — PR-Workflows
+      # vergeben bewusst kein ai:to-big-issue, s. S3/Timeout-Alarm), damit der PR-Autor aktiv erreicht
+      # wird statt nur den Checks-Tab pruefen zu muessen.
       - name: Agent-Secret prüfen (kein stiller Skip)
         if: steps.preflight.outputs.configured == 'true'
         env:
+          AI_AGENT: ${{ vars.AI_AGENT }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          AI_BACKEND: ${{ env.AI_BACKEND }}
+          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR: ${{ github.event.pull_request.number }}
         run: |
-          if [ "${AI_BACKEND:-}" = "zai" ] || [ "${AI_BACKEND:-}" = "openrouter" ]; then
-            echo "KI-Backend=${AI_BACKEND} — Auth via API-Key (in configure-ai-backend validiert). OAuth-Preflight entfaellt."
-            exit 0
-          fi
-          if [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ]; then
-            echo "::error title=Agent-Secret fehlt::CLAUDE_CODE_OAUTH_TOKEN fehlt — fehlt es, darf der Lauf nicht still skippen (AGENTS.md: bewusstes Opt-in). Secret als Repo-Secret hinterlegen."
+          missing=""
+          # Haerten C2-Nachtrag: GitHub-Actions-`==` (die if:-Bedingungen der Agent-Schritte)
+          # vergleicht Strings case-insensitiv, Bashs `case` NICHT. Ohne `,,`-Lowering wuerde
+          # z. B. AI_AGENT=GLM zum GLM-Schritt routen, aber hier in den `*)`-Default-Zweig fallen
+          # (CLAUDE_CODE_OAUTH_TOKEN statt ZAI_API_KEY geprueft) — der S2-Stille-Skip waere ueber
+          # Gross-/Kleinschreibung wieder offen.
+          case "${AI_AGENT,,}" in
+            glm)     [ -z "$ZAI_API_KEY" ] && missing="ZAI_API_KEY" ;;
+            mistral) [ -z "$MISTRAL_API_KEY" ] && missing="MISTRAL_API_KEY" ;;
+            *)       [ -z "$CLAUDE_CODE_OAUTH_TOKEN" ] && missing="CLAUDE_CODE_OAUTH_TOKEN" ;;
+          esac
+          if [ -n "$missing" ]; then
+            echo "::error title=Agent-Secret fehlt::AI_AGENT='${AI_AGENT:-claude}' benoetigt Secret '$missing' — fehlt es, darf der Lauf nicht still skippen (AGENTS.md: bewusstes Opt-in). Secret als Repo-Secret hinterlegen."
             gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "🛑 **Kreuzverhör-Review #${PR} — Agent-Secret fehlt**
 
-          CLAUDE_CODE_OAUTH_TOKEN ist nicht gesetzt. Der Lauf wurde abgebrochen (kein stiller Skip). Bitte Secret hinterlegen." 2>/dev/null || true
+          AI_AGENT='${AI_AGENT:-claude}' benötigt Secret \`$missing\`, das nicht gesetzt ist. Der Lauf wurde abgebrochen (kein stiller Skip). Bitte Secret hinterlegen oder \`AI_AGENT\` zurücksetzen." 2>/dev/null || true
             exit 1
           fi
-          echo "Agent-Secret (CLAUDE_CODE_OAUTH_TOKEN) vorhanden."
+          echo "Agent-Secret fuer AI_AGENT='${AI_AGENT:-claude}' vorhanden."
 
-      # Soft-Abort-Obergrenze (2026-07-08): merkt sich, ob "ai:continued" bereits VOR diesem Lauf
-      # gesetzt war. Der Cap-Step nach dem Claude-Schritt liest diesen Wert, um eine zweite
-      # Fortsetzung in Folge zu verhindern (siehe dort).
-      - name: Fortsetzungs-Stand pruefen (ai:continued)
-        id: continued-before
-        if: steps.preflight.outputs.configured == 'true'
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          PR: ${{ github.event.pull_request.number }}
-        run: |
-          already="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels \
-            --jq 'any(.labels[]; .name == "ai:continued")' 2>/dev/null || echo false)"
-          echo "already=${already:-false}" >> "$GITHUB_OUTPUT"
-
-      # Named Session Resume (Phase "review", Soft-Abort-Rollout 2026-07-08): PRs haben keine
-      # Issue-Nummer im Event, daher wird hier die PR-Nummer uebergeben -- `id-type: pr` haelt den
-      # Artefakt-Namensraum (claude-session-pr-<N>-<phase>) getrennt vom issue-basierten
-      # (claude-session-issue-<N>-<phase>) der anderen drei Phasen (Kreuzverhoer-Finding M3,
-      # 2026-07-08: ohne diese Trennung waere "claude-session-issue-<N>" fuer eine PR-Nummer
-      # irrefuehrend benannt). Fail-open wie in claude-triage.yml.
-      - name: Session-Archiv wiederherstellen (Phase review)
-        id: session-restore
-        if: steps.preflight.outputs.configured == 'true'
-        continue-on-error: true
-        uses: ./.github/actions/session-restore
-        with:
-          issue: ${{ github.event.pull_request.number }}
-          phase: review
-          id-type: pr
-
-      - name: Supersede-Check
-        id: supersede-check
-        # Scope auf DENSELBEN PR (head_branch): Der Filter matcht sonst nur den Workflow-NAMEN und
-        # die native concurrency-Gruppe ist pro PR -> ein Review-Lauf eines ANDEREN PRs (gleicher
-        # Name, in_progress) würde diesen Lauf fälschlich als "superseded" überspringen. head_branch
-        # ist pro PR eindeutig und grenzt korrekt auf Geschwister-Läufe desselben PRs ein.
-        # HEAD_BRANCH wird via $ENV IN jq gelesen (NICHT in die Query interpoliert): ", $ und ` sind
-        # gültige git-Branch-Zeichen und würden eine interpolierte jq-Query brechen/injizieren.
-        if: steps.preflight.outputs.configured == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
-        run: |
-          running=$(gh api repos/${GITHUB_REPOSITORY}/actions/runs \
-            --jq '.workflow_runs[] | select(.name == "Claude PR Review" and (.status == "queued" or .status == "in_progress") and .head_branch == $ENV.HEAD_BRANCH and .id != ${{ github.run_id }}) | .id' 2>/dev/null | head -1)
-          if [ -n "$running" ]; then
-            echo "::notice::Ein Review-Lauf für PR #${{ github.event.pull_request.number }} läuft bereits — dieser Trigger wird übersprungen."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          fi
-
+      # Standard-Pfad (Claude): laeuft, solange die Repo-Variable AI_AGENT NICHT auf "mistral"
+      # oder "glm" steht (auch ungesetzt -> Claude bleibt Default). Umschalten:
+      # `gh variable set AI_AGENT --body glm` (Z.ai GLM) oder
+      # `gh variable set AI_AGENT --body mistral` (Mistral Vibe);
+      # zurueck: `gh variable set AI_AGENT --body claude`.
       - name: Kreuzverhoer-Review via Claude Code
         id: claude
-        if: steps.preflight.outputs.configured == 'true' && steps.supersede-check.outputs.skip != 'true'
+        if: steps.preflight.outputs.configured == 'true' && vars.AI_AGENT != 'mistral' && vars.AI_AGENT != 'glm'
         uses: anthropics/claude-code-action@558b1d6cab4085c7753fe402c10bef0fbb92ac7a # v1.0.165
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }} # Labels als App-Token -> loesen Folge-Workflows aus
         with:
-          claude_code_oauth_token: ${{ env.AI_BACKEND != 'zai' && env.AI_BACKEND != 'openrouter' && secrets.CLAUDE_CODE_OAUTH_TOKEN || '' }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           github_token: ${{ steps.app-token.outputs.token }}
           # Erlaubte Bot-Ausloeser — das Label wird vom App-Bot (claude[bot]) gesetzt, sonst blockt
           # checkHumanActor diesen Lauf. Absicherung zusaetzlich ueber den Job-`if:`.
@@ -245,90 +179,172 @@ jobs:
                 `gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:needs-review`,
                 danach `gh pr edit ${{ github.event.pull_request.number }} --add-label ai:ready-to-merge`
 
-            Trägt der PR das Label `ai:continued` (von einem vorherigen Zwischenstopp), entferne es
-            in beiden Fällen zusätzlich als letzten Schritt
-            (`gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:continued`).
+            Fehlt ein Label, vorher anlegen (`gh label create "ai:needs-changes" --color D93F0B`
+            bzw. `"ai:ready-to-merge" --color 0E8A16`). Ändere KEINEN Code und committe nichts —
+            reiner Review. Bearbeite ausschließlich diesen PR; arbeite ohne interaktive Rückfrage.
+          claude_args: >-
+            --model claude-sonnet-4-6 --effort medium --max-turns 30
+            --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh label:*),Bash(gh api:*),Bash(git fetch:*),Bash(git diff:*),Read,Grep,Glob,Task"
+            --append-system-prompt "Automatisierter, label-gesteuerter Kreuzverhoer-Review in GitHub Actions (headless). Reviewe ausschliesslich PR #${{ github.event.pull_request.number }}, aendere keinen Code. Schliesse IMMER mit der Label-Umschaltung als ALLERLETZTEN Schritt ab (NIE davor — erst nach dem Sammelkommentar, da Fixup/Gate-Merge den PR-Stand unmittelbar danach lesen): Findings -> ai:needs-changes (statt ai:needs-review); sauber -> ai:ready-to-merge. Erfinde keine Findings. Arbeite ohne interaktive Rueckfrage. Delegations-Strategie s. Prompt-Anfang (heavy/light je nach PR-Komplexitaet)."
+
+      # Mistral-Pfad (AI_AGENT == 'mistral'): Vibe laeuft headless OHNE Approval-Callback — ohne
+      # erzwungenes Auto-Approve wuerde jedes genehmigungspflichtige Tool (gh/git) als "Tool
+      # execution not permitted" uebersprungen. default_agent=auto-approve setzt
+      # bypass_tool_permissions=true; ~/.vibe/config.toml ist der Default-Konfig-Ort (VIBE_HOME).
+      - name: Vibe-Konfig (Headless Auto-Approve)
+        if: steps.preflight.outputs.configured == 'true' && vars.AI_AGENT == 'mistral'
+        run: |
+          mkdir -p "$HOME/.vibe"
+          cat > "$HOME/.vibe/config.toml" <<'EOF'
+          default_agent = "auto-approve"
+          bypass_tool_permissions = true
+          EOF
+
+      # Spiegelt den Claude-Schritt: gleicher Review-Ablauf, anderer Agent. GH_TOKEN = App-Token,
+      # damit die Label-Umschaltungen die Folge-Workflows ausloesen. Die Vibe-Action reicht KEINE
+      # Extra-Flags durch (kein allowed_bots/github_token noetig — der Job-`if` gated bereits ueber
+      # Labels) — System-Prompt-Regeln als fuehrender [KONTEXT]-Block im prompt.
+      - name: Kreuzverhoer-Review via Mistral Vibe
+        id: mistral
+        if: steps.preflight.outputs.configured == 'true' && vars.AI_AGENT == 'mistral'
+        uses: mistralai/mistral-vibe@474a0e4055b210a60c39ed0c89458d904b7f6a7b # v2.19.0
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }} # Labels als App-Token -> loesen Folge-Workflows aus
+        with:
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          args: --trust
+          prompt: |
+            [KONTEXT/REGELN] Automatisierter, label-gesteuerter Kreuzverhoer-Review in GitHub
+            Actions (headless). Reviewe ausschliesslich PR #${{ github.event.pull_request.number }},
+            aendere KEINEN Code und committe nichts. Schliesse IMMER mit der Label-Umschaltung ab:
+            Findings -> ai:needs-changes (statt ai:needs-review); sauber -> ai:ready-to-merge.
+            Erfinde keine Findings. Arbeite ohne interaktive Rueckfrage. Nutze fuer
+            GitHub-Operationen die `gh`-CLI (Token ist gesetzt).
+
+            Reviewe Pull Request #${{ github.event.pull_request.number }} im Kreuzverhör
+            (Label `ai:needs-review` ist gesetzt). Die Pipeline koordiniert ausschließlich über
+            LABELS — schließe daher GENAU mit einer der beiden Label-Umschaltungen unten ab.
+
+            Folge dem Ablauf .ai-knowledge/pr-review.md (entspricht
+            `/kreuzverhoer-review ${{ github.event.pull_request.number }}`): vollständigen Diff
+            (`gh pr diff`) und das verknüpfte Ticket lesen, adversarial prüfen (löst der PR das
+            Problem ganz? Edge Cases? einfachster Weg? Performance/Security?), Code-Qualität und
+            Projekt-Konventionen prüfen.
+
+            Sammelkommentar konsolidieren (kein Duplikat pro Runde): Das zusammenfassende Urteil
+            wird als GENAU EIN markierter KI-Kommentar `<!-- ai-review -->` (erste Zeile) pro PR
+            gepflegt. Vor dem Posten den bestehenden markierten Kommentar per API suchen
+            (`gh api repos/{owner}/{repo}/issues/${{ github.event.pull_request.number }}/comments`,
+            nach `<!-- ai-review -->` filtern); ist er vorhanden, ihn per
+            `gh api --method PATCH repos/{owner}/{repo}/issues/comments/<id>` AKTUALISIEREN (Comment-ID
+            bleibt gleich) statt einen neuen anzulegen — nur einmalig neu anlegen, wenn keiner existiert.
+            Der Kommentar trennt „Offene Findings" (aktuelle Runde) von einer History-Tabelle
+            „Behobene Anmerkungen" (Runde | Finding | Status ✅). Inline-Findings bleiben unverändert.
+
+            DIFF-SCOPING bei Folge-Review (Kosten-/Zeitersparnis): Existiert bereits ein markierter
+            Sammelkommentar, ist dies ein Folge-Review nach einem Fixup-Push — dann NICHT den
+            kompletten PR-Diff erneut komplett durchgehen. Stattdessen dessen `updatedAt`-Zeitstempel
+            aus der API-Antwort (s. o.) auslesen und NUR die Commits/den Diff SEIT diesem Zeitpunkt
+            prüfen (`gh pr view --json commits --jq '.commits[] | select(.committedDate > "<updatedAt>")'`,
+            darauf `git diff <ältester-neuer-commit>^..HEAD`) auf neue oder weiterhin bestehende
+            Findings prüfen; bereits in „Behobene Anmerkungen" geführte Punkte NICHT erneut aufrollen.
+            Ticket-Kontext und Architektur-Berührpunkte dabei weiterhin im Blick behalten (nicht rein
+            diff-lokal urteilen). Fehlt der markierte Kommentar (ERSTREVIEW), IMMER den vollständigen
+            Diff prüfen.
+
+            Abschluss — GENAU EINEN Weg gehen. Labels sind IMMER der ALLERLETZTE Schritt, NIE davor
+            — Fixup/Gate-Merge liest den PR-Stand unmittelbar nach dem zweiten Label-Befehl:
+              - Es gibt zutreffende, offene Findings → als EINE Review (`gh pr review --comment`)
+                mit an Datei/Zeile verankerten Kommentaren (Was / Warum / Vorschlag) posten, das
+                Urteil im konsolidierten Sammelkommentar (s. o.) aktualisieren, ERST DANACH
+                die Labels in ZWEI getrennten Befehlen umschalten (nie kombiniert, sonst Doppel-Trigger):
+                `gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:needs-review`,
+                danach `gh pr edit ${{ github.event.pull_request.number }} --add-label ai:needs-changes`
+              - Der PR ist solide (🟢) → KEINE Pseudo-Findings erfinden, nur eine knappe
+                🟢-Bestätigung im konsolidierten Sammelkommentar (s. o.), ERST DANACH die Labels in
+                ZWEI Befehlen:
+                `gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:needs-review`,
+                danach `gh pr edit ${{ github.event.pull_request.number }} --add-label ai:ready-to-merge`
 
             Fehlt ein Label, vorher anlegen (`gh label create "ai:needs-changes" --color D93F0B`
             bzw. `"ai:ready-to-merge" --color 0E8A16`). Ändere KEINEN Code und committe nichts —
             reiner Review. Bearbeite ausschließlich diesen PR; arbeite ohne interaktive Rückfrage.
 
-            Weiches Zeitlimit (Soft-Abort): Dieser Lauf wird nach 20 Minuten HART abgebrochen (kein
-            SIGTERM-Handling möglich). Prüfe daher VOR jedem größeren Prüfaspekt (nächste Datei,
-            nächster Architektur-Berührpunkt) mit
-            `test "$(date +%s)" -ge ${{ steps.starttime.outputs.soft_deadline_epoch }}`, ob das
-            weiche Limit (14 Min nach Start, 6 Min Puffer) erreicht ist. Ist das der Fall, STOPPE
-            SOFORT die weitere Prüfung kontrolliert und fuehre NUR noch dies aus: die bisherigen
-            Teil-Findings im Sammelkommentar `<!-- ai-review -->` festhalten und deutlich als
-            "Review noch nicht vollständig — Fortsetzung folgt" markieren (NICHT als abschließendes
-            Urteil), dann `gh pr edit ${{ github.event.pull_request.number }} --add-label
-            ai:continued` setzen (Label bei Bedarf vorher `gh label create "ai:continued" --color
-            FBCA04` anlegen) UND `ai:needs-review` entfernen+sofort wieder setzen
-            (Selbst-Retrigger — NICHT auf `ai:needs-changes`/`ai:ready-to-merge` umschalten, das
-            Review ist noch nicht abgeschlossen). Danach den Turn beenden.
-          claude_args: >-
-            --model claude-sonnet-4-6 --effort medium
-            ${{ steps.session-restore.outputs.resume-arg }}
-            --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh label:*),Bash(gh api:*),Bash(git fetch:*),Bash(git diff:*),Read,Grep,Glob,Task"
-            --append-system-prompt "Automatisierter, label-gesteuerter Kreuzverhoer-Review in GitHub Actions (headless). Reviewe ausschliesslich PR #${{ github.event.pull_request.number }}, aendere keinen Code. Schliesse IMMER mit der Label-Umschaltung als ALLERLETZTEN Schritt ab (NIE davor — erst nach dem Sammelkommentar, da Fixup/Gate-Merge den PR-Stand unmittelbar danach lesen): Findings -> ai:needs-changes (statt ai:needs-review); sauber -> ai:ready-to-merge. Erfinde keine Findings. HARTES 20-Minuten-Timeout, weiches Limit bei 14 Min (Soft-Abort): pruefe vor jedem groesseren Pruefaspekt `date +%s` gegen ${{ steps.starttime.outputs.soft_deadline_epoch }}; ist das erreicht, halte die Teil-Findings im Sammelkommentar als unvollstaendig fest, setze ai:continued UND entferne+setze ai:needs-review neu (Selbst-Retrigger, der Folgelauf setzt per --resume fort) statt ai:needs-changes/ai:ready-to-merge zu setzen, dann beende den Turn. Arbeite ohne interaktive Rueckfrage. Delegations-Strategie s. Prompt-Anfang (heavy/light je nach PR-Komplexitaet)."
-
-      - name: Kosten-Zusammenfassung
-        if: always()
-        continue-on-error: true
-        uses: ./.github/actions/cost-summary
-        with:
-          execution-file: ${{ steps.claude.outputs.execution_file }}
-          label: Review
-          ai-backend: ${{ env.AI_BACKEND }}
-
-      # Named Session Resume (Phase "review"): sichert die eben beendete/abgebrochene Session ins
-      # Sitzungsarchiv, damit ein Selbst-Retrigger-Folgelauf per --resume anknuepfen kann.
-      # if: always() -- auch ein in den harten Timeout gelaufener Lauf sichert seinen Teil-Fortschritt.
-      - name: Session-Archiv sichern (Phase review)
-        if: always() && steps.preflight.outputs.configured == 'true'
-        continue-on-error: true
-        uses: ./.github/actions/session-save
-        with:
-          issue: ${{ github.event.pull_request.number }}
-          phase: review
-          id-type: pr
-          session-id: ${{ steps.claude.outputs.session_id }}
-
-      # Soft-Abort-Obergrenze (2026-07-08): das Label "ai:continued" wird NUR von Claude selbst
-      # gesetzt (expliziter Teil der Stopp-Checkliste) -- eindeutig von einem normal beendeten
-      # Review (Findings ODER 🟢) unterscheidbar. Begrenzt automatische Selbst-Fortsetzungen auf
-      # genau EINE; bei Erschoepfung wird "ai:needs-review" entfernt (Loop stoppt) OHNE ein
-      # automatisches Ergebnis-Label zu setzen (kein Fixup mit erfundenen Findings, kein falsches
-      # ai:ready-to-merge) -- reiner Alarm-Kommentar fuer den Menschen. `handled=true` unterdrueckt
-      # die nachfolgende Label-Post-Assertion, die sonst den Safe-Default ai:needs-changes erzwingen
-      # wuerde.
-      - name: Soft-Abort-Fortsetzung erkennen und begrenzen (ai:continued)
-        id: soft-abort-cap
-        if: always() && steps.preflight.outputs.configured == 'true' && steps.claude.outcome == 'success'
+      # GLM-Pfad (AI_AGENT == 'glm'): verwendet die claude-code-action mit dem Z.ai-Anthropic-
+      # kompatiblen Endpoint statt Anthropic. Authentifizierung ueber ZAI_API_KEY
+      # (anthropic_api_key); Z.ai mappt Claude-Modellnamen automatisch auf GLM-Modelle.
+      - name: Kreuzverhoer-Review via GLM (Z.ai)
+        id: glm
+        if: steps.preflight.outputs.configured == 'true' && vars.AI_AGENT == 'glm'
+        uses: anthropics/claude-code-action@558b1d6cab4085c7753fe402c10bef0fbb92ac7a # v1.0.165
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          PR: ${{ github.event.pull_request.number }}
-          ALREADY_CONTINUED: ${{ steps.continued-before.outputs.already }}
-        run: |
-          has_continued="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels \
-            --jq 'any(.labels[]; .name == "ai:continued")' 2>/dev/null || echo false)"
+          ANTHROPIC_BASE_URL: https://api.z.ai/api/anthropic
+          API_TIMEOUT_MS: '3000000'
+          CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1'
+        with:
+          anthropic_api_key: ${{ secrets.ZAI_API_KEY }}
+          github_token: ${{ steps.app-token.outputs.token }}
+          allowed_bots: 'claude[bot],my-github-action-bot'
+          prompt: |
+            Bewerte zunächst die PR-Komplexität (Diff-Umfang, Architektur-Berührpunkte,
+            Sicherheits-/Performance-Aspekte) und delegiere das eigentliche Kreuzverhoer-Review
+            via Agent-Tool an den passenden Subagenten: triviale/mechanische PRs an `light`
+            (Haiku), komplexe/architektonische PRs an `heavy` (Opus); Standard-Reviews führst
+            du selbst auf Sonnet durch (kein Subagenten-Aufruf).
 
-          if [ "${has_continued:-false}" != "true" ]; then
-            echo "handled=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
+            Reviewe Pull Request #${{ github.event.pull_request.number }} im Kreuzverhör
+            (Label `ai:needs-review` ist gesetzt). Die Pipeline koordiniert ausschließlich über
+            LABELS — schließe daher GENAU mit einer der beiden Label-Umschaltungen unten ab.
 
-          if [ "${ALREADY_CONTINUED:-false}" = "true" ]; then
-            echo "::warning title=PR #${PR} Fortsetzungs-Obergrenze::Zweiter Zwischenstopp in Folge -- automatische Fortsetzung ausgeschoepft."
-            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-review" 2>/dev/null || true
-            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label "ai:continued" 2>/dev/null || true
-            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "🛑 **Kreuzverhör-Review #${PR} — Fortsetzungs-Obergrenze erreicht**
+            Folge dem Ablauf .ai-knowledge/pr-review.md (entspricht
+            `/kreuzverhoer-review ${{ github.event.pull_request.number }}`): vollständigen Diff
+            (`gh pr diff`) und das verknüpfte Ticket lesen, adversarial prüfen (löst der PR das
+            Problem ganz? Edge Cases? einfachster Weg? Performance/Security?), Code-Qualität und
+            Projekt-Konventionen prüfen.
 
-          2 Versuche (Original + 1 automatische Fortsetzung) ausgeschöpft, ohne das Review abzuschließen. Kein automatisches Ergebnis-Label gesetzt — bitte manuell reviewen." 2>/dev/null || true
-          else
-            echo "::notice title=PR #${PR} Soft-Abort::Erster Zwischenstopp -- Folgelauf per Selbst-Retrigger (ai:needs-review) unterwegs."
-          fi
-          echo "handled=true" >> "$GITHUB_OUTPUT"
+            Sammelkommentar konsolidieren (kein Duplikat pro Runde): Das zusammenfassende Urteil
+            wird als GENAU EIN markierter KI-Kommentar `<!-- ai-review -->` (erste Zeile) pro PR
+            gepflegt. Vor dem Posten den bestehenden markierten Kommentar per API suchen
+            (`gh api repos/{owner}/{repo}/issues/${{ github.event.pull_request.number }}/comments`,
+            nach `<!-- ai-review -->` filtern); ist er vorhanden, ihn per
+            `gh api --method PATCH repos/{owner}/{repo}/issues/comments/<id>` AKTUALISIEREN (Comment-ID
+            bleibt gleich) statt einen neuen anzulegen — nur einmalig neu anlegen, wenn keiner existiert.
+            Der Kommentar trennt „Offene Findings" (aktuelle Runde) von einer History-Tabelle
+            „Behobene Anmerkungen" (Runde | Finding | Status ✅). Inline-Findings bleiben unverändert.
+
+            DIFF-SCOPING bei Folge-Review (Kosten-/Zeitersparnis): Existiert bereits ein markierter
+            Sammelkommentar, ist dies ein Folge-Review nach einem Fixup-Push — dann NICHT den
+            kompletten PR-Diff erneut komplett durchgehen. Stattdessen dessen `updatedAt`-Zeitstempel
+            aus der API-Antwort (s. o.) auslesen und NUR die Commits/den Diff SEIT diesem Zeitpunkt
+            prüfen (`gh pr view --json commits --jq '.commits[] | select(.committedDate > "<updatedAt>")'`,
+            darauf `git diff <ältester-neuer-commit>^..HEAD`) auf neue oder weiterhin bestehende
+            Findings prüfen; bereits in „Behobene Anmerkungen" geführte Punkte NICHT erneut aufrollen.
+            Ticket-Kontext und Architektur-Berührpunkte dabei weiterhin im Blick behalten (nicht rein
+            diff-lokal urteilen). Fehlt der markierte Kommentar (ERSTREVIEW), IMMER den vollständigen
+            Diff prüfen.
+
+            Abschluss — GENAU EINEN Weg gehen. Labels sind IMMER der ALLERLETZTE Schritt, NIE davor
+            — Fixup/Gate-Merge liest den PR-Stand unmittelbar nach dem zweiten Label-Befehl:
+              - Es gibt zutreffende, offene Findings → als EINE Review (`gh pr review --comment`)
+                mit an Datei/Zeile verankerten Kommentaren (Was / Warum / Vorschlag) posten, das
+                Urteil im konsolidierten Sammelkommentar (s. o.) aktualisieren, ERST DANACH
+                die Labels in ZWEI getrennten Befehlen umschalten (nie kombiniert, sonst Doppel-Trigger):
+                `gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:needs-review`,
+                danach `gh pr edit ${{ github.event.pull_request.number }} --add-label ai:needs-changes`
+              - Der PR ist solide (🟢) → KEINE Pseudo-Findings erfinden, nur eine knappe
+                🟢-Bestätigung im konsolidierten Sammelkommentar (s. o.), ERST DANACH die Labels in
+                ZWEI Befehlen:
+                `gh pr edit ${{ github.event.pull_request.number }} --remove-label ai:needs-review`,
+                danach `gh pr edit ${{ github.event.pull_request.number }} --add-label ai:ready-to-merge`
+
+            Fehlt ein Label, vorher anlegen (`gh label create "ai:needs-changes" --color D93F0B`
+            bzw. `"ai:ready-to-merge" --color 0E8A16`). Ändere KEINEN Code und committe nichts —
+            reiner Review. Bearbeite ausschließlich diesen PR; arbeite ohne interaktive Rückfrage.
+          claude_args: >-
+            --model claude-sonnet-4-6 --effort medium --max-turns 30
+            --allowedTools "Bash(gh pr:*),Bash(gh issue view:*),Bash(gh label:*),Bash(gh api:*),Bash(git fetch:*),Bash(git diff:*),Read,Grep,Glob,Task"
+            --append-system-prompt "Automatisierter, label-gesteuerter Kreuzverhoer-Review in GitHub Actions (headless). Reviewe ausschliesslich PR #${{ github.event.pull_request.number }}, aendere keinen Code. Schliesse IMMER mit der Label-Umschaltung als ALLERLETZTEN Schritt ab (NIE davor — erst nach dem Sammelkommentar, da Fixup/Gate-Merge den PR-Stand unmittelbar danach lesen): Findings -> ai:needs-changes (statt ai:needs-review); sauber -> ai:ready-to-merge. Erfinde keine Findings. Arbeite ohne interaktive Rueckfrage. Delegations-Strategie s. Prompt-Anfang (heavy/light je nach PR-Komplexitaet)."
 
       # Deterministisches Abschluss-Signal (unabhaengig von der LLM-Ausgabe): laeuft auch bei
       # Abbruch/Timeout (if: always()) und macht im Log/Job-Summary klar sichtbar, DASS und mit
@@ -338,27 +354,20 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR: ${{ github.event.pull_request.number }}
-          OUTCOME: ${{ steps.claude.outcome }}
-          SESSION_ID: ${{ steps.claude.outputs.session_id }}
+          AGENT: ${{ vars.AI_AGENT == 'mistral' && 'Mistral' || (vars.AI_AGENT == 'glm' && 'GLM (Z.ai)' || 'Claude') }}
+          # Outcome des tatsaechlich gelaufenen Agent-Schritts (die anderen sind 'skipped').
+          OUTCOME: ${{ steps.claude.outcome != 'skipped' && steps.claude.outcome || (steps.glm.outcome != 'skipped' && steps.glm.outcome || steps.mistral.outcome) }}
+          SESSION_ID: ${{ steps.claude.outputs.session_id || steps.glm.outputs.session_id }}
         run: |
           labels="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
-          if [ "$OUTCOME" = "success" ]; then
-            echo "::notice title=✅ Review erfolgreich::PR #${PR} — Kreuzverhör durchgeführt"
-          elif [ "$OUTCOME" = "cancelled" ]; then
-            echo "::warning title=⏸️ Review abgebrochen::Lauf durch neueren Trigger verdrängt (kein Fehler)"
-          elif [ "$OUTCOME" = "skipped" ]; then
-            echo "::notice title=⏭️ Review übersprungen::Supersede — ein aktuellerer Review-Lauf desselben PRs übernimmt (kein Fehler)"
-          else
-            echo "::error title=❌ Review fehlgeschlagen::Claude-Lauf gescheitert"
-          fi
           {
             echo "### Kreuzverhoer-Review #${PR} — fertig"
             echo ""
-            echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\` (cancelled = 20-Min-Timeout; skipped = Supersede durch neueren Lauf)"
+            echo "- ${AGENT}-Schritt: \`${OUTCOME:-unbekannt}\` (cancelled = 20-Min-Timeout erreicht)"
             echo "- Aktuelle Pipeline-Labels: ${labels:-keine}"
             if [ -n "$SESSION_ID" ]; then echo "- Session-ID: \`${SESSION_ID}\` (\`--resume\` zum Nachschauen)"; fi
           } >> "$GITHUB_STEP_SUMMARY"
-          echo "::notice title=Kreuzverhoer-Review #${PR} fertig::Claude-Schritt ${OUTCOME:-unbekannt}; Labels: ${labels:-keine}"
+          echo "::notice title=Kreuzverhoer-Review #${PR} fertig::${AGENT}-Schritt ${OUTCOME:-unbekannt}; Labels: ${labels:-keine}"
 
       # Deterministisches Timeout-Signal fuer PR-Workflows (Haerten S3): review/fixup vergeben
       # bewusst KEIN ai:to-big-issue (AGENTS.md) — sonst staute der PR unsichtbar, wenn er in das
@@ -366,7 +375,7 @@ jobs:
       # ECHTES Timeout (kein Supersede wie bei cancel-in-progress:true), daher kein Zeit-Guard
       # noetig. Dieser Schritt postet bei Timeout einen sichtbaren PR-Kommentar als Alarm.
       - name: Bei Timeout PR-Kommentar (Alarm)
-        if: always() && steps.preflight.outputs.configured == 'true' && steps.claude.outcome == 'cancelled'
+        if: always() && steps.preflight.outputs.configured == 'true' && (steps.claude.outcome == 'cancelled' || steps.glm.outcome == 'cancelled' || steps.mistral.outcome == 'cancelled')
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR: ${{ github.event.pull_request.number }}
@@ -381,21 +390,9 @@ jobs:
       # auf ai:needs-review stehen (kein Folge-Workflow feuert). Dieser Step setzt deterministisch
       # den Safe-Default ai:needs-changes, sobald nach Agent-Ende kein Ergebnis-Label existiert — so
       # greift der Fixup (sichtbar) statt einer stillen Stalle. Laeuft NICHT bei cancelled (Timeout
-      # -> S3 alarmiert) und nicht bei skipped (Preflight).
-      #
-      # 0-Commit-Loop-Bremse (Haerten H1-Nachtrag): der Safe-Default ai:needs-changes loest den Fixup
-      # aus; findet der aber nichts (Review hatte kein echtes Finding, nur die Label-Umschaltung
-      # vergessen), schaltet er zurueck auf ai:needs-review -> Review -> ggf. wieder kein Label -> der
-      # Kreis dreht sich ohne neue Commits (der Fixup-Stop-Guard greift nur bei > 10 Commits, NICHT
-      # bei 0). Deshalb markiert der erste Safe-Default den PR mit ai:review-no-result; feuert der
-      # Safe-Default ein ZWEITES Mal in Folge (Marker schon da), wird der Loop HART gestoppt statt
-      # weitergedreht: kein ai:needs-changes mehr, Mensch pingen, Reviewer-Check rot lassen. Setzt der
-      # Agent regulaer ein Ergebnis-Label, wird der Marker wieder entfernt (Zaehler-Reset).
+      # -> S3 alarmiert) und nicht bei skipped (Doppel-Guard/Preflight).
       - name: Label-Post-Assertion (Safe-Default ai:needs-changes)
-        # steps.soft-abort-cap.outputs.handled == 'true' -- der Soft-Abort-Cap-Step hat diesen Lauf
-        # bereits als bewussten Zwischenstopp (oder dessen Erschoepfung) behandelt; die Post-
-        # Assertion soll dieses Ergebnis NICHT mit dem Safe-Default ai:needs-changes ueberschreiben.
-        if: always() && steps.preflight.outputs.configured == 'true' && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure') && steps.soft-abort-cap.outputs.handled != 'true'
+        if: always() && steps.preflight.outputs.configured == 'true' && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure' || steps.glm.outcome == 'success' || steps.glm.outcome == 'failure' || steps.mistral.outcome == 'success' || steps.mistral.outcome == 'failure')
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR: ${{ github.event.pull_request.number }}
@@ -411,49 +408,21 @@ jobs:
           has_changes="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:needs-changes")')"
           has_ready="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:ready-to-merge")')"
           has_review="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:needs-review")')"
-          # Marker der 0-Commit-Loop-Bremse: war er VOR diesem Lauf gesetzt, hatte schon der
-          # vorige Review kein Ergebnis-Label -> dieser hier ist der zweite in Folge.
-          has_nolabel="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:review-no-result")')"
 
-          # Fall A: kein Ergebnis-Label nach Agent-Ende.
+          # Fall A: kein Ergebnis-Label nach Agent-Ende -> Safe-Default ai:needs-changes
           if [ "$has_changes" != "true" ] && [ "$has_ready" != "true" ]; then
             if [ "$has_review" = "true" ]; then
               gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-review
             fi
-
-            # Fall A2: Marker schon da -> ZWEITER Review in Folge ohne Ergebnis-Label. Der
-            # Safe-Default konvergiert offensichtlich nicht (0-Commit-Loop). Loop HART stoppen:
-            # KEIN ai:needs-changes setzen (das wuerde den Fixup und damit den Kreis erneut
-            # antreiben), Marker belassen, Mensch pingen. Ohne ai:needs-review und ohne
-            # Ergebnis-Label laeuft der abschliessende Reviewer-Check rot (Mensch muss eingreifen).
-            if [ "$has_nolabel" = "true" ]; then
-              gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "🛑 **Review kreist ohne Ergebnis-Label — Loop gestoppt**
-
-          Zwei Review-Läufe in Folge haben weder \`ai:needs-changes\` noch \`ai:ready-to-merge\` gesetzt — der Safe-Default konvergiert nicht (0-Commit-Loop). Der Workflow dreht den Kreis NICHT weiter (kein erneuter Fixup). **Bitte manuell reviewen und ein Ergebnis-Label selbst setzen** (\`ai:needs-review\` zum Fortsetzen, \`ai:ready-to-merge\` zum Mergen) oder den PR schließen." 2>/dev/null || true
-              echo "::error title=Review-Loop ohne Ergebnis-Label gestoppt::Zweiter Review in Folge ohne ai:needs-changes/ai:ready-to-merge — 0-Commit-Loop-Bremse greift (kein Fixup-Retrigger), Reviewer-Check bleibt rot bis zum manuellen Eingriff."
-              exit 0
-            fi
-
-            # Fall A1: erster Review ohne Ergebnis-Label -> Marker setzen + Safe-Default
-            # ai:needs-changes (eine Chance fuer den Fixup). Feuert der Safe-Default erneut, greift
-            # oben die Bremse.
-            gh label create "ai:review-no-result" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
-            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:review-no-result
             gh label create "ai:needs-changes" --repo "$GITHUB_REPOSITORY" --color D93F0B 2>/dev/null || true
             gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-changes
             # Alarm-Kommentar (H-2 Mitigation): ein moeglicher 0-Commit-Loop (Review vergisst Label
             # -> Fixup ohne Findings -> Review -> ...) wird so fuer den Menschen sichtbar.
             gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⚠️ **Review ohne Ergebnis-Label — Safe-Default**
 
-          Der Review-Agent hat weder \`ai:needs-changes\` noch \`ai:ready-to-merge\` gesetzt. Workflow setzt Safe-Default \`ai:needs-changes\`. **Manuelle Prüfung nötig** — bleibt beim nächsten Review erneut das Ergebnis-Label aus, stoppt der Workflow den Loop automatisch." 2>/dev/null || true
-            echo "::error title=Review ohne Ergebnis-Label::Agent hat weder ai:needs-changes noch ai:ready-to-merge gesetzt — Safe-Default ai:needs-changes + Marker ai:review-no-result (bei erneutem Ausbleiben wird der Loop gestoppt)."
+          Der Review-Agent hat weder \`ai:needs-changes\` noch \`ai:ready-to-merge\` gesetzt. Workflow setzt Safe-Default \`ai:needs-changes\`. **Manuelle Prüfung nötig** — falls der Fixup keine Findings findet und der Loop kreist, bitte manuell reviewen/entscheiden." 2>/dev/null || true
+            echo "::error title=Review ohne Ergebnis-Label::Agent hat weder ai:needs-changes noch ai:ready-to-merge gesetzt — Safe-Default ai:needs-changes + Alarm-Kommentar (Fixup wird ausgelöst)."
             exit 0
-          fi
-
-          # Ergebnis-Label ist gesetzt (Agent hat regulaer abgeschlossen) -> Loop-Marker
-          # zuruecksetzen, damit ein spaeteres einmaliges Vergessen wieder als "erster" Fall zaehlt.
-          if [ "$has_nolabel" = "true" ]; then
-            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:review-no-result 2>/dev/null || true
           fi
           # Fall B: Ergebnis-Label gesetzt, aber ai:needs-review nicht entfernt -> nachträglich entfernen
           if [ "$has_review" = "true" ]; then
@@ -473,20 +442,9 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR: ${{ github.event.pull_request.number }}
         run: |
-          labels_json="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name]' 2>/dev/null || echo '[]')"
-          needs_changes="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:needs-changes")')"
-          needs_review="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:needs-review")')"
-          ready_to_merge="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:ready-to-merge")')"
-
+          needs_changes="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq 'any(.labels[]; .name == "ai:needs-changes")' 2>/dev/null || echo false)"
           if [ "$needs_changes" = "true" ]; then
             echo "::error title=Review: Aenderungen erforderlich::PR #${PR} hat ai:needs-changes — Reviewer-Check laeuft rot, damit das CI-Gate ihn als roten Check erkennt."
-            exit 1
-          fi
-          # Soft-Abort-Obergrenze erschoepft (siehe Cap-Step oben): weder ai:needs-review noch ein
-          # Ergebnis-Label vorhanden -- das Review ist stecken geblieben, braucht menschliches
-          # Eingreifen. Auch das soll rot laufen statt still gruen zu bleiben.
-          if [ "$needs_review" != "true" ] && [ "$ready_to_merge" != "true" ]; then
-            echo "::error title=Review stecken geblieben::PR #${PR} hat kein Pipeline-Ergebnis-Label (Fortsetzungs-Obergrenze erreicht) — Reviewer-Check laeuft rot, bis ein Mensch eingreift."
             exit 1
           fi
           echo "Keine offenen Findings (kein ai:needs-changes) — Reviewer-Check bleibt gruen."

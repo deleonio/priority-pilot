@@ -9,7 +9,7 @@ import { dirname, join } from 'node:path';
 // Sichert den neuen Erkennungs-Workflow `claude-pr-conflict-scan.yml`:
 // Bei Push auf main alle offenen PRs auf Merge-Konflikte prüfen und bei
 // DIRTY/CONFLICTING das Label `ai:needs-changes` setzen (App-Token!),
-// damit der bestehende `hermes-pr-fixup.yml` den Konflikt auflöst.
+// damit der bestehende `claude-pr-fixup.yml` den Konflikt auflöst.
 //
 // Testebene: statische YAML-Verträge (node:test via tsx, Muster pipeline-hardening.test.ts).
 // Tests werden ROT, bis Produktivcode (claude-pr-conflict-scan.yml) angelegt ist.
@@ -18,7 +18,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(HERE, '..', '..');
 
 const scanYml = (): string =>
-	readFileSync(join(REPO_ROOT, '.github', 'workflows', 'hermes-pr-conflict-scan.yml'), 'utf8');
+	readFileSync(join(REPO_ROOT, '.github', 'workflows', 'claude-pr-conflict-scan.yml'), 'utf8');
 
 // ─── AK1 — Trigger ───────────────────────────────────────────────────────────
 
@@ -97,12 +97,12 @@ describe('AK3 — Weiterleitung: ai:needs-changes via App-Token setzen (kein GIT
 		assert.doesNotMatch(
 			yml,
 			/anthropics\/claude-code-action/,
-			'Workflow darf keinen eigenen Auflöser enthalten — ai:needs-changes triggert hermes-pr-fixup.yml',
+			'Workflow darf keinen eigenen Auflöser enthalten — ai:needs-changes triggert claude-pr-fixup.yml',
 		);
 		assert.doesNotMatch(
 			yml,
 			/uses:\s*anthropics\/claude/,
-			'Kein Claude-Step im Scan-Workflow — die Auflösung ist Aufgabe von hermes-pr-fixup.yml',
+			'Kein Claude-Step im Scan-Workflow — die Auflösung ist Aufgabe von claude-pr-fixup.yml',
 		);
 	});
 });

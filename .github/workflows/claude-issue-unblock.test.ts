@@ -6,11 +6,11 @@ import { dirname, join } from 'node:path';
 
 // Vertrag-Tests — Merge-getriebenes Unblocking abhängiger Issues.
 //
-// Sichert den neuen Workflow `hermes-issue-unblock.yml`:
+// Sichert den neuen Workflow `claude-issue-unblock.yml`:
 // Wird ein PR gemergt, werden die Issues, die das gemergte Issue nativ *blockt*
 // (GitHub-Issue-Dependencies), freigegeben — aber nur, wenn ALLE ihre Blocker
 // geschlossen sind (Fan-in-Gate). Freigabe = `ai:analyzed` ENTFERNEN → das
-// re-triggert `hermes-triage.yml` (Re-Analyse gegen den neuen Code-Stand), die
+// re-triggert `claude-triage.yml` (Re-Analyse gegen den neuen Code-Stand), die
 // dann 🟢 → `ai:spec-ready` setzt oder 🟡/🔴 → nur `ai:analyzed` + Hinweise.
 //
 // Das Entfernen MUSS per GitHub-App-Token erfolgen: ein mit `GITHUB_TOKEN`
@@ -24,7 +24,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(HERE, '..', '..');
 
 const unblockYml = (): string =>
-	readFileSync(join(REPO_ROOT, '.github', 'workflows', 'hermes-issue-unblock.yml'), 'utf8');
+	readFileSync(join(REPO_ROOT, '.github', 'workflows', 'claude-issue-unblock.yml'), 'utf8');
 
 // ─── AK1 — Trigger: nur bei gemergtem PR ─────────────────────────────────────
 
@@ -47,12 +47,9 @@ describe('AK1 — Trigger: pull_request closed + merged == true', () => {
 
 	it('Negativkontrolle: kein Trigger auf issues.labeled/opened (das ist Sache von triage/spec/implement)', () => {
 		const yml = unblockYml();
-		// Der Workflow triggert ausschließlich auf pull_request — kein issues-Event.
-		// Das Regex zielt auf einen on:-Block mit issues: (z.B. `on:\n  issues:`),
-		// nicht auf issues: im permissions:-Block oder in Kommentaren.
 		assert.doesNotMatch(
 			yml,
-			/^on:\s*\n\s*issues:/m,
+			/^\s*issues:/m,
 			'Der Unblock-Workflow darf NICHT auf issues-Events triggern — er reagiert ausschließlich auf gemergte PRs',
 		);
 	});
@@ -142,7 +139,7 @@ describe('AK5 — Freigabe = ai:analyzed entfernen → Re-Triage (NICHT direkt a
 		assert.match(
 			yml,
 			/remove-label[^\n]*ai:analyzed/,
-			'Workflow muss `--remove-label "ai:analyzed"` aufrufen — das re-triggert hermes-triage.yml (Re-Analyse gegen den neuen Code-Stand)',
+			'Workflow muss `--remove-label "ai:analyzed"` aufrufen — das re-triggert claude-triage.yml (Re-Analyse gegen den neuen Code-Stand)',
 		);
 	});
 
@@ -169,7 +166,7 @@ describe('AK6 — Label-Entfernen per App-Token (GITHUB_TOKEN triggert keine Re-
 		const hasAppToken = /create-github-app-token/.test(yml) || (/APP_ID/.test(yml) && /APP_PRIVATE_KEY/.test(yml));
 		assert.ok(
 			hasAppToken,
-			'Workflow muss ein App-Token nutzen — mit GITHUB_TOKEN entfernte Labels lösen KEINE Folge-Workflows (Re-Triage) aus (bekanntes GHA-Verhalten, dokumentiert in hermes-triage.yml)',
+			'Workflow muss ein App-Token nutzen — mit GITHUB_TOKEN entfernte Labels lösen KEINE Folge-Workflows (Re-Triage) aus (bekanntes GHA-Verhalten, dokumentiert in claude-triage.yml)',
 		);
 	});
 
@@ -178,24 +175,16 @@ describe('AK6 — Label-Entfernen per App-Token (GITHUB_TOKEN triggert keine Re-
 		// Das Entfernen von ai:analyzed darf nicht unter dem Standard-github.token laufen —
 		// sonst feuert das unlabeled-Event nicht und die Re-Triage bleibt aus.
 		const removeStepUsesGithubToken =
-			/remove-label[\s\S]{0,400}GH_TOKEN:\s*$\{\{\s*github\.token/.test(yml) ||
-			/GH_TOKEN:\s*$\{\{\s*github\.token[\s\S]{0,400}remove-label/.test(yml);
+			/remove-label[\s\S]{0,400}GH_TOKEN:\s*\$\{\{\s*github\.token/.test(yml) ||
+			/GH_TOKEN:\s*\$\{\{\s*github\.token[\s\S]{0,400}remove-label/.test(yml);
 		assert.ok(
 			!removeStepUsesGithubToken,
-			'Das Entfernen von ai:analyzed darf NICHT unter GH_TOKEN: ${{ github.token }} laufen — es muss das App-Token (steps.gh-token.outputs.token, mit Fallback auf App-Token) nutzen, sonst keine Re-Triage',
+			'Das Entfernen von ai:analyzed darf NICHT unter GH_TOKEN: ${{ github.token }} laufen — es muss das App-Token (steps.app-token.outputs.token) nutzen, sonst keine Re-Triage',
 		);
-		// GH_TOKEN nutzt den gh-token-Fallback-Step (bevorzugt App-Token, fällt auf
-		// GITHUB_TOKEN zurück wenn App-Token nicht verfügbar)
 		assert.match(
 			yml,
-			/GH_TOKEN:\s*\$\{\{\s*steps\.gh-token\.outputs\.token/,
-			'Der gh-Step muss den gh-token-Fallback (steps.gh-token.outputs.token) als GH_TOKEN nutzen — der bevorzugt das App-Token',
-		);
-		// Der gh-token-Step selbst muss versuchen, das App-Token zu nutzen
-		assert.match(
-			yml,
-			/steps\.app-token\.outputs\.token/,
-			'Der gh-token-Fallback-Step muss das App-Token (steps.app-token.outputs.token) referenzieren — es ist der primäre Versuch',
+			/GH_TOKEN:\s*\$\{\{\s*steps\.app-token\.outputs\.token/,
+			'Der gh-Step muss das App-Token (steps.app-token.outputs.token) als GH_TOKEN nutzen',
 		);
 	});
 });
@@ -270,7 +259,7 @@ describe('AK10 — Reiner gh-Job: kein Claude-Code-Action-Aufruf', () => {
 		assert.doesNotMatch(
 			yml,
 			/anthropics\/claude/,
-			'Workflow darf keinen eigenen LLM-Auflöser enthalten — die Re-Analyse übernimmt hermes-triage.yml (via ai:analyzed-Entfernen)',
+			'Workflow darf keinen eigenen LLM-Auflöser enthalten — die Re-Analyse übernimmt claude-triage.yml (via ai:analyzed-Entfernen)',
 		);
 	});
 });

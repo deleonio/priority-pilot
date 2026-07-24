@@ -1,4 +1,4 @@
-name: Issue Unblock (Nachfolger freigeben)
+name: Claude Issue Unblock (Nachfolger freigeben)
 
 # Gibt abhängige Nachfolge-Issues frei, sobald ihr Vorgänger gemergt wurde (#…).
 #
@@ -7,16 +7,16 @@ name: Issue Unblock (Nachfolger freigeben)
 # Nur der erste, unblockierte Sub-Issue trägt `ai:spec-ready`; die Nachfolger warten auf
 # `ai:analyzed`. Wird der PR eines Vorgängers gemergt, prüft dieser Workflow, ob dadurch
 # ALLE Blocker eines Nachfolgers aufgelöst sind (Fan-in-Gate). Wenn ja, wird `ai:analyzed`
-# ENTFERNT → das re-triggert hermes-triage.yml, die den Nachfolger gegen den nun gemergten
+# ENTFERNT → das re-triggert claude-triage.yml, die den Nachfolger gegen den nun gemergten
 # Code-Stand NEU analysiert und selbst entscheidet: 🟢 → `ai:spec-ready` (Kette läuft weiter),
 # 🟡/🔴 → nur `ai:analyzed` + Hinweise (Mensch reagiert). Der Workflow setzt bewusst KEIN
 # `ai:spec-ready` selbst — die erneute Machbarkeitsprüfung ist der Kern des Ansatzes.
 #
 # WICHTIG (Folge-Workflows / Token-Trigger-Falle): Von GITHUB_TOKEN entfernte Labels lösen
 # KEINE weiteren Workflows aus. Damit das "unlabeled"-Event von `ai:analyzed` die Re-Triage
-# (hermes-triage.yml) wirklich startet, wird `ai:analyzed` mit einem kurzlebigen
+# (claude-triage.yml) wirklich startet, wird `ai:analyzed` mit einem kurzlebigen
 # GitHub-App-Token (APP_ID + APP_PRIVATE_KEY) entfernt — gleiches Muster wie
-# hermes-pr-needs-review-label.yml / hermes-pr-conflict-scan.yml.
+# pr-needs-review-label.yml / claude-pr-conflict-scan.yml.
 #
 # Selbsttest-Hinweis: Ein neuer pull_request-Workflow lässt sich nicht am eigenen
 # Einführungs-PR verifizieren (er ist zum Merge-Zeitpunkt noch nicht auf main). Die Logik
@@ -28,7 +28,7 @@ on:
 
 concurrency:
   # Pro gemergtem PR serialisieren; nicht abbrechen (jeder Merge soll vollständig auswerten).
-  group: hermes-issue-unblock-${{ github.event.pull_request.number }}
+  group: claude-issue-unblock-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 
 jobs:
@@ -36,14 +36,11 @@ jobs:
     # Nur bei tatsächlichem Merge (nicht bei jedem Schließen) und nur für same-repo-PRs.
     if: >-
       ${{ github.event.pull_request.merged == true
-          && github.event.pull_request.head.repo.full_name == github.repository
-              && !contains(github.event.pull_request.labels.*.name, 'ai:use-mistral') }}
+          && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read # Label-Schreibzugriff läuft über das App-Token
-      issues: write
-      pull-requests: write
     steps:
       - name: Voraussetzung prüfen (GitHub-App-Secrets)
         id: preflight
@@ -63,20 +60,8 @@ jobs:
         if: steps.preflight.outputs.configured == 'true'
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
-          client-id: ${{ secrets.APP_ID }}
+          app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
-
-      - name: GH_TOKEN-Fallback setzen (App-Token oder GITHUB_TOKEN)
-        id: gh-token
-        run: |
-          APP_TOK="${{ steps.app-token.outputs.token }}"
-          if [ -n "$APP_TOK" ] && [ "$APP_TOK" != "null" ]; then
-            echo "token=$APP_TOK" >> "$GITHUB_OUTPUT"
-            echo "::notice::Nutze GitHub-App-Token für gh-Befehle."
-          else
-            echo "token=${{ github.token }}" >> "$GITHUB_OUTPUT"
-            echo "::warning::App-Token nicht verfügbar — nutze GITHUB_TOKEN (Achtung: Label-Wechsel lösen ggf. keine Folge-Workflows aus)."
-          fi
 
       # Reiner gh-Job (kein Checkout, kein LLM): gemergtes Issue ermitteln, native Nachfolger
       # (blocking) finden, Fan-in-Gate (blocked_by) prüfen und ai:analyzed per App-Token
@@ -85,7 +70,7 @@ jobs:
       - name: Nachfolger des gemergten Issues freigeben
         if: steps.preflight.outputs.configured == 'true'
         env:
-          GH_TOKEN: ${{ steps.gh-token.outputs.token }} # App-Token → unlabeled-Event triggert Re-Triage (Fallback: GITHUB_TOKEN)
+          GH_TOKEN: ${{ steps.app-token.outputs.token }} # App-Token → unlabeled-Event triggert Re-Triage
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
         run: |
@@ -174,7 +159,7 @@ jobs:
               {
                 echo "### Issue #${B} — freigegeben (Vorgänger #${A} gemergt)"
                 echo ""
-                echo "- Alle Blocker aufgelöst → \`ai:analyzed\` entfernt → hermes-triage.yml re-analysiert gegen den neuen Code-Stand."
+                echo "- Alle Blocker aufgelöst → \`ai:analyzed\` entfernt → claude-triage.yml re-analysiert gegen den neuen Code-Stand."
               } >> "$GITHUB_STEP_SUMMARY"
             done
           done

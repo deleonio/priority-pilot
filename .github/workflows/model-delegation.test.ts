@@ -124,7 +124,7 @@ describe('Triage laeuft fest auf Opus; Effort haengt vom Trigger ab (M3, 2026-07
 				);
 			});
 
-			it('setzt Opus + die konditionale Effort-Logik im claude_args-Pfad', () => {
+			it('setzt Opus + die konditionale Effort-Logik in ALLEN claude_args-Pfaden (Claude UND GLM)', () => {
 				const content = readWorkflow(wf);
 				const modelHits = content.match(/--model\s+claude-opus-4-8/g) ?? [];
 				const effortHits =
@@ -132,12 +132,12 @@ describe('Triage laeuft fest auf Opus; Effort haengt vom Trigger ab (M3, 2026-07
 						/--effort\s+\$\{\{\s*github\.event_name\s*==\s*'issue_comment'\s*&&\s*'high'\s*\|\|\s*'max'\s*\}\}/g,
 					) ?? [];
 				assert.ok(
-					modelHits.length >= 1,
-					`${wf} muss --model claude-opus-4-8 im claude_args-Block setzen, gefunden: ${modelHits.length}`,
+					modelHits.length >= 2,
+					`${wf} muss --model claude-opus-4-8 in beiden claude_args-Bloecken (Claude + GLM) setzen, gefunden: ${modelHits.length}`,
 				);
 				assert.ok(
-					effortHits.length >= 1,
-					`${wf} muss die konditionale --effort-Logik im claude_args-Block setzen, gefunden: ${effortHits.length}`,
+					effortHits.length >= 2,
+					`${wf} muss die konditionale --effort-Logik in beiden claude_args-Bloecken (Claude + GLM) setzen, gefunden: ${effortHits.length}`,
 				);
 			});
 
@@ -210,5 +210,13 @@ describe('AGENTS.md dokumentiert die Subagent-Delegation statt des JS-Routers', 
 
 	it('nennt die Subagent-Delegation (in derselben Session) als Mechanismus', () => {
 		assert.match(doc(), /[Ss]ubagent/, 'AGENTS.md muss die Subagent-Delegation als Mechanismus beschreiben');
+	});
+
+	it('haelt den Mistral-Pfad weiterhin als „nicht betroffen" fest', () => {
+		assert.match(
+			doc(),
+			/nicht betroffen/i,
+			'AGENTS.md muss den Mistral-Pfad weiter als „nicht betroffen" kennzeichnen',
+		);
 	});
 });
