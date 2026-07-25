@@ -1,7 +1,7 @@
 name: Hermes PR Review (Kreuzverhoer)
 
 # Reviewt einen Pull Request im Kreuzverhör, sobald er das Label
-# "ai:needs-review" trägt. Ersetzt hermes-pr-review.yml (MIG-001, 2026-07-10).
+# "ai:needs-review" trägt. Ersetzt claude-pr-review.yml (MIG-001, 2026-07-10).
 #
 # Steuerung rein über Labels (kein Event-Kaskaden):
 #   - Findings → ai:needs-changes (→ Fixup)
