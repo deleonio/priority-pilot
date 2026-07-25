@@ -19,7 +19,7 @@ describe('#438 OpenAPI: Pillar-CRUD-Pfade (AK1)', () => {
 	const yml = readFileSync(ymlPath, 'utf-8');
 
 	it('definiert POST /pillars zum Anlegen einer neuen Säule', () => {
-		const hasPostPillars = /^  \/pillars:\s*$/m.test(yml) && /\n    post:/m.test(yml);
+		const hasPostPillars = /^ {2}\/pillars:\s*$/m.test(yml) && /\n {4}post:/m.test(yml);
 		assert.ok(hasPostPillars, '/pillars muss im OpenAPI-Vertrag eine POST-Methode definieren');
 	});
 
@@ -43,7 +43,7 @@ describe('#438 OpenAPI: Pillar-CRUD-Pfade (AK1)', () => {
 	});
 
 	it('definiert PATCH /pillars/{id} zum Aktualisieren einer Säule', () => {
-		const hasPatchPillarsId = /^  \/pillars\/\{id\}:\s*$/m.test(yml) && /\n    patch:/m.test(yml);
+		const hasPatchPillarsId = /^ {2}\/pillars\/\{id\}:\s*$/m.test(yml) && /\n {4}patch:/m.test(yml);
 		assert.ok(hasPatchPillarsId, '/pillars/{id} muss im OpenAPI-Vertrag eine PATCH-Methode definieren');
 	});
 
@@ -66,7 +66,7 @@ describe('#438 OpenAPI: Pillar-CRUD-Pfade (AK1)', () => {
 	});
 
 	it('definiert DELETE /pillars/{id} zum Löschen einer Säule', () => {
-		const hasDeletePillarsId = /^  \/pillars\/\{id\}:\s*$/m.test(yml) && /\n    delete:/m.test(yml);
+		const hasDeletePillarsId = /^ {2}\/pillars\/\{id\}:\s*$/m.test(yml) && /\n {4}delete:/m.test(yml);
 		assert.ok(hasDeletePillarsId, '/pillars/{id} muss im OpenAPI-Vertrag eine DELETE-Methode definieren');
 	});
 

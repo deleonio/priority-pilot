@@ -168,6 +168,40 @@ export const api = {
 		return data;
 	},
 
+	async createPillar({ name, description }: { name: string; description?: string }): Promise<Pillar> {
+		const { data, response } = await client.POST('/pillars', {
+			body: { name, description: description ?? '' },
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response);
+		}
+		return data;
+	},
+
+	async updatePillar({
+		id,
+		data: body,
+	}: {
+		id: number;
+		data: { name?: string; description?: string };
+	}): Promise<Pillar> {
+		const { data, response } = await client.PATCH('/pillars/{id}', {
+			params: { path: { id } },
+			body,
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response);
+		}
+		return data;
+	},
+
+	async deletePillar({ id }: { id: number }): Promise<void> {
+		const { response } = await client.DELETE('/pillars/{id}', { params: { path: { id } } });
+		if (!response.ok) {
+			throw new ResponseError(response);
+		}
+	},
+
 	async suggestPillars({
 		suggestPillarsInput,
 		signal,
