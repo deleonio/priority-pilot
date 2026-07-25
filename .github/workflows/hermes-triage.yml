@@ -260,7 +260,9 @@ jobs:
         id: hermes
         if: steps.preflight.outputs.configured == 'true'
         env:
+          NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
@@ -273,6 +275,9 @@ jobs:
           elif echo "$LABELS" | grep -q 'ai:use-zai'; then
             PROVIDER_FLAG="--provider zai"
             MODEL="z-ai/glm-5.2"
+          else
+            # Default: Nous Portal — Auth sicherstellen
+            hermes auth add nous --type api-key --api-key "$NOUS_PORTAL_TOKEN" --label ci 2>/dev/null || true
           fi
 
           # Prompt per Heredoc schreiben — 'HERMES_EOF' (single-quoted) verhindert
