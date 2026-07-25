@@ -333,7 +333,7 @@ jobs:
           # VERDICT aus Hermes-Output parsen (Fallback, falls Agent Labels nicht selbst setzen konnte)
           verdict=""
           if [ -f /tmp/hermes-output.log ]; then
-            verdict="$(grep -oP '^VERDICT:\s*\K.*' /tmp/hermes-output.log | tail -1 | tr -d '[:space:]' || true)"
+            verdict="$(grep -oP 'VERDICT:\s*\K.*' /tmp/hermes-output.log | tail -1 | tr -d '[:space:]' || true)"
           fi
           echo "Hermes-Verdict aus Output: '${verdict:-keins}'"
 
