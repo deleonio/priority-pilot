@@ -6,11 +6,9 @@ name: Hermes Spec (ai:spec-ready)
 #
 # Setzt Hermes Agent (Nous Research) — Provider wählbar per Issue-Label:
 #   Default: DeepSeek via Nous Portal (NOUS_PORTAL_TOKEN)
-#   ai:use-openrouter:         OpenRouter (OPENROUTER_API_KEY)
-#   ai:use-zai:          Z.AI direkt (ZAI_API_KEY, GLM-Modelle)
 # Ohne Label → OpenRouter + DeepSeek.
 #
-# Voraussetzungen: OPENROUTER_API_KEY, NOUS_PORTAL_TOKEN, ZAI_API_KEY
+# Voraussetzungen: NOUS_PORTAL_TOKEN
 
 on:
   issues:
@@ -25,8 +23,7 @@ jobs:
     if: >-
       ${{ github.event.label.name == 'ai:spec-ready'
           && contains(github.event.issue.labels.*.name, 'ai:analyzed')
-          && github.event.issue.state == 'open'
-            && !contains(github.event.issue.labels.*.name, 'ai:use-mistral') }}
+          && github.event.issue.state == 'open' }}
     runs-on: ubuntu-latest
     env:
       PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -112,24 +109,11 @@ jobs:
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
-          # Provider anhand des Issue-Labels wählen
-          LABELS=$(gh issue view $ISSUE --repo $GITHUB_REPOSITORY --json labels --jq '.labels[].name' 2>/dev/null || echo "")
-          if echo "$LABELS" | grep -q 'ai:use-openrouter'; then
-            echo "::notice::Provider: OpenRouter (ai:use-openrouter)"
-            hermes config set model.provider openrouter
-            hermes config set model.base_url https://openrouter.ai/api/v1
-          elif echo "$LABELS" | grep -q 'ai:use-zai'; then
-            echo "::notice::Provider: Z.AI direkt (ai:use-zai)"
-            hermes config set model.provider zai
-            # zai needs no base_url, uses built-in endpoint probing
-            export ZAI_API_KEY="${{ secrets.ZAI_API_KEY }}"
-            echo "ZAI_API_KEY=$ZAI_API_KEY" >> "$GITHUB_ENV"
-          else
-            echo "::notice::Provider: Nous Portal (Default)"
-            hermes config set model.provider custom
-            hermes config set model.base_url https://inference-api.nousresearch.com/v1
-            hermes config set model.api_key "${{ secrets.NOUS_PORTAL_TOKEN }}"
-          fi
+          # Nous Portal + DeepSeek konfigurieren
+          hermes config set model.provider custom
+          hermes config set model.base_url https://inference-api.nousresearch.com/v1
+          hermes config set model.api_key "${{ secrets.NOUS_PORTAL_TOKEN }}"
+          echo "::notice::Provider: Nous Portal (DeepSeek)"
           hermes config set agent.max_turns 90
           pip install mcp -q
           hermes mcp add kolibri --url https://public-ui-kolibri-mcp.vercel.app/mcp
@@ -159,35 +143,15 @@ jobs:
       - name: Auth prüfen (provider-spezifisch)
         if: steps.preflight.outputs.configured == 'true'
         env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
-          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
-          LABELS=$(gh issue view $ISSUE --repo $GITHUB_REPOSITORY --json labels --jq '.labels[].name' 2>/dev/null || echo "")
-          if echo "$LABELS" | grep -q 'ai:use-openrouter'; then
-            if [ -z "$OPENROUTER_API_KEY" ]; then
-              echo "::error title=Auth fehlt::OPENROUTER_API_KEY nicht gesetzt — als Repo-Secret hinterlegen"
-              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:spec-ready" 2>/dev/null || true
-              exit 1
-            fi
-            echo "OPENROUTER_API_KEY vorhanden."
-          elif echo "$LABELS" | grep -q 'ai:use-zai'; then
-            if [ -z "$ZAI_API_KEY" ]; then
-              echo "::error title=Auth fehlt::ZAI_API_KEY nicht gesetzt — als Repo-Secret hinterlegen"
-              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:spec-ready" 2>/dev/null || true
-              exit 1
-            fi
-            echo "ZAI_API_KEY vorhanden."
-          else
-            if [ -z "$NOUS_PORTAL_TOKEN" ]; then
-              echo "::error title=Auth fehlt::NOUS_PORTAL_TOKEN nicht gesetzt — als Repo-Secret hinterlegen"
-              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:spec-ready" 2>/dev/null || true
-              exit 1
-            fi
+          if [ -z "$NOUS_PORTAL_TOKEN" ]; then
+            echo "::error title=Auth fehlt::NOUS_PORTAL_TOKEN nicht gesetzt — als Repo-Secret hinterlegen"
+            exit 1
           fi
-
+          echo "NOUS_PORTAL_TOKEN vorhanden."
       - name: Doppel-Run-Guard (existierender PR mit Closes #N)
         id: doppel-guard
         if: steps.preflight.outputs.configured == 'true'
@@ -232,24 +196,13 @@ jobs:
         if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         env:
           NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
-          # Provider und Modell anhand des Issue-Labels wählen
-          LABELS=$(gh issue view $ISSUE --repo $GITHUB_REPOSITORY --json labels --jq '.labels[].name' 2>/dev/null || echo "")
+          # Nous Portal + DeepSeek Pro (Analyse/Spec/Review)
           PROVIDER_FLAG="--provider custom"
           MODEL="deepseek/deepseek-v4-pro"
-          if echo "$LABELS" | grep -q 'ai:use-openrouter'; then
-            PROVIDER_FLAG="--provider openrouter"
-          elif echo "$LABELS" | grep -q 'ai:use-zai'; then
-            PROVIDER_FLAG="--provider zai"
-            MODEL="z-ai/glm-5.2"
-          else
-            # Default: Nous Portal — Auth sicherstellen
-            hermes config set model.api_key "$NOUS_PORTAL_TOKEN"
-          fi
+          hermes config set model.api_key "$NOUS_PORTAL_TOKEN"
 
           cat > /tmp/hermes-prompt.txt << 'HERMES_EOF'
           Das Label `ai:spec-ready` wurde an Issue #ISSUE_NR gesetzt — schreibe jetzt die ROTEN Tests (den Vertrag) für dieses Issue.
