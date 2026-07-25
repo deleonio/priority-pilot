@@ -1,7 +1,7 @@
 name: Hermes PR Review (Kreuzverhoer)
 
 # Reviewt einen Pull Request im Kreuzverhör, sobald er das Label
-# "ai:needs-review" trägt. Ersetzt claude-pr-review.yml (MIG-001, 2026-07-10).
+# "ai:needs-review" trägt. Ersetzt hermes-pr-review.yml (MIG-001, 2026-07-10).
 #
 # Steuerung rein über Labels (kein Event-Kaskaden):
 #   - Findings → ai:needs-changes (→ Fixup)
@@ -10,7 +10,7 @@ name: Hermes PR Review (Kreuzverhoer)
 #
 # Setzt Hermes Agent (Nous Research) — Provider wählbar per PR-Label:
 #   Default: DeepSeek via Nous Portal (NOUS_PORTAL_TOKEN)
-# Ohne Label → OpenRouter + DeepSeek.
+# Provider: Nous Portal + DeepSeek (provider=custom)
 #
 # Voraussetzungen: NOUS_PORTAL_TOKEN
 

@@ -2,11 +2,10 @@ name: Hermes Spec (ai:spec-ready)
 
 # Schreibt die ROTEN Tests (ausführbarer Vertrag) für ein Issue, sobald es
 # das Label "ai:spec-ready" erhält UND bereits "ai:analyzed" trägt.
-# Ersetzt claude-spec.yml (MIG-001, 2026-07-10).
 #
 # Setzt Hermes Agent (Nous Research) — Provider wählbar per Issue-Label:
 #   Default: DeepSeek via Nous Portal (NOUS_PORTAL_TOKEN)
-# Ohne Label → OpenRouter + DeepSeek.
+# Provider: Nous Portal + DeepSeek (provider=custom)
 #
 # Voraussetzungen: NOUS_PORTAL_TOKEN
 

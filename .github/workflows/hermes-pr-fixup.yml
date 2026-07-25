@@ -1,14 +1,14 @@
 name: Hermes PR Fixup (Findings umsetzen)
 
 # Reagiert auf das Label "ai:needs-changes" (vom Review gesetzt) und setzt die
-# zutreffenden Findings um. Ersetzt claude-pr-fixup.yml (MIG-001, 2026-07-10).
+# zutreffenden Findings um. Nachfolger des alten Claude-Workflows.
 #
 # Label-Steuerung:
 #   review → ai:needs-changes → fixup → ai:needs-review → review → ... bis 🟢
 #
 # Setzt Hermes Agent (Nous Research) — Provider wählbar per PR-Label:
 #   Default: DeepSeek via Nous Portal (NOUS_PORTAL_TOKEN)
-# Ohne Label → OpenRouter + DeepSeek.
+# Provider: Nous Portal + DeepSeek (provider=custom)
 #
 # Voraussetzungen: NOUS_PORTAL_TOKEN
 
@@ -272,6 +272,8 @@ jobs:
           Stop-Guard: Ein Workflow-Step zählt die PR-Commits und stoppt bei > 10 — du musst das nicht selbst im Kopf führen.
 
           Keine interaktive Rückfrage. Label ai:needs-changes autorisiert den Lauf.
+
+          VERDICT-MARKER: Gib GANZ AM ENDE deiner letzten Antwort eine Zeile aus: `VERDICT: fixup-complete` (alle Findings behoben) oder `VERDICT: needs-changes` (noch offene Findings). Der Workflow parst diese Zeile als Fallback, falls du die Labels nicht selbst setzen konntest (z.B. bei Token-Problemen).
           HERMES_EOF
 
           sed -i "s/#PR_NR/${{ github.event.pull_request.number }}/g" /tmp/hermes-prompt.txt
@@ -321,6 +323,39 @@ jobs:
           path: /tmp/hermes-session.tar.gz
           retention-days: 30
           overwrite: true
+
+      - name: Label-Post-Assertion (VERDICT-Fallback)
+        if: always() && steps.preflight.outputs.configured == 'true' && steps.hermes.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          # VERDICT aus Hermes-Output parsen (Fallback, falls Agent Labels nicht selbst setzen konnte)
+          verdict=""
+          if [ -f /tmp/hermes-output.log ]; then
+            verdict="$(grep -oP '^VERDICT:\s*\K.*' /tmp/hermes-output.log | tail -1 | tr -d '[:space:]' || true)"
+          fi
+          echo "Hermes-Verdict aus Output: '${verdict:-keins}'"
+
+          labels_json="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name]' 2>/dev/null || echo '[]')"
+
+          has_needs_review="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:needs-review")')"
+          has_needs_changes="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:needs-changes")')"
+
+          # Wenn Agent kein Label gesetzt hat, VERDICT verwenden
+          if [ "$has_needs_review" != "true" ] && [ "$has_needs_changes" != "true" ]; then
+            if [ "$verdict" = "fixup-complete" ]; then
+              echo "::notice::Agent hat kein Label gesetzt — nutze VERDICT=fixup-complete → ai:needs-review"
+              gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-review" 2>/dev/null || true
+              gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-changes" 2>/dev/null || true
+            elif [ "$verdict" = "needs-changes" ]; then
+              echo "::notice::Agent hat kein Label gesetzt — nutze VERDICT=needs-changes → ai:needs-changes bleibt"
+            else
+              echo "::warning::Kein VERDICT und kein Label vom Agenten — Safe-Default: ai:needs-changes bleibt"
+            fi
+          else
+            echo "Agent hat Label selbst gesetzt: needs_review=$has_needs_review needs_changes=$has_needs_changes"
+          fi
 
       - name: Soft-Abort-Fortsetzung erkennen und begrenzen (ai:continued)
         if: always() && steps.preflight.outputs.configured == 'true' && steps.hermes.outcome == 'success'

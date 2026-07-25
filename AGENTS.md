@@ -160,7 +160,7 @@ In **GitHub Actions** wird die Triage zusätzlich **ereignisgesteuert** angesto�
 automatisch für genau dieses eine Issue auf, sobald ein **Issue angelegt** wird (nur von Personen mit
 Schreibzugriff), das Label
 **`ai:analyzed` entfernt** wird (erzwingt eine Neu-Analyse, z. B. nach geänderter Beschreibung), oder
-jemand mit Schreibzugriff einen **Issue-Kommentar mit `@claude`** hinterlässt (Re-Triage auf Zuruf —
+jemand mit Schreibzugriff einen **Issue-Kommentar mit `@hermes`** hinterlässt (Re-Triage auf Zuruf —
 zweiter Trigger desselben Workflows, kein separater).
 
 ### Named Session Resume (aktuell nicht aktiv)
