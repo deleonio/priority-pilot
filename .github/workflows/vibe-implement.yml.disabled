@@ -1,20 +1,22 @@
-name: Hermes Implement (ai:ready)
+name: Mistral Vibe Implement (ai:ready)
 
-# Setzt ein Issue um, sobald es das Label "ai:ready" erhält UND bereits
-# "ai:analyzed" trägt. Ersetzt claude-implement.yml (MIG-001, 2026-07-10).
+# Setzt ein Issue um, sobald es das Label "ai:ready" erhaelt UND bereits
+# "ai:analyzed" traegt. Ersetzt claude-implement.yml (MIG-001, 2026-07-10).
 #
-# Setzt Hermes Agent (Nous Research) — Provider wählbar per Issue-Label:
-#   Default: DeepSeek via Nous Portal (NOUS_PORTAL_TOKEN)
-# Ohne Label → OpenRouter + DeepSeek.
+# Setzt Mistral Vibe Agent (Nous Research) -- Provider waehlbar per Issue-Label:
+#   ai:use-openrouter (Default): DeepSeek via OpenRouter (MISTRAL_API_KEY)
+#   ai:use-nous:         Nous Portal direkt (MISTRAL_API_KEY)
+#   ai:use-zai:          Z.AI direkt (MISTRAL_API_KEY, GLM-Modelle)
+# Ohne Label ? OpenRouter + DeepSeek.
 #
-# Voraussetzungen: NOUS_PORTAL_TOKEN
+# Voraussetzungen: MISTRAL_API_KEY
 
 on:
   issues:
     types: [labeled]
 
 concurrency:
-  group: hermes-implement-${{ github.event.issue.number }}
+  group: vibe-implement-${{ github.event.issue.number }}
   cancel-in-progress: false
 
 jobs:
@@ -22,11 +24,12 @@ jobs:
     if: >-
       ${{ github.event.label.name == 'ai:ready'
           && contains(github.event.issue.labels.*.name, 'ai:analyzed')
-          && github.event.issue.state == 'open' }}
+          && github.event.issue.state == 'open'
+          && (contains(github.event.issue.labels.*.name, 'ai:use-mistral') || contains(github.event.issue.labels.*.name, 'ai:use-nous') || contains(github.event.issue.labels.*.name, 'ai:use-zai') || !contains(github.event.issue.labels.*.name, 'ai:use-claude')) }}
     runs-on: ubuntu-latest
     env:
-      PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-      HERMES_HOME: /tmp/hermes-ci
+      PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/runner/.local/bin
+      VIBE_HOME: /tmp/vibe-ci
     permissions:
       contents: read
       id-token: write
@@ -34,21 +37,21 @@ jobs:
       pull-requests: write
       issues: write
     steps:
-      - name: Startzeit merken (für Timeout-Erkennung + weiches Zeitlimit)
+      - name: Startzeit merken (fuer Timeout-Erkennung + weiches Zeitlimit)
         id: starttime
         run: |
           now=$(date +%s)
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
           echo "soft_deadline_epoch=$((now + 900))" >> "$GITHUB_OUTPUT"  # 15 min (Puffer vor 20-Min-GitHub-Timeout)
 
-      - name: Voraussetzung prüfen (GitHub-App-Secrets)
+      - name: Voraussetzung pruefen (GitHub-App-Secrets)
         id: preflight
         env:
           APP_ID: ${{ secrets.APP_ID }}
           APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
         run: |
           if [ -z "$APP_ID" ] || [ -z "$APP_PRIVATE_KEY" ]; then
-            echo "::warning::GitHub-App-Secrets fehlen — Lauf wird übersprungen."
+            echo "::warning::GitHub-App-Secrets fehlen -- Lauf wird uebersprungen."
             echo "configured=false" >> "$GITHUB_OUTPUT"
           else
             echo "configured=true" >> "$GITHUB_OUTPUT"
@@ -67,10 +70,10 @@ jobs:
           APP_TOK="${{ steps.app-token.outputs.token }}"
           if [ -n "$APP_TOK" ] && [ "$APP_TOK" != "null" ]; then
             echo "token=$APP_TOK" >> "$GITHUB_OUTPUT"
-            echo "::notice::Nutze GitHub-App-Token für gh-Befehle."
+            echo "::notice::Nutze GitHub-App-Token fuer gh-Befehle."
           else
             echo "token=${{ github.token }}" >> "$GITHUB_OUTPUT"
-            echo "::warning::App-Token nicht verfügbar — nutze GITHUB_TOKEN (Achtung: Label-Wechsel lösen ggf. keine Folge-Workflows aus)."
+            echo "::warning::App-Token nicht verfuegbar -- nutze GITHUB_TOKEN (Achtung: Label-Wechsel loesen ggf. keine Folge-Workflows aus)."
           fi
 
       - name: Issue einem Menschen zuweisen (Best-Effort)
@@ -94,7 +97,7 @@ jobs:
           fetch-depth: 0
           token: ${{ steps.gh-token.outputs.token }}
 
-      - name: Cache-Key für uv berechnen
+      - name: Cache-Key fuer uv berechnen
         id: uv-cache-key
         if: steps.preflight.outputs.configured == 'true'
         run: echo "week=$(date +%Y-W%V)" >> "$GITHUB_OUTPUT"
@@ -107,29 +110,42 @@ jobs:
           path: |
             ~/.cache/uv
             ~/.local/share/uv
-          key: uv-hermes-${{ runner.os }}-${{ steps.uv-cache-key.outputs.week }}
-          restore-keys: uv-hermes-${{ runner.os }}-
+          key: uv-vibe-${{ runner.os }}-${{ steps.uv-cache-key.outputs.week }}
+          restore-keys: uv-vibe-${{ runner.os }}-
 
-      - name: Hermes installieren
+      - name: Mistral Vibe installieren
         if: steps.preflight.outputs.configured == 'true'
         run: |
-          curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-browser --skip-setup
+          curl -fsSL https://vibe-agent.nousresearch.com/install.sh | bash -s -- --skip-browser --skip-setup
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      - name: Hermes konfigurieren (Provider anhand Issue-Label)
+      - name: Mistral Vibe konfigurieren (Provider anhand Issue-Label)
         if: steps.preflight.outputs.configured == 'true'
         env:
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
-          # Nous Portal + DeepSeek konfigurieren
-          hermes config set model.provider custom
-          hermes config set model.base_url https://inference-api.nousresearch.com/v1
-          hermes config set model.api_key "${{ secrets.NOUS_PORTAL_TOKEN }}"
-          echo "::notice::Provider: Nous Portal (DeepSeek)"
-          hermes config set agent.max_turns 90
+          # Provider anhand des Issue-Labels waehlen
+          LABELS=$(gh issue view $ISSUE --repo $GITHUB_REPOSITORY --json labels --jq '.labels[].name' 2>/dev/null || echo "")
+          if echo "$LABELS" | grep -q 'ai:use-nous'; then
+            echo "::notice::Provider: Nous Portal (ai:use-nous)"
+            vibe config set model.provider mistral
+            vibe config set model.base_url https://api.mistral.ai/v1
+            vibe auth add nous --type api-key --api-key "${{ secrets.MISTRAL_API_KEY }}" --label ci
+          elif echo "$LABELS" | grep -q 'ai:use-zai'; then
+            echo "::notice::Provider: Z.AI direkt (ai:use-zai)"
+            vibe config set model.provider mistral
+            # zai needs no base_url, uses built-in endpoint probing
+            export MISTRAL_API_KEY="${{ secrets.MISTRAL_API_KEY }}"
+            echo "MISTRAL_API_KEY=$MISTRAL_API_KEY" >> "$GITHUB_ENV"
+          else
+            echo "::notice::Provider: OpenRouter (Default)"
+            vibe config set model.provider mistral
+            vibe config set model.base_url https://api.mistral.ai/v1
+          fi
+          vibe config set agent.max_turns 90
           pip install mcp -q
-          hermes mcp add kolibri --url https://public-ui-kolibri-mcp.vercel.app/mcp
+          vibe mcp add kolibri --url https://public-ui-kolibri-mcp.vercel.app/mcp
 
       - name: Session-Archiv herunterladen (Phase impl)
         id: session-dl
@@ -137,35 +153,53 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@v4
         with:
-          name: hermes-session-issue-${{ github.event.issue.number }}-impl
-          path: /tmp/hermes-session-restore
+          name: vibe-session-issue-${{ github.event.issue.number }}-impl
+          path: /tmp/vibe-session-restore
 
       - name: Session wiederherstellen
         id: session-restore
         if: steps.preflight.outputs.configured == 'true' && steps.session-dl.outcome == 'success'
         run: |
-          if [ -f /tmp/hermes-session-restore/hermes-session.tar.gz ]; then
-            mkdir -p "$HERMES_HOME"
-            tar -xzf /tmp/hermes-session-restore/hermes-session.tar.gz -C "$HERMES_HOME"
-            if [ -f "$HERMES_HOME/session_id.txt" ]; then
-              RID=$(cat "$HERMES_HOME/session_id.txt")
+          if [ -f /tmp/vibe-session-restore/vibe-session.tar.gz ]; then
+            mkdir -p "$VIBE_HOME"
+            tar -xzf /tmp/vibe-session-restore/vibe-session.tar.gz -C "$VIBE_HOME"
+            if [ -f "$VIBE_HOME/session_id.txt" ]; then
+              RID=$(cat "$VIBE_HOME/session_id.txt")
               echo "resume_arg=$RID" >> "$GITHUB_OUTPUT"
               echo "::notice::Session #$RID wiederhergestellt"
             fi
           fi
 
-      - name: Auth prüfen (provider-spezifisch)
+      - name: Auth pruefen (provider-spezifisch)
         if: steps.preflight.outputs.configured == 'true'
         env:
-          NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
-          if [ -z "$NOUS_PORTAL_TOKEN" ]; then
-            echo "::error title=Auth fehlt::NOUS_PORTAL_TOKEN nicht gesetzt — als Repo-Secret hinterlegen"
-            exit 1
+          LABELS=$(gh issue view $ISSUE --repo $GITHUB_REPOSITORY --json labels --jq '.labels[].name' 2>/dev/null || echo "")
+          if echo "$LABELS" | grep -q 'ai:use-nous'; then
+            if [ -z "$MISTRAL_API_KEY" ]; then
+              echo "::error title=Auth fehlt::MISTRAL_API_KEY nicht gesetzt -- als Repo-Secret hinterlegen"
+              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
+              exit 1
+            fi
+            echo "MISTRAL_API_KEY vorhanden."
+          elif echo "$LABELS" | grep -q 'ai:use-zai'; then
+            if [ -z "$MISTRAL_API_KEY" ]; then
+              echo "::error title=Auth fehlt::MISTRAL_API_KEY nicht gesetzt -- als Repo-Secret hinterlegen"
+              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
+              exit 1
+            fi
+            echo "MISTRAL_API_KEY vorhanden."
+          else
+            if [ -z "$MISTRAL_API_KEY" ]; then
+              echo "::error title=Auth fehlt::MISTRAL_API_KEY nicht gesetzt -- als Repo-Secret hinterlegen (siehe https://console.mistral.ai/)"
+              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
+              exit 1
+            fi
           fi
-          echo "NOUS_PORTAL_TOKEN vorhanden."
+
       - name: Doppel-Run-Guard (ready-PR existiert bereits)
         id: doppel-guard
         if: steps.preflight.outputs.configured == 'true'
@@ -176,11 +210,11 @@ jobs:
           if ! existing="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
             --json number,isDraft,closingIssuesReferences \
             --jq "[.[] | select(.isDraft == false) | select((.closingIssuesReferences // []) | any(.number == ${ISSUE}))] | length" 2>/dev/null)"; then
-            echo "::warning::Doppel-Run-Guard: gh-API nicht erreichbar — fail-open."
+            echo "::warning::Doppel-Run-Guard: gh-API nicht erreichbar -- fail-open."
             existing=0
           fi
           if [ "${existing:-0}" -gt 0 ]; then
-            echo "::notice::Umsetzung übersprungen — ready-PR existiert bereits für Issue #$ISSUE."
+            echo "::notice::Umsetzung uebersprungen -- ready-PR existiert bereits fuer Issue #$ISSUE."
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -197,7 +231,7 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
 
-      - name: Abhängigkeiten installieren
+      - name: Abhaengigkeiten installieren
         if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         run: pnpm install --frozen-lockfile
 
@@ -205,7 +239,7 @@ jobs:
         if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         run: pnpm exec lefthook install
 
-      - name: Fortsetzungs-Stand prüfen (ai:continued)
+      - name: Fortsetzungs-Stand pruefen (ai:continued)
         id: continued-before
         if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         env:
@@ -215,63 +249,69 @@ jobs:
           already="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq 'any(.labels[]; .name == "ai:continued")' 2>/dev/null || echo false)"
           echo "already=${already:-false}" >> "$GITHUB_OUTPUT"
 
-      - name: Umsetzung via Hermes (Provider per Label)
-        id: hermes
+      - name: Umsetzung via Mistral Vibe (Provider per Label)
+        id: vibe
         if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         env:
-          NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
-          # Nous Portal + DeepSeek Flash (Implement/Fixup)
-          PROVIDER_FLAG="--provider custom"
-          MODEL="deepseek/deepseek-v4-flash"
-          hermes config set model.api_key "$NOUS_PORTAL_TOKEN"
+          # Provider und Modell anhand des Issue-Labels waehlen
+          LABELS=$(gh issue view $ISSUE --repo $GITHUB_REPOSITORY --json labels --jq '.labels[].name' 2>/dev/null || echo "")
+          PROVIDER_FLAG="--provider openrouter"
+          MODEL="mistral-large-latest"
+          if echo "$LABELS" | grep -q 'ai:use-nous'; then
+            PROVIDER_FLAG="--provider nous"
+          elif echo "$LABELS" | grep -q 'ai:use-zai'; then
+            PROVIDER_FLAG="--provider zai"
+            MODEL="z-ai/glm-5.1"
+          fi
 
-          cat > /tmp/hermes-prompt.txt << 'HERMES_EOF'
-          Das Label `ai:ready` wurde an Issue #ISSUE_NR gesetzt — setze dieses Issue jetzt um.
+          cat > /tmp/vibe-prompt.txt << 'VIBE_EOF'
+          Das Label `ai:ready` wurde an Issue #ISSUE_NR gesetzt -- setze dieses Issue jetzt um.
 
           Folge dem Umsetzungs-Workflow .ai-knowledge/ticket-implementation.md, aber NUR Schritte 1 bis 4:
-            1. Zuweisung übernimmt bereits der Workflow (nicht selbst zuweisen).
-            2. Beginne SOFORT mit der Arbeit — keine Wartezeit!
-            3. Analyse re-verifizieren (Re-Triage gegen aktuellen Repo-Stand). Kippt die Ampel auf 🔴 → NICHT umsetzen, ai:ready entfernen, begründet kommentieren und stoppen.
-            4. Spec-Modus (Regelfall): den vorhandenen DRAFT-PR auschecken (gh pr list --state open --draft --json number,headRefName,closingIssuesReferences, den mit Issue #ISSUE_NR; dann git fetch origin && git switch <headRefName>). Dessen ROTE Tests GRÜN machen — Tests NICHT ändern (Gewaltenteilung). Fallback (kein Draft-PR): eigenen Branch + Tests selbst schreiben. In beiden Fällen: Code bis pnpm test grün, dann pnpm format + pnpm lint + pnpm knip.
-            5. Committen, Branch pushen. Im Spec-Modus Draft-PR review-bereit machen (gh pr ready <nr>), Beschreibung ergänzen. ALLERLETZTER Schritt: Label ai:needs-review am PR setzen.
+            1. Zuweisung uebernimmt bereits der Workflow (nicht selbst zuweisen).
+            2. Beginne SOFORT mit der Arbeit -- keine Wartezeit!
+            3. Analyse re-verifizieren (Re-Triage gegen aktuellen Repo-Stand). Kippt die Ampel auf ? ? NICHT umsetzen, ai:ready entfernen, begruendet kommentieren und stoppen.
+            4. Spec-Modus (Regelfall): den vorhandenen DRAFT-PR auschecken (gh pr list --state open --draft --json number,headRefName,closingIssuesReferences, den mit Issue #ISSUE_NR; dann git fetch origin && git switch <headRefName>). Dessen ROTE Tests GRUeN machen -- Tests NICHT aendern (Gewaltenteilung). Fallback (kein Draft-PR): eigenen Branch + Tests selbst schreiben. In beiden Faellen: Code bis pnpm test gruen, dann pnpm format + pnpm lint + pnpm knip.
+            5. Committen, Branch pushen. Im Spec-Modus Draft-PR review-bereit machen (gh pr ready <nr>), Beschreibung ergaenzen. ALLERLETZTER Schritt: Label ai:needs-review am PR setzen.
 
           WEICHES ZEITLIMIT (Soft-Abort):
-            Beginne SOFORT mit der Arbeit. Prüfe VOR jedem größeren Teilschritt date +%s gegen SOFT_DEADLINE. Ist das Limit erreicht: Zwischenstand committen+pushen, Draft-PR mit TODO-Liste (KEIN ai:needs-review). ai:ready entfernen+sofort wieder setzen (Selbst-Retrigger). Turn beenden.
+            Beginne SOFORT mit der Arbeit. Pruefe VOR jedem groesseren Teilschritt date +%s gegen SOFT_DEADLINE. Ist das Limit erreicht: Zwischenstand committen+pushen, Draft-PR mit TODO-Liste (KEIN ai:needs-review). ai:ready entfernen+sofort wieder setzen (Selbst-Retrigger). Turn beenden.
 
-          Idempotenz: Draft-PR mit Closes #ISSUE_NR ist normaler Spec-Eingang — aufgreifen. Nicht-Draft-PR = Umsetzung schon gelaufen → Lauf beenden.
+          Idempotenz: Draft-PR mit Closes #ISSUE_NR ist normaler Spec-Eingang -- aufgreifen. Nicht-Draft-PR = Umsetzung schon gelaufen ? Lauf beenden.
 
-          WERKZEUGE: Bash (gh, git, pnpm), Datei-Tools sowie KoliBri-MCP-Tools (mcp_kolibri_search, mcp_kolibri_fetch für KoliBri-Komponenten). GH_TOKEN für gh-Befehle.
-          Keine interaktive Bestätigung — Label ai:ready autorisiert.
-          HERMES_EOF
+          WERKZEUGE: Bash (gh, git, pnpm), Datei-Tools sowie KoliBri-MCP-Tools (mcp_kolibri_search, mcp_kolibri_fetch fuer KoliBri-Komponenten). GH_TOKEN fuer gh-Befehle.
+          Keine interaktive Bestaetigung -- Label ai:ready autorisiert.
+          VIBE_EOF
 
-          sed -i "s/#ISSUE_NR/${{ github.event.issue.number }}/g" /tmp/hermes-prompt.txt
-          sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/hermes-prompt.txt
+          sed -i "s/#ISSUE_NR/${{ github.event.issue.number }}/g" /tmp/vibe-prompt.txt
+          sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/vibe-prompt.txt
 
           RESUME_ARG=""
           if [ -n "${{ steps.session-restore.outputs.resume_arg }}" ]; then
             RESUME_ARG="--resume ${{ steps.session-restore.outputs.resume_arg }}"
           fi
 
-          hermes chat -q "$(cat /tmp/hermes-prompt.txt)" \
+          vibe chat -q "$(cat /tmp/vibe-prompt.txt)" \
             $RESUME_ARG \
             -Q --yolo $PROVIDER_FLAG \
             -m "$MODEL" \
             -t "terminal,file" \
             --max-turns 90 \
             --accept-hooks \
-            2>&1 | tee /tmp/hermes-output.log
-          # PIPESTATUS: Exit-Code von hermes chat durch pipe propagieren
+            2>&1 | tee /tmp/vibe-output.log
+          # PIPESTATUS: Exit-Code von vibe chat durch pipe propagieren
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
 
-      - name: Hermes-Session-ID erfassen
+      - name: Mistral Vibe-Session-ID erfassen
         if: always()
         id: session
         run: |
-          if [ -f /tmp/hermes-output.log ]; then
-            sid="$(grep '^session_id:' /tmp/hermes-output.log | head -1 | sed 's/^session_id:[[:space:]]*//')"
+          if [ -f /tmp/vibe-output.log ]; then
+            sid="$(grep '^session_id:' /tmp/vibe-output.log | head -1 | sed 's/^session_id:[[:space:]]*//')"
             if [ -n "$sid" ]; then
               echo "session_id=$sid" >> "$GITHUB_OUTPUT"
             fi
@@ -282,9 +322,9 @@ jobs:
         continue-on-error: true
         run: |
           SID="${{ steps.session.outputs.session_id }}"
-          if [ -n "$SID" ] && [ -d "$HERMES_HOME" ]; then
-            echo "$SID" > "$HERMES_HOME/session_id.txt"
-            tar -czf /tmp/hermes-session.tar.gz -C "$HERMES_HOME" .
+          if [ -n "$SID" ] && [ -d "$VIBE_HOME" ]; then
+            echo "$SID" > "$VIBE_HOME/session_id.txt"
+            tar -czf /tmp/vibe-session.tar.gz -C "$VIBE_HOME" .
             echo "::notice::Session #$SID gepackt"
           fi
 
@@ -293,13 +333,13 @@ jobs:
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
-          name: hermes-session-issue-${{ github.event.issue.number }}-impl
-          path: /tmp/hermes-session.tar.gz
+          name: vibe-session-issue-${{ github.event.issue.number }}-impl
+          path: /tmp/vibe-session.tar.gz
           retention-days: 30
           overwrite: true
 
       - name: Soft-Abort-Fortsetzung erkennen und begrenzen (ai:continued)
-        if: always() && steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true' && steps.hermes.outcome == 'success'
+        if: always() && steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true' && steps.vibe.outcome == 'success'
         env:
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
@@ -321,8 +361,8 @@ jobs:
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:continued"
           fi
 
-      - name: Bei Timeout als zu groß markieren (ai:to-big-issue)
-        if: always() && steps.preflight.outputs.configured == 'true' && steps.hermes.outcome == 'cancelled'
+      - name: Bei Timeout als zu gross markieren (ai:to-big-issue)
+        if: always() && steps.preflight.outputs.configured == 'true' && steps.vibe.outcome == 'cancelled'
         env:
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
@@ -339,20 +379,20 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
-          OUTCOME: ${{ steps.hermes.outcome }}
+          OUTCOME: ${{ steps.vibe.outcome }}
           SESSION_ID: ${{ steps.session.outputs.session_id }}
         run: |
           labels="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
           if [ "$OUTCOME" = "success" ]; then
-            echo "::notice title=✅ Umsetzung erfolgreich::Issue #${ISSUE}"
+            echo "::notice title=? Umsetzung erfolgreich::Issue #${ISSUE}"
           elif [ "$OUTCOME" = "cancelled" ]; then
-            echo "::warning title=⏸️ Umsetzung abgebrochen"
+            echo "::warning title=?? Umsetzung abgebrochen"
           else
-            echo "::error title=❌ Umsetzung fehlgeschlagen"
+            echo "::error title=? Umsetzung fehlgeschlagen"
           fi
           {
-            echo "### Umsetzung #${ISSUE} — fertig"
-            echo "- Hermes-Schritt: \`${OUTCOME:-unbekannt}\`"
+            echo "### Umsetzung #${ISSUE} -- fertig"
+            echo "- Mistral Vibe-Schritt: \`${OUTCOME:-unbekannt}\`"
             echo "- Labels: ${labels:-keine}"
             if [ -n "$SESSION_ID" ]; then echo "- Session-ID: \`${SESSION_ID}\`"; fi
           } >> "$GITHUB_STEP_SUMMARY"

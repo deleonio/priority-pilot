@@ -25,7 +25,7 @@ on:
     types: [labeled]
 
 concurrency:
-  group: claude-spec-${{ github.event.issue.number }}
+  group: ai-spec-${{ github.event.issue.number }}-${{ contains(github.event.issue.labels.*.name, 'ai:use-claude') && 'claude' || contains(github.event.issue.labels.*.name, 'ai:use-mistral') && 'mistral' || contains(github.event.issue.labels.*.name, 'ai:use-nous') && 'nous' || contains(github.event.issue.labels.*.name, 'ai:use-zai') && 'zai' || 'claude' }}
   cancel-in-progress: false # einen laufenden Spec-Lauf nicht mittendrin abbrechen
 
 jobs:
@@ -35,10 +35,12 @@ jobs:
     if: >-
       ${{ github.event.label.name == 'ai:spec-ready'
           && contains(github.event.issue.labels.*.name, 'ai:analyzed')
+          && contains(github.event.issue.labels.*.name, 'ai:use-claude')
           && github.event.issue.state == 'open' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20 # hartes Limit: laeuft die Spec laenger, bricht GitHub den Job ab
     env:
+      PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1'
       BASH_MAX_OUTPUT_LENGTH: '20000'
       CLAUDE_HIDE_BANNER: '1'

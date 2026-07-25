@@ -1,6 +1,6 @@
 name: Hermes Triage (Analyse)
 
-# Stösst die KI-Analyse (Triage) eines Issues automatisch an — ersetzt den
+# Stößt die KI-Analyse (Triage) eines Issues automatisch an — ersetzt den
 # bisherigen claude-triage.yml Workflow (MIG-001, 2026-07-10).
 #
 # Triggert bei:
@@ -8,18 +8,18 @@ name: Hermes Triage (Analyse)
 #  - Entfernen von Label "ai:analyzed" oder "ai:to-big-issue" (issues: unlabeled)
 #  - @claude-Kommentar einer Person mit Schreibzugriff (issue_comment: created)
 #
-# Setzt Hermes Agent (Nous Research) mit DeepSeek Pro über OpenRouter ein
-# statt Claude Code.
+# Setzt Hermes Agent (Nous Research) — Provider wählbar per Issue-Label:
+#   Default: DeepSeek via Nous Portal (NOUS_PORTAL_TOKEN)
+# Ohne Label → OpenRouter + DeepSeek.
 #
-# Voraussetzung: Repo-Secret OPENROUTER_API_KEY (https://openrouter.ai/keys)
+# Voraussetzungen: NOUS_PORTAL_TOKEN
 #
 # Änderungen zu claude-triage.yml:
-#  - Kein CLAUDE_CODE_OAUTH_TOKEN mehr (entfällt komplett)
-#  - Keine configure-ai-backend Composite Action (Hermes nutzt OpenRouter nativ)
+#  - Keine configure-ai-backend Composite Action (Hermes nutzt Nous Portal nativ)
 #  - Kein session-restore/session-save (Hermes-Session-Resume folgt in MIG-002)
 #  - Kein cost-summary (liest claude execution file — Hermes-cost folgt in MIG-003)
 #  - Prompt angepasst: Hermes-spezifisch, keine Claude-Modell-Strategie
-#  - Modell: deepseek/deepseek-v4-pro via OpenRouter (präzises Reasoning)
+#   - Modell: z-ai/glm-5.2 via OpenRouter (präzises Reasoning)
 
 on:
   issues:
@@ -58,6 +58,7 @@ jobs:
                   || github.event.comment.author_association == 'COLLABORATOR')) }}
     runs-on: ubuntu-latest
     env:
+      PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       # Hermes speichert Config + Sessions in ein RAM-Verzeichnis (nicht ~/.hermes)
       HERMES_HOME: /tmp/hermes-ci
     permissions:
@@ -66,19 +67,19 @@ jobs:
       id-token: write
       pull-requests: write
     steps:
-      # ──────────────────────────────────────────────
+      # ————————————————————————————————————————————————————————————————————————
       # 1. Startzeit (für Timeout-Erkennung + Soft-Abort)
-      # ──────────────────────────────────────────────
+      # ————————————————————————————————————————————————————————————————————————
       - name: Startzeit merken (für Timeout-Erkennung + weiches Zeitlimit)
         id: starttime
         run: |
           now=$(date +%s)
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
-          echo "soft_deadline_epoch=$((now + 420))" >> "$GITHUB_OUTPUT"  # 7 min (Kurz-Tier)
+          echo "soft_deadline_epoch=$((now + 300))" >> "$GITHUB_OUTPUT"  # 5 min (Puffer vor 12-Min-GitHub-Timeout)
 
-      # ──────────────────────────────────────────────
+      # ————————————————————————————————————————————————————————————————————————
       # 2. GitHub-App-Setup (für Label/Push als Bot)
-      # ──────────────────────────────────────────────
+      # ————————————————————————————————————————————————————————————————————————
       - name: Voraussetzung prüfen (GitHub-App-Secrets)
         id: preflight
         env:
@@ -114,9 +115,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      # ──────────────────────────────────────────────
+      # ————————————————————————————————————————————————————————————————————————
       # 3. uv-Paketcache (beschleunigt Hermes-Installation)
-      # ──────────────────────────────────────────────
+      # ————————————————————————————————————————————————————————————————————————
       - name: Cache-Key für uv berechnen
         id: uv-cache-key
         run: echo "week=$(date +%Y-W%V)" >> "$GITHUB_OUTPUT"
@@ -131,9 +132,9 @@ jobs:
           key: uv-hermes-${{ runner.os }}-${{ steps.uv-cache-key.outputs.week }}
           restore-keys: uv-hermes-${{ runner.os }}-
 
-      # ──────────────────────────────────────────────
+      # ————————————————————————————————————————————————————————————————————————
       # 4. Hermes installieren & konfigurieren
-      # ──────────────────────────────────────────────
+      # ————————————————————————————————————————————————————————————————————————
       - name: Hermes installieren
         run: |
           curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-browser --skip-setup
@@ -141,18 +142,24 @@ jobs:
 
       # Konfiguration wird pro Lauf frisch in $HERMES_HOME geschrieben.
       # Der `hermes chat`-Aufruf unten setzt --provider und -m, daher reicht
-      # hier eine minimale Config (Base-URL und max_turns).
-      - name: Hermes konfigurieren (OpenRouter + DeepSeek Pro)
+      # hier die Provider-Auswahl + base_url + max_turns.
+      - name: Hermes konfigurieren (Provider anhand Issue-Label)
+        env:
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          ISSUE: ${{ github.event.issue.number }}
         run: |
-          hermes config set model.provider openrouter
-          hermes config set model.base_url https://openrouter.ai/api/v1
+          # Nous Portal + DeepSeek konfigurieren
+          hermes config set model.provider custom
+          hermes config set model.base_url https://inference-api.nousresearch.com/v1
+          hermes config set model.api_key "${{ secrets.NOUS_PORTAL_TOKEN }}"
+          echo "::notice::Provider: Nous Portal (DeepSeek)"
           hermes config set agent.max_turns 90
           pip install mcp -q
           hermes mcp add kolibri --url https://public-ui-kolibri-mcp.vercel.app/mcp
 
-      # ──────────────────────────────────────────────
+      # ————————————————————————————————————————————————————————————————————————
       # 4. Session-Resume (aus vorherigem Lauf fortsetzen)
-      # ──────────────────────────────────────────────
+      # ————————————————————————————————————————————————————————————————————————
       - name: Session-Archiv herunterladen (Phase triage)
         id: session-dl
         if: steps.preflight.outputs.configured == 'true'
@@ -177,27 +184,24 @@ jobs:
           fi
 
       # ──────────────────────────────────────────────
-      # 5. API-Key-Prüfung (OPENROUTER_API_KEY)
+      # 5. Auth-Prüfung (provider-spezifisch)
       # ──────────────────────────────────────────────
-      - name: API-Key prüfen (OPENROUTER_API_KEY)
+      - name: Auth prüfen (provider-spezifisch)
         if: steps.preflight.outputs.configured == 'true'
         env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
-          if [ -z "$OPENROUTER_API_KEY" ]; then
-            echo "::error title=API-Key fehlt::OPENROUTER_API_KEY nicht gesetzt — als Repo-Secret hinterlegen (https://openrouter.ai/keys). Ohne Key läuft Hermes nicht."
-            gh label create "ai:to-big-issue" --repo "$GITHUB_REPOSITORY" \
-              --color B60205 --description "KI-Job lief rot (Konfiguration/Secret) — bitte prüfen" 2>/dev/null || true
-            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:to-big-issue" 2>/dev/null || true
+          if [ -z "$NOUS_PORTAL_TOKEN" ]; then
+            echo "::error title=Auth fehlt::NOUS_PORTAL_TOKEN nicht gesetzt — als Repo-Secret hinterlegen"
             exit 1
           fi
-          echo "OPENROUTER_API_KEY vorhanden."
+          echo "NOUS_PORTAL_TOKEN vorhanden."
 
-      # ──────────────────────────────────────────────
+      # ————————————————————————————————————————————————————————————————————————
       # 5. Triage via Hermes
-      # ──────────────────────────────────────────────
+      # ————————————————————————————————————————————————————————————————————————
       # Der Prompt wird via Heredoc in eine Datei geschrieben (vermeidet
       # Shell-Quoting-Probleme bei langen Texten mit Anführungszeichen).
       # Der eigentliche Aufruf nutzt dann -q "$(cat ...)".
@@ -206,25 +210,28 @@ jobs:
       #   -q                       Single-query non-interactive
       #   -Q                       Quiet — keine Banner/Spinner im CI-Log
       #   --yolo                   Keine Gefahren-Bestätigung (CI headless)
-      #   --provider openrouter    API läuft über OpenRouter
-      #   -m deepseek/deepseek-v4-pro    DeepSeek Pro (präzises Reasoning)
+      #   -m <modell>              Modell (DeepSeek Pro/GLM 5.2 per Label)
       #   -t "terminal,file"       Nur Shell- und Datei-Tools zulassen
       #   --max-turns 90           Obergrenze für Tool-Calls
       #   --accept-hooks           Automatische Freigabe von Shell-Hooks
-      #   MCP: KoliBri-Server konfiguriert, Tools: mcp_kolibri_search/fetch
       #
       # GH_TOKEN für gh-Befehle (Issue lesen/schreiben, Labels setzen).
-      # OPENROUTER_API_KEY für die LLM-API.
-      - name: Triage via Hermes (DeepSeek Pro)
+      - name: Triage via Hermes (Provider per Label)
         id: hermes
         if: steps.preflight.outputs.configured == 'true'
         env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          ISSUE: ${{ github.event.issue.number }}
         run: |
+          # Nous Portal + DeepSeek Pro (Analyse/Spec/Review)
+          PROVIDER_FLAG="--provider custom"
+          MODEL="deepseek/deepseek-v4-pro"
+          hermes config set model.api_key "$NOUS_PORTAL_TOKEN"
+
           # Prompt per Heredoc schreiben — 'HERMES_EOF' (single-quoted) verhindert
           # bash-Variable-Expansion innerhalb des Heredocs, während GitHub Actions
-          # \${} Expressions VOR der Schritt-Ausführung evaluiert.
+          # ${} Expressions VOR der Schritt-Ausführung evaluiert.
           cat > /tmp/hermes-prompt.txt << 'HERMES_EOF'
           Führe für GENAU DIESES EINE Issue (#ISSUE_NR) den Ticket-Triage-Workflow aus der Wissensbasis aus — verbindlicher Ablauf: .ai-knowledge/ticket-triage.md.
 
@@ -234,12 +241,13 @@ jobs:
             Die Analyse läuft entweder zum ersten Mal (Erst-Triage) oder als aktualisierte Analyse (Re-Triage). Das erkennst du am Body-Block: existiert bereits <!-- KI-ANALYSE:START stand=... --> ... <!-- KI-ANALYSE:END --> im Issue-Body, ist es eine Re-Triage. Dann den stand-Timestamp auslesen und NUR die Delta-Kommentare seit stand lesen (gh issue view #ISSUE_NR --json comments --jq '.comments[] | select(.createdAt > "<stand>")'), NICHT den ganzen Thread. Fehlt der Body-Block, ist es eine Erst-Analyse.
 
           ABLAUF:
-            1. Lektoriere die Issue-Beschreibung (Form verbessern, Inhalt unverändert, via gh issue edit --body-file -).
-            2. Prüfe den Titel auf Konsistenz zur Beschreibung/zum Ziel und optimiere ihn bei Inkonsistenz inhaltlich treu (kein Edit pro forma, keine Titel-Drift, via gh issue edit --title ...).
-            3. Zerlege zu große Tickets in verknüpfte Sub-Issues (max. eine Ebene, Rekursionsschutz via Label 'ai:analyzed').
-            4. Schreibe die Analyse mit prüfbaren Akzeptanzkriterien + Testfällen und Umsetzbarkeits-Ampel (🟢/🟡/🔴) in einen markierten Block in der Issue-Beschreibung (gh issue edit --body-file -).
-            5. Setze genau EINEN kurzen Ping-Kommentar (gh issue comment; bei offenen Fragen mit @author).
-            6. Labels als ALLERLETZTEN Schritt — NIE davor (sonst startet die nächste Pipeline-Stufe mit veraltetem Issue-Inhalt).
+            1. Beginne SOFORT mit der Arbeit — keine Wartezeit!
+            2. Lektoriere die Issue-Beschreibung (Form verbessern, Inhalt unverändert, via gh issue edit --body-file -).
+            3. Prüfe den Titel auf Konsistenz zur Beschreibung/zum Ziel und optimiere ihn bei Inkonsistenz inhaltlich treu (kein Edit pro forma, keine Titel-Drift, via gh issue edit --title ...).
+            4. Zerlege zu große Tickets in verknüpfte Sub-Issues (max. eine Ebene, Rekursionsschutz via Label 'ai:analyzed').
+            5. Schreibe die Analyse mit prüfbaren Akzeptanzkriterien + Testfällen und Umsetzbarkeits-Ampel (🟢/🟡/🔴) in einen markierten Block in der Issue-Beschreibung (gh issue edit --body-file -).
+            6. Setze genau EINEN kurzen Ping-Kommentar (gh issue comment; bei offenen Fragen mit @author).
+            7. Labels als ALLERLETZTEN Schritt — NIE davor (sonst startet die nächste Pipeline-Stufe mit veraltetem Issue-Inhalt).
 
           BODY-BLOCK-FORMAT:
             Der Analyse-Block muss zwischen diesen Markern stehen:
@@ -259,7 +267,7 @@ jobs:
             Du hast Zugriff auf die Bash (für gh issue/gh api/gh label/gh pr/gh repo), Datei-Lese-Werkzeuge sowie KoliBri-MCP-Tools (mcp_kolibri_search, mcp_kolibri_fetch für KoliBri-Komponenten). Die gh-Befehle sind über GH_TOKEN authentifiziert. Lies die Wissensbasis aus .ai-knowledge/ticket-triage.md für den vollständigen Ablauf. Lese die Issue-Daten via gh issue view und die Wissensbasis via read_file.
 
           WEICHES ZEITLIMIT (Soft-Abort):
-            Dieser Lauf wird nach 12 Minuten von GitHub HART abgebrochen. Prüfe daher VOR jedem größeren Teilschritt (neue Analyse-Runde, längere Recherche), ob das weiche Limit (7 Minuten nach Start) erreicht ist — berechne es mit: date +%s und vergleiche mit SOFT_DEADLINE.
+            Beginne SOFORT mit der Arbeit. Dieser Lauf wird nach 12 Minuten von GitHub HART abgebrochen. Prüfe daher VOR jedem größeren Teilschritt (neue Analyse-Runde, längere Recherche), ob das weiche Limit (5 Minuten nach Start) erreicht ist — berechne es mit: date +%s und vergleiche mit SOFT_DEADLINE.
             Ist das Limit erreicht: schreibe die bisherige Analyse (auch unvollständig) als Body-Block in die Beschreibung. Setze KEIN Label und poste KEINEN Ping-Kommentar. Beende den Turn sofort (keine weiteren Schritte). So bleibt das Issue für einen sauberen Folgelauf offen.
 
           WICHTIG:
@@ -280,8 +288,8 @@ jobs:
 
           hermes chat -q "$(cat /tmp/hermes-prompt.txt)" \
             $RESUME_ARG \
-            -Q --yolo --provider openrouter \
-            -m "deepseek/deepseek-v4-pro" \
+            -Q --yolo $PROVIDER_FLAG \
+            -m "$MODEL" \
             -t "terminal,file" \
             --max-turns 90 \
             --accept-hooks \
@@ -289,9 +297,9 @@ jobs:
           # PIPESTATUS: Exit-Code von hermes chat durch pipe propagieren
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
 
-      # ──────────────────────────────────────────────
+      # ————————————————————————————————————————————————————————————————————————
       # 6. Hermes-Output parsen & Session-ID sichern
-      # ──────────────────────────────────────────────
+      # ————————————————————————————————————————————————————————————————————————
       - name: Hermes-Session-ID erfassen
         if: always()
         id: session
@@ -304,9 +312,9 @@ jobs:
             fi
           fi
 
-      # ──────────────────────────────────────────────
+      # ————————————————————————————————————————————————————————————————————————
       # 7. Session-Archiv für Folgelauf sichern
-      # ──────────────────────────────────────────────
+      # ————————————————————————————————————————————————————————————————————————
       - name: Session-Archiv packen
         if: always() && steps.session.outputs.session_id != ''
         continue-on-error: true
@@ -328,10 +336,10 @@ jobs:
           retention-days: 30
           overwrite: true
 
-      # ──────────────────────────────────────────────
-      # 8. Bei hartem Timeout als zu gross markieren
-      # ──────────────────────────────────────────────
-      - name: Bei Timeout als zu gross markieren (ai:to-big-issue)
+      # ————————————————————————————————————————————————————————————————————————
+      # 8. Bei hartem Timeout als zu groß markieren
+      # ————————————————————————————————————————————————————————————————————————
+      - name: Bei Timeout als zu groß markieren (ai:to-big-issue)
         if: always() && steps.preflight.outputs.configured == 'true' && steps.hermes.outcome == 'cancelled'
         env:
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
@@ -344,15 +352,15 @@ jobs:
             exit 0
           fi
           gh label create "ai:to-big-issue" --repo "$GITHUB_REPOSITORY" \
-            --color B60205 --description "KI-Job lief in den Timeout — Issue zu gross, bitte aufteilen" 2>/dev/null || true
+            --color B60205 --description "KI-Job lief in den Timeout — Issue zu groß, bitte aufteilen" 2>/dev/null || true
           gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:to-big-issue"
           gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:spec-ready" 2>/dev/null || true
           gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
-          echo "::warning title=Issue #${ISSUE} zu gross::20-Min-Timeout erreicht (${elapsed}s) — Label ai:to-big-issue gesetzt; bitte Issue aufteilen."
+          echo "::warning title=Issue #${ISSUE} zu groß::12-Min-Timeout erreicht (${elapsed}s) — Label ai:to-big-issue gesetzt; bitte Issue aufteilen."
 
-      # ──────────────────────────────────────────────
+      # ————————————————————————————————————————————————————————————————————————
       # 9. Ergebnis zusammenfassen
-      # ──────────────────────────────────────────────
+      # ————————————————————————————————————————————————————————————————————————
       - name: Ergebnis zusammenfassen
         if: always() && steps.preflight.outputs.configured == 'true'
         env:
@@ -365,14 +373,14 @@ jobs:
           if [ "$OUTCOME" = "success" ]; then
             echo "::notice title=✅ Triage erfolgreich::Issue #${ISSUE} vollständig analysiert"
           elif [ "$OUTCOME" = "cancelled" ]; then
-            echo "::warning title=⏸️ Triage abgebrochen::Lauf durch neueren Trigger verdrängt oder 20-Min-Timeout (kein Fehler)"
+            echo "::warning title=⏸️ Triage abgebrochen::Lauf durch neueren Trigger verdrängt oder 12-Min-Timeout (kein Fehler)"
           else
             echo "::error title=❌ Triage fehlgeschlagen::Hermes-Lauf gescheitert (Code ${OUTCOME:-unbekannt})"
           fi
           {
             echo "### (Re-)Triage #${ISSUE} — fertig"
             echo ""
-            echo "- Hermes-Schritt: \`${OUTCOME:-unbekannt}\` (cancelled = 20-Min-Timeout erreicht oder Supersede)"
+            echo "- Hermes-Schritt: \`${OUTCOME:-unbekannt}\` (cancelled = 12-Min-Timeout erreicht oder Supersede)"
             echo "- Aktuelle Labels: ${labels:-keine}"
             if [ -n "$SESSION_ID" ]; then
               echo "- Hermes Session-ID: \`${SESSION_ID}\`"

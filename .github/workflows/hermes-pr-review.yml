@@ -8,8 +8,11 @@ name: Hermes PR Review (Kreuzverhoer)
 #   - sauber 🟢 → ai:ready-to-merge (→ Gate)
 # Ändert KEINEN Code.
 #
-# Setzt Hermes Agent (Nous Research) mit DeepSeek Pro über OpenRouter.
-# Voraussetzung: Repo-Secret OPENROUTER_API_KEY
+# Setzt Hermes Agent (Nous Research) — Provider wählbar per PR-Label:
+#   Default: DeepSeek via Nous Portal (NOUS_PORTAL_TOKEN)
+# Ohne Label → OpenRouter + DeepSeek.
+#
+# Voraussetzungen: NOUS_PORTAL_TOKEN
 
 on:
   pull_request:
@@ -27,6 +30,7 @@ jobs:
           && contains(github.event.pull_request.labels.*.name, 'ai:needs-review') }}
     runs-on: ubuntu-latest
     env:
+      PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       HERMES_HOME: /tmp/hermes-ci
     permissions:
       contents: read
@@ -35,6 +39,13 @@ jobs:
       pull-requests: write
       issues: write
     steps:
+      - name: Startzeit merken (für Timeout-Erkennung + weiches Zeitlimit)
+        id: starttime
+        run: |
+          now=$(date +%s)
+          echo "epoch=$now" >> "$GITHUB_OUTPUT"
+          echo "soft_deadline_epoch=$((now + 900))" >> "$GITHUB_OUTPUT"  # 15 min (Puffer vor 20-Min-GitHub-Timeout)
+
       - name: Voraussetzung prüfen (GitHub-App-Secrets)
         id: preflight
         env:
@@ -93,11 +104,17 @@ jobs:
           curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-browser --skip-setup
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      - name: Hermes konfigurieren
+      - name: Hermes konfigurieren (Provider anhand PR-Label)
         if: steps.preflight.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          PR: ${{ github.event.pull_request.number }}
         run: |
-          hermes config set model.provider openrouter
-          hermes config set model.base_url https://openrouter.ai/api/v1
+          # Nous Portal + DeepSeek konfigurieren
+          hermes config set model.provider custom
+          hermes config set model.base_url https://inference-api.nousresearch.com/v1
+          hermes config set model.api_key "${{ secrets.NOUS_PORTAL_TOKEN }}"
+          echo "::notice::Provider: Nous Portal (DeepSeek)"
           hermes config set agent.max_turns 90
           pip install mcp -q
           hermes mcp add kolibri --url https://public-ui-kolibri-mcp.vercel.app/mcp
@@ -124,15 +141,18 @@ jobs:
             fi
           fi
 
-      - name: API-Key prüfen (OPENROUTER_API_KEY)
+      - name: Auth prüfen (provider-spezifisch)
         if: steps.preflight.outputs.configured == 'true'
         env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          PR: ${{ github.event.pull_request.number }}
         run: |
-          if [ -z "$OPENROUTER_API_KEY" ]; then
-            echo "::error title=API-Key fehlt::OPENROUTER_API_KEY nicht gesetzt"
+          if [ -z "$NOUS_PORTAL_TOKEN" ]; then
+            echo "::error title=Auth fehlt::NOUS_PORTAL_TOKEN nicht gesetzt — als Repo-Secret hinterlegen"
             exit 1
           fi
+          echo "NOUS_PORTAL_TOKEN vorhanden."
 
       - name: Supersede-Check
         id: supersede-check
@@ -148,13 +168,19 @@ jobs:
             echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Kreuzverhör-Review via Hermes (DeepSeek Pro)
+      - name: Kreuzverhör-Review via Hermes (Provider per Label)
         id: hermes
         if: steps.preflight.outputs.configured == 'true' && steps.supersede-check.outputs.skip != 'true'
         env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          PR: ${{ github.event.pull_request.number }}
         run: |
+          # Nous Portal + DeepSeek Pro (Review)
+          PROVIDER_FLAG="--provider custom"
+          MODEL="deepseek/deepseek-v4-pro"
+          hermes config set model.api_key "$NOUS_PORTAL_TOKEN"
+
           cat > /tmp/hermes-prompt.txt << 'HERMES_EOF'
           Reviewe Pull Request #PR_NR im Kreuzverhör (Label `ai:needs-review` ist gesetzt).
 
@@ -170,12 +196,16 @@ jobs:
 
           Bei Folge-Review (markierter Kommentar existiert): NUR den Diff SEIT dem letzten Review prüfen (über updatedAt des Kommentars). Bereits in "Behobene Anmerkungen" geführte Punkte NICHT erneut aufrollen.
 
+          WEICHES ZEITLIMIT (Soft-Abort):
+            Beginne SOFORT mit der Arbeit. Prüfe VOR jedem größeren Teilschritt mit date +%s gegen SOFT_DEADLINE. Ist das Limit erreicht: Zwischenstand als Sammelkommentar (auch unvollständig) festhalten, ai:continued setzen, ai:needs-review entfernen+sofort wieder setzen (Selbst-Retrigger). Turn beenden.
+
           Fehlende Labels vorher mit gh label create anlegen.
 
           WICHTIG: Ändere KEINEN Code, committe nichts. Reiner Review. Keine interaktive Rückfrage.
           HERMES_EOF
 
           sed -i "s/#PR_NR/${{ github.event.pull_request.number }}/g" /tmp/hermes-prompt.txt
+          sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/hermes-prompt.txt
 
           RESUME_ARG=""
           if [ -n "${{ steps.session-restore.outputs.resume_arg }}" ]; then
@@ -184,8 +214,8 @@ jobs:
 
           hermes chat -q "$(cat /tmp/hermes-prompt.txt)" \
             $RESUME_ARG \
-            -Q --yolo --provider openrouter \
-            -m "deepseek/deepseek-v4-pro" \
+            -Q --yolo $PROVIDER_FLAG \
+            -m "$MODEL" \
             -t "terminal,file" \
             --max-turns 90 \
             --accept-hooks \

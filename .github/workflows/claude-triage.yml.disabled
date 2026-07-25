@@ -39,7 +39,7 @@ on:
 # Triage-/Re-Triage-Lauf ab, damit immer nur die juengste Analyse durchlaeuft. Ein abgebrochener
 # Teil-Lauf ist unkritisch: der naechste Lauf fuehrt die (Re-)Triage vollstaendig neu aus.
 concurrency:
-  group: claude-triage-${{ github.event.issue.number }}
+  group: ai-triage-${{ github.event.issue.number }}-${{ contains(github.event.issue.labels.*.name, 'ai:use-claude') && 'claude' || contains(github.event.issue.labels.*.name, 'ai:use-mistral') && 'mistral' || contains(github.event.issue.labels.*.name, 'ai:use-nous') && 'nous' || contains(github.event.issue.labels.*.name, 'ai:use-zai') && 'zai' || 'claude' }}
   cancel-in-progress: true
 
 jobs:
@@ -69,7 +69,8 @@ jobs:
     #     vorgeschaltete, billige Absicherung (kein Runner-Start fuer Fremde).
     if: >-
       ${{ (github.event_name == 'issues'
-            && github.event.issue.state == 'open'
+            && contains(github.event.issue.labels.*.name, 'ai:use-claude')
+          && github.event.issue.state == 'open'
             && (
                  (github.event.action == 'opened'
                    && !contains(github.event.issue.labels.*.name, 'ai:analyzed')
@@ -89,6 +90,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
+      PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1'
       BASH_MAX_OUTPUT_LENGTH: '20000'
       CLAUDE_HIDE_BANNER: '1'

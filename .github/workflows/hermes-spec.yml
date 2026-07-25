@@ -4,8 +4,11 @@ name: Hermes Spec (ai:spec-ready)
 # das Label "ai:spec-ready" erhält UND bereits "ai:analyzed" trägt.
 # Ersetzt claude-spec.yml (MIG-001, 2026-07-10).
 #
-# Setzt Hermes Agent (Nous Research) mit DeepSeek Pro über OpenRouter.
-# Voraussetzung: Repo-Secret OPENROUTER_API_KEY
+# Setzt Hermes Agent (Nous Research) — Provider wählbar per Issue-Label:
+#   Default: DeepSeek via Nous Portal (NOUS_PORTAL_TOKEN)
+# Ohne Label → OpenRouter + DeepSeek.
+#
+# Voraussetzungen: NOUS_PORTAL_TOKEN
 
 on:
   issues:
@@ -23,6 +26,7 @@ jobs:
           && github.event.issue.state == 'open' }}
     runs-on: ubuntu-latest
     env:
+      PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       HERMES_HOME: /tmp/hermes-ci
     permissions:
       contents: read
@@ -36,7 +40,7 @@ jobs:
         run: |
           now=$(date +%s)
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
-          echo "soft_deadline_epoch=$((now + 840))" >> "$GITHUB_OUTPUT"
+          echo "soft_deadline_epoch=$((now + 720))" >> "$GITHUB_OUTPUT"  # 12 min (Puffer vor 20-Min-GitHub-Timeout)
 
       - name: Voraussetzung prüfen (GitHub-App-Secrets)
         id: preflight
@@ -99,11 +103,17 @@ jobs:
           curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-browser --skip-setup
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      - name: Hermes konfigurieren
+      - name: Hermes konfigurieren (Provider anhand Issue-Label)
         if: steps.preflight.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          ISSUE: ${{ github.event.issue.number }}
         run: |
-          hermes config set model.provider openrouter
-          hermes config set model.base_url https://openrouter.ai/api/v1
+          # Nous Portal + DeepSeek konfigurieren
+          hermes config set model.provider custom
+          hermes config set model.base_url https://inference-api.nousresearch.com/v1
+          hermes config set model.api_key "${{ secrets.NOUS_PORTAL_TOKEN }}"
+          echo "::notice::Provider: Nous Portal (DeepSeek)"
           hermes config set agent.max_turns 90
           pip install mcp -q
           hermes mcp add kolibri --url https://public-ui-kolibri-mcp.vercel.app/mcp
@@ -130,19 +140,18 @@ jobs:
             fi
           fi
 
-      - name: API-Key prüfen (OPENROUTER_API_KEY)
+      - name: Auth prüfen (provider-spezifisch)
         if: steps.preflight.outputs.configured == 'true'
         env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
-          if [ -z "$OPENROUTER_API_KEY" ]; then
-            echo "::error title=API-Key fehlt::OPENROUTER_API_KEY nicht gesetzt"
-            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:spec-ready" 2>/dev/null || true
+          if [ -z "$NOUS_PORTAL_TOKEN" ]; then
+            echo "::error title=Auth fehlt::NOUS_PORTAL_TOKEN nicht gesetzt — als Repo-Secret hinterlegen"
             exit 1
           fi
-
+          echo "NOUS_PORTAL_TOKEN vorhanden."
       - name: Doppel-Run-Guard (existierender PR mit Closes #N)
         id: doppel-guard
         if: steps.preflight.outputs.configured == 'true'
@@ -182,27 +191,34 @@ jobs:
         if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         run: pnpm exec lefthook install
 
-      - name: Spec via Hermes (DeepSeek Pro)
+      - name: Spec via Hermes (Provider per Label)
         id: hermes
         if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          ISSUE: ${{ github.event.issue.number }}
         run: |
+          # Nous Portal + DeepSeek Pro (Analyse/Spec/Review)
+          PROVIDER_FLAG="--provider custom"
+          MODEL="deepseek/deepseek-v4-pro"
+          hermes config set model.api_key "$NOUS_PORTAL_TOKEN"
+
           cat > /tmp/hermes-prompt.txt << 'HERMES_EOF'
           Das Label `ai:spec-ready` wurde an Issue #ISSUE_NR gesetzt — schreibe jetzt die ROTEN Tests (den Vertrag) für dieses Issue.
 
           Folge dem Spec-Workflow .ai-knowledge/ticket-spec.md:
-            1. Branch anlegen: git switch -c feat/issue-ISSUE_NR-<kurzname>. Den Akzeptanzkriterien-Block primär aus dem BODY-Block des Issues entnehmen (gh issue view ISSUE_NR --json body -q .body, Abschnitt zwischen <!-- KI-ANALYSE:START stand=... --> und <!-- KI-ANALYSE:END -->).
-            2. ROTE Tests schreiben — je Akzeptanzkriterium echte, ausführbare Tests (server/src/**/*.test.ts, frontend/src/**/*.test.ts, frontend/e2e/*.spec.ts). Sie prüfen echtes Soll-Verhalten und werden grün, sobald der Code existiert. KEINEN Produktivcode schreiben.
-            3. Rote Tests als ERSTEN Commit (test: rote Spec-Tests fuer #ISSUE_NR), Branch pushen, git push -u origin HEAD. DRAFT-PR erstellen (gh pr create --draft) mit Closes #ISSUE_NR im Body. KEIN ai:needs-review setzen (PR ist Draft).
-            4. ÜBERGABE (ALLERLETZTER Schritt, NIE davor): am Issue ai:ready setzen und ai:spec-ready entfernen (gh issue edit ISSUE_NR --add-label ai:ready --remove-label ai:spec-ready). Fehlende Labels vorher mit gh label create anlegen.
+            1. Beginne SOFORT mit der Arbeit — keine Wartezeit!
+            2. Branch anlegen: git switch -c feat/issue-ISSUE_NR-<kurzname>. Den Akzeptanzkriterien-Block primär aus dem BODY-Block des Issues entnehmen (gh issue view ISSUE_NR --json body -q .body, Abschnitt zwischen <!-- KI-ANALYSE:START stand=... --> und <!-- KI-ANALYSE:END -->).
+            3. ROTE Tests schreiben — je Akzeptanzkriterium echte, ausführbare Tests (server/src/**/*.test.ts, frontend/src/**/*.test.ts, frontend/e2e/*.spec.ts). Sie prüfen echtes Soll-Verhalten und werden grün, sobald der Code existiert. KEINEN Produktivcode schreiben.
+            4. Rote Tests als ERSTEN Commit (test: rote Spec-Tests für #ISSUE_NR), Branch pushen, git push -u origin HEAD. DRAFT-PR erstellen (gh pr create --draft) mit Closes #ISSUE_NR im Body. KEIN ai:needs-review setzen (PR ist Draft).
+            5. ÜBERGABE (ALLERLETZTER Schritt, NIE davor): am Issue ai:ready setzen und ai:spec-ready entfernen (gh issue edit ISSUE_NR --add-label ai:ready --remove-label ai:spec-ready). Fehlende Labels vorher mit gh label create anlegen.
 
           WERKZEUGE:
             Du hast Bash (für gh, git, pnpm), Datei-Tools sowie KoliBri-MCP-Tools (mcp_kolibri_search, mcp_kolibri_fetch für KoliBri-Komponenten). Nutze gh issue, gh pr, git, pnpm, read_file, write_file. GH_TOKEN authentifiziert gh-Befehle.
 
           WEICHES ZEITLIMIT (Soft-Abort):
-            Prüfe VOR jedem größeren Teilschritt mit date +%s gegen SOFT_DEADLINE. Ist das Limit erreicht: Zwischenstand committen + pushen (Branch/Draft-PR mit TODO-Notiz). ai:ready NICHT setzen. Stattdessen ai:spec-ready entfernen+sofort wieder setzen (Selbst-Retrigger). Dann Turn beenden.
+            Beginne SOFORT mit der Arbeit. Prüfe VOR jedem größeren Teilschritt mit date +%s gegen SOFT_DEADLINE. Ist das Limit erreicht: Zwischenstand committen + pushen (Branch/Draft-PR mit TODO-Notiz). ai:ready NICHT setzen. Stattdessen ai:spec-ready entfernen+sofort wieder setzen (Selbst-Retrigger). Dann Turn beenden.
 
           WICHTIG:
             - Bearbeite ausschließlich dieses eine Issue.
@@ -220,8 +236,8 @@ jobs:
 
           hermes chat -q "$(cat /tmp/hermes-prompt.txt)" \
             $RESUME_ARG \
-            -Q --yolo --provider openrouter \
-            -m "deepseek/deepseek-v4-pro" \
+            -Q --yolo $PROVIDER_FLAG \
+            -m "$MODEL" \
             -t "terminal,file" \
             --max-turns 90 \
             --accept-hooks \
@@ -261,7 +277,7 @@ jobs:
           retention-days: 30
           overwrite: true
 
-      - name: Bei Timeout als zu gross markieren (ai:to-big-issue)
+      - name: Bei Timeout als zu groß markieren (ai:to-big-issue)
         if: always() && steps.preflight.outputs.configured == 'true' && steps.hermes.outcome == 'cancelled'
         env:
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}

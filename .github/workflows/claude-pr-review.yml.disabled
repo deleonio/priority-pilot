@@ -31,7 +31,7 @@ concurrency:
   # zu laufen. Getrennte Gruppen entkoppeln das — serialisiert wird nur noch der jeweils GLEICHE
   # Workflow desselben PRs. cancel-in-progress: false -> laufenden Lauf nie mittendrin verwerfen
   # (der wartende Lauf checkt beim Start ohnehin den juengsten Stand aus).
-  group: claude-pr-review-${{ github.event.pull_request.number }}
+  group: ai-pr-review-${{ github.event.pull_request.number }}-${{ contains(github.event.pull_request.labels.*.name, 'ai:use-claude') && 'claude' || contains(github.event.pull_request.labels.*.name, 'ai:use-mistral') && 'mistral' || contains(github.event.pull_request.labels.*.name, 'ai:use-nous') && 'nous' || contains(github.event.pull_request.labels.*.name, 'ai:use-zai') && 'zai' || 'claude' }}
   cancel-in-progress: false
 
 jobs:
@@ -44,6 +44,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
+      PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1'
       BASH_MAX_OUTPUT_LENGTH: '20000'
       CLAUDE_HIDE_BANNER: '1'

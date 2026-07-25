@@ -12,13 +12,12 @@ Wissensbasis liegt in [`.ai-knowledge/`](.ai-knowledge/).
 - [Ticket-Umsetzung](.ai-knowledge/ticket-implementation.md) — freigegebene Issues (`ai:ready`) umsetzen
 - [PR-Review (Kreuzverhör)](.ai-knowledge/pr-review.md) — Pull Requests kritisch prüfen, Findings kommentieren
 - [TDD-Strategie](.ai-knowledge/tdd-strategy.md) — test-getriebene KI-Workflows (Stufen 1+2+3 adoptiert: AK-first + Red-Green + Spec-Gate)
-- [Subagent-Ausführungsvertrag](.ai-knowledge/subagent-contract.md) — historisch (bei Claude Code, nicht mehr aktiv)
+- [Subagent-Ausführungsvertrag](.ai-knowledge/subagent-contract.md) — historisch, nicht mehr aktiv
 - [Kreuzverhör-Haltung](.ai-knowledge/kreuzverhoer-haltung.md) — Methode des adversarialen Hinterfragens (Chat-Trigger + PR-Review)
 - [Deployment](docs/deployment.md) — Release-Build (GitHub Actions), Tarball, Host-Layout, systemd, Caddy, Rollback
 - [Deployment: Repo-Plan](docs/deployment-repo-plan.md) — was im Repo zu bauen ist (Pack-Skript, Release-Workflow, Secrets)
 - [Deployment: Server-Setup](docs/server-setup.md) — Schritt-für-Schritt-Einrichtung des Linux-Servers
 - [Workflow-Tool: Kosten-Reporting](docs/workflow-tool-costs.md) — Snippet für Token-/USD-EUR-Schätzung
-- [OpenRouter-Kostenanalyse](.ai-knowledge/openrouter-cost-analysis.md) — Modellpreise, Alternativen, Kostenvergleich (DeepSeek/Gemini/GPT via OpenRouter)
 
 ## Kernregeln
 
@@ -39,41 +38,49 @@ Wissensbasis liegt in [`.ai-knowledge/`](.ai-knowledge/).
 ## KI-Agent: Hermes Agent
 
 Alle KI-Workflows (Triage, Re-Triage, Spec, Umsetzung, PR-Review, PR-Fixup) laufen auf
-**Hermes Agent** (Nous Research) über **OpenRouter**. Die Modellwahl folgt der
-Aufgaben-Strenge: **DeepSeek Pro** für Analyse/Spec/Review (präzises Reasoning),
-**DeepSeek Flash** für Implementierung/Fixup (schnell und günstig).
+**Hermes Agent** (Nous Research) über den **Nous Portal**-Provider mit **DeepSeek**-Modellen.
+
+| Provider | Auth | Modelle | Kontext |
+| --- | --- | --- | --- |
+| **Nous Portal** (Custom) | `NOUS_PORTAL_TOKEN` (API-Key via `model.api_key`) | DeepSeek Pro / Flash | 1.048K |
+
+Die Modellwahl folgt der Aufgaben-Strenge: **Pro-Modell** für Analyse/Spec/Review
+(präzises Reasoning), **Flash/Coding-Modell** für Implementierung/Fixup (schnell, günstig).
 
 - [Hermes Agent Docs](https://hermes-agent.nousresearch.com/docs/)
 - Modelle:
   - `deepseek/deepseek-v4-pro` (Analyse, Spec, Review — präzises Reasoning)
   - `deepseek/deepseek-v4-flash` (Umsetzung, Fixup — schnell, günstig)
-- Secret: `OPENROUTER_API_KEY` (https://openrouter.ai/keys)
+- Lokal: Nous Portal (OAuth, `hermes auth`), Default `deepseek/deepseek-v4-pro`
 - CLI: `hermes chat -q '<prompt>'` (single-query, non-interactive)
 
 Hermes wird im CI-Lauf frisch installiert (keine dedizierte GitHub Action nötig):
 
 ```bash
-# uv-Paketcache wiederherstellen (beschleunigt Folgeläufe):
-#   actions/cache@v4 mit key: uv-hermes-${{ runner.os }}-W$(date +%Y%V)
 curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-browser --skip-setup
 echo "$HOME/.local/bin" >> $GITHUB_PATH
-hermes config set model.provider openrouter
-hermes config set model.base_url https://openrouter.ai/api/v1
+```
+
+**CI-Konfiguration (Nous Portal + DeepSeek):**
+
+```bash
+hermes config set model.provider custom
+hermes config set model.base_url https://inference-api.nousresearch.com/v1
+hermes config set model.api_key "${{ secrets.NOUS_PORTAL_TOKEN }}"
 ```
 
 **CI-Flags:**
 
-| Flag                    | Zweck                                                                |
-| ----------------------- | -------------------------------------------------------------------- |
-| `-q '<prompt>'`         | Single-query, non-interactive                                        |
-| `-Q`                    | Quiet — keine Banner/Spinner                                         |
-| `--yolo`                | Keine Gefahren-Bestätigung (headless)                                |
-| `--provider openrouter` | API-Routing über OpenRouter                                          |
-| `-m <modell>`           | Modell-Festlegung (Pro oder Flash)                                   |
-| `-t "terminal,file"`    | Nur Terminal und Datei-Tools                                         |
-| `--ignore-user-config`  | Entfernt — alle Workflows nutzen jetzt MCP (siehe KoliBri-Abschnitt) |
-| `--max-turns 90`        | Tool-Call-Obergrenze                                                 |
-| `--accept-hooks`        | Shell-Hooks automatisch freigeben                                    |
+| Flag                 | Zweck                                  |
+| -------------------- | -------------------------------------- |
+| `-q '<prompt>'`      | Single-query, non-interactive          |
+| `-Q`                 | Quiet — keine Banner/Spinner           |
+| `--yolo`             | Keine Gefahren-BBestätigung (headless) |
+| `--provider custom`  | Nous Portal via Custom-Provider        |
+| `-m <modell>`        | Modell-Festlegung (Pro/Flash)          |
+| `-t "terminal,file"` | Nur Terminal und Datei-Tools           |
+| `--max-turns 90`     | Tool-Call-Obergrenze                   |
+| `--accept-hooks`     | Shell-Hooks automatisch freigeben      |
 
 **Prompt:** Per Heredoc in eine Datei geschrieben, dann via `-q "$(cat /tmp/hermes-prompt.txt)"` übergeben — vermeidet Shell-Quoting-Probleme.
 
@@ -103,12 +110,6 @@ jedem Workflow. Die Tools heißen `mcp_kolibri_search` und `mcp_kolibri_fetch` u
 stehen dem Agenten automatisch zur Verfügung, sobald der MCP-Server läuft.
 Die Workflows nutzen seit der MCP-Aktivierung **nicht mehr** `--ignore-user-config`,
 damit die `mcp_servers`-Konfiguration wirkt.
-
-### OpenRouter (Modell-Provider)
-
-Hermes unterstützt OpenRouter **nativ** — kein Workaround, keine `configure-ai-backend`-Action.
-Einfach `--provider openrouter` + `OPENROUTER_API_KEY`.
-Preise: DeepSeek Pro $0.43/$0.87, DeepSeek Flash $0.09/$0.18 pro 1M Tokens (Input/Output).
 
 ### Weiches Zeitlimit (Soft-Abort)
 
