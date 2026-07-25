@@ -4,8 +4,8 @@ name: Hermes Implement (ai:ready)
 # "ai:analyzed" trägt. Ersetzt claude-implement.yml (MIG-001, 2026-07-10).
 #
 # Setzt Hermes Agent (Nous Research) — Provider wählbar per Issue-Label:
-#   ai:use-openrouter (Default): DeepSeek via OpenRouter (OPENROUTER_API_KEY)
-#   ai:use-nous:         Nous Portal direkt (NOUS_PORTAL_TOKEN)
+#   Default: DeepSeek via Nous Portal (NOUS_PORTAL_TOKEN)
+#   ai:use-openrouter:         OpenRouter (OPENROUTER_API_KEY)
 #   ai:use-zai:          Z.AI direkt (ZAI_API_KEY, GLM-Modelle)
 # Ohne Label → OpenRouter + DeepSeek.
 #
@@ -127,11 +127,10 @@ jobs:
         run: |
           # Provider anhand des Issue-Labels wählen
           LABELS=$(gh issue view $ISSUE --repo $GITHUB_REPOSITORY --json labels --jq '.labels[].name' 2>/dev/null || echo "")
-          if echo "$LABELS" | grep -q 'ai:use-nous'; then
-            echo "::notice::Provider: Nous Portal (ai:use-nous)"
-            hermes config set model.provider nous
-            hermes config set model.base_url https://inference-api.nousresearch.com/v1
-            hermes auth add nous --type api-key --api-key "${{ secrets.NOUS_PORTAL_TOKEN }}" --label ci
+          if echo "$LABELS" | grep -q 'ai:use-openrouter'; then
+            echo "::notice::Provider: OpenRouter (ai:use-openrouter)"
+            hermes config set model.provider openrouter
+            hermes config set model.base_url https://openrouter.ai/api/v1
           elif echo "$LABELS" | grep -q 'ai:use-zai'; then
             echo "::notice::Provider: Z.AI direkt (ai:use-zai)"
             hermes config set model.provider zai
@@ -139,9 +138,10 @@ jobs:
             export ZAI_API_KEY="${{ secrets.ZAI_API_KEY }}"
             echo "ZAI_API_KEY=$ZAI_API_KEY" >> "$GITHUB_ENV"
           else
-            echo "::notice::Provider: OpenRouter (Default)"
-            hermes config set model.provider openrouter
-            hermes config set model.base_url https://openrouter.ai/api/v1
+            echo "::notice::Provider: Nous Portal (Default)"
+            hermes config set model.provider nous
+            hermes config set model.base_url https://inference-api.nousresearch.com/v1
+            hermes auth add nous --type api-key --api-key "${{ secrets.NOUS_PORTAL_TOKEN }}" --label ci
           fi
           hermes config set agent.max_turns 90
           pip install mcp -q
@@ -180,13 +180,13 @@ jobs:
           ISSUE: ${{ github.event.issue.number }}
         run: |
           LABELS=$(gh issue view $ISSUE --repo $GITHUB_REPOSITORY --json labels --jq '.labels[].name' 2>/dev/null || echo "")
-          if echo "$LABELS" | grep -q 'ai:use-nous'; then
-            if [ -z "$NOUS_PORTAL_TOKEN" ]; then
-              echo "::error title=Auth fehlt::NOUS_PORTAL_TOKEN nicht gesetzt — als Repo-Secret hinterlegen"
+          if echo "$LABELS" | grep -q 'ai:use-openrouter'; then
+            if [ -z "$OPENROUTER_API_KEY" ]; then
+              echo "::error title=Auth fehlt::OPENROUTER_API_KEY nicht gesetzt — als Repo-Secret hinterlegen"
               gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
               exit 1
             fi
-            echo "NOUS_PORTAL_TOKEN vorhanden."
+            echo "OPENROUTER_API_KEY vorhanden."
           elif echo "$LABELS" | grep -q 'ai:use-zai'; then
             if [ -z "$ZAI_API_KEY" ]; then
               echo "::error title=Auth fehlt::ZAI_API_KEY nicht gesetzt — als Repo-Secret hinterlegen"
@@ -195,8 +195,8 @@ jobs:
             fi
             echo "ZAI_API_KEY vorhanden."
           else
-            if [ -z "$OPENROUTER_API_KEY" ]; then
-              echo "::error title=Auth fehlt::OPENROUTER_API_KEY nicht gesetzt — als Repo-Secret hinterlegen (siehe https://openrouter.ai/keys)"
+            if [ -z "$NOUS_PORTAL_TOKEN" ]; then
+              echo "::error title=Auth fehlt::NOUS_PORTAL_TOKEN nicht gesetzt — als Repo-Secret hinterlegen"
               gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
               exit 1
             fi
@@ -261,10 +261,10 @@ jobs:
         run: |
           # Provider und Modell anhand des Issue-Labels wählen
           LABELS=$(gh issue view $ISSUE --repo $GITHUB_REPOSITORY --json labels --jq '.labels[].name' 2>/dev/null || echo "")
-          PROVIDER_FLAG="--provider openrouter"
+          PROVIDER_FLAG="--provider nous"
           MODEL="deepseek/deepseek-v4-flash"
-          if echo "$LABELS" | grep -q 'ai:use-nous'; then
-            PROVIDER_FLAG="--provider nous"
+          if echo "$LABELS" | grep -q 'ai:use-openrouter'; then
+            PROVIDER_FLAG="--provider openrouter"
           elif echo "$LABELS" | grep -q 'ai:use-zai'; then
             PROVIDER_FLAG="--provider zai"
             MODEL="z-ai/glm-5.1"
