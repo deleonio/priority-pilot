@@ -40,9 +40,9 @@ Wissensbasis liegt in [`.ai-knowledge/`](.ai-knowledge/).
 Alle KI-Workflows (Triage, Re-Triage, Spec, Umsetzung, PR-Review, PR-Fixup) laufen auf
 **Hermes Agent** (Nous Research) über den **Nous Portal**-Provider mit **DeepSeek**-Modellen.
 
-| Provider | Auth | Modelle | Kontext |
-| --- | --- | --- | --- |
-| **Nous Portal** (Custom) | `NOUS_PORTAL_TOKEN` (API-Key via `model.api_key`) | DeepSeek Pro / Flash | 1.048K |
+| Provider                 | Auth                                              | Modelle              | Kontext |
+| ------------------------ | ------------------------------------------------- | -------------------- | ------- |
+| **Nous Portal** (Custom) | `NOUS_PORTAL_TOKEN` (API-Key via `model.api_key`) | DeepSeek Pro / Flash | 1.048K  |
 
 Die Modellwahl folgt der Aufgaben-Strenge: **Pro-Modell** für Analyse/Spec/Review
 (präzises Reasoning), **Flash/Coding-Modell** für Implementierung/Fixup (schnell, günstig).
