@@ -3,7 +3,7 @@
 Werkzeug- und kontextunabhängige Methode zum systematischen Hinterfragen eines Plans, Designs oder
 einer Entscheidung. Wird an zwei Stellen verwendet:
 
-- direkt als Chat-/Agent-Trigger ([`.claude/agents/kreuzverhoer.md`](../.claude/agents/kreuzverhoer.md),
+- direkt als Chat-/Agent-Trigger ([`.hermes/agents/kreuzverhoer.md`](../.hermes/agents/kreuzverhoer.md),
   Trigger-Phrasen „Kreuzverhör", „nimm das auseinander", „stress-teste das", „challenge mich"),
 - als Haltung im PR-Review ([pr-review.md](pr-review.md) Schritt 2).
 

@@ -42,7 +42,7 @@ Umgebungsvariablen (z. B. Deployment-Secrets) haben Vorrang; ohne `.env` (CI/Dep
 Schritt still übersprungen.
 
 - `MISTRAL_API_KEY` (Pflicht für die Säulen-Klassifikation `POST /tasks/suggest-pillars`; fehlt er,
-  antwortet der Endpoint mit **HTTP 503**), optional `MISTRAL_MODEL` (Default `mistral-small-latest`).
+  antwortet der Endpoint mit **HTTP 503**), optional `DEEPSEEK_MODEL (Default deepseek/deepseek-v4-pro)`).
 - `DB_RESET`, `DATABASE_STORAGE`, `PORT` — siehe `server/.env.example`.
 
 ## Datenbank

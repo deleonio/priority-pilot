@@ -2,7 +2,7 @@
 
 Schreibt für ein freigegebenes Ticket die **roten Tests** (ausführbarer Vertrag) aus den
 Akzeptanzkriterien — **bevor** der Produktivcode entsteht. Werkzeug-unabhängig beschrieben; konkrete
-Slash-Commands (z. B. unter `.claude/commands/`) verweisen nur auf diese Schritte.
+Slash-Commands (z. B. unter `.hermes/commands/`) verweisen nur auf diese Schritte.
 
 Diese Stufe ist die **Gewaltenteilung** der TDD-Strategie (Stufe 3, siehe
 [tdd-strategy.md](tdd-strategy.md)): Wer die Tests schreibt (dieser Workflow), schreibt **nicht** den
@@ -78,7 +78,7 @@ Label-Kette: `ai:analyzed` → **`ai:spec-ready` (dieser Workflow)** → `ai:rea
   die bewusste Gewaltenteilung von Stufe 3 ([tdd-strategy.md](tdd-strategy.md)).
 - **Bearbeitung durch `/team*`:** Lokal/per Command kann das Multi-Agent-Team die Spec übernehmen
   (Tester-Rolle schreibt die roten Tests). In GitHub Actions läuft die Spec als eigener headless
-  Lauf (`claude-spec.yml`) — getrennt vom Umsetzungs-Lauf, womit die Gewaltenteilung auch in der
+  Lauf (`hermes-spec.yml`) — getrennt vom Umsetzungs-Lauf, womit die Gewaltenteilung auch in der
   Automatik gilt (andere Instanz schreibt Tests vs. Code).
 - Greift die Triage ein Issue bewusst **nicht** auf 🟢 (🟡/🔴), gibt es kein `ai:spec-ready` — dann
   entscheidet der Mensch (kein automatischer Spec-Lauf).

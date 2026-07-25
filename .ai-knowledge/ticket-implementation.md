@@ -1,7 +1,7 @@
 # Workflow: Ticket-Umsetzung (GitHub Issues)
 
 Setzt freigegebene Tickets in Code um — **werkzeug-unabhängig** beschrieben. Konkrete
-Slash-Commands (z. B. unter `.claude/commands/`) verweisen nur auf diese Schritte.
+Slash-Commands (z. B. unter `.hermes/commands/`) verweisen nur auf diese Schritte.
 
 Tickets = GitHub-Issues von `deleonio/priority-pilot`. Voraussetzung: `gh` ist authentifiziert.
 
@@ -130,7 +130,7 @@ wird dagegen geschrieben — ein binäres Ziel statt Prosa.
 - Der PR ist **ready to review** (kein Draft) — die finale Freigabe/der Merge erfolgt durch einen Menschen.
 - **PR verfolgen** — direkt nach dem Erstellen den PR **abonnieren**, damit eingehende
   Review-Anmerkungen, neue Commits und CI-Ergebnisse in der Session landen und automatisch die
-  nächste Runde aus Schritt 5 anstoßen (in Claude Code: `subscribe_pr_activity` für den neuen PR).
+  nächste Runde aus Schritt 5 anstoßen (in Hermes Agent: `session resume` für den neuen PR).
 
 ## Schritt 5 — Kreuzverhör-Loop (umsetzen ⇄ prüfen, bis sauber)
 
@@ -144,8 +144,8 @@ Findings.
 **PR verfolgen & automatisch reagieren:** Den frisch erstellten PR **abonnieren** und danach
 **automatisch auf eingehende Review-Anmerkungen reagieren**. Eine Runde wird damit nicht nur vom
 eigenen Kreuzverhör angestoßen, sondern auch von **neuen Review-Kommentaren** (von Menschen oder aus
-`/kreuzverhoer-review`), **neuen Commits** und **CI-Ergebnissen** auf dem PR. In Claude Code: direkt
-nach Schritt 4 `subscribe_pr_activity` für den neuen PR aufrufen; die Events wecken die Session und
+`/kreuzverhoer-review`), **neuen Commits** und **CI-Ergebnissen** auf dem PR. In Hermes Agent: direkt
+nach Schritt 4 `session resume` für den neuen PR aufrufen; die Events wecken die Session und
 stoßen die nächste Runde an. Eingehende Anmerkungen werden wie eigene Findings behandelt (siehe
 „Pro Runde", Punkt 3) — bei Mehrdeutigkeit oder architektonisch relevanten Punkten **vorher
 rückfragen** statt zu raten.
@@ -159,7 +159,7 @@ rückfragen** statt zu raten.
 2. **CI prüfen** — `gh pr checks <pr>`. Schlägt etwas fehl, die Ursache diagnostizieren und — im
    Rahmen des Tickets — beheben (zählt als Finding der Runde). In der GitHub-Actions-Pipeline ist
    dieser Schritt zusätzlich deterministisch abgesichert: Der Gate/Auto-Merge-Workflow
-   (`.github/workflows/claude-pr-gate-merge.yml`) prüft nach Abschluss die Allowlist-Checks **CI**
+   (`.github/workflows/hermes-pr-gate-merge.yml`) prüft nach Abschluss die Allowlist-Checks **CI**
    und **Reviewer** und setzt bei rotem Ergebnis `ai:needs-changes` → der Fixup läuft an (bei beiden
    grün + `ai:ready-to-merge` mergt derselbe Workflow den PR).
 3. **Findings abarbeiten** (Umsetzer-Rolle) — jeden offenen Punkt behandeln:
@@ -181,7 +181,7 @@ der finale Merge bleibt beim Menschen.
 **Verfolgung bleibt aktiv:** Das PR-Abo läuft darüber hinaus weiter. Kommen **später**
 Review-Anmerkungen, neue Commits oder CI-Fehler herein, wird **erneut reagiert** (neue Runde nach
 demselben Schema). Die Verfolgung endet, sobald der PR **gemergt oder geschlossen** ist oder der
-Mensch sie stoppt — dann das Abo **aktiv beenden** (in Claude Code: `unsubscribe_pr_activity`
+Mensch sie stoppt — dann das Abo **aktiv beenden** (in Hermes Agent: `unsession resume`
 aufrufen), damit keine unnötigen Session-Weckrufe offen bleiben. Da nicht alle Zustände als Event
 ankommen (CI-Erfolg, neue Pushes, Merge-Konflikt-Wechsel), den PR-Stand zwischendurch aktiv
 nachprüfen (`gh pr checks`, `gh pr view`) statt sich allein auf Events zu verlassen.
