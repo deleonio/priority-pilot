@@ -126,9 +126,9 @@ jobs:
             echo "ZAI_API_KEY=$ZAI_API_KEY" >> "$GITHUB_ENV"
           else
             echo "::notice::Provider: Nous Portal (Default)"
-            hermes config set model.provider nous
+            hermes config set model.provider custom
             hermes config set model.base_url https://inference-api.nousresearch.com/v1
-            hermes auth add nous --type api-key --api-key "${{ secrets.NOUS_PORTAL_TOKEN }}" --label ci
+            hermes config set model.api_key "${{ secrets.NOUS_PORTAL_TOKEN }}"
           fi
           hermes config set agent.max_turns 90
           pip install mcp -q
@@ -287,7 +287,7 @@ jobs:
         run: |
           # Provider und Modell anhand des PR-Labels wählen
           LABELS=$(gh pr view $PR --repo $GITHUB_REPOSITORY --json labels --jq '.labels[].name' 2>/dev/null || echo "")
-          PROVIDER_FLAG="--provider nous"
+          PROVIDER_FLAG="--provider custom"
           MODEL="deepseek/deepseek-v4-flash"
           if echo "$LABELS" | grep -q 'ai:use-openrouter'; then
             PROVIDER_FLAG="--provider openrouter"
@@ -296,7 +296,7 @@ jobs:
             MODEL="z-ai/glm-5.1"
           else
             # Default: Nous Portal — Auth sicherstellen
-            hermes auth add nous --type api-key --api-key "$NOUS_PORTAL_TOKEN" --label ci 2>/dev/null || true
+            hermes config set model.api_key "$NOUS_PORTAL_TOKEN"
           fi
 
           cat > /tmp/hermes-prompt.txt << 'HERMES_EOF'

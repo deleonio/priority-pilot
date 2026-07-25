@@ -75,7 +75,7 @@ echo "$HOME/.local/bin" >> $GITHUB_PATH
 
 | Label | `hermes config set` | Auth | `--provider` |
 | --- | --- | --- | --- |
-| *(kein Label)* | `model.provider nous` + `base_url https://inference-api.nousresearch.com/v1` | `NOUS_PORTAL_TOKEN` (API-Key via `hermes auth add`) | `nous` |
+| *(kein Label)* | `model.provider custom` + `base_url https://inference-api.nousresearch.com/v1` + `model.api_key` | `NOUS_PORTAL_TOKEN` (via `model.api_key`) | `custom` |
 | `ai:use-openrouter` | `model.provider openrouter` + `base_url https://openrouter.ai/api/v1` | `OPENROUTER_API_KEY` | `openrouter` |
 | `ai:use-zai` | `model.provider zai` | `ZAI_API_KEY` | `zai` |
 | `ai:use-mistral`| **Mistral Vibe** (separate Workflows, überspringt Hermes) | `MISTRAL_API_KEY` | N/A |
