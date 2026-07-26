@@ -1,7 +1,7 @@
 name: Hermes Implement (ai:ready)
 
 # Setzt ein Issue um, sobald es das Label "ai:ready" erhält UND bereits
-# "ai:analyzed" trägt. Nachfolger des alten Claude-Workflows.
+# "ai:analyzed" trägt.
 #
 # Setzt Hermes Agent (Nous Research) — Provider wählbar per Issue-Label:
 #   Default: DeepSeek via Nous Portal (NOUS_PORTAL_TOKEN)

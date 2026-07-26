@@ -1,7 +1,7 @@
 name: Hermes PR Fixup (Findings umsetzen)
 
 # Reagiert auf das Label "ai:needs-changes" (vom Review gesetzt) und setzt die
-# zutreffenden Findings um. Nachfolger des alten Claude-Workflows.
+# zutreffenden Findings um.
 #
 # Label-Steuerung:
 #   review → ai:needs-changes → fixup → ai:needs-review → review → ... bis 🟢
