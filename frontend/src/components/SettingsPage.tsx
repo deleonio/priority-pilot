@@ -6,6 +6,7 @@ import { requestMicrophonePermission } from '../lib/micPermission';
 import { usePushSubscription } from '../lib/push';
 import { useVoiceAutostart } from '../lib/voiceAutostart';
 import { AppearanceSetting } from './AppearanceSetting';
+import { PillarList } from './PillarList';
 import { PillarWeightsForm } from './PillarWeightsForm';
 
 interface SettingsPageProps {
@@ -116,7 +117,7 @@ export const SettingsPage = ({ pillars, onBack, onSaved }: SettingsPageProps) =>
 					{micDenied && (
 						<KolAlert _type="warning" _label="Mikrofon-Zugriff verweigert">
 							Der Zugriff auf das Mikrofon wurde verweigert. Die automatische Sprachaufnahme bleibt deaktiviert. Bitte
-							erteile die Berechtigung im Browser und versuche es erneut.
+							ertele die Berechtigung im Browser und versuche es erneut.
 						</KolAlert>
 					)}
 					{pushSupported ? (
@@ -177,6 +178,8 @@ export const SettingsPage = ({ pillars, onBack, onSaved }: SettingsPageProps) =>
 					{/* Überschrift „Säulen-Gewichtung" ist Teil des #270-Vertrags (settings-page.spec.ts):
 					    die Route /settings/pillars rendert den Säulen-Editor mit dieser Überschrift. */}
 					<KolHeading _label="Säulen-Gewichtung" _level={2} />
+					{/* Säulen-Verwaltungs-Komponente (#439): Anlegen, Umbenennen und Löschen von Säulen. */}
+					<PillarList />
 					{/* Beim Direktaufruf von /settings/pillars mountet die Seite, BEVOR die Säulen geladen
 					    sind. Das Formular hält seine Rohwerte in einem beim Mount initialisierten Ref —
 					    per `key` neu mounten, sobald die Säulen eintreffen, damit die geladenen Gewichte
