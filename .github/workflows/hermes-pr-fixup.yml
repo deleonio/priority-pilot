@@ -349,7 +349,8 @@ jobs:
               gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-review" 2>/dev/null || true
               gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-changes" 2>/dev/null || true
             elif [ "$verdict" = "needs-changes" ]; then
-              echo "::notice::Agent hat kein Label gesetzt — nutze VERDICT=needs-changes → ai:needs-changes bleibt"
+              echo "::notice::Agent hat kein Label gesetzt — nutze VERDICT=needs-changes → ai:needs-changes explizit setzen"
+              gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-changes" 2>/dev/null || true
             else
               echo "::warning::Kein VERDICT und kein Label vom Agenten — Safe-Default: ai:needs-changes bleibt"
             fi
