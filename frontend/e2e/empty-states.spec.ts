@@ -89,7 +89,8 @@ test.describe('Empty-States bei 0 Säulen — Übergang (Issue #440, AK5)', () =
 		await expect(pillarsSection).toBeVisible();
 
 		// Der alte Plain-Text (<p>Keine Säulen vorhanden.</p>) darf nicht existieren.
-		await expect(pillarsSection.locator('p')).toHaveCount(0);
+		// Die neue KolCard enthält ein <p> im Slot — nur der alte direkte Plain-Text ist verboten.
+		await expect(pillarsSection.locator('p:has-text("Keine Säulen vorhanden.")')).toHaveCount(0);
 
 		// Stattdessen eine KolCard mit Hinweis auf die Einstellungen.
 		const card = pillarsSection.locator('kol-card');
