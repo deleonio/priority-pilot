@@ -19,8 +19,12 @@ on:
     types: [labeled]
 
 concurrency:
-  group: hermes-pr-review-${{ github.event.pull_request.number }}
-  cancel-in-progress: true # Fixup-Loop: neuer Review bricht laufenden Review ab (sinnvoll bei Code-Änderungen)
+  # Dynamischer Suffix: nur bei ai:needs-review-Label → '-active', sonst '-skip'.
+  # Verhindert, dass ein selbst-erzeugtes Label (z.B. ai:needs-changes) den eigenen
+  # laufenden Review-Lauf über die Concurrency-Group cancelled — der if-Check auf
+  # Job-Ebene greift erst NACH der Concurrency-Zuordnung (Race Condition).
+  group: hermes-pr-review-${{ github.event.pull_request.number }}-${{ github.event.label.name == 'ai:needs-review' }}
+  cancel-in-progress: true
 
 jobs:
   review:
@@ -115,7 +119,6 @@ jobs:
           hermes config set model.base_url https://inference-api.nousresearch.com/v1
           hermes config set model.api_key "${{ secrets.NOUS_PORTAL_TOKEN }}"
           echo "::notice::Provider: Nous Portal (DeepSeek)"
-          hermes config set agent.max_turns 90
           pip install mcp -q
           hermes mcp add kolibri --url https://public-ui-kolibri-mcp.vercel.app/mcp
 
@@ -217,7 +220,6 @@ jobs:
             -Q --yolo $PROVIDER_FLAG \
             -m "$MODEL" \
             -t "terminal,file" \
-            --max-turns 90 \
             --accept-hooks \
             2>&1 | tee /tmp/hermes-output.log
           # PIPESTATUS: Exit-Code von hermes chat durch pipe propagieren

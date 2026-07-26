@@ -25,8 +25,10 @@ on:
 # Dieselbe Concurrency wie zuvor: Pro Issue nur ein Lauf gleichzeitig.
 # cancel-in-progress: true -> ein neuerer Trigger desselben Issues bricht
 # einen noch laufenden Lauf ab (immer die aktuellste Analyse).
+# Dynamischer Suffix verhindert, dass irrelevante Events (z.B. unlabeled
+# eines anderen Labels) den aktiven Triage-Lauf canceln.
 concurrency:
-  group: hermes-triage-${{ github.event.issue.number }}
+  group: hermes-triage-${{ github.event.issue.number }}-${{ (github.event_name == 'issues' && (github.event.action == 'opened' || github.event.label.name == 'ai:analyzed' || github.event.label.name == 'ai:to-big-issue')) || github.event_name == 'issue_comment' }}
   cancel-in-progress: true
 
 jobs:
@@ -137,7 +139,7 @@ jobs:
 
       # Konfiguration wird pro Lauf frisch in $HERMES_HOME geschrieben.
       # Der `hermes chat`-Aufruf unten setzt --provider und -m, daher reicht
-      # hier die Provider-Auswahl + base_url + max_turns.
+      # hier die Provider-Auswahl + base_url.
       - name: Hermes konfigurieren (Provider anhand Issue-Label)
         env:
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
@@ -148,7 +150,6 @@ jobs:
           hermes config set model.base_url https://inference-api.nousresearch.com/v1
           hermes config set model.api_key "${{ secrets.NOUS_PORTAL_TOKEN }}"
           echo "::notice::Provider: Nous Portal (DeepSeek)"
-          hermes config set agent.max_turns 90
           pip install mcp -q
           hermes mcp add kolibri --url https://public-ui-kolibri-mcp.vercel.app/mcp
 
@@ -207,7 +208,6 @@ jobs:
       #   --yolo                   Keine Gefahren-Bestätigung (CI headless)
       #   -m <modell>              Modell (DeepSeek Pro/GLM 5.2 per Label)
       #   -t "terminal,file"       Nur Shell- und Datei-Tools zulassen
-      #   --max-turns 90           Obergrenze für Tool-Calls
       #   --accept-hooks           Automatische Freigabe von Shell-Hooks
       #
       # GH_TOKEN für gh-Befehle (Issue lesen/schreiben, Labels setzen).
@@ -286,7 +286,6 @@ jobs:
             -Q --yolo $PROVIDER_FLAG \
             -m "$MODEL" \
             -t "terminal,file" \
-            --max-turns 90 \
             --accept-hooks \
             2>&1 | tee /tmp/hermes-output.log
           # PIPESTATUS: Exit-Code von hermes chat durch pipe propagieren
