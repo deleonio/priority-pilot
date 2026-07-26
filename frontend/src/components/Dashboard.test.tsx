@@ -139,7 +139,7 @@ describe('Dashboard — Empty-State bei 0 Säulen (Issue #440, AK1)', () => {
 		expect(container.querySelector('.dashboard-pillars > p')).toBeNull();
 
 		// Stattdessen soll eine KolCard mit dem Label „Keine Säulen vorhanden" gerendert werden.
-		const card = container.querySelector('kol-card');
+		const card = container.querySelector('.dashboard-pillars kol-card');
 		expect(card).not.toBeNull();
 		expect(card?.getAttribute('_label')).toBe('Keine Säulen vorhanden');
 

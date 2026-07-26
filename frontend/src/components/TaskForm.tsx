@@ -604,7 +604,9 @@ export const TaskForm = ({
 			</div>
 			{/* Säulen-Beiträge: je Säule ein Roh-Anteil 0,0–1,0 (#82), beim Speichern auf 100 % normiert. */}
 			{pillars.length === 0 ? (
-				<p className="hint">Keine Säulen definiert — lege zuerst Säulen in den Einstellungen an.</p>
+				<p className="hint">
+					Keine Säulen definiert — lege zuerst Säulen in den <a href="/settings">Einstellungen</a> an.
+				</p>
 			) : (
 				<div className="pillar-editor">
 					<div className="pillar-editor-head">

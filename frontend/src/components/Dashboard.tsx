@@ -134,10 +134,12 @@ export const Dashboard = ({ tasks, forest, nextTask, suggestions = [], pillars, 
 			<ul className="dashboard-cards">
 				{cards.map((card) => (
 					<li key={card.label}>
-						<div className="dashboard-card">
-							<span className={`dashboard-card-accent ${card.accent}`} aria-hidden="true" />
-							<span className="dashboard-card-count">{card.count}</span>
-						</div>
+						<KolCard _label={card.label} _level={0}>
+							<div className="dashboard-card">
+								<span className={`dashboard-card-accent ${card.accent}`} aria-hidden="true" />
+								<span className="dashboard-card-count">{card.count}</span>
+							</div>
+						</KolCard>
 					</li>
 				))}
 			</ul>
