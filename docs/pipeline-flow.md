@@ -90,9 +90,9 @@ flowchart TD
 
 ## Label-Referenz
 
-| Label               | Gesetzt von                                                  | Entfernt von                                                        | Triggert                                                             |
-| ------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| `ai:analyzed`       | triage (Triage- oder Re-Triage-Pfad)                         | **issue-unblock** (Merge des Blockers), manuell              | _Setzen:_ Vorbedingung; _Entfernen:_ `triage.yml` (Re-Triage) |
+| Label               | Gesetzt von                                                  | Entfernt von                                                        | Triggert                                                      |
+| ------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `ai:analyzed`       | triage (Triage- oder Re-Triage-Pfad)                         | **issue-unblock** (Merge des Blockers), manuell                     | _Setzen:_ Vorbedingung; _Entfernen:_ `triage.yml` (Re-Triage) |
 | `ai:spec-ready`     | triage (bei 🟢, Triage- oder Re-Triage-Pfad)                 | _(kein automatisches Entfernen)_                                    | `spec.yml`                                                    |
 | `ai:ready`          | spec                                                         | _(kein automatisches Entfernen)_                                    | `implement.yml`                                               |
 | `ai:needs-review`   | implement, pr-needs-review-label (nur menschlich), **fixup** | review, gate-merge                                                  | `pr-review.yml`                                               |

@@ -211,5 +211,5 @@ machen.
 | `.ai-knowledge/ticket-implementation.md` (Schritt 3)                           | 2, 3                |
 | `.github/pull_request_template.md`                                             | 2                   |
 | `.ai-knowledge/pr-review.md` (Schritt 3)                                       | 2                   |
-| `.github/workflows/implement.yml` (+ neue Spec-Action)                  | 3                   |
+| `.github/workflows/implement.yml` (+ neue Spec-Action)                         | 3                   |
 | `frontend/vitest.config.ts`, `server/package.json`, `.github/workflows/ci.yml` | Coverage (optional) |
