@@ -126,6 +126,49 @@ describe('Dashboard — Statuskacheln: genau drei Kacheln (Issue #390)', () => {
  * Die aktuellen Meter zeigen alle Werte unter dem Zielwert als "suboptimal" an, was zu einer
  * permanenten Warnung führt. Stattdessen soll ein Schwellwert von 75% des Zielwerts gelten.
  */
+/**
+ * AK1 (#440): Bei 0 Säulen zeigt das Dashboard-Widget „Meine Themen" eine gestaltete KolCard
+ * mit Icon, Hinweistext und Link zu den Einstellungen (nicht nur plain text).
+ * Der Test ist rot, solange Dashboard.tsx Zeile 196 noch `<p>Keine Säulen vorhanden.</p>` rendert.
+ */
+describe('Dashboard — Empty-State bei 0 Säulen (Issue #440, AK1)', () => {
+	it('AK1: zeigt bei pillars=[] eine gestaltete KolCard statt des bisherigen Plain-Texts', () => {
+		const { container } = render(<Dashboard tasks={[]} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[]} />);
+
+		// Der alte Plain-Text-Paragraph darf nicht mehr existieren.
+		expect(container.querySelector('.dashboard-pillars > p')).toBeNull();
+
+		// Stattdessen soll eine KolCard mit dem Label „Keine Säulen vorhanden" gerendert werden.
+		const card = container.querySelector('kol-card');
+		expect(card).not.toBeNull();
+		expect(card?.getAttribute('_label')).toBe('Keine Säulen vorhanden');
+
+		// Die KolCard soll einen Hinweistext enthalten (über Slot oder children).
+		const cardText = card?.textContent ?? '';
+		expect(cardText).toMatch(/in den Einstellungen/i);
+
+		// Ein Link zu den Einstellungen soll vorhanden sein.
+		const link = card?.querySelector('a[href]');
+		expect(link).not.toBeNull();
+		expect(link?.getAttribute('href')).toContain('settings');
+	});
+
+	it('AK1: zeigt bei pillars.length > 0 KEINE Empty-State-KolCard', () => {
+		const koerper = pillar(1, 'Körper', 100);
+		const { container } = render(
+			<Dashboard tasks={[]} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[koerper]} />,
+		);
+
+		// Wenn Säulen vorhanden sind, darf die Empty-State-KolCard nicht erscheinen.
+		const cards = container.querySelectorAll('kol-card');
+		const emptyCard = [...cards].find((c) => c.getAttribute('_label') === 'Keine Säulen vorhanden');
+		expect(emptyCard).toBeUndefined();
+
+		// Stattdessen soll die Säulen-Liste gerendert werden.
+		expect(container.querySelector('.dashboard-pillars-list')).not.toBeNull();
+	});
+});
+
 describe('Dashboard — Säulen-Meter mit 75%-Schwellwert (Issue #410)', () => {
 	it('AK1: Der Meter-Schwellwert (_low) ist 75% des Zielwerts (Gewichtung)', () => {
 		const koerper = pillar(1, 'Körper', 20); // Zielwert 20%
