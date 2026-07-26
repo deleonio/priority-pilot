@@ -6,13 +6,13 @@ import { dirname, join } from 'node:path';
 
 // Vertrag-Tests — PR-Konflikterkennung (#277).
 //
-// Sichert den neuen Erkennungs-Workflow `claude-pr-conflict-scan.yml`:
+// Sichert den Erkennungs-Workflow `hermes-pr-conflict-scan.yml`:
 // Bei Push auf main alle offenen PRs auf Merge-Konflikte prüfen und bei
 // DIRTY/CONFLICTING das Label `ai:needs-changes` setzen (App-Token!),
 // damit der bestehende `hermes-pr-fixup.yml` den Konflikt auflöst.
 //
 // Testebene: statische YAML-Verträge (node:test via tsx, Muster pipeline-hardening.test.ts).
-// Tests werden ROT, bis Produktivcode (claude-pr-conflict-scan.yml) angelegt ist.
+// Tests werden ROT, bis Produktivcode (hermes-pr-conflict-scan.yml) angelegt ist.
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(HERE, '..', '..');
@@ -93,7 +93,7 @@ describe('AK3 — Weiterleitung: ai:needs-changes via App-Token setzen (kein GIT
 
 	it('Workflow erstellt KEINEN eigenen Auflöser — nur das Label ai:needs-changes setzen', () => {
 		const yml = scanYml();
-		// Negativkontrolle: der Workflow darf keinen Claude-Code-Action-Aufruf enthalten
+		// Negativkontrolle: der Workflow darf keine eigene KI-Action enthalten
 		assert.doesNotMatch(
 			yml,
 			/anthropics\/claude-code-action/,
@@ -102,7 +102,7 @@ describe('AK3 — Weiterleitung: ai:needs-changes via App-Token setzen (kein GIT
 		assert.doesNotMatch(
 			yml,
 			/uses:\s*anthropics\/claude/,
-			'Kein Claude-Step im Scan-Workflow — die Auflösung ist Aufgabe von hermes-pr-fixup.yml',
+			'Keine KI-Action im Scan-Workflow — die Auflösung ist Aufgabe von hermes-pr-fixup.yml',
 		);
 	});
 });
@@ -214,7 +214,7 @@ describe('AK8 — Repo-Scoping: ohne actions/checkout müssen gh-Befehle --repo 
 		const yml = scanYml();
 		// Der Workflow hat bewusst KEIN actions/checkout (reine gh-API). Ohne --repo leitet gh die
 		// Repo-Identität aus dem lokalen git-Remote ab → `git` wird aufgerufen →
-		// `fatal: not a git repository`. Muster: claude-pr-gate-merge.yml / claude-spec.yml
+		// `fatal: not a git repository`. Muster: hermes-pr-gate-merge.yml / hermes-spec.yml
 		// nutzen `gh pr list --repo …`. Regression aus dem echten roten CI-Lauf (#277).
 		const prListLine = yml.match(/gh pr list[^\n]*/);
 		assert.ok(prListLine, 'gh pr list-Zeile nicht gefunden');

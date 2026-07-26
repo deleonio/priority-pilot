@@ -17,8 +17,8 @@ import { dirname, join } from 'node:path';
 // entferntes Label löst KEINE Folge-Workflows aus → keine Re-Triage.
 //
 // Testebene: statische YAML-Verträge (node:test via tsx, Muster
-// claude-pr-conflict-scan.test.ts / pipeline-hardening.test.ts, ci.yml Z. ~89).
-// Tests werden ROT, bis Produktivcode (claude-issue-unblock.yml) angelegt ist.
+// hermes-pr-conflict-scan.test.ts / pipeline-hardening.test.ts, ci.yml Z. ~89).
+// Tests werden ROT, bis Produktivcode (hermes-issue-unblock.yml) angelegt ist.
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(HERE, '..', '..');
@@ -66,7 +66,7 @@ describe('AK2 — Auflösung des gemergten Issues über closingIssuesReferences 
 		assert.match(
 			yml,
 			/closingIssuesReferences/,
-			'Workflow muss das gemergte Issue über closingIssuesReferences ermitteln (Muster claude-spec.yml/claude-implement.yml), nicht über den Branch-Namen raten',
+			'Workflow muss das gemergte Issue über closingIssuesReferences ermitteln (Muster hermes-spec.yml/hermes-implement.yml), nicht über den Branch-Namen raten',
 		);
 	});
 });
@@ -264,7 +264,7 @@ describe('AK9 — Repo-Scoping: reine gh-API ohne actions/checkout → --repo Pf
 
 // ─── AK10 — Kein eigener LLM-Auflöser (reiner gh-Job) ─────────────────────────
 
-describe('AK10 — Reiner gh-Job: kein Claude-Code-Action-Aufruf', () => {
+describe('AK10 — Reiner gh-Job: keine eigene KI-Action', () => {
 	it('Negativkontrolle: der Workflow enthält keinen anthropics/claude-Step', () => {
 		const yml = unblockYml();
 		assert.doesNotMatch(

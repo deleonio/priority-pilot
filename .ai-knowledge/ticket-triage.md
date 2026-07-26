@@ -1,7 +1,7 @@
 # Workflow: Ticket-Triage (GitHub Issues)
 
 KI-gestützte Analyse offener Tickets — **werkzeug-unabhängig** beschrieben. Konkrete
-Slash-Commands (z. B. für Claude Code unter `.claude/commands/`) verweisen nur auf diese Schritte.
+Slash-Commands (z. B. für Coding-Agent unter `commands/`) verweisen nur auf diese Schritte.
 
 Tickets = GitHub-Issues von `deleonio/priority-pilot`. Voraussetzung: `gh` ist authentifiziert.
 
@@ -145,7 +145,7 @@ Bei einem zu großen Ticket:
   roten Tests schreibt. **Bei sequenziellen Ketten (`blocked-by`, s. o.) nur den ersten,
   unblockierten Sub-Issue** auf `ai:spec-ready` heben; die geblockten Nachfolger bleiben bei
   `ai:analyzed` (auch wenn selbst 🟢) und werden **automatisch freigegeben, sobald ihr Vorgänger
-  gemergt ist**: [`claude-issue-unblock.yml`](../.github/workflows/claude-issue-unblock.yml) entfernt
+  gemergt ist**: [`issue-unblock.yml`](../.github/workflows/issue-unblock.yml) entfernt
   dann ihr `ai:analyzed` (per App-Token) und stößt eine Re-Triage gegen den neuen Code-Stand an, die
   ihrerseits `ai:spec-ready` setzt (🟢) oder mit Hinweisen beim Menschen bleibt (🟡/🔴). So läuft die
   Kette Glied für Glied, ohne dass mehrere „gleiche Dateien"-Sub-Issues gleichzeitig in Umsetzung
