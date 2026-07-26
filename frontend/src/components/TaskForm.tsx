@@ -603,88 +603,95 @@ export const TaskForm = ({
 				</VoiceField>
 			</div>
 			{/* Säulen-Beiträge: je Säule ein Roh-Anteil 0,0–1,0 (#82), beim Speichern auf 100 % normiert. */}
-			<div className="pillar-editor">
-				<div className="pillar-editor-head">
-					<span className="pillar-editor-label">Säulen (optional)</span>
-					<KolButton
-						_label={suggesting ? 'Säulen werden vorgeschlagen…' : 'Säulen vorschlagen'}
-						_variant="secondary"
-						_disabled={saving || suggesting}
-						_on={{ onClick: () => void suggestPillars() }}
-					/>
-				</div>
-				{suggesting && (
-					<div className="pillar-editor-loading">
-						<KolSpin _show _variant="cycle" _label="Säulen-Vorschlag wird geladen" />
+			{pillars.length === 0 ? (
+				<p className="hint">Keine Säulen definiert — lege zuerst Säulen in den Einstellungen an.</p>
+			) : (
+				<div className="pillar-editor">
+					<div className="pillar-editor-head">
+						<span className="pillar-editor-label">Säulen (optional)</span>
+						<KolButton
+							_label={suggesting ? 'Säulen werden vorgeschlagen…' : 'Säulen vorschlagen'}
+							_variant="secondary"
+							_disabled={saving || suggesting}
+							_on={{ onClick: () => void suggestPillars() }}
+						/>
 					</div>
-				)}
-				{suggestError !== null && (
-					<KolAlert _type="error" _label="Vorschlag fehlgeschlagen">
-						{suggestError}
-					</KolAlert>
-				)}
-				{contributions.length === 0 ? (
-					<p className="hint">Keine Säule zugeordnet – der Task bleibt wertneutral.</p>
-				) : (
-					contributions.map((entry) => {
-						const name = pillarNameById.get(entry.pillarId) ?? `Säule ${entry.pillarId}`;
-						return (
-							<div key={entry.pillarId} className="pillar-row">
-								<KolInputRange
-									_label={`${name} – Anteil: ${formatNumber(entry.share)}`}
-									_min={RAW_WEIGHT_MIN}
-									_max={RAW_WEIGHT_MAX}
-									_step={RAW_WEIGHT_STEP}
-									_value={entry.share}
-									_on={{
-										onInput: (_event, value) => updateContribution(entry.pillarId, { share: readNumber(value) ?? 0 }),
-										onChange: (_event, value) => updateContribution(entry.pillarId, { share: readNumber(value) ?? 0 }),
-									}}
-								/>
-								<KolInputRange
-									_label={`Konfidenz: ${formatNumber(entry.confidence)} %`}
-									_min={0}
-									_max={100}
-									_step={1}
-									_value={entry.confidence}
-									_on={{
-										onInput: (_event, value) =>
-											updateContribution(entry.pillarId, { confidence: readNumber(value) ?? 0 }),
-										onChange: (_event, value) =>
-											updateContribution(entry.pillarId, { confidence: readNumber(value) ?? 0 }),
-									}}
-								/>
-								<KolButton
-									_label={`${name} entfernen`}
-									_hideLabel
-									_icons={{ left: { icon: 'kolicon-cross' } }}
-									_variant="danger"
-									_on={{ onClick: () => removePillar(entry.pillarId) }}
-								/>
-							</div>
-						);
-					})
-				)}
-				{availablePillars.length > 0 && (
-					<KolSingleSelect
-						_label="Säule hinzufügen"
-						_hideLabel
-						_options={addPillarOptions(availablePillars)}
-						_value={ADD_PILLAR_PLACEHOLDER}
-						_on={{ onChange: (_event, value) => addPillar(value) }}
-					/>
-				)}
-				{contributions.length > 0 && (
-					<p
-						className={
-							shareValid ? 'pillar-weights-sum pillar-weights-sum-ok' : 'pillar-weights-sum pillar-weights-sum-invalid'
-						}
-					>
-						Summe der Roh-Anteile: {formatNumber(shareSum)}{' '}
-						{shareValid ? '✓ (wird auf 100 % normiert)' : '(mindestens eine Säule muss > 0 sein)'}
-					</p>
-				)}
-			</div>
+					{suggesting && (
+						<div className="pillar-editor-loading">
+							<KolSpin _show _variant="cycle" _label="Säulen-Vorschlag wird geladen" />
+						</div>
+					)}
+					{suggestError !== null && (
+						<KolAlert _type="error" _label="Vorschlag fehlgeschlagen">
+							{suggestError}
+						</KolAlert>
+					)}
+					{contributions.length === 0 ? (
+						<p className="hint">Keine Säule zugeordnet – der Task bleibt wertneutral.</p>
+					) : (
+						contributions.map((entry) => {
+							const name = pillarNameById.get(entry.pillarId) ?? `Säule ${entry.pillarId}`;
+							return (
+								<div key={entry.pillarId} className="pillar-row">
+									<KolInputRange
+										_label={`${name} – Anteil: ${formatNumber(entry.share)}`}
+										_min={RAW_WEIGHT_MIN}
+										_max={RAW_WEIGHT_MAX}
+										_step={RAW_WEIGHT_STEP}
+										_value={entry.share}
+										_on={{
+											onInput: (_event, value) => updateContribution(entry.pillarId, { share: readNumber(value) ?? 0 }),
+											onChange: (_event, value) =>
+												updateContribution(entry.pillarId, { share: readNumber(value) ?? 0 }),
+										}}
+									/>
+									<KolInputRange
+										_label={`Konfidenz: ${formatNumber(entry.confidence)} %`}
+										_min={0}
+										_max={100}
+										_step={1}
+										_value={entry.confidence}
+										_on={{
+											onInput: (_event, value) =>
+												updateContribution(entry.pillarId, { confidence: readNumber(value) ?? 0 }),
+											onChange: (_event, value) =>
+												updateContribution(entry.pillarId, { confidence: readNumber(value) ?? 0 }),
+										}}
+									/>
+									<KolButton
+										_label={`${name} entfernen`}
+										_hideLabel
+										_icons={{ left: { icon: 'kolicon-cross' } }}
+										_variant="danger"
+										_on={{ onClick: () => removePillar(entry.pillarId) }}
+									/>
+								</div>
+							);
+						})
+					)}
+					{availablePillars.length > 0 && (
+						<KolSingleSelect
+							_label="Säule hinzufügen"
+							_hideLabel
+							_options={addPillarOptions(availablePillars)}
+							_value={ADD_PILLAR_PLACEHOLDER}
+							_on={{ onChange: (_event, value) => addPillar(value) }}
+						/>
+					)}
+					{contributions.length > 0 && (
+						<p
+							className={
+								shareValid
+									? 'pillar-weights-sum pillar-weights-sum-ok'
+									: 'pillar-weights-sum pillar-weights-sum-invalid'
+							}
+						>
+							Summe der Roh-Anteile: {formatNumber(shareSum)}{' '}
+							{shareValid ? '✓ (wird auf 100 % normiert)' : '(mindestens eine Säule muss > 0 sein)'}
+						</p>
+					)}
+				</div>
+			)}
 			<div className="modal-actions">
 				<KolButton
 					_label={saving ? (isEdit ? 'Bearbeiten…' : 'Anlegen…') : isEdit ? 'Bearbeiten' : 'Anlegen'}

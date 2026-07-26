@@ -134,10 +134,10 @@ export const Dashboard = ({ tasks, forest, nextTask, suggestions = [], pillars, 
 			<ul className="dashboard-cards">
 				{cards.map((card) => (
 					<li key={card.label}>
-						<KolCard _label={card.label} _level={0}>
+						<div className="dashboard-card">
 							<span className={`dashboard-card-accent ${card.accent}`} aria-hidden="true" />
 							<span className="dashboard-card-count">{card.count}</span>
-						</KolCard>
+						</div>
 					</li>
 				))}
 			</ul>
@@ -193,7 +193,12 @@ export const Dashboard = ({ tasks, forest, nextTask, suggestions = [], pillars, 
 			<section className="dashboard-pillars">
 				<h3>Meine Themen</h3>
 				{pillars.length === 0 ? (
-					<p>Keine Säulen vorhanden.</p>
+					<KolCard _label="Keine Säulen vorhanden" _level={0}>
+						<p>
+							Lege in den <a href="/settings">Einstellungen</a> deine ersten Säulen an, um hier den Überblick über deine
+							Themen zu behalten.
+						</p>
+					</KolCard>
 				) : (
 					<ul className="dashboard-pillars-list">
 						{pillarSummaries.map(
