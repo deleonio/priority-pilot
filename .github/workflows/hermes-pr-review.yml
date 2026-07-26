@@ -1,7 +1,7 @@
 name: Hermes PR Review (Kreuzverhoer)
 
 # Reviewt einen Pull Request im Kreuzverhör, sobald er das Label
-# "ai:needs-review" trägt. Ersetzt claude-pr-review.yml (MIG-001, 2026-07-10).
+# "ai:needs-review" trägt.
 #
 # Steuerung rein über Labels (kein Event-Kaskaden):
 #   - Findings → ai:needs-changes (→ Fixup)
@@ -10,7 +10,7 @@ name: Hermes PR Review (Kreuzverhoer)
 #
 # Setzt Hermes Agent (Nous Research) — Provider wählbar per PR-Label:
 #   Default: DeepSeek via Nous Portal (NOUS_PORTAL_TOKEN)
-# Ohne Label → OpenRouter + DeepSeek.
+# Provider: Nous Portal + DeepSeek (provider=custom)
 #
 # Voraussetzungen: NOUS_PORTAL_TOKEN
 
@@ -266,7 +266,7 @@ jobs:
           # VERDICT aus Hermes-Output parsen (Fallback, falls Agent Labels nicht selbst setzen konnte)
           verdict=""
           if [ -f /tmp/hermes-output.log ]; then
-            verdict="$(grep -oP '^VERDICT:\s*\K.*' /tmp/hermes-output.log | tail -1 | tr -d '[:space:]' || true)"
+            verdict="$(grep -oP 'VERDICT:\s*\K.*' /tmp/hermes-output.log | tail -1 | tr -d '[:space:]' || true)"
           fi
           echo "Hermes-Verdict aus Output: '${verdict:-keins}'"
 
@@ -377,21 +377,30 @@ jobs:
         run: |
           # Retry: API-Read-After-Write kann bei gh pr edit --add-label + direktem
           # gh pr view das Label auf einem Replica noch nicht sehen (Race).
-          for i in 1 2 3; do
+          for i in 1 2 3 4 5; do
             labels_json="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name]' 2>/dev/null || echo '[]')"
             needs_changes="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:needs-changes")')"
             ready_to_merge="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:ready-to-merge")')"
             if [ "$needs_changes" = "true" ] || [ "$ready_to_merge" = "true" ]; then break; fi
-            if [ "$i" -lt 3 ]; then sleep 2; fi
+            if [ "$i" -lt 5 ]; then sleep 3; fi
           done
 
           # Fallback: VERDICT aus Hermes-Output — falls API-Label immer noch nicht sichtbar ist
-          if [ "$ready_to_merge" != "true" ] && [ -f /tmp/hermes-output.log ]; then
-            verdict="$(grep -oP '^VERDICT:\s*\K.*' /tmp/hermes-output.log | tail -1 | tr -d '[:space:]' || true)"
-            if [ "$verdict" = "ready-to-merge" ]; then
-              echo "::notice::ai:ready-to-merge im API-Read unsichtbar, aber VERDICT=ready-to-merge im Output — als gesetzt gewertet."
-              ready_to_merge='true'
-            fi
+          verdict=""
+          if [ -f /tmp/hermes-output.log ]; then
+            verdict="$(grep -oP 'VERDICT:\s*\K.*' /tmp/hermes-output.log | tail -1 | tr -d '[:space:]' || true)"
+          fi
+          echo "Retry-Labels: needs_changes=${needs_changes:-?} ready_to_merge=${ready_to_merge:-?} verdict=${verdict:-keins}"
+
+          if [ "$verdict" = "ready-to-merge" ] && [ "$ready_to_merge" != "true" ]; then
+            echo "::notice::VERDICT=ready-to-merge, Label im API nicht sichtbar — setze es jetzt explizit."
+            gh label create "ai:ready-to-merge" --repo "$GITHUB_REPOSITORY" --color 0E8A16 2>/dev/null || true
+            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:ready-to-merge 2>/dev/null || true
+            ready_to_merge='true'
+          fi
+          if [ "$verdict" = "needs-changes" ] && [ "$needs_changes" != "true" ]; then
+            echo "::notice::VERDICT=needs-changes, Label im API nicht sichtbar — setze es jetzt explizit."
+            needs_changes='true'
           fi
 
           if [ "$needs_changes" = "true" ]; then echo "::error title=Review: Änderungen erforderlich::PR #${PR}" && exit 1; fi

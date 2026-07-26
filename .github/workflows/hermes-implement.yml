@@ -1,11 +1,11 @@
 name: Hermes Implement (ai:ready)
 
 # Setzt ein Issue um, sobald es das Label "ai:ready" erhält UND bereits
-# "ai:analyzed" trägt. Ersetzt claude-implement.yml (MIG-001, 2026-07-10).
+# "ai:analyzed" trägt.
 #
 # Setzt Hermes Agent (Nous Research) — Provider wählbar per Issue-Label:
 #   Default: DeepSeek via Nous Portal (NOUS_PORTAL_TOKEN)
-# Ohne Label → OpenRouter + DeepSeek.
+# Provider: Nous Portal + DeepSeek (provider=custom)
 #
 # Voraussetzungen: NOUS_PORTAL_TOKEN
 

@@ -3,7 +3,7 @@
 Kanonischer, werkzeug-unabhängiger Vertrag für Subagenten, die der Sonnet-Koordinator per
 Agent-Tool **in derselben Session** an eine andere Modell-Stufe delegiert (siehe
 [AGENTS.md](../AGENTS.md), Abschnitt „Modell-Wahl per Subagent-Delegation"). Die konkreten
-Agent-Definitionen unter [`.claude/agents/`](../.claude/agents/) verweisen nur hierher und ergänzen
+Agent-Definitionen unter [`agents/`](../agents/) verweisen nur hierher und ergänzen
 lediglich ihre modellspezifische Eskalationsrichtung.
 
 ## Rahmen

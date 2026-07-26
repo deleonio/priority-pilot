@@ -7,7 +7,7 @@ name: Hermes PR Review abbrechen (bei Merge/Schliessen)
 # gerade laufender oder eingereihter Review/Fixup wuerde sonst sinnlos weiterlaufen (und ggf. auf
 # einen gemergten PR posten).
 #
-# Reiner gh-Aufruf (kein Claude), nutzt den GitHub-App-Token (alle Hermes-Workflows nutzen
+# Reiner gh-Aufruf (kein KI-Agent), nutzt den GitHub-App-Token (alle Hermes-Workflows nutzen
 # konsistent den App-Token statt des Standard-GITHUB_TOKEN).
 
 on:

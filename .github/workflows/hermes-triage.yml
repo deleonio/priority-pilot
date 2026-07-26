@@ -1,25 +1,20 @@
 name: Hermes Triage (Analyse)
 
 # Stößt die KI-Analyse (Triage) eines Issues automatisch an — ersetzt den
-# bisherigen claude-triage.yml Workflow (MIG-001, 2026-07-10).
 #
 # Triggert bei:
 #  - neuem Issue (issues: opened)
 #  - Entfernen von Label "ai:analyzed" oder "ai:to-big-issue" (issues: unlabeled)
-#  - @claude-Kommentar einer Person mit Schreibzugriff (issue_comment: created)
+#  - @hermes-Kommentar einer Person mit Schreibzugriff (issue_comment: created)
 #
 # Setzt Hermes Agent (Nous Research) — Provider wählbar per Issue-Label:
 #   Default: DeepSeek via Nous Portal (NOUS_PORTAL_TOKEN)
-# Ohne Label → OpenRouter + DeepSeek.
+# Provider: Nous Portal + DeepSeek (provider=custom)
 #
 # Voraussetzungen: NOUS_PORTAL_TOKEN
 #
-# Änderungen zu claude-triage.yml:
 #  - Keine configure-ai-backend Composite Action (Hermes nutzt Nous Portal nativ)
 #  - Kein session-restore/session-save (Hermes-Session-Resume folgt in MIG-002)
-#  - Kein cost-summary (liest claude execution file — Hermes-cost folgt in MIG-003)
-#  - Prompt angepasst: Hermes-spezifisch, keine Claude-Modell-Strategie
-#   - Modell: z-ai/glm-5.2 via OpenRouter (präzises Reasoning)
 
 on:
   issues:
@@ -36,7 +31,7 @@ concurrency:
 
 jobs:
   triage:
-    # Identische Trigger-Bedingungen wie claude-triage.yml — unverändert.
+    # Trigger-Bedingungen (unverändert).
     if: >-
       ${{ (github.event_name == 'issues'
             && github.event.issue.state == 'open'
@@ -52,7 +47,7 @@ jobs:
                ))
           || (github.event_name == 'issue_comment'
               && github.event.issue.pull_request == null
-              && contains(github.event.comment.body, '@claude')
+              && contains(github.event.comment.body, '@hermes')
               && (github.event.comment.author_association == 'OWNER'
                   || github.event.comment.author_association == 'MEMBER'
                   || github.event.comment.author_association == 'COLLABORATOR')) }}
