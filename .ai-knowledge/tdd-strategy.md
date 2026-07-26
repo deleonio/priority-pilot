@@ -8,7 +8,7 @@
 > macht fehlende/rote Tests zum Gate ([pr-review.md](pr-review.md) Schritt 3/5).
 > **Stufe 3 (Szenario 3):** Eigenes Spec-Gate — die Triage setzt `ai:spec-ready` statt `ai:ready`,
 > ein eigener Lauf ([ticket-spec.md](ticket-spec.md),
-> [hermes-spec.yml](../.github/workflows/hermes-spec.yml)) schreibt die roten Tests auf einen
+> [spec.yml](../.github/workflows/spec.yml)) schreibt die roten Tests auf einen
 > Draft-PR und gibt per `ai:ready` frei; die Umsetzung macht sie grün, ohne sie zu ändern
 > (Gewaltenteilung).
 
@@ -131,7 +131,7 @@ einem eigenen Schritt vor der Freigabe.
   roten Tests stehen.
 - [ticket-implementation.md](ticket-implementation.md): Die Umsetzung darf die Tests **nicht ändern**,
   nur grün machen (Tests sind der Vertrag).
-- Neue/erweiterte GitHub-Action analog `.github/workflows/hermes-implement.yml`.
+- Neue/erweiterte GitHub-Action analog `.github/workflows/implement.yml`.
 
 **Stärke gegen Schlingern:** maximal — ausführbarer Vertrag von _anderer_ Instanz als der Code →
 keine tautologischen Tests.
@@ -199,7 +199,7 @@ machen.
   Frontend-`lib` vorbereitet (Provider-Install ausstehend).
 - ~~Soll Szenario 3 ein eigenes Label (`ai:spec-ready`) + eigene GitHub-Action bekommen, oder reicht
   die Gewaltenteilung innerhalb von `/team*`?~~ — entschieden: **eigenes Label `ai:spec-ready` +
-  eigener Workflow `hermes-spec.yml`** (separater headless Lauf = Gewaltenteilung auch in der Automatik).
+  eigener Workflow `spec.yml`** (separater headless Lauf = Gewaltenteilung auch in der Automatik).
 - ~~Verknüpfung in [AGENTS.md](../AGENTS.md) (Wissensbasis-Liste)~~ — mit Stufe 1 erledigt.
 
 ## Betroffene Dateien (bei späterer Umsetzung)
@@ -211,5 +211,5 @@ machen.
 | `.ai-knowledge/ticket-implementation.md` (Schritt 3)                           | 2, 3                |
 | `.github/pull_request_template.md`                                             | 2                   |
 | `.ai-knowledge/pr-review.md` (Schritt 3)                                       | 2                   |
-| `.github/workflows/hermes-implement.yml` (+ neue Spec-Action)                  | 3                   |
+| `.github/workflows/implement.yml` (+ neue Spec-Action)                  | 3                   |
 | `frontend/vitest.config.ts`, `server/package.json`, `.github/workflows/ci.yml` | Coverage (optional) |

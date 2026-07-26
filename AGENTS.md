@@ -35,10 +35,15 @@ Wissensbasis liegt in [`.ai-knowledge/`](.ai-knowledge/).
   Pflicht, siehe [TDD-Strategie](.ai-knowledge/tdd-strategy.md) Stufe 2) und die Ergebnisse in der
   PR-Beschreibung dokumentieren.
 
-## KI-Agent: Hermes Agent
+## KI-Agent
 
-Alle KI-Workflows (Triage, Re-Triage, Spec, Umsetzung, PR-Review, PR-Fixup) laufen auf
-**Hermes Agent** (Nous Research) über den **Nous Portal**-Provider mit **DeepSeek**-Modellen.
+Alle KI-Workflows (Triage, Re-Triage, Spec, Umsetzung, PR-Review, PR-Fixup) laufen über
+einen **Coding-Agent** in GitHub Actions. Die Pipeline ist agent-agnostisch konzipiert —
+der gleiche Label-Flow funktioniert mit Hermes, Claude Code, Codex oder anderen Agents.
+
+### Aktuelle Konfiguration: Hermes Agent + DeepSeek
+
+**Implementierung:** Hermes Agent (Nous Research) über den Nous Portal-Provider mit DeepSeek-Modellen.
 
 | Provider                 | Auth                                              | Modelle              | Kontext |
 | ------------------------ | ------------------------------------------------- | -------------------- | ------- |
@@ -156,11 +161,11 @@ Konkreter Command: `/triage-ticket` (analysiert, lektoriert, optimiert den Titel
 die Analyse in die Beschreibung, pingt und markiert in einem Durchlauf).
 
 In **GitHub Actions** wird die Triage zusätzlich **ereignisgesteuert** angestoßen —
-[`.github/workflows/hermes-triage.yml`](.github/workflows/hermes-triage.yml) ruft den Triage-Ablauf
+[`.github/workflows/triage.yml`](.github/workflows/hermes-triage.yml) ruft den Triage-Ablauf
 automatisch für genau dieses eine Issue auf, sobald ein **Issue angelegt** wird (nur von Personen mit
 Schreibzugriff), das Label
 **`ai:analyzed` entfernt** wird (erzwingt eine Neu-Analyse, z. B. nach geänderter Beschreibung), oder
-jemand mit Schreibzugriff einen **Issue-Kommentar mit `@hermes`** hinterlässt (Re-Triage auf Zuruf —
+jemand mit Schreibzugriff einen **Issue-Kommentar mit `@agent`** hinterlässt (Re-Triage auf Zuruf —
 zweiter Trigger desselben Workflows, kein separater).
 
 ### Named Session Resume (aktuell nicht aktiv)
@@ -171,7 +176,7 @@ jeder Lauf frisch ohne Kontext aus vorherigen Läufen derselben Phase.
 Dieses Entfernen von `ai:analyzed` geschieht auch **automatisch beim Merge eines Vorgänger-Issues**:
 Sind Sub-Issues über native GitHub-Issue-Dependencies (`blocked-by`) sequenziell verkettet (A1 → A2 →
 A3, gesetzt bei der Zerlegung in der Triage), gibt
-[`.github/workflows/hermes-issue-unblock.yml`](.github/workflows/hermes-issue-unblock.yml) den
+[`.github/workflows/issue-unblock.yml`](.github/workflows/hermes-issue-unblock.yml) den
 nächsten Nachfolger frei, sobald **alle** seine Blocker gemergt/geschlossen sind (Fan-in-Gate) — indem
 es dessen `ai:analyzed` **per App-Token** entfernt und so die Re-Triage gegen den nun gemergten
 Code-Stand anstößt (die dann 🟢 → `ai:spec-ready` setzt oder mit Hinweisen beim Menschen bleibt). So
