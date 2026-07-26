@@ -51,12 +51,17 @@ const extractErrorMessage = async (reason: unknown): Promise<string> => {
 	return 'Unbekannter Fehler.';
 };
 
+interface PillarListProps {
+	/** Wird aufgerufen, wenn die Inline-Bearbeitung beginnt/endet (true = editierend, false = nicht editierend). */
+	onEditingChange?: (editing: boolean) => void;
+}
+
 /**
  * Säulen-Verwaltungs-Komponente (Issue #439): Zeigt eine Liste aller Säulen an und erlaubt das
  * Anlegen neuer Säulen, Inline-Umbenennen/-Beschreibungsänderung und Löschen mit Bestätigungsdialog.
  * Nutzt die API-Funktionen aus #438 (createPillar, updatePillar, deletePillar).
  */
-export const PillarList = () => {
+export const PillarList = ({ onEditingChange }: PillarListProps) => {
 	const [pillars, setPillars] = useState<Pillar[]>([]);
 	const [error, setError] = useState<string | null>(null);
 
@@ -114,6 +119,7 @@ export const PillarList = () => {
 	const startEditing = (pillar: Pillar) => {
 		setEditing({ id: pillar.id, name: pillar.name, description: pillar.description });
 		setEditError(null);
+		onEditingChange?.(true);
 	};
 
 	const handleSaveEdit = async () => {
@@ -136,6 +142,7 @@ export const PillarList = () => {
 				await api.updatePillar({ id: editing.id, pillarUpdate });
 			}
 			setEditing(null);
+			onEditingChange?.(false);
 			await loadPillars();
 		} catch (reason) {
 			setEditError(await extractErrorMessage(reason));
@@ -147,6 +154,7 @@ export const PillarList = () => {
 	const handleCancelEdit = () => {
 		setEditing(null);
 		setEditError(null);
+		onEditingChange?.(false);
 	};
 
 	// ── Löschen ──────────────────────────────────────────────────────────────
