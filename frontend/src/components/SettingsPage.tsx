@@ -13,6 +13,8 @@ interface SettingsPageProps {
 	pillars: Pillar[];
 	onBack: () => void;
 	onSaved: () => void;
+	/** Wird nach PillarList-Mutationen aufgerufen, damit App.tsx seine Pillar-Daten neu lädt (#439). */
+	onPillarChanged?: () => void;
 }
 
 // Die Tab-Leiste der Settings-Seite (#271). Modulkonstante, damit `KolTabs` nicht bei jedem Render
@@ -25,7 +27,7 @@ const SETTINGS_TABS = [{ _label: 'Allgemein' }, { _label: 'Säulen' }];
  * (Säulen-Gewichtungs-Editor). Der aktive Tab wird beim initialen Laden aus der URL abgeleitet:
  * `/settings/general` → Allgemein (0), alles andere (inkl. `/settings/pillars`) → Säulen (1).
  */
-export const SettingsPage = ({ pillars, onBack, onSaved }: SettingsPageProps) => {
+export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: SettingsPageProps) => {
 	// Aktiven Tab als kontrollierten State führen. Initialwert aus der URL; `setActiveTab` wird bei
 	// manuellem Tab-Wechsel (onSelect) aufgerufen, damit Re-Renders den gewählten Tab nicht zurücksetzen.
 	const [activeTab, setActiveTab] = useState(() => (window.location.pathname.startsWith('/settings/general') ? 0 : 1));
@@ -183,7 +185,7 @@ export const SettingsPage = ({ pillars, onBack, onSaved }: SettingsPageProps) =>
 					    die Route /settings/pillars rendert den Säulen-Editor mit dieser Überschrift. */}
 					<KolHeading _label="Säulen-Gewichtung" _level={2} />
 					{/* Säulen-Verwaltungs-Komponente (#439): Anlegen, Umbenennen und Löschen von Säulen. */}
-					<PillarList onEditingChange={setEditingInPillarList} />
+					<PillarList onEditingChange={setEditingInPillarList} onPillarChanged={onPillarChanged} />
 					{/* Während Inline-Edit in PillarList ausgeblendet — sonst kollidieren die „Speichern"-Buttons. */}
 					{!editingInPillarList && (
 						<>

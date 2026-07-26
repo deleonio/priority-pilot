@@ -17,31 +17,20 @@ interface DeleteConfirmState {
  * Extrahiert eine Fehlermeldung aus einem API-Client-Fehler. Unterstützt sowohl echte
  * `ResponseError`-Instanzen (mit `response.clone().json()`) als auch gemockte Fehlerobjekte
  * aus den Unit-Tests (mit `response.status` und `response.clone()`).
+ * Der gemeinsame Nenner ist `'response' in reason` — das deckt beide Fälle ab.
  */
 const extractErrorMessage = async (reason: unknown): Promise<string> => {
-	if (reason instanceof Error && 'response' in reason) {
-		const resp = (reason as { response: Response & { clone: () => { json: () => Promise<{ message?: string }> } } })
-			.response;
+	if (reason !== null && typeof reason === 'object' && 'response' in reason) {
+		const err = reason as {
+			response: { status: number; clone: () => { json: () => Promise<{ message?: string }> } };
+		};
 		try {
-			const body: unknown = await resp.clone().json();
+			const body: unknown = await err.response.clone().json();
 			if (typeof body === 'object' && body !== null && typeof (body as { message?: unknown }).message === 'string') {
 				return (body as { message: string }).message;
 			}
 		} catch {
-			// ignore
-		}
-		return `Serverfehler (HTTP ${resp.status}).`;
-	}
-	// Plain-Object mit response (Mock in Tests)
-	if (reason !== null && typeof reason === 'object' && 'response' in reason) {
-		const err = reason as { response: { status: number; clone: () => { json: () => Promise<{ message?: string }> } } };
-		try {
-			const body = await err.response.clone().json();
-			if (typeof body === 'object' && body !== null && typeof body.message === 'string') {
-				return body.message;
-			}
-		} catch {
-			// ignore
+			// ignore — fall through to generic status message
 		}
 		return `Serverfehler (HTTP ${err.response.status}).`;
 	}
@@ -54,6 +43,12 @@ const extractErrorMessage = async (reason: unknown): Promise<string> => {
 interface PillarListProps {
 	/** Wird aufgerufen, wenn die Inline-Bearbeitung beginnt/endet (true = editierend, false = nicht editierend). */
 	onEditingChange?: (editing: boolean) => void;
+	/**
+	 * Wird nach jeder Säulen-Mutation (anlegen/umbenennen/löschen) aufgerufen, damit
+	 * übergeordnete Komponenten (z. B. App.tsx) ihre Pillar-Daten neu laden können.
+	 * Verhindert stale PillarWeightsForm nach PillarList-Mutationen (#439 Review Finding 3).
+	 */
+	onPillarChanged?: () => void;
 }
 
 /**
@@ -61,9 +56,10 @@ interface PillarListProps {
  * Anlegen neuer Säulen, Inline-Umbenennen/-Beschreibungsänderung und Löschen mit Bestätigungsdialog.
  * Nutzt die API-Funktionen aus #438 (createPillar, updatePillar, deletePillar).
  */
-export const PillarList = ({ onEditingChange }: PillarListProps) => {
+export const PillarList = ({ onEditingChange, onPillarChanged }: PillarListProps) => {
 	const [pillars, setPillars] = useState<Pillar[]>([]);
 	const [error, setError] = useState<string | null>(null);
+	const [loading, setLoading] = useState(true);
 
 	// Create-Formular-Status
 	const [newName, setNewName] = useState('');
@@ -85,6 +81,8 @@ export const PillarList = ({ onEditingChange }: PillarListProps) => {
 			setPillars(data);
 		} catch (reason) {
 			setError(await extractErrorMessage(reason));
+		} finally {
+			setLoading(false);
 		}
 	}, []);
 
@@ -109,6 +107,7 @@ export const PillarList = ({ onEditingChange }: PillarListProps) => {
 			setNewName('');
 			setNewDescription('');
 			await loadPillars();
+			onPillarChanged?.();
 		} catch (reason) {
 			setCreateError(await extractErrorMessage(reason));
 		}
@@ -144,6 +143,7 @@ export const PillarList = ({ onEditingChange }: PillarListProps) => {
 			setEditing(null);
 			onEditingChange?.(false);
 			await loadPillars();
+			onPillarChanged?.();
 		} catch (reason) {
 			setEditError(await extractErrorMessage(reason));
 		} finally {
@@ -166,6 +166,7 @@ export const PillarList = ({ onEditingChange }: PillarListProps) => {
 			await api.deletePillar({ id: deleteTarget.id });
 			setDeleteTarget(null);
 			await loadPillars();
+			onPillarChanged?.();
 		} catch (reason) {
 			setError(await extractErrorMessage(reason));
 		} finally {
@@ -214,7 +215,9 @@ export const PillarList = ({ onEditingChange }: PillarListProps) => {
 			)}
 
 			{/* ── Säulen-Liste ──────────────────────────────────────────────── */}
-			{pillars.length === 0 && editing === null ? (
+			{loading ? (
+				<p aria-live="polite">Säulen werden geladen …</p>
+			) : pillars.length === 0 && editing === null ? (
 				<p>Keine Säulen vorhanden.</p>
 			) : (
 				<div className="pillar-items">
