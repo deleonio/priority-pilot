@@ -127,7 +127,6 @@ jobs:
           hermes config set model.base_url https://inference-api.nousresearch.com/v1
           hermes config set model.api_key "${{ secrets.NOUS_PORTAL_TOKEN }}"
           echo "::notice::Provider: Nous Portal (DeepSeek)"
-          hermes config set agent.max_turns 90
           pip install mcp -q
           hermes mcp add kolibri --url https://public-ui-kolibri-mcp.vercel.app/mcp
 
@@ -260,7 +259,6 @@ jobs:
             -Q --yolo $PROVIDER_FLAG \
             -m "$MODEL" \
             -t "terminal,file" \
-            --max-turns 90 \
             --accept-hooks \
             2>&1 | tee /tmp/hermes-output.log
           # PIPESTATUS: Exit-Code von hermes chat durch pipe propagieren

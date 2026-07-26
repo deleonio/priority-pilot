@@ -84,7 +84,6 @@ hermes config set model.api_key "${{ secrets.NOUS_PORTAL_TOKEN }}"
 | `--provider custom`  | Nous Portal via Custom-Provider        |
 | `-m <modell>`        | Modell-Festlegung (Pro/Flash)          |
 | `-t "terminal,file"` | Nur Terminal und Datei-Tools           |
-| `--max-turns 90`     | Tool-Call-Obergrenze                   |
 | `--accept-hooks`     | Shell-Hooks automatisch freigeben      |
 
 **Prompt:** Per Heredoc in eine Datei geschrieben, dann via `-q "$(cat /tmp/hermes-prompt.txt)"` übergeben — vermeidet Shell-Quoting-Probleme.
