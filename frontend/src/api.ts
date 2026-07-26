@@ -6,6 +6,8 @@ import type {
 	DependencyInput,
 	ParsedTask,
 	paths,
+	PillarCreate,
+	PillarUpdate,
 	Pillar,
 	PillarFeedbackInput,
 	PushSubscriptionInput,
@@ -168,9 +170,9 @@ export const api = {
 		return data;
 	},
 
-	async createPillar({ name, description }: { name: string; description?: string }): Promise<Pillar> {
+	async createPillar({ pillarCreate }: { pillarCreate: PillarCreate }): Promise<Pillar> {
 		const { data, response } = await client.POST('/pillars', {
-			body: { name, description: description ?? '' },
+			body: { name: pillarCreate.name, description: pillarCreate.description ?? '' },
 		});
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response);
@@ -178,16 +180,10 @@ export const api = {
 		return data;
 	},
 
-	async updatePillar({
-		id,
-		data: body,
-	}: {
-		id: number;
-		data: { name?: string; description?: string };
-	}): Promise<Pillar> {
+	async updatePillar({ id, pillarUpdate }: { id: number; pillarUpdate: PillarUpdate }): Promise<Pillar> {
 		const { data, response } = await client.PATCH('/pillars/{id}', {
 			params: { path: { id } },
-			body,
+			body: pillarUpdate,
 		});
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response);

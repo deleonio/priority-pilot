@@ -3,8 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 // vi.mock-Hoisting: Die Factory wird vor allen Imports ausgefuehrt, daher muessen
 // die Mock-Objekte ueber vi.hoisted() vorab deklariert werden.
-const { mockGET, mockPOST, mockPATCH, mockDELETE } = vi.hoisted(() => ({
-	mockGET: vi.fn(),
+const { mockPOST, mockPATCH, mockDELETE } = vi.hoisted(() => ({
 	mockPOST: vi.fn(),
 	mockPATCH: vi.fn(),
 	mockDELETE: vi.fn(),
@@ -12,7 +11,6 @@ const { mockGET, mockPOST, mockPATCH, mockDELETE } = vi.hoisted(() => ({
 
 vi.mock('openapi-fetch', () => ({
 	default: vi.fn(() => ({
-		GET: mockGET,
 		POST: mockPOST,
 		PATCH: mockPATCH,
 		DELETE: mockDELETE,
@@ -28,7 +26,7 @@ describe('api.createPillar', () => {
 			response: { ok: true },
 		});
 
-		await api.createPillar({ name: 'Familie', description: 'Zeit mit der Familie' });
+		await api.createPillar({ pillarCreate: { name: 'Familie', description: 'Zeit mit der Familie' } });
 
 		expect(mockPOST).toHaveBeenCalledWith('/pillars', {
 			body: { name: 'Familie', description: 'Zeit mit der Familie' },
@@ -39,7 +37,7 @@ describe('api.createPillar', () => {
 		const pillar = { id: 2, name: 'Sport', description: '', weight: 0 };
 		mockPOST.mockResolvedValueOnce({ data: pillar, response: { ok: true } });
 
-		const result = await api.createPillar({ name: 'Sport', description: '' });
+		const result = await api.createPillar({ pillarCreate: { name: 'Sport', description: '' } });
 
 		expect(result).toEqual(pillar);
 	});
@@ -48,20 +46,22 @@ describe('api.createPillar', () => {
 		const errorResponse = { ok: false, status: 409 } as Response;
 		mockPOST.mockResolvedValueOnce({ data: undefined, response: errorResponse });
 
-		await expect(api.createPillar({ name: 'Familie', description: '' })).rejects.toThrow(ResponseError);
+		await expect(api.createPillar({ pillarCreate: { name: 'Familie', description: '' } })).rejects.toThrow(
+			ResponseError,
+		);
 	});
 
 	it('wirft ResponseError bei 400 (Validierungsfehler)', async () => {
 		const errorResponse = { ok: false, status: 400 } as Response;
 		mockPOST.mockResolvedValueOnce({ data: undefined, response: errorResponse });
 
-		await expect(api.createPillar({ name: '', description: '' })).rejects.toThrow(ResponseError);
+		await expect(api.createPillar({ pillarCreate: { name: '', description: '' } })).rejects.toThrow(ResponseError);
 	});
 
 	it('wirft ResponseError bei undefined data trotz ok:true', async () => {
 		mockPOST.mockResolvedValueOnce({ data: undefined, response: { ok: true } });
 
-		await expect(api.createPillar({ name: 'Test', description: '' })).rejects.toThrow(ResponseError);
+		await expect(api.createPillar({ pillarCreate: { name: 'Test', description: '' } })).rejects.toThrow(ResponseError);
 	});
 });
 
@@ -72,7 +72,7 @@ describe('api.updatePillar', () => {
 			response: { ok: true },
 		});
 
-		await api.updatePillar({ id: 1, data: { name: 'Familie+', description: 'Erweiterte Familie' } });
+		await api.updatePillar({ id: 1, pillarUpdate: { name: 'Familie+', description: 'Erweiterte Familie' } });
 
 		expect(mockPATCH).toHaveBeenCalledWith('/pillars/{id}', {
 			params: { path: { id: 1 } },
@@ -86,7 +86,7 @@ describe('api.updatePillar', () => {
 			response: { ok: true },
 		});
 
-		await api.updatePillar({ id: 1, data: { name: 'Familie+' } });
+		await api.updatePillar({ id: 1, pillarUpdate: { name: 'Familie+' } });
 
 		expect(mockPATCH).toHaveBeenCalledWith('/pillars/{id}', {
 			params: { path: { id: 1 } },
@@ -100,7 +100,7 @@ describe('api.updatePillar', () => {
 			response: { ok: true },
 		});
 
-		await api.updatePillar({ id: 1, data: { description: 'Neue Beschreibung' } });
+		await api.updatePillar({ id: 1, pillarUpdate: { description: 'Neue Beschreibung' } });
 
 		expect(mockPATCH).toHaveBeenCalledWith('/pillars/{id}', {
 			params: { path: { id: 1 } },
@@ -112,7 +112,7 @@ describe('api.updatePillar', () => {
 		const updated = { id: 1, name: 'Familie', description: 'Neu', weight: 20 };
 		mockPATCH.mockResolvedValueOnce({ data: updated, response: { ok: true } });
 
-		const result = await api.updatePillar({ id: 1, data: { description: 'Neu' } });
+		const result = await api.updatePillar({ id: 1, pillarUpdate: { description: 'Neu' } });
 
 		expect(result).toEqual(updated);
 	});
@@ -121,21 +121,21 @@ describe('api.updatePillar', () => {
 		const errorResponse = { ok: false, status: 404 } as Response;
 		mockPATCH.mockResolvedValueOnce({ data: undefined, response: errorResponse });
 
-		await expect(api.updatePillar({ id: 999, data: { name: 'Nicht da' } })).rejects.toThrow(ResponseError);
+		await expect(api.updatePillar({ id: 999, pillarUpdate: { name: 'Nicht da' } })).rejects.toThrow(ResponseError);
 	});
 
 	it('wirft ResponseError bei 409 (Name-Konflikt)', async () => {
 		const errorResponse = { ok: false, status: 409 } as Response;
 		mockPATCH.mockResolvedValueOnce({ data: undefined, response: errorResponse });
 
-		await expect(api.updatePillar({ id: 1, data: { name: 'Doppelt' } })).rejects.toThrow(ResponseError);
+		await expect(api.updatePillar({ id: 1, pillarUpdate: { name: 'Doppelt' } })).rejects.toThrow(ResponseError);
 	});
 
 	it('wirft ResponseError bei 400 (Validierungsfehler)', async () => {
 		const errorResponse = { ok: false, status: 400 } as Response;
 		mockPATCH.mockResolvedValueOnce({ data: undefined, response: errorResponse });
 
-		await expect(api.updatePillar({ id: 1, data: { name: '' } })).rejects.toThrow(ResponseError);
+		await expect(api.updatePillar({ id: 1, pillarUpdate: { name: '' } })).rejects.toThrow(ResponseError);
 	});
 });
 
