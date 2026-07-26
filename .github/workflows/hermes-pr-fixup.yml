@@ -313,7 +313,10 @@ jobs:
           SID="${{ steps.session.outputs.session_id }}"
           if [ -n "$SID" ] && [ -d "$HERMES_HOME" ]; then
             echo "$SID" > "$HERMES_HOME/session_id.txt"
-            tar -czf /tmp/hermes-session.tar.gz -C "$HERMES_HOME" .
+            # Nur sessions/ + session_id.txt archivieren (keine Config, Caches, MCP-Daten).
+            # Die Config wird pro Lauf neu geschrieben, Caches sind flüchtig.
+            tar -czf /tmp/hermes-session.tar.gz -C "$HERMES_HOME" sessions session_id.txt 2>/dev/null || \
+            tar -czf /tmp/hermes-session.tar.gz -C "$HERMES_HOME" session_id.txt
           fi
 
       - name: Session hochladen
