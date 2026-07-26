@@ -278,6 +278,10 @@ body {
 
 .dashboard-pillars {
 	margin-top: 1.5rem;
+	/* AK4 (#440): Bei 8+ Säulen und 375px Viewport kein horizontales Scrollen. */
+	max-width: 100%;
+	overflow-x: hidden;
+	overflow-wrap: break-word;
 }
 
 .dashboard-pillars h3 {
@@ -305,6 +309,8 @@ body {
 .dashboard-pillar-meta {
 	color: var(--pp-text-muted);
 	font-size: 0.875rem;
+	overflow-wrap: break-word;
+	word-break: break-word;
 }
 
 /* --- Aufgabenwald --- */

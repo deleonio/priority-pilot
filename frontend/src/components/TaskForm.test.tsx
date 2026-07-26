@@ -705,3 +705,36 @@ describe('AK — Säulenzuordnung im Serien-Edit-Modus (#343)', () => {
 		expect(seriesUpdate.pillars[0].share).toBeCloseTo(100);
 	});
 });
+
+/**
+ * Rote Spec-Tests für #440 (AK2): Bei 0 Säulen zeigt das Task-Formular kein leeres
+ * Säulen-Auswahlfeld; stattdessen einen dezenten Hinweis „Keine Säulen definiert".
+ * Der Test ist rot, solange TaskForm bei pillars=[] noch die Pillar-Auswahl rendert.
+ */
+describe('TaskForm — Empty-State bei 0 Säulen (Issue #440, AK2)', () => {
+	it('AK2: blendet die Säulen-Auswahl aus, wenn pillars leer ist', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(<TaskForm task={null} pillars={[]} onClose={vi.fn()} onSaved={vi.fn()} />);
+		});
+
+		// Kein Select für die Säulen-Auswahl, wenn keine Säulen existieren.
+		expect(screen.queryByLabelText('Säule hinzufügen')).toBeNull();
+
+		// Stattdessen erscheint ein dezentner Hinweis.
+		expect(screen.getByText(/keine säulen definiert/i)).toBeInTheDocument();
+	});
+
+	it('AK2: zeigt die Säulen-Auswahl, wenn pillars nicht leer ist', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(<TaskForm task={null} pillars={[pillarKoerper]} onClose={vi.fn()} onSaved={vi.fn()} />);
+		});
+
+		// Bei vorhandenen Säulen erscheint die Säulen-Auswahl wieder.
+		expect(screen.queryByLabelText('Säule hinzufügen')).not.toBeNull();
+		expect(screen.queryByText(/keine säulen definiert/i)).toBeNull();
+	});
+});

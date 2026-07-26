@@ -1,4 +1,4 @@
-import { KolAlert, KolBadge, KolButton, KolSpin, KolTextarea } from '@public-ui/react-v19';
+import { KolAlert, KolBadge, KolButton, KolCard, KolSpin, KolTextarea } from '@public-ui/react-v19';
 import type { ActivityAdvice, Pillar } from 'client';
 import { useMemo, useRef, useState } from 'react';
 import { api } from '../api';
@@ -120,58 +120,69 @@ export const PillarAdvisorModal = ({ pillars, distribution, onClose, onAdoptActi
 
 	return (
 		<Modal title="Säulen-Berater" onClose={onClose}>
-			<p className="hint">
-				Der Berater schlägt dir konkrete Aktivitäten vor und zeigt, auf welche Säulen sie einzahlen würden. Beschreibe
-				optional deine Frage oder Situation — ohne Frage bekommst du Vorschläge über alle Säulen hinweg.
-			</p>
-			{error !== null && (
-				<KolAlert _type="error" _label="Beratung fehlgeschlagen">
-					{error}
-				</KolAlert>
-			)}
-			<div className="form-grid">
-				<VoiceField
-					variant="textarea"
-					fieldLabel="Deine Frage oder Situation"
-					autoStart={voiceAutostart}
-					hint="z. B. „Was kann ich am Wochenende für mich tun?“"
-					onTranscript={(transcript) => {
-						const newVal = question.current ? `${question.current} ${transcript}` : transcript;
-						question.current = newVal;
-						setQuestionText(newVal);
-					}}
-				>
-					<KolTextarea
-						_label="Deine Frage oder Situation (optional)"
-						_rows={3}
-						_value={questionText}
-						_on={{
-							onInput: (_event, value) => {
-								const newVal = readString(value);
+			{pillars.length === 0 ? (
+				<KolCard _label="Keine Säulen definiert" _level={0}>
+					<p>
+						Keine Säulen definiert — lege zuerst Säulen in den <a href="/settings">Einstellungen</a> an, damit der
+						Berater Vorschläge machen kann.
+					</p>
+				</KolCard>
+			) : (
+				<>
+					<p className="hint">
+						Der Berater schlägt dir konkrete Aktivitäten vor und zeigt, auf welche Säulen sie einzahlen würden.
+						Beschreibe optional deine Frage oder Situation — ohne Frage bekommst du Vorschläge über alle Säulen hinweg.
+					</p>
+					{error !== null && (
+						<KolAlert _type="error" _label="Beratung fehlgeschlagen">
+							{error}
+						</KolAlert>
+					)}
+					<div className="form-grid">
+						<VoiceField
+							variant="textarea"
+							fieldLabel="Deine Frage oder Situation"
+							autoStart={voiceAutostart}
+							hint="z. B. „Was kann ich am Wochenende für mich tun?“"
+							onTranscript={(transcript) => {
+								const newVal = question.current ? `${question.current} ${transcript}` : transcript;
 								question.current = newVal;
 								setQuestionText(newVal);
-							},
-						}}
-					/>
-				</VoiceField>
-			</div>
-			{loading && (
-				<div className="pillar-editor-loading">
-					<KolSpin _show _variant="cycle" _label="Berater denkt nach" />
-				</div>
+							}}
+						>
+							<KolTextarea
+								_label="Deine Frage oder Situation (optional)"
+								_rows={3}
+								_value={questionText}
+								_on={{
+									onInput: (_event, value) => {
+										const newVal = readString(value);
+										question.current = newVal;
+										setQuestionText(newVal);
+									},
+								}}
+							/>
+						</VoiceField>
+					</div>
+					{loading && (
+						<div className="pillar-editor-loading">
+							<KolSpin _show _variant="cycle" _label="Berater denkt nach" />
+						</div>
+					)}
+					{!loading && advice !== null && (
+						<AdvisorResults advice={advice} pillars={pillars} onAdoptActivity={onAdoptActivity} />
+					)}
+					<div className="modal-actions">
+						<KolButton
+							_label={loading ? 'Beraten…' : 'Beraten lassen'}
+							_variant="primary"
+							_disabled={loading}
+							_on={{ onClick: () => void consult() }}
+						/>
+						<KolButton _label="Schließen" _variant="secondary" _on={{ onClick: onClose }} />
+					</div>
+				</>
 			)}
-			{!loading && advice !== null && (
-				<AdvisorResults advice={advice} pillars={pillars} onAdoptActivity={onAdoptActivity} />
-			)}
-			<div className="modal-actions">
-				<KolButton
-					_label={loading ? 'Beraten…' : 'Beraten lassen'}
-					_variant="primary"
-					_disabled={loading}
-					_on={{ onClick: () => void consult() }}
-				/>
-				<KolButton _label="Schließen" _variant="secondary" _on={{ onClick: onClose }} />
-			</div>
 		</Modal>
 	);
 };
