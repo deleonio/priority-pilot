@@ -66,25 +66,36 @@ curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-
 echo "$HOME/.local/bin" >> $GITHUB_PATH
 ```
 
-**CI-Konfiguration (Nous Portal + DeepSeek):**
+**CI-Konfiguration — Provider wählbar per GitHub-Variable `vars.LLM_PROVIDER`:**
 
 ```bash
+# Default (Variable nicht gesetzt oder ≠ "zai"): Nous Portal + DeepSeek
 hermes config set model.provider custom
 hermes config set model.base_url https://inference-api.nousresearch.com/v1
 hermes config set model.api_key "${{ secrets.NOUS_PORTAL_TOKEN }}"
+
+# Optional (vars.LLM_PROVIDER = "zai"): Z.AI + GLM-5.1
+hermes config set model.provider zai
+hermes config set model.api_key "${{ secrets.GLM_API_KEY }}"
 ```
+
+Umschalten: Repo → Settings → Secrets and variables → Actions → Variables → `LLM_PROVIDER = zai`.
+
+| Variable            | Werte          | Secret(s) benötigt                  |
+| ------------------- | -------------- | ----------------------------------- |
+| `vars.LLM_PROVIDER` | (leer) / `zai` | `NOUS_PORTAL_TOKEN` / `GLM_API_KEY` |
 
 **CI-Flags:**
 
-| Flag                 | Zweck                                  |
-| -------------------- | -------------------------------------- |
-| `-q '<prompt>'`      | Single-query, non-interactive          |
-| `-Q`                 | Quiet — keine Banner/Spinner           |
-| `--yolo`             | Keine Gefahren-BBestätigung (headless) |
-| `--provider custom`  | Nous Portal via Custom-Provider        |
-| `-m <modell>`        | Modell-Festlegung (Pro/Flash)          |
-| `-t "terminal,file"` | Nur Terminal und Datei-Tools           |
-| `--accept-hooks`     | Shell-Hooks automatisch freigeben      |
+| Flag                 | Zweck                                 |
+| -------------------- | ------------------------------------- |
+| `-q '<prompt>'`      | Single-query, non-interactive         |
+| `-Q`                 | Quiet — keine Banner/Spinner          |
+| `--yolo`             | Keine Gefahren-Bestätigung (headless) |
+| `--provider <name>`  | `custom` (Nous Portal) oder `zai`     |
+| `-m <modell>`        | Modell-Festlegung (Pro/Flash/GLM)     |
+| `-t "terminal,file"` | Nur Terminal und Datei-Tools          |
+| `--accept-hooks`     | Shell-Hooks automatisch freigeben     |
 
 **Prompt:** Per Heredoc in eine Datei geschrieben, dann via `-q "$(cat /tmp/hermes-prompt.txt)"` übergeben — vermeidet Shell-Quoting-Probleme.
 
