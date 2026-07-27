@@ -249,3 +249,143 @@ describe('Issue #423 — Säulen-Faktor mit dynamischem Neutralgewicht (rote Spe
 		assert.equal(value, 3);
 	});
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Issue #429 — Bewertungslogik (Säulen-Faktor) auf beliebige Säulenzahl
+// Epic #420 Schritt 3/5 („Beliebige, nutzerdefinierte Säulen").
+//
+// Diese Spec-Tests sind der Vertrag für #429: sie verlangen, dass der Säulen-Faktor
+// für beliebige Nutzer-Säulenzahlen (N) korrekt arbeitet — Neutralpunkt 100/N,
+// Über-/Untergewicht relativ zu 100/N, keine Beiträge ⇒ 1, und Robustheit (N=1)
+// ohne NaN/Infinity. Sie grünen, sobald die dynamische Formel (weight·N/100) greift.
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('Issue #429 — Säulen-Faktor auf beliebige Säulenzahl (rote Spec-Tests)', () => {
+	// ── AK1: Gleichverteilung neutral für N=3 (auf einzelne Säule) ────────
+	it('AK1: N=3, Task zahlt 100 %/100 % auf eine gleichgewichtete Säule (33,33 %) ⇒ Faktor 1', async () => {
+		const userId = 1;
+		// Drei Säulen à 100/3 Gewicht (Gleichverteilung)
+		await Pillar.create({ name: 'A', weight: 100 / 3, userId });
+		await Pillar.create({ name: 'B', weight: 100 / 3, userId });
+		const pc = await Pillar.create({ name: 'C', weight: 100 / 3, userId });
+
+		const task = await Task.create({ title: 'AK1-429', priority: 5, estimatedEffort: 1, userId });
+		// Task zahlt 100 % Konfidenz 100 % auf EINE Säule (die gleichgewichtet ist)
+		await task.addPillar(pc.id, { through: { share: 100, confidence: 100 } });
+
+		const value = await calculateValueContribution(task);
+		const expected = 5 * expectedFactor(100 / 3, 3, 100); // ≈ 5 * 1
+		assert.ok(Math.abs(value - expected) < 1e-10, `Expected ${expected} (Faktor 1) but got ${value}`);
+		assert.ok(Math.abs(value - 5) < 1e-6, `N=3 Gleichverteilung muss neutral sein (Wert=priority) but got ${value}`);
+	});
+
+	// ── AK2: Über-/Untergewicht relativ zu 100/N ist linear ──────────────
+	it('AK2: N=3, übergewichtige Säule (weight=60 > 33,3) ⇒ Faktor > 1', async () => {
+		const userId = 1;
+		await Pillar.create({ name: 'A', weight: 20, userId });
+		await Pillar.create({ name: 'B', weight: 20, userId });
+		const pc = await Pillar.create({ name: 'C', weight: 60, userId });
+
+		const task = await Task.create({ title: 'AK2-over', priority: 5, estimatedEffort: 1, userId });
+		await task.addPillar(pc.id, { through: { share: 100, confidence: 100 } });
+
+		const value = await calculateValueContribution(task);
+		const expected = 5 * expectedFactor(60, 3, 100); // Faktor 1.8
+		assert.ok(value > 5, `Übergewicht muss Faktor > 1 ⇒ Wert > priority, got ${value}`);
+		assert.ok(Math.abs(value - expected) < 1e-10, `Expected ${expected} but got ${value}`);
+	});
+
+	it('AK2: N=3, untergewichtige Säule (weight=10 < 33,3) ⇒ Faktor < 1', async () => {
+		const userId = 1;
+		const pa = await Pillar.create({ name: 'A', weight: 10, userId });
+		await Pillar.create({ name: 'B', weight: 45, userId });
+		await Pillar.create({ name: 'C', weight: 45, userId });
+
+		const task = await Task.create({ title: 'AK2-under', priority: 5, estimatedEffort: 1, userId });
+		await task.addPillar(pa.id, { through: { share: 100, confidence: 100 } });
+
+		const value = await calculateValueContribution(task);
+		const expected = 5 * expectedFactor(10, 3, 100); // Faktor 0.3
+		assert.ok(value < 5, `Untergewicht muss Faktor < 1 ⇒ Wert < priority, got ${value}`);
+		assert.ok(Math.abs(value - expected) < 1e-10, `Expected ${expected} but got ${value}`);
+	});
+
+	it('AK2: Faktor verhält sich linear in weight (100/N ist Neutralpunkt)', async () => {
+		const userId = 1;
+		const N = 4;
+		const neutral = 100 / N; // 25
+		// weight = 2·neutral ⇒ Faktor muss genau 2 sein (lineare Skalierung)
+		const p = await Pillar.create({ name: 'Doppel', weight: 2 * neutral, userId });
+		// drei weitere Säulen (damit N=4 für diesen Nutzer gilt)
+		await Pillar.create({ name: 'F1', weight: neutral, userId });
+		await Pillar.create({ name: 'F2', weight: neutral, userId });
+		await Pillar.create({ name: 'F3', weight: neutral, userId });
+
+		const task = await Task.create({ title: 'AK2-linear', priority: 4, estimatedEffort: 1, userId });
+		await task.addPillar(p.id, { through: { share: 100, confidence: 100 } });
+
+		const value = await calculateValueContribution(task);
+		const expected = 4 * expectedFactor(2 * neutral, N, 100); // 4 * 2 = 8
+		assert.ok(Math.abs(value - expected) < 1e-10, `Expected ${expected} (Faktor 2) but got ${value}`);
+	});
+
+	// ── AK3: Task ohne Säulen-Beiträge ⇒ Faktor exakt 1 ──────────────────
+	it('AK3: Task ohne Säulen-Beiträge bei N=3 ⇒ Faktor exakt 1 (Wert = priority)', async () => {
+		const userId = 1;
+		await Pillar.create({ name: 'X', weight: 60, userId });
+		await Pillar.create({ name: 'Y', weight: 30, userId });
+		await Pillar.create({ name: 'Z', weight: 10, userId });
+
+		const task = await Task.create({ title: 'AK3-429', priority: 5, estimatedEffort: 1, userId });
+		// KEINE addPillar — Task zahlt auf keine Säule
+		const value = await calculateValueContribution(task);
+		assert.equal(value, 5);
+	});
+
+	// ── AK4: Robust nach Löschen — N=1, kein NaN/Infinity ────────────────
+	it('AK4: nur noch 1 Säule (N=1) ⇒ kein NaN/Infinity, Faktor nach Formel', async () => {
+		const userId = 1;
+		// Genau EINE Säule (N=1); Neutralpunkt wäre 100/1 = 100.
+		// weight 50 < 100 ⇒ Faktor 0.5 (wohldefiniert, kein NaN)
+		const p = await Pillar.create({ name: 'Solo', weight: 50, userId });
+
+		const task = await Task.create({ title: 'AK4-N1', priority: 4, estimatedEffort: 1, userId });
+		await task.addPillar(p.id, { through: { share: 100, confidence: 100 } });
+
+		const value = await calculateValueContribution(task);
+		const expected = 4 * expectedFactor(50, 1, 100); // 4 * 0.5 = 2
+		assert.ok(Number.isFinite(value), `N=1 darf kein NaN/Infinity ergeben, got ${value}`);
+		assert.ok(Math.abs(value - expected) < 1e-10, `Expected ${expected} but got ${value}`);
+	});
+
+	it('AK4: N=1 mit Neutralgewicht (weight=100) ⇒ Faktor 1, kein NaN', async () => {
+		const userId = 1;
+		const p = await Pillar.create({ name: 'SoloNeutral', weight: 100, userId });
+
+		const task = await Task.create({ title: 'AK4-N1-neutral', priority: 3, estimatedEffort: 1, userId });
+		await task.addPillar(p.id, { through: { share: 100, confidence: 100 } });
+
+		const value = await calculateValueContribution(task);
+		assert.ok(Number.isFinite(value), `N=1 darf kein NaN/Infinity ergeben, got ${value}`);
+		assert.ok(Math.abs(value - 3) < 1e-10, `Expected 3 (Faktor 1) but got ${value}`);
+	});
+
+	it('AK4: Säulen werden gelöscht bis N=1 ⇒ Faktor bleibt endlich (kein NaN)', async () => {
+		const userId = 1;
+		const p1 = await Pillar.create({ name: 'Bleibt', weight: 40, userId });
+		const p2 = await Pillar.create({ name: 'Weg1', weight: 30, userId });
+		const p3 = await Pillar.create({ name: 'Weg2', weight: 30, userId });
+
+		const task = await Task.create({ title: 'AK4-shrink', priority: 4, estimatedEffort: 1, userId });
+		await task.addPillar(p1.id, { through: { share: 100, confidence: 100 } });
+
+		// Zwei Säulen löschen — N fällt auf 1
+		await p2.destroy();
+		await p3.destroy();
+
+		const value = await calculateValueContribution(task);
+		assert.ok(Number.isFinite(value), `Nach Löschen darf kein NaN/Infinity entstehen, got ${value}`);
+		const expected = 4 * expectedFactor(40, 1, 100); // 4 * 0.4 = 1.6
+		assert.ok(Math.abs(value - expected) < 1e-10, `Expected ${expected} (N=1) but got ${value}`);
+	});
+});
