@@ -1,10 +1,10 @@
 /**
- * Dünner, fetch-basierter Mistral-Client (ESM, Node >= 22 — globales `fetch`/`AbortController`,
+ * Dünner, fetch-basierter Mistral-Client (ESM, Node >= 22 – globales `fetch`/`AbortController`,
  * kein externes SDK). Klassifiziert einen Task anhand von Titel/Beschreibung/Kontext auf die fünf
  * Lebensbalance-Säulen und liefert je vorgeschlagener Säule eine Konfidenz (0–100).
  *
  * Der Aufruf hängt von zwei Env-Variablen ab:
- * - `MISTRAL_API_KEY` (erforderlich) — fehlt er, wird {@link MissingApiKeyError} geworfen
+ * - `MISTRAL_API_KEY` (erforderlich) – fehlt er, wird {@link MissingApiKeyError} geworfen
  *   (der Route-Handler bildet das auf HTTP 503 ab, statt zu crashen).
  * - `MISTRAL_MODEL` (optional, Default `mistral-small-latest`).
  */
@@ -40,7 +40,7 @@ export interface ClassifyPillarsInput {
 	examples?: FeedbackExample[];
 }
 
-/** Funktionssignatur des Klassifikators — injizierbar, damit Tests ohne echten API-Call laufen. */
+/** Funktionssignatur des Klassifikators – injizierbar, damit Tests ohne echten API-Call laufen. */
 export type PillarClassifier = (input: ClassifyPillarsInput) => Promise<PillarSuggestion[]>;
 
 /**
@@ -58,13 +58,13 @@ export interface ParsedTask {
 	deadline?: string;
 }
 
-/** Funktionssignatur des Task-Text-Parsers — injizierbar, damit Tests ohne echten API-Call laufen. */
+/** Funktionssignatur des Task-Text-Parsers – injizierbar, damit Tests ohne echten API-Call laufen. */
 export type ParseTaskParser = (text: string) => Promise<ParsedTask>;
 
 /** Fehlt der API-Key, ist der Dienst nicht konfiguriert → der Handler antwortet mit HTTP 503. */
 export class MissingApiKeyError extends Error {
 	constructor() {
-		super('MISTRAL_API_KEY ist nicht gesetzt — die Säulen-Klassifikation ist nicht konfiguriert.');
+		super('MISTRAL_API_KEY ist nicht gesetzt – die Säulen-Klassifikation ist nicht konfiguriert.');
 		this.name = 'MissingApiKeyError';
 	}
 }
@@ -81,8 +81,8 @@ const MISTRAL_ENDPOINT = 'https://api.mistral.ai/v1/chat/completions';
 const DEFAULT_MODEL = 'mistral-small-latest';
 const REQUEST_TIMEOUT_MS = 30_000;
 /**
- * Konfidenz-Obergrenze für die „weichen" Säulen: Laut #39 sind Körper/Beziehungen/Wirksamkeit
- * zuverlässig aus dem Text ableitbar, Sinn/Mentale Gesundheit nur ein schwaches Signal — deren
+ * Konfidenz-Obergrenze für die „weichen“ Säulen: Laut #39 sind Körper/Beziehungen/Wirksamkeit
+ * zuverlässig aus dem Text ableitbar, Sinn/Mentale Gesundheit nur ein schwaches Signal – deren
  * Konfidenz wird daher gedeckelt, auch falls das Modell sie zu selbstbewusst einschätzt.
  */
 const WEAK_SIGNAL_CONFIDENCE_CEILING = 60;
@@ -94,11 +94,11 @@ const SYSTEM_PROMPT = [
 	'wie sicher die Aufgabe auf sie einzahlt (Konfidenz 0–100).',
 	'',
 	'Rubrik der fünf Säulen:',
-	'- "Körper": körperliche Gesundheit, Bewegung, Sport, Ernährung, Schlaf, Arzt/Vorsorge.',
-	'- "Beziehungen": Familie, Freunde, Partnerschaft, soziale Kontakte, gemeinsame Zeit.',
-	'- "Wirksamkeit": Beruf, Projekte, Lernen, Kompetenzen, Dinge erledigen, sichtbarer Output.',
-	'- "Sinn": Werte, Lebensziele, Spiritualität, Ehrenamt, das „Wofür".',
-	'- "Mentale Gesundheit": Stressabbau, Ruhe, Achtsamkeit, Emotionen, psychisches Wohlbefinden.',
+	'- "Körper": Leiblichkeit – biopsychologische Basis wie Schlaf, Ernährung und Bewegung, die hormonell und neuronal die Resilienz steuern.',
+	'- "Mentale Gesundheit": Emotionsregulation – kognitive Flexibilität und Affektregulation, z. B. durch Techniken wie Achtsamkeit, um in die innere Homöostase zurückzukehren.',
+	'- "Beziehungen": Bindung – sichere, wertungsfreie Räume für emotionale Resonanz und Zugehörigkeit, vollständig entkoppelt von eigener Leistung.',
+	'- "Wirksamkeit": Selbstwirksamkeit – aktives Gestalten der Umwelt durch Arbeit, Projekte oder Output, um Kompetenz zu erleben.',
+	'- "Sinn": Transzendenz & Werte – das existenzielle „Wofür“, das Handeln in einen größeren, wertorientierten Kontext einordnet.',
 	'',
 	'Hinweise zur Konfidenz:',
 	'- Körper, Beziehungen und Wirksamkeit lassen sich meist zuverlässig erkennen → hohe Konfidenz möglich.',
@@ -113,479 +113,8 @@ const SYSTEM_PROMPT = [
 /**
  * Few-Shot-Beispiele, damit das Modell Format und Konfidenz-Niveau übernimmt. Die Säulen werden über
  * ihren **Namen** referenziert (nicht über hartkodierte IDs) und erst in {@link fewShotMessages} gegen
- * die real injizierte Säulen-Liste aufgelöst — so passen die Beispiel-IDs immer zur Seed-Reihenfolge.
+ * die real injizierte Säulen-Liste aufgelöst – so passen die Beispiel-IDs immer zur Seed-Reihenfolge.
  */
 const FEW_SHOT = [
 	{
 		title: 'Dreimal pro Woche joggen gehen',
-		description: 'Ausdauer aufbauen und morgens 5 km laufen.',
-		pillars: [{ name: 'Körper', confidence: 95 }],
-	},
-	{
-		title: 'Wochenende mit den Eltern verbringen',
-		description: 'Besuch über zwei Tage, gemeinsam kochen.',
-		pillars: [
-			{ name: 'Beziehungen', confidence: 90 },
-			{ name: 'Mentale Gesundheit', confidence: 40 },
-		],
-	},
-	{
-		title: 'Zertifizierung für Cloud-Architektur abschließen',
-		description: 'Lernen und Prüfung ablegen.',
-		pillars: [
-			{ name: 'Wirksamkeit', confidence: 92 },
-			{ name: 'Mentale Gesundheit', confidence: 35 },
-		],
-	},
-] as const;
-
-/** Begrenzt einen Wert auf [0, 100] und rundet auf eine Ganzzahl (NaN → 0). */
-const clampConfidence = (value: unknown): number => {
-	const numeric = typeof value === 'number' && Number.isFinite(value) ? value : 0;
-	return Math.min(100, Math.max(0, Math.round(numeric)));
-};
-
-/** Bestimmt die pillarIds der „weichen" Säulen (Sinn / Mentale Gesundheit) aus der gültigen Säulen-Liste. */
-export const weakSignalPillarIds = (pillars: { id: number; name: string }[]): Set<number> =>
-	new Set(pillars.filter((pillar) => WEAK_SIGNAL_PILLARS.includes(pillar.name)).map((pillar) => pillar.id));
-
-/** Baut die Nutzer-Nachricht aus Task-Daten und gültiger Säulen-Liste. */
-export const buildUserMessage = (input: ClassifyPillarsInput): string => {
-	const pillarList = input.pillars
-		.map((pillar) => {
-			const base = `  - pillarId ${pillar.id}: ${pillar.name}`;
-			return pillar.description ? `${base} — ${pillar.description}` : base;
-		})
-		.join('\n');
-	const lines = [
-		'Gültige Säulen (nur diese pillarId-Werte verwenden):',
-		pillarList,
-		'',
-		'Aufgabe:',
-		`- Titel: ${input.title}`,
-	];
-	if (input.description) {
-		lines.push(`- Beschreibung: ${input.description}`);
-	}
-	if (input.context) {
-		lines.push(`- Kontext (abhängige Aufgaben): ${input.context}`);
-	}
-	return lines.join('\n');
-};
-
-/**
- * Wandelt die Few-Shot-Beispiele in abwechselnde user/assistant-Nachrichten. Die in den Beispielen
- * über den Namen referenzierten Säulen werden gegen die übergebene Säulen-Liste zu deren realen IDs
- * aufgelöst; nicht vorhandene Namen werden übersprungen, damit die Beispiel-Antworten immer nur
- * gültige, zur Seed-Reihenfolge passende `pillarId`-Werte enthalten.
- */
-const fewShotMessages = (pillars: { id: number; name: string }[]): { role: string; content: string }[] => {
-	const idByName = new Map(pillars.map((pillar) => [pillar.name, pillar.id]));
-	return FEW_SHOT.flatMap((example) => {
-		const resolved: PillarSuggestion[] = [];
-		for (const { name, confidence } of example.pillars) {
-			const pillarId = idByName.get(name);
-			if (pillarId !== undefined) {
-				resolved.push({ pillarId, confidence });
-			}
-		}
-		return [
-			{
-				role: 'user',
-				content: buildUserMessage({ title: example.title, description: example.description, pillars }),
-			},
-			{ role: 'assistant', content: JSON.stringify({ pillars: resolved }) },
-		];
-	});
-};
-
-/**
- * Wandelt die aus Nutzer-Korrekturen gelernten Beispiele in user/assistant-Paare. Anders als die
- * statischen {@link FEW_SHOT}-Beispiele referenzieren sie die Säulen direkt über `pillarId`; Beiträge
- * zu nicht (mehr) gültigen Säulen werden verworfen, ebenso Beispiele ohne verbleibende Säule
- * (kein leeres `{ pillars: [] }`-Sample, das das Modell zur Enthaltung verleiten würde). Die Konfidenz
- * der schwachen Säulen wird — analog zu {@link extractSuggestions} — auf das Ceiling gedeckelt, damit
- * eine vom Nutzer bestätigte Säule (oft `confidence: 100`) das In-Context-Signal nicht über die
- * System-Prompt-Regel „Sinn/Mentale Gesundheit ≤ Ceiling" hinaus hochzieht (siehe #45).
- *
- * Bewusste Entscheidung (Kreuzverhör #67): Das Ceiling gilt **auch** für gelernte (= bestätigte)
- * Beispiele, nicht nur für rohe Modellausgaben. Begründung, warum die Zielsäulen aus #45 trotzdem
- * profitieren:
- * 1. Der Hebel des Feedback-Loops für Sinn / Mentale Gesundheit ist primär die gelernte
- *    Assoziation Titel→Säule (welche Aufgaben überhaupt auf diese Säulen einzahlen) — die
- *    vermittelt das Few-Shot-Paar auch bei gedeckelter Konfidenz.
- * 2. Die im Frontend manuell ergänzten Säulen erhalten dort den UI-Default `confidence: 100`
- *    (`TaskFormModal`), also einen nicht kalibrierten Wert. Ihn als autoritatives Signal in
- *    den Prompt zu heben, würde Rauschen statt Kalibrierung einspeisen.
- * 3. Ein ungedeckeltes In-Context-Signal stünde im direkten Widerspruch zur System-Prompt-Regel und
- *    zu {@link extractSuggestions}; widersprüchliche Signale verschlechtern die Konsistenz mehr, als
- *    ein höherer Cap nützt. Soll sich diese Annahme ändern, ist hier der eine Ort zum Lockern.
- */
-const feedbackMessages = (input: ClassifyPillarsInput): { role: string; content: string }[] => {
-	const validIds = new Set(input.pillars.map((pillar) => pillar.id));
-	const ceilingPillarIds = weakSignalPillarIds(input.pillars);
-	return (input.examples ?? []).flatMap((example) => {
-		const resolved = example.pillars
-			.filter((entry) => validIds.has(entry.pillarId))
-			.map((entry) => {
-				const clamped = clampConfidence(entry.confidence);
-				const confidence = ceilingPillarIds.has(entry.pillarId)
-					? Math.min(clamped, WEAK_SIGNAL_CONFIDENCE_CEILING)
-					: clamped;
-				return { pillarId: entry.pillarId, confidence };
-			});
-		if (resolved.length === 0) {
-			return [];
-		}
-		return [
-			{
-				role: 'user',
-				content: buildUserMessage({ title: example.title, description: example.description, pillars: input.pillars }),
-			},
-			{ role: 'assistant', content: JSON.stringify({ pillars: resolved }) },
-		];
-	});
-};
-
-/**
- * Liest aus der (bereits geparsten) Modell-Antwort die Säulen-Vorschläge: nur bekannte `pillarId`,
- * dublettenfrei, Konfidenz auf [0,100] geclamped und für die schwachen Säulen zusätzlich gedeckelt.
- */
-const extractSuggestions = (parsed: unknown, input: ClassifyPillarsInput): PillarSuggestion[] => {
-	if (typeof parsed !== 'object' || parsed === null || !Array.isArray((parsed as { pillars?: unknown }).pillars)) {
-		throw new MistralRequestError('Antwort des Modells hat nicht das erwartete Format ({ pillars: [...] }).');
-	}
-	const validIds = new Map(input.pillars.map((pillar) => [pillar.id, pillar.name]));
-	const ceilingPillarIds = weakSignalPillarIds(input.pillars);
-
-	const suggestions: PillarSuggestion[] = [];
-	const seen = new Set<number>();
-	for (const raw of (parsed as { pillars: unknown[] }).pillars) {
-		if (typeof raw !== 'object' || raw === null) {
-			continue;
-		}
-		const { pillarId } = raw as Record<string, unknown>;
-		if (typeof pillarId !== 'number' || !Number.isInteger(pillarId) || !validIds.has(pillarId) || seen.has(pillarId)) {
-			continue;
-		}
-		let confidence = clampConfidence((raw as Record<string, unknown>).confidence);
-		if (ceilingPillarIds.has(pillarId)) {
-			confidence = Math.min(confidence, WEAK_SIGNAL_CONFIDENCE_CEILING);
-		}
-		seen.add(pillarId);
-		suggestions.push({ pillarId, confidence });
-	}
-	return suggestions.sort((a, b) => a.pillarId - b.pillarId);
-};
-
-/** Extrahiert den JSON-String aus der Chat-Completion-Antwort und parst ihn defensiv. */
-const parseModelContent = (payload: unknown): unknown => {
-	const content = (payload as { choices?: { message?: { content?: unknown } }[] })?.choices?.[0]?.message?.content;
-	if (typeof content !== 'string') {
-		throw new MistralRequestError('Antwort des Modells enthielt keinen Text.');
-	}
-	try {
-		return JSON.parse(content);
-	} catch {
-		throw new MistralRequestError('Antwort des Modells war kein gültiges JSON.');
-	}
-};
-
-/**
- * Gemeinsamer Unterbau aller Mistral-Aufrufe: schickt die Nachrichten an die Chat-Completions-API
- * (JSON-Mode, Temperatur 0, Timeout) und liefert den geparsten JSON-Inhalt der Modell-Antwort.
- * Wirft {@link MissingApiKeyError}, wenn kein API-Key gesetzt ist, und {@link MistralRequestError}
- * bei jedem Upstream-/Format-Problem.
- */
-const requestModelJson = async (messages: { role: string; content: string }[]): Promise<unknown> => {
-	const apiKey = process.env.MISTRAL_API_KEY;
-	if (!apiKey) {
-		throw new MissingApiKeyError();
-	}
-	const model = process.env.MISTRAL_MODEL ?? DEFAULT_MODEL;
-
-	const controller = new AbortController();
-	const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-	let response: Response;
-	try {
-		response = await fetch(MISTRAL_ENDPOINT, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				Authorization: `Bearer ${apiKey}`,
-			},
-			body: JSON.stringify({
-				model,
-				temperature: 0,
-				response_format: { type: 'json_object' },
-				messages,
-			}),
-			signal: controller.signal,
-		});
-	} catch (error) {
-		const reason = error instanceof Error ? error.message : 'unbekannter Fehler';
-		throw new MistralRequestError(`Mistral-Anfrage fehlgeschlagen: ${reason}`);
-	} finally {
-		clearTimeout(timeout);
-	}
-
-	if (!response.ok) {
-		throw new MistralRequestError(`Mistral antwortete mit HTTP ${response.status}.`);
-	}
-
-	let payload: unknown;
-	try {
-		payload = await response.json();
-	} catch {
-		throw new MistralRequestError('Mistral-Antwort konnte nicht als JSON gelesen werden.');
-	}
-
-	return parseModelContent(payload);
-};
-
-/**
- * Realer Klassifikator: ruft die Mistral-Chat-Completions-API auf. Wirft {@link MissingApiKeyError},
- * wenn kein API-Key gesetzt ist, und {@link MistralRequestError} bei jedem Upstream-/Format-Problem.
- */
-export const classifyPillarsWithMistral: PillarClassifier = async (input) => {
-	const parsed = await requestModelJson([
-		{ role: 'system', content: SYSTEM_PROMPT },
-		...fewShotMessages(input.pillars),
-		...feedbackMessages(input),
-		{ role: 'user', content: buildUserMessage(input) },
-	]);
-	return extractSuggestions(parsed, input);
-};
-
-/** System-Prompt für die Task-Schnellerfassung: extrahiert strukturierte Felder aus Freitext. */
-const PARSE_TASK_SYSTEM_PROMPT = [
-	'Du extrahierst aus einem frei formulierten deutschen Text die strukturierten Felder einer Aufgabe (Task).',
-	'',
-	'Gib genau diese Felder zurück (nur was der Text hergibt):',
-	'- "title" (Pflicht): kurzer, prägnanter Titel der Aufgabe.',
-	'- "description" (optional): ergänzende Details, falls im Text vorhanden.',
-	'- "priority" (optional): Ganzzahl 1–5 (1 = niedrig, 3 = mittel, 5 = hoch), falls eine Priorität genannt/erkennbar ist.',
-	'- "estimatedEffort" (optional): geschätzter Aufwand in Personentagen als Dezimalzahl (z. B. 2 Stunden ≈ 0.25).',
-	'- "deadline" (optional): Fälligkeitsdatum als ISO-8601-String (z. B. "2026-07-31T00:00:00.000Z"), falls ein Datum genannt ist.',
-	'',
-	'Antworte ausschließlich mit JSON in genau dieser Form (keine Erklärung, kein Markdown):',
-	'{ "title": <string>, "description": <string?>, "priority": <1-5?>, "estimatedEffort": <zahl?>, "deadline": <iso-string?> }',
-	'Lasse optionale Felder weg, wenn der Text keine Angabe dazu enthält.',
-].join('\n');
-
-/** Liest aus der (bereits geparsten) Modell-Antwort die Task-Felder defensiv aus. */
-const extractParsedTask = (parsed: unknown): ParsedTask => {
-	if (typeof parsed !== 'object' || parsed === null) {
-		throw new MistralRequestError('Antwort des Modells hat nicht das erwartete Format (Objekt erwartet).');
-	}
-	const raw = parsed as Record<string, unknown>;
-	if (typeof raw.title !== 'string' || raw.title.trim() === '') {
-		throw new MistralRequestError('Antwort des Modells enthielt keinen gültigen title.');
-	}
-	const result: ParsedTask = { title: raw.title.trim() };
-	if (typeof raw.description === 'string' && raw.description.trim() !== '') {
-		result.description = raw.description.trim();
-	}
-	if (typeof raw.priority === 'number' && Number.isFinite(raw.priority)) {
-		result.priority = Math.min(5, Math.max(1, Math.round(raw.priority)));
-	}
-	if (typeof raw.estimatedEffort === 'number' && Number.isFinite(raw.estimatedEffort) && raw.estimatedEffort >= 0) {
-		result.estimatedEffort = raw.estimatedEffort;
-	}
-	if (typeof raw.deadline === 'string' && raw.deadline.trim() !== '') {
-		const d = new Date(raw.deadline.trim());
-		if (!isNaN(d.getTime())) {
-			result.deadline = d.toISOString();
-		}
-	}
-	return result;
-};
-
-/**
- * Realer Task-Text-Parser: ruft die Mistral-Chat-Completions-API auf und extrahiert strukturierte
- * Task-Felder aus Freitext (Schnellerfassung, #235). Wirft {@link MissingApiKeyError}, wenn kein
- * API-Key gesetzt ist, und {@link MistralRequestError} bei jedem Upstream-/Format-Problem.
- */
-export const parseTaskTextWithMistral: ParseTaskParser = async (text) => {
-	const parsed = await requestModelJson([
-		{ role: 'system', content: PARSE_TASK_SYSTEM_PROMPT },
-		{ role: 'user', content: text },
-	]);
-	return extractParsedTask(parsed);
-};
-
-/** Ein Vorschlag des Aktivitäten-Beraters: Aktivität, Begründung und die Säulen, auf die sie einzahlt. */
-export interface ActivityAdvice {
-	activity: string;
-	reason: string;
-	pillarIds: number[];
-}
-
-/**
- * Ein Verteilungs-Eintrag einer Säule, so wie ihn der Client (Dashboard „Meine Themen") darstellt:
- * Soll-Anteil (`weight`, 0–100 %) und Ist-Anteil (`actualShare`, 0–1).
- */
-export interface PillarDistribution {
-	pillarId: number;
-	/** Soll-Anteil der Säule in Prozent (0–100). */
-	weight: number;
-	/** Ist-Anteil der Säule (0–1), wie im Client berechnet. */
-	actualShare: number;
-}
-
-/**
- * Eingabe für den Aktivitäten-Berater. `pillars` gibt die gültigen Säulen samt der kanonischen
- * Kurzbeschreibung aus den Einstellungen vor (die Rubrik kommt also aus der DB, nicht aus einem
- * hartkodierten Prompt-Text). `question` ist die optionale Frage/Situation des Nutzers.
- */
-export interface AdviseActivitiesInput {
-	question?: string;
-	pillars: { id: number; name: string; description: string }[];
-	/**
-	 * Optionale, vom Client mitgeschickte Säulen-Verteilung (Soll `weight` vs. Ist `actualShare`, so
-	 * wie sie im Dashboard „Meine Themen" dargestellt ist). Ist das Feld gesetzt, listet
-	 * {@link buildAdvisorUserMessage} die Säulen absteigend nach Unterversorgung auf und weist das
-	 * Modell an, die Vorschläge primär auf die schwächsten (am stärksten unterversorgten) Säulen
-	 * auszurichten.
-	 */
-	distribution?: PillarDistribution[];
-}
-
-/** Funktionssignatur des Beraters — injizierbar, damit Tests ohne echten API-Call laufen. */
-export type ActivityAdvisor = (input: AdviseActivitiesInput) => Promise<ActivityAdvice[]>;
-
-/** Obergrenze der zurückgegebenen Vorschläge — hält die Antwort klein und die UI übersichtlich. */
-const MAX_ADVICE_ENTRIES = 8;
-
-/**
- * System-Prompt des Aktivitäten-Beraters. Bewusst ohne feste Säulen-Rubrik: Namen und
- * Kurzbeschreibungen der Säulen werden pro Anfrage aus den Einstellungen (DB) in die
- * Nutzer-Nachricht injiziert (siehe {@link buildAdvisorUserMessage}).
- */
-const ADVISOR_SYSTEM_PROMPT = [
-	'Du bist der Aktivitäten-Berater eines Lebensbalance-Tools. Der Nutzer pflegt Lebensbalance-Säulen;',
-	'jede Aktivität kann auf eine oder mehrere Säulen „einzahlen".',
-	'',
-	'Deine Aufgabe: Schlage konkrete, alltagstaugliche Aktivitäten vor und ordne jede Aktivität den',
-	'Säulen zu, auf die sie einzahlt. Maßgeblich für die Zuordnung sind ausschließlich die vom Nutzer',
-	'übergebenen Säulen samt ihrer Kurzbeschreibungen.',
-	'',
-	'Regeln:',
-	`- Gib 4 bis ${MAX_ADVICE_ENTRIES} Vorschläge zurück.`,
-	'- Stellt der Nutzer eine Frage oder beschreibt eine Situation, richte die Vorschläge danach aus.',
-	'- Ist eine Säulen-Verteilung mit Unterversorgung angegeben, richte die Vorschläge primär auf die schwächsten (am stärksten unterversorgten) Säulen aus.',
-	'- Ohne Frage und ohne genannte Unterversorgung: Verteile die Vorschläge so, dass jede Säule mindestens einmal bedient wird.',
-	'- Jede Aktivität nennt nur Säulen, auf die sie plausibel einzahlt (mindestens eine).',
-	'- "reason" ist eine kurze deutsche Begründung (ein Satz), warum die Aktivität auf diese Säulen einzahlt.',
-	'',
-	'Antworte ausschließlich mit JSON in genau dieser Form (keine Erklärung, kein Markdown):',
-	'{ "advice": [ { "activity": <string>, "reason": <string>, "pillarIds": [<ganzzahl>] } ] }',
-	'Verwende nur die pillarId-Werte aus der übergebenen Säulen-Liste.',
-].join('\n');
-
-/**
- * Relative Unterversorgung einer Säule aus Soll (`weight`, 0–100 %) und Ist (`actualShare`, 0–1):
- * `clamp((weight/100 − actualShare) / (weight/100), 0, 1)`. Je größer der Wert, desto schwächer
- * (stärker unter ihrem Soll bedient) ist die Säule. Guard: `weight ≤ 0` → 0 (keine Soll-Vorgabe,
- * kein Unterversorgungs-Signal, kein `NaN`).
- */
-const relativeUndersupply = (weight: number, actualShare: number): number => {
-	const soll = weight / 100;
-	return soll <= 0 ? 0 : Math.min(1, Math.max(0, (soll - actualShare) / soll));
-};
-
-/**
- * Baut die Nutzer-Nachricht des Beraters: Säulen-Rubrik aus den Einstellungen + optionale Frage.
- * Liegt eine Säulen-Verteilung vor (`distribution`, so wie sie im Client dargestellt ist), werden die
- * Säulen absteigend nach Unterversorgung (Soll − Ist) aufgelistet und das Modell wird angewiesen, die
- * Vorschläge primär auf die schwächsten (am stärksten unterversorgten) Säulen auszurichten.
- * Exportiert, damit die Durchreichung isoliert testbar ist.
- */
-export const buildAdvisorUserMessage = (input: AdviseActivitiesInput): string => {
-	const pillarList = input.pillars
-		.map((pillar) => `  - pillarId ${pillar.id}: ${pillar.name} — ${pillar.description}`)
-		.join('\n');
-	const lines = ['Säulen (nur diese pillarId-Werte verwenden):', pillarList, ''];
-	if (input.question) {
-		lines.push(`Frage/Situation des Nutzers: ${input.question}`);
-	} else {
-		lines.push('Der Nutzer hat keine konkrete Frage — schlage Aktivitäten über alle Säulen hinweg vor.');
-	}
-	if (input.distribution && input.distribution.length > 0) {
-		const pillarNameById = new Map(input.pillars.map((pillar) => [pillar.id, pillar.name]));
-		// Nach Unterversorgung absteigend sortieren: die schwächste (am stärksten unterversorgte) Säule zuerst.
-		const ranked = input.distribution
-			.map((entry) => ({ ...entry, undersupply: relativeUndersupply(entry.weight, entry.actualShare) }))
-			.sort((a, b) => b.undersupply - a.undersupply);
-		const table = ranked
-			.map((entry) => {
-				const name = pillarNameById.get(entry.pillarId) ?? `Säule ${entry.pillarId}`;
-				return `  - ${name} (pillarId ${entry.pillarId}): Soll ${Math.round(entry.weight)} %, Ist ${Math.round(entry.actualShare * 100)} % → Unterversorgung ${Math.round(entry.undersupply * 100)} %`;
-			})
-			.join('\n');
-		lines.push('', 'Aktuelle Säulen-Verteilung (Soll vs. Ist, absteigend nach Unterversorgung):', table);
-		const weakest = ranked
-			.filter((entry) => entry.undersupply > 0)
-			.map((entry) => pillarNameById.get(entry.pillarId) ?? `Säule ${entry.pillarId}`);
-		if (weakest.length > 0) {
-			lines.push(
-				'',
-				`Priorität: Richte die Vorschläge primär auf die schwächsten (am stärksten unterversorgten) Säulen aus — in dieser Reihenfolge: ${weakest.join(', ')}.`,
-			);
-		}
-	}
-	return lines.join('\n');
-};
-
-/**
- * Liest aus der (bereits geparsten) Modell-Antwort die Berater-Vorschläge defensiv aus: nur Einträge
- * mit nicht-leerer Aktivität und mindestens einer bekannten Säule, `pillarIds` dublettenfrei und
- * sortiert, insgesamt auf {@link MAX_ADVICE_ENTRIES} begrenzt.
- */
-const extractActivityAdvice = (parsed: unknown, input: AdviseActivitiesInput): ActivityAdvice[] => {
-	if (typeof parsed !== 'object' || parsed === null || !Array.isArray((parsed as { advice?: unknown }).advice)) {
-		throw new MistralRequestError('Antwort des Modells hat nicht das erwartete Format ({ advice: [...] }).');
-	}
-	const validIds = new Set(input.pillars.map((pillar) => pillar.id));
-
-	const advice: ActivityAdvice[] = [];
-	for (const raw of (parsed as { advice: unknown[] }).advice) {
-		if (typeof raw !== 'object' || raw === null) {
-			continue;
-		}
-		const { activity, reason, pillarIds } = raw as Record<string, unknown>;
-		if (typeof activity !== 'string' || activity.trim() === '' || !Array.isArray(pillarIds)) {
-			continue;
-		}
-		const ids = [
-			...new Set(
-				pillarIds.filter((id): id is number => typeof id === 'number' && Number.isInteger(id) && validIds.has(id)),
-			),
-		].sort((a, b) => a - b);
-		if (ids.length === 0) {
-			continue;
-		}
-		advice.push({
-			activity: activity.trim(),
-			reason: typeof reason === 'string' ? reason.trim() : '',
-			pillarIds: ids,
-		});
-		if (advice.length >= MAX_ADVICE_ENTRIES) {
-			break;
-		}
-	}
-	return advice;
-};
-
-/**
- * Realer Aktivitäten-Berater: ruft die Mistral-Chat-Completions-API auf und schlägt Aktivitäten
- * samt Säulen-Zuordnung vor. Wirft {@link MissingApiKeyError}, wenn kein API-Key gesetzt ist, und
- * {@link MistralRequestError} bei jedem Upstream-/Format-Problem.
- */
-export const adviseActivitiesWithMistral: ActivityAdvisor = async (input) => {
-	const parsed = await requestModelJson([
-		{ role: 'system', content: ADVISOR_SYSTEM_PROMPT },
-		{ role: 'user', content: buildAdvisorUserMessage(input) },
-	]);
-	return extractActivityAdvice(parsed, input);
-};
