@@ -75,8 +75,9 @@ hermes config set model.base_url https://inference-api.nousresearch.com/v1
 hermes config set model.api_key "${{ secrets.NOUS_PORTAL_TOKEN }}"
 
 # Optional (vars.LLM_PROVIDER = "zai"): Z.AI + GLM-5.1
+# z.ai ist ein built-in Provider: Key muss in $HERMES_HOME/.env (nicht model.api_key)
 hermes config set model.provider zai
-hermes config set model.api_key "${{ secrets.GLM_API_KEY }}"
+printf 'GLM_API_KEY=%s\n' "$GLM_API_KEY" > "$HERMES_HOME/.env"
 ```
 
 Umschalten: Repo → Settings → Secrets and variables → Actions → Variables → `LLM_PROVIDER = zai`.

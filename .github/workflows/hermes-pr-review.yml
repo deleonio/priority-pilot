@@ -94,7 +94,7 @@ jobs:
 
       - name: uv-Paketcache wiederherstellen
         id: uv-cache
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: |
             ~/.cache/uv
@@ -117,7 +117,7 @@ jobs:
         run: |
           if [ "$LLM_PROVIDER" = "zai" ]; then
             hermes config set model.provider zai
-            hermes config set model.api_key "${{ secrets.GLM_API_KEY }}"
+            printf 'GLM_API_KEY=%s\n' "$GLM_API_KEY" > "$HERMES_HOME/.env"
             echo "::notice::Provider: Z.AI (GLM-5.1)"
           else
             hermes config set model.provider custom
@@ -132,7 +132,7 @@ jobs:
         id: session-dl
         if: steps.preflight.outputs.configured == 'true'
         continue-on-error: true
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: hermes-session-pr-${{ github.event.pull_request.number }}-review
           path: /tmp/hermes-session-restore
@@ -200,7 +200,6 @@ jobs:
           if [ "$LLM_PROVIDER" = "zai" ]; then
             PROVIDER_FLAG="--provider zai"
             MODEL="glm-5.1"
-            hermes config set model.api_key "$GLM_API_KEY"
           else
             PROVIDER_FLAG="--provider custom"
             MODEL="deepseek/deepseek-v4-pro"
@@ -272,7 +271,7 @@ jobs:
       - name: Session hochladen
         if: always() && steps.session.outputs.session_id != ''
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: hermes-session-pr-${{ github.event.pull_request.number }}-review
           path: /tmp/hermes-session.tar.gz

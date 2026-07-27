@@ -102,7 +102,7 @@ jobs:
       - name: uv-Paketcache wiederherstellen
         id: uv-cache
         if: steps.preflight.outputs.configured == 'true'
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: |
             ~/.cache/uv
@@ -125,7 +125,7 @@ jobs:
         run: |
           if [ "$LLM_PROVIDER" = "zai" ]; then
             hermes config set model.provider zai
-            hermes config set model.api_key "${{ secrets.GLM_API_KEY }}"
+            printf 'GLM_API_KEY=%s\n' "$GLM_API_KEY" > "$HERMES_HOME/.env"
             echo "::notice::Provider: Z.AI (GLM-5.1)"
           else
             hermes config set model.provider custom
@@ -140,7 +140,7 @@ jobs:
         id: session-dl
         if: steps.preflight.outputs.configured == 'true'
         continue-on-error: true
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: hermes-session-issue-${{ github.event.issue.number }}-impl
           path: /tmp/hermes-session-restore
@@ -207,7 +207,7 @@ jobs:
 
       - name: Node.js einrichten
         if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -243,7 +243,6 @@ jobs:
           if [ "$LLM_PROVIDER" = "zai" ]; then
             PROVIDER_FLAG="--provider zai"
             MODEL="glm-5.1"
-            hermes config set model.api_key "$GLM_API_KEY"
           else
             PROVIDER_FLAG="--provider custom"
             MODEL="deepseek/deepseek-v4-flash"
@@ -314,7 +313,7 @@ jobs:
       - name: Session hochladen
         if: always() && steps.session.outputs.session_id != ''
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: hermes-session-issue-${{ github.event.issue.number }}-impl
           path: /tmp/hermes-session.tar.gz
