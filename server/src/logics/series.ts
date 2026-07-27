@@ -5,7 +5,7 @@ import type { SeriesRhythm } from '../models/series.js';
 interface GenerateOptions {
 	/** Letzter zu materialisierender Zeitpunkt (inklusive). */
 	until: Date;
-	/** Eigentümer, der den erzeugten Instanzen zugeordnet wird (Issue #244). `undefined` ⇒ `null`. */
+	/** Eigentümer, der den erzeugten Instanzen zugeordnet wird (Issue #244). `undefined` → `null`. */
 	userId?: number;
 }
 
@@ -50,6 +50,10 @@ const nextOccurrence = (date: Date, rhythm: SeriesRhythm, anchorDay: number): Da
  *   übersprungen, eine erneute Generierung desselben Fensters erzeugt keine Dublette.
  *
  * Ein inaktives Template (`active=false`) erzeugt keine Instanzen.
+ *
+ * **Nur zukünftige Termine:** Die Generierung beginnt ab dem aktuellen Datum (heute), um zu vermeiden,
+ * dass rückwirkend vergangene Serien-Aufgaben angelegt werden (z. B. wenn eine Serie gelöscht und
+ * später wieder aktiviert wurde).
  */
 export const generateDueInstances = async (series: Series, options: GenerateOptions): Promise<Task[]> => {
 	if (!series.active) {
@@ -59,8 +63,14 @@ export const generateDueInstances = async (series: Series, options: GenerateOpti
 	const untilTime = options.until.getTime();
 	// Unveränderlicher Ziel-Tag aus dem Start-Anker — verhindert Drift bei `monthly` mit Monatsende-Anker.
 	const anchorDay = series.startDate.getUTCDate();
+
+	// Nur zukünftige Termine generieren: Starte ab dem Maximum aus series.startDate und heute (UTC).
+	// Dies verhindert, dass rückwirkend vergangene Serien-Aufgaben angelegt werden.
+	const now = new Date();
+	const startTime = Math.max(series.startDate.getTime(), now.getTime());
+
 	const occurrences: Date[] = [];
-	let current = new Date(series.startDate.getTime());
+	let current = new Date(startTime);
 	while (current.getTime() <= untilTime) {
 		occurrences.push(new Date(current.getTime()));
 		current = nextOccurrence(current, series.rhythm, anchorDay);

@@ -245,7 +245,9 @@ seriesRouter.post(
 	async (req: Request, res: Response<SeriesGenerateAllResultDto | ErrorDto>) => {
 		const userId = getUserId(req);
 		try {
-			const created = await materializeDueSeries(userId, new Date());
+			const until = new Date();
+			until.setUTCDate(until.getUTCDate() + 30);
+			const created = await materializeDueSeries(userId, until);
 			res.json({ created: created.length });
 		} catch (error) {
 			handleWriteError(res, error);
