@@ -39,7 +39,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-      actions: read
+      actions: write # Cache-Speicher (actions/cache Post-Step)
       pull-requests: write
       issues: write
     steps:

@@ -63,6 +63,7 @@ jobs:
       issues: write
       id-token: write
       pull-requests: write
+      actions: write # Cache-Speicher (actions/cache Post-Step)
     steps:
       # ————————————————————————————————————————————————————————————————————————
       # 1. Startzeit (für Timeout-Erkennung + Soft-Abort)
@@ -72,7 +73,7 @@ jobs:
         run: |
           now=$(date +%s)
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
-          echo "soft_deadline_epoch=$((now + 300))" >> "$GITHUB_OUTPUT"  # 5 min (Puffer vor 12-Min-GitHub-Timeout)
+          echo "soft_deadline_epoch=$((now + 420))" >> "$GITHUB_OUTPUT"  # 7 min (Puffer vor 12-Min-GitHub-Timeout)
 
       # ————————————————————————————————————————————————————————————————————————
       # 2. GitHub-App-Setup (für Label/Push als Bot)
