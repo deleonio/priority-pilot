@@ -6,12 +6,15 @@ import { requestMicrophonePermission } from '../lib/micPermission';
 import { usePushSubscription } from '../lib/push';
 import { useVoiceAutostart } from '../lib/voiceAutostart';
 import { AppearanceSetting } from './AppearanceSetting';
+import { PillarList } from './PillarList';
 import { PillarWeightsForm } from './PillarWeightsForm';
 
 interface SettingsPageProps {
 	pillars: Pillar[];
 	onBack: () => void;
 	onSaved: () => void;
+	/** Wird nach PillarList-Mutationen aufgerufen, damit App.tsx seine Pillar-Daten neu lädt (#439). */
+	onPillarChanged?: () => void;
 }
 
 // Die Tab-Leiste der Settings-Seite (#271). Modulkonstante, damit `KolTabs` nicht bei jedem Render
@@ -24,10 +27,14 @@ const SETTINGS_TABS = [{ _label: 'Allgemein' }, { _label: 'Säulen' }];
  * (Säulen-Gewichtungs-Editor). Der aktive Tab wird beim initialen Laden aus der URL abgeleitet:
  * `/settings/general` → Allgemein (0), alles andere (inkl. `/settings/pillars`) → Säulen (1).
  */
-export const SettingsPage = ({ pillars, onBack, onSaved }: SettingsPageProps) => {
+export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: SettingsPageProps) => {
 	// Aktiven Tab als kontrollierten State führen. Initialwert aus der URL; `setActiveTab` wird bei
 	// manuellem Tab-Wechsel (onSelect) aufgerufen, damit Re-Renders den gewählten Tab nicht zurücksetzen.
 	const [activeTab, setActiveTab] = useState(() => (window.location.pathname.startsWith('/settings/general') ? 0 : 1));
+
+	// #439: Während der Inline-Bearbeitung einer Säule (PillarList) wird PillarWeightsForm ausgeblendet,
+	// damit die beiden „Speichern"-Buttons nicht miteinander kollidieren (Playwright strict mode).
+	const [editingInPillarList, setEditingInPillarList] = useState(false);
 
 	// Stabile Callback-Identität, damit KolTabs nicht bei jedem Render neu verdrahtet (#323).
 	const tabsCallbacks = useMemo(
@@ -177,11 +184,18 @@ export const SettingsPage = ({ pillars, onBack, onSaved }: SettingsPageProps) =>
 					{/* Überschrift „Säulen-Gewichtung" ist Teil des #270-Vertrags (settings-page.spec.ts):
 					    die Route /settings/pillars rendert den Säulen-Editor mit dieser Überschrift. */}
 					<KolHeading _label="Säulen-Gewichtung" _level={2} />
-					{/* Beim Direktaufruf von /settings/pillars mountet die Seite, BEVOR die Säulen geladen
-					    sind. Das Formular hält seine Rohwerte in einem beim Mount initialisierten Ref —
-					    per `key` neu mounten, sobald die Säulen eintreffen, damit die geladenen Gewichte
-					    übernommen werden. */}
-					<PillarWeightsForm key={pillars.length} pillars={pillars} onSaved={onSaved} />
+					{/* Säulen-Verwaltungs-Komponente (#439): Anlegen, Umbenennen und Löschen von Säulen. */}
+					<PillarList onEditingChange={setEditingInPillarList} onPillarChanged={onPillarChanged} />
+					{/* Während Inline-Edit in PillarList ausgeblendet — sonst kollidieren die „Speichern"-Buttons. */}
+					{!editingInPillarList && (
+						<>
+							{/* Beim Direktaufruf von /settings/pillars mountet die Seite, BEVOR die Säulen geladen
+							    sind. Das Formular hält seine Rohwerte in einem beim Mount initialisierten Ref —
+							    per `key` neu mounten, sobald die Säulen eintreffen, damit die geladenen Gewichte
+							    übernommen werden. */}
+							<PillarWeightsForm key={pillars.length} pillars={pillars} onSaved={onSaved} />
+						</>
+					)}
 				</div>
 			</KolTabs>
 		</main>

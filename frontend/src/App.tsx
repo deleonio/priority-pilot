@@ -294,6 +294,12 @@ export const App = ({ user }: { user: AuthUser }) => {
 		void reload();
 	}, [closeSettings, reload]);
 
+	// Nach PillarList-Mutationen (anlegen/umbenennen/löschen) die globalen Pillar-Daten neu laden,
+	// damit PillarWeightsForm und Dashboard die aktuellen Daten anzeigen (#439 Review Finding 3).
+	const handlePillarChanged = useCallback((): void => {
+		void reload();
+	}, [reload]);
+
 	// Stabile Callback-Identitäten, damit die memoisierte `TaskTable` beim Öffnen eines Dialogs nicht
 	// neu rendert (sonst Zellen-/Toolbar-Neuaufbau samt Fokusverlust am auslösenden Button).
 	const openEdit = useCallback((task: Task): void => setDialog({ kind: 'edit', task }), []);
@@ -358,7 +364,14 @@ export const App = ({ user }: { user: AuthUser }) => {
 		dialog?.kind === 'dependencies' ? (tasks?.find((task) => task.id === dialog.taskId) ?? null) : null;
 
 	if (showSettings) {
-		return <SettingsPage pillars={pillars} onBack={closeSettings} onSaved={afterSettingsSaved} />;
+		return (
+			<SettingsPage
+				pillars={pillars}
+				onBack={closeSettings}
+				onSaved={afterSettingsSaved}
+				onPillarChanged={handlePillarChanged}
+			/>
+		);
 	}
 
 	if (showHelp) {
