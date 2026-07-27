@@ -11,6 +11,7 @@ import {
 	migrateUserIdColumns,
 	migratePillarDescription,
 	migratePillarPerUser,
+	migratePillarFeedbackUserId,
 } from './logics/migrate.js';
 import { buildTaskForest } from './logics/tree.js';
 import { runDueTaskReminders } from './logics/dueTaskReminders.js';
@@ -132,6 +133,9 @@ const main = async (): Promise<void> => {
 		// (name, userId) umstellen, je Nutzer eigene Klone anlegen und task_pillars/series_pillars
 		// umhängen — vor sync(), damit das neue Modell (userId + Index) sauber greift.
 		await migratePillarPerUser(sequelize);
+		// Fehlende userId-Spalte an pillar_feedback nachziehen (#430, AK3) — vor sync(), damit
+		// loadFeedbackExamples({ where: { userId } }) nicht mit `no such column` bricht.
+		await migratePillarFeedbackUserId(sequelize);
 
 		// Datenbank synchronisieren (force nur bei DB_RESET=true)
 		await sequelize.sync({ force: shouldReset });

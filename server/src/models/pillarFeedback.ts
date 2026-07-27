@@ -16,7 +16,9 @@ interface FeedbackPillar {
  * Prompt gegeben (siehe `llm/mistral.ts`) und kalibrieren so die generischen Vermutungen — adressiert
  * besonders die schwer ableitbaren Säulen „Sinn" und „Mentale Gesundheit" aus #39.
  *
- * Es gibt (noch) kein Nutzerkonzept im Modell → das Feedback ist **global** (Single-User-Annahme).
+ * Seit #430 ist jedes Feedback **pro Nutzer** isoliert: `userId` bindet das Sample an den anfragenden
+ * Nutzer, und `loadFeedbackExamples` lädt nur noch die Korrekturen desselben Nutzers. Vorher war das
+ * Feedback global (Single-User-Annahme); bestehende Zeilen bleiben über die nullbare Spalte erhalten.
  * `pillars` hält die bestätigten Beiträge als JSON-Array (`{ pillarId, confidence }`); `share` ist
  * für die Klassifikation irrelevant und wird daher nicht gespeichert.
  */
@@ -25,6 +27,8 @@ class PillarFeedback extends Model {
 	public title!: string;
 	public description!: string | null;
 	public pillars!: FeedbackPillar[];
+	/** Eigentümer-Bindung (#430): nullbar für Abwärtskompatibilität mit historischen globalen Samples. */
+	public userId!: number | null;
 
 	public readonly createdAt!: Date;
 	public readonly updatedAt!: Date;
@@ -49,6 +53,12 @@ PillarFeedback.init(
 			type: DataTypes.JSON,
 			allowNull: false,
 			defaultValue: [],
+		},
+		// Eigentümer-Bindung (#430): nullbar für Abwärtskompatibilität mit historischen globalen
+		// Samples. Neue Feedback-Zeilen werden pro Nutzer mit gesetzter userId angelegt.
+		userId: {
+			type: DataTypes.INTEGER,
+			allowNull: true,
 		},
 	},
 	{
