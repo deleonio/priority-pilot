@@ -25,6 +25,10 @@ const futureDate = (offsetDays: number): Date => {
 	return result;
 };
 
+// Hilfsfunktion: Erstellt ein Datum, das `offsetDays` Tage in der VERGANGENHEIT liegt (UTC).
+// Übte den Pfad "vergangenes startDate" — der Kern des PRs (Serien nur zukünftig generieren).
+const pastDate = (offsetDays: number): Date => futureDate(-offsetDays);
+
 describe('generateDueInstances', () => {
 	// 🔴🔴 AK 1: je fälligem Termin genau EIN Task mit seriesId und eigener deadline 🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴
 	it('wöchentliches Template erzeugt je Termin genau eine Instanz mit seriesId + eigener deadline', async () => {
@@ -370,6 +374,58 @@ describe('generateDueInstances', () => {
 			deadlines[3].getUTCDate() <= aprLastDay,
 			'April-Termin (oder entsprechend) ist auf den letzten Tag des Monats geklemmt',
 		);
+	});
+});
+
+// 🔴🔴 PR "Serien nur zukünftig": vergangenes startDate + Idempotenz / Raster-Treue 🔴🔴🔴🔴🔴🔴🔴
+describe('generateDueInstances — vergangenes startDate (nur zukünftig generieren)', () => {
+	// AK4 für den Pfad vergangenes startDate: `now` muss deterministisch sein (UTC-Mitternacht),
+	// sonst würde `seriesOccurrence` bei jedem Aufruf anders ausfallen → Duplikate.
+	it('vergangenes startDate: zweite Generierung desselben Fensters erzeugt keine Dubletten (AK4)', async () => {
+		const series = await Series.create({
+			title: 'Täglich',
+			rhythm: 'daily',
+			priority: 3,
+			estimatedEffort: 0.5,
+			active: true,
+			startDate: pastDate(60), // zwei Monate in der Vergangenheit
+		});
+		const until = futureDate(7); // eine Woche vorlaufend
+
+		const first = await generateDueInstances(series, { until });
+		assert.ok(first.length > 0, 'erster Lauf erzeugt zukünftige Instanzen');
+
+		// Sofortiger zweiter Aufruf mit identischem Fenster — muss 0 neue erzeugen (Idempotenz).
+		const second = await generateDueInstances(series, { until });
+		assert.equal(second.length, 0, 'zweiter Lauf erzeugt keine Duplikate (vergangenes startDate)');
+
+		const total = await Task.count({ where: { seriesId: series.id } });
+		assert.equal(total, first.length, 'Gesamtanzahl bleibt stabil — kein ungebremster Zuwachs');
+	});
+
+	// Raster-Treue: auch nach der "heute"-Verschiebung liegt der erste Termin auf dem Anker-Tag,
+	// nicht einfach auf "heute" — sonst bräche eine monthly-Serie beim ersten Termin aus der Reihe.
+	it('vergangenes startDate (monthly): der erste Termin liegt auf dem Anker-Tag, nicht auf "heute"', async () => {
+		const start = pastDate(90); // ~3 Monate in der Vergangenheit, auf den 15. (heute-Tag) gesetzt
+		start.setUTCDate(15); // deterministischer Anker-Tag
+		const series = await Series.create({
+			title: 'Monatlich',
+			rhythm: 'monthly',
+			priority: 3,
+			estimatedEffort: 0.5,
+			active: true,
+			startDate: start,
+		});
+		const until = futureDate(95); // breit genug für mehrere Monate
+
+		const instances = await generateDueInstances(series, { until });
+		assert.ok(instances.length >= 2, 'es entstehen mehrere monatliche Termine');
+
+		// Jeder Termin muss auf den Anker-Tag (15.) fallen — auch der erste.
+		for (const inst of instances) {
+			const day = new Date(inst.deadline as unknown as Date).getUTCDate();
+			assert.equal(day, 15, 'jeder Termin liegt auf dem Anker-Tag (15.), nicht auf "heute"');
+		}
 	});
 });
 

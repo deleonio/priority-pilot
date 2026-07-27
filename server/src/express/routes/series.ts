@@ -17,6 +17,13 @@ type ErrorDto = components['schemas']['Error'];
 
 const VALID_RHYTHMS: readonly SeriesRhythm[] = ['daily', 'weekly', 'monthly'];
 
+/**
+ * Produktpolicy: maximale Vorlauf-Horizont in Tagen, den `/series/generate-all`
+ * materialisiert. Verhindert, dass bei jedem Cron-Lauf ein unbegrenztes Fenster
+ * erzeugt wird — es wird nur bis "heute + N Tage" vorlaufend angelegt.
+ */
+const GENERATE_HORIZON_DAYS = 30;
+
 /** Validierte Template-Attribute, wie sie an das Sequelize-Modell übergeben werden. */
 interface SeriesAttributes {
 	title?: string;
@@ -246,7 +253,7 @@ seriesRouter.post(
 		const userId = getUserId(req);
 		try {
 			const until = new Date();
-			until.setUTCDate(until.getUTCDate() + 30);
+			until.setUTCDate(until.getUTCDate() + GENERATE_HORIZON_DAYS);
 			const created = await materializeDueSeries(userId, until);
 			res.json({ created: created.length });
 		} catch (error) {

@@ -64,13 +64,23 @@ export const generateDueInstances = async (series: Series, options: GenerateOpti
 	// Unveränderlicher Ziel-Tag aus dem Start-Anker — verhindert Drift bei `monthly` mit Monatsende-Anker.
 	const anchorDay = series.startDate.getUTCDate();
 
-	// Nur zukünftige Termine generieren: Starte ab dem Maximum aus series.startDate und heute (UTC).
-	// Dies verhindert, dass rückwirkend vergangene Serien-Aufgaben angelegt werden.
+	// Nur zukünftige Termine generieren: ab dem aktuellen Datum (heute, UTC-Mitternacht).
+	// `now` wird auf Mitternacht normalisiert, damit der Idempotenz-Anker (`seriesOccurrence`)
+	// deterministisch pro Tag bleibt — sonst trüge `new Date()` Millisekunden und erzeugte bei
+	// jedem Aufruf einen anderen Anker, sodass dieselbe Serie + dasselbe Fenster duplizierte (AK4).
 	const now = new Date();
-	const startTime = Math.max(series.startDate.getTime(), now.getTime());
+	now.setUTCHours(0, 0, 0, 0);
+	const nowTime = now.getTime();
 
 	const occurrences: Date[] = [];
-	let current = new Date(startTime);
+	// Vom Serien-Anker aus in Rhythmus-Schritten voranschreiten, bis der erste Termin mindestens
+	// "heute" erreicht. So liegt jeder Termin — auch der erste nach der "heute"-Verschiebung bei
+	// vergangenen `startDate` — auf dem Raster: für `monthly` entspricht der erste Termin dann dem
+	// Anker-Tag (z. B. der 15.) und nicht "heute", für `daily`/`weekly` ist der Anker der Schritt.
+	let current = new Date(series.startDate.getTime());
+	while (current.getTime() < nowTime) {
+		current = nextOccurrence(current, series.rhythm, anchorDay);
+	}
 	while (current.getTime() <= untilTime) {
 		occurrences.push(new Date(current.getTime()));
 		current = nextOccurrence(current, series.rhythm, anchorDay);
