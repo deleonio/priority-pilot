@@ -4,7 +4,11 @@
  * Default-Gewichtung hier an **einer** Stelle. Genutzt vom Seed (`index.ts`) und der Migration
  * (`migrate.ts`), damit beide zwingend dieselben Werte verwenden und nicht auseinander driften.
  *
- * Die Kurzbeschreibungen sind bewusst einzeilig und UI-tauglich (Einstellungs-Menü).
+ * Die Reihenfolge folgt der wissenschaftlichen Systematik von Hilarion Petzolds „Fünf Säulen
+ * der Identität" (vom Körperlichen zum Transzendenten) und wird so vom Seed als positionsbasierte
+ * id (1–5) vergeben. Die Beschreibungen sind wissenschaftlich fundiert (nicht zwingend einzeilig)
+ * und fließen u. a. über `buildSystemPrompt` in die LLM-Klassifikation ein; im Einstellungs-Menü
+ * werden sie als längere Erläuterungstexte angezeigt.
  *
  * Wissenschaftliche Fundierung:
  * - Basierend auf Hilarion Petzolds **„Fünf Säulen der Identität“**
