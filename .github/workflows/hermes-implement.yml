@@ -24,13 +24,14 @@ jobs:
           && contains(github.event.issue.labels.*.name, 'ai:analyzed')
           && github.event.issue.state == 'open' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20 # Hard-Timeout (Backstop) — Skill-Vorgabe Lang-Phase
     env:
       PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       HERMES_HOME: /tmp/hermes-ci
     permissions:
       contents: read
       id-token: write
-      actions: read
+      actions: write # Cache-Speicher (actions/cache Post-Step)
       pull-requests: write
       issues: write
     steps:
@@ -39,7 +40,7 @@ jobs:
         run: |
           now=$(date +%s)
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
-          echo "soft_deadline_epoch=$((now + 900))" >> "$GITHUB_OUTPUT"  # 15 min (Puffer vor 20-Min-GitHub-Timeout)
+          echo "soft_deadline_epoch=$((now + 840))" >> "$GITHUB_OUTPUT"  # 14 min (Puffer vor 20-Min-GitHub-Timeout)
 
       - name: Voraussetzung prüfen (GitHub-App-Secrets)
         id: preflight

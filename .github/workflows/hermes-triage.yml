@@ -54,6 +54,7 @@ jobs:
                   || github.event.comment.author_association == 'MEMBER'
                   || github.event.comment.author_association == 'COLLABORATOR')) }}
     runs-on: ubuntu-latest
+    timeout-minutes: 12 # Hard-Timeout (Backstop) — Skill-Vorgabe Kurz-Phase
     env:
       PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       # Hermes speichert Config + Sessions in ein RAM-Verzeichnis (nicht ~/.hermes)
@@ -63,6 +64,7 @@ jobs:
       issues: write
       id-token: write
       pull-requests: write
+      actions: write # Cache-Speicher (actions/cache Post-Step)
     steps:
       # ————————————————————————————————————————————————————————————————————————
       # 1. Startzeit (für Timeout-Erkennung + Soft-Abort)
@@ -72,7 +74,7 @@ jobs:
         run: |
           now=$(date +%s)
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
-          echo "soft_deadline_epoch=$((now + 300))" >> "$GITHUB_OUTPUT"  # 5 min (Puffer vor 12-Min-GitHub-Timeout)
+          echo "soft_deadline_epoch=$((now + 420))" >> "$GITHUB_OUTPUT"  # 7 min (Puffer vor 12-Min-GitHub-Timeout)
 
       # ————————————————————————————————————————————————————————————————————————
       # 2. GitHub-App-Setup (für Label/Push als Bot)
