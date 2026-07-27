@@ -1,7 +1,7 @@
-name: Claude PR Gate & Auto-Merge
+name: Hermes PR Gate & Auto-Merge
 
 # Deterministisches, LLM-freies CI-/Reviewer-Gate UND Auto-Merge fuer die label-gesteuerte
-# PR-Pipeline. Zusammenlegung von claude-pr-gate.yml (#87) + claude-pr-automerge.yml (#139) zu
+# PR-Pipeline. Zusammenlegung von Hermes-PR-Gate (#87) + Hermes-PR-AutoMerge (#139) zu
 # EINEM Workflow, um die Run-Zahl zu senken: beide reagierten bisher auf dieselben workflow_run-
 # Abschluesse (CI + Review) und liefen so als ZWEI (meist No-op-)Runs pro Event. Jetzt ein Run.
 #

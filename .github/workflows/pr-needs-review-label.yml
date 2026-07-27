@@ -120,7 +120,7 @@ jobs:
 
           # Alte Ergebnis-Labels UND den 0-Commit-Loop-Marker entfernen, falls vorhanden (Reset
           # bei neuem Push). ai:review-no-result gehoert dazu: ein menschlicher Push ist Fortschritt
-          # und muss die Loop-Bremse in claude-pr-review.yml neu starten, sonst laeuft der frische
+          # und muss die Loop-Bremse in hermes-pr-review.yml neu starten, sonst laeuft der frische
           # Versuch bei einem einzelnen Label-Flake sofort wieder in den Hard-Stop.
           for label in ai:needs-changes ai:ready-to-merge ai:review-no-result; do
             if gh pr view "$PR" --repo "$REPO" --json labels --jq "[.labels[].name]" | grep -q "\"$label\""; then

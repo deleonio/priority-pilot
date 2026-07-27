@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render } from '@testing-library/react';
 import type { ActivityAdvice, Pillar } from 'client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AdvisorResults } from './PillarAdvisorModal';
+import { PillarAdvisorModal } from './PillarAdvisorModal';
 
 afterEach(cleanup);
 
@@ -109,5 +110,47 @@ describe('AdvisorResults — „Als Aufgabe übernehmen" je Vorschlag (#327)', (
 
 		fireEvent.click(buttons[1]);
 		expect(onAdoptActivity).toHaveBeenCalledWith('Spieleabend mit Freunden');
+	});
+});
+
+/**
+ * Rote Spec-Tests für #440 (AK3): Bei 0 Säulen zeigt der PillarAdvisorModal statt des
+ * Berater-Formulars einen gestalteten Empty-State mit Verweis auf die Einstellungen.
+ * Der Test ist rot, solange der Advisor bei pillars=[] noch das Frage-Formular rendert.
+ */
+describe('PillarAdvisorModal — Empty-State bei 0 Säulen (Issue #440, AK3)', () => {
+	const props = { pillars: [] as Pillar[], onClose: vi.fn() };
+
+	it('AK3: zeigt bei pillars=[] einen Empty-State statt des Berater-Formulars', () => {
+		const { container } = render(<PillarAdvisorModal {...props} />);
+
+		// Das Frage-/Beratungs-Formular (textarea + CTA-Button) darf nicht sichtbar sein.
+		expect(container.querySelector('kol-textarea')).toBeNull();
+		const buttons = container.querySelectorAll('kol-button');
+		const consultButton = [...buttons].find((b) => b.getAttribute('_label') === 'Beraten lassen');
+		expect(consultButton).toBeUndefined();
+
+		// Stattdessen erscheint ein Hinweis mit Verweis auf die Einstellungen.
+		expect(container.textContent ?? '').toMatch(/keine säulen definiert/i);
+		expect(container.textContent ?? '').toMatch(/einstellungen/i);
+
+		// Der Hinweis soll eine gestaltete KolCard sein (wie im Dashboard).
+		const card = container.querySelector('kol-card');
+		expect(card).not.toBeNull();
+	});
+
+	it('AK3: zeigt bei pillars.length > 0 das normale Berater-Formular', () => {
+		const koerper: Pillar = { id: 1, name: 'Körper', description: '', weight: 20 };
+		const { container } = render(<PillarAdvisorModal pillars={[koerper]} onClose={vi.fn()} />);
+
+		// Bei vorhandenen Säulen erscheint das normale Formular.
+		expect(container.querySelector('kol-textarea')).not.toBeNull();
+		const buttons = container.querySelectorAll('kol-button');
+		const consultButton = [...buttons].find((b) => b.getAttribute('_label') === 'Beraten lassen');
+		expect(consultButton).not.toBeUndefined();
+
+		// Kein Empty-State-KolCard.
+		const card = container.querySelector('kol-card');
+		expect(card).toBeNull();
 	});
 });

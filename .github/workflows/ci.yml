@@ -11,7 +11,6 @@ on:
     paths-ignore:
       - '**/*.md'
       - '.ai-knowledge/**'
-      - '.claude/**'
       - 'AGENTS.md'
       - 'LICENSE'
   # ready_for_review ergaenzt die Default-Typen (opened/synchronize/reopened), damit CI beim
@@ -31,7 +30,7 @@ concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-# GATE-KONTRAKT (nicht brechen): Gate/Auto-Merge (claude-pr-gate-merge.yml) keyt auf den Workflow-
+# GATE-KONTRAKT (nicht brechen): Gate/Auto-Merge (hermes-pr-gate-merge.yml) keyt auf den Workflow-
 # NAMEN `CI` (`select(.workflow == "CI")`, `any(.[]; .workflow == "CI")`), NICHT auf einen Job-Namen.
 # Solange dieser Workflow `name: CI` heisst, zaehlen ALLE Job-Checks (verify + e2e-Shards) als „CI":
 # ein roter -> Gate setzt ai:needs-changes; alle gruen -> mergebar. `workflow_run` feuert pro Run
@@ -64,7 +63,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc # zentrale Node-Version (gleicher Stand wie implement/fixup/deploy)
           cache: pnpm
@@ -91,7 +90,7 @@ jobs:
         run: pnpm --filter priority-pilot test:coverage
       # Workflow-/CI-Vertraege (statische YAML-Asserts via node:test ueber tsx, AUSSERHALB der
       # pnpm-Workspaces). Deckt alle `.github/workflows/*.test.ts` ab: u. a. den Fixup-Gate-Vertrag
-      # (claude-pr-fixup.test.ts), den Modell-Delegations-Vertrag (model-delegation.test.ts) und den
+      # (hermes-pr-fixup.test.ts), den Modell-Delegations-Vertrag (model-delegation.test.ts) und den
       # E2E-Shard-Matrix-Vertrag (pipeline-hardening.test.ts E1: Matrix-Groesse == Shard-Nenner,
       # Schutz gegen stillen Test-Drop). Ob die headless Action das Subagent-Modell-Override real
       # honoriert, wird per Workflow-Lauf an einem Scratch-Issue verifiziert (CI-Konfig-Ebene).
@@ -127,7 +126,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc # zentrale Node-Version (gleicher Stand wie verify/implement/fixup/deploy)
           cache: pnpm

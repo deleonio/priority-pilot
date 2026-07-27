@@ -10,6 +10,14 @@ let server: TestServer;
 // KEIN Produktivcode — die Tests werden grün, sobald die entsprechenden
 // Endpunkte und Validierungen implementiert sind.
 
+// Hilfsfunktion: Erstellt ein Datum, das `offsetDays` Tage in der Zukunft liegt (UTC).
+const futureDate = (offsetDays: number): string => {
+	const result = new Date();
+	result.setUTCDate(result.getUTCDate() + offsetDays);
+	result.setUTCHours(0, 0, 0, 0);
+	return result.toISOString().replace(/\.\d{3}Z$/, '.000Z');
+};
+
 describe('Series API', () => {
 	beforeEach(async () => {
 		await resetDb();
@@ -46,10 +54,10 @@ describe('Series API', () => {
 		priority: 4,
 		estimatedEffort: 0.5,
 		active: true,
-		startDate: '2026-01-01T00:00:00.000Z',
+		startDate: futureDate(1),
 	});
 
-	// ── CRUD-Vertrag des Templates ────────────────────────────────────────────────────────────
+	// 🔴🔴 CRUD-Vertrag des Templates 🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴
 	describe('POST /series', () => {
 		it('201 und Template-Objekt bei gültigem Body', async () => {
 			const res = await post('/series', validSeries());
@@ -117,12 +125,12 @@ describe('Series API', () => {
 		});
 	});
 
-	// ── AK 1: Generierung erzeugt eigenständige Task-Instanzen mit seriesId ─────────────────────
+	// 🔴🔴 AK 1: Generierung erzeugt eigenständige Task-Instanzen mit seriesId 🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴
 	describe('POST /series/:id/generate', () => {
 		it('materialisiert Instanzen als Tasks mit seriesId', async () => {
 			const created = (await (await post('/series', validSeries())).json()) as { id: number };
 			const res = await post(`/series/${created.id}/generate`, {
-				until: '2026-01-20T00:00:00.000Z',
+				until: futureDate(20),
 			});
 			assert.equal(res.status, 201);
 			const instances = (await res.json()) as Array<Record<string, unknown>>;
@@ -139,18 +147,18 @@ describe('Series API', () => {
 		});
 	});
 
-	// ── AK 2: Instanz-Änderung setzt isException; Template bleibt unverändert ───────────────────
+	// 🔴🔴 AK 2: Instanz-Änderung setzt isException; Template bleibt unverändert 🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴
 	describe('PATCH einer generierten Instanz', () => {
 		it('Statusänderung an Instanz setzt isException, ohne das Template zu berühren', async () => {
 			const series = (await (await post('/series', validSeries())).json()) as { id: number; priority: number };
 			const instances = (await (
-				await post(`/series/${series.id}/generate`, { until: '2026-01-20T00:00:00.000Z' })
+				await post(`/series/${series.id}/generate`, { until: futureDate(20) })
 			).json()) as Array<{ id: number }>;
 			const target = instances[0];
 
 			const res = await patch(`/tasks/${target.id}`, {
 				status: 'Done',
-				deadline: '2026-03-01T00:00:00.000Z',
+				deadline: futureDate(60),
 			});
 			assert.equal(res.status, 200);
 			const updated = (await res.json()) as Record<string, unknown>;
@@ -165,7 +173,7 @@ describe('Series API', () => {
 		});
 	});
 
-	// ── AK-6: PATCH /series/:id mit title → 200 + aktualisiertes Objekt
+	// 🔴🔴 AK-6: PATCH /series/:id mit title → 200 + aktualisiertes Objekt
 	describe('PATCH /series/:id', () => {
 		it('200 mit aktualisiertem Objekt bei Titeländerung', async () => {
 			const created = (await (await post('/series', validSeries())).json()) as { id: number };
@@ -194,7 +202,7 @@ describe('Series API', () => {
 		});
 	});
 
-	// ── AK-7: DELETE /series/:id → 204; danach GET /series zeigt leere Liste
+	// 🔴🔴 AK-7: DELETE /series/:id → 204; danach GET /series zeigt leere Liste
 	describe('DELETE /series/:id', () => {
 		it('204 beim Löschen existierender Serie', async () => {
 			const created = (await (await post('/series', validSeries())).json()) as { id: number };
@@ -218,7 +226,7 @@ describe('Series API', () => {
 		});
 	});
 
-	// ── Rote Spec-Tests für #301 — AK-A2.1: description im API-Vertrag ──────────────────────────
+	// 🔴🔴 Rote Spec-Tests für #301 — AK-A2.1: description im API-Vertrag 🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴
 	//
 	// description ist optional (nullable): POST ohne description → null; ungültiger Typ → 400.
 	// PATCH kann description setzen und auf null zurücksetzen.
@@ -274,7 +282,7 @@ describe('Series API', () => {
 		});
 	});
 
-	// ── #244: serverseitige Serien-Materialisierung per Sammel-Endpunkt ─────────────────────────
+	// 🔴🔴 #244: serverseitige Serien-Materialisierung per Sammel-Endpunkt 🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴
 	// POST /series/generate-all generiert die fälligen Instanzen ALLER aktiven Serien und gibt die
 	// Anzahl der frisch erzeugten Tasks als { created: N } zurück. KEIN Produktivcode.
 	describe('POST /series/generate-all', () => {
@@ -285,7 +293,7 @@ describe('Series API', () => {
 			priority: 3,
 			estimatedEffort: 0.5,
 			active: true,
-			startDate: '2026-01-01T00:00:00.000Z',
+			startDate: futureDate(1),
 		});
 
 		// AK2: erzeugt für die aktive Serie fällige Tasks und liefert { created: N } mit N > 0.
@@ -340,7 +348,7 @@ describe('Series API', () => {
 		});
 	});
 
-	// ── Rote Spec-Tests für #300 — AK-A1.2: API-Kontrakt mit umbenannten Feldern ────────────────
+	// 🔴🔴 Rote Spec-Tests für #300 — AK-A1.2: API-Kontrakt mit umbenannten Feldern 🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴
 	//
 	// Nach dem Rename (defaultPriority → priority, defaultEstimatedEffort → estimatedEffort) muss
 	// die API die neuen Feldnamen in Request-Body und Response verwenden. KEIN Produktivcode —
@@ -352,7 +360,7 @@ describe('Series API', () => {
 			priority: 3,
 			estimatedEffort: 0.5,
 			active: true,
-			startDate: '2026-01-01T00:00:00.000Z',
+			startDate: futureDate(1),
 		});
 
 		// POST /series mit neuen Feldnamen → 201, Response enthält priority/estimatedEffort
@@ -408,7 +416,7 @@ describe('Series API', () => {
 		});
 	});
 
-	// ── Rote Spec-Tests für #302 — AK1: series_pillars-Vorlage ──────────────────────────────────
+	// 🔴🔴 Rote Spec-Tests für #302 — AK1: series_pillars-Vorlage 🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴
 	//
 	// Serien tragen eine Pillar-Vorlage (Beiträge {pillarId, share, confidence}). Sie wird in
 	// series_pillars persistiert, in POST/PATCH validiert (Summe share = 100, keine Duplikate,

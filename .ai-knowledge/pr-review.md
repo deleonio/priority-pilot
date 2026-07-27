@@ -1,12 +1,12 @@
 # Workflow: PR-Kreuzverhör (Review von Pull Requests)
 
 Prüft einen Pull Request **kritisch wie im Kreuzverhör** — werkzeug-unabhängig beschrieben. Konkrete
-Slash-Commands (z. B. unter `.claude/commands/`) verweisen nur auf diese Schritte.
+Slash-Commands (z. B. unter `commands/`) verweisen nur auf diese Schritte.
 
 PRs = Pull Requests von `deleonio/priority-pilot`. Voraussetzung: `gh` ist authentifiziert.
 
 **Auswahlkriterium:** Geprüft wird ein konkret übergebener PR; ohne Angabe der zuletzt
-geöffnete/aktualisierte offene PR (bzw. der aktuell per `subscribe_pr_activity` abonnierte PR).
+geöffnete/aktualisierte offene PR (bzw. der aktuell per `Session-Fortsetzung` abonnierte PR).
 
 **Haltung:** [Kreuzverhör](kreuzverhoer-haltung.md) — konstruktiv, aber adversarial, jede Annahme
 hinterfragen statt Offensichtliches abzunicken. Belege statt Bauchgefühl: jeder Punkt mit konkretem
@@ -115,7 +115,7 @@ ohnehin mit dem Diff; konsolidiert wird der **Sammelkommentar** mit dem Urteil.)
 **CI-/Quality-Gate als Vorbedingung:** Ein grünes Inhalts-Urteil (🟢) ist **notwendig, aber nicht
 hinreichend** für `ai:ready-to-merge` — die Pflicht-Checks (CI: Format/Lint/Build/Test) müssen
 ebenfalls grün sein. In der GitHub-Actions-Pipeline übernimmt das ein deterministischer
-Gate/Auto-Merge-Workflow (`.github/workflows/claude-pr-gate-merge.yml`): Ist nach Abschluss
+Gate/Auto-Merge-Workflow (`.github/workflows/pr-gate-merge.yml`): Ist nach Abschluss
 mindestens einer der Allowlist-Checks **CI** oder **Reviewer** rot, setzt er `ai:needs-changes` und
 stößt damit den Fixup an — `ai:ready-to-merge` wird erst vergeben, wenn beide grün sind (sind beide
 grün und `ai:ready-to-merge` gesetzt, mergt derselbe Workflow den PR). Manuell
@@ -126,5 +126,5 @@ grün und `ai:ready-to-merge` gesetzt, mergt derselbe Workflow den PR). Manuell
 - Posten von Review/Kommentaren schreibt **öffentlich** auf GitHub — vorher bestätigen lassen.
 - Knapp und konkret bleiben; jeden Punkt an Code-Zeilen verankern und begründen.
 - Reiner Review: **kein** Produktivcode ändern oder committen.
-- In Claude Code lässt sich der PR per `subscribe_pr_activity` abonnieren — neue Commits/CI-/Review-
+- In Coding-Agent lässt sich der PR per `Session-Fortsetzung` abonnieren — neue Commits/CI-/Review-
   Events landen dann direkt in der Session (Re-Review nach Fixes).

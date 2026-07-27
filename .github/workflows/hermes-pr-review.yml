@@ -1,7 +1,7 @@
 name: Hermes PR Review (Kreuzverhoer)
 
 # Reviewt einen Pull Request im Kreuzverhör, sobald er das Label
-# "ai:needs-review" trägt. Ersetzt claude-pr-review.yml (MIG-001, 2026-07-10).
+# "ai:needs-review" trägt.
 #
 # Steuerung rein über Labels (kein Event-Kaskaden):
 #   - Findings → ai:needs-changes (→ Fixup)
@@ -9,27 +9,28 @@ name: Hermes PR Review (Kreuzverhoer)
 # Ändert KEINEN Code.
 #
 # Setzt Hermes Agent (Nous Research) — Provider wählbar per PR-Label:
-#   ai:use-openrouter (Default): DeepSeek via OpenRouter (OPENROUTER_API_KEY)
-#   ai:use-nous:         Nous Portal direkt (NOUS_PORTAL_TOKEN)
-#   ai:use-zai:          Z.AI direkt (ZAI_API_KEY, GLM-Modelle)
-# Ohne Label → OpenRouter + DeepSeek.
+#   Default: DeepSeek via Nous Portal (NOUS_PORTAL_TOKEN)
+# Provider: Nous Portal + DeepSeek (provider=custom)
 #
-# Voraussetzungen: OPENROUTER_API_KEY, NOUS_PORTAL_TOKEN, ZAI_API_KEY
+# Voraussetzungen: NOUS_PORTAL_TOKEN
 
 on:
   pull_request:
     types: [labeled]
 
 concurrency:
-  group: hermes-pr-review-${{ github.event.pull_request.number }}
-  cancel-in-progress: true # Fixup-Loop: neuer Review bricht laufenden Review ab (sinnvoll bei Code-Änderungen)
+  # Dynamischer Suffix: nur bei ai:needs-review-Label → '-active', sonst '-skip'.
+  # Verhindert, dass ein selbst-erzeugtes Label (z.B. ai:needs-changes) den eigenen
+  # laufenden Review-Lauf über die Concurrency-Group cancelled — der if-Check auf
+  # Job-Ebene greift erst NACH der Concurrency-Zuordnung (Race Condition).
+  group: hermes-pr-review-${{ github.event.pull_request.number }}-${{ github.event.label.name == 'ai:needs-review' }}
+  cancel-in-progress: true
 
 jobs:
   review:
     if: >-
       ${{ github.event.pull_request.draft == false
           && github.event.pull_request.head.repo.full_name == github.repository
-              && !contains(github.event.pull_request.labels.*.name, 'ai:use-mistral')
           && contains(github.event.pull_request.labels.*.name, 'ai:needs-review') }}
     runs-on: ubuntu-latest
     env:
@@ -93,7 +94,7 @@ jobs:
 
       - name: uv-Paketcache wiederherstellen
         id: uv-cache
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: |
             ~/.cache/uv
@@ -107,31 +108,24 @@ jobs:
           curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-browser --skip-setup
           echo "$HOME/.local/bin" >> $GITHUB_PATH
 
-      - name: Hermes konfigurieren (Provider anhand PR-Label)
+      - name: Hermes konfigurieren (Provider per Variable)
         if: steps.preflight.outputs.configured == 'true'
         env:
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           PR: ${{ github.event.pull_request.number }}
+          LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
+          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
         run: |
-          # Provider anhand des PR-Labels wählen
-          LABELS=$(gh pr view $PR --repo $GITHUB_REPOSITORY --json labels --jq '.labels[].name' 2>/dev/null || echo "")
-          if echo "$LABELS" | grep -q 'ai:use-nous'; then
-            echo "::notice::Provider: Nous Portal (ai:use-nous)"
-            hermes config set model.provider nous
-            hermes config set model.base_url https://inference-api.nousresearch.com/v1
-            hermes auth add nous --type api-key --api-key "${{ secrets.NOUS_PORTAL_TOKEN }}" --label ci
-          elif echo "$LABELS" | grep -q 'ai:use-zai'; then
-            echo "::notice::Provider: Z.AI direkt (ai:use-zai)"
+          if [ "$LLM_PROVIDER" = "zai" ]; then
             hermes config set model.provider zai
-            # zai needs no base_url, uses built-in endpoint probing
-            export ZAI_API_KEY="${{ secrets.ZAI_API_KEY }}"
-            echo "ZAI_API_KEY=$ZAI_API_KEY" >> "$GITHUB_ENV"
+            printf 'ZAI_API_KEY=%s\n' "$ZAI_API_KEY" > "$HERMES_HOME/.env"
+            echo "::notice::Provider: Z.AI (GLM-5.1)"
           else
-            echo "::notice::Provider: OpenRouter (Default)"
-            hermes config set model.provider openrouter
-            hermes config set model.base_url https://openrouter.ai/api/v1
+            hermes config set model.provider custom
+            hermes config set model.base_url https://inference-api.nousresearch.com/v1
+            hermes config set model.api_key "${{ secrets.NOUS_PORTAL_TOKEN }}"
+            echo "::notice::Provider: Nous Portal (DeepSeek)"
           fi
-          hermes config set agent.max_turns 90
           pip install mcp -q
           hermes mcp add kolibri --url https://public-ui-kolibri-mcp.vercel.app/mcp
 
@@ -139,7 +133,7 @@ jobs:
         id: session-dl
         if: steps.preflight.outputs.configured == 'true'
         continue-on-error: true
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: hermes-session-pr-${{ github.event.pull_request.number }}-review
           path: /tmp/hermes-session-restore
@@ -160,30 +154,24 @@ jobs:
       - name: Auth prüfen (provider-spezifisch)
         if: steps.preflight.outputs.configured == 'true'
         env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
           ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           PR: ${{ github.event.pull_request.number }}
+          LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
         run: |
-          LABELS=$(gh pr view $PR --repo $GITHUB_REPOSITORY --json labels --jq '.labels[].name' 2>/dev/null || echo "")
-          if echo "$LABELS" | grep -q 'ai:use-nous'; then
-            if [ -z "$NOUS_PORTAL_TOKEN" ]; then
-              echo "::error title=Auth fehlt::NOUS_PORTAL_TOKEN nicht gesetzt — als Repo-Secret hinterlegen"
-              exit 1
-            fi
-            echo "NOUS_PORTAL_TOKEN vorhanden."
-          elif echo "$LABELS" | grep -q 'ai:use-zai'; then
+          if [ "$LLM_PROVIDER" = "zai" ]; then
             if [ -z "$ZAI_API_KEY" ]; then
               echo "::error title=Auth fehlt::ZAI_API_KEY nicht gesetzt — als Repo-Secret hinterlegen"
               exit 1
             fi
             echo "ZAI_API_KEY vorhanden."
           else
-            if [ -z "$OPENROUTER_API_KEY" ]; then
-              echo "::error title=Auth fehlt::OPENROUTER_API_KEY nicht gesetzt — als Repo-Secret hinterlegen (siehe https://openrouter.ai/keys)"
+            if [ -z "$NOUS_PORTAL_TOKEN" ]; then
+              echo "::error title=Auth fehlt::NOUS_PORTAL_TOKEN nicht gesetzt — als Repo-Secret hinterlegen"
               exit 1
             fi
+            echo "NOUS_PORTAL_TOKEN vorhanden."
           fi
 
       - name: Supersede-Check
@@ -200,23 +188,23 @@ jobs:
             echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Kreuzverhör-Review via Hermes (Provider per Label)
+      - name: Kreuzverhör-Review via Hermes
         id: hermes
         if: steps.preflight.outputs.configured == 'true' && steps.supersede-check.outputs.skip != 'true'
         env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
+          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           PR: ${{ github.event.pull_request.number }}
+          LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
         run: |
-          # Provider und Modell anhand des PR-Labels wählen
-          LABELS=$(gh pr view $PR --repo $GITHUB_REPOSITORY --json labels --jq '.labels[].name' 2>/dev/null || echo "")
-          PROVIDER_FLAG="--provider openrouter"
-          MODEL="deepseek/deepseek-v4-pro"
-          if echo "$LABELS" | grep -q 'ai:use-nous'; then
-            PROVIDER_FLAG="--provider nous"
-          elif echo "$LABELS" | grep -q 'ai:use-zai'; then
+          if [ "$LLM_PROVIDER" = "zai" ]; then
             PROVIDER_FLAG="--provider zai"
-            MODEL="z-ai/glm-5.2"
+            MODEL="glm-5.1"
+          else
+            PROVIDER_FLAG="--provider custom"
+            MODEL="deepseek/deepseek-v4-pro"
+            hermes config set model.api_key "$NOUS_PORTAL_TOKEN"
           fi
 
           cat > /tmp/hermes-prompt.txt << 'HERMES_EOF'
@@ -255,7 +243,6 @@ jobs:
             -Q --yolo $PROVIDER_FLAG \
             -m "$MODEL" \
             -t "terminal,file" \
-            --max-turns 90 \
             --accept-hooks \
             2>&1 | tee /tmp/hermes-output.log
           # PIPESTATUS: Exit-Code von hermes chat durch pipe propagieren
@@ -277,13 +264,15 @@ jobs:
           SID="${{ steps.session.outputs.session_id }}"
           if [ -n "$SID" ] && [ -d "$HERMES_HOME" ]; then
             echo "$SID" > "$HERMES_HOME/session_id.txt"
-            tar -czf /tmp/hermes-session.tar.gz -C "$HERMES_HOME" .
+            # Nur sessions/ + session_id.txt archivieren (keine Config, Caches, MCP-Daten).
+            tar -czf /tmp/hermes-session.tar.gz -C "$HERMES_HOME" sessions session_id.txt 2>/dev/null || \
+            tar -czf /tmp/hermes-session.tar.gz -C "$HERMES_HOME" session_id.txt
           fi
 
       - name: Session hochladen
         if: always() && steps.session.outputs.session_id != ''
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: hermes-session-pr-${{ github.event.pull_request.number }}-review
           path: /tmp/hermes-session.tar.gz
@@ -304,7 +293,7 @@ jobs:
           # VERDICT aus Hermes-Output parsen (Fallback, falls Agent Labels nicht selbst setzen konnte)
           verdict=""
           if [ -f /tmp/hermes-output.log ]; then
-            verdict="$(grep -oP '^VERDICT:\s*\K.*' /tmp/hermes-output.log | tail -1 | tr -d '[:space:]' || true)"
+            verdict="$(grep -oP 'VERDICT:\s*\K.*' /tmp/hermes-output.log | tail -1 | tr -d '[:space:]' || true)"
           fi
           echo "Hermes-Verdict aus Output: '${verdict:-keins}'"
 
@@ -415,21 +404,30 @@ jobs:
         run: |
           # Retry: API-Read-After-Write kann bei gh pr edit --add-label + direktem
           # gh pr view das Label auf einem Replica noch nicht sehen (Race).
-          for i in 1 2 3; do
+          for i in 1 2 3 4 5; do
             labels_json="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name]' 2>/dev/null || echo '[]')"
             needs_changes="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:needs-changes")')"
             ready_to_merge="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:ready-to-merge")')"
             if [ "$needs_changes" = "true" ] || [ "$ready_to_merge" = "true" ]; then break; fi
-            if [ "$i" -lt 3 ]; then sleep 2; fi
+            if [ "$i" -lt 5 ]; then sleep 3; fi
           done
 
           # Fallback: VERDICT aus Hermes-Output — falls API-Label immer noch nicht sichtbar ist
-          if [ "$ready_to_merge" != "true" ] && [ -f /tmp/hermes-output.log ]; then
-            verdict="$(grep -oP '^VERDICT:\s*\K.*' /tmp/hermes-output.log | tail -1 | tr -d '[:space:]' || true)"
-            if [ "$verdict" = "ready-to-merge" ]; then
-              echo "::notice::ai:ready-to-merge im API-Read unsichtbar, aber VERDICT=ready-to-merge im Output — als gesetzt gewertet."
-              ready_to_merge='true'
-            fi
+          verdict=""
+          if [ -f /tmp/hermes-output.log ]; then
+            verdict="$(grep -oP 'VERDICT:\s*\K.*' /tmp/hermes-output.log | tail -1 | tr -d '[:space:]' || true)"
+          fi
+          echo "Retry-Labels: needs_changes=${needs_changes:-?} ready_to_merge=${ready_to_merge:-?} verdict=${verdict:-keins}"
+
+          if [ "$verdict" = "ready-to-merge" ] && [ "$ready_to_merge" != "true" ]; then
+            echo "::notice::VERDICT=ready-to-merge, Label im API nicht sichtbar — setze es jetzt explizit."
+            gh label create "ai:ready-to-merge" --repo "$GITHUB_REPOSITORY" --color 0E8A16 2>/dev/null || true
+            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:ready-to-merge 2>/dev/null || true
+            ready_to_merge='true'
+          fi
+          if [ "$verdict" = "needs-changes" ] && [ "$needs_changes" != "true" ]; then
+            echo "::notice::VERDICT=needs-changes, Label im API nicht sichtbar — setze es jetzt explizit."
+            needs_changes='true'
           fi
 
           if [ "$needs_changes" = "true" ]; then echo "::error title=Review: Änderungen erforderlich::PR #${PR}" && exit 1; fi

@@ -149,6 +149,69 @@ paths:
                   $ref: '#/components/schemas/Pillar'
         '500':
           $ref: '#/components/responses/InternalServerError'
+    post:
+      summary: Neue Säule anlegen
+      description: >-
+        Legt eine neue Lebensbalance-Säule für den eingeloggten Nutzer an.
+        Der weight startet mit 0; der Nutzer muss die Gewichte später über
+        PUT /pillars/weights neu verteilen.
+      operationId: createPillar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PillarCreate'
+      responses:
+        '201':
+          description: Säule wurde angelegt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pillar'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/Conflict'
+  /pillars/{id}:
+    parameters:
+      - $ref: '#/components/parameters/PillarId'
+    patch:
+      summary: Säule teilweise aktualisieren
+      description: >-
+        Ändert name und/oder description einer Säule. Bei Namenskonflikt 409,
+        bei unbekannter ID 404.
+      operationId: updatePillar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PillarUpdate'
+      responses:
+        '200':
+          description: Die aktualisierte Säule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pillar'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      summary: Säule löschen
+      description: >-
+        Löscht eine Säule inklusive aller Beiträge und renormiert
+        die verbleibenden Anteile auf 100 %.
+      operationId: deletePillar
+      responses:
+        '204':
+          description: Säule wurde gelöscht
+        '404':
+          $ref: '#/components/responses/NotFound'
   /pillars/weights:
     put:
       summary: Gewichtung (100 %-Verteilung) über alle Säulen setzen
@@ -646,6 +709,13 @@ components:
       description: ID des Tasks
       schema:
         type: integer
+    PillarId:
+      name: id
+      in: path
+      required: true
+      description: ID der Säule
+      schema:
+        type: integer
   responses:
     ValidationError:
       description: Ungültige Eingabe
@@ -983,6 +1053,28 @@ components:
           minimum: 0
           default: 20
           description: Prozentualer Anteil der Säule (alle Säulen summieren sich auf 100)
+    PillarCreate:
+      type: object
+      description: Eingabe zum Anlegen einer neuen Säule.
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: Name der Säule (nicht leer)
+        description:
+          type: string
+          description: Optionale Kurzbeschreibung der Säule
+    PillarUpdate:
+      type: object
+      description: Eingabe zum teilweisen Aktualisieren einer Säule. Mindestens ein Feld muss gesetzt sein.
+      properties:
+        name:
+          type: string
+          description: Neuer Name der Säule (nicht leer, falls gesetzt)
+        description:
+          type: string
+          description: Neue Kurzbeschreibung
     PillarWeightsInput:
       type: object
       description: >-

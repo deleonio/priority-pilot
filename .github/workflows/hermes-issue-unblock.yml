@@ -20,7 +20,7 @@ name: Issue Unblock (Nachfolger freigeben)
 #
 # Selbsttest-Hinweis: Ein neuer pull_request-Workflow lässt sich nicht am eigenen
 # Einführungs-PR verifizieren (er ist zum Merge-Zeitpunkt noch nicht auf main). Die Logik
-# ist deshalb durch statische Verträge abgesichert (claude-issue-unblock.test.ts).
+# ist deshalb durch statische Verträge abgesichert (hermes-issue-unblock.test.ts).
 
 on:
   pull_request:
@@ -37,7 +37,7 @@ jobs:
     if: >-
       ${{ github.event.pull_request.merged == true
           && github.event.pull_request.head.repo.full_name == github.repository
-              && !contains(github.event.pull_request.labels.*.name, 'ai:use-mistral') }}
+              }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
