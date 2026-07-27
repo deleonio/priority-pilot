@@ -54,6 +54,7 @@ jobs:
                   || github.event.comment.author_association == 'MEMBER'
                   || github.event.comment.author_association == 'COLLABORATOR')) }}
     runs-on: ubuntu-latest
+    timeout-minutes: 12 # Hard-Timeout (Backstop) — Skill-Vorgabe Kurz-Phase
     env:
       PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       # Hermes speichert Config + Sessions in ein RAM-Verzeichnis (nicht ~/.hermes)

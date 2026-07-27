@@ -33,6 +33,7 @@ jobs:
           && github.event.pull_request.head.repo.full_name == github.repository
           && contains(github.event.pull_request.labels.*.name, 'ai:needs-review') }}
     runs-on: ubuntu-latest
+    timeout-minutes: 12 # Hard-Timeout (Backstop) — Skill-Vorgabe Kurz-Phase
     env:
       PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       HERMES_HOME: /tmp/hermes-ci
