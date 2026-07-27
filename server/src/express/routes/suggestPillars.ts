@@ -112,9 +112,18 @@ const validateFeedbackBody = (
  * {@link MAX_FEEDBACK_EXAMPLES} nicht belegen und die noch vorhandenen, nützlichen Korrekturen
  * nicht verdrängen (siehe #45). Dafür wird bis zu {@link FEEDBACK_SCAN_LIMIT} Zeilen über-gefetcht
  * und erst nach dem Filtern auf die ersten N nicht-leeren begrenzt.
+ *
+ * Seit #430 werden die Samples **pro Nutzer** geladen (`userId`-Scope): Few-Shot-Beispiele eines
+ * Nutzers dürfen nicht in die Klassifikation eines anderen Nutzers einsickern. Im Pass-Through-Modus
+ * (kein Auth-Kontext → `userId === undefined`, lokale Entwicklung ohne Login) bleibt das Verhalten
+ * **global** (Abwärtskompatibilität) — historische Samples ohne `userId` werden dann mit geladen.
  */
-const loadFeedbackExamples = async (): Promise<FeedbackExample[]> => {
-	const rows = await PillarFeedback.findAll({ order: [['createdAt', 'DESC']], limit: FEEDBACK_SCAN_LIMIT });
+const loadFeedbackExamples = async (userId?: number): Promise<FeedbackExample[]> => {
+	const rows = await PillarFeedback.findAll({
+		...(userId !== undefined ? { where: { userId } } : {}),
+		order: [['createdAt', 'DESC']],
+		limit: FEEDBACK_SCAN_LIMIT,
+	});
 	const examples: FeedbackExample[] = [];
 	for (const row of rows) {
 		if (row.pillars.length === 0) {
@@ -164,9 +173,11 @@ export const createSuggestPillarsRouter = (classifier: PillarClassifier = classi
 			// Feedback ist Best-Effort (#45): die Korrektur-Tabelle ist ein optionales Nice-to-have. Ein
 			// Lesefehler (z. B. eine fehlerhafte Altzeile) darf die funktionierende Kern-Klassifikation
 			// nicht mit HTTP 500 reißen — in diesem Fall ohne gelernte Beispiele weiterklassifizieren.
+			// Seit #430 werden die Few-Shot-Beispiele **pro Nutzer** geladen (datenisoliert); im
+			// Pass-Through-Modus ohne Auth-Kontext bleibt das Laden global (Abwärtskompatibilität).
 			let examples: FeedbackExample[] = [];
 			try {
-				examples = await loadFeedbackExamples();
+				examples = await loadFeedbackExamples(getUserId(req));
 			} catch (error) {
 				console.warn('Feedback-Beispiele konnten nicht geladen werden — klassifiziere ohne sie.', error);
 			}
@@ -221,6 +232,7 @@ export const createSuggestPillarsRouter = (classifier: PillarClassifier = classi
 				title: validation.value.title,
 				description: validation.value.description ?? null,
 				pillars: validation.value.pillars,
+				userId: getUserId(req) ?? null,
 			});
 			res.status(201).json({ id: created.id });
 		} catch {

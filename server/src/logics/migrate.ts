@@ -335,3 +335,25 @@ export const migratePillarPerUser = async (db: Sequelize): Promise<void> => {
 		}
 	}
 };
+
+/**
+ * Zieht die nullbare `userId`-Spalte an `pillar_feedback` nach (#430, AK3), BEVOR `sequelize.sync()`
+ * läuft. `sync()` ohne `alter` ergänzt vorhandene Tabellen nicht um neue Spalten — die Spalte fehlt
+ * auf einer Bestands-DB, und `loadFeedbackExamples({ where: { userId } })` bräche mit
+ * `SQLITE_ERROR: no such column: userId`.
+ *
+ * Idempotent: Bereits vorhandene Spalten werden übersprungen, mehrfache Aufrufe bleiben stabil.
+ * Fehlt die Tabelle ganz (frische DB), ist die Migration ein No-op — `sync()` legt danach Tabelle
+ * inkl. Spalte korrekt an. Die Spalte bleibt nullbar, damit historische (vor #430 global angelegte)
+ * Samples erhalten bleiben; die Klassifikation ignoriert sie bewusst (siehe `loadFeedbackExamples`).
+ */
+export const migratePillarFeedbackUserId = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('pillar_feedback')");
+	const existing = (columns as { name: string }[]).map((column) => column.name);
+
+	if (existing.length === 0 || existing.includes('userId')) {
+		return;
+	}
+	await db.query('ALTER TABLE `pillar_feedback` ADD COLUMN `userId` INTEGER');
+	console.log('Spalte userId an pillar_feedback nachgezogen (#430).');
+};
