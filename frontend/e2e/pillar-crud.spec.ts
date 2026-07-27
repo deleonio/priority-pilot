@@ -138,13 +138,15 @@ test.describe('#439 Säulen-Verwaltung — CRUD im Einstellungen-Tab', () => {
 		await page.getByRole('textbox', { name: /beschreibung/i }).fill('Neu');
 		await page.getByRole('button', { name: /speichern/i }).click();
 
-		// Neue Beschreibung muss sichtbar sein
-		await expect(page.getByText('Neu', { exact: true })).toBeVisible();
+		// Neue Beschreibung muss sichtbar sein (auf PillarList-Bereich scopen — PillarWeightsForm
+		// zeigt dieselbe Beschreibung parallel im selben Tab und würde sonst eine strict-mode-
+		// violation auslösen)
+		await expect(page.locator('.pillar-list').getByText('Neu', { exact: true })).toBeVisible();
 
 		// Reload
 		await page.reload();
 		await openPillarTab(page);
-		await expect(page.getByText('Neu', { exact: true })).toBeVisible();
+		await expect(page.locator('.pillar-list').getByText('Neu', { exact: true })).toBeVisible();
 	});
 
 	/**
