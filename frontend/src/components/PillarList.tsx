@@ -1,6 +1,7 @@
 import type { Pillar } from 'client';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api';
+import { toApiError } from '../lib/apiError';
 
 interface EditingState {
 	id: number;
@@ -12,33 +13,6 @@ interface DeleteConfirmState {
 	id: number;
 	name: string;
 }
-
-/**
- * Extrahiert eine Fehlermeldung aus einem API-Client-Fehler. Unterstützt sowohl echte
- * `ResponseError`-Instanzen (mit `response.clone().json()`) als auch gemockte Fehlerobjekte
- * aus den Unit-Tests (mit `response.status` und `response.clone()`).
- * Der gemeinsame Nenner ist `'response' in reason` — das deckt beide Fälle ab.
- */
-const extractErrorMessage = async (reason: unknown): Promise<string> => {
-	if (reason !== null && typeof reason === 'object' && 'response' in reason) {
-		const err = reason as {
-			response: { status: number; clone: () => { json: () => Promise<{ message?: string }> } };
-		};
-		try {
-			const body: unknown = await err.response.clone().json();
-			if (typeof body === 'object' && body !== null && typeof (body as { message?: unknown }).message === 'string') {
-				return (body as { message: string }).message;
-			}
-		} catch {
-			// ignore — fall through to generic status message
-		}
-		return `Serverfehler (HTTP ${err.response.status}).`;
-	}
-	if (reason instanceof Error) {
-		return reason.message;
-	}
-	return 'Unbekannter Fehler.';
-};
 
 interface PillarListProps {
 	/** Wird aufgerufen, wenn die Inline-Bearbeitung beginnt/endet (true = editierend, false = nicht editierend). */
@@ -80,7 +54,8 @@ export const PillarList = ({ onEditingChange, onPillarChanged }: PillarListProps
 			const data = await api.listPillars();
 			setPillars(data);
 		} catch (reason) {
-			setError(await extractErrorMessage(reason));
+			const apiError = await toApiError(reason);
+			setError(apiError.message);
 		} finally {
 			setLoading(false);
 		}
@@ -109,7 +84,8 @@ export const PillarList = ({ onEditingChange, onPillarChanged }: PillarListProps
 			await loadPillars();
 			onPillarChanged?.();
 		} catch (reason) {
-			setCreateError(await extractErrorMessage(reason));
+			const apiError = await toApiError(reason);
+			setCreateError(apiError.message);
 		}
 	};
 
@@ -145,7 +121,8 @@ export const PillarList = ({ onEditingChange, onPillarChanged }: PillarListProps
 			await loadPillars();
 			onPillarChanged?.();
 		} catch (reason) {
-			setEditError(await extractErrorMessage(reason));
+			const apiError = await toApiError(reason);
+			setEditError(apiError.message);
 		} finally {
 			setEditSaving(false);
 		}
@@ -168,7 +145,8 @@ export const PillarList = ({ onEditingChange, onPillarChanged }: PillarListProps
 			await loadPillars();
 			onPillarChanged?.();
 		} catch (reason) {
-			setError(await extractErrorMessage(reason));
+			const apiError = await toApiError(reason);
+			setError(apiError.message);
 		} finally {
 			setDeleteSaving(false);
 		}
@@ -260,7 +238,7 @@ export const PillarList = ({ onEditingChange, onPillarChanged }: PillarListProps
 								<>
 									<div className="pillar-info">
 										<span className="pillar-name">{pillar.name}</span>
-										{pillar.description && <span className="pillar-description">{pillar.description}</span>}
+										{pillar.description && <span className="pillar-list-description">{pillar.description}</span>}
 									</div>
 									<div className="pillar-actions">
 										<button type="button" aria-label="Bearbeiten" onClick={() => startEditing(pillar)}>

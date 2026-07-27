@@ -1,8 +1,13 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import type { Pillar } from 'client';
+import { ResponseError } from 'client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../api';
 import { PillarList } from './PillarList';
+
+/** Erzeugt einen echten ResponseError (wie der API-Client ihn wirft) mit JSON-Body `{ message }`. */
+const apiError = (status: number, message: string): ResponseError =>
+	new ResponseError(new Response(JSON.stringify({ message }), { status }));
 
 // Mocke die API, damit die Komponententests deterministisch und ohne Netzwerk auskommen.
 vi.mock('../api', () => ({
@@ -111,12 +116,7 @@ describe('PillarList — Säulen-Verwaltung (Issue #439)', () => {
 		it('zeigt bei 409 Namenskonflikt einen Feldfehler an', async () => {
 			vi.mocked(api.listPillars).mockResolvedValue([]);
 
-			const conflictError = {
-				response: {
-					status: 409,
-					clone: () => ({ json: async () => ({ message: 'Eine Säule mit diesem Namen existiert bereits.' }) }),
-				},
-			};
+			const conflictError = apiError(409, 'Eine Säule mit diesem Namen existiert bereits.');
 			vi.mocked(api.createPillar).mockRejectedValueOnce(conflictError);
 
 			render(<PillarList />);
@@ -134,12 +134,7 @@ describe('PillarList — Säulen-Verwaltung (Issue #439)', () => {
 		it('zeigt bei 400 Validierungsfehler einen Feldfehler an', async () => {
 			vi.mocked(api.listPillars).mockResolvedValue([]);
 
-			const validationError = {
-				response: {
-					status: 400,
-					clone: () => ({ json: async () => ({ message: 'Name muss zwischen 1 und 100 Zeichen lang sein.' }) }),
-				},
-			};
+			const validationError = apiError(400, 'Name muss zwischen 1 und 100 Zeichen lang sein.');
 			vi.mocked(api.createPillar).mockRejectedValueOnce(validationError);
 
 			render(<PillarList />);
@@ -252,12 +247,7 @@ describe('PillarList — Säulen-Verwaltung (Issue #439)', () => {
 		it('zeigt Feldfehler bei Namenskonflikt während des Editierens', async () => {
 			vi.mocked(api.listPillars).mockResolvedValueOnce(existing);
 
-			const conflictError = {
-				response: {
-					status: 409,
-					clone: () => ({ json: async () => ({ message: 'Eine Säule mit diesem Namen existiert bereits.' }) }),
-				},
-			};
+			const conflictError = apiError(409, 'Eine Säule mit diesem Namen existiert bereits.');
 			vi.mocked(api.updatePillar).mockRejectedValueOnce(conflictError);
 
 			render(<PillarList />);

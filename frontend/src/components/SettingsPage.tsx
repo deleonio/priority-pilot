@@ -123,7 +123,7 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 					{micDenied && (
 						<KolAlert _type="warning" _label="Mikrofon-Zugriff verweigert">
 							Der Zugriff auf das Mikrofon wurde verweigert. Die automatische Sprachaufnahme bleibt deaktiviert. Bitte
-							ertele die Berechtigung im Browser und versuche es erneut.
+							erteile die Berechtigung im Browser und versuche es erneut.
 						</KolAlert>
 					)}
 					{pushSupported ? (
