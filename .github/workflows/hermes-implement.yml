@@ -122,10 +122,11 @@ jobs:
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
           LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
+          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
         run: |
           if [ "$LLM_PROVIDER" = "zai" ]; then
             hermes config set model.provider zai
-            printf 'GLM_API_KEY=%s\n' "$GLM_API_KEY" > "$HERMES_HOME/.env"
+            printf 'ZAI_API_KEY=%s\n' "$ZAI_API_KEY" > "$HERMES_HOME/.env"
             echo "::notice::Provider: Z.AI (GLM-5.1)"
           else
             hermes config set model.provider custom
@@ -163,17 +164,17 @@ jobs:
         if: steps.preflight.outputs.configured == 'true'
         env:
           NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
-          GLM_API_KEY: ${{ secrets.GLM_API_KEY }}
+          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
           LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
         run: |
           if [ "$LLM_PROVIDER" = "zai" ]; then
-            if [ -z "$GLM_API_KEY" ]; then
-              echo "::error title=Auth fehlt::GLM_API_KEY nicht gesetzt — als Repo-Secret hinterlegen"
+            if [ -z "$ZAI_API_KEY" ]; then
+              echo "::error title=Auth fehlt::ZAI_API_KEY nicht gesetzt — als Repo-Secret hinterlegen"
               exit 1
             fi
-            echo "GLM_API_KEY vorhanden."
+            echo "ZAI_API_KEY vorhanden."
           else
             if [ -z "$NOUS_PORTAL_TOKEN" ]; then
               echo "::error title=Auth fehlt::NOUS_PORTAL_TOKEN nicht gesetzt — als Repo-Secret hinterlegen"
@@ -235,7 +236,7 @@ jobs:
         if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         env:
           NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
-          GLM_API_KEY: ${{ secrets.GLM_API_KEY }}
+          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
           LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
