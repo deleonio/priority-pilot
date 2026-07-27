@@ -117,7 +117,7 @@ jobs:
         run: |
           if [ "$LLM_PROVIDER" = "zai" ]; then
             hermes config set model.provider zai
-            hermes config set model.api_key "${{ secrets.GLM_API_KEY }}"
+            printf 'GLM_API_KEY=%s\n' "$GLM_API_KEY" > "$HERMES_HOME/.env"
             echo "::notice::Provider: Z.AI (GLM-5.1)"
           else
             hermes config set model.provider custom
@@ -200,7 +200,6 @@ jobs:
           if [ "$LLM_PROVIDER" = "zai" ]; then
             PROVIDER_FLAG="--provider zai"
             MODEL="glm-5.1"
-            hermes config set model.api_key "$GLM_API_KEY"
           else
             PROVIDER_FLAG="--provider custom"
             MODEL="deepseek/deepseek-v4-pro"
