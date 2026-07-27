@@ -17,27 +17,32 @@ export const SEED_PILLARS: readonly {
 }[] = [
 	{
 		name: 'Körper',
-		description: 'Leiblichkeit: Biopsychologische Basis – Schlaf, Ernährung und Bewegung steuern hormonell und neuronal die Resilienz.',
+		description:
+			'Leiblichkeit: Biopsychologische Basis – Schlaf, Ernährung und Bewegung steuern hormonell und neuronal die Resilienz.',
 		weight: 20,
 	},
 	{
 		name: 'Mentale Gesundheit',
-		description: 'Emotionsregulation: Kognitive Flexibilität und Affektregulation – Techniken wie Achtsamkeit führen in die innere Homöostase zurück.',
+		description:
+			'Emotionsregulation: Kognitive Flexibilität und Affektregulation – Techniken wie Achtsamkeit führen in die innere Homöostase zurück.',
 		weight: 20,
 	},
 	{
 		name: 'Beziehungen',
-		description: 'Bindung: Sichere, wertungsfreie Räume – emotionale Resonanz und Zugehörigkeit, vollständig entkoppelt von eigener Leistung.',
+		description:
+			'Bindung: Sichere, wertungsfreie Räume – emotionale Resonanz und Zugehörigkeit, vollständig entkoppelt von eigener Leistung.',
 		weight: 20,
 	},
 	{
 		name: 'Wirksamkeit',
-		description: 'Selbstwirksamkeit: Aktives Gestalten der Umwelt – das tiefe Bedürfnis, durch Arbeit, Projekte oder Output Kompetenz zu erleben.',
+		description:
+			'Selbstwirksamkeit: Aktives Gestalten der Umwelt – das tiefe Bedürfnis, durch Arbeit, Projekte oder Output Kompetenz zu erleben.',
 		weight: 20,
 	},
 	{
 		name: 'Sinn',
-		description: 'Transzendenz & Werte: Das existenzielle „Wofür“ – ordnet Handeln in einen größeren, wertorientierten Kontext ein.',
+		description:
+			'Transzendenz & Werte: Das existenzielle „Wofür“ – ordnet Handeln in einen größeren, wertorientierten Kontext ein.',
 		weight: 20,
 	},
 ] as const;
