@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import type { Pillar } from 'client';
 import { ResponseError } from 'client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -19,6 +20,57 @@ vi.mock('../api', () => ({
 	},
 }));
 
+// `Modal` nutzt KoliBris `KolDialog` (natives `<dialog>`), das in jsdom nicht lauffähig ist
+// (`dialog.close is not a function`). Reduktion auf einen reinen Passthrough — die
+// Formular-Logik der Dialoge wird damit isoliert und deterministisch prüfbar.
+vi.mock('./Modal', () => ({
+	Modal: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+}));
+
+// KoliBri-Komponenten: nicht jsdom-kompatibel (Custom Elements, Shadow DOM). Alle für die
+// Pillar-Dialoge relevanten Teile durch native HTML-Elemente ersetzen, damit Testing Library
+// Queries (getByRole, getByText) funktionieren und Interaktionen simulierbar sind.
+vi.mock('@public-ui/react-v19', () => ({
+	KolAlert: ({ _label, children }: { _label?: string; children?: ReactNode }) => (
+		<div role="alert">
+			{_label}
+			{children}
+		</div>
+	),
+	KolButton: ({
+		_label,
+		_disabled,
+		_on,
+	}: {
+		_label?: string;
+		_disabled?: boolean;
+		_on?: { onClick?: (_e: MouseEvent) => void };
+	}) => (
+		<button disabled={_disabled} onClick={(e) => _on?.onClick?.(e.nativeEvent)}>
+			{_label}
+		</button>
+	),
+	KolHeading: ({ _label, _level = 2 }: { _label?: string; _level?: number }) => {
+		// Nur h2/h3 werden in den PillarList-Dialogen verwendet. Zur Sicherheit auf h2 fallbacken.
+		if (_level === 3) return <h3>{_label}</h3>;
+		return <h2>{_label}</h2>;
+	},
+	KolInputText: ({
+		_label,
+		_value,
+		_on,
+	}: {
+		_label?: string;
+		_value?: string;
+		_on?: {
+			onInput?: (_e: unknown, v: string) => void;
+			onChange?: (_e: unknown, v: string) => void;
+		};
+	}) => (
+		<input aria-label={_label} value={_value ?? ''} onChange={(e) => _on?.onChange?.(e.nativeEvent, e.target.value)} />
+	),
+}));
+
 afterEach(cleanup);
 
 const pillar = (id: number, name: string, description: string, weight: number): Pillar => ({
@@ -31,8 +83,13 @@ const pillar = (id: number, name: string, description: string, weight: number): 
 /**
  * Tests für die Säulen-Verwaltungs-Komponente (PillarList) — Issue #439.
  *
+ * Die Komponente nutzt eigene Modal-Dialoge für Anlegen/Bearbeiten/Löschen (KoliBri-basiert).
+ * In diesen Tests wird das `Modal` als Passthrough gemockt und KoliBri-Komponenten durch native
+ * HTML-Elemente ersetzt, sodass die Formular-Logik der Dialog-Komponenten (PillarFormDialog,
+ * PillarDeleteDialog) direkt geprüft wird.
+ *
  * AK1: Nutzer kann eine Säule anlegen (Name Pflicht, Beschreibung optional); sie erscheint sofort.
- * AK2: Umbenennen/Beschreibung ändern; Namenskonflikt zeigt verständlichen Feldfehler.
+ * AK2: Bearbeiten (Name/Beschreibung ändern); Namenskonflikt zeigt verständlichen Feldfehler.
  * AK3: Löschen mit Bestätigung inkl. Hinweis auf betroffene Tasks/Serien; letzte Säule löschbar.
  */
 
@@ -44,18 +101,31 @@ describe('PillarList — Säulen-Verwaltung (Issue #439)', () => {
 	// ── AK1: Anlegen (Happy Path) ──────────────────────────────────────────────
 
 	describe('AK1 — Säule anlegen', () => {
-		it('rendert ein Formular mit Name (required) und Beschreibung (optional)', async () => {
+		it('zeigt einen „Neue Säule anlegen"-Button an', async () => {
 			vi.mocked(api.listPillars).mockResolvedValue([]);
 
 			render(<PillarList />);
 
 			await waitFor(() => {
+				expect(screen.getByRole('button', { name: /neue säule anlegen/i })).toBeInTheDocument();
+			});
+		});
+
+		it('öffnet das Anlegen-Formular (Name required, Beschreibung optional) nach Button-Klick', async () => {
+			vi.mocked(api.listPillars).mockResolvedValue([]);
+
+			render(<PillarList />);
+
+			await waitFor(() => {
+				expect(screen.getByRole('button', { name: /neue säule anlegen/i })).toBeInTheDocument();
+			});
+			fireEvent.click(screen.getByRole('button', { name: /neue säule anlegen/i }));
+
+			// Formularfelder sichtbar.
+			await waitFor(() => {
 				expect(screen.getByRole('textbox', { name: /name/i })).toBeInTheDocument();
 			});
-
-			// Beschreibungsfeld ist optional — kein required-Attribut.
-			const descriptionField = screen.getByRole('textbox', { name: /beschreibung/i });
-			expect(descriptionField).toBeInTheDocument();
+			expect(screen.getByRole('textbox', { name: /beschreibung/i })).toBeInTheDocument();
 		});
 
 		it('legt eine neue Säule an und zeigt sie in der Liste', async () => {
@@ -70,16 +140,22 @@ describe('PillarList — Säulen-Verwaltung (Issue #439)', () => {
 
 			render(<PillarList />);
 
-			// Name eingeben
-			fireEvent.change(screen.getByRole('textbox', { name: /name/i }), {
-				target: { value: 'Beziehungen' },
+			// Anlegen-Dialog öffnen
+			await waitFor(() => {
+				expect(screen.getByRole('button', { name: /neue säule anlegen/i })).toBeInTheDocument();
 			});
-			// Beschreibung eingeben
+			fireEvent.click(screen.getByRole('button', { name: /neue säule anlegen/i }));
+
+			// Im Modal: Name + Beschreibung eingeben
+			await waitFor(() => {
+				expect(screen.getByRole('textbox', { name: /name/i })).toBeInTheDocument();
+			});
+			fireEvent.change(screen.getByRole('textbox', { name: /name/i }), { target: { value: 'Beziehungen' } });
 			fireEvent.change(screen.getByRole('textbox', { name: /beschreibung/i }), {
 				target: { value: 'Freunde & Familie' },
 			});
-			// Anlegen-Button klicken
-			fireEvent.click(screen.getByRole('button', { name: /anlegen/i }));
+			// Anlegen-Button im Modal klicken
+			fireEvent.click(screen.getByRole('button', { name: /^anlegen$/i }));
 
 			await waitFor(() => {
 				expect(api.createPillar).toHaveBeenCalledWith({
@@ -98,8 +174,16 @@ describe('PillarList — Säulen-Verwaltung (Issue #439)', () => {
 
 			render(<PillarList />);
 
-			// Leerer Name + absenden → Fehler
-			fireEvent.click(screen.getByRole('button', { name: /anlegen/i }));
+			await waitFor(() => {
+				expect(screen.getByRole('button', { name: /neue säule anlegen/i })).toBeInTheDocument();
+			});
+			fireEvent.click(screen.getByRole('button', { name: /neue säule anlegen/i }));
+
+			// Anlegen im Modal OHNE Namenseingabe → Fehler
+			await waitFor(() => {
+				expect(screen.getByRole('button', { name: /^anlegen$/i })).toBeInTheDocument();
+			});
+			fireEvent.click(screen.getByRole('button', { name: /^anlegen$/i }));
 
 			await waitFor(() => {
 				expect(screen.getByText(/name.*darf nicht leer/i)).toBeInTheDocument();
@@ -121,10 +205,16 @@ describe('PillarList — Säulen-Verwaltung (Issue #439)', () => {
 
 			render(<PillarList />);
 
-			fireEvent.change(screen.getByRole('textbox', { name: /name/i }), {
-				target: { value: 'Körper' },
+			await waitFor(() => {
+				expect(screen.getByRole('button', { name: /neue säule anlegen/i })).toBeInTheDocument();
 			});
-			fireEvent.click(screen.getByRole('button', { name: /anlegen/i }));
+			fireEvent.click(screen.getByRole('button', { name: /neue säule anlegen/i }));
+
+			await waitFor(() => {
+				expect(screen.getByRole('textbox', { name: /name/i })).toBeInTheDocument();
+			});
+			fireEvent.change(screen.getByRole('textbox', { name: /name/i }), { target: { value: 'Körper' } });
+			fireEvent.click(screen.getByRole('button', { name: /^anlegen$/i }));
 
 			await waitFor(() => {
 				expect(screen.getByText(/existiert bereits/i)).toBeInTheDocument();
@@ -139,10 +229,16 @@ describe('PillarList — Säulen-Verwaltung (Issue #439)', () => {
 
 			render(<PillarList />);
 
-			fireEvent.change(screen.getByRole('textbox', { name: /name/i }), {
-				target: { value: 'A'.repeat(101) },
+			await waitFor(() => {
+				expect(screen.getByRole('button', { name: /neue säule anlegen/i })).toBeInTheDocument();
 			});
-			fireEvent.click(screen.getByRole('button', { name: /anlegen/i }));
+			fireEvent.click(screen.getByRole('button', { name: /neue säule anlegen/i }));
+
+			await waitFor(() => {
+				expect(screen.getByRole('textbox', { name: /name/i })).toBeInTheDocument();
+			});
+			fireEvent.change(screen.getByRole('textbox', { name: /name/i }), { target: { value: 'A'.repeat(101) } });
+			fireEvent.click(screen.getByRole('button', { name: /^anlegen$/i }));
 
 			await waitFor(() => {
 				expect(screen.getByText(/1 und 100 zeichen/i)).toBeInTheDocument();
@@ -150,9 +246,9 @@ describe('PillarList — Säulen-Verwaltung (Issue #439)', () => {
 		});
 	});
 
-	// ── AK2: Umbenennen / Beschreibung ändern ──────────────────────────────────
+	// ── AK2: Bearbeiten (Name / Beschreibung ändern) ──────────────────────────
 
-	describe('AK2 — Inline-Edit (Umbenennen / Beschreibung ändern)', () => {
+	describe('AK2 — Bearbeiten (Umbenennen / Beschreibung ändern)', () => {
 		const existing: Pillar[] = [pillar(1, 'Körper', 'Gesundheit', 20)];
 
 		it('benennt eine Säule um (nur Name)', async () => {
@@ -167,14 +263,15 @@ describe('PillarList — Säulen-Verwaltung (Issue #439)', () => {
 				expect(screen.getByText('Körper')).toBeInTheDocument();
 			});
 
-			// Bearbeiten-Modus aktivieren
-			const editButton = screen.getByRole('button', { name: /bearbeiten/i });
-			fireEvent.click(editButton);
+			// Bearbeiten-Button klicken → Modal öffnet sich
+			fireEvent.click(screen.getByRole('button', { name: /bearbeiten/i }));
 
-			// Name ändern
-			const nameInput = screen.getByRole('textbox', { name: /name/i });
-			fireEvent.change(nameInput, { target: { value: 'Fitness' } });
-			fireEvent.click(screen.getByRole('button', { name: /speichern/i }));
+			// Name im Modal ändern
+			await waitFor(() => {
+				expect(screen.getByRole('textbox', { name: /name/i })).toBeInTheDocument();
+			});
+			fireEvent.change(screen.getByRole('textbox', { name: /name/i }), { target: { value: 'Fitness' } });
+			fireEvent.click(screen.getByRole('button', { name: /^speichern$/i }));
 
 			await waitFor(() => {
 				expect(api.updatePillar).toHaveBeenCalledWith({
@@ -202,9 +299,13 @@ describe('PillarList — Säulen-Verwaltung (Issue #439)', () => {
 
 			fireEvent.click(screen.getByRole('button', { name: /bearbeiten/i }));
 
-			const descInput = screen.getByRole('textbox', { name: /beschreibung/i });
-			fireEvent.change(descInput, { target: { value: 'Physische Gesundheit' } });
-			fireEvent.click(screen.getByRole('button', { name: /speichern/i }));
+			await waitFor(() => {
+				expect(screen.getByRole('textbox', { name: /beschreibung/i })).toBeInTheDocument();
+			});
+			fireEvent.change(screen.getByRole('textbox', { name: /beschreibung/i }), {
+				target: { value: 'Physische Gesundheit' },
+			});
+			fireEvent.click(screen.getByRole('button', { name: /^speichern$/i }));
 
 			await waitFor(() => {
 				expect(api.updatePillar).toHaveBeenCalledWith({
@@ -228,13 +329,14 @@ describe('PillarList — Säulen-Verwaltung (Issue #439)', () => {
 
 			fireEvent.click(screen.getByRole('button', { name: /bearbeiten/i }));
 
-			const nameInput = screen.getByRole('textbox', { name: /name/i });
-			fireEvent.change(nameInput, { target: { value: 'Fitness' } });
-
-			const descInput = screen.getByRole('textbox', { name: /beschreibung/i });
-			fireEvent.change(descInput, { target: { value: 'Physische Gesundheit' } });
-
-			fireEvent.click(screen.getByRole('button', { name: /speichern/i }));
+			await waitFor(() => {
+				expect(screen.getByRole('textbox', { name: /name/i })).toBeInTheDocument();
+			});
+			fireEvent.change(screen.getByRole('textbox', { name: /name/i }), { target: { value: 'Fitness' } });
+			fireEvent.change(screen.getByRole('textbox', { name: /beschreibung/i }), {
+				target: { value: 'Physische Gesundheit' },
+			});
+			fireEvent.click(screen.getByRole('button', { name: /^speichern$/i }));
 
 			await waitFor(() => {
 				expect(api.updatePillar).toHaveBeenCalledWith({
@@ -244,7 +346,7 @@ describe('PillarList — Säulen-Verwaltung (Issue #439)', () => {
 			});
 		});
 
-		it('zeigt Feldfehler bei Namenskonflikt während des Editierens', async () => {
+		it('zeigt Feldfehler bei Namenskonflikt während des Bearbeitens', async () => {
 			vi.mocked(api.listPillars).mockResolvedValueOnce(existing);
 
 			const conflictError = apiError(409, 'Eine Säule mit diesem Namen existiert bereits.');
@@ -257,9 +359,12 @@ describe('PillarList — Säulen-Verwaltung (Issue #439)', () => {
 			});
 
 			fireEvent.click(screen.getByRole('button', { name: /bearbeiten/i }));
-			const nameInput = screen.getByRole('textbox', { name: /name/i });
-			fireEvent.change(nameInput, { target: { value: 'Doppelt' } });
-			fireEvent.click(screen.getByRole('button', { name: /speichern/i }));
+
+			await waitFor(() => {
+				expect(screen.getByRole('textbox', { name: /name/i })).toBeInTheDocument();
+			});
+			fireEvent.change(screen.getByRole('textbox', { name: /name/i }), { target: { value: 'Doppelt' } });
+			fireEvent.click(screen.getByRole('button', { name: /^speichern$/i }));
 
 			await waitFor(() => {
 				expect(screen.getByText(/existiert bereits/i)).toBeInTheDocument();
@@ -380,10 +485,16 @@ describe('PillarList — Säulen-Verwaltung (Issue #439)', () => {
 
 			render(<PillarList />);
 
-			fireEvent.change(screen.getByRole('textbox', { name: /name/i }), {
-				target: { value: 'Neu' },
+			await waitFor(() => {
+				expect(screen.getByRole('button', { name: /neue säule anlegen/i })).toBeInTheDocument();
 			});
-			fireEvent.click(screen.getByRole('button', { name: /anlegen/i }));
+			fireEvent.click(screen.getByRole('button', { name: /neue säule anlegen/i }));
+
+			await waitFor(() => {
+				expect(screen.getByRole('textbox', { name: /name/i })).toBeInTheDocument();
+			});
+			fireEvent.change(screen.getByRole('textbox', { name: /name/i }), { target: { value: 'Neu' } });
+			fireEvent.click(screen.getByRole('button', { name: /^anlegen$/i }));
 
 			await waitFor(() => {
 				// listPillars muss mindestens zweimal aufgerufen worden sein

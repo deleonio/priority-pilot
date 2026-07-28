@@ -32,10 +32,6 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 	// manuellem Tab-Wechsel (onSelect) aufgerufen, damit Re-Renders den gewählten Tab nicht zurücksetzen.
 	const [activeTab, setActiveTab] = useState(() => (window.location.pathname.startsWith('/settings/general') ? 0 : 1));
 
-	// #439: Während der Inline-Bearbeitung einer Säule (PillarList) wird PillarWeightsForm ausgeblendet,
-	// damit die beiden „Speichern"-Buttons nicht miteinander kollidieren (Playwright strict mode).
-	const [editingInPillarList, setEditingInPillarList] = useState(false);
-
 	// Stabile Callback-Identität, damit KolTabs nicht bei jedem Render neu verdrahtet (#323).
 	const tabsCallbacks = useMemo(
 		() => ({
@@ -184,18 +180,14 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 					{/* Überschrift „Säulen-Gewichtung" ist Teil des #270-Vertrags (settings-page.spec.ts):
 					    die Route /settings/pillars rendert den Säulen-Editor mit dieser Überschrift. */}
 					<KolHeading _label="Säulen-Gewichtung" _level={2} />
-					{/* Säulen-Verwaltungs-Komponente (#439): Anlegen, Umbenennen und Löschen von Säulen. */}
-					<PillarList onEditingChange={setEditingInPillarList} onPillarChanged={onPillarChanged} />
-					{/* Während Inline-Edit in PillarList ausgeblendet — sonst kollidieren die „Speichern"-Buttons. */}
-					{!editingInPillarList && (
-						<>
-							{/* Beim Direktaufruf von /settings/pillars mountet die Seite, BEVOR die Säulen geladen
-							    sind. Das Formular hält seine Rohwerte in einem beim Mount initialisierten Ref —
-							    per `key` neu mounten, sobald die Säulen eintreffen, damit die geladenen Gewichte
-							    übernommen werden. */}
-							<PillarWeightsForm key={pillars.length} pillars={pillars} onSaved={onSaved} />
-						</>
-					)}
+					{/* Säulen-Verwaltungs-Komponente (#439): Anlegen, Bearbeiten und Löschen von Säulen
+					    (jeweils als eigener Modal-Dialog, KoliBri-Komponenten). */}
+					<PillarList onPillarChanged={onPillarChanged} />
+					{/* Beim Direktaufruf von /settings/pillars mountet die Seite, BEVOR die Säulen geladen
+					    sind. Das Formular hält seine Rohwerte in einem beim Mount initialisierten Ref —
+					    per `key` neu mounten, sobald die Säulen eintreffen, damit die geladenen Gewichte
+					    übernommen werden. */}
+					<PillarWeightsForm key={pillars.length} pillars={pillars} onSaved={onSaved} />
 				</div>
 			</KolTabs>
 		</main>

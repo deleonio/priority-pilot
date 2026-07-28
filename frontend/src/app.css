@@ -524,6 +524,54 @@ body {
 	color: var(--pp-danger);
 }
 
+/* --- Säulen-Verwaltung (PillarList: Anlegen, Bearbeiten, Löschen) --- */
+
+.pillar-list {
+	display: block;
+}
+
+.pillar-list-toolbar {
+	margin-bottom: 1rem;
+}
+
+/* Liste der Säulen: jede Säule ist ein Listeneintrag mit Info-Block und Aktions-Buttons. */
+.pillar-items {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+}
+
+.pillar-item {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 0.75rem 1rem;
+	padding: 0.75rem 1rem;
+	border: 1px solid var(--pp-border);
+	border-radius: 0.5rem;
+	background: var(--pp-bg-muted);
+}
+
+.pillar-info {
+	flex: 1 1 16rem;
+	min-width: 0;
+}
+
+.pillar-list-description {
+	margin: 0.25rem 0 0;
+}
+
+.pillar-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	flex-shrink: 0;
+}
+
 /* --- Säulen-Beiträge im Task-Formular (Mehrfach-Einzahlung) --- */
 .pillar-editor {
 	display: grid;

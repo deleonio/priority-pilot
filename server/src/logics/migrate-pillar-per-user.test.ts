@@ -26,6 +26,13 @@ import { closeDb } from '../test/helpers.js';
 // Kein Produktivcode — die Tests werden grün, sobald `migrate.ts` `migratePillarPerUser` exportiert
 // und das `Pillar`-Modell `userId` + Unique-Index `(name, userId)` trägt.
 
+/**
+ * Positions-Index (1-basiert) eines Säulen-Namens in `SEED_PILLARS` — spiegelt, wie
+ * `insertGlobalPillars` die ids vergibt. Hält den Vertragstest robust gegen Reihenfolgeänderungen
+ * der globalen Stammdaten (z. B. die wissenschaftliche Umsortierung in PR #463).
+ */
+const seedPillarId = (name: string): number => SEED_PILLARS.findIndex((p) => p.name === name) + 1;
+
 /** Spaltennamen einer Tabelle (leer, falls die Tabelle nicht existiert). */
 const columnsOf = async (table: string): Promise<string[]> => {
 	const [rows] = await sequelize.query(`PRAGMA table_info('${table}')`);
@@ -207,11 +214,13 @@ const insertSeriesPillar = (seriesId: number, pillarId: number): Promise<unknown
 
 /**
  * Baut die komplette Legacy-DB mit zwei Nutzern auf:
- * - 5 globale Säulen (ids 1..5): Körper=1, Beziehungen=2, Sinn=3, Mentale Gesundheit=4, Wirksamkeit=5.
+ * - 5 globale Säulen (ids 1..5) in der Reihenfolge von `SEED_PILLARS` — die konkreten ids pro
+ *   Säulen-Name werden namensbasiert abgeleitet (`seedPillarId`), um robust gegenüber
+ *   Reihenfolgeänderungen der globalen Stammdaten zu sein.
  * - user1 (id 1), user2 (id 2).
  * - task 10 → user1, task 20 → user2, task 30 → OHNE userId (NULL).
- * - task_pillars: 10→Körper(1), 20→Sinn(3), 30→Wirksamkeit(5).
- * - series 100 → user1, series_pillars: 100→Beziehungen(2).
+ * - task_pillars: 10→Körper, 20→Sinn, 30→Wirksamkeit.
+ * - series 100 → user1, series_pillars: 100→Beziehungen.
  */
 const buildLegacyTwoUserDb = async (): Promise<void> => {
 	await createLegacyPillarsTable();
@@ -228,12 +237,12 @@ const buildLegacyTwoUserDb = async (): Promise<void> => {
 	await insertTask(10, 'Joggen (user1)', 1);
 	await insertTask(20, 'Sinn-Task (user2)', 2);
 	await insertTask(30, 'Alt-Task ohne Owner', null);
-	await insertTaskPillar(10, 1); // user1 → Körper
-	await insertTaskPillar(20, 3); // user2 → Sinn
-	await insertTaskPillar(30, 5); // NULL-User → Wirksamkeit
+	await insertTaskPillar(10, seedPillarId('Körper')); // user1 → Körper
+	await insertTaskPillar(20, seedPillarId('Sinn')); // user2 → Sinn
+	await insertTaskPillar(30, seedPillarId('Wirksamkeit')); // NULL-User → Wirksamkeit
 
 	await insertSeries(100, 'Wochen-Serie (user1)', 1);
-	await insertSeriesPillar(100, 2); // user1-Serie → Beziehungen
+	await insertSeriesPillar(100, seedPillarId('Beziehungen')); // user1-Serie → Beziehungen
 };
 
 beforeEach(async () => {
@@ -327,7 +336,7 @@ describe('migratePillarPerUser — AK2 (Migration): Klonen + Umhängen der Beitr
 		const t30 = await pillarOfTask(30);
 		assert.equal(t30?.name, 'Wirksamkeit', 'task 30 zeigt weiter auf „Wirksamkeit"');
 		assert.equal(t30?.userId, null, 'task 30 (ohne Owner) bleibt auf der globalen NULL-owned Säule');
-		assert.equal(t30?.id, 5, 'task 30 zeigt unverändert auf die ursprüngliche globale Säule (id 5)');
+		assert.equal(t30?.id, seedPillarId('Wirksamkeit'), 'task 30 zeigt unverändert auf die ursprüngliche globale Säule');
 
 		// series_pillars analog nach series.userId umgehängt.
 		const s100 = await pillarOfSeries(100);
