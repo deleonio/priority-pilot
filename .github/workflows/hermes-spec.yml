@@ -316,10 +316,11 @@ jobs:
           overwrite: true
 
       - name: Label-Post-Assertion (VERDICT parsen, Labels via App-Token force-setzen)
-        if: always() && steps.preflight.outputs.configured == 'true' && (steps.hermes.outcome == 'success' || steps.hermes.outcome == 'failure')
+        if: always() && steps.preflight.outputs.configured == 'true' && (steps.hermes.outcome == 'success' || steps.hermes.outcome == 'failure' || steps.doppel-guard.outputs.skip == 'true')
         env:
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
+          GUARD_SKIP: ${{ steps.doppel-guard.outputs.skip }}
         run: |
           # VERDICT aus Hermes-Output parsen
           verdict=""
@@ -328,30 +329,62 @@ jobs:
           fi
           echo "Hermes-Verdict aus Output: '${verdict:-keins}'"
 
-          # VERDICT validieren
-          if [ "$verdict" != "ready" ] && [ "$verdict" != "spec-ready" ]; then
-            echo "::warning::Kein gültiger VERDICT — Safe-Default: spec-ready (Partial)"
-            verdict="spec-ready"
+          # Doppel-Run-Guard: PR existiert bereits → Spec-Arbeit ist erledigt.
+          # Setze verdict auf 'ready', die nachfolgende Verifikation prüft PR + Tests.
+          if [ "${GUARD_SKIP:-false}" = "true" ]; then
+            verdict="ready"
+            echo "::notice::Doppel-Run-Guard: PR existiert bereits — behandele als ready (mit Verifikation)."
           fi
 
-          # VERIFIKATION (Root-Cause-Schutz): Vertraue dem VERDICT-Marker nicht blind.
-          # Bei 'ready' muss ein Draft-PR mit roten Tests existieren — sonst hat die
-          # Implement-Stufe keinen Vertrag und muss alles selbst machen.
-          if [ "$verdict" = "ready" ]; then
-            SPEC_PR="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
-              --json number,closingIssuesReferences \
-              --jq "[.[] | select((.closingIssuesReferences // []) | any(.number == ${ISSUE})) | .number] | first" 2>/dev/null || echo "")"
-            if [ -z "$SPEC_PR" ] || [ "$SPEC_PR" = "null" ]; then
-              echo "::error title=❌ Spec-PR fehlt::VERDICT ready, aber kein PR mit Closes #${ISSUE} gefunden. Die KI hat keinen Spec-PR erstellt — kein ai:ready, Implement-Stufe hat nichts zu greifen. Lauf muss wiederholt werden."
-              exit 1
-            fi
+          # ARTEFAKTE PRÜFEN (immer, unabhängig vom VERDICT)
+          # Spec-PR mit Closes #N suchen
+          SPEC_PR="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
+            --json number,closingIssuesReferences \
+            --jq "[.[] | select((.closingIssuesReferences // []) | any(.number == ${ISSUE})) | .number] | first" 2>/dev/null || echo "")"
+          ARTIFACTS_OK="false"
+          if [ -n "$SPEC_PR" ] && [ "$SPEC_PR" != "null" ]; then
             HAS_TESTS="$(gh pr view "$SPEC_PR" --repo "$GITHUB_REPOSITORY" --json files \
-              --jq '[.files[].path | test("\\.(test|spec)\\.(ts|tsx)$")] | any' 2>/dev/null || echo "false")"
-            if [ "$HAS_TESTS" != "true" ]; then
-              echo "::error title=❌ Spec-Tests fehlen::VERDICT ready, aber PR #${SPEC_PR} enthält keine Test-Dateien (*.test.ts/*.spec.ts). Die KI hat keine roten Tests geschrieben — kein ai:ready. Lauf muss wiederholt werden."
+              --jq '[.files[].path | test("\.(test|spec)\.(ts|tsx)$")] | any' 2>/dev/null || echo "false")"
+            if [ "$HAS_TESTS" = "true" ]; then
+              ARTIFACTS_OK="true"
+              echo "✅ Spec-PR #${SPEC_PR} gefunden mit Test-Dateien."
+            else
+              echo "::warning::Spec-PR #${SPEC_PR} existiert, aber keine Test-Dateien (*.test.ts/*.spec.ts)."
+            fi
+          else
+            echo "::warning::Kein Spec-PR mit Closes #${ISSUE} gefunden."
+          fi
+
+          # ENTSCHEIDUNG: VERDICT + Artefakte → Label
+          # Schema:
+          #   verdict=ready + Artefakte OK  → ready (Normalfall)
+          #   verdict=ready + Artefakte fehlen → exit 1 (KI loggt ready ohne Arbeit)
+          #   verdict=spec-ready + Artefakte OK → Upgrade zu ready (KI hat gemacht, VERDICT falsch)
+          #   verdict=spec-ready + Artefakte fehlen → spec-ready (echter Partial, Folgelauf)
+          #   kein VERDICT + Artefakte OK → ready (KI hat gemacht, VERDICT vergessen)
+          #   kein VERDICT + Artefakte fehlen → exit 1 (nichts gemacht, laut fehlschlagen)
+          if [ "$verdict" = "ready" ]; then
+            if [ "$ARTIFACTS_OK" != "true" ]; then
+              echo "::error title=❌ Spec fehlt::VERDICT ready, aber kein Spec-PR mit Tests gefunden. Die KI hat nichts produziert — kein ai:ready. Lauf muss wiederholt werden."
               exit 1
             fi
-            echo "✅ Spec-PR #${SPEC_PR} gefunden mit Test-Dateien."
+            final="ready"
+          elif [ "$verdict" = "spec-ready" ]; then
+            if [ "$ARTIFACTS_OK" = "true" ]; then
+              echo "::notice::VERDICT spec-ready, aber Artefakte vollständig → Upgrade zu ready."
+              final="ready"
+            else
+              final="spec-ready"
+            fi
+          else
+            # Kein gültiger VERDICT — prüfe Artefakte statt blind zu degradieren
+            if [ "$ARTIFACTS_OK" = "true" ]; then
+              echo "::notice::Kein VERDICT, aber Artefakte vollständig → ready."
+              final="ready"
+            else
+              echo "::error title=❌ Spec fehlgeschlagen::Kein VERDICT und keine Artefakte (Spec-PR + Tests) gefunden. Die KI hat nichts produziert — kein Safe-Default. Lauf muss wiederholt werden."
+              exit 1
+            fi
           fi
 
           # Labels sicherstellen
@@ -362,7 +395,7 @@ jobs:
           gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:spec-ready" 2>/dev/null || true
           gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
 
-          if [ "$verdict" = "ready" ]; then
+          if [ "$final" = "ready" ]; then
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:ready"
             echo "::notice::Label gesetzt (App-Token): ai:ready (verifiziert: Spec-PR + rote Tests vorhanden)"
           else
