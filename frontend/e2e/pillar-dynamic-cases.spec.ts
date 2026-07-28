@@ -98,15 +98,24 @@ test.describe('#431 Säulen-Verwaltung — dynamische Grenzfälle', () => {
 		const name = uniqueName('Lebenslauf');
 		await createPillarViaUi(page, name, 'Beschreibung AK1');
 
-		// 2. Gewichten: über die echte API eine ungleiche Verteilung setzen (eine Säule mit vollem
-		//    Gewicht), damit der „gewichten"-Schritt im Vertrag nachvollziehbar wird. Das Frontend
-		//    muss die gespeicherte Gewichtung nach Reload anzeigen.
+		// 2. Gewichten: über die echte API das Gewicht setzen. Bei der einzelnen, in AK1 angelegten
+		//    Säule erhält sie volles Gewicht (100 % → Rohwert 1,0), damit der „gewichten"-Schritt im
+		//    Vertrag nachvollziehbar wird. Das Frontend muss die gespeicherte Gewichtung nach Reload
+		//    anzeigen (siehe Slider-Assertion unten).
 		await setEqualWeightsViaApi(page);
 		await page.reload();
 		await openPillarTab(page);
 
 		// Nach Reload muss die Säule noch vorhanden sein (Persistenz des Anlegens + Gewichtung).
 		await expect(page.getByText(name, { exact: true })).toBeVisible();
+
+		// Der „gewichten"-Schritt ist als UI-Verhalten durchreicht: die gesetzte Gewichtung muss
+		// nach dem Reload auch in der UI (PillarWeightsForm) sichtbar sein — nicht nur über die API
+		// gesetzt worden sein. Bei einer einzelnen Säule hat setEqualWeightsViaApi volles Gewicht
+		// (100 %) gesetzt → der Slider zeigt den Rohwert 1,0 (vgl. crud.spec.ts „Säulen-Gewicht
+		// ändern" Z.163). KoliBris KolInputRange exponiert kein role=slider, aber im offenen
+		// Shadow-DOM steckt ein natives input[type=range] (Playwright durchdringt das).
+		await expect(page.locator('input[type="range"]').first()).toHaveValue('1');
 
 		// 3. Umbenennen
 		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
