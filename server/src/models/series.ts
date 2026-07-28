@@ -4,7 +4,8 @@ import type Pillar from './pillar.js';
 import type SeriesPillar from './seriesPillar.js';
 
 /** Wiederholungsrhythmus eines Serien-Templates (striktes RRULE-Subset, siehe #120). */
-export type SeriesRhythm = 'daily' | 'weekly' | 'monthly';
+export type SeriesRhythm =
+	'daily' | 'weekly' | 'monthly' | 'weekdays' | 'weekend' | 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
 
 /** Eine Säule samt der zugehörigen Join-Zeile (`share`/`confidence`) der Serien-Vorlage (#302). */
 type SeriesPillarWithContribution = Pillar & { SeriesPillar: SeriesPillar };
@@ -52,7 +53,20 @@ Series.init(
 			allowNull: false,
 		},
 		rhythm: {
-			type: DataTypes.ENUM('daily', 'weekly', 'monthly'),
+			type: DataTypes.ENUM(
+				'daily',
+				'weekly',
+				'monthly',
+				'weekdays',
+				'weekend',
+				'mon',
+				'tue',
+				'wed',
+				'thu',
+				'fri',
+				'sat',
+				'sun',
+			),
 			allowNull: false,
 			defaultValue: 'weekly',
 		},

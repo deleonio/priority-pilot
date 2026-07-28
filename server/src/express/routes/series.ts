@@ -15,7 +15,20 @@ type TaskDto = components['schemas']['Task'];
 type SeriesGenerateAllResultDto = components['schemas']['SeriesGenerateAllResult'];
 type ErrorDto = components['schemas']['Error'];
 
-const VALID_RHYTHMS: readonly SeriesRhythm[] = ['daily', 'weekly', 'monthly'];
+const VALID_RHYTHMS: readonly SeriesRhythm[] = [
+	'daily',
+	'weekly',
+	'monthly',
+	'weekdays',
+	'weekend',
+	'mon',
+	'tue',
+	'wed',
+	'thu',
+	'fri',
+	'sat',
+	'sun',
+];
 
 /**
  * Produktpolicy: maximale Vorlauf-Horizont in Tagen, den `/series/generate-all`
@@ -107,7 +120,11 @@ const validateSeriesFields = (body: unknown, isPost: boolean): ValidationResult 
 
 	if (input.rhythm !== undefined) {
 		if (!isRhythm(input.rhythm)) {
-			return { ok: false, message: 'rhythm muss "daily", "weekly" oder "monthly" sein.' };
+			return {
+				ok: false,
+				message:
+					'rhythm muss "daily", "weekly", "monthly", "weekdays", "weekend", "mon", "tue", "wed", "thu", "fri", "sat" oder "sun" sein.',
+			};
 		}
 		attrs.rhythm = input.rhythm;
 	}

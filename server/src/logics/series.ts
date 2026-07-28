@@ -9,15 +9,25 @@ interface GenerateOptions {
 	userId?: number;
 }
 
+/** Ob der UTC-Wochentag `day` (0=So … 6=Sa) zum Rhythmus `weekdays` (Mo–Fr) bzw. `weekend` (Sa+So) gehört. */
+const matchesGroup = (day: number, rhythm: 'weekdays' | 'weekend'): boolean =>
+	rhythm === 'weekdays' ? day >= 1 && day <= 5 : day === 0 || day === 6;
+
 /**
  * Nächster fälliger Termin nach `date` gemäß Rhythmus. UTC-basiert (deterministisch, DST-frei):
  * `daily` +1 Tag, `weekly` +7 Tage, `monthly` +1 Monat.
+ *
+ * Für die wochentag-basierten Rhythmen (#467/#469) wird nicht ein fester Schritt pro Periode
+ * addiert, sondern **auf den nächsten passenden UTC-Wochentag** vorgerückt:
+ * - `weekdays` → Mo–Fr (überspringt Wochenende), `weekend` → Sa+So, `mon`…`sun` → genau dieser Tag
+ *   (jeweils +7 Tage auf denselben Wochentag). Diese Rhythmen erzeugen damit **mehrere Termine
+ *   pro Woche** und durchbrechen das bisherige „ein Termin je Periode\"-Modell.
  *
  * `anchorDay` ist der **unveränderliche** Ziel-Tag aus `series.startDate` (z. B. 31). Für `monthly`
  * wird der Tag in jedem Schritt frisch aus diesem Anker abgeleitet und auf den letzten gültigen Tag
  * des Zielmonats geklemmt — so driftet ein Monatsende-Anker nicht (31.01. → 28.02. → **31.03.** → 30.04.).
  */
-const nextOccurrence = (date: Date, rhythm: SeriesRhythm, anchorDay: number): Date => {
+export const nextOccurrence = (date: Date, rhythm: SeriesRhythm, anchorDay: number): Date => {
 	const next = new Date(date.getTime());
 	switch (rhythm) {
 		case 'daily':
@@ -33,6 +43,26 @@ const nextOccurrence = (date: Date, rhythm: SeriesRhythm, anchorDay: number): Da
 			next.setUTCMonth(next.getUTCMonth() + 1);
 			const lastDayOfMonth = new Date(Date.UTC(next.getUTCFullYear(), next.getUTCMonth() + 1, 0)).getUTCDate();
 			next.setUTCDate(Math.min(anchorDay, lastDayOfMonth));
+			break;
+		}
+		case 'weekdays':
+		case 'weekend': {
+			// Tageweise vorrücken, bis der nächste Termin auf einen passenden Wochentag fällt.
+			do {
+				next.setUTCDate(next.getUTCDate() + 1);
+			} while (!matchesGroup(next.getUTCDay(), rhythm));
+			break;
+		}
+		case 'mon':
+		case 'tue':
+		case 'wed':
+		case 'thu':
+		case 'fri':
+		case 'sat':
+		case 'sun': {
+			// Fester Wochentag: +7 Tage bleiben auf demselben Wochentag. Der Anker liegt
+			// definitionsgemäß auf diesem Tag, daher ist der einfache Schritt korrekt.
+			next.setUTCDate(next.getUTCDate() + 7);
 			break;
 		}
 	}

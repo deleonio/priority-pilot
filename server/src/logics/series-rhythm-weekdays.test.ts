@@ -49,10 +49,10 @@ describe('nextOccurrence — wochentag-basierte Rhythmen (#467 weekdays/weekend/
 		assert.equal(nextOccurrence(utcDate(2026, 0, 6), 'weekdays', anchorDay).getUTCDay(), WED, 'Di→Mi');
 		assert.equal(nextOccurrence(utcDate(2026, 0, 7), 'weekdays', anchorDay).getUTCDay(), THU, 'Mi→Do');
 		assert.equal(nextOccurrence(utcDate(2026, 0, 8), 'weekdays', anchorDay).getUTCDay(), FRI, 'Do→Fr');
-		// Fr (8.1.) → Mo (12.1.), überspringt Sa/So — das Wochenende wird NICHT beliefert.
-		const afterFri = nextOccurrence(utcDate(2026, 0, 8), 'weekdays', anchorDay);
+		// Fr (9.1.) → Mo (12.1.), überspringt Sa/So — das Wochenende wird NICHT beliefert.
+		const afterFri = nextOccurrence(utcDate(2026, 0, 9), 'weekdays', anchorDay);
 		assert.equal(afterFri.getUTCDay(), MON, 'Fr→Mo (Wochenende übersprungen)');
-		assert.equal(afterFri.getUTCDate(), 12, 'Fr 8.1. → Mo 12.1. (3 Tage später)');
+		assert.equal(afterFri.getUTCDate(), 12, 'Fr 9.1. → Mo 12.1. (3 Tage später)');
 	});
 
 	// AK2 (Wochenende): weekend schreitet Sa→So→Sa, beliefert nie Werktage.
