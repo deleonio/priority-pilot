@@ -381,15 +381,36 @@ jobs:
           fi
           echo "Hermes-Verdict aus Output: '${verdict:-keins}'"
 
-          # Safe-Default bei fehlendem VERDICT
+          # VERDICT validieren
           if [ "$verdict" != "spec-ready" ] && [ "$verdict" != "analyzed" ]; then
             echo "::warning::Kein gültiger VERDICT — Safe-Default: analyzed"
             verdict="analyzed"
           fi
 
+          # VERIFIKATION (Root-Cause-Schutz): Vertraue dem VERDICT-Marker nicht blind.
+          # Prüfe, ob die KI tatsächlich eine Analyse in den Issue-Body geschrieben hat.
+          # VERDICT ohne Body-Block = KI hat die Arbeit nicht gemacht → KEINE Labels, Job failt laut.
+          BODY="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json body -q .body 2>/dev/null || true)"
+
+          if printf '%s' "$BODY" | grep -q "KI-ANALYSE:START"; then
+            echo "✅ KI-ANALYSE-Block im Issue-Body gefunden."
+          else
+            echo "::error title=❌ Analyse fehlt::Hermes-VERDICT war '${verdict}', aber kein <!-- KI-ANALYSE:START -->-Block im Issue-Body. Die KI hat keine Analyse produziert — keine Labels gesetzt, Spec-Stufe hat nichts zu greifen. Lauf muss wiederholt werden."
+            exit 1
+          fi
+
+          # Bei spec-ready zusätzlich: Akzeptanzkriterien im Block prüfen
+          # (ohne AK ist der Block für die Spec-Stufe wertlos)
+          if [ "$verdict" = "spec-ready" ]; then
+            if ! printf '%s' "$BODY" | grep -qiE "Akzeptanzkriterien|AK[[:space:]]*[0-9]"; then
+              echo "::warning::VERDICT spec-ready, aber keine Akzeptanzkriterien im Body-Block gefunden — Downgrade zu analyzed (🟡/🔴). Spec-Stufe braucht prüfbare AK."
+              verdict="analyzed"
+            fi
+          fi
+
           # Labels sicherstellen, dass sie existieren
-          gh label create "ai:analyzed" --repo "$GITHUB_REPOSITORY" --color 0E8A16 2>/dev/null || true
-          gh label create "ai:spec-ready" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
+          gh label create "ai:analyzed" --color 0E8A16 2>/dev/null || true
+          gh label create "ai:spec-ready" --color FBCA04 2>/dev/null || true
 
           # FORCE-SET: ai:analyzed immer setzen (via App-Token für Folge-Trigger)
           gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:analyzed" 2>/dev/null || true
@@ -397,7 +418,7 @@ jobs:
 
           if [ "$verdict" = "spec-ready" ]; then
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:spec-ready"
-            echo "::notice::Labels gesetzt (App-Token): ai:analyzed + ai:spec-ready"
+            echo "::notice::Labels gesetzt (App-Token): ai:analyzed + ai:spec-ready (verifiziert: Body-Block + AK vorhanden)"
           else
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:spec-ready" 2>/dev/null || true
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
