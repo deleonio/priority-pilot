@@ -291,7 +291,11 @@ jobs:
             1. Beginne SOFORT mit der Arbeit — keine Wartezeit!
             2. Findings lesen: gh pr view, gh pr diff, Review-Threads (gh api .../pulls/PR_NR/comments) und CI (gh pr checks).
             3. Zutreffende, EINDEUTIGE Findings fixen: Code ändern, vor jedem Commit lokale Checks: pnpm format && pnpm exec prettier --check . && pnpm lint && pnpm knip. Erst wenn alle grün, committen und pushen. Im jeweiligen Thread antworten und auflösen. Mehrdeutige/große Punkte dem Menschen überlassen.
-            4. ABSCHLUSS (ALLERLETZTER Schritt, NIE davor — erst nach Commit+Push): Labels in ZWEI getrennten Befehlen: gh pr edit PR_NR --remove-label ai:needs-changes, dann --add-label ai:needs-review.
+            4. CI-CHECKS BEHANDELN (falls rot): gh pr checks --json name,bucket,workflow zeigt alle CI-Checks. Für jeden roten Check:
+               a) FLAKY-TEST ERKENNEN: Ist der Fehler ein Timeout, eine Timing-Instabilität (z.B. „not visible within 5000ms", „element not found"), ein Transient (Netzwerk, Race-Condition)? UND der Test berührt thematisch keine Logik aus diesem PR-Diff? → FLAKY: einmalig via gh run rerun <failed-run-id> --failed neu starten. Danach 60s warten, dann gh pr checks erneut prüfen. Wird der Check danach grün → fertig. Bleibt er rot → als echtes Finding behandeln (siehe b).
+               b) ECHTER CI-FEHLER: Format-/Lint-/Build-/Testfehler, der durch den PR-Diff verursacht wurde. Den fehlschlagenden Job-Log lesen (gh run view <run-id> --log), Root Cause identifizieren, Code ändern, lokale Checks (pnpm format && pnpm exec prettier --check . && pnpm lint && pnpm knip) ausführen, committen und pushen.
+               c) UNRELATED CI-FEHLER (PR-Diff berührt die fehlschlagende Logik nicht, kein Flaky): In PR-Kommentar dokumentieren („CI-Check X ist rot, berührt aber nicht die Logik dieses PRs — pre-existing/unrelated"). Nicht fixen, nicht committen. Der PR geht zurück auf ai:needs-review.
+            5. ABSCHLUSS (ALLERLETZTER Schritt, NIE davor — erst nach Commit+Push+CI behandelt): Labels in ZWEI getrennten Befehlen: gh pr edit PR_NR --remove-label ai:needs-changes, dann --add-label ai:needs-review.
 
           WEICHES ZEITLIMIT (Soft-Abort):
             Beginne SOFORT mit der Arbeit. Prüfe VOR jedem größeren Teilschritt date +%s gegen SOFT_DEADLINE. Ist das Limit erreicht: committen+pushen, offene Findings als PR-Kommentar festhalten. gh pr edit PR_NR --add-label ai:continued, dann ai:needs-changes entfernen+sofort wieder setzen (Selbst-Retrigger). KEIN ai:needs-review. Turn beenden.

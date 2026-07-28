@@ -115,3 +115,33 @@ describe('AK4 — CI-Format/Lint-Fehler ist als eigenständiges Finding deklarie
 		);
 	});
 });
+
+// AK5 — CI-Check-Behandlung: Der Fixup darf nicht tatenlos ai:needs-review setzen,
+// wenn ein CI-Check rot ist (Gate-Merge hat ai:needs-changes dafür gesetzt).
+// Ohne diese Anweisung entsteht ein Endlos-Loop: Gate setzt ai:needs-changes (CI rot) →
+// Fixup findet keine Review-Findings → Fixup setzt ai:needs-review → Gate sieht CI rot →
+// ai:needs-changes → Fixup → ... (PR #466, drei Durchläufe ohne Code-Änderung).
+// Der Prompt MUSS den Agent anweisen, rote CI-Checks aktiv zu behandeln:
+// flaky Tests re-runnen, echte Fehler fixen, unrelated-Fehler dokumentieren.
+describe('AK5 — CI-Check-Behandlung bei roten Checks', () => {
+	it('Hermes-Prompt enthält Anweisung zum Behandeln roter CI-Checks (gh pr checks)', () => {
+		const prompt = hermesPrompt();
+		assert.match(
+			prompt,
+			/CI-CHECKS BEHANDELN/,
+			'Hermes-Prompt muss einen expliziten Abschnitt "CI-CHECKS BEHANDELN" enthalten, der angibt, was bei roten CI-Checks zu tun ist',
+		);
+	});
+
+	it('Hermes-Prompt kennt gh run rerun für flaky Tests', () => {
+		const prompt = hermesPrompt();
+		assert.match(prompt, /gh run rerun/, 'Hermes-Prompt muss "gh run rerun" für das Re-Starten flaky Tests enthalten');
+	});
+
+	it('Hermes-Prompt unterscheidet flaky, echte und unrelated CI-Fehler', () => {
+		const prompt = hermesPrompt();
+		assert.match(prompt, /FLAKY/, 'Hermes-Prompt muss FLAKY-Fall unterscheiden');
+		assert.match(prompt, /ECHTER CI-FEHLER/, 'Hermes-Prompt muss echten CI-Fehler-Fall unterscheiden');
+		assert.match(prompt, /UNRELATED CI-FEHLER/, 'Hermes-Prompt muss unrelated-CI-Fehler-Fall unterscheiden');
+	});
+});
