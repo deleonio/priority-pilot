@@ -235,7 +235,14 @@ jobs:
             2. Branch anlegen: git switch -c feat/issue-ISSUE_NR-<kurzname>. Den Akzeptanzkriterien-Block primär aus dem BODY-Block des Issues entnehmen (gh issue view ISSUE_NR --json body -q .body, Abschnitt zwischen <!-- KI-ANALYSE:START stand=... --> und <!-- KI-ANALYSE:END -->).
             3. ROTE Tests schreiben — je Akzeptanzkriterium echte, ausführbare Tests (server/src/**/*.test.ts, frontend/src/**/*.test.ts, frontend/e2e/*.spec.ts). Sie prüfen echtes Soll-Verhalten und werden grün, sobald der Code existiert. KEINEN Produktivcode schreiben.
             4. Rote Tests als ERSTEN Commit (test: rote Spec-Tests für #ISSUE_NR), Branch pushen, git push -u origin HEAD. DRAFT-PR erstellen (gh pr create --draft) mit Closes #ISSUE_NR im Body. KEIN ai:needs-review setzen (PR ist Draft).
-            5. ÜBERGABE (ALLERLETZTER Schritt, NIE davor): am Issue ai:ready setzen und ai:spec-ready entfernen (gh issue edit ISSUE_NR --add-label ai:ready --remove-label ai:spec-ready). Fehlende Labels vorher mit gh label create anlegen.
+            5. GIB VERDICT AUS — KEINE LABELS SELBST SETZEN!
+
+          ⚠️ LABELS: Du darfst KEINE Labels setzen oder entfernen (`gh issue edit --add-label` / `--remove-label`)! Der Workflow übernimmt den Label-Wechsel automatisch anhand deines VERDICT-Markers — mit dem korrekten App-Token, das Folgeworkflows triggert.
+
+          VERDICT-MARKER: Gib GANZ AM ENDE deiner letzten Antwort GENAU EINE Zeile aus:
+            - `VERDICT: ready` (rote Tests geschrieben + Draft-PR erstellt → gibt Issue zur Umsetzung frei)
+            - `VERDICT: spec-ready` (Partial — Tests unvollständig, braucht Folgelauf)
+          Der Workflow parst diese Zeile und setzt die Labels.
 
           WERKZEUGE:
             Du hast Bash (für gh, git, pnpm), Datei-Tools sowie KoliBri-MCP-Tools (mcp_kolibri_search, mcp_kolibri_fetch für KoliBri-Komponenten). Nutze gh issue, gh pr, git, pnpm, read_file, write_file. GH_TOKEN authentifiziert gh-Befehle.
@@ -306,18 +313,40 @@ jobs:
           retention-days: 30
           overwrite: true
 
-      - name: Bei Timeout als zu groß markieren (ai:to-big-issue)
-        if: always() && steps.preflight.outputs.configured == 'true' && steps.hermes.outcome == 'cancelled'
+      - name: Label-Post-Assertion (VERDICT parsen, Labels via App-Token force-setzen)
+        if: always() && steps.preflight.outputs.configured == 'true' && (steps.hermes.outcome == 'success' || steps.hermes.outcome == 'failure')
         env:
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
-          RUN_START: ${{ steps.starttime.outputs.epoch }}
         run: |
-          elapsed=$(( $(date +%s) - ${RUN_START:-0} ))
-          if [ "${RUN_START:-0}" -eq 0 ] || [ "$elapsed" -lt 1080 ]; then exit 0; fi
-          gh label create "ai:to-big-issue" --repo "$GITHUB_REPOSITORY" --color B60205 2>/dev/null || true
-          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:to-big-issue"
+          # VERDICT aus Hermes-Output parsen
+          verdict=""
+          if [ -f /tmp/hermes-output.log ]; then
+            verdict="$(grep -oP 'VERDICT:\s*\K.*' /tmp/hermes-output.log | tail -1 | tr -d '[:space:]' || true)"
+          fi
+          echo "Hermes-Verdict aus Output: '${verdict:-keins}'"
+
+          # Safe-Default bei fehlendem VERDICT
+          if [ "$verdict" != "ready" ] && [ "$verdict" != "spec-ready" ]; then
+            echo "::warning::Kein gültiger VERDICT — Safe-Default: spec-ready (Partial)"
+            verdict="spec-ready"
+          fi
+
+          # Labels sicherstellen
+          gh label create "ai:ready" --repo "$GITHUB_REPOSITORY" --color 0E8A16 2>/dev/null || true
+          gh label create "ai:spec-ready" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
+
+          # FORCE-SET via App-Token
           gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:spec-ready" 2>/dev/null || true
+          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
+
+          if [ "$verdict" = "ready" ]; then
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:ready"
+            echo "::notice::Label gesetzt (App-Token): ai:ready (Issue zur Umsetzung freigegeben)"
+          else
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:spec-ready"
+            echo "::notice::Label gesetzt (App-Token): ai:spec-ready (Partial — Folgelauf nötig)"
+          fi
 
       - name: Ergebnis zusammenfassen
         if: always() && steps.preflight.outputs.configured == 'true'

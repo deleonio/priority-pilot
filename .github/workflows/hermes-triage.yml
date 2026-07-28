@@ -268,7 +268,7 @@ jobs:
             4. Zerlege zu große Tickets in verknüpfte Sub-Issues (max. eine Ebene, Rekursionsschutz via Label 'ai:analyzed').
             5. Schreibe die Analyse mit prüfbaren Akzeptanzkriterien + Testfällen und Umsetzbarkeits-Ampel (🟢/🟡/🔴) in einen markierten Block in der Issue-Beschreibung (gh issue edit --body-file -).
             6. Setze genau EINEN kurzen Ping-Kommentar (gh issue comment; bei offenen Fragen mit @author).
-            7. Labels als ALLERLETZTEN Schritt — NIE davor (sonst startet die nächste Pipeline-Stufe mit veraltetem Issue-Inhalt).
+            7. GIB VERDICT AUS — KEINE LABELS SELBST SETZEN!
 
           BODY-BLOCK-FORMAT:
             Der Analyse-Block muss zwischen diesen Markern stehen:
@@ -278,11 +278,12 @@ jobs:
             Bei Re-Triage: existierenden Block zwischen den Markern IN-PLACE ersetzen (per sed im Body-File oder gh issue edit mit vollständigem Body). Die Original-Beschreibung oberhalb des START-Markers NICHT überschreiben.
             Bei Erst-Analyse: Block neu in die Beschreibung einfügen (gh issue view --json body um den aktuellen Body zu holen, dann mit cat/printf den Block anhängen).
 
-          LABEL-SETZEN (immer als ALLERLETZTER Schritt, nach Body-Block UND Ping-Kommentar):
-            - Immer 'ai:analyzed' setzen.
-            - Bei 🟢 zusätzlich 'ai:spec-ready' (startet die Spec-Stufe).
-            - Bei 🟡/🔴: evtl. vorhandenes 'ai:spec-ready'/'ai:ready' entfernen.
-            Verwende gh issue edit --add-label/--remove-label dafür. Fehlende Labels vorher mit gh label create anlegen.
+          ⚠️ LABELS: Du darfst KEINE Labels setzen oder entfernen (`gh issue edit --add-label` / `--remove-label`)! Der Workflow übernimmt den Label-Wechsel automatisch anhand deines VERDICT-Markers — mit dem korrekten App-Token, das Folgeworkflows triggert. Wenn du Labels selbst setzt, bricht die Pipeline (Folge-Workflows werden nicht ausgelöst).
+
+          VERDICT-MARKER: Gib GANZ AM ENDE deiner letzten Antwort GENAU EINE Zeile aus:
+            - `VERDICT: spec-ready` (bei 🟢 — startet die Spec-Stufe)
+            - `VERDICT: analyzed` (bei 🟡/🔴 — Analyse fertig, aber nicht zur Umsetzung freigegeben)
+          Der Workflow parst diese Zeile und setzt die Labels.
 
           WERKZEUGE:
             Du hast Zugriff auf die Bash (für gh issue/gh api/gh label/gh pr/gh repo), Datei-Lese-Werkzeuge sowie KoliBri-MCP-Tools (mcp_kolibri_search, mcp_kolibri_fetch für KoliBri-Komponenten). Die gh-Befehle sind über GH_TOKEN authentifiziert. Lies die Wissensbasis aus .ai-knowledge/ticket-triage.md für den vollständigen Ablauf. Lese die Issue-Daten via gh issue view und die Wissensbasis via read_file.
@@ -363,26 +364,43 @@ jobs:
           overwrite: true
 
       # ————————————————————————————————————————————————————————————————————————
-      # 8. Bei hartem Timeout als zu groß markieren
+      # 8. Label-Post-Assertion (Labels via App-Token force-setzen)
       # ————————————————————————————————————————————————————————————————————————
-      - name: Bei Timeout als zu groß markieren (ai:to-big-issue)
-        if: always() && steps.preflight.outputs.configured == 'true' && steps.hermes.outcome == 'cancelled'
+      - name: Label-Post-Assertion (VERDICT parsen, Labels via App-Token force-setzen)
+        if: always() && steps.preflight.outputs.configured == 'true' && (steps.hermes.outcome == 'success' || steps.hermes.outcome == 'failure')
         env:
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           ISSUE: ${{ github.event.issue.number }}
-          RUN_START: ${{ steps.starttime.outputs.epoch }}
         run: |
-          elapsed=$(( $(date +%s) - ${RUN_START:-0} ))
-          if [ "${RUN_START:-0}" -eq 0 ] || [ "$elapsed" -lt 600 ]; then
-            echo "::notice title=Kein Timeout::Lauf nach ${elapsed}s abgebrochen (< 10 Min) — vermutlich Supersede/Cancel, kein ai:to-big-issue."
-            exit 0
+          # VERDICT aus Hermes-Output parsen
+          verdict=""
+          if [ -f /tmp/hermes-output.log ]; then
+            verdict="$(grep -oP 'VERDICT:\s*\K.*' /tmp/hermes-output.log | tail -1 | tr -d '[:space:]' || true)"
           fi
-          gh label create "ai:to-big-issue" --repo "$GITHUB_REPOSITORY" \
-            --color B60205 --description "KI-Job lief in den Timeout — Issue zu groß, bitte aufteilen" 2>/dev/null || true
-          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:to-big-issue"
-          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:spec-ready" 2>/dev/null || true
-          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
-          echo "::warning title=Issue #${ISSUE} zu groß::12-Min-Timeout erreicht (${elapsed}s) — Label ai:to-big-issue gesetzt; bitte Issue aufteilen."
+          echo "Hermes-Verdict aus Output: '${verdict:-keins}'"
+
+          # Safe-Default bei fehlendem VERDICT
+          if [ "$verdict" != "spec-ready" ] && [ "$verdict" != "analyzed" ]; then
+            echo "::warning::Kein gültiger VERDICT — Safe-Default: analyzed"
+            verdict="analyzed"
+          fi
+
+          # Labels sicherstellen, dass sie existieren
+          gh label create "ai:analyzed" --repo "$GITHUB_REPOSITORY" --color 0E8A16 2>/dev/null || true
+          gh label create "ai:spec-ready" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
+
+          # FORCE-SET: ai:analyzed immer setzen (via App-Token für Folge-Trigger)
+          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:analyzed" 2>/dev/null || true
+          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:analyzed"
+
+          if [ "$verdict" = "spec-ready" ]; then
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:spec-ready"
+            echo "::notice::Labels gesetzt (App-Token): ai:analyzed + ai:spec-ready"
+          else
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:spec-ready" 2>/dev/null || true
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
+            echo "::notice::Label gesetzt (App-Token): ai:analyzed (🟡/🔴)"
+          fi
 
       # ————————————————————————————————————————————————————————————————————————
       # 9. Ergebnis zusammenfassen
