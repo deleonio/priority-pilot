@@ -33,8 +33,10 @@ jobs:
           && github.event.pull_request.head.repo.full_name == github.repository
           && contains(github.event.pull_request.labels.*.name, 'ai:needs-review') }}
     runs-on: ubuntu-latest
-    # Kein timeout-minutes — der Agent sichert bei Soft-Deadline seinen Stand
-    # (Session-Archiv), und der Workflow schließt normal ab. Kein harter Kill.
+    # Backstop (weit über der Soft-Deadline von 10 Min) — fängt einen hängenden Agent
+    # ab (Prompt-Deadline ignoriert, API-Call hängt), ohne das graceful Save
+    # (Session-Archiv) bei der Soft-Deadline zu stören.
+    timeout-minutes: 30
     env:
       PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       HERMES_HOME: /tmp/hermes-ci
