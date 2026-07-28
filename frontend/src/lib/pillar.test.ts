@@ -531,3 +531,52 @@ describe('#410 calculateMeterHighThreshold — mittlerer Schwellwert für Säule
 		expect(calculateMeterHighThreshold(0)).toBe(0);
 	});
 });
+
+/**
+ * #431 — Säulen-Verwaltung + dynamische Grenzfälle (Schritt 5/5 von #420).
+ *
+ * Die Client-Logik (`normalizeToTotalWeight`, `sumWeights`, `isWeightSumValid`,
+ * `buildPillarSummaries`) darf keine feste 5er-Säulen-Annahme enthalten. Dieser Block sichert
+ * dynamische Säulenzahlen (1, 3, 8) ab: gleiche Rohwerte müssen in jedem Fall eine gültige
+ * 100 %-Verteilung ergeben, und `buildPillarSummaries` muss mit beliebiger Säulenzahl arbeiten
+ * (ein Eintrag je Säule, Reihenfolge erhalten). Diese Tests sind der einklagbare Vertrag aus
+ * dem Body-Block AK3 („UI rendert korrekt bei 1, 3 und 8 Säulen").
+ */
+describe('#431 dynamische Säulenzahl — keine feste 5er-Annahme', () => {
+	it.each([1, 3, 8] as const)(
+		'AK3: %i Säulen mit gleichen Rohwerten normieren auf eine 100 %-Gleichverteilung',
+		(count) => {
+			const raws = Array.from({ length: count }, () => 1);
+			const normalized = normalizeToTotalWeight(raws);
+			expect(normalized).toHaveLength(count);
+			// Jeder Anteil gleich groß …
+			const expected = 100 / count;
+			for (const value of normalized) {
+				expect(value).toBeCloseTo(expected, 6);
+			}
+			// … und die Summe ergibt (innerhalb der Toleranz) exakt 100.
+			expect(isWeightSumValid(sumWeights(normalized))).toBe(true);
+		},
+	);
+
+	it('AK3: ein einzelner Rohwert normiert auf 100 % (Grenzfall 1 Säule)', () => {
+		const normalized = normalizeToTotalWeight([0.7]);
+		expect(normalized).toEqual([100]);
+		expect(isWeightSumValid(sumWeights(normalized))).toBe(true);
+	});
+
+	it('AK3: buildPillarSummaries liefert für beliebige Säulenzahl einen Eintrag je Säule (Reihenfolge erhalten)', () => {
+		for (const count of [1, 3, 8]) {
+			const pillars = Array.from({ length: count }, (_, index) => pillar(index + 1, `P${index + 1}`, 100 / count));
+			const summaries = buildPillarSummaries(pillars, [], new Map());
+			expect(summaries).toHaveLength(count);
+			for (let index = 0; index < count; index += 1) {
+				expect(summaries[index].pillar.id).toBe(index + 1);
+			}
+		}
+	});
+
+	it('AK3: leere Säulen-Liste wird von buildPillarSummaries als leerer Ergebnis-Liste vertragen', () => {
+		expect(buildPillarSummaries([], [], new Map())).toEqual([]);
+	});
+});
