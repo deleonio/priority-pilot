@@ -88,27 +88,35 @@ const REQUEST_TIMEOUT_MS = 30_000;
 const WEAK_SIGNAL_CONFIDENCE_CEILING = 60;
 const WEAK_SIGNAL_PILLARS = ['Sinn', 'Mentale Gesundheit'];
 
-/** System-Prompt: feste Rubrik der fünf Säulen + Ausgabeformat (reines JSON). */
-const SYSTEM_PROMPT = [
-	'Du klassifizierst Aufgaben (Tasks) eines Lebensbalance-Tools auf fünf feste Säulen und schätzt je Säule,',
-	'wie sicher die Aufgabe auf sie einzahlt (Konfidenz 0–100).',
-	'',
-	'Rubrik der fünf Säulen:',
-	'- "Körper": körperliche Gesundheit, Bewegung, Sport, Ernährung, Schlaf, Arzt/Vorsorge.',
-	'- "Beziehungen": Familie, Freunde, Partnerschaft, soziale Kontakte, gemeinsame Zeit.',
-	'- "Wirksamkeit": Beruf, Projekte, Lernen, Kompetenzen, Dinge erledigen, sichtbarer Output.',
-	'- "Sinn": Werte, Lebensziele, Spiritualität, Ehrenamt, das „Wofür".',
-	'- "Mentale Gesundheit": Stressabbau, Ruhe, Achtsamkeit, Emotionen, psychisches Wohlbefinden.',
-	'',
-	'Hinweise zur Konfidenz:',
-	'- Körper, Beziehungen und Wirksamkeit lassen sich meist zuverlässig erkennen → hohe Konfidenz möglich.',
-	`- Sinn und Mentale Gesundheit sind nur ein schwaches Signal → Konfidenz höchstens ${WEAK_SIGNAL_CONFIDENCE_CEILING}.`,
-	'- Nenne nur Säulen, auf die die Aufgabe plausibel einzahlt. Passt keine, gib eine leere Liste zurück.',
-	'',
-	'Antworte ausschließlich mit JSON in genau dieser Form (keine Erklärung, kein Markdown):',
-	'{ "pillars": [ { "pillarId": <ganzzahl>, "confidence": <0-100> } ] }',
-	'Verwende nur die pillarId-Werte aus der vom Nutzer übergebenen Säulen-Liste.',
-].join('\n');
+/**
+ * Baut den System-Prompt dynamisch aus den übergebene Säulen-Beschreibungen.
+ * Die Beschreibungen stammen aus der Datenbank (SEED_PILLARS) und fließen so automatisch ein.
+ */
+const buildSystemPrompt = (pillars: { id: number; name: string; description?: string }[]): string => {
+	const pillarDescriptions = pillars
+		.map((pillar) => {
+			const desc = pillar.description ?? '';
+			return `- "${pillar.name}": ${desc}`;
+		})
+		.join('\n');
+
+	return [
+		'Du klassifizierst Aufgaben (Tasks) eines Lebensbalance-Tools auf fünf feste Säulen und schätzt je Säule,',
+		'wie sicher die Aufgabe auf sie einzahlt (Konfidenz 0–100).',
+		'',
+		'Rubrik der fünf Säulen:',
+		pillarDescriptions,
+		'',
+		'Hinweise zur Konfidenz:',
+		'- Körper, Beziehungen und Wirksamkeit lassen sich meist zuverlässig erkennen → hohe Konfidenz möglich.',
+		`- Sinn und Mentale Gesundheit sind nur ein schwaches Signal → Konfidenz höchstens ${WEAK_SIGNAL_CONFIDENCE_CEILING}.`,
+		'- Nenne nur Säulen, auf die die Aufgabe plausibel einzahlt. Passt keine, gib eine leere Liste zurück.',
+		'',
+		'Antworte ausschließlich mit JSON in genau dieser Form (keine Erklärung, kein Markdown):',
+		'{ "pillars": [ { "pillarId": <ganzzahl>, "confidence": <0-100> } ] }',
+		'Verwende nur die pillarId-Werte aus der vom Nutzer übergebenen Säulen-Liste.',
+	].join('\n');
+};
 
 /**
  * Few-Shot-Beispiele, damit das Modell Format und Konfidenz-Niveau übernimmt. Die Säulen werden über
@@ -349,7 +357,7 @@ const requestModelJson = async (messages: { role: string; content: string }[]): 
  */
 export const classifyPillarsWithMistral: PillarClassifier = async (input) => {
 	const parsed = await requestModelJson([
-		{ role: 'system', content: SYSTEM_PROMPT },
+		{ role: 'system', content: buildSystemPrompt(input.pillars) },
 		...fewShotMessages(input.pillars),
 		...feedbackMessages(input),
 		{ role: 'user', content: buildUserMessage(input) },
