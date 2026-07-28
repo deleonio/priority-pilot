@@ -24,7 +24,8 @@ jobs:
           && contains(github.event.issue.labels.*.name, 'ai:analyzed')
           && github.event.issue.state == 'open' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20 # Hard-Timeout (Backstop) — Skill-Vorgabe Lang-Phase
+    # Kein timeout-minutes — der Agent sichert bei Soft-Deadline seinen Stand
+    # (Session-Archiv), und der Workflow schließt normal ab. Kein harter Kill.
     env:
       PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       HERMES_HOME: /tmp/hermes-ci
