@@ -1,6 +1,6 @@
 import { KolAlert, KolButton } from '@public-ui/react-v19';
 import type { Task } from 'client';
-import { useState, type RefObject } from 'react';
+import { useRef, useState, type RefObject } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { useCtrlEnter } from '../lib/useCtrlEnter';
@@ -20,6 +20,10 @@ export const DeleteTaskDialog = ({ task, onClose, onDeleted, fallbackFocusRef }:
 	const [error, setError] = useState<string | null>(null);
 	const [deleting, setDeleting] = useState(false);
 
+	// „Abbrechen" ist der sicherere Initialfokus (#472): Die irreversible „Endgültig löschen"-Aktion
+	// soll nicht per Enter auslösbar sein, bevor der Nutzer den Fokus bewusst verlagert.
+	const cancelRef = useRef<HTMLKolButtonElement>(null);
+
 	const confirm = async (): Promise<void> => {
 		setError(null);
 		setDeleting(true);
@@ -37,7 +41,12 @@ export const DeleteTaskDialog = ({ task, onClose, onDeleted, fallbackFocusRef }:
 	useCtrlEnter(() => void confirm(), !deleting);
 
 	return (
-		<Modal title="Task löschen" onClose={onClose} fallbackFocusRef={fallbackFocusRef}>
+		<Modal
+			title="Task löschen"
+			onClose={onClose}
+			fallbackFocusRef={fallbackFocusRef}
+			initialFocusRef={cancelRef as RefObject<HTMLElement | null>}
+		>
 			{error !== null && (
 				<KolAlert _type="error" _label="Löschen fehlgeschlagen">
 					{error}
@@ -54,7 +63,13 @@ export const DeleteTaskDialog = ({ task, onClose, onDeleted, fallbackFocusRef }:
 					_disabled={deleting}
 					_on={{ onClick: () => void confirm() }}
 				/>
-				<KolButton _label="Abbrechen" _variant="secondary" _disabled={deleting} _on={{ onClick: () => onClose() }} />
+				<KolButton
+					ref={cancelRef}
+					_label="Abbrechen"
+					_variant="secondary"
+					_disabled={deleting}
+					_on={{ onClick: () => onClose() }}
+				/>
 			</div>
 		</Modal>
 	);

@@ -15,6 +15,20 @@ interface ModalProps {
 	 * Fallback, landet der Fokus auf `document.body` (schlechte Zugänglichkeit).
 	 */
 	fallbackFocusRef?: RefObject<HTMLElement | null>;
+	/**
+	 * Element, das nach dem Öffnen (`showModal()`) den Initialfokus erhält. Ohne Angabe gilt
+	 * der Browser-Default (erstes fokussierbares Element im Dialog, z. B. der primäre CTA).
+	 *
+	 * Einsatzfall #472: In Bestätigungs-Dialogen für destruktive Aktionen soll der Initialfokus
+	 * auf dem „Abbrechen"-Button liegen (nicht auf „Endgültig löschen"), damit die irreversible
+	 * Aktion nicht versehentlich per Enter auslösbar ist. KoliBri-Buttons verwenden
+	 * `delegatesFocus`, sodass `.focus()` auf dem Host-Element (`HTMLKolButtonElement`) den
+	 * inneren `<button>` fokussiert.
+	 *
+	 * Umgesetzt als Ref (kein direkter Callback), damit der Aufrufer den Ziel-Button deklarativ
+	 * am JSX-Element hält und keine manuelle Fokus-Logik pflegt.
+	 */
+	initialFocusRef?: RefObject<HTMLElement | null>;
 	children: ReactNode;
 }
 
@@ -28,7 +42,7 @@ interface ModalProps {
  * unmountet). Die Cleanup-`close()` macht den Öffnen-Effekt idempotent gegenüber StrictMode — sonst
  * liefe beim simulierten Re-Mount ein zweites `showModal()` auf den bereits offenen Dialog.
  */
-export const Modal = ({ title, onClose, width = '40rem', fallbackFocusRef, children }: ModalProps) => {
+export const Modal = ({ title, onClose, width = '40rem', fallbackFocusRef, initialFocusRef, children }: ModalProps) => {
 	const ref = useRef<HTMLKolDialogElement>(null);
 
 	// `onClose` über einen Ref ansprechen, damit der Öffnen-Effekt unabhängig von der Callback-Identität
@@ -37,6 +51,14 @@ export const Modal = ({ title, onClose, width = '40rem', fallbackFocusRef, child
 	useEffect(() => {
 		onCloseRef.current = onClose;
 	}, [onClose]);
+
+	// `initialFocusRef` ebenso über einen stabilen Ref, damit der Öffnen-Effekt seine leere
+	// Abhängigkeitsliste behält (läuft exakt einmal pro Dialog-Instanz) und trotzdem den jeweils
+	// aktuellen Ziel-Ref greift — auch wenn der Aufrufer ihn zwischen Rendern austauscht.
+	const initialFocusRefCurrent = useRef<HTMLElement | null>(null);
+	useEffect(() => {
+		initialFocusRefCurrent.current = initialFocusRef?.current ?? null;
+	}, [initialFocusRef]);
 
 	// Überdauert den StrictMode-Re-Mount (Refs bleiben dabei erhalten): genau EIN `showModal()` pro
 	// Dialog-Instanz. Ein zweites würfe `InvalidStateError` auf dem bereits offenen nativen Dialog.
@@ -59,14 +81,28 @@ export const Modal = ({ title, onClose, width = '40rem', fallbackFocusRef, child
 		// `active`-Flag und `openedRef` entkoppeln StrictMode (Setup→Cleanup→Setup): es öffnet genau ein
 		// Setup — auch wenn der `whenDefined`-Microtask schon ZWISCHEN erstem Setup und Cleanup lief.
 		let active = true;
+		let initialFocusTimer: ReturnType<typeof setTimeout> | undefined;
 		void customElements.whenDefined('kol-dialog').then(() => {
 			if (active && !openedRef.current) {
 				openedRef.current = true;
 				void dialog.showModal();
+				// Initialfokus nach dem Öffnen setzen (#472): KoliBris `showModal()` führt nach dem
+				// Microtask (whenDefined) noch Macrotask-Arbeit aus, die den Dialog-internen Fokus neu
+				// setzt — ein zu frühes `.focus()` wird dadurch überschrieben (gleiche Beobachtung wie im
+				// Autofokus des QuickCaptureModal, #250). 200 ms überbrücken diese Latenz zuverlässig im
+				// headless Chromium (CI). KoliBri-Buttons nutzen `delegatesFocus`, `.focus()` auf dem Host
+				// fokussiert also den inneren `<button>`.
+				const focusTarget = initialFocusRefCurrent.current;
+				if (focusTarget != null) {
+					// Timer-ID merken, damit der Cleanup den Fokusaufruf bei Unmount innerhalb der
+					// 200 ms abbrechen kann — sonst läuft `.focus()` auf einem bereits detached Element.
+					initialFocusTimer = setTimeout(() => focusTarget.focus(), 200);
+				}
 			}
 		});
 		return () => {
 			active = false;
+			clearTimeout(initialFocusTimer);
 			// Unmount ist KEIN User-Close: Wenn der Eigentümer das Modal unmountet (z. B. Schrittwechsel
 			// Quick-Capture → Formular, #236), darf kein Close-Event mehr `onClose` aufrufen — sonst
 			// schließt der Aufrufer (App `closeDialog`) auch den gerade gemounteten Folge-Dialog. Beim

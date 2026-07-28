@@ -193,6 +193,10 @@ test.describe('Priority Pilot — #335: Serien-Verwaltung als eigener Tab', () =
 		await item.getByRole('button', { name: 'Löschen' }).click();
 		await waitForStableView(page);
 
+		// #472: Die Serien-Löschung erfordert jetzt eine Bestätigung („Endgültig löschen").
+		await page.getByRole('button', { name: 'Endgültig löschen' }).click();
+		await waitForStableView(page);
+
 		// Die Zeile verschwindet aus dem Serien-Baum.
 		await expect(item).toBeHidden();
 
