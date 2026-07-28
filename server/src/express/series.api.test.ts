@@ -89,6 +89,40 @@ describe('Series API', () => {
 			const res = await post('/series', invalid);
 			assert.equal(res.status, 400);
 		});
+
+		// Wochentag-Konsistenz (#469): rhythm "mon"…"sun" erfordert ein startDate auf dem
+		// benannten Wochentag — sonst läge der Anker (und damit alle Termine) auf dem falschen Tag.
+		it('400 bei rhythm "wed" mit startDate an einem anderen Wochentag', async () => {
+			// Ein Datum finden, das garantiert NICHT Mittwoch ist (0=So … 6=Sa).
+			const wrong = new Date();
+			wrong.setUTCDate(wrong.getUTCDate() + 1);
+			wrong.setUTCHours(0, 0, 0, 0);
+			if (wrong.getUTCDay() === 3) {
+				wrong.setUTCDate(wrong.getUTCDate() + 1);
+			}
+			const res = await post('/series', {
+				...validSeries(),
+				rhythm: 'wed',
+				startDate: wrong.toISOString().replace(/\.\d{3}Z$/, '.000Z'),
+			});
+			assert.equal(res.status, 400);
+		});
+
+		it('201 bei rhythm "wed" mit startDate an einem Mittwoch', async () => {
+			// Nächsten Mittwoch ab morgen finden (0=So … 6=Sa, Mi=3).
+			const wed = new Date();
+			wed.setUTCDate(wed.getUTCDate() + 1);
+			wed.setUTCHours(0, 0, 0, 0);
+			while (wed.getUTCDay() !== 3) {
+				wed.setUTCDate(wed.getUTCDate() + 1);
+			}
+			const res = await post('/series', {
+				...validSeries(),
+				rhythm: 'wed',
+				startDate: wed.toISOString().replace(/\.\d{3}Z$/, '.000Z'),
+			});
+			assert.equal(res.status, 201);
+		});
 	});
 
 	describe('GET /series', () => {
@@ -197,6 +231,23 @@ describe('Series API', () => {
 			const created = (await (await post('/series', validSeries())).json()) as { id: number };
 			const res = await patch(`/series/${created.id}`, {
 				rhythm: 'invalid-rhythm',
+			});
+			assert.equal(res.status, 400);
+		});
+
+		// Wochentag-Konsistenz (#469): rhythm+startDate gemeinsam in einem PATCH müssen
+		// zusammenpassen (Anker liegt sonst auf dem falschen Tag).
+		it('400 bei PATCH rhythm "wed" + startDate an anderem Wochentag', async () => {
+			const created = (await (await post('/series', validSeries())).json()) as { id: number };
+			const wrong = new Date();
+			wrong.setUTCDate(wrong.getUTCDate() + 1);
+			wrong.setUTCHours(0, 0, 0, 0);
+			if (wrong.getUTCDay() === 3) {
+				wrong.setUTCDate(wrong.getUTCDate() + 1);
+			}
+			const res = await patch(`/series/${created.id}`, {
+				rhythm: 'wed',
+				startDate: wrong.toISOString().replace(/\.\d{3}Z$/, '.000Z'),
 			});
 			assert.equal(res.status, 400);
 		});

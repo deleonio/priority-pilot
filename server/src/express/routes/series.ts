@@ -31,6 +31,24 @@ const VALID_RHYTHMS: readonly SeriesRhythm[] = [
 ];
 
 /**
+ * Ziel-UTC-Wochentag je `mon`…`sun`-Rhythmus (0=So … 6=Sa). `undefined` für alle anderen Rhythmen,
+ * die keinen festen Wochentag implizieren (`daily`/`weekly`/`monthly`/`weekdays`/`weekend`).
+ *
+ * Wird benutzt, um sicherzustellen, dass bei `mon`…`sun` das `startDate` tatsächlich auf dem
+ * benannten Wochentag liegt — sonst würde `nextOccurrence` (das schlicht +7 Tage addiert) die
+ * Termine auf den Wochentag des Start-Datums legen, nicht auf den suggerierten Namen.
+ */
+const RHYTHM_WEEKDAY: ReadonlyMap<SeriesRhythm, number> = new Map([
+	['sun', 0],
+	['mon', 1],
+	['tue', 2],
+	['wed', 3],
+	['thu', 4],
+	['fri', 5],
+	['sat', 6],
+]);
+
+/**
  * Produktpolicy: maximale Vorlauf-Horizont in Tagen, den `/series/generate-all`
  * materialisiert. Verhindert, dass bei jedem Cron-Lauf ein unbegrenztes Fenster
  * erzeugt wird — es wird nur bis "heute + N Tage" vorlaufend angelegt.
@@ -181,6 +199,24 @@ const validateSeriesFields = (body: unknown, isPost: boolean): ValidationResult 
 			return { ok: false, message: 'description muss ein String oder null sein.' };
 		}
 		attrs.description = input.description;
+	}
+
+	// Konsistenz-Prüfung für wochentag-basierte Rhythmen (`mon`…`sun`): der Rhythmus-Name
+	// suggeriert einen festen Wochentag. Da `nextOccurrence` für diese Rhythmen schlicht +7 Tage
+	// addiert (Anker liegt „definitionsgemäß" auf dem Tag), würde ein `startDate` auf einem
+	// *anderen* Wochentag die Termine stillschweigend auf den falschen Tag legen — der Name
+	// bestimmte dann nicht den Wochentag. Wir lehnen diese Kombination daher explizit ab (400),
+	// statt eine irreführende Serie zu speichern. Nur prüfbar, wenn rhythm UND startDate im
+	// selben Request gesetzt sind (POST immer; PATCH, wenn beide Felder gesendet werden).
+	const targetWeekday = attrs.rhythm !== undefined ? RHYTHM_WEEKDAY.get(attrs.rhythm) : undefined;
+	if (targetWeekday !== undefined && attrs.startDate !== undefined) {
+		if (attrs.startDate.getUTCDay() !== targetWeekday) {
+			const weekdayNames = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+			return {
+				ok: false,
+				message: `rhythm "${attrs.rhythm}" erfordert ein startDate an einem ${weekdayNames[targetWeekday]}.`,
+			};
+		}
 	}
 
 	let pillars: PillarContribution[] | undefined;
