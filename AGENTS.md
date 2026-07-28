@@ -141,7 +141,7 @@ Umschalten: Repo → Settings → Secrets and variables → Actions → Variable
 spart das Flash-Modell Geld. Bei der GLM Coding Plan-Subscription verbrauchen aber alle Modelle
 außer `glm-5.2`/`glm-5-turbo` **dasselbe Kontingent (1×)** — ein Wechsel auf `glm-4.7-flash`
 spart also nichts, reduziert aber die **Parallelität von 10 auf 1** und verschlechtert die
-Qualität. Siehe [Modellwahl — Z.AI](#modellwahl--zaiglm-coding-plan-subscription).
+Qualität. Siehe [Modellwahl — Z.AI](#modellwahl--zai-glm-coding-plan-subscription).
 
 ### Kolibri MCP-Server für Frontend-Implementierung
 
