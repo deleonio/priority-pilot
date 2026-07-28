@@ -81,6 +81,7 @@ export const Modal = ({ title, onClose, width = '40rem', fallbackFocusRef, initi
 		// `active`-Flag und `openedRef` entkoppeln StrictMode (Setup→Cleanup→Setup): es öffnet genau ein
 		// Setup — auch wenn der `whenDefined`-Microtask schon ZWISCHEN erstem Setup und Cleanup lief.
 		let active = true;
+		let initialFocusTimer: ReturnType<typeof setTimeout> | undefined;
 		void customElements.whenDefined('kol-dialog').then(() => {
 			if (active && !openedRef.current) {
 				openedRef.current = true;
@@ -93,12 +94,15 @@ export const Modal = ({ title, onClose, width = '40rem', fallbackFocusRef, initi
 				// fokussiert also den inneren `<button>`.
 				const focusTarget = initialFocusRefCurrent.current;
 				if (focusTarget != null) {
-					setTimeout(() => focusTarget.focus(), 200);
+					// Timer-ID merken, damit der Cleanup den Fokusaufruf bei Unmount innerhalb der
+					// 200 ms abbrechen kann — sonst läuft `.focus()` auf einem bereits detached Element.
+					initialFocusTimer = setTimeout(() => focusTarget.focus(), 200);
 				}
 			}
 		});
 		return () => {
 			active = false;
+			clearTimeout(initialFocusTimer);
 			// Unmount ist KEIN User-Close: Wenn der Eigentümer das Modal unmountet (z. B. Schrittwechsel
 			// Quick-Capture → Formular, #236), darf kein Close-Event mehr `onClose` aufrufen — sonst
 			// schließt der Aufrufer (App `closeDialog`) auch den gerade gemounteten Folge-Dialog. Beim

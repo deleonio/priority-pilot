@@ -1,6 +1,6 @@
 import { KolAlert, KolButton, KolSpin, KolToolbar } from '@public-ui/react-v19';
 import type { Pillar, Series } from 'client';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { DeleteSeriesDialog } from './DeleteSeriesDialog';
@@ -38,6 +38,10 @@ export const SeriesTab = ({ pillars }: SeriesTabProps) => {
 	const [isGenerating, setIsGenerating] = useState(false);
 	// Zu löschende Serie (Öffnet den `DeleteSeriesDialog`, #472). `null` = kein Lösch-Dialog offen.
 	const [deleteTarget, setDeleteTarget] = useState<Series | null>(null);
+	// Fallback-Fokusziel nach erfolgreicher Serien-Löschung (#182, #472): Nach dem Löschen fällt die
+	// Toolbar-Zeile der Serie aus dem DOM, sodass der Trigger-Button kein Fokus-Ziel mehr ist. Analog
+	// zu App.tsx / PillarList.tsx (`deleteFallbackRef`) halten wir einen stabilen Container bereit.
+	const deleteFallbackRef = useRef<HTMLElement>(null);
 
 	const reload = useCallback(async (signal?: AbortSignal): Promise<void> => {
 		try {
@@ -90,7 +94,7 @@ export const SeriesTab = ({ pillars }: SeriesTabProps) => {
 	}, [reload]);
 
 	return (
-		<section className="series-section">
+		<section className="series-section" ref={deleteFallbackRef} tabIndex={-1}>
 			{error !== null && (
 				<KolAlert _type="error" _label="Aktion fehlgeschlagen">
 					{error}
@@ -175,7 +179,12 @@ export const SeriesTab = ({ pillars }: SeriesTabProps) => {
 			)}
 
 			{deleteTarget !== null && (
-				<DeleteSeriesDialog series={deleteTarget} onClose={() => setDeleteTarget(null)} onDeleted={handleDeleted} />
+				<DeleteSeriesDialog
+					series={deleteTarget}
+					onClose={() => setDeleteTarget(null)}
+					onDeleted={handleDeleted}
+					fallbackFocusRef={deleteFallbackRef}
+				/>
 			)}
 		</section>
 	);
