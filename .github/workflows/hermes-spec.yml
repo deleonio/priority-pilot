@@ -328,10 +328,30 @@ jobs:
           fi
           echo "Hermes-Verdict aus Output: '${verdict:-keins}'"
 
-          # Safe-Default bei fehlendem VERDICT
+          # VERDICT validieren
           if [ "$verdict" != "ready" ] && [ "$verdict" != "spec-ready" ]; then
             echo "::warning::Kein gültiger VERDICT — Safe-Default: spec-ready (Partial)"
             verdict="spec-ready"
+          fi
+
+          # VERIFIKATION (Root-Cause-Schutz): Vertraue dem VERDICT-Marker nicht blind.
+          # Bei 'ready' muss ein Draft-PR mit roten Tests existieren — sonst hat die
+          # Implement-Stufe keinen Vertrag und muss alles selbst machen.
+          if [ "$verdict" = "ready" ]; then
+            SPEC_PR="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
+              --json number,closingIssuesReferences \
+              --jq "[.[] | select((.closingIssuesReferences // []) | any(.number == ${ISSUE})) | .number] | first" 2>/dev/null || echo "")"
+            if [ -z "$SPEC_PR" ] || [ "$SPEC_PR" = "null" ]; then
+              echo "::error title=❌ Spec-PR fehlt::VERDICT ready, aber kein PR mit Closes #${ISSUE} gefunden. Die KI hat keinen Spec-PR erstellt — kein ai:ready, Implement-Stufe hat nichts zu greifen. Lauf muss wiederholt werden."
+              exit 1
+            fi
+            HAS_TESTS="$(gh pr view "$SPEC_PR" --repo "$GITHUB_REPOSITORY" --json files \
+              --jq '[.files[].path | test("\\.(test|spec)\\.(ts|tsx)$")] | any' 2>/dev/null || echo "false")"
+            if [ "$HAS_TESTS" != "true" ]; then
+              echo "::error title=❌ Spec-Tests fehlen::VERDICT ready, aber PR #${SPEC_PR} enthält keine Test-Dateien (*.test.ts/*.spec.ts). Die KI hat keine roten Tests geschrieben — kein ai:ready. Lauf muss wiederholt werden."
+              exit 1
+            fi
+            echo "✅ Spec-PR #${SPEC_PR} gefunden mit Test-Dateien."
           fi
 
           # Labels sicherstellen
@@ -344,7 +364,7 @@ jobs:
 
           if [ "$verdict" = "ready" ]; then
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:ready"
-            echo "::notice::Label gesetzt (App-Token): ai:ready (Issue zur Umsetzung freigegeben)"
+            echo "::notice::Label gesetzt (App-Token): ai:ready (verifiziert: Spec-PR + rote Tests vorhanden)"
           else
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:spec-ready"
             echo "::notice::Label gesetzt (App-Token): ai:spec-ready (Partial — Folgelauf nötig)"

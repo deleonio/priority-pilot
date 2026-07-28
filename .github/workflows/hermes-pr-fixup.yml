@@ -377,11 +377,32 @@ jobs:
           fi
           echo "Hermes-Verdict aus Output: '${verdict:-keins}'"
 
-          # Safe-Default bei fehlendem VERDICT
+          # VERDICT validieren
           if [ "$verdict" != "fixup-complete" ] && [ "$verdict" != "needs-changes" ]; then
             echo "::warning::Kein gültiger VERDICT — Safe-Default: needs-changes"
             verdict="needs-changes"
           fi
+
+          # VERIFIKATION (Root-Cause-Schutz): Vertraue dem VERDICT-Marker nicht blind.
+          # Bei fixup-complete muss die KI tatsächliche Commits gepusht haben. Hat sie das
+          # nicht, läuft der Review wieder auf denselben Stand → leerer Loop-Durchlauf.
+          PR_COMMITS="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json commits \
+            --jq '.commits | length' 2>/dev/null || echo "0")"
+          # Letzten ai-review-Kommentar lesen → dessen Timestamp als Basis
+          REVIEW_TS="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json comments \
+            --jq '[.comments[] | select(.body | test("<!-- ai-review -->"))] | last | .createdAt' 2>/dev/null || echo "")"
+          if [ -n "$REVIEW_TS" ] && [ "$REVIEW_TS" != "null" ]; then
+            COMMITS_SINCE_REVIEW="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}/commits" \
+              --jq "[.[] | select(.commit.committer.date > \"${REVIEW_TS}\")] | length" 2>/dev/null || echo "0")"
+          else
+            # Kein Review-Kommentar → alle Commits zählen
+            COMMITS_SINCE_REVIEW="$PR_COMMITS"
+          fi
+          if [ "${COMMITS_SINCE_REVIEW:-0}" -eq 0 ] && [ "$verdict" = "fixup-complete" ]; then
+            echo "::error title=❌ Keine Fixup-Commits::VERDICT fixup-complete, aber 0 Commits seit dem letzten Review. Die KI hat keine Findings behoben — kein ai:needs-review. Lauf muss wiederholt werden."
+            exit 1
+          fi
+          echo "✅ Commits seit Review: ${COMMITS_SINCE_REVIEW} (PR gesamt: ${PR_COMMITS})."
 
           # Labels sicherstellen, dass sie existieren
           gh label create "ai:needs-review" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true

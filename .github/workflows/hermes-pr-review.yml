@@ -300,10 +300,22 @@ jobs:
           fi
           echo "Hermes-Verdict aus Output: '${verdict:-keins}'"
 
-          # Safe-Default bei fehlendem VERDICT
+          # VERDICT validieren
           if [ "$verdict" != "ready-to-merge" ] && [ "$verdict" != "needs-changes" ]; then
             echo "::warning::Kein gültiger VERDICT — Safe-Default: needs-changes"
             verdict="needs-changes"
+          fi
+
+          # VERIFIKATION (Root-Cause-Schutz): Vertraue dem VERDICT-Marker nicht blind.
+          # Bei needs-changes muss ein <!-- ai-review -->-Kommentar mit Findings existieren.
+          # Fehlt er, hat die KI die Arbeit nicht gemacht → KEIN Label, Job failt laut.
+          REVIEW_COMMENT_ID="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json comments \
+            --jq '[.comments[] | select(.body | test("<!-- ai-review -->"))] | first | .id' 2>/dev/null || echo "")"
+          if [ -n "$REVIEW_COMMENT_ID" ] && [ "$REVIEW_COMMENT_ID" != "null" ]; then
+            echo "✅ ai-review-Kommentar gefunden (ID: ${REVIEW_COMMENT_ID})."
+          else
+            echo "::error title=❌ Review-Kommentar fehlt::Hermes-VERDICT war '${verdict}', aber kein <!-- ai-review -->-Kommentar am PR. Die KI hat keinen Review gepostet — keine Labels gesetzt. Lauf muss wiederholt werden."
+            exit 1
           fi
 
           # Labels sicherstellen, dass sie existieren

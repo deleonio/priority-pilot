@@ -359,14 +359,31 @@ jobs:
             --jq "[.[] | select((.closingIssuesReferences // []) | any(.number == ${ISSUE})) | .number] | first" 2>/dev/null || echo "")"
 
           if [ "$verdict" = "needs-review" ]; then
+            # VERIFIKATION (Root-Cause-Schutz): Vertraue dem VERDICT-Marker nicht blind.
+            # PR muss existieren, nicht-Draft sein und Commits haben — sonst reviewt der
+            # Kreuzverhör einen leeren/unfertigen PR.
+            if [ -z "$PR_NR" ] || [ "$PR_NR" = "null" ]; then
+              echo "::error title=❌ PR fehlt::VERDICT needs-review, aber kein PR mit Closes #${ISSUE} gefunden. Die KI hat keinen PR erstellt — kein ai:needs-review. Lauf muss wiederholt werden."
+              exit 1
+            fi
+            PR_DRAFT="$(gh pr view "$PR_NR" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft' 2>/dev/null || echo "true")"
+            if [ "$PR_DRAFT" = "true" ]; then
+              echo "::error title=❌ PR noch Draft::VERDICT needs-review, aber PR #${PR_NR} ist noch Draft. Die KI hat 'gh pr ready' nicht ausgeführt — kein ai:needs-review. Lauf muss wiederholt werden."
+              exit 1
+            fi
+            PR_COMMITS="$(gh pr view "$PR_NR" --repo "$GITHUB_REPOSITORY" --json commits --jq '.commits | length' 2>/dev/null || echo "0")"
+            if [ "${PR_COMMITS:-0}" -eq 0 ]; then
+              echo "::error title=❌ PR leer::VERDICT needs-review, aber PR #${PR_NR} hat 0 Commits. Die KI hat nichts implementiert — kein ai:needs-review. Lauf muss wiederholt werden."
+              exit 1
+            fi
+            echo "✅ PR #${PR_NR} verifiziert: nicht-Draft, ${PR_COMMITS} Commits."
+
             # ✅ Implementierung fertig → ai:ready entfernen, ai:needs-review am PR setzen
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:continued" 2>/dev/null || true
-            if [ -n "$PR_NR" ]; then
-              gh pr edit "$PR_NR" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-review" 2>/dev/null || true
-              gh pr edit "$PR_NR" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-review"
-            fi
-            echo "::notice::Labels gesetzt (App-Token): ai:needs-review an PR #${PR_NR:-?}"
+            gh pr edit "$PR_NR" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-review" 2>/dev/null || true
+            gh pr edit "$PR_NR" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-review"
+            echo "::notice::Labels gesetzt (App-Token): ai:needs-review an PR #${PR_NR} (verifiziert)"
 
           elif [ "$verdict" = "not-ready" ]; then
             # ⏸️ Partial — Soft-Abort. ai:ready bleibt, aber ai:continued markiert Folgelauf.
