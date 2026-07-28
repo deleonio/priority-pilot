@@ -1,10 +1,13 @@
 import { KolButton, KolCard } from '@public-ui/react-v19';
-import { useEffect, useRef } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
 /**
  * PWA-Update-/Offline-Hinweis (#373). Am unteren Viewport-Rand fixiert (`.update-prompt` in
  * app.css) und mit KoliBri-`KolCard`/`KolButton` statt roher Container/Buttons aufgebaut.
+ *
+ * Update-Hinweis ausschließlich als In-App-Card (nicht zusätzlich als System-Notification) —
+ * System-Notifications bleiben den echten Push-Nachrichten (`push-sw.js`) vorbehalten, damit
+ * bei einem Update nicht zwei Benachrichtigungen mit gleichem Inhalt erscheinen.
  *
  * Klick-Naht: KoliBris `KolButton` ist ein Web Component, dessen `_on.onClick` in JSDOM nicht über
  * einen echten DOM-Klick auslösbar ist (siehe InstallPrompt-Präzedenzfall). Der Handler sitzt daher
@@ -18,34 +21,6 @@ export const UpdatePrompt = () => {
 		offlineReady: [offlineReady, setOfflineReady],
 		updateServiceWorker,
 	} = useRegisterSW();
-
-	// Guard verhindert Doppel-Notification im selben needRefresh-Zyklus (#394).
-	const notifiedRef = useRef(false);
-
-	useEffect(() => {
-		if (!needRefresh) {
-			notifiedRef.current = false;
-			return;
-		}
-		if (notifiedRef.current) return;
-		if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
-
-		notifiedRef.current = true;
-
-		if (navigator.serviceWorker) {
-			navigator.serviceWorker.ready.then((registration) => {
-				registration.showNotification('Neue Version verfügbar', {
-					body: 'Lade die Seite neu, um die neue Version zu verwenden.',
-					tag: 'app-update',
-				});
-			});
-		} else {
-			new Notification('Neue Version verfügbar', {
-				body: 'Lade die Seite neu, um die neue Version zu verwenden.',
-				tag: 'app-update',
-			});
-		}
-	}, [needRefresh]);
 
 	if (!needRefresh && !offlineReady) {
 		return null;
