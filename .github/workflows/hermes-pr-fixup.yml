@@ -31,7 +31,10 @@ jobs:
           && github.event.pull_request.draft == false
           && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15 # Hard-Timeout (Backstop) — Skill-Vorgabe Mittel-Phase
+    # Backstop (weit über der Soft-Deadline von 10 Min) — fängt einen hängenden Agent
+    # ab (Prompt-Deadline ignoriert, API-Call hängt), ohne das graceful Save
+    # (Session-Archiv) bei der Soft-Deadline zu stören.
+    timeout-minutes: 30
     env:
       PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       HERMES_HOME: /tmp/hermes-ci
@@ -295,16 +298,20 @@ jobs:
                a) FLAKY-TEST ERKENNEN: Ist der Fehler ein Timeout, eine Timing-Instabilität (z.B. „not visible within 5000ms", „element not found"), ein Transient (Netzwerk, Race-Condition)? UND der Test berührt thematisch keine Logik aus diesem PR-Diff? → FLAKY: einmalig via gh run rerun <failed-run-id> --failed neu starten. Danach 60s warten, dann gh pr checks erneut prüfen. Wird der Check danach grün → fertig. Bleibt er rot → als echtes Finding behandeln (siehe b).
                b) ECHTER CI-FEHLER: Format-/Lint-/Build-/Testfehler, der durch den PR-Diff verursacht wurde. Den fehlschlagenden Job-Log lesen (gh run view <run-id> --log), Root Cause identifizieren, Code ändern, lokale Checks (pnpm format && pnpm exec prettier --check . && pnpm lint && pnpm knip) ausführen, committen und pushen.
                c) UNRELATED CI-FEHLER (PR-Diff berührt die fehlschlagende Logik nicht, kein Flaky): In PR-Kommentar dokumentieren („CI-Check X ist rot, berührt aber nicht die Logik dieses PRs — pre-existing/unrelated"). Nicht fixen, nicht committen. Der PR geht zurück auf ai:needs-review.
-            5. ABSCHLUSS (ALLERLETZTER Schritt, NIE davor — erst nach Commit+Push+CI behandelt): Labels in ZWEI getrennten Befehlen: gh pr edit PR_NR --remove-label ai:needs-changes, dann --add-label ai:needs-review.
+            5. ABSCHLUSS (ALLERLETZTER Schritt, NIE davor — erst nach Commit+Push+CI behandelt): Gib eine Zeile aus: `VERDICT: fixup-complete` (alle Findings behoben) oder `VERDICT: needs-changes` (noch offene Findings).
 
-          WEICHES ZEITLIMIT (Soft-Abort):
-            Beginne SOFORT mit der Arbeit. Prüfe VOR jedem größeren Teilschritt date +%s gegen SOFT_DEADLINE. Ist das Limit erreicht: committen+pushen, offene Findings als PR-Kommentar festhalten. gh pr edit PR_NR --add-label ai:continued, dann ai:needs-changes entfernen+sofort wieder setzen (Selbst-Retrigger). KEIN ai:needs-review. Turn beenden.
+          ⚠️ LABELS: Du darfst KEINE Labels setzen oder entfernen (`gh pr edit --add-label` / `--remove-label`)! Der Workflow übernimmt den Label-Wechsel automatisch anhand deines VERDICT-Markers — mit dem korrekten App-Token, das Folgeworkflows triggert. Wenn du Labels selbst setzt, bricht die Pipeline (Folge-Workflows werden nicht ausgelöst). Setze auch im Soft-Abort-Fall keine Labels — gib nur `VERDICT: needs-changes` aus.
+
+          WEICHES ZEITLIMIT (Soft-Abort) — SOFORT STOPPEN, NICHT AUFRÄUMEN:
+            Beginne SOFORT mit der Arbeit. Deine Soft-Deadline ist SOFT_DEADLINE (Unix-Epoch).
+            Prüfe VOR JEDEM Tool-Aufruf: Ist `[ $(date +%s) -ge SOFT_DEADLINE ] && echo OVER`?
+            Wenn OVER: **BRICH AUF DER STELLE AB** — nicht den aktuellen Schritt zuende führen,
+            nicht aufräumen, nicht zusammenfassen. Commite+pushe den aktuellen Stand (auch
+            unvollständig), gib `VERDICT: needs-changes` aus und beende den Turn sofort.
 
           Stop-Guard: Ein Workflow-Step zählt die PR-Commits und stoppt bei > 10 — du musst das nicht selbst im Kopf führen.
 
           Keine interaktive Rückfrage. Label ai:needs-changes autorisiert den Lauf.
-
-          VERDICT-MARKER: Gib GANZ AM ENDE deiner letzten Antwort eine Zeile aus: `VERDICT: fixup-complete` (alle Findings behoben) oder `VERDICT: needs-changes` (noch offene Findings). Der Workflow parst diese Zeile als Fallback, falls du die Labels nicht selbst setzen konntest (z.B. bei Token-Problemen).
           HERMES_EOF
 
           sed -i "s/#PR_NR/${{ github.event.pull_request.number }}/g" /tmp/hermes-prompt.txt
@@ -357,38 +364,42 @@ jobs:
           retention-days: 30
           overwrite: true
 
-      - name: Label-Post-Assertion (VERDICT-Fallback)
+      - name: Label-Post-Assertion (Labels via App-Token force-setzen)
         if: always() && steps.preflight.outputs.configured == 'true' && steps.hermes.outcome == 'success'
         env:
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           PR: ${{ github.event.pull_request.number }}
         run: |
-          # VERDICT aus Hermes-Output parsen (Fallback, falls Agent Labels nicht selbst setzen konnte)
+          # VERDICT aus Hermes-Output parsen
           verdict=""
           if [ -f /tmp/hermes-output.log ]; then
             verdict="$(grep -oP 'VERDICT:\s*\K.*' /tmp/hermes-output.log | tail -1 | tr -d '[:space:]' || true)"
           fi
           echo "Hermes-Verdict aus Output: '${verdict:-keins}'"
 
-          labels_json="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name]' 2>/dev/null || echo '[]')"
+          # Safe-Default bei fehlendem VERDICT
+          if [ "$verdict" != "fixup-complete" ] && [ "$verdict" != "needs-changes" ]; then
+            echo "::warning::Kein gültiger VERDICT — Safe-Default: needs-changes"
+            verdict="needs-changes"
+          fi
 
-          has_needs_review="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:needs-review")')"
-          has_needs_changes="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:needs-changes")')"
+          # Labels sicherstellen, dass sie existieren
+          gh label create "ai:needs-review" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
+          gh label create "ai:needs-changes" --repo "$GITHUB_REPOSITORY" --color D93F0B 2>/dev/null || true
 
-          # Wenn Agent kein Label gesetzt hat, VERDICT verwenden
-          if [ "$has_needs_review" != "true" ] && [ "$has_needs_changes" != "true" ]; then
-            if [ "$verdict" = "fixup-complete" ]; then
-              echo "::notice::Agent hat kein Label gesetzt — nutze VERDICT=fixup-complete → ai:needs-review"
-              gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-review" 2>/dev/null || true
-              gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-changes" 2>/dev/null || true
-            elif [ "$verdict" = "needs-changes" ]; then
-              echo "::notice::Agent hat kein Label gesetzt — nutze VERDICT=needs-changes → ai:needs-changes explizit setzen"
-              gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-changes" 2>/dev/null || true
-            else
-              echo "::warning::Kein VERDICT und kein Label vom Agenten — Safe-Default: ai:needs-changes bleibt"
-            fi
+          # FORCE-SET: Alle Pipeline-Labels entfernen, dann das Ziel-Label setzen.
+          # Warum remove+re-add auch wenn das Label schon da ist: der Agent könnte es
+          # mit GITHUB_TOKEN gesetzt haben → Folge-Workflows werden nicht getriggert.
+          # Nur ein Label-Wechsel via App-Token löst die nächste Stufe aus.
+          gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-changes 2>/dev/null || true
+          gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-review 2>/dev/null || true
+
+          if [ "$verdict" = "fixup-complete" ]; then
+            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-review
+            echo "::notice::Label gesetzt (App-Token): ai:needs-review"
           else
-            echo "Agent hat Label selbst gesetzt: needs_review=$has_needs_review needs_changes=$has_needs_changes"
+            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-changes
+            echo "::notice::Label gesetzt (App-Token): ai:needs-changes"
           fi
 
       - name: Soft-Abort-Fortsetzung erkennen und begrenzen (ai:continued)
