@@ -3,6 +3,7 @@ import type { Pillar, Series } from 'client';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
+import { DeleteSeriesDialog } from './DeleteSeriesDialog';
 import { Modal } from './Modal';
 import { TaskForm } from './TaskForm';
 
@@ -35,6 +36,8 @@ export const SeriesTab = ({ pillars }: SeriesTabProps) => {
 	const [successMessage, setSuccessMessage] = useState<string | null>(null);
 	const [editDialog, setEditDialog] = useState<EditDialog>(null);
 	const [isGenerating, setIsGenerating] = useState(false);
+	// Zu löschende Serie (Öffnet den `DeleteSeriesDialog`, #472). `null` = kein Lösch-Dialog offen.
+	const [deleteTarget, setDeleteTarget] = useState<Series | null>(null);
 
 	const reload = useCallback(async (signal?: AbortSignal): Promise<void> => {
 		try {
@@ -81,18 +84,10 @@ export const SeriesTab = ({ pillars }: SeriesTabProps) => {
 		}
 	}, [isGenerating]);
 
-	const remove = useCallback(
-		async (entry: Series): Promise<void> => {
-			try {
-				await api.deleteSeries({ id: entry.id });
-				await reload();
-			} catch (reason) {
-				const apiError = await toApiError(reason);
-				setError(apiError.message);
-			}
-		},
-		[reload],
-	);
+	const handleDeleted = useCallback((): void => {
+		setDeleteTarget(null);
+		void reload();
+	}, [reload]);
 
 	return (
 		<section className="series-section">
@@ -155,7 +150,7 @@ export const SeriesTab = ({ pillars }: SeriesTabProps) => {
 												_hideLabel: true,
 												_icons: { left: { icon: 'kolicon-cross' } },
 												_variant: 'danger',
-												_on: { onClick: () => void remove(entry) },
+												_on: { onClick: () => setDeleteTarget(entry) },
 											},
 										]}
 									/>
@@ -177,6 +172,10 @@ export const SeriesTab = ({ pillars }: SeriesTabProps) => {
 						onSaved={afterSaved}
 					/>
 				</Modal>
+			)}
+
+			{deleteTarget !== null && (
+				<DeleteSeriesDialog series={deleteTarget} onClose={() => setDeleteTarget(null)} onDeleted={handleDeleted} />
 			)}
 		</section>
 	);

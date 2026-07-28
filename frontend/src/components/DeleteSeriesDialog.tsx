@@ -1,14 +1,14 @@
 import { KolAlert, KolButton } from '@public-ui/react-v19';
-import type { Pillar } from 'client';
+import type { Series } from 'client';
 import { useRef, useState, type RefObject } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { useCtrlEnter } from '../lib/useCtrlEnter';
 import { Modal } from './Modal';
 
-interface PillarDeleteDialogProps {
-	/** Säule, die gelöscht werden soll. */
-	pillar: Pillar;
+interface DeleteSeriesDialogProps {
+	/** Serie, die gelöscht werden soll. */
+	series: Series;
 	onClose: () => void;
 	/** Nach erfolgreichem Löschen aufgerufen (Liste neu laden + Dialog schließen). */
 	onDeleted: () => void;
@@ -16,8 +16,16 @@ interface PillarDeleteDialogProps {
 	fallbackFocusRef?: RefObject<HTMLElement | null>;
 }
 
-/** Bestätigungsdialog vor dem Löschen einer Säule (`DELETE /pillars/{id}`). */
-export const PillarDeleteDialog = ({ pillar, onClose, onDeleted, fallbackFocusRef }: PillarDeleteDialogProps) => {
+/**
+ * Bestätigungsdialog vor dem Löschen eines Serien-Templates (`DELETE /series/{id}`).
+ *
+ * #472: Bislang erfolgte die Serien-Löschung aus der Serien-Verwaltung (`SeriesTab`) sofort ohne
+ * Bestätigung. Dieser Dialog schaltet sich davor: Er erfordert ein bewusstes „Endgültig löschen"
+ * und fokussiert initial den „Abbrechen"-Button (sicherer Initialfokus — die irreversible Aktion
+ * ist nicht per Enter auslösbar, bevor der Nutzer den Fokus verlagert). Aufbau analog zu
+ * `DeleteTaskDialog` / `PillarDeleteDialog`.
+ */
+export const DeleteSeriesDialog = ({ series, onClose, onDeleted, fallbackFocusRef }: DeleteSeriesDialogProps) => {
 	const [error, setError] = useState<string | null>(null);
 	const [deleting, setDeleting] = useState(false);
 
@@ -29,7 +37,7 @@ export const PillarDeleteDialog = ({ pillar, onClose, onDeleted, fallbackFocusRe
 		setError(null);
 		setDeleting(true);
 		try {
-			await api.deletePillar({ id: pillar.id });
+			await api.deleteSeries({ id: series.id });
 			onDeleted();
 		} catch (reason) {
 			const apiError = await toApiError(reason);
@@ -38,12 +46,12 @@ export const PillarDeleteDialog = ({ pillar, onClose, onDeleted, fallbackFocusRe
 		}
 	};
 
-	// Strg+Enter (bzw. ⌘+Enter) löst den primären CTA „Endgültig löschen\" aus, solange kein Löschen läuft.
+	// Strg+Enter (bzw. ⌘+Enter) löst den primären CTA „Endgültig löschen" aus, solange kein Löschen läuft.
 	useCtrlEnter(() => void confirm(), !deleting);
 
 	return (
 		<Modal
-			title="Säule löschen"
+			title="Serie löschen"
 			onClose={onClose}
 			fallbackFocusRef={fallbackFocusRef}
 			initialFocusRef={cancelRef as RefObject<HTMLElement | null>}
@@ -54,8 +62,9 @@ export const PillarDeleteDialog = ({ pillar, onClose, onDeleted, fallbackFocusRe
 				</KolAlert>
 			)}
 			<p>
-				Soll die Säule <strong>„{pillar.name}“</strong> wirklich gelöscht werden? Diese Säule wird endgültig gelöscht.
-				Tasks und Serien, die dieser Säule zugeordnet sind, verlieren ihre Zuordnung.
+				Soll die Serie <strong>„{series.title}"</strong> wirklich gelöscht werden? Es werden nur künftige Instanzen
+				nicht mehr generiert — bereits angelegte Tasks bleiben erhalten. Diese Aktion kann nicht rückgängig gemacht
+				werden.
 			</p>
 			<div className="modal-actions">
 				<KolButton
