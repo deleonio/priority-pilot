@@ -1,6 +1,6 @@
 import { KolButton, KolHeading } from '@public-ui/react-v19';
 import type { Pillar } from 'client';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { PillarDeleteDialog } from './PillarDeleteDialog';
@@ -31,6 +31,14 @@ export const PillarList = ({ onPillarChanged }: PillarListProps) => {
 	type FormMode = { kind: 'create' } | { kind: 'edit'; pillar: Pillar };
 	const [formMode, setFormMode] = useState<FormMode | null>(null);
 	const [deleteTarget, setDeleteTarget] = useState<Pillar | null>(null);
+
+	// Fallback-Fokusziel für den Lösch-Dialog: Nach erfolgreichem Löschen fällt der
+	// „Löschen\"-Button mit der Karten-Zeile aus dem DOM (kein Trigger mehr im DOM).
+	// Analog zu App.tsx `deleteFallbackRef`: stabiler Container mit tabIndex={-1}
+	// erlaubt programmatischen Fokus ohne visuelle Tab-Stop-Wirkung.
+	// Typ `HTMLDivElement` (das echte DOM-Element des Containers); beim Durchreichen
+	// an `fallbackFocusRef` sicher zu `HTMLElement` gecastet (HTMLDivElement ⊂ HTMLElement).
+	const deleteFallbackRef = useRef<HTMLDivElement>(null);
 
 	const loadPillars = useCallback(async () => {
 		try {
@@ -68,7 +76,7 @@ export const PillarList = ({ onPillarChanged }: PillarListProps) => {
 	};
 
 	return (
-		<div className="pillar-list">
+		<div className="pillar-list" ref={deleteFallbackRef} tabIndex={-1}>
 			{error !== null && <p className="error-message">{error}</p>}
 
 			{/* ── Anlegen-Button ───────────────────────────────────────────── */}
@@ -118,7 +126,12 @@ export const PillarList = ({ onPillarChanged }: PillarListProps) => {
 
 			{/* ── Lösch-Bestätigungsdialog ───────────────────────────────── */}
 			{deleteTarget !== null && (
-				<PillarDeleteDialog pillar={deleteTarget} onClose={handleDialogClosed} onDeleted={() => void handleDeleted()} />
+				<PillarDeleteDialog
+					pillar={deleteTarget}
+					onClose={handleDialogClosed}
+					onDeleted={() => void handleDeleted()}
+					fallbackFocusRef={deleteFallbackRef as RefObject<HTMLElement | null>}
+				/>
 			)}
 		</div>
 	);
