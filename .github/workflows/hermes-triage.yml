@@ -75,7 +75,7 @@ jobs:
         run: |
           now=$(date +%s)
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
-          echo "soft_deadline_epoch=$((now + 420))" >> "$GITHUB_OUTPUT"  # 7 min (Puffer vor 12-Min-GitHub-Timeout)
+          echo "soft_deadline_epoch=$((now + 600))" >> "$GITHUB_OUTPUT"  # 10 min Soft-Deadline
 
       # ————————————————————————————————————————————————————————————————————————
       # 2. GitHub-App-Setup (für Label/Push als Bot)
@@ -287,9 +287,13 @@ jobs:
           WERKZEUGE:
             Du hast Zugriff auf die Bash (für gh issue/gh api/gh label/gh pr/gh repo), Datei-Lese-Werkzeuge sowie KoliBri-MCP-Tools (mcp_kolibri_search, mcp_kolibri_fetch für KoliBri-Komponenten). Die gh-Befehle sind über GH_TOKEN authentifiziert. Lies die Wissensbasis aus .ai-knowledge/ticket-triage.md für den vollständigen Ablauf. Lese die Issue-Daten via gh issue view und die Wissensbasis via read_file.
 
-          WEICHES ZEITLIMIT (Soft-Abort):
-            Beginne SOFORT mit der Arbeit. Dieser Lauf wird nach 12 Minuten von GitHub HART abgebrochen. Prüfe daher VOR jedem größeren Teilschritt (neue Analyse-Runde, längere Recherche), ob das weiche Limit (5 Minuten nach Start) erreicht ist — berechne es mit: date +%s und vergleiche mit SOFT_DEADLINE.
-            Ist das Limit erreicht: schreibe die bisherige Analyse (auch unvollständig) als Body-Block in die Beschreibung. Setze KEIN Label und poste KEINEN Ping-Kommentar. Beende den Turn sofort (keine weiteren Schritte). So bleibt das Issue für einen sauberen Folgelauf offen.
+          WEICHES ZEITLIMIT (Soft-Abort) — SOFORT STOPPEN, NICHT AUFRÄUMEN:
+            Beginne SOFORT mit der Arbeit. Deine Soft-Deadline ist SOFT_DEADLINE (Unix-Epoch).
+            Prüfe VOR JEDEM Tool-Aufruf: Ist \`[ \$(date +%s) -ge SOFT_DEADLINE ] && echo OVER\`?
+            Wenn OVER: **BRICH AUF DER STELLE AB** — nicht den aktuellen Schritt zuende führen,
+            nicht aufräumen, nicht zusammenfassen. Schreibe den Body-Block mit dem aktuellen
+            Stand (auch unvollständig) und beende den Turn sofort. Ein sauberer Teil-Stand ist
+            wertvoller als ein langer ungesicherter.
 
           WICHTIG:
             - Bearbeite ausschließlich dieses eine Issue (kein Batch).

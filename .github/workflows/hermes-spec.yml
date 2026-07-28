@@ -240,8 +240,13 @@ jobs:
           WERKZEUGE:
             Du hast Bash (für gh, git, pnpm), Datei-Tools sowie KoliBri-MCP-Tools (mcp_kolibri_search, mcp_kolibri_fetch für KoliBri-Komponenten). Nutze gh issue, gh pr, git, pnpm, read_file, write_file. GH_TOKEN authentifiziert gh-Befehle.
 
-          WEICHES ZEITLIMIT (Soft-Abort):
-            Beginne SOFORT mit der Arbeit. Prüfe VOR jedem größeren Teilschritt mit date +%s gegen SOFT_DEADLINE. Ist das Limit erreicht: Zwischenstand committen + pushen (Branch/Draft-PR mit TODO-Notiz). ai:ready NICHT setzen. Stattdessen ai:spec-ready entfernen+sofort wieder setzen (Selbst-Retrigger). Dann Turn beenden.
+          WEICHES ZEITLIMIT (Soft-Abort) — SOFORT STOPPEN, NICHT AUFRÄUMEN:
+            Beginne SOFORT mit der Arbeit. Deine Soft-Deadline ist SOFT_DEADLINE (Unix-Epoch).
+            Prüfe VOR JEDEM Tool-Aufruf: Ist `[ $(date +%s) -ge SOFT_DEADLINE ] && echo OVER`?
+            Wenn OVER: **BRICH AUF DER STELLE AB** — nicht den aktuellen Schritt zuende führen,
+            nicht aufräumen, nicht zusammenfassen. Commite+pushe den aktuellen Stand (auch
+            unvollständig) als Branch/Draft-PR mit TODO-Notiz. Setze KEIN ai:ready. Beende den
+            Turn sofort.
 
           WICHTIG:
             - Bearbeite ausschließlich dieses eine Issue.

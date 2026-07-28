@@ -300,8 +300,12 @@ jobs:
 
           ⚠️ LABELS: Du darfst KEINE Labels setzen oder entfernen (`gh pr edit --add-label` / `--remove-label`)! Der Workflow übernimmt den Label-Wechsel automatisch anhand deines VERDICT-Markers — mit dem korrekten App-Token, das Folgeworkflows triggert. Wenn du Labels selbst setzt, bricht die Pipeline (Folge-Workflows werden nicht ausgelöst). Setze auch im Soft-Abort-Fall keine Labels — gib nur `VERDICT: needs-changes` aus.
 
-          WEICHES ZEITLIMIT (Soft-Abort):
-            Beginne SOFORT mit der Arbeit. Prüfe VOR jedem größeren Teilschritt date +%s gegen SOFT_DEADLINE. Ist das Limit erreicht: committen+pushen, offene Findings als PR-Kommentar festhalten, `VERDICT: needs-changes` ausgeben, Turn beenden. Der Workflow setzt ai:needs-changes für dich.
+          WEICHES ZEITLIMIT (Soft-Abort) — SOFORT STOPPEN, NICHT AUFRÄUMEN:
+            Beginne SOFORT mit der Arbeit. Deine Soft-Deadline ist SOFT_DEADLINE (Unix-Epoch).
+            Prüfe VOR JEDEM Tool-Aufruf: Ist `[ $(date +%s) -ge SOFT_DEADLINE ] && echo OVER`?
+            Wenn OVER: **BRICH AUF DER STELLE AB** — nicht den aktuellen Schritt zuende führen,
+            nicht aufräumen, nicht zusammenfassen. Commite+pushe den aktuellen Stand (auch
+            unvollständig), gib `VERDICT: needs-changes` aus und beende den Turn sofort.
 
           Stop-Guard: Ein Workflow-Step zählt die PR-Commits und stoppt bei > 10 — du musst das nicht selbst im Kopf führen.
 

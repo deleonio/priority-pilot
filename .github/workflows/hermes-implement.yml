@@ -262,8 +262,13 @@ jobs:
             4. Spec-Modus (Regelfall): den vorhandenen DRAFT-PR auschecken (gh pr list --state open --draft --json number,headRefName,closingIssuesReferences, den mit Issue #ISSUE_NR; dann git fetch origin && git switch <headRefName>). Dessen ROTE Tests GRÜN machen — Tests NICHT ändern (Gewaltenteilung). Fallback (kein Draft-PR): eigenen Branch + Tests selbst schreiben. In beiden Fällen: Code bis pnpm test grün, dann pnpm format + pnpm lint + pnpm knip.
             5. Committen, Branch pushen. Im Spec-Modus Draft-PR review-bereit machen (gh pr ready <nr>), Beschreibung ergänzen. ALLERLETZTER Schritt: Label ai:needs-review am PR setzen.
 
-          WEICHES ZEITLIMIT (Soft-Abort):
-            Beginne SOFORT mit der Arbeit. Prüfe VOR jedem größeren Teilschritt date +%s gegen SOFT_DEADLINE. Ist das Limit erreicht: Zwischenstand committen+pushen, Draft-PR mit TODO-Liste (KEIN ai:needs-review). ai:ready entfernen+sofort wieder setzen (Selbst-Retrigger). Turn beenden.
+          WEICHES ZEITLIMIT (Soft-Abort) — SOFORT STOPPEN, NICHT AUFRÄUMEN:
+            Beginne SOFORT mit der Arbeit. Deine Soft-Deadline ist SOFT_DEADLINE (Unix-Epoch).
+            Prüfe VOR JEDEM Tool-Aufruf: Ist `[ $(date +%s) -ge SOFT_DEADLINE ] && echo OVER`?
+            Wenn OVER: **BRICH AUF DER STELLE AB** — nicht den aktuellen Schritt zuende führen,
+            nicht aufräumen, nicht zusammenfassen. Commite+pushe den aktuellen Stand (auch
+            unvollständig) als Draft-PR mit TODO-Liste. Setze KEIN ai:needs-review. Beende den
+            Turn sofort.
 
           Idempotenz: Draft-PR mit Closes #ISSUE_NR ist normaler Spec-Eingang — aufgreifen. Nicht-Draft-PR = Umsetzung schon gelaufen → Lauf beenden.
 
