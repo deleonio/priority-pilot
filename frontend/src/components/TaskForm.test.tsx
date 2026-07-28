@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
-import type { Pillar, Series, Task } from 'client';
-import { TaskStatus } from 'client';
+import type { Pillar, Series, SeriesRhythm, Task } from 'client';
+import { ResponseError, TaskStatus } from 'client';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -72,9 +72,47 @@ vi.mock('@public-ui/react-v19', () => ({
 			onChange={(e) => _on?.onChange?.(e.nativeEvent, e.target.checked)}
 		/>
 	),
-	KolInputDate: ({ _label }: { _label?: string }) => <input type="date" aria-label={_label} />,
+	KolInputDate: ({
+		_label,
+		_on,
+	}: {
+		_label?: string;
+		_on?: { onChange?: (_e: unknown, v: unknown) => void; onInput?: (_e: unknown, v: unknown) => void };
+	}) => (
+		<input
+			type="date"
+			aria-label={_label}
+			data-testid={`input-date-${_label}`}
+			onChange={(e) => {
+				_on?.onChange?.(e.nativeEvent, e.target.value === '' ? '' : new Date(`${e.target.value}T00:00:00Z`));
+			}}
+		/>
+	),
 	KolInputRange: ({ _label }: { _label?: string }) => <input type="range" aria-label={_label} />,
-	KolSingleSelect: ({ _label }: { _label?: string }) => <select aria-label={_label} />,
+	KolSingleSelect: ({
+		_label,
+		_options,
+		_value,
+		_on,
+	}: {
+		_label?: string;
+		_options?: { label: string; value: string }[];
+		_value?: string;
+		_on?: { onChange?: (_e: unknown, v: string) => void };
+	}) => (
+		<select
+			aria-label={_label}
+			data-testid={`select-${_label}`}
+			value={_value ?? ''}
+			onChange={(e) => _on?.onChange?.(e.nativeEvent, e.target.value)}
+		>
+			{(_options ?? []).map((option) => (
+				<option key={option.value} value={option.value}>
+					{option.label}
+				</option>
+			))}
+		</select>
+	),
 	KolSpin: () => <span aria-busy="true" />,
 	KolTextarea: ({
 		_label,
@@ -736,5 +774,207 @@ describe('TaskForm — Empty-State bei 0 Säulen (Issue #440, AK2)', () => {
 		// Bei vorhandenen Säulen erscheint die Säulen-Auswahl wieder.
 		expect(screen.queryByLabelText('Säule hinzufügen')).not.toBeNull();
 		expect(screen.queryByText(/keine säulen definiert/i)).toBeNull();
+	});
+});
+
+/**
+ * Rote Spec-Tests für #470 — Serien-Rhythmen: Werktags/Wochenende/Wochentag (Frontend).
+ *
+ * Das Backend (#469, gemergt) hat `SeriesRhythm` als String-Union mit 12 Werten umgesetzt
+ * (`daily`, `weekly`, `monthly`, `weekdays`, `weekend`, `mon`…`sun`). Die Anzeige-Bereiche
+ * (`SeriesTab`, `SeriesManagementModal`) kennen die neuen `RHYTHM_LABEL` bereits. Es fehlt
+ * **ausschließlich die Erfassung im `TaskForm`**: `RHYTHM_OPTIONS` enthält aktuell nur drei Werte,
+ * und der `onChange`-Guard im Rhythmus-Select verwirft alle Werte außer `daily`/`weekly`/`monthly`.
+ *
+ * Diese Specs prüfen das erwartete Soll-Verhalten und sind rot, solange die Umsetzung fehlt:
+ *  - AK1 (Auswahl): alle 12 Rhythmus-Optionen stehen im Serie-Modus zur Verfügung.
+ *  - AK2 (Speichern): ein neuer Rhythmus (z. B. `weekdays`) wird beim Speichern korrekt übergeben.
+ *  - AK5 (startDate-Konsistenz): bei `mon`…`sun` mit nicht-passendem `startDate` wird client-seitig
+ *    gewarnt; eine vom Backend kommende 400 wird verständlich durchgereicht.
+ *
+ * Der KoliBri-Mock rendert `KolSingleSelect` als natives `<select>` mit echten `<option>`s, sodass
+ * die verfügbaren Optionen sowie onChange-Wechsel assertionsfähig sind (verhaltensneutraler Helfer).
+ */
+describe('TaskForm — Serien-Rhythmen: Werktags/Wochenende/Wochentag (#470)', () => {
+	/** Die 12 gültigen `SeriesRhythm`-Werte (Backend ENUM, #469). */
+	const ALL_RHYTHMS: SeriesRhythm[] = [
+		'daily',
+		'weekly',
+		'monthly',
+		'weekdays',
+		'weekend',
+		'mon',
+		'tue',
+		'wed',
+		'thu',
+		'fri',
+		'sat',
+		'sun',
+	];
+
+	it('AK1 — Serie-Modus: alle 12 Rhythmus-Optionen verfügbar', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+		await switchToSeriesMode();
+
+		// Der Rhythmus-Select bietet alle 12 Werte an (rot, solange RHYTHM_OPTIONS nur 3 enthält).
+		const rhythmSelect = screen.getByLabelText('Rhythmus') as HTMLSelectElement;
+		const optionValues = Array.from(rhythmSelect.options).map((option) => option.value);
+		for (const rhythm of ALL_RHYTHMS) {
+			expect(optionValues, `Rhythmus-Option „${rhythm}“ fehlt`).toContain(rhythm);
+		}
+		expect(optionValues).toHaveLength(ALL_RHYTHMS.length);
+	});
+
+	it('AK1 — Serie-Modus: Werktags/Wochenende/Wochentage mit deutschen Bezeichnungen', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+		await switchToSeriesMode();
+
+		const rhythmSelect = screen.getByLabelText('Rhythmus') as HTMLSelectElement;
+		const optionLabels = Array.from(rhythmSelect.options).map((option) => option.textContent ?? '');
+		// Die neuen Optionen sind mit sprechenden deutschen Bezeichnungen beschriftet (konsistent zu
+		// `RHYTHM_LABEL` in SeriesTab.tsx). Rot, solange diese Optionen fehlen.
+		for (const label of [
+			'Werktags',
+			'Wochenende',
+			'Montags',
+			'Dienstags',
+			'Mittwochs',
+			'Donnerstags',
+			'Freitags',
+			'Samstags',
+			'Sonntags',
+		]) {
+			expect(optionLabels, `Bezeichnung „${label}“ fehlt`).toContain(label);
+		}
+	});
+
+	it('AK2 — Speichern setzt rhythm korrekt für neuen Wert (weekdays)', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockCreateSeries.mockResolvedValue(minimalSeries());
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+		await switchToSeriesMode();
+		await fillTitle('Werktags-Serie');
+
+		// Rhythmus auf „Werktags" (weekdays) setzen. Rot, solange der onChange-Guard den neuen
+		// Wert verwirft (aktuell nur daily/weekly/monthly zugelassen).
+		const rhythmSelect = screen.getByLabelText('Rhythmus');
+		await act(async () => {
+			fireEvent.change(rhythmSelect, { target: { value: 'weekdays' } });
+		});
+		await clickSave();
+
+		expect(mockCreateSeries).toHaveBeenCalledTimes(1);
+		const [{ seriesCreate }] = mockCreateSeries.mock.calls[0] as [{ seriesCreate: { rhythm: string } }];
+		expect(seriesCreate.rhythm).toBe('weekdays');
+	});
+
+	it('AK2 — onChange-Guard nimmt jeden gültigen SeriesRhythm-Wert an (kein hartcodierter Drei-Werte-Filter)', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockCreateSeries.mockResolvedValue(minimalSeries());
+
+		// Stellvertretend für alle neuen Werte: „weekend" (Wochenende) wählen und speichern.
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+		await switchToSeriesMode();
+		await fillTitle('Wochenend-Serie');
+
+		const rhythmSelect = screen.getByLabelText('Rhythmus');
+		await act(async () => {
+			fireEvent.change(rhythmSelect, { target: { value: 'weekend' } });
+		});
+		await clickSave();
+
+		expect(mockCreateSeries).toHaveBeenCalledTimes(1);
+		const [{ seriesCreate }] = mockCreateSeries.mock.calls[0] as [{ seriesCreate: { rhythm: string } }];
+		expect(seriesCreate.rhythm).toBe('weekend');
+	});
+
+	/**
+	 * AK5 — Wochentag-Rhythmus mit nicht-passendem startDate zeigt Client-Warnung.
+	 *
+	 * Wählt der Nutzer z. B. `wed` (Mittwoch) und liegt das `startDate` an einem anderen Wochentag,
+	 * wird client-seitig frühzeitig gewarnt (Hinweis/Alert). Das Backend lehnt diese Kombination mit
+	 * 400 ab (`server/src/express/routes/series.ts`, RHYTHM_WEEKDAY-Map); das Frontend soll den
+	 * Nutzer davor bewahren. Rot, solange keine solche Prüfung existiert.
+	 *
+	 * 2026-09-07 ist ein Montag (getDay() === 1) — passt also nicht zu `wed` (Mittwoch, 3).
+	 */
+	it('AK5 — Wochentag-Rhythmus mit nicht-passendem startDate zeigt Client-Warnung', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+		await switchToSeriesMode();
+		await fillTitle('Mittwoch-Serie');
+
+		// Startdatum auf einen Montag setzen (2026-09-07 = Montag, getDay() === 1).
+		const startDateInput = screen.getByLabelText('Startdatum');
+		await act(async () => {
+			fireEvent.change(startDateInput, { target: { value: '2026-09-07' } });
+		});
+
+		// Rhythmus auf Mittwoch (wed) wählen — passt nicht zum Montag-Startdatum.
+		const rhythmSelect = screen.getByLabelText('Rhythmus');
+		await act(async () => {
+			fireEvent.change(rhythmSelect, { target: { value: 'wed' } });
+		});
+
+		// Eine client-seitige Warnung erscheint (z. B. KolAlert oder Hinweistext), die auf den
+		// Wochentag-Konflikt hinweist. Rot, solange die Umsetzung die Prüfung nicht durchführt.
+		const warning = document.querySelector('[role="alert"], .rhythm-weekday-hint');
+		expect(warning, 'Client-seitige Warnung bei Wochentag-StartDate-Konflikt fehlt').not.toBeNull();
+	});
+
+	/**
+	 * AK5 — Backend-400 wird verständlich durchgereicht.
+	 *
+	 * Schlägt das Speichern (z. B. bei einem `mon`…`sun`/`startDate`-Konflikt) fehlt, leitet das
+	 * Frontend die 400-Fehlermeldung verständlich durch (bestehende toApiError-Pipeline). Rot,
+	 * solange die Fehlermeldung nicht angezeigt wird.
+	 */
+	it('AK5 — Backend-400 wird verständlich durchgereicht', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		// Backend lehnt die Kombination (Rhythmus-Wochentag ↔ startDate) mit 400 + deutscher Meldung ab.
+		// Wie der generierte API-Client wirft `createSeries` einen echten `ResponseError` (Response-Body
+		// `{ message }`), den `toApiError` zu einer verständlichen Meldung auflöst.
+		mockCreateSeries.mockRejectedValue(
+			new ResponseError(
+				new Response(JSON.stringify({ message: 'rhythm "wed" erfordert ein startDate an einem Mittwoch.' }), {
+					status: 400,
+				}),
+			),
+		);
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+		await switchToSeriesMode();
+		await fillTitle('Wochentag-Serie mit Konflikt');
+
+		const rhythmSelect = screen.getByLabelText('Rhythmus');
+		await act(async () => {
+			fireEvent.change(rhythmSelect, { target: { value: 'wed' } });
+		});
+		await clickSave();
+
+		// Die vom Backend kommende 400 wird im Fehler-Alert verständlich angezeigt. Rot, solange die
+		// 400-Servermeldung nicht durchgereicht wird (z. B. nur ein generisches „Speichern fehlgeschlagen").
+		await act(async () => {});
+		const alert = screen.queryByRole('alert');
+		expect(alert, 'Fehler-Alert fehlt').not.toBeNull();
+		expect(alert?.textContent ?? '').toMatch(/mittwoch/);
 	});
 });
