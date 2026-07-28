@@ -89,6 +89,40 @@ describe('Series API', () => {
 			const res = await post('/series', invalid);
 			assert.equal(res.status, 400);
 		});
+
+		// Wochentag-Konsistenz (#469): rhythm "mon"…"sun" erfordert ein startDate auf dem
+		// benannten Wochentag — sonst läge der Anker (und damit alle Termine) auf dem falschen Tag.
+		it('400 bei rhythm "wed" mit startDate an einem anderen Wochentag', async () => {
+			// Ein Datum finden, das garantiert NICHT Mittwoch ist (0=So … 6=Sa).
+			const wrong = new Date();
+			wrong.setUTCDate(wrong.getUTCDate() + 1);
+			wrong.setUTCHours(0, 0, 0, 0);
+			if (wrong.getUTCDay() === 3) {
+				wrong.setUTCDate(wrong.getUTCDate() + 1);
+			}
+			const res = await post('/series', {
+				...validSeries(),
+				rhythm: 'wed',
+				startDate: wrong.toISOString().replace(/\.\d{3}Z$/, '.000Z'),
+			});
+			assert.equal(res.status, 400);
+		});
+
+		it('201 bei rhythm "wed" mit startDate an einem Mittwoch', async () => {
+			// Nächsten Mittwoch ab morgen finden (0=So … 6=Sa, Mi=3).
+			const wed = new Date();
+			wed.setUTCDate(wed.getUTCDate() + 1);
+			wed.setUTCHours(0, 0, 0, 0);
+			while (wed.getUTCDay() !== 3) {
+				wed.setUTCDate(wed.getUTCDate() + 1);
+			}
+			const res = await post('/series', {
+				...validSeries(),
+				rhythm: 'wed',
+				startDate: wed.toISOString().replace(/\.\d{3}Z$/, '.000Z'),
+			});
+			assert.equal(res.status, 201);
+		});
 	});
 
 	describe('GET /series', () => {
@@ -197,6 +231,75 @@ describe('Series API', () => {
 			const created = (await (await post('/series', validSeries())).json()) as { id: number };
 			const res = await patch(`/series/${created.id}`, {
 				rhythm: 'invalid-rhythm',
+			});
+			assert.equal(res.status, 400);
+		});
+
+		// Wochentag-Konsistenz (#469): rhythm+startDate gemeinsam in einem PATCH müssen
+		// zusammenpassen (Anker liegt sonst auf dem falschen Tag).
+		it('400 bei PATCH rhythm "wed" + startDate an anderem Wochentag', async () => {
+			const created = (await (await post('/series', validSeries())).json()) as { id: number };
+			const wrong = new Date();
+			wrong.setUTCDate(wrong.getUTCDate() + 1);
+			wrong.setUTCHours(0, 0, 0, 0);
+			if (wrong.getUTCDay() === 3) {
+				wrong.setUTCDate(wrong.getUTCDate() + 1);
+			}
+			const res = await patch(`/series/${created.id}`, {
+				rhythm: 'wed',
+				startDate: wrong.toISOString().replace(/\.\d{3}Z$/, '.000Z'),
+			});
+			assert.equal(res.status, 400);
+		});
+
+		// Wochentag-Konsistenz bei Teil-PATCH (Review Runde 2): wird nur einer der beiden
+		// Werte gesendet, muss der bestehende DB-Wert des jeweils anderen zum Abgleich dienen —
+		// sonst ließe sich eine inkonsistente Kombination (rhythm≠startDate-Wochentag) durch
+		// einen Teil-PATCH einschleusen, und `nextOccurrence` (+7 Tage) legte alle Termine
+		// stillschweigend auf den falschen Wochentag.
+		it('400 bei PATCH nur rhythm "wed" auf Serie mit startDate an anderem Wochentag', async () => {
+			// Serie mit startDate an einem garantiert nicht-mittwochschen Wochentag anlegen.
+			const nonWed = new Date();
+			nonWed.setUTCDate(nonWed.getUTCDate() + 1);
+			nonWed.setUTCHours(0, 0, 0, 0);
+			while (nonWed.getUTCDay() === 3) {
+				nonWed.setUTCDate(nonWed.getUTCDate() + 1);
+			}
+			const created = (await (
+				await post('/series', {
+					...validSeries(),
+					startDate: nonWed.toISOString().replace(/\.\d{3}Z$/, '.000Z'),
+				})
+			).json()) as { id: number };
+			// Nur rhythm senden — startDate kommt aus der DB (nicht-Mittwoch) → muss 400 sein.
+			const res = await patch(`/series/${created.id}`, { rhythm: 'wed' });
+			assert.equal(res.status, 400);
+		});
+
+		it('400 bei PATCH nur startDate an anderem Wochentag auf mon-Rhythmus-Serie', async () => {
+			// Serie mit rhythm "mon" und startDate an einem Montag anlegen (valide).
+			const mon = new Date();
+			mon.setUTCDate(mon.getUTCDate() + 1);
+			mon.setUTCHours(0, 0, 0, 0);
+			while (mon.getUTCDay() !== 1) {
+				mon.setUTCDate(mon.getUTCDate() + 1);
+			}
+			const created = (await (
+				await post('/series', {
+					...validSeries(),
+					rhythm: 'mon',
+					startDate: mon.toISOString().replace(/\.\d{3}Z$/, '.000Z'),
+				})
+			).json()) as { id: number };
+			// Nur startDate auf einen garantiert nicht-montagischen Tag senden → muss 400 sein.
+			const nonMon = new Date();
+			nonMon.setUTCDate(nonMon.getUTCDate() + 7);
+			nonMon.setUTCHours(0, 0, 0, 0);
+			while (nonMon.getUTCDay() === 1) {
+				nonMon.setUTCDate(nonMon.getUTCDate() + 1);
+			}
+			const res = await patch(`/series/${created.id}`, {
+				startDate: nonMon.toISOString().replace(/\.\d{3}Z$/, '.000Z'),
 			});
 			assert.equal(res.status, 400);
 		});

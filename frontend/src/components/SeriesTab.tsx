@@ -18,6 +18,15 @@ const RHYTHM_LABEL: Record<Series['rhythm'], string> = {
 	daily: 'Täglich',
 	weekly: 'Wöchentlich',
 	monthly: 'Monatlich',
+	weekdays: 'Werktags',
+	weekend: 'Wochenende',
+	mon: 'Montags',
+	tue: 'Dienstags',
+	wed: 'Mittwochs',
+	thu: 'Donnerstags',
+	fri: 'Freitags',
+	sat: 'Samstags',
+	sun: 'Sonntags',
 };
 
 /**

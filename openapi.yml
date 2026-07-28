@@ -1335,8 +1335,21 @@ components:
         - daily
         - weekly
         - monthly
+        - weekdays
+        - weekend
+        - mon
+        - tue
+        - wed
+        - thu
+        - fri
+        - sat
+        - sun
       default: weekly
-      description: Wiederholungsrhythmus eines Serien-Templates (striktes RRULE-Subset, #120).
+      description: >-
+        Wiederholungsrhythmus eines Serien-Templates (striktes RRULE-Subset, #120).
+        Wochentag-basierte Rhythmen (#467): `weekdays` (Mo–Fr), `weekend` (Sa+So),
+        `mon`…`sun` (jeweils genau dieser Wochentag) erzeugen mehrere Termine pro Woche.
+        Bei `mon`…`sun` muss `startDate` auf dem benannten Wochentag liegen, sonst 400.
     Series:
       type: object
       description: >-
