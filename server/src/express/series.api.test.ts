@@ -251,6 +251,58 @@ describe('Series API', () => {
 			});
 			assert.equal(res.status, 400);
 		});
+
+		// Wochentag-Konsistenz bei Teil-PATCH (Review Runde 2): wird nur einer der beiden
+		// Werte gesendet, muss der bestehende DB-Wert des jeweils anderen zum Abgleich dienen —
+		// sonst ließe sich eine inkonsistente Kombination (rhythm≠startDate-Wochentag) durch
+		// einen Teil-PATCH einschleusen, und `nextOccurrence` (+7 Tage) legte alle Termine
+		// stillschweigend auf den falschen Wochentag.
+		it('400 bei PATCH nur rhythm "wed" auf Serie mit startDate an anderem Wochentag', async () => {
+			// Serie mit startDate an einem garantiert nicht-mittwochschen Wochentag anlegen.
+			const nonWed = new Date();
+			nonWed.setUTCDate(nonWed.getUTCDate() + 1);
+			nonWed.setUTCHours(0, 0, 0, 0);
+			while (nonWed.getUTCDay() === 3) {
+				nonWed.setUTCDate(nonWed.getUTCDate() + 1);
+			}
+			const created = (await (
+				await post('/series', {
+					...validSeries(),
+					startDate: nonWed.toISOString().replace(/\.\d{3}Z$/, '.000Z'),
+				})
+			).json()) as { id: number };
+			// Nur rhythm senden — startDate kommt aus der DB (nicht-Mittwoch) → muss 400 sein.
+			const res = await patch(`/series/${created.id}`, { rhythm: 'wed' });
+			assert.equal(res.status, 400);
+		});
+
+		it('400 bei PATCH nur startDate an anderem Wochentag auf mon-Rhythmus-Serie', async () => {
+			// Serie mit rhythm "mon" und startDate an einem Montag anlegen (valide).
+			const mon = new Date();
+			mon.setUTCDate(mon.getUTCDate() + 1);
+			mon.setUTCHours(0, 0, 0, 0);
+			while (mon.getUTCDay() !== 1) {
+				mon.setUTCDate(mon.getUTCDate() + 1);
+			}
+			const created = (await (
+				await post('/series', {
+					...validSeries(),
+					rhythm: 'mon',
+					startDate: mon.toISOString().replace(/\.\d{3}Z$/, '.000Z'),
+				})
+			).json()) as { id: number };
+			// Nur startDate auf einen garantiert nicht-montagischen Tag senden → muss 400 sein.
+			const nonMon = new Date();
+			nonMon.setUTCDate(nonMon.getUTCDate() + 7);
+			nonMon.setUTCHours(0, 0, 0, 0);
+			while (nonMon.getUTCDay() === 1) {
+				nonMon.setUTCDate(nonMon.getUTCDate() + 1);
+			}
+			const res = await patch(`/series/${created.id}`, {
+				startDate: nonMon.toISOString().replace(/\.\d{3}Z$/, '.000Z'),
+			});
+			assert.equal(res.status, 400);
+		});
 	});
 
 	// 🔴🔴 AK-7: DELETE /series/:id → 204; danach GET /series zeigt leere Liste

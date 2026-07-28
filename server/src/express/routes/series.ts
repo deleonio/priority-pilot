@@ -118,8 +118,17 @@ const serializeSeries = (series: Series): SeriesDto => ({
 /**
  * Validiert den Request-Body für Anlegen/Aktualisieren eines Templates. `isPost` signalisiert
  * einen POST-Request (erzwingt title + startDate als Pflichtfelder); bei einer Teil-Aktualisierung sind alle Felder optional.
+ *
+ * `existing` (nur bei PATCH gesetzt) liefert die in der DB gespeicherten `rhythm`/`startDate`-Werte,
+ * damit die Wochentag-Konsistenz-Prüfung auch bei einem Teil-PATCH greift, der nur eines der beiden
+ * Felder enthält (z. B. nur `rhythm` oder nur `startDate`): die Prüfung bildet dann die effektiven
+ * Werte (`gesendet ?? gespeichert`) und verhindert so eine inkonsistente Kombination.
  */
-const validateSeriesFields = (body: unknown, isPost: boolean): ValidationResult => {
+const validateSeriesFields = (
+	body: unknown,
+	isPost: boolean,
+	existing?: Pick<Series, 'rhythm' | 'startDate'>,
+): ValidationResult => {
 	if (typeof body !== 'object' || body === null) {
 		return { ok: false, message: 'Request-Body muss ein Objekt sein.' };
 	}
@@ -206,15 +215,21 @@ const validateSeriesFields = (body: unknown, isPost: boolean): ValidationResult 
 	// addiert (Anker liegt „definitionsgemäß" auf dem Tag), würde ein `startDate` auf einem
 	// *anderen* Wochentag die Termine stillschweigend auf den falschen Tag legen — der Name
 	// bestimmte dann nicht den Wochentag. Wir lehnen diese Kombination daher explizit ab (400),
-	// statt eine irreführende Serie zu speichern. Nur prüfbar, wenn rhythm UND startDate im
-	// selben Request gesetzt sind (POST immer; PATCH, wenn beide Felder gesendet werden).
-	const targetWeekday = attrs.rhythm !== undefined ? RHYTHM_WEEKDAY.get(attrs.rhythm) : undefined;
-	if (targetWeekday !== undefined && attrs.startDate !== undefined) {
-		if (attrs.startDate.getUTCDay() !== targetWeekday) {
+	// statt eine irreführende Serie zu speichern.
+	//
+	// Bei POST sind beide Felder Pflicht. Bei PATCH kann nur eines der beiden gesendet werden;
+	// in dem Fall ziehen wir den jeweils anderen Wert aus der bestehenden DB-Instanz (`existing`),
+	// damit auch ein Teil-PATCH keine inkonsistente Kombination hinterlässt (z. B. nur
+	// `rhythm: "wed"` auf einer Serie mit `startDate`=Montag).
+	const effRhythm = attrs.rhythm ?? existing?.rhythm;
+	const effStartDate = attrs.startDate ?? existing?.startDate;
+	const targetWeekday = effRhythm !== undefined ? RHYTHM_WEEKDAY.get(effRhythm) : undefined;
+	if (targetWeekday !== undefined && effStartDate !== undefined) {
+		if (effStartDate.getUTCDay() !== targetWeekday) {
 			const weekdayNames = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
 			return {
 				ok: false,
-				message: `rhythm "${attrs.rhythm}" erfordert ein startDate an einem ${weekdayNames[targetWeekday]}.`,
+				message: `rhythm "${effRhythm}" erfordert ein startDate an einem ${weekdayNames[targetWeekday]}.`,
 			};
 		}
 	}
@@ -334,7 +349,7 @@ seriesRouter.patch('/series/:id', async (req: Request, res: Response<SeriesDto |
 		sendError(res, 404, 'Serie nicht gefunden.');
 		return;
 	}
-	const validation = validateSeriesFields(req.body, false);
+	const validation = validateSeriesFields(req.body, false, series);
 	if (!validation.ok) {
 		sendError(res, 400, validation.message);
 		return;
