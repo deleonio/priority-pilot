@@ -34,14 +34,6 @@ test.describe('#472 — Initialer Fokus auf „Abbrechen“ beim Löschen-Dialog
 		}
 	};
 
-	/** Löscht alle Säulen über die echte API. */
-	const deleteAllPillars = async (page: Page): Promise<void> => {
-		const pillars = (await (await page.request.get('/api/v1/pillars')).json()) as { id: number }[];
-		for (const pillar of pillars) {
-			await page.request.delete(`/api/v1/pillars/${pillar.id}`);
-		}
-	};
-
 	/** Löscht alle Serien über die echte API. */
 	const deleteAllSeries = async (page: Page): Promise<void> => {
 		const series = (await (await page.request.get('/api/v1/series')).json()) as { id: number }[];
@@ -50,9 +42,14 @@ test.describe('#472 — Initialer Fokus auf „Abbrechen“ beim Löschen-Dialog
 		}
 	};
 
+	// AK2 legt eine eigene Säule an und löscht sie im Test selbst (über den Lösch-Dialog).
+	// Säulen-Stammdaten (DB_SEED=false hält sie) dürfen hier NICHT mitgelöscht werden — sonst
+	// fehlen sie den nachfolgenden Tests, die sich auf die geseedeten Säulen verlassen
+	// (z. B. crud.spec.ts „Säulen-Gewicht ändern" → input[type=range], dashboard-meter.spec.ts
+	// „Optimal|Suboptimal"-Statustext). Die alphabetische Sortierung von Playwright läuft
+	// cancel-initial-focus.spec.ts VOR crud/dashboard-meter im selben Shard.
 	test.afterEach(async ({ page }) => {
 		await deleteAllTasks(page);
-		await deleteAllPillars(page);
 		await deleteAllSeries(page);
 	});
 
