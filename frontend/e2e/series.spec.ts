@@ -378,6 +378,10 @@ test.describe('Priority Pilot — #297: Altes Serien-Formular durch TaskForm ers
 		await page.getByRole('button', { name: 'Löschen' }).first().click();
 		await waitForStableView(page);
 
+		// #472: Die Serien-Löschung erfordert jetzt eine Bestätigung („Endgültig löschen").
+		await page.getByRole('button', { name: 'Endgültig löschen' }).click();
+		await waitForStableView(page);
+
 		await expect(page.getByText(title, { exact: true })).toBeHidden();
 
 		const all = (await (await page.request.get('/api/v1/series')).json()) as { title: string }[];
