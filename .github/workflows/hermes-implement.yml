@@ -2,12 +2,6 @@ name: Hermes Implement (ai:ready)
 
 # Setzt ein Issue um, sobald es das Label "ai:ready" erhält UND bereits
 # "ai:analyzed" trägt.
-#
-# Setzt Hermes Agent (Nous Research) — Provider wählbar per Issue-Label:
-#   Default: DeepSeek via Nous Portal (NOUS_PORTAL_TOKEN)
-# Provider: Nous Portal + DeepSeek (provider=custom)
-#
-# Voraussetzungen: NOUS_PORTAL_TOKEN
 
 on:
   issues:
@@ -24,9 +18,6 @@ jobs:
           && contains(github.event.issue.labels.*.name, 'ai:analyzed')
           && github.event.issue.state == 'open' }}
     runs-on: ubuntu-latest
-    # Backstop (weit über der Soft-Deadline von 14 Min) — fängt einen hängenden Agent
-    # ab (Prompt-Deadline ignoriert, API-Call hängt), ohne das graceful Save
-    # (Session-Archiv) bei der Soft-Deadline zu stören.
     timeout-minutes: 30
     env:
       PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -34,54 +25,40 @@ jobs:
     permissions:
       contents: read
       id-token: write
-      actions: write # Cache-Speicher (actions/cache Post-Step)
+      actions: write
       pull-requests: write
       issues: write
     steps:
-      - name: Startzeit merken (für Timeout-Erkennung + weiches Zeitlimit)
+      - name: Startzeit merken (für weiches Zeitlimit)
         id: starttime
         run: |
           now=$(date +%s)
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
-          echo "soft_deadline_epoch=$((now + 840))" >> "$GITHUB_OUTPUT"  # 14 min (Puffer vor 20-Min-GitHub-Timeout)
+          echo "soft_deadline_epoch=$((now + 840))" >> "$GITHUB_OUTPUT"
 
-      - name: Voraussetzung prüfen (GitHub-App-Secrets)
-        id: preflight
-        env:
-          APP_ID: ${{ secrets.APP_ID }}
-          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
-        run: |
-          if [ -z "$APP_ID" ] || [ -z "$APP_PRIVATE_KEY" ]; then
-            echo "::warning::GitHub-App-Secrets fehlen — Lauf wird übersprungen."
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "configured=true" >> "$GITHUB_OUTPUT"
-          fi
-      - name: GitHub-App-Token erzeugen
-        id: app-token
-        if: steps.preflight.outputs.configured == 'true'
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          client-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          fetch-depth: 0
 
-      - name: GH_TOKEN-Fallback setzen (App-Token oder GITHUB_TOKEN)
-        id: gh-token
-        run: |
-          APP_TOK="${{ steps.app-token.outputs.token }}"
-          if [ -n "$APP_TOK" ] && [ "$APP_TOK" != "null" ]; then
-            echo "token=$APP_TOK" >> "$GITHUB_OUTPUT"
-            echo "::notice::Nutze GitHub-App-Token für gh-Befehle."
-          else
-            echo "token=${{ github.token }}" >> "$GITHUB_OUTPUT"
-            echo "::warning::App-Token nicht verfügbar — nutze GITHUB_TOKEN (Achtung: Label-Wechsel lösen ggf. keine Folge-Workflows aus)."
-          fi
+      - name: Setup Hermes
+        id: setup
+        uses: ./.github/actions/setup-hermes
+        with:
+          event-type: ${{ github.event_name }}
+          ticket-ref: ${{ github.event.issue.number }}
+          app-id: ${{ secrets.APP_ID }}
+          app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          llm-provider: ${{ vars.LLM_PROVIDER }}
+          zai-api-key: ${{ secrets.ZAI_API_KEY }}
+          nous-portal-token: ${{ secrets.NOUS_PORTAL_TOKEN }}
+          deepseek-model: deepseek/deepseek-v4-flash
 
       - name: Issue einem Menschen zuweisen (Best-Effort)
-        if: steps.preflight.outputs.configured == 'true'
+        if: steps.setup.outputs.configured == 'true'
         continue-on-error: true
         env:
-          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
           ASSIGNEE: ${{ github.event.sender.type == 'User' && github.event.sender.login || (github.event.issue.user.type == 'User' && github.event.issue.user.login || '') }}
         run: |
@@ -91,106 +68,11 @@ jobs:
           fi
           gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-assignee "$ASSIGNEE"
 
-      - name: Checkout
-        if: steps.preflight.outputs.configured == 'true'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          token: ${{ steps.gh-token.outputs.token }}
-
-      - name: Cache-Key für uv berechnen
-        id: uv-cache-key
-        if: steps.preflight.outputs.configured == 'true'
-        run: echo "week=$(date +%Y-W%V)" >> "$GITHUB_OUTPUT"
-
-      - name: uv-Paketcache wiederherstellen
-        id: uv-cache
-        if: steps.preflight.outputs.configured == 'true'
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        with:
-          path: |
-            ~/.cache/uv
-            ~/.local/share/uv
-          key: uv-hermes-${{ runner.os }}-${{ steps.uv-cache-key.outputs.week }}
-          restore-keys: uv-hermes-${{ runner.os }}-
-
-      - name: Hermes installieren
-        if: steps.preflight.outputs.configured == 'true'
-        run: |
-          curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-browser --skip-setup
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-      - name: Hermes konfigurieren (Provider per Variable)
-        if: steps.preflight.outputs.configured == 'true'
-        env:
-          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
-          ISSUE: ${{ github.event.issue.number }}
-          LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
-          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
-        run: |
-          if [ "$LLM_PROVIDER" = "zai" ]; then
-            hermes config set model.provider zai
-            printf 'ZAI_API_KEY=%s\n' "$ZAI_API_KEY" > "$HERMES_HOME/.env"
-            echo "::notice::Provider: Z.AI (GLM-5.1)"
-          else
-            hermes config set model.provider custom
-            hermes config set model.base_url https://inference-api.nousresearch.com/v1
-            hermes config set model.api_key "${{ secrets.NOUS_PORTAL_TOKEN }}"
-            echo "::notice::Provider: Nous Portal (DeepSeek)"
-          fi
-          pip install mcp -q
-          hermes mcp add kolibri --url https://public-ui-kolibri-mcp.vercel.app/mcp
-
-      - name: Session-Archiv herunterladen (Phase impl)
-        id: session-dl
-        if: steps.preflight.outputs.configured == 'true'
-        continue-on-error: true
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
-        with:
-          name: hermes-session-issue-${{ github.event.issue.number }}-impl
-          path: /tmp/hermes-session-restore
-
-      - name: Session wiederherstellen
-        id: session-restore
-        if: steps.preflight.outputs.configured == 'true' && steps.session-dl.outcome == 'success'
-        run: |
-          if [ -f /tmp/hermes-session-restore/hermes-session.tar.gz ]; then
-            mkdir -p "$HERMES_HOME"
-            tar -xzf /tmp/hermes-session-restore/hermes-session.tar.gz -C "$HERMES_HOME"
-            if [ -f "$HERMES_HOME/session_id.txt" ]; then
-              RID=$(cat "$HERMES_HOME/session_id.txt")
-              echo "resume_arg=$RID" >> "$GITHUB_OUTPUT"
-              echo "::notice::Session #$RID wiederhergestellt"
-            fi
-          fi
-
-      - name: Auth prüfen (provider-spezifisch)
-        if: steps.preflight.outputs.configured == 'true'
-        env:
-          NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
-          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
-          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
-          ISSUE: ${{ github.event.issue.number }}
-          LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
-        run: |
-          if [ "$LLM_PROVIDER" = "zai" ]; then
-            if [ -z "$ZAI_API_KEY" ]; then
-              echo "::error title=Auth fehlt::ZAI_API_KEY nicht gesetzt — als Repo-Secret hinterlegen"
-              exit 1
-            fi
-            echo "ZAI_API_KEY vorhanden."
-          else
-            if [ -z "$NOUS_PORTAL_TOKEN" ]; then
-              echo "::error title=Auth fehlt::NOUS_PORTAL_TOKEN nicht gesetzt — als Repo-Secret hinterlegen"
-              exit 1
-            fi
-            echo "NOUS_PORTAL_TOKEN vorhanden."
-          fi
       - name: Doppel-Run-Guard (ready-PR existiert bereits)
         id: doppel-guard
-        if: steps.preflight.outputs.configured == 'true'
+        if: steps.setup.outputs.configured == 'true'
         env:
-          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
           if ! existing="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
@@ -207,29 +89,29 @@ jobs:
           echo "skip=false" >> "$GITHUB_OUTPUT"
 
       - name: pnpm einrichten
-        if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
       - name: Node.js einrichten
-        if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
           cache: pnpm
 
       - name: Abhängigkeiten installieren
-        if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Git-Hooks installieren (lefthook)
-        if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         run: pnpm exec lefthook install
 
       - name: Fortsetzungs-Stand prüfen (ai:continued)
         id: continued-before
-        if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         env:
-          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
           already="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq 'any(.labels[]; .name == "ai:continued")' 2>/dev/null || echo false)"
@@ -237,47 +119,28 @@ jobs:
 
       - name: Umsetzung via Hermes
         id: hermes
-        if: steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         env:
-          NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
-          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
-          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
-          LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
         run: |
-          if [ "$LLM_PROVIDER" = "zai" ]; then
-            PROVIDER_FLAG="--provider zai"
-            MODEL="glm-5.1"
-          else
-            PROVIDER_FLAG="--provider custom"
-            MODEL="deepseek/deepseek-v4-flash"
-            hermes config set model.api_key "$NOUS_PORTAL_TOKEN"
-          fi
-
           cat > /tmp/hermes-prompt.txt << 'HERMES_EOF'
           Das Label `ai:ready` wurde an Issue #ISSUE_NR gesetzt — setze dieses Issue jetzt um.
 
           Folge dem Umsetzungs-Workflow .ai-knowledge/ticket-implementation.md, aber NUR Schritte 1 bis 4:
             1. Zuweisung übernimmt bereits der Workflow (nicht selbst zuweisen).
             2. Beginne SOFORT mit der Arbeit — keine Wartezeit!
-            3. Analyse re-verifizieren (Re-Triage gegen aktuellen Repo-Stand). Kippt die Ampel auf 🔴 → NICHT umsetzen, ai:ready entfernen, begründet kommentieren und stoppen.
+            3. Analyse lesen & schnell verifizieren (keine vollständige Re-Triage!): Akzeptanzkriterien aus dem Body-Block übernehmen, nur prüfen ob die genannten Dateien noch existieren. Kippt die Ampel auf 🔴 → NICHT umsetzen, ai:ready entfernen, begründet kommentieren und stoppen.
             4. Spec-Modus (Regelfall): den vorhandenen DRAFT-PR auschecken (gh pr list --state open --draft --json number,headRefName,closingIssuesReferences, den mit Issue #ISSUE_NR; dann git fetch origin && git switch <headRefName>). Dessen ROTE Tests GRÜN machen — Tests NICHT ändern (Gewaltenteilung). Fallback (kein Draft-PR): eigenen Branch + Tests selbst schreiben. In beiden Fällen: Code bis pnpm test grün, dann pnpm format + pnpm lint + pnpm knip.
             5. Committen, Branch pushen. Im Spec-Modus Draft-PR review-bereit machen (gh pr ready <nr>), Beschreibung ergänzen. GIB VERDICT AUS — KEINE LABELS SELBST SETZEN!
 
-          ⚠️ LABELS: Du darfst KEINE Labels setzen oder entfernen (`gh pr edit --add-label` / `--remove-label`, `gh issue edit --add-label` / `--remove-label`)! Der Workflow übernimmt den Label-Wechsel automatisch anhand deines VERDICT-Markers — mit dem korrekten App-Token, das Folgeworkflows triggert.
+          ⚠️ LABELS: Du darfst KEINE Labels setzen oder entfernen! Der Workflow übernimmt das automatisch.
 
           VERDICT-MARKER: Gib GANZ AM ENDE deiner letzten Antwort GENAU EINE Zeile aus:
             - `VERDICT: needs-review` (Implementierung fertig + PR review-bereit)
             - `VERDICT: not-ready` (Partial — PR als Draft belassen, Folgelauf nötig)
-          Der Workflow parst diese Zeile und setzt die Labels.
 
-          WEICHES ZEITLIMIT (Soft-Abort) — SOFORT STOPPEN, NICHT AUFRÄUMEN:
-            Beginne SOFORT mit der Arbeit. Deine Soft-Deadline ist SOFT_DEADLINE (Unix-Epoch).
-            Prüfe VOR JEDEM Tool-Aufruf: Ist `[ $(date +%s) -ge SOFT_DEADLINE ] && echo OVER`?
-            Wenn OVER: **BRICH AUF DER STELLE AB** — nicht den aktuellen Schritt zuende führen,
-            nicht aufräumen, nicht zusammenfassen. Commite+pushe den aktuellen Stand (auch
-            unvollständig) als Draft-PR mit TODO-Liste. Setze KEIN ai:needs-review. Beende den
-            Turn sofort.
+          ZEITLIMIT: Deine Soft-Deadline ist SOFT_DEADLINE (Unix-Epoch). Prüfe `[ $(date +%s) -ge SOFT_DEADLINE ]` vor jedem größeren Schritt. Bei OVER: aktuellen Stand committen+pushen, Turn sofort beenden.
 
           Idempotenz: Draft-PR mit Closes #ISSUE_NR ist normaler Spec-Eingang — aufgreifen. Nicht-Draft-PR = Umsetzung schon gelaufen → Lauf beenden.
 
@@ -288,127 +151,96 @@ jobs:
           sed -i "s/#ISSUE_NR/${{ github.event.issue.number }}/g" /tmp/hermes-prompt.txt
           sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/hermes-prompt.txt
 
-          RESUME_ARG=""
-          if [ -n "${{ steps.session-restore.outputs.resume_arg }}" ]; then
-            RESUME_ARG="--resume ${{ steps.session-restore.outputs.resume_arg }}"
-          fi
-
           hermes chat -q "$(cat /tmp/hermes-prompt.txt)" \
-            $RESUME_ARG \
-            -Q --yolo $PROVIDER_FLAG \
-            -m "$MODEL" \
+            ${{ steps.setup.outputs.resume-flag }} \
+            -Q --yolo ${{ steps.setup.outputs.provider-flag }} \
+            -m "${{ steps.setup.outputs.model }}" \
             -t "terminal,file" \
             --accept-hooks \
             2>&1 | tee /tmp/hermes-output.log
-          # PIPESTATUS: Exit-Code von hermes chat durch pipe propagieren
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
 
-      - name: Hermes-Session-ID erfassen
-        if: always()
-        id: session
-        run: |
-          if [ -f /tmp/hermes-output.log ]; then
-            sid="$(grep '^session_id:' /tmp/hermes-output.log | head -1 | sed 's/^session_id:[[:space:]]*//')"
-            if [ -n "$sid" ]; then
-              echo "session_id=$sid" >> "$GITHUB_OUTPUT"
-            fi
-          fi
-
-      - name: Session-Archiv packen
-        if: always() && steps.session.outputs.session_id != ''
-        continue-on-error: true
-        run: |
-          SID="${{ steps.session.outputs.session_id }}"
-          if [ -n "$SID" ] && [ -d "$HERMES_HOME" ]; then
-            echo "$SID" > "$HERMES_HOME/session_id.txt"
-            # Nur sessions/ + session_id.txt archivieren (keine Config, Caches, MCP-Daten).
-            tar -czf /tmp/hermes-session.tar.gz -C "$HERMES_HOME" sessions session_id.txt 2>/dev/null || \
-            tar -czf /tmp/hermes-session.tar.gz -C "$HERMES_HOME" session_id.txt
-            echo "::notice::Session #$SID gepackt"
-          fi
-
-      - name: Session hochladen
-        if: always() && steps.session.outputs.session_id != ''
-        continue-on-error: true
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - name: Save Session
+        if: always() && steps.setup.outputs.configured == 'true'
+        uses: ./.github/actions/save-session
         with:
-          name: hermes-session-issue-${{ github.event.issue.number }}-impl
-          path: /tmp/hermes-session.tar.gz
-          retention-days: 30
-          overwrite: true
+          session-artifact-name: ${{ steps.setup.outputs.session-artifact-name }}
+          configured: ${{ steps.setup.outputs.configured }}
 
       - name: Label-Post-Assertion (VERDICT parsen, Labels via App-Token force-setzen)
-        if: always() && steps.preflight.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true' && (steps.hermes.outcome == 'success' || steps.hermes.outcome == 'failure')
+        if: always() && steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true' && (steps.hermes.outcome == 'success' || steps.hermes.outcome == 'failure')
         env:
-          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
           ALREADY_CONTINUED: ${{ steps.continued-before.outputs.already }}
         run: |
-          # VERDICT aus Hermes-Output parsen
           verdict=""
           if [ -f /tmp/hermes-output.log ]; then
             verdict="$(grep -oP 'VERDICT:\s*\K.*' /tmp/hermes-output.log | tail -1 | tr -d '[:space:]' || true)"
           fi
           echo "Hermes-Verdict aus Output: '${verdict:-keins}'"
 
-          # Labels sicherstellen
-          gh label create "ai:needs-review" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
-
-          # PR für dieses Issue finden
           PR_NR="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --json number,isDraft,closingIssuesReferences \
             --jq "[.[] | select((.closingIssuesReferences // []) | any(.number == ${ISSUE})) | .number] | first" 2>/dev/null || echo "")"
+          ARTIFACTS_OK="false"
+          if [ -n "$PR_NR" ] && [ "$PR_NR" != "null" ]; then
+            PR_DRAFT="$(gh pr view "$PR_NR" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft' 2>/dev/null || echo "true")"
+            PR_COMMITS="$(gh pr view "$PR_NR" --repo "$GITHUB_REPOSITORY" --json commits --jq '.commits | length' 2>/dev/null || echo "0")"
+            if [ "$PR_DRAFT" != "true" ] && [ "${PR_COMMITS:-0}" -gt 0 ]; then
+              ARTIFACTS_OK="true"
+            fi
+          fi
 
           if [ "$verdict" = "needs-review" ]; then
-            # ✅ Implementierung fertig → ai:ready entfernen, ai:needs-review am PR setzen
+            if [ "$ARTIFACTS_OK" != "true" ]; then
+              echo "::error title=❌ PR fehlt::VERDICT needs-review, aber kein fertiger PR gefunden."
+              exit 1
+            fi
+            final="needs-review"
+          elif [ "$verdict" = "not-ready" ]; then
+            if [ "$ARTIFACTS_OK" = "true" ]; then
+              final="needs-review"
+            else
+              final="not-ready"
+            fi
+          else
+            if [ "$ARTIFACTS_OK" = "true" ]; then
+              final="needs-review"
+            else
+              final="not-ready"
+            fi
+          fi
+
+          gh label create "ai:needs-review" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
+
+          if [ "$final" = "needs-review" ]; then
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:continued" 2>/dev/null || true
-            if [ -n "$PR_NR" ]; then
-              gh pr edit "$PR_NR" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-review" 2>/dev/null || true
-              gh pr edit "$PR_NR" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-review"
-            fi
-            echo "::notice::Labels gesetzt (App-Token): ai:needs-review an PR #${PR_NR:-?}"
+            gh pr edit "$PR_NR" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-review" 2>/dev/null || true
+            gh pr edit "$PR_NR" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-review"
+            echo "::notice::Labels gesetzt: ai:needs-review an PR #${PR_NR}"
 
-          elif [ "$verdict" = "not-ready" ]; then
-            # ⏸️ Partial — Soft-Abort. ai:ready bleibt, aber ai:continued markiert Folgelauf.
+          else
             if [ "${ALREADY_CONTINUED:-false}" = "true" ]; then
-              # Obergrenze erreicht → zu groß
               gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
               gh label create "ai:to-big-issue" --repo "$GITHUB_REPOSITORY" --color B60205 2>/dev/null || true
               gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:to-big-issue" 2>/dev/null || true
               echo "::warning::Obergrenze erreicht (2. Soft-Abort) — ai:to-big-issue gesetzt"
             else
-              # Erster Soft-Abort → ai:continued, retrigger durch ai:ready remove+re-add
               gh label create "ai:continued" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
               gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:continued"
               gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
               gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:ready"
               echo "::notice::Soft-Abort — ai:continued gesetzt, ai:ready retriggert"
             fi
-
-          else
-            # Kein gültiger VERDICT — Safe-Default: not-ready (Partial)
-            echo "::warning::Kein gültiger VERDICT — Safe-Default: not-ready (Partial)"
-            if [ "${ALREADY_CONTINUED:-false}" = "true" ]; then
-              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
-              gh label create "ai:to-big-issue" --repo "$GITHUB_REPOSITORY" --color B60205 2>/dev/null || true
-              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:to-big-issue" 2>/dev/null || true
-              echo "::warning::Obergrenze erreicht — ai:to-big-issue gesetzt"
-            else
-              gh label create "ai:continued" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
-              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:continued"
-              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
-              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:ready"
-              echo "::notice::Safe-Default — ai:continued gesetzt, ai:ready retriggert"
-            fi
           fi
 
       - name: Ergebnis zusammenfassen
-        if: always() && steps.preflight.outputs.configured == 'true'
+        if: always() && steps.setup.outputs.configured == 'true'
         env:
-          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
           OUTCOME: ${{ steps.hermes.outcome }}
-          SESSION_ID: ${{ steps.session.outputs.session_id }}
         run: |
           labels="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
           if [ "$OUTCOME" = "success" ]; then
@@ -422,5 +254,4 @@ jobs:
             echo "### Umsetzung #${ISSUE} — fertig"
             echo "- Hermes-Schritt: \`${OUTCOME:-unbekannt}\`"
             echo "- Labels: ${labels:-keine}"
-            if [ -n "$SESSION_ID" ]; then echo "- Session-ID: \`${SESSION_ID}\`"; fi
           } >> "$GITHUB_STEP_SUMMARY"

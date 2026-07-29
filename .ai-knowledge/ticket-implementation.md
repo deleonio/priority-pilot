@@ -14,15 +14,6 @@ freigegeben) → dieser Workflow setzt um. `ai:ready` wird bei **klarer Analyse 
 von der Triage automatisch gesetzt; bei 🟡/🔴 entscheidet der Mensch und gibt ggf. von Hand frei
 (siehe [ticket-triage.md](ticket-triage.md), Schritt 5).
 
-**Bearbeitung durch `/team3`:** Diesen Workflow setzt das cross-funktionale Multi-Agent-Team
-`/team3` um — der Ticket-Kontext wird als Aufgabe an `/team3` übergeben. Dessen Architect
-orchestriert die Rollen (Developer, Reviewer, Tester, Documenter …) sequentiell und autonom; die
-folgenden Schritte beschreiben den fachlichen Ablauf, den das Team abarbeitet. **Abweichend** von
-der team3-Standardregel „kein Commit durch das Team" ist die Umsetzung hier **ausdrücklich** zum
-Zuweisen, Branch-Anlegen, Committen, Pushen und PR-Erstellen autorisiert (Schritt 4) — genau das
-ist das erklärte Ziel dieses Workflows. Diese Abweichung ist damit dokumentiert
-(team3-Docs-Konsistenz).
-
 ## Schritt 1 — Ticket wählen & sich zuweisen
 
 - Offene, freigegebene, noch nicht zugewiesene Issues finden (index-unabhängig, sofort konsistent):
@@ -42,28 +33,20 @@ ist das erklärte Ziel dieses Workflows. Diese Abweichung ist damit dokumentiert
   direkt gesetzt, ohne Spec-Stufe), gilt der **Fallback-Modus** (eigener Branch + Tests selbst
   schreiben, Schritt 3).
 
-## Schritt 2 — Analyse gegen den aktuellen Repo-Stand verifizieren (Re-Triage)
+## Schritt 2 — Analyse lesen & schnell verifizieren
 
-Die im `ai:analyzed`-Body-Block hinterlegte Analyse **nicht ungeprüft übernehmen**: Zwischen Analyse
-und Umsetzung kann sich der Repo-Stand geändert haben (neue/umbenannte Dateien, geänderte APIs,
-bereits erledigte Teile). Deshalb beim Lesen des Tickets die Analyse **erneut analysieren**.
+Die Triage hat die Analyse bereits erstellt (Body-Block `<!-- KI-ANALYSE:START … -->`). **Diese
+vertrauen, nicht neu analysieren** — nur eine schnelle Plausibilitätsprüfung gegen den aktuellen
+Repo-Stand:
 
-- **Re-Triage ausführen** — den Analyse-Workflow erneut auf das Ticket anwenden
-  ([ticket-triage.md](ticket-triage.md), Schritt 1 — Re-Triage; Command `/triage-ticket <nr>`):
-  aus Titel + (lektorierter) Beschreibung + **aktuellem** Repo erneut eine Lösung konzipieren
-  (relevante Dateien via Grep/Glob/Read) und mit der vorhandenen Analyse abgleichen — dabei auch die
-  **Akzeptanzkriterien + Testfälle** (Triage Schritt 4) auf Aktualität/Vollständigkeit prüfen, da sie
-  der Umsetzung in Schritt 3 als Zielvorgabe dienen.
-- **Noch konform →** die Analyse bildet den aktuellen Stand korrekt ab; unverändert weiter mit
-  Schritt 3.
-- **Nicht mehr konform / unvollständig →** die Analyse **aktualisieren** (den Analyse-Block im Body
-  **in-place** neu schreiben, der den Stand korrigiert/vervollständigt, siehe ticket-triage.md
-  Schritt 1/4) und erst auf dieser aktualisierten Analyse implementieren.
-- **Ampel kippt auf 🔴** (Anforderung passt nicht mehr zum Repo, widersprüchlich, Infos fehlen) →
-  **nicht** blind umsetzen, sondern den Stand zusammenfassen und den Menschen entscheiden lassen.
+- **Akzeptanzkriterien + Testfälle** aus dem Body-Block übernehmen (sie sind die Zielvorgabe für Schritt 3).
+- **Betroffene Dateien prüfen:** existieren die im Analyse-Block genannten Dateien noch? (`ls` oder `test -f`)
+  Wurden sie seit der Analyse umbenannt/verschoben? Falls ja: den Pfad korrigieren und weitermachen.
+- **Ampel 🔴** → nicht umsetzen, `ai:ready` entfernen, begründet kommentieren und stoppen.
+- **Ampel 🟢/🟡** → direkt weiter mit Schritt 3.
 
-Diese Verifikation ist Teil des `/team3`-Laufs (der Architect ordnet sie **vor** der Implementierung
-ein); sie ändert nur Analyse/Kommentare, **keinen** Produktivcode.
+**Keine vollständige Re-Triage.** Die Triage-Stufe hat die Arbeit gemacht — die Umsetzung
+vertraut darauf und fokussiert auf Code, nicht auf erneute Analyse.
 
 ## Schritt 3 — Umsetzen (test-getrieben: Red-Green)
 
