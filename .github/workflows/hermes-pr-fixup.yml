@@ -377,32 +377,56 @@ jobs:
           fi
           echo "Hermes-Verdict aus Output: '${verdict:-keins}'"
 
-          # VERDICT validieren
-          if [ "$verdict" != "fixup-complete" ] && [ "$verdict" != "needs-changes" ]; then
-            echo "::warning::Kein gültiger VERDICT — Safe-Default: needs-changes"
-            verdict="needs-changes"
-          fi
-
-          # VERIFIKATION (Root-Cause-Schutz): Vertraue dem VERDICT-Marker nicht blind.
-          # Bei fixup-complete muss die KI tatsächliche Commits gepusht haben. Hat sie das
-          # nicht, läuft der Review wieder auf denselben Stand → leerer Loop-Durchlauf.
+          # ARTEFAKTE PRÜFEN (immer, unabhängig vom VERDICT)
+          # Commits seit letztem Review-Kommentar zählen
           PR_COMMITS="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json commits \
             --jq '.commits | length' 2>/dev/null || echo "0")"
-          # Letzten ai-review-Kommentar lesen → dessen Timestamp als Basis
           REVIEW_TS="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json comments \
             --jq '[.comments[] | select(.body | test("<!-- ai-review -->"))] | last | .createdAt' 2>/dev/null || echo "")"
           if [ -n "$REVIEW_TS" ] && [ "$REVIEW_TS" != "null" ]; then
             COMMITS_SINCE_REVIEW="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}/commits" \
               --jq "[.[] | select(.commit.committer.date > \"${REVIEW_TS}\")] | length" 2>/dev/null || echo "0")"
           else
-            # Kein Review-Kommentar → alle Commits zählen
             COMMITS_SINCE_REVIEW="$PR_COMMITS"
           fi
-          if [ "${COMMITS_SINCE_REVIEW:-0}" -eq 0 ] && [ "$verdict" = "fixup-complete" ]; then
-            echo "::error title=❌ Keine Fixup-Commits::VERDICT fixup-complete, aber 0 Commits seit dem letzten Review. Die KI hat keine Findings behoben — kein ai:needs-review. Lauf muss wiederholt werden."
-            exit 1
+          ARTIFACTS_OK="false"
+          if [ "${COMMITS_SINCE_REVIEW:-0}" -gt 0 ]; then
+            ARTIFACTS_OK="true"
+            echo "✅ Commits seit Review: ${COMMITS_SINCE_REVIEW} (PR gesamt: ${PR_COMMITS})."
+          else
+            echo "::warning::0 Commits seit letztem Review (PR gesamt: ${PR_COMMITS})."
           fi
-          echo "✅ Commits seit Review: ${COMMITS_SINCE_REVIEW} (PR gesamt: ${PR_COMMITS})."
+
+          # ENTSCHEIDUNG: VERDICT + Artefakte → Label
+          # Schema:
+          #   fixup-complete + Commits vorhanden → fixup-complete (Normalfall)
+          #   fixup-complete + keine Commits → exit 1 (KI loggt fixup-complete ohne Arbeit)
+          #   needs-changes + Commits vorhanden → Upgrade zu fixup-complete (KI pessimistisch)
+          #   needs-changes + keine Commits → needs-changes (echter Partial)
+          #   kein VERDICT + Commits vorhanden → fixup-complete (KI hat VERDICT vergessen)
+          #   kein VERDICT + keine Commits → needs-changes (Partial, Folgelauf)
+          if [ "$verdict" = "fixup-complete" ]; then
+            if [ "$ARTIFACTS_OK" != "true" ]; then
+              echo "::error title=❌ Keine Fixup-Commits::VERDICT fixup-complete, aber 0 Commits seit dem letzten Review. Die KI hat keine Findings behoben — kein ai:needs-review. Lauf muss wiederholt werden."
+              exit 1
+            fi
+            final="fixup-complete"
+          elif [ "$verdict" = "needs-changes" ]; then
+            if [ "$ARTIFACTS_OK" = "true" ]; then
+              echo "::notice::VERDICT needs-changes, aber Commits vorhanden → Upgrade zu fixup-complete."
+              final="fixup-complete"
+            else
+              final="needs-changes"
+            fi
+          else
+            # Kein gültiger VERDICT — prüfe Artefakte statt blind zu degradieren
+            if [ "$ARTIFACTS_OK" = "true" ]; then
+              echo "::notice::Kein VERDICT, aber Commits vorhanden → fixup-complete."
+              final="fixup-complete"
+            else
+              final="needs-changes"
+            fi
+          fi
 
           # Labels sicherstellen, dass sie existieren
           gh label create "ai:needs-review" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
@@ -415,7 +439,7 @@ jobs:
           gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-changes 2>/dev/null || true
           gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-review 2>/dev/null || true
 
-          if [ "$verdict" = "fixup-complete" ]; then
+          if [ "$final" = "fixup-complete" ]; then
             gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-review
             echo "::notice::Label gesetzt (App-Token): ai:needs-review"
           else

@@ -381,30 +381,61 @@ jobs:
           fi
           echo "Hermes-Verdict aus Output: '${verdict:-keins}'"
 
-          # VERDICT validieren
-          if [ "$verdict" != "spec-ready" ] && [ "$verdict" != "analyzed" ]; then
-            echo "::warning::Kein gültiger VERDICT — Safe-Default: analyzed"
-            verdict="analyzed"
+          # ARTEFAKTE PRÜFEN (immer, unabhängig vom VERDICT)
+          BODY="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json body -q .body 2>/dev/null || true)"
+          HAS_BLOCK="false"
+          HAS_AK="false"
+          if printf '%s' "$BODY" | grep -q "KI-ANALYSE:START"; then
+            HAS_BLOCK="true"
+            echo "✅ KI-ANALYSE-Block im Issue-Body gefunden."
+            if printf '%s' "$BODY" | grep -qiE "Akzeptanzkriterien|AK[[:space:]]*[0-9]"; then
+              HAS_AK="true"
+              echo "✅ Akzeptanzkriterien im Body-Block gefunden."
+            else
+              echo "::warning::KI-ANALYSE-Block gefunden, aber keine Akzeptanzkriterien."
+            fi
+          else
+            echo "::warning::Kein <!-- KI-ANALYSE:START -->-Block im Issue-Body."
           fi
 
-          # VERIFIKATION (Root-Cause-Schutz): Vertraue dem VERDICT-Marker nicht blind.
-          # Prüfe, ob die KI tatsächlich eine Analyse in den Issue-Body geschrieben hat.
-          # VERDICT ohne Body-Block = KI hat die Arbeit nicht gemacht → KEINE Labels, Job failt laut.
-          BODY="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json body -q .body 2>/dev/null || true)"
-
-          if printf '%s' "$BODY" | grep -q "KI-ANALYSE:START"; then
-            echo "✅ KI-ANALYSE-Block im Issue-Body gefunden."
-          else
-            echo "::error title=❌ Analyse fehlt::Hermes-VERDICT war '${verdict}', aber kein <!-- KI-ANALYSE:START -->-Block im Issue-Body. Die KI hat keine Analyse produziert — keine Labels gesetzt, Spec-Stufe hat nichts zu greifen. Lauf muss wiederholt werden."
+          # ENTSCHEIDUNG: VERDICT + Artefakte → Label
+          # Schema:
+          #   spec-ready + Block + AK → spec-ready (Normalfall)
+          #   spec-ready + Block, kein AK → analyzed (Downgrade — Spec braucht AK)
+          #   spec-ready + kein Block → exit 1 (KI loggt spec-ready ohne Analyse)
+          #   analyzed + Block + AK → Upgrade zu spec-ready (KI pessimistisch)
+          #   analyzed + Block, kein AK → analyzed (echte 🟡/🔴)
+          #   analyzed + kein Block → exit 1
+          #   kein VERDICT + Block + AK → spec-ready (KI hat VERDICT vergessen)
+          #   kein VERDICT + Block, kein AK → analyzed
+          #   kein VERDICT + kein Block → exit 1 (nichts gemacht, laut fehlschlagen)
+          if [ "$HAS_BLOCK" != "true" ]; then
+            echo "::error title=❌ Analyse fehlt::Kein <!-- KI-ANALYSE:START -->-Block im Issue-Body (VERDICT war '${verdict:-keins}'). Die KI hat keine Analyse produziert — keine Labels gesetzt. Lauf muss wiederholt werden."
             exit 1
           fi
 
-          # Bei spec-ready zusätzlich: Akzeptanzkriterien im Block prüfen
-          # (ohne AK ist der Block für die Spec-Stufe wertlos)
           if [ "$verdict" = "spec-ready" ]; then
-            if ! printf '%s' "$BODY" | grep -qiE "Akzeptanzkriterien|AK[[:space:]]*[0-9]"; then
-              echo "::warning::VERDICT spec-ready, aber keine Akzeptanzkriterien im Body-Block gefunden — Downgrade zu analyzed (🟡/🔴). Spec-Stufe braucht prüfbare AK."
-              verdict="analyzed"
+            if [ "$HAS_AK" = "true" ]; then
+              final="spec-ready"
+            else
+              echo "::warning::VERDICT spec-ready, aber keine Akzeptanzkriterien → Downgrade zu analyzed."
+              final="analyzed"
+            fi
+          elif [ "$verdict" = "analyzed" ]; then
+            if [ "$HAS_AK" = "true" ]; then
+              echo "::notice::VERDICT analyzed, aber AK vorhanden → Upgrade zu spec-ready."
+              final="spec-ready"
+            else
+              final="analyzed"
+            fi
+          else
+            # Kein gültiger VERDICT — prüfe Artefakte statt blind zu degradieren
+            if [ "$HAS_AK" = "true" ]; then
+              echo "::notice::Kein VERDICT, aber Block + AK vollständig → spec-ready."
+              final="spec-ready"
+            else
+              echo "::notice::Kein VERDICT, Block ohne AK → analyzed."
+              final="analyzed"
             fi
           fi
 
@@ -416,7 +447,7 @@ jobs:
           gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:analyzed" 2>/dev/null || true
           gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:analyzed"
 
-          if [ "$verdict" = "spec-ready" ]; then
+          if [ "$final" = "spec-ready" ]; then
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:spec-ready"
             echo "::notice::Labels gesetzt (App-Token): ai:analyzed + ai:spec-ready (verifiziert: Body-Block + AK vorhanden)"
           else

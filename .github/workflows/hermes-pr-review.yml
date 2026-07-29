@@ -300,31 +300,33 @@ jobs:
           fi
           echo "Hermes-Verdict aus Output: '${verdict:-keins}'"
 
-          # VERDICT validieren
-          if [ "$verdict" != "ready-to-merge" ] && [ "$verdict" != "needs-changes" ]; then
-            echo "::warning::Kein gültiger VERDICT — Safe-Default: needs-changes"
-            verdict="needs-changes"
-          fi
-
-          # VERIFIKATION (Root-Cause-Schutz): Vertraue dem VERDICT-Marker nicht blind.
+          # ARTEFAKTE PRÜFEN (immer, unabhängig vom VERDICT)
           # Bei needs-changes muss ein <!-- ai-review -->-Kommentar mit Findings existieren.
           # Fehlt er, hat die KI die Arbeit nicht gemacht → KEIN Label, Job failt laut.
           REVIEW_COMMENT_ID="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json comments \
             --jq '[.comments[] | select(.body | test("<!-- ai-review -->"))] | first | .id' 2>/dev/null || echo "")"
+          ARTIFACTS_OK="false"
           if [ -n "$REVIEW_COMMENT_ID" ] && [ "$REVIEW_COMMENT_ID" != "null" ]; then
+            ARTIFACTS_OK="true"
             echo "✅ ai-review-Kommentar gefunden (ID: ${REVIEW_COMMENT_ID})."
           else
-            echo "::error title=❌ Review-Kommentar fehlt::Hermes-VERDICT war '${verdict}', aber kein <!-- ai-review -->-Kommentar am PR. Die KI hat keinen Review gepostet — keine Labels gesetzt. Lauf muss wiederholt werden."
+            echo "::warning::Kein <!-- ai-review -->-Kommentar am PR gefunden."
+          fi
+
+          # ENTSCHEIDUNG: VERDICT + Artefakte → Label
+          # Schema:
+          #   needs-changes + Review-Kommentar → needs-changes (Normalfall)
+          #   needs-changes + kein Kommentar → exit 1 (KI loggt needs-changes ohne Review)
+          #   ready-to-merge + Review-Kommentar → ready-to-merge (mit CI-Check, s.u.)
+          #   ready-to-merge + kein Kommentar → exit 1 (🟢 ohne Review gepostet zu haben)
+          #   kein VERDICT + Review-Kommentar → needs-changes (KI hat VERDICT vergessen)
+          #   kein VERDICT + kein Kommentar → exit 1 (nichts gemacht, laut fehlschlagen)
+          if [ "$ARTIFACTS_OK" != "true" ]; then
+            echo "::error title=❌ Review-Kommentar fehlt::Kein <!-- ai-review -->-Kommentar am PR (VERDICT war '${verdict:-keins}'). Die KI hat keinen Review gepostet — keine Labels gesetzt. Lauf muss wiederholt werden."
             exit 1
           fi
 
-          # Labels sicherstellen, dass sie existieren
-          gh label create "ai:needs-changes" --repo "$GITHUB_REPOSITORY" --color D93F0B 2>/dev/null || true
-          gh label create "ai:ready-to-merge" --repo "$GITHUB_REPOSITORY" --color 0E8A16 2>/dev/null || true
-          gh label create "ai:needs-review" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
-
-          # Allowlist-Check bei ready-to-merge: CI+Reviewer müssen grün sein
-          any_fail='false'
+          # Bei ready-to-merge zusätzlich: CI-Allowlist-Check
           if [ "$verdict" = "ready-to-merge" ]; then
             allow='[]'
             delays=(2 3 5 8)
@@ -337,14 +339,27 @@ jobs:
               if [ "$has_ci" = "true" ] && [ "$has_reviewer" = "true" ]; then break; fi
               if [ "$attempt" -lt 5 ]; then sleep "${delays[$((attempt - 1))]}"; fi
             done
+            any_fail="false"
             if [ "$(echo "$allow" | jq 'length')" -gt 0 ]; then
               any_fail="$(echo "$allow" | jq -r 'any(.[]; .bucket == "fail")')"
             fi
             if [ "$any_fail" = "true" ]; then
-              echo "::warning::Allowlist-Check rot → verdict von ready-to-merge auf needs-changes korrigiert"
+              echo "::warning::Allowlist-Check rot → Downgrade zu needs-changes"
               verdict="needs-changes"
+            else
+              final="ready-to-merge"
             fi
           fi
+
+          if [ "$verdict" != "ready-to-merge" ]; then
+            # needs-changes (entweder original oder durch CI-Downgrade oder kein VERDICT)
+            final="needs-changes"
+          fi
+
+          # Labels sicherstellen, dass sie existieren
+          gh label create "ai:needs-changes" --repo "$GITHUB_REPOSITORY" --color D93F0B 2>/dev/null || true
+          gh label create "ai:ready-to-merge" --repo "$GITHUB_REPOSITORY" --color 0E8A16 2>/dev/null || true
+          gh label create "ai:needs-review" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
 
           # FORCE-SET: Alle Pipeline-Labels entfernen, dann das Ziel-Label setzen.
           # Warum remove+re-add auch wenn das Label schon da ist: der Agent könnte es
@@ -354,7 +369,7 @@ jobs:
           gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-changes 2>/dev/null || true
           gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:ready-to-merge 2>/dev/null || true
 
-          if [ "$verdict" = "ready-to-merge" ]; then
+          if [ "$final" = "ready-to-merge" ]; then
             gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:ready-to-merge
             echo "::notice::Label gesetzt (App-Token): ai:ready-to-merge"
           else

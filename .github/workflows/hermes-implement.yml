@@ -351,33 +351,58 @@ jobs:
           fi
           echo "Hermes-Verdict aus Output: '${verdict:-keins}'"
 
+          # ARTEFAKTE PRÜFEN (immer, unabhängig vom VERDICT)
+          PR_NR="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --json number,isDraft,closingIssuesReferences \
+            --jq "[.[] | select((.closingIssuesReferences // []) | any(.number == ${ISSUE})) | .number] | first" 2>/dev/null || echo "")"
+          ARTIFACTS_OK="false"
+          if [ -n "$PR_NR" ] && [ "$PR_NR" != "null" ]; then
+            PR_DRAFT="$(gh pr view "$PR_NR" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft' 2>/dev/null || echo "true")"
+            PR_COMMITS="$(gh pr view "$PR_NR" --repo "$GITHUB_REPOSITORY" --json commits --jq '.commits | length' 2>/dev/null || echo "0")"
+            if [ "$PR_DRAFT" != "true" ] && [ "${PR_COMMITS:-0}" -gt 0 ]; then
+              ARTIFACTS_OK="true"
+              echo "✅ PR #${PR_NR} verifiziert: nicht-Draft, ${PR_COMMITS} Commits."
+            else
+              echo "::warning::PR #${PR_NR} existiert, aber draft=${PR_DRAFT}, commits=${PR_COMMITS}."
+            fi
+          else
+            echo "::warning::Kein PR mit Closes #${ISSUE} gefunden."
+          fi
+
+          # ENTSCHEIDUNG: VERDICT + Artefakte → Label
+          # Schema:
+          #   needs-review + Artefakte OK → needs-review (Normalfall)
+          #   needs-review + Artefakte fehlen → exit 1 (KI loggt needs-review ohne PR)
+          #   not-ready + Artefakte OK → Upgrade zu needs-review (KI pessimistisch, PR aber fertig)
+          #   not-ready + Artefakte fehlen → not-ready (echter Partial, Folgelauf)
+          #   kein VERDICT + Artefakte OK → needs-review (KI hat VERDICT vergessen)
+          #   kein VERDICT + Artefakte fehlen → not-ready (Partial, Folgelauf)
+          if [ "$verdict" = "needs-review" ]; then
+            if [ "$ARTIFACTS_OK" != "true" ]; then
+              echo "::error title=❌ PR fehlt::VERDICT needs-review, aber kein fertiger PR (nicht-Draft + Commits) gefunden. Die KI hat nichts produziert — kein ai:needs-review. Lauf muss wiederholt werden."
+              exit 1
+            fi
+            final="needs-review"
+          elif [ "$verdict" = "not-ready" ]; then
+            if [ "$ARTIFACTS_OK" = "true" ]; then
+              echo "::notice::VERDICT not-ready, aber PR ist fertig (nicht-Draft + Commits) → Upgrade zu needs-review."
+              final="needs-review"
+            else
+              final="not-ready"
+            fi
+          else
+            # Kein gültiger VERDICT — prüfe Artefakte statt blind zu degradieren
+            if [ "$ARTIFACTS_OK" = "true" ]; then
+              echo "::notice::Kein VERDICT, aber PR ist fertig → needs-review."
+              final="needs-review"
+            else
+              final="not-ready"
+            fi
+          fi
+
           # Labels sicherstellen
           gh label create "ai:needs-review" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
 
-          # PR für dieses Issue finden
-          PR_NR="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --json number,isDraft,closingIssuesReferences \
-            --jq "[.[] | select((.closingIssuesReferences // []) | any(.number == ${ISSUE})) | .number] | first" 2>/dev/null || echo "")"
-
-          if [ "$verdict" = "needs-review" ]; then
-            # VERIFIKATION (Root-Cause-Schutz): Vertraue dem VERDICT-Marker nicht blind.
-            # PR muss existieren, nicht-Draft sein und Commits haben — sonst reviewt der
-            # Kreuzverhör einen leeren/unfertigen PR.
-            if [ -z "$PR_NR" ] || [ "$PR_NR" = "null" ]; then
-              echo "::error title=❌ PR fehlt::VERDICT needs-review, aber kein PR mit Closes #${ISSUE} gefunden. Die KI hat keinen PR erstellt — kein ai:needs-review. Lauf muss wiederholt werden."
-              exit 1
-            fi
-            PR_DRAFT="$(gh pr view "$PR_NR" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft' 2>/dev/null || echo "true")"
-            if [ "$PR_DRAFT" = "true" ]; then
-              echo "::error title=❌ PR noch Draft::VERDICT needs-review, aber PR #${PR_NR} ist noch Draft. Die KI hat 'gh pr ready' nicht ausgeführt — kein ai:needs-review. Lauf muss wiederholt werden."
-              exit 1
-            fi
-            PR_COMMITS="$(gh pr view "$PR_NR" --repo "$GITHUB_REPOSITORY" --json commits --jq '.commits | length' 2>/dev/null || echo "0")"
-            if [ "${PR_COMMITS:-0}" -eq 0 ]; then
-              echo "::error title=❌ PR leer::VERDICT needs-review, aber PR #${PR_NR} hat 0 Commits. Die KI hat nichts implementiert — kein ai:needs-review. Lauf muss wiederholt werden."
-              exit 1
-            fi
-            echo "✅ PR #${PR_NR} verifiziert: nicht-Draft, ${PR_COMMITS} Commits."
-
+          if [ "$final" = "needs-review" ]; then
             # ✅ Implementierung fertig → ai:ready entfernen, ai:needs-review am PR setzen
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:continued" 2>/dev/null || true
@@ -385,7 +410,7 @@ jobs:
             gh pr edit "$PR_NR" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-review"
             echo "::notice::Labels gesetzt (App-Token): ai:needs-review an PR #${PR_NR} (verifiziert)"
 
-          elif [ "$verdict" = "not-ready" ]; then
+          else
             # ⏸️ Partial — Soft-Abort. ai:ready bleibt, aber ai:continued markiert Folgelauf.
             if [ "${ALREADY_CONTINUED:-false}" = "true" ]; then
               # Obergrenze erreicht → zu groß
@@ -400,22 +425,6 @@ jobs:
               gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
               gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:ready"
               echo "::notice::Soft-Abort — ai:continued gesetzt, ai:ready retriggert"
-            fi
-
-          else
-            # Kein gültiger VERDICT — Safe-Default: not-ready (Partial)
-            echo "::warning::Kein gültiger VERDICT — Safe-Default: not-ready (Partial)"
-            if [ "${ALREADY_CONTINUED:-false}" = "true" ]; then
-              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
-              gh label create "ai:to-big-issue" --repo "$GITHUB_REPOSITORY" --color B60205 2>/dev/null || true
-              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:to-big-issue" 2>/dev/null || true
-              echo "::warning::Obergrenze erreicht — ai:to-big-issue gesetzt"
-            else
-              gh label create "ai:continued" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
-              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:continued"
-              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
-              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:ready"
-              echo "::notice::Safe-Default — ai:continued gesetzt, ai:ready retriggert"
             fi
           fi
 
