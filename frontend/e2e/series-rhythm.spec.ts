@@ -83,6 +83,14 @@ test.describe('Priority Pilot — Serien-Rhythmen: Werktags/Wochenende/Wochentag
 		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
 		await page.getByLabel('Startdatum').fill('2026-09-07');
 
+		// Rhythmus über die UI auf „Werktags" (weekdays) setzen — KoliBri SingleSelect
+		// ist eine Combobox (role="combobox"), die nach dem Öffnen die Optionen als
+		// role="option" anbietet (analog DependencyModal in keyboard-shortcuts.spec.ts).
+		// Ohne diesen Schritt bleibt der Default `weekly` stehen und die Assertion auf
+		// `weekdays` schlägt fehl (F3).
+		await page.getByLabel('Rhythmus').click();
+		await page.getByRole('option', { name: 'Werktags' }).click();
+
 		// Den ausgehenden Serien-POST abfangen (Beweis für die korrekte Verzweigung).
 		const seriesRequestPromise = page.waitForRequest(
 			(req) => req.method() === 'POST' && /\/api\/v1\/series(\?|$)/.test(req.url()),
