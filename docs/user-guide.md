@@ -9,8 +9,10 @@ Zwei Ideen stecken dahinter:
 - **Wertbeitrag statt Bauchgefühl.** Aus Priorität, Aufwand und den (gewichteten)
   Abhängigkeiten berechnet Priority Pilot pro Aufgabe einen Wert. Die wertvollsten
   Aufgaben und die sinnvolle nächste Aufgabe werden dadurch sichtbar.
-- **Lebensbalance-Säulen.** Jede Aufgabe zahlt auf eine oder mehrere von fünf festen
-  Lebens­bereichen ein. Über eine Gewichtung steuerst du, welche Bereiche gerade
+- **Lebensbalance-Säulen.** Jede Aufgabe zahlt auf eine oder mehrere deiner persönlichen
+  Lebens­bereiche ein. Die Säulen sind **nutzerdefiniert**: Du legst eigene Säulen an, benennst,
+  gewichtest und löschst sie. Neue Konten starten mit einem Default-Bestand von fünf Säulen, den du
+  frei bearbeiten kannst. Über eine Gewichtung steuerst du, welche Bereiche gerade
   wichtig sind – und siehst, ob deine Zeit dorthin fließt.
 
 Dieses Handbuch erklärt alle Funktionen der Anwendung.
@@ -192,8 +194,10 @@ Vorgänger alle erledigt sind.
 
 ## Lebensbalance-Säulen
 
-Fünf feste Säulen beschreiben, in welche Lebensbereiche eine Aufgabe einzahlt. Sie
-sind für alle Nutzer identisch:
+Lebensbalance-Säulen beschreiben, in welche Lebensbereiche eine Aufgabe einzahlt.
+Sie sind **nutzerdefiniert**: Du legst eigene Säulen an, benennst, gewichtest und löschst sie.
+Neue Konten starten mit folgendem Default-Bestand von fünf Säulen, den du frei bearbeiten,
+ergänzen und ersetzen kannst:
 
 - **Körper** – physische Gesundheit: Bewegung, Ernährung, Schlaf, Vorsorge.
 - **Beziehungen** – soziale Verbundenheit: Familie, Freunde, Partnerschaft.
