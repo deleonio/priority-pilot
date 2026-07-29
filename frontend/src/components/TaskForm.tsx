@@ -510,7 +510,11 @@ export const TaskForm = ({
 
 	return (
 		<>
-			{error !== null && <KolAlert _type="error" _label={`Speichern fehlgeschlagen: ${error}`} />}
+			{error !== null && (
+				<KolAlert _type="error" _label="Speichern fehlgeschlagen">
+					{error}
+				</KolAlert>
+			)}
 			{/* #334: Umschalter Aufgabe/Serie als Switch. Nur beim Anlegen sichtbar; beim Bearbeiten
 			    steht der Datensatz-Typ (Task vs. Serie) fest und der Switch entfällt komplett. */}
 			{!isEdit && (

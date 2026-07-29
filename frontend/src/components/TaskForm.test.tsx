@@ -17,10 +17,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 // Teile durch native HTML-Elemente ersetzen. KolInputText bekommt einen echten input-Knoten,
 // damit Titel-Änderungs-Events (AK4) simuliert werden können.
 vi.mock('@public-ui/react-v19', () => ({
-	KolAlert: ({ _label, _description }: { _label?: string; _description?: string }) => (
+	KolAlert: ({ _label, _description, children }: { _label?: string; _description?: string; children?: ReactNode }) => (
 		<div role="alert">
 			{_label}
 			{_description}
+			{children}
 		</div>
 	),
 	KolButton: ({

@@ -65,14 +65,11 @@ test.describe('Priority Pilot — Serien-Rhythmen: Werktags/Wochenende/Wochentag
 		// KoliBri `KolSingleSelect` → nativer `<select>` im Shadow-DOM. Die Optionen tragen ihre
 		// Bezeichnungen als Text; hier prüfen wir stellvertretend die neuen Werte. Rot, solange
 		// RHYTHM_OPTIONS nur Täglich/Wöchentlich/Monatlich enthält.
-		const rhythmSelect = page.locator('kol-single-select').getByRole('listbox');
-		// Fallback: KoliBri rendert die Optionen zugänglich über den Label-Text.
 		for (const label of ['Werktags', 'Wochenende', 'Montags', 'Sonntags']) {
 			await expect(
 				page.locator('kol-single-select').filter({ hasText: label }),
 				`Rhythmus-Option „${label}“ fehlt`,
 			).toBeAttached();
-			void rhythmSelect;
 		}
 	});
 
