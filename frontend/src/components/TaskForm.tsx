@@ -51,12 +51,63 @@ export interface TaskFormInitialValues {
 	deadline?: string;
 }
 
-/** Auswahl-Optionen des Serien-Rhythmus (Vertrag `SeriesRhythm`). */
+/** Auswahl-Optionen des Serien-Rhythmus (Vertrag `SeriesRhythm`, 12 Werte — Backend #469). */
 const RHYTHM_OPTIONS: { label: string; value: SeriesRhythm }[] = [
 	{ label: 'Täglich', value: 'daily' },
 	{ label: 'Wöchentlich', value: 'weekly' },
 	{ label: 'Monatlich', value: 'monthly' },
+	{ label: 'Werktags', value: 'weekdays' },
+	{ label: 'Wochenende', value: 'weekend' },
+	{ label: 'Montags', value: 'mon' },
+	{ label: 'Dienstags', value: 'tue' },
+	{ label: 'Mittwochs', value: 'wed' },
+	{ label: 'Donnerstags', value: 'thu' },
+	{ label: 'Freitags', value: 'fri' },
+	{ label: 'Samstags', value: 'sat' },
+	{ label: 'Sonntags', value: 'sun' },
 ];
+
+/** Alle gültigen `SeriesRhythm`-Werte — onChange-Guard ohne hartcodierten Drei-Werte-Filter. */
+const VALID_RHYTHMS = new Set<string>(RHYTHM_OPTIONS.map((option) => option.value));
+const isSeriesRhythm = (value: string): value is SeriesRhythm => VALID_RHYTHMS.has(value);
+
+/**
+ * Ziel-UTC-Wochentag (0=So … 6=Sa) für die `mon`…`sun`-Rhythmen; `undefined` für alle anderen.
+ * Spiegelt das Backend (`server/src/express/routes/series.ts`, `RHYTHM_WEEKDAY`) — Grundlage der
+ * client-seitigen Konsistenzprüfung zwischen Rhythmus und Startdatum (#470, AK5).
+ */
+const RHYTHM_WEEKDAY: Partial<Record<SeriesRhythm, number>> = {
+	sun: 0,
+	mon: 1,
+	tue: 2,
+	wed: 3,
+	thu: 4,
+	fri: 5,
+	sat: 6,
+};
+const WEEKDAY_NOUN = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
+const WEEKDAY_ADVERB: Record<number, string> = {
+	0: 'sonntags',
+	1: 'montags',
+	2: 'dienstags',
+	3: 'mittwochs',
+	4: 'donnerstags',
+	5: 'freitags',
+	6: 'samstags',
+};
+
+/**
+ * Bereitet eine vom Series-Backend kommende 400-Fehlermeldung verständlich auf (#470, AK5).
+ * Der Wochentag-Rhythmus-Konflikt (`rhythm "wed" erfordert ein startDate an einem Mittwoch.`)
+ * wird in eine klare Anweisung mit dem Wochentag als Adverb übersetzt.
+ */
+const humanizeSeriesError = (message: string, rhythm: SeriesRhythm): string => {
+	const target = RHYTHM_WEEKDAY[rhythm];
+	if (target === undefined || !/erfordert ein startDate an einem/i.test(message)) {
+		return message;
+	}
+	return `Der Rhythmus ist ${WEEKDAY_ADVERB[target]} gebunden — bitte wähle ein Startdatum, das auf einen ${WEEKDAY_NOUN[target]} fällt.`;
+};
 
 interface TaskFormProps {
 	/** Zu bearbeitender Task; `null` legt einen neuen Task an. */
@@ -182,6 +233,11 @@ export const TaskForm = ({
 	// zurückspringen (bekannte KoliBri-Falle, vgl. PillarWeightsForm.tsx:107–109).
 	const [priority, setPriority] = useState<number>(form.current.priority ?? 3);
 	const [estimatedEffort, setEstimatedEffort] = useState<number>(form.current.estimatedEffort ?? 0.5);
+	// #470: State-Mirror für Rhythmus + Startdatum — nötig, damit die client-seitige
+	// Wochentag-Konsistenzwarnung (AK5) reaktiv auf Änderungen reagiert (Ref allein löst kein
+	// Re-Render aus). `startDateInput` ist der rohe `YYYY-MM-DD`-String aus dem Datumsfeld.
+	const [rhythm, setRhythm] = useState<SeriesRhythm>(form.current.rhythm);
+	const [startDateInput, setStartDateInput] = useState(form.current.startDate);
 
 	// #272: Einmal beim Mount lesen, ob die Auto-Sprachaufnahme aktiv ist → nur das erste (Titel-)
 	// VoiceField startet dann automatisch. Bewusst pro Formular-Instanz konstant (kein Live-Update).
@@ -209,6 +265,19 @@ export const TaskForm = ({
 	const createdTask = useRef<Task | null>(null);
 
 	const pillarNameById = useMemo(() => new Map(pillars.map((pillar) => [pillar.id, pillar.name])), [pillars]);
+	// #470 (AK5): Client-seitige Konsistenzprüfung zwischen Wochentag-Rhythmus (`mon`…`sun`) und
+	// Startdatum — spiegelt die Backend-Regel und warnt den Nutzer frühzeitig (vor dem Speichern).
+	const weekdayMismatch = (() => {
+		const target = RHYTHM_WEEKDAY[rhythm];
+		if (target === undefined || startDateInput.trim() === '') {
+			return null;
+		}
+		const parsed = new Date(`${startDateInput}T00:00:00Z`);
+		if (Number.isNaN(parsed.getTime())) {
+			return null;
+		}
+		return parsed.getUTCDay() !== target ? target : null;
+	})();
 	const pillarIds = useMemo(() => new Set(pillars.map((pillar) => pillar.id)), [pillars]);
 	// Nur noch nicht zugeordnete Säulen lassen sich hinzufügen (jede Säule höchstens einmal pro Task).
 	const availablePillars = pillars.filter((pillar) => !contributions.some((entry) => entry.pillarId === pillar.id));
@@ -409,7 +478,9 @@ export const TaskForm = ({
 			onSaved();
 		} catch (reason) {
 			const apiError = await toApiError(reason);
-			setError(apiError.message);
+			// #470 (AK5): Eine vom Series-Backend kommende Wochentag/startDate-400 verständlich
+			// aufbereiten — statt des rohen `rhythm "wed" erfordert …` eine klare Nutzer-Anweisung.
+			setError(isSeriesMode ? humanizeSeriesError(apiError.message, form.current.rhythm) : apiError.message);
 			setSaving(false);
 		}
 	};
@@ -538,10 +609,14 @@ export const TaskForm = ({
 							_value={startDateValue}
 							_on={{
 								onChange: (_event, value) => {
-									form.current.startDate = value instanceof Date ? startDateToInput(value) : readString(value);
+									const next = value instanceof Date ? startDateToInput(value) : readString(value);
+									form.current.startDate = next;
+									setStartDateInput(next);
 								},
 								onInput: (_event, value) => {
-									form.current.startDate = value instanceof Date ? startDateToInput(value) : readString(value);
+									const next = value instanceof Date ? startDateToInput(value) : readString(value);
+									form.current.startDate = next;
+									setStartDateInput(next);
 								},
 							}}
 						/>
@@ -552,12 +627,19 @@ export const TaskForm = ({
 							_on={{
 								onChange: (_event, value) => {
 									const next = readString(value);
-									if (next === 'daily' || next === 'weekly' || next === 'monthly') {
+									if (isSeriesRhythm(next)) {
 										form.current.rhythm = next;
+										setRhythm(next);
 									}
 								},
 							}}
 						/>
+						{weekdayMismatch !== null && (
+							<KolAlert
+								_type="warning"
+								_label={`Der Rhythmus ist ${WEEKDAY_ADVERB[weekdayMismatch]} gebunden — bitte wähle ein Startdatum, das auf einen ${WEEKDAY_NOUN[weekdayMismatch]} fällt.`}
+							/>
+						)}
 					</>
 				) : (
 					<KolInputDate
