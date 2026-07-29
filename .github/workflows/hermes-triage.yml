@@ -1,20 +1,11 @@
 name: Hermes Triage (Analyse)
 
-# Stößt die KI-Analyse (Triage) eines Issues automatisch an — ersetzt den
+# Stößt die KI-Analyse (Triage) eines Issues automatisch an.
 #
 # Triggert bei:
 #  - neuem Issue (issues: opened)
 #  - Entfernen von Label "ai:analyzed" oder "ai:to-big-issue" (issues: unlabeled)
 #  - @hermes-Kommentar einer Person mit Schreibzugriff (issue_comment: created)
-#
-# Setzt Hermes Agent (Nous Research) — Provider wählbar per Issue-Label:
-#   Default: DeepSeek via Nous Portal (NOUS_PORTAL_TOKEN)
-# Provider: Nous Portal + DeepSeek (provider=custom)
-#
-# Voraussetzungen: NOUS_PORTAL_TOKEN
-#
-#  - Keine configure-ai-backend Composite Action (Hermes nutzt Nous Portal nativ)
-#  - Kein session-restore/session-save (Hermes-Session-Resume folgt in MIG-002)
 
 on:
   issues:
@@ -22,18 +13,12 @@ on:
   issue_comment:
     types: [created]
 
-# Dieselbe Concurrency wie zuvor: Pro Issue nur ein Lauf gleichzeitig.
-# cancel-in-progress: true -> ein neuerer Trigger desselben Issues bricht
-# einen noch laufenden Lauf ab (immer die aktuellste Analyse).
-# Dynamischer Suffix verhindert, dass irrelevante Events (z.B. unlabeled
-# eines anderen Labels) den aktiven Triage-Lauf canceln.
 concurrency:
   group: hermes-triage-${{ github.event.issue.number }}-${{ (github.event_name == 'issues' && (github.event.action == 'opened' || github.event.label.name == 'ai:analyzed' || github.event.label.name == 'ai:to-big-issue')) || github.event_name == 'issue_comment' }}
   cancel-in-progress: true
 
 jobs:
   triage:
-    # Trigger-Bedingungen (unverändert).
     if: >-
       ${{ (github.event_name == 'issues'
             && github.event.issue.state == 'open'
@@ -54,211 +39,47 @@ jobs:
                   || github.event.comment.author_association == 'MEMBER'
                   || github.event.comment.author_association == 'COLLABORATOR')) }}
     runs-on: ubuntu-latest
-    # Backstop (weit über der Soft-Deadline von 10 Min) — fängt einen hängenden Agent
-    # ab (Prompt-Deadline ignoriert, API-Call hängt), ohne das graceful Save
-    # (Session-Archiv) bei der Soft-Deadline zu stören.
     timeout-minutes: 30
     env:
       PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-      # Hermes speichert Config + Sessions in ein RAM-Verzeichnis (nicht ~/.hermes)
       HERMES_HOME: /tmp/hermes-ci
     permissions:
       contents: read
       issues: write
       id-token: write
       pull-requests: write
-      actions: write # Cache-Speicher (actions/cache Post-Step)
+      actions: write
     steps:
-      # ————————————————————————————————————————————————————————————————————————
-      # 1. Startzeit (für Timeout-Erkennung + Soft-Abort)
-      # ————————————————————————————————————————————————————————————————————————
-      - name: Startzeit merken (für Timeout-Erkennung + weiches Zeitlimit)
+      - name: Startzeit merken (für weiches Zeitlimit)
         id: starttime
         run: |
           now=$(date +%s)
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
-          echo "soft_deadline_epoch=$((now + 600))" >> "$GITHUB_OUTPUT"  # 10 min Soft-Deadline
+          echo "soft_deadline_epoch=$((now + 600))" >> "$GITHUB_OUTPUT"
 
-      # ————————————————————————————————————————————————————————————————————————
-      # 2. GitHub-App-Setup (für Label/Push als Bot)
-      # ————————————————————————————————————————————————————————————————————————
-      - name: Voraussetzung prüfen (GitHub-App-Secrets)
-        id: preflight
-        env:
-          APP_ID: ${{ secrets.APP_ID }}
-          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
-        run: |
-          if [ -z "$APP_ID" ] || [ -z "$APP_PRIVATE_KEY" ]; then
-            echo "::warning::GitHub-App-Secrets fehlen — Lauf wird übersprungen. GitHub App anlegen (Issues/Contents/Pull requests = Read and write), aufs Repo installieren und beide Werte als Repo-Secrets (APP_ID + APP_PRIVATE_KEY) hinterlegen."
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "configured=true" >> "$GITHUB_OUTPUT"
-          fi
-      - name: GitHub-App-Token erzeugen
-        id: app-token
-        if: steps.preflight.outputs.configured == 'true'
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Hermes
+        id: setup
+        uses: ./.github/actions/setup-hermes
         with:
-          client-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          event-type: ${{ github.event_name }}
+          ticket-ref: ${{ github.event.issue.number }}
+          app-id: ${{ secrets.APP_ID }}
+          app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          llm-provider: ${{ vars.LLM_PROVIDER }}
+          zai-api-key: ${{ secrets.ZAI_API_KEY }}
+          nous-portal-token: ${{ secrets.NOUS_PORTAL_TOKEN }}
 
-      - name: GH_TOKEN-Fallback setzen (App-Token oder GITHUB_TOKEN)
-        id: gh-token
-        run: |
-          APP_TOK="${{ steps.app-token.outputs.token }}"
-          if [ -n "$APP_TOK" ] && [ "$APP_TOK" != "null" ]; then
-            echo "token=$APP_TOK" >> "$GITHUB_OUTPUT"
-            echo "::notice::Nutze GitHub-App-Token für gh-Befehle."
-          else
-            echo "token=${{ github.token }}" >> "$GITHUB_OUTPUT"
-            echo "::warning::App-Token nicht verfügbar — nutze GITHUB_TOKEN (Achtung: Label-Wechsel lösen ggf. keine Folge-Workflows aus)."
-          fi
-
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      # ————————————————————————————————————————————————————————————————————————
-      # 3. uv-Paketcache (beschleunigt Hermes-Installation)
-      # ————————————————————————————————————————————————————————————————————————
-      - name: Cache-Key für uv berechnen
-        id: uv-cache-key
-        run: echo "week=$(date +%Y-W%V)" >> "$GITHUB_OUTPUT"
-
-      - name: uv-Paketcache wiederherstellen
-        id: uv-cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-        with:
-          path: |
-            ~/.cache/uv
-            ~/.local/share/uv
-          key: uv-hermes-${{ runner.os }}-${{ steps.uv-cache-key.outputs.week }}
-          restore-keys: uv-hermes-${{ runner.os }}-
-
-      # ————————————————————————————————————————————————————————————————————————
-      # 4. Hermes installieren & konfigurieren
-      # ————————————————————————————————————————————————————————————————————————
-      - name: Hermes installieren
-        run: |
-          curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-browser --skip-setup
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-      # Konfiguration wird pro Lauf frisch in $HERMES_HOME geschrieben.
-      # Der `hermes chat`-Aufruf unten setzt --provider und -m, daher reicht
-      # hier die Provider-Auswahl + base_url.
-      - name: Hermes konfigurieren (Provider per Variable)
-        env:
-          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
-          ISSUE: ${{ github.event.issue.number }}
-          LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
-          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
-        run: |
-          if [ "$LLM_PROVIDER" = "zai" ]; then
-            hermes config set model.provider zai
-            printf 'ZAI_API_KEY=%s\n' "$ZAI_API_KEY" > "$HERMES_HOME/.env"
-            echo "::notice::Provider: Z.AI (GLM-5.1)"
-          else
-            hermes config set model.provider custom
-            hermes config set model.base_url https://inference-api.nousresearch.com/v1
-            hermes config set model.api_key "${{ secrets.NOUS_PORTAL_TOKEN }}"
-            echo "::notice::Provider: Nous Portal (DeepSeek)"
-          fi
-          pip install mcp -q
-          hermes mcp add kolibri --url https://public-ui-kolibri-mcp.vercel.app/mcp
-
-      # ————————————————————————————————————————————————————————————————————————
-      # 4. Session-Resume (aus vorherigem Lauf fortsetzen)
-      # ————————————————————————————————————————————————————————————————————————
-      - name: Session-Archiv herunterladen (Phase triage)
-        id: session-dl
-        if: steps.preflight.outputs.configured == 'true'
-        continue-on-error: true
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
-        with:
-          name: hermes-session-issue-${{ github.event.issue.number }}-triage
-          path: /tmp/hermes-session-restore
-
-      - name: Session wiederherstellen
-        id: session-restore
-        if: steps.preflight.outputs.configured == 'true' && steps.session-dl.outcome == 'success'
-        run: |
-          if [ -f /tmp/hermes-session-restore/hermes-session.tar.gz ]; then
-            mkdir -p "$HERMES_HOME"
-            tar -xzf /tmp/hermes-session-restore/hermes-session.tar.gz -C "$HERMES_HOME"
-            if [ -f "$HERMES_HOME/session_id.txt" ]; then
-              RID=$(cat "$HERMES_HOME/session_id.txt")
-              echo "resume_arg=$RID" >> "$GITHUB_OUTPUT"
-              echo "::notice::Session #$RID wiederhergestellt"
-            fi
-          fi
-
-      # ──────────────────────────────────────────────
-      # 5. Auth-Prüfung (provider-spezifisch)
-      # ──────────────────────────────────────────────
-      - name: Auth prüfen (provider-spezifisch)
-        if: steps.preflight.outputs.configured == 'true'
-        env:
-          NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
-          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
-          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
-          ISSUE: ${{ github.event.issue.number }}
-          LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
-        run: |
-          if [ "$LLM_PROVIDER" = "zai" ]; then
-            if [ -z "$ZAI_API_KEY" ]; then
-              echo "::error title=Auth fehlt::ZAI_API_KEY nicht gesetzt — als Repo-Secret hinterlegen"
-              exit 1
-            fi
-            echo "ZAI_API_KEY vorhanden."
-          else
-            if [ -z "$NOUS_PORTAL_TOKEN" ]; then
-              echo "::error title=Auth fehlt::NOUS_PORTAL_TOKEN nicht gesetzt — als Repo-Secret hinterlegen"
-              exit 1
-            fi
-            echo "NOUS_PORTAL_TOKEN vorhanden."
-          fi
-
-      # ————————————————————————————————————————————————————————————————————————
-      # 5. Triage via Hermes
-      # ————————————————————————————————————————————————————————————————————————
-      # Der Prompt wird via Heredoc in eine Datei geschrieben (vermeidet
-      # Shell-Quoting-Probleme bei langen Texten mit Anführungszeichen).
-      # Der eigentliche Aufruf nutzt dann -q "$(cat ...)".
-      #
-      # Flags im Detail:
-      #   -q                       Single-query non-interactive
-      #   -Q                       Quiet — keine Banner/Spinner im CI-Log
-      #   --yolo                   Keine Gefahren-Bestätigung (CI headless)
-      #   -m <modell>              Modell (DeepSeek Pro/GLM 5.2 per Label)
-      #   -t "terminal,file"       Nur Shell- und Datei-Tools zulassen
-      #   --accept-hooks           Automatische Freigabe von Shell-Hooks
-      #
-      # GH_TOKEN für gh-Befehle (Issue lesen/schreiben, Labels setzen).
       - name: Triage via Hermes
         id: hermes
-        if: steps.preflight.outputs.configured == 'true'
+        if: steps.setup.outputs.configured == 'true'
         env:
-          NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
-          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
-          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
-          LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
         run: |
-          if [ "$LLM_PROVIDER" = "zai" ]; then
-            PROVIDER_FLAG="--provider zai"
-            MODEL="glm-5.1"
-          else
-            PROVIDER_FLAG="--provider custom"
-            MODEL="deepseek/deepseek-v4-pro"
-            hermes config set model.api_key "$NOUS_PORTAL_TOKEN"
-          fi
-
-          # Prompt per Heredoc schreiben — 'HERMES_EOF' (single-quoted) verhindert
-          # bash-Variable-Expansion innerhalb des Heredocs, während GitHub Actions
-          # ${} Expressions VOR der Schritt-Ausführung evaluiert.
           cat > /tmp/hermes-prompt.txt << 'HERMES_EOF'
           Führe für GENAU DIESES EINE Issue (#ISSUE_NR) den Ticket-Triage-Workflow aus der Wissensbasis aus — verbindlicher Ablauf: .ai-knowledge/ticket-triage.md.
-
-          Wichtige Hinweise für den Hermes-Agenten:
 
           TRIGGER-ERKENNUNG (Re-Triage oder Erst-Triage):
             Die Analyse läuft entweder zum ersten Mal (Erst-Triage) oder als aktualisierte Analyse (Re-Triage). Das erkennst du am Body-Block: existiert bereits <!-- KI-ANALYSE:START stand=... --> ... <!-- KI-ANALYSE:END --> im Issue-Body, ist es eine Re-Triage. Dann den stand-Timestamp auslesen und NUR die Delta-Kommentare seit stand lesen (gh issue view #ISSUE_NR --json comments --jq '.comments[] | select(.createdAt > "<stand>")'), NICHT den ganzen Thread. Fehlt der Body-Block, ist es eine Erst-Analyse.
@@ -277,140 +98,59 @@ jobs:
             <!-- KI-ANALYSE:START stand=<aktuelles Datum in ISO-8601> -->
             ...
             <!-- KI-ANALYSE:END -->
-            Bei Re-Triage: existierenden Block zwischen den Markern IN-PLACE ersetzen (per sed im Body-File oder gh issue edit mit vollständigem Body). Die Original-Beschreibung oberhalb des START-Markers NICHT überschreiben.
-            Bei Erst-Analyse: Block neu in die Beschreibung einfügen (gh issue view --json body um den aktuellen Body zu holen, dann mit cat/printf den Block anhängen).
 
-          ⚠️ LABELS: Du darfst KEINE Labels setzen oder entfernen (`gh issue edit --add-label` / `--remove-label`)! Der Workflow übernimmt den Label-Wechsel automatisch anhand deines VERDICT-Markers — mit dem korrekten App-Token, das Folgeworkflows triggert. Wenn du Labels selbst setzt, bricht die Pipeline (Folge-Workflows werden nicht ausgelöst).
+          ⚠️ LABELS: Du darfst KEINE Labels setzen oder entfernen! Der Workflow übernimmt das automatisch anhand deines VERDICT-Markers.
 
           VERDICT-MARKER: Gib GANZ AM ENDE deiner letzten Antwort GENAU EINE Zeile aus:
             - `VERDICT: spec-ready` (bei 🟢 — startet die Spec-Stufe)
-            - `VERDICT: analyzed` (bei 🟡/🔴 — Analyse fertig, aber nicht zur Umsetzung freigegeben)
-          Der Workflow parst diese Zeile und setzt die Labels.
+            - `VERDICT: analyzed` (bei 🟡/🔴)
 
-          WERKZEUGE:
-            Du hast Zugriff auf die Bash (für gh issue/gh api/gh label/gh pr/gh repo), Datei-Lese-Werkzeuge sowie KoliBri-MCP-Tools (mcp_kolibri_search, mcp_kolibri_fetch für KoliBri-Komponenten). Die gh-Befehle sind über GH_TOKEN authentifiziert. Lies die Wissensbasis aus .ai-knowledge/ticket-triage.md für den vollständigen Ablauf. Lese die Issue-Daten via gh issue view und die Wissensbasis via read_file.
-
-          WEICHES ZEITLIMIT (Soft-Abort) — SOFORT STOPPEN, NICHT AUFRÄUMEN:
-            Beginne SOFORT mit der Arbeit. Deine Soft-Deadline ist SOFT_DEADLINE (Unix-Epoch).
-            Prüfe VOR JEDEM Tool-Aufruf: Ist \`[ \$(date +%s) -ge SOFT_DEADLINE ] && echo OVER\`?
-            Wenn OVER: **BRICH AUF DER STELLE AB** — nicht den aktuellen Schritt zuende führen,
-            nicht aufräumen, nicht zusammenfassen. Schreibe den Body-Block mit dem aktuellen
-            Stand (auch unvollständig) und beende den Turn sofort. Ein sauberer Teil-Stand ist
-            wertvoller als ein langer ungesicherter.
-
-          WICHTIG:
-            - Bearbeite ausschließlich dieses eine Issue (kein Batch).
-            - Committe keinen Produktivcode.
-            - Keine interaktive Bestätigung nötig — der Trigger autorisiert den Lauf.
-            - Du arbeitest autonom. Schreibe Lektorat, Analyse-Body-Block, Ping-Kommentar und setze die Labels im vorgegebenen Ablauf.
+          ZEITLIMIT: Deine Soft-Deadline ist SOFT_DEADLINE (Unix-Epoch). Prüfe `[ $(date +%s) -ge SOFT_DEADLINE ]` vor jedem größeren Schritt. Bei OVER: Body-Block mit aktuellem Stand sichern, Turn sofort beenden.
           HERMES_EOF
 
-          # GitHub-Actions-Expressions durch Werte ersetzen (cat + sed)
           sed -i "s/#ISSUE_NR/${{ github.event.issue.number }}/g" /tmp/hermes-prompt.txt
           sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/hermes-prompt.txt
 
-          RESUME_ARG=""
-          if [ -n "${{ steps.session-restore.outputs.resume_arg }}" ]; then
-            RESUME_ARG="--resume ${{ steps.session-restore.outputs.resume_arg }}"
-          fi
-
           hermes chat -q "$(cat /tmp/hermes-prompt.txt)" \
-            $RESUME_ARG \
-            -Q --yolo $PROVIDER_FLAG \
-            -m "$MODEL" \
+            ${{ steps.setup.outputs.resume-flag }} \
+            -Q --yolo ${{ steps.setup.outputs.provider-flag }} \
+            -m "${{ steps.setup.outputs.model }}" \
             -t "terminal,file" \
             --accept-hooks \
             2>&1 | tee /tmp/hermes-output.log
-          # PIPESTATUS: Exit-Code von hermes chat durch pipe propagieren
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
 
-      # ————————————————————————————————————————————————————————————————————————
-      # 6. Hermes-Output parsen & Session-ID sichern
-      # ————————————————————————————————————————————————————————————————————————
-      - name: Hermes-Session-ID erfassen
-        if: always()
-        id: session
-        run: |
-          if [ -f /tmp/hermes-output.log ]; then
-            sid="$(grep '^session_id:' /tmp/hermes-output.log | head -1 | sed 's/^session_id:[[:space:]]*//')"
-            if [ -n "$sid" ]; then
-              echo "session_id=$sid" >> "$GITHUB_OUTPUT"
-              echo "::notice::Hermes Session-ID: $sid"
-            fi
-          fi
-
-      # ————————————————————————————————————————————————————————————————————————
-      # 7. Session-Archiv für Folgelauf sichern
-      # ————————————————————————————————————————————————————————————————————————
-      - name: Session-Archiv packen
-        if: always() && steps.session.outputs.session_id != ''
-        continue-on-error: true
-        run: |
-          SID="${{ steps.session.outputs.session_id }}"
-          if [ -n "$SID" ] && [ -d "$HERMES_HOME" ]; then
-            echo "$SID" > "$HERMES_HOME/session_id.txt"
-            # Nur sessions/ + session_id.txt archivieren (keine Config, Caches, MCP-Daten).
-            tar -czf /tmp/hermes-session.tar.gz -C "$HERMES_HOME" sessions session_id.txt 2>/dev/null || \
-            tar -czf /tmp/hermes-session.tar.gz -C "$HERMES_HOME" session_id.txt
-            echo "::notice::Session #$SID gepackt"
-          fi
-
-      - name: Session hochladen
-        if: always() && steps.session.outputs.session_id != ''
-        continue-on-error: true
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - name: Save Session
+        if: always() && steps.setup.outputs.configured == 'true'
+        uses: ./.github/actions/save-session
         with:
-          name: hermes-session-issue-${{ github.event.issue.number }}-triage
-          path: /tmp/hermes-session.tar.gz
-          retention-days: 30
-          overwrite: true
+          session-artifact-name: ${{ steps.setup.outputs.session-artifact-name }}
+          configured: ${{ steps.setup.outputs.configured }}
 
-      # ————————————————————————————————————————————————————————————————————————
-      # 8. Label-Post-Assertion (Labels via App-Token force-setzen)
-      # ————————————————————————————————————————————————————————————————————————
       - name: Label-Post-Assertion (VERDICT parsen, Labels via App-Token force-setzen)
-        if: always() && steps.preflight.outputs.configured == 'true' && (steps.hermes.outcome == 'success' || steps.hermes.outcome == 'failure')
+        if: always() && steps.setup.outputs.configured == 'true' && (steps.hermes.outcome == 'success' || steps.hermes.outcome == 'failure')
         env:
-          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
-          # VERDICT aus Hermes-Output parsen
           verdict=""
           if [ -f /tmp/hermes-output.log ]; then
             verdict="$(grep -oP 'VERDICT:\s*\K.*' /tmp/hermes-output.log | tail -1 | tr -d '[:space:]' || true)"
           fi
           echo "Hermes-Verdict aus Output: '${verdict:-keins}'"
 
-          # ARTEFAKTE PRÜFEN (immer, unabhängig vom VERDICT)
           BODY="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json body -q .body 2>/dev/null || true)"
           HAS_BLOCK="false"
           HAS_AK="false"
           if printf '%s' "$BODY" | grep -q "KI-ANALYSE:START"; then
             HAS_BLOCK="true"
-            echo "✅ KI-ANALYSE-Block im Issue-Body gefunden."
             if printf '%s' "$BODY" | grep -qiE "Akzeptanzkriterien|AK[[:space:]]*[0-9]"; then
               HAS_AK="true"
-              echo "✅ Akzeptanzkriterien im Body-Block gefunden."
-            else
-              echo "::warning::KI-ANALYSE-Block gefunden, aber keine Akzeptanzkriterien."
             fi
-          else
-            echo "::warning::Kein <!-- KI-ANALYSE:START -->-Block im Issue-Body."
           fi
 
-          # ENTSCHEIDUNG: VERDICT + Artefakte → Label
-          # Schema:
-          #   spec-ready + Block + AK → spec-ready (Normalfall)
-          #   spec-ready + Block, kein AK → analyzed (Downgrade — Spec braucht AK)
-          #   spec-ready + kein Block → exit 1 (KI loggt spec-ready ohne Analyse)
-          #   analyzed + Block + AK → Upgrade zu spec-ready (KI pessimistisch)
-          #   analyzed + Block, kein AK → analyzed (echte 🟡/🔴)
-          #   analyzed + kein Block → exit 1
-          #   kein VERDICT + Block + AK → spec-ready (KI hat VERDICT vergessen)
-          #   kein VERDICT + Block, kein AK → analyzed
-          #   kein VERDICT + kein Block → exit 1 (nichts gemacht, laut fehlschlagen)
           if [ "$HAS_BLOCK" != "true" ]; then
-            echo "::error title=❌ Analyse fehlt::Kein <!-- KI-ANALYSE:START -->-Block im Issue-Body (VERDICT war '${verdict:-keins}'). Die KI hat keine Analyse produziert — keine Labels gesetzt. Lauf muss wiederholt werden."
+            echo "::error title=❌ Analyse fehlt::Kein KI-ANALYSE-Block im Issue-Body. Lauf muss wiederholt werden."
             exit 1
           fi
 
@@ -418,70 +158,55 @@ jobs:
             if [ "$HAS_AK" = "true" ]; then
               final="spec-ready"
             else
-              echo "::warning::VERDICT spec-ready, aber keine Akzeptanzkriterien → Downgrade zu analyzed."
               final="analyzed"
             fi
           elif [ "$verdict" = "analyzed" ]; then
             if [ "$HAS_AK" = "true" ]; then
-              echo "::notice::VERDICT analyzed, aber AK vorhanden → Upgrade zu spec-ready."
               final="spec-ready"
             else
               final="analyzed"
             fi
           else
-            # Kein gültiger VERDICT — prüfe Artefakte statt blind zu degradieren
             if [ "$HAS_AK" = "true" ]; then
-              echo "::notice::Kein VERDICT, aber Block + AK vollständig → spec-ready."
               final="spec-ready"
             else
-              echo "::notice::Kein VERDICT, Block ohne AK → analyzed."
               final="analyzed"
             fi
           fi
 
-          # Labels sicherstellen, dass sie existieren
           gh label create "ai:analyzed" --color 0E8A16 2>/dev/null || true
           gh label create "ai:spec-ready" --color FBCA04 2>/dev/null || true
 
-          # FORCE-SET: ai:analyzed immer setzen (via App-Token für Folge-Trigger)
           gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:analyzed" 2>/dev/null || true
           gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:analyzed"
 
           if [ "$final" = "spec-ready" ]; then
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:spec-ready"
-            echo "::notice::Labels gesetzt (App-Token): ai:analyzed + ai:spec-ready (verifiziert: Body-Block + AK vorhanden)"
+            echo "::notice::Labels gesetzt: ai:analyzed + ai:spec-ready"
           else
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:spec-ready" 2>/dev/null || true
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
-            echo "::notice::Label gesetzt (App-Token): ai:analyzed (🟡/🔴)"
+            echo "::notice::Label gesetzt: ai:analyzed (🟡/🔴)"
           fi
 
-      # ————————————————————————————————————————————————————————————————————————
-      # 9. Ergebnis zusammenfassen
-      # ————————————————————————————————————————————————————————————————————————
       - name: Ergebnis zusammenfassen
-        if: always() && steps.preflight.outputs.configured == 'true'
+        if: always() && steps.setup.outputs.configured == 'true'
         env:
-          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
           OUTCOME: ${{ steps.hermes.outcome }}
-          SESSION_ID: ${{ steps.session.outputs.session_id }}
         run: |
           labels="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
           if [ "$OUTCOME" = "success" ]; then
             echo "::notice title=✅ Triage erfolgreich::Issue #${ISSUE} vollständig analysiert"
           elif [ "$OUTCOME" = "cancelled" ]; then
-            echo "::warning title=⏸️ Triage abgebrochen::Lauf durch neueren Trigger verdrängt oder 12-Min-Timeout (kein Fehler)"
+            echo "::warning title=⏸️ Triage abgebrochen::Lauf durch neueren Trigger verdrängt oder Timeout"
           else
-            echo "::error title=❌ Triage fehlgeschlagen::Hermes-Lauf gescheitert (Code ${OUTCOME:-unbekannt})"
+            echo "::error title=❌ Triage fehlgeschlagen::Hermes-Lauf gescheitert"
           fi
           {
             echo "### (Re-)Triage #${ISSUE} — fertig"
             echo ""
-            echo "- Hermes-Schritt: \`${OUTCOME:-unbekannt}\` (cancelled = 12-Min-Timeout erreicht oder Supersede)"
+            echo "- Hermes-Schritt: \`${OUTCOME:-unbekannt}\`"
             echo "- Aktuelle Labels: ${labels:-keine}"
-            if [ -n "$SESSION_ID" ]; then
-              echo "- Hermes Session-ID: \`${SESSION_ID}\`"
-            fi
           } >> "$GITHUB_STEP_SUMMARY"
-          echo "::notice title=(Re-)Triage #${ISSUE} fertig::Hermes-Schritt ${OUTCOME:-unbekannt}; Labels: ${labels:-keine}"

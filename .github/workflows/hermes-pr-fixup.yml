@@ -2,25 +2,13 @@ name: Hermes PR Fixup (Findings umsetzen)
 
 # Reagiert auf das Label "ai:needs-changes" (vom Review gesetzt) und setzt die
 # zutreffenden Findings um.
-#
-# Label-Steuerung:
 #   review → ai:needs-changes → fixup → ai:needs-review → review → ... bis 🟢
-#
-# Setzt Hermes Agent (Nous Research) — Provider wählbar per PR-Label:
-#   Default: DeepSeek via Nous Portal (NOUS_PORTAL_TOKEN)
-# Provider: Nous Portal + DeepSeek (provider=custom)
-#
-# Voraussetzungen: NOUS_PORTAL_TOKEN
 
 on:
   pull_request:
     types: [labeled]
 
 concurrency:
-  # Dynamischer Suffix: nur bei ai:needs-changes → '-active', sonst '-skip'.
-  # Verhindert, dass ein selbst-erzeugtes Label (z.B. ai:needs-review) den eigenen
-  # laufenden Fixup-Lauf über die Concurrency-Group cancelled — der if-Check auf
-  # Job-Ebene greift erst NACH der Concurrency-Zuordnung (Race Condition).
   group: hermes-pr-fixup-${{ github.event.pull_request.number }}-${{ github.event.label.name == 'ai:needs-changes' }}
   cancel-in-progress: true
 
@@ -31,9 +19,6 @@ jobs:
           && github.event.pull_request.draft == false
           && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
-    # Backstop (weit über der Soft-Deadline von 10 Min) — fängt einen hängenden Agent
-    # ab (Prompt-Deadline ignoriert, API-Call hängt), ohne das graceful Save
-    # (Session-Archiv) bei der Soft-Deadline zu stören.
     timeout-minutes: 30
     env:
       PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
@@ -41,167 +26,60 @@ jobs:
     permissions:
       contents: read
       id-token: write
-      actions: write # Cache-Speicher (actions/cache Post-Step)
+      actions: write
       pull-requests: write
     steps:
-      - name: Startzeit merken (für Timeout-Erkennung + weiches Zeitlimit)
+      - name: Startzeit merken (für weiches Zeitlimit)
         id: starttime
         run: |
           now=$(date +%s)
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
-          echo "soft_deadline_epoch=$((now + 600))" >> "$GITHUB_OUTPUT"  # 10 min (Puffer vor 20-Min-GitHub-Timeout)
-
-      - name: Voraussetzung prüfen (GitHub-App-Secrets)
-        id: preflight
-        env:
-          APP_ID: ${{ secrets.APP_ID }}
-          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
-        run: |
-          if [ -z "$APP_ID" ] || [ -z "$APP_PRIVATE_KEY" ]; then
-            echo "::warning::GitHub-App-Secrets fehlen — Lauf wird übersprungen."
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "configured=true" >> "$GITHUB_OUTPUT"
-          fi
-      - name: GitHub-App-Token erzeugen
-        id: app-token
-        if: steps.preflight.outputs.configured == 'true'
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
-        with:
-          client-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-
-      - name: GH_TOKEN-Fallback setzen (App-Token oder GITHUB_TOKEN)
-        id: gh-token
-        run: |
-          APP_TOK="${{ steps.app-token.outputs.token }}"
-          if [ -n "$APP_TOK" ] && [ "$APP_TOK" != "null" ]; then
-            echo "token=$APP_TOK" >> "$GITHUB_OUTPUT"
-            echo "::notice::Nutze GitHub-App-Token für gh-Befehle."
-          else
-            echo "token=${{ github.token }}" >> "$GITHUB_OUTPUT"
-            echo "::warning::App-Token nicht verfügbar — nutze GITHUB_TOKEN (Achtung: Label-Wechsel lösen ggf. keine Folge-Workflows aus)."
-          fi
+          echo "soft_deadline_epoch=$((now + 600))" >> "$GITHUB_OUTPUT"
 
       - name: Checkout (PR-Head-Branch)
-        if: steps.preflight.outputs.configured == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
-          token: ${{ steps.gh-token.outputs.token }}
 
-      - name: Cache-Key für uv berechnen
-        id: uv-cache-key
-        run: echo "week=$(date +%Y-W%V)" >> "$GITHUB_OUTPUT"
-
-      - name: uv-Paketcache wiederherstellen
-        id: uv-cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      - name: Setup Hermes
+        id: setup
+        uses: ./.github/actions/setup-hermes
         with:
-          path: |
-            ~/.cache/uv
-            ~/.local/share/uv
-          key: uv-hermes-${{ runner.os }}-${{ steps.uv-cache-key.outputs.week }}
-          restore-keys: uv-hermes-${{ runner.os }}-
-
-      - name: Hermes installieren
-        if: steps.preflight.outputs.configured == 'true'
-        run: |
-          curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-browser --skip-setup
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-
-      - name: Hermes konfigurieren (Provider per Variable)
-        if: steps.preflight.outputs.configured == 'true'
-        env:
-          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
-          PR: ${{ github.event.pull_request.number }}
-          LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
-          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
-        run: |
-          if [ "$LLM_PROVIDER" = "zai" ]; then
-            hermes config set model.provider zai
-            printf 'ZAI_API_KEY=%s\n' "$ZAI_API_KEY" > "$HERMES_HOME/.env"
-            echo "::notice::Provider: Z.AI (GLM-5.1)"
-          else
-            hermes config set model.provider custom
-            hermes config set model.base_url https://inference-api.nousresearch.com/v1
-            hermes config set model.api_key "${{ secrets.NOUS_PORTAL_TOKEN }}"
-            echo "::notice::Provider: Nous Portal (DeepSeek)"
-          fi
-          pip install mcp -q
-          hermes mcp add kolibri --url https://public-ui-kolibri-mcp.vercel.app/mcp
-
-      - name: Session-Archiv herunterladen (Phase fixup)
-        id: session-dl
-        if: steps.preflight.outputs.configured == 'true'
-        continue-on-error: true
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
-        with:
-          name: hermes-session-pr-${{ github.event.pull_request.number }}-fixup
-          path: /tmp/hermes-session-restore
-
-      - name: Session wiederherstellen
-        id: session-restore
-        if: steps.preflight.outputs.configured == 'true' && steps.session-dl.outcome == 'success'
-        run: |
-          if [ -f /tmp/hermes-session-restore/hermes-session.tar.gz ]; then
-            mkdir -p "$HERMES_HOME"
-            tar -xzf /tmp/hermes-session-restore/hermes-session.tar.gz -C "$HERMES_HOME"
-            if [ -f "$HERMES_HOME/session_id.txt" ]; then
-              RID=$(cat "$HERMES_HOME/session_id.txt")
-              echo "resume_arg=$RID" >> "$GITHUB_OUTPUT"
-            fi
-          fi
-
-      - name: Auth prüfen (provider-spezifisch)
-        if: steps.preflight.outputs.configured == 'true'
-        env:
-          NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
-          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
-          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
-          PR: ${{ github.event.pull_request.number }}
-          LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
-        run: |
-          if [ "$LLM_PROVIDER" = "zai" ]; then
-            if [ -z "$ZAI_API_KEY" ]; then
-              echo "::error title=Auth fehlt::ZAI_API_KEY nicht gesetzt — als Repo-Secret hinterlegen"
-              exit 1
-            fi
-            echo "ZAI_API_KEY vorhanden."
-          else
-            if [ -z "$NOUS_PORTAL_TOKEN" ]; then
-              echo "::error title=Auth fehlt::NOUS_PORTAL_TOKEN nicht gesetzt — als Repo-Secret hinterlegen"
-              exit 1
-            fi
-            echo "NOUS_PORTAL_TOKEN vorhanden."
-          fi
+          event-type: ${{ github.event_name }}
+          ticket-ref: ${{ github.event.pull_request.number }}
+          app-id: ${{ secrets.APP_ID }}
+          app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          llm-provider: ${{ vars.LLM_PROVIDER }}
+          zai-api-key: ${{ secrets.ZAI_API_KEY }}
+          nous-portal-token: ${{ secrets.NOUS_PORTAL_TOKEN }}
+          deepseek-model: deepseek/deepseek-v4-flash
 
       - name: pnpm einrichten
-        if: steps.preflight.outputs.configured == 'true'
+        if: steps.setup.outputs.configured == 'true'
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
       - name: Node.js einrichten
-        if: steps.preflight.outputs.configured == 'true'
+        if: steps.setup.outputs.configured == 'true'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
           cache: pnpm
 
       - name: Abhängigkeiten installieren
-        if: steps.preflight.outputs.configured == 'true'
+        if: steps.setup.outputs.configured == 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Git-Hooks installieren (lefthook)
-        if: steps.preflight.outputs.configured == 'true'
+        if: steps.setup.outputs.configured == 'true'
         run: pnpm exec lefthook install
 
       # Merge-Konflikte erkennen und automatisch auflösen (VOR dem LLM-Schritt)
       - name: Merge-Konflikte prüfen und auflösen
         id: resolve-conflicts
-        if: steps.preflight.outputs.configured == 'true'
+        if: steps.setup.outputs.configured == 'true'
         env:
-          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
           TARGET_BRANCH: ${{ github.event.pull_request.base.ref }}
@@ -238,9 +116,9 @@ jobs:
       # Stop-Guard: > 10 PR-Commits → Loop stoppen
       - name: Stop-Guard (> 10 PR-Commits)
         id: stop-guard
-        if: steps.preflight.outputs.configured == 'true'
+        if: steps.setup.outputs.configured == 'true'
         env:
-          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
         run: |
@@ -258,9 +136,9 @@ jobs:
 
       - name: Supersede-Check
         id: supersede-check
-        if: steps.preflight.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true'
         env:
-          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
         run: |
           running=$(gh api repos/${GITHUB_REPOSITORY}/actions/runs \
@@ -269,23 +147,11 @@ jobs:
 
       - name: Findings umsetzen via Hermes
         id: hermes
-        if: steps.preflight.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true' && steps.supersede-check.outputs.skip != 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true' && steps.supersede-check.outputs.skip != 'true'
         env:
-          NOUS_PORTAL_TOKEN: ${{ secrets.NOUS_PORTAL_TOKEN }}
-          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
-          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
-          LLM_PROVIDER: ${{ vars.LLM_PROVIDER }}
         run: |
-          if [ "$LLM_PROVIDER" = "zai" ]; then
-            PROVIDER_FLAG="--provider zai"
-            MODEL="glm-5.1"
-          else
-            PROVIDER_FLAG="--provider custom"
-            MODEL="deepseek/deepseek-v4-flash"
-            hermes config set model.api_key "$NOUS_PORTAL_TOKEN"
-          fi
-
           cat > /tmp/hermes-prompt.txt << 'HERMES_EOF'
           Auf Pull Request #PR_NR hat der Review das Label `ai:needs-changes` gesetzt. Arbeite die offenen Kreuzverhör-Findings ab.
 
@@ -295,90 +161,49 @@ jobs:
             2. Findings lesen: gh pr view, gh pr diff, Review-Threads (gh api .../pulls/PR_NR/comments) und CI (gh pr checks).
             3. Zutreffende, EINDEUTIGE Findings fixen: Code ändern, vor jedem Commit lokale Checks: pnpm format && pnpm exec prettier --check . && pnpm lint && pnpm knip. Erst wenn alle grün, committen und pushen. Im jeweiligen Thread antworten und auflösen. Mehrdeutige/große Punkte dem Menschen überlassen.
             4. CI-CHECKS BEHANDELN (falls rot): gh pr checks --json name,bucket,workflow zeigt alle CI-Checks. Für jeden roten Check:
-               a) FLAKY-TEST ERKENNEN: Ist der Fehler ein Timeout, eine Timing-Instabilität (z.B. „not visible within 5000ms", „element not found"), ein Transient (Netzwerk, Race-Condition)? UND der Test berührt thematisch keine Logik aus diesem PR-Diff? → FLAKY: einmalig via gh run rerun <failed-run-id> --failed neu starten. Danach 60s warten, dann gh pr checks erneut prüfen. Wird der Check danach grün → fertig. Bleibt er rot → als echtes Finding behandeln (siehe b).
-               b) ECHTER CI-FEHLER: Format-/Lint-/Build-/Testfehler, der durch den PR-Diff verursacht wurde. Den fehlschlagenden Job-Log lesen (gh run view <run-id> --log), Root Cause identifizieren, Code ändern, lokale Checks (pnpm format && pnpm exec prettier --check . && pnpm lint && pnpm knip) ausführen, committen und pushen.
-               c) UNRELATED CI-FEHLER (PR-Diff berührt die fehlschlagende Logik nicht, kein Flaky): In PR-Kommentar dokumentieren („CI-Check X ist rot, berührt aber nicht die Logik dieses PRs — pre-existing/unrelated"). Nicht fixen, nicht committen. Der PR geht zurück auf ai:needs-review.
-            5. ABSCHLUSS (ALLERLETZTER Schritt, NIE davor — erst nach Commit+Push+CI behandelt): Gib eine Zeile aus: `VERDICT: fixup-complete` (alle Findings behoben) oder `VERDICT: needs-changes` (noch offene Findings).
+               a) FLAKY-TEST ERKENNEN: Ist der Fehler ein Timeout, eine Timing-Instabilität, ein Transient? UND der Test berührt thematisch keine Logik aus diesem PR-Diff? → FLAKY: einmalig via gh run rerun <failed-run-id> --failed neu starten. Danach 60s warten, dann gh pr checks erneut prüfen.
+               b) ECHTER CI-FEHLER: Den fehlschlagenden Job-Log lesen, Root Cause identifizieren, Code ändern, lokale Checks ausführen, committen und pushen.
+               c) UNRELATED CI-FEHLER: In PR-Kommentar dokumentieren. Nicht fixen.
+            5. ABSCHLUSS (ALLERLETZTER Schritt): Gib eine Zeile aus: `VERDICT: fixup-complete` (alle Findings behoben) oder `VERDICT: needs-changes` (noch offene Findings).
 
-          ⚠️ LABELS: Du darfst KEINE Labels setzen oder entfernen (`gh pr edit --add-label` / `--remove-label`)! Der Workflow übernimmt den Label-Wechsel automatisch anhand deines VERDICT-Markers — mit dem korrekten App-Token, das Folgeworkflows triggert. Wenn du Labels selbst setzt, bricht die Pipeline (Folge-Workflows werden nicht ausgelöst). Setze auch im Soft-Abort-Fall keine Labels — gib nur `VERDICT: needs-changes` aus.
+          ⚠️ LABELS: Du darfst KEINE Labels setzen oder entfernen! Der Workflow übernimmt das automatisch.
 
-          WEICHES ZEITLIMIT (Soft-Abort) — SOFORT STOPPEN, NICHT AUFRÄUMEN:
-            Beginne SOFORT mit der Arbeit. Deine Soft-Deadline ist SOFT_DEADLINE (Unix-Epoch).
-            Prüfe VOR JEDEM Tool-Aufruf: Ist `[ $(date +%s) -ge SOFT_DEADLINE ] && echo OVER`?
-            Wenn OVER: **BRICH AUF DER STELLE AB** — nicht den aktuellen Schritt zuende führen,
-            nicht aufräumen, nicht zusammenfassen. Commite+pushe den aktuellen Stand (auch
-            unvollständig), gib `VERDICT: needs-changes` aus und beende den Turn sofort.
+          ZEITLIMIT: Deine Soft-Deadline ist SOFT_DEADLINE (Unix-Epoch). Prüfe `[ $(date +%s) -ge SOFT_DEADLINE ]` vor jedem größeren Schritt. Bei OVER: aktuellen Stand committen+pushen, Turn sofort beenden.
 
-          Stop-Guard: Ein Workflow-Step zählt die PR-Commits und stoppt bei > 10 — du musst das nicht selbst im Kopf führen.
-
-          Keine interaktive Rückfrage. Label ai:needs-changes autorisiert den Lauf.
+          Stop-Guard: Ein Workflow-Step zählt die PR-Commits und stoppt bei > 10.
           HERMES_EOF
 
           sed -i "s/#PR_NR/${{ github.event.pull_request.number }}/g" /tmp/hermes-prompt.txt
           sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/hermes-prompt.txt
 
-          RESUME_ARG=""
-          if [ -n "${{ steps.session-restore.outputs.resume_arg }}" ]; then
-            RESUME_ARG="--resume ${{ steps.session-restore.outputs.resume_arg }}"
-          fi
-
           hermes chat -q "$(cat /tmp/hermes-prompt.txt)" \
-            $RESUME_ARG \
-            -Q --yolo $PROVIDER_FLAG \
-            -m "$MODEL" \
+            ${{ steps.setup.outputs.resume-flag }} \
+            -Q --yolo ${{ steps.setup.outputs.provider-flag }} \
+            -m "${{ steps.setup.outputs.model }}" \
             -t "terminal,file" \
             --accept-hooks \
             2>&1 | tee /tmp/hermes-output.log
-          # PIPESTATUS: Exit-Code von hermes chat durch pipe propagieren
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
 
-      - name: Hermes-Session-ID erfassen
-        if: always()
-        id: session
-        run: |
-          if [ -f /tmp/hermes-output.log ]; then
-            sid="$(grep '^session_id:' /tmp/hermes-output.log | head -1 | sed 's/^session_id:[[:space:]]*//')"
-            if [ -n "$sid" ]; then echo "session_id=$sid" >> "$GITHUB_OUTPUT"; fi
-          fi
-
-      - name: Session-Archiv packen
-        if: always() && steps.session.outputs.session_id != ''
-        continue-on-error: true
-        run: |
-          SID="${{ steps.session.outputs.session_id }}"
-          if [ -n "$SID" ] && [ -d "$HERMES_HOME" ]; then
-            echo "$SID" > "$HERMES_HOME/session_id.txt"
-            # Nur sessions/ + session_id.txt archivieren (keine Config, Caches, MCP-Daten).
-            # Die Config wird pro Lauf neu geschrieben, Caches sind flüchtig.
-            tar -czf /tmp/hermes-session.tar.gz -C "$HERMES_HOME" sessions session_id.txt 2>/dev/null || \
-            tar -czf /tmp/hermes-session.tar.gz -C "$HERMES_HOME" session_id.txt
-          fi
-
-      - name: Session hochladen
-        if: always() && steps.session.outputs.session_id != ''
-        continue-on-error: true
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - name: Save Session
+        if: always() && steps.setup.outputs.configured == 'true'
+        uses: ./.github/actions/save-session
         with:
-          name: hermes-session-pr-${{ github.event.pull_request.number }}-fixup
-          path: /tmp/hermes-session.tar.gz
-          retention-days: 30
-          overwrite: true
+          session-artifact-name: ${{ steps.setup.outputs.session-artifact-name }}
+          configured: ${{ steps.setup.outputs.configured }}
 
       - name: Label-Post-Assertion (Labels via App-Token force-setzen)
-        if: always() && steps.preflight.outputs.configured == 'true' && steps.hermes.outcome == 'success'
+        if: always() && steps.setup.outputs.configured == 'true' && steps.hermes.outcome == 'success'
         env:
-          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
         run: |
-          # VERDICT aus Hermes-Output parsen
           verdict=""
           if [ -f /tmp/hermes-output.log ]; then
             verdict="$(grep -oP 'VERDICT:\s*\K.*' /tmp/hermes-output.log | tail -1 | tr -d '[:space:]' || true)"
           fi
           echo "Hermes-Verdict aus Output: '${verdict:-keins}'"
 
-          # ARTEFAKTE PRÜFEN (immer, unabhängig vom VERDICT)
-          # Commits seit letztem Review-Kommentar zählen
           PR_COMMITS="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json commits \
             --jq '.commits | length' 2>/dev/null || echo "0")"
           REVIEW_TS="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json comments \
@@ -392,81 +217,58 @@ jobs:
           ARTIFACTS_OK="false"
           if [ "${COMMITS_SINCE_REVIEW:-0}" -gt 0 ]; then
             ARTIFACTS_OK="true"
-            echo "✅ Commits seit Review: ${COMMITS_SINCE_REVIEW} (PR gesamt: ${PR_COMMITS})."
-          else
-            echo "::warning::0 Commits seit letztem Review (PR gesamt: ${PR_COMMITS})."
           fi
 
-          # ENTSCHEIDUNG: VERDICT + Artefakte → Label
-          # Schema:
-          #   fixup-complete + Commits vorhanden → fixup-complete (Normalfall)
-          #   fixup-complete + keine Commits → exit 1 (KI loggt fixup-complete ohne Arbeit)
-          #   needs-changes + Commits vorhanden → Upgrade zu fixup-complete (KI pessimistisch)
-          #   needs-changes + keine Commits → needs-changes (echter Partial)
-          #   kein VERDICT + Commits vorhanden → fixup-complete (KI hat VERDICT vergessen)
-          #   kein VERDICT + keine Commits → needs-changes (Partial, Folgelauf)
           if [ "$verdict" = "fixup-complete" ]; then
             if [ "$ARTIFACTS_OK" != "true" ]; then
-              echo "::error title=❌ Keine Fixup-Commits::VERDICT fixup-complete, aber 0 Commits seit dem letzten Review. Die KI hat keine Findings behoben — kein ai:needs-review. Lauf muss wiederholt werden."
+              echo "::error title=❌ Keine Fixup-Commits::VERDICT fixup-complete, aber 0 Commits seit Review."
               exit 1
             fi
             final="fixup-complete"
           elif [ "$verdict" = "needs-changes" ]; then
             if [ "$ARTIFACTS_OK" = "true" ]; then
-              echo "::notice::VERDICT needs-changes, aber Commits vorhanden → Upgrade zu fixup-complete."
               final="fixup-complete"
             else
               final="needs-changes"
             fi
           else
-            # Kein gültiger VERDICT — prüfe Artefakte statt blind zu degradieren
             if [ "$ARTIFACTS_OK" = "true" ]; then
-              echo "::notice::Kein VERDICT, aber Commits vorhanden → fixup-complete."
               final="fixup-complete"
             else
               final="needs-changes"
             fi
           fi
 
-          # Labels sicherstellen, dass sie existieren
           gh label create "ai:needs-review" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
           gh label create "ai:needs-changes" --repo "$GITHUB_REPOSITORY" --color D93F0B 2>/dev/null || true
 
-          # FORCE-SET: Alle Pipeline-Labels entfernen, dann das Ziel-Label setzen.
-          # Warum remove+re-add auch wenn das Label schon da ist: der Agent könnte es
-          # mit GITHUB_TOKEN gesetzt haben → Folge-Workflows werden nicht getriggert.
-          # Nur ein Label-Wechsel via App-Token löst die nächste Stufe aus.
           gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-changes 2>/dev/null || true
           gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-review 2>/dev/null || true
 
           if [ "$final" = "fixup-complete" ]; then
             gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-review
-            echo "::notice::Label gesetzt (App-Token): ai:needs-review"
+            echo "::notice::Label gesetzt: ai:needs-review"
           else
             gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-changes
-            echo "::notice::Label gesetzt (App-Token): ai:needs-changes"
+            echo "::notice::Label gesetzt: ai:needs-changes"
           fi
 
       - name: Soft-Abort-Fortsetzung erkennen und begrenzen (ai:continued)
-        if: always() && steps.preflight.outputs.configured == 'true' && steps.hermes.outcome == 'success'
+        if: always() && steps.setup.outputs.configured == 'true' && steps.hermes.outcome == 'success'
         env:
-          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
-          ALREADY_CONTINUED: ${{ steps.continued-before.outputs.already }}
         run: |
           has_continued="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq 'any(.labels[]; .name == "ai:continued")' 2>/dev/null || echo false)"
           if [ "${has_continued:-false}" != "true" ]; then exit 0; fi
-          if [ "${ALREADY_CONTINUED:-false}" = "true" ]; then
-            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "🛑 Fixup-Fortsetzungs-Obergrenze erreicht — bitte manuell prüfen." 2>/dev/null || true
-          fi
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "🛑 Fixup-Fortsetzungs-Obergrenze erreicht — bitte manuell prüfen." 2>/dev/null || true
 
       - name: Ergebnis zusammenfassen
-        if: always() && steps.preflight.outputs.configured == 'true'
+        if: always() && steps.setup.outputs.configured == 'true'
         env:
-          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
           OUTCOME: ${{ steps.hermes.outcome }}
-          SESSION_ID: ${{ steps.session.outputs.session_id }}
         run: |
           labels="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
           if [ "$OUTCOME" = "success" ]; then
@@ -480,5 +282,4 @@ jobs:
             echo "### Fixup #${PR}"
             echo "- Hermes-Schritt: \`${OUTCOME:-unbekannt}\`"
             echo "- Labels: ${labels:-keine}"
-            if [ -n "$SESSION_ID" ]; then echo "- Session-ID: \`${SESSION_ID}\`"; fi
           } >> "$GITHUB_STEP_SUMMARY"

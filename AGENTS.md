@@ -1,7 +1,8 @@
 # Agent Instructions
 
 Zentrale Anweisungen für KI-Agents in diesem Repo. Die ausführliche, **werkzeug-unabhängige**
-Wissensbasis liegt in [`.ai-knowledge/`](.ai-knowledge/).
+Wissensbasis liegt in [`.ai-knowledge/`](.ai-knowledge/). CI/Provider/Modell-Doku (für Menschen,
+nicht Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 
 ## Wissensbasis
 
@@ -11,13 +12,10 @@ Wissensbasis liegt in [`.ai-knowledge/`](.ai-knowledge/).
 - [Ticket-Spec](.ai-knowledge/ticket-spec.md) — rote Tests (Vertrag) für `ai:spec-ready`-Issues schreiben
 - [Ticket-Umsetzung](.ai-knowledge/ticket-implementation.md) — freigegebene Issues (`ai:ready`) umsetzen
 - [PR-Review (Kreuzverhör)](.ai-knowledge/pr-review.md) — Pull Requests kritisch prüfen, Findings kommentieren
-- [TDD-Strategie](.ai-knowledge/tdd-strategy.md) — test-getriebene KI-Workflows (Stufen 1+2+3 adoptiert: AK-first + Red-Green + Spec-Gate)
-- [Subagent-Ausführungsvertrag](.ai-knowledge/subagent-contract.md) — historisch, nicht mehr aktiv
-- [Kreuzverhör-Haltung](.ai-knowledge/kreuzverhoer-haltung.md) — Methode des adversarialen Hinterfragens (Chat-Trigger + PR-Review)
-- [Deployment](docs/deployment.md) — Release-Build (GitHub Actions), Tarball, Host-Layout, systemd, Caddy, Rollback
-- [Deployment: Repo-Plan](docs/deployment-repo-plan.md) — was im Repo zu bauen ist (Pack-Skript, Release-Workflow, Secrets)
-- [Deployment: Server-Setup](docs/server-setup.md) — Schritt-für-Schritt-Einrichtung des Linux-Servers
-- [Workflow-Tool: Kosten-Reporting](docs/workflow-tool-costs.md) — Snippet für Token-/USD-EUR-Schätzung
+- [TDD-Strategie](.ai-knowledge/tdd-strategy.md) — test-getriebene KI-Workflows (Stufen 1+2+3 adoptiert)
+- [Kreuzverhör-Haltung](.ai-knowledge/kreuzverhoer-haltung.md) — Methode des adversarialen Hinterfragens
+- [Deployment](docs/deployment.md) — Release-Build, Tarball, Host-Layout, systemd, Caddy, Rollback
+- [CI-Architektur](docs/ci-architecture.md) — Provider, Modelle, Soft-Abort, Label-Pipeline, KoliBri MCP
 
 ## Kernregeln
 
@@ -35,321 +33,24 @@ Wissensbasis liegt in [`.ai-knowledge/`](.ai-knowledge/).
   Pflicht, siehe [TDD-Strategie](.ai-knowledge/tdd-strategy.md) Stufe 2) und die Ergebnisse in der
   PR-Beschreibung dokumentieren.
 
-## KI-Agent
+## KI-Agent — Pipeline-Phasen
 
-Alle KI-Workflows (Triage, Re-Triage, Spec, Umsetzung, PR-Review, PR-Fixup) laufen über
-einen **Coding-Agent** in GitHub Actions. Die Pipeline ist agent-agnostisch konzipiert —
-der gleiche Label-Flow funktioniert mit Hermes, Claude Code, Codex oder anderen Agents.
+Alle KI-Workflows (Triage, Spec, Umsetzung, Review, Fixup) laufen über einen **Coding-Agent** in
+GitHub Actions — agent-agnostisch. CI/Provider/Modell-Doku: [docs/ci-architecture.md](docs/ci-architecture.md).
 
-### Aktuelle Konfiguration: Hermes Agent + Z.AI (GLM)
+**Jede Phase liest nur ihre eigene Wissensbasis-Datei** + das Issue/PR. Kein domänenübergreifendes
+Lesen — die jeweilige Datei enthält alles Notwendige.
 
-**Implementierung:** Hermes Agent (Nous Research) über den **Z.AI**-Provider mit GLM-Modellen.
-Fallback (durch Entfernen der GitHub-Variable): Nous Portal mit DeepSeek.
+**Label-Kette:** `ai:analyzed` → `ai:spec-ready` (🟢) → `ai:ready` → Umsetzung →
+`ai:needs-review` → Review ↔ Fixup (`ai:needs-changes`) → `ai:ready-to-merge`.
 
-| Provider                       | Auth                                      | Modell(e)            | Kontext |
-| ------------------------------ | ----------------------------------------- | -------------------- | ------- |
-| **Z.AI** (aktiv)               | `ZAI_API_KEY` (in `$HERMES_HOME/.env`)    | `glm-5.1`            | 200K    |
-| Nous Portal (Fallback, Custom) | `NOUS_PORTAL_TOKEN` (via `model.api_key`) | DeepSeek Pro / Flash | 1.048K  |
-
-- [Hermes Agent Docs](https://hermes-agent.nousresearch.com/docs/)
-- [Z.AI API Docs](https://docs.z.ai/guides/llm/glm-5.1)
-- CLI: `hermes chat -q '<prompt>'` (single-query, non-interactive)
-
-#### Modellwahl — Z.AI (GLM Coding Plan-Subscription)
-
-Alle fünf Workflows laufen bewusst auf **demselben Modell** (`glm-5.1`), nicht differenziert
-nach Aufgaben-Strenge. Grund: die GLM Coding Plan-Subscription arbeitet mit einem
-**Nutzungskontingent** (nicht Pay-per-Token), und hier gilt:
-
-| Faktor               | `glm-5.1`           | `glm-4.7-flash`      | `glm-5.2` / `glm-5-turbo`              |
-| -------------------- | ------------------- | -------------------- | -------------------------------------- |
-| Kontingent-Verbrauch | **1×**              | 1×                   | **2×** normal / **3×** Spitzenzeit     |
-| Parallelitätsgrenze  | **10** (Höchstwert) | **1** → Flaschenhals | 10 / 1                                 |
-| Sperrzeiten          | keine (immer 1×)    | keine                | 14:00–18:00 UTC+8 (= 08:00–12:00 CEST) |
-
-- **Kontingent:** Alle Modelle außer `glm-5.2`/`glm-5-turbo` kosten **denselben** Anteil (1×) —
-  ein leichteres Modell spart also nichts, kostet aber Qualität.
-- **Parallelität:** `glm-5.1` erlaubt **10 parallele Läufe**. Die label-getriebene Pipeline kann
-  mehrere Workflows gleichzeitig feuern (Triage + Implement + Review + Fixup + Spec).
-  `glm-4.7-flash` erlaubt nur **1 gleichzeitigen Aufruf** → Läufe würden sich gegenseitig
-  blockieren.
-- **Sperrzeiten:** Nur `glm-5.2` und `glm-5-turbo` verbrauchen in Spitzenzeiten (14:00–18:00
-  UTC+8 = dt. Vormittag) 3× bzw. außerhalb 2×. `glm-5.1` ist davon **nicht betroffen**.
-
-**Fazit:** `glm-5.1` für alle Workflows ist die optimale Wahl unter den drei Constraints
-Kontingent, Parallelität und Sperrzeiten.
-
-#### Modellwahl — Nous Portal Fallback (DeepSeek, Pay-per-Token)
-
-Hier greift die klassische Differenzierung nach Aufgaben-Strenge: **Pro-Modell** für
-Analyse/Spec/Review (präzises Reasoning), **Flash/Coding-Modell** für Implementierung/Fixup
-(schnell, günstig). Details siehe [Modell-Zuordnung pro Workflow](#modell-zuordnung-pro-workflow).
-
-Hermes wird im CI-Lauf frisch installiert (keine dedizierte GitHub Action nötig):
-
-```bash
-curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-browser --skip-setup
-echo "$HOME/.local/bin" >> $GITHUB_PATH
-```
-
-**CI-Konfiguration — Provider wählbar per GitHub-Variable `vars.LLM_PROVIDER`:**
-
-```bash
-# Z.AI + GLM-5.1 (aktiv, wenn vars.LLM_PROVIDER = "zai")
-# z.ai ist ein built-in Provider: Key muss in $HERMES_HOME/.env (nicht model.api_key)
-hermes config set model.provider zai
-printf 'ZAI_API_KEY=%s\n' "$ZAI_API_KEY" > "$HERMES_HOME/.env"
-
-# Nous Portal + DeepSeek (Fallback, wenn Variable nicht gesetzt oder ≠ "zai")
-hermes config set model.provider custom
-hermes config set model.base_url https://inference-api.nousresearch.com/v1
-hermes config set model.api_key "${{ secrets.NOUS_PORTAL_TOKEN }}"
-```
-
-Umschalten: Repo → Settings → Secrets and variables → Actions → Variables → `LLM_PROVIDER`.
-**Aktuell aktiv:** `zai` (Z.AI + GLM-5.1).
-
-| Variable            | Werte          | Secret(s) benötigt                  |
-| ------------------- | -------------- | ----------------------------------- |
-| `vars.LLM_PROVIDER` | `zai` / (leer) | `ZAI_API_KEY` / `NOUS_PORTAL_TOKEN` |
-
-**CI-Flags:**
-
-| Flag                 | Zweck                                 |
-| -------------------- | ------------------------------------- |
-| `-q '<prompt>'`      | Single-query, non-interactive         |
-| `-Q`                 | Quiet — keine Banner/Spinner          |
-| `--yolo`             | Keine Gefahren-Bestätigung (headless) |
-| `--provider <name>`  | `custom` (Nous Portal) oder `zai`     |
-| `-m <modell>`        | Modell-Festlegung (Pro/Flash/GLM)     |
-| `-t "terminal,file"` | Nur Terminal und Datei-Tools          |
-| `--accept-hooks`     | Shell-Hooks automatisch freigeben     |
-
-**Prompt:** Per Heredoc in eine Datei geschrieben, dann via `-q "$(cat /tmp/hermes-prompt.txt)"` übergeben — vermeidet Shell-Quoting-Probleme.
-
-#### Modell-Zuordnung pro Workflow
-
-| Workflow  | Z.AI (GLM, aktiv) | Nous Portal (DeepSeek, Fallback) | Warum (zai)                                                 |
-| --------- | ----------------- | -------------------------------- | ----------------------------------------------------------- |
-| Triage    | `glm-5.1`         | `deepseek/deepseek-v4-pro`       | Flagship-Reasoning für Analyse + AK + Ampel                 |
-| Spec      | `glm-5.1`         | `deepseek/deepseek-v4-pro`       | Präzise Test-Spezifikation                                  |
-| Review    | `glm-5.1`         | `deepseek/deepseek-v4-pro`       | Kritische Diff-Analyse, Findings                            |
-| Implement | `glm-5.1`         | `deepseek/deepseek-v4-flash`     | Bewusst nicht auf `glm-4.7-flash` — Kontingent/Parallelität |
-| Fixup     | `glm-5.1`         | `deepseek/deepseek-v4-flash`     | Bewusst nicht auf `glm-4.7-flash` — Kontingent/Parallelität |
-
-**Warum im zai-Pfad kein leichteres Modell für Implement/Fixup:** Bei Pay-per-Token (DeepSeek)
-spart das Flash-Modell Geld. Bei der GLM Coding Plan-Subscription verbrauchen aber alle Modelle
-außer `glm-5.2`/`glm-5-turbo` **dasselbe Kontingent (1×)** — ein Wechsel auf `glm-4.7-flash`
-spart also nichts, reduziert aber die **Parallelität von 10 auf 1** und verschlechtert die
-Qualität. Siehe [Modellwahl — Z.AI](#modellwahl--zai-glm-coding-plan-subscription).
-
-### Kolibri MCP-Server für Frontend-Implementierung
-
-Der KoliBri MCP-Server ist in Hermes' `config.yaml` als MCP-Server konfiguriert und steht
-den Agenten automatisch zur Verfügung:
-
-```yaml
-mcp_servers:
-  kolibri:
-    url: https://public-ui-kolibri-mcp.vercel.app/mcp
-    type: http
-```
-
-**Verfügbare Tools:** `search` (Komponenten-Suche), `fetch` (Beispiel/Dokument holen).
-
-**Hinweis für GitHub Actions (CI):** Der MCP-Server wird in allen CI-Workflows (triage,
-spec, implement, review, fixup) nach der Installation via `pip install mcp` und
-`hermes mcp add kolibri` eingerichtet — siehe den Schritt „Hermes konfigurieren" in
-jedem Workflow. Die Tools heißen `mcp_kolibri_search` und `mcp_kolibri_fetch` und
-stehen dem Agenten automatisch zur Verfügung, sobald der MCP-Server läuft.
-Die Workflows nutzen seit der MCP-Aktivierung **nicht mehr** `--ignore-user-config`,
-damit die `mcp_servers`-Konfiguration wirkt.
-
-### Weiches Zeitlimit (Soft-Abort)
-
-Statt harten `timeout-minutes` nutzt Hermes ein **weiches Timeout**, das der Agent selbst kontrolliert:
-
-- **Phase 1 (Triage/Review)**: Soft-Deadline 7 Minuten (`now+420`)
-- **Phase 2 (Fixup)**: Soft-Deadline 10 Minuten (`now+600`)
-- **Phase 3 (Spec/Implement)**: Soft-Deadline 14 Minuten (`now+840`)
-
-Der `starttime`-Step setzt die Soft-Deadline. Hermes prüft VOR jedem größeren Teilschritt (`date +%s`) ob die Deadline erreicht ist. Bei Erreichen:
-
-1. **Arbeit sichern** — Zwischenstand in Body-Block/Dokumentation schreiben
-2. **Kein Abschluss-Label** setzen — verhindert automatische Weiterleitung
-3. **Trigger-Label entfernen** + **sofort neu setzen** (z.B. `ai:analyzed` entfernen + wieder setzen)
-4. **Turn beenden** — automatische Neu-Anmeldung durch Label-Änderung
-
-Dadurch bricht **nur der aktuelle Teil** ab, nicht der ganze Job, und die Arbeit ist dokumentiert.
-
-**Obergrenze (Marker-Label `ai:continued`):** Um Endlosschleifen zu verhindern, startet der Workflow nach einem Soft-Abort genau einen Selbst-Retrigger durch:
-
-1. Auslöser-Label entfernen (z.B. `ai:analyzed`)
-2. Sofort wieder setzen → neuer Workflow-Lauf wird angestoßen
-   Maximal eine Wiederholung, dann muss der Agent manuell eingreifen.
-
-## Ticket-Triage
-
-Offene Issues **ohne** Label `ai:analyzed` analysieren (aus Titel + Beschreibung + Repo eine
-Lösung konzipieren) → Beschreibung **lektorieren** (Form verbessern, Inhalt unverändert) → **Titel**
-auf Konsistenz zur lektorierten Beschreibung/zum Ziel prüfen und bei Bedarf **inhaltlich treu
-optimieren** (kein Edit „pro forma", keine Titel-Drift) → zu große Tickets in verknüpfte
-**Sub-Issues** zerlegen (max. eine Ebene, Rekursionsschutz via `ai:analyzed`)
-→ die Analyse mit prüfbaren **Akzeptanzkriterien + Testfällen** und Umsetzbarkeits-**Ampel**
-(🟢/🟡/🔴) in einen markierten **Body-Block** der Beschreibung schreiben
-(`<!-- KI-ANALYSE:START stand=… -->` … `<!-- KI-ANALYSE:END -->`, bei jeder (Re-)Triage **in-place
-ersetzt** — statt eines angehängten Kommentars) + **einen kurzen Ping-Kommentar** als
-Benachrichtigung (bei offenen Fragen mit `@author`) → Label `ai:analyzed` setzen
-(**bei klarer Analyse 🟢 zusätzlich `ai:spec-ready`** → die Spec-Stufe schreibt rote Tests und gibt
-per `ai:ready` frei; bei 🟡/🔴 nicht).
-Liegt bereits eine Analyse vor (Body-Block), wird beim **Re-Triage** nur das **Delta** der Kommentare
-seit dem `stand` gelesen (nicht der ganze Thread), der Block auf Passung/Vollständigkeit geprüft und
-bei Bedarf in-place aktualisiert. Vollständiger Ablauf:
-[.ai-knowledge/ticket-triage.md](.ai-knowledge/ticket-triage.md).
-Konkreter Command: `/triage-ticket` (analysiert, lektoriert, optimiert den Titel, zerlegt, schreibt
-die Analyse in die Beschreibung, pingt und markiert in einem Durchlauf).
-
-In **GitHub Actions** wird die Triage zusätzlich **ereignisgesteuert** angestoßen —
-[`.github/workflows/triage.yml`](.github/workflows/hermes-triage.yml) ruft den Triage-Ablauf
-automatisch für genau dieses eine Issue auf, sobald ein **Issue angelegt** wird (nur von Personen mit
-Schreibzugriff), das Label
-**`ai:analyzed` entfernt** wird (erzwingt eine Neu-Analyse, z. B. nach geänderter Beschreibung), oder
-jemand mit Schreibzugriff einen **Issue-Kommentar mit `@agent`** hinterlässt (Re-Triage auf Zuruf —
-zweiter Trigger desselben Workflows, kein separater).
-
-### Named Session Resume (aktuell nicht aktiv)
-
-Die Session-Resume-Funktionalität (MIG-002) ist noch nicht migriert. Derzeit startet
-jeder Lauf frisch ohne Kontext aus vorherigen Läufen derselben Phase.
-
-Dieses Entfernen von `ai:analyzed` geschieht auch **automatisch beim Merge eines Vorgänger-Issues**:
-Sind Sub-Issues über native GitHub-Issue-Dependencies (`blocked-by`) sequenziell verkettet (A1 → A2 →
-A3, gesetzt bei der Zerlegung in der Triage), gibt
-[`.github/workflows/issue-unblock.yml`](.github/workflows/hermes-issue-unblock.yml) den
-nächsten Nachfolger frei, sobald **alle** seine Blocker gemergt/geschlossen sind (Fan-in-Gate) — indem
-es dessen `ai:analyzed` **per App-Token** entfernt und so die Re-Triage gegen den nun gemergten
-Code-Stand anstößt (die dann 🟢 → `ai:spec-ready` setzt oder mit Hinweisen beim Menschen bleibt). So
-laufen aufeinander aufbauende Tickets Glied für Glied, ohne dass „gleiche Dateien"-Sub-Issues
-gleichzeitig in Umsetzung kollidieren.
-
-## Ticket-Spec (rote Tests vor der Umsetzung)
-
-Issues mit Label `ai:spec-ready` (von der Triage bei 🟢 gesetzt) bekommen **vor** der Umsetzung ihre
-**roten Tests** — die ausführbare Spezifikation. Ein eigener Lauf legt einen Branch an, schreibt je
-Akzeptanzkriterium echte, **fehlschlagende** Tests (keinen Produktivcode), eröffnet einen
-**Draft-PR** (`Closes #<nr>`) und gibt das Issue per `ai:ready` (statt `ai:spec-ready`) zur Umsetzung
-frei. Das ist die **Gewaltenteilung** der TDD-Strategie (Stufe 3): Wer die Tests schreibt, schreibt
-**nicht** den Code — die Umsetzung macht die Tests grün, ohne sie zu ändern. Vollständiger Ablauf:
-[.ai-knowledge/ticket-spec.md](.ai-knowledge/ticket-spec.md). Konkreter Command: `/spec-ticket`.
-
-In **GitHub Actions** stößt das Setzen von `ai:spec-ready` (bei vorhandenem `ai:analyzed`) die Spec
-automatisch an — [`.github/workflows/hermes-spec.yml`](.github/workflows/hermes-spec.yml) (eigener
-headless Lauf, getrennt von der Umsetzung → Gewaltenteilung gilt auch in der Automatik).
-
-## Ticket-Umsetzung
-
-Offene Issues mit Label `ai:ready` (von der Spec-Stufe nach den roten Tests gesetzt, ersatzweise vom
-Menschen), die **nicht zugewiesen** sind: sich selbst zuweisen → den **Draft-PR der Spec-Stufe
-aufgreifen** und dessen rote Tests **grün machen, ohne sie zu ändern** (Fallback ohne Spec-PR: Tests
-selbst test-getrieben zuerst schreiben) → **KoliBri MCP-Server nutzen für Frontend-Aufgaben** (siehe
-[Kolibri MCP-Server](#kolibri-mcp-server-für-frontend-implementierung)) → `pnpm format` + Lint + `pnpm test` →
-den Draft-PR **review-bereit** machen (Fallback: PR neu erstellen), via `Closes #<nr>` mit dem
-Ticket verknüpft (erscheint im „Development"-Bereich, schließt es beim Merge) → **PR verfolgen**
-(abonnieren) und im **Kreuzverhör-Loop** in Runden kritisch prüfen (`/kreuzverhoer-review`) und
-nachbessern **sowie automatisch auf eingehende Review-Anmerkungen reagieren** (zutreffende Findings
-fixen, mehrdeutige rückfragen, sonst begründet kommentieren), **bis das Urteil 🟢 ist und keine
-Anmerkung mehr offen** ist (nach max. 3 Runden mit offenen Punkten den Menschen entscheiden lassen);
-die Verfolgung läuft weiter bis **Merge/Schließen**. Vollständiger Ablauf:
-[.ai-knowledge/ticket-implementation.md](.ai-knowledge/ticket-implementation.md).
-Konkreter Command: `/implement-ticket`.
-
-In **GitHub Actions** stößt das Setzen des Labels `ai:ready` (bei vorhandenem `ai:analyzed`) die
-Umsetzung automatisch an —
-[`.github/workflows/hermes-implement.yml`](.github/workflows/hermes-implement.yml) (Schritte 1–4; den
-Kreuzverhör-Review übernimmt ein eigener Workflow). Hermes läuft dabei direkt im Runner mit
-einem **harten Zeitlimit von `timeout-minutes: 20`**.
-
-**Soft-Abort (weiches Zeitlimit, 2026-07-08):** Da Hermes keinen echten
-Soft-Timeout unterstützt, bekommt der Agent in allen fünf Workflows eine
-**präzise, selbst prüfbare Deadline**: ein `starttime`-Step berechnet `soft_deadline_epoch =
-jetzt + 840s` (14 Min, 6 Min Puffer bis zum harten 20-Min-Kill) und rendert diesen Epoch-Wert als
-literale Zahl in den Prompt. Hermes prüft vor jedem größeren Teilschritt `date +%s` dagegen und
-folgt bei Erreichen einer konkreten **Stopp-Checkliste**: laufenden Schritt zu Ende bringen →
-Zwischenstand sichern (committen/pushen bzw. Body-Block) → kurze Notiz was fertig/offen ist →
-**kein** Abschluss-Label setzen → eigenes Auslöser-Label entfernen+neu setzen (löst per
-`labeled`-Event einen Folgelauf aus) →
-Turn beenden. Bei `hermes-triage.yml` entfällt der Selbst-Retrigger (ihr Trigger ist das _Entfernen_
-eines Labels, kein einfacher Toggle) — dort bleibt es beim bisherigen Verhalten: Body-Block mit
-Teil-Analyse sichern, kein Label, kein Ping-Kommentar.
-
-**Obergrenze (Marker-Label `ai:continued`):** Ein deterministischer Workflow-Step nach dem
-Hermes-Schritt erkennt einen bewussten Zwischenstopp und begrenzt automatische
-Selbst-Fortsetzungen auf **genau eine**, bevor er auf den Erschöpfungs-Pfad zurückfällt (verhindert
-eine Endlosschleife bei einem grundsätzlich zu großen Ticket). Bei `hermes-spec.yml`/
-`hermes-implement.yml` erkennt dieser Step den Zwischenstopp anhand des Label-/PR-Zustands
-(Auslöser-Label wieder da, Abschluss-Signal fehlt); bei `hermes-pr-fixup.yml`/`hermes-pr-review.yml`
-setzt Hermes das Marker-Label `ai:continued` als expliziten Teil der Stopp-Checkliste selbst (sonst
-wäre der Fall nicht vom bestehenden "Findings sind mehrdeutig, nichts geändert"-Pfad unterscheidbar,
-der ebenfalls das Auslöser-Label unverändert lässt).
-
-Läuft ein Issue-Job (Umsetzung, Spec, Triage, Re-Triage) dennoch in den 20-Minuten-Timeout — oder ist
-die Obergrenze von einer automatischen Fortsetzung bereits ausgeschöpft —, ist das Issue zu groß für
-einen Lauf: Der Job setzt am Issue das Label **`ai:to-big-issue`** (und die Umsetzung entfernt
-zusätzlich `ai:ready`, die Spec `ai:spec-ready`, damit es nicht erneut aufgegriffen wird) — als
-Kandidat zum **Aufteilen** in Sub-Issues (Triage-Schritt „Zerlegen"). Die PR-Workflows
-(Review/Fixup) teilen sich dasselbe 20-Minuten-Limit und dieselbe Obergrenzen-Logik, vergeben bei
-Erschöpfung aber bewusst **kein** Issue-Label — nur einen Alarm-Kommentar (Review entfernt zusätzlich
-sein Auslöser-Label `ai:needs-review`, ohne ein neues Ergebnis-Label zu setzen, damit weder ein
-Fixup mit erfundenen Findings noch ein falsches `ai:ready-to-merge` ausgelöst wird).
-
-Label-Kette: `ai:analyzed` (analysiert) → `ai:spec-ready` (bei 🟢 — Spec-Stufe schreibt rote Tests)
-→ `ai:ready` (freigegeben — von der Spec-Stufe gesetzt, ersatzweise vom Menschen) → Umsetzung macht
-die Tests grün (Draft-PR → PR ready to review), der den Kreuzverhör-Loop (`/kreuzverhoer-review`)
-durchläuft und bis Merge/Schließen verfolgt wird.
-
-## PR-Review (Kreuzverhör)
-
-Implementierte Pull Requests werden **kritisch wie im Kreuzverhör** geprüft: Titel/Beschreibung und
-**vollständigen Diff** lesen → kritische Fragen stellen (Löst der PR das Problem? Edge Cases?
-einfachster Weg? Performance/Security?) → Code-Qualität prüfen (Benennung, Testabdeckung,
-Projekt-Konventionen) → je Finding einen an Datei/Zeile **verankerten** Review-Kommentar (Was,
-warum, konkreter Vorschlag) → abschließendes Urteil mit Umsetzbarkeits-**Ampel** (🟢/🟡/🔴). Kein
-formales Approve/Request-Changes — der Merge bleibt beim Menschen. Vollständiger Ablauf:
-[.ai-knowledge/pr-review.md](.ai-knowledge/pr-review.md).
-Konkreter Command: `/kreuzverhoer-review`.
-
-### Aufrufpfade
-
-Der Kreuzverhoer-Agent wird auf drei Wegen aufgerufen:
-
-1. **Chat/REPL (interaktiv):** Trigger-Phrasen aktivieren den Agenten direkt:
-   „Kreuzverhör", „nimm das auseinander", „stress-teste das", „challenge mich".
-2. **Slash-Command:** `/kreuzverhoer-review [PR-Nummer]` — führt das Review eines konkreten PRs
-   im Session-Modell des Aufrufers durch.
-3. **GitHub Actions (automatisch):** `hermes-pr-review.yml` feuert, wenn ein PR das Label
-   `ai:needs-review` trägt — Hermes reviewt den PR.
-
-In **GitHub Actions** läuft das über **Labels** (stabiles Ping-Pong statt Event-Kaskaden): Der
-Umsetzungs-Workflow macht den PR review-bereit (`gh pr ready` bzw. neuer Nicht-Draft-PR) und
-labelt ihn erst danach **selbst** mit `ai:needs-review` — als expliziten, kontrollierten letzten
-Schritt (erst nachdem Beschreibung + Testergebnisse vollständig sind). Der separate
-[`pr-needs-review-label.yml`](.github/workflows/pr-needs-review-label.yml) reagiert bewusst
-**NICHT** auf diese bot-erzeugten Draft→ready-Übergänge (nur auf menschliche Aktoren) — sonst
-würde er der Umsetzung zuvorkommen und den Review auf einem noch unfertigen PR starten;
-[`hermes-pr-review.yml`](.github/workflows/hermes-pr-review.yml) reviewt ihn und setzt
-`ai:needs-changes` (Findings) bzw. `ai:ready-to-merge` (🟢);
-[`hermes-pr-fixup.yml`](.github/workflows/hermes-pr-fixup.yml) arbeitet `ai:needs-changes` ab und
-schaltet zurück auf `ai:needs-review` — bis 🟢. Diese Workflows nutzen ein GitHub-App-Token
-(Secrets `APP_ID` + `APP_PRIVATE_KEY`), damit die Label-Wechsel die Folge-Workflows auslösen.
-
-Den **vollständigen Label-getriebenen Ticket-Flow** (Issue → Spec → Implement → Review ↔ Fixup →
-Gate/Auto-Merge) als Diagramm samt Label-Referenz: [docs/pipeline-flow.md](docs/pipeline-flow.md).
-
-Die im Review entstehenden Kommentare werden vom Umsetzungs-Workflow (`/implement-ticket`,
-Schritt 5) im **Kreuzverhör-Loop** abgearbeitet — der den PR zusätzlich **abonniert und automatisch
-auf eingehende Review-Anmerkungen reagiert**: zutreffende Punkte fixen, mehrdeutige rückfragen, sonst
-begründet kommentieren — danach erneut kreuzverhören, bis nichts mehr offen ist (Verfolgung bis
-Merge/Schließen).
+| Phase         | Trigger                                     | Wissensbasis (einzige zu lesende Datei)                            | Output                                                                      |
+| ------------- | ------------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| **Triage**    | Issue neu, `ai:analyzed` entfernt, `@agent` | [ticket-triage.md](.ai-knowledge/ticket-triage.md)                 | Analyse-Body-Block + Ampel, Ping → `ai:analyzed` (+ `ai:spec-ready` bei 🟢) |
+| **Spec**      | `ai:spec-ready` + `ai:analyzed`             | [ticket-spec.md](.ai-knowledge/ticket-spec.md)                     | Rote Tests + Draft-PR → `ai:ready`                                          |
+| **Umsetzung** | `ai:ready` + `ai:analyzed`                  | [ticket-implementation.md](.ai-knowledge/ticket-implementation.md) | Tests grün + PR review-bereit → `ai:needs-review`                           |
+| **Review**    | `ai:needs-review` (am PR)                   | [pr-review.md](.ai-knowledge/pr-review.md)                         | Sammelkommentar + Ampel → `ai:needs-changes` / `ai:ready-to-merge`          |
+| **Fixup**     | `ai:needs-changes` (am PR)                  | [pr-review.md](.ai-knowledge/pr-review.md)                         | Findings behoben → `ai:needs-review`                                        |
 
 ## Tests (Server)
 
