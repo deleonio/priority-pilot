@@ -80,7 +80,7 @@ jobs:
           cat > /tmp/hermes-prompt.txt << 'HERMES_EOF'
           Reviewe Pull Request #PR_NR im Kreuzverhör (Label `ai:needs-review` ist gesetzt).
 
-          Folge dem Ablauf .ai-knowledge/pr-review.md: vollständigen Diff (gh pr diff) und das verknüpfte Ticket lesen, adversarial prüfen (löst der PR das Problem ganz? Edge Cases? einfachster Weg? Performance/Security?), Code-Qualität und Projekt-Konventionen prüfen.
+          Folge dem Ablauf .ai-knowledge/pr-review.md: vollständigen Diff (gh pr diff) und das verknüpfte Ticket lesen, adversarial prüfen (löst der PR das Problem ganz? Edge Cases? einfachster Weg? Performance/Security?), Code-Qualität und Projekt-Konventionen prüfen. REGRESSION: Macht der PR bestehende Tests/Verhalten AUSSERHALB des Diffs obsolet oder widerspricht er ihnen (Anforderung geändert)? → als Finding benennen („Test-Pflege-Bedarf", Datei:Zeile), nicht still hinnehmen — aber auch nicht selbst ändern.
 
           ABSCHLUSS — GENAU EINEN Weg gehen:
             - Es gibt zutreffende Findings → Review-Kommentare posten (an Datei/Zeile verankert), dann `VERDICT: needs-changes` ausgeben
@@ -229,5 +229,14 @@ jobs:
             if [ "$i" -lt 5 ]; then sleep 3; fi
           done
           echo "Labels verifiziert: needs_changes=${needs_changes:-?} ready_to_merge=${ready_to_merge:-?}"
-          if [ "$needs_changes" = "true" ]; then echo "::error title=Review: Änderungen erforderlich::PR #${PR}" && exit 1; fi
-          if [ "$ready_to_merge" != "true" ]; then echo "::error title=Review stecken geblieben::PR #${PR}" && exit 1; fi
+          # needs_changes ist ein GÜLTIGES Review-Ergebnis (der Fixup wird über das Label ausgelöst,
+          # nicht über den Exit-Code) — bewusst KEIN exit 1, damit legitime Findings nicht als roter/
+          # gescheiterter Workflow-Lauf zählen. Nur das Steckenbleiben (kein Ergebnis-Label) ist ein Fehler.
+          if [ "$needs_changes" = "true" ]; then
+            echo "::notice title=Review: Änderungen erforderlich::PR #${PR} — ai:needs-changes gesetzt (Fixup läuft an), gültiges Ergebnis."
+          elif [ "$ready_to_merge" = "true" ]; then
+            echo "::notice title=Review: ready-to-merge::PR #${PR} — ai:ready-to-merge gesetzt."
+          else
+            echo "::error title=Review stecken geblieben::PR #${PR} — weder ai:needs-changes noch ai:ready-to-merge gesetzt."
+            exit 1
+          fi
