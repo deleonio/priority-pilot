@@ -43,6 +43,12 @@ Label-Kette: `ai:analyzed` → **`ai:spec-ready` (dieser Workflow)** → `ai:rea
   - **Feature / UI-Verhalten** → Akzeptanz-e2e (`frontend/e2e/*.spec.ts`, Stil `crud.spec.ts`).
   - **Reines Styling/Layout** → keinen Test erzwingen; im PR-Body begründen, dass/warum stattdessen
     visuell verifiziert wird (dann ggf. nur ein minimaler Smoke-Test).
+- **Dedup vor dem Schreiben:** Per `grep` prüfen, ob ein Akzeptanzkriterium bereits durch einen
+  bestehenden Test abgedeckt ist (Feature-/Funktionsnamen in den Test-Verzeichnissen). Bereits
+  abgedeckt → **nicht** duplizieren, nur fehlende AKs testen. Widerspricht ein AK einem bestehenden
+  Test (Anforderung geändert, Test obsolet)? → den Konflikt im PR-Body benennen („Test-Pflege-Bedarf",
+  Datei/Zeile + Begründung), den alten Test **nicht** ändern — Anpassung/Entfernung entscheidet der
+  Mensch bzw. ein Folge-Spec.
 - **Red, nicht kaputt:** Jeder Test prüft echtes **Soll-Verhalten** und wird grün, sobald der
   Produktivcode existiert — nicht wegen eines Tippfehlers/falschen Fixtures rot. Bei **neuen**
   Funktionen ist ein fehlender Export/Import die legitime erste Rotfärbung; bei **bestehendem** Code
