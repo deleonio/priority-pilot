@@ -27,8 +27,10 @@ Naht** für den Toggle — nicht ein Inline-Branch pro Workflow.
 ## Vom User geklärt
 
 - **Mechanismus:** Toggle über GitHub-Variable `vars.AGENT` (`hermes` | `claude`), default `hermes`.
-- **Backend:** z.ai/GLM weiter wie Hermes (`ZAI_API_KEY`, Endpoint `https://api.z.ai/api/anthropic`).
-  **Kein neues Secret.** Claude-Code-CLI redet gegen denselben Anthropic-kompatiblen z.ai-Endpoint.
+- **Backend:** Provider-abhängig über `vars.LLM_PROVIDER`:
+  - `zai` (default): z.ai/GLM (`ZAI_API_KEY`, Endpoint `https://api.z.ai/api/anthropic`) — **kein neues Secret**.
+  - `openrouter`: OpenRouter (`OPENROUTER_API_KEY`, Endpoint `https://openrouter.ai/api`).
+    Claude-Code-CLI redet gegen denselben Anthropic-kompatiblendpunkt wie Hermes (je nach Provider).
 
 ## Verifizierte Fakten (live + per Lese)
 
@@ -59,8 +61,10 @@ Config-/MCP-/Resolve-Schritte verzweigen intern:
 - **`agent=claude`:**
   - `npm install -g @anthropic-ai/claude-code` (ubuntu-latest hat Node/npm vorinstalliert; optional
     `actions/setup-node` für Determinismus).
-  - z.ai-Env ans Runner-Environment: `ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic` +
-    `ANTHROPIC_API_KEY=$ZAI_API_KEY` → `$GITHUB_ENV`.
+  - Provider-Env ans Runner-Environment (über `vars.LLM_PROVIDER` gesteuert):
+    - `openrouter`: `ANTHROPIC_BASE_URL=https://openrouter.ai/api` + `ANTHROPIC_API_KEY=$OPENROUTER_API_KEY`
+    - `zai` (default): `ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic` + `ANTHROPIC_API_KEY=$ZAI_API_KEY`
+      → beides via `$GITHUB_ENV`.
   - MCP (nur triage + implement): `claude mcp add --transport http kolibri https://public-ui-kolibri-mcp.vercel.app/mcp`.
   - **Auth-Check:** `ZAI_API_KEY` verlangen (selbes Secret wie hermes-zai — bestehende Logik reused).
   - **Session-Restore:** `resume-flag=` leer (Claude läuft frisch; s. Scope).

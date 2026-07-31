@@ -29,6 +29,10 @@ inputs:
     description: 'ZAI API Key (secret)'
     required: false
     default: ''
+  openrouter-api-key:
+    description: 'OpenRouter API Key (secret)'
+    required: false
+    default: ''
   nous-portal-token:
     description: 'Nous Portal Token (secret)'
     required: false
@@ -37,6 +41,10 @@ inputs:
     description: 'DeepSeek-Modell für nicht-zai Provider (z.B. deepseek/deepseek-v4-flash für Implement/Fixup)'
     required: false
     default: 'deepseek/deepseek-v4-pro'
+  claude-model:
+    description: 'Claude-Modell (glm-5.1 für zai, anthropic/claude-sonnet-4 für openrouter)'
+    required: false
+    default: 'glm-5.1'
 
 outputs:
   configured:
@@ -197,15 +205,23 @@ runs:
         npm install -g @anthropic-ai/claude-code
         echo "::notice::Claude Code CLI installiert."
 
-    - name: Claude Code konfigurieren (z.ai Endpoint + Env)
+    - name: Claude Code konfigurieren (Provider + Env)
       if: steps.preflight.outputs.configured == 'true' && inputs.agent == 'claude'
       shell: bash
       env:
+        LLM_PROVIDER: ${{ inputs.llm-provider }}
         ZAI_API_KEY: ${{ inputs.zai-api-key }}
+        OPENROUTER_API_KEY: ${{ inputs.openrouter-api-key }}
       run: |
-        echo "ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic" >> "$GITHUB_ENV"
-        echo "ANTHROPIC_API_KEY=$ZAI_API_KEY" >> "$GITHUB_ENV"
-        echo "::notice::Provider: Z.AI (GLM-5.1) via z.ai Anthropic-kompatiblen Endpoint"
+        if [ "$LLM_PROVIDER" = "openrouter" ]; then
+          echo "ANTHROPIC_BASE_URL=https://openrouter.ai/api" >> "$GITHUB_ENV"
+          echo "ANTHROPIC_API_KEY=$OPENROUTER_API_KEY" >> "$GITHUB_ENV"
+          echo "::notice::Provider: OpenRouter via Claude Code"
+        else
+          echo "ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic" >> "$GITHUB_ENV"
+          echo "ANTHROPIC_API_KEY=$ZAI_API_KEY" >> "$GITHUB_ENV"
+          echo "::notice::Provider: Z.AI (GLM-5.1) via z.ai Anthropic-kompatiblen Endpoint"
+        fi
 
     - name: KoliBri MCP für Claude registrieren (nur triage + implement)
       if: steps.preflight.outputs.configured == 'true' && inputs.agent == 'claude' && inputs.needs-mcp == 'true'
@@ -271,17 +287,27 @@ runs:
           echo "NOUS_PORTAL_TOKEN vorhanden."
         fi
 
-    - name: Auth prüfen (Claude — ZAI_API_KEY zwingend)
+    - name: Auth prüfen (Claude — provider-spezifisch)
       if: steps.preflight.outputs.configured == 'true' && inputs.agent == 'claude'
       shell: bash
       env:
+        LLM_PROVIDER: ${{ inputs.llm-provider }}
         ZAI_API_KEY: ${{ inputs.zai-api-key }}
+        OPENROUTER_API_KEY: ${{ inputs.openrouter-api-key }}
       run: |
-        if [ -z "$ZAI_API_KEY" ]; then
-          echo "::error title=Auth fehlt::ZAI_API_KEY nicht gesetzt — als Repo-Secret hinterlegen (Claude nutzt z.ai/GLM)"
-          exit 1
+        if [ "$LLM_PROVIDER" = "openrouter" ]; then
+          if [ -z "$OPENROUTER_API_KEY" ]; then
+            echo "::error title=Auth fehlt::OPENROUTER_API_KEY nicht gesetzt — als Repo-Secret hinterlegen (Claude nutzt OpenRouter)"
+            exit 1
+          fi
+          echo "OPENROUTER_API_KEY vorhanden (Claude via OpenRouter)."
+        else
+          if [ -z "$ZAI_API_KEY" ]; then
+            echo "::error title=Auth fehlt::ZAI_API_KEY nicht gesetzt — als Repo-Secret hinterlegen (Claude nutzt z.ai/GLM)"
+            exit 1
+          fi
+          echo "ZAI_API_KEY vorhanden (Claude via z.ai)."
         fi
-        echo "ZAI_API_KEY vorhanden (Claude via z.ai)."
 
     # ════════════════════════════════════════════════════════════════════════════
     # INVOKE-RESOLUTION (agent-spezifisch) — setzt invoke-cmd + invoke-args
@@ -295,18 +321,19 @@ runs:
         AGENT: ${{ inputs.agent }}
         LLM_PROVIDER: ${{ inputs.llm-provider }}
         DEEPSEEK_MODEL: ${{ inputs.deepseek-model }}
+        CLAUDE_MODEL: ${{ inputs.claude-model }}
         NEEDS_MCP: ${{ inputs.needs-mcp }}
       run: |
         if [ "$AGENT" = "claude" ]; then
           # ── Claude Code ──────────────────────────────────────────────────
           echo "invoke-cmd=claude -p" >> "$GITHUB_OUTPUT"
           echo "provider-flag=" >> "$GITHUB_OUTPUT"
-          echo "model=glm-5.1" >> "$GITHUB_OUTPUT"
+          echo "model=$CLAUDE_MODEL" >> "$GITHUB_OUTPUT"
           ALLOWED_TOOLS="Bash,Read,Write,Edit,Grep,Glob"
           if [ "$NEEDS_MCP" = "true" ]; then
             ALLOWED_TOOLS="$ALLOWED_TOOLS,mcp__kolibri__search,mcp__kolibri__fetch"
           fi
-          echo "invoke-args=--dangerously-skip-permissions --model glm-5.1 --allowedTools $ALLOWED_TOOLS" >> "$GITHUB_OUTPUT"
+          echo "invoke-args=--dangerously-skip-permissions --model $CLAUDE_MODEL --allowedTools $ALLOWED_TOOLS" >> "$GITHUB_OUTPUT"
         else
           # ── Hermes (byte-äquivalent) ──────────────────────────────────────
           if [ "$LLM_PROVIDER" = "zai" ]; then

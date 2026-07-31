@@ -98,10 +98,14 @@ der wählbar ist per GitHub-Variable `vars.AGENT`:
 | `hermes` (default) | Hermes Agent    | `curl -fsSL https://hermes-agent.nousresearch.com/install.sh \| bash` | `hermes chat -q` |
 | `claude`           | Claude Code CLI | `npm install -g @anthropic-ai/claude-code`                            | `claude -p`      |
 
-**Beide** sprechen denselben z.ai/GLM-5.1-Backend (`ZAI_API_KEY`, Endpoint
-`https://api.z.ai/api/anthropic` für Claude) — **kein neues Secret**. Die Prompts, die
-Label-Post-Assertion (VERDICT-Muster) und die Label-Kette sind **identisch** — nur die
-Agent-Runtime wechselt. Der Hermes-Pfad bleibt byte-äquivalent (`vars.AGENT` ungesetzt).
+**Beide** nutzen `vars.LLM_PROVIDER` zur Provider-Auswahl:
+
+- **`zai`** (default): z.ai/GLM-5.1 (`ZAI_API_KEY`, Endpoint `https://api.z.ai/api/anthropic` für Claude)
+- **`openrouter`**: OpenRouter (`OPENROUTER_API_KEY`, Endpoint `https://openrouter.ai/api` für Claude)
+
+Die Prompts, die Label-Post-Assertion (VERDICT-Muster) und die Label-Kette sind **identisch** —
+nur die Agent-Runtime und der Provider wechseln. Der Hermes-Pfad bleibt byte-äquivalent
+(`vars.AGENT` ungesetzt).
 
 **Claude-Code-Install im CI-Lauf:**
 
@@ -109,25 +113,30 @@ Agent-Runtime wechselt. Der Hermes-Pfad bleibt byte-äquivalent (`vars.AGENT` un
 npm install -g @anthropic-ai/claude-code
 ```
 
-**Claude-Code-Env (z.ai-Endpoint):**
+**Claude-Code-Env (provider-abhängig):**
 
 ```bash
+# vars.LLM_PROVIDER == 'openrouter'
+echo "ANTHROPIC_BASE_URL=https://openrouter.ai/api" >> "$GITHUB_ENV"
+echo "ANTHROPIC_API_KEY=$OPENROUTER_API_KEY" >> "$GITHUB_ENV"
+
+# vars.LLM_PROVIDER == 'zai' (default)
 echo "ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic" >> "$GITHUB_ENV"
 echo "ANTHROPIC_API_KEY=$ZAI_API_KEY" >> "$GITHUB_ENV"
 ```
 
 **Claude-Code-Flags (entsprechen den Hermes-Flags 1:1):**
 
-| Hermes-Flag          | Claude-Code-Entsprechung                          |
-| -------------------- | ------------------------------------------------- |
-| `-q '<prompt>'`      | `-p '<prompt>'`                                   |
-| `-Q` (quiet)         | (implizit — `--output-format text`)               |
-| `--yolo`             | `--dangerously-skip-permissions`                  |
-| `--provider zai`     | (über `ANTHROPIC_BASE_URL` + `ANTHROPIC_API_KEY`) |
-| `-m glm-5.1`         | `--model glm-5.1`                                 |
-| `-t "terminal,file"` | `--allowedTools Bash,Read,Write,Edit,Grep,Glob`   |
-| `--accept-hooks`     | (implizit — `--dangerously-skip-permissions`)     |
-| `--resume <id>`      | (nicht aktiv — Claude läuft frisch pro Lauf)      |
+| Hermes-Flag          | Claude-Code-Entsprechung                                                   |
+| -------------------- | -------------------------------------------------------------------------- |
+| `-q '<prompt>'`      | `-p '<prompt>'`                                                            |
+| `-Q` (quiet)         | (implizit — `--output-format text`)                                        |
+| `--yolo`             | `--dangerously-skip-permissions`                                           |
+| `--provider zai`     | (über `ANTHROPIC_BASE_URL` + `ANTHROPIC_API_KEY`)                          |
+| `-m glm-5.1`         | `--model glm-5.1` (zai) / `--model anthropic/claude-sonnet-4` (openrouter) |
+| `-t "terminal,file"` | `--allowedTools Bash,Read,Write,Edit,Grep,Glob`                            |
+| `--accept-hooks`     | (implizit — `--dangerously-skip-permissions`)                              |
+| `--resume <id>`      | (nicht aktiv — Claude läuft frisch pro Lauf)                               |
 
 **VERDICT-Hinweis:** `claude -p` schreibt die finale Antwort (inkl. `VERDICT:`-Zeile) auf
 stdout → `tee /tmp/hermes-output.log` → `grep -oP 'VERDICT:\s*\K.*'` in der
