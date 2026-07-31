@@ -2,6 +2,7 @@ name: Hermes PR Review (Kreuzverhoer)
 
 # Reviewt einen Pull Request im Kreuzverhör, sobald er das Label
 # "ai:needs-review" trägt.
+# Setzt Hermes **oder Claude Code** — wählbar per `vars.AGENT` (default: hermes).
 #   - Findings → ai:needs-changes (→ Fixup)
 #   - sauber 🟢 → ai:ready-to-merge (→ Gate)
 # Ändert KEINEN Code.
@@ -44,10 +45,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Hermes
+      - name: Setup Hermes/Claude Code
         id: setup
         uses: ./.github/actions/setup-hermes
         with:
+          agent: ${{ vars.AGENT }}
+          needs-mcp: false
           event-type: ${{ github.event_name }}
           ticket-ref: ${{ github.event.pull_request.number }}
           app-id: ${{ secrets.APP_ID }}
@@ -102,12 +105,9 @@ jobs:
           sed -i "s/#PR_NR/${{ github.event.pull_request.number }}/g" /tmp/hermes-prompt.txt
           sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/hermes-prompt.txt
 
-          hermes chat -q "$(cat /tmp/hermes-prompt.txt)" \
+          ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/hermes-prompt.txt)" \
             ${{ steps.setup.outputs.resume-flag }} \
-            -Q --yolo ${{ steps.setup.outputs.provider-flag }} \
-            -m "${{ steps.setup.outputs.model }}" \
-            -t "terminal,file" \
-            --accept-hooks \
+            ${{ steps.setup.outputs.invoke-args }} \
             2>&1 | tee /tmp/hermes-output.log
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
 

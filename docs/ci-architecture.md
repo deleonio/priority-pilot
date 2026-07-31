@@ -4,10 +4,11 @@
 > warten. Sie wird **nicht** in den Agent-Kontext injiziert — der Agent bekommt seine Aufgabenbeschreibung
 > vom Workflow-Prompt, nicht von hier.
 
-## Aktuelle Konfiguration: Hermes Agent + Z.AI (GLM)
+## Aktuelle Konfiguration: Coding-Agent (Hermes oder Claude Code) + Z.AI (GLM)
 
-**Implementierung:** Hermes Agent (Nous Research) über den **Z.AI**-Provider mit GLM-Modellen.
-Fallback (durch Entfernen der GitHub-Variable): Nous Portal mit DeepSeek.
+**Implementierung:** Hermes Agent (Nous Research) **oder** Claude Code CLI — wählbar per
+`vars.AGENT` (default: `hermes`). Beide über den **Z.AI**-Provider mit GLM-Modellen.
+Fallback (durch Entfernen der GitHub-Variable): Nous Portal mit DeepSeek (nur Hermes-Pfad).
 
 | Provider                       | Auth                                      | Modell(e)            | Kontext |
 | ------------------------------ | ----------------------------------------- | -------------------- | ------- |
@@ -48,14 +49,22 @@ Hier greift die klassische Differenzierung nach Aufgaben-Strenge: **Pro-Modell**
 Analyse/Spec/Review (präzises Reasoning), **Flash/Coding-Modell** für Implementierung/Fixup
 (schnell, günstig). Details siehe [Modell-Zuordnung pro Workflow](#modell-zuordnung-pro-workflow).
 
-### Hermes-Installation im CI-Lauf
+### Agent-Installation im CI-Lauf
 
-Hermes wird im CI-Lauf frisch installiert (keine dedizierte GitHub Action nötig):
+Der Coding-Agent wird im CI-Lauf frisch installiert (keine dedizierte GitHub Action nötig):
 
 ```bash
+# Hermes (vars.AGENT = "hermes", default):
 curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-browser --skip-setup
 echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+# Claude Code (vars.AGENT = "claude"):
+npm install -g @anthropic-ai/claude-code
 ```
+
+Beide Pfade werden zentral in [`.github/actions/setup-hermes/action.yml`](../.github/actions/setup-hermes/action.yml)
+geregelt — die Workflows übergeben `agent: ${{ vars.AGENT }}` und konsumieren die Outputs
+`invoke-cmd` / `invoke-args`.
 
 ### CI-Konfiguration — Provider wählbar per GitHub-Variable `vars.LLM_PROVIDER`
 
@@ -74,9 +83,55 @@ hermes config set model.api_key "${{ secrets.NOUS_PORTAL_TOKEN }}"
 Umschalten: Repo → Settings → Secrets and variables → Actions → Variables → `LLM_PROVIDER`.
 **Aktuell aktiv:** `zai` (Z.AI + GLM-5.1).
 
-| Variable            | Werte          | Secret(s) benötigt                  |
-| ------------------- | -------------- | ----------------------------------- |
-| `vars.LLM_PROVIDER` | `zai` / (leer) | `ZAI_API_KEY` / `NOUS_PORTAL_TOKEN` |
+| Variable            | Werte               | Secret(s) benötigt                  |
+| ------------------- | ------------------- | ----------------------------------- |
+| `vars.LLM_PROVIDER` | `zai` / (leer)      | `ZAI_API_KEY` / `NOUS_PORTAL_TOKEN` |
+| `vars.AGENT`        | `hermes` / `claude` | (keine neuen)                       |
+
+### Executor-Toggle: Hermes ↔ Claude Code
+
+Die 5 Agent-Workflows (Triage, Spec, Implement, Review, Fixup) nutzen einen **Coding-Agent**,
+der wählbar ist per GitHub-Variable `vars.AGENT`:
+
+| `vars.AGENT`       | Agent           | Install                                                               | Invoke           |
+| ------------------ | --------------- | --------------------------------------------------------------------- | ---------------- |
+| `hermes` (default) | Hermes Agent    | `curl -fsSL https://hermes-agent.nousresearch.com/install.sh \| bash` | `hermes chat -q` |
+| `claude`           | Claude Code CLI | `npm install -g @anthropic-ai/claude-code`                            | `claude -p`      |
+
+**Beide** sprechen denselben z.ai/GLM-5.1-Backend (`ZAI_API_KEY`, Endpoint
+`https://api.z.ai/api/anthropic` für Claude) — **kein neues Secret**. Die Prompts, die
+Label-Post-Assertion (VERDICT-Muster) und die Label-Kette sind **identisch** — nur die
+Agent-Runtime wechselt. Der Hermes-Pfad bleibt byte-äquivalent (`vars.AGENT` ungesetzt).
+
+**Claude-Code-Install im CI-Lauf:**
+
+```bash
+npm install -g @anthropic-ai/claude-code
+```
+
+**Claude-Code-Env (z.ai-Endpoint):**
+
+```bash
+echo "ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic" >> "$GITHUB_ENV"
+echo "ANTHROPIC_API_KEY=$ZAI_API_KEY" >> "$GITHUB_ENV"
+```
+
+**Claude-Code-Flags (entsprechen den Hermes-Flags 1:1):**
+
+| Hermes-Flag          | Claude-Code-Entsprechung                          |
+| -------------------- | ------------------------------------------------- |
+| `-q '<prompt>'`      | `-p '<prompt>'`                                   |
+| `-Q` (quiet)         | (implizit — `--output-format text`)               |
+| `--yolo`             | `--dangerously-skip-permissions`                  |
+| `--provider zai`     | (über `ANTHROPIC_BASE_URL` + `ANTHROPIC_API_KEY`) |
+| `-m glm-5.1`         | `--model glm-5.1`                                 |
+| `-t "terminal,file"` | `--allowedTools Bash,Read,Write,Edit,Grep,Glob`   |
+| `--accept-hooks`     | (implizit — `--dangerously-skip-permissions`)     |
+| `--resume <id>`      | (nicht aktiv — Claude läuft frisch pro Lauf)      |
+
+**VERDICT-Hinweis:** `claude -p` schreibt die finale Antwort (inkl. `VERDICT:`-Zeile) auf
+stdout → `tee /tmp/hermes-output.log` → `grep -oP 'VERDICT:\s*\K.*'` in der
+Label-Post-Assertion. Der Vertrag ist executor-agnostisch.
 
 ### CI-Flags
 
@@ -116,13 +171,18 @@ Review/Fixup/Spec, die keine Frontend-Komponenten schreiben).
 **Einrichtung im CI-Lauf** (nur in Triage + Implement):
 
 ```bash
+# Hermes:
 pip install mcp -q
 hermes mcp add kolibri --url https://public-ui-kolibri-mcp.vercel.app/mcp
+
+# Claude Code:
+claude mcp add --transport http kolibri https://public-ui-kolibri-mcp.vercel.app/mcp
 ```
 
 **Verfügbare Tools:** `mcp_kolibri_search` (Komponenten-Suche), `mcp_kolibri_fetch` (Beispiel/Dokument holen).
 
 Die Workflows nutzen **nicht** `--ignore-user-config`, damit die `mcp_servers`-Konfiguration wirkt.
+Für Claude Code werden die MCP-Tools in `--allowedTools` ergänzt (`mcp__kolibri__search,mcp__kolibri__fetch`).
 
 ## Weiches Zeitlimit (Soft-Abort)
 

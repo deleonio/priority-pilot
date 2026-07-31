@@ -1,7 +1,15 @@
-name: 'Setup Hermes Agent'
-description: 'Preflight, App-Token, uv-Cache, Hermes-Install + Config (Provider + KoliBri), Session-Restore, Auth — einheitlich für alle 5 Pipeline-Workflows'
+name: 'Setup Hermes/Claude Code Agent'
+description: 'Preflight, App-Token, Hermes/Claude-Install + Config (Provider + KoliBri), Session-Restore, Auth, Invoke-Resolution — einheitlich für alle 5 Pipeline-Workflows'
 
 inputs:
+  agent:
+    description: 'Coding-Agent (hermes | claude), default hermes'
+    required: false
+    default: 'hermes'
+  needs-mcp:
+    description: 'Ob KoliBri MCP für diesen Workflow benötigt wird (triage + implement = true)'
+    required: false
+    default: 'false'
   event-type:
     description: 'github.event_name (issues oder pull_request)'
     required: true
@@ -47,11 +55,17 @@ outputs:
     description: 'Resume-Flag für hermes chat (--resume <id> oder leer)'
     value: ${{ steps.session-restore.outputs.resume-flag }}
   provider-flag:
-    description: 'Provider-Flag (--provider zai oder --provider custom)'
+    description: 'Provider-Flag (--provider zai oder --provider custom) — hermes-Pfad'
     value: ${{ steps.resolve-model.outputs.provider-flag }}
   model:
-    description: 'Modell-Name (glm-5.1 oder DeepSeek-Modell)'
+    description: 'Modell-Name (glm-5.1 oder DeepSeek-Modell) — hermes-Pfad'
     value: ${{ steps.resolve-model.outputs.model }}
+  invoke-cmd:
+    description: 'Invoke-Befehl: hermes chat -q | claude -p'
+    value: ${{ steps.resolve-model.outputs.invoke-cmd }}
+  invoke-args:
+    description: 'Invoke-Argumente (hermes-Flags oder claude-Flags inkl. --allowedTools)'
+    value: ${{ steps.resolve-model.outputs.invoke-args }}
 
 runs:
   using: composite
@@ -126,14 +140,17 @@ runs:
         echo "issue-number=$ISSUE_NR" >> "$GITHUB_OUTPUT"
         echo "session-artifact-name=hermes-session-issue-$ISSUE_NR" >> "$GITHUB_OUTPUT"
 
+    # ════════════════════════════════════════════════════════════════════════════
+    # HERMES-PATH (agent=hermes) — byte-identisch zu vorher, keine Änderung
+    # ════════════════════════════════════════════════════════════════════════════
     - name: Cache-Key für uv berechnen
       id: uv-cache-key
-      if: steps.preflight.outputs.configured == 'true'
+      if: steps.preflight.outputs.configured == 'true' && inputs.agent == 'hermes'
       shell: bash
       run: echo "week=$(date +%Y-W%V)" >> "$GITHUB_OUTPUT"
 
     - name: uv-Paketcache wiederherstellen
-      if: steps.preflight.outputs.configured == 'true'
+      if: steps.preflight.outputs.configured == 'true' && inputs.agent == 'hermes'
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
       with:
         path: |
@@ -143,14 +160,14 @@ runs:
         restore-keys: uv-hermes-${{ runner.os }}-
 
     - name: Hermes installieren
-      if: steps.preflight.outputs.configured == 'true'
+      if: steps.preflight.outputs.configured == 'true' && inputs.agent == 'hermes'
       shell: bash
       run: |
         curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash -s -- --skip-browser --skip-setup
         echo "$HOME/.local/bin" >> $GITHUB_PATH
 
     - name: Hermes konfigurieren (Provider + KoliBri)
-      if: steps.preflight.outputs.configured == 'true'
+      if: steps.preflight.outputs.configured == 'true' && inputs.agent == 'hermes'
       shell: bash
       env:
         LLM_PROVIDER: ${{ inputs.llm-provider }}
@@ -170,9 +187,39 @@ runs:
         pip install mcp -q
         hermes mcp add kolibri --url https://public-ui-kolibri-mcp.vercel.app/mcp
 
+    # ════════════════════════════════════════════════════════════════════════════
+    # CLAUDE CODE-PATH (agent=claude)
+    # ════════════════════════════════════════════════════════════════════════════
+    - name: Claude Code installieren
+      if: steps.preflight.outputs.configured == 'true' && inputs.agent == 'claude'
+      shell: bash
+      run: |
+        npm install -g @anthropic-ai/claude-code
+        echo "::notice::Claude Code CLI installiert."
+
+    - name: Claude Code konfigurieren (z.ai Endpoint + Env)
+      if: steps.preflight.outputs.configured == 'true' && inputs.agent == 'claude'
+      shell: bash
+      env:
+        ZAI_API_KEY: ${{ inputs.zai-api-key }}
+      run: |
+        echo "ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic" >> "$GITHUB_ENV"
+        echo "ANTHROPIC_API_KEY=$ZAI_API_KEY" >> "$GITHUB_ENV"
+        echo "::notice::Provider: Z.AI (GLM-5.1) via z.ai Anthropic-kompatiblen Endpoint"
+
+    - name: KoliBri MCP für Claude registrieren (nur triage + implement)
+      if: steps.preflight.outputs.configured == 'true' && inputs.agent == 'claude' && inputs.needs-mcp == 'true'
+      shell: bash
+      run: |
+        claude mcp add --transport http kolibri https://public-ui-kolibri-mcp.vercel.app/mcp
+        echo "::notice::KoliBri MCP registriert."
+
+    # ════════════════════════════════════════════════════════════════════════════
+    # SHARED: Session-Archiv + Restore (Hermes nur; Claude läuft frisch)
+    # ════════════════════════════════════════════════════════════════════════════
     - name: Session-Archiv herunterladen
       id: session-dl
-      if: steps.preflight.outputs.configured == 'true'
+      if: steps.preflight.outputs.configured == 'true' && inputs.agent == 'hermes'
       continue-on-error: true
       uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
       with:
@@ -181,7 +228,7 @@ runs:
 
     - name: Session wiederherstellen
       id: session-restore
-      if: steps.preflight.outputs.configured == 'true' && steps.session-dl.outcome == 'success'
+      if: steps.preflight.outputs.configured == 'true' && inputs.agent == 'hermes' && steps.session-dl.outcome == 'success'
       shell: bash
       run: |
         if [ -f /tmp/hermes-session-restore/hermes-session.tar.gz ]; then
@@ -194,8 +241,16 @@ runs:
           fi
         fi
 
-    - name: Auth prüfen (provider-spezifisch)
-      if: steps.preflight.outputs.configured == 'true'
+    - name: Resume-Flag für Claude leer setzen (kein Session-Resume)
+      if: steps.preflight.outputs.configured == 'true' && inputs.agent == 'claude'
+      shell: bash
+      run: echo "resume-flag=" >> "$GITHUB_OUTPUT"
+
+    # ════════════════════════════════════════════════════════════════════════════
+    # AUTH-CHECK (agent-spezifisch)
+    # ════════════════════════════════════════════════════════════════════════════
+    - name: Auth prüfen (Hermes — provider-spezifisch)
+      if: steps.preflight.outputs.configured == 'true' && inputs.agent == 'hermes'
       shell: bash
       env:
         LLM_PROVIDER: ${{ inputs.llm-provider }}
@@ -216,18 +271,55 @@ runs:
           echo "NOUS_PORTAL_TOKEN vorhanden."
         fi
 
-    - name: Provider-Flag + Modell auflösen
+    - name: Auth prüfen (Claude — ZAI_API_KEY zwingend)
+      if: steps.preflight.outputs.configured == 'true' && inputs.agent == 'claude'
+      shell: bash
+      env:
+        ZAI_API_KEY: ${{ inputs.zai-api-key }}
+      run: |
+        if [ -z "$ZAI_API_KEY" ]; then
+          echo "::error title=Auth fehlt::ZAI_API_KEY nicht gesetzt — als Repo-Secret hinterlegen (Claude nutzt z.ai/GLM)"
+          exit 1
+        fi
+        echo "ZAI_API_KEY vorhanden (Claude via z.ai)."
+
+    # ════════════════════════════════════════════════════════════════════════════
+    # INVOKE-RESOLUTION (agent-spezifisch) — setzt invoke-cmd + invoke-args
+    # Einzelner Step (keine doppelte Step-ID): if/else im Shell-Body
+    # ════════════════════════════════════════════════════════════════════════════
+    - name: Provider-Flag + Modell + Invoke auflösen
       id: resolve-model
       if: steps.preflight.outputs.configured == 'true'
       shell: bash
       env:
+        AGENT: ${{ inputs.agent }}
         LLM_PROVIDER: ${{ inputs.llm-provider }}
         DEEPSEEK_MODEL: ${{ inputs.deepseek-model }}
+        NEEDS_MCP: ${{ inputs.needs-mcp }}
       run: |
-        if [ "$LLM_PROVIDER" = "zai" ]; then
-          echo "provider-flag=--provider zai" >> "$GITHUB_OUTPUT"
+        if [ "$AGENT" = "claude" ]; then
+          # ── Claude Code ──────────────────────────────────────────────────
+          echo "invoke-cmd=claude -p" >> "$GITHUB_OUTPUT"
+          echo "provider-flag=" >> "$GITHUB_OUTPUT"
           echo "model=glm-5.1" >> "$GITHUB_OUTPUT"
+          ALLOWED_TOOLS="Bash,Read,Write,Edit,Grep,Glob"
+          if [ "$NEEDS_MCP" = "true" ]; then
+            ALLOWED_TOOLS="$ALLOWED_TOOLS,mcp__kolibri__search,mcp__kolibri__fetch"
+          fi
+          echo "invoke-args=--dangerously-skip-permissions --model glm-5.1 --allowedTools $ALLOWED_TOOLS" >> "$GITHUB_OUTPUT"
         else
-          echo "provider-flag=--provider custom" >> "$GITHUB_OUTPUT"
-          echo "model=$DEEPSEEK_MODEL" >> "$GITHUB_OUTPUT"
+          # ── Hermes (byte-äquivalent) ──────────────────────────────────────
+          if [ "$LLM_PROVIDER" = "zai" ]; then
+            echo "provider-flag=--provider zai" >> "$GITHUB_OUTPUT"
+            echo "model=glm-5.1" >> "$GITHUB_OUTPUT"
+            PROVIDER_FLAG="--provider zai"
+            MODEL="glm-5.1"
+          else
+            echo "provider-flag=--provider custom" >> "$GITHUB_OUTPUT"
+            echo "model=$DEEPSEEK_MODEL" >> "$GITHUB_OUTPUT"
+            PROVIDER_FLAG="--provider custom"
+            MODEL="$DEEPSEEK_MODEL"
+          fi
+          echo "invoke-cmd=hermes chat -q" >> "$GITHUB_OUTPUT"
+          echo "invoke-args=-Q --yolo $PROVIDER_FLAG -m $MODEL -t terminal,file --accept-hooks" >> "$GITHUB_OUTPUT"
         fi

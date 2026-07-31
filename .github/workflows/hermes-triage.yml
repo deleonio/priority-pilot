@@ -1,6 +1,7 @@
 name: Hermes Triage (Analyse)
 
 # Stößt die KI-Analyse (Triage) eines Issues automatisch an.
+# Setzt Hermes **oder Claude Code** — wählbar per `vars.AGENT` (default: hermes).
 #
 # Triggert bei:
 #  - neuem Issue (issues: opened)
@@ -59,10 +60,12 @@ jobs:
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Setup Hermes
+      - name: Setup Hermes/Claude Code
         id: setup
         uses: ./.github/actions/setup-hermes
         with:
+          agent: ${{ vars.AGENT }}
+          needs-mcp: true
           event-type: ${{ github.event_name }}
           ticket-ref: ${{ github.event.issue.number }}
           app-id: ${{ secrets.APP_ID }}
@@ -111,12 +114,9 @@ jobs:
           sed -i "s/#ISSUE_NR/${{ github.event.issue.number }}/g" /tmp/hermes-prompt.txt
           sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/hermes-prompt.txt
 
-          hermes chat -q "$(cat /tmp/hermes-prompt.txt)" \
+          ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/hermes-prompt.txt)" \
             ${{ steps.setup.outputs.resume-flag }} \
-            -Q --yolo ${{ steps.setup.outputs.provider-flag }} \
-            -m "${{ steps.setup.outputs.model }}" \
-            -t "terminal,file" \
-            --accept-hooks \
+            ${{ steps.setup.outputs.invoke-args }} \
             2>&1 | tee /tmp/hermes-output.log
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
 
