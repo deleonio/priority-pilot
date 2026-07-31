@@ -73,7 +73,7 @@ jobs:
           llm-provider: ${{ vars.LLM_PROVIDER }}
           zai-api-key: ${{ secrets.ZAI_API_KEY }}
           openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
-          claude-model: ${{ vars.LLM_PROVIDER == 'openrouter' && 'anthropic/claude-sonnet-4' || 'glm-5.1' }}
+          claude-model: ${{ vars.LLM_PROVIDER == 'openrouter' && 'poolside/laguna-s-2.1:free' || 'glm-5.1' }}
           nous-portal-token: ${{ secrets.NOUS_PORTAL_TOKEN }}
 
       - name: Triage via Hermes
