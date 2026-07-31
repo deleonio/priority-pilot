@@ -205,6 +205,21 @@ runs:
         npm install -g @anthropic-ai/claude-code
         echo "::notice::Claude Code CLI installiert."
 
+    - name: Claude Code Trust-Dialog für CI-Workspace akzeptieren
+      if: steps.preflight.outputs.configured == 'true' && inputs.agent == 'claude'
+      shell: bash
+      run: |
+        mkdir -p "$HOME/.claude"
+        CLAUDE_JSON="$HOME/.claude.json"
+        WORKSPACE_PATH="${{ github.workspace }}"
+        if [ -f "$CLAUDE_JSON" ]; then
+          tmp=$(mktemp)
+          jq --arg wp "$WORKSPACE_PATH" '.projects[$wp].hasTrustDialogAccepted = true' "$CLAUDE_JSON" > "$tmp" && mv "$tmp" "$CLAUDE_JSON"
+        else
+          jq -n --arg wp "$WORKSPACE_PATH" '{projects: {($wp): {hasTrustDialogAccepted: true}}}' > "$CLAUDE_JSON"
+        fi
+        echo "::notice::Claude Code Trust-Dialog für CI-Workspace ($WORKSPACE_PATH) akzeptiert."
+
     - name: Claude Code konfigurieren (Provider + Env)
       if: steps.preflight.outputs.configured == 'true' && inputs.agent == 'claude'
       shell: bash

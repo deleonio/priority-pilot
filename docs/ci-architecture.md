@@ -127,16 +127,16 @@ echo "ANTHROPIC_API_KEY=$ZAI_API_KEY" >> "$GITHUB_ENV"
 
 **Claude-Code-Flags (entsprechen den Hermes-Flags 1:1):**
 
-| Hermes-Flag          | Claude-Code-Entsprechung                                                   |
-| -------------------- | -------------------------------------------------------------------------- |
-| `-q '<prompt>'`      | `-p '<prompt>'`                                                            |
-| `-Q` (quiet)         | (implizit — `--output-format text`)                                        |
-| `--yolo`             | `--dangerously-skip-permissions`                                           |
-| `--provider zai`     | (über `ANTHROPIC_BASE_URL` + `ANTHROPIC_API_KEY`)                          |
-| `-m glm-5.1`         | `--model glm-5.1` (zai) / `--model anthropic/claude-sonnet-4` (openrouter) |
-| `-t "terminal,file"` | `--allowedTools Bash,Read,Write,Edit,Grep,Glob`                            |
-| `--accept-hooks`     | (implizit — `--dangerously-skip-permissions`)                              |
-| `--resume <id>`      | (nicht aktiv — Claude läuft frisch pro Lauf)                               |
+| Hermes-Flag          | Claude-Code-Entsprechung                                                    |
+| -------------------- | --------------------------------------------------------------------------- |
+| `-q '<prompt>'`      | `-p '<prompt>'`                                                             |
+| `-Q` (quiet)         | (implizit — `--output-format text`)                                         |
+| `--yolo`             | `--dangerously-skip-permissions`                                            |
+| `--provider zai`     | (über `ANTHROPIC_BASE_URL` + `ANTHROPIC_API_KEY`)                           |
+| `-m glm-5.1`         | `--model glm-5.1` (zai) / `--model poolside/laguna-s-2.1:free` (openrouter) |
+| `-t "terminal,file"` | `--allowedTools Bash,Read,Write,Edit,Grep,Glob`                             |
+| `--accept-hooks`     | (implizit — `--dangerously-skip-permissions`)                               |
+| `--resume <id>`      | (nicht aktiv — Claude läuft frisch pro Lauf)                                |
 
 **VERDICT-Hinweis:** `claude -p` schreibt die finale Antwort (inkl. `VERDICT:`-Zeile) auf
 stdout → `tee /tmp/hermes-output.log` → `grep -oP 'VERDICT:\s*\K.*'` in der
