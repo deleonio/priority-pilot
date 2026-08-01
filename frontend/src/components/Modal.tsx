@@ -85,17 +85,20 @@ export const Modal = ({ title, onClose, width = '40rem', fallbackFocusRef, initi
 		void customElements.whenDefined('kol-dialog').then(() => {
 			if (active && !openedRef.current) {
 				openedRef.current = true;
-				void dialog.showModal();
-				// Initialfokus nach dem Öffnen setzen (#472): KoliBris `showModal()` führt nach dem
+				// Initialfokus vor showModal() setzen (#472, #479): KoliBris `showModal()` führt nach dem
 				// Microtask (whenDefined) noch Macrotask-Arbeit aus, die den Dialog-internen Fokus neu
-				// setzt — ein zu frühes `.focus()` wird dadurch überschrieben (gleiche Beobachtung wie im
-				// Autofokus des QuickCaptureModal, #250). 200 ms überbrücken diese Latenz zuverlässig im
-				// headless Chromium (CI). KoliBri-Buttons nutzen `delegatesFocus`, `.focus()` auf dem Host
-				// fokussiert also den inneren `<button>`.
+				// setzt. Indem wir zuerst die gewünschte Fokus-Ziel setzen, verhindern wir, dass die destruktive
+				// "Endgültig löschen"-Taste fokussiert wird (das Problem von Issue #479).
 				const focusTarget = initialFocusRefCurrent.current;
 				if (focusTarget != null) {
-					// Timer-ID merken, damit der Cleanup den Fokusaufruf bei Unmount innerhalb der
-					// 200 ms abbrechen kann — sonst läuft `.focus()` auf einem bereits detached Element.
+					// Focus vor showModal() setzen, um das Standard-Fokusverhalten zu überschreiben.
+					focusTarget.focus();
+				}
+				void dialog.showModal();
+				// Die ursprüngliche 200ms-Timer-Lösung für #250 ist jetzt nicht mehr nötig, weil wir den Fokus
+				// vor showModal() gesetzt haben. Der Timer bleibt als Sicherheitsmaßnahme für Fälle, wo focusTarget
+				// noch null ist, aber die Benutzerabfrage sollte das nicht sein.
+				if (focusTarget != null) {
 					initialFocusTimer = setTimeout(() => focusTarget.focus(), 200);
 				}
 			}
