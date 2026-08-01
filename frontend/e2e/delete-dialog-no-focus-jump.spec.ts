@@ -125,8 +125,8 @@ test.describe('#479 — Kein sichtbarer Fokus-Sprung auf „Endgültig löschen"
 	 * „Abbrechen" fokussiert sein UND der destruktive „Endgültig löschen"-Button darf zu keinem
 	 * Zeitpunkt fokussiert gewesen sein (kein Sprung/Flackern).
 	 */
-	const assertNoFocusJump = async (page: Page): Promise<void> => {
-		await waitForStableView(page);
+	const assertNoFocusJump = async (page: Page, readyText = 'Dashboard'): Promise<void> => {
+		await waitForStableView(page, readyText);
 
 		const cancelButton = page.getByRole('button', { name: 'Abbrechen' });
 		const deleteButton = page.getByRole('button', { name: 'Endgültig löschen' });
@@ -182,13 +182,13 @@ test.describe('#479 — Kein sichtbarer Fokus-Sprung auf „Endgültig löschen"
 		await installDeleteFocusWatcher(page);
 		await page.goto('/settings/pillars');
 		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
-		await waitForStableView(page);
+		await waitForStableView(page, 'Priority Pilot');
 
 		const name = uniqueTitle('Säule-NoJump');
 		// Säule anlegen
 		await page.getByRole('button', { name: 'Neue Säule anlegen' }).click();
 		await expect(page.getByRole('heading', { name: 'Neue Säule anlegen' })).toBeVisible();
-		await waitForStableView(page);
+		await waitForStableView(page, 'Priority Pilot');
 		await page.locator('kol-dialog').getByRole('textbox', { name: 'Name' }).fill(name);
 		await page.locator('kol-dialog').getByRole('button', { name: 'Anlegen' }).click();
 		await expect(page.getByText(name, { exact: true })).toBeVisible();
@@ -197,7 +197,7 @@ test.describe('#479 — Kein sichtbarer Fokus-Sprung auf „Endgültig löschen"
 		await page.getByRole('button', { name: 'Löschen' }).first().click();
 		await expect(page.getByRole('heading', { name: 'Säule löschen' })).toBeVisible();
 
-		await assertNoFocusJump(page);
+		await assertNoFocusJump(page, 'Priority Pilot');
 	});
 
 	/**
