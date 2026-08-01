@@ -126,7 +126,7 @@ test.describe('#479 — Kein sichtbarer Fokus-Sprung auf „Endgültig löschen"
 	 * Zeitpunkt fokussiert gewesen sein (kein Sprung/Flackern).
 	 */
 	const assertNoFocusJump = async (page: Page): Promise<void> => {
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page);
 
 		const cancelButton = page.getByRole('button', { name: 'Abbrechen' });
 		const deleteButton = page.getByRole('button', { name: 'Endgültig löschen' });
@@ -182,13 +182,13 @@ test.describe('#479 — Kein sichtbarer Fokus-Sprung auf „Endgültig löschen"
 		await installDeleteFocusWatcher(page);
 		await page.goto('/settings/pillars');
 		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page);
 
 		const name = uniqueTitle('Säule-NoJump');
 		// Säule anlegen
 		await page.getByRole('button', { name: 'Neue Säule anlegen' }).click();
 		await expect(page.getByRole('heading', { name: 'Neue Säule anlegen' })).toBeVisible();
-		await waitForStableView(page, 'Priority Pilot');
+		await waitForStableView(page);
 		await page.locator('kol-dialog').getByRole('textbox', { name: 'Name' }).fill(name);
 		await page.locator('kol-dialog').getByRole('button', { name: 'Anlegen' }).click();
 		await expect(page.getByText(name, { exact: true })).toBeVisible();
