@@ -6,10 +6,10 @@
 		"API_TIMEOUT_MS": "3000000",
 		"ANTHROPIC_BASE_URL": "https://openrouter.ai/api",
 		"ANTHROPIC_DEFAULT_OPUS_MODEL": "nvidia/nemotron-3-ultra:free",
-        "ANTHROPIC_DEFAULT_FABLE_MODEL": "nvidia/nemotron-3-ultra:free",
-        "ANTHROPIC_DEFAULT_SONNET_MODEL": "google/gemma-4-31b:free",
-        "ANTHROPIC_DEFAULT_HAIKU_MODEL": "cohere/north-mini-code:free",
-        "CLAUDE_CODE_SUBAGENT_MODEL": "cohere/north-mini-code:free"
+		"ANTHROPIC_DEFAULT_FABLE_MODEL": "nvidia/nemotron-3-ultra:free",
+		"ANTHROPIC_DEFAULT_SONNET_MODEL": "google/gemma-4-31b:free",
+		"ANTHROPIC_DEFAULT_HAIKU_MODEL": "cohere/north-mini-code:free",
+		"CLAUDE_CODE_SUBAGENT_MODEL": "cohere/north-mini-code:free"
 	},
 	"permissions": {
 		"allow": ["Agent(*)", "Bash(*)", "Read(*)", "WebFetch(*)"],
