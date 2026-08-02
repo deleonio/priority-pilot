@@ -68,17 +68,17 @@ export const DeleteSeriesDialog = ({ series, onClose, onDeleted, fallbackFocusRe
 			</p>
 			<div className="modal-actions">
 				<KolButton
-					_label={deleting ? 'Löschen…' : 'Endgültig löschen'}
-					_variant="danger"
-					_disabled={deleting}
-					_on={{ onClick: () => void confirm() }}
-				/>
-				<KolButton
 					ref={cancelRef}
 					_label="Abbrechen"
 					_variant="secondary"
 					_disabled={deleting}
 					_on={{ onClick: () => onClose() }}
+				/>
+				<KolButton
+					_label={deleting ? 'Löschen…' : 'Endgültig löschen'}
+					_variant="danger"
+					_disabled={deleting}
+					_on={{ onClick: () => void confirm() }}
 				/>
 			</div>
 		</Modal>
