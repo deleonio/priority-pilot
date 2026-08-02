@@ -328,9 +328,14 @@ describe('generateDueInstances', () => {
 		});
 
 		// Fenster: 4 Monate ab Start
+		// Korrigiere die Berechnung: setze zunächst den Tag auf 1, addiere 3 Monate,
+		// dann den letzten Tag des Zielmonats her. Ohne "setUTCDate(1)" würde setUTCMonth(+4)
+		// bei einem 31.-Start Tag auf den ersten Tag des Folgemonats "überrollen"
+		// (z. B. Okt 31 + 4 Monate → nicht Feb 28, sondern Mär 3).
 		const until = new Date(start);
-		until.setUTCMonth(until.getUTCMonth() + 4);
-		until.setUTCDate(0); // Letzter Tag des 4. Monats
+		until.setUTCDate(1);
+		until.setUTCMonth(until.getUTCMonth() + 3);
+		until.setUTCDate(new Date(Date.UTC(until.getUTCFullYear(), until.getUTCMonth() + 1, 0)).getUTCDate());
 
 		const instances = await generateDueInstances(series, { until });
 

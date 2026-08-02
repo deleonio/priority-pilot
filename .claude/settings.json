@@ -5,9 +5,9 @@
 		"CLAUDE_CODE_NO_FLICKER": "1",
 		"API_TIMEOUT_MS": "3000000",
 		"ANTHROPIC_BASE_URL": "https://openrouter.ai/api",
-		"ANTHROPIC_DEFAULT_OPUS_MODEL": "nvidia/nemotron-3-ultra:free",
+		"ANTHROPIC_DEFAULT_HAIKU_MODEL": "poolside/laguna-xs-2.1:free",
 		"ANTHROPIC_DEFAULT_SONNET_MODEL": "poolside/laguna-s-2.1:free",
-		"ANTHROPIC_DEFAULT_HAIKU_MODEL": "nvidia/nemotron-3-nano-30b-a3b:free",
+		"ANTHROPIC_DEFAULT_OPUS_MODEL": "inclusionai/ling-3.0-flash:free",
 		"ANTHROPIC_DEFAULT_FABLE_MODEL": "inclusionai/ling-3.0-flash:free",
 		"CLAUDE_CODE_SUBAGENT_MODEL": "poolside/laguna-xs-2.1:free"
 	},

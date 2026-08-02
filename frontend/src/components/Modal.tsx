@@ -82,27 +82,51 @@ export const Modal = ({ title, onClose, width = '40rem', fallbackFocusRef, initi
 		// Setup — auch wenn der `whenDefined`-Microtask schon ZWISCHEN erstem Setup und Cleanup lief.
 		let active = true;
 		let initialFocusTimer: ReturnType<typeof setTimeout> | undefined;
+		let focusRedirectCleanup: (() => void) | undefined;
 		void customElements.whenDefined('kol-dialog').then(() => {
 			if (active && !openedRef.current) {
 				openedRef.current = true;
 				void dialog.showModal();
-				// Initialfokus nach dem Öffnen setzen (#472): KoliBris `showModal()` führt nach dem
-				// Microtask (whenDefined) noch Macrotask-Arbeit aus, die den Dialog-internen Fokus neu
-				// setzt — ein zu frühes `.focus()` wird dadurch überschrieben (gleiche Beobachtung wie im
-				// Autofokus des QuickCaptureModal, #250). 200 ms überbrücken diese Latenz zuverlässig im
-				// headless Chromium (CI). KoliBri-Buttons nutzen `delegatesFocus`, `.focus()` auf dem Host
-				// fokussiert also den inneren `<button>`.
+				// Initialfokus nach dem Öffnen setzen (#472, #479): KoliBris `showModal()` setzt den
+				// Browser-Default-Fokus auf das erste fokussierbare Element im Dialog (ggf. die destruktive
+				// "Endgültig löschen"-Taste). Wir setzen den gewünschten Fokus sofort und installieren einen
+				// `focusin`-Capture-Listener, der Focus-Abweichungen während der Initialisierungsphase
+				// abfängt (z. B. wenn KoliBris interne Macrotask-Arbeit den Fokus kurzzeitig zurücksetzt).
 				const focusTarget = initialFocusRefCurrent.current;
 				if (focusTarget != null) {
-					// Timer-ID merken, damit der Cleanup den Fokusaufruf bei Unmount innerhalb der
-					// 200 ms abbrechen kann — sonst läuft `.focus()` auf einem bereits detached Element.
-					initialFocusTimer = setTimeout(() => focusTarget.focus(), 200);
+					// Sofort fokussieren — kein Timer, der eine sichtbare Zwischenphase erzeugt.
+					focusTarget.focus();
+					// Focus-Redirect-Listener fängt Abweichungen ab, die durch KoliBris interne
+					// Async-Fokuslogik entstehen könnten. Nach 500 ms ist die Initialisierung abgeschlossen.
+					const dialogElement = dialog;
+					const redirectHandler = (event: FocusEvent) => {
+						const target = event.target as HTMLElement;
+						if (target === focusTarget) {
+							// Fokus ist bereits auf dem gewünschten Element — nichts zu tun.
+							return;
+						}
+						// Focus auf einem anderen Element abfangen und zurück zum Ziel lenken.
+						if (focusTarget.isConnected) {
+							focusTarget.focus();
+						}
+					};
+					dialogElement.addEventListener('focusin', redirectHandler, true);
+					focusRedirectCleanup = () => {
+						dialogElement.removeEventListener('focusin', redirectHandler, true);
+					};
+					// Safety-Net: nach 500 ms den Redirect-Listener aufräumen, falls KoliBris
+					// Initialisierung länger dauert als erwartet.
+					initialFocusTimer = setTimeout(() => {
+						focusRedirectCleanup?.();
+						focusRedirectCleanup = undefined;
+					}, 500);
 				}
 			}
 		});
 		return () => {
 			active = false;
 			clearTimeout(initialFocusTimer);
+			focusRedirectCleanup?.();
 			// Unmount ist KEIN User-Close: Wenn der Eigentümer das Modal unmountet (z. B. Schrittwechsel
 			// Quick-Capture → Formular, #236), darf kein Close-Event mehr `onClose` aufrufen — sonst
 			// schließt der Aufrufer (App `closeDialog`) auch den gerade gemounteten Folge-Dialog. Beim
