@@ -47,14 +47,14 @@ importers:
   frontend:
     dependencies:
       '@public-ui/components':
-        specifier: 4.2.1
-        version: 4.2.1(adopted-style-sheets@1.1.9-rc.22)
+        specifier: 4.3
+        version: 4.3(adopted-style-sheets@1.1.9-rc.22)
       '@public-ui/react-v19':
-        specifier: 4.2.1
-        version: 4.2.1(@public-ui/components@4.2.1(adopted-style-sheets@1.1.9-rc.22))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        specifier: 4.3
+        version: 4.3(@public-ui/components@4.3(adopted-style-sheets@1.1.9-rc.22))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@public-ui/theme-default':
-        specifier: 4.2.1
-        version: 4.2.1(@public-ui/components@4.2.1(adopted-style-sheets@1.1.9-rc.22))
+        specifier: 4.3
+        version: 4.3(@public-ui/components@4.3(adopted-style-sheets@1.1.9-rc.22))
       adopted-style-sheets:
         specifier: 1.1.9-rc.22
         version: 1.1.9-rc.22
@@ -1221,22 +1221,22 @@ packages:
     engines: {node: '>=20'}
     hasBin: true
 
-  '@public-ui/components@4.2.1':
+  '@public-ui/components@4.3':
     resolution: {integrity: sha512-edbaLSfup2KnMgyq4F1QOZ50ty+AMp8IuEfl8npooOFx0NgQbZuWoiZlwBm2wdcbEA6kDPt5sX6sPCfHblsp6g==}
     peerDependencies:
       adopted-style-sheets: 1.1.9-rc.22
 
-  '@public-ui/react-v19@4.2.1':
+  '@public-ui/react-v19@4.3':
     resolution: {integrity: sha512-HsQsRlKbLV4bjZe3IhBvRyOLogxiPrgZ0cc/fAUbZcTHH3QneFCo5mIki+24DNulQDJzxqV1fYt8vJGENkK51w==}
     peerDependencies:
-      '@public-ui/components': 4.2.1
+      '@public-ui/components': 4.3
       react: 19.x
       react-dom: 19.x
 
-  '@public-ui/theme-default@4.2.1':
+  '@public-ui/theme-default@4.3':
     resolution: {integrity: sha512-Fp1EOUxArHC+bE8GNTVKXi3d88/aLURGsqA6lFHdxc2uKl0D/pNtaII9gy4o4ZRRuAIDCJHXbd2m6zPfMHthKg==}
     peerDependencies:
-      '@public-ui/components': 4.2.1
+      '@public-ui/components': 4.3
 
   '@redis/bloom@6.0.1':
     resolution: {integrity: sha512-6ys5hhea+47n7o97ZFI4GvdzTQk/arIsXZgH159l6IVtJ4rZaB+KVdAfwvIxlmGA7z+NNlO8UxjTeQrenqjZcQ==}
@@ -5629,7 +5629,7 @@ snapshots:
     dependencies:
       playwright: 1.62.0
 
-  '@public-ui/components@4.2.1(adopted-style-sheets@1.1.9-rc.22)':
+  '@public-ui/components@4.3(adopted-style-sheets@1.1.9-rc.22)':
     dependencies:
       '@floating-ui/dom': 1.7.6
       adopted-style-sheets: 1.1.9-rc.22
@@ -5641,15 +5641,15 @@ snapshots:
       typed-bem: 1.0.2
       wcag-contrast: 3.0.0
 
-  '@public-ui/react-v19@4.2.1(@public-ui/components@4.2.1(adopted-style-sheets@1.1.9-rc.22))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+  '@public-ui/react-v19@4.3(@public-ui/components@4.3(adopted-style-sheets@1.1.9-rc.22))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
     dependencies:
-      '@public-ui/components': 4.2.1(adopted-style-sheets@1.1.9-rc.22)
+      '@public-ui/components': 4.3(adopted-style-sheets@1.1.9-rc.22)
       react: 19.2.7
       react-dom: 19.2.7(react@19.2.7)
 
-  '@public-ui/theme-default@4.2.1(@public-ui/components@4.2.1(adopted-style-sheets@1.1.9-rc.22))':
+  '@public-ui/theme-default@4.3(@public-ui/components@4.3(adopted-style-sheets@1.1.9-rc.22))':
     dependencies:
-      '@public-ui/components': 4.2.1(adopted-style-sheets@1.1.9-rc.22)
+      '@public-ui/components': 4.3(adopted-style-sheets@1.1.9-rc.22)
 
   '@redis/bloom@6.0.1(@redis/client@6.0.1)':
     dependencies:
