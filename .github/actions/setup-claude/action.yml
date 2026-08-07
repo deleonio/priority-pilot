@@ -163,34 +163,64 @@ runs:
       run: |
         PROVIDER="${LLM_PROVIDER:-claude}"
 
+        # Secrets werden oft mit Zeilenumbruch/Leerzeichen eingefügt. Ein Token enthält nie
+        # Whitespace — aber ein Rest-Newline würde die GITHUB_ENV-Datei zerreißen bzw. den
+        # Key ungültig machen ("Invalid API key"). Deshalb defensiv strippen.
+        CLAUDE_API_KEY="$(printf '%s' "$CLAUDE_API_KEY" | tr -d '[:space:]')"
+        ZAI_API_KEY="$(printf '%s' "$ZAI_API_KEY" | tr -d '[:space:]')"
+
         case "$PROVIDER" in
           claude)
             if [ -z "$CLAUDE_API_KEY" ]; then
               echo "::error title=Auth fehlt::vars.LLM_PROVIDER=claude, aber Secret CLAUDE_API_KEY ist leer."
               exit 1
             fi
-            # Nativ: kein ANTHROPIC_BASE_URL, keine Alias-Overrides — "opus" ist echtes Opus.
-            echo "ANTHROPIC_API_KEY=$CLAUDE_API_KEY" >> "$GITHUB_ENV"
-            echo "::notice::Provider=claude — Anthropic-Default-Endpoint, Modell aus .claude/settings.json."
+            # Anthropic kennt ZWEI Token-Typen, die sich nicht gegenseitig ersetzen:
+            #   sk-ant-api…  klassischer API-Key   → ANTHROPIC_API_KEY
+            #   sk-ant-oat…  OAuth-Token aus `claude setup-token` → CLAUDE_CODE_OAUTH_TOKEN
+            # Ein OAuth-Token in ANTHROPIC_API_KEY wird mit "Invalid API key" abgelehnt.
+            # Deshalb am Präfix unterscheiden statt den Nutzer raten zu lassen.
+            # Kein ANTHROPIC_BASE_URL, keine Alias-Overrides — "opus" ist echtes Opus.
+            case "$CLAUDE_API_KEY" in
+              sk-ant-oat*)
+                echo "CLAUDE_CODE_OAUTH_TOKEN=$CLAUDE_API_KEY" >> "$GITHUB_ENV"
+                echo "::notice::Provider=claude — OAuth-Token erkannt (sk-ant-oat…) → CLAUDE_CODE_OAUTH_TOKEN."
+                ;;
+              sk-ant-*)
+                echo "ANTHROPIC_API_KEY=$CLAUDE_API_KEY" >> "$GITHUB_ENV"
+                echo "::notice::Provider=claude — API-Key erkannt (sk-ant-…) → ANTHROPIC_API_KEY."
+                ;;
+              *)
+                # Weder api- noch oat-Präfix. Kein harter Abbruch: Anthropic könnte neue
+                # Präfixe einführen, und ein Fehlschlag der API ist aussagekräftiger als ein
+                # Guard, der ein gültiges Token blockiert. Nur warnen und es versuchen —
+                # der Wert selbst wird nie geloggt.
+                echo "ANTHROPIC_API_KEY=$CLAUDE_API_KEY" >> "$GITHUB_ENV"
+                echo "::warning title=Unerwartetes Token-Format::CLAUDE_API_KEY beginnt nicht mit 'sk-ant-'. Versuche es als ANTHROPIC_API_KEY. Bei 'Invalid API key' prüfen: API-Key aus der Anthropic Console ('sk-ant-api…') oder Token aus \`claude setup-token\` ('sk-ant-oat…')? Für z.ai gehört der Key ins Secret ZAI_API_KEY + vars.LLM_PROVIDER=zai."
+                ;;
+            esac
             ;;
           zai)
             if [ -z "$ZAI_API_KEY" ]; then
               echo "::error title=Auth fehlt::vars.LLM_PROVIDER=zai, aber Secret ZAI_API_KEY ist leer."
               exit 1
             fi
-            # z.ai spricht das Anthropic-Protokoll unter eigenem Endpoint; die Alias-Variablen
-            # mappen die Claude-Modellnamen (opus/sonnet/haiku/fable) auf GLM-Modelle, damit
-            # "model": "opus" aus .claude/settings.json für beide Provider funktioniert.
+            # z.ai spricht das Anthropic-Protokoll unter eigenem Endpoint, erwartet den Token
+            # aber als Bearer — dafür ist ANTHROPIC_AUTH_TOKEN da. ANTHROPIC_API_KEY würde
+            # stattdessen einen x-api-key-Header senden, den z.ai ablehnt. Bewusst NUR
+            # AUTH_TOKEN setzen: beides gleichzeitig führt zu konkurrierenden Auth-Headern.
+            # Die Alias-Variablen mappen die Claude-Modellnamen (opus/sonnet/haiku/fable) auf
+            # GLM-Modelle, damit "model": "opus" aus settings.json für beide Provider passt.
             {
               echo "ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic"
-              echo "ANTHROPIC_API_KEY=$ZAI_API_KEY"
-              echo "ANTHROPIC_DEFAULT_OPUS_MODEL=glm-5.1[1m]"
-              echo "ANTHROPIC_DEFAULT_SONNET_MODEL=glm-4.7[1m]"
+              echo "ANTHROPIC_AUTH_TOKEN=$ZAI_API_KEY"
               echo "ANTHROPIC_DEFAULT_HAIKU_MODEL=glm-4.5-air"
+              echo "ANTHROPIC_DEFAULT_SONNET_MODEL=glm-4.7"
+              echo "ANTHROPIC_DEFAULT_OPUS_MODEL=glm-5.1"
               echo "ANTHROPIC_DEFAULT_FABLE_MODEL=glm-5.2"
               echo "CLAUDE_CODE_SUBAGENT_MODEL=glm-4.7"
             } >> "$GITHUB_ENV"
-            echo "::notice::Provider=zai — Endpoint api.z.ai, Modell glm-5.1[1m] (via Alias opus)."
+            echo "::notice::Provider=zai — Endpoint api.z.ai, Modell glm-5.1 (via Alias opus)."
             ;;
           *)
             echo "::error title=Unbekannter Provider::vars.LLM_PROVIDER='$PROVIDER' — erlaubt sind 'zai' oder 'claude'."

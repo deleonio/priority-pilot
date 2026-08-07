@@ -69,17 +69,37 @@ describe('AK1 — Setup-Action kennt den Provider-Switch', () => {
 });
 
 describe('AK2 — Provider-Auflösung setzt Endpoint, Modelle und Key korrekt', () => {
-	it('zai-Zweig setzt den z.ai-Endpoint und den ZAI_API_KEY', () => {
+	// z.ai authentifiziert per Bearer-Header. ANTHROPIC_API_KEY sendet stattdessen x-api-key,
+	// was z.ai ablehnt — deshalb ANTHROPIC_AUTH_TOKEN und ausdrücklich NICHT beides.
+	it('zai-Zweig setzt den z.ai-Endpoint und den Token als ANTHROPIC_AUTH_TOKEN', () => {
 		const yml = actionYml();
 		assert.match(yml, /ANTHROPIC_BASE_URL=https:\/\/api\.z\.ai\/api\/anthropic/, 'z.ai-Endpoint fehlt');
-		assert.match(yml, /ANTHROPIC_API_KEY=\$ZAI_API_KEY/, 'zai-Zweig muss ZAI_API_KEY als ANTHROPIC_API_KEY setzen');
+		assert.match(
+			yml,
+			/ANTHROPIC_AUTH_TOKEN=\$ZAI_API_KEY/,
+			'zai-Zweig muss ZAI_API_KEY als ANTHROPIC_AUTH_TOKEN (Bearer) setzen, nicht als ANTHROPIC_API_KEY',
+		);
+		assert.doesNotMatch(
+			yml,
+			/ANTHROPIC_API_KEY=\$ZAI_API_KEY/,
+			'zai-Zweig darf ZAI_API_KEY nicht zusätzlich als ANTHROPIC_API_KEY setzen (konkurrierende Auth-Header)',
+		);
 	});
 
+	// Exakte Werte, nicht nur "irgendein glm-": das Alias-Mapping ist die einzige Stelle, die
+	// bestimmt welches Modell CI wirklich fährt. Bewusst OHNE [1m]-Kontext-Suffix.
 	it('zai-Zweig mappt die Modell-Aliase auf GLM (damit "model": "opus" providerneutral bleibt)', () => {
 		const yml = actionYml();
-		assert.match(yml, /ANTHROPIC_DEFAULT_OPUS_MODEL=glm-5\.1\[1m\]/, 'Opus-Alias muss auf glm-5.1[1m] zeigen');
-		assert.match(yml, /ANTHROPIC_DEFAULT_SONNET_MODEL=glm-/, 'Sonnet-Alias fehlt');
-		assert.match(yml, /ANTHROPIC_DEFAULT_HAIKU_MODEL=glm-/, 'Haiku-Alias fehlt');
+		const EXPECTED: Record<string, string> = {
+			ANTHROPIC_DEFAULT_HAIKU_MODEL: 'glm-4.5-air',
+			ANTHROPIC_DEFAULT_SONNET_MODEL: 'glm-4.7',
+			ANTHROPIC_DEFAULT_OPUS_MODEL: 'glm-5.1',
+			ANTHROPIC_DEFAULT_FABLE_MODEL: 'glm-5.2',
+			CLAUDE_CODE_SUBAGENT_MODEL: 'glm-4.7',
+		};
+		for (const [envVar, model] of Object.entries(EXPECTED)) {
+			assert.match(yml, new RegExp(`${envVar}=${model.replace(/\./g, '\\.')}"`), `${envVar} muss auf ${model} zeigen`);
+		}
 	});
 
 	it('claude-Zweig setzt CLAUDE_API_KEY und KEIN ANTHROPIC_BASE_URL', () => {
@@ -115,6 +135,59 @@ describe('AK2 — Provider-Auflösung setzt Endpoint, Modelle und Key korrekt', 
 			/erlaubt sind 'zai' oder 'claude'/,
 			'Unbekannter Provider-Wert muss den Lauf abbrechen statt still zu laufen',
 		);
+	});
+});
+
+// Regression: erster Live-Lauf mit LLM_PROVIDER=claude scheiterte an "Invalid API key",
+// obwohl der Switch korrekt auflöste und CLAUDE_API_KEY gesetzt war. Ursache-Klasse:
+// Anthropic-Tokens sind nicht austauschbar — ein OAuth-Token aus `claude setup-token`
+// (sk-ant-oat…) wird von ANTHROPIC_API_KEY abgelehnt und braucht CLAUDE_CODE_OAUTH_TOKEN.
+describe('AK5 — claude-Zweig unterscheidet API-Key und OAuth-Token', () => {
+	it('routet sk-ant-oat… nach CLAUDE_CODE_OAUTH_TOKEN', () => {
+		const yml = actionYml();
+		assert.match(yml, /sk-ant-oat\*\)/, 'Es braucht einen expliziten Zweig für das OAuth-Präfix sk-ant-oat');
+		assert.match(
+			yml,
+			/CLAUDE_CODE_OAUTH_TOKEN=\$CLAUDE_API_KEY/,
+			'OAuth-Token muss als CLAUDE_CODE_OAUTH_TOKEN gesetzt werden, nicht als ANTHROPIC_API_KEY',
+		);
+	});
+
+	it('setzt bei OAuth-Token NICHT zusätzlich ANTHROPIC_API_KEY (sonst gewinnt der ungültige Key)', () => {
+		const yml = actionYml();
+		const oauthBranch = yml.match(/sk-ant-oat\*\)([\s\S]*?);;/);
+		assert.ok(oauthBranch, 'OAuth-Zweig nicht gefunden');
+		assert.doesNotMatch(
+			oauthBranch[1],
+			/ANTHROPIC_API_KEY=/,
+			'Im OAuth-Zweig darf ANTHROPIC_API_KEY nicht gesetzt werden',
+		);
+	});
+
+	// Bewusst nur ::warning, kein exit 1: ein zu strenger Guard würde ein gültiges Token
+	// blockieren, falls Anthropic neue Präfixe einführt. Die API-Antwort ist aussagekräftiger.
+	it('warnt bei unbekanntem Präfix, blockiert den Lauf aber nicht', () => {
+		const yml = actionYml();
+		assert.match(
+			yml,
+			/::warning title=Unerwartetes Token-Format::CLAUDE_API_KEY beginnt nicht mit 'sk-ant-'/,
+			'Unbekanntes Präfix muss warnen statt still zu laufen',
+		);
+		const fallback = yml.match(/\*\)\n([\s\S]*?);;\n {12}esac/);
+		assert.ok(fallback, 'Fallback-Zweig des Token-Typ-case nicht gefunden');
+		assert.doesNotMatch(fallback[1], /exit 1/, 'Unbekanntes Präfix darf den Lauf nicht hart abbrechen');
+		assert.match(fallback[1], /ANTHROPIC_API_KEY=\$CLAUDE_API_KEY/, 'Fallback muss es als ANTHROPIC_API_KEY versuchen');
+	});
+
+	it('strippt Whitespace aus beiden Secrets (Copy-Paste-Newline macht Keys ungültig)', () => {
+		const yml = actionYml();
+		for (const key of ['CLAUDE_API_KEY', 'ZAI_API_KEY']) {
+			assert.match(
+				yml,
+				new RegExp(`${key}="\\$\\(printf '%s' "\\$${key}" \\| tr -d '\\[:space:\\]'\\)"`),
+				`${key} muss vor der Verwendung von Whitespace befreit werden`,
+			);
+		}
 	});
 });
 
