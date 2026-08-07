@@ -5,40 +5,34 @@ name: Claude Triage (Analyse)
 #
 # Triggert bei:
 #  - neuem Issue (issues: opened)
-#  - Entfernen von Label "ai:analyzed" oder "ai:to-big-issue" (issues: unlabeled)
-#  - @hermes-Kommentar einer Person mit Schreibzugriff (issue_comment: created)
+#  - Entfernen von Label "ai:analyzed" oder "ai:to-big-issue" (issues: unlabeled) → Re-Triage
+#
+# BEWUSST KEIN issue_comment-Trigger. Zwei Gründe:
+#  1. Der frühere @hermes-Mention-Trigger ist tot — die Konvention gibt es nicht mehr.
+#  2. Kommentare dürfen nichts anstoßen, insbesondere nicht die des Bots selbst: GitHub
+#     wertet `concurrency` auf RUN-Ebene aus, BEVOR das job-if greift. Ein Run, der danach
+#     übersprungen wird, cancelt trotzdem einen laufenden Run derselben Gruppe. Genau so hat
+#     sich der Agent mit seinem EIGENEN Ping-Kommentar (Prompt-Schritt 6) selbst abgebrochen —
+#     nach dem VERDICT, aber vor dem Label-Step, weshalb `ai:spec-ready` nie gesetzt wurde (#485).
+# Re-Triage läuft über das Entfernen von `ai:analyzed`.
 
 on:
   issues:
     types: [opened, unlabeled]
-  issue_comment:
-    types: [created]
 
+# Die Gruppe endet auf "-true" für Runs, die wirklich arbeiten, und auf "-false" für alle
+# anderen. Der Ausdruck ist dafür ZEICHENGLEICH mit dem job-if unten — jede Abweichung würde
+# einen Skip-Run in die Arbeits-Gruppe legen, wo er die laufende Triage cancelt. Der Vertrag
+# `triage-concurrency.test.ts` erzwingt die Gleichheit, damit die beiden nicht auseinanderdriften.
 concurrency:
-  group: claude-triage-${{ github.event.issue.number }}-${{ (github.event_name == 'issues' && (github.event.action == 'opened' || github.event.label.name == 'ai:analyzed' || github.event.label.name == 'ai:to-big-issue')) || github.event_name == 'issue_comment' }}
+  group: >-
+    claude-triage-${{ github.event.issue.number }}-${{ github.event.issue.state == 'open' && ( (github.event.action == 'opened' && !contains(github.event.issue.labels.*.name, 'ai:analyzed') && (github.event.issue.author_association == 'OWNER' || github.event.issue.author_association == 'MEMBER' || github.event.issue.author_association == 'COLLABORATOR')) || (github.event.action == 'unlabeled' && (github.event.label.name == 'ai:analyzed' || github.event.label.name == 'ai:to-big-issue')) ) }}
   cancel-in-progress: true
 
 jobs:
   triage:
     if: >-
-      ${{ (github.event_name == 'issues'
-            && github.event.issue.state == 'open'
-            && (
-                 (github.event.action == 'opened'
-                   && !contains(github.event.issue.labels.*.name, 'ai:analyzed')
-                   && (github.event.issue.author_association == 'OWNER'
-                       || github.event.issue.author_association == 'MEMBER'
-                       || github.event.issue.author_association == 'COLLABORATOR'))
-                 || (github.event.action == 'unlabeled'
-                     && (github.event.label.name == 'ai:analyzed'
-                         || github.event.label.name == 'ai:to-big-issue'))
-               ))
-          || (github.event_name == 'issue_comment'
-              && github.event.issue.pull_request == null
-              && contains(github.event.comment.body, '@hermes')
-              && (github.event.comment.author_association == 'OWNER'
-                  || github.event.comment.author_association == 'MEMBER'
-                  || github.event.comment.author_association == 'COLLABORATOR')) }}
+      ${{ github.event.issue.state == 'open' && ( (github.event.action == 'opened' && !contains(github.event.issue.labels.*.name, 'ai:analyzed') && (github.event.issue.author_association == 'OWNER' || github.event.issue.author_association == 'MEMBER' || github.event.issue.author_association == 'COLLABORATOR')) || (github.event.action == 'unlabeled' && (github.event.label.name == 'ai:analyzed' || github.event.label.name == 'ai:to-big-issue')) ) }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
