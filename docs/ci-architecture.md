@@ -60,8 +60,11 @@ gh variable set LLM_PROVIDER --body claude   # Anthropic nativ (Default)
 gh variable set LLM_PROVIDER --body zai      # z.ai/GLM (Subscription-Kontingent)
 ```
 
-Der Vertrag ist in [`.github/workflows/llm-provider.test.ts`](../.github/workflows/llm-provider.test.ts)
-festgehalten (läuft im CI-Job `pnpm dlx tsx --test .github/workflows/*.test.ts`).
+Abgesichert ist davon nur, was ein Review nicht sieht: dass alle `setup-claude`-Aufrufer den
+Provider-Input durchreichen und `.claude/settings.json` providerneutral bleibt
+([`workflow-consistency.test.ts`](../.github/workflows/workflow-consistency.test.ts)). Die
+Auflösungslogik selbst (Endpoint, Modell-Aliase, Key-Typ) ist bewusst **nicht** testgespiegelt —
+ein falscher Wert macht den nächsten Lauf sofort und laut rot.
 
 #### Token-Typen bei `LLM_PROVIDER=claude`
 

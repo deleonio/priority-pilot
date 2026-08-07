@@ -48,6 +48,11 @@ Den Diff gegen diese Fragen prüfen:
   Spec-Tests aus dem ersten Commit unverändert grün** gemacht? Aufgeweichte/gelöschte oder dem Code
   angepasste Spec-Tests sind ein **Gewaltenteilungs-Bruch** → kein 🟢, außer eine Test-Korrektur ist
   im PR begründet zurückgemeldet und freigegeben.
+- **Test-Substanz statt Test-Menge** ([tdd-strategy.md → Testumfang](tdd-strategy.md#testumfang--so-viel-wie-nötig-so-wenig-wie-irgend-möglich)):
+  Viele Tests sind kein Qualitätsmerkmal. Bei jedem neuen Test gegenprüfen, ob er überhaupt scheitern
+  **kann** — Tests, die nur bestätigen, dass eine Datei den selbst geschriebenen String enthält, sind
+  ein Finding („tautologischer Test"), kein Pluspunkt. Ebenso ein Finding: ein All-Quantor („für alle
+  X gilt…") ohne Absicherung, dass die geprüfte Menge nicht leer ist.
 - **Projekt-Konventionen** ([conventions.md](conventions.md)): Tabs, `strict`, ESM mit `.js`-Importen,
   keine Type-Assertions zum Unterdrücken von Fehlern, genau eine zentrale Prettier-Config.
 - **Mobile-First bei UI-Änderungen** ([conventions.md](conventions.md)): neue `@media`-Regeln als

@@ -19,6 +19,11 @@ nicht Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 
 ## Kernregeln
 
+- **Minimalprinzip:** Programmiere, dokumentiere und teste nur so viel wie wirklich notwendig und so
+  wenig wie irgend möglich. Jede Zeile ist Wartungslast und muss ihren Platz verdienen. Für Tests ist
+  das Aufnahmekriterium in [TDD-Strategie → Testumfang](.ai-knowledge/tdd-strategy.md#testumfang--so-viel-wie-nötig-so-wenig-wie-irgend-möglich)
+  operationalisiert: ein Test muss etwas **auswerten**, einen **Spiegel** absichern oder vor einem
+  **stillen/teuren** Ausfall schützen — sonst entsteht er nicht.
 - Monorepo mit **pnpm**.
 - Formatieren: `pnpm format` (Prettier, eine zentrale Config im Root).
 - Linten: `pnpm lint`.
