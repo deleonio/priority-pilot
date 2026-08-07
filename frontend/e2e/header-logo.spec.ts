@@ -274,3 +274,72 @@ test.describe('#406 Wort-Bild-Marke vergrößern + App-Namen-H1 entfernen', () =
 		expect(overflowsHorizontally, 'Kein horizontaler Overflow auf 375px').toBe(false);
 	});
 });
+
+// ---------------------------------------------------------------------------
+// Rote Spec-Tests für #485 — Header-Optimierung: Icon-Only-Logo, kleinerer
+// Avatar, alles auf eine Ebene
+// ---------------------------------------------------------------------------
+
+/**
+ * ROTE Spec-Tests für #485 „Header-Optimierung: Icon-Only-Logo, kleinerer Avatar, alles auf eine
+ * Ebene".
+ *
+ * Der sichtbare Schriftzug verschwindet aus dem Logo — stattdessen wird ausschließlich das reine
+ * Icon (`logo.png`) gezeigt, und der Markenname „Priority Pilot" steht nur noch als Accessible Name
+ * (aria-label) am Logo-Button für Screenreader bereit (kein sichtbarer Text).
+ *
+ * Diese Tests sind **rot**, bis `App.tsx` die Logo-Quelle auf das reine Icon umstellt und den
+ * Markennamen in den Accessible Name des Buttons aufnimmt (statt nur „Zum Dashboard").
+ *
+ * Abdeckung der Akzeptanzkriterien (siehe Issue-Body):
+ * - AK1 (Logo nur als Icon) → hier, E2E.
+ * - AK2 (Markenname nur über aria-label) → hier, E2E.
+ * - AK3 (Avatar verkleinert) → reines Styling; Zielwert „1,25 der Toolbar" ist mehrdeutig (siehe
+ *   Issue-Body ❓ Offene Frage 1) und damit nicht scharf automatisierbar → visuelle Verifikation.
+ * - AK4 (Alles auf einer Ebene) → reines vertikales Layout-Alignment → visuelle Verifikation.
+ * - AK5 (Mobile-First 375 px, kein Overflow) → bereits abgedeckt durch #395 AK5 und #406 AK5 (je
+ *   „kein horizontaler Overflow bei 375 px"); nicht dupliziert.
+ *
+ * Bewusst werden Logo-Button und -img über die stabile Klasse `.logo-btn` (statt über den
+ * Accessible Name) lokalisiert: So bleiben die Tests unabhängig davon, wie ❓ Offene Frage 2
+ * („Zum Dashboard" beibehalten vs. durch „Priority Pilot" ersetzt) gelöst wird.
+ */
+test.describe('#485 Header – Icon-Only-Logo', () => {
+	/**
+	 * AK1 — Logo nur als Icon: Das img des Logo-Buttons referenziert das reine Icon-Asset und NICHT
+	 * die Wortmarke (`logo-with-name`). Damit ist kein sichtbarer Schriftzug „Priority Pilot" mehr
+	 * Teil des Logos. RED, solange die src noch auf `logo-with-name.horizontal.png` zeigt.
+	 */
+	test('AK1: Logo-img referenziert das reine Icon (kein logo-with-name)', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+
+		const logoBtn = page.getByRole('banner').locator('.logo-btn');
+		const logoImg = logoBtn.locator('img');
+		await expect(logoImg).toBeVisible();
+
+		const src = await logoImg.getAttribute('src');
+		expect(src, 'Logo-img muss eine src besitzen').not.toBeNull();
+		expect(src, 'Logo darf nicht die Wortmarke (logo-with-name) referenzieren').not.toMatch(/logo-with-name/);
+		expect(src, 'Logo soll das reine Icon (logo.png) referenzieren').toMatch(/logo\.png$/);
+	});
+
+	/**
+	 * AK2 — Markenname nur über aria-label: Der Logo-Button trägt „Priority Pilot" als Teil seines
+	 * Accessible Name, damit Screenreader den Markennamen ansagen — auch ohne sichtbaren Schriftzug.
+	 * RED, solange der Accessible Name nur „Zum Dashboard" lautet (aktuell überdeckt das funktionale
+	 * `aria-label="Zum Dashboard"` das `img`-alt, sodass der Markenname gar nicht angesagt wird).
+	 *
+	 * Hinweis: Ob „Priority Pilot" zusätzlich zu oder anstelle von „Zum Dashboard" steht, ist im
+	 * Issue-Body (❓ Offene Frage 2) offen; dieser Test verlangt nur, dass der Markenname enthalten ist.
+	 */
+	test('AK2: Logo-Button Accessible Name enthält „Priority Pilot"', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+
+		const logoBtn = page.getByRole('banner').locator('.logo-btn');
+
+		await expect(logoBtn).toBeVisible();
+		await expect(logoBtn).toHaveAccessibleName(/Priority Pilot/i);
+	});
+});
