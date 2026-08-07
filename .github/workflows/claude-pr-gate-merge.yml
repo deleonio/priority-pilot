@@ -29,7 +29,7 @@ on:
   workflow_run:
     # Allowlist: NUR diese beiden Workflows gaten/wecken. Externe Checks (z. B. Renovate) zaehlen
     # bewusst nicht mit. Die Namen muessen exakt den `name:`-Feldern von ci.yml bzw.
-    # claude-pr-review.yml entsprechen.
+    # 04-claude-pr-review.yml entsprechen.
     workflows: ['CI', 'Claude PR Review (Kreuzverhoer)']
     types: [completed]
   pull_request:
@@ -281,7 +281,7 @@ jobs:
               echo "### CI-Gate #${pr} — ai:needs-changes gesetzt"
               echo ""
               echo "- Rote Allowlist-Checks: ${red}"
-              echo "- Folge: claude-pr-fixup.yml wird ausgeloest."
+              echo "- Folge: 05-claude-pr-fixup.yml wird ausgeloest."
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
@@ -326,7 +326,7 @@ jobs:
                 echo "### CI-Gate #${pr} — ai:needs-changes wegen Merge-Konflikt gesetzt"
                 echo ""
                 echo "- Merge-Konflikte erkannt (mergeable=$mergeable, state=$merge_state)"
-                echo "- Folge: claude-pr-fixup.yml wird ausgelöst."
+                echo "- Folge: 05-claude-pr-fixup.yml wird ausgelöst."
               } >> "$GITHUB_STEP_SUMMARY"
             else
               echo "PR #$pr ist nicht sauber mergebar (mergeable=$mergeable, state=$merge_state) — warte auf nächsten Event (No-op)."

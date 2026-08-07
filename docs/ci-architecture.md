@@ -186,7 +186,7 @@ frisch ohne Kontext aus vorherigen Läufen derselben Phase.
 1. **Chat/REPL (interaktiv):** Trigger-Phrasen aktivieren den Agenten direkt: „Kreuzverhör",
    „nimm das auseinander", „stress-teste das", „challenge mich".
 2. **Slash-Command:** `/kreuzverhoer-review [PR-Nummer]`.
-3. **GitHub Actions (automatisch):** `claude-pr-review.yml` feuert, wenn ein PR das Label
+3. **GitHub Actions (automatisch):** `04-claude-pr-review.yml` feuert, wenn ein PR das Label
    `ai:needs-review` trägt.
 
 In **GitHub Actions** läuft das über **Labels**: Der Umsetzungs-Workflow macht den PR
