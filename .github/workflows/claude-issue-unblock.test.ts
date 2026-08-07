@@ -6,25 +6,25 @@ import { dirname, join } from 'node:path';
 
 // Vertrag-Tests — Merge-getriebenes Unblocking abhängiger Issues.
 //
-// Sichert den neuen Workflow `hermes-issue-unblock.yml`:
+// Sichert den neuen Workflow `claude-issue-unblock.yml`:
 // Wird ein PR gemergt, werden die Issues, die das gemergte Issue nativ *blockt*
 // (GitHub-Issue-Dependencies), freigegeben — aber nur, wenn ALLE ihre Blocker
 // geschlossen sind (Fan-in-Gate). Freigabe = `ai:analyzed` ENTFERNEN → das
-// re-triggert `hermes-triage.yml` (Re-Analyse gegen den neuen Code-Stand), die
+// re-triggert `claude-triage.yml` (Re-Analyse gegen den neuen Code-Stand), die
 // dann 🟢 → `ai:spec-ready` setzt oder 🟡/🔴 → nur `ai:analyzed` + Hinweise.
 //
 // Das Entfernen MUSS per GitHub-App-Token erfolgen: ein mit `GITHUB_TOKEN`
 // entferntes Label löst KEINE Folge-Workflows aus → keine Re-Triage.
 //
 // Testebene: statische YAML-Verträge (node:test via tsx, Muster
-// hermes-pr-conflict-scan.test.ts / pipeline-hardening.test.ts, ci.yml Z. ~89).
-// Tests werden ROT, bis Produktivcode (hermes-issue-unblock.yml) angelegt ist.
+// claude-pr-conflict-scan.test.ts / pipeline-hardening.test.ts, ci.yml Z. ~89).
+// Tests werden ROT, bis Produktivcode (claude-issue-unblock.yml) angelegt ist.
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(HERE, '..', '..');
 
 const unblockYml = (): string =>
-	readFileSync(join(REPO_ROOT, '.github', 'workflows', 'hermes-issue-unblock.yml'), 'utf8');
+	readFileSync(join(REPO_ROOT, '.github', 'workflows', 'claude-issue-unblock.yml'), 'utf8');
 
 // ─── AK1 — Trigger: nur bei gemergtem PR ─────────────────────────────────────
 
@@ -66,7 +66,7 @@ describe('AK2 — Auflösung des gemergten Issues über closingIssuesReferences 
 		assert.match(
 			yml,
 			/closingIssuesReferences/,
-			'Workflow muss das gemergte Issue über closingIssuesReferences ermitteln (Muster hermes-spec.yml/hermes-implement.yml), nicht über den Branch-Namen raten',
+			'Workflow muss das gemergte Issue über closingIssuesReferences ermitteln (Muster claude-spec.yml/claude-implement.yml), nicht über den Branch-Namen raten',
 		);
 	});
 });
@@ -142,7 +142,7 @@ describe('AK5 — Freigabe = ai:analyzed entfernen → Re-Triage (NICHT direkt a
 		assert.match(
 			yml,
 			/remove-label[^\n]*ai:analyzed/,
-			'Workflow muss `--remove-label "ai:analyzed"` aufrufen — das re-triggert hermes-triage.yml (Re-Analyse gegen den neuen Code-Stand)',
+			'Workflow muss `--remove-label "ai:analyzed"` aufrufen — das re-triggert claude-triage.yml (Re-Analyse gegen den neuen Code-Stand)',
 		);
 	});
 
@@ -169,7 +169,7 @@ describe('AK6 — Label-Entfernen per App-Token (GITHUB_TOKEN triggert keine Re-
 		const hasAppToken = /create-github-app-token/.test(yml) || (/APP_ID/.test(yml) && /APP_PRIVATE_KEY/.test(yml));
 		assert.ok(
 			hasAppToken,
-			'Workflow muss ein App-Token nutzen — mit GITHUB_TOKEN entfernte Labels lösen KEINE Folge-Workflows (Re-Triage) aus (bekanntes GHA-Verhalten, dokumentiert in hermes-triage.yml)',
+			'Workflow muss ein App-Token nutzen — mit GITHUB_TOKEN entfernte Labels lösen KEINE Folge-Workflows (Re-Triage) aus (bekanntes GHA-Verhalten, dokumentiert in claude-triage.yml)',
 		);
 	});
 
@@ -270,7 +270,7 @@ describe('AK10 — Reiner gh-Job: keine eigene KI-Action', () => {
 		assert.doesNotMatch(
 			yml,
 			/anthropics\/claude/,
-			'Workflow darf keinen eigenen LLM-Auflöser enthalten — die Re-Analyse übernimmt hermes-triage.yml (via ai:analyzed-Entfernen)',
+			'Workflow darf keinen eigenen LLM-Auflöser enthalten — die Re-Analyse übernimmt claude-triage.yml (via ai:analyzed-Entfernen)',
 		);
 	});
 });

@@ -1,8 +1,8 @@
-name: Hermes PR Review (Kreuzverhoer)
+name: Claude PR Review (Kreuzverhoer)
 
 # Reviewt einen Pull Request im Kreuzverhör, sobald er das Label
 # "ai:needs-review" trägt.
-# Setzt Hermes **oder Claude Code** — wählbar per `vars.AGENT` (default: hermes).
+# Setzt **Claude Code** ein; Provider (z.ai) + Modell liegen in .claude/settings.json.
 #   - Findings → ai:needs-changes (→ Fixup)
 #   - sauber 🟢 → ai:ready-to-merge (→ Gate)
 # Ändert KEINEN Code.
@@ -12,7 +12,7 @@ on:
     types: [labeled]
 
 concurrency:
-  group: hermes-pr-review-${{ github.event.pull_request.number }}-${{ github.event.label.name == 'ai:needs-review' }}
+  group: claude-pr-review-${{ github.event.pull_request.number }}-${{ github.event.label.name == 'ai:needs-review' }}
   cancel-in-progress: true
 
 jobs:
@@ -25,7 +25,6 @@ jobs:
     timeout-minutes: 30
     env:
       PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-      HERMES_HOME: /tmp/hermes-ci
     permissions:
       contents: read
       id-token: write
@@ -45,21 +44,16 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Hermes/Claude Code
+      - name: Setup Claude Code
         id: setup
-        uses: ./.github/actions/setup-hermes
+        uses: ./.github/actions/setup-claude
         with:
-          agent: ${{ vars.AGENT }}
           needs-mcp: false
           event-type: ${{ github.event_name }}
           ticket-ref: ${{ github.event.pull_request.number }}
           app-id: ${{ secrets.APP_ID }}
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          llm-provider: ${{ vars.LLM_PROVIDER }}
-          zai-api-key: ${{ secrets.ZAI_API_KEY }}
-          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
-          claude-model: ${{ vars.LLM_PROVIDER == 'openrouter' && 'poolside/laguna-s-2.1:free' || 'glm-5.1' }}
-          nous-portal-token: ${{ secrets.NOUS_PORTAL_TOKEN }}
+          api-key: ${{ secrets.ZAI_API_KEY }}
 
       - name: Supersede-Check
         id: supersede-check
@@ -69,20 +63,20 @@ jobs:
           HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
         run: |
           running=$(gh api repos/${GITHUB_REPOSITORY}/actions/runs \
-            --jq '.workflow_runs[] | select(.name == "Hermes PR Review (Kreuzverhoer)" and (.status == "queued" or .status == "in_progress") and .head_branch == $ENV.HEAD_BRANCH and .id != ${{ github.run_id }}) | .id' 2>/dev/null | head -1)
+            --jq '.workflow_runs[] | select(.name == "Claude PR Review (Kreuzverhoer)" and (.status == "queued" or .status == "in_progress") and .head_branch == $ENV.HEAD_BRANCH and .id != ${{ github.run_id }}) | .id' 2>/dev/null | head -1)
           if [ -n "$running" ]; then
             echo "::notice::Review-Lauf läuft bereits — übersprungen."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Kreuzverhör-Review via Hermes
-        id: hermes
+      - name: Kreuzverhör-Review via Claude
+        id: claude
         if: steps.setup.outputs.configured == 'true' && steps.supersede-check.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
         run: |
-          cat > /tmp/hermes-prompt.txt << 'HERMES_EOF'
+          cat > /tmp/claude-prompt.txt << 'CLAUDE_EOF'
           Reviewe Pull Request #PR_NR im Kreuzverhör (Label `ai:needs-review` ist gesetzt).
 
           Folge dem Ablauf .ai-knowledge/pr-review.md: vollständigen Diff (gh pr diff) und das verknüpfte Ticket lesen, adversarial prüfen (löst der PR das Problem ganz? Edge Cases? einfachster Weg? Performance/Security?), Code-Qualität und Projekt-Konventionen prüfen. REGRESSION: Macht der PR bestehende Tests/Verhalten AUSSERHALB des Diffs obsolet oder widerspricht er ihnen (Anforderung geändert)? → als Finding benennen („Test-Pflege-Bedarf", Datei:Zeile), nicht still hinnehmen — aber auch nicht selbst ändern.
@@ -102,35 +96,27 @@ jobs:
           ZEITLIMIT: Deine Soft-Deadline ist SOFT_DEADLINE (Unix-Epoch). Prüfe `[ $(date +%s) -ge SOFT_DEADLINE ]` vor jedem größeren Schritt. Bei OVER: Zwischenstand als Sammelkommentar, Turn sofort beenden.
 
           WICHTIG: Ändere KEINEN Code, committe nichts. Reiner Review.
-          HERMES_EOF
+          CLAUDE_EOF
 
-          sed -i "s/#PR_NR/${{ github.event.pull_request.number }}/g" /tmp/hermes-prompt.txt
-          sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/hermes-prompt.txt
+          sed -i "s/#PR_NR/${{ github.event.pull_request.number }}/g" /tmp/claude-prompt.txt
+          sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
 
-          ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/hermes-prompt.txt)" \
-            ${{ steps.setup.outputs.resume-flag }} \
+          ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
             ${{ steps.setup.outputs.invoke-args }} \
-            2>&1 | tee /tmp/hermes-output.log
+            2>&1 | tee /tmp/claude-output.log
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
 
-      - name: Save Session
-        if: always() && steps.setup.outputs.configured == 'true'
-        uses: ./.github/actions/save-session
-        with:
-          session-artifact-name: ${{ steps.setup.outputs.session-artifact-name }}
-          configured: ${{ steps.setup.outputs.configured }}
-
       - name: Label-Post-Assertion (Labels via App-Token force-setzen)
-        if: always() && steps.setup.outputs.configured == 'true' && (steps.hermes.outcome == 'success' || steps.hermes.outcome == 'failure')
+        if: always() && steps.setup.outputs.configured == 'true' && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure')
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
         run: |
           verdict=""
-          if [ -f /tmp/hermes-output.log ]; then
-            verdict="$(grep -oP 'VERDICT:\s*\K.*' /tmp/hermes-output.log | tail -1 | tr -d '[:space:]' || true)"
+          if [ -f /tmp/claude-output.log ]; then
+            verdict="$(grep -oP 'VERDICT:\s*\K.*' /tmp/claude-output.log | tail -1 | tr -d '[:space:]' || true)"
           fi
-          echo "Hermes-Verdict aus Output: '${verdict:-keins}'"
+          echo "Claude-Verdict aus Output: '${verdict:-keins}'"
 
           REVIEW_COMMENT_ID="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json comments \
             --jq '[.comments[] | select(.body | test("<!-- ai-review -->"))] | first | .id' 2>/dev/null || echo "")"
@@ -150,9 +136,9 @@ jobs:
             for attempt in 1 2 3 4 5; do
               checks="$(gh pr checks "$PR" --repo "$GITHUB_REPOSITORY" --json name,bucket,workflow 2>/dev/null || echo '[]')"
               if [ -z "$checks" ]; then checks='[]'; fi
-              allow="$(echo "$checks" | jq '[.[] | select(.workflow == "CI" or .workflow == "Hermes PR Review (Kreuzverhoer)")]')"
+              allow="$(echo "$checks" | jq '[.[] | select(.workflow == "CI" or .workflow == "Claude PR Review (Kreuzverhoer)")]')"
               has_ci="$(echo "$allow" | jq -r 'any(.[]; .workflow == "CI")')"
-              has_reviewer="$(echo "$allow" | jq -r 'any(.[]; .workflow == "Hermes PR Review (Kreuzverhoer)")')"
+              has_reviewer="$(echo "$allow" | jq -r 'any(.[]; .workflow == "Claude PR Review (Kreuzverhoer)")')"
               if [ "$has_ci" = "true" ] && [ "$has_reviewer" = "true" ]; then break; fi
               if [ "$attempt" -lt 5 ]; then sleep "${delays[$((attempt - 1))]}"; fi
             done
@@ -189,7 +175,7 @@ jobs:
           fi
 
       - name: Bei Timeout PR-Kommentar (Alarm)
-        if: always() && steps.setup.outputs.configured == 'true' && steps.hermes.outcome == 'cancelled'
+        if: always() && steps.setup.outputs.configured == 'true' && steps.claude.outcome == 'cancelled'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
@@ -201,7 +187,7 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
-          OUTCOME: ${{ steps.hermes.outcome }}
+          OUTCOME: ${{ steps.claude.outcome }}
         run: |
           labels="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
           if [ "$OUTCOME" = "success" ]; then
@@ -213,7 +199,7 @@ jobs:
           fi
           {
             echo "### Kreuzverhör-Review #${PR}"
-            echo "- Hermes-Schritt: \`${OUTCOME:-unbekannt}\`"
+            echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\`"
             echo "- Labels: ${labels:-keine}"
           } >> "$GITHUB_STEP_SUMMARY"
 

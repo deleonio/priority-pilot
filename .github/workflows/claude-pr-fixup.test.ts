@@ -12,7 +12,7 @@ import { dirname, join } from 'node:path';
 //   RC3: Format/Lint-Fehler in CI sind nicht als eigenständiges Finding deklariert.
 //
 // Testebene: statische YAML-/Doku-Datei-Checks (node:test via tsx, ci.yml Z. 56–57).
-// Tests werden ROT, bis Produktivcode (ticket-implementation.md + hermes-pr-fixup.yml) angepasst ist.
+// Tests werden ROT, bis Produktivcode (ticket-implementation.md + claude-pr-fixup.yml) angepasst ist.
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(HERE, '..', '..');
@@ -20,17 +20,17 @@ const REPO_ROOT = join(HERE, '..', '..');
 const readFile = (...parts: string[]): string => readFileSync(join(REPO_ROOT, ...parts), 'utf8');
 
 const implDoc = (): string => readFile('.ai-knowledge', 'ticket-implementation.md');
-const fixupYml = (): string => readFile('.github', 'workflows', 'hermes-pr-fixup.yml');
+const fixupYml = (): string => readFile('.github', 'workflows', 'claude-pr-fixup.yml');
 const ciYml = (): string => readFile('.github', 'workflows', 'ci.yml');
 
-// Hilfsfunktion: extrahiert den Hermes-Prompt-Block aus hermes-pr-fixup.yml
-const hermesPrompt = (): string => {
+// Hilfsfunktion: extrahiert den Claude-Prompt-Block aus claude-pr-fixup.yml
+const claudePrompt = (): string => {
 	const yml = fixupYml();
-	// Der Prompt steht im Heredoc des "Findings umsetzen via Hermes"-Steps
+	// Der Prompt steht im Heredoc des "Findings umsetzen via Claude"-Steps
 	const match = yml.match(
-		/Findings umsetzen via Hermes[\s\S]*?cat > \/tmp\/hermes-prompt\.txt << 'HERMES_EOF'\s*\n([\s\S]*?)HERMES_EOF/,
+		/Findings umsetzen via Claude[\s\S]*?cat > \/tmp\/claude-prompt\.txt << 'CLAUDE_EOF'\s*\n([\s\S]*?)CLAUDE_EOF/,
 	);
-	assert.ok(match, 'Hermes-Prompt-Block nicht gefunden in hermes-pr-fixup.yml');
+	assert.ok(match, 'Claude-Prompt-Block nicht gefunden in claude-pr-fixup.yml');
 	return match[1];
 };
 
@@ -45,13 +45,13 @@ describe('AK1 — Lint-Gate ist repo-weit (kein --filter)', () => {
 		);
 	});
 
-	it('Hermes-Prompt in hermes-pr-fixup.yml nennt pnpm lint ohne --filter als Gate', () => {
-		const prompt = hermesPrompt();
-		assert.match(prompt, /pnpm lint/, 'Hermes-Prompt muss `pnpm lint` (repo-weit) als Gate nennen');
+	it('Claude-Prompt in claude-pr-fixup.yml nennt pnpm lint ohne --filter als Gate', () => {
+		const prompt = claudePrompt();
+		assert.match(prompt, /pnpm lint/, 'Claude-Prompt muss `pnpm lint` (repo-weit) als Gate nennen');
 		assert.doesNotMatch(
 			prompt,
 			/pnpm --filter \S+ lint/,
-			'Hermes-Prompt darf kein `--filter`-Lint als Gate-Kommando verwenden',
+			'Claude-Prompt darf kein `--filter`-Lint als Gate-Kommando verwenden',
 		);
 	});
 });
@@ -65,11 +65,11 @@ describe('AK2 — Verifizierender prettier --check . ist als Gate vorhanden', ()
 		);
 	});
 
-	it('Hermes-Prompt enthält prettier --check . als Gate-Kommando', () => {
+	it('Claude-Prompt enthält prettier --check . als Gate-Kommando', () => {
 		assert.match(
-			hermesPrompt(),
+			claudePrompt(),
 			/prettier --check \./,
-			'Hermes-Prompt muss `prettier --check .` als verifizierenden Gate enthalten',
+			'Claude-Prompt muss `prettier --check .` als verifizierenden Gate enthalten',
 		);
 	});
 });
@@ -87,10 +87,10 @@ describe('AK3 — Gate-Kommandos spiegeln CI-Checks exakt', () => {
 		assert.match(ciYml(), /^\s*run: pnpm lint\s*$/m, 'ci.yml muss `pnpm lint` (repo-weit) als Lint-Step enthalten');
 	});
 
-	it('Hermes-Prompt spiegelt beide CI-Gate-Kommandos (prettier --check . und pnpm lint)', () => {
-		const prompt = hermesPrompt();
-		assert.match(prompt, /prettier --check \./, 'Hermes-Prompt muss `prettier --check .` als CI-Spiegel enthalten');
-		assert.match(prompt, /pnpm lint/, 'Hermes-Prompt muss `pnpm lint` als CI-Spiegel enthalten');
+	it('Claude-Prompt spiegelt beide CI-Gate-Kommandos (prettier --check . und pnpm lint)', () => {
+		const prompt = claudePrompt();
+		assert.match(prompt, /prettier --check \./, 'Claude-Prompt muss `prettier --check .` als CI-Spiegel enthalten');
+		assert.match(prompt, /pnpm lint/, 'Claude-Prompt muss `pnpm lint` als CI-Spiegel enthalten');
 	});
 
 	it('ticket-implementation.md spiegelt beide CI-Gate-Kommandos', () => {
@@ -105,13 +105,13 @@ describe('AK3 — Gate-Kommandos spiegeln CI-Checks exakt', () => {
 });
 
 describe('AK4 — CI-Format/Lint-Fehler ist als eigenständiges Finding deklariert', () => {
-	it('Hermes-Prompt dokumentiert: CI-Fehler an Format/Lint ist ein eigenständiges Finding', () => {
-		const prompt = hermesPrompt();
+	it('Claude-Prompt dokumentiert: CI-Fehler an Format/Lint ist ein eigenständiges Finding', () => {
+		const prompt = claudePrompt();
 		const pattern =
 			/[Ff]ormat[^.]*[Ff]inding|[Ll]int[^.]*[Ff]inding|[Ff]inding[^.]*[Ff]ormat|[Ff]inding[^.]*[Ll]int|CI[^.]*[Ff]ormat[^.]*behob|CI[^.]*[Ll]int[^.]*behob|[Ff]ormat.*CI.*[Ff]inding|[Ll]int.*CI.*[Ff]inding/;
 		assert.ok(
 			pattern.test(prompt),
-			'Hermes-Prompt muss klarstellen, dass ein reiner CI-Format-/Lint-Fehler als eigenständiges Finding behandelt wird',
+			'Claude-Prompt muss klarstellen, dass ein reiner CI-Format-/Lint-Fehler als eigenständiges Finding behandelt wird',
 		);
 	});
 });
@@ -124,24 +124,24 @@ describe('AK4 — CI-Format/Lint-Fehler ist als eigenständiges Finding deklarie
 // Der Prompt MUSS den Agent anweisen, rote CI-Checks aktiv zu behandeln:
 // flaky Tests re-runnen, echte Fehler fixen, unrelated-Fehler dokumentieren.
 describe('AK5 — CI-Check-Behandlung bei roten Checks', () => {
-	it('Hermes-Prompt enthält Anweisung zum Behandeln roter CI-Checks (gh pr checks)', () => {
-		const prompt = hermesPrompt();
+	it('Claude-Prompt enthält Anweisung zum Behandeln roter CI-Checks (gh pr checks)', () => {
+		const prompt = claudePrompt();
 		assert.match(
 			prompt,
 			/CI-CHECKS BEHANDELN/,
-			'Hermes-Prompt muss einen expliziten Abschnitt "CI-CHECKS BEHANDELN" enthalten, der angibt, was bei roten CI-Checks zu tun ist',
+			'Claude-Prompt muss einen expliziten Abschnitt "CI-CHECKS BEHANDELN" enthalten, der angibt, was bei roten CI-Checks zu tun ist',
 		);
 	});
 
-	it('Hermes-Prompt kennt gh run rerun für flaky Tests', () => {
-		const prompt = hermesPrompt();
-		assert.match(prompt, /gh run rerun/, 'Hermes-Prompt muss "gh run rerun" für das Re-Starten flaky Tests enthalten');
+	it('Claude-Prompt kennt gh run rerun für flaky Tests', () => {
+		const prompt = claudePrompt();
+		assert.match(prompt, /gh run rerun/, 'Claude-Prompt muss "gh run rerun" für das Re-Starten flaky Tests enthalten');
 	});
 
-	it('Hermes-Prompt unterscheidet flaky, echte und unrelated CI-Fehler', () => {
-		const prompt = hermesPrompt();
-		assert.match(prompt, /FLAKY/, 'Hermes-Prompt muss FLAKY-Fall unterscheiden');
-		assert.match(prompt, /ECHTER CI-FEHLER/, 'Hermes-Prompt muss echten CI-Fehler-Fall unterscheiden');
-		assert.match(prompt, /UNRELATED CI-FEHLER/, 'Hermes-Prompt muss unrelated-CI-Fehler-Fall unterscheiden');
+	it('Claude-Prompt unterscheidet flaky, echte und unrelated CI-Fehler', () => {
+		const prompt = claudePrompt();
+		assert.match(prompt, /FLAKY/, 'Claude-Prompt muss FLAKY-Fall unterscheiden');
+		assert.match(prompt, /ECHTER CI-FEHLER/, 'Claude-Prompt muss echten CI-Fehler-Fall unterscheiden');
+		assert.match(prompt, /UNRELATED CI-FEHLER/, 'Claude-Prompt muss unrelated-CI-Fehler-Fall unterscheiden');
 	});
 });

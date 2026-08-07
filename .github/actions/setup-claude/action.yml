@@ -1,0 +1,170 @@
+name: 'Setup Claude Code Agent'
+description: 'Preflight, App-Token, Claude-Code-Install + Auth (Z.AI), Ticket-Auflösung, Invoke-Resolution — einheitlich für alle 5 Pipeline-Workflows'
+
+inputs:
+  needs-mcp:
+    description: 'Ob KoliBri MCP für diesen Workflow benötigt wird (triage + implement = true). Steuert nur die allowedTools; registriert ist der Server in .claude/settings.json.'
+    required: false
+    default: 'false'
+  event-type:
+    description: 'github.event_name (issues oder pull_request)'
+    required: true
+  ticket-ref:
+    description: 'Issue- oder PR-Nummer (für Ticket-Auflösung)'
+    required: true
+  app-id:
+    description: 'GitHub App ID (secret)'
+    required: true
+  app-private-key:
+    description: 'GitHub App Private Key (secret)'
+    required: true
+  api-key:
+    description: 'API-Key für den LLM-Provider (secret, z.B. secrets.ZAI_API_KEY). Provider + Modell liegen in .claude/settings.json.'
+    required: true
+
+outputs:
+  configured:
+    description: 'Ob App-Secrets konfiguriert sind'
+    value: ${{ steps.preflight.outputs.configured }}
+  gh-token:
+    description: 'GitHub Token für gh-Befehle (App-Token oder GITHUB_TOKEN)'
+    value: ${{ steps.gh-token.outputs.token }}
+  issue-number:
+    description: 'Aufgelöste Issue-Nummer (für Issue-Events direkt, für PR-Events via closingIssuesReferences)'
+    value: ${{ steps.ticket.outputs.issue-number }}
+  invoke-cmd:
+    description: 'Invoke-Befehl (claude -p)'
+    value: ${{ steps.resolve-invoke.outputs.invoke-cmd }}
+  invoke-args:
+    description: 'Invoke-Argumente (Claude-Flags inkl. --allowedTools)'
+    value: ${{ steps.resolve-invoke.outputs.invoke-args }}
+
+runs:
+  using: composite
+  steps:
+    - name: Voraussetzung prüfen (GitHub-App-Secrets)
+      id: preflight
+      env:
+        APP_ID: ${{ inputs.app-id }}
+        APP_PRIVATE_KEY: ${{ inputs.app-private-key }}
+      shell: bash
+      run: |
+        if [ -z "$APP_ID" ] || [ -z "$APP_PRIVATE_KEY" ]; then
+          echo "::warning::GitHub-App-Secrets fehlen — Lauf wird übersprungen."
+          echo "configured=false" >> "$GITHUB_OUTPUT"
+        else
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: GitHub-App-token erzeugen
+      id: app-token
+      if: steps.preflight.outputs.configured == 'true'
+      uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+      with:
+        client-id: ${{ inputs.app-id }}
+        private-key: ${{ inputs.app-private-key }}
+
+    - name: GH_TOKEN-Fallback setzen (App-Token oder GITHUB_TOKEN)
+      id: gh-token
+      shell: bash
+      run: |
+        APP_TOK="${{ steps.app-token.outputs.token }}"
+        if [ -n "$APP_TOK" ] && [ "$APP_TOK" != "null" ]; then
+          echo "token=$APP_TOK" >> "$GITHUB_OUTPUT"
+          echo "::notice::Nutze GitHub-App-Token für gh-Befehle."
+        else
+          echo "token=${{ github.token }}" >> "$GITHUB_OUTPUT"
+          echo "::warning::App-Token nicht verfügbar — nutze GITHUB_TOKEN (Achtung: Label-Wechsel lösen ggf. keine Folge-Workflows aus)."
+        fi
+
+    - name: Git-Credentials für Push konfigurieren (App-Token)
+      if: steps.preflight.outputs.configured == 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+      run: |
+        git config --global "url.https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
+        echo "::notice::Git-Credentials für App-Token konfiguriert."
+
+    - name: Ticket-ID auflösen (Issue-Nummer)
+      id: ticket
+      if: steps.preflight.outputs.configured == 'true'
+      env:
+        GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+        EVENT_TYPE: ${{ inputs.event-type }}
+        TICKET_REF: ${{ inputs.ticket-ref }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+      shell: bash
+      run: |
+        if [ "$EVENT_TYPE" = "pull_request" ]; then
+          ISSUE_NR=$(gh pr view "$TICKET_REF" --repo "$GITHUB_REPOSITORY" \
+            --json closingIssuesReferences \
+            --jq '[.closingIssuesReferences[].number] | first' 2>/dev/null || echo "")
+          if [ -z "$ISSUE_NR" ] || [ "$ISSUE_NR" = "null" ]; then
+            ISSUE_NR="$TICKET_REF"
+            echo "::notice::Kein Closing-Issue am PR #$TICKET_REF gefunden — nutze PR-Nummer als Fallback."
+          else
+            echo "::notice::PR #$TICKET_REF → Issue #$ISSUE_NR."
+          fi
+        else
+          ISSUE_NR="$TICKET_REF"
+        fi
+        echo "issue-number=$ISSUE_NR" >> "$GITHUB_OUTPUT"
+
+    # ════════════════════════════════════════════════════════════════════════════
+    # CLAUDE CODE — Install + Auth + (optional) KoliBri MCP
+    # Provider (ANTHROPIC_BASE_URL) + Modell-Aliase liegen in .claude/settings.json.
+    # Die Action injiziert nur den API-Key (Secret kann nicht in settings.json).
+    # ════════════════════════════════════════════════════════════════════════════
+    - name: Claude Code installieren
+      if: steps.preflight.outputs.configured == 'true'
+      shell: bash
+      run: |
+        npm install -g @anthropic-ai/claude-code
+        echo "::notice::Claude Code CLI installiert."
+
+    - name: Claude Code Trust-Dialog für CI-Workspace akzeptieren
+      if: steps.preflight.outputs.configured == 'true'
+      shell: bash
+      run: |
+        mkdir -p "$HOME/.claude"
+        CLAUDE_JSON="$HOME/.claude.json"
+        WORKSPACE_PATH="${{ github.workspace }}"
+        if [ -f "$CLAUDE_JSON" ]; then
+          tmp=$(mktemp)
+          jq --arg wp "$WORKSPACE_PATH" '.projects[$wp].hasTrustDialogAccepted = true' "$CLAUDE_JSON" > "$tmp" && mv "$tmp" "$CLAUDE_JSON"
+        else
+          jq -n --arg wp "$WORKSPACE_PATH" '{projects: {($wp): {hasTrustDialogAccepted: true}}}' > "$CLAUDE_JSON"
+        fi
+        echo "::notice::Claude Code Trust-Dialog für CI-Workspace ($WORKSPACE_PATH) akzeptiert."
+
+    - name: Auth prüfen + API-Key setzen
+      if: steps.preflight.outputs.configured == 'true'
+      shell: bash
+      env:
+        API_KEY: ${{ inputs.api-key }}
+      run: |
+        if [ -z "$API_KEY" ]; then
+          echo "::error title=Auth fehlt::API-Key nicht gesetzt — Secret (z.B. ZAI_API_KEY) als Repo-Secret hinterlegen."
+          exit 1
+        fi
+        echo "ANTHROPIC_API_KEY=$API_KEY" >> "$GITHUB_ENV"
+        echo "::notice::API-Key gesetzt. Provider + Modell aus .claude/settings.json."
+
+    # ════════════════════════════════════════════════════════════════════════════
+    # INVOKE-RESOLUTION — setzt invoke-cmd + invoke-args
+    # Kein --model: das Modell wird über "model" in .claude/settings.json gewählt.
+    # ════════════════════════════════════════════════════════════════════════════
+    - name: Invoke auflösen
+      id: resolve-invoke
+      if: steps.preflight.outputs.configured == 'true'
+      shell: bash
+      env:
+        NEEDS_MCP: ${{ inputs.needs-mcp }}
+      run: |
+        echo "invoke-cmd=claude -p" >> "$GITHUB_OUTPUT"
+        ALLOWED_TOOLS="Bash,Read,Write,Edit,Grep,Glob"
+        if [ "$NEEDS_MCP" = "true" ]; then
+          ALLOWED_TOOLS="$ALLOWED_TOOLS,mcp__kolibri__search,mcp__kolibri__fetch"
+        fi
+        echo "invoke-args=--dangerously-skip-permissions --allowedTools $ALLOWED_TOOLS" >> "$GITHUB_OUTPUT"

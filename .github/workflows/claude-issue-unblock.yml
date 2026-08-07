@@ -7,20 +7,20 @@ name: Issue Unblock (Nachfolger freigeben)
 # Nur der erste, unblockierte Sub-Issue trägt `ai:spec-ready`; die Nachfolger warten auf
 # `ai:analyzed`. Wird der PR eines Vorgängers gemergt, prüft dieser Workflow, ob dadurch
 # ALLE Blocker eines Nachfolgers aufgelöst sind (Fan-in-Gate). Wenn ja, wird `ai:analyzed`
-# ENTFERNT → das re-triggert hermes-triage.yml, die den Nachfolger gegen den nun gemergten
+# ENTFERNT → das re-triggert claude-triage.yml, die den Nachfolger gegen den nun gemergten
 # Code-Stand NEU analysiert und selbst entscheidet: 🟢 → `ai:spec-ready` (Kette läuft weiter),
 # 🟡/🔴 → nur `ai:analyzed` + Hinweise (Mensch reagiert). Der Workflow setzt bewusst KEIN
 # `ai:spec-ready` selbst — die erneute Machbarkeitsprüfung ist der Kern des Ansatzes.
 #
 # WICHTIG (Folge-Workflows / Token-Trigger-Falle): Von GITHUB_TOKEN entfernte Labels lösen
 # KEINE weiteren Workflows aus. Damit das "unlabeled"-Event von `ai:analyzed` die Re-Triage
-# (hermes-triage.yml) wirklich startet, wird `ai:analyzed` mit einem kurzlebigen
+# (claude-triage.yml) wirklich startet, wird `ai:analyzed` mit einem kurzlebigen
 # GitHub-App-Token (APP_ID + APP_PRIVATE_KEY) entfernt — gleiches Muster wie
-# hermes-pr-needs-review-label.yml / hermes-pr-conflict-scan.yml.
+# pr-needs-review-label.yml / claude-pr-conflict-scan.yml.
 #
 # Selbsttest-Hinweis: Ein neuer pull_request-Workflow lässt sich nicht am eigenen
 # Einführungs-PR verifizieren (er ist zum Merge-Zeitpunkt noch nicht auf main). Die Logik
-# ist deshalb durch statische Verträge abgesichert (hermes-issue-unblock.test.ts).
+# ist deshalb durch statische Verträge abgesichert (claude-issue-unblock.test.ts).
 
 on:
   pull_request:
@@ -28,7 +28,7 @@ on:
 
 concurrency:
   # Pro gemergtem PR serialisieren; nicht abbrechen (jeder Merge soll vollständig auswerten).
-  group: hermes-issue-unblock-${{ github.event.pull_request.number }}
+  group: claude-issue-unblock-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 
 jobs:
@@ -174,7 +174,7 @@ jobs:
               {
                 echo "### Issue #${B} — freigegeben (Vorgänger #${A} gemergt)"
                 echo ""
-                echo "- Alle Blocker aufgelöst → \`ai:analyzed\` entfernt → hermes-triage.yml re-analysiert gegen den neuen Code-Stand."
+                echo "- Alle Blocker aufgelöst → \`ai:analyzed\` entfernt → claude-triage.yml re-analysiert gegen den neuen Code-Stand."
               } >> "$GITHUB_STEP_SUMMARY"
             done
           done

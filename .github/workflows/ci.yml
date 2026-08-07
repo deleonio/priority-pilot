@@ -30,7 +30,7 @@ concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-# GATE-KONTRAKT (nicht brechen): Gate/Auto-Merge (hermes-pr-gate-merge.yml) keyt auf den Workflow-
+# GATE-KONTRAKT (nicht brechen): Gate/Auto-Merge (claude-pr-gate-merge.yml) keyt auf den Workflow-
 # NAMEN `CI` (`select(.workflow == "CI")`, `any(.[]; .workflow == "CI")`), NICHT auf einen Job-Namen.
 # Solange dieser Workflow `name: CI` heisst, zaehlen ALLE Job-Checks (verify + e2e-Shards) als „CI":
 # ein roter -> Gate setzt ai:needs-changes; alle gruen -> mergebar. `workflow_run` feuert pro Run
@@ -90,7 +90,7 @@ jobs:
         run: pnpm --filter priority-pilot test:coverage
       # Workflow-/CI-Vertraege (statische YAML-Asserts via node:test ueber tsx, AUSSERHALB der
       # pnpm-Workspaces). Deckt alle `.github/workflows/*.test.ts` ab: u. a. den Fixup-Gate-Vertrag
-      # (hermes-pr-fixup.test.ts), den Modell-Delegations-Vertrag (model-delegation.test.ts) und den
+      # (claude-pr-fixup.test.ts), den Modell-Delegations-Vertrag (model-delegation.test.ts) und den
       # E2E-Shard-Matrix-Vertrag (pipeline-hardening.test.ts E1: Matrix-Groesse == Shard-Nenner,
       # Schutz gegen stillen Test-Drop). Ob die headless Action das Subagent-Modell-Override real
       # honoriert, wird per Workflow-Lauf an einem Scratch-Issue verifiziert (CI-Konfig-Ebene).

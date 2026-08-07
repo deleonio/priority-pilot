@@ -35,11 +35,11 @@ nicht Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 
 ## KI-Agent — Pipeline-Phasen
 
-Alle KI-Workflows (Triage, Spec, Umsetzung, Review, Fixup) laufen über einen **Coding-Agent** in
-GitHub Actions — agent-agnostisch. Der Agent ist wählbar per GitHub-Variable `vars.AGENT`
-(`hermes` | `claude`, default: `hermes`). Beide nutzen denselben z.ai/GLM-5.1-Backend; die Prompts und
-Label-Pipeline sind identisch — nur die Agent-Runtime wechselt. CI/Provider/Modell-Doku:
-[docs/ci-architecture.md](docs/ci-architecture.md).
+Alle KI-Workflows (Triage, Spec, Umsetzung, Review, Fixup) laufen über **Claude Code** in
+GitHub Actions. Provider (z.ai) und Modell (GLM) liegen zentral in
+[`.claude/settings.json`](.claude/settings.json); pro Lauf wird nur der `ANTHROPIC_API_KEY` aus
+dem Secret `ZAI_API_KEY` injiziert — es gibt keine Provider- oder Agent-Variable mehr.
+CI/Provider/Modell-Doku: [docs/ci-architecture.md](docs/ci-architecture.md).
 
 **Jede Phase liest nur ihre eigene Wissensbasis-Datei** + das Issue/PR. Kein domänenübergreifendes
 Lesen — die jeweilige Datei enthält alles Notwendige.
