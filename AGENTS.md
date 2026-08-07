@@ -19,6 +19,11 @@ nicht Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 
 ## Kernregeln
 
+- **Minimalprinzip:** Programmiere, dokumentiere und teste nur so viel wie wirklich notwendig und so
+  wenig wie irgend möglich. Jede Zeile ist Wartungslast und muss ihren Platz verdienen. Für Tests ist
+  das Aufnahmekriterium in [TDD-Strategie → Testumfang](.ai-knowledge/tdd-strategy.md#testumfang--so-viel-wie-nötig-so-wenig-wie-irgend-möglich)
+  operationalisiert: ein Test muss etwas **auswerten**, einen **Spiegel** absichern oder vor einem
+  **stillen/teuren** Ausfall schützen — sonst entsteht er nicht.
 - Monorepo mit **pnpm**.
 - Formatieren: `pnpm format` (Prettier, eine zentrale Config im Root).
 - Linten: `pnpm lint`.
@@ -36,10 +41,12 @@ nicht Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 ## KI-Agent — Pipeline-Phasen
 
 Alle KI-Workflows (Triage, Spec, Umsetzung, Review, Fixup) laufen über **Claude Code** in
-GitHub Actions. Provider (z.ai) und Modell (GLM) liegen zentral in
-[`.claude/settings.json`](.claude/settings.json); pro Lauf wird nur der `ANTHROPIC_API_KEY` aus
-dem Secret `ZAI_API_KEY` injiziert — es gibt keine Provider- oder Agent-Variable mehr.
-CI/Provider/Modell-Doku: [docs/ci-architecture.md](docs/ci-architecture.md).
+GitHub Actions. Der Provider ist über die Repo-Variable **`vars.LLM_PROVIDER`** umschaltbar:
+`claude` (Anthropic nativ, Default, `CLAUDE_API_KEY`) oder `zai` (z.ai/GLM, `ZAI_API_KEY`).
+Endpoint, Modell-Aliase und Key
+löst die Setup-Action pro Lauf auf — die eingecheckte
+[`.claude/settings.json`](.claude/settings.json) bleibt bewusst providerneutral, weil sie auch
+für lokale Sessions gilt. CI/Provider/Modell-Doku: [docs/ci-architecture.md](docs/ci-architecture.md).
 
 **Jede Phase liest nur ihre eigene Wissensbasis-Datei** + das Issue/PR. Kein domänenübergreifendes
 Lesen — die jeweilige Datei enthält alles Notwendige.

@@ -154,9 +154,11 @@ flowchart TD
     Ansatzes. Guards: nur offene Kandidaten mit `ai:analyzed`, ohne `ai:spec-ready`/`ai:ready`,
     Sammelknoten (`ai:to-big-issue`) übersprungen.
 - **Deterministische Gates statt LLM-Vertrauen:** Kritische Zustandsübergänge sind deterministisch
-  erzwungen, nicht dem LLM anvertraut (Prinzip „Gate statt Erinnerung"). Jedes Gate ist durch
-  Vertragstests (`.github/workflows/pipeline-hardening.test.ts`) gespiegelt und kann nicht still
-  entfernt werden:
+  erzwungen, nicht dem LLM anvertraut (Prinzip „Gate statt Erinnerung"). Testgespiegelt ist davon
+  gezielt nur, was still ausfällt: dass label-schreibende Steps unter dem App-Token laufen
+  (`workflow-invariants.test.ts`) und dass das Fan-in-Gate vor der Freigabe steht
+  (`workflow-safety.test.ts`). Die übrigen Gates unten fallen beim ersten Lauf laut auf und sind
+  bewusst nicht zusätzlich abgesichert:
   - **Agent-Secret-Pre-Flight** (alle 6 KI-Workflows): fehlt `AGENT_SECRET`, bricht der
     Lauf deterministisch mit `::error::` ab — kein stiller Skip (AGENTS.md: „bewusstes Opt-in"). Bei
     triage/retriage/spec/implement wird zusätzlich `ai:to-big-issue` gesetzt (Issue-Signal); bei
@@ -176,8 +178,7 @@ flowchart TD
   hatte `ai:spec-ready` gesetzt, bevor die Issue-Beschreibung aktualisiert war — der Spec-Workflow
   startete daraufhin mit veraltetem Ticket-Inhalt. Alle sechs Prompt-Flows (triage/retriage/spec/
   implement/fixup/review) instruieren die Label-Umschaltung jetzt explizit als "ALLERLETZTEN
-  Schritt, NIE davor"; per Vertragstest (`pipeline-hardening.test.ts`) abgesichert (Content-Schreiben
-  muss textlich vor der Label-Anweisung stehen). Da dies eine Prompt-Anweisung bleibt (kein
+  Schritt, NIE davor". Da dies eine Prompt-Anweisung bleibt (kein
   Shell-Gate möglich, da der Analyseinhalt vom LLM selbst erzeugt wird), ist es defense-in-depth,
   keine harte Garantie — sollte das Problem erneut auftreten, ist ein deterministischer
   Post-Schritt (Label wird von einem separaten Workflow-Step nach Verifikation der Beschreibung

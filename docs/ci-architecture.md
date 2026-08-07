@@ -4,42 +4,95 @@
 > warten. Sie wird **nicht** in den Agent-Kontext injiziert — der Agent bekommt seine Aufgabenbeschreibung
 > vom Workflow-Prompt, nicht von hier.
 
-## Aktuelle Konfiguration: Claude Code + Z.AI (GLM)
+## Aktuelle Konfiguration: Claude Code, Provider umschaltbar (Z.AI / Anthropic)
 
 **Implementierung:** [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) als
-einziger Coding-Agent in CI. Das Backend (Provider + Modell) liegt vollständig in der
-eingecheckten [`.claude/settings.json`](../.claude/settings.json); pro Lauf wird nur der
-`ANTHROPIC_API_KEY` aus dem Secret `ZAI_API_KEY` injiziert.
+einziger Coding-Agent in CI. Das **Backend** ist über die Repo-Variable **`vars.LLM_PROVIDER`**
+umschaltbar; aufgelöst wird sie zentral in
+[`.github/actions/setup-claude`](../.github/actions/setup-claude/action.yml).
 
-Es gibt **keine Provider-Variable** (`vars.LLM_PROVIDER`) und **keinen Agent-Toggle**
-(`vars.AGENT`) mehr — beides ist entfallen. Die fünf Workflows laufen alle identisch konfiguriert.
+| `vars.LLM_PROVIDER` | Endpoint                                            | Secret           | Auth-Variable                                   | Modell (`"model": "opus"`) |
+| ------------------- | --------------------------------------------------- | ---------------- | ----------------------------------------------- | -------------------------- |
+| `claude` (Default)  | Anthropic-Default (kein `ANTHROPIC_BASE_URL`)       | `CLAUDE_API_KEY` | `ANTHROPIC_API_KEY` / `CLAUDE_CODE_OAUTH_TOKEN` | Claude Opus (nativ)        |
+| `zai`               | `ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic` | `ZAI_API_KEY`    | `ANTHROPIC_AUTH_TOKEN` (Bearer)                 | `glm-5.1`                  |
 
-| Komponente | Wert / Quelle                                                                              |
-| ---------- | ------------------------------------------------------------------------------------------ |
-| Agent      | Claude Code CLI (`npm install -g @anthropic-ai/claude-code`, pro Lauf)                     |
-| Provider   | Z.AI — `ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic` (settings.json)                 |
-| Auth       | `ANTHROPIC_API_KEY` ← Secret `ZAI_API_KEY` (in Setup-Action gesetzt)                       |
-| Modell     | `glm-5.1[1m]` via Alias `"model": "opus"` → `ANTHROPIC_DEFAULT_OPUS_MODEL` (settings.json) |
-| Invoke     | `claude -p '<prompt>'` (single-query, non-interactive)                                     |
+**Warum unterschiedliche Auth-Variablen?** `ANTHROPIC_API_KEY` sendet den Token als
+`x-api-key`-Header, `ANTHROPIC_AUTH_TOKEN` als `Authorization: Bearer`. z.ai akzeptiert nur
+die Bearer-Form. Die Action setzt pro Provider **genau eine** davon — beide gleichzeitig
+ergäben konkurrierende Auth-Header.
+
+Ist die Variable **nicht gesetzt oder leer**, gilt `claude`. Ein **unbekannter Wert bricht den
+Lauf ab** (kein stiller Fallback). Fehlt das Secret des gewählten Providers, schlägt der
+Setup-Step mit klarer Fehlermeldung fehl.
+
+| Komponente | Wert / Quelle                                                          |
+| ---------- | ---------------------------------------------------------------------- |
+| Agent      | Claude Code CLI (`npm install -g @anthropic-ai/claude-code`, pro Lauf) |
+| Provider   | `vars.LLM_PROVIDER` → Setup-Action setzt Endpoint via `GITHUB_ENV`     |
+| Auth       | provider-abhängige Auth-Variable + Secret (Setup-Action, s. o.)        |
+| Modell     | `"model": "opus"` (settings.json) → pro Provider via Alias aufgelöst   |
+| Invoke     | `claude -p '<prompt>'` (single-query, non-interactive)                 |
 
 - [Z.AI API Docs](https://docs.z.ai/guides/llm/glm-5.1)
 - [Claude Code Docs](https://docs.anthropic.com/en/docs/claude-code)
 
 ### Konfigurationstrennung
 
-Provider und Modell werden **nicht** im Workflow pro Lauf gewählt, sondern zentral über die
-eingecheckte `settings.json`:
+Der Provider gehört **nicht** in die `.claude/settings.json`: die Datei ist eingecheckt und gilt
+damit auch für **lokale Entwickler-Sessions** — ein dort gesetztes `ANTHROPIC_BASE_URL` würde
+jede lokale Claude-Session zwangsweise nach z.ai umrouten. Deshalb:
 
-- **`.claude/settings.json`** (eingecheckt, versioniert) → `ANTHROPIC_BASE_URL`,
-  Modell-Aliase (`ANTHROPIC_DEFAULT_*_MODEL`), aktives Modell (`"model"`), KoliBri-MCP.
+- **`.claude/settings.json`** (eingecheckt) → **providerneutral**: aktives Modell als _Alias_
+  (`"model": "opus"`), KoliBri-MCP, Permissions, Timeouts. Kein `ANTHROPIC_BASE_URL`, keine
+  `ANTHROPIC_DEFAULT_*_MODEL`-Overrides.
 - **`.github/actions/setup-claude/action.yml`** → installiert Claude Code, akzeptiert den
-  Trust-Dialog und injiziert **nur** `ANTHROPIC_API_KEY=ZAI_API_KEY` via `GITHUB_ENV`
-  (ein Secret kann nicht in der `settings.json` stehen).
+  Trust-Dialog und setzt pro Lauf via `GITHUB_ENV`: Endpoint, die passende Auth-Variable und
+  (nur bei `zai`) die Modell-Aliase `ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU,FABLE}_MODEL` +
+  `CLAUDE_CODE_SUBAGENT_MODEL`.
 
-Wechsel des Providers oder Modells = Datei-Änderung in `settings.json` + Commit. In CI wird
-daraus der Endpoint und das Modell für jeden Lauf automatisch übernommen.
+Der Alias-Trick hält `settings.json` providerneutral: `"model": "opus"` bedeutet bei `zai`
+`glm-5.1` und bei `claude` echtes Opus — dieselbe Datei, beide Backends.
 
-### Modellwahl — Z.AI (GLM Coding Plan-Subscription)
+**Provider wechseln** (kein Commit nötig):
+
+```bash
+gh variable set LLM_PROVIDER --body claude   # Anthropic nativ (Default)
+gh variable set LLM_PROVIDER --body zai      # z.ai/GLM (Subscription-Kontingent)
+```
+
+Abgesichert ist davon nur, was ein Review nicht sieht: dass alle `setup-claude`-Aufrufer den
+Provider-Input durchreichen und `.claude/settings.json` providerneutral bleibt
+([`workflow-consistency.test.ts`](../.github/workflows/workflow-consistency.test.ts)). Die
+Auflösungslogik selbst (Endpoint, Modell-Aliase, Key-Typ) ist bewusst **nicht** testgespiegelt —
+ein falscher Wert macht den nächsten Lauf sofort und laut rot.
+
+#### Token-Typen bei `LLM_PROVIDER=claude`
+
+Anthropic hat **zwei nicht austauschbare** Token-Formate. Die Setup-Action erkennt sie am
+Präfix und setzt die jeweils passende Variable:
+
+| Secret-Wert   | Herkunft                     | gesetzte Variable                 |
+| ------------- | ---------------------------- | --------------------------------- |
+| `sk-ant-api…` | Anthropic Console (API-Key)  | `ANTHROPIC_API_KEY`               |
+| `sk-ant-oat…` | `claude setup-token` (OAuth) | `CLAUDE_CODE_OAUTH_TOKEN`         |
+| alles andere  | vermutlich falsches Secret   | `ANTHROPIC_API_KEY` + `::warning` |
+
+Der Fallback bricht bewusst **nicht** ab: ein zu strenger Guard würde ein gültiges Token
+blockieren, falls Anthropic neue Präfixe einführt — die Antwort der API ist aussagekräftiger.
+
+Ein OAuth-Token in `ANTHROPIC_API_KEY` scheitert mit **`Invalid API key · Fix external API key`** —
+deshalb die Präfix-Weiche. Secrets werden zusätzlich von Whitespace befreit (ein beim Einfügen
+mitkopierter Zeilenumbruch macht den Key sonst ungültig).
+
+**Diagnose bei `Invalid API key`:** Der Setup-Step loggt den erkannten Token-Typ (nie den Wert).
+Steht dort `API-Key erkannt` und die API lehnt trotzdem ab, ist der Key abgelaufen/widerrufen
+oder hat kein Guthaben — dann in der Anthropic Console prüfen und
+`gh secret set CLAUDE_API_KEY` neu setzen.
+
+### Modellwahl bei `LLM_PROVIDER=zai` (GLM Coding Plan-Subscription)
+
+> Gilt nur für den `zai`-Zweig. Bei `LLM_PROVIDER=claude` löst `"model": "opus"` auf echtes
+> Claude Opus auf und die folgenden Kontingent-/Parallelitäts-Überlegungen entfallen.
 
 Alle fünf Workflows laufen bewusst auf **demselben Modell** (`glm-5.1`), nicht differenziert
 nach Aufgaben-Strenge. Grund: die GLM Coding Plan-Subscription arbeitet mit einem
@@ -70,7 +123,15 @@ Die Setup-Action installiert Claude Code frisch pro Lauf und übernimmt Trust-Di
 ```bash
 npm install -g @anthropic-ai/claude-code          # install
 # Trust-Dialog für den CI-Workspace setzen ($HOME/.claude.json)
-echo "ANTHROPIC_API_KEY=$ZAI_API_KEY" >> "$GITHUB_ENV"   # Provider/Modell aus settings.json
+
+# Provider-Switch (vars.LLM_PROVIDER) — claude (Default), Variable je nach Token-Präfix:
+echo "ANTHROPIC_API_KEY=$CLAUDE_API_KEY" >> "$GITHUB_ENV"        # sk-ant-api…
+echo "CLAUDE_CODE_OAUTH_TOKEN=$CLAUDE_API_KEY" >> "$GITHUB_ENV"  # sk-ant-oat…
+
+# ...oder zai (Bearer-Auth + Endpoint + Modell-Aliase):
+echo "ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic" >> "$GITHUB_ENV"
+echo "ANTHROPIC_AUTH_TOKEN=$ZAI_API_KEY"                 >> "$GITHUB_ENV"
+echo "ANTHROPIC_DEFAULT_OPUS_MODEL=glm-5.1"          >> "$GITHUB_ENV"
 ```
 
 ### CI-Flags
@@ -82,8 +143,9 @@ echo "ANTHROPIC_API_KEY=$ZAI_API_KEY" >> "$GITHUB_ENV"   # Provider/Modell aus s
 | `--allowedTools Bash,Read,Write,Edit,Grep,Glob`             | Nur Terminal- und Datei-Tools         |
 | `--allowedTools …,mcp__kolibri__search,mcp__kolibri__fetch` | ergänzt in Triage + Implement         |
 
-Kein `--model`: das Modell wird über `"model": "opus"` in der `settings.json` gewählt und dort
-per `ANTHROPIC_DEFAULT_OPUS_MODEL` auf `glm-5.1[1m]` abgebildet.
+Kein `--model`: das Modell wird über `"model": "opus"` in der `settings.json` gewählt — bei
+`LLM_PROVIDER=claude` ist das echtes Opus, bei `zai` bildet die Setup-Action es per
+`ANTHROPIC_DEFAULT_OPUS_MODEL` auf `glm-5.1` ab.
 
 **Prompt:** Per Heredoc in eine Datei geschrieben, dann via `-p "$(cat /tmp/claude-prompt.txt)"`
 übergeben — vermeidet Shell-Quoting-Probleme.
@@ -94,14 +156,19 @@ Label-Post-Assertion.
 
 ### Benötigte Secrets
 
-| Secret            | Zweck                                                        |
-| ----------------- | ------------------------------------------------------------ |
-| `ZAI_API_KEY`     | LLM-Zugang (z.ai) — einziger Provider-/Modell-relevanter Key |
-| `APP_ID`          | GitHub App (Token für Label-/PR-Operationen)                 |
-| `APP_PRIVATE_KEY` | GitHub App (Token für Label-/PR-Operationen)                 |
+| Secret            | Zweck                                                  |
+| ----------------- | ------------------------------------------------------ |
+| `CLAUDE_API_KEY`  | LLM-Zugang Anthropic — nötig bei `LLM_PROVIDER=claude` |
+| `ZAI_API_KEY`     | LLM-Zugang z.ai/GLM — nötig bei `LLM_PROVIDER=zai`     |
+| `APP_ID`          | GitHub App (Token für Label-/PR-Operationen)           |
+| `APP_PRIVATE_KEY` | GitHub App (Token für Label-/PR-Operationen)           |
 
-Die früher genutzten Secrets `NOUS_PORTAL_TOKEN`, `OPENROUTER_API_KEY` und `CLAUDE_API_KEY`
-werden von der Pipeline **nicht mehr referenziert** und können im Repo gelöscht werden.
+Beide LLM-Secrets werden von allen fünf Workflows durchgereicht; welches davon greift, entscheidet
+`vars.LLM_PROVIDER`. Nur das Secret des **aktiven** Providers muss gesetzt sein — das andere darf
+leer bleiben, ohne den Lauf zu brechen.
+
+Die früher genutzten Secrets `NOUS_PORTAL_TOKEN` und `OPENROUTER_API_KEY` werden von der Pipeline
+**nicht mehr referenziert** und können im Repo gelöscht werden.
 
 ## KoliBri MCP-Server für Frontend-Implementierung
 

@@ -49,6 +49,12 @@ Label-Kette: `ai:analyzed` → **`ai:spec-ready` (dieser Workflow)** → `ai:rea
   Test (Anforderung geändert, Test obsolet)? → den Konflikt im PR-Body benennen („Test-Pflege-Bedarf",
   Datei/Zeile + Begründung), den alten Test **nicht** ändern — Anpassung/Entfernung entscheidet der
   Mensch bzw. ein Folge-Spec.
+- **So wenig wie möglich, aber jeder mit Biss** ([tdd-strategy.md → Testumfang](tdd-strategy.md#testumfang--so-viel-wie-nötig-so-wenig-wie-irgend-möglich)):
+  Ein Test muss etwas **auswerten**, einen **Spiegel** zwischen Dateien sichern oder vor einem
+  **stillen/teuren** Ausfall schützen. Kein Test der Form „die Datei enthält den String, den ich
+  hineingeschrieben habe" — der kann per Konstruktion nichts finden. Lieber drei Tests mit Biss als
+  zwölf, die nur die Statistik füllen. Vor dem Commit die **Mutations-Probe**: das bewachte Verhalten
+  absichtlich brechen; wird der Test nicht rot, gehört er nicht in den PR.
 - **Red, nicht kaputt:** Jeder Test prüft echtes **Soll-Verhalten** und wird grün, sobald der
   Produktivcode existiert — nicht wegen eines Tippfehlers/falschen Fixtures rot. Bei **neuen**
   Funktionen ist ein fehlender Export/Import die legitime erste Rotfärbung; bei **bestehendem** Code
