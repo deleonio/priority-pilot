@@ -12,7 +12,7 @@ import { dirname, join } from 'node:path';
 //   RC3: Format/Lint-Fehler in CI sind nicht als eigenständiges Finding deklariert.
 //
 // Testebene: statische YAML-/Doku-Datei-Checks (node:test via tsx, ci.yml Z. 56–57).
-// Tests werden ROT, bis Produktivcode (ticket-implementation.md + claude-pr-fixup.yml) angepasst ist.
+// Tests werden ROT, bis Produktivcode (ticket-implementation.md + 05-claude-pr-fixup.yml) angepasst ist.
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(HERE, '..', '..');
@@ -20,17 +20,17 @@ const REPO_ROOT = join(HERE, '..', '..');
 const readFile = (...parts: string[]): string => readFileSync(join(REPO_ROOT, ...parts), 'utf8');
 
 const implDoc = (): string => readFile('.ai-knowledge', 'ticket-implementation.md');
-const fixupYml = (): string => readFile('.github', 'workflows', 'claude-pr-fixup.yml');
+const fixupYml = (): string => readFile('.github', 'workflows', '05-claude-pr-fixup.yml');
 const ciYml = (): string => readFile('.github', 'workflows', 'ci.yml');
 
-// Hilfsfunktion: extrahiert den Claude-Prompt-Block aus claude-pr-fixup.yml
+// Hilfsfunktion: extrahiert den Claude-Prompt-Block aus 05-claude-pr-fixup.yml
 const claudePrompt = (): string => {
 	const yml = fixupYml();
 	// Der Prompt steht im Heredoc des "Findings umsetzen via Claude"-Steps
 	const match = yml.match(
 		/Findings umsetzen via Claude[\s\S]*?cat > \/tmp\/claude-prompt\.txt << 'CLAUDE_EOF'\s*\n([\s\S]*?)CLAUDE_EOF/,
 	);
-	assert.ok(match, 'Claude-Prompt-Block nicht gefunden in claude-pr-fixup.yml');
+	assert.ok(match, 'Claude-Prompt-Block nicht gefunden in 05-claude-pr-fixup.yml');
 	return match[1];
 };
 
@@ -45,7 +45,7 @@ describe('AK1 — Lint-Gate ist repo-weit (kein --filter)', () => {
 		);
 	});
 
-	it('Claude-Prompt in claude-pr-fixup.yml nennt pnpm lint ohne --filter als Gate', () => {
+	it('Claude-Prompt in 05-claude-pr-fixup.yml nennt pnpm lint ohne --filter als Gate', () => {
 		const prompt = claudePrompt();
 		assert.match(prompt, /pnpm lint/, 'Claude-Prompt muss `pnpm lint` (repo-weit) als Gate nennen');
 		assert.doesNotMatch(
