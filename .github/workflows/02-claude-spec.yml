@@ -53,6 +53,7 @@ jobs:
           llm-provider: ${{ vars.LLM_PROVIDER }}
           zai-api-key: ${{ secrets.ZAI_API_KEY }}
           claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
+          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
 
       - name: Doppel-Run-Guard (existierender PR mit Closes #N)
         id: doppel-guard

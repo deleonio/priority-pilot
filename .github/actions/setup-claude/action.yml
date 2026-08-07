@@ -19,7 +19,7 @@ inputs:
     description: 'GitHub App Private Key (secret)'
     required: true
   llm-provider:
-    description: 'LLM-Provider für diesen Lauf: "claude" (Anthropic nativ, Default) oder "zai" (z.ai/GLM). Aus vars.LLM_PROVIDER; leer = claude.'
+    description: 'LLM-Provider für diesen Lauf: "claude" (Anthropic nativ, Default), "zai" (z.ai/GLM) oder "openrouter" (OpenRouter). Aus vars.LLM_PROVIDER; leer = claude.'
     required: false
     default: 'claude'
   zai-api-key:
@@ -28,6 +28,18 @@ inputs:
   claude-api-key:
     description: 'API-Key für Anthropic (secret, secrets.CLAUDE_API_KEY). Nur bei llm-provider=claude erforderlich.'
     required: false
+  openrouter-api-key:
+    description: 'API-Key für OpenRouter (secret, secrets.OPENROUTER_API_KEY). Nur bei llm-provider=openrouter erforderlich.'
+    required: false
+  # Variable-Namen für settings.local.json (Model-Config aus GitHub Variables, nicht hardcoded)
+  zai-settings-var:
+    description: 'Name der GitHub Variable mit settings.local.json für zai (Default: CLAUDE_CODE_SETTINGS_LOCAL_ZAI)'
+    required: false
+    default: 'CLAUDE_CODE_SETTINGS_LOCAL_ZAI'
+  openrouter-settings-var:
+    description: 'Name der GitHub Variable mit settings.local.json für openrouter (Default: CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER)'
+    required: false
+    default: 'CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER'
 
 outputs:
   configured:
@@ -160,14 +172,29 @@ runs:
         LLM_PROVIDER: ${{ inputs.llm-provider }}
         ZAI_API_KEY: ${{ inputs.zai-api-key }}
         CLAUDE_API_KEY: ${{ inputs.claude-api-key }}
+        OPENROUTER_API_KEY: ${{ inputs.openrouter-api-key }}
+        ZAI_SETTINGS_VAR: ${{ inputs.zai-settings-var }}
+        OPENROUTER_SETTINGS_VAR: ${{ inputs.openrouter-settings-var }}
+        # Variable-Werte werden zur Laufzeit per shell gelesen
       run: |
         PROVIDER="${LLM_PROVIDER:-claude}"
 
-        # Secrets werden oft mit Zeilenumbruch/Leerzeichen eingefügt. Ein Token enthält nie
-        # Whitespace — aber ein Rest-Newline würde die GITHUB_ENV-Datei zerreißen bzw. den
-        # Key ungültig machen ("Invalid API key"). Deshalb defensiv strippen.
+        # Secrets strippen (Whitespace/Newlines)
         CLAUDE_API_KEY="$(printf '%s' "$CLAUDE_API_KEY" | tr -d '[:space:]')"
         ZAI_API_KEY="$(printf '%s' "$ZAI_API_KEY" | tr -d '[:space:]')"
+        OPENROUTER_API_KEY="$(printf '%s' "$OPENROUTER_API_KEY" | tr -d '[:space:]')"
+
+        # Variable-Werte aus GitHub holen (für zai/openrouter settings.local.json)
+        # Nutzen gh api um Variable zu lesen - falls nicht gesetzt, leerer String
+        ZAI_SETTINGS_JSON=""
+        OPENROUTER_SETTINGS_JSON=""
+        if [ "$PROVIDER" = "zai" ] || [ "$PROVIDER" = "openrouter" ]; then
+          # Variables sind in GitHub Context nicht direkt verfügbar, nutzen gh variable
+          if command -v gh >/dev/null 2>&1; then
+            ZAI_SETTINGS_JSON="$(gh variable get "$ZAI_SETTINGS_VAR" 2>/dev/null || true)"
+            OPENROUTER_SETTINGS_JSON="$(gh variable get "$OPENROUTER_SETTINGS_VAR" 2>/dev/null || true)"
+          fi
+        fi
 
         case "$PROVIDER" in
           claude)
@@ -175,12 +202,9 @@ runs:
               echo "::error title=Auth fehlt::vars.LLM_PROVIDER=claude, aber Secret CLAUDE_API_KEY ist leer."
               exit 1
             fi
-            # Anthropic kennt ZWEI Token-Typen, die sich nicht gegenseitig ersetzen:
+            # Anthropic kennt ZWEI Token-Typen:
             #   sk-ant-api…  klassischer API-Key   → ANTHROPIC_API_KEY
             #   sk-ant-oat…  OAuth-Token aus `claude setup-token` → CLAUDE_CODE_OAUTH_TOKEN
-            # Ein OAuth-Token in ANTHROPIC_API_KEY wird mit "Invalid API key" abgelehnt.
-            # Deshalb am Präfix unterscheiden statt den Nutzer raten zu lassen.
-            # Kein ANTHROPIC_BASE_URL, keine Alias-Overrides — "opus" ist echtes Opus.
             case "$CLAUDE_API_KEY" in
               sk-ant-oat*)
                 echo "CLAUDE_CODE_OAUTH_TOKEN=$CLAUDE_API_KEY" >> "$GITHUB_ENV"
@@ -191,12 +215,8 @@ runs:
                 echo "::notice::Provider=claude — API-Key erkannt (sk-ant-…) → ANTHROPIC_API_KEY."
                 ;;
               *)
-                # Weder api- noch oat-Präfix. Kein harter Abbruch: Anthropic könnte neue
-                # Präfixe einführen, und ein Fehlschlag der API ist aussagekräftiger als ein
-                # Guard, der ein gültiges Token blockiert. Nur warnen und es versuchen —
-                # der Wert selbst wird nie geloggt.
                 echo "ANTHROPIC_API_KEY=$CLAUDE_API_KEY" >> "$GITHUB_ENV"
-                echo "::warning title=Unerwartetes Token-Format::CLAUDE_API_KEY beginnt nicht mit 'sk-ant-'. Versuche es als ANTHROPIC_API_KEY. Bei 'Invalid API key' prüfen: API-Key aus der Anthropic Console ('sk-ant-api…') oder Token aus \`claude setup-token\` ('sk-ant-oat…')? Für z.ai gehört der Key ins Secret ZAI_API_KEY + vars.LLM_PROVIDER=zai."
+                echo "::warning title=Unerwartetes Token-Format::CLAUDE_API_KEY beginnt nicht mit 'sk-ant-'. Versuche als ANTHROPIC_API_KEY."
                 ;;
             esac
             ;;
@@ -205,25 +225,33 @@ runs:
               echo "::error title=Auth fehlt::vars.LLM_PROVIDER=zai, aber Secret ZAI_API_KEY ist leer."
               exit 1
             fi
-            # z.ai spricht das Anthropic-Protokoll unter eigenem Endpoint, erwartet den Token
-            # aber als Bearer — dafür ist ANTHROPIC_AUTH_TOKEN da. ANTHROPIC_API_KEY würde
-            # stattdessen einen x-api-key-Header senden, den z.ai ablehnt. Bewusst NUR
-            # AUTH_TOKEN setzen: beides gleichzeitig führt zu konkurrierenden Auth-Headern.
-            # Die Alias-Variablen mappen die Claude-Modellnamen (opus/sonnet/haiku/fable) auf
-            # GLM-Modelle, damit "model": "opus" aus settings.json für beide Provider passt.
-            {
-              echo "ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic"
-              echo "ANTHROPIC_AUTH_TOKEN=$ZAI_API_KEY"
-              echo "ANTHROPIC_DEFAULT_HAIKU_MODEL=glm-4.5-air"
-              echo "ANTHROPIC_DEFAULT_SONNET_MODEL=glm-4.7"
-              echo "ANTHROPIC_DEFAULT_OPUS_MODEL=glm-5.1"
-              echo "ANTHROPIC_DEFAULT_FABLE_MODEL=glm-5.2"
-              echo "CLAUDE_CODE_SUBAGENT_MODEL=glm-4.7"
-            } >> "$GITHUB_ENV"
-            echo "::notice::Provider=zai — Endpoint api.z.ai, Modell glm-5.1 (via Alias opus)."
+            # settings.local.json aus Variable bauen
+            if [ -n "$ZAI_SETTINGS_JSON" ]; then
+              echo "$ZAI_SETTINGS_JSON" > .claude/settings.local.json
+              echo "::notice::settings.local.json aus Variable $ZAI_SETTINGS_VAR geschrieben."
+            else
+              echo "::warning::Variable $ZAI_SETTINGS_VAR nicht gesetzt — keine settings.local.json für zai."
+            fi
+            # Auth Token setzen (z.ai nutzt ANTHROPIC_AUTH_TOKEN als Bearer)
+            echo "ANTHROPIC_AUTH_TOKEN=$ZAI_API_KEY" >> "$GITHUB_ENV"
+            ;;
+          openrouter)
+            if [ -z "$OPENROUTER_API_KEY" ]; then
+              echo "::error title=Auth fehlt::vars.LLM_PROVIDER=openrouter, aber Secret OPENROUTER_API_KEY ist leer."
+              exit 1
+            fi
+            # settings.local.json aus Variable bauen
+            if [ -n "$OPENROUTER_SETTINGS_JSON" ]; then
+              echo "$OPENROUTER_SETTINGS_JSON" > .claude/settings.local.json
+              echo "::notice::settings.local.json aus Variable $OPENROUTER_SETTINGS_VAR geschrieben."
+            else
+              echo "::warning::Variable $OPENROUTER_SETTINGS_VAR nicht gesetzt — keine settings.local.json für openrouter."
+            fi
+            # Auth Token setzen (OpenRouter nutzt ANTHROPIC_AUTH_TOKEN als Bearer)
+            echo "ANTHROPIC_AUTH_TOKEN=$OPENROUTER_API_KEY" >> "$GITHUB_ENV"
             ;;
           *)
-            echo "::error title=Unbekannter Provider::vars.LLM_PROVIDER='$PROVIDER' — erlaubt sind 'zai' oder 'claude'."
+            echo "::error title=Unbekannter Provider::vars.LLM_PROVIDER='$PROVIDER' — erlaubt sind 'claude', 'zai' oder 'openrouter'."
             exit 1
             ;;
         esac
