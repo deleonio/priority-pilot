@@ -153,6 +153,42 @@ Nicht alles braucht gleich viel Strenge. Diese Politik kombiniert man mit 1–3:
   CI-Gate). **Vorbereitet:** `frontend/src/lib` in `vitest.config.ts` — Provider
   `@vitest/coverage-v8` installieren, dann `test:coverage`.
 
+## Testumfang — so viel wie nötig, so wenig wie irgend möglich
+
+> **Leitsatz (gilt für Code, Doku und Tests gleichermaßen):** Schreibe nur so viel, wie wirklich
+> notwendig ist, und so wenig wie irgend möglich. Jeder Test ist Wartungslast — er muss seinen
+> Platz verdienen, nicht bloß Abdeckungs-Statistik erzeugen.
+
+Ein Test darf entstehen, wenn er **mindestens eines** leistet:
+
+1. **Auswertung** — er rechnet etwas aus, das nirgends wörtlich in der Quelle steht: eine Funktion
+   gegen echte Eingaben, ein Ausdruck gegen echte Payloads, eine abgeleitete Invariante.
+2. **Spiegel** — dieselbe Information steht an mehreren Orten und darf nicht auseinanderdriften.
+   Der Sollwert wird dabei **aus der führenden Quelle gelesen**, nie als Literal in den Test
+   geschrieben — sonst prüft der Test nur sich selbst.
+3. **Schutz** — das Versagen ist nicht rückholbar (Datenverlust, Secret-Leak) oder es fällt nicht
+   von selbst auf (grüner Lauf, aber Endlosschleife, verfrühte Freigabe, still übersprungene Suite).
+
+Alles andere bekommt **keinen** Test. Insbesondere nicht der Typ „Datei enthält den String, den ich
+hineingeschrieben habe" — er kann per Konstruktion keinen Fehler finden, weil er nichts prüft, was
+nicht schon dasteht. Er ist ein Change-Detector: rot, wenn sich etwas ändert, nicht wenn etwas kaputt
+ist. Ebenso wenig braucht es einen Test für Fehler, die beim nächsten Lauf ohnehin sofort und laut
+krachen (fehlender Build-Step, falscher Host, vergessenes Secret) — dafür ist der Lauf selbst da.
+
+**Zwei Gegenproben, bevor ein Test bleibt:**
+
+- **Mutations-Probe:** Das bewachte Verhalten absichtlich brechen und den Test laufen lassen. Wird er
+  nicht rot, ist er wertlos — unabhängig davon, wie plausibel er aussieht.
+- **Leerlauf-Probe:** Prüft der Test „für alle X", muss sichergestellt sein, dass überhaupt X
+  gefunden werden. Eine kaputte Extraktion ergibt sonst einen dauerhaft grünen Test über eine leere
+  Menge. Deshalb gehört zu jedem All-Quantor eine Assertion, dass die Menge nicht leer ist.
+
+**Kanonisches Beispiel im Repo:** `.github/workflows/*.test.ts` — vier Dateien, je eine Kategorie
+(`triage-concurrency` = Auswertung, `workflow-invariants` = All-Quantoren, `workflow-consistency` =
+Spiegel, `workflow-safety` = Schutz). Die Vorgängerversion hatte 1423 Zeilen und 92 Tests, davon
+~70 reine String-Greps auf selbst geschriebene YAML; übrig sind 47 Tests, die alle die
+Mutations-Probe bestehen.
+
 ## Wie konkret das aussieht (an bestehendem Code)
 
 Akzeptanzkriterium aus einem Ticket → roter Test, bevor `buildTaskForest` angefasst wird — exakt im

@@ -88,12 +88,13 @@ jobs:
       # erst nach `pnpm add -D @vitest/coverage-v8` aktiv.
       - name: Coverage-Gate (server/src/logics)
         run: pnpm --filter priority-pilot test:coverage
-      # Workflow-/CI-Vertraege (statische YAML-Asserts via node:test ueber tsx, AUSSERHALB der
-      # pnpm-Workspaces). Deckt alle `.github/workflows/*.test.ts` ab: u. a. den Fixup-Gate-Vertrag
-      # (claude-pr-fixup.test.ts), den Modell-Delegations-Vertrag (model-delegation.test.ts) und den
-      # E2E-Shard-Matrix-Vertrag (pipeline-hardening.test.ts E1: Matrix-Groesse == Shard-Nenner,
-      # Schutz gegen stillen Test-Drop). Ob die headless Action das Subagent-Modell-Override real
-      # honoriert, wird per Workflow-Lauf an einem Scratch-Issue verifiziert (CI-Konfig-Ebene).
+      # Workflow-/CI-Vertraege (statische Auswertung via node:test ueber tsx, AUSSERHALB der
+      # pnpm-Workspaces). Vier Dateien, je eine Aufnahme-Kategorie (siehe .ai-knowledge/tdd-strategy.md):
+      #   triage-concurrency.test.ts  — Auswertung: GitHub-Expressions gegen echte Event-Payloads
+      #   workflow-invariants.test.ts — All-Quantoren ueber ALLE Workflows (--repo, Label-Token)
+      #   workflow-consistency.test.ts— Spiegel zwischen Dateien (CI-Gates, setup-claude, Shard-Nenner)
+      #   workflow-safety.test.ts     — teure/stille Ausfaelle (rsync-Excludes, Loop-Schutz)
+      # Bewusst KEINE Tests der Form „YAML enthaelt den String, den ich hineingeschrieben habe".
       # pnpm dlx (nicht npx): seit tsx@4.22.4 transitiv via vite im Workspace-Baum liegt, erkennt
       # `npx tsx` es als "lokal vorhanden" und versucht das Bin aus dem Root-`.bin` zu starten —
       # pnpm verlinkt transitive Deps dort aber nicht, daher `sh: tsx: command not found`. pnpm dlx
@@ -112,7 +113,7 @@ jobs:
   # da SESSION_STORE/NODE_ENV ungesetzt — siehe server/src/express/session.ts). Skaliert linear: neue
   # Specs verteilen sich auf die Shards, statt die Pipeline seriell zu verlaengern (E2E war ~58%).
   # ACHTUNG: Wird `shard: [...]` geaendert, MUSS der Nenner in `--shard=…/N` mitgezogen werden —
-  # der Contract-Test E1 (pipeline-hardening.test.ts) bricht sonst rot (Schutz gegen stillen Test-Drop).
+  # workflow-consistency.test.ts bricht sonst rot (Schutz gegen stillen Test-Drop).
   e2e:
     # Kein CI auf Draft-PRs (identisch zu verify) — sonst liefen die teuren E2E-Shards auf dem
     # noch roten Spec-Draft. Startet erst ab ready_for_review; push-Events laufen immer.

@@ -21,9 +21,8 @@ interface ModalProps {
 	 *
 	 * Einsatzfall #472: In Bestätigungs-Dialogen für destruktive Aktionen soll der Initialfokus
 	 * auf dem „Abbrechen"-Button liegen (nicht auf „Endgültig löschen"), damit die irreversible
-	 * Aktion nicht versehentlich per Enter auslösbar ist. KoliBri-Buttons verwenden
-	 * `delegatesFocus`, sodass `.focus()` auf dem Host-Element (`HTMLKolButtonElement`) den
-	 * inneren `<button>` fokussiert.
+	 * Aktion nicht versehentlich per Enter auslösbar ist. Der Ref zeigt auf den KoliBri-Host —
+	 * dessen `focus()` ist async und wird awaitet (siehe Öffnen-Effekt unten).
 	 *
 	 * Umgesetzt als Ref (kein direkter Callback), damit der Aufrufer den Ziel-Button deklarativ
 	 * am JSX-Element hält und keine manuelle Fokus-Logik pflegt.
@@ -81,52 +80,36 @@ export const Modal = ({ title, onClose, width = '40rem', fallbackFocusRef, initi
 		// `active`-Flag und `openedRef` entkoppeln StrictMode (Setup→Cleanup→Setup): es öffnet genau ein
 		// Setup — auch wenn der `whenDefined`-Microtask schon ZWISCHEN erstem Setup und Cleanup lief.
 		let active = true;
-		let initialFocusTimer: ReturnType<typeof setTimeout> | undefined;
-		let focusRedirectCleanup: (() => void) | undefined;
-		void customElements.whenDefined('kol-dialog').then(() => {
-			if (active && !openedRef.current) {
-				openedRef.current = true;
-				void dialog.showModal();
-				// Initialfokus nach dem Öffnen setzen (#472, #479): KoliBris `showModal()` setzt den
-				// Browser-Default-Fokus auf das erste fokussierbare Element im Dialog (ggf. die destruktive
-				// "Endgültig löschen"-Taste). Wir setzen den gewünschten Fokus sofort und installieren einen
-				// `focusin`-Capture-Listener, der Focus-Abweichungen während der Initialisierungsphase
-				// abfängt (z. B. wenn KoliBris interne Macrotask-Arbeit den Fokus kurzzeitig zurücksetzt).
-				const focusTarget = initialFocusRefCurrent.current;
-				if (focusTarget != null) {
-					// Sofort fokussieren — kein Timer, der eine sichtbare Zwischenphase erzeugt.
-					focusTarget.focus();
-					// Focus-Redirect-Listener fängt Abweichungen ab, die durch KoliBris interne
-					// Async-Fokuslogik entstehen könnten. Nach 500 ms ist die Initialisierung abgeschlossen.
-					const dialogElement = dialog;
-					const redirectHandler = (event: FocusEvent) => {
-						const target = event.target as HTMLElement;
-						if (target === focusTarget) {
-							// Fokus ist bereits auf dem gewünschten Element — nichts zu tun.
-							return;
-						}
-						// Focus auf einem anderen Element abfangen und zurück zum Ziel lenken.
-						if (focusTarget.isConnected) {
-							focusTarget.focus();
-						}
-					};
-					dialogElement.addEventListener('focusin', redirectHandler, true);
-					focusRedirectCleanup = () => {
-						dialogElement.removeEventListener('focusin', redirectHandler, true);
-					};
-					// Safety-Net: nach 500 ms den Redirect-Listener aufräumen, falls KoliBris
-					// Initialisierung länger dauert als erwartet.
-					initialFocusTimer = setTimeout(() => {
-						focusRedirectCleanup?.();
-						focusRedirectCleanup = undefined;
-					}, 500);
+		void Promise.all([customElements.whenDefined('kol-dialog'), customElements.whenDefined('kol-button')]).then(
+			async () => {
+				if (!active || openedRef.current) {
+					return;
 				}
-			}
-		});
+				openedRef.current = true;
+				// AWAIT: KoliBris `showModal()` ist eine async Stencil-Methode, die erst über zwei
+				// Komponenten-Ebenen hinweg beim nativen `<dialog>.showModal()` ankommt. Ohne `await`
+				// liefe unser Initialfokus VOR dem nativen Öffnen — und das native `showModal()` setzt
+				// den Fokus anschließend auf seinen Default zurück.
+				await dialog.showModal();
+				// Initialfokus danach setzen (#472): das native `showModal()` fokussiert per Default das
+				// erste fokussierbare Element im Dialog — bei Bestätigungsdialogen soll es stattdessen
+				// „Abbrechen" sein.
+				//
+				// Über die KoliBri-API (async, deshalb awaitet) — NICHT per Griff ins Shadow-DOM auf das
+				// innere `<button>`: ein einzelnes `focus()` dort hält nicht, weil im Dialog direkt nach
+				// dem Öffnen noch mehrfach der Fokus bewegt wird (gemessen). Genau dafür wiederholt
+				// KoliBris `setFocus()` den Versuch über bis zu 10 Frames
+				// (`utils/element-focus.js`, MAX_FOCUS_ATTEMPTS) — erst das lässt den Fokus sitzen.
+				//
+				// Bekannte, gemessene Nebenwirkung: in diesem Fenster (~<100 ms nach dem Öffnen) zieht
+				// die Schleife einen Tab-Anschlag des Nutzers auf „Abbrechen" zurück. Danach ist der
+				// Fokus frei (e2e AK4 sichert das ab). KEINEN eigenen Watchdog/`focusin`-Redirect
+				// ergänzen, um das zu „verbessern" — genau der hielt den Fokus vorher 500 ms fest.
+				await initialFocusRefCurrent.current?.focus();
+			},
+		);
 		return () => {
 			active = false;
-			clearTimeout(initialFocusTimer);
-			focusRedirectCleanup?.();
 			// Unmount ist KEIN User-Close: Wenn der Eigentümer das Modal unmountet (z. B. Schrittwechsel
 			// Quick-Capture → Formular, #236), darf kein Close-Event mehr `onClose` aufrufen — sonst
 			// schließt der Aufrufer (App `closeDialog`) auch den gerade gemounteten Folge-Dialog. Beim
