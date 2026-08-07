@@ -274,3 +274,70 @@ test.describe('#406 Wort-Bild-Marke vergrößern + App-Namen-H1 entfernen', () =
 		expect(overflowsHorizontally, 'Kein horizontaler Overflow auf 375px').toBe(false);
 	});
 });
+
+// ---------------------------------------------------------------------------
+// Rote Spec-Tests für #485 — Icon-Only-Logo im Header
+// ---------------------------------------------------------------------------
+
+/**
+ * ROTE Spec-Tests für #485 „Header-Optimierung: Icon-Only-Logo, kleinerer Avatar, alles auf eine
+ * Ebene" — Teil Logo (AK1).
+ *
+ * Ziel: Der Schriftzug verschwindet aus dem Header-Logo; dargestellt wird nur noch das reine
+ * Icon-Asset `/logo/logo.png` (bereits in `frontend/public/logo/` vorhanden). Die Funktion des
+ * Logo-Buttons (Accessible Name „Zum Dashboard", Klick → Dashboard) bleibt unverändert und ist
+ * bereits durch die #395-Tests oben abgedeckt (AK2 des Tickets, kein neuer Test nötig).
+ *
+ * Dieser Test ist **rot**, solange `App.tsx` `/logo/logo-with-name.horizontal.png` referenziert.
+ *
+ * ⚠️ Test-Pflege-Bedarf: Der ältere Vertrag „#402 AK2" (oben, Zeile ~132) fordert genau das
+ * Gegenteil (`logo-with-name.horizontal.png`). Er wird durch #485 obsolet, bleibt hier aber
+ * bewusst unverändert — die Entfernung entscheidet der Mensch (siehe PR-Body).
+ */
+test.describe('#485 Header – Icon-Only-Logo', () => {
+	/**
+	 * AK1 — Logo nur als Icon: Das img im Logo-Button referenziert das reine Icon-Asset
+	 * `/logo/logo.png` und kein `logo-with-name`-Asset.
+	 */
+	test('AK1: Logo-Button img src zeigt auf das Icon-Asset /logo/logo.png', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+
+		const header = page.getByRole('banner');
+		const logoImg = header.getByRole('button', { name: /Zum Dashboard/i }).locator('img');
+		await expect(logoImg).toBeVisible();
+
+		const src = await logoImg.getAttribute('src');
+		expect(src, 'img src darf keine Wortmarke (logo-with-name) mehr referenzieren').not.toMatch(/logo-with-name/);
+		expect(src, 'img src soll auf das reine Icon-Asset logo.png enden').toMatch(/\/logo\/logo\.png$/);
+	});
+
+	/**
+	 * AK1 (Ergänzung) — Das Asset wird auch tatsächlich ausgeliefert (kein 404) und ist ein
+	 * annähernd quadratisches Icon: das Seitenverhältnis des geladenen Bildes bleibt unter 1,5.
+	 * Das reine Icon (`logo.png`, 1698×1659 ≈ 1,02) erfüllt das, die horizontale Wortmarke
+	 * (2116×412 ≈ 5,1) nicht. Schützt davor, dass der Schriftzug über ein anderes Asset zurückkehrt.
+	 */
+	test('AK1: Geladenes Logo-Bild ist ein Icon (Seitenverhältnis < 1,5) und lädt fehlerfrei', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+
+		const logoImg = page
+			.getByRole('banner')
+			.getByRole('button', { name: /Zum Dashboard/i })
+			.locator('img');
+		await expect(logoImg).toBeVisible();
+
+		const natural = await logoImg.evaluate((el) => {
+			const img = el as HTMLImageElement;
+			return { width: img.naturalWidth, height: img.naturalHeight };
+		});
+
+		expect(natural.width, 'Logo-Bild muss geladen sein (naturalWidth > 0)').toBeGreaterThan(0);
+		expect(natural.height, 'Logo-Bild muss geladen sein (naturalHeight > 0)').toBeGreaterThan(0);
+		expect(
+			natural.width / natural.height,
+			`Icon-Logo (${natural.width}×${natural.height}) muss annähernd quadratisch sein — sonst steckt noch ein Schriftzug drin`,
+		).toBeLessThan(1.5);
+	});
+});
