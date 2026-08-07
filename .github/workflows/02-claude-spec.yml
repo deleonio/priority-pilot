@@ -54,6 +54,8 @@ jobs:
           zai-api-key: ${{ secrets.ZAI_API_KEY }}
           claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
           openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+          zai-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI }}
+          openrouter-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER }}
 
       - name: Doppel-Run-Guard (existierender PR mit Closes #N)
         id: doppel-guard

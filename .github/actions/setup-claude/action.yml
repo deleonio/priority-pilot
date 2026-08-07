@@ -31,15 +31,15 @@ inputs:
   openrouter-api-key:
     description: 'API-Key für OpenRouter (secret, secrets.OPENROUTER_API_KEY). Nur bei llm-provider=openrouter erforderlich.'
     required: false
-  # Variable-Namen für settings.local.json (Model-Config aus GitHub Variables, nicht hardcoded)
-  zai-settings-var:
-    description: 'Name der GitHub Variable mit settings.local.json für zai (Default: CLAUDE_CODE_SETTINGS_LOCAL_ZAI)'
+  # Settings-JSON direkt als Input (aus GitHub Variables) — vermeidet gh CLI Auth-Probleme
+  zai-settings-json:
+    description: 'settings.local.json für zai als JSON-String (aus vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI)'
     required: false
-    default: 'CLAUDE_CODE_SETTINGS_LOCAL_ZAI'
-  openrouter-settings-var:
-    description: 'Name der GitHub Variable mit settings.local.json für openrouter (Default: CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER)'
+    default: ''
+  openrouter-settings-json:
+    description: 'settings.local.json für openrouter als JSON-String (aus vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER)'
     required: false
-    default: 'CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER'
+    default: ''
 
 outputs:
   configured:
@@ -173,9 +173,8 @@ runs:
         ZAI_API_KEY: ${{ inputs.zai-api-key }}
         CLAUDE_API_KEY: ${{ inputs.claude-api-key }}
         OPENROUTER_API_KEY: ${{ inputs.openrouter-api-key }}
-        ZAI_SETTINGS_VAR: ${{ inputs.zai-settings-var }}
-        OPENROUTER_SETTINGS_VAR: ${{ inputs.openrouter-settings-var }}
-        # Variable-Werte werden zur Laufzeit per shell gelesen
+        ZAI_SETTINGS_JSON: ${{ inputs.zai-settings-json }}
+        OPENROUTER_SETTINGS_JSON: ${{ inputs.openrouter-settings-json }}
       run: |
         PROVIDER="${LLM_PROVIDER:-claude}"
 
@@ -183,18 +182,6 @@ runs:
         CLAUDE_API_KEY="$(printf '%s' "$CLAUDE_API_KEY" | tr -d '[:space:]')"
         ZAI_API_KEY="$(printf '%s' "$ZAI_API_KEY" | tr -d '[:space:]')"
         OPENROUTER_API_KEY="$(printf '%s' "$OPENROUTER_API_KEY" | tr -d '[:space:]')"
-
-        # Variable-Werte aus GitHub holen (für zai/openrouter settings.local.json)
-        # Nutzen gh api um Variable zu lesen - falls nicht gesetzt, leerer String
-        ZAI_SETTINGS_JSON=""
-        OPENROUTER_SETTINGS_JSON=""
-        if [ "$PROVIDER" = "zai" ] || [ "$PROVIDER" = "openrouter" ]; then
-          # Variables sind in GitHub Context nicht direkt verfügbar, nutzen gh variable
-          if command -v gh >/dev/null 2>&1; then
-            ZAI_SETTINGS_JSON="$(gh variable get "$ZAI_SETTINGS_VAR" 2>/dev/null || true)"
-            OPENROUTER_SETTINGS_JSON="$(gh variable get "$OPENROUTER_SETTINGS_VAR" 2>/dev/null || true)"
-          fi
-        fi
 
         case "$PROVIDER" in
           claude)
@@ -225,12 +212,12 @@ runs:
               echo "::error title=Auth fehlt::vars.LLM_PROVIDER=zai, aber Secret ZAI_API_KEY ist leer."
               exit 1
             fi
-            # settings.local.json aus Variable bauen
+            # settings.local.json aus Input bauen
             if [ -n "$ZAI_SETTINGS_JSON" ]; then
               echo "$ZAI_SETTINGS_JSON" > .claude/settings.local.json
-              echo "::notice::settings.local.json aus Variable $ZAI_SETTINGS_VAR geschrieben."
+              echo "::notice::settings.local.json aus Input zai-settings-json geschrieben."
             else
-              echo "::warning::Variable $ZAI_SETTINGS_VAR nicht gesetzt — keine settings.local.json für zai."
+              echo "::warning::Input zai-settings-json leer — keine settings.local.json für zai."
             fi
             # Auth Token setzen (z.ai nutzt ANTHROPIC_AUTH_TOKEN als Bearer)
             echo "ANTHROPIC_AUTH_TOKEN=$ZAI_API_KEY" >> "$GITHUB_ENV"
@@ -240,12 +227,12 @@ runs:
               echo "::error title=Auth fehlt::vars.LLM_PROVIDER=openrouter, aber Secret OPENROUTER_API_KEY ist leer."
               exit 1
             fi
-            # settings.local.json aus Variable bauen
+            # settings.local.json aus Input bauen
             if [ -n "$OPENROUTER_SETTINGS_JSON" ]; then
               echo "$OPENROUTER_SETTINGS_JSON" > .claude/settings.local.json
-              echo "::notice::settings.local.json aus Variable $OPENROUTER_SETTINGS_VAR geschrieben."
+              echo "::notice::settings.local.json aus Input openrouter-settings-json geschrieben."
             else
-              echo "::warning::Variable $OPENROUTER_SETTINGS_VAR nicht gesetzt — keine settings.local.json für openrouter."
+              echo "::warning::Input openrouter-settings-json leer — keine settings.local.json für openrouter."
             fi
             # Auth Token setzen (OpenRouter nutzt ANTHROPIC_AUTH_TOKEN als Bearer)
             echo "ANTHROPIC_AUTH_TOKEN=$OPENROUTER_API_KEY" >> "$GITHUB_ENV"
