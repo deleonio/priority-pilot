@@ -64,7 +64,7 @@ jobs:
           # Debug: show generated settings.local (without secrets)
           if [ -f .claude/settings.local.json ]; then
             echo "Generated settings.local.json:"
-            cat .claude/settings.local.json | sed 's/"ANTHROPIC_AUTH_TOKEN": "[^"]*"/"ANTHROPIC_AUTH_TOKEN": "***"'
+            cat .claude/settings.local.json | sed 's#"ANTHROPIC_AUTH_TOKEN": "[^"]*"#"ANTHROPIC_AUTH_TOKEN": "***"#'
           fi
 
       - name: Install
