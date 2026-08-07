@@ -54,6 +54,15 @@ body {
 }
 
 .app-header {
+	/*
+	 * #485: Eine gemeinsame Maß-Basis für Logo, Toolbar-Buttons und Avatar.
+	 * `--pp-toolbar-height` ist die Höhe der Toolbar-Buttons: 2.75rem = 44px entspricht der
+	 * WCAG-2.5.5-Mindestgröße (`--a11y-min-size` der KoliBri-Buttons) — kleiner darf sie nicht sein.
+	 * Der Avatar leitet sich davon mit Faktor 1,25 ab, das Logo bleibt auf Avatar-Höhe.
+	 */
+	--pp-toolbar-height: 2.75rem;
+	--pp-avatar-size: calc(var(--pp-toolbar-height) * 1.25);
+
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
@@ -77,9 +86,13 @@ body {
 	outline-offset: 2px;
 }
 
+/*
+ * #485 AK1/AK5: Das Logo zeigt nur noch das Icon (`/logo/logo.png`, ~quadratisch) und treibt die
+ * Header-Höhe nicht mehr über den Avatar hinaus — es liegt exakt auf Avatar-Höhe.
+ */
 .logo-btn img {
 	display: block;
-	height: clamp(2.5rem, 6vw, 4rem);
+	height: var(--pp-avatar-size);
 	max-height: none;
 	width: auto;
 	max-width: 100%;
@@ -92,6 +105,16 @@ body {
 	align-items: center;
 }
 
+/*
+ * #485 AK3/AK4: Die Toolbar-Buttons werden auf die gemeinsame Bezugshöhe festgenagelt.
+ * `--a11y-min-size` ist die von KoliBri im Shadow-DOM genutzte Variable für `min-height`/`min-width`
+ * der Buttons; Custom Properties vererben durch die Shadow-Grenze, deshalb greift die Vorgabe hier.
+ */
+.toolbar kol-button,
+.toolbar kol-toolbar {
+	--a11y-min-size: var(--pp-toolbar-height);
+}
+
 /* User-Info-Block rechts in der Toolbar: Avatar + Anzeigename inline. */
 .user-info {
 	display: flex;
@@ -99,9 +122,18 @@ body {
 	gap: 0.5rem;
 }
 
-/* AK2 (#222): Avatar auf Toolbar-Höhe verkleinern (harmonisch mit Buttons). */
+/*
+ * AK2 (#222) / AK3 (#485): Avatar harmonisch zur Toolbar — exakt das 1,25-Fache der
+ * Toolbar-Button-Höhe. Über `--pp-toolbar-height` bleibt das Verhältnis bei Änderungen erhalten.
+ */
 .user-info kol-avatar {
-	--kol-avatar-size: 2rem;
+	/*
+	 * `kol-avatar` setzt im Shadow-DOM `:host { width: 100px; aspect-ratio: 1 }` und bietet dafür
+	 * keine Custom Property an (das frühere `--kol-avatar-size` blieb wirkungslos). Deshalb wird die
+	 * Breite am Host selbst gesetzt — ungeschichtete Dokument-Styles schlagen die `@layer`-Regel des
+	 * Components. `aspect-ratio: 1` hält den Avatar dabei weiterhin quadratisch.
+	 */
+	width: var(--pp-avatar-size);
 }
 
 .loading {
