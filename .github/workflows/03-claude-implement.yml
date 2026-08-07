@@ -2,7 +2,7 @@ name: Claude Implement (ai:ready)
 
 # Setzt ein Issue um, sobald es das Label "ai:ready" erhält UND bereits
 # "ai:analyzed" trägt.
-# Setzt **Claude Code** ein; Provider (z.ai) + Modell liegen in .claude/settings.json.
+# Setzt **Claude Code** ein; Provider via `vars.LLM_PROVIDER` (zai|claude), aufgelöst in setup-claude.
 
 on:
   issues:
@@ -50,7 +50,9 @@ jobs:
           ticket-ref: ${{ github.event.issue.number }}
           app-id: ${{ secrets.APP_ID }}
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          api-key: ${{ secrets.ZAI_API_KEY }}
+          llm-provider: ${{ vars.LLM_PROVIDER }}
+          zai-api-key: ${{ secrets.ZAI_API_KEY }}
+          claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
 
       - name: Issue einem Menschen zuweisen (Best-Effort)
         if: steps.setup.outputs.configured == 'true'

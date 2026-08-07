@@ -1,5 +1,5 @@
 name: 'Setup Claude Code Agent'
-description: 'Preflight, App-Token, Claude-Code-Install + Auth (Z.AI), Ticket-Auflösung, Invoke-Resolution — einheitlich für alle 5 Pipeline-Workflows'
+description: 'Preflight, App-Token, Claude-Code-Install + Auth (Provider-Switch zai/claude), Ticket-Auflösung, Invoke-Resolution — einheitlich für alle 5 Pipeline-Workflows'
 
 inputs:
   needs-mcp:
@@ -18,9 +18,16 @@ inputs:
   app-private-key:
     description: 'GitHub App Private Key (secret)'
     required: true
-  api-key:
-    description: 'API-Key für den LLM-Provider (secret, z.B. secrets.ZAI_API_KEY). Provider + Modell liegen in .claude/settings.json.'
-    required: true
+  llm-provider:
+    description: 'LLM-Provider für diesen Lauf: "claude" (Anthropic nativ, Default) oder "zai" (z.ai/GLM). Aus vars.LLM_PROVIDER; leer = claude.'
+    required: false
+    default: 'claude'
+  zai-api-key:
+    description: 'API-Key für z.ai (secret, secrets.ZAI_API_KEY). Nur bei llm-provider=zai erforderlich.'
+    required: false
+  claude-api-key:
+    description: 'API-Key für Anthropic (secret, secrets.CLAUDE_API_KEY). Nur bei llm-provider=claude erforderlich.'
+    required: false
 
 outputs:
   configured:
@@ -38,6 +45,9 @@ outputs:
   invoke-args:
     description: 'Invoke-Argumente (Claude-Flags inkl. --allowedTools)'
     value: ${{ steps.resolve-invoke.outputs.invoke-args }}
+  llm-provider:
+    description: 'Der tatsächlich aufgelöste Provider ("zai" oder "claude")'
+    value: ${{ steps.provider.outputs.llm-provider }}
 
 runs:
   using: composite
@@ -112,9 +122,13 @@ runs:
         echo "issue-number=$ISSUE_NR" >> "$GITHUB_OUTPUT"
 
     # ════════════════════════════════════════════════════════════════════════════
-    # CLAUDE CODE — Install + Auth + (optional) KoliBri MCP
-    # Provider (ANTHROPIC_BASE_URL) + Modell-Aliase liegen in .claude/settings.json.
-    # Die Action injiziert nur den API-Key (Secret kann nicht in settings.json).
+    # CLAUDE CODE — Install + Provider-Switch + Auth + (optional) KoliBri MCP
+    #
+    # Provider + Modell-Aliase kommen NICHT aus .claude/settings.json: die Datei ist
+    # eingecheckt und wird von lokalen Entwickler-Sessions mitbenutzt — ein dort
+    # gesetztes ANTHROPIC_BASE_URL würde jede lokale Session zwangs-umrouten.
+    # Deshalb setzt diese Action Endpoint, Modell-Aliase und Key pro Lauf via
+    # GITHUB_ENV, gesteuert über vars.LLM_PROVIDER.
     # ════════════════════════════════════════════════════════════════════════════
     - name: Claude Code installieren
       if: steps.preflight.outputs.configured == 'true'
@@ -138,22 +152,58 @@ runs:
         fi
         echo "::notice::Claude Code Trust-Dialog für CI-Workspace ($WORKSPACE_PATH) akzeptiert."
 
-    - name: Auth prüfen + API-Key setzen
+    - name: Provider auflösen + Auth setzen
+      id: provider
       if: steps.preflight.outputs.configured == 'true'
       shell: bash
       env:
-        API_KEY: ${{ inputs.api-key }}
+        LLM_PROVIDER: ${{ inputs.llm-provider }}
+        ZAI_API_KEY: ${{ inputs.zai-api-key }}
+        CLAUDE_API_KEY: ${{ inputs.claude-api-key }}
       run: |
-        if [ -z "$API_KEY" ]; then
-          echo "::error title=Auth fehlt::API-Key nicht gesetzt — Secret (z.B. ZAI_API_KEY) als Repo-Secret hinterlegen."
-          exit 1
-        fi
-        echo "ANTHROPIC_API_KEY=$API_KEY" >> "$GITHUB_ENV"
-        echo "::notice::API-Key gesetzt. Provider + Modell aus .claude/settings.json."
+        PROVIDER="${LLM_PROVIDER:-claude}"
+
+        case "$PROVIDER" in
+          claude)
+            if [ -z "$CLAUDE_API_KEY" ]; then
+              echo "::error title=Auth fehlt::vars.LLM_PROVIDER=claude, aber Secret CLAUDE_API_KEY ist leer."
+              exit 1
+            fi
+            # Nativ: kein ANTHROPIC_BASE_URL, keine Alias-Overrides — "opus" ist echtes Opus.
+            echo "ANTHROPIC_API_KEY=$CLAUDE_API_KEY" >> "$GITHUB_ENV"
+            echo "::notice::Provider=claude — Anthropic-Default-Endpoint, Modell aus .claude/settings.json."
+            ;;
+          zai)
+            if [ -z "$ZAI_API_KEY" ]; then
+              echo "::error title=Auth fehlt::vars.LLM_PROVIDER=zai, aber Secret ZAI_API_KEY ist leer."
+              exit 1
+            fi
+            # z.ai spricht das Anthropic-Protokoll unter eigenem Endpoint; die Alias-Variablen
+            # mappen die Claude-Modellnamen (opus/sonnet/haiku/fable) auf GLM-Modelle, damit
+            # "model": "opus" aus .claude/settings.json für beide Provider funktioniert.
+            {
+              echo "ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic"
+              echo "ANTHROPIC_API_KEY=$ZAI_API_KEY"
+              echo "ANTHROPIC_DEFAULT_OPUS_MODEL=glm-5.1[1m]"
+              echo "ANTHROPIC_DEFAULT_SONNET_MODEL=glm-4.7[1m]"
+              echo "ANTHROPIC_DEFAULT_HAIKU_MODEL=glm-4.5-air"
+              echo "ANTHROPIC_DEFAULT_FABLE_MODEL=glm-5.2"
+              echo "CLAUDE_CODE_SUBAGENT_MODEL=glm-4.7"
+            } >> "$GITHUB_ENV"
+            echo "::notice::Provider=zai — Endpoint api.z.ai, Modell glm-5.1[1m] (via Alias opus)."
+            ;;
+          *)
+            echo "::error title=Unbekannter Provider::vars.LLM_PROVIDER='$PROVIDER' — erlaubt sind 'zai' oder 'claude'."
+            exit 1
+            ;;
+        esac
+
+        echo "llm-provider=$PROVIDER" >> "$GITHUB_OUTPUT"
 
     # ════════════════════════════════════════════════════════════════════════════
     # INVOKE-RESOLUTION — setzt invoke-cmd + invoke-args
-    # Kein --model: das Modell wird über "model" in .claude/settings.json gewählt.
+    # Kein --model: das Modell wird über "model" in .claude/settings.json gewählt
+    # und pro Provider über die Alias-Variablen oben aufgelöst.
     # ════════════════════════════════════════════════════════════════════════════
     - name: Invoke auflösen
       id: resolve-invoke

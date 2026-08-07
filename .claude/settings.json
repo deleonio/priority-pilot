@@ -15,7 +15,7 @@
 	"skipWorkflowUsageWarning": true,
 	"theme": "dark",
 	"mcpServers": {
-		"kolibri": {
+		"kolibri-mcp": {
 			"url": "https://public-ui-kolibri-mcp.vercel.app/mcp"
 		}
 	}
