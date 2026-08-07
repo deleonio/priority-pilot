@@ -153,8 +153,11 @@ jobs:
             --jq "[.[] | select((.closingIssuesReferences // []) | any(.number == ${ISSUE})) | .number] | first" 2>/dev/null || echo "")"
           ARTIFACTS_OK="false"
           if [ -n "$SPEC_PR" ] && [ "$SPEC_PR" != "null" ]; then
+            # endswith() statt test("\.…") — gh's jq-Parser wertet Backslash-Escapes in
+            # String-Literalen als Fehler ("invalid escape sequence"), echtes jq nicht.
             HAS_TESTS="$(gh pr view "$SPEC_PR" --repo "$GITHUB_REPOSITORY" --json files \
-              --jq '[.files[].path | test("\.(test|spec)\.(ts|tsx)$")] | any' 2>/dev/null || echo "false")"
+              --jq '[.files[].path | (endswith(".test.ts") or endswith(".test.tsx") or endswith(".spec.ts") or endswith(".spec.tsx"))] | any' 2>/dev/null || echo "false")"
+            echo "::notice::Spec-PR #$SPEC_PR: HAS_TESTS=$HAS_TESTS"
             if [ "$HAS_TESTS" = "true" ]; then
               ARTIFACTS_OK="true"
             fi
