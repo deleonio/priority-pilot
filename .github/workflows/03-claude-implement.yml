@@ -66,9 +66,29 @@ jobs:
           fi
           gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-assignee "$ASSIGNEE"
 
+      - name: Skip-Guard (Implement läuft bereits)
+        id: skip-guard
+        if: steps.setup.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          # Läuft bereits ein Implement-Lauf, skippen wir den neuen: der laufende Job
+          # bleibt ungestört (keine verschwendeten Tokens); fehlendes holt später der
+          # Fixup. cancel-in-progress kann das nicht ausdrücken (würde den laufenden
+          # abbrechen statt den neuen abzuweisen). Muster: Supersede-Check im Review.
+          running=$(gh api repos/${GITHUB_REPOSITORY}/actions/runs \
+            --jq '.workflow_runs[] | select(.name == "Claude Implement (ai:ready)" and (.status == "queued" or .status == "in_progress") and .id != ${{ github.run_id }}) | .id' 2>/dev/null | head -1)
+          if [ -n "$running" ]; then
+            echo "::notice::Implement-Lauf für Issue #$ISSUE läuft bereits — übersprungen (Fixup holt Fehlendes nach)."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Doppel-Run-Guard (ready-PR existiert bereits)
         id: doppel-guard
-        if: steps.setup.outputs.configured == 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.skip-guard.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
@@ -87,27 +107,27 @@ jobs:
           echo "skip=false" >> "$GITHUB_OUTPUT"
 
       - name: pnpm einrichten
-        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.skip-guard.outputs.skip != 'true' && steps.doppel-guard.outputs.skip != 'true'
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
 
       - name: Node.js einrichten
-        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.skip-guard.outputs.skip != 'true' && steps.doppel-guard.outputs.skip != 'true'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
           cache: pnpm
 
       - name: Abhängigkeiten installieren
-        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.skip-guard.outputs.skip != 'true' && steps.doppel-guard.outputs.skip != 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Git-Hooks installieren (lefthook)
-        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.skip-guard.outputs.skip != 'true' && steps.doppel-guard.outputs.skip != 'true'
         run: pnpm exec lefthook install
 
       - name: Fortsetzungs-Stand prüfen (ai:continued)
         id: continued-before
-        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.skip-guard.outputs.skip != 'true' && steps.doppel-guard.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
@@ -117,7 +137,7 @@ jobs:
 
       - name: Umsetzung via Claude
         id: claude
-        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.skip-guard.outputs.skip != 'true' && steps.doppel-guard.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
