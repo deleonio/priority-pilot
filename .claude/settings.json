@@ -9,5 +9,6 @@
 	"permissions": {
 		"allow": ["Agent(*)", "Bash(*)", "Read(*)", "WebFetch(*)"]
 	},
-	"model": "opus"
+	"model": "opus",
+	"enabledMcpjsonServers": ["kolibri-mcp"]
 }
