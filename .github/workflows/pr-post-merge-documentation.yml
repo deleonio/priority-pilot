@@ -477,7 +477,11 @@ jobs:
                 done < <(gh cache list --repo "$REPO" --key "ticket-${ref}-" --json id --jq '.[].id' 2>/dev/null || true)
               fi
             done
-            echo "   🗑️ Ticket-Memory für PR #$pr_number abgebaut (Closing-Issue: ${closing_issue:-keine})"
+            if [ "$DRY_RUN" = "false" ]; then
+              echo "   🗑️ Ticket-Memory für PR #$pr_number abgebaut (Closing-Issue: ${closing_issue:-keine})"
+            else
+              echo "   🧪 Ticket-Memory-Abbau übersprungen (DRY_RUN; Closing-Issue: ${closing_issue:-keine})"
+            fi
 
             processed=$((processed + 1))
             echo "✅ PR #$pr_number vollständig bearbeitet"
