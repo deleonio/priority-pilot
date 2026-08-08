@@ -8,7 +8,7 @@
 	},
 	"permissions": {
 		"allow": ["Agent(*)", "Bash(*)", "Read(*)", "WebFetch(*)"],
-		"deny": ["Bash(git commit *)", "Bash(git push *)"]
+		"deny": []
 	},
 	"model": "opus",
 	"tui": "fullscreen",
