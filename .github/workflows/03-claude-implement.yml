@@ -1,3 +1,6 @@
+# ⚠️ Der Workflow-Name ist der Selektor des Skip-Guards weiter unten
+# (`select(.name == "Claude Implement (ai:ready)" ...)`). Wird er hier geaendert,
+# muss die jq-Query mitgezogen werden — sonst greift der Guard still nicht mehr.
 name: Claude Implement (ai:ready)
 
 # Setzt ein Issue um, sobald es das Label "ai:ready" erhält UND bereits
@@ -57,20 +60,6 @@ jobs:
           openrouter-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER }}
           memory-load: 'true'
 
-      - name: Issue einem Menschen zuweisen (Best-Effort)
-        if: steps.setup.outputs.configured == 'true'
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
-          ISSUE: ${{ github.event.issue.number }}
-          ASSIGNEE: ${{ github.event.sender.type == 'User' && github.event.sender.login || (github.event.issue.user.type == 'User' && github.event.issue.user.login || '') }}
-        run: |
-          if [ -z "$ASSIGNEE" ]; then
-            echo "::notice::Kein menschlicher Assignee ermittelbar."
-            exit 0
-          fi
-          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-assignee "$ASSIGNEE"
-
       - name: Skip-Guard (Implement läuft bereits)
         id: skip-guard
         if: steps.setup.outputs.configured == 'true'
@@ -86,6 +75,23 @@ jobs:
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
+
+      # Steht bewusst NACH dem Skip-Guard: bei einem geskippten Lauf hat der laufende
+      # Job bereits zugewiesen — ein zweiter Aufruf kostet nur API-Quota und kann eine
+      # ueberfluessige Assignment-Notification ausloesen.
+      - name: Issue einem Menschen zuweisen (Best-Effort)
+        if: steps.setup.outputs.configured == 'true' && steps.skip-guard.outputs.skip != 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          ISSUE: ${{ github.event.issue.number }}
+          ASSIGNEE: ${{ github.event.sender.type == 'User' && github.event.sender.login || (github.event.issue.user.type == 'User' && github.event.issue.user.login || '') }}
+        run: |
+          if [ -z "$ASSIGNEE" ]; then
+            echo "::notice::Kein menschlicher Assignee ermittelbar."
+            exit 0
+          fi
+          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-assignee "$ASSIGNEE"
 
       - name: Doppel-Run-Guard (ready-PR existiert bereits)
         id: doppel-guard
@@ -144,6 +150,7 @@ jobs:
           ISSUE: ${{ github.event.issue.number }}
         run: |
           cat > /tmp/claude-prompt.txt << 'CLAUDE_EOF'
+          TICKET-MEMORY: Lies vor Beginn alle Dateien in .claude/ticket-memory/ (falls vorhanden) — ticketspezifisches Gedächtnis aus früheren Phasen. Schreibe am ENDE deine wichtigsten Erkenntnisse (Entscheidungen, Fallstricke, fertige/fehlende Implementationsschritte) in .claude/ticket-memory/phase-implement.md. Max. ~30 Zeilen, nur Neues.
           FOKUS: NUR Issue #ISSUE_NR. KEINE Abstecher. Token sparen: kurz, präzise, direkt.
 
           Memory ist bereits geladen (ticket-ISSUE_NR).
@@ -179,17 +186,15 @@ jobs:
             2>&1 | tee /tmp/claude-output.log
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
 
-      - name: Setup Claude Code (Memory-Save)
+      - name: Memory-Save (ticketspezifisch, dateibasiert)
+        # Cache nur schreiben, wenn Claude gelaufen ist (s. workflow-invariants-Test: das
+        # outcome-Binding hält diesen Step im Guard-Skip-Fall indirekt heraus).
         if: always() && steps.setup.outputs.configured == 'true' && steps.claude.outcome == 'success'
-        uses: ./.github/actions/setup-claude
+        uses: actions/cache/save@v4
         with:
-          needs-mcp: false
-          event-type: ${{ github.event_name }}
-          ticket-ref: ${{ github.event.issue.number }}
-          app-id: ${{ secrets.APP_ID }}
-          app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          llm-provider: ${{ vars.LLM_PROVIDER }}
-          memory-save: 'true'
+          path: ${{ steps.setup.outputs.memory-path }}
+          key: ${{ steps.setup.outputs.memory-save-key }}
+          if-no-path-exists: ignore
 
       - name: Label-Post-Assertion (VERDICT parsen, Labels via App-Token force-setzen)
         if: always() && steps.setup.outputs.configured == 'true' && steps.skip-guard.outputs.skip != 'true' && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure' || steps.doppel-guard.outputs.skip == 'true')
@@ -197,6 +202,7 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
           ALREADY_CONTINUED: ${{ steps.continued-before.outputs.already }}
+          GUARD_SKIP: ${{ steps.doppel-guard.outputs.skip }}
         run: |
           verdict=""
           if [ -f /tmp/claude-output.log ]; then
@@ -204,8 +210,17 @@ jobs:
           fi
           echo "Claude-Verdict aus Output: '${verdict:-keins}'"
 
+          # Dieser Step laeuft im Doppel-Run-Guard-Skip bewusst mit (siehe if oben): er soll das
+          # Label fuer den BESTEHENDEN PR setzen. Ohne diesen Arm haengt das Ergebnis daran, dass
+          # die ARTIFACTS_OK-Pruefung den fremden PR zufaellig als fertig erkennt — richtig, aber
+          # unbelegt. Explizit machen, symmetrisch zu 02-claude-spec.yml.
+          if [ "${GUARD_SKIP:-false}" = "true" ]; then
+            verdict="needs-review"
+            echo "::notice::Doppel-Run-Guard: PR existiert bereits — behandele als needs-review."
+          fi
+
           PR_NR="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --json number,isDraft,closingIssuesReferences \
-            --jq "[.[] | select((.closingIssuesReferences // []) | any(.number == ${ISSUE})) | .number] | first" 2>/dev/null || echo "")"
+            --jq "[.[] | select(.isDraft == false) | select((.closingIssuesReferences // []) | any(.number == ${ISSUE})) | .number] | first" 2>/dev/null || echo "")"
           ARTIFACTS_OK="false"
           if [ -n "$PR_NR" ] && [ "$PR_NR" != "null" ]; then
             PR_DRAFT="$(gh pr view "$PR_NR" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft' 2>/dev/null || echo "true")"
@@ -265,9 +280,17 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
           OUTCOME: ${{ steps.claude.outcome }}
+          SKIP_GUARD: ${{ steps.skip-guard.outputs.skip }}
+          SKIP_DOPPEL: ${{ steps.doppel-guard.outputs.skip }}
         run: |
           labels="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
-          if [ "$OUTCOME" = "success" ]; then
+          # Je ein eigener Arm pro Guard: ohne sie faellt der gewollte Skip auf den
+          # Fehler-Arm (OUTCOME ist leer, weil der claude-Step nie lief) und meldet ❌.
+          if [ "${SKIP_GUARD:-false}" = "true" ]; then
+            echo "::notice title=⏭️ Umsetzung übersprungen::Issue #${ISSUE} — Lauf bereits aktiv"
+          elif [ "${SKIP_DOPPEL:-false}" = "true" ]; then
+            echo "::notice title=⏭️ Umsetzung übersprungen::Issue #${ISSUE} — PR existiert bereits"
+          elif [ "$OUTCOME" = "success" ]; then
             echo "::notice title=✅ Umsetzung erfolgreich::Issue #${ISSUE}"
           elif [ "$OUTCOME" = "cancelled" ]; then
             echo "::warning title=⏸️ Umsetzung abgebrochen"

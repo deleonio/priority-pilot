@@ -72,6 +72,7 @@ jobs:
           ISSUE: ${{ github.event.issue.number }}
         run: |
           cat > /tmp/claude-prompt.txt << 'CLAUDE_EOF'
+          TICKET-MEMORY: Lies vor Beginn alle Dateien in .claude/ticket-memory/ (falls vorhanden) — ticketspezifisches Gedächtnis aus früheren Phasen. Schreibe am ENDE deine wichtigsten Erkenntnisse (Entscheidungen, Fallstricke, fertige/fehlende Schritte) in .claude/ticket-memory/phase-triage.md. Max. ~30 Zeilen, nur Neues.
           FOKUS: NUR Issue #ISSUE_NR. KEINE Abstecher. Token sparen: kurz, präzise, direkt.
 
           Memory ist bereits geladen (ticket-ISSUE_NR).
@@ -111,17 +112,15 @@ jobs:
             2>&1 | tee /tmp/claude-output.log
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
 
-      - name: Setup Claude Code (Memory-Save)
+      - name: Memory-Save (ticketspezifisch, dateibasiert)
+        # Cache nur schreiben, wenn Claude gelaufen ist (s. workflow-invariants-Test: das
+        # outcome-Binding hält diesen Step im Guard-Skip-Fall indirekt heraus).
         if: always() && steps.setup.outputs.configured == 'true' && steps.claude.outcome == 'success'
-        uses: ./.github/actions/setup-claude
+        uses: actions/cache/save@v4
         with:
-          needs-mcp: false
-          event-type: ${{ github.event_name }}
-          ticket-ref: ${{ github.event.issue.number }}
-          app-id: ${{ secrets.APP_ID }}
-          app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          llm-provider: ${{ vars.LLM_PROVIDER }}
-          memory-save: 'true'
+          path: ${{ steps.setup.outputs.memory-path }}
+          key: ${{ steps.setup.outputs.memory-save-key }}
+          if-no-path-exists: ignore
 
       - name: Label-Post-Assertion (VERDICT parsen, Labels via App-Token force-setzen)
         if: always() && steps.setup.outputs.configured == 'true' && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure')

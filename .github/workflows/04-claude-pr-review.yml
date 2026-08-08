@@ -82,6 +82,7 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
         run: |
           cat > /tmp/claude-prompt.txt << 'CLAUDE_EOF'
+          TICKET-MEMORY: Lies vor Beginn alle Dateien in .claude/ticket-memory/ (falls vorhanden) — ticketspezifisches Gedächtnis aus früheren Phasen. Schreibe am ENDE deine wichtigsten Erkenntnisse (gefundene Findings, Severity, empfohlene Fixes) in .claude/ticket-memory/phase-review.md. Max. ~30 Zeilen, nur Neues.
           FOKUS: NUR PR #PR_NR. NUR den Diff prüfen. KEINE Abstecher. Token sparen: kurz, präzise, direkt.
 
           Memory ist bereits geladen (ticket-PR_NR).
@@ -123,17 +124,15 @@ jobs:
             2>&1 | tee /tmp/claude-output.log
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
 
-      - name: Setup Claude Code (Memory-Save)
+      - name: Memory-Save (ticketspezifisch, dateibasiert)
+        # Cache nur schreiben, wenn Claude gelaufen ist (s. workflow-invariants-Test: das
+        # outcome-Binding hält diesen Step im Guard-Skip-Fall indirekt heraus).
         if: always() && steps.setup.outputs.configured == 'true' && steps.claude.outcome == 'success'
-        uses: ./.github/actions/setup-claude
+        uses: actions/cache/save@v4
         with:
-          needs-mcp: false
-          event-type: ${{ github.event_name }}
-          ticket-ref: ${{ github.event.pull_request.number }}
-          app-id: ${{ secrets.APP_ID }}
-          app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          llm-provider: ${{ vars.LLM_PROVIDER }}
-          memory-save: 'true'
+          path: ${{ steps.setup.outputs.memory-path }}
+          key: ${{ steps.setup.outputs.memory-save-key }}
+          if-no-path-exists: ignore
 
       - name: Label-Post-Assertion (Labels via App-Token force-setzen)
         if: always() && steps.setup.outputs.configured == 'true' && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure')
@@ -217,9 +216,14 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
           OUTCOME: ${{ steps.claude.outcome }}
+          SKIP_SUPERSEDE: ${{ steps.supersede-check.outputs.skip }}
         run: |
           labels="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
-          if [ "$OUTCOME" = "success" ]; then
+          # Eigener Arm fuer den Supersede-Check: ohne ihn faellt der gewollte Skip auf den
+          # Fehler-Arm (OUTCOME ist leer, weil der claude-Step nie lief) und meldet ❌.
+          if [ "${SKIP_SUPERSEDE:-false}" = "true" ]; then
+            echo "::notice title=⏭️ Review übersprungen::PR #${PR} — Lauf bereits aktiv"
+          elif [ "$OUTCOME" = "success" ]; then
             echo "::notice title=✅ Review erfolgreich::PR #${PR}"
           elif [ "$OUTCOME" = "cancelled" ]; then
             echo "::warning title=⏸️ Review abgebrochen"
@@ -237,7 +241,15 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
+          SKIP_SUPERSEDE: ${{ steps.supersede-check.outputs.skip }}
         run: |
+          # Beim Supersede-Skip hat dieser Lauf nichts beigetragen — das Ergebnis-Label setzt der
+          # laufende Review. Ohne diesen Arm meldet der Step "stecken geblieben" fuer einen
+          # gewollten Skip und faerbt einen korrekt arbeitenden Lauf rot.
+          if [ "${SKIP_SUPERSEDE:-false}" = "true" ]; then
+            echo "::notice title=⏭️ Verifikation übersprungen::PR #${PR} — laufender Review setzt das Label"
+            exit 0
+          fi
           for i in 1 2 3 4 5; do
             labels_json="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name]' 2>/dev/null || echo '[]')"
             needs_changes="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:needs-changes")')"

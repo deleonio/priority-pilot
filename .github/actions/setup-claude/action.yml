@@ -40,13 +40,12 @@ inputs:
     description: 'settings.local.json für openrouter als JSON-String (aus vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER)'
     required: false
     default: ''
-  # Memory-Funktionen für ticketspezifische Persistenz
+  # Memory-Funktionen für ticketspezifische Persistenz (dateibasiert via Actions-Cache).
+  # Memory-Save passiert NICHT hier (die Action läuft nur pre-claude), sondern als
+  # actions/cache/save-Step im Workflow nach dem claude-Step. Die Action liefert dafür
+  # memory-save-key + memory-path als Outputs.
   memory-load:
-    description: 'Memory-Load zu Beginn des Workflows (true = lädt Memory für ticket-ref)'
-    required: false
-    default: 'false'
-  memory-save:
-    description: 'Memory-Save am Ende des Workflows (true = speichert Memory für ticket-ref)'
+    description: 'Memory-Load zu Beginn des Workflows (true = restauriert dateibasierte Memory für ticket-ref aus dem Actions-Cache)'
     required: false
     default: 'false'
 
@@ -70,11 +69,14 @@ outputs:
     description: 'Der tatsächlich aufgelöste Provider ("zai" oder "claude")'
     value: ${{ steps.provider.outputs.llm-provider }}
   memory-loaded:
-    description: 'Ob Memory erfolgreich geladen wurde'
-    value: ${{ steps.memory-load.outputs.loaded }}
-  memory-saved:
-    description: 'Ob Memory erfolgreich gespeichert wurde'
-    value: ${{ steps.memory-save.outputs.saved }}
+    description: 'Ob ticketspezifische Memory aus einer Vor-Phase geladen wurde (Cache-Hit)'
+    value: ${{ steps.memory-load.outputs.cache-hit }}
+  memory-path:
+    description: 'Pfad des ticketspezifischen Memory-Verzeichnisses (claude liest/schreibt hierin)'
+    value: .claude/ticket-memory
+  memory-save-key:
+    description: 'Cache-Key für den Memory-Save-Step im Workflow (unique pro Lauf, damit cache/save kein no-op wird)'
+    value: ticket-${{ steps.ticket.outputs.issue-number }}-${{ github.run_id }}-${{ github.run_attempt }}
 
 runs:
   using: composite
@@ -148,28 +150,22 @@ runs:
         fi
         echo "issue-number=$ISSUE_NR" >> "$GITHUB_OUTPUT"
 
-    - name: Memory-Load (ticketspezifisch)
+    - name: Memory-Load (ticketspezifisch, dateibasiert)
       id: memory-load
       if: steps.preflight.outputs.configured == 'true' && inputs.memory-load == 'true'
-      env:
-        TICKET_REF: ${{ inputs.ticket-ref }}
-        ISSUE_NUMBER: ${{ steps.ticket.outputs.issue-number }}
+      uses: actions/cache/restore@v4
+      with:
+        path: .claude/ticket-memory
+        # Unique key (run_id/run_attempt) -> beim Restore kein exact hit; restore-keys holt per
+        # Prefix den NEUESTEN ticket-{N}-* Cache (LIFO). So sieht jede Phase den Stand der Vor-Phase.
+        key: ticket-${{ steps.ticket.outputs.issue-number }}-${{ github.run_id }}-${{ github.run_attempt }}
+        restore-keys: |
+          ticket-${{ steps.ticket.outputs.issue-number }}-
+
+    - name: Memory-Verzeichnis sicherstellen (Claude-Schreibzugriff auch bei Cache-Miss)
+      if: steps.preflight.outputs.configured == 'true' && inputs.memory-load == 'true'
       shell: bash
-      run: |
-        MEMORY_KEY="ticket-${ISSUE_NUMBER:-$TICKET_REF}"
-        echo "::notice::Memory-Load für Key: $MEMORY_KEY"
-        if command -v claude &> /dev/null; then
-          if claude memory load --key "$MEMORY_KEY" 2>/dev/null; then
-            echo "loaded=true" >> "$GITHUB_OUTPUT"
-            echo "::notice::Memory erfolgreich geladen für $MEMORY_KEY"
-          else
-            echo "loaded=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::Memory-Load fehlgeschlagen für $MEMORY_KEY (keine bestehende Memory)"
-          fi
-        else
-          echo "loaded=false" >> "$GITHUB_OUTPUT"
-          echo "::warning::Claude CLI nicht verfügbar – Memory-Load übersprungen"
-        fi
+      run: mkdir -p .claude/ticket-memory
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     # CLAUDE CODE – Install + Provider-Switch + Auth + (optional) KoliBri MCP
@@ -302,25 +298,6 @@ runs:
         fi
         echo "invoke-args=--dangerously-skip-permissions --allowedTools $ALLOWED_TOOLS" >> "$GITHUB_OUTPUT"
 
-    - name: Memory-Save (ticketspezifisch)
-      id: memory-save
-      if: steps.preflight.outputs.configured == 'true' && inputs.memory-save == 'true'
-      env:
-        TICKET_REF: ${{ inputs.ticket-ref }}
-        ISSUE_NUMBER: ${{ steps.ticket.outputs.issue-number }}
-      shell: bash
-      run: |
-        MEMORY_KEY="ticket-${ISSUE_NUMBER:-$TICKET_REF}"
-        echo "::notice::Memory-Save für Key: $MEMORY_KEY"
-        if command -v claude &> /dev/null; then
-          if claude memory save --key "$MEMORY_KEY" 2>/dev/null; then
-            echo "saved=true" >> "$GITHUB_OUTPUT"
-            echo "::notice::Memory erfolgreich gespeichert für $MEMORY_KEY"
-          else
-            echo "saved=false" >> "$GITHUB_OUTPUT"
-            echo "::error::Memory-Save fehlgeschlagen für $MEMORY_KEY"
-          fi
-        else
-          echo "saved=false" >> "$GITHUB_OUTPUT"
-          echo "::warning::Claude CLI nicht verfügbar – Memory-Save übersprungen"
-        fi
+    # Memory-Save findet sich NICHT hier (die Action läuft ausschließlich pre-claude).
+    # Jeder Workflow ruft nach dem claude-Step selbst actions/cache/save@v4 mit dem
+    # Output steps.setup.outputs.memory-save-key auf (s. 01..05-claude-*.yml).

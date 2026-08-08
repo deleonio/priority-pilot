@@ -1,3 +1,6 @@
+# ⚠️ Der Workflow-Name ist der Selektor des Skip-Guards weiter unten
+# (`select(.name == "Claude Spec (ai:spec-ready)" ...)`). Wird er hier geaendert,
+# muss die jq-Query mitgezogen werden — sonst greift der Guard still nicht mehr.
 name: Claude Spec (ai:spec-ready)
 
 # Schreibt die ROTEN Tests (ausführbarer Vertrag) für ein Issue, sobald es
@@ -120,6 +123,7 @@ jobs:
           ISSUE: ${{ github.event.issue.number }}
         run: |
           cat > /tmp/claude-prompt.txt << 'CLAUDE_EOF'
+          TICKET-MEMORY: Lies vor Beginn alle Dateien in .claude/ticket-memory/ (falls vorhanden) — ticketspezifisches Gedächtnis aus früheren Phasen. Schreibe am ENDE deine wichtigsten Erkenntnisse (Entscheidungen, Fallstricke, fertige/fehlende Tests) in .claude/ticket-memory/phase-spec.md. Max. ~30 Zeilen, nur Neues.
           FOKUS: NUR Issue #ISSUE_NR. KEINE Abstecher. Token sparen: kurz, präzise, direkt.
 
           Memory ist bereits geladen (ticket-ISSUE_NR).
@@ -155,17 +159,15 @@ jobs:
             2>&1 | tee /tmp/claude-output.log
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
 
-      - name: Setup Claude Code (Memory-Save)
+      - name: Memory-Save (ticketspezifisch, dateibasiert)
+        # Cache nur schreiben, wenn Claude gelaufen ist (s. workflow-invariants-Test: das
+        # outcome-Binding hält diesen Step im Guard-Skip-Fall indirekt heraus).
         if: always() && steps.setup.outputs.configured == 'true' && steps.claude.outcome == 'success'
-        uses: ./.github/actions/setup-claude
+        uses: actions/cache/save@v4
         with:
-          needs-mcp: false
-          event-type: ${{ github.event_name }}
-          ticket-ref: ${{ github.event.issue.number }}
-          app-id: ${{ secrets.APP_ID }}
-          app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          llm-provider: ${{ vars.LLM_PROVIDER }}
-          memory-save: 'true'
+          path: ${{ steps.setup.outputs.memory-path }}
+          key: ${{ steps.setup.outputs.memory-save-key }}
+          if-no-path-exists: ignore
 
       - name: Label-Post-Assertion (VERDICT parsen, Labels via App-Token force-setzen)
         if: always() && steps.setup.outputs.configured == 'true' && steps.skip-guard.outputs.skip != 'true' && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure' || steps.doppel-guard.outputs.skip == 'true')
@@ -239,10 +241,18 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
           OUTCOME: ${{ steps.claude.outcome }}
+          SKIP_GUARD: ${{ steps.skip-guard.outputs.skip }}
+          SKIP_DOPPEL: ${{ steps.doppel-guard.outputs.skip }}
         run: |
           labels="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
-          if [ "$OUTCOME" = "success" ]; then
-            echo "::notice title=✅ Spec erfolgreich::Issue #${ISSUE} – Rote Tests geschrieben"
+          # Je ein eigener Arm pro Guard: ohne sie faellt der gewollte Skip auf den
+          # Fehler-Arm (OUTCOME ist leer, weil der claude-Step nie lief) und meldet ❌.
+          if [ "${SKIP_GUARD:-false}" = "true" ]; then
+            echo "::notice title=⏭️ Spec übersprungen::Issue #${ISSUE} — Lauf bereits aktiv"
+          elif [ "${SKIP_DOPPEL:-false}" = "true" ]; then
+            echo "::notice title=⏭️ Spec übersprungen::Issue #${ISSUE} — PR existiert bereits"
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "::notice title=✅ Spec erfolgreich::Issue #${ISSUE} — Rote Tests geschrieben"
           elif [ "$OUTCOME" = "cancelled" ]; then
             echo "::warning title=⏸️ Spec abgebrochen"
           else
