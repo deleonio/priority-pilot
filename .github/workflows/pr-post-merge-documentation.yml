@@ -33,11 +33,17 @@ permissions:
   contents: read
   pull-requests: write
   issues: write
+  # actions: write — fuer gh cache delete beim Ticket-Memory-Abbau (s. Loop).
+  actions: write
 
 env:
   REPO: ${{ github.repository }}
   MAX_PRS: ${{ github.event.inputs.max-prs || '12' }}
   DRY_RUN: ${{ github.event.inputs.dry-run || 'false' }}
+  # GH_TOKEN auf Workflow-Ebene: vererbt sich an JEEN Step — auch an Phase 0, das frueher kein
+  # eigenes GH_TOKEN hatte und am ersten gh-Aufruf starb (exit 4). Nicht in einen Step zurueck-
+  # verschieben, sonst bricht die naechste Phase-0-Erweiterung wieder laut ab.
+  GH_TOKEN: ${{ github.token }}
 
 jobs:
   document-merged-prs:
@@ -95,7 +101,6 @@ jobs:
         id: process-prs
         if: steps.setup.outputs.pr_count > 0
         env:
-          GH_TOKEN: ${{ github.token }}
           CONVENTIONAL_PATTERN: ${{ steps.setup.outputs.conventional_pattern }}
           DRY_RUN: ${{ env.DRY_RUN }}
         run: |
@@ -109,6 +114,7 @@ jobs:
           processed=0
           skipped=0
           title_changed=0
+          drained=0
 
           while IFS= read -r pr_json; do
             [ -z "$pr_json" ] && continue
@@ -450,6 +456,29 @@ jobs:
 
             # PHASE 6 — Summary (subshell-safe via Temp-File)
             printf '%s\t%s\t%s\t%s\n' "#$pr_number" "$pr_title" "$emoji ${classification^}" "$title_changed_flag" >> "$summary_file"
+
+            # ----------------------------------------------------
+            # TICKET-MEMORY ABBAUEN — Caches des gemergten Tickets loeschen
+            # ----------------------------------------------------
+            # Die Claude-Phasen 01-05 schreiben pro Issue nach .claude/ticket-memory/ und
+            # persistieren das unter Key ticket-{issue-number}-* (s. setup-claude action,
+            # memory-save-key). Nach Merge ist der Memory stale -> abbauen. Issue-Aufloesung wie
+            # setup-claude: Closing-Issue, sonst PR-Nummer als Fallback (passt zum Cache-Key).
+            # Best-Effort (|| true): ein fehlgeschlagener Delete darf den Lauf nicht abbrechen.
+            echo "🧹 Ticket-Memory abbauen..."
+            closing_issue=$(gh pr view "$pr_number" --repo "$REPO" --json closingIssuesReferences \
+              --jq '[.closingIssuesReferences[].number] | first' 2>/dev/null || true)
+            for ref in "$closing_issue" "$pr_number"; do
+              if [ -z "$ref" ] || [ "$ref" = "null" ]; then continue; fi
+              if [ "$DRY_RUN" = "false" ]; then
+                while IFS= read -r cid; do
+                  [ -z "$cid" ] && continue
+                  gh cache delete "$cid" --repo "$REPO" 2>/dev/null && drained=$((drained + 1)) || true
+                done < <(gh cache list --repo "$REPO" --key "ticket-${ref}-" --json id --jq '.[].id' 2>/dev/null || true)
+              fi
+            done
+            echo "   🗑️ Ticket-Memory für PR #$pr_number abgebaut (Closing-Issue: ${closing_issue:-keine})"
+
             processed=$((processed + 1))
             echo "✅ PR #$pr_number vollständig bearbeitet"
 
@@ -462,7 +491,7 @@ jobs:
           {
             echo "## ✅ PR-Dokumentations-Routine abgeschlossen"
             echo ""
-            echo "Bearbeitete PRs: $processed | Übersprungene Bot-PRs: $skipped | Titel geändert: $title_changed"
+            echo "Bearbeitete PRs: $processed | Übersprungene Bot-PRs: $skipped | Titel geändert: $title_changed | Memory-Caches abgebaut: $drained"
             echo ""
             echo "| PR | Titel | Klassifikation | Titel geändert? |"
             echo "|----|-------|---------------|-----------------|"
