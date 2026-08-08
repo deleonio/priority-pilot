@@ -83,7 +83,7 @@ jobs:
           # extrahieren, dann slicen.
           search_query="repo:$REPO is:pr is:merged -label:ai:documented -label:release:ignore"
           gh api "/search/issues" -f q="$search_query" -f sort=created -f order=desc --paginate 2>/dev/null \
-            | jq -s '[.[] | .items[]] | .[0:env.MAX_PRS | tonumber]' \
+            | jq -s '[.[] | (.items // [])[]] | .[0:env.MAX_PRS | tonumber]' \
             | jq -c '.[] | {number: .number, title: .title, head_branch: .head_ref_name, author: .user.login, labels: [.labels[].name], body: .body}' \
             > /tmp/prs_to_process.json
 
