@@ -46,9 +46,7 @@ Label-Kette: `ai:analyzed` → **`ai:spec-ready` (dieser Workflow)** → `ai:rea
 - **Dedup vor dem Schreiben:** Per `grep` prüfen, ob ein Akzeptanzkriterium bereits durch einen
   bestehenden Test abgedeckt ist (Feature-/Funktionsnamen in den Test-Verzeichnissen). Bereits
   abgedeckt → **nicht** duplizieren, nur fehlende AKs testen. Widerspricht ein AK einem bestehenden
-  Test (Anforderung geändert, Test obsolet)? → den Konflikt im PR-Body benennen („Test-Pflege-Bedarf",
-  Datei/Zeile + Begründung), den alten Test **nicht** ändern — Anpassung/Entfernung entscheidet der
-  Mensch bzw. ein Folge-Spec.
+  Test (Anforderung geändert, Test obsolet)? → den **alten Test ENTFERNEN** (Datei löschen oder Test-Funktion entfernen) und im PR-Body im Abschnitt „Test-Pflege-Bedarf" benennen (Datei:Zeile + Begründung), **warum er entfernt wurde** (welches neue AK ihn obsolet macht). Die Entfernung ist Teil der Spec — kein Mensch muss nachentscheiden.
 - **So wenig wie möglich, aber jeder mit Biss** ([tdd-strategy.md → Testumfang](tdd-strategy.md#testumfang--so-viel-wie-nötig-so-wenig-wie-irgend-möglich)):
   Ein Test muss etwas **auswerten**, einen **Spiegel** zwischen Dateien sichern oder vor einem
   **stillen/teuren** Ausfall schützen. Kein Test der Form „die Datei enthält den String, den ich
