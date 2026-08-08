@@ -67,8 +67,10 @@ jobs:
           # bleibt ungestört (keine verschwendeten Tokens). cancel-in-progress kann
           # das nicht ausdrücken (würde den laufenden abbrechen statt den neuen
           # abzuweisen). Muster: Supersede-Check im Review.
-          running=$(gh api repos/${GITHUB_REPOSITORY}/actions/runs \
-            --jq '.workflow_runs[] | select(.name == "Claude Spec (ai:spec-ready)" and (.status == "queued" or .status == "in_progress") and .id != ${{ github.run_id }}) | .id' 2>/dev/null | head -1)
+          # Filter nach Issue-Number im Event-Payload, damit verschiedene Issues
+          # parallel laufen können (Concurrency-Gruppe ist pro Issue).
+          running=$(gh api --paginate repos/${GITHUB_REPOSITORY}/actions/runs \
+            --jq '.workflow_runs[] | select(.name == "Claude Spec (ai:spec-ready)" and (.status == "queued" or .status == "in_progress") and (.event.issue.number | tonumber) == (env.ISSUE | tonumber) and .id != ${{ github.run_id }}) | .id' 2>/dev/null | head -1)
           if [ -n "$running" ]; then
             echo "::notice::Spec-Lauf für Issue #$ISSUE läuft bereits — übersprungen."
             echo "skip=true" >> "$GITHUB_OUTPUT"
