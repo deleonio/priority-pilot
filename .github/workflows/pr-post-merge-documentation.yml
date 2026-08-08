@@ -6,9 +6,12 @@ name: PR Post-Merge Documentation
 # Batchgröße: max. 12 neueste PRs pro Lauf.
 
 on:
-  workflow_run:
-    workflows: ['Claude PR Gate & Auto-Merge']
-    types: [completed]
+  # Trigger an den ECHTEN Merge koppeln (Issue #496): `pull_request: [closed]` feuert pro
+  # geschlossenem PR genau einmal; der Job-Guard (`if: ... merged == true`) schaltet die
+  # Schliessen-ohne-Merge-Closes aus. Damit entfaellt das Over-Triggering des frueheren
+  # `workflow_run`-Triggers, der bei JEDEM Abschluss des Gate-Workflows (meist No-op) feuerte.
+  pull_request:
+    types: [closed]
   workflow_dispatch:
     inputs:
       max-prs:
@@ -39,6 +42,10 @@ env:
 jobs:
   document-merged-prs:
     name: Document Merged PRs (6 Phases)
+    # Nur bei ECHTEM Merge laufen (AK2/AK3): pull_request:[closed] feuert auch beim Schliessen-ohne-
+    # Merge, dieser Guard schaltet das aus. Der workflow_dispatch-Pfad (manueller Catch-up, AK4)
+    # bleibt frei, weil dort event_name == 'workflow_dispatch' zutrifft.
+    if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
