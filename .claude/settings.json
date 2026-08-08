@@ -7,8 +7,9 @@
 		"CLAUDE_CODE_NO_FLICKER": "1"
 	},
 	"permissions": {
-		"allow": ["Agent(*)", "Bash(*)", "Read(*)", "WebFetch(*)"]
+		"allow": ["Agent(*)", "Bash(*)", "Read(*)", "WebFetch(*)", "mcp__kolibri-mcp__*"]
 	},
 	"model": "opus",
-	"enabledMcpjsonServers": ["kolibri-mcp"]
+	"enabledMcpjsonServers": ["kolibri-mcp"],
+	"enableAllProjectMcpServers": true
 }
