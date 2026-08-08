@@ -148,7 +148,9 @@ describe('Invariante — wo ein Guard existiert, behandelt JEDER Folge-Step ihn'
 	// muessen ihn als eigenen Fall MELDEN, sonst faellt der gewollte Skip auf den Fehler-Arm.
 	const gatedOut = (step: string, guard: string): boolean => {
 		const cond = (step.match(/^\s*if:\s*(.*)$/m) ?? [, ''])[1];
-		return new RegExp(`steps\\.${guard}\\.outputs\\.skip\\s*!=\\s*'true'`).test(cond) || /steps\.[\w-]+\.outcome/.test(cond);
+		return (
+			new RegExp(`steps\\.${guard}\\.outputs\\.skip\\s*!=\\s*'true'`).test(cond) || /steps\.[\w-]+\.outcome/.test(cond)
+		);
 	};
 
 	for (const { name, guard, stepName, step } of cases) {
@@ -158,7 +160,9 @@ describe('Invariante — wo ein Guard existiert, behandelt JEDER Folge-Step ihn'
 			// Der Wert muss als env ankommen UND im Body einen eigenen Zweig bekommen. Die blosse
 			// Referenz genuegt nicht: sonst bliebe der Test gruen, wenn jemand nur den Zweig
 			// loescht und das env stehen laesst — der Defekt waere zurueck, das Gate still.
-			const envName = (step.match(new RegExp(`^\\s*([A-Z_]+):\\s*\\$\\{\\{\\s*steps\\.${guard}\\.outputs\\.skip\\s*\\}\\}`, 'm')) ?? [, ''])[1];
+			const envName = (step.match(
+				new RegExp(`^\\s*([A-Z_]+):\\s*\\$\\{\\{\\s*steps\\.${guard}\\.outputs\\.skip\\s*\\}\\}`, 'm'),
+			) ?? [, ''])[1];
 			assert.ok(
 				envName,
 				`Step laeuft im "${guard}"-Skip mit (always(), kein Gate), reicht dessen Wert aber nicht als env ` +
