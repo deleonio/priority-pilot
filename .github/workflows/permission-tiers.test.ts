@@ -65,7 +65,8 @@ describe('Permission-Layer — settings.json hat einen deny-Layer mit Deckung', 
 	covers(/npmrc/, '~/.npmrc (Token)');
 	covers(/rm\s+-rf/, 'destruktives rm -rf');
 	covers(/sudo/, 'Rechte-Eskalation (sudo)');
-	covers(/force/, 'force-push (git push --force)');
+	covers(/git push --force/, 'force-push Langform (--force direkt nach push)');
+	covers(/git push -f\b/, 'force-push Kurzform -f (git push -f …)');
 });
 
 // ── AK6: MCP-Toolname spiegelt den in .mcp.json deklarierten Server ────────────────────
