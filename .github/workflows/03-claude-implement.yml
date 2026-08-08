@@ -199,7 +199,7 @@ jobs:
           if-no-path-exists: ignore
 
       - name: Label-Post-Assertion (VERDICT parsen, Labels via App-Token force-setzen)
-        if: always() && steps.setup.outputs.configured == 'true' && steps.skip-guard.outputs.skip != 'true' && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure' || steps.doppel-guard.outputs.skip == 'true')
+        if: always() && steps.setup.outputs.configured == 'true' && steps.skip-guard.outputs.skip != 'true' && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure' || steps.claude.outcome == 'cancelled' || steps.doppel-guard.outputs.skip == 'true')
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
