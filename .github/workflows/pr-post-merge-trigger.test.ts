@@ -106,3 +106,59 @@ describe('Issue #496 AK5 — Phase-0-Suche & Batch unangetastet (Idempotenz)', (
 		assert.equal(dispatchDefault[1], '12', 'max-prs Default != 12 — Batch-Grenze wurde geaendert');
 	});
 });
+
+// Top-Level-Block-Extraktion: vom Key bei Spalte 0 bis zum naechsten Top-Level-Key
+// (naechste Zeile, die mit einem Kleinbuchstaben beginnt — `env:`, `jobs:` etc.).
+// Einzeln definiert, damit jeder Test seinen Block selbst extrahiert (Haus-Stil).
+const block = (key: string): string | null => {
+	const m = code.match(new RegExp(`^${key}:\\n([\\s\\S]*?)\\n(?=[a-z])`, 'm'));
+	return m ? m[1] : null;
+};
+
+describe('Token — jeder gh-Aufruf hat GH_TOKEN (Phase-0-Ausfall)', () => {
+	// Root Cause (8/8 rote Laeufe): der Phase-0-Step nutzte `gh` ohne GH_TOKEN. Unter
+	// `set -euo pipefail` stirbt `gh label create` mit Exit 4, der Job bricht im ERSTEN Step
+	// ab — KEINE der 6 Phasen lief jemals. Abhilfe: GH_TOKEN auf Workflow-Ebene (top-level
+	// env:), vererbt sich an jeden Step (auch spaeter hinzugekommene). Die Assertion geht
+	// bewusst auf den env-Block, nicht auf einen Step: genau die Vererbung ist der Punkt.
+	it('der top-level env-Block setzt GH_TOKEN (vererbt an alle Steps inkl. Phase 0)', () => {
+		const envBlock = block('env');
+		assert.ok(envBlock, 'kein top-level env:-Block gefunden');
+		assert.match(
+			envBlock,
+			/GH_TOKEN:\s*\$\{\{\s*github\.token/,
+			'GH_TOKEN nicht auf Workflow-Ebene gesetzt — mindestens ein Step (Phase 0) hat kein Token und stirbt beim ersten gh-Aufruf (exit 4).',
+		);
+	});
+});
+
+describe('Ticket-Memory-Abbau — Documenter räumt den Cache gemergter Tickets ab', () => {
+	// Die Claude-Phasen 01–05 schreiben pro Issue nach .claude/ticket-memory/phase-*.md und
+	// persistieren das via actions/cache/save unter Key `ticket-{issue-number}-*` (s. setup-claude
+	// action, memory-save-key). Nach Merge ist dieser Memory stale → der Documenter (terminale
+	// Phase 6) baut ihn ab. Die statischen AKs sichern die STRUKTUR; das Verhalten (Caches
+	// verschwinden) ist am echten Merge per `gh cache list` zu verifizieren.
+	it('permissions gewährt actions: write (sonst scheitert gh cache delete still)', () => {
+		// Still-Fall: ohne actions:write schlägt `gh cache delete` fehl. Weil der Drain-Aufruf
+		// best-effort läuft (`|| true`), schluckt er den Fehler → grüner Lauf, aber nichts wird
+		// abgebaut. Genau die „green run, but X didn't happen"-Klasse.
+		const perms = block('permissions');
+		assert.ok(perms, 'kein top-level permissions-Block gefunden');
+		assert.match(
+			perms,
+			/actions:\s*write/,
+			'permissions ohne actions:write — gh cache delete schlägt fehl, das || true verschluckt es → still grün, Memory wird nicht abgebaut.',
+		);
+	});
+
+	it('der Drain löscht Ticket-Caches (gh cache delete auf ticket-Präfix)', () => {
+		assert.match(code, /gh cache delete/, 'kein `gh cache delete` — Ticket-Memory wird nirgends abgebaut.');
+		// `gh cache list --key "ticket-…` findet die Caches zum Issue/PR; ohne sie löschte der
+		// Drain ins Leere (oder fälschlich Caches anderer Tickets).
+		assert.match(
+			code,
+			/--key\s+"ticket-/,
+			'kein `gh cache list --key "ticket-…" — der Drain zielt nicht auf das Ticket-Präfix.',
+		);
+	});
+});

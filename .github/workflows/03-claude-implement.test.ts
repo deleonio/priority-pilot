@@ -56,6 +56,22 @@ describe('Implement — Label-Post-Asymmetrie (Spec vs. Implement)', () => {
 			'Label-Post-Assertion darf bei skip-guard Skip NICHT laufen (|| skip-guard == true waere falsch)',
 		);
 	});
+
+	it('Label-Post-Assertion läuft auch bei cancelled Claude-Schritt', () => {
+		// Cancel-NACH Push+ready (Soft-Limit / überlappende Runs / manuell) darf
+		// ai:needs-review nicht verschlucken. Run 31279565532/748728: Claude-Step
+		// gecancelt, Label-Step skipped, weil seine if-Bedingung nur success|
+		// failure|doppel-guard zulässt — 'cancelled' fehlt. ARTIFACTS_OK macht es
+		// sicher: fertiger PR → needs-review; kein PR → Soft-Abort (ai:to-big-issue
+		// nach 2 Soft-Aborts als Backstop).
+		const step = yml.match(/name:\s*Label-Post-Assertion[\s\S]*?if:\s*(.*)/);
+		assert.ok(step, 'Label-Post-Assertion-Step oder dessen if: nicht gefunden');
+		assert.match(
+			step[1],
+			/steps\.claude\.outcome\s*==\s*'cancelled'/,
+			"Label-Post-Assertion muss bei cancelled Claude-Step laufen (|| steps.claude.outcome == 'cancelled') — sonst fehlt ai:needs-review nach Cancel-nach-Push.",
+		);
+	});
 });
 
 describe('Implement — HAS_TESTS-Check umgeht den gojq-Backslash-Bug (falls relevant)', () => {
