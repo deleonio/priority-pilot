@@ -74,17 +74,51 @@ jobs:
           path: ${{ steps.analyze.outputs.report_path }}
           retention-days: 30
 
-      - name: Issue erstellen bei kritischen Findings
+      - name: Issue bei kritischen Findings (dedupliziert)
+        # Vorher: bedingungsloses issues.create JEDEM Lauf → bei persistenten Findings
+        # täglich ein neues Duplikat. Jetzt: ein offenes test-maintenance-Issue suchen und
+        # dessen Body aktualisieren; nur wenn keines existiert, ein neues anlegen.
         if: steps.analyze.outputs.critical_findings == 'true'
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
             const report = fs.readFileSync('${{ steps.analyze.outputs.report_path }}', 'utf8');
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: '[test-maintenance] Tägliche Test-Optimierung: Kritische Findings',
-              body: report,
-              labels: ['test-maintenance', 'automated']
+            const { owner, repo } = context.repo;
+            const runDate = new Date().toISOString().slice(0, 10);
+
+            // Labels idempotisch anlegen (422 „existiert bereits" ist kein Fehler).
+            const ensureLabel = async (name, color) => {
+              try {
+                await github.rest.issues.createLabel({ owner, repo, name, color });
+                core.info(`Label „${name}" angelegt.`);
+              } catch (err) {
+                core.info(`Label „${name}" existiert bereits oder nicht anlegbar: ${err.message}`);
+              }
+            };
+            await ensureLabel('test-maintenance', 'fbca04');
+            await ensureLabel('automated', '0e8a16');
+
+            const body = `> 🔄 Automatisch aktualisiert am ${runDate} (Run #${context.runId})\n\n${report}`;
+
+            const existing = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: 'open',
+              labels: 'test-maintenance',
             });
+
+            if (existing.data.length > 0) {
+              const issue = existing.data[0];
+              await github.rest.issues.update({ owner, repo, issue_number: issue.number, body });
+              core.info(`Bestehendes Issue #${issue.number} aktualisiert (kein Spam-Duplikat).`);
+            } else {
+              const created = await github.rest.issues.create({
+                owner,
+                repo,
+                title: '[test-maintenance] Tägliche Test-Optimierung: Kritische Findings',
+                body,
+                labels: ['test-maintenance', 'automated'],
+              });
+              core.info(`Neues Issue #${created.data.number} erstellt.`);
+            }
