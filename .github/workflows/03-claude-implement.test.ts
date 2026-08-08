@@ -31,7 +31,7 @@ describe('Implement — Label-Post-Asymmetrie (Spec vs. Implement)', () => {
 		assert.match(
 			yml,
 			/steps\.skip-guard\.outputs\.skip\s*!=\s*'true'/,
-			'Label-Post-Assertion muss explizit steps.skip-guard.outputs.skip != \'true\' pruefen (wie 02-claude-spec.yml)',
+			"Label-Post-Assertion muss explizit steps.skip-guard.outputs.skip != 'true' pruefen (wie 02-claude-spec.yml)",
 		);
 	});
 
