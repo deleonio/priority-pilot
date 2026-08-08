@@ -318,20 +318,29 @@ runs:
             # Bash(gh *)/Bash(git *) bleiben eng, Write/Edit bewusst nicht erlaubt.
             ALLOWED_TOOLS="Read,Glob,Grep,Bash(gh *),Bash(git *)"
             [ "$NEEDS_MCP" = "true" ] && ALLOWED_TOOLS="$ALLOWED_TOOLS,$MCP_TOOLS"
-            echo "invoke-args=--allowedTools $ALLOWED_TOOLS" >> "$GITHUB_OUTPUT"
+            # — !WICHTIG! —
+            # Zwingendes Single-Quoting des Wertes nach --allowedTools (und --disallowedTools):
+            # die Tool-Spezifizierer enthalten '(' und '*' (z.B. 'Bash(gh *)'). GitHub Actions
+            # substituiert ${{ steps.setup.outputs.invoke-args }} WÖRTLICH in den run:-Block,
+            # OHNE Quoting-Layer. Ungequotet parst bash '(' als Subshell-Start → Syntaxfehler
+            # (exit 2, "syntax error near unexpected token `('"). Das betrifft NUR das
+            # restricted-Tier, denn review/full nutzen das klammerfreie VOLLES_TOOLSET — aber
+            # wir quoten konsistent in allen drei Zweigen, damit ein späteres Tool mit '(' in
+            # full/review nicht denselben Crash auslöst.
+            echo "invoke-args=--allowedTools '$ALLOWED_TOOLS'" >> "$GITHUB_OUTPUT"
             ;;
           review)
             # Vollzugriff (Bypass), aber Write/Edit gesperrt — Review liest untrusted Diffs
             # und ändert keinen Code. Kommentare weiterhin via gh (Bash erlaubt).
             ALLOWED_TOOLS="$VOLLES_TOOLSET"
             [ "$NEEDS_MCP" = "true" ] && ALLOWED_TOOLS="$ALLOWED_TOOLS,$MCP_TOOLS"
-            echo "invoke-args=--dangerously-skip-permissions --disallowedTools Write,Edit --allowedTools $ALLOWED_TOOLS" >> "$GITHUB_OUTPUT"
+            echo "invoke-args=--dangerously-skip-permissions --disallowedTools 'Write,Edit' --allowedTools '$ALLOWED_TOOLS'" >> "$GITHUB_OUTPUT"
             ;;
           full)
             # Tier 2 — vollautonom (Bypass + volles Toolset inkl. Write/Edit).
             ALLOWED_TOOLS="$VOLLES_TOOLSET"
             [ "$NEEDS_MCP" = "true" ] && ALLOWED_TOOLS="$ALLOWED_TOOLS,$MCP_TOOLS"
-            echo "invoke-args=--dangerously-skip-permissions --allowedTools $ALLOWED_TOOLS" >> "$GITHUB_OUTPUT"
+            echo "invoke-args=--dangerously-skip-permissions --allowedTools '$ALLOWED_TOOLS'" >> "$GITHUB_OUTPUT"
             ;;
           *)
             echo "::error title=Ungueltiges tools-tier::tools-tier='$TOOLS_TIER' — erlaubt: restricted | review | full"

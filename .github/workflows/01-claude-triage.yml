@@ -76,7 +76,7 @@ jobs:
         run: |
           cat > /tmp/claude-prompt.txt << 'CLAUDE_EOF'
           TICKET-MEMORY: Lies vor Beginn alle Dateien in .claude/ticket-memory/ (falls vorhanden) — ticketspezifisches Gedächtnis aus früheren Phasen. Schreibe am ENDE deine wichtigsten Erkenntnisse (Entscheidungen, Fallstricke, fertige/fehlende Schritte) in .claude/ticket-memory/phase-triage.md. Max. ~30 Zeilen, nur Neues.
-          FOKUS: NUR Issue #ISSUE_NR. KEINE Abstecher. Token sparen: kurz, präzise, direkt.
+          FOKUS: NUR Issue #ISSUE_NR. Recherche = Issue-Body + ggf. Delta-Kommentare seit stand, sonst nichts. KEINE Abstecher. Token sparen: kurz, präzise, direkt.
 
           Memory ist bereits geladen (ticket-ISSUE_NR).
 

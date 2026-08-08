@@ -145,8 +145,10 @@ describe('Permission-Layer — setup-claude leitet je tools-tier die korrekten F
 		return m[1];
 	};
 
+	// Optionale Single-Quotes tolerieren: action.yml quotet die Tool-Liste (Werte enthalten
+	// '('/'*'), das Literal darf das umschliessende '\'' nicht in den Extrakt uebernehmen.
 	const allowedOf = (args: string): string[] =>
-		(args.match(/--allowedTools\s+(\S+)/)?.[1] ?? '').split(',').filter(Boolean);
+		(args.match(/--allowedTools\s+'?([^'\s]+)'?/)?.[1] ?? '').split(',').filter(Boolean);
 
 	it('restricted: enges Toolset (Read/Grep/Glob + gh), kein Bypass, kein disallow', () => {
 		const args = resolveArgs('restricted', 'true');
@@ -178,7 +180,7 @@ describe('Permission-Layer — setup-claude leitet je tools-tier die korrekten F
 	it('review: Bypass, aber Write/Edit disallowed (Review aendert keinen Code)', () => {
 		const args = resolveArgs('review', 'false');
 		assert.ok(/--dangerously-skip-permissions/.test(args), 'review muss bypassen (sonst Autonomie-Verlust)');
-		const dis = (args.match(/--disallowedTools\s+"?([^"\s]+)"?/)?.[1] ?? '').split(',');
+		const dis = (args.match(/--disallowedTools\s+'?([^'\s]+)'?/)?.[1] ?? '').split(',');
 		assert.ok(
 			dis.includes('Write') && dis.includes('Edit'),
 			`review muss --disallowedTools Write,Edit setzen (Review liest untrusted Diffs und darf nichts schreiben) — got: ${dis.join(',')}`,
