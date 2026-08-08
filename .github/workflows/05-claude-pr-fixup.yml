@@ -46,6 +46,7 @@ jobs:
         uses: ./.github/actions/setup-claude
         with:
           needs-mcp: false
+          tools-tier: full
           event-type: ${{ github.event_name }}
           ticket-ref: ${{ github.event.pull_request.number }}
           app-id: ${{ secrets.APP_ID }}
