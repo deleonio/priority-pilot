@@ -606,8 +606,12 @@ export function detectRedundancy(blocks: TestBlock[]): Finding[] {
 export function detectBehaviorGaps(blocks: TestBlock[]): Finding[] {
 	const findings: Finding[] = [];
 	for (const b of blocks) {
-		// Fokus-Test ohne Tab-Freiheit
-		const isFocus = /initia(?:l)?fokus|initialfokus|fokus/i.test(b.name) || /\btoBeFocused\b/.test(b.bodyText);
+		// Fokus-Test ohne Tab-Freiheit. Heuristik-Grenze: reine Autofokus-Tests
+		// (Name „…Autofokus…"/„…fokussiert…") NICHT als Fokus-Gefängnis flaggen — dort
+		// ist toBeFocused die korrekte, vollständige Assertion. Früher matchte das bare
+		// `fokus` auch auf „Autofokus"/„fokussiert" → critical False Positives (PR #505).
+		const isAutofokus = /autofokus|fokussier/i.test(b.name);
+		const isFocus = !isAutofokus && (/\b(?:initialfokus|fokus)\b/i.test(b.name) || /\btoBeFocused\b/.test(b.bodyText));
 		const hasTab = /\bTab\b|keyboard\.press\(\s*['"]Tab['"]/.test(b.bodyText);
 		if (isFocus && !hasTab) {
 			findings.push({

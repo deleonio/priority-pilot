@@ -9,6 +9,7 @@ import {
 	detectTautological,
 	detectRedundancy,
 	detectEmptySet,
+	detectBehaviorGaps,
 	type TestBlock,
 } from './analyze-test-suite.ts';
 
@@ -91,5 +92,23 @@ describe('Block-Extraktion (string-/kommentar-/regex-bewusster Scanner)', () => 
 			block.assertions.includes('assert.match'),
 			`assert.match nicht erkannt: ${JSON.stringify(block.assertions)}`,
 		);
+	});
+});
+
+describe('Behavior-Gap-Detektor (Fokus-Trap-Heuristik, KEIN Mutation-Beweis)', () => {
+	it('flaggt genuine Fokus-Trap-Tests ohne Tab-Freiheit als critical', () => {
+		// Initialfokus-Test ohne Tab → Fokus-Gefängnis wird nicht geprüft.
+		const findings = detectBehaviorGaps(blocksOf('behavior-focus.ts'));
+		const trap = findings.find((f) => f.category === 'mutation');
+		assert.ok(trap, 'Initialfokus-Trap-Test wurde nicht erkannt');
+		assert.equal(trap.severity, 'critical');
+	});
+
+	it('flaggt NICHT reine Autofokus-Tests (Regression: bare fokus matchte Autofokus)', () => {
+		// „Autofokus"/„fokussiert" im Namen + toBeFocused ist die vollständige Assertion.
+		// Früher trieb das bare `fokus` diese als critical False Positives (PR #505).
+		const findings = detectBehaviorGaps(blocksOf('behavior-focus.ts'));
+		const flagged = findings.filter((f) => /Autofokus/i.test(f.testName));
+		assert.equal(flagged.length, 0, `Autofokus-Test fälschlich als Fokus-Trap geflaggt: ${JSON.stringify(flagged)}`);
 	});
 });
