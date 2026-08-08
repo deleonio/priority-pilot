@@ -192,9 +192,14 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
           OUTCOME: ${{ steps.claude.outcome }}
+          SKIP_SUPERSEDE: ${{ steps.supersede-check.outputs.skip }}
         run: |
           labels="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
-          if [ "$OUTCOME" = "success" ]; then
+          # Eigener Arm fuer den Supersede-Check: ohne ihn faellt der gewollte Skip auf den
+          # Fehler-Arm (OUTCOME ist leer, weil der claude-Step nie lief) und meldet ❌.
+          if [ "${SKIP_SUPERSEDE:-false}" = "true" ]; then
+            echo "::notice title=⏭️ Review übersprungen::PR #${PR} — Lauf bereits aktiv"
+          elif [ "$OUTCOME" = "success" ]; then
             echo "::notice title=✅ Review erfolgreich::PR #${PR}"
           elif [ "$OUTCOME" = "cancelled" ]; then
             echo "::warning title=⏸️ Review abgebrochen"
@@ -212,7 +217,15 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
+          SKIP_SUPERSEDE: ${{ steps.supersede-check.outputs.skip }}
         run: |
+          # Beim Supersede-Skip hat dieser Lauf nichts beigetragen — das Ergebnis-Label setzt der
+          # laufende Review. Ohne diesen Arm meldet der Step "stecken geblieben" fuer einen
+          # gewollten Skip und faerbt einen korrekt arbeitenden Lauf rot.
+          if [ "${SKIP_SUPERSEDE:-false}" = "true" ]; then
+            echo "::notice title=⏭️ Verifikation übersprungen::PR #${PR} — laufender Review setzt das Label"
+            exit 0
+          fi
           for i in 1 2 3 4 5; do
             labels_json="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name]' 2>/dev/null || echo '[]')"
             needs_changes="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:needs-changes")')"
