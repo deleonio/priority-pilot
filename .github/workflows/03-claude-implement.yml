@@ -192,12 +192,22 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
           ALREADY_CONTINUED: ${{ steps.continued-before.outputs.already }}
+          GUARD_SKIP: ${{ steps.doppel-guard.outputs.skip }}
         run: |
           verdict=""
           if [ -f /tmp/claude-output.log ]; then
             verdict="$(grep -oP 'VERDICT:\s*\K.*' /tmp/claude-output.log | tail -1 | tr -d '[:space:]' || true)"
           fi
           echo "Claude-Verdict aus Output: '${verdict:-keins}'"
+
+          # Dieser Step laeuft im Doppel-Run-Guard-Skip bewusst mit (siehe if oben): er soll das
+          # Label fuer den BESTEHENDEN PR setzen. Ohne diesen Arm haengt das Ergebnis daran, dass
+          # die ARTIFACTS_OK-Pruefung den fremden PR zufaellig als fertig erkennt — richtig, aber
+          # unbelegt. Explizit machen, symmetrisch zu 02-claude-spec.yml.
+          if [ "${GUARD_SKIP:-false}" = "true" ]; then
+            verdict="needs-review"
+            echo "::notice::Doppel-Run-Guard: PR existiert bereits — behandele als needs-review."
+          fi
 
           PR_NR="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --json number,isDraft,closingIssuesReferences \
             --jq "[.[] | select((.closingIssuesReferences // []) | any(.number == ${ISSUE})) | .number] | first" 2>/dev/null || echo "")"

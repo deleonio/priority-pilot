@@ -97,16 +97,25 @@ describe('Invariante — wo ein Guard existiert, behandelt JEDER Folge-Step ihn'
 	// verlangt, dass der Wert im Body ankommt (env-Durchreichung) UND dort einen eigenen Zweig
 	// bekommt — eine blosse Erwaehnung wuerde die Fehl-Meldung nicht verhindern.
 	//
-	// Die Guards werden ueber ihr VERHALTEN abgeleitet (Step schreibt `skip=` nach $GITHUB_OUTPUT),
-	// nicht ueber ihren Namen: die Namen sind uneinheitlich (`skip-guard`, `doppel-guard`,
-	// `supersede-check`), und ein fixer Name wuerde genau die Guards durchfallen lassen, die
-	// niemand beim Schreiben des Tests im Blick hatte.
-	const guardStepsOf = (job: string): string[] =>
+	// Die Guards werden ueber ihr VERHALTEN abgeleitet, in zwei Schritten:
+	//   1. der Step schreibt einen BOOLESCHEN Output nach $GITHUB_OUTPUT, und
+	//   2. mindestens ein Folge-Step nutzt diesen Output ABWEISEND (`!= 'true'`).
+	// Schritt 2 ist tragend: ein boolescher Output allein macht keinen Guard. `preflight.configured`
+	// und `resolve-conflicts.conflict` sind Positiv-Flags (`== 'true'` schaltet etwas FREI) — fuer
+	// sie ist "nicht gesetzt" der Normalfall, nicht ein zu meldender Abbruch.
+	// Weder Step- noch Output-Name taugen als Kriterium: beide sind uneinheitlich
+	// (`skip-guard`/`doppel-guard`/`supersede-check`/`stop-guard`, `skip=`/`stop=`), und jede
+	// Festlegung laesst genau die Guards durchfallen, die niemand beim Schreiben im Blick hatte.
+	// Der Output-Name wird deshalb MITGELESEN und in allen Assertions weiterverwendet.
+	const guardStepsOf = (job: string): { id: string; output: string }[] =>
 		job
 			.split(/\n(?=\s{6}- )/)
-			.filter((s) => /echo\s+"skip=(?:true|false)"\s*>>\s*"\$GITHUB_OUTPUT"/.test(s))
-			.map((s) => (s.match(/^\s*id:\s*([\w-]+)/m) ?? [, ''])[1])
-			.filter(Boolean);
+			.map((s) => ({
+				id: (s.match(/^\s*id:\s*([\w-]+)/m) ?? [, ''])[1],
+				output: (s.match(/echo\s+"(\w+)=(?:true|false)"\s*>>\s*"\$GITHUB_OUTPUT"/) ?? [, ''])[1],
+			}))
+			.filter((g) => g.id && g.output)
+			.filter((g) => new RegExp(`steps\\.${g.id}\\.outputs\\.${g.output}\\s*!=\\s*'true'`).test(job));
 
 	// Job-Grenze: Steps eines Jobs duerfen nur Guards DESSELBEN Jobs kennen — `steps.*` ist
 	// job-lokal. Ohne diesen Split wuerde ein zweiter Job im selben File Fehlalarme erzeugen.
@@ -124,51 +133,56 @@ describe('Invariante — wo ein Guard existiert, behandelt JEDER Folge-Step ihn'
 	const cases = workflows.flatMap(({ name, yml }) =>
 		jobsOf(yml).flatMap((job) => {
 			const steps = stepsOf(job);
-			return guardStepsOf(job).flatMap((guard) => {
-				const at = steps.findIndex((s) => new RegExp(`id:\\s*${guard}\\b`).test(s.step));
-				return steps.slice(at + 1).map(({ stepName, step }) => ({ name, guard, stepName, step }));
+			return guardStepsOf(job).flatMap(({ id, output }) => {
+				const at = steps.findIndex((s) => new RegExp(`id:\\s*${id}\\b`).test(s.step));
+				return steps.slice(at + 1).map(({ stepName, step }) => ({ name, guard: id, output, stepName, step }));
 			});
 		}),
 	);
 
 	it('es gibt ueberhaupt Guards mit Folge-Steps (sonst prueft die Invariante ins Leere)', () => {
-		assert.ok(cases.length > 0, 'kein skip-schreibender Step mit Folge-Steps gefunden — Extraktion kaputt?');
-		// Mehr als ein Guard-Name: sonst waere die Verallgemeinerung ueber Guards unbelegt und
-		// der Test faende genau die Guards nicht, die anders heissen als der zuerst gebaute.
+		assert.ok(cases.length > 0, 'kein Guard-Step mit Folge-Steps gefunden — Extraktion kaputt?');
+		// Mehr als ein Guard-Name UND mehr als ein Output-Name: sonst waere die Verallgemeinerung
+		// unbelegt und der Test faende genau die Guards nicht, die anders heissen bzw. anders
+		// benannte Outputs schreiben als der zuerst gebaute (z. B. stop= statt skip=).
 		const guards = new Set(cases.map((c) => c.guard));
+		const outputs = new Set(cases.map((c) => c.output));
 		assert.ok(guards.size > 1, `nur ein Guard-Name gefunden (${[...guards]}) — Ableitung greift zu kurz?`);
+		assert.ok(outputs.size > 1, `nur ein Output-Name gefunden (${[...outputs]}) — Ableitung haengt am Literal?`);
 	});
 
-	// Ein Step ist nur dann betroffen, wenn er im Skip-Fall TATSAECHLICH laeuft. Zwei Formen
-	// halten ihn zuverlaessig heraus, beide zaehlen als Behandlung:
-	//   - direkt:   `steps.<guard>.outputs.skip != 'true'`
-	//   - indirekt: eine Bedingung ueber `steps.<arbeits-step>.outcome` — die ist im Skip-Fall
-	//               leer, weil der Arbeits-Step selbst hinter dem Guard haengt.
-	// Uebrig bleiben die ungegateten `always()`-Reporting-Steps: die laufen im Skip mit und
-	// muessen ihn als eigenen Fall MELDEN, sonst faellt der gewollte Skip auf den Fehler-Arm.
-	const gatedOut = (step: string, guard: string): boolean => {
+	// Ein Step ist nur betroffen, wenn er im Guard-Fall TATSAECHLICH laeuft. Zwei Formen halten
+	// ihn heraus:
+	//   - direkt:   `steps.<guard>.outputs.<out> != 'true'` — schliesst den Fall explizit aus.
+	//   - indirekt: die Bedingung haengt AUSSCHLIESSLICH an `steps.<arbeits-step>.outcome`; das
+	//               ist im Guard-Fall leer, weil der Arbeits-Step selbst hinter dem Guard haengt.
+	// Der zweite Freibrief gilt bewusst NUR ohne `||`-Alternative: steht neben dem outcome noch
+	// ein weiterer Zweig (z. B. `|| steps.doppel-guard.outputs.skip == 'true'` in 02:163/03:190),
+	// laeuft der Step im Guard-Fall trotzdem — dann muss er ihn behandeln.
+	const gatedOut = (step: string, guard: string, output: string): boolean => {
 		const cond = (step.match(/^\s*if:\s*(.*)$/m) ?? [, ''])[1];
-		return (
-			new RegExp(`steps\\.${guard}\\.outputs\\.skip\\s*!=\\s*'true'`).test(cond) || /steps\.[\w-]+\.outcome/.test(cond)
-		);
+		if (new RegExp(`steps\\.${guard}\\.outputs\\.${output}\\s*!=\\s*'true'`).test(cond)) return true;
+		// Alternativen-Zweig (`||`) mit einem ANDEREN Guard-Output haelt den Step nicht heraus.
+		const hasGuardAlternative = /\|\|[^|]*steps\.[\w-]+\.outputs\.\w+\s*==\s*'true'/.test(cond);
+		return /steps\.[\w-]+\.outcome/.test(cond) && !hasGuardAlternative;
 	};
 
-	for (const { name, guard, stepName, step } of cases) {
+	for (const { name, guard, output, stepName, step } of cases) {
 		it(`${name} :: ${guard} :: ${stepName}`, () => {
-			if (gatedOut(step, guard)) return; // laeuft im Skip-Fall nicht — nichts zu melden
+			if (gatedOut(step, guard, output)) return; // laeuft im Guard-Fall nicht — nichts zu melden
 
 			// Der Wert muss als env ankommen UND im Body einen eigenen Zweig bekommen. Die blosse
 			// Referenz genuegt nicht: sonst bliebe der Test gruen, wenn jemand nur den Zweig
 			// loescht und das env stehen laesst — der Defekt waere zurueck, das Gate still.
 			const envName = (step.match(
-				new RegExp(`^\\s*([A-Z_]+):\\s*\\$\\{\\{\\s*steps\\.${guard}\\.outputs\\.skip\\s*\\}\\}`, 'm'),
+				new RegExp(`^\\s*([A-Z_]+):\\s*\\$\\{\\{\\s*steps\\.${guard}\\.outputs\\.${output}\\s*\\}\\}`, 'm'),
 			) ?? [, ''])[1];
 			assert.ok(
 				envName,
-				`Step laeuft im "${guard}"-Skip mit (always(), kein Gate), reicht dessen Wert aber nicht als env ` +
-					`durch — er kann den Skip im Body nicht vom Fehlerfall unterscheiden und meldet ❌ fuer einen ` +
-					`erfolgreichen Skip (outcome ist leer, weil der Arbeits-Step nie lief). Entweder auf den Guard ` +
-					`gaten (steps.${guard}.outputs.skip != 'true') oder ihn als eigenen Fall melden.`,
+				`Step laeuft im "${guard}"-Fall mit (always(), kein Gate), reicht dessen Output "${output}" aber ` +
+					`nicht als env durch — er kann ihn im Body nicht vom Fehlerfall unterscheiden und meldet ❌ fuer ` +
+					`einen erfolgreichen Skip (outcome ist leer, weil der Arbeits-Step nie lief). Entweder gaten ` +
+					`(steps.${guard}.outputs.${output} != 'true') oder als eigenen Fall melden.`,
 			);
 			assert.match(
 				step,

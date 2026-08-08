@@ -261,12 +261,17 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
           OUTCOME: ${{ steps.claude.outcome }}
           SKIP_SUPERSEDE: ${{ steps.supersede-check.outputs.skip }}
+          STOP_GUARD: ${{ steps.stop-guard.outputs.stop }}
         run: |
           labels="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
-          # Eigener Arm fuer den Supersede-Check: ohne ihn faellt der gewollte Skip auf den
+          # Je ein eigener Arm pro Guard: ohne sie faellt der gewollte Abbruch auf den
           # Fehler-Arm (OUTCOME ist leer, weil der claude-Step nie lief) und meldet ❌.
+          # Der Stop-Guard ist ein GEWOLLTER Abbruch (Loop-Schutz, > 10 Commits) — er hat
+          # bereits selbst kommentiert; hier gehoert eine Warnung hin, kein Fehler.
           if [ "${SKIP_SUPERSEDE:-false}" = "true" ]; then
             echo "::notice title=⏭️ Fixup übersprungen::PR #${PR} — Lauf bereits aktiv"
+          elif [ "${STOP_GUARD:-false}" = "true" ]; then
+            echo "::warning title=🛑 Fixup gestoppt::PR #${PR} — Stop-Guard (Loop-Schutz), bitte manuell prüfen"
           elif [ "$OUTCOME" = "success" ]; then
             echo "::notice title=✅ Fixup erfolgreich::PR #${PR}"
           elif [ "$OUTCOME" = "cancelled" ]; then
