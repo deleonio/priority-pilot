@@ -140,18 +140,44 @@ const requireGoogleStrategy: RequestHandler = (_req, res, next) => {
 // GET /auth/google — startet den OAuth-Flow
 authRouter.get('/auth/google', requireGoogleStrategy, passport.authenticate('google', { scope: ['email', 'profile'] }));
 
-// GET /auth/google/callback — Google leitet nach Authentifizierung hierher zurück
+// GET /auth/google/silent — stiller Google-Login via prompt=none (Issue #396 PR B).
+// Ein Nutzer mit gültiger Google-Session wird so ohne eigenen Klick angemeldet. Ist kein OAuth
+// konfiguriert, ist ein stiller Login nicht möglich → Weiterleitung auf die manuelle Login-Seite
+// (/?silent=unavailable). Der Session-Marker `silentPending` signalisiert dem gemeinsamen Callback,
+// einen Interaktionsfehler (login_required u. ä.) ebenfalls als „silent unavailable" zu behandeln.
+authRouter.get('/auth/google/silent', (req, res, next) => {
+	if (!hasGoogleOAuth()) {
+		res.redirect('/?silent=unavailable');
+		return;
+	}
+	req.session.silentPending = true;
+	passport.authenticate('google', { scope: ['email', 'profile'], prompt: 'none' })(req, res, next);
+});
+
+// GET /auth/google/callback — Google leitet nach Authentifizierung hierher zurück. Der gemeinsame
+// Callback bedient den normalen UND den stillen OAuth-Einstieg (Issue #396 PR B): war der Auslöser
+// ein stiller Versuch (Session-Marker `silentPending`), leiten Interaktionsfehler auf
+// /?silent=unavailable statt auf /auth/error weiter, damit das Frontend die manuelle Login-Seite zeigt.
 authRouter.get(
 	'/auth/google/callback',
 	requireGoogleStrategy,
-	passport.authenticate('google', { failureRedirect: '/auth/error' }),
+	(req, res, next) => {
+		const silentPending = req.session?.silentPending === true;
+		passport.authenticate('google', {
+			failureRedirect: silentPending ? '/?silent=unavailable' : '/auth/error',
+		})(req, res, next);
+	},
 	(req, res) => {
 		// User vor regenerate() sichern — req.user ist danach ggf. nicht mehr verfügbar.
 		const user = req.user as { id: number; email: string; displayName: string; avatarUrl?: string | null };
+		const silentPending = req.session?.silentPending === true;
+		if (req.session?.silentPending) {
+			delete req.session.silentPending;
+		}
 		// Session-Fixation verhindern: neue Session-ID vor dem Setzen des Users.
 		req.session.regenerate((err) => {
 			if (err) {
-				res.redirect('/auth/error');
+				res.redirect(silentPending ? '/?silent=unavailable' : '/auth/error');
 				return;
 			}
 			req.session.user = {

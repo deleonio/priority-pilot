@@ -50,19 +50,56 @@ export const createApp = (deps: AppDeps = {}) => {
 	if (!sessionSecret && process.env.NODE_ENV === 'production') {
 		throw new Error('SESSION_SECRET muss in Produktion gesetzt sein');
 	}
+	// Verbindlicher Code-Default: ohne SESSION_TTL lebt die Session 7 Tage (Issue #396 PR A). Ein
+	// reines Session-Cookie (früher: maxAge undefined) verfällt beim Browser-Schließen und erzwingt
+	// bei jedem Neustart ein erneutes Login — das „immer neu einloggen" aus #396.
+	const SEVEN_DAYS_MS = 604800 * 1000;
 	const rawTtl = process.env.SESSION_TTL ? parseInt(process.env.SESSION_TTL, 10) : undefined;
-	const sessionMaxAge = rawTtl !== undefined && !isNaN(rawTtl) && rawTtl > 0 ? rawTtl * 1000 : undefined;
+	const sessionMaxAge = rawTtl !== undefined && !isNaN(rawTtl) && rawTtl > 0 ? rawTtl * 1000 : SEVEN_DAYS_MS;
+
+	// express-session 1.19 überträgt die Cookie-Laufzeit nur als `Expires`, nicht als `Max-Age`: sein
+	// interner data-Getter liefert `originalMaxAge`, doch die `cookie`-Bibliothek ignoriert dieses Feld
+	// und erwartet `maxAge` → der Browser sieht nur `Expires`. `Max-Age` ist jedoch das robustere Attribut
+	// (unabhängig von einer abweichenden lokalen Uhr) und wird vom Spec-Test (Issue #396 PR A, AK1b)
+	// eingefordert. Wir ergänzen es daher auf dem Session-Cookie. Bewusst VOR session() registriert:
+	// express-session nutzt intern `on-headers`, das writeHead-Wrapper in umgekehrter Registrierungs-
+	// reihenfolge ausführt — dadurch läuft dieses Rewrite ZUVERLÄSSIG erst, nachdem express-session den
+	// Cookie gesetzt hat (und nicht vorher, wo er noch fehlen würde).
+	const SESSION_MAX_AGE_SECONDS = Math.round(sessionMaxAge / 1000);
+	app.use((_req, res, next) => {
+		const rewriteSessionCookieMaxAge = (): void => {
+			const cookies = res.getHeader('set-cookie');
+			if (cookies === undefined) return;
+			const list = Array.isArray(cookies) ? cookies : [String(cookies)];
+			const patched = list.map((raw) => {
+				const value = String(raw);
+				if (/max-age=/i.test(value) || !/expires=/i.test(value)) return value;
+				return `${value.replace(/;\s*$/, '')}; Max-Age=${SESSION_MAX_AGE_SECONDS}`;
+			});
+			res.setHeader('set-cookie', patched);
+		};
+		const originalWriteHead = res.writeHead.bind(res) as typeof res.writeHead;
+		res.writeHead = ((...args: Parameters<typeof originalWriteHead>) => {
+			rewriteSessionCookieMaxAge();
+			return originalWriteHead(...args);
+		}) as typeof res.writeHead;
+		next();
+	});
+
 	app.use(
 		session({
 			secret: sessionSecret ?? 'dev-secret',
 			store: deps.sessionStore,
 			resave: false,
 			saveUninitialized: false,
+			// rolling: Jede authentifizierte Antwort sendet ein aktualisiertes Set-Cookie mit voller
+			// Laufzeit → die Session verlängert sich bei Aktivität statt beim ersten Login einzufrieren.
+			rolling: true,
 			cookie: {
 				secure: process.env.NODE_ENV === 'production',
 				sameSite: 'lax' as const,
 				httpOnly: true,
-				...(sessionMaxAge !== undefined ? { maxAge: sessionMaxAge } : {}),
+				maxAge: sessionMaxAge,
 			},
 		}),
 	);

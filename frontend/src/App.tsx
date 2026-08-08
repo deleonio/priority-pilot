@@ -229,6 +229,9 @@ export const App = ({ user }: { user: AuthUser }) => {
 		setLogoutError(null);
 		try {
 			await api.logout();
+			// Issue #396 PR B — Logout-Sperre: „gerade abgemeldet"-Marker unterdrückt den nächsten
+			// stillen Re-Login (s. Root.tsx), sonst wäre ein Ausloggen praktisch unmöglich.
+			sessionStorage.setItem('pp_just_logged_out', '1');
 			window.location.href = '/login';
 		} catch (reason) {
 			setLogoutError(reason instanceof Error ? reason.message : 'Logout fehlgeschlagen');
