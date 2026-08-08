@@ -1,6 +1,6 @@
 name: 00-Set LLM Provider
 
-# Manuelles Umschalten der Repository-Variable LLM_PROVIDER (claude | zai | openrouter)
+# Manuelles Umschalten der Repository-Variable LLM_PROVIDER (claude | openrouter | zai)
 # Löst KEINE Folge-Workflows aus — nur Variable setzen + Verifizieren.
 # Nutzt GitHub-App-Token (wie die 5 Pipeline-Workflows), damit variables:write funktioniert.
 
@@ -14,13 +14,8 @@ on:
         default: 'claude'
         options:
           - claude
-          - zai
           - openrouter
-      dry-run:
-        description: 'Nur anzeigen, was passieren würde (keine Änderung)'
-        type: boolean
-        required: false
-        default: false
+          - zai
 
 jobs:
   set-provider:
@@ -63,20 +58,18 @@ jobs:
           echo "Aktueller Wert: ${current}"
 
       - name: Validierung (nur erlaubte Werte)
-        if: ${{ !inputs.dry-run }}
         env:
           TARGET: ${{ inputs.provider }}
         run: |
           case "${TARGET}" in
-            claude|zai|openrouter) ;;
+            claude|openrouter|zai) ;;
             *)
-              echo "::error::Ungültiger Provider '${TARGET}' — erlaubt: claude, zai, openrouter"
+              echo "::error::Ungültiger Provider '${TARGET}' — erlaubt: claude, openrouter, zai"
               exit 1
               ;;
           esac
 
       - name: Variable setzen
-        if: ${{ !inputs.dry-run }}
         id: set-var
         env:
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
@@ -86,7 +79,6 @@ jobs:
           echo "::notice title=✅ Variable gesetzt::LLM_PROVIDER=${TARGET}"
 
       - name: Verifizieren
-        if: ${{ !inputs.dry-run }}
         env:
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
         run: |
@@ -98,13 +90,6 @@ jobs:
             exit 1
           fi
 
-      - name: Dry-Run Summary
-        if: ${{ inputs.dry-run }}
-        env:
-          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
-        run: |
-          echo "::notice::DRY-RUN — würde LLM_PROVIDER auf '${{ inputs.provider }}' setzen (aktuell: ${{ steps.current.outputs.current }})"
-
       - name: Zusammenfassung
         if: always()
         run: |
@@ -113,6 +98,5 @@ jobs:
             echo ""
             echo "- **Target Provider:** ${{ inputs.provider }}"
             echo "- **Previous Value:** ${{ steps.current.outputs.current }}"
-            echo "- **Mode:** ${{ inputs.dry-run && 'Dry-Run (keine Änderung)' || 'Live' }}"
             echo "- **Status:** ${{ job.status }}"
           } >> "$GITHUB_STEP_SUMMARY"
