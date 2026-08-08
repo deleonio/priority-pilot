@@ -33,9 +33,7 @@ Den Diff gegen diese Fragen prüfen:
 - **Performance:** vermeidbare O(n²)-Schleifen, N+1-Queries (Sequelize), unnötige Allocations/Re-Reads.
 - **Security:** Eingabevalidierung, Injection (SQL/Pfad), Secrets im Code, fehlende AuthZ-Prüfungen.
 - **Regression/Obsoleszenz:** Macht die Änderung bestehende Tests oder Verhalten **außerhalb des
-  Diffs** obsolet oder widerspricht sie ihnen (Anforderung geändert)? Dann als Finding benennen
-  („Test-Pflege-Bedarf" mit Datei/Zeile) — nicht still hinnehmen, aber auch nicht selbst ändern
-  (Anpassung/Entfernung entscheidet der Mensch bzw. ein Folge-Spec).
+  Diffs** obsolet oder widerspricht sie ihnen (Anforderung geändert)? **Hinweis:** Obsolete Tests sollten bereits in der Spec-Stufe entfernt worden sein (ticket-spec.md). Falls trotzdem noch ein Widerspruch auffällt → als Finding benennen („Test-Pflege-Bedarf" mit Datei/Zeile) — nicht still hinnehmen, aber auch nicht selbst ändern (Anpassung/Entfernung entscheidet der Mensch bzw. ein Folge-Spec).
 
 ## Schritt 3 — Code-Qualität
 

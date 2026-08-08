@@ -83,7 +83,7 @@ jobs:
           cat > /tmp/claude-prompt.txt << 'CLAUDE_EOF'
           Reviewe Pull Request #PR_NR im Kreuzverhör (Label `ai:needs-review` ist gesetzt).
 
-          Folge dem Ablauf .ai-knowledge/pr-review.md: vollständigen Diff (gh pr diff) und das verknüpfte Ticket lesen, adversarial prüfen (löst der PR das Problem ganz? Edge Cases? einfachster Weg? Performance/Security?), Code-Qualität und Projekt-Konventionen prüfen. REGRESSION: Macht der PR bestehende Tests/Verhalten AUSSERHALB des Diffs obsolet oder widerspricht er ihnen (Anforderung geändert)? → als Finding benennen („Test-Pflege-Bedarf", Datei:Zeile), nicht still hinnehmen — aber auch nicht selbst ändern.
+          Folge dem Ablauf .ai-knowledge/pr-review.md: vollständigen Diff (gh pr diff) und das verknüpfte Ticket lesen, adversarial prüfen (löst der PR das Problem ganz? Edge Cases? einfachster Weg? Performance/Security?), Code-Qualität und Projekt-Konventionen prüfen. REGRESSION: Macht der PR bestehende Tests/Verhalten AUSSERHALB des Diffs obsolet oder widerspricht er ihnen (Anforderung geändert)? → **Hinweis:** Obsolete Tests sollten bereits in der Spec-Stufe entfernt worden sein (ticket-spec.md). Falls trotzdem noch ein Widerspruch auffällt → als Finding benennen („Test-Pflege-Bedarf", Datei:Zeile), nicht still hinnehmen — aber auch nicht selbst ändern.
 
           ABSCHLUSS — GENAU EINEN Weg gehen:
             - Es gibt zutreffende Findings → Review-Kommentare posten (an Datei/Zeile verankert), dann `VERDICT: needs-changes` ausgeben
