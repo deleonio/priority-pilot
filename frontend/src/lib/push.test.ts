@@ -169,6 +169,40 @@ describe('lib/push', () => {
 
 			expect(mockedApi.unsubscribePush).not.toHaveBeenCalled();
 		});
+
+		// AK1 / TF4 (#507): Beobachtbares Outcome statt reiner Mock-Assertion. Nach dem Abmelden
+		// muss eine vormals aktive Subscription beobachtbar inaktiv sein — nicht nur „die Mocks
+		// wurden gerufen". Der bisherige Test prüft nur `unsubscribePush`/`subscription.unsubscribe`,
+		// nicht den resultierenden Zustand. Rot, weil der Test-PushManager die Abmeldung im
+		// Browser-State noch nicht spiegelt (Post-Condition wird nicht verifiziert).
+		it('macht eine aktive Subscription beobachtbar inaktiv (hasActive danach false)', async () => {
+			installNotification('granted');
+			const subscription = makeSubscription('https://push.example.com/off');
+			const pushManager: PushManagerMock = {
+				getSubscription: vi.fn().mockResolvedValue(subscription),
+				subscribe: vi.fn(),
+			};
+			installServiceWorker(pushManager);
+
+			await disablePush();
+
+			// Post-Condition: eine abgemeldete Subscription ist nicht mehr aktiv.
+			expect(await hasActiveSubscription()).toBe(false);
+		});
+
+		// AK1 / TF4 (#507): Beobachtbares Outcome des No-op — ohne Subscription ändert sich kein
+		// Zustand, und der Aufruf wirft nicht (bisher nur „Backend nicht gerufen" geprüft).
+		it('ändert ohne aktive Subscription keinen beobachtbaren Zustand und wirft nicht', async () => {
+			installNotification('granted');
+			const pushManager: PushManagerMock = {
+				getSubscription: vi.fn().mockResolvedValue(null),
+				subscribe: vi.fn(),
+			};
+			installServiceWorker(pushManager);
+
+			await expect(disablePush()).resolves.toBeUndefined();
+			expect(await hasActiveSubscription()).toBe(false);
+		});
 	});
 
 	describe('hasActiveSubscription', () => {
