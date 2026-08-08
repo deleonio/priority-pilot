@@ -446,7 +446,10 @@ jobs:
             processed=$((processed + 1))
             echo "✅ PR #$pr_number vollständig bearbeitet"
 
-          done < <(jq -c '.[]' /tmp/prs_to_process.json)
+          # REVIEW-FIX #7: Datei ist NDJSON (jq -c '.[] | {...}' erzeugt Zeile-pro-PR).
+          # jq -c '.[]' wuerde ueber die Values jedes Objekts iterieren (number, title, ...),
+          # nicht ueber die PR-Objekte. Richtig: jq -c '.' gibt jedes Objekt als ganze Zeile aus.
+          done < <(jq -c '.' /tmp/prs_to_process.json)
 
           # Summary aus Temp-File lesen
           {
