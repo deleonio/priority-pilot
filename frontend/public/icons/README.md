@@ -7,8 +7,10 @@ Dieses Verzeichnis enthält die App-Icons für Priority Pilot in verschiedenen G
 Die Icons werden aus dem Marken-Logo generiert: `../logo/logo.png` (2048×2048, transparenter
 Hintergrund, quadratisches Icon-Element mit Farbverlauf-Motiv aus Abhängigkeits-Knoten + Herz/Pfeil).
 Das Wortmarken-Logo (Icon + Schriftzug) liegt daneben als `../logo/logo-with-name.horizontal.png` und
-`../logo/logo-with-name.vertical.png`. Die horizontale Wortmarke wird im App-Header als klickbarer
-Logo-Button („Zum Dashboard") eingebunden (siehe `frontend/src/App.tsx`). Beide Wortmarken haben einen
+`../logo/logo-with-name.vertical.png`. Seit #485 bindet der App-Header das **Icon** `../logo/logo.png`
+als klickbaren Logo-Button („Zum Dashboard") ein (siehe `frontend/src/App.tsx`); die beiden Wortmarken
+liegen als Assets bereit, sind aber aktuell **nicht in der App eingebunden** und werden nur noch von
+`frontend/src/lib/logo-transparency.test.ts` referenziert. Beide Wortmarken haben einen
 per Chroma-Key entfernten Vanille-Hintergrund (#FEFAF6), sodass sie transparent auf beliebigem
 Untergrund sitzen.
 

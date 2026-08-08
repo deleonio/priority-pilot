@@ -109,8 +109,14 @@ body {
  * #485 AK3/AK4: Die Toolbar-Buttons werden auf die gemeinsame Bezugshöhe festgenagelt.
  * `--a11y-min-size` ist die von KoliBri im Shadow-DOM genutzte Variable für `min-height`/`min-width`
  * der Buttons; Custom Properties vererben durch die Shadow-Grenze, deshalb greift die Vorgabe hier.
+ * Die Buttons rendert `kol-toolbar` im eigenen Shadow-DOM — im Light-DOM unterhalb von `.toolbar`
+ * steht kein `kol-button`, ein solcher Selektor wäre wirkungslos.
+ *
+ * Sollbruchstelle: `--a11y-min-size` legt nur eine *Untergrenze* fest. `--pp-toolbar-height`
+ * *nimmt an*, dass die Buttons genau darauf rendern. Treiben Padding/Icon-Größe einen Button höher,
+ * bricht die von AK3 geforderte 1,25-Relation hier — nicht am Avatar, der weiter korrekt aus
+ * `--pp-toolbar-height` ableitet.
  */
-.toolbar kol-button,
 .toolbar kol-toolbar {
 	--a11y-min-size: var(--pp-toolbar-height);
 }
@@ -131,9 +137,13 @@ body {
 	 * `kol-avatar` setzt im Shadow-DOM `:host { width: 100px; aspect-ratio: 1 }` und bietet dafür
 	 * keine Custom Property an (das frühere `--kol-avatar-size` blieb wirkungslos). Deshalb wird die
 	 * Breite am Host selbst gesetzt — ungeschichtete Dokument-Styles schlagen die `@layer`-Regel des
-	 * Components. `aspect-ratio: 1` hält den Avatar dabei weiterhin quadratisch.
+	 * Components. Höhe und `aspect-ratio` werden hier ebenfalls explizit gesetzt statt aus dem
+	 * `:host` geerbt: die von AK3 gemessene Höhe soll nicht an einem undokumentierten
+	 * Component-Internum hängen, das eine künftige KoliBri-Version wegfallen lassen kann.
 	 */
 	width: var(--pp-avatar-size);
+	height: var(--pp-avatar-size);
+	aspect-ratio: 1;
 }
 
 .loading {
