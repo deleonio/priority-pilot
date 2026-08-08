@@ -130,12 +130,17 @@ describe('Invariante — wo ein Guard existiert, behandelt JEDER Folge-Step ihn'
 			.map((step) => ({ step, stepName: (step.match(/-\s*name:\s*(.*)/) ?? [, '(unbenannt)'])[1].trim() }));
 
 	// Pro (Workflow, Job, Guard) alle Steps NACH dem Guard — nur die koennen ihn kennen.
+	// `jobGuards` reist mit: fuer die Frage "laeuft dieser Step im Guard-Fall mit?" zaehlt jeder
+	// Guard DIESES Jobs, nicht nur der gerade gepruefte.
 	const cases = workflows.flatMap(({ name, yml }) =>
 		jobsOf(yml).flatMap((job) => {
 			const steps = stepsOf(job);
-			return guardStepsOf(job).flatMap(({ id, output }) => {
+			const jobGuards = guardStepsOf(job);
+			return jobGuards.flatMap(({ id, output }) => {
 				const at = steps.findIndex((s) => new RegExp(`id:\\s*${id}\\b`).test(s.step));
-				return steps.slice(at + 1).map(({ stepName, step }) => ({ name, guard: id, output, stepName, step }));
+				return steps
+					.slice(at + 1)
+					.map(({ stepName, step }) => ({ name, guard: id, output, stepName, step, jobGuards }));
 			});
 		}),
 	);
@@ -156,20 +161,31 @@ describe('Invariante — wo ein Guard existiert, behandelt JEDER Folge-Step ihn'
 	//   - direkt:   `steps.<guard>.outputs.<out> != 'true'` — schliesst den Fall explizit aus.
 	//   - indirekt: die Bedingung haengt AUSSCHLIESSLICH an `steps.<arbeits-step>.outcome`; das
 	//               ist im Guard-Fall leer, weil der Arbeits-Step selbst hinter dem Guard haengt.
-	// Der zweite Freibrief gilt bewusst NUR ohne `||`-Alternative: steht neben dem outcome noch
-	// ein weiterer Zweig (z. B. `|| steps.doppel-guard.outputs.skip == 'true'` in 02:163/03:190),
-	// laeuft der Step im Guard-Fall trotzdem — dann muss er ihn behandeln.
-	const gatedOut = (step: string, guard: string, output: string): boolean => {
+	// Der zweite Freibrief entfaellt, sobald die Bedingung einen Guard POSITIV referenziert
+	// (`steps.<guard>.outputs.<out> == 'true'`, z. B. 02:163/03:190): dann laeuft der Step im
+	// Guard-Fall bewusst mit und muss ihn behandeln.
+	//
+	// Geprueft wird gegen die abgeleiteten Guard-IDs des Jobs, NICHT gegen die ||-Nachbarschaft:
+	// `||` ist kommutativ, eine blosse Umsortierung derselben Bedingung darf das Gate nicht
+	// stumm schalten. Nur echte Guards zaehlen — Positiv-Flags wie `setup.configured` stehen in
+	// fast jeder Bedingung und wuerden sonst jeden Step faelschlich als "laeuft mit" markieren.
+	const gatedOut = (
+		step: string,
+		guard: string,
+		output: string,
+		jobGuards: { id: string; output: string }[],
+	): boolean => {
 		const cond = (step.match(/^\s*if:\s*(.*)$/m) ?? [, ''])[1];
 		if (new RegExp(`steps\\.${guard}\\.outputs\\.${output}\\s*!=\\s*'true'`).test(cond)) return true;
-		// Alternativen-Zweig (`||`) mit einem ANDEREN Guard-Output haelt den Step nicht heraus.
-		const hasGuardAlternative = /\|\|[^|]*steps\.[\w-]+\.outputs\.\w+\s*==\s*'true'/.test(cond);
-		return /steps\.[\w-]+\.outcome/.test(cond) && !hasGuardAlternative;
+		const runsOnGuard = jobGuards.some((g) =>
+			new RegExp(`steps\\.${g.id}\\.outputs\\.${g.output}\\s*==\\s*'true'`).test(cond),
+		);
+		return /steps\.[\w-]+\.outcome/.test(cond) && !runsOnGuard;
 	};
 
-	for (const { name, guard, output, stepName, step } of cases) {
+	for (const { name, guard, output, stepName, step, jobGuards } of cases) {
 		it(`${name} :: ${guard} :: ${stepName}`, () => {
-			if (gatedOut(step, guard, output)) return; // laeuft im Guard-Fall nicht — nichts zu melden
+			if (gatedOut(step, guard, output, jobGuards)) return; // laeuft im Guard-Fall nicht
 
 			// Der Wert muss als env ankommen UND im Body einen eigenen Zweig bekommen. Die blosse
 			// Referenz genuegt nicht: sonst bliebe der Test gruen, wenn jemand nur den Zweig
