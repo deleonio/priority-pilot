@@ -1,5 +1,5 @@
 name: 'Setup Claude Code Agent'
-description: 'Preflight, App-Token, Claude-Code-Install + Auth (Provider-Switch zai/claude), Ticket-Auflösung, Invoke-Resolution — einheitlich für alle 5 Pipeline-Workflows'
+description: 'Preflight, App-Token, Claude-Code-Install + Auth (Provider-Switch zai/claude), Ticket-Auflösung, Invoke-Resolution, Memory-Load/Save – einheitlich für alle 5 Pipeline-Workflows'
 
 inputs:
   needs-mcp:
@@ -31,7 +31,7 @@ inputs:
   openrouter-api-key:
     description: 'API-Key für OpenRouter (secret, secrets.OPENROUTER_API_KEY). Nur bei llm-provider=openrouter erforderlich.'
     required: false
-  # Settings-JSON direkt als Input (aus GitHub Variables) — vermeidet gh CLI Auth-Probleme
+  # Settings-JSON direkt als Input (aus GitHub Variables) – vermeidet gh CLI Auth-Probleme
   zai-settings-json:
     description: 'settings.local.json für zai als JSON-String (aus vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI)'
     required: false
@@ -40,6 +40,15 @@ inputs:
     description: 'settings.local.json für openrouter als JSON-String (aus vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER)'
     required: false
     default: ''
+  # Memory-Funktionen für ticketspezifische Persistenz
+  memory-load:
+    description: 'Memory-Load zu Beginn des Workflows (true = lädt Memory für ticket-ref)'
+    required: false
+    default: 'false'
+  memory-save:
+    description: 'Memory-Save am Ende des Workflows (true = speichert Memory für ticket-ref)'
+    required: false
+    default: 'false'
 
 outputs:
   configured:
@@ -60,6 +69,12 @@ outputs:
   llm-provider:
     description: 'Der tatsächlich aufgelöste Provider ("zai" oder "claude")'
     value: ${{ steps.provider.outputs.llm-provider }}
+  memory-loaded:
+    description: 'Ob Memory erfolgreich geladen wurde'
+    value: ${{ steps.memory-load.outputs.loaded }}
+  memory-saved:
+    description: 'Ob Memory erfolgreich gespeichert wurde'
+    value: ${{ steps.memory-save.outputs.saved }}
 
 runs:
   using: composite
@@ -72,7 +87,7 @@ runs:
       shell: bash
       run: |
         if [ -z "$APP_ID" ] || [ -z "$APP_PRIVATE_KEY" ]; then
-          echo "::warning::GitHub-App-Secrets fehlen — Lauf wird übersprungen."
+          echo "::warning::GitHub-App-Secrets fehlen – Lauf wird übersprungen."
           echo "configured=false" >> "$GITHUB_OUTPUT"
         else
           echo "configured=true" >> "$GITHUB_OUTPUT"
@@ -81,7 +96,7 @@ runs:
     - name: GitHub-App-token erzeugen
       id: app-token
       if: steps.preflight.outputs.configured == 'true'
-      uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+      uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
       with:
         client-id: ${{ inputs.app-id }}
         private-key: ${{ inputs.app-private-key }}
@@ -96,7 +111,7 @@ runs:
           echo "::notice::Nutze GitHub-App-Token für gh-Befehle."
         else
           echo "token=${{ github.token }}" >> "$GITHUB_OUTPUT"
-          echo "::warning::App-Token nicht verfügbar — nutze GITHUB_TOKEN (Achtung: Label-Wechsel lösen ggf. keine Folge-Workflows aus)."
+          echo "::warning::App-Token nicht verfügbar – nutze GITHUB_TOKEN (Achtung: Label-Wechsel lösen ggf. keine Folge-Workflows aus)."
         fi
 
     - name: Git-Credentials für Push konfigurieren (App-Token)
@@ -124,7 +139,7 @@ runs:
             --jq '[.closingIssuesReferences[].number] | first' 2>/dev/null || echo "")
           if [ -z "$ISSUE_NR" ] || [ "$ISSUE_NR" = "null" ]; then
             ISSUE_NR="$TICKET_REF"
-            echo "::notice::Kein Closing-Issue am PR #$TICKET_REF gefunden — nutze PR-Nummer als Fallback."
+            echo "::notice::Kein Closing-Issue am PR #$TICKET_REF gefunden – nutze PR-Nummer als Fallback."
           else
             echo "::notice::PR #$TICKET_REF → Issue #$ISSUE_NR."
           fi
@@ -133,15 +148,38 @@ runs:
         fi
         echo "issue-number=$ISSUE_NR" >> "$GITHUB_OUTPUT"
 
-    # ════════════════════════════════════════════════════════════════════════════
-    # CLAUDE CODE — Install + Provider-Switch + Auth + (optional) KoliBri MCP
+    - name: Memory-Load (ticketspezifisch)
+      id: memory-load
+      if: steps.preflight.outputs.configured == 'true' && inputs.memory-load == 'true'
+      env:
+        TICKET_REF: ${{ inputs.ticket-ref }}
+        ISSUE_NUMBER: ${{ steps.ticket.outputs.issue-number }}
+      shell: bash
+      run: |
+        MEMORY_KEY="ticket-${ISSUE_NUMBER:-$TICKET_REF}"
+        echo "::notice::Memory-Load für Key: $MEMORY_KEY"
+        if command -v claude &> /dev/null; then
+          if claude memory load --key "$MEMORY_KEY" 2>/dev/null; then
+            echo "loaded=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Memory erfolgreich geladen für $MEMORY_KEY"
+          else
+            echo "loaded=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Memory-Load fehlgeschlagen für $MEMORY_KEY (keine bestehende Memory)"
+          fi
+        else
+          echo "loaded=false" >> "$GITHUB_OUTPUT"
+          echo "::warning::Claude CLI nicht verfügbar – Memory-Load übersprungen"
+        fi
+
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # CLAUDE CODE – Install + Provider-Switch + Auth + (optional) KoliBri MCP
     #
     # Provider + Modell-Aliase kommen NICHT aus .claude/settings.json: die Datei ist
-    # eingecheckt und wird von lokalen Entwickler-Sessions mitbenutzt — ein dort
+    # eingecheckt und wird von lokalen Entwickler-Sessions mitbenutzt – ein dort
     # gesetztes ANTHROPIC_BASE_URL würde jede lokale Session zwangs-umrouten.
     # Deshalb setzt diese Action Endpoint, Modell-Aliase und Key pro Lauf via
     # GITHUB_ENV, gesteuert über vars.LLM_PROVIDER.
-    # ════════════════════════════════════════════════════════════════════════════
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     - name: Claude Code installieren
       if: steps.preflight.outputs.configured == 'true'
       shell: bash
@@ -195,11 +233,11 @@ runs:
             case "$CLAUDE_API_KEY" in
               sk-ant-oat*)
                 echo "CLAUDE_CODE_OAUTH_TOKEN=$CLAUDE_API_KEY" >> "$GITHUB_ENV"
-                echo "::notice::Provider=claude — OAuth-Token erkannt (sk-ant-oat…) → CLAUDE_CODE_OAUTH_TOKEN."
+                echo "::notice::Provider=claude – OAuth-Token erkannt (sk-ant-oat…) → CLAUDE_CODE_OAUTH_TOKEN."
                 ;;
               sk-ant-*)
                 echo "ANTHROPIC_API_KEY=$CLAUDE_API_KEY" >> "$GITHUB_ENV"
-                echo "::notice::Provider=claude — API-Key erkannt (sk-ant-…) → ANTHROPIC_API_KEY."
+                echo "::notice::Provider=claude – API-Key erkannt (sk-ant-…) → ANTHROPIC_API_KEY."
                 ;;
               *)
                 echo "ANTHROPIC_API_KEY=$CLAUDE_API_KEY" >> "$GITHUB_ENV"
@@ -217,7 +255,7 @@ runs:
               echo "$ZAI_SETTINGS_JSON" > .claude/settings.local.json
               echo "::notice::settings.local.json aus Input zai-settings-json geschrieben."
             else
-              echo "::warning::Input zai-settings-json leer — keine settings.local.json für zai."
+              echo "::warning::Input zai-settings-json leer – keine settings.local.json für zai."
             fi
             # Auth Token setzen (z.ai nutzt ANTHROPIC_AUTH_TOKEN als Bearer)
             echo "ANTHROPIC_AUTH_TOKEN=$ZAI_API_KEY" >> "$GITHUB_ENV"
@@ -232,24 +270,24 @@ runs:
               echo "$OPENROUTER_SETTINGS_JSON" > .claude/settings.local.json
               echo "::notice::settings.local.json aus Input openrouter-settings-json geschrieben."
             else
-              echo "::warning::Input openrouter-settings-json leer — keine settings.local.json für openrouter."
+              echo "::warning::Input openrouter-settings-json leer – keine settings.local.json für openrouter."
             fi
             # Auth Token setzen (OpenRouter nutzt ANTHROPIC_AUTH_TOKEN als Bearer)
             echo "ANTHROPIC_AUTH_TOKEN=$OPENROUTER_API_KEY" >> "$GITHUB_ENV"
             ;;
           *)
-            echo "::error title=Unbekannter Provider::vars.LLM_PROVIDER='$PROVIDER' — erlaubt sind 'claude', 'zai' oder 'openrouter'."
+            echo "::error title=Unbekannter Provider::vars.LLM_PROVIDER='$PROVIDER' – erlaubt sind 'claude', 'zai' oder 'openrouter'."
             exit 1
             ;;
         esac
 
         echo "llm-provider=$PROVIDER" >> "$GITHUB_OUTPUT"
 
-    # ════════════════════════════════════════════════════════════════════════════
-    # INVOKE-RESOLUTION — setzt invoke-cmd + invoke-args
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # INVOKE-RESOLUTION – setzt invoke-cmd + invoke-args
     # Kein --model: das Modell wird über "model" in .claude/settings.json gewählt
     # und pro Provider über die Alias-Variablen oben aufgelöst.
-    # ════════════════════════════════════════════════════════════════════════════
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     - name: Invoke auflösen
       id: resolve-invoke
       if: steps.preflight.outputs.configured == 'true'
@@ -263,3 +301,26 @@ runs:
           ALLOWED_TOOLS="$ALLOWED_TOOLS,mcp__kolibri__search,mcp__kolibri__fetch"
         fi
         echo "invoke-args=--dangerously-skip-permissions --allowedTools $ALLOWED_TOOLS" >> "$GITHUB_OUTPUT"
+
+    - name: Memory-Save (ticketspezifisch)
+      id: memory-save
+      if: steps.preflight.outputs.configured == 'true' && inputs.memory-save == 'true'
+      env:
+        TICKET_REF: ${{ inputs.ticket-ref }}
+        ISSUE_NUMBER: ${{ steps.ticket.outputs.issue-number }}
+      shell: bash
+      run: |
+        MEMORY_KEY="ticket-${ISSUE_NUMBER:-$TICKET_REF}"
+        echo "::notice::Memory-Save für Key: $MEMORY_KEY"
+        if command -v claude &> /dev/null; then
+          if claude memory save --key "$MEMORY_KEY" 2>/dev/null; then
+            echo "saved=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Memory erfolgreich gespeichert für $MEMORY_KEY"
+          else
+            echo "saved=false" >> "$GITHUB_OUTPUT"
+            echo "::error::Memory-Save fehlgeschlagen für $MEMORY_KEY"
+          fi
+        else
+          echo "saved=false" >> "$GITHUB_OUTPUT"
+          echo "::warning::Claude CLI nicht verfügbar – Memory-Save übersprungen"
+        fi

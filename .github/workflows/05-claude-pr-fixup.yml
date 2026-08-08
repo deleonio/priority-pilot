@@ -29,7 +29,7 @@ jobs:
       actions: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
@@ -41,7 +41,7 @@ jobs:
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
           echo "soft_deadline_epoch=$((now + 600))" >> "$GITHUB_OUTPUT"
 
-      - name: Setup Claude Code
+      - name: Setup Claude Code (mit Memory-Load)
         id: setup
         uses: ./.github/actions/setup-claude
         with:
@@ -56,14 +56,15 @@ jobs:
           openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
           zai-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI }}
           openrouter-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER }}
+          memory-load: 'true'
 
       - name: pnpm einrichten
         if: steps.setup.outputs.configured == 'true'
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
 
       - name: Node.js einrichten
         if: steps.setup.outputs.configured == 'true'
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -76,7 +77,6 @@ jobs:
         if: steps.setup.outputs.configured == 'true'
         run: pnpm exec lefthook install
 
-      # Merge-Konflikte erkennen und automatisch auflösen (VOR dem LLM-Schritt)
       - name: Merge-Konflikte prüfen und auflösen
         id: resolve-conflicts
         if: steps.setup.outputs.configured == 'true'
@@ -115,7 +115,6 @@ jobs:
             fi
           fi
 
-      # Stop-Guard: > 10 PR-Commits → Loop stoppen
       - name: Stop-Guard (> 10 PR-Commits)
         id: stop-guard
         if: steps.setup.outputs.configured == 'true'
@@ -126,7 +125,7 @@ jobs:
         run: |
           if ! commits="$(gh pr view "$PR" --repo "$REPO" --json commits --jq '.commits | length' 2>/dev/null)"; then
             echo "stop=true" >> "$GITHUB_OUTPUT"
-            gh pr comment "$PR" --repo "$REPO" --body "🛑 Stop-Guard: gh-API nicht erreichbar — fail-closed." 2>/dev/null || true
+            gh pr comment "$PR" --repo "$REPO" --body "🛑 Stop-Guard: gh-API nicht erreichbar – fail-closed." 2>/dev/null || true
             exit 0
           fi
           if [ "${commits:-0}" -gt 10 ]; then
@@ -155,22 +154,35 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
         run: |
           cat > /tmp/claude-prompt.txt << 'CLAUDE_EOF'
-          Auf Pull Request #PR_NR hat der Review das Label `ai:needs-changes` gesetzt. Arbeite die offenen Kreuzverhör-Findings ab.
+          FOKUS: NUR PR #PR_NR. NUR gemeldete Kritikpunkte beheben. KEINE Abstecher. Token sparen: kurz, präzise, direkt.
 
-          Vorgehen:
+          Memory ist bereits geladen (ticket-PR_NR).
+
+          ABLAUF (STRIKT):
             0. KONFLIKTAUFLÖSUNG (falls nötig): Prüfe mit git status und git diff --name-only --diff-filter=U auf Merge-Konflikte. Bei Konflikten: analysieren, eindeutig auflösen, git add, git commit, git push. Erst DANN mit Findings weitermachen.
-            1. Beginne SOFORT mit der Arbeit — keine Wartezeit!
+            1. SOFORT starten.
             2. Findings lesen: gh pr view, gh pr diff, Review-Threads (gh api .../pulls/PR_NR/comments) und CI (gh pr checks).
-            3. Zutreffende, EINDEUTIGE Findings fixen: Code ändern, vor jedem Commit lokale Checks: pnpm format && pnpm exec prettier --check . && pnpm lint && pnpm knip. Erst wenn alle grün, committen und pushen. Im jeweiligen Thread antworten und auflösen. Mehrdeutige/große Punkte dem Menschen überlassen.
-            4. CI-CHECKS BEHANDELN (falls rot): gh pr checks --json name,bucket,workflow zeigt alle CI-Checks. Für jeden roten Check:
-               a) FLAKY-TEST ERKENNEN: Ist der Fehler ein Timeout, eine Timing-Instabilität, ein Transient? UND der Test berührt thematisch keine Logik aus diesem PR-Diff? → FLAKY: einmalig via gh run rerun <failed-run-id> --failed neu starten. Danach 60s warten, dann gh pr checks erneut prüfen.
-               b) ECHTER CI-FEHLER: Den fehlschlagenden Job-Log lesen, Root Cause identifizieren, Code ändern, lokale Checks ausführen, committen und pushen.
+            3. Zutreffende, EINDEUTIGE Findings fixen:
+               - Code ändern, vor jedem Commit lokale Checks: pnpm format && pnpm exec prettier --check . && pnpm lint && pnpm knip.
+               - Erst wenn alle grün, committen und pushen.
+               - Im jeweiligen Thread antworten und auflösen.
+               - Mehrdeutige/große Punkte dem Menschen überlassen.
+            4. CI-CHECKS BEHANDELN (falls rot):
+               a) FLAKY-TEST ERKENNEN: Timeout/Timing-Instabilität + thematisch keine Logik aus diesem PR-Diff? → FLAKY: einmalig via gh run rerun <failed-run-id> --failed neu starten. 60s warten, dann gh pr checks erneut prüfen.
+               b) ECHTER CI-FEHLER: Job-Log lesen, Root Cause identifizieren, Code ändern, lokale Checks ausführen, committen und pushen.
                c) UNRELATED CI-FEHLER: In PR-Kommentar dokumentieren. Nicht fixen.
-            5. ABSCHLUSS (ALLERLETZTER Schritt): Gib eine Zeile aus: `VERDICT: fixup-complete` (alle Findings behoben) oder `VERDICT: needs-changes` (noch offene Findings).
 
-          ⚠️ LABELS: Du darfst KEINE Labels setzen oder entfernen! Der Workflow übernimmt das automatisch.
+          ABSCHLUSS:
+            - Alle Findings behoben → VERDICT: fixup-complete
+            - Noch offene Findings → VERDICT: needs-changes
 
-          ZEITLIMIT: Deine Soft-Deadline ist SOFT_DEADLINE (Unix-Epoch). Prüfe `[ $(date +%s) -ge SOFT_DEADLINE ]` vor jedem größeren Schritt. Bei OVER: aktuellen Stand committen+pushen, Turn sofort beenden.
+          ⚠️ LABELS: KEINE Labels setzen! Workflow übernimmt das automatisch.
+
+          VERDICT: GANZ AM ENDE GENAU EINE Zeile:
+            - VERDICT: fixup-complete (alle Findings behoben)
+            - VERDICT: needs-changes (noch offene Findings)
+
+          ZEITLIMIT: Soft-Deadline = SOFT_DEADLINE. Vor jedem Schritt: [ $(date +%s) -ge SOFT_DEADLINE ]. Bei OVER: aktuellen Stand committen+pushen, Turn beenden.
 
           Stop-Guard: Ein Workflow-Step zählt die PR-Commits und stoppt bei > 10.
           CLAUDE_EOF
@@ -182,6 +194,18 @@ jobs:
             ${{ steps.setup.outputs.invoke-args }} \
             2>&1 | tee /tmp/claude-output.log
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
+
+      - name: Setup Claude Code (Memory-Save)
+        if: always() && steps.setup.outputs.configured == 'true' && steps.claude.outcome == 'success'
+        uses: ./.github/actions/setup-claude
+        with:
+          needs-mcp: false
+          event-type: ${{ github.event_name }}
+          ticket-ref: ${{ github.event.pull_request.number }}
+          app-id: ${{ secrets.APP_ID }}
+          app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          llm-provider: ${{ vars.LLM_PROVIDER }}
+          memory-save: 'true'
 
       - name: Label-Post-Assertion (Labels via App-Token force-setzen)
         if: always() && steps.setup.outputs.configured == 'true' && steps.claude.outcome == 'success'
@@ -252,7 +276,7 @@ jobs:
         run: |
           has_continued="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq 'any(.labels[]; .name == "ai:continued")' 2>/dev/null || echo false)"
           if [ "${has_continued:-false}" != "true" ]; then exit 0; fi
-          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "🛑 Fixup-Fortsetzungs-Obergrenze erreicht — bitte manuell prüfen." 2>/dev/null || true
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "🛑 Fixup-Fortsetzungs-Obergrenze erreicht – bitte manuell prüfen." 2>/dev/null || true
 
       - name: Ergebnis zusammenfassen
         if: always() && steps.setup.outputs.configured == 'true'

@@ -32,7 +32,7 @@ jobs:
       pull-requests: write
       issues: write
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
 
@@ -43,7 +43,7 @@ jobs:
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
           echo "soft_deadline_epoch=$((now + 600))" >> "$GITHUB_OUTPUT"
 
-      - name: Setup Claude Code
+      - name: Setup Claude Code (mit Memory-Load)
         id: setup
         uses: ./.github/actions/setup-claude
         with:
@@ -58,6 +58,7 @@ jobs:
           openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
           zai-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI }}
           openrouter-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER }}
+          memory-load: 'true'
 
       - name: Supersede-Check
         id: supersede-check
@@ -69,7 +70,7 @@ jobs:
           running=$(gh api repos/${GITHUB_REPOSITORY}/actions/runs \
             --jq '.workflow_runs[] | select(.name == "Claude PR Review (Kreuzverhoer)" and (.status == "queued" or .status == "in_progress") and .head_branch == $ENV.HEAD_BRANCH and .id != ${{ github.run_id }}) | .id' 2>/dev/null | head -1)
           if [ -n "$running" ]; then
-            echo "::notice::Review-Lauf läuft bereits — übersprungen."
+            echo "::notice::Review-Lauf läuft bereits – übersprungen."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           fi
 
@@ -81,23 +82,35 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
         run: |
           cat > /tmp/claude-prompt.txt << 'CLAUDE_EOF'
-          Reviewe Pull Request #PR_NR im Kreuzverhör (Label `ai:needs-review` ist gesetzt).
+          FOKUS: NUR PR #PR_NR. NUR den Diff prüfen. KEINE Abstecher. Token sparen: kurz, präzise, direkt.
 
-          Folge dem Ablauf .ai-knowledge/pr-review.md: vollständigen Diff (gh pr diff) und das verknüpfte Ticket lesen, adversarial prüfen (löst der PR das Problem ganz? Edge Cases? einfachster Weg? Performance/Security?), Code-Qualität und Projekt-Konventionen prüfen. REGRESSION: Macht der PR bestehende Tests/Verhalten AUSSERHALB des Diffs obsolet oder widerspricht er ihnen (Anforderung geändert)? → **Hinweis:** Obsolete Tests sollten bereits in der Spec-Stufe entfernt worden sein (ticket-spec.md). Falls trotzdem noch ein Widerspruch auffällt → als Finding benennen („Test-Pflege-Bedarf", Datei:Zeile), nicht still hinnehmen — aber auch nicht selbst ändern.
+          Memory ist bereits geladen (ticket-PR_NR).
 
-          ABSCHLUSS — GENAU EINEN Weg gehen:
-            - Es gibt zutreffende Findings → Review-Kommentare posten (an Datei/Zeile verankert), dann `VERDICT: needs-changes` ausgeben
-            - PR ist solide (🟢) → KEINE Pseudo-Findings, knappe 🟢-Bestätigung, dann `VERDICT: ready-to-merge` ausgeben
+          ABLAUF (STRIKT):
+            1. SOFORT starten.
+            2. Vollständigen Diff (gh pr diff) und verknüpftes Ticket lesen.
+            3. Adversarial prüfen:
+               - Löst der PR das Problem ganz?
+               - Edge Cases? Einfachster Weg? Performance/Security?
+               - Regression: Macht der PR bestehende Tests/Verhalten AUSSERHALB des Diffs obsolet?
+                 **Hinweis:** Obsolete Tests sollten bereits in der Spec-Stufe entfernt worden sein. Falls trotzdem Widerspruch auffällt → als Finding benennen ("Test-Pflege-Bedarf", Datei:Zeile), nicht still hinnehmen.
+            4. Code-Qualität: Benennung, Lesbarkeit, Tests (grün + abdeckend).
+
+          ABSCHLUSS:
+            - Findings → Review-Kommentare posten (an Datei/Zeile verankert), dann VERDICT: needs-changes
+            - PR ist solide (🟢) → KEINE Pseudo-Findings, knappe 🟢-Bestätigung, dann VERDICT: ready-to-merge
 
           Sammelkommentar konsolidieren: Urteil als GENAU EINEN <!-- ai-review -->-Kommentar pflegen. Vorhandenen suchen und aktualisieren statt neu anzulegen.
 
-          ⚠️ LABELS: Du darfst KEINE Labels setzen oder entfernen! Der Workflow übernimmt das automatisch.
+          Bei Folge-Review: NUR den Diff SEIT dem letzten Review prüfen.
 
-          VERDICT-MARKER: Gib GANZ AM ENDE deiner letzten Antwort GENAU EINE Zeile aus: `VERDICT: ready-to-merge` (bei 🟢) oder `VERDICT: needs-changes` (bei Findings).
+          ⚠️ LABELS: KEINE Labels setzen! Workflow übernimmt das automatisch.
 
-          Bei Folge-Review (markierter Kommentar existiert): NUR den Diff SEIT dem letzten Review prüfen.
+          VERDICT: GANZ AM ENDE GENAU EINE Zeile:
+            - VERDICT: ready-to-merge (bei 🟢)
+            - VERDICT: needs-changes (bei Findings)
 
-          ZEITLIMIT: Deine Soft-Deadline ist SOFT_DEADLINE (Unix-Epoch). Prüfe `[ $(date +%s) -ge SOFT_DEADLINE ]` vor jedem größeren Schritt. Bei OVER: Zwischenstand als Sammelkommentar, Turn sofort beenden.
+          ZEITLIMIT: Soft-Deadline = SOFT_DEADLINE. Vor jedem Schritt: [ $(date +%s) -ge SOFT_DEADLINE ]. Bei OVER: Zwischenstand als Sammelkommentar, Turn beenden.
 
           WICHTIG: Ändere KEINEN Code, committe nichts. Reiner Review.
           CLAUDE_EOF
@@ -109,6 +122,18 @@ jobs:
             ${{ steps.setup.outputs.invoke-args }} \
             2>&1 | tee /tmp/claude-output.log
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
+
+      - name: Setup Claude Code (Memory-Save)
+        if: always() && steps.setup.outputs.configured == 'true' && steps.claude.outcome == 'success'
+        uses: ./.github/actions/setup-claude
+        with:
+          needs-mcp: false
+          event-type: ${{ github.event_name }}
+          ticket-ref: ${{ github.event.pull_request.number }}
+          app-id: ${{ secrets.APP_ID }}
+          app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          llm-provider: ${{ vars.LLM_PROVIDER }}
+          memory-save: 'true'
 
       - name: Label-Post-Assertion (Labels via App-Token force-setzen)
         if: always() && steps.setup.outputs.configured == 'true' && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure')
@@ -184,7 +209,7 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
         run: |
-          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⚠️ **Review #${PR} — Timeout erreicht** Bitte manuell prüfen." 2>/dev/null || true
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⚠️ **Review #${PR} – Timeout erreicht** Bitte manuell prüfen." 2>/dev/null || true
 
       - name: Ergebnis zusammenfassen
         if: always() && steps.setup.outputs.configured == 'true'
@@ -221,14 +246,11 @@ jobs:
             if [ "$i" -lt 5 ]; then sleep 3; fi
           done
           echo "Labels verifiziert: needs_changes=${needs_changes:-?} ready_to_merge=${ready_to_merge:-?}"
-          # needs_changes ist ein GÜLTIGES Review-Ergebnis (der Fixup wird über das Label ausgelöst,
-          # nicht über den Exit-Code) — bewusst KEIN exit 1, damit legitime Findings nicht als roter/
-          # gescheiterter Workflow-Lauf zählen. Nur das Steckenbleiben (kein Ergebnis-Label) ist ein Fehler.
           if [ "$needs_changes" = "true" ]; then
-            echo "::notice title=Review: Änderungen erforderlich::PR #${PR} — ai:needs-changes gesetzt (Fixup läuft an), gültiges Ergebnis."
+            echo "::notice title=Review: Änderungen erforderlich::PR #${PR} – ai:needs-changes gesetzt (Fixup läuft an), gültiges Ergebnis."
           elif [ "$ready_to_merge" = "true" ]; then
-            echo "::notice title=Review: ready-to-merge::PR #${PR} — ai:ready-to-merge gesetzt."
+            echo "::notice title=Review: ready-to-merge::PR #${PR} – ai:ready-to-merge gesetzt."
           else
-            echo "::error title=Review stecken geblieben::PR #${PR} — weder ai:needs-changes noch ai:ready-to-merge gesetzt."
+            echo "::error title=Review stecken geblieben::PR #${PR} – weder ai:needs-changes noch ai:ready-to-merge gesetzt."
             exit 1
           fi

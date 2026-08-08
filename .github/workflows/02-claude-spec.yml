@@ -29,7 +29,7 @@ jobs:
       pull-requests: write
       issues: write
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           fetch-depth: 0
 
@@ -40,7 +40,7 @@ jobs:
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
           echo "soft_deadline_epoch=$((now + 840))" >> "$GITHUB_OUTPUT"
 
-      - name: Setup Claude Code
+      - name: Setup Claude Code (mit Memory-Load)
         id: setup
         uses: ./.github/actions/setup-claude
         with:
@@ -55,6 +55,7 @@ jobs:
           openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
           zai-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI }}
           openrouter-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER }}
+          memory-load: 'true'
 
       - name: Skip-Guard (Spec läuft bereits)
         id: skip-guard
@@ -63,16 +64,10 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
-          # Läuft bereits ein Spec-Lauf, skippen wir den neuen: der laufende Job
-          # bleibt ungestört (keine verschwendeten Tokens). cancel-in-progress kann
-          # das nicht ausdrücken (würde den laufenden abbrechen statt den neuen
-          # abzuweisen). Muster: Supersede-Check im Review.
-          # Filter nach Issue-Number im Event-Payload, damit verschiedene Issues
-          # parallel laufen können (Concurrency-Gruppe ist pro Issue).
           running=$(gh api --paginate repos/${GITHUB_REPOSITORY}/actions/runs \
             --jq '.workflow_runs[] | select(.name == "Claude Spec (ai:spec-ready)" and (.status == "queued" or .status == "in_progress") and (.event.issue.number | tonumber) == (env.ISSUE | tonumber) and .id != ${{ github.run_id }}) | .id' 2>/dev/null | head -1)
           if [ -n "$running" ]; then
-            echo "::notice::Spec-Lauf für Issue #$ISSUE läuft bereits — übersprungen."
+            echo "::notice::Spec-Lauf für Issue #$ISSUE läuft bereits – übersprungen."
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
@@ -88,11 +83,11 @@ jobs:
           if ! existing="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
             --json number,isDraft,closingIssuesReferences \
             --jq "[.[] | select((.closingIssuesReferences // []) | any(.number == ${ISSUE}))] | length" 2>/dev/null)"; then
-            echo "::warning::Doppel-Run-Guard: gh-API nicht erreichbar — fail-open."
+            echo "::warning::Doppel-Run-Guard: gh-API nicht erreichbar – fail-open."
             existing=0
           fi
           if [ "${existing:-0}" -gt 0 ]; then
-            echo "::notice::Spec übersprungen — PR existiert bereits für Issue #$ISSUE."
+            echo "::notice::Spec übersprungen – PR existiert bereits für Issue #$ISSUE."
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -100,11 +95,11 @@ jobs:
 
       - name: pnpm einrichten
         if: steps.setup.outputs.configured == 'true' && steps.skip-guard.outputs.skip != 'true' && steps.doppel-guard.outputs.skip != 'true'
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
 
       - name: Node.js einrichten
         if: steps.setup.outputs.configured == 'true' && steps.skip-guard.outputs.skip != 'true' && steps.doppel-guard.outputs.skip != 'true'
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -125,27 +120,31 @@ jobs:
           ISSUE: ${{ github.event.issue.number }}
         run: |
           cat > /tmp/claude-prompt.txt << 'CLAUDE_EOF'
-          Das Label `ai:spec-ready` wurde an Issue #ISSUE_NR gesetzt — schreibe jetzt die ROTEN Tests (den Vertrag) für dieses Issue.
+          FOKUS: NUR Issue #ISSUE_NR. KEINE Abstecher. Token sparen: kurz, präzise, direkt.
 
-          Folge dem Spec-Workflow .ai-knowledge/ticket-spec.md:
-            1. Beginne SOFORT mit der Arbeit — keine Wartezeit!
-            2. Branch anlegen: git switch -c feat/issue-ISSUE_NR-<kurzname>. Den Akzeptanzkriterien-Block primär aus dem BODY-Block des Issues entnehmen (gh issue view ISSUE_NR --json body -q .body, Abschnitt zwischen <!-- KI-ANALYSE:START stand=... --> und <!-- KI-ANALYSE:END -->).
-            3. ROTE Tests schreiben — je Akzeptanzkriterium echte, ausführbare Tests (server/src/**/*.test.ts, frontend/src/**/*.test.ts, frontend/e2e/*.spec.ts). Sie prüfen echtes Soll-Verhalten und werden grün, sobald der Code existiert. KEINEN Produktivcode schreiben.
-               VORAB Dedup: Prüfe per grep, ob ein AK bereits durch einen bestehenden Test abgedeckt ist (Feature-/Funktionsnamen in den Test-Verzeichnissen suchen). Schon abgedeckt → NICHT duplizieren, nur fehlende AKs testen. Widerspricht ein AK einem bestehenden Test (Anforderung geändert, Test obsolet)? → den **alten Test ENTFERNEN** (Datei löschen oder Test-Funktion entfernen) und im PR-Body im Abschnitt „Test-Pflege-Bedarf" benennen (Datei:Zeile + Begründung), **warum er entfernt wurde** (welches neue AK ihn obsolet macht). Die Entfernung ist Teil der Spec — kein Mensch muss nachentscheiden.
-            4. Rote Tests als ERSTEN Commit (test: rote Spec-Tests für #ISSUE_NR), Branch pushen, git push -u origin HEAD. DRAFT-PR erstellen (gh pr create --draft) mit Closes #ISSUE_NR im Body. KEIN ai:needs-review setzen (PR ist Draft).
-            5. GIB VERDICT AUS — KEINE LABELS SELBST SETZEN!
+          Memory ist bereits geladen (ticket-ISSUE_NR).
 
-          ⚠️ LABELS: Du darfst KEINE Labels setzen oder entfernen! Der Workflow übernimmt das automatisch.
+          ABLAUF (STRIKT):
+            1. SOFORT starten.
+            2. Branch anlegen: git switch -c feat/issue-ISSUE_NR-<kurzname>.
+               Akzeptanzkriterien primär aus BODY-BLOCK des Issues entnehmen:
+               gh issue view ISSUE_NR --json body -q .body (Abschnitt zwischen <!-- KI-ANALYSE:START --> und <!-- KI-ANALYSE:END -->).
+            3. ROTE Tests schreiben – je Akzeptanzkriterium echte, ausführbare Tests.
+               VORAB Dedup: Prüfe per grep, ob ein AK bereits durch bestehenden Test abgedeckt ist.
+                 - Schon abgedeckt → NICHT duplizieren.
+                 - Widerspricht AK einem bestehenden Test → alten Test ENTFERNEN und im PR-Body im Abschnitt "Test-Pflege-Bedarf" dokumentieren (Datei:Zeile + Begründung).
+            4. Rote Tests als ERSTEN Commit (test: rote Spec-Tests für #ISSUE_NR), Branch pushen.
+               DRAFT-PR erstellen (gh pr create --draft) mit Closes #ISSUE_NR im Body. KEIN ai:needs-review setzen.
 
-          VERDICT-MARKER: Gib GANZ AM ENDE deiner letzten Antwort GENAU EINE Zeile aus:
-            - `VERDICT: ready` (rote Tests geschrieben + Draft-PR erstellt → gibt Issue zur Umsetzung frei)
-            - `VERDICT: spec-ready` (Partial — Tests unvollständig, braucht Folgelauf)
-          EHRLICHKEITS-REGEL: `VERDICT: ready` NUR ausgeben, wenn der Draft-PR tatsächlich existiert UND mindestens eine Test-Datei committed+gepusht ist (vorher mit `gh pr view`/`git log` verifizieren). Existiert kein PR mit Tests → `VERDICT: spec-ready`. NIEMALS `ready` behaupten, wenn die Artefakte fehlen — der Workflow prüft das gegen und wertet falsches `ready` als Fehler.
+          ⚠️ LABELS: KEINE Labels setzen! Workflow übernimmt das automatisch.
 
-          WERKZEUGE:
-            Du hast Bash (für gh, git, pnpm) und Datei-Tools. Nutze gh issue, gh pr, git, pnpm, read_file, write_file. GH_TOKEN authentifiziert gh-Befehle.
+          VERDICT: GANZ AM ENDE GENAU EINE Zeile:
+            - VERDICT: ready (rote Tests geschrieben + Draft-PR erstellt → gibt Issue zur Umsetzung frei)
+            - VERDICT: spec-ready (Partial – Tests unvollständig, braucht Folgelauf)
 
-          ZEITLIMIT: Deine Soft-Deadline ist SOFT_DEADLINE (Unix-Epoch). Prüfe `[ $(date +%s) -ge SOFT_DEADLINE ]` vor jedem größeren Schritt. Bei OVER: aktuellen Stand committen+pushen als Draft-PR, Turn sofort beenden.
+          EHRLICHKEITS-REGEL: VERDICT: ready NUR ausgeben, wenn Draft-PR tatsächlich existiert UND mindestens eine Test-Datei committed+gepusht ist (vorher mit gh pr view/git log verifizieren).
+
+          ZEITLIMIT: Soft-Deadline = SOFT_DEADLINE. Vor jedem Schritt: [ $(date +%s) -ge SOFT_DEADLINE ]. Bei OVER: aktuellen Stand committen+pushen als Draft-PR, Turn beenden.
           CLAUDE_EOF
 
           sed -i "s/#ISSUE_NR/${{ github.event.issue.number }}/g" /tmp/claude-prompt.txt
@@ -155,6 +154,18 @@ jobs:
             ${{ steps.setup.outputs.invoke-args }} \
             2>&1 | tee /tmp/claude-output.log
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
+
+      - name: Setup Claude Code (Memory-Save)
+        if: always() && steps.setup.outputs.configured == 'true' && steps.claude.outcome == 'success'
+        uses: ./.github/actions/setup-claude
+        with:
+          needs-mcp: false
+          event-type: ${{ github.event_name }}
+          ticket-ref: ${{ github.event.issue.number }}
+          app-id: ${{ secrets.APP_ID }}
+          app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          llm-provider: ${{ vars.LLM_PROVIDER }}
+          memory-save: 'true'
 
       - name: Label-Post-Assertion (VERDICT parsen, Labels via App-Token force-setzen)
         if: always() && steps.setup.outputs.configured == 'true' && steps.skip-guard.outputs.skip != 'true' && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure' || steps.doppel-guard.outputs.skip == 'true')
@@ -171,7 +182,7 @@ jobs:
 
           if [ "${GUARD_SKIP:-false}" = "true" ]; then
             verdict="ready"
-            echo "::notice::Doppel-Run-Guard: PR existiert bereits — behandele als ready."
+            echo "::notice::Doppel-Run-Guard: PR existiert bereits – behandele als ready."
           fi
 
           SPEC_PR="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
@@ -179,8 +190,6 @@ jobs:
             --jq "[.[] | select((.closingIssuesReferences // []) | any(.number == ${ISSUE})) | .number] | first" 2>/dev/null || echo "")"
           ARTIFACTS_OK="false"
           if [ -n "$SPEC_PR" ] && [ "$SPEC_PR" != "null" ]; then
-            # endswith() statt test("\.…") — gh's jq-Parser wertet Backslash-Escapes in
-            # String-Literalen als Fehler ("invalid escape sequence"), echtes jq nicht.
             HAS_TESTS="$(gh pr view "$SPEC_PR" --repo "$GITHUB_REPOSITORY" --json files \
               --jq '[.files[].path | (endswith(".test.ts") or endswith(".test.tsx") or endswith(".spec.ts") or endswith(".spec.tsx"))] | any' 2>/dev/null || echo "false")"
             echo "::notice::Spec-PR #$SPEC_PR: HAS_TESTS=$HAS_TESTS"
@@ -233,14 +242,14 @@ jobs:
         run: |
           labels="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
           if [ "$OUTCOME" = "success" ]; then
-            echo "::notice title=✅ Spec erfolgreich::Issue #${ISSUE} — Rote Tests geschrieben"
+            echo "::notice title=✅ Spec erfolgreich::Issue #${ISSUE} – Rote Tests geschrieben"
           elif [ "$OUTCOME" = "cancelled" ]; then
             echo "::warning title=⏸️ Spec abgebrochen"
           else
             echo "::error title=❌ Spec fehlgeschlagen"
           fi
           {
-            echo "### Spec #${ISSUE} — fertig"
+            echo "### Spec #${ISSUE} – fertig"
             echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\`"
             echo "- Labels: ${labels:-keine}"
           } >> "$GITHUB_STEP_SUMMARY"
