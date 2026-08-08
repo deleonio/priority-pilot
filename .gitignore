@@ -1,3 +1,6 @@
+# Ticketspezifische Memory (phase-*.md) — wird via Actions-Cache zwischen Workflows weitergegeben,
+# nicht via git. NIEMALS committen (sonst Kaskade in jeden Folge-Checkout).
+.claude/ticket-memory/
 .claude/worktrees/
 dist/
 node_modules/
