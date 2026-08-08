@@ -1,3 +1,6 @@
+# ⚠️ Der Workflow-Name ist der Selektor des Skip-Guards weiter unten
+# (`select(.name == "Claude Spec (ai:spec-ready)" ...)`). Wird er hier geaendert,
+# muss die jq-Query mitgezogen werden — sonst greift der Guard still nicht mehr.
 name: Claude Spec (ai:spec-ready)
 
 # Schreibt die ROTEN Tests (ausführbarer Vertrag) für ein Issue, sobald es
@@ -230,9 +233,17 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
           OUTCOME: ${{ steps.claude.outcome }}
+          SKIP_GUARD: ${{ steps.skip-guard.outputs.skip }}
+          SKIP_DOPPEL: ${{ steps.doppel-guard.outputs.skip }}
         run: |
           labels="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
-          if [ "$OUTCOME" = "success" ]; then
+          # Je ein eigener Arm pro Guard: ohne sie faellt der gewollte Skip auf den
+          # Fehler-Arm (OUTCOME ist leer, weil der claude-Step nie lief) und meldet ❌.
+          if [ "${SKIP_GUARD:-false}" = "true" ]; then
+            echo "::notice title=⏭️ Spec übersprungen::Issue #${ISSUE} — Lauf bereits aktiv"
+          elif [ "${SKIP_DOPPEL:-false}" = "true" ]; then
+            echo "::notice title=⏭️ Spec übersprungen::Issue #${ISSUE} — PR existiert bereits"
+          elif [ "$OUTCOME" = "success" ]; then
             echo "::notice title=✅ Spec erfolgreich::Issue #${ISSUE} — Rote Tests geschrieben"
           elif [ "$OUTCOME" = "cancelled" ]; then
             echo "::warning title=⏸️ Spec abgebrochen"
