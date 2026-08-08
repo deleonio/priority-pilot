@@ -103,7 +103,7 @@ runs:
         client-id: ${{ inputs.app-id }}
         private-key: ${{ inputs.app-private-key }}
 
-    - name: GH_TOKEN-Fallback setzen (App-Token oder GITHUB_TOKEN)
+    - name: App-Token durchreichen (App-only — kein GITHUB_TOKEN-Fallback)
       id: gh-token
       shell: bash
       run: |
@@ -112,18 +112,28 @@ runs:
           echo "token=$APP_TOK" >> "$GITHUB_OUTPUT"
           echo "::notice::Nutze GitHub-App-Token für gh-Befehle."
         else
-          echo "token=${{ github.token }}" >> "$GITHUB_OUTPUT"
-          echo "::warning::App-Token nicht verfügbar – nutze GITHUB_TOKEN (Achtung: Label-Wechsel lösen ggf. keine Folge-Workflows aus)."
+          # App-only-Pipeline: ohne App-Token kann weder gepusht (Contents:Write) noch ein
+          # Folge-Workflow getriggert werden (GITHUB_TOKEN-Events lösen keine Runs aus). Ein
+          # stiller GITHUB_TOKEN-Fallback endet grün, pusht nicht und loopt — deshalb LAUT
+          # abbrechen statt degradieren.
+          echo "::error::App-Token nicht verfügbar – Pipeline ist App-only. Abbruch statt GITHUB_TOKEN-Fallback (Push braucht Contents:Write, Label-Wechsel müssen Folge-Workflows triggern). Secrets APP_ID/APP_PRIVATE_KEY oder die App-Installation prüfen."
+          exit 1
         fi
 
-    - name: Git-Credentials für Push konfigurieren (App-Token)
+    - name: Git-Remote origin auf App-Token umstellen (wie deploy.yml)
       if: steps.preflight.outputs.configured == 'true'
       shell: bash
       env:
         GH_TOKEN: ${{ steps.gh-token.outputs.token }}
       run: |
-        git config --global "url.https://x-access-token:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"
-        echo "::notice::Git-Credentials für App-Token konfiguriert."
+        # App-Token DIREKT in die origin-URL einbetten — exakt wie deploy.yml. Der frühere
+        # insteadOf-Rewrite wurde vom per `persist-credentials` (Default true) von checkout
+        # hinterlegten GITHUB_TOKEN überstimmt, sodass der Agent als github-actions[bot]
+        # (contents:read) statt als App (Contents:Write) pushte → 403. Mit persist-credentials:false
+        # an allen Claude-Checkouts gibt es keine konkurrierende Credential mehr; origin trägt
+        # als einzige das App-Token.
+        git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+        echo "::notice::origin-Remote auf App-Token umgestellt (Contents:Write für Push)."
 
     - name: Ticket-ID auflösen (Issue-Nummer)
       id: ticket
