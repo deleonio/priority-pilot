@@ -100,7 +100,7 @@ jobs:
       # pnpm verlinkt transitive Deps dort aber nicht, daher `sh: tsx: command not found`. pnpm dlx
       # nutzt einen isolierten Store ausserhalb des Workspaces und ist damit immun dagegen.
       - name: Test (Workflow-/CI-Vertraege)
-        run: pnpm dlx tsx@4.22.4 --test ".github/workflows/"*.test.ts
+        run: pnpm dlx tsx@4.22.4 --test ".github/workflows/"*.test.ts ".github/scripts/"*.test.ts
 
   # E2E gesharded ueber eine Matrix: jeder Shard ist eine EIGENE Runner-VM mit eigenem localhost —
   # dadurch kollidieren die festen Ports (Backend 3000 / Vite 4173) NICHT zwischen den Shards, und
