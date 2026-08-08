@@ -1,3 +1,6 @@
+# ⚠️ Der Workflow-Name ist der Selektor des Skip-Guards weiter unten
+# (`select(.name == "Claude Implement (ai:ready)" ...)`). Wird er hier geaendert,
+# muss die jq-Query mitgezogen werden — sonst greift der Guard still nicht mehr.
 name: Claude Implement (ai:ready)
 
 # Setzt ein Issue um, sobald es das Label "ai:ready" erhält UND bereits
@@ -56,20 +59,6 @@ jobs:
           zai-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI }}
           openrouter-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER }}
 
-      - name: Issue einem Menschen zuweisen (Best-Effort)
-        if: steps.setup.outputs.configured == 'true'
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
-          ISSUE: ${{ github.event.issue.number }}
-          ASSIGNEE: ${{ github.event.sender.type == 'User' && github.event.sender.login || (github.event.issue.user.type == 'User' && github.event.issue.user.login || '') }}
-        run: |
-          if [ -z "$ASSIGNEE" ]; then
-            echo "::notice::Kein menschlicher Assignee ermittelbar."
-            exit 0
-          fi
-          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-assignee "$ASSIGNEE"
-
       - name: Skip-Guard (Implement läuft bereits)
         id: skip-guard
         if: steps.setup.outputs.configured == 'true'
@@ -91,6 +80,23 @@ jobs:
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
+
+      # Steht bewusst NACH dem Skip-Guard: bei einem geskippten Lauf hat der laufende
+      # Job bereits zugewiesen — ein zweiter Aufruf kostet nur API-Quota und kann eine
+      # ueberfluessige Assignment-Notification ausloesen.
+      - name: Issue einem Menschen zuweisen (Best-Effort)
+        if: steps.setup.outputs.configured == 'true' && steps.skip-guard.outputs.skip != 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          ISSUE: ${{ github.event.issue.number }}
+          ASSIGNEE: ${{ github.event.sender.type == 'User' && github.event.sender.login || (github.event.issue.user.type == 'User' && github.event.issue.user.login || '') }}
+        run: |
+          if [ -z "$ASSIGNEE" ]; then
+            echo "::notice::Kein menschlicher Assignee ermittelbar."
+            exit 0
+          fi
+          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-assignee "$ASSIGNEE"
 
       - name: Doppel-Run-Guard (ready-PR existiert bereits)
         id: doppel-guard
@@ -254,9 +260,14 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
           OUTCOME: ${{ steps.claude.outcome }}
+          SKIP_GUARD: ${{ steps.skip-guard.outputs.skip }}
         run: |
           labels="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
-          if [ "$OUTCOME" = "success" ]; then
+          # Eigener Arm fuer den Skip-Guard: ohne ihn faellt der gewollte Skip auf den
+          # Fehler-Arm (OUTCOME ist leer, weil der claude-Step nie lief) und meldet ❌.
+          if [ "${SKIP_GUARD:-false}" = "true" ]; then
+            echo "::notice title=⏭️ Umsetzung übersprungen::Issue #${ISSUE} — Lauf bereits aktiv"
+          elif [ "$OUTCOME" = "success" ]; then
             echo "::notice title=✅ Umsetzung erfolgreich::Issue #${ISSUE}"
           elif [ "$OUTCOME" = "cancelled" ]; then
             echo "::warning title=⏸️ Umsetzung abgebrochen"

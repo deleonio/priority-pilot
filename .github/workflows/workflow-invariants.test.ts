@@ -75,3 +75,56 @@ describe('Invariante — ai:-Labels werden nie unter github.token gesetzt', () =
 		});
 	}
 });
+
+describe('Invariante — wo ein Skip-Guard existiert, kennt ihn JEDER Folge-Step', () => {
+	// Der Skip-Guard weist einen Zweitlauf ab, waehrend fuer dasselbe Issue bereits einer
+	// laeuft. Ein Folge-Step, der ihn nicht kennt, arbeitet im geskippten Lauf weiter und
+	// hebt den Guard fuer seinen Teil auf — still, denn der Lauf endet gruen.
+	//
+	// Tragend ist die INDIREKTE Gating-Falle: `steps.doppel-guard.outputs.skip != 'true'` ist
+	// WAHR, wenn der Doppel-Run-Guard selbst uebersprungen wurde (uebersprungene Steps liefern
+	// keine Outputs, der Vergleich laeuft gegen den Leerstring). Wer also nur den nachgelagerten
+	// Guard abfragt, laeuft bei Skip-Guard-Skip trotzdem. Genau diese Fehlerklasse ist hier
+	// gemeint — der Test leitet sie aus der Step-Reihenfolge ab, statt Conditions zu spiegeln.
+	//
+	// Geprueft wird "referenziert den Guard", nicht "gatet auf ihn": ein `always()`-Reporting-Step
+	// SOLL im geskippten Lauf laufen — er muss den Skip aber als eigenen Fall melden, sonst faellt
+	// er auf den Fehler-Arm (`OUTCOME` ist leer) und meldet ❌ fuer einen gewollten Skip.
+	// Beide zulaessigen Formen referenzieren `steps.<guard>.outputs.skip`; das Fehlen ist der Defekt.
+	const GUARD = 'skip-guard';
+
+	// Steps eines Workflows in Dokument-Reihenfolge, ab dem Skip-Guard.
+	const stepsAfterGuard = (yml: string): { stepName: string; step: string }[] => {
+		const steps = codeOf(yml).split(/\n(?=\s{6}- )/);
+		const guardIndex = steps.findIndex((s) => new RegExp(`id:\\s*${GUARD}\\b`).test(s));
+		if (guardIndex === -1) return [];
+		return steps.slice(guardIndex + 1).map((step) => ({
+			step,
+			stepName: (step.match(/-\s*name:\s*(.*)/) ?? [, '(unbenannt)'])[1].trim(),
+		}));
+	};
+
+	const guarded = workflows
+		.map(({ name, yml }) => ({ name, followers: stepsAfterGuard(yml) }))
+		.filter(({ followers }) => followers.length > 0);
+
+	it('es gibt ueberhaupt Workflows mit Skip-Guard (sonst prueft die Invariante ins Leere)', () => {
+		assert.ok(guarded.length > 0, `kein Step mit "id: ${GUARD}" gefunden — Extraktion kaputt oder Guard entfernt?`);
+	});
+
+	for (const { name, followers } of guarded) {
+		for (const { stepName, step } of followers) {
+			it(`${name} :: ${stepName}`, () => {
+				assert.match(
+					step,
+					new RegExp(`steps\\.${GUARD}\\.outputs\\.skip`),
+					`Step steht nach dem Skip-Guard, referenziert ihn aber nirgends — im geskippten Lauf arbeitet ` +
+						`er weiter bzw. meldet den gewollten Skip als Fehler. Entweder auf ihn gaten ` +
+						`(steps.${GUARD}.outputs.skip != 'true') oder — bei always()-Reporting — den Skip als eigenen ` +
+						`Fall behandeln. Ein Gate auf einen NACHGELAGERTEN Guard genuegt nicht: dessen Output ist leer, ` +
+						`wenn er selbst uebersprungen wurde, und "!= 'true'" ist dann wahr.`,
+				);
+			});
+		}
+	}
+});
