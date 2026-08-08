@@ -2,6 +2,7 @@ name: 00-Set LLM Provider
 
 # Manuelles Umschalten der Repository-Variable LLM_PROVIDER (claude | zai | openrouter)
 # Löst KEINE Folge-Workflows aus — nur Variable setzen + Verifizieren.
+# Nutzt GitHub-App-Token (wie die 5 Pipeline-Workflows), damit variables:write funktioniert.
 
 on:
   workflow_dispatch:
@@ -27,14 +28,35 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write # Für GitHub-App-Token
     steps:
       - name: Checkout (für gh auth)
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: GitHub-App-Token erzeugen
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: GH_TOKEN setzen (App-Token)
+        id: gh-token
+        shell: bash
+        run: |
+          APP_TOK="${{ steps.app-token.outputs.token }}"
+          if [ -n "$APP_TOK" ] && [ "$APP_TOK" != "null" ]; then
+            echo "token=$APP_TOK" >> "$GITHUB_OUTPUT"
+            echo "::notice::Nutze GitHub-App-Token für gh-Befehle."
+          else
+            echo "::error::App-Token nicht verfügbar — Secrets APP_ID / APP_PRIVATE_KEY prüfen."
+            exit 1
+          fi
+
       - name: Aktuelle Variable anzeigen
         id: current
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
         run: |
           current="$(gh variable get LLM_PROVIDER -R "${GITHUB_REPOSITORY}" 2>/dev/null || echo 'nicht gesetzt')"
           echo "current=${current}" >> "$GITHUB_OUTPUT"
@@ -57,7 +79,7 @@ jobs:
         if: ${{ !inputs.dry-run }}
         id: set-var
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
           TARGET: ${{ inputs.provider }}
         run: |
           gh variable set LLM_PROVIDER -b "${TARGET}" -R "${GITHUB_REPOSITORY}"
@@ -66,7 +88,7 @@ jobs:
       - name: Verifizieren
         if: ${{ !inputs.dry-run }}
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
         run: |
           sleep 1  # kurze Propagation-Pause
           verified="$(gh variable get LLM_PROVIDER -R "${GITHUB_REPOSITORY}" 2>/dev/null || echo 'FEHLER')"
@@ -78,6 +100,8 @@ jobs:
 
       - name: Dry-Run Summary
         if: ${{ inputs.dry-run }}
+        env:
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
         run: |
           echo "::notice::DRY-RUN — würde LLM_PROVIDER auf '${{ inputs.provider }}' setzen (aktuell: ${{ steps.current.outputs.current }})"
 
