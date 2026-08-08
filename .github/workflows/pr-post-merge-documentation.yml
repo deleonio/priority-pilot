@@ -1,0 +1,411 @@
+name: PR Post-Merge Documentation
+
+# 6-Phase Post-Merge PR Documentation Routine
+# Läuft NACH einem erfolgreichen PR-Merge und dokumentiert den PR vollständig autonom.
+# Bearbeitet ausschließlich gemergte PRs OHNE `ai:documented` und OHNE `release:ignore` Label.
+# Batchgröße: max. 12 neueste PRs pro Lauf.
+
+on:
+  workflow_run:
+    workflows: ['Claude PR Gate & Auto-Merge']
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      max-prs:
+        description: 'Maximale Anzahl PRs pro Lauf (Default: 12)'
+        required: false
+        default: '12'
+        type: string
+      dry-run:
+        description: 'Nur prüfen, keine Änderungen schreiben'
+        required: false
+        default: 'false'
+        type: boolean
+
+concurrency:
+  group: pr-post-merge-documentation
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+env:
+  REPO: ${{ github.repository }}
+  MAX_PRS: ${{ github.event.inputs.max-prs || '12' }}
+  DRY_RUN: ${{ github.event.inputs.dry-run || 'false' }}
+
+jobs:
+  document-merged-prs:
+    name: Document Merged PRs (6 Phases)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: 🔧 Phase 0 - Setup & Prerequisites
+        id: setup
+        run: |
+          set -euo pipefail
+
+          echo "📋 Phase 0: Vorbereitung gestartet"
+          echo "Repository: $REPO"
+          echo "Max PRs: $MAX_PRS"
+          echo "Dry Run: $DRY_RUN"
+
+          # 0.1 Prüfen/Erstellen Label ai:documented
+          echo "🔍 Prüfe Label 'ai:documented'..."
+          if gh label list --repo "$REPO" --json name | jq -r '.[].name' | grep -qx 'ai:documented'; then
+            echo "✅ Label 'ai:documented' existiert bereits"
+          else
+            echo "📝 Erstelle Label 'ai:documented'..."
+            if [ "$DRY_RUN" = "false" ]; then
+              gh label create "ai:documented" --repo "$REPO" --color 0075ca --description "Automatically documented by AI"
+            fi
+            echo "✅ Label 'ai:documented' erstellt (dry-run: $DRY_RUN)"
+          fi
+
+          # 0.2 Conventional Commits Pattern (Standard, da pr-title-validation.yml nicht existiert)
+          CONVENTIONAL_PATTERN='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?: .+'
+          echo "📋 Conventional Commits Pattern: $CONVENTIONAL_PATTERN"
+          echo "conventional_pattern=$CONVENTIONAL_PATTERN" >> "$GITHUB_OUTPUT"
+
+          # 0.3 Gemergte PRs holen (neueste zuerst, ohne ai:documented und release:ignore)
+          echo "🔍 Suche gemergte PRs ohne ai:documented und release:ignore..."
+          search_query="repo:$REPO is:pr is:merged -label:ai:documented -label:release:ignore"
+          pr_list_json=$(gh api "/search/issues" -f q="$search_query" -f sort=created -f order=desc --paginate 2>/dev/null | jq -s 'add | .[0:$MAX_PRS | tonumber]')
+
+          pr_count=$(echo "$pr_list_json" | jq 'length')
+          echo "📊 Gefundene PRs zur Bearbeitung: $pr_count"
+
+          if [ "$pr_count" -eq 0 ]; then
+            echo "🎉 Keine PRs zu bearbeiten - alle dokumentiert oder ignoriert"
+            echo "prs_json=[]" >> "$GITHUB_OUTPUT"
+            echo "pr_count=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "$pr_list_json" | jq -c '.[] | {number: .number, title: .title, head_branch: .head_ref_name, merged_at: .closed_at, author: .user.login, labels: [.labels[].name], body: .body}' > prs_to_process.json
+
+          echo "prs_json=$(cat prs_to_process.json | jq -s '.')" >> "$GITHUB_OUTPUT"
+          echo "pr_count=$pr_count" >> "$GITHUB_OUTPUT"
+
+          echo "✅ Phase 0 abgeschlossen - $pr_count PRs in der Queue"
+
+      - name: 🔄 Phase 1-6 - Process Each PR
+        id: process-prs
+        if: steps.setup.outputs.pr_count > 0
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRS_JSON: ${{ steps.setup.outputs.prs_json }}
+          CONVENTIONAL_PATTERN: ${{ steps.setup.outputs.conventional_pattern }}
+          DRY_RUN: ${{ env.DRY_RUN }}
+        run: |
+          set -euo pipefail
+
+          echo "📋 Starte Bearbeitung von $(echo "$PRS_JSON" | jq 'length') PRs..."
+
+          summary_results=()
+          processed=0
+          skipped=0
+          title_changed=0
+
+          echo "$PRS_JSON" | jq -c '.[]' | while IFS= read -r pr_json; do
+            pr_number=$(echo "$pr_json" | jq -r '.number')
+            pr_title=$(echo "$pr_json" | jq -r '.title')
+            pr_author=$(echo "$pr_json" | jq -r '.author')
+            pr_labels=$(echo "$pr_json" | jq -r '.labels | join(",")')
+            pr_body=$(echo "$pr_json" | jq -r '.body // ""')
+            pr_head_branch=$(echo "$pr_json" | jq -r '.head_branch')
+
+            echo ""
+            echo "============================================================"
+            echo "🔄 Bearbeite PR #$pr_number: $pr_title"
+            echo "   Autor: $pr_author | Labels: $pr_labels"
+            echo "============================================================"
+
+            # ----------------------------------------------------
+            # PHASE 0b — BOT-PRS (KURZBEHANDLUNG)
+            # ----------------------------------------------------
+            is_bot=false
+            if [[ "$pr_author" == "dependabot[bot]" ]] || [[ "$pr_author" == "github-actions[bot]" ]]; then
+              pr_files=$(gh pr view "$pr_number" --repo "$REPO" --json files --jq '.files[].path' 2>/dev/null || echo "")
+              if echo "$pr_files" | grep -qE '(package-lock\.json|pnpm-lock\.yaml|yarn\.lock|renovate\.json|dependabot\.yml|\.github/dependabot)'; then
+                is_bot=true
+                echo "🤖 Bot-PR erkannt (Dependabot/GitHub Actions) - reine Dependency/Lock-File-Änderung"
+              fi
+            fi
+
+            if [ "$is_bot" = "true" ]; then
+              echo "⚡ Kurzbehandlung: Setze nur release:ignore + ai:documented Labels"
+              if [ "$DRY_RUN" = "false" ]; then
+                gh pr edit "$pr_number" --repo "$REPO" --add-label "release:ignore" "ai:documented" 2>/dev/null || true
+              fi
+              summary_results+=("#$pr_number|$pr_title|🤖 Bot (Dependency)|Nein")
+              ((skipped++))
+              echo "✅ PR #$pr_number: Bot-Kurzbehandlung abgeschlossen"
+              continue
+            fi
+
+            # ----------------------------------------------------
+            # PHASE 1 — ÄNDERUNGEN ANALYSIEREN & KLASSEIFIZIEREN
+            # ----------------------------------------------------
+            echo "📊 Phase 1: Änderungen analysieren..."
+
+            pr_diff=$(gh pr view "$pr_number" --repo "$REPO" --json diff --jq '.diff' 2>/dev/null || echo "")
+            pr_files=$(gh pr view "$pr_number" --repo "$REPO" --json files --jq '.files[].path' 2>/dev/null || echo "")
+
+            linked_issues=$(echo "$pr_body" | grep -oE '(Closes|Fixes|Refs) #([0-9]+)' | sed 's/ #/ #/g' || echo "")
+            if [ -z "$linked_issues" ]; then
+              issue_from_branch=$(echo "$pr_head_branch" | grep -oE '[0-9]+' | head -1 || echo "")
+              if [ -n "$issue_from_branch" ]; then
+                linked_issues="Refs #$issue_from_branch"
+              fi
+            fi
+
+            classification="internal"
+            classification_reason=""
+
+            if echo "$pr_diff" | grep -qiE '(BREAKING|breaking|major version|migration required|API removed|removed export|changed signature|incompatible)'; then
+              classification="breaking"
+              classification_reason="Breaking Change im Diff erkannt"
+            elif echo "$pr_diff" | grep -qiE '(new component|new feature|new API|export.*new|add.*component|create.*feature)'; then
+              classification="new"
+              classification_reason="Neue Komponente/Feature/API im Diff erkannt"
+            elif echo "$pr_diff" | grep -qiE '(fix|bug|error|crash|regression|a11y|accessibility|WCAG)'; then
+              classification="fixed"
+              classification_reason="Bugfix/Fehlerkorrektur/a11y-Fix im Diff erkannt"
+            elif echo "$pr_diff" | grep -qiE '(improve|enhance|optimize|performance|better UX|refactor.*public|extend.*API)'; then
+              classification="improved"
+              classification_reason="Verbesserung/Performance/UX-Verbesserung im Diff erkannt"
+            elif echo "$pr_diff" | grep -qiE '(test|spec|ci|workflow|lint|format|typo|doc|readme|chore|refactor.*internal|internal)'; then
+              classification="internal"
+              classification_reason="Interne Änderung (Tests/CI/Refactoring/Doku) erkannt"
+            else
+              if echo "$pr_title" | grep -qiE '^(feat|feature)'; then
+                classification="new"
+                classification_reason="Titel deutet auf Feature hin"
+              elif echo "$pr_title" | grep -qiE '^(fix|bug)'; then
+                classification="fixed"
+                classification_reason="Titel deutet auf Bugfix hin"
+              elif echo "$pr_title" | grep -qiE '^(perf|improve|enhance)'; then
+                classification="improved"
+                classification_reason="Titel deutet auf Improvement hin"
+              elif echo "$pr_title" | grep -qiE '^(refactor|style|docs|test|build|ci|chore)'; then
+                classification="internal"
+                classification_reason="Titel deutet auf interne Änderung hin"
+              else
+                classification="improved"
+                classification_reason="Kein klares Muster - konservativ als Improvement klassifiziert"
+              fi
+            fi
+
+            echo "📌 Klassifikation: $classification ($classification_reason)"
+
+            case "$classification" in
+              "breaking") emoji="💥"; type_label="💥 Breaking change"; release_label="release:breaking-change"; type_check="breaking" ;;
+              "new") emoji="✨"; type_label="✨ New feature"; release_label="release:feature"; type_check="feature" ;;
+              "improved") emoji="🔼"; type_label="🔼 Improvement"; release_label="release:improvement"; type_check="improvement" ;;
+              "fixed") emoji="🐛"; type_label="🐛 Bug fix"; release_label="release:fix"; type_check="bug" ;;
+              "internal") emoji="🔧"; type_label="🔧 Internal (no release note needed)"; release_label="release:engineering"; type_check="internal" ;;
+            esac
+
+            # ----------------------------------------------------
+            # PHASE 2 — PR-TITEL VALIDIEREN UND NEU SCHREIBEN
+            # ----------------------------------------------------
+            echo "✏️ Phase 2: PR-Titel validieren..."
+
+            old_title="$pr_title"
+            title_changed_flag="Nein"
+            new_title="$pr_title"
+
+            if echo "$pr_title" | grep -qE "$CONVENTIONAL_PATTERN"; then
+              subject=$(echo "$pr_title" | sed -E 's/^[^:]+: //')
+              if echo "$subject" | grep -qE '^[A-Z]'; then
+                echo "⚠️ Titel entspricht Pattern aber Subject beginnt großgeschrieben"
+                title_valid=false
+              else
+                echo "✅ Titel entspricht Conventional Commits Format"
+                title_valid=true
+              fi
+            else
+              echo "⚠️ Titel entspricht NICHT Conventional Commits Format"
+              title_valid=false
+            fi
+
+            title_type=$(echo "$pr_title" | sed -E 's/^([^(:]+).*/\1/' | tr '[:upper:]' '[:lower:]')
+            type_matches=false
+            case "$classification" in
+              "breaking") [[ "$title_type" =~ ^(feat|fix|refactor|perf|breaking) ]] && type_matches=true ;;
+              "new") [[ "$title_type" =~ ^(feat|feature) ]] && type_matches=true ;;
+              "improved") [[ "$title_type" =~ ^(feat|perf|improve|refactor) ]] && type_matches=true ;;
+              "fixed") [[ "$title_type" =~ ^(fix|bug) ]] && type_matches=true ;;
+              "internal") [[ "$title_type" =~ ^(refactor|style|docs|test|build|ci|chore) ]] && type_matches=true ;;
+            esac
+
+            if [ "$title_valid" = "false" ] || [ "$type_matches" = "false" ]; then
+              scope=""
+              main_file=$(echo "$pr_files" | grep -vE '(test|spec|\.md$|\.yml$|\.yaml$)' | head -1)
+              if [ -n "$main_file" ]; then
+                if echo "$main_file" | grep -qE 'server/src/'; then
+                  scope=$(echo "$main_file" | sed -E 's#.*server/src/([^/]+)/.*#\1#')
+                elif echo "$main_file" | grep -qE 'frontend/src/'; then
+                  scope=$(echo "$main_file" | sed -E 's#.*frontend/src/([^/]+)/.*#\1#')
+                elif echo "$main_file" | grep -qE '\.github/'; then
+                  scope="ci"
+                fi
+              fi
+
+              subject_base=$(echo "$pr_title" | sed -E 's/^[^:]+: //' | sed -E 's/^[A-Z]/\L&/')
+              if [ ${#subject_base} -gt 72 ]; then
+                subject_base=$(echo "$subject_base" | cut -c1-69)...
+              fi
+
+              case "$classification" in
+                "breaking") new_type="feat" ;;
+                "new") new_type="feat" ;;
+                "improved") new_type="perf" ;;
+                "fixed") new_type="fix" ;;
+                "internal") new_type="chore" ;;
+              esac
+
+              if [ -n "$scope" ]; then
+                new_title="$new_type($scope): $subject_base"
+              else
+                new_title="$new_type: $subject_base"
+              fi
+
+              echo "🔄 Neuer Titel generiert: $new_title"
+
+              if [ "$DRY_RUN" = "false" ]; then
+                gh pr edit "$pr_number" --repo "$REPO" --title "$new_title"
+                echo "✅ PR-Titel aktualisiert"
+              fi
+              title_changed_flag="Ja"
+              ((title_changed++))
+            else
+              echo "✅ Titel ist konform und inhaltlich treffend - keine Änderung"
+            fi
+
+            # ----------------------------------------------------
+            # PHASE 3 — PR-BESCHREIBUNG AKTUALISIEREN
+            # ----------------------------------------------------
+            echo "📝 Phase 3: PR-Beschreibung aktualisieren..."
+
+            file_count=$(echo "$pr_files" | wc -l | tr -d ' ')
+
+            # Build what_changed_en
+            what_changed_en="This PR modifies **$file_count file(s)** across the codebase.\n\n**Core technical changes:**\n- $(echo "$pr_files" | head -5 | sed 's/^/- /' | paste -sd '\n- ' -)\n\n**Classification rationale:** $classification_reason"
+
+            what_changed_de="Dieser PR ändert **$file_count Datei(en)** im Codebase.\n\n**Kerntechnische Änderungen:**\n- $(echo "$pr_files" | head -5 | sed 's/^/- /' | paste -sd '\n- ' -)\n\n**Klassifikationsbegründung:** $classification_reason"
+
+            if [ -n "$linked_issues" ]; then
+              linked_issues_en=$(echo "$linked_issues" | sed 's/^/- /')
+              linked_issues_de=$(echo "$linked_issues" | sed 's/Closes /Schließt /; s/Fixes /Behebt /; s/Refs /Referenziert /' | sed 's/^/- /')
+            else
+              linked_issues_en="No linked issues."
+              linked_issues_de="Keine verknüpften Tickets."
+            fi
+
+            changed_files_de=$(echo "$pr_files" | head -8 | while IFS= read -r file; do
+              case "$file" in
+                *.tsx|*.ts) desc="Komponenten-/Logik-Änderung" ;;
+                *.css|*.scss) desc="Styling-Änderung" ;;
+                *.md) desc="Dokumentations-Update" ;;
+                *.yml|*.yaml) desc="Konfigurations-Änderung" ;;
+                *.json) desc="Konfigurations-/Daten-Änderung" ;;
+                *) desc="Änderung" ;;
+              esac
+              echo "- \`$file\` — $desc"
+            done)
+
+            new_body="## What changed?\n\n$what_changed_en\n\n## Linked issues\n\n$linked_issues_en\n\n## Type of change\n\n- [ ] ✨ New feature\n- [ ] 🔼 Improvement\n- [ ] 🐛 Bug fix\n- [ ] 💥 Breaking change\n- [x] $type_check\n\n## Checklist\n\n- [x] PR title follows Conventional Commits format\n- [x] Linked issues are referenced\n- [x] Breaking changes are documented\n\n---\n\n<details>\n<summary>🇩🇪 Deutsche Zusammenfassung</summary>\n\n### Was wurde geändert?\n\n$what_changed_de\n\n### Verknüpfte Tickets\n\n$linked_issues_de\n\n### Art der Änderung\n\n$type_label\n\n### Geänderte Dateien\n\n$changed_files_de\n\n</details>"
+
+            if [ "$DRY_RUN" = "false" ]; then
+              printf '%s\n' "$new_body" | gh pr edit "$pr_number" --repo "$REPO" --body-file -
+              echo "✅ PR-Beschreibung aktualisiert"
+            fi
+
+            # ----------------------------------------------------
+            # PHASE 4 — RELEASE-NOTE-KOMMENTAR POSTEN
+            # ----------------------------------------------------
+            echo "💬 Phase 4: Release-Note-Kommentar posten..."
+
+            component_area=$(echo "$pr_files" | head -1 | sed -E 's#.*/(src/)?([^/]+)/.*#\2#' | sed 's/\..*//' || echo "repository")
+            if [ -z "$component_area" ] || [ "$component_area" = "$pr_files" ]; then
+              component_area="repository"
+            fi
+
+            if [ "$classification" = "internal" ]; then
+              comment_body="🤖 **Internal change — no release note required.**\n\nThis change only affects internal aspects (tests / CI / refactoring / documentation)\nand has no direct user impact.\n\n<details>\n<summary>Analysed changes</summary>\n\n$(echo "$pr_files" | head -10 | sed 's/^/- /')\n\n**Classification reason:** $classification_reason\n\n</details>\n\n---\n*Generated by PR Documentation Routine · [ai:documented]*\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_"
+            else
+              migration_note=""
+              if [ "$classification" = "breaking" ]; then
+                migration_note="\n\n> ⚠️ **Migration required:** Consumers need to adapt to the changed API/behavior. Review the breaking changes in the PR description and update dependent code accordingly."
+              fi
+
+              title_correction_note=""
+              if [ "$title_changed_flag" = "Ja" ]; then
+                title_correction_note="\n\n---\n> 📝 **Title corrected:** \`$old_title\` → \`$new_title\`\n> Reason: Title did not comply with Conventional Commits format or did not match the actual changes."
+              fi
+
+              comment_body="🤖 **Release note draft**\n\n**[$emoji ${classification^}]** — \`$component_area\`\n\n$what_changed_en\n$migration_note\n---\n*Generated by PR Documentation Routine · Please review before release · [ai:documented]*\n$title_correction_note\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_"
+            fi
+
+            if [ "$DRY_RUN" = "false" ]; then
+              printf '%s\n' "$comment_body" | gh pr comment "$pr_number" --repo "$REPO" --body-file -
+              echo "✅ Release-Note-Kommentar gepostet"
+            fi
+
+            # ----------------------------------------------------
+            # PHASE 5 — LABEL SETZEN
+            # ----------------------------------------------------
+            echo "🏷️ Phase 5: Labels setzen..."
+
+            has_release_label=$(echo "$pr_labels" | grep -q 'release:' && echo "true" || echo "false")
+
+            labels_to_add=("ai:documented")
+            if [ "$has_release_label" = "false" ]; then
+              labels_to_add+=("$release_label")
+              echo "📌 Setze release-Label: $release_label"
+            else
+              echo "📌 release:* Label bereits vorhanden - behalte bestehendes"
+            fi
+
+            if [ "$DRY_RUN" = "false" ]; then
+              gh pr edit "$pr_number" --repo "$REPO" --add-label "${labels_to_add[@]}"
+              echo "✅ Labels gesetzt: ${labels_to_add[*]}"
+            fi
+
+            # ----------------------------------------------------
+            # ZUSAMMENFASSUNG SAMMELN
+            # ----------------------------------------------------
+            summary_results+=("#$pr_number|$pr_title|$emoji ${classification^}|$title_changed_flag")
+            ((processed++))
+            echo "✅ PR #$pr_number vollständig bearbeitet"
+
+          done
+
+          echo ""
+          echo "## ✅ PR-Dokumentations-Routine abgeschlossen"
+          echo ""
+          echo "Bearbeitete PRs: $processed"
+          echo ""
+          echo "| PR | Titel | Klassifikation | Titel geändert? |"
+          echo "|----|-------|---------------|-----------------|"
+          for result in "${summary_results[@]}"; do
+            IFS='|' read -r pr_num title class title_chg <<< "$result"
+            echo "| $pr_num | $title | $class | $title_chg |"
+          done
+          echo ""
+          echo "Übersprungene PRs (bereits ai:documented oder release:ignore): $skipped"
+
+          remaining=$(gh api "/search/issues" -f q="repo:$REPO is:pr is:merged -label:ai:documented -label:release:ignore" -f sort=created -f order=desc --paginate 2>/dev/null | jq -s 'add | length')
+          echo "Verbleibende un-dokumentierte, nicht-ignorierte PRs: $remaining"
+
+      - name: 📋 Final Summary
+        if: always()
+        run: |
+          echo "🏁 PR Post-Merge Documentation Workflow abgeschlossen"
+          if [ "${{ steps.process-prs.outcome }}" = "skipped" ]; then
+            echo "Keine PRs zur Bearbeitung gefunden (alle bereits dokumentiert oder ignoriert)"
+          fi
