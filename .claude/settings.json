@@ -1,22 +1,13 @@
 {
 	"env": {
+		"API_TIMEOUT_MS": "3000000",
 		"BASH_MAX_OUTPUT_LENGTH": "20000",
 		"CLAUDE_CODE_AUTO_COMPACT_WINDOW": "1000000",
 		"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
-		"CLAUDE_CODE_NO_FLICKER": "1",
-		"API_TIMEOUT_MS": "3000000"
+		"CLAUDE_CODE_NO_FLICKER": "1"
 	},
 	"permissions": {
-		"allow": ["Agent(*)", "Bash(*)", "Read(*)", "WebFetch(*)"],
-		"deny": ["Bash(git commit *)", "Bash(git push *)"]
+		"allow": ["Agent(*)", "Bash(*)", "Read(*)", "WebFetch(*)"]
 	},
-	"model": "opus",
-	"tui": "fullscreen",
-	"skipWorkflowUsageWarning": true,
-	"theme": "dark",
-	"mcpServers": {
-		"kolibri-mcp": {
-			"url": "https://public-ui-kolibri-mcp.vercel.app/mcp"
-		}
-	}
+	"model": "opus"
 }

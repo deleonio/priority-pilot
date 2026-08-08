@@ -121,45 +121,6 @@ test.describe('#395 Header – Logo-Button', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Rote Spec-Tests für #402 — Wort-Bildmarke im Header (AK2 + AK4)
-// ---------------------------------------------------------------------------
-
-test.describe('#402 Header – Wort-Bildmarke statt reinem Icon-Logo', () => {
-	/**
-	 * AK2 — Header zeigt die horizontale Wortmarke:
-	 * Das img im Logo-Button verweist auf logo-with-name.horizontal.png.
-	 */
-	test('AK2: Logo-Button img src zeigt auf logo-with-name.horizontal.png', async ({ page }) => {
-		await page.goto('/');
-		await waitForStableView(page);
-
-		const header = page.getByRole('banner');
-		const logoImg = header.getByRole('button', { name: /Zum Dashboard/i }).locator('img');
-		await expect(logoImg).toBeVisible();
-
-		const src = await logoImg.getAttribute('src');
-		expect(src, 'img src soll auf logo-with-name.horizontal.png enden').toMatch(/logo-with-name\.horizontal\.png$/);
-	});
-
-	/**
-	 * AK4 — Mobile-First (375px): Die breitere Wortmarke überschreitet den 375px-Viewport nicht.
-	 */
-	test('AK4: Wortmarken-img überschreitet 375px-Viewport-Breite nicht', async ({ page }) => {
-		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/');
-		await waitForStableView(page);
-
-		const header = page.getByRole('banner');
-		const logoImg = header.getByRole('button', { name: /Zum Dashboard/i }).locator('img');
-		await expect(logoImg).toBeVisible();
-
-		const box = await logoImg.boundingBox();
-		expect(box, 'Wortmarken-img muss eine Boundingbox haben').not.toBeNull();
-		expect(box!.width, `Wortmarken-img (${box!.width}px) darf 375px nicht überschreiten`).toBeLessThanOrEqual(375);
-	});
-});
-
-// ---------------------------------------------------------------------------
 // Rote Spec-Tests für #406 — Wort-Bild-Marke vergrößern + App-Namen-H1 entfernen
 // ---------------------------------------------------------------------------
 
@@ -167,12 +128,11 @@ test.describe('#402 Header – Wort-Bildmarke statt reinem Icon-Logo', () => {
  * ROTE Spec-Tests für #406 „Wort-Bild-Marke im Header vergrößern und Text-H1 entfernen".
  *
  * Ziel: Die redundante Text-H1 „Priority Pilot" verschwindet aus dem Header (der App-Name steckt
- * bereits in der Wort-Bild-Marke). Die Wort-Bild-Marke wächst mit dem Viewport (statt fixer 2.5rem).
- * Die semantische Ebene-1-Überschrift der Hauptansicht wird als visuell verborgene (sr-only) H1
- * „Dashboard" bereitgestellt, damit die Seite genau eine H1 behält.
+ * bereits in der Wort-Bild-Marke). Die semantische Ebene-1-Überschrift der Hauptansicht wird als
+ * visuell verborgene (sr-only) H1 „Dashboard" bereitgestellt, damit die Seite genau eine H1 behält.
  *
- * Diese Tests sind **rot**, bis App.tsx/CSS die Text-H1 entfernen, die sr-only „Dashboard"-H1
- * ergänzen und die Logo-Höhe responsiv machen.
+ * Diese Tests sind **rot**, bis App.tsx/CSS die Text-H1 entfernen und die sr-only „Dashboard"-H1
+ * ergänzen.
  */
 test.describe('#406 Wort-Bild-Marke vergrößern + App-Namen-H1 entfernen', () => {
 	/**
@@ -214,37 +174,6 @@ test.describe('#406 Wort-Bild-Marke vergrößern + App-Namen-H1 entfernen', () =
 	});
 
 	/**
-	 * AK3 — Wort-Bild-Marke wächst mit dem Viewport: Die Logo-Höhe bei 1280px ist größer als bei
-	 * 375px und größer als der bisherige Fixwert von 40px (2.5rem).
-	 * RED, solange die CSS-Höhe fest auf 2.5rem (≈40px) steht.
-	 */
-	test('AK3: Logo-Höhe wächst mit dem Viewport und übersteigt den bisherigen Fixwert (40px)', async ({ page }) => {
-		await page.setViewportSize({ width: 1280, height: 800 });
-		await page.goto('/');
-		await waitForStableView(page);
-
-		const logoBtn = page.getByRole('banner').getByRole('button', { name: /Zum Dashboard/i });
-		const boxWide = await logoBtn.locator('img').boundingBox();
-		expect(boxWide, 'Logo-Bild muss bei 1280px eine Boundingbox haben').not.toBeNull();
-
-		await page.setViewportSize({ width: 375, height: 812 });
-		await page.reload();
-		await waitForStableView(page);
-
-		const boxNarrow = await logoBtn.locator('img').boundingBox();
-		expect(boxNarrow, 'Logo-Bild muss bei 375px eine Boundingbox haben').not.toBeNull();
-
-		expect(
-			boxWide!.height,
-			`Logo bei 1280px (${boxWide!.height}px) muss höher sein als bei 375px (${boxNarrow!.height}px)`,
-		).toBeGreaterThan(boxNarrow!.height);
-		expect(
-			boxWide!.height,
-			`Logo bei 1280px (${boxWide!.height}px) muss den bisherigen Fixwert von 40px übersteigen`,
-		).toBeGreaterThan(40);
-	});
-
-	/**
 	 * AK4 — Genau eine sr-only H1 „Dashboard": Die Hauptansicht behält eine einzige Ebene-1-Überschrift
 	 * „Dashboard" (visuell verborgen, aber semantisch vorhanden).
 	 * RED, solange keine „Dashboard"-H1 existiert (count=0).
@@ -272,5 +201,68 @@ test.describe('#406 Wort-Bild-Marke vergrößern + App-Namen-H1 entfernen', () =
 			() => document.documentElement.scrollWidth > window.innerWidth + 1,
 		);
 		expect(overflowsHorizontally, 'Kein horizontaler Overflow auf 375px').toBe(false);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Rote Spec-Tests für #485 — Icon-Only-Logo im Header
+// ---------------------------------------------------------------------------
+
+/**
+ * ROTE Spec-Tests für #485 „Header-Optimierung: Icon-Only-Logo, kleinerer Avatar, alles auf eine
+ * Ebene" — Teil Logo (AK1).
+ *
+ * Ziel: Der Schriftzug verschwindet aus dem Header-Logo; dargestellt wird nur noch das reine
+ * Icon-Asset `/logo/logo.png` (bereits in `frontend/public/logo/` vorhanden). Die Funktion des
+ * Logo-Buttons (Accessible Name „Zum Dashboard", Klick → Dashboard) bleibt unverändert und ist
+ * bereits durch die #395-Tests oben abgedeckt (AK2 des Tickets, kein neuer Test nötig).
+ *
+ * Dieser Test ist **rot**, solange `App.tsx` `/logo/logo-with-name.horizontal.png` referenziert.
+ */
+test.describe('#485 Header – Icon-Only-Logo', () => {
+	/**
+	 * AK1 — Logo nur als Icon: Das img im Logo-Button referenziert das reine Icon-Asset
+	 * `/logo/logo.png` und kein `logo-with-name`-Asset.
+	 */
+	test('AK1: Logo-Button img src zeigt auf das Icon-Asset /logo/logo.png', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+
+		const header = page.getByRole('banner');
+		const logoImg = header.getByRole('button', { name: /Zum Dashboard/i }).locator('img');
+		await expect(logoImg).toBeVisible();
+
+		const src = await logoImg.getAttribute('src');
+		expect(src, 'img src darf keine Wortmarke (logo-with-name) mehr referenzieren').not.toMatch(/logo-with-name/);
+		expect(src, 'img src soll auf das reine Icon-Asset logo.png enden').toMatch(/\/logo\/logo\.png$/);
+	});
+
+	/**
+	 * AK1 (Ergänzung) — Das Asset wird auch tatsächlich ausgeliefert (kein 404) und ist ein
+	 * annähernd quadratisches Icon: das Seitenverhältnis des geladenen Bildes bleibt unter 1,5.
+	 * Das reine Icon (`logo.png`, 1698×1659 ≈ 1,02) erfüllt das, die horizontale Wortmarke
+	 * (2116×412 ≈ 5,1) nicht. Schützt davor, dass der Schriftzug über ein anderes Asset zurückkehrt.
+	 */
+	test('AK1: Geladenes Logo-Bild ist ein Icon (Seitenverhältnis < 1,5) und lädt fehlerfrei', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+
+		const logoImg = page
+			.getByRole('banner')
+			.getByRole('button', { name: /Zum Dashboard/i })
+			.locator('img');
+		await expect(logoImg).toBeVisible();
+
+		const natural = await logoImg.evaluate((el) => {
+			const img = el as HTMLImageElement;
+			return { width: img.naturalWidth, height: img.naturalHeight };
+		});
+
+		expect(natural.width, 'Logo-Bild muss geladen sein (naturalWidth > 0)').toBeGreaterThan(0);
+		expect(natural.height, 'Logo-Bild muss geladen sein (naturalHeight > 0)').toBeGreaterThan(0);
+		expect(
+			natural.width / natural.height,
+			`Icon-Logo (${natural.width}×${natural.height}) muss annähernd quadratisch sein — sonst steckt noch ein Schriftzug drin`,
+		).toBeLessThan(1.5);
 	});
 });
