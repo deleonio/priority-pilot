@@ -65,9 +65,12 @@ jobs:
 
           # 0.3 Gemergte PRs holen (neueste zuerst, ohne ai:documented und release:ignore)
           # BUGFIX: PR-Liste in Temp-File statt GITHUB_OUTPUT (12 PRs mit Body sprengen das Limit)
+          # REVIEW-FIX #4: jq -s 'add' verschmilzt /search/issues-Pages zu einem Object {total_count, items: [...]}
+          # → Slice auf Object scheitert mit "Cannot index object" (exit 5). Richtig: erst items aus allen Seiten
+          # extrahieren, dann slicen.
           search_query="repo:$REPO is:pr is:merged -label:ai:documented -label:release:ignore"
           gh api "/search/issues" -f q="$search_query" -f sort=created -f order=desc --paginate 2>/dev/null \
-            | jq -s 'add | .[0:env.MAX_PRS | tonumber]' \
+            | jq -s '[.[] | .items[]] | .[0:env.MAX_PRS | tonumber]' \
             | jq -c '.[] | {number: .number, title: .title, head_branch: .head_ref_name, author: .user.login, labels: [.labels[].name], body: .body}' \
             > /tmp/prs_to_process.json
 
@@ -133,7 +136,7 @@ jobs:
                 gh pr edit "$pr_number" --repo "$REPO" --add-label "release:ignore" "ai:documented" 2>/dev/null || true
               fi
               printf '%s\t%s\t%s\t%s\n' "#$pr_number" "$pr_title" "🤖 Bot" "Nein" >> "$summary_file"
-              ((skipped++))
+              skipped=$((skipped + 1))
               continue
             fi
 
@@ -258,7 +261,7 @@ jobs:
                 gh pr edit "$pr_number" --repo "$REPO" --title "$new_title"
               fi
               title_changed_flag="Ja"
-              ((title_changed++))
+              title_changed=$((title_changed + 1))
             else
               echo "✅ Titel konform - keine Änderung"
             fi
@@ -440,7 +443,7 @@ jobs:
 
             # PHASE 6 — Summary (subshell-safe via Temp-File)
             printf '%s\t%s\t%s\t%s\n' "#$pr_number" "$pr_title" "$emoji ${classification^}" "$title_changed_flag" >> "$summary_file"
-            ((processed++))
+            processed=$((processed + 1))
             echo "✅ PR #$pr_number vollständig bearbeitet"
 
           done < <(jq -c '.[]' /tmp/prs_to_process.json)
@@ -458,7 +461,9 @@ jobs:
             done < "$summary_file"
           } >> "$GITHUB_STEP_SUMMARY"
 
-          remaining=$(gh api "/search/issues" -f q="repo:$REPO is:pr is:merged -label:ai:documented -label:release:ignore" -f sort=created -f order=desc --paginate 2>/dev/null | jq -s 'add | length')
+          # REVIEW-FIX #6: jq -s 'add | length' zählt Object-Keys (3) statt PRs.
+          # Gleicher Bug wie #4 — items-Array extrahieren, dann length.
+          remaining=$(gh api "/search/issues" -f q="repo:$REPO is:pr is:merged -label:ai:documented -label:release:ignore" -f sort=created -f order=desc --paginate 2>/dev/null | jq -s '[.[] | .items[]] | length')
           echo "Verbleibende un-dokumentierte PRs: $remaining"
 
       - name: 📋 Final Summary
