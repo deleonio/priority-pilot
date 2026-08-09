@@ -52,6 +52,10 @@ inputs:
     description: 'Memory-Load zu Beginn des Workflows (true = restauriert dateibasierte Memory für ticket-ref aus dem Actions-Cache)'
     required: false
     default: 'false'
+  model:
+    description: 'Claude-Modell für diesen Lauf als Alias (fable|opus|sonnet|haiku); leer = Default aus .claude/settings.json (aktueller Zustand, kein --model). Pro Workflow-Phase reicht der jeweilige Workflow EIGENE GitHub-Variable hierher: CLAUDE_MODEL_TRIAGE (Default: sonnet), CLAUDE_MODEL_SPEC (Default: opus), CLAUDE_MODEL_IMPLEMENT (Default: opus), CLAUDE_MODEL_PR_REVIEW (Default: opus), CLAUDE_MODEL_FIXUP (Default: opus). Der Alias wird providerspezifisch aufgelöst (claude nativ via --model, zai/openrouter via settings.local.json) — die Defaults sind auf die Phasen-Aufgabe abgestimmt.'
+    required: false
+    default: ''
 
 outputs:
   configured:
@@ -223,6 +227,7 @@ runs:
         OPENROUTER_API_KEY: ${{ inputs.openrouter-api-key }}
         ZAI_SETTINGS_JSON: ${{ inputs.zai-settings-json }}
         OPENROUTER_SETTINGS_JSON: ${{ inputs.openrouter-settings-json }}
+        CLAUDE_MODEL: ${{ inputs.model }}
       run: |
         PROVIDER="${LLM_PROVIDER:-claude}"
 
@@ -293,10 +298,47 @@ runs:
 
         echo "llm-provider=$PROVIDER" >> "$GITHUB_OUTPUT"
 
+        # Phasen-Modell (#511): Alias fable|opus|sonnet|haiku providerspezifisch aufloesen.
+        # claude (nativ) erhaelt die konkrete Modell-ID via --model (resolve-invoke); zai/
+        # openrouter loesen den Alias im settings.local.json-Kontext auf (Modell-Feld setzen).
+        case "$CLAUDE_MODEL" in
+          fable)  RESOLVED_MODEL_ID="claude-fable-5" ;;
+          opus)   RESOLVED_MODEL_ID="claude-opus-5" ;;
+          sonnet) RESOLVED_MODEL_ID="claude-sonnet-5" ;;
+          haiku)  RESOLVED_MODEL_ID="claude-haiku-4-5-20251001" ;;
+          "")
+            RESOLVED_MODEL_ID=""
+            ;;
+          *)
+            echo "::error title=Ungueltiger Modell-Alias::inputs.model='$CLAUDE_MODEL' — erlaubt: fable | opus | sonnet | haiku (oder leer fuer settings.json-Default). Kein stiller Fallback auf einen falsches Modell."
+            exit 1
+            ;;
+        esac
+
+        if [ -n "$RESOLVED_MODEL_ID" ]; then
+          case "$PROVIDER" in
+            zai|openrouter)
+              if [ -f .claude/settings.local.json ]; then
+                tmp_model=$(mktemp)
+                jq --arg m "$RESOLVED_MODEL_ID" '.model = $m' .claude/settings.local.json > "$tmp_model" && mv "$tmp_model" .claude/settings.local.json
+              fi
+              echo "::notice title=Modell::$RESOLVED_MODEL_ID (Alias '$CLAUDE_MODEL', Provider $PROVIDER) via settings.local.json aufgeloest."
+              echo "resolved-model=" >> "$GITHUB_OUTPUT"
+              ;;
+            claude)
+              echo "::notice title=Modell::$RESOLVED_MODEL_ID (Alias '$CLAUDE_MODEL') via --model."
+              echo "resolved-model=$RESOLVED_MODEL_ID" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+        else
+          echo "::notice title=Modell::Kein Phasen-Modell gesetzt — Default aus .claude/settings.json."
+          echo "resolved-model=" >> "$GITHUB_OUTPUT"
+        fi
+
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     # INVOKE-RESOLUTION – setzt invoke-cmd + invoke-args
-    # Kein --model: das Modell wird über "model" in .claude/settings.json gewählt
-    # und pro Provider über die Alias-Variablen oben aufgelöst.
+    # --model nur bei gesetztem Phasen-Modell (steps.provider.outputs.resolved-model);
+    # leerer Wert belässt das Modell in .claude/settings.json (aktueller Zustand).
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     - name: Invoke auflösen
       id: resolve-invoke
@@ -305,8 +347,18 @@ runs:
       env:
         NEEDS_MCP: ${{ inputs.needs-mcp }}
         TOOLS_TIER: ${{ inputs.tools-tier }}
+        CLAUDE_MODEL: ${{ inputs.model }}
+        RESOLVED_MODEL: ${{ steps.provider.outputs.resolved-model }}
       run: |
         echo "invoke-cmd=claude -p" >> "$GITHUB_OUTPUT"
+
+        # Phasen-Modell (nur bei gesetztem Alias) als --model an claude weiterreichen.
+        # Leerer Wert (kein Phasen-Modell oder Nicht-claude-Provider) -> kein --model,
+        # das Modell kommt aus .claude/settings.json (bisheriges Verhalten).
+        MODEL_FLAG=""
+        if [ -n "$RESOLVED_MODEL" ]; then
+          MODEL_FLAG="--model $RESOLVED_MODEL"
+        fi
 
         # MCP-Server-Name spiegelt .mcp.json (kolibri-mcp); aktiv nur bei needs-mcp.
         MCP_TOOLS="mcp__kolibri-mcp__*"
@@ -327,20 +379,20 @@ runs:
             # restricted-Tier, denn review/full nutzen das klammerfreie VOLLES_TOOLSET — aber
             # wir quoten konsistent in allen drei Zweigen, damit ein späteres Tool mit '(' in
             # full/review nicht denselben Crash auslöst.
-            echo "invoke-args=--allowedTools '$ALLOWED_TOOLS'" >> "$GITHUB_OUTPUT"
+            echo "invoke-args=--allowedTools '$ALLOWED_TOOLS' $MODEL_FLAG" >> "$GITHUB_OUTPUT"
             ;;
           review)
             # Vollzugriff (Bypass), aber Write/Edit gesperrt — Review liest untrusted Diffs
             # und ändert keinen Code. Kommentare weiterhin via gh (Bash erlaubt).
             ALLOWED_TOOLS="$VOLLES_TOOLSET"
             [ "$NEEDS_MCP" = "true" ] && ALLOWED_TOOLS="$ALLOWED_TOOLS,$MCP_TOOLS"
-            echo "invoke-args=--dangerously-skip-permissions --disallowedTools 'Write,Edit' --allowedTools '$ALLOWED_TOOLS'" >> "$GITHUB_OUTPUT"
+            echo "invoke-args=--dangerously-skip-permissions --disallowedTools 'Write,Edit' --allowedTools '$ALLOWED_TOOLS' $MODEL_FLAG" >> "$GITHUB_OUTPUT"
             ;;
           full)
             # Tier 2 — vollautonom (Bypass + volles Toolset inkl. Write/Edit).
             ALLOWED_TOOLS="$VOLLES_TOOLSET"
             [ "$NEEDS_MCP" = "true" ] && ALLOWED_TOOLS="$ALLOWED_TOOLS,$MCP_TOOLS"
-            echo "invoke-args=--dangerously-skip-permissions --allowedTools '$ALLOWED_TOOLS'" >> "$GITHUB_OUTPUT"
+            echo "invoke-args=--dangerously-skip-permissions --allowedTools '$ALLOWED_TOOLS' $MODEL_FLAG" >> "$GITHUB_OUTPUT"
             ;;
           *)
             echo "::error title=Ungueltiges tools-tier::tools-tier='$TOOLS_TIER' — erlaubt: restricted | review | full"
