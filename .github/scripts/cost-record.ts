@@ -29,14 +29,22 @@ export type CostInput = Omit<CostEntry, 'issueId'>;
 export type CostOptions = { rootDir?: string };
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-/** Repo-Root, falls kein rootDir übergeben wird (vier Ebenen über .github/scripts). */
+/** Repo-Root, falls kein rootDir übergeben wird (zwei Ebenen über .github/scripts). */
 const REPO_ROOT = join(HERE, '..', '..');
 
 const resolveDir = (opts: CostOptions | undefined): string => opts?.rootDir ?? REPO_ROOT;
 const recordPath = (rootDir: string, issueId: string | number): string => join(rootDir, COSTS_DIR, `${issueId}.json`);
 
-/** Issue-ID normalisiert als Dateinamen-tauglichen String. */
-const normalizeIssueId = (issueId: string | number): string => String(issueId);
+/**
+ * Issue-ID normalisiert als Dateinamen-tauglichen String: Pfad-Trenner (`/`, `\`) werden
+ * ersetzt, führende Punkte entfernt — so kann eine ID nicht aus `.costs/` ausbrechen.
+ */
+const normalizeIssueId = (issueId: string | number): string => {
+	const safe = String(issueId)
+		.replace(/[/\\]+/g, '-')
+		.replace(/^\.+/, '');
+	return safe.length > 0 ? safe : '_';
+};
 
 /** Gibt einen Eintrag mit exakt den dokumentierten Pflichtfeldern zurück. */
 const toEntry = (issueId: string, input: CostInput): CostEntry => ({
