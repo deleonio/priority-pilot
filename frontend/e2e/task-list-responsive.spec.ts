@@ -80,6 +80,12 @@ test.describe('Priority Pilot — Aufgabenliste mobilfähig, einheitliche Zeilen
 	/** Der Listeneintrag eines Tasks im Baum, verankert über `data-testid="task-tree-item-<id>"`. */
 	const item = (page: Page, id: number) => page.getByTestId(`task-tree-item-${id}`);
 
+	/** Das Aufklapp-/Zuklapp-Steuerelement innerhalb eines Knotens (Muster `task-tree-mobile-360.spec.ts`). */
+	const toggle = (page: Page, id: number) =>
+		item(page, id)
+			.getByRole('button', { name: /Auf|Zuklappen|klappen/i })
+			.first();
+
 	/** Vertikaler Mittelpunkt einer Bounding-Box (für „gemeinsame Grundlinie"/Mittellinie). */
 	const centerOf = (box: { y: number; height: number }): number => box.y + box.height / 2;
 
@@ -104,6 +110,10 @@ test.describe('Priority Pilot — Aufgabenliste mobilfähig, einheitliche Zeilen
 		await waitForStableView(page);
 		await openTasksTab(page);
 
+		// Invertierte Anzeige (#363): `child` ist die Wurzel, der Eltern-Knoten `parent` (Träger des
+		// Fortschritts-Badges) liegt darunter eingeklappt. `child` einmal aufklappen, damit `parent`
+		// sichtbar wird (Muster `task-tree-mobile-360.spec.ts` / `expandFully`).
+		await toggle(page, child).click();
 		await expect(item(page, parent).locator('.task-tree-badge--progress')).toBeVisible();
 
 		expect(await overflowsHorizontally(page)).toBe(false);
@@ -127,6 +137,12 @@ test.describe('Priority Pilot — Aufgabenliste mobilfähig, einheitliche Zeilen
 		await waitForStableView(page);
 		await openTasksTab(page);
 
+		// Invertierte Anzeige (#363): `child` ist die Wurzel, `parent` liegt darunter eingeklappt.
+		// `child` aufklappen, damit die Eltern-Zeile (mit Fortschritts-Badge) für den Höhenvergleich
+		// greifbar ist (Muster `task-tree-mobile-360.spec.ts` / `expandFully`).
+		await toggle(page, child).click();
+		await expect(item(page, parent)).toBeVisible();
+
 		const parentBox = await item(page, parent).boundingBox();
 		const soloBox = await item(page, solo).boundingBox();
 		expect(parentBox).not.toBeNull();
@@ -143,31 +159,42 @@ test.describe('Priority Pilot — Aufgabenliste mobilfähig, einheitliche Zeilen
 	/**
 	 * AK3 (AC2, T3) — Gemeinsame vertikale Mittellinie: Aufklapp-Icon, Titel und Fortschritts-Badge
 	 * einer Zeile liegen auf einer Grundlinie (Mittelpunkte ≤ TOLERANCE_PX auseinander). #510 AC2/T3
-	 * stellte genau diese Ausrichtung als Fehlerursache fest. Geprüft an der Eltern-Zeile (hat Icon +
-	 * Badge) bei 360 px.
+	 * stellte genau diese Ausrichtung als Fehlerursache fest. Geprüft an der mittleren Zeile einer
+	 * 3-Ebenen-Kette (einzige Zeile mit Toggle UND Fortschritts-Badge zugleich) bei 360 px.
 	 */
 	test('AK3: Icon, Titel und Fortschritts-Badge teilen sich eine Mittellinie bei 360px', async ({ page }) => {
 		await page.setViewportSize(VP_360);
 
-		const parent = await createTask(page, uniqueTitle('Eltern'));
-		const child = await createTask(page, uniqueTitle('Kind'));
-		await addSubtask(page, parent, child);
+		// 3-Ebenen-Kette A ⊃ B ⊃ C (semantisch): Im invertierten Wald (#363) ist das Blatt `C` die
+		// Wurzel, `B` liegt darunter (aufklappbar) und trägt als einzige Zeile zugleich einen
+		// Display-Toggle (Oberaufgabe `A` darunter) UND ein Fortschritts-Badge (Unteraufgabe `C`).
+		// Mit nur zwei Ebenen hat keine Zeile beides: die Wurzel hat einen Toggle, aber kein Badge;
+		// das Blatt hat ein Badge, aber keinen Toggle → AK3 wäre strukturell unlösbar.
+		const a = await createTask(page, uniqueTitle('Ober'));
+		const b = await createTask(page, uniqueTitle('Mitte'));
+		const c = await createTask(page, uniqueTitle('Unter'));
+		await addSubtask(page, a, b); // b wird Unteraufgabe von a
+		await addSubtask(page, b, c); // c wird Unteraufgabe von b → b erhält Fortschritts-Badge
 
 		await page.goto('/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 
-		const row = item(page, parent);
-		const toggle = row.locator('.task-tree-toggle').first();
-		const title = row.locator('.task-tree-title').first();
-		const badge = row.locator('.task-tree-badge--progress').first();
+		// Anzeige-Reihenfolge Wurzel → Blatt: [c, b, a]. `c` aufklappen, damit `b` sichtbar wird.
+		await toggle(page, c).click();
+		await expect(item(page, b)).toBeVisible();
 
-		await expect(toggle).toBeVisible();
-		await expect(badge).toBeVisible();
+		const row = item(page, b);
+		const toggleEl = row.locator('.task-tree-toggle').first();
+		const titleEl = row.locator('.task-tree-title').first();
+		const badgeEl = row.locator('.task-tree-badge--progress').first();
 
-		const toggleBox = await toggle.boundingBox();
-		const titleBox = await title.boundingBox();
-		const badgeBox = await badge.boundingBox();
+		await expect(toggleEl).toBeVisible();
+		await expect(badgeEl).toBeVisible();
+
+		const toggleBox = await toggleEl.boundingBox();
+		const titleBox = await titleEl.boundingBox();
+		const badgeBox = await badgeEl.boundingBox();
 
 		const centers = [centerOf(toggleBox!), centerOf(titleBox!), centerOf(badgeBox!)];
 		const spread = Math.max(...centers) - Math.min(...centers);
@@ -307,6 +334,10 @@ test.describe('Priority Pilot — Aufgabenliste mobilfähig, einheitliche Zeilen
 		await waitForStableView(page);
 		await openTasksTab(page);
 
+		// Invertierte Anzeige (#363): `child` ist die Wurzel, der Eltern-Knoten `parent` (Träger des
+		// Fortschritts-Badges) liegt darunter eingeklappt. `child` einmal aufklappen, damit `parent`
+		// sichtbar wird (Muster `task-tree-mobile-360.spec.ts` / `expandFully`).
+		await toggle(page, child).click();
 		await expect(item(page, parent).locator('.task-tree-badge--progress')).toBeVisible();
 
 		expect(await overflowsHorizontally(page)).toBe(false);
