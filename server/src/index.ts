@@ -19,7 +19,7 @@ import { runDeadlineAutoDelete } from './logics/autoDeleteAfterDeadline.js';
 import { runDailyTopTasksPush } from './logics/dailyTopTasks.js';
 import { Pillar, Task, TaskPillar } from './models/index.js';
 import { SEED_PILLARS } from './models/pillarData.js';
-import { startScheduler } from './scheduler/index.js';
+import { startScheduler, startDeadlineAutoDeleteScheduler } from './scheduler/index.js';
 
 // Daten nur auf ausdrücklichen Wunsch zurücksetzen (sonst kein stiller Datenverlust).
 const shouldReset = process.env.DB_RESET === 'true';
@@ -158,9 +158,14 @@ const main = async (): Promise<void> => {
 		console.log(JSON.stringify(await buildTaskForest(), null, 2));
 		await launchServer();
 
-		// Fachliche Push-Trigger (Issue #355 + #518) sowie der Deadline-Auto-Lösch-Trigger (#523).
-		// No-Op ohne VAPID-Keys oder ohne explizites PUSH_REMINDERS_ENABLED=true (siehe scheduler/index.ts).
-		startScheduler([runDueTaskReminders, runDeadlineAutoDelete, runDailyTopTasksPush]);
+		// Fachliche Web-Push-Trigger (Issue #355 + #518) — No-Op ohne VAPID-Keys oder ohne
+		// explizites PUSH_REMINDERS_ENABLED=true (siehe scheduler/index.ts).
+		startScheduler([runDueTaskReminders, runDailyTopTasksPush]);
+
+		// Deadline-Auto-Löschung (#523) — bewusst push-unabhängig (siehe startDeadlineAutoDeleteScheduler):
+		// das fachliche Opt-in ist das pro-Task-Feld `autoDeleteAfterDeadline`, nicht Web-Push. Default-on,
+		// abschaltbar via `AUTO_DELETE_AFTER_DEADLINE_ENABLED=false`.
+		startDeadlineAutoDeleteScheduler([runDeadlineAutoDelete]);
 	} catch (error) {
 		console.error('Fehler:', error);
 	}

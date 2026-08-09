@@ -73,23 +73,59 @@ interface StartSchedulerOptions extends TickerOptions {
 }
 
 /**
- * Startet den Scheduler (Interval-Wiring um {@link createTicker}). No-Op-Handle ohne VAPID-Keys oder
- * ohne `PUSH_REMINDERS_ENABLED=true` — dann läuft kein Timer. `setIntervalFn`/`clearIntervalFn` sind
- * injizierbar, damit Tests das Gate ohne echten Timer prüfen können.
+ * Interval-Wiring um {@link createTicker} — gemeinsam für alle Scheduler-Starter. `defaultHour` gibt
+ * die UTC-Stunde vor, falls der Aufrufer keine injiziert. `setIntervalFn`/`clearIntervalFn` sind
+ * injizierbar, damit Tests den Gate-Entscheid ohne echten Timer prüfen können.
+ */
+const wireTicker = (
+	triggers: SchedulerTrigger[],
+	options: StartSchedulerOptions,
+	defaultHour: number,
+	tickLabel: string,
+): SchedulerHandle => {
+	const setIntervalFn = options.setIntervalFn ?? setInterval;
+	const clearIntervalFn = options.clearIntervalFn ?? clearInterval;
+	const { tick } = createTicker(triggers, { ...options, hour: options.hour ?? defaultHour });
+
+	const interval = setIntervalFn(() => {
+		tick().catch((error) => console.error(`${tickLabel} fehlgeschlagen:`, error));
+	}, options.checkIntervalMs ?? CHECK_INTERVAL_MS);
+	(interval as NodeJS.Timeout).unref?.();
+
+	return { stop: () => clearIntervalFn(interval as NodeJS.Timeout) };
+};
+
+/**
+ * Startet den Web-Push-Scheduler (Interval-Wiring um {@link createTicker}). No-Op-Handle ohne
+ * VAPID-Keys oder ohne `PUSH_REMINDERS_ENABLED=true` — dann läuft kein Timer (kein stiller
+ * Hintergrundlauf ohne bewusstes Web-Push-Opt-in).
  */
 export const startScheduler = (triggers: SchedulerTrigger[], options: StartSchedulerOptions = {}): SchedulerHandle => {
 	if (!isPushConfigured() || !isRemindersEnabled()) {
 		return { stop: () => {} };
 	}
+	return wireTicker(triggers, options, configuredHour(), 'Scheduler-Tick');
+};
 
-	const setIntervalFn = options.setIntervalFn ?? setInterval;
-	const clearIntervalFn = options.clearIntervalFn ?? clearInterval;
-	const { tick } = createTicker(triggers, options);
+/** Ob die Deadline-Auto-Löschung (#523) aktiv ist — defaultmäßig an (nur `=false` deaktiviert). */
+const isAutoDeleteAfterDeadlineEnabled = (): boolean => process.env.AUTO_DELETE_AFTER_DEADLINE_ENABLED !== 'false';
 
-	const interval = setIntervalFn(() => {
-		tick().catch((error) => console.error('Scheduler-Tick fehlgeschlagen:', error));
-	}, options.checkIntervalMs ?? CHECK_INTERVAL_MS);
-	(interval as NodeJS.Timeout).unref?.();
+/** UTC-Stunde, zu der die Deadline-Auto-Löschung einmal pro Kalendertag läuft (Mitternacht). */
+const AUTO_DELETE_HOUR = 0;
 
-	return { stop: () => clearIntervalFn(interval as NodeJS.Timeout) };
+/**
+ * Startet den Deadline-Auto-Lösch-Scheduler (#523) — push-unabhängig: anders als {@link startScheduler}
+ * hängt er **nicht** am Web-Push-Opt-in (`PUSH_REMINDERS_ENABLED`/VAPID), denn das fachliche Opt-in ist
+ * das pro-Task-Feld `autoDeleteAfterDeadline`, nicht Web-Push. Läuft daher defaultmäßig in jedem
+ * Deploy (sonst bliebe die Auto-Löschung in Default-Setups stumm nie aktiv). Operatoren/Test-Setups
+ * können ihn via `AUTO_DELETE_AFTER_DEADLINE_ENABLED=false` abschalten.
+ */
+export const startDeadlineAutoDeleteScheduler = (
+	triggers: SchedulerTrigger[],
+	options: StartSchedulerOptions = {},
+): SchedulerHandle => {
+	if (!isAutoDeleteAfterDeadlineEnabled()) {
+		return { stop: () => {} };
+	}
+	return wireTicker(triggers, options, AUTO_DELETE_HOUR, 'Deadline-Auto-Lösch-Tick');
 };

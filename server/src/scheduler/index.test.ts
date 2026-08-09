@@ -1,7 +1,7 @@
 import { describe, it, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import webpush from 'web-push';
-import { createTicker, startScheduler } from './index.js';
+import { createTicker, startScheduler, startDeadlineAutoDeleteScheduler } from './index.js';
 
 describe('scheduler/createTicker — Tick-Logik (Issue #355)', () => {
 	it('feuert erst, sobald die konfigurierte Stunde erreicht ist', async () => {
@@ -131,5 +131,49 @@ describe('scheduler/startScheduler — Gate (Issue #355)', () => {
 		assert.equal(typeof registered, 'function', 'registriert einen Interval-Callback');
 		handle.stop();
 		assert.equal(cleared, true, 'stop() räumt den Timer auf');
+	});
+});
+
+describe('scheduler/startDeadlineAutoDeleteScheduler — push-unabhängiges Gate (#523)', () => {
+	const originalEnv = { ...process.env };
+
+	afterEach(() => {
+		process.env = { ...originalEnv };
+	});
+
+	it('startet den Timer default-on, auch OHNE VAPID-Keys und ohne PUSH_REMINDERS_ENABLED', () => {
+		// Beweist die Entkopplung vom Web-Push-Gate: Auto-Löschung ist eine reine
+		// Datenbereinigung und darf nicht still liegen, wenn Web-Push nicht opt-in ist.
+		delete process.env.VAPID_PUBLIC_KEY;
+		delete process.env.VAPID_PRIVATE_KEY;
+		delete process.env.PUSH_REMINDERS_ENABLED;
+		let calledSetInterval = false;
+
+		const handle = startDeadlineAutoDeleteScheduler([], {
+			setIntervalFn: ((fn: () => void) => {
+				calledSetInterval = true;
+				fn();
+				return 1 as unknown as NodeJS.Timeout;
+			}) as typeof setInterval,
+		});
+
+		assert.equal(calledSetInterval, true, 'ohne Web-Push-Opt-in läuft der Timer dennoch (default-on)');
+		assert.doesNotThrow(() => handle.stop());
+	});
+
+	it('startet keinen Timer bei AUTO_DELETE_AFTER_DEADLINE_ENABLED=false', () => {
+		process.env.AUTO_DELETE_AFTER_DEADLINE_ENABLED = 'false';
+		let calledSetInterval = false;
+
+		const handle = startDeadlineAutoDeleteScheduler([], {
+			setIntervalFn: ((fn: () => void) => {
+				calledSetInterval = true;
+				fn();
+				return 1 as unknown as NodeJS.Timeout;
+			}) as typeof setInterval,
+		});
+
+		assert.equal(calledSetInterval, false);
+		assert.doesNotThrow(() => handle.stop());
 	});
 });
