@@ -979,3 +979,74 @@ describe('TaskForm — Serien-Rhythmen: Werktags/Wochenende/Wochentag (#470)', (
 		expect(alert?.textContent ?? '').toMatch(/mittwoch/);
 	});
 });
+
+/**
+ * Rote Spec-Tests für #523 (Frontend) — „Automatisches Löschen bei verpasster Deadline".
+ *
+ * **Erwartete (noch nicht existierende) Schnittstelle** im Task-Modus des TaskForm:
+ *  - AK5: eine Checkbox mit dem Label „Automatisch löschen nach 3 Tagen bei verpasster Deadline".
+ *  - AK6: wird die Checkbox aktiviert, erscheint ein eigener, sichtbarer Info-Hinweis, der erklärt,
+ *    dass die Aufgabe bei verpasster Deadline automatisch gelöscht wird (separates Text-Element, nicht
+ *    nur das Checkbox-Label).
+ *  - Beim Anlegen/Bearbeiten fließt `autoDeleteAfterDeadline: boolean` ins Create-/Update-Payload.
+ *
+ * Der KoliBri-Mock rendert `KolInputCheckbox` als echtes `<input type="checkbox">` mit
+ * `aria-label={_label}` — die Checkbox ist also per `getByLabelText` assertionsfähig. Das Label steht
+ * als aria-label (kein Text-Knoten), daher greift `getByText` für den Info-Hinweis ausschließlich auf
+ * den dedizierten Hinweis und nicht auf die Checkbox-Beschriftung.
+ *
+ * Diese Specs sind rot, solange TaskForm die Checkbox, den Hinweis und das Payload-Feld nicht führt.
+ */
+describe('TaskForm — Automatisches Löschen bei verpasster Deadline (#523)', () => {
+	it('AK5 — zeigt im Task-Anlegen-Modus eine Checkbox „Automatisch löschen nach 3 Tagen …"', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		// rot, solange TaskForm die Auto-Delete-Checkbox (im Task-Modus) noch nicht rendert.
+		expect(screen.getByLabelText(/Automatisch löschen nach 3 Tagen bei verpasster Deadline/i)).toBeInTheDocument();
+	});
+
+	it('AK6 — nach Aktivieren der Checkbox erscheint ein Info-Hinweis zur automatischen Löschung', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		// Vor dem Aktivieren gibt es (noch) keinen Hinweis.
+		expect(screen.queryByText(/wird.*automatisch.*gelöscht/i)).toBeNull();
+
+		const checkbox = screen.getByLabelText(/Automatisch löschen nach 3 Tagen/i);
+		await act(async () => {
+			fireEvent.click(checkbox);
+		});
+
+		// Nach dem Aktivieren erklärt ein eigener Hinweis die automatische Löschung. Rot, solange der
+		// Hinweis fehlt (z. B. ein <p>/<KolAlert>, das nur bei gesetzter Checkbox gerendert wird).
+		expect(screen.getByText(/wird.*automatisch.*gelöscht/i)).toBeInTheDocument();
+	});
+
+	it('AK1 — aktivierter Auto-Delete fließt als autoDeleteAfterDeadline ins Create-Payload', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockCreateTask.mockResolvedValue(minimalNewTask());
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+		await fillTitle('Aufgabe mit Auto-Delete');
+
+		// Auto-Delete aktivieren.
+		const checkbox = screen.getByLabelText(/Automatisch löschen nach 3 Tagen/i);
+		await act(async () => {
+			fireEvent.click(checkbox);
+		});
+		await clickSave();
+
+		expect(mockCreateTask).toHaveBeenCalledTimes(1);
+		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as [{ taskCreate: Record<string, unknown> }];
+		expect(taskCreate).toHaveProperty('autoDeleteAfterDeadline', true);
+	});
+});
