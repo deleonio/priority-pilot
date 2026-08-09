@@ -412,14 +412,21 @@ body {
 }
 
 /*
- * Mobile-First-Zweizeilenlayout (#376): Zeile 1 = Toggle + Titel, Zeile 2 = Badges + Aktionen.
- * Verhindert horizontalen Overflow bei tiefer Einrückung (≥6 Ebenen) auf schmalen Viewports (360px).
- * Ab 600px werden Header und Controls wieder in einer Zeile zusammengeführt.
+ * Einzeiliges Zeilenlayout (#510): Toggle/Platzhalter + Titel (`.task-tree-row-header`) und
+ * Badges + Aktionen (`.task-tree-row-controls`) liegen in EINER Flex-Zeile, vertikal mittig
+ * ausgerichtet (`align-items: center`). So teilen sich Aufklapp-Icon, Titel und Fortschritts-Badge
+ * eine gemeinsame Mittellinie (#510 AK3). Zugleich ist jede Zeile gleich hoch: der 44px-Aktionsbutton
+ * (WCAG-`--a11y-min-size`, in jeder Task-Zeile vorhanden) dominiert die Höhe einheitlich für alle
+ * Zeilentypen — Blatt wie Eltern-Zeile mit Badge (#510 AK2/AK5). Lange Titel brechen innerhalb des
+ * flexiblen Headers um, statt zu überlaufen (#510 AK4). `flex-wrap` lässt Controls bei tiefen
+ * Einrückungen (≥6 Ebenen, #376) auf die nächste Zeile umbrechen statt horizontal zu überlaufen
+ * (#376 AK1) — Mobile-First ohne Desktop-Regression.
  */
 .task-tree-row {
 	display: flex;
-	flex-direction: column;
-	gap: 0.25rem;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--task-tree-row-gap);
 	min-width: 0;
 }
 
@@ -427,6 +434,7 @@ body {
 	display: flex;
 	align-items: center;
 	gap: var(--task-tree-row-gap);
+	flex: 1 1 auto;
 	min-width: 0;
 }
 
@@ -435,24 +443,10 @@ body {
 	flex-wrap: wrap;
 	align-items: center;
 	gap: var(--task-tree-row-gap);
-	/* Optisch unter dem Titel einrücken (Toggle-Breite + Header-Gap, gemeinsame Quelle). */
-	padding-left: calc(var(--task-tree-toggle-width) + var(--task-tree-row-gap));
 }
 
 @media (min-width: 600px) {
-	.task-tree-row {
-		flex-direction: row;
-		flex-wrap: wrap;
-		align-items: center;
-		gap: var(--task-tree-row-gap);
-	}
-
-	.task-tree-row-header {
-		flex: 1 1 auto;
-	}
-
 	.task-tree-row-controls {
-		padding-left: 0;
 		flex-wrap: nowrap;
 	}
 }
