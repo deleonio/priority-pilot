@@ -81,13 +81,20 @@ jobs:
           # REVIEW-FIX #4: jq -s 'add' verschmilzt /search/issues-Pages zu einem Object {total_count, items: [...]}
           # → Slice auf Object scheitert mit "Cannot index object" (exit 5). Richtig: erst items aus allen Seiten
           # extrahieren, dann slicen.
-          # ISSUE #519: Search-Abruf + pr_count-Ableitung fail-tolerant. Bisher löste ein transienter/leerer
-          # Treffer (Rate-Limit, Secondary-Rate-Limit, leere Paginierung) den Pipeline-Exit-Code unter
-          # `set -euo pipefail`/`set -e` hart als exit 1 aus — unmittelbar NACH dem ai:documented-Label-Check
-          # (siehe Issue-Log). Ursachen-Behebung (AK2), NICHT symptomatisch set -e entfernen: Abruf in Variable
-          # mit `||`-Fallback binden, jq-Pipeline mit `|| true` ummanteln, pr_count mit `|| pr_count=0` sichern.
+          # ISSUE #519: Search-Abruf + pr_count-Ableitung fail-tolerant (AK2). Ein transienter/leerer
+          # Treffer (Rate-Limit, Secondary-Rate-Limit, leere Paginierung) löste unter `set -euo pipefail`
+          # hart exit 1 aus — unmittelbar NACH dem ai:documented-Label-Check. Ursachen-Behebung, NICHT
+          # symptomatisch set -e entfernen: Abruf in Variable mit `||`-Fallback binden, jq-Pipeline mit
+          # `|| true` ummanteln, pr_count mit `|| pr_count=0` sichern.
+          #
+          # BUGFIX (8/9 rote Laeufe, exit 1 direkt nach Label-Check): `-f q=...` sendet die Parameter als
+          # POST-Body. Die GitHub Search-API ist GET-only — ein POST auf /search/issues antwortet HTTP 404.
+          # `2>/dev/null` schluckt die Meldung, `set -euo pipefail` macht daraus Job-Abbruch, BEVOR "Gefundene
+          # PRs" erscheint. `-X GET` zwingt die Parameter in den Query-String (so wie `gh search prs` intern
+          # macht, und wie REVIEW-FIX #6 unten) → HTTP 200. Weder `-X GET` noch die Fail-Tolerance entfernen
+          # — sie greifen ineinander.
           search_query="repo:$REPO is:pr is:merged -label:ai:documented -label:release:ignore"
-          search_pages=$(gh api "/search/issues" -f q="$search_query" -f sort=created -f order=desc --paginate 2>/dev/null || echo '')
+          search_pages=$(gh api "/search/issues" -X GET -f q="$search_query" -f sort=created -f order=desc --paginate 2>/dev/null || echo '')
           printf '%s' "$search_pages" \
             | jq -s '[.[] | (.items // [])[]] | .[0:env.MAX_PRS | tonumber]' 2>/dev/null \
             | jq -c '.[] | {number: .number, title: .title, head_branch: .head_ref_name, author: .user.login, labels: [.labels[].name], body: .body}' 2>/dev/null \
@@ -512,7 +519,7 @@ jobs:
 
           # REVIEW-FIX #6: jq -s 'add | length' zählt Object-Keys (3) statt PRs.
           # Gleicher Bug wie #4 — items-Array extrahieren, dann length.
-          remaining=$(gh api "/search/issues" -f q="repo:$REPO is:pr is:merged -label:ai:documented -label:release:ignore" -f sort=created -f order=desc --paginate 2>/dev/null | jq -s '[.[] | .items[]] | length')
+          remaining=$(gh api "/search/issues" -X GET -f q="repo:$REPO is:pr is:merged -label:ai:documented -label:release:ignore" -f sort=created -f order=desc --paginate 2>/dev/null | jq -s '[.[] | .items[]] | length')
           echo "Verbleibende un-dokumentierte PRs: $remaining"
 
       - name: 📋 Final Summary

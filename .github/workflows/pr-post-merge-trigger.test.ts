@@ -107,6 +107,26 @@ describe('Issue #496 AK5 — Phase-0-Suche & Batch unangetastet (Idempotenz)', (
 	});
 });
 
+describe('Search-API GET-only — jeder /search/issues-Aufruf mit -X GET', () => {
+	// Root Cause (rote Laeufe ab 8/9, exit 1 direkt nach Label-Check): `gh api /search/issues -f q=...`
+	// sendet POST, weil `-f`-Parameter per Default als POST-Body gehen. Die GitHub Search-API ist aber
+	// GET-only — ein POST auf /search/issues antwortet HTTP 404. `2>/dev/null` versteckt die Meldung,
+	// `set -euo pipefail` macht daraus einen Job-Abbruch, BEVOR "Gefundene PRs" gedruckt wird. `-X GET`
+	// zwingt die Parameter in den Query-String (genau das macht `gh search prs` intern) → HTTP 200.
+	// Dieser Test verhindert, dass jemand das `-X GET` wieder "vereinfacht" wegloescht.
+	it('jeder gh-api-/search/issues-Aufruf traegt -X GET (Search-API ist GET-only, POST → 404)', () => {
+		const calls = code.split('\n').filter((l) => l.includes('gh api "/search/issues"'));
+		assert.ok(calls.length > 0, 'kein gh api "/search/issues"-Aufruf gefunden — Suche umgebaut?');
+		for (const call of calls) {
+			assert.match(
+				call,
+				/-X GET/,
+				`gh api "/search/issues"-Aufruf ohne -X GET gefunden (POST → HTTP 404 → Job-Abbruch unter pipefail):\n  ${call.trim()}`,
+			);
+		}
+	});
+});
+
 // Top-Level-Block-Extraktion: vom Key bei Spalte 0 bis zum naechsten Top-Level-Key
 // (naechste Zeile, die mit einem Kleinbuchstaben beginnt — `env:`, `jobs:` etc.).
 // Einzeln definiert, damit jeder Test seinen Block selbst extrahiert (Haus-Stil).
