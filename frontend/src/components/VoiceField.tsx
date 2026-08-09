@@ -69,6 +69,14 @@ export const VoiceField = ({
 				{isSupported && (
 					<button
 						type="button"
+						// #522 (AC2c): Das Mikrofon ist ein Overlay-Affordance, das visuell INNERHALB des
+						// Feldes verankert ist — konzeptionell Teil des Feld-Widgets, kein eigener Primär-
+						// Tab-Stop. `tabIndex={-1}` nimmt es aus der wandernden Tab-Reihenfolge heraus, damit
+						// der primäre Formular-Fluss (Textarea → primärer CTA) nicht unterbrochen wird. Er
+						// bleibt erreichbar: klickbar (Maus/Touch, siehe Voice-/Transkriptions-Specs) und per
+						// `.focus()` — nur eben nicht über Tab. Das schließt die Tab-Freiheits-Lücke im
+						// Schnellerfassungs-Dialog (AC2c: Tab aus der Textarea heraus landet auf dem CTA).
+						tabIndex={-1}
 						aria-label={isRecording ? `Aufnahme stoppen: ${fieldLabel}` : `Aufnahme starten (Mikrofon): ${fieldLabel}`}
 						aria-pressed={isRecording}
 						className={`mic-button${isRecording ? ' mic-button--recording' : ''}`}
