@@ -170,9 +170,15 @@ test.describe('Priority Pilot — Aufgabenliste mobilfähig, einheitliche Zeilen
 		// Display-Toggle (Oberaufgabe `A` darunter) UND ein Fortschritts-Badge (Unteraufgabe `C`).
 		// Mit nur zwei Ebenen hat keine Zeile beides: die Wurzel hat einen Toggle, aber kein Badge;
 		// das Blatt hat ein Badge, aber keinen Toggle → AK3 wäre strukturell unlösbar.
-		const a = await createTask(page, uniqueTitle('Ober'));
-		const b = await createTask(page, uniqueTitle('Mitte'));
-		const c = await createTask(page, uniqueTitle('Unter'));
+		//
+		// Bewusst KURZE Titel (kein `uniqueTitle`): AK3 prüft die gemeinsame Mittellinie der
+		// EINZEILIGEN Zeile bei 360px. Ein langer Titel drückt die Controls via `flex-wrap`
+		// (Overflow-Safety, abgedeckt durch AK1/#376) auf eine 2. Zeile — dann teilt sich das Badge
+		// keine Mittellinie mehr mit Icon/Titel. Das Langtitel-Umbrechen testet AK4; AK3 isoliert
+		// die Mittellinie. Identifikation erfolgt über die Task-ID (`item(page, …)`), nicht den Titel.
+		const a = await createTask(page, 'Resp510-A');
+		const b = await createTask(page, 'Resp510-B');
+		const c = await createTask(page, 'Resp510-C');
 		await addSubtask(page, a, b); // b wird Unteraufgabe von a
 		await addSubtask(page, b, c); // c wird Unteraufgabe von b → b erhält Fortschritts-Badge
 
