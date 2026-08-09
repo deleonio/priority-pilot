@@ -10,6 +10,7 @@ import {
 	KolTextarea,
 } from '@public-ui/react-v19';
 import type {
+	ChecklistItem,
 	Pillar,
 	Series,
 	SeriesCreate,
@@ -241,6 +242,10 @@ export const TaskForm = ({
 	// #523: Auto-Löschung bei verpasster Deadline. State (nicht Ref), damit der Info-Hinweis beim
 	// Aktivieren der Checkbox reaktiv eingeblendet wird. Im Task-Edit aus dem vorhandenen Task vorbelegt.
 	const [autoDelete, setAutoDelete] = useState<boolean>(task?.autoDeleteAfterDeadline ?? false);
+	// #531: Abhakbare Checkliste (nur Task-Modus). State, damit Hinzufügen/Entfernen/Togglen neu
+	// rendern. Im Task-Edit aus dem vorhandenen Task vorbelegt; Default leer.
+	const [checklist, setChecklist] = useState<ChecklistItem[]>(task?.checklist ?? []);
+	const [newChecklistTitle, setNewChecklistTitle] = useState('');
 
 	// #272: Einmal beim Mount lesen, ob die Auto-Sprachaufnahme aktiv ist → nur das erste (Titel-)
 	// VoiceField startet dann automatisch. Bewusst pro Formular-Instanz konstant (kein Live-Update).
@@ -303,6 +308,19 @@ export const TaskForm = ({
 
 	const removePillar = (pillarId: number): void =>
 		setContributions((prev) => prev.filter((entry) => entry.pillarId !== pillarId));
+
+	// #531: Checklisten-Eintrag anlegen (neue UUID, completed = false), entfernen oder abhaken.
+	const addChecklistItem = (): void => {
+		const title = newChecklistTitle.trim();
+		if (title === '') {
+			return;
+		}
+		setChecklist((prev) => [...prev, { id: crypto.randomUUID(), title, completed: false }]);
+		setNewChecklistTitle('');
+	};
+	const removeChecklistItem = (id: string): void => setChecklist((prev) => prev.filter((item) => item.id !== id));
+	const toggleChecklistItem = (id: string): void =>
+		setChecklist((prev) => prev.map((item) => (item.id === id ? { ...item, completed: !item.completed } : item)));
 
 	// Holt per KI (Server-Endpoint) einen Säulen-Vorschlag aus Titel/Beschreibung und übernimmt ihn als
 	// editierbare Beiträge. Der Nutzer kann den Vorschlag anschließend über die vorhandenen Slider/
@@ -432,6 +450,7 @@ export const TaskForm = ({
 					deadline,
 					autoDeleteAfterDeadline: autoDelete,
 					pillars,
+					checklist,
 				};
 				await api.updateTask({ id: task.id, taskUpdate });
 			} else {
@@ -443,6 +462,7 @@ export const TaskForm = ({
 					deadline,
 					autoDeleteAfterDeadline: autoDelete,
 					pillars,
+					checklist,
 				};
 				// Bei erneutem Submit nach fehlgeschlagener Verknüpfung den bereits angelegten Task
 				// wiederverwenden, statt ein Duplikat anzulegen.
@@ -796,6 +816,49 @@ export const TaskForm = ({
 							{shareValid ? '✓ (wird auf 100 % normiert)' : '(mindestens eine Säule muss > 0 sein)'}
 						</p>
 					)}
+				</div>
+			)}
+			{/* #531: Abhakbare Checkliste (nur Task-Modus, nicht bei Serien). Einträge anlegen/entfernen/
+			    abhaken; beim Speichern fließt die Liste ins Task-Payload. Im Task-Edit aus dem Task vorbelegt. */}
+			{!isSeriesMode && (
+				<div className="checklist-editor" data-testid="checklist-section">
+					<span className="checklist-editor-label">Checkliste (optional)</span>
+					<div className="checklist-add">
+						<KolInputText
+							_label="Checklisten-Eintrag"
+							_hideLabel
+							_value={newChecklistTitle}
+							_on={{
+								onChange: (_event, value) => setNewChecklistTitle(readString(value)),
+								onInput: (_event, value) => setNewChecklistTitle(readString(value)),
+							}}
+						/>
+						<KolButton
+							_label="Hinzufügen"
+							_variant="secondary"
+							_disabled={saving}
+							_on={{ onClick: () => addChecklistItem() }}
+						/>
+					</div>
+					{checklist.map((item) => (
+						<div key={item.id} className="checklist-item" data-testid="checklist-item">
+							<KolInputCheckbox
+								_label="Erledigt"
+								_variant="switch"
+								_checked={item.completed}
+								_on={{ onChange: () => toggleChecklistItem(item.id) }}
+							/>
+							<span className="checklist-item-title">{item.title}</span>
+							<KolButton
+								_label="Entfernen"
+								_hideLabel
+								_icons={{ left: { icon: 'kolicon-cross' } }}
+								_variant="danger"
+								_disabled={saving}
+								_on={{ onClick: () => removeChecklistItem(item.id) }}
+							/>
+						</div>
+					))}
 				</div>
 			)}
 			<div className="modal-actions">

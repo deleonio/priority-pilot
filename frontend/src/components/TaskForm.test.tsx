@@ -1050,3 +1050,104 @@ describe('TaskForm — Automatisches Löschen bei verpasster Deadline (#523)', (
 		expect(taskCreate).toHaveProperty('autoDeleteAfterDeadline', true);
 	});
 });
+
+/**
+ * Roter TDD-Vertrag für #531 (Frontend) — abhakbare Checkliste im TaskForm (Task-Modus).
+ *
+ * **Erwartete (noch nicht existierende) Schnittstelle** im Task-Modus:
+ *  - Ein Abschnitt `data-testid="checklist-section"` (deckt AK6/T12: Modal/Form enthält Checklist-Section).
+ *  - Ein Text-Eingabefeld (Label „Checklisten-Eintrag") + Button „Hinzufügen": legt einen neuen Eintrag
+ *    an (generierte UUID, `completed = false`).
+ *  - Jeder Eintrag in einer Zeile `data-testid="checklist-item"` mit einer Checkbox (Toggle `completed`,
+ *    Label „Erledigt") und einem Button „Entfernen" (löscht den Eintrag).
+ *  - Beim Anlegen/Bearbeiten fließt `checklist` (Array aus `{ id, title, completed }`) ins Payload.
+ *
+ * Die KoliBri-Mocks rendern KolInputText/KolInputCheckbox/KolButton als native Elemente mit aria-label
+ * → per getByLabelText/getByRole assertionsfähig. Specs sind rot, solange TaskForm die Checklist-UI und
+ * das Payload-Feld nicht führt.
+ */
+describe('TaskForm — Checklisten-Feld (#531)', () => {
+	/** Legt im gerenderten Formular einen Checklisten-Eintrag an (Eingabe + „Hinzufügen"). */
+	const addItem = async (title: string): Promise<void> => {
+		const addInput = screen.getByLabelText(/Checklisten-Eintrag/i);
+		await act(async () => {
+			fireEvent.change(addInput, { target: { value: title } });
+		});
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Hinzufügen' }));
+		});
+	};
+
+	it('AK6/T12: Task-Anlegen-Modus rendert eine Checklist-Section', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		expect(screen.getByTestId('checklist-section')).toBeInTheDocument();
+	});
+
+	it('AK6/T8: „Hinzufügen" erzeugt eine checklist-item-Zeile mit dem Titel', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		await addItem('Deployment vorbereiten');
+
+		expect(screen.getByTestId('checklist-item')).toBeInTheDocument();
+		expect(screen.getByText('Deployment vorbereiten')).toBeInTheDocument();
+	});
+
+	it('AK6/T8: „Entfernen" nimmt den Eintrag aus dem DOM', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		await addItem('Weg damit');
+		expect(screen.getByTestId('checklist-item')).toBeInTheDocument();
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Entfernen' }));
+		});
+		expect(screen.queryByTestId('checklist-item')).toBeNull();
+	});
+
+	it('AK6/T9: Toggle completed — Checkbox schaltet den Eintrag auf erledigt', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		await addItem('Abhaken');
+		const toggle = screen.getByRole('switch', { name: /Erledigt/i }) as HTMLInputElement;
+		expect(toggle.checked).toBe(false);
+
+		await act(async () => {
+			fireEvent.click(toggle);
+		});
+		expect(toggle.checked).toBe(true);
+	});
+
+	it('AK6/T10: Submit sendet checklist (id, title, completed) im Create-Payload', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockCreateTask.mockResolvedValue(minimalNewTask());
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+		await fillTitle('Aufgabe mit Liste');
+		await addItem('Schritt 1');
+		await clickSave();
+
+		expect(mockCreateTask).toHaveBeenCalledTimes(1);
+		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as [
+			{ taskCreate: { checklist?: Array<{ id: unknown; title: string; completed: boolean }> } },
+		];
+		expect(taskCreate.checklist).toBeDefined();
+		expect(taskCreate.checklist).toHaveLength(1);
+		expect(typeof taskCreate.checklist![0].id).toBe('string');
+		expect(taskCreate.checklist![0].title).toBe('Schritt 1');
+		expect(taskCreate.checklist![0].completed).toBe(false);
+	});
+});
