@@ -321,8 +321,10 @@ runs:
               if [ -f .claude/settings.local.json ]; then
                 tmp_model=$(mktemp)
                 jq --arg m "$RESOLVED_MODEL_ID" '.model = $m' .claude/settings.local.json > "$tmp_model" && mv "$tmp_model" .claude/settings.local.json
+                echo "::notice title=Modell::$RESOLVED_MODEL_ID (Alias '$CLAUDE_MODEL', Provider $PROVIDER) via settings.local.json aufgeloest."
+              else
+                echo "::warning title=Modell::Phasen-Modell '$CLAUDE_MODEL' ($RESOLVED_MODEL_ID) konnte nicht in settings.local.json geschrieben werden — Datei fehlt (Provider $PROVIDER ohne settings-json). Modell bleibt unaufgeloest."
               fi
-              echo "::notice title=Modell::$RESOLVED_MODEL_ID (Alias '$CLAUDE_MODEL', Provider $PROVIDER) via settings.local.json aufgeloest."
               echo "resolved-model=" >> "$GITHUB_OUTPUT"
               ;;
             claude)
