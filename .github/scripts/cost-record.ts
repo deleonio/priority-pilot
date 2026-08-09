@@ -86,8 +86,7 @@ export function readCostRecords(issueId: string | number, opts: CostOptions = {}
  */
 const SECRET_PATTERNS: RegExp[] = [
 	/sk-ant-[A-Za-z0-9_-]{10,}/, // Anthropic API-Key
-	/gh[pousr]_[A-Za-z0-9]{20,}/, // GitHub PAT / token
-	/gho_[A-Za-z0-9]{20,}/, // GitHub OAuth
+	/gh[pousr]_[A-Za-z0-9]{20,}/, // GitHub PAT / token (Klasse [pousr] deckt ghp_/gho_/ghu_/ghs_/ghr_)
 	/AKIA[0-9A-Z]{16}/, // AWS access key
 	/xox[baprs]-[A-Za-z0-9-]{10,}/, // Slack token
 	/api[_-]?key['"\s:=]+[A-Za-z0-9_-]{16,}/i, // generischer API-Key
