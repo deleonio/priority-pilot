@@ -330,6 +330,15 @@ wenn die App gerade nicht geöffnet ist.
 - Unterstützt dein Browser keine Push-Nachrichten, erscheint ein Hinweis – meist hilft
   es, die App zu installieren (siehe unten).
 
+> **Hinweis: Doppelte Benachrichtigung vermeiden.** Wenn du Priority Pilot nur als
+> Browser-Tab (Chrome) und **nicht** als eigenständige App nutzt, kann neben der
+> App-Benachrichtigung eine **zweite Benachrichtigung** von Chrome erscheinen (z. B.
+> „URL kopieren", „Teilen", „In Chrome öffnen"). Diese Mehrfachbenachrichtigung ist ein
+> Plattformverhalten von Chrome, nicht von Priority Pilot. **Workaround:** Installiere die
+> App als eigenständige App (siehe unten „App installieren und aktualisieren") – dann wird
+> nur noch die gewünschte App-Benachrichtigung angezeigt. Aufeinanderfolgende Pushes
+> ersetzen sich zudem gegenseitig, sodass nichts gestapelt wird.
+
 ---
 
 ## App installieren und aktualisieren
