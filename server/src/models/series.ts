@@ -29,6 +29,10 @@ class Series extends Model {
 	// Beschreibung bleiben lesbar; ohne Angabe angelegte Serien tragen `description === null`.
 	public description?: string | null;
 
+	// Auto-Löschung bei verpasster Deadline (Issue #523): wird beim Generieren auf jede Instanz
+	// vererbt, sodass die Cron-Löschlogik auch für Serien-Aufgaben greift. Default `false`.
+	public autoDeleteAfterDeadline!: boolean;
+
 	// Eigentümer des Templates (Issue #244, AK1 — Datenisolation), analog zu `Task.userId`. Nullable
 	// für Abwärtskompatibilität: Alt-Bestände ohne Zuordnung bleiben lesbar; neue Serien werden über
 	// die Session-`userId` gebunden.
@@ -111,6 +115,12 @@ Series.init(
 			type: DataTypes.TEXT,
 			allowNull: true,
 			defaultValue: null,
+		},
+		// Auto-Löschung bei verpasster Deadline (Issue #523). Default `false`; beim Generieren vererbt.
+		autoDeleteAfterDeadline: {
+			type: DataTypes.BOOLEAN,
+			allowNull: false,
+			defaultValue: false,
 		},
 	},
 	{

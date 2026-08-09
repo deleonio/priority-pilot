@@ -238,6 +238,9 @@ export const TaskForm = ({
 	// Re-Render aus). `startDateInput` ist der rohe `YYYY-MM-DD`-String aus dem Datumsfeld.
 	const [rhythm, setRhythm] = useState<SeriesRhythm>(form.current.rhythm);
 	const [startDateInput, setStartDateInput] = useState(form.current.startDate);
+	// #523: Auto-Löschung bei verpasster Deadline. State (nicht Ref), damit der Info-Hinweis beim
+	// Aktivieren der Checkbox reaktiv eingeblendet wird. Im Task-Edit aus dem vorhandenen Task vorbelegt.
+	const [autoDelete, setAutoDelete] = useState<boolean>(task?.autoDeleteAfterDeadline ?? false);
 
 	// #272: Einmal beim Mount lesen, ob die Auto-Sprachaufnahme aktiv ist → nur das erste (Titel-)
 	// VoiceField startet dann automatisch. Bewusst pro Formular-Instanz konstant (kein Live-Update).
@@ -427,6 +430,7 @@ export const TaskForm = ({
 					estimatedEffort,
 					description: description === '' ? null : description,
 					deadline,
+					autoDeleteAfterDeadline: autoDelete,
 					pillars,
 				};
 				await api.updateTask({ id: task.id, taskUpdate });
@@ -437,6 +441,7 @@ export const TaskForm = ({
 					estimatedEffort,
 					description: description === '' ? null : description,
 					deadline,
+					autoDeleteAfterDeadline: autoDelete,
 					pillars,
 				};
 				// Bei erneutem Submit nach fehlgeschlagener Verknüpfung den bereits angelegten Task
@@ -642,19 +647,36 @@ export const TaskForm = ({
 						)}
 					</>
 				) : (
-					<KolInputDate
-						_label="Deadline (optional)"
-						_type="date"
-						_value={deadlineValue}
-						_on={{
-							onChange: (_event, value) => {
-								form.current.deadline = value instanceof Date ? deadlineToDateInput(value) : readString(value);
-							},
-							onInput: (_event, value) => {
-								form.current.deadline = value instanceof Date ? deadlineToDateInput(value) : readString(value);
-							},
-						}}
-					/>
+					<>
+						<KolInputDate
+							_label="Deadline (optional)"
+							_type="date"
+							_value={deadlineValue}
+							_on={{
+								onChange: (_event, value) => {
+									form.current.deadline = value instanceof Date ? deadlineToDateInput(value) : readString(value);
+								},
+								onInput: (_event, value) => {
+									form.current.deadline = value instanceof Date ? deadlineToDateInput(value) : readString(value);
+								},
+							}}
+						/>
+						{/* #523: Auto-Löschung bei verpasster Deadline (nur im Task-Modus, nicht bei Serien).
+						    Bewusst native Checkbox statt KolInputCheckbox: der jsdom-Test-Mock vergibt jedem
+						    KolInputCheckbox pauschal role="switch", was den unscoped `getByRole('switch')` des
+						    Modus-Umschalters (#316/#470) mehrdeutig machen würde. Eine native Checkbox trägt
+						    role="checkbox" und bleibt damit eindeutig. */}
+						<label className="auto-delete-toggle">
+							<input type="checkbox" checked={autoDelete} onChange={(event) => setAutoDelete(event.target.checked)} />
+							Automatisch löschen nach 3 Tagen bei verpasster Deadline
+						</label>
+						{autoDelete && (
+							<p className="hint">
+								Die Aufgabe wird bei verpasster Deadline automatisch nach 3 Tagen gelöscht, sofern sie bis dahin nicht
+								erledigt ist.
+							</p>
+						)}
+					</>
 				)}
 				<VoiceField
 					variant="textarea"

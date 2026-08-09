@@ -812,6 +812,11 @@ components:
           type: string
           format: date-time
           nullable: true
+        autoDeleteAfterDeadline:
+          type: boolean
+          description: >-
+            `true`, wenn die Aufgabe bei verpasster Deadline automatisch gelöscht
+            werden soll (3 Tage nach Ablauf, nur wenn nicht erledigt, #523).
         seriesId:
           type: integer
           nullable: true
@@ -863,6 +868,11 @@ components:
           type: string
           format: date-time
           nullable: true
+        autoDeleteAfterDeadline:
+          type: boolean
+          description: >-
+            Wenn `true`, wird die Aufgabe 3 Tage nach einer verpassten Deadline
+            automatisch gelöscht (nur wenn nicht erledigt, #523).
         pillars:
           type: array
           description: >-
@@ -900,6 +910,11 @@ components:
           type: string
           format: date-time
           nullable: true
+        autoDeleteAfterDeadline:
+          type: boolean
+          description: >-
+            Wenn `true`, wird die Aufgabe 3 Tage nach einer verpassten Deadline
+            automatisch gelöscht (nur wenn nicht erledigt, #523).
         pillars:
           type: array
           description: >-
@@ -1396,6 +1411,11 @@ components:
           type: string
           nullable: true
           description: Freitext-Beschreibung des Templates (optional).
+        autoDeleteAfterDeadline:
+          type: boolean
+          description: >-
+            Wenn `true`, erben künftig generierte Instanzen diese Option und
+            werden bei verpasster Deadline automatisch gelöscht (#523).
         pillars:
           type: array
           description: >-
@@ -1435,6 +1455,11 @@ components:
         description:
           type: string
           nullable: true
+        autoDeleteAfterDeadline:
+          type: boolean
+          description: >-
+            Wenn `true`, erben künftig generierte Instanzen diese Option und
+            werden bei verpasster Deadline automatisch gelöscht (#523).
         pillars:
           type: array
           description: >-
@@ -1468,6 +1493,11 @@ components:
         description:
           type: string
           nullable: true
+        autoDeleteAfterDeadline:
+          type: boolean
+          description: >-
+            Wenn `true`, erben künftig generierte Instanzen diese Option und
+            werden bei verpasster Deadline automatisch gelöscht (#523).
         pillars:
           type: array
           description: >-

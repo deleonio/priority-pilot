@@ -218,7 +218,40 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		await expect(cancelButton).toBeFocused();
 
 		await page.waitForTimeout(SETTLE_MS);
-		await page.keyboard.press('Tab');
+
+		// Zeitlich gestaffeltes Tab (alle ~100 ms, maximal ~1 s), bis der Lösch-Button den Fokus hält.
+		// Grund: KoliBris anfänglicher setFocus-Loop (s. Kommentar oben, ~10 Frames) hält den Fokus
+		// auf „Abbrechen" und zieht ein in dieses Fenster fallendes Tab EINMALIG zurück. Lokal ist
+		// das Fenster mit ~<100 ms vorbei, auf langsamen CI-Runnern fällt es länger aus — ein
+		// einzelnes Tab bei SETTLE_MS=150 fällt dann noch in den Loop und wird zurückgezogen
+		// (beobachtet: PR #524, e2e Shard 1, „inactive" über 5 s). Das gestaffelte Tab sorgt dafür,
+		// dass ein Anschlag NACH Loop-Ende trifft und stehen bleibt. Der Fokus-Check geht Shadow-
+		// DOM-tief (KoliBri legt den echten <button> ins Shadow des <kol-button> — der bloße
+		// Vergleich mit document.activeElement reicht nicht, das ist der Host).
+		//
+		// Schutz bleibt im Wesentlichen erhalten: Ein PERSISTENTER Fokus-Watchdog (focusin-Redirect,
+		// der den Fokus dauerhaft festhält — der Zustand, den dieser Test bewacht) zieht JEDES Tab
+		// zurück, die Ruhe tritt nie ein, die schließende Assertion rotet weiterhin. In Kauf
+		// genommen wird nur ein KURZER (< 1 s), einmaliger Redirect (gerade das Library-Verhalten).
+		// SETTLE_MS wird bewusst NICHT erhöht — ein zu knapper Wert bleibt das Watchdog-Signal.
+		const tabDeadline = Date.now() + 1000;
+		for (;;) {
+			await page.keyboard.press('Tab');
+			const onDelete = await deleteButton.evaluate((el) => {
+				let node = document.activeElement as Element | null;
+				while (node !== null) {
+					if (node === el) {
+						return true;
+					}
+					node = node.shadowRoot ? (node.shadowRoot.activeElement as Element | null) : null;
+				}
+				return false;
+			});
+			if (onDelete || Date.now() >= tabDeadline) {
+				break;
+			}
+			await page.waitForTimeout(100);
+		}
 
 		await expect(deleteButton, 'Tab muss den Fokus weiterbewegen dürfen').toBeFocused();
 		await expect(cancelButton).not.toBeFocused();

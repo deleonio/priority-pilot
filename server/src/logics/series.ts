@@ -142,6 +142,9 @@ export const generateDueInstances = async (series: Series, options: GenerateOpti
 			seriesOccurrence: occurrence,
 			isException: false,
 			userId: options.userId ?? null,
+			// #523: Auto-Lösch-Option wird vom Template auf jede generierte Instanz vererbt (Snapshot zum
+			// Generierungszeitpunkt, wie die übrigen Default-Werte — AK3/AK4).
+			autoDeleteAfterDeadline: series.autoDeleteAfterDeadline,
 		});
 		if (pillarRows.length > 0) {
 			await TaskPillar.bulkCreate(

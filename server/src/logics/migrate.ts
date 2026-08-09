@@ -15,6 +15,10 @@ const SERIES_COLUMNS = [
 	{ name: 'seriesId', definition: 'INTEGER' },
 	{ name: 'isException', definition: 'INTEGER NOT NULL DEFAULT 0' },
 	{ name: 'seriesOccurrence', definition: 'DATETIME' },
+	// Auto-Löschung bei verpasster Deadline (#523): NOT NULL mit DEFAULT 0 (SQLite verlangt bei
+	// nachträglichem ADD COLUMN einen DEFAULT für NOT NULL). Wird hier mitgezogen, damit Bestands-DBs
+	// die Spalte erhalten, bevor Queries (Task.findAll/-create) sie selektieren.
+	{ name: 'autoDeleteAfterDeadline', definition: 'INTEGER NOT NULL DEFAULT 0' },
 ] as const;
 
 /**
@@ -63,6 +67,9 @@ const SERIES_TABLE_COLUMNS = [
 	{ name: 'userId', definition: 'INTEGER' },
 	// Freitext-Beschreibung (#301): nullable, daher kein NOT NULL/DEFAULT nötig.
 	{ name: 'description', definition: 'TEXT' },
+	// Auto-Löschung bei verpasster Deadline (#523): NOT NULL DEFAULT 0 (SQLite verlangt DEFAULT bei
+	// nachträglichem ADD COLUMN); wird beim Generieren auf die Instanzen vererbt.
+	{ name: 'autoDeleteAfterDeadline', definition: 'INTEGER NOT NULL DEFAULT 0' },
 ] as const;
 
 /**

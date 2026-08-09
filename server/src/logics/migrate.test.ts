@@ -274,6 +274,7 @@ const createLegacyTasksTableBefore207 = async (): Promise<void> => {
 			'`seriesId` INTEGER, ' +
 			'`isException` INTEGER NOT NULL DEFAULT 0, ' +
 			'`seriesOccurrence` DATETIME, ' +
+			'`autoDeleteAfterDeadline` INTEGER NOT NULL DEFAULT 0, ' +
 			'`createdAt` DATETIME NOT NULL, ' +
 			'`updatedAt` DATETIME NOT NULL' +
 			')',
