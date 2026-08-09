@@ -25,6 +25,9 @@ class Task extends Model {
 	public actualEffort?: number | null;
 	public description?: string | null;
 	public deadline?: Date | null;
+	// Auto-Löschung bei verpasster Deadline (Issue #523): löst der Cron-Trigger die Aufgabe 3 Tage nach
+	// Ablauf der Deadline, wenn sie nicht erledigt ist. Default `false` (kein automatischer Eingriff).
+	public autoDeleteAfterDeadline!: boolean;
 
 	// Serien-Bezug (Habits, siehe #120): `seriesId` verweist auf das Template, aus dem diese Instanz
 	// generiert wurde (`null` ⇒ gewöhnlicher Einzel-Task). `isException` markiert eine nachträglich
@@ -104,6 +107,13 @@ Task.init(
 		deadline: {
 			type: DataTypes.DATE,
 			allowNull: true,
+		},
+		// Auto-Löschung bei verpasster Deadline (Issue #523). Default `false`, damit bestehende Aufgaben
+		// ohne gesetzte Option nicht still gelöscht werden.
+		autoDeleteAfterDeadline: {
+			type: DataTypes.BOOLEAN,
+			allowNull: false,
+			defaultValue: false,
 		},
 		// Serien-Instanz-Felder (siehe #120). Der eindeutige Idempotenz-Index liegt auf
 		// (`seriesId`, `seriesOccurrence`) — eine Periode wird je Serie höchstens einmal materialisiert.

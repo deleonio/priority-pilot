@@ -24,6 +24,7 @@ interface TaskAttributes {
 	actualEffort?: number | null;
 	description?: string | null;
 	deadline?: Date | null;
+	autoDeleteAfterDeadline?: boolean;
 }
 
 type ValidationResult =
@@ -46,6 +47,7 @@ export const serializeTask = (task: Task): TaskDto => ({
 	actualEffort: task.actualEffort ?? null,
 	description: task.description ?? null,
 	deadline: task.deadline ? task.deadline.toISOString() : null,
+	autoDeleteAfterDeadline: task.autoDeleteAfterDeadline ?? false,
 	seriesId: task.seriesId ?? null,
 	isException: task.isException ?? false,
 	pillars: (task.Pillars ?? [])
@@ -162,6 +164,13 @@ const validateTaskFields = (body: unknown, requireTitle: boolean): ValidationRes
 		} else {
 			attrs.deadline = new Date(input.deadline);
 		}
+	}
+
+	if (input.autoDeleteAfterDeadline !== undefined) {
+		if (typeof input.autoDeleteAfterDeadline !== 'boolean') {
+			return { ok: false, message: 'autoDeleteAfterDeadline muss ein Boolean sein.' };
+		}
+		attrs.autoDeleteAfterDeadline = input.autoDeleteAfterDeadline;
 	}
 
 	let pillars: PillarContribution[] | undefined;

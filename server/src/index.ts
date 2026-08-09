@@ -15,6 +15,7 @@ import {
 } from './logics/migrate.js';
 import { buildTaskForest } from './logics/tree.js';
 import { runDueTaskReminders } from './logics/dueTaskReminders.js';
+import { runDeadlineAutoDelete } from './logics/autoDeleteAfterDeadline.js';
 import { runDailyTopTasksPush } from './logics/dailyTopTasks.js';
 import { Pillar, Task, TaskPillar } from './models/index.js';
 import { SEED_PILLARS } from './models/pillarData.js';
@@ -157,9 +158,9 @@ const main = async (): Promise<void> => {
 		console.log(JSON.stringify(await buildTaskForest(), null, 2));
 		await launchServer();
 
-		// Fachliche Push-Trigger (Issue #355 + #518). No-Op ohne VAPID-Keys oder ohne
-		// explizites PUSH_REMINDERS_ENABLED=true (siehe scheduler/index.ts).
-		startScheduler([runDueTaskReminders, runDailyTopTasksPush]);
+		// Fachliche Push-Trigger (Issue #355 + #518) sowie der Deadline-Auto-Lösch-Trigger (#523).
+		// No-Op ohne VAPID-Keys oder ohne explizites PUSH_REMINDERS_ENABLED=true (siehe scheduler/index.ts).
+		startScheduler([runDueTaskReminders, runDeadlineAutoDelete, runDailyTopTasksPush]);
 	} catch (error) {
 		console.error('Fehler:', error);
 	}

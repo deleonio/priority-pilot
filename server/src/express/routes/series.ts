@@ -64,6 +64,7 @@ interface SeriesAttributes {
 	active?: boolean;
 	startDate?: Date;
 	description?: string | null;
+	autoDeleteAfterDeadline?: boolean;
 }
 
 type ValidationResult =
@@ -106,6 +107,7 @@ const serializeSeries = (series: Series): SeriesDto => ({
 	active: series.active,
 	startDate: series.startDate.toISOString(),
 	description: series.description ?? null,
+	autoDeleteAfterDeadline: series.autoDeleteAfterDeadline ?? false,
 	pillars: (series.Pillars ?? [])
 		.map((pillar) => ({
 			pillarId: pillar.id,
@@ -208,6 +210,13 @@ const validateSeriesFields = (
 			return { ok: false, message: 'description muss ein String oder null sein.' };
 		}
 		attrs.description = input.description;
+	}
+
+	if (input.autoDeleteAfterDeadline !== undefined) {
+		if (typeof input.autoDeleteAfterDeadline !== 'boolean') {
+			return { ok: false, message: 'autoDeleteAfterDeadline muss ein Boolean sein.' };
+		}
+		attrs.autoDeleteAfterDeadline = input.autoDeleteAfterDeadline;
 	}
 
 	// Konsistenz-Prüfung für wochentag-basierte Rhythmen (`mon`…`sun`): der Rhythmus-Name
