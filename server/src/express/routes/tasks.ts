@@ -7,6 +7,7 @@ import { wouldCreateCycle } from '../../logics/cycle.js';
 import { berechneScore } from '../../logics/score.js';
 import { PillarContribution, validatePillars, arePillarsExistent } from '../../logics/pillarContributions.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
+import type { ChecklistItem } from '../../models/task.js';
 import type { components } from '../../api';
 
 type TaskDto = components['schemas']['Task'];
@@ -25,6 +26,7 @@ interface TaskAttributes {
 	description?: string | null;
 	deadline?: Date | null;
 	autoDeleteAfterDeadline?: boolean;
+	checklist?: ChecklistItem[];
 }
 
 type ValidationResult =
@@ -32,6 +34,46 @@ type ValidationResult =
 
 const isTaskStatus = (value: unknown): value is TaskStatus =>
 	typeof value === 'string' && VALID_STATUSES.some((status) => status === value);
+
+/** UUID-Format (beliebige Version) für die `id` eines Checklist-Eintrags (#531). */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** Maximalzahl an Checklist-Einträgen je Task (#531). */
+const MAX_CHECKLIST_ITEMS = 20;
+
+/**
+ * Validiert die Checkliste eines Tasks (#531): Liste aus höchstens 20 Einträgen mit gültiger
+ * UUID-`id`, nicht-leerem `title` (1–255 Zeichen nach Trim) und optionalem `completed`
+ * (Default `false`). Liefert die normierten Einträge `{ id, title, completed }` oder eine
+ * Fehlermeldung (string) — der Fehler wird vom Aufrufer zu HTTP 400 übersetzt.
+ */
+const validateChecklist = (value: unknown): ChecklistItem[] | string => {
+	if (!Array.isArray(value)) {
+		return 'checklist muss eine Liste sein.';
+	}
+	if (value.length > MAX_CHECKLIST_ITEMS) {
+		return 'checklist darf höchstens 20 Einträge enthalten.';
+	}
+	const items: ChecklistItem[] = [];
+	for (const entry of value) {
+		if (typeof entry !== 'object' || entry === null) {
+			return 'Jeder checklist-Eintrag muss ein Objekt sein.';
+		}
+		const item = entry as Record<string, unknown>;
+		if (typeof item.id !== 'string' || !UUID_RE.test(item.id)) {
+			return 'Jeder checklist-Eintrag benötigt eine gültige id (UUID).';
+		}
+		const title = typeof item.title === 'string' ? item.title.trim() : '';
+		if (title === '' || title.length > 255) {
+			return 'Jeder checklist-Eintrag benötigt einen nicht-leeren title (1–255 Zeichen).';
+		}
+		const completed = item.completed === undefined ? false : item.completed;
+		if (typeof completed !== 'boolean') {
+			return 'completed eines checklist-Eintrags muss ein Boolean sein.';
+		}
+		items.push({ id: item.id, title, completed });
+	}
+	return items;
+};
 
 /**
  * Wandelt eine Task-Instanz in die im API-Vertrag definierte Form um. Die Säulen-Beiträge stammen
@@ -48,6 +90,7 @@ export const serializeTask = (task: Task): TaskDto => ({
 	description: task.description ?? null,
 	deadline: task.deadline ? task.deadline.toISOString() : null,
 	autoDeleteAfterDeadline: task.autoDeleteAfterDeadline ?? false,
+	checklist: task.checklist ?? [],
 	seriesId: task.seriesId ?? null,
 	isException: task.isException ?? false,
 	pillars: (task.Pillars ?? [])
@@ -171,6 +214,14 @@ const validateTaskFields = (body: unknown, requireTitle: boolean): ValidationRes
 			return { ok: false, message: 'autoDeleteAfterDeadline muss ein Boolean sein.' };
 		}
 		attrs.autoDeleteAfterDeadline = input.autoDeleteAfterDeadline;
+	}
+
+	if (input.checklist !== undefined) {
+		const result = validateChecklist(input.checklist);
+		if (typeof result === 'string') {
+			return { ok: false, message: result };
+		}
+		attrs.checklist = result;
 	}
 
 	let pillars: PillarContribution[] | undefined;

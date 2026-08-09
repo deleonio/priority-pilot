@@ -836,6 +836,14 @@ components:
             über die referenzierten Säulen; `confidence` ist die Konfidenz je Beitrag.
           items:
             $ref: '#/components/schemas/TaskPillarContribution'
+        checklist:
+          type: array
+          description: >-
+            Abhakbare Checkliste (0–20 Einträge) zum Zerlegen des Tasks in Teilschritte
+            (#531). Default leer; bestehende Tasks ohne Checkliste liefern `[]`
+            (rückwärtskompatibel).
+          items:
+            $ref: '#/components/schemas/ChecklistItem'
     TaskCreate:
       type: object
       required:
@@ -881,6 +889,13 @@ components:
             aller `share` 100 ergeben.
           items:
             $ref: '#/components/schemas/TaskPillarContributionInput'
+        checklist:
+          type: array
+          description: >-
+            Abhakbare Checkliste des Tasks (max. 20 Einträge, #531). Fehlt das Feld,
+            bleibt die Liste leer.
+          items:
+            $ref: '#/components/schemas/ChecklistItem'
     TaskUpdate:
       type: object
       description: Alle Felder optional — gesetzte Felder werden aktualisiert.
@@ -923,6 +938,13 @@ components:
             aller `share` 100 ergeben. Fehlt das Feld, bleiben die Beiträge unverändert.
           items:
             $ref: '#/components/schemas/TaskPillarContributionInput'
+        checklist:
+          type: array
+          description: >-
+            Ersetzt die Checklisten-Einträge vollständig (max. 20, #531). Eine leere
+            Liste leert die Checkliste; fehlt das Feld, bleibt sie unverändert.
+          items:
+            $ref: '#/components/schemas/ChecklistItem'
     DependencyInput:
       type: object
       required:
@@ -991,6 +1013,29 @@ components:
           maximum: 100
           default: 100
           description: Konfidenz in % (0–100); fehlt der Wert, gilt 100 %
+    ChecklistItem:
+      type: object
+      description: >-
+        Eintrag einer abhakbaren Checkliste eines Tasks (#531). Der Titel muss
+        nicht-leer (1–255 Zeichen) sein; `completed` ist optional (Default `false`).
+      required:
+        - id
+        - title
+        - completed
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Stabile UUID des Eintrags.
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: Bezeichnung des Eintrags (nach Trim nicht-leer).
+        completed:
+          type: boolean
+          default: false
+          description: Erledigt-Status (Default `false`).
     TaskTreeNode:
       type: object
       required:

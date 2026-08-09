@@ -24,6 +24,7 @@ export type PillarCreate = Schemas['PillarCreate'];
 export type PillarUpdate = Schemas['PillarUpdate'];
 export type TaskPillarContribution = Schemas['TaskPillarContribution'];
 export type TaskPillarContributionInput = Schemas['TaskPillarContributionInput'];
+export type ChecklistItem = Schemas['ChecklistItem'];
 export type PillarWeightsInput = Schemas['PillarWeightsInput'];
 export type SuggestPillarsInput = Schemas['SuggestPillarsInput'];
 export type PillarSuggestion = Schemas['PillarSuggestion'];

@@ -364,3 +364,21 @@ export const migratePillarFeedbackUserId = async (db: Sequelize): Promise<void> 
 	await db.query('ALTER TABLE `pillar_feedback` ADD COLUMN `userId` INTEGER');
 	console.log('Spalte userId an pillar_feedback nachgezogen (#430).');
 };
+
+/**
+ * Zieht die `checklist`-Spalte (JSON-Array, #531) auf einer **bestehenden** `tasks`-Tabelle nach,
+ * BEVOR `sequelize.sync()` läuft. `sync()` ohne `alter` ergänzt vorhandene Tabellen nicht um neue
+ * Spalten — ohne Nachziehen bräche jeder Lese-/Schreibzugriff mit `no such column`. Bestehende Tasks
+ * erhalten den Default `[]` (rückwärtskompatibel, unverändert). Idempotent (Spalte vorhanden → No-op);
+ * bei frischer DB (keine `tasks`-Tabelle) ebenso No-op — `sync()` legt die Spalte inkl. Default an.
+ */
+export const migrateTaskChecklist = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('tasks')");
+	const existing = (columns as { name: string }[]).map((column) => column.name);
+
+	if (existing.length === 0 || existing.includes('checklist')) {
+		return;
+	}
+	await db.query("ALTER TABLE `tasks` ADD COLUMN `checklist` JSON NOT NULL DEFAULT '[]'");
+	console.log('Spalte checklist an tasks nachgezogen (#531).');
+};
