@@ -180,3 +180,101 @@ describe('logics/autoDeleteAfterDeadline — Vererbung vom Series-Template (Issu
 		}
 	});
 });
+
+/**
+ * Regression-Guard / Spec für #534, AK5 — „Auto-Löschen nach 3 Tagen bei verpasster Deadline greift auch
+ * bei Serien-Aufgaben".
+ *
+ * Serien-Instanzen sind reguläre `Task`-Datensätze mit gesetzem `seriesId`/`seriesOccurrence` und einer
+ * aus dem Serien-Raster abgeleiteten `deadline` (siehe `generateDueInstances`). Der Cron darf sie nicht
+ * ausschließen: eine verpasste Serien-Instanz mit vererbtem `autoDeleteAfterDeadline` wird wie jede andere
+ * Aufgabe nach Ablauf der 3-Tage-Frist gelöscht — und zwar nur diese Einzelinstanz, nicht das Template
+ * oder künftige Instanzen.
+ *
+ * **Status:** Der bestehende #523-Cron filtert nicht nach `seriesId`, sodass diese Guard vermutlich
+ * bereits GRÜN ist. Sie sichert das Verhalten explizit für den #534-Erweiterungsfall, in dem der
+ * Auto-Löschen-Schalter erstmals auch auf Serien-Templates gesetzt werden kann.
+ */
+describe('logics/autoDeleteAfterDeadline — greift auch bei Serien-Aufgaben (Issue #534, AK5)', () => {
+	beforeEach(async () => {
+		await resetDb();
+	});
+	after(async () => {
+		await closeDb();
+	});
+
+	it('löscht eine verpasste Serien-Instanz (seriesId gesetzt) wie eine reguläre Aufgabe', async () => {
+		const series = await Series.create({
+			title: 'Wöchentlich aufräumen',
+			rhythm: 'weekly',
+			priority: 3,
+			estimatedEffort: 0.5,
+			active: true,
+			startDate: new Date('2020-01-01T00:00:00Z'),
+			autoDeleteAfterDeadline: true,
+		});
+
+		// Eine materialisierte Serien-Instanz: deadline (occurrence) >3 Tage vergangen, Option vererbt.
+		const instance = await Task.create({
+			title: series.title,
+			status: 'Open',
+			priority: series.priority,
+			estimatedEffort: series.estimatedEffort,
+			deadline: new Date(NOW.getTime() - 4 * DAY),
+			seriesId: series.id,
+			seriesOccurrence: new Date(NOW.getTime() - 4 * DAY),
+			isException: false,
+			autoDeleteAfterDeadline: true,
+		});
+
+		const result = await runDeadlineAutoDelete(NOW);
+
+		assert.equal(result.deleted, 1, 'die verpasste Serien-Instanz wird gelöscht');
+		assert.equal(await Task.findByPk(instance.id), null, 'die Einzelinstanz ist entfernt');
+		// Das Serien-Template bleibt unangetastet (nur die Instanz wird gelöscht, nicht die Serie).
+		assert.notEqual(await Series.findByPk(series.id), null, 'das Serien-Template bleibt erhalten');
+	});
+
+	it('löscht nur die verpasste Einzelinstanz, nicht künftige Instanzen derselben Serie', async () => {
+		const series = await Series.create({
+			title: 'Tägliche Serie',
+			rhythm: 'daily',
+			priority: 3,
+			estimatedEffort: 0.5,
+			active: true,
+			startDate: new Date('2020-01-01T00:00:00Z'),
+			autoDeleteAfterDeadline: true,
+		});
+
+		// Eine verpasste (>3 Tage) …
+		const overdue = await Task.create({
+			title: 'überfällig',
+			status: 'Open',
+			priority: 3,
+			estimatedEffort: 0.5,
+			deadline: new Date(NOW.getTime() - 4 * DAY),
+			seriesId: series.id,
+			seriesOccurrence: new Date(NOW.getTime() - 4 * DAY),
+			isException: false,
+			autoDeleteAfterDeadline: true,
+		});
+		// … und eine noch nicht fällige Serien-Instanz (deadline in der Zukunft).
+		const upcoming = await Task.create({
+			title: 'zukünftig',
+			status: 'Open',
+			priority: 3,
+			estimatedEffort: 0.5,
+			deadline: new Date(NOW.getTime() + 1 * DAY),
+			seriesId: series.id,
+			seriesOccurrence: new Date(NOW.getTime() + 1 * DAY),
+			isException: false,
+			autoDeleteAfterDeadline: true,
+		});
+
+		const result = await runDeadlineAutoDelete(NOW);
+
+		assert.equal(result.deleted, 1, 'nur die überfällige Instanz wird gelöscht');
+		assert.equal(await Task.findByPk(overdue.id), null, 'die überfällige Einzelinstanz ist entfernt');
+		assert.notEqual(await Task.findByPk(upcoming.id), null, 'die zukünftige Instanz bleibt erhalten');
+	});
+});
