@@ -156,7 +156,7 @@ jobs:
           # 3) Nur PRs der KI-Pipeline (tragen ein Pipeline-Label) behandeln. Schuetzt fremde/
           #    menschliche PRs davor, durch das Gate ungewollt einen Fixup zu triggern bzw. gemergt
           #    zu werden.
-          in_pipeline="$(echo "$labels" | jq -r 'any(.[]; . == "ai:needs-review" or . == "ai:needs-changes" or . == "ai:ready-to-merge")')"
+          in_pipeline="$(echo "$labels" | jq -r 'any(.[]; . == "ai:needs-review" or . == "ai:needs-changes" or . == "ai:ready-to-merge" or . == "ai:needs-human")')"
           if [ "$in_pipeline" != "true" ]; then
             echo "PR #$pr traegt kein Pipeline-Label — gehoert nicht zur KI-Pipeline (No-op)."
             exit 0
@@ -291,6 +291,10 @@ jobs:
           # NICHT ai:needs-changes, und der PR sauber mergebar ist. Sonst No-op (Review vergibt das
           # terminale ai:ready-to-merge).
           # ====================================================================================
+          if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:needs-human")')" = "true" ]; then
+            echo "PR #$pr traegt ai:needs-human — wartet auf menschliche Entscheidung, kein Auto-Merge (No-op)."
+            exit 0
+          fi
           if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:ready-to-merge")')" != "true" ]; then
             echo "PR #$pr traegt kein ai:ready-to-merge — kein Auto-Merge (No-op; Review vergibt es terminal)."
             exit 0

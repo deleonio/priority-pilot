@@ -109,7 +109,7 @@ jobs:
       # Reiner gh-Job (kein Checkout, kein LLM): Alte Ergebnis-Labels entfernen, dann
       # ai:needs-review setzen. Mit dem App-Token gesetzt, damit das "labeled"-Event den
       # Kreuzverhoer-Review ausloest.
-      - name: Alte Ergebnis-Labels + Loop-Marker entfernen (ai:needs-changes, ai:ready-to-merge, ai:review-no-result)
+      - name: Alte Ergebnis-Labels + Loop-Marker entfernen (ai:needs-changes, ai:ready-to-merge, ai:review-no-result, ai:needs-human)
         if: steps.preflight.outputs.configured == 'true'
         env:
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
@@ -122,7 +122,7 @@ jobs:
           # bei neuem Push). ai:review-no-result gehoert dazu: ein menschlicher Push ist Fortschritt
           # und muss die Loop-Bremse in 04-claude-pr-review.yml neu starten, sonst laeuft der frische
           # Versuch bei einem einzelnen Label-Flake sofort wieder in den Hard-Stop.
-          for label in ai:needs-changes ai:ready-to-merge ai:review-no-result; do
+          for label in ai:needs-changes ai:ready-to-merge ai:review-no-result ai:needs-human; do
             if gh pr view "$PR" --repo "$REPO" --json labels --jq "[.labels[].name]" | grep -q "\"$label\""; then
               gh pr edit "$PR" --repo "$REPO" --remove-label "$label"
               echo "PR #$PR: Label $label entfernt (Reset)." >> "$GITHUB_STEP_SUMMARY"
