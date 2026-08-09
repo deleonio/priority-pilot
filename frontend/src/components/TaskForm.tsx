@@ -238,9 +238,15 @@ export const TaskForm = ({
 	// Re-Render aus). `startDateInput` ist der rohe `YYYY-MM-DD`-String aus dem Datumsfeld.
 	const [rhythm, setRhythm] = useState<SeriesRhythm>(form.current.rhythm);
 	const [startDateInput, setStartDateInput] = useState(form.current.startDate);
-	// #523: Auto-Löschung bei verpasster Deadline. State (nicht Ref), damit der Info-Hinweis beim
-	// Aktivieren der Checkbox reaktiv eingeblendet wird. Im Task-Edit aus dem vorhandenen Task vorbelegt.
-	const [autoDelete, setAutoDelete] = useState<boolean>(task?.autoDeleteAfterDeadline ?? false);
+	// #523/#534: Auto-Löschung bei verpasster Deadline. State (nicht Ref), damit der Info-Hinweis beim
+	// Aktivieren der Checkbox reaktiv eingeblendet wird. Im Edit aus dem vorhandenen Task bzw. der Serie
+	// vorbelegt (#534: Auto-Löschen ist nun auch auf Serien anwendbar).
+	const [autoDelete, setAutoDelete] = useState<boolean>(
+		task?.autoDeleteAfterDeadline ?? series?.autoDeleteAfterDeadline ?? false,
+	);
+	// #534: State-Mirror der Deadline-Eingabe, damit die Kopplung des Auto-Löschen-Schalters an die
+	// Deadline-Präsenz (Anforderung 2) reaktiv greift — `form.current.deadline` allein löst kein Re-Render aus.
+	const [deadlineInput, setDeadlineInput] = useState(form.current.deadline);
 
 	// #272: Einmal beim Mount lesen, ob die Auto-Sprachaufnahme aktiv ist → nur das erste (Titel-)
 	// VoiceField startet dann automatisch. Bewusst pro Formular-Instanz konstant (kein Live-Update).
@@ -408,6 +414,7 @@ export const TaskForm = ({
 					pillars,
 					startDate: form.current.startDate.trim() === '' ? undefined : startDate,
 					rhythm: form.current.rhythm,
+					autoDeleteAfterDeadline: autoDelete,
 				};
 				await api.updateSeries({ id: series.id, seriesUpdate });
 			} else if (isSeriesMode) {
@@ -421,6 +428,7 @@ export const TaskForm = ({
 					startDate,
 					rhythm: form.current.rhythm,
 					active: true,
+					autoDeleteAfterDeadline: autoDelete,
 				};
 				await api.createSeries({ seriesCreate });
 			} else if (taskEdit) {
@@ -512,6 +520,19 @@ export const TaskForm = ({
 		const parsed = new Date(`${form.current.startDate}T00:00:00Z`);
 		return Number.isNaN(parsed.getTime()) ? undefined : parsed;
 	})();
+
+	// #534 (Anforderung 2): Der Auto-Löschen-Schalter ist an die Deadline-Präsenz gekoppelt — im Task-Modus
+	// deaktiviert, solange keine Deadline gesetzt ist. Bei Serien gilt das Startdatum stets als Deadline
+	// (AK4), daher ist der Schalter im Serie-Modus immer frei anwählbar.
+	const hasDeadline = deadlineInput.trim() !== '';
+	const autoDeleteDisabled = !isSeriesMode && !hasDeadline;
+	// Wird die Deadline nachträglich entfernt, fällt der Schalter auf `false` zurück (kein hängendes `true`
+	// ohne Deadline, AK3). Im Serie-Modus greift die Kopplung nicht (stets ein Startdatum vorhanden).
+	useEffect(() => {
+		if (!isSeriesMode && !hasDeadline) {
+			setAutoDelete(false);
+		}
+	}, [isSeriesMode, hasDeadline]);
 
 	return (
 		<>
@@ -654,29 +675,47 @@ export const TaskForm = ({
 							_value={deadlineValue}
 							_on={{
 								onChange: (_event, value) => {
-									form.current.deadline = value instanceof Date ? deadlineToDateInput(value) : readString(value);
+									const next = value instanceof Date ? deadlineToDateInput(value) : readString(value);
+									form.current.deadline = next;
+									setDeadlineInput(next);
 								},
 								onInput: (_event, value) => {
-									form.current.deadline = value instanceof Date ? deadlineToDateInput(value) : readString(value);
+									const next = value instanceof Date ? deadlineToDateInput(value) : readString(value);
+									form.current.deadline = next;
+									setDeadlineInput(next);
 								},
 							}}
 						/>
-						{/* #523: Auto-Löschung bei verpasster Deadline (nur im Task-Modus, nicht bei Serien).
-						    Bewusst native Checkbox statt KolInputCheckbox: der jsdom-Test-Mock vergibt jedem
-						    KolInputCheckbox pauschal role="switch", was den unscoped `getByRole('switch')` des
-						    Modus-Umschalters (#316/#470) mehrdeutig machen würde. Eine native Checkbox trägt
-						    role="checkbox" und bleibt damit eindeutig. */}
-						<label className="auto-delete-toggle">
-							<input type="checkbox" checked={autoDelete} onChange={(event) => setAutoDelete(event.target.checked)} />
-							Automatisch löschen nach 3 Tagen bei verpasster Deadline
-						</label>
-						{autoDelete && (
-							<p className="hint">
-								Die Aufgabe wird bei verpasster Deadline automatisch nach 3 Tagen gelöscht, sofern sie bis dahin nicht
-								erledigt ist.
-							</p>
-						)}
 					</>
+				)}
+				{/* #523/#534: Auto-Löschung bei verpasster Deadline. Im Task-Modus an die Deadline-Präsenz
+				    gekoppelt (deaktiviert ohne Deadline, #534 Anforderung 2); bei Serien stets frei anwählbar,
+				    da das Startdatum als Deadline gilt (#534 Anforderung 1). Bewusst native Checkbox statt
+				    KolInputCheckbox: der jsdom-Test-Mock vergibt jedem KolInputCheckbox pauschal role="switch",
+				    was den unscoped `getByRole('switch')` des Modus-Umschalters (#316/#470) mehrdeutig machen
+				    würde. Eine native Checkbox trägt role="checkbox" und bleibt damit eindeutig. */}
+				<label className="auto-delete-toggle">
+					<input
+						type="checkbox"
+						checked={autoDelete}
+						disabled={autoDeleteDisabled}
+						onClick={(event) => {
+							// #534: Ohne Deadline darf der Schalter nicht aktivierbar sein. `disabled` reicht im
+							// Test-jsdom nicht (rohes dispatchEvent umgeht den Disabled-Schutz und toggelt trotzdem),
+							// daher zusätzlich das Default-Verhalten des Klicks unterbinden.
+							if (autoDeleteDisabled) {
+								event.preventDefault();
+							}
+						}}
+						onChange={(event) => setAutoDelete(autoDeleteDisabled ? false : event.target.checked)}
+					/>
+					Automatisch löschen nach 3 Tagen bei verpasster Deadline
+				</label>
+				{autoDelete && (
+					<p className="hint">
+						Die Aufgabe wird bei verpasster Deadline automatisch nach 3 Tagen gelöscht, sofern sie bis dahin nicht
+						erledigt ist.
+					</p>
 				)}
 				<VoiceField
 					variant="textarea"
