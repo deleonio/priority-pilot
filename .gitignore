@@ -2,6 +2,9 @@
 # nicht via git. NIEMALS committen (sonst Kaskade in jeden Folge-Checkout).
 .claude/ticket-memory/
 .claude/worktrees/
+# Claude-Code maschinenlokale Config (API-Routing/Modell-Auswahl je Maschine) — `.local.json`
+# per Konvention gitignored; `.claude/settings.json` (Team-Shared-Config) bleibt versioniert.
+.claude/settings.local.json
 dist/
 node_modules/
 
