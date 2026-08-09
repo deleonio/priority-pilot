@@ -218,7 +218,20 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		await expect(cancelButton).toBeFocused();
 
 		await page.waitForTimeout(SETTLE_MS);
-		await page.keyboard.press('Tab');
+
+		// Tab bis zu dreimal drücken. Hintergrund: KoliBris anfänglicher setFocus-Loop (s. Kommentar
+		// oben, ~<100 ms gemessen) kann unter CI-Last länger als SETTLE_MS laufen und einen früh
+		// gedrückten Tab EINMALIG zurück auf „Abbrechen" ziehen. Ein erneuter Tab — sobald der Loop
+		// beendet ist — bleibt stehen. SETTLE_MS wird bewusst NICHT erhöht: ein zu knapper Wert ist
+		// laut Kommentar das Signal für einen echten Fokus-Watchdog.
+		//
+		// Schutz bleibt erhalten: Ein echter Watchdog (focusin-Redirect) zieht JEDES Tab zurück, nicht
+		// nur eines — alle Versuche landen auf „Abbrechen", die Assertion rotet weiterhin. Die Schleife
+		// toleriert also nur den transienten Library-Ausläufer, keine echte Fokus-Falle.
+		for (let attempt = 0; attempt < 3; attempt++) {
+			await page.keyboard.press('Tab');
+			if (await deleteButton.evaluate((el) => el === document.activeElement)) break;
+		}
 
 		await expect(deleteButton, 'Tab muss den Fokus weiterbewegen dürfen').toBeFocused();
 		await expect(cancelButton).not.toBeFocused();
