@@ -32,6 +32,7 @@ flowchart TD
     end
 
     merged([PR gemergt ✅]):::done
+    docpr[pr-post-merge-documentation.yml<br/>Phase 6: PR-Titel und Beschreibung optimiert]:::wf
     human([⚠️ Mensch<br/>> 10 PR-Commits]):::stop
 
     %% ---- Issue-Trigger ----
@@ -66,6 +67,7 @@ flowchart TD
 
     %% ---- Abschluss ----
     merged -.->|pull_request.closed| cancel
+    merged -.->|"pull_request.closed + merged"| docpr
 
     %% ---- Merge-getriebenes Unblocking aufeinander aufbauender Issues ----
     merged -.->|"pull_request.closed + merged"| unblock
