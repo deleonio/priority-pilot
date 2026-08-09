@@ -4,6 +4,7 @@ name: Claude PR Review (Kreuzverhoer)
 # "ai:needs-review" trägt.
 # Setzt **Claude Code** ein; Provider via `vars.LLM_PROVIDER` (zai|claude), aufgelöst in setup-claude.
 #   - Findings → ai:needs-changes (→ Fixup)
+#   - Entscheidungs-Findings ("Mensch entscheidet") → ai:needs-human (→ wartet auf Mensch)
 #   - sauber 🟢 → ai:ready-to-merge (→ Gate)
 # Ändert KEINEN Code.
 
@@ -101,7 +102,8 @@ jobs:
             4. Code-Qualität: Benennung, Lesbarkeit, Tests (grün + abdeckend).
 
           ABSCHLUSS:
-            - Findings → Review-Kommentare posten (an Datei/Zeile verankert), dann VERDICT: needs-changes
+            - Findings, die Claude EINDEUTIG beheben kann → Review-Kommentare posten (an Datei/Zeile verankert), dann VERDICT: needs-changes
+            - Finding ist eine Architektur-/Produkt-/Designentscheidung, die Claude nicht eindeutig treffen kann ("Mensch entscheidet") → Review-Kommentar mit den Handlungsoptionen, dann VERDICT: needs-human
             - PR ist solide (🟢) → KEINE Pseudo-Findings, knappe 🟢-Bestätigung, dann VERDICT: ready-to-merge
 
           Sammelkommentar konsolidieren: Urteil als GENAU EINEN <!-- ai-review -->-Kommentar pflegen. Vorhandenen suchen und aktualisieren statt neu anzulegen.
@@ -112,7 +114,8 @@ jobs:
 
           VERDICT: GANZ AM ENDE GENAU EINE Zeile:
             - VERDICT: ready-to-merge (bei 🟢)
-            - VERDICT: needs-changes (bei Findings)
+            - VERDICT: needs-changes (bei fixbaren Findings)
+            - VERDICT: needs-human (bei Entscheidungs-Findings, die ein Mensch treffen muss)
 
           ZEITLIMIT: Soft-Deadline = SOFT_DEADLINE. Vor jedem Schritt: [ $(date +%s) -ge SOFT_DEADLINE ]. Bei OVER: Zwischenstand als Sammelkommentar, Turn beenden.
 
@@ -185,21 +188,29 @@ jobs:
             fi
           fi
 
-          if [ "$verdict" != "ready-to-merge" ]; then
+          if [ "$verdict" = "needs-human" ]; then
+            final="needs-human"
+          elif [ "$verdict" != "ready-to-merge" ]; then
             final="needs-changes"
           fi
 
           gh label create "ai:needs-changes" --repo "$GITHUB_REPOSITORY" --color D93F0B 2>/dev/null || true
           gh label create "ai:ready-to-merge" --repo "$GITHUB_REPOSITORY" --color 0E8A16 2>/dev/null || true
           gh label create "ai:needs-review" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
+          gh label create "ai:needs-human" --repo "$GITHUB_REPOSITORY" --color 5319e7 --description "Nicht-automatisierbare Entscheidung — wartet auf Mensch (Fixup greift bewusst nicht)" 2>/dev/null || true
 
           gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-review 2>/dev/null || true
           gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-changes 2>/dev/null || true
           gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:ready-to-merge 2>/dev/null || true
+          gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-human 2>/dev/null || true
 
           if [ "$final" = "ready-to-merge" ]; then
             gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:ready-to-merge
             echo "::notice::Label gesetzt: ai:ready-to-merge"
+          elif [ "$final" = "needs-human" ]; then
+            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human
+            echo "::notice::Label gesetzt: ai:needs-human (wartet auf Mensch)"
+            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⏸️ **Wartet auf menschliche Entscheidung** — nicht-automatisierbares Finding (siehe Review-Kommentar oben). Der Fixup greift hier bewusst nicht. Nach der Entscheidung: Label \`ai:needs-human\` entfernen und via \`ai:needs-review\` neu triggern." 2>/dev/null || true
           else
             gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-changes
             echo "::notice::Label gesetzt: ai:needs-changes"
@@ -257,15 +268,18 @@ jobs:
             labels_json="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name]' 2>/dev/null || echo '[]')"
             needs_changes="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:needs-changes")')"
             ready_to_merge="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:ready-to-merge")')"
-            if [ "$needs_changes" = "true" ] || [ "$ready_to_merge" = "true" ]; then break; fi
+            needs_human="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:needs-human")')"
+            if [ "$needs_changes" = "true" ] || [ "$ready_to_merge" = "true" ] || [ "$needs_human" = "true" ]; then break; fi
             if [ "$i" -lt 5 ]; then sleep 3; fi
           done
-          echo "Labels verifiziert: needs_changes=${needs_changes:-?} ready_to_merge=${ready_to_merge:-?}"
+          echo "Labels verifiziert: needs_changes=${needs_changes:-?} ready_to_merge=${ready_to_merge:-?} needs_human=${needs_human:-?}"
           if [ "$needs_changes" = "true" ]; then
             echo "::notice title=Review: Änderungen erforderlich::PR #${PR} – ai:needs-changes gesetzt (Fixup läuft an), gültiges Ergebnis."
           elif [ "$ready_to_merge" = "true" ]; then
             echo "::notice title=Review: ready-to-merge::PR #${PR} – ai:ready-to-merge gesetzt."
+          elif [ "$needs_human" = "true" ]; then
+            echo "::notice title=Review: Mensch entscheidet::PR #${PR} – ai:needs-human gesetzt, wartet auf menschliche Entscheidung."
           else
-            echo "::error title=Review stecken geblieben::PR #${PR} – weder ai:needs-changes noch ai:ready-to-merge gesetzt."
+            echo "::error title=Review stecken geblieben::PR #${PR} – weder ai:needs-changes noch ai:ready-to-merge noch ai:needs-human gesetzt."
             exit 1
           fi

@@ -175,7 +175,7 @@ jobs:
                - Code ändern, vor jedem Commit lokale Checks: pnpm format && pnpm exec prettier --check . && pnpm lint && pnpm knip.
                - Erst wenn alle grün, committen und pushen.
                - Im jeweiligen Thread antworten und auflösen.
-               - Mehrdeutige/große Punkte dem Menschen überlassen.
+               - Mehrdeutige/große/Entscheidungs-Punkte NICHT fixen → stattdessen am Ende VERDICT: needs-human (der Mensch entscheidet).
             4. CI-CHECKS BEHANDELN (falls rot):
                a) FLAKY-TEST ERKENNEN: Timeout/Timing-Instabilität + thematisch keine Logik aus diesem PR-Diff? → FLAKY: einmalig via gh run rerun <failed-run-id> --failed neu starten. 60s warten, dann gh pr checks erneut prüfen.
                b) ECHTER CI-FEHLER: Job-Log lesen, Root Cause identifizieren, Code ändern, lokale Checks ausführen, committen und pushen.
@@ -183,13 +183,15 @@ jobs:
 
           ABSCHLUSS:
             - Alle Findings behoben → VERDICT: fixup-complete
-            - Noch offene Findings → VERDICT: needs-changes
+            - Noch offene, fixbare Findings → VERDICT: needs-changes
+            - Offene Entscheidungs-Findings (Architektur/Produkt/Design, "Mensch entscheidet") → VERDICT: needs-human
 
           ⚠️ LABELS: KEINE Labels setzen! Workflow übernimmt das automatisch.
 
           VERDICT: GANZ AM ENDE GENAU EINE Zeile:
             - VERDICT: fixup-complete (alle Findings behoben)
-            - VERDICT: needs-changes (noch offene Findings)
+            - VERDICT: needs-changes (noch offene, fixbare Findings)
+            - VERDICT: needs-human (offene Entscheidungs-Findings, die ein Mensch treffen muss)
 
           ZEITLIMIT: Soft-Deadline = SOFT_DEADLINE. Vor jedem Schritt: [ $(date +%s) -ge SOFT_DEADLINE ]. Bei OVER: aktuellen Stand committen+pushen, Turn beenden.
 
@@ -242,22 +244,32 @@ jobs:
 
           gh label create "ai:needs-review" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
           gh label create "ai:needs-changes" --repo "$GITHUB_REPOSITORY" --color D93F0B 2>/dev/null || true
+          gh label create "ai:needs-human" --repo "$GITHUB_REPOSITORY" --color 5319e7 --description "Nicht-automatisierbare Entscheidung — wartet auf Mensch (Fixup greift bewusst nicht)" 2>/dev/null || true
 
           # Trigger-Labels immer erst entfernen (Force-Set-Semantik).
           gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-changes 2>/dev/null || true
           gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-review 2>/dev/null || true
 
-          if [ "$ARTIFACTS_OK" = "true" ]; then
+          if [ "$verdict" = "needs-human" ]; then
+            # Claude hat erkannt: verbleibende Findings sind Entscheidungs-Findings, die ein Mensch
+            # treffen muss (kein automatisierbarer Fix). Terminal an Mensch — kein Re-Arm, kein Loop.
+            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human
+            echo "::notice::Verdict needs-human -> Label gesetzt: ai:needs-human (wartet auf Mensch)."
+            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⏸️ **Wartet auf menschliche Entscheidung** — verbleibende Findings sind nicht automatisierbar (Architektur-/Produkt-/Designentscheidung, siehe Review-Threads). Der Fixup kann hier nicht weiterhelfen. Nach der Entscheidung: Label \`ai:needs-human\` entfernen und via \`ai:needs-review\` neu triggern." 2>/dev/null || true
+            echo "stuck=true" >> "$GITHUB_OUTPUT"
+          elif [ "$ARTIFACTS_OK" = "true" ]; then
             # Fortschritt -> an Review uebergeben. Konvergiert via Stop-Guard (>10 Commits),
             # falls Review nie gruen wird.
             gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-review
             echo "::notice::Fortschritt erkannt (HEAD bewegt) -> Label gesetzt: ai:needs-review"
             echo "stuck=false" >> "$GITHUB_OUTPUT"
           else
-            # KEIN Fortschritt -> NICHT erneut triggern (kappt sowohl Fixup<->Fixup- als auch
-            # Review<->Fixup-Endlosloop). Eskalation an Mensch, analog Stop-Guard (s. oben).
-            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "🛑 **Fixup #${PR} ohne Fortschritt** — kein neuer Commit in diesem Lauf (HEAD unverändert). Review↔Fixup würde endlos pendeln. Bitte manuell prüfen (ggf. \`ai:needs-review\` neu setzen)." 2>/dev/null || true
-            echo "::warning::Kein Fixup-Fortschritt (HEAD unverändert) -> keine Re-Armierung, Mensch prüft."
+            # KEIN Fortschritt und kein klares needs-human-Verdict -> NICHT erneut triggern (kappt
+            # sowohl Fixup<->Fixup- als auch Review<->Fixup-Endlosloop). Terminal an Mensch via
+            # ai:needs-human (vermutlich doch ein nicht-automatisierbarer Blocker) + Kommentar.
+            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human
+            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "🛑 **Fixup #${PR} ohne Fortschritt** — kein neuer Commit in diesem Lauf (HEAD unverändert). Vermutlich ein nicht-automatisierbares Finding. ai:needs-human gesetzt — bitte manuell prüfen (ggf. entscheiden und \`ai:needs-review\` neu setzen)." 2>/dev/null || true
+            echo "::warning::Kein Fixup-Fortschritt (HEAD unverändert) -> ai:needs-human, keine Re-Armierung, Mensch prüft."
             echo "stuck=true" >> "$GITHUB_OUTPUT"
           fi
 

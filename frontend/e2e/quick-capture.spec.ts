@@ -119,6 +119,48 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		await expect(page.getByRole('textbox', { name: /Beschreibe/ })).toBeHidden();
 	});
 
+	// AC2c / #522 (Test-Optimierung-Report — Behavior-Coverage-Lücke): Der Schnellerfassungs-Dialog
+	// hatte zwar einen Fokus-Rückgabe-Test (AC2: Fokus landet nach Speichern wieder auf „Neuen Task
+	// anlegen"), aber keinen Tab-Freiheits-Test. Ein Fokus-Gefängnis würde Tastaturnutzer zwar nicht
+	// beim Schließen, aber beim Ausfüllen der Textarea aussperren. QuickCaptureModal nutzt dasselbe
+	// <Modal> wie die Löschdialoge (AK4 sichert dessen Tab-Freiheit) — dieser Test schließt die Lücke
+	// für den separaten Capture-Schritt mit seiner autofokussierten Textarea.
+	test('AC2c: Tab bewegt den Fokus aus der Textarea weiter (kein Fokus-Gefängnis)', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
+		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
+		await waitForStableView(page);
+
+		const textarea = page.getByRole('textbox', { name: /Beschreibe/ });
+		await expect(textarea).toBeVisible();
+		// Autofokus kommt asynchron (200 ms Rendering-Latz, siehe QuickCaptureModal); auf den
+		// Initialfokus warten, bevor Tab gedrückt wird.
+		await expect(textarea).toBeFocused();
+
+		// ≥ Autofokus-Latz, damit kein nachgelagerter Library-Refocus den Tab zurückholt (analog
+		// SETTLE_MS in delete-dialog-focus AK4).
+		await page.waitForTimeout(200);
+		await page.keyboard.press('Tab');
+
+		// Vertrag: Tab darf den Fokus weiterbewegen — die Textarea ist nicht mehr fokussiert, und
+		// einer der Aktionsbuttons hat den Fokus übernommen. composedPath/activeElement löst die
+		// Shadow-DOM-Grenze der KoliBri-Buttons auf.
+		await expect(textarea).not.toBeFocused();
+		const focusedText = await page.evaluate(() => {
+			let el = document.activeElement as Element | null;
+			while (el?.shadowRoot?.activeElement) {
+				el = el.shadowRoot.activeElement;
+			}
+			return (el?.textContent ?? '').trim().replace(/\s+/g, ' ');
+		});
+		expect(
+			['Verarbeiten und weiter', 'Überspringen'],
+			'Tab muss den Fokus auf einen Aktionsbutton bewegen, nicht in der Textarea fesseln',
+		).toContain(focusedText);
+	});
+
 	test('AC3: „Verarbeiten und weiter" ruft parse-text auf und befüllt das Formular vor', async ({ page }) => {
 		// LLM-Parsing gezielt mocken: der Endpoint liefert die vorausgefüllten Felder zurück.
 		// Zusätzlich den Request-Body festhalten, um die Sende-Seite des Vertrags zu prüfen (AK6).
