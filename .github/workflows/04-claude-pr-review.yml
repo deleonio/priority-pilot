@@ -176,7 +176,13 @@ jobs:
             # Fixup-Loop auslösen (PR #524: Claude postete teils keinen Marker-Kommentar).
             case "$verdict" in
               ready-to-merge|needs-changes|needs-human)
-                echo "::warning title=Review-Kommentar fehlt::Kein <!-- ai-review -->-Kommentar am PR (auch nach Retry). Claude-Verdict '${verdict}' ist klar → Label nach Verdict, kein harter Fehler."
+                echo "::warning title=Review-Kommentar fehlt::Kein <!-- ai-review -->-Kommentar am PR (auch nach Retry). Claude-Verdict '${verdict}' ist klar → Label nach Verdict, kein harter Fehler. Marker wird vom Workflow angelegt."
+                # Create-or-Update (#530): Claude postet den Sammelkommentar gelegentlich
+                # nicht. Fehlt der Marker (leere REVIEW_COMMENT_ID), legt der Workflow ihn
+                # selbst an — existiert er, bleibt er unangetastet: kein Duplikat, kein Überschreiben.
+                if [ -z "$REVIEW_COMMENT_ID" ] || [ "$REVIEW_COMMENT_ID" = "null" ]; then
+                  gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "<!-- ai-review --> 🧭 Review-Marker vom Workflow gesetzt — Claude-Verdict \`${verdict}\`, aber kein Sammelkommentar gepostet (PR #524/#530)." 2>/dev/null || true
+                fi
                 ;;
               *)
                 echo "::error title=❌ Review ohne Artefakt::Kein <!-- ai-review -->-Kommentar UND kein klares Verdict ('${verdict:-keins}'). Claude hat vermutlich nichts geleistet."
