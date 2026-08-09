@@ -149,6 +149,11 @@ jobs:
             --jq '.workflow_runs[] | select(.name == "Claude PR Fixup (Findings umsetzen)" and (.status == "queued" or .status == "in_progress") and .head_branch == $ENV.HEAD_BRANCH and .id != ${{ github.run_id }}) | .id' 2>/dev/null | head -1)
           if [ -n "$running" ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; fi
 
+      - name: HEAD vor Claude merken (Fortschritts-Baseline)
+        id: head-before
+        if: steps.setup.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true' && steps.supersede-check.outputs.skip != 'true'
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
       - name: Findings umsetzen via Claude
         id: claude
         if: steps.setup.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true' && steps.supersede-check.outputs.skip != 'true'
@@ -210,6 +215,7 @@ jobs:
           if-no-path-exists: ignore
 
       - name: Label-Post-Assertion (Labels via App-Token force-setzen)
+        id: label-post
         if: always() && steps.setup.outputs.configured == 'true' && steps.claude.outcome == 'success'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
@@ -221,53 +227,38 @@ jobs:
           fi
           echo "Claude-Verdict aus Output: '${verdict:-keins}'"
 
-          PR_COMMITS="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json commits \
-            --jq '.commits | length' 2>/dev/null || echo "0")"
-          REVIEW_TS="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json comments \
-            --jq '[.comments[] | select(.body | test("<!-- ai-review -->"))] | last | .createdAt' 2>/dev/null || echo "")"
-          if [ -n "$REVIEW_TS" ] && [ "$REVIEW_TS" != "null" ]; then
-            COMMITS_SINCE_REVIEW="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR}/commits" \
-              --jq "[.[] | select(.commit.committer.date > \"${REVIEW_TS}\")] | length" 2>/dev/null || echo "0")"
-          else
-            COMMITS_SINCE_REVIEW="$PR_COMMITS"
-          fi
+          # Fortschritt = hat HEAD sich in DIESEM Lauf bewegt? Robust gg. amend/reset/force-push
+          # (jede HEAD-Bewegung = Arbeit; keine Bewegung = nichts getan) und self-contained
+          # (lokales Repo, keine API-/Marker-Abhaengigkeit). Das alte REVIEW_TS-Konstrukt fiel
+          # bei fehlendem Review-Marker auf Total-Commits zurueck und meldete Fortschritt, wo
+          # keiner war -> Review<->Fixup-Endlosloop (PR #524).
+          sha_before="${{ steps.head-before.outputs.sha }}"
+          sha_after="$(git rev-parse HEAD)"
+          echo "HEAD vor Claude: ${sha_before:-?} | nach Claude: ${sha_after:-?}"
           ARTIFACTS_OK="false"
-          if [ "${COMMITS_SINCE_REVIEW:-0}" -gt 0 ]; then
+          if [ -n "$sha_before" ] && [ "$sha_after" != "$sha_before" ]; then
             ARTIFACTS_OK="true"
-          fi
-
-          if [ "$verdict" = "fixup-complete" ]; then
-            if [ "$ARTIFACTS_OK" != "true" ]; then
-              echo "::error title=❌ Keine Fixup-Commits::VERDICT fixup-complete, aber 0 Commits seit Review."
-              exit 1
-            fi
-            final="fixup-complete"
-          elif [ "$verdict" = "needs-changes" ]; then
-            if [ "$ARTIFACTS_OK" = "true" ]; then
-              final="fixup-complete"
-            else
-              final="needs-changes"
-            fi
-          else
-            if [ "$ARTIFACTS_OK" = "true" ]; then
-              final="fixup-complete"
-            else
-              final="needs-changes"
-            fi
           fi
 
           gh label create "ai:needs-review" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
           gh label create "ai:needs-changes" --repo "$GITHUB_REPOSITORY" --color D93F0B 2>/dev/null || true
 
+          # Trigger-Labels immer erst entfernen (Force-Set-Semantik).
           gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-changes 2>/dev/null || true
           gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-review 2>/dev/null || true
 
-          if [ "$final" = "fixup-complete" ]; then
+          if [ "$ARTIFACTS_OK" = "true" ]; then
+            # Fortschritt -> an Review uebergeben. Konvergiert via Stop-Guard (>10 Commits),
+            # falls Review nie gruen wird.
             gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-review
-            echo "::notice::Label gesetzt: ai:needs-review"
+            echo "::notice::Fortschritt erkannt (HEAD bewegt) -> Label gesetzt: ai:needs-review"
+            echo "stuck=false" >> "$GITHUB_OUTPUT"
           else
-            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-changes
-            echo "::notice::Label gesetzt: ai:needs-changes"
+            # KEIN Fortschritt -> NICHT erneut triggern (kappt sowohl Fixup<->Fixup- als auch
+            # Review<->Fixup-Endlosloop). Eskalation an Mensch, analog Stop-Guard (s. oben).
+            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "🛑 **Fixup #${PR} ohne Fortschritt** — kein neuer Commit in diesem Lauf (HEAD unverändert). Review↔Fixup würde endlos pendeln. Bitte manuell prüfen (ggf. \`ai:needs-review\` neu setzen)." 2>/dev/null || true
+            echo "::warning::Kein Fixup-Fortschritt (HEAD unverändert) -> keine Re-Armierung, Mensch prüft."
+            echo "stuck=true" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Soft-Abort-Fortsetzung erkennen und begrenzen (ai:continued)
@@ -288,16 +279,21 @@ jobs:
           OUTCOME: ${{ steps.claude.outcome }}
           SKIP_SUPERSEDE: ${{ steps.supersede-check.outputs.skip }}
           STOP_GUARD: ${{ steps.stop-guard.outputs.stop }}
+          STUCK: ${{ steps.label-post.outputs.stuck }}
         run: |
           labels="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
           # Je ein eigener Arm pro Guard: ohne sie faellt der gewollte Abbruch auf den
           # Fehler-Arm (OUTCOME ist leer, weil der claude-Step nie lief) und meldet ❌.
           # Der Stop-Guard ist ein GEWOLLTER Abbruch (Loop-Schutz, > 10 Commits) — er hat
           # bereits selbst kommentiert; hier gehoert eine Warnung hin, kein Fehler.
+          # Dasselbe gilt fuer den No-Progress-Fall (STUCK): Claude lief, aber ohne Commit ->
+          # bewusst keine Re-Armierung, Mensch prüft.
           if [ "${SKIP_SUPERSEDE:-false}" = "true" ]; then
             echo "::notice title=⏭️ Fixup übersprungen::PR #${PR} — Lauf bereits aktiv"
           elif [ "${STOP_GUARD:-false}" = "true" ]; then
             echo "::warning title=🛑 Fixup gestoppt::PR #${PR} — Stop-Guard (Loop-Schutz), bitte manuell prüfen"
+          elif [ "${STUCK:-false}" = "true" ]; then
+            echo "::warning title=🛑 Fixup ohne Fortschritt::PR #${PR} — kein neuer Commit, keine Re-Armierung, bitte manuell prüfen"
           elif [ "$OUTCOME" = "success" ]; then
             echo "::notice title=✅ Fixup erfolgreich::PR #${PR}"
           elif [ "$OUTCOME" = "cancelled" ]; then
