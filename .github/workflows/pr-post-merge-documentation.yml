@@ -81,13 +81,19 @@ jobs:
           # REVIEW-FIX #4: jq -s 'add' verschmilzt /search/issues-Pages zu einem Object {total_count, items: [...]}
           # → Slice auf Object scheitert mit "Cannot index object" (exit 5). Richtig: erst items aus allen Seiten
           # extrahieren, dann slicen.
+          # ISSUE #519: Search-Abruf + pr_count-Ableitung fail-tolerant. Bisher löste ein transienter/leerer
+          # Treffer (Rate-Limit, Secondary-Rate-Limit, leere Paginierung) den Pipeline-Exit-Code unter
+          # `set -euo pipefail`/`set -e` hart als exit 1 aus — unmittelbar NACH dem ai:documented-Label-Check
+          # (siehe Issue-Log). Ursachen-Behebung (AK2), NICHT symptomatisch set -e entfernen: Abruf in Variable
+          # mit `||`-Fallback binden, jq-Pipeline mit `|| true` ummanteln, pr_count mit `|| pr_count=0` sichern.
           search_query="repo:$REPO is:pr is:merged -label:ai:documented -label:release:ignore"
-          gh api "/search/issues" -f q="$search_query" -f sort=created -f order=desc --paginate 2>/dev/null \
-            | jq -s '[.[] | (.items // [])[]] | .[0:env.MAX_PRS | tonumber]' \
-            | jq -c '.[] | {number: .number, title: .title, head_branch: .head_ref_name, author: .user.login, labels: [.labels[].name], body: .body}' \
-            > /tmp/prs_to_process.json
+          search_pages=$(gh api "/search/issues" -f q="$search_query" -f sort=created -f order=desc --paginate 2>/dev/null || echo '')
+          printf '%s' "$search_pages" \
+            | jq -s '[.[] | (.items // [])[]] | .[0:env.MAX_PRS | tonumber]' 2>/dev/null \
+            | jq -c '.[] | {number: .number, title: .title, head_branch: .head_ref_name, author: .user.login, labels: [.labels[].name], body: .body}' 2>/dev/null \
+            > /tmp/prs_to_process.json || true
 
-          pr_count=$(jq -s 'length' /tmp/prs_to_process.json)
+          pr_count=$(jq -s 'length' /tmp/prs_to_process.json 2>/dev/null) || pr_count=0
           echo "📊 Gefundene PRs zur Bearbeitung: $pr_count"
           echo "pr_count=$pr_count" >> "$GITHUB_OUTPUT"
 
