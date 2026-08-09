@@ -152,16 +152,37 @@ jobs:
           fi
           echo "Claude-Verdict aus Output: '${verdict:-keins}'"
 
-          REVIEW_COMMENT_ID="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json comments \
-            --jq '[.comments[] | select(.body | test("<!-- ai-review -->"))] | first | .id' 2>/dev/null || echo "")"
+          # Review-Marker (<!-- ai-review -->) nachsehen — MIT Retry: unmittelbar nach Claudes Post
+          # liefert die GitHub-API den Kommentar (Replikationsverzögerung) gelegentlich noch nicht.
+          # Ohne Retry endete der Review hier fälschlich ❌, obwohl Claude Verdict + Kommentar
+          # geliefert hatte (PR #524: Review↔Fixup-Loop).
           ARTIFACTS_OK="false"
-          if [ -n "$REVIEW_COMMENT_ID" ] && [ "$REVIEW_COMMENT_ID" != "null" ]; then
-            ARTIFACTS_OK="true"
-          fi
+          for attempt in 1 2 3 4; do
+            REVIEW_COMMENT_ID="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json comments \
+              --jq '[.comments[] | select(.body | test("<!-- ai-review -->"))] | first | .id' 2>/dev/null || echo "")"
+            if [ -n "$REVIEW_COMMENT_ID" ] && [ "$REVIEW_COMMENT_ID" != "null" ]; then
+              ARTIFACTS_OK="true"
+              break
+            fi
+            [ "$attempt" -lt 4 ] && sleep "$attempt"
+          done
 
           if [ "$ARTIFACTS_OK" != "true" ]; then
-            echo "::error title=❌ Review-Kommentar fehlt::Kein <!-- ai-review -->-Kommentar am PR."
-            exit 1
+            # Marker auch nach Retry nicht gefunden. Nur ein harter Fehler, wenn Claude KEIN klares
+            # Verdict lieferte (dann fehlt jeder Artefakt-Nachweis — Claude hat vermutlich nicht
+            # gearbeitet). Bei klarem Verdict ist der Kommentar ein Hilfssignal, das Verdict primär:
+            # wir setzen das Label nach Verdict und warnen nur. Ohne diese Unterscheidung würde ein
+            # fehlender Marker ein klares ready-to-merge zu needs-changes degradieren und einen
+            # Fixup-Loop auslösen (PR #524: Claude postete teils keinen Marker-Kommentar).
+            case "$verdict" in
+              ready-to-merge|needs-changes|needs-human)
+                echo "::warning title=Review-Kommentar fehlt::Kein <!-- ai-review -->-Kommentar am PR (auch nach Retry). Claude-Verdict '${verdict}' ist klar → Label nach Verdict, kein harter Fehler."
+                ;;
+              *)
+                echo "::error title=❌ Review ohne Artefakt::Kein <!-- ai-review -->-Kommentar UND kein klares Verdict ('${verdict:-keins}'). Claude hat vermutlich nichts geleistet."
+                exit 1
+                ;;
+            esac
           fi
 
           if [ "$verdict" = "ready-to-merge" ]; then
