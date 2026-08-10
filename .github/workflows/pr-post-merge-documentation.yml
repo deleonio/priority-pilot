@@ -67,9 +67,13 @@ jobs:
           # ai:documented + die fünf release:*-Labels aus Phase 5. gh pr edit --add-label bricht
           # hart ab ("X not found"), wenn ein Label fehlt — also hier sicherstellen, dass alle
           # existieren. create_label() ist idempotent (vorhandene werden übersprungen).
+          # Bestehende Labels einmal je Workflow-Run abrufen (statt pro create_label) — 1 API-Call
+          # statt 7. `|| true` hält den Step unter `set -euo pipefail` fail-tolerant: transienter
+          # gh-Ausfall → leere Liste → create_label überspringt (Idempotenz bleibt erhalten).
+          existing="$(gh label list --repo "$REPO" --json name | jq -r '.[].name' || true)"
           create_label() {
             local name="$1" color="$2" desc="$3"
-            if gh label list --repo "$REPO" --json name | jq -r '.[].name' | grep -qx "$name"; then
+            if grep -qx "$name" <<<"$existing"; then
               echo "✅ Label '$name' existiert bereits"
             elif [ "$DRY_RUN" = "false" ]; then
               echo "📝 Erstelle Label '$name'..."
@@ -487,9 +491,7 @@ jobs:
               has_release_label="true"
             fi
 
-            labels_to_add=("ai:documented")
             if [ "$has_release_label" = "false" ]; then
-              labels_to_add+=("$release_label")
               echo "📌 Setze release-Label: $release_label"
             else
               echo "📌 release:* Label bereits vorhanden"
