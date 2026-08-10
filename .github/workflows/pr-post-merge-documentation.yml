@@ -68,12 +68,22 @@ jobs:
           # hart ab ("X not found"), wenn ein Label fehlt — also hier sicherstellen, dass alle
           # existieren. create_label() ist idempotent (vorhandene werden übersprungen).
           # Bestehende Labels einmal je Workflow-Run abrufen (statt pro create_label) — 1 API-Call
-          # statt 7. `|| true` hält den Step unter `set -euo pipefail` fail-tolerant: transienter
-          # gh-Ausfall → leere Liste → create_label überspringt (Idempotenz bleibt erhalten).
-          existing="$(gh label list --repo "$REPO" --json name | jq -r '.[].name' || true)"
+          # statt 7. fetch_ok markiert nur erfolgreiche Abrufe als autoritativ: schlägt der Fetch
+          # fehl (transienter gh-Ausfall), überspringt create_label die Erstellung, statt unter
+          # `set -euo pipefail` bereits existierende Labels neu anlegen zu wollen (HTTP 422 → Crash).
+          if existing="$(gh label list --repo "$REPO" --json name | jq -r '.[].name')"; then
+            fetch_ok=1
+          else
+            existing=""
+            fetch_ok=0
+            echo "⚠️ Label-Liste nicht abrufbar — überspringe Erstellung (idempotent, kein Crash)."
+          fi
           create_label() {
             local name="$1" color="$2" desc="$3"
-            if grep -qx "$name" <<<"$existing"; then
+            if [ "$fetch_ok" = "0" ]; then
+              echo "⏭️ Label '$name': Abruf war nicht autoritativ, überspringe Erstellung."
+              return 0
+            elif grep -qx "$name" <<<"$existing"; then
               echo "✅ Label '$name' existiert bereits"
             elif [ "$DRY_RUN" = "false" ]; then
               echo "📝 Erstelle Label '$name'..."
