@@ -204,13 +204,15 @@ describe('Permission-Layer — setup-claude leitet je tools-tier die korrekten F
 
 describe('Permission-Layer — jeder Claude-Workflow uebergibt das passende tools-tier', () => {
 	// Triage = restricted (nur lesend via gh), Spec/Implement/Fixup = full (vollautonom),
-	// Review = review (lesen ja, schreiben nein). Der Documenter nutzt kein Claude und faellt heraus.
+	// Review = review (lesen ja, schreiben nein). Der Documenter ist eine terminale LLM-Phase:
+	// PR-Pflege via gh (Bash), keine Dateimutation → review (kein Write/Edit).
 	const POLICY: Record<string, string> = {
 		'01-claude-triage.yml': 'restricted',
 		'02-claude-spec.yml': 'full',
 		'03-claude-implement.yml': 'full',
 		'04-claude-pr-review.yml': 'review',
 		'05-claude-pr-fixup.yml': 'full',
+		'pr-post-merge-documentation.yml': 'review',
 	};
 
 	const callers = readdirSync(HERE)

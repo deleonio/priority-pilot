@@ -4,18 +4,17 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-// Rote Spec-Tests fuer Issue #496 — "PR Post-Merge Documentation" darf nur nach einem
-// ECHTEN PR-Merge triggern, nicht bei jedem Abschluss des Gate-Workflows.
+// Statische Trigger-/Struktur-Tests für den PR-Post-Merge-Documenter (jetzt LLM-Phase 6).
 //
-// Testebene: statische Auswertung der Workflow-YAML (node:test via tsx, ci.yml). Die
-// verhaltensbasierten AKs (AK2 kein Over-Trigger bei Nicht-Merge-Events, AK3 genau ein Lauf
-// pro Merge) sind am naechsten echten Merge POST-MERGE per `gh run list` zu verifizieren —
-// dieser Test sichert die TRIGGER-STRUKTUR, die das Over-Triggering konstruktiv verhindert
-// (pull_request:[closed] + if: merged), sowie die Idempotenz-Invariante (AK5) und den
-// manuellen Catch-up-Pfad (AK4). Quelle: Issue #496, AK1/AK4/AK5.
+// Der Workflow wurde von einem 12-PR-Batch mit deterministischem grep/Template auf EINEN PR
+// pro Lauf mit Claude-Analyse umgebaut. Dieser Test sichert die TRIGGER-STRUKTUR, die das
+// Over-Triggering konstruktiv verhindert (pull_request:[closed] + if: merged, Issue #496),
+// den manuellen Catch-up-Pfad (workflow_dispatch mit pr-number), die pro-PR-concurrency sowie
+// die Ticket-Memory-Abbau-Struktur. Die verhaltensbasierten AKs sind am echten Merge per
+// `gh run list` zu verifizieren.
 //
-// Rot-JETZT sind die AK1-Tests (Trigger ist noch nicht umgestellt); AK4/AK5 sind
-// Regression-Guards, die die Umsetzung nicht mitbrechen darf.
+// Dedup: LLM-Setup (setup-claude, claude -p, model) und Label-Sicherung liegen in
+// pr-post-merge-documenter-robustness.test.ts; App-only-Token auch in workflow-invariants.test.ts.
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const WF = readFileSync(join(HERE, 'pr-post-merge-documentation.yml'), 'utf8');
@@ -32,12 +31,17 @@ const onRest = code.slice(start);
 const onEnd = onRest.search(/\nconcurrency:/);
 const onBlock = onEnd === -1 ? onRest : onRest.slice(0, onEnd);
 
+// Top-Level-Block-Extraktion: vom Key bei Spalte 0 bis zum naechsten Top-Level-Key
+// (naechste Zeile, die mit einem Kleinbuchstaben beginnt — `permissions:`, `env:` etc.).
+const block = (key: string): string | null => {
+	const m = code.match(new RegExp(`^${key}:\\n([\\s\\S]*?)\\n(?=[a-z])`, 'm'));
+	return m ? m[1] : null;
+};
+
 describe('Issue #496 AK1 — Trigger an echten Merge koppeln', () => {
 	// Root Cause (Issue #496): `workflow_run ... types: [completed]` feuert bei JEDEM Abschluss
-	// des Gate-Workflows — der laeuft aber permanent (jeder CI-/Review-/Label-Abschluss, meist
-	// No-op). Ein Merge ist nur einer von vielen Abschluesen → beobachtete Ueber-Ausloesung
-	// (89 Laeufe / 7 Tage bei wenigen echten Merges). Die Loesung koppelt den Trigger an den
-	// echten Merge statt an den Gate-Abschluss.
+	// des Gate-Workflows — der laeuft aber permanent. Ein Merge ist nur einer von vielen
+	// Abschluesen → Ueber-Ausloesung. Die Loesung koppelt den Trigger an den echten Merge.
 	it('die on:-Sektion enthaelt KEINEN workflow_run-Trigger mehr (Over-Trigger-Quelle)', () => {
 		assert.doesNotMatch(
 			onBlock,
@@ -48,8 +52,7 @@ describe('Issue #496 AK1 — Trigger an echten Merge koppeln', () => {
 	});
 
 	it('die on:-Sektion traegt pull_request mit types: [closed]', () => {
-		// pull_request:[closed] ist das kanonische "nach Merge"-Pattern und feuert pro
-		// geschlossenem PR genau einmal (auch bei Merge per App-Token). Der Merge-Filter selbst
+		// pull_request:[closed] feuert pro geschlossenem PR genau einmal. Der Merge-Filter selbst
 		// ist der Job-Guard (siehe naechster Test).
 		assert.match(
 			onBlock,
@@ -58,7 +61,7 @@ describe('Issue #496 AK1 — Trigger an echten Merge koppeln', () => {
 		);
 	});
 
-	it('der document-merged-prs-Job traegt if: github.event.pull_request.merged == true', () => {
+	it('der Documenter-Job traegt if: github.event.pull_request.merged == true', () => {
 		// pull_request:[closed] feuert auch beim SCHLIESSEN-ohne-Merge. Nur der merged-Guard
 		// schaltet diese Nicht-Merge-Closes aus → sichert AK2 (kein Over-Trigger) und AK3
 		// (pro Merge genau ein Lauf).
@@ -71,97 +74,69 @@ describe('Issue #496 AK1 — Trigger an echten Merge koppeln', () => {
 	});
 });
 
-describe('Issue #496 AK4 — manueller Catch-up (workflow_dispatch) bleibt moeglich', () => {
+describe('Issue #496 AK4 — manueller Catch-up (workflow_dispatch) mit Single-PR-Eingabe', () => {
 	it('die on:-Sektion behaelt workflow_dispatch', () => {
-		// workflow_dispatch ist der manuelle Catch-up-/Dry-Run-Pfad fuer liegengebliebene,
-		// gemergte PRs (AK4). Die Trigger-Umstellung darf ihn nicht mit entfernen.
+		// workflow_dispatch ist der manuelle Catch-up-Pfad fuer liegengebliebene, gemergte PRs (AK4).
 		assert.match(
 			onBlock,
 			/workflow_dispatch:/,
-			'workflow_dispatch fehlt — manueller Catch-up-Lauf (AK4) waere nach der Umstellung nicht mehr moeglich.',
+			'workflow_dispatch fehlt — manueller Catch-up-Lauf (AK4) waere nicht mehr moeglich.',
+		);
+	});
+
+	it('der workflow_dispatch-Input ist pr-number (Single-PR), nicht mehr max-prs (Batch)', () => {
+		// Der Batch-Betrieb (max-prs) ist entfernt: Catch-up laeuft fuer EINEN PR. Ein vergessener
+		// Umbau auf pr-number wuerde den manuellen Pfad still gegen das alte Batch-Field verkabeln.
+		assert.match(
+			onBlock,
+			/pr-number:/,
+			'workflow_dispatch-Input "pr-number" fehlt — Catch-up kann keinen PR aufloesen.',
+		);
+		assert.doesNotMatch(
+			onBlock,
+			/max-prs/,
+			'workflow_dispatch nutzt noch "max-prs" (Batch-Feld) — der Single-PR-Umbau ist unvollstaendig.',
 		);
 	});
 });
 
-describe('Issue #496 AK5 — Phase-0-Suche & Batch unangetastet (Idempotenz)', () => {
-	it('die Such-Query erfasst nur gemergte PRs ohne ai:documented und ohne release:ignore', () => {
-		// Diese Query ist die Idempotenz-Invariante: bereits dokumentierte (ai:documented) und
-		// explizit ignorierte (release:ignore) PRs fallen heraus, liegengebliebene gemergte
-		// PRs werden mitdokumentiert. Aendert sich das, droht Doppel-Doku oder ein leerer Lauf.
-		const query = code.match(/search_query="([^"]*)"/);
-		assert.ok(query, 'search_query-Zuweisung in pr-post-merge-documentation.yml nicht gefunden');
-		assert.match(query[1], /is:merged/, 'Such-Query ohne is:merged — keine gemergten PRs');
-		assert.match(query[1], /-label:ai:documented/, 'Such-Query ohne -label:ai:documented — Gefahr der Doppel-Doku');
+describe('Concurrency — pro-PR keyed (parallel statt serial)', () => {
+	it('die concurrency.group ist pro-PR keyed (github.event.pull_request.number)', () => {
+		// Kurz hintereinander gemergte PRs sollen parallel laufen, nicht serialisieren. Eine
+		// globale Gruppe (ohne .number) wuerde sie nacheinander reihen → kuenstlicher Stau.
+		const conc = block('concurrency');
+		assert.ok(conc, 'kein top-level concurrency:-Block gefunden');
 		assert.match(
-			query[1],
-			/-label:release:ignore/,
-			'Such-Query ohne -label:release:ignore — ignorierte PRs wuerden erfasst',
+			conc,
+			/github\.event\.pull_request\.number/,
+			'concurrency.group referenziert nicht github.event.pull_request.number — gemergte PRs wuerden serialisieren statt parallel laufen.',
 		);
 	});
-
-	it('die Batch-Grenze bleibt Default 12 (workflow_dispatch max-prs)', () => {
-		// max. 12 PRs pro Lauf schuetzt vor Rate-Limit-/Timeout-Ueberlastung beim Catch-up.
-		const dispatchDefault = onBlock.match(/default:\s*'(\d+)'/);
-		assert.ok(dispatchDefault, 'workflow_dispatch max-prs Default nicht gefunden');
-		assert.equal(dispatchDefault[1], '12', 'max-prs Default != 12 — Batch-Grenze wurde geaendert');
-	});
 });
 
-describe('Search-API GET-only — jeder /search/issues-Aufruf mit -X GET', () => {
-	// Root Cause (rote Laeufe ab 8/9, exit 1 direkt nach Label-Check): `gh api /search/issues -f q=...`
-	// sendet POST, weil `-f`-Parameter per Default als POST-Body gehen. Die GitHub Search-API ist aber
-	// GET-only — ein POST auf /search/issues antwortet HTTP 404. `2>/dev/null` versteckt die Meldung,
-	// `set -euo pipefail` macht daraus einen Job-Abbruch, BEVOR "Gefundene PRs" gedruckt wird. `-X GET`
-	// zwingt die Parameter in den Query-String (genau das macht `gh search prs` intern) → HTTP 200.
-	// Dieser Test verhindert, dass jemand das `-X GET` wieder "vereinfacht" wegloescht.
-	it('jeder gh-api-/search/issues-Aufruf traegt -X GET (Search-API ist GET-only, POST → 404)', () => {
-		const calls = code.split('\n').filter((l) => l.includes('gh api "/search/issues"'));
-		assert.ok(calls.length > 0, 'kein gh api "/search/issues"-Aufruf gefunden — Suche umgebaut?');
-		for (const call of calls) {
-			assert.match(
-				call,
-				/-X GET/,
-				`gh api "/search/issues"-Aufruf ohne -X GET gefunden (POST → HTTP 404 → Job-Abbruch unter pipefail):\n  ${call.trim()}`,
-			);
-		}
-	});
-});
-
-// Top-Level-Block-Extraktion: vom Key bei Spalte 0 bis zum naechsten Top-Level-Key
-// (naechste Zeile, die mit einem Kleinbuchstaben beginnt — `env:`, `jobs:` etc.).
-// Einzeln definiert, damit jeder Test seinen Block selbst extrahiert (Haus-Stil).
-const block = (key: string): string | null => {
-	const m = code.match(new RegExp(`^${key}:\\n([\\s\\S]*?)\\n(?=[a-z])`, 'm'));
-	return m ? m[1] : null;
-};
-
-describe('Token — jeder gh-Aufruf hat GH_TOKEN (Phase-0-Ausfall)', () => {
-	// Root Cause (8/8 rote Laeufe): der Phase-0-Step nutzte `gh` ohne GH_TOKEN. Unter
-	// `set -euo pipefail` stirbt `gh label create` mit Exit 4, der Job bricht im ERSTEN Step
-	// ab — KEINE der 6 Phasen lief jemals. Abhilfe: GH_TOKEN auf Workflow-Ebene (top-level
-	// env:), vererbt sich an jeden Step (auch spaeter hinzugekommene). Die Assertion geht
-	// bewusst auf den env-Block, nicht auf einen Step: genau die Vererbung ist der Punkt.
-	it('der top-level env-Block setzt GH_TOKEN (vererbt an alle Steps inkl. Phase 0)', () => {
-		const envBlock = block('env');
-		assert.ok(envBlock, 'kein top-level env:-Block gefunden');
-		assert.match(
-			envBlock,
+describe('App-only-Token — gh-Aufrufe nutzen das App-Token, nicht github.token', () => {
+	// Root Cause (PR #501, [[claude-phase-push-app-token-not-github-token]]): ein Step, der gh
+	// unter GITHUB_TOKEN (github.token) ausfuehrt, pusht/labelt als github-actions[bot] statt als
+	// App — Folge-Workflows loesen nicht aus, die Label-Kette bricht still. Der Documenter setzt
+	// ai:documented (Idempotät) und muss das ueber das App-Token tun. setup-claude liefert es als
+	// steps.setup.outputs.gh-token; github.token als GH_TOKEN ist die Anti-Muster-Regression.
+	it('kein GH_TOKEN ist auf ${{ github.token }} gebunden (App-only-Pipeline)', () => {
+		assert.doesNotMatch(
+			code,
 			/GH_TOKEN:\s*\$\{\{\s*github\.token/,
-			'GH_TOKEN nicht auf Workflow-Ebene gesetzt — mindestens ein Step (Phase 0) hat kein Token und stirbt beim ersten gh-Aufruf (exit 4).',
+			'GH_TOKEN auf ${{ github.token }} gefunden — Label-Wechsel als github-actions[bot] loesen keine ' +
+				'Folge-Workflows aus. Erwartet: App-Token via steps.setup.outputs.gh-token.',
 		);
 	});
 });
 
 describe('Ticket-Memory-Abbau — Documenter räumt den Cache gemergter Tickets ab', () => {
-	// Die Claude-Phasen 01–05 schreiben pro Issue nach .claude/ticket-memory/phase-*.md und
-	// persistieren das via actions/cache/save unter Key `ticket-{issue-number}-*` (s. setup-claude
-	// action, memory-save-key). Nach Merge ist dieser Memory stale → der Documenter (terminale
-	// Phase 6) baut ihn ab. Die statischen AKs sichern die STRUKTUR; das Verhalten (Caches
-	// verschwinden) ist am echten Merge per `gh cache list` zu verifizieren.
+	// Die Claude-Phasen 01–05 schreiben pro Issue nach .claude/ticket-memory/ und persistieren das
+	// via actions/cache/save unter Key `ticket-{issue-number}-*`. Nach Merge ist der Memory stale →
+	// der Documenter (terminale Phase 6) baut ihn ab. Die statischen AKs sichern die STRUKTUR.
 	it('permissions gewährt actions: write (sonst scheitert gh cache delete still)', () => {
-		// Still-Fall: ohne actions:write schlägt `gh cache delete` fehl. Weil der Drain-Aufruf
-		// best-effort läuft (`|| true`), schluckt er den Fehler → grüner Lauf, aber nichts wird
-		// abgebaut. Genau die „green run, but X didn't happen"-Klasse.
+		// Still-Fall: ohne actions:write schlägt `gh cache delete` fehl. Weil der Drain best-effort
+		// läuft (`|| true`), schluckt er den Fehler → grüner Lauf, aber nichts wird abgebaut.
 		const perms = block('permissions');
 		assert.ok(perms, 'kein top-level permissions-Block gefunden');
 		assert.match(
