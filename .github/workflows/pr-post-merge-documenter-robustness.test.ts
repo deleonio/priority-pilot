@@ -179,3 +179,101 @@ describe('Issue #532 — Documenter bricht bei reinen Test-/Spec-PRs nicht in Ph
 		);
 	});
 });
+
+describe('PR-Dokumentation: --add-label akzeptiert nur EINEN komma-separierten String (kein Array, keine Mehrfach-Args)', () => {
+	// Symptom (Run zu PR #535): Phase 5 crasht mit
+	//   gh pr edit "$pr_number" --repo "$REPO" --add-label "${labels_to_add[@]}"
+	//   → accepts at most 1 arg(s), received 2 → exit code 1
+	// `--add-label` nimmt genau EINEN Wert (ggf. komma-separiert), die Array-Expandierung
+	// `${labels_to_add[@]}` erzeugt aber zwei separate positionale Argumente. Der PR bekommt nie
+	// `ai:documented`, taucht im nächsten Lauf wieder auf. Phase 0b (Bot-Kurzbehandlung) trug
+	// denselben Bug ("release:ignore" "ai:documented"), verschluckt aber hinter `|| true` still.
+	// Dieser Guard verhindert den Rückfall in beide Formen.
+	it('kein --add-label mit Array-Expandierung "${labels_to_add[@]}" (erzeugt mehrere Args → Crash)', () => {
+		const arrayExpand = code.split('\n').filter((l) => /--add-label\s+["']?\$\{[^}]+\[@\]\}/.test(l));
+		assert.equal(
+			arrayExpand.length,
+			0,
+			'`--add-label "${labels_to_add[@]}"` gefunden: Array-Expandierung erzeugt mehrere ' +
+				'positionale Argumente, gh akzeptiert aber genau einen (komma-separierten) Wert → ' +
+				'"accepts at most 1 arg(s)". Erwartet: komma-joinen, z. B. ' +
+				'`labels_csv="$(IFS=,; echo "${labels_to_add[*]}")"` → `--add-label "$labels_csv"`. ' +
+				'Betroffen: ' +
+				JSON.stringify(arrayExpand),
+		);
+	});
+
+	it('kein --add-label mit zwei separaten gequoteten Label-Args (gleicher Crash, gleiche Ursache)', () => {
+		// Muster: --add-label "x" "y" — zwei Args statt eines komma-separierten Strings.
+		const twoArgs = code.split('\n').filter((l) => /--add-label\s+"[^"]+"\s+"[^"]+"/.test(l));
+		assert.equal(
+			twoArgs.length,
+			0,
+			'`--add-label "a" "b"` (zwei separate Args) gefunden: gh erwartet EINEN komma-separierten ' +
+				'Wert → Crash mit "accepts at most 1 arg(s)". Erwartet: `--add-label "a,b"`. ' +
+				'Betroffen: ' +
+				JSON.stringify(twoArgs),
+		);
+	});
+});
+
+describe('PR-Dokumentation: Phase 0 stellt alle release:*-Labels sicher (kein "X not found" in Phase 5)', () => {
+	// Symptom (Run zu PR #542, NACH Fix des --add-label-Array-Bugs): Phase 5 crasht jetzt mit
+	//   gh pr edit "$pr_number" --repo "$REPO" --add-label "ai:documented,release:fix"
+	//   → 'release:fix' not found → exit code 1
+	// Root-Cause: gh pr edit --add-label bricht hart ab, wenn ein Label im Repo nicht existiert.
+	// Phase 0 legte bisher NUR ai:documented an — die fünf release:*-Labels aus Phase 5 nie.
+	// Dieser Guard stellt sicher, dass jedes Label, das Phase 5 setzt, in Phase 0 angelegt wird.
+	it('Phase 0 legt alle fünf release:*-Labels an (case-Mapping aus Phase 5)', () => {
+		const required = [
+			'release:feature',
+			'release:fix',
+			'release:improvement',
+			'release:breaking-change',
+			'release:engineering',
+		];
+		const missing = required.filter((label) => !phase0.includes(`"${label}"`));
+		assert.equal(
+			missing.length,
+			0,
+			'Phase 0 legt nicht alle release:*-Labels an — gh pr edit --add-label crasht in Phase 5 ' +
+				'mit "X not found", wenn ein Label fehlt. Fehlend: ' +
+				JSON.stringify(missing),
+		);
+	});
+
+	it('Phase 0 legt auch ai:documented und release:ignore an (Idempotenz + Bot-Kurzbehandlung)', () => {
+		// ai:documented ist die Idempotenz-Invariante; release:ignore wird in Phase 0b (Bot) gesetzt.
+		for (const label of ['ai:documented', 'release:ignore']) {
+			assert.ok(
+				phase0.includes(`"${label}"`),
+				`Phase 0 legt '${label}' nicht an — wird im Workflow gesetzt, aber nicht sichergestellt.`,
+			);
+		}
+	});
+});
+
+describe('PR-Dokumentation: ai:documented (Idempotenz) scheitert nicht am release:*-Label', () => {
+	// Symptom: der kombinierte gh pr edit-Call mit --add-label "ai:documented,release:fix"
+	// crascht als GANZES, wenn release:fix fehlt — dann geht ai:documented verloren und der PR
+	// taucht im nächsten Lauf wieder auf. ai:documented muss unabhängig vom Release-Label gesetzt
+	// werden. Dieser Guard verhindert die Rückkopplung beider Labels in einem einzigen --add-label.
+	it('ai:documented und release:* werden NICHT gemeinsam in einem --add-label komma-join gesetzt', () => {
+		// Gefährliches Muster: ein einzelnes --add-label, das BEIDE Label-Namen (komma-join) enthält.
+		// Crash des Release-Labels reißt dann ai:documented mit — Idempotenz gebrochen.
+		const coupled = code
+			.split('\n')
+			.filter((l) => /--add-label\s+"[^"]*ai:documented[^"]*,/.test(l))
+			.filter((l) => /release:/.test(l));
+		assert.equal(
+			coupled.length,
+			0,
+			'`--add-label "...,ai:documented,...,release:..."` gefunden: ai:documented ist mit dem ' +
+				'release:*-Label gekoppelt. Fehlt das Release-Label im Repo, crasht der Call ALS ' +
+				'GANZES — ai:documented (Idempotät-Invariante) geht verloren, der PR taucht im ' +
+				'nächsten Lauf wieder auf. Erwartet: ai:documented separat setzen, release:* ' +
+				'best-effort (|| true). Betroffen: ' +
+				JSON.stringify(coupled),
+		);
+	});
+});

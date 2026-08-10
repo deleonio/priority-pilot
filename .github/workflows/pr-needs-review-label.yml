@@ -22,8 +22,10 @@ name: PR Auto-Label (ai:needs-review)
 #     "ready_for_review" zieht das Label.
 #   - nur same-repo-PRs (kein Fork): Fork-PRs haben kein App-Token und sollen die Pipeline
 #     nicht ungefragt anstossen.
-#   - idempotent: traegt der PR bereits "ai:needs-review", laeuft der Job gar nicht erst an
-#     (kein No-op-Rauschen, keine Schleife).
+#   - re-trigger-sicher (#536): der Entfernen-Schritt strippt VOR dem Setzen auch
+#     ai:needs-review selbst, sodass das Neu-Setzen immer ein echtes Hinzufuegen ist, das
+#     `labeled`-Event zuverlaessig feuert und der Review auch bei schon klebendem Label
+#     neu startet. Keine Schleife: dieser Workflow triggert nicht auf `labeled` (siehe AK5-Tests).
 #   - NUR menschliche Aktoren (sender.type != "Bot"), UND ZWAR FUER ALLE DREI Event-Typen
 #     (opened/ready_for_review/synchronize gleichermassen — vormals galt der Bot-Filter nur
 #     bei synchronize). Grund: 03-claude-implement.yml macht PRs per App-Bot-Token review-bereit
@@ -60,8 +62,9 @@ jobs:
     # der Marker ai:review-no-result noch haengt (needs-review + Marker koexistieren). Ein lokaler
     # Fix + Push in diesem Fenster muss den Marker trotzdem zuruecksetzen, sonst laeuft der frische
     # Versuch beim naechsten Flake sofort in den Hard-Stop (A2) — der Push wuerde faelschlich dem
-    # alten Loop zugerechnet. Ohne das Gate laeuft der Job, setzt den Marker zurueck, und der
-    # Setz-Schritt no-op't das schon vorhandene ai:needs-review.
+    # alten Loop zugerechnet. Ohne das Gate laeuft der Job, setzt den Marker UND ai:needs-review
+    # zurueck (Entfernen-Schritt, #536), und der Setz-Schritt setzt das Label neu → genau ein
+    # `labeled`-Event feuert, der Review startet zuverlaessig.
     if: >-
       ${{ github.event.pull_request.draft == false
           && github.event.pull_request.head.repo.full_name == github.repository
@@ -109,7 +112,7 @@ jobs:
       # Reiner gh-Job (kein Checkout, kein LLM): Alte Ergebnis-Labels entfernen, dann
       # ai:needs-review setzen. Mit dem App-Token gesetzt, damit das "labeled"-Event den
       # Kreuzverhoer-Review ausloest.
-      - name: Alte Ergebnis-Labels + Loop-Marker entfernen (ai:needs-changes, ai:ready-to-merge, ai:review-no-result, ai:needs-human)
+      - name: Alte Ergebnis-Labels + Loop-Marker entfernen (ai:needs-changes, ai:ready-to-merge, ai:review-no-result, ai:needs-human, ai:needs-review)
         if: steps.preflight.outputs.configured == 'true'
         env:
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
@@ -122,7 +125,10 @@ jobs:
           # bei neuem Push). ai:review-no-result gehoert dazu: ein menschlicher Push ist Fortschritt
           # und muss die Loop-Bremse in 04-claude-pr-review.yml neu starten, sonst laeuft der frische
           # Versuch bei einem einzelnen Label-Flake sofort wieder in den Hard-Stop.
-          for label in ai:needs-changes ai:ready-to-merge ai:review-no-result ai:needs-human; do
+          # ai:needs-review wird hier MIT entfernt (#536): haengt es bereits am PR (z. B. im aktiven
+          # Review-Loop), wuerde der Setz-Schritt unten no-op'en und kein `labeled`-Event feuern.
+          # Erst Entfernen + Neu-Setzen macht das Hinzufuegen echt → Review startet zuverlaessig.
+          for label in ai:needs-changes ai:ready-to-merge ai:review-no-result ai:needs-human ai:needs-review; do
             if gh pr view "$PR" --repo "$REPO" --json labels --jq "[.labels[].name]" | grep -q "\"$label\""; then
               gh pr edit "$PR" --repo "$REPO" --remove-label "$label"
               echo "PR #$PR: Label $label entfernt (Reset)." >> "$GITHUB_STEP_SUMMARY"
@@ -138,9 +144,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Idempotenz des Labels (das job-if prueft es bewusst NICHT mehr, damit der Marker-Reset
-          # oben auch bei schon gesetztem ai:needs-review laeuft): nur setzen, wenn das Label
-          # aktuell wirklich nicht vorhanden ist — sonst No-op.
+          # Sicherheitsnetz: der Entfernen-Schritt oben hat ai:needs-review bereits entfernt, daher
+          # ist das Label hier in der Regel abwesend und das Neu-Setzen ein echtes Hinzufuegen →
+          # `labeled`-Event feuert. Der Runtime-Check faengt nur den theoretischen Restfall ab, dass
+          # das Label zwischenzeitlich (Konkurrenz-Event) wieder hinzukam — dann No-op statt Duplikat.
           labels="$(gh pr view "$PR" --repo "$REPO" --json labels --jq '[.labels[].name]')"
           if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:needs-review")')" = "true" ]; then
             echo "PR #$PR traegt bereits ai:needs-review — nichts zu tun (No-op)."

@@ -1,13 +1,9 @@
-# Ticketspezifische Memory (phase-*.md) — wird via Actions-Cache zwischen Workflows weitergegeben,
-# nicht via git. NIEMALS committen (sonst Kaskade in jeden Folge-Checkout).
 .claude/ticket-memory/
 .claude/worktrees/
-# Claude-Code maschinenlokale Config (API-Routing/Modell-Auswahl je Maschine) — `.local.json`
-# per Konvention gitignored; `.claude/settings.json` (Team-Shared-Config) bleibt versioniert.
 .claude/settings.local.json
+.zcode/
 dist/
 node_modules/
-
 .env
 
 # Aus dem API-Vertrag (openapi.yml) generiert – wird per prepare/build erzeugt, nicht versioniert.
@@ -16,13 +12,9 @@ server/src/api.d.ts
 # Laufzeit-Datenbank (wird beim Start angelegt/geseedet, kein Repo-Inhalt).
 **/database.sqlite
 
-# Lokale Umgebungskonfiguration (Secrets wie MISTRAL_API_KEY) — nur `.env.example` ist versioniert.
-.env
-**/.env
-
 # Deploy-/SSH-Schlüssel dürfen NIEMALS committet werden (privater Schlüssel = Secret).
 gh_deploy
 gh_deploy.pub
-*.pem
 id_ed25519
 id_rsa
+*.pem
