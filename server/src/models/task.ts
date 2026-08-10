@@ -16,6 +16,13 @@ type TaskStatus = 'Open' | 'In process' | 'Done';
 /** Eine Säule samt der zugehörigen Join-Zeile (`share`/`confidence`), wie sie `getPillars()` liefert. */
 export type PillarWithContribution = Pillar & { TaskPillar: TaskPillar };
 
+/** Eintrag einer abhakbaren Task-Checkliste (#531): stabile UUID, nicht-leerer Titel, Erledigt-Flag. */
+export interface ChecklistItem {
+	id: string;
+	title: string;
+	completed: boolean;
+}
+
 class Task extends Model {
 	public id!: number;
 	public title!: string;
@@ -28,6 +35,10 @@ class Task extends Model {
 	// Auto-Löschung bei verpasster Deadline (Issue #523): löst der Cron-Trigger die Aufgabe 3 Tage nach
 	// Ablauf der Deadline, wenn sie nicht erledigt ist. Default `false` (kein automatischer Eingriff).
 	public autoDeleteAfterDeadline!: boolean;
+
+	// Abhakbare Checkliste (Issue #531): JSON-Array aus `{ id, title, completed }`. Default leer;
+	// bestehende Tasks ohne Checkliste liefern `[]` (rückwärtskompatibel).
+	public checklist!: ChecklistItem[];
 
 	// Serien-Bezug (Habits, siehe #120): `seriesId` verweist auf das Template, aus dem diese Instanz
 	// generiert wurde (`null` ⇒ gewöhnlicher Einzel-Task). `isException` markiert eine nachträglich
@@ -114,6 +125,13 @@ Task.init(
 			type: DataTypes.BOOLEAN,
 			allowNull: false,
 			defaultValue: false,
+		},
+		// Abhakbare Checkliste (Issue #531): als JSON-Array gespeichert; Default `[]` für
+		// Rückwärtskompatibilität (bestehende Tasks bleiben ohne Einträge).
+		checklist: {
+			type: DataTypes.JSON,
+			allowNull: false,
+			defaultValue: [],
 		},
 		// Serien-Instanz-Felder (siehe #120). Der eindeutige Idempotenz-Index liegt auf
 		// (`seriesId`, `seriesOccurrence`) — eine Periode wird je Serie höchstens einmal materialisiert.

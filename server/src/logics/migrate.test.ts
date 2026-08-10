@@ -2,7 +2,13 @@ import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import sequelize from '../database.js';
 import { Task } from '../models/index.js';
-import { migrateSeriesColumns, migrateSeriesTable, migrateUserIdColumns, migratePillarDescription } from './migrate.js';
+import {
+	migrateSeriesColumns,
+	migrateSeriesTable,
+	migrateUserIdColumns,
+	migratePillarDescription,
+	migrateTaskChecklist,
+} from './migrate.js';
 import { SEED_PILLARS } from '../models/pillarData.js';
 import { closeDb } from '../test/helpers.js';
 
@@ -119,6 +125,10 @@ describe('migrateSeriesColumns', () => {
 		// Alt-Schema, migrieren, dann sync() (legt den Unique-Index an).
 		await createLegacyTasksTable();
 		await migrateSeriesColumns(sequelize);
+		// `checklist` (#531) ist Teil des aktuellen Task-Modells und wird vom Task.create()-INSERT
+		// mitgeschrieben — eigene Migration hier nachziehen, damit der Insert nicht an der fehlenden
+		// Spalte bricht (nicht Teil der Serien-Spalten).
+		await migrateTaskChecklist(sequelize);
 		await sequelize.sync();
 
 		const occurrence = new Date('2026-01-01T00:00:00.000Z');
@@ -321,6 +331,9 @@ describe('migrateUserIdColumns', () => {
 	it('erlaubt nach Migration ein Task.findAll filtert nach userId ohne SQLITE_ERROR', async () => {
 		await createLegacyTasksTableBefore207();
 		await migrateUserIdColumns(sequelize);
+		// `checklist` (#531) wird von Task.findAll mitselektiert — hier nachziehen, damit die Query
+		// nicht an der fehlenden Spalte bricht (separate Migration, nicht Teil der userId-Spalten).
+		await migrateTaskChecklist(sequelize);
 		await sequelize.sync();
 
 		await assert.doesNotReject(
