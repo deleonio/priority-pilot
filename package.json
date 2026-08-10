@@ -1,5 +1,5 @@
 {
-	"version": "0.1.229",
+	"version": "0.1.230",
 	"license": "EUPL-1.2",
 	"devDependencies": {
 		"@evilmartians/lefthook": "1.13.6",
