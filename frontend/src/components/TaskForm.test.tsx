@@ -57,11 +57,13 @@ vi.mock('@public-ui/react-v19', () => ({
 		_label,
 		_checked,
 		_variant,
+		_disabled,
 		_on,
 	}: {
 		_label?: string;
 		_checked?: boolean;
 		_variant?: string;
+		_disabled?: boolean;
 		_on?: { onChange?: (_e: unknown, v: boolean) => void };
 	}) => (
 		<input
@@ -69,6 +71,7 @@ vi.mock('@public-ui/react-v19', () => ({
 			role="switch"
 			aria-label={_label}
 			data-variant={_variant}
+			disabled={_disabled}
 			checked={_checked ?? false}
 			onChange={(e) => _on?.onChange?.(e.nativeEvent, e.target.checked)}
 		/>
@@ -382,7 +385,9 @@ describe('TaskForm — Status-Feld entfernt (#315, AK3)', () => {
 
 /** Wechselt das Formular über den Switch in den Serie-Modus (klickt den Switch im mode-switch-Wrapper). */
 const switchToSeriesMode = async (): Promise<void> => {
-	const switchEl = screen.getByRole('switch');
+	// #546: Auf den mode-switch-Wrapper scopen, da der Auto-Löschen-Schalter ebenfalls als
+	// `role="switch"` (KolInputCheckbox) rendert — unscoped wäre getByRole('switch') mehrdeutig.
+	const switchEl = within(screen.getByTestId('mode-switch')).getByRole('switch');
 	await act(async () => {
 		fireEvent.click(switchEl);
 	});
