@@ -7,9 +7,26 @@
 		"CLAUDE_CODE_NO_FLICKER": "1"
 	},
 	"permissions": {
-		"allow": ["Agent(*)", "Bash(*)", "Read(*)", "WebFetch(*)", "mcp__kolibri-mcp__*"]
+		"allow": ["Read(*)", "mcp__kolibri-mcp__*"],
+		"deny": [
+			"Bash(curl *)",
+			"Bash(wget *)",
+			"Bash(nc *)",
+			"Read(.env)",
+			"Read(.env.*)",
+			"Read(**/*.pem)",
+			"Read(**/secrets/**)",
+			"Read(~/.ssh/**)",
+			"Read(~/.npmrc)",
+			"Bash(rm -rf /*)",
+			"Bash(rm -rf ~*)",
+			"Bash(sudo *)",
+			"Bash(git push * --force*)",
+			"Bash(git push --force*)",
+			"Bash(git push -f *)"
+		]
 	},
-	"model": "fable",
+	"model": "opus",
 	"enabledMcpjsonServers": ["kolibri-mcp"],
 	"enableAllProjectMcpServers": true
 }
