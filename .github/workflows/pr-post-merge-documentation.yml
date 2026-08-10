@@ -104,6 +104,11 @@ jobs:
           echo "📊 Gefundene PRs zur Bearbeitung: $pr_count"
           echo "pr_count=$pr_count" >> "$GITHUB_OUTPUT"
 
+          # total_count (Gesamt-Treffer der Suche, NICHT nur der Batch) für die
+          # remaining-Arithmetik am Lauf-Ende — spart den zweiten paginierten Search-Call.
+          total_count=$(printf '%s' "$search_pages" | jq -s '[.[].total_count] | max // 0' 2>/dev/null) || total_count=0
+          echo "total_count=$total_count" >> "$GITHUB_OUTPUT"
+
           if [ "$pr_count" -eq 0 ]; then
             echo "🎉 Keine PRs zu bearbeiten - alle dokumentiert oder ignoriert"
           else
@@ -116,6 +121,7 @@ jobs:
         env:
           CONVENTIONAL_PATTERN: ${{ steps.setup.outputs.conventional_pattern }}
           DRY_RUN: ${{ env.DRY_RUN }}
+          TOTAL_COUNT: ${{ steps.setup.outputs.total_count }}
         run: |
           set -euo pipefail
 
@@ -391,7 +397,13 @@ jobs:
               echo '</details>'
             } > "$body_file"
 
-            edit_args+=(--body-file "$body_file")
+            # Body nur anwenden, wenn bestehend leer/duenn ist — eine vom Implement-Workflow oder
+            # Human gepflegte Description bleibt erhalten (vorher immer mit Template ueberschrieben).
+            if [ "${#pr_body}" -lt 50 ]; then
+              edit_args+=(--body-file "$body_file")
+            else
+              echo "✅ Beschreibung bereits vorhanden (${#pr_body} Zeichen) - erhalten, Template nicht angewendet"
+            fi
 
             # ----------------------------------------------------
             # PHASE 4 — RELEASE-NOTE-KOMMENTAR POSTEN
@@ -535,12 +547,11 @@ jobs:
             done < "$summary_file"
           } >> "$GITHUB_STEP_SUMMARY"
 
-          # REVIEW-FIX #6: jq -s 'add | length' zählt Object-Keys (3) statt PRs.
-          # Gleicher Bug wie #4 — items-Array extrahieren, dann length.
-          # (.items // [])[] sichert gegen Rate-Limit-Seiten mit null-items (s. Phase 0).
-          # Fail-Tolerance: ein transienter Search-Fehler darf den Lauf NACH getaner Arbeit
-          # + Summary nicht rot machen (|| remaining="unbekannt").
-          remaining=$(gh api "/search/issues" -X GET -f q="repo:$REPO is:pr is:merged -label:ai:documented -label:release:ignore" -f sort=created -f order=desc --paginate 2>/dev/null | jq -s '[.[] | (.items // [])[]] | length' 2>/dev/null || echo "unbekannt")
+          # Verbleibende un-dokumentierte PRs aus Arithmetik (kein zweiter paginierter Search-Call):
+          # total_count (Phase-0-Suche) minus die in diesem Lauf bearbeiteten (processed + skipped).
+          # Ohne zweite Suche entfällt die letzte Rate-Limit-/null-items-Fehlerquelle.
+          remaining=$(( TOTAL_COUNT - processed - skipped ))
+          [ "$remaining" -lt 0 ] && remaining=0
           echo "Verbleibende un-dokumentierte PRs: $remaining"
 
       - name: 📋 Final Summary
