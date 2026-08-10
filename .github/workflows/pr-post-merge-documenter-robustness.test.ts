@@ -40,6 +40,12 @@ const p0End = code.indexOf('Phase 1-6 - Process');
 assert.ok(p0Start !== -1 && p0End !== -1 && p0End > p0Start, 'Phase-0-Block nicht abgrenzbar');
 const phase0 = code.slice(p0Start, p0End);
 
+// Phase-1-6-Step-Body („Process Each PR"): ab „Phase 1-6 - Process" bis Datei-Ende (Final Summary
+// inklusive — dort gibt es keine fehlerfähige grep-Pipeline, der Slice ist also sicher).
+const p1Start = code.indexOf('Phase 1-6 - Process');
+assert.ok(p1Start !== -1, 'Phase-1-6-Block nicht abgrenzbar');
+const phase1to6 = code.slice(p1Start);
+
 // Hilfs-Assertion: ein Kommando-String ist in Phase 0 fail-tolerant abgesichert, wenn es
 // (a) in eine Variable mit `||`-Fallback gebunden wird, ODER
 // (b) innerhalb einer `if`/`||`/`set +e`-Bewachung steht, ODER
@@ -140,6 +146,36 @@ describe('Issue #519 AK3 — Bei erneutem Lauf kein exit 1; leere Queue wird sau
 			/pr_count.*-eq\s*0/,
 			'Der "keine PRs zu bearbeiten"-Zweig (pr_count == 0) fehlt — ohne ihn endet ein Lauf ' +
 				'ohne dokumentierbare PRs nicht sauber mit Exit 0.',
+		);
+	});
+});
+
+describe('Issue #532 — Documenter bricht bei reinen Test-/Spec-PRs nicht in Phase 2 ab (main_file grep -vE)', () => {
+	// Symptom (Run 31326426415, PR #532 „test: rote Spec für #530"): Log endet direkt nach
+	// „✏️ Phase 2: PR-Titel validieren..." mit `exit code 1`. Root-Cause: die main_file-Zuweisung
+	//   main_file=$(echo "$pr_files" | grep -vE '(test|spec|...)' | head -1)
+	// Eine reine Test-/Spec-PR (TDD-„rote Spec", nur *.spec.ts/*.test.ts) liefert ausschließlich
+	// Pfade, die der Filter wegfiltert. `grep -vE` endet dann mit Exit 1 („no matches"), pipefail
+	// propagiert das, und `set -e` in der Command-Substitution beendet den Step — bevor jemals
+	// „Verbleibende PRs" gedruckt wird. Fix: `|| true`-Fallback, sodass main_file leer wird und der
+	// nachfolgende `[ -n "$main_file" ]`-Block scope korrekt leer setzt. Die Strenge
+	// (`set -euo pipefail`) bleibt erhalten (analog AK2 aus #519).
+	it('die main_file-grep-vE-Zuweisung in Phase 2 ist fail-tolerant (kein exit 1 wenn der Filter alle Pfade entfernt)', () => {
+		// Jede Variablen-Zuweisung mit `$(… grep -vE …)` muss einen `||`-Fallback haben — sonst
+		// bricht eine reine Test-/Spec-PR (alle Pfade herausgefiltert) den Step über grep-Exit 1.
+		const unguarded = phase1to6
+			.split('\n')
+			.filter((l) => /=\s*\$\([^)]*grep\s+-vE/.test(l))
+			.filter((l) => !/\|\|/.test(l));
+		assert.equal(
+			unguarded.length,
+			0,
+			'Phase 2 enthält eine `$(… | grep -vE …)`-Zuweisung OHNE `||`-Fallback: filtert `grep -vE` ' +
+				'alle Pfade heraus (reine Test-/Spec-PR mit nur *.spec.ts/*.test.ts), endet mit Exit 1 → ' +
+				'unter `set -euo pipefail` bricht die Command-Substitution den Job direkt nach „Phase 2: ' +
+				'PR-Titel validieren...". Erwartet: `|| true` (main_file wird leer, der ' +
+				'`[ -n "$main_file" ]`-Block setzt scope leer). Betroffen: ' +
+				JSON.stringify(unguarded),
 		);
 	});
 });

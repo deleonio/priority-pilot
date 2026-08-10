@@ -1,6 +1,6 @@
 import type { KoliBriTableDataType, KoliBriTableHeaderCellWithLogic } from '@public-ui/components';
 import { KolTableStateful, KolToolbar } from '@public-ui/react-v19';
-import type { Task } from 'client';
+import type { ChecklistItem, Task } from 'client';
 import { memo } from 'react';
 import type { DependencyRef } from '../lib/dependencies';
 import { renderIntoCell } from '../lib/reactCellRoot';
@@ -18,6 +18,18 @@ interface TaskTableProps {
 	onAddSubtask: (task: Task) => void;
 }
 
+/**
+ * Checklisten-Fortschritt als „erledigt/gesamt"-Text (z. B. „2/5", #531). Leer bei Tasks ohne
+ * Einträge, damit die Spalte unauffällig bleibt. Lokal (nicht aus `lib/task`) gehalten, da der
+ * Komponenten-Test `lib/task` stubt.
+ */
+const checklistProgress = (items: ChecklistItem[] | undefined): string => {
+	if (items === undefined || items.length === 0) {
+		return '';
+	}
+	return `${items.filter((item) => item.completed).length}/${items.length}`;
+};
+
 /** Eine Datenzeile der Tabelle. Numerische Spalten bleiben Zahlen (für korrekte Sortierung). */
 interface TaskRow extends KoliBriTableDataType {
 	id: number;
@@ -26,6 +38,8 @@ interface TaskRow extends KoliBriTableDataType {
 	priority: number;
 	estimatedEffort: number;
 	deadline: string;
+	/** Checklisten-Fortschritt „erledigt/gesamt" (leer ohne Einträge, #531). */
+	checklist: string;
 	predecessors: number;
 	/** Serien-Kennzeichnung (leer bei Einzelaufgaben) — markiert generierte Instanzen sichtbar (#142). */
 	series: string;
@@ -53,6 +67,7 @@ export const TaskTable = memo((props: TaskTableProps) => {
 		priority: task.priority,
 		estimatedEffort: task.estimatedEffort,
 		deadline: formatDeadline(task.deadline),
+		checklist: checklistProgress(task.checklist),
 		predecessors: dependencyMap.get(task.id)?.length ?? 0,
 		series: seriesBadge(task)?.label ?? '',
 		_task: task,
@@ -67,6 +82,7 @@ export const TaskTable = memo((props: TaskTableProps) => {
 				{ key: 'priority', label: 'Priorität' },
 				{ key: 'estimatedEffort', label: 'Aufwand (Tage)' },
 				{ key: 'deadline', label: 'Deadline' },
+				{ key: 'checklist', label: 'Checkliste' },
 				{ key: 'series', label: 'Serie' },
 				{ key: 'predecessors', label: 'Vorgänger' },
 				{

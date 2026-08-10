@@ -12,6 +12,7 @@ import {
 	migratePillarDescription,
 	migratePillarPerUser,
 	migratePillarFeedbackUserId,
+	migrateTaskChecklist,
 } from './logics/migrate.js';
 import { buildTaskForest } from './logics/tree.js';
 import { runDueTaskReminders } from './logics/dueTaskReminders.js';
@@ -138,6 +139,9 @@ const main = async (): Promise<void> => {
 		// Fehlende userId-Spalte an pillar_feedback nachziehen (#430, AK3) — vor sync(), damit
 		// loadFeedbackExamples({ where: { userId } }) nicht mit `no such column` bricht.
 		await migratePillarFeedbackUserId(sequelize);
+		// Fehlende checklist-Spalte an tasks nachziehen (#531) — vor sync(), damit Lese-/Schreib-
+		// zugriffe auf bestehenden DBs nicht mit `no such column` brechen.
+		await migrateTaskChecklist(sequelize);
 
 		// Datenbank synchronisieren (force nur bei DB_RESET=true)
 		await sequelize.sync({ force: shouldReset });
