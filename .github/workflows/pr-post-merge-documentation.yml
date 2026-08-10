@@ -252,7 +252,12 @@ jobs:
 
             if [ "$title_valid" = "false" ] || [ "$type_matches" = "false" ]; then
               scope=""
-              main_file=$(echo "$pr_files" | grep -vE '(test|spec|\.md$|\.yml$|\.yaml$)' | head -1)
+              # BUGFIX #532 (rote Spec-PR, exit 1 in Phase 2): Eine reine Test-/Spec-PR liefert NUR
+              # Pfade mit 'test'/'spec'/'.md'/'.yml' — `grep -vE` filtert dann ALLES heraus → grep-
+              # Exit 1 → unter `set -euo pipefail` bricht die Command-Substitution den Job direkt
+              # nach „Phase 2: PR-Titel validieren...". `|| true` macht die Pipeline fail-tolerant;
+              # main_file wird leer, der nachfolgende `[ -n "$main_file" ]`-Block setzt scope="".
+              main_file=$(echo "$pr_files" | grep -vE '(test|spec|\.md$|\.yml$|\.yaml$)' | head -1 || true)
               if [ -n "$main_file" ]; then
                 if echo "$main_file" | grep -qE 'server/src/'; then
                   scope=$(echo "$main_file" | sed -E 's#.*server/src/([^/]+)/.*#\1#')
