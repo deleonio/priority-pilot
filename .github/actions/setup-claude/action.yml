@@ -171,7 +171,7 @@ runs:
     - name: Memory-Load (ticketspezifisch, dateibasiert)
       id: memory-load
       if: steps.preflight.outputs.configured == 'true' && inputs.memory-load == 'true'
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
       with:
         path: .claude/ticket-memory
         # Unique key (run_id/run_attempt) -> beim Restore kein exact hit; restore-keys holt per
