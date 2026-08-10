@@ -547,6 +547,16 @@ paths:
     delete:
       summary: Serien-Template löschen
       operationId: deleteSeries
+      parameters:
+        - name: cascade
+          in: query
+          required: false
+          description: >-
+            `true` löscht zusätzlich alle generierten Instanzen (Tasks mit dieser `seriesId`).
+            Default `false`: nur das Template wird entfernt; die Instanzen bleiben unangetastet
+            (`seriesId` unverändert) und ermöglichen eine spätere Wiederherstellung.
+          schema:
+            type: boolean
       responses:
         '204':
           description: Template gelöscht
@@ -1551,6 +1561,13 @@ components:
             `share` 100 ergeben. Fehlt das Feld, bleibt die Vorlage unverändert.
           items:
             $ref: '#/components/schemas/TaskPillarContributionInput'
+        applyToInstances:
+          type: boolean
+          description: >-
+            `true` überträgt die im Serie-Edit GEÄNDERTEN kaskadierbaren Felder (`title`, `priority`,
+            `estimatedEffort`, `description`, `autoDeleteAfterDeadline`, `pillars`) zusätzlich auf alle
+            bestehenden Instanzen (inkl. `isException`). `rhythm`/`startDate`/`active` werden nie
+            kaskadiert. Default `false` (nur Template, künftige Instanzen).
     SeriesGenerateInput:
       type: object
       required:

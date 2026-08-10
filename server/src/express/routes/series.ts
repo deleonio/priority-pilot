@@ -2,7 +2,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { Transaction, ValidationError as SequelizeValidationError } from 'sequelize';
 import sequelize from '../../database.js';
-import { Pillar, Series, SeriesPillar } from '../../models/index.js';
+import { Pillar, Series, SeriesPillar, Task, TaskPillar } from '../../models/index.js';
 import type { SeriesRhythm } from '../../models/series.js';
 import { generateDueInstances, materializeDueSeries } from '../../logics/series.js';
 import { arePillarsExistent, validatePillars, type PillarContribution } from '../../logics/pillarContributions.js';
@@ -370,6 +370,10 @@ seriesRouter.patch('/series/:id', async (req: Request, res: Response<SeriesDto |
 		sendError(res, 400, 'pillars verweist auf eine nicht existierende Säule.');
 		return;
 	}
+	// #553: `applyToInstances=true` kaskadiert die im Serie-Edit GEÄNDERTEN kaskadierbaren Felder auf
+	// alle bestehenden Instanzen. `rhythm`/`startDate`/`active` werden bewusst NICHT übernommen.
+	const body = typeof req.body === 'object' && req.body !== null ? (req.body as Record<string, unknown>) : {};
+	const applyToInstances = body.applyToInstances === true;
 	try {
 		await sequelize.transaction(async (transaction) => {
 			await series.update(validation.attrs, { transaction });
@@ -378,6 +382,48 @@ seriesRouter.patch('/series/:id', async (req: Request, res: Response<SeriesDto |
 				await SeriesPillar.destroy({ where: { seriesId: series.id }, transaction });
 				if (validation.pillars.length > 0) {
 					await replaceContributions(series.id, validation.pillars, transaction);
+				}
+			}
+			// Kaskade auf bestehende Instanzen: pro Instanz NUR die geänderten kaskadierbaren Felder
+			// überschreiben (inkl. `isException`-Instanzen). rhythm/startDate/active bleiben außen vor.
+			if (applyToInstances) {
+				const instanceAttrs: SeriesAttributes = {};
+				if (validation.attrs.title !== undefined) instanceAttrs.title = validation.attrs.title;
+				if (validation.attrs.priority !== undefined) instanceAttrs.priority = validation.attrs.priority;
+				if (validation.attrs.estimatedEffort !== undefined) {
+					instanceAttrs.estimatedEffort = validation.attrs.estimatedEffort;
+				}
+				if (validation.attrs.description !== undefined) instanceAttrs.description = validation.attrs.description;
+				if (validation.attrs.autoDeleteAfterDeadline !== undefined) {
+					instanceAttrs.autoDeleteAfterDeadline = validation.attrs.autoDeleteAfterDeadline;
+				}
+				if (Object.keys(instanceAttrs).length > 0) {
+					await Task.update(instanceAttrs, { where: { seriesId: series.id }, transaction });
+				}
+				// Geänderte Säulen-Vorlage als TaskPillar-Beiträge auf jede Instanz übernehmen.
+				if (validation.pillars !== undefined) {
+					const seriesPillars = validation.pillars;
+					const instances = await Task.findAll({
+						where: { seriesId: series.id },
+						attributes: ['id'],
+						transaction,
+					});
+					for (const inst of instances) {
+						await TaskPillar.destroy({ where: { taskId: inst.id }, transaction });
+					}
+					if (seriesPillars.length > 0 && instances.length > 0) {
+						await TaskPillar.bulkCreate(
+							instances.flatMap((inst) =>
+								seriesPillars.map((pillar) => ({
+									taskId: inst.id,
+									pillarId: pillar.pillarId,
+									share: pillar.share,
+									confidence: pillar.confidence,
+								})),
+							),
+							{ transaction, validate: true },
+						);
+					}
 				}
 			}
 		});
@@ -392,7 +438,11 @@ seriesRouter.patch('/series/:id', async (req: Request, res: Response<SeriesDto |
 	}
 });
 
-// DELETE /series/:id — ein Serien-Template löschen
+// DELETE /series/:id — ein Serien-Template löschen.
+// Query `cascade=true`: zusätzlich alle Instanzen (Tasks mit `seriesId = :id`) löschen.
+// Default (`cascade=false`): nur das Template; Instanzen bleiben UNANGETASTET (`seriesId` unverändert,
+// ermöglicht spätere Wiederherstellung). Dafür ist die Serie↔Task-Assoziation ohne FK-Constraint
+// modelliert (siehe models/index.ts) — ein bloßes `series.destroy()` verwaist die Instanzen.
 seriesRouter.delete('/series/:id', async (req: Request, res: Response<ErrorDto>) => {
 	const id = parseId(req.params.id);
 	const series = id === null ? null : await Series.findByPk(id);
@@ -400,7 +450,11 @@ seriesRouter.delete('/series/:id', async (req: Request, res: Response<ErrorDto>)
 		sendError(res, 404, 'Serie nicht gefunden.');
 		return;
 	}
+	const cascade = req.query.cascade === 'true';
 	try {
+		if (cascade) {
+			await Task.destroy({ where: { seriesId: series.id } });
+		}
 		await series.destroy();
 		res.status(204).send();
 	} catch (error) {

@@ -596,6 +596,12 @@ describe('AK5 — Speichern verzweigt korrekt (#316)', () => {
 		await fillTitle('Serie umbenannt');
 		await clickSaveEdit();
 
+		// #553: Eine Title-Änderung ist kaskadierbar und öffnet daher das Kaskade-Bestätigungs-Modal;
+		// „Ja" schließt das Speichern ab (Endpoint bleibt `updateSeries`, nicht `updateTask`).
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Ja' }));
+		});
+
 		expect(mockUpdateSeries).toHaveBeenCalledTimes(1);
 		expect(mockUpdateTask).not.toHaveBeenCalled();
 		const [{ id }] = mockUpdateSeries.mock.calls[0] as [{ id: number }];

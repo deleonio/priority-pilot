@@ -28,6 +28,7 @@ import { useCtrlEnter } from '../lib/useCtrlEnter';
 import { readNumber, readString } from '../lib/inputValue';
 import { readVoiceAutostartPreference } from '../lib/voiceAutostart';
 import { VoiceField } from './VoiceField';
+import { ConfirmSeriesActionModal } from './ConfirmSeriesActionModal';
 import {
 	ADD_PILLAR_PLACEHOLDER,
 	addPillarOptions,
@@ -41,6 +42,36 @@ import {
 	weightToRaw,
 } from '../lib/pillar';
 import { deadlineToDateInput, formatNumber } from '../lib/task';
+
+/**
+ * #553: Vergleicht zwei Säulen-Beitragslisten auf inhaltliche Gleichheit (Reihenfolge-unabhängig).
+ */
+const pillarsEqual = (a: TaskPillarContribution[], b: TaskPillarContribution[]): boolean => {
+	if (a.length !== b.length) return false;
+	const signature = (list: TaskPillarContribution[]) =>
+		list
+			.map((p) => `${p.pillarId}:${p.share}:${p.confidence}`)
+			.sort()
+			.join('|');
+	return signature(a) === signature(b);
+};
+
+/**
+ * #553: Hat sich an den kaskadierbaren Feldern (Skalare + Säulen) etwas geändert, sodass vor dem
+ * Speichern das Kaskade-Bestätigungs-Modal erscheinen muss? Vergleicht den vorbereiteten
+ * `seriesUpdate` gegen die ursprünglichen Template-Werte; ungeänderte Felder (auch nullable wie
+ * `description`/`autoDeleteAfterDeadline`) werden robust normiert (`?? null`/`?? false`).
+ * `rhythm`/`startDate`/`active` werden bewusst NICHT geprüft — sie kaskadieren nie.
+ */
+const hasSeriesCascadeChange = (update: SeriesUpdate, original: Series): boolean => {
+	if (update.title !== undefined && update.title !== original.title) return true;
+	if (update.priority !== undefined && update.priority !== original.priority) return true;
+	if (update.estimatedEffort !== undefined && update.estimatedEffort !== original.estimatedEffort) return true;
+	if ((update.description ?? null) !== (original.description ?? null)) return true;
+	if ((update.autoDeleteAfterDeadline ?? false) !== (original.autoDeleteAfterDeadline ?? false)) return true;
+	if (update.pillars !== undefined && !pillarsEqual(update.pillars, original.pillars ?? [])) return true;
+	return false;
+};
 
 /** Vorbelegung der Formularfelder beim Anlegen, z. B. aus der Schnellerfassung per LLM (#236). */
 export interface TaskFormInitialValues {
@@ -224,6 +255,9 @@ export const TaskForm = ({
 
 	const [error, setError] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);
+	// #553: vorbereitetes Series-Update, das auf die Kaskade-Entscheidung (Ja/Nein) wartet. `null`
+	// ⇒ kein Kaskade-Modal sichtbar. Beim Bestätigen geht es (mit `applyToInstances`) raus.
+	const [pendingSeriesUpdate, setPendingSeriesUpdate] = useState<SeriesUpdate | null>(null);
 
 	// State-Mirror für die Textfelder mit Spracheingabe (#264): KoliBri verwaltet den Anzeigewert
 	// selbst, aber ein per Transkript geänderter Wert muss über `_value` ins Feld gespiegelt werden.
@@ -434,6 +468,13 @@ export const TaskForm = ({
 					rhythm: form.current.rhythm,
 					autoDeleteAfterDeadline: autoDelete,
 				};
+				// #553: bei geänderten kaskadierbaren Feldern erst das Bestätigungs-Modal anzeigen, das
+				// nur über die Kaskade entscheidet. Ohne solche Änderung direkt speichern (kein Modal).
+				if (hasSeriesCascadeChange(seriesUpdate, series)) {
+					setSaving(false);
+					setPendingSeriesUpdate(seriesUpdate);
+					return;
+				}
 				await api.updateSeries({ id: series.id, seriesUpdate });
 			} else if (isSeriesMode) {
 				// Serie-Anlegen (#316): eigenständiges Template statt Task. `active: true` immer mitschicken.
@@ -513,6 +554,26 @@ export const TaskForm = ({
 			const apiError = await toApiError(reason);
 			// #470 (AK5): Eine vom Series-Backend kommende Wochentag/startDate-400 verständlich
 			// aufbereiten — statt des rohen `rhythm "wed" erfordert …` eine klare Nutzer-Anweisung.
+			setError(isSeriesMode ? humanizeSeriesError(apiError.message, form.current.rhythm) : apiError.message);
+			setSaving(false);
+		}
+	};
+
+	// #553: Kaskade-Entscheidung aus dem Bestätigungs-Modal. `applyToInstances` steuert, ob die
+	// geänderten Felder auf alle Instanzen übertragen werden (Ja) oder nur das Template aktualisiert
+	// wird (Nein — sicherer Default). Anschließend wie beim normalen Speichern `onSaved()` aufrufen.
+	const confirmSeriesCascade = async (applyToInstances: boolean): Promise<void> => {
+		if (series === null || pendingSeriesUpdate === null) {
+			return;
+		}
+		setError(null);
+		setSaving(true);
+		try {
+			await api.updateSeries({ id: series.id, seriesUpdate: { ...pendingSeriesUpdate, applyToInstances } });
+			setPendingSeriesUpdate(null);
+			onSaved();
+		} catch (reason) {
+			const apiError = await toApiError(reason);
 			setError(isSeriesMode ? humanizeSeriesError(apiError.message, form.current.rhythm) : apiError.message);
 			setSaving(false);
 		}
@@ -902,6 +963,12 @@ export const TaskForm = ({
 				/>
 				<KolButton _label="Abbrechen" _variant="secondary" _disabled={saving} _on={{ onClick: () => onClose() }} />
 			</div>
+			{pendingSeriesUpdate !== null && seriesEdit && (
+				<ConfirmSeriesActionModal
+					onConfirm={(cascade) => void confirmSeriesCascade(cascade)}
+					onClose={() => setPendingSeriesUpdate(null)}
+				/>
+			)}
 		</>
 	);
 };

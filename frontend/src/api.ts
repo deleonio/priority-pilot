@@ -276,8 +276,10 @@ export const api = {
 		return reviveSeries(data);
 	},
 
-	async deleteSeries({ id }: { id: number }): Promise<void> {
-		const { response } = await client.DELETE('/series/{id}', { params: { path: { id } } });
+	async deleteSeries({ id, cascade }: { id: number; cascade?: boolean }): Promise<void> {
+		const { response } = await client.DELETE('/series/{id}', {
+			params: cascade === undefined ? { path: { id } } : { path: { id }, query: { cascade } },
+		});
 		if (!response.ok) {
 			throw new ResponseError(response);
 		}
