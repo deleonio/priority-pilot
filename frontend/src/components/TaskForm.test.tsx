@@ -1009,45 +1009,220 @@ describe('TaskForm — Automatisches Löschen bei verpasster Deadline (#523)', (
 		expect(screen.getByLabelText(/Automatisch löschen nach 3 Tagen bei verpasster Deadline/i)).toBeInTheDocument();
 	});
 
-	it('AK6 — nach Aktivieren der Checkbox erscheint ein Info-Hinweis zur automatischen Löschung', async () => {
+	/* #534 — Test-Pflege-Bedarf (siehe PR-Body): Die beiden folgenden #523-Tests haben den
+	   Auto-Löschen-Schalter OHNE gesetzte Deadline angeklickt. Das widerspricht dem neuen #534-Vertrag
+	   (AK1: Schalter ohne Deadline disabled; Schalter kann nur true werden, wenn eine Deadline gesetzt ist):
+	   - alter AK6 („Hint erscheint nach Aktivieren") und alter AK1 („autoDeleteAfterDeadline im Create-
+	     Payload") wären nach der Kopplung nicht mehr anwählbar bzw. true schaltbar.
+	   Die Payload-Aussage wird korrekt (MIT Deadline) im #534-Block AK2 neu geprüft; der Hinweis ist
+	   ein reines #523-Frontend-Detail und nicht Gegenstand von #534. */
+});
+
+/**
+ * Rote Spec-Tests für #534, Anforderung 2 — „Schalter an Deadline koppeln" (Task-Modus).
+ *
+ *  - AK1: Ohne Deadline ist der Auto-Löschen-Schalter `disabled` (und lässt sich nicht auf `true` schalten).
+ *  - AK2: Mit gesetzter Deadline ist der Schalter `enabled` und darf `true` werden.
+ *  - AK3: Wird die Deadline nachträglich entfernt, wird der Schalter `disabled` UND sein Wert auf `false`
+ *    zurückgesetzt (kein hängendes `true` ohne Deadline).
+ *
+ * **Treiber-/Guard-Rolle:** AK1 und AK3 sind ROT (Treiber) — die aktuelle #523-Checkbox ist unbedingt
+ * `enabled` und wird beim Entfernen der Deadline nicht zurückgesetzt. AK2 ist der positive Gegenpart
+ * (Guard) und heute schon erfüllt; er sichert den positiven Pfad, sobald die Kopplung aus AK1/AK3 die
+ * Checkbox `disabled` schaltet. (Vorbild: #530-Commit mit ROT-Treibern + Regression-Guards.)
+ */
+describe('TaskForm — Auto-Löschen-Schalter an Deadline gekoppelt (#534, Anforderung 2)', () => {
+	/** Setzt (oder leert) das Deadline-Datum im Task-Modus. Leerer String entfernt die Deadline. */
+	const setDeadline = async (value: string): Promise<void> => {
+		const deadlineInput = screen.getByLabelText('Deadline (optional)');
+		await act(async () => {
+			fireEvent.change(deadlineInput, { target: { value } });
+		});
+	};
+
+	const autoDeleteToggle = (): HTMLElement => screen.getByLabelText(/Automatisch löschen nach 3 Tagen/i);
+
+	it('AK1 — ohne Deadline ist der Auto-Löschen-Schalter disabled (ROT, Treiber)', async () => {
 		mockSuggestPillars.mockResolvedValue([]);
 
 		await act(async () => {
 			render(<TaskForm task={null} {...defaultProps} />);
 		});
 
-		// Vor dem Aktivieren gibt es (noch) keinen Hinweis.
-		expect(screen.queryByText(/wird.*automatisch.*gelöscht/i)).toBeNull();
-
-		const checkbox = screen.getByLabelText(/Automatisch löschen nach 3 Tagen/i);
-		await act(async () => {
-			fireEvent.click(checkbox);
-		});
-
-		// Nach dem Aktivieren erklärt ein eigener Hinweis die automatische Löschung. Rot, solange der
-		// Hinweis fehlt (z. B. ein <p>/<KolAlert>, das nur bei gesetzter Checkbox gerendert wird).
-		expect(screen.getByText(/wird.*automatisch.*gelöscht/i)).toBeInTheDocument();
+		// rot, solange die Checkbox nicht an die Deadline-Präsenz gekoppelt (disabled) ist.
+		expect(autoDeleteToggle()).toBeDisabled();
 	});
 
-	it('AK1 — aktivierter Auto-Delete fließt als autoDeleteAfterDeadline ins Create-Payload', async () => {
+	it('AK1b — ohne Deadline lässt sich der Schalter nicht auf true schalten (ROT, Treiber)', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		// Selbst ein Klick darf den Schalter ohne Deadline nicht aktivieren (Treiber für die Kopplung).
+		const toggle = autoDeleteToggle();
+		await act(async () => {
+			fireEvent.click(toggle);
+		});
+
+		expect(toggle).not.toBeChecked();
+	});
+
+	it('AK2 — mit gesetzter Deadline ist der Schalter enabled und darf true werden (Guard)', async () => {
 		mockSuggestPillars.mockResolvedValue([]);
 		mockCreateTask.mockResolvedValue(minimalNewTask());
 
 		await act(async () => {
 			render(<TaskForm task={null} {...defaultProps} />);
 		});
-		await fillTitle('Aufgabe mit Auto-Delete');
+		await setDeadline('2026-09-07');
 
-		// Auto-Delete aktivieren.
-		const checkbox = screen.getByLabelText(/Automatisch löschen nach 3 Tagen/i);
+		// Mit gültiger Deadline ist der Schalter frei anwählbar …
+		expect(autoDeleteToggle()).toBeEnabled();
+
+		const toggle = autoDeleteToggle();
 		await act(async () => {
-			fireEvent.click(checkbox);
+			fireEvent.click(toggle);
 		});
+		// … und bleibt nach dem Aktivieren `true` (kehrt nicht von selbst zurück).
+		expect(toggle).toBeChecked();
+
+		await fillTitle('Aufgabe mit Deadline und Auto-Delete');
 		await clickSave();
 
+		// Der aktivierte Schalter fließt korrekt ins Create-Payload (ersetzt den entfernten #523-AK1-Test,
+		// der dies ohne Deadline geprüft hatte — was #534 AK1 nun verbietet).
 		expect(mockCreateTask).toHaveBeenCalledTimes(1);
 		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as [{ taskCreate: Record<string, unknown> }];
 		expect(taskCreate).toHaveProperty('autoDeleteAfterDeadline', true);
+	});
+
+	it('AK3 — Deadline nachträglich entfernt → Schalter disabled UND Wert auf false zurückgesetzt (ROT, Treiber)', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockCreateTask.mockResolvedValue(minimalNewTask());
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		// Erst Deadline setzen und den Schalter aktivieren (positiver Pfad wie AK2).
+		await setDeadline('2026-09-07');
+		const toggle = autoDeleteToggle();
+		await act(async () => {
+			fireEvent.click(toggle);
+		});
+		expect(toggle).toBeChecked();
+
+		// Anschließend die Deadline entfernen — Schalter muss disabled werden …
+		await setDeadline('');
+		expect(toggle).toBeDisabled();
+		// … und sein Wert auf false zurückgesetzt sein (kein hängendes true ohne Deadline).
+		expect(toggle).not.toBeChecked();
+
+		await fillTitle('Aufgabe: Deadline wieder entfernt');
+		await clickSave();
+
+		// Im Payload darf kein hängendes autoDeleteAfterDeadline:true landen.
+		expect(mockCreateTask).toHaveBeenCalledTimes(1);
+		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as [{ taskCreate: Record<string, unknown> }];
+		expect(taskCreate).toHaveProperty('autoDeleteAfterDeadline', false);
+	});
+});
+
+/**
+ * Rote Spec-Tests für #534, Anforderung 1 — „Auto-Löschen auch für Serien-Aufgaben".
+ *
+ * Bei Serien ist stets ein Startdatum gesetzt, daher soll der Auto-Löschen-Schalter frei an- oder
+ * abwählbar sein (unabhängig von einer expliziten Deadline) und in den Series-Payloads
+ * (`createSeries`/`updateSeries`) als `autoDeleteAfterDeadline` landen.
+ *
+ * Diese Specs sind ROT, solange TaskForm im Serie-Modus den Auto-Löschen-Schalter weder rendert noch
+ * initialisiert noch ins Series-Payload schreibt — die #523-Checkbox steht ausschließlich im Task-Modus.
+ */
+describe('TaskForm — Auto-Löschen für Serien verfügbar (#534, Anforderung 1)', () => {
+	const autoDeleteToggle = (): HTMLElement => screen.getByLabelText(/Automatisch löschen nach 3 Tagen/i);
+
+	it('AK4a — Serie-Modus rendert den Auto-Löschen-Schalter (ROT, Treiber)', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+		await switchToSeriesMode();
+
+		// rot, solange der Schalter im Serie-Modus nicht gerendert wird (aktuell nur im Task-Modus).
+		expect(autoDeleteToggle()).toBeInTheDocument();
+	});
+
+	it('AK4b — Serie-Modus: Schalter frei anwählbar, nicht an eine Deadline gekoppelt (ROT, Treiber)', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+		await switchToSeriesMode();
+
+		// Bei Serien ist stets ein Startdatum gesetzt → Schalter stets enabled (ungeachtet einer Deadline).
+		const toggle = autoDeleteToggle();
+		expect(toggle).toBeEnabled();
+
+		await act(async () => {
+			fireEvent.click(toggle);
+		});
+		expect(toggle).toBeChecked();
+	});
+
+	it('AK4c — Serie-Anlegen: aktiver Schalter landet als autoDeleteAfterDeadline im createSeries-Payload (ROT, Treiber)', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockCreateSeries.mockResolvedValue(minimalSeries());
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+		await switchToSeriesMode();
+		await fillTitle('Serien-Aufgabe mit Auto-Delete');
+
+		await act(async () => {
+			fireEvent.click(autoDeleteToggle());
+		});
+		await clickSave();
+
+		// rot, solange das Series-Payload autoDeleteAfterDeadline nicht enthält.
+		expect(mockCreateSeries).toHaveBeenCalledTimes(1);
+		const [{ seriesCreate }] = mockCreateSeries.mock.calls[0] as [{ seriesCreate: Record<string, unknown> }];
+		expect(seriesCreate).toHaveProperty('autoDeleteAfterDeadline', true);
+	});
+
+	it('AK4d — Serien-Edit: Schalter wird aus series.autoDeleteAfterDeadline vorbelegt (ROT, Treiber)', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(
+				<SeriesEditForm task={null} series={{ ...minimalSeries(), autoDeleteAfterDeadline: true }} {...defaultProps} />,
+			);
+		});
+
+		// rot, solange der Serien-Edit-Modus autoDelete nicht aus series lädt (derzeit nur aus task).
+		expect(autoDeleteToggle()).toBeChecked();
+	});
+
+	it('AK4e — Serien-Edit: Wert fließt als autoDeleteAfterDeadline ins updateSeries-Payload (ROT, Treiber)', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockUpdateSeries.mockResolvedValue({ ...minimalSeries(), autoDeleteAfterDeadline: true });
+
+		await act(async () => {
+			render(
+				<SeriesEditForm task={null} series={{ ...minimalSeries(), autoDeleteAfterDeadline: true }} {...defaultProps} />,
+			);
+		});
+
+		await clickSaveEdit();
+
+		// rot, solange das Series-Update-Payload autoDeleteAfterDeadline nicht enthält.
+		expect(mockUpdateSeries).toHaveBeenCalledTimes(1);
+		const [{ seriesUpdate }] = mockUpdateSeries.mock.calls[0] as [{ seriesUpdate: Record<string, unknown> }];
+		expect(seriesUpdate).toHaveProperty('autoDeleteAfterDeadline', true);
 	});
 });
 
