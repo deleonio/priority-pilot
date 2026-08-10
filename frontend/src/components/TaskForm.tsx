@@ -708,34 +708,27 @@ export const TaskForm = ({
 						/>
 					</>
 				)}
-				{/* #523/#534: Auto-Löschung bei verpasster Deadline. Im Task-Modus an die Deadline-Präsenz
+				{/* #523/#534/#546: Auto-Löschung bei verpasster Deadline. Im Task-Modus an die Deadline-Präsenz
 				    gekoppelt (deaktiviert ohne Deadline, #534 Anforderung 2); bei Serien stets frei anwählbar,
-				    da das Startdatum als Deadline gilt (#534 Anforderung 1). Bewusst native Checkbox statt
-				    KolInputCheckbox: der jsdom-Test-Mock vergibt jedem KolInputCheckbox pauschal role="switch",
-				    was den unscoped `getByRole('switch')` des Modus-Umschalters (#316/#470) mehrdeutig machen
-				    würde. Eine native Checkbox trägt role="checkbox" und bleibt damit eindeutig. */}
-				<label className="auto-delete-toggle">
-					<input
-						type="checkbox"
-						checked={autoDelete}
-						disabled={autoDeleteDisabled}
-						onClick={(event) => {
-							// #534: Ohne Deadline darf der Schalter nicht aktivierbar sein. `disabled` reicht im
-							// Test-jsdom nicht (rohes dispatchEvent umgeht den Disabled-Schutz und toggelt trotzdem),
-							// daher zusätzlich das Default-Verhalten des Klicks unterbinden.
-							if (autoDeleteDisabled) {
-								event.preventDefault();
-							}
-						}}
-						onChange={(event) => setAutoDelete(autoDeleteDisabled ? false : event.target.checked)}
-					/>
-					Automatisch löschen nach 3 Tagen bei verpasster Deadline
-				</label>
+				    da das Startdatum als Deadline gilt (#534 Anforderung 1). #546: Statt nativer Checkbox wird
+				    KolInputCheckbox verwendet; der Hinweis im aktivierten Zustand wird als KolAlert gezeigt. */}
+				<KolInputCheckbox
+					className="auto-delete-toggle"
+					_label="Automatisch löschen nach 3 Tagen bei verpasster Deadline"
+					_checked={autoDelete}
+					_disabled={autoDeleteDisabled}
+					_on={{
+						// #534: Ohne Deadline darf der Schalter nicht aktivierbar sein — der `_disabled`-Prop
+						// reicht im Test-jsdom allein nicht aus (rohes dispatchEvent umgeht ihn), daher zusätzlich
+						// die Wertzurückweisung im onChange-Handler.
+						onChange: (_event, checked) => setAutoDelete(autoDeleteDisabled ? false : checked === true),
+					}}
+				/>
 				{autoDelete && (
-					<p className="hint">
-						Die Aufgabe wird bei verpasster Deadline automatisch nach 3 Tagen gelöscht, sofern sie bis dahin nicht
-						erledigt ist.
-					</p>
+					<KolAlert
+						_type="info"
+						_label="Die Aufgabe wird bei verpasster Deadline automatisch nach 3 Tagen gelöscht, sofern sie bis dahin nicht erledigt ist."
+					/>
 				)}
 				<VoiceField
 					variant="textarea"

@@ -1,9 +1,11 @@
 name: PR Post-Merge Documentation
 
-# 6-Phase Post-Merge PR Documentation Routine
-# Läuft NACH einem erfolgreichen PR-Merge und dokumentiert den PR vollständig autonom.
-# Bearbeitet ausschließlich gemergte PRs OHNE `ai:documented` und OHNE `release:ignore` Label.
-# Batchgröße: max. 12 neueste PRs pro Lauf.
+# 6. Pipeline-Phase — PR-Documenter (LLM-gesteuert, wie die Claude-Phasen 01–05).
+# Läuft NACH einem erfolgreichen PR-Merge und pflegt Titel, Beschreibung,
+# Release-Note-Kommentar und Labels des EINEN gemergten PRs via Claude Code.
+# Kein Batch mehr: PR-Daten kommen aus dem pull_request-Event bzw. `gh pr view`.
+# PR-Pflege läuft ausschließlich via gh-Befehle — Claude braucht keine Dateimutationsmacht
+# (tools-tier: review = Bash für gh, kein Write/Edit).
 
 on:
   # Trigger an den ECHTEN Merge koppeln (Issue #496): `pull_request: [closed]` feuert pro
@@ -14,63 +16,85 @@ on:
     types: [closed]
   workflow_dispatch:
     inputs:
-      max-prs:
-        description: 'Maximale Anzahl PRs pro Lauf (Default: 12)'
-        required: false
-        default: '12'
+      pr-number:
+        description: 'PR-Nummer für manuellen Catch-up (z. B. liegengebliebener, gemergter PR)'
+        required: true
         type: string
-      dry-run:
-        description: 'Nur prüfen, keine Änderungen schreiben'
-        required: false
-        default: 'false'
-        type: boolean
 
 concurrency:
-  group: pr-post-merge-documentation
+  # Pro-PR keyed: kurz hintereinander gemergte PRs parallelisieren statt serialisieren.
+  group: pr-post-merge-documentation-${{ github.event.pull_request.number || github.event.inputs.pr-number }}
   cancel-in-progress: false
 
 permissions:
-  contents: read
+  contents: read # Claude ändert PR-Metadaten via gh, nicht den Repo-Inhalt — kein Commit mehr.
   pull-requests: write
   issues: write
-  # actions: write — fuer gh cache delete beim Ticket-Memory-Abbau (s. Loop).
+  # actions: write — fuer gh cache delete beim Ticket-Memory-Abbau.
   actions: write
+  # id-token: write — App-Token (setup-claude).
+  id-token: write
 
 env:
   REPO: ${{ github.repository }}
-  MAX_PRS: ${{ github.event.inputs.max-prs || '12' }}
-  DRY_RUN: ${{ github.event.inputs.dry-run || 'false' }}
-  # GH_TOKEN auf Workflow-Ebene: vererbt sich an JEEN Step — auch an Phase 0, das frueher kein
-  # eigenes GH_TOKEN hatte und am ersten gh-Aufruf starb (exit 4). Nicht in einen Step zurueck-
-  # verschieben, sonst bricht die naechste Phase-0-Erweiterung wieder laut ab.
-  GH_TOKEN: ${{ github.token }}
 
 jobs:
-  document-merged-prs:
-    name: Document Merged PRs (6 Phases)
+  document-merged-pr:
+    name: Document Merged PR (Claude)
     # Nur bei ECHTEM Merge laufen (AK2/AK3): pull_request:[closed] feuert auch beim Schliessen-ohne-
     # Merge, dieser Guard schaltet das aus. Der workflow_dispatch-Pfad (manueller Catch-up, AK4)
     # bleibt frei, weil dort event_name == 'workflow_dispatch' zutrifft.
     if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      PR: ${{ github.event.pull_request.number || github.event.inputs.pr-number }}
     steps:
-      - name: 🔧 Phase 0 - Setup & Prerequisites
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Startzeit merken (für weiches Zeitlimit)
+        id: starttime
+        run: |
+          now=$(date +%s)
+          echo "epoch=$now" >> "$GITHUB_OUTPUT"
+          echo "soft_deadline_epoch=$((now + 600))" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Claude Code (mit Memory-Load)
         id: setup
+        uses: ./.github/actions/setup-claude
+        with:
+          needs-mcp: false
+          tools-tier: review
+          event-type: ${{ github.event_name }}
+          ticket-ref: ${{ github.event.pull_request.number || github.event.inputs.pr-number }}
+          app-id: ${{ secrets.APP_ID }}
+          app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          llm-provider: ${{ vars.LLM_PROVIDER }}
+          model: ${{ vars.CLAUDE_MODEL_DOCUMENTATION }}
+          zai-api-key: ${{ secrets.ZAI_API_KEY }}
+          claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
+          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+          zai-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI }}
+          openrouter-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER }}
+          memory-load: 'true'
+
+      - name: 🔧 Phase 0 - Labels sicherstellen (deterministisch, vor Claude)
+        # gh pr edit --add-label bricht hart ab ("X not found"), wenn ein Label im Repo fehlt.
+        # Deshalb hier idempotent alle Labels anlegen, die Claude setzen kann: ai:documented +
+        # die fünf release:* + release:ignore. create_label überspringt vorhandene; schlägt der
+        # List-Abruf fehl (transienter gh-Ausfall), wird nicht angelegt statt zu crashen.
+        # Bleibt deterministischer Bash-Helper — NICHT im LLM-Prompt.
+        id: labels
+        if: steps.setup.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
         run: |
           set -euo pipefail
 
-          echo "📋 Phase 0: Vorbereitung gestartet"
-          echo "Repository: $REPO | Max PRs: $MAX_PRS | Dry Run: $DRY_RUN"
-
-          # 0.1 Prüfen/Erstellen aller Labels, die der Workflow setzt.
-          # ai:documented + die fünf release:*-Labels aus Phase 5. gh pr edit --add-label bricht
-          # hart ab ("X not found"), wenn ein Label fehlt — also hier sicherstellen, dass alle
-          # existieren. create_label() ist idempotent (vorhandene werden übersprungen).
-          # Bestehende Labels einmal je Workflow-Run abrufen (statt pro create_label) — 1 API-Call
-          # statt 7. fetch_ok markiert nur erfolgreiche Abrufe als autoritativ: schlägt der Fetch
-          # fehl (transienter gh-Ausfall), überspringt create_label die Erstellung, statt unter
-          # `set -euo pipefail` bereits existierende Labels neu anlegen zu wollen (HTTP 422 → Crash).
           if existing="$(gh label list --repo "$REPO" --json name | jq -r '.[].name')"; then
             fetch_ok=1
           else
@@ -85,7 +109,7 @@ jobs:
               return 0
             elif grep -qx "$name" <<<"$existing"; then
               echo "✅ Label '$name' existiert bereits"
-            elif [ "$DRY_RUN" = "false" ]; then
+            else
               echo "📝 Erstelle Label '$name'..."
               gh label create "$name" --repo "$REPO" --color "$color" --description "$desc"
             fi
@@ -98,497 +122,128 @@ jobs:
           create_label "release:engineering" cfd3d7 "Internal (no release note)"
           create_label "release:ignore" cfd3d7 "Ignored by release pipeline"
 
-          # 0.2 Conventional Commits Pattern (Standard, da pr-title-validation.yml nicht existiert)
-          echo "conventional_pattern=^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?: .+" >> "$GITHUB_OUTPUT"
-
-          # 0.3 Gemergte PRs holen (neueste zuerst, ohne ai:documented und release:ignore)
-          # BUGFIX: PR-Liste in Temp-File statt GITHUB_OUTPUT (12 PRs mit Body sprengen das Limit)
-          # REVIEW-FIX #4: jq -s 'add' verschmilzt /search/issues-Pages zu einem Object {total_count, items: [...]}
-          # → Slice auf Object scheitert mit "Cannot index object" (exit 5). Richtig: erst items aus allen Seiten
-          # extrahieren, dann slicen.
-          # ISSUE #519: Search-Abruf + pr_count-Ableitung fail-tolerant (AK2). Ein transienter/leerer
-          # Treffer (Rate-Limit, Secondary-Rate-Limit, leere Paginierung) löste unter `set -euo pipefail`
-          # hart exit 1 aus — unmittelbar NACH dem ai:documented-Label-Check. Ursachen-Behebung, NICHT
-          # symptomatisch set -e entfernen: Abruf in Variable mit `||`-Fallback binden, jq-Pipeline mit
-          # `|| true` ummanteln, pr_count mit `|| pr_count=0` sichern.
-          #
-          # BUGFIX (8/9 rote Laeufe, exit 1 direkt nach Label-Check): `-f q=...` sendet die Parameter als
-          # POST-Body. Die GitHub Search-API ist GET-only — ein POST auf /search/issues antwortet HTTP 404.
-          # `2>/dev/null` schluckt die Meldung, `set -euo pipefail` macht daraus Job-Abbruch, BEVOR "Gefundene
-          # PRs" erscheint. `-X GET` zwingt die Parameter in den Query-String (so wie `gh search prs` intern
-          # macht, und wie REVIEW-FIX #6 unten) → HTTP 200. Weder `-X GET` noch die Fail-Tolerance entfernen
-          # — sie greifen ineinander.
-          search_query="repo:$REPO is:pr is:merged -label:ai:documented -label:release:ignore"
-          search_pages=$(gh api "/search/issues" -X GET -f q="$search_query" -f sort=created -f order=desc --paginate 2>/dev/null || echo '')
-          printf '%s' "$search_pages" \
-            | jq -s '[.[] | (.items // [])[]] | .[0:env.MAX_PRS | tonumber]' 2>/dev/null \
-            | jq -c '.[] | {number: .number, title: .title, head_branch: .head_ref_name, author: .user.login, labels: [.labels[].name], body: .body}' 2>/dev/null \
-            > /tmp/prs_to_process.json || true
-
-          pr_count=$(jq -s 'length' /tmp/prs_to_process.json 2>/dev/null) || pr_count=0
-          echo "📊 Gefundene PRs zur Bearbeitung: $pr_count"
-          echo "pr_count=$pr_count" >> "$GITHUB_OUTPUT"
-
-          # total_count (Gesamt-Treffer der Suche, NICHT nur der Batch) für die
-          # remaining-Arithmetik am Lauf-Ende — spart den zweiten paginierten Search-Call.
-          total_count=$(printf '%s' "$search_pages" | jq -s '[.[].total_count] | max // 0' 2>/dev/null) || total_count=0
-          echo "total_count=$total_count" >> "$GITHUB_OUTPUT"
-
-          if [ "$pr_count" -eq 0 ]; then
-            echo "🎉 Keine PRs zu bearbeiten - alle dokumentiert oder ignoriert"
-          else
-            echo "✅ Phase 0 abgeschlossen - $pr_count PRs in der Queue"
-          fi
-
-      - name: 🔄 Phase 1-6 - Process Each PR
-        id: process-prs
-        if: steps.setup.outputs.pr_count > 0
+      - name: 📝 PR-Dokumentation via Claude
+        id: claude
+        if: steps.setup.outputs.configured == 'true'
         env:
-          CONVENTIONAL_PATTERN: ${{ steps.setup.outputs.conventional_pattern }}
-          DRY_RUN: ${{ env.DRY_RUN }}
-          TOTAL_COUNT: ${{ steps.setup.outputs.total_count }}
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          PR: ${{ github.event.pull_request.number || github.event.inputs.pr-number }}
         run: |
-          set -euo pipefail
+          cat > /tmp/claude-prompt.txt << 'CLAUDE_EOF'
+          TICKET-MEMORY: Lies vor Beginn alle Dateien in .claude/ticket-memory/ (falls vorhanden) — ticketspezifisches Gedächtnis aus früheren Phasen (Spec/Implement/Review). Schreibe am ENDE deine wichtigsten Erkenntnisse (gewählte Klassifikation, Titel-Korrektur, Besonderheiten) in .claude/ticket-memory/phase-documentation.md. Max. ~30 Zeilen, nur Neues.
 
-          # BUGFIX #1: Process Substitution statt Pipe -> KEINE Subshell.
-          # Variablen (processed, summary_file etc.) überleben den Loop.
-          summary_file="/tmp/summary_results.tsv"
-          : > "$summary_file"
+          ROLLE: Du bist der PR-Documenter. Pflege Titel + Beschreibung des soeben gemergten PR #PR_NR. Du arbeitest NUR über gh (gh pr edit / gh pr comment) und änderst KEINE Dateien im Repo.
 
-          processed=0
-          skipped=0
-          title_changed=0
-          drained=0
+          INPUTS (liest selbst, nicht im Prompt wiederholen):
+            - gh pr diff #PR_NR                        (die echten Codeänderungen)
+            - gh pr view #PR_NR --json title,body,files,labels,author  (aktueller PR-Stand)
+            - verknüpftes Issue falls vorhanden: gh issue view <nr>   (Issue-Beschreibung als Kontext)
 
-          while IFS= read -r pr_json; do
-            [ -z "$pr_json" ] && continue
+          ABLAUF (STRIKT):
+            1. SOFORT starten. Diff + PR + verknüpftes Issue lesen.
+            2. BOT-ERKENNUNG: Autor Dependabot/Renovate/github-actions[bot] UND Diff nur Lockfile/Dependabot-Config?
+               → NUR ai:documented + release:ignore setzen (siehe Schritt 7), sonst nichts. Dann VERDICT: documented.
+            3. KLASSIFIKATION (genau eine): breaking | new | improved | fixed | internal — aus Diff + Titel + Issue, nicht spekulieren.
+            4. PR-TITEL: Conventional Commits prüfen (type(scope): subject, subject lowercase, <=72 Zeichen).
+               Nur wenn NICHT konform ODER der type nicht zur Klassifikation passt → via gh pr edit --title korrigieren.
+               Mapping: breaking→feat!, new→feat, improved→perf, fixed→fix, internal→chore. Scope aus der Hauptdatei.
+            5. PR-BESCHREIBUNG: NUR überschreiben/erstellen, wenn der aktuelle Body DÜNN ist (weniger als ~50 Zeichen oder praktisch leer).
+               Eine gepflegte Beschreibung (Implement/Human) bleibt UNANGETASTET. Neu: What changed + Linked issues + Type of change + deutsche <details>-Sektion.
+            6. RELEASE-NOTE-KOMMENTAR: GENAU EINEN Kommentar pflegen (vorhandenen Documenter-Kommentar mit Marker <!-- ai-documenter --> aktualisieren statt duplizieren).
+               Bei internal: "no release note". Sonst: Klassifikation + Komponente + Kernänderungen.
+            7. LABELS via gh pr edit, JE EIN EIGENER Aufruf (--add-label erwartet EINEN Wert, kein Array):
+               a) ZUERST ai:documented setzen (MUSS — Idempotät-Invariante): gh pr edit #PR_NR --add-label ai:documented
+               b) DANN release:* passend zur Klassifikation (separater, best-effort Aufruf):
+                  breaking→release:breaking-change, new→release:feature, improved→release:improvement, fixed→release:fix, internal→release:engineering.
+               Bot-PR (Schritt 2): stattdessen release:ignore.
 
-            pr_number=$(echo "$pr_json" | jq -r '.number')
-            pr_title=$(echo "$pr_json" | jq -r '.title')
-            pr_author=$(echo "$pr_json" | jq -r '.author')
-            pr_labels=$(echo "$pr_json" | jq -r '.labels | join(",")')
-            pr_body=$(echo "$pr_json" | jq -r '.body // ""')
-            pr_head_branch=$(echo "$pr_json" | jq -r '.head_branch')
+          CONSTRAINTS:
+            - KEINE Dateiänderungen (kein Write/Edit) — alles via gh.
+            - KEINE Spekulation: nur was im Diff/PR/Issue belegt ist.
+            - Conventional Commits, Mobile-First, deutsche + englische Sektion im Body.
 
-            echo ""
-            echo "============================================================"
-            echo "🔄 Bearbeite PR #$pr_number: $pr_title"
-            echo "   Autor: $pr_author | Labels: $pr_labels"
-            echo "============================================================"
+          VERDICT: GANZ AM ENDE GENAU EINE Zeile:
+            - VERDICT: documented
 
-            # ----------------------------------------------------
-            # PHASE 0b — BOT-PRS (KURZBEHANDLUNG)
-            # ----------------------------------------------------
-            is_bot=false
-            if [[ "$pr_author" == "dependabot[bot]" ]] || [[ "$pr_author" == "github-actions[bot]" ]]; then
-              pr_files=$(gh pr view "$pr_number" --repo "$REPO" --json files --jq '.files[].path' 2>/dev/null || echo "")
-              if echo "$pr_files" | grep -qE '(package-lock\.json|pnpm-lock\.yaml|yarn\.lock|renovate\.json|dependabot\.yml|\.github/dependabot)'; then
-                is_bot=true
-              fi
-            fi
+          ZEITLIMIT: Soft-Deadline = SOFT_DEADLINE. Vor jedem Schritt: [ $(date +%s) -ge SOFT_DEADLINE ]. Bei OVER: mindestens ai:documented sichern, Turn beenden.
+          CLAUDE_EOF
 
-            if [ "$is_bot" = "true" ]; then
-              echo "🤖 Bot-PR - Kurzbehandlung (nur Labels)"
-              if [ "$DRY_RUN" = "false" ]; then
-                # --add-label erwartet EINEN komma-separierten String, nicht zwei Args
-                # (BUGFIX: "release:ignore" "ai:documented" → "accepts at most 1 arg(s)").
-                gh pr edit "$pr_number" --repo "$REPO" --add-label "release:ignore,ai:documented" 2>/dev/null || true
-              fi
-              printf '%s\t%s\t%s\t%s\n' "#$pr_number" "$pr_title" "🤖 Bot" "Nein" >> "$summary_file"
-              skipped=$((skipped + 1))
-              continue
-            fi
+          sed -i "s/#PR_NR/$PR/g" /tmp/claude-prompt.txt
+          sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
 
-            # ----------------------------------------------------
-            # PHASE 1 — ÄNDERUNGEN ANALYSIEREN & KLASSEIFIZIEREN
-            # ----------------------------------------------------
-            echo "📊 Phase 1: Änderungen analysieren..."
+          ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
+            ${{ steps.setup.outputs.invoke-args }} \
+            2>&1 | tee /tmp/claude-output.log
+          test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
 
-            # BUGFIX #3: 'gh pr diff' statt 'gh pr view --json diff' (Feld existiert nicht)
-            pr_diff=$(gh pr diff "$pr_number" --repo "$REPO" 2>/dev/null || echo "")
-            # Konsolidiert: files + closingIssuesReferences in EINEM gh pr view-Aufruf (vorher 2
-            # separate Calls pro PR). closing_issues wird weiter unten (Ticket-Memory-Abbau)
-            # aus demselben pr_meta extrahiert.
-            pr_meta=$(gh pr view "$pr_number" --repo "$REPO" --json files,closingIssuesReferences 2>/dev/null || echo "{}")
-            pr_files=$(echo "$pr_meta" | jq -r '.files[].path' 2>/dev/null || echo "")
+      - name: Memory-Save (ticketspezifisch, dateibasiert)
+        # Cache nur schreiben, wenn Claude gelaufen ist (outcome == 'success').
+        if: always() && steps.setup.outputs.configured == 'true' && steps.claude.outcome == 'success'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ steps.setup.outputs.memory-path }}
+          key: ${{ steps.setup.outputs.memory-save-key }}
+          if-no-path-exists: ignore
 
-            # edit_args sammelt Titel-, Body- und Label-Beiträge für EINEN kombinierten gh pr edit-
-            # Aufruf am Ende von Phase 5 (vorher 3 separate API-Calls pro PR).
-            edit_args=()
-
-            linked_issues=$(echo "$pr_body" | grep -oE '(Closes|Fixes|Refs) #[0-9]+' || echo "")
-            if [ -z "$linked_issues" ]; then
-              issue_from_branch=$(echo "$pr_head_branch" | grep -oE '[0-9]+' | head -1 || echo "")
-              if [ -n "$issue_from_branch" ]; then
-                linked_issues="Refs #$issue_from_branch"
-              fi
-            fi
-
-            classification="internal"
-            classification_reason=""
-
-            if echo "$pr_diff" | grep -qiE '(BREAKING CHANGE|breaking change|major version|migration required|API removed|removed export|changed signature|incompatible)'; then
-              classification="breaking"; classification_reason="Breaking Change im Diff erkannt"
-            elif echo "$pr_diff" | grep -qiE '(new component|new feature|new API|export.*new|add.*component|create.*feature)'; then
-              classification="new"; classification_reason="Neue Komponente/Feature/API im Diff erkannt"
-            elif echo "$pr_diff" | grep -qiE '(fix|bug|error|crash|regression|a11y|accessibility|WCAG)'; then
-              classification="fixed"; classification_reason="Bugfix/Fehlerkorrektur/a11y-Fix im Diff erkannt"
-            elif echo "$pr_diff" | grep -qiE '(improve|enhance|optimize|performance|better UX|refactor.*public|extend.*API)'; then
-              classification="improved"; classification_reason="Verbesserung/Performance/UX-Verbesserung im Diff erkannt"
-            elif echo "$pr_diff" | grep -qiE '(test|spec|ci|workflow|lint|format|typo|doc|readme|chore|refactor.*internal|internal)'; then
-              classification="internal"; classification_reason="Interne Änderung (Tests/CI/Refactoring/Doku) erkannt"
-            else
-              if echo "$pr_title" | grep -qiE '^(feat|feature)'; then
-                classification="new"; classification_reason="Titel deutet auf Feature hin"
-              elif echo "$pr_title" | grep -qiE '^(fix|bug)'; then
-                classification="fixed"; classification_reason="Titel deutet auf Bugfix hin"
-              elif echo "$pr_title" | grep -qiE '^(perf|improve|enhance)'; then
-                classification="improved"; classification_reason="Titel deutet auf Improvement hin"
-              elif echo "$pr_title" | grep -qiE '^(refactor|style|docs|test|build|ci|chore)'; then
-                classification="internal"; classification_reason="Titel deutet auf interne Änderung hin"
-              else
-                classification="improved"; classification_reason="Kein klares Muster - konservativ als Improvement"
-              fi
-            fi
-
-            echo "📌 Klassifikation: $classification ($classification_reason)"
-
-            case "$classification" in
-              "breaking") emoji="💥"; type_label="💥 Breaking change"; release_label="release:breaking-change"; type_check="breaking" ;;
-              "new") emoji="✨"; type_label="✨ New feature"; release_label="release:feature"; type_check="feature" ;;
-              "improved") emoji="🔼"; type_label="🔼 Improvement"; release_label="release:improvement"; type_check="improvement" ;;
-              "fixed") emoji="🐛"; type_label="🐛 Bug fix"; release_label="release:fix"; type_check="bug" ;;
-              "internal") emoji="🔧"; type_label="🔧 Internal (no release note needed)"; release_label="release:engineering"; type_check="internal" ;;
-            esac
-
-            # ----------------------------------------------------
-            # PHASE 2 — PR-TITEL VALIDIEREN UND NEU SCHREIBEN
-            # ----------------------------------------------------
-            echo "✏️ Phase 2: PR-Titel validieren..."
-
-            old_title="$pr_title"
-            title_changed_flag="Nein"
-            new_title="$pr_title"
-
-            if echo "$pr_title" | grep -qE "$CONVENTIONAL_PATTERN"; then
-              subject=$(echo "$pr_title" | sed -E 's/^[^:]+: //')
-              if echo "$subject" | grep -qE '^[A-Z]'; then
-                title_valid=false
-              else
-                title_valid=true
-              fi
-            else
-              title_valid=false
-            fi
-
-            title_type=$(echo "$pr_title" | sed -E 's/^([^(:]+).*/\1/' | tr '[:upper:]' '[:lower:]')
-            type_matches=false
-            case "$classification" in
-              "breaking") [[ "$title_type" =~ ^(feat|fix|refactor|perf|breaking) ]] && type_matches=true ;;
-              "new") [[ "$title_type" =~ ^(feat|feature) ]] && type_matches=true ;;
-              "improved") [[ "$title_type" =~ ^(feat|perf|improve|refactor) ]] && type_matches=true ;;
-              "fixed") [[ "$title_type" =~ ^(fix|bug) ]] && type_matches=true ;;
-              "internal") [[ "$title_type" =~ ^(refactor|style|docs|test|build|ci|chore) ]] && type_matches=true ;;
-            esac
-
-            if [ "$title_valid" = "false" ] || [ "$type_matches" = "false" ]; then
-              scope=""
-              # BUGFIX #532 (rote Spec-PR, exit 1 in Phase 2): Eine reine Test-/Spec-PR liefert NUR
-              # Pfade mit 'test'/'spec'/'.md'/'.yml' — `grep -vE` filtert dann ALLES heraus → grep-
-              # Exit 1 → unter `set -euo pipefail` bricht die Command-Substitution den Job direkt
-              # nach „Phase 2: PR-Titel validieren...". `|| true` macht die Pipeline fail-tolerant;
-              # main_file wird leer, der nachfolgende `[ -n "$main_file" ]`-Block setzt scope="".
-              main_file=$(echo "$pr_files" | grep -vE '(test|spec|\.md$|\.yml$|\.yaml$)' | head -1 || true)
-              if [ -n "$main_file" ]; then
-                if echo "$main_file" | grep -qE 'server/src/'; then
-                  scope=$(echo "$main_file" | sed -E 's#.*server/src/([^/]+)/.*#\1#')
-                elif echo "$main_file" | grep -qE 'frontend/src/'; then
-                  scope=$(echo "$main_file" | sed -E 's#.*frontend/src/([^/]+)/.*#\1#')
-                elif echo "$main_file" | grep -qE '\.github/'; then
-                  scope="ci"
-                fi
-              fi
-
-              subject_base=$(echo "$pr_title" | sed -E 's/^[^:]+: //' | sed -E 's/^[A-Z]/\L&/')
-              if [ ${#subject_base} -gt 72 ]; then
-                subject_base="$(echo "$subject_base" | cut -c1-69)..."
-              fi
-
-              case "$classification" in
-                "breaking") new_type="feat" ;;
-                "new") new_type="feat" ;;
-                "improved") new_type="perf" ;;
-                "fixed") new_type="fix" ;;
-                "internal") new_type="chore" ;;
-              esac
-
-              if [ -n "$scope" ]; then
-                new_title="$new_type($scope): $subject_base"
-              else
-                new_title="$new_type: $subject_base"
-              fi
-
-              echo "🔄 Neuer Titel: $new_title"
-              edit_args+=(--title "$new_title")
-              title_changed_flag="Ja"
-              title_changed=$((title_changed + 1))
-            else
-              echo "✅ Titel konform - keine Änderung"
-            fi
-
-            # ----------------------------------------------------
-            # PHASE 3 — PR-BESCHREIBUNG AKTUALISIEREN
-            # ----------------------------------------------------
-            echo "📝 Phase 3: PR-Beschreibung aktualisieren..."
-
-            file_count=$(echo "$pr_files" | wc -l | tr -d ' ')
-            files_summary=$(echo "$pr_files" | head -5 | sed 's/^/- /')
-
-            # BUGFIX #2: Temp-Datei mit echten Zeilenumbrüchen (echo) statt \n-Strings.
-            #            Bash interpretiert \n in doppelten Anführungszeichen NICHT als newline.
-            body_file="/tmp/pr_${pr_number}_body.md"
-            {
-              echo '## What changed?'
-              echo ''
-              echo "This PR modifies **$file_count file(s)** across the codebase."
-              echo ''
-              echo '**Core technical changes:**'
-              echo "$files_summary"
-              echo ''
-              echo "**Classification rationale:** $classification_reason"
-              echo ''
-              echo '## Linked issues'
-              echo ''
-              if [ -n "$linked_issues" ]; then
-                echo "$linked_issues" | sed 's/^/- /'
-              else
-                echo 'No linked issues.'
-              fi
-              echo ''
-              echo '## Type of change'
-              echo ''
-              echo '- [ ] ✨ New feature'
-              echo '- [ ] 🔼 Improvement'
-              echo '- [ ] 🐛 Bug fix'
-              echo '- [ ] 💥 Breaking change'
-              echo "- [x] $type_check"
-              echo ''
-              echo '## Checklist'
-              echo ''
-              echo '- [x] PR title follows Conventional Commits format'
-              echo '- [x] Linked issues are referenced'
-              echo '- [x] Breaking changes are documented'
-              echo ''
-              echo '---'
-              echo ''
-              echo '<details>'
-              echo '<summary>🇩🇪 Deutsche Zusammenfassung</summary>'
-              echo ''
-              echo '### Was wurde geändert?'
-              echo ''
-              echo "Dieser PR ändert **$file_count Datei(en)** im Codebase."
-              echo ''
-              echo '**Kerntechnische Änderungen:**'
-              echo "$files_summary"
-              echo ''
-              echo "**Klassifikationsbegründung:** $classification_reason"
-              echo ''
-              echo '### Verknüpfte Tickets'
-              echo ''
-              if [ -n "$linked_issues" ]; then
-                echo "$linked_issues" | sed 's/Closes /Schließt /; s/Fixes /Behebt /; s/Refs /Referenziert /' | sed 's/^/- /'
-              else
-                echo 'Keine verknüpften Tickets.'
-              fi
-              echo ''
-              echo '### Art der Änderung'
-              echo ''
-              echo "$type_label"
-              echo ''
-              echo '### Geänderte Dateien'
-              echo ''
-              echo "$pr_files" | head -8 | while IFS= read -r f; do
-                case "$f" in
-                  *.tsx|*.ts) desc="Komponenten-/Logik-Änderung" ;;
-                  *.css|*.scss) desc="Styling-Änderung" ;;
-                  *.md) desc="Dokumentations-Update" ;;
-                  *.yml|*.yaml) desc="Konfigurations-Änderung" ;;
-                  *.json) desc="Konfigurations-/Daten-Änderung" ;;
-                  *) desc="Änderung" ;;
-                esac
-                echo "- \`$f\` — $desc"
-              done
-              echo ''
-              echo '</details>'
-            } > "$body_file"
-
-            # Body nur anwenden, wenn bestehend leer/duenn ist — eine vom Implement-Workflow oder
-            # Human gepflegte Description bleibt erhalten (vorher immer mit Template ueberschrieben).
-            if [ "${#pr_body}" -lt 50 ]; then
-              edit_args+=(--body-file "$body_file")
-            else
-              echo "✅ Beschreibung bereits vorhanden (${#pr_body} Zeichen) - erhalten, Template nicht angewendet"
-            fi
-
-            # ----------------------------------------------------
-            # PHASE 4 — RELEASE-NOTE-KOMMENTAR POSTEN
-            # ----------------------------------------------------
-            echo "💬 Phase 4: Release-Note-Kommentar posten..."
-
-            component_area=$(echo "$pr_files" | head -1 | sed -E 's#.*/(src/)?([^/]+)/.*#\2#' | sed 's/\..*//' || echo "repository")
-            if [ -z "$component_area" ] || [ "$component_area" = "$pr_files" ]; then
-              component_area="repository"
-            fi
-
-            comment_file="/tmp/pr_${pr_number}_comment.md"
-            {
-              if [ "$classification" = "internal" ]; then
-                echo '🤖 **Internal change — no release note required.**'
-                echo ''
-                echo 'This change only affects internal aspects (tests / CI / refactoring / documentation)'
-                echo 'and has no direct user impact.'
-                echo ''
-                echo '<details>'
-                echo '<summary>Analysed changes</summary>'
-                echo ''
-                echo "$pr_files" | head -10 | sed 's/^/- /'
-                echo ''
-                echo "**Classification reason:** $classification_reason"
-                echo ''
-                echo '</details>'
-              else
-                echo '🤖 **Release note draft**'
-                echo ''
-                echo "**[$emoji ${classification^}]** — \`$component_area\`"
-                echo ''
-                echo "This PR modifies **$file_count file(s)** across the codebase."
-                echo ''
-                echo '**Core technical changes:**'
-                echo "$files_summary"
-                echo ''
-                echo "**Classification rationale:** $classification_reason"
-                if [ "$classification" = "breaking" ]; then
-                  echo ''
-                  echo '> ⚠️ **Migration required:** Consumers need to adapt to the changed API/behavior.'
-                fi
-                if [ "$title_changed_flag" = "Ja" ]; then
-                  echo ''
-                  echo '---'
-                  echo "> 📝 **Title corrected:** \`$old_title\` → \`$new_title\`"
-                  echo '> Reason: Title did not comply with Conventional Commits format.'
-                fi
-              fi
-              echo ''
-              echo '---'
-              echo '*Generated by PR Documentation Routine · [ai:documented]*'
-              echo ''
-              echo '---'
-              echo '_Generated by [Claude Code](https://claude.ai/code)_'
-            } > "$comment_file"
-
-            if [ "$DRY_RUN" = "false" ]; then
-              gh pr comment "$pr_number" --repo "$REPO" --body-file "$comment_file"
-              echo "✅ Release-Note-Kommentar gepostet"
-            fi
-
-            # ----------------------------------------------------
-            # PHASE 5 — LABEL SETZEN
-            # ----------------------------------------------------
-            echo "🏷️ Phase 5: Labels setzen..."
-
-            has_release_label="false"
-            if echo "$pr_labels" | grep -q 'release:'; then
-              has_release_label="true"
-            fi
-
-            if [ "$has_release_label" = "false" ]; then
-              echo "📌 Setze release-Label: $release_label"
-            else
-              echo "📌 release:* Label bereits vorhanden"
-            fi
-
-            # ai:documented ist die Idempotenz-Invariante — MUSS gesetzt werden, sonst
-            # bearbeitet der Workflow den PR im nächsten Lauf wieder. release:* ist optional.
-            # Deshalb: ai:documented im kombinierten Call (garantiert durch Phase 0),
-            # release:* separat und best-effort (|| true), damit ein fehlendes Release-Label
-            # nicht ai:documented mitreißt.
-            edit_args+=(--add-label "ai:documented")
-
-            # Kombinierter gh pr edit-Aufruf: Titel + Body + ai:documented in einem Call.
-            if [ "$DRY_RUN" = "false" ]; then
-              gh pr edit "$pr_number" --repo "$REPO" "${edit_args[@]}"
-              echo "✅ PR aktualisiert (Titel/Body/ai:documented): ${edit_args[*]}"
-            fi
-
-            # Release-Label best-effort nachsetzen (separat, damit es nicht blockiert).
-            if [ "$has_release_label" = "false" ] && [ "$DRY_RUN" = "false" ]; then
-              gh pr edit "$pr_number" --repo "$REPO" --add-label "$release_label" 2>/dev/null \
-                && echo "✅ Release-Label gesetzt: $release_label" \
-                || echo "⚠️ Release-Label '$release_label' konnte nicht gesetzt werden — übersprungen"
-            fi
-
-            # PHASE 6 — Summary (subshell-safe via Temp-File)
-            printf '%s\t%s\t%s\t%s\n' "#$pr_number" "$pr_title" "$emoji ${classification^}" "$title_changed_flag" >> "$summary_file"
-
-            # ----------------------------------------------------
-            # TICKET-MEMORY ABBAUEN — Caches des gemergten Tickets loeschen
-            # ----------------------------------------------------
-            # Die Claude-Phasen 01-05 schreiben pro Issue nach .claude/ticket-memory/ und
-            # persistieren das unter Key ticket-{issue-number}-* (s. setup-claude action,
-            # memory-save-key). Nach Merge ist der Memory stale -> abbauen. Issue-Aufloesung wie
-            # setup-claude: Closing-Issue, sonst PR-Nummer als Fallback (passt zum Cache-Key).
-            # Best-Effort (|| true): ein fehlgeschlagener Delete darf den Lauf nicht abbrechen.
-            echo "🧹 Ticket-Memory abbauen..."
-            # closing_issue aus dem bereits in Phase 1 geholten pr_meta extrahieren
-            # (vorher ein 2. separater gh pr view-Aufruf pro PR).
-            closing_issue=$(echo "$pr_meta" | jq -r '[.closingIssuesReferences[].number] | first // empty' 2>/dev/null || true)
-            for ref in "$closing_issue" "$pr_number"; do
-              if [ -z "$ref" ] || [ "$ref" = "null" ]; then continue; fi
-              if [ "$DRY_RUN" = "false" ]; then
-                while IFS= read -r cid; do
-                  [ -z "$cid" ] && continue
-                  gh cache delete "$cid" --repo "$REPO" 2>/dev/null && drained=$((drained + 1)) || true
-                done < <(gh cache list --repo "$REPO" --key "ticket-${ref}-" --json id --jq '.[].id' 2>/dev/null || true)
-              fi
-            done
-            if [ "$DRY_RUN" = "false" ]; then
-              echo "   🗑️ Ticket-Memory für PR #$pr_number abgebaut (Closing-Issue: ${closing_issue:-keine})"
-            else
-              echo "   🧪 Ticket-Memory-Abbau übersprungen (DRY_RUN; Closing-Issue: ${closing_issue:-keine})"
-            fi
-
-            processed=$((processed + 1))
-            echo "✅ PR #$pr_number vollständig bearbeitet"
-
-          # REVIEW-FIX #7: Datei ist NDJSON (jq -c '.[] | {...}' erzeugt Zeile-pro-PR).
-          # jq -c '.[]' wuerde ueber die Values jedes Objekts iterieren (number, title, ...),
-          # nicht ueber die PR-Objekte. Richtig: jq -c '.' gibt jedes Objekt als ganze Zeile aus.
-          done < <(jq -c '.' /tmp/prs_to_process.json)
-
-          # Summary aus Temp-File lesen
-          {
-            echo "## ✅ PR-Dokumentations-Routine abgeschlossen"
-            echo ""
-            echo "Bearbeitete PRs: $processed | Übersprungene Bot-PRs: $skipped | Titel geändert: $title_changed | Memory-Caches abgebaut: $drained"
-            echo ""
-            echo "| PR | Titel | Klassifikation | Titel geändert? |"
-            echo "|----|-------|---------------|-----------------|"
-            while IFS=$'\t' read -r pr_num title class title_chg; do
-              echo "| $pr_num | $title | $class | $title_chg |"
-            done < "$summary_file"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-          # Verbleibende un-dokumentierte PRs aus Arithmetik (kein zweiter paginierter Search-Call):
-          # total_count (Phase-0-Suche) minus die in diesem Lauf bearbeiteten (processed + skipped).
-          # Ohne zweite Suche entfällt die letzte Rate-Limit-/null-items-Fehlerquelle.
-          remaining=$(( TOTAL_COUNT - processed - skipped ))
-          [ "$remaining" -lt 0 ] && remaining=0
-          echo "Verbleibende un-dokumentierte PRs: $remaining"
-
-      - name: 📋 Final Summary
-        if: always()
+      - name: 🏷️ Label-Post-Assertion (ai:documented muss am PR hängen)
+        # Erfolgskriterium des Documenter ist nicht ein Review-Verdict, sondern dass ai:documented
+        # am PR hängt. Fehlt es (auch nach Retry für API-Replikationsverzögerung) → harter Fehler:
+        # Claude hat vermutlich nicht gearbeitet. release:* bleibt best-effort (|| true).
+        if: always() && steps.setup.outputs.configured == 'true' && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure')
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
         run: |
-          echo "🏁 PR Post-Merge Documentation Workflow abgeschlossen"
-          if [ "${{ steps.process-prs.outcome }}" = "skipped" ]; then
-            echo "Keine PRs zur Bearbeitung gefunden"
+          documented="false"
+          for attempt in 1 2 3 4; do
+            if gh pr view "$PR" --repo "$REPO" --json labels \
+              --jq '[.labels[].name] | any(. == "ai:documented")' 2>/dev/null | grep -q true; then
+              documented="true"
+              break
+            fi
+            [ "$attempt" -lt 4 ] && sleep "$attempt"
+          done
+          if [ "$documented" != "true" ]; then
+            echo "::error title=❌ Documenter ohne ai:documented::PR #$PR hat nach Claudes Lauf kein ai:documented-Label — Claude hat vermutlich nicht gearbeitet."
+            exit 1
           fi
+          echo "::notice title=✅ Dokumentation abgeschlossen::PR #$PR — ai:documented gesetzt."
+
+      - name: 🧹 Ticket-Memory abbauen (deterministisch)
+        # Die Claude-Phasen 01-05 schreiben pro Issue nach .claude/ticket-memory/ und persistieren
+        # das unter Key ticket-{issue-number}-* (s. setup-claude action, memory-save-key). Nach Merge
+        # ist dieser Memory stale -> abbauen. Issue-Auflösung wie setup-claude: Closing-Issue, sonst
+        # PR-Nummer als Fallback. Best-Effort: ein fehlgeschlagener Delete darf den Lauf nicht abbrechen.
+        if: always() && steps.setup.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+        run: |
+          closing_issue="$(gh pr view "$PR" --repo "$REPO" --json closingIssuesReferences \
+            --jq '[.closingIssuesReferences[].number] | first' 2>/dev/null || true)"
+          for ref in "$closing_issue" "$PR"; do
+            if [ -z "$ref" ] || [ "$ref" = "null" ]; then continue; fi
+            while IFS= read -r cid; do
+              [ -z "$cid" ] && continue
+              gh cache delete "$cid" --repo "$REPO" 2>/dev/null && echo "🗑️ Cache $cid gelöscht" || true
+            done < <(gh cache list --repo "$REPO" --key "ticket-${ref}-" --json id --jq '.[].id' 2>/dev/null || true)
+          done
+          exit 0
+
+      - name: 📋 Ergebnis zusammenfassen
+        if: always() && steps.setup.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          OUTCOME: ${{ steps.claude.outcome }}
+        run: |
+          labels="$(gh pr view "$PR" --repo "$REPO" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
+          if [ "$OUTCOME" = "success" ]; then
+            echo "::notice title=✅ Documenter erfolgreich::PR #$PR"
+          elif [ "$OUTCOME" = "cancelled" ]; then
+            echo "::warning title=⏸️ Documenter abgebrochen::PR #$PR"
+          else
+            echo "::error title=❌ Documenter fehlgeschlagen::PR #$PR"
+          fi
+          {
+            echo "### PR-Documenter #$PR"
+            echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\`"
+            echo "- Labels: ${labels:-keine}"
+          } >> "$GITHUB_STEP_SUMMARY"
