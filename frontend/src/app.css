@@ -376,37 +376,16 @@ body {
 	margin-left: 0.5rem;
 }
 
-/* --- Aufgaben-Liste (expandierbarer Baum, #238) --- */
+/* --- Aufgaben-Liste (flache Blatt-Liste, #537) --- */
 /* Rundum ohne feste Breiten, damit die Liste auf Mobilbreite ohne horizontales Scrollen umbricht. */
-.task-tree,
-.task-tree .task-tree-children {
+.task-list {
 	list-style: none;
 	margin: 0;
 	padding: 0;
-}
-
-.task-tree {
-	/*
-	 * Eine Quelle für die Aufklapp-Button-Breite und den Header-Gap: Sowohl der Blatt-Platzhalter
-	 * als auch die optische Einrückung der Controls-Zeile (#376) leiten sich hieraus ab, damit die
-	 * beiden Werte nicht unbemerkt auseinanderdriften.
-	 */
-	--task-tree-toggle-width: 1.75rem;
 	--task-tree-row-gap: 0.5rem;
 }
 
-.task-tree .task-tree-children {
-	/* Mobile-First: reduzierte Einrückung auf schmalen Viewports (360px), Desktop per min-width. */
-	padding-left: 0.75rem;
-}
-
-@media (min-width: 600px) {
-	.task-tree .task-tree-children {
-		padding-left: 1.25rem;
-	}
-}
-
-.task-tree-item {
+.task-list-item {
 	margin: 0.25rem 0;
 	min-width: 0;
 }
@@ -449,13 +428,6 @@ body {
 	.task-tree-row-controls {
 		flex-wrap: nowrap;
 	}
-}
-
-.task-tree-toggle-placeholder {
-	display: inline-block;
-	flex-shrink: 0;
-	/* Platzhalter in Breite des Aufklapp-Buttons, damit Blätter bündig zu Knoten mit Symbol stehen. */
-	width: var(--task-tree-toggle-width);
 }
 
 .task-tree-title {
