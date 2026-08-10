@@ -63,15 +63,40 @@ jobs:
           echo "📋 Phase 0: Vorbereitung gestartet"
           echo "Repository: $REPO | Max PRs: $MAX_PRS | Dry Run: $DRY_RUN"
 
-          # 0.1 Prüfen/Erstellen Label ai:documented
-          if gh label list --repo "$REPO" --json name | jq -r '.[].name' | grep -qx 'ai:documented'; then
-            echo "✅ Label 'ai:documented' existiert bereits"
+          # 0.1 Prüfen/Erstellen aller Labels, die der Workflow setzt.
+          # ai:documented + die fünf release:*-Labels aus Phase 5. gh pr edit --add-label bricht
+          # hart ab ("X not found"), wenn ein Label fehlt — also hier sicherstellen, dass alle
+          # existieren. create_label() ist idempotent (vorhandene werden übersprungen).
+          # Bestehende Labels einmal je Workflow-Run abrufen (statt pro create_label) — 1 API-Call
+          # statt 7. fetch_ok markiert nur erfolgreiche Abrufe als autoritativ: schlägt der Fetch
+          # fehl (transienter gh-Ausfall), überspringt create_label die Erstellung, statt unter
+          # `set -euo pipefail` bereits existierende Labels neu anlegen zu wollen (HTTP 422 → Crash).
+          if existing="$(gh label list --repo "$REPO" --json name | jq -r '.[].name')"; then
+            fetch_ok=1
           else
-            echo "📝 Erstelle Label 'ai:documented'..."
-            if [ "$DRY_RUN" = "false" ]; then
-              gh label create "ai:documented" --repo "$REPO" --color 0075ca --description "Automatically documented by AI"
-            fi
+            existing=""
+            fetch_ok=0
+            echo "⚠️ Label-Liste nicht abrufbar — überspringe Erstellung (idempotent, kein Crash)."
           fi
+          create_label() {
+            local name="$1" color="$2" desc="$3"
+            if [ "$fetch_ok" = "0" ]; then
+              echo "⏭️ Label '$name': Abruf war nicht autoritativ, überspringe Erstellung."
+              return 0
+            elif grep -qx "$name" <<<"$existing"; then
+              echo "✅ Label '$name' existiert bereits"
+            elif [ "$DRY_RUN" = "false" ]; then
+              echo "📝 Erstelle Label '$name'..."
+              gh label create "$name" --repo "$REPO" --color "$color" --description "$desc"
+            fi
+          }
+          create_label "ai:documented" 0075ca "Automatically documented by AI"
+          create_label "release:feature" a2eeef "New feature"
+          create_label "release:fix" d73a4a "Bug fix"
+          create_label "release:improvement" a2eeef "Improvement"
+          create_label "release:breaking-change" b60205 "Breaking change"
+          create_label "release:engineering" cfd3d7 "Internal (no release note)"
+          create_label "release:ignore" cfd3d7 "Ignored by release pipeline"
 
           # 0.2 Conventional Commits Pattern (Standard, da pr-title-validation.yml nicht existiert)
           echo "conventional_pattern=^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?: .+" >> "$GITHUB_OUTPUT"
@@ -104,6 +129,11 @@ jobs:
           echo "📊 Gefundene PRs zur Bearbeitung: $pr_count"
           echo "pr_count=$pr_count" >> "$GITHUB_OUTPUT"
 
+          # total_count (Gesamt-Treffer der Suche, NICHT nur der Batch) für die
+          # remaining-Arithmetik am Lauf-Ende — spart den zweiten paginierten Search-Call.
+          total_count=$(printf '%s' "$search_pages" | jq -s '[.[].total_count] | max // 0' 2>/dev/null) || total_count=0
+          echo "total_count=$total_count" >> "$GITHUB_OUTPUT"
+
           if [ "$pr_count" -eq 0 ]; then
             echo "🎉 Keine PRs zu bearbeiten - alle dokumentiert oder ignoriert"
           else
@@ -116,6 +146,7 @@ jobs:
         env:
           CONVENTIONAL_PATTERN: ${{ steps.setup.outputs.conventional_pattern }}
           DRY_RUN: ${{ env.DRY_RUN }}
+          TOTAL_COUNT: ${{ steps.setup.outputs.total_count }}
         run: |
           set -euo pipefail
 
@@ -159,7 +190,9 @@ jobs:
             if [ "$is_bot" = "true" ]; then
               echo "🤖 Bot-PR - Kurzbehandlung (nur Labels)"
               if [ "$DRY_RUN" = "false" ]; then
-                gh pr edit "$pr_number" --repo "$REPO" --add-label "release:ignore" "ai:documented" 2>/dev/null || true
+                # --add-label erwartet EINEN komma-separierten String, nicht zwei Args
+                # (BUGFIX: "release:ignore" "ai:documented" → "accepts at most 1 arg(s)").
+                gh pr edit "$pr_number" --repo "$REPO" --add-label "release:ignore,ai:documented" 2>/dev/null || true
               fi
               printf '%s\t%s\t%s\t%s\n' "#$pr_number" "$pr_title" "🤖 Bot" "Nein" >> "$summary_file"
               skipped=$((skipped + 1))
@@ -173,7 +206,15 @@ jobs:
 
             # BUGFIX #3: 'gh pr diff' statt 'gh pr view --json diff' (Feld existiert nicht)
             pr_diff=$(gh pr diff "$pr_number" --repo "$REPO" 2>/dev/null || echo "")
-            pr_files=$(gh pr view "$pr_number" --repo "$REPO" --json files --jq '.files[].path' 2>/dev/null || echo "")
+            # Konsolidiert: files + closingIssuesReferences in EINEM gh pr view-Aufruf (vorher 2
+            # separate Calls pro PR). closing_issues wird weiter unten (Ticket-Memory-Abbau)
+            # aus demselben pr_meta extrahiert.
+            pr_meta=$(gh pr view "$pr_number" --repo "$REPO" --json files,closingIssuesReferences 2>/dev/null || echo "{}")
+            pr_files=$(echo "$pr_meta" | jq -r '.files[].path' 2>/dev/null || echo "")
+
+            # edit_args sammelt Titel-, Body- und Label-Beiträge für EINEN kombinierten gh pr edit-
+            # Aufruf am Ende von Phase 5 (vorher 3 separate API-Calls pro PR).
+            edit_args=()
 
             linked_issues=$(echo "$pr_body" | grep -oE '(Closes|Fixes|Refs) #[0-9]+' || echo "")
             if [ -z "$linked_issues" ]; then
@@ -288,9 +329,7 @@ jobs:
               fi
 
               echo "🔄 Neuer Titel: $new_title"
-              if [ "$DRY_RUN" = "false" ]; then
-                gh pr edit "$pr_number" --repo "$REPO" --title "$new_title"
-              fi
+              edit_args+=(--title "$new_title")
               title_changed_flag="Ja"
               title_changed=$((title_changed + 1))
             else
@@ -383,9 +422,12 @@ jobs:
               echo '</details>'
             } > "$body_file"
 
-            if [ "$DRY_RUN" = "false" ]; then
-              gh pr edit "$pr_number" --repo "$REPO" --body-file "$body_file"
-              echo "✅ PR-Beschreibung aktualisiert"
+            # Body nur anwenden, wenn bestehend leer/duenn ist — eine vom Implement-Workflow oder
+            # Human gepflegte Description bleibt erhalten (vorher immer mit Template ueberschrieben).
+            if [ "${#pr_body}" -lt 50 ]; then
+              edit_args+=(--body-file "$body_file")
+            else
+              echo "✅ Beschreibung bereits vorhanden (${#pr_body} Zeichen) - erhalten, Template nicht angewendet"
             fi
 
             # ----------------------------------------------------
@@ -459,17 +501,30 @@ jobs:
               has_release_label="true"
             fi
 
-            labels_to_add=("ai:documented")
             if [ "$has_release_label" = "false" ]; then
-              labels_to_add+=("$release_label")
               echo "📌 Setze release-Label: $release_label"
             else
               echo "📌 release:* Label bereits vorhanden"
             fi
 
+            # ai:documented ist die Idempotenz-Invariante — MUSS gesetzt werden, sonst
+            # bearbeitet der Workflow den PR im nächsten Lauf wieder. release:* ist optional.
+            # Deshalb: ai:documented im kombinierten Call (garantiert durch Phase 0),
+            # release:* separat und best-effort (|| true), damit ein fehlendes Release-Label
+            # nicht ai:documented mitreißt.
+            edit_args+=(--add-label "ai:documented")
+
+            # Kombinierter gh pr edit-Aufruf: Titel + Body + ai:documented in einem Call.
             if [ "$DRY_RUN" = "false" ]; then
-              gh pr edit "$pr_number" --repo "$REPO" --add-label "${labels_to_add[@]}"
-              echo "✅ Labels gesetzt: ${labels_to_add[*]}"
+              gh pr edit "$pr_number" --repo "$REPO" "${edit_args[@]}"
+              echo "✅ PR aktualisiert (Titel/Body/ai:documented): ${edit_args[*]}"
+            fi
+
+            # Release-Label best-effort nachsetzen (separat, damit es nicht blockiert).
+            if [ "$has_release_label" = "false" ] && [ "$DRY_RUN" = "false" ]; then
+              gh pr edit "$pr_number" --repo "$REPO" --add-label "$release_label" 2>/dev/null \
+                && echo "✅ Release-Label gesetzt: $release_label" \
+                || echo "⚠️ Release-Label '$release_label' konnte nicht gesetzt werden — übersprungen"
             fi
 
             # PHASE 6 — Summary (subshell-safe via Temp-File)
@@ -484,8 +539,9 @@ jobs:
             # setup-claude: Closing-Issue, sonst PR-Nummer als Fallback (passt zum Cache-Key).
             # Best-Effort (|| true): ein fehlgeschlagener Delete darf den Lauf nicht abbrechen.
             echo "🧹 Ticket-Memory abbauen..."
-            closing_issue=$(gh pr view "$pr_number" --repo "$REPO" --json closingIssuesReferences \
-              --jq '[.closingIssuesReferences[].number] | first' 2>/dev/null || true)
+            # closing_issue aus dem bereits in Phase 1 geholten pr_meta extrahieren
+            # (vorher ein 2. separater gh pr view-Aufruf pro PR).
+            closing_issue=$(echo "$pr_meta" | jq -r '[.closingIssuesReferences[].number] | first // empty' 2>/dev/null || true)
             for ref in "$closing_issue" "$pr_number"; do
               if [ -z "$ref" ] || [ "$ref" = "null" ]; then continue; fi
               if [ "$DRY_RUN" = "false" ]; then
@@ -522,9 +578,11 @@ jobs:
             done < "$summary_file"
           } >> "$GITHUB_STEP_SUMMARY"
 
-          # REVIEW-FIX #6: jq -s 'add | length' zählt Object-Keys (3) statt PRs.
-          # Gleicher Bug wie #4 — items-Array extrahieren, dann length.
-          remaining=$(gh api "/search/issues" -X GET -f q="repo:$REPO is:pr is:merged -label:ai:documented -label:release:ignore" -f sort=created -f order=desc --paginate 2>/dev/null | jq -s '[.[] | .items[]] | length')
+          # Verbleibende un-dokumentierte PRs aus Arithmetik (kein zweiter paginierter Search-Call):
+          # total_count (Phase-0-Suche) minus die in diesem Lauf bearbeiteten (processed + skipped).
+          # Ohne zweite Suche entfällt die letzte Rate-Limit-/null-items-Fehlerquelle.
+          remaining=$(( TOTAL_COUNT - processed - skipped ))
+          [ "$remaining" -lt 0 ] && remaining=0
           echo "Verbleibende un-dokumentierte PRs: $remaining"
 
       - name: 📋 Final Summary

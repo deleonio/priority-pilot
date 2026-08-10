@@ -133,8 +133,9 @@ jobs:
           ISSUE: ${{ github.event.issue.number }}
         run: |
           verdict=""
-          if [ -f /tmp/claude-output.log ]; then
-            verdict="$(grep -oP 'VERDICT:\s*\K.*' /tmp/claude-output.log | tail -1 | tr -d '[:space:]' || true)"
+          LOG=/tmp/claude-output.log
+          if [ -f "$LOG" ]; then
+            verdict="$(grep -oP 'VERDICT:\s*\K.*' "$LOG" | tail -1 | tr -d '[:space:]' || true)"
           fi
           echo "Claude-Verdict aus Output: '${verdict:-keins}'"
 
@@ -153,24 +154,14 @@ jobs:
             exit 1
           fi
 
-          if [ "$verdict" = "spec-ready" ]; then
-            if [ "$HAS_AK" = "true" ]; then
-              final="spec-ready"
-            else
-              final="analyzed"
-            fi
-          elif [ "$verdict" = "analyzed" ]; then
-            if [ "$HAS_AK" = "true" ]; then
-              final="spec-ready"
-            else
-              final="analyzed"
-            fi
+          # VERDICT ist autoritativ für die Phasen-Freigabe (Issue #538):
+          #   spec-ready (🟢) + AK vorhanden → Freigabe in die Spec-Stufe
+          #   analyzed (🟡/🔴) oder leer/ungültig → beim Menschen bleiben (fail-safe)
+          # HAS_AK wirkt nur als zusätzlicher Guard, nie als alleiniger Promoter.
+          if [ "$verdict" = "spec-ready" ] && [ "$HAS_AK" = "true" ]; then
+            final="spec-ready"
           else
-            if [ "$HAS_AK" = "true" ]; then
-              final="spec-ready"
-            else
-              final="analyzed"
-            fi
+            final="analyzed"
           fi
 
           gh label create "ai:analyzed" --color 0E8A16 2>/dev/null || true
