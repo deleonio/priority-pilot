@@ -193,7 +193,7 @@ jobs:
         # Cache nur schreiben, wenn Claude gelaufen ist (s. workflow-invariants-Test: das
         # outcome-Binding hält diesen Step im Guard-Skip-Fall indirekt heraus).
         if: always() && steps.setup.outputs.configured == 'true' && steps.claude.outcome == 'success'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ${{ steps.setup.outputs.memory-path }}
           key: ${{ steps.setup.outputs.memory-save-key }}
