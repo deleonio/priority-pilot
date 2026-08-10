@@ -221,7 +221,7 @@ test.describe('#431 Säulen-Verwaltung — dynamische Grenzfälle', () => {
 	/**
 	 * AK4 — Mobile-First (Pflicht): Die Säulen-Verwaltung ist bei 375×812 (iPhone X) ohne
 	 * horizontales Scrollen bedienbar — auch mit mehreren Säulen. Muster wie `login.spec.ts` AK5
-	 * / `task-tree-mobile-360.spec.ts` (`element.scrollWidth <= window.innerWidth`).
+	 * (`element.scrollWidth <= window.innerWidth`).
 	 */
 	test('AK4: Mobile-First — kein horizontales Scrollen bei 375×812 mit vielen Säulen', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });

@@ -95,7 +95,7 @@ test.describe('#271 Settings-Seite: Tabs Allgemein + Säulen', () => {
 	/**
 	 * AK5 — Mobile-First (375px): Auf einem 375px-Viewport verursacht die Settings-Seite
 	 * mit Tabs kein horizontales Scrollen; beide Tabs sind sichtbar und bedienbar.
-	 * Muster: login.spec.ts AK5 / task-tree.spec.ts AK-6.
+	 * Muster: login.spec.ts AK5.
 	 */
 	test('AK5: Settings-Tabs verursachen kein horizontales Scrollen bei 375px (Mobile-First)', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });

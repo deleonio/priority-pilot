@@ -64,7 +64,7 @@ test.describe('Priority Pilot — funktionale CRUD-Specs gegen das echte Backend
 		const title = uniqueTitle('Anlegen');
 		await createTaskViaUi(page, title);
 
-		// Sobald ein Task existiert, erscheint die Tab-Leiste; in der Task-Liste ist der Titel direkt
+		// Sobald ein Task existiert, erscheint die Tab-Leiste; in der Aufgabenliste ist der Titel direkt
 		// als Textinhalt des span.task-tree-title sichtbar.
 		await openTasksTab(page);
 		await expect(page.getByText(title, { exact: true })).toBeVisible();

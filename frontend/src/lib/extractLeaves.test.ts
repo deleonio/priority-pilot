@@ -25,7 +25,7 @@ describe('extractLeaves (#537)', () => {
 	it('AK1: liefert ausschließlich Blätter (dependents.length === 0) — Eltern fallen weg', () => {
 		const forest = [node(1, 'Eltern', 5, [node(2, 'Blatt', 3)]), node(3, 'Solo-Blatt', 4)];
 		const leaves = extractLeaves(forest);
-		expect(leaves.map((n) => n.id)).toEqual([2, 3]);
+		expect(leaves.map((n) => n.id)).toEqual([3, 2]);
 		expect(leaves.every((n) => n.dependents.length === 0)).toBe(true);
 	});
 

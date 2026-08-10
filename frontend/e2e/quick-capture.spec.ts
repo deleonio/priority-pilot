@@ -90,7 +90,7 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		await expect(page.getByRole('button', { name: 'Neuen Task anlegen' })).toBeFocused();
 
 		await openTasksTab(page);
-		// Die Task-Liste ist seit #238 ein Tree (kein Table mehr): der Titel ist direkt als
+		// Die Aufgabenliste ist seit #238 keine Table mehr: der Titel ist direkt als
 		// Textinhalt des span.task-tree-title sichtbar (analog crud.spec.ts).
 		await expect(page.getByText(title, { exact: true })).toBeVisible();
 	});

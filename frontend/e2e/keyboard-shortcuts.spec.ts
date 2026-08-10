@@ -337,7 +337,7 @@ test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 		await openTasksTab(page);
 
 		// Abhängigkeits-Dialog des Ziel-Tasks öffnen (Toolbar-Button „Abhängigkeiten", per Icon/Label).
-		const targetItem = page.locator('.task-tree-item', { hasText: targetTitle }).first();
+		const targetItem = page.locator('.task-list-item', { hasText: targetTitle }).first();
 		await targetItem.getByRole('button', { name: 'Weitere Aktionen' }).click();
 		await targetItem.getByRole('button', { name: 'Abhängigkeiten' }).click();
 		await expect(page.getByRole('heading', { name: /Abhängigkeiten:/ })).toBeVisible();

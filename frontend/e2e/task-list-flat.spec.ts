@@ -132,11 +132,12 @@ test.describe('Priority Pilot — Aufgabenliste als flache Blatt-Liste (#537)', 
 	});
 
 	test('AK7/T6: Blatt-Aufgaben sind nach Wertbeitrag absteigend sortiert', async ({ page }) => {
-		// Drei Einzelaufgaben (Blätter) mit bewusst unterschiedlichen Werttreibern (Priorität/Aufwand),
-		// sodass ihre serverseitigen `value`-Beiträge voneinander abweichen.
-		const aId = await createTask(page, uniqueTitle('A'), 5, 8);
-		const bId = await createTask(page, uniqueTitle('B'), 3, 2);
-		const cId = await createTask(page, uniqueTitle('C'), 1, 1);
+		// Drei Einzelaufgaben (Blätter) mit bewusst unterschiedlichen Prioritäten, sodass ihre
+		// serverseitigen `value`-Beiträge voneinander abweichen (Blatt-Wert ≙ Priorität, da ohne
+		// Abhängigkeiten und ohne Säulenbezug der Säulen-Faktor neutral 1 bleibt).
+		const aId = await createTask(page, uniqueTitle('A'), 5, 1);
+		const bId = await createTask(page, uniqueTitle('B'), 3, 0.5);
+		const cId = await createTask(page, uniqueTitle('C'), 1, 0.1);
 
 		await page.goto('/');
 		await waitForStableView(page);

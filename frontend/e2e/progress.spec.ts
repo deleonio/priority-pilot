@@ -4,9 +4,15 @@ import { waitForStableView } from './helpers';
 /**
  * Spec-e2e für #241 — „Fortschrittsanzeige pro Task inkl. Unter-Tasks" gegen das echte Backend.
  *
- * Vertrag: Im Aufgabenwald (`TaskTree`, #238) zeigt jeder Task mit Sub-Tasks einen Fortschritt
- * „erledigt/gesamt" (der Task selbst zählt mit), berechnet über den kompletten Teilbaum seiner
- * Abhängigen. Tasks ohne Sub-Tasks zeigen keinen Fortschritt.
+ * Vertrag: Ein Task mit Sub-Tasks führt serverseitig einen Fortschritt „erledigt/gesamt" (der Task
+ * selbst zählt mit), berechnet über den kompletten Teilbaum seiner Abhängigen. Tasks ohne Sub-Tasks
+ * haben keinen Fortschritt. Der Fortschritt ist über `GET /forest` in `node.progress` verfügbar.
+ *
+ * Seit #537 zeigt der Aufgaben-Tab (Tab 1) nur noch **Blatt-Aufgaben** als flache Liste — Eltern-
+ * Tasks mit Sub-Tasks erscheinen dort nicht mehr und tragen somit auch keinen Fortschritts-Badge.
+ * Die Fortschritts-Logik selbst (Server-seitige Berechnung über `node.progress`) ist hiervon
+ * unberührt und wird in diesen Specs über `GET /forest` verifiziert. Blatt-Tasks ohne Unteraufgaben
+ * zeigen erwartungsgemäß keinen Fortschritt (weder in der UI noch in der API).
  *
  * Setup wie in `suggestions.spec.ts`: Tasks und Abhängigkeiten werden über die echte API (Vite-Proxy
  * → Backend) geseedet. Eine Unteraufgabe wird — exakt wie `TaskForm.tsx` — als **Vorgänger** der
@@ -49,15 +55,39 @@ test.describe('Fortschrittsanzeige pro Task (#241)', () => {
 		});
 	};
 
-	/** Wechselt auf den „Aufgaben"-Tab (der Aufgabenwald liegt dort). */
+	/** Wechselt auf den „Aufgaben"-Tab (die flache Blatt-Liste liegt dort). */
 	const openTasksTab = async (page: Page): Promise<void> => {
 		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
 	};
 
-	/** Der Listeneintrag eines Tasks im Baum, verankert über `data-testid="task-tree-item-<id>"`. */
-	const item = (page: Page, id: number) => page.getByTestId(`task-tree-item-${id}`);
+	/** Der Listeneintrag eines Tasks, verankert über `data-testid="task-list-item-<id>"` (#537). */
+	const item = (page: Page, id: number) => page.getByTestId(`task-list-item-${id}`);
 
-	test('AK1: Task mit zwei Sub-Tasks zeigt „0/3"', async ({ page }) => {
+	/**
+	 * Sucht einen Task-Knoten im `/forest`-Wald (inkl. aller `dependents`) anhand seiner ID und gibt
+	 * seinen Fortschritt `{ done, total }` zurück bzw. `null`, wenn der Knoten nicht gefunden wurde.
+	 */
+	const findProgress = async (page: Page, id: number): Promise<{ done: number; total: number } | null> => {
+		const response = await page.request.get('/api/v1/forest');
+		const forest = (await response.json()) as Array<{
+			id: number;
+			progress?: { done: number; total: number };
+			dependents: unknown[];
+		}>;
+		const search = (nodes: typeof forest): { done: number; total: number } | null => {
+			for (const node of nodes) {
+				if (node.id === id) return node.progress ?? null;
+				const found = search(node.dependents as typeof forest);
+				if (found) return found;
+			}
+			return null;
+		};
+		return search(forest);
+	};
+
+	test('AK1: Eltern-Task mit zwei Sub-Tasks führt serverseitig Fortschritt „0/3" (über GET /forest)', async ({
+		page,
+	}) => {
 		const titelA = uniqueTitle('A');
 		const idA = await createTask(page, titelA);
 		const idB = await createTask(page, uniqueTitle('B'));
@@ -68,23 +98,15 @@ test.describe('Fortschrittsanzeige pro Task (#241)', () => {
 
 		await page.goto('/');
 		await waitForStableView(page);
-		await openTasksTab(page);
 
-		// Im invertierten Baum (#363) sind B und C Wurzeln; A erscheint als aufklappbares Kind unter
-		// jeder — deshalb genau einen Sub-Task (B) aufklappen und den A-Knoten darunter prüfen.
-		await expect(item(page, idB)).toBeVisible();
-		await item(page, idB)
-			.getByRole('button', { name: /klappen/i })
-			.first()
-			.click();
-		const aUnderB = item(page, idB).getByTestId(`task-tree-item-${idA}`);
-		await expect(aUnderB).toBeVisible();
-
-		// A + 2 Sub-Tasks = 3 Tasks, keiner erledigt → „0/3" im Knoten von A.
-		await expect(aUnderB.getByText('0/3')).toBeVisible();
+		// A + 2 Sub-Tasks = 3 Tasks, keiner erledigt → Fortschritt „0/3" serverseitig (node.progress).
+		// Seit #537 erscheinen Eltern-Tasks mit Sub-Tasks nicht mehr in der flachen Blatt-Liste (Tab 1);
+		// der Fortschritt bleibt aber über GET /forest verfügbar und korrekt.
+		const progress = await findProgress(page, idA);
+		expect(progress).toEqual({ done: 0, total: 3 });
 	});
 
-	test('AK3: Task ohne Sub-Tasks zeigt keinen Fortschritt (keine 1/1-Anzeige)', async ({ page }) => {
+	test('AK3: Blatt-Task ohne Sub-Tasks zeigt keinen Fortschritt in der UI (keine 1/1-Anzeige)', async ({ page }) => {
 		const titelSolo = uniqueTitle('Solo');
 		const idSolo = await createTask(page, titelSolo);
 
@@ -94,11 +116,13 @@ test.describe('Fortschrittsanzeige pro Task (#241)', () => {
 
 		const node = item(page, idSolo);
 		await expect(node).toBeVisible();
-		// Kein redundanter Fortschrittswert für eine Aufgabe ohne Abhängige.
+		// Kein redundanter Fortschrittswert für eine Blatt-Aufgabe ohne Abhängige.
 		await expect(node.getByText('1/1')).toHaveCount(0);
 	});
 
-	test('AK4: Fortschritt aktualisiert sich nach Statusänderung eines Sub-Tasks', async ({ page }) => {
+	test('AK4: Fortschritt aktualisiert sich nach Statusänderung eines Sub-Tasks (über GET /forest)', async ({
+		page,
+	}) => {
 		const titelA = uniqueTitle('A');
 		const idA = await createTask(page, titelA);
 		const idB = await createTask(page, uniqueTitle('B'));
@@ -107,55 +131,33 @@ test.describe('Fortschrittsanzeige pro Task (#241)', () => {
 
 		await page.goto('/');
 		await waitForStableView(page);
-		await openTasksTab(page);
 
-		// Im invertierten Baum (#363) ist B die Wurzel; A erst durch Aufklappen von B sichtbar machen.
-		await expect(item(page, idB)).toBeVisible();
-		await item(page, idB)
-			.getByRole('button', { name: /klappen/i })
-			.first()
-			.click();
-		await expect(item(page, idB).getByTestId(`task-tree-item-${idA}`).getByText('0/2')).toBeVisible();
+		// Initial: 0/2.
+		expect(await findProgress(page, idA)).toEqual({ done: 0, total: 2 });
 
 		// B über die echte API auf „Erledigt" setzen.
 		await page.request.patch(`/api/v1/tasks/${idB}`, { data: { status: 'Done' } });
 
-		// Nach dem Reload: Die erledigte Unteraufgabe B verschwindet aus dem Baum (#392), A rückt als
-		// neue Wurzel nach. Der Fortschritt (#241) zählt B serverseitig aber weiter (`node.progress`
-		// über die ungefilterte Abhängigkeitskette) → A zeigt aktualisiert „1/2", obwohl B nicht mehr
-		// sichtbar ist. Genau dieser Schnittpunkt #392 ∩ #241 wird hier abgesichert.
+		// Nach dem Reload: der Fortschritt (#241) zählt B serverseitig weiter (`node.progress`
+		// über die ungefilterte Abhängigkeitskette) → A zeigt aktualisiert „1/2".
 		await page.reload();
 		await waitForStableView(page);
-		await openTasksTab(page);
-
-		// B ist ausgeblendet …
-		await expect(item(page, idB)).toHaveCount(0);
-		// … A ist jetzt selbst Wurzel und zeigt den aktualisierten Fortschritt „1/2".
-		await expect(item(page, idA)).toBeVisible();
-		await expect(item(page, idA).getByText('1/2')).toBeVisible();
+		expect(await findProgress(page, idA)).toEqual({ done: 1, total: 2 });
 	});
 
-	test('AK5: Fortschrittsanzeige ist auf mobilen Viewports (375px) sichtbar', async ({ page }) => {
+	test('AK5: Blatt-Liste ist auf mobilen Viewports (375px) ohne horizontalen Überlauf sichtbar', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 
-		const titelA = uniqueTitle('A');
-		const idA = await createTask(page, titelA);
-		const idB = await createTask(page, uniqueTitle('B'));
-		// B ist Unteraufgabe von A → A + 1 Sub-Task = 2 Tasks gesamt.
-		await addSubtask(page, idA, idB);
+		const titelSolo = uniqueTitle('Solo');
+		const idSolo = await createTask(page, titelSolo);
 
 		await page.goto('/');
 		await waitForStableView(page);
 		await openTasksTab(page);
 
-		// Im invertierten Baum (#363) ist B die Wurzel; A erst durch Aufklappen von B sichtbar machen.
-		await expect(item(page, idB)).toBeVisible();
-		await item(page, idB)
-			.getByRole('button', { name: /klappen/i })
-			.first()
-			.click();
-
-		// Fortschrittsanzeige muss auch auf 375px-Viewport ohne horizontales Scrollen sichtbar sein.
-		await expect(item(page, idB).getByTestId(`task-tree-item-${idA}`).getByText('0/2')).toBeVisible();
+		// Blatt-Liste muss auch auf 375px-Viewport ohne horizontales Scrollen sichtbar sein.
+		await expect(item(page, idSolo)).toBeVisible();
+		const overflowsHorizontally = await page.evaluate(() => document.body.scrollWidth > window.innerWidth + 1);
+		expect(overflowsHorizontally).toBe(false);
 	});
 });
