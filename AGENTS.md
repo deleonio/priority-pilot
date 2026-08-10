@@ -40,10 +40,11 @@ nicht Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 
 ## KI-Agent — Pipeline-Phasen
 
-Die Pipeline umfasst sechs Phasen: Triage, Spec, Umsetzung, Review und Fixup laufen als
-KI-gesteuerte Workflows über **Claude Code** in GitHub Actions. Die 6. Phase **PR-Documenter**
-läuft NACH dem Merge rein deterministisch per Skript (kein LLM) und optimiert PR-Titel und
--Beschreibung. Der Provider ist über die Repo-Variable **`vars.LLM_PROVIDER`** umschaltbar:
+Die Pipeline umfasst sechs Phasen: Triage, Spec, Umsetzung, Review, Fixup und PR-Documenter
+laufen als KI-gesteuerte Workflows über **Claude Code** in GitHub Actions. Die 6. Phase
+**PR-Documenter** läuft NACH dem Merge als LLM-gesteuerte Phase (wie 01–05) und pflegt Titel,
+Beschreibung, Release-Note-Kommentar und Labels des gemergten PRs. Der Provider ist über die
+Repo-Variable **`vars.LLM_PROVIDER`** umschaltbar:
 `claude` (Anthropic nativ, Default, `CLAUDE_API_KEY`) oder `zai` (z.ai/GLM, `ZAI_API_KEY`).
 Endpoint, Modell-Aliase und Key
 löst die Setup-Action pro Lauf auf — die eingecheckte
@@ -56,14 +57,14 @@ Lesen — die jeweilige Datei enthält alles Notwendige.
 **Label-Kette:** `ai:analyzed` → `ai:spec-ready` (🟢) → `ai:ready` → Umsetzung →
 `ai:needs-review` → Review ↔ Fixup (`ai:needs-changes`) → `ai:ready-to-merge`.
 
-| Phase             | Trigger                                       | Wissensbasis (einzige zu lesende Datei)                            | Output                                                                      |
-| ----------------- | --------------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------- |
-| **Triage**        | Issue neu, `ai:analyzed` entfernt, `@agent`   | [ticket-triage.md](.ai-knowledge/ticket-triage.md)                 | Analyse-Body-Block + Ampel, Ping → `ai:analyzed` (+ `ai:spec-ready` bei 🟢) |
-| **Spec**          | `ai:spec-ready` + `ai:analyzed`               | [ticket-spec.md](.ai-knowledge/ticket-spec.md)                     | Rote Tests + Draft-PR → `ai:ready`                                          |
-| **Umsetzung**     | `ai:ready` + `ai:analyzed`                    | [ticket-implementation.md](.ai-knowledge/ticket-implementation.md) | Tests grün + PR review-bereit → `ai:needs-review`                           |
-| **Review**        | `ai:needs-review` (am PR)                     | [pr-review.md](.ai-knowledge/pr-review.md)                         | Sammelkommentar + Ampel → `ai:needs-changes` / `ai:ready-to-merge`          |
-| **Fixup**         | `ai:needs-changes` (am PR)                    | [pr-review.md](.ai-knowledge/pr-review.md)                         | Findings behoben → `ai:needs-review`                                        |
-| **PR-Documenter** | `pull_request.closed` + `merged` (PR gemergt) | — (deterministisch, kein Agent-Prompt)                             | PR-Titel & -Beschreibung nach Merge optimiert → `ai:documented`             |
+| Phase             | Trigger                                       | Wissensbasis (einzige zu lesende Datei)                                                                         | Output                                                                      |
+| ----------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| **Triage**        | Issue neu, `ai:analyzed` entfernt, `@agent`   | [ticket-triage.md](.ai-knowledge/ticket-triage.md)                                                              | Analyse-Body-Block + Ampel, Ping → `ai:analyzed` (+ `ai:spec-ready` bei 🟢) |
+| **Spec**          | `ai:spec-ready` + `ai:analyzed`               | [ticket-spec.md](.ai-knowledge/ticket-spec.md)                                                                  | Rote Tests + Draft-PR → `ai:ready`                                          |
+| **Umsetzung**     | `ai:ready` + `ai:analyzed`                    | [ticket-implementation.md](.ai-knowledge/ticket-implementation.md)                                              | Tests grün + PR review-bereit → `ai:needs-review`                           |
+| **Review**        | `ai:needs-review` (am PR)                     | [pr-review.md](.ai-knowledge/pr-review.md)                                                                      | Sammelkommentar + Ampel → `ai:needs-changes` / `ai:ready-to-merge`          |
+| **Fixup**         | `ai:needs-changes` (am PR)                    | [pr-review.md](.ai-knowledge/pr-review.md)                                                                      | Findings behoben → `ai:needs-review`                                        |
+| **PR-Documenter** | `pull_request.closed` + `merged` (PR gemergt) | [pr-post-merge-documentation.yml](.github/workflows/pr-post-merge-documentation.yml) — Inline-Prompt (terminal) | PR-Titel, -Beschreibung, Release-Note & Labels nach Merge → `ai:documented` |
 
 ## Tests (Server)
 

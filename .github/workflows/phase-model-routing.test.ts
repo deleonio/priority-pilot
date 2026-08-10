@@ -39,6 +39,7 @@ const PHASES = {
 	implement: { wf: '03-claude-implement.yml', variable: 'CLAUDE_MODEL_IMPLEMENT' },
 	'pr-review': { wf: '04-claude-pr-review.yml', variable: 'CLAUDE_MODEL_PR_REVIEW' },
 	fixup: { wf: '05-claude-pr-fixup.yml', variable: 'CLAUDE_MODEL_FIXUP' },
+	documentation: { wf: 'pr-post-merge-documentation.yml', variable: 'CLAUDE_MODEL_DOCUMENTATION' },
 } as const;
 
 const actionYml = (): string => read('.github', 'actions', 'setup-claude', 'action.yml');
@@ -52,7 +53,7 @@ const actionYml = (): string => read('.github', 'actions', 'setup-claude', 'acti
 // den kein Review sieht (vgl. Silent-Empty-Problem aus #161).
 
 describe('Phasen-Modell — jede Phase reicht ihre CLAUDE_MODEL_*-Variable an setup-claude durch', () => {
-	it('alle 5 Phasen-Workflows nutzen setup-claude (Verkabelung prüft nicht ins Leere)', () => {
+	it('alle Phasen-Workflows nutzen setup-claude (Verkabelung prüft nicht ins Leere)', () => {
 		const callers = readdirSync(HERE)
 			.filter((f) => f.endsWith('.yml'))
 			.filter((f) => /uses:\s*\.\/\.github\/actions\/setup-claude/.test(read('.github', 'workflows', f)));
