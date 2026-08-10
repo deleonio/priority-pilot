@@ -216,3 +216,64 @@ describe('PR-Dokumentation: --add-label akzeptiert nur EINEN komma-separierten S
 		);
 	});
 });
+
+describe('PR-Dokumentation: Phase 0 stellt alle release:*-Labels sicher (kein "X not found" in Phase 5)', () => {
+	// Symptom (Run zu PR #542, NACH Fix des --add-label-Array-Bugs): Phase 5 crasht jetzt mit
+	//   gh pr edit "$pr_number" --repo "$REPO" --add-label "ai:documented,release:fix"
+	//   → 'release:fix' not found → exit code 1
+	// Root-Cause: gh pr edit --add-label bricht hart ab, wenn ein Label im Repo nicht existiert.
+	// Phase 0 legte bisher NUR ai:documented an — die fünf release:*-Labels aus Phase 5 nie.
+	// Dieser Guard stellt sicher, dass jedes Label, das Phase 5 setzt, in Phase 0 angelegt wird.
+	it('Phase 0 legt alle fünf release:*-Labels an (case-Mapping aus Phase 5)', () => {
+		const required = [
+			'release:feature',
+			'release:fix',
+			'release:improvement',
+			'release:breaking-change',
+			'release:engineering',
+		];
+		const missing = required.filter((label) => !phase0.includes(`"${label}"`));
+		assert.equal(
+			missing.length,
+			0,
+			'Phase 0 legt nicht alle release:*-Labels an — gh pr edit --add-label crasht in Phase 5 ' +
+				'mit "X not found", wenn ein Label fehlt. Fehlend: ' +
+				JSON.stringify(missing),
+		);
+	});
+
+	it('Phase 0 legt auch ai:documented und release:ignore an (Idempotenz + Bot-Kurzbehandlung)', () => {
+		// ai:documented ist die Idempotenz-Invariante; release:ignore wird in Phase 0b (Bot) gesetzt.
+		for (const label of ['ai:documented', 'release:ignore']) {
+			assert.ok(
+				phase0.includes(`"${label}"`),
+				`Phase 0 legt '${label}' nicht an — wird im Workflow gesetzt, aber nicht sichergestellt.`,
+			);
+		}
+	});
+});
+
+describe('PR-Dokumentation: ai:documented (Idempotenz) scheitert nicht am release:*-Label', () => {
+	// Symptom: der kombinierte gh pr edit-Call mit --add-label "ai:documented,release:fix"
+	// crascht als GANZES, wenn release:fix fehlt — dann geht ai:documented verloren und der PR
+	// taucht im nächsten Lauf wieder auf. ai:documented muss unabhängig vom Release-Label gesetzt
+	// werden. Dieser Guard verhindert die Rückkopplung beider Labels in einem einzigen --add-label.
+	it('ai:documented und release:* werden NICHT gemeinsam in einem --add-label komma-join gesetzt', () => {
+		// Gefährliches Muster: ein einzelnes --add-label, das BEIDE Label-Namen (komma-join) enthält.
+		// Crash des Release-Labels reißt dann ai:documented mit — Idempotenz gebrochen.
+		const coupled = code
+			.split('\n')
+			.filter((l) => /--add-label\s+"[^"]*ai:documented[^"]*,/.test(l))
+			.filter((l) => /release:/.test(l));
+		assert.equal(
+			coupled.length,
+			0,
+			'`--add-label "...,ai:documented,...,release:..."` gefunden: ai:documented ist mit dem ' +
+				'release:*-Label gekoppelt. Fehlt das Release-Label im Repo, crasht der Call ALS ' +
+				'GANZES — ai:documented (Idempotät-Invariante) geht verloren, der PR taucht im ' +
+				'nächsten Lauf wieder auf. Erwartet: ai:documented separat setzen, release:* ' +
+				'best-effort (|| true). Betroffen: ' +
+				JSON.stringify(coupled),
+		);
+	});
+});

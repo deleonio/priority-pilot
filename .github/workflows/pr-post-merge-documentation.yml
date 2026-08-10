@@ -63,15 +63,26 @@ jobs:
           echo "📋 Phase 0: Vorbereitung gestartet"
           echo "Repository: $REPO | Max PRs: $MAX_PRS | Dry Run: $DRY_RUN"
 
-          # 0.1 Prüfen/Erstellen Label ai:documented
-          if gh label list --repo "$REPO" --json name | jq -r '.[].name' | grep -qx 'ai:documented'; then
-            echo "✅ Label 'ai:documented' existiert bereits"
-          else
-            echo "📝 Erstelle Label 'ai:documented'..."
-            if [ "$DRY_RUN" = "false" ]; then
-              gh label create "ai:documented" --repo "$REPO" --color 0075ca --description "Automatically documented by AI"
+          # 0.1 Prüfen/Erstellen aller Labels, die der Workflow setzt.
+          # ai:documented + die fünf release:*-Labels aus Phase 5. gh pr edit --add-label bricht
+          # hart ab ("X not found"), wenn ein Label fehlt — also hier sicherstellen, dass alle
+          # existieren. create_label() ist idempotent (vorhandene werden übersprungen).
+          create_label() {
+            local name="$1" color="$2" desc="$3"
+            if gh label list --repo "$REPO" --json name | jq -r '.[].name' | grep -qx "$name"; then
+              echo "✅ Label '$name' existiert bereits"
+            elif [ "$DRY_RUN" = "false" ]; then
+              echo "📝 Erstelle Label '$name'..."
+              gh label create "$name" --repo "$REPO" --color "$color" --description "$desc"
             fi
-          fi
+          }
+          create_label "ai:documented" 0075ca "Automatically documented by AI"
+          create_label "release:feature" a2eeef "New feature"
+          create_label "release:fix" d73a4a "Bug fix"
+          create_label "release:improvement" a2eeef "Improvement"
+          create_label "release:breaking-change" b60205 "Breaking change"
+          create_label "release:engineering" cfd3d7 "Internal (no release note)"
+          create_label "release:ignore" cfd3d7 "Ignored by release pipeline"
 
           # 0.2 Conventional Commits Pattern (Standard, da pr-title-validation.yml nicht existiert)
           echo "conventional_pattern=^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?: .+" >> "$GITHUB_OUTPUT"
@@ -484,16 +495,24 @@ jobs:
               echo "📌 release:* Label bereits vorhanden"
             fi
 
-            # --add-label erwartet EINEN komma-separierten String, NICHT mehrere Args
-            # (BUGFIX: "${labels_to_add[@]}" expandiert zu 2 Args → "accepts at most 1 arg(s)").
-            labels_csv="$(IFS=,; echo "${labels_to_add[*]}")"
-            edit_args+=(--add-label "$labels_csv")
+            # ai:documented ist die Idempotenz-Invariante — MUSS gesetzt werden, sonst
+            # bearbeitet der Workflow den PR im nächsten Lauf wieder. release:* ist optional.
+            # Deshalb: ai:documented im kombinierten Call (garantiert durch Phase 0),
+            # release:* separat und best-effort (|| true), damit ein fehlendes Release-Label
+            # nicht ai:documented mitreißt.
+            edit_args+=(--add-label "ai:documented")
 
-            # Kombinierter gh pr edit-Aufruf: Titel + Body + Labels in einem Call
-            # (vorher 3 separate API-Calls pro PR → Rate-Limit- und Latenz-Ersparnis).
+            # Kombinierter gh pr edit-Aufruf: Titel + Body + ai:documented in einem Call.
             if [ "$DRY_RUN" = "false" ]; then
               gh pr edit "$pr_number" --repo "$REPO" "${edit_args[@]}"
-              echo "✅ PR aktualisiert (Titel/Body/Labels): ${edit_args[*]}"
+              echo "✅ PR aktualisiert (Titel/Body/ai:documented): ${edit_args[*]}"
+            fi
+
+            # Release-Label best-effort nachsetzen (separat, damit es nicht blockiert).
+            if [ "$has_release_label" = "false" ] && [ "$DRY_RUN" = "false" ]; then
+              gh pr edit "$pr_number" --repo "$REPO" --add-label "$release_label" 2>/dev/null \
+                && echo "✅ Release-Label gesetzt: $release_label" \
+                || echo "⚠️ Release-Label '$release_label' konnte nicht gesetzt werden — übersprungen"
             fi
 
             # PHASE 6 — Summary (subshell-safe via Temp-File)
