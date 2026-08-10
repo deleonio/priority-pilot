@@ -1326,3 +1326,98 @@ describe('TaskForm — Checklisten-Feld (#531)', () => {
 		expect(taskCreate.checklist![0].completed).toBe(false);
 	});
 });
+
+/**
+ * Rote Spec-Tests für #546 — „Automatisch löschen"-Checkbox auf KolInputCheckbox + KolAlert umstellen.
+ *
+ * **Ist (rot):** Der Auto-Löschen-Schalter ist eine native `<input type="checkbox">` (role="checkbox"),
+ * der Hinweis im aktivierten Zustand ein natives `<p className="hint">`. Beides soll auf KoliBri wechseln:
+ *  - AK1+AK3: In allen 4 Formularen (Aufgabe anlegen/bearbeiten, Serie anlegen/bearbeiten) rendert der
+ *    Schalter als `KolInputCheckbox`. Der KoliBri-Mock gibt jedem KolInputCheckbox pauschal
+ *    `role="switch"` + `aria-label`, eine native Checkbox behält `role="checkbox"` — der Rollen-Wechsel
+ *    ist damit assertionsfähig (switch vorhanden, native checkbox verschwunden).
+ *  - AK2: Der Hinweis im aktivierten Zustand wird als `KolAlert` (Mock → `role="alert"`) dargestellt,
+ *    nicht mehr als `<p>`.
+ *  - AK4 (Verhalten erhalten: Wertbindung, Deadline-Kopplung/Pflichtfeld-Logik) ist durch die
+ *    bestehenden #523/#534-Tests abgedeckt und wird hier NICHT dupliziert (siehe Test-Pflege-Bedarf
+ *    im PR-Body: KolInputCheckbox-Mock muss `_disabled` durchreichen, `switchToSeriesMode` muss auf
+ *    `mode-switch` eingeschränkt werden).
+ *
+ * **Test-Pflege-Bedarf (Folge der AK1-Umsetzung, hier nur dokumentiert, nicht vorgenommen):**
+ *  - Sobald der Schalter in den Anlege-Modi ein zweites `role="switch"` neben dem Modus-Umschalter
+ *    (#316) ist, wird der unscoped `getByRole('switch')`-Helfer `switchToSeriesMode` (oben) mehrdeutig.
+ *  - Der KolInputCheckbox-Mock (oben) leitet `_disabled` nicht durch; die #534-Deadline-Kopplung
+ *    (`toBeDisabled()` in AK1/AK3) benötigt das nach dem Wechsel.
+ */
+describe('TaskForm — Auto-Löschen auf KolInputCheckbox + KolAlert (#546)', () => {
+	/** Findet den Auto-Löschen-Schalter als KolInputCheckbox (Mock → role=switch mit aria-label). */
+	const autoDeleteSwitch = (): HTMLElement => screen.getByRole('switch', { name: /Automatisch löschen nach 3 Tagen/i });
+
+	/** Eine native Auto-Löschen-Checkbox (role=checkbox) darf nach AK1 nicht mehr existieren. */
+	const nativeAutoDeleteCheckbox = (): HTMLElement | null =>
+		screen.queryByRole('checkbox', { name: /Automatisch löschen nach 3 Tagen/i });
+
+	it('AK1/AK3 — Aufgabe anlegen: Schalter ist KolInputCheckbox (role=switch), keine native Checkbox', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		// rot, solange der Schalter eine native Checkbox (role=checkbox) statt KolInputCheckbox ist.
+		expect(autoDeleteSwitch()).toBeInTheDocument();
+		expect(nativeAutoDeleteCheckbox()).toBeNull();
+	});
+
+	it('AK1/AK3 — Aufgabe bearbeiten: Schalter ist KolInputCheckbox', async () => {
+		await act(async () => {
+			render(<TaskForm task={minimalNewTask()} {...defaultProps} />);
+		});
+
+		expect(autoDeleteSwitch()).toBeInTheDocument();
+		expect(nativeAutoDeleteCheckbox()).toBeNull();
+	});
+
+	it('AK1/AK3 — Serie anlegen: Schalter ist KolInputCheckbox', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		// initialMode="series" startet direkt im Serie-Anlege-Modus (ohne switchToSeriesMode, das nach
+		// AK1 wegen des zweiten Switch mehrdeutig würde — siehe Test-Pflege-Bedarf).
+		await act(async () => {
+			render(<TaskForm task={null} initialMode="series" {...defaultProps} />);
+		});
+
+		expect(autoDeleteSwitch()).toBeInTheDocument();
+		expect(nativeAutoDeleteCheckbox()).toBeNull();
+	});
+
+	it('AK1/AK3 — Serie bearbeiten: Schalter ist KolInputCheckbox', async () => {
+		await act(async () => {
+			render(<SeriesEditForm task={null} series={minimalSeries()} {...defaultProps} />);
+		});
+
+		expect(autoDeleteSwitch()).toBeInTheDocument();
+		expect(nativeAutoDeleteCheckbox()).toBeNull();
+	});
+
+	it('AK2 — Hinweis im aktivierten Zustand wird als KolAlert (role=alert) dargestellt', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		// Ohne Deadline ist der Schalter disabled (#534) → erst Deadline setzen, dann aktivieren.
+		const deadlineInput = screen.getByLabelText('Deadline (optional)');
+		await act(async () => {
+			fireEvent.change(deadlineInput, { target: { value: '2026-09-07' } });
+		});
+		await act(async () => {
+			fireEvent.click(screen.getByLabelText(/Automatisch löschen nach 3 Tagen/i));
+		});
+
+		// rot, solange der Hinweis ein <p className="hint"> statt eines KolAlert (role=alert) ist.
+		const hint = screen.getByText(/bei verpasster Deadline automatisch nach 3 Tagen gelöscht/i);
+		expect(hint.closest('[role="alert"]'), 'Hinweis ist kein KolAlert').not.toBeNull();
+	});
+});
