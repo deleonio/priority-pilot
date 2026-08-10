@@ -159,7 +159,9 @@ jobs:
             if [ "$is_bot" = "true" ]; then
               echo "🤖 Bot-PR - Kurzbehandlung (nur Labels)"
               if [ "$DRY_RUN" = "false" ]; then
-                gh pr edit "$pr_number" --repo "$REPO" --add-label "release:ignore" "ai:documented" 2>/dev/null || true
+                # --add-label erwartet EINEN komma-separierten String, nicht zwei Args
+                # (BUGFIX: "release:ignore" "ai:documented" → "accepts at most 1 arg(s)").
+                gh pr edit "$pr_number" --repo "$REPO" --add-label "release:ignore,ai:documented" 2>/dev/null || true
               fi
               printf '%s\t%s\t%s\t%s\n' "#$pr_number" "$pr_title" "🤖 Bot" "Nein" >> "$summary_file"
               skipped=$((skipped + 1))
@@ -173,7 +175,15 @@ jobs:
 
             # BUGFIX #3: 'gh pr diff' statt 'gh pr view --json diff' (Feld existiert nicht)
             pr_diff=$(gh pr diff "$pr_number" --repo "$REPO" 2>/dev/null || echo "")
-            pr_files=$(gh pr view "$pr_number" --repo "$REPO" --json files --jq '.files[].path' 2>/dev/null || echo "")
+            # Konsolidiert: files + closingIssuesReferences in EINEM gh pr view-Aufruf (vorher 2
+            # separate Calls pro PR). closing_issues wird weiter unten (Ticket-Memory-Abbau)
+            # aus demselben pr_meta extrahiert.
+            pr_meta=$(gh pr view "$pr_number" --repo "$REPO" --json files,closingIssuesReferences 2>/dev/null || echo "{}")
+            pr_files=$(echo "$pr_meta" | jq -r '.files[].path' 2>/dev/null || echo "")
+
+            # edit_args sammelt Titel-, Body- und Label-Beiträge für EINEN kombinierten gh pr edit-
+            # Aufruf am Ende von Phase 5 (vorher 3 separate API-Calls pro PR).
+            edit_args=()
 
             linked_issues=$(echo "$pr_body" | grep -oE '(Closes|Fixes|Refs) #[0-9]+' || echo "")
             if [ -z "$linked_issues" ]; then
@@ -288,9 +298,7 @@ jobs:
               fi
 
               echo "🔄 Neuer Titel: $new_title"
-              if [ "$DRY_RUN" = "false" ]; then
-                gh pr edit "$pr_number" --repo "$REPO" --title "$new_title"
-              fi
+              edit_args+=(--title "$new_title")
               title_changed_flag="Ja"
               title_changed=$((title_changed + 1))
             else
@@ -383,10 +391,7 @@ jobs:
               echo '</details>'
             } > "$body_file"
 
-            if [ "$DRY_RUN" = "false" ]; then
-              gh pr edit "$pr_number" --repo "$REPO" --body-file "$body_file"
-              echo "✅ PR-Beschreibung aktualisiert"
-            fi
+            edit_args+=(--body-file "$body_file")
 
             # ----------------------------------------------------
             # PHASE 4 — RELEASE-NOTE-KOMMENTAR POSTEN
@@ -467,9 +472,16 @@ jobs:
               echo "📌 release:* Label bereits vorhanden"
             fi
 
+            # --add-label erwartet EINEN komma-separierten String, NICHT mehrere Args
+            # (BUGFIX: "${labels_to_add[@]}" expandiert zu 2 Args → "accepts at most 1 arg(s)").
+            labels_csv="$(IFS=,; echo "${labels_to_add[*]}")"
+            edit_args+=(--add-label "$labels_csv")
+
+            # Kombinierter gh pr edit-Aufruf: Titel + Body + Labels in einem Call
+            # (vorher 3 separate API-Calls pro PR → Rate-Limit- und Latenz-Ersparnis).
             if [ "$DRY_RUN" = "false" ]; then
-              gh pr edit "$pr_number" --repo "$REPO" --add-label "${labels_to_add[@]}"
-              echo "✅ Labels gesetzt: ${labels_to_add[*]}"
+              gh pr edit "$pr_number" --repo "$REPO" "${edit_args[@]}"
+              echo "✅ PR aktualisiert (Titel/Body/Labels): ${edit_args[*]}"
             fi
 
             # PHASE 6 — Summary (subshell-safe via Temp-File)
@@ -484,8 +496,9 @@ jobs:
             # setup-claude: Closing-Issue, sonst PR-Nummer als Fallback (passt zum Cache-Key).
             # Best-Effort (|| true): ein fehlgeschlagener Delete darf den Lauf nicht abbrechen.
             echo "🧹 Ticket-Memory abbauen..."
-            closing_issue=$(gh pr view "$pr_number" --repo "$REPO" --json closingIssuesReferences \
-              --jq '[.closingIssuesReferences[].number] | first' 2>/dev/null || true)
+            # closing_issue aus dem bereits in Phase 1 geholten pr_meta extrahieren
+            # (vorher ein 2. separater gh pr view-Aufruf pro PR).
+            closing_issue=$(echo "$pr_meta" | jq -r '[.closingIssuesReferences[].number] | first // empty' 2>/dev/null || true)
             for ref in "$closing_issue" "$pr_number"; do
               if [ -z "$ref" ] || [ "$ref" = "null" ]; then continue; fi
               if [ "$DRY_RUN" = "false" ]; then
@@ -524,7 +537,10 @@ jobs:
 
           # REVIEW-FIX #6: jq -s 'add | length' zählt Object-Keys (3) statt PRs.
           # Gleicher Bug wie #4 — items-Array extrahieren, dann length.
-          remaining=$(gh api "/search/issues" -X GET -f q="repo:$REPO is:pr is:merged -label:ai:documented -label:release:ignore" -f sort=created -f order=desc --paginate 2>/dev/null | jq -s '[.[] | .items[]] | length')
+          # (.items // [])[] sichert gegen Rate-Limit-Seiten mit null-items (s. Phase 0).
+          # Fail-Tolerance: ein transienter Search-Fehler darf den Lauf NACH getaner Arbeit
+          # + Summary nicht rot machen (|| remaining="unbekannt").
+          remaining=$(gh api "/search/issues" -X GET -f q="repo:$REPO is:pr is:merged -label:ai:documented -label:release:ignore" -f sort=created -f order=desc --paginate 2>/dev/null | jq -s '[.[] | (.items // [])[]] | length' 2>/dev/null || echo "unbekannt")
           echo "Verbleibende un-dokumentierte PRs: $remaining"
 
       - name: 📋 Final Summary
