@@ -137,26 +137,17 @@ test.describe('InputRange-Felder statt InputNumber (#287)', () => {
 		// weiterer Task als Vorgänger-Kandidat verfügbar ist (options.length > 0).
 		const predecessorTitle = uniqueTitle('Vorgänger');
 		const targetId = await createTask(page, uniqueTitle('Ziel'));
-		await createTask(page, predecessorTitle);
+		const predecessorId = await createTask(page, predecessorTitle);
 		await page.reload();
 		await waitForStableView(page);
 
 		await openTasksTab(page);
 
 		// Öffnet den Abhängigkeiten-Dialog gezielt für den ZIEL-Task (per stabiler `data-testid` seines
-		// Baum-Knotens). `.first()` wäre fragil: Nach dem Hinzufügen der Abhängigkeit wird der Ziel-Task
-		// im Aufgabenwald zum Kind des Vorgängers (der dann alleinige Wurzel ist). Der Ziel-Knoten ist
-		// dann eingeklappt und `.first()` träfe nach einem Reload den Vorgänger — nicht das Ziel.
+		// Listen-Eintrags in der flachen Blatt-Liste, #537).
 		const openTargetDependencies = async (): Promise<void> => {
-			// Sicherstellen, dass der Ziel-Knoten sichtbar ist: Ist er als Kind eingeklappt, zuerst alle
-			// Wurzeln mit Aufklapp-Button aufklappen, bis der „…"-Button des Ziel-Knotens sichtbar wird.
-			const targetItem = page.getByTestId(`task-tree-item-${targetId}`);
+			const targetItem = page.getByTestId(`task-list-item-${targetId}`);
 			const moreButton = targetItem.getByRole('button', { name: 'Weitere Aktionen' });
-			if (!(await moreButton.isVisible())) {
-				for (const toggle of await page.getByRole('button', { name: 'Aufklappen' }).all()) {
-					await toggle.click();
-				}
-			}
 			await expect(moreButton).toBeVisible();
 			await moreButton.click();
 			await targetItem.getByRole('button', { name: 'Abhängigkeiten' }).click();
@@ -187,17 +178,23 @@ test.describe('InputRange-Felder statt InputNumber (#287)', () => {
 		// Der Vorgänger erscheint in der Liste „Aktuelle Vorgänger" — beweist den erfolgreichen API-Aufruf.
 		await expect(page.locator('.dependency-list li > span').filter({ hasText: predecessorTitle })).toBeVisible();
 
-		// Schließen und hart neu laden: Persistenz im Backend prüfen.
+		// Schließen und hart neu laden: Persistenz im Backend prüfen. Seit #537 erscheint ein Task
+		// mit Abhängigkeiten (dependents > 0) nicht mehr in der flachen Blatt-Liste — der Dialog
+		// kann also nach Reload nicht mehr über die Aufgabenliste geöffnet werden. Die Persistenz
+		// wird stattdessen über GET /forest verifiziert (node.dependents enthält die Vorgänger).
 		await page.locator('.modal-actions').getByRole('button', { name: 'Schließen', exact: true }).click();
 		await expect(page.getByRole('heading', { name: /Abhängigkeiten/ })).toBeHidden();
 
 		await page.reload();
 		await waitForStableView(page);
-		await openTasksTab(page);
-		await openTargetDependencies();
 
-		// Vorgänger ist nach dem Reload noch in der Liste — beweist die Persistenz der Abhängigkeit.
-		await expect(page.locator('.dependency-list li > span').filter({ hasText: predecessorTitle })).toBeVisible();
+		// Vorgänger ist nach dem Reload noch verknüpft — beweist die Persistenz der Abhängigkeit.
+		const forestResponse = await page.request.get('/api/v1/forest');
+		expect(forestResponse.ok()).toBeTruthy();
+		const forest = (await forestResponse.json()) as Array<{ id: number; dependents: Array<{ id: number }> }>;
+		const targetNode = forest.find((n) => n.id === targetId);
+		expect(targetNode).toBeDefined();
+		expect(targetNode?.dependents.some((d) => d.id === predecessorId)).toBe(true);
 	});
 
 	test('AK4: ArrowRight verschiebt den Prioritäts-Slider dauerhaft (kein Reset auf den Ausgangswert)', async ({

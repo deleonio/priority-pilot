@@ -182,8 +182,8 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 		await waitForStableView(page);
 		await openTasksTab(page);
 
-		// Genau die A-Instanz anhand ihrer ID (aus der API) im Task-Tree finden und bearbeiten.
-		const movedItem = page.locator(`[data-testid="task-tree-item-${moved.id}"]`);
+		// Genau die A-Instanz anhand ihrer ID (aus der API) in der flachen Blatt-Liste finden und bearbeiten.
+		const movedItem = page.locator(`[data-testid="task-list-item-${moved.id}"]`);
 		await movedItem.getByRole('button', { name: 'Weitere Aktionen' }).click();
 		await movedItem.getByRole('button', { name: 'Bearbeiten' }).click();
 		// AK4 (#334): Der Edit-Titel nennt den Typ eindeutig („Aufgabe bearbeiten: …").
@@ -195,9 +195,9 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
 		await page.locator('kol-dialog').getByRole('button', { name: 'Bearbeiten', exact: true }).click();
 		await expect(page.getByRole('heading', { name: /Aufgabe bearbeiten/ })).toBeHidden();
 
-		// UI: die Geschwister-Instanz steht unverändert weiterhin in der Liste (Deadline wird im Task-Tree nicht angezeigt).
+		// UI: die Geschwister-Instanz steht unverändert weiterhin in der Liste (Deadline wird in der Aufgabenliste nicht angezeigt).
 		await openTasksTab(page);
-		await expect(page.locator(`[data-testid="task-tree-item-${sibling.id}"]`)).toBeVisible();
+		await expect(page.locator(`[data-testid="task-list-item-${sibling.id}"]`)).toBeVisible();
 
 		// Backend-Vertrag gegenprüfen: nur die verschobene Instanz änderte sich.
 		const after = await listTasksViaApi(page);

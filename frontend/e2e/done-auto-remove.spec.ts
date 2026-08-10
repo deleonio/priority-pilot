@@ -15,7 +15,7 @@ import { waitForStableView } from './helpers';
  * Clock muss vor `page.goto()` installiert sein, damit sie App-seitige `setTimeout`-Aufrufe erfasst.
  *
  * `data-testid`-Konventionen (vom Implementierer angelegt, vgl. done-toggle.spec.ts):
- * - `task-tree-item-{id}` — TreeNode-Wrapper pro Aufgabe.
+ * - `task-list-item-{id}` — Listen-Eintrag pro Blatt-Aufgabe (#537).
  *
  * Diese Specs sind rot, bis `App.tsx` den 5-s-Timer in `handleDoneToggle` einbaut.
  */
@@ -62,7 +62,7 @@ test.describe('Priority Pilot — 5-s-Auto-Entfernung abgehakter Aufgaben (#392)
 		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
 	};
 
-	const item = (page: Page, id: number) => page.getByTestId(`task-tree-item-${id}`);
+	const item = (page: Page, id: number) => page.getByTestId(`task-list-item-${id}`);
 	const toolbar = (page: Page, id: number) => item(page, id).locator('[role="toolbar"]');
 	const doneToggle = (page: Page, id: number) =>
 		toolbar(page, id).getByRole('button', { name: /Erledigt|Wieder öffnen/i });
@@ -123,7 +123,7 @@ test.describe('Priority Pilot — 5-s-Auto-Entfernung abgehakter Aufgaben (#392)
 		await waitForStableView(page);
 		await openTasksTab(page);
 
-		// Im invertierten Baum ist childId die Wurzel (Blatt, schließbar).
+		// In der flachen Blatt-Liste (#537) ist nur childId ein Blatt (parentId hat eine Unteraufgabe).
 		await expect(item(page, childId)).toBeVisible();
 
 		// Unteraufgabe abhaken.
@@ -138,7 +138,8 @@ test.describe('Priority Pilot — 5-s-Auto-Entfernung abgehakter Aufgaben (#392)
 		// Die erledigte Unteraufgabe ist nun aus der Liste entfernt.
 		await expect(item(page, childId)).not.toBeVisible();
 
-		// Die ehemals blockierte Oberaufgabe erscheint jetzt als neue verfügbare Wurzel.
+		// Die ehemals blockierte Oberaufgabe ist nun selbst ein Blatt (keine offenen Unteraufgaben
+		// mehr) und erscheint deshalb in der flachen Liste.
 		await expect(item(page, parentId)).toBeVisible();
 
 		// Ihr Erledigt-Toggle ist aktiv (keine offenen Unteraufgaben mehr).

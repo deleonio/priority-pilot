@@ -53,8 +53,42 @@ test.describe('#431 Säulen-Verwaltung — dynamische Grenzfälle', () => {
 		});
 	};
 
+	/**
+	 * Die fünf kanonischen Lebensbalance-Säulen (Stammdaten, siehe server `SEED_PILLARS`). Nur Name +
+	 * Kurzbeschreibung — die ausführlichen wissenschaftlichen Texte sind für nachfolgende Specs
+	 * ohne Belang.
+	 */
+	const DEFAULT_PILLARS = [
+		{ name: 'Körper', description: 'Leiblichkeit' },
+		{ name: 'Mentale Gesundheit', description: 'Emotionsregulation' },
+		{ name: 'Beziehungen', description: 'Bindung' },
+		{ name: 'Wirksamkeit', description: 'Selbstwirksamkeit' },
+		{ name: 'Sinn', description: 'Transzendenz & Werte' },
+	] as const;
+
+	/**
+	 * Legt die fünf Stammdaten-Säulen neu an und gewichtet sie gleich (je 20 %). Der e2e-Seed bestückt
+	 * das Backend beim Start mit genau diesen fünf Säulen; dieser Spec löscht sie (afterEach) samt der
+	 * test-angelegten Säulen. Damit nachfolgende Specs im selben Shard, die Stammdaten voraussetzen
+	 * (`series.spec.ts` #343, `settings-page.spec.ts` AK5), nicht leer ausgehen, wird der Zustand
+	 * nach jedem Test restauriert. Isolation #537: die Shard-Zusammensetzung legte diese Specs zusammen.
+	 */
+	const reseedDefaultPillars = async (page: Page): Promise<void> => {
+		for (const { name, description } of DEFAULT_PILLARS) {
+			await page.request.post('/api/v1/pillars', { data: { name, description } });
+		}
+		await setEqualWeightsViaApi(page);
+	};
+
+	// Definierter leerer Start je Test: sonst erbt der erste Test im Shard (AK1) die fünf Backend-
+	// Seed-Säulen und sein „einzelne Säule = 100 %" Szenario schlägt fehl (Rohwert 0,2 statt 1,0).
+	test.beforeEach(async ({ page }) => {
+		await deleteAllPillars(page);
+	});
+
 	test.afterEach(async ({ page }) => {
 		await deleteAllPillars(page);
+		await reseedDefaultPillars(page);
 	});
 
 	/** Öffnet den Säulen-Tab über die Settings-Route und wartet auf die Überschrift. */
@@ -221,7 +255,7 @@ test.describe('#431 Säulen-Verwaltung — dynamische Grenzfälle', () => {
 	/**
 	 * AK4 — Mobile-First (Pflicht): Die Säulen-Verwaltung ist bei 375×812 (iPhone X) ohne
 	 * horizontales Scrollen bedienbar — auch mit mehreren Säulen. Muster wie `login.spec.ts` AK5
-	 * / `task-tree-mobile-360.spec.ts` (`element.scrollWidth <= window.innerWidth`).
+	 * (`element.scrollWidth <= window.innerWidth`).
 	 */
 	test('AK4: Mobile-First — kein horizontales Scrollen bei 375×812 mit vielen Säulen', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
