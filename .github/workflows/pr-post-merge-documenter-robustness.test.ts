@@ -179,3 +179,40 @@ describe('Issue #532 — Documenter bricht bei reinen Test-/Spec-PRs nicht in Ph
 		);
 	});
 });
+
+describe('PR-Dokumentation: --add-label akzeptiert nur EINEN komma-separierten String (kein Array, keine Mehrfach-Args)', () => {
+	// Symptom (Run zu PR #535): Phase 5 crasht mit
+	//   gh pr edit "$pr_number" --repo "$REPO" --add-label "${labels_to_add[@]}"
+	//   → accepts at most 1 arg(s), received 2 → exit code 1
+	// `--add-label` nimmt genau EINEN Wert (ggf. komma-separiert), die Array-Expandierung
+	// `${labels_to_add[@]}` erzeugt aber zwei separate positionale Argumente. Der PR bekommt nie
+	// `ai:documented`, taucht im nächsten Lauf wieder auf. Phase 0b (Bot-Kurzbehandlung) trug
+	// denselben Bug ("release:ignore" "ai:documented"), verschluckt aber hinter `|| true` still.
+	// Dieser Guard verhindert den Rückfall in beide Formen.
+	it('kein --add-label mit Array-Expandierung "${labels_to_add[@]}" (erzeugt mehrere Args → Crash)', () => {
+		const arrayExpand = code.split('\n').filter((l) => /--add-label\s+["']?\$\{[^}]+\[@\]\}/.test(l));
+		assert.equal(
+			arrayExpand.length,
+			0,
+			'`--add-label "${labels_to_add[@]}"` gefunden: Array-Expandierung erzeugt mehrere ' +
+				'positionale Argumente, gh akzeptiert aber genau einen (komma-separierten) Wert → ' +
+				'"accepts at most 1 arg(s)". Erwartet: komma-joinen, z. B. ' +
+				'`labels_csv="$(IFS=,; echo "${labels_to_add[*]}")"` → `--add-label "$labels_csv"`. ' +
+				'Betroffen: ' +
+				JSON.stringify(arrayExpand),
+		);
+	});
+
+	it('kein --add-label mit zwei separaten gequoteten Label-Args (gleicher Crash, gleiche Ursache)', () => {
+		// Muster: --add-label "x" "y" — zwei Args statt eines komma-separierten Strings.
+		const twoArgs = code.split('\n').filter((l) => /--add-label\s+"[^"]+"\s+"[^"]+"/.test(l));
+		assert.equal(
+			twoArgs.length,
+			0,
+			'`--add-label "a" "b"` (zwei separate Args) gefunden: gh erwartet EINEN komma-separierten ' +
+				'Wert → Crash mit "accepts at most 1 arg(s)". Erwartet: `--add-label "a,b"`. ' +
+				'Betroffen: ' +
+				JSON.stringify(twoArgs),
+		);
+	});
+});
