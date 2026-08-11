@@ -15,6 +15,10 @@ const SERIES_COLUMNS = [
 	{ name: 'seriesId', definition: 'INTEGER' },
 	{ name: 'isException', definition: 'INTEGER NOT NULL DEFAULT 0' },
 	{ name: 'seriesOccurrence', definition: 'DATETIME' },
+	// Provenienz (#553): dauerhafte, FK-freie Spalte. Nullable, daher kein DEFAULT nötig. Bestehende
+	// Tasks erhalten implizit `NULL` (= nie Teil einer Serie), was korrekt ist — nur neu generierte
+	// Instanzen bekommen beim Materialisieren die `series.id` eingetragen (siehe logics/series.ts).
+	{ name: 'originSeriesId', definition: 'INTEGER' },
 	// Auto-Löschung bei verpasster Deadline (#523): NOT NULL mit DEFAULT 0 (SQLite verlangt bei
 	// nachträglichem ADD COLUMN einen DEFAULT für NOT NULL). Wird hier mitgezogen, damit Bestands-DBs
 	// die Spalte erhalten, bevor Queries (Task.findAll/-create) sie selektieren.

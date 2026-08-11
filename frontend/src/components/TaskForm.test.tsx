@@ -157,6 +157,19 @@ vi.mock('../api', () => ({
 	},
 }));
 
+// #553: Neuer Bestätigungs-Modal für die Serien-Bearbeitungs-Kaskade. Der Mock bildet die
+// erwartete (noch nicht existierende) Schnittstelle ab: zwei Buttons „Ja"/„Nein", die den
+// gewählten Kaskade-Wert an `onConfirm(cascade)` zurückmelden. Rot, solange TaskForm den
+// Modal beim Speichern mit geänderten kaskadierbaren Feldern noch nicht einblendet.
+vi.mock('./ConfirmSeriesActionModal', () => ({
+	ConfirmSeriesActionModal: ({ onConfirm }: { onConfirm?: (cascade: boolean) => void }) => (
+		<div data-testid="confirm-series-modal">
+			<button onClick={() => onConfirm?.(true)}>Ja</button>
+			<button onClick={() => onConfirm?.(false)}>Nein</button>
+		</div>
+	),
+}));
+
 import { api } from '../api';
 import { TaskForm } from './TaskForm';
 
@@ -582,6 +595,12 @@ describe('AK5 — Speichern verzweigt korrekt (#316)', () => {
 
 		await fillTitle('Serie umbenannt');
 		await clickSaveEdit();
+
+		// #553: Eine Title-Änderung ist kaskadierbar und öffnet daher das Kaskade-Bestätigungs-Modal;
+		// „Ja" schließt das Speichern ab (Endpoint bleibt `updateSeries`, nicht `updateTask`).
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Ja' }));
+		});
 
 		expect(mockUpdateSeries).toHaveBeenCalledTimes(1);
 		expect(mockUpdateTask).not.toHaveBeenCalled();
@@ -1424,5 +1443,88 @@ describe('TaskForm — Auto-Löschen auf KolInputCheckbox + KolAlert (#546)', ()
 		// rot, solange der Hinweis ein <p className="hint"> statt eines KolAlert (role=alert) ist.
 		const hint = screen.getByText(/bei verpasster Deadline automatisch nach 3 Tagen gelöscht/i);
 		expect(hint.closest('[role="alert"]'), 'Hinweis ist kein KolAlert').not.toBeNull();
+	});
+});
+
+/**
+ * Rote Spec-Tests für #553 — Serien-Kaskade beim Bearbeiten (Frontend).
+ *
+ * Beim Speichern der Series-Form mit GEÄNDERTEN kaskadierbaren Feldern blendet TaskForm ein
+ * neues Bestätigungs-Modal (`ConfirmSeriesActionModal`) ein, das nur über die Kaskade
+ * entscheidet: „Änderungen auf alle N Instanzen übernehmen?" mit Ja-/Nein-Buttons
+ * (Default = Nein = nur Serie). Die Wahl steuert das `applyToInstances`-Flag im
+ * `updateSeries`-Payload (Ja → true, Nein → false). Ohne geändertes kaskadierbares Feld
+ * erscheint kein Modal (normales Speichern).
+ *
+ * Der Mock für `./ConfirmSeriesActionModal` (oben) bildet die erwartete Schnittstelle
+ * `onConfirm(cascade: boolean)` ab und exponiert Ja-/Nein-Buttons. Specs sind rot, solange
+ * TaskForm das Modal beim Serien-Edit-Speichern nicht einblendet bzw. kein `applyToInstances`
+ * an `updateSeries` übergibt.
+ */
+describe('TaskForm — Serien-Kaskade-Bestätigung beim Bearbeiten (#553)', () => {
+	it('AK1/AK6 — bei geändertem kaskadierbaren Feld erscheint das Ja/Nein-Kaskade-Modal', async () => {
+		mockUpdateSeries.mockResolvedValue(minimalSeries());
+
+		await act(async () => {
+			render(<SeriesEditForm task={null} series={minimalSeries()} {...defaultProps} />);
+		});
+
+		// Titel (kaskadierbares Feld) ändern und speichern → Bestätigungs-Modal erscheint.
+		await fillTitle('Geänderter Serientitel');
+		await clickSaveEdit();
+
+		// rot, solange TaskForm das Kaskade-Modal beim Speichern nicht einblendet.
+		expect(screen.getByTestId('confirm-series-modal')).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'Ja' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'Nein' })).toBeInTheDocument();
+	});
+
+	it('AK2 — "Ja" im Modal → updateSeries mit applyToInstances: true (auf alle Instanzen)', async () => {
+		mockUpdateSeries.mockResolvedValue(minimalSeries());
+
+		await act(async () => {
+			render(<SeriesEditForm task={null} series={minimalSeries()} {...defaultProps} />);
+		});
+		await fillTitle('Geänderter Serientitel');
+		await clickSaveEdit();
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Ja' }));
+		});
+
+		expect(mockUpdateSeries).toHaveBeenCalledTimes(1);
+		const [{ seriesUpdate }] = mockUpdateSeries.mock.calls[0] as [{ seriesUpdate: Record<string, unknown> }];
+		expect(seriesUpdate).toHaveProperty('applyToInstances', true);
+	});
+
+	it('AK1/AK6 — "Nein" im Modal → updateSeries mit applyToInstances: false (nur Serie, sicherer Default)', async () => {
+		mockUpdateSeries.mockResolvedValue(minimalSeries());
+
+		await act(async () => {
+			render(<SeriesEditForm task={null} series={minimalSeries()} {...defaultProps} />);
+		});
+		await fillTitle('Geänderter Serientitel');
+		await clickSaveEdit();
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: 'Nein' }));
+		});
+
+		expect(mockUpdateSeries).toHaveBeenCalledTimes(1);
+		const [{ seriesUpdate }] = mockUpdateSeries.mock.calls[0] as [{ seriesUpdate: Record<string, unknown> }];
+		expect(seriesUpdate).toHaveProperty('applyToInstances', false);
+	});
+
+	it('AK6 — ohne geändertes kaskadierbares Feld erscheint kein Kaskade-Modal (Guard)', async () => {
+		mockUpdateSeries.mockResolvedValue(minimalSeries());
+
+		await act(async () => {
+			render(<SeriesEditForm task={null} series={minimalSeries()} {...defaultProps} />);
+		});
+
+		// Keine Feldänderung → Speichern ohne Kaskade-Modal (normale Template-Aktualisierung).
+		await clickSaveEdit();
+
+		expect(screen.queryByTestId('confirm-series-modal')).toBeNull();
 	});
 });

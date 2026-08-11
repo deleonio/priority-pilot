@@ -358,6 +358,10 @@ test.describe('Priority Pilot — #297: Altes Serien-Formular durch TaskForm ers
 		await page.getByRole('textbox', { name: 'Titel' }).fill(titleNew);
 		// AK7 (#334): Der Submit-Button im Bearbeiten-Modus heißt „Bearbeiten".
 		await page.locator('kol-dialog').getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+		// #553: Titel ist ein kaskadierbares Feld — der Speichern-Klick öffnet jetzt das
+		// `ConfirmSeriesActionModal` („Änderungen übernehmen"). Dieser Test prüft das Bearbeiten,
+		// nicht die Kaskade, deshalb den sicheren Default „Nein (nur Serie)" wählen (Template-only).
+		await page.getByRole('button', { name: /^Nein/i }).click();
 		await waitForStableView(page);
 
 		// Neuer Titel in der Liste sichtbar, alter nicht mehr.
@@ -378,8 +382,9 @@ test.describe('Priority Pilot — #297: Altes Serien-Formular durch TaskForm ers
 		await page.getByRole('button', { name: 'Löschen' }).first().click();
 		await waitForStableView(page);
 
-		// #472: Die Serien-Löschung erfordert jetzt eine Bestätigung („Endgültig löschen").
-		await page.getByRole('button', { name: 'Endgültig löschen' }).click();
+		// #553: Der Bestätigungsdialog besitzt jetzt drei Buttons (Ja/Nein/Abbrechen) statt
+		// „Endgültig löschen". „Nein (nur Serie, …)" löscht die Serie ohne Kaskade (cascade=false).
+		await page.getByRole('button', { name: /^Nein/i }).click();
 		await waitForStableView(page);
 
 		await expect(page.getByText(title, { exact: true })).toBeHidden();

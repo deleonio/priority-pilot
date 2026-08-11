@@ -36,6 +36,8 @@ ScoreEntry.belongsTo(Task, { foreignKey: 'taskId' });
 // Ein Serien-Template (`Series`) hat 0..n generierte Instanzen — jede Instanz ist ein vollwertiger
 // `Task` mit `seriesId` (siehe #120). Die Instanz ist entkoppelt: Template-Änderungen wirken nur auf
 // künftige Instanzen, Instanz-Änderungen (gesetztes `isException`) nicht aufs Template.
+// #553: Der FK bleibt bestehen — beim Löschen NUR der Serie (`cascade=false`) koppelt die Route die
+// Instanzen explizit ab (`seriesId → null`), ihre dauerhafte Provenienz hält `originSeriesId`.
 Series.hasMany(Task, { foreignKey: 'seriesId' });
 Task.belongsTo(Series, { foreignKey: 'seriesId' });
 

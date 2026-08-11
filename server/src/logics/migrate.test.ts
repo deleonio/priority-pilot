@@ -25,7 +25,7 @@ import { closeDb } from '../test/helpers.js';
 // `ALTER TABLE tasks ADD COLUMN` nachzieht. Es wird KEIN Produktivcode geschrieben; die Tests
 // werden grün, sobald `server/src/logics/migrate.ts` mit `migrateSeriesColumns` existiert.
 
-const SERIES_COLUMNS = ['seriesId', 'isException', 'seriesOccurrence'] as const;
+const SERIES_COLUMNS = ['seriesId', 'isException', 'seriesOccurrence', 'originSeriesId'] as const;
 const UNIQUE_INDEX = 'tasks_series_id_series_occurrence';
 
 /** Spaltennamen der `tasks`-Tabelle (leer, falls die Tabelle nicht existiert). */
@@ -331,9 +331,11 @@ describe('migrateUserIdColumns', () => {
 	it('erlaubt nach Migration ein Task.findAll filtert nach userId ohne SQLITE_ERROR', async () => {
 		await createLegacyTasksTableBefore207();
 		await migrateUserIdColumns(sequelize);
-		// `checklist` (#531) wird von Task.findAll mitselektiert — hier nachziehen, damit die Query
-		// nicht an der fehlenden Spalte bricht (separate Migration, nicht Teil der userId-Spalten).
+		// `checklist` (#531) und `originSeriesId` (#553) werden von Task.findAll mitselektiert — hier
+		// nachziehen, damit die Query nicht an der fehlenden Spalte bricht (separate Migrationen, nicht
+		// Teil der userId-Spalten).
 		await migrateTaskChecklist(sequelize);
+		await migrateSeriesColumns(sequelize);
 		await sequelize.sync();
 
 		await assert.doesNotReject(
