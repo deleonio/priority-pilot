@@ -146,3 +146,38 @@ describe('Spiegel — .claude/settings.json bleibt providerneutral', () => {
 		assert.doesNotMatch(settings, /ANTHROPIC_DEFAULT_\w+_MODEL/, 'Modell-Aliase sind provider-spezifisch');
 	});
 });
+
+// ── UX-Pattern-Doku: jede docs/ux-pattern-*.md MUSS in den Phasen-Prompts referenziert sein ──
+//
+// Eine Pattern-Seite (z. B. docs/ux-pattern-sequential-confirmation.md, Issue #557) ist nur
+// dann wirksam verankert, wenn Spec- und Implement-Prompt sie auch nennen — sonst liegt die
+// Seite im Repo, aber kein Agent wendet sie je an (genau die Luecke, die #557 urspruenglich
+// offenliess). Die SOLL-Liste ist das Dateisystem selbst: jede existierende ux-pattern-Seite
+// muss in beiden Phasen-Prompts auftauchen. Drift = neue Seite ohne Prompt-Verweis.
+
+describe('Spiegel — jede docs/ux-pattern-*.md wird von Spec- und Implement-Prompt referenziert', () => {
+	const promptBody = (wf: string): string => {
+		const yml = read('.github', 'workflows', wf);
+		const m = yml.match(/cat > \/tmp\/claude-prompt\.txt << 'CLAUDE_EOF'\s*\n([\s\S]*?)CLAUDE_EOF/);
+		assert.ok(m, `Claude-Prompt-Block nicht in ${wf} gefunden`);
+		return m[1];
+	};
+
+	const patternDocs = readdirSync(join(REPO_ROOT, 'docs')).filter((f) => /^ux-pattern-.*\.md$/.test(f));
+
+	it('mindestens eine UX-Pattern-Seite existiert', () => {
+		assert.ok(patternDocs.length > 0, 'keine docs/ux-pattern-*.md gefunden — Parser kaputt?');
+	});
+
+	for (const wf of ['02-claude-spec.yml', '03-claude-implement.yml']) {
+		it(`${wf} referenziert jede UX-Pattern-Seite`, () => {
+			const prompt = promptBody(wf);
+			for (const doc of patternDocs) {
+				assert.ok(
+					prompt.includes(`docs/${doc}`),
+					`${wf} nennt docs/${doc} nicht — Pattern-Seite existiert, wird aber von der Phase ignoriert (Issue #557)`,
+				);
+			}
+		});
+	}
+});

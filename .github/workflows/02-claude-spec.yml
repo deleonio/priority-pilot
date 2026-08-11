@@ -140,6 +140,7 @@ jobs:
                VORAB Dedup: Prüfe per grep, ob ein AK bereits durch bestehenden Test abgedeckt ist.
                  - Schon abgedeckt → NICHT duplizieren.
                  - Widerspricht AK einem bestehenden Test → alten Test ENTFERNEN und im PR-Body im Abschnitt "Test-Pflege-Bedarf" dokumentieren (Datei:Zeile + Begründung).
+               Bei Confirm-/Lösch-/Zerstör-Dialogen: Tests an docs/ux-pattern-sequential-confirmation.md orientieren – sequenzielle Ja/Nein-Schritte, verbindliches Fokus-Management beim Übergang.
             4. Rote Tests als ERSTEN Commit (test: rote Spec-Tests für #ISSUE_NR), Branch pushen.
                DRAFT-PR erstellen (gh pr create --draft) mit Closes #ISSUE_NR im Body. KEIN ai:needs-review setzen.
 
