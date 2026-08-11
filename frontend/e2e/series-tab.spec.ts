@@ -164,6 +164,10 @@ test.describe('Priority Pilot — #335: Serien-Verwaltung als eigener Tab', () =
 		// Titel ändern und speichern.
 		await page.getByRole('textbox', { name: 'Titel' }).fill(titleNew);
 		await page.locator('kol-dialog').getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+		// #553: Titel ist ein kaskadierbares Feld — der Speichern-Klick öffnet jetzt das
+		// `ConfirmSeriesActionModal` („Änderungen übernehmen"). Dieser Test prüft das Bearbeiten,
+		// nicht die Kaskade, deshalb den sicheren Default „Nein (nur Serie)" wählen (Template-only).
+		await page.getByRole('button', { name: /^Nein/i }).click();
 		await waitForStableView(page);
 
 		// Die Zeile ist aktualisiert: neuer Titel sichtbar, alter nicht mehr.
@@ -193,8 +197,9 @@ test.describe('Priority Pilot — #335: Serien-Verwaltung als eigener Tab', () =
 		await item.getByRole('button', { name: 'Löschen' }).click();
 		await waitForStableView(page);
 
-		// #472: Die Serien-Löschung erfordert jetzt eine Bestätigung („Endgültig löschen").
-		await page.getByRole('button', { name: 'Endgültig löschen' }).click();
+		// #553: Der Bestätigungsdialog besitzt jetzt drei Buttons (Ja/Nein/Abbrechen) statt
+		// „Endgültig löschen". „Nein (nur Serie, …)" löscht die Serie ohne Kaskade (cascade=false).
+		await page.getByRole('button', { name: /^Nein/i }).click();
 		await waitForStableView(page);
 
 		// Die Zeile verschwindet aus dem Serien-Baum.

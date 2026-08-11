@@ -75,7 +75,7 @@ export const DeleteSeriesDialog = ({ series, onClose, onDeleted, fallbackFocusRe
 				/>
 				<KolButton
 					ref={noRef}
-					_label="Nein (nur Serie, Aufgaben bleiben als eigenständig)"
+					_label="Nein (nur Serie, Aufgaben bleiben eigenständig)"
 					_variant="secondary"
 					_disabled={deleting}
 					_on={{ onClick: () => void confirm(false) }}

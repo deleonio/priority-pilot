@@ -152,9 +152,12 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		await assertCancelFocusedWithoutJump(page, 'Priority Pilot');
 	});
 
-	test('AK3 — Serien-Löschen: Bestätigungsdialog statt Sofort-Löschung, Initialfokus auf „Abbrechen"', async ({
-		page,
-	}) => {
+	// #553: Der Serien-Löschdialog hat eine eigene Struktur (Ja/Nein/Abbrechen, kein
+	// „Endgültig löschen") und damit einen bewusst ANDEREN Fokus-Vertrag als Task/Säule. Die shared
+	// Helpers (`installDeleteFocusWatcher`, `assertCancelFocusedWithoutJump`) schützen den Vertrag
+	// der unveränderten Task/Säule-Dialoge und werden hier bewusst NICHT verwendet — stattdessen
+	// INLINE-Assertions, die der neuen Serien-Struktur folgen (Initialfokus auf „Nein", nicht „Abbrechen").
+	test('AK3 — Serien-Löschen: Bestätigungsdialog statt Sofort-Löschung, Initialfokus auf „Nein"', async ({ page }) => {
 		const title = uniqueTitle('Serie');
 		const created = await page.request.post('/api/v1/series', {
 			data: {
@@ -168,7 +171,8 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		});
 		expect(created.ok()).toBeTruthy();
 
-		await installDeleteFocusWatcher(page);
+		// #553: Kein `installDeleteFocusWatcher` — der Serien-Dialog hat keinen „Endgültig löschen"-
+		// Button mehr, der Watcher (der genau auf diesen Text horcht) wäre hier bedeutungslos.
 		await page.goto('/');
 		await waitForStableView(page);
 
@@ -178,13 +182,19 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
 
 		await page.getByRole('button', { name: 'Löschen' }).first().click();
-		await expect(page.getByRole('button', { name: 'Endgültig löschen' })).toBeVisible();
+		// #553: Der Dialog besitzt jetzt drei Buttons — „Ja (Serie + alle Aufgaben)" statt „Endgültig
+		// löschen". Der Bestätigungsdialog erscheint (keine Sofort-Löschung mehr).
+		await expect(page.getByRole('button', { name: /^Ja \(Serie \+ alle Aufgaben\)/ })).toBeVisible();
 
 		// Der bloße Klick darf noch NICHT gelöscht haben — Bestätigungsdialog statt Sofort-Löschung.
 		const afterClick = (await (await page.request.get('/api/v1/series')).json()) as { title: string }[];
 		expect(afterClick.some((entry) => entry.title === title)).toBeTruthy();
 
-		await assertCancelFocusedWithoutJump(page);
+		// #553: Initialfokus liegt auf „Nein (nur Serie, …)" (sicherer Default — die kaskadierende
+		// Löschung „Ja" ist nicht per Enter auslösbar). Der destruktive „Ja"-Button ist nicht fokussiert.
+		await waitForStableView(page);
+		await expect(page.getByRole('button', { name: /^Nein/i })).toBeFocused();
+		await expect(page.getByRole('button', { name: /^Ja \(Serie \+ alle Aufgaben\)/ })).not.toBeFocused();
 	});
 
 	/**
@@ -366,9 +376,23 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
 
 		await page.getByRole('button', { name: 'Löschen' }).first().click();
-		await expect(page.getByRole('button', { name: 'Endgültig löschen' })).toBeVisible();
+		// #553: Der Serien-Löschdialog hat keinen „Endgültig löschen"-Button mehr (siehe AK3) und
+		// damit einen anderen Fokus-Vertrag — die shared Helper sind auf Task/Säule (Initialfokus
+		// „Abbrechen" + Tab nach „Endgültig löschen") zugeschnitten und greifen hier nicht. Statt-
+		// dessen INLINE-Assertions analog zu AK4: Initialfokus liegt auf „Nein", Tab muss den Fokus
+		// weiterbewegen (kein Fokus-Gefängnis). SETTLE_MS wie in AK4 bewusst auf 150 gewählt.
+		await expect(page.getByRole('button', { name: /^Ja \(Serie \+ alle Aufgaben\)/ })).toBeVisible();
 		await waitForStableView(page);
 
-		await assertTabFreedomInOpenDeleteDialog(page);
+		const SETTLE_MS = 150;
+		const noButton = page.getByRole('button', { name: /^Nein/i });
+		await expect(noButton).toBeFocused();
+
+		await page.waitForTimeout(SETTLE_MS);
+		await page.keyboard.press('Tab');
+
+		// Tab muss den Fokus weiterbewegt haben — „Nein" ist nicht mehr fokussiert, stattdessen
+		// liegt der Fokus auf einem anderen Dialog-Button (z. B. „Abbrechen" oder „Ja").
+		await expect(noButton, 'Tab muss den Fokus weiterbewegen dürfen').not.toBeFocused();
 	});
 });
