@@ -440,9 +440,10 @@ seriesRouter.patch('/series/:id', async (req: Request, res: Response<SeriesDto |
 
 // DELETE /series/:id — ein Serien-Template löschen.
 // Query `cascade=true`: zusätzlich alle Instanzen (Tasks mit `seriesId = :id`) löschen.
-// Default (`cascade=false`): nur das Template; Instanzen bleiben UNANGETASTET (`seriesId` unverändert,
-// ermöglicht spätere Wiederherstellung). Dafür ist die Serie↔Task-Assoziation ohne FK-Constraint
-// modelliert (siehe models/index.ts) — ein bloßes `series.destroy()` verwaist die Instanzen.
+// Default (`cascade=false`): nur das Template; die Instanzen bleiben erhalten und werden von der
+// Serie ABGEKOPPELT (`seriesId → null`). Ihre Provenienz (`originSeriesId`) bleibt dauerhaft
+// erhalten — so lassen sich ehemalige Instanzen später noch gruppieren/filtern. Beide Pfade laufen
+// in einer Transaktion, damit Instanz- und Serien-Löschung/-Abkopplung atomar sind.
 seriesRouter.delete('/series/:id', async (req: Request, res: Response<ErrorDto>) => {
 	const id = parseId(req.params.id);
 	const series = id === null ? null : await Series.findByPk(id);
@@ -452,10 +453,16 @@ seriesRouter.delete('/series/:id', async (req: Request, res: Response<ErrorDto>)
 	}
 	const cascade = req.query.cascade === 'true';
 	try {
-		if (cascade) {
-			await Task.destroy({ where: { seriesId: series.id } });
-		}
-		await series.destroy();
+		await sequelize.transaction(async (transaction) => {
+			if (cascade) {
+				await Task.destroy({ where: { seriesId: series.id }, transaction });
+			} else {
+				// Abkoppeln: aus den ehemaligen Instanzen werden eigenständige Aufgaben. `originSeriesId`
+				// bleibt unangetastet und hält die Herkunft fest.
+				await Task.update({ seriesId: null }, { where: { seriesId: series.id }, transaction });
+			}
+			await series.destroy({ transaction });
+		});
 		res.status(204).send();
 	} catch (error) {
 		handleWriteError(res, error);

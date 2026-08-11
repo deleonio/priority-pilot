@@ -77,6 +77,8 @@ describe('Series API — Kaskade (#553)', () => {
 					seriesId,
 					seriesOccurrence: occurrence,
 					isException: false,
+					// #553: Provenienz wie vom Generator gesetzt (siehe logics/series.ts).
+					originSeriesId: seriesId,
 				}),
 			);
 		}
@@ -101,21 +103,50 @@ describe('Series API — Kaskade (#553)', () => {
 		});
 	});
 
-	// AK4: DELETE ohne cascade lässt die Instanzen UNANGETASTET (seriesId bleibt → Wiederherstellung).
-	// Guard-Test: sichert den sicheren Default gegen Regression während der Umsetzung.
-	describe('DELETE /series/:id (Default: keine Kaskade)', () => {
-		it('lässt alle Instanzen mit unverändertem seriesId bestehen', async () => {
+	// AK4: DELETE ohne cascade koppelt die Instanzen AB (`seriesId → null`), erhält sie aber als
+	// eigenständige Aufgaben — inkl. ihrer dauerhaften Provenienz (`originSeriesId`).
+	describe('DELETE /series/:id (Default: keine Kaskade, Abkoppeln)', () => {
+		it('erhält alle Instanzen, koppelt sie ab (seriesId=null) und bewahrt die Provenienz', async () => {
 			const created = (await (await post('/series', validSeries())).json()) as { id: number };
 			await seedInstances(created.id, 5);
 
 			const res = await del(`/series/${created.id}`);
 			assert.equal(res.status, 204);
 
-			const remaining = await Task.findAll({ where: { seriesId: created.id } });
+			// Instanzen existieren weiterhin …
+			const remaining = await Task.findAll({ where: { originSeriesId: created.id } });
 			assert.equal(remaining.length, 5, 'Instanzen bleiben erhalten (nur Serie gelöscht)');
+			// … sind aber von der gelöschten Serie ABGEKOPPELT (keine dangling FK-Referenz) …
 			assert.ok(
-				remaining.every((t) => t.seriesId === created.id),
-				'seriesId ist unverändert (FK verweist weiter auf die Serie — spätere Wiederherstellung)',
+				remaining.every((t) => t.seriesId === null),
+				'seriesId ist null — Instanzen wurden zu eigenständigen Aufgaben abgekoppelt',
+			);
+			// … und behalten ihre Herkunft (`originSeriesId` bleibt als Provenienz erhalten).
+			assert.ok(
+				remaining.every((t) => t.originSeriesId === created.id),
+				'originSeriesId verweist weiterhin auf die ehemalige Serie (Provenienz erhalten)',
+			);
+		});
+	});
+
+	// #553 Provenienz-Use-Case: nach dem Löschen einer Serie lassen sich ihre ehemaligen Instanzen
+	// weiterhin über `originSeriesId` wiederfinden und filtern — z. B. um unerledigte Tasks einer
+	// gelöschten Serie gezielt aufzuräumen. Das ist der Kernzweck der Provenienz-Spalte.
+	describe('Provenienz nach Serien-Löschung (originSeriesId)', () => {
+		it('erlaubt das Wiederfinden aller ehemaligen Instanzen über originSeriesId', async () => {
+			const created = (await (await post('/series', validSeries())).json()) as { id: number };
+			await seedInstances(created.id, 3);
+
+			await del(`/series/${created.id}`);
+
+			// Ein normaler Task, der nie zur Serie gehörte — er taucht NICHT in der Provenienz-Suche auf.
+			await Task.create({ title: 'Fremd-Task', priority: 3, estimatedEffort: 0.5 });
+
+			const formerInstances = await Task.findAll({ where: { originSeriesId: created.id } });
+			assert.equal(formerInstances.length, 3, 'alle 3 ehemaligen Instanzen über Provenienz auffindbar');
+			assert.ok(
+				formerInstances.every((t) => t.title.startsWith('Instanz ')),
+				'Provenienz-Suche liefert genau die ehemaligen Instanzen, keine Fremd-Tasks',
 			);
 		});
 	});

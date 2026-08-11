@@ -36,12 +36,10 @@ ScoreEntry.belongsTo(Task, { foreignKey: 'taskId' });
 // Ein Serien-Template (`Series`) hat 0..n generierte Instanzen — jede Instanz ist ein vollwertiger
 // `Task` mit `seriesId` (siehe #120). Die Instanz ist entkoppelt: Template-Änderungen wirken nur auf
 // künftige Instanzen, Instanz-Änderungen (gesetztes `isException`) nicht aufs Template.
-Series.hasMany(Task, { foreignKey: 'seriesId', constraints: false });
-// #553: Die Serie↔Instanz-Beziehung ist bewusst OHNE FK-Constraint modelliert. So verwaist eine
-// gelöschte Serie nicht SET NULL/CASCADE auf ihre Instanzen — der DELETE-Default (`cascade=false`)
-// lässt die Instanzen mit unverändertem `seriesId` bestehen (ermöglicht spätere Wiederherstellung).
-// `cascade=true` löscht die Instanzen explizit in der Route (siehe routes/series.ts).
-Task.belongsTo(Series, { foreignKey: 'seriesId', constraints: false });
+// #553: Der FK bleibt bestehen — beim Löschen NUR der Serie (`cascade=false`) koppelt die Route die
+// Instanzen explizit ab (`seriesId → null`), ihre dauerhafte Provenienz hält `originSeriesId`.
+Series.hasMany(Task, { foreignKey: 'seriesId' });
+Task.belongsTo(Series, { foreignKey: 'seriesId' });
 
 // Ein Serien-Template trägt eine Säulen-**Vorlage** (n:m, #302): 0..n Säulen mit `share`/`confidence`
 // in `series_pillars`. Analog zu Task↔Pillar, aber auf der Template-Ebene (siehe seriesPillar.ts).

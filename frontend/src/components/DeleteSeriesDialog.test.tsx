@@ -99,7 +99,7 @@ describe('DeleteSeriesDialog — Kaskade-Auswahl Ja/Nein (#553)', () => {
 		expect(onDeleted).toHaveBeenCalledTimes(1);
 	});
 
-	// AK4 + AK6 (Default): „Nein" löscht nur die Serie, Instanzen unangetastet → cascade=false.
+	// AK4 + AK6 (Default): „Nein" löscht nur die Serie, Instanzen bleiben erhalten → cascade=false.
 	it('"Nein" ruft deleteSeries mit cascade=false auf (nur Serie, sicherer Default)', async () => {
 		mockDeleteSeries.mockResolvedValue(undefined);
 		const onDeleted = vi.fn();
@@ -114,5 +114,24 @@ describe('DeleteSeriesDialog — Kaskade-Auswahl Ja/Nein (#553)', () => {
 
 		expect(mockDeleteSeries).toHaveBeenCalledWith(expect.objectContaining({ id: sampleSeries().id, cascade: false }));
 		expect(onDeleted).toHaveBeenCalledTimes(1);
+	});
+
+	// „Abbrechen" bricht ab: kein API-Aufruf, Dialog über onClose geschlossen (nicht gelöscht).
+	it('"Abbrechen" ruft deleteSeries NICHT auf und schließt über onClose', async () => {
+		mockDeleteSeries.mockResolvedValue(undefined);
+		const onClose = vi.fn();
+		const onDeleted = vi.fn();
+
+		await act(async () => {
+			render(<DeleteSeriesDialog series={sampleSeries()} onClose={onClose} onDeleted={onDeleted} />);
+		});
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: /^Abbrechen/i }));
+		});
+
+		expect(mockDeleteSeries).not.toHaveBeenCalled();
+		expect(onDeleted).not.toHaveBeenCalled();
+		expect(onClose).toHaveBeenCalledTimes(1);
 	});
 });

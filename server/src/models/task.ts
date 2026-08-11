@@ -41,12 +41,19 @@ class Task extends Model {
 	public checklist!: ChecklistItem[];
 
 	// Serien-Bezug (Habits, siehe #120): `seriesId` verweist auf das Template, aus dem diese Instanz
-	// generiert wurde (`null` ⇒ gewöhnlicher Einzel-Task). `isException` markiert eine nachträglich
-	// individuell geänderte Instanz; `seriesOccurrence` ist der unveränderliche Idempotenz-Anker des
-	// fälligen Termins (NICHT `deadline`, die verschiebbar ist).
+	// generiert wurde (`null` ⇒ gewöhnlicher Einzel-Task, oder nachdem die Serie gelöscht wurde).
+	// `isException` markiert eine nachträglich individuell geänderte Instanz; `seriesOccurrence` ist
+	// der unveränderliche Idempotenz-Anker des fälligen Termins (NICHT `deadline`, die verschiebbar ist).
 	public seriesId?: number | null;
 	public isException!: boolean;
 	public seriesOccurrence?: Date | null;
+	// Provenienz (#553): dauerhafte, FK-freie Spalte, die beim Generieren einmalig auf `series.id`
+	// gesetzt wird und NIE wieder geändert wird — auch nicht beim Löschen der Serie. Während `seriesId`
+	// die Live-Verbindung zur (ggf. zwischenzeitlich gelöschten) Serie hält und beim Abkoppeln auf null
+	// fällt, bleibt `originSeriesId` als Herkunftsnachweis erhalten. Ermöglicht z. B. „alle Tasks aus
+	// Serie X" oder „unerledigte Tasks einer gelöschten Serie aufräumen", OHNE eine dangling FK-Referenz
+	// zu hinterlassen. `null` ⇒ nie Teil einer Serie gewesen.
+	public originSeriesId?: number | null;
 
 	// Eigentümer des Tasks (Issue #207, AK5 — Datenisolation). Nullable für Abwärtskompatibilität:
 	// Alt-Bestände ohne Zuordnung bleiben lesbar; neue Tasks werden über die Session-`userId` gebunden.
@@ -146,6 +153,12 @@ Task.init(
 		},
 		seriesOccurrence: {
 			type: DataTypes.DATE,
+			allowNull: true,
+		},
+		// Provenienz (#553) — FK-frei: nur Daten, keine referenzielle Integrität (Serie kann gelöscht
+		// sein). Nullable für alle Tasks, die nie aus einer Serie generiert wurden.
+		originSeriesId: {
+			type: DataTypes.INTEGER,
 			allowNull: true,
 		},
 		// Eigentümer-Bindung (Issue #207, AK5). `null` erlaubt (Abwärtskompatibilität, s. o.).

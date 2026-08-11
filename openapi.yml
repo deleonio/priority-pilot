@@ -553,8 +553,10 @@ paths:
           required: false
           description: >-
             `true` löscht zusätzlich alle generierten Instanzen (Tasks mit dieser `seriesId`).
-            Default `false`: nur das Template wird entfernt; die Instanzen bleiben unangetastet
-            (`seriesId` unverändert) und ermöglichen eine spätere Wiederherstellung.
+            Default `false`: nur das Template wird entfernt; die Instanzen bleiben erhalten und
+            werden von der Serie abgekoppelt (`seriesId → null`). Ihre dauerhafte Provenienz
+            (`originSeriesId`) bleibt erhalten, sodass sich ehemalige Instanzen später noch
+            gruppieren/filtern lassen.
           schema:
             type: boolean
       responses:
@@ -832,7 +834,18 @@ components:
           nullable: true
           description: >-
             ID des Serien-Templates, aus dem diese Instanz generiert wurde
-            (`null` ⇒ gewöhnlicher Einzel-Task), siehe Serienaufgaben (#120).
+            (`null` ⇒ gewöhnlicher Einzel-Task oder nach Abkoppeln von einer
+            gelöschten Serie), siehe Serienaufgaben (#120).
+        originSeriesId:
+          type: integer
+          nullable: true
+          description: >-
+            Dauerhafte Provenienz (#553): ID der Serie, aus der dieser Task
+            ursprünglich erzeugt wurde. Wird beim Generieren einmalig gesetzt und
+            NIE geändert — auch beim Löschen der Serie nicht. Während `seriesId`
+            die Live-Verbindung hält (und beim Abkoppeln auf null fällt), bleibt
+            `originSeriesId` als Herkunftsnachweis erhalten. `null` ⇒ nie Teil
+            einer Serie.
         isException:
           type: boolean
           default: false
