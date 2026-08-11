@@ -182,7 +182,7 @@ jobs:
         run: |
           verdict=""
           if [ -f /tmp/claude-output.log ]; then
-            verdict="$(grep -oP 'VERDICT:\s*\K.*' /tmp/claude-output.log | tail -1 | tr -d '[:space:]' || true)"
+            verdict="$(grep 'VERDICT:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | tr -d '[:space:]' || true)"
           fi
           echo "Claude-Verdict aus Output: '${verdict:-keins}'"
 
