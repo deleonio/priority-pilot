@@ -168,6 +168,7 @@ jobs:
                **Hinweis:** Obsolete Tests wurden bereits in der Spec-Stufe entfernt. Falls trotzdem Widerspruch auffällt → NICHT still ändern/löschen, sondern im PR-Body Abschnitt "Test-Pflege-Bedarf" mit Datei:Zeile + Begründung anlegen.
                Fallback (kein Draft-PR): eigenen Branch + Tests selbst schreiben.
             4. Code bis pnpm test grün, dann pnpm format + pnpm lint + pnpm knip.
+               Bei Confirm-/Lösch-/Zerstör-Dialogen: docs/ux-pattern-sequential-confirmation.md anwenden – sequenzielle Ja/Nein-Schritte, striktes Fokus-Management beim Übergang (verbindliche A11y-Vorgabe).
             5. Committen, Branch pushen. Im Spec-Modus Draft-PR review-bereit machen (gh pr ready <nr>), Beschreibung ergänzen.
 
           ⚠️ LABELS: KEINE Labels setzen! Workflow übernimmt das automatisch.
