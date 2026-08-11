@@ -183,11 +183,12 @@ krachen (fehlender Build-Step, falscher Host, vergessenes Secret) — dafür ist
   gefunden werden. Eine kaputte Extraktion ergibt sonst einen dauerhaft grünen Test über eine leere
   Menge. Deshalb gehört zu jedem All-Quantor eine Assertion, dass die Menge nicht leer ist.
 
-**Kanonisches Beispiel im Repo:** `.github/workflows/*.test.ts` — vier Dateien, je eine Kategorie
-(`triage-concurrency` = Auswertung, `workflow-invariants` = All-Quantoren, `workflow-consistency` =
-Spiegel, `workflow-safety` = Schutz). Die Vorgängerversion hatte 1423 Zeilen und 92 Tests, davon
-~70 reine String-Greps auf selbst geschriebene YAML; übrig sind 47 Tests, die alle die
-Mutations-Probe bestehen.
+**Kanonisches Beispiel im Repo:** `.github/scripts/*.test.ts` (z. B. `analyze-test-suite.test.ts`,
+`cost-record.test.ts`) — Contract-Tests für reine, exportierte Funktionen. Jede Assertion fixiert
+einen konkreten Anti-Pattern-Fall, sodass Regressionen sofort rot laufen. Die früheren
+`.github/workflows/*.test.ts` wurden bewusst entfernt: statische YAML-/Prompt-String-Tests brechen
+nicht, wenn das Verhalten kaputtgeht, sondern nur wenn sich der String ändert — sie bestehen die
+Mutations-Probe nicht und lieferten keinen echten Schutz.
 
 ## Wie konkret das aussieht (an bestehendem Code)
 

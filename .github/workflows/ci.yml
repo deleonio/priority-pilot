@@ -88,19 +88,14 @@ jobs:
       # erst nach `pnpm add -D @vitest/coverage-v8` aktiv.
       - name: Coverage-Gate (server/src/logics)
         run: pnpm --filter priority-pilot test:coverage
-      # Workflow-/CI-Vertraege (statische Auswertung via node:test ueber tsx, AUSSERHALB der
-      # pnpm-Workspaces). Vier Dateien, je eine Aufnahme-Kategorie (siehe .ai-knowledge/tdd-strategy.md):
-      #   triage-concurrency.test.ts  — Auswertung: GitHub-Expressions gegen echte Event-Payloads
-      #   workflow-invariants.test.ts — All-Quantoren ueber ALLE Workflows (--repo, Label-Token)
-      #   workflow-consistency.test.ts— Spiegel zwischen Dateien (CI-Gates, setup-claude, Shard-Nenner)
-      #   workflow-safety.test.ts     — teure/stille Ausfaelle (rsync-Excludes, Loop-Schutz)
-      # Bewusst KEINE Tests der Form „YAML enthaelt den String, den ich hineingeschrieben habe".
+      # Script-Unit-Tests (statische Auswertung via node:test ueber tsx, AUSSERHALB der
+      # pnpm-Workspaces) — analyze-test-suite.test.ts, cost-record.test.ts.
       # pnpm dlx (nicht npx): seit tsx@4.22.4 transitiv via vite im Workspace-Baum liegt, erkennt
       # `npx tsx` es als "lokal vorhanden" und versucht das Bin aus dem Root-`.bin` zu starten —
       # pnpm verlinkt transitive Deps dort aber nicht, daher `sh: tsx: command not found`. pnpm dlx
       # nutzt einen isolierten Store ausserhalb des Workspaces und ist damit immun dagegen.
-      - name: Test (Workflow-/CI-Vertraege)
-        run: pnpm dlx tsx@4.22.4 --test ".github/workflows/"*.test.ts ".github/scripts/"*.test.ts
+      - name: Test (Script-Unit-Tests)
+        run: pnpm dlx tsx@4.22.4 --test ".github/scripts/"*.test.ts
 
   # E2E gesharded ueber eine Matrix: jeder Shard ist eine EIGENE Runner-VM mit eigenem localhost —
   # dadurch kollidieren die festen Ports (Backend 3000 / Vite 4173) NICHT zwischen den Shards, und
@@ -113,7 +108,7 @@ jobs:
   # da SESSION_STORE/NODE_ENV ungesetzt — siehe server/src/express/session.ts). Skaliert linear: neue
   # Specs verteilen sich auf die Shards, statt die Pipeline seriell zu verlaengern (E2E war ~58%).
   # ACHTUNG: Wird `shard: [...]` geaendert, MUSS der Nenner in `--shard=…/N` mitgezogen werden —
-  # workflow-consistency.test.ts bricht sonst rot (Schutz gegen stillen Test-Drop).
+  # sonst laufen Specs still gar nicht mehr (Schutz gegen stillen Test-Drop).
   e2e:
     # Kein CI auf Draft-PRs (identisch zu verify) — sonst liefen die teuren E2E-Shards auf dem
     # noch roten Spec-Draft. Startet erst ab ready_for_review; push-Events laufen immer.

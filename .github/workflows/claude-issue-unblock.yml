@@ -19,9 +19,9 @@ name: Issue Unblock (Nachfolger freigeben)
 # pr-needs-review-label.yml / claude-pr-conflict-scan.yml.
 #
 # Selbsttest-Hinweis: Ein neuer pull_request-Workflow lässt sich nicht am eigenen
-# Einführungs-PR verifizieren (er ist zum Merge-Zeitpunkt noch nicht auf main). Statisch
-# abgesichert ist gezielt der still ausfallende Teil: das Fan-in-Gate muss vor der Freigabe
-# stehen (workflow-safety.test.ts), gh-Aufrufe brauchen --repo (workflow-invariants.test.ts).
+# Einführungs-PR verifizieren (er ist zum Merge-Zeitpunkt noch nicht auf main). Gezielt
+# abgesichert ist der still ausfallende Teil: das Fan-in-Gate muss vor der Freigabe stehen,
+# gh-Aufrufe brauchen --repo.
 
 on:
   pull_request:

@@ -9,8 +9,8 @@ import { dirname, join } from 'node:path';
 // Diese Spec-Tests fixieren den Contract für `.github/scripts/cost-record.ts` (noch nicht
 // implementiert → rot). Die Datenquelle = GitHub-Workflow-Run-Output; je Issue wird ein
 // Datensatz unter der Issue-ID fortlaufend ergänzt und später chronologisch ausgelesen.
-// Stil-Spiegel von analyze-test-suite.test.ts / workflow-consistency.test.ts: node:test +
-// assert/strict, deutsche describe/it. Testebene: reine Funktionen auf isoliertem tmp-Dir
+// Stil-Spiegel von analyze-test-suite.test.ts: node:test + assert/strict, deutsche
+// describe/it. Testebene: reine Funktionen auf isoliertem tmp-Dir
 // (kein Schreiben ins echte Repo), statische Auswertung der Schema-Datei (ci.yml via tsx).
 //
 // Akzeptanzkriterien → Testfälle:

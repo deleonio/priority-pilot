@@ -16,8 +16,7 @@ import {
 // Contract-Tests für die Test-Suite-Analyse. Die Detektoren sind reine, exportierte
 // Funktionen — jede Assertion fixiert einen konkreten Anti-Pattern-Fall und dessen
 // korrekte Klassifikation, damit Regressionen (die früher den Job vertrauensunwürdig
-// machten) sofort rot laufen. Stil-Spiegel von workflow-consistency.test.ts:
-// node:test + assert/strict, deutsche describe/it.
+// machten) sofort rot laufen. Stil: node:test + assert/strict, deutsche describe/it.
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FIXTURES = join(HERE, '__fixtures__');
