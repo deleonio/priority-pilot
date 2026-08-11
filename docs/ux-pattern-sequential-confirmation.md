@@ -9,7 +9,7 @@ Stabiler Pfad für Querverweise: `docs/ux-pattern-sequential-confirmation.md`.
 
 ---
 
-**Wann das Pattern eingesetzt wird**
+## Wann das Pattern eingesetzt wird
 
 Destruktive Aktionen – etwa das Löschen von Templates, Serien, Aufgaben oder
 Säulen – sind nicht umkehrbar und betreffen oft mehrere Datenobjekte zugleich.
@@ -26,7 +26,7 @@ Vorhandene Komponenten, die dieses Pattern bereits partiell umsetzen:
 
 ---
 
-**1. Theoretische Fundierung (Fachliteratur)**
+## 1. Theoretische Fundierung (Fachliteratur)
 
 Das Pattern stützt sich auf drei etablierte Usability- und
 kognitionspsychologische Prinzipien:
@@ -47,7 +47,7 @@ kognitionspsychologische Prinzipien:
 
 ---
 
-**2. Barrierefreiheit (WCAG & BITV 2.0)**
+## 2. Barrierefreiheit (WCAG & BITV 2.0)
 
 Dieses Pattern unterstützt aktiv Nutzerinnen und Nutzer mit kognitiven
 Einschränkungen. Screenreader-Nutzende müssen pro Interaktionsschritt deutlich
@@ -74,7 +74,7 @@ BITV 2.0) ab und sind für jede Umsetzung dieses Patterns **verbindlich**.
 
 ---
 
-**3. Flow-Integration**
+## 3. Flow-Integration
 
 Der Bestätigungsablauf besteht aus zwei aufeinanderfolgenden Schritten. Der
 zweite Schritt wird ausschließlich dann ausgelöst, wenn der erste mit _Ja_
@@ -93,7 +93,7 @@ bestätigt wurde (Progressive Disclosure).
 
 ---
 
-**Umsetzungshinweise für Folge-Issues**
+## Umsetzungshinweise für Folge-Issues
 
 - Jeder Schritt ist ein eigenständiger, fokussierter Dialog – keine
   Checkbox-Listen in einem kombinierten Dialog.
