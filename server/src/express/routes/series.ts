@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { Transaction, ValidationError as SequelizeValidationError } from 'sequelize';
+import { Op, Transaction, ValidationError as SequelizeValidationError } from 'sequelize';
 import sequelize from '../../database.js';
 import { Pillar, Series, SeriesPillar, Task, TaskPillar } from '../../models/index.js';
 import type { SeriesRhythm } from '../../models/series.js';
@@ -386,6 +386,9 @@ seriesRouter.patch('/series/:id', async (req: Request, res: Response<SeriesDto |
 			}
 			// Kaskade auf bestehende Instanzen: pro Instanz NUR die geänderten kaskadierbaren Felder
 			// überschreiben (inkl. `isException`-Instanzen). rhythm/startDate/active bleiben außen vor.
+			// #555: Erledigte ("Done") Instanzen werden von der Kaskade ausgenommen — sie bleiben
+			// unverändert, sodass abgeschlossene Aufgaben nicht nachträglich überschrieben werden.
+			const openInstancesWhere = { seriesId: series.id, status: { [Op.ne]: 'Done' as const } };
 			if (applyToInstances) {
 				const instanceAttrs: SeriesAttributes = {};
 				if (validation.attrs.title !== undefined) instanceAttrs.title = validation.attrs.title;
@@ -398,13 +401,13 @@ seriesRouter.patch('/series/:id', async (req: Request, res: Response<SeriesDto |
 					instanceAttrs.autoDeleteAfterDeadline = validation.attrs.autoDeleteAfterDeadline;
 				}
 				if (Object.keys(instanceAttrs).length > 0) {
-					await Task.update(instanceAttrs, { where: { seriesId: series.id }, transaction });
+					await Task.update(instanceAttrs, { where: openInstancesWhere, transaction });
 				}
-				// Geänderte Säulen-Vorlage als TaskPillar-Beiträge auf jede Instanz übernehmen.
+				// Geänderte Säulen-Vorlage als TaskPillar-Beiträge auf jede (nicht-erledigte) Instanz übernehmen.
 				if (validation.pillars !== undefined) {
 					const seriesPillars = validation.pillars;
 					const instances = await Task.findAll({
-						where: { seriesId: series.id },
+						where: openInstancesWhere,
 						attributes: ['id'],
 						transaction,
 					});
@@ -455,7 +458,15 @@ seriesRouter.delete('/series/:id', async (req: Request, res: Response<ErrorDto>)
 	try {
 		await sequelize.transaction(async (transaction) => {
 			if (cascade) {
-				await Task.destroy({ where: { seriesId: series.id }, transaction });
+				// #555: Beim Kaskaden-Löschen werden NUR nicht-erledigte Instanzen entfernt; erledigte
+				// ("Done") bleiben erhalten und werden — analog zu `cascade=false` — von der Serie
+				// abgekoppelt (`seriesId → null`), während ihre Provenienz (`originSeriesId`) erhalten
+				// bleibt. Die Serie-Definition wird in beiden Fällen gelöscht.
+				await Task.destroy({
+					where: { seriesId: series.id, status: { [Op.ne]: 'Done' } },
+					transaction,
+				});
+				await Task.update({ seriesId: null }, { where: { seriesId: series.id, status: 'Done' }, transaction });
 			} else {
 				// Abkoppeln: aus den ehemaligen Instanzen werden eigenständige Aufgaben. `originSeriesId`
 				// bleibt unangetastet und hält die Herkunft fest.
