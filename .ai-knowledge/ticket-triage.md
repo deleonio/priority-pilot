@@ -168,6 +168,12 @@ Bei einem zu großen Ticket:
     (375px-Viewport, kein horizontales Scrollen — siehe [conventions.md](conventions.md)) mit eigenem
     Testfall aufnehmen, Muster `login.spec.ts` AK5 / `task-tree.spec.ts` AK-6.
   - **Reines Styling/Layout** → visuelle Verifikation statt Test (kurz begründen).
+  - **Reines Doku/Pattern-Konzept** (neue/erweiterte Markdown-Seite unter `docs/`, ohne dass Code
+    entsteht) → **keine Testfälle**. Akzeptanzkriterien stattdessen als prüfbare Aussagen formulieren
+    („Abschnitt X vorhanden", „Pfad Y stabil"), die Erfüllung im PR-Body belegen; die Spec-Stufe
+    schreibt dafür keine roten Tests (Begründung:
+    [ticket-spec.md](ticket-spec.md) Schritt 2 — String-Match auf Markdown ist ein Change-Detector
+    ohne Biss).
 
   Ziel: Die Umsetzung erhält eine **ausführbare** Zielvorgabe statt nur Prosa — das verhindert das
   „Schlingern" der KI. Akzeptanzkriterien und Testfälle gehören auch in die Sub-Issue-Bodies aus
@@ -176,7 +182,8 @@ Bei einem zu großen Ticket:
 - **Umsetzbarkeits-Ampel** an den Anfang des Analyse-Blocks stellen — signalisiert, wie gut das Ticket
   umsetzbar ist:
   - 🟢 **grün** — klar umsetzbar: Anforderungen eindeutig, betroffene Dateien bekannt, in einem PR
-    machbar **und prüfbare Akzeptanzkriterien + Testfälle liegen vor**.
+    machbar **und prüfbare Akzeptanzkriterien + Testfälle liegen vor** (Ausnahme reine Doku/Pattern:
+    hier sind **prüfbare Akzeptanzkriterien** ohne Testfälle ausreichend — siehe Ticket-Typ oben).
   - 🟡 **gelb** — bedingt umsetzbar: offene Fragen/Annahmen, **Akzeptanzkriterien (noch) nicht
     prüfbar formulierbar**, größerer Umfang oder Zerlegung empfohlen (siehe Schritt 3).
   - 🔴 **rot** — noch nicht umsetzbar: Anforderungen unklar/widersprüchlich oder Infos fehlen;

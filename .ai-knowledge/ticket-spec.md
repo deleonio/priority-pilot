@@ -43,6 +43,14 @@ Label-Kette: `ai:analyzed` → **`ai:spec-ready` (dieser Workflow)** → `ai:rea
   - **Feature / UI-Verhalten** → Akzeptanz-e2e (`frontend/e2e/*.spec.ts`, Stil `crud.spec.ts`).
   - **Reines Styling/Layout** → keinen Test erzwingen; im PR-Body begründen, dass/warum stattdessen
     visuell verifiziert wird (dann ggf. nur ein minimaler Smoke-Test).
+  - **Reines Doku/Pattern-Konzept** (neue/erweiterte Markdown-Seite unter `docs/`, ohne dass Code
+    entsteht) → **keinen Test schreiben**. Tests auf den Inhalt einer Markdown-Datei können per
+    Konstruktion nichts prüfen, das nicht schon dasteht — sie sind reine Change-Detector-Strings
+    („die Datei enthält den String, den ich hineingeschrieben habe") und fallen durch das
+    Aufnahmekriterium der [TDD-Strategie → Testumfang](tdd-strategy.md#testumfang--so-viel-wie-nötig-so-wenig-wie-irgend-möglich).
+    Stattdessen im PR-Body die Akzeptanzkriterien durchgehen und je AC belegen (Zitat/Link auf den
+    Abschnitt), dass das Dokument es erfüllt. Der Review prüft die AC-Erfüllung im Text, nicht per
+    Test. (Präzedenzfälle #549, #557 haben diese Pathologie etabliert und wurden zurückgebaut.)
 - **Dedup vor dem Schreiben:** Per `grep` prüfen, ob ein Akzeptanzkriterium bereits durch einen
   bestehenden Test abgedeckt ist (Feature-/Funktionsnamen in den Test-Verzeichnissen). Bereits
   abgedeckt → **nicht** duplizieren, nur fehlende AKs testen. Widerspricht ein AK einem bestehenden
