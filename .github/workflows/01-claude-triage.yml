@@ -145,7 +145,11 @@ jobs:
             # /usr/bin/grep) kennt -P nicht → verdict leer → fälschlich fail-safe „analyzed".
             # triage-verdict-label.test.ts führt genau diesen Block via bash -c aus und wäre
             # sonst lokal rot (CI nutzt GNU-grep). sed -E ist BSD wie GNU portabel.
-            verdict="$(grep 'VERDICT:' "$LOG" | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | tr -d '[:space:]' || true)"
+            # tr -d -c 'A-Za-z0-9-' streift neben Whitespaces auch Markdown-Dekoration (**…**,
+            # Backticks), die Claude gern ums VERDICT legt — sonst wird "spec-ready**" != "spec-ready"
+            # und der Vergleich fällt fälschlich auf fail-safe (Issue #582). A-Za-z0-9- deckt alle
+            # gültigen Verdicts (spec-ready, analyzed); Complement-Delete ist BSD wie GNU portabel.
+            verdict="$(grep 'VERDICT:' "$LOG" | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | tr -d -c 'A-Za-z0-9-' || true)"
           fi
           echo "Claude-Verdict aus Output: '${verdict:-keins}'"
 

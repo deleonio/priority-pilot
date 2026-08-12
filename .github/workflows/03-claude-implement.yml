@@ -210,7 +210,7 @@ jobs:
         run: |
           verdict=""
           if [ -f /tmp/claude-output.log ]; then
-            verdict="$(grep 'VERDICT:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | tr -d '[:space:]' || true)"
+            verdict="$(grep 'VERDICT:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | tr -d -c 'A-Za-z0-9-' || true)"
           fi
           echo "Claude-Verdict aus Output: '${verdict:-keins}'"
 
