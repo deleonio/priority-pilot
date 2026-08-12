@@ -30,30 +30,62 @@ describe('Series — Titel-Länge (Issue #582)', () => {
 		await closeDb();
 	});
 
-	const post = (path: string, body: unknown) =>
-		fetch(`${server.baseUrl}${path}`, {
+	/** Extrahiert das erste `name=value`-Paar aus einem Set-Cookie-Header (ohne Attribute). */
+	const cookieFromSetCookie = (setCookie: string): string => setCookie.split(';')[0];
+
+	/** Loggt über den Test-Only-Endpunkt ein und gibt den Cookie-Header für Folgeanfragen zurück. */
+	const testLogin = async (email: string, displayName: string): Promise<string> => {
+		const res = await fetch(`${server.baseUrl}/auth/test-login`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ email, displayName }),
+		});
+		assert.equal(res.status, 200, `Test-Login für ${email} sollte 200 liefern`);
+		const setCookie = res.headers.get('set-cookie');
+		assert.ok(setCookie, 'Test-Login sollte einen Set-Cookie-Header setzen');
+		return cookieFromSetCookie(setCookie);
+	};
+
+	const post = (path: string, body: unknown, cookie: string) =>
+		fetch(`${server.baseUrl}${path}`, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				Cookie: cookie,
+			},
 			body: JSON.stringify(body),
 		});
 
-	const patch = (path: string, body: unknown) =>
+	const patch = (path: string, body: unknown, cookie: string) =>
 		fetch(`${server.baseUrl}${path}`, {
 			method: 'PATCH',
-			headers: { 'Content-Type': 'application/json' },
+			headers: {
+				'Content-Type': 'application/json',
+				Cookie: cookie,
+			},
 			body: JSON.stringify(body),
 		});
 
 	describe('POST /series — Titel-Länge bei Create', () => {
+		let cookie: string;
+
+		it.beforeEach(async () => {
+			cookie = await testLogin('testuser@example.com', 'Test User');
+		});
+
 		it('Series mit 30 Zeichen Titel wird akzeptiert', async () => {
 			const title30 = 'x'.repeat(30); // exakt 30 Zeichen
-			const res = await post('/api/series', {
-				title: title30,
-				rhythm: 'weekly',
-				priority: 3,
-				estimatedEffort: 0.5,
-				startDate: new Date().toISOString(),
-			});
+			const res = await post(
+				'/api/series',
+				{
+					title: title30,
+					rhythm: 'weekly',
+					priority: 3,
+					estimatedEffort: 0.5,
+					startDate: new Date().toISOString(),
+				},
+				cookie,
+			);
 
 			assert.equal(res.status, 201, '30-Zeichen-Titel sollte akzeptiert werden');
 			const body = (await res.json()) as Record<string, unknown>;
@@ -62,13 +94,17 @@ describe('Series — Titel-Länge (Issue #582)', () => {
 
 		it('Series mit 31 Zeichen Titel wird mit ValidationError abgelehnt', async () => {
 			const title31 = 'y'.repeat(31); // 31 Zeichen > Limit
-			const res = await post('/api/series', {
-				title: title31,
-				rhythm: 'weekly',
-				priority: 3,
-				estimatedEffort: 0.5,
-				startDate: new Date().toISOString(),
-			});
+			const res = await post(
+				'/api/series',
+				{
+					title: title31,
+					rhythm: 'weekly',
+					priority: 3,
+					estimatedEffort: 0.5,
+					startDate: new Date().toISOString(),
+				},
+				cookie,
+			);
 
 			assert.equal(res.status, 400, '31-Zeichen-Titel sollte abgelehnt werden');
 			const body = (await res.json()) as Record<string, unknown>;
@@ -77,25 +113,33 @@ describe('Series — Titel-Länge (Issue #582)', () => {
 
 		it('Series mit exakt 30 Zeichen UTF-8 (Emoji) wird korrekt gezählt', async () => {
 			const titleEmoji = '🎯'.repeat(10); // 10 Emojis = 30 Zeichen
-			const res = await post('/api/series', {
-				title: titleEmoji,
-				rhythm: 'weekly',
-				priority: 3,
-				estimatedEffort: 0.5,
-				startDate: new Date().toISOString(),
-			});
+			const res = await post(
+				'/api/series',
+				{
+					title: titleEmoji,
+					rhythm: 'weekly',
+					priority: 3,
+					estimatedEffort: 0.5,
+					startDate: new Date().toISOString(),
+				},
+				cookie,
+			);
 
 			assert.equal(res.status, 201, '30-Zeichen-Emoji-Titel sollte akzeptiert werden');
 		});
 
 		it('Series mit leerem Titel wird abgelehnt (minimum 1 Zeichen)', async () => {
-			const res = await post('/api/series', {
-				title: '',
-				rhythm: 'weekly',
-				priority: 3,
-				estimatedEffort: 0.5,
-				startDate: new Date().toISOString(),
-			});
+			const res = await post(
+				'/api/series',
+				{
+					title: '',
+					rhythm: 'weekly',
+					priority: 3,
+					estimatedEffort: 0.5,
+					startDate: new Date().toISOString(),
+				},
+				cookie,
+			);
 
 			assert.equal(res.status, 400, 'Leerer Titel sollte abgelehnt werden');
 		});
@@ -103,8 +147,10 @@ describe('Series — Titel-Länge (Issue #582)', () => {
 
 	describe('PATCH /series/:id — Titel-Länge bei Update', () => {
 		let seriesId: number;
+		let cookie: string;
 
 		it.beforeEach(async () => {
+			cookie = await testLogin('testuser@example.com', 'Test User');
 			const series = await Series.create({
 				title: 'Original-Serie',
 				rhythm: 'weekly',
@@ -117,7 +163,7 @@ describe('Series — Titel-Länge (Issue #582)', () => {
 
 		it('Update auf 30 Zeichen Titel wird akzeptiert', async () => {
 			const title30 = 'z'.repeat(30);
-			const res = await patch(`/api/series/${seriesId}`, { title: title30 });
+			const res = await patch(`/api/series/${seriesId}`, { title: title30 }, cookie);
 
 			assert.equal(res.status, 200, 'Update auf 30 Zeichen sollte akzeptiert werden');
 			const body = (await res.json()) as Record<string, unknown>;
@@ -126,7 +172,7 @@ describe('Series — Titel-Länge (Issue #582)', () => {
 
 		it('Update auf 31 Zeichen Titel wird mit ValidationError abgelehnt', async () => {
 			const title31 = 'ü'.repeat(31);
-			const res = await patch(`/api/series/${seriesId}`, { title: title31 });
+			const res = await patch(`/api/series/${seriesId}`, { title: title31 }, cookie);
 
 			assert.equal(res.status, 400, 'Update auf 31 Zeichen sollte abgelehnt werden');
 			const body = (await res.json()) as Record<string, unknown>;
