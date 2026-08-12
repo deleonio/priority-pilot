@@ -16,7 +16,7 @@ import { dirname, join } from 'node:path';
 // AK4: CI-Parität (bestehend, pnpm exec prettier --check . in ci.yml).
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = join(HERE, '..', '..', '..');
+const REPO_ROOT = join(HERE, '..', '..');
 const LEFTHOOK_PATH = join(REPO_ROOT, 'lefthook.yml');
 
 const readLefthook = (): string => readFileSync(LEFTHOOK_PATH, 'utf8');
