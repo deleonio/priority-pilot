@@ -1,10 +1,8 @@
 {
 	"env": {
-		"API_TIMEOUT_MS": "3000000",
+		"API_TIMEOUT_MS": "600000",
 		"BASH_MAX_OUTPUT_LENGTH": "20000",
-		"CLAUDE_CODE_AUTO_COMPACT_WINDOW": "1000000",
-		"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
-		"CLAUDE_CODE_NO_FLICKER": "1"
+		"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
 	},
 	"permissions": {
 		"allow": ["Agent(*)", "Bash(*)", "Read(*)", "WebFetch(*)", "mcp__kolibri-mcp__*"],
@@ -27,6 +25,5 @@
 		]
 	},
 	"model": "opus",
-	"enabledMcpjsonServers": ["kolibri-mcp"],
-	"enableAllProjectMcpServers": true
+	"enabledMcpjsonServers": ["kolibri-mcp"]
 }
