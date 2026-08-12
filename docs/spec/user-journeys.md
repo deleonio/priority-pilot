@@ -26,9 +26,8 @@ Neue Aufgabe in das System aufnehmen, mit allen relevanten Metadaten (Priorität
 
 2. **Option A: KI-gestützte Erfassung**
    - Text eingeben: _„Bis Freitag den Kundenbericht fertigstellen, hohe Priorität, etwa ein halber Tag"_
-   - Klick auf **„Verarbeiten und weiter"**
-   - KI liest den Text und füllt Titel, Beschreibung, Priorität, Aufwand und Deadline vor
-   - Formular erscheint mit ausgefüllten Feldern
+   - Klick auf **„Verarbeiten und weiter"** (primärer Button; sendet den erfassten Text an die KI)
+   - Die KI belegt Titel, Beschreibung, Priorität, Aufwand und Deadline vor; das Formular öffnet sich mit diesen Werten
 
 3. **Option B: Manuelle Erfassung**
    - Textfeld überspringen mit **„Überspringen"**
@@ -80,8 +79,9 @@ Zwei Aufgaben so verknüpfen, dass eine Aufgabe vom Erledigen der anderen abhän
    - Auswahlliste zeigt alle vorhandenen Aufgaben (außer bereits verknüpfte)
 
 3. **Kantengewicht setzen**
-   - Gewicht eingeben: **0,7** (Bereich 0,1–1,0)
-   - Gewicht steuert, wie stark der Vorgänger zum Wert der abhängigen Aufgabe beiträgt
+   - Gewicht über einen **Schieberegler** einstellen: **0,7** (Bereich 0,1–1,0, Schritt 0,1, Standard 1,0)
+   - Werte außerhalb 0,1–1,0 werden beim Hinzufügen blockiert (Meldung „Das Gewicht muss eine Zahl zwischen 0,1 und 1 sein.")
+   - Das Gewicht steuert, wie stark diese Abhängigkeit in die Wertberechnung eingeht (siehe Journey 4)
 
 4. **Abhängigkeit bestätigen**
    - Klick auf **„Hinzufügen"**
@@ -172,6 +172,34 @@ Die automatische Priorisierungsberechnung auslösen, die den Wertbeitrag und die
   - Transitiven Aufwand inklusive aller Abhängigkeiten
 - Bei Änderungen an Aufgaben, Abhängigkeiten oder Säulen-Gewichtung aktualisiert sich die Berechnung automatisch
 
+### Konkretes Beispiel (beobachtbar)
+
+_Wert-Berechnung als beobachtbarer Effekt – ohne interne Formel:_
+
+- **Blocker-Effekt:** Eine Aufgabe, von der andere, wichtige Aufgaben abhängen, erhält einen höheren Wert und rückt im Aufgabenwald weiter nach oben – sie ist ein Engpass für wertvolle Arbeit.
+- **Säulen-Effekt:** Eine zugeordnete Säule mit hohem Gewicht hebt den Wert (Aufgabe rückt nach oben); eine niedrig gewichtete Säule senkt ihn (Aufgabe rückt nach unten). Ohne zugeordnete Säule bleibt der Wert unbeeinflusst.
+- **Kantengewicht:** Ein höheres Gewicht an einer Abhängigkeit verstärkt den jeweiligen Effekt auf die Sortierung.
+
+> **Hinweis:** Der exakte Zahlenwert ist Implementierungsdetail und nicht Teil dieser Spezifikation. Tests leiten daraus die **Sortierreihenfolge** ab (wichtigste Aufgabe oben), nicht eine bestimmte Zahl.
+
+**Beispiel-Szenario:** Aufgabe C (Priorität 3) wird zum Vorgänger von zwei Aufgaben, darunter Aufgabe A (Priorität 5). _Beobachtung:_ C rückt im Aufgabenwald nach oben, weil nun eine sehr wichtige Aufgabe (A) auf C wartet.
+
+---
+
+## Randfälle & Fehler
+
+| Situation                                  | Erwartetes Verhalten                                                                  |
+| ------------------------------------------ | ------------------------------------------------------------------------------------- |
+| Keine Aufgaben vorhanden / Filter leer     | Hinweis: „Keine Aufgaben gefunden. Passen Sie ggf. die Filter an."                    |
+| Aufgabe ohne Vorgänger                     | Im Abhängigkeits-Dialog: „Dieser Task hat keine Vorgänger."                           |
+| Keine weiteren Tasks als Vorgänger wählbar | Hinweis: „Kein weiterer Task verfügbar, der als Vorgänger hinzugefügt werden könnte." |
+| Zyklische Abhängigkeit (z. B. A → B → A)   | Wird zurückgewiesen (HTTP 409): „… Es würde ein Zyklus entstehen."                    |
+| Titel fehlt beim Anlegen                   | „Bitte einen Titel angeben."                                                          |
+| Titel länger als 30 Zeichen                | „Titel darf maximal 30 Zeichen haben." (Eingabe wird blockiert)                       |
+| Kantengewicht außerhalb 0,1–1              | „Das Gewicht muss eine Zahl zwischen 0,1 und 1 sein."                                 |
+| Priorität keine Ganzzahl zwischen 1 und 5  | „Priorität muss eine Ganzzahl zwischen 1 und 5 sein."                                 |
+| Geschätzter Aufwand außerhalb 0,1–1        | „Geschätzter Aufwand muss eine Zahl zwischen 0,1 und 1 sein."                         |
+
 ---
 
 ## Hinweise zur Nutzung
@@ -189,3 +217,4 @@ Die automatische Priorisierungsberechnung auslösen, die den Wertbeitrag und die
 ## Versionierung
 
 - **v1.0** (2026-08-12): Initialefassung für Issue #565. Vier Kern-Workflows dokumentiert.
+- **v1.1** (2026-08-12): Review-Findings adressiert – konkretes Wert-Berechnungsbeispiel (Journey 4), Kantengewicht-UI spezifiziert (Schieberegler), neue Sektion „Randfälle & Fehler".
