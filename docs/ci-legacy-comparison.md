@@ -84,11 +84,11 @@ Zwei Messgrößen scheinen zu widersprechen, messen aber Differentes:
   hoch — man repariert, was man gerade baute).
 - **Legacy-Code-Audit:** Legacy trug _eigene, teils schwere_ Fragilität — nur war sie nicht getriggert.
 
-| Legacy-Befund (verifiziert am 11.08.2026)                                   | Bedeutung                         |
-| --------------------------------------------------------------------------- | --------------------------------- |
-| `claude-pr-gate-merge.yml`: **25 `jq`-Feldzugriffe ohne `?`**               | 25 potentielle Null-Crash-Stellen |
-| `claude-spec.yml`/`claude-implement.yml`: `jq` mit **`$VAR`-Interpolation** | echte Injection-Gefahr            |
-| `ci.yml`: **0× `                                                            |                                   | true`** | `grep`-no-match würde unter `set -euo pipefail` abbrechen |
+| Legacy-Befund (verifiziert am 11.08.2026)                                   | Bedeutung                                           |
+| --------------------------------------------------------------------------- | --------------------------------------------------- |
+| `claude-pr-gate-merge.yml`: **25 `jq`-Feldzugriffe ohne `?`**               | 25 potentielle Null-Crash-Stellen                   |
+| `claude-spec.yml`/`claude-implement.yml`: `jq` mit **`$VAR`-Interpolation** | echte Injection-Gefahr                              |
+| `ci.yml`: **0× `\|\| true`**                                                | `grep`-no-match bricht unter `set -euo pipefail` ab |
 
 ```mermaid
 flowchart LR
