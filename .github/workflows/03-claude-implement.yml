@@ -103,12 +103,10 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
-          if ! existing="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
-            --json number,isDraft,closingIssuesReferences \
-            --jq "[.[] | select(.isDraft == false) | select((.closingIssuesReferences // []) | any(.number == ${ISSUE}))] | length" 2>/dev/null)"; then
-            echo "::warning::Doppel-Run-Guard: gh-API nicht erreichbar – fail-open."
-            existing=0
-          fi
+          # Ready-PR = nicht-draft PR zu diesem Issue. Helper mit closingRef- +
+          # Body-Fallback (PR #585: "Closes NNN" ohne "#" sonst nicht gefunden).
+          existing="$(bash .github/scripts/pr-for-issue.sh --repo "$GITHUB_REPOSITORY" \
+            --issue "$ISSUE" --draft no --out count)"
           if [ "${existing:-0}" -gt 0 ]; then
             echo "::notice::Umsetzung übersprungen – ready-PR existiert bereits für Issue #$ISSUE."
             echo "skip=true" >> "$GITHUB_OUTPUT"
@@ -163,7 +161,11 @@ jobs:
             2. Analyse lesen & schnell verifizieren (KEINE vollständige Re-Triage!):
                Akzeptanzkriterien aus BODY-BLOCK übernehmen (gh issue view #ISSUE_NR --json body -q .body).
                Prüfe NUR, ob die genannten Dateien noch existieren. Ampel 🔴 → NICHT umsetzen, ai:ready entfernen, begründet kommentieren und stoppen.
-            3. Spec-Modus (Regelfall): vorhandenen DRAFT-PR auschecken (gh pr list --state open --draft --json number,headRefName,closingIssuesReferences, den mit Issue #ISSUE_NR; dann git fetch origin && git switch <headRefName>).
+            3. Spec-Modus (Regelfall): vorhandenen DRAFT-PR auschecken
+               (gh pr list --state open --draft --json number,headRefName,closingIssuesReferences,
+               den mit Issue #ISSUE_NR; FALLS leer weil Spec "Closes NNN" ohne "#" schrieb:
+               Fallback gh pr list --state open --draft --search "ISSUE_NR in:body" --json number,headRefName;
+               dann git fetch origin && git switch <headRefName>).
                Dessen ROTE Tests GRÜN machen – Tests NICHT ändern (Gewaltenteilung).
                **Hinweis:** Obsolete Tests wurden bereits in der Spec-Stufe entfernt. Falls trotzdem Widerspruch auffällt → NICHT still ändern/löschen, sondern im PR-Body Abschnitt "Test-Pflege-Bedarf" mit Datei:Zeile + Begründung anlegen.
                Fallback (kein Draft-PR): eigenen Branch + Tests selbst schreiben.
@@ -223,8 +225,10 @@ jobs:
             echo "::notice::Doppel-Run-Guard: PR existiert bereits — behandele als needs-review."
           fi
 
-          PR_NR="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --json number,isDraft,closingIssuesReferences \
-            --jq "[.[] | select(.isDraft == false) | select((.closingIssuesReferences // []) | any(.number == ${ISSUE})) | .number] | first" 2>/dev/null || echo "")"
+          # PR finden: primär closingIssuesReferences, Fallback auf Body-Suche
+          # (PR #585: "Closes NNN" ohne "#" lässt die Referenz sonst leer → Crash).
+          PR_NR="$(bash .github/scripts/pr-for-issue.sh --repo "$GITHUB_REPOSITORY" \
+            --issue "$ISSUE" --draft no --out first)"
           ARTIFACTS_OK="false"
           if [ -n "$PR_NR" ] && [ "$PR_NR" != "null" ]; then
             PR_DRAFT="$(gh pr view "$PR_NR" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft' 2>/dev/null || echo "true")"
