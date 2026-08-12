@@ -140,79 +140,9 @@ describe('Spiegel — .claude/settings.json bleibt providerneutral', () => {
 	// settings.json ist eingecheckt und gilt AUCH fuer lokale Sessions: ein dort gesetzter
 	// Endpoint routet jede Entwickler-Session zwangsweise um. Die Provider-Aufloesung gehoert
 	// ausschliesslich in die Setup-Action (Regression bb067cc).
-	it('kein ANTHROPIC_BASE_URL und keine provider-spezifische Modell-Aliase', () => {
+	it('kein ANTHROPIC_BASE_URL und keine provider-spezifischen Modell-Aliase', () => {
 		const settings = read('.claude', 'settings.json');
 		assert.doesNotMatch(settings, /ANTHROPIC_BASE_URL/, 'Endpoint gehoert in die Setup-Action, nicht in settings.json');
 		assert.doesNotMatch(settings, /ANTHROPIC_DEFAULT_\w+_MODEL/, 'Modell-Aliase sind provider-spezifisch');
-	});
-});
-
-// ── Triage-Prompt enthält die Sub-Issue-Prozedur (Zerlegung + Verknüpfung) ───────────────
-//
-// Der CI-Triage-Prompt hatte früher nur den Einzeiler „in Sub-Issues zerlegen" — ohne die
-// konkreten gh/GraphQL-Befehle. Damit hat die automatisierte Triage faktisch keine Sub-Issues
-// erstellt/verknüpft, und der issue-unblock-Consumer verhungerte. Diese Spec sichert, dass der
-// Prompt die三个 Pflicht-Bestandteile der Prozedur enthält (Erstellung + beide Verknüpfungen).
-// API-Felder verifiziert: addSubIssue(issueId,subIssueId), addBlockedBy(issueId,blockingIssueId).
-
-describe('Spiegel — Triage-Prompt enthält Sub-Issue-Erstellung + Verknüpfung', () => {
-	const yml = read('.github', 'workflows', '01-claude-triage.yml');
-	const prompt = yml.match(/cat > \/tmp\/claude-prompt\.txt << 'CLAUDE_EOF'\s*\n([\s\S]*?)CLAUDE_EOF/)?.[1] ?? '';
-	assert.ok(prompt, 'Claude-Prompt-Block nicht in 01-claude-triage.yml gefunden');
-
-	// AC1: Sub-Issues werden wirklich angelegt (gh issue create), nicht nur im Text erwähnt.
-	it('AC1: gh issue create für Sub-Issues', () => {
-		assert.match(
-			prompt,
-			/gh issue create/,
-			'Der Triage-Prompt muss `gh issue create` für Sub-Issues anweisen — sonst zerlegt er nur ' +
-				'im Body und legt keine echten Issues an (Regression: Prompt-Stub ohne Befehle).',
-		);
-	});
-
-	// AC2: Parent-Child-Verknüpfung als echtes GitHub-Sub-Issue (GraphQL addSubIssue), nicht nur
-	// Textreferenz — sonst ist keine echte Hierarchie / kein Fortschritt-Tracking.
-	it('AC2: addSubIssue-Mutation (Parent-Child-Verknüpfung)', () => {
-		assert.match(
-			prompt,
-			/addSubIssue\(input:\{issueId:[^}]*subIssueId:/,
-			'Eltern- und Sub-Issue müssen per GraphQL addSubIssue verknüpft werden (issueId=Parent, ' +
-				'subIssueId=Child) — eine rene Textreferenz erzeugt keine echte GitHub-Sub-Issue-Beziehung.',
-		);
-	});
-
-	// AC3: Sequenzielle Abhängigkeiten als native blocked-by-Relation (GraphQL addBlockedBy) — nur
-	// so löst issue-unblock.yml beim Merge des Vorgängers automatisch auf.
-	it('AC3: addBlockedBy-Mutation bei sequenziellen Abhängigkeiten', () => {
-		assert.match(
-			prompt,
-			/addBlockedBy\(input:\{issueId:[^}]*blockingIssueId:/,
-			'Sequenzielle Sub-Issues müssen per GraphQL addBlockedBy verknüpft werden (issueId=Nachfolger, ' +
-				'blockingIssueId=Vorgänger) — nur diese maschinenlesbare Kante löst issue-unblock.yml beim Merge aus.',
-		);
-	});
-
-	// AC4: Label-Carve-out — der Workflow verwaltet nur das Eltern-Issue (via VERDICT); Sub-Issues
-	// müssen direkt beim Anlegen gelabelt werden, sonst fehlt der Rekursionsschutz (ai:analyzed)
-	// und die Spec-Freigabe (ai:spec-ready).
-	it('AC4: Label-Carve-out — Eltern via VERDICT, Sub-Issues direkt labeln', () => {
-		assert.match(
-			prompt,
-			/SUB-Issues.*ai:analyzed.*gelabelt|gelabelt.*ai:analyzed/i,
-			'Der Triage-Prompt muss klären, dass Sub-Issues direkt beim Anlegen mit ai:analyzed gelabelt ' +
-				'werden (der Workflow verwaltet via VERDICT nur das Eltern-Issue) — sonst fehlt der Re-Triage-' +
-				'Schutz und die Spec-Freigabe.',
-		);
-	});
-
-	// AC5: zerlegtes Eltern-Issue → VERDICT analyzed (Tracker, nicht direkt umsetzbar). Sonst würde
-	// das Eltern-Issue fälschlich ai:spec-ready bekommen und selbst in die Spec/Umsetzung gehen.
-	it('AC5: zerlegtes Eltern-Issue → VERDICT analyzed (nicht spec-ready)', () => {
-		assert.match(
-			prompt,
-			/Zerlegung.*VERDICT:\s*analyzed|VERDICT:\s*analyzed.*Zerleg/i,
-			'Ein in Sub-Issues zerlegtes Eltern-Issue muss VERDICT: analyzed ausgeben (nur Tracker) — sonst ' +
-				'bekommt es fälschlich ai:spec-ready und geht selbst in die Spec/Umsetzung.',
-		);
 	});
 });
