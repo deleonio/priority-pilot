@@ -16,8 +16,12 @@ import { waitForStableView } from './helpers';
  */
 test.describe('Priority Pilot — Aufgaben-Tab mit Filter und Switch (#399) gegen das echte Backend', () => {
 	// Eindeutige Titel je Test, damit Assertions ausschließlich auf selbst angelegte Daten zielen.
+	// Titel auf 30 Zeichen begrenzt (Issue #582): Kurz-Format "E2E-L#N-Timestamp"
 	let runId = 0;
-	const uniqueTitle = (label: string): string => `E2E ${label} #${(runId += 1)}-${Date.now()}`;
+	const uniqueTitle = (label: string): string => {
+		const shortLabel = label.substring(0, 3); // Max 3 chars für label
+		return `E2E-${shortLabel}${(runId += 1)}${Date.now().toString().slice(-6)}`; // "E2E-Lab5-319222545" ≈ 18 chars
+	};
 
 	// Der Offen/Erledigt-Umschalter (KolInputCheckbox variant="switch" → Rolle checkbox).
 	const viewSwitch = (page: Page) => page.getByRole('checkbox', { name: /Erledigte Aufgaben/i });

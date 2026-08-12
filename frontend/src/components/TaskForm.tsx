@@ -654,7 +654,7 @@ export const TaskForm = ({
 						setTitle(truncated);
 					}}
 				>
-					<div>
+					<div style={{ position: 'relative' }}>
 						<KolInputText
 							_label="Titel"
 							_required
@@ -676,10 +676,15 @@ export const TaskForm = ({
 						<div
 							className="character-counter"
 							style={{
-								fontSize: '0.875rem',
-								marginTop: '0.25rem',
-								textAlign: 'right',
+								position: 'absolute',
+								right: '8px',
+								bottom: '8px',
+								fontSize: '0.75rem',
 								color: title.length > TITLE_MAX_LENGTH ? 'var(--color-danger, #d32f2f)' : 'var(--color-text, #666)',
+								background: 'rgba(255,255,255,0.8)',
+								padding: '2px 4px',
+								borderRadius: '4px',
+								pointerEvents: 'none',
 							}}
 						>
 							{getCharacterCounter(title)}
