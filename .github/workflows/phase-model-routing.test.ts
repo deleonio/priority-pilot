@@ -66,10 +66,12 @@ describe('Phasen-Modell — jede Phase reicht ihre CLAUDE_MODEL_*-Variable an se
 		it(`${wf} reicht vars.${variable} in den Action-Input model:`, () => {
 			const yml = read('.github', 'workflows', wf);
 			const step = yml.slice(yml.indexOf('uses: ./.github/actions/setup-claude')).split(/\n\s{6}- /)[0];
+			// Optionaler `|| '<default>'`-Fallback erlaubt (pro-Phase-Default im Workflow, PR #580);
+			// der Test sichert nur die Durchreichung der Variable, nicht die Default-Syntax.
 			assert.match(
 				step,
-				new RegExp(`model:\\s*\\$\\{\\{\\s*vars\\.${variable}\\s*\\}\\}`),
-				`${wf} (Phase ${phase}) muss model: \${{ vars.${variable} }} an setup-claude durchreichen — ` +
+				new RegExp(`model:\\s*\\$\\{\\{\\s*vars\\.${variable}\\b[^}]*\\}\\}`),
+				`${wf} (Phase ${phase}) muss model: \${{ vars.${variable}[ || '<default>'] }} an setup-claude durchreichen — ` +
 					`sonst läuft die Phase still mit dem globalen settings.json-Modell statt dem Phasen-Modell`,
 			);
 		});

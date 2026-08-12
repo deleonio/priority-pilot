@@ -183,11 +183,16 @@ krachen (fehlender Build-Step, falscher Host, vergessenes Secret) — dafür ist
   gefunden werden. Eine kaputte Extraktion ergibt sonst einen dauerhaft grünen Test über eine leere
   Menge. Deshalb gehört zu jedem All-Quantor eine Assertion, dass die Menge nicht leer ist.
 
-**Kanonisches Beispiel im Repo:** `.github/workflows/*.test.ts` — vier Dateien, je eine Kategorie
-(`triage-concurrency` = Auswertung, `workflow-invariants` = All-Quantoren, `workflow-consistency` =
-Spiegel, `workflow-safety` = Schutz). Die Vorgängerversion hatte 1423 Zeilen und 92 Tests, davon
-~70 reine String-Greps auf selbst geschriebene YAML; übrig sind 47 Tests, die alle die
-Mutations-Probe bestehen.
+**Was bewusst NICHT getestet wird — GitHub-Workflows/CI-Plumbing (ADR, [#567](https://github.com/deleonio/priority-pilot/issues/567)):**
+Für `.github/workflows/`, `.github/scripts/`, die `setup-claude`-Composite-Actions und die
+`ci.yml`/`deploy.yml`-Plumbing werden **keine** Tests geschrieben oder gepflegt. Workflow-Meta-Tests
+sind überwiegend Tautologie-Tests ohne Fehlerfangwert (sie re-encodieren die Workflow-Definition und
+werden rot bei _Änderung_, nicht bei _Defekt_) und blockieren den Pipeline-Umbau durch ständigen
+Meta-Test-Churn — sie haben Agenten und Phasen bisher auch stets als Vorbild eingeladen, neue zu
+schreiben. Die alte Suite wird via [#564](https://github.com/deleonio/priority-pilot/issues/564) nach
+`__quarantine__/` verschoben (nicht gepflegt, nicht in CI); neuer Testbedarf entsteht spec-first nur
+noch für Domänenlogik ([#566](https://github.com/deleonio/priority-pilot/issues/566)). Entscheidung
+und abgegrenzter Scope: [ADR 0001 — GitHub-Workflows bleiben ungetestet](../docs/adr/0001-github-workflows-bleiben-ungetestet.md).
 
 ## Wie konkret das aussieht (an bestehendem Code)
 

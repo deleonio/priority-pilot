@@ -98,9 +98,19 @@ oder hat kein Guthaben — dann in der Anthropic Console prüfen und
 > Gilt nur für den `zai`-Zweig. Bei `LLM_PROVIDER=claude` löst `"model": "opus"` auf echtes
 > Claude Opus auf und die folgenden Kontingent-/Parallelitäts-Überlegungen entfallen.
 
-Alle fünf Workflows laufen bewusst auf **demselben Modell** (`glm-5.1`), nicht differenziert
-nach Aufgaben-Strenge. Grund: die GLM Coding Plan-Subscription arbeitet mit einem
-**Nutzungskontingent** (nicht Pay-per-Token), und hier gilt:
+Die sechs LLM-Workflows (fünf Ticket-Phasen 01–05 plus Post-Merge-Documenter) nutzen **phasenspezifische Modell-Defaults**:
+Jede Phase reicht ihre eigene `CLAUDE_MODEL_*`-Variable an `setup-claude` durch; GitHub-Vars dienen als Override/Experimente.
+
+| Phase          | Variable                     | Default (`LLM_PROVIDER=claude`) | Default (`LLM_PROVIDER=zai`) | Begründung                                      |
+| -------------- | ---------------------------- | ------------------------------- | ---------------------------- | ----------------------------------------------- |
+| Triage (01)    | `CLAUDE_MODEL_TRIAGE`        | `fable`                         | `glm-5.2`                    | Höchste Qualität für Analyse/Sub-Task-Schneiden |
+| Spec (02)      | `CLAUDE_MODEL_SPEC`          | `sonnet`                        | `glm-4.7`                    | Balanciert für Design-Dokumente                 |
+| Implement (03) | `CLAUDE_MODEL_IMPLEMENT`     | `opus`                          | `glm-5.1`                    | Maximale Qualität für Code-Generierung          |
+| Review (04)    | `CLAUDE_MODEL_PR_REVIEW`     | `opus`                          | `glm-5.1`                    | Tiefes Verständnis für Code-Review              |
+| Fixup (05)     | `CLAUDE_MODEL_FIXUP`         | `sonnet`                        | `glm-4.7`                    | Großer Context (CI-Logs), kosteneffizient       |
+| Documenter     | `CLAUDE_MODEL_DOCUMENTATION` | `haiku`                         | `glm-4.5-air`                | Schnelle Documentation-Generierung              |
+
+**Override-Syntax:** Jeder Workflow nutzt `model: ${{ vars.CLAUDE_MODEL_<PHASE> || '<default>' }}` — ist die GitHub-Variable nicht gesetzt, greift der Default-Wert. Default-Änderungen erfolgen in den Workflow-Dateien, nicht via Repo-Vars.
 
 | Faktor               | `glm-5.1`           | `glm-4.7-flash`      | `glm-5.2` / `glm-5-turbo`              |
 | -------------------- | ------------------- | -------------------- | -------------------------------------- |
@@ -160,19 +170,23 @@ Label-Post-Assertion.
 
 ### Benötigte Secrets
 
-| Secret            | Zweck                                                  |
-| ----------------- | ------------------------------------------------------ |
-| `CLAUDE_API_KEY`  | LLM-Zugang Anthropic — nötig bei `LLM_PROVIDER=claude` |
-| `ZAI_API_KEY`     | LLM-Zugang z.ai/GLM — nötig bei `LLM_PROVIDER=zai`     |
-| `APP_ID`          | GitHub App (Token für Label-/PR-Operationen)           |
-| `APP_PRIVATE_KEY` | GitHub App (Token für Label-/PR-Operationen)           |
+| Secret               | Zweck                                                       |
+| -------------------- | ----------------------------------------------------------- |
+| `CLAUDE_API_KEY`     | LLM-Zugang Anthropic — nötig bei `LLM_PROVIDER=claude`      |
+| `ZAI_API_KEY`        | LLM-Zugang z.ai/GLM — nötig bei `LLM_PROVIDER=zai`          |
+| `OPENROUTER_API_KEY` | LLM-Zugang OpenRouter — nötig bei `LLM_PROVIDER=openrouter` |
+| `APP_ID`             | GitHub App (Token für Label-/PR-Operationen)                |
+| `APP_PRIVATE_KEY`    | GitHub App (Token für Label-/PR-Operationen)                |
 
-Beide LLM-Secrets werden von allen fünf Workflows durchgereicht; welches davon greift, entscheidet
-`vars.LLM_PROVIDER`. Nur das Secret des **aktiven** Providers muss gesetzt sein — das andere darf
+Alle drei LLM-Secrets werden von allen sechs LLM-Workflows durchgereicht; welches davon greift, entscheidet
+`vars.LLM_PROVIDER`. Nur das Secret des **aktiven** Providers muss gesetzt sein — die anderen dürfen
 leer bleiben, ohne den Lauf zu brechen.
 
-Die früher genutzten Secrets `NOUS_PORTAL_TOKEN` und `OPENROUTER_API_KEY` werden von der Pipeline
-**nicht mehr referenziert** und können im Repo gelöscht werden.
+Das frühere Secret `NOUS_PORTAL_TOKEN` wird von der Pipeline **nicht mehr referenziert** und kann
+im Repo gelöscht werden. `OPENROUTER_API_KEY` hingegen ist **aktiv**: `openrouter` ist ein
+vollständig verdrahteter dritter Provider (alle Phasen-Workflows reichen den Key an `setup-claude`
+durch, `00-set-llm-provider.yml` akzeptiert ihn, `ci-multi-provider.yml` führt die Matrix) — nur
+ist er nicht der Default-Pfad (`claude`).
 
 ## KoliBri MCP-Server für Frontend-Implementierung
 

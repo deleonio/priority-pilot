@@ -74,7 +74,7 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
           llm-provider: ${{ vars.LLM_PROVIDER }}
-          model: ${{ vars.CLAUDE_MODEL_DOCUMENTATION }}
+          model: ${{ vars.CLAUDE_MODEL_DOCUMENTATION || 'haiku' }}
           zai-api-key: ${{ secrets.ZAI_API_KEY }}
           claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
           openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
@@ -130,7 +130,7 @@ jobs:
           PR: ${{ github.event.pull_request.number || github.event.inputs.pr-number }}
         run: |
           cat > /tmp/claude-prompt.txt << 'CLAUDE_EOF'
-          TICKET-MEMORY: Lies vor Beginn alle Dateien in .claude/ticket-memory/ (falls vorhanden) — ticketspezifisches Gedächtnis aus früheren Phasen (Spec/Implement/Review). Schreibe am ENDE deine wichtigsten Erkenntnisse (gewählte Klassifikation, Titel-Korrektur, Besonderheiten) in .claude/ticket-memory/phase-documentation.md. Max. ~30 Zeilen, nur Neues.
+          TICKET-MEMORY: Lies vor Beginn alle Dateien in .claude/ticket-memory/ (falls vorhanden) — ticketspezifisches Gedächtnis aus früheren Phasen (Spec/Implement/Review). Schreibe am ENDE deine wichtigsten Erkenntnisse (gewählte Klassifikation, Titel-Korrektur, Besonderheiten) in .claude/ticket-memory/phase-documentation.md. Max. ~30 Zeilen, nur Neues. Schließe die Datei zwingend mit der Zeile `<!-- phase:documentation complete -->` ab (Sentinel — der Workflow verwirft eine Notiz ohne ihn als unvollständig).
 
           ROLLE: Du bist der PR-Documenter. Pflege Titel + Beschreibung des soeben gemergten PR #PR_NR. Du arbeitest NUR über gh (gh pr edit / gh pr comment) und änderst KEINE Dateien im Repo.
 

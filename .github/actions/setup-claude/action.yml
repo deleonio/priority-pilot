@@ -53,7 +53,7 @@ inputs:
     required: false
     default: 'false'
   model:
-    description: 'Claude-Modell für diesen Lauf als Alias (fable|opus|sonnet|haiku); leer = Default aus .claude/settings.json (aktueller Zustand, kein --model). Pro Workflow-Phase reicht der jeweilige Workflow EIGENE GitHub-Variable hierher: CLAUDE_MODEL_TRIAGE (Default: sonnet), CLAUDE_MODEL_SPEC (Default: opus), CLAUDE_MODEL_IMPLEMENT (Default: opus), CLAUDE_MODEL_PR_REVIEW (Default: opus), CLAUDE_MODEL_FIXUP (Default: opus), CLAUDE_MODEL_DOCUMENTATION (Default: sonnet). Der Alias wird providerspezifisch aufgelöst (claude nativ via --model, zai/openrouter via settings.local.json) — die Defaults sind auf die Phasen-Aufgabe abgestimmt.'
+    description: 'Claude-Modell für diesen Lauf als Alias (fable|opus|sonnet|haiku); leer = kein --model (Default aus .claude/settings.json). Der Alias wird providerspezifisch aufgelöst (claude nativ via --model, zai/openrouter via settings.local.json); ein ungültiger Alias bricht laut ab (kein stiller Fallback).'
     required: false
     default: ''
 
@@ -184,6 +184,22 @@ runs:
       if: steps.preflight.outputs.configured == 'true' && inputs.memory-load == 'true'
       shell: bash
       run: mkdir -p .claude/ticket-memory
+
+    - name: Memory validieren (unvollständige Phasen-Notizen verwerfen)
+      # G6: Der Cache-Restore nutzt LIFO (neuester ticket-{N}-* Cache gewinnt). Ein abgebrochener
+      # Vor-Lauf kann eine halb geschriebene phase-*.md hinterlassen haben. Jede Phasen-Notiz
+      # schließt mit dem Sentinel <!-- phase:<name> complete --> ab; fehlt er, ist der Schreibstand
+      # unvollständig und wird verworfen (lieber kein Kontext als irreführender Teilkontext).
+      if: steps.preflight.outputs.configured == 'true' && inputs.memory-load == 'true'
+      shell: bash
+      run: |
+        shopt -s nullglob
+        for f in .claude/ticket-memory/phase-*.md; do
+          if ! grep -qE '<!-- phase:[a-z]+ complete -->' "$f"; then
+            echo "::notice::Verwerfe unvollstaendige Phasen-Notiz $(basename "$f") (Sentinel fehlt — vermutlich abgebrochener Vor-Lauf)."
+            rm -f "$f"
+          fi
+        done
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     # CLAUDE CODE – Install + Provider-Switch + Auth + (optional) KoliBri MCP

@@ -199,7 +199,7 @@ describe('LLM-Phase verkabelt — Documenter nutzt Claude Code (wie 01–05)', (
 	it('der Workflow reicht vars.CLAUDE_MODEL_DOCUMENTATION als Phasen-Modell durch', () => {
 		assert.match(
 			code,
-			/model:\s*\$\{\{\s*vars\.CLAUDE_MODEL_DOCUMENTATION\s*\}\}/,
+			/model:\s*\$\{\{\s*vars\.CLAUDE_MODEL_DOCUMENTATION\b[^}]*\}\}/,
 			'Workflow reicht vars.CLAUDE_MODEL_DOCUMENTATION nicht an setup-claude durch — die Phase läuft ' +
 				'still mit dem settings.json-Default statt dem Documenter-Modell.',
 		);
