@@ -91,24 +91,29 @@ jobs:
 
           Memory ist bereits geladen (ticket-PR_NR).
 
-          ABLAUF (STRIKT):
-            1. SOFORT starten.
-            2. Vollständigen Diff (gh pr diff) und verknüpftes Ticket lesen.
-            3. Adversarial prüfen:
-               - Löst der PR das Problem ganz?
-               - Edge Cases? Einfachster Weg? Performance/Security?
-               - Regression: Macht der PR bestehende Tests/Verhalten AUSSERHALB des Diffs obsolet?
-                 **Hinweis:** Obsolete Tests sollten bereits in der Spec-Stufe entfernt worden sein. Falls trotzdem Widerspruch auffällt → als Finding benennen ("Test-Pflege-Bedarf", Datei:Zeile), nicht still hinnehmen.
-            4. Code-Qualität: Benennung, Lesbarkeit, Tests (grün + abdeckend).
+          MODUS bestimmen (ALLERERSTER Schritt): Prüfe, ob bereits ein <!-- ai-review -->-Sammelkommentar am PR existiert (gh api repos/{owner}/{repo}/issues/#PR_NR/comments, nach "<!-- ai-review -->" filtern).
+            - Marker FEHLT → MODUS = KREUZVERHÖR (Erst-Review: volle adversariale Prüfung des ganzen PR).
+            - Marker VORHANDEN → MODUS = FIXUP-NACHWEIS (Folge-Review nach Fixup: KEIN neues Kreuzverhör — nur Kreuzverhör-Ergebnis + Fixup-Runden prüfen).
 
-          ABSCHLUSS:
-            - Findings, die Claude EINDEUTIG beheben kann → Review-Kommentare posten (an Datei/Zeile verankert), dann VERDICT: needs-changes
-            - Finding ist eine Architektur-/Produkt-/Designentscheidung, die Claude nicht eindeutig treffen kann ("Mensch entscheidet") → Review-Kommentar mit den Handlungsoptionen, dann VERDICT: needs-human
-            - PR ist solide (🟢) → KEINE Pseudo-Findings, knappe 🟢-Bestätigung, dann VERDICT: ready-to-merge
+          MODUS KREUZVERHÖR (Erst-Review) — adversarial, ganzer PR:
+            1. Vollständigen Diff (gh pr diff) und verknüpftes Ticket lesen (AK aus Body-Block <!-- KI-ANALYSE:START/END -->).
+            2. Adversarial prüfen: Löst der PR das Problem ganz? Edge Cases? Einfachster Weg? Performance/Security?
+               Regression: macht der PR bestehende Tests/Verhalten AUSSERHALB des Diffs obsolet? (Obsolete Tests sollten schon in der Spec entfernt sein; falls Widerspruch → Finding "Test-Pflege-Bedarf", Datei:Zeile.)
+            3. Code-Qualität: Benennung, Lesbarkeit, Tests (grün + AK abdeckend).
 
-          Sammelkommentar konsolidieren: Urteil als GENAU EINEN <!-- ai-review -->-Kommentar pflegen. Vorhandenen suchen und aktualisieren statt neu anzulegen.
+          MODUS FIXUP-NACHWEIS (Folge-Review) — NUR das Kreuzverhör-Ergebnis + die Fixup-Runden, NICHT erneut der ganze PR:
+            1. Bestehenden <!-- ai-review -->-Kommentar laden, seine "Offenen Findings" + updatedAt notieren.
+            2. Fixup-Diff seit updatedAt: gh pr view --json commits, committedDate > updatedAt filtern, darauf git diff.
+            3. Pro offenem Finding: durch den Fixup behoben (Datei/Zeile verifizieren)? → als behoben markieren, sonst offen lassen — nicht erneut aufrollen.
+            4. NUR den Fixup-Diff adversarial auf NEUE Probleme prüfen (hat der Fix neue Bugs/Regressionen eingeführt?).
+            5. AK/Ticket-Kontext im Blick behalten (nicht rein diff-lokal urteilen), aber unveränderte Code-Teile NICHT erneut kreuzvernehmen.
 
-          Bei Folge-Review: NUR den Diff SEIT dem letzten Review prüfen.
+          ABSCHLUSS (beide Modi):
+            - (Fixbare) Findings → Review-Kommentare an Datei/Zeile, dann VERDICT: needs-changes
+            - Architektur-/Produkt-/Design-Finding ("Mensch entscheidet") → Kommentar mit Handlungsoptionen, dann VERDICT: needs-human
+            - solide (🟢) → KEINE Pseudo-Findings, knappe 🟢-Bestätigung, dann VERDICT: ready-to-merge
+
+          Sammelkommentar: Urteil als GENAU EINEN <!-- ai-review -->-Kommentar pflegen (vorhandenen suchen + fortschreiben, nicht neu anlegen). Zwei Abschnitte: "Offene Findings" (aktuelle Runde) und "Behobene Anmerkungen" (History-Tabelle — erledigte Findings wandern dorthin).
 
           ⚠️ LABELS: KEINE Labels setzen! Workflow übernimmt das automatisch.
 
