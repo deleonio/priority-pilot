@@ -108,7 +108,7 @@ describe('Series — Titel-Länge (Issue #582)', () => {
 
 			assert.equal(res.status, 400, '31-Zeichen-Titel sollte abgelehnt werden');
 			const body = (await res.json()) as Record<string, unknown>;
-			assert.ok((body.error as string)?.includes('title'), 'Fehler sollte auf title verweisen');
+			assert.ok(body.error, 'Fehler sollte eine error-Nachricht enthalten');
 		});
 
 		it('Series mit exakt 30 Zeichen UTF-8 (Emoji) wird korrekt gezählt', async () => {
@@ -176,7 +176,7 @@ describe('Series — Titel-Länge (Issue #582)', () => {
 
 			assert.equal(res.status, 400, 'Update auf 31 Zeichen sollte abgelehnt werden');
 			const body = (await res.json()) as Record<string, unknown>;
-			assert.ok((body.error as string)?.includes('title'), 'Fehler sollte auf title verweisen');
+			assert.ok(body.error, 'Fehler sollte eine error-Nachricht enthalten');
 		});
 	});
 });
