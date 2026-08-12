@@ -182,16 +182,17 @@ jobs:
                c) UNRELATED CI-FEHLER: In PR-Kommentar dokumentieren. Nicht fixen.
 
           ABSCHLUSS:
-            - Alle Findings behoben → VERDICT: fixup-complete
-            - Noch offene, fixbare Findings → VERDICT: needs-changes
-            - Offene Entscheidungs-Findings (Architektur/Produkt/Design, "Mensch entscheidet") → VERDICT: needs-human
+            - Committen+pushen ist der ECHTE Fortschritt: das Workflow misst HEAD-Bewegung (neue
+              Commits), um zu entscheiden, ob ein erneuter Review nötig ist. Ein "fertig"-Verdict
+              ohne Commit bewirkt NICHTS — der Workflow übergibt nur bei gerücktem HEAD an Review.
+            - VERDICT: needs-human NUR bei Entscheidungs-Findings (Architektur/Produkt/Design,
+              "Mensch entscheidet") — das ist das EINZIG verbindliche Verdict (terminal an Mensch).
 
           ⚠️ LABELS: KEINE Labels setzen! Workflow übernimmt das automatisch.
 
-          VERDICT: GANZ AM ENDE GENAU EINE Zeile:
-            - VERDICT: fixup-complete (alle Findings behoben)
-            - VERDICT: needs-changes (noch offene, fixbare Findings)
+          VERDICT: GANZ AM ENDE GENAU EINE Zeile (nur bei Entscheidungs-Findungen):
             - VERDICT: needs-human (offene Entscheidungs-Findings, die ein Mensch treffen muss)
+            - sonst: KEIN Verdict nötig — Commits entscheiden über Fortschritt, Review prüft neu.
 
           ZEITLIMIT: Soft-Deadline = SOFT_DEADLINE. Vor jedem Schritt: [ $(date +%s) -ge SOFT_DEADLINE ]. Bei OVER: aktuellen Stand committen+pushen, Turn beenden.
 
@@ -218,10 +219,16 @@ jobs:
 
       - name: Label-Post-Assertion (Labels via App-Token force-setzen)
         id: label-post
-        if: always() && steps.setup.outputs.configured == 'true' && steps.claude.outcome == 'success'
+        # B1: Label-Transition auch bei Claude failure/cancelled — sonst bleibt der PR bei einem
+        # Crash/Timeout dauerhaft auf ai:needs-changes kleben (kein Re-Arm, keine Eskalation).
+        # Analog 04-claude-pr-review.yml (dort success|failure; hier zusaetzlich cancelled wg.
+        # timeout-minutes-Backstop). Skip-Reasons (stop-guard/supersede) liefern outcome=skipped
+        # und fallen hier korrekt raus.
+        if: always() && steps.setup.outputs.configured == 'true' && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure' || steps.claude.outcome == 'cancelled')
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
+          OUTCOME: ${{ steps.claude.outcome }}
         run: |
           verdict=""
           if [ -f /tmp/claude-output.log ]; then
@@ -250,6 +257,21 @@ jobs:
           gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-changes 2>/dev/null || true
           gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-review 2>/dev/null || true
 
+          # B1: Claude abgestuerzt/abgebrochen (failure/cancelled) — kein vertrauenswuerdiges
+          # Verdict, HEAD-Fortschritt nicht aussagekraeftig (evtl. mittendrin abgebrochen).
+          # Terminal ai:needs-human + Kommentar, KEINE Re-Armierung: ein wiederholt abstuerzender
+          # Claude wuerde sonst eine Re-Arm-Schleife erzeugen. Review macht analog den Safe-Default.
+          if [ "$OUTCOME" != "success" ]; then
+            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human
+            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "🛑 **Fixup #${PR}: Claude-Schritt \`${OUTCOME}\`** — kein Verdict, HEAD-Fortschritt nach Absturz/Abbruch nicht vertrauenswuerdig. ai:needs-human gesetzt — bitte manuell pruefen (war es ein transienter API-Fehler, \`ai:needs-changes\` neu setzen und erneut fixupen lassen)." 2>/dev/null || true
+            echo "::warning::Claude-Schritt '${OUTCOME}' -> ai:needs-human (keine Re-Armierung, Mensch prueft)."
+            echo "stuck=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # B2: Verdict ist beratend — EINZIG `needs-human` ist verbindlich (terminal). Fortschritt
+          # entscheidet der Workflow ausschliesslich ueber HEAD-Bewegung (Commits = Ground Truth),
+          # niemals ueber ein `fixup-complete`-Verdict. Vgl. Prompt-Vertrag (VERDICT-Abschnitt).
           if [ "$verdict" = "needs-human" ]; then
             # Claude hat erkannt: verbleibende Findings sind Entscheidungs-Findings, die ein Mensch
             # treffen muss (kein automatisierbarer Fix). Terminal an Mensch — kein Re-Arm, kein Loop.
@@ -272,16 +294,6 @@ jobs:
             echo "::warning::Kein Fixup-Fortschritt (HEAD unverändert) -> ai:needs-human, keine Re-Armierung, Mensch prüft."
             echo "stuck=true" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Soft-Abort-Fortsetzung erkennen und begrenzen (ai:continued)
-        if: always() && steps.setup.outputs.configured == 'true' && steps.claude.outcome == 'success'
-        env:
-          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
-          PR: ${{ github.event.pull_request.number }}
-        run: |
-          has_continued="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq 'any(.labels[]; .name == "ai:continued")' 2>/dev/null || echo false)"
-          if [ "${has_continued:-false}" != "true" ]; then exit 0; fi
-          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "🛑 Fixup-Fortsetzungs-Obergrenze erreicht – bitte manuell prüfen." 2>/dev/null || true
 
       - name: Ergebnis zusammenfassen
         if: always() && steps.setup.outputs.configured == 'true'
