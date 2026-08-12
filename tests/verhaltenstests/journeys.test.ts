@@ -128,15 +128,81 @@ describe('Issue #566 — User Journey Black-Box-Tests', () => {
 		});
 
 		it('j1-validation–priorität-außerhalb-1–5-liefert-400', async () => {
-			// Randfall: Priorität außerhalb 1–5
-			const invalidTask = {
+			// Randfall: Priorität > 5
+			const invalidTaskHigh = {
 				title: 'Test',
 				priority: 6,
 			};
 
-			const response = await post('/tasks', invalidTask);
+			const responseHigh = await post('/tasks', invalidTaskHigh);
+			assert.equal(responseHigh.status, 400, 'Priorität > 5 muss 400 liefern');
 
-			assert.equal(response.status, 400, 'Priorität > 5 muss 400 liefern');
+			// Randfall: Priorität < 1
+			const invalidTaskLow = {
+				title: 'Test',
+				priority: 0,
+			};
+
+			const responseLow = await post('/tasks', invalidTaskLow);
+			assert.equal(responseLow.status, 400, 'Priorität < 1 muss 400 liefern');
+
+			// Randfall: Negative Priorität
+			const invalidTaskNegative = {
+				title: 'Test',
+				priority: -1,
+			};
+
+			const responseNegative = await post('/tasks', invalidTaskNegative);
+			assert.equal(responseNegative.status, 400, 'Negative Priorität muss 400 liefern');
+		});
+
+		it('j1-validation–aufwand-außerhalb-0.1–1.0-liefert-400', async () => {
+			// Randfall: Aufwand < 0.1
+			const invalidTaskLow = {
+				title: 'Test',
+				estimatedEffort: 0,
+			};
+
+			const responseLow = await post('/tasks', invalidTaskLow);
+			assert.equal(responseLow.status, 400, 'Aufwand < 0.1 muss 400 liefern');
+
+			// Randfall: Negativer Aufwand
+			const invalidTaskNegative = {
+				title: 'Test',
+				estimatedEffort: -0.5,
+			};
+
+			const responseNegative = await post('/tasks', invalidTaskNegative);
+			assert.equal(responseNegative.status, 400, 'Negativer Aufwand muss 400 liefern');
+
+			// Randfall: Aufwand > 1.0
+			const invalidTaskHigh = {
+				title: 'Test',
+				estimatedEffort: 1.5,
+			};
+
+			const responseHigh = await post('/tasks', invalidTaskHigh);
+			assert.equal(responseHigh.status, 400, 'Aufwand > 1.0 muss 400 liefern');
+		});
+
+		it('j1-validation–titel-länge-mit-max-30-zeichen', async () => {
+			// Randfall: Titel zu lang (über 30 Zeichen)
+			const invalidTaskLong = {
+				title: 'This is a very long title that exceeds the maximum',
+			};
+
+			const responseLong = await post('/tasks', invalidTaskLong);
+			assert.equal(responseLong.status, 400, 'Titel > 30 Zeichen muss 400 liefern');
+
+			// Randfall: Titel genau auf Grenze (30 Zeichen) sollte funktionieren
+			const validTaskExact = {
+				title: 'This is exactly thirty chars!',
+			};
+
+			const responseExact = await post('/tasks', validTaskExact);
+			assert.equal(responseExact.status, 201, 'Titel mit genau 30 Zeichen muss 201 liefern');
+			const task = await responseExact.json();
+			await del(`/tasks/${task.id}`);
 		});
 	});
 
@@ -346,6 +412,7 @@ describe('Issue #566 — User Journey Black-Box-Tests', () => {
 
 			assert.ok(nextTask, 'Nächste Aufgabe muss nicht null sein');
 			assert.equal(nextTask.status, 'Open', 'Nächste Aufgabe muss Status "Open" haben');
+			assert.equal(nextTask.id, task.id, 'Nächste Aufgabe muss der erstellten Aufgabe entsprechen');
 
 			// Cleanup
 			await del(`/tasks/${task.id}`);
@@ -370,8 +437,9 @@ describe('Issue #566 — User Journey Black-Box-Tests', () => {
 
 			assert.ok(beforeForest.length > 0, 'Aufgabenwald muss Aufgaben enthalten');
 
-			// C sollte höher im Baum stehen als A und B (Blocker-Effekt)
-			// Dies ist ein beobachtbarer Effekt, ohne auf den konkreten Wert zu prüfen
+			// C sollte oben stehen (Blocker-Effekt: Vorgänger für wichtige Aufgaben)
+			const topTask = beforeForest[0];
+			assert.equal(topTask.id, taskCId, 'C (Blocker) sollte oben im Wald stehen');
 
 			await cleanup();
 		});
