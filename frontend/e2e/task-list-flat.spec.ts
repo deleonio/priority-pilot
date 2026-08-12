@@ -28,7 +28,11 @@ import { waitForStableView } from './helpers';
  */
 test.describe('Priority Pilot — Aufgabenliste als flache Blatt-Liste (#537)', () => {
 	let runId = 0;
-	const uniqueTitle = (label: string): string => `Flat ${label} #${(runId += 1)}`;
+	const uniqueTitle = (label: string): string => {
+		const tail = `#${(runId += 1)}`;
+		const head = `Flat ${label}`.slice(0, 30 - tail.length);
+		return `${head}${tail}`;
+	};
 
 	/** Legt einen Task über die echte API an und liefert seine ID zurück. */
 	const createTask = async (page: Page, title: string, priority = 3, estimatedEffort = 1): Promise<number> => {
@@ -178,7 +182,7 @@ test.describe('Priority Pilot — Aufgabenliste als flache Blatt-Liste (#537)', 
 		const keepTitle = uniqueTitle('Sichtbar-Treffer');
 		const hideTitle = uniqueTitle('Versteckt-KeinTreffer');
 		const keepId = await createTask(page, keepTitle);
-		await createTask(page, hideTitle);
+		const hideId = await createTask(page, hideTitle);
 
 		await page.goto('/');
 		await waitForStableView(page);
@@ -193,9 +197,10 @@ test.describe('Priority Pilot — Aufgabenliste als flache Blatt-Liste (#537)', 
 		await waitForStableView(page);
 
 		// … lässt nur den treffenden Blatt-Eintrag, der andere verschwindet (flach, ohne Kontextpfad).
+		// Hinweis: die App behält ausgefilterte Items im DOM (nur CSS-versteckt), daher ist eine
+		// Sichtbarkeits-Assertion korrekter als ein DOM-count (vgl. tasks-tab-filter.spec.ts).
 		await expect(item(page, keepId)).toBeVisible();
-		const visibleItems = await list(page).locator('[data-testid^="task-list-item-"]').count();
-		expect(visibleItems).toBe(1);
+		await expect(item(page, hideId)).not.toBeVisible();
 	});
 
 	test('T5: Flache Blatt-Liste ist auf 360 px ohne horizontalen Überlauf lesbar', async ({ page }) => {

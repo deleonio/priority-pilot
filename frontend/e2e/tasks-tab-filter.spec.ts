@@ -16,11 +16,13 @@ import { waitForStableView } from './helpers';
  */
 test.describe('Priority Pilot — Aufgaben-Tab mit Filter und Switch (#399) gegen das echte Backend', () => {
 	// Eindeutige Titel je Test, damit Assertions ausschließlich auf selbst angelegte Daten zielen.
-	// Titel auf 30 Zeichen begrenzt (Issue #582): Kurz-Format "E2E-L#N-Timestamp"
+	// #582: Titel ≤30 Zeichen — Guard sichert das harter STRING(30)-Validator, Label bleibt voll
+	// erhalten (nur bei >30 abgeschnitten), sodass Substring-Filter wie "Matching" weiterhin greifen.
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
-		const shortLabel = label.substring(0, 3); // Max 3 chars für label
-		return `E2E-${shortLabel}${(runId += 1)}${Date.now().toString().slice(-6)}`; // "E2E-Lab5-319222545" ≈ 18 chars
+		const tail = `#${(runId += 1)}`;
+		const head = `E2E ${label}`.slice(0, 30 - tail.length);
+		return `${head}${tail}`;
 	};
 
 	// Der Offen/Erledigt-Umschalter (KolInputCheckbox variant="switch" → Rolle checkbox).

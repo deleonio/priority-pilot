@@ -24,7 +24,11 @@ import { waitForStableView } from './helpers';
  */
 test.describe('Priority Pilot — Erledigt-Toggle in der flachen Blatt-Liste (#315 / #387)', () => {
 	let runId = 0;
-	const uniqueTitle = (label: string): string => `Toggle ${label} #${(runId += 1)}-${Date.now()}`;
+	const uniqueTitle = (label: string): string => {
+		const tail = `#${(runId += 1)}`;
+		const head = `Toggle ${label}`.slice(0, 30 - tail.length);
+		return `${head}${tail}`;
+	};
 
 	/** Legt einen Task über die echte API an und liefert seine ID zurück. */
 	const createTask = async (page: Page, title: string): Promise<number> => {

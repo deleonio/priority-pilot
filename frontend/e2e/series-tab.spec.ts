@@ -23,7 +23,11 @@ import { waitForStableView } from './helpers';
 test.describe('Priority Pilot — #335: Serien-Verwaltung als eigener Tab', () => {
 	// Eindeutige Titel je Test, damit Assertions ausschließlich auf selbst angelegte Daten zielen.
 	let runId = 0;
-	const uniqueTitle = (label: string): string => `E2E #335 ${label} #${(runId += 1)}-${Date.now()}`;
+	const uniqueTitle = (label: string): string => {
+		const tail = `#${(runId += 1)}`;
+		const head = `E2E #335 ${label}`.slice(0, 30 - tail.length);
+		return `${head}${tail}`;
+	};
 
 	interface SeriesPayload {
 		title: string;

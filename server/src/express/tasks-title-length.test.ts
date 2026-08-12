@@ -1,7 +1,6 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
-import { Task } from '../models/index.js';
 
 // Auth-Kontext muss vor dem Server-Start feststehen.
 process.env.GOOGLE_ALLOWED_EMAIL = 'testuser@example.com';
@@ -104,7 +103,8 @@ describe('Task — Titel-Länge (Issue #582)', () => {
 
 			assert.equal(res.status, 400, '31-Zeichen-Titel sollte abgelehnt werden');
 			const body = (await res.json()) as Record<string, unknown>;
-			assert.ok((body.error as string)?.includes('title'), 'Fehler sollte auf title verweisen');
+			// sendError liefert { message } (tasks.ts) — sequelize: "Validation len on title failed".
+			assert.ok((body.message as string)?.includes('title'), 'Fehler sollte auf title verweisen');
 		});
 
 		it('Task mit exakt 30 Zeichen UTF-8 (Emoji) wird korrekt gezählt', async () => {
@@ -142,14 +142,16 @@ describe('Task — Titel-Länge (Issue #582)', () => {
 	describe('PATCH /tasks/:id — Titel-Länge bei Update', () => {
 		let taskId: number;
 
+		// Task via API (mit Cookie) anlegen, damit er dem Test-User gehört — findOwnTask
+		// scope-t nach ownerScope(userId), sonst antwortet PATCH /tasks/:id mit 404.
 		it.beforeEach(async () => {
-			const task = await Task.create({
-				title: 'Original',
-				status: 'Open',
-				priority: 3,
-				estimatedEffort: 0.5,
-			});
-			taskId = task.id;
+			const res = await post(
+				'/tasks',
+				{ title: 'Original', status: 'Open', priority: 3, estimatedEffort: 0.5 },
+				cookie,
+			);
+			const body = (await res.json()) as { id: number };
+			taskId = body.id;
 		});
 
 		it('Update auf 30 Zeichen Titel wird akzeptiert', async () => {
@@ -167,7 +169,7 @@ describe('Task — Titel-Länge (Issue #582)', () => {
 
 			assert.equal(res.status, 400, 'Update auf 31 Zeichen sollte abgelehnt werden');
 			const body = (await res.json()) as Record<string, unknown>;
-			assert.ok((body.error as string)?.includes('title'), 'Fehler sollte auf title verweisen');
+			assert.ok((body.message as string)?.includes('title'), 'Fehler sollte auf title verweisen');
 		});
 	});
 });

@@ -13,7 +13,11 @@ import { waitForStableView } from './helpers';
  */
 test.describe('Dashboard — Meter Ist-Anteil (Issue #219)', () => {
 	let runId = 0;
-	const uniqueTitle = (label: string): string => `E2E Meter219 ${label} #${(runId += 1)}-${Date.now()}`;
+	const uniqueTitle = (label: string): string => {
+		const tail = `#${(runId += 1)}`;
+		const head = `E2E Meter219 ${label}`.slice(0, 30 - tail.length);
+		return `${head}${tail}`;
+	};
 
 	const deleteAllTasks = async (page: Page): Promise<void> => {
 		const response = await page.request.get('/api/v1/tasks');

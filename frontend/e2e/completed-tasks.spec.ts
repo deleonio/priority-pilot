@@ -15,7 +15,11 @@ import { waitForStableView } from './helpers';
 test.describe('Priority Pilot — Erledigt-Ansicht (#228/#307) gegen das echte Backend', () => {
 	// Eindeutige Titel je Test, damit Assertions ausschließlich auf selbst angelegte Daten zielen.
 	let runId = 0;
-	const uniqueTitle = (label: string): string => `E2E ${label} #${(runId += 1)}-${Date.now()}`;
+	const uniqueTitle = (label: string): string => {
+		const tail = `#${(runId += 1)}`;
+		const head = `E2E ${label}`.slice(0, 30 - tail.length);
+		return `${head}${tail}`;
+	};
 
 	/** Löscht alle aktuell vorhandenen Tasks über die echte API (Vite-Proxy → Backend). */
 	const deleteAllTasks = async (page: Page): Promise<void> => {

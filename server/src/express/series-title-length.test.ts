@@ -1,7 +1,6 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
-import { Series } from '../models/index.js';
 
 // Auth-Kontext muss vor dem Server-Start feststehen.
 process.env.GOOGLE_ALLOWED_EMAIL = 'testuser@example.com';
@@ -108,7 +107,8 @@ describe('Series — Titel-Länge (Issue #582)', () => {
 
 			assert.equal(res.status, 400, '31-Zeichen-Titel sollte abgelehnt werden');
 			const body = (await res.json()) as Record<string, unknown>;
-			assert.ok(body.error, 'Fehler sollte eine error-Nachricht enthalten');
+			// sendError liefert { message } (series.ts).
+			assert.ok(body.message, 'Fehler sollte eine message enthalten');
 		});
 
 		it('Series mit exakt 30 Zeichen UTF-8 (Emoji) wird korrekt gezählt', async () => {
@@ -151,14 +151,21 @@ describe('Series — Titel-Länge (Issue #582)', () => {
 
 		it.beforeEach(async () => {
 			cookie = await testLogin('testuser@example.com', 'Test User');
-			const series = await Series.create({
-				title: 'Original-Serie',
-				rhythm: 'weekly',
-				priority: 3,
-				estimatedEffort: 0.5,
-				startDate: new Date(),
-			});
-			seriesId = series.id;
+			// Series via API (mit Cookie) anlegen, damit sie dem Test-User gehört — sonst
+			// antwortet PATCH /series/:id mit 404 (ownerScope).
+			const res = await post(
+				'/series',
+				{
+					title: 'Original-Serie',
+					rhythm: 'weekly',
+					priority: 3,
+					estimatedEffort: 0.5,
+					startDate: new Date().toISOString(),
+				},
+				cookie,
+			);
+			const body = (await res.json()) as { id: number };
+			seriesId = body.id;
 		});
 
 		it('Update auf 30 Zeichen Titel wird akzeptiert', async () => {
@@ -176,7 +183,7 @@ describe('Series — Titel-Länge (Issue #582)', () => {
 
 			assert.equal(res.status, 400, 'Update auf 31 Zeichen sollte abgelehnt werden');
 			const body = (await res.json()) as Record<string, unknown>;
-			assert.ok(body.error, 'Fehler sollte eine error-Nachricht enthalten');
+			assert.ok(body.message, 'Fehler sollte eine message enthalten');
 		});
 	});
 });
