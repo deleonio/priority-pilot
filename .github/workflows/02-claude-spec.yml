@@ -112,7 +112,6 @@ jobs:
                 --comment "🔄 Spec für Issue #$ISSUE neu angestoßen – verwaister Draft geschlossen (Branch bleibt erhalten)." 2>/dev/null || true
               echo "::notice::Verwaisten Draft-PR #$pr für Issue #$ISSUE geschlossen."
             done
-          fi
           echo "skip=false" >> "$GITHUB_OUTPUT"
 
       - name: pnpm einrichten

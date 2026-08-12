@@ -32,42 +32,13 @@ const json = <T>(...parts: string[]): T => JSON.parse(read(...parts)) as T;
 // Server-Name aus .mcp.json ist die Quelle der Wahrheit fuer den MCP-Tool-Prefix.
 const SERVERS = Object.keys(json<{ mcpServers: Record<string, unknown> }>('.mcp.json').mcpServers);
 
-// ── AK1: globaler deny-Layer in .claude/settings.json ──────────────────────────────────
-
-describe('Permission-Layer — settings.json hat einen deny-Layer mit Deckung', () => {
-	const settings = json<{ permissions?: { deny?: unknown } }>('.claude', 'settings.json');
-	const deny = (settings.permissions?.deny as string[] | undefined) ?? [];
-
-	it('permissions.deny ist ein nicht-leeres Array', () => {
-		assert.ok(
-			Array.isArray(deny) && deny.length > 0,
-			'permissions.deny fehlt oder leer — mit Token im Env gibt es keinen Guardrail gegen Prompt-Injection',
-		);
-	});
-
-	// Jede Regel nach CONCERN fordern, nicht als Wortlaut: die Implementierung darf die Glob-Syntax
-	// variieren, muss aber jede Schutzluecke schliessen. Mutations-Probe: entferne eine Concern-Regel
-	// → der zugehoerige it wird rot.
-	const covers = (concern: RegExp, label: string) => {
-		it(`deny deckt "${label}" ab`, () => {
-			assert.ok(
-				Array.isArray(deny) && deny.some((d) => concern.test(String(d))),
-				`keine deny-Regel fuer "${label}" — Schutzluecke bleibt offen (${concern})`,
-			);
-		});
-	};
-
-	covers(/curl|wget|\bnc\b/, 'Netz-Exfiltration (curl/wget/nc)');
-	covers(/\.env/, 'Secret-Datei .env');
-	covers(/\.pem/, 'Private Keys (*.pem)');
-	covers(/secrets/, 'secrets/-Verzeichnis');
-	covers(/\.ssh/, '~/.ssh (Credentials)');
-	covers(/npmrc/, '~/.npmrc (Token)');
-	covers(/rm\s+-rf/, 'destruktives rm -rf');
-	covers(/sudo/, 'Rechte-Eskalation (sudo)');
-	covers(/git push --force/, 'force-push Langform (--force direkt nach push)');
-	covers(/git push -f\b/, 'force-push Kurzform -f (git push -f …)');
-});
+// ── AK1: ENTFERNT — globaler deny-Layer aus .claude/settings.json ───────────────────────
+// Commit a14c5d5 hat permissions.deny bewusst entfernt (settings.json wird minimal gepflegt,
+// User-Entscheidung). Dieser Block fordrerte deny-Deckung (curl/.env/.pem/secrets/.ssh/npmrc/
+// rm -rf/sudo/force-push) und war rot. ⚠️ Damit laufen die full-Tier-Phasen (Spec/Implement/
+// Fixup, --dangerously-skip-permissions) OHNE Prompt-Injection-Guardrails. Wiederherstellung:
+// entweder permissions.deny in settings.json + diesen Block reaktivieren (Stand d605eff), oder
+// deny-Regeln ans full-Tier --disallowedTools in setup-claude migrieren.
 
 // ── AK6: MCP-Toolname spiegelt den in .mcp.json deklarierten Server ────────────────────
 
