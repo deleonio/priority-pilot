@@ -151,6 +151,16 @@ jobs:
             2>&1 | tee /tmp/claude-output.log
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
 
+      - name: Memory-Check (phase-spec-Notiz mit Sentinel?)
+        # D3: if-no-path-exists:ignore verschluckt vergessene Notizen still. Warning macht den
+        # No-Op hörbar; kein exit, damit legitime Skips (Guard) grün bleiben.
+        if: always() && steps.setup.outputs.configured == 'true' && steps.claude.outcome == 'success'
+        shell: bash
+        run: |
+          f=".claude/ticket-memory/phase-spec.md"
+          [ -f "$f" ] && grep -qE '<!-- phase:spec complete -->' "$f" \
+            || echo "::warning title=Memory fehlt::phase-spec.md ohne Sentinel — Claude hat keine Notiz hinterlassen. Folge-Phase lädt Vorgängerstand."
+
       - name: Memory-Save (ticketspezifisch, dateibasiert)
         # Cache nur schreiben, wenn Claude gelaufen ist (s. workflow-invariants-Test: das
         # outcome-Binding hält diesen Step im Guard-Skip-Fall indirekt heraus).

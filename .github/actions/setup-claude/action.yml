@@ -195,7 +195,7 @@ runs:
       run: |
         shopt -s nullglob
         for f in .claude/ticket-memory/phase-*.md; do
-          if ! grep -qE '<!-- phase:[a-z]+ complete -->' "$f"; then
+          if ! grep -qE '<!-- phase:[a-z0-9-]+ complete -->' "$f"; then
             echo "::notice::Verwerfe unvollstaendige Phasen-Notiz $(basename "$f") (Sentinel fehlt — vermutlich abgebrochener Vor-Lauf)."
             rm -f "$f"
           fi
@@ -385,8 +385,10 @@ runs:
         case "${TOOLS_TIER:-full}" in
           restricted)
             # Tier 1 — nur lesender GitHub-Zugriff, KEIN Bypass (Triage arbeitet nur via gh).
-            # Bash(gh *)/Bash(git *) bleiben eng, Write/Edit bewusst nicht erlaubt.
-            ALLOWED_TOOLS="Read,Glob,Grep,Bash(gh *),Bash(git *)"
+            # Bash(gh *)/Bash(git *) bleiben eng, Write/Edit bewusst nicht erlaubt — einzige
+            # Ausnahme: Write(.claude/ticket-memory/*), damit Phasen-Notizen persistiert werden
+            # (sonst scheitert der Schreibbefehl im Prompt jedes Mal an Berechtigungen).
+            ALLOWED_TOOLS="Read,Glob,Grep,Bash(gh *),Bash(git *),Write(.claude/ticket-memory/*)"
             [ "$NEEDS_MCP" = "true" ] && ALLOWED_TOOLS="$ALLOWED_TOOLS,$MCP_TOOLS"
             # — !WICHTIG! —
             # Zwingendes Single-Quoting des Wertes nach --allowedTools (und --disallowedTools):
