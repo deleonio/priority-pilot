@@ -1,6 +1,9 @@
-# Beschreibung
+## Beschreibung
 
 <!-- Was ändert dieser PR und warum? Kurz und sachlich. -->
+
+**Spec-First:** Dieser PR basiert auf einer Spezifikation mit Akzeptanzkriterien und Testfällen
+(siehe verlinktes Issue). Erst Spec, dann Test, dann Code.
 
 Closes #
 
@@ -14,6 +17,7 @@ Closes #
 
 ## Checkliste
 
+- [ ] Spec aktualisiert (Akzeptanzkriterien geprüft, Testfälle vorhanden)
 - [ ] `pnpm format` ausgeführt
 - [ ] `pnpm lint` ausgeführt
 - [ ] `pnpm test` ausgeführt — Tests grün (Pflicht)

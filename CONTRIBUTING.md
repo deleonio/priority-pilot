@@ -39,6 +39,20 @@ Sicherheitslücken bitte **nicht** öffentlich als Issue melden — siehe [SECUR
 
 ## Änderungen einreichen
 
+**Spec-First:** Vor der Umsetzung wird die Spezifikation im Issue erstellt (Akzeptanzkriterien,
+Testfälle). Erst wenn der Spec klar ist, folgen Tests und dann Code.
+
+### Definition of Done
+
+Eine Änderung gilt als fertig, wenn:
+
+- [ ] Spezifikation im Issue aktualisiert (Akzeptanzkriterien geprüft, Testfälle vorhanden)
+- [ ] Tests geschrieben und grün (test-first / Red-Green)
+- [ ] Code umgesetzt
+- [ ] `pnpm format`, `pnpm lint`, `pnpm test` bestanden
+- [ ] Dokumentation aktualisiert (falls zutreffend)
+- [ ] Code Review bestanden
+
 1. **Branch** von `main` abzweigen (z. B. `feature/kurzbeschreibung` oder `fix/kurzbeschreibung`).
 2. Änderungen umsetzen und – wo sinnvoll – mit Tests absichern.
 3. Vor dem Commit prüfen:
