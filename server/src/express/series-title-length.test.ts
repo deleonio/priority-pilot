@@ -76,7 +76,7 @@ describe('Series — Titel-Länge (Issue #582)', () => {
 		it('Series mit 30 Zeichen Titel wird akzeptiert', async () => {
 			const title30 = 'x'.repeat(30); // exakt 30 Zeichen
 			const res = await post(
-				'/api/series',
+				'/series',
 				{
 					title: title30,
 					rhythm: 'weekly',
@@ -95,7 +95,7 @@ describe('Series — Titel-Länge (Issue #582)', () => {
 		it('Series mit 31 Zeichen Titel wird mit ValidationError abgelehnt', async () => {
 			const title31 = 'y'.repeat(31); // 31 Zeichen > Limit
 			const res = await post(
-				'/api/series',
+				'/series',
 				{
 					title: title31,
 					rhythm: 'weekly',
@@ -114,7 +114,7 @@ describe('Series — Titel-Länge (Issue #582)', () => {
 		it('Series mit exakt 30 Zeichen UTF-8 (Emoji) wird korrekt gezählt', async () => {
 			const titleEmoji = '🎯'.repeat(10); // 10 Emojis = 30 Zeichen
 			const res = await post(
-				'/api/series',
+				'/series',
 				{
 					title: titleEmoji,
 					rhythm: 'weekly',
@@ -130,7 +130,7 @@ describe('Series — Titel-Länge (Issue #582)', () => {
 
 		it('Series mit leerem Titel wird abgelehnt (minimum 1 Zeichen)', async () => {
 			const res = await post(
-				'/api/series',
+				'/series',
 				{
 					title: '',
 					rhythm: 'weekly',
@@ -163,7 +163,7 @@ describe('Series — Titel-Länge (Issue #582)', () => {
 
 		it('Update auf 30 Zeichen Titel wird akzeptiert', async () => {
 			const title30 = 'z'.repeat(30);
-			const res = await patch(`/api/series/${seriesId}`, { title: title30 }, cookie);
+			const res = await patch(`/series/${seriesId}`, { title: title30 }, cookie);
 
 			assert.equal(res.status, 200, 'Update auf 30 Zeichen sollte akzeptiert werden');
 			const body = (await res.json()) as Record<string, unknown>;
@@ -172,7 +172,7 @@ describe('Series — Titel-Länge (Issue #582)', () => {
 
 		it('Update auf 31 Zeichen Titel wird mit ValidationError abgelehnt', async () => {
 			const title31 = 'ü'.repeat(31);
-			const res = await patch(`/api/series/${seriesId}`, { title: title31 }, cookie);
+			const res = await patch(`/series/${seriesId}`, { title: title31 }, cookie);
 
 			assert.equal(res.status, 400, 'Update auf 31 Zeichen sollte abgelehnt werden');
 			const body = (await res.json()) as Record<string, unknown>;
