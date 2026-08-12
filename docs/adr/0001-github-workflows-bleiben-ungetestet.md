@@ -30,7 +30,7 @@ Quarantäne (`__quarantine__/`) verschoben; die CI führt sie nicht mehr aus.
   Das ist die Change-Detector-Pathologie aus dem Testumfang-Leitsatz
   ([tdd-strategy.md](../../.ai-knowledge/tdd-strategy.md)): sie prüfen nichts, das nicht schon
   dasteht.
-- **Blockiert den Pipeline-Umbau.** Jede Workflow-Evolution (neuer Guard,_rename, Refactor) zwingt
+- **Blockiert den Pipeline-Umbau.** Jede Workflow-Evolution (neuer Guard, _rename, Refactor) zwingt
   dazu, auch die Meta-Tests umzuschreiben — doppelter Aufwand, der Anpassungen verteuert, ohne
   echten Schutz zurückzugeben. Genau das hat immer wieder zu neuen Workflow-Tests eingeladen
   (Agenten und Phasen sehen eine bestehende Suite als Vorbild und erweitern sie).
