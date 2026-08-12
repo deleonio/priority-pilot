@@ -91,12 +91,11 @@ jobs:
           # allein ist KEIN Skip-Grund: er stammt von einem abgebrochenen Spec-Lauf (der
           # Skip-Guard davor hat bereits sichergestellt, dass kein aktiver Spec-Lauf mehr laeuft)
           # und wuerde die Issue sonst dauerhaft blockieren (G5).
-          if ! ready="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
-            --json number,isDraft,closingIssuesReferences \
-            --jq "[.[] | select(.isDraft == false) | select((.closingIssuesReferences // []) | any(.number == ${ISSUE}))] | length" 2>/dev/null)"; then
-            echo "::warning::Doppel-Run-Guard: gh-API nicht erreichbar – fail-open."
-            ready=0
-          fi
+          # Ready-PR = nicht-draft PR zu diesem Issue. Helper probiert primär
+          # closingIssuesReferences und fällt bei fehlendem "#" ("Closes NNN") auf
+          # Body-Suche zurück. schluckt gh-Fehler intern (→ 0), fail-open bleibt erhalten.
+          ready="$(bash .github/scripts/pr-for-issue.sh --repo "$GITHUB_REPOSITORY" \
+            --issue "$ISSUE" --draft no --out count)"
           if [ "${ready:-0}" -gt 0 ]; then
             echo "::notice::Spec übersprungen – ready-PR (Nicht-Draft) existiert bereits für Issue #$ISSUE."
             echo "skip=true" >> "$GITHUB_OUTPUT"
@@ -105,10 +104,9 @@ jobs:
 
           # Verwaiste Draft-PRs schliessen (Best-Effort, Branch bleibt erhalten), damit beim
           # Neu-Anstoß kein zweiter Draft neben dem alten akkumuliert.
-          if orphans="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
-            --json number,isDraft,closingIssuesReferences \
-            --jq "[.[] | select(.isDraft) | select((.closingIssuesReferences // []) | any(.number == ${ISSUE}))] | .[].number" 2>/dev/null)"; then
-            for pr in $orphans; do
+          orphans="$(bash .github/scripts/pr-for-issue.sh --repo "$GITHUB_REPOSITORY" \
+            --issue "$ISSUE" --draft yes --out all)"
+          for pr in $orphans; do
               [ -n "$pr" ] || continue
               gh pr close "$pr" --repo "$GITHUB_REPOSITORY" \
                 --comment "🔄 Spec für Issue #$ISSUE neu angestoßen – verwaister Draft geschlossen (Branch bleibt erhalten)." 2>/dev/null || true
@@ -181,9 +179,10 @@ jobs:
             echo "::notice::Doppel-Run-Guard: PR existiert bereits – behandele als ready."
           fi
 
-          SPEC_PR="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
-            --json number,closingIssuesReferences \
-            --jq "[.[] | select((.closingIssuesReferences // []) | any(.number == ${ISSUE})) | .number] | first" 2>/dev/null || echo "")"
+          # Spec-PR finden: primär closingIssuesReferences, Fallback auf Body-Suche
+          # (PR #585: "Closes NNN" ohne "#" lässt die Referenz sonst leer → Crash).
+          SPEC_PR="$(bash .github/scripts/pr-for-issue.sh --repo "$GITHUB_REPOSITORY" \
+            --issue "$ISSUE" --draft any --out first)"
           ARTIFACTS_OK="false"
           if [ -n "$SPEC_PR" ] && [ "$SPEC_PR" != "null" ]; then
             HAS_TESTS="$(gh pr view "$SPEC_PR" --repo "$GITHUB_REPOSITORY" --json files \
