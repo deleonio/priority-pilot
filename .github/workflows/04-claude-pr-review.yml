@@ -1,5 +1,12 @@
 name: Claude PR Review (Kreuzverhoer)
 
+# ⚠️ Der `name:` ist lastend: der Supersede-Check (select(.name == "Claude PR Review
+#    (Kreuzverhoer)")) UND das workflow_run-Allowlist in claude-pr-gate-merge.yml matchen ihn
+#    exakt. Umbenennen schaltet beide lautlos ab → Duplikat-Läufe / stummes Gate. ACHTUNG:
+#    es gibt KEINEN Contract-Test für diese Kopplung (ADR #567 — Workflows bleiben ungetestet),
+#    ein Rename fällt also lautlos durch — vor jeder `name:`-Änderung beide Guard-Stellen
+#    (Supersede-Check hier + Allowlist in gate-merge) manuell mitpflegen.
+
 # Reviewt einen Pull Request im Kreuzverhör, sobald er das Label
 # "ai:needs-review" trägt.
 # Setzt **Claude Code** ein; Provider via `vars.LLM_PROVIDER` (zai|claude), aufgelöst in setup-claude.
@@ -19,7 +26,8 @@ concurrency:
 jobs:
   review:
     if: >-
-      ${{ github.event.pull_request.draft == false
+      ${{ github.event.label.name == 'ai:needs-review'
+          && github.event.pull_request.draft == false
           && github.event.pull_request.head.repo.full_name == github.repository
           && contains(github.event.pull_request.labels.*.name, 'ai:needs-review') }}
     runs-on: ubuntu-latest
@@ -86,7 +94,7 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
         run: |
           cat > /tmp/claude-prompt.txt << 'CLAUDE_EOF'
-          TICKET-MEMORY: Lies vor Beginn alle Dateien in .claude/ticket-memory/ (falls vorhanden) — ticketspezifisches Gedächtnis aus früheren Phasen. Schreibe am ENDE deine wichtigsten Erkenntnisse (gefundene Findings, Severity, empfohlene Fixes) in .claude/ticket-memory/phase-review.md. Max. ~30 Zeilen, nur Neues.
+          TICKET-MEMORY: Lies vor Beginn alle Dateien in .claude/ticket-memory/ (falls vorhanden) — ticketspezifisches Gedächtnis aus früheren Phasen. Schreibe am ENDE deine wichtigsten Erkenntnisse (gefundene Findings, Severity, empfohlene Fixes) in .claude/ticket-memory/phase-review.md. Max. ~30 Zeilen, nur Neues. Schließe die Datei zwingend mit der Zeile `<!-- phase:review complete -->` ab (Sentinel — der Workflow verwirft eine Notiz ohne ihn als unvollständig).
           FOKUS: NUR PR #PR_NR. NUR den Diff prüfen. KEINE Abstecher. Token sparen: kurz, präzise, direkt.
 
           Memory ist bereits geladen (ticket-PR_NR).
