@@ -14,6 +14,12 @@ pnpm-workspace.yaml
 **/blob-report
 **/dev-dist
 
-# Nur lokal via globalem git-ignore ausgeschlossen, nicht im Repo selbst — vorsorglich auch
+# Nur lokal via globalem git-ignore ausgeschlossen, nicht im Repo selbst — vorsichtig auch
 # hier, damit format-root nicht auf einer Maschine ohne diese globale Regel bricht.
 .claude/settings.local.json
+
+# Prompt-Templates für die CI-Workflows (geladen via cat+sed). Prettier würde den Prompt-
+# Inhalt korrumpieren: Path-Globs wie *.test.ts werden zu _.test.ts (Emphasis-Normalisierung),
+# und die relative Einrückung der ABLAUF-Schritte wird plattgedrückt. Prompt-Text ist kein
+# Prosa-Markdown — bewusst nicht formatiert.
+.github/prompts/
