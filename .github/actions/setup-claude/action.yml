@@ -53,7 +53,7 @@ inputs:
     required: false
     default: 'false'
   model:
-    description: "Claude-Modell für diesen Lauf als Alias (fable|opus|sonnet|haiku); leer = kein --model (Default aus .claude/settings.json). Die pro-Phase-Defaults leben in den WORKFLOWS (je `model: ${{ vars.CLAUDE_MODEL_<PHASE> || '<default>' }}`), GitHub-Vars sind reine Overrides/Experimente: Triage=fable, Spec=sonnet, Implement=opus, Review=opus, Fixup=sonnet, Documenter=haiku. Der Alias wird providerspezifisch aufgelöst (claude nativ via --model, zai/openrouter via settings.local.json); ein ungültiger Alias bricht laut ab (kein stiller Fallback)."
+    description: 'Claude-Modell für diesen Lauf als Alias (fable|opus|sonnet|haiku); leer = kein --model (Default aus .claude/settings.json). Die pro-Phase-Defaults leben in den WORKFLOWS (je CLAUDE_MODEL_<PHASE>-GitHub-Var MIT Fallback auf den Phasen-Default), GitHub-Vars sind reine Overrides/Experimente: Triage=fable, Spec=sonnet, Implement=opus, Review=opus, Fixup=sonnet, Documenter=haiku. Der Alias wird providerspezifisch aufgelöst (claude nativ via --model, zai/openrouter via settings.local.json); ein ungültiger Alias bricht laut ab (kein stiller Fallback).'
     required: false
     default: ''
 
