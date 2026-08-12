@@ -272,6 +272,7 @@ jobs:
             gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "🛑 **Fixup #${PR}: Claude-Schritt \`${OUTCOME}\`** — kein Verdict, HEAD-Fortschritt nach Absturz/Abbruch nicht vertrauenswuerdig. ai:needs-human gesetzt — bitte manuell pruefen (war es ein transienter API-Fehler, \`ai:needs-changes\` neu setzen und erneut fixupen lassen)." 2>/dev/null || true
             echo "::warning::Claude-Schritt '${OUTCOME}' -> ai:needs-human (keine Re-Armierung, Mensch prueft)."
             echo "stuck=true" >> "$GITHUB_OUTPUT"
+            echo "stuck_reason=crash" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -285,6 +286,7 @@ jobs:
             echo "::notice::Verdict needs-human -> Label gesetzt: ai:needs-human (wartet auf Mensch)."
             gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⏸️ **Wartet auf menschliche Entscheidung** — verbleibende Findings sind nicht automatisierbar (Architektur-/Produkt-/Designentscheidung, siehe Review-Threads). Der Fixup kann hier nicht weiterhelfen. Nach der Entscheidung: Label \`ai:needs-human\` entfernen und via \`ai:needs-review\` neu triggern." 2>/dev/null || true
             echo "stuck=true" >> "$GITHUB_OUTPUT"
+            echo "stuck_reason=needs-human" >> "$GITHUB_OUTPUT"
           elif [ "$ARTIFACTS_OK" = "true" ]; then
             # Fortschritt -> an Review uebergeben. Konvergiert via Stop-Guard (>10 Commits),
             # falls Review nie gruen wird.
@@ -299,6 +301,7 @@ jobs:
             gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "🛑 **Fixup #${PR} ohne Fortschritt** — kein neuer Commit in diesem Lauf (HEAD unverändert). Vermutlich ein nicht-automatisierbares Finding. ai:needs-human gesetzt — bitte manuell prüfen (ggf. entscheiden und \`ai:needs-review\` neu setzen)." 2>/dev/null || true
             echo "::warning::Kein Fixup-Fortschritt (HEAD unverändert) -> ai:needs-human, keine Re-Armierung, Mensch prüft."
             echo "stuck=true" >> "$GITHUB_OUTPUT"
+            echo "stuck_reason=no-progress" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Ergebnis zusammenfassen
@@ -310,6 +313,7 @@ jobs:
           SKIP_SUPERSEDE: ${{ steps.supersede-check.outputs.skip }}
           STOP_GUARD: ${{ steps.stop-guard.outputs.stop }}
           STUCK: ${{ steps.label-post.outputs.stuck }}
+          STUCK_REASON: ${{ steps.label-post.outputs.stuck_reason }}
         run: |
           labels="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
           # Je ein eigener Arm pro Guard: ohne sie faellt der gewollte Abbruch auf den
@@ -323,14 +327,22 @@ jobs:
           elif [ "${STOP_GUARD:-false}" = "true" ]; then
             echo "::warning title=🛑 Fixup gestoppt::PR #${PR} — Stop-Guard (Loop-Schutz), bitte manuell prüfen"
           elif [ "${STUCK:-false}" = "true" ]; then
-            # STUCK=true kommt von drei Pfaden: Claude-Crash (OUTCOME!=success),
-            # needs-human-Verdict ODER echtem No-Progress. Nur beim Crash ist "kein neuer
-            # Commit" irreführend (es war ein Absturz) → hier auf OUTCOME verzweigen.
-            if [ "$OUTCOME" != "success" ]; then
-              echo "::warning title=🛑 Fixup abgestürzt/abgebrochen::PR #${PR} — Claude-Schritt \`${OUTCOME:-unbekannt}\`, HEAD-Fortschritt nicht vertrauenswürdig, keine Re-Armierung, bitte manuell prüfen"
-            else
-              echo "::warning title=🛑 Fixup ohne Fortschritt::PR #${PR} — kein neuer Commit, keine Re-Armierung, bitte manuell prüfen"
-            fi
+            # STUCK=true kommt von drei Pfaden (stuck_reason): Claude-Crash (OUTCOME!=success),
+            # needs-human-Verdict ODER echtem No-Progress. Jeder braucht seine eigene Wahrheit:
+            # beim Crash ist der HEAD-Fortschritt nicht vertrauenswuerdig, bei needs-human wartet
+            # der PR auf eine menschliche Entscheidung (Claude kann trotzdem Commits gemacht
+            # haben — "kein neuer Commit" waere hier falsch), bei No-Progress gab es wirklich keinen.
+            case "${STUCK_REASON:-no-progress}" in
+              crash)
+                echo "::warning title=🛑 Fixup abgestürzt/abgebrochen::PR #${PR} — Claude-Schritt \`${OUTCOME:-unbekannt}\`, HEAD-Fortschritt nicht vertrauenswürdig, keine Re-Armierung, bitte manuell prüfen"
+                ;;
+              needs-human)
+                echo "::notice title=⏸️ Fixup wartet auf Entscheidung::PR #${PR} — verbleibende Findings nicht automatisierbar (ai:needs-human gesetzt), bitte manuell prüfen"
+                ;;
+              *)
+                echo "::warning title=🛑 Fixup ohne Fortschritt::PR #${PR} — kein neuer Commit, keine Re-Armierung, bitte manuell prüfen"
+                ;;
+            esac
           elif [ "$OUTCOME" = "success" ]; then
             echo "::notice title=✅ Fixup erfolgreich::PR #${PR}"
           elif [ "$OUTCOME" = "cancelled" ]; then
