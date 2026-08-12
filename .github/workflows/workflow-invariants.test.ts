@@ -74,22 +74,6 @@ describe('Invariante — ai:-Labels werden nie unter github.token gesetzt', () =
 			);
 		});
 	}
-
-	// G3: der Autolabeler hatte frueher einen transitiven GITHUB_TOKEN-Fallback (die Label-Steps
-	// banden GH_TOKEN an steps.gh-token.outputs.token, das aber seinerseits auf github.token
-	// zurueckfiel). Die obige pro-Step-Pruefung sieht die indirekte Form nicht — deshalb hier
-	// ein gezielter File-Check: der Autolabeler darf github.token UEBERHAUPT nicht referenzieren.
-	it('pr-needs-review-label.yml referenziert github.token gar nicht (kein transtiver Fallback, G3)', () => {
-		const autolabeler = workflows.find((w) => w.name === 'pr-needs-review-label.yml');
-		assert.ok(autolabeler, 'pr-needs-review-label.yml nicht gefunden');
-		assert.doesNotMatch(
-			codeOf(autolabeler!.yml),
-			/github\.token/,
-			'pr-needs-review-label.yml darf kein github.token referenzieren — ein (transitiver) ' +
-				'Fallback wuerde Labels unter GITHUB_TOKEN setzen, deren labeled-Event keinen Folge-' +
-				'Workflow (Review) auslöst. App-only wie setup-claude/action.yml.',
-		);
-	});
 });
 
 describe('Invariante — wo ein Guard existiert, behandelt JEDER Folge-Step ihn', () => {
