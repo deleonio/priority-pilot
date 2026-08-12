@@ -39,6 +39,9 @@ Sicherheitslücken bitte **nicht** öffentlich als Issue melden — siehe [SECUR
 
 ## Änderungen einreichen
 
+**Spec-First:** Vor der Umsetzung wird die Spezifikation im Issue erstellt (Akzeptanzkriterien,
+Testfälle). Erst wenn der Spec klar ist, folgen Tests und dann Code.
+
 1. **Branch** von `main` abzweigen (z. B. `feature/kurzbeschreibung` oder `fix/kurzbeschreibung`).
 2. Änderungen umsetzen und – wo sinnvoll – mit Tests absichern.
 3. Vor dem Commit prüfen:
