@@ -42,6 +42,7 @@ import {
 	weightToRaw,
 } from '../lib/pillar';
 import { deadlineToDateInput, formatNumber } from '../lib/task';
+import { getCharacterCounter, TITLE_MAX_LENGTH } from '../lib/titleLengthValidation';
 
 /**
  * #553: Vergleicht zwei Säulen-Beitragslisten auf inhaltliche Gleichheit (Reihenfolge-unabhängig).
@@ -647,27 +648,43 @@ export const TaskForm = ({
 					autoStart={voiceAutostart}
 					onTranscript={(text) => {
 						const newVal = form.current.title ? `${form.current.title} ${text}` : text;
-						form.current.title = newVal;
-						setTitle(newVal);
+						// Neue Länge prüfen: nur anhängen, wenn innerhalb des Limits
+						const truncated = newVal.length > TITLE_MAX_LENGTH ? newVal.slice(0, TITLE_MAX_LENGTH) : newVal;
+						form.current.title = truncated;
+						setTitle(truncated);
 					}}
 				>
-					<KolInputText
-						_label="Titel"
-						_required
-						_value={title}
-						_on={{
-							onInput: (_event, value) => {
-								const newVal = readString(value);
-								form.current.title = newVal;
-								setTitle(newVal);
-							},
-							onChange: (_event, value) => {
-								const newVal = readString(value);
-								form.current.title = newVal;
-								setTitle(newVal);
-							},
-						}}
-					/>
+					<div>
+						<KolInputText
+							_label="Titel"
+							_required
+							_maxLength={TITLE_MAX_LENGTH}
+							_value={title}
+							_on={{
+								onInput: (_event, value) => {
+									const newVal = readString(value);
+									form.current.title = newVal;
+									setTitle(newVal);
+								},
+								onChange: (_event, value) => {
+									const newVal = readString(value);
+									form.current.title = newVal;
+									setTitle(newVal);
+								},
+							}}
+						/>
+						<div
+							className="character-counter"
+							style={{
+								fontSize: '0.875rem',
+								marginTop: '0.25rem',
+								textAlign: 'right',
+								color: title.length > TITLE_MAX_LENGTH ? 'var(--color-danger, #d32f2f)' : 'var(--color-text, #666)',
+							}}
+						>
+							{getCharacterCounter(title)}
+						</div>
+					</div>
 				</VoiceField>
 				<KolInputRange
 					_label={`Priorität (Ganzzahl 1–5): ${formatNumber(priority)}`}

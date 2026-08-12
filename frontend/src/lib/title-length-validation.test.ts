@@ -5,11 +5,10 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { validateTitleLength, getTitleMaxLength, getCharacterCounter } from './titleLengthValidation';
 
 describe('Frontend — Titel-Längen-Validation (Issue #582)', () => {
 	describe('Input-Validierungsfunktion', () => {
-		// Mock: validateTitleLength(title) -> { isValid: boolean, remaining: number, error?: string }
-
 		it('Titel mit 30 Zeichen ist gültig, remaining=0', () => {
 			const title30 = 'a'.repeat(30);
 			const result = validateTitleLength(title30);
@@ -56,15 +55,14 @@ describe('Frontend — Titel-Längen-Validation (Issue #582)', () => {
 	});
 
 	describe('maxLength-Attribute für Input-Felder', () => {
-		it('Task-Input-Feld hat maxlength="30"', () => {
-			// Mock: getTaskInputMaxLength() -> string
-			const maxlength = getTaskInputMaxLength();
-			expect(maxlength).toBe('30');
+		it('Task-Input-Feld hat maxlength=30', () => {
+			const maxlength = getTitleMaxLength();
+			expect(maxlength).toBe(30);
 		});
 
-		it('Series-Input-Feld hat maxlength="30"', () => {
-			const maxlength = getSeriesInputMaxLength();
-			expect(maxlength).toBe('30');
+		it('Series-Input-Feld hat maxlength=30', () => {
+			const maxlength = getTitleMaxLength();
+			expect(maxlength).toBe(30);
 		});
 	});
 
@@ -88,22 +86,3 @@ describe('Frontend — Titel-Längen-Validation (Issue #582)', () => {
 		});
 	});
 });
-
-// Mock-Funktionen (werden durch echte Implementierung ersetzt)
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function validateTitleLength(title: string): { isValid: boolean; remaining: number; error?: string } {
-	throw new Error('validateTitleLength nicht implementiert');
-}
-
-function getTaskInputMaxLength(): string {
-	throw new Error('getTaskInputMaxLength nicht implementiert');
-}
-
-function getSeriesInputMaxLength(): string {
-	throw new Error('getSeriesInputMaxLength nicht implementiert');
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function getCharacterCounter(title: string): string {
-	throw new Error('getCharacterCounter nicht implementiert');
-}
