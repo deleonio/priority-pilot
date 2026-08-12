@@ -2,7 +2,9 @@ name: Claude PR Fixup (Findings umsetzen)
 
 # ⚠️ Der `name:` ist lastend: der Supersede-Check (select(.name == "Claude PR Fixup
 #    (Findings umsetzen)")) matcht ihn exakt. Umbenennen schaltet den Guard lautlos ab →
-#    Duplikat-Läufe. Der G1-Test (workflow-name-coupling.test.ts) sichert die Kopplung ab.
+#    Duplikat-Läufe. ACHTUNG: es gibt KEINEN Contract-Test für diese Kopplung (ADR #567 —
+#    Workflows bleiben ungetestet), ein Rename fällt also lautlos durch — vor jeder
+#    `name:`-Änderung den Supersede-Guard manuell mitpflegen.
 
 # Reagiert auf das Label "ai:needs-changes" (vom Review gesetzt) und setzt die
 # zutreffenden Findings um.
@@ -321,7 +323,14 @@ jobs:
           elif [ "${STOP_GUARD:-false}" = "true" ]; then
             echo "::warning title=🛑 Fixup gestoppt::PR #${PR} — Stop-Guard (Loop-Schutz), bitte manuell prüfen"
           elif [ "${STUCK:-false}" = "true" ]; then
-            echo "::warning title=🛑 Fixup ohne Fortschritt::PR #${PR} — kein neuer Commit, keine Re-Armierung, bitte manuell prüfen"
+            # STUCK=true kommt von drei Pfaden: Claude-Crash (OUTCOME!=success),
+            # needs-human-Verdict ODER echtem No-Progress. Nur beim Crash ist "kein neuer
+            # Commit" irreführend (es war ein Absturz) → hier auf OUTCOME verzweigen.
+            if [ "$OUTCOME" != "success" ]; then
+              echo "::warning title=🛑 Fixup abgestürzt/abgebrochen::PR #${PR} — Claude-Schritt \`${OUTCOME:-unbekannt}\`, HEAD-Fortschritt nicht vertrauenswürdig, keine Re-Armierung, bitte manuell prüfen"
+            else
+              echo "::warning title=🛑 Fixup ohne Fortschritt::PR #${PR} — kein neuer Commit, keine Re-Armierung, bitte manuell prüfen"
+            fi
           elif [ "$OUTCOME" = "success" ]; then
             echo "::notice title=✅ Fixup erfolgreich::PR #${PR}"
           elif [ "$OUTCOME" = "cancelled" ]; then

@@ -2,8 +2,10 @@ name: Claude PR Review (Kreuzverhoer)
 
 # ⚠️ Der `name:` ist lastend: der Supersede-Check (select(.name == "Claude PR Review
 #    (Kreuzverhoer)")) UND das workflow_run-Allowlist in claude-pr-gate-merge.yml matchen ihn
-#    exakt. Umbenennen schaltet beide lautlos ab → Duplikat-Läufe / stummes Gate. Der G1-Test
-#    (workflow-name-coupling.test.ts) sichert die Kopplung ab.
+#    exakt. Umbenennen schaltet beide lautlos ab → Duplikat-Läufe / stummes Gate. ACHTUNG:
+#    es gibt KEINEN Contract-Test für diese Kopplung (ADR #567 — Workflows bleiben ungetestet),
+#    ein Rename fällt also lautlos durch — vor jeder `name:`-Änderung beide Guard-Stellen
+#    (Supersede-Check hier + Allowlist in gate-merge) manuell mitpflegen.
 
 # Reviewt einen Pull Request im Kreuzverhör, sobald er das Label
 # "ai:needs-review" trägt.
