@@ -74,7 +74,7 @@ describe('Task — Titel-Länge (Issue #582)', () => {
 		it('Task mit 30 Zeichen Titel wird akzeptiert', async () => {
 			const title30 = 'a'.repeat(30); // exakt 30 Zeichen
 			const res = await post(
-				'/api/tasks',
+				'/tasks',
 				{
 					title: title30,
 					status: 'Open',
@@ -92,7 +92,7 @@ describe('Task — Titel-Länge (Issue #582)', () => {
 		it('Task mit 31 Zeichen Titel wird mit ValidationError abgelehnt', async () => {
 			const title31 = 'b'.repeat(31); // 31 Zeichen > Limit
 			const res = await post(
-				'/api/tasks',
+				'/tasks',
 				{
 					title: title31,
 					status: 'Open',
@@ -110,7 +110,7 @@ describe('Task — Titel-Länge (Issue #582)', () => {
 		it('Task mit exakt 30 Zeichen UTF-8 (Emoji) wird korrekt gezählt', async () => {
 			const titleEmoji = '😀'.repeat(10); // 10 Emojis = 30 Zeichen (UTF-8 code units)
 			const res = await post(
-				'/api/tasks',
+				'/tasks',
 				{
 					title: titleEmoji,
 					status: 'Open',
@@ -125,7 +125,7 @@ describe('Task — Titel-Länge (Issue #582)', () => {
 
 		it('Task mit leerem Titel wird abgelehnt (minimum 1 Zeichen)', async () => {
 			const res = await post(
-				'/api/tasks',
+				'/tasks',
 				{
 					title: '',
 					status: 'Open',
@@ -154,7 +154,7 @@ describe('Task — Titel-Länge (Issue #582)', () => {
 
 		it('Update auf 30 Zeichen Titel wird akzeptiert', async () => {
 			const title30 = 'c'.repeat(30);
-			const res = await patch(`/api/tasks/${taskId}`, { title: title30 }, cookie);
+			const res = await patch(`/tasks/${taskId}`, { title: title30 }, cookie);
 
 			assert.equal(res.status, 200, 'Update auf 30 Zeichen sollte akzeptiert werden');
 			const body = (await res.json()) as Record<string, unknown>;
@@ -163,7 +163,7 @@ describe('Task — Titel-Länge (Issue #582)', () => {
 
 		it('Update auf 31 Zeichen Titel wird mit ValidationError abgelehnt', async () => {
 			const title31 = 'd'.repeat(31);
-			const res = await patch(`/api/tasks/${taskId}`, { title: title31 }, cookie);
+			const res = await patch(`/tasks/${taskId}`, { title: title31 }, cookie);
 
 			assert.equal(res.status, 400, 'Update auf 31 Zeichen sollte abgelehnt werden');
 			const body = (await res.json()) as Record<string, unknown>;
