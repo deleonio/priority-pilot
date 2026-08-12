@@ -45,7 +45,10 @@ export default defineConfig({
 		setupFiles: ['./vitest.setup.ts'],
 		// Die Playwright-Specs unter e2e/ matchen Vitests Default-Include, würden aber unter jsdom
 		// crashen (`@playwright/test`-Import). Daher zusätzlich zu den Vitest-Defaults ausschließen.
-		exclude: ['**/e2e/**', ...configDefaults.exclude],
+		// __quarantine__ (Issue #564): Quarantäne-Tests sind bewusst vom CI-Lauf ausgeschlossen –
+		// sie bleiben als Nachschlagewerk im Repo, dürfen aber von keinem aktiven Runner erfasst
+		// werden. Explizites Exclude, damit ein versehentlich rekursiver Include sie nie greift.
+		exclude: ['**/e2e/**', '**/__quarantine__/**', ...configDefaults.exclude],
 		// Coverage-Gate gezielt für die reine Logik-Schicht (src/lib), passend zur TDD-Strategie
 		// (Querschnitts-Politik, .ai-knowledge/tdd-strategy.md). Aktiv erst nach
 		// `pnpm add -D @vitest/coverage-v8` und über das Script `test:coverage` (--coverage); der

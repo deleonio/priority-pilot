@@ -3,7 +3,7 @@
  * "Fix: PR Auto-Label (ai:needs-review) muss Label entfernen bevor es neu setzt".
  *
  * Problem (gegen Code verifiziert): der Entfernen-Schritt von pr-needs-review-label.yml
- * strippt zwar ai:needs-changes/ai:ready-to-merge/ai:review-no-result/ai:needs-human, aber
+ * strippt zwar ai:needs-changes/ai:ready-to-merge/ai:needs-human, aber
  * NICHT ai:needs-review selbst. Der nachfolgende Setz-Schritt hat einen Idempotenz-Check
  * (No-op, falls das Label schon klebt). Haengt ai:needs-review also bereits am PR (z. B.
  * innerhalb eines Review-Loops), no-op't das Setzen → es wird kein `labeled`-Event gefeuert →
