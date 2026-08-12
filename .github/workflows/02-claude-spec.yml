@@ -79,23 +79,41 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Doppel-Run-Guard (existierender PR mit Closes #N)
+      - name: Doppel-Run-Guard (ready-PR existiert) + verwaiste Drafts aufräumen
         id: doppel-guard
         if: steps.setup.outputs.configured == 'true' && steps.skip-guard.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
-          if ! existing="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
+          # Ready-PR (Nicht-Draft) existiert -> Implement schon gelaufen -> skip. Symmetrie zu
+          # 03-claude-implement.yml, dessen Guard ebenfalls nur auf Nicht-Drafts prueft. Ein Draft
+          # allein ist KEIN Skip-Grund: er stammt von einem abgebrochenen Spec-Lauf (der
+          # Skip-Guard davor hat bereits sichergestellt, dass kein aktiver Spec-Lauf mehr laeuft)
+          # und wuerde die Issue sonst dauerhaft blockieren (G5).
+          if ! ready="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
             --json number,isDraft,closingIssuesReferences \
-            --jq "[.[] | select((.closingIssuesReferences // []) | any(.number == ${ISSUE}))] | length" 2>/dev/null)"; then
+            --jq "[.[] | select(.isDraft == false) | select((.closingIssuesReferences // []) | any(.number == ${ISSUE}))] | length" 2>/dev/null)"; then
             echo "::warning::Doppel-Run-Guard: gh-API nicht erreichbar – fail-open."
-            existing=0
+            ready=0
           fi
-          if [ "${existing:-0}" -gt 0 ]; then
-            echo "::notice::Spec übersprungen – PR existiert bereits für Issue #$ISSUE."
+          if [ "${ready:-0}" -gt 0 ]; then
+            echo "::notice::Spec übersprungen – ready-PR (Nicht-Draft) existiert bereits für Issue #$ISSUE."
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
+          fi
+
+          # Verwaiste Draft-PRs schliessen (Best-Effort, Branch bleibt erhalten), damit beim
+          # Neu-Anstoß kein zweiter Draft neben dem alten akkumuliert.
+          if orphans="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
+            --json number,isDraft,closingIssuesReferences \
+            --jq "[.[] | select(.isDraft) | select((.closingIssuesReferences // []) | any(.number == ${ISSUE}))] | .[].number" 2>/dev/null)"; then
+            for pr in $orphans; do
+              [ -n "$pr" ] || continue
+              gh pr close "$pr" --repo "$GITHUB_REPOSITORY" \
+                --comment "🔄 Spec für Issue #$ISSUE neu angestoßen – verwaister Draft geschlossen (Branch bleibt erhalten)." 2>/dev/null || true
+              echo "::notice::Verwaisten Draft-PR #$pr für Issue #$ISSUE geschlossen."
+            done
           fi
           echo "skip=false" >> "$GITHUB_OUTPUT"
 
@@ -126,7 +144,7 @@ jobs:
           ISSUE: ${{ github.event.issue.number }}
         run: |
           cat > /tmp/claude-prompt.txt << 'CLAUDE_EOF'
-          TICKET-MEMORY: Lies vor Beginn alle Dateien in .claude/ticket-memory/ (falls vorhanden) — ticketspezifisches Gedächtnis aus früheren Phasen. Schreibe am ENDE deine wichtigsten Erkenntnisse (Entscheidungen, Fallstricke, fertige/fehlende Tests) in .claude/ticket-memory/phase-spec.md. Max. ~30 Zeilen, nur Neues.
+          TICKET-MEMORY: Lies vor Beginn alle Dateien in .claude/ticket-memory/ (falls vorhanden) — ticketspezifisches Gedächtnis aus früheren Phasen. Schreibe am ENDE deine wichtigsten Erkenntnisse (Entscheidungen, Fallstricke, fertige/fehlende Tests) in .claude/ticket-memory/phase-spec.md. Max. ~30 Zeilen, nur Neues. Schließe die Datei zwingend mit der Zeile `<!-- phase:spec complete -->` ab (Sentinel — der Workflow verwirft eine Notiz ohne ihn als unvollständig).
           FOKUS: NUR Issue #ISSUE_NR. NUR rote Tests je Akzeptanzkriterium (mit Dedup), kein Produktivcode. KEINE Abstecher. Token sparen: kurz, präzise, direkt.
 
           Memory ist bereits geladen (ticket-ISSUE_NR).

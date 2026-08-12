@@ -53,7 +53,7 @@ inputs:
     required: false
     default: 'false'
   model:
-    description: 'Claude-Modell für diesen Lauf als Alias (fable|opus|sonnet|haiku); leer = kein --model (Default aus .claude/settings.json). Die pro-Phase-Defaults leben in den WORKFLOWS (je CLAUDE_MODEL_<PHASE>-GitHub-Var MIT Fallback auf den Phasen-Default), GitHub-Vars sind reine Overrides/Experimente: Triage=fable, Spec=sonnet, Implement=opus, Review=opus, Fixup=sonnet, Documenter=haiku. Der Alias wird providerspezifisch aufgelöst (claude nativ via --model, zai/openrouter via settings.local.json); ein ungültiger Alias bricht laut ab (kein stiller Fallback).'
+    description: 'Claude-Modell für diesen Lauf als Alias (fable|opus|sonnet|haiku); leer = kein --model (Default aus .claude/settings.json). Die pro-Phase-Defaults leben in den WORKFLOWS als GitHub-Var MIT Fallback (Var = Override, Default greift bei leerer Var): CLAUDE_MODEL_TRIAGE=fable, CLAUDE_MODEL_SPEC=sonnet, CLAUDE_MODEL_IMPLEMENT=opus, CLAUDE_MODEL_PR_REVIEW=opus, CLAUDE_MODEL_FIXUP=sonnet, CLAUDE_MODEL_DOCUMENTATION=haiku. Der Alias wird providerspezifisch aufgelöst (claude nativ via --model, zai/openrouter via settings.local.json); ein ungültiger Alias bricht laut ab (kein stiller Fallback).'
     required: false
     default: ''
 
@@ -184,6 +184,22 @@ runs:
       if: steps.preflight.outputs.configured == 'true' && inputs.memory-load == 'true'
       shell: bash
       run: mkdir -p .claude/ticket-memory
+
+    - name: Memory validieren (unvollständige Phasen-Notizen verwerfen)
+      # G6: Der Cache-Restore nutzt LIFO (neuester ticket-{N}-* Cache gewinnt). Ein abgebrochener
+      # Vor-Lauf kann eine halb geschriebene phase-*.md hinterlassen haben. Jede Phasen-Notiz
+      # schließt mit dem Sentinel <!-- phase:<name> complete --> ab; fehlt er, ist der Schreibstand
+      # unvollständig und wird verworfen (lieber kein Kontext als irreführender Teilkontext).
+      if: steps.preflight.outputs.configured == 'true' && inputs.memory-load == 'true'
+      shell: bash
+      run: |
+        shopt -s nullglob
+        for f in .claude/ticket-memory/phase-*.md; do
+          if ! grep -qE '<!-- phase:[a-z]+ complete -->' "$f"; then
+            echo "::notice::Verwerfe unvollstaendige Phasen-Notiz $(basename "$f") (Sentinel fehlt — vermutlich abgebrochener Vor-Lauf)."
+            rm -f "$f"
+          fi
+        done
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     # CLAUDE CODE – Install + Provider-Switch + Auth + (optional) KoliBri MCP

@@ -4,12 +4,13 @@ name: PR Auto-Label (ai:needs-review)
 # "ai:needs-review" (Ticket #116). Das ist der Einstieg in die label-gesteuerte KI-Review-
 # Pipeline: das gesetzte Label weckt den Kreuzverhoer-Review (04-claude-pr-review.yml).
 # Wird auch bei jedem Push (synchronize-Event) erneut ausgeloest, wobei alte Ergebnis-
-# Labels (ai:needs-changes, ai:ready-to-merge) UND der Loop-Marker ai:review-no-result
-# entfernt werden. Der Marker-Reset ist wichtig: ein menschlicher Push ist echter Fortschritt,
-# der die 0-Commit-Loop-Bremse (04-claude-pr-review.yml) neu starten muss — sonst wuerde ein
-# lokaler Fix + Push zwar den Review erneut ausloesen, aber bei einem einzelnen Label-Flake des
-# Agenten sofort wieder in den Hard-Stop laufen, statt dem frischen Versuch den Safe-Default zu
-# goennen. sender.type != 'Bot' (job-if) stellt sicher, dass NUR Menschen-Pushes zuruecksetzen,
+# Labels (ai:needs-changes, ai:ready-to-merge, ai:needs-human) entfernt werden. Der Reset
+# ist wichtig: ein menschlicher Push ist echter Fortschritt und verdient einen frischen
+# Review ohne Altlasten. Das Loop-Breaking selbst lebt bewusst NICHT hier, sondern in den
+# LLM-Phasen: Fixup misst HEAD-Bewegung (kein neuer Commit -> terminal ai:needs-human) plus
+# Stop-Guard (>10 PR-Commits), Review setzt ai:needs-human terminal. Dieser Autolabeler setzt
+# nur den Einstieg und raeumt Ergebnis-Labels weg — er bremst nicht.
+# sender.type != 'Bot' (job-if) stellt sicher, dass NUR Menschen-Pushes zuruecksetzen,
 # nicht die Fixup-Bot-Commits.
 #
 # WICHTIG (Folge-Workflows): Von GITHUB_TOKEN gesetzte Labels loesen KEINE weiteren Workflows
@@ -56,15 +57,13 @@ jobs:
     #
     # BEWUSST KEIN "!contains(ai:needs-review)"-Gate mehr im job-if: die Idempotenz des Labels
     # steckt im Setz-Schritt (Runtime-Check, No-op wenn schon vorhanden). Haengte die Idempotenz am
-    # job-if, wuerde ein Menschen-Push den GESAMTEN Job (inkl. Loop-Marker-Reset) ueberspringen,
-    # sobald ai:needs-review bereits klebt. Genau das ist im aktiven Loop erreichbar: nach dem
-    # ersten Safe-Default (A1) reicht der Fixup per ai:needs-review an den Review zurueck, waehrend
-    # der Marker ai:review-no-result noch haengt (needs-review + Marker koexistieren). Ein lokaler
-    # Fix + Push in diesem Fenster muss den Marker trotzdem zuruecksetzen, sonst laeuft der frische
-    # Versuch beim naechsten Flake sofort in den Hard-Stop (A2) — der Push wuerde faelschlich dem
-    # alten Loop zugerechnet. Ohne das Gate laeuft der Job, setzt den Marker UND ai:needs-review
-    # zurueck (Entfernen-Schritt, #536), und der Setz-Schritt setzt das Label neu → genau ein
-    # `labeled`-Event feuert, der Review startet zuverlaessig.
+    # job-if, wuerde ein Menschen-Push den GESAMTEN Job (inkl. Ergebnis-Label-Reset) ueberspringen,
+    # sobald ai:needs-review bereits klebt. Genau das ist im aktiven Review-Loop erreichbar: Fixup
+    # reicht per ai:needs-review an den Review zurueck, waehrend ai:needs-review (und ggf.
+    # ai:needs-human) schon klebt. Ein lokaler Fix + Push in diesem Fenster muss die Ergebnis-
+    # Labels trotzdem zuruecksetzen. Ohne das Gate laeuft der Job, strippt die Ergebnis-Labels
+    # UND ai:needs-review (Entfernen-Schritt, #536), und der Setz-Schritt setzt das Label neu →
+    # genau ein `labeled`-Event feuert, der Review startet zuverlaessig.
     if: >-
       ${{ github.event.pull_request.draft == false
           && github.event.pull_request.head.repo.full_name == github.repository
@@ -97,22 +96,28 @@ jobs:
           client-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
-      - name: GH_TOKEN-Fallback setzen (App-Token oder GITHUB_TOKEN)
+      - name: App-Token sicherstellen (kein GITHUB_TOKEN-Fallback)
         id: gh-token
+        if: steps.preflight.outputs.configured == 'true'
+        env:
+          APP_TOK: ${{ steps.app-token.outputs.token }}
         run: |
-          APP_TOK="${{ steps.app-token.outputs.token }}"
-          if [ -n "$APP_TOK" ] && [ "$APP_TOK" != "null" ]; then
-            echo "token=$APP_TOK" >> "$GITHUB_OUTPUT"
-            echo "::notice::Nutze GitHub-App-Token für gh-Befehle."
-          else
-            echo "token=${{ github.token }}" >> "$GITHUB_OUTPUT"
-            echo "::warning::App-Token nicht verfügbar — nutze GITHUB_TOKEN (Achtung: Label-Wechsel lösen ggf. keine Folge-Workflows aus)."
+          # Bewusst KEIN GITHUB_TOKEN-Fallback (G3): unter GITHUB_TOKEN gesetzte Labels feuern
+          # kein `labeled`-Event → der Kreuzverhoer-Review startet nie (still). Genau das
+          # versagt auch setup-claude/action.yml hard (gleiche App-only-Philosophie). Ein
+          # fehlendes App-Token trotz vorhandener Secrets = Konfigurations-/Transient-Fehler
+          # → laut abbrechen, nicht still mit GITHUB_TOKEN weiterlaufen.
+          if [ -z "$APP_TOK" ] || [ "$APP_TOK" = "null" ]; then
+            echo "::error::App-Token nicht verfügbar trotz vorhandener GitHub-App-Secrets — kein GITHUB_TOKEN-Fallback (Labels würden keine Folge-Workflows auslösen)."
+            exit 1
           fi
+          echo "token=$APP_TOK" >> "$GITHUB_OUTPUT"
+          echo "::notice::Nutze GitHub-App-Token für gh-Befehle."
 
       # Reiner gh-Job (kein Checkout, kein LLM): Alte Ergebnis-Labels entfernen, dann
       # ai:needs-review setzen. Mit dem App-Token gesetzt, damit das "labeled"-Event den
       # Kreuzverhoer-Review ausloest.
-      - name: Alte Ergebnis-Labels + Loop-Marker entfernen (ai:needs-changes, ai:ready-to-merge, ai:review-no-result, ai:needs-human, ai:needs-review)
+      - name: Alte Ergebnis-Labels entfernen (ai:needs-changes, ai:ready-to-merge, ai:needs-human, ai:needs-review)
         if: steps.preflight.outputs.configured == 'true'
         env:
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
@@ -121,14 +126,14 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Alte Ergebnis-Labels UND den 0-Commit-Loop-Marker entfernen, falls vorhanden (Reset
-          # bei neuem Push). ai:review-no-result gehoert dazu: ein menschlicher Push ist Fortschritt
-          # und muss die Loop-Bremse in 04-claude-pr-review.yml neu starten, sonst laeuft der frische
-          # Versuch bei einem einzelnen Label-Flake sofort wieder in den Hard-Stop.
+          # Alte Ergebnis-Labels entfernen, falls vorhanden (Reset bei neuem Push). Ein
+          # menschlicher Push ist echter Fortschritt und bekommt einen sauberen Review ohne
+          # Altlasten. Das Loop-Breaking lebt in den LLM-Phasen (Fixup HEAD-Check/Stop-Guard,
+          # Review ai:needs-human), nicht in diesem Autolabeler.
           # ai:needs-review wird hier MIT entfernt (#536): haengt es bereits am PR (z. B. im aktiven
           # Review-Loop), wuerde der Setz-Schritt unten no-op'en und kein `labeled`-Event feuern.
           # Erst Entfernen + Neu-Setzen macht das Hinzufuegen echt → Review startet zuverlaessig.
-          for label in ai:needs-changes ai:ready-to-merge ai:review-no-result ai:needs-human ai:needs-review; do
+          for label in ai:needs-changes ai:ready-to-merge ai:needs-human ai:needs-review; do
             if gh pr view "$PR" --repo "$REPO" --json labels --jq "[.labels[].name]" | grep -q "\"$label\""; then
               gh pr edit "$PR" --repo "$REPO" --remove-label "$label"
               echo "PR #$PR: Label $label entfernt (Reset)." >> "$GITHUB_STEP_SUMMARY"

@@ -76,7 +76,7 @@ jobs:
           ISSUE: ${{ github.event.issue.number }}
         run: |
           cat > /tmp/claude-prompt.txt << 'CLAUDE_EOF'
-          TICKET-MEMORY: Lies vor Beginn alle Dateien in .claude/ticket-memory/ (falls vorhanden) — ticketspezifisches Gedächtnis aus früheren Phasen. Schreibe am ENDE deine wichtigsten Erkenntnisse (Entscheidungen, Fallstricke, fertige/fehlende Schritte) in .claude/ticket-memory/phase-triage.md. Max. ~30 Zeilen, nur Neues.
+          TICKET-MEMORY: Lies vor Beginn alle Dateien in .claude/ticket-memory/ (falls vorhanden) — ticketspezifisches Gedächtnis aus früheren Phasen. Schreibe am ENDE deine wichtigsten Erkenntnisse (Entscheidungen, Fallstricke, fertige/fehlende Schritte) in .claude/ticket-memory/phase-triage.md. Max. ~30 Zeilen, nur Neues. Schließe die Datei zwingend mit der Zeile `<!-- phase:triage complete -->` ab (Sentinel — der Workflow verwirft eine Notiz ohne ihn als unvollständig).
           FOKUS: NUR Issue #ISSUE_NR. Recherche = Issue-Body + ggf. Delta-Kommentare seit stand, sonst nichts. KEINE Abstecher. Token sparen: kurz, präzise, direkt.
 
           Memory ist bereits geladen (ticket-ISSUE_NR).
@@ -90,7 +90,13 @@ jobs:
             1. SOFORT starten.
             2. Titel prüfen: Konsistenz zur Beschreibung? Falls nein: inhaltlich treu optimieren (gh issue edit --title).
             3. Beschreibung lektorieren (Form verbessern, Inhalt unverändert, gh issue edit --body-file -).
-            4. Zu große Tickets: in Sub-Issues zerlegen (max. 1 Ebene).
+            4. Zu große Tickets ZERLEGEN, wenn mind. EINES zutrifft: mehrere Schichten/Pakete (z. B. Frontend+Backend+DB) ODER mehrere unabhängige AK ODER nicht sinnvoll in 1 PR machbar. Dann in 2–5 Sub-Issues (max. 1 Ebene, max. 5), jede in 1 PR umsetzbar. Pro Sub-Issue:
+               a) VORAB Labels sicherstellen (sonst schlägt --label fehl): gh label create "ai:analyzed" --color 0E8A16 2>/dev/null||true; gh label create "ai:spec-ready" --color FBCA04 2>/dev/null||true
+               b) Sub-Issue anlegen — Body mit Mini-Analyse + Akzeptanzkriterien + Testfälle + Ampel (wie BODY-BLOCK) und "Teil von #ISSUE_NR": gh issue create --title "<Teilaufgabe>" --label "ai:analyzed" --body-file - <<'EOF' … EOF
+               c) Als echtes GitHub-Sub-Issue ans Eltern-Ticket hängen (PFLICHT, nicht nur Textreferenz): gh api graphql -f query='mutation($p:ID!,$c:ID!){addSubIssue(input:{issueId:$p,subIssueId:$c}){clientMutationId}}' -f p="$(gh issue view #ISSUE_NR --json id -q .id)" -f c="$(gh issue view <SUB-NR> --json id -q .id)"
+               d) Sequenzielle Abhängigkeit (A1→A2→A3, gleiche Dateien/„A2 nach A1"): Vorgänger blockt Nachfolger — PFLICHT, maschinenlesbar (issue-unblock.yml löst beim Merge des Vorgängers automatisch auf): gh api graphql -f query='mutation($b:ID!,$k:ID!){addBlockedBy(input:{issueId:$b,blockingIssueId:$k}){clientMutationId}}' -f b="$(gh issue view <NACHFOLGER-NR> --json id -q .id)" -f k="$(gh issue view <VORGÄNGER-NR> --json id -q .id)" — Kanten gedrosselt setzen (sekundäres Rate-Limit bei zu schnellen Schreibzugriffen). Nur echte Reihenfolge-Abhängigkeiten; unabhängige Sub-Issues bleiben ohne blocked-by.
+               e) Nur der ERSTE unblockierte Sub-Issue bekommt ai:spec-ready (gh issue edit <SUB-NR> --add-label "ai:spec-ready"); geblockte Nachfolger bleiben ai:analyzed und werden beim Merge des Vorgängers automatisch freigegeben. Unabhängige Sub-Issues folgen ihrer eigenen Ampel.
+               Sub-Issues sind durch ai:analyzed beim Anlegen vor Re-Triage geschützt (nicht erneut zerlegen — Rekursionsschutz). Eltern-Issue nach Zerlegung → VERDICT: analyzed (nur Tracker, nicht direkt umsetzbar).
             5. Analyse schreiben: Akzeptanzkriterien + Testfälle + Ampel (🟢/🟡/🔴) in BODY-BLOCK.
             6. EINEN Ping-Kommentar (gh issue comment).
 
@@ -99,11 +105,11 @@ jobs:
             [Analyse – präzise, ohne Füllwörter]
             <!-- KI-ANALYSE:END -->
 
-          ⚠️ LABELS: KEINE Labels setzen! Workflow übernimmt das via VERDICT.
+          ⚠️ LABELS: KEINE Labels aufs ELTERN-Issue #ISSUE_NR setzen — der Workflow übernimmt das via VERDICT. Ausnahme Zerlegung (Schritt 4): neu angelegte SUB-Issues werden direkt beim Anlegen mit ai:analyzed (bzw. ai:spec-ready) gelabelt, weil der Workflow nur das Eltern-Issue verwaltet.
 
           VERDICT: GANZ AM ENDE GENAU EINE Zeile:
-            - VERDICT: spec-ready (bei 🟢)
-            - VERDICT: analyzed (bei 🟡/🔴)
+            - VERDICT: spec-ready (bei 🟢 — Issue direkt umsetzbar, NICHT zerlegt)
+            - VERDICT: analyzed (bei 🟡/🔴 ODER nach Zerlegung in Sub-Issues — Eltern-Issue ist nur Tracker)
 
           ZEITLIMIT: Soft-Deadline = SOFT_DEADLINE. Vor jedem Schritt: [ $(date +%s) -ge SOFT_DEADLINE ]. Bei OVER: Body-Block sichern, Turn beenden.
           CLAUDE_EOF
