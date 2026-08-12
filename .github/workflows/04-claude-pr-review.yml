@@ -125,14 +125,14 @@ jobs:
 
           ⚠️ LABELS: KEINE Labels setzen! Workflow übernimmt das automatisch.
 
-          VERDICT: GANZ AM ENDE GENAU EINE Zeile:
-            - VERDICT: ready-to-merge (bei 🟢)
-            - VERDICT: needs-changes (bei fixbaren Findings)
-            - VERDICT: needs-human (bei Entscheidungs-Findings, die ein Mensch treffen muss)
-
           ZEITLIMIT: Soft-Deadline = SOFT_DEADLINE. Vor jedem Schritt: [ $(date +%s) -ge SOFT_DEADLINE ]. Bei OVER: Zwischenstand als Sammelkommentar, Turn beenden.
 
           WICHTIG: Ändere KEINEN Code, committe nichts. Reiner Review.
+
+          VERDICT (DEINE LETZTE OUTPUT-ZEILE, vom Workflow geparsed — ohne sie bleibt der PR stecken): exakt EINE Zeile am Ende, einer der Werte:
+            - VERDICT: ready-to-merge (bei 🟢)
+            - VERDICT: needs-changes (bei fixbaren Findings)
+            - VERDICT: needs-human (bei Entscheidungs-Findungen, die ein Mensch treffen muss)
           CLAUDE_EOF
 
           sed -i "s/#PR_NR/${{ github.event.pull_request.number }}/g" /tmp/claude-prompt.txt
