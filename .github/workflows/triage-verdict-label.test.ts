@@ -78,7 +78,7 @@ const BODY_NO_AK = ['<!-- KI-ANALYSE:START stand=2026-08-10 -->', '**Ampel: 🟡
 	'\n',
 );
 
-type Opts = { verdict: '' | 'spec-ready' | 'analyzed'; hasAk: boolean };
+type Opts = { verdict: '' | 'spec-ready' | 'analyzed'; hasAk: boolean; rawVerdict?: string };
 
 // Führt den echten run-Block aus und liefert die aufgezeichneten Label-Ops
 // (z.B. ["remove:ai:analyzed","add:ai:analyzed","remove:ai:spec-ready","remove:ai:ready"]).
@@ -89,7 +89,7 @@ const runTriage = (opts: Opts): string[] => {
 	writeFileSync(join(dir, 'gh'), STUB_GH, { mode: 0o755 });
 
 	const verdictFile = join(dir, 'claude-output.log');
-	writeFileSync(verdictFile, opts.verdict ? `VERDICT: ${opts.verdict}\n` : '');
+	writeFileSync(verdictFile, opts.rawVerdict ?? (opts.verdict ? `VERDICT: ${opts.verdict}\n` : ''));
 
 	// Log-Pfad im Block auf Temp-Datei umbiegen (Logik unangetastet).
 	const script = RUN_BLOCK.replace('/tmp/claude-output.log', verdictFile);
@@ -171,5 +171,17 @@ describe('TF3 — verdict leer/ungültig: fail-safe analyzed (kein spec-ready)',
 		// Promoter wirken. Mit verdict=analyzed + HAS_AK=true muss final=analyzed bleiben.
 		const ops = runTriage({ verdict: 'analyzed', hasAk: true });
 		assert.ok(!has(ops, 'add:ai:spec-ready'));
+	});
+});
+
+// ── TF4 (Issue #582) — VERDICT mit Markdown-Dekoration (**…**) → trotzdem erkannt ────────
+// Claude hüllt die VERDICT-Zeile gern in Markdown-Bold: `**VERDICT: spec-ready**`. Der Parser
+// (tr -d -c 'A-Za-z0-9-') muss die Dekoration streifen, sonst wird "spec-ready**" != "spec-ready"
+// → fälschlich fail-safe "analyzed" → ai:spec-ready fehlt (Issue #582). Im echten Run #31574943850
+// genau so passiert: Claude-Verdict aus Output: 'spec-ready**'.
+describe('TF4 — **VERDICT: spec-ready** (Markdown-Dekoration): ai:spec-ready wird gesetzt (Issue #582)', () => {
+	it('trotz **…**-Dekoration wird spec-ready korrekt erkannt und addiert', () => {
+		const ops = runTriage({ verdict: 'spec-ready', hasAk: true, rawVerdict: '**VERDICT: spec-ready**\n' });
+		assert.ok(has(ops, 'add:ai:spec-ready'), 'Markdown-** darf verdict nicht verfälschen (spec-ready** != spec-ready)');
 	});
 });
