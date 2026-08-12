@@ -205,6 +205,15 @@ jobs:
             if [ "$HAS_TESTS" = "true" ]; then
               ARTIFACTS_OK="true"
             fi
+            # Docs-only Spec-PR (rein Markdown/docs/, kein Code): Test-Pflicht entfällt —
+            # der Docs-Carve-out im Spec-Prompt verlangt bewusst KEINEN Test (String-Match
+            # auf Markdown wäre ein Change-Detector). Mapping wie bei HAS_TESTS → ready.
+            DOCS_ONLY="$(gh pr view "$SPEC_PR" --repo "$GITHUB_REPOSITORY" --json files \
+              --jq '[.files[].path | (endswith(".md") or startswith("docs/"))] | all' 2>/dev/null || echo "false")"
+            if [ "$DOCS_ONLY" = "true" ]; then
+              ARTIFACTS_OK="true"
+              echo "::notice::Spec-PR #$SPEC_PR: DOCS_ONLY=true — Test-Pflicht entfällt (Docs-Carve-out)"
+            fi
           fi
 
           if [ "$verdict" = "ready" ]; then
