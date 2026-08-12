@@ -146,3 +146,24 @@ describe('Spiegel — .claude/settings.json bleibt providerneutral', () => {
 		assert.doesNotMatch(settings, /ANTHROPIC_DEFAULT_\w+_MODEL/, 'Modell-Aliase sind provider-spezifisch');
 	});
 });
+
+// ── Toter Marker ai:review-no-result darf nicht zurueckkehren (G2) ───────────────────────
+//
+// Der Autolabeler strippte frueher ein Label `ai:review-no-result`, das KEIN Workflow je
+// gesetzt hat (PR #524 hat das Loop-Breaking nach Fixup/HEAD-Bewegung verlagert). Der Strip
+// war somit wirkungslos, und die Kommentare beschrieben eine Review-Bremse, die nicht mehr
+// existierte. Guard gegen Wieder-Einfuehrung des toten Markers.
+
+describe('Spiegel — pr-needs-review-label.yml referenziert den toten Marker ai:review-no-result nicht', () => {
+	it('weder im Entfernen-Loop noch in Kommentaren', () => {
+		const yml = read('.github', 'workflows', 'pr-needs-review-label.yml');
+		assert.doesNotMatch(
+			yml,
+			/ai:review-no-result/,
+			'ai:review-no-result wird von keinem Workflow gesetzt (PR #524 verlagerte das Loop-' +
+				'Breaking nach Fixup/HEAD-Bewegung). Der Autolabeler darf den toten Marker weder ' +
+				'strippingen noch in Kommentaren erwaehnen — die Kommentare luegen sonst ueber eine ' +
+				'Review-Bremse, die nicht existiert.',
+		);
+	});
+});
