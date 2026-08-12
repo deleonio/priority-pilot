@@ -154,10 +154,10 @@ Eine vollständige Beschreibung aller Funktionen für Endnutzer:
 
 ## Deployment
 
-Deployment auf einen dedizierten Server (Build in GitHub Actions → versionierter Tarball →
-Symlink-Switch + `systemctl restart` auf dem Host, Caddy davor):
+Deployment auf einen dedizierten Server (Merge auf `main` → Build in GitHub Actions →
+`rsync` der `dist`-Verzeichnisse auf den Host → Backend-Reload via PM2, Caddy davor):
 
-- [`docs/deployment.md`](docs/deployment.md) — Konzept & Ablauf (Architektur, Release-Artefakt, Caddy, systemd, Rollback).
+- [`docs/deployment.md`](docs/deployment.md) — Konzept & Ablauf (Architektur, rsync + PM2, Caddy, Rollback).
 - [`docs/deployment-repo-plan.md`](docs/deployment-repo-plan.md) — Umsetzungsplan im Repo (Pack-Skript, Release-Workflow, Secrets).
 - [`docs/server-setup.md`](docs/server-setup.md) — Schritt-für-Schritt-Einrichtung des Linux-Servers.
 

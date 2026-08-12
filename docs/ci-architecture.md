@@ -98,8 +98,8 @@ oder hat kein Guthaben — dann in der Anthropic Console prüfen und
 > Gilt nur für den `zai`-Zweig. Bei `LLM_PROVIDER=claude` löst `"model": "opus"` auf echtes
 > Claude Opus auf und die folgenden Kontingent-/Parallelitäts-Überlegungen entfallen.
 
-Alle fünf Workflows laufen bewusst auf **demselben Modell** (`glm-5.1`), nicht differenziert
-nach Aufgaben-Strenge. Grund: die GLM Coding Plan-Subscription arbeitet mit einem
+Alle sechs LLM-Workflows (fünf Ticket-Phasen 01–05 plus Post-Merge-Documenter) laufen bewusst auf
+**demselben Modell** (`glm-5.1`), nicht differenziert nach Aufgaben-Strenge. Grund: die GLM Coding Plan-Subscription arbeitet mit einem
 **Nutzungskontingent** (nicht Pay-per-Token), und hier gilt:
 
 | Faktor               | `glm-5.1`           | `glm-4.7-flash`      | `glm-5.2` / `glm-5-turbo`              |
@@ -160,19 +160,23 @@ Label-Post-Assertion.
 
 ### Benötigte Secrets
 
-| Secret            | Zweck                                                  |
-| ----------------- | ------------------------------------------------------ |
-| `CLAUDE_API_KEY`  | LLM-Zugang Anthropic — nötig bei `LLM_PROVIDER=claude` |
-| `ZAI_API_KEY`     | LLM-Zugang z.ai/GLM — nötig bei `LLM_PROVIDER=zai`     |
-| `APP_ID`          | GitHub App (Token für Label-/PR-Operationen)           |
-| `APP_PRIVATE_KEY` | GitHub App (Token für Label-/PR-Operationen)           |
+| Secret               | Zweck                                                       |
+| -------------------- | ----------------------------------------------------------- |
+| `CLAUDE_API_KEY`     | LLM-Zugang Anthropic — nötig bei `LLM_PROVIDER=claude`      |
+| `ZAI_API_KEY`        | LLM-Zugang z.ai/GLM — nötig bei `LLM_PROVIDER=zai`          |
+| `OPENROUTER_API_KEY` | LLM-Zugang OpenRouter — nötig bei `LLM_PROVIDER=openrouter` |
+| `APP_ID`             | GitHub App (Token für Label-/PR-Operationen)                |
+| `APP_PRIVATE_KEY`    | GitHub App (Token für Label-/PR-Operationen)                |
 
-Beide LLM-Secrets werden von allen fünf Workflows durchgereicht; welches davon greift, entscheidet
-`vars.LLM_PROVIDER`. Nur das Secret des **aktiven** Providers muss gesetzt sein — das andere darf
+Alle drei LLM-Secrets werden von allen sechs LLM-Workflows durchgereicht; welches davon greift, entscheidet
+`vars.LLM_PROVIDER`. Nur das Secret des **aktiven** Providers muss gesetzt sein — die anderen dürfen
 leer bleiben, ohne den Lauf zu brechen.
 
-Die früher genutzten Secrets `NOUS_PORTAL_TOKEN` und `OPENROUTER_API_KEY` werden von der Pipeline
-**nicht mehr referenziert** und können im Repo gelöscht werden.
+Das frühere Secret `NOUS_PORTAL_TOKEN` wird von der Pipeline **nicht mehr referenziert** und kann
+im Repo gelöscht werden. `OPENROUTER_API_KEY` hingegen ist **aktiv**: `openrouter` ist ein
+vollständig verdrahteter dritter Provider (alle Phasen-Workflows reichen den Key an `setup-claude`
+durch, `00-set-llm-provider.yml` akzeptiert ihn, `ci-multi-provider.yml` führt die Matrix) — nur
+ist er nicht der Default-Pfad (`claude`).
 
 ## KoliBri MCP-Server für Frontend-Implementierung
 
