@@ -21,7 +21,11 @@ import { waitForStableView } from './helpers';
  */
 test.describe.skip('Abhängigkeits-Editor: Entfernen-Icon-Button (#368) — geskippt seit #537', () => {
 	let runId = 0;
-	const uniqueTitle = (label: string): string => `DEP ${label} #${(runId += 1)}-${Date.now()}`;
+	const uniqueTitle = (label: string): string => {
+		const tail = `#${(runId += 1)}`;
+		const head = `DEP ${label}`.slice(0, 30 - tail.length);
+		return `${head}${tail}`;
+	};
 
 	/** Legt über die echte API einen Task an und gibt dessen ID zurück (Vite-Proxy → Backend). */
 	const createTask = async (page: Page, title: string): Promise<number> => {

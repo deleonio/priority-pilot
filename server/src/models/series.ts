@@ -53,8 +53,11 @@ Series.init(
 			primaryKey: true,
 		},
 		title: {
-			type: DataTypes.STRING,
+			type: DataTypes.STRING(30),
 			allowNull: false,
+			validate: {
+				len: [1, 30],
+			},
 		},
 		rhythm: {
 			type: DataTypes.ENUM(

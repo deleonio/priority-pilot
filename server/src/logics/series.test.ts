@@ -503,7 +503,9 @@ describe('materializeDueSeries — Aggregat + Fehler-Isolation (AK6 #244)', () =
 			active: true,
 			startDate: futureDate(1),
 		});
-		await broken.update({ title: '' });
+		// { validate: false }: der leere Titel simuliert bewusst eine kaputte Instanz —
+		// der len:[1,30]-Validator (Issue #582) würde das update sonst sofort abweisen.
+		await broken.update({ title: '' }, { validate: false });
 
 		const until = futureDate(20);
 

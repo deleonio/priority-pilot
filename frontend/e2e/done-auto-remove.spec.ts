@@ -21,7 +21,11 @@ import { waitForStableView } from './helpers';
  */
 test.describe('Priority Pilot — 5-s-Auto-Entfernung abgehakter Aufgaben (#392)', () => {
 	let runId = 0;
-	const uniqueTitle = (label: string): string => `AutoRemove ${label} #${(runId += 1)}-${Date.now()}`;
+	const uniqueTitle = (label: string): string => {
+		const tail = `#${(runId += 1)}`;
+		const head = `AutoRemove ${label}`.slice(0, 30 - tail.length);
+		return `${head}${tail}`;
+	};
 
 	const createTask = async (page: Page, title: string): Promise<number> => {
 		const response = await page.request.post('/api/v1/tasks', {

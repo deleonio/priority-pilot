@@ -21,7 +21,11 @@ import { waitForStableView } from './helpers';
  */
 test.describe('Priority Pilot — Task/Serie-Umschalter im Anlege-Formular (#316)', () => {
 	let runId = 0;
-	const uniqueTitle = (label: string): string => `E2E TaskForm-Serie ${label} #${(runId += 1)}-${Date.now()}`;
+	const uniqueTitle = (label: string): string => {
+		const tail = `#${(runId += 1)}`;
+		const head = `E2E TaskForm-Serie ${label}`.slice(0, 30 - tail.length);
+		return `${head}${tail}`;
+	};
 
 	/** Räumt erst alle Tasks (inkl. generierter Instanzen), dann alle Serien über die echte API ab. */
 	const deleteAll = async (page: Page): Promise<void> => {

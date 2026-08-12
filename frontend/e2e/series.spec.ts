@@ -20,7 +20,11 @@ import { waitForStableView } from './helpers';
 test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)', () => {
 	// Eindeutige Titel je Test, damit Assertions ausschließlich auf selbst angelegte Daten zielen.
 	let runId = 0;
-	const uniqueTitle = (label: string): string => `E2E Serie ${label} #${(runId += 1)}-${Date.now()}`;
+	const uniqueTitle = (label: string): string => {
+		const tail = `#${(runId += 1)}`;
+		const head = `E2E Serie ${label}`.slice(0, 30 - tail.length);
+		return `${head}${tail}`;
+	};
 
 	interface SeriesPayload {
 		title: string;
@@ -277,7 +281,11 @@ test.describe('Priority Pilot — Serien-Frontend gegen das echte Backend (#142)
  */
 test.describe('Priority Pilot — #297: Altes Serien-Formular durch TaskForm ersetzen', () => {
 	let runId = 0;
-	const uniqueTitle = (label: string): string => `E2E #297 ${label} #${(runId += 1)}-${Date.now()}`;
+	const uniqueTitle = (label: string): string => {
+		const tail = `#${(runId += 1)}`;
+		const head = `E2E #297 ${label}`.slice(0, 30 - tail.length);
+		return `${head}${tail}`;
+	};
 
 	interface SeriesPayload {
 		title: string;
@@ -406,7 +414,11 @@ test.describe('Priority Pilot — #297: Altes Serien-Formular durch TaskForm ers
  */
 test.describe('Priority Pilot — #330: Vereinheitlichter Anlege-Einstieg (SeriesManagementModal ohne Anlegen-Button)', () => {
 	let runId = 0;
-	const uniqueTitle = (label: string): string => `E2E #330 ${label} #${(runId += 1)}-${Date.now()}`;
+	const uniqueTitle = (label: string): string => {
+		const tail = `#${(runId += 1)}`;
+		const head = `E2E #330 ${label}`.slice(0, 30 - tail.length);
+		return `${head}${tail}`;
+	};
 
 	interface SeriesPayload {
 		title: string;
@@ -544,7 +556,8 @@ test.describe('Priority Pilot — Serien behalten die Säulenzuordnung (#343)', 
 		const pillar = pillars[0];
 
 		// 2. Serie mit dieser Säule via API anlegen.
-		const title = `E2E Serie Säulen #343-${Date.now()}`;
+		// #582: Titel ≤30 Zeichen — Date.now() base36 statt Dezimal (13→~8 Zeichen).
+		const title = `E2E #343 Säule ${Date.now().toString(36)}`;
 		const createResponse = await page.request.post('/api/v1/series', {
 			data: {
 				title,
