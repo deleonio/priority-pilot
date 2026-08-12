@@ -62,10 +62,10 @@ Quarantäne (`__quarantine__/`) verschoben; die CI führt sie nicht mehr aus.
 - **Akzeptiert:** Workflow-Regressionsrisiko wird beim Pipeline-Betrieb erkannt (sichtbare
   fehlgeschlagene Läufe, manuelles Review), nicht vorab durch Tests abgefangen.
 - **Gewinn:** Workflow-Änderungen sind wieder „kostenlos" — kein Meta-Test-Churn, kein
-  Doppeltpflege. Die Pipeline kann schneller evolvieren.
+  Doppelpflege. Die Pipeline kann schneller evolvieren.
 - **Gewinn:** Agenten und Spec-Phase bekommen ein klares Signal (dieses ADR + die Regel in
   [tdd-strategy.md](../../.ai-knowledge/tdd-strategy.md) Testumfang) und schreiben keine neuen
   Workflow-Tests mehr.
 - **Follow-ups:** [#564](https://github.com/deleonio/priority-pilot/issues/564) (Quarantäne-Verschiebung
-  - CI-Test-Steps entfernen), [#566](https://github.com/deleonio/priority-pilot/issues/566)
-    (spec-first-Neuaufbau, nur für Domänenlogik).
+  / CI-Test-Steps entfernen), [#566](https://github.com/deleonio/priority-pilot/issues/566)
+  (spec-first-Neuaufbau, nur für Domänenlogik).
