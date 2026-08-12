@@ -53,7 +53,7 @@ inputs:
     required: false
     default: 'false'
   model:
-    description: 'Claude-Modell für diesen Lauf als Alias (fable|opus|sonnet|haiku); leer = Default aus .claude/settings.json (aktueller Zustand, kein --model). Pro Workflow-Phase reicht der jeweilige Workflow EIGENE GitHub-Variable hierher: CLAUDE_MODEL_TRIAGE (Default: sonnet), CLAUDE_MODEL_SPEC (Default: opus), CLAUDE_MODEL_IMPLEMENT (Default: opus), CLAUDE_MODEL_PR_REVIEW (Default: opus), CLAUDE_MODEL_FIXUP (Default: opus), CLAUDE_MODEL_DOCUMENTATION (Default: sonnet). Der Alias wird providerspezifisch aufgelöst (claude nativ via --model, zai/openrouter via settings.local.json) — die Defaults sind auf die Phasen-Aufgabe abgestimmt.'
+    description: 'Claude-Modell für diesen Lauf als Alias (fable|opus|sonnet|haiku); leer = kein --model (Default aus .claude/settings.json). Der Alias wird providerspezifisch aufgelöst (claude nativ via --model, zai/openrouter via settings.local.json); ein ungültiger Alias bricht laut ab (kein stiller Fallback).'
     required: false
     default: ''
 
