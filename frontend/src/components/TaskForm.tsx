@@ -648,10 +648,8 @@ export const TaskForm = ({
 					autoStart={voiceAutostart}
 					onTranscript={(text) => {
 						const newVal = form.current.title ? `${form.current.title} ${text}` : text;
-						// Neue Länge prüfen: nur anhängen, wenn innerhalb des Limits
-						const truncated = newVal.length > TITLE_MAX_LENGTH ? newVal.slice(0, TITLE_MAX_LENGTH) : newVal;
-						form.current.title = truncated;
-						setTitle(truncated);
+						form.current.title = newVal;
+						setTitle(newVal);
 					}}
 				>
 					<div style={{ position: 'relative' }}>
