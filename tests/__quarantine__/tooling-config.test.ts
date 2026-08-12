@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 // lefthook.yml, knip-Abhängigkeit und prepare-Skript im Root existieren.
 // Keinen Produktivcode schreiben — nur Vertragsbestimmung.
 
-// Root: zwei Verzeichnisse über server/src/
+// Root: drei Ebenen über dieser Datei (resolve ohne dirname — der Dateiname zählt als Segment).
 const ROOT = resolve(fileURLToPath(import.meta.url), '../../..');
 
 describe('Issue #165 — Lefthook + Knip Dev-Tooling-Konfiguration', () => {
