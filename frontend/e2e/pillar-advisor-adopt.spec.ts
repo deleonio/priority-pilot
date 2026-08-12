@@ -19,7 +19,8 @@ import { waitForStableView } from './helpers';
  */
 test.describe('Berater-Vorschlag in Quick Capture übernehmen (#327)', () => {
 	let runId = 0;
-	const uniqueSuffix = (): string => `#${(runId += 1)}-${Date.now()}`;
+	// #582: Task-Titel ≤30 Zeichen — "Joggen im Park " (15) + Suffix muss ≤15 bleiben → base36.
+	const uniqueSuffix = (): string => `#${(runId += 1)}-${Date.now().toString(36)}`;
 
 	/** Löscht alle aktuell vorhandenen Tasks über die echte API (Vite-Proxy → Backend). */
 	const deleteAllTasks = async (page: Page): Promise<void> => {

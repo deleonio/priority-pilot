@@ -22,7 +22,11 @@ import { waitForStableView } from './helpers';
  */
 test.describe('CTA-Buttons per Strg+Enter absenden (#243)', () => {
 	let runId = 0;
-	const uniqueTitle = (label: string): string => `KB ${label} #${(runId += 1)}-${Date.now()}`;
+	const uniqueTitle = (label: string): string => {
+		const tail = `#${(runId += 1)}`;
+		const head = `KB ${label}`.slice(0, 30 - tail.length);
+		return `${head}${tail}`;
+	};
 
 	/** Löscht alle aktuell vorhandenen Tasks über die echte API (Vite-Proxy → Backend). */
 	const deleteAllTasks = async (page: Page): Promise<void> => {
