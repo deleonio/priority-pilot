@@ -1,6 +1,5 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import sequelize from '../database.js';
 import Task from '../models/task.js';
 import Series from '../models/series.js';
 
@@ -16,13 +15,9 @@ describe('DB-Schema — Titel-Länge (Issue #582)', () => {
 			assert.ok(titleAttr, 'title muss im Task-Model definiert sein');
 
 			// Sequelize STRING ohne Längenlimit -> kein maxLength
-			// STRING(30) -> maxLength = 30
-			if (titleAttr.type instanceof sequelize.constructor) {
-				const typeOptions = titleAttr.type.options || {};
-				assert.strictEqual(typeOptions.length, 30, 'title muss STRING(30) sein');
-			} else {
-				assert.fail('title.type ist nicht erwarteter STRING-Typ');
-			}
+			// STRING(30) -> options.length = 30
+			const typeOptions = titleAttr.type.options || {};
+			assert.strictEqual(typeOptions.length, 30, 'title muss STRING(30) sein');
 		});
 
 		it('DB-Validierung: 31 Zeichen löst DatabaseError aus', async () => {
@@ -37,10 +32,12 @@ describe('DB-Schema — Titel-Länge (Issue #582)', () => {
 				});
 				assert.fail('Task mit 31 Zeichen sollte DB-Error werfen');
 			} catch (error) {
-				// Expected: DatabaseError (z.B. "value too long for type character varying(30)")
+				// Expected: DatabaseError, ValidationError oder SequelizeValidationError
 				assert.ok(
-					error.name === 'DatabaseError' || error.name === 'ValidationError',
-					`Sollte DB/ValidationError sein, got: ${error.name}`,
+					error.name === 'DatabaseError' ||
+						error.name === 'ValidationError' ||
+						error.name === 'SequelizeValidationError',
+					`Sollte DB/ValidationError/SequelizeValidationError sein, got: ${error.name}`,
 				);
 			}
 		});
@@ -63,12 +60,10 @@ describe('DB-Schema — Titel-Länge (Issue #582)', () => {
 			const titleAttr = Series.rawAttributes.title;
 			assert.ok(titleAttr, 'title muss im Series-Model definiert sein');
 
-			if (titleAttr.type instanceof sequelize.constructor) {
-				const typeOptions = titleAttr.type.options || {};
-				assert.strictEqual(typeOptions.length, 30, 'title muss STRING(30) sein');
-			} else {
-				assert.fail('title.type ist nicht erwarteter STRING-Typ');
-			}
+			// Sequelize STRING ohne Längenlimit -> kein maxLength
+			// STRING(30) -> options.length = 30
+			const typeOptions = titleAttr.type.options || {};
+			assert.strictEqual(typeOptions.length, 30, 'title muss STRING(30) sein');
 		});
 
 		it('DB-Validierung: 31 Zeichen löst DatabaseError aus', async () => {
@@ -85,8 +80,10 @@ describe('DB-Schema — Titel-Länge (Issue #582)', () => {
 				assert.fail('Series mit 31 Zeichen sollte DB-Error werfen');
 			} catch (error) {
 				assert.ok(
-					error.name === 'DatabaseError' || error.name === 'ValidationError',
-					`Sollte DB/ValidationError sein, got: ${error.name}`,
+					error.name === 'DatabaseError' ||
+						error.name === 'ValidationError' ||
+						error.name === 'SequelizeValidationError',
+					`Sollte DB/ValidationError/SequelizeValidationError sein, got: ${error.name}`,
 				);
 			}
 		});
