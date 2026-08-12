@@ -176,14 +176,20 @@ jobs:
             2>&1 | tee /tmp/claude-output.log
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
 
-      - name: Memory-Save (ticketspezifisch, dateibasiert)
-        # Cache nur schreiben, wenn Claude gelaufen ist (outcome == 'success').
+      - name: Memory-Check (phase-documentation-Notiz mit Sentinel?)
+        # D3: if-no-path-exists:ignore verschluckt vergessene Notizen still. Warning macht den
+        # No-Op hörbar; kein exit, damit legitime Skips (Guard) grün bleiben.
         if: always() && steps.setup.outputs.configured == 'true' && steps.claude.outcome == 'success'
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: ${{ steps.setup.outputs.memory-path }}
-          key: ${{ steps.setup.outputs.memory-save-key }}
-          if-no-path-exists: ignore
+        shell: bash
+        run: |
+          f=".claude/ticket-memory/phase-documentation.md"
+          [ -f "$f" ] && grep -qE '<!-- phase:documentation complete -->' "$f" \
+            || echo "::warning title=Memory fehlt::phase-documentation.md ohne Sentinel — Claude hat keine Notiz hinterlassen. Documenter ist terminal (keine Folge-Phase); fehlende Notiz signalisiert unvollständige Agent-Arbeit."
+
+      # Kein Memory-Save (im Gegensatz zu 01-05): der Documenter ist terminal, der nachfolgende
+      # Teardown (🧹 Ticket-Memory abbau) löscht den Cache ohnehin. Ein Save wäre save-then-delete
+      # (redundant). phase-documentation.md bleibt nur lokal — der Memory-Check oben prüft sie als
+      # Diagnose, ob der Agent gearbeitet hat. Persistenz hat keine Folge-Phase mehr.
 
       - name: 🏷️ Label-Post-Assertion (ai:documented muss am PR hängen)
         # Erfolgskriterium des Documenter ist nicht ein Review-Verdict, sondern dass ai:documented
@@ -213,7 +219,9 @@ jobs:
         # das unter Key ticket-{issue-number}-* (s. setup-claude action, memory-save-key). Nach Merge
         # ist dieser Memory stale -> abbauen. Issue-Auflösung wie setup-claude: Closing-Issue, sonst
         # PR-Nummer als Fallback. Best-Effort: ein fehlgeschlagener Delete darf den Lauf nicht abbrechen.
-        if: always() && steps.setup.outputs.configured == 'true'
+        # NUR bei Job-Erfolg (kein always()): schlägt der Documenter fehl, bleibt der Memory für den
+        # Re-Run erhalten — always() würde die Vor-Phasen-Notizen vor dem Retry wegputzen.
+        if: steps.setup.outputs.configured == 'true'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
         run: |

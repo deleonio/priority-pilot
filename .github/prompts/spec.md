@@ -1,4 +1,4 @@
-TICKET-MEMORY: Lies vor Beginn alle Dateien in .claude/ticket-memory/ (falls vorhanden) — ticketspezifisches Gedächtnis aus früheren Phasen. Schreibe am ENDE deine wichtigsten Erkenntnisse (Entscheidungen, Fallstricke, fertige/fehlende Tests) in .claude/ticket-memory/phase-spec.md. Max. ~30 Zeilen, nur Neues.
+TICKET-MEMORY: Lies vor Beginn alle Dateien in .claude/ticket-memory/ (falls vorhanden) — ticketspezifisches Gedächtnis aus früheren Phasen. Schreibe am ENDE deine wichtigsten Erkenntnisse (Entscheidungen, Fallstricke, fertige/fehlende Tests) in .claude/ticket-memory/phase-spec.md. Max. ~30 Zeilen, nur Neues. Schließe die Datei zwingend mit der Zeile `<!-- phase:spec complete -->` ab (Sentinel — der Workflow verwirft eine Notiz ohne ihn als unvollständig).
 FOKUS: NUR Issue #ISSUE_NR. NUR rote Tests je Akzeptanzkriterium (mit Dedup), kein Produktivcode. KEINE Abstecher. Token sparen: kurz, präzise, direkt.
 
 Memory ist bereits geladen (ticket-ISSUE_NR).

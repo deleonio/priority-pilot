@@ -97,8 +97,9 @@ jobs:
                d) Sequenzielle Abhängigkeit (A1→A2→A3, gleiche Dateien/„A2 nach A1"): Vorgänger blockt Nachfolger — PFLICHT, maschinenlesbar (issue-unblock.yml löst beim Merge des Vorgängers automatisch auf): gh api graphql -f query='mutation($b:ID!,$k:ID!){addBlockedBy(input:{issueId:$b,blockingIssueId:$k}){clientMutationId}}' -f b="$(gh issue view <NACHFOLGER-NR> --json id -q .id)" -f k="$(gh issue view <VORGÄNGER-NR> --json id -q .id)" — Kanten gedrosselt setzen (sekundäres Rate-Limit bei zu schnellen Schreibzugriffen). Nur echte Reihenfolge-Abhängigkeiten; unabhängige Sub-Issues bleiben ohne blocked-by.
                e) Nur der ERSTE unblockierte Sub-Issue bekommt ai:spec-ready (gh issue edit <SUB-NR> --add-label "ai:spec-ready"); geblockte Nachfolger bleiben ai:analyzed und werden beim Merge des Vorgängers automatisch freigegeben. Unabhängige Sub-Issues folgen ihrer eigenen Ampel.
                Sub-Issues sind durch ai:analyzed beim Anlegen vor Re-Triage geschützt (nicht erneut zerlegen — Rekursionsschutz). Eltern-Issue nach Zerlegung → VERDICT: analyzed (nur Tracker, nicht direkt umsetzbar).
-            5. Analyse schreiben: Akzeptanzkriterien + Testfälle + Ampel (🟢/🟡/🔴) in BODY-BLOCK.
-            6. EINEN Ping-Kommentar (gh issue comment).
+            5. Analyse schreiben: Akzeptanzkriterien + Testfälle + Ampel (🟢/🟡/🔴) in den BODY-BLOCK.
+               ⚠️ ZWINGEND: Der BODY-BLOCK gehört in den Issue-BODY via `gh issue edit --body-file -` (vorhandenen Body erhalten + Block anhängen), NIEMALS als Kommentar. Der Workflow prüft den Body — ein Block nur im Kommentar lässt den Lauf scheitern (bzw. wird nur als Notfall-Migration akzeptiert).
+            6. EINEN Ping-Kommentar (gh issue comment) — nur eine kurze Notiz (z. B. "spec-ready, nach #VORGÄNGER umsetzbar"), OHNE den KI-ANALYSE-Block.
 
           BODY-BLOCK-FORMAT:
             <!-- KI-ANALYSE:START stand=<ISO-8601-Datum> -->
@@ -121,6 +122,16 @@ jobs:
             ${{ steps.setup.outputs.invoke-args }} \
             2>&1 | tee /tmp/claude-output.log
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
+
+      - name: Memory-Check (phase-triage-Notiz mit Sentinel?)
+        # D3: if-no-path-exists:ignore verschluckt vergessene Notizen still. Warning macht den
+        # No-Op hörbar; kein exit, damit legitime Skips (Guard) grün bleiben.
+        if: always() && steps.setup.outputs.configured == 'true' && steps.claude.outcome == 'success'
+        shell: bash
+        run: |
+          f=".claude/ticket-memory/phase-triage.md"
+          [ -f "$f" ] && grep -qE '<!-- phase:triage complete -->' "$f" \
+            || echo "::warning title=Memory fehlt::phase-triage.md ohne Sentinel — Claude hat keine Notiz hinterlassen. Folge-Phase lädt Vorgängerstand."
 
       - name: Memory-Save (ticketspezifisch, dateibasiert)
         # Cache nur schreiben, wenn Claude gelaufen ist (s. workflow-invariants-Test: das
@@ -163,8 +174,29 @@ jobs:
             fi
           fi
 
+          # Self-Heal (Issue #566): Schwachmodell-Agent (zai/GLM) postet den KI-ANALYSE-Block
+          # gelegentlich als Kommentar, statt ihn via `gh issue edit` in den Body zu schreiben.
+          # Statt dann den kompletten Lauf (und die Token-Spende) wegzuwerfen, den Block aus
+          # dem neuesten passenden Kommentar in den Body migrieren — modellunabhängige
+          # Sicherheitsleine. hart-fail nur, wenn der Block WEDER im Body NOCH in einem
+          # Kommentar existiert.
           if [ "$HAS_BLOCK" != "true" ]; then
-            echo "::error title=❌ Analyse fehlt::Kein KI-ANALYSE-Block im Issue-Body. Lauf muss wiederholt werden."
+            BLOCK_FROM_COMMENT="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json comments -q \
+              '[.comments[] | select(.body | test("KI-ANALYSE:START"))] | last | .body // ""' 2>/dev/null || true)"
+            if [ -n "$BLOCK_FROM_COMMENT" ]; then
+              printf '%s\n\n%s\n' "$BODY" "$BLOCK_FROM_COMMENT" \
+                | gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file - 2>/dev/null || true
+              echo "::warning title=♻️ Block migriert::KI-ANALYSE-Block war in einem Kommentar statt im Issue-Body – automatisch in den Body migriert."
+              BODY="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json body -q .body 2>/dev/null || true)"
+              HAS_BLOCK="true"
+              if printf '%s' "$BODY" | grep -qiE "Akzeptanzkriterien|AK[[:space:]]*[0-9]"; then
+                HAS_AK="true"
+              fi
+            fi
+          fi
+
+          if [ "$HAS_BLOCK" != "true" ]; then
+            echo "::error title=❌ Analyse fehlt::Kein KI-ANALYSE-Block im Issue-Body ODER in Kommentaren. Lauf muss wiederholt werden."
             exit 1
           fi
 
