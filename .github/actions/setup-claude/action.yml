@@ -386,9 +386,10 @@ runs:
           restricted)
             # Tier 1 — nur lesender GitHub-Zugriff, KEIN Bypass (Triage arbeitet nur via gh).
             # Bash(gh *)/Bash(git *) bleiben eng, Write/Edit bewusst nicht erlaubt — einzige
-            # Ausnahme: Write(.claude/ticket-memory/*), damit Phasen-Notizen persistiert werden
-            # (sonst scheitert der Schreibbefehl im Prompt jedes Mal an Berechtigungen).
-            ALLOWED_TOOLS="Read,Glob,Grep,Bash(gh *),Bash(git *),Write(.claude/ticket-memory/*)"
+            # Ausnahme: Edit(.claude/ticket-memory/*), damit Phasen-Notizen persistiert werden.
+            # Claude Code wertet für Datei-Schreibzugriffe NUR Edit(path)-Regeln aus — Write(path)
+            # wird ignoriert (Edit deckt alle file-editing-Tools inkl. Write ab).
+            ALLOWED_TOOLS="Read,Glob,Grep,Bash(gh *),Bash(git *),Edit(.claude/ticket-memory/*)"
             [ "$NEEDS_MCP" = "true" ] && ALLOWED_TOOLS="$ALLOWED_TOOLS,$MCP_TOOLS"
             # — !WICHTIG! —
             # Zwingendes Single-Quoting des Wertes nach --allowedTools (und --disallowedTools):
