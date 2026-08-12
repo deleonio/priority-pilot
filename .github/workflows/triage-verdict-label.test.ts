@@ -40,9 +40,13 @@ const RUN_BLOCK = (STEP.match(/run:\s*\|\n([\s\S]*)/)?.[1] ?? '').replace(/^ {10
 assert.ok(RUN_BLOCK.includes('final='), 'run-Block enthält keine final=-Logik');
 
 // ── Stub-`gh`: view→Body aus Env, edit→Label-Ops ins Log, label create→noop ────────────
+// Issue #566 (Self-Heal): `gh issue view` unterscheidet jetzt --json body vs --json comments
+// (Block kann in Kommentar statt Body landen); `gh issue edit --body-file` wird als 'body-edit'
+// geloggt, damit die Migration verifizierbar ist.
 const STUB_GH = `#!/usr/bin/env bash
 log="\${GH_STUB_LOG:?}"
 if [ "\${1:-}" = "issue" ] && [ "\${2:-}" = "view" ]; then
+  case "$*" in *"--json comments"*) printf '%s' "\${STUB_COMMENTS:-}"; exit 0 ;; esac
   printf '%s' "\${STUB_BODY:-}"
   exit 0
 fi
@@ -54,6 +58,7 @@ if [ "\${1:-}" = "issue" ] && [ "\${2:-}" = "edit" ]; then
   shift 2
   for a in "$@"; do
     case "$a" in
+      --body-file) printf 'body-edit\\n' >> "$log" ;;
       --add-label) mode="add" ;;
       --remove-label) mode="remove" ;;
       ai:analyzed|ai:spec-ready|ai:ready) [ -n "$mode" ] && printf '%s:%s\\n' "$mode" "$a" >> "$log" ;;
@@ -78,7 +83,23 @@ const BODY_NO_AK = ['<!-- KI-ANALYSE:START stand=2026-08-10 -->', '**Ampel: 🟡
 	'\n',
 );
 
-type Opts = { verdict: '' | 'spec-ready' | 'analyzed'; hasAk: boolean; rawVerdict?: string };
+// Issue #566 (Self-Heal): Body OHNE KI-ANALYSE-Block — Original-Tasktext mit Akzeptanzkriterien,
+// aber der Agent hat den Block nur als Kommentar gepostet (Schwachmodell-Verhalten zai/GLM).
+const BODY_NO_BLOCK = [
+	'## Aufgabe',
+	'Pro User Journey einen Black-Box-Verhaltenstest schreiben.',
+	'',
+	'## Akzeptanzkriterien',
+	'- AK1: genau ein Test pro Journey',
+].join('\n');
+
+type Opts = {
+	verdict: '' | 'spec-ready' | 'analyzed';
+	hasAk: boolean;
+	rawVerdict?: string;
+	body?: string;
+	commentBlock?: string;
+};
 
 // Führt den echten run-Block aus und liefert die aufgezeichneten Label-Ops
 // (z.B. ["remove:ai:analyzed","add:ai:analyzed","remove:ai:spec-ready","remove:ai:ready"]).
@@ -101,7 +122,8 @@ const runTriage = (opts: Opts): string[] => {
 			ISSUE: '538',
 			GITHUB_REPOSITORY: 'acme/priority-pilot',
 			GH_STUB_LOG: log,
-			STUB_BODY: opts.hasAk ? BODY_WITH_AK : BODY_NO_AK,
+			STUB_BODY: opts.body ?? (opts.hasAk ? BODY_WITH_AK : BODY_NO_AK),
+			STUB_COMMENTS: opts.commentBlock ?? '',
 		},
 	});
 
@@ -183,5 +205,39 @@ describe('TF4 — **VERDICT: spec-ready** (Markdown-Dekoration): ai:spec-ready w
 	it('trotz **…**-Dekoration wird spec-ready korrekt erkannt und addiert', () => {
 		const ops = runTriage({ verdict: 'spec-ready', hasAk: true, rawVerdict: '**VERDICT: spec-ready**\n' });
 		assert.ok(has(ops, 'add:ai:spec-ready'), 'Markdown-** darf verdict nicht verfälschen (spec-ready** != spec-ready)');
+	});
+});
+
+// ── TF5 (Issue #566) — Self-Heal: KI-ANALYSE-Block im Kommentar statt im Body ────────────
+// Schwachmodell-Agent (zai/GLM) postet den KI-ANALYSE-Block als Kommentar, statt ihn via
+// `gh issue edit` in den Body zu schreiben. Früher: kompletter Lauf hart gescheitert (exit 1),
+// Token-Spende verworfen. Jetzt: Workflow migriert den Block aus dem neuesten Kommentar in den
+// Body (Sicherheitsleine) und fährt normal fort. Hart-fail nur, wenn der Block ÜBERALL fehlt.
+describe('TF5 — Self-Heal: Block im Kommentar → Body migriert, kein hard-fail (Issue #566)', () => {
+	it('Block fehlt im Body, existiert im Kommentar → Migration via gh issue edit --body-file', () => {
+		const ops = runTriage({ verdict: 'spec-ready', hasAk: true, body: BODY_NO_BLOCK, commentBlock: BODY_WITH_AK });
+		assert.ok(
+			has(ops, 'body-edit'),
+			'Block muss aus Kommentar in den Body migriert werden (gh issue edit --body-file)',
+		);
+	});
+
+	it('bei verdict=spec-ready + AK → Labels korrekt auch nach Self-Heal (ai:spec-ready wird gesetzt)', () => {
+		const ops = runTriage({ verdict: 'spec-ready', hasAk: true, body: BODY_NO_BLOCK, commentBlock: BODY_WITH_AK });
+		assert.ok(has(ops, 'add:ai:spec-ready'), 'Nach Self-Heal muss die Phasen-Freigabe wie im Normalfall erfolgen');
+	});
+
+	it('Block WEDER im Body NOCH in einem Kommentar → Lauf scheitert hart (exit 1, fail-laut)', () => {
+		// Negativ-Kontrolle: Self-Heal darf NIEMALS einen völlig block-losen Lauf durchwinken.
+		try {
+			runTriage({ verdict: 'spec-ready', hasAk: true, body: BODY_NO_BLOCK, commentBlock: '' });
+			assert.fail('Lauf hätte mit exit 1 scheitern müssen (KI-ANALYSE-Block fehlt überall)');
+		} catch (e) {
+			const err = e as { status?: number; message?: string };
+			assert.ok(
+				err.status === 1 || /non-zero|exit code/i.test(err.message ?? ''),
+				`Erwartet exit 1, bekam: status=${err.status} / ${err.message}`,
+			);
+		}
 	});
 });
