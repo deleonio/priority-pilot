@@ -3,6 +3,10 @@
 > Diese Datei dokumentiert die CI/Provider/Modell-Architektur für **Menschen**, die die Pipeline
 > warten. Sie wird **nicht** in den Agent-Kontext injiziert — der Agent bekommt seine Aufgabenbeschreibung
 > vom Workflow-Prompt, nicht von hier.
+>
+> **Weiterführend:** [pipeline-flow.md](./pipeline-flow.md) (Trigger-Fluss) ·
+> [ci-legacy-comparison.md](./ci-legacy-comparison.md) (Struktur- & Stabilitäts-Vergleich Legacy
+> 08.07.2026 vs. aktuell, inkl. Härte-Empfehlungen).
 
 ## Aktuelle Konfiguration: Claude Code, Provider umschaltbar (Z.AI / Anthropic)
 
