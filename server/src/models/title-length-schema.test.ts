@@ -1,7 +1,11 @@
-import { describe, it } from 'node:test';
+import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert';
 import Task from '../models/task.js';
 import Series from '../models/series.js';
+import { resetDb, closeDb } from '../test/helpers.js';
+
+beforeEach(resetDb);
+after(closeDb);
 
 /**
  * Issue #582: Titel-Längenbeschränkung (30 Zeichen)
