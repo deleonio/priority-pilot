@@ -6,7 +6,7 @@
 		"format": "prettier . --check",
 		"knip": "echo \"no knip in tests workspace\"",
 		"lint": "echo \"no lint in tests workspace\"",
-		"test": "node --import tsx --test \"*.test.ts\""
+		"test": "node --import tsx --test \"*.test.ts\" \"verhaltenstests/*.test.ts\""
 	},
 	"devDependencies": {
 		"tsx": "4.22.4"
