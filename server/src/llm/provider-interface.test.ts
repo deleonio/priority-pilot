@@ -103,7 +103,7 @@ describe('LLM_PROVIDER Environment Variable (Spec: issue-638.md)', () => {
 		// Spec issue-638.md: "process.env.LLM_PROVIDER selects provider (default: mistral)"
 		process.env.LLM_PROVIDER = 'mistral';
 
-		const { getProvider } = await import('../index.js');
+		const { getProvider } = await import('./index.js');
 		const provider = getProvider();
 
 		assert.ok(provider.constructor.name === 'MistralProvider', 'Muss MistralProvider zurückgeben');
@@ -112,7 +112,7 @@ describe('LLM_PROVIDER Environment Variable (Spec: issue-638.md)', () => {
 	it('LLM_PROVIDER=openrouter wählt OpenRouterProvider', async () => {
 		process.env.LLM_PROVIDER = 'openrouter';
 
-		const { getProvider } = await import('../index.js');
+		const { getProvider } = await import('./index.js');
 		const provider = getProvider();
 
 		assert.ok(provider.constructor.name === 'OpenRouterProvider', 'Muss OpenRouterProvider zurückgeben');
@@ -122,7 +122,7 @@ describe('LLM_PROVIDER Environment Variable (Spec: issue-638.md)', () => {
 		// Spec issue-638.md: "fallback to Mistral if unset"
 		delete process.env.LLM_PROVIDER;
 
-		const { getProvider } = await import('../index.js');
+		const { getProvider } = await import('./index.js');
 		const provider = getProvider();
 
 		assert.ok(provider.constructor.name === 'MistralProvider', 'Muss auf Mistral zurückfallen');
@@ -132,7 +132,7 @@ describe('LLM_PROVIDER Environment Variable (Spec: issue-638.md)', () => {
 		// Spec issue-638.md: "LLM_PROVIDER=invalid → falls back to Mistral with warning"
 		process.env.LLM_PROVIDER = 'invalid';
 
-		const { getProvider } = await import('../index.js');
+		const { getProvider } = await import('./index.js');
 		const provider = getProvider();
 
 		assert.ok(provider.constructor.name === 'MistralProvider', 'Muss auf Mistral zurückfallen');
