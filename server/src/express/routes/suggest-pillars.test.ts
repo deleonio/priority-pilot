@@ -1,7 +1,7 @@
 import { describe, it, beforeEach, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../../test/helpers.js';
-import { type PillarClassifier, type ClassifyPillarsInput, type PillarSuggestion } from '../../llm/mistral.js';
+import { type PillarClassifier, type ClassifyPillarsInput, type PillarSuggestion } from '../../llm/llm.js';
 import { Pillar, PillarFeedback, User } from '../../models/index.js';
 
 // Rote Spec-Tests für #430 — nutzerdefinierte Säulen in suggest-pillars:

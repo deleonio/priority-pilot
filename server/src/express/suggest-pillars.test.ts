@@ -15,7 +15,7 @@ import {
 	type ClassifyPillarsInput,
 	type PillarClassifier,
 	type PillarSuggestion,
-} from '../llm/mistral.js';
+} from '../llm/llm.js';
 
 /** Legt die fünf Standard-Säulen an und gibt sie (nach id sortiert) zurück. */
 const seedPillars = async (): Promise<Pillar[]> => {

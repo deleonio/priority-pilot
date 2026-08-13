@@ -1,12 +1,16 @@
 /**
- * Dünner, fetch-basierter Mistral-Client (ESM, Node >= 22 — globales `fetch`/`AbortController`,
- * kein externes SDK). Klassifiziert einen Task anhand von Titel/Beschreibung/Kontext auf die fünf
- * Lebensbalance-Säulen und liefert je vorgeschlagener Säule eine Konfidenz (0–100).
+ * Dünner, fetch-basierter LLM-Client (ESM, Node >= 22 — globales `fetch`/`AbortController`,
+ * kein externes SDK). Spricht die OpenAI-kompatible Chat-Completions-API an.
  *
- * Der Aufruf hängt von zwei Env-Variablen ab:
- * - `MISTRAL_API_KEY` (erforderlich) — fehlt er, wird {@link MissingApiKeyError} geworfen
- *   (der Route-Handler bildet das auf HTTP 503 ab, statt zu crashen).
- * - `MISTRAL_MODEL` (optional, Default `mistral-small-latest`).
+ * **Kaskade:** Jede Anfrage geht zuerst an Mistral (Primär-Call). Ist ein OpenRouter-Key
+ * konfiguriert, bekommt OpenRouter Mistral's Antwort als Kontext und verfeinert sie
+ * (Zweitmeinung). Fällt ein Provider aus, liefert der andere allein das Ergebnis. Fällt
+ * alles aus, wirft die Kaskade {@link MistralRequestError} (→ HTTP 502).
+ *
+ * Env-Variablen:
+ * - `MISTRAL_API_KEY` (optional einzeln, Pflicht für die Kaskade), `MISTRAL_MODEL` (Default `mistral-medium-latest`)
+ * - `OPENROUTER_API_KEY` (optional einzeln, aktiviert die Verfeinerungs-Stufe), `OPENROUTER_MODEL` (Default Free-Modell)
+ * - Kein Key überhaupt → {@link MissingApiKeyError} (→ HTTP 503).
  */
 
 /** Eine vorgeschlagene Säulen-Einzahlung: Säulen-ID plus Konfidenz in Prozent (0–100). */
@@ -63,8 +67,8 @@ export type ParseTaskParser = (text: string) => Promise<ParsedTask>;
 
 /** Fehlt der API-Key, ist der Dienst nicht konfiguriert → der Handler antwortet mit HTTP 503. */
 export class MissingApiKeyError extends Error {
-	constructor() {
-		super('MISTRAL_API_KEY ist nicht gesetzt — die Säulen-Klassifikation ist nicht konfiguriert.');
+	constructor(providerLabel = 'Mistral', envVar = 'MISTRAL_API_KEY') {
+		super(`${envVar} ist nicht gesetzt — der LLM-Provider (${providerLabel}) ist nicht konfiguriert.`);
 		this.name = 'MissingApiKeyError';
 	}
 }
@@ -77,9 +81,48 @@ export class MistralRequestError extends Error {
 	}
 }
 
+/** Konfiguration eines LLM-Providers — Endpoint, Auth, Modell und Label für Fehlermeldungen. */
+interface ProviderConfig {
+	endpoint: string;
+	apiKey: string | undefined;
+	model: string;
+	label: string;
+}
+
 const MISTRAL_ENDPOINT = 'https://api.mistral.ai/v1/chat/completions';
-const DEFAULT_MODEL = 'mistral-small-latest';
+const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
+const DEFAULT_MISTRAL_MODEL = 'mistral-medium-latest';
+const DEFAULT_OPENROUTER_MODEL = 'openrouter/free';
 const REQUEST_TIMEOUT_MS = 30_000;
+
+/** Mistral-Config aus Env-Variablen. */
+function getMistralConfig(): ProviderConfig {
+	return {
+		endpoint: MISTRAL_ENDPOINT,
+		apiKey: process.env.MISTRAL_API_KEY,
+		model: process.env.MISTRAL_MODEL ?? DEFAULT_MISTRAL_MODEL,
+		label: 'Mistral',
+	};
+}
+
+/** OpenRouter-Config aus Env-Variablen. */
+function getOpenRouterConfig(): ProviderConfig {
+	return {
+		endpoint: OPENROUTER_ENDPOINT,
+		apiKey: process.env.OPENROUTER_API_KEY,
+		model: process.env.OPENROUTER_MODEL ?? DEFAULT_OPENROUTER_MODEL,
+		label: 'OpenRouter',
+	};
+}
+
+/**
+ * Verfeinerungs-Anweisung für den zweiten Kaskaden-Schritt (OpenRouter). Wird als `user`-Message
+ * nach Mistral's Antwort angehängt, damit OpenRouter die erste Antwort als Zweitmeinung optimiert.
+ */
+const REFINEMENT_PROMPT =
+	'Ein anderes Modell hat die obige Antwort generiert. Überprüfe und optimiere sie: ' +
+	'korrigiere Fehler, mache die Zuordnungen präziser, ergänze Aspekte, die das erste Modell ' +
+	'übersehen haben könnte. Behalte exakt das gleiche JSON-Format bei.';
 /**
  * Konfidenz-Obergrenze für die „weichen" Säulen: Laut #39 sind Körper/Beziehungen/Wirksamkeit
  * zuverlässig aus dem Text ableitbar, Sinn/Mentale Gesundheit nur ein schwaches Signal — deren
@@ -300,30 +343,26 @@ const parseModelContent = (payload: unknown): unknown => {
 };
 
 /**
- * Gemeinsamer Unterbau aller Mistral-Aufrufe: schickt die Nachrichten an die Chat-Completions-API
+ * Einzelner API-Call an einen Provider: schickt die Nachrichten an die Chat-Completions-API
  * (JSON-Mode, Temperatur 0, Timeout) und liefert den geparsten JSON-Inhalt der Modell-Antwort.
- * Wirft {@link MissingApiKeyError}, wenn kein API-Key gesetzt ist, und {@link MistralRequestError}
- * bei jedem Upstream-/Format-Problem.
+ * Wirft {@link MistralRequestError} bei jedem Upstream-/Format-Problem.
  */
-const requestModelJson = async (messages: { role: string; content: string }[]): Promise<unknown> => {
-	const apiKey = process.env.MISTRAL_API_KEY;
-	if (!apiKey) {
-		throw new MissingApiKeyError();
-	}
-	const model = process.env.MISTRAL_MODEL ?? DEFAULT_MODEL;
-
+const callProvider = async (
+	config: ProviderConfig,
+	messages: { role: string; content: string }[],
+): Promise<unknown> => {
 	const controller = new AbortController();
 	const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 	let response: Response;
 	try {
-		response = await fetch(MISTRAL_ENDPOINT, {
+		response = await fetch(config.endpoint, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',
-				Authorization: `Bearer ${apiKey}`,
+				Authorization: `Bearer ${config.apiKey}`,
 			},
 			body: JSON.stringify({
-				model,
+				model: config.model,
 				temperature: 0,
 				response_format: { type: 'json_object' },
 				messages,
@@ -332,28 +371,83 @@ const requestModelJson = async (messages: { role: string; content: string }[]): 
 		});
 	} catch (error) {
 		const reason = error instanceof Error ? error.message : 'unbekannter Fehler';
-		throw new MistralRequestError(`Mistral-Anfrage fehlgeschlagen: ${reason}`);
+		throw new MistralRequestError(`${config.label}-Anfrage fehlgeschlagen: ${reason}`);
 	} finally {
 		clearTimeout(timeout);
 	}
 
 	if (!response.ok) {
-		throw new MistralRequestError(`Mistral antwortete mit HTTP ${response.status}.`);
+		throw new MistralRequestError(`${config.label} antwortete mit HTTP ${response.status}.`);
 	}
 
 	let payload: unknown;
 	try {
 		payload = await response.json();
 	} catch {
-		throw new MistralRequestError('Mistral-Antwort konnte nicht als JSON gelesen werden.');
+		throw new MistralRequestError(`${config.label}-Antwort konnte nicht als JSON gelesen werden.`);
 	}
 
 	return parseModelContent(payload);
 };
 
 /**
- * Realer Klassifikator: ruft die Mistral-Chat-Completions-API auf. Wirft {@link MissingApiKeyError},
- * wenn kein API-Key gesetzt ist, und {@link MistralRequestError} bei jedem Upstream-/Format-Problem.
+ * Kaskaden-Aufruf: Mistral zuerst (Primär), dann OpenRouter als Verfeinerung (Zweitmeinung).
+ *
+ * - Beide Keys → Mistral generiert, OpenRouter verfeinert mit Mistral's Antwort als Kontext.
+ * - Ein Key fällt aus → der andere liefert allein das Ergebnis.
+ * - Beide Keys, beide Calls failen → {@link MistralRequestError} (→ HTTP 502).
+ * - Gar kein Key → {@link MissingApiKeyError} (→ HTTP 503).
+ */
+const requestModelJson = async (messages: { role: string; content: string }[]): Promise<unknown> => {
+	const mistral = getMistralConfig();
+	const openrouter = getOpenRouterConfig();
+
+	if (!mistral.apiKey && !openrouter.apiKey) {
+		throw new MissingApiKeyError();
+	}
+
+	// Stage 1: Mistral (Primär-Call) — nur wenn Key konfiguriert.
+	let primaryResult: unknown | undefined;
+	if (mistral.apiKey) {
+		try {
+			primaryResult = await callProvider(mistral, messages);
+		} catch {
+			// Mistral ausgefallen — OpenRouter unten ggf. allein versuchen.
+		}
+	}
+
+	// Stage 2: OpenRouter (Verfeinerung oder Fallback) — nur wenn Key konfiguriert.
+	if (openrouter.apiKey) {
+		try {
+			if (primaryResult !== undefined) {
+				// Verfeinerung: Original-Nachrichten + Mistral's Antwort + Optimierungs-Anweisung.
+				return await callProvider(openrouter, [
+					...messages,
+					{ role: 'assistant', content: JSON.stringify(primaryResult) },
+					{ role: 'user', content: REFINEMENT_PROMPT },
+				]);
+			}
+			// Kein Mistral-Ergebnis — OpenRouter allein (Fallback).
+			return await callProvider(openrouter, messages);
+		} catch {
+			if (primaryResult !== undefined) {
+				return primaryResult; // OpenRouter ausgefallen → Mistral's Antwort verwenden.
+			}
+		}
+	}
+
+	// Nur Mistral konfiguriert (kein OpenRouter-Key) oder OpenRouter ohne Mistral ausgefallen.
+	if (primaryResult !== undefined) {
+		return primaryResult;
+	}
+
+	throw new MistralRequestError('Alle konfigurierten LLM-Provider sind ausgefallen.');
+};
+
+/**
+ * Realer Klassifikator: ruft die LLM-Kaskade auf (Mistral → OpenRouter-Verfeinerung).
+ * Wirft {@link MissingApiKeyError}, wenn kein API-Key gesetzt ist, und {@link MistralRequestError}
+ * bei jedem Upstream-/Format-Problem.
  */
 export const classifyPillarsWithMistral: PillarClassifier = async (input) => {
 	const parsed = await requestModelJson([
@@ -410,9 +504,10 @@ const extractParsedTask = (parsed: unknown): ParsedTask => {
 };
 
 /**
- * Realer Task-Text-Parser: ruft die Mistral-Chat-Completions-API auf und extrahiert strukturierte
- * Task-Felder aus Freitext (Schnellerfassung, #235). Wirft {@link MissingApiKeyError}, wenn kein
- * API-Key gesetzt ist, und {@link MistralRequestError} bei jedem Upstream-/Format-Problem.
+ * Realer Task-Text-Parser: ruft die LLM-Kaskade auf (Mistral → OpenRouter-Verfeinerung)
+ * und extrahiert strukturierte Task-Felder aus Freitext (Schnellerfassung, #235). Wirft
+ * {@link MissingApiKeyError}, wenn kein API-Key gesetzt ist, und {@link MistralRequestError}
+ * bei jedem Upstream-/Format-Problem.
  */
 export const parseTaskTextWithMistral: ParseTaskParser = async (text) => {
 	const parsed = await requestModelJson([
@@ -586,9 +681,9 @@ const extractActivityAdvice = (parsed: unknown, input: AdviseActivitiesInput): A
 };
 
 /**
- * Realer Aktivitäten-Berater: ruft die Mistral-Chat-Completions-API auf und schlägt Aktivitäten
- * samt Säulen-Zuordnung vor. Wirft {@link MissingApiKeyError}, wenn kein API-Key gesetzt ist, und
- * {@link MistralRequestError} bei jedem Upstream-/Format-Problem.
+ * Realer Aktivitäten-Berater: ruft die LLM-Kaskade auf (Mistral → OpenRouter-Verfeinerung)
+ * und schlägt Aktivitäten samt Säulen-Zuordnung vor. Wirft {@link MissingApiKeyError},
+ * wenn kein API-Key gesetzt ist, und {@link MistralRequestError} bei jedem Upstream-/Format-Problem.
  */
 export const adviseActivitiesWithMistral: ActivityAdvisor = async (input) => {
 	const parsed = await requestModelJson([

@@ -1,6 +1,6 @@
 const DEFAULTS = {
 	PORT: '3000',
-	MISTRAL_MODEL: 'mistral-small-latest',
+	MISTRAL_MODEL: 'mistral-medium-latest',
 	DATABASE_STORAGE: './database.sqlite',
 	DB_RESET: 'false',
 	DB_SEED: 'true',
@@ -27,6 +27,7 @@ export function logEnvConfig(): void {
 		['DB_RESET', displayValue('DB_RESET', process.env.DB_RESET, false)],
 		['DB_SEED', displayValue('DB_SEED', process.env.DB_SEED, false)],
 		['MISTRAL_API_KEY', displayValue('MISTRAL_API_KEY', process.env.MISTRAL_API_KEY, true)],
+		['OPENROUTER_API_KEY', displayValue('OPENROUTER_API_KEY', process.env.OPENROUTER_API_KEY, true)],
 		['VAPID_PUBLIC_KEY', displayValue('VAPID_PUBLIC_KEY', process.env.VAPID_PUBLIC_KEY, true)],
 		['VAPID_PRIVATE_KEY', displayValue('VAPID_PRIVATE_KEY', process.env.VAPID_PRIVATE_KEY, true)],
 		['PUSH_REMINDERS_ENABLED', displayValue('PUSH_REMINDERS_ENABLED', process.env.PUSH_REMINDERS_ENABLED, false)],
