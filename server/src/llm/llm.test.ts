@@ -4,8 +4,11 @@ import {
 	buildAdvisorUserMessage,
 	buildUserMessage,
 	weakSignalPillarIds,
+	buildLektoratUserMessage,
+	extractLektoratOutput,
 	type AdviseActivitiesInput,
 	type ClassifyPillarsInput,
+	type LektoratInput,
 } from './llm.js';
 
 /**
@@ -184,5 +187,62 @@ describe('weakSignalPillarIds — Custom-Säulen (AK2, #424)', () => {
 		assert.ok(ids.has(2), 'Sinn wird erkannt (auch neben Custom-Namen)');
 		assert.ok(ids.has(4), 'Mentale Gesundheit wird erkannt');
 		assert.ok(!ids.has(1), 'Garten ist keine Weak-Signal-Säule');
+	});
+});
+
+/**
+ * Issue #645: LLM-basierte Text-Lektorat-Funktion zum Kürzen und Lektorieren.
+ * Testet die Helper-Funktionen buildLektoratUserMessage und extractLektoratOutput.
+ */
+describe('Lektorat-Funktion (Issue #645)', () => {
+	describe('buildLektoratUserMessage', () => {
+		it('enthält den Text im Prompt', () => {
+			const input: LektoratInput = { text: 'Das ist ein Test.' };
+			const message = buildLektoratUserMessage(input);
+			assert.ok(message.includes('Das ist ein Test.'), 'Prompt enthält den Originaltext');
+		});
+
+		it('mit maxLength enthält Längenbegrenzung im Prompt', () => {
+			const input: LektoratInput = { text: 'Langer Text...', maxLength: 50 };
+			const message = buildLektoratUserMessage(input);
+			assert.ok(message.includes('Maximallänge: 50 Zeichen'), 'Prompt enthält Maximallänge');
+			assert.ok(message.includes('Text kürzen, falls länger'), 'Prompt enthält Kürzungshinweis');
+		});
+
+		it('ohne maxLength kein Kürzungshinweis', () => {
+			const input: LektoratInput = { text: 'Text ohne Längenbegrenzung' };
+			const message = buildLektoratUserMessage(input);
+			assert.doesNotMatch(message, /Maximallänge/i, 'ohne maxLength kein Längen-Hinweis');
+		});
+	});
+
+	describe('extractLektoratOutput', () => {
+		it('extrahiert das text-Feld aus der Antwort', () => {
+			const parsed = { text: 'Lektorierter Text' };
+			const output = extractLektoratOutput(parsed);
+			assert.equal(output.text, 'Lektorierter Text', 'Text wird extrahiert');
+		});
+
+		it('trimmtWhitespace vom Text', () => {
+			const parsed = { text: '  Lektorierter Text  ' };
+			const output = extractLektoratOutput(parsed);
+			assert.equal(output.text, 'Lektorierter Text', 'Whitespace wird getrimmt');
+		});
+
+		it('wirft bei fehlendem text-Feld', () => {
+			assert.throws(() => extractLektoratOutput({}), /gültiges text-Feld/i, 'Fehler bei fehlendem text-Feld');
+		});
+
+		it('wirft bei falschem Typ (kein String)', () => {
+			assert.throws(
+				() => extractLektoratOutput({ text: 123 }),
+				/gültiges text-Feld/i,
+				'Fehler bei nicht-String text-Feld',
+			);
+		});
+
+		it('wirft bei null/undefined als Antwort', () => {
+			assert.throws(() => extractLektoratOutput(null), /erwartete Format/i, 'Fehler bei null-Antwort');
+		});
 	});
 });
