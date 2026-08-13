@@ -16,6 +16,10 @@ nicht Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 - [Kreuzverhör-Haltung](.ai-knowledge/kreuzverhoer-haltung.md) — Methode des adversarialen Hinterfragens
 - [Deployment](docs/deployment.md) — Merge→Build→rsync→PM2, Host-Layout, Rollback
 - [CI-Architektur](docs/ci-architecture.md) — Provider, Modelle, Soft-Abort, Label-Pipeline, KoliBri MCP
+- [Pipeline-Flow](docs/pipeline-flow.md) — Mermaid-Diagramm des label-getriebenen Ticket-Flows
+- [CI-Legacy-Vergleich](docs/ci-legacy-comparison.md) — Struktur-/Stabilitäts-Vergleich Legacy vs. aktuell
+- [Multi-Provider-CI](.ai-knowledge/multi-provider-ci.md) — Provider-Setup, Secrets, setup-claude-Action (Betriebs-Doku)
+- [UX-Pattern: Sequenzielle Bestätigung](docs/ux-pattern-sequential-confirmation.md) — verbindliche Referenz für destruktive Aktionen
 
 ## Kernregeln
 
@@ -67,6 +71,8 @@ Lesen — die jeweilige Datei enthält alles Notwendige.
 | **PR-Documenter** | `pull_request.closed` + `merged` (PR gemergt) | [pr-post-merge-documentation.yml](.github/workflows/pr-post-merge-documentation.yml) — Inline-Prompt (terminal) | PR-Titel, -Beschreibung, Release-Note & Labels nach Merge → `ai:documented` |
 
 ## Tests (Server)
+
+Testkonzept (Scope, Coverage-Ziel, bewusste Ausnahmen): [docs/testing.md](docs/testing.md).
 
 `pnpm --filter priority-pilot test` — Node.js `node:test` + `tsx`, In-Memory-SQLite, alle Testdateien unter `server/src/**/*.test.ts`.
 

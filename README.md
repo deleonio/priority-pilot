@@ -42,6 +42,10 @@ Verwaltet mit **pnpm Workspaces** (siehe [`pnpm-workspace.yaml`](pnpm-workspace.
 | [`client`](client)     | Aus `openapi.yml` generierte API-Typen (`openapi-typescript`).      |
 | [`frontend`](frontend) | React 19 + KoliBri (Vite/PWA); ruft die API per `openapi-fetch` an. |
 
+Jedes Paket hat eine eigene README mit Start/Build/Scripts:
+[`server/README.md`](server/README.md), [`client/README.md`](client/README.md),
+[`frontend/README.md`](frontend/README.md).
+
 Der gemeinsame API-Vertrag liegt in [`openapi.yml`](openapi.yml). Daraus werden – ohne Java, nur
 mit `openapi-typescript` – erzeugt:
 
