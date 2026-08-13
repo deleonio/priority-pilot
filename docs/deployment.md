@@ -107,7 +107,7 @@ Ausführliche Anleitung zu LLM-Provider-Konfiguration (Mistral + OpenRouter): [d
 
 Quellen der Variablen: `server/src/index.ts` (`DB_RESET`, `DB_SEED`, dotenv-Load),
 `server/src/database.ts` (`DATABASE_STORAGE`), `server/src/express/index.ts` (`PORT`),
-`server/src/llm/mistral.ts` (`MISTRAL_API_KEY`, `MISTRAL_MODEL`).
+`server/src/llm/llm.ts` (`MISTRAL_API_KEY`, `MISTRAL_MODEL`).
 
 ---
 
