@@ -1,6 +1,5 @@
 {
 	"ignore": [
-		"spikes/**",
 		".github/workflows/*.test.ts",
 		"frontend/src/components/TaskTable.tsx",
 		"frontend/src/lib/reactCellRoot.ts",
