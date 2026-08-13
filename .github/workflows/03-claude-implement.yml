@@ -1,7 +1,7 @@
 # ⚠️ Der Workflow-Name ist der Selektor des Skip-Guards weiter unten
-# (`select(.name == "Claude Implement (ai:ready)" ...)`). Wird er hier geaendert,
+# (`select(.name == "3/6 Umsetzung" ...)`). Wird er hier geaendert,
 # muss die jq-Query mitgezogen werden — sonst greift der Guard still nicht mehr.
-name: Claude Implement (ai:ready)
+name: 3/6 Umsetzung
 
 # Setzt ein Issue um, sobald es das Label "ai:ready" erhält UND bereits
 # "ai:analyzed" trägt.
@@ -71,7 +71,7 @@ jobs:
           ISSUE: ${{ github.event.issue.number }}
         run: |
           running=$(gh api --paginate repos/${GITHUB_REPOSITORY}/actions/runs \
-            --jq '.workflow_runs[] | select(.name == "Claude Implement (ai:ready)" and (.status == "queued" or .status == "in_progress") and (.event.issue.number | tonumber) == (env.ISSUE | tonumber) and .id != ${{ github.run_id }}) | .id' 2>/dev/null | head -1)
+            --jq '.workflow_runs[] | select(.name == "3/6 Umsetzung" and (.status == "queued" or .status == "in_progress") and (.event.issue.number | tonumber) == (env.ISSUE | tonumber) and .id != ${{ github.run_id }}) | .id' 2>/dev/null | head -1)
           if [ -n "$running" ]; then
             echo "::notice::Implement-Lauf für Issue #$ISSUE läuft bereits – übersprungen (Fixup holt Fehlendes nach)."
             echo "skip=true" >> "$GITHUB_OUTPUT"

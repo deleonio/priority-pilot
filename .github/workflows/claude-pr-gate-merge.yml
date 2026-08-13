@@ -30,7 +30,7 @@ on:
     # Allowlist: NUR diese beiden Workflows gaten/wecken. Externe Checks (z. B. Renovate) zaehlen
     # bewusst nicht mit. Die Namen muessen exakt den `name:`-Feldern von ci.yml bzw.
     # 04-claude-pr-review.yml entsprechen.
-    workflows: ['CI', 'Claude PR Review (Kreuzverhoer)']
+    workflows: ['CI', '4/6 Review']
     types: [completed]
   pull_request:
     # ai:ready-to-merge wird gesetzt (CI evtl. schon gruen). Auf den Label-Namen wird im job-if
@@ -193,9 +193,9 @@ jobs:
           for attempt in 1 2 3 4 5; do
             checks="$(gh pr checks "$pr" --repo "$REPO" --json name,bucket,workflow)" || true
             if [ -z "$checks" ]; then checks='[]'; fi
-            allow="$(echo "$checks" | jq '[.[] | select(.workflow == "CI" or .workflow == "Claude PR Review (Kreuzverhoer)")]')"
+            allow="$(echo "$checks" | jq '[.[] | select(.workflow == "CI" or .workflow == "4/6 Review")]')"
             has_ci="$(echo "$allow" | jq -r 'any(.[]; .workflow == "CI")')"
-            has_review="$(echo "$allow" | jq -r 'any(.[]; .workflow == "Claude PR Review (Kreuzverhoer)")')"
+            has_review="$(echo "$allow" | jq -r 'any(.[]; .workflow == "4/6 Review")')"
             if [ "$has_ci" = "true" ] && [ "$has_review" = "true" ]; then
               break
             fi
