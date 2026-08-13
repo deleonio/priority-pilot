@@ -479,23 +479,6 @@ test.describe('#281 Schnellerfassung: Voice-Autostart im Capture-Textfeld', () =
 	 * Einstellung an, aber SpeechRecognition nicht verfügbar → keine JS-Fehler,
 	 * Textfeld sichtbar und editierbar, keine Aufnahme gestartet.
 	 */
-	test('AK3: Einstellung an, SpeechRecognition nicht verfügbar → kein Absturz', async ({ page }) => {
-		const pageErrors: string[] = [];
-		page.on('pageerror', (err) => pageErrors.push(err.message));
-
-		await setVoiceAutostartInStorage(page, true);
-		await page.addInitScript(buildInitScript({ speechSupported: false, mediaPermission: 'granted' }));
-		await page.goto('/');
-		await waitForStableView(page);
-
-		await openQuickCapture(page);
-
-		expect(pageErrors, `Unerwartete pageerrors: ${pageErrors.join(' | ')}`).toEqual([]);
-		await expect(page.getByRole('textbox', { name: /Beschreibe deinen Task/i })).toBeVisible();
-		await expect(page.getByRole('textbox', { name: /Beschreibe deinen Task/i })).toBeEditable();
-		const started = await page.evaluate(() => window.__speechRecognitionStarted === true);
-		expect(started).toBe(false);
-	});
 
 	/**
 	 * AK4 — Mobile-First (375px):

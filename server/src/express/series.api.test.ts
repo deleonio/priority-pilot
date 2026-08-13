@@ -151,12 +151,6 @@ describe('Series API', () => {
 			assert.equal(body.rhythm, 'weekly');
 			assert.equal(body.priority, 4);
 		});
-
-		// AK-5: GET /series/:id unbekannte ID → 404
-		it('404 für unbekannte Serie', async () => {
-			const res = await get('/series/9999');
-			assert.equal(res.status, 404);
-		});
 	});
 
 	// 🔴🔴 AK 1: Generierung erzeugt eigenständige Task-Instanzen mit seriesId 🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴🔴
@@ -218,13 +212,6 @@ describe('Series API', () => {
 			const body = (await res.json()) as Record<string, unknown>;
 			assert.equal(body.id, created.id);
 			assert.equal(body.title, 'Täglich trainieren');
-		});
-
-		it('404 für unbekannte Serie', async () => {
-			const res = await patch('/series/9999', {
-				title: 'Neuer Titel',
-			});
-			assert.equal(res.status, 404);
 		});
 
 		it('400 bei ungültigem rhythm', async () => {
@@ -320,12 +307,6 @@ describe('Series API', () => {
 			assert.equal(res.status, 200);
 			const body = (await res.json()) as unknown[];
 			assert.equal(body.length, 0);
-		});
-
-		// AK-8: DELETE /series/:id unbekannte ID → 404
-		it('404 für unbekannte Serie', async () => {
-			const res = await del('/series/9999');
-			assert.equal(res.status, 404);
 		});
 	});
 

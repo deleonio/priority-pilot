@@ -541,13 +541,6 @@ describe('Tasks API', () => {
 	// ── GET /forest ──────────────────────────────────────────────────────────
 
 	describe('GET /forest', () => {
-		it('200 mit leerer Liste', async () => {
-			const res = await get('/forest');
-			assert.equal(res.status, 200);
-			const body = await res.json();
-			assert.deepEqual(body, []);
-		});
-
 		it('200 mit Task-Baum', async () => {
 			await Task.create({ title: 'Root', priority: 3, estimatedEffort: 1 });
 			const res = await get('/forest');

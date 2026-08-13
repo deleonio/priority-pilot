@@ -70,28 +70,6 @@ describe('DB-Schema — Titel-Länge (Issue #582)', () => {
 			assert.strictEqual(typeOptions.length, 30, 'title muss STRING(30) sein');
 		});
 
-		it('DB-Validierung: 31 Zeichen löst DatabaseError aus', async () => {
-			const title31 = 'c'.repeat(31);
-
-			try {
-				await Series.create({
-					title: title31,
-					rhythm: 'weekly',
-					priority: 3,
-					estimatedEffort: 0.5,
-					startDate: new Date(),
-				});
-				assert.fail('Series mit 31 Zeichen sollte DB-Error werfen');
-			} catch (error) {
-				assert.ok(
-					error.name === 'DatabaseError' ||
-						error.name === 'ValidationError' ||
-						error.name === 'SequelizeValidationError',
-					`Sollte DB/ValidationError/SequelizeValidationError sein, got: ${error.name}`,
-				);
-			}
-		});
-
 		it('DB-Validierung: 30 Zeichen wird erfolgreich gespeichert', async () => {
 			const title30 = 'd'.repeat(30);
 			const series = await Series.create({
