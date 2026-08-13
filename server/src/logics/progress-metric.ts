@@ -51,7 +51,12 @@ export const calculateProgressMetric = async (
 	const exec = gitExec ?? defaultGitExecutor;
 
 	const cmd = `git rev-list --count ${baseRef}..${currentHead}`;
-	const result = await exec(cmd);
+	let result: string;
+	try {
+		result = await exec(cmd);
+	} catch (cause) {
+		throw new ProgressMetricError(`Git command failed: ${cmd}`, cause);
+	}
 
 	// Explizite Validierung: Output muss ein gültiger Integer sein
 	const parsed = parseInt(result, 10);
