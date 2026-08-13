@@ -28,8 +28,13 @@ on:
       - '5/6 Fixup'
     types: [completed]
 
-# Kein restriktiver permissions-Block: workflow_run läuft auf dem Default-Branch und erbt den
-# Repo-Default (write) — nötig für gh cache delete (Actions-API) UND den schreibfähigen Cache-Token.
+# Expliziter, minimaler permissions-Block: workflow_run läuft auf dem Default-Branch
+# (vertrauenswürdiger Trigger → schreibfähiger Cache-Token, im Gegensatz zu den
+# issue/label-getriggerten Phasen 01-05). Der Begleitworkflow braucht NUR actions
+# (Cache-API read/write/delete + Artefakt-API) — keine contents/PR/issues-Rechte.
+permissions:
+  actions: write
+
 concurrency:
   group: claude-memory-persist-${{ github.event.workflow_run.id }}
   cancel-in-progress: false
