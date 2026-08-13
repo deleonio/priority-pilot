@@ -241,7 +241,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 	 * Diese Lücke blieb offen, obwohl drei Specs den Dialog-Fokus abdeckten: keine drückte Tab. Ein
 	 * Mechanismus, der den Fokus auf „Abbrechen" *zurückzwingt* statt ihn einmalig zu setzen,
 	 * erfüllt AK1–AK3 und sperrt Tastaturnutzer trotzdem aus. Genau das war der Zustand vor dieser
-	 * Konsolidierung: ein `focusin-Redirect in Modal.tsx hielt den Fokus 500 ms lang fest.
+	 * Konsolidierung: ein `focusin`-Redirect in Modal.tsx hielt den Fokus 500 ms lang fest.
 	 *
 	 * SETTLE_MS = 150 ist bewusst gewählt und keine Beruhigungs-Wartezeit:
 	 *  - KoliBris `setFocus()` (utils/element-focus.js) wiederholt den Fokus über bis zu 10 Frames
