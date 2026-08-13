@@ -134,6 +134,10 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 
 		await openTaskDeleteDialog(page, uniqueTitle('Task'));
 		await assertCancelFocusedWithoutJump(page);
+
+		// Tab-Freiheits-Check: Tab bewegt den Fokus weiter (kein Fokus-Gefängnis)
+		await page.keyboard.press('Tab');
+		await expect(page.getByRole('button', { name: 'Endgültig löschen' })).toBeFocused();
 	});
 
 	test('AK2 — Säulen-Löschdialog: Initialfokus auf „Abbrechen", kein Sprung', async ({ page }) => {
@@ -154,6 +158,10 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		await expect(page.getByRole('heading', { name: 'Säule löschen' })).toBeVisible();
 
 		await assertCancelFocusedWithoutJump(page, 'Priority Pilot');
+
+		// Tab-Freiheits-Check: Tab bewegt den Fokus weiter (kein Fokus-Gefängnis)
+		await page.keyboard.press('Tab');
+		await expect(page.getByRole('button', { name: 'Endgültig löschen' })).toBeFocused();
 	});
 
 	// #553: Der Serien-Löschdialog hat eine eigene Struktur (Ja/Nein/Abbrechen, kein
@@ -199,6 +207,10 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		await waitForStableView(page);
 		await expect(page.getByRole('button', { name: /^Nein/i })).toBeFocused();
 		await expect(page.getByRole('button', { name: /^Ja \(Serie \+ alle Aufgaben\)/ })).not.toBeFocused();
+
+		// Tab-Freiheits-Check: Tab bewegt den Fokus weiter (kein Fokus-Gefängnis)
+		await page.keyboard.press('Tab');
+		await expect(page.getByRole('button', { name: /^Nein/i })).not.toBeFocused();
 	});
 
 	/**
@@ -284,6 +296,10 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		// „Löschen" liegt im Popover; dessen hidePopover() gibt den Fokus synchron an den Invoker
 		// „Weitere Aktionen" zurück — Modal.tsx merkt sich diesen als Auslöser.
 		await expect(moreButton).toBeFocused();
+
+		// Tab-Freiheits-Check: Tab bewegt den Fokus weiter (kein Fokus-Gefängnis)
+		await page.keyboard.press('Tab');
+		await expect(moreButton).not.toBeFocused();
 	});
 
 	test('AK6 — Nach erfolgreichem Löschen übernimmt das Fallback-Element (nicht document.body)', async ({ page }) => {
@@ -300,6 +316,10 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		await expect(page.getByRole('heading', { name: 'Task löschen' })).toBeHidden();
 
 		await expect(page.locator('[data-focus-fallback]')).toBeFocused();
+
+		// Tab-Freiheits-Check: Tab bewegt den Fokus weiter (kein Fokus-Gefängnis)
+		await page.keyboard.press('Tab');
+		await expect(page.locator('[data-focus-fallback]')).not.toBeFocused();
 	});
 
 	test('AK7 — Mobile-First 375px: Lösch-Dialog ohne horizontales Scrollen', async ({ page }) => {

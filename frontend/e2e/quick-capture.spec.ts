@@ -82,6 +82,10 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		await expect(page.getByRole('textbox', { name: 'Titel' })).toHaveValue('');
 		await expect(page.getByRole('textbox', { name: /Beschreibe/ })).toBeHidden();
 
+		// Tab-Freiheits-Check: Tab bewegt den Fokus weiter (kein Fokus-Gefängnis)
+		await page.keyboard.press('Tab');
+		await expect(page.getByRole('textbox', { name: 'Titel' })).not.toBeFocused();
+
 		// Der reguläre Weg funktioniert weiter: Titel ausfüllen, speichern → Task erscheint in der Liste.
 		const title = uniqueTitle('Überspringen');
 		await page.getByRole('textbox', { name: 'Titel' }).fill(title);
