@@ -184,11 +184,6 @@ test.describe('#406 Wort-Bild-Marke vergrößern + App-Namen-H1 entfernen', () =
 
 		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toHaveCount(1);
 	});
-
-	/**
-	 * AK5 — Mobile-First (375px): Bei 375px-Viewport bleibt das Logo sichtbar und es entsteht kein
-	 * horizontaler Overflow.
-	 */
 });
 
 // ---------------------------------------------------------------------------
