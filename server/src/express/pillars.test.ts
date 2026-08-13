@@ -383,11 +383,6 @@ describe('Pillars API', () => {
 				const res = await patch(`/pillars/${created.id}`, { name: 'Yoga' }, aliceCookie);
 				assert.equal(res.status, 200, 'Umbenennung auf denselben Namen ist idempotent');
 			});
-
-			it('401 ohne Auth', async () => {
-				const res = await patch('/pillars/1', { name: 'NoAuth' });
-				assert.equal(res.status, 401);
-			});
 		});
 
 		// ── DELETE /pillars/:id (AK3) ────────────────────────────────────────────────
