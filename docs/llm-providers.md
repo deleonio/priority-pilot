@@ -7,7 +7,7 @@ passen zu einem Task?), **Freitext-Parsing** (Struktur aus Freitext) und den **A
 Alle Anfragen laufen als **Kaskade**: Mistral generiert die erste Antwort, OpenRouter verfeinert sie
 als Zweitmeinung. Fällt ein Provider aus, liefert der andere allein das Ergebnis.
 
-> **Wo der Code lebt:** [`server/src/llm/`](../server/src/llm/) — `mistral.ts` (Kaskaden-Logik),
+> **Wo der Code lebt:** [`server/src/llm/`](../server/src/llm/) — `llm.ts` (Kaskaden-Logik),
 > `index.ts` (Barrel-Exporte).
 
 ---
@@ -15,7 +15,7 @@ als Zweitmeinung. Fällt ein Provider aus, liefert der andere allein das Ergebni
 ## Architektur
 
 ```
-Express-Route                Kaskade (server/src/llm/mistral.ts)
+Express-Route                Kaskade (server/src/llm/llm.ts)
 ──────────────────────       ──────────────────────────────────────
 POST /tasks/suggest-pillars  ┐
 POST /tasks/parse-text       ├── requestModelJson()
