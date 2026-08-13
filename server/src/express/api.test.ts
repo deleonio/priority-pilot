@@ -499,19 +499,25 @@ describe('Tasks API', () => {
 	// ── DELETE /tasks/:id/dependencies/:depId ────────────────────────────────
 
 	describe('DELETE /tasks/:id/dependencies/:depId', () => {
-		it('204 bei vorhandener Kante', async () => {
+		it('204 bei vorhandener Kante und entfernt sie tatsächlich', async () => {
 			const a = await Task.create({ title: 'A', priority: 1, estimatedEffort: 1 });
 			const b = await Task.create({ title: 'B', priority: 1, estimatedEffort: 1 });
 			await a.addDependency(b);
 			const res = await del(`/tasks/${a.id}/dependencies/${b.id}`);
 			assert.equal(res.status, 204);
+			// Behavior: die Kante ist in der DB wirklich weg (nicht nur Status-Code).
+			const remaining = await a.getDependencies();
+			assert.equal(remaining.length, 0, 'Kante wurde in der DB entfernt');
 		});
 
-		it('404 wenn Kante nicht existiert', async () => {
+		it('404 wenn Kante nicht existiert und bleibt ohne Nebenwirkung', async () => {
 			const a = await Task.create({ title: 'A', priority: 1, estimatedEffort: 1 });
 			const b = await Task.create({ title: 'B', priority: 1, estimatedEffort: 1 });
 			const res = await del(`/tasks/${a.id}/dependencies/${b.id}`);
 			assert.equal(res.status, 404);
+			// Behavior: fehlgeschlagener DELETE erzeugt keine Phantom-Kante.
+			const deps = await a.getDependencies();
+			assert.equal(deps.length, 0, 'fehlgeschlagener DELETE erzeugt keine Kante');
 		});
 
 		it('404 wenn Task nicht existiert', async () => {
