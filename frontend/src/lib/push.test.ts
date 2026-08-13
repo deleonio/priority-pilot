@@ -146,7 +146,10 @@ describe('lib/push', () => {
 			installNotification('granted');
 			const subscription = makeSubscription('https://push.example.com/off');
 			const pushManager: PushManagerMock = {
-				getSubscription: vi.fn().mockResolvedValue(subscription),
+				getSubscription: vi.fn().mockImplementation(async () =>
+					// Browser-Realität: nach erfolgtem unsubscribe() ist die Subscription weg.
+					subscription.unsubscribe.mock.calls.length > 0 ? null : subscription,
+				),
 				subscribe: vi.fn(),
 			};
 			installServiceWorker(pushManager);
@@ -155,6 +158,8 @@ describe('lib/push', () => {
 
 			expect(mockedApi.unsubscribePush).toHaveBeenCalledWith({ endpoint: 'https://push.example.com/off' });
 			expect(subscription.unsubscribe).toHaveBeenCalledOnce();
+			// Observable Outcome: nach dem Abmelden ist keine Subscription mehr aktiv.
+			expect(await hasActiveSubscription()).toBe(false);
 		});
 
 		it('ist ein No-op ohne aktive Subscription', async () => {
@@ -168,6 +173,8 @@ describe('lib/push', () => {
 			await disablePush();
 
 			expect(mockedApi.unsubscribePush).not.toHaveBeenCalled();
+			// Observable Outcome: ohne aktive Subscription bleibt der Zustand inaktiv.
+			expect(await hasActiveSubscription()).toBe(false);
 		});
 
 		// AK1 / TF4 (#507): Beobachtbares Outcome statt reiner Mock-Assertion. Nach dem Abmelden

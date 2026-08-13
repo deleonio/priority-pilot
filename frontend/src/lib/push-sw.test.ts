@@ -87,6 +87,9 @@ describe('push-sw.js — Issue #504 (nur EINE Benachrichtigung)', () => {
 			'Priority Pilot',
 			expect.objectContaining({ body: 'Man sieht nur mit dem Herzen gut. — Antoine de Saint-Exupéry' }),
 		);
+		// Observable Outcome: die Notification trägt einen stabilen Tag (Coalescing gegen Duplikate).
+		const options = showNotification.mock.calls[0]?.[1] as { tag?: string } | undefined;
+		expect(options?.tag).toBeTruthy();
 	});
 
 	it('AK1/T3: aufeinanderfolgende Pushes stapeln nicht – Notification trägt einen stabilen Tag', async () => {
@@ -122,6 +125,10 @@ describe('push-sw.js — Issue #504 (nur EINE Benachrichtigung)', () => {
 		expect(showNotification).toHaveBeenCalledTimes(1);
 		expect(clientsMatchAll).not.toHaveBeenCalled();
 		expect(openWindow).not.toHaveBeenCalled();
+		// Observable Outcome: die Notification hat die erwarteten Parameter (keine zweite Notification).
+		const options = showNotification.mock.calls[0]?.[1] as { tag?: string; body?: string } | undefined;
+		expect(options?.body).toBe('Zitat');
+		expect(options?.tag).toBeTruthy();
 	});
 
 	it('AK3: das Handbuch dokumentiert das Symptom der doppelten Benachrichtigung', () => {
