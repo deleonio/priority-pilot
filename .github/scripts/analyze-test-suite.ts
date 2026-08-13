@@ -18,8 +18,8 @@
  * Nutzung: pnpm dlx tsx@4.22.4 .github/scripts/analyze-test-suite.ts \
  *   --unit-results unit-results.txt --e2e-results e2e-results.txt --repo-root . --report-dir .ai-knowledge
  *
- * Die Detektoren sind als reine, exportierte Funktionen gehalten, damit
- * analyze-test-suite.test.ts sie ohne Dateisystem prüfen kann.
+ * Die Detektoren sind als reine, exportierte Funktionen gehalten — pure Functions ohne
+ * Dateisystem-Status (leicht testbar).
  */
 
 import { readFileSync, writeFileSync, existsSync, readdirSync, appendFileSync, mkdirSync } from 'node:fs';

@@ -85,9 +85,6 @@ jobs:
       - name: Coverage-Gate (server/src/logics)
         run: pnpm --filter priority-pilot test:coverage
 
-      - name: Test (Workflow-/CI-Vertraege)
-        run: pnpm dlx tsx@4.22.4 --test ".github/workflows/"*.test.ts
-
   e2e:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest

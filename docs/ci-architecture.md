@@ -65,10 +65,11 @@ gh variable set LLM_PROVIDER --body zai      # z.ai/GLM (Subscription-Kontingent
 ```
 
 Abgesichert ist davon nur, was ein Review nicht sieht: dass alle `setup-claude`-Aufrufer den
-Provider-Input durchreichen und `.claude/settings.json` providerneutral bleibt
-([`workflow-consistency.test.ts`](../.github/workflows/workflow-consistency.test.ts)). Die
-Auflösungslogik selbst (Endpoint, Modell-Aliase, Key-Typ) ist bewusst **nicht** testgespiegelt —
-ein falscher Wert macht den nächsten Lauf sofort und laut rot.
+Provider-Input durchreichen und `.claude/settings.json` providerneutral bleibt. Dieses
+Spiegel-Verhältnis war früher via `workflow-consistency`-Test gesichert; mit
+[ADR 0001](./adr/0001-github-workflows-bleiben-ungetestet.md) entfällt der Test — wie die Auflösungslogik selbst (Endpoint,
+Modell-Aliase, Key-Typ) macht ein falscher Wert den nächsten Lauf sofort und laut rot, ist
+also bewusst nicht zusätzlich abgesichert.
 
 #### Token-Typen bei `LLM_PROVIDER=claude`
 

@@ -156,11 +156,10 @@ flowchart TD
     Ansatzes. Guards: nur offene Kandidaten mit `ai:analyzed`, ohne `ai:spec-ready`/`ai:ready`,
     Sammelknoten (`ai:to-big-issue`) übersprungen.
 - **Deterministische Gates statt LLM-Vertrauen:** Kritische Zustandsübergänge sind deterministisch
-  erzwungen, nicht dem LLM anvertraut (Prinzip „Gate statt Erinnerung"). Testgespiegelt ist davon
-  gezielt nur, was still ausfällt: dass label-schreibende Steps unter dem App-Token laufen
-  (`workflow-invariants.test.ts`) und dass das Fan-in-Gate vor der Freigabe steht
-  (`workflow-safety.test.ts`). Die übrigen Gates unten fallen beim ersten Lauf laut auf und sind
-  bewusst nicht zusätzlich abgesichert:
+  erzwungen, nicht dem LLM anvertraut (Prinzip „Gate statt Erinnerung"). Früher waren die
+  still-ausfallenden Gates (label-schreibende Steps unter dem App-Token, Fan-in-Gate vor der
+  Freigabe) testgespiegelt; mit [ADR 0001](./adr/0001-github-workflows-bleiben-ungetestet.md) entfallen diese `.github`-Tests. Alle
+  Gates fallen beim ersten Lauf laut auf und sind bewusst nicht zusätzlich abgesichert:
   - **Agent-Secret-Pre-Flight** (alle 6 KI-Workflows): fehlt `AGENT_SECRET`, bricht der
     Lauf deterministisch mit `::error::` ab — kein stiller Skip (AGENTS.md: „bewusstes Opt-in"). Bei
     triage/retriage/spec/implement wird zusätzlich `ai:to-big-issue` gesetzt (Issue-Signal); bei

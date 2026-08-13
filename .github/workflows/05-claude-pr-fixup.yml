@@ -168,10 +168,8 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
         run: |
           cat > /tmp/claude-prompt.txt << 'CLAUDE_EOF'
-          TICKET-MEMORY: Lies vor Beginn alle Dateien in .claude/ticket-memory/ (falls vorhanden) — ticketspezifisches Gedächtnis aus früheren Phasen. Schreibe am ENDE deine wichtigsten Erkenntnisse (behebte Findings, offene Punkte, neue Fallstricke) in .claude/ticket-memory/phase-fixup.md. Max. ~30 Zeilen, nur Neues. Schließe die Datei zwingend mit der Zeile `<!-- phase:fixup complete -->` ab (Sentinel — der Workflow verwirft eine Notiz ohne ihn als unvollständig).
+          MEMORY: Deine Memory (autoMemoryDirectory, automatisch geladen) sammelt pro Issue alle Phasen-Notizen. Schreibe am ENDE deine wichtigsten neuen Erkenntnisse (behebte Findings, offene Punkte, neue Fallstricke) dort hinein — nur Neues, kurz.
           FOKUS: NUR PR #PR_NR. NUR gemeldete Kritikpunkte beheben. KEINE Abstecher. Token sparen: kurz, präzise, direkt.
-
-          Memory ist bereits geladen (ticket-PR_NR).
 
           ABLAUF (STRIKT):
             0. KONFLIKTAUFLÖSUNG (falls nötig): Prüfe mit git status und git diff --name-only --diff-filter=U auf Merge-Konflikte. Bei Konflikten: analysieren, eindeutig auflösen, git add, git commit, git push. Erst DANN mit Findings weitermachen.
@@ -213,18 +211,22 @@ jobs:
             2>&1 | tee /tmp/claude-output.log
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
 
-      - name: Memory-Check (phase-fixup-Notiz mit Sentinel?)
-        # D3: if-no-path-exists:ignore verschluckt vergessene Notizen still. Warning macht den
-        # No-Op hörbar; kein exit, damit legitime Skips (Guard) grün bleiben.
+      - name: Memory-Delete (alten Issue-Cache vor Save abbau — GHA-Cache ist immutabel)
+        # Ein Save unter dem stabilen Issue-Key wäre ein No-Op (Cache immutabel). Daher den alten
+        # Eintrag vorher abbauen. Exact-Match per jq: gh --key matched nur Prefix, sonst träfe
+        # Issue 12 den Key von Issue 123. Gleiche Gate-Bedingung wie der Save-Step; Best-Effort.
         if: always() && steps.setup.outputs.configured == 'true' && steps.claude.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          MEMORY_KEY: ${{ steps.setup.outputs.memory-save-key }}
         shell: bash
         run: |
-          f=".claude/ticket-memory/phase-fixup.md"
-          [ -f "$f" ] && grep -qE '<!-- phase:fixup complete -->' "$f" \
-            || echo "::warning title=Memory fehlt::phase-fixup.md ohne Sentinel — Claude hat keine Notiz hinterlassen. Folge-Phase lädt Vorgängerstand."
+          while IFS= read -r cid; do
+            [ -n "$cid" ] && gh cache delete "$cid" --repo "$GITHUB_REPOSITORY" && echo "🗑️ alten Issue-Cache $cid gelöscht" || true
+          done < <(gh cache list --repo "$GITHUB_REPOSITORY" --key "$MEMORY_KEY" --json id,key 2>/dev/null | jq -r --arg k "$MEMORY_KEY" '.[] | select(.key == $k) | .id' 2>/dev/null || true)
 
-      - name: Memory-Save (ticketspezifisch, dateibasiert)
-        # Cache nur schreiben, wenn Claude gelaufen ist (s. workflow-invariants-Test: das
+      - name: Memory-Save (pro Issue, dateibasiert)
+        # Cache nur schreiben, wenn Claude gelaufen ist (das
         # outcome-Binding hält diesen Step im Guard-Skip-Fall indirekt heraus).
         if: always() && steps.setup.outputs.configured == 'true' && steps.claude.outcome == 'success'
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
