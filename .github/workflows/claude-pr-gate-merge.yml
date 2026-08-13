@@ -151,7 +151,7 @@ jobs:
             exit 0
           fi
 
-          labels="$(echo "$pr_json" | jq -r '[.labels[].name]')"
+          labels="$(echo "$pr_json" | jq -r '[.labels[].name? // empty]')"
 
           # 3) Nur PRs der KI-Pipeline (tragen ein Pipeline-Label) behandeln. Schuetzt fremde/
           #    menschliche PRs davor, durch das Gate ungewollt einen Fixup zu triggern bzw. gemergt

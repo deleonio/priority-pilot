@@ -69,7 +69,7 @@ jobs:
           # --repo ist Pflicht: der Workflow hat keinen actions/checkout — ohne --repo ruft gh git auf
           # und stirbt mit `fatal: not a git repository`.
           prs=$(gh pr list --repo "$REPO" --state open --json number,isDraft,headRepository \
-            --jq '.[] | select(.isDraft == false) | select(.headRepository.nameWithOwner == "'"$REPO"'") | .number')
+            --jq '.[] | select(.isDraft == false) | select(.headRepository.nameWithOwner == $ENV.REPO) | .number')
 
           if [ -z "$prs" ]; then
             echo "Keine offenen Nicht-Draft-same-repo-PRs gefunden — nichts zu tun."
@@ -99,7 +99,7 @@ jobs:
             # DIRTY / CONFLICTING: Merge-Konflikt erkannt → ai:needs-changes setzen
             if [ "$merge_state" = "DIRTY" ] || [ "$mergeable" = "CONFLICTING" ]; then
               # Idempotenz-Guard: ai:needs-changes bereits gesetzt → idempotent überspringen (kein Label-Flackern)
-              labels="$(echo "$view" | jq -r '[.labels[].name]')"
+              labels="$(echo "$view" | jq -r '[.labels[].name? // empty]')"
               if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:needs-changes")')" = "true" ]; then
                 echo "PR #$pr: ai:needs-changes bereits gesetzt — idempotent, No-op."
                 continue
