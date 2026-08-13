@@ -56,6 +56,45 @@ interface Init {
 }
 
 /**
+ * Wiederholt einen API-Aufruf bei transienten 5xx-Fehlern (502, 503, 504).
+ * Maximale Anzahl von Versuchen: 3 (initialer Versuch + 2 Retries).
+ *
+ * **Nur für LLM-Endpoints (#620):** Bei Ausfall/Timeout des Mistral-Dienstes wird ein
+ * limitierter Retry versucht, bevor der Fehler an die UI durchgereicht wird.
+ */
+async function withRetry<T>(
+	fetch: () => Promise<{ data?: T; error?: { message: string }; response: Response }>,
+	isTransientError: (status: number) => boolean = (status) => status === 502 || status === 503 || status === 504,
+	maxAttempts = 3,
+): Promise<{ data: T; response: Response }> {
+	let lastError: Error | undefined;
+	for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+		try {
+			const result = await fetch();
+			if (result.response.ok && result.data !== undefined) {
+				return { data: result.data, response: result.response };
+			}
+			if (!isTransientError(result.response.status)) {
+				throw new ResponseError(result.response);
+			}
+			// Transienter Fehler → bei weiteren Attempts wiederholen
+			lastError = new ResponseError(result.response);
+		} catch (error) {
+			if (error instanceof ResponseError) {
+				lastError = error;
+				if (!isTransientError(error.response.status)) {
+					throw error;
+				}
+				// Transienter Fehler → bei weiteren Attempts wiederholen
+			} else {
+				throw error;
+			}
+		}
+	}
+	throw lastError || new Error('Alle Retry-Versuche fehlgeschlagen.');
+}
+
+/**
  * Typsichere API-Fassade über `openapi-fetch`. Bildet die früheren Methoden des generierten
  * Clients nach (gleiche Signaturen, wirft `ResponseError` bei nicht-erfolgreichen Antworten),
  * damit die UI-Komponenten unverändert bleiben.
@@ -107,11 +146,9 @@ export const api = {
 
 	// Schnellerfassung (#236): extrahiert aus frei formuliertem Text strukturierte Task-Felder
 	// per LLM (`POST /tasks/parse-text`), die anschließend das Anlege-Formular vorausfüllen.
+	// **Retry bei transienten 5xx-Fehlern (#620):** Bei Ausfall/Timeout wird bis zu 2× retry-t.
 	async parseText({ text }: { text: string }): Promise<ParsedTask> {
-		const { data, response } = await client.POST('/tasks/parse-text', { body: { text } });
-		if (!response.ok || data === undefined) {
-			throw new ResponseError(response);
-		}
+		const { data } = await withRetry(() => client.POST('/tasks/parse-text', { body: { text } }));
 		return data;
 	},
 
@@ -211,14 +248,12 @@ export const api = {
 
 	// Aktivitäten-Berater (`POST /pillars/advisor`): schlägt per Mistral konkrete Aktivitäten vor
 	// und ordnet sie den Säulen zu, auf die sie einzahlen würden — optional gelenkt durch eine Frage.
+	// **Retry bei transienten 5xx-Fehlern (#620):** Bei Ausfall/Timeout wird bis zu 2× retry-t.
 	async advisePillarActivities({
 		activityAdvisorInput,
 		signal,
 	}: { activityAdvisorInput: ActivityAdvisorInput } & Init): Promise<ActivityAdvisorResult> {
-		const { data, response } = await client.POST('/pillars/advisor', { body: activityAdvisorInput, signal });
-		if (!response.ok || data === undefined) {
-			throw new ResponseError(response);
-		}
+		const { data } = await withRetry(() => client.POST('/pillars/advisor', { body: activityAdvisorInput, signal }));
 		return data;
 	},
 
