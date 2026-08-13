@@ -13,7 +13,7 @@ interface FeedbackPillar {
  * Feedback-Sample abgelegt: der eingegebene Titel/Beschreibung samt der **final gewählten** Säulen.
  *
  * Die jüngsten Samples werden bei späteren Klassifikationen als zusätzliche Few-Shot-Beispiele in den
- * Prompt gegeben (siehe `llm/mistral.ts`) und kalibrieren so die generischen Vermutungen — adressiert
+ * Prompt gegeben (siehe `llm/llm.ts`) und kalibrieren so die generischen Vermutungen — adressiert
  * besonders die schwer ableitbaren Säulen „Sinn" und „Mentale Gesundheit" aus #39.
  *
  * Seit #430 ist jedes Feedback **pro Nutzer** isoliert: `userId` bindet das Sample an den anfragenden

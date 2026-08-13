@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 
 /**
  * Lädt lokale Umgebungsvariablen aus einer `.env`-Datei in `process.env`, **bevor** andere Module
- * sie auslesen (z. B. `MISTRAL_API_KEY` in {@link ../llm/mistral.ts}). Ohne diesen Schritt würde ein
+ * sie auslesen (z. B. `MISTRAL_API_KEY` in {@link ../llm/llm.ts}). Ohne diesen Schritt würde ein
  * lokal in `.env` hinterlegter Schlüssel nie gelesen — der Endpoint `POST /tasks/suggest-pillars`
  * antwortet dann mit HTTP 503 („MISTRAL_API_KEY ist nicht gesetzt …"), obwohl der Key vorliegt.
  *

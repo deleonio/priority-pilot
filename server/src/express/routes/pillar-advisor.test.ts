@@ -1,7 +1,7 @@
 import { describe, it, beforeEach, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../../test/helpers.js';
-import { type ActivityAdvisor, type AdviseActivitiesInput, type ActivityAdvice } from '../../llm/mistral.js';
+import { type ActivityAdvisor, type AdviseActivitiesInput, type ActivityAdvice } from '../../llm/llm.js';
 import { Pillar, User } from '../../models/index.js';
 
 // Rote Spec-Tests für #430 — nutzerdefinierte Säulen im Säulen-Berater (/pillars/advisor):

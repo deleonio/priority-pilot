@@ -6,7 +6,7 @@ import {
 	MistralRequestError,
 	type ParsedTask,
 	type ParseTaskParser,
-} from '../../llm/mistral.js';
+} from '../../llm/llm.js';
 import type { components } from '../../api';
 
 type ErrorDto = components['schemas']['Error'];

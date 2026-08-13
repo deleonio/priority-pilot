@@ -1,6 +1,5 @@
 // Muss als Erstes stehen: lädt `.env` in process.env, bevor andere Module Variablen lesen.
 import './env.js';
-import { logEnvConfig } from './env-startup-log.js';
 import sequelize from './database.js';
 import { Pillar, Task, TaskPillar } from './models/index.js';
 import { SEED_PILLARS } from './models/pillarData.js';
@@ -113,8 +112,6 @@ const seedDemoData = async (): Promise<void> => {
 };
 
 export const main = async (): Promise<void> => {
-	logEnvConfig();
-
 	try {
 		// Test-Trigger für Spec-Tests (AK1 - invalid DATABASE_STORAGE)
 		if (process.env.DATABASE_STORAGE?.startsWith('invalid://')) {

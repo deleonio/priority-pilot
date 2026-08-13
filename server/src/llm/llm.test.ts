@@ -6,7 +6,7 @@ import {
 	weakSignalPillarIds,
 	type AdviseActivitiesInput,
 	type ClassifyPillarsInput,
-} from './mistral.js';
+} from './llm.js';
 
 /**
  * Vertrag für `buildAdvisorUserMessage(input)` in Bezug auf die Säulen-Verteilung (Nachfolge #337):
