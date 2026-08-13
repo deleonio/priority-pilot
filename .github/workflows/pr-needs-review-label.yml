@@ -141,7 +141,7 @@ jobs:
                   echo "PR #$PR: Label $label entfernt (Reset)." >> "$GITHUB_STEP_SUMMARY"
                   break
                 fi
-                if [ "$attempt" -lt 3 ]; then sleep "$attempt"; fi
+                if [ "$attempt" -lt 3 ]; then sleep "$((2 ** (attempt-1)))"; fi
                 if [ "$attempt" -eq 3 ]; then
                   echo "::error::Label-Entfernung $label nach 3 Versuchen fehlgeschlagen (Race-Condition #613)"
                   exit 1

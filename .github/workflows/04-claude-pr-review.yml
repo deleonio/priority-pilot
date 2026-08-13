@@ -251,7 +251,7 @@ jobs:
                gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-human 2>/dev/null; then
               break
             fi
-            if [ "$attempt" -lt 3 ]; then sleep "$attempt"; fi
+            if [ "$attempt" -lt 3 ]; then sleep "$((2 ** (attempt-1)))"; fi
             if [ "$attempt" -eq 3 ]; then label_operation_failed="true"; fi
           done
 
@@ -268,7 +268,7 @@ jobs:
                 echo "::notice::Label gesetzt: ai:ready-to-merge"
                 break
               fi
-              if [ "$attempt" -lt 3 ]; then sleep "$attempt"; fi
+              if [ "$attempt" -lt 3 ]; then sleep "$((2 ** (attempt-1)))"; fi
               if [ "$attempt" -eq 3 ]; then
                 echo "::error::ai:ready-to-merge nach 3 Versuchen fehlgeschlagen → ai:needs-human gesetzt"
                 gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⚠️ **Label-Race-Condition (#613)**: ai:ready-to-merge nach 3 Retries fehlgeschlagen. Bitte manuell prüfen." 2>/dev/null || true
@@ -282,7 +282,7 @@ jobs:
                 echo "::notice::Label gesetzt: ai:needs-human (wartet auf Mensch)"
                 break
               fi
-              if [ "$attempt" -lt 3 ]; then sleep "$attempt"; fi
+              if [ "$attempt" -lt 3 ]; then sleep "$((2 ** (attempt-1)))"; fi
               if [ "$attempt" -eq 3 ]; then
                 echo "::error::ai:needs-human nach 3 Versuchen fehlgeschlagen → manuelle Eingriffe erforderlich"
                 exit 1
@@ -295,7 +295,7 @@ jobs:
                 echo "::notice::Label gesetzt: ai:needs-changes"
                 break
               fi
-              if [ "$attempt" -lt 3 ]; then sleep "$attempt"; fi
+              if [ "$attempt" -lt 3 ]; then sleep "$((2 ** (attempt-1)))"; fi
               if [ "$attempt" -eq 3 ]; then
                 echo "::error::ai:needs-changes nach 3 Versuchen fehlgeschlagen → ai:needs-human gesetzt"
                 gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⚠️ **Label-Race-Condition (#613)**: ai:needs-changes nach 3 Retries fehlgeschlagen. Bitte manuell prüfen." 2>/dev/null || true
