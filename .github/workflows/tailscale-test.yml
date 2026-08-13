@@ -1,0 +1,40 @@
+name: Test Tailscale Exit Node Route
+
+on:
+  workflow_dispatch: # Erlaubt manuelles Starten über die GitHub-Oberfläche
+
+jobs:
+  test-vpn:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 1. IP VOR der VPN-Verbindung prüfen (Microsoft Azure Datacenter IP)
+      - name: Check IP (Before Tailscale)
+        run: |
+          echo "=== Official Runner IP ==="
+          curl -s https://ifconfig.me
+          echo ""
+
+      # 2. Tailscale verbinden & Traffic über den Exit Node zwingen
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+          args: --exit-node=${{ secrets.TAILSCALE_EXIT_NODE }} --exit-node-allow-lan-access=true
+
+      # 3. IP NACH der VPN-Verbindung prüfen (Deine Frankfurter Server IP)
+      - name: Check IP (After Tailscale)
+        run: |
+          echo "=== Routed IP via Frankfurt ==="
+          curl -s https://ifconfig.me
+          echo ""
+          echo "=== Trace Route Details ==="
+          curl -s https://ipapi.co/json/
+
+      # 4. Beispiel: API-Test über die Frankfurter IP
+      - name: Test OpenRouter Connection
+        run: |
+          echo "Sending request via Frankfurt Exit Node..."
+          curl -s https://openrouter.ai/api/v1/models | head -n 20
