@@ -20,15 +20,28 @@ const defaultGitExecutor = async (cmd: string): Promise<string> => {
 };
 
 /**
+ * Git-Fehler bei der Fortschrittsberechnung.
+ */
+export class ProgressMetricError extends Error {
+	constructor(
+		message: string,
+		public cause?: unknown,
+	) {
+		super(message);
+		this.name = 'ProgressMetricError';
+	}
+}
+
+/**
  * Berechnet die Fortschrittsmetrik: Anzahl der Commits zwischen baseRef und currentHead.
  *
- * In der echten CI-Umgebung wird `git rev-list --count base..HEAD` ausgeführt.
- * Für Tests mit String-Refs wird der Vergleich vereinfacht (Gleichheit = 0, sonst > 0).
+ * Führt `git rev-list --count base..HEAD` aus. Git-Fehler werden propagiert.
  *
  * @param baseRef Git-Ref beim Start des CI-Laufs (z.B. Commit-SHA oder Branch)
  * @param currentHead Aktuelle Git-Ref (z.B. HEAD)
  * @param gitExec Optionaler Git-Executor (Dependency Injection für Tests)
  * @returns Anzahl der Commits seit Start (≥ 0)
+ * @throws ProgressMetricError bei Git-Fehlern oder ungültiger Output
  */
 export const calculateProgressMetric = async (
 	baseRef: string,
@@ -37,16 +50,16 @@ export const calculateProgressMetric = async (
 ): Promise<number> => {
 	const exec = gitExec ?? defaultGitExecutor;
 
-	try {
-		// Echter Git-Befehl: rev-list --count base..HEAD
-		const cmd = `git rev-list --count ${baseRef}..${currentHead}`;
-		const result = await exec(cmd);
-		return parseInt(result, 10) || 0;
-	} catch {
-		// Fallback für Tests mit String-Refs (kein echtes Git-Repository)
-		// Gleichheit = kein Fortschritt, sonst Fortschritt
-		return baseRef === currentHead ? 0 : 1;
+	const cmd = `git rev-list --count ${baseRef}..${currentHead}`;
+	const result = await exec(cmd);
+
+	// Explizite Validierung: Output muss ein gültiger Integer sein
+	const parsed = parseInt(result, 10);
+	if (isNaN(parsed) || parsed < 0) {
+		throw new ProgressMetricError(`Git rev-list output ist keine gültige nicht-negative Zahl: "${result}"`);
 	}
+
+	return parsed;
 };
 
 /**
