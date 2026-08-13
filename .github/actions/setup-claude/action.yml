@@ -54,7 +54,11 @@ inputs:
   # denselben flachen Pfad. Da GHA-Cache immutabel ist, baut jeder Workflow den alten
   # Issue-Eintrag vor dem Save per gh cache delete ab (Delete-before-Save), sonst No-Op.
   memory-load:
-    description: 'Memory-Load zu Beginn des Workflows (true = restauriert dateibasierte Memory für ticket-ref aus dem Actions-Cache)'
+    description: 'Memory-Load zu Beginn des Workflows (true = restauriert dateibasierte Memory für ticket-ref aus dem Actions-Cache). Phase 1 (Triage) = false (Ursprung, nichts zu restaurieren, nur Schreiben).'
+    required: false
+    default: 'false'
+  expect-memory:
+    description: 'Erwartet die Phase vorherige Phasen-Notizen (Restore)? true ab Phase 2. Bei leerem Restore → Warning (Resume-Kontext fehlt); false (Phase 1) → leeres Memory ist normal, keine Warning.'
     required: false
     default: 'false'
   model:
@@ -90,6 +94,15 @@ outputs:
   memory-save-key:
     description: 'Stabiler Cache-Key pro Issue (alle Phasen teilen sich einen Eintrag). Cache ist immutabel → Workflows bauen den alten Eintrag vor dem Save per gh cache delete ab.'
     value: claude-memory-issue-${{ steps.ticket.outputs.issue-number }}
+  memory-restored:
+    description: 'Ob tatsächlich Memory-Dateien restauriert wurden (cache-hit==true UND Dateianzahl > 0).'
+    value: ${{ steps.memory-verify.outputs.restored }}
+  memory-file-count:
+    description: 'Anzahl restaurierter Memory-Dateien in .claude/memory/.'
+    value: ${{ steps.memory-verify.outputs.file-count }}
+  memory-status-text:
+    description: 'Sed-sicherer Restore-Status für den Prompt-Platzhalter #MEMORY_STATUS ("vorhanden" | "leer").'
+    value: ${{ steps.memory-verify.outputs.status-text }}
 
 runs:
   using: composite
@@ -184,10 +197,42 @@ runs:
         path: .claude/memory
         key: claude-memory-issue-${{ steps.ticket.outputs.issue-number }}
 
-    - name: Memory-Verzeichnis sicherstellen (Claude-Schreibzugriff auch bei Cache-Miss)
-      if: steps.preflight.outputs.configured == 'true' && inputs.memory-load == 'true'
+    - name: Memory-Verzeichnis sicherstellen (Claude-Schreibzugriff auch bei Cache-Miss / memory-load=false)
+      # Entkoppelt von memory-load: Phase 1 (Triage) hat memory-load=false (nichts zu
+      # restaurieren), MUSS aber schreiben dürfen → Verzeichnis immer anlegen.
+      if: steps.preflight.outputs.configured == 'true'
       shell: bash
       run: mkdir -p ".claude/memory"
+
+    - name: Memory-Restore verifizieren (ab Phase 2)
+      # Prüft, OB wirklich Memory restauriert wurde (cache-hit + Dateianzahl > 0). Phase 1
+      # (memory-load=false) überspringt diesen Schritt — leeres Memory ist dort der Normalfall.
+      # Ab Phase 2 (expect-memory=true) warnt ein leerer Restore: entweder hat die Vor-Phase
+      # nichts geschrieben, ODER die Persistierung (Artefakt → claude-memory-save) schlug fehl.
+      id: memory-verify
+      if: steps.preflight.outputs.configured == 'true' && inputs.memory-load == 'true'
+      shell: bash
+      env:
+        EXPECT_MEMORY: ${{ inputs.expect-memory }}
+        ISSUE_NR: ${{ steps.ticket.outputs.issue-number }}
+        CACHE_HIT: ${{ steps.memory-load.outputs.cache-hit }}
+      run: |
+        count=$(find .claude/memory -type f 2>/dev/null | wc -l | tr -d ' ')
+        restored="false"
+        if [ "${CACHE_HIT}" = "true" ] && [ "${count:-0}" -gt 0 ]; then restored="true"; fi
+        echo "file-count=${count:-0}" >> "$GITHUB_OUTPUT"
+        echo "restored=$restored" >> "$GITHUB_OUTPUT"
+        if [ "$restored" = "true" ]; then
+          echo "status-text=vorhanden" >> "$GITHUB_OUTPUT"
+          echo "::notice title=🧠 Memory-Restore OK::Issue #${ISSUE_NR} — ${count} Memory-Datei(en) geladen."
+        else
+          echo "status-text=leer" >> "$GITHUB_OUTPUT"
+          if [ "${EXPECT_MEMORY}" = "true" ]; then
+            echo "::warning title=⚠️ Memory-Restore leer::Issue #${ISSUE_NR} — keine Phasen-Notizen geladen (vorherige Phase schrieb nichts ODER Persistierung fehlgeschlagen). Resume-Kontext fehlt."
+          else
+            echo "::notice title=🧠 Memory leer (erwartet)::Issue #${ISSUE_NR} — erste Phase, kein Vor-Kontext."
+          fi
+        fi
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     # CLAUDE CODE – Install + Provider-Switch + Auth + (optional) KoliBri MCP

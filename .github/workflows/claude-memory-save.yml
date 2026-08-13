@@ -36,7 +36,10 @@ concurrency:
 
 jobs:
   persist:
-    if: github.event.workflow_run.conclusion == 'success'
+    # Läuft bei JEDEM Phasen-Abschluss (auch failure/cancelled): ein vor dem Crash
+    # geschriebener Memory-Checkpoint soll trotzdem persistiert werden. Der Job no-opt
+    # sauber, wenn kein Memory-Artefakt existiert (s. resolve-Schritt).
+    if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
