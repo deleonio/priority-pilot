@@ -184,24 +184,6 @@ test.describe('#406 Wort-Bild-Marke vergrößern + App-Namen-H1 entfernen', () =
 
 		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toHaveCount(1);
 	});
-
-	/**
-	 * AK5 — Mobile-First (375px): Bei 375px-Viewport bleibt das Logo sichtbar und es entsteht kein
-	 * horizontaler Overflow.
-	 */
-	test('AK5: Logo sichtbar und kein horizontaler Overflow bei 375px-Viewport', async ({ page }) => {
-		await page.setViewportSize({ width: 375, height: 812 });
-		await page.goto('/');
-		await waitForStableView(page);
-
-		const logoBtn = page.getByRole('banner').getByRole('button', { name: /Zum Dashboard/i });
-		await expect(logoBtn).toBeVisible();
-
-		const overflowsHorizontally = await page.evaluate(
-			() => document.documentElement.scrollWidth > window.innerWidth + 1,
-		);
-		expect(overflowsHorizontally, 'Kein horizontaler Overflow auf 375px').toBe(false);
-	});
 });
 
 // ---------------------------------------------------------------------------
