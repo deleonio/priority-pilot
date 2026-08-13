@@ -94,9 +94,11 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		await expect(page.getByRole('button', { name: 'Neuen Task anlegen' })).toBeFocused();
 
 		// #629: Tab-Freiheit nach Formular-Speichern — Fokus muss weiterbewegbar sein (nicht festhalten)
+		// SETTLE_MS wie delete-dialog AK4: KoliBris setFocus-Loop hält Fokus kurz zurück
+		await page.waitForTimeout(200); // SETTLE_MS (Puffer für CI)
 		const before = await page.evaluate(() => document.activeElement);
 		await page.keyboard.press('Tab');
-		await page.waitForTimeout(700); // Browser-Fokus-Update abwarten (Timing-Puffer für CI)
+		await page.waitForTimeout(200); // Browser-Fokus-Update abwarten
 		const after = await page.evaluate(() => document.activeElement);
 		expect(after).not.toBe(before);
 
