@@ -1,4 +1,4 @@
-name: PR Post-Merge Documentation
+name: 6/6 Dokumentation
 
 # 6. Pipeline-Phase — PR-Documenter (LLM-gesteuert, wie die Claude-Phasen 01–05).
 # Läuft NACH einem erfolgreichen PR-Merge und pflegt Titel, Beschreibung,
@@ -23,7 +23,7 @@ on:
 
 concurrency:
   # Pro-PR keyed: kurz hintereinander gemergte PRs parallelisieren statt serialisieren.
-  group: pr-post-merge-documentation-${{ github.event.pull_request.number || github.event.inputs.pr-number }}
+  group: 06-pr-documenter-${{ github.event.pull_request.number || github.event.inputs.pr-number }}
   cancel-in-progress: false
 
 permissions:

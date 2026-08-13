@@ -61,14 +61,14 @@ Lesen — die jeweilige Datei enthält alles Notwendige.
 **Label-Kette:** `ai:analyzed` → `ai:spec-ready` (🟢) → `ai:ready` → Umsetzung →
 `ai:needs-review` → Review ↔ Fixup (`ai:needs-changes`) → `ai:ready-to-merge`.
 
-| Phase             | Trigger                                       | Wissensbasis (einzige zu lesende Datei)                                                                         | Output                                                                      |
-| ----------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| **Triage**        | Issue neu, `ai:analyzed` entfernt, `@agent`   | [ticket-triage.md](.ai-knowledge/ticket-triage.md)                                                              | Analyse-Body-Block + Ampel, Ping → `ai:analyzed` (+ `ai:spec-ready` bei 🟢) |
-| **Spec**          | `ai:spec-ready` + `ai:analyzed`               | [ticket-spec.md](.ai-knowledge/ticket-spec.md)                                                                  | Rote Tests + Draft-PR → `ai:ready`                                          |
-| **Umsetzung**     | `ai:ready` + `ai:analyzed`                    | [ticket-implementation.md](.ai-knowledge/ticket-implementation.md)                                              | Tests grün + PR review-bereit → `ai:needs-review`                           |
-| **Review**        | `ai:needs-review` (am PR)                     | [pr-review.md](.ai-knowledge/pr-review.md)                                                                      | Sammelkommentar + Ampel → `ai:needs-changes` / `ai:ready-to-merge`          |
-| **Fixup**         | `ai:needs-changes` (am PR)                    | [pr-review.md](.ai-knowledge/pr-review.md)                                                                      | Findings behoben → `ai:needs-review`                                        |
-| **PR-Documenter** | `pull_request.closed` + `merged` (PR gemergt) | [pr-post-merge-documentation.yml](.github/workflows/pr-post-merge-documentation.yml) — Inline-Prompt (terminal) | PR-Titel, -Beschreibung, Release-Note & Labels nach Merge → `ai:documented` |
+| Phase             | Trigger                                       | Wissensbasis (einzige zu lesende Datei)                                                                 | Output                                                                      |
+| ----------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| **Triage**        | Issue neu, `ai:analyzed` entfernt, `@agent`   | [ticket-triage.md](.ai-knowledge/ticket-triage.md)                                                      | Analyse-Body-Block + Ampel, Ping → `ai:analyzed` (+ `ai:spec-ready` bei 🟢) |
+| **Spec**          | `ai:spec-ready` + `ai:analyzed`               | [ticket-spec.md](.ai-knowledge/ticket-spec.md)                                                          | Rote Tests + Draft-PR → `ai:ready`                                          |
+| **Umsetzung**     | `ai:ready` + `ai:analyzed`                    | [ticket-implementation.md](.ai-knowledge/ticket-implementation.md)                                      | Tests grün + PR review-bereit → `ai:needs-review`                           |
+| **Review**        | `ai:needs-review` (am PR)                     | [pr-review.md](.ai-knowledge/pr-review.md)                                                              | Sammelkommentar + Ampel → `ai:needs-changes` / `ai:ready-to-merge`          |
+| **Fixup**         | `ai:needs-changes` (am PR)                    | [pr-review.md](.ai-knowledge/pr-review.md)                                                              | Findings behoben → `ai:needs-review`                                        |
+| **PR-Documenter** | `pull_request.closed` + `merged` (PR gemergt) | [06-claude-pr-documenter.yml](.github/workflows/06-claude-pr-documenter.yml) — Inline-Prompt (terminal) | PR-Titel, -Beschreibung, Release-Note & Labels nach Merge → `ai:documented` |
 
 ## Tests (Server)
 

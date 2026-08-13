@@ -65,7 +65,7 @@ timeline
 | `00-set-llm-provider.yml` + `ci-multi-provider.yml`      | Pro-Phase Modell-Routing + Multi-Provider (z.ai/GLM) | etabliert                                               |
 | `permission-tiers.test.ts` (+ deny-Layer, #497)          | Stufenweise Zugriffs­kontrolle, force-push-deny      | etabliert                                               |
 | `needs-human-blocking.test.ts` (#544)                    | „Mensch entscheidet"-Ausstieg                        | etabliert, **aber** Trigger der Label-Race-Klasse       |
-| `pr-post-merge-documentation.yml` (#542)                 | Auto-Doku nach Merge (Phase 6)                       | **am unreifsten** — 18× angerührt, 4+ Null/Escape-Fixes |
+| `06-claude-pr-documenter.yml` (#542)                     | Auto-Doku nach Merge (Phase 6)                       | **am unreifsten** — 18× angerührt, 4+ Null/Escape-Fixes |
 | `codeql.yml`, `test-optimization.yml`                    | Security-Scan + AST-Suite-Analyzer                   | Netto-Addition                                          |
 | `workflow-{invariants,consistency,safety}.test.ts` u. a. | **Guard-Rails für die Workflows selbst**             | der echte Struktur-Gewinn                               |
 

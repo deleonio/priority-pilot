@@ -21,11 +21,11 @@ name: Claude Memory Persist (workflow_run)
 on:
   workflow_run:
     workflows:
-      - 'Claude Triage (Analyse)'
-      - 'Claude Spec (ai:spec-ready)'
-      - 'Claude Implement (ai:ready)'
-      - 'Claude PR Review (Kreuzverhoer)'
-      - 'Claude PR Fixup (Findings umsetzen)'
+      - '1/6 Analyse'
+      - '2/6 Spec'
+      - '3/6 Umsetzung'
+      - '4/6 Review'
+      - '5/6 Fixup'
     types: [completed]
 
 # Kein restriktiver permissions-Block: workflow_run läuft auf dem Default-Branch und erbt den

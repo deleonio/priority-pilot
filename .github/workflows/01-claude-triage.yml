@@ -1,4 +1,4 @@
-name: Claude Triage (Analyse)
+name: 1/6 Analyse
 
 # Stößt die KI-Analyse (Triage) eines Issues automatisch an.
 # Setzt **Claude Code** ein; Provider via `vars.LLM_PROVIDER` (zai|claude), aufgelöst in setup-claude.

@@ -32,7 +32,7 @@ flowchart TD
     end
 
     merged([PR gemergt ✅]):::done
-    docpr[pr-post-merge-documentation.yml<br/>Phase 6: PR-Titel und Beschreibung optimiert]:::wf
+    docpr[06-claude-pr-documenter.yml<br/>Phase 6: PR-Titel und Beschreibung optimiert]:::wf
     human([⚠️ Mensch<br/>> 10 PR-Commits]):::stop
 
     %% ---- Issue-Trigger ----
@@ -131,7 +131,7 @@ flowchart TD
   nicht robust machbar — daher Heuristik alle PR-Commits, Schwelle > 10). **Hinweis:** ein
   0-Commit-Loop (Fixup findet keine Findings und committet nichts) wird davon nicht gebremst — die
   H1-Post-Assertion im Review alarmiert in dem Fall per PR-Kommentar.
-- **gate-merge** wacht zusätzlich deterministisch per `workflow_run` (Allowlist `['CI', 'PR Review (Kreuzverhoer)']`, `completed`) **und** per `pull_request` `labeled` (nur `ai:ready-to-merge`):
+- **gate-merge** wacht zusätzlich deterministisch per `workflow_run` (Allowlist `['CI', '4/6 Review']`, `completed`) **und** per `pull_request` `labeled` (nur `ai:ready-to-merge`):
   ist mind. ein Allowlist-Check (CI / Reviewer) rot → `ai:needs-changes` (stößt fixup an); ist der PR
   wegen Merge-Konflikt nicht mergebar (`mergeStateStatus == DIRTY`) → ebenfalls `ai:needs-changes`;
   sind beide grün und `ai:ready-to-merge` gesetzt und der PR sauber mergebar → Merge

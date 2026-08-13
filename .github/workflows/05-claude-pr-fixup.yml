@@ -1,4 +1,4 @@
-name: Claude PR Fixup (Findings umsetzen)
+name: 5/6 Fixup
 
 # ⚠️ Der `name:` ist lastend: der Supersede-Check (select(.name == "Claude PR Fixup
 #    (Findings umsetzen)")) matcht ihn exakt. Umbenennen schaltet den Guard lautlos ab →
@@ -152,7 +152,7 @@ jobs:
           HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
         run: |
           running=$(gh api repos/${GITHUB_REPOSITORY}/actions/runs \
-            --jq '.workflow_runs[] | select(.name == "Claude PR Fixup (Findings umsetzen)" and (.status == "queued" or .status == "in_progress") and .head_branch == $ENV.HEAD_BRANCH and .id != ${{ github.run_id }}) | .id' 2>/dev/null | head -1)
+            --jq '.workflow_runs[] | select(.name == "5/6 Fixup" and (.status == "queued" or .status == "in_progress") and .head_branch == $ENV.HEAD_BRANCH and .id != ${{ github.run_id }}) | .id' 2>/dev/null | head -1)
           if [ -n "$running" ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; fi
 
       - name: HEAD vor Claude merken (Fortschritts-Baseline)
