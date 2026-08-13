@@ -14,7 +14,7 @@
 
 ## Problem: Die KI „schlingert", weil eine _ausführbare_ Spezifikation fehlt
 
-Die heutige Pipeline erzeugt als Spezifikation **Prosa + Umsetzbarkeits-Ampel** (Triage,
+Ohne diese Strategie erzeugt die Pipeline als Spezifikation **Prosa + Umsetzbarkeits-Ampel** (Triage,
 [ticket-triage.md](ticket-triage.md) Schritt 4). Die Umsetzung ([ticket-implementation.md](ticket-implementation.md)
 Schritt 3) muss daraus selbst ableiten, was „fertig" bedeutet — und interpretiert das bei jeder
 Iteration neu. Es gibt keinen fixen, einklagbaren Vertrag, an dem sich die Umsetzung festhält.
@@ -22,62 +22,6 @@ Iteration neu. Es gibt keinen fixen, einklagbaren Vertrag, an dem sich die Umset
 **Leitidee:** Ein **roter Test ist ein einklagbarer Vertrag.** Steht er _vor_ der Implementierung
 fest, hat die KI ein binäres Ziel (rot → grün) statt interpretierbarer Prosa — das stoppt das
 Schlingern.
-
-## Ausgangslage _vor_ dieser Änderung — zwei Fakten, die zählen
-
-> Dieser Abschnitt beschreibt den Stand **vor** der hier adoptierten TDD-Strategie. Die
-> in der Tabelle gelisteten Lücken sind durch die Stufen 1–3 inzwischen geschlossen (siehe
-> „Stand jetzt" direkt unter der Tabelle) und dienen nur noch als Begründung/Motivation.
-
-**1. Die Test-Infrastruktur ist für TDD bereits hervorragend geeignet — sie wird nur zu spät genutzt.**
-
-- Server-Logik (`server/src/logics/*.test.ts`, `node:test` + `tsx`, In-Memory-SQLite) und
-  Frontend-Lib (`frontend/src/lib/*.test.ts`, Vitest + jsdom) sind **reine, deterministische**
-  Funktionen — der ideale TDD-Boden (schnell, isoliert). Beispiele wie `deadlineUrgency` oder
-  `buildTaskForest` lesen sich bereits wie test-first geschrieben, nur eben nachträglich.
-- Funktionale e2e-Specs (`frontend/e2e/*.spec.ts`, Playwright gegen **echtes** Backend, `:memory:`,
-  `workers: 1`) eignen sich als **Akzeptanz**-Spezifikation für Features.
-- Schwächer für klassisches Unit-TDD: reines UI/Styling und das generierte `client`-Package
-  (keine Tests).
-- **Keine Coverage-Messung** konfiguriert (kein c8/nyc, keine Schwelle in `vitest.config.ts` oder
-  CI). → Optionaler Hebel, siehe Querschnitts-Politik.
-
-**2. Tests waren bis dahin ein Nachgedanke, kein Ausgangspunkt.**
-
-| Phase          | Datei / Stelle                                                 | Lücke                                                                           |
-| -------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| Triage         | [ticket-triage.md](ticket-triage.md) Schritt 1 + 4             | Keine **strukturierten** Akzeptanzkriterien / Testfälle als Output.             |
-| Issue-Template | `.github/ISSUE_TEMPLATE/*.yml`                                 | Kein Feld „Akzeptanzkriterien / Wie wird verifiziert?".                         |
-| Umsetzung      | [ticket-implementation.md](ticket-implementation.md) Schritt 3 | „Umsetzen" erwähnt weder Tests noch test-first; `format`/Lint kommen vor Tests. |
-| PR-Template    | `.github/pull_request_template.md`                             | `pnpm test` ist optional („falls zutreffend"), nicht Pflicht.                   |
-| Review         | [pr-review.md](pr-review.md) Schritt 3                         | Tests sind ein **Nachprüf**-Punkt, kein Vor-Gate.                               |
-| CI             | `.github/workflows/ci.yml`                                     | `pnpm -r test` läuft **nach** Build — kein test-first-Impuls.                   |
-
-**Stand jetzt** (mit dieser Änderung geschlossen — die Tabelle oben ist die Ausgangslage):
-
-- Triage → geschlossen in **Stufe 1** (strukturierte AK + Testfälle).
-- Issue-Template → ~~geschlossen in Stufe 1~~ **Issue-/PR-Templates am 2026-08-13 entfernt**; die
-  AK-Pflicht wird stattdessen über [ticket-triage.md](ticket-triage.md) Schritt 4 durchgesetzt.
-- Umsetzung → geschlossen in **Stufe 2** (Red-Green: rote Tests zuerst, `format`/Lint danach).
-- PR-Template → ~~geschlossen in Stufe 2~~ **Template am 2026-08-13 entfernt**; die `pnpm test`-Pflicht
-  wird über [AGENTS.md](../AGENTS.md) Kernregeln + die Pipeline durchgesetzt.
-- Review → geschlossen in **Stufe 2** (fehlende/rote Tests sind ein Gate, kein bloßer Nachprüf-Punkt).
-- CI → weiterhin **offen** (Reihenfolge/Coverage, siehe Querschnitts-Politik und „Offene Entscheidungen").
-
-## Spec-Eintritt: heute vs. Ziel
-
-```mermaid
-flowchart LR
-    subgraph HEUTE["Spec-Eintritt heute: nirgends ausfuehrbar"]
-        I1[Issue] --> T1[Triage: Prosa + Ampel] --> R1[ai:ready] --> D1[Umsetzen: Code raten<br/>Test optional, danach] --> P1[PR] --> V1[Review prueft Tests<br/>nachtraeglich]
-    end
-    subgraph ZIEL["Ziel: roter Test = Vertrag, VOR dem Code"]
-        I2[Issue + Akzeptanzkriterien] --> T2[Triage: AK + Testfaelle] --> S2[Rote Tests = Spec] --> D2[Umsetzen: Code bis gruen] --> P2[PR zeigt Test-AK-Mapping] --> V2[Review: bilden Tests die AK treu ab?]
-    end
-    style S2 fill:#fdd,stroke:#c00
-    style HEUTE fill:#f8f8f8
-    style ZIEL fill:#eefbe8
-```
 
 ## Die Szenarien
 
@@ -227,36 +171,3 @@ Die KI hat damit kein „ungefähr so", sondern ein binäres Ziel — genau das 
 | **Sz. 1** | Prosa-AK           | Triage                | mittel         | niedrig      |
 | **Sz. 2** | Tests              | Umsetzer (selbst)     | hoch           | mittel       |
 | **Sz. 3** | Tests              | getrennte Instanz     | maximal        | hoch         |
-
-## Empfehlung
-
-**Stufenweise einführen, nicht alles auf einmal:**
-
-1. **Jetzt:** Szenario 1 umsetzen (Fundament — billig, niedriges Risiko, schaltet 2 + 3 erst frei).
-2. **Danach als Default-Dev-Loop:** Szenario 2.
-3. **Selektiv für logiklastige/riskante Tickets:** Szenario 3.
-4. **Quer drüber:** die differenzierte Politik, damit UI/Styling nicht unter unnötigem Unit-TDD-Zwang
-   leidet.
-
-So entsteht der größte Anti-Schlinger-Effekt früh, ohne die Pipeline auf einen Schlag schwer zu
-machen.
-
-## Offene Entscheidungen
-
-- ~~Wie weit gehen (Sz. 1 / 1+2 / 1+2+3)~~ — **alle drei Stufen adoptiert**.
-- ~~Coverage-Schwelle einführen — nur für `logics`/`lib`?~~ — umgesetzt: Server-`logics` als CI-Gate;
-  Frontend-`lib` vorbereitet (Provider-Install ausstehend).
-- ~~Soll Szenario 3 ein eigenes Label (`ai:spec-ready`) + eigene GitHub-Action bekommen, oder reicht
-  die Gewaltenteilung innerhalb von `/team*`?~~ — entschieden: **eigenes Label `ai:spec-ready` +
-  eigener Workflow `spec.yml`** (separater headless Lauf = Gewaltenteilung auch in der Automatik).
-- ~~Verknüpfung in [AGENTS.md](../AGENTS.md) (Wissensbasis-Liste)~~ — mit Stufe 1 erledigt.
-
-## Betroffene Dateien (bei späterer Umsetzung)
-
-| Datei                                                                          | Szenario            |
-| ------------------------------------------------------------------------------ | ------------------- |
-| `.ai-knowledge/ticket-triage.md` (Schritt 1, 4)                                | 1, 3                |
-| `.ai-knowledge/ticket-implementation.md` (Schritt 3)                           | 2, 3                |
-| `.ai-knowledge/pr-review.md` (Schritt 3)                                       | 2                   |
-| `.github/workflows/implement.yml` (+ neue Spec-Action)                         | 3                   |
-| `frontend/vitest.config.ts`, `server/package.json`, `.github/workflows/ci.yml` | Coverage (optional) |
