@@ -6,6 +6,7 @@ import {
 	weakSignalPillarIds,
 	buildLektoratUserMessage,
 	extractLektoratOutput,
+	lektoratTextWithMistral,
 	type AdviseActivitiesInput,
 	type ClassifyPillarsInput,
 	type LektoratInput,
@@ -243,6 +244,29 @@ describe('Lektorat-Funktion (Issue #645)', () => {
 
 		it('wirft bei null/undefined als Antwort', () => {
 			assert.throws(() => extractLektoratOutput(null), /erwartete Format/i, 'Fehler bei null-Antwort');
+		});
+	});
+
+	/**
+	 * Eingabe-Validierung der Hauptfunktion (Review #647 F1+F2): Validierung greift VOR dem
+	 * LLM-Call, daher ohne Mock/API-Keys testbar — schützt vor verschwendeten API-Calls (leerer
+	 * Text) und kaputten Prompt-Outputs (nicht-positive maxLength).
+	 */
+	describe('lektoratTextWithMistral — Eingabe-Validierung', () => {
+		it('wirft bei leerem Text', async () => {
+			await assert.rejects(() => lektoratTextWithMistral({ text: '' }), /nicht-leeren Text/i);
+		});
+
+		it('wirft bei whitespace-only Text', async () => {
+			await assert.rejects(() => lektoratTextWithMistral({ text: '   ' }), /nicht-leeren Text/i);
+		});
+
+		it('wirft bei maxLength 0', async () => {
+			await assert.rejects(() => lektoratTextWithMistral({ text: 'Gültiger Text', maxLength: 0 }), /positiv/i);
+		});
+
+		it('wirft bei negativer maxLength', async () => {
+			await assert.rejects(() => lektoratTextWithMistral({ text: 'Gültiger Text', maxLength: -5 }), /positiv/i);
 		});
 	});
 });

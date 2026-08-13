@@ -746,6 +746,14 @@ export const extractLektoratOutput = (parsed: unknown): LektoratOutput => {
  */
 // knip-ignore-export - Exportiert für zukünftige Nutzung (Issue #645)
 export const lektoratTextWithMistral: LektoratFunction = async (input) => {
+	// Eingabe-Validierung VOR dem LLM-Call (Review #647): leerer Text verschwendet API-Calls,
+	// nicht-positive maxLength erzeugt kaputte Prompt-Outputs.
+	if (input.text.trim() === '') {
+		throw new MistralRequestError('Lektorat erwartet einen nicht-leeren Text.');
+	}
+	if (input.maxLength !== undefined && input.maxLength <= 0) {
+		throw new MistralRequestError('maxLength muss positiv sein (falls angegeben).');
+	}
 	const parsed = await requestModelJson([
 		{ role: 'system', content: LEKTORAT_SYSTEM_PROMPT },
 		{ role: 'user', content: buildLektoratUserMessage(input) },
