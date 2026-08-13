@@ -138,7 +138,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		// #629: Tab-Freiheit — Fokus muss weiterbewegbar sein (nicht festhalten)
 		// SETTLE_MS wie AK4: KoliBris setFocus-Loop hält Fokus kurz zurück (~<100 ms),
 		// auf CI kann es länger dauern — Tab NACH Loop-Ende drücken.
-		await page.waitForTimeout(200); // SETTLE_MS (Puffer für CI)
+		await page.waitForTimeout(500); // SETTLE_MS (CI-Puffer für KoliBri-Fokus-Loop)
 		const before = await page.evaluate(() => document.activeElement);
 		await page.keyboard.press('Tab');
 		await page.waitForTimeout(200); // Browser-Fokus-Update abwarten
@@ -168,7 +168,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		// #629: Tab-Freiheit — Fokus muss weiterbewegbar sein (nicht festhalten)
 		// SETTLE_MS wie AK4: KoliBris setFocus-Loop hält Fokus kurz zurück (~<100 ms),
 		// auf CI kann es länger dauern — Tab NACH Loop-Ende drücken.
-		await page.waitForTimeout(200); // SETTLE_MS (Puffer für CI)
+		await page.waitForTimeout(500); // SETTLE_MS (CI-Puffer für KoliBri-Fokus-Loop)
 		const before = await page.evaluate(() => document.activeElement);
 		await page.keyboard.press('Tab');
 		await page.waitForTimeout(200); // Browser-Fokus-Update abwarten
@@ -223,7 +223,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		// #629: Tab-Freiheit — Fokus muss weiterbewegbar sein (nicht festhalten)
 		// SETTLE_MS wie AK4: KoliBris setFocus-Loop hält Fokus kurz zurück (~<100 ms),
 		// auf CI kann es länger dauern — Tab NACH Loop-Ende drücken.
-		await page.waitForTimeout(200); // SETTLE_MS (Puffer für CI)
+		await page.waitForTimeout(500); // SETTLE_MS (CI-Puffer für KoliBri-Fokus-Loop)
 		const before = await page.evaluate(() => document.activeElement);
 		await page.keyboard.press('Tab');
 		await page.waitForTimeout(200); // Browser-Fokus-Update abwarten

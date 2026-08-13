@@ -95,7 +95,7 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 
 		// #629: Tab-Freiheit nach Formular-Speichern — Fokus muss weiterbewegbar sein (nicht festhalten)
 		// SETTLE_MS wie delete-dialog AK4: KoliBris setFocus-Loop hält Fokus kurz zurück
-		await page.waitForTimeout(200); // SETTLE_MS (Puffer für CI)
+		await page.waitForTimeout(500); // SETTLE_MS (CI-Puffer für KoliBri-Fokus-Loop)
 		const before = await page.evaluate(() => document.activeElement);
 		await page.keyboard.press('Tab');
 		await page.waitForTimeout(200); // Browser-Fokus-Update abwarten
