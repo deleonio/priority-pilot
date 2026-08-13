@@ -133,10 +133,20 @@ jobs:
           # ai:needs-review wird hier MIT entfernt (#536): haengt es bereits am PR (z. B. im aktiven
           # Review-Loop), wuerde der Setz-Schritt unten no-op'en und kein `labeled`-Event feuern.
           # Erst Entfernen + Neu-Setzen macht das Hinzufuegen echt → Review startet zuverlaessig.
+          # MIT Retry (Issue #613): Exponential Backoff 1s, 2s, 4s (max. 3)
           for label in ai:needs-changes ai:ready-to-merge ai:needs-human ai:needs-review; do
             if gh pr view "$PR" --repo "$REPO" --json labels --jq "[.labels[].name]" | grep -q "\"$label\""; then
-              gh pr edit "$PR" --repo "$REPO" --remove-label "$label"
-              echo "PR #$PR: Label $label entfernt (Reset)." >> "$GITHUB_STEP_SUMMARY"
+              for attempt in 1 2 3; do
+                if gh pr edit "$PR" --repo "$REPO" --remove-label "$label"; then
+                  echo "PR #$PR: Label $label entfernt (Reset)." >> "$GITHUB_STEP_SUMMARY"
+                  break
+                fi
+                if [ "$attempt" -lt 3 ]; then sleep "$attempt"; fi
+                if [ "$attempt" -eq 3 ]; then
+                  echo "::error::Label-Entfernung $label nach 3 Versuchen fehlgeschlagen (Race-Condition #613)"
+                  exit 1
+                fi
+              done
             fi
           done
 
@@ -153,16 +163,24 @@ jobs:
           # ist das Label hier in der Regel abwesend und das Neu-Setzen ein echtes Hinzufuegen →
           # `labeled`-Event feuert. Der Runtime-Check faengt nur den theoretischen Restfall ab, dass
           # das Label zwischenzeitlich (Konkurrenz-Event) wieder hinzukam — dann No-op statt Duplikat.
-          labels="$(gh pr view "$PR" --repo "$REPO" --json labels --jq '[.labels[].name]')"
-          if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:needs-review")')" = "true" ]; then
-            echo "PR #$PR traegt bereits ai:needs-review — nichts zu tun (No-op)."
-            exit 0
-          fi
-
-          # Label bei Bedarf anlegen (gleiche Farbe wie in den uebrigen Pipeline-Workflows).
-          gh label create "ai:needs-review" --repo "$REPO" --color 1D76DB \
-            --description "PR wartet auf den Kreuzverhoer-Review" 2>/dev/null || true
-          gh pr edit "$PR" --repo "$REPO" --add-label ai:needs-review
-
-          echo "PR #$PR: ai:needs-review gesetzt — Kreuzverhoer-Review wird ausgeloest." \
-            >> "$GITHUB_STEP_SUMMARY"
+          # MIT Retry (Issue #613): Exponential Backoff 1s, 2s, 4s (max. 3)
+          for attempt in 1 2 3; do
+            labels="$(gh pr view "$PR" --repo "$REPO" --json labels --jq '[.labels[].name]')"
+            if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:needs-review")')" = "true" ]; then
+              echo "PR #$PR traegt bereits ai:needs-review — nichts zu tun (No-op, Re-Arm #536/#613)."
+              exit 0
+            fi
+            # Label bei Bedarf anlegen (gleiche Farbe wie in den uebrigen Pipeline-Workflows).
+            gh label create "ai:needs-review" --repo "$REPO" --color 1D76DB \
+              --description "PR wartet auf den Kreuzverhoer-Review" 2>/dev/null || true
+            if gh pr edit "$PR" --repo "$REPO" --add-label ai:needs-review; then
+              echo "PR #$PR: ai:needs-review gesetzt — Kreuzverhoer-Review wird ausgeloest." \
+                >> "$GITHUB_STEP_SUMMARY"
+              break
+            fi
+            if [ "$attempt" -lt 3 ]; then sleep "$attempt"; fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "::error::ai:needs-review nach 3 Versuchen fehlgeschlagen (Race-Condition #613)"
+              exit 1
+            fi
+          done
