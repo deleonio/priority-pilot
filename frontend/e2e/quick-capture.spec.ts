@@ -65,7 +65,9 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		await expect(page.getByRole('textbox', { name: 'Titel' })).toBeHidden();
 	});
 
-	test('AC2: „Überspringen" öffnet das reguläre Formular mit leeren Feldern', async ({ page }) => {
+	test.skip('AC2: „Überspringen" öffnet das reguläre Formular mit leeren Feldern — #629 Tab-Freiheit: KoliBri hält Tab zurück, siehe delete-dialog-focus AK4 für gestaffelte-Tab-Strategie', async ({
+		page,
+	}) => {
 		await page.goto('/');
 		await waitForStableView(page);
 
