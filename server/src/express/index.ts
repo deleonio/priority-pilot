@@ -233,5 +233,14 @@ export const launchServer = async () => {
 	const { createSessionStore } = await import('./session.js');
 	const sessionStore = await createSessionStore();
 	const app = createApp({ sessionStore });
-	app.listen(PORT, () => console.log(`Server läuft auf http://localhost:${PORT}`));
+	const server = app.listen(PORT, () => console.log(`Server läuft auf http://localhost:${PORT}`));
+
+	// AK4 — Error-Callback für app.listen (z.B. EADDRINUSE bei belegtem Port)
+	server.on('error', (error: NodeJS.ErrnoException) => {
+		console.error('Server-Start-Fehler:', error);
+		if (error.code === 'EADDRINUSE') {
+			console.error(`Port ${PORT} ist bereits belegt (EADDRINUSE)`);
+		}
+		process.exit(1);
+	});
 };

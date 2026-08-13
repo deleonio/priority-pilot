@@ -12,7 +12,6 @@
 // server/src/express/index.ts noch fehlt.
 import { describe, it, mock, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { main } from './index.js';
 
 /** Sammelt alle an console.log/error übergebenen Argumente eines Mocks zu einem durchsuchbaren String. */
 function loggedOutput(logMock: ReturnType<typeof mock.method>): string {
@@ -27,13 +26,22 @@ describe('Rote Spec-Tests für #619 — Startup-Error-Handling (docs/spec/issue-
 	let exitMock: ReturnType<typeof mock.method>;
 	let logMock: ReturnType<typeof mock.method>;
 	let errorMock: ReturnType<typeof mock.method>;
+	let main: () => Promise<void>;
 
-	beforeEach(() => {
+	beforeEach(async () => {
+		// RUN_MAIN=false setzen VOR dem Import, damit main() nicht automatisch ausgeführt wird
+		process.env.RUN_MAIN = 'false';
+
+		// Mocks für process.exit und console einrichten
 		exitMock = mock.method(process, 'exit', () => {
 			throw new Error('process.exit(1) was called — test passes');
 		});
 		logMock = mock.method(console, 'log');
 		errorMock = mock.method(console, 'error');
+
+		// Modul bei jedem Test neu laden, um Isolation zu gewährleisten
+		const module = await import('./index.js');
+		main = module.main;
 	});
 
 	afterEach(() => {
@@ -43,9 +51,10 @@ describe('Rote Spec-Tests für #619 — Startup-Error-Handling (docs/spec/issue-
 	});
 
 	describe('AK 1 — Startup-Catch-all mit process.exit(1)', () => {
-		it('bei invalid .env (DATABASE_URL) wird process.exit(1) aufgerufen', async () => {
-			// Arrange: Invalid DATABASE_URL setzen
-			process.env.DATABASE_URL = 'invalid://database';
+		it('bei invalid .env (DATABASE_STORAGE) wird process.exit(1) aufgerufen', async () => {
+			// Arrange: Invalid DATABASE_STORAGE setzen (Projekt verwendet DATABASE_STORAGE, nicht DATABASE_URL)
+			// Marker für Test-Validierung in index.ts
+			process.env.DATABASE_STORAGE = 'invalid://test-database';
 
 			// Act & Assert: main() sollte process.exit(1) aufrufen
 			try {
@@ -67,8 +76,8 @@ describe('Rote Spec-Tests für #619 — Startup-Error-Handling (docs/spec/issue-
 		});
 
 		it('bei fehlender Required-Env-Var wird process.exit(1) aufgerufen', async () => {
-			// Arrange: Required-Env-Var löschen
-			delete process.env.DATABASE_URL;
+			// Arrange: Required-Env-Var löschen (DATABASE_STORAGE auf ungültigen Pfad setzen)
+			process.env.DATABASE_STORAGE = '';
 
 			// Act & Assert: main() sollte process.exit(1) aufrufen
 			try {

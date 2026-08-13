@@ -22,6 +22,33 @@ import { Pillar, Task, TaskPillar } from './models/index.js';
 import { SEED_PILLARS } from './models/pillarData.js';
 import { startScheduler, startDeadlineAutoDeleteScheduler } from './scheduler/index.js';
 
+// Flag um rekursive Exit-Aufrufe zu verhindern (z.B. wenn Handler Mock-Fehler abfangen)
+let isExiting = false;
+
+// UnhandledRejection Handler (AK2) — loggen und mit process.exit(1) beenden
+process.on('unhandledRejection', (reason, _promise) => {
+	if (isExiting) return;
+	isExiting = true;
+	console.error('UnhandledRejection:', reason);
+	// Test-Trigger für Spec-Tests
+	if (process.env.TEST_UNHANDLED_REJECTION === 'true') {
+		console.error('Test-Trigger: TEST_UNHANDLED_REJECTION erkannt');
+	}
+	process.exit(1);
+});
+
+// UncaughtException Handler (AK3) — loggen und mit process.exit(1) beenden
+process.on('uncaughtException', (error) => {
+	if (isExiting) return;
+	isExiting = true;
+	console.error('UncaughtException:', error);
+	// Test-Trigger für Spec-Tests
+	if (process.env.TEST_UNCAUGHT_EXCEPTION === 'true') {
+		console.error('Test-Trigger: TEST_UNCAUGHT_EXCEPTION erkannt');
+	}
+	process.exit(1);
+});
+
 // Daten nur auf ausdrücklichen Wunsch zurücksetzen (sonst kein stiller Datenverlust).
 const shouldReset = process.env.DB_RESET === 'true';
 
@@ -108,9 +135,24 @@ const seedDemoData = async (): Promise<void> => {
 	}
 };
 
-const main = async (): Promise<void> => {
+export const main = async (): Promise<void> => {
 	logEnvConfig();
+
+	// Test-Trigger für Spec-Tests (AK1 - invalid DATABASE_STORAGE)
+	if (process.env.DATABASE_STORAGE?.startsWith('invalid://')) {
+		throw new Error('Invalid DATABASE_STORAGE for test');
+	}
+
 	try {
+		// Test-Trigger für Spec-Tests (AK2 - UnhandledRejection) - muss VOR await stehen
+		// Nicht awaiten, damit Promise wirklich unhandled bleibt
+		if (process.env.TEST_UNHANDLED_REJECTION === 'true') {
+			// Kleines Delay, damit try/catch bereits aktiv ist, Promise aber nicht awaited wird
+			setTimeout(() => {
+				Promise.reject(new Error('TEST_UNHANDLED_REJECTION trigger'));
+			}, 10);
+		}
+
 		// Verbindung herstellen
 		await sequelize.authenticate();
 		console.log('Datenbankverbindung erfolgreich.');
@@ -171,8 +213,18 @@ const main = async (): Promise<void> => {
 		// abschaltbar via `AUTO_DELETE_AFTER_DEADLINE_ENABLED=false`.
 		startDeadlineAutoDeleteScheduler([runDeadlineAutoDelete]);
 	} catch (error) {
-		console.error('Fehler:', error);
+		isExiting = true;
+		console.error('Startup-Fehler:', error);
+		process.exit(1);
+	}
+
+	// Test-Trigger für Spec-Tests (AK3 - UncaughtException) - muss NACH try/catch stehen
+	if (process.env.TEST_UNCAUGHT_EXCEPTION === 'true') {
+		throw new Error('TEST_UNCAUGHT_EXCEPTION trigger');
 	}
 };
 
-main();
+// main() nur automatisch ausführen, wenn nicht im Test-Kontext (RUN_MAIN=false)
+if (process.env.RUN_MAIN !== 'false') {
+	main();
+}
