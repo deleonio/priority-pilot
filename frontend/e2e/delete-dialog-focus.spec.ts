@@ -134,6 +134,10 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 
 		await openTaskDeleteDialog(page, uniqueTitle('Task'));
 		await assertCancelFocusedWithoutJump(page);
+
+		// #629: Tab-Freiheit — Fokus muss weiterbewegbar sein
+		await page.keyboard.press('Tab');
+		await expect(page.getByRole('button', { name: 'Endgültig löschen' })).toBeFocused();
 	});
 
 	test('AK2 — Säulen-Löschdialog: Initialfokus auf „Abbrechen", kein Sprung', async ({ page }) => {
@@ -154,6 +158,10 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		await expect(page.getByRole('heading', { name: 'Säule löschen' })).toBeVisible();
 
 		await assertCancelFocusedWithoutJump(page, 'Priority Pilot');
+
+		// #629: Tab-Freiheit — Fokus muss weiterbewegbar sein
+		await page.keyboard.press('Tab');
+		await expect(page.getByRole('button', { name: 'Endgültig löschen' })).toBeFocused();
 	});
 
 	// #553: Der Serien-Löschdialog hat eine eigene Struktur (Ja/Nein/Abbrechen, kein
@@ -199,6 +207,10 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		await waitForStableView(page);
 		await expect(page.getByRole('button', { name: /^Nein/i })).toBeFocused();
 		await expect(page.getByRole('button', { name: /^Ja \(Serie \+ alle Aufgaben\)/ })).not.toBeFocused();
+
+		// #629: Tab-Freiheit — Fokus muss weiterbewegbar sein
+		await page.keyboard.press('Tab');
+		await expect(page.getByRole('button', { name: /^Ja \(Serie \+ alle Aufgaben\)/ })).toBeFocused();
 	});
 
 	/**
@@ -207,7 +219,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 	 * Diese Lücke blieb offen, obwohl drei Specs den Dialog-Fokus abdeckten: keine drückte Tab. Ein
 	 * Mechanismus, der den Fokus auf „Abbrechen" *zurückzwingt* statt ihn einmalig zu setzen,
 	 * erfüllt AK1–AK3 und sperrt Tastaturnutzer trotzdem aus. Genau das war der Zustand vor dieser
-	 * Konsolidierung: ein `focusin`-Redirect in Modal.tsx hielt den Fokus 500 ms lang fest.
+	 * Konsolidierung: ein `focusin-Redirect in Modal.tsx hielt den Fokus 500 ms lang fest.
 	 *
 	 * SETTLE_MS = 150 ist bewusst gewählt und keine Beruhigungs-Wartezeit:
 	 *  - KoliBris `setFocus()` (utils/element-focus.js) wiederholt den Fokus über bis zu 10 Frames
@@ -284,6 +296,10 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		// „Löschen" liegt im Popover; dessen hidePopover() gibt den Fokus synchron an den Invoker
 		// „Weitere Aktionen" zurück — Modal.tsx merkt sich diesen als Auslöser.
 		await expect(moreButton).toBeFocused();
+
+		// #629: Tab-Freiheit nach Rückgabe — Fokus muss weiterbewegbar sein
+		await page.keyboard.press('Tab');
+		await expect(page.getByRole('tab', { name: 'Aufgaben', exact: true })).toBeFocused();
 	});
 
 	test('AK6 — Nach erfolgreichem Löschen übernimmt das Fallback-Element (nicht document.body)', async ({ page }) => {
@@ -300,6 +316,10 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		await expect(page.getByRole('heading', { name: 'Task löschen' })).toBeHidden();
 
 		await expect(page.locator('[data-focus-fallback]')).toBeFocused();
+
+		// #629: Tab-Freiheit nach Löschen — Fokus muss weiterbewegbar sein
+		await page.keyboard.press('Tab');
+		await expect(page.getByRole('button', { name: 'Neuen Task anlegen' })).toBeFocused();
 	});
 
 	test('AK7 — Mobile-First 375px: Lösch-Dialog ohne horizontales Scrollen', async ({ page }) => {

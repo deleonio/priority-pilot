@@ -93,6 +93,10 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		// Auslöser als Fallback-Fokusziel an das Formular-Modal durch.
 		await expect(page.getByRole('button', { name: 'Neuen Task anlegen' })).toBeFocused();
 
+		// #629: Tab-Freiheit nach Formular-Speichern — Fokus muss weiterbewegbar sein
+		await page.keyboard.press('Tab');
+		await expect(page.getByRole('tab', { name: 'Aufgaben', exact: true })).toBeFocused();
+
 		await openTasksTab(page);
 		// Die Aufgabenliste ist seit #238 keine Table mehr: der Titel ist direkt als
 		// Textinhalt des span.task-tree-title sichtbar (analog crud.spec.ts).
