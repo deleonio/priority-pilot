@@ -103,7 +103,9 @@ Bei einem zu großen Ticket:
   der ersten Sub-Issue-Anlage ausführen.
 - Aus der Analyse **2–5 möglichst unabhängige Teilaufgaben** ableiten (jede in **einem** PR
   umsetzbar). Abhängigkeiten explizit benennen und über die empfohlene Reihenfolge abbilden.
-- Pro Teilaufgabe ein **Sub-Issue** anlegen — bereits mit Mini-Analyse + Ampel (Schritt 4) im Body.
+- Pro Teilaufgabe ein **Sub-Issue** anlegen — bereits mit Mini-Analyse + Ampel (Schritt 4) im Body,
+  **inklusive der START/END-Marker**: Re-Triage (z. B. automatisches Unblock nach Merge des
+  Vorgängers) erkennt den Analyse-Block nur mit Markern — ohne sie failt der Triage-Workflow hart.
   Body mit **echten Zeilenumbrüchen** übergeben (nicht literales `\n` — das landet sonst als Text
   im Issue), z. B. per `--body-file -` und Heredoc:
 
@@ -111,7 +113,9 @@ Bei einem zu großen Ticket:
   gh issue create --title "<Teilaufgabe>" --label "ai:analyzed" --body-file - <<'EOF'
   Teil von #<eltern-nr>
 
+  <!-- KI-ANALYSE:START stand=<ISO-8601-UTC> -->
   <Kontext + Akzeptanzkriterien + Testfälle + Ampel>
+  <!-- KI-ANALYSE:END -->
   EOF
   ```
 
