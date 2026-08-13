@@ -1,4 +1,3 @@
-MEMORY: Deine Memory (autoMemoryDirectory, automatisch geladen) sammelt pro Issue alle Phasen-Notizen. Schreibe am ENDE deine wichtigsten neuen Erkenntnisse (Spek-Entscheidungen, rote Tests, Fallstricke) dort hinein — nur Neues, kurz.
 FOKUS: NUR Issue #ISSUE_NR. NUR rote Tests je Akzeptanzkriterium (mit Dedup), kein Produktivcode. KEINE Abstecher. Token sparen: kurz, präzise, direkt.
 
 ABLAUF (STRIKT):

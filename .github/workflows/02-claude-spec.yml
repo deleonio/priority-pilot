@@ -62,6 +62,7 @@ jobs:
           zai-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI }}
           openrouter-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER }}
           memory-load: 'true'
+          expect-memory: 'true'
 
       - name: Skip-Guard (Spec läuft bereits)
         id: skip-guard
@@ -145,6 +146,14 @@ jobs:
               -e "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" \
               .github/prompts/spec.md > /tmp/claude-prompt.txt
 
+          # Memory-Snippets anhängen (Phase 2: restauriert + schreibt). Snippet-Platzhalter
+          # separat substituieren, da die spec.md-sed oben nur den Prompt-Teil erfasst hat.
+          cat .github/prompts/memory-read.md >> /tmp/claude-prompt.txt
+          cat .github/prompts/memory-write.md >> /tmp/claude-prompt.txt
+          sed -i "s/#ISSUE_NR/${{ github.event.issue.number }}/g" /tmp/claude-prompt.txt
+          sed -i "s/#PHASE/spec/g" /tmp/claude-prompt.txt
+          sed -i "s/#MEMORY_STATUS/${{ steps.setup.outputs.memory-status-text }}/g" /tmp/claude-prompt.txt
+
           ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
             ${{ steps.setup.outputs.invoke-args }} \
             2>&1 | tee /tmp/claude-output.log
@@ -156,7 +165,7 @@ jobs:
         # laden via Restore (read-only OK) und übergeben das Memory als Artefakt an den vertrauens-
         # würdigen workflow_run-Begleitworkflow (claude-memory-save.yml), der den Schreibzugriff hat.
         # Artefakt-Name = Cache-Key = claude-memory-issue-{N} (steps.setup.outputs.memory-save-key).
-        if: always() && steps.setup.outputs.configured == 'true' && steps.claude.outcome == 'success'
+        if: always() && steps.setup.outputs.configured == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ${{ steps.setup.outputs.memory-save-key }}

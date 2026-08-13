@@ -66,6 +66,7 @@ jobs:
           zai-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI }}
           openrouter-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER }}
           memory-load: 'true'
+          expect-memory: 'true'
 
       - name: pnpm einrichten
         if: steps.setup.outputs.configured == 'true'
@@ -168,7 +169,6 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
         run: |
           cat > /tmp/claude-prompt.txt << 'CLAUDE_EOF'
-          MEMORY: Deine Memory (autoMemoryDirectory, automatisch geladen) sammelt pro Issue alle Phasen-Notizen. Schreibe am ENDE deine wichtigsten neuen Erkenntnisse (behebte Findings, offene Punkte, neue Fallstricke) dort hinein — nur Neues, kurz.
           FOKUS: NUR PR #PR_NR. NUR gemeldete Kritikpunkte beheben. KEINE Abstecher. Token sparen: kurz, präzise, direkt.
 
           ABLAUF (STRIKT):
@@ -203,7 +203,13 @@ jobs:
           Stop-Guard: Ein Workflow-Step zählt die PR-Commits und stoppt bei > 10.
           CLAUDE_EOF
 
+          # Memory-Snippets anhängen (Phase 5: restauriert + schreibt)
+          cat .github/prompts/memory-read.md >> /tmp/claude-prompt.txt
+          cat .github/prompts/memory-write.md >> /tmp/claude-prompt.txt
+
           sed -i "s/#PR_NR/${{ github.event.pull_request.number }}/g" /tmp/claude-prompt.txt
+          sed -i "s/#PHASE/fixup/g" /tmp/claude-prompt.txt
+          sed -i "s/#MEMORY_STATUS/${{ steps.setup.outputs.memory-status-text }}/g" /tmp/claude-prompt.txt
           sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
 
           ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
@@ -217,7 +223,7 @@ jobs:
         # laden via Restore (read-only OK) und übergeben das Memory als Artefakt an den vertrauens-
         # würdigen workflow_run-Begleitworkflow (claude-memory-save.yml), der den Schreibzugriff hat.
         # Artefakt-Name = Cache-Key = claude-memory-issue-{N} (steps.setup.outputs.memory-save-key).
-        if: always() && steps.setup.outputs.configured == 'true' && steps.claude.outcome == 'success'
+        if: always() && steps.setup.outputs.configured == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ${{ steps.setup.outputs.memory-save-key }}
