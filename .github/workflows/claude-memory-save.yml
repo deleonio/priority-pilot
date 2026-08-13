@@ -1,0 +1,104 @@
+name: Claude Memory Persist (workflow_run)
+
+# Persistiert das pro-Issue Claude-Memory in den actions/cache.
+#
+# WARUM eigener Workflow: Issue-/Label-triggerte Phasen-Workflows (01-05) bekommen seit der
+# GitHub-Richtlinie vom 2026-06-26 ("Read-only Actions cache for untrusted triggers") nur noch
+# lese-only Cache-Token — sie können Restore, aber kein Save ("cache write denied: token has no
+# writable scopes"). workflow_run läuft auf dem Default-Branch und gilt als vertrauenswürdiger
+# Trigger mit schreibfähigem Cache-Token (analog push/workflow_dispatch).
+#
+# Datenfluss:
+#   1. Phase (01-05) lädt via actions/cache/restore (read-only OK) → .claude/memory/.
+#   2. Claude schreibt .claude/memory/, Phase lädt es als Artefakt `claude-memory-issue-{N}` hoch
+#      (Artefakt-Name = Cache-Key).
+#   3. Dieser Begleitworkflow feuert nach Abschluss der Phase, lädt das Artefakt herunter und
+#      schreibt es in den Cache (Delete-before-Save, da Cache-Einträge immutabel sind).
+# Bekannte Einschränkung: Race zwischen Phasen (label-getrieben weitgehend sequentiell); ein
+# extrem knapp nebenläufiger Save kann theoretisch ein Increment verlieren — Memory akkumuliert
+# aber über den Issue-Lebenszyklus, Folgewirkung ist reduzierter Kontext, kein Defekt.
+
+on:
+  workflow_run:
+    workflows:
+      - 'Claude Triage (Analyse)'
+      - 'Claude Spec (ai:spec-ready)'
+      - 'Claude Implement (ai:ready)'
+      - 'Claude PR Review (Kreuzverhoer)'
+      - 'Claude PR Fixup (Findings umsetzen)'
+    types: [completed]
+
+# Kein restriktiver permissions-Block: workflow_run läuft auf dem Default-Branch und erbt den
+# Repo-Default (write) — nötig für gh cache delete (Actions-API) UND den schreibfähigen Cache-Token.
+concurrency:
+  group: claude-memory-persist-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  persist:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Memory-Artefakt auflösen (Name = Cache-Key claude-memory-issue-{N})
+        id: resolve
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+        shell: bash
+        run: |
+          mapfile -t ARTS < <(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts?per_page=100" \
+            --jq '.artifacts[] | select(.name | startswith("claude-memory-issue-")) | "\(.id)|\(.name)"' 2>/dev/null || true)
+          if [ "${#ARTS[@]}" -eq 0 ]; then
+            echo "Kein Memory-Artefakt in Run $RUN_ID → nichts zu persistieren."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Erwartet genau ein Artefakt pro Phasenlauf; Liste ist absteigend nach Datum → [0] das jüngste.
+          line="${ARTS[0]}"
+          aid="${line%%|*}"
+          aname="${line#*|}"
+          echo "Artefakt: id=$aid name=$aname"
+          echo "artifact-id=$aid" >> "$GITHUB_OUTPUT"
+          echo "artifact-name=$aname" >> "$GITHUB_OUTPUT"
+          echo "skip=false" >> "$GITHUB_OUTPUT"
+
+      - name: Artefakt → .claude/memory/ herunterladen
+        if: steps.resolve.outputs.skip != 'true'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ${{ steps.resolve.outputs.artifact-name }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: .claude/memory
+
+      - name: Delete-before-Save (alten Issue-Cache abbauen — GHA-Cache ist immutabel)
+        if: steps.resolve.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MEMORY_KEY: ${{ steps.resolve.outputs.artifact-name }}
+        shell: bash
+        run: |
+          while IFS= read -r cid; do
+            [ -n "$cid" ] && gh cache delete "$cid" --repo "$GITHUB_REPOSITORY" && echo "🗑️ alten Issue-Cache $cid gelöscht" || true
+          done < <(gh cache list --repo "$GITHUB_REPOSITORY" --key "$MEMORY_KEY" --json id,key 2>/dev/null | jq -r --arg k "$MEMORY_KEY" '.[] | select(.key == $k) | .id' 2>/dev/null || true)
+
+      - name: Save (vertrauenswürdiger Trigger → schreibfähiges Cache-Token)
+        if: steps.resolve.outputs.skip != 'true'
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .claude/memory
+          key: ${{ steps.resolve.outputs.artifact-name }}
+
+      - name: Artefakt aufräumen
+        if: always() && steps.resolve.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AID: ${{ steps.resolve.outputs.artifact-id }}
+        shell: bash
+        run: |
+          if gh api -X DELETE "repos/$GITHUB_REPOSITORY/actions/artifacts/$AID" 2>/dev/null; then
+            echo "🧹 Artefakt $AID gelöscht"
+          else
+            echo "Artefakt $AID konnte nicht gelöscht werden (ignoriert — fällt an retention-days)."
+          fi

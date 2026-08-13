@@ -211,29 +211,19 @@ jobs:
             2>&1 | tee /tmp/claude-output.log
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
 
-      - name: Memory-Delete (alten Issue-Cache vor Save abbau — GHA-Cache ist immutabel)
-        # Ein Save unter dem stabilen Issue-Key wäre ein No-Op (Cache immutabel). Daher den alten
-        # Eintrag vorher abbauen. Exact-Match per jq: gh --key matched nur Prefix, sonst träfe
-        # Issue 12 den Key von Issue 123. Gleiche Gate-Bedingung wie der Save-Step; Best-Effort.
+      - name: Memory-Upload (Artefakt für workflow_run-Persistierung)
+        # Issue-/Label-Trigger bekommen seit der GitHub-Richtlinie 2026-06-26 nur lese-only
+        # Cache-Token → ein direkter Save wäre ein No-Op ("token has no writable scopes"). Phasen
+        # laden via Restore (read-only OK) und übergeben das Memory als Artefakt an den vertrauens-
+        # würdigen workflow_run-Begleitworkflow (claude-memory-save.yml), der den Schreibzugriff hat.
+        # Artefakt-Name = Cache-Key = claude-memory-issue-{N} (steps.setup.outputs.memory-save-key).
         if: always() && steps.setup.outputs.configured == 'true' && steps.claude.outcome == 'success'
-        env:
-          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
-          MEMORY_KEY: ${{ steps.setup.outputs.memory-save-key }}
-        shell: bash
-        run: |
-          while IFS= read -r cid; do
-            [ -n "$cid" ] && gh cache delete "$cid" --repo "$GITHUB_REPOSITORY" && echo "🗑️ alten Issue-Cache $cid gelöscht" || true
-          done < <(gh cache list --repo "$GITHUB_REPOSITORY" --key "$MEMORY_KEY" --json id,key 2>/dev/null | jq -r --arg k "$MEMORY_KEY" '.[] | select(.key == $k) | .id' 2>/dev/null || true)
-
-      - name: Memory-Save (pro Issue, dateibasiert)
-        # Cache nur schreiben, wenn Claude gelaufen ist (das
-        # outcome-Binding hält diesen Step im Guard-Skip-Fall indirekt heraus).
-        if: always() && steps.setup.outputs.configured == 'true' && steps.claude.outcome == 'success'
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
+          name: ${{ steps.setup.outputs.memory-save-key }}
           path: ${{ steps.setup.outputs.memory-path }}
-          key: ${{ steps.setup.outputs.memory-save-key }}
-          if-no-path-exists: ignore
+          retention-days: 1
+          if-no-files-found: ignore
 
       - name: Label-Post-Assertion (Labels via App-Token force-setzen)
         id: label-post
