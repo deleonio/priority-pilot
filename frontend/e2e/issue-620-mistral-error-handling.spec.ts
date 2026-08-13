@@ -112,11 +112,8 @@ test.describe('Frontend-Error-Handling für LLM-Calls (#620)', () => {
 
 		// Vertrag: Klartext-Text wie "KI-Dienst gerade nicht erreichbar, bitte später erneut"
 		// NEGATIV-Test: Technische Begriffe wie "502", "Bad Gateway", "timeout" sollten NICHT erscheinen
-		const errorMessage = page.locator('.kol-alert'); // KoliBri-Alert-Component
-		await expect(errorMessage).toBeVisible();
-		const text = await errorMessage.textContent();
-		expect(text).not.toMatch(/502|503|Bad Gateway|timeout|Service Unavailable/i);
-		expect(text).toMatch(/KI-Dienst|nicht erreichbar|bitte später|erneut/i);
+		await expect(page.getByText(/KI-Dienst.*nicht erreichbar/)).toBeVisible();
+		await expect(page.getByText(/502|503|Bad Gateway|timeout|Service Unavailable/i)).not.toBeVisible();
 	});
 
 	test('AK3: Optionaler Retry bei transienten 5xx-Fehlern (parse-text)', async ({ page }) => {
