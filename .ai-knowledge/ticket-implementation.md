@@ -75,6 +75,9 @@ wird dagegen geschrieben — ein binäres Ziel statt Prosa.
       Testfall, Muster `login.spec.ts` AK5 / `task-tree.spec.ts` AK-6.
     - **Reines Styling/Layout** → keinen Unit-Test erzwingen: wo sinnvoll per e2e absichern, sonst
       visuell verifizieren und **im PR begründen**.
+    - **Nicht-Anwendungscode** (`.github/workflows`, `.github/scripts`, CI-Plumbing, Config-Dateien,
+      Markdown-Inhalt egal wo) → **keinen Test schreiben** (Change-Detector ohne Biss, ADR 0001;
+      siehe [ticket-spec.md](ticket-spec.md) Schritt 2).
 - **(b) Green — Code bis grün:** Produktivcode implementieren, bis **alle** Tests grün sind
   (`pnpm test` bzw. gezielt das betroffene Package als primärer Erfolgsindikator). Konventionen aus
   [conventions.md](conventions.md) beachten (Tabs, `strict`, ESM, keine Type-Assertions zum

@@ -188,20 +188,18 @@ jobs:
             --issue "$ISSUE" --draft any --out first)"
           ARTIFACTS_OK="false"
           if [ -n "$SPEC_PR" ] && [ "$SPEC_PR" != "null" ]; then
-            HAS_TESTS="$(gh pr view "$SPEC_PR" --repo "$GITHUB_REPOSITORY" --json files \
-              --jq '[.files[].path | (endswith(".test.ts") or endswith(".test.tsx") or endswith(".spec.ts") or endswith(".spec.tsx"))] | any' 2>/dev/null || echo "false")"
-            echo "::notice::Spec-PR #$SPEC_PR: HAS_TESTS=$HAS_TESTS"
-            if [ "$HAS_TESTS" = "true" ]; then
+            # Prinzip: Tests nur für Anwendungscode (ADR 0001 + spec.md-NICHT-ANWENDUNGSCODE-Carve-out).
+            # Spec-PR gilt als artefakt-OK, wenn er einen App-Test enthält ODER gar keinen
+            # Anwendungscode berührt (reine Doku/Workflow/Config → keine Test-Pflicht). Ein
+            # Workflow-/Markdown-Test (z. B. .github/workflows/*.test.ts) zählt NICHT als App-Test.
+            HAS_APP_TEST="$(gh pr view "$SPEC_PR" --repo "$GITHUB_REPOSITORY" --json files \
+              --jq '[.files[].path | select((startswith("server/src/") or startswith("frontend/src/") or startswith("frontend/e2e/")) and (endswith(".test.ts") or endswith(".test.tsx") or endswith(".spec.ts") or endswith(".spec.tsx")))] | any' 2>/dev/null || echo "false")"
+            TOUCHES_APP="$(gh pr view "$SPEC_PR" --repo "$GITHUB_REPOSITORY" --json files \
+              --jq '[.files[].path | select(startswith("server/src/") or startswith("frontend/src/") or startswith("frontend/e2e/"))] | any' 2>/dev/null || echo "false")"
+            echo "::notice::Spec-PR #$SPEC_PR: HAS_APP_TEST=$HAS_APP_TEST TOUCHES_APP=$TOUCHES_APP"
+            if [ "$HAS_APP_TEST" = "true" ] || [ "$TOUCHES_APP" != "true" ]; then
               ARTIFACTS_OK="true"
-            fi
-            # Docs-only Spec-PR (rein Markdown/docs/, kein Code): Test-Pflicht entfällt —
-            # der Docs-Carve-out im Spec-Prompt verlangt bewusst KEINEN Test (String-Match
-            # auf Markdown wäre ein Change-Detector). Mapping wie bei HAS_TESTS → ready.
-            DOCS_ONLY="$(gh pr view "$SPEC_PR" --repo "$GITHUB_REPOSITORY" --json files \
-              --jq '[.files[].path | (endswith(".md") or startswith("docs/"))] | all' 2>/dev/null || echo "false")"
-            if [ "$DOCS_ONLY" = "true" ]; then
-              ARTIFACTS_OK="true"
-              echo "::notice::Spec-PR #$SPEC_PR: DOCS_ONLY=true — Test-Pflicht entfällt (Docs-Carve-out)"
+              [ "$TOUCHES_APP" != "true" ] && echo "::notice::Spec-PR #$SPEC_PR: kein Anwendungscode berührt — Test-Pflicht entfällt (nur App-Code wird getestet)"
             fi
           fi
 

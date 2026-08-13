@@ -14,8 +14,10 @@ schreibt nicht den Code).
 
 Lies `.github/prompts/spec.md` und befolge **ABLAUF + TEST-QUALITÄT** dort inhaltlich unverändert:
 Akzeptanzkriterien aus dem Body-Block des Issues (`<!-- KI-ANALYSE:START/END -->`), rote Tests je
-AK (Testebene nach Typ), VORAB-Dedup, **Mutations-Probe** vor dem Commit, **Docs-Carve-out**
-(reines Markdown → kein Test). Diese Datei ist die gemeinsame Quelle für CI und diesen Command.
+AK (Testebene nach Typ, **nur** in `server/src/**`, `frontend/src/**`, `frontend/e2e/**`),
+VORAB-Dedup, **Mutations-Probe** vor dem Commit, **Nicht-Anwendungscode-Carve-out**
+(Workflows/CI-Plumbing/Config UND Markdown-Inhalt → **KEIN** Test, ADR 0001). Diese Datei ist die
+gemeinsame Quelle für CI und diesen Command.
 
 ## Lokaler Modus — Abweichungen zur CI-Variante in der .md
 

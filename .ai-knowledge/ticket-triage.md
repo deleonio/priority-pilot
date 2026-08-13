@@ -158,8 +158,8 @@ Bei einem zu großen Ticket:
   Sub-Issues mit Nummern, Kurzbeschreibung und empfohlener Reihenfolge/Abhängigkeiten auflisten.
 - **Akzeptanzkriterien & Testfälle (Pflichtbestandteil, Stufe 1 der [TDD-Strategie](tdd-strategy.md)):**
   Den Lösungsvorschlag um eine Liste **prüfbarer Akzeptanzkriterien** ergänzen (möglichst
-  Given/When/Then) und je Kriterium den konkreten **Testfall** benennen — Testebene und Zieldatei
-  nach Ticket-Typ:
+  Given/When/Then) und je Kriterium den konkreten **Testfall** benennen — **nur für Anwendungscode**
+  (`server/src/**`, `frontend/src/**`, `frontend/e2e/**`). Testebene und Zieldatei nach Ticket-Typ:
   - **Backend-Logik / API** → `node:test`-Unit (`server/src/logics/*.test.ts`) bzw. API-Test
     (`server/src/express/*.test.ts`).
   - **Frontend-Logik** → Vitest-Unit (`frontend/src/lib/*.test.ts`).
@@ -168,12 +168,13 @@ Bei einem zu großen Ticket:
     (375px-Viewport, kein horizontales Scrollen — siehe [conventions.md](conventions.md)) mit eigenem
     Testfall aufnehmen, Muster `login.spec.ts` AK5 / `task-tree.spec.ts` AK-6.
   - **Reines Styling/Layout** → visuelle Verifikation statt Test (kurz begründen).
-  - **Reines Doku/Pattern-Konzept** (neue/erweiterte Markdown-Seite unter `docs/`, ohne dass Code
-    entsteht) → **keine Testfälle**. Akzeptanzkriterien stattdessen als prüfbare Aussagen formulieren
+  - **Nicht-Anwendungscode** (`.github/workflows`, `.github/scripts`, `setup-claude`-Composite,
+    CI-Plumbing, Config-Dateien, **oder Markdown-Inhalt — egal wo, nicht nur unter `docs/`**)
+    → **keine Testfälle**. Akzeptanzkriterien stattdessen als prüfbare Aussagen formulieren
     („Abschnitt X vorhanden", „Pfad Y stabil"), die Erfüllung im PR-Body belegen; die Spec-Stufe
     schreibt dafür keine roten Tests (Begründung:
-    [ticket-spec.md](ticket-spec.md) Schritt 2 — String-Match auf Markdown ist ein Change-Detector
-    ohne Biss).
+    [ticket-spec.md](ticket-spec.md) Schritt 2 — String/YAML/Config-Match ist ein Change-Detector
+    ohne Biss; ADR 0001).
 
   Ziel: Die Umsetzung erhält eine **ausführbare** Zielvorgabe statt nur Prosa — das verhindert das
   „Schlingern" der KI. Akzeptanzkriterien und Testfälle gehören auch in die Sub-Issue-Bodies aus
