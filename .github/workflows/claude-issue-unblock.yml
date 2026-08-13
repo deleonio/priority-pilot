@@ -123,7 +123,7 @@ jobs:
                 continue
               fi
               Bstate="$(echo "$Bjson" | jq -r '.state')"
-              Blabels="$(echo "$Bjson" | jq -r '[.labels[].name]')"
+              Blabels="$(echo "$Bjson" | jq -r '[.labels[].name? // empty]')"
 
               if [ "$Bstate" != "open" ]; then
                 echo "#$B ist nicht offen ($Bstate) — skip."
