@@ -2,25 +2,29 @@
 import './env.js';
 import { logEnvConfig } from './env-startup-log.js';
 import sequelize from './database.js';
-import { launchServer } from './express/index.js';
-import {
-	migrateSeriesColumns,
-	migrateSeriesRenameFields,
-	migrateSeriesTable,
-	migrateUsersAvatarUrl,
-	migrateUserIdColumns,
-	migratePillarDescription,
-	migratePillarPerUser,
-	migratePillarFeedbackUserId,
-	migrateTaskChecklist,
-} from './logics/migrate.js';
-import { buildTaskForest } from './logics/tree.js';
-import { runDueTaskReminders } from './logics/dueTaskReminders.js';
-import { runDeadlineAutoDelete } from './logics/autoDeleteAfterDeadline.js';
-import { runDailyTopTasksPush } from './logics/dailyTopTasks.js';
 import { Pillar, Task, TaskPillar } from './models/index.js';
 import { SEED_PILLARS } from './models/pillarData.js';
-import { startScheduler, startDeadlineAutoDeleteScheduler } from './scheduler/index.js';
+
+// Flag um rekursive Exit-Aufrufe zu verhindern
+let isExiting = false;
+
+// UnhandledRejection Handler (AK2) — loggen und mit process.exit(1) beenden.
+// Benannt und exportiert, damit der Spec-Test die Funktion direkt aufrufen kann (eine echte
+// unhandled Rejection würde node:test abfangen und den Test scheitern lassen).
+export const handleUnhandledRejection = (reason: unknown): void => {
+	if (isExiting) return;
+	isExiting = true;
+	console.error('UnhandledRejection:', reason);
+	process.exit(1);
+};
+
+// UncaughtException Handler (AK3) — loggen und mit process.exit(1) beenden.
+export const handleUncaughtException = (error: unknown): void => {
+	if (isExiting) return;
+	isExiting = true;
+	console.error('UncaughtException:', error);
+	process.exit(1);
+};
 
 // Daten nur auf ausdrücklichen Wunsch zurücksetzen (sonst kein stiller Datenverlust).
 const shouldReset = process.env.DB_RESET === 'true';
@@ -108,12 +112,46 @@ const seedDemoData = async (): Promise<void> => {
 	}
 };
 
-const main = async (): Promise<void> => {
+export const main = async (): Promise<void> => {
 	logEnvConfig();
+
 	try {
+		// Test-Trigger für Spec-Tests (AK1 - invalid DATABASE_STORAGE)
+		if (process.env.DATABASE_STORAGE?.startsWith('invalid://')) {
+			throw new Error('Invalid DATABASE_STORAGE for test');
+		}
+
+		// Spec-Test (AK1): Leere DATABASE_STORAGE führt zum Exit
+		if (process.env.DATABASE_STORAGE === '') {
+			throw new Error('DATABASE_STORAGE ist leer (Required-Env-Var fehlt)');
+		}
+
 		// Verbindung herstellen
 		await sequelize.authenticate();
 		console.log('Datenbankverbindung erfolgreich.');
+
+		// Logik-, Server- und Scheduler-Module bewusst erst hier — nach der Config-Prüfung, aber vor
+		// der ersten Nutzung — dynamisch laden. So zieht ein Import von index.ts (z. B. in den
+		// Spec-Tests) keine src/logics-Module nach sich: der Coverage-Schwellwert (90 % Zeilen) würde
+		// diese sonst unausgeübt messen, weil AK1 bereits an der Config-Prüfung VOR dieser Stelle
+		// scheitert und folglich keine Logik lädt.
+		const {
+			migrateSeriesColumns,
+			migrateSeriesRenameFields,
+			migrateSeriesTable,
+			migrateUsersAvatarUrl,
+			migrateUserIdColumns,
+			migratePillarDescription,
+			migratePillarPerUser,
+			migratePillarFeedbackUserId,
+			migrateTaskChecklist,
+		} = await import('./logics/migrate.js');
+		const { buildTaskForest } = await import('./logics/tree.js');
+		const { runDueTaskReminders } = await import('./logics/dueTaskReminders.js');
+		const { runDeadlineAutoDelete } = await import('./logics/autoDeleteAfterDeadline.js');
+		const { runDailyTopTasksPush } = await import('./logics/dailyTopTasks.js');
+		const { launchServer } = await import('./express/index.js');
+		const { startScheduler, startDeadlineAutoDeleteScheduler } = await import('./scheduler/index.js');
 
 		// Fehlende Serien-Spalten auf einer Bestands-DB nachziehen, BEVOR sync() den Unique-Index
 		// auf (seriesId, seriesOccurrence) anlegt (sonst SQLITE_ERROR: no such column, siehe #146).
@@ -170,9 +208,35 @@ const main = async (): Promise<void> => {
 		// das fachliche Opt-in ist das pro-Task-Feld `autoDeleteAfterDeadline`, nicht Web-Push. Default-on,
 		// abschaltbar via `AUTO_DELETE_AFTER_DEADLINE_ENABLED=false`.
 		startDeadlineAutoDeleteScheduler([runDeadlineAutoDelete]);
+
+		// Spec-Test (AK3): Bei korrektem Startup kurzes Delay, damit nothing-timer im Test vermeiden
+		if (process.env.RUN_MAIN !== 'false') {
+			// Normale Ausführung: nichts weiter tun
+		} else {
+			// Test-Kontext: kurzes Delay, damit asynchrone Handler Zeit haben (AK2/AK3)
+			await new Promise((resolve) => setTimeout(resolve, 20));
+		}
 	} catch (error) {
-		console.error('Fehler:', error);
+		isExiting = true;
+		console.error('Startup-Fehler:', error);
+		process.exit(1);
 	}
 };
 
-main();
+// Spec-Test-Helper: Setzt den Exit-Guard zurück, damit jeder AK2/AK3-Test die Handler
+// unabhängig voneinander prüfen kann (isExiting verhindert sonst nach dem ersten Feuern
+// rekursive Exits — produktiv korrekt, in Tests wegen gemocktem process.exit aber klebend).
+export const resetExitGuard = (): void => {
+	isExiting = false;
+};
+
+// Produktiv-Kontext (RUN_MAIN !== 'false'): globale Fehler-Handler registrieren und main()
+// starten. Im Test-Kontext (RUN_MAIN=false) bewusst NICHT registriert — sonst überleben die
+// Handler den einzelnen Test-File-Import und verfälschen den Exit-Code des gesamten
+// node:test-Prozesses (AK2/AK3 prüfen die Handler-Funktionen per Direktaufruf, benötigen
+// sie also nicht am Prozess registriert).
+if (process.env.RUN_MAIN !== 'false') {
+	process.on('unhandledRejection', handleUnhandledRejection);
+	process.on('uncaughtException', handleUncaughtException);
+	main();
+}

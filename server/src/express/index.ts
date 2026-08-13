@@ -14,6 +14,7 @@ import { seriesRouter } from './routes/series.js';
 import { authRouter } from './routes/auth.js';
 import { transitRouter } from './routes/transit.js';
 import { createPushRouter } from './routes/push.js';
+import { handleServerError } from './server-error-handler.js';
 import type { PillarClassifier, ParseTaskParser, ActivityAdvisor } from '../llm/mistral.js';
 import type { PushSender } from '../logics/push.js';
 import { buildTaskForest } from '../logics/tree.js';
@@ -21,8 +22,6 @@ import { findNextImportantTask, findSuggestedTasks } from '../logics/find.js';
 import { isEmailAllowed, getConfiguredEmails } from '../logics/allowedEmails.js';
 import { requireAuth, getUserId, hasGoogleOAuth } from './requireAuth.js';
 import { User } from '../models/index.js';
-
-const PORT = Number(process.env.PORT) || 3000;
 
 type TaskTreeNodeDto = components['schemas']['TaskTreeNode'];
 type TaskDto = components['schemas']['Task'];
@@ -230,8 +229,16 @@ export const createApp = (deps: AppDeps = {}) => {
 };
 
 export const launchServer = async () => {
+	// PORT zur Aufruf-Zeit lesen (nicht schon beim Modul-Import) — sonst ließe sich der Port
+	// aus Tests/Umgebungen nicht mehr steuern, in denen process.env.PORT erst nach dem Import gesetzt wird.
+	const port = Number(process.env.PORT) || 3000;
 	const { createSessionStore } = await import('./session.js');
 	const sessionStore = await createSessionStore();
 	const app = createApp({ sessionStore });
-	app.listen(PORT, () => console.log(`Server läuft auf http://localhost:${PORT}`));
+	const server = app.listen(port, () => console.log(`Server läuft auf http://localhost:${port}`));
+
+	// AK4 — Error-Callback für app.listen (z.B. EADDRINUSE bei belegtem Port).
+	// Behandlung in server-error-handler.ts, damit der Spec-Test die Funktion direkt aufrufen kann,
+	// ohne express/index.ts (und damit src/logics) importieren zu müssen.
+	server.on('error', (error: NodeJS.ErrnoException) => handleServerError(error, port));
 };
