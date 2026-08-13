@@ -71,6 +71,7 @@ jobs:
           zai-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI }}
           openrouter-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER }}
           memory-load: 'true'
+          expect-memory: 'true'
 
       - name: Supersede-Check
         id: supersede-check
@@ -94,7 +95,7 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
         run: |
           cat > /tmp/claude-prompt.txt << 'CLAUDE_EOF'
-          KONTEXT: Notizen aus früheren Phasen (Spec/Implement) sind als Memory automatisch geladen — als Hintergrund nutzen. (Review-Tier: du schreibst hier keinen Memory.)
+          HINWEIS: Review-Tier — du schreibst KEINEN Memory (nur Lesen). Lesedetails siehe Memory-Abschnitt am Prompt-Ende.
           FOKUS: NUR PR #PR_NR. NUR den Diff prüfen. KEINE Abstecher. Token sparen: kurz, präzise, direkt.
 
           MODUS bestimmen (ALLERERSTER Schritt): Prüfe, ob bereits ein <!-- ai-review -->-Sammelkommentar am PR existiert (gh api repos/{owner}/{repo}/issues/#PR_NR/comments, nach "<!-- ai-review -->" filtern).
@@ -133,7 +134,11 @@ jobs:
             - VERDICT: needs-human (bei Entscheidungs-Findungen, die ein Mensch treffen muss)
           CLAUDE_EOF
 
+          # Memory-Read-Snippet anhängen (Phase 4 = Review: nur Lesen, kein Schreiben)
+          cat .github/prompts/memory-read.md >> /tmp/claude-prompt.txt
+
           sed -i "s/#PR_NR/${{ github.event.pull_request.number }}/g" /tmp/claude-prompt.txt
+          sed -i "s/#MEMORY_STATUS/${{ steps.setup.outputs.memory-status-text }}/g" /tmp/claude-prompt.txt
           sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
 
           ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
@@ -147,7 +152,7 @@ jobs:
         # laden via Restore (read-only OK) und übergeben das Memory als Artefakt an den vertrauens-
         # würdigen workflow_run-Begleitworkflow (claude-memory-save.yml), der den Schreibzugriff hat.
         # Artefakt-Name = Cache-Key = claude-memory-issue-{N} (steps.setup.outputs.memory-save-key).
-        if: always() && steps.setup.outputs.configured == 'true' && steps.claude.outcome == 'success'
+        if: always() && steps.setup.outputs.configured == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ${{ steps.setup.outputs.memory-save-key }}

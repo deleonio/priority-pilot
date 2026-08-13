@@ -62,6 +62,7 @@ jobs:
           zai-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI }}
           openrouter-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER }}
           memory-load: 'true'
+          expect-memory: 'true'
 
       - name: Skip-Guard (Implement läuft bereits)
         id: skip-guard
@@ -151,7 +152,7 @@ jobs:
           ISSUE: ${{ github.event.issue.number }}
         run: |
           cat > /tmp/claude-prompt.txt << 'CLAUDE_EOF'
-          MEMORY: Deine Memory (autoMemoryDirectory, automatisch geladen) sammelt pro Issue alle Phasen-Notizen. Schreibe am ENDE deine wichtigsten neuen Erkenntnisse (Implementierungs-Entscheidungen, Fallstricke, fertige/fehlende Schritte) dort hinein — nur Neues, kurz.
+          #RESUME_HINT
           FOKUS: NUR Issue #ISSUE_NR. Nur die für die Akzeptanzkriterien notwendigen Dateien/Zeilen ändern, kein Refactoring am Rande. KEINE Abstecher. Token sparen: kurz, präzise, direkt.
 
           ABLAUF (STRIKT):
@@ -182,7 +183,20 @@ jobs:
           Idempotenz: Draft-PR mit Closes #ISSUE_NR ist normaler Spec-Eingang – aufgreifen. Nicht-Draft-PR = Umsetzung schon gelaufen → Lauf beenden.
           CLAUDE_EOF
 
+          # Memory-Snippets anhängen (Phase 3: restauriert + schreibt). Vor den seds, damit
+          # deren Platzhalter (#ISSUE_NR/#PHASE/#MEMORY_STATUS) mit substituiert werden.
+          cat .github/prompts/memory-read.md >> /tmp/claude-prompt.txt
+          cat .github/prompts/memory-write.md >> /tmp/claude-prompt.txt
+
           sed -i "s/#ISSUE_NR/${{ github.event.issue.number }}/g" /tmp/claude-prompt.txt
+          sed -i "s/#PHASE/implement/g" /tmp/claude-prompt.txt
+          sed -i "s/#MEMORY_STATUS/${{ steps.setup.outputs.memory-status-text }}/g" /tmp/claude-prompt.txt
+          # Resume-Hinweis: bei ai:continued (Folgelauaf nach Soft-Abort) Memory-Pflicht betonen.
+          if [ "${{ steps.continued-before.outputs.already }}" = "true" ]; then
+            sed -i "s|#RESUME_HINT|⚠️ FORTSETZUNGS-Lauf (ai:continued) — lies ZUERST .claude/memory/ und SETZE FORT, starte NICHT neu, wiederhole nichts aus 'Erledigt'!|g" /tmp/claude-prompt.txt
+          else
+            sed -i "s/#RESUME_HINT//g" /tmp/claude-prompt.txt
+          fi
           sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
 
           ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
@@ -196,7 +210,7 @@ jobs:
         # laden via Restore (read-only OK) und übergeben das Memory als Artefakt an den vertrauens-
         # würdigen workflow_run-Begleitworkflow (claude-memory-save.yml), der den Schreibzugriff hat.
         # Artefakt-Name = Cache-Key = claude-memory-issue-{N} (steps.setup.outputs.memory-save-key).
-        if: always() && steps.setup.outputs.configured == 'true' && steps.claude.outcome == 'success'
+        if: always() && steps.setup.outputs.configured == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ${{ steps.setup.outputs.memory-save-key }}

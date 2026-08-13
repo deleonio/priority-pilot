@@ -81,6 +81,7 @@ jobs:
           zai-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI }}
           openrouter-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER }}
           memory-load: 'true'
+          expect-memory: 'true'
 
       - name: 🔧 Phase 0 - Labels sicherstellen (deterministisch, vor Claude)
         # gh pr edit --add-label bricht hart ab ("X not found"), wenn ein Label im Repo fehlt.
@@ -130,7 +131,7 @@ jobs:
           PR: ${{ github.event.pull_request.number || github.event.inputs.pr-number }}
         run: |
           cat > /tmp/claude-prompt.txt << 'CLAUDE_EOF'
-          KONTEXT: Notizen aus früheren Phasen sind als Memory automatisch geladen — für Klassifikation/Titel als Hintergrund nutzen. (Documenter ist terminal + Review-Tier: du schreibst hier keinen Memory.)
+          HINWEIS: Documenter ist terminal + Review-Tier — du schreibst KEINEN Memory (nur Lesen). Lesedetails siehe Memory-Abschnitt am Prompt-Ende.
 
           ROLLE: Du bist der PR-Documenter. Pflege Titel + Beschreibung des soeben gemergten PR #PR_NR. Du arbeitest NUR über gh (gh pr edit / gh pr comment) und änderst KEINE Dateien im Repo.
 
@@ -168,7 +169,11 @@ jobs:
           ZEITLIMIT: Soft-Deadline = SOFT_DEADLINE. Vor jedem Schritt: [ $(date +%s) -ge SOFT_DEADLINE ]. Bei OVER: mindestens ai:documented sichern, Turn beenden.
           CLAUDE_EOF
 
+          # Memory-Read-Snippet anhängen (Phase 6 = Documenter: terminal, nur Lesen)
+          cat .github/prompts/memory-read.md >> /tmp/claude-prompt.txt
+
           sed -i "s/#PR_NR/$PR/g" /tmp/claude-prompt.txt
+          sed -i "s/#MEMORY_STATUS/${{ steps.setup.outputs.memory-status-text }}/g" /tmp/claude-prompt.txt
           sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
 
           ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
