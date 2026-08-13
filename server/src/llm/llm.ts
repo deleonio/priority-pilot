@@ -525,6 +525,26 @@ export interface ActivityAdvice {
 }
 
 /**
+ * Eingabe für die Text-Lektorat-Funktion: zu lektorierender Text und optionale
+ * Maximallänge (Zeichen). Ist `maxLength` gesetzt, wird der Text zusätzlich auf
+ * diese Länge gekürzt (Issue #645).
+ */
+export interface LektoratInput {
+	text: string;
+	maxLength?: number;
+}
+
+/** Ergebnis der Lektorat-Funktion: lektorierter (und ggf. gekürzter) Text. */
+// knip-ignore-export - Exportiert für zukünftige Nutzung (Issue #645)
+export interface LektoratOutput {
+	text: string;
+}
+
+/** Funktionssignatur des Lektorats — injizierbar für Tests. */
+// knip-ignore-export - Exportiert für zukünftige Nutzung (Issue #645)
+export type LektoratFunction = (input: LektoratInput) => Promise<LektoratOutput>;
+
+/**
  * Ein Verteilungs-Eintrag einer Säule, so wie ihn der Client (Dashboard „Meine Themen") darstellt:
  * Soll-Anteil (`weight`, 0–100 %) und Ist-Anteil (`actualShare`, 0–1).
  */
@@ -678,6 +698,67 @@ const extractActivityAdvice = (parsed: unknown, input: AdviseActivitiesInput): A
 		}
 	}
 	return advice;
+};
+
+/** System-Prompt für Lektorat + optionales Kürzen (Issue #645). */
+const LEKTORAT_SYSTEM_PROMPT = [
+	'Du bist professioneller Lektor für deutsche Texte.',
+	'',
+	'Aufgabe:',
+	'- Korrigiere Rechtschreibung, Grammatik und Stil.',
+	'- Ist eine Maximallänge angegeben, kürze den Text auf diese Länge (oder kürzer),',
+	'  ohne den Sinn zu verlieren. Bei Kürzung den Text sinnvoll auf den Kern reduzieren.',
+	'',
+	'Antworte ausschließlich mit JSON in genau dieser Form (keine Erklärung, kein Markdown):',
+	'{ "text": <string> }',
+].join('\n');
+
+/**
+ * Baut die Nutzer-Nachricht für das Lektorat mit optionaler Längenbegrenzung.
+ */
+export const buildLektoratUserMessage = (input: LektoratInput): string => {
+	const lines = ['Zu lektorierender Text:', input.text];
+	if (input.maxLength !== undefined) {
+		lines.push('', `Maximallänge: ${input.maxLength} Zeichen (Text kürzen, falls länger)`);
+	}
+	return lines.join('\n');
+};
+
+/**
+ * Extrahiert den lektorierten Text aus der Modell-Antwort.
+ */
+export const extractLektoratOutput = (parsed: unknown): LektoratOutput => {
+	if (typeof parsed !== 'object' || parsed === null) {
+		throw new MistralRequestError('Antwort des Modells hat nicht das erwartete Format (Objekt erwartet).');
+	}
+	const raw = parsed as Record<string, unknown>;
+	if (typeof raw.text !== 'string') {
+		throw new MistralRequestError('Antwort des Modells enthielt kein gültiges text-Feld.');
+	}
+	return { text: raw.text.trim() };
+};
+
+/**
+ * Reale Lektorat-Funktion: ruft die LLM-Kaskade auf (Mistral → OpenRouter-Verfeinerung).
+ * Lektorisiert Texte und kürzt sie optional auf eine Maximallänge (Issue #645).
+ * Wirft {@link MissingApiKeyError}, wenn kein API-Key gesetzt ist, und {@link MistralRequestError}
+ * bei jedem Upstream-/Format-Problem.
+ */
+// knip-ignore-export - Exportiert für zukünftige Nutzung (Issue #645)
+export const lektoratTextWithMistral: LektoratFunction = async (input) => {
+	// Eingabe-Validierung VOR dem LLM-Call (Review #647): leerer Text verschwendet API-Calls,
+	// nicht-positive maxLength erzeugt kaputte Prompt-Outputs.
+	if (input.text.trim() === '') {
+		throw new MistralRequestError('Lektorat erwartet einen nicht-leeren Text.');
+	}
+	if (input.maxLength !== undefined && input.maxLength <= 0) {
+		throw new MistralRequestError('maxLength muss positiv sein (falls angegeben).');
+	}
+	const parsed = await requestModelJson([
+		{ role: 'system', content: LEKTORAT_SYSTEM_PROMPT },
+		{ role: 'user', content: buildLektoratUserMessage(input) },
+	]);
+	return extractLektoratOutput(parsed);
 };
 
 /**

@@ -9,7 +9,8 @@
 	"workspaces": {
 		"server": {
 			"entry": ["src/index.ts"],
-			"ignore": ["src/api.d.ts"]
+			"ignore": ["src/api.d.ts"],
+			"ignoreExports": ["src/llm/llm.ts"]
 		},
 		"frontend": {
 			"entry": ["src/main.tsx"],

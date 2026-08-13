@@ -15,4 +15,9 @@ export type {
 	ActivityAdvice,
 	ClassifyPillarsInput,
 	AdviseActivitiesInput,
+	LektoratFunction,
+	LektoratInput,
+	LektoratOutput,
 } from './llm.js';
+
+export { lektoratTextWithMistral } from './llm.js';
