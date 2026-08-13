@@ -14,9 +14,13 @@ korrekt geparsed werden, ob `name:`-Kopplungen stimmen usw.
 
 ## Entscheidung
 
-**GitHub-Workflows / das CI-Plumbing werden nicht getestet.** Die bestehende Workflow-Meta-Test-Suite
-wird nicht weiter gepflegt und per [#564](https://github.com/deleonio/priority-pilot/issues/564) in
-Quarantäne (`__quarantine__/`) verschoben; die CI führt sie nicht mehr aus.
+**Getestet wird nur Anwendungscode** (`server/src/**`, `frontend/src/**`) sowie Frontend-E2E
+(`frontend/e2e/**`). **Workflows/CI-Plumbing, Config-Dateien und Markdown-Inhalt werden nicht
+getestet.** Die gesamte nicht-anwendungsspezifische Meta-Test-Suite (Workflow-, Config- und
+Markdown-Inhalt-Tests, u. a. in `.github/workflows/*.test.ts`, `server/src/{ci,docs}/*.test.ts` und
+dem `tests/`-Workspace) wurde vollständig **gelöscht** — zunächst per [#564](https://github.com/deleonio/priority-pilot/issues/564)
+in Quarantäne (`__quarantine__/`) verschoben, am 2026-08-13 endgültig entfernt; die CI führt nichts
+davon mehr aus.
 
 ## Begründung
 
@@ -44,10 +48,15 @@ Quarantäne (`__quarantine__/`) verschoben; die CI führt sie nicht mehr aus.
 
 - `.github/workflows/*.yml` — die Workflow-Definitionen inkl. ihrer eingebetteten `run:`-Bash-Blöcke,
   Label-/Verdict-State-Machine, Guards, Concurrency-Gruppen, Skip-/Supersede-Logik.
-- `.github/workflows/*.test.ts` und `.github/scripts/*.test.ts` — die Meta-Tests (am 2026-08-12
-  vollständig gelöscht auf User-Direktive; #564 hatte eine `__quarantine__/`-Verschiebung geplant).
+- `.github/workflows/*.test.ts`, `.github/scripts/*.test.ts`, `server/src/{ci,docs}/*.test.ts` und der
+  gesamte `tests/`-Workspace — die Meta-Tests (zuerst 2026-08-12 in `__quarantine__/` verschoben, am
+  2026-08-13 vollständig gelöscht auf User-Direktive; #564 hatte die Quarantäne geplant).
 - `.github/actions/setup-claude/` und die übrigen Composite-Actions.
 - `ci.yml`/`deploy.yml`-Plumbing (Job-Anordnung, Matrix, Caching, Runner-Auswahl).
+- **Config-Dateien** (`.yml`/`.json`/`.toml` überall im Repo) — statische Config ist kein Testziel.
+- **Markdown-Inhalt (jede `.md`-Datei, egal wo)** — auch Spec-Prompts (`.github/prompts/*.md`),
+  `docs/spec/*.md`, `.ai-knowledge/*.md`, `AGENTS.md` usw. String-Match auf Markdown ist ein
+  reiner Change-Detector (Präzedenzfälle #549, #557, #568, #569, #595 wurden zurückgebaut).
 
 **Nicht von diesem ADR umfasst (weiterhin testbar, separater Testbedarf):**
 
@@ -64,8 +73,11 @@ Quarantäne (`__quarantine__/`) verschoben; die CI führt sie nicht mehr aus.
 - **Gewinn:** Workflow-Änderungen sind wieder „kostenlos" — kein Meta-Test-Churn, kein
   Doppelpflege. Die Pipeline kann schneller evolvieren.
 - **Gewinn:** Agenten und Spec-Phase bekommen ein klares Signal (dieses ADR + die Regel in
-  [tdd-strategy.md](../../.ai-knowledge/tdd-strategy.md) Testumfang) und schreiben keine neuen
-  Workflow-Tests mehr.
+  [tdd-strategy.md](../../.ai-knowledge/tdd-strategy.md) Testumfang sowie der
+  Nicht-Anwendungscode-Carve-out im Spec-Prompt `.github/prompts/spec.md`) und schreiben keine
+  neuen Workflow-/Config-/Markdown-Tests mehr. Das Spec-Gate in `02-claude-spec.yml` setzt das
+  operativ um: ein Test zählt nur, wenn er unter `server/src/`, `frontend/src/` oder `frontend/e2e/`
+  liegt.
 - **Follow-ups:** [#564](https://github.com/deleonio/priority-pilot/issues/564) (Quarantäne-Verschiebung
   / CI-Test-Steps entfernen), [#566](https://github.com/deleonio/priority-pilot/issues/566)
   (spec-first-Neuaufbau, nur für Domänenlogik).

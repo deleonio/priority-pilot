@@ -29,7 +29,7 @@ Der gemeinsame API-Vertrag liegt in [`openapi.yml`](openapi.yml).
 
 ## Fehler melden
 
-Bitte nutze die [Issue-Vorlagen](.github/ISSUE_TEMPLATE/). Ein guter Fehlerbericht enthält:
+Ein guter Fehlerbericht enthält:
 
 - eine klare Beschreibung des erwarteten und tatsächlichen Verhaltens,
 - eine möglichst kleine Schritt-für-Schritt-Reproduktion,

@@ -56,9 +56,11 @@ Schlingern.
 **Stand jetzt** (mit dieser Änderung geschlossen — die Tabelle oben ist die Ausgangslage):
 
 - Triage → geschlossen in **Stufe 1** (strukturierte AK + Testfälle).
-- Issue-Template → geschlossen in **Stufe 1** (Feld „Akzeptanzkriterien / Wie verifiziert man?").
+- Issue-Template → ~~geschlossen in Stufe 1~~ **Issue-/PR-Templates am 2026-08-13 entfernt**; die
+  AK-Pflicht wird stattdessen über [ticket-triage.md](ticket-triage.md) Schritt 4 durchgesetzt.
 - Umsetzung → geschlossen in **Stufe 2** (Red-Green: rote Tests zuerst, `format`/Lint danach).
-- PR-Template → geschlossen in **Stufe 2** (`pnpm test` ist Pflicht).
+- PR-Template → ~~geschlossen in Stufe 2~~ **Template am 2026-08-13 entfernt**; die `pnpm test`-Pflicht
+  wird über [AGENTS.md](../AGENTS.md) Kernregeln + die Pipeline durchgesetzt.
 - Review → geschlossen in **Stufe 2** (fehlende/rote Tests sind ein Gate, kein bloßer Nachprüf-Punkt).
 - CI → weiterhin **offen** (Reihenfolge/Coverage, siehe Querschnitts-Politik und „Offene Entscheidungen").
 
@@ -93,8 +95,9 @@ die 1:1 zu Tests werden können.
   konkrete Testfälle** (welche Datei, welche Assertion) als festen Bestandteil des Analyse-Body-Blocks.
 - [ticket-triage.md](ticket-triage.md) Schritt 4: 🟢 setzt zusätzlich voraus, dass die AK **prüfbar**
   formuliert sind (sonst 🟡).
-- `.github/ISSUE_TEMPLATE/bug_report.yml` + `feature_request.yml`: Feld „Akzeptanzkriterien / Wie
-  verifiziert man die Lösung?".
+- ~~`.github/ISSUE_TEMPLATE/bug_report.yml` + `feature_request.yml`: Feld „Akzeptanzkriterien / Wie
+  verifiziert man die Lösung?".~~ — Issue-/PR-Templates am 2026-08-13 entfernt; die AK-Pflicht trägt
+  nun [ticket-triage.md](ticket-triage.md) Schritt 4 (AK + Testfälle im Analyse-Body).
 
 **Stärke gegen Schlingern:** mittel — klare Zielliste, aber noch Interpretationsspielraum (Prosa).
 **Kosten:** niedrig (nur Doku/Templates). **Risiko:** minimal.
@@ -111,8 +114,10 @@ Red-Green-Refactor-Loop.
   **(a)** rote Tests aus den AK schreiben → als **erster Commit** sichtbar,
   **(b)** Code implementieren, bis Tests grün sind (`pnpm test` als primärer Erfolgsindikator),
   **(c)** erst danach `pnpm format` + Lint.
-- `.github/pull_request_template.md`: `pnpm test` wird **Pflicht** (nicht mehr „falls zutreffend"),
-  plus Punkt „Tests bilden die Akzeptanzkriterien ab".
+- ~~`.github/pull_request_template.md`: `pnpm test` wird Pflicht (nicht mehr „falls zutreffend"),
+  plus Punkt „Tests bilden die Akzeptanzkriterien ab".~~ — PR-Template am 2026-08-13 entfernt;
+  `pnpm test` ist Pflicht über [AGENTS.md](../AGENTS.md) Kernregeln (`pnpm format`, `pnpm lint` **und
+  `pnpm test`** pro PR) + die Pipeline.
 - [pr-review.md](pr-review.md) Schritt 3: kein 🟢-Urteil, wenn Tests fehlen oder rot sind.
 
 **Stärke gegen Schlingern:** hoch — binäres Ziel ab Schritt 1.
@@ -183,13 +188,16 @@ krachen (fehlender Build-Step, falscher Host, vergessenes Secret) — dafür ist
   gefunden werden. Eine kaputte Extraktion ergibt sonst einen dauerhaft grünen Test über eine leere
   Menge. Deshalb gehört zu jedem All-Quantor eine Assertion, dass die Menge nicht leer ist.
 
-**Was bewusst NICHT getestet wird — GitHub-Workflows/CI-Plumbing (ADR, [#567](https://github.com/deleonio/priority-pilot/issues/567)):**
-Für `.github/workflows/`, `.github/scripts/`, die `setup-claude`-Composite-Actions und die
-`ci.yml`/`deploy.yml`-Plumbing werden **keine** Tests geschrieben oder gepflegt. Workflow-Meta-Tests
-sind überwiegend Tautologie-Tests ohne Fehlerfangwert (sie re-encodieren die Workflow-Definition und
-werden rot bei _Änderung_, nicht bei _Defekt_) und blockieren den Pipeline-Umbau durch ständigen
-Meta-Test-Churn — sie haben Agenten und Phasen bisher auch stets als Vorbild eingeladen, neue zu
-schreiben. Die alte Suite wurde am 2026-08-12 vollständig **gelöscht** (User-Direktive; [#564](https://github.com/deleonio/priority-pilot/issues/564)
+**Was bewusst NICHT getestet wird — Workflows/CI-Plumbing, Config und Markdown-Inhalt (ADR, [#567](https://github.com/deleonio/priority-pilot/issues/567)):**
+Getestet wird **nur Anwendungscode** (`server/src/**`, `frontend/src/**`) sowie Frontend-E2E
+(`frontend/e2e/**`). Für `.github/workflows/`, `.github/scripts/`, die `setup-claude`-Composite-Actions,
+die `ci.yml`/`deploy.yml`-Plumbing, Config-Dateien (`.yml`/`.json`/`.toml`) und **Markdown-Inhalt
+(jede `.md`-Datei, egal wo — auch Spec-Prompts `.github/prompts/*.md` und `docs/spec/*.md`)** werden
+**keine** Tests geschrieben oder gepflegt. Meta-Tests auf diese Dateien sind überwiegend
+Tautologie-/Change-Detector-Tests ohne Fehlerfangwert (sie re-encodieren die Datei und werden rot bei
+_Änderung_, nicht bei _Defekt_) und blockieren den Pipeline-Umbau durch ständigen Meta-Test-Churn — sie
+haben Agenten und Phasen bisher auch stets als Vorbild eingeladen, neue zu schreiben. Die alte Suite
+wurde am 2026-08-12 vollständig **gelöscht** (User-Direktive; [#564](https://github.com/deleonio/priority-pilot/issues/564)
 hatte eine `__quarantine__/`-Verschiebung geplant, übersprungen); neuer Testbedarf entsteht spec-first nur
 noch für Domänenlogik ([#566](https://github.com/deleonio/priority-pilot/issues/566)). Entscheidung
 und abgegrenzter Scope: [ADR 0001 — GitHub-Workflows bleiben ungetestet](../docs/adr/0001-github-workflows-bleiben-ungetestet.md).
@@ -248,9 +256,7 @@ machen.
 | Datei                                                                          | Szenario            |
 | ------------------------------------------------------------------------------ | ------------------- |
 | `.ai-knowledge/ticket-triage.md` (Schritt 1, 4)                                | 1, 3                |
-| `.github/ISSUE_TEMPLATE/bug_report.yml`, `feature_request.yml`                 | 1                   |
 | `.ai-knowledge/ticket-implementation.md` (Schritt 3)                           | 2, 3                |
-| `.github/pull_request_template.md`                                             | 2                   |
 | `.ai-knowledge/pr-review.md` (Schritt 3)                                       | 2                   |
 | `.github/workflows/implement.yml` (+ neue Spec-Action)                         | 3                   |
 | `frontend/vitest.config.ts`, `server/package.json`, `.github/workflows/ci.yml` | Coverage (optional) |
