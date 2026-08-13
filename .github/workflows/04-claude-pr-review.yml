@@ -241,21 +241,68 @@ jobs:
           gh label create "ai:needs-review" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
           gh label create "ai:needs-human" --repo "$GITHUB_REPOSITORY" --color 5319e7 --description "Nicht-automatisierbare Entscheidung — wartet auf Mensch (Fixup greift bewusst nicht)" 2>/dev/null || true
 
-          gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-review 2>/dev/null || true
-          gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-changes 2>/dev/null || true
-          gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:ready-to-merge 2>/dev/null || true
-          gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-human 2>/dev/null || true
+          # Label-Operationen MIT Retry (Issue #613): Exponential Backoff 1s, 2s, 4s (max. 3)
+          # Bei persistenten Fehlern → ai:needs-human + Fehlerkommentar
+          label_operation_failed="false"
+          for attempt in 1 2 3; do
+            if gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-review 2>/dev/null && \
+               gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-changes 2>/dev/null && \
+               gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:ready-to-merge 2>/dev/null && \
+               gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-human 2>/dev/null; then
+              break
+            fi
+            if [ "$attempt" -lt 3 ]; then sleep "$((2 ** (attempt-1)))"; fi
+            if [ "$attempt" -eq 3 ]; then label_operation_failed="true"; fi
+          done
+
+          if [ "$label_operation_failed" = "true" ]; then
+            echo "::error::Label-Entfernen nach 3 Versuchen fehlgeschlagen → ai:needs-human gesetzt"
+            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⚠️ **Label-Race-Condition (#613)**: Label-Entfernung nach 3 Retries fehlgeschlagen (transienter GitHub-API-Fehler). Bitte manuell prüfen und via \`ai:needs-review\` neu triggern." 2>/dev/null || true
+            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human 2>/dev/null || true
+            exit 1
+          fi
 
           if [ "$final" = "ready-to-merge" ]; then
-            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:ready-to-merge
-            echo "::notice::Label gesetzt: ai:ready-to-merge"
+            for attempt in 1 2 3; do
+              if gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:ready-to-merge; then
+                echo "::notice::Label gesetzt: ai:ready-to-merge"
+                break
+              fi
+              if [ "$attempt" -lt 3 ]; then sleep "$((2 ** (attempt-1)))"; fi
+              if [ "$attempt" -eq 3 ]; then
+                echo "::error::ai:ready-to-merge nach 3 Versuchen fehlgeschlagen → ai:needs-human gesetzt"
+                gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⚠️ **Label-Race-Condition (#613)**: ai:ready-to-merge nach 3 Retries fehlgeschlagen. Bitte manuell prüfen." 2>/dev/null || true
+                gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human 2>/dev/null || true
+                exit 1
+              fi
+            done
           elif [ "$final" = "needs-human" ]; then
-            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human
-            echo "::notice::Label gesetzt: ai:needs-human (wartet auf Mensch)"
+            for attempt in 1 2 3; do
+              if gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human; then
+                echo "::notice::Label gesetzt: ai:needs-human (wartet auf Mensch)"
+                break
+              fi
+              if [ "$attempt" -lt 3 ]; then sleep "$((2 ** (attempt-1)))"; fi
+              if [ "$attempt" -eq 3 ]; then
+                echo "::error::ai:needs-human nach 3 Versuchen fehlgeschlagen → manuelle Eingriffe erforderlich"
+                exit 1
+              fi
+            done
             gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⏸️ **Wartet auf menschliche Entscheidung** — nicht-automatisierbares Finding (siehe Review-Kommentar oben). Der Fixup greift hier bewusst nicht. Nach der Entscheidung: Label \`ai:needs-human\` entfernen und via \`ai:needs-review\` neu triggern." 2>/dev/null || true
           else
-            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-changes
-            echo "::notice::Label gesetzt: ai:needs-changes"
+            for attempt in 1 2 3; do
+              if gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-changes; then
+                echo "::notice::Label gesetzt: ai:needs-changes"
+                break
+              fi
+              if [ "$attempt" -lt 3 ]; then sleep "$((2 ** (attempt-1)))"; fi
+              if [ "$attempt" -eq 3 ]; then
+                echo "::error::ai:needs-changes nach 3 Versuchen fehlgeschlagen → ai:needs-human gesetzt"
+                gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⚠️ **Label-Race-Condition (#613)**: ai:needs-changes nach 3 Retries fehlgeschlagen. Bitte manuell prüfen." 2>/dev/null || true
+                gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human 2>/dev/null || true
+                exit 1
+              fi
+            done
           fi
 
       - name: Bei Timeout PR-Kommentar (Alarm)
