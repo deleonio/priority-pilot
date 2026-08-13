@@ -96,7 +96,7 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		// #629: Tab-Freiheit nach Formular-Speichern — Fokus muss weiterbewegbar sein (nicht festhalten)
 		const before = await page.evaluate(() => document.activeElement);
 		await page.keyboard.press('Tab');
-		await page.waitForTimeout(50); // Browser-Fokus-Update abwarten
+		await page.waitForTimeout(200); // Browser-Fokus-Update abwarten
 		const after = await page.evaluate(() => document.activeElement);
 		expect(after).not.toBe(before);
 

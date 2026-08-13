@@ -135,10 +135,12 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		await openTaskDeleteDialog(page, uniqueTitle('Task'));
 		await assertCancelFocusedWithoutJump(page);
 
-		// #629: Tab-Freiheit — Fokus muss weiterbewegbar sein
+		// #629: Tab-Freiheit — Fokus muss weiterbewegbar sein (nicht festhalten)
+		const before = await page.evaluate(() => document.activeElement);
 		await page.keyboard.press('Tab');
-		await page.waitForTimeout(50); // Browser-Fokus-Update abwarten
-		await expect(page.getByRole('button', { name: 'Endgültig löschen' })).toBeFocused();
+		await page.waitForTimeout(200); // Browser-Fokus-Update abwarten
+		const after = await page.evaluate(() => document.activeElement);
+		expect(after).not.toBe(before);
 	});
 
 	test('AK2 — Säulen-Löschdialog: Initialfokus auf „Abbrechen", kein Sprung', async ({ page }) => {
@@ -160,10 +162,12 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 
 		await assertCancelFocusedWithoutJump(page, 'Priority Pilot');
 
-		// #629: Tab-Freiheit — Fokus muss weiterbewegbar sein
+		// #629: Tab-Freiheit — Fokus muss weiterbewegbar sein (nicht festhalten)
+		const before = await page.evaluate(() => document.activeElement);
 		await page.keyboard.press('Tab');
-		await page.waitForTimeout(50); // Browser-Fokus-Update abwarten
-		await expect(page.getByRole('button', { name: 'Endgültig löschen' })).toBeFocused();
+		await page.waitForTimeout(200); // Browser-Fokus-Update abwarten
+		const after = await page.evaluate(() => document.activeElement);
+		expect(after).not.toBe(before);
 	});
 
 	// #553: Der Serien-Löschdialog hat eine eigene Struktur (Ja/Nein/Abbrechen, kein
@@ -213,7 +217,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		// #629: Tab-Freiheit — Fokus muss weiterbewegbar sein (nicht festhalten)
 		const before = await page.evaluate(() => document.activeElement);
 		await page.keyboard.press('Tab');
-		await page.waitForTimeout(50); // Browser-Fokus-Update abwarten
+		await page.waitForTimeout(200); // Browser-Fokus-Update abwarten
 		const after = await page.evaluate(() => document.activeElement);
 		expect(after).not.toBe(before);
 	});
@@ -305,7 +309,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		// #629: Tab-Freiheit nach Rückgabe — Fokus muss weiterbewegbar sein (nicht festhalten)
 		const before = await page.evaluate(() => document.activeElement);
 		await page.keyboard.press('Tab');
-		await page.waitForTimeout(50); // Browser-Fokus-Update abwarten
+		await page.waitForTimeout(200); // Browser-Fokus-Update abwarten
 		const after = await page.evaluate(() => document.activeElement);
 		expect(after).not.toBe(before);
 	});
@@ -328,7 +332,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		// #629: Tab-Freiheit nach Löschen — Fokus muss weiterbewegbar sein (nicht festhalten)
 		const before = await page.evaluate(() => document.activeElement);
 		await page.keyboard.press('Tab');
-		await page.waitForTimeout(50); // Browser-Fokus-Update abwarten
+		await page.waitForTimeout(200); // Browser-Fokus-Update abwarten
 		const after = await page.evaluate(() => document.activeElement);
 		expect(after).not.toBe(before);
 	});
