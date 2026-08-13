@@ -100,7 +100,7 @@ jobs:
   # da SESSION_STORE/NODE_ENV ungesetzt — siehe server/src/express/session.ts). Skaliert linear: neue
   # Specs verteilen sich auf die Shards, statt die Pipeline seriell zu verlaengern (E2E war ~58%).
   # ACHTUNG: Wird `shard: [...]` geaendert, MUSS der Nenner in `--shard=…/N` mitgezogen werden —
-      # sonst verteilen sich die Specs falsch (frueher rot via workflow-consistency.test.ts, entfernt).
+  # sonst verteilen sich die Specs falsch (frueher rot via workflow-consistency.test.ts, entfernt).
   e2e:
     # Kein CI auf Draft-PRs (identisch zu verify) — sonst liefen die teuren E2E-Shards auf dem
     # noch roten Spec-Draft. Startet erst ab ready_for_review; push-Events laufen immer.
