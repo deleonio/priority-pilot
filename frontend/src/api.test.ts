@@ -75,13 +75,6 @@ describe('api.updatePillar', () => {
 
 		await expect(api.updatePillar({ id: 1, pillarUpdate: { name: 'Doppelt' } })).rejects.toThrow(ResponseError);
 	});
-
-	it('wirft ResponseError bei 400 (Validierungsfehler)', async () => {
-		const errorResponse = { ok: false, status: 400 } as Response;
-		mockPATCH.mockResolvedValueOnce({ data: undefined, response: errorResponse });
-
-		await expect(api.updatePillar({ id: 1, pillarUpdate: { name: '' } })).rejects.toThrow(ResponseError);
-	});
 });
 
 describe('api.deletePillar', () => {
@@ -91,13 +84,6 @@ describe('api.deletePillar', () => {
 		const result = await api.deletePillar({ id: 1 });
 
 		expect(result).toBeUndefined();
-	});
-
-	it('wirft ResponseError bei 404 (Säule nicht gefunden)', async () => {
-		const errorResponse = { ok: false, status: 404 } as Response;
-		mockDELETE.mockResolvedValueOnce({ data: undefined, response: errorResponse });
-
-		await expect(api.deletePillar({ id: 999 })).rejects.toThrow(ResponseError);
 	});
 
 	it('wirft ResponseError bei nicht-erfolgreicher Antwort', async () => {

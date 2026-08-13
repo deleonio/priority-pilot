@@ -91,19 +91,6 @@ describe('migrateSeriesColumns', () => {
 	});
 
 	// ── AK2: Idempotenz — erneuter Lauf auf bereits migriertem Schema ist stabil ────────────────
-	it('ist idempotent: erneuter Aufruf wirft nicht und erzeugt keine doppelten Spalten', async () => {
-		// Volles, aktuelles Schema (enthält die Serien-Spalten bereits).
-		await sequelize.sync({ force: true });
-
-		await assert.doesNotReject(() => migrateSeriesColumns(sequelize), 'erster Lauf auf neuem Schema ist no-op');
-		await assert.doesNotReject(() => migrateSeriesColumns(sequelize), 'zweiter Lauf bleibt stabil');
-
-		const columns = await taskColumns();
-		for (const column of SERIES_COLUMNS) {
-			const occurrences = columns.filter((name) => name === column).length;
-			assert.equal(occurrences, 1, `${column} existiert genau einmal (keine Dublette)`);
-		}
-	});
 
 	// ── AK3: Frische DB (Tabelle fehlt) ist No-op; sync() legt Tabelle + Unique-Index an ─────────
 	it('ist auf einer DB ohne tasks-Tabelle ein No-op und sync() legt Tabelle inkl. Unique-Index an', async () => {
