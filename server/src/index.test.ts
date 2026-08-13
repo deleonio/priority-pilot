@@ -53,23 +53,54 @@ describe('Spec-Tests für #619 — Startup-Error-Handling', () => {
 	});
 
 	describe('AK 2 — UnhandledRejection Handler', () => {
-		it('UnhandledRejection Handler ist registriert', () => {
-			const listenerCount = process.listenerCount('unhandledRejection');
-			assert.ok(listenerCount > 0, 'unhandledRejection Handler sollte registriert sein');
+		it('UnhandledRejection Handler ruft bei Trigger process.exit(1) auf', async () => {
+			const { triggerUnhandledRejection } = await import('./index.js');
+			exitMock.mock.resetCalls();
+
+			triggerUnhandledRejection();
+			// Warte auf Event-Loop-Verarbeitung des unhandledRejection
+			await new Promise((resolve) => setTimeout(resolve, 50));
+
+			assert.ok(exitMock.mock.callCount() > 0, 'UnhandledRejection muss zu process.exit(1) führen');
+			assert.deepEqual(exitMock.mock.calls[0].arguments, [1], 'Exit-Code muss 1 sein');
+			assert.ok(loggedOutput(errorMock).includes('UnhandledRejection'), 'Fehler sollte geloggt werden');
 		});
 	});
 
 	describe('AK 3 — UncaughtException Handler', () => {
-		it('UncaughtException Handler ist registriert', () => {
-			const listenerCount = process.listenerCount('uncaughtException');
-			assert.ok(listenerCount > 0, 'uncaughtException Handler sollte registriert sein');
+		it('UncaughtException Handler ruft bei Trigger process.exit(1) auf', async () => {
+			const { triggerUncaughtException } = await import('./index.js');
+			exitMock.mock.resetCalls();
+
+			triggerUncaughtException();
+			// Warte auf setTimeout im Helper + Event-Loop
+			await new Promise((resolve) => setTimeout(resolve, 50));
+
+			assert.ok(exitMock.mock.callCount() > 0, 'UncaughtException muss zu process.exit(1) führen');
+			assert.deepEqual(exitMock.mock.calls[0].arguments, [1], 'Exit-Code muss 1 sein');
+			assert.ok(loggedOutput(errorMock).includes('UncaughtException'), 'Fehler sollte geloggt werden');
 		});
 	});
 
 	describe('AK 4 — App.listen Error-Callback', () => {
-		it('launchServer() exportiert server.on("error") Handler', async () => {
+		it('launchServer() ruft bei EADDRINUSE process.exit(1) auf', async () => {
 			const { launchServer } = await import('./express/index.js');
-			assert.equal(typeof launchServer, 'function', 'launchServer sollte exportiert sein');
+			exitMock.mock.resetCalls();
+
+			// Port 0 ist reserviert/unusable → EADDRINUSE zuverlässig getriggert
+			process.env.PORT = '0';
+
+			try {
+				await launchServer();
+			} catch {
+				// Ignoriere – wir prüfen nur das Exit-Verhalten
+			}
+
+			// Kurz warten, bis Error-Event verarbeitet ist
+			await new Promise((resolve) => setTimeout(resolve, 10));
+
+			assert.ok(exitMock.mock.callCount() > 0, 'EADDRINUSE muss zu process.exit(1) führen');
+			assert.deepEqual(exitMock.mock.calls[0].arguments, [1], 'Exit-Code muss 1 sein');
 		});
 	});
 
