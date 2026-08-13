@@ -138,7 +138,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		// #629: Tab-Freiheit — Fokus muss weiterbewegbar sein (nicht festhalten)
 		const before = await page.evaluate(() => document.activeElement);
 		await page.keyboard.press('Tab');
-		await page.waitForTimeout(200); // Browser-Fokus-Update abwarten
+		await page.waitForTimeout(700); // Browser-Fokus-Update abwarten (Timing-Puffer für CI)
 		const after = await page.evaluate(() => document.activeElement);
 		expect(after).not.toBe(before);
 	});
@@ -165,7 +165,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		// #629: Tab-Freiheit — Fokus muss weiterbewegbar sein (nicht festhalten)
 		const before = await page.evaluate(() => document.activeElement);
 		await page.keyboard.press('Tab');
-		await page.waitForTimeout(200); // Browser-Fokus-Update abwarten
+		await page.waitForTimeout(700); // Browser-Fokus-Update abwarten (Timing-Puffer für CI)
 		const after = await page.evaluate(() => document.activeElement);
 		expect(after).not.toBe(before);
 	});
@@ -217,7 +217,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		// #629: Tab-Freiheit — Fokus muss weiterbewegbar sein (nicht festhalten)
 		const before = await page.evaluate(() => document.activeElement);
 		await page.keyboard.press('Tab');
-		await page.waitForTimeout(200); // Browser-Fokus-Update abwarten
+		await page.waitForTimeout(700); // Browser-Fokus-Update abwarten (Timing-Puffer für CI)
 		const after = await page.evaluate(() => document.activeElement);
 		expect(after).not.toBe(before);
 	});
@@ -309,7 +309,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		// #629: Tab-Freiheit nach Rückgabe — Fokus muss weiterbewegbar sein (nicht festhalten)
 		const before = await page.evaluate(() => document.activeElement);
 		await page.keyboard.press('Tab');
-		await page.waitForTimeout(200); // Browser-Fokus-Update abwarten
+		await page.waitForTimeout(700); // Browser-Fokus-Update abwarten (Timing-Puffer für CI)
 		const after = await page.evaluate(() => document.activeElement);
 		expect(after).not.toBe(before);
 	});
@@ -332,7 +332,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		// #629: Tab-Freiheit nach Löschen — Fokus muss weiterbewegbar sein (nicht festhalten)
 		const before = await page.evaluate(() => document.activeElement);
 		await page.keyboard.press('Tab');
-		await page.waitForTimeout(200); // Browser-Fokus-Update abwarten
+		await page.waitForTimeout(700); // Browser-Fokus-Update abwarten (Timing-Puffer für CI)
 		const after = await page.evaluate(() => document.activeElement);
 		expect(after).not.toBe(before);
 	});
