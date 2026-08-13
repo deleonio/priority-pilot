@@ -5,16 +5,18 @@
  * This is a placeholder implementation. The real implementation will come in the implementation phase.
  */
 
+import type { ClassifyPillarsInput, AdviseActivitiesInput } from './mistral.js';
+
 export class OpenRouterProvider {
-	async classifyPillars(): Promise<unknown[]> {
+	async classifyPillars(_input: ClassifyPillarsInput): Promise<unknown[]> {
 		return []; // Placebo implementation
 	}
 
-	async parseTaskText(): Promise<unknown> {
+	async parseTaskText(_text: string): Promise<unknown> {
 		return {}; // Placebo implementation
 	}
 
-	async adviseActivities(): Promise<unknown[]> {
+	async adviseActivities(_input: AdviseActivitiesInput): Promise<unknown[]> {
 		return []; // Placebo implementation
 	}
 }
