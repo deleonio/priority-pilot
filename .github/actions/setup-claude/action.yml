@@ -176,7 +176,7 @@ runs:
     - name: Memory-Load (pro Issue, dateibasiert)
       id: memory-load
       if: steps.preflight.outputs.configured == 'true' && inputs.memory-load == 'true'
-      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         # Flacher Pfad (.claude/memory), nativ von Claude via autoMemoryDirectory gelesen/
         # geschrieben. Pro-Issue-Isolierung NUR über den Key: jeder Lauf holt den zum Issue
@@ -413,5 +413,6 @@ runs:
         esac
 
     # Memory-Save findet sich NICHT hier (die Action läuft ausschließlich pre-claude).
-    # Jeder Workflow ruft nach dem claude-Step selbst actions/cache/save@v4 mit dem
-    # Output steps.setup.outputs.memory-save-key auf (s. 01..05-claude-*.yml).
+    # Phasen (01..05) laden nach dem claude-Step das Memory als Artefakt hoch (upload-artifact,
+    # Name = memory-save-Key); der Cache-Save läuft im vertrauenswürdigen workflow_run-Companion
+    # claude-memory-save.yml (Issue-Trigger sind lese-only für Cache, s. GitHub-Richtlinie 2026-06-26).
