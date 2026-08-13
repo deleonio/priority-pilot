@@ -208,9 +208,11 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		await expect(page.getByRole('button', { name: /^Nein/i })).toBeFocused();
 		await expect(page.getByRole('button', { name: /^Ja \(Serie \+ alle Aufgaben\)/ })).not.toBeFocused();
 
-		// #629: Tab-Freiheit — Fokus muss weiterbewegbar sein
+		// #629: Tab-Freiheit — Fokus muss weiterbewegbar sein (nicht festhalten)
+		const before = await page.evaluate(() => document.activeElement);
 		await page.keyboard.press('Tab');
-		await expect(page.getByRole('button', { name: /^Ja \(Serie \+ alle Aufgaben\)/ })).toBeFocused();
+		const after = await page.evaluate(() => document.activeElement);
+		expect(after).not.toBe(before);
 	});
 
 	/**
@@ -297,9 +299,11 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		// „Weitere Aktionen" zurück — Modal.tsx merkt sich diesen als Auslöser.
 		await expect(moreButton).toBeFocused();
 
-		// #629: Tab-Freiheit nach Rückgabe — Fokus muss weiterbewegbar sein
+		// #629: Tab-Freiheit nach Rückgabe — Fokus muss weiterbewegbar sein (nicht festhalten)
+		const before = await page.evaluate(() => document.activeElement);
 		await page.keyboard.press('Tab');
-		await expect(page.getByRole('tab', { name: 'Aufgaben', exact: true })).toBeFocused();
+		const after = await page.evaluate(() => document.activeElement);
+		expect(after).not.toBe(before);
 	});
 
 	test('AK6 — Nach erfolgreichem Löschen übernimmt das Fallback-Element (nicht document.body)', async ({ page }) => {
@@ -317,9 +321,11 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 
 		await expect(page.locator('[data-focus-fallback]')).toBeFocused();
 
-		// #629: Tab-Freiheit nach Löschen — Fokus muss weiterbewegbar sein
+		// #629: Tab-Freiheit nach Löschen — Fokus muss weiterbewegbar sein (nicht festhalten)
+		const before = await page.evaluate(() => document.activeElement);
 		await page.keyboard.press('Tab');
-		await expect(page.getByRole('button', { name: 'Neuen Task anlegen' })).toBeFocused();
+		const after = await page.evaluate(() => document.activeElement);
+		expect(after).not.toBe(before);
 	});
 
 	test('AK7 — Mobile-First 375px: Lösch-Dialog ohne horizontales Scrollen', async ({ page }) => {

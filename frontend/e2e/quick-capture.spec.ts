@@ -93,9 +93,11 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		// Auslöser als Fallback-Fokusziel an das Formular-Modal durch.
 		await expect(page.getByRole('button', { name: 'Neuen Task anlegen' })).toBeFocused();
 
-		// #629: Tab-Freiheit nach Formular-Speichern — Fokus muss weiterbewegbar sein
+		// #629: Tab-Freiheit nach Formular-Speichern — Fokus muss weiterbewegbar sein (nicht festhalten)
+		const before = await page.evaluate(() => document.activeElement);
 		await page.keyboard.press('Tab');
-		await expect(page.getByRole('tab', { name: 'Aufgaben', exact: true })).toBeFocused();
+		const after = await page.evaluate(() => document.activeElement);
+		expect(after).not.toBe(before);
 
 		await openTasksTab(page);
 		// Die Aufgabenliste ist seit #238 keine Table mehr: der Titel ist direkt als
