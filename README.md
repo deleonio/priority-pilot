@@ -73,12 +73,10 @@ mit `openapi-typescript` – erzeugt:
 - **Nächste Aufgabe** ([`logics/find.ts`](server/src/logics/find.ts)): wichtigste Aufgabe,
   deren Abhängigkeiten alle `Done` sind.
 - **Zyklus-Erkennung** ([`logics/cycle.ts`](server/src/logics/cycle.ts)): verhindert zyklische
-  Abhängigkeiten; genutzt von der REST-API (Antwort `409`) und der Konsole.
+  Abhängigkeiten; genutzt von der REST-API (Antwort `409`).
 - **REST-API** ([`express/index.ts`](server/src/express/index.ts) mit den Routen unter
   [`express/routes/`](server/src/express/routes/)): stellt den unten beschriebenen API-Vertrag bereit
   (Tasks, Abhängigkeiten, Säulen, Aufgabenwald, nächste Aufgabe).
-- **Interaktive Konsole** ([`console.ts`](server/src/console.ts)): alternatives Menü zum Pflegen von
-  Tasks/Abhängigkeiten (derzeit in `index.ts` nicht aktiviert).
 
 ## Oberfläche (Frontend)
 
@@ -157,9 +155,9 @@ Eine vollständige Beschreibung aller Funktionen für Endnutzer:
 Deployment auf einen dedizierten Server (Merge auf `main` → Build in GitHub Actions →
 `rsync` der `dist`-Verzeichnisse auf den Host → Backend-Reload via PM2, Caddy davor):
 
-- [`docs/deployment.md`](docs/deployment.md) — Konzept & Ablauf (Architektur, rsync + PM2, Caddy, Rollback).
-- [`docs/deployment-repo-plan.md`](docs/deployment-repo-plan.md) — Umsetzungsplan im Repo (Pack-Skript, Release-Workflow, Secrets).
+- [`docs/deployment.md`](docs/deployment.md) — Konzept & Ablauf (Architektur, rsync + PM2, Rollback).
 - [`docs/server-setup.md`](docs/server-setup.md) — Schritt-für-Schritt-Einrichtung des Linux-Servers.
+- [`docs/caddy-setup.md`](docs/caddy-setup.md) — Caddyfile: Reverse-Proxy, SPA-Fallback, Pfad-Tabelle.
 
 ## Mitwirken
 

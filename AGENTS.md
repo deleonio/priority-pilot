@@ -14,7 +14,7 @@ nicht Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 - [PR-Review (Kreuzverhör)](.ai-knowledge/pr-review.md) — Pull Requests kritisch prüfen, Findings kommentieren
 - [TDD-Strategie](.ai-knowledge/tdd-strategy.md) — test-getriebene KI-Workflows (Stufen 1+2+3 adoptiert)
 - [Kreuzverhör-Haltung](.ai-knowledge/kreuzverhoer-haltung.md) — Methode des adversarialen Hinterfragens
-- [Deployment](docs/deployment.md) — Release-Build, Tarball, Host-Layout, systemd, Caddy, Rollback
+- [Deployment](docs/deployment.md) — Merge→Build→rsync→PM2, Host-Layout, Rollback
 - [CI-Architektur](docs/ci-architecture.md) — Provider, Modelle, Soft-Abort, Label-Pipeline, KoliBri MCP
 
 ## Kernregeln
