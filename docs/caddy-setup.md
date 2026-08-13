@@ -11,6 +11,11 @@ Letzteres nicht.
 :80 {
     root * /var/www/gh-deploy/priority-pilot/frontend/
 
+    # Health-Endpoint: Liveness-Check für externes Monitoring (ohne Auth).
+    handle /health {
+        reverse_proxy localhost:3000
+    }
+
     # API: Präfix abstreifen und zum Express-Backend weiterleiten.
     # MUSS vor dem SPA-Fallback stehen und in einem eigenen handle-Block:
     # handle-Blöcke sind gegenseitig exklusiv (erster Treffer gewinnt).
@@ -38,14 +43,15 @@ Letzteres nicht.
 
 ## Pfade
 
-| Eingehende URL                 | Backend-Pfad                                                 |
-| ------------------------------ | ------------------------------------------------------------ |
-| `GET :80/api/v1/tasks`         | `GET localhost:3000/tasks`                                   |
-| `POST :80/api/v1/tasks`        | `POST localhost:3000/tasks`                                  |
-| `GET :80/api/v1/pillars`       | `GET localhost:3000/pillars`                                 |
-| `GET :80/auth/google`          | `GET localhost:3000/auth/google` (OAuth-Start)               |
-| `GET :80/auth/google/callback` | `GET localhost:3000/auth/google/callback` (OAuth-Callback)   |
-| `GET :80/`                     | statische `index.html` aus dem Web-Verzeichnis (`root` oben) |
+| Eingehende URL                 | Backend-Pfad                                                         |
+| ------------------------------ | -------------------------------------------------------------------- |
+| `GET :80/health`               | `GET localhost:3000/health` (Liveness-Check, JSON `{"status":"ok"}`) |
+| `GET :80/api/v1/tasks`         | `GET localhost:3000/tasks`                                           |
+| `POST :80/api/v1/tasks`        | `POST localhost:3000/tasks`                                          |
+| `GET :80/api/v1/pillars`       | `GET localhost:3000/pillars`                                         |
+| `GET :80/auth/google`          | `GET localhost:3000/auth/google` (OAuth-Start)                       |
+| `GET :80/auth/google/callback` | `GET localhost:3000/auth/google/callback` (OAuth-Callback)           |
+| `GET :80/`                     | statische `index.html` aus dem Web-Verzeichnis (`root` oben)         |
 
 ## Abgleich mit dem Vite-Dev-Proxy
 
