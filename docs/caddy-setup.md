@@ -38,14 +38,14 @@ Letzteres nicht.
 
 ## Pfade
 
-| Eingehende URL                 | Backend-Pfad                                                   |
-| ------------------------------ | -------------------------------------------------------------- |
-| `GET :80/api/v1/tasks`         | `GET localhost:3000/tasks`                                     |
-| `POST :80/api/v1/tasks`        | `POST localhost:3000/tasks`                                    |
-| `GET :80/api/v1/pillars`       | `GET localhost:3000/pillars`                                   |
-| `GET :80/auth/google`          | `GET localhost:3000/auth/google` (OAuth-Start)                 |
-| `GET :80/auth/google/callback` | `GET localhost:3000/auth/google/callback` (OAuth-Callback)     |
-| `GET :80/`                     | statische `index.html` aus `/srv/priority-pilot/frontend/dist` |
+| Eingehende URL                 | Backend-Pfad                                                 |
+| ------------------------------ | ------------------------------------------------------------ |
+| `GET :80/api/v1/tasks`         | `GET localhost:3000/tasks`                                   |
+| `POST :80/api/v1/tasks`        | `POST localhost:3000/tasks`                                  |
+| `GET :80/api/v1/pillars`       | `GET localhost:3000/pillars`                                 |
+| `GET :80/auth/google`          | `GET localhost:3000/auth/google` (OAuth-Start)               |
+| `GET :80/auth/google/callback` | `GET localhost:3000/auth/google/callback` (OAuth-Callback)   |
+| `GET :80/`                     | statische `index.html` aus dem Web-Verzeichnis (`root` oben) |
 
 ## Abgleich mit dem Vite-Dev-Proxy
 
@@ -63,5 +63,5 @@ Damit ist das API-Verhalten in Entwicklung und Produktion identisch. Die `/auth/
 
 ## Deployment-Hinweise
 
-Detaillierter Serveraufbau (systemd-Unit, Verzeichnisstruktur, TLS): [server-setup.md](server-setup.md).
-Release-Build und Tarball-Erstellung: [deployment.md](deployment.md).
+Detaillierter Serveraufbau (Verzeichnisse, PM2, TLS): [server-setup.md](server-setup.md).
+Deploy-Ablauf (Merge → Build → `rsync` → PM2-Reload): [deployment.md](deployment.md).

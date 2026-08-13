@@ -1,31 +1,25 @@
 # Server-Einrichtung: Schritt für Schritt
 
-> **⚠️ Stand (seit PR #188):** Dieses Dokument beschreibt den alten Deploy-Ansatz (Git-Tag →
-> Tarball → `deploy.sh` → systemd). Der Deploy-Workflow (`.github/workflows/release.yml`) wurde mit
-> PR #188 entfernt. Das Runbook ist vorläufig historischer Kontext.
-
 Runbook für die **einmalige** Einrichtung eines frischen Linux-Servers, damit Priority Pilot per
-Git-Tag automatisch dorthin deployt werden kann. Konzept dahinter: [`deployment.md`](deployment.md);
-die Repo-Seite: [`deployment-repo-plan.md`](deployment-repo-plan.md).
+Merge auf `main` automatisch dorthin deployt wird (rsync + PM2, siehe
+[`deployment.md`](deployment.md)). Host-Layout: Web-Verzeichnis (statische SPA) + App-Verzeichnis
+(Backend unter PM2) + persistentes `data/`-Verzeichnis für die SQLite-DB.
 
 > **Annahmen:** Debian 12 / Ubuntu 22.04+, **x64**, root- bzw. `sudo`-Zugriff, eine Domain, deren
-> A-Record (Schritt 9) auf den Server zeigt. Platzhalter `priority-pilot.example.de` und
+> A-Record (Schritt 7) auf den Server zeigt. Platzhalter `priority-pilot.example.de` und
 > `gh-deploy@host` durch echte Werte ersetzen. Node-Major-Version **26** (muss zur CI passen — native
-> `sqlite3`).
+> `sqlite3`, siehe `.nvmrc`).
 
 ```mermaid
 flowchart TB
-    s1["1 · System + Node 26 + Caddy"] --> s2["2 · gh-deploy-User"]
-    s2 --> s3["3 · SSH-Deploy-Key (forced command)"]
+    s1["1 · System + Node 26 + Caddy + PM2"] --> s2["2 · gh-deploy-User"]
+    s2 --> s3["3 · SSH-Deploy-Key"]
     s2 --> s4["4 · Verzeichnisse + data/"]
-    s4 --> s5["5 · Env-Datei (chmod 600)"]
-    s3 --> s6["6 · deploy.sh + .deploy-token"]
-    s5 --> s7["7 · systemd Template-Unit + enable"]
-    s6 --> s7
-    s7 --> s8["8 · sudoers-Zeile"]
-    s4 --> s9["9 · Caddy-Block + DNS"]
-    s8 --> s10["10 · Erster Deploy + Verifikation"]
-    s9 --> s10
+    s4 --> s5["5 · Env-Datei (.env im App-Verzeichnis)"]
+    s5 --> s6["6 · PM2-Autostart"]
+    s4 --> s7["7 · Caddy-Block + DNS"]
+    s6 --> s8["8 · Erster Deploy + Verifikation"]
+    s7 --> s8
 ```
 
 Laufzeit-Bild nach der Einrichtung:
@@ -33,8 +27,9 @@ Laufzeit-Bild nach der Einrichtung:
 ```mermaid
 flowchart LR
     user(["Browser"]) -->|HTTPS| caddy["Caddy :443"]
-    caddy -->|"/ (SPA)"| spa["current/dist"]
-    caddy -->|"/api/v1/* → strip /api/v1 → /tasks /pillars …"| node["Node :3001<br/>systemd app@priority-pilot"]
+    caddy -->|"/ (SPA)"| spa["Web-Verzeichnis"]
+    caddy -->|"/api/v1/* → strip /api/v1 → /tasks /pillars …"| node["Node :3000<br/>PM2 priority-pilot"]
+    caddy -->|"/auth/* (OAuth)"| node
     node --> db[("data/database.sqlite")]
     node -->|"/tasks/suggest-pillars"| mistral["Mistral API"]
 ```
@@ -44,7 +39,7 @@ flowchart LR
 ## 1. System vorbereiten
 
 ```bash
-sudo apt update && sudo apt -y upgrade
+sudo apt update && sudo -y upgrade
 
 # Node.js 26 (NodeSource)
 curl -fsSL https://deb.nodesource.com/setup_26.x | sudo -E bash -
@@ -53,8 +48,8 @@ sudo apt install -y nodejs git
 # pnpm (zum optionalen Prod-Install auf dem Host; sonst nicht zwingend nötig)
 sudo npm install -g pnpm@11
 
-# GitHub CLI (für das Pull-Modell in deploy.sh)
-sudo apt install -y gh
+# PM2 (Prozess-Manager fürs Backend)
+sudo npm install -g pm2
 
 # Caddy (offizielles APT-Repo)
 sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
@@ -65,7 +60,7 @@ curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' \
 sudo apt update && sudo apt install -y caddy
 ```
 
-**Prüfen:** `node -v` zeigt `v26.*`, `caddy version` und `gh --version` laufen.
+**Prüfen:** `node -v` zeigt `v26.*`, `pm2 --version` und `caddy version` laufen.
 
 ---
 
@@ -75,207 +70,99 @@ sudo apt update && sudo apt install -y caddy
 sudo adduser --disabled-password --gecos "" gh-deploy
 ```
 
-Der `gh-deploy`-User braucht **kein** Passwort — Zugriff nur per SSH-Key (Schritt 3) und Service-Betrieb
-per systemd (Schritt 7).
+Der `gh-deploy`-User braucht **kein** Passwort — Zugriff nur per SSH-Key (Schritt 3); er betreibt
+das Backend unter PM2 **ohne** sudo (kein systemd, keine sudoers-Zeile mehr).
 
 ---
 
-## 3. SSH-Deploy-Key (Forced Command)
+## 3. SSH-Deploy-Key
 
 Das Schlüsselpaar `gh_deploy`/`gh_deploy.pub` liegt bereits im Projekt-Setup vor. Der **private**
-Schlüssel gehört als GitHub-Secret `DEPLOY_SSH_KEY` ins Repo (siehe
-[`deployment-repo-plan.md`](deployment-repo-plan.md) R2-Settings) — **nie** auf den Server kopieren.
-Auf den Server kommt nur der **öffentliche** Schlüssel, gebunden an ein Forced Command, sodass dieser
-Key ausschließlich `deploy.sh` ausführen kann:
+Schlüssel gehört als GitHub-Secret `DEPLOY_SSH_KEY` ins Repo — **nie** auf den Server kopieren. Auf
+den Server kommt nur der **öffentliche** Schlüssel; der Deploy-Workflow nutzt ihn für `rsync` und
+`ssh … pm2 reload` (kein Forced Command mehr):
 
 ```bash
 sudo -u gh-deploy mkdir -p /home/gh-deploy/.ssh && sudo -u gh-deploy chmod 700 /home/gh-deploy/.ssh
 
 # Inhalt von gh_deploy.pub einsetzen ↓ (ein langer ssh-ed25519-String)
 sudo -u gh-deploy tee /home/gh-deploy/.ssh/authorized_keys >/dev/null <<'EOF'
-command="/home/gh-deploy/deploy.sh",no-port-forwarding,no-agent-forwarding,no-X11-forwarding,no-pty ssh-ed25519 AAAA…github-deploy@example.de
+ssh-ed25519 AAAA…github-deploy@example.de
 EOF
 sudo -u gh-deploy chmod 600 /home/gh-deploy/.ssh/authorized_keys
 ```
-
-**Prüfen (nach Schritt 6):** `ssh gh-deploy@host "irgendwas"` führt nur `deploy.sh` aus und lehnt
-ungültige Kommandos ab — ein Shell-Login ist nicht möglich.
 
 ---
 
 ## 4. Verzeichnisse + persistentes Daten-Verzeichnis
 
+Zielverzeichnisse, in die der Workflow per `rsync` spiegelt (Pfade = `vars.DEPLOY_WEB_DIR` /
+`vars.DEPLOY_APP_DIR`):
+
 ```bash
 APP=priority-pilot
-sudo mkdir -p /var/www/gh-deploy/$APP/releases /var/www/gh-deploy/$APP/data
+sudo mkdir -p /var/www/gh-deploy/$APP/frontend /var/www/gh-deploy/$APP/app /var/www/gh-deploy/$APP/data
 sudo chown -R gh-deploy:gh-deploy /var/www/gh-deploy/$APP
 ```
 
-`data/` ist **release-unabhängig** — hier lebt `database.sqlite` und überlebt jedes Deploy. Niemals
-in `releases/` legen (würde beim Symlink-Switch verloren gehen — siehe [`deployment.md` §4](deployment.md)).
+- `frontend/` — Web-Verzeichnis: statische SPA aus `frontend/dist` (Caddy `file_server`).
+- `app/` — App-Verzeichnis: `dist/` + `package.json` + `node_modules/` + `.env`; PM2 startet
+  `app/dist/index.js`.
+- `data/` ist **deploy-unabhängig** — hier lebt `database.sqlite` und überlebt jedes Deploy. Der
+  Workflow schützt es zusätzlich per `rsync --exclude 'data/' --exclude '*.sqlite'`.
 
 ---
 
 ## 5. Env-Datei (chmod 600)
 
+Die Env-Datei liegt als **`.env` im App-Verzeichnis** und wird vom `rsync` ausgenommen — sie
+überlebt jedes Deploy (Variablen-Referenz: [`deployment.md` §2](deployment.md)):
+
 ```bash
 APP=priority-pilot
-sudo mkdir -p /etc/gh-deploy
-sudo tee /etc/gh-deploy/$APP.env >/dev/null <<EOF
+sudo -u gh-deploy tee /var/www/gh-deploy/$APP/app/.env >/dev/null <<EOF
 NODE_ENV=production
-PORT=3001
 DATABASE_STORAGE=/var/www/gh-deploy/$APP/data/database.sqlite
 DB_SEED=false
 MISTRAL_API_KEY=DEIN_KEY_HIER
 # MISTRAL_MODEL=mistral-small-latest
 EOF
-sudo chmod 600 /etc/gh-deploy/$APP.env
+sudo -u gh-deploy chmod 600 /var/www/gh-deploy/$APP/app/.env
 ```
 
-Diese Datei ist zugleich das **Registrierungs-Gate**: `deploy.sh` deployt nur Apps, für die hier eine
-`.env` existiert. `DB_RESET` bewusst **nicht** setzen (`true` würde die DB bei jedem Start leeren).
+`DB_RESET` bewusst **nicht** setzen (`true` würde die DB bei jedem Start leeren).
 `DATABASE_STORAGE` **absolut** und in `data/` (Schritt 4). `MISTRAL_API_KEY` von
 <https://console.mistral.ai>; fehlt er, antwortet nur `POST /tasks/suggest-pillars` mit 503, der Rest
-läuft.
+läuft. `PORT` ist nicht gesetzt → Backend lauscht auf `localhost:3000` (Default).
 
 ---
 
-## 6. `deploy.sh` + GitHub-Token
+## 6. PM2-Autostart
+
+Damit das Backend nach einem Server-Reboot wieder hochkommt, **als `gh-deploy`-User** einmalig:
 
 ```bash
-# GH-Token für das Pull-Modell (Releases herunterladen). Bei PRIVATEM Repo erforderlich;
-# bei öffentlichem Repo kann der Token-Teil entfallen.
-sudo -u gh-deploy tee /home/gh-deploy/.deploy-token >/dev/null <<'EOF'
-export GH_TOKEN=ghp_DEIN_TOKEN
-EOF
-sudo -u gh-deploy chmod 600 /home/gh-deploy/.deploy-token
-
-# Das Deploy-Skript
-sudo -u gh-deploy tee /home/gh-deploy/deploy.sh >/dev/null <<'EOF'
-#!/usr/bin/env bash
-# bash erforderlich (Shebang/Forced-Command). Nicht `sh deploy.sh` — sonst "redirection unexpected".
-[ -n "${BASH_VERSION:-}" ] || { echo "deploy.sh muss mit bash laufen, nicht mit sh." >&2; exit 1; }
-set -euo pipefail
-
-read -r CMD APP VERSION <<< "${SSH_ORIGINAL_COMMAND:-}"
-
-[[ "$CMD" == "deploy" ]]                       || { echo "unbekanntes Kommando" >&2; exit 1; }
-[[ "$APP" =~ ^[a-z][a-z0-9-]+$ ]]              || { echo "ungueltiger App-Name" >&2; exit 1; }
-[[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]  || { echo "ungueltige Version" >&2; exit 1; }
-[[ -f "/etc/gh-deploy/$APP.env" ]]             || { echo "unbekannte App: $APP" >&2; exit 1; }
-
-REPO="deleonio/$APP"          # falls Repo-Name != App-Name: hier mappen
-BASE="/var/www/gh-deploy/$APP"
-REL="$BASE/releases/$VERSION"
-
-source /home/gh-deploy/.deploy-token   # export GH_TOKEN=...
-mkdir -p "$BASE/data"
-
-if [[ ! -d "$REL" ]]; then
-  mkdir -p "$REL"
-  gh release download "$VERSION" -R "$REPO" -p '*.tar.gz' -O - | tar -xz -C "$REL"
-fi
-
-ln -sfn "$REL" "$BASE/current"
-sudo systemctl restart "app@$APP"
-echo "deployed $APP $VERSION"
-EOF
-sudo -u gh-deploy chmod +x /home/gh-deploy/deploy.sh
+sudo -u gh-deploy bash -c 'pm2 startup systemd -u gh-deploy --hp /home/gh-deploy'
+# Die ausgegebene sudo-Zeile ausführen (aktiviert die pm2-Systemd-Unit für den Boot).
 ```
 
-> **Variante Host-Install** (nur falls die Host-Architektur **nicht** x64-Linux/Node 26 ist und das
-> Tarball daher **ohne** `node_modules` gebaut wird): nach dem `tar`-Schritt ergänzen:
-> `( cd "$REL/server" && pnpm install --prod )`. Siehe [`deployment-repo-plan.md`](deployment-repo-plan.md) R1.
+`pm2 save` läuft automatisch nach dem ersten vom Workflow gestarteten Prozess bzw. kann manuell nach
+dem ersten Deploy ausgeführt werden — es friert die Prozessliste für den Boot ein.
 
 ---
 
-## 7. systemd-Template-Unit
-
-Eine Unit für **alle** Apps (`%i` = App-Name):
-
-```bash
-sudo tee /etc/systemd/system/[email protected] >/dev/null <<'EOF'
-[Unit]
-Description=gh-deploy app %i
-After=network.target
-
-[Service]
-Type=simple
-User=gh-deploy
-Group=gh-deploy
-WorkingDirectory=/var/www/gh-deploy/%i/current/server
-EnvironmentFile=/etc/gh-deploy/%i.env
-ExecStart=/usr/bin/node dist/index.js
-Restart=on-failure
-RestartSec=5
-
-NoNewPrivileges=true
-ProtectSystem=strict
-ProtectHome=true
-PrivateTmp=true
-ReadWritePaths=/var/www/gh-deploy/%i/data
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-sudo systemctl daemon-reload
-sudo systemctl enable app@priority-pilot   # ohne --now: Start erst beim ersten Deploy (current fehlt noch)
-```
-
-`ExecStart` startet `dist/index.js` relativ zu `WorkingDirectory` (`current/server`). Nur `data/` ist
-schreibbar; die Release-Bäume bleiben unter `ProtectSystem=strict` read-only.
-
----
-
-## 8. sudoers-Zeile (eng gefasst)
-
-Damit der `gh-deploy`-User **nur** diesen einen Service neu starten darf:
-
-```bash
-echo 'gh-deploy ALL=(root) NOPASSWD: /usr/bin/systemctl restart app@priority-pilot' \
-  | sudo tee /etc/sudoers.d/gh-deploy-priority-pilot
-sudo chmod 440 /etc/sudoers.d/gh-deploy-priority-pilot
-sudo visudo -cf /etc/sudoers.d/gh-deploy-priority-pilot   # Syntax prüfen
-```
-
-Bewusst **kein** `app@*`-Wildcard (sudo `fnmatch` matcht großzügiger als erwartet) — eine Zeile pro App.
-
----
-
-## 9. Caddy-Block + DNS
+## 7. Caddy-Block + DNS
 
 **DNS zuerst:** A-Record `priority-pilot.example.de` → Server-IP setzen (sonst scheitert die
-TLS-Ausstellung). Dann:
+TLS-Ausstellung). Die vollständige Caddyfile mit Erläuterungen
+(`/api/v1/*`-Präfix-Strip, `/auth/*`-OAuth-Proxy, SPA-Fallback, Pfad-Tabelle) steht in
+[`caddy-setup.md`](caddy-setup.md). Einrichten:
 
 ```bash
 sudo tee -a /etc/caddy/Caddyfile >/dev/null <<'EOF'
 
 priority-pilot.example.de {
-    encode zstd gzip
-    root * /var/www/gh-deploy/priority-pilot/current/dist
-
-    # API: /api/v1-Präfix abstreifen und ans Backend. Das Frontend ruft alle Endpunkte
-    # unter /api/v1/* auf (frontend/src/api.ts: VITE_API_BASE_URL ?? '/api/v1',
-    # frontend/vite.config.ts). Eigener handle-Block, damit der SPA-Fallback (try_files)
-    # ihn nicht vorab abfängt (try_files steht in Caddys Direktiven-Ordnung vor handle).
-    handle /api/v1/* {
-        uri strip_prefix /api/v1
-        reverse_proxy localhost:3001
-    }
-
-    @assets path /assets/*
-    handle @assets {
-        header Cache-Control "public, max-age=31536000, immutable"
-        file_server
-    }
-
-    handle {
-        header /index.html Cache-Control "no-cache"
-        header /sw.js Cache-Control "no-cache"
-        try_files {path} /index.html
-        file_server
-    }
+    # … Block aus caddy-setup.md: handle /api/v1/*, handle /auth/*, SPA-Fallback …
 }
 EOF
 
@@ -289,43 +176,28 @@ die API unter `/api/v1/*` auf; Caddy streift das Präfix ab und reicht z. B. `/a
 
 ---
 
-## 10. Erster Deploy + Verifikation
+## 8. Erster Deploy + Verifikation
 
-Ein Tag-Push löst den Release-Workflow aus (siehe [`deployment-repo-plan.md`](deployment-repo-plan.md));
-dieser ruft am Ende `ssh gh-deploy@host "deploy priority-pilot vX.Y.Z"`. Manuell antesten:
-
-```bash
-# Vom Entwickler-Rechner mit dem privaten Deploy-Key:
-ssh -i gh_deploy gh-deploy@priority-pilot.example.de "deploy priority-pilot v0.0.1"
-```
+Ein **Merge auf `main`** stößt `.github/workflows/deploy.yml` an: Build → `rsync` →
+`pm2 reload` (oder erster `pm2 start`), danach Patch-Bump auf `main`. Die benötigten Secrets/Vars
+(`DEPLOY_SSH_KEY`, `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_WEB_DIR`, `DEPLOY_APP_DIR`) müssen im Repo
+konfiguriert sein.
 
 **Verifizieren (auf dem Server):**
 
 ```bash
-systemctl status app@priority-pilot
-journalctl -u app@priority-pilot -n 50 --no-pager        # "Server läuft auf http://localhost:3001"
-ls -l /var/www/gh-deploy/priority-pilot/current          # → releases/v0.0.1
-curl -fsS https://priority-pilot.example.de/next         # API über Caddy erreichbar?
+pm2 status                                                  # Prozess "priority-pilot" online
+pm2 logs priority-pilot --lines 50                          # "Server läuft auf http://localhost:3000"
+ls -l /var/www/gh-deploy/priority-pilot/frontend            # SPA-Dateien (index.html, assets/)
+curl -fsS https://priority-pilot.example.de/next            # API über Caddy erreichbar?
 ```
 
-Im Browser `https://priority-pilot.example.de` öffnen — die SPA lädt und spricht die API gleichorigin an.
+Im Browser `https://priority-pilot.example.de` öffnen — die SPA lädt und spricht die API
+gleichorigin an.
 
 ---
 
-## 11. Rollback
-
-```bash
-ln -sfn /var/www/gh-deploy/priority-pilot/releases/v0.0.0 \
-        /var/www/gh-deploy/priority-pilot/current \
-  && sudo systemctl restart app@priority-pilot
-```
-
-Die DB in `data/` ist davon **nicht** betroffen. Bei Schema-ändernden Releases vorher ein Backup ziehen
-(Schritt 12).
-
----
-
-## 12. Backups
+## 9. Backups
 
 ```bash
 # Konsistentes SQLite-Backup (auch im laufenden Betrieb sicher) – z. B. täglich per cron:
@@ -337,23 +209,21 @@ sudo -u gh-deploy sqlite3 /var/www/gh-deploy/priority-pilot/data/database.sqlite
 
 ---
 
-## 13. Troubleshooting
+## 10. Troubleshooting
 
-| Symptom                                             | Wahrscheinliche Ursache                             | Prüfen / Fix                                                                         |
-| --------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `systemctl status` zeigt `failed`                   | `node_modules`/`sqlite3`-ABI passt nicht zum Host   | `journalctl -u app@priority-pilot`; ggf. Host-Install (Schritt 6, Variante)          |
-| API-Calls liefern HTML/404                          | Caddy kennt `/api/v1/*` nicht (SPA-Fallback greift) | `handle /api/v1/*`-Block + `strip_prefix` prüfen (Schritt 9)                         |
-| Daten weg nach Deploy                               | `DATABASE_STORAGE` zeigt in den Release-Baum        | absoluten `data/`-Pfad setzen (Schritt 5)                                            |
-| Demo-Daten erscheinen in Prod                       | `DB_SEED` nicht auf `false`                         | Env-Datei korrigieren, neu starten                                                   |
-| `/tasks/suggest-pillars` → 503                      | `MISTRAL_API_KEY` fehlt                             | Key in Env-Datei eintragen                                                           |
-| TLS schlägt fehl                                    | DNS-A-Record fehlt/falsch                           | A-Record auf Server-IP, dann `systemctl reload caddy`                                |
-| Deploy bricht mit „unbekannte App" ab               | Env-Datei fehlt                                     | `/etc/gh-deploy/<app>.env` anlegen (Schritt 5)                                       |
-| `deploy.sh`: `Syntax error: redirection unexpected` | Skript mit `sh` statt bash gestartet                | Direkt `./deploy.sh` starten (nutzt Shebang) bzw. Forced-Command; nie `sh deploy.sh` |
+| Symptom                               | Wahrscheinliche Ursache                              | Prüfen / Fix                                                                            |
+| ------------------------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `pm2 status` zeigt `errored`/restarts | `node_modules`/`sqlite3`-ABI passt nicht zum Host    | `pm2 logs priority-pilot`; ggf. Host-Install (`pnpm install --prod` im App-Verzeichnis) |
+| API-Calls liefern HTML/404            | Caddy kennt `/api/v1/*` nicht (SPA-Fallback greift)  | `handle /api/v1/*`-Block + `strip_prefix` prüfen ([caddy-setup.md](caddy-setup.md))     |
+| Daten weg nach Deploy                 | `DATABASE_STORAGE` zeigt in gespiegeltes Verzeichnis | absoluten `data/`-Pfad setzen (Schritt 5)                                               |
+| Demo-Daten erscheinen in Prod         | `DB_SEED` nicht auf `false`                          | Env-Datei korrigieren, `pm2 reload priority-pilot --update-env`                         |
+| `/tasks/suggest-pillars` → 503        | `MISTRAL_API_KEY` fehlt                              | Key in Env-Datei eintragen                                                              |
+| TLS schlägt fehl                      | DNS-A-Record fehlt/falsch                            | A-Record auf Server-IP, dann `sudo systemctl reload caddy`                              |
+| Backend nach Reboot weg               | `pm2 startup`/`pm2 save` nie eingerichtet            | Schritt 6 nachholen                                                                     |
 
 ---
 
 ## Checkliste „weitere App auf demselben Host"
 
-Keine neue systemd-Unit nötig — nur: Verzeichnis + `data/` + `chown` (4), Env-Datei mit **freiem Port**
-(5), `deploy.sh` ist generisch (6), `systemctl enable app@<name>` (7), sudoers-Zeile (8), Caddy-Block
-(9). Siehe auch [`deployment.md` §11](deployment.md).
+Nur: Verzeichnisse + `data/` + `chown` (4), Env-Datei mit freiem `PORT` (5), PM2-Prozessname im
+Workflow, Caddy-Block mit eigenem Port (7). Kein systemd, keine sudoers-Zeile.
