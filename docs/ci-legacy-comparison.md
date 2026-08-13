@@ -8,6 +8,14 @@
 >
 > **Stand:** 11.08.2026 · **Methode:** Struktur-DIFF via `git log --follow`, Root-Cause-Klassifikation
 > aller Fix-Commits `3f40491..HEAD`, Legacy-Fragilitäts-Audit, Architect-Adjudikation.
+>
+> **Update 12.08.2026 — ADR 0001 (superseded):** Die hier als „Struktur-Gewinn" bewertete
+> Vertragstest-Suite (`workflow-invariants`/`-consistency`/`-safety`/`permission-tiers`/…) wurde
+> mit [ADR 0001 — GitHub-Workflows bleiben ungetestet](./adr/0001-github-workflows-bleiben-ungetestet.md) verworfen und am 12.08.2026
+> gelöscht — sie erwiesen sich als Change-Detector-Tests ohne Fehlerfangwert, die den
+> Pipeline-Umbau blockierten. Empfehlung #5 („Vertragstests weiter ausbauen") ist damit
+> **umgekehrt/hinfällig**. Die übrigen historischen Befunde (jq-Fragilität, Hermes-Roundtrip,
+> Label-Race-Klasse) bleiben gültig.
 
 ## TL;DR
 

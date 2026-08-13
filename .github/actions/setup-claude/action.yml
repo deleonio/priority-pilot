@@ -44,10 +44,15 @@ inputs:
     description: 'settings.local.json für openrouter als JSON-String (aus vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER)'
     required: false
     default: ''
-  # Memory-Funktionen für ticketspezifische Persistenz (dateibasiert via Actions-Cache).
+  # Memory-Funktionen für pro-Issue Persistenz (dateibasiert via Actions-Cache).
   # Memory-Save passiert NICHT hier (die Action läuft nur pre-claude), sondern als
   # actions/cache/save-Step im Workflow nach dem claude-Step. Die Action liefert dafür
-  # memory-save-key + memory-path als Outputs.
+  # memory-save-key (stabil pro Issue) + memory-path (flach .claude/memory) als Outputs.
+  # Claude liest/schreibt seinen Memory NATIV nach .claude/memory (autoMemoryDirectory in
+  # .claude/settings.json) — Isolierung pro Issue erfolgt NICHT über einen Subdir, sondern
+  # rein über den GHA-Cache-Key: jeder Lauf restored/saved den zum Issue passenden Stand in
+  # denselben flachen Pfad. Da GHA-Cache immutabel ist, baut jeder Workflow den alten
+  # Issue-Eintrag vor dem Save per gh cache delete ab (Delete-before-Save), sonst No-Op.
   memory-load:
     description: 'Memory-Load zu Beginn des Workflows (true = restauriert dateibasierte Memory für ticket-ref aus dem Actions-Cache)'
     required: false
@@ -77,14 +82,14 @@ outputs:
     description: 'Der tatsächlich aufgelöste Provider ("zai" oder "claude")'
     value: ${{ steps.provider.outputs.llm-provider }}
   memory-loaded:
-    description: 'Ob ticketspezifische Memory aus einer Vor-Phase geladen wurde (Cache-Hit)'
+    description: 'Ob pro-Issue Memory aus einer Vor-Phase geladen wurde (Cache-Hit)'
     value: ${{ steps.memory-load.outputs.cache-hit }}
   memory-path:
-    description: 'Pfad des ticketspezifischen Memory-Verzeichnisses (claude liest/schreibt hierin)'
-    value: .claude/ticket-memory
+    description: 'Flacher Claude-Memory-Pfad (.claude/memory); Claude pflegt ihn nativ via autoMemoryDirectory. Pro-Issue-Isolierung erfolgt über den GHA-Cache-Key, nicht über einen Subdir.'
+    value: .claude/memory
   memory-save-key:
-    description: 'Cache-Key für den Memory-Save-Step im Workflow (unique pro Lauf, damit cache/save kein no-op wird)'
-    value: ticket-${{ steps.ticket.outputs.issue-number }}-${{ github.run_id }}-${{ github.run_attempt }}
+    description: 'Stabiler Cache-Key pro Issue (alle Phasen teilen sich einen Eintrag). Cache ist immutabel → Workflows bauen den alten Eintrag vor dem Save per gh cache delete ab.'
+    value: claude-memory-issue-${{ steps.ticket.outputs.issue-number }}
 
 runs:
   using: composite
@@ -168,38 +173,21 @@ runs:
         fi
         echo "issue-number=$ISSUE_NR" >> "$GITHUB_OUTPUT"
 
-    - name: Memory-Load (ticketspezifisch, dateibasiert)
+    - name: Memory-Load (pro Issue, dateibasiert)
       id: memory-load
       if: steps.preflight.outputs.configured == 'true' && inputs.memory-load == 'true'
       uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
       with:
-        path: .claude/ticket-memory
-        # Unique key (run_id/run_attempt) -> beim Restore kein exact hit; restore-keys holt per
-        # Prefix den NEUESTEN ticket-{N}-* Cache (LIFO). So sieht jede Phase den Stand der Vor-Phase.
-        key: ticket-${{ steps.ticket.outputs.issue-number }}-${{ github.run_id }}-${{ github.run_attempt }}
-        restore-keys: |
-          ticket-${{ steps.ticket.outputs.issue-number }}-
+        # Flacher Pfad (.claude/memory), nativ von Claude via autoMemoryDirectory gelesen/
+        # geschrieben. Pro-Issue-Isolierung NUR über den Key: jeder Lauf holt den zum Issue
+        # passenden claude-memory-issue-{N}-Stand in denselben flachen Pfad.
+        path: .claude/memory
+        key: claude-memory-issue-${{ steps.ticket.outputs.issue-number }}
 
     - name: Memory-Verzeichnis sicherstellen (Claude-Schreibzugriff auch bei Cache-Miss)
       if: steps.preflight.outputs.configured == 'true' && inputs.memory-load == 'true'
       shell: bash
-      run: mkdir -p .claude/ticket-memory
-
-    - name: Memory validieren (unvollständige Phasen-Notizen verwerfen)
-      # G6: Der Cache-Restore nutzt LIFO (neuester ticket-{N}-* Cache gewinnt). Ein abgebrochener
-      # Vor-Lauf kann eine halb geschriebene phase-*.md hinterlassen haben. Jede Phasen-Notiz
-      # schließt mit dem Sentinel <!-- phase:<name> complete --> ab; fehlt er, ist der Schreibstand
-      # unvollständig und wird verworfen (lieber kein Kontext als irreführender Teilkontext).
-      if: steps.preflight.outputs.configured == 'true' && inputs.memory-load == 'true'
-      shell: bash
-      run: |
-        shopt -s nullglob
-        for f in .claude/ticket-memory/phase-*.md; do
-          if ! grep -qE '<!-- phase:[a-z0-9-]+ complete -->' "$f"; then
-            echo "::notice::Verwerfe unvollstaendige Phasen-Notiz $(basename "$f") (Sentinel fehlt — vermutlich abgebrochener Vor-Lauf)."
-            rm -f "$f"
-          fi
-        done
+      run: mkdir -p ".claude/memory"
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     # CLAUDE CODE – Install + Provider-Switch + Auth + (optional) KoliBri MCP
@@ -386,10 +374,13 @@ runs:
           restricted)
             # Tier 1 — nur lesender GitHub-Zugriff, KEIN Bypass (Triage arbeitet nur via gh).
             # Bash(gh *)/Bash(git *) bleiben eng, Write/Edit bewusst nicht erlaubt — einzige
-            # Ausnahme: Edit(.claude/ticket-memory/*), damit Phasen-Notizen persistiert werden.
+            # Ausnahme: Edit auf den nativen Memory (autoMemoryDirectory = .claude/memory), damit
+            # Claude seine Phasen-Notizen schreiben kann. Zwei Globs defensiv: /* deckt Wurzeldateien
+            # (MEMORY.md + Notizen — das flache auto-memory Layout), /** verschachtelte Pfade falls
+            # auto-memory Subdirs anlegt (allein ** matcht Wurzeldateien nicht zuverlässig).
             # Claude Code wertet für Datei-Schreibzugriffe NUR Edit(path)-Regeln aus — Write(path)
             # wird ignoriert (Edit deckt alle file-editing-Tools inkl. Write ab).
-            ALLOWED_TOOLS="Read,Glob,Grep,Bash(gh *),Bash(git *),Edit(.claude/ticket-memory/*)"
+            ALLOWED_TOOLS="Read,Glob,Grep,Bash(gh *),Bash(git *),Edit(.claude/memory/*),Edit(.claude/memory/**)"
             [ "$NEEDS_MCP" = "true" ] && ALLOWED_TOOLS="$ALLOWED_TOOLS,$MCP_TOOLS"
             # — !WICHTIG! —
             # Zwingendes Single-Quoting des Wertes nach --allowedTools (und --disallowedTools):

@@ -30,7 +30,7 @@ permissions:
   contents: read # Claude ändert PR-Metadaten via gh, nicht den Repo-Inhalt — kein Commit mehr.
   pull-requests: write
   issues: write
-  # actions: write — fuer gh cache delete beim Ticket-Memory-Abbau.
+  # actions: write — fuer gh cache delete beim Issue-Memory-Abbau.
   actions: write
   # id-token: write — App-Token (setup-claude).
   id-token: write
@@ -130,7 +130,7 @@ jobs:
           PR: ${{ github.event.pull_request.number || github.event.inputs.pr-number }}
         run: |
           cat > /tmp/claude-prompt.txt << 'CLAUDE_EOF'
-          TICKET-MEMORY: Lies vor Beginn alle Dateien in .claude/ticket-memory/ (falls vorhanden) — ticketspezifisches Gedächtnis aus früheren Phasen (Spec/Implement/Review). Schreibe am ENDE deine wichtigsten Erkenntnisse (gewählte Klassifikation, Titel-Korrektur, Besonderheiten) in .claude/ticket-memory/phase-documentation.md. Max. ~30 Zeilen, nur Neues. Schließe die Datei zwingend mit der Zeile `<!-- phase:documentation complete -->` ab (Sentinel — der Workflow verwirft eine Notiz ohne ihn als unvollständig).
+          KONTEXT: Notizen aus früheren Phasen sind als Memory automatisch geladen — für Klassifikation/Titel als Hintergrund nutzen. (Documenter ist terminal + Review-Tier: du schreibst hier keinen Memory.)
 
           ROLLE: Du bist der PR-Documenter. Pflege Titel + Beschreibung des soeben gemergten PR #PR_NR. Du arbeitest NUR über gh (gh pr edit / gh pr comment) und änderst KEINE Dateien im Repo.
 
@@ -176,20 +176,9 @@ jobs:
             2>&1 | tee /tmp/claude-output.log
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
 
-      - name: Memory-Check (phase-documentation-Notiz mit Sentinel?)
-        # D3: if-no-path-exists:ignore verschluckt vergessene Notizen still. Warning macht den
-        # No-Op hörbar; kein exit, damit legitime Skips (Guard) grün bleiben.
-        if: always() && steps.setup.outputs.configured == 'true' && steps.claude.outcome == 'success'
-        shell: bash
-        run: |
-          f=".claude/ticket-memory/phase-documentation.md"
-          [ -f "$f" ] && grep -qE '<!-- phase:documentation complete -->' "$f" \
-            || echo "::warning title=Memory fehlt::phase-documentation.md ohne Sentinel — Claude hat keine Notiz hinterlassen. Documenter ist terminal (keine Folge-Phase); fehlende Notiz signalisiert unvollständige Agent-Arbeit."
-
       # Kein Memory-Save (im Gegensatz zu 01-05): der Documenter ist terminal, der nachfolgende
-      # Teardown (🧹 Ticket-Memory abbau) löscht den Cache ohnehin. Ein Save wäre save-then-delete
-      # (redundant). phase-documentation.md bleibt nur lokal — der Memory-Check oben prüft sie als
-      # Diagnose, ob der Agent gearbeitet hat. Persistenz hat keine Folge-Phase mehr.
+      # Teardown (🧹 Issue-Memory abbau) löscht den Cache ohnehin. Ein Save wäre save-then-delete
+      # (redundant). Der Documenter ist terminal - Persistenz hat keine Folge-Phase mehr.
 
       - name: 🏷️ Label-Post-Assertion (ai:documented muss am PR hängen)
         # Erfolgskriterium des Documenter ist nicht ein Review-Verdict, sondern dass ai:documented
@@ -214,11 +203,12 @@ jobs:
           fi
           echo "::notice title=✅ Dokumentation abgeschlossen::PR #$PR — ai:documented gesetzt."
 
-      - name: 🧹 Ticket-Memory abbauen (deterministisch)
-        # Die Claude-Phasen 01-05 schreiben pro Issue nach .claude/ticket-memory/ und persistieren
-        # das unter Key ticket-{issue-number}-* (s. setup-claude action, memory-save-key). Nach Merge
-        # ist dieser Memory stale -> abbauen. Issue-Auflösung wie setup-claude: Closing-Issue, sonst
-        # PR-Nummer als Fallback. Best-Effort: ein fehlgeschlagener Delete darf den Lauf nicht abbrechen.
+      - name: 🧹 Issue-Memory abbauen (deterministisch)
+        # Claude pflegt seinen nativen Memory nach .claude/memory/ (autoMemoryDirectory), pro Issue
+        # persistiert unter stabilem Key claude-memory-issue-{N} (s. setup-claude, memory-save-key).
+        # Nach Merge ist dieser Memory stale -> abbauen. Issue-Auflösung wie setup-claude: Closing-Issue,
+        # sonst PR-Nummer als Fallback. Best-Effort: ein fehlgeschlagener Delete darf den Lauf nicht
+        # abbrechen.
         # NUR bei Job-Erfolg (kein always()): schlägt der Documenter fehl, bleibt der Memory für den
         # Re-Run erhalten — always() würde die Vor-Phasen-Notizen vor dem Retry wegputzen.
         if: steps.setup.outputs.configured == 'true'
@@ -232,7 +222,7 @@ jobs:
             while IFS= read -r cid; do
               [ -z "$cid" ] && continue
               gh cache delete "$cid" --repo "$REPO" 2>/dev/null && echo "🗑️ Cache $cid gelöscht" || true
-            done < <(gh cache list --repo "$REPO" --key "ticket-${ref}-" --json id --jq '.[].id' 2>/dev/null || true)
+            done < <(gh cache list --repo "$REPO" --key "claude-memory-issue-${ref}" --json id,key 2>/dev/null | jq -r --arg k "claude-memory-issue-${ref}" '.[] | select(.key == $k) | .id' 2>/dev/null || true)
           done
           exit 0
 

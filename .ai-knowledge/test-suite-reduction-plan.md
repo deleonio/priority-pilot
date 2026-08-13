@@ -3,6 +3,12 @@
 > Status: Entwurf · Angelegt: 2026-08-08 · Ablage: `.ai-knowledge/`
 > Vorgänger/Diagnostik: `.github/workflows/test-optimization.yml` + `.github/scripts/analyze-test-suite.ts`
 > Strategie-Kontext: `.ai-knowledge/tdd-strategy.md` (Substance over Quantity)
+> **Update 12.08.2026 — ADR 0001:** Das hier geplante Artefakt
+> `.github/scripts/test-reduction-contract.test.ts` (VERDICT-Contract, Phase 3 / Dateiübersicht)
+> ist von [ADR 0001 — GitHub-Workflows bleiben ungetestet](../docs/adr/0001-github-workflows-bleiben-ungetestet.md)
+> überholt: für `.github/**` werden **keine** Tests geschrieben. Der VERDICT-Contract ist
+> stattdessen inline im Workflow zu verifizieren oder entfällt. Der app-Test-Reduktionsanteil
+> (Unit/E2E-Coverage-Matrix, Phasen 1–2) bleibt von ADR 0001 unberührt.
 
 ---
 
@@ -147,17 +153,17 @@ _Die Wurzel von „nie abgebaut" an der Entstehungsstelle schließen._
 
 ## 6. Dateiübersicht
 
-| Aktion     | Pfad                                                                 | Phase |
-| ---------- | -------------------------------------------------------------------- | ----- |
-| **neu**    | `scripts/test-reduction/coverage-matrix.ts`                          | 1     |
-| **neu**    | `scripts/test-reduction/set-cover.ts`                                | 1     |
-| **neu**    | `scripts/test-reduction/verify-removal.ts`                           | 1     |
-| **neu**    | `scripts/test-reduction/shuffle-detect.ts`                           | 2     |
-| **neu**    | `.github/workflows/test-reduction.yml`                               | 1 → 3 |
-| **neu**    | `.github/workflows/test-add-gate.yml`                                | 4     |
-| **ändern** | `.github/workflows/test-optimization.yml` (Issue-Dedup)              | 5     |
-| **prüfen** | `.github/scripts/analyze-test-suite.ts` (AST/Stilllegung)            | 5     |
-| **neu**    | `.github/scripts/test-reduction-contract.test.ts` (VERDICT-Contract) | 3     |
+| Aktion     | Pfad                                                                                                                   | Phase |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------- | ----- |
+| **neu**    | `scripts/test-reduction/coverage-matrix.ts`                                                                            | 1     |
+| **neu**    | `scripts/test-reduction/set-cover.ts`                                                                                  | 1     |
+| **neu**    | `scripts/test-reduction/verify-removal.ts`                                                                             | 1     |
+| **neu**    | `scripts/test-reduction/shuffle-detect.ts`                                                                             | 2     |
+| **neu**    | `.github/workflows/test-reduction.yml`                                                                                 | 1 → 3 |
+| **neu**    | `.github/workflows/test-add-gate.yml`                                                                                  | 4     |
+| **ändern** | `.github/workflows/test-optimization.yml` (Issue-Dedup)                                                                | 5     |
+| **prüfen** | `.github/scripts/analyze-test-suite.ts` (AST/Stilllegung)                                                              | 5     |
+| ~~neu~~    | ~~`.github/scripts/test-reduction-contract.test.ts`~~ (VERDICT-Contract) — **ADR 0001: entfällt, kein `.github`-Test** | —     |
 
 ---
 

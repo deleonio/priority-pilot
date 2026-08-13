@@ -189,8 +189,8 @@ Für `.github/workflows/`, `.github/scripts/`, die `setup-claude`-Composite-Acti
 sind überwiegend Tautologie-Tests ohne Fehlerfangwert (sie re-encodieren die Workflow-Definition und
 werden rot bei _Änderung_, nicht bei _Defekt_) und blockieren den Pipeline-Umbau durch ständigen
 Meta-Test-Churn — sie haben Agenten und Phasen bisher auch stets als Vorbild eingeladen, neue zu
-schreiben. Die alte Suite wird via [#564](https://github.com/deleonio/priority-pilot/issues/564) nach
-`__quarantine__/` verschoben (nicht gepflegt, nicht in CI); neuer Testbedarf entsteht spec-first nur
+schreiben. Die alte Suite wurde am 2026-08-12 vollständig **gelöscht** (User-Direktive; [#564](https://github.com/deleonio/priority-pilot/issues/564)
+hatte eine `__quarantine__/`-Verschiebung geplant, übersprungen); neuer Testbedarf entsteht spec-first nur
 noch für Domänenlogik ([#566](https://github.com/deleonio/priority-pilot/issues/566)). Entscheidung
 und abgegrenzter Scope: [ADR 0001 — GitHub-Workflows bleiben ungetestet](../docs/adr/0001-github-workflows-bleiben-ungetestet.md).
 

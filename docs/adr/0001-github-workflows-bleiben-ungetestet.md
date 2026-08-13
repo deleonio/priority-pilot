@@ -44,8 +44,8 @@ Quarantäne (`__quarantine__/`) verschoben; die CI führt sie nicht mehr aus.
 
 - `.github/workflows/*.yml` — die Workflow-Definitionen inkl. ihrer eingebetteten `run:`-Bash-Blöcke,
   Label-/Verdict-State-Machine, Guards, Concurrency-Gruppen, Skip-/Supersede-Logik.
-- `.github/workflows/*.test.ts` und `.github/scripts/*.test.ts` — die Meta-Tests (werden via #564
-  nach `__quarantine__/` verschoben, nicht gelöscht; als Nachschlagewerk erhalten).
+- `.github/workflows/*.test.ts` und `.github/scripts/*.test.ts` — die Meta-Tests (am 2026-08-12
+  vollständig gelöscht auf User-Direktive; #564 hatte eine `__quarantine__/`-Verschiebung geplant).
 - `.github/actions/setup-claude/` und die übrigen Composite-Actions.
 - `ci.yml`/`deploy.yml`-Plumbing (Job-Anordnung, Matrix, Caching, Runner-Auswahl).
 
