@@ -69,3 +69,4 @@ pnpm --filter frontend test:e2e          # Funktionale E2E gegen das echte Backe
 ## Mehr
 
 Gesamt-Setup und API-Vertrag: [Root-README](../README.md).
+App-Icons (Quelle, maskable-Varianten, Regeneration): [public/icons/README.md](public/icons/README.md).
