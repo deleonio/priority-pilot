@@ -509,18 +509,30 @@ runs:
         authkey: ${{ inputs.tailscale-authkey }}
         args: --exit-node=${{ inputs.tailscale-exit-node }} --exit-node-allow-lan-access=true
 
-    - name: DNS für Exit-Node-Routing fixen
+    - name: DNS fixen + Egress-IP protokollieren
       # Exit-Node-Routing bricht die Azure-Standard-DNS des Runners (durch den Tunnel nicht
       # erreichbar) → folgende Requests scheitern mit curl exit 28 (Timeout). Öffentlichen
       # Resolver setzen, der via Exit Node auflöst. Ohne diesen Step macht der Connect zwar
       # grün, aber claude -p erreicht seinen Provider nicht. Siehe docs/tailscale-exit-node.md.
+      # Zusätzlich wird die egressierende IP + Standort abgefragt → pro Lauf im Log sichtbar,
+      # dass der LLM-Traffic wirklich über den Frankfurter Exit Node läuft.
       if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != ''
       shell: bash
       run: |
         echo "nameserver 1.1.1.1" | sudo tee /etc/resolv.conf >/dev/null
         echo "nameserver 8.8.8.8" | sudo tee -a /etc/resolv.conf >/dev/null
         if getent hosts api.anthropic.com >/dev/null 2>&1; then
-          echo "::notice::Tailscale-Exit-Node aktiv + DNS via 1.1.1.1/8.8.8.8 (LLM-Egress über feste IP)."
+          # Egress-IP über den Exit Node abfragen (verifiziert das Routing pro Lauf sichtbar).
+          EGRESS=$(curl -s --max-time 5 https://ipinfo.io/json 2>/dev/null || echo "")
+          if [ -n "$EGRESS" ]; then
+            IP=$(printf '%s' "$EGRESS" | jq -r '.ip // "?"')
+            CITY=$(printf '%s' "$EGRESS" | jq -r '.city // "?"')
+            COUNTRY=$(printf '%s' "$EGRESS" | jq -r '.country // "?"')
+            echo "::notice title=🌐 LLM-Egress über Tailscale::Exit-Node aktiv — IP ${IP} (${CITY}, ${COUNTRY})."
+            echo "Egress-IP: ${IP} (${CITY}, ${COUNTRY})"
+          else
+            echo "::notice::Tailscale-Exit-Node aktiv + DNS via 1.1.1.1/8.8.8.8 (Egress-IP nicht abrufbar)."
+          fi
         else
           echo "::error::DNS-Auflösung schlägt trotz Resolver-Wechsel fehl — Exit-Node/Forwarding prüfen."
           exit 1
