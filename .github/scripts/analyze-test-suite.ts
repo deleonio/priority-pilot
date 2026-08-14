@@ -419,7 +419,13 @@ function parseNameArg(arg: string): string {
 	const trimmed = arg.trim();
 	const m = trimmed.match(/^([`'"])([\s\S]*)\1$/);
 	if (!m) return 'unnamed';
-	return m[2].replace(/\$\{[^}]*\}/g, '').trim() || 'unnamed';
+	// Interpolationen entfernen, dann mehrzeilige Whitespaces zu einzelnen Leerzeichen collapsen
+	return (
+		m[2]
+			.replace(/\$\{[^}]*\}/g, '')
+			.replace(/\s+/g, ' ')
+			.trim() || 'unnamed'
+	);
 }
 
 /** Callback-Arg (Arrow/Function) → Body-Text. Liefert '' bei Nicht-Erkennung. */
