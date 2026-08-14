@@ -346,6 +346,12 @@ jobs:
             echo "- Labels: ${labels:-keine}"
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: 🩺 Z.AI Fair-Usage-Check (1313)
+        # Rohausgabe des Claude-Laufs auf z.ai-Fehler 1313 (Fair Usage) durchsuchen
+        # und Ergebnis als Annotation + Job-Summary sichtbar machen.
+        if: always()
+        uses: ./.github/actions/llm-fair-usage-check
+
       - name: Review-Ergebnis prüfen (Label via API verifizieren)
         if: always() && steps.setup.outputs.configured == 'true'
         env:

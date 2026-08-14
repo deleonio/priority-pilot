@@ -1,0 +1,21 @@
+name: 'Z.AI Fair-Usage-Check (1313)'
+description: >-
+  Durchsucht die Claude-Rohausgabe (/tmp/claude-output.log) nach dem z.ai-Fehler
+  1313 (Fair Usage Policy / „Account geteilt"-Flagging) und schreibt das Ergebnis
+  als Annotation + Job-Summary — pro Lauf sichtbar, ob das Limit zuschlägt.
+runs:
+  using: composite
+  steps:
+    - name: Rohausgabe auf 1313/Fair-Usage durchsuchen
+      shell: bash
+      run: |
+        # Lief der Claude-Step nicht (Skip-Guard, früherer Fehler), gibt es nichts zu prüfen.
+        [ -f /tmp/claude-output.log ] || exit 0
+        FAIR_LINE="$(grep -E '\[1313\]|Fair Usage Policy' /tmp/claude-output.log | head -1 | cut -c1-400)"
+        if [ -n "$FAIR_LINE" ]; then
+          echo "::error title=🚫 Z.AI Fair-Usage-Limit (1313)::${FAIR_LINE}"
+          echo "🚫 **Z.AI Fair-Usage-Limit (1313):** \`${FAIR_LINE}\`" >> "$GITHUB_STEP_SUMMARY"
+        else
+          echo "::notice title=✅ Kein Z.AI Fair-Usage-Fehler (1313)::LLM-Aufruf ohne Fair-Usage-Beschränkung"
+          echo "- ✅ Z.AI Fair-Usage-Check (1313): kein Treffer" >> "$GITHUB_STEP_SUMMARY"
+        fi
