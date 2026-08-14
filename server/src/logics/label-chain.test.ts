@@ -1,12 +1,29 @@
 import { describe, test } from 'node:test';
-import assert from 'node/assert';
+import assert from 'node:assert';
+import {
+	transitionToSpecReady,
+	transitionToNeedsReview,
+	transitionToNeedsFixup,
+	transitionFromFixupToReview,
+	transitionToApproved,
+	triageIssue,
+	specIssue,
+	implementFromSpec,
+	reviewPr,
+	reviewPrWithFixupRequest,
+	fixupPr,
+	reviewPrWithApproval,
+	getLabelForRole,
+	validateLabelCombo,
+	validateTransition,
+	validateSequence,
+} from './label-chain.js';
 
 /**
  * Label-Chain Tests für Issue 658
- * Basierend auf Spec: docs/spec/issue-658.md
+ * Basierend auf Spec: Issue 658 (Label-Chain für Rollen-Übergabe)
  *
  * Diese Tests validieren die Label-Chain-Logik für den agentischen Workflow.
- * Alle Tests sind rot bis die Label-Chain-Implementierung existiert.
  */
 
 describe('Label-Chain: Grundlegende Übergänge', () => {
@@ -218,76 +235,3 @@ describe('Label-Chain: Validierungsregeln', () => {
 		}
 	});
 });
-
-// Mock-Funktionen (werden in späterer Phase implementiert)
-async function transitionToSpecReady(_issue: {
-	labels: string[];
-}): Promise<{ labels: string[]; removedLabels: string[] }> {
-	throw new Error('NOT_IMPLEMENTED: transitionToSpecReady');
-}
-
-async function transitionToNeedsReview(_issue: {
-	labels: string[];
-}): Promise<{ labels: string[]; removedLabels: string[] }> {
-	throw new Error('NOT_IMPLEMENTED: transitionToNeedsReview');
-}
-
-async function transitionToNeedsFixup(_pr: {
-	labels: string[];
-}): Promise<{ labels: string[]; removedLabels: string[] }> {
-	throw new Error('NOT_IMPLEMENTED: transitionToNeedsFixup');
-}
-
-async function transitionFromFixupToReview(_pr: {
-	labels: string[];
-}): Promise<{ labels: string[]; removedLabels: string[] }> {
-	throw new Error('NOT_IMPLEMENTED: transitionFromFixupToReview');
-}
-
-async function transitionToApproved(_pr: { labels: string[] }): Promise<{ labels: string[]; removedLabels: string[] }> {
-	throw new Error('NOT_IMPLEMENTED: transitionToApproved');
-}
-
-async function triageIssue(_issue: { labels: string[] }): Promise<{ labels: string[] }> {
-	throw new Error('NOT_IMPLEMENTED: triageIssue');
-}
-
-async function specIssue(_issue: { labels: string[] }): Promise<{ labels: string[] }> {
-	throw new Error('NOT_IMPLEMENTED: specIssue');
-}
-
-async function implementFromSpec(_issue: { labels: string[] }): Promise<{ labels: string[] }> {
-	throw new Error('NOT_IMPLEMENTED: implementFromSpec');
-}
-
-async function reviewPr(_pr: { labels: string[] }): Promise<{ labels: string[] }> {
-	throw new Error('NOT_IMPLEMENTED: reviewPr');
-}
-
-async function reviewPrWithFixupRequest(_pr: { labels: string[] }): Promise<{ labels: string[] }> {
-	throw new Error('NOT_IMPLEMENTED: reviewPrWithFixupRequest');
-}
-
-async function fixupPr(_pr: { labels: string[] }): Promise<{ labels: string[] }> {
-	throw new Error('NOT_IMPLEMENTED: fixupPr');
-}
-
-async function reviewPrWithApproval(_pr: { labels: string[] }): Promise<{ labels: string[] }> {
-	throw new Error('NOT_IMPLEMENTED: reviewPrWithApproval');
-}
-
-async function getLabelForRole(_role: string): Promise<string> {
-	throw new Error('NOT_IMPLEMENTED: getLabelForRole');
-}
-
-async function validateLabelCombo(_labels: string[]): Promise<boolean> {
-	throw new Error('NOT_IMPLEMENTED: validateLabelCombo');
-}
-
-async function validateTransition(_from: string, _to: string): Promise<boolean> {
-	throw new Error('NOT_IMPLEMENTED: validateTransition');
-}
-
-async function validateSequence(_sequence: string[]): Promise<boolean> {
-	throw new Error('NOT_IMPLEMENTED: validateSequence');
-}
