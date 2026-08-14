@@ -199,13 +199,27 @@ gleichorigin an.
 
 ## 9. Backups
 
+Das Repo bringt [`maintenance.sh`](../maintenance.sh) mit: ein Backup-Skript, das die DB via
+SQLite `.backup` sichert (konsistent auch im laufenden Betrieb), Backups mit Zeitstempel in
+`backups/` legt und automatisch Backups älter als 30 Tage löscht. Das Deploy-Bundle enthält das
+Skript **nicht** (es wird nur `dist/`, `package.json` und `node_modules` rsynct) — daher einmalig
+auf den Server kopieren:
+
 ```bash
-# Konsistentes SQLite-Backup (auch im laufenden Betrieb sicher) – z. B. täglich per cron:
-sudo -u gh-deploy sqlite3 /var/www/gh-deploy/priority-pilot/data/database.sqlite \
-  ".backup '/var/www/gh-deploy/priority-pilot/data/backup-$(date +%F).sqlite'"
+# lokal vom Repo-Root:
+scp maintenance.sh gh-deploy@<host>:/var/www/gh-deploy/priority-pilot/
 ```
 
-`sqlite3` ggf. via `sudo apt install -y sqlite3`. Backups regelmäßig vom Server wegsichern.
+Dann als `gh-deploy`-User einen Cron-Job einrichten (`crontab -u gh-deploy -e`), der das Skript
+nightly mit dem Prod-DB-Pfad aufruft:
+
+```cron
+0 2 * * * DATABASE_STORAGE=/var/www/gh-deploy/priority-pilot/data/database.sqlite /var/www/gh-deploy/priority-pilot/maintenance.sh
+```
+
+Backups landen in `/var/www/gh-deploy/priority-pilot/backups/` — außerhalb von `dist/` und `data/`,
+Deploys löschen sie nicht. `sqlite3` ggf. via `sudo apt install -y sqlite3`. Backups regelmäßig
+vom Server wegsichern.
 
 ---
 

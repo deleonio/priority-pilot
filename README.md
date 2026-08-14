@@ -60,9 +60,12 @@ das die Datenbank (`database.sqlite`) automatisch sichert und alte Backups aufr�
 
 **Funktionsumfang:**
 
-- Datiertes Backup (`backups/database_YYYY-MM-DD_HH-MM-SS.sqlite`) via SQLite `.backup` (konsistent bei aktiven Zugriffen)
+- Datiertes Backup (`backups/database_YYYY-MM-DD_HH-MM-SS.sqlite`) via SQLite `.backup`
+  (konsistent bei aktiven Zugriffen; benötigt die `sqlite3`-CLI)
+- Datenbank-Pfad via `DATABASE_STORAGE` konfigurierbar (Default `./database.sqlite`, wird relativ
+  zum Skript-Verzeichnis aufgelöst)
 - Automatische Aufräumung von Backups älter als 30 Tage
-- Robust via `set -euo pipefail` (sofortiger Abbruch bei Fehlern)
+- Robust via `set -euo pipefail` (sofortiger Abbruch bei Fehlern; Exit-Code 1, wenn die Datenbank fehlt)
 
 **Cron-Beispiel (nightly 02:00 Uhr):**
 
