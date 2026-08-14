@@ -172,8 +172,9 @@ neueren Version — vor Schema-ändernden Releases ein `data/database.sqlite`-Ba
 - **Least Privilege:** Der `gh-deploy`-User braucht nur Schreibrecht auf die zwei Zielverzeichnisse
   sowie `pm2 reload`/`pm2 start` — kein sudo, kein systemd.
 - **Secrets** (`MISTRAL_API_KEY`) nur in der `.env` im App-Verzeichnis (chmod 600), nie im Repo.
-- **DB-Backup:** `data/database.sqlite` regelmäßig sichern (z. B. `sqlite3 … ".backup"` per cron,
-  siehe [server-setup.md](server-setup.md)), besonders **vor** Schema-ändernden Releases.
+- **DB-Backup:** [`maintenance.sh`](../maintenance.sh) per Cron nightly ausführen (sichert
+  `data/database.sqlite` via SQLite `.backup` mit 30-Tage-Retention — Einrichtung siehe
+  [server-setup.md](server-setup.md)), besonders **vor** Schema-ändernden Releases.
 
 ---
 
