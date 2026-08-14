@@ -53,6 +53,26 @@ mit `openapi-typescript` – erzeugt:
 - **Client:** `src/schema.d.ts` via `openapi-typescript`; das Frontend konsumiert die Typen mit
   `openapi-fetch`.
 
+## Maintenance & Backups
+
+Priority-Pilot wird mit einem **nightly SQLite-Backup-Skript** ausgeliefert ([`maintenance.sh`](maintenance.sh)),
+das die Datenbank (`database.sqlite`) automatisch sichert und alte Backups aufräumt.
+
+**Funktionsumfang:**
+
+- Datiertes Backup (`backups/database_YYYY-MM-DD_HH-MM-SS.sqlite`) via SQLite `.backup` (konsistent bei aktiven Zugriffen)
+- Automatische Aufräumung von Backups älter als 30 Tage
+- Robust via `set -euo pipefail` (sofortiger Abbruch bei Fehlern)
+
+**Cron-Beispiel (nightly 02:00 Uhr):**
+
+```bash
+0 2 * * * /path/to/priority-pilot/maintenance.sh
+```
+
+Das Skript kann aus beliebigem Verzeichnis aufgerufen werden; alle Pfade werden relativ zum Skript-Verzeichnis aufgelöst.
+Die `backups/`-Dateien werden nicht versioniert (siehe [`.gitignore`](.gitignore)).
+
 ## Fachlogik (Server)
 
 - **Modelle** ([`task.ts`](server/src/models/task.ts), [`pillar.ts`](server/src/models/pillar.ts),
