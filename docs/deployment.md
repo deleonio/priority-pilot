@@ -98,16 +98,27 @@ DATABASE_STORAGE=/var/www/gh-deploy/priority-pilot/data/database.sqlite
 DB_SEED=false           # KEINE Demo-Daten bei jedem Start (Default würde seeden)
 # DB_RESET   absichtlich NICHT gesetzt — "true" LEERT die DB bei jedem Start!
 
-# Mistral-Integration (Säulen-Vorschläge). Fehlt der Key, antwortet /tasks/suggest-pillars mit 503.
+# LLM-Kaskade. Mindestens EIN Key nötig — sonst antworten die LLM-Endpunkte mit 503.
 MISTRAL_API_KEY=...
-# MISTRAL_MODEL=mistral-small-latest                       # optional, Default mistral-small-latest
+# MISTRAL_MODEL=mistral-medium-latest                      # optional, Default mistral-medium-latest
+# OPENROUTER_API_KEY=sk-or-v1-...                          # optional, aktiviert die Verfeinerungs-Stufe
+# OPENROUTER_MODEL=openrouter/free                         # optional
 ```
+
+**Provider-Strategie:** Die LLM-Anbindung ist eine Kaskade, kein Entweder-oder-Schalter. Du kannst
+**nur Mistral**, **nur OpenRouter** oder **beide** betreiben — bei beiden generiert Mistral und
+OpenRouter verfeinert (höhere Qualität, ~doppelte Latenz), bei einem einzelnen Key liefert dieser
+Provider allein. **Migration:** Bestehende Mistral-only-Deployments laufen unverändert weiter, es
+ist keine Anpassung nötig; OpenRouter ist rein additiv. Zusätzlich lassen sich Keys/Modell zur
+Laufzeit über die Settings-UI (`/settings` → Tab „LLM") persistieren — diese DB-Werte haben pro
+Feld Vorrang vor der Env, fehlen sie, greift wie bisher die Env-Datei.
 
 Ausführliche Anleitung zu LLM-Provider-Konfiguration (Mistral + OpenRouter): [docs/llm-providers.md](llm-providers.md).
 
 Quellen der Variablen: `server/src/index.ts` (`DB_RESET`, `DB_SEED`, dotenv-Load),
 `server/src/database.ts` (`DATABASE_STORAGE`), `server/src/express/index.ts` (`PORT`),
-`server/src/llm/llm.ts` (`MISTRAL_API_KEY`, `MISTRAL_MODEL`).
+`server/src/llm/llm.ts` (`MISTRAL_API_KEY`, `MISTRAL_MODEL`, `OPENROUTER_API_KEY`,
+`OPENROUTER_MODEL`, `OPENROUTER_API_URL`).
 
 ---
 
