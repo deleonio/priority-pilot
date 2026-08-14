@@ -40,15 +40,6 @@ Setup-Step mit klarer Fehlermeldung fehl.
 - [Z.AI API Docs](https://docs.z.ai/guides/llm/glm-5.1)
 - [Claude Code Docs](https://docs.anthropic.com/en/docs/claude-code)
 
-### LLM-Egress über Tailscale-Exit-Node
-
-Optional wird der gesamte LLM-Traffic eines Laufs über einen Frankfurter Tailscale-Exit-Node
-geleitet, sodass z.ai/OpenRouter alle Requests von **einer konsistenten IP** sehen — das verhindert
-das „Account geteilt"-Flagging durch wechselnde Azure-Runner-IPs. Eingehängt zentral im
-[`setup-claude`](../.github/actions/setup-claude/action.yml)-Composite (Connect + DNS-Fix) **vor**
-dem `claude -p`-Aufruf. Kill-Switch und Fail-closed-Verhalten: siehe
-[`tailscale-exit-node.md`](tailscale-exit-node.md).
-
 ### Konfigurationstrennung
 
 Der Provider gehört **nicht** in die `.claude/settings.json`: die Datei ist eingecheckt und gilt
