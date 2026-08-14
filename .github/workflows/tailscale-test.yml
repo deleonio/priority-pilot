@@ -24,11 +24,14 @@ jobs:
           authkey: ${{ secrets.TAILSCALE_AUTH_KEY }}
           args: --exit-node=${{ vars.TAILSCALE_EXIT_NODE }} --exit-node-allow-lan-access=true
 
-      # 3. DNS-Fix: Exit-Node-Routing bricht die Runner-DNS (Azure-DNS ist durch den
-      #    Tunnel nicht erreichbar). Öffentlichen Resolver setzen, der via Exit Node
-      #    auflöst. Ohne diesen Step schlagen die folgenden curls mit exit 28 fehl.
+      # 3. DNS-Fix: systemd-resolved im Stub-Modus intercepted DNS-Queries und fragt
+      #    weiterhin den Azure-DNS, der durch den Tunnel nicht erreichbar ist. Service
+      #    stoppen + echte resolv.conf schreiben, sonst schlagen die folgenden curls
+      #    mit exit 28 fehl.
       - name: Fix DNS for Exit-Node routing
         run: |
+          sudo systemctl stop systemd-resolved 2>/dev/null || true
+          sudo rm -f /etc/resolv.conf
           echo "nameserver 1.1.1.1" | sudo tee /etc/resolv.conf >/dev/null
           echo "nameserver 8.8.8.8" | sudo tee -a /etc/resolv.conf >/dev/null
           echo "=== DNS check ==="
