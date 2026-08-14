@@ -162,6 +162,7 @@ Deployment auf einen dedizierten Server (Merge auf `main` → Build in GitHub Ac
 - [`docs/deployment.md`](docs/deployment.md) — Konzept & Ablauf (Architektur, rsync + PM2, Rollback).
 - [`docs/server-setup.md`](docs/server-setup.md) — Schritt-für-Schritt-Einrichtung des Linux-Servers.
 - [`docs/caddy-setup.md`](docs/caddy-setup.md) — Caddyfile: Reverse-Proxy, SPA-Fallback, Pfad-Tabelle.
+- [`docs/llm-providers.md`](docs/llm-providers.md) — LLM-Kaskade einrichten (Mistral → OpenRouter-Verfeinerung, ENV-Konfiguration).
 
 ## Mitwirken
 

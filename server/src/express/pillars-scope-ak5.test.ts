@@ -2,7 +2,7 @@ import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { Pillar } from '../models/index.js';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
-import type { PillarClassifier, ActivityAdvisor, ClassifyPillarsInput, AdviseActivitiesInput } from '../llm/mistral.js';
+import type { PillarClassifier, ActivityAdvisor, ClassifyPillarsInput, AdviseActivitiesInput } from '../llm/llm.js';
 
 /**
  * ROTE Spec-Tests (#422, AK5): suggest-pillars, pillar-advisor und scores/by-pillar arbeiten

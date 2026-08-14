@@ -7,7 +7,7 @@ import {
 	MistralRequestError,
 	type FeedbackExample,
 	type PillarClassifier,
-} from '../../llm/mistral.js';
+} from '../../llm/llm.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
 import type { components } from '../../api';
 

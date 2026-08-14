@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { MissingApiKeyError, MistralRequestError, type ParseTaskParser, type ParsedTask } from '../../llm/mistral.js';
+import { MissingApiKeyError, MistralRequestError, type ParseTaskParser, type ParsedTask } from '../../llm/llm.js';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../../test/helpers.js';
 
 after(closeDb);

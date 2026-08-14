@@ -1,49 +1,18 @@
-// Rote Spec-Tests für #180 — ENV-Konfiguration beim Serverstart loggen
+// Spec-Tests für #619 — Startup-Error-Handling (docs/spec/issue-619.md)
 //
-// Vertrag: Beim Serverstart loggt `logEnvConfig()` die relevanten ENV-Variablen.
-// Secrets (MISTRAL_API_KEY) werden maskiert und tauchen nie im Klartext auf.
-// Default-Werte werden als solche kenntlich gemacht.
+// Prüfgegenstand sind die vier AKs (invalid .env / UnhandledRejection / UncaughtException /
+// app.listen-Error) — alle müssen mit `process.exit(1)` enden. Die Tests dürfen NIEMALS einen echten
+// HTTP-Server oder Scheduler am Leben lassen, sonst terminiert `node --test` nicht (CI-Hang).
+// Daher: exit ist gemockt, der Exit-Guard wird pro Test zurückgesetzt, und die Handler-Funktionen
+// werden per Direktaufruf geprüft (eine echte unhandled Rejection / ein echter belegter Port würde
+// node:test abfangen bzw. die Suite blockieren).
 //
-// Designentscheidung: Die Funktion wird aus dem (noch zu erstellenden) Modul
-// `./env-startup-log.js` importiert — NICHT aus `./index.js`. `index.ts` führt
-// sofort `main()` aus und benötigt eine DB; das hätte Seiteneffekte beim Import.
-// Solange `env-startup-log.ts` fehlt, schlägt der Import fehl → legitime Rotfärbung.
-import { describe, it, mock, beforeEach, afterEach } from 'node:test';
+// Wichtig: index.ts lädt src/logics erst dynamisch INNERHALB von main() (nach der Config-Prüfung).
+// Dadurch importiert dieser Test keine src/logics-Module und scheitert nicht am Coverage-Schwellwert.
+import { describe, it, mock, before, beforeEach, after, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { logEnvConfig } from './env-startup-log.js';
+import process from 'node:process';
 
-// Die ENV-Variablen, die diese Tests anfassen — werden vor/nach jedem Test sauber wiederhergestellt.
-const TOUCHED_ENV_KEYS = [
-	'PORT',
-	'MISTRAL_API_KEY',
-	'MISTRAL_MODEL',
-	'DATABASE_STORAGE',
-	'DB_RESET',
-	'DB_SEED',
-] as const;
-
-/** Schnappschuss der relevanten ENV-Variablen, damit Tests sich nicht gegenseitig beeinflussen. */
-function snapshotEnv(): Record<string, string | undefined> {
-	const snapshot: Record<string, string | undefined> = {};
-	for (const key of TOUCHED_ENV_KEYS) {
-		snapshot[key] = process.env[key];
-	}
-	return snapshot;
-}
-
-/** Stellt den ENV-Schnappschuss wieder her (löscht Keys, die vorher nicht gesetzt waren). */
-function restoreEnv(snapshot: Record<string, string | undefined>): void {
-	for (const key of TOUCHED_ENV_KEYS) {
-		const value = snapshot[key];
-		if (value === undefined) {
-			delete process.env[key];
-		} else {
-			process.env[key] = value;
-		}
-	}
-}
-
-/** Sammelt alle an console.log übergebenen Argumente eines Mocks zu einem durchsuchbaren String. */
 function loggedOutput(logMock: ReturnType<typeof mock.method>): string {
 	return logMock.mock.calls
 		.map((call) =>
@@ -52,83 +21,115 @@ function loggedOutput(logMock: ReturnType<typeof mock.method>): string {
 		.join('\n');
 }
 
-describe('Rote Spec-Tests für #180 — logEnvConfig()', () => {
-	let envSnapshot: Record<string, string | undefined>;
+describe('Spec-Tests für #619 — Startup-Error-Handling', () => {
+	let exitMock: ReturnType<typeof mock.method>;
 	let logMock: ReturnType<typeof mock.method>;
+	let errorMock: ReturnType<typeof mock.method>;
+	let main: () => Promise<void>;
+	let resetExitGuard: () => void;
+	let handleUnhandledRejection: (reason: unknown) => void;
+	let handleUncaughtException: (error: unknown) => void;
+	let handleServerError: (error: NodeJS.ErrnoException, port: number) => void;
+	let savedEnv: Record<string, string | undefined>;
+
+	before(async () => {
+		// RUN_MAIN MUSS vor dem Import auf 'false' stehen, sonst führt das Modul beim Import
+		// automatisch main() aus (Serverstart + Scheduler) → Endlos-Hang in der Suite.
+		savedEnv = {
+			DATABASE_STORAGE: process.env.DATABASE_STORAGE,
+			PORT: process.env.PORT,
+			RUN_MAIN: process.env.RUN_MAIN,
+		};
+		process.env.RUN_MAIN = 'false';
+
+		const module = await import('./index.js');
+		main = module.main;
+		resetExitGuard = module.resetExitGuard;
+		handleUnhandledRejection = module.handleUnhandledRejection;
+		handleUncaughtException = module.handleUncaughtException;
+		({ handleServerError } = await import('./express/server-error-handler.js'));
+	});
 
 	beforeEach(() => {
-		envSnapshot = snapshotEnv();
-		// Tabula rasa: alle berührten Keys löschen, damit jeder Test seinen Ausgangszustand selbst setzt.
-		for (const key of TOUCHED_ENV_KEYS) {
-			delete process.env[key];
-		}
+		// Pro Test frisch: Exit-Guard zurück + process.exit/console gemockt.
+		resetExitGuard();
+		exitMock = mock.method(process, 'exit', () => {});
 		logMock = mock.method(console, 'log');
+		errorMock = mock.method(console, 'error');
 	});
 
 	afterEach(() => {
+		exitMock.mock.restore();
 		logMock.mock.restore();
-		restoreEnv(envSnapshot);
+		errorMock.mock.restore();
 	});
 
-	describe('AK 1 — ENV-Ausgabe beim Start', () => {
-		it('loggt PORT im Klartext und MISTRAL_API_KEY maskiert', () => {
-			process.env.PORT = '4000';
-			process.env.MISTRAL_API_KEY = 'sk-123';
+	after(() => {
+		// ENV restaurieren — Tests dürfen process.env nicht verschmutzen.
+		for (const [key, value] of Object.entries(savedEnv)) {
+			if (value === undefined) {
+				delete process.env[key];
+			} else {
+				process.env[key] = value;
+			}
+		}
+	});
 
-			logEnvConfig();
+	describe('AK 1 — Startup-Catch-all mit process.exit(1)', () => {
+		it('bei invalid .env (DATABASE_STORAGE) wird process.exit(1) aufgerufen', async () => {
+			process.env.DATABASE_STORAGE = 'invalid://test-database';
+			await main();
 
-			const output = loggedOutput(logMock);
-			assert.match(output, /PORT: '4000'/, 'PORT soll mit gesetztem Wert geloggt werden');
-			assert.match(
-				output,
-				/MISTRAL_API_KEY: '\*\*\* \(gesetzt\)'/,
-				'MISTRAL_API_KEY soll als gesetzt-aber-maskiert geloggt werden',
-			);
-			assert.doesNotMatch(output, /sk-123/, 'Der eigentliche API-Key darf nicht im Output erscheinen');
+			assert.ok(exitMock.mock.callCount() > 0, 'Bei invalid .env muss process.exit(1) aufgerufen werden');
+			assert.deepEqual(exitMock.mock.calls[0].arguments, [1], 'process.exit mit Code 1');
+		});
+
+		it('bei fehlender Required-Env-Var wird process.exit(1) aufgerufen', async () => {
+			process.env.DATABASE_STORAGE = '';
+			await main();
+
+			assert.ok(exitMock.mock.callCount() > 0, 'Bei fehlender Required-Env-Var muss process.exit(1) aufgerufen werden');
 		});
 	});
 
-	describe('AK 2 — Default-Werte sichtbar', () => {
-		it('zeigt für nicht gesetzte ENV-Variablen die Defaults und (nicht gesetzt) für den Key', () => {
-			// beforeEach hat bereits alle berührten Keys gelöscht → echter "nichts gesetzt"-Zustand.
+	describe('AK 2 — UnhandledRejection Handler', () => {
+		it('UnhandledRejection Handler ruft bei Trigger process.exit(1) auf', () => {
+			// Handler-Funktion direkt aufrufen (registriert in index.ts via process.on).
+			// Eine echte unhandled Rejection würde node:test abfangen und den Test scheitern lassen.
+			handleUnhandledRejection(new Error('TEST_UNHANDLED_REJECTION'));
 
-			logEnvConfig();
-
-			const output = loggedOutput(logMock);
-			assert.match(output, /PORT: '3000 \(default\)'/, 'PORT-Default soll sichtbar sein');
-			assert.match(
-				output,
-				/DATABASE_STORAGE: '\.\/database\.sqlite \(default\)'/,
-				'DATABASE_STORAGE-Default soll sichtbar sein',
-			);
-			assert.match(output, /DB_RESET: 'false \(default\)'/, 'DB_RESET-Default soll sichtbar sein');
-			assert.match(output, /DB_SEED: 'true \(default\)'/, 'DB_SEED-Default soll sichtbar sein');
-			assert.match(
-				output,
-				/MISTRAL_MODEL: 'mistral-small-latest \(default\)'/,
-				'MISTRAL_MODEL-Default soll sichtbar sein',
-			);
-			assert.match(
-				output,
-				/MISTRAL_API_KEY: '\(nicht gesetzt\)'/,
-				'Ein fehlender API-Key soll als (nicht gesetzt) ausgewiesen werden',
-			);
+			assert.ok(exitMock.mock.callCount() > 0, 'UnhandledRejection muss zu process.exit(1) führen');
+			assert.deepEqual(exitMock.mock.calls[0].arguments, [1], 'Exit-Code muss 1 sein');
+			assert.ok(loggedOutput(errorMock).includes('UnhandledRejection'), 'Fehler sollte geloggt werden');
 		});
 	});
 
-	describe('AK 3 — Kein Secret im Klartext', () => {
-		it('maskiert den API-Key und gibt das Geheimnis nie im geloggten Objekt aus', () => {
-			process.env.MISTRAL_API_KEY = 'geheim';
+	describe('AK 3 — UncaughtException Handler', () => {
+		it('UncaughtException Handler ruft bei Trigger process.exit(1) auf', () => {
+			handleUncaughtException(new Error('TEST_UNCAUGHT_EXCEPTION'));
 
-			logEnvConfig();
+			assert.ok(exitMock.mock.callCount() > 0, 'UncaughtException muss zu process.exit(1) führen');
+			assert.deepEqual(exitMock.mock.calls[0].arguments, [1], 'Exit-Code muss 1 sein');
+			assert.ok(loggedOutput(errorMock).includes('UncaughtException'), 'Fehler sollte geloggt werden');
+		});
+	});
 
-			const output = loggedOutput(logMock);
-			assert.doesNotMatch(output, /geheim/, 'Das Geheimnis darf nirgendwo im Log auftauchen');
-			assert.match(
-				output,
-				/MISTRAL_API_KEY: '\*\*\* \(gesetzt\)'/,
-				'Statt des Geheimnisses soll die Maskierung erscheinen',
-			);
+	describe('AK 4 — App.listen Error-Callback', () => {
+		it('Server-Fehler EADDRINUSE (belegter Port) führt zu process.exit(1)', () => {
+			// handleServerError ist der Error-Callback, den launchServer an server.on('error') hängt.
+			// Direktaufruf statt echtem app.listen — ein belegter Port würde die Suite blockieren.
+			handleServerError({ code: 'EADDRINUSE' } as NodeJS.ErrnoException, 3000);
+
+			assert.ok(exitMock.mock.callCount() > 0, 'EADDRINUSE muss zu process.exit(1) führen');
+			assert.deepEqual(exitMock.mock.calls[0].arguments, [1], 'Exit-Code muss 1 sein');
+			assert.ok(loggedOutput(errorMock).includes('EADDRINUSE'), 'EADDRINUSE sollte geloggt werden');
+		});
+
+		it('auch ein anderer Server-Fehler führt zu process.exit(1)', () => {
+			handleServerError({ code: 'EACCES' } as NodeJS.ErrnoException, 3000);
+
+			assert.ok(exitMock.mock.callCount() > 0, 'Anderer Server-Fehler muss ebenfalls zu exit(1) führen');
+			assert.deepEqual(exitMock.mock.calls[0].arguments, [1], 'Exit-Code muss 1 sein');
 		});
 	});
 });

@@ -14,7 +14,7 @@ import {
 	type ActivityAdvice,
 	type ActivityAdvisor,
 	type AdviseActivitiesInput,
-} from '../llm/mistral.js';
+} from '../llm/llm.js';
 import { SEED_PILLARS } from '../models/pillarData.js';
 
 /** Legt die fünf Standard-Säulen samt Kurzbeschreibung an und gibt sie (nach id sortiert) zurück. */

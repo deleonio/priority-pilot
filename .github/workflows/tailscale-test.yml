@@ -1,0 +1,50 @@
+name: Test Tailscale Exit Node Route
+
+on:
+  workflow_dispatch: # Erlaubt manuelles Starten über die GitHub-Oberfläche
+
+jobs:
+  test-vpn:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 1. IP VOR der VPN-Verbindung prüfen (Microsoft Azure Datacenter IP)
+      - name: Check IP (Before Tailscale)
+        run: |
+          echo "=== Official Runner IP ==="
+          curl -s --max-time 10 https://ifconfig.me
+          echo ""
+
+      # 2. Tailscale verbinden & Traffic über den Exit Node zwingen
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@306e68a486fd2350f2bfc3b19fcd143891a4a2d8 # v4
+        with:
+          authkey: ${{ secrets.TAILSCALE_AUTH_KEY }}
+          args: --exit-node=${{ vars.TAILSCALE_EXIT_NODE }} --exit-node-allow-lan-access=true
+
+      # 3. DNS-Fix: Exit-Node-Routing bricht die Runner-DNS (Azure-DNS ist durch den
+      #    Tunnel nicht erreichbar). Öffentlichen Resolver setzen, der via Exit Node
+      #    auflöst. Ohne diesen Step schlagen die folgenden curls mit exit 28 fehl.
+      - name: Fix DNS for Exit-Node routing
+        run: |
+          echo "nameserver 1.1.1.1" | sudo tee /etc/resolv.conf >/dev/null
+          echo "nameserver 8.8.8.8" | sudo tee -a /etc/resolv.conf >/dev/null
+          echo "=== DNS check ==="
+          getent hosts ifconfig.me || echo "::warning::DNS-Auflösung fehlgeschlagen"
+
+      # 4. IP NACH der VPN-Verbindung prüfen (Deine Frankfurter Server IP)
+      - name: Check IP (After Tailscale)
+        run: |
+          echo "=== Routed IP via Frankfurt ==="
+          curl -s --max-time 10 https://ifconfig.me
+          echo ""
+          echo "=== Trace Route Details ==="
+          curl -s --max-time 10 https://ipapi.co/json/
+
+      # 5. Beispiel: API-Test über die Frankfurter IP
+      - name: Test OpenRouter Connection
+        run: |
+          echo "Sending request via Frankfurt Exit Node..."
+          curl -s --max-time 15 https://openrouter.ai/api/v1/models | head -n 20

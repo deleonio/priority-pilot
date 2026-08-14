@@ -65,6 +65,20 @@ inputs:
     description: 'Claude-Modell für diesen Lauf als Alias (fable|opus|sonnet|haiku); leer = kein --model (Default aus .claude/settings.json). Der Alias wird providerspezifisch aufgelöst (claude nativ via --model, zai/openrouter via settings.local.json); ein ungültiger Alias bricht laut ab (kein stiller Fallback).'
     required: false
     default: ''
+  # Tailscale-Exit-Node: optional. Verbindet den Runner VOR dem claude-Step mit dem Exit Node,
+  # sodass der gesamte LLM-Traffic über eine konsistente IP egressiert (verhindert z.ai/
+  # OpenRouter "Account geteilt"-Flagging durch wechselnde Azure-Runner-IPs). Kill-Switch:
+  # leerer tailscale-exit-node (vars.TAILSCALE_EXIT_NODE nicht gesetzt) deaktiviert das Routing
+  # komplett → exakt heutiges Verhalten. Fail-closed: bei gesetztem Exit-Node + fehlendem/schlech-
+  # tem Key scheitert der Connect laut → claude-Step wird übersprungen (kein direkter Azure-Egress).
+  tailscale-authkey:
+    description: 'Tailscale Auth-Key (secret, secrets.TAILSCALE_AUTH_KEY; reusable + ephemeral + tag:ci). Zusammen mit tailscale-exit-node aktiv; sonst ignoriert.'
+    required: false
+    default: ''
+  tailscale-exit-node:
+    description: 'Tailscale-Exit-Node (Name oder 100.x.y.z, aus vars.TAILSCALE_EXIT_NODE). LEER = Routing deaktiviert (Kill-Switch). Vorhanden = aktiv, Connect fail-closed.'
+    required: false
+    default: ''
 
 outputs:
   configured:
@@ -461,3 +475,53 @@ runs:
     # Phasen (01..05) laden nach dem claude-Step das Memory als Artefakt hoch (upload-artifact,
     # Name = memory-save-Key); der Cache-Save läuft im vertrauenswürdigen workflow_run-Companion
     # claude-memory-save.yml (Issue-Trigger sind lese-only für Cache, s. GitHub-Richtlinie 2026-06-26).
+
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # TAILSCALE EXIT-NODE — LLM-Egress über eine feste IP (z.ai/OpenRouter-Flagging-Schutz)
+    #
+    # Letzter Akt VOR dem claude-Step (der im Caller läuft): verbindet den Runner mit dem
+    # Exit-Node, sodass der gesamte folgende LLM-Traffic über den Frankfurter Server egressiert.
+    # Pre-LLM-Setup (Token/Cache/npm install oben) bleibt bewusst DIREKT (keine Exit-Node-Last
+    # für GitHub/npm). Kill-Switch: tailscale-exit-node leer → alle drei Schritte übersprungen
+    # (if-Bedingung). Fail-closed: Exit-Node gesetzt, aber Key fehlt oder Connect scheitert →
+    # setup-claude rot → claude-Step übersprungen (lieber gar nicht laufen als LLM von Azure-IP
+    # und wieder geflaggt werden).
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    - name: Tailscale-Preflight (Auth-Key ist Pflicht bei aktivem Exit-Node)
+      # Ohne diesen Check wäre ein fehlender/leerer TAILSCALE_AUTH_KEY ein stiller Fail-OPEN:
+      # Connect- und DNS-Step würden per if-Bedingung übersprungen, setup-claude bliebe grün und
+      # claude -p liefe direkt von der Azure-Runner-IP. Kill-Switch ist ausschließlich
+      # tailscale-exit-node — ein fehlender Key ist eine Fehlkonfiguration und muss laut scheitern.
+      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != ''
+      shell: bash
+      env:
+        TAILSCALE_AUTHKEY: ${{ inputs.tailscale-authkey }}
+      run: |
+        if [ -z "$TAILSCALE_AUTHKEY" ]; then
+          echo "::error::TAILSCALE_EXIT_NODE ist gesetzt, aber TAILSCALE_AUTH_KEY fehlt — fail-closed (kein LLM-Egress von der Azure-IP)."
+          exit 1
+        fi
+
+    - name: Tailscale-Exit-Node verbinden (LLM-Egress über feste IP)
+      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != ''
+      uses: tailscale/github-action@306e68a486fd2350f2bfc3b19fcd143891a4a2d8 # v4
+      with:
+        authkey: ${{ inputs.tailscale-authkey }}
+        args: --exit-node=${{ inputs.tailscale-exit-node }} --exit-node-allow-lan-access=true
+
+    - name: DNS für Exit-Node-Routing fixen
+      # Exit-Node-Routing bricht die Azure-Standard-DNS des Runners (durch den Tunnel nicht
+      # erreichbar) → folgende Requests scheitern mit curl exit 28 (Timeout). Öffentlichen
+      # Resolver setzen, der via Exit Node auflöst. Ohne diesen Step macht der Connect zwar
+      # grün, aber claude -p erreicht seinen Provider nicht. Siehe docs/tailscale-exit-node.md.
+      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != ''
+      shell: bash
+      run: |
+        echo "nameserver 1.1.1.1" | sudo tee /etc/resolv.conf >/dev/null
+        echo "nameserver 8.8.8.8" | sudo tee -a /etc/resolv.conf >/dev/null
+        if getent hosts api.anthropic.com >/dev/null 2>&1; then
+          echo "::notice::Tailscale-Exit-Node aktiv + DNS via 1.1.1.1/8.8.8.8 (LLM-Egress über feste IP)."
+        else
+          echo "::error::DNS-Auflösung schlägt trotz Resolver-Wechsel fehl — Exit-Node/Forwarding prüfen."
+          exit 1
+        fi
