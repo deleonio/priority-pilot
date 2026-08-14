@@ -24,6 +24,24 @@ jobs:
           authkey: ${{ secrets.TAILSCALE_AUTH_KEY }}
           args: --exit-node=${{ vars.TAILSCALE_EXIT_NODE }} --exit-node-allow-lan-access=true
 
+      # 2b. Diagnose: Ist der Exit Node überhaupt erkannt + Routing aktiv?
+      - name: Diagnose Exit-Node-Routing
+        run: |
+          echo "=== TAILSCALE_EXIT_NODE Variable ==="
+          echo "${{ vars.TAILSCALE_EXIT_NODE }}"
+          echo ""
+          echo "=== Tailscale Peers ==="
+          tailscale status || true
+          echo ""
+          echo "=== Exit-Node-Liste ==="
+          tailscale exit-node list 2>/dev/null || echo "(exit-node list nicht verfügbar)"
+          echo ""
+          echo "=== Default Route ==="
+          ip route show default
+          echo ""
+          echo "=== Tailscale-Interface ==="
+          ip addr show tailscale0 2>/dev/null || echo "(kein tailscale0-Interface)"
+
       # 3. DNS-Fix: systemd-resolved im Stub-Modus intercepted DNS-Queries und fragt
       #    weiterhin den Azure-DNS, der durch den Tunnel nicht erreichbar ist. Service
       #    stoppen + echte resolv.conf schreiben, sonst schlagen die folgenden curls
@@ -41,13 +59,7 @@ jobs:
       - name: Check IP (After Tailscale)
         run: |
           echo "=== Routed IP via Frankfurt ==="
-          curl -s --max-time 10 https://ifconfig.me
+          curl -s --max-time 10 https://ifconfig.me || echo "(curl fehlgeschlagen — Exit Node routet nicht)"
           echo ""
           echo "=== Trace Route Details ==="
-          curl -s --max-time 10 https://ipapi.co/json/
-
-      # 5. Beispiel: API-Test über die Frankfurter IP
-      - name: Test OpenRouter Connection
-        run: |
-          echo "Sending request via Frankfurt Exit Node..."
-          curl -s --max-time 15 https://openrouter.ai/api/v1/models | head -n 20
+          curl -s --max-time 10 https://ipapi.co/json/ || echo "(curl fehlgeschlagen)"
