@@ -509,6 +509,22 @@ runs:
         authkey: ${{ inputs.tailscale-authkey }}
         args: --exit-node=${{ inputs.tailscale-exit-node }} --exit-node-allow-lan-access=true
 
+    - name: ✅ Tailscale-Verbindung bestätigen
+      # Macht den Connect im Workflow-Log sofort sichtbar: prominente Notice oben im Job,
+      # statt im tailscale/github-action-Step-Output vergraben. Läuft NACH dem Connect-Step
+      # (der bei Misserfolg selbst rot wird) → hier steht die Verbindung bereits.
+      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != ''
+      shell: bash
+      run: |
+        sleep 2  # tailscaled kurz Zeit geben, Status zu aktualisieren
+        if tailscale status >/dev/null 2>&1; then
+          SELF_IP=$(tailscale ip -4 2>/dev/null | head -1)
+          echo "::notice title=✅ Tailscale Exit-Node verbunden::Tailscale aktiv (Runner-IP: ${SELF_IP:-?}). LLM-Traffic routet über Frankfurt."
+          echo "Tailscale-Status: verbunden, Runner-Tailscale-IP: ${SELF_IP:-unbekannt}"
+        else
+          echo "::warning::tailscale status nicht verfügbar — Exit-Node evtl. nicht aktiv."
+        fi
+
     - name: DNS fixen + Egress-IP protokollieren
       # Exit-Node-Routing bricht die Azure-Standard-DNS des Runners (durch den Tunnel nicht
       # erreichbar) → folgende Requests scheitern mit curl exit 28 (Timeout). Öffentlichen
