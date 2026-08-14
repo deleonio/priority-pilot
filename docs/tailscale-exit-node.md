@@ -50,6 +50,11 @@ Danach in der **Admin-Console** den Exit Node freischalten:
 2. `…` → **Edit route settings**.
 3. Häkchen bei **Use as exit node** setzen und speichern.
 
+> **Forwarding vor dem Anbieten aktivieren:** IP-Forwarding muss gelten, _bevor_ der Knoten als Exit
+> Node ankündigt. Wurde es nachträglich gesetzt: `sudo systemctl restart tailscaled` und neu
+> ankündigen (`sudo tailscale up --advertise-exit-node`). Sonst ist der Exit Node zwar verbunden,
+> leitet aber keine Pakete weiter (Symptom: `curl`-Timeout).
+
 ## 2. Auth-Key für GitHub Actions erzeugen
 
 In der Admin-Console unter **Settings → Keys → Generate auth key**:
@@ -77,13 +82,15 @@ Im Repo unter **Settings → Secrets and variables → Actions** zwei **Reposito
 ## 4. Workflow
 
 Der Workflow
-[`tailscale-test.yml`](../.github/workflows/tailscale-test.yml) (`workflow_dispatch`) prüft in vier
+[`tailscale-test.yml`](../.github/workflows/tailscale-test.yml) (`workflow_dispatch`) prüft in fünf
 Schritten:
 
 1. **IP davor** — originale Runner-IP (`ifconfig.me`).
 2. **Tailscale verbinden** — `tailscale up --exit-node=…`.
-3. **IP danach** — Frankfurter IP + Geo-Daten (`ipapi.co`).
-4. **OpenRouter-Test** — Request über die Frankfurter IP.
+3. **DNS-Fix** — öffentlichen Resolver setzen (sonst bricht die Runner-DNS durchs Tunnel, siehe
+   [Troubleshooting](#troubleshooting)).
+4. **IP danach** — Frankfurter IP + Geo-Daten (`ipapi.co`).
+5. **OpenRouter-Test** — Request über die Frankfurter IP.
 
 ## 5. Testen & verifizieren
 
@@ -100,6 +107,18 @@ Schritten:
 - **Ephemeral-Keys** räumen den Runner-Knoten nach Run-Ende automatisch ab (keine Leichen im Tailnet).
 - **ACLs:** Getaggte CI-Knoten (`tag:ci`) per ACL nur zum Exit-Node zulassen (Least Privilege).
 - **Rotation:** Auth-Key regelmäßig rotieren; bei Bedarf auf OAuth-Client umsteigen.
+
+## Troubleshooting
+
+- **`curl` scheitert mit exit 28 (Timeout), Verbindung steht aber:** Fast immer **DNS**. Durch den
+  Exit Node ist die Azure-Standard-DNS des Runners nicht mehr erreichbar → Hosts lassen sich nicht
+  auflösen. Der Workflow setzt darum nach dem Verbinden `1.1.1.1`/`8.8.8.8` als Resolver. Tritt der
+  Fehler trotzdem auf, den Output des DNS-Steps (`getent hosts`) prüfen. Siehe auch
+  [tailscale/tailscale#12403](https://github.com/tailscale/tailscale/issues/12403).
+- **Exit Node verbunden, aber gar kein Traffic durch:** IP-Forwarding auf dem Frankfurter Server
+  fehlt/inaktiv (`sysctl net.ipv4.ip_forward` muss `1` sein) — danach `tailscaled` neu starten.
+- **`tailscale up`-Schritt rot:** Meist ist der Exit Node im Admin-Console nicht freigeschaltet oder
+  `TAILSCALE_EXIT_NODE` zeigt auf den falschen Knoten.
 
 ## Grenzen
 
