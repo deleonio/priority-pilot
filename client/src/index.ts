@@ -38,8 +38,11 @@ export type ParseTaskInput = Schemas['ParseTaskInput'];
 export type ParsedTask = Schemas['ParsedTask'];
 export type ApiError = Schemas['Error'];
 
-// LLM-Provider-Konfiguration (#640): persistierte Keys/Modell der Mistral/OpenRouter-Kaskade.
-export type LlmConfig = Schemas['LlmConfig'];
+// LLM-Provider-Konfiguration (#640). Read/Write-Spalten: der Client liest nur den Status
+// (ohne Key-Werte) und schreibt optional neue Keys/Modell — die Key-Werte selbst werden nie
+// ausgelesen (Sicherheit: LLM-Keys gehören nicht in den Client).
+export type LlmConfigStatus = Schemas['LlmConfigStatus'];
+export type LlmConfigInput = Schemas['LlmConfigInput'];
 
 // Web-Push (#355): Opt-in-Subscription-Flow der PWA.
 export type PushSubscriptionInput = Schemas['PushSubscriptionInput'];

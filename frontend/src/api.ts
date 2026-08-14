@@ -4,7 +4,8 @@ import type {
 	ActivityAdvisorResult,
 	components,
 	DependencyInput,
-	LlmConfig,
+	LlmConfigInput,
+	LlmConfigStatus,
 	ParsedTask,
 	paths,
 	PillarCreate,
@@ -397,8 +398,9 @@ export const api = {
 		return data;
 	},
 
-	// LLM-Provider-Konfiguration der Mistral/OpenRouter-Kaskade lesen (#640).
-	async getLlmConfig(init: Init = {}): Promise<LlmConfig> {
+	// Status der LLM-Provider-Konfiguration lesen (#640). Liefert nur, OB jeweils ein Key
+	// persistiert ist, plus das Modell — nie die Key-Werte selbst (Sicherheit).
+	async getLlmConfig(init: Init = {}): Promise<LlmConfigStatus> {
 		const { data, response } = await client.GET('/llm-config', { signal: init.signal });
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response);
@@ -406,8 +408,9 @@ export const api = {
 		return data;
 	},
 
-	// LLM-Provider-Konfiguration speichern (#640); liefert die gespeicherten Werte zurück.
-	async setLlmConfig({ llmConfig }: { llmConfig: LlmConfig }): Promise<LlmConfig> {
+	// LLM-Provider-Konfiguration speichern (#640). Abwesende Felder bleiben unverändert; nur
+	// ausgefüllte Felder überschreiben den DB-Stand. Liefert den neuen Status (ohne Key-Werte).
+	async setLlmConfig({ llmConfig }: { llmConfig: LlmConfigInput }): Promise<LlmConfigStatus> {
 		const { data, response } = await client.PUT('/llm-config', { body: llmConfig });
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response);

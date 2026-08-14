@@ -35,10 +35,15 @@ test.describe('#640 Einstellungen – LLM-Tab', () => {
 	});
 
 	/**
-	 * AK5 (Journey 7) — Speichern zeigt Erfolgs-Feedback; nach Reload sind die Werte über die
-	 * Backend-API (`GET/PUT /llm-config`) wiederhergestellt (Persistenz, nicht nur React-State).
+	 * AK5 (Journey 7) — Speichern zeigt Erfolgs-Feedback; nach Reload bleibt der Status „gespeichert".
+	 *
+	 * SECURITY: Die gespeicherten API-Keys werden bewusst NICHT an den Client zurückgegeben
+	 * (Write-Only). Nach Reload müssen die Eingabefelder daher LEER sein — der Secret-Wert verlässt
+	 * nie den Server. Die UI signalisiert lediglich pro Provider, ob ein Key gesetzt ist.
 	 */
-	test('AK5: Speichern zeigt Erfolgsmeldung; nach Reload sind Werte wiederhergestellt', async ({ page }) => {
+	test('AK5: Speichern zeigt Erfolgsmeldung; nach Reload bleiben Felder leer, Status „gespeichert"', async ({
+		page,
+	}) => {
 		await page.goto('/settings/pillars');
 		await waitForStableView(page, 'Priority Pilot');
 
@@ -56,8 +61,13 @@ test.describe('#640 Einstellungen – LLM-Tab', () => {
 		await waitForStableView(page, 'Priority Pilot');
 		await page.getByRole('tab', { name: 'LLM', exact: true }).click();
 
+		// SECURITY: Keys werden nicht zurückgelesen — die Felder bleiben nach Reload leer.
 		const reloadedInputs = page.locator('input[type="password"]');
-		await expect(reloadedInputs.nth(0)).toHaveValue('e2e-mistral-key');
-		await expect(reloadedInputs.nth(1)).toHaveValue('e2e-openrouter-key');
+		await expect(reloadedInputs.nth(0)).toHaveValue('');
+		await expect(reloadedInputs.nth(1)).toHaveValue('');
+
+		// Statt des Werts zeigt die UI nur den Status „gespeichert" je Provider.
+		await expect(page.locator('[data-provider="mistral"]')).toContainText('gespeichert');
+		await expect(page.locator('[data-provider="openrouter"]')).toContainText('gespeichert');
 	});
 });

@@ -1,22 +1,26 @@
 import { KolAlert, KolButton, KolInputPassword, KolInputText } from '@public-ui/react-v19';
-import type { LlmConfig } from 'client';
-import { useEffect, useRef, useState } from 'react';
+import type { LlmConfigInput, LlmConfigStatus } from 'client';
+import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { readString } from '../lib/inputValue';
 
 /**
- * Formular des Settings-Tabs „LLM" (#640): Keys und Modell der Mistral/OpenRouter-Kaskade lesen
- * (`GET /llm-config`) und speichern (`PUT /llm-config`). Die API-Keys werden bewusst als
- * Passwort-Feld gerendert, damit sie nicht im Klartext auf dem Bildschirm stehen.
+ * Formular des Settings-Tabs „LLM" (#640): Status der Mistral/OpenRouter-Kaskade lesen
+ * (`GET /llm-config`) und neue Keys/ein Modell speichern (`PUT /llm-config`).
  *
- * Die Eingaben liegen — wie im übrigen UI (siehe `PillarFormDialog`) — in einem Ref, damit die
- * KoliBri-Felder ihren Anzeigewert selbst verwalten; der Anzeigewert wird zusätzlich als State
- * geführt, damit der geladene Serverstand nach dem Mount in die Felder kommt.
+ * **Sicherheit (Write-Only-Keys):** Die API liefert bewusst keine Key-Werte zurück, sondern nur,
+ * ob jeweils ein Key gesetzt ist. Die Eingabefelder starten daher immer leer — der gespeicherte
+ * Key wird nie ins Feld geladen und damit nie in den Client transportiert. Wer einen Key ändern
+ * will, tippt ihn neu ein; ein leeres Feld bedeutet „unverändert" und überschreibt nichts.
  */
 export const LlmSettingsForm = () => {
-	const form = useRef<LlmConfig>({ mistralApiKey: '', openrouterApiKey: '', openrouterModel: '' });
-	const [values, setValues] = useState<LlmConfig | null>(null);
+	// Status aus dem Backend: ob jeweils ein Key gesetzt ist + das (nicht-geheime) Modell.
+	const [status, setStatus] = useState<LlmConfigStatus | null>(null);
+	// Write-only-Eingaben: leerer Wert = „unverändert"; nur ein getippter Wert überschreibt.
+	const [mistralKeyInput, setMistralKeyInput] = useState('');
+	const [openrouterKeyInput, setOpenrouterKeyInput] = useState('');
+	const [model, setModel] = useState('');
 	const [error, setError] = useState<string | null>(null);
 	const [saved, setSaved] = useState(false);
 	const [saving, setSaving] = useState(false);
@@ -27,30 +31,35 @@ export const LlmSettingsForm = () => {
 		api
 			.getLlmConfig({ signal: controller.signal })
 			.then((config) => {
-				form.current = config;
-				setValues(config);
+				setStatus(config);
+				setModel(config.openrouterModel);
 			})
 			.catch(() => {
 				if (!controller.signal.aborted) {
 					setError('Die LLM-Konfiguration konnte nicht geladen werden.');
-					setValues({ mistralApiKey: '', openrouterApiKey: '', openrouterModel: '' });
 				}
 			});
 		return () => controller.abort();
 	}, []);
-
-	const update = (field: keyof LlmConfig, value: unknown): void => {
-		form.current = { ...form.current, [field]: readString(value) };
-	};
 
 	const save = async (): Promise<void> => {
 		setError(null);
 		setSaved(false);
 		setSaving(true);
 		try {
-			const persisted = await api.setLlmConfig({ llmConfig: form.current });
-			form.current = persisted;
-			setValues(persisted);
+			// Nur ausgefüllte Felder übernehmen: leere Eingaben lassen den DB-Stand unverändert,
+			// whitespace-only wird als „keine Eingabe" behandelt (würde serverseits ohnehin 400 auslösen).
+			const body: LlmConfigInput = {};
+			if (mistralKeyInput.trim() !== '') body.mistralApiKey = mistralKeyInput.trim();
+			if (openrouterKeyInput.trim() !== '') body.openrouterApiKey = openrouterKeyInput.trim();
+			if (model.trim() !== '') body.openrouterModel = model.trim();
+
+			const newStatus = await api.setLlmConfig({ llmConfig: body });
+			setStatus(newStatus);
+			setModel(newStatus.openrouterModel);
+			// Getippte Keys nach erfolgreichem Speichern aus dem Feld nehmen (und aus dem State).
+			setMistralKeyInput('');
+			setOpenrouterKeyInput('');
 			setSaved(true);
 		} catch (reason) {
 			const apiError = await toApiError(reason);
@@ -60,7 +69,7 @@ export const LlmSettingsForm = () => {
 		}
 	};
 
-	if (values === null) {
+	if (status === null) {
 		return <p>Konfiguration wird geladen…</p>;
 	}
 
@@ -79,36 +88,44 @@ export const LlmSettingsForm = () => {
 			)}
 
 			<p className="hint">
-				Die Kaskade fragt zuerst Mistral (Primär) und lässt die Antwort optional von OpenRouter verfeinern. Gespeicherte
-				Werte haben Vorrang vor den Umgebungsvariablen des Servers; leere Felder fallen darauf zurück.
+				Die Kaskade fragt zuerst Mistral (Primär) und lässt die Antwort optional von OpenRouter verfeinern. Aus
+				Sicherheitgründen werden gespeicherte API-Keys nicht zurückgelesen — das Feld zeigt nur, ob ein Key gesetzt ist.
+				Ein leeres Eingabefeld belässt den bisherigen Key unverändert; die Umgebungsvariablen des Servers bleiben
+				außerdem als Fallback wirksam.
 			</p>
 
 			<div className="form-grid">
+				<p className="llm-key-state" data-provider="mistral">
+					Mistral API-Key: {status.hasMistralApiKey ? 'gespeichert' : 'nicht gesetzt'}
+				</p>
 				<KolInputPassword
-					_label="Mistral API-Key"
-					_value={values.mistralApiKey}
-					_hint="Primär-Provider der Kaskade."
+					_label="Mistral API-Key (neu)"
+					_value={mistralKeyInput}
+					_hint="Feld leer lassen, um den gespeicherten Key nicht zu ändern."
 					_on={{
-						onInput: (_event, value) => update('mistralApiKey', value),
-						onChange: (_event, value) => update('mistralApiKey', value),
+						onInput: (_event, value) => setMistralKeyInput(readString(value)),
+						onChange: (_event, value) => setMistralKeyInput(readString(value)),
 					}}
 				/>
+				<p className="llm-key-state" data-provider="openrouter">
+					OpenRouter API-Key: {status.hasOpenrouterApiKey ? 'gespeichert' : 'nicht gesetzt'}
+				</p>
 				<KolInputPassword
-					_label="OpenRouter API-Key"
-					_value={values.openrouterApiKey}
-					_hint="Optional — aktiviert die Verfeinerungs-Stufe."
+					_label="OpenRouter API-Key (neu)"
+					_value={openrouterKeyInput}
+					_hint="Optional — aktiviert die Verfeinerungs-Stufe. Leer lassen, um nichts zu ändern."
 					_on={{
-						onInput: (_event, value) => update('openrouterApiKey', value),
-						onChange: (_event, value) => update('openrouterApiKey', value),
+						onInput: (_event, value) => setOpenrouterKeyInput(readString(value)),
+						onChange: (_event, value) => setOpenrouterKeyInput(readString(value)),
 					}}
 				/>
 				<KolInputText
 					_label="OpenRouter Modell"
-					_value={values.openrouterModel}
+					_value={model}
 					_hint="Modellkennung für die Verfeinerungs-Stufe (Default: openrouter/free)."
 					_on={{
-						onInput: (_event, value) => update('openrouterModel', value),
-						onChange: (_event, value) => update('openrouterModel', value),
+						onInput: (_event, value) => setModel(readString(value)),
+						onChange: (_event, value) => setModel(readString(value)),
 					}}
 				/>
 			</div>

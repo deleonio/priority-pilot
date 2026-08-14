@@ -707,25 +707,31 @@ paths:
           $ref: '#/components/responses/ServiceUnavailable'
   /llm-config:
     get:
-      summary: Persistierte LLM-Provider-Konfiguration lesen
+      summary: Status der LLM-Provider-Konfiguration lesen
       description: >-
-        Liefert die gespeicherte Konfiguration der Mistral/OpenRouter-Kaskade.
-        Ohne persistierte Werte kommen leere Keys und der Default für
+        Liefert den Status der Mistral/OpenRouter-Kaskade: ob jeweils ein
+        API-Key persistiert ist (Booleans) sowie das OpenRouter-Modell. Die
+        API-Key-Werte werden bewusst NICHT zurückgegeben (Write-Only) — der
+        Client erfährt nur, OB ein Key gesetzt ist, niemals dessen Wert. Ohne
+        persistierte Werte kommen `false`/`false` und der Default für
         openrouterModel zurück (#640).
       operationId: getLlmConfig
       tags: [llm]
       responses:
         '200':
-          description: Die effektive LLM-Konfiguration
+          description: Status der LLM-Konfiguration (ohne Key-Werte)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LlmConfig'
+                $ref: '#/components/schemas/LlmConfigStatus'
     put:
       summary: LLM-Provider-Konfiguration speichern
       description: >-
-        Persistiert die Konfiguration der Kaskade. Gesetzte API-Keys dürfen
-        nicht ausschließlich aus Whitespace bestehen; alle Felder sind Strings.
+        Persistiert die Konfiguration der Kaskade. Ein abwesendes Feld bleibt
+        unverändert; ein gesetzter Wert überschreibt den DB-Stand (ein leerer
+        String löscht den Key). Gesetzte API-Keys dürfen nicht ausschließlich
+        aus Whitespace bestehen; alle Felder sind Strings. Die Antwort liefert
+        den neuen Status — niemals die Key-Werte.
       operationId: setLlmConfig
       tags: [llm]
       requestBody:
@@ -733,14 +739,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LlmConfig'
+              $ref: '#/components/schemas/LlmConfigInput'
       responses:
         '200':
-          description: Die gespeicherte LLM-Konfiguration
+          description: Der neue Status der LLM-Konfiguration (ohne Key-Werte)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/LlmConfig'
+                $ref: '#/components/schemas/LlmConfigStatus'
         '400':
           $ref: '#/components/responses/ValidationError'
 components:
@@ -1723,23 +1729,45 @@ components:
         author:
           type: string
           description: Urheber des Zitats.
-    LlmConfig:
+    LlmConfigStatus:
       type: object
       required:
-        - mistralApiKey
-        - openrouterApiKey
+        - hasMistralApiKey
+        - hasOpenrouterApiKey
         - openrouterModel
       description: >-
-        Konfiguration der LLM-Kaskade (#640). Persistierte Werte haben Vorrang
-        vor den gleichnamigen Umgebungsvariablen; ohne DB-Zeile bleibt Env der
-        Fallback.
+        Status der LLM-Kaskaden-Konfiguration (#640). API-Keys werden bewusst
+        NICHT zurückgegeben (Write-Only) — der Client erfährt nur, ob jeweils
+        ein Key in der Datenbank persistiert ist, niemals dessen Wert. Die
+        Umgebungsvariablen des Servers bleiben dabei vollständig verborgen
+        (auch ihre bloße Anwesenheit wird nicht signalisiert). Persistierte
+        Werte haben innerhalb der Kaskade Vorrang vor den gleichnamigen
+        Umgebungsvariablen; ohne DB-Zeile bleibt Env der serverseitige Fallback.
       properties:
-        mistralApiKey:
-          type: string
-          description: API-Key des Primär-Providers Mistral; leerer String = nicht gesetzt.
-        openrouterApiKey:
-          type: string
-          description: API-Key der optionalen OpenRouter-Verfeinerungsstufe; leerer String = nicht gesetzt.
+        hasMistralApiKey:
+          type: boolean
+          description: Ist ein Mistral-API-Key in der Datenbank persistiert?
+        hasOpenrouterApiKey:
+          type: boolean
+          description: Ist ein OpenRouter-API-Key in der Datenbank persistiert?
         openrouterModel:
           type: string
           description: Modellkennung für OpenRouter (Default `openrouter/free`).
+    LlmConfigInput:
+      type: object
+      description: >-
+        Schreib-Seite der LLM-Kaskaden-Konfiguration (#640). Alle Felder sind
+        optional: ein abwesendes Feld bleibt unverändert; ein leerer String
+        löscht den jeweiligen Key; ein nicht-leerer Wert überschreibt ihn.
+        Whitespace-only und Nicht-Strings führen zu HTTP 400. Die Key-Werte
+        werden danach nie wieder ausgelesen (siehe LlmConfigStatus).
+      properties:
+        mistralApiKey:
+          type: string
+          description: API-Key des Primär-Providers Mistral; abwesend = unverändert, leer = löschen.
+        openrouterApiKey:
+          type: string
+          description: API-Key der optionalen OpenRouter-Verfeinerungsstufe; abwesend = unverändert, leer = löschen.
+        openrouterModel:
+          type: string
+          description: Modellkennung für OpenRouter.

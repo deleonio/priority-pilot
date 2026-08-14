@@ -31,15 +31,16 @@ Beim ersten Aufruf ohne persistierte Werte liefert die API sinnvolle Defaults.
 ### Erwartetes Ergebnis
 
 - Status 200.
-- Body: `{ mistralApiKey: '', openrouterApiKey: '', openrouterModel: 'openrouter/free' }`
-  (leere Strings für nicht gesetzte Keys; `openrouterModel` fällt auf den Kaskaden-Default
-  `DEFAULT_OPENROUTER_MODEL` zurück, siehe `server/src/llm/llm.ts`).
+- Body: `{ hasMistralApiKey: false, hasOpenrouterApiKey: false, openrouterModel: 'openrouter/free' }`
+  (Booleans signalisieren, ob ein Key **persistiert** ist — nie den Wert selbst; `openrouterModel`
+  fällt auf den Kaskaden-Default `DEFAULT_OPENROUTER_MODEL` zurück, siehe `server/src/llm/llm.ts`).
 
-## Journey 2: Konfiguration speichern und wieder lesen
+## Journey 2: Konfiguration speichern; Status lesen (ohne Key-Werte)
 
 ### Ziel
 
-Gespeicherte Werte werden bei einem späteren `GET` zurückgeliefert (Persistenz, nicht nur Echo).
+Gespeicherte Werte werden persistiert und bei einem späteren `GET` als **Status** bestätigt — die
+Key-Werte selbst werden bewusst nie zurückgeliefert (Write-Only, siehe „Hinweise zur Nutzung").
 
 ### Vorbedingung
 
@@ -52,9 +53,10 @@ Gespeicherte Werte werden bei einem späteren `GET` zurückgeliefert (Persistenz
 
 ### Erwartetes Ergebnis
 
-- `PUT` liefert 200 mit den gespeicherten Werten.
-- Der nachfolgende `GET` liefert exakt diese Werte zurück (nicht die Defaults aus Journey 1) —
-  die Werte müssen also tatsächlich in SQLite persistiert werden, nicht nur im Prozess-Speicher.
+- `PUT` liefert 200 mit dem Status `{ hasMistralApiKey: true, hasOpenrouterApiKey: true, openrouterModel: 'custom/model' }`
+  — **ohne** die Key-Werte (`m-key-123`/`or-key-456` dürfen in keiner Antwort auftauchen).
+- Der nachfolgende `GET` liefert denselben Status zurück (nicht die Defaults aus Journey 1) — die
+  Werte müssen also tatsächlich in SQLite persistiert werden, nicht nur im Prozess-Speicher.
 
 ## Journey 3: Validierung bei ungültigem Payload
 
@@ -116,8 +118,8 @@ Umgebungsvariablen; ohne DB-Werte bleibt Env der Fallback (Abwärtskompatibilit�
 
 ### Ziel
 
-Der neue Tab „LLM" zeigt die persistierte Konfiguration an; API-Keys sind als Passwort-Feld
-(maskiert) dargestellt.
+Der neue Tab „LLM" zeigt den Status der Konfiguration an; die Key-Eingabefelder sind Passwort-Felder
+(maskiert beim Tippen) und starten bewusst **leer** — gespeicherte Keys werden nie ins Feld geladen.
 
 ### Vorbedingung
 
@@ -132,25 +134,26 @@ Der neue Tab „LLM" zeigt die persistierte Konfiguration an; API-Keys sind als 
 
 - Tab „LLM" ist in der Tab-Leiste sichtbar (neben „Allgemein"/„Säulen").
 - Die Eingabefelder für `mistralApiKey`/`openrouterApiKey` sind maskiert (`input[type="password"]`,
-  z. B. via `KolInputPassword`).
-- Die Felder zeigen die zuvor gespeicherten Werte.
+  z. B. via `KolInputPassword`) und **leer** (Write-Only).
+- Pro Key signalisiert die UI den Status „gespeichert"/„nicht gesetzt" — nicht den Wert.
 
 ## Journey 7: SettingsPage – Speichern mit Feedback und Reload-Persistenz
 
 ### Ziel
 
-Speichern zeigt Erfolgs-/Fehler-Feedback; nach einem Reload sind die Werte weiterhin vorhanden.
+Speichern zeigt Erfolgs-/Fehler-Feedback; nach einem Reload bleibt der Status „gespeichert"
+sichtbar, die Key-Felder jedoch **leer** (die Werte werden nicht zurückgelesen).
 
 ### Schritte
 
-1. Im LLM-Tab Werte eingeben/ändern und „Speichern" klicken.
+1. Im LLM-Tab neue Keys eingeben/ändern und „Speichern" klicken.
 2. Seite neu laden.
 
 ### Erwartetes Ergebnis
 
 - Nach dem Speichern erscheint eine sichtbare Erfolgsmeldung.
-- Nach dem Reload zeigt der LLM-Tab die zuvor gespeicherten Werte (Persistenz über die Backend-API
-  aus Journey 2, nicht nur lokaler State).
+- Nach dem Reload sind die Key-Eingabefelder leer, aber der Status zeigt „gespeichert" (Persistenz
+  über die Backend-API aus Journey 2, nicht nur lokaler State).
 
 ## Randfälle & Fehler
 
@@ -164,6 +167,12 @@ Speichern zeigt Erfolgs-/Fehler-Feedback; nach einem Reload sind die Werte weite
 
 ## Hinweise zur Nutzung
 
+- **Sicherheit — API-Keys sind Write-Only:** `GET /llm-config` liefert bewusst keine Key-Werte,
+  sondern nur, ob jeweils ein Key persistiert ist (`hasMistralApiKey`/`hasOpenrouterApiKey`), plus
+  das nicht-geheime `openrouterModel`. Die gespeicherten Secrets verlassen so nie den Server
+  (weder über die Settings-UI noch über Netzwerk/Memory/XSS). Die Key-Eingabefelder starten daher
+  immer leer; ein leeres Feld bedeutet „unverändert", ein getippter Wert überschreibt. Auch die
+  bloße Anwesenheit der Umgebungsvariablen wird nicht signalisiert (nur der DB-Stand).
 - Defaultwert für `openrouterModel` ist konsistent mit dem bestehenden Kaskaden-Default
   `DEFAULT_OPENROUTER_MODEL = 'openrouter/free'` aus `server/src/llm/llm.ts` — keine Abweichung
   einführen.

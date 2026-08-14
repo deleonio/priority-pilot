@@ -62,17 +62,17 @@ describe('LLM-Config API (#640)', () => {
 		});
 
 	// ── Journey 1 — Defaults ohne persistierte Config ────────────────────────────
-	it('Journey 1: GET ohne gespeicherte Config liefert Defaults (leere Keys, openrouterModel=openrouter/free)', async () => {
+	it('Journey 1: GET ohne gespeicherte Config liefert Defaults (beide Keys nicht gesetzt, openrouter/free)', async () => {
 		const cookie = await register('journey1@example.com', 'sicheres-passwort-1');
 
 		const res = await getConfig(cookie);
 		assert.equal(res.status, 200);
 		const body = await res.json();
-		assert.deepEqual(body, { mistralApiKey: '', openrouterApiKey: '', openrouterModel: 'openrouter/free' });
+		assert.deepEqual(body, { hasMistralApiKey: false, hasOpenrouterApiKey: false, openrouterModel: 'openrouter/free' });
 	});
 
-	// ── Journey 2 — Persistenz: PUT dann GET liefert die gespeicherten Werte ────
-	it('Journey 2: PUT persistiert Werte, ein späteres GET liefert exakt diese (nicht die Defaults)', async () => {
+	// ── Journey 2 — Persistenz + SECURITY: Keys werden gespeichert, aber nie zurückgegeben ──
+	it('Journey 2: PUT persistiert Werte; GET/PUT-Antwort signalisieren nur „gesetzt", nie den Key-Wert', async () => {
 		const cookie = await register('journey2@example.com', 'sicheres-passwort-1');
 
 		const putRes = await putConfig(cookie, {
@@ -81,15 +81,20 @@ describe('LLM-Config API (#640)', () => {
 			openrouterModel: 'custom/model',
 		});
 		assert.equal(putRes.status, 200);
+		const putBody = await putRes.json();
+		// PUT-Antwort ist der Status (Booleans + Modell), nicht die Key-Werte.
+		assert.deepEqual(putBody, { hasMistralApiKey: true, hasOpenrouterApiKey: true, openrouterModel: 'custom/model' });
+		// SECURITY-Regression: der Secret-Wert darf in keiner Antwort auftauchen.
+		assert.ok(!JSON.stringify(putBody).includes('m-key-123'), 'PUT-Antwort darf den Mistral-Key nicht enthalten');
+		assert.ok(!JSON.stringify(putBody).includes('or-key-456'), 'PUT-Antwort darf den OpenRouter-Key nicht enthalten');
 
 		const getRes = await getConfig(cookie);
 		assert.equal(getRes.status, 200);
 		const body = await getRes.json();
-		assert.deepEqual(body, {
-			mistralApiKey: 'm-key-123',
-			openrouterApiKey: 'or-key-456',
-			openrouterModel: 'custom/model',
-		});
+		assert.deepEqual(body, { hasMistralApiKey: true, hasOpenrouterApiKey: true, openrouterModel: 'custom/model' });
+		// SECURITY-Regression: auch GET liefert nur den Status, nie die gespeicherten Keys.
+		assert.ok(!JSON.stringify(body).includes('m-key-123'), 'GET-Antwort darf den Mistral-Key nicht enthalten');
+		assert.ok(!JSON.stringify(body).includes('or-key-456'), 'GET-Antwort darf den OpenRouter-Key nicht enthalten');
 	});
 
 	// ── Journey 3 — Validierung ───────────────────────────────────────────────
@@ -102,7 +107,7 @@ describe('LLM-Config API (#640)', () => {
 		// Keine Seiteneffekte: GET liefert weiterhin die Defaults.
 		const getRes = await getConfig(cookie);
 		const body = await getRes.json();
-		assert.equal(body.mistralApiKey, '');
+		assert.equal(body.hasMistralApiKey, false);
 	});
 
 	it('Journey 3: PUT mit openrouterModel als Zahl statt String → 400', async () => {
