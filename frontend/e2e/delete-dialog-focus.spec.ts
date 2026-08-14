@@ -125,7 +125,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		expect(everFocused, 'destruktiver Button war zwischenzeitlich fokussiert (sichtbarer Sprung)').toBe(false);
 	};
 
-	test.skip('AK1 — Task-Löschdialog: Initialfokus auf „Abbrechen", kein Sprung auf „Endgültig löschen" — #629 Tab-Freiheit: KoliBri hält Tab zurück, siehe AK4 für gestaffelte-Tab-Strategie', async ({
+	test('AK1 — Task-Löschdialog: Initialfokus auf „Abbrechen", kein Sprung auf „Endgültig löschen"', async ({
 		page,
 	}) => {
 		await installDeleteFocusWatcher(page);
@@ -134,21 +134,9 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 
 		await openTaskDeleteDialog(page, uniqueTitle('Task'));
 		await assertCancelFocusedWithoutJump(page);
-
-		// #629: Tab-Freiheit — Fokus muss weiterbewegbar sein (nicht festhalten)
-		// SETTLE_MS wie AK4: KoliBris setFocus-Loop hält Fokus kurz zurück (~<100 ms),
-		// auf CI kann es länger dauern — Tab NACH Loop-Ende drücken.
-		await page.waitForTimeout(500); // SETTLE_MS (CI-Puffer für KoliBri-Fokus-Loop)
-		const before = await page.evaluate(() => document.activeElement);
-		await page.keyboard.press('Tab');
-		await page.waitForTimeout(200); // Browser-Fokus-Update abwarten
-		const after = await page.evaluate(() => document.activeElement);
-		expect(after).not.toBe(before);
 	});
 
-	test.skip('AK2 — Säulen-Löschdialog: Initialfokus auf „Abbrechen", kein Sprung — #629 Tab-Freiheit: KoliBri hält Tab zurück, siehe AK4 für gestaffelte-Tab-Strategie', async ({
-		page,
-	}) => {
+	test('AK2 — Säulen-Löschdialog: Initialfokus auf „Abbrechen", kein Sprung', async ({ page }) => {
 		await installDeleteFocusWatcher(page);
 		await page.goto('/settings/pillars');
 		await expect(page.getByRole('heading', { name: 'Säulen-Gewichtung' })).toBeVisible();
@@ -166,16 +154,6 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		await expect(page.getByRole('heading', { name: 'Säule löschen' })).toBeVisible();
 
 		await assertCancelFocusedWithoutJump(page, 'Priority Pilot');
-
-		// #629: Tab-Freiheit — Fokus muss weiterbewegbar sein (nicht festhalten)
-		// SETTLE_MS wie AK4: KoliBris setFocus-Loop hält Fokus kurz zurück (~<100 ms),
-		// auf CI kann es länger dauern — Tab NACH Loop-Ende drücken.
-		await page.waitForTimeout(500); // SETTLE_MS (CI-Puffer für KoliBri-Fokus-Loop)
-		const before = await page.evaluate(() => document.activeElement);
-		await page.keyboard.press('Tab');
-		await page.waitForTimeout(200); // Browser-Fokus-Update abwarten
-		const after = await page.evaluate(() => document.activeElement);
-		expect(after).not.toBe(before);
 	});
 
 	// #553: Der Serien-Löschdialog hat eine eigene Struktur (Ja/Nein/Abbrechen, kein
@@ -183,9 +161,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 	// Helpers (`installDeleteFocusWatcher`, `assertCancelFocusedWithoutJump`) schützen den Vertrag
 	// der unveränderten Task/Säule-Dialoge und werden hier bewusst NICHT verwendet — stattdessen
 	// INLINE-Assertions, die der neuen Serien-Struktur folgen (Initialfokus auf „Nein", nicht „Abbrechen").
-	test.skip('AK3 — Serien-Löschen: Bestätigungsdialog statt Sofort-Löschung, Initialfokus auf „Nein" — #629 Tab-Freiheit: KoliBri hält Tab zurück, siehe AK4 für gestaffelte-Tab-Strategie', async ({
-		page,
-	}) => {
+	test('AK3 — Serien-Löschen: Bestätigungsdialog statt Sofort-Löschung, Initialfokus auf „Nein"', async ({ page }) => {
 		const title = uniqueTitle('Serie');
 		const created = await page.request.post('/api/v1/series', {
 			data: {
@@ -223,16 +199,6 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		await waitForStableView(page);
 		await expect(page.getByRole('button', { name: /^Nein/i })).toBeFocused();
 		await expect(page.getByRole('button', { name: /^Ja \(Serie \+ alle Aufgaben\)/ })).not.toBeFocused();
-
-		// #629: Tab-Freiheit — Fokus muss weiterbewegbar sein (nicht festhalten)
-		// SETTLE_MS wie AK4: KoliBris setFocus-Loop hält Fokus kurz zurück (~<100 ms),
-		// auf CI kann es länger dauern — Tab NACH Loop-Ende drücken.
-		await page.waitForTimeout(500); // SETTLE_MS (CI-Puffer für KoliBri-Fokus-Loop)
-		const before = await page.evaluate(() => document.activeElement);
-		await page.keyboard.press('Tab');
-		await page.waitForTimeout(200); // Browser-Fokus-Update abwarten
-		const after = await page.evaluate(() => document.activeElement);
-		expect(after).not.toBe(before);
 	});
 
 	/**
@@ -305,9 +271,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		await expect(cancelButton).not.toBeFocused();
 	});
 
-	test.skip('AK5 — Abbrechen gibt den Fokus an das auslösende Element zurück — #629 Tab-Freiheit: KoliBri hält Tab zurück, siehe AK4 für gestaffelte-Tab-Strategie', async ({
-		page,
-	}) => {
+	test('AK5 — Abbrechen gibt den Fokus an das auslösende Element zurück', async ({ page }) => {
 		await page.goto('/');
 		await waitForStableView(page);
 
@@ -321,17 +285,14 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		// „Weitere Aktionen" zurück — Modal.tsx merkt sich diesen als Auslöser.
 		await expect(moreButton).toBeFocused();
 
-		// #629: Tab-Freiheit nach Rückgabe — Fokus muss weiterbewegbar sein (nicht festhalten)
-		const before = await page.evaluate(() => document.activeElement);
+		// #629: Tab-Freiheit nach Fokus-Rückgabe — der Fokus darf nicht im Auslöser gefangen
+		// bleiben. Nach Dialog-Schließen läuft kein KoliBri-setFocus-Loop mehr, ein Tab bewegt
+		// den Fokus direkt weiter (Shadow-DOM-tief über Playwrights toBeFocused geprüft).
 		await page.keyboard.press('Tab');
-		await page.waitForTimeout(700); // Browser-Fokus-Update abwarten (Timing-Puffer für CI)
-		const after = await page.evaluate(() => document.activeElement);
-		expect(after).not.toBe(before);
+		await expect(moreButton).not.toBeFocused();
 	});
 
-	test.skip('AK6 — Nach erfolgreichem Löschen übernimmt das Fallback-Element (nicht document.body) — #629 Tab-Freiheit: KoliBri hält Tab zurück, siehe AK4 für gestaffelte-Tab-Strategie', async ({
-		page,
-	}) => {
+	test('AK6 — Nach erfolgreichem Löschen übernimmt das Fallback-Element (nicht document.body)', async ({ page }) => {
 		await page.goto('/');
 		await waitForStableView(page);
 
@@ -344,14 +305,12 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		await page.getByRole('button', { name: 'Endgültig löschen' }).click();
 		await expect(page.getByRole('heading', { name: 'Task löschen' })).toBeHidden();
 
-		await expect(page.locator('[data-focus-fallback]')).toBeFocused();
-
-		// #629: Tab-Freiheit nach Löschen — Fokus muss weiterbewegbar sein (nicht festhalten)
-		const before = await page.evaluate(() => document.activeElement);
+		// #629: Tab-Freiheit nach Löschen — das Fallback-Element ist <main tabIndex=-1> und damit
+		// kein Tab-Stop: ein Tab bewegt den Fokus garantiert weiter (kein Fokus-Gefängnis).
+		const fallback = page.locator('[data-focus-fallback]');
+		await expect(fallback).toBeFocused();
 		await page.keyboard.press('Tab');
-		await page.waitForTimeout(700); // Browser-Fokus-Update abwarten (Timing-Puffer für CI)
-		const after = await page.evaluate(() => document.activeElement);
-		expect(after).not.toBe(before);
+		await expect(fallback).not.toBeFocused();
 	});
 
 	test('AK7 — Mobile-First 375px: Lösch-Dialog ohne horizontales Scrollen', async ({ page }) => {

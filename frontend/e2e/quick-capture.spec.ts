@@ -65,9 +65,7 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		await expect(page.getByRole('textbox', { name: 'Titel' })).toBeHidden();
 	});
 
-	test.skip('AC2: „Überspringen" öffnet das reguläre Formular mit leeren Feldern — #629 Tab-Freiheit: KoliBri hält Tab zurück, siehe delete-dialog-focus AK4 für gestaffelte-Tab-Strategie', async ({
-		page,
-	}) => {
+	test('AC2: „Überspringen" öffnet das reguläre Formular mit leeren Feldern', async ({ page }) => {
 		await page.goto('/');
 		await waitForStableView(page);
 
@@ -95,14 +93,12 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		// Auslöser als Fallback-Fokusziel an das Formular-Modal durch.
 		await expect(page.getByRole('button', { name: 'Neuen Task anlegen' })).toBeFocused();
 
-		// #629: Tab-Freiheit nach Formular-Speichern — Fokus muss weiterbewegbar sein (nicht festhalten)
-		// SETTLE_MS wie delete-dialog AK4: KoliBris setFocus-Loop hält Fokus kurz zurück
-		await page.waitForTimeout(500); // SETTLE_MS (CI-Puffer für KoliBri-Fokus-Loop)
-		const before = await page.evaluate(() => document.activeElement);
+		// #629: Tab-Freiheit nach Formular-Speichern — der Fokus darf nicht im Auslöser
+		// gefangen bleiben. Nach Modal-Schließen läuft kein KoliBri-setFocus-Loop mehr, ein Tab
+		// bewegt den Fokus direkt weiter (Shadow-DOM-tief über Playwrights toBeFocused geprüft).
+		const triggerButton = page.getByRole('button', { name: 'Neuen Task anlegen' });
 		await page.keyboard.press('Tab');
-		await page.waitForTimeout(200); // Browser-Fokus-Update abwarten
-		const after = await page.evaluate(() => document.activeElement);
-		expect(after).not.toBe(before);
+		await expect(triggerButton).not.toBeFocused();
 
 		await openTasksTab(page);
 		// Die Aufgabenliste ist seit #238 keine Table mehr: der Titel ist direkt als
