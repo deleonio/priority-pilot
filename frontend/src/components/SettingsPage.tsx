@@ -6,6 +6,7 @@ import { requestMicrophonePermission } from '../lib/micPermission';
 import { usePushSubscription } from '../lib/push';
 import { useVoiceAutostart } from '../lib/voiceAutostart';
 import { AppearanceSetting } from './AppearanceSetting';
+import { LlmSettingsForm } from './LlmSettingsForm';
 import { PillarList } from './PillarList';
 import { PillarWeightsForm } from './PillarWeightsForm';
 
@@ -19,13 +20,14 @@ interface SettingsPageProps {
 
 // Die Tab-Leiste der Settings-Seite (#271). Modulkonstante, damit `KolTabs` nicht bei jedem Render
 // eine neue Tab-Liste erhält und die Auswahl zurücksetzt. Reihenfolge: Allgemein (Index 0), Säulen
-// (Index 1).
-const SETTINGS_TABS = [{ _label: 'Allgemein' }, { _label: 'Säulen' }];
+// (Index 1), LLM (Index 2, #640).
+const SETTINGS_TABS = [{ _label: 'Allgemein' }, { _label: 'Säulen' }, { _label: 'LLM' }];
 
 /**
- * Einstellungen-Seite (#271) mit `KolTabs`-Navigation: „Allgemein" (Platzhalter) und „Säulen"
- * (Säulen-Gewichtungs-Editor). Der aktive Tab wird beim initialen Laden aus der URL abgeleitet:
- * `/settings/general` → Allgemein (0), alles andere (inkl. `/settings/pillars`) → Säulen (1).
+ * Einstellungen-Seite (#271) mit `KolTabs`-Navigation: „Allgemein" (Platzhalter), „Säulen"
+ * (Säulen-Gewichtungs-Editor) und „LLM" (Provider-Konfiguration, #640). Der aktive Tab wird beim
+ * initialen Laden aus der URL abgeleitet: `/settings/general` → Allgemein (0), alles andere
+ * (inkl. `/settings/pillars`) → Säulen (1).
  */
 export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: SettingsPageProps) => {
 	// Aktiven Tab als kontrollierten State führen. Initialwert aus der URL; `setActiveTab` wird bei
@@ -188,6 +190,11 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 					    per `key` neu mounten, sobald die Säulen eintreffen, damit die geladenen Gewichte
 					    übernommen werden. */}
 					<PillarWeightsForm key={pillars.length} pillars={pillars} onSaved={onSaved} />
+				</div>
+				<div slot="tab-2">
+					{/* LLM-Provider-Konfiguration (#640): Keys/Modell der Mistral/OpenRouter-Kaskade. */}
+					<KolHeading _label="LLM-Provider" _level={2} />
+					<LlmSettingsForm />
 				</div>
 			</KolTabs>
 		</main>

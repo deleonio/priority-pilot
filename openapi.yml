@@ -705,6 +705,44 @@ paths:
                 $ref: '#/components/schemas/TestPushResult'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
+  /llm-config:
+    get:
+      summary: Persistierte LLM-Provider-Konfiguration lesen
+      description: >-
+        Liefert die gespeicherte Konfiguration der Mistral/OpenRouter-Kaskade.
+        Ohne persistierte Werte kommen leere Keys und der Default für
+        openrouterModel zurück (#640).
+      operationId: getLlmConfig
+      tags: [llm]
+      responses:
+        '200':
+          description: Die effektive LLM-Konfiguration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LlmConfig'
+    put:
+      summary: LLM-Provider-Konfiguration speichern
+      description: >-
+        Persistiert die Konfiguration der Kaskade. Gesetzte API-Keys dürfen
+        nicht ausschließlich aus Whitespace bestehen; alle Felder sind Strings.
+      operationId: setLlmConfig
+      tags: [llm]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LlmConfig'
+      responses:
+        '200':
+          description: Die gespeicherte LLM-Konfiguration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LlmConfig'
+        '400':
+          $ref: '#/components/responses/ValidationError'
 components:
   parameters:
     SeriesId:
@@ -1685,3 +1723,23 @@ components:
         author:
           type: string
           description: Urheber des Zitats.
+    LlmConfig:
+      type: object
+      required:
+        - mistralApiKey
+        - openrouterApiKey
+        - openrouterModel
+      description: >-
+        Konfiguration der LLM-Kaskade (#640). Persistierte Werte haben Vorrang
+        vor den gleichnamigen Umgebungsvariablen; ohne DB-Zeile bleibt Env der
+        Fallback.
+      properties:
+        mistralApiKey:
+          type: string
+          description: API-Key des Primär-Providers Mistral; leerer String = nicht gesetzt.
+        openrouterApiKey:
+          type: string
+          description: API-Key der optionalen OpenRouter-Verfeinerungsstufe; leerer String = nicht gesetzt.
+        openrouterModel:
+          type: string
+          description: Modellkennung für OpenRouter (Default `openrouter/free`).

@@ -38,6 +38,9 @@ export type ParseTaskInput = Schemas['ParseTaskInput'];
 export type ParsedTask = Schemas['ParsedTask'];
 export type ApiError = Schemas['Error'];
 
+// LLM-Provider-Konfiguration (#640): persistierte Keys/Modell der Mistral/OpenRouter-Kaskade.
+export type LlmConfig = Schemas['LlmConfig'];
+
 // Web-Push (#355): Opt-in-Subscription-Flow der PWA.
 export type PushSubscriptionInput = Schemas['PushSubscriptionInput'];
 export type PushSubscriptionAck = Schemas['PushSubscriptionAck'];

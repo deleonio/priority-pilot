@@ -4,6 +4,7 @@ import type {
 	ActivityAdvisorResult,
 	components,
 	DependencyInput,
+	LlmConfig,
 	ParsedTask,
 	paths,
 	PillarCreate,
@@ -390,6 +391,24 @@ export const api = {
 	// Zahl der Zustellungen und das gewählte Zitat zurück.
 	async sendTestPush(init: Init = {}): Promise<{ sent: number; quote: { text: string; author: string } }> {
 		const { data, response } = await client.POST('/push/test', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response);
+		}
+		return data;
+	},
+
+	// LLM-Provider-Konfiguration der Mistral/OpenRouter-Kaskade lesen (#640).
+	async getLlmConfig(init: Init = {}): Promise<LlmConfig> {
+		const { data, response } = await client.GET('/llm-config', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response);
+		}
+		return data;
+	},
+
+	// LLM-Provider-Konfiguration speichern (#640); liefert die gespeicherten Werte zurück.
+	async setLlmConfig({ llmConfig }: { llmConfig: LlmConfig }): Promise<LlmConfig> {
+		const { data, response } = await client.PUT('/llm-config', { body: llmConfig });
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response);
 		}

@@ -9,6 +9,7 @@ import SeriesPillar from './seriesPillar.js';
 import User from './user.js';
 import PushSubscription from './pushSubscription.js';
 import NotificationLog from './notificationLog.js';
+import LlmConfig from './llmConfig.js';
 
 Task.belongsToMany(Task, {
 	as: 'dependencies',
@@ -53,6 +54,8 @@ Pillar.belongsToMany(Series, { through: SeriesPillar, foreignKey: 'pillarId', ot
 // ohne Sequelize-Assoziation (der Versand-Helper filtert direkt über die `userId`-Spalte).
 // `notification_logs` steht für sich (fachlicher Push-Trigger, Issue #355) — die Isolation läuft über
 // den `dedupeKey` der jeweiligen Auslöser-Entität, keine Assoziation nötig.
+// `llm_configs` steht für sich (LLM-Provider-Konfiguration, Issue #640) — eine instanzweite
+// Singleton-Zeile ohne Nutzer-Bindung, daher keine Assoziation.
 export {
 	Task,
 	Dependency,
@@ -65,4 +68,5 @@ export {
 	User,
 	PushSubscription,
 	NotificationLog,
+	LlmConfig,
 };
