@@ -42,7 +42,7 @@ Setup-Step mit klarer Fehlermeldung fehl.
 
 ### LLM-Egress über Tailscale-Exit-Node
 
-Optional wird der gesamte LLM-Traffic eines Laufs über einen Frankfurter Tailscale-Exit-Node
+Optional wird der gesamte LLM-Traffic eines Laufs über einen Nürnberger Tailscale-Exit-Node
 geleitet, sodass z.ai/OpenRouter alle Requests von **einer konsistenten IP** sehen — das verhindert
 das „Account geteilt"-Flagging durch wechselnde Azure-Runner-IPs. Eingehängt zentral im
 [`setup-claude`](../.github/actions/setup-claude/action.yml)-Composite (Connect + DNS-Fix) **vor**

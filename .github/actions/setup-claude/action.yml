@@ -480,7 +480,7 @@ runs:
     # TAILSCALE EXIT-NODE — LLM-Egress über eine feste IP (z.ai/OpenRouter-Flagging-Schutz)
     #
     # Letzter Akt VOR dem claude-Step (der im Caller läuft): verbindet den Runner mit dem
-    # Exit-Node, sodass der gesamte folgende LLM-Traffic über den Frankfurter Server egressiert.
+    # Exit-Node, sodass der gesamte folgende LLM-Traffic über den Nürnberger Server egressiert.
     # Pre-LLM-Setup (Token/Cache/npm install oben) bleibt bewusst DIREKT (keine Exit-Node-Last
     # für GitHub/npm). Kill-Switch: tailscale-exit-node leer → alle drei Schritte übersprungen
     # (if-Bedingung). Fail-closed: Exit-Node gesetzt, aber Key fehlt oder Connect scheitert →
@@ -519,7 +519,7 @@ runs:
         sleep 2  # tailscaled kurz Zeit geben, Status zu aktualisieren
         if tailscale status >/dev/null 2>&1; then
           SELF_IP=$(tailscale ip -4 2>/dev/null | head -1)
-          echo "::notice title=✅ Tailscale Exit-Node verbunden::Tailscale aktiv (Runner-IP: ${SELF_IP:-?}). LLM-Traffic routet über Frankfurt."
+          echo "::notice title=✅ Tailscale Exit-Node verbunden::Tailscale aktiv (Runner-IP: ${SELF_IP:-?}). LLM-Traffic routet über Nürnberg."
           echo "Tailscale-Status: verbunden, Runner-Tailscale-IP: ${SELF_IP:-unbekannt}"
         else
           echo "::warning::tailscale status nicht verfügbar — Exit-Node evtl. nicht aktiv."
@@ -533,7 +533,7 @@ runs:
       # Fix: systemd-resolved stoppen, Stub-Symlink entfernen, echte resolv.conf mit
       # öffentlichen Resolvern schreiben (über den Tunnel erreichbar).
       # Zusätzlich wird die egressierende IP + Standort abgefragt → pro Lauf im Log sichtbar,
-      # dass der LLM-Traffic wirklich über den Frankfurter Exit Node läuft.
+      # dass der LLM-Traffic wirklich über den Nürnberger Exit Node läuft.
       if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != ''
       shell: bash
       run: |
