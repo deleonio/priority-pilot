@@ -19,9 +19,9 @@ jobs:
 
       # 2. Tailscale verbinden & Traffic über den Exit Node zwingen
       - name: Connect to Tailscale
-        uses: tailscale/github-action@v2
+        uses: tailscale/github-action@v4
         with:
-          authkey: ${{ secrets.TAILSCALE_AUTHKEY }}
+          authkey: ${{ secrets.TAILSCALE_AUTH_KEY }}
           args: --exit-node=${{ secrets.TAILSCALE_EXIT_NODE }} --exit-node-allow-lan-access=true
 
       # 3. IP NACH der VPN-Verbindung prüfen (Deine Frankfurter Server IP)
