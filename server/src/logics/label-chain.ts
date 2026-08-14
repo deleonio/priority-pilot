@@ -3,12 +3,9 @@
  * Spec: Issue 658, Basierend auf Issue 657 (Rollen-Konzept).
  *
  * Die Label-Chain definiert die Sequenz der Labels und die Übergaberegeln zwischen Rollen.
+ *
+ * @labels Die natürliche Reihenfolge der Chain: triaged → spec-ready → needs-review → needs-fixup → approved
  */
-
-/**
- * Labels der Chain in ihrer natürlichen Reihenfolge.
- */
-const _LABELS = ['triaged', 'spec-ready', 'needs-review', 'needs-fixup', 'approved'] as const;
 
 // Konstanten für removedLabels (Reference-Equality für Tests)
 const TRIAGED = ['triaged'];
@@ -43,14 +40,14 @@ const VALID_TRANSITIONS = new Set<string>([
 
 /**
  * Ungültige Label-Kombinationen (exklusiv pro Phase).
- * Sortiert alphabetisch für Vergleich mit validateLabelCombo.
+ * Alphabetisch sortiert (validateLabelCombo sortiert vor dem Join).
  */
 const INVALID_COMBINATIONS = new Set<string>([
+	'approved+needs-fixup',
+	'approved+needs-review',
 	'needs-fixup+needs-review',
-	'needs-fixup+approved',
-	'needs-review+approved',
+	'needs-review+spec-ready',
 	'spec-ready+triaged',
-	'spec-ready+needs-review',
 ]);
 
 // ============================================================================

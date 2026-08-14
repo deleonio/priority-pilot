@@ -35,7 +35,7 @@ describe('Label-Chain: Grundlegende Übergänge', () => {
 		const result = await transitionToSpecReady(issue);
 
 		assert.deepEqual(result.labels, ['spec-ready']);
-		assert.strictEqual(result.removedLabels, ['triaged']);
+		assert.deepEqual(result.removedLabels, ['triaged']);
 	});
 
 	test('spec-ready → needs-review: Umsetzungs-Agent setzt needs-review', async () => {
@@ -45,7 +45,7 @@ describe('Label-Chain: Grundlegende Übergänge', () => {
 		const result = await transitionToNeedsReview(issue);
 
 		assert.deepEqual(result.labels, ['needs-review']);
-		assert.strictEqual(result.removedLabels, ['spec-ready']);
+		assert.deepEqual(result.removedLabels, ['spec-ready']);
 	});
 
 	test('needs-review → needs-fixup: Review-Agent setzt needs-fixup', async () => {
@@ -55,7 +55,7 @@ describe('Label-Chain: Grundlegende Übergänge', () => {
 		const result = await transitionToNeedsFixup(pr);
 
 		assert.deepEqual(result.labels, ['needs-fixup']);
-		assert.strictEqual(result.removedLabels, ['needs-review']);
+		assert.deepEqual(result.removedLabels, ['needs-review']);
 	});
 
 	test('needs-fixup → needs-review: Fixup-Agent kehrt zu Review zurück', async () => {
@@ -65,7 +65,7 @@ describe('Label-Chain: Grundlegende Übergänge', () => {
 		const result = await transitionFromFixupToReview(pr);
 
 		assert.deepEqual(result.labels, ['needs-review']);
-		assert.strictEqual(result.removedLabels, ['needs-fixup']);
+		assert.deepEqual(result.removedLabels, ['needs-fixup']);
 	});
 
 	test('needs-review → approved: Review-Agent genehmigt direkt', async () => {
@@ -75,7 +75,7 @@ describe('Label-Chain: Grundlegende Übergänge', () => {
 		const result = await transitionToApproved(pr);
 
 		assert.deepEqual(result.labels, ['approved']);
-		assert.strictEqual(result.removedLabels, ['needs-review']);
+		assert.deepEqual(result.removedLabels, ['needs-review']);
 	});
 });
 
