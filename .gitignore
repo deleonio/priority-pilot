@@ -12,6 +12,9 @@ server/src/api.d.ts
 # Laufzeit-Datenbank (wird beim Start angelegt/geseedet, kein Repo-Inhalt).
 **/database.sqlite
 
+# Nightly-Backups der Datenbank (werden via maintenance.sh erstellt, kein Repo-Inhalt).
+backups/
+
 # Redis-Dump (Test-Artefakt beim lokalen Session-Store, kein Repo-Inhalt).
 dump.rdb
 
