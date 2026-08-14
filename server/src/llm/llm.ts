@@ -9,7 +9,8 @@
  *
  * Env-Variablen:
  * - `MISTRAL_API_KEY` (optional einzeln, Pflicht für die Kaskade), `MISTRAL_MODEL` (Default `mistral-medium-latest`)
- * - `OPENROUTER_API_KEY` (optional einzeln, aktiviert die Verfeinerungs-Stufe), `OPENROUTER_MODEL` (Default Free-Modell)
+ * - `OPENROUTER_API_KEY` (optional einzeln, aktiviert die Verfeinerungs-Stufe), `OPENROUTER_MODEL` (Default Free-Modell),
+ *   `OPENROUTER_API_URL` (Default `https://openrouter.ai/api/v1`)
  * - Kein Key überhaupt → {@link MissingApiKeyError} (→ HTTP 503).
  */
 
@@ -90,7 +91,7 @@ interface ProviderConfig {
 }
 
 const MISTRAL_ENDPOINT = 'https://api.mistral.ai/v1/chat/completions';
-const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
+const DEFAULT_OPENROUTER_API_URL = 'https://openrouter.ai/api/v1';
 const DEFAULT_MISTRAL_MODEL = 'mistral-medium-latest';
 const DEFAULT_OPENROUTER_MODEL = 'openrouter/free';
 const REQUEST_TIMEOUT_MS = 30_000;
@@ -105,10 +106,11 @@ function getMistralConfig(): ProviderConfig {
 	};
 }
 
-/** OpenRouter-Config aus Env-Variablen. */
+/** OpenRouter-Config aus Env-Variablen. Basis-URL über `OPENROUTER_API_URL` konfigurierbar. */
 function getOpenRouterConfig(): ProviderConfig {
+	const baseUrl = (process.env.OPENROUTER_API_URL ?? DEFAULT_OPENROUTER_API_URL).replace(/\/+$/, '');
 	return {
-		endpoint: OPENROUTER_ENDPOINT,
+		endpoint: `${baseUrl}/chat/completions`,
 		apiKey: process.env.OPENROUTER_API_KEY,
 		model: process.env.OPENROUTER_MODEL ?? DEFAULT_OPENROUTER_MODEL,
 		label: 'OpenRouter',
