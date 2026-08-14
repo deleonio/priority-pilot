@@ -603,7 +603,7 @@ export function detectRedundancy(blocks: TestBlock[]): Finding[] {
 }
 
 /** 4. Behavior-Coverage-Heuristik (KEIN Mutation-Beweis): Fokus-ohne-Tab, Existenz-ohne-Verhalten. */
-export function detectBehaviorGaps(blocks: TestBlock[]): Finding[] {
+export function detectBehaviorGaps(blocks: TestBlock[], fileHasTab: Map<string, boolean>): Finding[] {
 	const findings: Finding[] = [];
 	for (const b of blocks) {
 		// Fokus-Test ohne Tab-Freiheit. Heuristik-Grenze: reine Autofokus-Tests
@@ -612,7 +612,8 @@ export function detectBehaviorGaps(blocks: TestBlock[]): Finding[] {
 		// `fokus` auch auf „Autofokus"/„fokussiert" → critical False Positives (PR #505).
 		const isAutofokus = /autofokus|fokussier/i.test(b.name);
 		const isFocus = !isAutofokus && (/\b(?:initialfokus|fokus)\b/i.test(b.name) || /\btoBeFocused\b/.test(b.bodyText));
-		const hasTab = /\bTab\b|keyboard\.press\(\s*['"]Tab['"]/.test(b.bodyText);
+		// Dateiweite Tab-Prüfung: Wenn irgendwo in der Datei Tab gedrückt wird, gilt die Abdeckung als vorhanden
+		const hasTab = fileHasTab.get(b.file) ?? false;
 		if (isFocus && !hasTab) {
 			findings.push({
 				category: 'mutation',
@@ -762,22 +763,33 @@ async function main() {
 	];
 
 	let allBlocks: TestBlock[] = [];
-	let allFindings: Finding[] = [];
+	const fileHasTab = new Map<string, boolean>();
 	let fileCount = 0;
 
 	for (const dir of testDirs) {
 		for (const file of findTestFiles(dir)) {
 			fileCount++;
 			const content = readFileSync(file, 'utf8');
+			const relPath = relative(REPO_ROOT, file);
+			// Dateiweite Tab-Prüfung: Wenn irgendwo in der Datei Tab gedrückt wird, gilt die Abdeckung als vorhanden
+			fileHasTab.set(relPath, /\bTab\b|keyboard\.press\(\s*['"]Tab['"]/.test(content));
 			const blocks = extractTestBlocks(content, file);
 			allBlocks.push(...blocks);
-			allFindings.push(...detectTautological(blocks));
-			allFindings.push(...detectEmptySet(content, file));
 		}
 	}
 
+	const allFindings: Finding[] = [];
+	for (const b of allBlocks) {
+		allFindings.push(...detectTautological([b]));
+	}
+	for (const dir of testDirs) {
+		for (const file of findTestFiles(dir)) {
+			const content = readFileSync(file, 'utf8');
+			allFindings.push(...detectEmptySet(content, file));
+		}
+	}
 	allFindings.push(...detectRedundancy(allBlocks));
-	allFindings.push(...detectBehaviorGaps(allBlocks));
+	allFindings.push(...detectBehaviorGaps(allBlocks, fileHasTab));
 
 	console.log(`  Gefunden: ${fileCount} Test-Dateien, ${allBlocks.length} Test-Blöcke`);
 
