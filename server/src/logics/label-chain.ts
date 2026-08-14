@@ -8,7 +8,7 @@
 /**
  * Labels der Chain in ihrer natürlichen Reihenfolge.
  */
-const LABELS = ['triaged', 'spec-ready', 'needs-review', 'needs-fixup', 'approved'] as const;
+const _LABELS = ['triaged', 'spec-ready', 'needs-review', 'needs-fixup', 'approved'] as const;
 
 // Konstanten für removedLabels (Reference-Equality für Tests)
 const TRIAGED = ['triaged'];
