@@ -284,6 +284,12 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		// „Löschen" liegt im Popover; dessen hidePopover() gibt den Fokus synchron an den Invoker
 		// „Weitere Aktionen" zurück — Modal.tsx merkt sich diesen als Auslöser.
 		await expect(moreButton).toBeFocused();
+
+		// #629: Tab-Freiheit nach Fokus-Rückgabe — der Fokus darf nicht im Auslöser gefangen
+		// bleiben. Nach Dialog-Schließen läuft kein KoliBri-setFocus-Loop mehr, ein Tab bewegt
+		// den Fokus direkt weiter (Shadow-DOM-tief über Playwrights toBeFocused geprüft).
+		await page.keyboard.press('Tab');
+		await expect(moreButton).not.toBeFocused();
 	});
 
 	test('AK6 — Nach erfolgreichem Löschen übernimmt das Fallback-Element (nicht document.body)', async ({ page }) => {
@@ -299,7 +305,12 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		await page.getByRole('button', { name: 'Endgültig löschen' }).click();
 		await expect(page.getByRole('heading', { name: 'Task löschen' })).toBeHidden();
 
-		await expect(page.locator('[data-focus-fallback]')).toBeFocused();
+		// #629: Tab-Freiheit nach Löschen — das Fallback-Element ist <main tabIndex=-1> und damit
+		// kein Tab-Stop: ein Tab bewegt den Fokus garantiert weiter (kein Fokus-Gefängnis).
+		const fallback = page.locator('[data-focus-fallback]');
+		await expect(fallback).toBeFocused();
+		await page.keyboard.press('Tab');
+		await expect(fallback).not.toBeFocused();
 	});
 
 	test('AK7 — Mobile-First 375px: Lösch-Dialog ohne horizontales Scrollen', async ({ page }) => {
