@@ -93,6 +93,13 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		// Auslöser als Fallback-Fokusziel an das Formular-Modal durch.
 		await expect(page.getByRole('button', { name: 'Neuen Task anlegen' })).toBeFocused();
 
+		// #629: Tab-Freiheit nach Formular-Speichern — der Fokus darf nicht im Auslöser
+		// gefangen bleiben. Nach Modal-Schließen läuft kein KoliBri-setFocus-Loop mehr, ein Tab
+		// bewegt den Fokus direkt weiter (Shadow-DOM-tief über Playwrights toBeFocused geprüft).
+		const triggerButton = page.getByRole('button', { name: 'Neuen Task anlegen' });
+		await page.keyboard.press('Tab');
+		await expect(triggerButton).not.toBeFocused();
+
 		await openTasksTab(page);
 		// Die Aufgabenliste ist seit #238 keine Table mehr: der Titel ist direkt als
 		// Textinhalt des span.task-tree-title sichtbar (analog crud.spec.ts).

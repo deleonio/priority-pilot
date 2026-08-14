@@ -46,12 +46,13 @@ die Anweisung:
 
 ### Variablen-Übersicht
 
-| Variable             | Pflicht | Default                 | Wirkung                             |
-| -------------------- | ------- | ----------------------- | ----------------------------------- |
-| `MISTRAL_API_KEY`    | einzeln | —                       | Aktiviert Mistral (Primär-Stufe)    |
-| `OPENROUTER_API_KEY` | einzeln | —                       | Aktiviert OpenRouter (Verfeinerung) |
-| `MISTRAL_MODEL`      | nein    | `mistral-medium-latest` | Mistral-Modell                      |
-| `OPENROUTER_MODEL`   | nein    | `openrouter/free`       | OpenRouter-Modell                   |
+| Variable             | Pflicht | Default                        | Wirkung                                                |
+| -------------------- | ------- | ------------------------------ | ------------------------------------------------------ |
+| `MISTRAL_API_KEY`    | einzeln | —                              | Aktiviert Mistral (Primär-Stufe)                       |
+| `OPENROUTER_API_KEY` | einzeln | —                              | Aktiviert OpenRouter (Verfeinerung)                    |
+| `MISTRAL_MODEL`      | nein    | `mistral-medium-latest`        | Mistral-Modell                                         |
+| `OPENROUTER_MODEL`   | nein    | `openrouter/free`              | OpenRouter-Modell                                      |
+| `OPENROUTER_API_URL` | nein    | `https://openrouter.ai/api/v1` | OpenRouter-Basis-URL (Endpoint = `…/chat/completions`) |
 
 > Mindestens ein API-Key muss gesetzt sein, sonst antworten alle LLM-Endpunkte mit HTTP 503.
 

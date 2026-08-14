@@ -9,7 +9,8 @@
  *
  * Env-Variablen:
  * - `MISTRAL_API_KEY` (optional einzeln, Pflicht für die Kaskade), `MISTRAL_MODEL` (Default `mistral-medium-latest`)
- * - `OPENROUTER_API_KEY` (optional einzeln, aktiviert die Verfeinerungs-Stufe), `OPENROUTER_MODEL` (Default Free-Modell)
+ * - `OPENROUTER_API_KEY` (optional einzeln, aktiviert die Verfeinerungs-Stufe), `OPENROUTER_MODEL` (Default Free-Modell),
+ *   `OPENROUTER_API_URL` (Default `https://openrouter.ai/api/v1`)
  * - Kein Key überhaupt → {@link MissingApiKeyError} (→ HTTP 503).
  *
  * Seit #640 sind Keys/Modell zusätzlich über `PUT /llm-config` persistierbar. Eine gesetzte
@@ -96,7 +97,7 @@ interface ProviderConfig {
 }
 
 const MISTRAL_ENDPOINT = 'https://api.mistral.ai/v1/chat/completions';
-const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
+const DEFAULT_OPENROUTER_API_URL = 'https://openrouter.ai/api/v1';
 const DEFAULT_MISTRAL_MODEL = 'mistral-medium-latest';
 /** Default-Modell der OpenRouter-Stufe — zugleich der Anzeige-Default von `GET /llm-config` (#640). */
 export const DEFAULT_OPENROUTER_MODEL = 'openrouter/free';
@@ -139,10 +140,16 @@ function getMistralConfig(effective: EffectiveLlmConfig): ProviderConfig {
 	};
 }
 
-/** OpenRouter-Config aus der effektiven Konfiguration (DB vor Env). */
+/**
+ * OpenRouter-Config aus der effektiven Konfiguration (DB vor Env). Die Basis-URL bleibt über
+ * `OPENROUTER_API_URL` konfigurierbar (#651); Key und Modell kommen aus der effektiven Config,
+ * die persistierte DB-Werte vorzieht (#640). `loadEffectiveLlmConfig` deckt bewusst nur Key und
+ * Modell — nicht die Endpoint-URL —, da `/llm-config` ausschließlich Key/Modell persistiert.
+ */
 function getOpenRouterConfig(effective: EffectiveLlmConfig): ProviderConfig {
+	const baseUrl = (process.env.OPENROUTER_API_URL ?? DEFAULT_OPENROUTER_API_URL).replace(/\/+$/, '');
 	return {
-		endpoint: OPENROUTER_ENDPOINT,
+		endpoint: `${baseUrl}/chat/completions`,
 		apiKey: effective.openrouterApiKey || undefined,
 		model: effective.openrouterModel,
 		label: 'OpenRouter',
