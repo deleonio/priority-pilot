@@ -152,3 +152,23 @@ describe('LLM-Kaskade — Single-Provider (nur ein Key)', () => {
 		await assert.rejects(() => parseTaskTextWithMistral('test'), MissingApiKeyError);
 	});
 });
+
+describe('LLM-Kaskade — OpenRouter API-URL konfigurierbar (AK „konfigurierbare URL/Modell", #639)', () => {
+	it('OPENROUTER_API_URL gesetzt → Request geht an konfigurierten Endpoint, nicht an den Standard-Endpoint', async () => {
+		delete process.env.MISTRAL_API_KEY;
+		process.env.OPENROUTER_API_KEY = 'or-key';
+		process.env.OPENROUTER_API_URL = 'https://custom-gateway.example.com/v1';
+
+		const calls = mockFetchSequence([{ ok: true, content: { title: 'Custom Gateway' } }]);
+
+		const result = await parseTaskTextWithMistral('test');
+
+		assert.equal(result.title, 'Custom Gateway');
+		assert.equal(calls.length, 1);
+		assert.equal(
+			calls[0].url,
+			'https://custom-gateway.example.com/v1/chat/completions',
+			'OPENROUTER_API_URL muss den Endpoint bestimmen (docs/spec/issue-639.md)',
+		);
+	});
+});
