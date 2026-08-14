@@ -44,7 +44,21 @@ die Anweisung:
 
 ## Einrichtung
 
-### Variablen-Übersicht
+Es gibt **zwei Konfigurationswege** — beide setzen dieselben Werte (Keys + OpenRouter-Modell):
+
+| Weg                            | Wo                                | Wann sinnvoll                                                     |
+| ------------------------------ | --------------------------------- | ----------------------------------------------------------------- |
+| **A: Env-Variablen**           | `server/.env` bzw. Deployment-Env | Erstinbetriebnahme, Infrastructure-as-Code, Server-Neustart nötig |
+| **B: Settings-UI** (seit #640) | `/settings` → Tab „LLM"           | Key-Wechsel im laufenden Betrieb, ohne Server-Zugriff/Neustart    |
+
+**Vorrang:** Eine in der DB persistierte Konfiguration (Weg B) gewinnt **pro Feld** gegen die
+Env-Variable (Weg A); leere/nicht gesetzte DB-Felder fallen auf die Env zurück
+(`loadEffectiveLlmConfig` in [`server/src/llm/llm.ts`](../server/src/llm/llm.ts)). Ohne
+DB-Konfiguration verhält sich der Server exakt wie vorher — reiner Env-Betrieb.
+
+### Weg A: Env-Variablen
+
+#### Variablen-Übersicht
 
 | Variable             | Pflicht | Default                        | Wirkung                                                |
 | -------------------- | ------- | ------------------------------ | ------------------------------------------------------ |
@@ -54,9 +68,10 @@ die Anweisung:
 | `OPENROUTER_MODEL`   | nein    | `openrouter/free`              | OpenRouter-Modell                                      |
 | `OPENROUTER_API_URL` | nein    | `https://openrouter.ai/api/v1` | OpenRouter-Basis-URL (Endpoint = `…/chat/completions`) |
 
-> Mindestens ein API-Key muss gesetzt sein, sonst antworten alle LLM-Endpunkte mit HTTP 503.
+> Mindestens ein API-Key muss gesetzt sein (über Env **oder** Settings-UI), sonst antworten alle
+> LLM-Endpunkte mit HTTP 503.
 
-### Variante A: Kaskade (beide Provider — Empfehlung)
+#### Variante A: Kaskade (beide Provider — Empfehlung)
 
 ```bash
 # server/.env  (oder echte ENV im Deployment)
@@ -70,7 +85,7 @@ OPENROUTER_API_KEY=sk-or-v1-dein-key
 
 Mistral generiert → OpenRouter verfeinert. Höchste Qualität, aber ~doppelte Latenz pro Request.
 
-### Variante B: Nur Mistral (ohne Verfeinerung)
+#### Variante B: Nur Mistral (ohne Verfeinerung)
 
 ```bash
 MISTRAL_API_KEY=dein-mistral-key
@@ -78,13 +93,33 @@ MISTRAL_API_KEY=dein-mistral-key
 
 OpenRouter wird nicht aufgerufen. Mistral's Antwort ist direkt das Endergebnis.
 
-### Variante C: Nur OpenRouter
+#### Variante C: Nur OpenRouter
 
 ```bash
 OPENROUTER_API_KEY=sk-or-v1-dein-key
 ```
 
 Mistral wird übersprungen. OpenRouter generiert allein (keine Verfeinerung).
+
+### Weg B: Settings-UI (`/settings` → Tab „LLM")
+
+Eingeloggte Nutzer konfigurieren die Kaskade auch direkt in der App: **Einstellungen → Tab „LLM"**.
+Dort lassen sich `MISTRAL_API_KEY`, `OPENROUTER_API_KEY` und das OpenRouter-Modell setzen; die
+Werte landen in der DB und wirken **sofort** — ohne Server-Neustart und ohne Zugriff auf die
+Env-Datei.
+
+**API-Keys sind write-only.** Die Eingabefelder sind maskiert und starten immer **leer** — ein
+gespeicherter Key wird nie zurück in die UI geladen. Angezeigt wird pro Provider nur der Status
+_„gespeichert"_ / _„nicht gesetzt"_, nie der Wert. Daraus folgt:
+
+- **Leeres Feld = unverändert.** Speichern mit leerem Feld überschreibt nichts.
+- **Zurück zum Env-Fallback:** Dafür gibt es die expliziten Aktionen **„Key löschen"** (nur
+  sichtbar, wenn ein Key persistiert ist) bzw. **„Modell zurücksetzen"** (nur bei vom Default
+  abweichendem Modell). Sie entfernen den DB-Wert, danach greift wieder die Env-Variable.
+- Der Status spiegelt ausschließlich den **DB-Stand** — ein per Env gesetzter Key erscheint dort
+  bewusst **nicht** als „gespeichert".
+- Schlägt das Laden der Konfiguration fehl, zeigt der Tab nur eine Fehlermeldung statt eines
+  Formulars, damit kein vorhandener Key versehentlich überschrieben wird.
 
 ---
 
