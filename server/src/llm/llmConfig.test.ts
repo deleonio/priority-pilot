@@ -66,4 +66,19 @@ describe('LLM-Kaskade: persistierte Config vor Env (#640, Journey 5)', () => {
 		assert.equal(config.openrouterApiKey, 'db-openrouter-key');
 		assert.equal(config.openrouterModel, 'db/model');
 	});
+
+	it('mit persistierter Zeile, aber geleerten Feldern: Env greift wieder (Rückweg über „Key löschen")', async () => {
+		process.env.MISTRAL_API_KEY = 'env-mistral-key';
+		process.env.OPENROUTER_API_KEY = 'env-openrouter-key';
+		process.env.OPENROUTER_MODEL = 'env/model';
+
+		// Genau der Stand nach einem `PUT` mit leeren Strings: die Zeile existiert, die Werte sind leer.
+		await LlmConfig.create({ mistralApiKey: '', openrouterApiKey: '', openrouterModel: '' });
+
+		const config = await loadEffectiveLlmConfig();
+
+		assert.equal(config.mistralApiKey, 'env-mistral-key');
+		assert.equal(config.openrouterApiKey, 'env-openrouter-key');
+		assert.equal(config.openrouterModel, 'env/model');
+	});
 });

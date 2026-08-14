@@ -93,6 +93,28 @@ describe('LLM-Config API (#640)', () => {
 		assert.ok(!JSON.stringify(body).includes('or-key-456'), 'GET-Antwort darf den OpenRouter-Key nicht enthalten');
 	});
 
+	// ── Löschen — leerer String entfernt den persistierten Wert (Env-Fallback greift wieder) ──
+	it('Leerer String löscht Key und Modell → Status „nicht gesetzt", Kaskade fällt auf Env zurück', async () => {
+		const cookie = await register('clear@example.com', 'sicheres-passwort-1');
+		await putConfig(cookie, { mistralApiKey: 'm-key-123', openrouterModel: 'custom/model' });
+
+		const res = await putConfig(cookie, { mistralApiKey: '', openrouterModel: '' });
+		assert.equal(res.status, 200);
+		const body = await res.json();
+		// `''` muss die Validierung passieren und den DB-Wert wirklich leeren — sonst bliebe der
+		// „Key löschen"-Button der UI still wirkungslos, ohne dass ein Test rot wird.
+		assert.equal(body.hasMistralApiKey, false);
+		// Ohne DB-Wert zeigt GET wieder den Anzeige-Default; die Kaskade nutzt dann Env (llm.ts).
+		assert.equal(body.openrouterModel, 'openrouter/free');
+
+		const after = await (await getConfig(cookie)).json();
+		assert.deepEqual(after, {
+			hasMistralApiKey: false,
+			hasOpenrouterApiKey: false,
+			openrouterModel: 'openrouter/free',
+		});
+	});
+
 	// ── Journey 3 — Validierung ───────────────────────────────────────────────
 	it('Journey 3: PUT mit nur-Whitespace mistralApiKey → 400, keine Persistenz', async () => {
 		const cookie = await register('journey3a@example.com', 'sicheres-passwort-1');

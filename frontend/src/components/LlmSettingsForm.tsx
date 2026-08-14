@@ -14,6 +14,9 @@ import { readString } from '../lib/inputValue';
  * Key wird nie ins Feld geladen und damit nie in den Client transportiert. Wer einen Key ändern
  * will, tippt ihn neu ein; ein leeres Feld bedeutet „unverändert" und überschreibt nichts.
  */
+/** Anzeige-Default des Kaskaden-Modells, identisch zu `DEFAULT_OPENROUTER_MODEL` im Server. */
+const DEFAULT_OPENROUTER_MODEL = 'openrouter/free';
+
 export const LlmSettingsForm = () => {
 	// Status aus dem Backend: ob jeweils ein Key gesetzt ist + das (nicht-geheime) Modell.
 	const [status, setStatus] = useState<LlmConfigStatus | null>(null);
@@ -21,6 +24,7 @@ export const LlmSettingsForm = () => {
 	const [mistralKeyInput, setMistralKeyInput] = useState('');
 	const [openrouterKeyInput, setOpenrouterKeyInput] = useState('');
 	const [model, setModel] = useState('');
+	const [loadFailed, setLoadFailed] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [saved, setSaved] = useState(false);
 	const [saving, setSaving] = useState(false);
@@ -35,11 +39,7 @@ export const LlmSettingsForm = () => {
 				setModel(config.openrouterModel);
 			})
 			.catch(() => {
-				if (!controller.signal.aborted) {
-					setError('Die LLM-Konfiguration konnte nicht geladen werden.');
-					// Ohne Status bliebe die Lade-Anzeige (unten) stehen und würde die Fehlermeldung verdecken.
-					setStatus({ hasMistralApiKey: false, hasOpenrouterApiKey: false, openrouterModel: '' });
-				}
+				if (!controller.signal.aborted) setLoadFailed(true);
 			});
 		return () => controller.abort();
 	}, []);
@@ -78,8 +78,21 @@ export const LlmSettingsForm = () => {
 		return persist(body);
 	};
 
-	/** Löscht einen persistierten Key gezielt (leerer String) — der Env-Fallback greift danach wieder. */
-	const clearKey = (field: 'mistralApiKey' | 'openrouterApiKey'): Promise<void> => persist({ [field]: '' });
+	/**
+	 * Löscht einen persistierten Wert gezielt (leerer String) — der Env-Fallback greift danach wieder.
+	 * Nötig, weil ein leeres Eingabefeld „unverändert" bedeutet und daher nie etwas löschen kann.
+	 */
+	const clearField = (field: keyof LlmConfigInput): Promise<void> => persist({ [field]: '' });
+
+	// Ein Ladefehler darf keine Key-Zustände behaupten: „nicht gesetzt" würde dazu verleiten, einen
+	// funktionierenden (write-only, also nicht wiederherstellbaren) Key zu überschreiben.
+	if (loadFailed) {
+		return (
+			<KolAlert _type="error" _alert _label="Laden fehlgeschlagen">
+				Die LLM-Konfiguration konnte nicht geladen werden.
+			</KolAlert>
+		);
+	}
 
 	if (status === null) {
 		return <p>Konfiguration wird geladen…</p>;
@@ -102,8 +115,8 @@ export const LlmSettingsForm = () => {
 			<p className="hint">
 				Die Kaskade fragt zuerst Mistral (Primär) und lässt die Antwort optional von OpenRouter verfeinern. Aus
 				Sicherheitsgründen werden gespeicherte API-Keys nicht zurückgelesen — das Feld zeigt nur, ob ein Key gesetzt
-				ist. Ein leeres Eingabefeld belässt den bisherigen Key unverändert; über „Key löschen" fällt die Kaskade wieder
-				auf die Umgebungsvariablen des Servers zurück.
+				ist. Ein leeres Eingabefeld belässt den bisherigen Wert unverändert; über „Key löschen" bzw. „Modell
+				zurücksetzen" fällt die Kaskade wieder auf die Umgebungsvariablen des Servers zurück.
 			</p>
 
 			<div className="form-grid">
@@ -115,7 +128,7 @@ export const LlmSettingsForm = () => {
 						_label="Mistral API-Key löschen"
 						_variant="tertiary"
 						_disabled={saving}
-						_on={{ onClick: () => void clearKey('mistralApiKey') }}
+						_on={{ onClick: () => void clearField('mistralApiKey') }}
 					/>
 				)}
 				<KolInputPassword
@@ -135,7 +148,7 @@ export const LlmSettingsForm = () => {
 						_label="OpenRouter API-Key löschen"
 						_variant="tertiary"
 						_disabled={saving}
-						_on={{ onClick: () => void clearKey('openrouterApiKey') }}
+						_on={{ onClick: () => void clearField('openrouterApiKey') }}
 					/>
 				)}
 				<KolInputPassword
@@ -156,6 +169,19 @@ export const LlmSettingsForm = () => {
 						onChange: (_event, value) => setModel(readString(value)),
 					}}
 				/>
+				{/*
+				 * Rücksetzen nur anbieten, wenn ein vom Anzeige-Default abweichendes Modell persistiert ist —
+				 * genau dann verdeckt der DB-Wert ein gesetztes `OPENROUTER_MODEL`. Ohne DB-Zeile liefert
+				 * `GET` den Default, ein Reset wäre dort ein wirkungsloses Schreiben.
+				 */}
+				{status.openrouterModel !== DEFAULT_OPENROUTER_MODEL && (
+					<KolButton
+						_label="Modell zurücksetzen"
+						_variant="tertiary"
+						_disabled={saving}
+						_on={{ onClick: () => void clearField('openrouterModel') }}
+					/>
+				)}
 			</div>
 
 			<div className="modal-actions">

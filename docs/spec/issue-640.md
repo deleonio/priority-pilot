@@ -164,6 +164,8 @@ sichtbar, die Key-Felder jedoch **leer** (die Werte werden nicht zurückgelesen)
 | `PUT` mit falschem Feldtyp (z. B. Zahl) | 400, keine Persistenz                           |
 | Keine DB-Konfiguration vorhanden        | Kaskade nutzt Env-Werte (Abwärtskompatibilität) |
 | DB-Konfiguration vorhanden              | Kaskade nutzt DB-Werte, ignoriert Env           |
+| `PUT` mit leerem String (`''`)          | löscht den DB-Wert → Kaskade nutzt wieder Env   |
+| Feld im `PUT`-Body abwesend             | bleibt unverändert, keine Persistenz-Änderung   |
 
 ## Hinweise zur Nutzung
 
@@ -173,6 +175,18 @@ sichtbar, die Key-Felder jedoch **leer** (die Werte werden nicht zurückgelesen)
   (weder über die Settings-UI noch über Netzwerk/Memory/XSS). Die Key-Eingabefelder starten daher
   immer leer; ein leeres Feld bedeutet „unverändert", ein getippter Wert überschreibt. Auch die
   bloße Anwesenheit der Umgebungsvariablen wird nicht signalisiert (nur der DB-Stand).
+- **Rückweg zum Env-Fallback:** Weil ein leeres Feld „unverändert" bedeutet, kann es nichts löschen.
+  Dafür bietet die UI je Provider eine explizite Aktion — „Key löschen" (sichtbar nur bei
+  `hasXApiKey === true`) bzw. „Modell zurücksetzen" (sichtbar nur bei einem vom Default abweichenden
+  Modell). Sie senden gezielt `''` und entfernen den DB-Wert, womit die Kaskade wieder auf
+  `MISTRAL_API_KEY`/`OPENROUTER_API_KEY`/`OPENROUTER_MODEL` zurückfällt.
+- **Modell nur bei Änderung senden:** `GET` liefert ohne DB-Zeile den reinen Anzeige-Default
+  `openrouter/free`. Das Frontend schickt `openrouterModel` nur, wenn der Wert vom geladenen Status
+  abweicht — sonst würde der Anzeige-Default beim ersten Speichern als echter DB-Wert persistiert und
+  ein gesetztes `OPENROUTER_MODEL` still aushebeln.
+- **Ladefehler:** Schlägt `GET /llm-config` fehl, zeigt der Tab ausschließlich eine Fehlermeldung —
+  kein Formular. Ein angenommener Status („nicht gesetzt") würde dazu verleiten, einen vorhandenen,
+  write-only gespeicherten Key zu überschreiben.
 - Defaultwert für `openrouterModel` ist konsistent mit dem bestehenden Kaskaden-Default
   `DEFAULT_OPENROUTER_MODEL = 'openrouter/free'` aus `server/src/llm/llm.ts` — keine Abweichung
   einführen.

@@ -69,5 +69,13 @@ test.describe('#640 Einstellungen – LLM-Tab', () => {
 		// Statt des Werts zeigt die UI nur den Status „gespeichert" je Provider.
 		await expect(page.locator('[data-provider="mistral"]')).toContainText('gespeichert');
 		await expect(page.locator('[data-provider="openrouter"]')).toContainText('gespeichert');
+
+		// Rückweg zum Env-Fallback: Da Keys write-only sind, kann ein leeres Feld nichts löschen —
+		// dafür gibt es die explizite Aktion. Ohne sie bliebe ein falsch eingetippter Key permanent.
+		await page.getByRole('button', { name: 'Mistral API-Key löschen' }).click();
+		await expect(page.locator('[data-provider="mistral"]')).toContainText('nicht gesetzt');
+		await expect(page.getByRole('button', { name: 'Mistral API-Key löschen' })).toHaveCount(0);
+		// Der zweite Provider bleibt davon unberührt.
+		await expect(page.locator('[data-provider="openrouter"]')).toContainText('gespeichert');
 	});
 });
