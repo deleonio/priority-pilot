@@ -125,7 +125,7 @@ NODE_ENV=production
 DATABASE_STORAGE=/var/www/gh-deploy/$APP/data/database.sqlite
 DB_SEED=false
 MISTRAL_API_KEY=DEIN_KEY_HIER
-# MISTRAL_MODEL=mistral-small-latest
+# MISTRAL_MODEL=mistral-medium-latest
 # Optional — zweite Kaskaden-Stufe (Verfeinerung):
 # OPENROUTER_API_KEY=sk-or-v1-DEIN_KEY_HIER
 # OPENROUTER_MODEL=openrouter/free
@@ -222,16 +222,16 @@ sudo -u gh-deploy sqlite3 /var/www/gh-deploy/priority-pilot/data/database.sqlite
 
 ## 10. Troubleshooting
 
-| Symptom                               | Wahrscheinliche Ursache                              | Prüfen / Fix                                                                                  |
-| ------------------------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| `pm2 status` zeigt `errored`/restarts | `node_modules`/`sqlite3`-ABI passt nicht zum Host    | `pm2 logs priority-pilot`; ggf. Host-Install (`pnpm install --prod` im App-Verzeichnis)       |
-| API-Calls liefern HTML/404            | Caddy kennt `/api/v1/*` nicht (SPA-Fallback greift)  | `handle /api/v1/*`-Block + `strip_prefix` prüfen ([caddy-setup.md](caddy-setup.md))           |
-| Daten weg nach Deploy                 | `DATABASE_STORAGE` zeigt in gespiegeltes Verzeichnis | absoluten `data/`-Pfad setzen (Schritt 5)                                                     |
-| Demo-Daten erscheinen in Prod         | `DB_SEED` nicht auf `false`                          | Env-Datei korrigieren, `pm2 reload priority-pilot --update-env`                               |
-| LLM-Endpunkte → 503                   | **kein** LLM-Key gesetzt (weder DB noch Env)         | `MISTRAL_API_KEY` **oder** `OPENROUTER_API_KEY` setzen ([llm-providers.md](llm-providers.md)) |
-| LLM-Endpunkte → 502                   | beide Provider-Calls fehlgeschlagen (Key/Quota/Netz) | `pm2 logs priority-pilot` — die Meldung nennt den Provider                                    |
-| TLS schlägt fehl                      | DNS-A-Record fehlt/falsch                            | A-Record auf Server-IP, dann `sudo systemctl reload caddy`                                    |
-| Backend nach Reboot weg               | `pm2 startup`/`pm2 save` nie eingerichtet            | Schritt 6 nachholen                                                                           |
+| Symptom                               | Wahrscheinliche Ursache                                                                      | Prüfen / Fix                                                                                      |
+| ------------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `pm2 status` zeigt `errored`/restarts | `node_modules`/`sqlite3`-ABI passt nicht zum Host                                            | `pm2 logs priority-pilot`; ggf. Host-Install (`pnpm install --prod` im App-Verzeichnis)           |
+| API-Calls liefern HTML/404            | Caddy kennt `/api/v1/*` nicht (SPA-Fallback greift)                                          | `handle /api/v1/*`-Block + `strip_prefix` prüfen ([caddy-setup.md](caddy-setup.md))               |
+| Daten weg nach Deploy                 | `DATABASE_STORAGE` zeigt in gespiegeltes Verzeichnis                                         | absoluten `data/`-Pfad setzen (Schritt 5)                                                         |
+| Demo-Daten erscheinen in Prod         | `DB_SEED` nicht auf `false`                                                                  | Env-Datei korrigieren, `pm2 reload priority-pilot --update-env`                                   |
+| LLM-Endpunkte → 503                   | **kein** LLM-Key gesetzt (weder DB noch Env)                                                 | `MISTRAL_API_KEY` **oder** `OPENROUTER_API_KEY` setzen ([llm-providers.md](llm-providers.md))     |
+| LLM-Endpunkte → 502                   | alle **konfigurierten** Provider-Calls fehlgeschlagen (Key ungültig/Quota/Netz/Timeout 30 s) | Key + Quota beim Provider prüfen; 502-Response-Body auslesen (Server loggt zu diesem Fall nichts) |
+| TLS schlägt fehl                      | DNS-A-Record fehlt/falsch                                                                    | A-Record auf Server-IP, dann `sudo systemctl reload caddy`                                        |
+| Backend nach Reboot weg               | `pm2 startup`/`pm2 save` nie eingerichtet                                                    | Schritt 6 nachholen                                                                               |
 
 ---
 

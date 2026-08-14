@@ -100,7 +100,7 @@ DB_SEED=false           # KEINE Demo-Daten bei jedem Start (Default würde seede
 
 # LLM-Kaskade. Mindestens EIN Key nötig — sonst antworten die LLM-Endpunkte mit 503.
 MISTRAL_API_KEY=...
-# MISTRAL_MODEL=mistral-small-latest                       # optional, Default mistral-small-latest
+# MISTRAL_MODEL=mistral-medium-latest                      # optional, Default mistral-medium-latest
 # OPENROUTER_API_KEY=sk-or-v1-...                          # optional, aktiviert die Verfeinerungs-Stufe
 # OPENROUTER_MODEL=openrouter/free                         # optional
 ```

@@ -53,8 +53,11 @@ Es gibt **zwei Konfigurationswege** — beide setzen dieselben Werte (Keys + Ope
 
 **Vorrang:** Eine in der DB persistierte Konfiguration (Weg B) gewinnt **pro Feld** gegen die
 Env-Variable (Weg A); leere/nicht gesetzte DB-Felder fallen auf die Env zurück
-(`loadEffectiveLlmConfig` in [`server/src/llm/llm.ts`](../server/src/llm/llm.ts)). Ohne
-DB-Konfiguration verhält sich der Server exakt wie vorher — reiner Env-Betrieb.
+(`loadEffectiveLlmConfig` in [`server/src/llm/llm.ts`](../server/src/llm/llm.ts)). Das betrifft
+genau drei Felder: `MISTRAL_API_KEY`, `OPENROUTER_API_KEY` und `OPENROUTER_MODEL`. `MISTRAL_MODEL`
+und `OPENROUTER_API_URL` sind **ausschließlich über Env** konfigurierbar und in der Settings-UI
+nicht erreichbar. Ohne DB-Konfiguration verhält sich der Server exakt wie vorher — reiner
+Env-Betrieb.
 
 ### Weg A: Env-Variablen
 
