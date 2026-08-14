@@ -141,6 +141,8 @@ Schritten:
 - **Fail-closed:** Ist die Variable gesetzt, der Connect scheitert aber (Frankfurt down / Key
   falsch), wird `setup-claude` rot → der `claude -p`-Schritt wird übersprungen. Besser gar nicht
   laufen als LLM direkt von einer Azure-IP und wieder als „Account geteilt" geflaggt werden.
+  Gleiches gilt für einen **fehlenden `TAILSCALE_AUTH_KEY`**: ein vorgelagerter Preflight-Step
+  scheitert hart, statt die Tailscale-Schritte still zu überspringen (das wäre fail-open).
   Escape: Variable `TAILSCALE_EXIT_NODE` löschen.
 - **Zuverlässigkeitsabhängigkeit:** Solange das Routing aktiv ist, hängt jeder LLM-Lauf an
   Frankfurt + Tailscale. Ein Ausfall stoppt die Pipeline (fail-closed), beschädigt aber nichts —
