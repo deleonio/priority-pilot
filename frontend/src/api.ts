@@ -4,6 +4,8 @@ import type {
 	ActivityAdvisorResult,
 	components,
 	DependencyInput,
+	LlmConfigInput,
+	LlmConfigStatus,
 	ParsedTask,
 	paths,
 	PillarCreate,
@@ -390,6 +392,26 @@ export const api = {
 	// Zahl der Zustellungen und das gewählte Zitat zurück.
 	async sendTestPush(init: Init = {}): Promise<{ sent: number; quote: { text: string; author: string } }> {
 		const { data, response } = await client.POST('/push/test', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response);
+		}
+		return data;
+	},
+
+	// Status der LLM-Provider-Konfiguration lesen (#640). Liefert nur, OB jeweils ein Key
+	// persistiert ist, plus das Modell — nie die Key-Werte selbst (Sicherheit).
+	async getLlmConfig(init: Init = {}): Promise<LlmConfigStatus> {
+		const { data, response } = await client.GET('/llm-config', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response);
+		}
+		return data;
+	},
+
+	// LLM-Provider-Konfiguration speichern (#640). Abwesende Felder bleiben unverändert; nur
+	// ausgefüllte Felder überschreiben den DB-Stand. Liefert den neuen Status (ohne Key-Werte).
+	async setLlmConfig({ llmConfig }: { llmConfig: LlmConfigInput }): Promise<LlmConfigStatus> {
+		const { data, response } = await client.PUT('/llm-config', { body: llmConfig });
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response);
 		}

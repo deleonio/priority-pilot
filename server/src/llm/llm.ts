@@ -12,7 +12,13 @@
  * - `OPENROUTER_API_KEY` (optional einzeln, aktiviert die Verfeinerungs-Stufe), `OPENROUTER_MODEL` (Default Free-Modell),
  *   `OPENROUTER_API_URL` (Default `https://openrouter.ai/api/v1`)
  * - Kein Key überhaupt → {@link MissingApiKeyError} (→ HTTP 503).
+ *
+ * Seit #640 sind Keys/Modell zusätzlich über `PUT /llm-config` persistierbar. Eine gesetzte
+ * DB-Konfiguration hat Vorrang, die Env-Variablen bleiben Fallback (siehe
+ * {@link loadEffectiveLlmConfig}).
  */
+
+import { LlmConfig } from '../models/index.js';
 
 /** Eine vorgeschlagene Säulen-Einzahlung: Säulen-ID plus Konfidenz in Prozent (0–100). */
 export interface PillarSuggestion {
@@ -93,26 +99,59 @@ interface ProviderConfig {
 const MISTRAL_ENDPOINT = 'https://api.mistral.ai/v1/chat/completions';
 const DEFAULT_OPENROUTER_API_URL = 'https://openrouter.ai/api/v1';
 const DEFAULT_MISTRAL_MODEL = 'mistral-medium-latest';
-const DEFAULT_OPENROUTER_MODEL = 'openrouter/free';
+/** Default-Modell der OpenRouter-Stufe — zugleich der Anzeige-Default von `GET /llm-config` (#640). */
+export const DEFAULT_OPENROUTER_MODEL = 'openrouter/free';
 const REQUEST_TIMEOUT_MS = 30_000;
 
-/** Mistral-Config aus Env-Variablen. */
-function getMistralConfig(): ProviderConfig {
+/** Die konfigurierbaren Felder der Kaskade (#640) — leerer String bedeutet „nicht gesetzt". */
+export interface EffectiveLlmConfig {
+	mistralApiKey: string;
+	openrouterApiKey: string;
+	openrouterModel: string;
+}
+
+/**
+ * Effektive Kaskaden-Konfiguration (#640): Werte aus der persistierten `llm_configs`-Zeile haben
+ * Vorrang, leere/fehlende Werte fallen auf die Env-Variablen zurück. Existiert die Tabelle noch
+ * nicht (Unit-Tests ohne DB-Sync, frischer Prozess vor `sequelize.sync()`), gilt ebenfalls der
+ * Env-Fallback — die Kaskade darf daran nicht scheitern.
+ */
+export const loadEffectiveLlmConfig = async (): Promise<EffectiveLlmConfig> => {
+	let stored: LlmConfig | null;
+	try {
+		stored = await LlmConfig.findOne({ order: [['id', 'ASC']] });
+	} catch {
+		stored = null;
+	}
+	return {
+		mistralApiKey: stored?.mistralApiKey || (process.env.MISTRAL_API_KEY ?? ''),
+		openrouterApiKey: stored?.openrouterApiKey || (process.env.OPENROUTER_API_KEY ?? ''),
+		openrouterModel: stored?.openrouterModel || process.env.OPENROUTER_MODEL || DEFAULT_OPENROUTER_MODEL,
+	};
+};
+
+/** Mistral-Config aus der effektiven Konfiguration (DB vor Env). */
+function getMistralConfig(effective: EffectiveLlmConfig): ProviderConfig {
 	return {
 		endpoint: MISTRAL_ENDPOINT,
-		apiKey: process.env.MISTRAL_API_KEY,
+		apiKey: effective.mistralApiKey || undefined,
 		model: process.env.MISTRAL_MODEL ?? DEFAULT_MISTRAL_MODEL,
 		label: 'Mistral',
 	};
 }
 
-/** OpenRouter-Config aus Env-Variablen. Basis-URL über `OPENROUTER_API_URL` konfigurierbar. */
-function getOpenRouterConfig(): ProviderConfig {
+/**
+ * OpenRouter-Config aus der effektiven Konfiguration (DB vor Env). Die Basis-URL bleibt über
+ * `OPENROUTER_API_URL` konfigurierbar (#651); Key und Modell kommen aus der effektiven Config,
+ * die persistierte DB-Werte vorzieht (#640). `loadEffectiveLlmConfig` deckt bewusst nur Key und
+ * Modell — nicht die Endpoint-URL —, da `/llm-config` ausschließlich Key/Modell persistiert.
+ */
+function getOpenRouterConfig(effective: EffectiveLlmConfig): ProviderConfig {
 	const baseUrl = (process.env.OPENROUTER_API_URL ?? DEFAULT_OPENROUTER_API_URL).replace(/\/+$/, '');
 	return {
 		endpoint: `${baseUrl}/chat/completions`,
-		apiKey: process.env.OPENROUTER_API_KEY,
-		model: process.env.OPENROUTER_MODEL ?? DEFAULT_OPENROUTER_MODEL,
+		apiKey: effective.openrouterApiKey || undefined,
+		model: effective.openrouterModel,
 		label: 'OpenRouter',
 	};
 }
@@ -401,8 +440,9 @@ const callProvider = async (
  * - Gar kein Key → {@link MissingApiKeyError} (→ HTTP 503).
  */
 const requestModelJson = async (messages: { role: string; content: string }[]): Promise<unknown> => {
-	const mistral = getMistralConfig();
-	const openrouter = getOpenRouterConfig();
+	const effective = await loadEffectiveLlmConfig();
+	const mistral = getMistralConfig(effective);
+	const openrouter = getOpenRouterConfig(effective);
 
 	if (!mistral.apiKey && !openrouter.apiKey) {
 		throw new MissingApiKeyError();

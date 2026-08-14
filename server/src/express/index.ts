@@ -14,6 +14,7 @@ import { seriesRouter } from './routes/series.js';
 import { authRouter } from './routes/auth.js';
 import { transitRouter } from './routes/transit.js';
 import { createPushRouter } from './routes/push.js';
+import { llmConfigRouter } from './routes/llmConfig.js';
 import { handleServerError } from './server-error-handler.js';
 import type { PillarClassifier, ParseTaskParser, ActivityAdvisor } from '../llm/llm.js';
 import type { PushSender } from '../logics/push.js';
@@ -195,6 +196,9 @@ export const createApp = (deps: AppDeps = {}) => {
 	// Web-Push: Subscription an-/abmelden + öffentlichen VAPID-Schlüssel ausliefern (siehe routes/push.ts).
 	// Bewusst kein client-aufrufbarer „send"-Endpunkt — der Versand läuft server-intern (logics/push.ts).
 	app.use(createPushRouter(deps.pushSender));
+
+	// LLM-Provider-Konfiguration (#640): Keys/Modell der Mistral/OpenRouter-Kaskade lesen/speichern.
+	app.use(llmConfigRouter);
 
 	// GET /forest — Aufgabenwald nach Wertschöpfung sortiert (auf den eingeloggten Nutzer gefiltert).
 	app.get('/forest', async (req, res: express.Response<TaskTreeNodeDto[] | ErrorDto>) => {
