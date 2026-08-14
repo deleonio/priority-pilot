@@ -19,10 +19,10 @@ jobs:
 
       # 2. Tailscale verbinden & Traffic über den Exit Node zwingen
       - name: Connect to Tailscale
-        uses: tailscale/github-action@v4
+        uses: tailscale/github-action@306e68a486fd2350f2bfc3b19fcd143891a4a2d8 # v4
         with:
           authkey: ${{ secrets.TAILSCALE_AUTH_KEY }}
-          args: --exit-node=${{ secrets.TAILSCALE_EXIT_NODE }} --exit-node-allow-lan-access=true
+          args: --exit-node=${{ vars.TAILSCALE_EXIT_NODE }} --exit-node-allow-lan-access=true
 
       # 3. DNS-Fix: Exit-Node-Routing bricht die Runner-DNS (Azure-DNS ist durch den
       #    Tunnel nicht erreichbar). Öffentlichen Resolver setzen, der via Exit Node

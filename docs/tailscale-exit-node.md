@@ -5,8 +5,10 @@ Anleitung, um einen GitHub-Actions-Runner über einen eigenen Frankfurter Server
 deutschen IP des Servers ankommen. Manuell anstoßbar via
 [`tailscale-test.yml`](../.github/workflows/tailscale-test.yml).
 
-> **Status:** Nur ein **manueller Test-Workflow** (`workflow_dispatch`). Die produktiven
-> Claude-Phasen-Workflows (01–06) routen **nicht** durch Frankfurt — siehe [Grenzen](#grenzen).
+> **Status:** LLM-Egress aller 6 Claude-Pipeline-Phasen (01–06) und des manuellen Test-Workflows
+> läuft über den Frankfurter Exit Node — eingehängt zentral in
+> [`setup-claude`](../.github/actions/setup-claude/action.yml). Aktiviert/Deaktiviert über die
+> Variable `TAILSCALE_EXIT_NODE` (Kill-Switch), siehe [Grenzen](#grenzen).
 >
 > **Weiterführend:** [`server-setup.md`](server-setup.md) (Host-Einrichtung),
 > [`ci-architecture.md`](ci-architecture.md) (Provider/Modell-Architektur).
@@ -72,12 +74,18 @@ Generierten Schlüssel (`tskey-auth-…`) kopieren.
 
 ## 3. GitHub konfigurieren
 
-Im Repo unter **Settings → Secrets and variables → Actions** zwei **Repository Secrets** anlegen:
+Im Repo unter **Settings → Secrets and variables → Actions** anlegen:
 
-| Name                  | Wert                                                                        |
-| --------------------- | --------------------------------------------------------------------------- |
-| `TAILSCALE_AUTH_KEY`  | Der generierte Auth-Key (`tskey-auth-…`).                                   |
-| `TAILSCALE_EXIT_NODE` | Tailscale-Name oder `100.x.y.z`-IP des Frankfurter Servers (Admin-Console). |
+| Art          | Name                  | Wert                                                                        |
+| ------------ | --------------------- | --------------------------------------------------------------------------- |
+| **Secret**   | `TAILSCALE_AUTH_KEY`  | Der generierte Auth-Key (`tskey-auth-…`). Maskiert, da sensitiv.            |
+| **Variable** | `TAILSCALE_EXIT_NODE` | Tailscale-Name oder `100.x.y.z`-IP des Frankfurter Servers (Admin-Console). |
+
+> **Warum die Variable als `vars.` und nicht als Secret?** Eine **leere Variable deaktiviert das
+> gesamte Routing** (Kill-Switch): in `setup-claude` prüft die `if:`-Bedingung
+> `inputs.tailscale-exit-node != ''` — leer → Tailscale-Schritte übersprungen → exakt heutiges
+> Verhalten. Secrets eignen sich dafür nicht (ein leeres Secret ist nicht sauber abfragbar und
+> maskiert Werte unnötig, die nicht sensitiv sind).
 
 ## 4. Workflow
 
@@ -120,8 +128,20 @@ Schritten:
 - **`tailscale up`-Schritt rot:** Meist ist der Exit Node im Admin-Console nicht freigeschaltet oder
   `TAILSCALE_EXIT_NODE` zeigt auf den falschen Knoten.
 
-## Grenzen
+## Grenzen & Betriebsverhalten
 
-Dieser Workflow ist **rein diagnostisch** und wird manuell ausgelöst. Die produktiven
-Pipeline-Workflows ([01–06](../.github/workflows/)) routen ihren LLM-Traffic **nicht** durch
-Frankfurt — eine spätere Anbindung wäre ein eigener, größerer Schritt (neue Abhängigkeit pro Lauf).
+- **Pipeline angebunden:** Alle 6 Claude-Phasen (01–06) verbinden sich im
+  [`setup-claude`](../.github/actions/setup-claude/action.yml)-Composite mit dem Exit Node, **bevor**
+  der `claude -p`-Aufruf läuft. So egressiert der gesamte LLM-Traffic über die Frankfurter IP;
+  pre-LLM-Setup (App-Token, Cache, `npm install`) bleibt bewusst direkt (keine Exit-Node-Last für
+  GitHub/npm).
+- **Kill-Switch (`vars.TAILSCALE_EXIT_NODE`):** Variable vorhanden → Routing aktiv. Variable leer
+  bzw. gelöscht → Tailscale-Schritte werden übersprungen, die Pipeline läuft wie ohne Exit Node.
+  Globaler Aus-Schalter ohne Code-Änderung (z. B. bei einer Frankfurt-Störung).
+- **Fail-closed:** Ist die Variable gesetzt, der Connect scheitert aber (Frankfurt down / Key
+  falsch), wird `setup-claude` rot → der `claude -p`-Schritt wird übersprungen. Besser gar nicht
+  laufen als LLM direkt von einer Azure-IP und wieder als „Account geteilt" geflaggt werden.
+  Escape: Variable `TAILSCALE_EXIT_NODE` löschen.
+- **Zuverlässigkeitsabhängigkeit:** Solange das Routing aktiv ist, hängt jeder LLM-Lauf an
+  Frankfurt + Tailscale. Ein Ausfall stoppt die Pipeline (fail-closed), beschädigt aber nichts —
+  nach Wiederherstellung laufen die Phasen normal weiter.
