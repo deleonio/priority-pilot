@@ -225,10 +225,12 @@ export function computeCodeMask(s: string): boolean[] {
 				}
 				if (c === '}') {
 					const top = braceStack.pop();
-					mask[i] = true;
 					lastToken = c;
 					if (top === 'interp') {
+						mask[i] = false;
 						mode = 'tpl';
+					} else {
+						mask[i] = true;
 					}
 					i++;
 					continue;
