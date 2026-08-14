@@ -1,29 +1,74 @@
 name: 5/6 Fixup
 
-# ⚠️ Der `name:` ist lastend: der Supersede-Check (select(.name == "Claude PR Fixup
-#    (Findings umsetzen)")) matcht ihn exakt. Umbenennen schaltet den Guard lautlos ab →
-#    Duplikat-Läufe. ACHTUNG: es gibt KEINEN Contract-Test für diese Kopplung (ADR #567 —
-#    Workflows bleiben ungetestet), ein Rename fällt also lautlos durch — vor jeder
-#    `name:`-Änderung den Supersede-Guard manuell mitpflegen.
+# ⚠️ Der `name:` ist lastend: `claude-memory-save.yml` triggert via workflow_run auf
+# '5/6 Fixup'. Umbenennen schaltet das Memory-Persistieren lautlos ab.
 
 # Reagiert auf das Label "ai:needs-changes" (vom Review gesetzt) und setzt die
 # zutreffenden Findings um.
 # Setzt **Claude Code** ein; Provider via `vars.LLM_PROVIDER` (zai|claude), aufgelöst in setup-claude.
 #   review → ai:needs-changes → fixup → ai:needs-review → review → ... bis 🟢
+#
+# CONCURRENCY: Statische Gruppe pro Phase (globale Serialisierung, FIFO). Der `precheck`-Job
+# prüft den LABEL-IST-ZUSTAND zur LAUFZEIT — queued Runs würden mit dem Label-Zustand zum
+# TRIGGER-Zeitpunkt falsch wiederholen.
 
 on:
   pull_request:
     types: [labeled]
 
 concurrency:
-  group: claude-pr-fixup-${{ github.event.pull_request.number }}-${{ github.event.label.name == 'ai:needs-changes' }}
-  cancel-in-progress: true
+  group: claude-pr-fixup
+  cancel-in-progress: false
 
 jobs:
+  precheck:
+    # Label-IST-Zustand zur Laufzeit: ai:needs-changes muss JETZT (nach dem Warten in der
+    # globalen Phasen-Queue) noch am PR kleben und der PR offen + nicht-draft sein. Fail-open
+    # bei API-Fehler — ein transienter gh-Fehler darf den Fixup nicht still verlieren lassen.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+    outputs:
+      proceed: ${{ steps.check.outputs.proceed }}
+    steps:
+      - name: Label-Pre-Check (IST-Zustand zur Laufzeit)
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          proceed="false"
+          reason=""
+          if ! DATA="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json state,isDraft,labels 2>/dev/null)"; then
+            echo "::warning::PR-Abfrage fehlgeschlagen — Fail-open, Lauf wird fortgesetzt."
+            proceed="true"
+          else
+            STATE="$(printf '%s' "$DATA" | jq -r '.state')"
+            DRAFT="$(printf '%s' "$DATA" | jq -r '.isDraft')"
+            HAS_LABEL="$(printf '%s' "$DATA" | jq -r 'any(.labels[]; .name == "ai:needs-changes")')"
+            if [ "$STATE" != "open" ]; then
+              reason="PR #$PR ist nicht mehr offen"
+            elif [ "$DRAFT" = "true" ]; then
+              reason="PR #$PR ist inzwischen Draft"
+            elif [ "$HAS_LABEL" != "true" ]; then
+              reason="ai:needs-changes wurde inzwischen konsumiert/entfernt"
+            else
+              proceed="true"
+            fi
+          fi
+          if [ -n "$reason" ]; then
+            echo "::notice title=⏭️ Fixup übersprungen::${reason} — Trigger ist konsumiert."
+          fi
+          echo "proceed=$proceed" >> "$GITHUB_OUTPUT"
+
   fixup:
+    needs: precheck
+    # Unveränderliche Event-Fakten hier; alles Mutable (Label-Zustand, State, Draft) prüft der
+    # precheck-Job zur Laufzeit.
     if: >-
-      ${{ github.event.label.name == 'ai:needs-changes'
-          && github.event.pull_request.draft == false
+      ${{ needs.precheck.outputs.proceed == 'true'
+          && github.event.label.name == 'ai:needs-changes'
           && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -147,25 +192,19 @@ jobs:
           fi
           echo "stop=false" >> "$GITHUB_OUTPUT"
 
-      - name: Supersede-Check
-        id: supersede-check
-        if: steps.setup.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true'
-        env:
-          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
-          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
-        run: |
-          running=$(gh api repos/${GITHUB_REPOSITORY}/actions/runs \
-            --jq '.workflow_runs[] | select(.name == "5/6 Fixup" and (.status == "queued" or .status == "in_progress") and .head_branch == $ENV.HEAD_BRANCH and .id != ${{ github.run_id }}) | .id' 2>/dev/null | head -1)
-          if [ -n "$running" ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; fi
+      # Kein Supersede-Check mehr: Die globale Phasen-Serialisierung (statische
+      # concurrency-Gruppe) lässt Fixup-Läufe desselben Branches nie parallel laufen, und der
+      # precheck dedupliziert über den Label-IST-Zustand. Ein Lauf-Listen-Guard würde hier nur
+      # noch queued Nachfolger finden und das FALSCHE Skip auslösen.
 
       - name: HEAD vor Claude merken (Fortschritts-Baseline)
         id: head-before
-        if: steps.setup.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true' && steps.supersede-check.outputs.skip != 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true'
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Findings umsetzen via Claude
         id: claude
-        if: steps.setup.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true' && steps.supersede-check.outputs.skip != 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
@@ -238,8 +277,8 @@ jobs:
         # B1: Label-Transition auch bei Claude failure/cancelled — sonst bleibt der PR bei einem
         # Crash/Timeout dauerhaft auf ai:needs-changes kleben (kein Re-Arm, keine Eskalation).
         # Analog 04-claude-pr-review.yml (dort success|failure; hier zusaetzlich cancelled wg.
-        # timeout-minutes-Backstop). Skip-Reasons (stop-guard/supersede) liefern outcome=skipped
-        # und fallen hier korrekt raus.
+        # timeout-minutes-Backstop). Skip-Reasons (stop-guard) liefern outcome=skipped und
+        # fallen hier korrekt raus.
         if: always() && steps.setup.outputs.configured == 'true' && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure' || steps.claude.outcome == 'cancelled')
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
@@ -320,21 +359,18 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
           OUTCOME: ${{ steps.claude.outcome }}
-          SKIP_SUPERSEDE: ${{ steps.supersede-check.outputs.skip }}
           STOP_GUARD: ${{ steps.stop-guard.outputs.stop }}
           STUCK: ${{ steps.label-post.outputs.stuck }}
           STUCK_REASON: ${{ steps.label-post.outputs.stuck_reason }}
         run: |
           labels="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
-          # Je ein eigener Arm pro Guard: ohne sie faellt der gewollte Abbruch auf den
+          # Eigener Arm fuer den Stop-Guard: ohne ihn faellt der gewollte Abbruch auf den
           # Fehler-Arm (OUTCOME ist leer, weil der claude-Step nie lief) und meldet ❌.
           # Der Stop-Guard ist ein GEWOLLTER Abbruch (Loop-Schutz, > 10 Commits) — er hat
           # bereits selbst kommentiert; hier gehoert eine Warnung hin, kein Fehler.
           # Dasselbe gilt fuer den No-Progress-Fall (STUCK): Claude lief, aber ohne Commit ->
           # bewusst keine Re-Armierung, Mensch prüft.
-          if [ "${SKIP_SUPERSEDE:-false}" = "true" ]; then
-            echo "::notice title=⏭️ Fixup übersprungen::PR #${PR} — Lauf bereits aktiv"
-          elif [ "${STOP_GUARD:-false}" = "true" ]; then
+          if [ "${STOP_GUARD:-false}" = "true" ]; then
             echo "::warning title=🛑 Fixup gestoppt::PR #${PR} — Stop-Guard (Loop-Schutz), bitte manuell prüfen"
           elif [ "${STUCK:-false}" = "true" ]; then
             # STUCK=true kommt von drei Pfaden (stuck_reason): Claude-Crash (OUTCOME!=success),

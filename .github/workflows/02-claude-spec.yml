@@ -1,26 +1,72 @@
-# ⚠️ Der Workflow-Name ist der Selektor des Skip-Guards weiter unten
-# (`select(.name == "2/6 Spec" ...)`). Wird er hier geaendert,
-# muss die jq-Query mitgezogen werden — sonst greift der Guard still nicht mehr.
+# ⚠️ Der Workflow-Name ist lastend: `claude-memory-save.yml` triggert via workflow_run auf
+# '2/6 Spec'. Umbenennen schaltet das Memory-Persistieren lautlos ab.
 name: 2/6 Spec
 
 # Schreibt die ROTEN Tests (ausführbarer Vertrag) für ein Issue, sobald es
 # das Label "ai:spec-ready" erhält UND bereits "ai:analyzed" trägt.
 # Setzt **Claude Code** ein; Provider via `vars.LLM_PROVIDER` (zai|claude), aufgelöst in setup-claude.
+#
+# CONCURRENCY: Statische Gruppe pro Phase (globale Serialisierung, FIFO). Der `precheck`-Job
+# prüft den LABEL-IST-ZUSTAND zur LAUFZEIT — queued Runs würden mit dem Label-Zustand zum
+# TRIGGER-Zeitpunkt falsch wiederholen (Label inzwischen von einem anderen Lauf konsumiert).
 
 on:
   issues:
     types: [labeled]
 
 concurrency:
-  group: claude-spec-${{ github.event.issue.number }}
+  group: claude-spec
   cancel-in-progress: false
 
 jobs:
+  precheck:
+    # Label-IST-Zustand zur Laufzeit: ai:spec-ready + ai:analyzed müssen JETZT (nach dem
+    # Warten in der globalen Phasen-Queue) noch am Issue kleben. Fail-open bei API-Fehler —
+    # ein transienter gh-Fehler darf die Spec nicht still verlieren lassen.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: read
+    outputs:
+      proceed: ${{ steps.check.outputs.proceed }}
+    steps:
+      - name: Label-Pre-Check (IST-Zustand zur Laufzeit)
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          proceed="false"
+          reason=""
+          if ! DATA="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json state,labels 2>/dev/null)"; then
+            echo "::warning::Issue-Abfrage fehlgeschlagen — Fail-open, Lauf wird fortgesetzt."
+            proceed="true"
+          else
+            STATE="$(printf '%s' "$DATA" | jq -r '.state')"
+            HAS_SPEC_READY="$(printf '%s' "$DATA" | jq -r 'any(.labels[]; .name == "ai:spec-ready")')"
+            HAS_ANALYZED="$(printf '%s' "$DATA" | jq -r 'any(.labels[]; .name == "ai:analyzed")')"
+            if [ "$STATE" != "open" ]; then
+              reason="Issue #$ISSUE ist nicht mehr offen"
+            elif [ "$HAS_SPEC_READY" != "true" ]; then
+              reason="ai:spec-ready wurde inzwischen konsumiert/entfernt"
+            elif [ "$HAS_ANALYZED" != "true" ]; then
+              reason="ai:analyzed fehlt inzwischen"
+            else
+              proceed="true"
+            fi
+          fi
+          if [ -n "$reason" ]; then
+            echo "::notice title=⏭️ Spec übersprungen::${reason} — Trigger ist konsumiert."
+          fi
+          echo "proceed=$proceed" >> "$GITHUB_OUTPUT"
+
   spec:
+    needs: precheck
+    # Unveränderliche Event-Fakten hier; alles Mutable (Label-Zustand, Issue-State) prüft der
+    # precheck-Job zur Laufzeit.
     if: >-
-      ${{ github.event.label.name == 'ai:spec-ready'
-          && contains(github.event.issue.labels.*.name, 'ai:analyzed')
-          && github.event.issue.state == 'open' }}
+      ${{ needs.precheck.outputs.proceed == 'true'
+          && github.event.label.name == 'ai:spec-ready' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -66,34 +112,22 @@ jobs:
           memory-load: 'true'
           expect-memory: 'true'
 
-      - name: Skip-Guard (Spec läuft bereits)
-        id: skip-guard
-        if: steps.setup.outputs.configured == 'true'
-        env:
-          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
-          ISSUE: ${{ github.event.issue.number }}
-        run: |
-          running=$(gh api --paginate repos/${GITHUB_REPOSITORY}/actions/runs \
-            --jq '.workflow_runs[] | select(.name == "2/6 Spec" and (.status == "queued" or .status == "in_progress") and (.event.issue.number | tonumber) == (env.ISSUE | tonumber) and .id != ${{ github.run_id }}) | .id' 2>/dev/null | head -1)
-          if [ -n "$running" ]; then
-            echo "::notice::Spec-Lauf für Issue #$ISSUE läuft bereits – übersprungen."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
+      # Kein Skip-Guard ("läuft bereits") mehr: Die globale Phasen-Serialisierung (statische
+      # concurrency-Gruppe) lässt Läufe desselben Issues nie parallel laufen, und der precheck
+      # dedupliziert über den Label-IST-Zustand. Ein Lauf-Listen-Guard würde hier nur noch
+      # queued Nachfolger finden und das FALSCHE Skip auslösen.
 
       - name: Doppel-Run-Guard (ready-PR existiert) + verwaiste Drafts aufräumen
         id: doppel-guard
-        if: steps.setup.outputs.configured == 'true' && steps.skip-guard.outputs.skip != 'true'
+        if: steps.setup.outputs.configured == 'true'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
           # Ready-PR (Nicht-Draft) existiert -> Implement schon gelaufen -> skip. Symmetrie zu
           # 03-claude-implement.yml, dessen Guard ebenfalls nur auf Nicht-Drafts prueft. Ein Draft
-          # allein ist KEIN Skip-Grund: er stammt von einem abgebrochenen Spec-Lauf (der
-          # Skip-Guard davor hat bereits sichergestellt, dass kein aktiver Spec-Lauf mehr laeuft)
-          # und wuerde die Issue sonst dauerhaft blockieren (G5).
+          # allein ist KEIN Skip-Grund: er stammt von einem abgebrochenen Spec-Lauf und wuerde
+          # die Issue sonst dauerhaft blockieren (G5).
           # Ready-PR = nicht-draft PR zu diesem Issue. Helper probiert primär
           # closingIssuesReferences und fällt bei fehlendem "#" ("Closes NNN") auf
           # Body-Suche zurück. schluckt gh-Fehler intern (→ 0), fail-open bleibt erhalten.
@@ -118,27 +152,27 @@ jobs:
           echo "skip=false" >> "$GITHUB_OUTPUT"
 
       - name: pnpm einrichten
-        if: steps.setup.outputs.configured == 'true' && steps.skip-guard.outputs.skip != 'true' && steps.doppel-guard.outputs.skip != 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
 
       - name: Node.js einrichten
-        if: steps.setup.outputs.configured == 'true' && steps.skip-guard.outputs.skip != 'true' && steps.doppel-guard.outputs.skip != 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version-file: .nvmrc
           cache: pnpm
 
       - name: Abhängigkeiten installieren
-        if: steps.setup.outputs.configured == 'true' && steps.skip-guard.outputs.skip != 'true' && steps.doppel-guard.outputs.skip != 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Git-Hooks installieren (lefthook)
-        if: steps.setup.outputs.configured == 'true' && steps.skip-guard.outputs.skip != 'true' && steps.doppel-guard.outputs.skip != 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         run: pnpm exec lefthook install
 
       - name: Spec via Claude
         id: claude
-        if: steps.setup.outputs.configured == 'true' && steps.skip-guard.outputs.skip != 'true' && steps.doppel-guard.outputs.skip != 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
@@ -176,7 +210,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Label-Post-Assertion (VERDICT parsen, Labels via App-Token force-setzen)
-        if: always() && steps.setup.outputs.configured == 'true' && steps.skip-guard.outputs.skip != 'true' && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure' || steps.doppel-guard.outputs.skip == 'true')
+        if: always() && steps.setup.outputs.configured == 'true' && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure' || steps.doppel-guard.outputs.skip == 'true')
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
@@ -255,15 +289,12 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
           OUTCOME: ${{ steps.claude.outcome }}
-          SKIP_GUARD: ${{ steps.skip-guard.outputs.skip }}
           SKIP_DOPPEL: ${{ steps.doppel-guard.outputs.skip }}
         run: |
           labels="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
-          # Je ein eigener Arm pro Guard: ohne sie faellt der gewollte Skip auf den
+          # Eigener Arm fuer den Doppel-Run-Guard: ohne ihn faellt der gewollte Skip auf den
           # Fehler-Arm (OUTCOME ist leer, weil der claude-Step nie lief) und meldet ❌.
-          if [ "${SKIP_GUARD:-false}" = "true" ]; then
-            echo "::notice title=⏭️ Spec übersprungen::Issue #${ISSUE} — Lauf bereits aktiv"
-          elif [ "${SKIP_DOPPEL:-false}" = "true" ]; then
+          if [ "${SKIP_DOPPEL:-false}" = "true" ]; then
             echo "::notice title=⏭️ Spec übersprungen::Issue #${ISSUE} — PR existiert bereits"
           elif [ "$OUTCOME" = "success" ]; then
             echo "::notice title=✅ Spec erfolgreich::Issue #${ISSUE} — Rote Tests geschrieben"

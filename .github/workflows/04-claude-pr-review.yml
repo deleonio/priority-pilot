@@ -1,11 +1,10 @@
 name: 4/6 Review
 
-# ⚠️ Der `name:` ist lastend: der Supersede-Check (select(.name == "Claude PR Review
-#    (Kreuzverhoer)")) UND das workflow_run-Allowlist in claude-pr-gate-merge.yml matchen ihn
-#    exakt. Umbenennen schaltet beide lautlos ab → Duplikat-Läufe / stummes Gate. ACHTUNG:
-#    es gibt KEINEN Contract-Test für diese Kopplung (ADR #567 — Workflows bleiben ungetestet),
-#    ein Rename fällt also lautlos durch — vor jeder `name:`-Änderung beide Guard-Stellen
-#    (Supersede-Check hier + Allowlist in gate-merge) manuell mitpflegen.
+# ⚠️ Der `name:` ist lastend: das workflow_run-Allowlist in claude-pr-gate-merge.yml UND der
+#    Trigger von claude-memory-save.yml matchen ihn exakt ("4/6 Review"). Umbenennen schaltet
+#    beide lautlos ab → stummes Gate / kein Memory-Persist. ACHTUNG: es gibt KEINEN Contract-Test
+#    für diese Kopplung (ADR #567 — Workflows bleiben ungetestet), ein Rename fällt also lautlos
+#    durch — vor jeder `name:`-Änderung beide Stellen manuell mitpflegen.
 
 # Reviewt einen Pull Request im Kreuzverhör, sobald er das Label
 # "ai:needs-review" trägt.
@@ -14,22 +13,71 @@ name: 4/6 Review
 #   - Entscheidungs-Findings ("Mensch entscheidet") → ai:needs-human (→ wartet auf Mensch)
 #   - sauber 🟢 → ai:ready-to-merge (→ Gate)
 # Ändert KEINEN Code.
+#
+# CONCURRENCY: Statische Gruppe pro Phase (globale Serialisierung, FIFO). Der `precheck`-Job
+# prüft den LABEL-IST-ZUSTAND zur LAUFZEIT — queued Runs würden mit dem Label-Zustand zum
+# TRIGGER-Zeitpunkt falsch wiederholen. Der frühere Supersede-Effekt (cancel-in-progress: true
+# verdrängte den laufenden Review bei Neu-Triggern) wird durch den Autolabeler kompensiert
+# (pr-needs-review-label.yml cancelt bei menschlichem Push zuerst alte 04/05-Runs des Branches).
 
 on:
   pull_request:
     types: [labeled]
 
 concurrency:
-  group: claude-pr-review-${{ github.event.pull_request.number }}-${{ github.event.label.name == 'ai:needs-review' }}
-  cancel-in-progress: true
+  group: claude-pr-review
+  cancel-in-progress: false
 
 jobs:
+  precheck:
+    # Label-IST-Zustand zur Laufzeit: ai:needs-review muss JETZT (nach dem Warten in der
+    # globalen Phasen-Queue) noch am PR kleben und der PR offen + nicht-draft sein. Fail-open
+    # bei API-Fehler — ein transienter gh-Fehler darf den Review nicht still verlieren lassen.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+    outputs:
+      proceed: ${{ steps.check.outputs.proceed }}
+    steps:
+      - name: Label-Pre-Check (IST-Zustand zur Laufzeit)
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          proceed="false"
+          reason=""
+          if ! DATA="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json state,isDraft,labels 2>/dev/null)"; then
+            echo "::warning::PR-Abfrage fehlgeschlagen — Fail-open, Lauf wird fortgesetzt."
+            proceed="true"
+          else
+            STATE="$(printf '%s' "$DATA" | jq -r '.state')"
+            DRAFT="$(printf '%s' "$DATA" | jq -r '.isDraft')"
+            HAS_LABEL="$(printf '%s' "$DATA" | jq -r 'any(.labels[]; .name == "ai:needs-review")')"
+            if [ "$STATE" != "open" ]; then
+              reason="PR #$PR ist nicht mehr offen"
+            elif [ "$DRAFT" = "true" ]; then
+              reason="PR #$PR ist inzwischen Draft"
+            elif [ "$HAS_LABEL" != "true" ]; then
+              reason="ai:needs-review wurde inzwischen konsumiert/entfernt"
+            else
+              proceed="true"
+            fi
+          fi
+          if [ -n "$reason" ]; then
+            echo "::notice title=⏭️ Review übersprungen::${reason} — Trigger ist konsumiert."
+          fi
+          echo "proceed=$proceed" >> "$GITHUB_OUTPUT"
+
   review:
+    needs: precheck
+    # Unveränderliche Event-Fakten hier; alles Mutable (Label-Zustand, State, Draft) prüft der
+    # precheck-Job zur Laufzeit.
     if: >-
-      ${{ github.event.label.name == 'ai:needs-review'
-          && github.event.pull_request.draft == false
-          && github.event.pull_request.head.repo.full_name == github.repository
-          && contains(github.event.pull_request.labels.*.name, 'ai:needs-review') }}
+      ${{ needs.precheck.outputs.proceed == 'true'
+          && github.event.label.name == 'ai:needs-review'
+          && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -75,23 +123,14 @@ jobs:
           memory-load: 'true'
           expect-memory: 'true'
 
-      - name: Supersede-Check
-        id: supersede-check
-        if: steps.setup.outputs.configured == 'true'
-        env:
-          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
-          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
-        run: |
-          running=$(gh api repos/${GITHUB_REPOSITORY}/actions/runs \
-            --jq '.workflow_runs[] | select(.name == "4/6 Review" and (.status == "queued" or .status == "in_progress") and .head_branch == $ENV.HEAD_BRANCH and .id != ${{ github.run_id }}) | .id' 2>/dev/null | head -1)
-          if [ -n "$running" ]; then
-            echo "::notice::Review-Lauf läuft bereits – übersprungen."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          fi
+      # Kein Supersede-Check mehr: Die globale Phasen-Serialisierung (statische
+      # concurrency-Gruppe) lässt Review-Läufe desselben Branches nie parallel laufen, und der
+      # precheck dedupliziert über den Label-IST-Zustand. Neu-Triggern bei menschlichem Push
+      # übernimmt der Autolabeler (cancel + Neu-Setzen von ai:needs-review).
 
       - name: Kreuzverhör-Review via Claude
         id: claude
-        if: steps.setup.outputs.configured == 'true' && steps.supersede-check.outputs.skip != 'true'
+        if: steps.setup.outputs.configured == 'true'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
@@ -326,14 +365,9 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
           OUTCOME: ${{ steps.claude.outcome }}
-          SKIP_SUPERSEDE: ${{ steps.supersede-check.outputs.skip }}
         run: |
           labels="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
-          # Eigener Arm fuer den Supersede-Check: ohne ihn faellt der gewollte Skip auf den
-          # Fehler-Arm (OUTCOME ist leer, weil der claude-Step nie lief) und meldet ❌.
-          if [ "${SKIP_SUPERSEDE:-false}" = "true" ]; then
-            echo "::notice title=⏭️ Review übersprungen::PR #${PR} — Lauf bereits aktiv"
-          elif [ "$OUTCOME" = "success" ]; then
+          if [ "$OUTCOME" = "success" ]; then
             echo "::notice title=✅ Review erfolgreich::PR #${PR}"
           elif [ "$OUTCOME" = "cancelled" ]; then
             echo "::warning title=⏸️ Review abgebrochen"
@@ -357,15 +391,7 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
-          SKIP_SUPERSEDE: ${{ steps.supersede-check.outputs.skip }}
         run: |
-          # Beim Supersede-Skip hat dieser Lauf nichts beigetragen — das Ergebnis-Label setzt der
-          # laufende Review. Ohne diesen Arm meldet der Step "stecken geblieben" fuer einen
-          # gewollten Skip und faerbt einen korrekt arbeitenden Lauf rot.
-          if [ "${SKIP_SUPERSEDE:-false}" = "true" ]; then
-            echo "::notice title=⏭️ Verifikation übersprungen::PR #${PR} — laufender Review setzt das Label"
-            exit 0
-          fi
           for i in 1 2 3 4 5; do
             labels_json="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name]' 2>/dev/null || echo '[]')"
             needs_changes="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:needs-changes")')"

@@ -9,7 +9,10 @@ name: PR Auto-Label (ai:needs-review)
 # Review ohne Altlasten. Das Loop-Breaking selbst lebt bewusst NICHT hier, sondern in den
 # LLM-Phasen: Fixup misst HEAD-Bewegung (kein neuer Commit -> terminal ai:needs-human) plus
 # Stop-Guard (>10 PR-Commits), Review setzt ai:needs-human terminal. Dieser Autolabeler setzt
-# nur den Einstieg und raeumt Ergebnis-Labels weg — er bremst nicht.
+# den Einstieg, raeumt Ergebnis-Labels weg UND cancelt bei menschlichem Push (synchronize)
+# laufende/queued Review-/Fixup-Laeufe des Branches — Supersede-Kompensation dafuer, dass die
+# Phasen-Workflows seit der statischen concurrency-Gruppe nicht mehr verdraengen, sondern nur
+# noch serialisieren (cancel-in-progress: false).
 # sender.type != 'Bot' (job-if) stellt sicher, dass NUR Menschen-Pushes zuruecksetzen,
 # nicht die Fixup-Bot-Commits.
 #
@@ -113,6 +116,32 @@ jobs:
           fi
           echo "token=$APP_TOK" >> "$GITHUB_OUTPUT"
           echo "::notice::Nutze GitHub-App-Token für gh-Befehle."
+
+      # SUPERSEDE-Kompensation (nur synchronize — opened/ready_for_review können keine laufenden
+      # Reviews haben): Die Phasen-Workflows 04/05 serialisieren seit der statischen
+      # concurrency-Gruppe global mit cancel-in-progress: false. Ohne diesen Cancel wuerde ein
+      # LAUFENDER Review den frisch gesteckten Trigger konsumieren (entfernt ai:needs-review in
+      # seiner Post-Assertion), der queued Folge-Lauf im Label-Pre-Check skippen — und der
+      # menschliche Push bliebe unreviewed. Ein menschlicher Push ist echter Fortschritt und
+      # VERDRÄNGT deshalb bewusst laufende/queued Review- und Fixup-Läufe des Branches
+      # (Muster: claude-pr-cancel.yml). Danach sorgt Entfernen+Neu-Setzen des Labels für einen
+      # frischen Review-Lauf, der garantiert den neuen Head sieht.
+      - name: Stale Review-/Fixup-Läufe des Branches abbrechen (nur synchronize)
+        if: github.event.action == 'synchronize' && steps.preflight.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
+          REPO: ${{ github.repository }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          for wf in 04-claude-pr-review.yml 05-claude-pr-fixup.yml; do
+            gh run list --repo "$REPO" --workflow "$wf" --branch "$HEAD_REF" \
+              --json databaseId,status \
+              --jq '.[] | select(.status=="in_progress" or .status=="queued") | .databaseId' \
+              | while read -r id; do
+                  echo "Breche Run $id ($wf) ab — menschlicher Push verdrängt stale Review/Fixup."
+                  gh run cancel --repo "$REPO" "$id" || true
+                done
+          done
 
       # Reiner gh-Job (kein Checkout, kein LLM): Alte Ergebnis-Labels entfernen, dann
       # ai:needs-review setzen. Mit dem App-Token gesetzt, damit das "labeled"-Event den

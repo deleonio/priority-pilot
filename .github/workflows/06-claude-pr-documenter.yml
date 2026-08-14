@@ -22,8 +22,10 @@ on:
         type: string
 
 concurrency:
-  # Pro-PR keyed: kurz hintereinander gemergte PRs parallelisieren statt serialisieren.
-  group: 06-pr-documenter-${{ github.event.pull_request.number || github.event.inputs.pr-number }}
+  # Statische Gruppe pro Phase (globale Serialisierung, FIFO): jede Phase hat genau eine
+  # Laufzeit-Instanz. Der precheck-Job verhindert falsches Nachziehen — kurz hintereinander
+  # gemergte PRs reihen sich ein statt zu parallelisieren.
+  group: 06-pr-documenter
   cancel-in-progress: false
 
 permissions:
@@ -39,12 +41,57 @@ env:
   REPO: ${{ github.repository }}
 
 jobs:
+  precheck:
+    # IST-Zustand zur Laufzeit: PR muss JETZT (nach dem Warten in der globalen Phasen-Queue)
+    # noch gemergt und NOCH NICHT dokumentiert (ai:documented) sein — Letzteres ist die
+    # Idempotenz-Invariante gegen queued Doppel-Events und workflow_dispatch-Catch-up-Doppel.
+    # Fail-open bei API-Fehler — ein transienter gh-Fehler darf die Doku nicht still verlieren
+    # lassen (ai:documented wird unten hart assertiert, ein Doppel-Lauf ist idempotent).
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+    permissions:
+      pull-requests: read
+    outputs:
+      proceed: ${{ steps.check.outputs.proceed }}
+    steps:
+      - name: Pre-Check (merged + noch nicht dokumentiert, zur Laufzeit)
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number || github.event.inputs.pr-number }}
+        run: |
+          proceed="false"
+          reason=""
+          if ! DATA="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json state,merged,labels 2>/dev/null)"; then
+            echo "::warning::PR-Abfrage fehlgeschlagen — Fail-open, Lauf wird fortgesetzt."
+            proceed="true"
+          else
+            MERGED="$(printf '%s' "$DATA" | jq -r '.merged')"
+            DOCUMENTED="$(printf '%s' "$DATA" | jq -r 'any(.labels[]; .name == "ai:documented")')"
+            if [ "$MERGED" != "true" ]; then
+              reason="PR #$PR ist nicht (mehr) gemergt"
+            elif [ "$DOCUMENTED" = "true" ]; then
+              reason="PR #$PR ist bereits dokumentiert (ai:documented)"
+            else
+              proceed="true"
+            fi
+          fi
+          if [ -n "$reason" ]; then
+            echo "::notice title=⏭️ Dokumentation übersprungen::${reason}."
+          fi
+          echo "proceed=$proceed" >> "$GITHUB_OUTPUT"
+
   document-merged-pr:
     name: Document Merged PR (Claude)
+    needs: precheck
     # Nur bei ECHTEM Merge laufen (AK2/AK3): pull_request:[closed] feuert auch beim Schliessen-ohne-
     # Merge, dieser Guard schaltet das aus. Der workflow_dispatch-Pfad (manueller Catch-up, AK4)
-    # bleibt frei, weil dort event_name == 'workflow_dispatch' zutrifft.
-    if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
+    # bleibt frei, weil dort event_name == 'workflow_dispatch' zutrifft. merged ist nach dem
+    # Schliessen unveränderlich — der precheck prüft zusätzlich die Laufzeit-Invariante
+    # (noch kein ai:documented), nicht den Trigger-Zeitpunkt-Payload.
+    if: needs.precheck.outputs.proceed == 'true' && (github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
