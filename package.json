@@ -4,7 +4,8 @@
 	"devDependencies": {
 		"@evilmartians/lefthook": "1.13.6",
 		"knip": "5.88.1",
-		"prettier": "3.9.6"
+		"prettier": "3.9.6",
+		"tsx": "4.23.1"
 	},
 	"private": true,
 	"type": "module",
