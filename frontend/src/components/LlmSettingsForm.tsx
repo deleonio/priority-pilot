@@ -66,8 +66,9 @@ export const LlmSettingsForm = () => {
 
 	return (
 		<>
+			{/* `_alert` sorgt für role="alert" — die Erfolgsmeldung wird Screenreadern aktiv angesagt. */}
 			{saved && (
-				<KolAlert _type="success" _label="Gespeichert">
+				<KolAlert _type="success" _alert _label="Gespeichert">
 					Die LLM-Konfiguration wurde gespeichert.
 				</KolAlert>
 			)}
