@@ -37,23 +37,19 @@ export const LlmSettingsForm = () => {
 			.catch(() => {
 				if (!controller.signal.aborted) {
 					setError('Die LLM-Konfiguration konnte nicht geladen werden.');
+					// Ohne Status bliebe die Lade-Anzeige (unten) stehen und würde die Fehlermeldung verdecken.
+					setStatus({ hasMistralApiKey: false, hasOpenrouterApiKey: false, openrouterModel: '' });
 				}
 			});
 		return () => controller.abort();
 	}, []);
 
-	const save = async (): Promise<void> => {
+	/** Schickt einen fertigen PUT-Body und übernimmt den zurückgemeldeten Status ins UI. */
+	const persist = async (body: LlmConfigInput): Promise<void> => {
 		setError(null);
 		setSaved(false);
 		setSaving(true);
 		try {
-			// Nur ausgefüllte Felder übernehmen: leere Eingaben lassen den DB-Stand unverändert,
-			// whitespace-only wird als „keine Eingabe" behandelt (würde serverseits ohnehin 400 auslösen).
-			const body: LlmConfigInput = {};
-			if (mistralKeyInput.trim() !== '') body.mistralApiKey = mistralKeyInput.trim();
-			if (openrouterKeyInput.trim() !== '') body.openrouterApiKey = openrouterKeyInput.trim();
-			if (model.trim() !== '') body.openrouterModel = model.trim();
-
 			const newStatus = await api.setLlmConfig({ llmConfig: body });
 			setStatus(newStatus);
 			setModel(newStatus.openrouterModel);
@@ -68,6 +64,22 @@ export const LlmSettingsForm = () => {
 			setSaving(false);
 		}
 	};
+
+	const save = (): Promise<void> => {
+		// Nur ausgefüllte Felder übernehmen: leere Eingaben lassen den DB-Stand unverändert,
+		// whitespace-only wird als „keine Eingabe" behandelt (würde serverseits ohnehin 400 auslösen).
+		const body: LlmConfigInput = {};
+		if (mistralKeyInput.trim() !== '') body.mistralApiKey = mistralKeyInput.trim();
+		if (openrouterKeyInput.trim() !== '') body.openrouterApiKey = openrouterKeyInput.trim();
+		// Nur ein *geändertes* Modell senden. Ohne persistierte Zeile liefert `GET` den reinen
+		// Anzeige-Default (`openrouter/free`); würde der ungeprüft zurückgeschrieben, stünde er als
+		// echter DB-Wert in der Kaskade und `OPENROUTER_MODEL` aus der Env wäre still wirkungslos.
+		if (model.trim() !== '' && model.trim() !== status?.openrouterModel) body.openrouterModel = model.trim();
+		return persist(body);
+	};
+
+	/** Löscht einen persistierten Key gezielt (leerer String) — der Env-Fallback greift danach wieder. */
+	const clearKey = (field: 'mistralApiKey' | 'openrouterApiKey'): Promise<void> => persist({ [field]: '' });
 
 	if (status === null) {
 		return <p>Konfiguration wird geladen…</p>;
@@ -89,15 +101,23 @@ export const LlmSettingsForm = () => {
 
 			<p className="hint">
 				Die Kaskade fragt zuerst Mistral (Primär) und lässt die Antwort optional von OpenRouter verfeinern. Aus
-				Sicherheitgründen werden gespeicherte API-Keys nicht zurückgelesen — das Feld zeigt nur, ob ein Key gesetzt ist.
-				Ein leeres Eingabefeld belässt den bisherigen Key unverändert; die Umgebungsvariablen des Servers bleiben
-				außerdem als Fallback wirksam.
+				Sicherheitsgründen werden gespeicherte API-Keys nicht zurückgelesen — das Feld zeigt nur, ob ein Key gesetzt
+				ist. Ein leeres Eingabefeld belässt den bisherigen Key unverändert; über „Key löschen" fällt die Kaskade wieder
+				auf die Umgebungsvariablen des Servers zurück.
 			</p>
 
 			<div className="form-grid">
 				<p className="llm-key-state" data-provider="mistral">
 					Mistral API-Key: {status.hasMistralApiKey ? 'gespeichert' : 'nicht gesetzt'}
 				</p>
+				{status.hasMistralApiKey && (
+					<KolButton
+						_label="Mistral API-Key löschen"
+						_variant="tertiary"
+						_disabled={saving}
+						_on={{ onClick: () => void clearKey('mistralApiKey') }}
+					/>
+				)}
 				<KolInputPassword
 					_label="Mistral API-Key (neu)"
 					_value={mistralKeyInput}
@@ -110,6 +130,14 @@ export const LlmSettingsForm = () => {
 				<p className="llm-key-state" data-provider="openrouter">
 					OpenRouter API-Key: {status.hasOpenrouterApiKey ? 'gespeichert' : 'nicht gesetzt'}
 				</p>
+				{status.hasOpenrouterApiKey && (
+					<KolButton
+						_label="OpenRouter API-Key löschen"
+						_variant="tertiary"
+						_disabled={saving}
+						_on={{ onClick: () => void clearKey('openrouterApiKey') }}
+					/>
+				)}
 				<KolInputPassword
 					_label="OpenRouter API-Key (neu)"
 					_value={openrouterKeyInput}

@@ -9,14 +9,10 @@ import { resetDb, closeDb, startTestServer, type TestServer } from '../test/help
  * Diese Tests sind rot, bis `GET/PUT /llm-config` existiert (aktuell nicht geroutet → 404 statt
  * 200/400) und die Werte in SQLite persistiert werden.
  *
- * Journey 4 (Zugriffsschutz, „ohne Session → 401") ist bewusst NICHT als eigener Test enthalten:
- * `app.use(requireAuth)` in `server/src/express/index.ts` greift bereits VOR jeder Router-
- * Registrierung — ein manueller Probe-Request gegen den (noch nicht existierenden) Pfad bestätigt,
- * dass unauthentifizierte Requests schon jetzt 401 liefern, nicht 404. Ein dedizierter Test wäre
- * hier bereits grün (kein "rote Tests"-Fall) und würde nur die bestehende, unveränderte
- * Middleware-Verdrahtung erneut prüfen (Dedup-Fall). Sobald die Route registriert ist, bleibt sie
- * automatisch geschützt, solange sie — wie alle übrigen Router — nach `app.use(requireAuth)`
- * eingehängt wird (siehe `pillarsRouter`, `scoresRouter`, etc. als Vorbild).
+ * Journey 4 (Zugriffsschutz, „ohne Session → 401") ist als eigener Test enthalten: der Schutz hängt
+ * allein daran, dass `llmConfigRouter` in `server/src/express/index.ts` NACH `app.use(requireAuth)`
+ * registriert wird. Das ist eine reine Reihenfolge-Invariante (der `transitRouter` liegt bewusst
+ * davor) — verschiebt jemand die Registrierung nach oben, wird `/llm-config` still öffentlich.
  */
 
 process.env.SESSION_SECRET = 'test-secret-issue-640';
@@ -115,5 +111,11 @@ describe('LLM-Config API (#640)', () => {
 
 		const putRes = await putConfig(cookie, { openrouterModel: 12345 });
 		assert.equal(putRes.status, 400);
+	});
+
+	// ── Journey 4 — Zugriffsschutz ────────────────────────────────────────────
+	it('Journey 4: GET/PUT ohne Session → 401 (die Route muss hinter requireAuth registriert bleiben)', async () => {
+		assert.equal((await getConfig('')).status, 401);
+		assert.equal((await putConfig('', { openrouterModel: 'custom/model' })).status, 401);
 	});
 });
