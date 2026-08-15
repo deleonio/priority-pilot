@@ -20,6 +20,10 @@ name: Cache-Aufraeumen
 # von keinem aktuellen Workflow mehr geschrieben wird (die Issue-Memory-Persistierung laeuft
 # seit 2026-07-10 ueber Artefakte + claude-memory-save.yml). Sie werden hier ohne Altersgrenze
 # abgeraeumt, bis der Altbestand (51 Eintraege bei Messung 2026-08-15) auf null geschrumpft ist.
+#
+# `codeql-overlay-base-database-*`-Caches (vom github/codeql-action automatisch verwaltet) werden
+# hier NICHT geloescht -- ihre Reduktion erfolgt ueber die Trigger-Aenderung in codeql.yml
+# (Schedule-only statt pro Push/PR). Sie fallen innerhalb von 7 Tagen an GitHubs Eviction.
 
 on:
   schedule:
@@ -41,20 +45,44 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
           cutoff_epoch=$(( $(date -u +%s) - 86400 ))
 
-          gh cache list --repo "$GITHUB_REPOSITORY" --limit 200 \
+          # Caches in eine Datei schreiben (Prozess-Substitution statt Pipe, damit
+          # set -e / Exit-Codes in der Schleife nicht durch die Subshell verschluckt werden).
+          # --limit 300: bei Messung 2026-08-15 178 Caches, Reserve fuer Wachstum.
+          gh cache list --repo "$GITHUB_REPOSITORY" --limit 300 \
             --json id,key,createdAt \
             --jq '.[] | select(.key | startswith("node-cache-") or startswith("Linux-playwright-") or startswith("hermes-session-") or startswith("ticket-")) | [.id, .key, .createdAt] | @tsv' \
-          | while IFS=$'\t' read -r id key created; do
-              created_epoch=$(date -u -d "$created" +%s)
-              # Verwaiste Altbestaende (Archiv liegt jetzt in Artefakten oder Typ wird nicht
-              # mehr geschrieben) -- ohne Altersgrenze loeschen; alles andere erst nach 24h.
-              if [ "${key#hermes-session-}" != "$key" ] || [ "${key#ticket-}" != "$key" ] || [ "$created_epoch" -lt "$cutoff_epoch" ]; then
+            > /tmp/caches-to-check.tsv
+
+          total=$(wc -l < /tmp/caches-to-check.tsv)
+          deleted=0
+          kept=0
+          failed=0
+
+          while IFS=$'\t' read -r id key created; do
+            [ -z "$id" ] && continue
+            created_epoch=$(date -u -d "$created" +%s)
+            # Verwaiste Altbestaende (Archiv liegt jetzt in Artefakten oder Typ wird nicht
+            # mehr geschrieben) -- ohne Altersgrenze loeschen; alles andere erst nach 24h.
+            if [ "${key#hermes-session-}" != "$key" ] || [ "${key#ticket-}" != "$key" ] || [ "$created_epoch" -lt "$cutoff_epoch" ]; then
+              if gh cache delete "$id" --repo "$GITHUB_REPOSITORY" 2>/dev/null; then
                 echo "Loesche Cache '$key' (id=$id, erstellt $created)"
-                gh cache delete "$id" --repo "$GITHUB_REPOSITORY" || echo "::warning::Loeschen von Cache $id fehlgeschlagen (uebersprungen)"
+                deleted=$((deleted + 1))
               else
-                echo "Behalte Cache '$key' (id=$id, erstellt $created, < 24h alt)"
+                echo "::warning::Loeschen von Cache $id ($key) fehlgeschlagen (uebersprungen)"
+                failed=$((failed + 1))
               fi
-            done
+            else
+              echo "Behalte Cache '$key' (id=$id, erstellt $created, < 24h alt)"
+              kept=$((kept + 1))
+            fi
+          done < /tmp/caches-to-check.tsv
+
+          echo ""
+          echo "=== Zusammenfassung ==="
+          echo "Caches geprueft: $total"
+          echo "Caches geloescht: $deleted"
+          echo "Caches behalten:  $kept (< 24h alt)"
+          echo "Fehlschlaege:     $failed"
