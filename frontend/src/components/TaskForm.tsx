@@ -652,25 +652,27 @@ export const TaskForm = ({
 						setTitle(newVal);
 					}}
 				>
-					<KolInputText
-						_label="Titel"
-						_required
-						_maxLength={TITLE_MAX_LENGTH}
-						_hasCounter
-						_value={title}
-						_on={{
-							onInput: (_event, value) => {
-								const newVal = readString(value);
-								form.current.title = newVal;
-								setTitle(newVal);
-							},
-							onChange: (_event, value) => {
-								const newVal = readString(value);
-								form.current.title = newVal;
-								setTitle(newVal);
-							},
-						}}
-					/>
+					<div style={{ position: 'relative' }}>
+						<KolInputText
+							_label="Titel"
+							_required
+							_maxLength={TITLE_MAX_LENGTH}
+							_hasCounter
+							_value={title}
+							_on={{
+								onInput: (_event, value) => {
+									const newVal = readString(value);
+									form.current.title = newVal;
+									setTitle(newVal);
+								},
+								onChange: (_event, value) => {
+									const newVal = readString(value);
+									form.current.title = newVal;
+									setTitle(newVal);
+								},
+							}}
+						/>
+					</div>
 				</VoiceField>
 				<KolInputRange
 					_label={`Priorität (Ganzzahl 1–5): ${formatNumber(priority)}`}
