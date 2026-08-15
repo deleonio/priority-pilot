@@ -296,6 +296,10 @@ export const TaskForm = ({
 	// nicht stört (und umgekehrt).
 	const [suggesting, setSuggesting] = useState(false);
 	const [suggestError, setSuggestError] = useState<string | null>(null);
+	// #680: Lektorat-Loading/Error für Titel- und Beschreibungsfeld.
+	const [lektoratingTitle, setLektoratingTitle] = useState(false);
+	const [lektoratingDescription, setLektoratingDescription] = useState(false);
+	const [lektoratError, setLektoratError] = useState<string | null>(null);
 
 	// Merkt sich, ob in diesem Dialog ein KI-Vorschlag übernommen wurde. Nur dann ist das spätere
 	// Speichern eine echte Bestätigung/Korrektur, die den Feedback-Loop füttert (#45). Ein Ref reicht:
@@ -392,6 +396,40 @@ export const TaskForm = ({
 			setSuggestError(apiError.message);
 		} finally {
 			setSuggesting(false);
+		}
+	};
+
+	// #680: Lektoriert den Titel oder die Beschreibung und aktualisiert das Feld.
+	const runLektorat = async (field: 'title' | 'description', maxLength?: number): Promise<void> => {
+		const text = form.current[field].trim();
+		if (text === '') {
+			setLektoratError('Bitte zuerst Text eingeben, der lektoriert werden kann.');
+			return;
+		}
+		setLektoratError(null);
+		if (field === 'title') {
+			setLektoratingTitle(true);
+		} else {
+			setLektoratingDescription(true);
+		}
+		try {
+			const result = await api.lektorat({ text, maxLength });
+			// State + Ref aktualisieren
+			form.current[field] = result.text;
+			if (field === 'title') {
+				setTitle(result.text);
+			} else {
+				setDescription(result.text);
+			}
+		} catch (reason) {
+			const apiError = await toApiError(reason);
+			setLektoratError(apiError.message);
+		} finally {
+			if (field === 'title') {
+				setLektoratingTitle(false);
+			} else {
+				setLektoratingDescription(false);
+			}
 		}
 	};
 
@@ -642,38 +680,61 @@ export const TaskForm = ({
 				</div>
 			)}
 			<div className="form-grid">
-				<VoiceField
-					variant="input"
-					fieldLabel="Titel"
-					autoStart={voiceAutostart}
-					onTranscript={(text) => {
-						const newVal = form.current.title ? `${form.current.title} ${text}` : text;
-						form.current.title = newVal;
-						setTitle(newVal);
-					}}
-				>
-					<div style={{ position: 'relative' }}>
-						<KolInputText
-							_label="Titel"
-							_required
-							_maxLength={TITLE_MAX_LENGTH}
-							_hasCounter
-							_value={title}
-							_on={{
-								onInput: (_event, value) => {
-									const newVal = readString(value);
-									form.current.title = newVal;
-									setTitle(newVal);
-								},
-								onChange: (_event, value) => {
-									const newVal = readString(value);
-									form.current.title = newVal;
-									setTitle(newVal);
-								},
+				{/* #680: Der Lektorat-Button liegt bewusst AUSSERHALB des VoiceField-Wrappers — der
+			    Wrapper ist der Positionierungs-Kontext des Mic-Buttons (right/bottom, app.css).
+			    Als Kind des Wrappers würde er diesen über die ganze Flex-Zeile spannen lassen und
+			    den Mic-Button aus der Feldbox drängen (AK9/AK10, Issue #264). */}
+				<div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+					<div style={{ flex: 1, minWidth: 0 }}>
+						<VoiceField
+							variant="input"
+							fieldLabel="Titel"
+							autoStart={voiceAutostart}
+							onTranscript={(text) => {
+								const newVal = form.current.title ? `${form.current.title} ${text}` : text;
+								form.current.title = newVal;
+								setTitle(newVal);
 							}}
-						/>
+						>
+							<div style={{ position: 'relative' }}>
+								{/* #679: Zeichenzähler über den KoliBri built-in Counter (_hasCounter)
+							    statt des früheren manuellen character-counter-Divs. */}
+								<KolInputText
+									_label="Titel"
+									_required
+									_maxLength={TITLE_MAX_LENGTH}
+									_hasCounter
+									_value={title}
+									_on={{
+										onInput: (_event, value) => {
+											const newVal = readString(value);
+											form.current.title = newVal;
+											setTitle(newVal);
+										},
+										onChange: (_event, value) => {
+											const newVal = readString(value);
+											form.current.title = newVal;
+											setTitle(newVal);
+										},
+									}}
+								/>
+							</div>
+						</VoiceField>
 					</div>
-				</VoiceField>
+					<KolButton
+						_label="Titel lektorieren"
+						_variant="minimal"
+						_disabled={saving || lektoratingTitle || lektoratingDescription}
+						_icons={{ left: { icon: 'codex-icon-magic' } }}
+						_on={{
+							onClick: () => void runLektorat('title', 30),
+						}}
+						style={{
+							flexShrink: 0,
+							marginTop: '24px',
+						}}
+					/>
+				</div>
 				<KolInputRange
 					_label={`Priorität (Ganzzahl 1–5): ${formatNumber(priority)}`}
 					_min={1}
@@ -796,33 +857,52 @@ export const TaskForm = ({
 						_label="Die Aufgabe wird bei verpasster Deadline automatisch nach 3 Tagen gelöscht, sofern sie bis dahin nicht erledigt ist."
 					/>
 				)}
-				<VoiceField
-					variant="textarea"
-					fieldLabel="Beschreibung"
-					onTranscript={(text) => {
-						const newVal = form.current.description ? `${form.current.description} ${text}` : text;
-						form.current.description = newVal;
-						setDescription(newVal);
-					}}
-				>
-					<KolTextarea
-						_label="Beschreibung (optional)"
-						_rows={4}
-						_value={description}
+				{/* #680: Lektorat-Button außerhalb des VoiceField-Wrappers — gleiche Begründung wie beim
+				    Titel-Feld (Mic-Button-Positionierung, AK9/AK10). */}
+				<div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+					<div style={{ flex: 1, minWidth: 0 }}>
+						<VoiceField
+							variant="textarea"
+							fieldLabel="Beschreibung"
+							onTranscript={(text) => {
+								const newVal = form.current.description ? `${form.current.description} ${text}` : text;
+								form.current.description = newVal;
+								setDescription(newVal);
+							}}
+						>
+							<KolTextarea
+								_label="Beschreibung (optional)"
+								_rows={4}
+								_value={description}
+								_on={{
+									onInput: (_event, value) => {
+										const newVal = readString(value);
+										form.current.description = newVal;
+										setDescription(newVal);
+									},
+									onChange: (_event, value) => {
+										const newVal = readString(value);
+										form.current.description = newVal;
+										setDescription(newVal);
+									},
+								}}
+							/>
+						</VoiceField>
+					</div>
+					<KolButton
+						_label="Beschreibung lektorieren"
+						_variant="minimal"
+						_disabled={saving || lektoratingTitle || lektoratingDescription}
+						_icons={{ left: { icon: 'codex-icon-magic' } }}
 						_on={{
-							onInput: (_event, value) => {
-								const newVal = readString(value);
-								form.current.description = newVal;
-								setDescription(newVal);
-							},
-							onChange: (_event, value) => {
-								const newVal = readString(value);
-								form.current.description = newVal;
-								setDescription(newVal);
-							},
+							onClick: () => void runLektorat('description'),
+						}}
+						style={{
+							flexShrink: 0,
+							marginTop: '24px',
 						}}
 					/>
-				</VoiceField>
+				</div>
 			</div>
 			{/* Säulen-Beiträge: je Säule ein Roh-Anteil 0,0–1,0 (#82), beim Speichern auf 100 % normiert. */}
 			{pillars.length === 0 ? (
@@ -848,6 +928,11 @@ export const TaskForm = ({
 					{suggestError !== null && (
 						<KolAlert _type="error" _label="Vorschlag fehlgeschlagen">
 							{suggestError}
+						</KolAlert>
+					)}
+					{lektoratError !== null && (
+						<KolAlert _type="error" _label="Lektorat fehlgeschlagen">
+							{lektoratError}
 						</KolAlert>
 					)}
 					{contributions.length === 0 ? (

@@ -4,6 +4,7 @@ import {
 	KolButton,
 	KolInputCheckbox,
 	KolInputText,
+	KolPopoverButton,
 	KolSpin,
 	KolTabs,
 	KolToolbar,
@@ -34,6 +35,8 @@ import type { AuthUser } from './lib/auth';
 import { buildDependencyMap } from './lib/dependencies';
 import { collectTaskValues } from './lib/forest';
 import { buildPillarSummaries } from './lib/pillar';
+import { setupPopoverAlignment } from './lib/popoverAlign';
+import { useMediaQuery } from './lib/useMediaQuery';
 import { APP_VERSION } from './lib/version';
 
 type Dialog =
@@ -59,6 +62,14 @@ const ADVISOR_ICON = { left: { icon: 'fa-solid fa-lightbulb' } };
 const HELP_ICON = { left: { icon: 'fa-solid fa-circle-question' } };
 const SETTINGS_ICON = { left: { icon: 'fa-solid fa-gear' } };
 const LOGOUT_ICON = { left: { icon: 'fa-solid fa-right-from-bracket' } };
+const MENU_ICON = { left: { icon: 'fa-solid fa-ellipsis-vertical' } };
+
+/**
+ * Ab dieser Breite gilt das Desktop-Layout des Kopfbereichs (volle Toolbar + Klartext-Anzeigename).
+ * Spiegelt die 48rem-Grenze, die app.css bereits für Dashboard-Grid, Erledigt-Tabelle und die
+ * Seitenränder nutzt — es gibt bewusst nur EINEN Breakpoint im Projekt.
+ */
+const DESKTOP_MEDIA_QUERY = '(min-width: 48rem)';
 
 export const App = ({ user }: { user: AuthUser }) => {
 	const [showHelp, setShowHelp] = useState(() => window.location.pathname.startsWith('/hilfe'));
@@ -76,6 +87,16 @@ export const App = ({ user }: { user: AuthUser }) => {
 	const [updateError, setUpdateError] = useState<string | null>(null);
 	const [activeTab, setActiveTab] = useState(0);
 	const doneRemovalTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+
+	// Kopfbereich-Layout: Unterhalb von 48rem bleibt in der Toolbar nur die primäre Aktion, alles
+	// Übrige wandert hinter das „⋮"-Menü — so passt der Header auf 375px in EINE Zeile statt in zwei
+	// bis drei. Die Entscheidung fällt in React (nicht per CSS `display: none`), damit stets nur eine
+	// Variante im DOM steht und dieselben Accessible Names nicht doppelt existieren.
+	const isDesktop = useMediaQuery(DESKTOP_MEDIA_QUERY);
+	// #361-Muster: `KolPopoverButton` regelt Öffnen/Schließen, Click-outside, Escape und Fokusrückgabe
+	// über die native Popover-API selbst; der Ref schließt das Panel nach einer Aktion programmatisch.
+	const headerMenuRef = useRef<HTMLKolPopoverButtonElement | null>(null);
+	useEffect(() => setupPopoverAlignment(headerMenuRef.current), [isDesktop]);
 
 	// Aufgaben-Tab: Suchtext und Offen/Erledigt-Switch (State wird beim Umschalten erhalten, AK6).
 	// `searchDraft` ist der Eingabe-Entwurf im Suchfeld; der Filter wird erst per „Filtern"-Button
@@ -366,6 +387,112 @@ export const App = ({ user }: { user: AuthUser }) => {
 	const dependencyTask =
 		dialog?.kind === 'dependencies' ? (tasks?.find((task) => task.id === dialog.taskId) ?? null) : null;
 
+	const openCreateDialog = useCallback((): void => {
+		setDialog({ kind: 'create' });
+	}, []);
+	const openAdvisor = useCallback((): void => {
+		setDialog({ kind: 'advisor' });
+	}, []);
+
+	/**
+	 * Schließt das Kopf-Menü und führt die Aktion erst danach aus. Reihenfolge wie in `TaskTree`:
+	 * `hidePopover()` ist asynchron, und ein danach geöffnetes Modal soll den Menü-Trigger als
+	 * Fokus-Rückgabeziel erfassen — nicht das gerade verschwindende Panel.
+	 */
+	const runFromMenu = useCallback((action: () => void): void => {
+		void Promise.resolve(headerMenuRef.current?.hidePopover()).then(action);
+	}, []);
+
+	// Die primäre Aktion („Neuen Task anlegen") steht auf JEDER Breite direkt in der Toolbar; die vier
+	// sekundären Aktionen nur auf Desktop-Breite — mobil liegen sie im „⋮"-Menü. `_label`s und
+	// Reihenfolge sind in beiden Varianten identisch, damit Accessible Names stabil bleiben.
+	const toolbarItems = useMemo(() => {
+		const createItem = {
+			type: 'button' as const,
+			_label: 'Neuen Task anlegen',
+			_hideLabel: true,
+			_icons: CREATE_ICON,
+			_variant: 'primary' as const,
+			_on: { onClick: openCreateDialog },
+		};
+		if (!isDesktop) {
+			return [createItem];
+		}
+		return [
+			createItem,
+			{
+				type: 'button' as const,
+				_label: 'Säulen-Berater',
+				_hideLabel: true,
+				_icons: ADVISOR_ICON,
+				_variant: 'secondary' as const,
+				_on: { onClick: openAdvisor },
+			},
+			{
+				type: 'button' as const,
+				_label: 'Einstellungen',
+				_hideLabel: true,
+				_icons: SETTINGS_ICON,
+				_variant: 'secondary' as const,
+				_on: { onClick: openSettings },
+			},
+			{
+				type: 'button' as const,
+				_label: 'Hilfe',
+				_hideLabel: true,
+				_icons: HELP_ICON,
+				_variant: 'secondary' as const,
+				_on: { onClick: openHelp },
+			},
+			{
+				type: 'button' as const,
+				_label: 'Abmelden',
+				_hideLabel: true,
+				_icons: LOGOUT_ICON,
+				_variant: 'secondary' as const,
+				_disabled: logoutLoading,
+				_on: { onClick: (): void => void handleLogout() },
+			},
+		];
+	}, [isDesktop, logoutLoading, openCreateDialog, openAdvisor, openSettings, openHelp, handleLogout]);
+
+	// Menü-Inhalt (nur mobil): dieselben vier Aktionen, hier mit sichtbarem Text statt nur Icon —
+	// ein aufgeklapptes Menü hat den Platz dafür und wird dadurch ohne Icon-Raten bedienbar.
+	const menuItems = useMemo(
+		() => [
+			{
+				type: 'button' as const,
+				_label: 'Säulen-Berater',
+				_icons: ADVISOR_ICON,
+				_variant: 'secondary' as const,
+				_on: { onClick: (): void => runFromMenu(openAdvisor) },
+			},
+			{
+				type: 'button' as const,
+				_label: 'Einstellungen',
+				_icons: SETTINGS_ICON,
+				_variant: 'secondary' as const,
+				_on: { onClick: (): void => runFromMenu(openSettings) },
+			},
+			{
+				type: 'button' as const,
+				_label: 'Hilfe',
+				_icons: HELP_ICON,
+				_variant: 'secondary' as const,
+				_on: { onClick: (): void => runFromMenu(openHelp) },
+			},
+			{
+				type: 'button' as const,
+				_label: 'Abmelden',
+				_icons: LOGOUT_ICON,
+				_variant: 'secondary' as const,
+				_disabled: logoutLoading,
+				_on: { onClick: (): void => runFromMenu(() => void handleLogout()) },
+			},
+		],
+		[logoutLoading, runFromMenu, openAdvisor, openSettings, openHelp, handleLogout],
+	);
+
 	if (showSettings) {
 		return (
 			<SettingsPage
@@ -388,57 +515,40 @@ export const App = ({ user }: { user: AuthUser }) => {
 					<img src="/logo/logo.png" alt="Priority Pilot" />
 				</button>
 				<div className="toolbar">
-					<KolToolbar
-						_label="Kopf-Aktionen"
-						_orientation="horizontal"
-						_items={[
-							{
-								type: 'button',
-								_label: 'Neuen Task anlegen',
-								_hideLabel: true,
-								_icons: CREATE_ICON,
-								_variant: 'primary',
-								_on: { onClick: () => setDialog({ kind: 'create' }) },
-							},
-							{
-								type: 'button',
-								_label: 'Säulen-Berater',
-								_hideLabel: true,
-								_icons: ADVISOR_ICON,
-								_variant: 'secondary',
-								_on: { onClick: () => setDialog({ kind: 'advisor' }) },
-							},
-							{
-								type: 'button' as const,
-								_label: 'Einstellungen',
-								_hideLabel: true,
-								_icons: SETTINGS_ICON,
-								_variant: 'secondary' as const,
-								_on: { onClick: openSettings },
-							},
-							{
-								type: 'button' as const,
-								_label: 'Hilfe',
-								_hideLabel: true,
-								_icons: HELP_ICON,
-								_variant: 'secondary' as const,
-								_on: { onClick: openHelp },
-							},
-							{
-								type: 'button' as const,
-								_label: 'Abmelden',
-								_hideLabel: true,
-								_icons: LOGOUT_ICON,
-								_variant: 'secondary' as const,
-								_disabled: logoutLoading,
-								_on: { onClick: () => void handleLogout() },
-							},
-						]}
-					/>
-					<div className="user-info">
-						<KolAvatar _label={user.name} _src={user.avatarUrl ?? undefined} />
-						<span className="user-display-name">{user.name}</span>
-					</div>
+					<KolToolbar _label="Kopf-Aktionen" _orientation="horizontal" _items={toolbarItems} />
+					{isDesktop ? (
+						<div className="user-info">
+							<KolAvatar _label={user.name} _src={user.avatarUrl ?? undefined} />
+							<span className="user-display-name">{user.name}</span>
+						</div>
+					) : (
+						<KolPopoverButton
+							ref={headerMenuRef}
+							className="header-menu"
+							/*
+							 * Der Name muss von den bestehenden Kopf-/Zeilen-Bezeichnern DISJUNKT sein, nicht nur
+							 * verschieden: Die „…"-Zeilenmenüs der Aufgabenliste heißen „Weitere Aktionen"
+							 * (TaskTree, #361), und Playwrights `getByRole(…, { name })` matcht standardmäßig als
+							 * Teilstring. Ein Name wie „… und weitere Aktionen" würde deren Selektoren mit
+							 * abfangen und die Zeilenmenüs in den e2e-Tests unerreichbar machen.
+							 */
+							_label="Mein Konto"
+							_hideLabel
+							_icons={MENU_ICON}
+							_variant="secondary"
+							_popoverAlign="left"
+						>
+							<div className="header-menu-panel">
+								<div className="user-info">
+									<KolAvatar _label={user.name} _src={user.avatarUrl ?? undefined} />
+									<span className="user-display-name">{user.name}</span>
+								</div>
+								{/* Ebenfalls disjunkt zu „Kopf-Aktionen" — sonst matcht `getByRole('toolbar', { name:
+								    /Kopf-Aktionen/ })` beide Toolbars. */}
+								<KolToolbar _label="Konto-Menü" _orientation="vertical" _items={menuItems} />
+							</div>
+						</KolPopoverButton>
+					)}
 				</div>
 			</header>
 			<h1 className="visually-hidden">Dashboard</h1>

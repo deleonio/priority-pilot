@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 
 /**
@@ -29,6 +29,41 @@ export const waitForStableView = async (page: Page, readyText = 'Dashboard'): Pr
 
 	// 3. Fonts (inkl. KolIcons) abwarten, sonst flackern Icon-Glyphen / verschieben sich Layouts.
 	await page.evaluate(() => document.fonts.ready);
+};
+
+/**
+ * Liefert eine Kopf-Aktion („Neuen Task anlegen", „Säulen-Berater", „Einstellungen", „Hilfe",
+ * „Abmelden") unabhängig von der Viewport-Breite.
+ *
+ * Hintergrund: Unterhalb von 48rem steht in der Toolbar „Kopf-Aktionen" nur noch die primäre Aktion;
+ * die vier sekundären liegen hinter dem „⋮"-Menü („Mein Konto"), damit der Header auf 375px
+ * einzeilig bleibt. Der Helfer öffnet das Menü genau dann, wenn die Aktion nicht schon direkt in der
+ * Toolbar sichtbar ist — Specs müssen den Breakpoint dadurch nicht selbst kennen.
+ *
+ * Das Menü zu öffnen ist idempotent: Ist das Panel bereits offen, ist der Button sichtbar und der
+ * Helfer klickt den Trigger gar nicht erst an.
+ */
+export const headerAction = async (page: Page, label: string | RegExp): Promise<Locator> => {
+	const inToolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ }).getByRole('button', { name: label });
+	const menuTrigger = page.getByRole('button', { name: 'Mein Konto' });
+	const inMenu = page.getByRole('toolbar', { name: 'Konto-Menü' }).getByRole('button', { name: label });
+
+	// Erst abwarten, bis der Kopfbereich fertig gerendert ist: Entweder steht die Aktion direkt in der
+	// Toolbar (Desktop, sowie die primäre Aktion auf jeder Breite) oder es gibt den „⋮"-Trigger, hinter
+	// dem sie liegt. Ohne dieses `or()` liefe die Prüfung unten in eine Race — KoliBri baut die
+	// Toolbar-Items asynchron im Shadow-DOM auf.
+	await expect(inToolbar.or(menuTrigger).first()).toBeVisible();
+
+	if (await inToolbar.isVisible()) {
+		return inToolbar;
+	}
+	// Nur öffnen, wenn das Panel nicht ohnehin schon offen ist — ein zweiter Klick auf den Trigger
+	// würde es wieder zuklappen (mehrere `headerAction`-Aufrufe hintereinander).
+	if (!(await inMenu.isVisible())) {
+		await menuTrigger.click();
+	}
+	await expect(inMenu).toBeVisible();
+	return inMenu;
 };
 
 /**

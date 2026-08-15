@@ -47,10 +47,32 @@ body {
 	color: var(--pp-text);
 }
 
+/*
+ * Mobile-First: Die Basis-Ränder gelten für den schmalsten Viewport (Referenz 375px) — 1rem statt
+ * der früheren 1.5rem gibt 32px Inhaltsbreite zurück, die dort spürbar fehlen. Die großzügigeren
+ * Desktop-Werte kommen per Aufwärts-Kaskade ab 48rem zurück (siehe unten), nicht per max-width-Abzug.
+ *
+ * Safe-Area (installierte PWA, `display: standalone`): Die `env(safe-area-inset-*)`-Werte greifen nur
+ * zusammen mit `viewport-fit=cover` im Viewport-Meta (index.html). Im normalen Browser-Tab sind sie 0,
+ * `max()`/`calc()` fallen dann exakt auf die Basiswerte zurück — deshalb braucht es keinen Zweig für
+ * „Browser vs. PWA". Der untere Inset verhindert, dass die Fußzeile unter dem Home-Indicator liegt.
+ */
 .app {
 	max-width: 80rem;
 	margin: 0 auto;
-	padding: 2rem 1.5rem 4rem;
+	padding-top: calc(1rem + env(safe-area-inset-top));
+	padding-right: max(1rem, env(safe-area-inset-right));
+	padding-bottom: calc(3rem + env(safe-area-inset-bottom));
+	padding-left: max(1rem, env(safe-area-inset-left));
+}
+
+@media (min-width: 48rem) {
+	.app {
+		padding-top: calc(2rem + env(safe-area-inset-top));
+		padding-right: max(1.5rem, env(safe-area-inset-right));
+		padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+		padding-left: max(1.5rem, env(safe-area-inset-left));
+	}
 }
 
 .app-header {
@@ -61,13 +83,27 @@ body {
 	 * Der Avatar leitet sich davon mit Faktor 1,25 ab, das Logo bleibt auf Avatar-Höhe.
 	 */
 	--pp-toolbar-height: 2.75rem;
-	--pp-avatar-size: calc(var(--pp-toolbar-height) * 1.25);
+	/*
+	 * Mobile-First: Auf schmalen Viewports liegt der Avatar (bzw. das Logo, das sich an ihm bemisst)
+	 * exakt auf Toolbar-Höhe — der 1,25-Faktor aus #485 würde den Header hier unnötig hoch machen.
+	 * Ab 48rem gilt wieder die gewohnte Relation (siehe Media-Query unten). Die 2.75rem/44px selbst
+	 * bleiben unangetastet: sie sind das WCAG-2.5.5-Minimum, nicht Deko.
+	 */
+	--pp-avatar-size: var(--pp-toolbar-height);
 
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
 	justify-content: space-between;
-	gap: 1rem;
+	gap: 0.5rem;
+}
+
+@media (min-width: 48rem) {
+	.app-header {
+		--pp-avatar-size: calc(var(--pp-toolbar-height) * 1.25);
+
+		gap: 1rem;
+	}
 }
 
 .logo-btn {
@@ -126,6 +162,35 @@ body {
 	display: flex;
 	align-items: center;
 	gap: 0.5rem;
+}
+
+/*
+ * Kopf-Menü (nur < 48rem): Der „⋮"-Trigger nimmt die sekundären Aktionen auf, damit der Header auf
+ * 375px einzeilig bleibt. Der Host liegt im Fluss, damit KoliBri sein Panel daran verankern kann;
+ * die Mindestgröße (44px) erzwingt KoliBri im Shadow-DOM über `--a11y-min-size` — hier nur die
+ * gemeinsame Bezugshöhe durchreichen, damit der Trigger exakt auf Toolbar-Höhe sitzt.
+ */
+.header-menu {
+	display: inline-flex;
+	flex-shrink: 0;
+	--a11y-min-size: var(--pp-toolbar-height);
+}
+
+/*
+ * Panel-Inhalt: Anzeigename oben, darunter die Aktionen als vertikale Liste. Die Breite deckelt den
+ * `width: max-content`, den `setupPopoverAlignment` (src/lib/popoverAlign.ts) am Shadow-DOM-Panel
+ * setzt — ohne die Obergrenze könnte ein langer Anzeigename das Panel über den Viewport treiben.
+ */
+.header-menu-panel {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+	padding: 0.25rem;
+	max-width: min(16rem, calc(100vw - 2rem));
+}
+
+.header-menu-panel .user-display-name {
+	overflow-wrap: anywhere;
 }
 
 /*
@@ -788,10 +853,12 @@ body {
 }
 
 /* --- Hilfe-Seite (#256) --- */
+/* Eigenständiger Seiten-Container (ersetzt `.app`, s. App.tsx) — braucht die Safe-Area-Ränder daher selbst. */
 .help-page {
 	max-width: 800px;
 	margin: 0 auto;
-	padding: 1rem;
+	padding: calc(1rem + env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+		calc(1rem + env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
 	box-sizing: border-box;
 	width: 100%;
 	overflow-x: hidden;
@@ -833,10 +900,12 @@ body {
 }
 
 /* --- Einstellungen-Seite (#271) --- */
+/* Eigenständiger Seiten-Container (ersetzt `.app`, s. App.tsx) — braucht die Safe-Area-Ränder daher selbst. */
 .settings-page {
 	max-width: 800px;
 	margin: 0 auto;
-	padding: 1rem;
+	padding: calc(1rem + env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+		calc(1rem + env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
 	box-sizing: border-box;
 	width: 100%;
 	overflow-x: hidden;

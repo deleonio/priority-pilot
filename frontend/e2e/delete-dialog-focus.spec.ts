@@ -134,6 +134,10 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 
 		await openTaskDeleteDialog(page, uniqueTitle('Task'));
 		await assertCancelFocusedWithoutJump(page);
+
+		// Issue 653: Tab-Freiheit — Fokus muss sich bewegen lassen. Helper mit Settle-Wartezeit:
+		// KoliBris setFocus-Loop zieht ein sofortiges Tab zurück (s. Kommentar zu AK4).
+		await assertTabFreedomInOpenDeleteDialog(page);
 	});
 
 	test('AK2 — Säulen-Löschdialog: Initialfokus auf „Abbrechen", kein Sprung', async ({ page }) => {
@@ -154,6 +158,10 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		await expect(page.getByRole('heading', { name: 'Säule löschen' })).toBeVisible();
 
 		await assertCancelFocusedWithoutJump(page, 'Priority Pilot');
+
+		// Issue 653: Tab-Freiheit — Fokus muss sich bewegen lassen. Helper mit Settle-Wartezeit:
+		// KoliBris setFocus-Loop zieht ein sofortiges Tab zurück (s. Kommentar zu AK4).
+		await assertTabFreedomInOpenDeleteDialog(page);
 	});
 
 	// #553: Der Serien-Löschdialog hat eine eigene Struktur (Ja/Nein/Abbrechen, kein
@@ -199,6 +207,15 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		await waitForStableView(page);
 		await expect(page.getByRole('button', { name: /^Nein/i })).toBeFocused();
 		await expect(page.getByRole('button', { name: /^Ja \(Serie \+ alle Aufgaben\)/ })).not.toBeFocused();
+
+		// Issue 653: Tab-Freiheit — Fokus muss sich bewegen lassen. Tab von „Nein" landet in der
+		// DOM-Reihenfolge (Ja → Nein → Abbrechen) auf „Abbrechen". SETTLE_MS wie AK4: KoliBris
+		// setFocus-Loop zieht ein Tab im ersten ~100-ms-Fenster zurück.
+		const SETTLE_MS = 150;
+		await page.waitForTimeout(SETTLE_MS);
+		await page.keyboard.press('Tab');
+		await expect(page.getByRole('button', { name: 'Abbrechen' })).toBeFocused();
+		await expect(page.getByRole('button', { name: /^Nein/i })).not.toBeFocused();
 	});
 
 	/**

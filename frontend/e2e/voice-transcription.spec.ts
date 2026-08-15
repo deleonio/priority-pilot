@@ -260,6 +260,10 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 		expect(buttonBox.x).toBeGreaterThanOrEqual(fieldBox.x);
 		expect(buttonBox.x + buttonBox.width).toBeLessThanOrEqual(fieldBox.x + fieldBox.width + 1);
 		expect(buttonBox.y).toBeGreaterThanOrEqual(fieldBox.y - 1);
+		// #679: Der KoliBri built-in Counter (_hasCounter) vergrößert die boundingBox des
+		// Titel-Inputs um die Counter-Zeile nach unten — der Button darf daher bis zu ~50px
+		// über der Feld-Unterkante enden. Die vertikal-mittig-Assertion (±4px) unten bleibt
+		// die scharfe Prüfung der Positionierung.
 		expect(buttonBox.y + buttonBox.height).toBeLessThanOrEqual(fieldBox.y + fieldBox.height + 50);
 		expect(buttonBox.x + buttonBox.width).toBeGreaterThanOrEqual(fieldBox.x + fieldBox.width - 10);
 		// … und vertikal mittig (Button-Mitte ≈ Feld-Mitte, ±4px Toleranz).

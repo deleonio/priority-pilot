@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { headerAction, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-Tests für #272 — „Allgemein-Einstellung: Auto-Sprachaufnahme im ersten Eingabefeld
@@ -501,9 +501,9 @@ test.describe('#281 Schnellerfassung: Voice-Autostart im Capture-Textfeld', () =
 	});
 });
 
-/** Öffnet den Säulen-Berater über die Header-Toolbar. */
+/** Öffnet den Säulen-Berater über die Kopf-Aktionen (auf Handy-Breite über das „⋮"-Menü). */
 const openAdvisor = async (page: Page): Promise<void> => {
-	await page.getByRole('button', { name: 'Säulen-Berater' }).click();
+	await (await headerAction(page, 'Säulen-Berater')).click();
 	await expect(page.getByRole('heading', { name: 'Säulen-Berater' })).toBeVisible();
 	await waitForStableView(page);
 };

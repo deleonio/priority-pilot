@@ -185,8 +185,17 @@ test.describe('#485 Header — Avatar-Größe, gemeinsame Ebene, kompakte Höhe'
 	});
 
 	/**
-	 * AK6 — Mobile-First (375px): Alle Header-Bausteine bleiben sichtbar und bedienbar; das
-	 * Größenverhältnis Avatar/Toolbar-Button gilt auch hier.
+	 * AK6 — Mobile-First (375px): Alle Header-Bausteine bleiben sichtbar und bedienbar.
+	 *
+	 * Geändert gegenüber #485: Die 1,25-Relation Avatar/Toolbar-Button gilt bewusst **nur noch ab
+	 * 48rem** (AK3 prüft sie bei 1280px). Auf 375px war genau diese Relation eine der Ursachen dafür,
+	 * dass der Kopfbereich auf zwei bis drei Zeilen umbrach: Logo (55px) + fünf Toolbar-Buttons (252px)
+	 * + Avatar (55px) + Klartextname passen nicht in 343px Inhaltsbreite. Mobil sitzt der Avatar daher
+	 * auf Toolbar-Höhe und liegt zusammen mit den sekundären Aktionen im „⋮"-Menü — der Header bleibt
+	 * dadurch einzeilig (gemessen in `mobile-shell.spec.ts`).
+	 *
+	 * Was hier zählt, ist deshalb: Logo und primäre Aktion stehen sichtbar auf EINER Zeile, und die
+	 * Identität (Avatar) ist über das Menü weiterhin erreichbar.
 	 *
 	 * Hinweis: Die reine Overflow-Prüfung (`scrollWidth <= clientWidth`) ist bereits durch
 	 * `header-logo.spec.ts` (#395 AK5 / #406 AK5) abgedeckt und wird hier nicht dupliziert.
@@ -196,20 +205,34 @@ test.describe('#485 Header — Avatar-Größe, gemeinsame Ebene, kompakte Höhe'
 		await page.goto('/');
 		await waitForStableView(page);
 
-		const { button, avatar } = await readHeaderBoxes(page);
+		const header = page.getByRole('banner');
+		const logoImg = header.getByRole('button', { name: /Zum Dashboard/i }).locator('img');
+		const toolbarBtn = header
+			.getByRole('toolbar', { name: /Kopf-Aktionen/i })
+			.getByRole('button', { name: 'Neuen Task anlegen' });
 
-		// Größenverhältnis gilt auch mobil.
-		const expected = button.height * 1.25;
+		await expect(logoImg).toBeVisible();
+		await expect(toolbarBtn).toBeVisible();
+
+		const [logo, button] = await Promise.all([logoImg.boundingBox(), toolbarBtn.boundingBox()]);
+		expect(logo, 'Logo-Bild muss eine Boundingbox haben').not.toBeNull();
+		expect(button, 'Toolbar-Button muss eine Boundingbox haben').not.toBeNull();
+		if (logo === null || button === null) return;
+
+		// Eine Zeile: Logo und primäre Aktion teilen sich die Mittellinie.
+		const centerOf = (box: { y: number; height: number }): number => box.y + box.height / 2;
 		expect(
-			Math.abs(avatar.height - expected),
-			`Avatar (${avatar.height}px) soll auch bei 375px 1,25 × Button-Höhe (${expected}px) sein`,
+			Math.abs(centerOf(logo) - centerOf(button)),
+			`Logo (${centerOf(logo)}) und Button (${centerOf(button)}) sollen auf einer Mittellinie liegen`,
 		).toBeLessThanOrEqual(TOLERANCE_PX);
 
+		// Der Avatar ist mobil nicht weg, sondern hinter dem Menü erreichbar.
+		await header.getByRole('button', { name: 'Mein Konto' }).click();
+		await expect(header.locator('kol-avatar').first()).toBeVisible();
+		await page.keyboard.press('Escape');
+
 		// Bedienbar: Der Logo-Button reagiert weiterhin auf einen Klick (Dashboard-Tab aktiv).
-		await page
-			.getByRole('banner')
-			.getByRole('button', { name: /Zum Dashboard/i })
-			.click();
+		await header.getByRole('button', { name: /Zum Dashboard/i }).click();
 		await expect(page.getByRole('tab', { name: /Dashboard/i })).toHaveAttribute('aria-selected', 'true');
 	});
 });
