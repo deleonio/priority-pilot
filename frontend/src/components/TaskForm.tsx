@@ -690,40 +690,41 @@ export const TaskForm = ({
 						setTitle(newVal);
 					}}
 				>
-					<div style={{ position: 'relative' }}>
-						<KolInputText
-							_label="Titel"
-							_required
-							_maxLength={TITLE_MAX_LENGTH}
-							_value={title}
-							_on={{
-								onInput: (_event, value) => {
-									const newVal = readString(value);
-									form.current.title = newVal;
-									setTitle(newVal);
-								},
-								onChange: (_event, value) => {
-									const newVal = readString(value);
-									form.current.title = newVal;
-									setTitle(newVal);
-								},
-							}}
-						/>
-						<div
-							className="character-counter"
-							style={{
-								position: 'absolute',
-								right: '8px',
-								bottom: '8px',
-								fontSize: '0.75rem',
-								color: title.length > TITLE_MAX_LENGTH ? 'var(--color-danger, #d32f2f)' : 'var(--color-text, #666)',
-								background: 'rgba(255,255,255,0.8)',
-								padding: '2px 4px',
-								borderRadius: '4px',
-								pointerEvents: 'none',
-							}}
-						>
-							{getCharacterCounter(title)}
+					<div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+						<div style={{ flex: 1, position: 'relative' }}>
+							<KolInputText
+								_label="Titel"
+								_required
+								_maxLength={TITLE_MAX_LENGTH}
+								_value={title}
+								_on={{
+									onInput: (_event, value) => {
+										const newVal = readString(value);
+										form.current.title = newVal;
+										setTitle(newVal);
+									},
+									onChange: (_event, value) => {
+										const newVal = readString(value);
+										form.current.title = newVal;
+										setTitle(newVal);
+									},
+								}}
+							/>
+							<div
+								className="character-counter"
+								style={{
+									position: 'absolute',
+									right: '8px',
+									fontSize: '0.75rem',
+									color: title.length > TITLE_MAX_LENGTH ? 'var(--color-danger, #d32f2f)' : 'var(--color-text, #666)',
+									background: 'rgba(255,255,255,0.8)',
+									padding: '2px 4px',
+									borderRadius: '4px',
+									pointerEvents: 'none',
+								}}
+							>
+								{getCharacterCounter(title)}
+							</div>
 						</div>
 						<KolButton
 							_label="Titel lektorieren"
@@ -734,10 +735,8 @@ export const TaskForm = ({
 								onClick: () => void runLektorat('title', 30),
 							}}
 							style={{
-								position: 'absolute',
-								right: '8px',
-								top: '8px',
-								padding: '4px',
+								flexShrink: 0,
+								marginTop: '24px',
 							}}
 						/>
 					</div>
@@ -873,24 +872,26 @@ export const TaskForm = ({
 						setDescription(newVal);
 					}}
 				>
-					<div style={{ position: 'relative' }}>
-						<KolTextarea
-							_label="Beschreibung (optional)"
-							_rows={4}
-							_value={description}
-							_on={{
-								onInput: (_event, value) => {
-									const newVal = readString(value);
-									form.current.description = newVal;
-									setDescription(newVal);
-								},
-								onChange: (_event, value) => {
-									const newVal = readString(value);
-									form.current.description = newVal;
-									setDescription(newVal);
-								},
-							}}
-						/>
+					<div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+						<div style={{ flex: 1, position: 'relative' }}>
+							<KolTextarea
+								_label="Beschreibung (optional)"
+								_rows={4}
+								_value={description}
+								_on={{
+									onInput: (_event, value) => {
+										const newVal = readString(value);
+										form.current.description = newVal;
+										setDescription(newVal);
+									},
+									onChange: (_event, value) => {
+										const newVal = readString(value);
+										form.current.description = newVal;
+										setDescription(newVal);
+									},
+								}}
+							/>
+						</div>
 						<KolButton
 							_label="Beschreibung lektorieren"
 							_variant="minimal"
@@ -900,10 +901,8 @@ export const TaskForm = ({
 								onClick: () => void runLektorat('description'),
 							}}
 							style={{
-								position: 'absolute',
-								right: '8px',
-								top: '8px',
-								padding: '4px',
+								flexShrink: 0,
+								marginTop: '24px',
 							}}
 						/>
 					</div>
