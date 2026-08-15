@@ -1,30 +1,76 @@
 name: 5/6 Fixup
 
-# ⚠️ Der `name:` ist lastend: der Supersede-Check (select(.name == "Claude PR Fixup
-#    (Findings umsetzen)")) matcht ihn exakt. Umbenennen schaltet den Guard lautlos ab →
-#    Duplikat-Läufe. ACHTUNG: es gibt KEINEN Contract-Test für diese Kopplung (ADR #567 —
-#    Workflows bleiben ungetestet), ein Rename fällt also lautlos durch — vor jeder
-#    `name:`-Änderung den Supersede-Guard manuell mitpflegen.
+# ⚠️ Der `name:` ist lastend: `claude-memory-save.yml` triggert via workflow_run auf
+# '5/6 Fixup'. Umbenennen schaltet das Memory-Persistieren lautlos ab.
 
 # Reagiert auf das Label "ai:needs-changes" (vom Review gesetzt) und setzt die
 # zutreffenden Findings um.
 # Setzt **Claude Code** ein; Provider via `vars.LLM_PROVIDER` (zai|claude), aufgelöst in setup-claude.
 #   review → ai:needs-changes → fixup → ai:needs-review → review → ... bis 🟢
+#
+# CONCURRENCY: Statische Gruppe pro Phase (globale Serialisierung, FIFO). Der `precheck`-Job
+# prüft den LABEL-IST-ZUSTAND zur LAUFZEIT — queued Runs würden mit dem Label-Zustand zum
+# TRIGGER-Zeitpunkt falsch wiederholen.
 
 on:
   pull_request:
     types: [labeled]
 
 concurrency:
-  group: claude-pr-fixup-${{ github.event.pull_request.number }}-${{ github.event.label.name == 'ai:needs-changes' }}
-  cancel-in-progress: true
+  group: claude-pr-fixup
+  cancel-in-progress: false
+  # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run: jeder neue
+  # Run cancelt den wartenden (`queue: single` ist der Default). Mit statischem,
+  # ticket-unabhängigem Key hätte ein Label-Burst über mehrere Tickets die
+  # wartenden Läufe still verworfen — Trigger-Label klebt, kein Lauf, kein Notice.
+  # `max` = bis zu 100 pending, FIFO. Unvereinbar mit cancel-in-progress: true.
+  queue: max
 
 jobs:
-  fixup:
+  precheck:
+    # Unveränderliche Event-Fakten filtern hier — inkl. des FORK-GUARDS. Der ist an dieser
+    # Stelle sicherheitsrelevant: `actions/checkout` holt bei pull_request den Merge-Ref, also
+    # PR-Code, und die lokale Action samt Skript würde daraus ausgeführt. Stünde der Guard erst
+    # am Hauptjob, führte ein Fork-PR mit manipuliertem check-phase-label.sh eigenen Bash aus,
+    # sobald irgendjemand ein Label setzt. Vor dieser Umstellung gab es für Fork-PRs gar keinen
+    # Checkout in 05.
     if: >-
       ${{ github.event.label.name == 'ai:needs-changes'
-          && github.event.pull_request.draft == false
           && github.event.pull_request.head.repo.full_name == github.repository }}
+    # Label-IST-Zustand zur Laufzeit: ai:needs-changes muss JETZT (nach dem Warten in der
+    # globalen Phasen-Queue) noch am PR kleben und der PR offen + nicht-draft sein.
+    # Soll-Werte stehen zentral in .github/scripts/check-phase-label.sh; hier wird nur der
+    # Phasen-Name übergeben.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read # lokale Action + Skript auschecken
+      pull-requests: read
+    outputs:
+      proceed: ${{ steps.check.outputs.proceed }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Label-Pre-Check (IST-Zustand zur Laufzeit)
+        id: check
+        uses: ./.github/actions/check-phase-label
+        with:
+          phase: fixup
+          ticket: ${{ github.event.pull_request.number }}
+
+  fixup:
+    needs: precheck
+    # `result == 'failure'` ist FAIL-OPEN und beabsichtigt: das Skript fällt bei API-Fehlern
+    # bewusst auf "laufen lassen" zurück, aber ein Fehler AUSSERHALB (Checkout, Timeout,
+    # Runner-Ausfall) würde den Hauptjob sonst stumm überspringen — Trigger konsumiert, niemand
+    # arbeitet, nichts re-armt. Ein übersprungener precheck (result == 'skipped', No-op-Trigger
+    # ODER Fork-PR) erfüllt keine der beiden Klauseln und lässt den Hauptjob korrekt entfallen —
+    # der Fork-Guard aus dem precheck-if wirkt dadurch weiterhin auch für den Hauptjob.
+    if: >-
+      ${{ always()
+          && (needs.precheck.outputs.proceed == 'true' || needs.precheck.result == 'failure') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -147,25 +193,19 @@ jobs:
           fi
           echo "stop=false" >> "$GITHUB_OUTPUT"
 
-      - name: Supersede-Check
-        id: supersede-check
-        if: steps.setup.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true'
-        env:
-          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
-          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
-        run: |
-          running=$(gh api repos/${GITHUB_REPOSITORY}/actions/runs \
-            --jq '.workflow_runs[] | select(.name == "5/6 Fixup" and (.status == "queued" or .status == "in_progress") and .head_branch == $ENV.HEAD_BRANCH and .id != ${{ github.run_id }}) | .id' 2>/dev/null | head -1)
-          if [ -n "$running" ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; fi
+      # Kein Supersede-Check mehr: Die globale Phasen-Serialisierung (statische
+      # concurrency-Gruppe) lässt Fixup-Läufe desselben Branches nie parallel laufen, und der
+      # precheck dedupliziert über den Label-IST-Zustand. Ein Lauf-Listen-Guard würde hier nur
+      # noch queued Nachfolger finden und das FALSCHE Skip auslösen.
 
       - name: HEAD vor Claude merken (Fortschritts-Baseline)
         id: head-before
-        if: steps.setup.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true' && steps.supersede-check.outputs.skip != 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true'
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Findings umsetzen via Claude
         id: claude
-        if: steps.setup.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true' && steps.supersede-check.outputs.skip != 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
@@ -238,8 +278,8 @@ jobs:
         # B1: Label-Transition auch bei Claude failure/cancelled — sonst bleibt der PR bei einem
         # Crash/Timeout dauerhaft auf ai:needs-changes kleben (kein Re-Arm, keine Eskalation).
         # Analog 04-claude-pr-review.yml (dort success|failure; hier zusaetzlich cancelled wg.
-        # timeout-minutes-Backstop). Skip-Reasons (stop-guard/supersede) liefern outcome=skipped
-        # und fallen hier korrekt raus.
+        # timeout-minutes-Backstop). Skip-Reasons (stop-guard) liefern outcome=skipped und
+        # fallen hier korrekt raus.
         if: always() && steps.setup.outputs.configured == 'true' && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure' || steps.claude.outcome == 'cancelled')
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
@@ -320,21 +360,18 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
           OUTCOME: ${{ steps.claude.outcome }}
-          SKIP_SUPERSEDE: ${{ steps.supersede-check.outputs.skip }}
           STOP_GUARD: ${{ steps.stop-guard.outputs.stop }}
           STUCK: ${{ steps.label-post.outputs.stuck }}
           STUCK_REASON: ${{ steps.label-post.outputs.stuck_reason }}
         run: |
           labels="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
-          # Je ein eigener Arm pro Guard: ohne sie faellt der gewollte Abbruch auf den
+          # Eigener Arm fuer den Stop-Guard: ohne ihn faellt der gewollte Abbruch auf den
           # Fehler-Arm (OUTCOME ist leer, weil der claude-Step nie lief) und meldet ❌.
           # Der Stop-Guard ist ein GEWOLLTER Abbruch (Loop-Schutz, > 10 Commits) — er hat
           # bereits selbst kommentiert; hier gehoert eine Warnung hin, kein Fehler.
           # Dasselbe gilt fuer den No-Progress-Fall (STUCK): Claude lief, aber ohne Commit ->
           # bewusst keine Re-Armierung, Mensch prüft.
-          if [ "${SKIP_SUPERSEDE:-false}" = "true" ]; then
-            echo "::notice title=⏭️ Fixup übersprungen::PR #${PR} — Lauf bereits aktiv"
-          elif [ "${STOP_GUARD:-false}" = "true" ]; then
+          if [ "${STOP_GUARD:-false}" = "true" ]; then
             echo "::warning title=🛑 Fixup gestoppt::PR #${PR} — Stop-Guard (Loop-Schutz), bitte manuell prüfen"
           elif [ "${STUCK:-false}" = "true" ]; then
             # STUCK=true kommt von drei Pfaden (stuck_reason): Claude-Crash (OUTCOME!=success),

@@ -134,6 +134,10 @@ Jede Phase reicht ihre eigene `CLAUDE_MODEL_*`-Variable an `setup-claude` durch;
   mehrere Workflows gleichzeitig feuern (Triage + Implement + Review + Fixup + Spec).
   `glm-4.7-flash` erlaubt nur **1 gleichzeitigen Aufruf** → Läufe würden sich gegenseitig
   blockieren.
+  Seit der globalen Phasen-Serialisierung (statische `concurrency`-Gruppe je Phase, s.
+  [pipeline-flow.md](./pipeline-flow.md)) ist die Obergrenze strukturell **6 gleichzeitige
+  Agent-Läufe** — einer je Phase; weitere Läufe derselben Phase stapeln sich, statt parallel
+  Kontingent zu ziehen. Die Wahl bleibt damit komfortabel innerhalb der 10er-Grenze.
 - **Sperrzeiten:** Nur `glm-5.2` und `glm-5-turbo` verbrauchen in Spitzenzeiten (14:00–18:00
   UTC+8 = dt. Vormittag) 3× bzw. außerhalb 2×. `glm-5.1` ist davon **nicht betroffen**.
 

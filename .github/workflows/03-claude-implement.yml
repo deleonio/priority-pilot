@@ -1,26 +1,69 @@
-# ⚠️ Der Workflow-Name ist der Selektor des Skip-Guards weiter unten
-# (`select(.name == "3/6 Umsetzung" ...)`). Wird er hier geaendert,
-# muss die jq-Query mitgezogen werden — sonst greift der Guard still nicht mehr.
+# ⚠️ Der Workflow-Name ist lastend: `claude-memory-save.yml` triggert via workflow_run auf
+# '3/6 Umsetzung'. Umbenennen schaltet das Memory-Persistieren lautlos ab.
 name: 3/6 Umsetzung
 
 # Setzt ein Issue um, sobald es das Label "ai:ready" erhält UND bereits
 # "ai:analyzed" trägt.
 # Setzt **Claude Code** ein; Provider via `vars.LLM_PROVIDER` (zai|claude), aufgelöst in setup-claude.
+#
+# CONCURRENCY: Statische Gruppe pro Phase (globale Serialisierung, FIFO). Der `precheck`-Job
+# prüft den LABEL-IST-ZUSTAND zur LAUFZEIT — queued Runs würden mit dem Label-Zustand zum
+# TRIGGER-Zeitpunkt falsch wiederholen (Label inzwischen von einem anderen Lauf konsumiert).
+# Ausnahme Continuation: Der Soft-Abort unten entfernt+re-addet ai:ready absichtlich — der
+# Folgelauf sieht das Label dann (korrekt) noch vorhanden und setzt fort.
 
 on:
   issues:
     types: [labeled]
 
 concurrency:
-  group: claude-implement-${{ github.event.issue.number }}
+  group: claude-implement
   cancel-in-progress: false
+  # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run: jeder neue
+  # Run cancelt den wartenden (`queue: single` ist der Default). Mit statischem,
+  # ticket-unabhängigem Key hätte ein Label-Burst über mehrere Tickets die
+  # wartenden Läufe still verworfen — Trigger-Label klebt, kein Lauf, kein Notice.
+  # `max` = bis zu 100 pending, FIFO. Unvereinbar mit cancel-in-progress: true.
+  queue: max
 
 jobs:
+  precheck:
+    # Unveränderliches Event-Faktum filtert hier (spart den Runner für No-op-Trigger — 03 feuert
+    # auf JEDES `labeled` im Repo). Es gatet den precheck, nicht den Hauptjob: wird der precheck
+    # übersprungen, ist sein Output leer und der Hauptjob fällt korrekt mit aus.
+    if: ${{ github.event.label.name == 'ai:ready' }}
+    # Label-IST-Zustand zur Laufzeit: ai:ready + ai:analyzed müssen JETZT (nach dem Warten in
+    # der globalen Phasen-Queue) noch am Issue kleben. Soll-Werte stehen zentral in
+    # .github/scripts/check-phase-label.sh; hier wird nur der Phasen-Name übergeben.
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read # lokale Action + Skript auschecken
+      issues: read
+    outputs:
+      proceed: ${{ steps.check.outputs.proceed }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Label-Pre-Check (IST-Zustand zur Laufzeit)
+        id: check
+        uses: ./.github/actions/check-phase-label
+        with:
+          phase: implement
+          ticket: ${{ github.event.issue.number }}
+
   implement:
+    needs: precheck
+    # `result == 'failure'` ist FAIL-OPEN und beabsichtigt: das Skript fällt bei API-Fehlern
+    # bewusst auf "laufen lassen" zurück, aber ein Fehler AUSSERHALB (Checkout, Timeout,
+    # Runner-Ausfall) würde den Hauptjob sonst stumm überspringen — Trigger konsumiert, niemand
+    # arbeitet, nichts re-armt. Ein übersprungener precheck (result == 'skipped', No-op-Trigger)
+    # erfüllt keine der beiden Klauseln und lässt den Hauptjob korrekt entfallen.
     if: >-
-      ${{ github.event.label.name == 'ai:ready'
-          && contains(github.event.issue.labels.*.name, 'ai:analyzed')
-          && github.event.issue.state == 'open' }}
+      ${{ always()
+          && (needs.precheck.outputs.proceed == 'true' || needs.precheck.result == 'failure') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -66,27 +109,13 @@ jobs:
           memory-load: 'true'
           expect-memory: 'true'
 
-      - name: Skip-Guard (Implement läuft bereits)
-        id: skip-guard
-        if: steps.setup.outputs.configured == 'true'
-        env:
-          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
-          ISSUE: ${{ github.event.issue.number }}
-        run: |
-          running=$(gh api --paginate repos/${GITHUB_REPOSITORY}/actions/runs \
-            --jq '.workflow_runs[] | select(.name == "3/6 Umsetzung" and (.status == "queued" or .status == "in_progress") and (.event.issue.number | tonumber) == (env.ISSUE | tonumber) and .id != ${{ github.run_id }}) | .id' 2>/dev/null | head -1)
-          if [ -n "$running" ]; then
-            echo "::notice::Implement-Lauf für Issue #$ISSUE läuft bereits – übersprungen (Fixup holt Fehlendes nach)."
-            echo "skip=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "skip=false" >> "$GITHUB_OUTPUT"
-          fi
+      # Kein Skip-Guard ("läuft bereits") mehr: Die globale Phasen-Serialisierung (statische
+      # concurrency-Gruppe) lässt Läufe desselben Issues nie parallel laufen, und der precheck
+      # dedupliziert über den Label-IST-Zustand. Ein Lauf-Listen-Guard würde hier nur noch
+      # queued Nachfolger finden und das FALSCHE Skip auslösen.
 
-      # Steht bewusst NACH dem Skip-Guard: bei einem geskippten Lauf hat der laufende
-      # Job bereits zugewiesen — ein zweiter Aufruf kostet nur API-Quota und kann eine
-      # ueberfluessige Assignment-Notification ausloesen.
       - name: Issue einem Menschen zuweisen (Best-Effort)
-        if: steps.setup.outputs.configured == 'true' && steps.skip-guard.outputs.skip != 'true'
+        if: steps.setup.outputs.configured == 'true'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
@@ -101,7 +130,7 @@ jobs:
 
       - name: Doppel-Run-Guard (ready-PR existiert bereits)
         id: doppel-guard
-        if: steps.setup.outputs.configured == 'true' && steps.skip-guard.outputs.skip != 'true'
+        if: steps.setup.outputs.configured == 'true'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
@@ -118,27 +147,27 @@ jobs:
           echo "skip=false" >> "$GITHUB_OUTPUT"
 
       - name: pnpm einrichten
-        if: steps.setup.outputs.configured == 'true' && steps.skip-guard.outputs.skip != 'true' && steps.doppel-guard.outputs.skip != 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
 
       - name: Node.js einrichten
-        if: steps.setup.outputs.configured == 'true' && steps.skip-guard.outputs.skip != 'true' && steps.doppel-guard.outputs.skip != 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version-file: .nvmrc
           cache: pnpm
 
       - name: Abhängigkeiten installieren
-        if: steps.setup.outputs.configured == 'true' && steps.skip-guard.outputs.skip != 'true' && steps.doppel-guard.outputs.skip != 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Git-Hooks installieren (lefthook)
-        if: steps.setup.outputs.configured == 'true' && steps.skip-guard.outputs.skip != 'true' && steps.doppel-guard.outputs.skip != 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         run: pnpm exec lefthook install
 
       - name: Fortsetzungs-Stand prüfen (ai:continued)
         id: continued-before
-        if: steps.setup.outputs.configured == 'true' && steps.skip-guard.outputs.skip != 'true' && steps.doppel-guard.outputs.skip != 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
@@ -148,7 +177,7 @@ jobs:
 
       - name: Umsetzung via Claude
         id: claude
-        if: steps.setup.outputs.configured == 'true' && steps.skip-guard.outputs.skip != 'true' && steps.doppel-guard.outputs.skip != 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
@@ -221,7 +250,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Label-Post-Assertion (VERDICT parsen, Labels via App-Token force-setzen)
-        if: always() && steps.setup.outputs.configured == 'true' && steps.skip-guard.outputs.skip != 'true' && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure' || steps.claude.outcome == 'cancelled' || steps.doppel-guard.outputs.skip == 'true')
+        if: always() && steps.setup.outputs.configured == 'true' && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure' || steps.claude.outcome == 'cancelled' || steps.doppel-guard.outputs.skip == 'true')
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
@@ -306,15 +335,12 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
           OUTCOME: ${{ steps.claude.outcome }}
-          SKIP_GUARD: ${{ steps.skip-guard.outputs.skip }}
           SKIP_DOPPEL: ${{ steps.doppel-guard.outputs.skip }}
         run: |
           labels="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
-          # Je ein eigener Arm pro Guard: ohne sie faellt der gewollte Skip auf den
+          # Eigener Arm fuer den Doppel-Run-Guard: ohne ihn faellt der gewollte Skip auf den
           # Fehler-Arm (OUTCOME ist leer, weil der claude-Step nie lief) und meldet ❌.
-          if [ "${SKIP_GUARD:-false}" = "true" ]; then
-            echo "::notice title=⏭️ Umsetzung übersprungen::Issue #${ISSUE} — Lauf bereits aktiv"
-          elif [ "${SKIP_DOPPEL:-false}" = "true" ]; then
+          if [ "${SKIP_DOPPEL:-false}" = "true" ]; then
             echo "::notice title=⏭️ Umsetzung übersprungen::Issue #${ISSUE} — PR existiert bereits"
           elif [ "$OUTCOME" = "success" ]; then
             echo "::notice title=✅ Umsetzung erfolgreich::Issue #${ISSUE}"
