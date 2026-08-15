@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { headerAction, waitForStableView } from './helpers';
 
 /**
  * ROTE Spec-Tests für #125 „Header – Toolbar" (Stufe 1 TDD, der einklagbare Vertrag).
@@ -331,9 +331,11 @@ test.describe('#312 Toolbar-Reihenfolge und Zahnrad-Icon', () => {
 		const overflowsHorizontally = await page.evaluate(() => document.body.scrollWidth > window.innerWidth + 1);
 		expect(overflowsHorizontally, 'Kein horizontaler Overflow auf 375px').toBe(false);
 
-		// Beide Buttons bleiben in neuer Reihenfolge sichtbar.
-		await expect(toolbar.getByRole('button', { name: 'Einstellungen' })).toBeVisible();
-		await expect(toolbar.getByRole('button', { name: 'Hilfe' })).toBeVisible();
+		// Beide Buttons bleiben in neuer Reihenfolge erreichbar. Auf 375px liegen sie im „⋮"-Menü der
+		// Kopf-Aktionen (der Header bleibt dadurch einzeilig, s. mobile-shell.spec.ts) — `headerAction`
+		// kapselt, wo sie je nach Breite stehen.
+		await expect(await headerAction(page, 'Einstellungen')).toBeVisible();
+		await expect(await headerAction(page, 'Hilfe')).toBeVisible();
 	});
 });
 

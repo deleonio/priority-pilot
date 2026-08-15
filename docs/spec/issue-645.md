@@ -75,28 +75,32 @@ Einen Text durch LLM kürzen UND lektorieren lassen mit einer maximalen Zeichenl
 
 ---
 
-## Journey 3: Titel lektorieren und kürzen _(offen — Frontend)_
+## Journey 3: Titel lektorieren und kürzen _(Issue 680 — Frontend Smart Button)_
 
 ### Ziel
 
-Einen Aufgabentitel durch LLM lektorieren/optimal kürzen für die Anzeige in der UI.
+Einen Aufgabentitel durch LLM lektorieren/optimal kürzen für die Anzeige in der UI mittels Smart Button im TaskForm.
 
 ### Vorbedingung
 
 - LLM-Service ist verfügbar
+- TaskForm ist geöffnet mit Titel-Input-Feld
 - Ursprünglicher Titel ist vorhanden
 
 ### Schritte
 
-1. **Titel bereitstellen**
-   - Original-Titel: _„GROSSES PROJEKT mit viel Aufwand und DRINGEND"_
+1. **Titel eingeben**
+   - Nutzer gibt Titel mit Fehlern ein: _„GROSSES PROJEKT mit viel Aufwand und DRINGEND"_
 
-2. **Titel-Optimierung anfordern**
-   - Funktion aufrufen mit Text und `maxLength=30`
-   - LLM verarbeitet den Titel-typischen Text
+2. **Smart Button aufrufen**
+   - Nutzer klickt „Titel lektorieren"-Button am Titel-Input
+   - Button deaktiviert sich, zeigt Ladezustand
+   - Aktueller Feldwert wird an POST /lektorat gesendet mit `maxLength=30`
 
-3. **Optimierten Titel erhalten**
-   - Funktion gibt optimierten Titel zurück
+3. **Lektorierten Titel erhalten**
+   - Backend antwortet mit lektoriertem Text
+   - Feldwert wird mit lektoriertem Titel überschrieben (State + Ref)
+   - Button wird wieder aktiv
 
 ### Erwartetes Ergebnis
 
@@ -104,38 +108,84 @@ Einen Aufgabentitel durch LLM lektorieren/optimal kürzen für die Anzeige in de
 - Titel ist lektorisiert (keine Caps-lock-Fehler)
 - Titel ist aussagekräftig und professionell
 - Wesentliche Information ist erhalten
+- Ladezustand wird während des API-Calls angezeigt
+- Bei Fehler wird KolAlert mit verständlicher Fehlermeldung gezeigt
 
 ---
 
-## Journey 4: Beschreibung lektorieren _(offen — Frontend)_
+## Journey 4: Beschreibung lektorieren _(Issue 680 — Frontend Smart Button)_
 
 ### Ziel
 
-Eine Aufgabenbeschreibung durch LLM lektorieren für bessere Lesbarkeit.
+Eine Aufgabenbeschreibung durch LLM lektorieren für bessere Lesbarkeit mittels Smart Button im TaskForm.
 
 ### Vorbedingung
 
 - LLM-Service ist verfügbar
+- TaskForm ist geöffnet mit Beschreibung-Textarea
 - Ursprüngliche Beschreibung ist vorhanden
 
 ### Schritte
 
-1. **Beschreibung bereitstellen**
-   - Original-Beschreibung: _„Dies ist die beschreibung für die aufgabe die viel arbeit macht"_
+1. **Beschreibung eingeben**
+   - Nutzer gibt Beschreibung mit Fehlern ein: _„Dies ist die beschreibung für die aufgabe die viel arbeit macht"_
 
-2. **Beschreibungs-Lektorat anfordern**
-   - Funktion aufrufen mit Text und ohne `maxLength`
-   - LLM verarbeitet den Beschreibungstext
+2. **Smart Button aufrufen**
+   - Nutzer klickt „Beschreibung lektorieren"-Button an der Beschreibung-Textarea
+   - Button deaktiviert sich, zeigt Ladezustand
+   - Aktueller Feldwert wird an POST /lektorat gesendet (ohne maxLength)
 
 3. **Lektorierte Beschreibung erhalten**
-   - Funktion gibt korrigierte Beschreibung zurück
+   - Backend antwortet mit lektoriertem Text
+   - Feldwert wird mit lektorieter Beschreibung überschrieben (State + Ref)
+   - Button wird wieder aktiv
 
 ### Erwartetes Ergebnis
 
 - Beschreibung ist grammatikalisch korrekt
 - Groß-/Kleinschreibung ist korrigiert
 - Inhalt/Information ist unverändert
-- Länge ist ähnlich zum Original
+- Länge ist ähnlich zum Original (keine Kürzung ohne maxLength)
+- Ladezustand wird während des API-Calls angezeigt
+- Bei Fehler wird KolAlert mit verständlicher Fehlermeldung gezeigt
+
+---
+
+## Journey 5: Backend-Endpunkt für Lektorat _(Issue 680 — Neu)_
+
+### Ziel
+
+Backend-API-Endpunkt bereitstellen, der Lektorat-Funktion für Frontend aufrufbar macht.
+
+### Vorbedingung
+
+- Server ist gestartet
+- `lektoratTextWithMistral` Funktion ist verfügbar
+- Gültige Session (Endpunkt liegt hinter `requireAuth` — Mensch-Entscheidung im Review von PR #682, kein öffentlicher DOS-/Kostenhebel)
+
+### Schritte
+
+1. **POST Request an `/lektorat` senden**
+   - Request-Body: `{ text: string, maxLength?: number }`
+   - Content-Type: application/json
+
+2. **Backend verarbeitet Request**
+   - Validiert Input (text nicht leer, maxLength positiv falls angegeben)
+   - Ruft `lektoratTextWithMistral` auf
+   - Bei LLM-Fehlern: 502 Bad Gateway
+   - Bei fehlendem API-Key: 503 Service Unavailable
+
+3. **Response senden**
+   - Bei Erfolg: `{ text: string }` mit lektoriertem Text
+   - Bei Fehler: entsprechender Status-Code mit Fehlermeldung
+
+### Erwartetes Ergebnis
+
+- Endpunkt antwortet mit Status 200 und lektoriertem Text bei Erfolg
+- Leerer/Whitespace-Text liefert 400 Bad Request
+- LLM-Fehler liefern 502 Bad Gateway
+- Fehlender API-Key liefert 503 Service Unavailable
+- Response-JSON-Struktur ist konsistent
 
 ---
 

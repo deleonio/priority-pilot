@@ -47,6 +47,10 @@ Ganz oben findest du die **Kopf-Aktionen** (als Icon-Buttons):
 
 Rechts daneben stehen dein Profilbild und dein Name.
 
+Auf dem **Smartphone** bleibt die Kopfzeile einzeilig: Dort stehen nur das Logo und **Neuen Task
+anlegen** direkt in der Leiste. Die übrigen Aktionen (Säulen-Berater, Einstellungen, Hilfe, Abmelden)
+sowie dein Profilbild und Name findest du hinter dem **⋮-Menü** („Mein Konto") am rechten Rand.
+
 Darunter wechselst du über eine **Tab-Leiste** zwischen den vier Hauptansichten:
 
 1. **Dashboard** – Überblick und Empfehlungen

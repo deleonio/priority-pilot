@@ -1,6 +1,6 @@
 import type { Route } from '@playwright/test';
 import { expect, test, type Page } from './fixtures';
-import { SPEECH_MOCK_INIT_SCRIPT, waitForStableView } from './helpers';
+import { headerAction, SPEECH_MOCK_INIT_SCRIPT, waitForStableView } from './helpers';
 
 /**
  * E2E-Spec für den Säulen-Berater (Aktivitäten-Ratgeber): Über das Glühbirnen-Symbol im Header
@@ -13,11 +13,11 @@ import { SPEECH_MOCK_INIT_SCRIPT, waitForStableView } from './helpers';
  * Säulen-Stammdaten.
  */
 test.describe('Säulen-Berater (Aktivitäten-Ratgeber)', () => {
-	/** Öffnet den Säulen-Berater über die Header-Toolbar. */
+	/** Öffnet den Säulen-Berater über die Kopf-Aktionen (auf Handy-Breite über das „⋮"-Menü). */
 	const openAdvisor = async (page: Page): Promise<void> => {
 		await page.goto('/');
 		await waitForStableView(page);
-		await page.getByRole('button', { name: 'Säulen-Berater' }).click();
+		await (await headerAction(page, 'Säulen-Berater')).click();
 		await expect(page.getByRole('heading', { name: 'Säulen-Berater' })).toBeVisible();
 		await waitForStableView(page);
 	};

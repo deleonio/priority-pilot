@@ -3,6 +3,7 @@ import type { Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useEffect, useRef, useState } from 'react';
 import { extractLeaves } from '../lib/extractLeaves';
+import { setupPopoverAlignment } from '../lib/popoverAlign';
 
 interface TaskTreeProps {
 	/** Aufgabenwald (`GET /forest`): Wurzeln und ihre `dependents` (Unteraufgaben). */
@@ -43,67 +44,6 @@ const findInnerButton = (el: Element | null | undefined): HTMLElement | null => 
 	return findInnerButton(el.shadowRoot?.firstElementChild ?? el.firstElementChild);
 };
 
-/**
- * #369/#380: Das Panel (`.kol-popover-button__popover`) liegt im offenen Shadow-DOM von
- * `kol-popover-button` und ist damit von außen per CSS nicht erreichbar (kein `::part`).
- * `_popoverAlign="left"` lässt floating-ui das Panel links neben dem Trigger platzieren.
- * Die CSS-Shrink-to-fit-Breite bemisst sich am verfügbaren Platz; `width: max-content`
- * erzwingt die inhaltsbasierte Breite (alle 4 Aktionen in einer Zeile), unabhängig vom
- * verfügbaren Platz. Überschreitet das Panel den rechten Viewport-Rand, korrigiert
- * `correct()` `left` um den Überlauf (funktioniert, da KoliBri keinen MutationObserver
- * auf Panel-Style-Änderungen setzt — nur ResizeObserver/Scroll/Resize via autoUpdate).
- * Alle Shadow-DOM-Zugriffe sind unpublizierte KoliBri-API (@public-ui/react-v19 v4.2.1) —
- * bei KoliBri-Upgrades prüfen.
- */
-const alignPopoverPanelLeft = (host: HTMLKolPopoverButtonElement): (() => void) => {
-	const root = host.shadowRoot;
-	if (!root) return () => {};
-
-	const correct = () => {
-		const panel = root.querySelector<HTMLElement>('.kol-popover-button__popover');
-		if (!panel) return;
-		if (panel.style.width !== 'max-content') {
-			panel.style.width = 'max-content';
-		}
-		const rect = panel.getBoundingClientRect();
-		if (rect.width === 0) return; // Panel versteckt (display:none) — DOM-Writes und Reflow sparen
-		const overflow = Math.ceil(rect.right) - window.innerWidth;
-		if (overflow > 0) {
-			const newLeft = `${Math.round((parseFloat(panel.style.left) || 0) - overflow)}px`;
-			if (panel.style.left !== newLeft) {
-				panel.style.left = newLeft;
-			}
-		}
-	};
-
-	let panelObs: MutationObserver | null = null;
-
-	const watchPanel = () => {
-		const panel = root.querySelector<HTMLElement>('.kol-popover-button__popover');
-		if (!panel) {
-			panelObs?.disconnect();
-			panelObs = null;
-			return;
-		}
-		if (panelObs) return; // Observer läuft bereits — unnötiges Recycling vermeiden
-		correct();
-		panelObs = new MutationObserver(correct);
-		panelObs.observe(panel, { attributes: true, attributeFilter: ['style'] });
-	};
-
-	const rootObs = new MutationObserver(watchPanel);
-	rootObs.observe(root, { childList: true, subtree: true });
-
-	const onResize = () => requestAnimationFrame(correct);
-	window.addEventListener('resize', onResize);
-
-	return () => {
-		rootObs.disconnect();
-		panelObs?.disconnect();
-		window.removeEventListener('resize', onResize);
-	};
-};
-
 const LeafItem = ({
 	node,
 	taskById,
@@ -120,24 +60,7 @@ const LeafItem = ({
 	// der Ref dient nur dazu, das Panel nach einer Aktion programmatisch zu schließen.
 	const popoverRef = useRef<HTMLKolPopoverButtonElement | null>(null);
 
-	useEffect(() => {
-		const host = popoverRef.current;
-		if (!host) return;
-		let cleanup: () => void = () => {};
-		const setup = () => {
-			cleanup = alignPopoverPanelLeft(host);
-		};
-		// KoliBri-Custom-Elements werden asynchron aufgewertet — shadowRoot ist bei schnellem
-		// Mount u. U. noch null. Wir warten ggf. auf die Custom-Element-Definition.
-		if (host.shadowRoot) {
-			setup();
-		} else {
-			void customElements.whenDefined('kol-popover-button').then(() => {
-				if (host.isConnected) setup();
-			});
-		}
-		return () => cleanup();
-	}, []);
+	useEffect(() => setupPopoverAlignment(popoverRef.current), []);
 
 	const task = taskById.get(node.id) ?? null;
 	const progress = progressMap.get(node.id);
