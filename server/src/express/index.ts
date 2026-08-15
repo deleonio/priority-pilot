@@ -15,6 +15,7 @@ import { authRouter } from './routes/auth.js';
 import { transitRouter } from './routes/transit.js';
 import { createPushRouter } from './routes/push.js';
 import { llmConfigRouter } from './routes/llmConfig.js';
+import { lektoratRouter } from './routes/lektorat.js';
 import { handleServerError } from './server-error-handler.js';
 import type { PillarClassifier, ParseTaskParser, ActivityAdvisor } from '../llm/llm.js';
 import type { PushSender } from '../logics/push.js';
@@ -170,6 +171,10 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// Alle folgenden Routen benötigen eine gültige Session.
 	app.use(requireAuth);
+
+	// Lektorat-Endpunkt (Issue #680) — triggert die bezahlte LLM-Kaskade, daher Session-Pflicht
+	// (Mensch-Entscheidung im Review von PR #682: kein öffentlicher DOS-/Kostenhebel).
+	app.use(lektoratRouter());
 
 	// Task-CRUD- & Dependency-Routen (siehe routes/tasks.ts).
 	app.use(tasksRouter);

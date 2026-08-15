@@ -272,6 +272,23 @@ export const api = {
 		}
 	},
 
+	// Lektorat (#680): Lektoriert Texte und kürzt sie optional auf eine Maximallänge.
+	// Auth via Session-Cookie (same-origin) — direkter fetch, nicht im OpenAPI-Spec.
+	async lektorat({ text, maxLength, signal }: { text: string; maxLength?: number } & Init): Promise<{ text: string }> {
+		const response = await fetch(`${baseUrl}/lektorat`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ text, maxLength }),
+			signal,
+		});
+		if (!response.ok) {
+			const error = await response.json().catch(() => ({ message: 'Unbekannter Fehler' }));
+			throw new ResponseError(response, error.message);
+		}
+		const data = await response.json();
+		return { text: data.text };
+	},
+
 	// --- Serien-Templates (#120/#142) ---
 
 	async listSeries(init: Init = {}): Promise<Series[]> {
