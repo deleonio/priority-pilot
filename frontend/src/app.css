@@ -733,9 +733,10 @@ body {
 }
 
 /* Einzeiliger Input: vertikal in der Inputbox zentriert, von unten gerechnet. Die Inputbox-Höhe
-   des KoliBri-Default-Themes ist als Custom Property kalibrierbar. */
+   des KoliBri-Default-Themes ist als Custom Property kalibrierbar.
+   Mit _hasCounter erhöht sich die Container-Höhe (KoliBri built-in Counter). */
 .voice-field--input > .mic-button {
-	bottom: calc((var(--pp-voice-input-height, 2.75rem) - 2rem) / 2);
+	bottom: calc((var(--pp-voice-input-height, 3.25rem) - 2rem) / 2);
 }
 
 .mic-button {
