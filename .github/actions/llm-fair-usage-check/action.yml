@@ -9,20 +9,37 @@ runs:
     - name: Rohausgabe auf 1313/Fair-Usage durchsuchen
       shell: bash
       run: |
-        # Lief der Claude-Step nicht (Skip-Guard, früherer Fehler), gibt es nichts zu prüfen.
-        [ -f /tmp/claude-output.log ] || exit 0
-        # `|| true` ist PFLICHT, nicht Kosmetik: GitHub führt `shell: bash` mit `-eo pipefail`
-        # aus. Findet grep nichts (= der Normalfall, kein Fair-Usage-Problem), liefert es exit 1,
-        # pipefail reicht das durch die Pipe, und `-e` bricht den Step ab. Der Check schlug
-        # dadurch GENAU DANN fehl, wenn alles in Ordnung war — invertierte Logik. Folge: Der
-        # Review-Job wurde rot, das Merge-Gate zählte "4/6 Review" als fail und degradierte
-        # saubere PRs zu ai:needs-changes (Fixup-Loop). Dieser Step ist rein informativ und darf
-        # den Job NIEMALS scheitern lassen.
-        FAIR_LINE="$(grep -E '\[1313\]|Fair Usage Policy' /tmp/claude-output.log | head -1 | cut -c1-400 || true)"
+        # DIESER STEP IST REIN INFORMATIV UND DARF DEN BUILD NIE ROT MACHEN.
+        # Er beantwortet genau eine Frage: Hat der LLM-Provider wegen Fair Usage gezickt?
+        #
+        # GitHub ruft `shell: bash` mit `-eo pipefail` auf. Beides hier bewusst abschalten:
+        # Findet grep nichts (= der Normalfall!), liefert es exit 1, pipefail reicht das durch
+        # die Pipe und `-e` bricht den Step ab. Der Check schlug dadurch GENAU DANN fehl, wenn
+        # alles in Ordnung war — invertierte Logik. Über den Step hinaus schädlich, weil
+        # claude-pr-gate-merge.yml den Check "4/6 Review" in any_fail wertet und einen sauberen
+        # PR zu ai:needs-changes degradierte (Fixup-Loop bis zum Stop-Guard).
+        # `set +e +o pipefail` verhindert den Abbruch mittendrin, das abschliessende `exit 0`
+        # setzt den Step-Status unabhaengig vom letzten Kommando auf Erfolg — beides zusammen,
+        # weil `set +e` allein den Exit-Code des LETZTEN Kommandos weiterreicht.
+        set +e +o pipefail
+
+        # Lief der Claude-Step nicht (Guard, frueherer Fehler), gibt es nichts zu pruefen.
+        if [ ! -f /tmp/claude-output.log ]; then
+          echo "Kein Claude-Log vorhanden — nichts zu pruefen (LLM-Aufruf fand nicht statt)."
+          exit 0
+        fi
+
+        FAIR_LINE="$(grep -E '\[1313\]|Fair Usage Policy' /tmp/claude-output.log | head -1 | cut -c1-400)"
         if [ -n "$FAIR_LINE" ]; then
-          echo "::error title=🚫 Z.AI Fair-Usage-Limit (1313)::${FAIR_LINE}"
+          # BEWUSST ::warning statt ::error — ein Fair-Usage-Treffer ist eine Information ueber
+          # den Provider, kein Defekt dieses Laufs. `::error` faerbt die Run-Uebersicht rot und
+          # sieht nach kaputtem Build aus, obwohl der Job gruen bleibt.
+          echo "::warning title=🚫 Z.AI Fair-Usage-Limit (1313)::${FAIR_LINE}"
           echo "🚫 **Z.AI Fair-Usage-Limit (1313):** \`${FAIR_LINE}\`" >> "$GITHUB_STEP_SUMMARY"
         else
           echo "::notice title=✅ Kein Z.AI Fair-Usage-Fehler (1313)::LLM-Aufruf ohne Fair-Usage-Beschränkung"
           echo "- ✅ Z.AI Fair-Usage-Check (1313): kein Treffer" >> "$GITHUB_STEP_SUMMARY"
         fi
+
+        # Immer Erfolg: siehe Kopfkommentar.
+        exit 0
