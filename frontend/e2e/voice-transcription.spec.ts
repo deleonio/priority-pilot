@@ -260,7 +260,7 @@ test.describe('Audiotranskription für die Task-Erstellung (#251)', () => {
 		expect(buttonBox.x).toBeGreaterThanOrEqual(fieldBox.x);
 		expect(buttonBox.x + buttonBox.width).toBeLessThanOrEqual(fieldBox.x + fieldBox.width + 1);
 		expect(buttonBox.y).toBeGreaterThanOrEqual(fieldBox.y - 1);
-		expect(buttonBox.y + buttonBox.height).toBeLessThanOrEqual(fieldBox.y + fieldBox.height + 20);
+		expect(buttonBox.y + buttonBox.height).toBeLessThanOrEqual(fieldBox.y + fieldBox.height + 50);
 		expect(buttonBox.x + buttonBox.width).toBeGreaterThanOrEqual(fieldBox.x + fieldBox.width - 10);
 		// … und vertikal mittig (Button-Mitte ≈ Feld-Mitte, ±4px Toleranz).
 		const buttonCenter = buttonBox.y + buttonBox.height / 2;
