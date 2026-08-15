@@ -11,7 +11,14 @@ runs:
       run: |
         # Lief der Claude-Step nicht (Skip-Guard, früherer Fehler), gibt es nichts zu prüfen.
         [ -f /tmp/claude-output.log ] || exit 0
-        FAIR_LINE="$(grep -E '\[1313\]|Fair Usage Policy' /tmp/claude-output.log | head -1 | cut -c1-400)"
+        # `|| true` ist PFLICHT, nicht Kosmetik: GitHub führt `shell: bash` mit `-eo pipefail`
+        # aus. Findet grep nichts (= der Normalfall, kein Fair-Usage-Problem), liefert es exit 1,
+        # pipefail reicht das durch die Pipe, und `-e` bricht den Step ab. Der Check schlug
+        # dadurch GENAU DANN fehl, wenn alles in Ordnung war — invertierte Logik. Folge: Der
+        # Review-Job wurde rot, das Merge-Gate zählte "4/6 Review" als fail und degradierte
+        # saubere PRs zu ai:needs-changes (Fixup-Loop). Dieser Step ist rein informativ und darf
+        # den Job NIEMALS scheitern lassen.
+        FAIR_LINE="$(grep -E '\[1313\]|Fair Usage Policy' /tmp/claude-output.log | head -1 | cut -c1-400 || true)"
         if [ -n "$FAIR_LINE" ]; then
           echo "::error title=🚫 Z.AI Fair-Usage-Limit (1313)::${FAIR_LINE}"
           echo "🚫 **Z.AI Fair-Usage-Limit (1313):** \`${FAIR_LINE}\`" >> "$GITHUB_STEP_SUMMARY"
