@@ -2,10 +2,11 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { lektoratTextWithMistral, MissingApiKeyError, MistralRequestError } from '../../llm/llm.js';
 
-type ErrorDto = { error: string; message?: string };
+type ErrorDto = { message: string };
 
 const sendError = (res: Response<ErrorDto>, status: number, message: string): void => {
-	res.status(status).json({ error: message });
+	// `{ message }` wie alle übrigen Routen — toApiError (Frontend) liest exakt dieses Feld.
+	res.status(status).json({ message });
 };
 
 /**
@@ -55,7 +56,8 @@ const validateBody = (
 
 /**
  * Router für `POST /lektorat`. Lektorisiert Texte optional mit Maximallänge.
- * Erfordert keine Auth — öffentlicher Endpunkt.
+ * Auth via Session (requireAuth in index.ts VOR diesem Router registriert) — der Endpunkt
+ * triggert die bezahlte LLM-Kaskade und ist daher kein öffentlicher Hebel.
  */
 export const lektoratRouter = (): Router => {
 	const router = Router();

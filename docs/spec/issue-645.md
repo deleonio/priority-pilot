@@ -161,6 +161,7 @@ Backend-API-Endpunkt bereitstellen, der Lektorat-Funktion für Frontend aufrufba
 
 - Server ist gestartet
 - `lektoratTextWithMistral` Funktion ist verfügbar
+- Gültige Session (Endpunkt liegt hinter `requireAuth` — Mensch-Entscheidung im Review von PR #682, kein öffentlicher DOS-/Kostenhebel)
 
 ### Schritte
 

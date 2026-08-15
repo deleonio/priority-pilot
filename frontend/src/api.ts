@@ -273,7 +273,7 @@ export const api = {
 	},
 
 	// Lektorat (#680): Lektoriert Texte und kürzt sie optional auf eine Maximallänge.
-	// Öffentlicher Endpunkt ohne Auth — direkter fetch, nicht im OpenAPI-Spec.
+	// Auth via Session-Cookie (same-origin) — direkter fetch, nicht im OpenAPI-Spec.
 	async lektorat({ text, maxLength, signal }: { text: string; maxLength?: number } & Init): Promise<{ text: string }> {
 		const response = await fetch(`${baseUrl}/lektorat`, {
 			method: 'POST',
@@ -282,8 +282,8 @@ export const api = {
 			signal,
 		});
 		if (!response.ok) {
-			const error = await response.json().catch(() => ({ error: 'Unbekannter Fehler' }));
-			throw new ResponseError(response, error.error ?? error.message);
+			const error = await response.json().catch(() => ({ message: 'Unbekannter Fehler' }));
+			throw new ResponseError(response, error.message);
 		}
 		const data = await response.json();
 		return { text: data.text };

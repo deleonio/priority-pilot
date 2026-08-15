@@ -92,7 +92,7 @@ describe('POST /lektorat — Lektorat API', () => {
 
 			assert.equal(res.status, 400);
 			const data = await res.json();
-			assert.ok(data.error);
+			assert.ok(data.message);
 		});
 
 		it('400 bei nur-Whitespace Text', async () => {
@@ -101,7 +101,7 @@ describe('POST /lektorat — Lektorat API', () => {
 
 			assert.equal(res.status, 400);
 			const data = await res.json();
-			assert.ok(data.error);
+			assert.ok(data.message);
 		});
 
 		it('400 bei negativem maxLength', async () => {
@@ -113,7 +113,7 @@ describe('POST /lektorat — Lektorat API', () => {
 
 			assert.equal(res.status, 400);
 			const data = await res.json();
-			assert.ok(data.error);
+			assert.ok(data.message);
 		});
 
 		it('400 bei maxLength=0', async () => {
@@ -125,7 +125,7 @@ describe('POST /lektorat — Lektorat API', () => {
 
 			assert.equal(res.status, 400);
 			const data = await res.json();
-			assert.ok(data.error);
+			assert.ok(data.message);
 		});
 
 		it('502 bei LLM-Fehlern', async () => {
@@ -175,7 +175,7 @@ describe('POST /lektorat — Lektorat API', () => {
 
 			assert.equal(res.status, 400);
 			const data = await res.json();
-			assert.ok(data.error);
+			assert.ok(data.message);
 		});
 
 		it('200 bei fehlendem maxLength-Property', async () => {

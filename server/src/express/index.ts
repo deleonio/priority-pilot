@@ -169,11 +169,12 @@ export const createApp = (deps: AppDeps = {}) => {
 	// Öffentlicher CORS-Proxy für Transitous/MOTIS (Issue #224) — bewusst ohne requireAuth.
 	app.use('/api/transit', transitRouter);
 
-	// Lektorat-Endpunkt (Issue #680) — öffentlich, kein Auth erforderlich.
-	app.use(lektoratRouter());
-
 	// Alle folgenden Routen benötigen eine gültige Session.
 	app.use(requireAuth);
+
+	// Lektorat-Endpunkt (Issue #680) — triggert die bezahlte LLM-Kaskade, daher Session-Pflicht
+	// (Mensch-Entscheidung im Review von PR #682: kein öffentlicher DOS-/Kostenhebel).
+	app.use(lektoratRouter());
 
 	// Task-CRUD- & Dependency-Routen (siehe routes/tasks.ts).
 	app.use(tasksRouter);

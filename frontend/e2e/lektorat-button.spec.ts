@@ -9,6 +9,44 @@ import { waitForStableView } from './helpers';
 // 5. Button ist während des Lektorat-Calls deaktiviert (Ladezustand)
 
 /**
+ * **Mocks:** `POST /api/v1/lektorat` wird per `page.route` abgefangen (Muster:
+ * `issue-620-mistral-error-handling.spec.ts`). Das E2E-Backend läuft bewusst ohne LLM-Key
+ * (`playwright.config.ts` leert `MISTRAL_API_KEY`) — ein ungemockter Call antwortet in
+ * Millisekunden mit 503, damit wären Ladezustand und Feldinhalt nicht deterministisch prüfbar.
+ */
+
+const LEKTORAT_URL = '**/api/v1/lektorat';
+
+/** Mockt einen erfolgreichen Lektorat-Call mit fester Antwort. `delayMs > 0` hält die Antwort
+ *  zurück (setTimeout im Handler), damit der Disabled-Zustand deterministisch beobachtbar ist —
+ *  `route.fulfill` selbst hat in Playwright 1.62 KEINE delay-Option (wird still ignoriert). */
+const mockLektoratSuccess = async (page: Page, text: string, delayMs = 0): Promise<void> => {
+	await page.route(LEKTORAT_URL, async (route) => {
+		if (delayMs > 0) {
+			await new Promise((resolve) => {
+				setTimeout(resolve, delayMs);
+			});
+		}
+		await route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({ text }),
+		});
+	});
+};
+
+/** Mockt einen LLM-Fehler (HTTP 502, wie ein Mistral-Ausfall). */
+const mockLektoratError = async (page: Page): Promise<void> => {
+	await page.route(LEKTORAT_URL, (route) =>
+		route.fulfill({
+			status: 502,
+			contentType: 'application/json',
+			body: JSON.stringify({ message: 'Bad Gateway' }),
+		}),
+	);
+};
+
+/**
  * Öffnet den „Neuen Task anlegen"-Dialog und überbrückt den Schnellerfassungs-Schritt via
  * „Überspringen", sodass das reguläre Formular sichtbar ist.
  */
@@ -54,15 +92,30 @@ test.describe('Lektorat Smart Button', () => {
 			await openTaskForm(page);
 
 			const titleInput = page.getByRole('textbox', { name: 'Titel' });
-			await titleInput.fill('GROSSES PROJEKT mit viel Aufwand und DRINGEND');
+			// ≤30 Zeichen (TITLE_MAX_LENGTH), sonst trunkiert der native maxlength-Attribute den
+			// Fill und der Test prüft nicht mehr das Lektorat.
+			await titleInput.fill('Grosses projekt DRINGEND');
+
+			const requests: unknown[] = [];
+			await page.route(LEKTORAT_URL, async (route) => {
+				requests.push(route.request().postDataJSON());
+				await route.fulfill({
+					status: 200,
+					contentType: 'application/json',
+					body: JSON.stringify({ text: 'Großes Projekt dringend' }),
+				});
+			});
 
 			const lektoratButton = page.locator('button:has-text("Titel lektorieren")');
 			await lektoratButton.click();
 
-			// Nach erfolgreichem Lektorat sollte der Titel geändert sein
-			// (tatsächliche Änderung hängt vom LLM ab)
-			const newTitle = await titleInput.inputValue();
-			expect(newTitle).not.toBe('GROSSES PROJEKT mit viel Aufwand und DRINGEND');
+			// Feld wird mit der (gemockten) Lektorat-Antwort überschrieben — deterministisch,
+			// statt auf eine nicht-deterministische echte LLM-Antwort zu wetten.
+			await expect(titleInput).toHaveValue('Großes Projekt dringend');
+
+			// Vertrag: der aktuelle Feldwert + maxLength=30 (Spec Journey 3 „und kürzen") gehen mit.
+			expect(requests).toHaveLength(1);
+			expect(requests[0]).toEqual({ text: 'Grosses projekt DRINGEND', maxLength: 30 });
 		});
 
 		test('Button deaktiviert während Lektorat-Call', async ({ page }) => {
@@ -72,6 +125,10 @@ test.describe('Lektorat Smart Button', () => {
 
 			const titleInput = page.getByRole('textbox', { name: 'Titel' });
 			await titleInput.fill('Test Titel mit Fehlern');
+
+			// Delay im Handler hält die Antwort 2s zurück — das Disabled-Fenster ist damit sicher beobachtbar
+			// (ein echter 503 vom E2E-Backend ohne Key kommt in Millisekunden → Race).
+			await mockLektoratSuccess(page, 'Testtitel mit Fehlern', 2000);
 
 			const lektoratButton = page.locator('button:has-text("Titel lektorieren")');
 			await lektoratButton.click();
@@ -89,6 +146,8 @@ test.describe('Lektorat Smart Button', () => {
 
 			const titleInput = page.getByRole('textbox', { name: 'Titel' });
 			await titleInput.fill('Test Titel');
+
+			await mockLektoratSuccess(page, 'Testtitel', 2000);
 
 			const lektoratButton = page.locator('button:has-text("Titel lektorieren")');
 			await lektoratButton.click();
@@ -121,18 +180,18 @@ test.describe('Lektorat Smart Button', () => {
 
 		test('Lektorat-Aufruf aktualisiert Beschreibung-Feld', async ({ page }) => {
 			// AK 3: Button-Aufruf sendet aktuellen Feldwert an Backend, aktualisiert Feld mit Antwort
-			// Spec Journey 4: Feldwert wird mit lektorieter Beschreibung überschrieben
+			// Spec Journey 4: Feldwert wird mit lektorierter Beschreibung überschrieben
 			await openTaskForm(page);
 
 			const descriptionTextarea = page.getByRole('textbox', { name: 'Beschreibung (optional)' });
-			await descriptionTextarea.fill('Dies ist die beschreibung für die aufgabe die viel arbeit macht');
+			await descriptionTextarea.fill('Dies ist die beschreibung fuer die aufgabe');
+
+			await mockLektoratSuccess(page, 'Dies ist die Beschreibung für die Aufgabe');
 
 			const lektoratButton = page.locator('button:has-text("Beschreibung lektorieren")');
 			await lektoratButton.click();
 
-			// Nach erfolgreichem Lektorat sollte die Beschreibung geändert sein
-			const newDescription = await descriptionTextarea.inputValue();
-			expect(newDescription).not.toBe('Dies ist die beschreibung für die aufgabe die viel arbeit macht');
+			await expect(descriptionTextarea).toHaveValue('Dies ist die Beschreibung für die Aufgabe');
 		});
 
 		test('Button deaktiviert während Lektorat-Call für Beschreibung', async ({ page }) => {
@@ -142,6 +201,8 @@ test.describe('Lektorat Smart Button', () => {
 
 			const descriptionTextarea = page.getByRole('textbox', { name: 'Beschreibung (optional)' });
 			await descriptionTextarea.fill('Test Beschreibung mit Fehlern');
+
+			await mockLektoratSuccess(page, 'Testbeschreibung mit Fehlern', 2000);
 
 			const lektoratButton = page.locator('button:has-text("Beschreibung lektorieren")');
 			await lektoratButton.click();
@@ -155,20 +216,21 @@ test.describe('Lektorat Smart Button', () => {
 	});
 
 	test.describe('Fehlerbehandlung', () => {
-		test('Zeigt KolAlert bei LLM-Fehlern', async ({ page }) => {
+		test('Zeigt verständliche Fehlermeldung bei LLM-Fehlern', async ({ page }) => {
 			// AK 4: Bei LLM-Fehlern wird dem Nutzer eine verständliche Fehlermeldung gezeigt
 			// Spec Journey 3 & 4: Bei Fehler wird KolAlert mit verständlicher Fehlermeldung gezeigt
+			// Assertion wie #620-Muster: auf den nutzerfreundlichen Text, nicht auf KolAlert-Details
 			await openTaskForm(page);
 
 			const titleInput = page.getByRole('textbox', { name: 'Titel' });
-			await titleInput.fill('Text der einen Fehler auslöst');
+			await titleInput.fill('Text mit Fehlern');
+
+			await mockLektoratError(page);
 
 			const lektoratButton = page.locator('button:has-text("Titel lektorieren")');
 			await lektoratButton.click();
 
-			// KolAlert sollte mit Fehlermeldung erscheinen
-			const kolAlert = page.locator('[data-testid="kol-alert"], .alert, [role="alert"]');
-			await expect(kolAlert).toBeVisible({ timeout: 10000 });
+			await expect(page.getByText(/KI-Dienst.*nicht erreichbar/)).toBeVisible({ timeout: 10000 });
 		});
 
 		test('Kein Absturz bei LLM-Fehlern', async ({ page }) => {
@@ -177,14 +239,17 @@ test.describe('Lektorat Smart Button', () => {
 			await openTaskForm(page);
 
 			const titleInput = page.getByRole('textbox', { name: 'Titel' });
-			await titleInput.fill('Fehler-Auslösender Text');
+			await titleInput.fill('Text mit Fehlern');
+
+			await mockLektoratError(page);
 
 			const lektoratButton = page.locator('button:has-text("Titel lektorieren")');
 			await lektoratButton.click();
 
 			// Seite sollte noch geladen sein, kein Absturz
 
-			// Form sollte noch interaktiv sein
+			// Form sollte noch interaktiv sein (Button nach Fehlerende wieder aktiv)
+			await expect(lektoratButton).toBeEnabled({ timeout: 10000 });
 			await expect(titleInput).toBeVisible();
 		});
 	});
@@ -195,20 +260,21 @@ test.describe('Lektorat Smart Button', () => {
 			await openTaskForm(page);
 
 			const titleInput = page.getByRole('textbox', { name: 'Titel' });
-			await titleInput.fill('Original Titel mit Fehlern');
+			await titleInput.fill('Original Titel');
+
+			await mockLektoratSuccess(page, 'Lektorierter Titel');
 
 			const lektoratButton = page.locator('button:has-text("Titel lektorieren")');
 			await lektoratButton.click();
 
 			// Nach Lektorat sollte der neue Wert im Input sichtbar sein
-			const newTitle = await titleInput.inputValue();
-			expect(newTitle).not.toBe('Original Titel mit Fehlern');
+			await expect(titleInput).toHaveValue('Lektorierter Titel');
 
 			// Durch erneutes Fokussieren und Verlassen sollte sich der Wert nicht ändern
+			// (Ref und State halten denselben Wert, kein Zurückfallen auf den alten Text)
 			await titleInput.blur();
 			await titleInput.focus();
-			const sameTitle = await titleInput.inputValue();
-			expect(sameTitle).toBe(newTitle);
+			await expect(titleInput).toHaveValue('Lektorierter Titel');
 		});
 	});
 });

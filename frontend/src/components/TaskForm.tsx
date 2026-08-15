@@ -680,67 +680,74 @@ export const TaskForm = ({
 				</div>
 			)}
 			<div className="form-grid">
-				<VoiceField
-					variant="input"
-					fieldLabel="Titel"
-					autoStart={voiceAutostart}
-					onTranscript={(text) => {
-						const newVal = form.current.title ? `${form.current.title} ${text}` : text;
-						form.current.title = newVal;
-						setTitle(newVal);
-					}}
-				>
-					<div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-						<div style={{ flex: 1, position: 'relative' }}>
-							<KolInputText
-								_label="Titel"
-								_required
-								_maxLength={TITLE_MAX_LENGTH}
-								_value={title}
-								_on={{
-									onInput: (_event, value) => {
-										const newVal = readString(value);
-										form.current.title = newVal;
-										setTitle(newVal);
-									},
-									onChange: (_event, value) => {
-										const newVal = readString(value);
-										form.current.title = newVal;
-										setTitle(newVal);
-									},
-								}}
-							/>
-							<div
-								className="character-counter"
-								style={{
-									position: 'absolute',
-									right: '8px',
-									fontSize: '0.75rem',
-									color: title.length > TITLE_MAX_LENGTH ? 'var(--color-danger, #d32f2f)' : 'var(--color-text, #666)',
-									background: 'rgba(255,255,255,0.8)',
-									padding: '2px 4px',
-									borderRadius: '4px',
-									pointerEvents: 'none',
-								}}
-							>
-								{getCharacterCounter(title)}
+				{/* #680: Der Lektorat-Button liegt bewusst AUSSERHALB des VoiceField-Wrappers — der
+				    Wrapper ist der Positionierungs-Kontext des Mic-Buttons (right/bottom, app.css).
+				    Als Kind des Wrappers würde er diesen über die ganze Flex-Zeile spannen lassen und
+				    den Mic-Button aus der Feldbox drängen (AK9/AK10, Issue #264). */}
+				<div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+					<div style={{ flex: 1, minWidth: 0 }}>
+						<VoiceField
+							variant="input"
+							fieldLabel="Titel"
+							autoStart={voiceAutostart}
+							onTranscript={(text) => {
+								const newVal = form.current.title ? `${form.current.title} ${text}` : text;
+								form.current.title = newVal;
+								setTitle(newVal);
+							}}
+						>
+							<div style={{ position: 'relative' }}>
+								<KolInputText
+									_label="Titel"
+									_required
+									_maxLength={TITLE_MAX_LENGTH}
+									_value={title}
+									_on={{
+										onInput: (_event, value) => {
+											const newVal = readString(value);
+											form.current.title = newVal;
+											setTitle(newVal);
+										},
+										onChange: (_event, value) => {
+											const newVal = readString(value);
+											form.current.title = newVal;
+											setTitle(newVal);
+										},
+									}}
+								/>
+								<div
+									className="character-counter"
+									style={{
+										position: 'absolute',
+										right: '8px',
+										bottom: '8px',
+										fontSize: '0.75rem',
+										color: title.length > TITLE_MAX_LENGTH ? 'var(--color-danger, #d32f2f)' : 'var(--color-text, #666)',
+										background: 'rgba(255,255,255,0.8)',
+										padding: '2px 4px',
+										borderRadius: '4px',
+										pointerEvents: 'none',
+									}}
+								>
+									{getCharacterCounter(title)}
+								</div>
 							</div>
-						</div>
-						<KolButton
-							_label="Titel lektorieren"
-							_variant="minimal"
-							_disabled={saving || lektoratingTitle || lektoratingDescription}
-							_icons={{ left: { icon: 'codex-icon-magic' } }}
-							_on={{
-								onClick: () => void runLektorat('title', 30),
-							}}
-							style={{
-								flexShrink: 0,
-								marginTop: '24px',
-							}}
-						/>
+						</VoiceField>
 					</div>
-				</VoiceField>
+					<KolButton
+						_label="Titel lektorieren"
+						_variant="minimal"
+						_disabled={saving || lektoratingTitle || lektoratingDescription}
+						_icons={{ left: { icon: 'codex-icon-magic' } }}
+						_on={{
+							onClick: () => void runLektorat('title', 30),
+						}}
+						style={{
+							flexShrink: 0,
+							marginTop: '24px',
+						}}
+					/>
+				</div>
 				<KolInputRange
 					_label={`Priorität (Ganzzahl 1–5): ${formatNumber(priority)}`}
 					_min={1}
@@ -863,17 +870,19 @@ export const TaskForm = ({
 						_label="Die Aufgabe wird bei verpasster Deadline automatisch nach 3 Tagen gelöscht, sofern sie bis dahin nicht erledigt ist."
 					/>
 				)}
-				<VoiceField
-					variant="textarea"
-					fieldLabel="Beschreibung"
-					onTranscript={(text) => {
-						const newVal = form.current.description ? `${form.current.description} ${text}` : text;
-						form.current.description = newVal;
-						setDescription(newVal);
-					}}
-				>
-					<div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-						<div style={{ flex: 1, position: 'relative' }}>
+				{/* #680: Lektorat-Button außerhalb des VoiceField-Wrappers — gleiche Begründung wie beim
+				    Titel-Feld (Mic-Button-Positionierung, AK9/AK10). */}
+				<div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+					<div style={{ flex: 1, minWidth: 0 }}>
+						<VoiceField
+							variant="textarea"
+							fieldLabel="Beschreibung"
+							onTranscript={(text) => {
+								const newVal = form.current.description ? `${form.current.description} ${text}` : text;
+								form.current.description = newVal;
+								setDescription(newVal);
+							}}
+						>
 							<KolTextarea
 								_label="Beschreibung (optional)"
 								_rows={4}
@@ -891,22 +900,22 @@ export const TaskForm = ({
 									},
 								}}
 							/>
-						</div>
-						<KolButton
-							_label="Beschreibung lektorieren"
-							_variant="minimal"
-							_disabled={saving || lektoratingTitle || lektoratingDescription}
-							_icons={{ left: { icon: 'codex-icon-magic' } }}
-							_on={{
-								onClick: () => void runLektorat('description'),
-							}}
-							style={{
-								flexShrink: 0,
-								marginTop: '24px',
-							}}
-						/>
+						</VoiceField>
 					</div>
-				</VoiceField>
+					<KolButton
+						_label="Beschreibung lektorieren"
+						_variant="minimal"
+						_disabled={saving || lektoratingTitle || lektoratingDescription}
+						_icons={{ left: { icon: 'codex-icon-magic' } }}
+						_on={{
+							onClick: () => void runLektorat('description'),
+						}}
+						style={{
+							flexShrink: 0,
+							marginTop: '24px',
+						}}
+					/>
+				</div>
 			</div>
 			{/* Säulen-Beiträge: je Säule ein Roh-Anteil 0,0–1,0 (#82), beim Speichern auf 100 % normiert. */}
 			{pillars.length === 0 ? (
