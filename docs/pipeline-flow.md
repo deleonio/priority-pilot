@@ -164,6 +164,18 @@ flowchart TD
     Lauf deterministisch mit `::error::` ab — kein stiller Skip (AGENTS.md: „bewusstes Opt-in"). Bei
     triage/retriage/spec/implement wird zusätzlich `ai:to-big-issue` gesetzt (Issue-Signal); bei
     review/fixup (die kein `ai:to-big-issue` vergeben, s. u.) stattdessen ein PR-Kommentar.
+  - **Phasen-Label-Pre-Check** (alle 6 Phasen): Jede Phase serialisiert global über eine statische
+    `concurrency`-Gruppe (`claude-triage`, `claude-spec`, … — genau EIN Lauf je Phase). Das
+    Stapeln leistet **`queue: max`**: Ohne diesen Schlüssel hält GitHub pro Gruppe nur EINEN
+    wartenden Lauf und verwirft ihn still, sobald ein neuer eintrifft (`queue: single` ist der
+    Default, und `cancel-in-progress: false` schützt nur den _laufenden_). Mit `max` warten bis
+    zu 100 Läufe in FIFO-Reihenfolge — ohne ihn hätte ein Label-Burst über mehrere Tickets
+    Trigger stumm verschluckt. Weil zwischen Trigger und Job-Start Minuten liegen können, prüft ein
+    vorgelagerter `precheck`-Job den Label-**IST**-Zustand zur Laufzeit statt den Event-Payload vom
+    Trigger-Zeitpunkt (Soll-Werte zentral in `.github/scripts/check-phase-label.sh`, aufgerufen über
+    die Action `.github/actions/check-phase-label`). Ist das Trigger-Label inzwischen von einem
+    anderen Lauf konsumiert, endet der Lauf ohne Fehler (Hauptjob wird übersprungen) — sonst würde
+    eine Phase pro Issue mehrfach laufen.
   - **Stop-Guard** (fixup): > 10 PR-Commits → Loop stoppt hart (s. o.).
   - **Label-Post-Assertion** (review): vergisst der Agent die Label-Umschaltung, setzt der Step
     den Safe-Default `ai:needs-changes` (statt stiller PR-Stalle).

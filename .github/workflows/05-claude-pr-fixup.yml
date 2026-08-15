@@ -19,57 +19,58 @@ on:
 concurrency:
   group: claude-pr-fixup
   cancel-in-progress: false
+  # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run: jeder neue
+  # Run cancelt den wartenden (`queue: single` ist der Default). Mit statischem,
+  # ticket-unabhängigem Key hätte ein Label-Burst über mehrere Tickets die
+  # wartenden Läufe still verworfen — Trigger-Label klebt, kein Lauf, kein Notice.
+  # `max` = bis zu 100 pending, FIFO. Unvereinbar mit cancel-in-progress: true.
+  queue: max
 
 jobs:
   precheck:
+    # Unveränderliche Event-Fakten filtern hier — inkl. des FORK-GUARDS. Der ist an dieser
+    # Stelle sicherheitsrelevant: `actions/checkout` holt bei pull_request den Merge-Ref, also
+    # PR-Code, und die lokale Action samt Skript würde daraus ausgeführt. Stünde der Guard erst
+    # am Hauptjob, führte ein Fork-PR mit manipuliertem check-phase-label.sh eigenen Bash aus,
+    # sobald irgendjemand ein Label setzt. Vor dieser Umstellung gab es für Fork-PRs gar keinen
+    # Checkout in 05.
+    if: >-
+      ${{ github.event.label.name == 'ai:needs-changes'
+          && github.event.pull_request.head.repo.full_name == github.repository }}
     # Label-IST-Zustand zur Laufzeit: ai:needs-changes muss JETZT (nach dem Warten in der
-    # globalen Phasen-Queue) noch am PR kleben und der PR offen + nicht-draft sein. Fail-open
-    # bei API-Fehler — ein transienter gh-Fehler darf den Fixup nicht still verlieren lassen.
+    # globalen Phasen-Queue) noch am PR kleben und der PR offen + nicht-draft sein.
+    # Soll-Werte stehen zentral in .github/scripts/check-phase-label.sh; hier wird nur der
+    # Phasen-Name übergeben.
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
+      contents: read # lokale Action + Skript auschecken
       pull-requests: read
     outputs:
       proceed: ${{ steps.check.outputs.proceed }}
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
       - name: Label-Pre-Check (IST-Zustand zur Laufzeit)
         id: check
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR: ${{ github.event.pull_request.number }}
-        run: |
-          proceed="false"
-          reason=""
-          if ! DATA="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json state,isDraft,labels 2>/dev/null)"; then
-            echo "::warning::PR-Abfrage fehlgeschlagen — Fail-open, Lauf wird fortgesetzt."
-            proceed="true"
-          else
-            STATE="$(printf '%s' "$DATA" | jq -r '.state')"
-            DRAFT="$(printf '%s' "$DATA" | jq -r '.isDraft')"
-            HAS_LABEL="$(printf '%s' "$DATA" | jq -r 'any(.labels[]; .name == "ai:needs-changes")')"
-            if [ "$STATE" != "open" ]; then
-              reason="PR #$PR ist nicht mehr offen"
-            elif [ "$DRAFT" = "true" ]; then
-              reason="PR #$PR ist inzwischen Draft"
-            elif [ "$HAS_LABEL" != "true" ]; then
-              reason="ai:needs-changes wurde inzwischen konsumiert/entfernt"
-            else
-              proceed="true"
-            fi
-          fi
-          if [ -n "$reason" ]; then
-            echo "::notice title=⏭️ Fixup übersprungen::${reason} — Trigger ist konsumiert."
-          fi
-          echo "proceed=$proceed" >> "$GITHUB_OUTPUT"
+        uses: ./.github/actions/check-phase-label
+        with:
+          phase: fixup
+          ticket: ${{ github.event.pull_request.number }}
 
   fixup:
     needs: precheck
-    # Unveränderliche Event-Fakten hier; alles Mutable (Label-Zustand, State, Draft) prüft der
-    # precheck-Job zur Laufzeit.
+    # `result == 'failure'` ist FAIL-OPEN und beabsichtigt: das Skript fällt bei API-Fehlern
+    # bewusst auf "laufen lassen" zurück, aber ein Fehler AUSSERHALB (Checkout, Timeout,
+    # Runner-Ausfall) würde den Hauptjob sonst stumm überspringen — Trigger konsumiert, niemand
+    # arbeitet, nichts re-armt. Ein übersprungener precheck (result == 'skipped', No-op-Trigger
+    # ODER Fork-PR) erfüllt keine der beiden Klauseln und lässt den Hauptjob korrekt entfallen —
+    # der Fork-Guard aus dem precheck-if wirkt dadurch weiterhin auch für den Hauptjob.
     if: >-
-      ${{ needs.precheck.outputs.proceed == 'true'
-          && github.event.label.name == 'ai:needs-changes'
-          && github.event.pull_request.head.repo.full_name == github.repository }}
+      ${{ always()
+          && (needs.precheck.outputs.proceed == 'true' || needs.precheck.result == 'failure') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:

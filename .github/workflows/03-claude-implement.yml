@@ -19,56 +19,51 @@ on:
 concurrency:
   group: claude-implement
   cancel-in-progress: false
+  # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run: jeder neue
+  # Run cancelt den wartenden (`queue: single` ist der Default). Mit statischem,
+  # ticket-unabhängigem Key hätte ein Label-Burst über mehrere Tickets die
+  # wartenden Läufe still verworfen — Trigger-Label klebt, kein Lauf, kein Notice.
+  # `max` = bis zu 100 pending, FIFO. Unvereinbar mit cancel-in-progress: true.
+  queue: max
 
 jobs:
   precheck:
+    # Unveränderliches Event-Faktum filtert hier (spart den Runner für No-op-Trigger — 03 feuert
+    # auf JEDES `labeled` im Repo). Es gatet den precheck, nicht den Hauptjob: wird der precheck
+    # übersprungen, ist sein Output leer und der Hauptjob fällt korrekt mit aus.
+    if: ${{ github.event.label.name == 'ai:ready' }}
     # Label-IST-Zustand zur Laufzeit: ai:ready + ai:analyzed müssen JETZT (nach dem Warten in
-    # der globalen Phasen-Queue) noch am Issue kleben. Fail-open bei API-Fehler — ein
-    # transienter gh-Fehler darf die Umsetzung nicht still verlieren lassen.
+    # der globalen Phasen-Queue) noch am Issue kleben. Soll-Werte stehen zentral in
+    # .github/scripts/check-phase-label.sh; hier wird nur der Phasen-Name übergeben.
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
+      contents: read # lokale Action + Skript auschecken
       issues: read
     outputs:
       proceed: ${{ steps.check.outputs.proceed }}
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
       - name: Label-Pre-Check (IST-Zustand zur Laufzeit)
         id: check
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ISSUE: ${{ github.event.issue.number }}
-        run: |
-          proceed="false"
-          reason=""
-          if ! DATA="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json state,labels 2>/dev/null)"; then
-            echo "::warning::Issue-Abfrage fehlgeschlagen — Fail-open, Lauf wird fortgesetzt."
-            proceed="true"
-          else
-            STATE="$(printf '%s' "$DATA" | jq -r '.state')"
-            HAS_READY="$(printf '%s' "$DATA" | jq -r 'any(.labels[]; .name == "ai:ready")')"
-            HAS_ANALYZED="$(printf '%s' "$DATA" | jq -r 'any(.labels[]; .name == "ai:analyzed")')"
-            if [ "$STATE" != "open" ]; then
-              reason="Issue #$ISSUE ist nicht mehr offen"
-            elif [ "$HAS_READY" != "true" ]; then
-              reason="ai:ready wurde inzwischen konsumiert/entfernt"
-            elif [ "$HAS_ANALYZED" != "true" ]; then
-              reason="ai:analyzed fehlt inzwischen"
-            else
-              proceed="true"
-            fi
-          fi
-          if [ -n "$reason" ]; then
-            echo "::notice title=⏭️ Umsetzung übersprungen::${reason} — Trigger ist konsumiert."
-          fi
-          echo "proceed=$proceed" >> "$GITHUB_OUTPUT"
+        uses: ./.github/actions/check-phase-label
+        with:
+          phase: implement
+          ticket: ${{ github.event.issue.number }}
 
   implement:
     needs: precheck
-    # Unveränderliche Event-Fakten hier; alles Mutable (Label-Zustand, Issue-State) prüft der
-    # precheck-Job zur Laufzeit.
+    # `result == 'failure'` ist FAIL-OPEN und beabsichtigt: das Skript fällt bei API-Fehlern
+    # bewusst auf "laufen lassen" zurück, aber ein Fehler AUSSERHALB (Checkout, Timeout,
+    # Runner-Ausfall) würde den Hauptjob sonst stumm überspringen — Trigger konsumiert, niemand
+    # arbeitet, nichts re-armt. Ein übersprungener precheck (result == 'skipped', No-op-Trigger)
+    # erfüllt keine der beiden Klauseln und lässt den Hauptjob korrekt entfallen.
     if: >-
-      ${{ needs.precheck.outputs.proceed == 'true'
-          && github.event.label.name == 'ai:ready' }}
+      ${{ always()
+          && (needs.precheck.outputs.proceed == 'true' || needs.precheck.result == 'failure') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:

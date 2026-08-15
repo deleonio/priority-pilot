@@ -134,7 +134,7 @@ jobs:
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
           for wf in 04-claude-pr-review.yml 05-claude-pr-fixup.yml; do
-            gh run list --repo "$REPO" --workflow "$wf" --branch "$HEAD_REF" \
+            gh run list --repo "$REPO" --workflow "$wf" --branch "$HEAD_REF" --limit 100 \
               --json databaseId,status \
               --jq '.[] | select(.status=="in_progress" or .status=="queued") | .databaseId' \
               | while read -r id; do
