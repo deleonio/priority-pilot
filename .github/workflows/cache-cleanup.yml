@@ -9,12 +9,6 @@ name: Cache-Aufraeumen
 # Eviction bzw. dem 10-GB-Limit liegen bleibt. Dieser Job erzwingt stattdessen eine harte 1-Tag-
 # Obergrenze fuer genau diese Cache-Arten.
 #
-# `codeql-overlay-base-database-*`-Caches sind der GROESSTE Speicherfresser (~5.8 GB bei
-# Messung 2026-08-15): CodeQL schreibt sie pro Push/PR auf main neu, jeder Commit erzeugt einen
-# eigenen ~48 MiB grossen, pro-Commit-gekeyten Eintrag, der nach dem darauffolgenden Push nie
-# wieder getroffen wird. Ohne diesen Job blieben bis zu 7 Tage Altbestaende liegen. Diese werden
-# hier ebenfalls nach 24h abgeraeumt (gleiche Regel wie pnpm/Playwright).
-#
 # `hermes-session-*`-Caches (Named Session Resume, siehe .github/actions/session-save) sind seit
 # der Artefakt-Umstellung (2026-07-10) VERWAIST: das Sitzungsarchiv liegt jetzt in
 # Workflow-Artefakten (GitHubs Read-only-Cache fuer untrusted Trigger, Changelog 2026-06-26,
@@ -43,7 +37,7 @@ jobs:
   cleanup:
     runs-on: ubuntu-latest
     steps:
-      - name: pnpm-/Playwright-/CodeQL-Caches aelter als 24h + verwaiste Altbestaende loeschen
+      - name: pnpm-/Playwright-Caches aelter als 24h + verwaiste Altbestaende loeschen
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -52,7 +46,7 @@ jobs:
 
           gh cache list --repo "$GITHUB_REPOSITORY" --limit 200 \
             --json id,key,createdAt \
-            --jq '.[] | select(.key | startswith("node-cache-") or startswith("Linux-playwright-") or startswith("codeql-overlay-base-database") or startswith("hermes-session-") or startswith("ticket-")) | [.id, .key, .createdAt] | @tsv' \
+            --jq '.[] | select(.key | startswith("node-cache-") or startswith("Linux-playwright-") or startswith("hermes-session-") or startswith("ticket-")) | [.id, .key, .createdAt] | @tsv' \
           | while IFS=$'\t' read -r id key created; do
               created_epoch=$(date -u -d "$created" +%s)
               # Verwaiste Altbestaende (Archiv liegt jetzt in Artefakten oder Typ wird nicht
