@@ -18,7 +18,7 @@ const openTaskForm = async (page: Page): Promise<void> => {
 	await waitForStableView(page);
 	await page.getByRole('button', { name: 'Überspringen' }).click();
 	await waitForStableView(page);
-	const titleInput = page.locator('input[name="title"]');
+	const titleInput = page.getByRole('textbox', { name: 'Titel' });
 	await expect(titleInput).toBeVisible();
 };
 
@@ -32,7 +32,7 @@ test.describe('Lektorat Smart Button', () => {
 			// AK 2: TaskForm zeigt an Titel-Input einen "Lektorieren"-Button
 			await openTaskForm(page);
 
-			const titleInput = page.locator('input[name="title"]');
+			const titleInput = page.getByRole('textbox', { name: 'Titel' });
 			await expect(titleInput).toBeVisible();
 
 			// Smart Button sollte neben dem Titel-Input sichtbar sein
@@ -53,7 +53,7 @@ test.describe('Lektorat Smart Button', () => {
 			// Spec Journey 3: Feldwert wird mit lektoriertem Titel überschrieben
 			await openTaskForm(page);
 
-			const titleInput = page.locator('input[name="title"]');
+			const titleInput = page.getByRole('textbox', { name: 'Titel' });
 			await titleInput.fill('GROSSES PROJEKT mit viel Aufwand und DRINGEND');
 
 			const lektoratButton = page.locator('button:has-text("Titel lektorieren")');
@@ -70,7 +70,7 @@ test.describe('Lektorat Smart Button', () => {
 			// Spec Journey 3: Button deaktiviert sich, zeigt Ladezustand
 			await openTaskForm(page);
 
-			const titleInput = page.locator('input[name="title"]');
+			const titleInput = page.getByRole('textbox', { name: 'Titel' });
 			await titleInput.fill('Test Titel mit Fehlern');
 
 			const lektoratButton = page.locator('button:has-text("Titel lektorieren")');
@@ -87,7 +87,7 @@ test.describe('Lektorat Smart Button', () => {
 			// Spec Journey 3: Ladezustand wird während des API-Calls angezeigt
 			await openTaskForm(page);
 
-			const titleInput = page.locator('input[name="title"]');
+			const titleInput = page.getByRole('textbox', { name: 'Titel' });
 			await titleInput.fill('Test Titel');
 
 			const lektoratButton = page.locator('button:has-text("Titel lektorieren")');
@@ -103,7 +103,7 @@ test.describe('Lektorat Smart Button', () => {
 			// AK 2: TaskForm zeigt an Beschreibung-Textarea einen "Lektorieren"-Button
 			await openTaskForm(page);
 
-			const descriptionTextarea = page.locator('textarea[name="description"]');
+			const descriptionTextarea = page.getByRole('textbox', { name: 'Beschreibung (optional)' });
 			await expect(descriptionTextarea).toBeVisible();
 
 			// Smart Button sollte neben der Beschreibung-Textarea sichtbar sein
@@ -124,7 +124,7 @@ test.describe('Lektorat Smart Button', () => {
 			// Spec Journey 4: Feldwert wird mit lektorieter Beschreibung überschrieben
 			await openTaskForm(page);
 
-			const descriptionTextarea = page.locator('textarea[name="description"]');
+			const descriptionTextarea = page.getByRole('textbox', { name: 'Beschreibung (optional)' });
 			await descriptionTextarea.fill('Dies ist die beschreibung für die aufgabe die viel arbeit macht');
 
 			const lektoratButton = page.locator('button:has-text("Beschreibung lektorieren")');
@@ -140,7 +140,7 @@ test.describe('Lektorat Smart Button', () => {
 			// Spec Journey 4: Button deaktiviert sich, zeigt Ladezustand
 			await openTaskForm(page);
 
-			const descriptionTextarea = page.locator('textarea[name="description"]');
+			const descriptionTextarea = page.getByRole('textbox', { name: 'Beschreibung (optional)' });
 			await descriptionTextarea.fill('Test Beschreibung mit Fehlern');
 
 			const lektoratButton = page.locator('button:has-text("Beschreibung lektorieren")');
@@ -160,7 +160,7 @@ test.describe('Lektorat Smart Button', () => {
 			// Spec Journey 3 & 4: Bei Fehler wird KolAlert mit verständlicher Fehlermeldung gezeigt
 			await openTaskForm(page);
 
-			const titleInput = page.locator('input[name="title"]');
+			const titleInput = page.getByRole('textbox', { name: 'Titel' });
 			await titleInput.fill('Text der einen Fehler auslöst');
 
 			const lektoratButton = page.locator('button:has-text("Titel lektorieren")');
@@ -176,7 +176,7 @@ test.describe('Lektorat Smart Button', () => {
 			// Statt Absturz sollte Alert erscheinen
 			await openTaskForm(page);
 
-			const titleInput = page.locator('input[name="title"]');
+			const titleInput = page.getByRole('textbox', { name: 'Titel' });
 			await titleInput.fill('Fehler-Auslösender Text');
 
 			const lektoratButton = page.locator('button:has-text("Titel lektorieren")');
@@ -194,7 +194,7 @@ test.describe('Lektorat Smart Button', () => {
 			// Spec Journey 3 & 4: Feldwert wird mit lektoriertem Text überschrieben (State + Ref)
 			await openTaskForm(page);
 
-			const titleInput = page.locator('input[name="title"]');
+			const titleInput = page.getByRole('textbox', { name: 'Titel' });
 			await titleInput.fill('Original Titel mit Fehlern');
 
 			const lektoratButton = page.locator('button:has-text("Titel lektorieren")');
