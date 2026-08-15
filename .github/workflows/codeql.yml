@@ -12,12 +12,8 @@
 name: 'CodeQL Advanced'
 
 on:
-  push:
-    branches: ['main']
-  pull_request:
-    branches: ['main']
   schedule:
-    - cron: '32 15 * * 5'
+    - cron: '32 15 * * 5' # woechentlich freitags 15:32 UTC, laeuft nur auf main (Default-Branch)
 
 jobs:
   analyze:
