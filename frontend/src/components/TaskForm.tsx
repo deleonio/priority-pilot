@@ -731,7 +731,7 @@ export const TaskForm = ({
 							_disabled={saving || lektoratingTitle || lektoratingDescription}
 							_icons={{ left: { icon: 'codex-icon-magic' } }}
 							_on={{
-								onClick: () => void runLektorat('title'),
+								onClick: () => void runLektorat('title', 30),
 							}}
 							style={{
 								position: 'absolute',
