@@ -21,7 +21,7 @@ import type {
 	TaskPillarContribution,
 	TaskUpdate,
 } from 'client';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { useCtrlEnter } from '../lib/useCtrlEnter';
@@ -29,6 +29,7 @@ import { readNumber, readString } from '../lib/inputValue';
 import { readVoiceAutostartPreference } from '../lib/voiceAutostart';
 import { VoiceField } from './VoiceField';
 import { ConfirmSeriesActionModal } from './ConfirmSeriesActionModal';
+import { LektoratDiffModal } from './LektoratDiffModal';
 import {
 	ADD_PILLAR_PLACEHOLDER,
 	addPillarOptions,
@@ -317,6 +318,19 @@ export const TaskForm = ({
 	// kein Rendern und der Dialog schließt nach erfolgreichem Speichern.
 	const createdTask = useRef<Task | null>(null);
 
+	// Refs für die Lektorat-Trigger-Buttons (für Fokus-Rückkehr nach Abbrechen)
+	const lektoratTitleTriggerRef = useRef<HTMLKolButtonElement>(null);
+	const lektoratDescriptionTriggerRef = useRef<HTMLKolButtonElement>(null);
+
+	// #687: Lektorat-Diff-Modal – hält den Zustand zwischen API-Aufruf und Nutzerentscheidung
+	interface PendingLektorat {
+		field: 'title' | 'description';
+		original: string;
+		lektoriert: string;
+		maxLength?: number;
+	}
+	const [pendingLektorat, setPendingLektorat] = useState<PendingLektorat | null>(null);
+
 	const pillarNameById = useMemo(() => new Map(pillars.map((pillar) => [pillar.id, pillar.name])), [pillars]);
 	// #470 (AK5): Client-seitige Konsistenzprüfung zwischen Wochentag-Rhythmus (`mon`…`sun`) und
 	// Startdatum — spiegelt die Backend-Regel und warnt den Nutzer frühzeitig (vor dem Speichern).
@@ -399,7 +413,8 @@ export const TaskForm = ({
 		}
 	};
 
-	// #680: Lektoriert den Titel oder die Beschreibung und aktualisiert das Feld.
+	// #680/#687: Lektorat holt den Vorschlag vom Server und öffnet das Diff-Modal.
+	// Die eigentliche Aktualisierung passiert erst nach Nutzerentscheidung (confirmLektorat).
 	const runLektorat = async (field: 'title' | 'description', maxLength?: number): Promise<void> => {
 		const text = form.current[field].trim();
 		if (text === '') {
@@ -414,13 +429,8 @@ export const TaskForm = ({
 		}
 		try {
 			const result = await api.lektorat({ text, maxLength });
-			// State + Ref aktualisieren
-			form.current[field] = result.text;
-			if (field === 'title') {
-				setTitle(result.text);
-			} else {
-				setDescription(result.text);
-			}
+			// Modal öffnen mit Diff – keine direkte Aktualisierung (#687)
+			setPendingLektorat({ field, original: text, lektoriert: result.text, maxLength });
 		} catch (reason) {
 			const apiError = await toApiError(reason);
 			setLektoratError(apiError.message);
@@ -431,6 +441,29 @@ export const TaskForm = ({
 				setLektoratingDescription(false);
 			}
 		}
+	};
+
+	// #687: Nutzer bestätigt den lektorierten Text – wird in das Feld übernommen
+	const confirmLektorat = (): void => {
+		if (pendingLektorat === null) return;
+		const { field, lektoriert } = pendingLektorat;
+		form.current[field] = lektoriert;
+		if (field === 'title') {
+			setTitle(lektoriert);
+		} else {
+			setDescription(lektoriert);
+		}
+		setPendingLektorat(null);
+	};
+
+	// #687: Nutzer bricht das Lektorat ab – Modal schließen ohne Änderung
+	const cancelLektorat = (): void => {
+		setPendingLektorat(null);
+	};
+
+	// Liefert den passenden Trigger-Ref für Fokus-Rückkehr nach Abbrechen
+	const getLektoratTriggerRef = (field: 'title' | 'description'): RefObject<HTMLKolButtonElement | null> => {
+		return field === 'title' ? lektoratTitleTriggerRef : lektoratDescriptionTriggerRef;
 	};
 
 	// #305: Beim Anlegen (task === null) mit vorbelegtem Titel (z. B. aus der Schnellerfassung, #236)
@@ -735,6 +768,7 @@ export const TaskForm = ({
 						</VoiceField>
 					</div>
 					<KolButton
+						ref={lektoratTitleTriggerRef}
 						_label="Titel lektorieren"
 						_variant="minimal"
 						_disabled={saving || lektoratingTitle || lektoratingDescription}
@@ -870,6 +904,17 @@ export const TaskForm = ({
 						_label="Die Aufgabe wird bei verpasster Deadline automatisch nach 3 Tagen gelöscht, sofern sie bis dahin nicht erledigt ist."
 					/>
 				)}
+				{pendingLektorat !== null && (
+					<LektoratDiffModal
+						original={pendingLektorat.original}
+						lektoriert={pendingLektorat.lektoriert}
+						fieldLabel={pendingLektorat.field === 'title' ? 'Titel' : 'Beschreibung'}
+						onConfirm={() => confirmLektorat()}
+						onCancel={() => cancelLektorat()}
+						fallbackFocusRef={getLektoratTriggerRef(pendingLektorat.field)}
+						error={lektoratError}
+					/>
+				)}
 				{/* #680: Lektorat-Button außerhalb des VoiceField-Wrappers — gleiche Begründung wie beim
 				    Titel-Feld (Mic-Button-Positionierung, AK9/AK10). */}
 				<div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
@@ -903,6 +948,7 @@ export const TaskForm = ({
 						</VoiceField>
 					</div>
 					<KolButton
+						ref={lektoratDescriptionTriggerRef}
 						_label="Beschreibung lektorieren"
 						_variant="minimal"
 						_disabled={saving || lektoratingTitle || lektoratingDescription}
