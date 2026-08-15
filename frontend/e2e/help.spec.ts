@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { headerAction, waitForStableView } from './helpers';
 
 /**
  * ROTE Spec-Tests für #256 „Nutzerhandbuch: In-App-Hilfe-Seite mit Markdown-Renderer und
@@ -80,7 +80,9 @@ test.describe('#256 In-App-Hilfe – Seite, Markdown-Renderer und Header-Button'
 		await page.goto('/');
 		await waitForStableView(page);
 
-		await page.getByRole('button', { name: /hilfe/i }).click();
+		// Auf 375px liegt „Hilfe" im „⋮"-Menü der Kopf-Aktionen (der Header bleibt dadurch einzeilig);
+		// `headerAction` kapselt, wo der Button je nach Breite steht.
+		await (await headerAction(page, /hilfe/i)).click();
 		await expect(page).toHaveURL(/\/hilfe/);
 
 		// Warten, bis der Markdown-Inhalt gerendert ist, damit die Breite valide gemessen wird.

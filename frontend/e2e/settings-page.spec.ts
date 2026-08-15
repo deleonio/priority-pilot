@@ -1,5 +1,5 @@
 import { expect, test } from './fixtures';
-import { waitForStableView } from './helpers';
+import { headerAction, waitForStableView } from './helpers';
 
 /**
  * ROTE Spec-Tests für #270 „Einstellungen: Popover durch Zahnrad-Toolbar-Button und Route
@@ -125,9 +125,9 @@ test.describe('#270 Einstellungen – Zahnrad-Toolbar-Button und Route /settings
 		await page.goto('/');
 		await waitForStableView(page);
 
-		// Das Zahnrad ist auch auf schmalem Viewport in der Toolbar sichtbar und bedienbar.
-		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
-		const gearButton = toolbar.getByRole('button', { name: /Einstellungen/i });
+		// Das Zahnrad ist auch auf schmalem Viewport erreichbar und bedienbar — dort über das
+		// „⋮"-Menü der Kopf-Aktionen, das den Header auf 375px einzeilig hält.
+		const gearButton = await headerAction(page, /Einstellungen/i);
 		await expect(gearButton).toBeVisible();
 		await gearButton.click();
 

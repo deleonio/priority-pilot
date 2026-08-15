@@ -1,6 +1,6 @@
 import type { Route } from '@playwright/test';
 import { expect, test, type Page } from './fixtures';
-import { waitForStableView } from './helpers';
+import { headerAction, waitForStableView } from './helpers';
 
 /**
  * Rote Spec-e2e für #327 — „Berater-Vorschlag per Aktion direkt in Quick Capture übernehmen (Freitext
@@ -62,7 +62,7 @@ test.describe('Berater-Vorschlag in Quick Capture übernehmen (#327)', () => {
 
 		await page.goto('/');
 		await waitForStableView(page);
-		await page.getByRole('button', { name: 'Säulen-Berater' }).click();
+		await (await headerAction(page, 'Säulen-Berater')).click();
 		await expect(page.getByRole('heading', { name: 'Säulen-Berater' })).toBeVisible();
 		await waitForStableView(page);
 
