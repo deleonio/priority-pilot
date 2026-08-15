@@ -55,6 +55,8 @@ Jeder Löschdialog-Typ (Task, Säule, Serie) braucht einen Test, der:
 
 **Kritisch:** Der Test darf nicht nur prüfen „Button enthält String X", sondern das tatsächliche Fokus-Verhalten (toBeFocused/not.toBeFocused).
 
+**Abdeckung:** AK1/AK2 nutzen den Helper `assertTabFreedomInOpenDeleteDialog` (Settle-Wartezeit + Tab + Ziel-Assertion „Endgültig löschen"), AK3 prüft inline das Ziel „Abbrechen" (DOM-Reihenfolge: Ja → Nein → Abbrechen). AK8 (Säulen-Tab-Freiheit) ist durch den gleichnamigen eigenen Test mit demselben Helper abgedeckt.
+
 ---
 
 ## Akzeptanzkriterien (aus Issue 653)
