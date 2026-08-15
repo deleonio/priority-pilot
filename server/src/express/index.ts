@@ -15,6 +15,7 @@ import { authRouter } from './routes/auth.js';
 import { transitRouter } from './routes/transit.js';
 import { createPushRouter } from './routes/push.js';
 import { llmConfigRouter } from './routes/llmConfig.js';
+import { lektoratRouter } from './routes/lektorat.js';
 import { handleServerError } from './server-error-handler.js';
 import type { PillarClassifier, ParseTaskParser, ActivityAdvisor } from '../llm/llm.js';
 import type { PushSender } from '../logics/push.js';
@@ -167,6 +168,9 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// Öffentlicher CORS-Proxy für Transitous/MOTIS (Issue #224) — bewusst ohne requireAuth.
 	app.use('/api/transit', transitRouter);
+
+	// Lektorat-Endpunkt (Issue #680) — öffentlich, kein Auth erforderlich.
+	app.use(lektoratRouter());
 
 	// Alle folgenden Routen benötigen eine gültige Session.
 	app.use(requireAuth);

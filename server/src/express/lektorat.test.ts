@@ -10,11 +10,33 @@ import { resetDb, closeDb, startTestServer, type TestServer } from '../test/help
 let server: TestServer;
 
 describe('POST /lektorat — Lektorat API', () => {
+	const originalFetch = globalThis.fetch;
+	const originalKey = process.env.MISTRAL_API_KEY;
+
+	// Hilfsfunktion: stellt eine Chat-Completion-Antwort mit givenem JSON-Content bereit.
+	// Mockt NUR LLM-API-Calls (Mistral/OpenRouter), andere Requests gehen durch.
+	const stubFetch = (llmOutput: string, _ok = true, status = 200): void => {
+		globalThis.fetch = (async (url: string, init?: RequestInit) => {
+			// LLM-API-Calls mocken – erkannt an API-URLs
+			if (typeof url === 'string' && (url.includes('api.mistral.ai') || url.includes('openrouter.ai'))) {
+				return new Response(JSON.stringify({ choices: [{ message: { content: llmOutput } }] }), {
+					status,
+					headers: { 'Content-Type': 'application/json' },
+				});
+			}
+			// Andere Requests (z.B. Test-Server) gehen durch
+			return originalFetch(url, init);
+		}) as typeof fetch;
+	};
+
 	beforeEach(async () => {
 		await resetDb();
 		if (!server) {
 			server = await startTestServer();
 		}
+		// Test-Setup: Mock-API-Key und fetch für Lektorat-Calls
+		process.env.MISTRAL_API_KEY = 'test-key';
+		stubFetch(JSON.stringify({ text: 'Lektorierter Text.' }));
 	});
 
 	after(async () => {
@@ -22,6 +44,13 @@ describe('POST /lektorat — Lektorat API', () => {
 			await server.close();
 		}
 		await closeDb();
+		// Cleanup
+		globalThis.fetch = originalFetch;
+		if (originalKey === undefined) {
+			delete process.env.MISTRAL_API_KEY;
+		} else {
+			process.env.MISTRAL_API_KEY = originalKey;
+		}
 	});
 
 	const post = (path: string, body: unknown) =>

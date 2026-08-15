@@ -296,6 +296,10 @@ export const TaskForm = ({
 	// nicht stört (und umgekehrt).
 	const [suggesting, setSuggesting] = useState(false);
 	const [suggestError, setSuggestError] = useState<string | null>(null);
+	// #680: Lektorat-Loading/Error für Titel- und Beschreibungsfeld.
+	const [lektoratingTitle, setLektoratingTitle] = useState(false);
+	const [lektoratingDescription, setLektoratingDescription] = useState(false);
+	const [lektoratError, setLektoratError] = useState<string | null>(null);
 
 	// Merkt sich, ob in diesem Dialog ein KI-Vorschlag übernommen wurde. Nur dann ist das spätere
 	// Speichern eine echte Bestätigung/Korrektur, die den Feedback-Loop füttert (#45). Ein Ref reicht:
@@ -392,6 +396,40 @@ export const TaskForm = ({
 			setSuggestError(apiError.message);
 		} finally {
 			setSuggesting(false);
+		}
+	};
+
+	// #680: Lektoriert den Titel oder die Beschreibung und aktualisiert das Feld.
+	const runLektorat = async (field: 'title' | 'description', maxLength?: number): Promise<void> => {
+		const text = form.current[field].trim();
+		if (text === '') {
+			setLektoratError('Bitte zuerst Text eingeben, der lektoriert werden kann.');
+			return;
+		}
+		setLektoratError(null);
+		if (field === 'title') {
+			setLektoratingTitle(true);
+		} else {
+			setLektoratingDescription(true);
+		}
+		try {
+			const result = await api.lektorat({ text, maxLength });
+			// State + Ref aktualisieren
+			form.current[field] = result.text;
+			if (field === 'title') {
+				setTitle(result.text);
+			} else {
+				setDescription(result.text);
+			}
+		} catch (reason) {
+			const apiError = await toApiError(reason);
+			setLektoratError(apiError.message);
+		} finally {
+			if (field === 'title') {
+				setLektoratingTitle(false);
+			} else {
+				setLektoratingDescription(false);
+			}
 		}
 	};
 
@@ -687,6 +725,21 @@ export const TaskForm = ({
 						>
 							{getCharacterCounter(title)}
 						</div>
+						<KolButton
+							_label="Lektorieren"
+							_variant="minimal"
+							_disabled={saving || lektoratingTitle || lektoratingDescription}
+							_icons={{ left: { icon: 'codex-icon-magic' } }}
+							_on={{
+								onClick: () => void runLektorat('title'),
+							}}
+							style={{
+								position: 'absolute',
+								right: '8px',
+								top: '8px',
+								padding: '4px',
+							}}
+						/>
 					</div>
 				</VoiceField>
 				<KolInputRange
@@ -820,23 +873,40 @@ export const TaskForm = ({
 						setDescription(newVal);
 					}}
 				>
-					<KolTextarea
-						_label="Beschreibung (optional)"
-						_rows={4}
-						_value={description}
-						_on={{
-							onInput: (_event, value) => {
-								const newVal = readString(value);
-								form.current.description = newVal;
-								setDescription(newVal);
-							},
-							onChange: (_event, value) => {
-								const newVal = readString(value);
-								form.current.description = newVal;
-								setDescription(newVal);
-							},
-						}}
-					/>
+					<div style={{ position: 'relative' }}>
+						<KolTextarea
+							_label="Beschreibung (optional)"
+							_rows={4}
+							_value={description}
+							_on={{
+								onInput: (_event, value) => {
+									const newVal = readString(value);
+									form.current.description = newVal;
+									setDescription(newVal);
+								},
+								onChange: (_event, value) => {
+									const newVal = readString(value);
+									form.current.description = newVal;
+									setDescription(newVal);
+								},
+							}}
+						/>
+						<KolButton
+							_label="Lektorieren"
+							_variant="minimal"
+							_disabled={saving || lektoratingTitle || lektoratingDescription}
+							_icons={{ left: { icon: 'codex-icon-magic' } }}
+							_on={{
+								onClick: () => void runLektorat('description'),
+							}}
+							style={{
+								position: 'absolute',
+								right: '8px',
+								top: '8px',
+								padding: '4px',
+							}}
+						/>
+					</div>
 				</VoiceField>
 			</div>
 			{/* Säulen-Beiträge: je Säule ein Roh-Anteil 0,0–1,0 (#82), beim Speichern auf 100 % normiert. */}
@@ -863,6 +933,11 @@ export const TaskForm = ({
 					{suggestError !== null && (
 						<KolAlert _type="error" _label="Vorschlag fehlgeschlagen">
 							{suggestError}
+						</KolAlert>
+					)}
+					{lektoratError !== null && (
+						<KolAlert _type="error" _label="Lektorat fehlgeschlagen">
+							{lektoratError}
 						</KolAlert>
 					)}
 					{contributions.length === 0 ? (
