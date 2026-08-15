@@ -7,7 +7,13 @@ name: Cache-Aufraeumen
 # Dependency committet) erzeugt einen NEUEN, ~130-260 MiB grossen Eintrag, der nach einem Merge/
 # Verwerfen des Branches nie wieder getroffen wird und sonst bis zu GitHubs impliziter 7-Tage-
 # Eviction bzw. dem 10-GB-Limit liegen bleibt. Dieser Job erzwingt stattdessen eine harte 1-Tag-
-# Obergrenze fuer genau diese beiden Cache-Arten.
+# Obergrenze fuer genau diese Cache-Arten.
+#
+# `codeql-overlay-base-database-*`-Caches sind der GROESSTE Speicherfresser (~5.8 GB bei
+# Messung 2026-08-15): CodeQL schreibt sie pro Push/PR auf main neu, jeder Commit erzeugt einen
+# eigenen ~48 MiB grossen, pro-Commit-gekeyten Eintrag, der nach dem darauffolgenden Push nie
+# wieder getroffen wird. Ohne diesen Job blieben bis zu 7 Tage Altbestaende liegen. Diese werden
+# hier ebenfalls nach 24h abgeraeumt (gleiche Regel wie pnpm/Playwright).
 #
 # `hermes-session-*`-Caches (Named Session Resume, siehe .github/actions/session-save) sind seit
 # der Artefakt-Umstellung (2026-07-10) VERWAIST: das Sitzungsarchiv liegt jetzt in
@@ -15,6 +21,11 @@ name: Cache-Aufraeumen
 # machte Cache-Saves aus den Issue-Workflows unmoeglich). Es werden keine neuen
 # hermes-session-Caches mehr geschrieben -- Altbestaende werden hier mit abgeraeumt (ohne
 # Altersgrenze, sie sind ersatzlos tot), bis keiner mehr auftaucht.
+#
+# `ticket-*`-Caches sind ein ebenfalls verwaister Legacy-Typ (Pro-Issue-Caches a ~1-2 KiB), der
+# von keinem aktuellen Workflow mehr geschrieben wird (die Issue-Memory-Persistierung laeuft
+# seit 2026-07-10 ueber Artefakte + claude-memory-save.yml). Sie werden hier ohne Altersgrenze
+# abgeraeumt, bis der Altbestand (51 Eintraege bei Messung 2026-08-15) auf null geschrumpft ist.
 
 on:
   schedule:
@@ -32,21 +43,21 @@ jobs:
   cleanup:
     runs-on: ubuntu-latest
     steps:
-      - name: pnpm-/Playwright-Caches aelter als 24h + verwaiste Session-Caches loeschen
+      - name: pnpm-/Playwright-/CodeQL-Caches aelter als 24h + verwaiste Altbestaende loeschen
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           cutoff_epoch=$(( $(date -u +%s) - 86400 ))
 
-          gh cache list --repo "$GITHUB_REPOSITORY" --limit 100 \
+          gh cache list --repo "$GITHUB_REPOSITORY" --limit 200 \
             --json id,key,createdAt \
-            --jq '.[] | select(.key | startswith("node-cache-") or startswith("Linux-playwright-") or startswith("hermes-session-")) | [.id, .key, .createdAt] | @tsv' \
+            --jq '.[] | select(.key | startswith("node-cache-") or startswith("Linux-playwright-") or startswith("codeql-overlay-base-database") or startswith("hermes-session-") or startswith("ticket-")) | [.id, .key, .createdAt] | @tsv' \
           | while IFS=$'\t' read -r id key created; do
               created_epoch=$(date -u -d "$created" +%s)
-              # hermes-session-*: verwaiste Altbestaende (Archiv liegt jetzt in Artefakten) --
-              # ohne Altersgrenze loeschen; alles andere erst nach 24h.
-              if [ "${key#hermes-session-}" != "$key" ] || [ "$created_epoch" -lt "$cutoff_epoch" ]; then
+              # Verwaiste Altbestaende (Archiv liegt jetzt in Artefakten oder Typ wird nicht
+              # mehr geschrieben) -- ohne Altersgrenze loeschen; alles andere erst nach 24h.
+              if [ "${key#hermes-session-}" != "$key" ] || [ "${key#ticket-}" != "$key" ] || [ "$created_epoch" -lt "$cutoff_epoch" ]; then
                 echo "Loesche Cache '$key' (id=$id, erstellt $created)"
                 gh cache delete "$id" --repo "$GITHUB_REPOSITORY" || echo "::warning::Loeschen von Cache $id fehlgeschlagen (uebersprungen)"
               else
