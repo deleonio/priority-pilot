@@ -134,6 +134,11 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 
 		await openTaskDeleteDialog(page, uniqueTitle('Task'));
 		await assertCancelFocusedWithoutJump(page);
+
+		// Issue 653: Tab-Freiheit - Fokus muss sich bewegen lassen
+		await page.keyboard.press('Tab');
+		await expect(page.getByRole('button', { name: 'Abbrechen' })).not.toBeFocused();
+		await expect(page.getByRole('button', { name: 'Endgültig löschen' })).toBeFocused();
 	});
 
 	test('AK2 — Säulen-Löschdialog: Initialfokus auf „Abbrechen", kein Sprung', async ({ page }) => {
@@ -154,6 +159,11 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		await expect(page.getByRole('heading', { name: 'Säule löschen' })).toBeVisible();
 
 		await assertCancelFocusedWithoutJump(page, 'Priority Pilot');
+
+		// Issue 653: Tab-Freiheit - Fokus muss sich bewegen lassen
+		await page.keyboard.press('Tab');
+		await expect(page.getByRole('button', { name: 'Abbrechen' })).not.toBeFocused();
+		await expect(page.getByRole('button', { name: 'Endgültig löschen' })).toBeFocused();
 	});
 
 	// #553: Der Serien-Löschdialog hat eine eigene Struktur (Ja/Nein/Abbrechen, kein
@@ -199,6 +209,10 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		await waitForStableView(page);
 		await expect(page.getByRole('button', { name: /^Nein/i })).toBeFocused();
 		await expect(page.getByRole('button', { name: /^Ja \(Serie \+ alle Aufgaben\)/ })).not.toBeFocused();
+
+		// Issue 653: Tab-Freiheit - Fokus muss sich bewegen lassen
+		await page.keyboard.press('Tab');
+		await expect(page.getByRole('button', { name: /^Nein/i })).not.toBeFocused();
 	});
 
 	/**
