@@ -1,42 +1,40 @@
 ---
 name: issue-679-kolinput-counter
-description: Spec für Issue 679 - Zeichenzähler für KolInput basierend auf KolInputText/KolTextarea
+description: Spec für Issue 679 - Zeichenzähler für KolInputText/KolTextarea via _hasCounter/_maxLength
 metadata:
   type: project
 ---
 
-# Issue 679: Zeichenzähler für KolInput
+# Issue 679: Zeichenzähler für KolInputText/KolTextarea
 
 ## Ziel
 
-KolInput soll einen Zeichenzähler erhalten, der auf der bestehenden Counter-Implementierung von KolInputText und KolTextarea basiert.
+KolInputText und KolTextarea sollen den eingebaute Zeichenzähler von KoliBri nutzen (via `_hasCounter` und `_maxLength` Props).
 
 ## Vorbedingung
 
 - KoliBri-Komponenten sind korrekt installiert und konfiguriert (@public-ui/react-v19 v4.3.0)
-- Die Implementierung von KolInputText und KolTextarea mit Counter-Logik ist bereits vorhanden
+- KoliBri-Komponenten unterstützen `_hasCounter` und `_maxLength` Props
 
 ## Schritte
 
-1. Analyse der existierenden Counter-Implementierung von KolInputText/KolTextarea
-2. Ableitung der Counter-Logik für KolInput basierend auf den existierenden Implementierungen
-3. Implementierung des Counters für KolInput
-4. Integration des Counters in die KolInput-Komponente
+1. `KolInputText` mit `_hasCounter` und `_maxLength` ausstatten
+2. Optional: `KolTextarea` mit Counter ausstatten (falls benötigt)
 
 ## Erwartetes Ergebnis
 
-- KolInput zeigt die aktuelle Zeichenanzahl an (Format: "X/Y" oder "X")
-- Counter basiert auf KolInputText/KolTextarea Implementierung (Wiederverwendung)
+- KolInputText zeigt die aktuelle Zeichenanzahl im Format "X/Y" an
 - Counter wird bei Eingabe aktualisiert (reaktiv auf User-Input)
+- Counter wird von KoliBri-Komponente automatisch gerendert
 
-## Testfälle (aus Akzeptanzkriterien)
+## Testfälle
 
-- Eingabe von 5 Zeichen → Counter zeigt "5"
-- Eingabe von 100 Zeichen → Counter zeigt "100"
-- Leeres Feld → Counter zeigt "0"
+- Titel-Input (KolInputText) mit `_maxLength={TITLE_MAX_LENGTH}` und `_hasCounter` zeigt Counter an
+- Eingabe von Zeichen → Counter zeigt "X/Y" Format
+- Counter wird reaktiv bei Eingabe aktualisiert
 
 ## Technische Hinweise
 
-- Die existierende `getCharacterCounter()` Funktion aus `titleLengthValidation.ts` zeigt das Counter-Format "X/Y"
-- KolInputText und KolTextarea haben bereits Counter-Implementierung in KoliBri
-- Die Implementierung soll Wiederverwendung bestehender Counter-Logik priorisieren
+- `_hasCounter`: Boolean Prop, aktiviert den eingebauten Counter
+- `_maxLength`: Number Prop, definiert das Maximum für "X/Y" Anzeige
+- Keine manuelle Counter-Implementierung nötig (KoliBri übernimmt)
