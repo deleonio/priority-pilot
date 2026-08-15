@@ -726,7 +726,7 @@ export const TaskForm = ({
 							{getCharacterCounter(title)}
 						</div>
 						<KolButton
-							_label="Lektorieren"
+							_label="Titel lektorieren"
 							_variant="minimal"
 							_disabled={saving || lektoratingTitle || lektoratingDescription}
 							_icons={{ left: { icon: 'codex-icon-magic' } }}
@@ -892,7 +892,7 @@ export const TaskForm = ({
 							}}
 						/>
 						<KolButton
-							_label="Lektorieren"
+							_label="Beschreibung lektorieren"
 							_variant="minimal"
 							_disabled={saving || lektoratingTitle || lektoratingDescription}
 							_icons={{ left: { icon: 'codex-icon-magic' } }}
