@@ -1,12 +1,12 @@
 # Health-Endpoint Extern Erreichbar Machen
 
 **Issue:** #618  
-**Stand:** 2026-08-13  
-**Typ:** Operative Infrastruktur-Maßnahme
+**Stand:** 2026-08-16  
+**Typ:** Operative Infrastruktur-Maßnahme (Abgeschlossen)
 
 ## Ziel
 
-Die interne Liveness-Route `GET /health` soll über die öffentliche Domain erreichbar sein, damit externes Monitoring (Uptime-Checker, Health-Checks) den Backend-Status zuverlässig ermitteln kann.
+Die interne Liveness-Route `GET /health` ist über die öffentliche Domain erreichbar, damit externes Monitoring (Uptime-Checker, Health-Checks) den Backend-Status zuverlässig ermitteln kann.
 
 ## Vorbedingung
 
@@ -20,18 +20,14 @@ Die interne Liveness-Route `GET /health` soll über die öffentliche Domain erre
    - Request: `GET https://hetzner.modevel.de/health`
    - Erwartung: JSON-Antwort `{"status":"ok"}` mit `Content-Type: application/json`
 
-2. **Aktuelles Verhalten (vor der Änderung)**
+2. **Implementiertes Verhalten**
    - Request: `GET https://hetzner.modevel.de/health`
-   - Tatsächliche Antwort: `index.html` (SPA-Fallback, `text/html`)
-   - Grund: Caddy proxyt nur `/api/v1/*` und `/auth/*`, `/health` fällt auf SPA
+   - Tatsächliche Antwort: `{"status":"ok"}` (JSON, `application/json`)
+   - Grund: Caddy proxyt `/health` an den Backend-Endpoint (`docs/caddy-setup.md:15,48`)
 
-3. **Lösungsoptionen**
-   - **Option A:** `/health` zu Caddy-Proxy-Liste hinzufügen (bevorzugt – minimale Änderung)
-   - **Option B:** `/api/v1/health` neu erstellen und dort proxyen
-
-4. **Caddy-Config erweitern (Option A)**
-   - In `docs/caddy-setup.md` den `/health`-Pfad zur Proxy-Liste hinzufügen
-   - Auf Produktivserver in Caddy-Config den `/health`-Reverse-Proxy-Handler einfügen
+3. **Backend-Implementierung**
+   - Route `GET /health` existiert im Backend (`server/src/express/index.ts:164-166`)
+   - Caddy-Config dokumentiert den Proxy (`docs/caddy-setup.md:15,48`)
 
 ## Erwartetes Ergebnis
 
@@ -49,9 +45,13 @@ Die interne Liveness-Route `GET /health` soll über die öffentliche Domain erre
 | Health-Route selbst fehlerhaft          | Backend antwortet mit 5xx (Express-Error-Handler)       |
 | Caddy-Config syntaktisch fehlerhaft     | Caddy reload schlägt fehl, Config-Rollback notwendig    |
 
-## Akzeptanzkriterien
+## Versionierung
 
-1. ✅ `GET /health` ist von extern erreichbar und antwortet mit JSON `{"status":"ok"}`
-2. ✅ Caddy-Config in `docs/caddy-setup.md` dokumentiert den `/health`-Proxy
-3. ✅ Keine Authentifizierung erforderlich (öffentliche Route)
-4. ✅ Bei Backend-down liefert Caddy korrektes 502 (nicht SPA-Fallback)
+- **v1.0** (2026-08-13): Initialefassung für Issue #618. Health-Endpoint extern erreichbar machen.
+- **v1.1** (2026-08-16): Nightly-Sync — Ist-Stand-Korrektur. Feature ist bereits implementiert: Caddy-Config proxyt `/health`, Backend-Route liefert `{"status":"ok"}`, Doku in `docs/caddy-setup.md:15,48` aktualisiert.
+
+---
+
+## Status
+
+**ABGESCHLOSSEN** — Das Feature ist vollständig implementiert und in Produktion.
