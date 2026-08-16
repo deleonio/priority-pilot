@@ -1,7 +1,7 @@
 # Issue 687 – Lektorat mit Diff-Modal
 
-**Stand:** 2026-08-15  
-**Ziel:** Lektorat-Aktionen zeigen Änderungen in einem Modal mit Diff-Anzeige, bevor sie übernommen werden
+**Stand:** 2026-08-16  
+**Ziel:** Lektorat-Aktionen zeigen Änderungen in einem Modal mit Diff-Anzeige, bevor sie übernommen werden (Implementiert)
 
 ---
 
@@ -117,3 +117,10 @@ Dieses Feature orientiert sich an **`docs/ux-pattern-sequential-confirmation.md`
 
 - **v1.0** (2026-08-15): Initialefassung für Issue 687. Zwei Journeys (Titel/Beschreibung) mit Diff-Modal.
 - **v1.1** (2026-08-16): Review-Findings aus PR #688 eingearbeitet: Backdrop-Randfall entfernt (weder das native `<dialog>` noch KolDialog schließen bei Backdrop-Klick; App-weit kein etabliertes Pattern), Fokus präzise auf den „Übernehmen"-Button festgelegt, Leerer-Text-Verhalten an das real existierende Issue-680-Verhalten (Fehlermeldung statt deaktiviertem Button) angeglichen.
+- **v1.2** (2026-08-16): Nightly-Sync — Ist-Stand-Korrektur. Feature ist bereits implementiert: LektoratDiffModal.tsx, TaskForm-Integration, Fokus-Management, alle Randfälle abgedeckt.
+
+---
+
+## Status
+
+**ABGESCHLOSSEN** — Das Feature ist vollständig implementiert und in Produktion.
