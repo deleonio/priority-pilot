@@ -292,3 +292,45 @@ In **GitHub Actions** läuft das über **Labels**: Der Umsetzungs-Workflow macht
 review-bereit und labelt ihn **selbst** mit `ai:needs-review`. Der separate
 [`pr-needs-review-label.yml`](../.github/workflows/pr-needs-review-label.yml) reagiert bewusst
 **NICHT** auf bot-erzeugte Draft→ready-Übergänge (nur auf menschliche Aktoren).
+
+## Nightly Guide-Sync (`claude-guide-sync.yml`)
+
+Keine Pipeline-Phase, sondern ein nächtlicher Helper-Workflow (täglich 04:27 UTC +
+`workflow_dispatch`): Ein LLM-Lauf hält das **In-App-Handbuch** `docs/user-guide.md` auf
+**Ist-Stand**. Diese Datei _ist_ die Hilfe-Seite der App (`frontend/vite.config.ts` liefert sie
+unter `/user-guide.md` aus, `HelpPage.tsx` rendert sie als Markdown) — jede Zeile darin liest ein
+Endnutzer. Verifiziert wird gegen `frontend/src/` (UI, Dialoge, Meldungstexte, Tastaturkürzel),
+`server/src/` (Push, LLM-Einstellungen, Allowlist-Meldungen) und `openapi.yml`;
+`frontend/e2e/*.spec.ts` und `docs/spec/user-journeys.md` dienen als Querbeleg. Die Implementation
+ist die Wahrheit, das Handbuch beschreibt sie nur aus Endnutzer-Sicht. Drei Operationen:
+**korrigieren** (Verhalten hat sich geändert), **entsorgen** (beschriebene Funktion existiert nicht
+mehr), **ergänzen** (implementiertes, undokumentiertes Nutzer-Feature).
+
+**Mechanik:**
+
+- **Skip-Guard:** Hat `main` denselben SHA wie der letzte erfolgreiche Lauf, wird der Lauf
+  übersprungen (deterministisch dasselbe Ergebnis, spart LLM-Budget). Fail-open bei API-Fehlern;
+  `workflow_dispatch` mit `force: true` umgeht den Guard.
+- **In-Flight-Guard:** Trägt der offene Sync-PR gerade `ai:needs-review`, `ai:needs-changes`,
+  `ai:ready-to-merge` oder (terminal) `ai:needs-human`, wird der Lauf ausgesetzt. Sonst zieht der
+  nächtliche Force-Push einem laufenden Review-/Fixup-/Merge-Lauf den Branch unter den Füßen weg.
+  `force: true` umgeht diesen Guard bewusst **nicht** — er schützt fremde Läufe, nicht das Budget.
+- **Branch/PR:** Der Agent committed nur lokal auf `chore/user-guide-sync`, der Branch wird jede
+  Nacht auf `origin/main` zurückgesetzt und per Force-Push ersetzt — der offene Sync-PR zeigt damit
+  immer exakt die **aktuelle** Drift statt Commits zu akkumulieren. Push und PR-Anlage/-Update sind
+  deterministische Workflow-Steps, keine Agent-Aufgabe. Fehlt der Agent-Report
+  (`/tmp/guide-sync-report.md`), ersetzt ein `git log`-Fallback den PR-Body (mit Warning).
+- **Post-Assertion (VERDICT-Muster):** `VERDICT: synced` ↔ null Commits, `VERDICT: updated` ↔
+  Commits vorhanden, geänderte Dateien ⊆ `docs/user-guide.md`, **plus Sektions-Guard**: die
+  Pflicht-Abschnitte aus [`server/src/logics/user-guide.test.ts`](../server/src/logics/user-guide.test.ts)
+  (AK 2.1–2.9) und die H1 müssen vorhanden sein, sonst kein Push. Der Guard ist nur der schnelle
+  Vorab-Check (kein `pnpm install` im Workflow) — autoritativ bleibt der Node-Test in der CI des PRs.
+- **Pipeline-Anbindung AKTIV:** Der Workflow setzt `ai:needs-review` selbst per **App-Token** →
+  `04 Review` → Gate → Auto-Merge; das Handbuch aktualisiert sich ohne Menschen. Das Label wird
+  dabei **erst entfernt, dann gesetzt** (Re-Arm-Muster #536): klebt es noch vom Vorlauf, wäre ein
+  reines `--add-label` ein No-op ohne `labeled`-Event und der Review startete nie.
+  `pr-needs-review-label.yml` springt nicht ein (labelt nur menschliche Akteure).
+- **Bewusst stateless:** Kein pro-Issue-Memory — der offene Sync-PR ist der einzige Zustand.
+- **Modell:** `vars.CLAUDE_MODEL_GUIDE_SYNC` (Default `opus` — Handbuch-Prosa und Drift-Erkennung),
+  Provider wie alle LLM-Phasen via `vars.LLM_PROVIDER` (setup-claude, `tools-tier: full`, inkl.
+  Tailscale-Egress und Fair-Usage-Check).
