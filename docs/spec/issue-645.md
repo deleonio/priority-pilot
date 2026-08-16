@@ -7,8 +7,8 @@
 ## Implementierungsstand
 
 Umgesetzt in PR #647 als `lektoratTextWithMistral` in [`server/src/llm/llm.ts`](../../server/src/llm/llm.ts).
-Die Funktion ist **noch nicht an einen Endpunkt angebunden** — Journeys 1+2 (Backend-Vertrag) sind
-erfüllt, Journeys 3+4 (Frontend-Anwendung auf Titel/Beschreibung) sind offen.
+Alle Journeys sind erfüllt: Backend-Endpunkt (`POST /lektorat`) und Frontend-Anwendung
+(TaskForm-Buttons, LektoratDiffModal) sind implementiert.
 
 ---
 
@@ -75,7 +75,7 @@ Einen Text durch LLM kürzen UND lektorieren lassen mit einer maximalen Zeichenl
 
 ---
 
-## Journey 3: Titel lektorieren und kürzen _(Issue 680 — Frontend Smart Button)_
+## Journey 3: Titel lektorieren und kürzen _(Issue 680 — Frontend Smart Button, Implementiert)_
 
 ### Ziel
 
@@ -113,7 +113,7 @@ Einen Aufgabentitel durch LLM lektorieren/optimal kürzen für die Anzeige in de
 
 ---
 
-## Journey 4: Beschreibung lektorieren _(Issue 680 — Frontend Smart Button)_
+## Journey 4: Beschreibung lektorieren _(Issue 680 — Frontend Smart Button, Implementiert)_
 
 ### Ziel
 
@@ -151,7 +151,7 @@ Eine Aufgabenbeschreibung durch LLM lektorieren für bessere Lesbarkeit mittels 
 
 ---
 
-## Journey 5: Backend-Endpunkt für Lektorat _(Issue 680 — Neu)_
+## Journey 5: Backend-Endpunkt für Lektorat _(Issue 680 — Implementiert)_
 
 ### Ziel
 
@@ -222,3 +222,16 @@ Implementiert als `lektoratTextWithMistral` (Mistral → OpenRouter-Kaskade).
 - **Anwendbarkeit:** Für Titel (kurz, prägnant) und Beschreibungen (länger, detailliert) geeignet.
 - **LLM-Verhalten:** Die genaue Längen-Respektierung hängt vom LLM ab – bei sehr kurzen
   `maxLength`-Werten kann der Text leicht variieren.
+
+---
+
+## Versionierung
+
+- **v1.0** (2026-08-13): Initialefassung für Issue #645. LLM-basierte Textfunktion zum Kürzen und Lektorieren.
+- **v1.1** (2026-08-16): Nightly-Sync — Ist-Stand-Korrektur. Alle Journeys sind implementiert: Backend-Endpunkt, Frontend-Buttons, LektoratDiffModal mit Diff-Anzeige.
+
+---
+
+## Status
+
+**ABGESCHLOSSEN** — Das Feature ist vollständig implementiert und in Produktion.
