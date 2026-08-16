@@ -1301,3 +1301,50 @@ body {
 	text-align: center;
 	border-radius: 0.375rem;
 }
+
+/* --- Checkliste (Issue #728) --- */
+/* Checklist-Editor: vertikale Flex-Kolumne mit optimierten Abständen */
+.checklist-editor {
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+	margin-top: 1.5rem;
+}
+
+/* Label über der Checklist */
+.checklist-editor-label {
+	font-weight: 600;
+	font-size: 0.875rem;
+	color: var(--pp-text);
+}
+
+/* Input + Button in einer Zeile */
+.checklist-add {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.checklist-add > * {
+	flex: 1 1 auto;
+}
+
+.checklist-add > *:last-child {
+	flex: 0 0 auto;
+}
+
+/* Einzelnes Checklist-Item: Flex-Row mit Checkbox, Titel, Remove-Button */
+.checklist-item {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.75rem;
+	padding: 0.5rem 0;
+}
+
+.checklist-item-title {
+	flex: 1 1 auto;
+	min-width: 0;
+	word-break: break-word;
+}
