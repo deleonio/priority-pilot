@@ -291,34 +291,35 @@ jobs:
 
             # PR-Body: „## <dateiname>“-Abschnitt aus dem Agent-Report, Fallback = Kopfhinweis.
             {
-              echo “Nächtlicher Spec-Sync ($sync_date) — betrifft nur \`$f\`.”
-              echo “”
-              echo “**Pipeline:** Kreuzverhör-Review (04) und Fixup (05) laufen automatisch nach diesem PR.”
-              echo “”
-              awk -v file=”## $f” 'found && /^## /{exit} $0==file{found=1;next} found' /tmp/spec-sync-report.md
+              echo "Nächtlicher Spec-Sync ($sync_date) — betrifft nur \`$f\`."
+              echo ""
+              echo "**Pipeline:** Kreuzverhör-Review (04) und Fixup (05) laufen automatisch nach diesem PR."
+              echo ""
+              awk -v file="## $f" 'found && /^## /{exit} $0==file{found=1;next} found' /tmp/spec-sync-report.md
             } > /tmp/spec-sync-pr-body.md
 
-            # PR-Create (ohne --draft) → PR-Nummer direkt via JSON-Output (wie Guide-Sync)
-            pr_number=”$(gh pr create --repo “$GITHUB_REPOSITORY” --head “$branch” --base main \
-              --title “$title” --body-file /tmp/spec-sync-pr-body.md --json number -q .number 2>/dev/null || echo “”)”
+            # PR-Create (ohne --draft) → PR-Nummer aus der URL (wie Guide-Sync; gh pr create kennt kein --json)
+            pr_url="$(gh pr create --repo "$GITHUB_REPOSITORY" --head "$branch" --base main \
+              --title "$title" --body-file /tmp/spec-sync-pr-body.md)"
+            pr_number="$(printf '%s\n' "$pr_url" | sed -nE 's#.*/pull/([0-9]+).*#\1#p' | tail -1)"
 
             # Label-Setzen mit Retry (3 Versuche) → bei endgültigem Fehlschlag laut Error + Exit
-            if [ -n “$pr_number” ]; then
+            if [ -n "$pr_number" ]; then
               retry=0
               while [ $retry -lt 3 ]; do
-                if gh pr edit “$pr_number” --add-label “ai:needs-review” 2>/dev/null; then
+                if gh pr edit "$pr_number" --add-label "ai:needs-review" 2>/dev/null; then
                   break
                 else
                   retry=$((retry + 1))
                   if [ $retry -ge 3 ]; then
-                    echo “::error title=❌ Label-Setzen fehlgeschlagen::PR #$pr_number erstellt, aber ai:needs-review konnte nicht gesetzt werden.”
+                    echo "::error title=❌ Label-Setzen fehlgeschlagen::PR #$pr_number erstellt, aber ai:needs-review konnte nicht gesetzt werden."
                     exit 1
                   fi
                   sleep 1
                 fi
               done
             else
-              echo “::error title=❌ PR-Create fehlgeschlagen::PR konnte nicht erstellt werden.”
+              echo "::error title=❌ PR-Create fehlgeschlagen::PR konnte nicht erstellt werden."
               exit 1
             fi
             created=$((created + 1))
