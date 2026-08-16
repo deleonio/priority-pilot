@@ -25,8 +25,8 @@ Den Aufgabenbaum so darstellen, dass verschachtelte Strukturen sofort erkennbar 
    - Der Aufgabenbaum zeigt Aufgaben als Baumstruktur, sortiert nach Wert
 
 2. **Hierarchie erkennen**
-   - **Vorgänger-Aufgaben** erscheinen oben (weniger eingerückt)
-   - **Abhängige Aufgaben** erscheinen darunter mit **erkennbarer Einrückung** (Indentation)
+   - **Ziel-/Elternaufgaben** erscheinen oben (weniger eingerückt)
+   - **Vorgänger-Aufgaben** (Unteraufgaben, die zuerst erledigt werden müssen) erscheinen darunter mit **erkennbarer Einrückung** (Indentation) — konsistent mit der bestehenden Baum-Semantik aus #336
    - Die Einrücktiefe korrespondiert mit der Abhängigkeitstiefe (Tiefe 1 = leicht eingerückt, Tiefe 2 = stärker eingerückt, etc.)
 
 3. **Visuelle Konsistenz prüfen**

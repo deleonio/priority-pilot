@@ -11,6 +11,12 @@ import { waitForStableView } from './helpers';
  * AK 2 — Einrückung/Indentation intuitiv
  * AK 3 — Kein visuelles Chaos
  *
+ * Baum-Semantik (#336, siehe `server/src/logics/tree.ts` und `task-list-flat.spec.ts`): eine
+ * Unteraufgabe wird als **Vorgänger** der Eltern-/Zielaufgabe angelegt
+ * (`POST /tasks/{zielId}/dependencies` mit `{ dependingTaskId: vorgängerId }`). Im Wald erscheint
+ * die Zielaufgabe darum als Wurzel (weniger eingerückt), ihr Vorgänger als Kind darunter (stärker
+ * eingerückt) — nicht umgekehrt.
+ *
  * Isolation: Jeder Test legt Tasks über die echte API an; afterEach räumt alle Tasks ab.
  */
 
@@ -75,7 +81,6 @@ test.describe('Aufgabenbaum-Layout (#704)', () => {
 			await expect(predecessorItem).toBeVisible();
 			await expect(targetItem).toBeVisible();
 
-			// ROT: Die abhängige Aufgabe (Ziel) muss stärker eingerückt sein als der Vorgänger
 			// Die Einrückung wird über das margin-left des Container-Elements gemessen
 			const predecessorIndent = await predecessorItem.evaluate((el: Element) => {
 				const styles = window.getComputedStyle(el);
@@ -87,8 +92,8 @@ test.describe('Aufgabenbaum-Layout (#704)', () => {
 				return parseInt(styles.marginLeft || '0', 10);
 			});
 
-			// Die abhängige Aufgabe muss eine erkennbar größere Einrückung haben
-			expect(targetIndent).toBeGreaterThan(predecessorIndent);
+			// Der Vorgänger (Unteraufgabe) muss eine erkennbar größere Einrückung haben als die Zielaufgabe (#336)
+			expect(predecessorIndent).toBeGreaterThan(targetIndent);
 		});
 
 		test('AK1b: Aufgaben gleicher Hierarchiestufe haben gleiche Einrückung', async ({ page }) => {
@@ -109,7 +114,7 @@ test.describe('Aufgabenbaum-Layout (#704)', () => {
 			await expect(targetAItem).toBeVisible();
 			await expect(targetBItem).toBeVisible();
 
-			// ROT: Beide abhängigen Aufgaben müssen die gleiche Einrückung haben
+			// Beide abhängigen Aufgaben müssen die gleiche Einrückung haben
 			const targetAIndent = await targetAItem.evaluate((el: Element) => {
 				const styles = window.getComputedStyle(el);
 				return parseInt(styles.marginLeft || '0', 10);
@@ -124,7 +129,7 @@ test.describe('Aufgabenbaum-Layout (#704)', () => {
 		});
 
 		test('AK1c: Tiefe Verschachtelung (3 Ebenen) bleibt lesbar', async ({ page }) => {
-			// Setup: Drei Ebenen Tiefe (A → B → C)
+			// Setup: Drei Ebenen Tiefe (A ist Vorgänger von B, B ist Vorgänger von C)
 			const taskAId = await createTask(page, uniqueTitle('A'));
 			const taskBId = await createTask(page, uniqueTitle('B'));
 			const taskCId = await createTask(page, uniqueTitle('C'));
@@ -143,7 +148,8 @@ test.describe('Aufgabenbaum-Layout (#704)', () => {
 			await expect(itemB).toBeVisible();
 			await expect(itemC).toBeVisible();
 
-			// ROT: Einrückung muss mit jeder Ebene zunehmen
+			// Einrückung muss mit jeder Vorgänger-Ebene zunehmen: C ist Wurzel (Ziel), B ist Vorgänger von
+			// C, A ist Vorgänger von B — also A am stärksten eingerückt, C am wenigsten (#336)
 			const indentA = await itemA.evaluate((el: Element) => {
 				const styles = window.getComputedStyle(el);
 				return parseInt(styles.marginLeft || '0', 10);
@@ -159,8 +165,8 @@ test.describe('Aufgabenbaum-Layout (#704)', () => {
 				return parseInt(styles.marginLeft || '0', 10);
 			});
 
-			expect(indentB).toBeGreaterThan(indentA);
-			expect(indentC).toBeGreaterThan(indentB);
+			expect(indentA).toBeGreaterThan(indentB);
+			expect(indentB).toBeGreaterThan(indentC);
 		});
 	});
 
@@ -188,12 +194,12 @@ test.describe('Aufgabenbaum-Layout (#704)', () => {
 				return parseInt(styles.marginLeft || '0', 10);
 			});
 
-			const indentDifference = targetIndent - predecessorIndent;
+			const indentDifference = predecessorIndent - targetIndent;
 
-			// ROT: Die Einrückungsdifferenz sollte nicht größer als 48px sein (zu viel Platz)
+			// Die Einrückungsdifferenz sollte nicht größer als 48px sein (zu viel Platz)
 			expect(indentDifference).toBeLessThanOrEqual(48);
 
-			// ROT: Die Einrückungsdifferenz sollte mindestens 16px sein (erkennbar, aber nicht zu wenig)
+			// Die Einrückungsdifferenz sollte mindestens 16px sein (erkennbar, aber nicht zu wenig)
 			expect(indentDifference).toBeGreaterThanOrEqual(16);
 		});
 
@@ -208,7 +214,7 @@ test.describe('Aufgabenbaum-Layout (#704)', () => {
 			const taskItem = page.getByTestId(`forest-node-${taskId}`);
 			await expect(taskItem).toBeVisible();
 
-			// ROT: Eine Aufgabe ohne Vorgänger sollte keine oder minimale Einrückung haben
+			// Eine Aufgabe ohne Vorgänger sollte keine oder minimale Einrückung haben
 			const indent = await taskItem.evaluate((el: Element) => {
 				const styles = window.getComputedStyle(el);
 				return parseInt(styles.marginLeft || '0', 10);
@@ -236,12 +242,12 @@ test.describe('Aufgabenbaum-Layout (#704)', () => {
 
 			await openForestTab(page);
 
-			// ROT: Alle Aufgaben sollten sichtbar sein
+			// Alle Aufgaben sollten sichtbar sein
 			for (const childId of childIds) {
 				await expect(page.getByTestId(`forest-node-${childId}`)).toBeVisible();
 			}
 
-			// ROT: Kein horizontaler Overflow (Scrollbalken) auf Desktop-Viewport
+			// Kein horizontaler Overflow (Scrollbalken) auf Desktop-Viewport
 			const hasOverflow = await page.evaluate(() => {
 				const doc = document.documentElement;
 				return doc.scrollWidth > doc.clientWidth;
@@ -269,7 +275,7 @@ test.describe('Aufgabenbaum-Layout (#704)', () => {
 			await expect(itemA).toBeVisible();
 			await expect(itemB).toBeVisible();
 
-			// ROT: Die Aufgaben sollten sich nicht überlappen (positiver vertikaler Abstand)
+			// Die Aufgaben sollten sich nicht überlappen (positiver vertikaler Abstand)
 			const boxA = await itemA.boundingBox();
 			const boxB = await itemB.boundingBox();
 
@@ -304,7 +310,7 @@ test.describe('Aufgabenbaum-Layout (#704)', () => {
 			await expect(predecessorItem).toBeVisible();
 			await expect(targetItem).toBeVisible();
 
-			// ROT: Auch auf Mobil muss die Hierarchie erkennbar sein (Einrückung)
+			// Auch auf Mobil muss die Hierarchie erkennbar sein (Einrückung des Vorgängers, #336)
 			const predecessorIndent = await predecessorItem.evaluate((el: Element) => {
 				const styles = window.getComputedStyle(el);
 				return parseInt(styles.marginLeft || '0', 10);
@@ -315,7 +321,7 @@ test.describe('Aufgabenbaum-Layout (#704)', () => {
 				return parseInt(styles.marginLeft || '0', 10);
 			});
 
-			expect(targetIndent).toBeGreaterThan(predecessorIndent);
+			expect(predecessorIndent).toBeGreaterThan(targetIndent);
 		});
 	});
 });
