@@ -24,13 +24,16 @@ test.describe('#727 Range-Inputs Layout über alle Viewports', () => {
 		await page.goto('/');
 		await waitForStableView(page);
 
-		// Schnellerfassungs-Dialog öffnen
-		await page.getByRole('button', { name: /neuen task anlegen/i }).click();
+		// Schnellerfassungs-Dialog öffnen (Button mit Plus-Icon)
+		await page.locator('.fa-plus').click();
+
+		// QuickCapture-Capture-Schritt überspringen, direkt zum Formular
+		await page.getByRole('button', { name: /überspringen/i }).click();
 		await waitForStableView(page);
 
-		// Range-Inputs lokalisieren
-		const prioritySlider = page.locator('input[type="range"][min="1"][max="5"][step="1"]');
-		const effortSlider = page.locator('input[type="range"][min="0.1"][max="1"][step="0.1"]');
+		// Range-Inputs lokalisieren (Shadow-DOM via KoliBri-Komponente)
+		const prioritySlider = page.locator('kol-input-range').first().locator('input[type="range"]');
+		const effortSlider = page.locator('kol-input-range').nth(1).locator('input[type="range"]');
 
 		await expect(prioritySlider).toBeVisible();
 		await expect(effortSlider).toBeVisible();
@@ -62,9 +65,10 @@ test.describe('#727 Range-Inputs Layout über alle Viewports', () => {
 
 		await page.getByRole('button', { name: /neuen task anlegen/i }).click();
 		await waitForStableView(page);
+		await page.getByRole('button', { name: /überspringen/i }).click();
 
-		const prioritySlider = page.locator('input[type="range"][min="1"][max="5"][step="1"]');
-		const effortSlider = page.locator('input[type="range"][min="0.1"][max="1"][step="0.1"]');
+		const prioritySlider = page.locator('kol-input-range').first().locator('input[type="range"]');
+		const effortSlider = page.locator('kol-input-range').nth(1).locator('input[type="range"]');
 
 		await expect(prioritySlider).toBeVisible();
 		await expect(effortSlider).toBeVisible();
@@ -94,10 +98,11 @@ test.describe('#727 Range-Inputs Layout über alle Viewports', () => {
 		await waitForStableView(page);
 
 		await page.getByRole('button', { name: /neuen task anlegen/i }).click();
+		await page.getByRole('button', { name: /überspringen/i }).click();
 		await waitForStableView(page);
 
-		const prioritySlider = page.locator('input[type="range"][min="1"][max="5"][step="1"]');
-		const effortSlider = page.locator('input[type="range"][min="0.1"][max="1"][step="0.1"]');
+		const prioritySlider = page.locator('kol-input-range').first().locator('input[type="range"]');
+		const effortSlider = page.locator('kol-input-range').nth(1).locator('input[type="range"]');
 
 		await expect(prioritySlider).toBeVisible();
 		await expect(effortSlider).toBeVisible();
@@ -124,10 +129,11 @@ test.describe('#727 Range-Inputs Layout über alle Viewports', () => {
 		await waitForStableView(page);
 
 		await page.getByRole('button', { name: /neuen task anlegen/i }).click();
+		await page.getByRole('button', { name: /überspringen/i }).click();
 		await waitForStableView(page);
 
-		const prioritySlider = page.locator('input[type="range"][min="1"][max="5"][step="1"]');
-		const effortSlider = page.locator('input[type="range"][min="0.1"][max="1"][step="0.1"]');
+		const prioritySlider = page.locator('kol-input-range').first().locator('input[type="range"]');
+		const effortSlider = page.locator('kol-input-range').nth(1).locator('input[type="range"]');
 
 		// Mobile 375px
 		await page.setViewportSize({ width: 375, height: 667 });
