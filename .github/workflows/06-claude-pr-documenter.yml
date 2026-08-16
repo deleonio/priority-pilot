@@ -38,7 +38,7 @@ permissions:
   contents: read # Claude ändert PR-Metadaten via gh, nicht den Repo-Inhalt — kein Commit mehr.
   pull-requests: write
   issues: write
-  # actions: write — fuer gh cache delete beim Issue-Memory-Abbau.
+  # actions: write — fuer das Loeschen der Memory-Artefakte beim Issue-Memory-Abbau.
   actions: write
   # id-token: write — App-Token (setup-claude).
   id-token: write
@@ -253,12 +253,16 @@ jobs:
 
       - name: 🧹 Issue-Memory abbauen (deterministisch)
         # Claude pflegt seinen nativen Memory nach .claude/memory/ (autoMemoryDirectory), pro Issue
-        # persistiert unter stabilem Key claude-memory-issue-{N} (s. setup-claude, memory-save-key).
+        # persistiert als ARTEFAKT claude-memory-issue-{N} (s. setup-claude, memory-save-key).
         # Nach Merge ist dieser Memory stale -> abbauen. Issue-Auflösung wie setup-claude: Closing-Issue,
         # sonst PR-Nummer als Fallback. Best-Effort: ein fehlgeschlagener Delete darf den Lauf nicht
-        # abbrechen.
+        # abbrechen (retention-days: 14 ist der Backstop).
         # NUR bei Job-Erfolg (kein always()): schlägt der Documenter fehl, bleibt der Memory für den
         # Re-Run erhalten — always() würde die Vor-Phasen-Notizen vor dem Retry wegputzen.
+        #
+        # Räumt ARTEFAKTE, nicht Caches: der Cache war nie der Speicher (Cache-Writes sind für
+        # diese Trigger platform-seitig gesperrt, s. setup-claude Kopf-Kommentar), dieser Schritt
+        # lief also bisher wirkungslos gegen eine leere Liste.
         if: steps.setup.outputs.configured == 'true'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
@@ -267,10 +271,12 @@ jobs:
             --jq '[.closingIssuesReferences[].number] | first' 2>/dev/null || true)"
           for ref in "$closing_issue" "$PR"; do
             if [ -z "$ref" ] || [ "$ref" = "null" ]; then continue; fi
-            while IFS= read -r cid; do
-              [ -z "$cid" ] && continue
-              gh cache delete "$cid" --repo "$REPO" 2>/dev/null && echo "🗑️ Cache $cid gelöscht" || true
-            done < <(gh cache list --repo "$REPO" --key "claude-memory-issue-${ref}" --json id,key 2>/dev/null | jq -r --arg k "claude-memory-issue-${ref}" '.[] | select(.key == $k) | .id' 2>/dev/null || true)
+            while IFS= read -r aid; do
+              [ -z "$aid" ] && continue
+              gh api -X DELETE "repos/$REPO/actions/artifacts/$aid" 2>/dev/null \
+                && echo "🗑️ Memory-Artefakt $aid gelöscht" || true
+            done < <(gh api "repos/$REPO/actions/artifacts?name=claude-memory-issue-${ref}&per_page=100" \
+              --jq '.artifacts[] | select(.expired == false) | .id' 2>/dev/null || true)
           done
           exit 0
 

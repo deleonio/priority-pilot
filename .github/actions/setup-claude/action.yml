@@ -44,17 +44,30 @@ inputs:
     description: 'settings.local.json für openrouter als JSON-String (aus vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER)'
     required: false
     default: ''
-  # Memory-Funktionen für pro-Issue Persistenz (dateibasiert via Actions-Cache).
+  # Memory-Funktionen für pro-Issue Persistenz (dateibasiert via Workflow-ARTEFAKTE).
+  #
+  # WARUM ARTEFAKTE STATT CACHE (2026-08-16): Der Actions-Cache ist für diese Pipeline
+  # schreib-tot. GitHubs Richtlinie vom 2026-06-26 ("Read-only Actions cache for untrusted
+  # triggers") vergibt für Issue-/Label-/PR-getriggerte Läufe UND für die daraus kaskadierten
+  # workflow_run-Läufe nur lese-only Cache-Token. Der frühere Umweg über den workflow_run-
+  # Begleitworkflow scheiterte deshalb in JEDEM Lauf mit "cache write denied: token has no
+  # writable scopes" — als ##[warning], also bei grünem Job (belegt in den Persist-Runs
+  # 31891908903, 31893430552, 31903885353, 31904169169; im Repo existierte zu keinem
+  # Zeitpunkt ein claude-memory-*-Cache). Der Scope hängt am Trust-Level des Triggers, NICHT
+  # an den Permissions — `actions: write` ändert daran nichts.
+  # Artefakte unterliegen dieser Restriktion nicht und sind damit der Speicher: jede Phase
+  # lädt .claude/memory als Artefakt `claude-memory-issue-{N}` hoch, die Folgephase holt sich
+  # das JÜNGSTE nicht-abgelaufene Artefakt dieses Namens zurück (repo-weite Artefakt-Suche).
+  #
   # Memory-Save passiert NICHT hier (die Action läuft nur pre-claude), sondern als
-  # actions/cache/save-Step im Workflow nach dem claude-Step. Die Action liefert dafür
-  # memory-save-key (stabil pro Issue) + memory-path (flach .claude/memory) als Outputs.
+  # upload-artifact-Step im Workflow nach dem claude-Step. Die Action liefert dafür
+  # memory-save-key (stabil pro Issue = Artefakt-Name) + memory-path (flach .claude/memory).
   # Claude liest/schreibt seinen Memory NATIV nach .claude/memory (autoMemoryDirectory in
   # .claude/settings.json) — Isolierung pro Issue erfolgt NICHT über einen Subdir, sondern
-  # rein über den GHA-Cache-Key: jeder Lauf restored/saved den zum Issue passenden Stand in
-  # denselben flachen Pfad. Da GHA-Cache immutabel ist, baut jeder Workflow den alten
-  # Issue-Eintrag vor dem Save per gh cache delete ab (Delete-before-Save), sonst No-Op.
+  # rein über den Artefakt-Namen: jeder Lauf restored/saved den zum Issue passenden Stand in
+  # denselben flachen Pfad.
   memory-load:
-    description: 'Memory-Load zu Beginn des Workflows (true = restauriert dateibasierte Memory für ticket-ref aus dem Actions-Cache). Phase 1 (Triage) = false (Ursprung, nichts zu restaurieren, nur Schreiben).'
+    description: 'Memory-Load zu Beginn des Workflows (true = restauriert dateibasierte Memory für ticket-ref aus dem jüngsten Issue-Artefakt). Phase 1 (Triage) = false (Ursprung, nichts zu restaurieren, nur Schreiben).'
     required: false
     default: 'false'
   expect-memory:
@@ -100,16 +113,16 @@ outputs:
     description: 'Der tatsächlich aufgelöste Provider ("zai" oder "claude")'
     value: ${{ steps.provider.outputs.llm-provider }}
   memory-loaded:
-    description: 'Ob pro-Issue Memory aus einer Vor-Phase geladen wurde (Cache-Hit)'
-    value: ${{ steps.memory-load.outputs.cache-hit }}
+    description: 'Ob pro-Issue Memory aus einer Vor-Phase geladen wurde (Artefakt gefunden UND heruntergeladen)'
+    value: ${{ steps.memory-load.outputs.found }}
   memory-path:
-    description: 'Flacher Claude-Memory-Pfad (.claude/memory); Claude pflegt ihn nativ via autoMemoryDirectory. Pro-Issue-Isolierung erfolgt über den GHA-Cache-Key, nicht über einen Subdir.'
+    description: 'Flacher Claude-Memory-Pfad (.claude/memory); Claude pflegt ihn nativ via autoMemoryDirectory. Pro-Issue-Isolierung erfolgt über den Artefakt-Namen, nicht über einen Subdir.'
     value: .claude/memory
   memory-save-key:
-    description: 'Stabiler Cache-Key pro Issue (alle Phasen teilen sich einen Eintrag). Cache ist immutabel → Workflows bauen den alten Eintrag vor dem Save per gh cache delete ab.'
+    description: 'Stabiler Artefakt-Name pro Issue. Jede Phase lädt ihren Stand unter diesem Namen hoch; die Folgephase holt das jüngste nicht-abgelaufene Artefakt dieses Namens.'
     value: claude-memory-issue-${{ steps.ticket.outputs.issue-number }}
   memory-restored:
-    description: 'Ob tatsächlich Memory-Dateien restauriert wurden (cache-hit==true UND Dateianzahl > 0).'
+    description: 'Ob tatsächlich Memory-Dateien restauriert wurden (Artefakt geladen UND Dateianzahl > 0).'
     value: ${{ steps.memory-verify.outputs.restored }}
   memory-file-count:
     description: 'Anzahl restaurierter Memory-Dateien in .claude/memory/.'
@@ -200,18 +213,45 @@ runs:
         fi
         echo "issue-number=$ISSUE_NR" >> "$GITHUB_OUTPUT"
 
-    - name: Memory-Load (pro Issue, dateibasiert)
+    - name: Memory-Load (pro Issue, jüngstes Artefakt)
+      # Kein actions/cache/restore mehr: der Cache-SAVE ist für diese Pipeline platform-seitig
+      # gesperrt (s. Kopf-Kommentar), ein Restore hätte also nie einen Treffer. Der Speicher sind
+      # Artefakte — hier wird das jüngste nicht-abgelaufene Artefakt `claude-memory-issue-{N}`
+      # repo-weit gesucht und in den flachen Pfad .claude/memory entpackt.
+      #
+      # Token: bevorzugt das App-Token (überall sonst in dieser Action verwendet); schlägt die
+      # Artefakt-API damit fehl (App ohne Actions-Read), greift GITHUB_TOKEN als zweiter Versuch.
+      # Beide erfolglos → found=false, was der Verify-Step unten LAUT meldet (statt still leer).
       id: memory-load
       if: steps.preflight.outputs.configured == 'true' && inputs.memory-load == 'true'
-      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-      with:
-        # Flacher Pfad (.claude/memory), nativ von Claude via autoMemoryDirectory gelesen/
-        # geschrieben. Pro-Issue-Isolierung NUR über den Key: jeder Lauf holt den zum Issue
-        # passenden claude-memory-issue-{N}-Stand in denselben flachen Pfad.
-        path: .claude/memory
-        key: claude-memory-issue-${{ steps.ticket.outputs.issue-number }}
+      shell: bash
+      env:
+        APP_TOKEN: ${{ steps.gh-token.outputs.token }}
+        FALLBACK_TOKEN: ${{ github.token }}
+        MEMORY_NAME: claude-memory-issue-${{ steps.ticket.outputs.issue-number }}
+      run: |
+        set -uo pipefail
+        mkdir -p .claude/memory
+        found="false"
+        for tok in "$APP_TOKEN" "$FALLBACK_TOKEN"; do
+          if [ -z "$tok" ] || [ "$tok" = "null" ]; then continue; fi
+          # ?name= filtert serverseitig auf EXAKTEN Namen (claude-memory-issue-68 matcht also
+          # nicht claude-memory-issue-687); abgelaufene Artefakte sind nicht mehr ladbar.
+          run_id="$(GH_TOKEN="$tok" gh api \
+            "repos/$GITHUB_REPOSITORY/actions/artifacts?name=$MEMORY_NAME&per_page=100" \
+            --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | reverse | .[0].workflow_run.id // empty' 2>/dev/null || true)"
+          if [ -z "$run_id" ]; then continue; fi
+          if GH_TOKEN="$tok" gh run download "$run_id" --repo "$GITHUB_REPOSITORY" \
+               --name "$MEMORY_NAME" --dir .claude/memory 2>/dev/null; then
+            found="true"
+            echo "::notice title=🧠 Memory-Artefakt geladen::$MEMORY_NAME aus Run $run_id."
+            break
+          fi
+          echo "::warning title=Memory-Download fehlgeschlagen::Artefakt $MEMORY_NAME (Run $run_id) gefunden, Download scheiterte."
+        done
+        echo "found=$found" >> "$GITHUB_OUTPUT"
 
-    - name: Memory-Verzeichnis sicherstellen (Claude-Schreibzugriff auch bei Cache-Miss / memory-load=false)
+    - name: Memory-Verzeichnis sicherstellen (Claude-Schreibzugriff auch bei Miss / memory-load=false)
       # Entkoppelt von memory-load: Phase 1 (Triage) hat memory-load=false (nichts zu
       # restaurieren), MUSS aber schreiben dürfen → Verzeichnis immer anlegen.
       if: steps.preflight.outputs.configured == 'true'
@@ -219,21 +259,21 @@ runs:
       run: mkdir -p ".claude/memory"
 
     - name: Memory-Restore verifizieren (ab Phase 2)
-      # Prüft, OB wirklich Memory restauriert wurde (cache-hit + Dateianzahl > 0). Phase 1
+      # Prüft, OB wirklich Memory restauriert wurde (Artefakt geladen + Dateianzahl > 0). Phase 1
       # (memory-load=false) überspringt diesen Schritt — leeres Memory ist dort der Normalfall.
       # Ab Phase 2 (expect-memory=true) warnt ein leerer Restore: entweder hat die Vor-Phase
-      # nichts geschrieben, ODER die Persistierung (Artefakt → claude-memory-save) schlug fehl.
+      # nichts geschrieben, ODER der Artefakt-Upload/-Download schlug fehl.
       id: memory-verify
       if: steps.preflight.outputs.configured == 'true' && inputs.memory-load == 'true'
       shell: bash
       env:
         EXPECT_MEMORY: ${{ inputs.expect-memory }}
         ISSUE_NR: ${{ steps.ticket.outputs.issue-number }}
-        CACHE_HIT: ${{ steps.memory-load.outputs.cache-hit }}
+        ARTIFACT_FOUND: ${{ steps.memory-load.outputs.found }}
       run: |
         count=$(find .claude/memory -type f 2>/dev/null | wc -l | tr -d ' ')
         restored="false"
-        if [ "${CACHE_HIT}" = "true" ] && [ "${count:-0}" -gt 0 ]; then restored="true"; fi
+        if [ "${ARTIFACT_FOUND}" = "true" ] && [ "${count:-0}" -gt 0 ]; then restored="true"; fi
         echo "file-count=${count:-0}" >> "$GITHUB_OUTPUT"
         echo "restored=$restored" >> "$GITHUB_OUTPUT"
         if [ "$restored" = "true" ]; then
@@ -473,8 +513,8 @@ runs:
 
     # Memory-Save findet sich NICHT hier (die Action läuft ausschließlich pre-claude).
     # Phasen (01..05) laden nach dem claude-Step das Memory als Artefakt hoch (upload-artifact,
-    # Name = memory-save-Key); der Cache-Save läuft im vertrauenswürdigen workflow_run-Companion
-    # claude-memory-save.yml (Issue-Trigger sind lese-only für Cache, s. GitHub-Richtlinie 2026-06-26).
+    # Name = memory-save-Key) — das Artefakt IST der Speicher, es folgt kein Cache-Save mehr
+    # (Cache-Writes sind für diese Trigger platform-seitig gesperrt, s. Kopf-Kommentar).
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     # TAILSCALE EXIT-NODE — LLM-Egress über eine feste IP (z.ai/OpenRouter-Flagging-Schutz)

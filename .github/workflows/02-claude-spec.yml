@@ -1,5 +1,3 @@
-# ⚠️ Der Workflow-Name ist lastend: `claude-memory-save.yml` triggert via workflow_run auf
-# '2/6 Spec'. Umbenennen schaltet das Memory-Persistieren lautlos ab.
 name: 2/6 Spec
 
 # Schreibt die ROTEN Tests (ausführbarer Vertrag) für ein Issue, sobald es
@@ -190,18 +188,24 @@ jobs:
             2>&1 | tee /tmp/claude-output.log
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
 
-      - name: Memory-Upload (Artefakt für workflow_run-Persistierung)
-        # Issue-/Label-Trigger bekommen seit der GitHub-Richtlinie 2026-06-26 nur lese-only
-        # Cache-Token → ein direkter Save wäre ein No-Op ("token has no writable scopes"). Phasen
-        # laden via Restore (read-only OK) und übergeben das Memory als Artefakt an den vertrauens-
-        # würdigen workflow_run-Begleitworkflow (claude-memory-save.yml), der den Schreibzugriff hat.
-        # Artefakt-Name = Cache-Key = claude-memory-issue-{N} (steps.setup.outputs.memory-save-key).
+      - name: Memory-Upload (das Artefakt IST der Speicher der Phasen-Notizen)
+        # Kein Cache-Save mehr — er ist für diese Pipeline platform-seitig unmöglich: GitHubs
+        # Richtlinie vom 2026-06-26 vergibt für Issue-/Label-/PR-Trigger UND die daraus
+        # kaskadierten workflow_run-Läufe nur lese-only Cache-Token. Der frühere Companion
+        # (claude-memory-save.yml) scheiterte deshalb in JEDEM Lauf still mit "cache write
+        # denied: token has no writable scopes" — als ##[warning], also bei grünem Job.
+        # Artefakte unterliegen dieser Restriktion nicht; die Folgephase holt sich das jüngste
+        # nicht-abgelaufene Artefakt dieses Namens (s. setup-claude, Step "Memory-Load").
+        # Name = claude-memory-issue-{N} (steps.setup.outputs.memory-save-key).
         if: always() && steps.setup.outputs.configured == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ${{ steps.setup.outputs.memory-save-key }}
           path: ${{ steps.setup.outputs.memory-path }}
-          retention-days: 1
+          # 14 Tage: das Artefakt ist jetzt der einzige Speicher, nicht mehr nur ein Transport-
+          # vehikel zum Cache (dort war 1 Tag genug). Muss den ganzen Ticket-Lebenszyklus
+          # überdauern; Phase 6 räumt am Ende ohnehin deterministisch auf. Größe: ~1 KB.
+          retention-days: 14
           if-no-files-found: ignore
 
       - name: Label-Post-Assertion (VERDICT parsen, Labels via App-Token force-setzen)
