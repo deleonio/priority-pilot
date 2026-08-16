@@ -32,7 +32,8 @@ flowchart TD
     end
 
     merged([PR gemergt ✅]):::done
-    docpr[06-claude-pr-documenter.yml<br/>Phase 6: PR-Titel und Beschreibung optimiert]:::wf
+    docpr[06-claude-pr-documenter.yml<br/>Phase 6: Titel/Body/Release-Note/Labels<br/>(Facts + LLM doc.json + Render)]:::wf
+    docsweep[06b-documenter-sweep.yml<br/>Catch-up: verlorene Läufe nachtriggern]:::wf
     human([⚠️ Mensch<br/>> 10 PR-Commits]):::stop
 
     %% ---- Issue-Trigger ----
@@ -68,6 +69,7 @@ flowchart TD
     %% ---- Abschluss ----
     merged -.->|pull_request.closed| cancel
     merged -.->|"pull_request.closed + merged"| docpr
+    docsweep -.->|"schedule/dispatch: gemergt ohne ai:documented"| docpr
 
     %% ---- Merge-getriebenes Unblocking aufeinander aufbauender Issues ----
     merged -.->|"pull_request.closed + merged"| unblock

@@ -1,0 +1,33 @@
+# Kategorien für automatisch generierte Release Notes (gh release create --generate-notes,
+# deploy.yml). Die release:*-Labels vergibt der PR-Documenter (Phase 6) pro Klassifikation:
+#   breaking -> release:breaking-change | new -> release:feature | improved ->
+#   release:improvement | fixed -> release:fix | internal -> release:engineering
+# Bot-PRs (Renovate/Dependabot) werden doppelt ausgeschlossen: per Autor hier UND per
+# release:ignore-Label im Documenter-Bot-SHORTCUT — ein Ausfall eines der beiden Pfade
+# (z. B. facts_ok=false) reicht so nicht, damit sie im Changelog landen.
+changelog:
+  exclude:
+    labels:
+      - release:ignore
+    authors:
+      - renovate[bot]
+      - dependabot[bot]
+  categories:
+    - title: 💥 Breaking Changes
+      labels:
+        - release:breaking-change
+    - title: 🎉 New Features
+      labels:
+        - release:feature
+    - title: 🐞 Bug Fixes
+      labels:
+        - release:fix
+    - title: 🚀 Improvements
+      labels:
+        - release:improvement
+    - title: 🔧 Engineering
+      labels:
+        - release:engineering
+    - title: Other Changes
+      labels:
+        - '*'
