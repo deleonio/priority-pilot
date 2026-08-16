@@ -2,10 +2,14 @@ import { expect, test, type Page } from './fixtures';
 import { waitForStableView } from './helpers';
 
 /**
- * Rote Spec-Tests für #704 — Aufgabenbaum-Layout.
+ * Spec-Tests für #704 — Aufgabenbaum-Layout.
  *
  * Spec: docs/spec/issue-704.md
  * Ziel: Saubere, strukturierte Darstellung des Aufgabenbaums mit klarer Hierarchie
+ *
+ * Baum-Richtung folgt dem etablierten #336-Vertrag (server/src/logics/tree.ts,
+ * task-list-flat.spec.ts): Die Eltern-Aufgabe (Abhängige) steht oben, ihre
+ * Unteraufgaben (= Vorgänger) sind darunter eingerückt.
  *
  * AK 1 — Aufgaben mit verschachtelter Struktur klar erkennbar (Indentation)
  * AK 2 — Einrückung/Indentation intuitiv
@@ -58,8 +62,9 @@ test.describe('Aufgabenbaum-Layout (#704)', () => {
 	};
 
 	test.describe('AK 1 — Aufgaben mit verschachtelter Struktur klar erkennbar (#704)', () => {
-		test('AK1a: Abhängige Aufgabe ist visuell eingerückt (Indentation)', async ({ page }) => {
-			// Setup: Zwei Aufgaben mit Abhängigkeit (Vorgänger → Ziel)
+		test('AK1a: Unteraufgabe (Vorgänger) ist visuell eingerückt (Indentation)', async ({ page }) => {
+			// Setup: Zwei Aufgaben mit Abhängigkeit (Vorgänger → Ziel); das Ziel ist die
+			// Eltern-Aufgabe, der Vorgänger ihre Unteraufgabe (#336-Semantik).
 			const predecessorId = await createTask(page, uniqueTitle('Vorgänger'));
 			const targetId = await createTask(page, uniqueTitle('Ziel'));
 			await addDependency(page, targetId, predecessorId);
@@ -75,7 +80,7 @@ test.describe('Aufgabenbaum-Layout (#704)', () => {
 			await expect(predecessorItem).toBeVisible();
 			await expect(targetItem).toBeVisible();
 
-			// ROT: Die abhängige Aufgabe (Ziel) muss stärker eingerückt sein als der Vorgänger
+			// ROT: Die Unteraufgabe (Vorgänger) muss stärker eingerückt sein als die Eltern-Aufgabe
 			// Die Einrückung wird über das margin-left des Container-Elements gemessen
 			const predecessorIndent = await predecessorItem.evaluate((el: Element) => {
 				const styles = window.getComputedStyle(el);
@@ -87,8 +92,8 @@ test.describe('Aufgabenbaum-Layout (#704)', () => {
 				return parseInt(styles.marginLeft || '0', 10);
 			});
 
-			// Die abhängige Aufgabe muss eine erkennbar größere Einrückung haben
-			expect(targetIndent).toBeGreaterThan(predecessorIndent);
+			// Die Unteraufgabe muss eine erkennbar größere Einrückung haben
+			expect(predecessorIndent).toBeGreaterThan(targetIndent);
 		});
 
 		test('AK1b: Aufgaben gleicher Hierarchiestufe haben gleiche Einrückung', async ({ page }) => {
@@ -143,7 +148,9 @@ test.describe('Aufgabenbaum-Layout (#704)', () => {
 			await expect(itemB).toBeVisible();
 			await expect(itemC).toBeVisible();
 
-			// ROT: Einrückung muss mit jeder Ebene zunehmen
+			// ROT: Einrückung muss mit jeder Unteraufgaben-Ebene zunehmen. Kette A → B → C
+			// (B hängt von A ab, C von B): C ist die Wurzel, B ihre Unteraufgabe, A deren
+			// Unteraufgabe — die Einrückung wächst also von C über B nach A (#336-Semantik).
 			const indentA = await itemA.evaluate((el: Element) => {
 				const styles = window.getComputedStyle(el);
 				return parseInt(styles.marginLeft || '0', 10);
@@ -159,8 +166,8 @@ test.describe('Aufgabenbaum-Layout (#704)', () => {
 				return parseInt(styles.marginLeft || '0', 10);
 			});
 
-			expect(indentB).toBeGreaterThan(indentA);
-			expect(indentC).toBeGreaterThan(indentB);
+			expect(indentA).toBeGreaterThan(indentB);
+			expect(indentB).toBeGreaterThan(indentC);
 		});
 	});
 
@@ -188,7 +195,7 @@ test.describe('Aufgabenbaum-Layout (#704)', () => {
 				return parseInt(styles.marginLeft || '0', 10);
 			});
 
-			const indentDifference = targetIndent - predecessorIndent;
+			const indentDifference = predecessorIndent - targetIndent;
 
 			// ROT: Die Einrückungsdifferenz sollte nicht größer als 48px sein (zu viel Platz)
 			expect(indentDifference).toBeLessThanOrEqual(48);
@@ -304,7 +311,7 @@ test.describe('Aufgabenbaum-Layout (#704)', () => {
 			await expect(predecessorItem).toBeVisible();
 			await expect(targetItem).toBeVisible();
 
-			// ROT: Auch auf Mobil muss die Hierarchie erkennbar sein (Einrückung)
+			// ROT: Auch auf Mobil muss die Hierarchie erkennbar sein (Einrückung der Unteraufgabe)
 			const predecessorIndent = await predecessorItem.evaluate((el: Element) => {
 				const styles = window.getComputedStyle(el);
 				return parseInt(styles.marginLeft || '0', 10);
@@ -315,7 +322,7 @@ test.describe('Aufgabenbaum-Layout (#704)', () => {
 				return parseInt(styles.marginLeft || '0', 10);
 			});
 
-			expect(targetIndent).toBeGreaterThan(predecessorIndent);
+			expect(predecessorIndent).toBeGreaterThan(targetIndent);
 		});
 	});
 });
