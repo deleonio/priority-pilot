@@ -4,7 +4,6 @@ import {
 	KolButton,
 	KolInputCheckbox,
 	KolInputText,
-	KolPopoverButton,
 	KolSpin,
 	KolTabs,
 	KolToolbar,
@@ -26,7 +25,6 @@ import { UpdatePrompt } from './components/UpdatePrompt';
 import { PillarAdvisorModal } from './components/PillarAdvisorModal';
 import { QuickCaptureModal } from './components/QuickCaptureModal';
 import { SeriesTab } from './components/SeriesTab';
-import { SettingsPage } from './components/SettingsPage';
 import { TaskFormModal } from './components/TaskFormModal';
 import { TaskTree } from './components/TaskTree';
 import { filterForestByTitle } from './lib/filterForestByTitle';
@@ -35,8 +33,6 @@ import type { AuthUser } from './lib/auth';
 import { buildDependencyMap } from './lib/dependencies';
 import { collectTaskValues } from './lib/forest';
 import { buildPillarSummaries } from './lib/pillar';
-import { setupPopoverAlignment } from './lib/popoverAlign';
-import { useMediaQuery } from './lib/useMediaQuery';
 import { APP_VERSION } from './lib/version';
 
 type Dialog =
@@ -62,18 +58,9 @@ const ADVISOR_ICON = { left: { icon: 'fa-solid fa-lightbulb' } };
 const HELP_ICON = { left: { icon: 'fa-solid fa-circle-question' } };
 const SETTINGS_ICON = { left: { icon: 'fa-solid fa-gear' } };
 const LOGOUT_ICON = { left: { icon: 'fa-solid fa-right-from-bracket' } };
-const MENU_ICON = { left: { icon: 'fa-solid fa-ellipsis-vertical' } };
-
-/**
- * Ab dieser Breite gilt das Desktop-Layout des Kopfbereichs (volle Toolbar + Klartext-Anzeigename).
- * Spiegelt die 48rem-Grenze, die app.css bereits für Dashboard-Grid, Erledigt-Tabelle und die
- * Seitenränder nutzt — es gibt bewusst nur EINEN Breakpoint im Projekt.
- */
-const DESKTOP_MEDIA_QUERY = '(min-width: 48rem)';
 
 export const App = ({ user }: { user: AuthUser }) => {
 	const [showHelp, setShowHelp] = useState(() => window.location.pathname.startsWith('/hilfe'));
-	const [showSettings, setShowSettings] = useState(() => window.location.pathname.startsWith('/settings'));
 	const [tasks, setTasks] = useState<Task[] | null>(null);
 	const [forest, setForest] = useState<TaskTreeNode[]>([]);
 	const [nextTask, setNextTask] = useState<Task | null>(null);
@@ -92,11 +79,6 @@ export const App = ({ user }: { user: AuthUser }) => {
 	// Übrige wandert hinter das „⋮"-Menü — so passt der Header auf 375px in EINE Zeile statt in zwei
 	// bis drei. Die Entscheidung fällt in React (nicht per CSS `display: none`), damit stets nur eine
 	// Variante im DOM steht und dieselben Accessible Names nicht doppelt existieren.
-	const isDesktop = useMediaQuery(DESKTOP_MEDIA_QUERY);
-	// #361-Muster: `KolPopoverButton` regelt Öffnen/Schließen, Click-outside, Escape und Fokusrückgabe
-	// über die native Popover-API selbst; der Ref schließt das Panel nach einer Aktion programmatisch.
-	const headerMenuRef = useRef<HTMLKolPopoverButtonElement | null>(null);
-	useEffect(() => setupPopoverAlignment(headerMenuRef.current), [isDesktop]);
 
 	// Aufgaben-Tab: Suchtext und Offen/Erledigt-Switch (State wird beim Umschalten erhalten, AK6).
 	// `searchDraft` ist der Eingabe-Entwurf im Suchfeld; der Filter wird erst per „Filtern"-Button
@@ -149,7 +131,6 @@ export const App = ({ user }: { user: AuthUser }) => {
 		const onPop = () => {
 			const path = window.location.pathname;
 			setShowHelp(path.startsWith('/hilfe'));
-			setShowSettings(path.startsWith('/settings'));
 		};
 		window.addEventListener('popstate', onPop);
 		return () => window.removeEventListener('popstate', onPop);
@@ -295,36 +276,9 @@ export const App = ({ user }: { user: AuthUser }) => {
 		setActiveTab(0);
 	}, []);
 
-	const openSettings = useCallback((): void => {
-		window.history.pushState({}, '', '/settings/general');
-		setShowSettings(true);
-	}, []);
-
-	const closeSettings = useCallback((): void => {
-		window.history.pushState({}, '', '/');
-		setShowSettings(false);
-		setActiveTab(0);
-	}, []);
-
-	const handleLogoDashboard = useCallback((): void => {
-		setActiveTab(0);
-		void reload();
-	}, [reload]);
-
 	// Nach dem Speichern auf der Einstellungen-Seite: zurück zum Dashboard (#270) und die Daten neu
 	// laden, damit die geänderten Säulen-Gewichte sofort in Dashboard und Ranking sichtbar sind.
-	const afterSettingsSaved = useCallback((): void => {
-		closeSettings();
-		void reload();
-	}, [closeSettings, reload]);
-
-	// Nach PillarList-Mutationen (anlegen/umbenennen/löschen) die globalen Pillar-Daten neu laden,
 	// damit PillarWeightsForm und Dashboard die aktuellen Daten anzeigen (#439 Review Finding 3).
-	const handlePillarChanged = useCallback((): void => {
-		void reload();
-	}, [reload]);
-
-	// Stabile Callback-Identitäten, damit die memoisierte `TaskTable` beim Öffnen eines Dialogs nicht
 	// neu rendert (sonst Zellen-/Toolbar-Neuaufbau samt Fokusverlust am auslösenden Button).
 	const openEdit = useCallback((task: Task): void => setDialog({ kind: 'edit', task }), []);
 	const openDelete = useCallback((task: Task): void => setDialog({ kind: 'delete', task }), []);
@@ -384,6 +338,15 @@ export const App = ({ user }: { user: AuthUser }) => {
 		void reload();
 	}, [reload]);
 
+	const handleLogoDashboard = useCallback((): void => {
+		setActiveTab(0);
+		void reload();
+	}, [reload]);
+
+	const openSettings = useCallback((): void => {
+		window.history.pushState({}, '/', '/settings/general');
+		setShowHelp(false);
+	}, []);
 	const dependencyTask =
 		dialog?.kind === 'dependencies' ? (tasks?.find((task) => task.id === dialog.taskId) ?? null) : null;
 
@@ -399,27 +362,22 @@ export const App = ({ user }: { user: AuthUser }) => {
 	 * `hidePopover()` ist asynchron, und ein danach geöffnetes Modal soll den Menü-Trigger als
 	 * Fokus-Rückgabeziel erfassen — nicht das gerade verschwindende Panel.
 	 */
-	const runFromMenu = useCallback((action: () => void): void => {
-		void Promise.resolve(headerMenuRef.current?.hidePopover()).then(action);
-	}, []);
 
 	// Die primäre Aktion („Neuen Task anlegen") steht auf JEDER Breite direkt in der Toolbar; die vier
 	// sekundären Aktionen nur auf Desktop-Breite — mobil liegen sie im „⋮"-Menü. `_label`s und
 	// Reihenfolge sind in beiden Varianten identisch, damit Accessible Names stabil bleiben.
+	// Toolbar-Buttons sind auf allen Viewports identisch — keine unterschiedliche Menüstruktur je nach
+	// Viewport-Breite (#691). `_label`s und Reihenfolge sind stabil, damit Accessible Names konsistent bleiben.
 	const toolbarItems = useMemo(() => {
-		const createItem = {
-			type: 'button' as const,
-			_label: 'Neuen Task anlegen',
-			_hideLabel: true,
-			_icons: CREATE_ICON,
-			_variant: 'primary' as const,
-			_on: { onClick: openCreateDialog },
-		};
-		if (!isDesktop) {
-			return [createItem];
-		}
 		return [
-			createItem,
+			{
+				type: 'button' as const,
+				_label: 'Neuen Task anlegen',
+				_hideLabel: true,
+				_icons: CREATE_ICON,
+				_variant: 'primary' as const,
+				_on: { onClick: openCreateDialog },
+			},
 			{
 				type: 'button' as const,
 				_label: 'Säulen-Berater',
@@ -454,56 +412,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 				_on: { onClick: (): void => void handleLogout() },
 			},
 		];
-	}, [isDesktop, logoutLoading, openCreateDialog, openAdvisor, openSettings, openHelp, handleLogout]);
-
-	// Menü-Inhalt (nur mobil): dieselben vier Aktionen, hier mit sichtbarem Text statt nur Icon —
-	// ein aufgeklapptes Menü hat den Platz dafür und wird dadurch ohne Icon-Raten bedienbar.
-	const menuItems = useMemo(
-		() => [
-			{
-				type: 'button' as const,
-				_label: 'Säulen-Berater',
-				_icons: ADVISOR_ICON,
-				_variant: 'secondary' as const,
-				_on: { onClick: (): void => runFromMenu(openAdvisor) },
-			},
-			{
-				type: 'button' as const,
-				_label: 'Einstellungen',
-				_icons: SETTINGS_ICON,
-				_variant: 'secondary' as const,
-				_on: { onClick: (): void => runFromMenu(openSettings) },
-			},
-			{
-				type: 'button' as const,
-				_label: 'Hilfe',
-				_icons: HELP_ICON,
-				_variant: 'secondary' as const,
-				_on: { onClick: (): void => runFromMenu(openHelp) },
-			},
-			{
-				type: 'button' as const,
-				_label: 'Abmelden',
-				_icons: LOGOUT_ICON,
-				_variant: 'secondary' as const,
-				_disabled: logoutLoading,
-				_on: { onClick: (): void => runFromMenu(() => void handleLogout()) },
-			},
-		],
-		[logoutLoading, runFromMenu, openAdvisor, openSettings, openHelp, handleLogout],
-	);
-
-	if (showSettings) {
-		return (
-			<SettingsPage
-				pillars={pillars}
-				onBack={closeSettings}
-				onSaved={afterSettingsSaved}
-				onPillarChanged={handlePillarChanged}
-			/>
-		);
-	}
-
+	}, [logoutLoading, openCreateDialog, openAdvisor, openSettings, openHelp, handleLogout]);
 	if (showHelp) {
 		return <HelpPage onBack={closeHelp} />;
 	}
@@ -516,39 +425,10 @@ export const App = ({ user }: { user: AuthUser }) => {
 				</button>
 				<div className="toolbar">
 					<KolToolbar _label="Kopf-Aktionen" _orientation="horizontal" _items={toolbarItems} />
-					{isDesktop ? (
-						<div className="user-info">
-							<KolAvatar _label={user.name} _src={user.avatarUrl ?? undefined} />
-							<span className="user-display-name">{user.name}</span>
-						</div>
-					) : (
-						<KolPopoverButton
-							ref={headerMenuRef}
-							className="header-menu"
-							/*
-							 * Der Name muss von den bestehenden Kopf-/Zeilen-Bezeichnern DISJUNKT sein, nicht nur
-							 * verschieden: Die „…"-Zeilenmenüs der Aufgabenliste heißen „Weitere Aktionen"
-							 * (TaskTree, #361), und Playwrights `getByRole(…, { name })` matcht standardmäßig als
-							 * Teilstring. Ein Name wie „… und weitere Aktionen" würde deren Selektoren mit
-							 * abfangen und die Zeilenmenüs in den e2e-Tests unerreichbar machen.
-							 */
-							_label="Mein Konto"
-							_hideLabel
-							_icons={MENU_ICON}
-							_variant="secondary"
-							_popoverAlign="left"
-						>
-							<div className="header-menu-panel">
-								<div className="user-info">
-									<KolAvatar _label={user.name} _src={user.avatarUrl ?? undefined} />
-									<span className="user-display-name">{user.name}</span>
-								</div>
-								{/* Ebenfalls disjunkt zu „Kopf-Aktionen" — sonst matcht `getByRole('toolbar', { name:
-								    /Kopf-Aktionen/ })` beide Toolbars. */}
-								<KolToolbar _label="Konto-Menü" _orientation="vertical" _items={menuItems} />
-							</div>
-						</KolPopoverButton>
-					)}
+					<div className="user-info">
+						<KolAvatar _label={user.name} _src={user.avatarUrl ?? undefined} />
+						<span className="user-display-name">{user.name}</span>
+					</div>
 				</div>
 			</header>
 			<h1 className="visually-hidden">Dashboard</h1>
