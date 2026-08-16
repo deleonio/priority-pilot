@@ -25,8 +25,10 @@ Den Aufgabenbaum so darstellen, dass verschachtelte Strukturen sofort erkennbar 
    - Der Aufgabenbaum zeigt Aufgaben als Baumstruktur, sortiert nach Wert
 
 2. **Hierarchie erkennen**
-   - **Vorgänger-Aufgaben** erscheinen oben (weniger eingerückt)
-   - **Abhängige Aufgaben** erscheinen darunter mit **erkennbarer Einrückung** (Indentation)
+   - **Eltern-Aufgaben** erscheinen oben (weniger eingerückt)
+   - Ihre **Unteraufgaben (Vorgänger)** erscheinen darunter mit **erkennbarer Einrückung** (Indentation) —
+     Baum-Richtung gemäß #336 (`server/src/logics/tree.ts`): eine Unteraufgabe wird als Vorgänger der
+     Eltern-Aufgabe modelliert
    - Die Einrücktiefe korrespondiert mit der Abhängigkeitstiefe (Tiefe 1 = leicht eingerückt, Tiefe 2 = stärker eingerückt, etc.)
 
 3. **Visuelle Konsistenz prüfen**
