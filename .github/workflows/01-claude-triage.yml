@@ -162,6 +162,10 @@ jobs:
 
           BODY-BLOCK-FORMAT:
             <!-- KI-ANALYSE:START stand=<ISO-8601-Datum> -->
+            ### UI-Bezug
+            - UI-Bezug: ja|nein
+            - Begründung: [Kurzbegründung]
+
             [Analyse – präzise, ohne Füllwörter]
             <!-- KI-ANALYSE:END -->
 
@@ -234,6 +238,14 @@ jobs:
             if printf '%s' "$BODY" | grep -qiE "Akzeptanzkriterien|AK[[:space:]]*[0-9]"; then
               HAS_AK="true"
             fi
+
+            # UI-Bezug aus KI-ANALYSE-Block parsen (für ux:ready-Management)
+            UI_BEZUG=""
+            UI_BEZUG_LINE="$(printf '%s' "$BODY" | grep -iE "UI-Bezug:" | head -1 || true)"
+            if [ -n "$UI_BEZUG_LINE" ]; then
+              UI_BEZUG="$(printf '%s' "$UI_BEZUG_LINE" | sed -E 's/^.*[Uu][Iu][- ]?[Bb]ezug:[[:space:]]*//' | tr -d '[:space:]' | head -c 4 || true)"
+            fi
+            echo "UI-Bezug aus Analyse: '${UI_BEZUG:-nicht gefunden}'"
           fi
 
           # Self-Heal (Issue #566): Schwachmodell-Agent (zai/GLM) postet den KI-ANALYSE-Block
@@ -274,13 +286,23 @@ jobs:
 
           gh label create "ai:analyzed" --color 0E8A16 2>/dev/null || true
           gh label create "ai:spec-ready" --color FBCA04 2>/dev/null || true
+          gh label create "ux:ready" --color FF69B4 2>/dev/null || true
 
           gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:analyzed" 2>/dev/null || true
           gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:analyzed"
 
+          # Post-Assertion für ux:ready (Issue #734): IMMER entfernen, bei spec-ready + UI-Bezug: nein setzen
+          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ux:ready" 2>/dev/null || true
+
           if [ "$final" = "spec-ready" ]; then
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:spec-ready"
-            echo "::notice::Labels gesetzt: ai:analyzed + ai:spec-ready"
+            # Bei Nicht-UI-Tickets (UI-Bezug: nein) direkt ux:ready setzen
+            if [ "$UI_BEZUG" = "nein" ]; then
+              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ux:ready"
+              echo "::notice::Labels gesetzt: ai:analyzed + ai:spec-ready + ux:ready (Nicht-UI-Ticket)"
+            else
+              echo "::notice::Labels gesetzt: ai:analyzed + ai:spec-ready (UI-Ticket – 02b kümmert sich)"
+            fi
           else
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:spec-ready" 2>/dev/null || true
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
