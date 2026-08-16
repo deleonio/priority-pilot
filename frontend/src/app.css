@@ -1301,3 +1301,17 @@ body {
 	text-align: center;
 	border-radius: 0.375rem;
 }
+
+/* --- #727: Range-Inputs responsiv --- */
+/* Priorität + Aufwand werden bei ≤768px vertikal gestapelt, bei >768px nebeneinander. */
+.range-inputs-row {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+@media (min-width: 769px) {
+	.range-inputs-row {
+		flex-direction: row;
+	}
+}
