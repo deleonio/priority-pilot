@@ -32,15 +32,47 @@ done
 BACKEND_PID=""
 FRONTEND_PID=""
 
+# Job-Control auch im Skript aktivieren: damit landet jeder Hintergrund-Job in einer EIGENEN
+# Prozessgruppe (Gruppen-Id = Job-Pid). Nur so lässt sich unten der ganze Baum abräumen —
+# `pnpm` startet `nodemon`, das seinerseits `sh -c 'pnpm build && node dist/index.js'` startet.
+# Ein Kill nur auf die pnpm-Pid (oder auf den Port-Listener) lässt nodemon am Leben, und der
+# startet den Server bei der nächsten Dateiänderung munter neu — der Port ist dann wieder belegt,
+# ohne dass ein sichtbares `ui-inspect.sh` läuft.
+set -m
+
+# Alle Nachfahren eines Prozesses einsammeln (pgrep -P listet nur die direkte Kind-Ebene).
+# Muss VOR dem Kill laufen: sobald Zwischenprozesse sterben, werden ihre Kinder an init
+# umgehängt und sind über die Elternkette nicht mehr auffindbar.
+collect_tree() {
+  local pid="$1"
+  local kid
+  echo "$pid"
+  for kid in $(pgrep -P "$pid" 2>/dev/null || true); do
+    collect_tree "$kid"
+  done
+}
+
 cleanup() {
   trap - EXIT INT TERM
   echo ""
   echo "Inspect-Instanz wird beendet ..."
-  [ -n "$BACKEND_PID" ] && kill "$BACKEND_PID" 2>/dev/null || true
-  [ -n "$FRONTEND_PID" ] && kill "$FRONTEND_PID" 2>/dev/null || true
-  # pnpm startet nodemon/vite als Kindprozesse; nach dem Kill des Elternprozesses hängen die
-  # Enkel sonst weiter am Port. Reste gezielt über die Ports abräumen (xargs -r ist GNU-only,
-  # deshalb der explizite Leer-Check).
+
+  local tree=""
+  [ -n "$BACKEND_PID" ] && tree="$tree $(collect_tree "$BACKEND_PID")"
+  [ -n "$FRONTEND_PID" ] && tree="$tree $(collect_tree "$FRONTEND_PID")"
+
+  # Negatives Argument = ganze Prozessgruppe (Kind, Enkel, Urenkel).
+  [ -n "$BACKEND_PID" ] && kill -- "-$BACKEND_PID" 2>/dev/null || true
+  [ -n "$FRONTEND_PID" ] && kill -- "-$FRONTEND_PID" 2>/dev/null || true
+  # Nachzügler aus dem vorher eingesammelten Baum: nodemon startet sich in einer eigenen
+  # Prozessgruppe neu und entkommt damit dem Gruppen-Kill.
+  if [ -n "${tree// /}" ]; then
+    kill $tree 2>/dev/null || true
+  fi
+
+  # Gürtel und Hosenträger: falls doch etwas an den Ports hängt, gezielt nachräumen
+  # (xargs -r ist GNU-only, deshalb der explizite Leer-Check).
+  sleep 1
   for PORT in "$BACKEND_PORT" "$FRONTEND_PORT"; do
     REST_PIDS=$(lsof -ti "tcp:$PORT" 2>/dev/null || true)
     if [ -n "$REST_PIDS" ]; then
