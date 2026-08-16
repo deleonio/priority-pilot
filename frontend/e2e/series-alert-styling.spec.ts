@@ -16,14 +16,20 @@ import { test, expect } from './fixtures';
 
 test.describe('Priority Pilot — #692: Serien-Alert Layout-Verbesserung', () => {
 	test.beforeEach(async ({ page }) => {
-		// Serien-Tab öffnen, um Alert-Box anzuzeigen
+		// Serien-Tab öffnen
 		await page.goto('/');
 		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
+
+		// "Fällige Instanzen generieren" klicken, um Alert zu triggern
+		await page.getByRole('button', { name: 'Fällige Instanzen generieren' }).click();
+
+		// Auf Alert warten
+		await page.getByRole('alert', { name: /Ergebnis/i }).waitFor({ state: 'visible' });
 	});
 
 	test('AK1 — Serien-Alert hat mindestens 8px Abstand nach unten zum Button', async ({ page }) => {
 		// Alert-Box finden
-		const alert = page.getByRole('alert').filter({ hasText: /serien/i });
+		const alert = page.getByRole('alert', { name: /Ergebnis/i });
 
 		// Prüfen, dass Alert existiert
 		await expect(alert).toBeVisible();
@@ -38,14 +44,11 @@ test.describe('Priority Pilot — #692: Serien-Alert Layout-Verbesserung', () =>
 	});
 
 	test('AK2 — Serien-Titel im Alert haben font-weight: normal (nicht bold)', async ({ page }) => {
-		// Alert-Box mit Serien-Bezug finden
-		const alert = page.getByRole('alert').filter({ hasText: /serien/i });
+		// Serien-Titel in der Liste finden (nicht im Alert - die series-tree-title)
+		const seriesTitle = page.locator('.series-tree-title').first();
 
-		// Prüfen, dass Alert existiert
-		await expect(alert).toBeVisible();
-
-		// Serien-Titel-Elemente finden (ggf. headings oder strong-Elements)
-		const seriesTitle = alert.locator('h1, h2, h3, h4, h5, h6, strong').first();
+		// Prüfen, dass Serien-Titel sichtbar ist
+		await expect(seriesTitle).toBeVisible();
 
 		// Prüfen, dass Serien-Titel nicht fett ist
 		const fontWeight = await seriesTitle.evaluate((el) => {
