@@ -1,0 +1,393 @@
+name: Guide-Sync (nightly)
+
+# Nächtlicher LLM-Job (wie die Phasen 01–06 über setup-claude, aber KEINE Pipeline-Phase):
+# Verifiziert das In-App-Handbuch docs/user-guide.md gegen die tatsächliche Implementation
+# (frontend/src, server/src, openapi.yml) und hält es auf IST-STAND — die Implementation ist
+# die Wahrheit, das Handbuch beschreibt sie nur aus ENDNUTZER-Sicht:
+#   - korrigieren (Verhalten hat sich geändert → Handbuch folgt),
+#   - entsorgen (beschriebene Funktion existiert nicht mehr),
+#   - ergänzen (implementiertes, undokumentiertes Nutzer-Feature).
+# docs/user-guide.md IST die Hilfe-Seite der App: vite.config.ts liefert sie unter
+# /user-guide.md aus, HelpPage.tsx rendert sie via react-markdown.
+#
+# DELIVERY: PR vom festen Branch chore/user-guide-sync. Der Branch wird jede Nacht auf
+# origin/main zurückgesetzt und per Force-Push ersetzt — der offene PR zeigt damit IMMER exakt
+# die aktuelle Drift statt Commits über Nächte zu akkumulieren.
+#
+# UNTERSCHIED ZU claude-spec-sync.yml: Dieser Bot-PR wird BEWUSST an die KI-Pipeline gehängt
+# (ai:needs-review per App-Token → 04 Review → Gate → Auto-Merge). Das Handbuch soll sich ohne
+# Menschen aktualisieren. Zwei Konsequenzen sind mechanisch abgesichert:
+#   1. Das Label muss ERST entfernt und DANN gesetzt werden (Re-Arm-Muster #536), sonst feuert
+#      bei einem schon gelabelten offenen PR kein `labeled`-Event und der Review startet nicht.
+#      pr-needs-review-label.yml hilft hier nicht: der labelt nur menschliche Aktoren.
+#   2. In-Flight-Guard: läuft die Pipeline noch auf dem offenen Sync-PR, wird der nächtliche
+#      Force-Push ausgesetzt — sonst reißt er Review/Fixup/Merge den Branch unter den Füßen weg.
+#
+# STATELESS: kein pro-Issue-Memory (memory-load/expect false, kein Artefakt-Upload). Der
+# offene Sync-PR ist der einzige Zustand; jede Nacht wird frisch verifiziert.
+#
+# KEINE Nummer im Dateinamen: Nummern (01–06) sind lastend (Workflow-Name-Matching), dieser
+# Job ist ein Helper wie cache-cleanup und hängt nicht in der Label-Kette.
+
+on:
+  schedule:
+    - cron: '27 4 * * *' # täglich 04:27 UTC, hinter dem 30-min-Fenster von Spec-Sync (03:37)
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Skip-Guard ignorieren (Lauf erzwingen, auch wenn main unverändert ist)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: claude-guide-sync
+  cancel-in-progress: false
+  # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run: ein manueller
+  # workflow_dispatch während des Nightly-Laufs würde still verworfen (Default `queue: single`).
+  # `max` = bis zu 100 pending, FIFO. Unvereinbar mit cancel-in-progress: true.
+  queue: max
+
+permissions:
+  contents: write # Branch-Push chore/user-guide-sync
+  pull-requests: write # Sync-PR anlegen/aktualisieren + Labels
+  issues: write # gh label create (Labels sind repo-weit Issue-Ressourcen)
+  id-token: write # App-Token (setup-claude)
+  actions: read # Skip-Guard: letzte erfolgreiche Run-Historie lesen
+
+env:
+  SYNC_BRANCH: chore/user-guide-sync
+
+jobs:
+  guide-sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    steps:
+      - name: Skip-Guard (main unverändert seit letztem erfolgreichen Sync)
+        # LLM-Budget sparen: Hat main seit dem letzten erfolgreichen Lauf dieses Workflows
+        # denselben SHA, ist das Verifikationsergebnis deterministisch dasselbe → kein Lauf.
+        # Fail-open bei API-Fehlern (leerer last_sha → Lauf): ein vergessener Sync ist
+        # billiger als ein stumm übersprungener. workflow_dispatch mit force=true umgeht
+        # den Guard (Re-Sync ohne Code-Änderung, z. B. nach Prompt-Anpassung).
+        id: guard
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.force == true) }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          last_sha="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow claude-guide-sync.yml \
+            --status success --limit 1 --json headSha --jq '.[0].headSha // empty' 2>/dev/null || true)"
+          if [ -n "$last_sha" ] && [ "$last_sha" = "$GITHUB_SHA" ]; then
+            echo "::notice title=⏭️ Guide-Sync übersprungen::Main unverändert ($GITHUB_SHA) seit letztem erfolgreichen Sync."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: In-Flight-Guard (Pipeline arbeitet noch am offenen Sync-PR)
+        # Der nächtliche Force-Push ersetzt den Branch komplett. Läuft auf dem offenen Sync-PR
+        # nur in aktiver Review-Phase (ai:needs-review) aussetzen. ai:needs-changes und
+        # ai:ready-to-merge sind Terminal-Zustände (Pipeline inaktiv) — diese überspringen.
+        # ai:needs-human ist TERMINAL (Review/Fixup haben aufgegeben, ein Mensch schaut drauf):
+        # ebenfalls aussetzen, statt die Diskussionsgrundlage zu überschreiben.
+        # Fail-open: ist der Label-Abruf nicht möglich, läuft der Sync (wie beim Skip-Guard).
+        # force=true umgeht auch diesen Guard NICHT — er schützt fremde Läufe, nicht das Budget.
+        id: inflight
+        if: steps.guard.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          blocking="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$SYNC_BRANCH" --state open \
+            --json labels \
+            --jq '[.[0].labels[]?.name] | map(select(. == "ai:needs-review")) | join(", ")' \
+            2>/dev/null || true)"
+          if [ -n "$blocking" ] && [ "$blocking" != "null" ]; then
+            echo "::notice title=⏸️ Guide-Sync ausgesetzt::Offener Sync-PR ist noch in der Pipeline (${blocking}) — kein Force-Push heute Nacht."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Startzeit merken (für weiches Zeitlimit)
+        id: starttime
+        if: steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true'
+        run: |
+          now=$(date +%s)
+          echo "epoch=$now" >> "$GITHUB_OUTPUT"
+          echo "soft_deadline_epoch=$((now + 900))" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Claude Code
+        id: setup
+        if: steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true'
+        uses: ./.github/actions/setup-claude
+        with:
+          needs-mcp: false
+          tools-tier: full # Write/Edit auf docs/user-guide.md + git commit nötig; Push/PR macht der Workflow
+          event-type: ${{ github.event_name }}
+          # ticket-ref ist Pflicht-Input, dieser Job hat kein Ticket: '0' fließt NUR in den
+          # ungenutzten Memory-Key (claude-memory-issue-0) — Memory ist komplett aus.
+          ticket-ref: '0'
+          app-id: ${{ secrets.APP_ID }}
+          app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          llm-provider: ${{ vars.LLM_PROVIDER }}
+          model: ${{ vars.CLAUDE_MODEL_GUIDE_SYNC || 'opus' }}
+          zai-api-key: ${{ secrets.ZAI_API_KEY }}
+          claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
+          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+          zai-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI }}
+          openrouter-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER }}
+          tailscale-authkey: ${{ secrets.TAILSCALE_AUTH_KEY }}
+          tailscale-exit-node: ${{ vars.TAILSCALE_EXIT_NODE }}
+          memory-load: 'false'
+          expect-memory: 'false'
+
+      - name: Sync-Branch frisch aufsetzen (Basis = origin/main) + Git-Identität
+        # Jede Nacht neuer Basis-Stand: der Sync-PR zeigt danach immer nur die HEUTIGE Drift.
+        # Git-Identität aus dem App-Slug (Muster deploy.yml) — deterministische Attribution
+        # der Agent-Commits statt runner-abhängiger Default-Identität.
+        if: steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+        run: |
+          git switch -C "$SYNC_BRANCH" origin/main
+          slug="$(gh api app --jq .slug 2>/dev/null || true)"
+          user="${slug:-app}[bot]"
+          id="$(gh api "users/${user}%5Bbot%5D" --jq .id 2>/dev/null || true)"
+          email="${user}@users.noreply.github.com"
+          [ -n "$id" ] && email="${id}+${user}@users.noreply.github.com"
+          git config user.name "$user"
+          git config user.email "$email"
+
+      - name: Guide-Sync via Claude
+        id: claude
+        if: steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
+        run: |
+          cat > /tmp/claude-prompt.txt << 'CLAUDE_EOF'
+          FOKUS: Handbuch-Sync docs/user-guide.md gegen die Implementation. DIE IMPLEMENTATION IST DIE WAHRHEIT — das Handbuch beschreibt NUR den Ist-Zustand, und zwar aus ENDNUTZER-Sicht. KEINE Abstecher, KEINE Code-Änderungen. Token sparen: kurz, präzise, direkt.
+
+          KONTEXT: docs/user-guide.md IST die Hilfe-Seite der App (vite.config.ts liefert sie unter /user-guide.md aus, HelpPage.tsx rendert sie als Markdown). Jede Zeile darin liest ein Endnutzer in der App.
+
+          QUELLEN (liest selbst, nicht im Prompt wiederholen):
+            - Handbuch: docs/user-guide.md
+            - Ist-Zustand UI: frontend/src/** (Komponenten, Dialoge, Buttons, Routen in App.tsx, sichtbare Meldungstexte, Tastaturkürzel)
+            - Ist-Zustand Server: server/src/** (Push-Benachrichtigungen, LLM-/Einstellungs-Verhalten, Allowlist-/Fehlermeldungen) + openapi.yml (welche Funktionen es überhaupt gibt)
+            - Querbeleg für beobachtbares Verhalten: frontend/e2e/*.spec.ts und docs/spec/user-journeys.md
+
+          ABLAUF (STRIKT):
+            1. SOFORT starten. docs/user-guide.md vollständig lesen.
+            2. JEDE nutzersichtbare Aussage (Ablaufbeschreibungen, Button-/Menü-Bezeichnungen, Meldungstexte, Tastaturkürzel, Randfälle) gegen den Code verifizieren.
+            3. NUR bei belegter Abweichung das Handbuch anpassen:
+               a) Verhalten hat sich geändert → Beschreibung auf den neuen Ist-Zustand umformulieren.
+               b) Beschriebene Funktion existiert nicht mehr → Absatz/Abschnitt STREICHEN.
+               c) Implementiertes Nutzer-Feature fehlt im Handbuch → ERGÄNZEN, im Stil und an der passenden Stelle der bestehenden Gliederung.
+            4. ALLE Änderungen lokal committen (ein Commit genügt): git add docs/user-guide.md && git commit -m "docs(guide): Ist-Stand-Sync SYNC_DATE"
+               NICHT pushen, KEINEN PR anlegen — das macht der Workflow nach dir.
+            5. Report schreiben nach /tmp/guide-sync-report.md (Markdown): je Fund ein Abschnitt (Handbuch-Abschnitt, Befund, Korrektur, Beleg im Code als Datei:Zeile), plus Liste offener Unklarheiten (nicht aus Code Ableitbares: NICHT geändert, nur gelistet).
+
+          STIL (das Handbuch ist Endnutzer-Prosa, kein Entwicklerdokument):
+            - Deutsch, Du-Form, freundlich-sachlich — wie der bestehende Text.
+            - KEINE Datei-/Komponentennamen, KEINE API-Pfade, KEIN Implementierungsjargon.
+            - Mobile-First: beschreibe, was der Nutzer sieht und antippt.
+            - Bestehende Gliederung/Abschnittsreihenfolge beibehalten, nicht ohne Befund umbauen.
+
+          CONSTRAINTS:
+            - NUR docs/user-guide.md ändern — kein Code, keine anderen Dokumente.
+            - KEINE Spekulation: nur belegbares, im Code sichtbares Verhalten beschreiben.
+            - KEINE Soll-/Absichts-/Ankündigungs-Formulierungen — nur Ist.
+            - PFLICHT-ABSCHNITTE (Vertrag aus server/src/logics/user-guide.test.ts, AK 2.1–2.9): Dashboard, "Aufgaben verwalten", (KI-)Schnellerfassung, Abhängigkeiten, Säulen, Aufgabenwald, Serien, Punkte/Gamification, Kopf-/Header-Aktionen. Diese Themen dürfen NICHT wegfallen und ihre Überschriften-Stichwörter NICHT verschwinden. Genau eine "# "-H1 am Dateianfang bleibt bestehen.
+
+          VERDICT: GANZ AM ENDE GENAU EINE Zeile:
+            - VERDICT: synced (keine Drift gefunden, kein Commit)
+            - VERDICT: updated (Handbuch-Korrekturen committed)
+
+          EHRLICHKEITS-REGEL: VERDICT: updated NUR ausgeben, wenn der Commit existiert (git log verifizieren). VERDICT: synced NUR ohne lokale Commits.
+
+          ZEITLIMIT: Soft-Deadline = SOFT_DEADLINE. Vor jedem Schritt: [ $(date +%s) -ge SOFT_DEADLINE ]. Bei OVER: committen was vorliegt, Report schreiben, Turn beenden.
+          CLAUDE_EOF
+
+          sed -i "s/SYNC_DATE/$(date -u +%F)/g" /tmp/claude-prompt.txt
+          sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
+
+          ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
+            ${{ steps.setup.outputs.invoke-args }} \
+            2>&1 | tee /tmp/claude-output.log
+          test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
+
+      - name: Post-Assertion (VERDICT ↔ Commits ↔ Scope ↔ Pflicht-Abschnitte) + Push + PR-Pflege
+        # Ehrlichkeits-Kreuzcheck nach dem VERDICT-Muster der Phasen-Workflows: Der Agent
+        # behauptet synced/updated — die Mechanik verifiziert Commits, Datei-Scope, den
+        # Handbuch-Vertrag und pusht/pflegt den PR deterministisch (Push/PR ist bewusst KEINE
+        # Agent-Aufgabe).
+        if: >-
+          ${{ always()
+              && steps.guard.outputs.skip != 'true'
+              && steps.inflight.outputs.skip != 'true'
+              && steps.setup.outputs.configured == 'true'
+              && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure') }}
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          OUTCOME: ${{ steps.claude.outcome }}
+        run: |
+          # Portables VERDICT-Parsen wie in 01 (BSD/GNU-grep-sicher, Markdown-Dekoration strippen).
+          verdict=""
+          if [ -f /tmp/claude-output.log ]; then
+            verdict="$(grep 'VERDICT:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | tr -d -c 'A-Za-z0-9-' || true)"
+          fi
+          echo "Claude-Verdict aus Output: '${verdict:-keins}'"
+
+          if [ "$OUTCOME" != "success" ]; then
+            echo "::error title=❌ Guide-Sync fehlgeschlagen::Claude-Lauf nicht erfolgreich — kein stiller „synced“."
+            exit 1
+          fi
+          if [ "$verdict" != "synced" ] && [ "$verdict" != "updated" ]; then
+            echo "::error title=❌ Guide-Sync ohne Verdict::Weder „synced“ noch „updated“ — Lauf wiederholen."
+            exit 1
+          fi
+
+          count="$(git rev-list --count origin/main..HEAD)"
+          echo "Commits seit origin/main: $count"
+
+          # Scope-Guard: nur docs/user-guide.md ist erlaubt.
+          bad="$(git diff --name-only origin/main..HEAD | grep -v '^docs/user-guide\.md$' || true)"
+          if [ -n "$bad" ]; then
+            echo "::error title=❌ Scope verletzt::Änderungen außerhalb docs/user-guide.md: ${bad}"
+            exit 1
+          fi
+
+          # Sektions-Guard: der Handbuch-Vertrag aus server/src/logics/user-guide.test.ts (AK 2.1–2.9,
+          # AK 4) muss halten. Schneller Vorab-Check ohne pnpm install — autoritativ bleibt der
+          # Node-Test in der CI des PRs; hier verhindert er nur, dass ein kaputtes Handbuch
+          # überhaupt gepusht wird.
+          missing=""
+          check_section() {
+            grep -qiE "$1" docs/user-guide.md || missing="${missing} $2"
+          }
+          check_section 'dashboard' 'Dashboard'
+          check_section 'aufgaben verwalten' 'Aufgaben-verwalten'
+          check_section 'ki-schnellerfassung|schnellerfassung' 'Schnellerfassung'
+          check_section 'abh.ngigkeiten' 'Abhängigkeiten'
+          check_section 's.ulen' 'Säulen'
+          check_section 'aufgabenwald' 'Aufgabenwald'
+          check_section 'serien' 'Serien'
+          check_section 'punkte|gamification' 'Punkte/Gamification'
+          check_section 'header-aktionen|header aktionen|kopf-aktionen|kopf aktionen' 'Kopf-Aktionen'
+          grep -qE '^# ' docs/user-guide.md || missing="${missing} H1-Überschrift"
+          if [ -n "$missing" ]; then
+            echo "::error title=❌ Handbuch-Vertrag verletzt::Fehlende Pflicht-Abschnitte:${missing} (siehe server/src/logics/user-guide.test.ts) — kein Push."
+            exit 1
+          fi
+
+          # Verdict ↔ Commits konsistent?
+          if [ "$verdict" = "updated" ] && [ "$count" -eq 0 ]; then
+            echo "::error title=❌ Verdict ohne Commits::VERDICT updated, aber kein Commit vorhanden."
+            exit 1
+          fi
+          if [ "$verdict" = "synced" ] && [ "$count" -gt 0 ]; then
+            echo "::error title=❌ Commits ohne Verdict::VERDICT synced, aber Commits vorhanden."
+            exit 1
+          fi
+
+          if [ "$count" -eq 0 ]; then
+            echo "::notice title=✅ Handbuch am Ist-Stand::Keine Drift gefunden — kein Push, kein PR."
+            exit 0
+          fi
+
+          # Report Fallback: fehlt/leer der Agent-Report, ersetzt git log den PR-Body (laut Warning).
+          if [ ! -s /tmp/guide-sync-report.md ]; then
+            echo "::warning title=⚠️ Report fehlt::/tmp/guide-sync-report.md fehlt — Fallback-Body aus git log."
+            {
+              echo "## Guide-Sync $(date -u +%F)"
+              echo ""
+              echo "_Agent-Report fehlt — Fallback aus der Commit-Historie._"
+              echo ""
+              git log origin/main..HEAD --oneline --stat
+            } > /tmp/guide-sync-report.md
+          fi
+
+          git push --force origin "$SYNC_BRANCH"
+
+          title="docs(guide): Ist-Stand-Sync $(date -u +%F)"
+          pr_number="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$SYNC_BRANCH" --state open \
+            --json number --jq '.[0].number // empty' 2>/dev/null || true)"
+          if [ -n "$pr_number" ]; then
+            gh pr edit "$pr_number" --repo "$GITHUB_REPOSITORY" --title "$title" --body-file /tmp/guide-sync-report.md
+            echo "::notice title=✅ Sync-PR aktualisiert::#$pr_number zeigt die Drift von heute."
+          else
+            # PR-Nummer aus der Create-Ausgabe (PR-URL) ziehen statt neu zu listen: ein direkt
+            # folgendes `gh pr list` kann durch API-Replikationsverzögerung noch leer sein und
+            # der Review würde nie angestoßen. List-Abruf nur als Fallback.
+            pr_url="$(gh pr create --repo "$GITHUB_REPOSITORY" --head "$SYNC_BRANCH" --base main \
+              --title "$title" --body-file /tmp/guide-sync-report.md)"
+            pr_number="$(printf '%s\n' "$pr_url" | sed -nE 's#.*/pull/([0-9]+).*#\1#p' | tail -1)"
+            if [ -z "$pr_number" ]; then
+              pr_number="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$SYNC_BRANCH" --state open \
+                --json number --jq '.[0].number // empty' 2>/dev/null || true)"
+            fi
+            echo "::notice title=✅ Sync-PR erstellt::${SYNC_BRANCH} → #${pr_number:-?}"
+          fi
+
+          if [ -z "$pr_number" ]; then
+            echo "::error title=❌ PR nicht auflösbar::Push erfolgt, aber kein offener PR auf ${SYNC_BRANCH} gefunden — Review nicht anstoßbar."
+            exit 1
+          fi
+          echo "PR_NUMBER=$pr_number" >> "$GITHUB_ENV"
+
+      - name: Review anstoßen (ai:needs-review per App-Token, Re-Arm-Muster #536)
+        # Anders als der Spec-Sync hängt dieser PR an der KI-Pipeline: Review → Gate → Auto-Merge.
+        # pr-needs-review-label.yml labelt NUR menschliche Aktoren (sender.type != 'Bot') und
+        # springt hier deshalb nicht ein — das Label wird hier explizit gesetzt.
+        # ERST entfernen, DANN setzen (#536): klebt ai:needs-review noch vom Vorlauf, wäre ein
+        # reines --add-label ein No-op ohne `labeled`-Event → 04-claude-pr-review.yml startet nie.
+        # Ergebnis-Labels der Vornacht (needs-changes/ready-to-merge) werden mit abgeräumt.
+        # Von GITHUB_TOKEN gesetzte Labels triggern KEINE Folge-Workflows → App-Token ist Pflicht.
+        if: ${{ steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true' && steps.setup.outputs.configured == 'true' && env.PR_NUMBER != '' }}
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          gh label create "ai:needs-review" --repo "$REPO" --color 1D76DB \
+            --description "PR wartet auf KI-Review" 2>/dev/null || true
+
+          for label in ai:needs-changes ai:ready-to-merge ai:needs-review; do
+            gh pr edit "$PR_NUMBER" --repo "$REPO" --remove-label "$label" 2>/dev/null || true
+          done
+
+          for attempt in 1 2 3; do
+            if gh pr edit "$PR_NUMBER" --repo "$REPO" --add-label ai:needs-review; then
+              echo "::notice title=✅ Review angestoßen::PR #$PR_NUMBER trägt ai:needs-review — Kreuzverhör-Review startet."
+              exit 0
+            fi
+            sleep "$attempt"
+          done
+          echo "::error title=❌ ai:needs-review fehlgeschlagen::PR #$PR_NUMBER nach 3 Versuchen ungelabelt — Review startet nicht."
+          exit 1
+
+      - name: Ergebnis zusammenfassen
+        if: ${{ always() && steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true' && steps.setup.outputs.configured == 'true' }}
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          OUTCOME: ${{ steps.claude.outcome }}
+        run: |
+          count="$(git rev-list --count origin/main..HEAD 2>/dev/null || echo 0)"
+          pr_number="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$SYNC_BRANCH" --state open \
+            --json number --jq '.[0].number // empty' 2>/dev/null || true)"
+          {
+            echo "### Guide-Sync – fertig"
+            echo ""
+            echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\`"
+            echo "- Commits: ${count}"
+            echo "- Offener Sync-PR: ${pr_number:-keiner}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 🩺 Z.AI Fair-Usage-Check (1313)
+        # Rohausgabe des Claude-Laufs auf z.ai-Fehler 1313 (Fair Usage) durchsuchen
+        # und Ergebnis als Annotation + Job-Summary sichtbar machen.
+        if: always()
+        uses: ./.github/actions/llm-fair-usage-check

@@ -30,3 +30,6 @@ id_rsa
 
 # Vendored Kolibri/@public-ui-Templates, lokal abgelegt — kein Projekt-Code.
 data/
+
+# Lokale Browser-MCP-Session-Logs (UI-Inspektion), kein Repo-Inhalt.
+.playwright-mcp/

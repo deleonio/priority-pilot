@@ -280,6 +280,48 @@ anstößt.
 Die Session-Resume-Funktionalität (MIG-002) ist noch nicht migriert. Derzeit startet jeder Lauf
 frisch ohne Kontext aus vorherigen Läufen derselben Phase.
 
+## PR-Documenter: Arbeitsteilung Regel-Logik + LLM (Phase 6)
+
+Der Post-Merge-Documenter ([06-claude-pr-documenter.yml](../.github/workflows/06-claude-pr-documenter.yml))
+war anfangs eine reine Prompt-Phase — empirisch drifteten dabei Kommentar-Formate, blieben
+Branch-Namen-Titel (`perf/#692: …`, `feat/issue-671-…`) unnormalisiert und landeten UX-Änderungen
+unter `perf(...)` (feste Prompt-Regel `improved→perf`). Jetzt entscheidet Regel-Logik, das LLM
+liefert nur Inhalte:
+
+| Schritt            | Ausführung                                                                                                                                                                                                                                                                                                                  |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pr-doc-facts.sh`  | Bot-Erkennung (Autor + nur Dependency-Pfade), Conventional-Commits-Titelprüfung, Typ-/Scope-Vorschlag aus Pfaden                                                                                                                                                                                                            |
+| Bot-SHORTCUT       | Dependency-Bot-/`release:ignore`-PRs: nur `ai:documented` (+ `release:ignore`) setzen — **ohne** LLM-Lauf                                                                                                                                                                                                                   |
+| Claude             | Liest Diff + Issue und schreibt **nur** `/tmp/doc.json` (Klassifikation, Titel-Vorschlag, Texte; [documenter.md](../.github/prompts/documenter.md))                                                                                                                                                                         |
+| `pr-doc-render.sh` | **Alle** Schreibzugriffe: Titel-Rename (validiert gegen dieselbe CC-Regex), Body-Sektion zwischen `<!-- ai-documenter-body -->`-Markern (Rest des Bodys bleibt unangetastet), GENAU EIN `<!-- ai-documenter -->`-Kommentar (PATCH statt Duplikat), Labels — `ai:documented` immer ZULETZT (fail-closed-Precheck-Invariante) |
+
+Fällt Claude oder die Validierung aus, rendert der Fallback-Pfad eine Minimal-Dokumentation
+(Minimal-Kommentar + `ai:documented` + `release:engineering`) und hält den Job grün — ein Re-Run
+wäre durch den Precheck blockiert, ein roter Job also eine Sackgasse.
+
+**Sprachregel:** PR-Titel und Haupttexte englisch (Conventional Commits, Subject klein, ≤72
+Zeichen); die deutsche Zusammenfassung lebt in einer `<details>`-Box. Der Reviewer (Phase 4)
+bekommt dieselben Titelfakten (`--mode title-only`) und korrigiert non-konforme Titel schon
+**vor** dem Merge — post-merge ist ein Rename nur noch kosmetisch, der Merge-Commit-Subject
+steht bereits.
+
+**Catch-up-Sweep** ([06b-documenter-sweep.yml](../.github/workflows/06b-documenter-sweep.yml),
+täglich 03:17 UTC + `workflow_dispatch` mit `dry-run`): findet gemergte PRs der letzten 30 Tage
+ohne `ai:documented`/`release:ignore` und triggert Phase 6 pro PR per `workflow_dispatch` nach
+(max. 10/Lauf). Muss den App-Token nutzen — ein via `GITHUB_TOKEN` ausgelöster Dispatch startet
+keinen Workflow-Run. Der fail-closed-Precheck von Phase 6 dedupliziert.
+
+## Release-Notes-Kette
+
+Die `release:*`-Labels des Documenters (vergeben nach Klassifikation: `breaking→release:breaking-change`,
+`new→release:feature`, `improved→release:improvement`, `fixed→release:fix`,
+`internal→release:engineering`, Bot→`release:ignore`) speisen
+[`.github/release.yml`](../.github/release.yml). Die Deploy-Pipeline taggt nach dem Patch-Bump
+`v<Version>` und erstellt via `gh release create --generate-notes` das GitHub-Release — Notes
+erscheinen kategorisiert (Breaking/Features/Fixes/Improvements/Engineering); Bot-PRs sind per
+`exclude.authors` **und** `release:ignore` doppelt ausgeschlossen. Der Release-Schritt ist
+best-effort: ein Fehlschlag warnt, kippt aber nie das Deploy.
+
 ## Aufrufpfade der Kreuzverhör-Workflows
 
 1. **Chat/REPL (interaktiv):** Trigger-Phrasen aktivieren den Agenten direkt: „Kreuzverhör",
@@ -329,3 +371,45 @@ Journeys im user-journeys.md-Format).
 - **Modell:** `vars.CLAUDE_MODEL_SPEC_SYNC` (Default `sonnet`), Provider wie alle LLM-Phasen via
   `vars.LLM_PROVIDER` (setup-claude, `tools-tier: full`, inkl. Tailscale-Egress und
   Fair-Usage-Check).
+
+## Nightly Guide-Sync (`claude-guide-sync.yml`)
+
+Keine Pipeline-Phase, sondern ein nächtlicher Helper-Workflow (täglich 04:27 UTC +
+`workflow_dispatch`): Ein LLM-Lauf hält das **In-App-Handbuch** `docs/user-guide.md` auf
+**Ist-Stand**. Diese Datei _ist_ die Hilfe-Seite der App (`frontend/vite.config.ts` liefert sie
+unter `/user-guide.md` aus, `HelpPage.tsx` rendert sie als Markdown) — jede Zeile darin liest ein
+Endnutzer. Verifiziert wird gegen `frontend/src/` (UI, Dialoge, Meldungstexte, Tastaturkürzel),
+`server/src/` (Push, LLM-Einstellungen, Allowlist-Meldungen) und `openapi.yml`;
+`frontend/e2e/*.spec.ts` und `docs/spec/user-journeys.md` dienen als Querbeleg. Die Implementation
+ist die Wahrheit, das Handbuch beschreibt sie nur aus Endnutzer-Sicht. Drei Operationen:
+**korrigieren** (Verhalten hat sich geändert), **entsorgen** (beschriebene Funktion existiert nicht
+mehr), **ergänzen** (implementiertes, undokumentiertes Nutzer-Feature).
+
+**Mechanik:**
+
+- **Skip-Guard:** Hat `main` denselben SHA wie der letzte erfolgreiche Lauf, wird der Lauf
+  übersprungen (deterministisch dasselbe Ergebnis, spart LLM-Budget). Fail-open bei API-Fehlern;
+  `workflow_dispatch` mit `force: true` umgeht den Guard.
+- **In-Flight-Guard:** Trägt der offene Sync-PR gerade `ai:needs-review`, `ai:needs-changes`,
+  `ai:ready-to-merge` oder (terminal) `ai:needs-human`, wird der Lauf ausgesetzt. Sonst zieht der
+  nächtliche Force-Push einem laufenden Review-/Fixup-/Merge-Lauf den Branch unter den Füßen weg.
+  `force: true` umgeht diesen Guard bewusst **nicht** — er schützt fremde Läufe, nicht das Budget.
+- **Branch/PR:** Der Agent committed nur lokal auf `chore/user-guide-sync`, der Branch wird jede
+  Nacht auf `origin/main` zurückgesetzt und per Force-Push ersetzt — der offene Sync-PR zeigt damit
+  immer exakt die **aktuelle** Drift statt Commits zu akkumulieren. Push und PR-Anlage/-Update sind
+  deterministische Workflow-Steps, keine Agent-Aufgabe. Fehlt der Agent-Report
+  (`/tmp/guide-sync-report.md`), ersetzt ein `git log`-Fallback den PR-Body (mit Warning).
+- **Post-Assertion (VERDICT-Muster):** `VERDICT: synced` ↔ null Commits, `VERDICT: updated` ↔
+  Commits vorhanden, geänderte Dateien ⊆ `docs/user-guide.md`, **plus Sektions-Guard**: die
+  Pflicht-Abschnitte aus [`server/src/logics/user-guide.test.ts`](../server/src/logics/user-guide.test.ts)
+  (AK 2.1–2.9) und die H1 müssen vorhanden sein, sonst kein Push. Der Guard ist nur der schnelle
+  Vorab-Check (kein `pnpm install` im Workflow) — autoritativ bleibt der Node-Test in der CI des PRs.
+- **Pipeline-Anbindung AKTIV:** Der Workflow setzt `ai:needs-review` selbst per **App-Token** →
+  `04 Review` → Gate → Auto-Merge; das Handbuch aktualisiert sich ohne Menschen. Das Label wird
+  dabei **erst entfernt, dann gesetzt** (Re-Arm-Muster #536): klebt es noch vom Vorlauf, wäre ein
+  reines `--add-label` ein No-op ohne `labeled`-Event und der Review startete nie.
+  `pr-needs-review-label.yml` springt nicht ein (labelt nur menschliche Akteure).
+- **Bewusst stateless:** Kein pro-Issue-Memory — der offene Sync-PR ist der einzige Zustand.
+- **Modell:** `vars.CLAUDE_MODEL_GUIDE_SYNC` (Default `opus` — Handbuch-Prosa und Drift-Erkennung),
+  Provider wie alle LLM-Phasen via `vars.LLM_PROVIDER` (setup-claude, `tools-tier: full`, inkl.
+  Tailscale-Egress und Fair-Usage-Check).
