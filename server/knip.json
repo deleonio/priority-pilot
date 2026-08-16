@@ -1,3 +1,0 @@
-{
-	"ignore": ["src/llm/index.ts", "src/llm/llm.ts"]
-}

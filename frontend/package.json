@@ -6,7 +6,7 @@
 		"dev": "vite --open",
 		"build": "tsc --noEmit && vite build",
 		"format": "prettier . --check",
-		"knip": "knip",
+		"knip": "knip --config knip.jsonc",
 		"lint": "tsc --noEmit && eslint src e2e playwright.config.ts",
 		"preview": "vite preview",
 		"test": "vitest run",
