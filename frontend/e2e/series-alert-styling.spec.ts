@@ -19,6 +19,18 @@ test.describe('Priority Pilot — #692: Serien-Alert Layout-Verbesserung', () =>
 		// Serien-Tab öffnen
 		await page.goto('/');
 		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
+
+		// Eine Serie via API anlegen, damit .series-tree-title existiert
+		await page.request.post('/api/v1/series', {
+			data: {
+				title: `E2E #692 Test Serie ${Date.now().toString(36)}`,
+				rhythm: 'weekly',
+				priority: 3,
+				estimatedEffort: 0.5,
+				active: true,
+				startDate: '2026-09-07T00:00:00.000Z',
+			},
+		});
 	});
 
 	test('AK1 — Serien-Actions hat mindestens 8px margin-top', async ({ page }) => {
