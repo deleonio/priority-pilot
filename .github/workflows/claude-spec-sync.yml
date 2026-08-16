@@ -298,10 +298,9 @@ jobs:
               awk -v file=”## $f” 'found && /^## /{exit} $0==file{found=1;next} found' /tmp/spec-sync-report.md
             } > /tmp/spec-sync-pr-body.md
 
-            # PR-Create (ohne --draft) → PR-Nummer aus Create-URL parsen
-            pr_url=”$(gh pr create --repo “$GITHUB_REPOSITORY” --head “$branch” --base main \
-              --title “$title” --body-file /tmp/spec-sync-pr-body.md 2>&1)”
-            pr_number=”$(echo “$pr_url” | grep -oE '[0-9]+' || echo “”)”
+            # PR-Create (ohne --draft) → PR-Nummer direkt via JSON-Output (wie Guide-Sync)
+            pr_number=”$(gh pr create --repo “$GITHUB_REPOSITORY” --head “$branch” --base main \
+              --title “$title” --body-file /tmp/spec-sync-pr-body.md --json number -q .number 2>/dev/null || echo “”)”
 
             # Label-Setzen mit Retry (3 Versuche) → bei endgültigem Fehlschlag laut Error + Exit
             if [ -n “$pr_number” ]; then
@@ -319,7 +318,7 @@ jobs:
                 fi
               done
             else
-              echo “::error title=❌ PR-Create fehlgeschlagen::PR-Nummer konnte nicht aus URL geparst werden: $pr_url”
+              echo “::error title=❌ PR-Create fehlgeschlagen::PR konnte nicht erstellt werden.”
               exit 1
             fi
             created=$((created + 1))
