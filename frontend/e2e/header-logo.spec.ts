@@ -42,7 +42,7 @@ test.describe('#395 Header – Logo-Button', () => {
 		await waitForStableView(page);
 
 		// Zuerst einen anderen Tab wählen (Aufgaben, Index 1), um die Umschaltung zu prüfen.
-		// Exact-Match nötig: /Aufgaben/i würde auch "Aufgabenwald" und "Erledigte Aufgaben" treffen.
+		// Exact-Match nötig: /Aufgaben/i würde auch "Erledigte Aufgaben" treffen.
 		const aufgabenTab = page.getByRole('tab', { name: 'Aufgaben', exact: true });
 		await aufgabenTab.click();
 		await expect(aufgabenTab).toHaveAttribute('aria-selected', 'true');
@@ -73,7 +73,7 @@ test.describe('#395 Header – Logo-Button', () => {
 
 		// Tastatur: Tab bis zum Logo-Button und Enter drücken.
 		// Zuerst anderen Tab wählen, damit der Klick merklich umschaltet.
-		// Exact-Match nötig: /Aufgaben/i würde auch "Aufgabenwald" und "Erledigte Aufgaben" treffen.
+		// Exact-Match nötig: /Aufgaben/i würde auch "Erledigte Aufgaben" treffen.
 		const aufgabenTab = page.getByRole('tab', { name: 'Aufgaben', exact: true });
 		await aufgabenTab.click();
 
