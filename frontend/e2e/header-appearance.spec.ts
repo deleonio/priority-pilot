@@ -185,17 +185,19 @@ test.describe('#485 Header — Avatar-Größe, gemeinsame Ebene, kompakte Höhe'
 	});
 
 	/**
-	 * AK6 — Mobile-First (375px): Alle Header-Bausteine bleiben sichtbar und bedienbar.
+	 * AK6 — Mobile-First (375px): Alle Header-Elemente bleiben sichtbar und bedienbar.
 	 *
 	 * Geändert gegenüber #485: Die 1,25-Relation Avatar/Toolbar-Button gilt bewusst **nur noch ab
-	 * 48rem** (AK3 prüft sie bei 1280px). Auf 375px war genau diese Relation eine der Ursachen dafür,
-	 * dass der Kopfbereich auf zwei bis drei Zeilen umbrach: Logo (55px) + fünf Toolbar-Buttons (252px)
-	 * + Avatar (55px) + Klartextname passen nicht in 343px Inhaltsbreite. Mobil sitzt der Avatar daher
-	 * auf Toolbar-Höhe und liegt zusammen mit den sekundären Aktionen im „⋮"-Menü — der Header bleibt
-	 * dadurch einzeilig (gemessen in `mobile-shell.spec.ts`).
+	 * 48rem** (AK3 prüft sie bei 1280px). Seit #691 stehen alle fünf Kopf-Aktionen auf JEDER Breite
+	 * direkt in der Toolbar; damit der Kopfbereich auf 375px einzeilig bleibt (Höhen-Vertrag in
+	 * `mobile-shell.spec.ts`), ist die Identität (Avatar + Klartextname) unter 48rem ausgeblendet:
+	 * Logo (44px) + fünf Toolbar-Buttons (~252px) füllen ~305 der 343px Inhaltsbreite — Avatar und
+	 * Name passen nicht zusätzlich in eine Zeile.
 	 *
-	 * Was hier zählt, ist deshalb: Logo und primäre Aktion stehen sichtbar auf EINER Zeile, und die
-	 * Identität (Avatar) ist über das Menü weiterhin erreichbar.
+	 * Was hier zählt: Logo und primäre Aktion stehen sichtbar auf EINER Zeile, die Identität ist
+	 * mobil bewusst weg (kein Menü mehr, in dem sie läge), und der Logo-Button bleibt bedienbar.
+	 * Die Sichtbarkeits-Checks mit Retry warten zugleich das asynchrone Shadow-DOM-Layout der
+	 * KoliBri-Toolbar ab — eine Messung davor träfe den Pre-Hydration-Zustand.
 	 *
 	 * Hinweis: Die reine Overflow-Prüfung (`scrollWidth <= clientWidth`) ist bereits durch
 	 * `header-logo.spec.ts` (#395 AK5 / #406 AK5) abgedeckt und wird hier nicht dupliziert.
@@ -226,10 +228,8 @@ test.describe('#485 Header — Avatar-Größe, gemeinsame Ebene, kompakte Höhe'
 			`Logo (${centerOf(logo)}) und Button (${centerOf(button)}) sollen auf einer Mittellinie liegen`,
 		).toBeLessThanOrEqual(TOLERANCE_PX);
 
-		// Der Avatar ist mobil nicht weg, sondern hinter dem Menü erreichbar.
-		await header.getByRole('button', { name: 'Mein Konto' }).click();
-		await expect(header.locator('kol-avatar').first()).toBeVisible();
-		await page.keyboard.press('Escape');
+		// Identität ist mobil bewusst ausgeblendet (#691): kein Platz neben den fünf Kopf-Aktionen.
+		await expect(header.locator('.user-info')).toBeHidden();
 
 		// Bedienbar: Der Logo-Button reagiert weiterhin auf einen Klick (Dashboard-Tab aktiv).
 		await header.getByRole('button', { name: /Zum Dashboard/i }).click();
