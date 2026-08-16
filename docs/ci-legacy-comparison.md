@@ -132,13 +132,13 @@ werden. „Stabiler am 08.07." ist **Survivorship-Bias**: die Bombe tickte, sie 
 
 ## 4. Empfehlungen (priorisiert)
 
-| #   | Empfehlung                                                                                                                                        | Warum                                                                                               |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| 1   | **Nicht reverten.**                                                                                                                               | Legacy ist features-ärmer _und_ trägt schwere latente Shell-Fragilität.                             |
-| 2   | **Querschnitt „Shell-Disciplin" härten** — `jq` konsequent mit `?`, keine `$VAR`-Interpolation (sonst `$ENV.VAR`), `grep`/`sed` BSD-kompatibel, ` |                                                                                                     | true` wo „no match" legal ist. | Die _eine_ Instabilitäts-Klasse, die alt **und** neu trifft — und sie ist billig. Teils durch Vertragstests abgesichert; Lücken schließen. |
-| 3   | **Label-Race-Klasse als dediziertes Guard-Thema** (Review↔Fixup↔needs-human).                                                                     | Die einzige _genuin neue_ Komplexität, die nicht weghärtet — inhärent im reicheren Verdict-Graphen. |
-| 4   | **Post-Merge-Documenter als „noch unreif" markieren** (18 Touches, 4+ Null/Escape-Fixes).                                                         | Höchste Fehlerdichte der neuen Dateien — separater Härte-Loop lohnt.                                |
-| 5   | **Vertragstests weiter ausbauen**, nicht abbauen.                                                                                                 | Sie sind der Grund, warum „neu" langfristig stabiler wird als „alt" je war.                         |
+| #   | Empfehlung                                                                                                                                                                                                                                        | Warum                                                                                               |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| 1   | **Nicht reverten.**                                                                                                                                                                                                                               | Legacy ist features-ärmer _und_ trägt schwere latente Shell-Fragilität.                             |
+| 2   | **Querschnitt „Shell-Disciplin" härten** — `jq` konsequent mit `?`, keine `$VAR`-Interpolation (sonst `$ENV.VAR`), `grep`/`sed` BSD-kompatibel, `                                                                                                 |                                                                                                     | true` wo „no match" legal ist. | Die _eine_ Instabilitäts-Klasse, die alt **und** neu trifft — und sie ist billig. Teils durch Vertragstests abgesichert; Lücken schließen. |
+| 3   | **Label-Race-Klasse als dediziertes Guard-Thema** (Review↔Fixup↔needs-human).                                                                                                                                                                     | Die einzige _genuin neue_ Komplexität, die nicht weghärtet — inhärent im reicheren Verdict-Graphen. |
+| 4   | **Post-Merge-Documenter als „noch unreif" markiert** (18 Touches, 4+ Null/Escape-Fixes) — **adressiert 2026-08-16**: Schreibzugriffe deterministisch in `pr-doc-{facts,render}.sh`, LLM liefert nur `doc.json`, Bot-Kurzschluss + Catch-up-Sweep. | Höchste Fehlerdichte der neuen Dateien — separater Härte-Loop lohnt.                                |
+| 5   | **Vertragstests weiter ausbauen**, nicht abbauen.                                                                                                                                                                                                 | Sie sind der Grund, warum „neu" langfristig stabiler wird als „alt" je war.                         |
 
 ---
 
@@ -146,8 +146,10 @@ werden. „Stabiler am 08.07." ist **Survivorship-Bias**: die Bombe tickte, sie 
 
 - Die Fix-Commit-Frequenz ist ein _Proxy_ für Stabilität. Eine Messung der echten CI-Ausfallraten
   (Erfolg vor/nach dem 08.07.) würde das Urteil schärfen.
-- Der Post-Merge-Documenter verdient einen eigenen Root-Cause-Deep-Dive (Konzentrationspunkt neuer
-  Instabilität).
+- Der Post-Merge-Documenter verdiente einen eigenen Root-Cause-Deep-Dive (Konzentrationspunkt neuer
+  Instabilität) — erledigt 2026-08-16: die Ursache war die Prompt-only-Architektur (alle
+  Struktur-Entscheidungen im LLM), behoben durch die Arbeitsteilung Facts/LLM/Render
+  (s. [ci-architecture.md](ci-architecture.md)).
 
 ---
 

@@ -128,6 +128,22 @@ jobs:
       # precheck dedupliziert über den Label-IST-Zustand. Neu-Triggern bei menschlichem Push
       # übernimmt der Autolabeler (cancel + Neu-Setzen von ai:needs-review).
 
+      - name: 🔍 Titel-Fakten deterministisch erheben
+        # Conventional-Commits-Prüfung des PR-Titels VOR dem Merge (Regel-Logik, s.
+        # .github/scripts/pr-doc-facts.sh --mode title-only). Post-Merge-Umbenennen im
+        # Documenter ist nur noch Backstop — der Merge-Commit-Subject steht dann schon.
+        # Bewusst KEIN eigener CI-Check-Job: ein roter Check setzt ai:needs-changes →
+        # Fixup läuft → Titelkorrektur erzeugt keinen Commit → No-Progress-Erkennung
+        # schlägt zu → ai:needs-human. Sackgasse; der Reviewer hat gh + vollen Kontext.
+        id: facts
+        if: steps.setup.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          bash .github/scripts/pr-doc-facts.sh --repo "$REPO" --pr "$PR" --mode title-only >> "$GITHUB_OUTPUT"
+
       - name: Kreuzverhör-Review via Claude
         id: claude
         if: steps.setup.outputs.configured == 'true'
@@ -157,6 +173,7 @@ jobs:
             5. AK/Ticket-Kontext im Blick behalten (nicht rein diff-lokal urteilen), aber unveränderte Code-Teile NICHT erneut kreuzvernehmen.
 
           ABSCHLUSS (beide Modi):
+            - TITEL-GATE (VOR dem Verdict): TITLE_OK sagt, ob der PR-Titel Conventional Commits erfüllt (type(scope)!: subject, englisch, Subject klein, <=72). Bei false: via gh pr edit #PR_NR --title umbenennen — Typ/Scope-Anhaltspunkte SUGGESTED_TYPE/SUGGESTED_SCOPE, Subject englisch beschreibend. Kein Finding, kein Verdict-Aufschub.
             - (Fixbare) Findings → Review-Kommentare an Datei/Zeile, dann VERDICT: needs-changes
             - Architektur-/Produkt-/Design-Finding ("Mensch entscheidet") → Kommentar mit Handlungsoptionen, dann VERDICT: needs-human
             - solide (🟢) → KEINE Pseudo-Findings, knappe 🟢-Bestätigung, dann VERDICT: ready-to-merge
@@ -179,6 +196,9 @@ jobs:
           cat .github/prompts/memory-read.md >> /tmp/claude-prompt.txt
 
           sed -i "s/#PR_NR/${{ github.event.pull_request.number }}/g" /tmp/claude-prompt.txt
+          sed -i "s/TITLE_OK/${{ steps.facts.outputs.title_ok || 'unbekannt' }}/g" /tmp/claude-prompt.txt
+          sed -i "s/SUGGESTED_TYPE/${{ steps.facts.outputs.suggested_type || 'chore' }}/g" /tmp/claude-prompt.txt
+          sed -i "s/SUGGESTED_SCOPE/${{ steps.facts.outputs.suggested_scope || 'k.A.' }}/g" /tmp/claude-prompt.txt
           sed -i "s/#MEMORY_STATUS/${{ steps.setup.outputs.memory-status-text }}/g" /tmp/claude-prompt.txt
           sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
 

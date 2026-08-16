@@ -280,6 +280,48 @@ anstößt.
 Die Session-Resume-Funktionalität (MIG-002) ist noch nicht migriert. Derzeit startet jeder Lauf
 frisch ohne Kontext aus vorherigen Läufen derselben Phase.
 
+## PR-Documenter: Arbeitsteilung Regel-Logik + LLM (Phase 6)
+
+Der Post-Merge-Documenter ([06-claude-pr-documenter.yml](../.github/workflows/06-claude-pr-documenter.yml))
+war anfangs eine reine Prompt-Phase — empirisch drifteten dabei Kommentar-Formate, blieben
+Branch-Namen-Titel (`perf/#692: …`, `feat/issue-671-…`) unnormalisiert und landeten UX-Änderungen
+unter `perf(...)` (feste Prompt-Regel `improved→perf`). Jetzt entscheidet Regel-Logik, das LLM
+liefert nur Inhalte:
+
+| Schritt            | Ausführung                                                                                                                                                                                                                                                                                                                  |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pr-doc-facts.sh`  | Bot-Erkennung (Autor + nur Dependency-Pfade), Conventional-Commits-Titelprüfung, Typ-/Scope-Vorschlag aus Pfaden                                                                                                                                                                                                            |
+| Bot-SHORTCUT       | Dependency-Bot-/`release:ignore`-PRs: nur `ai:documented` (+ `release:ignore`) setzen — **ohne** LLM-Lauf                                                                                                                                                                                                                   |
+| Claude             | Liest Diff + Issue und schreibt **nur** `/tmp/doc.json` (Klassifikation, Titel-Vorschlag, Texte; [documenter.md](../.github/prompts/documenter.md))                                                                                                                                                                         |
+| `pr-doc-render.sh` | **Alle** Schreibzugriffe: Titel-Rename (validiert gegen dieselbe CC-Regex), Body-Sektion zwischen `<!-- ai-documenter-body -->`-Markern (Rest des Bodys bleibt unangetastet), GENAU EIN `<!-- ai-documenter -->`-Kommentar (PATCH statt Duplikat), Labels — `ai:documented` immer ZULETZT (fail-closed-Precheck-Invariante) |
+
+Fällt Claude oder die Validierung aus, rendert der Fallback-Pfad eine Minimal-Dokumentation
+(Minimal-Kommentar + `ai:documented` + `release:engineering`) und hält den Job grün — ein Re-Run
+wäre durch den Precheck blockiert, ein roter Job also eine Sackgasse.
+
+**Sprachregel:** PR-Titel und Haupttexte englisch (Conventional Commits, Subject klein, ≤72
+Zeichen); die deutsche Zusammenfassung lebt in einer `<details>`-Box. Der Reviewer (Phase 4)
+bekommt dieselben Titelfakten (`--mode title-only`) und korrigiert non-konforme Titel schon
+**vor** dem Merge — post-merge ist ein Rename nur noch kosmetisch, der Merge-Commit-Subject
+steht bereits.
+
+**Catch-up-Sweep** ([06b-documenter-sweep.yml](../.github/workflows/06b-documenter-sweep.yml),
+täglich 03:17 UTC + `workflow_dispatch` mit `dry-run`): findet gemergte PRs der letzten 30 Tage
+ohne `ai:documented`/`release:ignore` und triggert Phase 6 pro PR per `workflow_dispatch` nach
+(max. 10/Lauf). Muss den App-Token nutzen — ein via `GITHUB_TOKEN` ausgelöster Dispatch startet
+keinen Workflow-Run. Der fail-closed-Precheck von Phase 6 dedupliziert.
+
+## Release-Notes-Kette
+
+Die `release:*`-Labels des Documenters (vergeben nach Klassifikation: `breaking→release:breaking-change`,
+`new→release:feature`, `improved→release:improvement`, `fixed→release:fix`,
+`internal→release:engineering`, Bot→`release:ignore`) speisen
+[`.github/release.yml`](../.github/release.yml). Die Deploy-Pipeline taggt nach dem Patch-Bump
+`v<Version>` und erstellt via `gh release create --generate-notes` das GitHub-Release — Notes
+erscheinen kategorisiert (Breaking/Features/Fixes/Improvements/Engineering); Bot-PRs sind per
+`exclude.authors` **und** `release:ignore` doppelt ausgeschlossen. Der Release-Schritt ist
+best-effort: ein Fehlschlag warnt, kippt aber nie das Deploy.
+
 ## Aufrufpfade der Kreuzverhör-Workflows
 
 1. **Chat/REPL (interaktiv):** Trigger-Phrasen aktivieren den Agenten direkt: „Kreuzverhör",

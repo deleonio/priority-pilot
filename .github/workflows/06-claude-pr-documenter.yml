@@ -1,11 +1,15 @@
 name: 6/6 Dokumentation
 
-# 6. Pipeline-Phase — PR-Documenter (LLM-gesteuert, wie die Claude-Phasen 01–05).
+# 6. Pipeline-Phase — PR-Documenter (Arbeitsteilung Regel-Logik + LLM).
 # Läuft NACH einem erfolgreichen PR-Merge und pflegt Titel, Beschreibung,
-# Release-Note-Kommentar und Labels des EINEN gemergten PRs via Claude Code.
-# Kein Batch mehr: PR-Daten kommen aus dem pull_request-Event bzw. `gh pr view`.
-# PR-Pflege läuft ausschließlich via gh-Befehle — Claude braucht keine Dateimutationsmacht
-# (tools-tier: review = Bash für gh, kein Write/Edit).
+# Release-Note-Kommentar und Labels des EINEN gemergten PRs.
+# Aufteilung (empirisch: Prompt-only erzeugte driftende Kommentar-Formate und
+# unnormalisierte Titel, s. docs/ci-legacy-comparison.md):
+#   - pr-doc-facts.sh    — Bot-Erkennung, Conventional-Commits-Titelprüfung (deterministisch)
+#   - Claude (doc.json)  — NUR Klassifikation + Fließtext (Titel/Beschreibung/Kommentar-Texte)
+#   - pr-doc-render.sh   — sämtliche Schreibzugriffe: Titel-Rename, Body-Marker-Splice,
+#                          genau EIN ai-documenter-Kommentar (PATCH statt Duplikat), Labels
+# Bot-/release:ignore-PRs werden deterministisch kurzgeschlossen — ohne LLM-Lauf.
 
 on:
   # Trigger an den ECHTEN Merge koppeln (Issue #496): `pull_request: [closed]` feuert pro
@@ -166,73 +170,98 @@ jobs:
           create_label "release:engineering" cfd3d7 "Internal (no release note)"
           create_label "release:ignore" cfd3d7 "Ignored by release pipeline"
 
-      - name: 📝 PR-Dokumentation via Claude
+      - name: 🔍 PR-Fakten deterministisch erheben
+        # Bot-Erkennung + Conventional-Commits-Titelprüfung sind Regel-Logik, kein LLM-Job
+        # (s. .github/scripts/pr-doc-facts.sh). Fail-open: bei facts_ok=false laufen Shortcut
+        # und Claude-Pfad normal (Bot-PRs fielen dann notfalls nur in die Engineering-Kategorie,
+        # das release.yml schließt Bot-Autoren zusätzlich per exclude.authors aus).
+        id: facts
+        if: steps.setup.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+        run: |
+          bash .github/scripts/pr-doc-facts.sh --repo "$REPO" --pr "$PR" >> "$GITHUB_OUTPUT"
+
+      - name: ⏭️ Bot-/Ignore-Kurzschluss (deterministisch, ohne LLM)
+        # Dependency-Bot-PRs (Renovate/Dependabot) und bereits als release:ignore markierte PRs:
+        # nur Labels setzen, den kompletten LLM-Lauf (Setup, Diff-Analyse, Rendering) überspringen.
+        # ai:documented sichert hier die Idempotenz-Invariante, release:ignore nur im Bot-Fall —
+        # ein vorhandenes release:ignore wird nicht erweitert/umgedeutet.
+        id: shortcut
+        if: steps.setup.outputs.configured == 'true' && (steps.facts.outputs.bot_skip == 'true' || steps.facts.outputs.already_ignored == 'true')
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+        run: |
+          if [ "${{ steps.facts.outputs.bot_skip }}" = "true" ]; then
+            gh pr edit "$PR" --repo "$REPO" --add-label release:ignore
+            echo "skip_reason=dependency-bot" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip_reason=release-ignore" >> "$GITHUB_OUTPUT"
+          fi
+          gh pr edit "$PR" --repo "$REPO" --add-label ai:documented
+          echo "skip=true" >> "$GITHUB_OUTPUT"
+          echo "::notice title=⏭️ Documenter übersprungen::PR #$PR — Shortcut (${{ steps.facts.outputs.bot_skip == 'true' && 'dependency-bot' || 'release:ignore' }}), nur Labels gesetzt."
+
+      - name: 📝 PR-Analyse via Claude (schreibt nur /tmp/doc.json)
+        id: claude
+        if: steps.setup.outputs.configured == 'true' && steps.shortcut.outputs.skip != 'true'
         id: claude
         if: steps.setup.outputs.configured == 'true'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number || github.event.inputs.pr-number }}
         run: |
-          cat > /tmp/claude-prompt.txt << 'CLAUDE_EOF'
-          HINWEIS: Documenter ist terminal + Review-Tier — du schreibst KEINEN Memory (nur Lesen). Lesedetails siehe Memory-Abschnitt am Prompt-Ende.
+          # Prompt liegt kanonisch in .github/prompts/documenter.md (Quelle fuer CI + lokale
+          # Inspektion, analog spec.md in Phase 2). Kein Inline-Heredoc mehr: der Vertrag
+          # (doc.json-Schema, Mapping-Regeln) ist damit reviewbar ohne Workflow-Diff.
+          {
+            echo 'HINWEIS: Documenter ist terminal + Review-Tier — du schreibst KEINEN Memory (nur Lesen). Lesedetails siehe Memory-Abschnitt am Prompt-Ende.'
+            echo
+            cat .github/prompts/documenter.md
+            cat .github/prompts/memory-read.md
+          } > /tmp/claude-prompt.txt
 
-          ROLLE: Du bist der PR-Documenter. Pflege Titel + Beschreibung des soeben gemergten PR #PR_NR. Du arbeitest NUR über gh (gh pr edit / gh pr comment) und änderst KEINE Dateien im Repo.
-
-          INPUTS (liest selbst, nicht im Prompt wiederholen):
-            - gh pr diff #PR_NR                        (die echten Codeänderungen)
-            - gh pr view #PR_NR --json title,body,files,labels,author  (aktueller PR-Stand)
-            - verknüpftes Issue falls vorhanden: gh issue view <nr>   (Issue-Beschreibung als Kontext)
-
-          ABLAUF (STRIKT):
-            1. SOFORT starten. Diff + PR + verknüpftes Issue lesen.
-            2. BOT-ERKENNUNG: Autor Dependabot/Renovate/github-actions[bot] UND Diff nur Lockfile/Dependabot-Config?
-               → NUR ai:documented + release:ignore setzen (siehe Schritt 7), sonst nichts. Dann VERDICT: documented.
-            3. KLASSIFIKATION (genau eine): breaking | new | improved | fixed | internal — aus Diff + Titel + Issue, nicht spekulieren.
-            4. PR-TITEL: Conventional Commits prüfen (type(scope): subject, subject lowercase, <=72 Zeichen).
-               Nur wenn NICHT konform ODER der type nicht zur Klassifikation passt → via gh pr edit --title korrigieren.
-               Mapping: breaking→feat!, new→feat, improved→perf, fixed→fix, internal→chore. Scope aus der Hauptdatei.
-            5. PR-BESCHREIBUNG: NUR überschreiben/erstellen, wenn der aktuelle Body DÜNN ist (weniger als ~50 Zeichen oder praktisch leer).
-               Eine gepflegte Beschreibung (Implement/Human) bleibt UNANGETASTET. Neu: What changed + Linked issues + Type of change + deutsche <details>-Sektion.
-            6. RELEASE-NOTE-KOMMENTAR: GENAU EINEN Kommentar pflegen (vorhandenen Documenter-Kommentar mit Marker <!-- ai-documenter --> aktualisieren statt duplizieren).
-               Bei internal: "no release note". Sonst: Klassifikation + Komponente + Kernänderungen.
-            7. LABELS via gh pr edit, JE EIN EIGENER Aufruf (--add-label erwartet EINEN Wert, kein Array):
-               a) ZUERST ai:documented setzen (MUSS — Idempotät-Invariante): gh pr edit #PR_NR --add-label ai:documented
-               b) DANN release:* passend zur Klassifikation (separater, best-effort Aufruf):
-                  breaking→release:breaking-change, new→release:feature, improved→release:improvement, fixed→release:fix, internal→release:engineering.
-               Bot-PR (Schritt 2): stattdessen release:ignore.
-
-          CONSTRAINTS:
-            - KEINE Dateiänderungen (kein Write/Edit) — alles via gh.
-            - KEINE Spekulation: nur was im Diff/PR/Issue belegt ist.
-            - Conventional Commits, Mobile-First, deutsche + englische Sektion im Body.
-
-          VERDICT: GANZ AM ENDE GENAU EINE Zeile:
-            - VERDICT: documented
-
-          ZEITLIMIT: Soft-Deadline = SOFT_DEADLINE. Vor jedem Schritt: [ $(date +%s) -ge SOFT_DEADLINE ]. Bei OVER: mindestens ai:documented sichern, Turn beenden.
-          CLAUDE_EOF
-
-          # Memory-Read-Snippet anhängen (Phase 6 = Documenter: terminal, nur Lesen)
-          cat .github/prompts/memory-read.md >> /tmp/claude-prompt.txt
-
+          # Fakten aus dem Facts-Schritt injizieren (Werte sind sichere Token: true/false,
+          # Zahlen, Scope-Wörter). Fehlende Fakten (facts_ok=false) => Fallback-Defaults.
           sed -i "s/#PR_NR/$PR/g" /tmp/claude-prompt.txt
+          sed -i "s/TITLE_OK/${{ steps.facts.outputs.title_ok || 'unbekannt' }}/g" /tmp/claude-prompt.txt
+          sed -i "s/SUGGESTED_TYPE/${{ steps.facts.outputs.suggested_type || 'chore' }}/g" /tmp/claude-prompt.txt
+          sed -i "s/SUGGESTED_SCOPE/${{ steps.facts.outputs.suggested_scope || 'k.A.' }}/g" /tmp/claude-prompt.txt
+          sed -i "s/LINKED_ISSUES/${{ steps.facts.outputs.linked_issues || 'keine' }}/g" /tmp/claude-prompt.txt
           sed -i "s/#MEMORY_STATUS/${{ steps.setup.outputs.memory-status-text }}/g" /tmp/claude-prompt.txt
           sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
 
+          rm -f /tmp/doc.json
           ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
             ${{ steps.setup.outputs.invoke-args }} \
             2>&1 | tee /tmp/claude-output.log
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
 
+      - name: 🖨️ Rendern — Titel/Body/Kommentar/Labels deterministisch
+        # Alle Schreibzugriffe in einem Schritt: Titel-Rename, Body-Marker-Splice, GENAU EIN
+        # ai-documenter-Kommentar (PATCH statt Duplikat), Labels (ai:documented zuletzt).
+        # Läuft BEWUSST auch bei fehlgeschlagenem/abwesendem Claude-Schritt: das Skript hat
+        # einen Fallback-Pfad (Minimal-Kommentar + ai:documented + release:engineering), denn
+        # der fail-closed-Precheck macht einen Re-Run nach gesetztem ai:documented unmöglich —
+        # ein roter Job ohne Fallback wäre eine Sackgasse.
+        id: render
+        if: always() && steps.setup.outputs.configured == 'true' && steps.shortcut.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+        run: |
+          bash .github/scripts/pr-doc-render.sh --repo "$REPO" --pr "$PR" --doc /tmp/doc.json
+
       # Kein Memory-Save (im Gegensatz zu 01-05): der Documenter ist terminal, der nachfolgende
-      # Teardown (🧹 Issue-Memory abbau) löscht den Cache ohnehin. Ein Save wäre save-then-delete
+      # Teardown (🧹 Issue-Memory abbau) löscht die Memory-Artefakte ohnehin. Ein Save wäre save-then-delete
       # (redundant). Der Documenter ist terminal - Persistenz hat keine Folge-Phase mehr.
 
       - name: 🏷️ Label-Post-Assertion (ai:documented muss am PR hängen)
         # Erfolgskriterium des Documenter ist nicht ein Review-Verdict, sondern dass ai:documented
         # am PR hängt. Fehlt es (auch nach Retry für API-Replikationsverzögerung) → harter Fehler:
         # Claude hat vermutlich nicht gearbeitet. release:* bleibt best-effort (|| true).
-        if: always() && steps.setup.outputs.configured == 'true' && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure')
+        # Ohne steps.claude.outcome-Klausel: die Assertion deckt auch den Bot-SHORTCUT-Pfad ab,
+        # in dem ai:documented deterministisch ohne Claude gesetzt wird.
+        if: always() && steps.setup.outputs.configured == 'true'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
         run: |
@@ -285,18 +314,27 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           OUTCOME: ${{ steps.claude.outcome }}
+          RENDER_OUTCOME: ${{ steps.render.outcome }}
+          SKIP_REASON: ${{ steps.shortcut.outputs.skip_reason }}
         run: |
           labels="$(gh pr view "$PR" --repo "$REPO" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
-          if [ "$OUTCOME" = "success" ]; then
+          if [ -n "$SKIP_REASON" ]; then
+            echo "::notice title=✅ Documenter übersprungen::PR #$PR — $SKIP_REASON (nur Labels, kein LLM-Lauf)."
+          elif [ "$RENDER_OUTCOME" = "success" ]; then
             echo "::notice title=✅ Documenter erfolgreich::PR #$PR"
-          elif [ "$OUTCOME" = "cancelled" ]; then
+          elif [ "$OUTCOME" = "cancelled" ] || [ "$RENDER_OUTCOME" = "cancelled" ]; then
             echo "::warning title=⏸️ Documenter abgebrochen::PR #$PR"
           else
             echo "::error title=❌ Documenter fehlgeschlagen::PR #$PR"
           fi
           {
             echo "### PR-Documenter #$PR"
-            echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\`"
+            if [ -n "$SKIP_REASON" ]; then
+              echo "- Shortcut: \`${SKIP_REASON}\` (kein LLM-Lauf)"
+            else
+              echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\`"
+              echo "- Render-Schritt: \`${RENDER_OUTCOME:-unbekannt}\`"
+            fi
             echo "- Labels: ${labels:-keine}"
           } >> "$GITHUB_STEP_SUMMARY"
 
