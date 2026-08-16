@@ -97,7 +97,8 @@ interface ProviderConfig {
 }
 
 const MISTRAL_ENDPOINT = 'https://api.mistral.ai/v1/chat/completions';
-const DEFAULT_OPENROUTER_API_URL = 'https://openrouter.ai/api/v1';
+/** Basis-URL der OpenRouter-API — auch `GET /models/free` (#742) fragt sie ab (modellisten-Call braucht keinen Key). */
+export const DEFAULT_OPENROUTER_API_URL = 'https://openrouter.ai/api/v1';
 const DEFAULT_MISTRAL_MODEL = 'mistral-medium-latest';
 /** Default-Modell der OpenRouter-Stufe — zugleich der Anzeige-Default von `GET /llm-config` (#640). */
 export const DEFAULT_OPENROUTER_MODEL = 'openrouter/free';

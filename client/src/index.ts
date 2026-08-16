@@ -44,6 +44,10 @@ export type ApiError = Schemas['Error'];
 export type LlmConfigStatus = Schemas['LlmConfigStatus'];
 export type LlmConfigInput = Schemas['LlmConfigInput'];
 
+// Aktuelle kostenlose OpenRouter-Modelle (#742) für die Frontend-Auswahl (dynamisch, nie hartcodiert).
+export type FreeModel = Schemas['FreeModel'];
+export type FreeModels = Schemas['FreeModels'];
+
 // Web-Push (#355): Opt-in-Subscription-Flow der PWA.
 export type PushSubscriptionInput = Schemas['PushSubscriptionInput'];
 export type PushSubscriptionAck = Schemas['PushSubscriptionAck'];

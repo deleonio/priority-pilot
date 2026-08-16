@@ -749,6 +749,28 @@ paths:
                 $ref: '#/components/schemas/LlmConfigStatus'
         '400':
           $ref: '#/components/responses/ValidationError'
+  /models/free:
+    get:
+      summary: Aktuelle kostenlose OpenRouter-Modelle lesen
+      description: >-
+        Lädt die aktuelle Modellliste von OpenRouter und liefert die
+        kostenlosen Modelle (#742): den Auto-Router `openrouter/free` sowie
+        alle Varianten mit `:free`-Suffix. `openrouter/free` steht zuerst,
+        der Rest alphabetisch nach Name — die Liste ist dynamisch (nie
+        hartcodiert) und wird serverseitig kurz (5 min) gecacht. Der Aufruf
+        von OpenRouter braucht keinen API-Key; ist der Upstream nicht
+        erreichbar oder antwortet ungültig, folgt HTTP 502.
+      operationId: getFreeModels
+      tags: [llm]
+      responses:
+        '200':
+          description: Aktuelle Liste der kostenlosen OpenRouter-Modelle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FreeModels'
+        '502':
+          $ref: '#/components/responses/BadGateway'
 components:
   parameters:
     SeriesId:
@@ -1771,3 +1793,31 @@ components:
         openrouterModel:
           type: string
           description: Modellkennung für OpenRouter.
+    FreeModel:
+      type: object
+      required:
+        - id
+        - name
+      description: >-
+        Ein kostenloses OpenRouter-Modell (#742): der Auto-Router
+        `openrouter/free` oder eine `:free`-Variante eines Modells.
+      properties:
+        id:
+          type: string
+          description: Modellkennung (z. B. `openrouter/free` oder `meta-llama/llama-3-8b-instruct:free`).
+        name:
+          type: string
+          description: Anzeigename des Modells, wie OpenRouter ihn liefert.
+    FreeModels:
+      type: object
+      required:
+        - models
+      description: >-
+        Antwort von `GET /models/free` (#742): die aktuell kostenlosen
+        OpenRouter-Modelle, `openrouter/free` zuerst, Rest alphabetisch.
+      properties:
+        models:
+          type: array
+          description: Aktuelle Free-Modelle (dynamisch geladen, nie hartcodiert).
+          items:
+            $ref: '#/components/schemas/FreeModel'

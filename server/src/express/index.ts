@@ -15,6 +15,8 @@ import { authRouter } from './routes/auth.js';
 import { transitRouter } from './routes/transit.js';
 import { createPushRouter } from './routes/push.js';
 import { llmConfigRouter } from './routes/llmConfig.js';
+import { createFreeModelsRouter } from './routes/freeModels.js';
+import type { FetchFreeModels } from './routes/freeModels.js';
 import { lektoratRouter } from './routes/lektorat.js';
 import { handleServerError } from './server-error-handler.js';
 import type { PillarClassifier, ParseTaskParser, ActivityAdvisor } from '../llm/llm.js';
@@ -37,6 +39,8 @@ export interface AppDeps {
 	activityAdvisor?: ActivityAdvisor;
 	sessionStore?: Store;
 	pushSender?: PushSender;
+	/** Upstream für `GET /models/free` (#742) — Tests injizieren hieran einen deterministischen Mock. */
+	fetchFreeModels?: FetchFreeModels;
 }
 
 export const createApp = (deps: AppDeps = {}) => {
@@ -204,6 +208,10 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// LLM-Provider-Konfiguration (#640): Keys/Modell der Mistral/OpenRouter-Kaskade lesen/speichern.
 	app.use(llmConfigRouter);
+
+	// Aktuelle kostenlose OpenRouter-Modelle (#742) für die Frontend-Auswahl — hinter requireAuth,
+	// damit der Server kein öffentlicher OpenRouter-Proxy ist (Session-Pflicht wie bei /llm-config).
+	app.use(createFreeModelsRouter(deps.fetchFreeModels));
 
 	// GET /forest — Aufgabenwald nach Wertschöpfung sortiert (auf den eingeloggten Nutzer gefiltert).
 	app.get('/forest', async (req, res: express.Response<TaskTreeNodeDto[] | ErrorDto>) => {
