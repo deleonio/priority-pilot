@@ -21,7 +21,9 @@
 #   analyse     Issue   offen          —                            Trigger-Label
 #                                                                   (Default ai:analyzed)
 #   spec        Issue   offen          ai:spec-ready + ai:analyzed  —
-#   implement   Issue   offen          ai:ready + ai:analyzed       —
+#   ux          Issue   offen          ai:analyzed                  ux:ready
+#   implement   Issue   offen          ai:ready + ai:analyzed +      —
+#                                   ux:ready
 #   review      PR      offen, kein    ai:needs-review              —
 #                       Draft
 #   fixup       PR      offen, kein    ai:needs-changes             —
@@ -84,8 +86,10 @@ case "$PHASE" in
     ;;
   spec)
     KIND="issue"; WANT_STATE="open"; REQUIRED=("ai:spec-ready" "ai:analyzed") ;;
+  ux)
+    KIND="issue"; WANT_STATE="open"; REQUIRED=("ai:analyzed"); ABSENT=("ux:ready") ;;
   implement)
-    KIND="issue"; WANT_STATE="open"; REQUIRED=("ai:ready" "ai:analyzed") ;;
+    KIND="issue"; WANT_STATE="open"; REQUIRED=("ai:ready" "ai:analyzed" "ux:ready") ;;
   review)
     KIND="pr"; WANT_STATE="open"; NO_DRAFT="true"; REQUIRED=("ai:needs-review") ;;
   fixup)
@@ -98,7 +102,7 @@ case "$PHASE" in
     # was nicht rückgängig zu machen ist. Also im Zweifel NICHT laufen.
     KIND="pr"; WANT_STATE="merged"; ABSENT=("ai:documented"); FAIL_MODE="closed" ;;
   *)
-    echo "check-phase-label: unbekannte Phase '$PHASE' (erlaubt: analyse spec implement review fixup documenter)" >&2
+    echo "check-phase-label: unbekannte Phase '$PHASE' (erlaubt: analyse spec ux implement review fixup documenter)" >&2
     exit 2
     ;;
 esac

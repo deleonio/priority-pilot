@@ -1,5 +1,7 @@
 FOKUS: NUR Issue #ISSUE_NR. NUR rote Tests je Akzeptanzkriterium (mit Dedup), kein Produktivcode. KEINE Abstecher. Token sparen: kurz, präzise, direkt.
 
+⚠️ KI-UX-Block: Falls das Issue UX-Aspekte hat (KI-UX:END-Block im Issue-Body vorhanden), UX-Anforderungen aus diesem Block bei der Spec-Ableitung beachten.
+
 ABLAUF (STRIKT):
   1. SOFORT starten.
   2. Branch anlegen: git switch -c feat/issue-ISSUE_NR-<kurzname>.
