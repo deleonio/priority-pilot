@@ -1,0 +1,274 @@
+name: Spec-Sync (nightly)
+
+# Nächtlicher LLM-Job (wie die Phasen 01–06 über setup-claude, aber KEINE Pipeline-Phase):
+# Verifiziert die Specs in docs/spec/ (user-journeys.md + issue-*.md) gegen die tatsächliche
+# Implementation (frontend/src, server/src, openapi.yml) und hält sie auf IST-STAND —
+# die Implementation ist die Wahrheit, die Spec spiegelt sie nur:
+#   - korrigieren (Impl hat sich geändert → Spec folgt),
+#   - entsorgen (überholte/transitorische Soll-Aussagen wie „X soll entfernt sein“ sind
+#     langfristig keine Spec-Information),
+#   - ergänzen (implementiertes, un-spezifiziertes Verhalten bekommt neue Journeys).
+#
+# DELIVERY: PR vom festen Branch chore/spec-sync. Der Branch wird jede Nacht auf origin/main
+# zurückgesetzt und per Force-Push ersetzt — der offene PR zeigt damit IMMER exakt die aktuelle
+# Drift statt Commits über Nächte zu akkumulieren (squash-merge macht die Historie ohnehin platt).
+# Der Bot-PR bekommt BEWUSST keine Pipeline-Labels: pr-needs-review-label.yml labelt nur
+# menschliche Akteure → kein nächtlicher Kreuzverhör-/Fixup-Loop, kein Gate-Merge-Auto-Merge.
+# Der Mensch merged die Spec-Edits.
+#
+# STATELESS: kein pro-Issue-Memory (memory-load/expect false, kein Artefakt-Upload). Der
+# offene Sync-PR ist der einzige Zustand; jede Nacht wird frisch verifiziert.
+#
+# KEINE Nummer im Dateinamen: Nummern (01–06) sind lastend (Workflow-Name-Matching), dieser
+# Job ist ein Helper wie cache-cleanup und hängt nicht in der Label-Kette.
+
+on:
+  schedule:
+    - cron: '37 3 * * *' # täglich 03:37 UTC, versetzt zu Cache-Aufräumen (03:17) und Renovate (Mo 04:00)
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Skip-Guard ignorieren (Lauf erzwingen, auch wenn main unverändert ist)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: claude-spec-sync
+  cancel-in-progress: false
+
+permissions:
+  contents: write # Branch-Push chore/spec-sync
+  pull-requests: write # Sync-PR anlegen/aktualisieren
+  id-token: write # App-Token (setup-claude)
+  actions: read # Skip-Guard: letzte erfolgreiche Run-Historie lesen
+
+jobs:
+  spec-sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    steps:
+      - name: Skip-Guard (main unverändert seit letztem erfolgreichen Sync)
+        # LLM-Budget sparen: Hat main seit dem letzten erfolgreichen Lauf dieses Workflows
+        # denselben SHA, ist das Verifikationsergebnis deterministisch dasselbe → kein Lauf.
+        # Fail-open bei API-Fehlern (leerer last_sha → Lauf): ein vergessener Sync ist
+        # billiger als ein stumm übersprungener. workflow_dispatch mit force=true umgeht
+        # den Guard (Re-Sync ohne Code-Änderung, z. B. nach Prompt-Anpassung).
+        id: guard
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.force == true) }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          last_sha="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow claude-spec-sync.yml \
+            --status success --limit 1 --json headSha --jq '.[0].headSha // empty' 2>/dev/null || true)"
+          if [ -n "$last_sha" ] && [ "$last_sha" = "$GITHUB_SHA" ]; then
+            echo "::notice title=⏭️ Spec-Sync übersprungen::Main unverändert ($GITHUB_SHA) seit letztem erfolgreichen Sync."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Startzeit merken (für weiches Zeitlimit)
+        id: starttime
+        if: steps.guard.outputs.skip != 'true'
+        run: |
+          now=$(date +%s)
+          echo "epoch=$now" >> "$GITHUB_OUTPUT"
+          echo "soft_deadline_epoch=$((now + 900))" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Claude Code
+        id: setup
+        if: steps.guard.outputs.skip != 'true'
+        uses: ./.github/actions/setup-claude
+        with:
+          needs-mcp: false
+          tools-tier: full # Write/Edit auf docs/spec + git commit nötig; Push/PR macht der Workflow
+          event-type: ${{ github.event_name }}
+          # ticket-ref ist Pflicht-Input, dieser Job hat kein Ticket: '0' fließt NUR in den
+          # ungenutzten Memory-Key (claude-memory-issue-0) — Memory ist komplett aus.
+          ticket-ref: '0'
+          app-id: ${{ secrets.APP_ID }}
+          app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          llm-provider: ${{ vars.LLM_PROVIDER }}
+          model: ${{ vars.CLAUDE_MODEL_SPEC_SYNC || 'sonnet' }}
+          zai-api-key: ${{ secrets.ZAI_API_KEY }}
+          claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
+          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+          zai-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI }}
+          openrouter-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER }}
+          tailscale-authkey: ${{ secrets.TAILSCALE_AUTH_KEY }}
+          tailscale-exit-node: ${{ vars.TAILSCALE_EXIT_NODE }}
+          memory-load: 'false'
+          expect-memory: 'false'
+
+      - name: Sync-Branch frisch aufsetzen (Basis = origin/main) + Git-Identität
+        # Jede Nacht neuer Basis-Stand: der Sync-PR zeigt danach immer nur die HEUTIGE Drift.
+        # Git-Identität aus dem App-Slug (Muster deploy.yml) — deterministische Attribution
+        # der Agent-Commits statt runner-abhängiger Default-Identität.
+        if: steps.guard.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+        run: |
+          git branch -D chore/spec-sync 2>/dev/null || true
+          git switch -C chore/spec-sync origin/main
+          slug="$(gh api app --jq .slug 2>/dev/null || true)"
+          user="${slug:-app}[bot]"
+          id="$(gh api "users/${user}%5Bbot%5D" --jq .id 2>/dev/null || true)"
+          email="${user}@users.noreply.github.com"
+          [ -n "$id" ] && email="${id}+${user}@users.noreply.github.com"
+          git config user.name "$user"
+          git config user.email "$email"
+
+      - name: Spec-Sync via Claude
+        id: claude
+        if: steps.guard.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
+        run: |
+          cat > /tmp/claude-prompt.txt << 'CLAUDE_EOF'
+          FOKUS: Spec-Sync docs/spec/*.md gegen die Implementation. DIE IMPLEMENTATION IST DIE WAHRHEIT — die Spec beschreibt NUR den Ist-Zustand. KEINE Abstecher, KEINE Code-Änderungen. Token sparen: kurz, präzise, direkt.
+
+          QUELLEN (liest selbst, nicht im Prompt wiederholen):
+            - Specs: alle docs/spec/*.md (user-journeys.md + issue-*.md)
+            - Ist-Zustand: frontend/src/** (UI-Verhalten, Dialoge, Meldungstexte), server/src/** + openapi.yml (API, Validierung, Fehlermeldungen)
+
+          ABLAUF (STRIKT):
+            1. SOFORT starten. Alle docs/spec/*.md vollständig lesen.
+            2. JEDE verhaltensrelevante Aussage (Journey-Schritte, erwartete Ergebnisse, Randfall-Tabellen, Meldungstexte) gegen den Code verifizieren.
+            3. NUR bei belegter Abweichung die Spec anpassen:
+               a) Implementation hat sich geändert → Spec auf den neuen Ist-Zustand umformulieren.
+               b) Aussage ohne Realitätsbezug STREICHEN — insb. transitorische Soll-Aussagen („X soll entfernt werden“, Ankündigungen, Absichten): langfristig keine Spec-Information.
+               c) Implementiertes Verhalten, das in KEINER Spec steht → neue Journey ERGÄNZEN (Format wie user-journeys.md: Ziel/Vorbedingung/Schritte/Erwartetes Ergebnis; implementierungsagnostisch, nur von außen beobachtbares Verhalten).
+            4. Je geänderter/neuer Datei: „**Stand:**“-Datum auf SYNC_DATE setzen + eine Versionszeile ergänzen (vX.Y (SYNC_DATE): Nightly-Sync — <Kurzbegründung>).
+            5. ALLE Änderungen lokal committen (ein Commit genügt): git add docs/spec && git commit -m "docs(spec): Ist-Stand-Sync SYNC_DATE"
+               NICHT pushen, KEINEN PR anlegen — das macht der Workflow nach dir.
+            6. Report schreiben nach /tmp/spec-sync-report.md (Markdown): je Fund ein Abschnitt (Datei + Abschnitt, Befund, Korrektur), plus Liste offener Unklarheiten (nicht aus Code Ableitbares: NICHT geändert, nur gelistet).
+
+          CONSTRAINTS:
+            - NUR docs/spec/*.md ändern — kein Code, keine anderen Dateien, kein Umstrukturieren der Specs ohne Befund.
+            - KEINE Spekulation: nur belegbares, im Code sichtbares Verhalten spezifizieren.
+            - KEINE Soll-/Absichts-Formulierungen in der Spec — nur Ist.
+
+          VERDICT: GANZ AM ENDE GENAU EINE Zeile:
+            - VERDICT: synced (keine Drift gefunden, kein Commit)
+            - VERDICT: updated (Spec-Korrekturen committed)
+
+          EHRLICHKEITS-REGEL: VERDICT: updated NUR ausgeben, wenn der Commit existiert (git log verifizieren). VERDICT: synced NUR ohne lokale Commits.
+
+          ZEITLIMIT: Soft-Deadline = SOFT_DEADLINE. Vor jedem Schritt: [ $(date +%s) -ge SOFT_DEADLINE ]. Bei OVER: committen was vorliegt, Report schreiben, Turn beenden.
+          CLAUDE_EOF
+
+          sed -i "s/SYNC_DATE/$(date -u +%F)/g" /tmp/claude-prompt.txt
+          sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
+
+          ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
+            ${{ steps.setup.outputs.invoke-args }} \
+            2>&1 | tee /tmp/claude-output.log
+          test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
+
+      - name: Post-Assertion (VERDICT ↔ Commits ↔ Scope) + Push + PR-Pflege
+        # Ehrlichkeits-Kreuzcheck nach dem VERDICT-Muster der Phasen-Workflows: Der Agent
+        # behauptet synced/updated — die Mechanik verifiziert Commits, Datei-Scope und
+        # pampt/pflegt den PR deterministisch (Push/PR ist bewusst KEINE Agent-Aufgabe).
+        if: >-
+          ${{ always()
+              && steps.guard.outputs.skip != 'true'
+              && steps.setup.outputs.configured == 'true'
+              && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure') }}
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          OUTCOME: ${{ steps.claude.outcome }}
+        run: |
+          # Portables VERDICT-Parsen wie in 01 (BSD/GNU-grep-sicher, Markdown-Dekoration strippen).
+          verdict=""
+          if [ -f /tmp/claude-output.log ]; then
+            verdict="$(grep 'VERDICT:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | tr -d -c 'A-Za-z0-9-' || true)"
+          fi
+          echo "Claude-Verdict aus Output: '${verdict:-keins}'"
+
+          if [ "$OUTCOME" != "success" ]; then
+            echo "::error title=❌ Spec-Sync fehlgeschlagen::Claude-Lauf nicht erfolgreich — kein stiller „synced“."
+            exit 1
+          fi
+          if [ "$verdict" != "synced" ] && [ "$verdict" != "updated" ]; then
+            echo "::error title=❌ Spec-Sync ohne Verdict::Weder „synced“ noch „updated“ — Lauf wiederholen."
+            exit 1
+          fi
+
+          count="$(git rev-list --count origin/main..HEAD)"
+          echo "Commits seit origin/main: $count"
+
+          # Scope-Guard: nur docs/spec/ ist erlaubt.
+          bad="$(git diff --name-only origin/main..HEAD | grep -v '^docs/spec/' || true)"
+          if [ -n "$bad" ]; then
+            echo "::error title=❌ Scope verletzt::Änderungen außerhalb docs/spec/: ${bad}"
+            exit 1
+          fi
+
+          # Verdict ↔ Commits konsistent?
+          if [ "$verdict" = "updated" ] && [ "$count" -eq 0 ]; then
+            echo "::error title=❌ Verdict ohne Commits::VERDICT updated, aber kein Commit vorhanden."
+            exit 1
+          fi
+          if [ "$verdict" = "synced" ] && [ "$count" -gt 0 ]; then
+            echo "::error title=❌ Commits ohne Verdict::VERDICT synced, aber Commits vorhanden."
+            exit 1
+          fi
+
+          if [ "$count" -eq 0 ]; then
+            echo "::notice title=✅ Spec am Ist-Stand::Keine Drift gefunden — kein Push, kein PR."
+            exit 0
+          fi
+
+          # Report Fallback: fehlt/leer der Agent-Report, ersetzt git log den PR-Body (laut Warning).
+          if [ ! -s /tmp/spec-sync-report.md ]; then
+            echo "::warning title=⚠️ Report fehlt::/tmp/spec-sync-report.md fehlt — Fallback-Body aus git log."
+            {
+              echo "## Spec-Sync $(date -u +%F)"
+              echo ""
+              echo "_Agent-Report fehlt — Fallback aus der Commit-Historie._"
+              echo ""
+              git log origin/main..HEAD --oneline --stat
+            } > /tmp/spec-sync-report.md
+          fi
+
+          git push --force origin chore/spec-sync
+
+          title="docs(spec): Ist-Stand-Sync $(date -u +%F)"
+          pr_number="$(gh pr list --repo "$GITHUB_REPOSITORY" --head chore/spec-sync --state open \
+            --json number --jq '.[0].number // empty' 2>/dev/null || true)"
+          if [ -n "$pr_number" ]; then
+            gh pr edit "$pr_number" --repo "$GITHUB_REPOSITORY" --title "$title" --body-file /tmp/spec-sync-report.md
+            echo "::notice title=✅ Sync-PR aktualisiert::#$pr_number zeigt die Drift von heute."
+          else
+            gh pr create --repo "$GITHUB_REPOSITORY" --head chore/spec-sync --base main \
+              --title "$title" --body-file /tmp/spec-sync-report.md
+            echo "::notice title=✅ Sync-PR erstellt::chore/spec-sync liegt zum Merge bereit."
+          fi
+
+      - name: Ergebnis zusammenfassen
+        if: ${{ always() && steps.guard.outputs.skip != 'true' && steps.setup.outputs.configured == 'true' }}
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          OUTCOME: ${{ steps.claude.outcome }}
+        run: |
+          count="$(git rev-list --count origin/main..HEAD 2>/dev/null || echo 0)"
+          pr_number="$(gh pr list --repo "$GITHUB_REPOSITORY" --head chore/spec-sync --state open \
+            --json number --jq '.[0].number // empty' 2>/dev/null || true)"
+          {
+            echo "### Spec-Sync – fertig"
+            echo ""
+            echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\`"
+            echo "- Commits: ${count}"
+            echo "- Offener Sync-PR: ${pr_number:-keiner}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 🩺 Z.AI Fair-Usage-Check (1313)
+        # Rohausgabe des Claude-Laufs auf z.ai-Fehler 1313 (Fair Usage) durchsuchen
+        # und Ergebnis als Annotation + Job-Summary sichtbar machen.
+        if: always()
+        uses: ./.github/actions/llm-fair-usage-check
