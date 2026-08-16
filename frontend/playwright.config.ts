@@ -47,7 +47,7 @@ export default defineConfig({
 		// `/tasks` (liefert HTTP 200 mit leerer Liste); die Wurzel `/` hätte keine Route und damit
 		// einen 404, den Playwright nicht als „bereit" wertet.
 		{
-			command: 'pnpm --filter priority-pilot dev',
+			command: 'pnpm --filter server dev',
 			url: `http://localhost:${BACKEND_PORT}/tasks`,
 			env: {
 				PORT: String(BACKEND_PORT),
