@@ -47,9 +47,9 @@ Ganz oben findest du die **Kopf-Aktionen** (als Icon-Buttons):
 
 Rechts daneben stehen dein Profilbild und dein Name.
 
-Auf dem **Smartphone** bleibt die Kopfzeile einzeilig: Dort stehen nur das Logo und **Neuen Task
-anlegen** direkt in der Leiste. Die übrigen Aktionen (Säulen-Berater, Einstellungen, Hilfe, Abmelden)
-sowie dein Profilbild und Name findest du hinter dem **⋮-Menü** („Mein Konto") am rechten Rand.
+Die Kopfzeile ist auf allen Bildschirmgrößen einheitlich: Alle fünf Kopf-Aktionen stehen direkt
+als Icon-Buttons in der Leiste – ein zusätzliche Menüpunkt gibt es nicht. Rechts daneben
+finden sich dein Profilbild und dein Name.
 
 Darunter wechselst du über eine **Tab-Leiste** zwischen den vier Hauptansichten:
 
@@ -87,8 +87,10 @@ begrüßt es dich mit **„Hallo {Name}!"**. Von oben nach unten:
 
 ## Aufgaben verwalten
 
-Im Tab **Aufgaben** stehen deine Aufgaben als aufklappbare **Baumliste**. Aufgaben
-mit Unteraufgaben zeigen einen Aufklapp-Pfeil (standardmäßig eingeklappt).
+Im Tab **Aufgaben** stehen deine Aufgaben als **Liste der ausführbaren Aufgaben** (ohne
+Oberaufgaben). Das sind genau die Aufgaben, deren alle Vorgänger erledigt sind – die Aufgaben,
+die du jetzt tatsächlich erledigen kannst. Den Überblick über den gesamten Aufgabenbaum
+mit Oberaufgaben, Abhängigkeiten und dem Aufgabenwald findest du im Tab **Aufgabenwald**.
 
 Oben im Tab findest du zwei Bedienelemente:
 
@@ -153,6 +155,12 @@ Im selben Dialog erscheint das Aufgabenformular. Felder:
 - **Deadline (optional)** – Fälligkeitsdatum. Es zählt der reine Kalendertag,
   unabhängig von der Zeitzone.
 - **Beschreibung (optional)** – weiterer Kontext.
+- **Checkliste (optional)** – zerlege die Aufgabe in abhakbare Teilschritte.
+- **Automatisches Löschen (optional)** – bei verpasster Deadline die Aufgabe nach 3 Tagen
+  automatisch löschen (nur wenn eine Deadline gesetzt ist).
+- **Lektorat** – über einen Button neben Titel und Beschreibung kannst du die KI bitten,
+  den Text zu verbessern (Kürzung, smoothing, Rechtschreibung). Ein Diff-Dialog zeigt den
+  Vergleich; du entscheidest, ob du den Vorschlag übernimmst.
 - **Säulen (optional)** – auf welche Lebensbereiche die Aufgabe einzahlt
   (siehe „Lebensbalance-Säulen").
 
@@ -306,7 +314,7 @@ Dein Gesamtstand und die Aufteilung je Säule erscheinen im Dashboard unter
 
 ## Einstellungen
 
-Über das **Zahnrad** in der Kopfzeile öffnest du die Einstellungen mit zwei Bereichen:
+Über das **Zahnrad** in der Kopfzeile öffnest du die Einstellungen mit drei Bereichen:
 
 ### Allgemein
 
@@ -320,6 +328,13 @@ Dein Gesamtstand und die Aufteilung je Säule erscheinen im Dashboard unter
 ### Säulen
 
 Der Editor für die **Säulen-Gewichtung** (siehe „Lebensbalance-Säulen").
+
+### LLM
+
+Konfiguration der KI-Provider (Mistral, OpenRouter). Hier gibst du die API-Keys und
+das gewünschte Modell ein – diese Einstellung ist serverseitig und gilt für alle Nutzer.
+Ohne konfigurierten Provider bleiben die KI-Funktionen (Schnellerfassung, Säulen-Vorschlag,
+Säulen-Berater, Lektorat) ausgegraut.
 
 ---
 
