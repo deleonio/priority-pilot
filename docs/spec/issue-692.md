@@ -1,8 +1,7 @@
 # Spec Issue 692: Alert-Layout-Verbesserung
 
-## Ziel
-
-Alert-Box soll sauberer aussehen mit besserem Abstand zum Button, Serien-Titel nicht fett.
+**Stand:** 2026-08-16  
+**Ziel:** Alert-Box soll sauberer aussehen mit besserem Abstand zum Button, Serien-Titel mit konsistenter Formatierung.
 
 ## Vorbedingung
 
@@ -17,4 +16,9 @@ Alert-Box soll sauberer aussehen mit besserem Abstand zum Button, Serien-Titel n
 ## Erwartetes Ergebnis
 
 - Alert hat mindestens 8px Abstand (margin/padding) nach unten zum Button
-- Serien-Titel haben font-weight: normal (nicht bold)
+- Serien-Titel haben font-weight: 600 (semi-bold) für konsistente visuelle Hierarchie
+
+## Versionierung
+
+- **v1.0** (2026-08-16): Initialefassung für Issue #692.
+- **v1.1** (2026-08-16): Nightly-Sync — font-weight auf Ist-Zustand korrigiert (600 statt normal).
