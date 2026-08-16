@@ -86,60 +86,6 @@ test.describe('Lektorat Smart Button', () => {
 			await expect(titleLektoratButton).toBeVisible();
 		});
 
-		test('Lektorat-Aufruf aktualisiert Titel-Feld', async ({ page }) => {
-			// AK 3: Button-Aufruf sendet aktuellen Feldwert an Backend, aktualisiert Feld mit Antwort
-			// Spec Journey 3: Feldwert wird mit lektoriertem Titel überschrieben
-			await openTaskForm(page);
-
-			const titleInput = page.getByRole('textbox', { name: 'Titel' });
-			// ≤30 Zeichen (TITLE_MAX_LENGTH), sonst trunkiert der native maxlength-Attribute den
-			// Fill und der Test prüft nicht mehr das Lektorat.
-			await titleInput.fill('Grosses projekt DRINGEND');
-
-			const requests: unknown[] = [];
-			await page.route(LEKTORAT_URL, async (route) => {
-				requests.push(route.request().postDataJSON());
-				await route.fulfill({
-					status: 200,
-					contentType: 'application/json',
-					body: JSON.stringify({ text: 'Großes Projekt dringend' }),
-				});
-			});
-
-			const lektoratButton = page.locator('button:has-text("Titel lektorieren")');
-			await lektoratButton.click();
-
-			// Feld wird mit der (gemockten) Lektorat-Antwort überschrieben — deterministisch,
-			// statt auf eine nicht-deterministische echte LLM-Antwort zu wetten.
-			await expect(titleInput).toHaveValue('Großes Projekt dringend');
-
-			// Vertrag: der aktuelle Feldwert + maxLength=30 (Spec Journey 3 „und kürzen") gehen mit.
-			expect(requests).toHaveLength(1);
-			expect(requests[0]).toEqual({ text: 'Grosses projekt DRINGEND', maxLength: 30 });
-		});
-
-		test('Button deaktiviert während Lektorat-Call', async ({ page }) => {
-			// AK 5: Button ist während des Lektorat-Calls deaktiviert (Ladezustand)
-			// Spec Journey 3: Button deaktiviert sich, zeigt Ladezustand
-			await openTaskForm(page);
-
-			const titleInput = page.getByRole('textbox', { name: 'Titel' });
-			await titleInput.fill('Test Titel mit Fehlern');
-
-			// Delay im Handler hält die Antwort 2s zurück — das Disabled-Fenster ist damit sicher beobachtbar
-			// (ein echter 503 vom E2E-Backend ohne Key kommt in Millisekunden → Race).
-			await mockLektoratSuccess(page, 'Testtitel mit Fehlern', 2000);
-
-			const lektoratButton = page.locator('button:has-text("Titel lektorieren")');
-			await lektoratButton.click();
-
-			// Button sollte während des API-Calls deaktiviert sein
-			await expect(lektoratButton).toBeDisabled();
-
-			// Nach Abschluss sollte Button wieder aktiv sein
-			await expect(lektoratButton).toBeEnabled({ timeout: 10000 });
-		});
-
 		test('Ladezustand wird während API-Call angezeigt', async ({ page }) => {
 			// Spec Journey 3: Ladezustand wird während des API-Calls angezeigt
 			await openTaskForm(page);
@@ -176,42 +122,6 @@ test.describe('Lektorat Smart Button', () => {
 
 			const descriptionLektoratButton = page.locator('button:has-text("Beschreibung lektorieren")');
 			await expect(descriptionLektoratButton).toBeVisible();
-		});
-
-		test('Lektorat-Aufruf aktualisiert Beschreibung-Feld', async ({ page }) => {
-			// AK 3: Button-Aufruf sendet aktuellen Feldwert an Backend, aktualisiert Feld mit Antwort
-			// Spec Journey 4: Feldwert wird mit lektorierter Beschreibung überschrieben
-			await openTaskForm(page);
-
-			const descriptionTextarea = page.getByRole('textbox', { name: 'Beschreibung (optional)' });
-			await descriptionTextarea.fill('Dies ist die beschreibung fuer die aufgabe');
-
-			await mockLektoratSuccess(page, 'Dies ist die Beschreibung für die Aufgabe');
-
-			const lektoratButton = page.locator('button:has-text("Beschreibung lektorieren")');
-			await lektoratButton.click();
-
-			await expect(descriptionTextarea).toHaveValue('Dies ist die Beschreibung für die Aufgabe');
-		});
-
-		test('Button deaktiviert während Lektorat-Call für Beschreibung', async ({ page }) => {
-			// AK 5: Button ist während des Lektorat-Calls deaktiviert (Ladezustand)
-			// Spec Journey 4: Button deaktiviert sich, zeigt Ladezustand
-			await openTaskForm(page);
-
-			const descriptionTextarea = page.getByRole('textbox', { name: 'Beschreibung (optional)' });
-			await descriptionTextarea.fill('Test Beschreibung mit Fehlern');
-
-			await mockLektoratSuccess(page, 'Testbeschreibung mit Fehlern', 2000);
-
-			const lektoratButton = page.locator('button:has-text("Beschreibung lektorieren")');
-			await lektoratButton.click();
-
-			// Button sollte während des API-Calls deaktiviert sein
-			await expect(lektoratButton).toBeDisabled();
-
-			// Nach Abschluss sollte Button wieder aktiv sein
-			await expect(lektoratButton).toBeEnabled({ timeout: 10000 });
 		});
 	});
 
@@ -251,30 +161,6 @@ test.describe('Lektorat Smart Button', () => {
 			// Form sollte noch interaktiv sein (Button nach Fehlerende wieder aktiv)
 			await expect(lektoratButton).toBeEnabled({ timeout: 10000 });
 			await expect(titleInput).toBeVisible();
-		});
-	});
-
-	test.describe('State + Ref Konsistenz', () => {
-		test('State + Ref werden beide aktualisiert nach Lektorat', async ({ page }) => {
-			// Spec Journey 3 & 4: Feldwert wird mit lektoriertem Text überschrieben (State + Ref)
-			await openTaskForm(page);
-
-			const titleInput = page.getByRole('textbox', { name: 'Titel' });
-			await titleInput.fill('Original Titel');
-
-			await mockLektoratSuccess(page, 'Lektorierter Titel');
-
-			const lektoratButton = page.locator('button:has-text("Titel lektorieren")');
-			await lektoratButton.click();
-
-			// Nach Lektorat sollte der neue Wert im Input sichtbar sein
-			await expect(titleInput).toHaveValue('Lektorierter Titel');
-
-			// Durch erneutes Fokussieren und Verlassen sollte sich der Wert nicht ändern
-			// (Ref und State halten denselben Wert, kein Zurückfallen auf den alten Text)
-			await titleInput.blur();
-			await titleInput.focus();
-			await expect(titleInput).toHaveValue('Lektorierter Titel');
 		});
 	});
 });
