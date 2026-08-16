@@ -1,8 +1,8 @@
 import type { Page, Route } from '@playwright/test';
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 /**
- * Rote Spec-Tests (#742) für Free Models Selection im Frontend.
+ * Spec-Tests (#742) für Free Models Selection im Frontend.
  *
  * Spec: docs/spec/issue-742.md
  * AK 1 — Free Models Liste wird angezeigt
@@ -12,10 +12,19 @@ import { expect, test } from '@playwright/test';
  *
  * Warum E2E: Feature-Verhalten im UI ist nur im Browser testbar.
  * Die Model-Selection ist ein reines Frontend-Feature.
+ *
+ * Test-Infra (bei der Umsetzung korrigiert, fachlicher Vertrag unverändert):
+ * - Import aus './fixtures': Die Auth-Gate (Root.tsx) zeigt ohne authentifiziertes
+ *   `GET /auth/me` die Login-Seite — die Fixture mockt sie standardmäßig durchlässig
+ *   (Muster: settings-llm.spec.ts). Ohne sie wäre der Dashboard-Button nie sichtbar.
+ * - Mock-Pfad mit /api/v1-Präfix: Der generierte Client ruft alle Endpoints unter
+ *   `/api/v1/…` auf (frontend/src/api.ts baseUrl; Vite-Proxy stript das Präfix). Ein
+ *   Mock ohne das Präfix träfe die Anfrage nie — sie fiele durch auf den echten
+ *   Backend-/OpenRouter-Call und wäre nichtdeterministisch.
  */
 
 const mockFreeModelsResponse = async (page: Page): Promise<void> => {
-	await page.route('**/api/models/free', (route: Route) =>
+	await page.route('**/api/v1/models/free', (route: Route) =>
 		route.fulfill({
 			status: 200,
 			contentType: 'application/json',
@@ -85,7 +94,7 @@ test('Spec-Bezug: Free Models Liste ist nicht hartcodiert', async ({ page }) => 
 	await page.click('[data-testid="close-model-selection"]');
 
 	// Route mit anderen Modellen überschreiben
-	await page.route('**/api/models/free', (route: Route) =>
+	await page.route('**/api/v1/models/free', (route: Route) =>
 		route.fulfill({
 			status: 200,
 			contentType: 'application/json',

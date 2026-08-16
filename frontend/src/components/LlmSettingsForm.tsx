@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { readString } from '../lib/inputValue';
+import { ModelSelectionDialog } from './ModelSelectionDialog';
 
 /**
  * Formular des Settings-Tabs „LLM" (#640): Status der Mistral/OpenRouter-Kaskade lesen
@@ -28,6 +29,9 @@ export const LlmSettingsForm = () => {
 	const [error, setError] = useState<string | null>(null);
 	const [saved, setSaved] = useState(false);
 	const [saving, setSaving] = useState(false);
+	// Auswahl-Dialog für die aktuellen OpenRouter-Free-Modelle (#742) — schließt das Freitext-Feld
+	// nicht aus, sondern ergänzt es: Wer will, tippt weiter beliebige (auch bezahlte) Modell-IDs.
+	const [modelDialogOpen, setModelDialogOpen] = useState(false);
 
 	// Persistierten Stand einmalig laden; der Abbruch-Controller verhindert ein setState nach Unmount.
 	useEffect(() => {
@@ -169,6 +173,23 @@ export const LlmSettingsForm = () => {
 						onChange: (_event, value) => setModel(readString(value)),
 					}}
 				/>
+				<KolButton
+					_label="Free-Modelle auswählen…"
+					_variant="secondary"
+					_disabled={saving}
+					_on={{ onClick: () => setModelDialogOpen(true) }}
+				/>
+				{modelDialogOpen && (
+					<ModelSelectionDialog
+						onClose={() => setModelDialogOpen(false)}
+						// Der Dialog speichert seine Auswahl selbst (PUT /llm-config); hier wird nur der
+						// angezeigte Status nachgezogen — derselbe Zustand, den auch persist() setzt.
+						onModelSaved={(newStatus) => {
+							setStatus(newStatus);
+							setModel(newStatus.openrouterModel);
+						}}
+					/>
+				)}
 				{/*
 				 * Rücksetzen nur anbieten, wenn ein vom Anzeige-Default abweichendes Modell persistiert ist —
 				 * genau dann verdeckt der DB-Wert ein gesetztes `OPENROUTER_MODEL`. Ohne DB-Zeile liefert

@@ -1,7 +1,8 @@
-import { KolBadge, KolCard, KolMeter } from '@public-ui/react-v19';
+import { KolBadge, KolButton, KolCard, KolMeter } from '@public-ui/react-v19';
 import type { Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { ModelSelectionDialog } from './ModelSelectionDialog';
 import { collectTaskValues } from '../lib/forest';
 import { buildPillarSummaries, calculateMeterThreshold, calculateMeterHighThreshold } from '../lib/pillar';
 import { buildPillarBalances } from '../lib/score';
@@ -18,6 +19,9 @@ const URGENCY_COLOR: Record<Exclude<DeadlineUrgency, 'later'>, string> = {
 	overdue: '#b42318',
 	soon: '#b54708',
 };
+
+// Modulkonstante für ein stabiles Icon-Objekt (Muster: App.tsx) — identitätsstabil über Renders.
+const MODEL_ICON = { left: { icon: 'fa-solid fa-microchip' } };
 
 interface DashboardProps {
 	tasks: Task[];
@@ -70,6 +74,9 @@ const hasDeadline = (task: Task): task is TaskWithDeadline =>
  */
 export const Dashboard = ({ tasks, forest, nextTask, suggestions = [], pillars, displayName = '' }: DashboardProps) => {
 	const greeting = displayName.trim();
+	// Auswahl der aktuellen OpenRouter-Free-Modelle (#742). Der Dialog lädt seine Daten selbst
+	// (bei jedem Öffnen frisch) — das Dashboard bleibt eine reine Ableitung der übergebenen Daten.
+	const [modelDialogOpen, setModelDialogOpen] = useState(false);
 	const cards = useMemo<StatCard[]>(() => {
 		let openCount = 0;
 		let doneCount = 0;
@@ -129,7 +136,17 @@ export const Dashboard = ({ tasks, forest, nextTask, suggestions = [], pillars, 
 
 	return (
 		<section className="dashboard">
-			<h2>Dashboard</h2>
+			<div className="dashboard-heading">
+				<h2>Dashboard</h2>
+				<KolButton
+					data-testid="model-selection-button"
+					_label="KI-Modell auswählen"
+					_hideLabel
+					_icons={MODEL_ICON}
+					_variant="secondary"
+					_on={{ onClick: () => setModelDialogOpen(true) }}
+				/>
+			</div>
 			{greeting !== '' && <p className="dashboard-greeting">Hallo {greeting}!</p>}
 			<ul className="dashboard-cards">
 				{cards.map((card) => (
@@ -279,6 +296,8 @@ export const Dashboard = ({ tasks, forest, nextTask, suggestions = [], pillars, 
 					</ul>
 				)}
 			</section>
+
+			{modelDialogOpen && <ModelSelectionDialog onClose={() => setModelDialogOpen(false)} />}
 		</section>
 	);
 };

@@ -4,6 +4,7 @@ import type {
 	ActivityAdvisorResult,
 	components,
 	DependencyInput,
+	FreeModels,
 	LlmConfigInput,
 	LlmConfigStatus,
 	ParsedTask,
@@ -429,6 +430,17 @@ export const api = {
 	// ausgefüllte Felder überschreiben den DB-Stand. Liefert den neuen Status (ohne Key-Werte).
 	async setLlmConfig({ llmConfig }: { llmConfig: LlmConfigInput }): Promise<LlmConfigStatus> {
 		const { data, response } = await client.PUT('/llm-config', { body: llmConfig });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response);
+		}
+		return data;
+	},
+
+	// Aktuelle kostenlose OpenRouter-Modelle (#742) für die Auswahl im Frontend. Die Liste kommt
+	// dynamisch vom Server (TTL-gecachter OpenRouter-Proxy) — der Client cached bewusst nicht,
+	// damit jeder Dialog-Öffnungsvorgang den aktuellen Stand zeigt.
+	async getFreeModels(init: Init = {}): Promise<FreeModels> {
+		const { data, response } = await client.GET('/models/free', { signal: init.signal });
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response);
 		}
