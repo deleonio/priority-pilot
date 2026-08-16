@@ -11,7 +11,7 @@ import { expect, test } from '@playwright/test';
  */
 
 /** Antwortet auf `GET /auth/me` mit 200 + einem konkreten User (Name + E-Mail). */
-const mockMe = async (page: Page, user: { id: number; name: string; email: string }): Promise<void> => {
+const mockMe = async (page: Page, user: { id: number; displayName: string; email: string }): Promise<void> => {
 	await page.route('**/auth/me', (route: Route) =>
 		route.fulfill({
 			status: 200,
@@ -39,7 +39,7 @@ test.describe('Priority Pilot — User Info Display (#192)', () => {
 	// gleichzeitig erfüllbar — #222 hat Vorrang, AK3a entfällt ersatzlos.
 
 	test('AK3b: Name aus /auth/me ist im Header/Navigation sichtbar', async ({ page }) => {
-		await mockMe(page, { id: 1, name: 'Max Mustermann', email: 'max@example.com' });
+		await mockMe(page, { id: 1, displayName: 'Max Mustermann', email: 'max@example.com' });
 		await page.goto('/');
 
 		await expect(page.getByText('Max Mustermann')).toBeVisible();

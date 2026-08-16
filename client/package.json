@@ -8,7 +8,7 @@
 	"scripts": {
 		"format": "prettier . --check",
 		"generate": "openapi-typescript ../openapi.yml -o src/schema.d.ts",
-		"knip": "knip",
+		"knip": "knip --config knip.jsonc",
 		"prepare": "pnpm generate"
 	},
 	"devDependencies": {
