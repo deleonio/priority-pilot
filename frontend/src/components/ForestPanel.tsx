@@ -21,8 +21,12 @@ const TreeNode = ({ node, visited = new Set<number>() }: { node: TaskTreeNode; v
 		return null;
 	}
 	const nextVisited = new Set(visited).add(node.id);
+	// Tiefe = Anzahl der Vorgänger im Pfad (0 für Wurzel, 1+ für Kinder)
+	const depth = visited.size;
+	// Indentation: 24px pro Ebene (im 16-48px Spektrum, mittig für gute Lesbarkeit)
+	const indent = depth * 24;
 	return (
-		<li>
+		<li data-testid={`forest-node-${node.id}`} style={{ marginLeft: `${indent}px` }}>
 			<span className="tree-node-label">
 				#{node.id} – {node.title}
 			</span>

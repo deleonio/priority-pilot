@@ -9,6 +9,11 @@ const rootPkg = JSON.parse(readFileSync(resolve(__dirname, '../package.json'), '
 	version: string;
 };
 
+// Ziel des Dev-Proxys. Default ist der reguläre Backend-Port (`pnpm dev`, E2E-Suite); über
+// `API_PROXY_TARGET` schiebt ihn das Browser-MCP-Inspect-Setup auf seinen eigenen Backend-Port,
+// damit es neben `pnpm dev` und `test:e2e` kollisionsfrei laufen kann (siehe docs/browser-mcp.md).
+const apiTarget = process.env.API_PROXY_TARGET ?? 'http://localhost:3000';
+
 // Der Dev-Proxy leitet alle /api/v1/*-, /api/transit/*- und /auth/*-Anfragen an den
 // Express-Server (http://localhost:3000) weiter. CORS wird damit im Browser ohne
 // Server-Änderung gelöst. /api/v1/* streift das Präfix ab (Server-Routen liegen direkt
@@ -16,16 +21,16 @@ const rootPkg = JSON.parse(readFileSync(resolve(__dirname, '../package.json'), '
 // spiegelt den Caddy-handle-Block für den OAuth-Login-Flow (siehe docs/caddy-setup.md).
 const apiProxy = {
 	'/api/v1': {
-		target: 'http://localhost:3000',
+		target: apiTarget,
 		changeOrigin: true,
 		rewrite: (path: string) => path.replace(/^\/api\/v1/, ''),
 	},
 	'/api/transit': {
-		target: 'http://localhost:3000',
+		target: apiTarget,
 		changeOrigin: true,
 	},
 	'/auth': {
-		target: 'http://localhost:3000',
+		target: apiTarget,
 		changeOrigin: true,
 	},
 };

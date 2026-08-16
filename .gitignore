@@ -18,6 +18,9 @@ backups/
 # Redis-Dump (Test-Artefakt beim lokalen Session-Store, kein Repo-Inhalt).
 dump.rdb
 
+# Screenshots/Traces des Playwright-MCP-Servers (siehe docs/browser-mcp.md).
+.playwright-mcp/
+
 # Deploy-/SSH-Schlüssel dürfen NIEMALS committet werden (privater Schlüssel = Secret).
 gh_deploy
 gh_deploy.pub

@@ -1,6 +1,6 @@
 {
 	"autoMemoryDirectory": ".claude/memory",
-	"enabledMcpjsonServers": ["kolibri-mcp"],
+	"enabledMcpjsonServers": ["kolibri-mcp", "playwright"],
 	"env": {
 		"API_TIMEOUT_MS": "600000",
 		"BASH_MAX_OUTPUT_LENGTH": "20000",
