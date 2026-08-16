@@ -237,18 +237,31 @@ body {
 }
 
 /* --- Dashboard --- */
+
+/* Personalisierte Begrüßung zwischen H2 und Kennzahlen-Kacheln. */
+.dashboard-greeting {
+	margin: 0.25rem 0 0;
+	font-size: 1.125rem;
+	font-weight: 600;
+}
+
+/*
+ * Kennzahlen-Kacheln: auf Handy-Breite kompaktes 3er-Raster (Gesamt/Offen/Erledigt) statt
+ * 2+1-Versatz (auto-fit mit 10rem-Mindestbreite passt erst ab Tablet). Ab 48rem übernimmt dort
+ * wieder das auto-fit-Raster mit größeren Zahlen.
+ */
 .dashboard-cards {
 	list-style: none;
 	margin: 0.5rem 0 0;
 	padding: 0;
 	display: grid;
-	gap: 1rem;
-	grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+	gap: 0.5rem;
+	grid-template-columns: repeat(3, 1fr);
 }
 
 /* Rahmen, Hintergrund und Padding liefert jetzt `KolCard`; der Count bleibt der prominente Inhalt. */
 .dashboard-card-count {
-	font-size: 2rem;
+	font-size: 1.5rem;
 	font-weight: 700;
 	line-height: 1;
 }
@@ -296,6 +309,57 @@ body {
 
 .dashboard-next-task-value {
 	font-size: 1.125rem;
+}
+
+/*
+ * „Was ist jetzt dran?": gleiche Panel-Gestaltung wie „Nächste Aufgabe" — die beiden
+ * Handlungs-Widgets heben sich so gemeinsam von den reinen Übersichts-Listen ab.
+ */
+.dashboard-suggestions {
+	margin-top: 1.5rem;
+	padding: 1rem 1.25rem;
+	border: 1px solid var(--pp-border);
+	border-radius: 0.5rem;
+	background: var(--pp-bg-muted);
+}
+
+.dashboard-suggestions h3 {
+	margin: 0 0 0.5rem;
+}
+
+/* Rang-Zahl als eigener Counter (statt Browser-Default-Nummerierung mit Einrückung). */
+.dashboard-suggestions-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	counter-reset: dashboard-suggestion;
+}
+
+.dashboard-suggestion {
+	display: flex;
+	flex-direction: column;
+	gap: 0.125rem;
+	padding: 0.5rem 0;
+	border-bottom: 1px solid var(--pp-border);
+}
+
+.dashboard-suggestion:last-child {
+	border-bottom: none;
+}
+
+.dashboard-suggestion-title {
+	font-weight: 600;
+	counter-increment: dashboard-suggestion;
+}
+
+.dashboard-suggestion-title::before {
+	content: counter(dashboard-suggestion) '. ';
+	color: var(--pp-text-muted);
+}
+
+.dashboard-suggestion-meta {
+	color: var(--pp-text-muted);
+	font-size: 0.875rem;
 }
 
 .dashboard-top-tasks {
@@ -346,8 +410,8 @@ body {
 	flex-shrink: 0;
 }
 
-/* Ab mittlerer Breite zweispaltig: „Nächste Aufgabe" bleibt prominent über die volle Breite,
-   „Wichtigste Tasks" und „Anstehende Deadlines" stehen nebeneinander. */
+/* Ab mittlerer Breite zweispaltig: „Nächste Aufgabe" und „Was ist jetzt dran?" bleiben prominent
+   über die volle Breite, „Wichtigste Tasks" und „Anstehende Deadlines" stehen nebeneinander. */
 @media (min-width: 48rem) {
 	.dashboard {
 		display: grid;
@@ -362,9 +426,21 @@ body {
 	}
 
 	.dashboard h2,
+	.dashboard-greeting,
 	.dashboard-cards,
-	.dashboard-next-task {
+	.dashboard-next-task,
+	.dashboard-suggestions {
 		grid-column: 1 / -1;
+	}
+
+	/* Ab Tablet wieder das großzügigere Kachel-Raster mit größeren Zahlen. */
+	.dashboard-cards {
+		gap: 1rem;
+		grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+	}
+
+	.dashboard-card-count {
+		font-size: 2rem;
 	}
 }
 
@@ -374,13 +450,15 @@ body {
 }
 
 .dashboard-top-task {
+	display: flex;
+	flex-direction: column;
+	gap: 0.125rem;
 	margin: 0.25rem 0;
 }
 
 .dashboard-top-task-meta {
 	color: var(--pp-text-muted);
 	font-size: 0.875rem;
-	margin-left: 0.5rem;
 }
 
 .dashboard-pillars {
@@ -418,6 +496,52 @@ body {
 	font-size: 0.875rem;
 	overflow-wrap: break-word;
 	word-break: break-word;
+}
+
+/* Gesamtguthaben: prominente Punktzahl, darunter je Säule eine Zeile mit Wert rechtsbündig —
+   gleiches Zeilenmuster wie Meine Themen/Deadlines (Border-getrennte Listenzeilen). */
+.dashboard-balance {
+	margin-top: 1.5rem;
+}
+
+.dashboard-balance h3 {
+	margin: 0 0 0.5rem;
+}
+
+.dashboard-balance-total {
+	margin: 0 0 0.5rem;
+	font-size: 1.5rem;
+	font-weight: 700;
+	line-height: 1.2;
+}
+
+.dashboard-balance-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.dashboard-balance-row {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: 0.75rem;
+	padding: 0.375rem 0;
+	border-bottom: 1px solid var(--pp-border);
+}
+
+.dashboard-balance-row:last-child {
+	border-bottom: none;
+}
+
+.dashboard-balance-name {
+	overflow-wrap: anywhere;
+}
+
+.dashboard-balance-value {
+	flex-shrink: 0;
+	color: var(--pp-text-muted);
+	font-variant-numeric: tabular-nums;
 }
 
 /* --- Aufgabenwald --- */

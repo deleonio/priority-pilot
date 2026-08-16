@@ -244,7 +244,10 @@ export const Dashboard = ({ tasks, forest, nextTask, suggestions = [], pillars, 
 						<ul className="dashboard-balance-list" data-testid="balance-pillar-list">
 							{pillarBalances.map(({ pillar, punkte, anteil }) => (
 								<li key={pillar.id} className="dashboard-balance-row" data-testid="balance-pillar-row">
-									{pillar.name}: {formatNumber(punkte)} ({Math.round(anteil * 100)} %)
+									<span className="dashboard-balance-name">{pillar.name}</span>
+									<span className="dashboard-balance-value">
+										{formatNumber(punkte)} Punkte ({Math.round(anteil * 100)} %)
+									</span>
 								</li>
 							))}
 						</ul>
