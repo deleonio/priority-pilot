@@ -17,6 +17,7 @@
 		"knip": "pnpm -r knip",
 		"lint": "pnpm -r lint",
 		"prepare": "lefthook install",
-		"test": "pnpm -r test"
+		"test": "pnpm -r test",
+		"ui:inspect": "./ui-inspect.sh"
 	}
 }
