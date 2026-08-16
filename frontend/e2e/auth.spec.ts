@@ -26,7 +26,7 @@ const mockAuthenticated = async (page: Page): Promise<void> => {
 		route.fulfill({
 			status: 200,
 			contentType: 'application/json',
-			body: JSON.stringify({ id: 1, name: 'Test User', email: 'test@example.com' }),
+			body: JSON.stringify({ id: 1, displayName: 'Test User', email: 'test@example.com' }),
 		}),
 	);
 };

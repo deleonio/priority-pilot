@@ -31,7 +31,7 @@ vi.mock('./api', () => ({
 
 // #192: Standard-`user`-Prop für `App`. Seit dem Refactoring erhält `App` die Benutzerinfo als Prop
 // (von `Root.tsx`, das `checkAuth()` einmalig aufruft) statt selbst `api.getMe()` aufzurufen.
-const testUser = { id: 1, name: 'Test User', email: 'test@example.com', avatarUrl: null };
+const testUser = { id: 1, displayName: 'Test User', email: 'test@example.com', avatarUrl: null };
 
 const sampleTask: Task = {
 	id: 1,
@@ -163,7 +163,7 @@ describe('App — User Info Display (#192)', () => {
 
 	// AK3b: Auch der Name aus der `user`-Prop erscheint im DOM (Header-Anzeige).
 	it('zeigt den per Prop übergebenen Namen an (AK3b)', async () => {
-		render(<App user={{ id: 7, name: 'Max Mustermann', email: 'max@example.com', avatarUrl: null }} />);
+		render(<App user={{ id: 7, displayName: 'Max Mustermann', email: 'max@example.com', avatarUrl: null }} />);
 
 		expect(await screen.findByText(/Max Mustermann/i)).toBeTruthy();
 	});
@@ -175,7 +175,7 @@ describe('App — User Info Display (#192)', () => {
 describe('App — AK-9 localStorage-Cleanup (#208)', () => {
 	it('AK9a: Begrüßung zeigt user.name, nicht den veralteten localStorage-displayName', async () => {
 		localStorage.setItem('displayName', 'AlterName');
-		render(<App user={{ id: 1, name: 'NeuerName', email: 'neu@test.com', avatarUrl: null }} />);
+		render(<App user={{ id: 1, displayName: 'NeuerName', email: 'neu@test.com', avatarUrl: null }} />);
 
 		// Nach dem Cleanup muss user.name in der Begrüßung stehen …
 		await waitFor(() => {
@@ -187,7 +187,7 @@ describe('App — AK-9 localStorage-Cleanup (#208)', () => {
 
 	it('AK9b: displayName aus localStorage beeinflusst die Begrüßung nicht mehr', async () => {
 		localStorage.setItem('displayName', 'StoredUser');
-		const propUser = { id: 2, name: 'PropUser', email: 'prop@test.com', avatarUrl: null };
+		const propUser = { id: 2, displayName: 'PropUser', email: 'prop@test.com', avatarUrl: null };
 		render(<App user={propUser} />);
 
 		// Der aus der user-Prop stammende Name muss in der Begrüßung erscheinen.
@@ -204,7 +204,7 @@ describe('App — AK-9 localStorage-Cleanup (#208)', () => {
 describe('App — Homogenerer Header (#222)', () => {
 	// AK1: E-Mail-Adresse darf im App-Header nicht mehr erscheinen.
 	it('AK1: E-Mail-Adresse ist im App-Header nicht sichtbar', async () => {
-		render(<App user={{ id: 7, name: 'Erika Muster', email: 'erika@test.example.com', avatarUrl: null }} />);
+		render(<App user={{ id: 7, displayName: 'Erika Muster', email: 'erika@test.example.com', avatarUrl: null }} />);
 		// Warten bis die App vollständig geladen ist (Begrüßung erscheint).
 		await waitFor(() => {
 			expect(screen.getByText(/Hallo/i)).toBeTruthy();
@@ -216,7 +216,7 @@ describe('App — Homogenerer Header (#222)', () => {
 	// AK3 (Smoke): KolAvatar muss _label={user.name} tragen, damit das Web Component das
 	// Namenskürzel generieren kann. Bereits implementiert — bleibt als Regressions-Smoke grün.
 	it('AK3 (Smoke): KolAvatar hat _label mit dem Benutzernamen gesetzt', async () => {
-		render(<App user={{ id: 7, name: 'Erika Muster', email: 'erika@test.example.com', avatarUrl: null }} />);
+		render(<App user={{ id: 7, displayName: 'Erika Muster', email: 'erika@test.example.com', avatarUrl: null }} />);
 		await waitFor(() => {
 			expect(screen.getByText(/Hallo/i)).toBeTruthy();
 		});

@@ -9,7 +9,7 @@ import { waitForStableView } from './helpers';
  * Reines Styling/Layout → visuelle Verifikation für AK2 (Avatar-Größe) und AK4 (Light/Dark-Mode)
  * ist im Browser nötig; automatisierte Tests decken nur den strukturell prüfbaren AK1 ab.
  *
- * Fixture (`./fixtures`) mockt `/auth/me` mit { name: 'Test User', email: 'test@example.com' }.
+ * Fixture (`./fixtures`) mockt `/auth/me` mit { displayName: 'Test User', email: 'test@example.com' }.
  *
  * AK2 (Avatar kleiner) und AK4 (Light/Dark konsistent) werden manuell visuell verifiziert;
  * ein Screenshot-Diff-Tool (z. B. Playwright visual comparisons) könnte später ergänzt werden.
