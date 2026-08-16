@@ -73,8 +73,8 @@ test.describe('Lektorat Smart Button', () => {
 			const titleInput = page.getByRole('textbox', { name: 'Titel' });
 			await expect(titleInput).toBeVisible();
 
-			// Smart Button sollte neben dem Titel-Input sichtbar sein
-			const lektoratButton = page.locator('button:has-text("Lektorieren")').first();
+			// Smart Button sollte neben dem Titel-Input sichtbar sein (Icon-only, Name über aria-label)
+			const lektoratButton = page.getByRole('button', { name: 'Titel lektorieren' });
 			await expect(lektoratButton).toBeVisible();
 		});
 
@@ -82,7 +82,7 @@ test.describe('Lektorat Smart Button', () => {
 			// Spec Journey 3: Button-Label "Titel lektorieren" bei Titel-Input
 			await openTaskForm(page);
 
-			const titleLektoratButton = page.locator('button:has-text("Titel lektorieren")');
+			const titleLektoratButton = page.getByRole('button', { name: 'Titel lektorieren' });
 			await expect(titleLektoratButton).toBeVisible();
 		});
 
@@ -95,7 +95,7 @@ test.describe('Lektorat Smart Button', () => {
 
 			await mockLektoratSuccess(page, 'Testtitel', 2000);
 
-			const lektoratButton = page.locator('button:has-text("Titel lektorieren")');
+			const lektoratButton = page.getByRole('button', { name: 'Titel lektorieren' });
 			await lektoratButton.click();
 
 			// Wir prüfen, dass der Button disabled ist (Ladezustand)
@@ -111,8 +111,8 @@ test.describe('Lektorat Smart Button', () => {
 			const descriptionTextarea = page.getByRole('textbox', { name: 'Beschreibung (optional)' });
 			await expect(descriptionTextarea).toBeVisible();
 
-			// Smart Button sollte neben der Beschreibung-Textarea sichtbar sein
-			const lektoratButtons = page.locator('button:has-text("Lektorieren")');
+			// Smart Button sollte neben der Beschreibung-Textarea sichtbar sein (Icon-only, Name über aria-label)
+			const lektoratButtons = page.getByRole('button', { name: /lektorieren$/ });
 			await expect(lektoratButtons).toHaveCount(2); // Einer für Titel, einer für Beschreibung
 		});
 
@@ -120,7 +120,7 @@ test.describe('Lektorat Smart Button', () => {
 			// Spec Journey 4: Button-Label "Beschreibung lektorieren" bei Textarea
 			await openTaskForm(page);
 
-			const descriptionLektoratButton = page.locator('button:has-text("Beschreibung lektorieren")');
+			const descriptionLektoratButton = page.getByRole('button', { name: 'Beschreibung lektorieren' });
 			await expect(descriptionLektoratButton).toBeVisible();
 		});
 	});
@@ -137,7 +137,7 @@ test.describe('Lektorat Smart Button', () => {
 
 			await mockLektoratError(page);
 
-			const lektoratButton = page.locator('button:has-text("Titel lektorieren")');
+			const lektoratButton = page.getByRole('button', { name: 'Titel lektorieren' });
 			await lektoratButton.click();
 
 			await expect(page.getByText(/KI-Dienst.*nicht erreichbar/)).toBeVisible({ timeout: 10000 });
@@ -153,7 +153,7 @@ test.describe('Lektorat Smart Button', () => {
 
 			await mockLektoratError(page);
 
-			const lektoratButton = page.locator('button:has-text("Titel lektorieren")');
+			const lektoratButton = page.getByRole('button', { name: 'Titel lektorieren' });
 			await lektoratButton.click();
 
 			// Seite sollte noch geladen sein, kein Absturz
