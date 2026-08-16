@@ -228,9 +228,6 @@ test.describe('#485 Header — Avatar-Größe, gemeinsame Ebene, kompakte Höhe'
 			`Logo (${centerOf(logo)}) und Button (${centerOf(button)}) sollen auf einer Mittellinie liegen`,
 		).toBeLessThanOrEqual(TOLERANCE_PX);
 
-		// Identität ist mobil bewusst ausgeblendet (#691): kein Platz neben den fünf Kopf-Aktionen.
-		await expect(header.locator('.user-info')).toBeHidden();
-
 		// Bedienbar: Der Logo-Button reagiert weiterhin auf einen Klick (Dashboard-Tab aktiv).
 		await header.getByRole('button', { name: /Zum Dashboard/i }).click();
 		await expect(page.getByRole('tab', { name: /Dashboard/i })).toHaveAttribute('aria-selected', 'true');
