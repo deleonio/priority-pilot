@@ -122,6 +122,7 @@ test.describe('Lektorat Diff-Modal', () => {
 
 		test('Fokus-Management beim Modal-Öffnen', async ({ page }) => {
 			// Spec Journey 1 + UX-Pattern: Striktes Fokus-Management beim Öffnen
+			// Spec Issue 720: Tab-Prüfung gegen Fokus-Gefängnis
 			await openTaskForm(page);
 
 			const titleInput = page.getByRole('textbox', { name: 'Titel' });
@@ -141,10 +142,15 @@ test.describe('Lektorat Diff-Modal', () => {
 			// deshalb Shadow-DOM-tief über Playwrights toBeFocused).
 			const confirmButton = page.getByRole('button', { name: 'Übernehmen' });
 			await expect(confirmButton).toBeFocused();
+
+			// Issue 720: Tab-Taste drücken → Button muss weiterhin fokusiert sein (kein Fokus-Gefängnis)
+			await page.keyboard.press('Tab');
+			await expect(confirmButton).toBeFocused();
 		});
 
 		test('Fokus-Management nach Abbrechen', async ({ page }) => {
 			// Spec Journey 1 + UX-Pattern: Fokus kehrt zum auslösenden Element zurück
+			// Spec Issue 720: Tab-Prüfung gegen Fokus-Gefängnis
 			await openTaskForm(page);
 
 			const titleInput = page.getByRole('textbox', { name: 'Titel' });
@@ -170,6 +176,10 @@ test.describe('Lektorat Diff-Modal', () => {
 			await expect(modal).not.toBeVisible();
 
 			// Fokus kehrt zum Lektorat-Button zurück (Shadow-DOM-tief via toBeFocused)
+			await expect(lektoratButton).toBeFocused();
+
+			// Issue 720: Tab-Taste drücken → Button muss weiterhin fokusiert sein (kein Fokus-Gefängnis)
+			await page.keyboard.press('Tab');
 			await expect(lektoratButton).toBeFocused();
 		});
 	});
