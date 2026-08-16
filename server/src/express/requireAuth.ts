@@ -15,7 +15,7 @@ export const hasGoogleOAuth = (): boolean =>
  * dieses immer). Ohne jegliche Konfiguration bleibt der lokale Entwicklungsmodus offen (Pass-Through),
  * damit reine CRUD-Setups ohne Login weiterlaufen.
  */
-const isAuthActive = (): boolean => hasAllowlist() || hasGoogleOAuth() || !!process.env.SESSION_SECRET?.trim();
+export const isAuthActive = (): boolean => hasAllowlist() || hasGoogleOAuth() || !!process.env.SESSION_SECRET?.trim();
 
 /**
  * Ermittelt die effektive Eigentümer-Id eines Requests aus der Session (Issue #207, AK5).
