@@ -757,6 +757,7 @@ export const TaskForm = ({
 					<KolButton
 						ref={lektoratTitleTriggerRef}
 						_label="Titel lektorieren"
+						_hideLabel
 						_variant="minimal"
 						_disabled={saving || lektoratingTitle || lektoratingDescription || pendingLektorat !== null}
 						_icons={{ left: { icon: 'codex-icon-magic' } }}
@@ -937,6 +938,7 @@ export const TaskForm = ({
 					<KolButton
 						ref={lektoratDescriptionTriggerRef}
 						_label="Beschreibung lektorieren"
+						_hideLabel
 						_variant="minimal"
 						_disabled={saving || lektoratingTitle || lektoratingDescription || pendingLektorat !== null}
 						_icons={{ left: { icon: 'codex-icon-magic' } }}

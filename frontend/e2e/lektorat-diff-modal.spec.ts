@@ -49,7 +49,7 @@ test.describe('Lektorat Diff-Modal', () => {
 
 			await mockLektoratSuccess(page, 'Großes Projekt dringend');
 
-			const lektoratButton = page.locator('button:has-text("Titel lektorieren")');
+			const lektoratButton = page.getByRole('button', { name: 'Titel lektorieren' });
 			await lektoratButton.click();
 
 			// Diff-Modal sollte erscheinen
@@ -72,7 +72,7 @@ test.describe('Lektorat Diff-Modal', () => {
 
 			await mockLektoratSuccess(page, 'Lektorierter Titel');
 
-			const lektoratButton = page.locator('button:has-text("Titel lektorieren")');
+			const lektoratButton = page.getByRole('button', { name: 'Titel lektorieren' });
 			await lektoratButton.click();
 
 			// Diff-Modal sollte erscheinen
@@ -102,7 +102,7 @@ test.describe('Lektorat Diff-Modal', () => {
 
 			await mockLektoratSuccess(page, 'Lektorierter Titel');
 
-			const lektoratButton = page.locator('button:has-text("Titel lektorieren")');
+			const lektoratButton = page.getByRole('button', { name: 'Titel lektorieren' });
 			await lektoratButton.click();
 
 			// Diff-Modal sollte erscheinen
@@ -130,7 +130,7 @@ test.describe('Lektorat Diff-Modal', () => {
 
 			await mockLektoratSuccess(page, 'Lektorierter Test');
 
-			const lektoratButton = page.locator('button:has-text("Titel lektorieren")');
+			const lektoratButton = page.getByRole('button', { name: 'Titel lektorieren' });
 			await lektoratButton.click();
 
 			// Diff-Modal sollte erscheinen
@@ -158,7 +158,7 @@ test.describe('Lektorat Diff-Modal', () => {
 
 			await mockLektoratSuccess(page, 'Lektorierter Test');
 
-			const lektoratButton = page.locator('button:has-text("Titel lektorieren")');
+			const lektoratButton = page.getByRole('button', { name: 'Titel lektorieren' });
 			await lektoratButton.click();
 
 			// Diff-Modal sollte erscheinen
@@ -194,7 +194,7 @@ test.describe('Lektorat Diff-Modal', () => {
 
 			await mockLektoratSuccess(page, 'Dies ist die Beschreibung für die Aufgabe');
 
-			const lektoratButton = page.locator('button:has-text("Beschreibung lektorieren")');
+			const lektoratButton = page.getByRole('button', { name: 'Beschreibung lektorieren' });
 			await lektoratButton.click();
 
 			// Diff-Modal sollte erscheinen
@@ -217,7 +217,7 @@ test.describe('Lektorat Diff-Modal', () => {
 
 			await mockLektoratSuccess(page, 'Lektorierte Beschreibung');
 
-			const lektoratButton = page.locator('button:has-text("Beschreibung lektorieren")');
+			const lektoratButton = page.getByRole('button', { name: 'Beschreibung lektorieren' });
 			await lektoratButton.click();
 
 			// Diff-Modal sollte erscheinen
@@ -247,7 +247,7 @@ test.describe('Lektorat Diff-Modal', () => {
 
 			await mockLektoratSuccess(page, 'Lektorierte Beschreibung');
 
-			const lektoratButton = page.locator('button:has-text("Beschreibung lektorieren")');
+			const lektoratButton = page.getByRole('button', { name: 'Beschreibung lektorieren' });
 			await lektoratButton.click();
 
 			// Diff-Modal sollte erscheinen
@@ -276,7 +276,7 @@ test.describe('Lektorat Diff-Modal', () => {
 
 			await mockLektoratSuccess(page, 'Lektorierter Titel');
 
-			const lektoratButton = page.locator('button:has-text("Titel lektorieren")');
+			const lektoratButton = page.getByRole('button', { name: 'Titel lektorieren' });
 			await lektoratButton.click();
 
 			// Diff-Modal sollte erscheinen
