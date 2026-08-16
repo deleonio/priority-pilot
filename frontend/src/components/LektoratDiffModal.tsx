@@ -2,7 +2,7 @@ import { KolAlert, KolButton } from '@public-ui/react-v19';
 import { useRef, type RefObject } from 'react';
 import { Modal } from './Modal';
 
-export interface LektoratDiffModalProps {
+interface LektoratDiffModalProps {
 	/** Ursprünglicher Text (vor der Lektorat). */
 	original: string;
 	/** Lektorierter Text (vom Server zurückgegeben). */
@@ -29,7 +29,7 @@ export interface LektoratDiffModalProps {
  * Fokus-Management gemäß UX-Pattern (docs/ux-pattern-sequential-confirmation.md):
  * - Beim Öffnen liegt der Fokus auf dem primären Button (Übernehmen)
  * - Beim Abbrechen kehrt der Fokus zum auslösenden Element zurück
- * - ESC und Backdrop verhalten sich wie „Abbrechen"
+ * - ESC verhält sich wie „Abbrechen"
  */
 export const LektoratDiffModal = ({
 	original,

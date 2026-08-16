@@ -771,7 +771,7 @@ export const TaskForm = ({
 						ref={lektoratTitleTriggerRef}
 						_label="Titel lektorieren"
 						_variant="minimal"
-						_disabled={saving || lektoratingTitle || lektoratingDescription}
+						_disabled={saving || lektoratingTitle || lektoratingDescription || pendingLektorat !== null}
 						_icons={{ left: { icon: 'codex-icon-magic' } }}
 						_on={{
 							onClick: () => void runLektorat('title', 30),
@@ -951,7 +951,7 @@ export const TaskForm = ({
 						ref={lektoratDescriptionTriggerRef}
 						_label="Beschreibung lektorieren"
 						_variant="minimal"
-						_disabled={saving || lektoratingTitle || lektoratingDescription}
+						_disabled={saving || lektoratingTitle || lektoratingDescription || pendingLektorat !== null}
 						_icons={{ left: { icon: 'codex-icon-magic' } }}
 						_on={{
 							onClick: () => void runLektorat('description'),

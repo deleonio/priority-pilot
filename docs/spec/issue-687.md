@@ -44,7 +44,7 @@ Titel-Text mit KI lektorieren und Änderungen in einem Modal mit Diff-Anzeige pr
 - Modal zeigt den Diff zwischen Original und lektoriertem Text
 - Abbrechen behält den Original-Text
 - Übernehmen überschreibt das Feld mit dem lektorierten Text
-- Fokus-Management: Beim Öffnen des Modals erhält der primäre Button (Übernehmen) oder Modal-Titel den Fokus
+- Fokus-Management: Beim Öffnen des Modals erhält der „Übernehmen"-Button den Fokus
 - Fokus-Management: Beim Schließen kehrt der Fokus zum Lektorat-Button zurück
 
 ---
@@ -94,13 +94,12 @@ Beschreibungstext mit KI lektorieren und Änderungen in einem Modal mit Diff-Anz
 
 ## Randfälle & Fehler
 
-| Situation                             | Erwartetes Verhalten                                                                 |
-| ------------------------------------- | ------------------------------------------------------------------------------------ |
-| Lektorat-API-Fehler (502, 503)        | Modal wird nicht geöffnet; stattdessen Fehlermeldung wie bisher (AK 4 aus Issue 680) |
-| Leerer Original-Text                  | Lektorat-Button bleibt deaktiviert; Modal wird nicht geöffnet                        |
-| Identischer Text (keine Änderungen)   | Diff-Modal zeigt keine Änderungen; Übernehmen aktiviert but hat keinen Effekt        |
-| ESC-Taste im Modal                    | Modal schließt sich; verhält sich wie „Abbrechen" (keine Änderung)                   |
-| Klick außerhalb des Modals (Backdrop) | Modal schließt sich; verhält sich wie „Abbrechen" (keine Änderung)                   |
+| Situation                           | Erwartetes Verhalten                                                                     |
+| ----------------------------------- | ---------------------------------------------------------------------------------------- |
+| Lektorat-API-Fehler (502, 503)      | Modal wird nicht geöffnet; stattdessen Fehlermeldung wie bisher (AK 4 aus Issue 680)     |
+| Leerer Original-Text                | Fehlermeldung „Bitte zuerst Text eingeben …" wie in Issue 680; Modal wird nicht geöffnet |
+| Identischer Text (keine Änderungen) | Diff-Modal zeigt keine Änderungen; Übernehmen bleibt aktiviert, hat aber keinen Effekt   |
+| ESC-Taste im Modal                  | Modal schließt sich; verhält sich wie „Abbrechen" (keine Änderung)                       |
 
 ---
 
@@ -117,3 +116,4 @@ Dieses Feature orientiert sich an **`docs/ux-pattern-sequential-confirmation.md`
 ## Versionierung
 
 - **v1.0** (2026-08-15): Initialefassung für Issue 687. Zwei Journeys (Titel/Beschreibung) mit Diff-Modal.
+- **v1.1** (2026-08-16): Review-Findings aus PR #688 eingearbeitet: Backdrop-Randfall entfernt (weder das native `<dialog>` noch KolDialog schließen bei Backdrop-Klick; App-weit kein etabliertes Pattern), Fokus präzise auf den „Übernehmen"-Button festgelegt, Leerer-Text-Verhalten an das real existierende Issue-680-Verhalten (Fehlermeldung statt deaktiviertem Button) angeglichen.
