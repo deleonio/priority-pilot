@@ -1,17 +1,15 @@
 import { test, expect } from './fixtures';
 
 /**
- * Rote End-to-End-Spec für #692 — Serien-Alert Layout-Verbesserung.
+ * E2E-Verhaltens-Spec für #692 — Serien-Alert Layout-Verbesserung
+ * (mit PR #693 umgesetzt: `margin-top` auf `.series-actions`, `font-weight: 600` bei
+ * `.series-tree-title` entfernt).
  *
  * Akzeptanzkriterien (aus Issue-Body):
  * 1. Alert-Abstand zum Button vergrößert (CSS margin/padding)
  * 2. Serien-Titel nicht fett (font-weight: normal)
  *
  * Spec: docs/spec/issue-692.md
- *
- * Diese Tests sind rot, solange:
- * - Alert keinen 8px+ Abstand nach unten zum Button hat
- * - Serien-Titel noch font-weight: bold haben
  */
 
 test.describe('Priority Pilot — #692: Serien-Alert Layout-Verbesserung', () => {
@@ -31,6 +29,16 @@ test.describe('Priority Pilot — #692: Serien-Alert Layout-Verbesserung', () =>
 				startDate: '2026-09-07T00:00:00.000Z',
 			},
 		});
+	});
+
+	// Die In-Memory-DB lebt über alle Specs des Backend-Prozesses weiter (ein Worker, kein Neustart
+	// zwischen Testdateien) — die angelegte Serie über die API wieder abräumen, damit nachfolgende
+	// Specs unabhängig von der Ausführungsreihenfolge einen definierten Zustand vorfinden.
+	test.afterEach(async ({ page }) => {
+		const series = (await (await page.request.get('/api/v1/series')).json()) as { id: number }[];
+		for (const entry of series) {
+			await page.request.delete(`/api/v1/series/${entry.id}`);
+		}
 	});
 
 	test('AK1 — Serien-Actions hat mindestens 8px margin-top', async ({ page }) => {
