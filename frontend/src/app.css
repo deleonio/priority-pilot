@@ -1302,8 +1302,22 @@ body {
 	border-radius: 0.375rem;
 }
 
+/* --- #727: Range-Inputs responsiv --- */
+/* Priorität + Aufwand werden bei ≤768px vertikal gestapelt, bei >768px nebeneinander. */
+.range-inputs-row {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+@media (min-width: 769px) {
+	.range-inputs-row {
+		flex-direction: row;
+	}
+}
+
 /* --- Checkliste (Issue #728) --- */
-/* Checklist-Editor: vertikale Flex-Kolumne mit optimierten Abständen */
+/* Checklist-Editor: vertikale Flex-Kolumne; Abstände ausschließlich über Gap. */
 .checklist-editor {
 	display: flex;
 	flex-direction: column;
@@ -1334,17 +1348,17 @@ body {
 	flex: 0 0 auto;
 }
 
-/* Einzelnes Checklist-Item: Flex-Row mit Checkbox, Titel, Remove-Button */
+/* Einzelnes Checklist-Item: Flex-Row mit Checkbox, Titel, Remove-Button.
+   Vertikale Abstände kommen allein vom Gap des Editors – kein zusätzliches Padding. */
 .checklist-item {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
 	gap: 0.75rem;
-	padding: 0.5rem 0;
 }
 
 .checklist-item-title {
 	flex: 1 1 auto;
 	min-width: 0;
-	word-break: break-word;
+	overflow-wrap: anywhere;
 }

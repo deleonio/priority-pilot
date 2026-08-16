@@ -770,44 +770,47 @@ export const TaskForm = ({
 						}}
 					/>
 				</div>
-				<KolInputRange
-					_label={`Priorität (Ganzzahl 1–5): ${formatNumber(priority)}`}
-					_min={1}
-					_max={5}
-					_step={1}
-					_value={priority}
-					_on={{
-						onInput: (_event, value) => {
-							const next = readNumber(value) ?? priority;
-							form.current.priority = next;
-							setPriority(next);
-						},
-						onChange: (_event, value) => {
-							const next = readNumber(value) ?? priority;
-							form.current.priority = next;
-							setPriority(next);
-						},
-					}}
-				/>
-				<KolInputRange
-					_label={`Geschätzter Aufwand in Tagen (0,1–1): ${formatNumber(estimatedEffort)}`}
-					_min={0.1}
-					_max={1}
-					_step={0.1}
-					_value={estimatedEffort}
-					_on={{
-						onInput: (_event, value) => {
-							const next = readNumber(value) ?? estimatedEffort;
-							form.current.estimatedEffort = next;
-							setEstimatedEffort(next);
-						},
-						onChange: (_event, value) => {
-							const next = readNumber(value) ?? estimatedEffort;
-							form.current.estimatedEffort = next;
-							setEstimatedEffort(next);
-						},
-					}}
-				/>
+				{/* #727: Range-Inputs responsiv (vertikal ≤768px, horizontal >768px) */}
+				<div className="range-inputs-row">
+					<KolInputRange
+						_label={`Priorität (Ganzzahl 1–5): ${formatNumber(priority)}`}
+						_min={1}
+						_max={5}
+						_step={1}
+						_value={priority}
+						_on={{
+							onInput: (_event, value) => {
+								const next = readNumber(value) ?? priority;
+								form.current.priority = next;
+								setPriority(next);
+							},
+							onChange: (_event, value) => {
+								const next = readNumber(value) ?? priority;
+								form.current.priority = next;
+								setPriority(next);
+							},
+						}}
+					/>
+					<KolInputRange
+						_label={`Geschätzter Aufwand in Tagen (0,1–1): ${formatNumber(estimatedEffort)}`}
+						_min={0.1}
+						_max={1}
+						_step={0.1}
+						_value={estimatedEffort}
+						_on={{
+							onInput: (_event, value) => {
+								const next = readNumber(value) ?? estimatedEffort;
+								form.current.estimatedEffort = next;
+								setEstimatedEffort(next);
+							},
+							onChange: (_event, value) => {
+								const next = readNumber(value) ?? estimatedEffort;
+								form.current.estimatedEffort = next;
+								setEstimatedEffort(next);
+							},
+						}}
+					/>
+				</div>
 				{isSeriesMode ? (
 					<>
 						{/* Serie-Modus (#316): Startdatum (Anker der Serie) + Rhythmus statt Deadline. */}
