@@ -77,8 +77,8 @@ test.describe('#691 Header-Konsistenz über alle Viewports', () => {
 			{ width: 375, height: 812, name: 'Mobile' },
 		];
 
-		// Erwartete Buttons bei allen Viewports (ohne Bürgermenü)
-		const expectedButtons = ['Neuen Task anlegen', 'Hilfe', 'Einstellungen', 'Abmelden'];
+		// Erwartete Buttons bei allen Viewports — alle fünf Kopf-Aktionen (ohne Bürgermenü)
+		const expectedButtons = ['Neuen Task anlegen', 'Säulen-Berater', 'Hilfe', 'Einstellungen', 'Abmelden'];
 
 		const foundButtons: Map<string, number> = new Map();
 

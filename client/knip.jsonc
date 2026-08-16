@@ -1,0 +1,4 @@
+{
+	// Auto-generiert aus schema.d.ts — Type-Definition, kein Quellcode
+	"ignore": ["src/schema.d.ts"],
+}

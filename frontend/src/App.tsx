@@ -445,8 +445,8 @@ export const App = ({ user }: { user: AuthUser }) => {
 				<div className="toolbar">
 					<KolToolbar _label="Kopf-Aktionen" _orientation="horizontal" _items={toolbarItems} />
 					<div className="user-info">
-						<KolAvatar _label={user.name} _src={user.avatarUrl ?? undefined} />
-						<span className="user-display-name">{user.name}</span>
+						<KolAvatar _label={user.displayName} _src={user.avatarUrl ?? undefined} />
+						<span className="user-display-name">{user.displayName}</span>
 					</div>
 				</div>
 			</header>
@@ -489,7 +489,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 							nextTask={nextTask}
 							suggestions={suggestions}
 							pillars={pillars}
-							displayName={user.name}
+							displayName={user.displayName}
 						/>
 					</div>
 					<div slot="tab-1">
