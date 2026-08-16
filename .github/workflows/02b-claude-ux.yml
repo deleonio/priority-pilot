@@ -166,7 +166,7 @@ jobs:
           echo "Claude-Verdict aus Output: '${verdict:-keins}'"
 
           gh label create "ux:ready" --repo "$GITHUB_REPOSITORY" --color 0E8A16 2>/dev/null || true
-          gh label create "ux:failed" --repo "$GITHUB_REPOSITORY" --_color d73a49 2>/dev/null || true
+          gh label create "ux:failed" --repo "$GITHUB_REPOSITORY" --color d73a49 2>/dev/null || true
 
           gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:spec-ready" 2>/dev/null || true
           gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ux:ready" 2>/dev/null || true

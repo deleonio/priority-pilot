@@ -37,7 +37,9 @@ UX-Beratung als automatisierte Phase nach Spec-Ready einrichten – beratend, ni
 
 ## Testableitung
 
-- TF1: Workflow-Check – Datei existiert mit korrektem Trigger
-- TF2: Prompt-Check – ux.md enthält NICHT "Branch", "PR", "Code-Ändern"
-- TF3: Wissensbasis-Check – ticket-ux.md dokumentiert Phase/Trigger/Output/Modell
-- TF4: Integrationstest (e2e) – Workflow-Lauf setzt Label bei korrektem Verdict
+- TF1: Workflow-Check – Datei existiert mit korrektem Trigger — **entfallen** (Change-Detector für `.github/*`, verboten per ADR 0001)
+- TF2: Prompt-Check – ux.md enthält NICHT "Branch", "PR", "Code-Ändern" — **entfallen** (Markdown-Inhalt-Test, verboten per ADR 0001)
+- TF3: Wissensbasis-Check – ticket-ux.md dokumentiert Phase/Trigger/Output/Modell — **entfallen** (Markdown-Inhalt-Test, verboten per ADR 0001)
+- TF4: Integrationstest (e2e) – Workflow-Lauf setzt Label bei korrektem Verdict — **entfallen** (Label-/Verdict-State-Machine eines Workflows ist Untested-Scope per ADR 0001; zusätzlich technisch untestbar: Playwright-`request` löst relative URLs gegen `localhost:4173` auf, erreicht api.github.com nie, und ein Test, der echte Production-Workflows dispatcht, wäre ein Live-Side-Effekt)
+
+**Verifikation stattdessen:** durch den echten Pipeline-Lauf selbst (manueller `workflow_dispatch` + Sichtprüfung von KI-UX-Block und `ux:ready`-Label) — so wie es ADR 0001 („Fehler fallen ohnehin laut auf") vorsieht.
