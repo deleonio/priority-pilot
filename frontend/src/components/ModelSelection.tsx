@@ -16,13 +16,14 @@ interface ModelSelectionProps {
 export const ModelSelection = ({ onModelSelect }: ModelSelectionProps) => {
 	const [isOpen, setIsOpen] = useState(false);
 	const [freeModels, setFreeModels] = useState<FreeModel[]>([]);
-	const [selectedModelId, setSelectedModelId] = useState<string>('openrouter/free');
+	const [selectedModelId, setSelectedModelId] = useState<string>(
+		() => localStorage.getItem('selectedFreeModel') || 'openrouter/free',
+	);
 	const [loading, setLoading] = useState(true);
 
-	// Free Models laden – beim Mount und jedes Mal, wenn der Dialog geöffnet wird
+	// Free Models laden – nur beim Mount (einmalig)
 	useEffect(() => {
-		// Nur laden, wenn Dialog offen oder noch nicht geladen
-		if (isOpen || loading) {
+		if (loading) {
 			const loadModels = async () => {
 				try {
 					const data = await api.getFreeModels();
@@ -41,15 +42,7 @@ export const ModelSelection = ({ onModelSelect }: ModelSelectionProps) => {
 			};
 			loadModels();
 		}
-	}, [isOpen, loading]); // isOpen und loading als Dependencies – bei jedem Öffnen neu laden
-
-	// Gespeicherte Auswahl aus localStorage laden
-	useEffect(() => {
-		const saved = localStorage.getItem('selectedFreeModel');
-		if (saved) {
-			setSelectedModelId(saved);
-		}
-	}, []);
+	}, [loading]);
 
 	// Auswahl speichern und Callback aufrufen
 	const handleSelect = (modelId: string) => {
@@ -59,7 +52,7 @@ export const ModelSelection = ({ onModelSelect }: ModelSelectionProps) => {
 		onModelSelect?.(modelId);
 	};
 
-	const selectedModel = freeModels.find((m) => m.id === selectedModelId) || freeModels[0];
+	const selectedModel = freeModels.find((m) => m.id === selectedModelId) || { id: 'openrouter/free', name: 'Fallback' };
 
 	return (
 		<>
@@ -89,9 +82,16 @@ export const ModelSelection = ({ onModelSelect }: ModelSelectionProps) => {
 
 					{/* Dialog */}
 					<div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
-						<div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[60vh] flex flex-col pointer-events-auto">
+						<div
+							className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[60vh] flex flex-col pointer-events-auto"
+							role="dialog"
+							aria-modal="true"
+							aria-labelledby="model-selection-title"
+						>
 							<div className="p-4 border-b flex justify-between items-center">
-								<h2 className="text-lg font-semibold">Kostenloses Modell wählen</h2>
+								<h2 id="model-selection-title" className="text-lg font-semibold">
+									Kostenloses Modell wählen
+								</h2>
 								<button
 									type="button"
 									data-testid="close-model-selection"
@@ -110,7 +110,7 @@ export const ModelSelection = ({ onModelSelect }: ModelSelectionProps) => {
 										type="button"
 										data-testid="free-model-item"
 										data-model-id={model.id}
-										data-selected={model.id === selectedModelId ? 'true' : undefined}
+										aria-selected={model.id === selectedModelId}
 										onClick={() => handleSelect(model.id)}
 										className={`w-full text-left px-4 py-3 rounded-md mb-1 ${
 											model.id === selectedModelId
