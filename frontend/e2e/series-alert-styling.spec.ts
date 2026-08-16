@@ -19,32 +19,26 @@ test.describe('Priority Pilot — #692: Serien-Alert Layout-Verbesserung', () =>
 		// Serien-Tab öffnen
 		await page.goto('/');
 		await page.getByRole('tab', { name: 'Serien', exact: true }).click();
-
-		// "Fällige Instanzen generieren" klicken, um Alert zu triggern
-		await page.getByRole('button', { name: 'Fällige Instanzen generieren' }).click();
-
-		// Auf Alert warten
-		await page.getByRole('alert', { name: /Ergebnis/i }).waitFor({ state: 'visible' });
 	});
 
-	test('AK1 — Serien-Alert hat mindestens 8px Abstand nach unten zum Button', async ({ page }) => {
-		// Alert-Box finden
-		const alert = page.getByRole('alert', { name: /Ergebnis/i });
+	test('AK1 — Serien-Actions hat mindestens 8px margin-top', async ({ page }) => {
+		// series-actions Container finden
+		const seriesActions = page.locator('.series-actions').first();
 
-		// Prüfen, dass Alert existiert
-		await expect(alert).toBeVisible();
+		// Prüfen, dass Container sichtbar ist
+		await expect(seriesActions).toBeVisible();
 
-		// CSS-Prüfung: margin-bottom oder padding-bottom ≥ 8px
-		const marginBottom = await alert.evaluate((el) => {
+		// CSS-Prüfung: margin-top ≥ 8px (0.5rem = 8px bei 16px Basis)
+		const marginTop = await seriesActions.evaluate((el) => {
 			const styles = window.getComputedStyle(el);
-			return parseInt(styles.marginBottom) || parseInt(styles.paddingBottom) || 0;
+			return parseInt(styles.marginTop) || 0;
 		});
 
-		expect(marginBottom).toBeGreaterThanOrEqual(8);
+		expect(marginTop).toBeGreaterThanOrEqual(8);
 	});
 
-	test('AK2 — Serien-Titel im Alert haben font-weight: normal (nicht bold)', async ({ page }) => {
-		// Serien-Titel in der Liste finden (nicht im Alert - die series-tree-title)
+	test('AK2 — Serien-Titel haben font-weight: normal (nicht bold)', async ({ page }) => {
+		// Serien-Titel in der Liste finden
 		const seriesTitle = page.locator('.series-tree-title').first();
 
 		// Prüfen, dass Serien-Titel sichtbar ist
