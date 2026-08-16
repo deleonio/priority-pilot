@@ -86,8 +86,8 @@ jobs:
 
       - name: In-Flight-Guard (Pipeline arbeitet noch am offenen Sync-PR)
         # Der nächtliche Force-Push ersetzt den Branch komplett. Läuft auf dem offenen Sync-PR
-        # gerade Review/Fixup/Auto-Merge (ai:needs-review, ai:needs-changes, ai:ready-to-merge),
-        # würde er diesen Läufen den Stand unter den Füßen wegziehen → aussetzen, morgen wieder.
+        # nur in aktiver Review-Phase (ai:needs-review) aussetzen. ai:needs-changes und
+        # ai:ready-to-merge sind Terminal-Zustände (Pipeline inaktiv) — diese überspringen.
         # ai:needs-human ist TERMINAL (Review/Fixup haben aufgegeben, ein Mensch schaut drauf):
         # ebenfalls aussetzen, statt die Diskussionsgrundlage zu überschreiben.
         # Fail-open: ist der Label-Abruf nicht möglich, läuft der Sync (wie beim Skip-Guard).
