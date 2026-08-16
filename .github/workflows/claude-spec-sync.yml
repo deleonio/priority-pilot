@@ -115,6 +115,7 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
         run: |
+          git branch -D chore/spec-sync 2>/dev/null || true
           git switch -C chore/spec-sync origin/main
           slug="$(gh api app --jq .slug 2>/dev/null || true)"
           user="${slug:-app}[bot]"
