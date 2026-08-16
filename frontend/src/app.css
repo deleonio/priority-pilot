@@ -159,21 +159,24 @@ body {
 }
 
 /*
- * User-Info-Block rechts in der Toolbar: Avatar + Anzeigename inline — ab 48rem. Unterhalb blendet
- * ihn `display: none` aus (#691): Logo und die fünf Toolbar-Buttons (je 44px WCAG-Mindestgröße
- * plus Lücken) belegen auf 375px schon ~305 der 343px Inhaltsbreite — Avatar und Klartextname
- * passen nicht zusätzlich in eine Zeile. Identität ist keine Kopf-Aktion und darf mobil fehlen;
- * Menüpunkte dürfen es nicht (#691: Responsive nur durch Layout-Anpassung).
+ * User-Info-Block rechts in der Toolbar: Avatar + Anzeigename inline. Mobil (< 48rem) bleibt nur
+ * der Avatar sichtbar (#718); der Klartextname wird ausgeblendet, um mit Logo und Toolbar-Buttons
+ * (je 44px WCAG-Mindestgröße plus Lücken) in einer Zeile zu passen. Ab 48rem erscheint der Name
+ * wieder (#691: Header-Konsistenz).
  */
 .user-info {
-	display: none;
+	display: flex;
 	align-items: center;
 	gap: 0.5rem;
 }
 
+.user-display-name {
+	display: none;
+}
+
 @media (min-width: 48rem) {
-	.user-info {
-		display: flex;
+	.user-display-name {
+		display: inline;
 	}
 }
 
