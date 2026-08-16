@@ -23,7 +23,7 @@ import { test as base } from '@playwright/test';
  * direkt aus `@playwright/test` und braucht diese Fixture nicht.
  */
 
-const AUTHENTICATED_USER = { id: 1, name: 'Test User', email: 'test@example.com' };
+const AUTHENTICATED_USER = { id: 1, displayName: 'Test User', email: 'test@example.com' };
 
 export const test = base.extend({
 	// Zweiter Parameter ist die Playwright-Fixture-Übergabe (`use`); bewusst `runTest` benannt, damit

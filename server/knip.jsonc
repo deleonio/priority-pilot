@@ -1,0 +1,10 @@
+{
+	"entry": ["src/index.ts"],
+	"ignore": [
+		// Auto-generiert aus openapi.yml — Type-Definition, kein Quellcode
+		"src/api.d.ts",
+		// LLM-Files: Experimentell, wird von Tests abgedeckt — keine statische Analyse nötig
+		"src/llm/index.ts",
+		"src/llm/llm.ts",
+	],
+}

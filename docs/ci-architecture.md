@@ -299,9 +299,13 @@ Keine Pipeline-Phase, sondern ein nächtlicher Helper-Workflow (täglich 03:37 U
 `workflow_dispatch`): Ein LLM-Lauf verifiziert die Specs in `docs/spec/` (`user-journeys.md` +
 `issue-*.md`) gegen die tatsächliche Implementation (`frontend/src/`, `server/src/`,
 `openapi.yml`) und hält sie auf **Ist-Stand** — die Implementation ist die Wahrheit, die Spec
-spiegelt sie nur. Drei Operationen: **korrigieren** (Impl hat sich geändert → Spec folgt),
-**entsorgen** (überholte/transitorische Soll-Aussagen wie „X soll entfernt sein" sind langfristig
-keine Spec-Information), **ergänzen** (implementiertes, un-spezifiziertes Verhalten bekommt neue
+spiegelt sie nur. Leitlinie ist das **arc42-Prinzip** (so viel wie nötig, so wenig wie möglich):
+Nur langfristig relevantes, von außen sichtbares Verhalten ist Spec-Information. Drei
+Operationen: **korrigieren** (Impl hat sich geändert → Spec folgt), **entsorgen** (einzelne
+Aussagen ohne langfristigen Spec-Wert — insb. transitorische Soll-Aussagen — sowie ganze
+Dateien ohne langfristigen Spec-Wert: Test-Protokolle, Validierungs-Platzhalter, vollständig
+redundant abgebildete Journeys werden gelöscht bzw. an einer Stelle konsolidiert),
+**ergänzen** (implementiertes, un-spezifiziertes Verhalten bekommt neue
 Journeys im user-journeys.md-Format).
 
 **Mechanik:**
@@ -309,17 +313,19 @@ Journeys im user-journeys.md-Format).
 - **Skip-Guard:** Hat `main` denselben SHA wie der letzte erfolgreiche Lauf, wird der Lauf
   übersprungen (deterministisch dasselbe Ergebnis, spart LLM-Budget). Fail-open bei API-Fehlern;
   `workflow_dispatch` mit `force: true` umgeht den Guard.
-- **Branch/PR:** Der Agent committed nur lokal auf `chore/spec-sync`, der Branch wird jede Nacht
-  auf `origin/main` zurückgesetzt und per Force-Push ersetzt — der offene Sync-PR zeigt damit
-  immer exakt die **aktuelle** Drift statt Commits zu akkumulieren. Push und PR-Anlage/-Update
-  sind deterministische Workflow-Steps, keine Agent-Aufgabe. Fehlt der Agent-Report
-  (`/tmp/spec-sync-report.md`), ersetzt ein `git log`-Fallback den PR-Body (mit Warning).
+- **Branch/PR (pro Datei):** Der Agent committed nur lokal auf `chore/spec-sync-work` (nie
+  gepusht). Die Mechanik überträgt diff-basiert je geänderter Spec-Datei den finalen Stand auf
+  einen eigenen Branch `chore/spec-sync/<datei-stem>` und erzeugt daraus **einen Draft-PR** —
+  unabhängig von der Commit-Aufteilung des Agenten. Für eine Datei mit bereits offenem Sync-PR
+  wird kein zweiter erzeugt (Skip mit Notice). PR-Body ist der `## <dateiname>`-Abschnitt des
+  Agent-Reports (Fallback: `git log`, mit Warning).
+- **Draft-Freigabe → Pipeline:** Drafts lösen bewusst nichts aus (`pr-needs-review-label.yml`
+  ignoriert Bot-Drafts). Der Mensch gibt per **„Ready for review"** frei → Autolabeler setzt
+  `ai:needs-review` → Kreuzverhör-Review (04) und Fixup-Loop (05) übernehmen Prüfung und
+  Nacharbeit wie bei jedem Ticket-PR.
 - **Post-Assertion (VERDICT-Muster):** `VERDICT: synced` ↔ null Commits, `VERDICT: updated` ↔
   Commits vorhanden, geänderte Dateien ⊆ `docs/spec/` — jeder Widerspruch failt laut.
-- **Bewusst keine Pipeline-Anbindung:** Der Bot-PR bekommt keine `ai:*`-Labels
-  (`pr-needs-review-label.yml` labelt nur menschliche Akteure) → kein Kreuzverhör-/Fixup-Loop,
-  kein Gate-Merge-Auto-Merge. Der Mensch merged die Spec-Edits.
-- **Bewusst stateless:** Kein pro-Issue-Memory — der offene Sync-PR ist der einzige Zustand.
+- **Bewusst stateless:** Kein pro-Issue-Memory — die offenen Draft-PRs sind der einzige Zustand.
 - **Modell:** `vars.CLAUDE_MODEL_SPEC_SYNC` (Default `sonnet`), Provider wie alle LLM-Phasen via
   `vars.LLM_PROVIDER` (setup-claude, `tools-tier: full`, inkl. Tailscale-Egress und
   Fair-Usage-Check).
