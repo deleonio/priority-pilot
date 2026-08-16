@@ -7,13 +7,12 @@ import { expect, test } from '@playwright/test';
  * Spec: docs/spec/issue-697.md
  * Akzeptanzkriterium: Header zeigt nach Login den korrekten User-Namen an, Field-Name konsistent.
  *
- * Hintergrund: Die echte API /auth/me liefert `displayName`, aber Frontend-Interface verwendet `name`.
- * Dieser Test mockt die ECHTE API-Response (mit displayName) → Test wird rot bis zum Fix.
+ * Hintergrund: Die echte API /auth/me liefert `displayName`; das Frontend-Interface
+ * wurde entsprechend angepasst, sodass diese Tests den Fix absichern.
  */
 
 /**
  * Mock der echten /auth/me Response mit displayName (so wie die API tatsächlich liefert).
- * Dieser Mock verwendet displayName statt name → macht App.tsx rot, das user.name erwartet.
  */
 const mockMeWithDisplayName = async (
 	page: Page,
@@ -39,7 +38,6 @@ test.describe('Issue 697 — Auth Field-Mismatch (Spec: issue-697.md)', () => {
 		await page.goto('/');
 
 		// Spec-Beitrag: Header zeigt den korrekten User-Namen an
-		// Dieser Test wird rot, weil App.tsx user.name erwartet (leer) statt user.displayName
 		await expect(page.getByText('Max Mustermann')).toBeVisible();
 	});
 
@@ -53,7 +51,6 @@ test.describe('Issue 697 — Auth Field-Mismatch (Spec: issue-697.md)', () => {
 		await page.goto('/');
 
 		// Spec-Beitrag: Field-Name konsistent zwischen Interface und Rendering
-		// Dieser Test wird rot, weil AuthUser.name existiert, aber API displayName liefert
 		await expect(page.getByText('Test User')).toBeVisible();
 	});
 });
