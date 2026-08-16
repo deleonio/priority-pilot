@@ -118,9 +118,10 @@ jobs:
           openrouter-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER }}
           tailscale-authkey: ${{ secrets.TAILSCALE_AUTH_KEY }}
           tailscale-exit-node: ${{ vars.TAILSCALE_EXIT_NODE }}
-          # Phase 1 = Ursprung: nichts zu restaurieren (memory-load=false), NUR schreiben.
-          # expect-memory=false: leeres Memory ist hier der Normalfall (keine Warning).
-          memory-load: 'false'
+          # Memory laden: Erst-Triage findet kein Artefakt (Start von null = Normalfall),
+          # Re-Triage restauriert den bisherigen Ticket-Memory als Kontext und nutzt ihn.
+          # expect-memory=false: leeres Memory bleibt der Normalfall (keine Warning trotz Load).
+          memory-load: 'true'
           expect-memory: 'false'
 
       - name: Triage via Claude
@@ -178,11 +179,15 @@ jobs:
           ZEITLIMIT: Soft-Deadline = SOFT_DEADLINE. Vor jedem Schritt: [ $(date +%s) -ge SOFT_DEADLINE ]. Bei OVER: Body-Block sichern, Turn beenden.
           CLAUDE_EOF
 
-          # Memory-Write-Snippet anhängen (vor den seds, damit #ISSUE_NR/#PHASE mit substituiert werden)
+          # Memory-Snippets anhängen (Read + Write: Erst-Triage startet mit leerem Memory,
+          # Re-Triage setzt anhand des restaurierten Standes fort; vor den seds, damit
+          # #ISSUE_NR/#PHASE/#MEMORY_STATUS mit substituiert werden)
+          cat .github/prompts/memory-read.md >> /tmp/claude-prompt.txt
           cat .github/prompts/memory-write.md >> /tmp/claude-prompt.txt
 
           sed -i "s/#ISSUE_NR/${{ github.event.issue.number }}/g" /tmp/claude-prompt.txt
           sed -i "s/#PHASE/triage/g" /tmp/claude-prompt.txt
+          sed -i "s/#MEMORY_STATUS/${{ steps.setup.outputs.memory-status-text }}/g" /tmp/claude-prompt.txt
           sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
 
           ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \

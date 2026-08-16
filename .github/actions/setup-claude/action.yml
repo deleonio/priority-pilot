@@ -67,7 +67,7 @@ inputs:
   # rein über den Artefakt-Namen: jeder Lauf restored/saved den zum Issue passenden Stand in
   # denselben flachen Pfad.
   memory-load:
-    description: 'Memory-Load zu Beginn des Workflows (true = restauriert dateibasierte Memory für ticket-ref aus dem jüngsten Issue-Artefakt). Phase 1 (Triage) = false (Ursprung, nichts zu restaurieren, nur Schreiben).'
+    description: 'Memory-Load zu Beginn des Workflows (true = restauriert dateibasierte Memory für ticket-ref aus dem jüngsten Issue-Artefakt). Alle 6 Phasen-Workflows laden (auch Triage: Erst-Triage startet leer, Re-Triage nutzt den bisherigen Stand); false nur für bewusst stateless Helper-Workflows.'
     required: false
     default: 'false'
   expect-memory:
@@ -252,8 +252,8 @@ runs:
         echo "found=$found" >> "$GITHUB_OUTPUT"
 
     - name: Memory-Verzeichnis sicherstellen (Claude-Schreibzugriff auch bei Miss / memory-load=false)
-      # Entkoppelt von memory-load: Phase 1 (Triage) hat memory-load=false (nichts zu
-      # restaurieren), MUSS aber schreiben dürfen → Verzeichnis immer anlegen.
+      # Entkoppelt von memory-load: auch bei Restore-Miss (Erst-Triage) oder memory-load=false
+      # (stateless Helper) MUSS geschrieben werden dürfen → Verzeichnis immer anlegen.
       if: steps.preflight.outputs.configured == 'true'
       shell: bash
       run: mkdir -p ".claude/memory"
@@ -486,18 +486,22 @@ runs:
             # die Tool-Spezifizierer enthalten '(' und '*' (z.B. 'Bash(gh *)'). GitHub Actions
             # substituiert ${{ steps.setup.outputs.invoke-args }} WÖRTLICH in den run:-Block,
             # OHNE Quoting-Layer. Ungequotet parst bash '(' als Subshell-Start → Syntaxfehler
-            # (exit 2, "syntax error near unexpected token `('"). Das betrifft NUR das
-            # restricted-Tier, denn review/full nutzen das klammerfreie VOLLES_TOOLSET — aber
-            # wir quoten konsistent in allen drei Zweigen, damit ein späteres Tool mit '(' in
-            # full/review nicht denselben Crash auslöst.
+            # (exit 2, "syntax error near unexpected token `('"). Das betrifft das restricted-
+            # und review-Tier (Edit(path)-Globs), full nutzt weiter das klammerfreie
+            # VOLLES_TOOLSET — wir quoten konsistent in allen drei Zweigen, damit ein späteres
+            # Tool mit '(' in full nicht denselben Crash auslöst.
             echo "invoke-args=--allowedTools '$ALLOWED_TOOLS' $MODEL_FLAG" >> "$GITHUB_OUTPUT"
             ;;
           review)
-            # Vollzugriff (Bypass), aber Write/Edit gesperrt — Review liest untrusted Diffs
-            # und ändert keinen Code. Kommentare weiterhin via gh (Bash erlaubt).
-            ALLOWED_TOOLS="$VOLLES_TOOLSET"
+            # Vollzugriff auf Lesen/Ausführen, schreibgeschützt für Code — Review liest
+            # untrusted Diffs und ändert keinen Code. EINZIGE Schreiböffnung: der Issue-Memory
+            # (.claude/memory) über dieselbe Edit(path)-Allowlist-Mechanik wie im restricted-
+            # Tier. Bewusst KEIN Bypass+disallowTools mehr: einer globalen 'Edit'-Disallow
+            # könnte keine Allow-Regel den Memory-Pfad wieder öffnen (Disallow gewinnt) —
+            # die Allowlist hält Code schreibgeschützt UND Memory schreibbar zugleich.
+            ALLOWED_TOOLS="Read,Glob,Grep,Bash,Edit(.claude/memory/*),Edit(.claude/memory/**)"
             [ "$NEEDS_MCP" = "true" ] && ALLOWED_TOOLS="$ALLOWED_TOOLS,$MCP_TOOLS"
-            echo "invoke-args=--dangerously-skip-permissions --disallowedTools 'Write,Edit' --allowedTools '$ALLOWED_TOOLS' $MODEL_FLAG" >> "$GITHUB_OUTPUT"
+            echo "invoke-args=--allowedTools '$ALLOWED_TOOLS' $MODEL_FLAG" >> "$GITHUB_OUTPUT"
             ;;
           full)
             # Tier 2 — vollautonom (Bypass + volles Toolset inkl. Write/Edit).

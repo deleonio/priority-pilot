@@ -152,7 +152,7 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
         run: |
           cat > /tmp/claude-prompt.txt << 'CLAUDE_EOF'
-          HINWEIS: Review-Tier — du schreibst KEINEN Memory (nur Lesen). Lesedetails siehe Memory-Abschnitt am Prompt-Ende.
+          HINWEIS: Review-Tier — du liest UND schreibst Memory (issue-spezifische Notizen in .claude/memory; Details siehe Memory-Abschnitte am Prompt-Ende). Code bleibt tabu.
           FOKUS: NUR PR #PR_NR. NUR den Diff prüfen. KEINE Abstecher. Token sparen: kurz, präzise, direkt.
 
           MODUS bestimmen (ALLERERSTER Schritt): Prüfe, ob bereits ein <!-- ai-review -->-Sammelkommentar am PR existiert (gh api repos/{owner}/{repo}/issues/#PR_NR/comments, nach "<!-- ai-review -->" filtern).
@@ -192,10 +192,14 @@ jobs:
             - VERDICT: needs-human (bei Entscheidungs-Findungen, die ein Mensch treffen muss)
           CLAUDE_EOF
 
-          # Memory-Read-Snippet anhängen (Phase 4 = Review: nur Lesen, kein Schreiben)
+          # Memory-Snippets anhängen (Phase 4 = Review: restauriert + schreibt Review-Notizen;
+          # #ISSUE_NR aus dem Setup-Output, da dieser Workflow am PR hängt, nicht am Issue)
           cat .github/prompts/memory-read.md >> /tmp/claude-prompt.txt
+          cat .github/prompts/memory-write.md >> /tmp/claude-prompt.txt
 
           sed -i "s/#PR_NR/${{ github.event.pull_request.number }}/g" /tmp/claude-prompt.txt
+          sed -i "s/#ISSUE_NR/${{ steps.setup.outputs.issue-number }}/g" /tmp/claude-prompt.txt
+          sed -i "s/#PHASE/review/g" /tmp/claude-prompt.txt
           sed -i "s/TITLE_OK/${{ steps.facts.outputs.title_ok || 'unbekannt' }}/g" /tmp/claude-prompt.txt
           sed -i "s/SUGGESTED_TYPE/${{ steps.facts.outputs.suggested_type || 'chore' }}/g" /tmp/claude-prompt.txt
           sed -i "s/SUGGESTED_SCOPE/${{ steps.facts.outputs.suggested_scope || 'k.A.' }}/g" /tmp/claude-prompt.txt
