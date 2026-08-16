@@ -109,13 +109,13 @@ unverändert 3000). Überschreibbar per `INSPECT_BACKEND_PORT` / `INSPECT_FRONTE
 
 ## Fehlerbilder
 
-| Symptom                                    | Ursache / Abhilfe                                                                                    |
-| ------------------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| `FEHLER: Port 3001 ist bereits belegt`     | Eine Inspect-Instanz läuft noch: `lsof -ti tcp:3001 tcp:4174` und beenden                            |
-| Agent sieht eine **Login-Seite**           | Es läuft die falsche Instanz (`pnpm dev` auf :5173) — die Inspect-URL ist **:4174**                  |
-| `playwright` fehlt unter `/mcp`            | Session vor der Registrierung gestartet → Claude neu starten und die `.mcp.json`-Freigabe bestätigen |
-| Lektorat/Säulen-Vorschlag liefert **503**  | Beabsichtigt: `MISTRAL_API_KEY` ist geblankt, damit der Agent keine kostenpflichtigen Calls auslöst  |
-| Agent behauptet, eine Änderung wirke nicht | Er argumentiert gegen einen alten Snapshot → „Seite neu laden und erneut prüfen"                     |
+| Symptom                                    | Ursache / Abhilfe                                                                                                                                                                                                        |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `FEHLER: Port 3001 ist bereits belegt`     | Instanz läuft noch — oder ein `nodemon`-Rest nach einem harten `kill -9` belegt den Port bei der nächsten Dateiänderung neu. Prüfen mit `lsof -i tcp:3001` und **den Elternprozess** (`ps -o ppid= -p <pid>`) mitbeenden |
+| Agent sieht eine **Login-Seite**           | Es läuft die falsche Instanz (`pnpm dev` auf :5173) — die Inspect-URL ist **:4174**                                                                                                                                      |
+| `playwright` fehlt unter `/mcp`            | Session vor der Registrierung gestartet → Claude neu starten und die `.mcp.json`-Freigabe bestätigen                                                                                                                     |
+| Lektorat/Säulen-Vorschlag liefert **503**  | Beabsichtigt: `MISTRAL_API_KEY` ist geblankt, damit der Agent keine kostenpflichtigen Calls auslöst                                                                                                                      |
+| Agent behauptet, eine Änderung wirke nicht | Er argumentiert gegen einen alten Snapshot → „Seite neu laden und erneut prüfen"                                                                                                                                         |
 
 ## Hinweise
 
