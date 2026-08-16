@@ -27,6 +27,8 @@ import type {
 } from 'client';
 import createClient from 'openapi-fetch';
 
+type FreeModels = components['schemas']['FreeModels'];
+
 // Im Dev-Betrieb leitet der Vite-Proxy (siehe vite.config.ts) /api/v1/*-Anfragen an
 // http://localhost:3000 weiter und streift das Präfix ab. In Prod übernimmt Caddy denselben
 // Rewrite. Über VITE_API_BASE_URL lässt sich die Basis-URL bei Bedarf überschreiben.
@@ -429,6 +431,16 @@ export const api = {
 	// ausgefüllte Felder überschreiben den DB-Stand. Liefert den neuen Status (ohne Key-Werte).
 	async setLlmConfig({ llmConfig }: { llmConfig: LlmConfigInput }): Promise<LlmConfigStatus> {
 		const { data, response } = await client.PUT('/llm-config', { body: llmConfig });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response);
+		}
+		return data;
+	},
+
+	// Free Models Liste laden (Issue #742). Gibt die Liste der kostenlosen Modelle zurück,
+	// die ohne API-Key genutzt werden können.
+	async getFreeModels(init: Init = {}): Promise<FreeModels> {
+		const { data, response } = await client.GET('/models/free', { signal: init.signal });
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response);
 		}

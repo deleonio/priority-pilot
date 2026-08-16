@@ -12,6 +12,7 @@ import {
 	formatNumber,
 	formatRelativeDeadline,
 } from '../lib/task';
+import { ModelSelection } from './ModelSelection.js';
 
 /** Badge-Hintergrundfarbe je hervorzuhebender Dringlichkeit (Textfarbe berechnet KolBadge automatisch). */
 const URGENCY_COLOR: Record<Exclude<DeadlineUrgency, 'later'>, string> = {
@@ -131,6 +132,9 @@ export const Dashboard = ({ tasks, forest, nextTask, suggestions = [], pillars, 
 		<section className="dashboard">
 			<h2>Dashboard</h2>
 			{greeting !== '' && <p className="dashboard-greeting">Hallo {greeting}!</p>}
+			<div className="dashboard-model-selection">
+				<ModelSelection />
+			</div>
 			<ul className="dashboard-cards">
 				{cards.map((card) => (
 					<li key={card.label}>

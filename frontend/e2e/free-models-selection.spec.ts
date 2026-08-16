@@ -15,7 +15,7 @@ import { expect, test } from '@playwright/test';
  */
 
 const mockFreeModelsResponse = async (page: Page): Promise<void> => {
-	await page.route('**/api/models/free', (route: Route) =>
+	await page.route('**/api/v1/models/free', (route: Route) =>
 		route.fulfill({
 			status: 200,
 			contentType: 'application/json',
@@ -85,7 +85,7 @@ test('Spec-Bezug: Free Models Liste ist nicht hartcodiert', async ({ page }) => 
 	await page.click('[data-testid="close-model-selection"]');
 
 	// Route mit anderen Modellen überschreiben
-	await page.route('**/api/models/free', (route: Route) =>
+	await page.route('**/api/v1/models/free', (route: Route) =>
 		route.fulfill({
 			status: 200,
 			contentType: 'application/json',

@@ -378,6 +378,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Health'
+  /models/free:
+    get:
+      summary: Liste der kostenlosen LLM-Modelle
+      description: >-
+        Gibt die Liste der kostenlosen Modelle zurück, die ohne API-Key genutzt
+        werden können (Issue #742).
+      operationId: getFreeModels
+      responses:
+        '200':
+          description: Liste der kostenlosen Modelle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FreeModels'
   /forest:
     get:
       summary: Aufgabenwald nach Wertschöpfung sortiert
@@ -1771,3 +1785,26 @@ components:
         openrouterModel:
           type: string
           description: Modellkennung für OpenRouter.
+    FreeModel:
+      type: object
+      required:
+        - id
+        - name
+      description: Ein kostenloses LLM-Modell (Issue #742).
+      properties:
+        id:
+          type: string
+          description: Eindeutige Modellkennung (z.B. openrouter/free).
+        name:
+          type: string
+          description: Anzeigename des Modells.
+    FreeModels:
+      type: object
+      required:
+        - models
+      description: Liste der kostenlosen LLM-Modelle (Issue #742).
+      properties:
+        models:
+          type: array
+          items:
+            $ref: '#/components/schemas/FreeModel'

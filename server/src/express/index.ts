@@ -16,6 +16,7 @@ import { transitRouter } from './routes/transit.js';
 import { createPushRouter } from './routes/push.js';
 import { llmConfigRouter } from './routes/llmConfig.js';
 import { lektoratRouter } from './routes/lektorat.js';
+import { modelsRouter } from './routes/models.js';
 import { handleServerError } from './server-error-handler.js';
 import type { PillarClassifier, ParseTaskParser, ActivityAdvisor } from '../llm/llm.js';
 import type { PushSender } from '../logics/push.js';
@@ -165,6 +166,9 @@ export const createApp = (deps: AppDeps = {}) => {
 	app.get('/health', (_req, res: express.Response<HealthDto>) => {
 		res.json({ status: 'ok' });
 	});
+
+	// Free Models Liste (Issue #742) — öffentlich, keine Auth erforderlich.
+	app.use(modelsRouter);
 
 	// Öffentlicher CORS-Proxy für Transitous/MOTIS (Issue #224) — bewusst ohne requireAuth.
 	app.use('/api/transit', transitRouter);
