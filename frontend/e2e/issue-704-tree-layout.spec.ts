@@ -55,9 +55,9 @@ test.describe('Aufgabenbaum-Layout (#704)', () => {
 		await deleteAllTasks(page);
 	});
 
-	/** Wechselt auf den Aufgabenwald-Tab. */
+	/** Wechselt auf den Aufgabenwald-Tab (Label „Wald"). */
 	const openForestTab = async (page: Page): Promise<void> => {
-		await page.getByRole('tab', { name: 'Aufgabenwald', exact: true }).click();
+		await page.getByRole('tab', { name: 'Wald', exact: true }).click();
 		await waitForStableView(page);
 	};
 

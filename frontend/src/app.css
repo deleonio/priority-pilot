@@ -1035,6 +1035,31 @@ body {
 	margin-top: 1.5rem;
 }
 
+/*
+ * #703: Tabs bei schmalen Viewports (< 768px) alternatives Layout (vertikale Anordnung).
+ * Bei Desktop (≥ 768px) bleiben Tabs nebeneinander (Standard).
+ * KoliBri-KolTabs rendert im Shadow-DOM; der ::slotted-Selektor greift die Tab-Buttons ab.
+ */
+@media (max-width: 767px) {
+	.settings-tabs kol-tabs::part(tab-list) {
+		flex-direction: column;
+	}
+
+	.settings-tabs kol-tabs::part(tab-button) {
+		width: 100%;
+		text-align: left;
+	}
+
+	.app-tabs kol-tabs::part(tab-list) {
+		flex-direction: column;
+	}
+
+	.app-tabs kol-tabs::part(tab-button) {
+		width: 100%;
+		text-align: left;
+	}
+}
+
 .settings-placeholder {
 	color: var(--pp-text-muted);
 	margin: 1rem 0;
