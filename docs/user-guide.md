@@ -333,8 +333,11 @@ Der Editor für die **Säulen-Gewichtung** (siehe „Lebensbalance-Säulen").
 
 Konfiguration der KI-Provider (Mistral, OpenRouter). Hier gibst du die API-Keys und
 das gewünschte Modell ein – diese Einstellung ist serverseitig und gilt für alle Nutzer.
-Ohne konfigurierten Provider bleiben die KI-Funktionen (Schnellerfassung, Säulen-Vorschlag,
-Säulen-Berater, Lektorat) ausgegraut.
+Über „Free-Modelle auswählen…" (und ebenso über den Chip-Button oben rechts auf dem
+Dashboard) öffnet sich eine Liste der **aktuell kostenlosen OpenRouter-Modelle**, aus der
+du das Modell direkt wählen kannst – die Liste wird live von OpenRouter geladen, als
+Standard ist `openrouter/free` voreingestellt. Ohne konfigurierten Provider bleiben die
+KI-Funktionen (Schnellerfassung, Säulen-Vorschlag, Säulen-Berater, Lektorat) ausgegraut.
 
 ---
 
