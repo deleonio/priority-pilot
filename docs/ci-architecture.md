@@ -357,14 +357,17 @@ Journeys im user-journeys.md-Format).
   `workflow_dispatch` mit `force: true` umgeht den Guard.
 - **Branch/PR (pro Datei):** Der Agent committed nur lokal auf `chore/spec-sync-work` (nie
   gepusht). Die Mechanik überträgt diff-basiert je geänderter Spec-Datei den finalen Stand auf
-  einen eigenen Branch `chore/spec-sync/<datei-stem>` und erzeugt daraus **einen Draft-PR** —
-  unabhängig von der Commit-Aufteilung des Agenten. Für eine Datei mit bereits offenem Sync-PR
-  wird kein zweiter erzeugt (Skip mit Notice). PR-Body ist der `## <dateiname>`-Abschnitt des
-  Agent-Reports (Fallback: `git log`, mit Warning).
-- **Draft-Freigabe → Pipeline:** Drafts lösen bewusst nichts aus (`pr-needs-review-label.yml`
-  ignoriert Bot-Drafts). Der Mensch gibt per **„Ready for review"** frei → Autolabeler setzt
-  `ai:needs-review` → Kreuzverhör-Review (04) und Fixup-Loop (05) übernehmen Prüfung und
-  Nacharbeit wie bei jedem Ticket-PR.
+  einen eigenen Branch `chore/spec-sync/<datei-stem>` und erzeugt daraus **einen PR (Non-Draft)**
+  mit direkt gesetztem `ai:needs-review`-Label per App-Token — unabhängig von der Commit-
+  Aufteilung des Agenten. Das Label-Setzen erfolgt mit Retry (3 Versuche); bei endgültigem
+  Fehlschlag fällt der Lauf laut (`::error` + Exit 1). Für eine Datei mit bereits offenem
+  Sync-PR wird kein zweiter erzeugt (Skip mit Notice). PR-Body ist der `## <dateiname>`-
+  Abschnitt des Agent-Reports (Fallback: `git log`, mit Warning).
+- **Pipeline-Integration:** Das Label wird per App-Token direkt nach PR-Create gesetzt
+  (Autolabeler `pr-needs-review-label.yml` greift bei Bots nicht). Das `labeled`-Event
+  feuert → Kreuzverhör-Review (04) und Fixup-Loop (05) übernehmen Prüfung und Nacharbeit
+  automatisch, ohne Menschseingriff. Ein Workflow-Rerun bleibt idempotent (offene Sync-PRs
+  → Skip mit Notice).
 - **Post-Assertion (VERDICT-Muster):** `VERDICT: synced` ↔ null Commits, `VERDICT: updated` ↔
   Commits vorhanden, geänderte Dateien ⊆ `docs/spec/` — jeder Widerspruch failt laut.
 - **Bewusst stateless:** Kein pro-Issue-Memory — die offenen Draft-PRs sind der einzige Zustand.
