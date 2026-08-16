@@ -35,10 +35,10 @@ test.describe('#703 Tabs bei schmalen Viewports', () => {
 		});
 		expect(overflowsHorizontally).toBe(false);
 
+		// Prüfung: Entweder Tabs sind anders angeordnet (nicht standard horizontal nebeneinander)
+		// oder Dropdown/Stack ist sichtbar. Für rote Tests genügt die Prüfung, dass kein Überlauf besteht.
+		// Implementierungsspezifische Prüfungen (z.B. Dropdown-Element) folgen in grünen Tests.
 		// Alternatives Layout: Entweder Dropdown/Stack oder kompakte Darstellung (kein Standard-Tab-Look).
-		const tabsContainer = page.getByRole('tablist').first();
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		const boundingBox = await tabsContainer.boundingBox();
 
 		// Prüfung: Entweder Tabs sind anders angeordnet (nicht standard horizontal nebeneinander)
 		// oder Dropdown/Stack ist sichtbar. Für rote Tests genügt die Prüfung, dass kein Überlauf besteht.
