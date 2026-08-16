@@ -205,8 +205,6 @@ jobs:
       - name: 📝 PR-Analyse via Claude (schreibt nur /tmp/doc.json)
         id: claude
         if: steps.setup.outputs.configured == 'true' && steps.shortcut.outputs.skip != 'true'
-        id: claude
-        if: steps.setup.outputs.configured == 'true'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number || github.event.inputs.pr-number }}
