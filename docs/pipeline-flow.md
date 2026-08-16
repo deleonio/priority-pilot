@@ -17,6 +17,7 @@ flowchart TD
     subgraph ISSUE [Issue-Phase]
         triage[triage.yml<br/>Analyse + Re-Analyse]:::wf
         spec[spec.yml<br/>rote Tests + Draft-PR]:::wf
+        ux[ux.yml<br/>UX-Beratung + Review]:::wf
         implement[implement.yml<br/>Umsetzung + PR ready]:::wf
         unblock[issue-unblock.yml<br/>Nachfolger freigeben]:::wf
     end
@@ -40,7 +41,8 @@ flowchart TD
     start -->|issues.opened| triage
     cmt -->|issue_comment| triage
     triage -->|"label: ai:spec-ready 🟢"| spec
-    spec -->|"label: ai:ready"| implement
+    spec -->|"label: ux:ready"| ux
+    ux -->|"label: ai:ready"| implement
 
     %% ---- Übergang Issue -> PR (implement setzt ai:needs-review SELBST als kontrollierten
     %% letzten Schritt — pr-needs-review-label.yml reagiert bewusst NICHT auf bot-erzeugte
@@ -88,7 +90,7 @@ flowchart TD
 
 ## Die Label-Kette in einer Zeile
 
-`ai:spec-ready` → **spec** → `ai:ready` → **implement** → `ai:needs-review` → **review** →
+`ai:spec-ready` → **spec** → `ux:ready` → **ux** → `ai:ready` → **implement** → `ai:needs-review` → **review** →
 ( `ai:needs-changes` → **fixup** → `ai:needs-review` → **review** )\* → `ai:ready-to-merge` →
 **gate-merge** → ✅
 
@@ -98,7 +100,8 @@ flowchart TD
 | ------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------- | ------------------------------------------------------------- |
 | `ai:analyzed`       | triage (Triage- oder Re-Triage-Pfad)                         | **issue-unblock** (Merge des Blockers), manuell                     | _Setzen:_ Vorbedingung; _Entfernen:_ `triage.yml` (Re-Triage) |
 | `ai:spec-ready`     | triage (bei 🟢, Triage- oder Re-Triage-Pfad)                 | _(kein automatisches Entfernen)_                                    | `spec.yml`                                                    |
-| `ai:ready`          | spec                                                         | _(kein automatisches Entfernen)_                                    | `implement.yml`                                               |
+| `ux:ready`          | spec                                                         | _(kein automatisches Entfernen)_                                    | `ux.yml`                                                      |
+| `ai:ready`          | ux                                                           | _(kein automatisches Entfernen)_                                    | `implement.yml`                                               |
 | `ai:needs-review`   | implement, pr-needs-review-label (nur menschlich), **fixup** | review, gate-merge                                                  | `pr-review.yml`                                               |
 | `ai:needs-changes`  | review (🔴), **gate-merge**, **conflict-scan**               | **fixup**, **pr-needs-review-label** (bei Push)                     | `pr-fixup.yml`                                                |
 | `ai:ready-to-merge` | review (🟢)                                                  | **gate-merge** (rot/Konflikt), **pr-needs-review-label** (bei Push) | `pr-gate-merge.yml`                                           |
