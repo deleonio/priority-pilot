@@ -7,7 +7,7 @@
 
 ## Ziel
 
-Korrekten User-Namen im Header nach Login anzeigen – Field-Name konsistent zwischen Interface, API und Rendering.
+Korrekten User-Namen im Header nach Login anzeigen – Field-Name konsistent zwischen Interface, API und Rendering (Behoben).
 
 ---
 
@@ -30,8 +30,29 @@ Korrekten User-Namen im Header nach Login anzeigen – Field-Name konsistent zwi
    - Response enthält `displayName`-Field mit User-Namen
 
 3. **Header rendern**
-   - `App.tsx` rendert User-Info im Header
-   - User-Name wird aus `AuthUser`-Interface gelesen
+   - `App.tsx` rendert User-Info im Header (Zeilen 521-522, 543-544)
+   - User-Name wird aus `AuthUser.displayName` gelesen (nicht aus `name`)
+
+---
+
+## Erwartetes Ergebnis (Implementiert)
+
+- Header zeigt den korrekten User-Namen an (nicht leer/undefined)
+- `AuthUser`-Interface verwendet `displayName`-Field (konsistent mit API-Response)
+- Kein TypeScript-Error oder Runtime-Mismatch zwischen Interface und API
+- `frontend/src/lib/auth.ts:3` deklariert `displayName: string`
+- `frontend/src/App.tsx:521-522` rendert `user.displayName`
+
+---
+
+## Technischer Kontext (Ist-Zustand)
+
+**Korrekt (nach Fix):**
+
+- `frontend/src/lib/auth.ts`: `AuthUser`-Interface deklariert `displayName`-Field (Zeile 3)
+- `frontend/src/App.tsx`: rendert `user.displayName` (Zeilen 521-522, 543-544)
+- API `/auth/me`: liefert `displayName` (konsistent mit Interface)
+- Header zeigt korrekten User-Namen an
 
 ---
 
@@ -64,3 +85,16 @@ Korrekten User-Namen im Header nach Login anzeigen – Field-Name konsistent zwi
 - Test: Login → Header zeigt User-Namen (nicht leer)
 - Test: AuthUser-Interface matcht API-Response-Field-Name
 - Optional: Type-safety Test für Interface/API-Alignment
+
+---
+
+## Versionierung
+
+- **v1.0** (2026-08-16): Initialefassung für Issue #697. Auth Field-Mismatch zwischen Interface, API und Rendering.
+- **v1.1** (2026-08-16): Nightly-Sync — Ist-Stand-Korrektur. Feature ist bereits behoben: AuthUser.displayName, App.tsx rendert displayName, API liefert displayName. Kein Mismatch mehr.
+
+---
+
+## Status
+
+**ABGESCHLOSSEN** — Der Field-Mismatch ist behoben. Interface, API und Rendering verwenden konsistent `displayName`.
