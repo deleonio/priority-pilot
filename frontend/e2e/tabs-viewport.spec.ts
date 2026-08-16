@@ -38,11 +38,6 @@ test.describe('#703 Tabs bei schmalen Viewports', () => {
 		// Prüfung: Entweder Tabs sind anders angeordnet (nicht standard horizontal nebeneinander)
 		// oder Dropdown/Stack ist sichtbar. Für rote Tests genügt die Prüfung, dass kein Überlauf besteht.
 		// Implementierungsspezifische Prüfungen (z.B. Dropdown-Element) folgen in grünen Tests.
-		// Alternatives Layout: Entweder Dropdown/Stack oder kompakte Darstellung (kein Standard-Tab-Look).
-
-		// Prüfung: Entweder Tabs sind anders angeordnet (nicht standard horizontal nebeneinander)
-		// oder Dropdown/Stack ist sichtbar. Für rote Tests genügt die Prüfung, dass kein Überlauf besteht.
-		// Implementierungsspezifische Prüfungen (z.B. Dropdown-Element) folgen in grünen Tests.
 	});
 
 	/**
@@ -59,8 +54,6 @@ test.describe('#703 Tabs bei schmalen Viewports', () => {
 		await expect(page.getByRole('tab', { name: 'Säulen', exact: true })).toBeVisible();
 
 		// Tabs sind nebeneinander (horizontal, keine vertikale Anordnung).
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		const tabs = page.getByRole('tab').all();
 		const firstTab = page.getByRole('tab', { name: 'Allgemein', exact: true });
 		const firstTabBox = await firstTab.boundingBox();
 		expect(firstTabBox).not.toBeNull();
