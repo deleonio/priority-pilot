@@ -3,21 +3,27 @@ name: Spec-Sync (nightly)
 # Nächtlicher LLM-Job (wie die Phasen 01–06 über setup-claude, aber KEINE Pipeline-Phase):
 # Verifiziert die Specs in docs/spec/ (user-journeys.md + issue-*.md) gegen die tatsächliche
 # Implementation (frontend/src, server/src, openapi.yml) und hält sie auf IST-STAND —
-# die Implementation ist die Wahrheit, die Spec spiegelt sie nur:
+# die Implementation ist die Wahrheit, die Spec spiegelt sie nur. Leitlinie arc42-Prinzip:
+# so viel wie nötig, so wenig wie möglich — nur langfristig relevantes Verhalten bleibt Spec:
 #   - korrigieren (Impl hat sich geändert → Spec folgt),
-#   - entsorgen (überholte/transitorische Soll-Aussagen wie „X soll entfernt sein“ sind
-#     langfristig keine Spec-Information),
+#   - entsorgen (einzelne Aussagen wie ganze Dateien: überholte/transitorische Soll-Aussagen
+#     wie „X soll entfernt sein“ sind langfristig keine Spec-Information; ganze Dateien ohne
+#     langfristigen Spec-Wert — Test-Protokolle, Validierungs-Platzhalter, vollständig
+#     redundant abgebildete Journeys — werden gelöscht),
 #   - ergänzen (implementiertes, un-spezifiziertes Verhalten bekommt neue Journeys).
 #
-# DELIVERY: PR vom festen Branch chore/spec-sync. Der Branch wird jede Nacht auf origin/main
-# zurückgesetzt und per Force-Push ersetzt — der offene PR zeigt damit IMMER exakt die aktuelle
-# Drift statt Commits über Nächte zu akkumulieren (squash-merge macht die Historie ohnehin platt).
-# Der Bot-PR bekommt BEWUSST keine Pipeline-Labels: pr-needs-review-label.yml labelt nur
-# menschliche Akteure → kein nächtlicher Kreuzverhör-/Fixup-Loop, kein Gate-Merge-Auto-Merge.
-# Der Mensch merged die Spec-Edits.
+# DELIVERY: pro geänderter Spec-Datei EIN Draft-PR vom Branch chore/spec-sync/<datei-stem>.
+# Der Agent arbeitet lokal auf chore/spec-sync-work (nie gepusht); die Mechanik überträgt je
+# geänderter Datei den finalen Stand auf einen eigenen Branch — unabhängig davon, wie der
+# Agent committet hat (Diff-basiert, nicht Commit-basiert). Drafts greifen bewusst NICHT
+# selbst in die Pipeline ein (pr-needs-review-label.yml ignoriert Bot-Drafts): Der Mensch
+# gibt einen Draft per „Ready for review“ frei → der Autolabeler setzt ai:needs-review →
+# Kreuzverhör-Review (04) und Fixup-Loop (05) übernehmen Prüfung und Nacharbeit wie bei
+# jedem Ticket-PR. Für eine Datei mit bereits offenem Sync-PR wird kein zweiter erzeugt
+# (Skip mit Notice) — neue Drift derselben Datei folgt nach dessen Merge.
 #
-# STATELESS: kein pro-Issue-Memory (memory-load/expect false, kein Artefakt-Upload). Der
-# offene Sync-PR ist der einzige Zustand; jede Nacht wird frisch verifiziert.
+# STATELESS: kein pro-Issue-Memory (memory-load/expect false, kein Artefakt-Upload). Die
+# offenen Draft-PRs sind der einzige Zustand; jede Nacht wird frisch verifiziert.
 #
 # KEINE Nummer im Dateinamen: Nummern (01–06) sind lastend (Workflow-Name-Matching), dieser
 # Job ist ein Helper wie cache-cleanup und hängt nicht in der Label-Kette.
@@ -37,8 +43,8 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write # Branch-Push chore/spec-sync
-  pull-requests: write # Sync-PR anlegen/aktualisieren
+  contents: write # Branch-Pushes chore/spec-sync/*
+  pull-requests: write # Draft-PRs anlegen
   id-token: write # App-Token (setup-claude)
   actions: read # Skip-Guard: letzte erfolgreiche Run-Historie lesen
 
@@ -80,7 +86,8 @@ jobs:
         run: |
           now=$(date +%s)
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
-          echo "soft_deadline_epoch=$((now + 900))" >> "$GITHUB_OUTPUT"
+          # 20 min weich (Ziel: ALLE Spec-Dateien schaffen) vs. 30 min hart — Restpuffer für Post-Steps.
+          echo "soft_deadline_epoch=$((now + 1200))" >> "$GITHUB_OUTPUT"
 
       - name: Setup Claude Code
         id: setup
@@ -107,16 +114,17 @@ jobs:
           memory-load: 'false'
           expect-memory: 'false'
 
-      - name: Sync-Branch frisch aufsetzen (Basis = origin/main) + Git-Identität
-        # Jede Nacht neuer Basis-Stand: der Sync-PR zeigt danach immer nur die HEUTIGE Drift.
-        # Git-Identität aus dem App-Slug (Muster deploy.yml) — deterministische Attribution
-        # der Agent-Commits statt runner-abhängiger Default-Identität.
+      - name: Arbeits-Branch frisch aufsetzen (Basis = origin/main, wird NIE gepusht) + Git-Identität
+        # Lokale Werkbank des Agenten; die Delivery-Branches chore/spec-sync/<stem> entstehen
+        # erst im Post-Step diff-basiert daraus. Git-Identität aus dem App-Slug (Muster
+        # deploy.yml) — deterministische Attribution der Agent-Commits statt runner-abhängiger
+        # Default-Identität.
         if: steps.guard.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
         run: |
-          git branch -D chore/spec-sync 2>/dev/null || true
-          git switch -C chore/spec-sync origin/main
+          git branch -D chore/spec-sync-work 2>/dev/null || true
+          git switch -C chore/spec-sync-work origin/main
           slug="$(gh api app --jq .slug 2>/dev/null || true)"
           user="${slug:-app}[bot]"
           id="$(gh api "users/${user}%5Bbot%5D" --jq .id 2>/dev/null || true)"
@@ -130,26 +138,35 @@ jobs:
         if: steps.guard.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
         run: |
           cat > /tmp/claude-prompt.txt << 'CLAUDE_EOF'
-          FOKUS: Spec-Sync docs/spec/*.md gegen die Implementation. DIE IMPLEMENTATION IST DIE WAHRHEIT — die Spec beschreibt NUR den Ist-Zustand. KEINE Abstecher, KEINE Code-Änderungen. Token sparen: kurz, präzise, direkt.
+          FOKUS: Spec-Sync docs/spec/ gegen die Implementation. DIE IMPLEMENTATION IST DIE WAHRHEIT — die Spec beschreibt NUR den Ist-Zustand. KEINE Abstecher, KEINE Code-Änderungen. Token sparen: kurz, präzise, direkt.
+
+          LEITLINIE (arc42-Prinzip): SO VIEL WIE NÖTIG, SO WENIG WIE MÖGLICH. Specs halten nur langfristig relevantes, von außen sichtbares Verhalten fest — alles andere (Transitorisches, Erledigtes, Redundantes) ist Ballast und fliegt raus. Ein Datensatz, eine Wahrheit.
 
           QUELLEN (liest selbst, nicht im Prompt wiederholen):
-            - Specs: alle docs/spec/*.md (user-journeys.md + issue-*.md)
+            - Specs: alle Dateien unter docs/spec/ (user-journeys.md + issue-*.md)
             - Ist-Zustand: frontend/src/** (UI-Verhalten, Dialoge, Meldungstexte), server/src/** + openapi.yml (API, Validierung, Fehlermeldungen)
 
           ABLAUF (STRIKT):
-            1. SOFORT starten. Alle docs/spec/*.md vollständig lesen.
-            2. JEDE verhaltensrelevante Aussage (Journey-Schritte, erwartete Ergebnisse, Randfall-Tabellen, Meldungstexte) gegen den Code verifizieren.
-            3. NUR bei belegter Abweichung die Spec anpassen:
-               a) Implementation hat sich geändert → Spec auf den neuen Ist-Zustand umformulieren.
-               b) Aussage ohne Realitätsbezug STREICHEN — insb. transitorische Soll-Aussagen („X soll entfernt werden“, Ankündigungen, Absichten): langfristig keine Spec-Information.
-               c) Implementiertes Verhalten, das in KEINER Spec steht → neue Journey ERGÄNZEN (Format wie user-journeys.md: Ziel/Vorbedingung/Schritte/Erwartetes Ergebnis; implementierungsagnostisch, nur von außen beobachtbares Verhalten).
-            4. Je geänderter/neuer Datei: „**Stand:**“-Datum auf SYNC_DATE setzen + eine Versionszeile ergänzen (vX.Y (SYNC_DATE): Nightly-Sync — <Kurzbegründung>).
-            5. ALLE Änderungen lokal committen (ein Commit genügt): git add docs/spec && git commit -m "docs(spec): Ist-Stand-Sync SYNC_DATE"
-               NICHT pushen, KEINEN PR anlegen — das macht der Workflow nach dir.
-            6. Report schreiben nach /tmp/spec-sync-report.md (Markdown): je Fund ein Abschnitt (Datei + Abschnitt, Befund, Korrektur), plus Liste offener Unklarheiten (nicht aus Code Ableitbares: NICHT geändert, nur gelistet).
+            1. SOFORT starten. Alle Dateien unter docs/spec/ vollständig lesen.
+            2. DATEI-TRIAGE (billig zuerst): JEDE Datei auf langfristigen Spec-Wert prüfen. GANZE DATEI ENTFERNEN, wenn
+               a) sie per Art kein Spec-Wert ist (manuelle Test-Protokolle, Validierungs-Platzhalter, Soll-/Arbeits-Stände zu abgeschlossenen Tickets), oder
+               b) ihr Inhalt vollständig in anderen Spec-Dateien abgebildet ist → Redundanz an EINER Stelle halten (dort konsolidieren, Rest löschen).
+            3. JEDE verhaltensrelevante Aussage (Journey-Schritte, erwartete Ergebnisse, Randfall-Tabellen, Meldungstexte) der verbleibenden Dateien gegen den Code verifizieren. ZIEL: ALLE Dateien schaffen.
+            4. NUR bei belegtem Befund die Spec anpassen — jede Operation gilt für Textpassagen UND, wo zutreffend, ganze Dateien:
+               a) AKTUALISIEREN: Passage (oder ganze Datei) auf den neuen Ist-Zustand umformulieren.
+               b) ENTFERNEN: Passage ohne langfristigen Spec-Wert streichen — insb. transitorische Soll-Aussagen („X soll entfernt werden“, Ankündigungen, Absichten, Ticket-Historie). Ganze Dateien: siehe DATEI-TRIAGE.
+               c) ERGÄNZEN: implementiertes Verhalten, das in KEINER Spec steht → neue Journey in der passenden Datei; nur bei eigenständig abgrenzbarem Verhaltenbereich eine NEUE DATEI (Format wie user-journeys.md: Ziel/Vorbedingung/Schritte/Erwartetes Ergebnis; implementierungsagnostisch, nur von außen beobachtbares Verhalten).
+            5. Je geänderter/neuer Datei: „**Stand:**“-Datum auf SYNC_DATE setzen + eine Versionszeile ergänzen (vX.Y (SYNC_DATE): Nightly-Sync — <Kurzbegründung>).
+            6. ALLE Änderungen lokal committen (ein Commit genügt): git add docs/spec && git commit -m "docs(spec): Ist-Stand-Sync SYNC_DATE"
+               NICHT pushen, KEINE PRs anlegen — das macht der Workflow nach dir (pro Datei ein Draft-PR).
+            7. Report schreiben nach /tmp/spec-sync-report.md (Markdown), STRENG nach Datei gegliedert — der Workflow baut daraus die PR-Beschreibungen:
+               - Pro betroffener Datei ein Abschnitt mit Überschrift „## <dateiname>“ (exakt der Dateiname, z. B. „## user-journeys.md“): darunter je Fund (Abschnitt, Befund, Korrektur — auch entfernte Dateien mit Begründung).
+               - Am Ende ein Abschnitt „## Nicht verifiziert“: Dateien, die du nicht mehr geschafft hast (leer lassen, wenn alle geschafft).
+               - Danach ein Abschnitt „## Offene Unklarheiten“: nicht aus Code Ableitbares — NICHT geändert, nur gelistet.
 
           CONSTRAINTS:
-            - NUR docs/spec/*.md ändern — kein Code, keine anderen Dateien, kein Umstrukturieren der Specs ohne Befund.
+            - NUR innerhalb docs/spec/ Dateien ändern oder LÖSCHEN — kein Code, keine anderen Dateien.
+            - Konsolidieren/Umbenennen nur bei belegter Redundanz, sonst keine Umstrukturierung.
             - KEINE Spekulation: nur belegbares, im Code sichtbares Verhalten spezifizieren.
             - KEINE Soll-/Absichts-Formulierungen in der Spec — nur Ist.
 
@@ -170,10 +187,15 @@ jobs:
             2>&1 | tee /tmp/claude-output.log
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
 
-      - name: Post-Assertion (VERDICT ↔ Commits ↔ Scope) + Push + PR-Pflege
+      - name: Post-Assertion (VERDICT ↔ Commits ↔ Scope) + Per-Datei-Draft-PRs
+        id: deliver
         # Ehrlichkeits-Kreuzcheck nach dem VERDICT-Muster der Phasen-Workflows: Der Agent
-        # behauptet synced/updated — die Mechanik verifiziert Commits, Datei-Scope und
-        # pampt/pflegt den PR deterministisch (Push/PR ist bewusst KEINE Agent-Aufgabe).
+        # behauptet synced/updated — die Mechanik verifiziert Commits und Datei-Scope und
+        # baut daraus deterministisch EINEN DRAFT-PR PRO geänderter Spec-Datei (Push/PR ist
+        # bewusst KEINE Agent-Aufgabe). Diff-basiert vom finalen Datei-Stand des Agent-Branches,
+        # unabhängig von dessen Commit-Aufteilung. Bereits offener Sync-PR zur selben Datei
+        # → Skip (keine Duplikate); Freigabe + Pipeline-Review übernimmt der Mensch per
+        # „Ready for review“ (pr-needs-review-label.yml → 04/05-Loop).
         if: >-
           ${{ always()
               && steps.guard.outputs.skip != 'true'
@@ -224,9 +246,10 @@ jobs:
             exit 0
           fi
 
-          # Report Fallback: fehlt/leer der Agent-Report, ersetzt git log den PR-Body (laut Warning).
+          # Report Fallback: fehlt/leer der Agent-Report, ersetzt git log die Fund-Abschnitte
+          # (laut Warning; die Per-Datei-Bodys fallen dann auf den Kopfhinweis zurück).
           if [ ! -s /tmp/spec-sync-report.md ]; then
-            echo "::warning title=⚠️ Report fehlt::/tmp/spec-sync-report.md fehlt — Fallback-Body aus git log."
+            echo "::warning title=⚠️ Report fehlt::/tmp/spec-sync-report.md fehlt — Fallback aus git log."
             {
               echo "## Spec-Sync $(date -u +%F)"
               echo ""
@@ -236,35 +259,69 @@ jobs:
             } > /tmp/spec-sync-report.md
           fi
 
-          git push --force origin chore/spec-sync
+          # Per-Datei-Draft-PRs: finaler Datei-Stand vom Agent-Branch auf eigene Branches.
+          sync_date="$(date -u +%F)"
+          created=0
+          skipped=0
+          for f in $(git diff --name-only origin/main..chore/spec-sync-work); do
+            stem="$(basename "$f" .md)"
+            branch="chore/spec-sync/$stem"
+            existing="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$branch" --state open \
+              --json number --jq '.[0].number // empty' 2>/dev/null || true)"
+            if [ -n "$existing" ]; then
+              echo "::notice title=⏭️ Sync-PR offen::#$existing für $f — Datei übersprungen (neue Drift folgt nach Merge)."
+              skipped=$((skipped + 1))
+              continue
+            fi
 
-          title="docs(spec): Ist-Stand-Sync $(date -u +%F)"
-          pr_number="$(gh pr list --repo "$GITHUB_REPOSITORY" --head chore/spec-sync --state open \
-            --json number --jq '.[0].number // empty' 2>/dev/null || true)"
-          if [ -n "$pr_number" ]; then
-            gh pr edit "$pr_number" --repo "$GITHUB_REPOSITORY" --title "$title" --body-file /tmp/spec-sync-report.md
-            echo "::notice title=✅ Sync-PR aktualisiert::#$pr_number zeigt die Drift von heute."
-          else
-            gh pr create --repo "$GITHUB_REPOSITORY" --head chore/spec-sync --base main \
-              --title "$title" --body-file /tmp/spec-sync-report.md
-            echo "::notice title=✅ Sync-PR erstellt::chore/spec-sync liegt zum Merge bereit."
-          fi
+            git switch -C "$branch" origin/main
+            if git cat-file -e "chore/spec-sync-work:$f" 2>/dev/null; then
+              git restore --source=chore/spec-sync-work -- "$f"
+              git add "$f"
+              title="docs(spec): $stem — Ist-Stand-Sync $sync_date"
+            else
+              git rm -q "$f"
+              title="docs(spec): $stem entfernen — Ist-Stand-Sync $sync_date"
+            fi
+            git commit -m "$title"
+            git push --force origin "$branch"
+
+            # PR-Body: „## <dateiname>“-Abschnitt aus dem Agent-Report, Fallback = Kopfhinweis.
+            {
+              echo "Nächtlicher Spec-Sync ($sync_date) — betrifft nur \`$f\`."
+              echo ""
+              echo "**Freigabe:** „Ready for review“ klicken → \`ai:needs-review\` → Kreuzverhör-Review und Fixup übernehmen."
+              echo ""
+              awk -v file="## $f" 'found && /^## /{exit} $0==file{found=1;next} found' /tmp/spec-sync-report.md
+            } > /tmp/spec-sync-pr-body.md
+            gh pr create --repo "$GITHUB_REPOSITORY" --head "$branch" --base main --draft \
+              --title "$title" --body-file /tmp/spec-sync-pr-body.md
+            created=$((created + 1))
+            git switch chore/spec-sync-work
+          done
+          echo "::notice title=✅ Sync-Draft-PRs::${created} erstellt, ${skipped} übersprungen (offene PRs)."
+          echo "created=$created" >> "$GITHUB_OUTPUT"
+          echo "skipped=$skipped" >> "$GITHUB_OUTPUT"
 
       - name: Ergebnis zusammenfassen
         if: ${{ always() && steps.guard.outputs.skip != 'true' && steps.setup.outputs.configured == 'true' }}
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           OUTCOME: ${{ steps.claude.outcome }}
+          CREATED: ${{ steps.deliver.outputs.created }}
+          SKIPPED: ${{ steps.deliver.outputs.skipped }}
         run: |
           count="$(git rev-list --count origin/main..HEAD 2>/dev/null || echo 0)"
-          pr_number="$(gh pr list --repo "$GITHUB_REPOSITORY" --head chore/spec-sync --state open \
-            --json number --jq '.[0].number // empty' 2>/dev/null || true)"
+          sync_prs="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
+            --json number,headRefName \
+            --jq '[.[] | select(.headRefName | startswith("chore/spec-sync/")) | .number] | join(", ")' 2>/dev/null || true)"
           {
             echo "### Spec-Sync – fertig"
             echo ""
             echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\`"
-            echo "- Commits: ${count}"
-            echo "- Offener Sync-PR: ${pr_number:-keiner}"
+            echo "- Agent-Commits: ${count}"
+            echo "- Draft-PRs erstellt: \`${CREATED:-0}\`, übersprungen: \`${SKIPPED:-0}\`"
+            echo "- Offene Sync-PRs: ${sync_prs:-keine}"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: 🩺 Z.AI Fair-Usage-Check (1313)
