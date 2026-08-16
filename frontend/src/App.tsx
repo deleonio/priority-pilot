@@ -518,8 +518,8 @@ export const App = ({ user }: { user: AuthUser }) => {
 					<KolToolbar _label="Kopf-Aktionen" _orientation="horizontal" _items={toolbarItems} />
 					{isDesktop ? (
 						<div className="user-info">
-							<KolAvatar _label={user.name} _src={user.avatarUrl ?? undefined} />
-							<span className="user-display-name">{user.name}</span>
+							<KolAvatar _label={user.displayName} _src={user.avatarUrl ?? undefined} />
+							<span className="user-display-name">{user.displayName}</span>
 						</div>
 					) : (
 						<KolPopoverButton
@@ -540,8 +540,8 @@ export const App = ({ user }: { user: AuthUser }) => {
 						>
 							<div className="header-menu-panel">
 								<div className="user-info">
-									<KolAvatar _label={user.name} _src={user.avatarUrl ?? undefined} />
-									<span className="user-display-name">{user.name}</span>
+									<KolAvatar _label={user.displayName} _src={user.avatarUrl ?? undefined} />
+									<span className="user-display-name">{user.displayName}</span>
 								</div>
 								{/* Ebenfalls disjunkt zu „Kopf-Aktionen" — sonst matcht `getByRole('toolbar', { name:
 								    /Kopf-Aktionen/ })` beide Toolbars. */}
@@ -590,7 +590,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 							nextTask={nextTask}
 							suggestions={suggestions}
 							pillars={pillars}
-							displayName={user.name}
+							displayName={user.displayName}
 						/>
 					</div>
 					<div slot="tab-1">
