@@ -1062,15 +1062,15 @@ body {
 		width: 100%;
 		text-align: left;
 	}
-}
 
-.app-tabs kol-tabs::part(tab-list) {
-	flex-direction: column;
-}
+	.app-tabs kol-tabs::part(tab-list) {
+		flex-direction: column;
+	}
 
-.app-tabs kol-tabs::part(tab-button) {
-	width: 100%;
-	text-align: left;
+	.app-tabs kol-tabs::part(tab-button) {
+		width: 100%;
+		text-align: left;
+	}
 }
 
 .settings-placeholder {
