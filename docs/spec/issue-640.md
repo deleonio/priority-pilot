@@ -1,17 +1,17 @@
 # Issue 640: LLM-Provider-Konfiguration – Backend-Config-API + Frontend-Settings-UI
 
-**Stand:** 2026-08-14
+**Stand:** 2026-08-16
 **Issue:** #640 (Teil von #637)
-**Ziel:** Die Mistral/OpenRouter-Kaskade (`server/src/llm/llm.ts`) ist bisher nur über
-Umgebungsvariablen (`MISTRAL_API_KEY`, `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`) konfigurierbar.
-Dieses Ticket ergänzt eine persistierte Konfiguration (SQLite) inkl. Backend-API und einem
-„LLM"-Tab in der bestehenden `SettingsPage`.
+**Ziel:** Die Mistral/OpenRouter-Kaskade (`server/src/llm/llm.ts`) ist über
+Umgebungsvariablen (`MISTRAL_API_KEY`, `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`) UND über
+eine persistierte Konfiguration (SQLite) inkl. Backend-API und einem „LLM"-Tab in der
+bestehenden `SettingsPage` konfigurierbar.
 
 ## Vorbedingung
 
-- `SettingsPage.tsx` existiert mit `KolTabs` (Tabs „Allgemein"/„Säulen").
-- LLM-Kaskade in `server/src/llm/llm.ts` liest Konfiguration bisher ausschließlich aus `process.env`.
-- `/llm-config` (bzw. proxied `/api/llm-config`) existiert noch nicht.
+- `SettingsPage.tsx` existiert mit `KolTabs` (Tabs „Allgemein"/„Säulen"/„LLM").
+- LLM-Kaskade in `server/src/llm/llm.ts` liest Konfiguration aus `process.env` UND aus SQLite-Datenbank.
+- `/llm-config` (bzw. proxied `/api/llm-config`) ist implementiert in `server/src/express/routes/llmConfig.ts`.
 
 ## Journey 1: Konfiguration ohne vorherige Speicherung lesen
 
@@ -197,5 +197,18 @@ sichtbar, die Key-Felder jedoch **leer** (die Werte werden nicht zurückgelesen)
   fordern ausschließlich Auth-Schutz (401), keine Datenisolation zwischen Nutzern — die Konfiguration
   ist eine Singleton-Zeile.
 - Die Kaskaden-Vorrang-Logik aus Journey 5 wird als `loadEffectiveLlmConfig` in der bestehenden
-  Datei `server/src/llm/llm.ts` erwartet (nicht als neue Datei) — `getMistralConfig`/
-  `getOpenRouterConfig` dort lesen aktuell nur `process.env` und sollen diese Funktion nutzen.
+  Datei `server/src/llm/llm.ts` implementiert — `getMistralConfig`/`getOpenRouterConfig` dort
+  lesen sowohl `process.env` als auch die DB-Konfiguration.
+
+---
+
+## Versionierung
+
+- **v1.0** (2026-08-14): Initialefassung für Issue #640. LLM-Provider-Konfiguration über Backend-Config-API + Frontend-Settings-UI.
+- **v1.1** (2026-08-16): Nightly-Sync — Ist-Stand-Korrektur. Feature ist bereits implementiert: Backend-Routen (`GET/PUT /llm-config`), Settings-UI (LlmSettingsForm.tsx), SettingsPage-Tab „LLM", alle Journeys erfüllt.
+
+---
+
+## Status
+
+**ABGESCHLOSSEN** — Das Feature ist vollständig implementiert und in Produktion.
