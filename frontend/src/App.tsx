@@ -25,6 +25,7 @@ import { UpdatePrompt } from './components/UpdatePrompt';
 import { PillarAdvisorModal } from './components/PillarAdvisorModal';
 import { QuickCaptureModal } from './components/QuickCaptureModal';
 import { SeriesTab } from './components/SeriesTab';
+import { SettingsPage } from './components/SettingsPage';
 import { TaskFormModal } from './components/TaskFormModal';
 import { TaskTree } from './components/TaskTree';
 import { filterForestByTitle } from './lib/filterForestByTitle';
@@ -61,6 +62,7 @@ const LOGOUT_ICON = { left: { icon: 'fa-solid fa-right-from-bracket' } };
 
 export const App = ({ user }: { user: AuthUser }) => {
 	const [showHelp, setShowHelp] = useState(() => window.location.pathname.startsWith('/hilfe'));
+	const [showSettings, setShowSettings] = useState(() => window.location.pathname.startsWith('/settings'));
 	const [tasks, setTasks] = useState<Task[] | null>(null);
 	const [forest, setForest] = useState<TaskTreeNode[]>([]);
 	const [nextTask, setNextTask] = useState<Task | null>(null);
@@ -74,11 +76,6 @@ export const App = ({ user }: { user: AuthUser }) => {
 	const [updateError, setUpdateError] = useState<string | null>(null);
 	const [activeTab, setActiveTab] = useState(0);
 	const doneRemovalTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
-
-	// Kopfbereich-Layout: Unterhalb von 48rem bleibt in der Toolbar nur die primäre Aktion, alles
-	// Übrige wandert hinter das „⋮"-Menü — so passt der Header auf 375px in EINE Zeile statt in zwei
-	// bis drei. Die Entscheidung fällt in React (nicht per CSS `display: none`), damit stets nur eine
-	// Variante im DOM steht und dieselben Accessible Names nicht doppelt existieren.
 
 	// Aufgaben-Tab: Suchtext und Offen/Erledigt-Switch (State wird beim Umschalten erhalten, AK6).
 	// `searchDraft` ist der Eingabe-Entwurf im Suchfeld; der Filter wird erst per „Filtern"-Button
@@ -131,6 +128,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 		const onPop = () => {
 			const path = window.location.pathname;
 			setShowHelp(path.startsWith('/hilfe'));
+			setShowSettings(path.startsWith('/settings'));
 		};
 		window.addEventListener('popstate', onPop);
 		return () => window.removeEventListener('popstate', onPop);
@@ -276,9 +274,31 @@ export const App = ({ user }: { user: AuthUser }) => {
 		setActiveTab(0);
 	}, []);
 
+	const openSettings = useCallback((): void => {
+		window.history.pushState({}, '', '/settings/general');
+		setShowSettings(true);
+	}, []);
+
+	const closeSettings = useCallback((): void => {
+		window.history.pushState({}, '', '/');
+		setShowSettings(false);
+		setActiveTab(0);
+	}, []);
+
 	// Nach dem Speichern auf der Einstellungen-Seite: zurück zum Dashboard (#270) und die Daten neu
 	// laden, damit die geänderten Säulen-Gewichte sofort in Dashboard und Ranking sichtbar sind.
+	const afterSettingsSaved = useCallback((): void => {
+		closeSettings();
+		void reload();
+	}, [closeSettings, reload]);
+
+	// Nach PillarList-Mutationen (anlegen/umbenennen/löschen) die globalen Pillar-Daten neu laden,
 	// damit PillarWeightsForm und Dashboard die aktuellen Daten anzeigen (#439 Review Finding 3).
+	const handlePillarChanged = useCallback((): void => {
+		void reload();
+	}, [reload]);
+
+	// Stabile Callback-Identitäten, damit die memoisierte `TaskTable` beim Öffnen eines Dialogs nicht
 	// neu rendert (sonst Zellen-/Toolbar-Neuaufbau samt Fokusverlust am auslösenden Button).
 	const openEdit = useCallback((task: Task): void => setDialog({ kind: 'edit', task }), []);
 	const openDelete = useCallback((task: Task): void => setDialog({ kind: 'delete', task }), []);
@@ -343,10 +363,6 @@ export const App = ({ user }: { user: AuthUser }) => {
 		void reload();
 	}, [reload]);
 
-	const openSettings = useCallback((): void => {
-		window.history.pushState({}, '/', '/settings/general');
-		setShowHelp(false);
-	}, []);
 	const dependencyTask =
 		dialog?.kind === 'dependencies' ? (tasks?.find((task) => task.id === dialog.taskId) ?? null) : null;
 
@@ -357,15 +373,6 @@ export const App = ({ user }: { user: AuthUser }) => {
 		setDialog({ kind: 'advisor' });
 	}, []);
 
-	/**
-	 * Schließt das Kopf-Menü und führt die Aktion erst danach aus. Reihenfolge wie in `TaskTree`:
-	 * `hidePopover()` ist asynchron, und ein danach geöffnetes Modal soll den Menü-Trigger als
-	 * Fokus-Rückgabeziel erfassen — nicht das gerade verschwindende Panel.
-	 */
-
-	// Die primäre Aktion („Neuen Task anlegen") steht auf JEDER Breite direkt in der Toolbar; die vier
-	// sekundären Aktionen nur auf Desktop-Breite — mobil liegen sie im „⋮"-Menü. `_label`s und
-	// Reihenfolge sind in beiden Varianten identisch, damit Accessible Names stabil bleiben.
 	// Toolbar-Buttons sind auf allen Viewports identisch — keine unterschiedliche Menüstruktur je nach
 	// Viewport-Breite (#691). `_label`s und Reihenfolge sind stabil, damit Accessible Names konsistent bleiben.
 	const toolbarItems = useMemo(() => {
@@ -413,6 +420,18 @@ export const App = ({ user }: { user: AuthUser }) => {
 			},
 		];
 	}, [logoutLoading, openCreateDialog, openAdvisor, openSettings, openHelp, handleLogout]);
+
+	if (showSettings) {
+		return (
+			<SettingsPage
+				pillars={pillars}
+				onBack={closeSettings}
+				onSaved={afterSettingsSaved}
+				onPillarChanged={handlePillarChanged}
+			/>
+		);
+	}
+
 	if (showHelp) {
 		return <HelpPage onBack={closeHelp} />;
 	}

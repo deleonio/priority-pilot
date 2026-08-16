@@ -84,10 +84,11 @@ body {
 	 */
 	--pp-toolbar-height: 2.75rem;
 	/*
-	 * Mobile-First: Auf schmalen Viewports liegt der Avatar (bzw. das Logo, das sich an ihm bemisst)
-	 * exakt auf Toolbar-Höhe — der 1,25-Faktor aus #485 würde den Header hier unnötig hoch machen.
-	 * Ab 48rem gilt wieder die gewohnte Relation (siehe Media-Query unten). Die 2.75rem/44px selbst
-	 * bleiben unangetastet: sie sind das WCAG-2.5.5-Minimum, nicht Deko.
+	 * Mobile-First: Auf schmalen Viewports bleibt das Logo (der einzige Abnehmer der Variable,
+	 * da `.user-info` unter 48rem ausgeblendet ist) exakt auf Toolbar-Höhe — der 1,25-Faktor aus
+	 * #485 würde den Header hier unnötig hoch machen. Ab 48rem gilt wieder die gewohnte Relation
+	 * (siehe Media-Query unten). Die 2.75rem/44px selbst bleiben unangetastet: sie sind das
+	 * WCAG-2.5.5-Minimum, nicht Deko.
 	 */
 	--pp-avatar-size: var(--pp-toolbar-height);
 
@@ -157,40 +158,23 @@ body {
 	--a11y-min-size: var(--pp-toolbar-height);
 }
 
-/* User-Info-Block rechts in der Toolbar: Avatar + Anzeigename inline. */
+/*
+ * User-Info-Block rechts in der Toolbar: Avatar + Anzeigename inline — ab 48rem. Unterhalb blendet
+ * ihn `display: none` aus (#691): Logo und die fünf Toolbar-Buttons (je 44px WCAG-Mindestgröße
+ * plus Lücken) belegen auf 375px schon ~305 der 343px Inhaltsbreite — Avatar und Klartextname
+ * passen nicht zusätzlich in eine Zeile. Identität ist keine Kopf-Aktion und darf mobil fehlen;
+ * Menüpunkte dürfen es nicht (#691: Responsive nur durch Layout-Anpassung).
+ */
 .user-info {
-	display: flex;
+	display: none;
 	align-items: center;
 	gap: 0.5rem;
 }
 
-/*
- * Kopf-Menü (nur < 48rem): Der „⋮"-Trigger nimmt die sekundären Aktionen auf, damit der Header auf
- * 375px einzeilig bleibt. Der Host liegt im Fluss, damit KoliBri sein Panel daran verankern kann;
- * die Mindestgröße (44px) erzwingt KoliBri im Shadow-DOM über `--a11y-min-size` — hier nur die
- * gemeinsame Bezugshöhe durchreichen, damit der Trigger exakt auf Toolbar-Höhe sitzt.
- */
-.header-menu {
-	display: inline-flex;
-	flex-shrink: 0;
-	--a11y-min-size: var(--pp-toolbar-height);
-}
-
-/*
- * Panel-Inhalt: Anzeigename oben, darunter die Aktionen als vertikale Liste. Die Breite deckelt den
- * `width: max-content`, den `setupPopoverAlignment` (src/lib/popoverAlign.ts) am Shadow-DOM-Panel
- * setzt — ohne die Obergrenze könnte ein langer Anzeigename das Panel über den Viewport treiben.
- */
-.header-menu-panel {
-	display: flex;
-	flex-direction: column;
-	gap: 0.75rem;
-	padding: 0.25rem;
-	max-width: min(16rem, calc(100vw - 2rem));
-}
-
-.header-menu-panel .user-display-name {
-	overflow-wrap: anywhere;
+@media (min-width: 48rem) {
+	.user-info {
+		display: flex;
+	}
 }
 
 /*
