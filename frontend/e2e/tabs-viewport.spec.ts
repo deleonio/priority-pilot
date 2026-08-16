@@ -37,6 +37,7 @@ test.describe('#703 Tabs bei schmalen Viewports', () => {
 
 		// Alternatives Layout: Entweder Dropdown/Stack oder kompakte Darstellung (kein Standard-Tab-Look).
 		const tabsContainer = page.getByRole('tablist').first();
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		const boundingBox = await tabsContainer.boundingBox();
 
 		// Prüfung: Entweder Tabs sind anders angeordnet (nicht standard horizontal nebeneinander)
@@ -58,20 +59,24 @@ test.describe('#703 Tabs bei schmalen Viewports', () => {
 		await expect(page.getByRole('tab', { name: 'Säulen', exact: true })).toBeVisible();
 
 		// Tabs sind nebeneinander (horizontal, keine vertikale Anordnung).
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		const tabs = page.getByRole('tab').all();
 		const firstTab = page.getByRole('tab', { name: 'Allgemein', exact: true });
 		const firstTabBox = await firstTab.boundingBox();
+		expect(firstTabBox).not.toBeNull();
 		const secondTab = page.getByRole('tab', { name: 'Säulen', exact: true });
 		const secondTabBox = await secondTab.boundingBox();
+		expect(secondTabBox).not.toBeNull();
 
 		// Prüfung: Zweiter Tab ist rechts vom ersten Tab (nicht darunter).
-		expect(secondTabBox.y).toBeCloseTo(firstTabBox.y, 0);
-		expect(secondTabBox.x).toBeGreaterThan(firstTabBox.x);
+		expect(secondTabBox!.y).toBeCloseTo(firstTabBox!.y, 0);
+		expect(secondTabBox!.x).toBeGreaterThan(firstTabBox!.x);
 
 		// Kein Umbruch (Tabs sind in einer Zeile).
 		const tablist = page.getByRole('tablist').first();
 		const tablistBox = await tablist.boundingBox();
-		expect(tablistBox.height).toBeLessThan(firstTabBox.height * 2);
+		expect(tablistBox).not.toBeNull();
+		expect(tablistBox!.height).toBeLessThan(firstTabBox!.height * 2);
 	});
 
 	/**
