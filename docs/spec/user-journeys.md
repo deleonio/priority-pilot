@@ -91,7 +91,7 @@ Zwei Aufgaben so verknüpfen, dass eine Aufgabe vom Erledigen der anderen abhän
 
 - Abhängigkeit ist persistent gespeichert
 - Vorgänger-Aufgabe erscheint in der Liste der aktuellen Vorgänger
-- Im Aufgaben-Baum ist die abhängige Aufgabe eingerückt unter dem Vorgänger sichtbar
+- Im Aufgaben-Baum ist der Vorgänger (die Unteraufgabe) eingerückt unter der abhängigen (Eltern-)Aufgabe sichtbar
 - Die abhängige Aufgabe lässt sich erst erledigen, wenn der Vorgänger „Done" ist
 - Zyklische Abhängigkeiten werden mit einem Hinweis abgelehnt (z. B. A → B → A)
 

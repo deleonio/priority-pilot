@@ -6,7 +6,7 @@ import sequelize from '../../database.js';
 import { Pillar, User } from '../../models/index.js';
 import { SEED_PILLARS } from '../../models/pillarData.js';
 import { hashPassword, verifyPassword } from '../../logics/auth.js';
-import { hasGoogleOAuth } from '../requireAuth.js';
+import { hasGoogleOAuth, isAuthActive } from '../requireAuth.js';
 
 // Timing-Normalisierung: bei unbekannter E-Mail bcrypt-Vergleich simulieren,
 // damit Angreifer per Zeitmessung keine gültigen Adressen ermitteln können.
@@ -193,6 +193,15 @@ authRouter.get(
 
 // GET /auth/me — gibt die aktuelle Session zurück (oder 401)
 authRouter.get('/auth/me', (req, res) => {
+	// Pass-Through-Modus: Ist überhaupt kein Auth-Kontext konfiguriert (siehe `isAuthActive`), lässt
+	// `requireAuth` jede API-Route ungehindert durch — dann darf `/auth/me` nicht 401 melden. Sonst
+	// zeigt das Frontend eine Login-Seite, hinter die niemand kommt: ohne OAuth-Credentials ist weder
+	// `/auth/google` noch `/auth/google/silent` registriert. Der synthetische Nutzer trägt keine Id,
+	// bleibt damit ohne Eigentümer-Bindung (`ownerScope`) und sieht wie bisher alle Ressourcen.
+	if (!req.session?.user && !isAuthActive()) {
+		res.json({ email: 'dev@localhost', displayName: 'Lokaler Modus', name: 'Lokaler Modus', avatarUrl: null });
+		return;
+	}
 	if (!req.session || !req.session.user) {
 		res.status(401).json({ message: 'Nicht eingeloggt.' });
 		return;
