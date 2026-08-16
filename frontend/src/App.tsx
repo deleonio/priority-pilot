@@ -51,7 +51,7 @@ type Dialog =
 // Die Hauptansichten als Tab-Leiste oben (Inhalt steckt in den zugehörigen `tab-N`-Slots von
 // `KolTabs`). Modulkonstante, damit `KolTabs` nicht bei jedem Render eine neue Tab-Liste erhält und
 // die Auswahl zurücksetzt.
-const VIEW_TABS = [{ _label: 'Dashboard' }, { _label: 'Aufgaben' }, { _label: 'Serien' }, { _label: 'Aufgabenwald' }];
+const VIEW_TABS = [{ _label: 'Dashboard' }, { _label: 'Aufgaben' }, { _label: 'Serien' }, { _label: 'Wald' }];
 
 // Modulkonstanten für Toolbar-Icons: stabile Objektidentität pro Render, damit der Icon-Watcher
 // nicht unnötig erneut feuert (z. B. CREATE_ICON für „Neuen Task anlegen").
