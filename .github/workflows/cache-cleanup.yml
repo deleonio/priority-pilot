@@ -18,8 +18,11 @@ name: Cache-Aufraeumen
 #
 # `ticket-*`-Caches sind ein ebenfalls verwaister Legacy-Typ (Pro-Issue-Caches a ~1-2 KiB), der
 # von keinem aktuellen Workflow mehr geschrieben wird (die Issue-Memory-Persistierung laeuft
-# seit 2026-07-10 ueber Artefakte + claude-memory-save.yml). Sie werden hier ohne Altersgrenze
-# abgeraeumt, bis der Altbestand (51 Eintraege bei Messung 2026-08-15) auf null geschrumpft ist.
+# seit 2026-08-16 ausschliesslich ueber Workflow-ARTEFAKTE -- der Cache-Weg ist fuer die
+# Claude-Phasen platform-seitig schreib-tot, s. setup-claude Kopf-Kommentar; der frueher hier
+# genannte Begleitworkflow claude-memory-save.yml wurde deshalb entfernt). Sie werden hier ohne
+# Altersgrenze abgeraeumt, bis der Altbestand (51 Eintraege bei Messung 2026-08-15) auf null
+# geschrumpft ist.
 #
 # `codeql-overlay-base-database-*`-Caches (vom github/codeql-action automatisch verwaltet) werden
 # hier NICHT geloescht -- ihre Reduktion erfolgt ueber die Trigger-Aenderung in codeql.yml
