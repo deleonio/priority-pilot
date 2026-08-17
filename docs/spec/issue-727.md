@@ -1,5 +1,7 @@
 # Issue 727: Range-Inputs bei schmalen Bildschirmen übereinander anzeigen
 
+**Stand:** 2026-08-17
+
 ## Ziel
 
 Range-Inputs (Schieberegler für Priorität 1–5 und Aufwand 0,1–1 Tage) werden bei schmalen Bildschirmen (≤768px) vertikal gestapelt statt nebeneinander, um die Usability auf Mobile/Tablet zu verbessern.
@@ -52,3 +54,16 @@ Range-Inputs (Schieberegler für Priorität 1–5 und Aufwand 0,1–1 Tage) werd
 - **≤768px**: Range-Inputs sind vertikal gestapelt, voll responsive
 - **>768px**: Range-Inputs sind nebeneinander (aktuelles Verhalten beibehalten)
 - **Übergänge**: Keine Layout-Breaks, kein Scroll-Overflow, kein Overlay-Konflikt
+
+---
+
+## Versionierung
+
+- **v1.0** (2026-08-17): Initialefassung für Issue #727. Range-Inputs responsive Layout spezifiziert.
+- **v1.1** (2026-08-17): Nightly-Sync — Ist-Stand-Korrektur. Feature ist bereits implementiert: range-inputs-row CSS-Klasse in TaskForm.tsx mit Media-Query für ≤768px.
+
+---
+
+## Status
+
+**ABGESCHLOSSEN** — Range-Inputs responsive Layout ist implementiert und in Produktion.
