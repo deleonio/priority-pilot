@@ -373,10 +373,10 @@ Journeys im user-journeys.md-Format).
 - **Branch/PR (Sammel-Modell):** Der Agent committed nur lokal auf `chore/spec-sync-work` (nie
   gepusht). Die Mechanik überträgt diff-basiert für alle geänderten Spec-Dateien den finalen Stand
   auf einen Sammel-Branch `chore/spec-sync-all` und erzeugt daraus **einen Sammel-PR (Non-Draft)**
-  mit direkt gesetztem `ai:needs-review`-Label per App-Token — unabhängig von der Commit-
-  Aufteilung des Agenten. Das Label-Setzen erfolgt mit Retry (3 Versuche); bei endgültigem
-  Fehlschlag fällt der Lauf laut (`::error` + Exit 1). PR-Body ist der aggregierte Agent-Report
-  mit je einem `## <dateiname>`-Abschnitt pro Spec-Datei (Fallback: `git log`, mit Warning).
+  mit direkt gesetztem `ai:needs-review`-Label per App-Token — dies ersetzt das früere Modell
+  (Branch/PR pro Datei, `chore/spec-sync/<stem>`). Das Label-Setzen erfolgt mit Retry (3 Versuche);
+  bei endgültigem Fehlschlag fällt der Lauf laut (`::error` + Exit 1). PR-Body ist der aggregierte
+  Agent-Report mit je einem `## <dateiname>`-Abschnitt pro Spec-Datei (Fallback: `git log`, mit Warning).
 - **Pipeline-Integration:** Das Label wird per App-Token direkt nach PR-Create gesetzt
   (Autolabeler `pr-needs-review-label.yml` greift bei Bots nicht). Das `labeled`-Event
   feuert → Kreuzverhör-Review (05) und Fixup-Loop (06) übernehmen Prüfung und Nacharbeitung
