@@ -22,6 +22,7 @@ nicht Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 - [Tailscale Exit Node](docs/tailscale-exit-node.md) — CI-Traffic über Nürnberger Tailscale-Exit-Node (manueller Test-Workflow)
 - [Multi-Provider-CI](.ai-knowledge/multi-provider-ci.md) — Provider-Setup, Secrets, setup-claude-Action (Betriebs-Doku)
 - [UX-Pattern: Sequenzielle Bestätigung](docs/ux-pattern-sequential-confirmation.md) — verbindliche Referenz für destruktive Aktionen
+- [Mobile-UI-Regeln](docs/mobile-ui-rules.md) — verbindliches Regelset für Mobile-UI (Daumen-Zonen, Touch-Targets, async Zustände, Anti-Patterns; mit Repo-Abstimmung)
 
 ## Kernregeln
 
