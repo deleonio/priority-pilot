@@ -24,18 +24,16 @@ test.describe('#763 Säulen-Gewichtung Layout-Optimierung', () => {
 		await page.goto('/');
 		await waitForStableView(page);
 
-		// Navigiere zu den Einstellungen, dann zur Säulen-Gewichtung
+		// Navigiere zu den Einstellungen
 		const settingsButton = page.getByRole('button', { name: /Einstellungen/i });
 		await expect(settingsButton).toBeVisible();
 		await settingsButton.click();
 		await waitForStableView(page);
 
-		// Säulen-Gewichtungs-Dialog öffnen
-		const pillarWeightsButton = page
-			.getByRole('button', { name: /Säulen.*Gewichtung/i })
-			.or(page.getByRole('button', { name: /Gewichtung/i }));
-		await expect(pillarWeightsButton).toBeVisible();
-		await pillarWeightsButton.click();
+		// Tab "Säulen" auswählen (die Säulen-Gewichtung ist direkt in diesem Tab eingebettet)
+		const pillarsTab = page.getByRole('button', { name: /^Säulen$/ }).or(page.getByText('Säulen', { exact: true }));
+		await expect(pillarsTab).toBeVisible();
+		await pillarsTab.click();
 		await waitForStableView(page);
 	};
 
