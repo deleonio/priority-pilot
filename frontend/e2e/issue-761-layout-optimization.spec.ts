@@ -1,210 +1,236 @@
+import type { Locator } from '@playwright/test';
 import { expect, test, type Page } from './fixtures';
 import { waitForStableView } from './helpers';
 
 /**
- * E2E-Layout-Tests für #761 "Layout-Optimierung Titel/Beschreibung/Aktionen".
+ * E2E-Layout-Tests für #761 „Layout-Optimierung Titel/Beschreibung/Aktionen".
  *
- * Spec: docs/spec/issue-761.md
- * Ziel: Titel und Beschreibung nutzen volle verfügbare Breite, Aktionen rechtsbündig unterhalb.
+ * Spezifikation: docs/spec/issue-761.md
+ * Ziel: Titel und Beschreibung nutzen die volle verfügbare Breite ihrer Zeile, die Aktionen stehen
+ * rechtsbündig unterhalb der Felder.
  *
  * AK 1 — Titel nimmt volle verfügbare Breite ein
  * AK 2 — Beschreibung nimmt volle verfügbare Breite ein
  * AK 3 — Aktionen sind rechtsbündig unterhalb platziert
  * AK 4 — Responsive Design ist gewährleistet (Mobile, Tablet, Desktop)
  * AK 5 — Touch-Ziele sind ausreichend groß (min. 44x44px)
- * AK 6 — A11y-Requirements (Logical Tab-Order, Focus-Indikator, Screenreader)
+ * AK 6 — A11y: Logical Tab-Order und Focus-Indikator
+ * AK 7 — A11y: Screenreader-Semantik (zugängliche Namen der Felder)
  *
- * Diese Tests prüfen das LAYOUT-Verhalten (Positionen und Freiraum über Bounding-Boxes),
- * nicht die Funktionalität der Aktionen selbst. Sie sind ROT, solange das Layout nicht
- * den SOLL-Zustand entspricht.
+ * Die Tests messen das LAYOUT über Bounding-Boxes, nicht die Formular-Funktionalität (die ist in
+ * `TaskForm.test.tsx` und `crud.spec.ts` abgedeckt). ROT waren sie, solange die Aktionen linksbündig
+ * unter dem Formular klebten (`.modal-actions` ohne `justify-content: flex-end`).
  */
 
-test.describe('#761 Layout-Optimierung Titel/Beschreibung/Aktionen', () => {
-	/** Öffnet den Task-Detail-Dialog oder eine Ansicht mit Titel/Beschreibung/Aktionen. */
-	const openTaskDetail = async (page: Page): Promise<void> => {
-		// Gehe davon aus, dass eine Aufgabe existiert oder erstellt wird
-		await page.goto('/');
-		// Öffne die erste Aufgabe in der Liste oder den Task-Form
-		const firstTask = page.locator('.task-item, [data-testid="task-item"]').first();
-		if ((await firstTask.count()) > 0) {
-			await firstTask.click();
-		} else {
-			// Fallback: Öffne Task-Form über "Neuen Task anlegen"
-			await page.getByRole('button', { name: /neuen task/i }).click();
-		}
-		await waitForStableView(page);
-	};
+/** Gap zwischen Feld-Wrapper und Lektorat-Button innerhalb einer Feld-Zeile (TaskForm.tsx, `gap: 8px`). */
+const FIELD_ROW_GAP = 8;
 
+/** Öffnet das TaskForm über die Kopf-Aktion; der vorgeschaltete Schnellerfassungs-Schritt wird übersprungen. */
+const openTaskForm = async (page: Page): Promise<void> => {
+	await page.goto('/');
+	await waitForStableView(page);
+
+	await page.getByRole('button', { name: /neuen task anlegen/i }).click();
+	await page.getByRole('button', { name: /überspringen/i }).click();
+	await waitForStableView(page);
+};
+
+/** Die Flex-Zeile eines Feldes: Feld-Wrapper (`data-testid`) + zugehöriger Lektorat-Button. */
+const fieldRow = (page: Page, testId: string): Locator => page.locator(`[data-testid="${testId}"]`).locator('xpath=..');
+
+/**
+ * Prüft, dass der Feld-Wrapper die volle Restbreite seiner Zeile einnimmt: Er beginnt am linken
+ * Zeilenrand und reicht bis auf Lektorat-Button + Gap an den rechten Zeilenrand. Ohne `flex: 1`
+ * würde der Wrapper auf seine Inhaltsbreite schrumpfen und rechts Leerraum stehen lassen.
+ */
+const expectFieldFillsRow = async (page: Page, testId: string, controlSelector: string): Promise<void> => {
+	const wrapper = page.locator(`[data-testid="${testId}"]`);
+	const row = fieldRow(page, testId);
+	const lektoratButton = row.locator('kol-button');
+
+	await expect(wrapper).toBeVisible();
+	await expect(lektoratButton).toBeVisible();
+
+	const wrapperBox = await wrapper.boundingBox();
+	const rowBox = await row.boundingBox();
+	const buttonBox = await lektoratButton.boundingBox();
+	expect(wrapperBox).not.toBeNull();
+	expect(rowBox).not.toBeNull();
+	expect(buttonBox).not.toBeNull();
+
+	// Linksbündig am Zeilenanfang …
+	expect(Math.abs(wrapperBox!.x - rowBox!.x)).toBeLessThanOrEqual(1);
+	// … und bis auf Lektorat-Button + Gap bis zum rechten Zeilenrand.
+	const remainder = rowBox!.width - wrapperBox!.width - buttonBox!.width;
+	expect(remainder).toBeGreaterThanOrEqual(FIELD_ROW_GAP - 1);
+	expect(remainder).toBeLessThanOrEqual(FIELD_ROW_GAP + 1);
+
+	// Das Eingabe-Element selbst füllt den Wrapper vollständig aus (kein eingerücktes Feld).
+	const controlBox = await wrapper.locator(controlSelector).boundingBox();
+	expect(controlBox).not.toBeNull();
+	expect(controlBox!.width).toBeGreaterThanOrEqual(wrapperBox!.width - 1);
+};
+
+test.describe('#761 Layout-Optimierung Titel/Beschreibung/Aktionen', () => {
+	/**
+	 * AK1 — Der Titel nutzt die volle verfügbare Breite seiner Zeile.
+	 * Bezug: docs/spec/issue-761.md, Schritt 2 (Titel-Element nimmt volle verfügbare Breite ein).
+	 */
 	test('AK1 (Desktop): Titel nimmt volle verfügbare Breite ein', async ({ page }) => {
 		await page.setViewportSize({ width: 1024, height: 768 });
-		await openTaskDetail(page);
+		await openTaskForm(page);
 
-		const titleElement = page.locator('[data-testid="task-title"]').first();
-
-		await expect(titleElement).toBeVisible();
-
-		// Prüfe, dass der Titel die volle Breite des Containers nutzt
-		// (Toleranz für Padding/Margins: ±10px)
-		const titleBox = await titleElement.boundingBox();
-		expect(titleBox).not.toBeNull();
-		const containerWidth = await page
-			.locator('body, .container, main, .dialog')
-			.first()
-			.evaluate((el: HTMLElement) => el.clientWidth);
-		expect(titleBox!.width).toBeGreaterThanOrEqual(containerWidth - 20); // Volle Breite abzüglich Padding
-
-		// Spec-Bezug: docs/spec/issue-761.md, Schritt 2 (Titel-Element nimmt volle verfügbare Breite ein)
+		await expectFieldFillsRow(page, 'task-title', 'kol-input-text');
 	});
 
-	test('AK2 (Desktop): Beschreibung nimmt volle verfügbare Breite ein', async ({ page }) => {
+	/**
+	 * AK2 — Die Beschreibung nutzt die volle verfügbare Breite und steht unterhalb des Titels.
+	 * Bezug: docs/spec/issue-761.md, Schritt 2 (Beschreibung-Element nimmt volle verfügbare Breite ein).
+	 */
+	test('AK2 (Desktop): Beschreibung nimmt volle verfügbare Breite unterhalb des Titels ein', async ({ page }) => {
 		await page.setViewportSize({ width: 1024, height: 768 });
-		await openTaskDetail(page);
+		await openTaskForm(page);
 
-		const descElement = page
-			.getByLabel(/beschreibung/i)
-			.or(page.locator('[data-testid="task-description"], .task-description, p.description').first());
+		await expectFieldFillsRow(page, 'task-description', 'kol-textarea');
 
-		const isVisible = (await descElement.count()) > 0;
-		if (isVisible) {
-			await expect(descElement).toBeVisible();
-
-			const descBox = await descElement.boundingBox();
-			expect(descBox).not.toBeNull();
-
-			const containerWidth = await page
-				.locator('body, .container, main, .dialog')
-				.first()
-				.evaluate((el: HTMLElement) => el.clientWidth);
-			expect(descBox!.width).toBeGreaterThanOrEqual(containerWidth - 20); // Volle Breite abzüglich Padding
-		}
-		// Spec-Bezug: docs/spec/issue-761.md, Schritt 2 (Beschreibung-Element nimmt volle verfügbare Breite ein)
+		const titleBox = await page.locator('[data-testid="task-title"]').boundingBox();
+		const descBox = await page.locator('[data-testid="task-description"]').boundingBox();
+		expect(titleBox).not.toBeNull();
+		expect(descBox).not.toBeNull();
+		expect(descBox!.y).toBeGreaterThanOrEqual(titleBox!.y + titleBox!.height);
 	});
 
+	/**
+	 * AK3 — Die Aktionen stehen unterhalb der Felder und sind rechtsbündig ausgerichtet.
+	 * ROT ohne `justify-content: flex-end` auf `.modal-actions`: Die Buttons starten dann am linken
+	 * Rand des Aktions-Containers.
+	 * Bezug: docs/spec/issue-761.md, Schritt 2 (Aktionen-Gruppe ist rechtsbündig unterhalb platziert).
+	 */
 	test('AK3 (Desktop): Aktionen sind rechtsbündig unterhalb platziert', async ({ page }) => {
 		await page.setViewportSize({ width: 1024, height: 768 });
-		await openTaskDetail(page);
+		await openTaskForm(page);
 
-		const actionsContainer = page.locator('[data-testid="task-actions"], .actions, .button-group').first();
-		const isVisible = (await actionsContainer.count()) > 0;
+		const actions = page.locator('[data-testid="task-actions"]');
+		await expect(actions).toBeVisible();
 
-		if (isVisible) {
-			await expect(actionsContainer).toBeVisible();
+		const actionsBox = await actions.boundingBox();
+		const descBox = await page.locator('[data-testid="task-description"]').boundingBox();
+		expect(actionsBox).not.toBeNull();
+		expect(descBox).not.toBeNull();
 
-			const actionsBox = await actionsContainer.boundingBox();
-			expect(actionsBox).not.toBeNull();
+		// Unterhalb der Felder.
+		expect(actionsBox!.y).toBeGreaterThanOrEqual(descBox!.y + descBox!.height);
 
-			// Prüfe Rechtsbündigkeit: Der rechte Rand der Aktionen ist nah am rechten Rand des Containers
-			const containerWidth = await page
-				.locator('body, .container, main, .dialog')
-				.first()
-				.evaluate((el: HTMLElement) => el.clientWidth);
-			const rightOffset = containerWidth - (actionsBox!.x + actionsBox!.width);
+		const buttons = actions.locator('button');
+		await expect(buttons).toHaveCount(2);
+		const firstBox = await buttons.first().boundingBox();
+		const lastBox = await buttons.last().boundingBox();
+		expect(firstBox).not.toBeNull();
+		expect(lastBox).not.toBeNull();
 
-			// Toleranz: Rechtsbündig innerhalb von 20px
-			expect(rightOffset).toBeLessThanOrEqual(20);
-		}
-		// Spec-Bezug: docs/spec/issue-761.md, Schritt 2 (Aktionen-Gruppe ist rechtsbündig unterhalb platziert)
+		// Rechtsbündig: Der letzte Button schließt mit dem rechten Rand des Containers ab …
+		const rightOffset = actionsBox!.x + actionsBox!.width - (lastBox!.x + lastBox!.width);
+		expect(rightOffset).toBeLessThanOrEqual(2);
+		// … und links bleibt deutlicher Freiraum (Beweis für flex-end statt flex-start).
+		expect(firstBox!.x - actionsBox!.x).toBeGreaterThanOrEqual(20);
 	});
 
+	/**
+	 * AK4 — Das Breiten-Verhalten gilt auch auf schmalen Viewports, ohne horizontalen Scroll.
+	 * Bezug: docs/spec/issue-761.md, Schritt 3 (Responsive-Verhalten bei verschiedenen Viewport-Größen).
+	 */
 	test('AK4 (Mobile): Titel und Beschreibung volle Breite auch auf schmalem Viewport', async ({ page }) => {
-		await page.setViewportSize({ width: 375, height: 667 }); // Mobile Viewport
-		await openTaskDetail(page);
+		await page.setViewportSize({ width: 375, height: 667 });
+		await openTaskForm(page);
 
-		const titleElement = page.locator('[data-testid="task-title"]').first();
+		await expectFieldFillsRow(page, 'task-title', 'kol-input-text');
+		await expectFieldFillsRow(page, 'task-description', 'kol-textarea');
 
-		await expect(titleElement).toBeVisible();
-
-		// Auf Mobile ebenfalls volle Breite
-		const titleBox = await titleElement.boundingBox();
-		expect(titleBox).not.toBeNull();
-		const containerWidth = await page
-			.locator('body, .container, main, .dialog')
-			.first()
-			.evaluate((el: HTMLElement) => el.clientWidth);
-		expect(titleBox!.width).toBeGreaterThanOrEqual(containerWidth - 20);
-
-		// Spec-Bezug: docs/spec/issue-761.md, Testfall "Responsive Design bei verschiedenen Viewport-Größen"
+		// Kein horizontaler Scroll durch die Felder.
+		const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
+		expect(bodyWidth).toBe(375);
 	});
 
-	test('AK5 (Mobile): Aktionen bei Mobile gestapelt fullWidth oder compact', async ({ page }) => {
-		await page.setViewportSize({ width: 375, height: 667 }); // Mobile Viewport
-		await openTaskDetail(page);
+	/**
+	 * AK5 — Die Aktionen bleiben mobil im Viewport, rechtsbündig, mit ausreichend großen Touch-Zielen.
+	 * Bezug: docs/spec/issue-761.md, Erwartetes Ergebnis (Touch-Ziele min. 44x44px).
+	 */
+	test('AK5 (Mobile): Aktionen rechtsbündig im Viewport mit Touch-Zielen ab 44px', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 667 });
+		await openTaskForm(page);
 
-		const actionsContainer = page.locator('[data-testid="task-actions"], .actions, .button-group').first();
-		const isVisible = (await actionsContainer.count()) > 0;
+		const actions = page.locator('[data-testid="task-actions"]');
+		await expect(actions).toBeVisible();
 
-		if (isVisible) {
-			await expect(actionsContainer).toBeVisible();
+		const actionsBox = await actions.boundingBox();
+		expect(actionsBox).not.toBeNull();
+		expect(actionsBox!.x).toBeGreaterThanOrEqual(0);
+		expect(actionsBox!.x + actionsBox!.width).toBeLessThanOrEqual(375);
 
-			// Prüfe, dass Aktionen nicht außerhalb des Viewports liegen
-			const actionsBox = await actionsContainer.boundingBox();
-			expect(actionsBox).not.toBeNull();
-			expect(actionsBox!.x).toBeGreaterThanOrEqual(0);
-			expect(actionsBox!.x + actionsBox!.width).toBeLessThanOrEqual(375); // Viewport Breite
+		const buttons = actions.locator('button');
+		await expect(buttons).toHaveCount(2);
 
-			// Prüfe Touch-Ziele: Mindestens 44x44px für Buttons
-			const buttons = actionsContainer.locator('button, [role="button"]');
-			const buttonCount = await buttons.count();
-			for (let i = 0; i < buttonCount; i++) {
-				const button = buttons.nth(i);
-				const buttonBox = await button.boundingBox();
-				if (buttonBox) {
-					expect(buttonBox.height).toBeGreaterThanOrEqual(44);
-					expect(buttonBox.width).toBeGreaterThanOrEqual(44);
+		const lastBox = await buttons.last().boundingBox();
+		expect(lastBox).not.toBeNull();
+		expect(actionsBox!.x + actionsBox!.width - (lastBox!.x + lastBox!.width)).toBeLessThanOrEqual(2);
+
+		const buttonCount = await buttons.count();
+		for (let i = 0; i < buttonCount; i++) {
+			const buttonBox = await buttons.nth(i).boundingBox();
+			expect(buttonBox).not.toBeNull();
+			expect(buttonBox!.height).toBeGreaterThanOrEqual(44);
+			expect(buttonBox!.width).toBeGreaterThanOrEqual(44);
+		}
+	});
+
+	/**
+	 * AK6 — Logische Tab-Reihenfolge und sichtbarer Focus-Indikator am Titel-Feld. Das Mikrofon-Overlay
+	 * ist bewusst `tabIndex={-1}` (#522), Tab führt daher vom Titel-Feld direkt zum Lektorat-Button.
+	 * Bezug: docs/spec/issue-761.md, Erwartetes Ergebnis (Logical Tab-Order, Focus-Indikator).
+	 */
+	test('AK6 (A11y): Logische Tab-Order und sichtbarer Focus-Indikator', async ({ page }) => {
+		await page.setViewportSize({ width: 1024, height: 768 });
+		await openTaskForm(page);
+
+		const titleInput = page.locator('[data-testid="task-title"] input').first();
+		await expect(titleInput).toBeVisible();
+		await titleInput.focus();
+		await expect(titleInput).toBeFocused();
+
+		// Focus-Indikator: KoliBri rendert den Ring auf einem Element der Feld-Box (Shadow DOM),
+		// nicht auf dem nativen Input — daher die Vorfahren-Kette bis zum Wrapper prüfen.
+		const hasFocusRing = await titleInput.evaluate((el: HTMLElement) => {
+			let node: Element | null = el;
+			while (node !== null && !(node instanceof HTMLElement && node.dataset.testid === 'task-title')) {
+				const styles = window.getComputedStyle(node as HTMLElement);
+				if (styles.outlineStyle !== 'none' && parseFloat(styles.outlineWidth) > 0) {
+					return true;
 				}
+				node = node.parentElement ?? (node.getRootNode() as ShadowRoot).host ?? null;
 			}
-		}
-		// Spec-Bezug: docs/spec/issue-761.md, Erwartetes Ergebnis (Touch-Ziele min. 44x44px)
+			return false;
+		});
+		expect(hasFocusRing).toBe(true);
+
+		// Tab-Order: Titel-Feld → Lektorat-Button derselben Zeile.
+		await page.keyboard.press('Tab');
+		await expect(fieldRow(page, 'task-title').locator('kol-button')).toBeFocused();
 	});
 
-	test('AK6 (A11y): Logical Tab-Order und Focus-Indikator', async ({ page }) => {
+	/**
+	 * AK7 — Screenreader-Semantik: Titel und Beschreibung sind über ihre sichtbaren Labels zugänglich,
+	 * der Titel ist als Pflichtfeld ausgezeichnet.
+	 * Bezug: docs/spec/issue-761.md, Erwartetes Ergebnis (Screenreader-Support).
+	 */
+	test('AK7 (A11y): Titel und Beschreibung haben zugängliche Namen', async ({ page }) => {
 		await page.setViewportSize({ width: 1024, height: 768 });
-		await openTaskDetail(page);
+		await openTaskForm(page);
 
-		// Prüfe, dass interaktive Elemente im Task-Formular focusable sind
-		// Wähle den Input innerhalb des task-title Wrappers (vermeidet Filter-Input)
-		const firstInteractive = page.locator('[data-testid="task-title"] input').first();
-		const count = await firstInteractive.count();
+		await expect(page.locator('[data-testid="task-title"]').getByRole('textbox', { name: /titel/i })).toBeVisible();
+		await expect(
+			page.locator('[data-testid="task-description"]').getByRole('textbox', { name: /beschreibung/i }),
+		).toBeVisible();
 
-		if (count > 0) {
-			// Simuliere Tab-Navigation
-			await firstInteractive.focus();
-			await expect(firstInteractive).toBeFocused();
-			await expect(firstInteractive).toBeVisible();
-
-			// Prüfe, dass Focus-Indikator sichtbar ist (outline oder box-shadow)
-			const outline = await firstInteractive.evaluate((el: HTMLElement) => {
-				const styles = window.getComputedStyle(el);
-				return styles.outline !== 'none' || styles.boxShadow !== 'none';
-			});
-			expect(outline).toBe(true);
-		}
-		// Spec-Bezug: docs/spec/issue-761.md, Erwartetes Ergebnis (Logical Tab-Order, Focus-Indikator)
-	});
-
-	test('AK7 (A11y): Screenreader-Semantik für Titel und Beschreibung', async ({ page }) => {
-		await page.setViewportSize({ width: 1024, height: 768 });
-		await openTaskDetail(page);
-
-		// Prüfe semantisches Markup: Titel als heading
-		const titleElement = page.locator('[data-testid="task-title"]').first();
-
-		const isVisible = (await titleElement.count()) > 0;
-		if (isVisible) {
-			// Heading hat semantische Rolle
-			const role = await titleElement.evaluate((el: HTMLElement) => {
-				const tagName = el.tagName.toLowerCase();
-				return ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tagName);
-			});
-			expect(role).toBe(true);
-		}
-
-		// Prüfe, dass Beschreibung als label oder textarea sichtbar ist
-		const descElement = page.getByLabel(/beschreibung/i);
-		const hasDesc = (await descElement.count()) > 0;
-		if (hasDesc) {
-			await expect(descElement).toBeVisible();
-		}
-		// Spec-Bezug: docs/spec/issue-761.md, Erwartetes Ergebnis (Screenreader-Support)
+		await expect(page.locator('[data-testid="task-title"] input').first()).toHaveJSProperty('required', true);
 	});
 });
