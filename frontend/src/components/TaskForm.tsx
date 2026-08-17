@@ -729,7 +729,7 @@ export const TaskForm = ({
 								setTitle(newVal);
 							}}
 						>
-							<div style={{ position: 'relative' }}>
+							<div style={{ position: 'relative' }} data-testid="task-title">
 								{/* #679: Zeichenzähler über den KoliBri built-in Counter (_hasCounter)
 							    statt des früheren manuellen character-counter-Divs. */}
 								<KolInputText
@@ -909,7 +909,7 @@ export const TaskForm = ({
 				{/* #680: Lektorat-Button außerhalb des VoiceField-Wrappers — gleiche Begründung wie beim
 				    Titel-Feld (Mic-Button-Positionierung, AK9/AK10). */}
 				<div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-					<div style={{ flex: 1, minWidth: 0 }}>
+					<div style={{ flex: 1, minWidth: 0 }} data-testid="task-description">
 						<VoiceField
 							variant="textarea"
 							fieldLabel="Beschreibung"
@@ -1095,7 +1095,7 @@ export const TaskForm = ({
 					))}
 				</div>
 			)}
-			<div className="modal-actions">
+			<div className="modal-actions" data-testid="task-actions">
 				<KolButton
 					_label={saving ? (isEdit ? 'Bearbeiten…' : 'Anlegen…') : isEdit ? 'Bearbeiten' : 'Anlegen'}
 					_variant="primary"
