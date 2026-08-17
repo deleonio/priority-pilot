@@ -155,4 +155,14 @@ describe('POST /pillars/advisor — nutzerdefinierte Säulen (#430)', () => {
 		assert.equal(res.status, 503);
 		assert.equal(recordedInput, undefined, 'Berater darf bei 503 nicht aufgerufen werden');
 	});
+
+	it('Route-Validierung: ?provider=foo → HTTP 400 (#749)', async () => {
+		const cookieA = await testLogin('userA@example.com', 'User A');
+		const uidA = await userIdOf('userA@example.com');
+		await Pillar.create({ name: 'A-Körper', description: 'Sport', weight: 100, userId: uidA });
+
+		const res = await postAs(cookieA, '/pillars/advisor?provider=foo', { question: 'Test' });
+		assert.equal(res.status, 400, 'Ungültiger provider-Parameter muss 400 liefern');
+		assert.equal(recordedInput, undefined, 'Berater darf bei ungültigem Provider nicht aufgerufen werden');
+	});
 });

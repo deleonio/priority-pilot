@@ -170,6 +170,8 @@ jobs:
             [Analyse – präzise, ohne Füllwörter]
             <!-- KI-ANALYSE:END -->
 
+          TIPP: Bei UI-Bezug im Lösungsvorschlag konkrete KoliBri-Komponenten via mcp__kolibri-mcp__search/fetch ermitteln und nennen (Custom-Element + Properties).
+
           ⚠️ LABELS: KEINE Labels aufs ELTERN-Issue #ISSUE_NR setzen — der Workflow übernimmt das via VERDICT. Ausnahme Zerlegung (Schritt 4): neu angelegte SUB-Issues werden direkt beim Anlegen mit ai:analyzed (bzw. ai:spec-ready) gelabelt, weil der Workflow nur das Eltern-Issue verwaltet.
 
           VERDICT: GANZ AM ENDE GENAU EINE Zeile:
