@@ -140,13 +140,13 @@ export const LlmSettingsForm = () => {
 							onChange: (_event, value) => setMistralKeyInput(readString(value)),
 						}}
 					/>
-					{status.hasMistralApiKey && (
+					{(status.hasMistralApiKey || mistralKeyInput !== '') && (
 						<button
 							type="button"
 							aria-label="API-Key löschen"
 							className="llm-key-x-button"
 							disabled={saving}
-							onClick={() => void clearField('mistralApiKey')}
+							onClick={() => (mistralKeyInput !== '' ? setMistralKeyInput('') : void clearField('mistralApiKey'))}
 						>
 							✕
 						</button>
@@ -162,13 +162,15 @@ export const LlmSettingsForm = () => {
 							onChange: (_event, value) => setOpenrouterKeyInput(readString(value)),
 						}}
 					/>
-					{status.hasOpenrouterApiKey && (
+					{(status.hasOpenrouterApiKey || openrouterKeyInput !== '') && (
 						<button
 							type="button"
 							aria-label="API-Key löschen"
 							className="llm-key-x-button"
 							disabled={saving}
-							onClick={() => void clearField('openrouterApiKey')}
+							onClick={() =>
+								openrouterKeyInput !== '' ? setOpenrouterKeyInput('') : void clearField('openrouterApiKey')
+							}
 						>
 							✕
 						</button>
