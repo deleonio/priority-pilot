@@ -40,8 +40,9 @@ test.describe('#761 Layout-Optimierung Titel/Beschreibung/Aktionen', () => {
 		await openTaskDetail(page);
 
 		const titleElement = page
-			.getByRole('heading', { level: 1 })
-			.or(page.locator('[data-testid="task-title"], .task-title, h1, h2').first());
+			.locator('[data-testid="task-title"] input')
+			.or(page.getByRole('heading', { level: 1 }))
+			.first();
 
 		await expect(titleElement).toBeVisible();
 
@@ -113,8 +114,9 @@ test.describe('#761 Layout-Optimierung Titel/Beschreibung/Aktionen', () => {
 		await openTaskDetail(page);
 
 		const titleElement = page
-			.getByRole('heading', { level: 1 })
-			.or(page.locator('[data-testid="task-title"], .task-title, h1, h2').first());
+			.locator('[data-testid="task-title"] input')
+			.or(page.getByRole('heading', { level: 1 }))
+			.first();
 
 		await expect(titleElement).toBeVisible();
 
@@ -166,8 +168,8 @@ test.describe('#761 Layout-Optimierung Titel/Beschreibung/Aktionen', () => {
 		await openTaskDetail(page);
 
 		// Prüfe, dass interaktive Elemente im Task-Formular focusable sind
-		// Wähle den Titel-Input statt globalem first() (vermeidet Logo-Button)
-		const firstInteractive = page.getByLabel('Titel');
+		// Wähle den Input innerhalb des task-title Wrappers (vermeidet Filter-Input)
+		const firstInteractive = page.locator('[data-testid="task-title"] input').first();
 		const count = await firstInteractive.count();
 
 		if (count > 0) {
@@ -192,8 +194,9 @@ test.describe('#761 Layout-Optimierung Titel/Beschreibung/Aktionen', () => {
 
 		// Prüfe semantisches Markup: Titel als heading
 		const titleElement = page
-			.getByRole('heading', { level: 1 })
-			.or(page.locator('[data-testid="task-title"], .task-title, h1, h2').first());
+			.locator('[data-testid="task-title"] input')
+			.or(page.getByRole('heading', { level: 1 }))
+			.first();
 
 		const isVisible = (await titleElement.count()) > 0;
 		if (isVisible) {
