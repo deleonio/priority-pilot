@@ -1,5 +1,7 @@
 # Issue 733: UX-Beratung als Phase 2b
 
+**Stand:** 2026-08-17
+
 ## Ziel
 
 UX-Beratung als automatisierte Phase nach Spec-Ready einrichten – beratend, nicht blockierend.
@@ -34,6 +36,19 @@ UX-Beratung als automatisierte Phase nach Spec-Ready einrichten – beratend, ni
 - Datei `.github/prompts/ux.md` existiert mit UX-Berater-Rolle (nicht blockierend, kein Code-Ändern)
 - Datei `.ai-knowledge/ticket-ux.md` existiert mit Phasen-Doku
 - Nach Lauf: Issue-Body enthält KI-UX-Block, Label `ux:ready` gesetzt
+
+---
+
+## Versionierung
+
+- **v1.0** (2026-08-16): Initialefassung für Issue #733. UX-Beratung als Phase 2b spezifiziert.
+- **v1.1** (2026-08-17): Nightly-Sync — Ist-Stand-Korrektur. Feature ist bereits implementiert: 02b-claude-ux.yml existiert mit Trigger, ux.md Prompt vorhanden, ticket-ux.md Wissensbasis vorhanden.
+
+---
+
+## Status
+
+**ABGESCHLOSSEN** — UX-Beratung als Phase 2b ist implementiert und in Produktion.
 
 ## Testableitung
 

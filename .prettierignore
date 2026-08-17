@@ -23,3 +23,8 @@ pnpm-workspace.yaml
 # und die relative Einrückung der ABLAUF-Schritte wird plattgedrückt. Prompt-Text ist kein
 # Prosa-Markdown — bewusst nicht formatiert.
 .github/prompts/
+
+# Third-Party-Design-Skill (Impeccable, via `npx impeccable install` eingesetzt und per
+# `npx impeccable update` aktualisiert, #828): SKILL.md/Referenzen/Scripts sind Fremd-Artefakte —
+# Formatierung wäre beim nächsten Update sofort wieder weg und würde den Format-Check brechen.
+.claude/skills/
