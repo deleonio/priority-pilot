@@ -47,8 +47,6 @@ Ganz oben findest du die **Kopf-Aktionen** (als Icon-Buttons):
 
 Rechts daneben stehen dein Profilbild und dein Name.
 
-Rechts daneben stehen dein Profilbild und dein Name.
-
 Die Kopfzeile ist auf allen Bildschirmgrößen einheitlich: Alle fünf Kopf-Aktionen stehen direkt
 als Icon-Buttons in der Leiste – ein zusätzliche Menüpunkt gibt es nicht. Rechts daneben
 finden sich dein Profilbild und dein Name.
