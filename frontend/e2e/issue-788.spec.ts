@@ -105,8 +105,8 @@ test.describe('#788 LLM-Einstellungsmenü optimieren', () => {
 
 		await page.getByRole('tab', { name: 'LLM', exact: true }).click();
 
-		// KEINE separaten "Key gesetzt" Anzeigen mehr
-		const statusText = page.getByText(/Key gesetzt/i);
+		// KEINE separaten "Key gesetzt" Anzeigen mehr (exakter Match, nicht in Hinweisen)
+		const statusText = page.getByText(/^Key gesetzt$/i);
 		await expect(statusText).toHaveCount(0);
 
 		// InputPassword-Felder sind direkt sichtbar
