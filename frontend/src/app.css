@@ -95,7 +95,6 @@ body {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	justify-content: space-between;
 	gap: 0.5rem;
 }
 
@@ -104,6 +103,70 @@ body {
 		--pp-avatar-size: calc(var(--pp-toolbar-height) * 1.25);
 
 		gap: 1rem;
+	}
+}
+
+/*
+	 * App-Name zwischen Logo und Avatar (#787). Mobil (<600px) ausgeblendet, um mit
+	 * Logo/Avatar/Toolbar in eine Zeile zu passen. Ab 600px sichtbar.
+	 */
+.app-name {
+	display: none;
+	font-weight: 700;
+	font-size: 1.125rem;
+}
+
+@media (min-width: 48rem) {
+	.app-name {
+		display: inline;
+	}
+}
+
+/*
+	 * KI-Modell-Auswahl-Button in der Toolbar (#787). Nativer Button mit role="combobox"
+	 * für A11y-Konformität. Minimale Click-Target-Größe 44×44px (BITV 2.1).
+	 */
+.model-selector-button {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	min-height: var(--pp-toolbar-height);
+	min-width: var(--pp-toolbar-height);
+	padding: 0 0.75rem;
+	border: 1px solid var(--pp-border);
+	border-radius: 0.375rem;
+	background: var(--pp-bg);
+	color: var(--pp-text);
+	font: inherit;
+	font-size: 0.875rem;
+	cursor: pointer;
+	transition:
+		background 0.15s,
+		border-color 0.15s;
+}
+
+.model-selector-button:hover {
+	background: var(--pp-bg-muted);
+	border-color: var(--pp-accent-open);
+}
+
+.model-selector-button:focus-visible {
+	outline: 2px solid var(--pp-accent-open);
+	outline-offset: 2px;
+}
+
+.model-selector-chevron {
+	font-size: 0.75rem;
+	opacity: 0.7;
+}
+
+/*
+	 * Mobile (<48rem): Touch-Target-Größe 48×48px (WCAG 2.5.5).
+	 */
+@media (max-width: 47.99rem) {
+	.model-selector-button {
+		min-height: 3rem;
+		min-width: 3rem;
 	}
 }
 
@@ -140,6 +203,7 @@ body {
 	gap: 0.5rem;
 	flex-wrap: wrap;
 	align-items: center;
+	margin-left: auto;
 }
 
 /*
@@ -164,11 +228,6 @@ body {
  * (je 44px WCAG-Mindestgröße plus Lücken) in einer Zeile zu passen. Ab 48rem erscheint der Name
  * wieder (#691: Header-Konsistenz).
  */
-.user-info {
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
-}
 
 .user-display-name {
 	display: none;
@@ -184,7 +243,7 @@ body {
  * AK2 (#222) / AK3 (#485): Avatar harmonisch zur Toolbar — exakt das 1,25-Fache der
  * Toolbar-Button-Höhe. Über `--pp-toolbar-height` bleibt das Verhältnis bei Änderungen erhalten.
  */
-.user-info kol-avatar {
+.app-header kol-avatar {
 	/*
 	 * `kol-avatar` setzt im Shadow-DOM `:host { width: 100px; aspect-ratio: 1 }` und bietet dafür
 	 * keine Custom Property an (das frühere `--kol-avatar-size` blieb wirkungslos). Deshalb wird die

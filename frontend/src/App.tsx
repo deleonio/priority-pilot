@@ -22,6 +22,7 @@ import { ForestPanel } from './components/ForestPanel';
 import { HelpPage } from './components/HelpPage';
 import { InstallPrompt } from './components/InstallPrompt';
 import { UpdatePrompt } from './components/UpdatePrompt';
+import { ModelSelectorButton } from './components/ModelSelectorButton';
 import { PillarAdvisorModal } from './components/PillarAdvisorModal';
 import { QuickCaptureModal } from './components/QuickCaptureModal';
 import { SeriesTab } from './components/SeriesTab';
@@ -439,15 +440,21 @@ export const App = ({ user }: { user: AuthUser }) => {
 	return (
 		<main className="app" ref={deleteFallbackRef} tabIndex={-1} data-focus-fallback>
 			<header role="banner" className="app-header">
-				<button type="button" className="logo-btn" aria-label="Zum Dashboard" onClick={handleLogoDashboard}>
+				<button
+					type="button"
+					className="logo-btn"
+					role="button"
+					aria-label="Zum Dashboard"
+					onClick={handleLogoDashboard}
+				>
 					<img src="/logo/logo.png" alt="Priority Pilot" />
 				</button>
-				<div className="toolbar">
+				<span className="app-name">Priority Pilot</span>
+				<KolAvatar _label={user.displayName} _src={user.avatarUrl ?? undefined} />
+				<span className="user-display-name">{user.displayName}</span>
+				<div className="toolbar" role="toolbar" aria-label="Kopf-Aktionen">
+					<ModelSelectorButton />
 					<KolToolbar _label="Kopf-Aktionen" _orientation="horizontal" _items={toolbarItems} />
-					<div className="user-info">
-						<KolAvatar _label={user.displayName} _src={user.avatarUrl ?? undefined} />
-						<span className="user-display-name">{user.displayName}</span>
-					</div>
 				</div>
 			</header>
 			<h1 className="visually-hidden">Dashboard</h1>
