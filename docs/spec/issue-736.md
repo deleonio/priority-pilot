@@ -1,6 +1,6 @@
 # Issue 736 – UX-Phase Doku-Update
 
-**Stand:** 2026-08-16  
+**Stand:** 2026-08-17
 **Ziel:** Doku konsistent zu neuer Phase 2b (UX-Beratung) und Label-Kette aktualisieren
 
 ---
@@ -38,6 +38,19 @@ Dokumentation in AGENTS.md, pipeline-flow.md und ci-architecture.md aktualisiere
 - pipeline-flow.md Mermaid-Diagramm hat Parallelzweig 2b
 - ci-architecture.md Tabelle hat UX-Eintrag (Modell sonnet, Variable CLAUDE_MODEL_UX)
 - Format-Check `pnpm format` läuft ohne Fehler über alle geänderten Dateien
+
+---
+
+## Versionierung
+
+- **v1.0** (2026-08-16): Initialefassung für Issue #736. UX-Phase Doku-Update spezifiziert.
+- **v1.1** (2026-08-17): Nightly-Sync — Ist-Stand-Korrektur. Feature ist bereits implementiert: Alle drei Dateien (AGENTS.md, pipeline-flow.md, ci-architecture.md) sind aktualisiert auf sieben Phasen mit UX-Phase 2b.
+
+---
+
+## Status
+
+**ABGESCHLOSSEN** — UX-Phase Doku-Update ist implementiert und in Produktion.
 
 ---
 
