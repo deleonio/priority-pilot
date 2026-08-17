@@ -718,7 +718,7 @@ export const TaskForm = ({
 			    Als Kind des Wrappers würde er diesen über die ganze Flex-Zeile spannen lassen und
 			    den Mic-Button aus der Feldbox drängen (AK9/AK10, Issue #264). */}
 				<div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-					<div style={{ flex: 1, minWidth: 0 }}>
+					<div style={{ flex: 1, minWidth: 0 }} data-testid="task-title">
 						<VoiceField
 							variant="input"
 							fieldLabel="Titel"
@@ -729,7 +729,7 @@ export const TaskForm = ({
 								setTitle(newVal);
 							}}
 						>
-							<div style={{ flex: 1, minWidth: 0, position: 'relative' }} data-testid="task-title">
+							<div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
 								{/* #679: Zeichenzähler über den KoliBri built-in Counter (_hasCounter)
 							    statt des früheren manuellen character-counter-Divs. */}
 								<KolInputText
