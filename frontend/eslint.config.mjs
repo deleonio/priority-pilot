@@ -38,4 +38,28 @@ export default [
 			'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
 		},
 	},
+	// Issue 824: KoliBri-Guard — verhindert Shadow-DOM-Piercing in Tests
+	{
+		files: ['e2e/**/*.ts', 'src/**/*.test.{ts,tsx}'],
+		rules: {
+			'no-restricted-syntax': [
+				'error',
+				{
+					selector: "MemberExpression[property.name='shadowRoot']",
+					message: 'KoliBri nicht intern testen — öffentliche Schnittstelle (Rolle/Name/Host) verwenden.',
+				},
+				{
+					selector: 'Literal[value=/^(kol-span--hide-label|kol-tooltip__|kol-icon|kolicon-)/]',
+					message: 'Interne KoliBri-Klasse — nicht in Tests verwenden.',
+				},
+			],
+		},
+	},
+	// Ausnahme für Hydration-Probe in helpers.ts
+	{
+		files: ['e2e/helpers.ts'],
+		rules: {
+			'no-restricted-syntax': 'off',
+		},
+	},
 ];

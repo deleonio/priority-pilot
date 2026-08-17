@@ -82,7 +82,13 @@ wird dagegen geschrieben — ein binäres Ziel statt Prosa.
 - **(b) Green — Code bis grün:** Produktivcode implementieren, bis **alle** Tests grün sind
   (`pnpm test` bzw. gezielt das betroffene Package als primärer Erfolgsindikator). Konventionen aus
   [conventions.md](conventions.md) beachten (Tabs, `strict`, ESM, keine Type-Assertions zum
-  Unterdrücken von Fehlern). Tests **nicht** dem Code anpassen, um sie künstlich grün zu bekommen —
+  Unterdrücken von Fehlern). Bei **Frontend-Änderungen** gilt **KoliBri-First**
+  ([conventions.md](conventions.md)): passende Komponente via KoliBri-MCP
+  (`mcp__kolibri-mcp__search/fetch`) finden und mit ihren Properties einsetzen — eigene Komponenten
+  nur stylen/bauen, wenn keine passt, mit Begründung im PR-Body. Sichtbare UI-Änderungen zusätzlich
+  per Playwright-MCP bei **375px- und 1280px-Viewport** gegen die laufende Inspect-Instanz
+  (http://localhost:4174) prüfen; Layout-Brüche (horizontales Scrollen/Overflow) fixen (#823).
+  Tests **nicht** dem Code anpassen, um sie künstlich grün zu bekommen —
   im **Spec-Modus** sind die Spec-Tests ohnehin unantastbar (s. o.); im **Fallback-Modus** einen
   fehlerhaften eigenen Test **bewusst** und nachvollziehbar korrigieren.
 - **(c) Refactor & Gate (CI-Spiegel, vor jedem Commit):** Erst mit grünen Tests aufräumen,

@@ -34,6 +34,9 @@ Den Diff gegen diese Fragen prüfen:
 - **Security:** Eingabevalidierung, Injection (SQL/Pfad), Secrets im Code, fehlende AuthZ-Prüfungen.
 - **Regression/Obsoleszenz:** Macht die Änderung bestehende Tests oder Verhalten **außerhalb des
   Diffs** obsolet oder widerspricht sie ihnen (Anforderung geändert)? **Hinweis:** Obsolete Tests sollten bereits in der Spec-Stufe entfernt worden sein (ticket-spec.md). Falls trotzdem noch ein Widerspruch auffällt → als Finding benennen („Test-Pflege-Bedarf" mit Datei/Zeile) — nicht still hinnehmen, aber auch nicht selbst ändern (Anpassung/Entfernung entscheidet der Mensch bzw. ein Folge-Spec).
+- **KoliBri-First bei UI-Änderungen** ([conventions.md](conventions.md)): Eigenes Styling ohne KoliBri-Alternative?
+  Im Zweifel via `mcp__kolibri-mcp__search` nach Alternativen suchen. Fehlende Begründung der
+  Eigene-Styling-Entscheidung im PR-Body ist ein Finding.
 
 ## Schritt 3 — Code-Qualität
 
