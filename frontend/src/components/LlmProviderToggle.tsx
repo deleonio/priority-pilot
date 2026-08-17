@@ -3,15 +3,36 @@ import { useMemo, useState, useEffect } from 'react';
 import type { LlmProvider } from '../lib/llm-provider';
 import { getProvider, setProvider, setToastCallback } from '../lib/llm-provider';
 
+/** Breakpoint fuer vertikale Stackung auf Mobile (<768px = 47.99rem). */
+const MOBILE_BREAKPOINT = '(max-width: 47.99rem)';
+
 /**
- * LLM-Provider-Toggle für Issue-749: Test-Schalter für Mistral und OpenRouter.
+ * React-Hook: Liefert `true`, wenn der Viewport schmaler als der Mobile-Breakpoint ist.
+ * Aendert sich live bei Viewport-Aenderungen (Resize, Device-Rotation).
+ */
+function useIsMobile(): boolean {
+	const [isMobile, setIsMobile] = useState(false);
+	useEffect(() => {
+		const mql = window.matchMedia(MOBILE_BREAKPOINT);
+		setIsMobile(mql.matches);
+		const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+		mql.addEventListener('change', handler);
+		return () => mql.removeEventListener('change', handler);
+	}, []);
+	return isMobile;
+}
+
+/**
+ * LLM-Provider-Toggle fuer Issue-749: Test-Schalter für Mistral und OpenRouter.
  *
  * Ermöglicht das gezielte Umleiten von LLM-Anfragen an einen bestimmten Provider.
  * Persistiert die Auswahl im localStorage.
+ * Auf Mobile (<768px) werden die Optionen vertikal gestapelt.
  */
 export const LlmProviderToggle = () => {
 	const [provider, setProviderState] = useState<LlmProvider>(undefined);
 	const [toastMessage, setToastMessage] = useState<string | null>(null);
+	const isMobile = useIsMobile();
 
 	// Initialisierung: Provider aus localStorage laden
 	useEffect(() => {
@@ -65,7 +86,7 @@ export const LlmProviderToggle = () => {
 			)}
 			<KolInputRadio
 				_label="LLM-Provider"
-				_orientation="horizontal"
+				_orientation={isMobile ? 'vertical' : 'horizontal'}
 				_options={options}
 				_value={radioValue}
 				_hint="Wähle den LLM-Provider für Test-Zwecke. Standard nutzt die Kaskade (Mistral primär, optional OpenRouter-Verfeinerung)."

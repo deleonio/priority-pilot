@@ -9,6 +9,7 @@ import {
 	type PillarDistribution,
 } from '../../llm/llm.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
+import { validateProviderQuery } from '../llmProviderQuery.js';
 import type { components } from '../../api';
 
 type ActivityAdviceDto = components['schemas']['ActivityAdvice'];
@@ -87,12 +88,20 @@ const validateBody = (
  * konkrete Aktivitäten vor und ordnet sie den Säulen zu. Als Rubrik dienen die Kurzbeschreibungen
  * der Säulen aus den Einstellungen (`Pillar.description`). Der Berater ist injizierbar (Default:
  * realer Mistral-Aufruf), damit Tests ohne echten API-Call laufen.
+ *
+ * Optionaler Query-Parameter `provider` (#749): pinnt die LLM-Kaskade auf den genannten Provider.
  */
 export const createPillarAdvisorRouter = (advisor: ActivityAdvisor = adviseActivitiesWithMistral): Router => {
 	const router = Router();
 
 	// POST /pillars/advisor — Aktivitäten samt Säulen-Zuordnung vorschlagen (optional zu einer Frage).
 	router.post('/pillars/advisor', async (req: Request, res: Response<{ advice: ActivityAdviceDto[] } | ErrorDto>) => {
+		const providerValidation = validateProviderQuery(req.query as Record<string, unknown>);
+		if (!providerValidation.ok) {
+			sendError(res, 400, providerValidation.message);
+			return;
+		}
+
 		const validation = validateBody(req.body);
 		if (!validation.ok) {
 			sendError(res, 400, validation.message);
@@ -117,11 +126,14 @@ export const createPillarAdvisorRouter = (advisor: ActivityAdvisor = adviseActiv
 		const distribution = validation.distribution?.filter((entry) => validPillarIds.has(entry.pillarId));
 
 		try {
-			const advice = await advisor({
-				question: validation.question,
-				pillars: pillars.map((pillar) => ({ id: pillar.id, name: pillar.name, description: pillar.description })),
-				distribution: distribution && distribution.length > 0 ? distribution : undefined,
-			});
+			const advice = await advisor(
+				{
+					question: validation.question,
+					pillars: pillars.map((pillar) => ({ id: pillar.id, name: pillar.name, description: pillar.description })),
+					distribution: distribution && distribution.length > 0 ? distribution : undefined,
+				},
+				providerValidation.provider,
+			);
 			res.json({ advice });
 		} catch (error) {
 			if (error instanceof MissingApiKeyError) {

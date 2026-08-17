@@ -42,20 +42,6 @@ export function getProvider(): LlmProvider {
 }
 
 /**
- * Prüft, ob ein Provider verfügbar ist (konfiguriert).
- * Für Test-Zwecke –在生产环境 würde dies die API-Konfiguration prüfen.
- *
- * @param provider Der zu prüfende Provider
- * @returns true, wenn der Provider verfügbar ist
- */
-function isProviderAvailable(provider: LlmProvider): boolean {
-	// In dieser Implementierung gehen wir davon aus, dass beide Provider
-	// verfügbar sind. In einer echten Implementierung würde dies die
-	// API-Konfiguration prüfen (hasMistralApiKey / hasOpenrouterApiKey).
-	return provider === 'mistral' || provider === 'openrouter';
-}
-
-/**
  * Setzt den aktiven Provider mit Exklusivitäts-Logik und Toast-Feedback.
  *
  * @param provider Der zu setzende Provider ('mistral' | 'openrouter' | undefined)
@@ -64,11 +50,6 @@ function isProviderAvailable(provider: LlmProvider): boolean {
 export function setProvider(provider: LlmProvider): boolean {
 	// Validierung: Nur erlaubte Werte
 	if (provider !== undefined && provider !== 'mistral' && provider !== 'openrouter') {
-		return false;
-	}
-
-	// Prüfen, ob der Provider verfügbar ist
-	if (provider !== undefined && !isProviderAvailable(provider)) {
 		return false;
 	}
 

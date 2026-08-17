@@ -19,10 +19,12 @@ LLM-Anfragen für Tests gezielt an Mistral oder OpenRouter senden, statt den Sta
 ### Schritte
 
 1. **Provider-Schalter anzeigen**
-   - UI zeigt zwei Schalter: „Mistral" und „OpenRouter"
-   - Schalter sind als Toggles dargestellt (Toggle-Switches oder Toggle-Buttons)
-   - Aktueller Provider ist visuell gehighlightet
-   - Inaktiver Provider ist grau dargestellt
+   - UI zeigt die Auswahl „Mistral", „OpenRouter" und „System-Standard"
+   - Dargestellt als exklusive Radio-Group (`KolInputRadio`, `kol-input-radio`).
+     _Präzisierung bei der Umsetzung:_ Die ursprüngliche Annahme „zwei Toggle-Switches"
+     trägt den dritten Zustand „System-Standard (Kaskade)" nicht — bei genau-einem-von-drei
+     ist eine Radio-Group das semantisch korrekte Muster (ARIA `role="radio"` statt `switch`).
+   - Aktueller Provider ist visuell hervorgehoben, inaktive Optionen sind abgesetzt
 
 2. **Provider umschalten**
    - Nutzer klickt auf „Mistral"-Schalter
@@ -34,6 +36,11 @@ LLM-Anfragen für Tests gezielt an Mistral oder OpenRouter senden, statt den Sta
    - Nutzer löst LLM-Anfrage aus (z. B. KI-gestützte Task-Erfassung)
    - Anfrage geht an den aktuell gewählten Provider (z. B. Mistral)
    - Antwort wird wie gewohnt verarbeitet
+   - **Verdrahtung:** Frontend hängt Query-Param `provider` an jeden
+     LLM-Endpunkt (`/tasks/parse-text`, `/tasks/suggest-pillars`,
+     `/pillars/advisor`, `/lektorat`). Der Server pinnt die Kaskade auf den
+     genannten Provider — kein Fallback, keine Verfeinerungs-Stufe.
+     Fehlt der Parameter → Kaskade wie bisher. Ungültiger Wert → HTTP 400.
 
 4. **Provider-Schalter persistieren**
    - Nutzer schließt App und öffnet sie erneut
@@ -46,10 +53,10 @@ LLM-Anfragen für Tests gezielt an Mistral oder OpenRouter senden, statt den Sta
    - Schalter sind gut tappbar
 
 6. **Tastatur-Navigation (A11y)**
-   - Nutzer navigiert mit Tab zu den Schaltern
-   - Space/Enter schaltet den Provider um
-   - ARIA-Attribute sind korrekt gesetzt: `role="switch"`, `aria-checked`, `aria-label`
-   - Screenreader kündigt „Mistral Provider - aktiviert" an
+   - Nutzer navigiert mit Tab zur Radio-Group, wählt mit Pfeiltasten/Space
+   - ARIA-Attribute sind korrekt gesetzt: `role="radio"`, `aria-checked` je Option,
+     Gruppen-Label „LLM-Provider" (KoliBri setzt die Attribute auf die nativen Inputs)
+   - Screenreader kündigt die Option mit Auswahlzustand an
 
 ### Erwartetes Ergebnis
 
@@ -91,17 +98,16 @@ LLM-Anfragen für Tests gezielt an Mistral oder OpenRouter senden, statt den Sta
 
 **A11y/BITV:**
 
-- Tastatur-Navigation: Tab/Space/Enter für Schalter
-- ARIA: `role="switch"`, `aria-checked`, `aria-label`
-- Screenreader: „Mistral Provider - aktiviert/inaktiv"
-- Kontrast: ON/OFF-Status vs. Background min 4.5:1
+- Tastatur-Navigation: Tab/Pfeiltasten/Space für die Radio-Group
+- ARIA: `role="radio"`, `aria-checked` je Option, Gruppen-Label `aria-label`
+- Screenreader: Option mit Auswahlzustand („Mistral, ausgewählt")
+- Kontrast: aktiver/inaktiver Status vs. Background min 4.5:1
 - Fokus-Indikator sichtbar
 
 **KoliBri:**
 
-- `kol-toggle-group` oder `kol-toggle-button` nutzen
-- Theme-Integration: `_variant="primary"` für aktiven Provider
-- BITV-2.1-PS: Toggle-Switches erfüllen Standard-Interaktionsmuster
+- `kol-input-radio` nutzen (exklusive Auswahl, drei Optionen inkl. „System-Standard")
+- BITV-2.1-PS: Radio-Group erfüllt das Standard-Interaktionsmuster für „genau einer von n"
 
 **Empfehlung:**
 
