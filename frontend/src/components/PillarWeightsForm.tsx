@@ -96,7 +96,7 @@ export const PillarWeightsForm = ({ pillars, onSaved, onCancel }: PillarWeightsF
 					</p>
 					<div className="form-grid">
 						{pillars.map((pillar, index) => (
-							<div key={pillar.id} className="pillar-weight-row">
+							<div key={pillar.id} className="pillar-weight-row pillar-card">
 								<KolInputRange
 									// Freie Roh-Skala 0,0–1,0 → Slider. Der aktuelle Wert steht im Label, da ein reiner
 									// Slider den exakten Wert nicht anzeigt.
