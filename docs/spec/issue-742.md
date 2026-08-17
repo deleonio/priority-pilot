@@ -1,5 +1,7 @@
 # Issue 742: Free Models Selection
 
+**Stand:** 2026-08-17
+
 ## Ziel
 
 Benutzer können im Frontend aus einer aktuellen Liste der kostenlosen Modelle von OpenRouter auswählen.
@@ -30,3 +32,16 @@ Benutzer können im Frontend aus einer aktuellen Liste der kostenlosen Modelle v
 2. Default ist `openrouter/free`
 3. Andere Free Models können ausgewählt werden
 4. Liste ist aktuell
+
+---
+
+## Versionierung
+
+- **v1.0** (2026-08-17): Initialefassung für Issue #742. Free Models Selection spezifiziert.
+- **v1.1** (2026-08-17): Nightly-Sync — Ist-Stand-Korrektur. Feature ist bereits implementiert: LlmSettingsForm.tsx hat Free-Modelle-Auswahldialog, DEFAULT_OPENROUTER_MODEL='openrouter/free'.
+
+---
+
+## Status
+
+**ABGESCHLOSSEN** — Free Models Selection ist implementiert und in Produktion.
