@@ -230,6 +230,8 @@ jobs:
               ohne Commit bewirkt NICHTS — der Workflow übergibt nur bei gerücktem HEAD an Review.
             - VERDICT: needs-human NUR bei Entscheidungs-Findings (Architektur/Produkt/Design,
               "Mensch entscheidet") — das ist das EINZIG verbindliche Verdict (terminal an Mensch).
+              Bei needs-human: Kommentar mit Marker <!-- ai-fixup-decisions --> posten mit
+              strukturiertem Listing (Was / Wo / Optionen / Empfehlung).
 
           ⚠️ LABELS: KEINE Labels setzen! Workflow übernimmt das automatisch.
 
@@ -325,7 +327,7 @@ jobs:
           # Claude wuerde sonst eine Re-Arm-Schleife erzeugen. Review macht analog den Safe-Default.
           if [ "$OUTCOME" != "success" ]; then
             gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human
-            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "🛑 **Fixup #${PR}: Claude-Schritt \`${OUTCOME}\`** — kein Verdict, HEAD-Fortschritt nach Absturz/Abbruch nicht vertrauenswuerdig. ai:needs-human gesetzt — bitte manuell pruefen (war es ein transienter API-Fehler, \`ai:needs-changes\` neu setzen und erneut fixupen lassen)." 2>/dev/null || true
+            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "🛑 **Fixup #${PR}: Claude-Schritt \`${OUTCOME}\` (Crash)**\n\nKein Verdict, HEAD-Fortschritt nach Absturz/Abbruch nicht vertrauenswuerdig. ai:needs-human gesetzt.\n\n**Checkliste:**\n- [ ] 1. Pruefen: transienter API-Fehler (\`ai:needs-changes\` neu setzen) oder echter Blocker?\n- [ ] 2. Bei transientem Fehler: \`ai:needs-changes\` setzen → loest Fixup neu aus\n- [ ] 3. Bei echtem Blocker: manuell pruefen und entscheiden\n- [ ] 4. Label \`ai:needs-human\` entfernen (nach Klärung)" 2>/dev/null || true
             echo "::warning::Claude-Schritt '${OUTCOME}' -> ai:needs-human (keine Re-Armierung, Mensch prueft)."
             echo "stuck=true" >> "$GITHUB_OUTPUT"
             echo "stuck_reason=crash" >> "$GITHUB_OUTPUT"
@@ -340,7 +342,7 @@ jobs:
             # treffen muss (kein automatisierbarer Fix). Terminal an Mensch — kein Re-Arm, kein Loop.
             gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human
             echo "::notice::Verdict needs-human -> Label gesetzt: ai:needs-human (wartet auf Mensch)."
-            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⏸️ **Wartet auf menschliche Entscheidung** — verbleibende Findings sind nicht automatisierbar (Architektur-/Produkt-/Designentscheidung, siehe Review-Threads). Der Fixup kann hier nicht weiterhelfen. Nach der Entscheidung: Label \`ai:needs-human\` entfernen und via \`ai:needs-review\` neu triggern." 2>/dev/null || true
+            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⏸️ **Wartet auf menschliche Entscheidung (Fixup-Entscheidung)**\n\nVerbleibende Findings sind nicht automatisierbar (Architektur-/Produkt-/Designentscheidung). Siehe den Kommentar mit Marker <!-- ai-fixup-decisions --> fuer die strukturierten Optionen.\n\n**Checkliste:**\n- [ ] 1. Entscheidungs-Findings durchgehen (siehe <!-- ai-fixup-decisions -->)\n- [ ] 2. Entscheidung treffen (Code anpassen / akzeptieren)\n- [ ] 3. Label \`ai:needs-human\` entfernen\n- [ ] 4. Label \`ai:needs-review\` setzen → loest Fixup neu aus" 2>/dev/null || true
             echo "stuck=true" >> "$GITHUB_OUTPUT"
             echo "stuck_reason=needs-human" >> "$GITHUB_OUTPUT"
           elif [ "$ARTIFACTS_OK" = "true" ]; then
@@ -354,7 +356,7 @@ jobs:
             # sowohl Fixup<->Fixup- als auch Review<->Fixup-Endlosloop). Terminal an Mensch via
             # ai:needs-human (vermutlich doch ein nicht-automatisierbarer Blocker) + Kommentar.
             gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human
-            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "🛑 **Fixup #${PR} ohne Fortschritt** — kein neuer Commit in diesem Lauf (HEAD unverändert). Vermutlich ein nicht-automatisierbares Finding. ai:needs-human gesetzt — bitte manuell prüfen (ggf. entscheiden und \`ai:needs-review\` neu setzen)." 2>/dev/null || true
+            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "🛑 **Fixup #${PR} ohne Fortschritt (Kein neuer Commit)**\n\nKein neuer Commit in diesem Lauf (HEAD unverändert). Vermutlich ein nicht-automatisierbares Finding. ai:needs-human gesetzt.\n\n**Checkliste:**\n- [ ] 1. Review-Threads prüfen (nicht-automatisierbares Finding?)\n- [ ] 2. Entscheidung treffen (Code anpassen / akzeptieren / Manuelles Fixup)\n- [ ] 3. Label \`ai:needs-human\` entfernen\n- [ ] 4. Label \`ai:needs-review\` setzen → loest Fixup neu aus" 2>/dev/null || true
             echo "::warning::Kein Fixup-Fortschritt (HEAD unverändert) -> ai:needs-human, keine Re-Armierung, Mensch prüft."
             echo "stuck=true" >> "$GITHUB_OUTPUT"
             echo "stuck_reason=no-progress" >> "$GITHUB_OUTPUT"

@@ -71,8 +71,9 @@ wird dagegen geschrieben — ein binäres Ziel statt Prosa.
     - **Frontend-Logik** → Vitest (`frontend/src/lib/*.test.ts`).
     - **Feature / UI-Verhalten** → Akzeptanz-e2e (`frontend/e2e/*.spec.ts`, Stil `crud.spec.ts`). Bei
       für den Nutzer sichtbaren UI-Funktionen zusätzlich ein **Mobile-First-Akzeptanzkriterium**
-      (375px-Viewport, kein horizontales Scrollen — siehe [conventions.md](conventions.md)) mit eigenem
-      Testfall, Muster `login.spec.ts` AK5 / `task-tree.spec.ts` AK-6.
+      (375px-Viewport, kein horizontales Scrollen — siehe [conventions.md](conventions.md) und
+      [docs/mobile-ui-rules.md](../docs/mobile-ui-rules.md)) mit eigenem Testfall, Muster
+      `login.spec.ts` AK5 / `task-tree.spec.ts` AK-6.
     - **Reines Styling/Layout** → keinen Unit-Test erzwingen: wo sinnvoll per e2e absichern, sonst
       visuell verifizieren und **im PR begründen**.
     - **Nicht-Anwendungscode** (`.github/workflows`, `.github/scripts`, CI-Plumbing, Config-Dateien,
@@ -91,7 +92,11 @@ wird dagegen geschrieben — ein binäres Ziel statt Prosa.
   pnpm exec prettier --check .     # verifiziert (wie CI-Format-Check)
   pnpm lint                        # repo-weit (CI lintet rekursiv, nicht nur ein Package)
   ```
-  Erst wenn alle drei Kommandos grün sind, committen/pushen. Ein Format-/Lint-Fehler darf
+  Bei **geänderten UI-Dateien** (unter `frontend/`) zusätzlich den Impeccable-Detektor laufen
+  lassen: `node .claude/skills/impeccable/scripts/detect.mjs <dateien…>` (Exit 0 = sauber,
+  2 = Findings; #828). Funde vor dem Push beheben — deterministische Design-Regeln sind Teil
+  des Gates, nicht optional.
+  Erst wenn alle Kommandos grün sind, committen/pushen. Ein Format-/Lint-Fehler darf
   nicht in CI laufen.
 
 ## Schritt 4 — PR (ready to review) erstellen & mit dem Ticket verknüpfen
