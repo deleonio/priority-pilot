@@ -71,8 +71,9 @@ wird dagegen geschrieben — ein binäres Ziel statt Prosa.
     - **Frontend-Logik** → Vitest (`frontend/src/lib/*.test.ts`).
     - **Feature / UI-Verhalten** → Akzeptanz-e2e (`frontend/e2e/*.spec.ts`, Stil `crud.spec.ts`). Bei
       für den Nutzer sichtbaren UI-Funktionen zusätzlich ein **Mobile-First-Akzeptanzkriterium**
-      (375px-Viewport, kein horizontales Scrollen — siehe [conventions.md](conventions.md)) mit eigenem
-      Testfall, Muster `login.spec.ts` AK5 / `task-tree.spec.ts` AK-6.
+      (375px-Viewport, kein horizontales Scrollen — siehe [conventions.md](conventions.md) und
+      [docs/mobile-ui-rules.md](../docs/mobile-ui-rules.md)) mit eigenem Testfall, Muster
+      `login.spec.ts` AK5 / `task-tree.spec.ts` AK-6.
     - **Reines Styling/Layout** → keinen Unit-Test erzwingen: wo sinnvoll per e2e absichern, sonst
       visuell verifizieren und **im PR begründen**.
     - **Nicht-Anwendungscode** (`.github/workflows`, `.github/scripts`, CI-Plumbing, Config-Dateien,

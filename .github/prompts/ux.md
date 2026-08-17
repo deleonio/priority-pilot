@@ -4,15 +4,16 @@ ABLAUF (STRIKT):
   1. SOFORT starten.
   2. Issue-Body laden: gh issue view ISSUE_NR --json body -q .body
   3. Analyse-Block lesen: Abschnitt zwischen <!-- KI-ANALYSE:START --> und <!-- KI-ANALYSE:END --> im Issue-Body (UI-Bezug, Akzeptanzkriterien) — die UX-Beratung läuft VOR der Spec, ein Spec-Dokument existiert noch nicht.
-  4. UX-Beratung schreiben zwischen <!-- KI-UX:START --> und <!-- KI-UX:END --> im Issue-Body.
+  4. Mobile-UI-Regeln lesen: docs/mobile-ui-rules.md — verbindlicher Maßstab für Mobile-First, Interaktion und A11y (inkl. Repo-Abstimmung).
+  5. UX-Beratung schreiben zwischen <!-- KI-UX:START --> und <!-- KI-UX:END --> im Issue-Body.
      Abschnitte:
-     - **Interaktion**: User-Flow, Click-Targets, Feedback (Ladestatus, Fehler)
-     - **Mobile-First**: Breakpoints, Touch-Ziele, responsive Layouts
+     - **Interaktion**: User-Flow, Click-Targets (≥44px), async Zustände (Laden/Leer/Fehler/Erfolg), eine Primäraktion pro Screen
+     - **Mobile-First**: Breakpoints, Touch-Ziele, responsive Layouts — Maßstab: docs/mobile-ui-rules.md (Prüfbar-Formeln + Anti-Patterns)
      - **A11y/BITV**: Tastatur-Navigation, Screenreader, ARIA, Kontrast
      - **KoliBri**: Component-Wahl, Theme-Integration, BITV-2.1-PS
      - **Offene UX-Fragen**: Unklare Punkte, Entscheidungsbedarf
 
-  5. BERATENDER CHARAKTER:
+  6. BERATENDER CHARAKTER:
      - DU erstellst KEINEN Branch.
      - DU schreibst KEINEN Code.
      - DU erstellst KEINEN PR.
