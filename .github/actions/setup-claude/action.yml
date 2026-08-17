@@ -3,7 +3,11 @@ description: 'Preflight, App-Token, Claude-Code-Install + Auth (Provider-Switch 
 
 inputs:
   needs-mcp:
-    description: 'Ob KoliBri MCP für diesen Workflow benötigt wird (triage + implement = true). Steuert nur die allowedTools; registriert ist der Server in .claude/settings.json.'
+    description: 'Ob KoliBri MCP für diesen Workflow benötigt wird. Steuert nur die allowedTools; registriert ist der Server in .claude/settings.json. Gilt künftig für alle Phasen außer 06.'
+    required: false
+    default: 'false'
+  browser-mcp:
+    description: 'Ob Playwright-MCP (Browser-Tools) für diesen Workflow benötigt wird. Bei true werden mcp__playwright__* Tools zur Allowlist aller Tiers hinzugefügt. Nur für Phasen mit UI-Inspektion (02 UX, 03 Umsetzung, 05 Fixup).'
     required: false
     default: 'false'
   tools-tier:
@@ -451,6 +455,7 @@ runs:
       shell: bash
       env:
         NEEDS_MCP: ${{ inputs.needs-mcp }}
+        BROWSER_MCP: ${{ inputs.browser-mcp }}
         TOOLS_TIER: ${{ inputs.tools-tier }}
         CLAUDE_MODEL: ${{ inputs.model }}
         RESOLVED_MODEL: ${{ steps.provider.outputs.resolved-model }}
@@ -466,7 +471,10 @@ runs:
         fi
 
         # MCP-Server-Name spiegelt .mcp.json (kolibri-mcp); aktiv nur bei needs-mcp.
+        # Playwright-MCP bei browser-mcp=true.
         MCP_TOOLS="mcp__kolibri-mcp__*"
+        BROWSER_TOOLS="mcp__playwright__*"
+        [ "$BROWSER_MCP" = "true" ] && MCP_TOOLS="$MCP_TOOLS,$BROWSER_TOOLS"
         VOLLES_TOOLSET="Read,Glob,Grep,Bash,Write,Edit"
 
         case "${TOOLS_TIER:-full}" in

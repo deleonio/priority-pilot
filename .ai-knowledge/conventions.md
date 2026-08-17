@@ -32,3 +32,8 @@
     (`page.setViewportSize({ width: 375, height: 812 })`), der belegt, dass der Kerninhalt ohne
     horizontalen Overflow lesbar/bedienbar ist (`element.scrollWidth <= window.innerWidth`). Kanonisches
     Muster im Repo: `frontend/e2e/login.spec.ts` (AK5) und `frontend/e2e/task-tree.spec.ts` (AK-6).
+- **KoliBri-First (Frontend):** Komponenten nur selbst stylen, wenn keine KoliBri-Komponente anwendbar ist.
+  KoliBri-Komponenten sind Shadow-Web-Components mit festem Styling; Shadow-DOM-CSS ist unpublizierte API
+  (siehe `frontend/src/lib/popoverAlign.ts` für das Problem). Vor eigenen Styling-Entscheidungen via
+  `mcp__kolibri-mcp__search/fetch` prüfen, ob eine passende KoliBri-Komponente existiert (Custom-Element +
+  Properties). Begründung bei Eigene-Styling-Entscheidung im PR-Body.

@@ -105,7 +105,7 @@ jobs:
         id: setup
         uses: ./.github/actions/setup-claude
         with:
-          needs-mcp: false
+          needs-mcp: true
           tools-tier: review
           event-type: ${{ github.event_name }}
           ticket-ref: ${{ github.event.pull_request.number }}
@@ -163,6 +163,10 @@ jobs:
             1. Vollständigen Diff (gh pr diff) und verknüpftes Ticket lesen (AK aus Body-Block <!-- KI-ANALYSE:START/END -->).
             2. Adversarial prüfen: Löst der PR das Problem ganz? Edge Cases? Einfachster Weg? Performance/Security?
                Regression: macht der PR bestehende Tests/Verhalten AUSSERHALB des Diffs obsolet? (Obsolete Tests sollten schon in der Spec entfernt sein; falls Widerspruch → Finding "Test-Pflege-Bedarf", Datei:Zeile.)
+            2.5. KoliBri-First eingehalten? (bei UI-Änderungen)
+               - Eigenes Styling ohne KoliBri-Alternative = Finding.
+               - Im Zweifel via mcp__kolibri-mcp__search nach Alternativen suchen.
+               - Fehlende Begründung der Eigene-Styling-Entscheidung im PR-Body = Finding.
             3. Code-Qualität: Benennung, Lesbarkeit, Tests (grün + AK abdeckend).
 
           MODUS FIXUP-NACHWEIS (Folge-Review) — NUR das Kreuzverhör-Ergebnis + die Fixup-Runden, NICHT erneut der ganze PR:

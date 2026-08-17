@@ -31,6 +31,8 @@ nicht Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
   das Aufnahmekriterium in [TDD-Strategie → Testumfang](.ai-knowledge/tdd-strategy.md#testumfang--so-viel-wie-nötig-so-wenig-wie-irgend-möglich)
   operationalisiert: ein Test muss etwas **auswerten**, einen **Spiegel** absichern oder vor einem
   **stillen/teuren** Ausfall schützen — sonst entsteht er nicht.
+- **KoliBri-First:** Komponenten nur selbst stylen, wenn keine KoliBri-Komponente anwendbar ist
+  (Shadow-Web-Components mit festem Styling; Shadow-DOM-CSS ist unpublizierte API).
 - Monorepo mit **pnpm**.
 - Formatieren: `pnpm format` (Prettier, eine zentrale Config im Root).
 - Linten: `pnpm lint`.
@@ -66,6 +68,11 @@ Endpoint, Modell-Aliase und Key
 löst die Setup-Action pro Lauf auf — die eingecheckte
 [`.claude/settings.json`](.claude/settings.json) bleibt bewusst providerneutral, weil sie auch
 für lokale Sessions gilt. CI/Provider/Modell-Doku: [docs/ci-architecture.md](docs/ci-architecture.md).
+
+**CI-MCP-Integration:** KoliBri-MCP (`kolibri-mcp`, Tools `mcp__kolibri-mcp__*`) ist in allen Phasen außer
+Documenter (06) über `needs-mcp: true` verfügbar; Playwright-MCP (`playwright`, Tools `mcp__playwright__*`)
+zusätzlich in UX (02b), Umsetzung (04) und Fixup (06) über `browser-mcp: true` für Layout-Prüfung
+(375px/1280px Viewport) bei laufender App auf `http://localhost:4174`.
 
 **Jede KI-gesteuerte Phase liest nur ihre eigene Wissensbasis-Datei** + das Issue/PR. Kein domänenübergreifendes
 Lesen — die jeweilige Datei enthält alles Notwendige.

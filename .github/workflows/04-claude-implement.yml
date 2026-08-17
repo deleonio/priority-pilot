@@ -90,6 +90,7 @@ jobs:
         uses: ./.github/actions/setup-claude
         with:
           needs-mcp: true
+          browser-mcp: true
           tools-tier: full
           event-type: ${{ github.event_name }}
           ticket-ref: ${{ github.event.issue.number }}
@@ -163,6 +164,38 @@ jobs:
         if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         run: pnpm exec lefthook install
 
+      - name: Playwright-Cache (ms-playwright)
+        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Chromium installieren (Playwright)
+        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
+        run: pnpm --filter frontend exec playwright install --with-deps chromium
+
+      - name: Inspect-Instanz im Hintergrund starten
+        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
+        run: |
+          nohup ./ui-inspect.sh > /tmp/ui-inspect.log 2>&1 &
+          echo "::notice::Inspect-Instanz gestartet (Hintergrund)"
+          # Readiness-Check mit Timeout 120s
+          timeout=120
+          elapsed=0
+          while [ $elapsed -lt $timeout ]; do
+            if curl -s http://localhost:4174 >/dev/null 2>&1; then
+              echo "::notice::✅ Inspect-Instanz bereit nach ${elapsed}s"
+              exit 0
+            fi
+            sleep 2
+            elapsed=$((elapsed + 2))
+          done
+          echo "::error::Inspect-Instanz nicht innerhalb von ${timeout}s bereit (Timeout)"
+          exit 1
+
       - name: Fortsetzungs-Stand prüfen (ai:continued)
         id: continued-before
         if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
@@ -199,6 +232,12 @@ jobs:
                Dessen ROTE Tests GRÜN machen – Tests NICHT ändern (Gewaltenteilung).
                **Hinweis:** Obsolete Tests wurden bereits in der Spec-Stufe entfernt. Falls trotzdem Widerspruch auffällt → NICHT still ändern/löschen, sondern im PR-Body Abschnitt "Test-Pflege-Bedarf" mit Datei:Zeile + Begründung anlegen.
                Fallback (kein Draft-PR): eigenen Branch + Tests selbst schreiben.
+            3.5. UI-ARBEITEN bei Frontend-Änderungen (frontend/src/**, frontend/e2e/**):
+               a) KoliBri-First: passende Komponente via mcp__kolibri-mcp__search/fetch finden und mit ihren Properties/Features einsetzen.
+                  Eigene Komponenten nur stylen/bauen, wenn KEINE KoliBri-Komponente passt.
+                  Begründung im PR-Body (KoliBri = Shadow-Web-Components mit festem Styling).
+               b) Layout: App läuft im Hintergrund auf http://localhost:4174; sichtbare Änderungen per Playwright-MCP bei 375px UND 1280px prüfen (Screenshot + A11y-Snapshot).
+                  Layout-Brüche (horizontales Scrollen/Overflow) fixen.
             4. Code bis pnpm test grün, dann pnpm format + pnpm lint + pnpm knip.
                Bei Confirm-/Lösch-/Zerstör-Dialogen: docs/ux-pattern-sequential-confirmation.md anwenden – sequenzielle Ja/Nein-Schritte, striktes Fokus-Management beim Übergang (verbindliche A11y-Vorgabe).
                Bei sichtbarer UI: docs/mobile-ui-rules.md anwenden – Touch-Targets ≥44px, async Zustände entwerfen, Anti-Patterns meiden (Repo-Abstimmung im Doc beachten).
