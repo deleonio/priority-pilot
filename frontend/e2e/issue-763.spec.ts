@@ -41,7 +41,7 @@ test.describe('#763 Säulen-Gewichtung Layout-Optimierung', () => {
 	 * Hilfsfunktion — Prüft, ob Range Slider-Elemente sichtbar sind.
 	 */
 	const expectSlidersVisible = async (page: Page) => {
-		const sliders = page.locator('kol-slider').or(page.locator('[role="slider"]'));
+		const sliders = page.locator('kol-input-range');
 		const count = await sliders.count();
 		expect(count, 'Es müssen Range Slider vorhanden sein').toBeGreaterThan(0);
 
@@ -58,7 +58,7 @@ test.describe('#763 Säulen-Gewichtung Layout-Optimierung', () => {
 		await page.setViewportSize({ width: 1280, height: 800 });
 		await navigateToPillarWeights(page);
 
-		const sliders = page.locator('kol-slider').or(page.locator('[role="slider"]'));
+		const sliders = page.locator('kol-input-range');
 		const count = await sliders.count();
 		expect(count, 'Es müssen Range Slider vorhanden sein').toBeGreaterThan(0);
 
@@ -117,7 +117,7 @@ test.describe('#763 Säulen-Gewichtung Layout-Optimierung', () => {
 		await page.setViewportSize({ width: 1280, height: 800 });
 		await navigateToPillarWeights(page);
 
-		const sliders = page.locator('kol-slider').or(page.locator('[role="slider"]'));
+		const sliders = page.locator('kol-input-range');
 		const descriptions = page.locator('.pillar-description').or(page.locator('[class*="description"]'));
 
 		const sliderCount = await sliders.count();
@@ -190,7 +190,7 @@ test.describe('#763 Säulen-Gewichtung Layout-Optimierung', () => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await navigateToPillarWeights(page);
 
-		const sliders = page.locator('kol-slider').or(page.locator('[role="slider"]'));
+		const sliders = page.locator('kol-input-range');
 		const count = await sliders.count();
 		expect(count, 'Es müssen Range Slider vorhanden sein').toBeGreaterThan(0);
 
