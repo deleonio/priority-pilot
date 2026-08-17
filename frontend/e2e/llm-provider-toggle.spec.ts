@@ -8,8 +8,9 @@ test.describe('LLM Provider Toggle UI – Spec: Issue-749', () => {
 		// Select LLM tab (index 2, labeled "LLM")
 		const llmTab = page.getByRole('tab', { name: 'LLM', exact: true });
 		await llmTab.click();
-		// Verify tab is actually selected
-		await expect(llmTab).toHaveAttribute('aria-selected', 'true');
+		// Wait for tab panel to become visible
+		const llmTabPanel = page.getByRole('tabpanel').filter({ hasText: /LLM-Provider/ });
+		await expect(llmTabPanel).toBeVisible();
 	});
 
 	test('should display provider toggle switches – Spec: Issue-749 Journey Step 1', async ({ page }) => {
