@@ -1,6 +1,6 @@
 # Issue 703 – Tabs bei schmalen Viewports
 
-**Stand:** 2026-08-16  
+**Stand:** 2026-08-17
 **Ziel:** Tabs bleiben auch bei schmalen Viewports bedienbar, ohne Umbruch oder Überlappung.
 
 ---
@@ -73,3 +73,16 @@ Tabs sind bei allen Viewport-Größen bedienbar, ohne Layout-Zerbruch oder Über
 - **Format:** Spezifikation ist implementierungsagnostisch – beschreibt beobachtbares Verhalten, nicht den technischen Pfad.
 - **Test-Strategie:** Aus dieser Spezifikation werden E2E-Tests für viewport-spezifisches Tab-Verhalten abgeleitet.
 - **Referenz:** Orientierung an bestehenden Tab-Implementierungen (Settings, Serien) für Konsistenz.
+
+---
+
+## Versionierung
+
+- **v1.0** (2026-08-16): Initialefassung für Issue #703. Tabs responsive Verhalten spezifiziert.
+- **v1.1** (2026-08-17): Nightly-Sync — Ist-Stand-Korrektur. Feature ist bereits implementiert: app.css Zeile 143+ hat CSS-Regeln für Tabs bei < 768px (vertikale Anordnung).
+
+---
+
+## Status
+
+**ABGESCHLOSSEN** — Tabs responsive Verhalten ist implementiert und in Produktion.

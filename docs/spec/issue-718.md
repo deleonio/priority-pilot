@@ -1,6 +1,6 @@
 # Issue 718 — Avatar im Header auf Mobile wiederherstellen
 
-**Stand:** 2026-08-16  
+**Stand:** 2026-08-17  
 **Issue:** #718 "Avatar im Header auf Mobile wiederherstellen (unter 48rem ausgeblendet)"
 
 ## Ziel
@@ -70,3 +70,16 @@ await expect(header.locator('.user-info')).toBeHidden();
 ```
 
 Dies widerspricht Issue 718 (Avatar soll sichtbar sein). Der betreffende Test muss **entfernt** werden, da #718 #691 (ursprüngliche Begründung für Ausblendung) teilweise revidiert.
+
+---
+
+## Versionierung
+
+- **v1.0** (2026-08-16): Initialefassung für Issue #718. Avatar im Header auf Mobile wiederherstellen spezifiziert.
+- **v1.1** (2026-08-17): Nightly-Sync — Ist-Stand-Korrektur. Feature ist bereits implementiert: Avatar (.user-display-name) ist sichtbar in App.tsx, keine Ausblendung mehr bei Mobile.
+
+---
+
+## Status
+
+**ABGESCHLOSSEN** — Avatar-Sichtbarkeit auf Mobile ist implementiert und in Produktion.

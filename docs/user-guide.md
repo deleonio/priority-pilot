@@ -57,7 +57,7 @@ Darunter wechselst du über eine **Tab-Leiste** zwischen den vier Hauptansichten
 2. **Aufgaben** – deine Aufgaben anlegen und pflegen; ein Umschalter wechselt hier
    zwischen **offenen** und **erledigten** Aufgaben
 3. **Serien** – wiederkehrende Aufgaben
-4. **Aufgabenwald** – die Priorisierung als Baum
+4. **Wald** – die Priorisierung als Baum
 
 ---
 
