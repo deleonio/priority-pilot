@@ -76,7 +76,8 @@ VERDICT: ux-ready
 - **Impeccable Design-Skill** (`.claude/skills/impeccable/`, #828): Die UX-Beratung bei UI-Tickets
   mit `/impeccable critique <ziel-komponente>` stützen — Heuristik-Scores (Nielsen, 0-4),
   Cognitive-Load-Check und Persona-Red-Flags liefern belastbare Punkte für die Blöcke
-  Interaktion/Mobile-First/A11y. Browser-Inspektion via Playwright, wo verfügbar (#823). Die
+  Interaktion/Mobile-First/A11y. Browser-Inspektion via Playwright-MCP (375px/1280px Viewport)
+  und KoliBri-Component-Verifikation via KoliBri-MCP, wo verfügbar (#823). Die
   Referenz-Dateien des Skills lädt der Agent on demand — keine Token-Kosten ohne Nutzung.
 
 ## Modell
