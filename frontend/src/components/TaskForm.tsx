@@ -718,7 +718,7 @@ export const TaskForm = ({
 			    Als Kind des Wrappers würde er diesen über die ganze Flex-Zeile spannen lassen und
 			    den Mic-Button aus der Feldbox drängen (AK9/AK10, Issue #264). */}
 				<div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-					<div style={{ flex: 1, minWidth: 0, display: 'block' }} data-testid="task-title">
+					<div style={{ flex: 1, minWidth: 0 }} data-testid="task-title">
 						<VoiceField
 							variant="input"
 							fieldLabel="Titel"

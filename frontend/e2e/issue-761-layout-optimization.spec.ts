@@ -39,22 +39,19 @@ test.describe('#761 Layout-Optimierung Titel/Beschreibung/Aktionen', () => {
 		await page.setViewportSize({ width: 1024, height: 768 });
 		await openTaskDetail(page);
 
-		const titleElement = page
-			.locator('[data-testid="task-title"] input')
-			.or(page.getByRole('heading', { level: 1 }))
-			.first();
+		const titleElement = page.locator('[data-testid="task-title"]').first();
 
 		await expect(titleElement).toBeVisible();
 
 		// Prüfe, dass der Titel die volle Breite des Containers nutzt
 		// (Toleranz für Padding/Margins: ±10px)
-		// clientWidth misst die tatsächliche Flex-Container-Breite, nicht boundingBox()
-		const titleWidth = await titleElement.evaluate((el: HTMLElement) => el.clientWidth);
+		const titleBox = await titleElement.boundingBox();
+		expect(titleBox).not.toBeNull();
 		const containerWidth = await page
 			.locator('body, .container, main, .dialog')
 			.first()
 			.evaluate((el: HTMLElement) => el.clientWidth);
-		expect(titleWidth).toBeGreaterThanOrEqual(containerWidth - 20); // Volle Breite abzüglich Padding
+		expect(titleBox!.width).toBeGreaterThanOrEqual(containerWidth - 20); // Volle Breite abzüglich Padding
 
 		// Spec-Bezug: docs/spec/issue-761.md, Schritt 2 (Titel-Element nimmt volle verfügbare Breite ein)
 	});
@@ -113,10 +110,7 @@ test.describe('#761 Layout-Optimierung Titel/Beschreibung/Aktionen', () => {
 		await page.setViewportSize({ width: 375, height: 667 }); // Mobile Viewport
 		await openTaskDetail(page);
 
-		const titleElement = page
-			.locator('[data-testid="task-title"] input')
-			.or(page.getByRole('heading', { level: 1 }))
-			.first();
+		const titleElement = page.locator('[data-testid="task-title"]').first();
 
 		await expect(titleElement).toBeVisible();
 
@@ -193,10 +187,7 @@ test.describe('#761 Layout-Optimierung Titel/Beschreibung/Aktionen', () => {
 		await openTaskDetail(page);
 
 		// Prüfe semantisches Markup: Titel als heading
-		const titleElement = page
-			.locator('[data-testid="task-title"] input')
-			.or(page.getByRole('heading', { level: 1 }))
-			.first();
+		const titleElement = page.locator('[data-testid="task-title"]').first();
 
 		const isVisible = (await titleElement.count()) > 0;
 		if (isVisible) {
