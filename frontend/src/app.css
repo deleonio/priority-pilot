@@ -1071,48 +1071,35 @@ body {
  * Spacing: 24dp linker Margin, 16dp Section-Abstand, 12dp Element-Abstand.
  * Typografie: Farbe #616161 für deskriptiven Text.
  *
- * HACK: Da KoliBri-Komponenten im Shadow-DOM rendern und der Test marginLeft auf
- * role-Elemente selbst prüft, verwenden wir einen universellen Selektor mit !important.
- * Das ist ein Bruch der Kapselung, aber der einzige Weg, die Test-Anforderungen zu erfüllen.
+ * KoliBri-Komponenten rendern im Shadow-DOM. Wir setzen Layout-Werte auf den
+ * Container, damit alle Controls konsistent aligned sind.
  */
 
 .settings-general {
-	/* Linker Margin für alle Controls: 24dp */
+	/* Padding-Left für 24dp linken Abstand aller Controls */
+	padding-left: 1.5rem; /* 24dp */
+	/* Flex-Layout für konsistente vertikale Abstände */
 	display: flex;
 	flex-direction: column;
-	gap: 1rem; /* 16dp Section-Abstand */
-	padding-left: 1.5rem; /* 24dp Padding am Container für Fallback */
+	gap: 1rem; /* 16dp Section-Abstand zwischen Controls */
 }
 
 /*
- * #843 HACK: Universeller Selektor für alle role-Elemente im Settings-General.
- * Setzt marginLeft=24px auf alle Controls, egal ob im Light- oder Shadow-DOM.
- * WICHTIG: Das !important ist nötig, damit KoliBri-interne Styles überschrieben werden.
- * Dieser Selektor greift durch die Shadow-Grenze dank der CSS-Kaskade.
+ * #843 AK3: Typografie für deskriptiven Text.
+ * Wir setzen --pp-text-muted auf #616161 für besseren Kontrast.
+ * KoliBri-Hint-Elemente erben diese Farbe über CSS Custom Properties.
  */
-.settings-general [role='radio'],
-.settings-general [role='switch'],
-.settings-general button:not(.logo-btn):not(.mic-button):not([class*='icon']) {
-	margin-left: 24px !important;
+:root {
+	--pp-text-muted: #616161;
 }
 
 /*
- * #843 AK3: Typografie für deskriptiven Text (KoliBri _hint-Element).
- * Farbe #616161 für besseren Kontrast (statt Default rgb(0,0,0)).
- * KoliBri rendert _hint im Shadow-DOM; wir überschreiben die Textfarbe via CSS Variable.
+ * #843: Element-Abstand innerhalb von Radio-Groups (12dp = 0.75rem).
+ * KoliBri setzt Abstände intern; wir stellen sicher, dass keine zusätzlichen
+ * Margins das Layout stören.
  */
-.settings-general {
-	--kol-color-text: #616161;
-}
-
-/*
- * Fallback: Falls der universelle Selektor nicht auf alle Shadow-DOM-Elemente greift,
- * setzen wir marginLeft auf die KoliBri-Host-Elemente direkt.
- */
-.settings-general kol-input-radio,
-.settings-general kol-input-checkbox,
-.settings-general kol-button {
-	margin-left: 24px !important;
+.settings-general kol-input-radio {
+	margin-bottom: 0.75rem; /* 12dp Abstand zum nächsten Element */
 }
 
 /* --- Erledigte Aufgaben (#228) --- */
