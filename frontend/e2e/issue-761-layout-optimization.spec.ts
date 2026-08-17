@@ -174,11 +174,11 @@ test.describe('#761 Layout-Optimierung Titel/Beschreibung/Aktionen', () => {
 		if (count > 0) {
 			// Simuliere Tab-Navigation
 			await firstInteractive.focus();
-			const focusedElement = page.locator(':focus');
-			await expect(focusedElement).toBeVisible();
+			await expect(firstInteractive).toBeFocused();
+			await expect(firstInteractive).toBeVisible();
 
 			// Prüfe, dass Focus-Indikator sichtbar ist (outline oder box-shadow)
-			const outline = await focusedElement.evaluate((el: HTMLElement) => {
+			const outline = await firstInteractive.evaluate((el: HTMLElement) => {
 				const styles = window.getComputedStyle(el);
 				return styles.outline !== 'none' || styles.boxShadow !== 'none';
 			});
