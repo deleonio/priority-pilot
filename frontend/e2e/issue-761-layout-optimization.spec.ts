@@ -45,16 +45,15 @@ test.describe('#761 Layout-Optimierung Titel/Beschreibung/Aktionen', () => {
 
 		await expect(titleElement).toBeVisible();
 
-		const titleBox = await titleElement.boundingBox();
-		expect(titleBox).not.toBeNull();
-
 		// Prüfe, dass der Titel die volle Breite des Containers nutzt
 		// (Toleranz für Padding/Margins: ±10px)
+		// clientWidth misst die tatsächliche Flex-Container-Breite, nicht boundingBox()
+		const titleWidth = await titleElement.evaluate((el: HTMLElement) => el.clientWidth);
 		const containerWidth = await page
 			.locator('body, .container, main, .dialog')
 			.first()
 			.evaluate((el: HTMLElement) => el.clientWidth);
-		expect(titleBox!.width).toBeGreaterThanOrEqual(containerWidth - 20); // Volle Breite abzüglich Padding
+		expect(titleWidth).toBeGreaterThanOrEqual(containerWidth - 20); // Volle Breite abzüglich Padding
 
 		// Spec-Bezug: docs/spec/issue-761.md, Schritt 2 (Titel-Element nimmt volle verfügbare Breite ein)
 	});
@@ -119,15 +118,14 @@ test.describe('#761 Layout-Optimierung Titel/Beschreibung/Aktionen', () => {
 
 		await expect(titleElement).toBeVisible();
 
-		const titleBox = await titleElement.boundingBox();
-		expect(titleBox).not.toBeNull();
-
 		// Auf Mobile ebenfalls volle Breite
+		// clientWidth misst die tatsächliche Flex-Container-Breite, nicht boundingBox()
+		const titleWidth = await titleElement.evaluate((el: HTMLElement) => el.clientWidth);
 		const containerWidth = await page
 			.locator('body, .container, main, .dialog')
 			.first()
 			.evaluate((el: HTMLElement) => el.clientWidth);
-		expect(titleBox!.width).toBeGreaterThanOrEqual(containerWidth - 20);
+		expect(titleWidth).toBeGreaterThanOrEqual(containerWidth - 20);
 
 		// Spec-Bezug: docs/spec/issue-761.md, Testfall "Responsive Design bei verschiedenen Viewport-Größen"
 	});
@@ -167,8 +165,9 @@ test.describe('#761 Layout-Optimierung Titel/Beschreibung/Aktionen', () => {
 		await page.setViewportSize({ width: 1024, height: 768 });
 		await openTaskDetail(page);
 
-		// Prüfe, dass interaktive Elemente im Tab-Order sind
-		const firstInteractive = page.locator('button, a, input, textarea, [tabindex]:not([tabindex="-1"])').first();
+		// Prüfe, dass interaktive Elemente im Task-Formular focusable sind
+		// Wähle den Titel-Input statt globalem first() (vermeidet Logo-Button)
+		const firstInteractive = page.getByLabel('Titel');
 		const count = await firstInteractive.count();
 
 		if (count > 0) {
