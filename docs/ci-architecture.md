@@ -165,12 +165,12 @@ echo "ANTHROPIC_DEFAULT_OPUS_MODEL=glm-5.1"          >> "$GITHUB_ENV"
 
 ### CI-Flags
 
-| Flag                                                        | Zweck                                 |
-| ----------------------------------------------------------- | ------------------------------------- |
-| `-p '<prompt>'`                                             | Single-query, non-interactive         |
-| `--dangerously-skip-permissions`                            | Keine Gefahren-Bestätigung (headless) |
-| `--allowedTools Bash,Read,Write,Edit,Grep,Glob`             | Nur Terminal- und Datei-Tools         |
-| `--allowedTools …,mcp__kolibri__search,mcp__kolibri__fetch` | ergänzt in Triage + Implement         |
+| Flag                                                                | Zweck                                   |
+| ------------------------------------------------------------------- | --------------------------------------- |
+| `-p '<prompt>'`                                                     | Single-query, non-interactive           |
+| `--dangerously-skip-permissions`                                    | Keine Gefahren-Bestätigung (headless)   |
+| `--allowedTools Bash,Read,Write,Edit,Grep,Glob`                     | Nur Terminal- und Datei-Tools           |
+| `--allowedTools …,mcp__kolibri-mcp__search,mcp__kolibri-mcp__fetch` | ergänzt in allen Phasen mit `needs-mcp` |
 
 Kein `--model`: das Modell wird über `"model": "opus"` in der `settings.json` gewählt — bei
 `LLM_PROVIDER=claude` ist das echtes Opus, bei `zai` bildet die Setup-Action es per
@@ -203,17 +203,31 @@ vollständig verdrahteter dritter Provider (alle Phasen-Workflows reichen den Ke
 durch, `00-set-llm-provider.yml` akzeptiert ihn, `ci-multi-provider.yml` führt die Matrix) — nur
 ist er nicht der Default-Pfad (`claude`).
 
-## KoliBri MCP-Server für Frontend-Implementierung
+## MCP-Server für KoliBri und Playwright (Browser-Inspektion)
 
-Der KoliBri MCP-Server steht dem Agenten in **Triage** und **Implement** zur Verfügung (nicht in
-Review/Fixup/Spec, die keine Frontend-Komponenten schreiben).
+Der **KoliBri MCP-Server** (`kolibri-mcp`) ist in allen Phasen außer Documenter (07) via `needs-mcp: true`
+verfügbar und liefert KoliBri-Komponenten-Suche und Dokumentation. Der **Playwright MCP-Server**
+(`playwright`) steht zusätzlich in UX (02), Umsetzung (04) und Fixup (06) via `browser-mcp: true`
+für Layout-Prüfung bei 375px/1280px Viewport auf der laufenden Inspect-Instanz (http://localhost:4174).
 
-**Einrichtung:** Der Server ist fest in der `.claude/settings.json` unter `mcpServers.kolibri`
-eingetragen (kein pro-Lauf-`claude mcp add` mehr nötig). Die Setup-Action ergänzt für Triage +
-Implement lediglich die Tools in `--allowedTools`.
+**Einrichtung:** Beide Server sind in `.mcp.json` registriert (KoliBri: HTTP, Playwright: `@playwright/mcp@0.0.79`,
+`allowed-origins: localhost:4174;3001`). Die Setup-Action (`setup-claude`) hängt bei `needs-mcp: true` die
+KoliBri-Tools (`mcp__kolibri-mcp__*`) an die Allowlist aller Tiers; bei `browser-mcp: true` zusätzlich die
+Playwright-Tools (`mcp__playwright__*`).
 
-**Verfügbare Tools:** `mcp__kolibri__search` (Komponenten-Suche), `mcp__kolibri__fetch`
-(Beispiel/Dokument holen).
+**Verfügbare Tools:**
+
+- KoliBri: `mcp__kolibri-mcp__search` (Komponenten-Suche), `mcp__kolibri-mcp__fetch` (Beispiel/Dokument)
+- Playwright: `mcp__playwright__browser_navigate`, `mcp__playwright__browser_snapshot`,
+  `mcp__playwright__browser_take_screenshot`, `mcp__playwright__browser_resize`, u.a.
+
+**Chromium + Hintergrund-App:** Die Phasen mit Browser-MCP (02/04/06) installieren Chromium (cached,
+`pnpm --filter frontend exec playwright install --with-deps chromium`), bauen den Server vorab
+(`pnpm --filter server build`) und starten die Inspect-Instanz im Hintergrund
+(`INSPECT_NO_WATCH=1 nohup ./ui-inspect.sh` mit Readiness-Check auf http://localhost:4174, Timeout 120s —
+ohne nodemon-Watch/Rebuild startet der Server in Sekunden; bei Timeout landen die letzten Log-Zeilen
+in der Step-Ausgabe).
+Der Runner killt den Prozess am Ende; `ui-inspect.sh` hat einen trap für eigenen Cleanup.
 
 ## Weiches Zeitlimit (Soft-Abort)
 

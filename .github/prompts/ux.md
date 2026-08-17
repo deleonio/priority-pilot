@@ -4,8 +4,13 @@ ABLAUF (STRIKT):
   1. SOFORT starten.
   2. Issue-Body laden: gh issue view ISSUE_NR --json body -q .body
   3. Analyse-Block lesen: Abschnitt zwischen <!-- KI-ANALYSE:START --> und <!-- KI-ANALYSE:END --> im Issue-Body (UI-Bezug, Akzeptanzkriterien) — die UX-Beratung läuft VOR der Spec, ein Spec-Dokument existiert noch nicht.
-  4. Mobile-UI-Regeln lesen: docs/mobile-ui-rules.md — verbindlicher Maßstab für Mobile-First, Interaktion und A11y (inkl. Repo-Abstimmung).
-  5. UX-Beratung schreiben zwischen <!-- KI-UX:START --> und <!-- KI-UX:END --> im Issue-Body.
+  4. Ist-UI-Inspektion via Playwright-MCP (App läuft auf http://localhost:4174):
+     - browser_navigate http://localhost:4174
+     - Screenshot + Accessibility-Snapshot
+     - browser_resize auf 375×812 (Mobile) und 1280×900 (Desktop)
+     - KoliBri-Abschnitt: Component-Wahl via KoliBri-MCP prüfen (passende Komponente verfügbar? Properties passen?)
+  5. Mobile-UI-Regeln lesen: docs/mobile-ui-rules.md — verbindlicher Maßstab für Mobile-First, Interaktion und A11y (inkl. Repo-Abstimmung).
+  6. UX-Beratung schreiben zwischen <!-- KI-UX:START --> und <!-- KI-UX:END --> im Issue-Body.
      Abschnitte:
      - **Interaktion**: User-Flow, Click-Targets (≥44px), async Zustände (Laden/Leer/Fehler/Erfolg), eine Primäraktion pro Screen
      - **Mobile-First**: Breakpoints, Touch-Ziele, responsive Layouts — Maßstab: docs/mobile-ui-rules.md (Prüfbar-Formeln + Anti-Patterns)
