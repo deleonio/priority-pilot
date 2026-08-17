@@ -1,4 +1,5 @@
 import { ResponseError } from 'client';
+import { getProvider } from './lib/llm-provider';
 import type {
 	ActivityAdvisorInput,
 	ActivityAdvisorResult,
@@ -151,7 +152,10 @@ export const api = {
 	// per LLM (`POST /tasks/parse-text`), die anschließend das Anlege-Formular vorausfüllen.
 	// **Retry bei transienten 5xx-Fehlern (#620):** Bei Ausfall/Timeout wird bis zu 2× retry-t.
 	async parseText({ text }: { text: string }): Promise<ParsedTask> {
-		const { data } = await withRetry(() => client.POST('/tasks/parse-text', { body: { text } }));
+		const provider = getProvider();
+		const { data } = await withRetry(() =>
+			client.POST('/tasks/parse-text', { body: { text }, params: { query: provider ? { provider } : {} } }),
+		);
 		return data;
 	},
 
@@ -242,7 +246,12 @@ export const api = {
 		suggestPillarsInput,
 		signal,
 	}: { suggestPillarsInput: SuggestPillarsInput } & Init): Promise<PillarSuggestion[]> {
-		const { data, response } = await client.POST('/tasks/suggest-pillars', { body: suggestPillarsInput, signal });
+		const provider = getProvider();
+		const { data, response } = await client.POST('/tasks/suggest-pillars', {
+			body: suggestPillarsInput,
+			signal,
+			params: { query: provider ? { provider } : {} },
+		});
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response);
 		}
@@ -256,7 +265,14 @@ export const api = {
 		activityAdvisorInput,
 		signal,
 	}: { activityAdvisorInput: ActivityAdvisorInput } & Init): Promise<ActivityAdvisorResult> {
-		const { data } = await withRetry(() => client.POST('/pillars/advisor', { body: activityAdvisorInput, signal }));
+		const provider = getProvider();
+		const { data } = await withRetry(() =>
+			client.POST('/pillars/advisor', {
+				body: activityAdvisorInput,
+				signal,
+				params: { query: provider ? { provider } : {} },
+			}),
+		);
 		return data;
 	},
 
@@ -276,7 +292,9 @@ export const api = {
 	// Lektorat (#680): Lektoriert Texte und kürzt sie optional auf eine Maximallänge.
 	// Auth via Session-Cookie (same-origin) — direkter fetch, nicht im OpenAPI-Spec.
 	async lektorat({ text, maxLength, signal }: { text: string; maxLength?: number } & Init): Promise<{ text: string }> {
-		const response = await fetch(`${baseUrl}/lektorat`, {
+		const provider = getProvider();
+		const lektoratUrl = provider ? `${baseUrl}/lektorat?provider=${provider}` : `${baseUrl}/lektorat`;
+		const response = await fetch(lektoratUrl, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ text, maxLength }),

@@ -1,4 +1,5 @@
 import { KolAlert, KolButton, KolInputPassword, KolInputText } from '@public-ui/react-v19';
+import { LlmProviderToggle } from './LlmProviderToggle';
 import type { FreeModel, LlmConfigInput, LlmConfigStatus } from 'client';
 import { useEffect, useState } from 'react';
 import { api } from '../api';
@@ -77,7 +78,7 @@ export const LlmSettingsForm = () => {
 
 	const save = (): Promise<void> => {
 		// Nur ausgefüllte Felder übernehmen: leere Eingaben lassen den DB-Stand unverändert,
-		// whitespace-only wird als „keine Eingabe" behandelt (würde serverseits ohnehin 400 auslösen).
+		// whitespace-only wird als „keine Eingabe" behandelt (würde serverseitig ohnehin 400 auslösen).
 		const body: LlmConfigInput = {};
 		if (mistralKeyInput.trim() !== '') body.mistralApiKey = mistralKeyInput.trim();
 		if (openrouterKeyInput.trim() !== '') body.openrouterApiKey = openrouterKeyInput.trim();
@@ -121,6 +122,8 @@ export const LlmSettingsForm = () => {
 					{error}
 				</KolAlert>
 			)}
+
+			<LlmProviderToggle />
 
 			<p className="hint">
 				Die Kaskade fragt zuerst Mistral (Primär) und lässt die Antwort optional von OpenRouter verfeinern. Aus

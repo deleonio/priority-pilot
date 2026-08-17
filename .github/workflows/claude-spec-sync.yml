@@ -54,6 +54,7 @@ jobs:
     timeout-minutes: 30
     env:
       PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      SYNC_BRANCH: chore/spec-sync-all
     steps:
       - name: Skip-Guard (main unverändert seit letztem erfolgreichen Sync)
         # LLM-Budget sparen: Hat main seit dem letzten erfolgreichen Lauf dieses Workflows
@@ -75,6 +76,31 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: In-Flight-Guard (Pipeline arbeitet noch am offenen Sync-PR)
+        # Der nächtliche Force-Push ersetzt den Branch komplett. Läuft auf dem offenen Sync-PR
+        # nur in aktiver Review-Phase (ai:needs-review) aussetzen. ai:needs-changes und
+        # ai:ready-to-merge sind Terminal-Zustände (Pipeline inaktiv) — diese überspringen.
+        # ai:needs-human ist TERMINAL (Review/Fixup haben aufgegeben, ein Mensch schaut drauf):
+        # ebenfalls aussetzen, statt die Diskussionsgrundlage zu überschreiben.
+        # Fail-open: ist der Label-Abruf nicht möglich, läuft der Sync (wie beim Skip-Guard).
+        # force=true umgeht auch diesen Guard NICHT — er schützt fremde Läufe, nicht das Budget.
+        id: inflight
+        if: steps.guard.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SYNC_BRANCH: ${{ env.SYNC_BRANCH }}
+        run: |
+          blocking="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$SYNC_BRANCH" --state open \
+            --json labels \
+            --jq '[.[0].labels[]?.name] | map(select(. == "ai:needs-review" or . == "ai:needs-human")) | join(", ")' \
+            2>/dev/null || true)"
+          if [ -n "$blocking" ] && [ "$blocking" != "null" ]; then
+            echo "::notice title=⏸️ Spec-Sync ausgesetzt::Offener Sync-PR ist noch in der Pipeline (${blocking}) — kein Force-Push heute Nacht."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
@@ -82,7 +108,7 @@ jobs:
 
       - name: Startzeit merken (für weiches Zeitlimit)
         id: starttime
-        if: steps.guard.outputs.skip != 'true'
+        if: steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true'
         run: |
           now=$(date +%s)
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
@@ -91,7 +117,7 @@ jobs:
 
       - name: Setup Claude Code
         id: setup
-        if: steps.guard.outputs.skip != 'true'
+        if: steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true'
         uses: ./.github/actions/setup-claude
         with:
           needs-mcp: false
@@ -115,16 +141,17 @@ jobs:
           expect-memory: 'false'
 
       - name: Arbeits-Branch frisch aufsetzen (Basis = origin/main, wird NIE gepusht) + Git-Identität
-        # Lokale Werkbank des Agenten; die Delivery-Branches chore/spec-sync/<stem> entstehen
+        # Lokale Werkbank des Agenten; der Delivery-Branch chore/spec-sync-all entsteht
         # erst im Post-Step diff-basiert daraus. Git-Identität aus dem App-Slug (Muster
         # deploy.yml) — deterministische Attribution der Agent-Commits statt runner-abhängiger
         # Default-Identität.
-        if: steps.guard.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
+        if: steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          SYNC_BRANCH: ${{ env.SYNC_BRANCH }}
         run: |
-          git branch -D chore/spec-sync-work 2>/dev/null || true
-          git switch -C chore/spec-sync-work origin/main
+          git branch -D "$SYNC_BRANCH" 2>/dev/null || true
+          git switch -C "$SYNC_BRANCH" origin/main
           slug="$(gh api app --jq .slug 2>/dev/null || true)"
           user="${slug:-app}[bot]"
           id="$(gh api "users/${user}%5Bbot%5D" --jq .id 2>/dev/null || true)"
@@ -135,10 +162,10 @@ jobs:
 
       - name: Spec-Sync via Claude
         id: claude
-        if: steps.guard.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
+        if: steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
         run: |
           cat > /tmp/claude-prompt.txt << 'CLAUDE_EOF'
-          FOKUS: Spec-Sync docs/spec/ gegen die Implementation. DIE IMPLEMENTATION IST DIE WAHRHEIT — die Spec beschreibt NUR den Ist-Zustand. KEINE Abstecher, KEINE Code-Änderungen. Token sparen: kurz, präzise, direkt.
+          FOKUS: Spec-Sync docs/spec/ gegen die Implementation. EIN Sammel-PR über alle Dateien mit ai:needs-review. DIE IMPLEMENTATION IST DIE WAHRHEIT — die Spec beschreibt NUR den Ist-Zustand. KEINE Abstecher, KEINE Code-Änderungen. Token sparen: kurz, präzise, direkt.
 
           LEITLINIE (arc42-Prinzip): SO VIEL WIE NÖTIG, SO WENIG WIE MÖGLICH. Specs halten nur langfristig relevantes, von außen sichtbares Verhalten fest — alles andere (Transitorisches, Erledigtes, Redundantes) ist Ballast und fliegt raus. Ein Datensatz, eine Wahrheit.
 
@@ -187,15 +214,13 @@ jobs:
             2>&1 | tee /tmp/claude-output.log
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
 
-      - name: Post-Assertion (VERDICT ↔ Commits ↔ Scope) + Per-Datei-PRs mit Label
+      - name: Post-Assertion (VERDICT ↔ Commits ↔ Scope) + Sammel-PR erstellen/aktualisieren
         id: deliver
         # Ehrlichkeits-Kreuzcheck nach dem VERDICT-Muster der Phasen-Workflows: Der Agent
         # behauptet synced/updated — die Mechanik verifiziert Commits und Datei-Scope und
-        # baut daraus deterministisch EINEN DRAFT-PR PRO geänderter Spec-Datei (Push/PR ist
-        # bewusst KEINE Agent-Aufgabe). Diff-basiert vom finalen Datei-Stand des Agent-Branches,
-        # unabhängig von dessen Commit-Aufteilung. Bereits offener Sync-PR zur selben Datei
-        # → Skip (keine Duplikate); Freigabe + Pipeline-Review übernimmt der Mensch per
-        # „Ready for review“ (pr-needs-review-label.yml → 04/05-Loop).
+        # baut daraus deterministisch EINEN Sammel-PR (Push/PR ist bewusst KEINE Agent-Aufgabe).
+        # Bei offenem Sammel-PR ohne Pipeline-Label → Update (gh pr edit), ansonsten Create.
+        # Review wird per Re-Arm-Muster #536 angestoßen (Label-Create + Re-Arm).
         if: >-
           ${{ always()
               && steps.guard.outputs.skip != 'true'
@@ -204,6 +229,7 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           OUTCOME: ${{ steps.claude.outcome }}
+          SYNC_BRANCH: ${{ env.SYNC_BRANCH }}
         run: |
           # Portables VERDICT-Parsen wie in 01 (BSD/GNU-grep-sicher, Markdown-Dekoration strippen).
           verdict=""
@@ -246,8 +272,7 @@ jobs:
             exit 0
           fi
 
-          # Report Fallback: fehlt/leer der Agent-Report, ersetzt git log die Fund-Abschnitte
-          # (laut Warning; die Per-Datei-Bodys fallen dann auf den Kopfhinweis zurück).
+          # Report Fallback: fehlt/leer der Agent-Report, ersetzt git log die Fund-Abschnitte.
           if [ ! -s /tmp/spec-sync-report.md ]; then
             echo "::warning title=⚠️ Report fehlt::/tmp/spec-sync-report.md fehlt — Fallback aus git log."
             {
@@ -259,95 +284,102 @@ jobs:
             } > /tmp/spec-sync-report.md
           fi
 
-          # Label-Create-Guard: einmalig vor der Schleife, da gh bei fehlendem Label hart crasht
-          gh label create "ai:needs-review" --color 1D76DB --description "PR wartet auf KI-Review" || true
-
-          # Per-Datei-PRs: finaler Datei-Stand vom Agent-Branch auf eigene Branches + Non-Draft-PR mit Label.
+          # Sammel-PR auf chore/spec-sync-all: Push + PR create-oder-edit.
           sync_date="$(date -u +%F)"
-          created=0
-          skipped=0
-          for f in $(git diff --name-only origin/main..chore/spec-sync-work); do
-            stem="$(basename "$f" .md)"
-            branch="chore/spec-sync/$stem"
-            existing="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$branch" --state open \
-              --json number --jq '.[0].number // empty' 2>/dev/null || true)"
-            if [ -n "$existing" ]; then
-              echo "::notice title=⏭️ Sync-PR offen::#$existing für $f — Datei übersprungen (neue Drift folgt nach Merge)."
-              skipped=$((skipped + 1))
-              continue
-            fi
+          title="docs(spec): Ist-Stand-Sync $sync_date"
 
-            git switch -C "$branch" origin/main
-            if git cat-file -e "chore/spec-sync-work:$f" 2>/dev/null; then
-              git restore --source=chore/spec-sync-work -- "$f"
-              git add "$f"
-              title="docs(spec): $stem — Ist-Stand-Sync $sync_date"
-            else
-              git rm -q "$f"
-              title="docs(spec): $stem entfernen — Ist-Stand-Sync $sync_date"
-            fi
-            git commit -m "$title"
-            git push --force origin "$branch"
+          # Push des Sync-Branch (Force-Push = Reset auf neuen Stand).
+          git push --force origin "$SYNC_BRANCH"
 
-            # PR-Body: „## <dateiname>“-Abschnitt aus dem Agent-Report, Fallback = Kopfhinweis.
-            {
-              echo "Nächtlicher Spec-Sync ($sync_date) — betrifft nur \`$f\`."
-              echo ""
-              echo "**Pipeline:** Kreuzverhör-Review (04) und Fixup (05) laufen automatisch nach diesem PR."
-              echo ""
-              awk -v file="## $f" 'found && /^## /{exit} $0==file{found=1;next} found' /tmp/spec-sync-report.md
-            } > /tmp/spec-sync-pr-body.md
+          # Prüfen, ob bereits ein PR auf diesem Branch existiert.
+          existing_pr="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$SYNC_BRANCH" --state open \
+            --json number,labels --jq '.[0] | {number: .number, labels: [.[].labels[]?.name]}' 2>/dev/null || true)"
+          existing_pr_number="$(printf '%s' "$existing_pr" | jq -r '.number // empty')"
+          existing_labels="$(printf '%s' "$existing_pr" | jq -r '.labels // [] | join(", ")')"
 
-            # PR-Create (ohne --draft) → PR-Nummer aus der URL (wie Guide-Sync; gh pr create kennt kein --json)
-            pr_url="$(gh pr create --repo "$GITHUB_REPOSITORY" --head "$branch" --base main \
+          # PR-Body: Kopfzeile + Pipeline-Hinweis + kompletter Agent-Report.
+          {
+            echo "Nächtlicher Spec-Sync ($sync_date) — alle Änderungen in einem PR."
+            echo ""
+            echo "**Pipeline:** Dieser PR durchläuft nach dem Review automatisch Fixup und Merge (Workflows 04/05)."
+            echo ""
+            cat /tmp/spec-sync-report.md
+          } > /tmp/spec-sync-pr-body.md
+
+          if [ -n "$existing_pr_number" ]; then
+            echo "::notice title=🔄 PR existiert#$existing_pr_number — Aktualisiere Body."
+            gh pr edit "$existing_pr_number" --title "$title" --body-file /tmp/spec-sync-pr-body.md
+            echo "action=updated" >> "$GITHUB_OUTPUT"
+            echo "pr_number=$existing_pr_number" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice title=✨ PR erstellen — neuer Sammel-PR."
+            pr_url="$(gh pr create --repo "$GITHUB_REPOSITORY" --head "$SYNC_BRANCH" --base main \
               --title "$title" --body-file /tmp/spec-sync-pr-body.md)"
             pr_number="$(printf '%s\n' "$pr_url" | sed -nE 's#.*/pull/([0-9]+).*#\1#p' | tail -1)"
-
-            # Label-Setzen mit Retry (3 Versuche) → bei endgültigem Fehlschlag laut Error + Exit
-            if [ -n "$pr_number" ]; then
-              retry=0
-              while [ $retry -lt 3 ]; do
-                if gh pr edit "$pr_number" --add-label "ai:needs-review" 2>/dev/null; then
-                  break
-                else
-                  retry=$((retry + 1))
-                  if [ $retry -ge 3 ]; then
-                    echo "::error title=❌ Label-Setzen fehlgeschlagen::PR #$pr_number erstellt, aber ai:needs-review konnte nicht gesetzt werden."
-                    exit 1
-                  fi
-                  sleep 1
-                fi
-              done
-            else
+            if [ -z "$pr_number" ]; then
               echo "::error title=❌ PR-Create fehlgeschlagen::PR konnte nicht erstellt werden."
               exit 1
             fi
-            created=$((created + 1))
-            git switch chore/spec-sync-work
+            echo "action=created" >> "$GITHUB_OUTPUT"
+            echo "pr_number=$pr_number" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Review anstoßen (ai:needs-review per App-Token, Re-Arm-Muster #536)
+        # Sammel-PR trägt kein Pipeline-Label (In-Flight-Guard greift nicht) → Review triggerbar.
+        # ERST entfernen, DANN setzen (#536): klebt ai:needs-review noch vom Vorlauf, wäre ein
+        # reines --add-label ein No-op ohne `labeled`-Event → 04-claude-pr-review.yml startet nie.
+        # Ergebnis-Labels der Vornacht (needs-changes/ready-to-merge/needs-human) werden mit abgeräumt.
+        # Von GITHUB_TOKEN gesetzte Labels triggern KEINE Folge-Workflows → App-Token ist Pflicht.
+        if: ${{ steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true' && steps.setup.outputs.configured == 'true' && steps.deliver.outputs.pr_number != '' }}
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.deliver.outputs.pr_number }}
+        run: |
+          set -euo pipefail
+
+          gh label create "ai:needs-review" --repo "$REPO" --color 1D76DB \
+            --description "PR wartet auf KI-Review" 2>/dev/null || true
+
+          for label in ai:needs-changes ai:ready-to-merge ai:needs-human ai:needs-review; do
+            gh pr edit "$PR_NUMBER" --repo "$REPO" --remove-label "$label" 2>/dev/null || true
           done
-          echo "::notice title=✅ Sync-PRs::${created} erstellt, ${skipped} übersprungen (offene PRs)."
-          echo "created=$created" >> "$GITHUB_OUTPUT"
-          echo "skipped=$skipped" >> "$GITHUB_OUTPUT"
+
+          for attempt in 1 2 3; do
+            if gh pr edit "$PR_NUMBER" --repo "$REPO" --add-label ai:needs-review; then
+              echo "::notice title=✅ Review angestoßen::PR #$PR_NUMBER trägt ai:needs-review — Kreuzverhör-Review startet."
+              exit 0
+            fi
+            if [ "$attempt" -ge 3 ]; then
+              echo "::error title=❌ Label-Setzen fehlgeschlagen::PR #$PR_NUMBER erstellt/aktualisiert, aber ai:needs-review konnte nicht gesetzt werden."
+              exit 1
+            fi
+            sleep 1
+          done
 
       - name: Ergebnis zusammenfassen
-        if: ${{ always() && steps.guard.outputs.skip != 'true' && steps.setup.outputs.configured == 'true' }}
+        if: ${{ always() && steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true' && steps.setup.outputs.configured == 'true' }}
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           OUTCOME: ${{ steps.claude.outcome }}
-          CREATED: ${{ steps.deliver.outputs.created }}
-          SKIPPED: ${{ steps.deliver.outputs.skipped }}
+          ACTION: ${{ steps.deliver.outputs.action }}
+          PR_NUMBER: ${{ steps.deliver.outputs.pr_number }}
+          SYNC_BRANCH: ${{ env.SYNC_BRANCH }}
         run: |
           count="$(git rev-list --count origin/main..HEAD 2>/dev/null || echo 0)"
-          sync_prs="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
-            --json number,headRefName \
-            --jq '[.[] | select(.headRefName | startswith("chore/spec-sync/")) | .number] | join(", ")' 2>/dev/null || true)"
+          sync_pr="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$SYNC_BRANCH" --state open \
+            --json number --jq '.[0].number // empty' 2>/dev/null || true)"
           {
             echo "### Spec-Sync – fertig"
             echo ""
             echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\`"
             echo "- Agent-Commits: ${count}"
-            echo "- PRs erstellt: \`${CREATED:-0}\`, übersprungen: \`${SKIPPED:-0}\`"
-            echo "- Offene Sync-PRs: ${sync_prs:-keine}"
+            if [ -n "${ACTION:-}" ]; then
+              echo "- Sammel-PR: #${PR_NUMBER} (${ACTION})"
+            else
+              echo "- Sammel-PR: keiner (VERDICT: synced)"
+            fi
+            echo "- Offener Sync-PR auf $SYNC_BRANCH: ${sync_pr:-keiner}"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: 🩺 Z.AI Fair-Usage-Check (1313)

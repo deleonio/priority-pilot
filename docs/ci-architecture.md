@@ -367,21 +367,22 @@ Journeys im user-journeys.md-Format).
 - **Skip-Guard:** Hat `main` denselben SHA wie der letzte erfolgreiche Lauf, wird der Lauf
   übersprungen (deterministisch dasselbe Ergebnis, spart LLM-Budget). Fail-open bei API-Fehlern;
   `workflow_dispatch` mit `force: true` umgeht den Guard.
-- **Branch/PR (pro Datei):** Der Agent committed nur lokal auf `chore/spec-sync-work` (nie
-  gepusht). Die Mechanik überträgt diff-basiert je geänderter Spec-Datei den finalen Stand auf
-  einen eigenen Branch `chore/spec-sync/<datei-stem>` und erzeugt daraus **einen PR (Non-Draft)**
+- **Branch/PR (Sammel-Modell):** Der Agent committed nur lokal auf `chore/spec-sync-work` (nie
+  gepusht). Die Mechanik überträgt diff-basiert für alle geänderten Spec-Dateien den finalen Stand
+  auf einen Sammel-Branch `chore/spec-sync-all` und erzeugt daraus **einen Sammel-PR (Non-Draft)**
   mit direkt gesetztem `ai:needs-review`-Label per App-Token — unabhängig von der Commit-
   Aufteilung des Agenten. Das Label-Setzen erfolgt mit Retry (3 Versuche); bei endgültigem
-  Fehlschlag fällt der Lauf laut (`::error` + Exit 1). Für eine Datei mit bereits offenem
-  Sync-PR wird kein zweiter erzeugt (Skip mit Notice). PR-Body ist der `## <dateiname>`-
-  Abschnitt des Agent-Reports (Fallback: `git log`, mit Warning).
+  Fehlschlag fällt der Lauf laut (`::error` + Exit 1). PR-Body ist der aggregierte Agent-Report
+  mit je einem `## <dateiname>`-Abschnitt pro Spec-Datei (Fallback: `git log`, mit Warning).
 - **Pipeline-Integration:** Das Label wird per App-Token direkt nach PR-Create gesetzt
   (Autolabeler `pr-needs-review-label.yml` greift bei Bots nicht). Das `labeled`-Event
   feuert → Kreuzverhör-Review (05) und Fixup-Loop (06) übernehmen Prüfung und Nacharbeitung
   automatisch, ohne Menschseingriff. Ein Workflow-Rerun bleibt idempotent (offene Sync-PRs
   → Skip mit Notice).
-- **Post-Assertion (VERDICT-Muster):** `VERDICT: synced` ↔ null Commits, `VERDICT: updated` ↔
-  Commits vorhanden, geänderte Dateien ⊆ `docs/spec/` — jeder Widerspruch failt laut.
+- **Post-Assertion (VERDICT-Muster):** `VERDICT: synced` ↔ null Commits (0-PR-Pfad: kein PR
+  erzeugt), `VERDICT: updated` ↔ Commits vorhanden, geänderte Dateien ⊆ `docs/spec/` — jeder
+  Widerspruch failt laut. In-Flight-Guard via 4 Labels (`ai:analyzed`, `ai:spec-ready`,
+  `ai:spec-approved`, `ai:implemented`) verhindert konkurrierende Spec-Änderungen.
 - **Bewusst stateless:** Kein pro-Issue-Memory — die offenen Draft-PRs sind der einzige Zustand.
 - **Modell:** `vars.CLAUDE_MODEL_SPEC_SYNC` (Default `sonnet`), Provider wie alle LLM-Phasen via
   `vars.LLM_PROVIDER` (setup-claude, `tools-tier: full`, inkl. Tailscale-Egress und

@@ -37,3 +37,7 @@
   (siehe `frontend/src/lib/popoverAlign.ts` für das Problem). Vor eigenen Styling-Entscheidungen via
   `mcp__kolibri-mcp__search/fetch` prüfen, ob eine passende KoliBri-Komponente existiert (Custom-Element +
   Properties). Begründung bei Eigene-Styling-Entscheidung im PR-Body.
+- **KoliBri-Komponenten black-box testen:** Tests greifen nur über die öffentliche Schnittstelle auf KoliBri-Web-Components
+  zu (Host-Locator, Rolle/Name/Interaktion) — kein Shadow-DOM-Piercing (`.shadowRoot`, interne Klassen wie
+  `.kol-span__label`, `.kol-tooltip__floating`, `kolicon-*`). Der ESLint-Guard in `frontend/eslint.config.mjs`
+  erzwingt dies. Details: [docs/testing.md §4](../docs/testing.md#4-kolibri-komponenten-testen).

@@ -253,6 +253,19 @@ paths:
         oder gibt es keine Säulen, antwortet der Endpoint mit 503; bei
         Upstream-/Format-Fehlern mit 502.
       operationId: advisePillarActivities
+      parameters:
+        - name: provider
+          in: query
+          required: false
+          description: >-
+            Optionaler Provider-Pinning für LLM-Test-Schalter (#749).
+            `mistral`: Nur Mistral-Call, kein OpenRouter-Fallback/Verfeinerung.
+            `openrouter`: Nur OpenRouter solo, kein Mistral-Primär-Call.
+            Fehlt der Parameter → Kaskade wie bisher (keine Verhaltensänderung).
+            Ungültiger Wert → HTTP 400.
+          schema:
+            type: string
+            enum: [mistral, openrouter]
       requestBody:
         required: true
         content:
@@ -284,6 +297,19 @@ paths:
         Default `mistral-small-latest`). Fehlt der Key oder gibt es keine Säulen,
         antwortet der Endpoint mit 503; bei Upstream-/Format-Fehlern mit 502.
       operationId: suggestPillars
+      parameters:
+        - name: provider
+          in: query
+          required: false
+          description: >-
+            Optionaler Provider-Pinning für LLM-Test-Schalter (#749).
+            `mistral`: Nur Mistral-Call, kein OpenRouter-Fallback/Verfeinerung.
+            `openrouter`: Nur OpenRouter solo, kein Mistral-Primär-Call.
+            Fehlt der Parameter → Kaskade wie bisher (keine Verhaltensänderung).
+            Ungültiger Wert → HTTP 400.
+          schema:
+            type: string
+            enum: [mistral, openrouter]
       requestBody:
         required: true
         content:
@@ -343,6 +369,19 @@ paths:
         `mistral-small-latest`). Fehlt der Key, antwortet der Endpoint mit 503; bei
         Upstream-/Format-Fehlern mit 502.
       operationId: parseTaskText
+      parameters:
+        - name: provider
+          in: query
+          required: false
+          description: >-
+            Optionaler Provider-Pinning für LLM-Test-Schalter (#749).
+            `mistral`: Nur Mistral-Call, kein OpenRouter-Fallback/Verfeinerung.
+            `openrouter`: Nur OpenRouter solo, kein Mistral-Primär-Call.
+            Fehlt der Parameter → Kaskade wie bisher (keine Verhaltensänderung).
+            Ungültiger Wert → HTTP 400.
+          schema:
+            type: string
+            enum: [mistral, openrouter]
       requestBody:
         required: true
         content:

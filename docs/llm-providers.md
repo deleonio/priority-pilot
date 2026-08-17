@@ -126,6 +126,38 @@ _„gespeichert"_ / _„nicht gesetzt"_, nie der Wert. Daraus folgt:
 
 ---
 
+## LLM-Test-Schalter (#749)
+
+Über die Frontend-Einstellungen (Radio-Group „LLM-Provider") lässt sich pro Browser die
+LLM-Anfrage auf einen einzelnen Provider pinning. Der Schalter gilt pro
+`localStorage`-Eintrag (`llm-provider-selection`) — andere Nutzer/Geräte sind nicht
+betroffen.
+
+**Vertrag:** Optionaler Query-Parameter `provider` auf allen LLM-Generierungs-Endpunkten:
+
+```
+POST /tasks/parse-text?provider=mistral
+POST /tasks/suggest-pillars?provider=openrouter
+POST /pillars/advisor?provider=mistral
+POST /lektorat?provider=openrouter
+```
+
+| `provider`-Wert        | Verhalten                                                                                 |
+| ---------------------- | ----------------------------------------------------------------------------------------- |
+| fehlt (default)        | Kaskade unverändert (Mistral primär → OpenRouter-Verfeinerung)                            |
+| `mistral`              | Nur Mistral-Call. Key fehlt → 503. Call scheitert → 502. **Kein** OpenRouter-Fallback.    |
+| `openrouter`           | Nur OpenRouter solo. Key fehlt → 503. Call scheitert → 502. **Kein** Mistral-Primär-Call. |
+| ungültig (z. B. `foo`) | HTTP 400 mit klarer Meldung. Nicht still Kaskade.                                         |
+
+Das Frontend hängt `provider=getProvider()` an den Query-String jeder LLM-Anfrage an
+(`frontend/src/api.ts`). Der Server validiert den Parameter in den Routen und reicht
+ihn an `requestModelJson` durch, das die Kaskade entsprechend pinnt.
+
+> **NICHT betroffen:** `POST /tasks/suggest-pillars/feedback` — das ist Persistenz, kein
+> LLM-Call.
+
+---
+
 ## Fehlertoleranz
 
 | Situation                    | Verhalten                             | HTTP    |

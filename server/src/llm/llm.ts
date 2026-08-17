@@ -52,7 +52,7 @@ export interface ClassifyPillarsInput {
 }
 
 /** Funktionssignatur des Klassifikators — injizierbar, damit Tests ohne echten API-Call laufen. */
-export type PillarClassifier = (input: ClassifyPillarsInput) => Promise<PillarSuggestion[]>;
+export type PillarClassifier = (input: ClassifyPillarsInput, provider?: LlmProvider) => Promise<PillarSuggestion[]>;
 
 /**
  * Aus einem frei formulierten Text extrahierte Task-Felder (Schnellerfassung, #235). Nur `title`
@@ -70,7 +70,15 @@ export interface ParsedTask {
 }
 
 /** Funktionssignatur des Task-Text-Parsers — injizierbar, damit Tests ohne echten API-Call laufen. */
-export type ParseTaskParser = (text: string) => Promise<ParsedTask>;
+export type ParseTaskParser = (text: string, provider?: LlmProvider) => Promise<ParsedTask>;
+
+/**
+ * Optionaler Provider-Pinning für den LLM-Test-Schalter (#749).
+ * - `mistral`: Nur Mistral-Call, kein OpenRouter-Fallback/Verfeinerung.
+ * - `openrouter`: Nur OpenRouter solo, kein Mistral-Primär-Call.
+ * - `undefined`: Kaskade wie bisher (keine Verhaltensänderung).
+ */
+export type LlmProvider = 'mistral' | 'openrouter' | undefined;
 
 /** Fehlt der API-Key, ist der Dienst nicht konfiguriert → der Handler antwortet mit HTTP 503. */
 export class MissingApiKeyError extends Error {
@@ -435,16 +443,43 @@ const callProvider = async (
 /**
  * Kaskaden-Aufruf: Mistral zuerst (Primär), dann OpenRouter als Verfeinerung (Zweitmeinung).
  *
+ * Optionaler Provider-Pinning (#749):
+ * - `provider === 'mistral'`: Nur Mistral-Call. Key fehlt → {@link MissingApiKeyError}.
+ *   Call scheitert → {@link MistralRequestError}. KEIN OpenRouter-Fallback.
+ * - `provider === 'openrouter'`: Nur OpenRouter solo. Key fehlt → {@link MissingApiKeyError}
+ *   mit OpenRouter-Label. Call scheitert → {@link MistralRequestError}. KEIN Mistral-Primär-Call.
+ * - `provider === undefined`: Kaskade unverändert (siehe unten).
+ *
+ * Ohne Pinning (Standard-Kaskade):
  * - Beide Keys → Mistral generiert, OpenRouter verfeinert mit Mistral's Antwort als Kontext.
  * - Ein Key fällt aus → der andere liefert allein das Ergebnis.
  * - Beide Keys, beide Calls failen → {@link MistralRequestError} (→ HTTP 502).
  * - Gar kein Key → {@link MissingApiKeyError} (→ HTTP 503).
  */
-const requestModelJson = async (messages: { role: string; content: string }[]): Promise<unknown> => {
+const requestModelJson = async (
+	messages: { role: string; content: string }[],
+	provider?: LlmProvider,
+): Promise<unknown> => {
 	const effective = await loadEffectiveLlmConfig();
 	const mistral = getMistralConfig(effective);
 	const openrouter = getOpenRouterConfig(effective);
 
+	// --- Provider-Pinning: nur ein Provider, kein Fallback ---
+	if (provider === 'mistral') {
+		if (!mistral.apiKey) {
+			throw new MissingApiKeyError();
+		}
+		return callProvider(mistral, messages);
+	}
+
+	if (provider === 'openrouter') {
+		if (!openrouter.apiKey) {
+			throw new MissingApiKeyError('OpenRouter', 'OPENROUTER_API_KEY');
+		}
+		return callProvider(openrouter, messages);
+	}
+
+	// --- Standard-Kaskade (provider === undefined) ---
 	if (!mistral.apiKey && !openrouter.apiKey) {
 		throw new MissingApiKeyError();
 	}
@@ -492,13 +527,16 @@ const requestModelJson = async (messages: { role: string; content: string }[]): 
  * Wirft {@link MissingApiKeyError}, wenn kein API-Key gesetzt ist, und {@link MistralRequestError}
  * bei jedem Upstream-/Format-Problem.
  */
-export const classifyPillarsWithMistral: PillarClassifier = async (input) => {
-	const parsed = await requestModelJson([
-		{ role: 'system', content: buildSystemPrompt(input.pillars) },
-		...fewShotMessages(input.pillars),
-		...feedbackMessages(input),
-		{ role: 'user', content: buildUserMessage(input) },
-	]);
+export const classifyPillarsWithMistral: PillarClassifier = async (input, provider) => {
+	const parsed = await requestModelJson(
+		[
+			{ role: 'system', content: buildSystemPrompt(input.pillars) },
+			...fewShotMessages(input.pillars),
+			...feedbackMessages(input),
+			{ role: 'user', content: buildUserMessage(input) },
+		],
+		provider,
+	);
 	return extractSuggestions(parsed, input);
 };
 
@@ -552,11 +590,14 @@ const extractParsedTask = (parsed: unknown): ParsedTask => {
  * {@link MissingApiKeyError}, wenn kein API-Key gesetzt ist, und {@link MistralRequestError}
  * bei jedem Upstream-/Format-Problem.
  */
-export const parseTaskTextWithMistral: ParseTaskParser = async (text) => {
-	const parsed = await requestModelJson([
-		{ role: 'system', content: PARSE_TASK_SYSTEM_PROMPT },
-		{ role: 'user', content: text },
-	]);
+export const parseTaskTextWithMistral: ParseTaskParser = async (text, provider) => {
+	const parsed = await requestModelJson(
+		[
+			{ role: 'system', content: PARSE_TASK_SYSTEM_PROMPT },
+			{ role: 'user', content: text },
+		],
+		provider,
+	);
 	return extractParsedTask(parsed);
 };
 
@@ -585,7 +626,7 @@ export interface LektoratOutput {
 
 /** Funktionssignatur des Lektorats — injizierbar für Tests. */
 // knip-ignore-export - Exportiert für zukünftige Nutzung (Issue #645)
-export type LektoratFunction = (input: LektoratInput) => Promise<LektoratOutput>;
+export type LektoratFunction = (input: LektoratInput, provider?: LlmProvider) => Promise<LektoratOutput>;
 
 /**
  * Ein Verteilungs-Eintrag einer Säule, so wie ihn der Client (Dashboard „Meine Themen") darstellt:
@@ -618,7 +659,7 @@ export interface AdviseActivitiesInput {
 }
 
 /** Funktionssignatur des Beraters — injizierbar, damit Tests ohne echten API-Call laufen. */
-export type ActivityAdvisor = (input: AdviseActivitiesInput) => Promise<ActivityAdvice[]>;
+export type ActivityAdvisor = (input: AdviseActivitiesInput, provider?: LlmProvider) => Promise<ActivityAdvice[]>;
 
 /** Obergrenze der zurückgegebenen Vorschläge — hält die Antwort klein und die UI übersichtlich. */
 const MAX_ADVICE_ENTRIES = 8;
@@ -788,7 +829,7 @@ export const extractLektoratOutput = (parsed: unknown): LektoratOutput => {
  * bei jedem Upstream-/Format-Problem.
  */
 // knip-ignore-export - Exportiert für zukünftige Nutzung (Issue #645)
-export const lektoratTextWithMistral: LektoratFunction = async (input) => {
+export const lektoratTextWithMistral: LektoratFunction = async (input, provider) => {
 	// Eingabe-Validierung VOR dem LLM-Call (Review #647): leerer Text verschwendet API-Calls,
 	// nicht-positive maxLength erzeugt kaputte Prompt-Outputs.
 	if (input.text.trim() === '') {
@@ -797,10 +838,13 @@ export const lektoratTextWithMistral: LektoratFunction = async (input) => {
 	if (input.maxLength !== undefined && input.maxLength <= 0) {
 		throw new MistralRequestError('maxLength muss positiv sein (falls angegeben).');
 	}
-	const parsed = await requestModelJson([
-		{ role: 'system', content: LEKTORAT_SYSTEM_PROMPT },
-		{ role: 'user', content: buildLektoratUserMessage(input) },
-	]);
+	const parsed = await requestModelJson(
+		[
+			{ role: 'system', content: LEKTORAT_SYSTEM_PROMPT },
+			{ role: 'user', content: buildLektoratUserMessage(input) },
+		],
+		provider,
+	);
 	return extractLektoratOutput(parsed);
 };
 
@@ -809,10 +853,13 @@ export const lektoratTextWithMistral: LektoratFunction = async (input) => {
  * und schlägt Aktivitäten samt Säulen-Zuordnung vor. Wirft {@link MissingApiKeyError},
  * wenn kein API-Key gesetzt ist, und {@link MistralRequestError} bei jedem Upstream-/Format-Problem.
  */
-export const adviseActivitiesWithMistral: ActivityAdvisor = async (input) => {
-	const parsed = await requestModelJson([
-		{ role: 'system', content: ADVISOR_SYSTEM_PROMPT },
-		{ role: 'user', content: buildAdvisorUserMessage(input) },
-	]);
+export const adviseActivitiesWithMistral: ActivityAdvisor = async (input, provider) => {
+	const parsed = await requestModelJson(
+		[
+			{ role: 'system', content: ADVISOR_SYSTEM_PROMPT },
+			{ role: 'user', content: buildAdvisorUserMessage(input) },
+		],
+		provider,
+	);
 	return extractActivityAdvice(parsed, input);
 };
