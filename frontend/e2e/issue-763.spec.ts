@@ -162,7 +162,7 @@ test.describe('#763 Säulen-Gewichtung Layout-Optimierung', () => {
 		await navigateToPillarWeights(page);
 
 		// Prüfe, dass Säulen-Cards untereinander angeordnet sind (Stack-Layout)
-		const pillarCards = page.locator('.pillar-card').or(page.locator('[class*="pillar"]')).or(page.locator('kol-card'));
+		const pillarCards = page.locator('.pillar-weight-row');
 		const count = await pillarCards.count();
 		expect(count, 'Es müssen Säulen-Cards vorhanden sein').toBeGreaterThan(0);
 
