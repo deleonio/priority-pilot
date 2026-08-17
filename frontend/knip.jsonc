@@ -11,6 +11,8 @@
 		"public/push-sw.js",
 		// Icon-Generator-Script für Linux-Build — Dev-Tool, kein App-Code
 		"public/icons/generate-icons-linux.mjs",
+		// #845 Geolocation: Public-API exports (nicht direkt in App verwendet)
+		"src/lib/useGeolocation.ts",
 	],
 	"ignoreDependencies": ["client"],
 }

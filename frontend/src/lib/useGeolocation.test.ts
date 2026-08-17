@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { renderHook, waitFor } from '@testing-library/react';
+import { useGeolocation } from './useGeolocation';
 
 /**
  * Rote Spec-Tests für #845 — „Geolocation: Position alle 5 Min ermitteln + Einstellungs-Schalter"
@@ -18,6 +20,7 @@ describe('useGeolocation – Hook-Verhalten (Spec: #845)', () => {
 	beforeEach(() => {
 		localStorage.clear();
 		vi.clearAllTimers();
+		vi.clearAllMocks();
 	});
 
 	afterEach(() => {
@@ -45,42 +48,50 @@ describe('useGeolocation – Hook-Verhalten (Spec: #845)', () => {
 	});
 
 	// AK 2: Einschalten mit granted Permission → Intervall startet
-	it('AK2: Bei granted Permission wird erste Position ermittelt und Intervall gestartet', () => {
+	it('AK2: Bei granted Permission wird erste Position ermittelt und Intervall gestartet', async () => {
 		mockGeolocation.getCurrentPosition.mockImplementationOnce((success) => {
 			success({ coords: { latitude: 52.52, longitude: 13.405 } });
 		});
 
 		// Toggle simulieren (Hook-Export)
-		// const { toggle } = useGeolocation();
-		// toggle(true);
+		const { result } = renderHook(() => useGeolocation());
+		await result.current.toggle(true);
 
 		expect(mockGeolocation.getCurrentPosition).toHaveBeenCalledTimes(1);
 	});
 
 	// AK 3: Ausschalten stoppt Intervall
-	it('AK3: Ausschalten stoppt den Intervall – keine weiteren Aufrufe', () => {
+	it('AK3: Ausschalten stoppt den Intervall – keine weiteren Aufrufe', async () => {
 		const clearIntervalSpy = vi.spyOn(global, 'clearInterval');
+		mockGeolocation.getCurrentPosition.mockImplementationOnce((success) => {
+			success({ coords: { latitude: 52.52, longitude: 13.405 } });
+		});
 
-		// Toggle aus simulieren
-		// const { toggle } = useGeolocation();
-		// toggle(false);
+		// Erst einschalten (Intervall starten), dann ausschalten
+		const { result } = renderHook(() => useGeolocation());
+		await result.current.toggle(true);
+		// Warten bis enabled=true (React State Update)
+		await waitFor(() => expect(result.current.enabled).toBe(true));
+		await result.current.toggle(false);
 
 		// Mutations-Probe: clearInterval muss aufgerufen werden
 		expect(clearIntervalSpy).toHaveBeenCalled();
 	});
 
 	// AK 5: Permission denied → Schalter bleibt aus, KolAlert warning
-	it('AK5: Bei denied Permission bleibt Schalter aus – Fehler-Status gesetzt', () => {
+	it('AK5: Bei denied Permission bleibt Schalter aus – Fehler-Status gesetzt', async () => {
 		mockGeolocation.getCurrentPosition.mockImplementationOnce((_, error) => {
 			error({ code: 1, message: 'Permission denied' });
 		});
 
 		// Toggle versuchen bei denied
-		// const { toggle, permissionDenied } = useGeolocation();
-		// toggle(true);
+		const { result } = renderHook(() => useGeolocation());
+		await result.current.toggle(true);
 
-		// Mutations-Probe: permissionDenied muss true sein
-		// expect(permissionDenied).toBe(true);
+		// Mutations-Probe: permissionDenied muss true sein (waitFor für React State)
+		await waitFor(() => {
+			expect(result.current.permissionDenied).toBe(true);
+		});
 		expect(mockGeolocation.getCurrentPosition).toHaveBeenCalledTimes(1);
 	});
 
