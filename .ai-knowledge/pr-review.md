@@ -58,6 +58,12 @@ Den Diff gegen diese Fragen prüfen:
   schmale Alternative auf Handy-Breite prüfen (horizontales Scrollen des Kerninhalts vermeiden). Fehlt
   bei sichtbarer UI-Änderung ein 375px-Viewport-e2e-Test (siehe `login.spec.ts` AK5,
   `task-tree.spec.ts` AK-6 als Muster), ist das ein Finding — Ausnahme nur, wenn im PR begründet.
+- **Impeccable-Audit bei UI-PRs** (#828): Bei Änderungen unter `frontend/` das Kreuzverhör um
+  `/impeccable audit` (Skill in `.claude/skills/impeccable/`) ergänzen — fünf Dimensionen
+  (Accessibility, Performance, Theming, Responsive, Implementation Integrity, je 0-4). Der
+  Detektor (`node .claude/skills/impeccable/scripts/detect.mjs <dateien…>`, Exit 2 = Findings)
+  liefert deterministische Belege statt Vermutungen; False Positives im Kontext verifizieren und
+  als solche benennen.
 - **Format/Lint:** Sind `pnpm format`/`pnpm lint` in der PR-Beschreibung belegt? Bei Zweifel nachhaken.
 
 ## Schritt 4 — Findings als Review-Kommentare posten
