@@ -175,7 +175,12 @@ jobs:
           ABSCHLUSS (beide Modi):
             - TITEL-GATE (VOR dem Verdict): TITLE_OK sagt, ob der PR-Titel Conventional Commits erfüllt (type(scope)!: subject, englisch, Subject klein, <=72). Bei false: via gh pr edit #PR_NR --title umbenennen — Typ/Scope-Anhaltspunkte SUGGESTED_TYPE/SUGGESTED_SCOPE, Subject englisch beschreibend. Kein Finding, kein Verdict-Aufschub.
             - (Fixbare) Findings → Review-Kommentare an Datei/Zeile, dann VERDICT: needs-changes
-            - Architektur-/Produkt-/Design-Finding ("Mensch entscheidet") → Kommentar mit Handlungsoptionen, dann VERDICT: needs-human
+            - Architektur-/Produkt-/Design-Finding ("Mensch entscheidet") → Bei VERDICT: needs-human im Sammelkommentar zusaetzlich Sektion ## ⏸️ Entscheidungs-Findings einfuegen mit:
+              - Nummeriertes Listing jedes Entscheidungs-Findings
+              - **Was**: Beschreibung des Problems
+              - **Wo**: Datei:Zeile
+              - **Optionen**: 2-3 konkrete Handlungsoptionen mit Kurzbegründung
+              - **Empfehlung**: Was Claude empfehlen würde
             - solide (🟢) → KEINE Pseudo-Findings, knappe 🟢-Bestätigung, dann VERDICT: ready-to-merge
 
           Sammelkommentar: Urteil als GENAU EINEN <!-- ai-review -->-Kommentar pflegen (vorhandenen suchen + fortschreiben, nicht neu anlegen). Zwei Abschnitte: "Offene Findings" (aktuelle Runde) und "Behobene Anmerkungen" (History-Tabelle — erledigte Findings wandern dorthin).
@@ -336,7 +341,7 @@ jobs:
 
           if [ "$label_operation_failed" = "true" ]; then
             echo "::error::Label-Entfernen nach 3 Versuchen fehlgeschlagen → ai:needs-human gesetzt"
-            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⚠️ **Label-Race-Condition (#613)**: Label-Entfernung nach 3 Retries fehlgeschlagen (transienter GitHub-API-Fehler). Bitte manuell prüfen und via \`ai:needs-review\` neu triggern." 2>/dev/null || true
+            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⚠️ **Label-Race-Condition (#613): Label-Entfernung fehlgeschlagen**\n\nTransienter GitHub-API-Fehler nach 3 Retries. Bitte manuell prüfen.\n\n**Checkliste:**\n- [ ] 1. Labels manuell prüfen und via \`ai:needs-review\` neu triggern" 2>/dev/null || true
             gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human 2>/dev/null || true
             exit 1
           fi
@@ -350,7 +355,7 @@ jobs:
               if [ "$attempt" -lt 3 ]; then sleep "$((2 ** (attempt-1)))"; fi
               if [ "$attempt" -eq 3 ]; then
                 echo "::error::ai:ready-to-merge nach 3 Versuchen fehlgeschlagen → ai:needs-human gesetzt"
-                gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⚠️ **Label-Race-Condition (#613)**: ai:ready-to-merge nach 3 Retries fehlgeschlagen. Bitte manuell prüfen." 2>/dev/null || true
+                gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⚠️ **Label-Race-Condition (#613): ai:ready-to-merge fehlgeschlagen**\n\nTransienter GitHub-API-Fehler nach 3 Retries. Bitte manuell prüfen.\n\n**Checkliste:**\n- [ ] 1. Manuelles Prüfen und Label setzen" 2>/dev/null || true
                 gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human 2>/dev/null || true
                 exit 1
               fi
@@ -367,7 +372,7 @@ jobs:
                 exit 1
               fi
             done
-            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⏸️ **Wartet auf menschliche Entscheidung** — nicht-automatisierbares Finding (siehe Review-Kommentar oben). Der Fixup greift hier bewusst nicht. Nach der Entscheidung: Label \`ai:needs-human\` entfernen und via \`ai:needs-review\` neu triggern." 2>/dev/null || true
+            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⏸️ **Wartet auf menschliche Entscheidung (Review-Entscheidung)**\n\nDieser PR enthaelt Findings, die eine menschliche Entscheidung erfordern. Siehe die Sektion ## ⏸️ Entscheidungs-Findings im <!-- ai-review --> Sammelkommentar oben.\n\n**Checkliste:**\n- [ ] 1. Entscheidungs-Findings durchgehen\n- [ ] 2. Entscheidung treffen (Code anpassen / akzeptieren / Fixup-Anweisung)\n- [ ] 3. Label \`ai:needs-human\` entfernen\n- [ ] 4. Label \`ai:needs-review\` setzen → loest erneuten Review aus" 2>/dev/null || true
           else
             for attempt in 1 2 3; do
               if gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-changes; then
@@ -377,7 +382,7 @@ jobs:
               if [ "$attempt" -lt 3 ]; then sleep "$((2 ** (attempt-1)))"; fi
               if [ "$attempt" -eq 3 ]; then
                 echo "::error::ai:needs-changes nach 3 Versuchen fehlgeschlagen → ai:needs-human gesetzt"
-                gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⚠️ **Label-Race-Condition (#613)**: ai:needs-changes nach 3 Retries fehlgeschlagen. Bitte manuell prüfen." 2>/dev/null || true
+                gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⚠️ **Label-Race-Condition (#613): ai:needs-changes fehlgeschlagen**\n\nTransienter GitHub-API-Fehler nach 3 Retries. Bitte manuell prüfen.\n\n**Checkliste:**\n- [ ] 1. Manuelles Prüfen und Label setzen" 2>/dev/null || true
                 gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human 2>/dev/null || true
                 exit 1
               fi

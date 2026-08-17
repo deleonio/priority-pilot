@@ -1,10 +1,9 @@
 import { KolAlert, KolButton, KolInputPassword, KolInputText } from '@public-ui/react-v19';
-import type { LlmConfigInput, LlmConfigStatus } from 'client';
+import type { FreeModel, LlmConfigInput, LlmConfigStatus } from 'client';
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { readString } from '../lib/inputValue';
-import { ModelSelectionDialog } from './ModelSelectionDialog';
 
 /**
  * Formular des Settings-Tabs „LLM" (#640): Status der Mistral/OpenRouter-Kaskade lesen
@@ -21,6 +20,8 @@ const DEFAULT_OPENROUTER_MODEL = 'openrouter/free';
 export const LlmSettingsForm = () => {
 	// Status aus dem Backend: ob jeweils ein Key gesetzt ist + das (nicht-geheime) Modell.
 	const [status, setStatus] = useState<LlmConfigStatus | null>(null);
+	// Free-Modelle für das Single-Select
+	const [freeModels, setFreeModels] = useState<FreeModel[] | null>(null);
 	// Write-only-Eingaben: leerer Wert = „unverändert"; nur ein getippter Wert überschreibt.
 	const [mistralKeyInput, setMistralKeyInput] = useState('');
 	const [openrouterKeyInput, setOpenrouterKeyInput] = useState('');
@@ -29,9 +30,6 @@ export const LlmSettingsForm = () => {
 	const [error, setError] = useState<string | null>(null);
 	const [saved, setSaved] = useState(false);
 	const [saving, setSaving] = useState(false);
-	// Auswahl-Dialog für die aktuellen OpenRouter-Free-Modelle (#742) — schließt das Freitext-Feld
-	// nicht aus, sondern ergänzt es: Wer will, tippt weiter beliebige (auch bezahlte) Modell-IDs.
-	const [modelDialogOpen, setModelDialogOpen] = useState(false);
 
 	// Persistierten Stand einmalig laden; der Abbruch-Controller verhindert ein setState nach Unmount.
 	useEffect(() => {
@@ -44,6 +42,14 @@ export const LlmSettingsForm = () => {
 			})
 			.catch(() => {
 				if (!controller.signal.aborted) setLoadFailed(true);
+			});
+		api
+			.getFreeModels({ signal: controller.signal })
+			.then((result) => {
+				if (!controller.signal.aborted) setFreeModels(result.models);
+			})
+			.catch(() => {
+				// Free-Models-Liste ist optional, bei Fehler leer lassen
 			});
 		return () => controller.abort();
 	}, []);
@@ -124,69 +130,78 @@ export const LlmSettingsForm = () => {
 			</p>
 
 			<div className="form-grid">
-				<p className="llm-key-state" data-provider="mistral">
-					Mistral API-Key: {status.hasMistralApiKey ? 'gespeichert' : 'nicht gesetzt'}
-				</p>
-				{status.hasMistralApiKey && (
-					<KolButton
-						_label="Mistral API-Key löschen"
-						_variant="tertiary"
-						_disabled={saving}
-						_on={{ onClick: () => void clearField('mistralApiKey') }}
+				<div className="llm-key-input-group" data-provider="mistral">
+					<KolInputPassword
+						_label="Mistral API-Key"
+						_value={mistralKeyInput}
+						_hint="Feld leer lassen, um den gespeicherten Key nicht zu ändern."
+						_on={{
+							onInput: (_event, value) => setMistralKeyInput(readString(value)),
+							onChange: (_event, value) => setMistralKeyInput(readString(value)),
+						}}
 					/>
-				)}
-				<KolInputPassword
-					_label="Mistral API-Key (neu)"
-					_value={mistralKeyInput}
-					_hint="Feld leer lassen, um den gespeicherten Key nicht zu ändern."
-					_on={{
-						onInput: (_event, value) => setMistralKeyInput(readString(value)),
-						onChange: (_event, value) => setMistralKeyInput(readString(value)),
-					}}
-				/>
-				<p className="llm-key-state" data-provider="openrouter">
-					OpenRouter API-Key: {status.hasOpenrouterApiKey ? 'gespeichert' : 'nicht gesetzt'}
-				</p>
-				{status.hasOpenrouterApiKey && (
-					<KolButton
-						_label="OpenRouter API-Key löschen"
-						_variant="tertiary"
-						_disabled={saving}
-						_on={{ onClick: () => void clearField('openrouterApiKey') }}
+					{(status.hasMistralApiKey || mistralKeyInput !== '') && (
+						<button
+							type="button"
+							aria-label="API-Key löschen"
+							className="llm-key-x-button"
+							disabled={saving}
+							onClick={() => (mistralKeyInput !== '' ? setMistralKeyInput('') : void clearField('mistralApiKey'))}
+						>
+							✕
+						</button>
+					)}
+				</div>
+				<div className="llm-key-input-group" data-provider="openrouter">
+					<KolInputPassword
+						_label="OpenRouter API-Key"
+						_value={openrouterKeyInput}
+						_hint="Optional — aktiviert die Verfeinerungs-Stufe. Leer lassen, um nichts zu ändern."
+						_on={{
+							onInput: (_event, value) => setOpenrouterKeyInput(readString(value)),
+							onChange: (_event, value) => setOpenrouterKeyInput(readString(value)),
+						}}
 					/>
-				)}
-				<KolInputPassword
-					_label="OpenRouter API-Key (neu)"
-					_value={openrouterKeyInput}
-					_hint="Optional — aktiviert die Verfeinerungs-Stufe. Leer lassen, um nichts zu ändern."
-					_on={{
-						onInput: (_event, value) => setOpenrouterKeyInput(readString(value)),
-						onChange: (_event, value) => setOpenrouterKeyInput(readString(value)),
-					}}
-				/>
-				<KolInputText
-					_label="OpenRouter Modell"
-					_value={model}
-					_hint="Modellkennung für die Verfeinerungs-Stufe (Default: openrouter/free)."
-					_on={{
-						onInput: (_event, value) => setModel(readString(value)),
-						onChange: (_event, value) => setModel(readString(value)),
-					}}
-				/>
-				<KolButton
-					_label="Free-Modelle auswählen…"
-					_variant="secondary"
-					_disabled={saving}
-					_on={{ onClick: () => setModelDialogOpen(true) }}
-				/>
-				{modelDialogOpen && (
-					<ModelSelectionDialog
-						onClose={() => setModelDialogOpen(false)}
-						// Der Dialog speichert seine Auswahl selbst (PUT /llm-config); hier wird nur der
-						// angezeigte Status nachgezogen — derselbe Zustand, den auch persist() setzt.
-						onModelSaved={(newStatus) => {
-							setStatus(newStatus);
-							setModel(newStatus.openrouterModel);
+					{(status.hasOpenrouterApiKey || openrouterKeyInput !== '') && (
+						<button
+							type="button"
+							aria-label="API-Key löschen"
+							className="llm-key-x-button"
+							disabled={saving}
+							onClick={() =>
+								openrouterKeyInput !== '' ? setOpenrouterKeyInput('') : void clearField('openrouterApiKey')
+							}
+						>
+							✕
+						</button>
+					)}
+				</div>
+				{freeModels !== null ? (
+					<div className="llm-model-select">
+						<label htmlFor="openrouter-model">OpenRouter Modell</label>
+						<select
+							id="openrouter-model"
+							name="model"
+							value={model}
+							onChange={(e) => setModel(e.target.value)}
+							disabled={saving}
+						>
+							{freeModels.map((m) => (
+								<option key={m.id} value={m.id}>
+									{m.name} ({m.id})
+								</option>
+							))}
+						</select>
+						<p className="hint">Modellkennung für die Verfeinerungs-Stufe.</p>
+					</div>
+				) : (
+					<KolInputText
+						_label="OpenRouter Modell"
+						_value={model}
+						_hint="Modellkennung für die Verfeinerungs-Stufe (Default: openrouter/free)."
+						_on={{
+							onInput: (_event, value) => setModel(readString(value)),
+							onChange: (_event, value) => setModel(readString(value)),
 						}}
 					/>
 				)}
