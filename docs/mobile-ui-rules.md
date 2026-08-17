@@ -83,7 +83,7 @@ Primäraktion pro Screen · Abstandswerte außerhalb der 4-dp-Skala
 
 _(Mit Repo-Abstimmung: 375px Breite, ≥44px Touch-Targets.)_
 
-1. Bei 360dp Breite kein horizontales Scrollen? 2. Alle interaktiven Elemente ≥48dp? 3. Primäraktion im unteren
+1. Bei 375px Breite kein horizontales Scrollen? 2. Alle interaktiven Elemente ≥48dp? 3. Primäraktion im unteren
    Drittel? 4. Laden/Leer/Fehler/Erfolg vorhanden? 5. Kontraste geprüft? 6. Bei 200 % Textgröße noch bedienbar? 7. Nur Token-Werte? 8. `prefers-reduced-motion` behandelt?
 
 ## Prinzip bei Konflikten
