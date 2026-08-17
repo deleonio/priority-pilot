@@ -661,7 +661,13 @@ body {
 	display: grid;
 	gap: 1rem;
 	margin-bottom: 1rem;
-	/* Responsive Grid für Säulen-Gewichtung (#763) */
+}
+
+/* Responsive Grid für Säulen-Gewichtung (#763) — bewusst eine eigene Klasse statt global auf
+   .form-grid: Letztere teilen sich sieben Formulare (u. a. TaskForm/QuickCaptureModal), globale
+   Spalten quetschen dort .range-inputs-row in halbbreite Zellen und verschieben die Slider
+   vertikal (#727-Regression, Y-Versatz 18px). */
+.pillar-weights-grid {
 	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }
 
@@ -688,21 +694,21 @@ body {
 
 /* Mobile: 1-spaltiges Stack-Layout (#763) */
 @media (max-width: 767px) {
-	.form-grid {
+	.pillar-weights-grid {
 		grid-template-columns: 1fr;
 	}
 }
 
 /* Tablet: 2-spaltiges Layout (#763) */
 @media (min-width: 768px) and (max-width: 1023px) {
-	.form-grid {
+	.pillar-weights-grid {
 		grid-template-columns: repeat(2, 1fr);
 	}
 }
 
 /* Desktop: 3-4-spaltiges Layout (#763) */
 @media (min-width: 1024px) {
-	.form-grid {
+	.pillar-weights-grid {
 		grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 	}
 }

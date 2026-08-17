@@ -94,9 +94,9 @@ export const PillarWeightsForm = ({ pillars, onSaved, onCancel }: PillarWeightsF
 						Gib je Säule einen Wert von 0,0 bis 1,0 ein. Die Werte werden beim Speichern automatisch auf 100 % normiert
 						— die absolute Skala ist egal (5 × 0,1 ergibt dasselbe wie 5 × 1).
 					</p>
-					<div className="form-grid">
+					<div className="form-grid pillar-weights-grid">
 						{pillars.map((pillar, index) => (
-							<div key={pillar.id} className="pillar-weight-row pillar-card">
+							<div key={pillar.id} className="pillar-weight-row">
 								<KolInputRange
 									// Freie Roh-Skala 0,0–1,0 → Slider. Der aktuelle Wert steht im Label, da ein reiner
 									// Slider den exakten Wert nicht anzeigt.
