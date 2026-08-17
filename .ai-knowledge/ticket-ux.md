@@ -1,23 +1,26 @@
-# Workflow: Ticket-UX (Beratung nach Spec)
+# Workflow: Ticket-UX (Beratung vor Spec)
 
-UX-Beratung als automatisierte Phase **nach** Spec-Ready – beratend, nicht blockierend.
+UX-Beratung als automatisierte Phase **vor** der Spec -- beratend, nicht blockierend.
 Analysiert das Ticket aus UX-Sicht (Interaktion, Mobile-First, A11y/BITV, KoliBri) und schreibt
 Empfehlungen in den Issue-Body zwischen `<!-- KI-UX:START -->` und `<!-- KI-UX:END -->`.
 
-Diese Stufe ist **Phase 2b** der Kette: UX-Expertise fließt **vor** der Implementierung ein, aber
+Diese Stufe ist **Phase 2** der 7-Phasen-Kette: UX-Expertise fließt **vor** der Spec ein, aber
 **ohne** Code zu schreiben oder Branches/PRs zu erstellen.
 
 Tickets = GitHub-Issues von `deleonio/priority-pilot`. Voraussetzung: `gh` ist authentifiziert.
 
-**Auswahlkriterium:** Bearbeitet werden Issues mit Label `ai:spec-ready` (von der Spec-Phase gesetzt),
-für die **noch kein** UX-Input existiert (KI-UX-Block fehlt im Body). Manueller Start via
-`workflow_dispatch` möglich.
+**Auswahlkriterium:** Bearbeitet werden Issues mit Label `ai:spec-ready` (von der Triage gesetzt,
+nicht von der Spec-Phase), für die **noch kein** UX-Input existiert (KI-UX-Block fehlt im Body)
+und ux:ready noch nicht gesetzt ist (Nicht-UI-Tickets haben ux:ready schon von der Triage).
+Manueller Start via `workflow_dispatch` moeglich.
 
-Label-Kette: `ai:analyzed` → `ai:spec-ready` → **`ux:ready` (dieser Workflow)** → `ai:ready` (Umsetzung) → PR.
+Label-Kette: `ai:analyzed` → `ai:spec-ready` → **`ux:ready` (dieser Workflow)** → `ai:ready` (Spec) → Umsetzung → PR.
 
 ## Trigger
 
-- **Automatisch:** Label `ai:spec-ready` wird gesetzt → GitHub Action `02b-claude-ux.yml` triggert
+- **Automatisch:** Label `ai:spec-ready` wird gesetzt → GitHub Action `02-claude-ux.yml` triggert.
+  UX prueft im Pre-Check: ai:analyzed vorhanden, ux:ready abwesend. Bei Nicht-UI-Tickets ist
+  ux:ready bereits von der Triage gesetzt → Pre-Check schlaegt fehl → No-op (Spec laeuft direkt).
 - **Manuell:** `workflow_dispatch` mit Issue-Nummer als Input
 
 ## Output
@@ -55,16 +58,17 @@ VERDICT: ux-ready
 
 ## Verifikation & Label-Setzung
 
-- Workflow prüft Verdict-Line im Output
+- Workflow prueft Verdict-Line im Output
 - Bei `VERDICT: ux-ready` → Label `ux:ready` setzen via GitHub App-Token
-- Bei `VERDICT: ux-not-ready` → Label `ux:failed` setzen
-- `ai:spec-ready` wird entfernt (von UX-Phase konsumiert)
+- Bei `VERDICT: ux-not-ready` → Label `ux:failed` setzen (fail-safe beim Menschen)
+- `ai:spec-ready` **wird NICHT entfernt** -- es gehoert der Spec-Phase und bleibt am Issue kleben
 
 ## Charakteristik
 
 - **Beratend, nicht blockierend:** UX-Empfehlungen sind Hinweise, keine harten Blocker
-- **Kein Code-Ändern:** Prompt enthält explizit KEINE Anweisungen zu Branch/PR/Code
+- **Kein Code-Aendern:** Prompt enthaelt explizit KEINE Anweisungen zu Branch/PR/Code
 - **Keine Gewaltenteilung wie Spec/Implement:** UX ist eine Beratung, kein Vertrag
+- **Optional:** Bei Nicht-UI-Tickets (Triage setzt ux:ready sofort) bleibt die UX-Phase No-op
 
 ## Modell
 

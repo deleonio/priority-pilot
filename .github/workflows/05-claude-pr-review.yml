@@ -1,7 +1,7 @@
-name: 4/6 Review
+name: 5/7 Review
 
 # ⚠️ Der `name:` ist lastend: das workflow_run-Allowlist in claude-pr-gate-merge.yml matcht ihn
-#    exakt ("4/6 Review"). Umbenennen schaltet das Gate lautlos ab → stummes Gate. ACHTUNG: es
+#    exakt ("5/7 Review"). Umbenennen schaltet das Gate lautlos ab → stummes Gate. ACHTUNG: es
 #    gibt KEINEN Contract-Test für diese Kopplung (ADR #567 — Workflows bleiben ungetestet), ein
 #    Rename fällt also lautlos durch — vor jeder `name:`-Änderung die Stelle manuell mitpflegen.
 
@@ -17,7 +17,7 @@ name: 4/6 Review
 # prüft den LABEL-IST-ZUSTAND zur LAUFZEIT — queued Runs würden mit dem Label-Zustand zum
 # TRIGGER-Zeitpunkt falsch wiederholen. Der frühere Supersede-Effekt (cancel-in-progress: true
 # verdrängte den laufenden Review bei Neu-Triggern) wird durch den Autolabeler kompensiert
-# (pr-needs-review-label.yml cancelt bei menschlichem Push zuerst alte 04/05-Runs des Branches).
+# (pr-needs-review-label.yml cancelt bei menschlichem Push zuerst alte 05/06-Runs des Branches).
 
 on:
   pull_request:
@@ -192,7 +192,7 @@ jobs:
             - VERDICT: needs-human (bei Entscheidungs-Findungen, die ein Mensch treffen muss)
           CLAUDE_EOF
 
-          # Memory-Snippets anhängen (Phase 4 = Review: restauriert + schreibt Review-Notizen;
+          # Memory-Snippets anhängen (Phase 5 = Review: restauriert + schreibt Review-Notizen;
           # #ISSUE_NR aus dem Setup-Output, da dieser Workflow am PR hängt, nicht am Issue)
           cat .github/prompts/memory-read.md >> /tmp/claude-prompt.txt
           cat .github/prompts/memory-write.md >> /tmp/claude-prompt.txt
@@ -227,7 +227,7 @@ jobs:
           path: ${{ steps.setup.outputs.memory-path }}
           # 14 Tage: das Artefakt ist jetzt der einzige Speicher, nicht mehr nur ein Transport-
           # vehikel zum Cache (dort war 1 Tag genug). Muss den ganzen Ticket-Lebenszyklus
-          # überdauern; Phase 6 räumt am Ende ohnehin deterministisch auf. Größe: ~1 KB.
+          # überdauern; Phase 7 räumt am Ende ohnehin deterministisch auf. Größe: ~1 KB.
           retention-days: 14
           if-no-files-found: ignore
 
@@ -291,9 +291,9 @@ jobs:
               # `.name != "precheck"` — analog zum Gate (claude-pr-gate-merge.yml): der
               # Label-Pre-Check laeuft unter demselben Workflow-Namen und darf das eigene
               # Allowlist-Urteil weder rot faerben noch has_reviewer vorzeitig erfuellen.
-              allow="$(echo "$checks" | jq '[.[] | select(.workflow == "CI" or (.workflow == "4/6 Review" and .name != "precheck"))]')"
+              allow="$(echo "$checks" | jq '[.[] | select(.workflow == "CI" or (.workflow == "5/7 Review" and .name != "precheck"))]')"
               has_ci="$(echo "$allow" | jq -r 'any(.[]; .workflow == "CI")')"
-              has_reviewer="$(echo "$allow" | jq -r 'any(.[]; .workflow == "4/6 Review")')"
+              has_reviewer="$(echo "$allow" | jq -r 'any(.[]; .workflow == "5/7 Review")')"
               if [ "$has_ci" = "true" ] && [ "$has_reviewer" = "true" ]; then break; fi
               if [ "$attempt" -lt 5 ]; then sleep "${delays[$((attempt - 1))]}"; fi
             done
