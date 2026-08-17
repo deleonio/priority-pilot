@@ -6,7 +6,7 @@ test.describe('LLM Provider Toggle UI – Spec: Issue-749', () => {
 		await page.goto('/');
 		await page.getByRole('button', { name: 'Einstellungen' }).click();
 		// Select LLM tab (index 2, labeled "LLM")
-		await page.getByRole('button', { name: 'LLM' }).click();
+		await page.getByRole('tab', { name: 'LLM', exact: true }).click();
 	});
 
 	test('should display provider toggle switches – Spec: Issue-749 Journey Step 1', async ({ page }) => {
