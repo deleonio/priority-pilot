@@ -729,7 +729,7 @@ export const TaskForm = ({
 								setTitle(newVal);
 							}}
 						>
-							<div style={{ position: 'relative' }} data-testid="task-title">
+							<div style={{ flex: 1, minWidth: 0, position: 'relative' }} data-testid="task-title">
 								{/* #679: Zeichenzähler über den KoliBri built-in Counter (_hasCounter)
 							    statt des früheren manuellen character-counter-Divs. */}
 								<KolInputText
