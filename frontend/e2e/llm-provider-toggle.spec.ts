@@ -10,8 +10,8 @@ test.describe('LLM Provider Toggle UI – Spec: Issue-749', () => {
 		// Arrange: App is loaded
 		// Act: Look for provider toggle UI (KolInputRadio with radio buttons)
 		// Assert: Radio options for Mistral and OpenRouter are visible
-		const mistralRadio = page.getByRole('radio', { name: 'Mistral' });
-		const openrouterRadio = page.getByRole('radio', { name: 'OpenRouter' });
+		const mistralRadio = page.locator('input[value="mistral"]');
+		const openrouterRadio = page.locator('input[value="openrouter"]');
 
 		await expect(mistralRadio).toBeVisible();
 		await expect(openrouterRadio).toBeVisible();
@@ -21,8 +21,8 @@ test.describe('LLM Provider Toggle UI – Spec: Issue-749', () => {
 		// Arrange: Mistral provider is active
 		// Act: Check visual state
 		// Assert: Mistral radio is checked, OpenRouter is unchecked
-		const mistralRadio = page.getByRole('radio', { name: 'Mistral' });
-		const openrouterRadio = page.getByRole('radio', { name: 'OpenRouter' });
+		const mistralRadio = page.locator('input[value="mistral"]');
+		const openrouterRadio = page.locator('input[value="openrouter"]');
 
 		await expect(mistralRadio).toHaveAttribute('aria-checked', 'true');
 		await expect(openrouterRadio).toHaveAttribute('aria-checked', 'false');
@@ -32,8 +32,8 @@ test.describe('LLM Provider Toggle UI – Spec: Issue-749', () => {
 		// Arrange: Mistral is active
 		// Act: Click OpenRouter radio
 		// Assert: OpenRouter becomes active, Mistral becomes inactive
-		const openrouterRadio = page.getByRole('radio', { name: 'OpenRouter' });
-		const mistralRadio = page.getByRole('radio', { name: 'Mistral' });
+		const openrouterRadio = page.locator('input[value="openrouter"]');
+		const mistralRadio = page.locator('input[value="mistral"]');
 
 		await openrouterRadio.click();
 
@@ -45,7 +45,7 @@ test.describe('LLM Provider Toggle UI – Spec: Issue-749', () => {
 		// Arrange: App is loaded
 		// Act: Switch provider
 		// Assert: Toast notification appears "Provider gewechselt: [Provider Name]"
-		const mistralRadio = page.getByRole('radio', { name: 'Mistral' });
+		const mistralRadio = page.locator('input[value="mistral"]');
 
 		await mistralRadio.click();
 
@@ -58,7 +58,7 @@ test.describe('LLM Provider Toggle UI – Spec: Issue-749', () => {
 		// Act: Reload page
 		// Assert: OpenRouter is still active
 
-		const openrouterRadio = page.getByRole('radio', { name: 'OpenRouter' });
+		const openrouterRadio = page.locator('input[value="openrouter"]');
 		await openrouterRadio.click();
 
 		await page.reload();
@@ -71,8 +71,8 @@ test.describe('LLM Provider Toggle UI – Spec: Issue-749', () => {
 		// Arrange: Both radios are visible
 		// Act: Activate Mistral, then OpenRouter
 		// Assert: Only one provider is active at a time
-		const mistralRadio = page.getByRole('radio', { name: 'Mistral' });
-		const openrouterRadio = page.getByRole('radio', { name: 'OpenRouter' });
+		const mistralRadio = page.locator('input[value="mistral"]');
+		const openrouterRadio = page.locator('input[value="openrouter"]');
 
 		await mistralRadio.click();
 		await expect(mistralRadio).toHaveAttribute('aria-checked', 'true');
@@ -88,7 +88,7 @@ test.describe('LLM Provider Toggle UI – Spec: Issue-749', () => {
 		// Assert: Touch targets are at least 44px high
 		await page.setViewportSize({ width: 375, height: 667 });
 
-		const mistralRadio = page.getByRole('radio', { name: 'Mistral' });
+		const mistralRadio = page.locator('input[value="mistral"]');
 		const box = await mistralRadio.boundingBox();
 
 		expect(box?.height).toBeGreaterThanOrEqual(44);
@@ -100,8 +100,8 @@ test.describe('LLM Provider Toggle UI – Spec: Issue-749', () => {
 		// Assert: Radios are stacked vertically
 		await page.setViewportSize({ width: 375, height: 667 });
 
-		const mistralRadio = page.getByRole('radio', { name: 'Mistral' });
-		const openrouterRadio = page.getByRole('radio', { name: 'OpenRouter' });
+		const mistralRadio = page.locator('input[value="mistral"]');
+		const openrouterRadio = page.locator('input[value="openrouter"]');
 
 		const mistralBox = await mistralRadio.boundingBox();
 		const openrouterBox = await openrouterRadio.boundingBox();
@@ -114,7 +114,7 @@ test.describe('LLM Provider Toggle UI – Spec: Issue-749', () => {
 		// Arrange: Radios are visible
 		// Act: Navigate with Tab, activate with Space/Enter
 		// Assert: Radio can be operated without mouse
-		const mistralRadio = page.getByRole('radio', { name: 'Mistral' });
+		const mistralRadio = page.locator('input[value="mistral"]');
 
 		await page.keyboard.press('Tab');
 		await page.keyboard.press('Space');
@@ -126,7 +126,7 @@ test.describe('LLM Provider Toggle UI – Spec: Issue-749', () => {
 		// Arrange: Radios are rendered
 		// Act: Inspect ARIA attributes
 		// Assert: role="radio", aria-checked, aria-label are correct
-		const mistralRadio = page.getByRole('radio', { name: 'Mistral' });
+		const mistralRadio = page.locator('input[value="mistral"]');
 
 		await expect(mistralRadio).toHaveAttribute('role', 'radio');
 		await expect(mistralRadio).toHaveAttribute('aria-label', /Mistral/);
