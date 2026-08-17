@@ -40,7 +40,7 @@ on:
 
 concurrency:
   group: claude-spec-sync
-  queue: max
+  cancel-in-progress: false
 
 permissions:
   contents: write # Branch-Pushes chore/spec-sync/*
@@ -92,7 +92,7 @@ jobs:
         run: |
           blocking="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$SYNC_BRANCH" --state open \
             --json labels \
-            --jq '[.[0].labels[]?.name] | map(select(. == "ai:needs-review" or . == "ai:needs-changes" or . == "ai:ready-to-merge" or . == "ai:needs-human")) | join(", ")' \
+            --jq '[.[0].labels[]?.name] | map(select(. == "ai:needs-review" or . == "ai:needs-human")) | join(", ")' \
             2>/dev/null || true)"
           if [ -n "$blocking" ] && [ "$blocking" != "null" ]; then
             echo "::notice title=⏸️ Spec-Sync ausgesetzt::Offener Sync-PR ist noch in der Pipeline (${blocking}) — kein Force-Push heute Nacht."
