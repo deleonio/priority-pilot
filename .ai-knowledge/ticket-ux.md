@@ -3,6 +3,7 @@
 UX-Beratung als automatisierte Phase **vor** der Spec -- beratend, nicht blockierend.
 Analysiert das Ticket aus UX-Sicht (Interaktion, Mobile-First, A11y/BITV, KoliBri) und schreibt
 Empfehlungen in den Issue-Body zwischen `<!-- KI-UX:START -->` und `<!-- KI-UX:END -->`.
+Verbindliche Quelle für Mobile-First/A11y-Empfehlungen: [docs/mobile-ui-rules.md](../docs/mobile-ui-rules.md).
 
 Diese Stufe ist **Phase 2** der 7-Phasen-Kette: UX-Expertise fließt **vor** der Spec ein, aber
 **ohne** Code zu schreiben oder Branches/PRs zu erstellen.
@@ -38,11 +39,11 @@ KI-UX-Block im Issue-Body zwischen den Markern:
 
 ### Mobile-First
 
-[Breakpoints, Touch-Ziele, responsive Layouts]
+[Breakpoints, Touch-Ziele, responsive Layouts — Maßstab: docs/mobile-ui-rules.md]
 
 ### A11y/BITV
 
-[Tastatur-Navigation, Screenreader, ARIA, Kontrast]
+[Tastatur-Navigation, Screenreader, ARIA, Kontrast — siehe docs/mobile-ui-rules.md]
 
 ### KoliBri
 
@@ -69,6 +70,14 @@ VERDICT: ux-ready
 - **Kein Code-Aendern:** Prompt enthaelt explizit KEINE Anweisungen zu Branch/PR/Code
 - **Keine Gewaltenteilung wie Spec/Implement:** UX ist eine Beratung, kein Vertrag
 - **Optional:** Bei Nicht-UI-Tickets (Triage setzt ux:ready sofort) bleibt die UX-Phase No-op
+
+## Werkzeuge
+
+- **Impeccable Design-Skill** (`.claude/skills/impeccable/`, #828): Die UX-Beratung bei UI-Tickets
+  mit `/impeccable critique <ziel-komponente>` stützen — Heuristik-Scores (Nielsen, 0-4),
+  Cognitive-Load-Check und Persona-Red-Flags liefern belastbare Punkte für die Blöcke
+  Interaktion/Mobile-First/A11y. Browser-Inspektion via Playwright, wo verfügbar (#823). Die
+  Referenz-Dateien des Skills lädt der Agent on demand — keine Token-Kosten ohne Nutzung.
 
 ## Modell
 
