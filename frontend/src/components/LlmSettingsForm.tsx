@@ -1,4 +1,5 @@
 import { KolAlert, KolButton, KolInputPassword, KolInputText } from '@public-ui/react-v19';
+import { LlmProviderToggle } from './LlmProviderToggle';
 import type { LlmConfigInput, LlmConfigStatus } from 'client';
 import { useEffect, useState } from 'react';
 import { api } from '../api';
@@ -122,6 +123,8 @@ export const LlmSettingsForm = () => {
 				ist. Ein leeres Eingabefeld belässt den bisherigen Wert unverändert; über „Key löschen" bzw. „Modell
 				zurücksetzen" fällt die Kaskade wieder auf die Umgebungsvariablen des Servers zurück.
 			</p>
+
+			<LlmProviderToggle />
 
 			<div className="form-grid">
 				<p className="llm-key-state" data-provider="mistral">
