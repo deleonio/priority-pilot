@@ -70,8 +70,8 @@ löst die Setup-Action pro Lauf auf — die eingecheckte
 für lokale Sessions gilt. CI/Provider/Modell-Doku: [docs/ci-architecture.md](docs/ci-architecture.md).
 
 **CI-MCP-Integration:** KoliBri-MCP (`kolibri-mcp`, Tools `mcp__kolibri-mcp__*`) ist in allen Phasen außer
-Documenter (06) über `needs-mcp: true` verfügbar; Playwright-MCP (`playwright`, Tools `mcp__playwright__*`)
-zusätzlich in UX (02b), Umsetzung (04) und Fixup (06) über `browser-mcp: true` für Layout-Prüfung
+Documenter (07) über `needs-mcp: true` verfügbar; Playwright-MCP (`playwright`, Tools `mcp__playwright__*`)
+zusätzlich in UX (02), Umsetzung (04) und Fixup (06) über `browser-mcp: true` für Layout-Prüfung
 (375px/1280px Viewport) bei laufender App auf `http://localhost:4174`.
 
 **Jede KI-gesteuerte Phase liest nur ihre eigene Wissensbasis-Datei** + das Issue/PR. Kein domänenübergreifendes

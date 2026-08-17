@@ -3,11 +3,11 @@ description: 'Preflight, App-Token, Claude-Code-Install + Auth (Provider-Switch 
 
 inputs:
   needs-mcp:
-    description: 'Ob KoliBri MCP für diesen Workflow benötigt wird. Steuert nur die allowedTools; registriert ist der Server in .claude/settings.json. Gilt künftig für alle Phasen außer 06.'
+    description: 'Ob KoliBri MCP für diesen Workflow benötigt wird. Steuert nur die allowedTools; registriert ist der Server in .claude/settings.json. Gilt für alle Phasen außer Documenter (07).'
     required: false
     default: 'false'
   browser-mcp:
-    description: 'Ob Playwright-MCP (Browser-Tools) für diesen Workflow benötigt wird. Bei true werden mcp__playwright__* Tools zur Allowlist aller Tiers hinzugefügt. Nur für Phasen mit UI-Inspektion (02 UX, 03 Umsetzung, 05 Fixup).'
+    description: 'Ob Playwright-MCP (Browser-Tools) für diesen Workflow benötigt wird. Bei true werden mcp__playwright__* Tools zur Allowlist aller Tiers hinzugefügt. Nur für Phasen mit UI-Inspektion (02 UX, 04 Umsetzung, 06 Fixup).'
     required: false
     default: 'false'
   tools-tier:

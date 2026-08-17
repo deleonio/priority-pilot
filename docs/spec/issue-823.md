@@ -16,22 +16,22 @@ KoliBri-Komponenten-Nutzung und Layout-Verifikation in allen CI-Phasen erzwingen
 
 1. **Neuer Input `browser-mcp`** (default: false)
    - Bei `true`: Playwright-MCP-Tools (`mcp__playwright__*`) zur Allowlist aller Tiers hinzufügen
-   - Input-Beschreibungen aktualisieren: `needs-mcp` gilt künftig für alle Phasen außer 06
+   - Input-Beschreibungen aktualisieren: `needs-mcp` gilt für alle Phasen außer Documenter (07)
 2. **Input-Mappings für Workflows**:
-   - `needs-mcp: true` für alle Phasen 01–05
-   - `browser-mcp: true` nur für 02b, 03, 05
+   - `needs-mcp: true` für alle Phasen 01–06
+   - `browser-mcp: true` nur für 02, 04, 06
 
 ### B. Workflows (.github/workflows/)
 
 1. **01-claude-triage.yml**: `needs-mcp: true` (bleibt)
-2. **02-claude-spec.yml**: `needs-mcp: true`
-3. **02b-claude-ux.yml**: `needs-mcp: true`, `browser-mcp: true`
-4. **03-claude-implementation.yml**: `needs-mcp: true`, `browser-mcp: true`
-5. **04-claude-pr-review.yml**: `needs-mcp: true` (KEIN browser-mcp)
-6. **05-claude-pr-fixup.yml**: `needs-mcp: true`, `browser-mcp: true`
-7. **06-documenter.yml**: unverändert (kein MCP)
+2. **02-claude-ux.yml**: `needs-mcp: true`, `browser-mcp: true`
+3. **03-claude-spec.yml**: `needs-mcp: true`
+4. **04-claude-implement.yml**: `needs-mcp: true`, `browser-mcp: true`
+5. **05-claude-pr-review.yml**: `needs-mcp: true` (KEIN browser-mcp)
+6. **06-claude-pr-fixup.yml**: `needs-mcp: true`, `browser-mcp: true`
+7. **07-claude-pr-documenter.yml**: unverändert (kein MCP)
 
-### C. Chromium + Hintergrund-App (02b/03/05)
+### C. Chromium + Hintergrund-App (02/04/06)
 
 Je nach Workflow nach `pnpm install` einfügen:
 
@@ -59,7 +59,7 @@ Je nach Workflow nach `pnpm install` einfügen:
   - `browser_resize` auf 375×812 und 1280×900
 - **KoliBri-Abschnitt**: Component-Wahl via KoliBri-MCP prüfen
 
-#### 03 Umsetzung (Heredoc, neuer Block "UI-ARBEITEN bei Frontend-Änderungen")
+#### 04 Umsetzung (Heredoc, neuer Block "UI-ARBEITEN bei Frontend-Änderungen")
 
 1. **KoliBri-First**: passende Komponente via `mcp__kolibri-mcp__search/fetch` finden und einsetzen
    - Eigene Komponenten nur stylen/bauen, wenn KEINE KoliBri-Komponente passt
@@ -68,15 +68,15 @@ Je nach Workflow nach `pnpm install` einfügen:
    - Screenshot + A11y-Snapshot
    - Layout-Brüche (horizontales Scrollen/Overflow) fixen
 
-#### 04 Review (Heredoc, neues Kreuzverhör-Kriterium)
+#### 05 Review (Heredoc, neues Kreuzverhör-Kriterium)
 
 - **KoliBri-First eingehalten?** Eigenes Styling ohne KoliBri-Alternative = Finding
 - Im Zweifel via `mcp__kolibri-mcp__search` nach Alternativen suchen
 - Fehlende Begründung der Eigene-Styling-Entscheidung im PR-Body = Finding
 
-#### 05 Fixup (Heredoc)
+#### 06 Fixup (Heredoc)
 
-- **UI-ARBEITEN-Block** wie 03: Layout-Findings per Playwright fixen
+- **UI-ARBEITEN-Block** wie 04: Layout-Findings per Playwright fixen
 
 ### E. KoliBri-First-Regel verankern
 
@@ -90,22 +90,22 @@ Je nach Workflow nach `pnpm install` einfügen:
 
 1. **docs/ci-architecture.md**:
    - Server-Namen korrigieren: `kolibri-mcp` / `mcp__kolibri-mcp__*`
-   - Phasenumfang aktualisieren: MCP-Server in allen Phasen außer 06
+   - Phasenumfang aktualisieren: MCP-Server in allen Phasen außer Documenter (07)
    - Neuer Absatz zu Playwright-MCP + ui-inspect.sh-Hintergrundbetrieb
 2. **docs/browser-mcp.md** (CI-Abschnitt ~:124):
-   - Lücke ist für 02b/03/05 geschlossen
-   - 01/02/04 nur KoliBri-MCP; 06 keins
+   - Lücke ist für 02/04/06 geschlossen
+   - 01/03/05 nur KoliBri-MCP; 07 keins
 
 ## Erwartetes Ergebnis
 
 ### CI-Verifikation (Akzeptanzkriterien 1–2)
 
-1. `needs-mcp` in 01–05 `true`, 06 `false`; `browser-mcp`-Input existiert und ist in 02b/03/05 `true`
-2. 02b/03/05 installieren Chromium (cached) und starten `ui-inspect.sh` im Hintergrund mit Readiness-Check (hartes Fail bei Timeout)
+1. `needs-mcp` in 01–06 `true`, 07 `false`; `browser-mcp`-Input existiert und ist in 02/04/06 `true`
+2. 02/04/06 installieren Chromium (cached) und starten `ui-inspect.sh` im Hintergrund mit Readiness-Check (hartes Fail bei Timeout)
 
 ### Prompt-Verifikation (AK 3)
 
-Alle 6 Phasen-Prompts (außer 06) weisen KoliBri-MCP an; ux/03/05 zusätzlich Playwright-Layout-Prüfung mit 375px- und 1280px-Viewport
+Alle 6 Phasen-Prompts (außer 07 Documenter) weisen KoliBri-MCP an; ux/04/06 zusätzlich Playwright-Layout-Prüfung mit 375px- und 1280px-Viewport
 
 ### Regel-Verifikation (AK 4)
 
