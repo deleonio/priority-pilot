@@ -143,8 +143,8 @@ test.describe('#788 LLM-Einstellungsmenü optimieren', () => {
 
 		// Speichern
 		await saveButton.click();
-		// Warte auf Erfolgsmeldung
-		await expect(page.getByText('Gespeichert')).toBeVisible();
+		// Warte auf Erfolgsmeldung (präziserer Locator: Alert mit Label)
+		await expect(page.getByRole('alert', { name: 'Gespeichert' })).toBeVisible();
 
 		// Seite neu laden
 		await page.reload();
