@@ -2,8 +2,9 @@ import { test, expect } from '@playwright/test';
 
 test.describe('LLM Provider Toggle UI – Spec: Issue-749', () => {
 	test.beforeEach(async ({ page }) => {
-		// Navigate to app
+		// Navigate to app and open Settings page
 		await page.goto('/');
+		await page.getByRole('button', { name: 'Einstellungen' }).click();
 	});
 
 	test('should display provider toggle switches – Spec: Issue-749 Journey Step 1', async ({ page }) => {
@@ -63,7 +64,10 @@ test.describe('LLM Provider Toggle UI – Spec: Issue-749', () => {
 
 		await page.reload();
 
-		const persistedRadio = page.getByRole('radio', { name: 'OpenRouter' });
+		// Reopen Settings after reload
+		await page.getByRole('button', { name: 'Einstellungen' }).click();
+
+		const persistedRadio = page.locator('input[value="openrouter"]');
 		await expect(persistedRadio).toHaveAttribute('aria-checked', 'true');
 	});
 
