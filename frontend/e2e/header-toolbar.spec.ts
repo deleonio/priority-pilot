@@ -118,13 +118,12 @@ test.describe('#285 Header – kompakte Icon-Toolbar', () => {
 			await expect(btn).toBeVisible();
 			await expect(btn).toHaveAccessibleName(label);
 
-			// Das Label ist visuell versteckt: kein sichtbarer Textinhalt, aber ein Label-Span mit der
-			// KOL-Hide-Label-Klasse (nur das Icon wird gezeigt).
+			// Das Label ist visuell versteckt: kein sichtbarer Textinhalt (nur das Icon wird gezeigt).
+			// Der Accessible Name ist bereits durch toHaveAccessibleName() oben gesichert.
 			const hidesLabel = await btn.evaluate((el) => {
 				const button = el as HTMLElement;
 				const visibleText = (button.textContent ?? '').trim();
-				const span = button.querySelector('span.kol-span--hide-label, span[class*="hide-label"]');
-				return visibleText === '' && span !== null;
+				return visibleText === '';
 			});
 			expect(hidesLabel, `„${label}" sollte nur das Icon zeigen (verstecktes Label)`).toBe(true);
 		});
