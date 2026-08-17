@@ -165,12 +165,12 @@ echo "ANTHROPIC_DEFAULT_OPUS_MODEL=glm-5.1"          >> "$GITHUB_ENV"
 
 ### CI-Flags
 
-| Flag                                                        | Zweck                                 |
-| ----------------------------------------------------------- | ------------------------------------- |
-| `-p '<prompt>'`                                             | Single-query, non-interactive         |
-| `--dangerously-skip-permissions`                            | Keine Gefahren-Bestätigung (headless) |
-| `--allowedTools Bash,Read,Write,Edit,Grep,Glob`             | Nur Terminal- und Datei-Tools         |
-| `--allowedTools …,mcp__kolibri__search,mcp__kolibri__fetch` | ergänzt in Triage + Implement         |
+| Flag                                                                | Zweck                                   |
+| ------------------------------------------------------------------- | --------------------------------------- |
+| `-p '<prompt>'`                                                     | Single-query, non-interactive           |
+| `--dangerously-skip-permissions`                                    | Keine Gefahren-Bestätigung (headless)   |
+| `--allowedTools Bash,Read,Write,Edit,Grep,Glob`                     | Nur Terminal- und Datei-Tools           |
+| `--allowedTools …,mcp__kolibri-mcp__search,mcp__kolibri-mcp__fetch` | ergänzt in allen Phasen mit `needs-mcp` |
 
 Kein `--model`: das Modell wird über `"model": "opus"` in der `settings.json` gewählt — bei
 `LLM_PROVIDER=claude` ist das echtes Opus, bei `zai` bildet die Setup-Action es per
@@ -205,7 +205,7 @@ ist er nicht der Default-Pfad (`claude`).
 
 ## MCP-Server für KoliBri und Playwright (Browser-Inspektion)
 
-Der **KoliBri MCP-Server** (`kolibri-mcp`) ist in allen Phasen außer Documenter (06) via `needs-mcp: true`
+Der **KoliBri MCP-Server** (`kolibri-mcp`) ist in allen Phasen außer Documenter (07) via `needs-mcp: true`
 verfügbar und liefert KoliBri-Komponenten-Suche und Dokumentation. Der **Playwright MCP-Server**
 (`playwright`) steht zusätzlich in UX (02), Umsetzung (04) und Fixup (06) via `browser-mcp: true`
 für Layout-Prüfung bei 375px/1280px Viewport auf der laufenden Inspect-Instanz (http://localhost:4174).
@@ -222,8 +222,11 @@ Playwright-Tools (`mcp__playwright__*`).
   `mcp__playwright__browser_take_screenshot`, `mcp__playwright__browser_resize`, u.a.
 
 **Chromium + Hintergrund-App:** Die Phasen mit Browser-MCP (02/04/06) installieren Chromium (cached,
-`pnpm --filter frontend exec playwright install --with-deps chromium`) und starten die Inspect-Instanz
-im Hintergrund (`nohup ./ui-inspect.sh` mit Readiness-Check auf http://localhost:4174, Timeout 120s).
+`pnpm --filter frontend exec playwright install --with-deps chromium`), bauen den Server vorab
+(`pnpm --filter server build`) und starten die Inspect-Instanz im Hintergrund
+(`INSPECT_NO_WATCH=1 nohup ./ui-inspect.sh` mit Readiness-Check auf http://localhost:4174, Timeout 120s —
+ohne nodemon-Watch/Rebuild startet der Server in Sekunden; bei Timeout landen die letzten Log-Zeilen
+in der Step-Ausgabe).
 Der Runner killt den Prozess am Ende; `ui-inspect.sh` hat einen trap für eigenen Cleanup.
 
 ## Weiches Zeitlimit (Soft-Abort)

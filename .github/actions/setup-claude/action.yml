@@ -1,5 +1,5 @@
 name: 'Setup Claude Code Agent'
-description: 'Preflight, App-Token, Claude-Code-Install + Auth (Provider-Switch zai/claude), Ticket-Auflösung, Invoke-Resolution, Memory-Load/Save – einheitlich für alle 5 Pipeline-Workflows'
+description: 'Preflight, App-Token, Claude-Code-Install + Auth (Provider-Switch zai/claude), Ticket-Auflösung, Invoke-Resolution, Memory-Load/Save – einheitlich für alle 7 Pipeline-Workflows'
 
 inputs:
   needs-mcp:

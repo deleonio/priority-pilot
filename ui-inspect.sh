@@ -87,6 +87,21 @@ trap cleanup EXIT INT TERM
 # sehen), Auth aus, kein LLM-Key (Lektorat/Advisor antworten deterministisch mit 503 statt echte,
 # kostenpflichtige Calls abzusetzen). SESSION_SECRET bleibt bewusst UNGESETZT - ein leerer String
 # rutscht in den `?? 'dev-secret'`-Fallback, ein gesetzter Wert schaltet die Auth wieder scharf.
+#
+# INSPECT_NO_WATCH=1 (CI): startet das vorab gebaute `dist/index.js` direkt statt nodemon - der
+# Watch-Overhead (`pnpm build` bei JEDEM Start, auf kaltem Runner > 60s) würde sonst den
+# Readiness-Timeout sprengen. Der Workflow baut dafür vorher selbst (`pnpm --filter
+# server build`) und failt bei Build-Fehlern sauber im Build-Step statt als Timeout.
+# Backend-Starter als Funktion: der Env-Prefix unten gilt nur fuer ein einfaches Kommando,
+# ein inline-if waere ein Syntaxfehler - die Funktion laesst beide Startarten sauber teilen.
+start_backend() {
+  if [ "${INSPECT_NO_WATCH:-0}" = "1" ]; then
+    pnpm --filter server exec node dist/index.js
+  else
+    pnpm --filter server dev
+  fi
+}
+
 echo "Backend startet auf http://localhost:$BACKEND_PORT (In-Memory-DB, Demo-Seed, Auth aus) ..."
 PORT="$BACKEND_PORT" \
   DB_RESET=true \
@@ -97,7 +112,7 @@ PORT="$BACKEND_PORT" \
   GOOGLE_ALLOWED_EMAILS= \
   GOOGLE_ALLOWED_EMAIL= \
   MISTRAL_API_KEY= \
-  pnpm --filter priority-pilot dev &
+  start_backend &
 BACKEND_PID=$!
 
 # Bereitschaft über /tasks prüfen: die Wurzel / hat keine Route und liefert 404.

@@ -37,9 +37,10 @@ Je nach Workflow nach `pnpm install` einfügen:
 
 1. **Cache**: `actions/cache@v4` für `~/.cache/ms-playwright`
 2. **Install**: `pnpm --filter frontend exec playwright install --with-deps chromium`
-3. **Hintergrund-App**: `nohup ./ui-inspect.sh > /tmp/ui-inspect.log 2>&1 &`
-4. **Readiness-Check**: Warte-Schleife auf `http://localhost:4174` (curl, Timeout 120s)
-5. **Cleanup**: Runner killt Prozess; `ui-inspect.sh` hat trap für eigenen Cleanup
+3. **Build vorab**: `pnpm --filter server build` (failt sauber im Build-Step statt als Readiness-Timeout)
+4. **Hintergrund-App**: `INSPECT_NO_WATCH=1 nohup ./ui-inspect.sh > /tmp/ui-inspect.log 2>&1 &` — ohne nodemon/Rebuild startet der Server in Sekunden
+5. **Readiness-Check**: Warte-Schleife auf `http://localhost:4174` (curl, Timeout 120s), bei Fail Log-Tail in die Step-Ausgabe
+6. **Cleanup**: Runner killt Prozess; `ui-inspect.sh` hat trap für eigenen Cleanup
 
 ### D. Prompt-Updates
 

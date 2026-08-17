@@ -147,12 +147,19 @@ jobs:
         if: steps.setup.outputs.configured == 'true'
         run: pnpm --filter frontend exec playwright install --with-deps chromium
 
+      - name: Server bauen (für Inspect no-watch)
+        if: steps.setup.outputs.configured == 'true'
+        run: pnpm --filter server build
+
       - name: Inspect-Instanz im Hintergrund starten
         if: steps.setup.outputs.configured == 'true'
+        env:
+          INSPECT_NO_WATCH: '1'
         run: |
           nohup ./ui-inspect.sh > /tmp/ui-inspect.log 2>&1 &
           echo "::notice::Inspect-Instanz gestartet (Hintergrund)"
-          # Readiness-Check mit Timeout 120s
+          # Readiness-Check mit Timeout 120s: der Server startet ohne nodemon/Rebuild
+          # (INSPECT_NO_WATCH + vorab gebautes dist) in Sekunden. Beim Fail das Log mitgeben.
           timeout=120
           elapsed=0
           while [ $elapsed -lt $timeout ]; do
@@ -164,6 +171,9 @@ jobs:
             elapsed=$((elapsed + 2))
           done
           echo "::error::Inspect-Instanz nicht innerhalb von ${timeout}s bereit (Timeout)"
+          echo "::group::ui-inspect.log (letzte 60 Zeilen)"
+          tail -n 60 /tmp/ui-inspect.log || true
+          echo "::endgroup::"
           exit 1
 
       - name: UX-Beratung via Claude
