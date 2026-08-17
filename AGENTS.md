@@ -34,7 +34,7 @@ nicht Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 - Monorepo mit **pnpm**.
 - Formatieren: `pnpm format` (Prettier, eine zentrale Config im Root).
 - Linten: `pnpm lint`.
-- Bevorzugt gezielt statt repo-weit prüfen: `pnpm --filter priority-pilot build|lint`.
+- Bevorzugt gezielt statt repo-weit prüfen: `pnpm --filter server build|lint`.
 - TypeScript `strict`, ESM überall, Node `>=26`.
 - Nicht automatisch committen ohne ausdrücklichen Wunsch. **Dokumentierte Ausnahme:** die
   Ticket-Workflows [`/spec-ticket`](.ai-knowledge/ticket-spec.md) und
@@ -87,7 +87,7 @@ Lesen — die jeweilige Datei enthält alles Notwendige.
 
 Testkonzept (Scope, Coverage-Ziel, bewusste Ausnahmen): [docs/testing.md](docs/testing.md).
 
-`pnpm --filter priority-pilot test` — Node.js `node:test` + `tsx`, In-Memory-SQLite, alle Testdateien unter `server/src/**/*.test.ts`.
+`pnpm --filter server test` — Node.js `node:test` + `tsx`, In-Memory-SQLite, alle Testdateien unter `server/src/**/*.test.ts`.
 
 ## Tests (Frontend)
 
