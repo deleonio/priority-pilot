@@ -1,38 +1,172 @@
 /*
- * Farb-Tokens als CSS-Custom-Properties. `:root` hält die Hell-Werte (Standard); die
- * Dunkel-Variante überschreibt sie unter `:root[data-theme='dark']`. Das `data-theme`-Attribut
- * setzt der Anti-FOUC-Bootstrap in index.html bzw. der `useTheme`-Hook (src/lib/theme.ts).
- * Custom Properties vererben sich auch über Shadow-DOM-Grenzen, sodass KoliBri-Komponenten
- * dieselben Tokens nutzen können, soweit sie sie auswerten.
+ * Token-Schicht der Design-Sprache „Cockpit" (.ai-knowledge/ux-design.md). `:root` hält die
+ * Hell-Werte (Standard); die Dunkel-Variante überschreibt sie unter `:root[data-theme='dark']`.
+ * Das `data-theme`-Attribut setzt der Anti-FOUC-Bootstrap in index.html bzw. der `useTheme`-Hook
+ * (src/lib/theme.ts). Custom Properties vererben sich auch über Shadow-DOM-Grenzen, sodass
+ * KoliBri-Komponenten dieselben Tokens nutzen können, soweit sie sie auswerten.
+ *
+ * Aufbau: erst die Rollen-Tokens (Farbe), dann die dimensionslosen Skalen (Abstand, Typo, Radius,
+ * Schatten, Bewegung). Die Skalen sind farbschema-unabhängig und stehen deshalb nur einmal.
+ *
+ * Die historischen Namen `--pp-bg`, `--pp-text`, `--pp-border`, `--pp-bg-muted`, `--pp-accent-*`
+ * bleiben als Alias auf die neuen Rollen bestehen: die ~1400 Zeilen darunter sind gegen sie
+ * geschrieben und werden schrittweise migriert (Findings in docs/ux-audit-2026-08.md), nicht in
+ * einem Rutsch.
  */
 :root {
 	color-scheme: light;
-	--pp-bg: #ffffff;
-	--pp-text: #1a1a1a;
-	--pp-border: #d0d5dd;
-	--pp-bg-muted: #f5f7fa;
-	--pp-text-muted: #555;
-	--pp-accent-total: #475467;
-	--pp-accent-open: #1570ef;
-	--pp-accent-inprocess: #b54708;
-	--pp-accent-done: #1a7f37;
+
+	/* Marke + Signal: die Signalfarbe trägt die EINE Hauptaussage einer Ansicht. */
+	--pp-brand: #1b3a6b;
+	--pp-brand-strong: #142c52;
+	--pp-signal: #f2b155;
+	--pp-signal-ink: #8a4b00;
+	--pp-signal-wash: #fdf3e3;
+
+	/*
+	 * Flächen: 0 = Seite, 1 = Karte, 2 = eingesenkt (Listenzeile, Meter-Spur). Die Seite ist leicht
+	 * getönt, damit sich weiße Karten ohne kräftigen Rahmen abheben — Tiefe über Fläche, nicht über
+	 * Linien.
+	 */
+	--pp-surface-0: #f7f8fa;
+	--pp-surface-1: #ffffff;
+	--pp-surface-2: #eef1f6;
+
+	/* Grenzen: subtle = reiner Trenner, strong = Grenze bedienbarer Elemente (≥ 3:1, WCAG 1.4.11). */
+	--pp-border-subtle: #dfe3ea;
+	--pp-border-strong: #7b8493;
+
+	/* Text: beide Rollen ≥ 4.5:1 auf surface-0 und surface-2. */
+	--pp-ink: #12161d;
+	--pp-ink-muted: #525b6a;
+
+	/* Status + Rückmeldung — immer zusammen mit Text/Icon, nie als alleiniger Bedeutungsträger. */
+	--pp-status-total: #3f4a5c;
+	--pp-status-open: #1064d0;
+	--pp-status-inprocess: #b54708;
+	--pp-status-done: #1a7f37;
 	--pp-success: #1a7f37;
+	--pp-warning: #a15c07;
 	--pp-danger: #b42318;
+
+	--pp-focus-ring: var(--pp-brand);
+
+	/*
+	 * Säulen-Rampe: kategorial, in fester Reihenfolge vergeben (nie zyklisch weiterzählen). Herkunft
+	 * ist die validierte Referenzpalette des dataviz-Skills, nachgerechnet gegen unsere Flächen —
+	 * schlechtestes Nachbarpaar CVD ΔE 9.1. Drei Hell-Werte liegen unter 3:1 zu Weiß, deshalb gilt
+	 * die Relief-Regel: der Säulenname steht immer als Text daneben.
+	 */
+	--pp-pillar-1: #2a78d6;
+	--pp-pillar-2: #eb6834;
+	--pp-pillar-3: #1baf7a;
+	--pp-pillar-4: #eda100;
+	--pp-pillar-5: #e87ba4;
+	--pp-pillar-6: #008300;
+	--pp-pillar-7: #4a3aa7;
+	--pp-pillar-8: #e34948;
+
+	/* Alias-Schicht (historische Namen) — siehe Kommentar oben. */
+	--pp-bg: var(--pp-surface-0);
+	--pp-text: var(--pp-ink);
+	--pp-border: var(--pp-border-subtle);
+	--pp-bg-muted: var(--pp-surface-2);
+	--pp-text-muted: var(--pp-ink-muted);
+	--pp-accent-total: var(--pp-status-total);
+	--pp-accent-open: var(--pp-status-open);
+	--pp-accent-inprocess: var(--pp-status-inprocess);
+	--pp-accent-done: var(--pp-status-done);
+
+	/* Abstand — 4px-Basis. Jeder Abstand in dieser Datei greift auf eine dieser Stufen zu. */
+	--pp-space-1: 0.25rem;
+	--pp-space-2: 0.5rem;
+	--pp-space-3: 0.75rem;
+	--pp-space-4: 1rem;
+	--pp-space-5: 1.5rem;
+	--pp-space-6: 2rem;
+	--pp-space-7: 3rem;
+	--pp-space-8: 4rem;
+
+	/* Typografie */
+	--pp-font-size-xs: 0.8125rem;
+	--pp-font-size-sm: 0.875rem;
+	--pp-font-size-base: 1rem;
+	--pp-font-size-lg: 1.125rem;
+	--pp-font-size-xl: 1.375rem;
+	--pp-font-size-2xl: 1.75rem;
+	--pp-line-tight: 1.25;
+	--pp-line-base: 1.55;
+	--pp-weight-regular: 400;
+	--pp-weight-medium: 600;
+	--pp-weight-bold: 700;
+
+	--pp-radius-sm: 0.375rem;
+	--pp-radius-md: 0.625rem;
+	--pp-radius-lg: 1rem;
+	--pp-radius-pill: 999rem;
+
+	/* Genau zwei Schatten: Karte und Overlay. Ein dritter ist ein Design-Fehler, kein Sonderfall. */
+	--pp-shadow-card: 0 1px 2px rgb(18 22 29 / 6%), 0 1px 3px rgb(18 22 29 / 10%);
+	--pp-shadow-overlay: 0 8px 24px rgb(18 22 29 / 18%);
+
+	--pp-motion-fast: 120ms;
+	--pp-motion-base: 200ms;
+	--pp-ease: cubic-bezier(0.2, 0, 0.2, 1);
 }
 
+/*
+ * Dunkelmodus ist gewählt, nicht gespiegelt: jede Rolle trägt einen eigenen, gegen die dunkle
+ * Fläche (#161b22) gerechneten Wert. Die Säulen-Rampe ist dieselbe Hue-Folge in dunkler Stufung.
+ */
 :root[data-theme='dark'] {
 	color-scheme: dark;
-	--pp-bg: #16191d;
-	--pp-text: #e6e8eb;
-	--pp-border: #3a3f46;
-	--pp-bg-muted: #21262d;
-	--pp-text-muted: #a4abb4;
-	--pp-accent-total: #98a2b3;
-	--pp-accent-open: #5aa2f5;
-	--pp-accent-inprocess: #e8924a;
-	--pp-accent-done: #52c45f;
+
+	--pp-brand: #8fb3f5;
+	--pp-brand-strong: #b3ccf9;
+	--pp-signal: #f0b357;
+	--pp-signal-ink: #f0b357;
+	--pp-signal-wash: #2a2318;
+
+	--pp-surface-0: #12161c;
+	--pp-surface-1: #161b22;
+	--pp-surface-2: #1e242c;
+
+	--pp-border-subtle: #2b323c;
+	--pp-border-strong: #646f7e;
+
+	--pp-ink: #e6eaf0;
+	--pp-ink-muted: #a3adba;
+
+	--pp-status-total: #98a2b3;
+	--pp-status-open: #5aa2f5;
+	--pp-status-inprocess: #e8924a;
+	--pp-status-done: #52c45f;
 	--pp-success: #52c45f;
+	--pp-warning: #e8924a;
 	--pp-danger: #f97066;
+
+	--pp-pillar-1: #3987e5;
+	--pp-pillar-2: #d95926;
+	--pp-pillar-3: #199e70;
+	--pp-pillar-4: #c98500;
+	--pp-pillar-5: #d55181;
+	--pp-pillar-6: #008300;
+	--pp-pillar-7: #9085e9;
+	--pp-pillar-8: #e66767;
+
+	--pp-shadow-card: 0 1px 2px rgb(0 0 0 / 40%), 0 1px 3px rgb(0 0 0 / 30%);
+	--pp-shadow-overlay: 0 8px 24px rgb(0 0 0 / 55%);
+}
+
+/*
+ * Bewegung ist Beiwerk: wer sie abbestellt hat, bekommt sie nicht. Die Tokens werden global auf
+ * quasi-null gesetzt, statt jede Animation einzeln zu entschärfen.
+ */
+@media (prefers-reduced-motion: reduce) {
+	:root {
+		--pp-motion-fast: 1ms;
+		--pp-motion-base: 1ms;
+	}
 }
 
 body {
@@ -43,8 +177,10 @@ body {
 		'Segoe UI',
 		Roboto,
 		sans-serif;
-	background-color: var(--pp-bg);
-	color: var(--pp-text);
+	font-size: var(--pp-font-size-base);
+	line-height: var(--pp-line-base);
+	background-color: var(--pp-surface-0);
+	color: var(--pp-ink);
 }
 
 /*
@@ -119,7 +255,7 @@ body {
 }
 
 .logo-btn:focus-visible {
-	outline: 2px solid var(--pp-accent-open);
+	outline: 2px solid var(--pp-focus-ring);
 	outline-offset: 2px;
 }
 
@@ -278,12 +414,19 @@ body {
 	background: var(--pp-accent-done);
 }
 
+/*
+ * Fläche und Textfarbe reisen IMMER zusammen: Diese Panels liegen im Shadow-DOM-Umfeld von
+ * KoliBri (KolTabs/KolCard), das seine Textfarbe unabhängig vom `data-theme` auf Schwarz setzt.
+ * Wer nur den Hintergrund auf ein Token zieht, bekommt im Dunkelmodus schwarz auf dunkelgrau —
+ * gemessene 1.34:1 statt geforderter 4.5:1 (docs/ux-audit-2026-08.md, P1-1).
+ */
 .dashboard-next-task {
 	margin-top: 1.5rem;
 	padding: 1rem 1.25rem;
 	border: 1px solid var(--pp-border);
 	border-radius: 0.5rem;
 	background: var(--pp-bg-muted);
+	color: var(--pp-ink);
 }
 
 .dashboard-next-task h3 {
@@ -308,6 +451,7 @@ body {
 	border: 1px solid var(--pp-border);
 	border-radius: 0.5rem;
 	background: var(--pp-bg-muted);
+	color: var(--pp-ink);
 }
 
 .dashboard-suggestions h3 {
@@ -738,6 +882,7 @@ body {
 	border: 1px solid var(--pp-border);
 	border-radius: 0.5rem;
 	background: var(--pp-bg-muted);
+	color: var(--pp-ink);
 }
 
 .pillar-info {

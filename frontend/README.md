@@ -17,7 +17,7 @@ Startet den **Vite-Dev-Server** (Standard: `http://localhost:5173`) mit HMR. Die
 `http://localhost:3000` weitergeleitet ([`vite.config.ts`](vite.config.ts)) — das löst CORS im Browser.
 
 > **Der Server muss parallel laufen.** In einem zweiten Terminal:
-> `pnpm --filter priority-pilot dev` (siehe [`server/README.md`](../server/README.md)).
+> `pnpm --filter server dev` (siehe [`server/README.md`](../server/README.md)).
 
 ## Production-Build & Vorschau
 

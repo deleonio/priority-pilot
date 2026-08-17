@@ -268,15 +268,18 @@ jobs:
             fi
           fi
 
-          gh label create "ai:ready" --repo "$GITHUB_REPOSITORY" --color 0E8A16 2>/dev/null || true
+          # Übergabe an die UX-Phase (2b), nicht direkt an die Umsetzung: ux:ready triggert
+          # 02b-claude-ux.yml, das seinerseits ai:ready setzt. So sieht der UX-Reviewer die roten
+          # Tests dieser Phase — vorher lief er parallel und damit blind.
+          gh label create "ux:ready" --repo "$GITHUB_REPOSITORY" --color 0E8A16 2>/dev/null || true
           gh label create "ai:spec-ready" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
 
           gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:spec-ready" 2>/dev/null || true
-          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
+          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ux:ready" 2>/dev/null || true
 
           if [ "$final" = "ready" ]; then
-            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:ready"
-            echo "::notice::Label gesetzt: ai:ready (verifiziert: Spec-PR + rote Tests)"
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ux:ready"
+            echo "::notice::Label gesetzt: ux:ready (verifiziert: Spec-PR + rote Tests) — UX-Review übernimmt"
           else
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:spec-ready"
             echo "::notice::Label gesetzt: ai:spec-ready (Partial)"

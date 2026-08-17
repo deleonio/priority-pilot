@@ -8,6 +8,7 @@ nicht Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 
 - [Projekt & Aufbau](.ai-knowledge/project.md) — Zweck, Monorepo, Befehle, Datenbank
 - [Konventionen](.ai-knowledge/conventions.md) — Formatierung, ESLint, TypeScript, Commits, Mobile-First
+- [Design-Sprache „Cockpit"](.ai-knowledge/ux-design.md) — verbindlicher Maßstab für jede sichtbare UI-Änderung
 - [Ticket-Triage](.ai-knowledge/ticket-triage.md) — Analyse offener GitHub-Issues
 - [Ticket-Spec](.ai-knowledge/ticket-spec.md) — rote Tests (Vertrag) für `ai:spec-ready`-Issues schreiben
 - [Ticket-Umsetzung](.ai-knowledge/ticket-implementation.md) — freigegebene Issues (`ai:ready`) umsetzen
@@ -33,7 +34,7 @@ nicht Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 - Monorepo mit **pnpm**.
 - Formatieren: `pnpm format` (Prettier, eine zentrale Config im Root).
 - Linten: `pnpm lint`.
-- Bevorzugt gezielt statt repo-weit prüfen: `pnpm --filter priority-pilot build|lint`.
+- Bevorzugt gezielt statt repo-weit prüfen: `pnpm --filter server build|lint`.
 - TypeScript `strict`, ESM überall, Node `>=26`.
 - Nicht automatisch committen ohne ausdrücklichen Wunsch. **Dokumentierte Ausnahme:** die
   Ticket-Workflows [`/spec-ticket`](.ai-knowledge/ticket-spec.md) und
@@ -46,7 +47,7 @@ nicht Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 
 ## KI-Agent — Pipeline-Phasen
 
-Die Pipeline umfasst sieben Phasen: Triage, Spec (2a), UX-Beratung (2b), Umsetzung, Review, Fixup und PR-Documenter
+Die Pipeline umfasst sieben Phasen: Triage, Spec (2a), UX-Review (2b), Umsetzung, Review, Fixup und PR-Documenter
 laufen als KI-gesteuerte Workflows über **Claude Code** in GitHub Actions. Die 7. Phase
 **PR-Documenter** läuft NACH dem Merge und arbeitet in Arbeitsteilung: deterministische
 Regel-Logik (`.github/scripts/pr-doc-facts.sh`) erkennt Bot-PRs und prüft den Titel, das LLM
@@ -69,24 +70,26 @@ für lokale Sessions gilt. CI/Provider/Modell-Doku: [docs/ci-architecture.md](do
 **Jede KI-gesteuerte Phase liest nur ihre eigene Wissensbasis-Datei** + das Issue/PR. Kein domänenübergreifendes
 Lesen — die jeweilige Datei enthält alles Notwendige.
 
-**Label-Kette:** `ai:analyzed` → `ai:spec-ready` (🟢) → `ux:ready` → `ai:ready` → Umsetzung →
-`ai:needs-review` → Review ↔ Fixup (`ai:needs-changes`) → `ai:ready-to-merge`.
+**Label-Kette:** `ai:analyzed` → `ai:spec-ready` (🟢) → Spec → `ux:ready` → UX-Review → `ai:ready` →
+Umsetzung → `ai:needs-review` → Review ↔ Fixup (`ai:needs-changes`) → `ai:ready-to-merge`.
+Das Laufzeit-Gate der Umsetzung (`.github/scripts/check-phase-label.sh`) verlangt `ai:ready` **und**
+`ux:ready` — die UX-Phase ist damit nicht überspringbar.
 
-| Phase                | Trigger                                       | Wissensbasis (einzige zu lesende Datei)                                                                | Output                                                                      |
-| -------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
-| **Triage**           | Issue neu, `ai:analyzed` entfernt, `@agent`   | [ticket-triage.md](.ai-knowledge/ticket-triage.md)                                                     | Analyse-Body-Block + Ampel, Ping → `ai:analyzed` (+ `ai:spec-ready` bei 🟢) |
-| **Spec (2a)**        | `ai:spec-ready` + `ai:analyzed`               | [ticket-spec.md](.ai-knowledge/ticket-spec.md)                                                         | Rote Tests + Draft-PR → `ux:ready`                                          |
-| **UX-Beratung (2b)** | `ux:ready` + `ai:analyzed`                    | [ticket-ux.md](.ai-knowledge/ticket-ux.md)                                                             | UX-Review + ggf. Änderungen → `ai:ready`                                    |
-| **Umsetzung**        | `ai:ready` + `ai:analyzed`                    | [ticket-implementation.md](.ai-knowledge/ticket-implementation.md)                                     | Tests grün + PR review-bereit → `ai:needs-review`                           |
-| **Review**           | `ai:needs-review` (am PR)                     | [pr-review.md](.ai-knowledge/pr-review.md)                                                             | Sammelkommentar + Ampel → `ai:needs-changes` / `ai:ready-to-merge`          |
-| **Fixup**            | `ai:needs-changes` (am PR)                    | [pr-review.md](.ai-knowledge/pr-review.md)                                                             | Findings behoben → `ai:needs-review`                                        |
-| **PR-Documenter**    | `pull_request.closed` + `merged` (PR gemergt) | [documenter.md](.github/prompts/documenter.md) (LLM-Anteil) + `pr-doc-{facts,render}.sh` (Regel-Logik) | PR-Titel, -Beschreibung, Release-Note & Labels nach Merge → `ai:documented` |
+| Phase              | Trigger                                       | Wissensbasis (einzige zu lesende Datei)                                                                | Output                                                                      |
+| ------------------ | --------------------------------------------- | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| **Triage**         | Issue neu, `ai:analyzed` entfernt, `@agent`   | [ticket-triage.md](.ai-knowledge/ticket-triage.md)                                                     | Analyse-Body-Block + Ampel, Ping → `ai:analyzed` (+ `ai:spec-ready` bei 🟢) |
+| **Spec (2a)**      | `ai:spec-ready` + `ai:analyzed`               | [ticket-spec.md](.ai-knowledge/ticket-spec.md)                                                         | Rote Tests + Draft-PR → `ux:ready`                                          |
+| **UX-Review (2b)** | `ux:ready` + `ai:analyzed`                    | [ticket-ux.md](.ai-knowledge/ticket-ux.md) + [ux-design.md](.ai-knowledge/ux-design.md)                | UX-Anforderungen im Issue + rote 375px-Tests/Fixes im Spec-PR → `ai:ready`  |
+| **Umsetzung**      | `ai:ready` + `ai:analyzed`                    | [ticket-implementation.md](.ai-knowledge/ticket-implementation.md)                                     | Tests grün + PR review-bereit → `ai:needs-review`                           |
+| **Review**         | `ai:needs-review` (am PR)                     | [pr-review.md](.ai-knowledge/pr-review.md)                                                             | Sammelkommentar + Ampel → `ai:needs-changes` / `ai:ready-to-merge`          |
+| **Fixup**          | `ai:needs-changes` (am PR)                    | [pr-review.md](.ai-knowledge/pr-review.md)                                                             | Findings behoben → `ai:needs-review`                                        |
+| **PR-Documenter**  | `pull_request.closed` + `merged` (PR gemergt) | [documenter.md](.github/prompts/documenter.md) (LLM-Anteil) + `pr-doc-{facts,render}.sh` (Regel-Logik) | PR-Titel, -Beschreibung, Release-Note & Labels nach Merge → `ai:documented` |
 
 ## Tests (Server)
 
 Testkonzept (Scope, Coverage-Ziel, bewusste Ausnahmen): [docs/testing.md](docs/testing.md).
 
-`pnpm --filter priority-pilot test` — Node.js `node:test` + `tsx`, In-Memory-SQLite, alle Testdateien unter `server/src/**/*.test.ts`.
+`pnpm --filter server test` — Node.js `node:test` + `tsx`, In-Memory-SQLite, alle Testdateien unter `server/src/**/*.test.ts`.
 
 ## Tests (Frontend)
 

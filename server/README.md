@@ -1,11 +1,12 @@
-# `priority-pilot` (Server)
+# `server` (Backend)
 
 Node.js-Backend des [Priority-Pilot-Monorepos](../README.md): **Express 5 + Sequelize 6 (SQLite)**.
 Enthält die gesamte Fachlogik (Wertberechnung inkl. Lebensbalance-Säulen, Aufgabenwald, nächste
 Aufgabe, Zyklusprüfung) und stellt die REST-API bereit. Gemeinsamer API-Vertrag:
 [`../openapi.yml`](../openapi.yml).
 
-> Der npm-Name des Pakets ist **`priority-pilot`** (nicht `server`) — daher `--filter priority-pilot`.
+> Der npm-Name des Pakets ist **`server`** (seit `6677acd`, vorher `priority-pilot`) — daher
+> `--filter server`.
 
 ## Server starten
 
@@ -15,7 +16,7 @@ Der Server lauscht auf **`http://localhost:3000`** (per `PORT` überschreibbar).
 ### Dev-Modus (serven mit Auto-Reload)
 
 ```bash
-pnpm --filter priority-pilot dev
+pnpm --filter server dev
 ```
 
 Startet **nodemon** ([`nodemon.json`](nodemon.json)): beobachtet `src/` und führt bei jeder
@@ -29,7 +30,7 @@ Startet **nodemon** ([`nodemon.json`](nodemon.json)): beobachtet `src/` und füh
 Es gibt **kein** `start`-Script, daher zwei Schritte:
 
 ```bash
-pnpm --filter priority-pilot build   # build:api (openapi-typescript) + build:ts (tsc) → dist/
+pnpm --filter server build   # build:api (openapi-typescript) + build:ts (tsc) → dist/
 cd server && node dist/index.js      # lauscht auf http://localhost:3000
 ```
 
@@ -39,13 +40,13 @@ Verzeichnis entsteht sonst eine leere DB am falschen Ort. Alternativ ohne `cd` (
 Paket-Verzeichnis aus):
 
 ```bash
-pnpm --filter priority-pilot exec node dist/index.js
+pnpm --filter server exec node dist/index.js
 ```
 
 ## Tests
 
 ```bash
-pnpm --filter priority-pilot test
+pnpm --filter server test
 ```
 
 Runner: **Node.js `node:test`** mit **`tsx`** als TypeScript-Loader (`--import tsx`). Alle Tests

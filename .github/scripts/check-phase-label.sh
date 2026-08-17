@@ -21,7 +21,7 @@
 #   analyse     Issue   offen          —                            Trigger-Label
 #                                                                   (Default ai:analyzed)
 #   spec        Issue   offen          ai:spec-ready + ai:analyzed  —
-#   ux          Issue   offen          ai:analyzed                  ux:ready
+#   ux          Issue   offen          ux:ready + ai:analyzed       ai:ready
 #   implement   Issue   offen          ai:ready + ai:analyzed +      —
 #                                   ux:ready
 #   review      PR      offen, kein    ai:needs-review              —
@@ -87,7 +87,9 @@ case "$PHASE" in
   spec)
     KIND="issue"; WANT_STATE="open"; REQUIRED=("ai:spec-ready" "ai:analyzed") ;;
   ux)
-    KIND="issue"; WANT_STATE="open"; REQUIRED=("ai:analyzed"); ABSENT=("ux:ready") ;;
+    # ux:ready setzt die Spec-Phase; ai:ready setzt die UX-Phase selbst am Ende. Ist ai:ready
+    # bereits da, wurde der Trigger konsumiert (sonst liefe der Review nach der Umsetzung erneut).
+    KIND="issue"; WANT_STATE="open"; REQUIRED=("ux:ready" "ai:analyzed"); ABSENT=("ai:ready") ;;
   implement)
     KIND="issue"; WANT_STATE="open"; REQUIRED=("ai:ready" "ai:analyzed" "ux:ready") ;;
   review)

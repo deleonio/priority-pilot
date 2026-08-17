@@ -145,9 +145,9 @@ gezielt starten:
 Server gezielt:
 
 ```bash
-pnpm --filter priority-pilot build   # openapi-typescript + tsc
-pnpm --filter priority-pilot dev     # nodemon: build + run, Watch auf src/
-pnpm --filter priority-pilot lint    # api.d.ts + tsc --noemit + eslint
+pnpm --filter server build   # openapi-typescript + tsc
+pnpm --filter server dev     # nodemon: build + run, Watch auf src/
+pnpm --filter server lint    # api.d.ts + tsc --noemit + eslint
 ```
 
 ## Umgebungsvariablen (Server)

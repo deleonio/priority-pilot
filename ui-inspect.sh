@@ -97,7 +97,7 @@ PORT="$BACKEND_PORT" \
   GOOGLE_ALLOWED_EMAILS= \
   GOOGLE_ALLOWED_EMAIL= \
   MISTRAL_API_KEY= \
-  pnpm --filter priority-pilot dev &
+  pnpm --filter server dev &
 BACKEND_PID=$!
 
 # Bereitschaft über /tasks prüfen: die Wurzel / hat keine Route und liefert 404.

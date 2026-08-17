@@ -17,7 +17,7 @@ flowchart TD
     subgraph ISSUE [Issue-Phase]
         triage[triage.yml<br/>Analyse + Re-Analyse]:::wf
         spec[spec.yml<br/>rote Tests + Draft-PR]:::wf
-        ux[ux.yml<br/>UX-Beratung + Review]:::wf
+        ux[ux.yml<br/>UX-Review + 375px-Tests]:::wf
         implement[implement.yml<br/>Umsetzung + PR ready]:::wf
         unblock[issue-unblock.yml<br/>Nachfolger freigeben]:::wf
     end
@@ -102,6 +102,7 @@ flowchart TD
 | `ai:spec-ready`     | triage (bei 🟢, Triage- oder Re-Triage-Pfad)                 | _(kein automatisches Entfernen)_                                    | `spec.yml`                                                    |
 | `ux:ready`          | spec                                                         | _(kein automatisches Entfernen)_                                    | `ux.yml`                                                      |
 | `ai:ready`          | ux                                                           | _(kein automatisches Entfernen)_                                    | `implement.yml`                                               |
+| `ux:failed`         | ux (`VERDICT: ux-not-ready`)                                 | ux (beim nächsten Lauf)                                             | _nichts_ — Umsetzung bleibt ohne `ai:ready` blockiert         |
 | `ai:needs-review`   | implement, pr-needs-review-label (nur menschlich), **fixup** | review, gate-merge                                                  | `pr-review.yml`                                               |
 | `ai:needs-changes`  | review (🔴), **gate-merge**, **conflict-scan**               | **fixup**, **pr-needs-review-label** (bei Push)                     | `pr-fixup.yml`                                                |
 | `ai:ready-to-merge` | review (🟢)                                                  | **gate-merge** (rot/Konflikt), **pr-needs-review-label** (bei Push) | `pr-gate-merge.yml`                                           |
