@@ -108,17 +108,17 @@ oder hat kein Guthaben — dann in der Anthropic Console prüfen und
 > Gilt nur für den `zai`-Zweig. Bei `LLM_PROVIDER=claude` löst `"model": "opus"` auf echtes
 > Claude Opus auf und die folgenden Kontingent-/Parallelitäts-Überlegungen entfallen.
 
-Die sieben LLM-Workflows (sechs Ticket-Phasen 01–06 plus Post-Merge-Documenter) nutzen **phasenspezifische Modell-Defaults**:
+Die sieben LLM-Workflows (sieben Ticket-Phasen 01–07 inkl. Post-Merge-Documenter) nutzen **phasenspezifische Modell-Defaults**:
 Jede Phase reicht ihre eigene `CLAUDE_MODEL_*`-Variable an `setup-claude` durch; GitHub-Vars dienen als Override/Experimente.
 
 | Phase          | Variable                     | Default (`LLM_PROVIDER=claude`) | Default (`LLM_PROVIDER=zai`) | Begründung                                      |
 | -------------- | ---------------------------- | ------------------------------- | ---------------------------- | ----------------------------------------------- |
 | Triage (01)    | `CLAUDE_MODEL_TRIAGE`        | `fable`                         | `glm-5.2`                    | Höchste Qualität für Analyse/Sub-Task-Schneiden |
-| Spec (02a)     | `CLAUDE_MODEL_SPEC`          | `sonnet`                        | `glm-4.7`                    | Balanciert für Design-Dokumente                 |
-| UX (02b)       | `CLAUDE_MODEL_UX`            | `sonnet`                        | `glm-4.7`                    | Balanciert für UX-Review                        |
-| Implement (03) | `CLAUDE_MODEL_IMPLEMENT`     | `opus`                          | `glm-5.1`                    | Maximale Qualität für Code-Generierung          |
-| Review (04)    | `CLAUDE_MODEL_PR_REVIEW`     | `opus`                          | `glm-5.1`                    | Tiefes Verständnis für Code-Review              |
-| Fixup (05)     | `CLAUDE_MODEL_FIXUP`         | `sonnet`                        | `glm-4.7`                    | Großer Context (CI-Logs), kosteneffizient       |
+| Spec (03)      | `CLAUDE_MODEL_SPEC`          | `sonnet`                        | `glm-4.7`                    | Balanciert für Design-Dokumente                 |
+| UX (02)        | `CLAUDE_MODEL_UX`            | `sonnet`                        | `glm-4.7`                    | Balanciert für UX-Review                        |
+| Implement (04) | `CLAUDE_MODEL_IMPLEMENT`     | `opus`                          | `glm-5.1`                    | Maximale Qualität für Code-Generierung          |
+| Review (05)    | `CLAUDE_MODEL_PR_REVIEW`     | `opus`                          | `glm-5.1`                    | Tiefes Verständnis für Code-Review              |
+| Fixup (06)     | `CLAUDE_MODEL_FIXUP`         | `sonnet`                        | `glm-4.7`                    | Großer Context (CI-Logs), kosteneffizient       |
 | Documenter     | `CLAUDE_MODEL_DOCUMENTATION` | `haiku`                         | `glm-4.5-air`                | Schnelle Documentation-Generierung              |
 
 **Override-Syntax:** Jeder Workflow nutzt `model: ${{ vars.CLAUDE_MODEL_<PHASE> || '<default>' }}` — ist die GitHub-Variable nicht gesetzt, greift der Default-Wert. Default-Änderungen erfolgen in den Workflow-Dateien, nicht via Repo-Vars.
@@ -193,7 +193,7 @@ Label-Post-Assertion.
 | `APP_ID`             | GitHub App (Token für Label-/PR-Operationen)                |
 | `APP_PRIVATE_KEY`    | GitHub App (Token für Label-/PR-Operationen)                |
 
-Alle drei LLM-Secrets werden von allen sechs LLM-Workflows durchgereicht; welches davon greift, entscheidet
+Alle drei LLM-Secrets werden von allen sieben LLM-Workflows durchgereicht; welches davon greift, entscheidet
 `vars.LLM_PROVIDER`. Nur das Secret des **aktiven** Providers muss gesetzt sein — die anderen dürfen
 leer bleiben, ohne den Lauf zu brechen.
 
@@ -281,9 +281,9 @@ anstößt.
 Die Session-Resume-Funktionalität (MIG-002) ist noch nicht migriert. Derzeit startet jeder Lauf
 frisch ohne Kontext aus vorherigen Läufen derselben Phase.
 
-## PR-Documenter: Arbeitsteilung Regel-Logik + LLM (Phase 6)
+## PR-Documenter: Arbeitsteilung Regel-Logik + LLM (Phase 7)
 
-Der Post-Merge-Documenter ([06-claude-pr-documenter.yml](../.github/workflows/06-claude-pr-documenter.yml))
+Der Post-Merge-Documenter ([07-claude-pr-documenter.yml](../.github/workflows/07-claude-pr-documenter.yml))
 war anfangs eine reine Prompt-Phase — empirisch drifteten dabei Kommentar-Formate, blieben
 Branch-Namen-Titel (`perf/#692: …`, `feat/issue-671-…`) unnormalisiert und landeten UX-Änderungen
 unter `perf(...)` (feste Prompt-Regel `improved→perf`). Jetzt entscheidet Regel-Logik, das LLM
@@ -301,16 +301,16 @@ Fällt Claude oder die Validierung aus, rendert der Fallback-Pfad eine Minimal-D
 wäre durch den Precheck blockiert, ein roter Job also eine Sackgasse.
 
 **Sprachregel:** PR-Titel und Haupttexte englisch (Conventional Commits, Subject klein, ≤72
-Zeichen); die deutsche Zusammenfassung lebt in einer `<details>`-Box. Der Reviewer (Phase 4)
+Zeichen); die deutsche Zusammenfassung lebt in einer `<details>`-Box. Der Reviewer (Phase 5)
 bekommt dieselben Titelfakten (`--mode title-only`) und korrigiert non-konforme Titel schon
 **vor** dem Merge — post-merge ist ein Rename nur noch kosmetisch, der Merge-Commit-Subject
 steht bereits.
 
 **Catch-up-Sweep** ([06b-documenter-sweep.yml](../.github/workflows/06b-documenter-sweep.yml),
 täglich 03:17 UTC + `workflow_dispatch` mit `dry-run`): findet gemergte PRs der letzten 30 Tage
-ohne `ai:documented`/`release:ignore` und triggert Phase 6 pro PR per `workflow_dispatch` nach
+ohne `ai:documented`/`release:ignore` und triggert Phase 7 pro PR per `workflow_dispatch` nach
 (max. 10/Lauf). Muss den App-Token nutzen — ein via `GITHUB_TOKEN` ausgelöster Dispatch startet
-keinen Workflow-Run. Der fail-closed-Precheck von Phase 6 dedupliziert.
+keinen Workflow-Run. Der fail-closed-Precheck von Phase 7 dedupliziert.
 
 ## Release-Notes-Kette
 
@@ -328,7 +328,7 @@ best-effort: ein Fehlschlag warnt, kippt aber nie das Deploy.
 1. **Chat/REPL (interaktiv):** Trigger-Phrasen aktivieren den Agenten direkt: „Kreuzverhör",
    „nimm das auseinander", „stress-teste das", „challenge mich".
 2. **Slash-Command:** `/kreuzverhoer-review [PR-Nummer]`.
-3. **GitHub Actions (automatisch):** `04-claude-pr-review.yml` feuert, wenn ein PR das Label
+3. **GitHub Actions (automatisch):** `05-claude-pr-review.yml` feuert, wenn ein PR das Label
    `ai:needs-review` trägt.
 
 In **GitHub Actions** läuft das über **Labels**: Der Umsetzungs-Workflow macht den PR
@@ -366,7 +366,7 @@ Journeys im user-journeys.md-Format).
   Abschnitt des Agent-Reports (Fallback: `git log`, mit Warning).
 - **Pipeline-Integration:** Das Label wird per App-Token direkt nach PR-Create gesetzt
   (Autolabeler `pr-needs-review-label.yml` greift bei Bots nicht). Das `labeled`-Event
-  feuert → Kreuzverhör-Review (04) und Fixup-Loop (05) übernehmen Prüfung und Nacharbeit
+  feuert → Kreuzverhör-Review (05) und Fixup-Loop (06) übernehmen Prüfung und Nacharbeitung
   automatisch, ohne Menschseingriff. Ein Workflow-Rerun bleibt idempotent (offene Sync-PRs
   → Skip mit Notice).
 - **Post-Assertion (VERDICT-Muster):** `VERDICT: synced` ↔ null Commits, `VERDICT: updated` ↔

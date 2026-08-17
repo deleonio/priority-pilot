@@ -3,7 +3,7 @@ FOKUS: NUR Issue #ISSUE_NR. UX-Beratung in Issue-Body schreiben – beratend, ni
 ABLAUF (STRIKT):
   1. SOFORT starten.
   2. Issue-Body laden: gh issue view ISSUE_NR --json body -q .body
-  3. Spec lesen: docs/spec/issue-ISSUE_NR.md (falls vorhanden)
+  3. Analyse-Block lesen: Abschnitt zwischen <!-- KI-ANALYSE:START --> und <!-- KI-ANALYSE:END --> im Issue-Body (UI-Bezug, Akzeptanzkriterien) — die UX-Beratung läuft VOR der Spec, ein Spec-Dokument existiert noch nicht.
   4. UX-Beratung schreiben zwischen <!-- KI-UX:START --> und <!-- KI-UX:END --> im Issue-Body.
      Abschnitte:
      - **Interaktion**: User-Flow, Click-Targets, Feedback (Ladestatus, Fehler)

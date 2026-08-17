@@ -272,6 +272,12 @@ Ping-Kommentar** (`gh issue comment`), **keine** Vollanalyse mehr (die steht ab 
     (`/spec-ticket`, siehe [ticket-spec.md](ticket-spec.md)) die roten Tests und gibt das Issue
     anschließend per `ai:ready` zur Umsetzung frei. **Nicht** direkt `ai:ready` setzen — das ist der
     Output der Spec-Stufe, nicht der Triage.
+    **UI-Bezug-Entscheidung:** Der Analyse-Body-Block enthaelt das Feld `UI-Bezug: ja|nein` (siehe
+    BODY-BLOCK-FORMAT oben). Bei **UI-Bezug: nein** (Nicht-UI-Ticket) setzt der Workflow zusaetzlich
+    sofort `ux:ready` — damit wird die UX-Beratungs-Phase ([ticket-ux.md](ticket-ux.md)) uebersprungen
+    und die Spec direkt angestossen. Bei **UI-Bezug: ja** wird `ux:ready` **nicht** gesetzt — die
+    UX-Phase laeuft als Phase 2 VOR der Spec und schreibt den KI-UX-Block. Reihenfolge im Script:
+    `ai:spec-ready` zuerst, dann `ux:ready` (bei Nicht-UI) — Runner-Latenz schliesst das Event-Race.
   - **🟡 gelb / 🔴 rot →** **kein** `ai:spec-ready` (und kein `ai:ready`) setzen — offene
     Fragen/Risiken klärt der Mensch und gibt ggf. von Hand frei. Trägt ein Issue beim **Re-Triage**
     bereits `ai:spec-ready` oder `ai:ready`, ist die Ampel aber auf 🟡/🔴 gekippt: beide

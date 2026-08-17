@@ -1,7 +1,9 @@
-name: 2/6 Spec
+name: 3/7 Spec
 
 # Schreibt die ROTEN Tests (ausführbarer Vertrag) für ein Issue, sobald es
-# das Label "ai:spec-ready" erhält UND bereits "ai:analyzed" trägt.
+# das Label "ux:ready" erhält (gesetzt von der UX-Phase bei UI-Tickets oder
+# direkt von der Triage bei Nicht-UI-Tickets) UND bereits "ai:spec-ready" und
+# "ai:analyzed" trägt.
 # Setzt **Claude Code** ein; Provider via `vars.LLM_PROVIDER` (zai|claude), aufgelöst in setup-claude.
 #
 # CONCURRENCY: Statische Gruppe pro Phase (globale Serialisierung, FIFO). Der `precheck`-Job
@@ -27,7 +29,7 @@ jobs:
     # Unveränderliches Event-Faktum filtert hier (spart den Runner für No-op-Trigger — 02 feuert
     # auf JEDES `labeled` im Repo). Es gatet den precheck, nicht den Hauptjob: wird der precheck
     # übersprungen, ist sein Output leer und der Hauptjob fällt korrekt mit aus.
-    if: ${{ github.event.label.name == 'ai:spec-ready' }}
+    if: ${{ github.event.label.name == 'ux:ready' }}
     # Label-IST-Zustand zur Laufzeit: ai:spec-ready + ai:analyzed müssen JETZT (nach dem
     # Warten in der globalen Phasen-Queue) noch am Issue kleben. Soll-Werte stehen zentral
     # in .github/scripts/check-phase-label.sh; hier wird nur der Phasen-Name übergeben.
@@ -118,7 +120,7 @@ jobs:
           ISSUE: ${{ github.event.issue.number }}
         run: |
           # Ready-PR (Nicht-Draft) existiert -> Implement schon gelaufen -> skip. Symmetrie zu
-          # 03-claude-implement.yml, dessen Guard ebenfalls nur auf Nicht-Drafts prueft. Ein Draft
+          # 04-claude-implement.yml, dessen Guard ebenfalls nur auf Nicht-Drafts prueft. Ein Draft
           # allein ist KEIN Skip-Grund: er stammt von einem abgebrochenen Spec-Lauf und wuerde
           # die Issue sonst dauerhaft blockieren (G5).
           # Ready-PR = nicht-draft PR zu diesem Issue. Helper probiert primär
@@ -175,7 +177,7 @@ jobs:
               -e "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" \
               .github/prompts/spec.md > /tmp/claude-prompt.txt
 
-          # Memory-Snippets anhängen (Phase 2: restauriert + schreibt). Snippet-Platzhalter
+          # Memory-Snippets anhängen (Phase 3: restauriert + schreibt). Snippet-Platzhalter
           # separat substituieren, da die spec.md-sed oben nur den Prompt-Teil erfasst hat.
           cat .github/prompts/memory-read.md >> /tmp/claude-prompt.txt
           cat .github/prompts/memory-write.md >> /tmp/claude-prompt.txt
@@ -204,7 +206,7 @@ jobs:
           path: ${{ steps.setup.outputs.memory-path }}
           # 14 Tage: das Artefakt ist jetzt der einzige Speicher, nicht mehr nur ein Transport-
           # vehikel zum Cache (dort war 1 Tag genug). Muss den ganzen Ticket-Lebenszyklus
-          # überdauern; Phase 6 räumt am Ende ohnehin deterministisch auf. Größe: ~1 KB.
+          # überdauern; Phase 7 räumt am Ende ohnehin deterministisch auf. Größe: ~1 KB.
           retention-days: 14
           if-no-files-found: ignore
 
@@ -276,10 +278,16 @@ jobs:
 
           if [ "$final" = "ready" ]; then
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:ready"
+            # ux:ready bleibt kleben — Umsetzung verlangt es als Pre-Check.
             echo "::notice::Label gesetzt: ai:ready (verifiziert: Spec-PR + rote Tests)"
           else
+            # Partial-Retry: ux:ready remove+re-add retriggert die Spec;
+            # UX bleibt No-op (ux:ready beim Precheck-Zeitpunkt wieder da).
+            # Reihenfolge: ai:spec-ready zuerst, ux:ready zuletzt.
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ux:ready" 2>/dev/null || true
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:spec-ready"
-            echo "::notice::Label gesetzt: ai:spec-ready (Partial)"
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ux:ready"
+            echo "::notice::Label gesetzt: ai:spec-ready + ux:ready (Partial)"
           fi
 
       - name: Ergebnis zusammenfassen

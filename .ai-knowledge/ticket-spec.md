@@ -12,11 +12,12 @@ tautologischen Tests, die nachträglich dem Code angepasst werden — die Tests 
 
 Tickets = GitHub-Issues von `deleonio/priority-pilot`. Voraussetzung: `gh` ist authentifiziert.
 
-**Auswahlkriterium:** Bearbeitet werden **offene** Issues mit Label `ai:spec-ready` (von der Triage
-bei klarer Analyse 🟢 gesetzt, siehe [ticket-triage.md](ticket-triage.md) Schritt 5), für die **noch
-kein** offener (Draft-)PR existiert (Idempotenz).
+**Auswahlkriterium:** Bearbeitet werden **offene** Issues mit Label `ux:ready` (gesetzt von der
+UX-Phase bei UI-Tickets oder direkt von der Triage bei Nicht-UI-Tickets, siehe
+[ticket-triage.md](ticket-triage.md) Schritt 5 / [ticket-ux.md](ticket-ux.md)) UND `ai:spec-ready`
+UND `ai:analyzed`, für die **noch kein** offener (Draft-)PR existiert (Idempotenz).
 
-Label-Kette: `ai:analyzed` → **`ai:spec-ready` (dieser Workflow)** → `ai:ready` (Umsetzung) → PR.
+Label-Kette: `ai:analyzed` → `ai:spec-ready` → `ux:ready` → **`ai:ready` (dieser Workflow)** → Umsetzung → PR.
 
 ## Schritt 1 — Ticket wählen & Branch anlegen
 
@@ -89,10 +90,19 @@ Label-Kette: `ai:analyzed` → **`ai:spec-ready` (dieser Workflow)** → `ai:rea
 
 - Am Issue **`ai:ready` setzen** und **`ai:spec-ready` entfernen** — damit greift die Umsetzung
   ([ticket-implementation.md](ticket-implementation.md), Schritt 1) den Draft-PR auf und macht die
-  roten Tests grün, **ohne sie zu ändern**.
+  roten Tests grün, **ohne sie zu ändern**. **`ux:ready` bleibt kleben** — die Umsetzung verlangt
+  es als Pre-Check-Bedingung.
   - Label bei Bedarf vorher anlegen
     (`gh label create "ai:ready" --color 0E8A16 --description "Analyse klar; zur Umsetzung freigegeben"`),
     dann `gh issue edit <nr> --add-label "ai:ready" --remove-label "ai:spec-ready"`.
+  - **Partial-Retry-Hinweis:** Bei Teilerfolg (Spec-PR ohne Tests) entfernt der Workflow ux:ready
+    und setzt es sofort wieder (nach ai:spec-ready). Das `ux:ready`-labeled-Event retriggert die
+    Spec automatisch; die UX-Phase bleibt dabei No-op (ux:ready ist beim Pre-Check-Zeitpunkt
+    wieder vorhanden).
+  - **Hard-Fail-Recovery:** Bricht die Post-Assertion mit `exit 1` ab (kein VERDICT + keine
+    Artefakte), bleiben `ai:spec-ready` und `ux:ready` am Issue kleben, OHNE dass ein Event
+    feuert — die Kette steht. Anstoß: `ux:ready` entfernen und neu setzen (labeled-Event startet
+    die Spec erneut; die UX bleibt No-op).
 
 ## Hinweise
 

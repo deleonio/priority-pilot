@@ -2,7 +2,7 @@ name: PR Auto-Label (ai:needs-review)
 
 # Setzt beim OEFFNEN eines (Nicht-Draft-)Pull Requests automatisch das Pipeline-Label
 # "ai:needs-review" (Ticket #116). Das ist der Einstieg in die label-gesteuerte KI-Review-
-# Pipeline: das gesetzte Label weckt den Kreuzverhoer-Review (04-claude-pr-review.yml).
+# Pipeline: das gesetzte Label weckt den Kreuzverhoer-Review (05-claude-pr-review.yml).
 # Wird auch bei jedem Push (synchronize-Event) erneut ausgeloest, wobei alte Ergebnis-
 # Labels (ai:needs-changes, ai:ready-to-merge, ai:needs-human) entfernt werden. Der Reset
 # ist wichtig: ein menschlicher Push ist echter Fortschritt und verdient einen frischen
@@ -19,7 +19,7 @@ name: PR Auto-Label (ai:needs-review)
 # WICHTIG (Folge-Workflows): Von GITHUB_TOKEN gesetzte Labels loesen KEINE weiteren Workflows
 # aus. Damit das "labeled"-Event den Review wirklich startet, wird hier ein kurzlebiges
 # GitHub-App-Token (APP_ID + APP_PRIVATE_KEY) verwendet — gleiches Muster wie in
-# claude-pr-gate-merge.yml / 04-claude-pr-review.yml.
+# claude-pr-gate-merge.yml / 05-claude-pr-review.yml.
 #
 # Bedingungen:
 #   - nur Nicht-Drafts (draft == false): "opened" eines Drafts wird ignoriert, erst
@@ -32,9 +32,9 @@ name: PR Auto-Label (ai:needs-review)
 #     neu startet. Keine Schleife: dieser Workflow triggert nicht auf `labeled` (siehe AK5-Tests).
 #   - NUR menschliche Aktoren (sender.type != "Bot"), UND ZWAR FUER ALLE DREI Event-Typen
 #     (opened/ready_for_review/synchronize gleichermassen — vormals galt der Bot-Filter nur
-#     bei synchronize). Grund: 03-claude-implement.yml macht PRs per App-Bot-Token review-bereit
+#     bei synchronize). Grund: 04-claude-implement.yml macht PRs per App-Bot-Token review-bereit
 #     (`gh pr ready` bzw. `gh pr create`) und setzt `ai:needs-review` danach SELBST als
-#     expliziten, kontrollierten letzten Schritt (siehe 03-claude-implement.yml) — dieser
+#     expliziten, kontrollierten letzten Schritt (siehe 04-claude-implement.yml) — dieser
 #     Workflow darf dem NICHT zuvorkommen, sonst startet der Review auf einem PR, dessen
 #     Beschreibung/Testergebnisse implement noch gar nicht fertig geschrieben hat. Fuer echte
 #     menschliche PRs (Ticket #116, der eigentliche Zweck dieses Workflows) bleibt das
@@ -118,7 +118,7 @@ jobs:
           echo "::notice::Nutze GitHub-App-Token für gh-Befehle."
 
       # SUPERSEDE-Kompensation (nur synchronize — opened/ready_for_review können keine laufenden
-      # Reviews haben): Die Phasen-Workflows 04/05 serialisieren seit der statischen
+      # Reviews haben): Die Phasen-Workflows 05/06 serialisieren seit der statischen
       # concurrency-Gruppe global mit cancel-in-progress: false. Ohne diesen Cancel wuerde ein
       # LAUFENDER Review den frisch gesteckten Trigger konsumieren (entfernt ai:needs-review in
       # seiner Post-Assertion), der queued Folge-Lauf im Label-Pre-Check skippen — und der
@@ -133,7 +133,7 @@ jobs:
           REPO: ${{ github.repository }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
-          for wf in 04-claude-pr-review.yml 05-claude-pr-fixup.yml; do
+          for wf in 05-claude-pr-review.yml 06-claude-pr-fixup.yml; do
             gh run list --repo "$REPO" --workflow "$wf" --branch "$HEAD_REF" --limit 100 \
               --json databaseId,status \
               --jq '.[] | select(.status=="in_progress" or .status=="queued") | .databaseId' \

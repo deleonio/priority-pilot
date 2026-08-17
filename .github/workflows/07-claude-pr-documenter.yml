@@ -1,6 +1,6 @@
-name: 6/6 Dokumentation
+name: 7/7 Dokumentation
 
-# 6. Pipeline-Phase — PR-Documenter (Arbeitsteilung Regel-Logik + LLM).
+# 7. Pipeline-Phase — PR-Documenter (Arbeitsteilung Regel-Logik + LLM).
 # Läuft NACH einem erfolgreichen PR-Merge und pflegt Titel, Beschreibung,
 # Release-Note-Kommentar und Labels des EINEN gemergten PRs.
 # Aufteilung (empirisch: Prompt-only erzeugte driftende Kommentar-Formate und
@@ -29,7 +29,7 @@ concurrency:
   # Statische Gruppe pro Phase (globale Serialisierung, FIFO): jede Phase hat genau eine
   # Laufzeit-Instanz. Der precheck-Job verhindert falsches Nachziehen — kurz hintereinander
   # gemergte PRs reihen sich ein statt zu parallelisieren.
-  group: 06-pr-documenter
+  group: claude-pr-documenter
   cancel-in-progress: false
   # queue: max — OHNE dies hält GitHub pro Gruppe nur EINEN pending-Run: jeder neue
   # Run cancelt den wartenden (`queue: single` ist der Default). Mit statischem,
@@ -210,7 +210,7 @@ jobs:
           PR: ${{ github.event.pull_request.number || github.event.inputs.pr-number }}
         run: |
           # Prompt liegt kanonisch in .github/prompts/documenter.md (Quelle fuer CI + lokale
-          # Inspektion, analog spec.md in Phase 2). Kein Inline-Heredoc mehr: der Vertrag
+          # Inspektion, analog spec.md in Phase 3). Kein Inline-Heredoc mehr: der Vertrag
           # (doc.json-Schema, Mapping-Regeln) ist damit reviewbar ohne Workflow-Diff.
           {
             echo 'HINWEIS: Documenter ist terminal + Review-Tier — du schreibst KEINEN Memory (nur Lesen). Lesedetails siehe Memory-Abschnitt am Prompt-Ende.'

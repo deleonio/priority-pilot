@@ -1,5 +1,5 @@
 # Kategorien für automatisch generierte Release Notes (gh release create --generate-notes,
-# deploy.yml). Die release:*-Labels vergibt der PR-Documenter (Phase 6) pro Klassifikation:
+# deploy.yml). Die release:*-Labels vergibt der PR-Documenter (Phase 7) pro Klassifikation:
 #   breaking -> release:breaking-change | new -> release:feature | improved ->
 #   release:improvement | fixed -> release:fix | internal -> release:engineering
 # Bot-PRs (Renovate/Dependabot) werden doppelt ausgeschlossen: per Autor hier UND per

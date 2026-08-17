@@ -1,8 +1,10 @@
-name: 2b/6 UX-Beratung
+name: 2/7 UX-Beratung
 
-# UX-Beratung als automatisierte Phase nach Spec-Ready – beratend, nicht blockierend.
-# Führt Prompt ux.md aus, schreibt Ergebnis zwischen <!-- KI-UX:START --> und
-# <!-- KI-UX:END --> in Issue-Body. Setzt Label ux:ready nach Verdict-Verifikation.
+# UX-Beratung als automatisierte Phase VOR der Spec — beratend, nicht blockierend.
+# Läuft als Phase 2 von 7, sequenziell nach der Analyse. Triggert auf ai:spec-ready,
+# schreibt KI-UX-Block zwischen <!-- KI-UX:START --> und <!-- KI-UX:END --> in den
+# Issue-Body und gibt über ux:ready an die Spec-Phase weiter. ai:spec-ready bleibt
+# am Issue kleben — die Spec-Phase konsumiert es.
 #
 # CONCURRENCY: Statische Gruppe pro Phase (globale Serialisierung, FIFO).
 
@@ -31,7 +33,10 @@ jobs:
       contents: read
       issues: read
     outputs:
-      proceed: ${{ steps.check.outputs.proceed }}
+      # `|| `-Fallback: bei workflow_dispatch ist der `check`-Step übersprungen (leerer
+      # Output) und proceed kommt aus check-dispatch — ohne Fallback wäre der manuelle
+      # Dispatch (der Recovery-Pfad für ux:failed) stumm tot.
+      proceed: ${{ steps.check.outputs.proceed || steps.check-dispatch.outputs.proceed }}
       issue_number: ${{ steps.issue.outputs.number }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -139,6 +144,13 @@ jobs:
               -e "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" \
               .github/prompts/ux.md > /tmp/claude-prompt.txt
 
+          # Memory-Snippets anhängen (Phase 2: restauriert + schreibt).
+          cat .github/prompts/memory-read.md >> /tmp/claude-prompt.txt
+          cat .github/prompts/memory-write.md >> /tmp/claude-prompt.txt
+          sed -i "s/#ISSUE_NR/${{ needs.precheck.outputs.issue_number }}/g" /tmp/claude-prompt.txt
+          sed -i "s/#PHASE/ux/g" /tmp/claude-prompt.txt
+          sed -i "s/#MEMORY_STATUS/${{ steps.setup.outputs.memory-status-text }}/g" /tmp/claude-prompt.txt
+
           ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
             ${{ steps.setup.outputs.invoke-args }} \
             2>&1 | tee /tmp/claude-output.log
@@ -168,7 +180,8 @@ jobs:
           gh label create "ux:ready" --repo "$GITHUB_REPOSITORY" --color 0E8A16 2>/dev/null || true
           gh label create "ux:failed" --repo "$GITHUB_REPOSITORY" --color d73a49 2>/dev/null || true
 
-          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:spec-ready" 2>/dev/null || true
+          # ux:ready/ux:failed werden gemanagt (Idempotenz: remove-vor-add).
+          # ai:spec-ready gehört der Spec-Phase — NICHT hier entfernen.
           gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ux:ready" 2>/dev/null || true
           gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ux:failed" 2>/dev/null || true
 
@@ -177,6 +190,10 @@ jobs:
             echo "::notice::Label gesetzt: ux:ready"
           elif [ "$verdict" = "ux-not-ready" ]; then
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ux:failed"
+            # Recovery-Wegweiser (fail-safe beim Menschen, aber nicht stumm): Bot-Kommentar
+            # triggert nichts — Labels sind der einzige Ketten-Trigger.
+            gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body \
+              "⚠️ UX-Beratung unklar (\`ux:failed\`) — die Kette wartet. Nach Klärung: *2/7 UX-Beratung* in der Actions-UI erneut anstoßen (Run workflow, Issue-Nummer angeben) oder bei unerheblichem UX-Blocker \`ux:ready\` manuell setzen; die Spec-Phase startet dann." 2>/dev/null || true
             echo "::notice::Label gesetzt: ux:failed"
           else
             echo "::warning::Kein VERDICT im Output – kein Label gesetzt"

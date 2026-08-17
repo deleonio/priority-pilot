@@ -1,4 +1,4 @@
-name: 5/6 Fixup
+name: 6/7 Fixup
 
 # Reagiert auf das Label "ai:needs-changes" (vom Review gesetzt) und setzt die
 # zutreffenden Findings um.
@@ -242,7 +242,7 @@ jobs:
           Stop-Guard: Ein Workflow-Step zählt die PR-Commits und stoppt bei > 10.
           CLAUDE_EOF
 
-          # Memory-Snippets anhängen (Phase 5: restauriert + schreibt)
+          # Memory-Snippets anhängen (Phase 6: restauriert + schreibt)
           cat .github/prompts/memory-read.md >> /tmp/claude-prompt.txt
           cat .github/prompts/memory-write.md >> /tmp/claude-prompt.txt
 
@@ -275,7 +275,7 @@ jobs:
           path: ${{ steps.setup.outputs.memory-path }}
           # 14 Tage: das Artefakt ist jetzt der einzige Speicher, nicht mehr nur ein Transport-
           # vehikel zum Cache (dort war 1 Tag genug). Muss den ganzen Ticket-Lebenszyklus
-          # überdauern; Phase 6 räumt am Ende ohnehin deterministisch auf. Größe: ~1 KB.
+          # überdauern; Phase 7 räumt am Ende ohnehin deterministisch auf. Größe: ~1 KB.
           retention-days: 14
           if-no-files-found: ignore
 
@@ -283,7 +283,7 @@ jobs:
         id: label-post
         # B1: Label-Transition auch bei Claude failure/cancelled — sonst bleibt der PR bei einem
         # Crash/Timeout dauerhaft auf ai:needs-changes kleben (kein Re-Arm, keine Eskalation).
-        # Analog 04-claude-pr-review.yml (dort success|failure; hier zusaetzlich cancelled wg.
+        # Analog 05-claude-pr-review.yml (dort success|failure; hier zusaetzlich cancelled wg.
         # timeout-minutes-Backstop). Skip-Reasons (stop-guard) liefern outcome=skipped und
         # fallen hier korrekt raus.
         if: always() && steps.setup.outputs.configured == 'true' && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure' || steps.claude.outcome == 'cancelled')
