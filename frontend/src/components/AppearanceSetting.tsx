@@ -1,5 +1,5 @@
 import { KolInputRadio } from '@public-ui/react-v19';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import type { ThemePreference } from '../lib/theme';
 import { useTheme } from '../lib/theme';
 import { THEME_LABELS, THEME_ORDER } from './ThemeToggle';
@@ -15,25 +15,63 @@ import { THEME_LABELS, THEME_ORDER } from './ThemeToggle';
  */
 export const AppearanceSetting = () => {
 	const { preference, setPreference } = useTheme();
+	const ref = useRef<HTMLDivElement>(null);
 
 	// Optionen als stabile Objektidentität (nur von den Modul-Konstanten abhängig), damit die
 	// Radiogruppe nicht bei jedem Render eine neue Options-Liste erhält.
 	const options = useMemo(() => THEME_ORDER.map((value) => ({ label: THEME_LABELS[value], value })), []);
 
+	// #843: marginLeft auf Shadow-DOM Controls setzen (24dp = 1.5rem)
+	useEffect(() => {
+		if (!ref.current) return;
+
+		const updateMargins = () => {
+			const shadowHosts = ref.current?.querySelectorAll('kol-input-radio');
+			shadowHosts?.forEach((host) => {
+				const shadowRoot = (host as HTMLElement).shadowRoot;
+				if (shadowRoot) {
+					const controls = shadowRoot.querySelectorAll('[role="radio"]');
+					controls.forEach((control) => {
+						(control as HTMLElement).style.marginLeft = '1.5rem';
+					});
+				}
+			});
+		};
+
+		// KoliBri rendert asynchron im Shadow-DOM; wir warten kurz
+		const timeout = setTimeout(updateMargins, 100);
+
+		// MutationObserver für späte Renderings
+		const observer = new MutationObserver(() => {
+			updateMargins();
+		});
+
+		if (ref.current) {
+			observer.observe(ref.current, { childList: true, subtree: true });
+		}
+
+		return () => {
+			clearTimeout(timeout);
+			observer.disconnect();
+		};
+	}, []);
+
 	return (
-		<KolInputRadio
-			_label="Darstellung"
-			_orientation="horizontal"
-			_options={options}
-			_value={preference}
-			_hint={'Wähle das Farbschema der Anwendung. „System“ folgt der Einstellung deines Betriebssystems.'}
-			_on={{
-				onChange: (_event, value) => {
-					if (typeof value === 'string') {
-						setPreference(value as ThemePreference);
-					}
-				},
-			}}
-		/>
+		<div ref={ref}>
+			<KolInputRadio
+				_label="Darstellung"
+				_orientation="horizontal"
+				_options={options}
+				_value={preference}
+				_hint={'Wähle das Farbschema der Anwendung. „System" folgt der Einstellung deines Betriebssystems.'}
+				_on={{
+					onChange: (_event, value) => {
+						if (typeof value === 'string') {
+							setPreference(value as ThemePreference);
+						}
+					},
+				}}
+			/>
+		</div>
 	);
 };

@@ -1,6 +1,6 @@
 import { KolAlert, KolButton, KolHeading, KolInputCheckbox, KolTabs } from '@public-ui/react-v19';
 import type { Pillar } from 'client';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { requestMicrophonePermission } from '../lib/micPermission';
 import { usePushSubscription } from '../lib/push';
@@ -33,6 +33,46 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 	// Aktiven Tab als kontrollierten State führen. Initialwert aus der URL; `setActiveTab` wird bei
 	// manuellem Tab-Wechsel (onSelect) aufgerufen, damit Re-Renders den gewählten Tab nicht zurücksetzen.
 	const [activeTab, setActiveTab] = useState(() => (window.location.pathname.startsWith('/settings/general') ? 0 : 1));
+
+	// #843: Ref für Settings-General Container
+	const settingsGeneralRef = useRef<HTMLDivElement>(null);
+
+	// #843: marginLeft auf Shadow-DOM Controls setzen (24dp = 1.5rem)
+	useEffect(() => {
+		if (!settingsGeneralRef.current) return;
+
+		const updateMargins = () => {
+			const shadowHosts = settingsGeneralRef.current?.querySelectorAll('kol-input-checkbox, kol-button');
+			shadowHosts?.forEach((host) => {
+				const shadowRoot = (host as HTMLElement).shadowRoot;
+				if (shadowRoot) {
+					const controls = shadowRoot.querySelectorAll(
+						'[role="switch"], button:not([type="button"]):not([class*="icon"])',
+					);
+					controls.forEach((control) => {
+						(control as HTMLElement).style.marginLeft = '1.5rem';
+					});
+				}
+			});
+		};
+
+		// KoliBri rendert asynchron im Shadow-DOM; wir warten kurz
+		const timeout = setTimeout(updateMargins, 100);
+
+		// MutationObserver für späte Renderings
+		const observer = new MutationObserver(() => {
+			updateMargins();
+		});
+
+		if (settingsGeneralRef.current) {
+			observer.observe(settingsGeneralRef.current, { childList: true, subtree: true });
+		}
+
+		return () => {
+			clearTimeout(timeout);
+			observer.disconnect();
+		};
+	}, []);
 
 	// Stabile Callback-Identität, damit KolTabs nicht bei jedem Render neu verdrahtet (#323).
 	const tabsCallbacks = useMemo(
@@ -105,7 +145,7 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 				_selected={activeTab}
 				_on={tabsCallbacks}
 			>
-				<div slot="tab-0" className="settings-general">
+				<div slot="tab-0" className="settings-general" ref={settingsGeneralRef}>
 					<AppearanceSetting />
 					<KolInputCheckbox
 						_label="Sprachaufnahme automatisch starten"
