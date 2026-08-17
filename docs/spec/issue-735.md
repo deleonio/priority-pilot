@@ -1,5 +1,7 @@
 # Issue 735: UX-Phase in Phasen-Workflow integrieren
 
+**Stand:** 2026-08-17
+
 ## Ziel
 
 Die Phase `ux` wird in den Phasen-Workflow integriert, um sicherzustellen, dass UX-Arbeiten abgeschlossen sind, bevor die Implementierung startet.
@@ -70,6 +72,19 @@ Die Prompts in `.github/workflows/03-claude-implement.yml` und `.github/prompts/
 2. Die Phase `implement` verlangt zusätzlich `ux:ready`
 3. Der Workflow 03 feuert auf Fan-in (ai:ready OR ux:ready)
 4. Die Prompts berücksichtigen den KI-UX-Block
+
+---
+
+## Versionierung
+
+- **v1.0** (2026-08-16): Initialefassung für Issue #735. UX-Phase in Phasen-Workflow integrieren spezifiziert.
+- **v1.1** (2026-08-17): Nightly-Sync — Ist-Stand-Korrektur. Feature ist bereits implementiert: check-phase-label.sh kennt Phase ux, implement verlangt ux:ready, Workflow 03 feuert auf Fan-in.
+
+---
+
+## Status
+
+**ABGESCHLOSSEN** — UX-Phase Integration in Phasen-Workflow ist implementiert und in Produktion.
 
 ## Akzeptanzkriterien-Bezug
 
