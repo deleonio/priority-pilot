@@ -122,7 +122,45 @@ test.describe('#788 LLM-Einstellungsmenü optimieren', () => {
 	});
 
 	/**
-	 * Szenario 5 (Spec: Accessibility)
+	 * Szenario 5 (Spec: Security / Write-Only)
+	 * TC5: Write-Only-Verhalten — Keys werden nicht zurückgelesen
+	 */
+	test('TC5: Write-Only – nach Speichern+Reload sind Felder leer, X-Button erscheint', async ({ page }) => {
+		await page.goto('/settings/pillars');
+		await waitForStableView(page, 'Priority Pilot');
+
+		await page.getByRole('tab', { name: 'LLM', exact: true }).click();
+
+		const passwordInput = page.locator('input[type="password"]').first();
+		const saveButton = page.getByRole('button', { name: 'Speichern' });
+
+		// Initially: No X-Button visible (key not set)
+		const xButton = page.locator('button[aria-label="API-Key löschen"]').first();
+		await expect(xButton).toHaveCount(0);
+
+		// API-Key eingeben
+		await passwordInput.fill('test-write-only-key');
+
+		// Speichern
+		await saveButton.click();
+		// Warte auf Erfolgsmeldung
+		await expect(page.getByText('Gespeichert')).toBeVisible();
+
+		// Seite neu laden
+		await page.reload();
+		await waitForStableView(page, 'Priority Pilot');
+		await page.getByRole('tab', { name: 'LLM', exact: true }).click();
+
+		// FELD IST LEER (Key wurde nicht zurückgelesen)
+		await expect(passwordInput).toHaveValue('');
+
+		// X-BUTTON erscheint (weil status.hasKey=true)
+		const xButtonAfterReload = page.locator('button[aria-label="API-Key löschen"]').first();
+		await expect(xButtonAfterReload).toBeVisible();
+	});
+
+	/**
+	 * Szenario 6 (Spec: Accessibility)
 	 * A11y: Tastatur-Navigation, Screenreader-Labels
 	 */
 	test('A11y: X-Button ist tastatur-navigierbar und hat aria-label', async ({ page }) => {
