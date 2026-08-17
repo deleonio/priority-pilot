@@ -107,27 +107,39 @@ body {
 }
 
 /*
-	 * App-Name zwischen Logo und Avatar (#787). Mobil (<600px) ausgeblendet, um mit
-	 * Logo/Avatar/Toolbar in eine Zeile zu passen. Ab 600px sichtbar.
-	 */
+ * App-Name zwischen Logo und Avatar (#787). Seit #485 ist das Logo icon-only und trägt die
+ * Wortmarke nicht mehr — der Name steht deshalb wieder als eigenes Label im Header (bewusst als
+ * `span`, NICHT als H1: die Entscheidung aus #406, keine redundante Text-H1 zu führen, bleibt).
+ *
+ * Erst ab 64rem sichtbar: Der Header muss auf 375px UND 768px einzeilig bleiben (#485 AK6,
+ * #718 AK4/AK5, mobile-shell). Bis 64rem ist der Platz für Logo, Identität, Modell-Auswahl und die
+ * fünf Kopf-Aktionen bereits ausgereizt — der Name ist von allen Elementen das einzige rein
+ * dekorative und weicht daher zuerst.
+ */
 .app-name {
 	display: none;
 	font-weight: 700;
 	font-size: 1.125rem;
+	white-space: nowrap;
 }
 
-@media (min-width: 48rem) {
+@media (min-width: 64rem) {
 	.app-name {
 		display: inline;
 	}
 }
 
 /*
-	 * KI-Modell-Auswahl-Button in der Toolbar (#787). Nativer Button mit role="combobox"
-	 * für A11y-Konformität. Minimale Click-Target-Größe 44×44px (BITV 2.1).
-	 */
+ * KI-Modell-Auswahl-Button in der Toolbar (#787). Nativer Button mit role="combobox"
+ * für A11y-Konformität. Minimale Click-Target-Größe 44×44px (BITV 2.1).
+ *
+ * Unter 48rem ausgeblendet (siehe Media-Query unten): Logo, Avatar und die fünf Kopf-Aktionen
+ * (#691) füllen die 375px-Zeile bereits vollständig aus — ein sechstes Bedienelement erzwänge
+ * einen Zeilenumbruch und bräche damit den Einzeiler-Vertrag aus #485 AK6 / #718 AK4. Auf Mobile
+ * bleibt die Modell-Auswahl über den Dashboard-Einstieg erreichbar (#742).
+ */
 .model-selector-button {
-	display: inline-flex;
+	display: none;
 	align-items: center;
 	gap: 0.5rem;
 	min-height: var(--pp-toolbar-height);
@@ -158,15 +170,24 @@ body {
 .model-selector-chevron {
 	font-size: 0.75rem;
 	opacity: 0.7;
+	flex-shrink: 0;
 }
 
 /*
-	 * Mobile (<48rem): Touch-Target-Größe 48×48px (WCAG 2.5.5).
-	 */
-@media (max-width: 47.99rem) {
+ * Der Modellname ist eine frei konfigurierbare ID (`PUT /llm-config`) und kann beliebig lang
+ * werden. Ohne Deckel schöbe ein langer Name die Kopf-Aktionen aus der Zeile; gekürzt wird deshalb
+ * visuell per Ellipse — der vollständige Name bleibt im `title` und im `aria-label`.
+ */
+.model-selector-label {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	max-width: 10rem;
+}
+
+@media (min-width: 48rem) {
 	.model-selector-button {
-		min-height: 3rem;
-		min-width: 3rem;
+		display: inline-flex;
 	}
 }
 
@@ -228,6 +249,12 @@ body {
  * (je 44px WCAG-Mindestgröße plus Lücken) in einer Zeile zu passen. Ab 48rem erscheint der Name
  * wieder (#691: Header-Konsistenz).
  */
+.user-info {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	flex-shrink: 0;
+}
 
 .user-display-name {
 	display: none;
@@ -1382,6 +1409,17 @@ body {
 	align-items: center;
 	justify-content: space-between;
 	gap: 0.5rem;
+}
+
+/*
+ * Unter 48rem ist dieser Button der einzige Einstieg in die KI-Modell-Auswahl (im Header ist sie
+ * dort ausgeblendet, siehe `.model-selector-button`). Als primäres Touch-Ziel erfüllt er deshalb
+ * die 48×48px aus WCAG 2.5.5 (#787 Journey 3 AK2) statt nur der 44px-Untergrenze.
+ */
+@media (max-width: 47.99rem) {
+	.dashboard-heading kol-button[data-testid='model-selection-button'] {
+		--a11y-min-size: 3rem;
+	}
 }
 
 /* Aktuell gewähltes Modell über der Liste (role=status → Screenreader-Ansage bei Wechsel). */
