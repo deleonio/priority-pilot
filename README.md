@@ -70,7 +70,7 @@ das die Datenbank (`database.sqlite`) automatisch sichert und alte Backups aufr√
 **Cron-Beispiel (nightly 02:00 Uhr):**
 
 ```bash
-0 2 * * * /path/to/priority-pilot/maintenance.sh
+0 2 * * * /path/to/server/maintenance.sh
 ```
 
 Das Skript kann aus beliebigem Verzeichnis aufgerufen werden; alle Pfade werden relativ zum Skript-Verzeichnis aufgel√∂st.
