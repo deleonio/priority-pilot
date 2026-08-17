@@ -266,32 +266,6 @@ test.describe('#312 Toolbar-Reihenfolge und Zahnrad-Icon', () => {
 	});
 
 	/**
-	 * AK2 — Zahnrad-Icon: Der „Einstellungen"-Button trägt ein Zahnrad-Icon;
-	 * `kolicon-settings` ist entfernt.
-	 * Aktuell ist `kolicon-settings` gesetzt → ROT bis zum Fix.
-	 */
-	test('AK2: „Einstellungen"-Button hat Zahnrad-Icon, kein kolicon-settings mehr', async ({ page }) => {
-		await page.goto('/');
-		await waitForStableView(page);
-
-		const toolbar = page.getByRole('toolbar', { name: /Kopf-Aktionen/ });
-		const settingsBtn = toolbar.getByRole('button', { name: 'Einstellungen' });
-		await expect(settingsBtn).toBeVisible();
-
-		const iconState = await settingsBtn.evaluate((el) => {
-			const root = el as HTMLElement;
-			// Alle Icon-Spans im Light-DOM und flachen Shadow-DOM-Ebene sammeln.
-			const allText = root.innerHTML + (root.shadowRoot?.innerHTML ?? '');
-			const hasOldIcon = /kolicon-settings/.test(allText);
-			const hasGearIcon = /fa-gear|kolicon-cogwheel/.test(allText);
-			return { hasOldIcon, hasGearIcon };
-		});
-
-		expect(iconState.hasOldIcon, 'kolicon-settings darf nicht mehr vorhanden sein').toBe(false);
-		expect(iconState.hasGearIcon, 'Ein Zahnrad-Icon (fa-gear oder kolicon-cogwheel) muss vorhanden sein').toBe(true);
-	});
-
-	/**
 	 * AK3 — Keine Navigations-Regression: Beide Buttons navigieren weiterhin korrekt.
 	 * „Einstellungen" → /settings/general (#382), „Hilfe" → /hilfe.
 	 */

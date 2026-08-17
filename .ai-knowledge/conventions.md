@@ -32,3 +32,7 @@
     (`page.setViewportSize({ width: 375, height: 812 })`), der belegt, dass der Kerninhalt ohne
     horizontalen Overflow lesbar/bedienbar ist (`element.scrollWidth <= window.innerWidth`). Kanonisches
     Muster im Repo: `frontend/e2e/login.spec.ts` (AK5) und `frontend/e2e/task-tree.spec.ts` (AK-6).
+- **KoliBri-Komponenten black-box testen:** Tests greifen nur über die öffentliche Schnittstelle auf KoliBri-Web-Components
+  zu (Host-Locator, Rolle/Name/Interaktion) — kein Shadow-DOM-Piercing (`.shadowRoot`, interne Klassen wie
+  `.kol-span__label`, `.kol-tooltip__floating`, `kolicon-*`). Der ESLint-Guard in `frontend/eslint.config.mjs`
+  erzwingt dies. Details: [docs/testing.md §4](../docs/testing.md#4-kolibri-komponenten-testen).

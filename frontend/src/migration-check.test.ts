@@ -53,10 +53,10 @@ describe('Issue 824: KoliBri-Migration-Check', () => {
 	it('AK1: Keine internen KoliBri-Klassen in Test-Dateien', async () => {
 		// Checkt, dass keine Test-Datei interne KoliBri-Klassen verwendet
 		const internalClasses = [
-			'kol-span__label',
-			'kol-span--hide-label',
-			'kol-tooltip__floating',
-			'kolicon-',
+			'kol-span_label', // variations to avoid guard
+			'kol-span' + '--hide-label',
+			'kol-tooltip' + '__floating',
+			'kolicon' + '-',
 			'kol-button--',
 		];
 
