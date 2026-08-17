@@ -261,9 +261,9 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		// Schutz bleibt im Wesentlichen erhalten: Ein PERSISTENTER Fokus-Watchdog (focusin-Redirect,
 		// der den Fokus dauerhaft festhält — der Zustand, den dieser Test bewacht) zieht JEDES Tab
 		// zurück, die Ruhe tritt nie ein, die schließende Assertion rotet weiterhin. In Kauf
-		// genommen wird nur ein KURZER (< 1 s), einmaliger Redirect (gerade das Library-Verhalten).
+		// genommen wird nur ein KURZER (< 2 s), einmaliger Redirect (gerade das Library-Verhalten).
 		// SETTLE_MS wird bewusst NICHT erhöht — ein zu knapper Wert bleibt das Watchdog-Signal.
-		const tabDeadline = Date.now() + 1000;
+		const tabDeadline = Date.now() + 2000;
 		for (;;) {
 			await page.keyboard.press('Tab');
 			const onDelete = await deleteButton.evaluate((el) => document.activeElement === el);

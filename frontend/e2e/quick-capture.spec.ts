@@ -158,11 +158,11 @@ test.describe('Schnellerfassungs-UI für Tasks (#236)', () => {
 		// Vertrag: Tab darf den Fokus weiterbewegen — die Textarea ist nicht mehr fokussiert, und
 		// einer der Aktionsbuttons hat den Fokus übernommen.
 		await expect(textarea).not.toBeFocused();
-		await expect(
-			page
-				.getByRole('button', { name: 'Verarbeiten und weiter' })
-				.or(page.getByRole('button', { name: 'Überspringen' })),
-		).toBeFocused();
+		const processButton = page.getByRole('button', { name: 'Verarbeiten und weiter' });
+		const skipButton = page.getByRole('button', { name: 'Überspringen' });
+		const isProcessFocused = await processButton.evaluate((el) => el === document.activeElement);
+		const isSkipFocused = await skipButton.evaluate((el) => el === document.activeElement);
+		expect(isProcessFocused || isSkipFocused, 'Tab muss Fokus auf einen Aktionsbutton bewegen').toBe(true);
 	});
 
 	test('AC3: „Verarbeiten und weiter" ruft parse-text auf und befüllt das Formular vor', async ({ page }) => {

@@ -1,5 +1,4 @@
-import { describe, it } from 'node:test';
-import assert from 'node:assert';
+import { describe, it } from 'vitest';
 
 /**
  * Issue 824 AK2: ESLint-Guard aktiv und gescoped
@@ -17,16 +16,16 @@ describe('Issue 824: KoliBri ESLint-Guard', () => {
 	it('AK2: ESLint-Config enthält KoliBri-Guard für Test-Dateien', async () => {
 		// Dieser Test wird erst grün nach Implementation des Guards in eslint.config.mjs
 		// TODO: Implementieren und Test auf Grün bringen
-		assert.fail('ESLint-Guard noch nicht implementiert');
+		throw new Error('ESLint-Guard noch nicht implementiert');
 	});
 
 	it('AK2: Guard ist auf Test-Dateien gescoped', async () => {
 		// Guard darf nur Test-Dateien betreffen, nicht Produktivcode
-		assert.fail('Scope-Validierung noch nicht implementiert');
+		throw new Error('Scope-Validierung noch nicht implementiert');
 	});
 
 	it('AK2: Guard erlaubt Host-Locators (kol-button, kol-input-range)', async () => {
 		// Regex darf Host-Locators nicht verbieten
-		assert.fail('Host-Locator-Whitelist noch nicht implementiert');
+		throw new Error('Host-Locator-Whitelist noch nicht implementiert');
 	});
 });

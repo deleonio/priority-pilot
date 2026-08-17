@@ -1,5 +1,4 @@
-import { describe, it } from 'node:test';
-import assert from 'node:assert';
+import { describe, it, expect } from 'vitest';
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -43,10 +42,10 @@ describe('Issue 824: KoliBri-Migration-Check', () => {
 			if (!existsSync(filePath)) continue;
 
 			const content = readFileSync(filePath, 'utf-8');
-			assert.ok(
+			expect(
 				!content.includes('.shadowRoot') && !content.includes('shadowRoot'),
 				`Datei ${file} enthält noch .shadowRoot-Zugriff`,
-			);
+			).toBe(true);
 		}
 	});
 
@@ -69,7 +68,9 @@ describe('Issue 824: KoliBri-Migration-Check', () => {
 			for (const internalClass of internalClasses) {
 				// Host-Locators (kol-button, kol-input-range) sind erlaubt
 				if (internalClass === 'kol-button--') {
-					assert.ok(!content.includes(internalClass), `Datei ${file} verwendet interne Klasse ${internalClass}`);
+					expect(!content.includes(internalClass), `Datei ${file} verwendet interne Klasse ${internalClass}`).toBe(
+						true,
+					);
 				}
 			}
 		}
@@ -91,10 +92,10 @@ describe('Issue 824: KoliBri-Migration-Check', () => {
 			if (!existsSync(filePath)) continue;
 
 			const content = readFileSync(filePath, 'utf-8');
-			assert.ok(
+			expect(
 				content.includes('getByRole("slider")') || content.includes("getByRole('slider')"),
 				`Datei ${file} verwendet keine getByRole("slider")`,
-			);
+			).toBe(true);
 		}
 	});
 
@@ -103,18 +104,18 @@ describe('Issue 824: KoliBri-Migration-Check', () => {
 		const passwordFile = 'e2e/settings-llm.spec.ts';
 		const filePath = join(frontendDir, passwordFile);
 		if (!existsSync(filePath)) {
-			assert.fail(`Datei ${passwordFile} existiert nicht`);
+			throw new Error(`Datei ${passwordFile} existiert nicht`);
 		}
 
 		const content = readFileSync(filePath, 'utf-8');
-		assert.ok(
+		expect(
 			content.includes('getLabel(') && (content.includes('Mistral API-Key') || content.includes('OpenRouter API-Key')),
 			`${passwordFile} verwendet keine getLabel-Locators für Password-Fields`,
-		);
+		).toBe(true);
 	});
 
 	it('AK3: Alle Tests laufen grün nach Migration', async () => {
 		// Dies ist ein Platzhalter-Test - die eigentliche Prüfung erfolgt durch pnpm test
-		assert.ok(true, 'Platzhalter für pnpm test Grün-Status');
+		expect(true, 'Platzhalter für pnpm test Grün-Status').toBe(true);
 	});
 });
