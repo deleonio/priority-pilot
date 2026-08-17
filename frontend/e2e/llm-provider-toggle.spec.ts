@@ -6,7 +6,10 @@ test.describe('LLM Provider Toggle UI – Spec: Issue-749', () => {
 		await page.goto('/');
 		await page.getByRole('button', { name: 'Einstellungen' }).click();
 		// Select LLM tab (index 2, labeled "LLM")
-		await page.getByRole('tab', { name: 'LLM', exact: true }).click();
+		const llmTab = page.getByRole('tab', { name: 'LLM', exact: true });
+		await llmTab.click();
+		// Verify tab is actually selected
+		await expect(llmTab).toHaveAttribute('aria-selected', 'true');
 	});
 
 	test('should display provider toggle switches – Spec: Issue-749 Journey Step 1', async ({ page }) => {
