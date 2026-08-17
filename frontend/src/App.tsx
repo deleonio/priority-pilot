@@ -440,13 +440,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 	return (
 		<main className="app" ref={deleteFallbackRef} tabIndex={-1} data-focus-fallback>
 			<header role="banner" className="app-header">
-				<button
-					type="button"
-					className="logo-btn"
-					role="button"
-					aria-label="Zum Dashboard"
-					onClick={handleLogoDashboard}
-				>
+				<button type="button" className="logo-btn" aria-label="Zum Dashboard" onClick={handleLogoDashboard}>
 					<img src="/logo/logo.png" alt="Priority Pilot" />
 				</button>
 				<span className="app-name">Priority Pilot</span>
