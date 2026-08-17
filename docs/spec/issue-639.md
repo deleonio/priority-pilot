@@ -51,5 +51,17 @@ LLM-Kaskade konfigurieren lässt (analog zur bereits konfigurierbaren `OPENROUTE
 
 ## Nicht Teil dieser Spec (bereits erfüllt, kein neuer Test)
 
-Siehe Vorbedingung — alle übrigen #639-Akzeptanzkriterien sind durch die #638-Kaskade bereits
-funktional erfüllt und in `cascade.test.ts` / `llm.test.ts` abgedeckt.
+Siehe Vorbedingung — alle übrigen #639-Akzeptanzkriterien sind durch die #638-Kaskade bereits funktional erfüllt und in `cascade.test.ts` / `llm.test.ts` abgedeckt.
+
+---
+
+## Versionierung
+
+- **v1.0** (2026-08-16): Initialefassung für Issue #639. OpenRouter-Endpoint über ENV konfigurierbar spezifiziert.
+- **v1.1** (2026-08-17): Nightly-Sync — Ist-Stand-Korrektur. Feature ist bereits implementiert: llm.ts nutzt OPENROUTER_API_URL mit Default https://openrouter.ai/api/v1, DEFAULT_OPENROUTER_API_URL konstante vorhanden.
+
+---
+
+## Status
+
+**ABGESCHLOSSEN** — OpenRouter-Endpoint ENV-Konfiguration ist implementiert und in Produktion.
