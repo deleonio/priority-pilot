@@ -115,13 +115,13 @@ test.describe('#761 Layout-Optimierung Titel/Beschreibung/Aktionen', () => {
 		await expect(titleElement).toBeVisible();
 
 		// Auf Mobile ebenfalls volle Breite
-		// clientWidth misst die tatsächliche Flex-Container-Breite, nicht boundingBox()
-		const titleWidth = await titleElement.evaluate((el: HTMLElement) => el.clientWidth);
+		const titleBox = await titleElement.boundingBox();
+		expect(titleBox).not.toBeNull();
 		const containerWidth = await page
 			.locator('body, .container, main, .dialog')
 			.first()
 			.evaluate((el: HTMLElement) => el.clientWidth);
-		expect(titleWidth).toBeGreaterThanOrEqual(containerWidth - 20);
+		expect(titleBox!.width).toBeGreaterThanOrEqual(containerWidth - 20);
 
 		// Spec-Bezug: docs/spec/issue-761.md, Testfall "Responsive Design bei verschiedenen Viewport-Größen"
 	});
