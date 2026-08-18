@@ -137,7 +137,7 @@ export const PillarWeightsForm = ({ pillars, onSaved, onCancel }: PillarWeightsF
 				</>
 			)}
 
-			<div className="modal-actions">
+			<div className="form-actions">
 				<KolButton
 					_label={saving ? 'Speichern…' : 'Speichern'}
 					_variant="primary"

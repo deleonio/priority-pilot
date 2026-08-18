@@ -28,13 +28,20 @@ const SETTINGS_TABS = [{ _label: 'Allgemein' }, { _label: 'Säulen' }, { _label:
 /**
  * Einstellungen-Seite (#271) mit `KolTabs`-Navigation: „Allgemein" (Platzhalter), „Säulen"
  * (Säulen-Gewichtungs-Editor) und „LLM" (Provider-Konfiguration, #640). Der aktive Tab wird beim
- * initialen Laden aus der URL abgeleitet: `/settings/general` → Allgemein (0), alles andere
- * (inkl. `/settings/pillars`) → Säulen (1).
+ * initialen Laden aus der URL abgeleitet: `/settings/general` → Allgemein (0), `/settings/llm` → LLM (2),
+ * alles andere → Säulen (1).
  */
 export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: SettingsPageProps) => {
 	// Aktiven Tab als kontrollierten State führen. Initialwert aus der URL; `setActiveTab` wird bei
 	// manuellem Tab-Wechsel (onSelect) aufgerufen, damit Re-Renders den gewählten Tab nicht zurücksetzen.
-	const [activeTab, setActiveTab] = useState(() => (window.location.pathname.startsWith('/settings/general') ? 0 : 1));
+	const [activeTab, setActiveTab] = useState(() => {
+		const path = window.location.pathname;
+		if (path.startsWith('/settings/general')) return 0;
+		// `/settings/llm` muss den LLM-Tab öffnen — sonst zeigt der Direktaufruf den Säulen-Editor
+		// und das Provider-Formular bleibt im inaktiven Panel unsichtbar (#886).
+		if (path.startsWith('/settings/llm')) return 2;
+		return 1;
+	});
 
 	// #843: Ref für Settings-General Container
 	const settingsGeneralRef = useRef<HTMLDivElement>(null);
@@ -233,6 +240,9 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 						</KolAlert>
 					)}
 				</div>
+				{/* Beide Panel-Inhalte bleiben gemountet: `KolTabs` blendet inaktive Panels nur aus dem
+					    Layout- und Accessibility-Baum aus. Ein Unmount würde ungespeicherte Formularwerte
+					    verwerfen und bei jeder Rückkehr einen erneuten LLM-Config-Fetch auslösen (#886). */}
 				<div slot="tab-1">
 					{/* Überschrift „Säulen-Gewichtung" ist Teil des #270-Vertrags (settings-page.spec.ts):
 						    die Route /settings/pillars rendert den Säulen-Editor mit dieser Überschrift. */}
