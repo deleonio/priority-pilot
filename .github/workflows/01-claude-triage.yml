@@ -1,17 +1,22 @@
 name: 1/7 Analyse
 
-# Stößt die KI-Analyse (Triage) eines Issues automatisch an.
+# Stößt die KI-Analyse (Triage) eines Issues an.
 # Setzt **Claude Code** ein; Provider via `vars.LLM_PROVIDER` (zai|claude), aufgelöst in setup-claude.
 #
 # Triggert bei:
-#  - neuem Issue (issues: opened)
-#  - Setzen von Label "ai:needs-analyse" (issues: labeled) → Re-Triage (manuell)
+#  - Setzen von Label "ai:needs-analyse" (issues: labeled) → Einstieg in die Pipeline
 #  - Entfernen von Label "ai:analysed" (issues: unlabeled) → Re-Triage (manuell)
 #
+# BEWUSST KEIN issues.opened-Trigger (mehr): Ein neues Issue startet NICHTS von selbst — die
+# Pipeline beginnt erst, wenn ein Mensch `ai:needs-analyse` setzt. So bleibt kontrollierbar,
+# WELCHE Tickets in den Flow gehen und WANN (Sammel-Anlage, Entwürfe, fremde Reports laufen
+# nicht automatisch los). Nebeneffekt: Der frühere author_association-Guard (OWNER/MEMBER/
+# COLLABORATOR) im precheck-if entfällt — Labels kann ohnehin nur setzen, wer Schreib-/
+# Triage-Rechte am Repo hat.
 # BEWUSST KEIN issue_comment-Trigger: Der frühere @hermes-Mention-Trigger ist tot – die
 # Konvention gibt es nicht mehr, und Kommentare (insbesondere Bot-Kommentare) dürfen nichts
 # anstoßen.
-# Re-Triage hat zwei Wege: `ai:needs-analyse` setzen (Konsum-Weg, auch von issue-unblock
+# Zwei Wege in die Phase: `ai:needs-analyse` setzen (Konsum-Weg, auch von issue-unblock
 # genutzt) und `ai:analysed` entfernen (manueller Weg, seit ADR-0003-Fortschreibung zurück).
 #
 # CONCURRENCY: Statische Gruppe pro Phase (globale Serialisierung, FIFO) + cancel-in-progress:
@@ -23,7 +28,7 @@ name: 1/7 Analyse
 
 on:
   issues:
-    types: [opened, labeled, unlabeled]
+    types: [labeled, unlabeled]
 
 concurrency:
   group: claude-triage
@@ -42,7 +47,7 @@ jobs:
     # den precheck, nicht den Hauptjob: wird der precheck übersprungen, ist sein Output leer und
     # der Hauptjob fällt korrekt mit aus.
     if: >-
-      ${{ (github.event.action == 'opened' && (github.event.issue.author_association == 'OWNER' || github.event.issue.author_association == 'MEMBER' || github.event.issue.author_association == 'COLLABORATOR')) || (github.event.action == 'labeled' && github.event.label.name == 'ai:needs-analyse') || (github.event.action == 'unlabeled' && github.event.label.name == 'ai:analysed') }}
+      ${{ (github.event.action == 'labeled' && github.event.label.name == 'ai:needs-analyse') || (github.event.action == 'unlabeled' && github.event.label.name == 'ai:analysed') }}
     # Label-IST-Zustand zur Laufzeit abfragen (nicht den Trigger-Zeitpunkt-Payload): Dieser Run
     # kann lange in der globalen Phasen-Queue warten — bis er startet, kann das Trigger-Label
     # (ai:needs-analyse) bereits von einem anderen Lauf konsumiert (entfernt) worden sein.
@@ -66,11 +71,11 @@ jobs:
         with:
           phase: analyse
           ticket: ${{ github.event.issue.number }}
-          # Drei Einstiege: Erst-Triage (opened) und unlabeled-Re-Triage (Entfernen von
-          # ai:analysed) übergeben LEER — die Action prüft dann ai:analysed abwesend; beim
-          # unlabeled-Weg ist das der Konsumiert-Check (klebt es wieder, war ein paralleler
-          # Lauf schneller). Nur bei labeled (ai:needs-analyse) wird der Labelname als
-          # REQUIRED weitergegeben (muss noch da sein = konsumiert wäre entfernt).
+          # Zwei Einstiege: Der unlabeled-Re-Triage (Entfernen von ai:analysed) übergibt
+          # LEER — die Action prüft dann, dass ai:analysed abwesend ist; das ist hier der
+          # Konsumiert-Check (klebt es wieder, war ein paralleler Lauf schneller). Bei
+          # labeled (ai:needs-analyse) wird der Labelname als REQUIRED weitergegeben
+          # (muss noch da sein = konsumiert wäre entfernt).
           trigger-label: ${{ github.event.action == 'labeled' && github.event.label.name || '' }}
 
   triage:
