@@ -139,3 +139,53 @@ describe('toFreeModels-Filterung (Upstream-Rohdaten → Free-Liste)', () => {
 		}
 	});
 });
+
+describe('Issue 861: contextLength aus OpenRouter', () => {
+	it('TC1: GET /models/free liefert Modelle mit contextLength-Feld (optional, number) - Spec issue-861.md TC1', async () => {
+		upstream = async () => {
+			upstreamCalls++;
+			return [
+				{ id: 'openrouter/free', name: 'OpenRouter Free', contextLength: 128000 },
+				{ id: 'meta-llama/llama-3-8b-instruct:free', name: 'Llama 3 8B', contextLength: 128000 },
+				{ id: 'zeta/model:free', name: 'Zeta Free' }, // ohne contextLength
+			].map((model) => ({ ...model }));
+		};
+		const cookie = await register('context@example.com', 'sicheres-passwort-1');
+
+		const res = await getFreeModels(cookie);
+		assert.equal(res.status, 200);
+		const body = (await res.json()) as { models: Array<{ id: string; name: string; contextLength?: number }> };
+		assert.equal(body.models.length, 3);
+
+		const openrouterModel = body.models.find((m) => m.id === 'openrouter/free');
+		assert.ok(openrouterModel, 'openrouter/free muss in der Antwort sein');
+		assert.equal(typeof openrouterModel.contextLength, 'number', 'contextLength muss number sein');
+		assert.equal(openrouterModel.contextLength, 128000, 'contextLength muss 128000 sein');
+
+		const zetaModel = body.models.find((m) => m.id === 'zeta/model:free');
+		assert.ok(zetaModel, 'zeta/model:free muss in der Antwort sein');
+		assert.equal(zetaModel.contextLength, undefined, 'contextLength fehlt, wenn nicht im Upstream');
+	});
+
+	it('TC2: Fehlende contextLength in OpenRouter-Antwort bricht nicht ab (graceful degradation) - Spec issue-861.md TC2', async () => {
+		upstream = async () => {
+			upstreamCalls++;
+			return FREE_MODELS.map((model) => ({ ...model })); // ohne contextLength
+		};
+		const cookie = await register('no-context@example.com', 'sicheres-passwort-1');
+
+		const res = await getFreeModels(cookie);
+		assert.equal(res.status, 200, 'Antwort muss 200 sein, auch ohne contextLength');
+		const body = (await res.json()) as { models: Array<{ id: string; name: string }> };
+		assert.deepEqual(body.models, FREE_MODELS, 'Modelle müssen trotzdem geliefert werden');
+	});
+
+	it('AK1: OpenAPI-Spec definiert contextLength (optional, number) - Spec issue-861.md', async () => {
+		const fs = await import('node:fs/promises');
+		const openApiPath = 'openapi.yml';
+		const openApiContent = await fs.readFile(openApiPath, 'utf-8');
+
+		assert.match(openApiContent, /contextLength:/, 'OpenAPI-Spec muss contextLength-Feld definieren');
+		assert.match(openApiContent, /type:\s*number/, 'contextLength muss als number typisiert sein');
+	});
+});
