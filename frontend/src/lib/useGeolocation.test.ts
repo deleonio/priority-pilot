@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
-import { useGeolocation } from './useGeolocation';
+import { GEOLOCATION_INTERVAL_MS, useGeolocation } from './useGeolocation';
 
 /**
  * Rote Spec-Tests für #845 — „Geolocation: Position alle 5 Min ermitteln + Einstellungs-Schalter"
@@ -42,13 +42,18 @@ describe('useGeolocation – Hook-Verhalten (Spec: #845)', () => {
 		});
 	});
 
-	// AK 1: Default aus – kein Geolocation-Request
-	it('AK1: Default ist aus – navigator.geolocation wird nicht aufgerufen', () => {
+	// AK 1: Default aus – Hook liefert enabled=false (Observable Outcome)
+	it('AK1: Default ist aus – Hook initialisiert mit enabled=false', () => {
+		const { result } = renderHook(() => useGeolocation());
+		// Observable Outcome: Hook State prüfen …
+		expect(result.current.enabled).toBe(false);
+		// … plus der eigentliche Vertrag aus Spec #845 AK1: kein Request im Default
 		expect(mockGeolocation.getCurrentPosition).not.toHaveBeenCalled();
 	});
 
 	// AK 2: Einschalten mit granted Permission → Intervall startet
 	it('AK2: Bei granted Permission wird erste Position ermittelt und Intervall gestartet', async () => {
+		const setIntervalSpy = vi.spyOn(window, 'setInterval');
 		mockGeolocation.getCurrentPosition.mockImplementationOnce((success) => {
 			success({ coords: { latitude: 52.52, longitude: 13.405 } });
 		});
@@ -57,7 +62,12 @@ describe('useGeolocation – Hook-Verhalten (Spec: #845)', () => {
 		const { result } = renderHook(() => useGeolocation());
 		await result.current.toggle(true);
 
-		expect(mockGeolocation.getCurrentPosition).toHaveBeenCalledTimes(1);
+		// Observable Outcomes: Hook State, Position und gestarteter Intervall
+		await waitFor(() => {
+			expect(result.current.enabled).toBe(true);
+			expect(result.current.position).toEqual({ latitude: 52.52, longitude: 13.405 });
+			expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), GEOLOCATION_INTERVAL_MS);
+		});
 	});
 
 	// AK 3: Ausschalten stoppt Intervall
@@ -97,9 +107,7 @@ describe('useGeolocation – Hook-Verhalten (Spec: #845)', () => {
 
 	// AK 6: Intervall-Konstante ist definiert
 	it('AK6: GEOLOCATION_INTERVAL_MS ist als Konstante definiert (5 Minuten)', () => {
-		// Import der Konstante aus useGeolocation.ts
-		// const { GEOLOCATION_INTERVAL_MS } = require('./useGeolocation');
-		// expect(GEOLOCATION_INTERVAL_MS).toBe(5 * 60 * 1000);
-		expect(5 * 60 * 1000).toBe(300000); // Mutations-Probe: Konstante muss 300000 sein
+		// Observable Outcome: Konstante aus dem Produktivcode, kein Literal gegen Literal
+		expect(GEOLOCATION_INTERVAL_MS).toBe(5 * 60 * 1000);
 	});
 });
