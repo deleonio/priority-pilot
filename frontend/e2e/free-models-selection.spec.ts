@@ -176,12 +176,13 @@ test('AK3: Fehlende modelSize wird graceful behandelt (nicht angezeigt)', async 
 	// Model-Selection-Dialog öffnen
 	await page.click('[data-testid="model-selection-button"]');
 
-	// Prüfen: Modell ohne modelSize zeigt keinen placeholder "-"
+	// Prüfen: Modell ohne modelSize zeigt nur contextLength (32k formatiert)
 	const modelWithoutSize = page.locator(
 		'[data-testid="free-model-item"][data-model-id="mistralai/mistral-7b-instruct:free"]',
 	);
-	await expect(modelWithoutSize).not.toContainText('-');
-	// Der Text enthält nur den Namen und die contextLength, aber keine Model-Größe
+	// contextLength wird angezeigt (32k formatiert aus 32000)
+	await expect(modelWithoutSize).toContainText('32k');
+	// Keine modelSize angezeigt
 	await expect(modelWithoutSize).not.toContainText('32B');
 });
 
@@ -200,8 +201,9 @@ test('AK3: Fehlende contextLength wird graceful behandelt (nicht angezeigt)', as
 	await page.goto('/dashboard');
 	await page.click('[data-testid="model-selection-button"]');
 
-	// Prüfen: Modell ohne contextLength zeigt keinen placeholder "-"
+	// Prüfen: Modell ohne contextLength zeigt nur modelSize (32B)
 	const modelWithoutContext = page.locator('[data-testid="free-model-item"][data-model-id="openrouter/free"]');
-	await expect(modelWithoutContext).not.toContainText('-');
-	// Der Text enthält nur den Namen und die modelSize, aber keine Kontext-Größe
+	// modelSize wird angezeigt
+	await expect(modelWithoutContext).toContainText('32B');
+	// Keine contextLength angezeigt (nichts mit "k" oder "m")
 });
