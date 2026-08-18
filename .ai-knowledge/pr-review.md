@@ -96,7 +96,7 @@ Danach die wichtigsten Findings als kurze Liste; Details stehen in den Inline-Ko
 
 ### Einen KI-Sammelkommentar pflegen (Konsolidierung statt Duplikate)
 
-Über die Fixup-Schleife (`ai:needs-review` → Review → `ai:needs-changes` → Fixup → …) läuft der
+Über die Fixup-Schleife (`ai:needs-review` → Review → `ai:needs-fixup` → Fixup → …) läuft der
 Kreuzverhör mehrfach am selben PR. Damit sich **nicht jede Runde ein neuer Kommentar** ansammelt und
 der PR unübersichtlich wird, pflegt der Review **genau einen** zusammenfassenden KI-Sammelkommentar
 pro PR — er wird fortgeschrieben statt dupliziert. (Die inline-an-Zeile verankerten Findings aus
@@ -129,12 +129,12 @@ ohnehin mit dem Diff; konsolidiert wird der **Sammelkommentar** mit dem Urteil.)
     bleibt, was schon behandelt wurde.
 
 **CI-/Quality-Gate als Vorbedingung:** Ein grünes Inhalts-Urteil (🟢) ist **notwendig, aber nicht
-hinreichend** für `ai:ready-to-merge` — die Pflicht-Checks (CI: Format/Lint/Build/Test) müssen
+hinreichend** für `ai:reviewed` — die Pflicht-Checks (CI: Format/Lint/Build/Test) müssen
 ebenfalls grün sein. In der GitHub-Actions-Pipeline übernimmt das ein deterministischer
 Gate/Auto-Merge-Workflow (`.github/workflows/pr-gate-merge.yml`): Ist nach Abschluss
-mindestens einer der Allowlist-Checks **CI** oder **Reviewer** rot, setzt er `ai:needs-changes` und
-stößt damit den Fixup an — `ai:ready-to-merge` wird erst vergeben, wenn beide grün sind (sind beide
-grün und `ai:ready-to-merge` gesetzt, mergt derselbe Workflow den PR). Manuell
+mindestens einer der Allowlist-Checks **CI** oder **Reviewer** rot, setzt er `ai:needs-fixup` und
+stößt damit den Fixup an — `ai:reviewed` wird erst vergeben, wenn beide grün sind (sind beide
+grün und `ai:reviewed` gesetzt, mergt derselbe Workflow den PR). Manuell
 (`/kreuzverhoer-review`) gilt dieselbe Regel: bei rotem CI nicht auf 🟢 abschließen.
 
 ## Hinweise

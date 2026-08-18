@@ -10,18 +10,19 @@ Diese Stufe ist **Phase 2** der 7-Phasen-Kette: UX-Expertise fließt **vor** der
 
 Tickets = GitHub-Issues von `deleonio/priority-pilot`. Voraussetzung: `gh` ist authentifiziert.
 
-**Auswahlkriterium:** Bearbeitet werden Issues mit Label `ai:spec-ready` (von der Triage gesetzt,
-nicht von der Spec-Phase), für die **noch kein** UX-Input existiert (KI-UX-Block fehlt im Body)
-und ux:ready noch nicht gesetzt ist (Nicht-UI-Tickets haben ux:ready schon von der Triage).
-Manueller Start via `workflow_dispatch` moeglich.
+**Auswahlkriterium:** Bearbeitet werden Issues mit Label `ai:needs-ux-ui` (von der Analyse-Phase
+gesetzt, nicht von der Spec-Phase), für die **noch kein** UX-Input existiert (KI-UX-Block fehlt
+im Body). Nicht-UI-Tickets bekommen `ai:needs-ux-ui` nie — die Analyse setzt dann direkt
+`ai:needs-spec`. Manueller Start via `workflow_dispatch` moeglich.
 
-Label-Kette: `ai:analyzed` → `ai:spec-ready` → **`ux:ready` (dieser Workflow)** → `ai:ready` (Spec) → Umsetzung → PR.
+Label-Kette: `ai:analysed` → `ai:needs-ux-ui` → **`ai:ux-reviewed` + `ai:needs-spec` (dieser
+Workflow)** → `ai:specified` + `ai:needs-impl` (Spec) → Umsetzung → PR.
 
 ## Trigger
 
-- **Automatisch:** Label `ai:spec-ready` wird gesetzt → GitHub Action `02-claude-ux.yml` triggert.
-  UX prueft im Pre-Check: ai:analyzed vorhanden, ux:ready abwesend. Bei Nicht-UI-Tickets ist
-  ux:ready bereits von der Triage gesetzt → Pre-Check schlaegt fehl → No-op (Spec laeuft direkt).
+- **Automatisch:** Label `ai:needs-ux-ui` wird gesetzt → GitHub Action `02-claude-ux.yml` triggert.
+  UX prueft im Pre-Check: ai:needs-ux-ui noch vorhanden. Nicht-UI-Tickets tragen das Label nie →
+  Phase laeuft fuer sie nicht (Spec laeuft direkt).
 - **Manuell:** `workflow_dispatch` mit Issue-Nummer als Input
 
 ## Output
@@ -60,16 +61,19 @@ VERDICT: ux-ready
 ## Verifikation & Label-Setzung
 
 - Workflow prueft Verdict-Line im Output
-- Bei `VERDICT: ux-ready` → Label `ux:ready` setzen via GitHub App-Token
-- Bei `VERDICT: ux-not-ready` → Label `ux:failed` setzen (fail-safe beim Menschen)
-- `ai:spec-ready` **wird NICHT entfernt** -- es gehoert der Spec-Phase und bleibt am Issue kleben
+- Bei `VERDICT: ux-ready` → Labels `ai:ux-reviewed` + `ai:needs-spec` setzen via GitHub App-Token
+  (Trigger `ai:needs-ux-ui` wird konsumiert = entfernt)
+- Bei `VERDICT: ux-not-ready` → Label `ai:needs-human` setzen (fail-safe beim Menschen) plus
+  Kommentar mit **Warum** (offene UX-Fragen im KI-UX-Block) und **konkreten Optionen**
+  (Fragen klären + `ai:needs-ux-ui` neu setzen, oder bei unerheblichem Blocker `ai:needs-spec`
+  manuell setzen)
 
 ## Charakteristik
 
 - **Beratend, nicht blockierend:** UX-Empfehlungen sind Hinweise, keine harten Blocker
 - **Kein Code-Aendern:** Prompt enthaelt explizit KEINE Anweisungen zu Branch/PR/Code
 - **Keine Gewaltenteilung wie Spec/Implement:** UX ist eine Beratung, kein Vertrag
-- **Optional:** Bei Nicht-UI-Tickets (Triage setzt ux:ready sofort) bleibt die UX-Phase No-op
+- **Optional:** Bei Nicht-UI-Tickets (Analyse setzt `ai:needs-spec` direkt) laeuft die UX-Phase nie
 
 ## Werkzeuge
 

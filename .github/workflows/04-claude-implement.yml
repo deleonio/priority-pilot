@@ -1,13 +1,13 @@
 name: 4/7 Umsetzung
 
-# Setzt ein Issue um, sobald es das Label "ai:ready" erhält UND bereits
-# "ai:analyzed" trägt.
+# Setzt ein Issue um, sobald es das Label "ai:needs-impl" erhält (gesetzt von
+# der Spec-Phase bei fertigen roten Tests).
 # Setzt **Claude Code** ein; Provider via `vars.LLM_PROVIDER` (zai|claude), aufgelöst in setup-claude.
 #
 # CONCURRENCY: Statische Gruppe pro Phase (globale Serialisierung, FIFO). Der `precheck`-Job
 # prüft den LABEL-IST-ZUSTAND zur LAUFZEIT — queued Runs würden mit dem Label-Zustand zum
 # TRIGGER-Zeitpunkt falsch wiederholen (Label inzwischen von einem anderen Lauf konsumiert).
-# Ausnahme Continuation: Der Soft-Abort unten entfernt+re-addet ai:ready absichtlich — der
+# Ausnahme Continuation: Der Soft-Abort unten entfernt+re-addet ai:needs-impl absichtlich — der
 # Folgelauf sieht das Label dann (korrekt) noch vorhanden und setzt fort.
 
 on:
@@ -29,8 +29,8 @@ jobs:
     # Unveränderliches Event-Faktum filtert hier (spart den Runner für No-op-Trigger — 03 feuert
     # auf JEDES `labeled` im Repo). Es gatet den precheck, nicht den Hauptjob: wird der precheck
     # übersprungen, ist sein Output leer und der Hauptjob fällt korrekt mit aus.
-    if: ${{ github.event.label.name == 'ai:ready' }}
-    # Label-IST-Zustand zur Laufzeit: ai:ready + ai:analyzed müssen JETZT (nach dem Warten in
+    if: ${{ github.event.label.name == 'ai:needs-impl' }}
+    # Label-IST-Zustand zur Laufzeit: ai:needs-impl muss JETZT (nach dem Warten in
     # der globalen Phasen-Queue) noch am Issue kleben. Soll-Werte stehen zentral in
     # .github/scripts/check-phase-label.sh; hier wird nur der Phasen-Name übergeben.
     runs-on: ubuntu-latest
@@ -233,7 +233,7 @@ jobs:
             1. SOFORT starten.
             2. Analyse lesen & schnell verifizieren (KEINE vollständige Re-Triage!):
                Akzeptanzkriterien aus BODY-BLOCK übernehmen (gh issue view #ISSUE_NR --json body -q .body).
-               Prüfe NUR, ob die genannten Dateien noch existieren. Ampel 🔴 → NICHT umsetzen, ai:ready entfernen, begründet kommentieren und stoppen.
+               Prüfe NUR, ob die genannten Dateien noch existieren. Ampel 🔴 → NICHT umsetzen, begründet kommentieren und stoppen (VERDICT not-ready).
             3. Spec-Modus (Regelfall): vorhandenen DRAFT-PR auschecken
                (gh pr list --state open --draft --json number,headRefName,closingIssuesReferences,
                den mit Issue #ISSUE_NR; FALLS leer weil Spec "Closes NNN" ohne "#" schrieb:
@@ -361,27 +361,35 @@ jobs:
             fi
           fi
 
+          gh label create "ai:implemented" --repo "$GITHUB_REPOSITORY" --color 0E8A16 2>/dev/null || true
           gh label create "ai:needs-review" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
 
           if [ "$final" = "needs-review" ]; then
-            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
+            # Erfolg: Trigger konsumieren, Done-Label aufs Issue, Review-Trigger auf den PR
+            # (Übergang Issue → PR: ai:implemented dokumentiert die Phase am Issue,
+            # ai:needs-review startet Phase 5 am PR).
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-impl" 2>/dev/null || true
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:continued" 2>/dev/null || true
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:implemented" 2>/dev/null || true
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:implemented"
             gh pr edit "$PR_NR" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-review" 2>/dev/null || true
             gh pr edit "$PR_NR" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-review"
-            echo "::notice::Labels gesetzt: ai:needs-review an PR #${PR_NR}"
+            echo "::notice::Labels gesetzt: ai:implemented an Issue #${ISSUE}, ai:needs-review an PR #${PR_NR}"
 
           else
             if [ "${ALREADY_CONTINUED:-false}" = "true" ]; then
-              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
+              # Obergrenze erreicht: ai:to-big-issue ist ein reines Info-Signal an den
+              # Menschen (löst bewusst nichts automatisch aus).
+              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-impl" 2>/dev/null || true
               gh label create "ai:to-big-issue" --repo "$GITHUB_REPOSITORY" --color B60205 2>/dev/null || true
               gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:to-big-issue" 2>/dev/null || true
               echo "::warning::Obergrenze erreicht (2. Soft-Abort) – ai:to-big-issue gesetzt"
             else
               gh label create "ai:continued" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
               gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:continued"
-              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
-              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:ready"
-              echo "::notice::Soft-Abort – ai:continued gesetzt, ai:ready retriggert"
+              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-impl" 2>/dev/null || true
+              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-impl"
+              echo "::notice::Soft-Abort – ai:continued gesetzt, ai:needs-impl retriggert"
             fi
           fi
 

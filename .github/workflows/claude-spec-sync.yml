@@ -78,8 +78,9 @@ jobs:
 
       - name: In-Flight-Guard (Pipeline arbeitet noch am offenen Sync-PR)
         # Der nächtliche Force-Push ersetzt den Branch komplett. Läuft auf dem offenen Sync-PR
-        # nur in aktiver Review-Phase (ai:needs-review) aussetzen. ai:needs-changes und
-        # ai:ready-to-merge sind Terminal-Zustände (Pipeline inaktiv) — diese überspringen.
+        # nur bei aktiven Pipeline-Labels (ai:needs-review, ai:needs-fixup) aussetzen. ai:reviewed
+        # (abgeschlossen) und ai:needs-human (Mensch entscheidet) blocken ebenfalls, statt die
+        # Diskussionsgrundlage zu überschreiben.
         # ai:needs-human ist TERMINAL (Review/Fixup haben aufgegeben, ein Mensch schaut drauf):
         # ebenfalls aussetzen, statt die Diskussionsgrundlage zu überschreiben.
         # Fail-open: ist der Label-Abruf nicht möglich, läuft der Sync (wie beim Skip-Guard).
@@ -341,7 +342,7 @@ jobs:
           gh label create "ai:needs-review" --repo "$REPO" --color 1D76DB \
             --description "PR wartet auf KI-Review" 2>/dev/null || true
 
-          for label in ai:needs-changes ai:ready-to-merge ai:needs-human ai:needs-review; do
+          for label in ai:needs-fixup ai:reviewed ai:needs-human ai:needs-review; do
             gh pr edit "$PR_NUMBER" --repo "$REPO" --remove-label "$label" 2>/dev/null || true
           done
 
