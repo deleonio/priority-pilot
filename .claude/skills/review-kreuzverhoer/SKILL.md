@@ -136,12 +136,22 @@ ohnehin mit dem Diff; konsolidiert wird der **Sammelkommentar** mit dem Urteil.)
   nicht erneut aufrollen. Ticket-Kontext und Architektur-Berührpunkte bleiben dabei im Blick (nicht
   rein diff-lokal urteilen). Fehlt der markierte Kommentar (Erstreview), immer den vollständigen Diff
   prüfen (Schritt 1 bleibt unverändert).
-- **Zwei Abschnitte im Sammelkommentar:**
-  - **Offene Findings** — nur die Punkte der **aktuellen** Runde (mit Ampel, Datei/Zeile, Vorschlag).
-  - **Behobene Anmerkungen** — eine **History-Tabelle** der über die Runden bereits erledigten
-    Findings (Spalten: **Runde** | Finding | Datei/Zeile | **Status** ✅). Beim Fortschreiben wandern
-    erledigte Punkte aus „Offene Findings" in diese Tabelle, sodass die historische Sicht erhalten
+- **Struktur des Sammelkommentars** (Status-Zeile, dann Abschnitte nach Bedarf):
+  - **🎯 Review-Status** — Zeile 2 (nach dem Marker): `reviewed | needs-fixup | needs-human`
+    plus 1–2 Sätze Kontext (Modus, Runde, Ergebnis).
+  - **✅ Behobene Anmerkungen** — eine **History-Tabelle** der über die Runden bereits
+    erledigten Findings (Spalten: **#** | Finding | Behoben via | **Datum**). Beim
+    Fortschreiben wandern erledigte Punkte dorthin, sodass die historische Sicht erhalten
     bleibt, was schon behandelt wurde.
+  - **⏸️ Entscheidungs-Findings** — nur bei needs-human: Pro Finding Nummer `<F>` (stabil
+    über Runden), Was/Wo, 2–3 Optionen JE mit stabiler Options-ID `` `<F>.<n>` `` (z. B.
+    `4.1`) und Aufwand/Risiko, Empfehlung mit ID und Begründung. Abschließend die
+    **Auswahl-Zeile**: Der Mensch antwortet per Kommentar mit der Options-ID und setzt
+    `ai:needs-fixup` (Umsetzung) bzw. `ai:needs-review` (Akzeptieren) — das Fixup setzt die
+    gewählte Option um, ohne neu zu bewerten.
+  - **📋 Offene Findings** — nur bei needs-fixup: die Punkte der **aktuellen** Runde (mit
+    Ampel, Datei/Zeile, Vorschlag).
+  - **Footer** — `Review-Typ: Kreuzverhör | Fixup-Nachweis` und `Updated: JJJJ-MM-TT`.
 
 **CI-/Quality-Gate als Vorbedingung:** Ein grünes Inhalts-Urteil (🟢) ist **notwendig, aber nicht
 hinreichend** für `ai:ready-to-merge` — die Pflicht-Checks (CI: Format/Lint/Build/Test) müssen
