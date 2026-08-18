@@ -17,8 +17,9 @@
 # übergeben nur den Phasen-Namen). Schema: Jede Phase triggert auf GENAU EIN
 # `ai:needs-*`-Label und konsumiert es (Entfernen im eigenen Post-Assertion-Step).
 # Done-Labels ohne Trigger-Rolle gibt es nur noch, wo Logik sie liest (Issue #873):
-# `ai:analysed` (Erst-Triage-Guard + unblock-Parkplatz), `ai:reviewed` (Gate-Merge-
-# Trigger), `ai:documented` (fail-closed-Invariante des Documenters).
+# `ai:analysed` (Erst-Triage-Guard + unblock-Parkplatz + unlabeled-Re-Triage-Trigger),
+# `ai:reviewed` (Gate-Merge-Trigger), `ai:documented` (fail-closed-Invariante des
+# Documenters).
 # Setz-Konvention: Label-Writes nur im Post-Assertion-Step am Job-Ende; Removes
 # zuerst; Done-Labels idempotent (nur setzen, wenn noch nicht vorhanden); der
 # Trigger der Folgephase ist der LETZTE Write — jedes Add feuert ein labeled-
@@ -27,8 +28,8 @@
 #   Phase       Objekt  Zustand        erforderlich                         abwesend
 #   -----------------------------------------------------------------------------------
 #   analyse     Issue   offen          ai:needs-analyse (Re-Triage via       ai:analysed
-#                                      labeled) — Erst-Triage via           (nur Erst-Triage)
-#                                      opened: siehe --trigger-label
+#                                      labeled) — Erst-Triage via           (Erst-Triage und
+#                                      opened/unlabeled: siehe --trigger-label   unlabeled-Re-Triage)
 #   ux          Issue   offen          ai:needs-ux-ui                        —
 #   spec        Issue   offen          ai:needs-spec                         —
 #   implement   Issue   offen          ai:needs-impl                         —
@@ -44,7 +45,8 @@
 #   --trigger-label: nur für `analyse` relevant (github.event.label.name). Bei
 #                    Re-Triage (labeled) muss GENAU das gesetzte Label
 #                    (ai:needs-analyse) noch da sein; leer => Erst-Triage
-#                    (opened), da muss ai:analysed abwesend bleiben.
+#                    (opened) oder unlabeled-Re-Triage (Entfernen von
+#                    ai:analysed) — in beiden muss ai:analysed abwesend bleiben.
 #
 # Ausgabe (stdout, key=value — die Action reicht sie nach GITHUB_OUTPUT durch):
 #   proceed=true|false
@@ -88,11 +90,13 @@ ABSENT=()
 case "$PHASE" in
   analyse)
     KIND="issue"; WANT_STATE="open"
-    # Zwei Einstiege: Erst-Triage (issues.opened, kein Label-Event) und
-    # Re-Triage (labeled ai:needs-analyse). Re-Triage: das Trigger-Label muss
-    # noch da sein — ein anderer Lauf hat es konsumiert, wenn es fehlt.
-    # Erst-Triage: ai:analysed darf nicht da sein (schützt Sub-Issues, die von
-    # der Triage bereits vorgelabelt erstellt werden).
+    # Drei Einstiege: Erst-Triage (issues.opened) und unlabeled-Re-Triage
+    # (Entfernen von ai:analysed) kommen ohne trigger-label → ABSENT-Pfad:
+    # ai:analysed darf nicht da sein (schützt vorgelabelte Sub-Issues bei der
+    # Erst-Triage; beim unlabeled-Weg ist es der Konsumiert-Check, wenn ein
+    # paralleler Lauf das Label schon wieder gesetzt hat). Labeled-Re-Triage:
+    # das Trigger-Label muss noch da sein — ein anderer Lauf hat es konsumiert,
+    # wenn es fehlt.
     if [ -n "$TRIGGER_LABEL" ]; then
       REQUIRED=("$TRIGGER_LABEL")
     else

@@ -6,11 +6,13 @@ name: 1/7 Analyse
 # Triggert bei:
 #  - neuem Issue (issues: opened)
 #  - Setzen von Label "ai:needs-analyse" (issues: labeled) → Re-Triage (manuell)
+#  - Entfernen von Label "ai:analysed" (issues: unlabeled) → Re-Triage (manuell)
 #
 # BEWUSST KEIN issue_comment-Trigger: Der frühere @hermes-Mention-Trigger ist tot – die
 # Konvention gibt es nicht mehr, und Kommentare (insbesondere Bot-Kommentare) dürfen nichts
 # anstoßen.
-# Re-Triage läuft über das Setzen von `ai:needs-analyse` (früher: Entfernen von ai:analyzed).
+# Re-Triage hat zwei Wege: `ai:needs-analyse` setzen (Konsum-Weg, auch von issue-unblock
+# genutzt) und `ai:analysed` entfernen (manueller Weg, seit ADR-0003-Fortschreibung zurück).
 #
 # CONCURRENCY: Statische Gruppe pro Phase (globale Serialisierung, FIFO) + cancel-in-progress:
 # false. Ein Run, der hinterher im Pre-Check übersprungen wird, darf KEINESFALLS einen laufenden
@@ -21,7 +23,7 @@ name: 1/7 Analyse
 
 on:
   issues:
-    types: [opened, labeled]
+    types: [opened, labeled, unlabeled]
 
 concurrency:
   group: claude-triage
@@ -36,10 +38,11 @@ concurrency:
 jobs:
   precheck:
     # Unveränderliche Event-Fakten filtern hier (sparten den Runner für No-op-Trigger — 01 feuert
-    # auf JEDES `labeled` im Repo). Sie gaten den precheck, nicht den Hauptjob: wird der
-    # precheck übersprungen, ist sein Output leer und der Hauptjob fällt korrekt mit aus.
+    # auf JEDES `labeled`/`unlabeled` im Repo, auch die eigenen Trigger-Konsum-Removes). Sie gaten
+    # den precheck, nicht den Hauptjob: wird der precheck übersprungen, ist sein Output leer und
+    # der Hauptjob fällt korrekt mit aus.
     if: >-
-      ${{ (github.event.action == 'opened' && (github.event.issue.author_association == 'OWNER' || github.event.issue.author_association == 'MEMBER' || github.event.issue.author_association == 'COLLABORATOR')) || (github.event.action == 'labeled' && github.event.label.name == 'ai:needs-analyse') }}
+      ${{ (github.event.action == 'opened' && (github.event.issue.author_association == 'OWNER' || github.event.issue.author_association == 'MEMBER' || github.event.issue.author_association == 'COLLABORATOR')) || (github.event.action == 'labeled' && github.event.label.name == 'ai:needs-analyse') || (github.event.action == 'unlabeled' && github.event.label.name == 'ai:analysed') }}
     # Label-IST-Zustand zur Laufzeit abfragen (nicht den Trigger-Zeitpunkt-Payload): Dieser Run
     # kann lange in der globalen Phasen-Queue warten — bis er startet, kann das Trigger-Label
     # (ai:needs-analyse) bereits von einem anderen Lauf konsumiert (entfernt) worden sein.
@@ -63,9 +66,12 @@ jobs:
         with:
           phase: analyse
           ticket: ${{ github.event.issue.number }}
-          # Beim Re-Triage (labeled) muss ai:needs-analyse noch da sein (konsumiert =
-          # entfernt); bei `opened` ist der Wert leer und die Action prüft ai:analysed abwesend.
-          trigger-label: ${{ github.event.label.name }}
+          # Drei Einstiege: Erst-Triage (opened) und unlabeled-Re-Triage (Entfernen von
+          # ai:analysed) übergeben LEER — die Action prüft dann ai:analysed abwesend; beim
+          # unlabeled-Weg ist das der Konsumiert-Check (klebt es wieder, war ein paralleler
+          # Lauf schneller). Nur bei labeled (ai:needs-analyse) wird der Labelname als
+          # REQUIRED weitergegeben (muss noch da sein = konsumiert wäre entfernt).
+          trigger-label: ${{ github.event.action == 'labeled' && github.event.label.name || '' }}
 
   triage:
     needs: precheck

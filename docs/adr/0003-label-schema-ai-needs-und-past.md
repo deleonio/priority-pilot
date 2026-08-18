@@ -1,6 +1,6 @@
 # ADR 0003: Label-Schema `ai:needs-*` (Trigger) + `ai:<Vergangenheitsform>` (Done)
 
-- **Status:** akzeptiert (2026-08-18, Issue #851); Done-Marker verschlankt (2026-08-18, Issue #873)
+- **Status:** akzeptiert (2026-08-18, Issue #851); Done-Marker verschlankt (2026-08-18, Issue #873); Re-Triage zusätzlich via unlabeled (2026-08-18, s. Fortschreibung unten)
 - **Kontext:** [docs/pipeline-flow.md](../pipeline-flow.md), [ADR 0002](0002-pipeline-7-phasen-ux-vor-spec.md)
 
 ## Kontext und Problem
@@ -25,15 +25,15 @@ Vereinheitlichung auf **zwei orthogonale Label-Familien**:
 **Trigger-Labels `ai:needs-*`** — jede Phase reagiert auf GENAU EIN Startlabel und konsumiert es
 (Entfernen in der eigenen Post-Assertion):
 
-| Phase        | Trigger                                     | Bemerkung                                                                                           |
-| ------------ | ------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| 1 Analyse    | `ai:needs-analyse`                          | Erst-Triage zusätzlich auf `issues.opened`; Re-Triage = Label setzen (statt früher Label entfernen) |
-| 2 UX-UI      | `ai:needs-ux-ui`                            | Nicht-UI-Tickets bekommen es nie → Phase natürlicher Skip                                           |
-| 3 Spec       | `ai:needs-spec`                             |                                                                                                     |
-| 4 Umsetzung  | `ai:needs-impl`                             |                                                                                                     |
-| 5 Review     | `ai:needs-review`                           | unverändert                                                                                         |
-| 6 Fixup      | `ai:needs-fixup`                            | war `ai:needs-changes`                                                                              |
-| 7 Documenter | _(Event: `pull_request.closed` + `merged`)_ | auf gemergtem PR nicht label-triggerbar                                                             |
+| Phase        | Trigger                                     | Bemerkung                                                                                                                   |
+| ------------ | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| 1 Analyse    | `ai:needs-analyse`                          | Erst-Triage zusätzlich auf `issues.opened`; Re-Triage = Label setzen oder `ai:analysed` entfernen (s. Fortschreibung unten) |
+| 2 UX-UI      | `ai:needs-ux-ui`                            | Nicht-UI-Tickets bekommen es nie → Phase natürlicher Skip                                                                   |
+| 3 Spec       | `ai:needs-spec`                             |                                                                                                                             |
+| 4 Umsetzung  | `ai:needs-impl`                             |                                                                                                                             |
+| 5 Review     | `ai:needs-review`                           | unverändert                                                                                                                 |
+| 6 Fixup      | `ai:needs-fixup`                            | war `ai:needs-changes`                                                                                                      |
+| 7 Documenter | _(Event: `pull_request.closed` + `merged`)_ | auf gemergtem PR nicht label-triggerbar                                                                                     |
 
 **Done-Labels `ai:<Vergangenheitsform>`** — die erfolgreiche Phase setzt den Trigger der
 Folgephase (der Motor der Kette) plus ein Done-Label, wo Logik es liest: `ai:analysed`,
@@ -98,3 +98,15 @@ Post-Assertion-Step am Job-Ende, Removes zuerst, Done-Labels idempotent, Trigger
 als letzter Write. Verworfen: ein zentraler Router-Workflow auf `repository_dispatch` — die
 verbleibenden No-Ops sind Sekunden-Prechecks, der Umbau aller Phasen-Trigger stünde in keinem
 Verhältnis.
+
+## Fortschreibung 2026-08-18: Re-Triage zusätzlich via unlabeled
+
+Das Entfernen von `ai:analysed` durch den Menschen ist als zweiter Re-Triage-Weg zurück: Workflow
+01 hört zusätzlich auf `issues.unlabeled` (precheck-if gefiltert auf `ai:analysed`); der
+Laufzeit-Guard ist der bestehende ABSENT-Pfad — das Label muss bis zum Job-Start abwesend bleiben,
+sonst gilt der Trigger als konsumiert. `ai:needs-analyse` bleibt der Konsum- und Automatisierungsweg
+(`issue-unblock` unberührt); die Trigger-Tabelle oben gilt weiterhin. Trade-off: Da GitHub
+Label-Namen nicht im `on:`-Block filtern kann, startet 01 nun bei jedem Issue-`unlabeled`-Event
+einen sofort übersprungenen Precheck-Run (v. a. durch die eigenen Konsum-Removes) — gleiche Klasse
+wie die bekannten labeled-No-Ops („Sekunden-Prechecks", oben). Andere Phasen bleiben beim reinen
+`ai:needs-*`-Schema (Nutzerentscheidung: nur die Analyse).

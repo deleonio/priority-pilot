@@ -4,13 +4,14 @@ Dieser Überblick zeigt, wie ein Ticket von der Analyse bis zum Merge durch die 
 Workflows läuft. **Kanten = Trigger**, **fett = Label-Events**, gestrichelt = `workflow_run`/sonstige
 Events. Stand: Gate + Auto-Merge sind zu **einem** Workflow (`pr-gate-merge.yml`)
 zusammengelegt; Triage + Re-Triage laufen in **einem** Workflow (`01-claude-triage.yml`,
-Trigger `issues` [opened/labeled]). Der frühere `@agent`-Kommentar-Trigger ist bewusst
+Trigger `issues` [opened/labeled/unlabeled]). Der frühere `@agent`-Kommentar-Trigger ist bewusst
 entfernt — Kommentare (insbesondere Bot-Kommentare) dürfen nichts anstoßen.
 
 **Label-Schema (Issue #851, verschlankt in #873):** Jede Phase triggert auf GENAU EIN
 `ai:needs-*`-Label und konsumiert es; die erfolgreiche Phase setzt den Trigger der Folgephase
 plus — nur wo Logik sie liest — ein Done-Label: `ai:analysed` (Erst-Triage-Guard +
-unblock-Parkplatz), `ai:reviewed` (Gate-Merge-Trigger), `ai:documented` (fail-closed-Invariante
+unblock-Parkplatz; Entfernen durch den Menschen = Re-Triage-Trigger), `ai:reviewed` (Gate-Merge-
+Trigger), `ai:documented` (fail-closed-Invariante
 des Documenters). Rein anzeigende Done-Marker (`ai:ux-reviewed`, `ai:specified`,
 `ai:implemented`, `ai:fixed`) sind gestrichen: Keine Logik las sie, jedes Add startete 4 Issue-/
 bzw. 3 PR-Workflows als No-Op. `ai:needs-human` (warum + was der Mensch tun soll) und
@@ -120,11 +121,11 @@ flowchart TD
 
 **Done-Labels (`ai:<Vergangenheitsform>`)** — nur wo Logik sie liest (Issue #873):
 
-| Label           | Gesetzt von               | Gelesen von                                                 |
-| --------------- | ------------------------- | ----------------------------------------------------------- |
-| `ai:analysed`   | triage (idempotent)       | Erst-Triage-ABSENT-Guard, issue-unblock (Parkplatz)         |
-| `ai:reviewed`   | review (🟢 / needs-human) | gate-merge (Trigger + Merge-Vorbedingung), fixup (Abräumen) |
-| `ai:documented` | documenter                | Documenter-Precheck (fail-closed), documenter-sweep         |
+| Label           | Gesetzt von               | Gelesen von                                                                                           |
+| --------------- | ------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `ai:analysed`   | triage (idempotent)       | Erst-Triage-ABSENT-Guard, issue-unblock (Parkplatz); **Entfernen** durch Menschen = Re-Triage-Trigger |
+| `ai:reviewed`   | review (🟢 / needs-human) | gate-merge (Trigger + Merge-Vorbedingung), fixup (Abräumen)                                           |
+| `ai:documented` | documenter                | Documenter-Precheck (fail-closed), documenter-sweep                                                   |
 
 **Info-Labels** — kein Trigger, keine automatische Aktion:
 
@@ -144,7 +145,8 @@ filtern — der Filter sitzt erst im Job-if. Jedes Label-Add feuert ein eigenes 
 von denen maximal einer arbeitet. Deshalb (Issue #873):
 
 1. Label-Writes nur im Label-Post-Assertion-Step am Job-Ende — nie im Prompt/LLM-Schritt.
-2. Removes zuerst (konsumierte/stale Trigger, `unlabeled` hört keiner).
+2. Removes zuerst (konsumierte/stale Trigger; `unlabeled` hört nur die Triage-Re-Analyse,
+   gefiltert auf `ai:analysed` — sonst niemanden).
 3. Done-Labels idempotent setzen: hängt eins schon, kein Remove+Add (Ausnahme `ai:reviewed`,
    dessen Re-Arm der Gate-Trigger ist).
 4. Das Trigger-Label der Folgephase ist der LETZTE Write — genau dann entsteht ein Event,
@@ -156,8 +158,10 @@ von denen maximal einer arbeitet. Deshalb (Issue #873):
   Folge-Workflows aus. Das ist der Motor der Kette. (Ausnahme: Timeout-Cleanups nutzen
   `GITHUB_TOKEN`, damit das Entfernen der Phasen-Trigger nach einem Timeout **nicht**
   kaskadiert.)
-- **`ai:analysed`** ist Done-Marker der Analyse (kein Trigger): triage/retriage setzen es; der
-  Erst-Triage-Pre-Check nutzt es als Abwesenheits-Guard (schützt vorgelabelte Sub-Issues).
+- **`ai:analysed`** ist Done-Marker der Analyse und manueller Re-Triage-Trigger: triage/retriage
+  setzen es; der Erst-Triage-Pre-Check nutzt es als Abwesenheits-Guard (schützt vorgelabelte
+  Sub-Issues); sein Entfernen (`unlabeled`) startet die erneute Analyse — der Pre-Check verlangt
+  dann, dass es bis zum Job-Start abwesend bleibt (Konsumiert-Check bei parallelen Läufen).
 - **Push-Reset-Mechanik:** Jeder menschliche Push auf den PR-Branch (`synchronize`-Event) löst
   `pr-needs-review-label.yml` aus. Dieser entfernt die alten Ergebnis-Labels (`ai:needs-fixup`,
   `ai:reviewed`, `ai:needs-human`) und setzt `ai:needs-review` neu — der PR geht damit bei jedem
@@ -255,5 +259,7 @@ von denen maximal einer arbeitet. Deshalb (Issue #873):
   `triage.yml`.
 - **Setzen von `ai:needs-analyse`** (`issues.labeled`) → `triage.yml` (erzwungene Neu-Analyse;
   gesetzt von Mensch oder `issue-unblock.yml` beim Merge des Blockers).
+- **Entfernen von `ai:analysed`** (`issues.unlabeled`) → `triage.yml` (manuelle Neu-Analyse;
+  der Laufzeit-Pre-Check verlangt, dass das Label abwesend bleibt — sonst Trigger konsumiert).
 - **Push auf main** (`push` auf `main`, z. B. nach einem Merge) → `pr-conflict-scan.yml`
   (scannt alle offenen PRs auf Merge-Konflikte).
