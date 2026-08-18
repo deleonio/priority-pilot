@@ -88,11 +88,24 @@ jobs:
   e2e:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    # Playwright-Image: Browser + System-Dependencies vorinstalliert — kein Browser-Install-/apt-Lauf
+    # mehr. ACHTUNG: Tag-Version MUSS bei Playwright-Upgrades mit @playwright/test in
+    # frontend/package.json mitgezogen werden (bildet die fruehere Cache-Key-Kopplung ab).
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.0-noble
     strategy:
       fail-fast: false
       matrix:
         shard: [1, 2, 3, 4]
     steps:
+      # git fehlt im Playwright-Image, actions/checkout braucht es (guarded: No-op falls doch vorhanden).
+      # safe.directory: Container-Jobs mounten den Workspace mit fremdem UID-Owner — checkout fängt
+      # das intern ab, aber lefthooks `prepare` (git rev-parse) stirbt sonst an dubious ownership.
+      - name: git fuer checkout bereitstellen
+        run: |
+          command -v git >/dev/null || (apt-get update && apt-get install -y --no-install-recommends git)
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
@@ -128,15 +141,6 @@ jobs:
 
       - name: Install
         run: pnpm install --frozen-lockfile
-
-      - name: Playwright-Browser-Cache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
-
-      - name: Playwright-Browser installieren
-        run: pnpm --filter frontend exec playwright install --with-deps chromium
 
       - name: E2E (shard ${{ matrix.shard }}/4)
         run: pnpm --filter frontend exec playwright test --shard=${{ matrix.shard }}/4
