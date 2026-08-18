@@ -464,4 +464,19 @@ export const api = {
 		}
 		return data;
 	},
+
+	// --- Reverse Geocoding (#866) ---
+
+	// Reverse Geocoding: Koordinaten → Adresse (Nominatim).
+	/* eslint-disable-next-line @typescript-eslint/no-unsafe-argument */: Koordinaten → Adresse (Nominatim).
+	async reverseGeocode({ lat, lon, signal }: { lat: number; lon: number } & Init): Promise<{ address: string }> {
+		const { data, response } = await (client.GET as unknown as typeof client.GET)('/reverse-geocode', {
+			params: { query: { lat: String(lat), lon: String(lon) } },
+			signal,
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response);
+		}
+		return data as { address: string };
+	},
 };

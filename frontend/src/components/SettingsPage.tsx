@@ -95,6 +95,8 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 		enabled: geoEnabled,
 		pending: geoPending,
 		permissionDenied: geoDenied,
+		address,
+		addressLoading,
 		toggle: toggleGeo,
 	} = useGeolocation();
 
@@ -207,6 +209,22 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 							Dieser Browser unterstützt keine Standortabfrage. Nutze einen aktuellen Browser, um die Position zu
 							ermitteln.
 						</KolAlert>
+					)}
+					{geoEnabled && addressLoading && (
+						<div
+							className="geo-address"
+							style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: 'var(--kolibri-color-text, #666)' }}
+						>
+							Adresse wird ermittelt…
+						</div>
+					)}
+					{geoEnabled && address && (
+						<div
+							className="geo-address"
+							style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: 'var(--kolibri-color-text, #666)' }}
+						>
+							{address || 'Keine Adresse für diesen Standort'}
+						</div>
 					)}
 					{geoDenied && (
 						<KolAlert _type="warning" _label="Standortzugriff verweigert">
