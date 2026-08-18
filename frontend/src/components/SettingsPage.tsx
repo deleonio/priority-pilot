@@ -1,8 +1,9 @@
 import { KolAlert, KolButton, KolHeading, KolInputCheckbox, KolTabs } from '@public-ui/react-v19';
 import type { Pillar } from 'client';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { requestMicrophonePermission } from '../lib/micPermission';
+import { useShadowDOMLayout } from '../lib/useShadowDOMLayout';
 import { useGeolocation } from '../lib/useGeolocation';
 import { usePushSubscription } from '../lib/push';
 import { useVoiceAutostart } from '../lib/voiceAutostart';
@@ -39,48 +40,11 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 	const settingsGeneralRef = useRef<HTMLDivElement>(null);
 
 	// #843: marginLeft auf Shadow-DOM Controls setzen (24dp = 1.5rem)
-	useEffect(() => {
-		if (!settingsGeneralRef.current) return;
-
-		let updateTimeout: ReturnType<typeof setTimeout> | null = null;
-
-		const updateMargins = () => {
-			const shadowHosts = settingsGeneralRef.current?.querySelectorAll('kol-input-checkbox, kol-button');
-			shadowHosts?.forEach((host) => {
-				try {
-					const shadowRoot = (host as HTMLElement).shadowRoot;
-					if (shadowRoot) {
-						const controls = shadowRoot.querySelectorAll(
-							'[role="switch"], button:not([type="button"]):not([class*="icon"])',
-						);
-						controls.forEach((control) => {
-							(control as HTMLElement).style.marginLeft = '1.5rem';
-						});
-					}
-				} catch (error) {
-					// Closed Shadow-DOM oder anderer Fehler – Element überspringen
-					console.debug('Shadow-DOM Zugriff fehlgeschlagen:', error);
-				}
-			});
-		};
-
-		// MutationObserver mit Debounce (100ms) für späte Renderings
-		const observer = new MutationObserver(() => {
-			if (updateTimeout) clearTimeout(updateTimeout);
-			updateTimeout = setTimeout(updateMargins, 100);
-		});
-
-		if (settingsGeneralRef.current) {
-			observer.observe(settingsGeneralRef.current, { childList: true, subtree: true });
-			// Initial update direkt nach Mount
-			updateMargins();
-		}
-
-		return () => {
-			if (updateTimeout) clearTimeout(updateTimeout);
-			observer.disconnect();
-		};
-	}, []);
+	useShadowDOMLayout(
+		settingsGeneralRef,
+		'kol-input-checkbox, kol-button',
+		'[role="switch"], button:not([type="button"]):not([class*="icon"])',
+	);
 
 	// Stabile Callback-Identität, damit KolTabs nicht bei jedem Render neu verdrahtet (#323).
 	const tabsCallbacks = useMemo(
@@ -271,15 +235,15 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 				</div>
 				<div slot="tab-1">
 					{/* Überschrift „Säulen-Gewichtung" ist Teil des #270-Vertrags (settings-page.spec.ts):
-					    die Route /settings/pillars rendert den Säulen-Editor mit dieser Überschrift. */}
+						    die Route /settings/pillars rendert den Säulen-Editor mit dieser Überschrift. */}
 					<KolHeading _label="Säulen-Gewichtung" _level={2} />
 					{/* Säulen-Verwaltungs-Komponente (#439): Anlegen, Bearbeiten und Löschen von Säulen
-					    (jeweils als eigener Modal-Dialog, KoliBri-Komponenten). */}
+						    (jeweils als eigener Modal-Dialog, KoliBri-Komponenten). */}
 					<PillarList onPillarChanged={onPillarChanged} />
 					{/* Beim Direktaufruf von /settings/pillars mountet die Seite, BEVOR die Säulen geladen
-					    sind. Das Formular hält seine Rohwerte in einem beim Mount initialisierten Ref —
-					    per `key` neu mounten, sobald die Säulen eintreffen, damit die geladenen Gewichte
-					    übernommen werden. */}
+						    sind. Das Formular hält seine Rohwerte in einem beim Mount initialisierten Ref —
+						    per `key` neu mounten, sobald die Säulen eintreffen, damit die geladenen Gewichte
+						    übernommen werden. */}
 					<PillarWeightsForm key={pillars.length} pillars={pillars} onSaved={onSaved} />
 				</div>
 				<div slot="tab-2">

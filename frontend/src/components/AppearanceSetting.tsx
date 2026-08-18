@@ -1,7 +1,8 @@
 import { KolInputRadio } from '@public-ui/react-v19';
-import { useEffect, useMemo, useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import type { ThemePreference } from '../lib/theme';
 import { useTheme } from '../lib/theme';
+import { useShadowDOMLayout } from '../lib/useShadowDOMLayout';
 import { THEME_LABELS, THEME_ORDER } from './ThemeToggle';
 
 /**
@@ -22,46 +23,7 @@ export const AppearanceSetting = () => {
 	const options = useMemo(() => THEME_ORDER.map((value) => ({ label: THEME_LABELS[value], value })), []);
 
 	// #843: marginLeft auf Shadow-DOM Controls setzen (24dp = 1.5rem)
-	useEffect(() => {
-		if (!ref.current) return;
-
-		let updateTimeout: ReturnType<typeof setTimeout> | null = null;
-
-		const updateMargins = () => {
-			const shadowHosts = ref.current?.querySelectorAll('kol-input-radio');
-			shadowHosts?.forEach((host) => {
-				try {
-					const shadowRoot = (host as HTMLElement).shadowRoot;
-					if (shadowRoot) {
-						const controls = shadowRoot.querySelectorAll('[role="radio"]');
-						controls.forEach((control) => {
-							(control as HTMLElement).style.marginLeft = '1.5rem';
-						});
-					}
-				} catch (error) {
-					// Closed Shadow-DOM oder anderer Fehler – Element überspringen
-					console.debug('Shadow-DOM Zugriff fehlgeschlagen:', error);
-				}
-			});
-		};
-
-		// MutationObserver mit Debounce (100ms) für späte Renderings
-		const observer = new MutationObserver(() => {
-			if (updateTimeout) clearTimeout(updateTimeout);
-			updateTimeout = setTimeout(updateMargins, 100);
-		});
-
-		if (ref.current) {
-			observer.observe(ref.current, { childList: true, subtree: true });
-			// Initial update direkt nach Mount
-			updateMargins();
-		}
-
-		return () => {
-			if (updateTimeout) clearTimeout(updateTimeout);
-			observer.disconnect();
-		};
-	}, []);
+	useShadowDOMLayout(ref, 'kol-input-radio', '[role="radio"]');
 
 	return (
 		<div ref={ref}>
