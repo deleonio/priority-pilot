@@ -28,10 +28,11 @@ name: PR Auto-Label (ai:needs-review)
 #     nicht ungefragt anstossen.
 #   - re-trigger-sicher (#536, seit PR #890 via atomarer Transition): label-transition.sh
 #     ersetzt den gesamten Pipeline-Bestand durch ai:needs-review — alte Ergebnis-Labels
-#     sind immer mit abgebaut, es gibt keinen Zwischenzustand. Das alte Remove+Neu-Setzen
-#     (damit das Add ein echtes Hinzufuegen ist und `labeled` feuert) ist seit dem
-#     Start-Konsum in 05 ueberfluessig. Keine Schleife: dieser Workflow triggert nicht
-#     auf `labeled` (siehe AK5-Tests).
+#     sind immer mit abgebaut, es gibt keinen Zwischenzustand. War der Zielzustand bereits
+#     gesetzt (changed=false → PUT feuert kein `labeled`-Event), re-armt ein Remove+
+#     Transition-Fallback mit frischem Event (PR #899: labeled-Event im Konflikt-Fenster
+#     verloren). Keine Schleife: dieser Workflow triggert nicht auf `labeled`
+#     (siehe AK5-Tests).
 #   - NUR menschliche Aktoren (sender.type != "Bot"), UND ZWAR FUER ALLE DREI Event-Typen
 #     (opened/ready_for_review/synchronize gleichermassen — vormals galt der Bot-Filter nur
 #     bei synchronize). Grund: 04-claude-implement.yml macht PRs per App-Bot-Token review-bereit
@@ -168,10 +169,6 @@ jobs:
           # Ein menschlicher Push ist echter Fortschritt und bekommt einen sauberen Review
           # ohne Altlasten. Das Loop-Breaking lebt in den LLM-Phasen (Fixup HEAD-Check/
           # Stop-Guard, Review ai:needs-human), nicht in diesem Autolabeler.
-          # Das alte Remove-4 + Neu-Setzen (#536-Re-Arm: Add muss ein echtes Hinzufuegen
-          # sein, sonst feuert kein `labeled`-Event) ist seit dem Start-Konsum in 05
-          # ueberfluessig: Klebt ai:needs-review noch, hat der wartende Lauf ihn noch
-          # nicht konsumiert — und sieht den neuen Head beim eigenen Start (Merge-Ref).
           if ! OUT="$(bash .github/scripts/label-transition.sh \
               --repo "$REPO" --pr "$PR" --set ai:needs-review)"; then
             echo "::error::Label-Transition zu ai:needs-review endgültig fehlgeschlagen (Race-Condition #613)"
@@ -179,9 +176,30 @@ jobs:
           fi
           applied="$(printf '%s\n' "$OUT" | sed -n 's/^applied=//p')"
           reason="$(printf '%s\n' "$OUT" | sed -n 's/^reason=//p')"
+          changed="$(printf '%s\n' "$OUT" | sed -n 's/^changed=//p')"
           if [ "$applied" != "true" ]; then
             echo "::error::Label-Transition zu ai:needs-review verworfen (${reason:-Guard}) — PR bitte manuell prüfen."
             exit 1
+          fi
+          # #536-Re-Arm: Klebte ai:needs-review bereits (identischer Zielzustand,
+          # changed=false), feuert der PUT kein `labeled`-Event — der Review startet
+          # nicht. Moegliche Ursache: das urspruengliche Event ging verloren (z. B.
+          # PR waehrend des labeled-Events im Merge-Konflikt — dann laufen pull_request-
+          # Workflows gar nicht, PR #899). Fallback: einmal Remove + erneute Transition
+          # erzwingt ein frisches Event. Fenster ~1s; ok, denn ohne Fallback wuerde der
+          # PR unreviewt haengen bleiben.
+          if [ "$changed" = "false" ]; then
+            echo "PR #$PR: Zielzustand war bereits gesetzt — Re-Arm (#536): Remove + Transition erzwingt labeled-Event."
+            gh pr edit "$PR" --repo "$REPO" --remove-label ai:needs-review
+            if ! OUT="$(bash .github/scripts/label-transition.sh \
+                --repo "$REPO" --pr "$PR" --set ai:needs-review --expect none)"; then
+              echo "::error::Re-Arm-Transition fehlgeschlagen — Label bitte manuell prüfen."
+              exit 1
+            fi
+            if [ "$(printf '%s\n' "$OUT" | sed -n 's/^applied=//p')" != "true" ]; then
+              echo "::error::Re-Arm verworfen ($(printf '%s\n' "$OUT" | sed -n 's/^reason=//p')) — Label bitte manuell prüfen."
+              exit 1
+            fi
           fi
           echo "PR #$PR: ai:needs-review gesetzt (atomar, inkl. Alt-Label-Abbau) — Kreuzverhoer-Review wird ausgeloest." \
             >> "$GITHUB_STEP_SUMMARY"

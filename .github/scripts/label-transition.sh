@@ -45,6 +45,11 @@
 #   state=ok|read-failed|put-failed
 #   reason=<Klartext, nur wenn nicht angewendet>   # einzeilig, CR/LF gestrippt
 #   labels=<Ziel-Bestand, Komma-liste>             # der Zustand nach angewandter Transition
+#   changed=true|false                             # hat der Write den Bestand GEÄNDERT?
+#                                                  # false = IST war bereits der Zielzustand →
+#                                                  # GitHub feuert KEIN labeled-Event. Aufrufer,
+#                                                  # die auf das Event angewiesen sind (#536:
+#                                                  # Autolabeler), müssen dann re-armen.
 #
 # Exit-Codes: 0 = normal (auch Guard-Abbruch: applied=false); 1 = PUT nach 3
 # Versuchen endgültig fehlgeschlagen (Aufrufer eskaliert, z. B. needs-human);
@@ -210,9 +215,17 @@ fi
 NEW=("${PRESERVED[@]+"${PRESERVED[@]}"}" ${TARGET[@]+"${TARGET[@]}"})
 LABELS_OUT="$(norm ${NEW[@]+"${NEW[@]}"})"
 
+# Bestands-Diff vorab bestimmen: Bei identischem Zielzustand feuert der PUT kein
+# `labeled`-Event — Aufrufer, die das Event brauchen, sehen das an changed=false.
+CHANGED="true"
+if [ "$(norm ${CURRENT_ALL[@]+"${CURRENT_ALL[@]}"})" = "$LABELS_OUT" ]; then
+  CHANGED="false"
+fi
+
 if [ "$DRY_RUN" = "true" ]; then
   out true ok ""
   echo "labels=${LABELS_OUT}"
+  echo "changed=${CHANGED}"
   echo "dryrun=true"
   exit 0
 fi
@@ -232,6 +245,7 @@ for attempt in 1 2 3; do
      | gh api --method PUT "repos/$REPO/issues/$PR/labels" --input - >/dev/null 2>&1; then
     out true ok ""
     echo "labels=${LABELS_OUT}"
+    echo "changed=${CHANGED}"
     exit 0
   fi
   [ "$attempt" -lt 3 ] && sleep "$((2 ** (attempt - 1)))"
