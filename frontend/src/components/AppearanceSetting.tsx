@@ -25,33 +25,40 @@ export const AppearanceSetting = () => {
 	useEffect(() => {
 		if (!ref.current) return;
 
+		let updateTimeout: ReturnType<typeof setTimeout> | null = null;
+
 		const updateMargins = () => {
 			const shadowHosts = ref.current?.querySelectorAll('kol-input-radio');
 			shadowHosts?.forEach((host) => {
-				const shadowRoot = (host as HTMLElement).shadowRoot;
-				if (shadowRoot) {
-					const controls = shadowRoot.querySelectorAll('[role="radio"]');
-					controls.forEach((control) => {
-						(control as HTMLElement).style.marginLeft = '1.5rem';
-					});
+				try {
+					const shadowRoot = (host as HTMLElement).shadowRoot;
+					if (shadowRoot) {
+						const controls = shadowRoot.querySelectorAll('[role="radio"]');
+						controls.forEach((control) => {
+							(control as HTMLElement).style.marginLeft = '1.5rem';
+						});
+					}
+				} catch (error) {
+					// Closed Shadow-DOM oder anderer Fehler – Element überspringen
+					console.debug('Shadow-DOM Zugriff fehlgeschlagen:', error);
 				}
 			});
 		};
 
-		// KoliBri rendert asynchron im Shadow-DOM; wir warten kurz
-		const timeout = setTimeout(updateMargins, 100);
-
-		// MutationObserver für späte Renderings
+		// MutationObserver mit Debounce (100ms) für späte Renderings
 		const observer = new MutationObserver(() => {
-			updateMargins();
+			if (updateTimeout) clearTimeout(updateTimeout);
+			updateTimeout = setTimeout(updateMargins, 100);
 		});
 
 		if (ref.current) {
 			observer.observe(ref.current, { childList: true, subtree: true });
+			// Initial update direkt nach Mount
+			updateMargins();
 		}
 
 		return () => {
-			clearTimeout(timeout);
+			if (updateTimeout) clearTimeout(updateTimeout);
 			observer.disconnect();
 		};
 	}, []);

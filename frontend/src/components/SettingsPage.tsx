@@ -42,35 +42,42 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 	useEffect(() => {
 		if (!settingsGeneralRef.current) return;
 
+		let updateTimeout: ReturnType<typeof setTimeout> | null = null;
+
 		const updateMargins = () => {
 			const shadowHosts = settingsGeneralRef.current?.querySelectorAll('kol-input-checkbox, kol-button');
 			shadowHosts?.forEach((host) => {
-				const shadowRoot = (host as HTMLElement).shadowRoot;
-				if (shadowRoot) {
-					const controls = shadowRoot.querySelectorAll(
-						'[role="switch"], button:not([type="button"]):not([class*="icon"])',
-					);
-					controls.forEach((control) => {
-						(control as HTMLElement).style.marginLeft = '1.5rem';
-					});
+				try {
+					const shadowRoot = (host as HTMLElement).shadowRoot;
+					if (shadowRoot) {
+						const controls = shadowRoot.querySelectorAll(
+							'[role="switch"], button:not([type="button"]):not([class*="icon"])',
+						);
+						controls.forEach((control) => {
+							(control as HTMLElement).style.marginLeft = '1.5rem';
+						});
+					}
+				} catch (error) {
+					// Closed Shadow-DOM oder anderer Fehler – Element überspringen
+					console.debug('Shadow-DOM Zugriff fehlgeschlagen:', error);
 				}
 			});
 		};
 
-		// KoliBri rendert asynchron im Shadow-DOM; wir warten kurz
-		const timeout = setTimeout(updateMargins, 100);
-
-		// MutationObserver für späte Renderings
+		// MutationObserver mit Debounce (100ms) für späte Renderings
 		const observer = new MutationObserver(() => {
-			updateMargins();
+			if (updateTimeout) clearTimeout(updateTimeout);
+			updateTimeout = setTimeout(updateMargins, 100);
 		});
 
 		if (settingsGeneralRef.current) {
 			observer.observe(settingsGeneralRef.current, { childList: true, subtree: true });
+			// Initial update direkt nach Mount
+			updateMargins();
 		}
 
 		return () => {
-			clearTimeout(timeout);
+			if (updateTimeout) clearTimeout(updateTimeout);
 			observer.disconnect();
 		};
 	}, []);

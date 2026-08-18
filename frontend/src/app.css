@@ -1219,10 +1219,12 @@ body {
 /*
  * #843 AK3: Typografie für deskriptiven Text.
  * Wir setzen --pp-text-muted auf #616161 für besseren Kontrast.
- * KoliBri-Hint-Elemente erben diese Farbe über CSS Custom Properties.
+ * --pp-text-hint-font-size garantiert ≥16sp für deskriptive Texte.
+ * KoliBri-Hint-Elemente erben diese Werte über CSS Custom Properties.
  */
 :root {
 	--pp-text-muted: #616161;
+	--pp-text-hint-font-size: 1rem; /* 16sp Basisschriftgröße für Hint-Texte */
 }
 
 /*

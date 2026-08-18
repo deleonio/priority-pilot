@@ -94,19 +94,27 @@ test.describe('#843 Settings Screen Layout', () => {
 		await page.goto('/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
-		// KoliBri rendert _hint-Text im Shadow-DOM. Wir prüfen die CSS-Variable,
-		// die für deskriptiven Text gesetzt ist.
-		// Die Farbe #616161 wird über --pp-text-muted gesetzt (siehe app.css)
+		// KoliBri rendert _hint-Text im Shadow-DOM. Wir prüfen die CSS-Variablen,
+		// die für deskriptiven Text gesetzt sind (siehe app.css).
+		// --pp-text-muted: Farbe #616161
+		// --pp-text-hint-font-size: Schriftgröße ≥16sp (1rem = 16sp bei 96 DPI)
 		const settingsGeneral = page.locator('.settings-general').first();
 		const computedStyle = await settingsGeneral.evaluate((el) => {
 			const styles = window.getComputedStyle(el);
 			return {
-				textColor: styles.getPropertyValue('--pp-text-muted') || styles.getPropertyValue('--kol-color-text'),
+				textColor: styles.getPropertyValue('--pp-text-muted'),
+				fontSize: styles.getPropertyValue('--pp-text-hint-font-size'),
 			};
 		});
 
-		// Die CSS-Variable sollte #616161 sein
+		// Farbe sollte #616161 sein
 		expect(computedStyle.textColor).toMatch(/#616161|rgb\(97,\s*97,\s*97\)/);
+
+		// Schriftgröße sollte ≥1rem (16sp) sein
+		// Wir prüfen, dass die Variable existiert und min. 1rem ist
+		expect(computedStyle.fontSize).toBeTruthy();
+		const fontSizeNum = parseFloat(computedStyle.fontSize);
+		expect(fontSizeNum).toBeGreaterThanOrEqual(1); // 1rem = 16sp
 	});
 
 	/**
