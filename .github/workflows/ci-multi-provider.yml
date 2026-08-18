@@ -99,8 +99,12 @@ jobs:
         shard: [1, 2, 3, 4]
     steps:
       # git fehlt im Playwright-Image, actions/checkout braucht es (guarded: No-op falls doch vorhanden).
+      # safe.directory: Container-Jobs mounten den Workspace mit fremdem UID-Owner — checkout fängt
+      # das intern ab, aber lefthooks `prepare` (git rev-parse) stirbt sonst an dubious ownership.
       - name: git fuer checkout bereitstellen
-        run: command -v git >/dev/null || (apt-get update && apt-get install -y --no-install-recommends git)
+        run: |
+          command -v git >/dev/null || (apt-get update && apt-get install -y --no-install-recommends git)
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
