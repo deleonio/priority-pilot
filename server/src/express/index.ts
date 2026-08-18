@@ -18,6 +18,7 @@ import { llmConfigRouter } from './routes/llmConfig.js';
 import { createFreeModelsRouter } from './routes/freeModels.js';
 import type { FetchFreeModels } from './routes/freeModels.js';
 import { lektoratRouter } from './routes/lektorat.js';
+import { reverseGeocodeRouter } from './routes/reverseGeocode.js';
 import { handleServerError } from './server-error-handler.js';
 import type { PillarClassifier, ParseTaskParser, ActivityAdvisor } from '../llm/llm.js';
 import type { PushSender } from '../logics/push.js';
@@ -212,6 +213,9 @@ export const createApp = (deps: AppDeps = {}) => {
 	// Aktuelle kostenlose OpenRouter-Modelle (#742) für die Frontend-Auswahl — hinter requireAuth,
 	// damit der Server kein öffentlicher OpenRouter-Proxy ist (Session-Pflicht wie bei /llm-config).
 	app.use(createFreeModelsRouter(deps.fetchFreeModels));
+
+	// Reverse Geocoding: Koordinaten → Adresse (Issue #866).
+	app.use('/reverse-geocode', reverseGeocodeRouter);
 
 	// GET /forest — Aufgabenwald nach Wertschöpfung sortiert (auf den eingeloggten Nutzer gefiltert).
 	app.get('/forest', async (req, res: express.Response<TaskTreeNodeDto[] | ErrorDto>) => {

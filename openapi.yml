@@ -474,6 +474,45 @@ paths:
                   $ref: '#/components/schemas/Task'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /reverse-geocode:
+    get:
+      summary: Reverse Geocoding — Koordinaten → Adresse
+      description: >-
+        Ermittelt aus geographischen Koordinaten (lat/lon) eine lesbare Adresse
+        über OpenStreetMap Nominatim (Issue #866). Bei Rate-Limit/Timeout/Offline
+        wird eine leere Adresse zurückgegeben (Position anzeigen ohne Adresse).
+        Rate-Limit: 1 req/sec (Nominatim-Policy).
+      operationId: reverseGeocode
+      parameters:
+        - name: lat
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^-?\d+\.?\d*$'
+          description: Breitengrad (z. B. 52.52)
+        - name: lon
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^-?\d+\.?\d*$'
+          description: Längengrad (z. B. 13.405)
+      responses:
+        '200':
+          description: Adresse (leer bei Fehler/Rate-Limit)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReverseGeocodeResponse'
+        '400':
+          description: Ungültige Parameter (fehlend oder keine Zahl)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /scores:
     get:
       summary: Vergebene Gamification-Punkte je erledigtem Task
@@ -1847,6 +1886,9 @@ components:
         name:
           type: string
           description: Anzeigename des Modells, wie OpenRouter ihn liefert.
+        contextLength:
+          type: number
+          description: Kontext-Länge des Modells (optional, wenn OpenRouter sie liefert).
     FreeModels:
       type: object
       required:
@@ -1860,3 +1902,17 @@ components:
           description: Aktuelle Free-Modelle (dynamisch geladen, nie hartcodiert).
           items:
             $ref: '#/components/schemas/FreeModel'
+    ReverseGeocodeResponse:
+      type: object
+      required:
+        - address
+      description: >-
+        Antwort von GET /reverse-geocode (Issue #866): die ermittelte Adresse
+        (leer bei Fehler/Rate-Limit/Offline).
+      properties:
+        address:
+          type: string
+          description: >-
+            Lesbare Adresse (z. B. "Musterstraße 1, 12345 Musterstadt").
+            Leer bei Fehler/Rate-Limit/Offline — die Position wird ohne Adresse
+            angezeigt.

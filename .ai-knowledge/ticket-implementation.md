@@ -136,13 +136,13 @@ Der frisch erstellte PR wird **nicht nur beobachtet, sondern aktiv im Kreuzverh�
 nachgebessert** — in Runden, bis **keine Anmerkung mehr offen** ist. Eine Runde besteht aus
 _kreuzverhören → CI prüfen → Findings abarbeiten → erneut kreuzverhören_. Dabei sind zwei Rollen
 strikt getrennt: Die **Kreuzverhör-Rolle** prüft nur und ändert keinen Code (vollständiger Ablauf:
-[pr-review.md](pr-review.md), Command `/kreuzverhoer-review`); die **Umsetzer-Rolle** behebt die
+[review-kreuzverhoer-Skill](../.claude/skills/review-kreuzverhoer/SKILL.md)); die **Umsetzer-Rolle** behebt die
 Findings.
 
 **PR verfolgen & automatisch reagieren:** Den frisch erstellten PR **abonnieren** und danach
 **automatisch auf eingehende Review-Anmerkungen reagieren**. Eine Runde wird damit nicht nur vom
-eigenen Kreuzverhör angestoßen, sondern auch von **neuen Review-Kommentaren** (von Menschen oder aus
-`/kreuzverhoer-review`), **neuen Commits** und **CI-Ergebnissen** auf dem PR. In Coding-Agent: direkt
+eigenen Kreuzverhör angestoßen, sondern auch von **neuen Review-Kommentaren** (von Menschen oder aus dem
+`review-kreuzverhoer`-Skill), **neuen Commits** und **CI-Ergebnissen** auf dem PR. In Coding-Agent: direkt
 nach Schritt 4 `Session-Fortsetzung` für den neuen PR aufrufen; die Events wecken die Session und
 stoßen die nächste Runde an. Eingehende Anmerkungen werden wie eigene Findings behandelt (siehe
 „Pro Runde", Punkt 3) — bei Mehrdeutigkeit oder architektonisch relevanten Punkten **vorher
@@ -151,7 +151,7 @@ rückfragen** statt zu raten.
 **Pro Runde:**
 
 1. **Kreuzverhör auslösen** — den vollständigen PR-Diff adversarial gegen Ticket-Ziel, Edge Cases,
-   Einfachheit, Performance/Security und Projekt-Konventionen prüfen (siehe [pr-review.md](pr-review.md)).
+   Einfachheit, Performance/Security und Projekt-Konventionen prüfen (siehe [review-kreuzverhoer-Skill](../.claude/skills/review-kreuzverhoer/SKILL.md)).
    Jedes Finding wird als an Datei/Zeile **verankerter** Review-Kommentar gepostet, abgeschlossen mit
    einem Urteil samt **Ampel** (🟢/🟡/🔴).
 2. **CI prüfen** — `gh pr checks <pr>`. Schlägt etwas fehl, die Ursache diagnostizieren und — im
