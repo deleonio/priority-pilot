@@ -22,6 +22,12 @@ importers:
 
   .:
     devDependencies:
+      '@action-validator/cli':
+        specifier: 0.6.0
+        version: 0.6.0(@action-validator/core@0.6.0)
+      '@action-validator/core':
+        specifier: 0.6.0
+        version: 0.6.0
       '@evilmartians/lefthook':
         specifier: 1.13.6
         version: 1.13.6
@@ -236,6 +242,15 @@ importers:
         version: 5.9.3
 
 packages:
+
+  '@action-validator/cli@0.6.0':
+    resolution: {integrity: sha512-Z8TYOK4GqUIpI0UuspUJPB6dhr0niTumhwI5iiZVqFRXm4u05bZawnFKltpvoFUfJg9mHbbIBlleqsRJAgl53Q==}
+    hasBin: true
+    peerDependencies:
+      '@action-validator/core': 0.6.0
+
+  '@action-validator/core@0.6.0':
+    resolution: {integrity: sha512-tPglwCr8Mm8SWzwnVewwFmqRx91F0WvMsM0BRAqH4CLalyGndm53Xvp+UcUSzswpk1wkjIDYI7RyEhWMLyPkig==}
 
   '@adobe/css-tools@4.5.0':
     resolution: {integrity: sha512-6OzddxPio9UiWTCemp4N8cYLV2ZN1ncRnV1cVGtve7dhPOtRkleRyx32GQCYSwDYgaHU3USMm84tNsvKzRCa1Q==}
@@ -2068,6 +2083,10 @@ packages:
   chai@6.2.2:
     resolution: {integrity: sha512-NUPRluOfOiTKBKvWPtSD4PhFvWCqOi0BGStNWs57X9js7XGTprSmFoz5F0tWhR4WPjNeR9jXqdC7/UpSJTnlRg==}
     engines: {node: '>=18'}
+
+  chalk@5.2.0:
+    resolution: {integrity: sha512-ree3Gqw/nazQAPuJJEy+avdl7QfZMcUvmHIKgEZkGL+xOBzRvup5Hxo6LHuMceSxOabuJLJm5Yp/92R9eMmMvA==}
+    engines: {node: ^12.17.0 || ^14.13 || >=16.0.0}
 
   change-case@5.4.4:
     resolution: {integrity: sha512-HRQyTk2/YPEkt9TnUPbOpr64Uw3KOicFWPVBb+xiHvd6eBx/qPr9xqfBFDT8P2vWsvvz4jbEkfDe71W3VyNu2w==}
@@ -4616,6 +4635,13 @@ packages:
 
 snapshots:
 
+  '@action-validator/cli@0.6.0(@action-validator/core@0.6.0)':
+    dependencies:
+      '@action-validator/core': 0.6.0
+      chalk: 5.2.0
+
+  '@action-validator/core@0.6.0': {}
+
   '@adobe/css-tools@4.5.0': {}
 
   '@apideck/better-ajv-errors@0.3.7(ajv@8.20.0)':
@@ -6479,6 +6505,8 @@ snapshots:
   ccount@2.0.1: {}
 
   chai@6.2.2: {}
+
+  chalk@5.2.0: {}
 
   change-case@5.4.4: {}
 

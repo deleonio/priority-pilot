@@ -76,6 +76,11 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      # Spiegel-Stelle zu ci.yml (verify): Schema-Validierung aller Workflows/Composite-Actions.
+      # Begruendung dort — hier mitgezogen, damit beide verify-Jobs dieselben Gates fahren.
+      - name: GitHub-Actions-Schema
+        run: pnpm lint:actions
+
       - name: Build
         run: pnpm -r build
 
