@@ -357,6 +357,16 @@ runs:
         ZAI_API_KEY="$(printf '%s' "$ZAI_API_KEY" | tr -d '[:space:]')"
         OPENROUTER_API_KEY="$(printf '%s' "$OPENROUTER_API_KEY" | tr -d '[:space:]')"
 
+        # Issue #893: ZAI-Provider zwischen 08:00-12:00 Europe/Berlin auf Claude fallen
+        # DST-korrekt via TZ=Europe/Berlin, keine persistente Mutation
+        if [ "$PROVIDER" = "zai" ]; then
+          BERLIN_HOUR="$(TZ=Europe/Berlin date +%H)"
+          if [ "$BERLIN_HOUR" -ge 8 ] && [ "$BERLIN_HOUR" -le 11 ]; then
+            echo "::notice title=⏰ Zeitfenster-Auto-Fallback::08:00-12:00 Europe/Berlin aktiv — ZAI → Claude."
+            PROVIDER="claude"
+          fi
+        fi
+
         case "$PROVIDER" in
           claude)
             if [ -z "$CLAUDE_API_KEY" ]; then
