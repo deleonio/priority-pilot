@@ -853,6 +853,7 @@ body {
 	display: grid;
 	gap: 1rem;
 	margin-bottom: 1rem;
+	width: 100%;
 }
 
 /* Responsive Grid für Säulen-Gewichtung (#763) — bewusst eine eigene Klasse statt global auf
@@ -911,6 +912,7 @@ body {
 	flex-wrap: wrap;
 	margin-top: 1rem;
 	justify-content: flex-end;
+	width: 100%;
 }
 
 .dependency-list {
