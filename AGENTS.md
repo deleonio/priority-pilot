@@ -58,9 +58,7 @@ setzt alle Schreibzugriffe um — Titel-Rename (Conventional Commits, **englisch
 zwischen `<!-- ai-documenter-body -->`-Markern (bestehender Body bleibt unangetastet), GENAU EIN
 Release-Note-Kommentar (`<!-- ai-documenter -->`, PATCH statt Duplikat) und Labels
 (`release:*` nach Klassifikation, `ai:documented`). Der Reviewer (Phase 5) korrigiert den Titel
-schon VOR dem Merge (Titel-Gate). Ein täglicher Sweep
-([06b-documenter-sweep.yml](.github/workflows/06b-documenter-sweep.yml)) triggert Phase 7 für
-verlorene gemergte PRs nach; die `release:*`-Labels speisen die Release Notes
+schon VOR dem Merge (Titel-Gate). Die `release:*`-Labels speisen die Release Notes
 ([.github/release.yml](.github/release.yml)) der Deploy-Pipeline. Der Provider ist über die
 Repo-Variable **`vars.LLM_PROVIDER`** umschaltbar:
 `claude` (Anthropic nativ, Default, `CLAUDE_API_KEY`) oder `zai` (z.ai/GLM, `ZAI_API_KEY`).

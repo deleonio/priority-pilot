@@ -322,12 +322,6 @@ bekommt dieselben Titelfakten (`--mode title-only`) und korrigiert non-konforme 
 **vor** dem Merge — post-merge ist ein Rename nur noch kosmetisch, der Merge-Commit-Subject
 steht bereits.
 
-**Catch-up-Sweep** ([06b-documenter-sweep.yml](../.github/workflows/06b-documenter-sweep.yml),
-täglich 03:17 UTC + `workflow_dispatch` mit `dry-run`): findet gemergte PRs der letzten 30 Tage
-ohne `ai:documented`/`release:ignore` und triggert Phase 7 pro PR per `workflow_dispatch` nach
-(max. 10/Lauf). Muss den App-Token nutzen — ein via `GITHUB_TOKEN` ausgelöster Dispatch startet
-keinen Workflow-Run. Der fail-closed-Precheck von Phase 7 dedupliziert.
-
 ## Release-Notes-Kette
 
 Die `release:*`-Labels des Documenters (vergeben nach Klassifikation: `breaking→release:breaking-change`,
