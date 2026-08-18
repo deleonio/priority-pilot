@@ -17,9 +17,6 @@ import { waitForStableView } from './helpers';
  * Viewport 375×812 nach Mobile-First-Konvention (.ai-knowledge/conventions.md).
  */
 
-/** localStorage-Schlüssel der Theme-Wahl — identisch zu STORAGE_KEY in `src/lib/theme.ts`. */
-const THEME_STORAGE_KEY = 'pp-theme';
-
 /** WCAG 1.4.3 (AA) für normalen Text. */
 const MIN_CONTRAST = 4.5;
 
@@ -67,10 +64,15 @@ const measureContrast = (page: import('./fixtures').Page, selector: string): Pro
 test.describe('Dunkelmodus – Lesbarkeit der Dashboard-Panels', () => {
 	test('Panels mit Token-Hintergrund halten 4.5:1 im Dunkelmodus (375px)', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
-		await page.addInitScript((key) => window.localStorage.setItem(key, 'dark'), THEME_STORAGE_KEY);
 
 		await page.goto('/');
 		await waitForStableView(page);
+
+		// Dunkelmodus ist als App-Feature deaktiviert (P1-2): `data-theme` wird nicht mehr über
+		// localStorage gesteuert, sondern fix auf „light“ gesetzt. Die `[data-theme='dark']`-Regeln
+		// in app.css bleiben als Token-Bestand erhalten — für die Rückkehr des Dunkelmodus. Der Test
+		// erzwingt das Attribut deshalb direkt am <html> und misst die Kontrast-Regeln weiter.
+		await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
 
 		// Vorbedingung: der Dunkelmodus ist wirklich aktiv, sonst misst der Test den Hellmodus grün.
 		await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');

@@ -22,22 +22,19 @@
 		<!--
 			Anti-FOUC-Bootstrap: setzt `data-theme`/`color-scheme` synchron auf <html>, BEVOR das
 			(im Prod-Build als <link> extrahierte) app.css paintet und bevor das deferred Entry-Modul
-			läuft. So sieht ein Nutzer mit gespeichertem Dunkel-Modus keinen kurzen Hell-Blitz.
-			Schlüssel/Logik spiegeln src/lib/theme.ts (STORAGE_KEY 'pp-theme'); der useTheme-Hook
-			übernimmt danach die Live-Steuerung. Bewusst inline + ohne Abhängigkeiten, damit es vor
-			allem anderen greift; Fehler werden geschluckt, der App-Start ist nie blockiert.
+			läuft. Dunkelmodus ist deaktiviert (P1-2, PR #848): Die App läuft fix im Hell-Modus —
+			auch eine gespeicherte Altlast `pp-theme=dark` aus Sessions vor der Deaktivierung darf
+			keinen Dunkel-Blitz mehr auslösen. Spiegelt src/lib/theme.ts (applyInitialTheme);
+			bewusst inline + ohne Abhängigkeiten, damit es vor allem anderen greift; Fehler werden
+			geschluckt, der App-Start ist nie blockiert.
 		-->
 		<script>
 			(function () {
 				try {
-					var stored = localStorage.getItem('pp-theme');
-					var preference = stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'light';
-					var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-					var resolved = preference === 'system' ? (prefersDark ? 'dark' : 'light') : preference;
-					document.documentElement.dataset.theme = resolved;
-					document.documentElement.style.colorScheme = resolved;
+					document.documentElement.dataset.theme = 'light';
+					document.documentElement.style.colorScheme = 'light';
 				} catch (e) {
-					/* localStorage/matchMedia evtl. blockiert — dann greift das Hell-Standard-Theme. */
+					/* DOM evtl. nicht verfügbar — dann greift das Hell-Standard-Theme. */
 				}
 			})();
 		</script>
