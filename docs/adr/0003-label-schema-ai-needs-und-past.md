@@ -1,6 +1,6 @@
 # ADR 0003: Label-Schema `ai:needs-*` (Trigger) + `ai:<Vergangenheitsform>` (Done)
 
-- **Status:** akzeptiert (2026-08-18, Issue #851)
+- **Status:** akzeptiert (2026-08-18, Issue #851); Done-Marker verschlankt (2026-08-18, Issue #873)
 - **Kontext:** [docs/pipeline-flow.md](../pipeline-flow.md), [ADR 0002](0002-pipeline-7-phasen-ux-vor-spec.md)
 
 ## Kontext und Problem
@@ -35,9 +35,9 @@ Vereinheitlichung auf **zwei orthogonale Label-Familien**:
 | 6 Fixup      | `ai:needs-fixup`                            | war `ai:needs-changes`                                                                              |
 | 7 Documenter | _(Event: `pull_request.closed` + `merged`)_ | auf gemergtem PR nicht label-triggerbar                                                             |
 
-**Done-Labels `ai:<Vergangenheitsform>`** — jede erfolgreiche Phase setzt ihr Done-Label UND den
-Trigger der Folgephase (der Motor der Kette): `ai:analysed`, `ai:ux-reviewed`, `ai:specified`,
-`ai:implemented`, `ai:reviewed`, `ai:fixed`, `ai:documented`.
+**Done-Labels `ai:<Vergangenheitsform>`** — die erfolgreiche Phase setzt den Trigger der
+Folgephase (der Motor der Kette) plus ein Done-Label, wo Logik es liest: `ai:analysed`,
+`ai:reviewed`, `ai:documented` (Umfang siehe Fortschreibung #873 unten).
 
 **Info-Labels ohne Trigger:** `ai:needs-human` (KI stoppt; PR/Issue-Kommentar mit **Warum** und
 **was der Mensch konkret beitragen/entscheiden soll**), `ai:to-big-issue` (Aufgabe zu groß — reines
@@ -50,9 +50,9 @@ Signal, löst bewusst nichts automatisch aus), `ai:continued` (Soft-Abort-Marker
 
 - **Nicht-UI-Skip ohne Extra-Label:** `ux:ready` als Skip-Marker entfällt — die Analyse setzt bei
   Nicht-UI direkt `ai:needs-spec`, die UX-Phase wird schlicht nie getriggert.
-- **Gate-Merge auf `ai:reviewed`:** `ai:reviewed` ist Done-Label UND Gate-Trigger (setzt bei 🟢 UND
-  🔴 — die Review-Runde ist in beiden Fällen abgeschlossen). Damit das Gate nicht auf einem stale
-  `ai:reviewed` vorzeitig mergt, prüft es zusätzlich die ABSENZ von `ai:needs-fixup`,
+- **Gate-Merge auf `ai:reviewed`:** `ai:reviewed` ist Done-Label UND Gate-Trigger (seit #873 bei 🟢
+  und needs-human; bei 🔴 nur `ai:needs-fixup` — s. Fortschreibung). Damit das Gate nicht auf einem
+  stale `ai:reviewed` vorzeitig mergt, prüft es zusätzlich die ABSENZ von `ai:needs-fixup`,
   `ai:needs-review` und `ai:needs-human`; der Fixup räumt `ai:reviewed` beim Konsum von
   `ai:needs-fixup` ab. Das schließt die ursprünglich beobachtete Race-Klasse (Aktion trotz
   ausstehendem Gegen-Label) systematisch ab.
@@ -79,3 +79,22 @@ Signal, löst bewusst nichts automatisch aus), `ai:continued` (Soft-Abort-Marker
   erwähnen alte Namen (kosmetisch).
 - **Neutral:** `ai:to-big-issue` bleibt bewusst info-only (Signal an den Menschen, kein Auto-Flow);
   `ai:needs-human`-Kommentare folgen dem Format Warum + konkrete Handlungsoptionen.
+
+## Fortschreibung 2026-08-18 (Issue #873): Done-Marker verschlankt
+
+Der ursprüngliche Satz von sieben Done-Labels erwies sich im Betrieb als zu schwer: GitHub
+Actions kann Label-Namen bei `issues:`-/`pull_request:`-Triggern nicht im `on:`-Block filtern —
+jedes Label-Add startet bis zu 4 Issue- bzw. 3 PR-Workflows als No-Op. Vier Done-Marker
+(`ai:ux-reviewed`, `ai:specified`, `ai:implemented`, `ai:fixed`) wurden von keiner Logik gelesen
+und sind gestrichen; der Fortschritt steht im aktiven `ai:needs-*`-Label und in der Run-History.
+Die übrigen drei tragen Last und bleiben: `ai:analysed` (Erst-Triage-ABSENT-Guard für
+vorgelabelte Sub-Issues + Parkplatz wartender Nachfolger im issue-unblock), `ai:reviewed`
+(Gate-Trigger + Merge-Vorbedingung; wird beim 🔴-Verdict nicht mehr gesetzt, damit das Gate weder
+grundlos läuft noch vor dem `ai:needs-fixup`-Add lesen kann), `ai:documented` (fail-closed
+Idempotenz-Invariante des Documenters + Sweep-Kriterium).
+
+Zusätzlich verbindliche Setz-Regeln (dokumentiert in docs/pipeline-flow.md): Label-Writes nur im
+Post-Assertion-Step am Job-Ende, Removes zuerst, Done-Labels idempotent, Trigger der Folgephase
+als letzter Write. Verworfen: ein zentraler Router-Workflow auf `repository_dispatch` — die
+verbleibenden No-Ops sind Sekunden-Prechecks, der Umbau aller Phasen-Trigger stünde in keinem
+Verhältnis.

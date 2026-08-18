@@ -8,7 +8,7 @@ name: 5/7 Review
 # Reviewt einen Pull Request im Kreuzverhör, sobald er das Label
 # "ai:needs-review" trägt.
 # Setzt **Claude Code** ein; Provider via `vars.LLM_PROVIDER` (zai|claude), aufgelöst in setup-claude.
-#   - Findings → ai:reviewed + ai:needs-fixup (→ Fixup)
+#   - Findings → ai:needs-fixup (→ Fixup)
 #   - Entscheidungs-Findings ("Mensch entscheidet") → ai:reviewed + ai:needs-human (→ wartet auf Mensch)
 #   - sauber 🟢 → ai:reviewed (→ Gate-Merge)
 # Ändert KEINEN Code.
@@ -254,13 +254,6 @@ jobs:
             esac
           fi
 
-          # Klares vs. unklaires Verdict merken: Das Done-Label ai:reviewed dokumentiert
-          # eine ABGESCHLOSSENE Review-Runde — bei leerem/ungültigem Verdict (Claude hat
-          # vermutlich nicht gearbeitet) bleibt es weg, nur der Fail-Safe ai:needs-fixup
-          # hält die Kette in Bewegung.
-          clear_verdict="false"
-          case "$verdict" in reviewed|needs-fixup|needs-human) clear_verdict="true" ;; esac
-
           if [ "$verdict" = "reviewed" ]; then
             allow='[]'
             delays=(2 3 5 8)
@@ -387,8 +380,8 @@ jobs:
             } > /tmp/needs-human-body.md
             bash .github/scripts/needs-human-explain.sh post --repo "$GITHUB_REPOSITORY" --pr "$PR" --body-file /tmp/needs-human-body.md
             for attempt in 1 2 3; do
-              if gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:reviewed && \
-                 gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human; then
+              if gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human && \
+                 gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:reviewed; then
                 echo "::notice::Labels gesetzt: ai:reviewed + ai:needs-human (wartet auf Mensch)"
                 break
               fi
@@ -400,11 +393,9 @@ jobs:
             done
           else
             for attempt in 1 2 3; do
-              # ai:reviewed nur bei klarem Verdict (Review-Runde abgeschlossen); der
-              # Fail-Safe-Pfad (kein Verdict) setzt NUR ai:needs-fixup.
-              if [ "$clear_verdict" = "true" ]; then
-                gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:reviewed 2>/dev/null || true
-              fi
+              # Kein ai:reviewed im findings-Pfad: Das Done-Label ist Gate-Trigger und
+              # könnte vor diesem Add gelesen werden (TOCTOU-Fenster); der Fixup-Trigger
+              # reicht als Übergang, die Review-Runde dokumentiert der Sammelkommentar.
               if gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-fixup; then
                 echo "::notice::Label gesetzt: ai:needs-fixup"
                 break

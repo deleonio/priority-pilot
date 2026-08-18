@@ -302,9 +302,14 @@ jobs:
           gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-ux-ui" 2>/dev/null || true
           gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-spec" 2>/dev/null || true
 
-          # Done-Label der Analyse-Phase (immer — auch 🟡/🔴 bleibt die Analyse erledigt)
-          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:analysed" 2>/dev/null || true
-          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:analysed"
+          # Done-Label der Analyse-Phase (immer — auch 🟡/🔴 bleibt die Analyse erledigt).
+          # Idempotent setzen: Hängt es schon (Re-Triage), kein Remove+Add — jedes Add
+          # feuert ein labeled-Event, das nur 4 No-Op-Runs startet.
+          HAS_ANALYSED="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels \
+            --jq '[.labels[].name] | any(. == "ai:analysed")' 2>/dev/null || echo false)"
+          if [ "$HAS_ANALYSED" != "true" ]; then
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:analysed"
+          fi
 
           if [ "$final" = "spec-ready" ]; then
             # 🟢: Trigger der nächsten Phase setzen — UX-Phase nur bei UI-Bezug,
@@ -312,10 +317,10 @@ jobs:
             # Skip-Marker-Label mehr nötig: der Trigger IST der Skip).
             if [ "$UI_BEZUG" = "nein" ]; then
               gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-spec"
-              echo "::notice::Labels gesetzt: ai:analysed + ai:needs-spec (Nicht-UI-Ticket)"
+              echo "::notice::Label gesetzt: ai:needs-spec (Nicht-UI-Ticket)"
             else
               gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-ux-ui"
-              echo "::notice::Labels gesetzt: ai:analysed + ai:needs-ux-ui (UI-Ticket – 02 kümmert sich)"
+              echo "::notice::Label gesetzt: ai:needs-ux-ui (UI-Ticket – 02 kümmert sich)"
             fi
           else
             echo "::notice::Label gesetzt: ai:analysed (🟡/🔴)"
