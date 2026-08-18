@@ -44,7 +44,7 @@ flowchart TD
 
     merged([PR gemergt ✅]):::done
     docpr[07-claude-pr-documenter.yml<br/>Phase 7: Titel/Body/Release-Note/Labels<br/>(Facts + LLM doc.json + Render)]:::wf
-    docsweep[06b-documenter-sweep.yml<br/>Catch-up: verlorene Läufe nachtriggern]:::wf
+
     human([⚠️ Mensch<br/>> 10 PR-Commits]):::stop
 
     %% ---- Issue-Trigger ----
@@ -82,7 +82,7 @@ flowchart TD
     %% ---- Abschluss ----
     merged -.->|pull_request.closed| cancel
     merged -.->|"pull_request.closed + merged"| docpr
-    docsweep -.->|"schedule/dispatch: gemergt ohne ai:documented"| docpr
+
 
     %% ---- Merge-getriebenes Unblocking aufeinander aufbauender Issues ----
     merged -.->|"pull_request.closed + merged"| unblock
@@ -125,7 +125,7 @@ flowchart TD
 | --------------- | ------------------------- | ----------------------------------------------------------------------------------------------------- |
 | `ai:analysed`   | triage (idempotent)       | Erst-Triage-ABSENT-Guard, issue-unblock (Parkplatz); **Entfernen** durch Menschen = Re-Triage-Trigger |
 | `ai:reviewed`   | review (🟢 / needs-human) | gate-merge (Trigger + Merge-Vorbedingung), fixup (Abräumen)                                           |
-| `ai:documented` | documenter                | Documenter-Precheck (fail-closed), documenter-sweep                                                   |
+| `ai:documented` | documenter                | Documenter-Precheck (fail-closed)                                                                     |
 
 **Info-Labels** — kein Trigger, keine automatische Aktion:
 
