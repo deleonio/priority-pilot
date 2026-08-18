@@ -70,7 +70,7 @@ das die Datenbank (`database.sqlite`) automatisch sichert und alte Backups aufr√
 **Cron-Beispiel (nightly 02:00 Uhr):**
 
 ```bash
-0 2 * * * /path/to/priority-pilot/maintenance.sh
+0 2 * * * /path/to/server/maintenance.sh
 ```
 
 Das Skript kann aus beliebigem Verzeichnis aufgerufen werden; alle Pfade werden relativ zum Skript-Verzeichnis aufgel√∂st.
@@ -145,9 +145,9 @@ gezielt starten:
 Server gezielt:
 
 ```bash
-pnpm --filter priority-pilot build   # openapi-typescript + tsc
-pnpm --filter priority-pilot dev     # nodemon: build + run, Watch auf src/
-pnpm --filter priority-pilot lint    # api.d.ts + tsc --noemit + eslint
+pnpm --filter server build   # openapi-typescript + tsc
+pnpm --filter server dev     # nodemon: build + run, Watch auf src/
+pnpm --filter server lint    # api.d.ts + tsc --noemit + eslint
 ```
 
 ## Umgebungsvariablen (Server)
