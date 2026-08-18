@@ -12,17 +12,18 @@ tautologischen Tests, die nachträglich dem Code angepasst werden — die Tests 
 
 Tickets = GitHub-Issues von `deleonio/priority-pilot`. Voraussetzung: `gh` ist authentifiziert.
 
-**Auswahlkriterium:** Bearbeitet werden **offene** Issues mit Label `ux:ready` (gesetzt von der
-UX-Phase bei UI-Tickets oder direkt von der Triage bei Nicht-UI-Tickets, siehe
-[ticket-triage.md](ticket-triage.md) Schritt 5 / [ticket-ux.md](ticket-ux.md)) UND `ai:spec-ready`
-UND `ai:analyzed`, für die **noch kein** offener (Draft-)PR existiert (Idempotenz).
+**Auswahlkriterium:** Bearbeitet werden **offene** Issues mit Label `ai:needs-spec` (gesetzt von
+der UX-Phase bei UI-Tickets oder direkt von der Analyse-Phase bei Nicht-UI-Tickets, siehe
+[ticket-triage.md](ticket-triage.md) Schritt 5 / [ticket-ux.md](ticket-ux.md)), für die **noch
+kein** offener (Draft-)PR existiert (Idempotenz).
 
-Label-Kette: `ai:analyzed` → `ai:spec-ready` → `ux:ready` → **`ai:ready` (dieser Workflow)** → Umsetzung → PR.
+Label-Kette: `ai:analysed` → `ai:needs-ux-ui` → `ai:ux-reviewed` → **`ai:specified` +
+`ai:needs-impl` (dieser Workflow)** → Umsetzung → PR.
 
 ## Schritt 1 — Ticket wählen & Branch anlegen
 
-- Offene Issues mit `ai:spec-ready` finden (index-unabhängig, sofort konsistent):
-  `gh issue list --state open --label "ai:spec-ready" --json number,title --jq '.[] | "\(.number)\t\(.title)"'`
+- Offene Issues mit `ai:needs-spec` finden (index-unabhängig, sofort konsistent):
+  `gh issue list --state open --label "ai:needs-spec" --json number,title --jq '.[] | "\(.number)\t\(.title)"'`
 - Eine konkret übergebene Nummer hat Vorrang; sonst der Reihe nach (ältestes zuerst).
 - **Idempotenz:** Existiert bereits ein offener PR mit `Closes #<nr>` für das Issue, **nicht** erneut
   spezifizieren — der Vertrag steht schon. Lauf für dieses Issue beenden.
@@ -88,21 +89,19 @@ Label-Kette: `ai:analyzed` → `ai:spec-ready` → `ux:ready` → **`ai:ready` (
 
 ## Schritt 4 — Übergabe an die Umsetzung
 
-- Am Issue **`ai:ready` setzen** und **`ai:spec-ready` entfernen** — damit greift die Umsetzung
+- Der Workflow setzt am Issue **`ai:specified`** und **`ai:needs-impl`** (und konsumiert
+  `ai:needs-spec`) — damit greift die Umsetzung
   ([ticket-implementation.md](ticket-implementation.md), Schritt 1) den Draft-PR auf und macht die
-  roten Tests grün, **ohne sie zu ändern**. **`ux:ready` bleibt kleben** — die Umsetzung verlangt
-  es als Pre-Check-Bedingung.
+  roten Tests grün, **ohne sie zu ändern**.
   - Label bei Bedarf vorher anlegen
-    (`gh label create "ai:ready" --color 0E8A16 --description "Analyse klar; zur Umsetzung freigegeben"`),
-    dann `gh issue edit <nr> --add-label "ai:ready" --remove-label "ai:spec-ready"`.
-  - **Partial-Retry-Hinweis:** Bei Teilerfolg (Spec-PR ohne Tests) entfernt der Workflow ux:ready
-    und setzt es sofort wieder (nach ai:spec-ready). Das `ux:ready`-labeled-Event retriggert die
-    Spec automatisch; die UX-Phase bleibt dabei No-op (ux:ready ist beim Pre-Check-Zeitpunkt
-    wieder vorhanden).
+    (`gh label create "ai:specified" --color 0E8A16 --description "Rote Spec-Tests stehen; zur Umsetzung freigegeben"`).
+  - **Partial-Retry-Hinweis:** Bei Teilerfolg (Spec-PR ohne Tests) setzt der Workflow
+    `ai:needs-spec` neu (Remove-vor-Add). Das `labeled`-Event retriggert die
+    Spec automatisch.
   - **Hard-Fail-Recovery:** Bricht die Post-Assertion mit `exit 1` ab (kein VERDICT + keine
-    Artefakte), bleiben `ai:spec-ready` und `ux:ready` am Issue kleben, OHNE dass ein Event
-    feuert — die Kette steht. Anstoß: `ux:ready` entfernen und neu setzen (labeled-Event startet
-    die Spec erneut; die UX bleibt No-op).
+    Artefakte), bleibt `ai:needs-spec` am Issue kleben, OHNE dass ein Event
+    feuert — die Kette steht. Anstoß: `ai:needs-spec` entfernen und neu setzen (labeled-Event
+    startet die Spec erneut).
 
 ## Hinweise
 
@@ -113,5 +112,5 @@ Label-Kette: `ai:analyzed` → `ai:spec-ready` → `ux:ready` → **`ai:ready` (
   (Tester-Rolle schreibt die roten Tests). In GitHub Actions läuft die Spec als eigener headless
   Lauf (`spec.yml`) — getrennt vom Umsetzungs-Lauf, womit die Gewaltenteilung auch in der
   Automatik gilt (andere Instanz schreibt Tests vs. Code).
-- Greift die Triage ein Issue bewusst **nicht** auf 🟢 (🟡/🔴), gibt es kein `ai:spec-ready` — dann
+- Greift die Analyse ein Issue bewusst **nicht** auf 🟢 (🟡/🔴), gibt es keinen Phasen-Trigger — dann
   entscheidet der Mensch (kein automatischer Spec-Lauf).

@@ -242,7 +242,7 @@ Teilschritt `date +%s` gegen die Deadline zu prüfen. Bei Erreichen:
 
 1. **Arbeit sichern** — Zwischenstand in Body-Block/Dokumentation schreiben
 2. **Kein Abschluss-Label** setzen — verhindert automatische Weiterleitung
-3. **Trigger-Label entfernen** + **sofort neu setzen** (z.B. `ai:ready` entfernen + wieder setzen)
+3. **Trigger-Label entfernen** + **sofort neu setzen** (z.B. `ai:needs-impl` entfernen + wieder setzen)
 4. **Turn beenden** — automatische Neu-Anmeldung durch Label-Änderung
 
 Dadurch bricht **nur der aktuelle Teil** ab, nicht der ganze Job, und die Arbeit ist dokumentiert.
@@ -260,8 +260,8 @@ zu stören.
 
 Läuft ein Issue-Job dennoch in den Timeout — oder ist die Obergrenze von einer automatischen
 Fortsetzung bereits ausgeschöpft —, ist das Issue zu groß für einen Lauf: Der Job setzt am Issue
-das Label **`ai:to-big-issue`** (und die Umsetzung entfernt zusätzlich `ai:ready`, die Spec
-`ai:spec-ready`, damit es nicht erneut aufgegriffen wird) — als Kandidat zum **Aufteilen** in
+das Label **`ai:to-big-issue`** (und entfernt zusätzlich den Phasen-Trigger `ai:needs-impl` bzw.
+`ai:needs-spec`, damit er nicht erneut aufgegriffen wird) — als Kandidat zum **Aufteilen** in
 Sub-Issues. Die PR-Workflows (Review/Fixup) vergeben bei Erschöpfung bewusst **kein** Issue-Label
 — nur einen Alarm-Kommentar.
 
@@ -286,8 +286,8 @@ fertigen PR ebenfalls.
 Sind Sub-Issues über native GitHub-Issue-Dependencies (`blocked-by`) sequenziell verkettet
 (A1 → A2 → A3, gesetzt bei der Zerlegung in der Triage), gibt
 [`claude-issue-unblock.yml`](../.github/workflows/claude-issue-unblock.yml) den nächsten Nachfolger
-frei, sobald **alle** seine Blocker gemergt/geschlossen sind (Fan-in-Gate) — indem es dessen
-`ai:analyzed` **per App-Token** entfernt und so die Re-Triage gegen den nun gemergten Code-Stand
+frei, sobald **alle** seine Blocker gemergt/geschlossen sind (Fan-in-Gate) — indem es
+`ai:needs-analyse` **per App-Token** setzt und so die Re-Triage gegen den nun gemergten Code-Stand
 anstößt.
 
 ### Named Session Resume (aktuell nicht aktiv)
@@ -384,8 +384,8 @@ Journeys im user-journeys.md-Format).
   → Skip mit Notice).
 - **Post-Assertion (VERDICT-Muster):** `VERDICT: synced` ↔ null Commits (0-PR-Pfad: kein PR
   erzeugt), `VERDICT: updated` ↔ Commits vorhanden, geänderte Dateien ⊆ `docs/spec/` — jeder
-  Widerspruch failt laut. In-Flight-Guard via 4 Labels (`ai:analyzed`, `ai:spec-ready`,
-  `ai:spec-approved`, `ai:implemented`) verhindert konkurrierende Spec-Änderungen.
+  Widerspruch failt laut. In-Flight-Guard via Pipeline-Labels (`ai:needs-review`,
+  `ai:needs-human`) verhindert konkurrierende Spec-Änderungen.
 - **Bewusst stateless:** Kein pro-Issue-Memory — die offenen Draft-PRs sind der einzige Zustand.
 - **Modell:** `vars.CLAUDE_MODEL_SPEC_SYNC` (Default `sonnet`), Provider wie alle LLM-Phasen via
   `vars.LLM_PROVIDER` (setup-claude, `tools-tier: full`, inkl. Tailscale-Egress und
@@ -409,8 +409,8 @@ mehr), **ergänzen** (implementiertes, undokumentiertes Nutzer-Feature).
 - **Skip-Guard:** Hat `main` denselben SHA wie der letzte erfolgreiche Lauf, wird der Lauf
   übersprungen (deterministisch dasselbe Ergebnis, spart LLM-Budget). Fail-open bei API-Fehlern;
   `workflow_dispatch` mit `force: true` umgeht den Guard.
-- **In-Flight-Guard:** Trägt der offene Sync-PR gerade `ai:needs-review`, `ai:needs-changes`,
-  `ai:ready-to-merge` oder (terminal) `ai:needs-human`, wird der Lauf ausgesetzt. Sonst zieht der
+- **In-Flight-Guard:** Trägt der offene Sync-PR gerade `ai:needs-review`, `ai:needs-fixup`,
+  `ai:reviewed` oder (terminal) `ai:needs-human`, wird der Lauf ausgesetzt. Sonst zieht der
   nächtliche Force-Push einem laufenden Review-/Fixup-/Merge-Lauf den Branch unter den Füßen weg.
   `force: true` umgeht diesen Guard bewusst **nicht** — er schützt fremde Läufe, nicht das Budget.
 - **Branch/PR:** Der Agent committed nur lokal auf `chore/user-guide-sync`, der Branch wird jede

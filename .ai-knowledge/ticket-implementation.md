@@ -5,19 +5,19 @@ Slash-Commands (z. B. unter `commands/`) verweisen nur auf diese Schritte.
 
 Tickets = GitHub-Issues von `deleonio/priority-pilot`. Voraussetzung: `gh` ist authentifiziert.
 
-**Auswahlkriterium:** Umgesetzt werden **offene** Issues mit Label `ai:ready`, die **noch nicht
+**Auswahlkriterium:** Umgesetzt werden **offene** Issues mit Label `ai:needs-impl`, die **noch nicht
 zugewiesen** sind. Die Zuweisung an sich selbst ist die „in Arbeit"-Markierung und verhindert,
 dass dasselbe Ticket doppelt gegriffen wird (idempotenter Batch).
 
-Label-Kette: `ai:analyzed` (analysiert, Analyse im Body-Block) → `ai:ready` (zur Umsetzung
-freigegeben) → dieser Workflow setzt um. `ai:ready` wird bei **klarer Analyse (Ampel 🟢)** bereits
-von der Triage automatisch gesetzt; bei 🟡/🔴 entscheidet der Mensch und gibt ggf. von Hand frei
-(siehe [ticket-triage.md](ticket-triage.md), Schritt 5).
+Label-Kette: `ai:analysed` (analysiert, Analyse im Body-Block) → `ai:specified` (rote Tests stehen)
+→ `ai:needs-impl` (zur Umsetzung freigegeben) → dieser Workflow setzt um. `ai:needs-impl` wird bei
+**klarer Analyse (Ampel 🟢)** automatisch von der Spec-Stufe gesetzt; bei 🟡/🔴 entscheidet der
+Mensch und gibt ggf. von Hand frei (siehe [ticket-triage.md](ticket-triage.md), Schritt 5).
 
 ## Schritt 1 — Ticket wählen & sich zuweisen
 
 - Offene, freigegebene, noch nicht zugewiesene Issues finden (index-unabhängig, sofort konsistent):
-  `gh issue list --state open --label "ai:ready" --json number,title,assignees --jq '[.[] | select(.assignees | length == 0)] | .[] | "\(.number)\t\(.title)"'`
+  `gh issue list --state open --label "ai:needs-impl" --json number,title,assignees --jq '[.[] | select(.assignees | length == 0)] | .[] | "\(.number)\t\(.title)"'`
 - Eine konkret übergebene Nummer hat Vorrang.
 - Gibt es kein passendes Issue: klar sagen und stoppen (nichts erfinden).
 - **Sich selbst zuweisen** (claimt das Ticket): `gh issue edit <nr> --add-assignee @me`
@@ -29,7 +29,7 @@ von der Triage automatisch gesetzt; bei 🟡/🔴 entscheidet der Mensch und gib
   hat in der Regel bereits einen **Draft-PR mit roten Tests** angelegt. Ihn finden und auschecken:
   `gh pr list --state open --draft --json number,headRefName,closingIssuesReferences` → den PR
   wählen, dessen `closingIssuesReferences` `<nr>` enthält, dann `git fetch origin` und
-  `git switch <headRefName>`. Existiert **kein** solcher Draft-PR (z. B. der Mensch hat `ai:ready`
+  `git switch <headRefName>`. Existiert **kein** solcher Draft-PR (z. B. der Mensch hat `ai:needs-impl`
   direkt gesetzt, ohne Spec-Stufe), gilt der **Fallback-Modus** (eigener Branch + Tests selbst
   schreiben, Schritt 3).
 
@@ -42,7 +42,8 @@ Repo-Stand:
 - **Akzeptanzkriterien + Testfälle** aus dem Body-Block übernehmen (sie sind die Zielvorgabe für Schritt 3).
 - **Betroffene Dateien prüfen:** existieren die im Analyse-Block genannten Dateien noch? (`ls` oder `test -f`)
   Wurden sie seit der Analyse umbenannt/verschoben? Falls ja: den Pfad korrigieren und weitermachen.
-- **Ampel 🔴** → nicht umsetzen, `ai:ready` entfernen, begründet kommentieren und stoppen.
+- **Ampel 🔴** → nicht umsetzen, begründet kommentieren und stoppen (`VERDICT: not-ready`) — die
+  Label-Verwaltung übernimmt der Workflow.
 - **Ampel 🟢/🟡** → direkt weiter mit Schritt 3.
 
 **Keine vollständige Re-Triage.** Die Triage-Stufe hat die Arbeit gemacht — die Umsetzung
@@ -157,8 +158,8 @@ rückfragen** statt zu raten.
    Rahmen des Tickets — beheben (zählt als Finding der Runde). In der GitHub-Actions-Pipeline ist
    dieser Schritt zusätzlich deterministisch abgesichert: Der Gate/Auto-Merge-Workflow
    (`.github/workflows/pr-gate-merge.yml`) prüft nach Abschluss die Allowlist-Checks **CI**
-   und **Reviewer** und setzt bei rotem Ergebnis `ai:needs-changes` → der Fixup läuft an (bei beiden
-   grün + `ai:ready-to-merge` mergt derselbe Workflow den PR).
+   und **Reviewer** und setzt bei rotem Ergebnis `ai:needs-fixup` → der Fixup läuft an (bei beiden
+   grün + `ai:reviewed` mergt derselbe Workflow den PR).
 3. **Findings abarbeiten** (Umsetzer-Rolle) — jeden offenen Punkt behandeln:
    - **Zutreffend, klein, eindeutig →** **fixen**: Fix committen + pushen, erneut
      `pnpm format && pnpm exec prettier --check . && pnpm lint`, kurz im Thread antworten
