@@ -82,6 +82,11 @@ jobs:
       # `paths`-Globs werden nicht mitgeprueft (das WASM-Modul kann es nicht, es warnt selbst).
       - name: GitHub-Actions-Schema
         run: pnpm lint:actions
+      # Fixtures fuer .github/scripts/*.ts (node:test + tsx). Sichert die riskanteste Logik des
+      # Validators ab: die eng gefasste Ausnahme fuer `concurrency.queue` darf GENAU diesen
+      # Befund schlucken — ein zu weiter Filter faerbt das Gate still gruen.
+      - name: Test (.github/scripts)
+        run: pnpm test:scripts
       # Build regeneriert die Vertragstypen frisch aus openapi.yml und type-checkt dagegen —
       # damit kann eine veraltete/inkonsistente Analyse oder API-Drift nicht nach main gelangen.
       - name: Build

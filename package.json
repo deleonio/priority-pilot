@@ -2,7 +2,6 @@
 	"version": "0.1.424",
 	"license": "EUPL-1.2",
 	"devDependencies": {
-		"@action-validator/cli": "0.6.0",
 		"@action-validator/core": "0.6.0",
 		"@evilmartians/lefthook": "1.13.6",
 		"knip": "5.88.1",
@@ -20,7 +19,8 @@
 		"lint": "pnpm -r lint",
 		"lint:actions": "tsx .github/scripts/validate-actions.ts",
 		"prepare": "lefthook install",
-		"test": "pnpm -r test",
+		"test": "pnpm -r test && pnpm test:scripts",
+		"test:scripts": "node --import tsx --test \".github/scripts/*.test.ts\"",
 		"ui:inspect": "./ui-inspect.sh"
 	}
 }

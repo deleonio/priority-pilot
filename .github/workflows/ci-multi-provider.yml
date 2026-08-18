@@ -81,6 +81,9 @@ jobs:
       - name: GitHub-Actions-Schema
         run: pnpm lint:actions
 
+      - name: Test (.github/scripts)
+        run: pnpm test:scripts
+
       - name: Build
         run: pnpm -r build
 

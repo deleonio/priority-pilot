@@ -7,7 +7,8 @@
  * Flags) und gibt im Fehlerfall rohes JSON aus. Für die Pipeline bräuchte es sonst eine
  * Shell-Schleife mit 29 Node-Starts und unlesbarer Ausgabe. Dieses Skript nutzt stattdessen
  * direkt die JS-API von `@action-validator/core` (ein WASM-Modul, dasselbe wie im CLI),
- * sammelt alle Befunde über alle Dateien und meldet sie am Stück.
+ * sammelt alle Befunde über alle Dateien und meldet sie am Stück. `@action-validator/cli` ist
+ * deshalb bewusst KEINE Abhängigkeit dieses Repos.
  *
  * Nutzung:
  *   pnpm lint:actions                 # entdeckt alle Ziele selbst
@@ -20,7 +21,7 @@
 
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { validateAction, validateWorkflow, type ValidationError, type ValidationState } from '@action-validator/core';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -74,19 +75,28 @@ export function collectTargets(rootDir: string = REPO_ROOT): string[] {
  * mitgelieferte Schema von @action-validator 0.6.0 kennt den Key noch nicht und meldet
  * `Additional property 'queue' is not allowed`.
  *
- * Der Filter greift NUR, wenn der gesamte `/concurrency`-Befund aus genau diesem Rauschen
- * besteht (Zweig „string" scheitert am Typ, Zweig „objekt" allein am `queue`). Jede weitere
- * Abweichung im selben Block — Tippfehler, fehlendes `group`, unbekannter Key — lässt den
- * Befund stehen und die Prüfung rot werden.
+ * Der Filter greift NUR, wenn der `/concurrency`-Befund den `queue`-Befund TATSÄCHLICH ENTHÄLT
+ * und daneben aus nichts als diesem Rauschen besteht (Zweig „string" scheitert am Typ, Zweig
+ * „objekt" allein am `queue`). Jede weitere Abweichung im selben Block — Tippfehler, fehlendes
+ * `group`, unbekannter Key — lässt den Befund stehen und die Prüfung rot werden.
+ *
+ * Die Anwesenheits-Bedingung ist wesentlich: ohne sie würde auch ein falsch getyptes
+ * `concurrency` (`concurrency: 42`, oder eine Liste) verschwinden — dort scheitern BEIDE
+ * Zweige nur am Typ („must be string" / „must be object"), das reine „nichts als Rauschen"
+ * wäre also erfüllt. Genau die Fehlerklasse, gegen die dieses Skript antritt.
  *
  * ENTFERNEN, sobald @action-validator ein Schema mit `concurrency.queue` ausliefert: dann
  * meldet dieses Skript die Ausnahme als „unbenutzt" (siehe Report unten).
  */
+const isQueueGap = (error: ValidationError): boolean =>
+	error.code === 'properties' && error.detail === "Additional property 'queue' is not allowed";
+
 const isConcurrencyQueueNoise = (error: ValidationError): boolean => {
 	const path = 'path' in error ? error.path : undefined;
 	if (path !== '/concurrency') return false;
-	if (error.code === 'wrong_type') return true; // Zweig „concurrency ist ein String"
-	return error.code === 'properties' && error.detail === "Additional property 'queue' is not allowed";
+	// Nur der String-Zweig des oneOf, NICHT „must be object" (das wäre ein echter Typfehler).
+	if (error.code === 'wrong_type') return error.detail === 'The value must be string';
+	return isQueueGap(error);
 };
 
 export const isKnownSchemaGap = (error: ValidationError): boolean =>
@@ -95,6 +105,7 @@ export const isKnownSchemaGap = (error: ValidationError): boolean =>
 	error.path === '/concurrency' &&
 	Array.isArray(error.states) &&
 	error.states.length > 0 &&
+	error.states.some((state) => state.errors.some(isQueueGap)) &&
 	error.states.every((state) => state.errors.length > 0 && state.errors.every(isConcurrencyQueueNoise));
 
 export type FileReport = {
@@ -191,6 +202,9 @@ const main = (argv: string[]): number => {
 };
 
 // Nur ausführen, wenn direkt gestartet (Import in Tests bleibt nebenwirkungsfrei).
-if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
+// `pathToFileURL` statt `new URL('file://' + …)`: nur ersteres kodiert Sonderzeichen so, wie
+// `import.meta.url` es tut. Sonst schlägt der Vergleich unter Pfaden mit Leerzeichen oder `#`
+// fehl, `main()` läuft nie — und das Lint-Gate meldet stumm Exit 0.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
 	process.exit(main(process.argv.slice(2)));
 }

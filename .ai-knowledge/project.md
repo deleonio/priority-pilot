@@ -29,6 +29,8 @@ Gemeinsamer API-Vertrag: `openapi.yml`
 - `pnpm lint` — Lint über alle Packages
 - `pnpm lint:actions` — Workflows/Composite-Actions gegen die GitHub-Schemas prüfen
   (`.github/scripts/validate-actions.ts`, CI-Schritt „GitHub-Actions-Schema" + pre-commit-Hook)
+- `pnpm test:scripts` — Fixtures für `.github/scripts/*.ts` (node:test + tsx); auch Teil von
+  `pnpm test` und als CI-Schritt „Test (.github/scripts)"
 - `pnpm format` — Prettier über das ganze Repo (eine zentrale Config im Root)
 - `pnpm dev` — Frontend (Vite) **und** Backend (nodemon) parallel in einer Konsole starten
 - `pnpm --filter server dev` — nur Server im Watch-Modus (nodemon)
