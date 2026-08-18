@@ -8,9 +8,9 @@ name: 5/7 Review
 # Reviewt einen Pull Request im Kreuzverhör, sobald er das Label
 # "ai:needs-review" trägt.
 # Setzt **Claude Code** ein; Provider via `vars.LLM_PROVIDER` (zai|claude), aufgelöst in setup-claude.
-#   - Findings → ai:needs-changes (→ Fixup)
-#   - Entscheidungs-Findings ("Mensch entscheidet") → ai:needs-human (→ wartet auf Mensch)
-#   - sauber 🟢 → ai:ready-to-merge (→ Gate)
+#   - Findings → ai:reviewed + ai:needs-fixup (→ Fixup)
+#   - Entscheidungs-Findings ("Mensch entscheidet") → ai:reviewed + ai:needs-human (→ wartet auf Mensch)
+#   - sauber 🟢 → ai:reviewed (→ Gate-Merge)
 # Ändert KEINEN Code.
 #
 # CONCURRENCY: Statische Gruppe pro Phase (globale Serialisierung, FIFO). Der `precheck`-Job
@@ -132,7 +132,7 @@ jobs:
         # Conventional-Commits-Prüfung des PR-Titels VOR dem Merge (Regel-Logik, s.
         # .github/scripts/pr-doc-facts.sh --mode title-only). Post-Merge-Umbenennen im
         # Documenter ist nur noch Backstop — der Merge-Commit-Subject steht dann schon.
-        # Bewusst KEIN eigener CI-Check-Job: ein roter Check setzt ai:needs-changes →
+        # Bewusst KEIN eigener CI-Check-Job: ein roter Check setzt ai:needs-fixup →
         # Fixup läuft → Titelkorrektur erzeugt keinen Commit → No-Progress-Erkennung
         # schlägt zu → ai:needs-human. Sackgasse; der Reviewer hat gh + vollen Kontext.
         id: facts
@@ -178,14 +178,14 @@ jobs:
 
           ABSCHLUSS (beide Modi):
             - TITEL-GATE (VOR dem Verdict): TITLE_OK sagt, ob der PR-Titel Conventional Commits erfüllt (type(scope)!: subject, englisch, Subject klein, <=72). Bei false: via gh pr edit #PR_NR --title umbenennen — Typ/Scope-Anhaltspunkte SUGGESTED_TYPE/SUGGESTED_SCOPE, Subject englisch beschreibend. Kein Finding, kein Verdict-Aufschub.
-            - (Fixbare) Findings → Review-Kommentare an Datei/Zeile, dann VERDICT: needs-changes
+            - (Fixbare) Findings → Review-Kommentare an Datei/Zeile, dann VERDICT: needs-fixup
             - Architektur-/Produkt-/Design-Finding ("Mensch entscheidet") → Bei VERDICT: needs-human im Sammelkommentar zusaetzlich Sektion ## ⏸️ Entscheidungs-Findings einfuegen mit:
               - Nummeriertes Listing jedes Entscheidungs-Findings
               - **Was**: Beschreibung des Problems
               - **Wo**: Datei:Zeile
               - **Optionen**: 2-3 konkrete Handlungsoptionen mit Kurzbegründung
               - **Empfehlung**: Was Claude empfehlen würde
-            - solide (🟢) → KEINE Pseudo-Findings, knappe 🟢-Bestätigung, dann VERDICT: ready-to-merge
+            - solide (🟢) → KEINE Pseudo-Findings, knappe 🟢-Bestätigung, dann VERDICT: reviewed
 
           Sammelkommentar: Urteil als GENAU EINEN <!-- ai-review -->-Kommentar pflegen (vorhandenen suchen + fortschreiben, nicht neu anlegen). Zwei Abschnitte: "Offene Findings" (aktuelle Runde) und "Behobene Anmerkungen" (History-Tabelle — erledigte Findings wandern dorthin).
 
@@ -196,8 +196,8 @@ jobs:
           WICHTIG: Ändere KEINEN Code, committe nichts. Reiner Review.
 
           VERDICT (DEINE LETZTE OUTPUT-ZEILE, vom Workflow geparsed — ohne sie bleibt der PR stecken): exakt EINE Zeile am Ende, einer der Werte:
-            - VERDICT: ready-to-merge (bei 🟢)
-            - VERDICT: needs-changes (bei fixbaren Findings)
+            - VERDICT: reviewed (bei 🟢)
+            - VERDICT: needs-fixup (bei fixbaren Findings)
             - VERDICT: needs-human (bei Entscheidungs-Findungen, die ein Mensch treffen muss)
           CLAUDE_EOF
 
@@ -272,10 +272,10 @@ jobs:
             # Verdict lieferte (dann fehlt jeder Artefakt-Nachweis — Claude hat vermutlich nicht
             # gearbeitet). Bei klarem Verdict ist der Kommentar ein Hilfssignal, das Verdict primär:
             # wir setzen das Label nach Verdict und warnen nur. Ohne diese Unterscheidung würde ein
-            # fehlender Marker ein klares ready-to-merge zu needs-changes degradieren und einen
+            # fehlender Marker ein klares reviewed zu needs-fixup degradieren und einen
             # Fixup-Loop auslösen (PR #524: Claude postete teils keinen Marker-Kommentar).
             case "$verdict" in
-              ready-to-merge|needs-changes|needs-human)
+              reviewed|needs-fixup|needs-human)
                 echo "::warning title=Review-Kommentar fehlt::Kein <!-- ai-review -->-Kommentar am PR (auch nach Retry). Claude-Verdict '${verdict}' ist klar → Label nach Verdict, kein harter Fehler. Marker wird vom Workflow angelegt."
                 # Create-or-Update (#530): Claude postet den Sammelkommentar gelegentlich
                 # nicht. Fehlt der Marker (leere REVIEW_COMMENT_ID), legt der Workflow ihn
@@ -291,7 +291,14 @@ jobs:
             esac
           fi
 
-          if [ "$verdict" = "ready-to-merge" ]; then
+          # Klares vs. unklaires Verdict merken: Das Done-Label ai:reviewed dokumentiert
+          # eine ABGESCHLOSSENE Review-Runde — bei leerem/ungültigem Verdict (Claude hat
+          # vermutlich nicht gearbeitet) bleibt es weg, nur der Fail-Safe ai:needs-fixup
+          # hält die Kette in Bewegung.
+          clear_verdict="false"
+          case "$verdict" in reviewed|needs-fixup|needs-human) clear_verdict="true" ;; esac
+
+          if [ "$verdict" = "reviewed" ]; then
             allow='[]'
             delays=(2 3 5 8)
             for attempt in 1 2 3 4 5; do
@@ -311,21 +318,21 @@ jobs:
               any_fail="$(echo "$allow" | jq -r 'any(.[]; .bucket == "fail")')"
             fi
             if [ "$any_fail" = "true" ]; then
-              echo "::warning::Allowlist-Check rot → Downgrade zu needs-changes"
-              verdict="needs-changes"
+              echo "::warning::Allowlist-Check rot → Downgrade zu needs-fixup"
+              verdict="needs-fixup"
             else
-              final="ready-to-merge"
+              final="reviewed"
             fi
           fi
 
           if [ "$verdict" = "needs-human" ]; then
             final="needs-human"
-          elif [ "$verdict" != "ready-to-merge" ]; then
-            final="needs-changes"
+          elif [ "$verdict" != "reviewed" ]; then
+            final="needs-fixup"
           fi
 
-          gh label create "ai:needs-changes" --repo "$GITHUB_REPOSITORY" --color D93F0B 2>/dev/null || true
-          gh label create "ai:ready-to-merge" --repo "$GITHUB_REPOSITORY" --color 0E8A16 2>/dev/null || true
+          gh label create "ai:reviewed" --repo "$GITHUB_REPOSITORY" --color 0E8A16 2>/dev/null || true
+          gh label create "ai:needs-fixup" --repo "$GITHUB_REPOSITORY" --color D93F0B 2>/dev/null || true
           gh label create "ai:needs-review" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
           gh label create "ai:needs-human" --repo "$GITHUB_REPOSITORY" --color 5319e7 --description "Nicht-automatisierbare Entscheidung — wartet auf Mensch (Fixup greift bewusst nicht)" 2>/dev/null || true
 
@@ -334,8 +341,8 @@ jobs:
           label_operation_failed="false"
           for attempt in 1 2 3; do
             if gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-review 2>/dev/null && \
-               gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-changes 2>/dev/null && \
-               gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:ready-to-merge 2>/dev/null && \
+               gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-fixup 2>/dev/null && \
+               gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:reviewed 2>/dev/null && \
                gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-human 2>/dev/null; then
               break
             fi
@@ -350,24 +357,28 @@ jobs:
             exit 1
           fi
 
-          if [ "$final" = "ready-to-merge" ]; then
+          if [ "$final" = "reviewed" ]; then
+            # 🟢: Done-Label gesetzt — ai:reviewed ist gleichzeitig der Gate-Merge-Trigger.
+            # Das Gate verifiziert zusätzlich, dass kein ai:needs-fixup/ai:needs-review/
+            # ai:needs-human mehr klebt (Rename-hardening, Issue #851).
             for attempt in 1 2 3; do
-              if gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:ready-to-merge; then
-                echo "::notice::Label gesetzt: ai:ready-to-merge"
+              if gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:reviewed; then
+                echo "::notice::Label gesetzt: ai:reviewed"
                 break
               fi
               if [ "$attempt" -lt 3 ]; then sleep "$((2 ** (attempt-1)))"; fi
               if [ "$attempt" -eq 3 ]; then
-                echo "::error::ai:ready-to-merge nach 3 Versuchen fehlgeschlagen → ai:needs-human gesetzt"
-                gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⚠️ **Label-Race-Condition (#613): ai:ready-to-merge fehlgeschlagen**\n\nTransienter GitHub-API-Fehler nach 3 Retries. Bitte manuell prüfen.\n\n**Checkliste:**\n- [ ] 1. Manuelles Prüfen und Label setzen" 2>/dev/null || true
+                echo "::error::ai:reviewed nach 3 Versuchen fehlgeschlagen → ai:needs-human gesetzt"
+                gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⚠️ **Label-Race-Condition (#613): ai:reviewed fehlgeschlagen**\n\nTransienter GitHub-API-Fehler nach 3 Retries. Bitte manuell prüfen.\n\n**Checkliste:**\n- [ ] 1. Manuelles Prüfen und Label setzen" 2>/dev/null || true
                 gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human 2>/dev/null || true
                 exit 1
               fi
             done
           elif [ "$final" = "needs-human" ]; then
             for attempt in 1 2 3; do
-              if gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human; then
-                echo "::notice::Label gesetzt: ai:needs-human (wartet auf Mensch)"
+              if gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:reviewed && \
+                 gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human; then
+                echo "::notice::Labels gesetzt: ai:reviewed + ai:needs-human (wartet auf Mensch)"
                 break
               fi
               if [ "$attempt" -lt 3 ]; then sleep "$((2 ** (attempt-1)))"; fi
@@ -376,17 +387,22 @@ jobs:
                 exit 1
               fi
             done
-            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⏸️ **Wartet auf menschliche Entscheidung (Review-Entscheidung)**\n\nDieser PR enthaelt Findings, die eine menschliche Entscheidung erfordern. Siehe die Sektion ## ⏸️ Entscheidungs-Findings im <!-- ai-review --> Sammelkommentar oben.\n\n**Checkliste:**\n- [ ] 1. Entscheidungs-Findings durchgehen\n- [ ] 2. Entscheidung treffen (Code anpassen / akzeptieren / Fixup-Anweisung)\n- [ ] 3. Label \`ai:needs-human\` entfernen\n- [ ] 4. Label \`ai:needs-review\` setzen → loest erneuten Review aus" 2>/dev/null || true
+            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⏸️ **Wartet auf menschliche Entscheidung (Review-Entscheidung)**\n\n**Warum:** Dieser PR enthält Findings, die eine menschliche Entscheidung erfordern — die KI kann hier nicht alleine weiterarbeiten. Die Entscheidungs-Findings mit Optionen und Empfehlung stehen in der Sektion ## ⏸️ Entscheidungs-Findings im <!-- ai-review --> Sammelkommentar oben.\n\n**Was du als Mensch beitragen/entscheiden solltest:**\n- [ ] 1. Entscheidungs-Findings durchgehen\n- [ ] 2. Entscheidung treffen (Code anpassen / akzeptieren / Fixup-Anweisung)\n- [ ] 3. Label \`ai:needs-human\` entfernen\n- [ ] 4. Label \`ai:needs-review\` setzen → loest erneuten Review aus" 2>/dev/null || true
           else
             for attempt in 1 2 3; do
-              if gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-changes; then
-                echo "::notice::Label gesetzt: ai:needs-changes"
+              # ai:reviewed nur bei klarem Verdict (Review-Runde abgeschlossen); der
+              # Fail-Safe-Pfad (kein Verdict) setzt NUR ai:needs-fixup.
+              if [ "$clear_verdict" = "true" ]; then
+                gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:reviewed 2>/dev/null || true
+              fi
+              if gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-fixup; then
+                echo "::notice::Label gesetzt: ai:needs-fixup"
                 break
               fi
               if [ "$attempt" -lt 3 ]; then sleep "$((2 ** (attempt-1)))"; fi
               if [ "$attempt" -eq 3 ]; then
-                echo "::error::ai:needs-changes nach 3 Versuchen fehlgeschlagen → ai:needs-human gesetzt"
-                gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⚠️ **Label-Race-Condition (#613): ai:needs-changes fehlgeschlagen**\n\nTransienter GitHub-API-Fehler nach 3 Retries. Bitte manuell prüfen.\n\n**Checkliste:**\n- [ ] 1. Manuelles Prüfen und Label setzen" 2>/dev/null || true
+                echo "::error::ai:needs-fixup nach 3 Versuchen fehlgeschlagen → ai:needs-human gesetzt"
+                gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⚠️ **Label-Race-Condition (#613): ai:needs-fixup fehlgeschlagen**\n\nTransienter GitHub-API-Fehler nach 3 Retries. Bitte manuell prüfen.\n\n**Checkliste:**\n- [ ] 1. Manuelles Prüfen und Label setzen" 2>/dev/null || true
                 gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human 2>/dev/null || true
                 exit 1
               fi
@@ -436,20 +452,20 @@ jobs:
         run: |
           for i in 1 2 3 4 5; do
             labels_json="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name]' 2>/dev/null || echo '[]')"
-            needs_changes="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:needs-changes")')"
-            ready_to_merge="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:ready-to-merge")')"
+            needs_fixup="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:needs-fixup")')"
+            reviewed="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:reviewed")')"
             needs_human="$(echo "$labels_json" | jq -r 'any(.[]; . == "ai:needs-human")')"
-            if [ "$needs_changes" = "true" ] || [ "$ready_to_merge" = "true" ] || [ "$needs_human" = "true" ]; then break; fi
+            if [ "$needs_fixup" = "true" ] || [ "$reviewed" = "true" ] || [ "$needs_human" = "true" ]; then break; fi
             if [ "$i" -lt 5 ]; then sleep 3; fi
           done
-          echo "Labels verifiziert: needs_changes=${needs_changes:-?} ready_to_merge=${ready_to_merge:-?} needs_human=${needs_human:-?}"
-          if [ "$needs_changes" = "true" ]; then
-            echo "::notice title=Review: Änderungen erforderlich::PR #${PR} – ai:needs-changes gesetzt (Fixup läuft an), gültiges Ergebnis."
-          elif [ "$ready_to_merge" = "true" ]; then
-            echo "::notice title=Review: ready-to-merge::PR #${PR} – ai:ready-to-merge gesetzt."
+          echo "Labels verifiziert: needs_fixup=${needs_fixup:-?} reviewed=${reviewed:-?} needs_human=${needs_human:-?}"
+          if [ "$needs_fixup" = "true" ]; then
+            echo "::notice title=Review: Änderungen erforderlich::PR #${PR} – ai:needs-fixup gesetzt (Fixup läuft an), gültiges Ergebnis."
+          elif [ "$reviewed" = "true" ]; then
+            echo "::notice title=Review: reviewed::PR #${PR} – ai:reviewed gesetzt."
           elif [ "$needs_human" = "true" ]; then
             echo "::notice title=Review: Mensch entscheidet::PR #${PR} – ai:needs-human gesetzt, wartet auf menschliche Entscheidung."
           else
-            echo "::error title=Review stecken geblieben::PR #${PR} – weder ai:needs-changes noch ai:ready-to-merge noch ai:needs-human gesetzt."
+            echo "::error title=Review stecken geblieben::PR #${PR} – weder ai:needs-fixup noch ai:reviewed noch ai:needs-human gesetzt."
             exit 1
           fi

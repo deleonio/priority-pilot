@@ -4,7 +4,7 @@ name: PR Auto-Label (ai:needs-review)
 # "ai:needs-review" (Ticket #116). Das ist der Einstieg in die label-gesteuerte KI-Review-
 # Pipeline: das gesetzte Label weckt den Kreuzverhoer-Review (05-claude-pr-review.yml).
 # Wird auch bei jedem Push (synchronize-Event) erneut ausgeloest, wobei alte Ergebnis-
-# Labels (ai:needs-changes, ai:ready-to-merge, ai:needs-human) entfernt werden. Der Reset
+# Labels (ai:needs-fixup, ai:reviewed, ai:needs-human) entfernt werden. Der Reset
 # ist wichtig: ein menschlicher Push ist echter Fortschritt und verdient einen frischen
 # Review ohne Altlasten. Das Loop-Breaking selbst lebt bewusst NICHT hier, sondern in den
 # LLM-Phasen: Fixup misst HEAD-Bewegung (kein neuer Commit -> terminal ai:needs-human) plus
@@ -146,7 +146,7 @@ jobs:
       # Reiner gh-Job (kein Checkout, kein LLM): Alte Ergebnis-Labels entfernen, dann
       # ai:needs-review setzen. Mit dem App-Token gesetzt, damit das "labeled"-Event den
       # Kreuzverhoer-Review ausloest.
-      - name: Alte Ergebnis-Labels entfernen (ai:needs-changes, ai:ready-to-merge, ai:needs-human, ai:needs-review)
+      - name: Alte Ergebnis-Labels entfernen (ai:needs-fixup, ai:reviewed, ai:needs-human, ai:needs-review)
         if: steps.preflight.outputs.configured == 'true'
         env:
           GH_TOKEN: ${{ steps.gh-token.outputs.token }}
@@ -163,7 +163,7 @@ jobs:
           # Review-Loop), wuerde der Setz-Schritt unten no-op'en und kein `labeled`-Event feuern.
           # Erst Entfernen + Neu-Setzen macht das Hinzufuegen echt → Review startet zuverlaessig.
           # MIT Retry (Issue #613): Exponential Backoff 1s, 2s, 4s (max. 3)
-          for label in ai:needs-changes ai:ready-to-merge ai:needs-human ai:needs-review; do
+          for label in ai:needs-fixup ai:reviewed ai:needs-human ai:needs-review; do
             if gh pr view "$PR" --repo "$REPO" --json labels --jq "[.labels[].name]" | grep -q "\"$label\""; then
               for attempt in 1 2 3; do
                 if gh pr edit "$PR" --repo "$REPO" --remove-label "$label"; then

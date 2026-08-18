@@ -1,7 +1,7 @@
 name: PR Conflict Scan
 
 # Erkennt Merge-Konflikte in offenen PRs bei jedem Push auf main und setzt
-# ai:needs-changes, damit 06-claude-pr-fixup.yml sie automatisch auflöst.
+# ai:needs-fixup, damit 06-claude-pr-fixup.yml sie automatisch auflöst.
 # Kein eigener Auflöser — die Auflösung übernimmt 06-claude-pr-fixup.yml.
 #
 # Muster: pr-needs-review-label.yml (App-Token), claude-pr-gate-merge.yml (DIRTY-Erkennung).
@@ -96,22 +96,22 @@ jobs:
               continue
             fi
 
-            # DIRTY / CONFLICTING: Merge-Konflikt erkannt → ai:needs-changes setzen
+            # DIRTY / CONFLICTING: Merge-Konflikt erkannt → ai:needs-fixup setzen
             if [ "$merge_state" = "DIRTY" ] || [ "$mergeable" = "CONFLICTING" ]; then
-              # Idempotenz-Guard: ai:needs-changes bereits gesetzt → idempotent überspringen (kein Label-Flackern)
+              # Idempotenz-Guard: ai:needs-fixup bereits gesetzt → idempotent überspringen (kein Label-Flackern)
               labels="$(echo "$view" | jq -r '[.labels[].name? // empty]')"
-              if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:needs-changes")')" = "true" ]; then
-                echo "PR #$pr: ai:needs-changes bereits gesetzt — idempotent, No-op."
+              if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:needs-fixup")')" = "true" ]; then
+                echo "PR #$pr: ai:needs-fixup bereits gesetzt — idempotent, No-op."
                 continue
               fi
 
-              echo "PR #$pr: Merge-Konflikt erkannt (mergeable=$mergeable, state=$merge_state) — setze ai:needs-changes."
-              gh label create "ai:needs-changes" --repo "$REPO" --color D93F0B \
+              echo "PR #$pr: Merge-Konflikt erkannt (mergeable=$mergeable, state=$merge_state) — setze ai:needs-fixup."
+              gh label create "ai:needs-fixup" --repo "$REPO" --color D93F0B \
                 --description "CI/Reviewer rot oder Findings offen -> Fixup" 2>/dev/null || true
-              gh pr edit "$pr" --repo "$REPO" --add-label ai:needs-changes
+              gh pr edit "$pr" --repo "$REPO" --add-label ai:needs-fixup
 
               {
-                echo "### PR #${pr} — ai:needs-changes wegen Merge-Konflikt gesetzt"
+                echo "### PR #${pr} — ai:needs-fixup wegen Merge-Konflikt gesetzt"
                 echo ""
                 echo "- Merge-Konflikte erkannt (mergeable=$mergeable, state=$merge_state)"
                 echo "- Folge: 06-claude-pr-fixup.yml wird ausgelöst."

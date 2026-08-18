@@ -17,7 +17,7 @@ runs:
         # die Pipe und `-e` bricht den Step ab. Der Check schlug dadurch GENAU DANN fehl, wenn
         # alles in Ordnung war — invertierte Logik. Über den Step hinaus schädlich, weil
         # claude-pr-gate-merge.yml den Check "5/7 Review" in any_fail wertet und einen sauberen
-        # PR zu ai:needs-changes degradierte (Fixup-Loop bis zum Stop-Guard).
+        # PR zu ai:needs-fixup degradierte (Fixup-Loop bis zum Stop-Guard).
         # `set +e +o pipefail` verhindert den Abbruch mittendrin, das abschliessende `exit 0`
         # setzt den Step-Status unabhaengig vom letzten Kommando auf Erfolg — beides zusammen,
         # weil `set +e` allein den Exit-Code des LETZTEN Kommandos weiterreicht.
