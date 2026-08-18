@@ -90,6 +90,10 @@ jobs:
           now=$(date +%s)
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
           echo "soft_deadline_epoch=$((now + 600))" >> "$GITHUB_OUTPUT"
+          # Erklärungs-Gate (needs-human-explain.sh): Als Erklärung für
+          # ai:needs-human zählen nur Kommentare dieses Laufes. 5 min Toleranz
+          # nach unten decken Queue-/Checkout-Zeit vor dem LLM-Lauf ab.
+          echo "since_epoch=$((now - 300))" >> "$GITHUB_OUTPUT"
 
       - name: Setup Claude Code (mit Memory-Load)
         id: setup
@@ -250,58 +254,21 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
         run: |
-          cat > /tmp/claude-prompt.txt << 'CLAUDE_EOF'
-          FOKUS: NUR PR #PR_NR. NUR gemeldete Kritikpunkte beheben. KEINE Abstecher. Token sparen: kurz, präzise, direkt.
-
-          ABLAUF (STRIKT):
-            0. KONFLIKTAUFLÖSUNG (falls nötig): Prüfe mit git status und git diff --name-only --diff-filter=U auf Merge-Konflikte. Bei Konflikten: analysieren, eindeutig auflösen, git add, git commit, git push. Erst DANN mit Findings weitermachen.
-            1. SOFORT starten.
-            2. Findings lesen: gh pr view, gh pr diff, Review-Threads (gh api .../pulls/PR_NR/comments) und CI (gh pr checks).
-            3. Zutreffende, EINDEUTIGE Findings fixen:
-               - Code ändern, vor jedem Commit lokale Checks: pnpm format && pnpm exec prettier --check . && pnpm lint && pnpm knip.
-               - Erst wenn alle grün, committen und pushen.
-               - Im jeweiligen Thread antworten und auflösen.
-               - Mehrdeutige/große/Entscheidungs-Punkte NICHT fixen → stattdessen am Ende VERDICT: needs-human (der Mensch entscheidet).
-            3.5. UI-ARBEITEN bei Layout-Findings (Frontend-Änderungen):
-               - App läuft im Hintergrund auf http://localhost:4174; Layout-Brüche per Playwright-MCP bei 375px UND 1280px prüfen (Screenshot + A11y-Snapshot).
-               - Horizontales Scrollen/Overflow fixen.
-               - KoliBri-First: bei neuen UI-Elementen passende KoliBri-Komponente via mcp__kolibri-mcp__search/fetch finden.
-            4. CI-CHECKS BEHANDELN (falls rot):
-               a) FLAKY-TEST ERKENNEN: Timeout/Timing-Instabilität + thematisch keine Logik aus diesem PR-Diff? → FLAKY: einmalig via gh run rerun <failed-run-id> --failed neu starten. 60s warten, dann gh pr checks erneut prüfen.
-               b) ECHTER CI-FEHLER: Job-Log lesen, Root Cause identifizieren, Code ändern, lokale Checks ausführen, committen und pushen.
-               c) UNRELATED CI-FEHLER: In PR-Kommentar dokumentieren. Nicht fixen.
-
-          ABSCHLUSS:
-            - Committen+pushen ist der ECHTE Fortschritt: das Workflow misst HEAD-Bewegung (neue
-              Commits), um zu entscheiden, ob ein erneuter Review nötig ist. Ein "fertig"-Verdict
-              ohne Commit bewirkt NICHTS — der Workflow übergibt nur bei gerücktem HEAD an Review.
-            - VERDICT: needs-human NUR bei Entscheidungs-Findings (Architektur/Produkt/Design,
-              "Mensch entscheidet") — das ist das EINZIG verbindliche Verdict (terminal an Mensch).
-              Bei needs-human: Kommentar mit Marker <!-- ai-fixup-decisions --> posten mit
-              strukturiertem Listing (Was / Wo / Optionen / Empfehlung).
-
-          ⚠️ LABELS: KEINE Labels setzen! Workflow übernimmt das automatisch.
-
-          VERDICT: GANZ AM ENDE GENAU EINE Zeile (nur bei Entscheidungs-Findungen):
-            - VERDICT: needs-human (offene Entscheidungs-Findings, die ein Mensch treffen muss)
-            - sonst: KEIN Verdict nötig — Commits entscheiden über Fortschritt, Review prüft neu.
-
-          ZEITLIMIT: Soft-Deadline = SOFT_DEADLINE. Vor jedem Schritt: [ $(date +%s) -ge SOFT_DEADLINE ]. Bei OVER: aktuellen Stand committen+pushen, Turn beenden.
-
-          Stop-Guard: Ein Workflow-Step zählt die PR-Commits und stoppt bei > 10.
-          CLAUDE_EOF
+          # Prompt liegt kanonisch in .github/prompts/fixup.md (Quelle fuer CI). Snippet-Platzhalter
+          # (#ISSUE_NR, #PHASE, #MEMORY_STATUS) werden erst NACH dem Anhaengen der Memory-Snippets
+          # substituiert.
+          sed -e "s/#PR_NR/${{ github.event.pull_request.number }}/g" \
+              -e "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" \
+              .github/prompts/fixup.md > /tmp/claude-prompt.txt
 
           # Memory-Snippets anhängen (Phase 6: restauriert + schreibt)
           cat .github/prompts/memory-read.md >> /tmp/claude-prompt.txt
           cat .github/prompts/memory-write.md >> /tmp/claude-prompt.txt
-
-          sed -i "s/#PR_NR/${{ github.event.pull_request.number }}/g" /tmp/claude-prompt.txt
           # #ISSUE_NR kommt aus memory-write.md (Dateiname der Phasen-Notiz). Ohne diese Zeile
           # schrieb der Fixup seine Notiz in eine Datei mit LITERALEM Platzhalter im Namen.
           sed -i "s/#ISSUE_NR/${{ steps.setup.outputs.issue-number }}/g" /tmp/claude-prompt.txt
           sed -i "s/#PHASE/fixup/g" /tmp/claude-prompt.txt
           sed -i "s/#MEMORY_STATUS/${{ steps.setup.outputs.memory-status-text }}/g" /tmp/claude-prompt.txt
-          sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
 
           ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
             ${{ steps.setup.outputs.invoke-args }} \
@@ -340,12 +307,18 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
           OUTCOME: ${{ steps.claude.outcome }}
+          SINCE_EPOCH: ${{ steps.starttime.outputs.since_epoch }}
         run: |
           verdict=""
           if [ -f /tmp/claude-output.log ]; then
             verdict="$(grep 'VERDICT:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | tr -d -c 'A-Za-z0-9-' || true)"
           fi
           echo "Claude-Verdict aus Output: '${verdict:-keins}'"
+
+          # Erklärungs-Gate: Nur Kommentare dieses Laufes gelten als Erklärung
+          # für ai:needs-human — keine alten Marker referenzieren (#842).
+          # GNU-date (-d @epoch): Läuft nur auf dem Ubuntu-Runner.
+          SINCE_ISO="$(date -u -d "@${SINCE_EPOCH:-0}" +%Y-%m-%dT%H:%M:%SZ)"
 
           # Fortschritt = hat HEAD sich in DIESEM Lauf bewegt? Robust gg. amend/reset/force-push
           # (jede HEAD-Bewegung = Arbeit; keine Bewegung = nichts getan) und self-contained
@@ -377,8 +350,29 @@ jobs:
           # Terminal ai:needs-human + Kommentar, KEINE Re-Armierung: ein wiederholt abstuerzender
           # Claude wuerde sonst eine Re-Arm-Schleife erzeugen. Review macht analog den Safe-Default.
           if [ "$OUTCOME" != "success" ]; then
+            # Erklärungs-Gate: Erst der Kommentar mit echten Fakten (Run-Link,
+            # HEADs, Log-Auszug — die Crash-Ursache steht im Log, z.B. 402
+            # Credits/1313 Fair Usage), DANN das Label. Der alte generische Text
+            # erklärte den Mechanismus statt die Ursache und wurde bei Re-Runs
+            # wortidentisch doppelt gepostet (#870).
+            RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            {
+              printf '%s\n\n' "🛑 **Fixup #${PR}: Claude-Schritt \`${OUTCOME}\` (Crash)**"
+              printf '%s\n\n' "**Warum:** Kein Verdict, HEAD-Fortschritt nach Absturz/Abbruch nicht vertrauenswuerdig — die KI kann hier nicht alleine weiterarbeiten."
+              printf '%s\n\n' "**Diagnose:** Step-Outcome \`${OUTCOME}\` · HEAD vor Claude: \`${sha_before:-?}\` · nach Claude: \`${sha_after:-?}\` · Run: ${RUN_URL}"
+              printf '%s\n' "<details><summary>Log-Auszug (letzte 25 Zeilen von /tmp/claude-output.log)</summary>"
+              printf '\n%s\n' '```'
+              bash .github/scripts/needs-human-explain.sh logtail
+              printf '%s\n' '```'
+              printf '%s\n\n' "</details>"
+              printf '%s\n' "**Was du als Mensch beitragen/entscheiden solltest:**"
+              printf '%s\n' "- [ ] 1. Crash-Ursache im Log-Auszug pruefen: transienter API-Fehler (\`ai:needs-fixup\` neu setzen) oder echter Blocker?"
+              printf '%s\n' "- [ ] 2. Bei transientem Fehler: \`ai:needs-fixup\` setzen → loest Fixup neu aus"
+              printf '%s\n' "- [ ] 3. Bei echtem Blocker: manuell pruefen und entscheiden"
+              printf '%s\n' "- [ ] 4. Label \`ai:needs-human\` entfernen (nach Klärung)"
+            } > /tmp/needs-human-body.md
+            bash .github/scripts/needs-human-explain.sh post --repo "$GITHUB_REPOSITORY" --pr "$PR" --body-file /tmp/needs-human-body.md
             gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human
-            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "🛑 **Fixup #${PR}: Claude-Schritt \`${OUTCOME}\` (Crash)**\n\n**Warum:** Kein Verdict, HEAD-Fortschritt nach Absturz/Abbruch nicht vertrauenswuerdig — die KI kann hier nicht alleine weiterarbeiten.\n\n**Was du als Mensch beitragen/entscheiden solltest:**\n- [ ] 1. Pruefen: transienter API-Fehler (\`ai:needs-fixup\` neu setzen) oder echter Blocker?\n- [ ] 2. Bei transientem Fehler: \`ai:needs-fixup\` setzen → loest Fixup neu aus\n- [ ] 3. Bei echtem Blocker: manuell pruefen und entscheiden\n- [ ] 4. Label \`ai:needs-human\` entfernen (nach Klärung)" 2>/dev/null || true
             echo "::warning::Claude-Schritt '${OUTCOME}' -> ai:needs-human (keine Re-Armierung, Mensch prueft)."
             echo "stuck=true" >> "$GITHUB_OUTPUT"
             echo "stuck_reason=crash" >> "$GITHUB_OUTPUT"
@@ -392,10 +386,41 @@ jobs:
             # Claude hat erkannt: verbleibende Findings sind Entscheidungs-Findings, die ein Mensch
             # treffen muss (kein automatisierbarer Fix). Done-Label + terminal an Mensch — kein
             # Re-Arm, kein Loop.
+            #
+            # Erklärungs-Gate: lookup verifiziert den ai-fixup-decisions-Kommentar
+            # DIESES Laufes und liefert Permalink + Finding-Titel (Vorbild #844).
+            # Fehlt er, postet der Workflow selbst eine Diagnose statt einen
+            # Verweis ins Leere zu hinterlassen. Kommentar vor Label-Setzen.
+            GUARD="$(bash .github/scripts/needs-human-explain.sh lookup --repo "$GITHUB_REPOSITORY" --pr "$PR" --mode decisions --since "$SINCE_ISO")"
+            GUARD_STATUS="$(printf '%s\n' "$GUARD" | sed -n 's/^status=//p')"
+            GUARD_LINK="$(printf '%s\n' "$GUARD" | sed -n 's/^permalink=//p')"
+            GUARD_FINDINGS="$(printf '%s\n' "$GUARD" | sed -n 's/^findings=//p')"
+            {
+              printf '%s\n\n' "⏸️ **Wartet auf menschliche Entscheidung (Fixup-Entscheidung)**"
+              if [ "$GUARD_STATUS" = "found" ]; then
+                printf '%s\n\n' "**Warum:** Verbleibende Findings sind nicht automatisierbar (Architektur-/Produkt-/Designentscheidung) — die KI kommt hier nicht alleine weiter."
+                [ -n "$GUARD_FINDINGS" ] && printf '%s\n\n' "**Entscheidungs-Findings:** ${GUARD_FINDINGS}"
+                printf '%s\n\n' "**Erklärung (Was/Wo/Optionen/Empfehlung):** ${GUARD_LINK}"
+              else
+                RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+                printf '%s\n\n' "**Warum:** Verdict \`needs-human\`, aber der Kommentar mit Marker \`ai-fixup-decisions\` fehlt in diesem Lauf — die Begründung ist nicht verifizierbar."
+                printf '%s\n\n' "**Diagnose:** Run: ${RUN_URL} — Claudes letzte Ausgabezeilen können die Findings nennen."
+                printf '%s\n' "<details><summary>Log-Auszug (letzte 25 Zeilen von /tmp/claude-output.log)</summary>"
+                printf '\n%s\n' '```'
+                bash .github/scripts/needs-human-explain.sh logtail
+                printf '%s\n' '```'
+                printf '%s\n\n' "</details>"
+              fi
+              printf '%s\n' "**Was du als Mensch beitragen/entscheiden solltest:**"
+              printf '%s\n' "- [ ] 1. Entscheidungs-Findings durchgehen (Erklärung oben verlinkt)"
+              printf '%s\n' "- [ ] 2. Entscheidung treffen (Code anpassen / akzeptieren)"
+              printf '%s\n' "- [ ] 3. Label \`ai:needs-human\` entfernen"
+              printf '%s\n' "- [ ] 4. Label \`ai:needs-review\` setzen → loest erneuten Review aus"
+            } > /tmp/needs-human-body.md
+            bash .github/scripts/needs-human-explain.sh post --repo "$GITHUB_REPOSITORY" --pr "$PR" --body-file /tmp/needs-human-body.md
             gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:fixed 2>/dev/null || true
             gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human
             echo "::notice::Verdict needs-human -> Labels gesetzt: ai:fixed + ai:needs-human (wartet auf Mensch)."
-            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⏸️ **Wartet auf menschliche Entscheidung (Fixup-Entscheidung)**\n\n**Warum:** Verbleibende Findings sind nicht automatisierbar (Architektur-/Produkt-/Designentscheidung) — die KI kommt hier nicht alleine weiter. Die strukturierten Optionen stehen im Kommentar mit Marker <!-- ai-fixup-decisions -->.\n\n**Was du als Mensch beitragen/entscheiden solltest:**\n- [ ] 1. Entscheidungs-Findings durchgehen (siehe <!-- ai-fixup-decisions -->)\n- [ ] 2. Entscheidung treffen (Code anpassen / akzeptieren)\n- [ ] 3. Label \`ai:needs-human\` entfernen\n- [ ] 4. Label \`ai:needs-review\` setzen → loest erneuten Review aus" 2>/dev/null || true
             echo "stuck=true" >> "$GITHUB_OUTPUT"
             echo "stuck_reason=needs-human" >> "$GITHUB_OUTPUT"
           elif [ "$ARTIFACTS_OK" = "true" ]; then
@@ -409,10 +434,45 @@ jobs:
             # KEIN Fortschritt und kein klares needs-human-Verdict -> NICHT erneut triggern (kappt
             # sowohl Fixup<->Fixup- als auch Review<->Fixup-Endlosloop). Done-Label (Runde
             # abgeschlossen ohne automatisierbare Arbeit) + terminal an Mensch via ai:needs-human
-            # (vermutlich doch ein nicht-automatisierbarer Blocker) + Kommentar.
+            # + Kommentar.
+            #
+            # Erklärungs-Gate: Erst schauen, ob Claude in DIESEM Lauf einen
+            # ai-fixup-decisions-Kommentar gepostet hat — in #842 existierte er
+            # 25 s vor dem Label, wurde aber nicht referenziert. Sonst Fakten
+            # statt Vermutung (das alte "vermutlich" war geraten): Review-
+            # Kommentar verlinken + Claudes eigene Begründung aus dem Log.
+            DEC_GUARD="$(bash .github/scripts/needs-human-explain.sh lookup --repo "$GITHUB_REPOSITORY" --pr "$PR" --mode decisions --since "$SINCE_ISO")"
+            DEC_STATUS="$(printf '%s\n' "$DEC_GUARD" | sed -n 's/^status=//p')"
+            DEC_LINK="$(printf '%s\n' "$DEC_GUARD" | sed -n 's/^permalink=//p')"
+            DEC_FINDINGS="$(printf '%s\n' "$DEC_GUARD" | sed -n 's/^findings=//p')"
+            {
+              printf '%s\n\n' "🛑 **Fixup #${PR} ohne Fortschritt (Kein neuer Commit)**"
+              if [ "$DEC_STATUS" = "found" ]; then
+                printf '%s\n\n' "**Warum:** Kein neuer Commit in diesem Lauf (HEAD unverändert: \`${sha_before}\` → \`${sha_after}\`). Claude hat den Block als Entscheidungs-Finding markiert:"
+                [ -n "$DEC_FINDINGS" ] && printf '%s\n\n' "**Entscheidungs-Findings:** ${DEC_FINDINGS}"
+                printf '%s\n\n' "**Erklärung (Was/Wo/Optionen/Empfehlung):** ${DEC_LINK}"
+              else
+                REVIEW_GUARD="$(bash .github/scripts/needs-human-explain.sh lookup --repo "$GITHUB_REPOSITORY" --pr "$PR" --mode review)"
+                REVIEW_LINK="$(printf '%s\n' "$REVIEW_GUARD" | sed -n 's/^permalink=//p')"
+                RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+                printf '%s\n\n' "**Warum:** Kein neuer Commit in diesem Lauf (HEAD unverändert: \`${sha_before}\` → \`${sha_after}\`). Claudes eigene Begründung steht im Log-Auszug unten."
+                [ -n "$REVIEW_LINK" ] && printf '%s\n\n' "**Offene Findings (Review-Kommentar):** ${REVIEW_LINK}"
+                printf '%s\n\n' "**Diagnose:** Run: ${RUN_URL}"
+                printf '%s\n' "<details><summary>Log-Auszug (letzte 25 Zeilen von /tmp/claude-output.log)</summary>"
+                printf '\n%s\n' '```'
+                bash .github/scripts/needs-human-explain.sh logtail
+                printf '%s\n' '```'
+                printf '%s\n\n' "</details>"
+              fi
+              printf '%s\n' "**Was du als Mensch beitragen/entscheiden solltest:**"
+              printf '%s\n' "- [ ] 1. Begründung/Findings pruefen (oben verlinkt) — nicht-automatisierbares Finding?"
+              printf '%s\n' "- [ ] 2. Entscheidung treffen (Code anpassen / akzeptieren / Manuelles Fixup)"
+              printf '%s\n' "- [ ] 3. Label \`ai:needs-human\` entfernen"
+              printf '%s\n' "- [ ] 4. Label \`ai:needs-review\` setzen → loest erneuten Review aus"
+            } > /tmp/needs-human-body.md
+            bash .github/scripts/needs-human-explain.sh post --repo "$GITHUB_REPOSITORY" --pr "$PR" --body-file /tmp/needs-human-body.md
             gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:fixed 2>/dev/null || true
             gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human
-            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "🛑 **Fixup #${PR} ohne Fortschritt (Kein neuer Commit)**\n\n**Warum:** Kein neuer Commit in diesem Lauf (HEAD unverändert) — vermutlich ein nicht-automatisierbares Finding, das die KI nicht alleine loesen kann.\n\n**Was du als Mensch beitragen/entscheiden solltest:**\n- [ ] 1. Review-Threads prüfen (nicht-automatisierbares Finding?)\n- [ ] 2. Entscheidung treffen (Code anpassen / akzeptieren / Manuelles Fixup)\n- [ ] 3. Label \`ai:needs-human\` entfernen\n- [ ] 4. Label \`ai:needs-review\` setzen → loest erneuten Review aus" 2>/dev/null || true
             echo "::warning::Kein Fixup-Fortschritt (HEAD unverändert) -> ai:fixed + ai:needs-human, keine Re-Armierung, Mensch prüft."
             echo "stuck=true" >> "$GITHUB_OUTPUT"
             echo "stuck_reason=no-progress" >> "$GITHUB_OUTPUT"

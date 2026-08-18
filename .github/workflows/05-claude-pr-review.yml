@@ -100,6 +100,10 @@ jobs:
           now=$(date +%s)
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
           echo "soft_deadline_epoch=$((now + 600))" >> "$GITHUB_OUTPUT"
+          # Erklärungs-Gate (needs-human-explain.sh): Als Erklärung für
+          # ai:needs-human zählen nur Kommentare dieses Laufes. 5 min Toleranz
+          # nach unten decken Queue-/Checkout-Zeit vor dem LLM-Lauf ab.
+          echo "since_epoch=$((now - 300))" >> "$GITHUB_OUTPUT"
 
       - name: Setup Claude Code (mit Memory-Load)
         id: setup
@@ -151,69 +155,23 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
         run: |
-          cat > /tmp/claude-prompt.txt << 'CLAUDE_EOF'
-          HINWEIS: Review-Tier — du liest UND schreibst Memory (issue-spezifische Notizen in .claude/memory; Details siehe Memory-Abschnitte am Prompt-Ende). Code bleibt tabu.
-          FOKUS: NUR PR #PR_NR. NUR den Diff prüfen. KEINE Abstecher. Token sparen: kurz, präzise, direkt.
-
-          MODUS bestimmen (ALLERERSTER Schritt): Prüfe, ob bereits ein <!-- ai-review -->-Sammelkommentar am PR existiert (gh api repos/{owner}/{repo}/issues/#PR_NR/comments, nach "<!-- ai-review -->" filtern).
-            - Marker FEHLT → MODUS = KREUZVERHÖR (Erst-Review: volle adversariale Prüfung des ganzen PR).
-            - Marker VORHANDEN → MODUS = FIXUP-NACHWEIS (Folge-Review nach Fixup: KEIN neues Kreuzverhör — nur Kreuzverhör-Ergebnis + Fixup-Runden prüfen).
-
-          MODUS KREUZVERHÖR (Erst-Review) — adversarial, ganzer PR:
-            1. Vollständigen Diff (gh pr diff) und verknüpftes Ticket lesen (AK aus Body-Block <!-- KI-ANALYSE:START/END -->).
-            2. Adversarial prüfen: Löst der PR das Problem ganz? Edge Cases? Einfachster Weg? Performance/Security?
-               Regression: macht der PR bestehende Tests/Verhalten AUSSERHALB des Diffs obsolet? (Obsolete Tests sollten schon in der Spec entfernt sein; falls Widerspruch → Finding "Test-Pflege-Bedarf", Datei:Zeile.)
-            2.5. KoliBri-First eingehalten? (bei UI-Änderungen)
-               - Eigenes Styling ohne KoliBri-Alternative = Finding.
-               - Im Zweifel via mcp__kolibri-mcp__search nach Alternativen suchen.
-               - Fehlende Begründung der Eigene-Styling-Entscheidung im PR-Body = Finding.
-            3. Code-Qualität: Benennung, Lesbarkeit, Tests (grün + AK abdeckend).
-
-          MODUS FIXUP-NACHWEIS (Folge-Review) — NUR das Kreuzverhör-Ergebnis + die Fixup-Runden, NICHT erneut der ganze PR:
-            1. Bestehenden <!-- ai-review -->-Kommentar laden, seine "Offenen Findings" + updatedAt notieren.
-            2. Fixup-Diff seit updatedAt: gh pr view --json commits, committedDate > updatedAt filtern, darauf git diff.
-            3. Pro offenem Finding: durch den Fixup behoben (Datei/Zeile verifizieren)? → als behoben markieren, sonst offen lassen — nicht erneut aufrollen.
-            4. NUR den Fixup-Diff adversarial auf NEUE Probleme prüfen (hat der Fix neue Bugs/Regressionen eingeführt?).
-            5. AK/Ticket-Kontext im Blick behalten (nicht rein diff-lokal urteilen), aber unveränderte Code-Teile NICHT erneut kreuzvernehmen.
-
-          ABSCHLUSS (beide Modi):
-            - TITEL-GATE (VOR dem Verdict): TITLE_OK sagt, ob der PR-Titel Conventional Commits erfüllt (type(scope)!: subject, englisch, Subject klein, <=72). Bei false: via gh pr edit #PR_NR --title umbenennen — Typ/Scope-Anhaltspunkte SUGGESTED_TYPE/SUGGESTED_SCOPE, Subject englisch beschreibend. Kein Finding, kein Verdict-Aufschub.
-            - (Fixbare) Findings → Review-Kommentare an Datei/Zeile, dann VERDICT: needs-fixup
-            - Architektur-/Produkt-/Design-Finding ("Mensch entscheidet") → Bei VERDICT: needs-human im Sammelkommentar zusaetzlich Sektion ## ⏸️ Entscheidungs-Findings einfuegen mit:
-              - Nummeriertes Listing jedes Entscheidungs-Findings
-              - **Was**: Beschreibung des Problems
-              - **Wo**: Datei:Zeile
-              - **Optionen**: 2-3 konkrete Handlungsoptionen mit Kurzbegründung
-              - **Empfehlung**: Was Claude empfehlen würde
-            - solide (🟢) → KEINE Pseudo-Findings, knappe 🟢-Bestätigung, dann VERDICT: reviewed
-
-          Sammelkommentar: Urteil als GENAU EINEN <!-- ai-review -->-Kommentar pflegen (vorhandenen suchen + fortschreiben, nicht neu anlegen). Zwei Abschnitte: "Offene Findings" (aktuelle Runde) und "Behobene Anmerkungen" (History-Tabelle — erledigte Findings wandern dorthin).
-
-          ⚠️ LABELS: KEINE Labels setzen! Workflow übernimmt das automatisch.
-
-          ZEITLIMIT: Soft-Deadline = SOFT_DEADLINE. Vor jedem Schritt: [ $(date +%s) -ge SOFT_DEADLINE ]. Bei OVER: Zwischenstand als Sammelkommentar, Turn beenden.
-
-          WICHTIG: Ändere KEINEN Code, committe nichts. Reiner Review.
-
-          VERDICT (DEINE LETZTE OUTPUT-ZEILE, vom Workflow geparsed — ohne sie bleibt der PR stecken): exakt EINE Zeile am Ende, einer der Werte:
-            - VERDICT: reviewed (bei 🟢)
-            - VERDICT: needs-fixup (bei fixbaren Findings)
-            - VERDICT: needs-human (bei Entscheidungs-Findungen, die ein Mensch treffen muss)
-          CLAUDE_EOF
+          # Prompt liegt kanonisch in .github/prompts/review.md (Quelle fuer CI; Methode:
+          # Skill .claude/skills/review-kreuzverhoer/SKILL.md). Snippet-Platzhalter (#ISSUE_NR, #PHASE,
+          # #MEMORY_STATUS) werden erst NACH dem Anhaengen der Memory-Snippets substituiert.
+          sed -e "s/#PR_NR/${{ github.event.pull_request.number }}/g" \
+              -e "s/TITLE_OK/${{ steps.facts.outputs.title_ok || 'unbekannt' }}/g" \
+              -e "s/SUGGESTED_TYPE/${{ steps.facts.outputs.suggested_type || 'chore' }}/g" \
+              -e "s/SUGGESTED_SCOPE/${{ steps.facts.outputs.suggested_scope || 'k.A.' }}/g" \
+              -e "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" \
+              .github/prompts/review.md > /tmp/claude-prompt.txt
 
           # Memory-Snippets anhängen (Phase 5 = Review: restauriert + schreibt Review-Notizen;
           # #ISSUE_NR aus dem Setup-Output, da dieser Workflow am PR hängt, nicht am Issue)
           cat .github/prompts/memory-read.md >> /tmp/claude-prompt.txt
           cat .github/prompts/memory-write.md >> /tmp/claude-prompt.txt
-
-          sed -i "s/#PR_NR/${{ github.event.pull_request.number }}/g" /tmp/claude-prompt.txt
           sed -i "s/#ISSUE_NR/${{ steps.setup.outputs.issue-number }}/g" /tmp/claude-prompt.txt
           sed -i "s/#PHASE/review/g" /tmp/claude-prompt.txt
-          sed -i "s/TITLE_OK/${{ steps.facts.outputs.title_ok || 'unbekannt' }}/g" /tmp/claude-prompt.txt
-          sed -i "s/SUGGESTED_TYPE/${{ steps.facts.outputs.suggested_type || 'chore' }}/g" /tmp/claude-prompt.txt
-          sed -i "s/SUGGESTED_SCOPE/${{ steps.facts.outputs.suggested_scope || 'k.A.' }}/g" /tmp/claude-prompt.txt
           sed -i "s/#MEMORY_STATUS/${{ steps.setup.outputs.memory-status-text }}/g" /tmp/claude-prompt.txt
-          sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
 
           ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
             ${{ steps.setup.outputs.invoke-args }} \
@@ -245,12 +203,17 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
+          SINCE_EPOCH: ${{ steps.starttime.outputs.since_epoch }}
         run: |
           verdict=""
           if [ -f /tmp/claude-output.log ]; then
             verdict="$(grep 'VERDICT:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | tr -d -c 'A-Za-z0-9-' || true)"
           fi
           echo "Claude-Verdict aus Output: '${verdict:-keins}'"
+
+          # Erklärungs-Gate: Nur Kommentare dieses Laufes gelten als Erklärung
+          # für ai:needs-human. GNU-date (-d @epoch): nur Ubuntu-Runner.
+          SINCE_ISO="$(date -u -d "@${SINCE_EPOCH:-0}" +%Y-%m-%dT%H:%M:%SZ)"
 
           # Review-Marker (<!-- ai-review -->) nachsehen — MIT Retry: unmittelbar nach Claudes Post
           # liefert die GitHub-API den Kommentar (Replikationsverzögerung) gelegentlich noch nicht.
@@ -352,7 +315,14 @@ jobs:
 
           if [ "$label_operation_failed" = "true" ]; then
             echo "::error::Label-Entfernen nach 3 Versuchen fehlgeschlagen → ai:needs-human gesetzt"
-            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⚠️ **Label-Race-Condition (#613): Label-Entfernung fehlgeschlagen**\n\nTransienter GitHub-API-Fehler nach 3 Retries. Bitte manuell prüfen.\n\n**Checkliste:**\n- [ ] 1. Labels manuell prüfen und via \`ai:needs-review\` neu triggern" 2>/dev/null || true
+            RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            {
+              printf '%s\n\n' "⚠️ **Label-Race-Condition (#613): Label-Entfernung fehlgeschlagen**"
+              printf '%s\n\n' "Transienter GitHub-API-Fehler nach 3 Retries (Label-Op: Remove ai:needs-review/ai:needs-fixup/ai:reviewed/ai:needs-human). Bitte manuell prüfen. Run: ${RUN_URL}"
+              printf '%s\n' "**Checkliste:**"
+              printf '%s\n' "- [ ] 1. Labels manuell prüfen und via \`ai:needs-review\` neu triggern"
+            } > /tmp/needs-human-body.md
+            bash .github/scripts/needs-human-explain.sh post --repo "$GITHUB_REPOSITORY" --pr "$PR" --body-file /tmp/needs-human-body.md
             gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human 2>/dev/null || true
             exit 1
           fi
@@ -369,12 +339,53 @@ jobs:
               if [ "$attempt" -lt 3 ]; then sleep "$((2 ** (attempt-1)))"; fi
               if [ "$attempt" -eq 3 ]; then
                 echo "::error::ai:reviewed nach 3 Versuchen fehlgeschlagen → ai:needs-human gesetzt"
-                gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⚠️ **Label-Race-Condition (#613): ai:reviewed fehlgeschlagen**\n\nTransienter GitHub-API-Fehler nach 3 Retries. Bitte manuell prüfen.\n\n**Checkliste:**\n- [ ] 1. Manuelles Prüfen und Label setzen" 2>/dev/null || true
+                RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+                {
+                  printf '%s\n\n' "⚠️ **Label-Race-Condition (#613): ai:reviewed fehlgeschlagen**"
+                  printf '%s\n\n' "Transienter GitHub-API-Fehler nach 3 Retries (Label-Op: Add ai:reviewed). Bitte manuell prüfen. Run: ${RUN_URL}"
+                  printf '%s\n' "**Checkliste:**"
+                  printf '%s\n' "- [ ] 1. Manuelles Prüfen und Label setzen"
+                } > /tmp/needs-human-body.md
+                bash .github/scripts/needs-human-explain.sh post --repo "$GITHUB_REPOSITORY" --pr "$PR" --body-file /tmp/needs-human-body.md
                 gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human 2>/dev/null || true
                 exit 1
               fi
             done
           elif [ "$final" = "needs-human" ]; then
+            # Erklärungs-Gate (#848): Der alte Text verwies auf die Sektion
+            # "## ⏸️ Entscheidungs-Findings ... Sammelkommentar oben" — die Sektion
+            # existierte unter anderem Namen, "oben" war vage. lookup verifiziert
+            # stattdessen per Substring (tolerant gg. Heading-Level/Emoji), dass
+            # der ai-review-Kommentar DIESES Laufes die Sektion enthält, und
+            # liefert Permalink + Finding-Titel. Fehlt sie: Diagnose-Fallback.
+            # Kommentar vor Label-Setzen.
+            GUARD="$(bash .github/scripts/needs-human-explain.sh lookup --repo "$GITHUB_REPOSITORY" --pr "$PR" --mode review-section --since "$SINCE_ISO")"
+            GUARD_STATUS="$(printf '%s\n' "$GUARD" | sed -n 's/^status=//p')"
+            GUARD_LINK="$(printf '%s\n' "$GUARD" | sed -n 's/^permalink=//p')"
+            GUARD_FINDINGS="$(printf '%s\n' "$GUARD" | sed -n 's/^findings=//p')"
+            {
+              printf '%s\n\n' "⏸️ **Wartet auf menschliche Entscheidung (Review-Entscheidung)**"
+              if [ "$GUARD_STATUS" = "found" ]; then
+                printf '%s\n\n' "**Warum:** Dieser PR enthält Findings, die eine menschliche Entscheidung erfordern — die KI kann hier nicht alleine weiterarbeiten."
+                [ -n "$GUARD_FINDINGS" ] && printf '%s\n\n' "**Entscheidungs-Findings:** ${GUARD_FINDINGS}"
+                printf '%s\n\n' "**Erklärung (Optionen/Empfehlung, Sektion Entscheidungs-Findings):** ${GUARD_LINK}"
+              else
+                RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+                printf '%s\n\n' "**Warum:** Verdict \`needs-human\`, aber der ai-review-Kommentar dieses Laufes enthält keine Sektion Entscheidungs-Findings — die Begründung ist nicht verifizierbar."
+                printf '%s\n\n' "**Diagnose:** Run: ${RUN_URL} — Claudes letzte Ausgabezeilen können die Findings nennen."
+                printf '%s\n' "<details><summary>Log-Auszug (letzte 25 Zeilen von /tmp/claude-output.log)</summary>"
+                printf '\n%s\n' '```'
+                bash .github/scripts/needs-human-explain.sh logtail
+                printf '%s\n' '```'
+                printf '%s\n\n' "</details>"
+              fi
+              printf '%s\n' "**Was du als Mensch beitragen/entscheiden solltest:**"
+              printf '%s\n' "- [ ] 1. Entscheidungs-Findings durchgehen (Erklärung oben verlinkt)"
+              printf '%s\n' "- [ ] 2. Entscheidung treffen (Code anpassen / akzeptieren / Fixup-Anweisung)"
+              printf '%s\n' "- [ ] 3. Label \`ai:needs-human\` entfernen"
+              printf '%s\n' "- [ ] 4. Label \`ai:needs-review\` setzen → loest erneuten Review aus"
+            } > /tmp/needs-human-body.md
+            bash .github/scripts/needs-human-explain.sh post --repo "$GITHUB_REPOSITORY" --pr "$PR" --body-file /tmp/needs-human-body.md
             for attempt in 1 2 3; do
               if gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:reviewed && \
                  gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human; then
@@ -387,7 +398,6 @@ jobs:
                 exit 1
               fi
             done
-            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⏸️ **Wartet auf menschliche Entscheidung (Review-Entscheidung)**\n\n**Warum:** Dieser PR enthält Findings, die eine menschliche Entscheidung erfordern — die KI kann hier nicht alleine weiterarbeiten. Die Entscheidungs-Findings mit Optionen und Empfehlung stehen in der Sektion ## ⏸️ Entscheidungs-Findings im <!-- ai-review --> Sammelkommentar oben.\n\n**Was du als Mensch beitragen/entscheiden solltest:**\n- [ ] 1. Entscheidungs-Findings durchgehen\n- [ ] 2. Entscheidung treffen (Code anpassen / akzeptieren / Fixup-Anweisung)\n- [ ] 3. Label \`ai:needs-human\` entfernen\n- [ ] 4. Label \`ai:needs-review\` setzen → loest erneuten Review aus" 2>/dev/null || true
           else
             for attempt in 1 2 3; do
               # ai:reviewed nur bei klarem Verdict (Review-Runde abgeschlossen); der
@@ -402,7 +412,14 @@ jobs:
               if [ "$attempt" -lt 3 ]; then sleep "$((2 ** (attempt-1)))"; fi
               if [ "$attempt" -eq 3 ]; then
                 echo "::error::ai:needs-fixup nach 3 Versuchen fehlgeschlagen → ai:needs-human gesetzt"
-                gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⚠️ **Label-Race-Condition (#613): ai:needs-fixup fehlgeschlagen**\n\nTransienter GitHub-API-Fehler nach 3 Retries. Bitte manuell prüfen.\n\n**Checkliste:**\n- [ ] 1. Manuelles Prüfen und Label setzen" 2>/dev/null || true
+                RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+                {
+                  printf '%s\n\n' "⚠️ **Label-Race-Condition (#613): ai:needs-fixup fehlgeschlagen**"
+                  printf '%s\n\n' "Transienter GitHub-API-Fehler nach 3 Retries (Label-Op: Add ai:needs-fixup). Bitte manuell prüfen. Run: ${RUN_URL}"
+                  printf '%s\n' "**Checkliste:**"
+                  printf '%s\n' "- [ ] 1. Manuelles Prüfen und Label setzen"
+                } > /tmp/needs-human-body.md
+                bash .github/scripts/needs-human-explain.sh post --repo "$GITHUB_REPOSITORY" --pr "$PR" --body-file /tmp/needs-human-body.md
                 gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human 2>/dev/null || true
                 exit 1
               fi
