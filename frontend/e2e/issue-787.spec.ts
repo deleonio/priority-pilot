@@ -157,13 +157,16 @@ test.describe('#787 Header-Layout und KI-Modell-Auswahl in Toolbar', () => {
 			'KI-Modell-Auswahl muss auf derselben Höhe wie die Toolbar-Buttons ausgerichtet sein',
 		).toBeLessThanOrEqual(2);
 
-		// Dropdown-Indikator (Chevron) muss sichtbar sein
-		const hasChevron = await modelSelector.evaluate((el) => {
-			const button = el as HTMLElement;
-			const html = button.innerHTML + (button.shadowRoot?.innerHTML ?? '');
-			return /chevron|arrow|down/i.test(html);
-		});
-		expect(hasChevron, 'KI-Modell-Auswahl muss einen Dropdown-Indikator (Chevron) haben').toBe(true);
+		// Dropdown-Indikator (Chevron) muss sichtbar sein. Geprüft wird das gerenderte Icon-Element im
+		// Light-DOM des eigenen Buttons — kein Griff in fremdes Shadow-DOM (#824). Das Icon ist
+		// dekorativ (`aria-hidden`) und hat deshalb bewusst keine eigene Rolle: Die Bedeutung trägt
+		// das `aria-label` des Buttons, das Icon nur die visuelle Ankündigung des Popups.
+		const chevron = modelSelector.locator('.model-selector-chevron');
+		await expect(chevron, 'KI-Modell-Auswahl muss einen Dropdown-Indikator (Chevron) haben').toBeVisible();
+		await expect(chevron, 'Der Chevron ist dekorativ und muss vor Screenreadern verborgen sein').toHaveAttribute(
+			'aria-hidden',
+			'true',
+		);
 
 		// Das Label muss das *tatsächlich konfigurierte* Modell benennen. Referenz ist die API, nicht
 		// eine hartcodierte Anbieter-Liste: Das Modell ist frei konfigurierbar (`PUT /llm-config`,
