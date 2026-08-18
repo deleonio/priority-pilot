@@ -4,18 +4,19 @@ name: Issue Unblock (Nachfolger freigeben)
 #
 # Kette: Ein großes Ticket wird in sequenzielle Sub-Issues zerlegt (A1 → A2 → A3),
 # die per nativer GitHub-Issue-Dependency verknüpft sind (A1 *blockt* A2, A2 *blockt* A3).
-# Nur der erste, unblockierte Sub-Issue trägt `ai:spec-ready`; die Nachfolger warten auf
-# `ai:analyzed`. Wird der PR eines Vorgängers gemergt, prüft dieser Workflow, ob dadurch
-# ALLE Blocker eines Nachfolgers aufgelöst sind (Fan-in-Gate). Wenn ja, wird `ai:analyzed`
-# ENTFERNT → das re-triggert 01-claude-triage.yml, die den Nachfolger gegen den nun gemergten
-# Code-Stand NEU analysiert und selbst entscheidet: 🟢 → `ai:spec-ready` (Kette läuft weiter),
-# 🟡/🔴 → nur `ai:analyzed` + Hinweise (Mensch reagiert). Der Workflow setzt bewusst KEIN
-# `ai:spec-ready` selbst — die erneute Machbarkeitsprüfung ist der Kern des Ansatzes.
+# Nur der erste, unblockierte Sub-Issue trägt einen Phasen-Trigger (`ai:needs-ux-ui` bzw.
+# `ai:needs-spec`); die Nachfolger warten bei `ai:analysed`. Wird der PR eines Vorgängers
+# gemergt, prüft dieser Workflow, ob dadurch ALLE Blocker eines Nachfolgers aufgelöst sind
+# (Fan-in-Gate). Wenn ja, wird `ai:needs-analyse` GESETZT → das re-triggert
+# 01-claude-triage.yml, die den Nachfolger gegen den nun gemergten Code-Stand NEU analysiert
+# und selbst entscheidet: 🟢 → `ai:needs-ux-ui`/`ai:needs-spec` (Kette läuft weiter),
+# 🟡/🔴 → nur `ai:analysed` + Hinweise (Mensch reagiert). Der Workflow setzt bewusst KEINEN
+# Folge-Trigger selbst — die erneute Machbarkeitsprüfung ist der Kern des Ansatzes.
 #
-# WICHTIG (Folge-Workflows / Token-Trigger-Falle): Von GITHUB_TOKEN entfernte Labels lösen
-# KEINE weiteren Workflows aus. Damit das "unlabeled"-Event von `ai:analyzed` die Re-Triage
-# (01-claude-triage.yml) wirklich startet, wird `ai:analyzed` mit einem kurzlebigen
-# GitHub-App-Token (APP_ID + APP_PRIVATE_KEY) entfernt — gleiches Muster wie
+# WICHTIG (Folge-Workflows / Token-Trigger-Falle): Von GITHUB_TOKEN gesetzte Labels lösen
+# KEINE weiteren Workflows aus. Damit das "labeled"-Event von `ai:needs-analyse` die Re-Triage
+# (01-claude-triage.yml) wirklich startet, wird es mit einem kurzlebigen GitHub-App-Token
+# (APP_ID + APP_PRIVATE_KEY) gesetzt — gleiches Muster wie
 # pr-needs-review-label.yml / claude-pr-conflict-scan.yml.
 #
 # Selbsttest-Hinweis: Ein neuer pull_request-Workflow lässt sich nicht am eigenen
@@ -81,13 +82,13 @@ jobs:
           fi
 
       # Reiner gh-Job (kein Checkout, kein LLM): gemergtes Issue ermitteln, native Nachfolger
-      # (blocking) finden, Fan-in-Gate (blocked_by) prüfen und ai:analyzed per App-Token
-      # entfernen. Alle gh-Befehle sind --repo-gescoped (ohne Checkout leitet gh sonst die
+      # (blocking) finden, Fan-in-Gate (blocked_by) prüfen und ai:needs-analyse per App-Token
+      # setzen. Alle gh-Befehle sind --repo-gescoped (ohne Checkout leitet gh sonst die
       # Repo-Identität aus dem lokalen git-Remote ab → `fatal: not a git repository`).
       - name: Nachfolger des gemergten Issues freigeben
         if: steps.preflight.outputs.configured == 'true'
         env:
-          GH_TOKEN: ${{ steps.gh-token.outputs.token }} # App-Token → unlabeled-Event triggert Re-Triage (Fallback: GITHUB_TOKEN)
+          GH_TOKEN: ${{ steps.gh-token.outputs.token }} # App-Token → labeled-Event triggert Re-Triage (Fallback: GITHUB_TOKEN)
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
         run: |
@@ -133,12 +134,16 @@ jobs:
               has_label() { echo "$Blabels" | jq -e --arg l "$1" 'any(.[]; . == $l)' >/dev/null; }
 
               # Guard: nur analysierte, noch nicht in der Kette laufende, nicht-Sammelknoten.
-              if ! has_label "ai:analyzed"; then
-                echo "#$B trägt kein ai:analyzed — nicht freizugeben (skip)."
+              if ! has_label "ai:analysed"; then
+                echo "#$B trägt kein ai:analysed — nicht freizugeben (skip)."
                 continue
               fi
-              if has_label "ai:spec-ready" || has_label "ai:ready"; then
-                echo "#$B ist bereits in der Kette (ai:spec-ready/ai:ready) — skip (Idempotenz)."
+              if has_label "ai:needs-analyse"; then
+                echo "#$B ist bereits zur (Re-)Analyse freigegeben (ai:needs-analyse) — skip (Idempotenz)."
+                continue
+              fi
+              if has_label "ai:needs-ux-ui" || has_label "ai:needs-spec" || has_label "ai:needs-impl"; then
+                echo "#$B ist bereits in der Kette (Phasen-Trigger vorhanden) — skip (Idempotenz)."
                 continue
               fi
               if has_label "ai:to-big-issue"; then
@@ -166,17 +171,18 @@ jobs:
               fi
 
               # 5) Freigeben. Content-first (pipeline-flow.md "Label-Reihenfolge-Prinzip"): erst den
-              #    informierenden Ping posten, DANN ai:analyzed entfernen — das Entfernen ist der
+              #    informierenden Ping posten, DANN ai:needs-analyse setzen — das Setzen ist der
               #    Trigger (App-Token → Re-Triage prüft gegen den neuen Code-Stand) und kommt zuletzt.
-              echo "#$B: alle Blocker aufgelöst (Vorgänger #$A gemergt) — informiere und entferne ai:analyzed → Re-Triage."
+              echo "#$B: alle Blocker aufgelöst (Vorgänger #$A gemergt) — informiere und setze ai:needs-analyse → Re-Triage."
               gh issue comment "$B" --repo "$REPO" --body-file - <<EOF
-          🤖 Vorgänger #$A gemergt, alle Blocker aufgelöst → Neu-Analyse gegen den aktuellen Code-Stand angestoßen (Label \`ai:analyzed\` entfernt). Die Re-Triage entscheidet, ob das Issue jetzt umsetzbar ist (🟢 → \`ai:spec-ready\`) oder ob es Hinweise für dich gibt (🟡/🔴).
+          🤖 Vorgänger #$A gemergt, alle Blocker aufgelöst → Neu-Analyse gegen den aktuellen Code-Stand angestoßen (Label \`ai:needs-analyse\` gesetzt). Die Re-Triage entscheidet, ob das Issue jetzt umsetzbar ist (🟢 → \`ai:needs-ux-ui\`/\`ai:needs-spec\`) oder ob es Hinweise für dich gibt (🟡/🔴).
           EOF
-              gh issue edit "$B" --repo "$REPO" --remove-label "ai:analyzed"
+              gh label create "ai:needs-analyse" --repo "$REPO" --color FBCA04 2>/dev/null || true
+              gh issue edit "$B" --repo "$REPO" --add-label "ai:needs-analyse"
               {
                 echo "### Issue #${B} — freigegeben (Vorgänger #${A} gemergt)"
                 echo ""
-                echo "- Alle Blocker aufgelöst → \`ai:analyzed\` entfernt → 01-claude-triage.yml re-analysiert gegen den neuen Code-Stand."
+                echo "- Alle Blocker aufgelöst → \`ai:needs-analyse\` gesetzt → 01-claude-triage.yml re-analysiert gegen den neuen Code-Stand."
               } >> "$GITHUB_STEP_SUMMARY"
             done
           done

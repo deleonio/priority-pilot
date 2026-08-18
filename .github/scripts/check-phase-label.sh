@@ -14,29 +14,31 @@
 #   bash .github/scripts/check-phase-label.sh --repo o/r --phase spec --ticket 42
 #
 # Soll-Zustand je Phase (die Tabelle ist die einzige Wahrheit — Workflows
-# übergeben nur den Phasen-Namen):
+# übergeben nur den Phasen-Namen). Schema: Jede Phase triggert auf GENAU EIN
+# `ai:needs-*`-Label und konsumiert es (Entfernen im eigenen Post-Assertion-Step);
+# Done-Labels (`ai:analysed`, `ai:ux-reviewed`, …) sind reine Marker ohne Trigger.
 #
 #   Phase       Objekt  Zustand        erforderlich                         abwesend
 #   -----------------------------------------------------------------------------------
-#   analyse     Issue   offen          —                                    Trigger-Label
-#                                                                     (Default ai:analyzed)
-#   ux          Issue   offen          ai:analyzed                          ux:ready
-#   spec        Issue   offen          ai:spec-ready + ai:analyzed +        —
-#                                   ux:ready
-#   implement   Issue   offen          ai:ready + ai:analyzed +              —
-#                                   ux:ready
-#   review      PR      offen, kein    ai:needs-review                      —
+#   analyse     Issue   offen          ai:needs-analyse (Re-Triage via       ai:analysed
+#                                      labeled) — Erst-Triage via           (nur Erst-Triage)
+#                                      opened: siehe --trigger-label
+#   ux          Issue   offen          ai:needs-ux-ui                        —
+#   spec        Issue   offen          ai:needs-spec                         —
+#   implement   Issue   offen          ai:needs-impl                         —
+#   review      PR      offen, kein    ai:needs-review                       —
 #                       Draft
-#   fixup       PR      offen, kein    ai:needs-changes                     —
+#   fixup       PR      offen, kein    ai:needs-fixup                        —
 #                       Draft
 #   documenter  PR      gemergt        —                                    ai:documented
 #
 # Usage:
 #   bash check-phase-label.sh --repo <owner/repo> --phase <name> --ticket <N> \
 #                             [--trigger-label <label>]
-#   --trigger-label: nur für `analyse` relevant (github.event.label.name). Beim
-#                    Re-Triage muss GENAU das entfernte Label abwesend bleiben
-#                    (ai:analyzed ODER ai:to-big-issue); leer => ai:analyzed.
+#   --trigger-label: nur für `analyse` relevant (github.event.label.name). Bei
+#                    Re-Triage (labeled) muss GENAU das gesetzte Label
+#                    (ai:needs-analyse) noch da sein; leer => Erst-Triage
+#                    (opened), da muss ai:analysed abwesend bleiben.
 #
 # Ausgabe (stdout, key=value — die Action reicht sie nach GITHUB_OUTPUT durch):
 #   proceed=true|false
@@ -80,21 +82,27 @@ ABSENT=()
 case "$PHASE" in
   analyse)
     KIND="issue"; WANT_STATE="open"
-    # Erst-Triage (opened): ai:analyzed darf nicht da sein. Re-Triage (unlabeled):
-    # genau das entfernte Label muss abwesend bleiben — sonst hat ein anderer Lauf
-    # den Trigger bereits konsumiert.
-    ABSENT=("${TRIGGER_LABEL:-ai:analyzed}")
+    # Zwei Einstiege: Erst-Triage (issues.opened, kein Label-Event) und
+    # Re-Triage (labeled ai:needs-analyse). Re-Triage: das Trigger-Label muss
+    # noch da sein — ein anderer Lauf hat es konsumiert, wenn es fehlt.
+    # Erst-Triage: ai:analysed darf nicht da sein (schützt Sub-Issues, die von
+    # der Triage bereits vorgelabelt erstellt werden).
+    if [ -n "$TRIGGER_LABEL" ]; then
+      REQUIRED=("$TRIGGER_LABEL")
+    else
+      ABSENT=("ai:analysed")
+    fi
     ;;
-  spec)
-    KIND="issue"; WANT_STATE="open"; REQUIRED=("ai:spec-ready" "ai:analyzed" "ux:ready") ;;
   ux)
-    KIND="issue"; WANT_STATE="open"; REQUIRED=("ai:analyzed"); ABSENT=("ux:ready") ;;
+    KIND="issue"; WANT_STATE="open"; REQUIRED=("ai:needs-ux-ui") ;;
+  spec)
+    KIND="issue"; WANT_STATE="open"; REQUIRED=("ai:needs-spec") ;;
   implement)
-    KIND="issue"; WANT_STATE="open"; REQUIRED=("ai:ready" "ai:analyzed" "ux:ready") ;;
+    KIND="issue"; WANT_STATE="open"; REQUIRED=("ai:needs-impl") ;;
   review)
     KIND="pr"; WANT_STATE="open"; NO_DRAFT="true"; REQUIRED=("ai:needs-review") ;;
   fixup)
-    KIND="pr"; WANT_STATE="open"; NO_DRAFT="true"; REQUIRED=("ai:needs-changes") ;;
+    KIND="pr"; WANT_STATE="open"; NO_DRAFT="true"; REQUIRED=("ai:needs-fixup") ;;
   documenter)
     # FAIL-CLOSED (Ausnahme): Der Pre-Check ist die EINZIGE Idempotenz-Invariante
     # des Documenters — im Job prüft nichts deterministisch auf ai:documented.
