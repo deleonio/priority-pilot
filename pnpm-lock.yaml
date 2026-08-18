@@ -22,6 +22,9 @@ importers:
 
   .:
     devDependencies:
+      '@action-validator/core':
+        specifier: 0.6.0
+        version: 0.6.0
       '@evilmartians/lefthook':
         specifier: 1.13.6
         version: 1.13.6
@@ -236,6 +239,9 @@ importers:
         version: 5.9.3
 
 packages:
+
+  '@action-validator/core@0.6.0':
+    resolution: {integrity: sha512-tPglwCr8Mm8SWzwnVewwFmqRx91F0WvMsM0BRAqH4CLalyGndm53Xvp+UcUSzswpk1wkjIDYI7RyEhWMLyPkig==}
 
   '@adobe/css-tools@4.5.0':
     resolution: {integrity: sha512-6OzddxPio9UiWTCemp4N8cYLV2ZN1ncRnV1cVGtve7dhPOtRkleRyx32GQCYSwDYgaHU3USMm84tNsvKzRCa1Q==}
@@ -4615,6 +4621,8 @@ packages:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
 
 snapshots:
+
+  '@action-validator/core@0.6.0': {}
 
   '@adobe/css-tools@4.5.0': {}
 
