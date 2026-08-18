@@ -30,9 +30,9 @@ const mockFreeModelsResponse = async (page: Page): Promise<void> => {
 			contentType: 'application/json',
 			body: JSON.stringify({
 				models: [
-					{ id: 'openrouter/free', name: 'OpenRouter Free' },
-					{ id: 'google/gemma-7b-it:free', name: 'Gemma 7B IT (Free)' },
-					{ id: 'mistralai/mistral-7b-instruct:free', name: 'Mistral 7B Instruct (Free)' },
+					{ id: 'openrouter/free', name: 'OpenRouter Free', contextLength: 200000, modelSize: '32B' },
+					{ id: 'google/gemma-7b-it:free', name: 'Gemma 7B IT (Free)', contextLength: 100000, modelSize: '7B' },
+					{ id: 'mistralai/mistral-7b-instruct:free', name: 'Mistral 7B Instruct (Free)', contextLength: 32000 },
 				],
 			}),
 		}),
@@ -112,4 +112,96 @@ test('Spec-Bezug: Free Models Liste ist nicht hartcodiert', async ({ page }) => 
 
 	// Prüfen: Liste hat sich geändert (2 Modelle statt 3)
 	await expect(page.locator('[data-testid="free-model-item"]')).toHaveCount(2);
+});
+
+/**
+ * Issue 862: Model-Größe und Kontext-Größe im ModelSelectionDialog
+ * Spec: docs/spec/issue-862.md
+ * AK1: Kontext-Größe wird je Modell angezeigt (z.B. "200k", "1m")
+ * AK2: Model-Größe wird je Modell angezeigt (z.B. "32B", "7B")
+ * AK3: Fehlende Werte werden graceful behandelt (keine Anzeige oder "-")
+ */
+
+test('AK1+TF1: contextLength wird angezeigt (formatiert als "200k")', async ({ page }) => {
+	await page.goto('/dashboard');
+
+	// Model-Selection-Dialog öffnen
+	await page.click('[data-testid="model-selection-button"]');
+
+	// Prüfen: Kontext-Größe wird für Modelle mit contextLength angezeigt
+	const modelWith200k = page.locator('[data-testid="free-model-item"][data-model-id="openrouter/free"]');
+	await expect(modelWith200k).toContainText('200k');
+
+	const modelWith100k = page.locator('[data-testid="free-model-item"][data-model-id="google/gemma-7b-it:free"]');
+	await expect(modelWith100k).toContainText('100k');
+});
+
+test('AK1+TF1: contextLength wird formatiert ("1m" für 1.000.000)', async ({ page }) => {
+	// Mock mit 1m Kontext
+	await page.route('**/api/v1/models/free', (route: Route) =>
+		route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				models: [{ id: 'openrouter/free', name: 'OpenRouter Free', contextLength: 1000000, modelSize: '32B' }],
+			}),
+		}),
+	);
+
+	await page.goto('/dashboard');
+	await page.click('[data-testid="model-selection-button"]');
+
+	// Prüfen: 1.000.000 wird als "1m" formatiert
+	const modelWith1m = page.locator('[data-testid="free-model-item"][data-model-id="openrouter/free"]');
+	await expect(modelWith1m).toContainText('1m');
+});
+
+test('AK2+TF2: modelSize wird angezeigt (wenn verfügbar)', async ({ page }) => {
+	await page.goto('/dashboard');
+
+	// Model-Selection-Dialog öffnen
+	await page.click('[data-testid="model-selection-button"]');
+
+	// Prüfen: Model-Größe wird für Modelle mit modelSize angezeigt
+	const modelWith32B = page.locator('[data-testid="free-model-item"][data-model-id="openrouter/free"]');
+	await expect(modelWith32B).toContainText('32B');
+
+	const modelWith7B = page.locator('[data-testid="free-model-item"][data-model-id="google/gemma-7b-it:free"]');
+	await expect(modelWith7B).toContainText('7B');
+});
+
+test('AK3: Fehlende modelSize wird graceful behandelt (nicht angezeigt)', async ({ page }) => {
+	await page.goto('/dashboard');
+
+	// Model-Selection-Dialog öffnen
+	await page.click('[data-testid="model-selection-button"]');
+
+	// Prüfen: Modell ohne modelSize zeigt keinen placeholder "-"
+	const modelWithoutSize = page.locator(
+		'[data-testid="free-model-item"][data-model-id="mistralai/mistral-7b-instruct:free"]',
+	);
+	await expect(modelWithoutSize).not.toContainText('-');
+	// Der Text enthält nur den Namen und die contextLength, aber keine Model-Größe
+	await expect(modelWithoutSize).not.toContainText('32B');
+});
+
+test('AK3: Fehlende contextLength wird graceful behandelt (nicht angezeigt)', async ({ page }) => {
+	// Mock mit fehlender contextLength
+	await page.route('**/api/v1/models/free', (route: Route) =>
+		route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				models: [{ id: 'openrouter/free', name: 'OpenRouter Free', modelSize: '32B' }],
+			}),
+		}),
+	);
+
+	await page.goto('/dashboard');
+	await page.click('[data-testid="model-selection-button"]');
+
+	// Prüfen: Modell ohne contextLength zeigt keinen placeholder "-"
+	const modelWithoutContext = page.locator('[data-testid="free-model-item"][data-model-id="openrouter/free"]');
+	await expect(modelWithoutContext).not.toContainText('-');
+	// Der Text enthält nur den Namen und die modelSize, aber keine Kontext-Größe
 });
