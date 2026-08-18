@@ -1560,6 +1560,12 @@ body {
 	font-size: 0.875rem;
 }
 
+/* Metadaten-Zeile: Kontext-Größe + Model-Größe, durch "·" getrennt (#862). */
+.model-selection-item-meta {
+	color: var(--pp-text-muted);
+	font-size: 0.75rem;
+}
+
 /* --- Checkliste (Issue #728) --- */
 /* Checklist-Editor: vertikale Flex-Kolumne; Abstände ausschließlich über Gap. */
 .checklist-editor {
