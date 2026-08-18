@@ -25,6 +25,13 @@ import { waitForStableView } from './helpers';
 /** Gap zwischen Feld-Wrapper und Lektorat-Button innerhalb einer Feld-Zeile (TaskForm.tsx, `gap: 8px`). */
 const FIELD_ROW_GAP = 8;
 
+/** Die drei Viewport-Klassen aus dem Spec-Wortlaut „Mobile, Tablet, Desktop" (AK4). */
+const RESPONSIVE_VIEWPORTS = [
+	{ label: 'Mobile', width: 375, height: 667 },
+	{ label: 'Tablet', width: 768, height: 1024 },
+	{ label: 'Desktop', width: 1024, height: 768 },
+] as const;
+
 /** Öffnet das TaskForm über die Kopf-Aktion; der vorgeschaltete Schnellerfassungs-Schritt wird übersprungen. */
 const openTaskForm = async (page: Page): Promise<void> => {
 	await page.goto('/');
@@ -136,20 +143,24 @@ test.describe('#761 Layout-Optimierung Titel/Beschreibung/Aktionen', () => {
 	});
 
 	/**
-	 * AK4 — Das Breiten-Verhalten gilt auch auf schmalen Viewports, ohne horizontalen Scroll.
+	 * AK4 — Das Breiten-Verhalten gilt über alle drei Viewport-Klassen, jeweils ohne horizontalen
+	 * Scroll. 768px ist bewusst dabei: Dort liegt die Tablet-Grenze der Breakpoints aus #763
+	 * (`max-width: 767px` mobil, `768px–1023px` Tablet).
 	 * Bezug: docs/spec/issue-761.md, Schritt 3 (Responsive-Verhalten bei verschiedenen Viewport-Größen).
 	 */
-	test('AK4 (Mobile): Titel und Beschreibung volle Breite auch auf schmalem Viewport', async ({ page }) => {
-		await page.setViewportSize({ width: 375, height: 667 });
-		await openTaskForm(page);
+	for (const viewport of RESPONSIVE_VIEWPORTS) {
+		test(`AK4 (${viewport.label}): Titel und Beschreibung volle Breite bei ${viewport.width}px`, async ({ page }) => {
+			await page.setViewportSize({ width: viewport.width, height: viewport.height });
+			await openTaskForm(page);
 
-		await expectFieldFillsRow(page, 'task-title', 'kol-input-text');
-		await expectFieldFillsRow(page, 'task-description', 'kol-textarea');
+			await expectFieldFillsRow(page, 'task-title', 'kol-input-text');
+			await expectFieldFillsRow(page, 'task-description', 'kol-textarea');
 
-		// Kein horizontaler Scroll durch die Felder.
-		const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
-		expect(bodyWidth).toBe(375);
-	});
+			// Kein horizontaler Scroll durch die Felder.
+			const bodyWidth = await page.evaluate(() => document.body.scrollWidth);
+			expect(bodyWidth).toBe(viewport.width);
+		});
+	}
 
 	/**
 	 * AK5 — Die Aktionen bleiben mobil im Viewport, rechtsbündig, mit ausreichend großen Touch-Zielen.
