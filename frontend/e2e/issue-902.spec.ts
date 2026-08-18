@@ -55,7 +55,7 @@ test.describe('#902 @axe-core/playwright für gezielte E2E-A11y-Tests', () => {
 		// Prüft, dass Pattern-Doc existiert
 		const patternDocExists = await page.request
 			.get('/docs/e2e-a11y-pattern.md')
-			.then((r) => r.ok)
+			.then((r) => r.ok()) // APIResponse.ok() ist Methode, nicht Property
 			.catch(() => false);
 
 		expect(patternDocExists, 'Pattern-Doc muss unter docs/e2e-a11y-pattern.md existieren').toBe(true);

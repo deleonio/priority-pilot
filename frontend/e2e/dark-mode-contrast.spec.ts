@@ -1,3 +1,4 @@
+import { AxeBuilder } from '@axe-core/playwright';
 import { expect, test } from './fixtures';
 import { waitForStableView } from './helpers';
 
@@ -15,51 +16,9 @@ import { waitForStableView } from './helpers';
  * Palettenänderung darf den Test nicht rot machen, eine Regression der Lesbarkeit schon).
  *
  * Viewport 375×812 nach Mobile-First-Konvention (.ai-knowledge/conventions.md).
+ *
+ * Pattern: docs/e2e-a11y-pattern.md — AxeBuilder mit KoliBri Shadow DOM
  */
-
-/** WCAG 1.4.3 (AA) für normalen Text. */
-const MIN_CONTRAST = 4.5;
-
-/**
- * Misst den Kontrast zwischen der Textfarbe eines Elements und der ersten nicht-transparenten
- * Hintergrundfläche darüber — also dem, was ein Mensch tatsächlich sieht.
- */
-type ContrastSample = { ratio: number; color: string; background: string };
-
-const measureContrast = (page: import('./fixtures').Page, selector: string): Promise<ContrastSample | null> =>
-	page.evaluate((sel) => {
-		const element = document.querySelector(sel);
-		if (element === null) {
-			return null;
-		}
-		const channels = (value: string): number[] => (value.match(/\d+/g) ?? []).slice(0, 3).map(Number);
-		const luminance = ([r, g, b]: number[]): number => {
-			const linear = (channel: number): number => {
-				const v = channel / 255;
-				return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
-			};
-			return 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b);
-		};
-
-		// Erste deckende Hintergrundfläche in der Elternkette suchen (transparent = durchreichen).
-		let node: Element | null = element;
-		let background = 'rgb(255, 255, 255)';
-		while (node !== null) {
-			const candidate = window.getComputedStyle(node).backgroundColor;
-			if (candidate !== '' && !candidate.startsWith('rgba(0, 0, 0, 0')) {
-				background = candidate;
-				break;
-			}
-			node = node.parentElement;
-		}
-
-		const color = window.getComputedStyle(element).color;
-		const textLuminance = luminance(channels(color));
-		const backgroundLuminance = luminance(channels(background));
-		const lighter = Math.max(textLuminance, backgroundLuminance);
-		const darker = Math.min(textLuminance, backgroundLuminance);
-		return { ratio: (lighter + 0.05) / (darker + 0.05), color, background };
-	}, selector);
 
 test.describe('Dunkelmodus – Lesbarkeit der Dashboard-Panels', () => {
 	test('Panels mit Token-Hintergrund halten 4.5:1 im Dunkelmodus (375px)', async ({ page }) => {
@@ -69,7 +28,7 @@ test.describe('Dunkelmodus – Lesbarkeit der Dashboard-Panels', () => {
 		await waitForStableView(page);
 
 		// Dunkelmodus ist als App-Feature deaktiviert (P1-2): `data-theme` wird nicht mehr über
-		// localStorage gesteuert, sondern fix auf „light“ gesetzt. Die `[data-theme='dark']`-Regeln
+		// localStorage gesteuert, sondern fix auf „light” gesetzt. Die `[data-theme='dark']`-Regeln
 		// in app.css bleiben als Token-Bestand erhalten — für die Rückkehr des Dunkelmodus. Der Test
 		// erzwingt das Attribut deshalb direkt am <html> und misst die Kontrast-Regeln weiter.
 		await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
@@ -80,16 +39,21 @@ test.describe('Dunkelmodus – Lesbarkeit der Dashboard-Panels', () => {
 		// Das Panel rendert erst, wenn die Task-Daten da sind — sonst misst der Test einen leeren DOM.
 		await expect(page.locator('.dashboard-next-task')).toBeVisible();
 
-		for (const selector of [
-			'.dashboard-next-task h3',
-			'.dashboard-next-task p',
-			'.dashboard-suggestions h3',
-			'.dashboard-suggestions p',
-		]) {
-			const sample = await measureContrast(page, selector);
-			expect(sample, `Element ${selector} nicht gefunden`).not.toBeNull();
-			const { ratio, color, background } = sample as ContrastSample;
-			expect(ratio, `Kontrast für ${selector} (${color} auf ${background})`).toBeGreaterThanOrEqual(MIN_CONTRAST);
-		}
+		// AxeBuilder-Scan für Kontrast-Verstöße (Pattern: docs/e2e-a11y-pattern.md)
+		const results = await new AxeBuilder({ page })
+			.include('.dashboard-next-task')
+			.include('.dashboard-suggestions')
+			.withTags(['wcag2aa']) // WCAG AA (inkl. 1.4.3 Kontrast)
+			.analyze();
+
+		// Nur Kontrast-Verstöße melden (andere A11y-Themen werden separat getestet)
+		const contrastViolations = results.violations.filter(
+			(v) => v.id === 'color-contrast' || v.id === 'color-contrast-enhanced',
+		);
+		expect(contrastViolations, 'Kontrast-Verstöße in Dashboard-Panels').toEqual([]);
+
+		// Zusatz: Sicherstellen, dass keine anderen A11y-Verstöße in den Panels existieren
+		// (optional — bei Bedarf auskommentieren für Fokus auf Kontrast)
+		// expect(results.violations).toEqual([]);
 	});
 });
