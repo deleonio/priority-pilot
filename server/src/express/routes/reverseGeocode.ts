@@ -12,6 +12,9 @@ type ErrorDto = components['schemas']['Error'];
  */
 const NOMINATIM_API = 'https://nominatim.openstreetmap.org/reverse';
 
+/** Rate-Limit: In-Memory, Key=IP+Session, Window=1s. */
+const rateLimitMap = new Map<string, number[]>();
+
 /**
  * Baut eine Adresse aus dem Nominatim-Response-Objekt.
  * Fallback: Stadt oder Region, wenn Straße/Hausnummer fehlt.
@@ -59,6 +62,22 @@ export const reverseGeocodeRouter = express.Router();
  * Fallback: Bei Fehler/Timeout wird leere Adresse zurückgegeben (Position anzeigen ohne Adresse).
  */
 reverseGeocodeRouter.get('/', async (req, res: express.Response<ReverseGeocodeDto | ErrorDto>) => {
+	// Rate-Limit: 1 req/sec (Nominatim Policy)
+	const now = Date.now();
+	const ip = req.ip || 'unknown';
+	const session = (req.headers['x-session-token'] as string) || '';
+	const key = `${ip}:${session}`;
+	const timestamps = rateLimitMap.get(key) || [];
+	// Alte (> 1s) raus
+	const recent = timestamps.filter((ts) => now - ts < 1000);
+	if (recent.length > 0) {
+		// Rate-Limit verletzt → leere Adresse (Fallback)
+		res.json({ address: '' });
+		return;
+	}
+	recent.push(now);
+	rateLimitMap.set(key, recent);
+
 	const lat = req.query.lat;
 	const lon = req.query.lon;
 
