@@ -15,6 +15,8 @@ const UPSTREAM_TIMEOUT_MS = 8_000;
 interface OpenRouterModel {
 	id: string;
 	name: string;
+	/** Kontext-Länge, wie OpenRouter sie im Raw-Feld `context_length` liefert — fehlt bei manchen Modellen. */
+	context_length?: number;
 }
 
 /**
@@ -61,6 +63,16 @@ const isFreeModel = (model: OpenRouterModel): boolean =>
 	model.id === DEFAULT_OPENROUTER_MODEL || model.id.endsWith(':free');
 
 /**
+ * Leitet die Modell-Größe aus der Modell-ID ab („…-32b-instruct:free" → „32B"). OpenRouter liefert
+ * für `/models` kein eigenes Feld dafür, die Größe steckt aber fast immer im ID-Slug. Der negative
+ * Lookahead verhindert Fehltreffer wie „8bit"; ohne Treffer entfällt die Angabe ganz (AK3 #862).
+ */
+const deriveModelSize = (id: string): string | null => {
+	const match = /(\d+(?:\.\d+)?)b(?![a-z0-9])/i.exec(id);
+	return match === null ? null : `${match[1]}B`;
+};
+
+/**
  * Filtert die OpenRouter-Modellliste auf die kostenlosen Modelle und sortiert sie:
  * `openrouter/free` (der Anzeige-Default aus #640) zuerst, der Rest alphabetisch nach Anzeigename —
  * so steht das Default-Modell in der Auswahl immer an erster Stelle.
@@ -73,7 +85,15 @@ const toFreeModels = (upstream: OpenRouterModel[]): FreeModelDto[] =>
 			if (b.id === DEFAULT_OPENROUTER_MODEL) return 1;
 			return a.name.localeCompare(b.name);
 		})
-		.map((model) => ({ id: model.id, name: model.name }));
+		.map((model) => {
+			const modelSize = deriveModelSize(model.id);
+			return {
+				id: model.id,
+				name: model.name,
+				...(model.context_length !== undefined ? { contextLength: model.context_length } : {}),
+				...(modelSize !== null ? { modelSize } : {}),
+			};
+		});
 
 /**
  * Router für `GET /models/free` (#742): aktuelle kostenlose OpenRouter-Modelle für die

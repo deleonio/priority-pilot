@@ -1,5 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import type { LlmConfigStatus } from 'client';
+import type { FreeModel, LlmConfigStatus } from 'client';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../api';
@@ -74,6 +74,40 @@ const itemByModelId = (id: string): HTMLElement => {
 	if (item === null) throw new Error(`Kein Listen-Eintrag für ${id}`);
 	return item as HTMLElement;
 };
+
+describe('Metadaten-Anzeige (#862: contextLength · modelSize)', () => {
+	const metaTextOf = (id: string): string | null => {
+		const meta = itemByModelId(id).querySelector('.model-selection-item-meta');
+		return meta === null ? null : (meta.textContent ?? null);
+	};
+
+	const renderWithModels = async (models: FreeModel[]): Promise<void> => {
+		vi.mocked(api.getFreeModels).mockResolvedValue({ models });
+		render(<ModelSelectionDialog onClose={vi.fn()} />);
+		await waitFor(() => {
+			expect(screen.getByTestId('free-models-list')).toBeInTheDocument();
+		});
+	};
+
+	it('formatiert die Kontext-Größe (200k/1m) und hängt die Modell-Größe mit „ · " an', async () => {
+		await renderWithModels([
+			{ id: 'qwen/qwen-2.5-32b-instruct:free', name: 'Qwen 32B', contextLength: 200000, modelSize: '32B' },
+			{ id: 'meta/long-context:free', name: 'Long Context', contextLength: 1000000 },
+		]);
+		expect(metaTextOf('qwen/qwen-2.5-32b-instruct:free')).toBe('200k · 32B');
+		expect(metaTextOf('meta/long-context:free')).toBe('1m');
+	});
+
+	it('zeigt nur den vorhandenen Wert, wenn das andere Feld fehlt (kein Trenner)', async () => {
+		await renderWithModels([{ id: 'google/gemma-2-9b-it:free', name: 'Gemma 9B', modelSize: '9B' }]);
+		expect(metaTextOf('google/gemma-2-9b-it:free')).toBe('9B');
+	});
+
+	it('lässt die Meta-Zeile weg, wenn beide Werte fehlen (AK3: kein Platzhalter)', async () => {
+		await renderWithModels([{ id: 'zeta/model:free', name: 'Zeta Free' }]);
+		expect(metaTextOf('zeta/model:free')).toBeNull();
+	});
+});
 
 describe('ModelSelectionDialog (#742)', () => {
 	it('zeigt die dynamische Liste und selektiert den Default openrouter/free', async () => {

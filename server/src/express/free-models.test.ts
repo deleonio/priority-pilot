@@ -120,7 +120,7 @@ describe('toFreeModels-Filterung (Upstream-Rohdaten → Free-Liste)', () => {
 			const models = await fetchFreeModelsFromOpenRouter();
 			assert.deepEqual(models, [
 				{ id: 'openrouter/free', name: 'OpenRouter Free' },
-				{ id: 'meta-llama/llama-3-8b-instruct:free', name: 'Llama 3 8B' },
+				{ id: 'meta-llama/llama-3-8b-instruct:free', name: 'Llama 3 8B', modelSize: '8B' },
 				{ id: 'zeta/model:free', name: 'Zeta Free' },
 			]);
 		} finally {
@@ -134,6 +134,41 @@ describe('toFreeModels-Filterung (Upstream-Rohdaten → Free-Liste)', () => {
 		try {
 			globalThis.fetch = (async () => new Response(JSON.stringify({ wrong: true }), { status: 200 })) as typeof fetch;
 			await assert.rejects(() => fetchFreeModelsFromOpenRouter());
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
+	});
+});
+
+describe('Issue 862: contextLength + modelSize im Mapping', () => {
+	it('mappt context_length → contextLength und leitet modelSize aus der Modell-ID ab; fehlende Werte entfallen', async () => {
+		const { fetchFreeModelsFromOpenRouter } = await import('./routes/freeModels.js');
+		const originalFetch = globalThis.fetch;
+		try {
+			globalThis.fetch = (async () =>
+				new Response(
+					JSON.stringify({
+						data: [
+							{ id: 'qwen/qwen-2.5-32b-instruct:free', name: 'Qwen2.5 32B Instruct', context_length: 200000 },
+							{ id: 'deepseek/deepseek-chat-v3-0324:free', name: 'DeepSeek V3', context_length: 32768 },
+							{ id: 'zeta/model:free', name: 'Zeta Free' },
+						],
+					}),
+					{ status: 200, headers: { 'Content-Type': 'application/json' } },
+				)) as typeof fetch;
+
+			const models = await fetchFreeModelsFromOpenRouter();
+			assert.deepEqual(models, [
+				// Alphabetisch nach Name (DeepSeek < Qwen < Zeta).
+				{ id: 'deepseek/deepseek-chat-v3-0324:free', name: 'DeepSeek V3', contextLength: 32768 }, // ID ohne Größenangabe → kein modelSize
+				{
+					id: 'qwen/qwen-2.5-32b-instruct:free',
+					name: 'Qwen2.5 32B Instruct',
+					contextLength: 200000,
+					modelSize: '32B',
+				},
+				{ id: 'zeta/model:free', name: 'Zeta Free' }, // weder Kontext noch Größe → nur id/name (AK3: kein Platzhalter)
+			]);
 		} finally {
 			globalThis.fetch = originalFetch;
 		}

@@ -72,7 +72,7 @@ export default defineConfig({
 				// laut und deterministisch mit HTTP 503.
 				MISTRAL_API_KEY: '',
 			},
-			// Backend bewusst NIE wiederverwenden: ein lokal laufendes `pnpm --filter priority-pilot dev`
+			// Backend bewusst NIE wiederverwenden: ein lokal laufendes `pnpm --filter server dev`
 			// nutzt die persistente, geseedete `./database.sqlite` — das würde den leeren, definierten
 			// Zustand (`:memory:`, ohne Demo-Seed) aushebeln und `smoke.spec.ts`/künftige CRUD-Specs
 			// gegen Fremddaten laufen lassen. Anders als beim zustandslosen Vite-Server unten ist Reuse

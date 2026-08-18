@@ -1889,6 +1889,11 @@ components:
         contextLength:
           type: number
           description: Kontext-Länge des Modells (optional, wenn OpenRouter sie liefert).
+        modelSize:
+          type: string
+          description: >-
+            Modell-Größe, aus der Modell-ID abgeleitet (z. B. `32B`) — optional, wenn die ID
+            keine Größenangabe enthält (#862).
     FreeModels:
       type: object
       required:
