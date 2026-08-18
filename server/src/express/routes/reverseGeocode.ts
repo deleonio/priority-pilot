@@ -16,7 +16,15 @@ const NOMINATIM_API = 'https://nominatim.openstreetmap.org/reverse';
  * Baut eine Adresse aus dem Nominatim-Response-Objekt.
  * Fallback: Stadt oder Region, wenn Straße/Hausnummer fehlt.
  */
-const buildAddress = (data: { address?: { [key: string]: string | undefined }; city?: string; town?: string; village?: string; county?: string; state?: string; country?: string }): string => {
+const buildAddress = (data: {
+	address?: { [key: string]: string | undefined };
+	city?: string;
+	town?: string;
+	village?: string;
+	county?: string;
+	state?: string;
+	country?: string;
+}): string => {
 	const addr = data.address || {};
 	const parts: string[] = [];
 
