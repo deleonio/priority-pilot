@@ -1,0 +1,120 @@
+name: Claude PR Gate Sweep
+
+# Stündliches Sicherheitsnetz für das event-getriebene Gate (claude-pr-gate-merge.yml): Jedes
+# No-op des Gates vertraut darauf, dass ein Folge-Event (Label, CI-/Review-Abschluss) es erneut
+# weckt. Fiel das No-op auf das LETZTE Event eines PR, bleibt ein grüner ai:reviewed-PR für immer
+# unmerged — empirisch PR #220 (Checks unsichtbar) und PR #876 am 18.08. (mergeable=UNKNOWN
+# direkt nach Review-Abschluss). Dieser Sweep findet solche hängenden PRs und triggert das Gate
+# per workflow_dispatch nach; das Gate entscheidet dann mit all seinen Guards selbst (12s-No-op,
+# falls der PR doch noch nicht bereit ist, z. B. pending Re-Review). Keine Logik-Duplikate, kein
+# Label-Toggling (kein Run-Lärm für andere Label-Workflows), 0 Dispatches bei 0 Kandidaten.
+#
+# Reiner gh-Aufruf, KEIN LLM. Muss den GitHub-App-Token nutzen: ein via GITHUB_TOKEN
+# ausgelöster workflow_dispatch startet keinen neuen Workflow-Run (GitHub-Regel), der
+# Sweep wäre sonst wirkungslos (gleiches Muster wie 6b Documenter Sweep).
+
+on:
+  schedule:
+    # Stündlich, Minute versetzt zu anderen Cron-Workflows (Documenter-Sweep 03:17), damit
+    # Runner-/API-Last nicht gebündelt auftritt.
+    - cron: '23 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Nur auflisten, nichts nachtriggern (Erst-Beobachtung eines frisch deployten Sweeps)'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: gate-sweep
+  cancel-in-progress: false
+  # queue: max — konsistent mit den Phasen-Workflows: ein gestapelter Sweep darf den
+  # wartenden nicht still verwerfen (er hat evtl. bereits Kandidaten gefunden).
+  queue: max
+
+permissions:
+  contents: read # Repo-Kontext für gh-Suche
+  actions: write # workflow_dispatch auf das Gate (via App-Token)
+  pull-requests: read
+
+env:
+  REPO: ${{ github.repository }}
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Voraussetzung prüfen (GitHub-App-Secrets)
+        # Kein GITHUB_TOKEN-Fallback: von GITHUB_TOKEN ausgelöste workflow_dispatch-Events
+        # starten keine neuen Runs — der Sweep bräuchte dann den Menschen als Trigger und
+        # wäre für den Automatik-Zweck (schedule) tot. Bewusst rot statt still grün.
+        id: preflight
+        env:
+          APP_ID: ${{ secrets.APP_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+        run: |
+          if [ -z "$APP_ID" ] || [ -z "$APP_PRIVATE_KEY" ]; then
+            echo "::error title=App-Secrets fehlen::Sweep kann das Gate nicht nachtriggern (GITHUB_TOKEN-Dispatch startet keine Runs). GitHub-App-Secrets APP_ID + APP_PRIVATE_KEY setzen."
+            exit 1
+          fi
+
+      - name: GitHub-App-Token erzeugen
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Hängende ai:reviewed-PRs finden und Gate nachtriggern
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          DRY_RUN: ${{ github.event.inputs.dry-run || 'false' }}
+        run: |
+          set -euo pipefail
+
+          # Kandidaten: offen, ai:reviewed, kein Draft und kein aktives Pipeline-Label. Such-
+          # Qualifier statt Client-Filter: -label:/draft: schließt serverseitig aus. PRs mit
+          # ai:needs-review/ai:needs-fixup haben laufende Maschinerie, ai:needs-human wartet
+          # bewusst auf den Menschen — alle drei gehören nicht zum Sweep.
+          candidates="$(gh pr list --repo "$REPO" --state open --limit 50 \
+            --search 'is:open label:ai:reviewed -label:ai:needs-review -label:ai:needs-fixup -label:ai:needs-human draft:false' \
+            --json number,title \
+            | jq 'sort_by(.number)')"
+
+          count="$(printf '%s' "$candidates" | jq 'length')"
+          echo "Kandidaten (offen, ai:reviewed, ohne aktive Pipeline-Labels): $count"
+
+          {
+            echo "### Claude PR Gate Sweep"
+            echo
+            if [ "$count" -eq 0 ]; then
+              echo "Keine hängenden ai:reviewed-PRs — nichts nachzutriggern. ✅"
+            else
+              echo "| PR | Titel | Aktion |"
+              echo "|----|-------|--------|"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$count" -eq 0 ]; then exit 0; fi
+
+          printf '%s' "$candidates" | jq -c '.[]' | while IFS= read -r pr; do
+            number="$(printf '%s' "$pr" | jq -r '.number')"
+            title="$(printf '%s' "$pr" | jq -r '.title' | tr -d '|')"
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "| #$number | $title | ⏸️ dry-run |" >> "$GITHUB_STEP_SUMMARY"
+              echo "[dry-run] würde Gate für PR #$number nachtriggern."
+              continue
+            fi
+            if gh workflow run claude-pr-gate-merge.yml --repo "$REPO" -f "pr=$number"; then
+              echo "| #$number | $title | 🚀 nachgetriggert |" >> "$GITHUB_STEP_SUMMARY"
+              echo "🚀 Gate für PR #$number nachgetriggert."
+            else
+              echo "| #$number | $title | ❌ Dispatch fehlgeschlagen |" >> "$GITHUB_STEP_SUMMARY"
+              echo "::warning title=Dispatch fehlgeschlagen::Gate für PR #$number konnte nicht nachgetriggert werden."
+            fi
+            sleep 5 # Gate-Concurrency (pro PR serialisiert) atmet zwischen den Dispatches
+          done
+
+          echo "Sweep abgeschlossen — Details in der Job-Summary."
