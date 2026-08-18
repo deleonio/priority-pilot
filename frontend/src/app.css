@@ -853,6 +853,7 @@ body {
 	display: grid;
 	gap: 1rem;
 	margin-bottom: 1rem;
+	width: 100%;
 }
 
 /* Responsive Grid für Säulen-Gewichtung (#763) — bewusst eine eigene Klasse statt global auf
@@ -905,12 +906,19 @@ body {
 	}
 }
 
-.modal-actions {
+/* Aktionsleiste eines Dialogs (`.modal-actions`) bzw. eines eingebetteten Formulars
+   (`.form-actions`, z. B. der Gewichtungs-Editor auf /settings/pillars). Gleiches Layout,
+   getrennte Klassen: nur so bleibt `.modal-actions` auf einer Seite eindeutig adressierbar (#886). */
+.modal-actions,
+.form-actions {
 	display: flex;
 	gap: 0.5rem;
 	flex-wrap: wrap;
 	margin-top: 1rem;
 	justify-content: flex-end;
+	/* Ohne explizite Breite schrumpft der Flex-Container in einem Grid-/Flex-Elternteil auf die
+	   Inhaltsbreite und schneidet den „Speichern“-Button rechts ab (#886). */
+	width: 100%;
 }
 
 .dependency-list {
@@ -1748,6 +1756,13 @@ body {
 	color: var(--pp-text);
 	font: inherit;
 	min-height: 2.75rem; /* 44px WCAG minimum */
+	/* Ohne `min-width: 0` erbt das Select seine automatische Mindestbreite von der längsten
+	   Modell-Option (~708px). Diese Mindestbreite wandert über das Grid von `kol-tabs` nach oben
+	   und dehnt das gesamte Panel — der „Speichern"-Button landet dann außerhalb des Viewports
+	   (#886). `width: 100%` + `box-sizing` halten das Feld stattdessen in der Spaltenbreite. */
+	width: 100%;
+	min-width: 0;
+	box-sizing: border-box;
 }
 
 /* X-Button: WCAG 2.5.5 Min 44×44px, ideal 48×48px für Mobile-Touch. */
