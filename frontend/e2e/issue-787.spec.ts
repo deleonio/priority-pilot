@@ -266,8 +266,10 @@ test.describe('#787 Header-Layout und KI-Modell-Auswahl in Toolbar', () => {
 		const accessibleName = await modelSelector.evaluate((el) => (el as HTMLElement).textContent?.trim());
 		const label = ariaLabel || accessibleName;
 
+		// Das Label ist sprechend, wenn es die Absicht („Modellauswahl") oder den aktuellen Stand
+		// benennt — herstellerspezifische Namen sind freie Konfiguration und gehören nicht in den Test.
 		expect(label, 'Screenreader-Label muss sprechend sein ("Modell auswählen, aktuell: ...")').toMatch(
-			/Modell.*auswählen|aktuell|Sonnet|Opus|Haiku/i,
+			/Modell.*auswählen|aktuell/i,
 		);
 
 		// Vor dem Klick: aria-expanded="false"
@@ -533,7 +535,8 @@ test.describe('#787 Header-Layout und KI-Modell-Auswahl in Toolbar', () => {
 			const button = el as HTMLElement;
 			return button.getAttribute('aria-label') || button.textContent?.trim() || '';
 		});
-		expect(initialLabel, 'Initiales Label muss sprechend sein').toMatch(/Modell|Sonnet|Opus|Haiku|Claude/i);
+		// Freie Modell-Konfiguration: sprechend heißt „Modell" benannt — nicht ein fester Anbietername.
+		expect(initialLabel, 'Initiales Label muss sprechend sein').toMatch(/Modell/i);
 
 		// Dropdown öffnen
 		await modelSelector.click();
@@ -542,9 +545,10 @@ test.describe('#787 Header-Layout und KI-Modell-Auswahl in Toolbar', () => {
 		const ariaExpanded = await modelSelector.getAttribute('aria-expanded');
 		expect(ariaExpanded, 'Nach Klick muss aria-expanded="true" sein').toBe('true');
 
-		// Screenreader-Info muss "X Optionen verfügbar" o.ä. beinhalten
+		// Screenreader-Info muss die verfügbaren Modelle ankündigen — bewusst OHNE Anzahl: Die Liste
+		// lädt dynamisch erst im Dialog, eine Zahl im Button-Label wäre eine Falschaussage (Spec v1.1).
 		const optionsInfo = await modelSelector.getAttribute('aria-label');
-		const hasOptionsInfo = optionsInfo?.match(/\d+.*Option|verfügbar|Modelle/i);
-		expect(hasOptionsInfo, 'Screenreader-Info sollte Anzahl der Optionen ankündigen').toBeTruthy();
+		const hasOptionsInfo = optionsInfo?.match(/verfügbar|Modelle/i);
+		expect(hasOptionsInfo, 'Screenreader-Info sollte die verfügbaren Modelle ankündigen').toBeTruthy();
 	});
 });

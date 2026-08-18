@@ -167,9 +167,10 @@ aktuelle Modell geladen, darf keine Interaktion (Öffnen des Popups, Auswahl ein
 Header-Höhe verändern. Während der Hydration wächst der Header dagegen erwartungsgemäß auf seine
 Endhöhe — `kol-toolbar` baut ihre Buttons asynchron im Shadow-DOM auf.
 
-Auf 375px umfasst der Header dabei zwei Zeilen: Logo, Avatar, KI-Modell-Auswahl und die fünf
-Kopf-Aktionen passen nicht in eine Zeile. Der Umbruch ist gewollt (Alternative wäre ein horizontal
-scrollender Header) und erfüllt die Anforderung „keine horizontalen Überläufe".
+Auf 375px bleibt der Header einzeilig (Vertrag aus #485 AK6 / #718 AK4): Logo, Avatar und die fünf
+Kopf-Aktionen füllen die Zeile aus — die KI-Modell-Auswahl ist dort deshalb ausgeblendet (siehe
+Abgrenzung oben). Ein zweizeiliger Umbruch tritt nicht ein; die Anforderung „keine horizontalen
+Überläufe" bleibt erfüllt.
 
 ---
 

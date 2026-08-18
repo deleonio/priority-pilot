@@ -9,7 +9,10 @@ import { waitForStableView } from './helpers';
  * Ziel: Der Avatar (`kol-avatar`) ist über alle Bildschirmgrößen sichtbar — auch auf schmalen Viewports
  * (< 768px / 48rem). Mobil darf ggf. nur der Klartextname entfallen, der Avatar selbst soll erhalten bleiben.
  *
- * Diese Tests sind **rot**, solange `frontend/src/app.css` den `.user-info` Block mobil komplett ausblendet.
+ * Diese Tests waren **rot**, solange `frontend/src/app.css` den `.user-info` Block mobil komplett
+ * ausblendet — seit #718 bleibt der Block sichtbar; unter 48rem ist nur der Klartextname
+ * (`.user-display-name`) ausgeblendet, der Avatar selbst nicht. #787 gruppiert Avatar und Name
+ * wieder gemeinsam in `.user-info` (#406).
  *
  * Spec: docs/spec/issue-718.md
  *
@@ -53,7 +56,8 @@ test.describe('#718 Avatar auf Mobile wiederherstellen', () => {
 
 	/**
 	 * AK1 — Avatar ist auf Mobile (< 48rem / 768px) sichtbar.
-	 * RED, solange `app.css` `.user-info` unter 48rem komplett ausblendet.
+	 * Rot wäre er, wenn `app.css` `.user-info` unter 48rem komplett ausblendete — seit #718 bleibt
+	 * der Avatar sichtbar, nur der Klartextname ist mobil weg.
 	 */
 	test('AK1: Avatar ist auf Mobile (< 48rem) sichtbar', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
