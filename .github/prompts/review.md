@@ -27,15 +27,34 @@ MODUS FIXUP-NACHWEIS (Folge-Review) — NUR das Kreuzverhör-Ergebnis + die Fixu
 ABSCHLUSS (beide Modi):
   - TITEL-GATE (VOR dem Verdict): TITLE_OK sagt, ob der PR-Titel Conventional Commits erfüllt (type(scope)!: subject, englisch, Subject klein, <=72). Bei false: via gh pr edit #PR_NR --title umbenennen — Typ/Scope-Anhaltspunkte SUGGESTED_TYPE/SUGGESTED_SCOPE, Subject englisch beschreibend. Kein Finding, kein Verdict-Aufschub.
   - (Fixbare) Findings → Review-Kommentare an Datei/Zeile, dann VERDICT: needs-fixup
-  - Architektur-/Produkt-/Design-Finding ("Mensch entscheidet") → Bei VERDICT: needs-human im Sammelkommentar zusaetzlich Sektion ## ⏸️ Entscheidungs-Findings einfuegen mit:
-    - Nummeriertes Listing jedes Entscheidungs-Findings
-    - **Was**: Beschreibung des Problems
-    - **Wo**: Datei:Zeile
-    - **Optionen**: 2-3 konkrete Handlungsoptionen mit Kurzbegründung
-    - **Empfehlung**: Was Claude empfehlen würde
+  - Architektur-/Produkt-/Design-Finding ("Mensch entscheidet") → Bei VERDICT: needs-human im Sammelkommentar die Sektion "## ⏸️ Entscheidungs-Findings" nach dem Entscheidungs-Template füllen (siehe Sammelkommentar-Struktur unten): Pro Finding Nummer <F> (aus den Findings, über Runden stabil), Was/Wo, 2–3 Optionen JE mit stabiler Options-ID `<F>.<n>` (z. B. `4.1`) + Aufwand/Risiko, Empfehlung mit ID und Begründung.
   - solide (🟢) → KEINE Pseudo-Findings, knappe 🟢-Bestätigung, dann VERDICT: reviewed
 
-Sammelkommentar: Urteil als GENAU EINEN <!-- ai-review -->-Kommentar pflegen (vorhandenen suchen + fortschreiben, nicht neu anlegen). Zwei Abschnitte: "Offene Findings" (aktuelle Runde) und "Behobene Anmerkungen" (History-Tabelle — erledigte Findings wandern dorthin).
+Sammelkommentar: Urteil als GENAU EINEN <!-- ai-review -->-Kommentar pflegen (vorhandenen suchen + fortschreiben, nicht neu anlegen). Struktur:
+
+  <!-- ai-review -->
+  🎯 Review-Status: <reviewed | needs-fixup | needs-human>
+  PR #PR_NR implementiert Issue #<N>. <1–2 Sätze Kontext: Modus, Runde, Ergebnis.>
+
+  ## ✅ Behobene Anmerkungen
+  | # | Finding | Behoben via | Datum |
+  |---|---------|-------------|-------|
+
+  ## ⏸️ Entscheidungs-Findings  (nur bei needs-human)
+  ### <F>. <Titel>
+  **Was:** / **Wo:** / **Optionen:** mit IDs `<F>.<n>` / **Empfehlung:** `<F>.1` — <Begründung>
+
+  **Auswahl:** Kommentar mit der Options-ID (z. B. `4.1`) antworten und `ai:needs-fixup`
+  setzen — das Fixup setzt die Wahl um. Bei Akzeptieren: `ai:needs-review` setzen.
+
+  ## 📋 Offene Findings  (nur bei needs-fixup: aktuelle Runde, mit Ampel, Datei/Zeile, Vorschlag)
+
+  Review-Typ: <Kreuzverhör | Fixup-Nachweis>
+  Updated: JJJJ-MM-TT
+
+Erledigte Punkte wandern in die Behobene-Anmerkungen-Tabelle (History bleibt erhalten).
+Finding-Nummern und Options-IDs sind über Runden STABIL (nicht umnummerieren) — der Mensch
+wählt per Kommentar mit der Options-ID, das Fixup setzt die Wahl um.
 
 ⚠️ LABELS: KEINE Labels setzen! Workflow übernimmt das automatisch.
 

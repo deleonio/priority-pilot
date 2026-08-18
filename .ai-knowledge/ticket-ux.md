@@ -17,8 +17,8 @@ gesetzt, nicht von der Spec-Phase), für die **noch kein** UX-Input existiert (K
 im Body). Nicht-UI-Tickets bekommen `ai:needs-ux-ui` nie — die Analyse setzt dann direkt
 `ai:needs-spec`. Manueller Start via `workflow_dispatch` moeglich.
 
-Label-Kette: `ai:analysed` → `ai:needs-ux-ui` → **`ai:ux-reviewed` + `ai:needs-spec` (dieser
-Workflow)** → `ai:specified` + `ai:needs-impl` (Spec) → Umsetzung → PR.
+Label-Kette: `ai:analysed` → `ai:needs-ux-ui` → **`ai:needs-spec` (dieser Workflow)** →
+`ai:needs-impl` (Spec) → Umsetzung → PR.
 
 ## Trigger
 
@@ -67,7 +67,7 @@ VERDICT: ux-ready
 ## Verifikation & Label-Setzung
 
 - Workflow prueft Verdict-Line im Output
-- Bei `VERDICT: ux-ready` → Labels `ai:ux-reviewed` + `ai:needs-spec` setzen via GitHub App-Token
+- Bei `VERDICT: ux-ready` → Label `ai:needs-spec` setzen via GitHub App-Token
   (Trigger `ai:needs-ux-ui` wird konsumiert = entfernt)
 - Bei `VERDICT: ux-not-ready` → Label `ai:needs-human` setzen (fail-safe beim Menschen) plus
   Kommentar mit **Warum** (offene UX-Fragen im KI-UX-Block) und **konkreten Optionen**

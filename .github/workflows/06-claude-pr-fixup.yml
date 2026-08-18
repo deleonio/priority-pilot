@@ -333,7 +333,6 @@ jobs:
             ARTIFACTS_OK="true"
           fi
 
-          gh label create "ai:fixed" --repo "$GITHUB_REPOSITORY" --color 0E8A16 2>/dev/null || true
           gh label create "ai:needs-review" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
           gh label create "ai:needs-fixup" --repo "$GITHUB_REPOSITORY" --color D93F0B 2>/dev/null || true
           gh label create "ai:needs-human" --repo "$GITHUB_REPOSITORY" --color 5319e7 --description "Nicht-automatisierbare Entscheidung — wartet auf Mensch (Fixup greift bewusst nicht)" 2>/dev/null || true
@@ -418,23 +417,20 @@ jobs:
               printf '%s\n' "- [ ] 4. Label \`ai:needs-review\` setzen → loest erneuten Review aus"
             } > /tmp/needs-human-body.md
             bash .github/scripts/needs-human-explain.sh post --repo "$GITHUB_REPOSITORY" --pr "$PR" --body-file /tmp/needs-human-body.md
-            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:fixed 2>/dev/null || true
             gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human
-            echo "::notice::Verdict needs-human -> Labels gesetzt: ai:fixed + ai:needs-human (wartet auf Mensch)."
+            echo "::notice::Verdict needs-human -> Label gesetzt: ai:needs-human (wartet auf Mensch)."
             echo "stuck=true" >> "$GITHUB_OUTPUT"
             echo "stuck_reason=needs-human" >> "$GITHUB_OUTPUT"
           elif [ "$ARTIFACTS_OK" = "true" ]; then
-            # Fortschritt -> Done-Label + an Review uebergeben. Konvergiert via Stop-Guard
+            # Fortschritt -> an Review uebergeben. Konvergiert via Stop-Guard
             # (>10 Commits), falls Review nie gruen wird.
-            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:fixed 2>/dev/null || true
             gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-review
-            echo "::notice::Fortschritt erkannt (HEAD bewegt) -> Labels gesetzt: ai:fixed + ai:needs-review"
+            echo "::notice::Fortschritt erkannt (HEAD bewegt) -> Label gesetzt: ai:needs-review"
             echo "stuck=false" >> "$GITHUB_OUTPUT"
           else
             # KEIN Fortschritt und kein klares needs-human-Verdict -> NICHT erneut triggern (kappt
-            # sowohl Fixup<->Fixup- als auch Review<->Fixup-Endlosloop). Done-Label (Runde
-            # abgeschlossen ohne automatisierbare Arbeit) + terminal an Mensch via ai:needs-human
-            # + Kommentar.
+            # sowohl Fixup<->Fixup- als auch Review<->Fixup-Endlosloop). Terminal an Mensch
+            # via ai:needs-human + Kommentar.
             #
             # Erklärungs-Gate: Erst schauen, ob Claude in DIESEM Lauf einen
             # ai-fixup-decisions-Kommentar gepostet hat — in #842 existierte er
@@ -471,9 +467,8 @@ jobs:
               printf '%s\n' "- [ ] 4. Label \`ai:needs-review\` setzen → loest erneuten Review aus"
             } > /tmp/needs-human-body.md
             bash .github/scripts/needs-human-explain.sh post --repo "$GITHUB_REPOSITORY" --pr "$PR" --body-file /tmp/needs-human-body.md
-            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:fixed 2>/dev/null || true
             gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human
-            echo "::warning::Kein Fixup-Fortschritt (HEAD unverändert) -> ai:fixed + ai:needs-human, keine Re-Armierung, Mensch prüft."
+            echo "::warning::Kein Fixup-Fortschritt (HEAD unverändert) -> ai:needs-human, keine Re-Armierung, Mensch prüft."
             echo "stuck=true" >> "$GITHUB_OUTPUT"
             echo "stuck_reason=no-progress" >> "$GITHUB_OUTPUT"
           fi

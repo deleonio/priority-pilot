@@ -269,7 +269,6 @@ jobs:
             fi
           fi
 
-          gh label create "ai:specified" --repo "$GITHUB_REPOSITORY" --color 0E8A16 2>/dev/null || true
           gh label create "ai:needs-impl" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
           gh label create "ai:needs-spec" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
 
@@ -278,10 +277,9 @@ jobs:
           gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-impl" 2>/dev/null || true
 
           if [ "$final" = "ready" ]; then
-            # Erfolg: Done-Label + Trigger der nächsten Phase (Umsetzung).
-            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:specified"
+            # Erfolg: Trigger der nächsten Phase (Umsetzung) als letzter Write.
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-impl"
-            echo "::notice::Labels gesetzt: ai:specified + ai:needs-impl (verifiziert: Spec-PR + rote Tests)"
+            echo "::notice::Label gesetzt: ai:needs-impl (verifiziert: Spec-PR + rote Tests)"
           else
             # Partial-Retry: ai:needs-spec neu setzen (oben konsumiert) retriggert die
             # Spec-Phase; das Add-over-Remove-Muster erzeugt genau ein labeled-Event.

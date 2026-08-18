@@ -14,7 +14,7 @@ Fachliche Details: [../README.md](../README.md).
 
 pnpm-Workspace (siehe `pnpm-workspace.yaml`):
 
-- `server/` (npm-Name **`priority-pilot`**): Node.js + Express 5 + Sequelize 6 (SQLite). Gesamte Fachlogik.
+- `server/` (npm-Name **`server`**): Node.js + Express 5 + Sequelize 6 (SQLite). Gesamte Fachlogik.
 - `client/`: aus `openapi.yml` via `openapi-typescript` generierte API-Typen (`src/schema.d.ts`, nicht versioniert) plus dünner Re-Export (`src/index.ts`).
 - `frontend/`: React 19 + KoliBri (Vite/PWA); spricht die API typsicher per `openapi-fetch` an.
 

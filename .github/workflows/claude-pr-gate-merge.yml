@@ -36,12 +36,20 @@ on:
     # ai:reviewed wird gesetzt (CI evtl. schon gruen). Auf den Label-Namen wird im job-if
     # gefiltert, damit nicht jedes Label den Lauf startet.
     types: [labeled]
+  workflow_dispatch:
+    # Manueller Re-Check eines PRs bzw. Trigger durch den Gate-Sweep (claude-pr-gate-sweep.yml):
+    # heilt PRs, deren letztes Gate-Event in ein No-op fiel (z. B. mergeable=UNKNOWN direkt nach
+    # Review-Abschluss, PR #876) und fuer die daher nie ein Folge-Event kommt.
+    inputs:
+      pr:
+        description: 'PR-Nummer, die das Gate evaluieren soll'
+        required: true
 
 concurrency:
   # Pro PR serialisieren (head_branch identifiziert den PR ueber workflow_run hinweg; beim
-  # labeled-Event die PR-Nummer), damit zwei kurz nacheinander eintreffende Events nicht doppelt
-  # labeln/mergen.
-  group: claude-pr-gatemerge-${{ github.event.workflow_run.head_branch || github.event.pull_request.number }}
+  # labeled-/dispatch-Event die PR-Nummer), damit zwei kurz nacheinander eintreffende Events
+  # nicht doppelt labeln/mergen.
+  group: claude-pr-gatemerge-${{ github.event.workflow_run.head_branch || github.event.pull_request.number || github.event.inputs.pr }}
   cancel-in-progress: false
 
 jobs:
@@ -49,14 +57,16 @@ jobs:
     # Nur same-repo-Laeufe (kein Fork -> App-Token verfuegbar). Beim workflow_run zusaetzlich
     # main-Push-Laeufe ausschliessen: ein Merge pusht nach main -> CI-on-main -> wuerde sonst hier
     # einen No-op-Lauf fuer einen PR wecken, den es nicht gibt. Beim labeled-Event nur reagieren,
-    # wenn wirklich ai:reviewed gesetzt wurde.
+    # wenn wirklich ai:reviewed gesetzt wurde. Dispatch (= Sweep/manueller Re-Check) ist immer
+    # same-repo (Workflow-Datei wird nur vom Default-Branch gelesen).
     if: >-
       ${{ (github.event_name == 'workflow_run'
             && github.event.workflow_run.head_repository.full_name == github.repository
             && github.event.workflow_run.head_branch != 'main')
           || (github.event_name == 'pull_request'
             && github.event.label.name == 'ai:reviewed'
-            && github.event.pull_request.head.repo.full_name == github.repository) }}
+            && github.event.pull_request.head.repo.full_name == github.repository)
+          || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -107,20 +117,21 @@ jobs:
           REPO: ${{ github.repository }}
           EVENT_NAME: ${{ github.event_name }}
           HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.inputs.pr }}
         run: |
           set -euo pipefail
 
-          # 1) PR aufloesen. Beim labeled-Event liegt die PR-Nummer direkt vor; beim workflow_run
-          #    ueber den Head-Branch (zuverlaessiger als workflow_run.pull_requests, das fuer manche
-          #    Laeufe leer bleibt). Push-Laeufe auf main (kein PR) und geschlossene PRs -> sauberer
-          #    No-op. Mehrdeutigkeit (mehrere offene PRs mit gleichem Head-Branch, z. B. gegen
-          #    verschiedene Base-Branches) -> bewusst KEIN Raten: lieber No-op als den falschen PR
-          #    umzulabeln/zu mergen. Daher kein `--limit 1`, sondern die Anzahl explizit pruefen.
-          if [ "$EVENT_NAME" = "pull_request" ]; then
+          # 1) PR aufloesen. Beim labeled-/dispatch-Event liegt die PR-Nummer direkt vor; beim
+          #    workflow_run ueber den Head-Branch (zuverlaessiger als workflow_run.pull_requests,
+          #    das fuer manche Laeufe leer bleibt). Push-Laeufe auf main (kein PR) und geschlossene
+          #    PRs -> sauberer No-op. Mehrdeutigkeit (mehrere offene PRs mit gleichem Head-Branch,
+          #    z. B. gegen verschiedene Base-Branches) -> bewusst KEIN Raten: lieber No-op als den
+          #    falschen PR umzulabeln/zu mergen. Daher kein `--limit 1`, sondern die Anzahl explizit
+          #    pruefen.
+          if [ "$EVENT_NAME" = "pull_request" ] || [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             pr="$PR_NUMBER"
             if [ -z "$pr" ]; then
-              echo "Kein PR im labeled-Event — nichts zu tun (No-op)."
+              echo "Kein PR im labeled-/dispatch-Event — nichts zu tun (No-op)."
               exit 0
             fi
             pr_json="$(gh pr view "$pr" --repo "$REPO" --json number,isDraft,labels,state)"
@@ -316,10 +327,29 @@ jobs:
           fi
 
           # Mergeable / kein Konflikt? mergeable kann unmittelbar nach Events noch UNKNOWN sein
-          # (GitHub berechnet asynchron) -> dann lieber No-op und auf das naechste Event warten.
-          view="$(gh pr view "$pr" --repo "$REPO" --json mergeable,mergeStateStatus)"
-          mergeable="$(echo "$view" | jq -r '.mergeable')"
-          merge_state="$(echo "$view" | jq -r '.mergeStateStatus')"
+          # (GitHub berechnet asynchron neu). Race dokumentiert an PR #876 (18.08.): Das
+          # Review-Abschluss-Event war das LETZTE des PR, das Gate sah mergeable=UNKNOWN, no-opte
+          # "warte auf naechstes Event" — und kein Folge-Event weckte es je wieder (PR blieb trotz
+          # ai:reviewed + CLEAN unmerged). Daher dieselbe Retry-Mechanik wie oben bei der
+          # Check-Sichtbarkeit: Backoff-Schleife (2/3/5/8s), Abbruch sobald GitHub ein Ergebnis
+          # liefert. Bleibt UNKNOWN, weiter wie bisher (No-op) — der Sweep bzw. das naechste Event
+          # heilt.
+          mergeable="UNKNOWN"
+          merge_state="UNKNOWN"
+          mdelays=(2 3 5 8)
+          for attempt in 1 2 3 4 5; do
+            view="$(gh pr view "$pr" --repo "$REPO" --json mergeable,mergeStateStatus)"
+            mergeable="$(echo "$view" | jq -r '.mergeable')"
+            merge_state="$(echo "$view" | jq -r '.mergeStateStatus')"
+            if [ "$mergeable" != "UNKNOWN" ]; then
+              break
+            fi
+            if [ "$attempt" -lt 5 ]; then
+              d="${mdelays[$((attempt - 1))]}"
+              echo "mergeable noch UNKNOWN (Versuch $attempt/5) — ${d}s Pause, erneut pruefen."
+              sleep "$d"
+            fi
+          done
           if [ "$mergeable" != "MERGEABLE" ]; then
             # Falls explizit nicht mergebar wegen Merge-Konflikten (DIRTY), setze ai:needs-fixup
             # damit der Fixup-Workflow die Konflikte auflösen kann
