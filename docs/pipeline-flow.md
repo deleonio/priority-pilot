@@ -4,13 +4,18 @@ Dieser Überblick zeigt, wie ein Ticket von der Analyse bis zum Merge durch die 
 Workflows läuft. **Kanten = Trigger**, **fett = Label-Events**, gestrichelt = `workflow_run`/sonstige
 Events. Stand: Gate + Auto-Merge sind zu **einem** Workflow (`pr-gate-merge.yml`)
 zusammengelegt; Triage + Re-Triage laufen in **einem** Workflow (`01-claude-triage.yml`,
-Trigger `issues` [opened/labeled/unlabeled]). Der frühere `@agent`-Kommentar-Trigger ist bewusst
+Trigger `issues` [labeled/unlabeled]). Der frühere `@agent`-Kommentar-Trigger ist bewusst
 entfernt — Kommentare (insbesondere Bot-Kommentare) dürfen nichts anstoßen.
+
+**Ein neues Issue startet NICHTS.** Der `issues.opened`-Trigger ist bewusst entfernt: Die
+Pipeline beginnt erst, wenn ein Mensch `ai:needs-analyse` setzt. Damit ist kontrollierbar,
+welche Tickets in den Flow gehen und wann — Sammel-Anlage, Entwürfe und Fremd-Reports bleiben
+liegen, bis sie freigegeben werden.
 
 **Label-Schema (Issue #851, verschlankt in #873):** Jede Phase triggert auf GENAU EIN
 `ai:needs-*`-Label und konsumiert es; die erfolgreiche Phase setzt den Trigger der Folgephase
-plus — nur wo Logik sie liest — ein Done-Label: `ai:analysed` (Erst-Triage-Guard +
-unblock-Parkplatz; Entfernen durch den Menschen = Re-Triage-Trigger), `ai:reviewed` (Gate-Merge-
+plus — nur wo Logik sie liest — ein Done-Label: `ai:analysed` (unblock-Parkplatz +
+Konsumiert-Check; Entfernen durch den Menschen = Re-Triage-Trigger), `ai:reviewed` (Gate-Merge-
 Trigger), `ai:documented` (fail-closed-Invariante
 des Documenters). Rein anzeigende Done-Marker (`ai:ux-reviewed`, `ai:specified`,
 `ai:implemented`, `ai:fixed`) sind gestrichen: Keine Logik las sie, jedes Add startete 4 Issue-/
@@ -20,7 +25,7 @@ bzw. 3 PR-Workflows als No-Op. `ai:needs-human` (warum + was der Mensch tun soll
 ```mermaid
 flowchart TD
     %% ====== Eintritt ======
-    start([Issue geöffnet<br/>OWNER/MEMBER/COLLAB]):::evt
+    start([Mensch gibt Issue frei<br/>Label ai:needs-analyse]):::evt
     pushmain([Push auf main<br/>z. B. nach Merge]):::evt
 
     %% ====== Issue-Phase ======
@@ -48,7 +53,7 @@ flowchart TD
     human([⚠️ Mensch<br/>> 10 PR-Commits]):::stop
 
     %% ---- Issue-Trigger ----
-    start -->|issues.opened| triage
+    start -->|"issues.labeled: ai:needs-analyse"| triage
     triage -->|"🟢 UI: label ai:analysed + ai:needs-ux-ui"| ux
     triage -->|"🟢 Nicht-UI: label ai:analysed + ai:needs-spec"| spec
     ux -->|"label: ai:needs-spec"| spec
@@ -110,22 +115,22 @@ flowchart TD
 
 **Trigger-Labels (`ai:needs-*`)** — jede Phase reagiert auf genau eines und konsumiert es:
 
-| Label              | Gesetzt von                                                  | Entfernt von (Konsum) | Triggert        |
-| ------------------ | ------------------------------------------------------------ | --------------------- | --------------- |
-| `ai:needs-analyse` | Mensch (Re-Triage), issue-unblock (Nachfolger-Freigabe)      | triage                | `triage.yml`    |
-| `ai:needs-ux-ui`   | triage (bei 🟢 + UI-Bezug)                                   | ux                    | `ux.yml`        |
-| `ai:needs-spec`    | triage (bei 🟢 + Nicht-UI), ux (bei Erfolg)                  | spec                  | `spec.yml`      |
-| `ai:needs-impl`    | spec (bei Erfolg)                                            | implement             | `implement.yml` |
-| `ai:needs-review`  | implement, pr-needs-review-label (nur menschlich), **fixup** | review                | `pr-review.yml` |
-| `ai:needs-fixup`   | review (🔴), **gate-merge**, **conflict-scan**               | fixup                 | `pr-fixup.yml`  |
+| Label              | Gesetzt von                                                        | Entfernt von (Konsum) | Triggert        |
+| ------------------ | ------------------------------------------------------------------ | --------------------- | --------------- |
+| `ai:needs-analyse` | Mensch (Einstieg + Re-Triage), issue-unblock (Nachfolger-Freigabe) | triage                | `triage.yml`    |
+| `ai:needs-ux-ui`   | triage (bei 🟢 + UI-Bezug)                                         | ux                    | `ux.yml`        |
+| `ai:needs-spec`    | triage (bei 🟢 + Nicht-UI), ux (bei Erfolg)                        | spec                  | `spec.yml`      |
+| `ai:needs-impl`    | spec (bei Erfolg)                                                  | implement             | `implement.yml` |
+| `ai:needs-review`  | implement, pr-needs-review-label (nur menschlich), **fixup**       | review                | `pr-review.yml` |
+| `ai:needs-fixup`   | review (🔴), **gate-merge**, **conflict-scan**                     | fixup                 | `pr-fixup.yml`  |
 
 **Done-Labels (`ai:<Vergangenheitsform>`)** — nur wo Logik sie liest (Issue #873):
 
-| Label           | Gesetzt von               | Gelesen von                                                                                           |
-| --------------- | ------------------------- | ----------------------------------------------------------------------------------------------------- |
-| `ai:analysed`   | triage (idempotent)       | Erst-Triage-ABSENT-Guard, issue-unblock (Parkplatz); **Entfernen** durch Menschen = Re-Triage-Trigger |
-| `ai:reviewed`   | review (🟢 / needs-human) | gate-merge (Trigger + Merge-Vorbedingung), fixup (Abräumen)                                           |
-| `ai:documented` | documenter                | Documenter-Precheck (fail-closed)                                                                     |
+| Label           | Gesetzt von               | Gelesen von                                                                                                      |
+| --------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `ai:analysed`   | triage (idempotent)       | Konsumiert-Check des unlabeled-Wegs, issue-unblock (Parkplatz); **Entfernen** durch Menschen = Re-Triage-Trigger |
+| `ai:reviewed`   | review (🟢 / needs-human) | gate-merge (Trigger + Merge-Vorbedingung), fixup (Abräumen)                                                      |
+| `ai:documented` | documenter                | Documenter-Precheck (fail-closed)                                                                                |
 
 **Info-Labels** — kein Trigger, keine automatische Aktion:
 
@@ -176,8 +181,7 @@ Verdict (PR-Phasen: `/tmp/claude-verdict`), der Workflow setzt die Labels.
   `GITHUB_TOKEN`, damit das Entfernen der Phasen-Trigger nach einem Timeout **nicht**
   kaskadiert.)
 - **`ai:analysed`** ist Done-Marker der Analyse und manueller Re-Triage-Trigger: triage/retriage
-  setzen es; der Erst-Triage-Pre-Check nutzt es als Abwesenheits-Guard (schützt vorgelabelte
-  Sub-Issues); sein Entfernen (`unlabeled`) startet die erneute Analyse — der Pre-Check verlangt
+  setzen es; sein Entfernen (`unlabeled`) startet die erneute Analyse — der Pre-Check verlangt
   dann, dass es bis zum Job-Start abwesend bleibt (Konsumiert-Check bei parallelen Läufen).
 - **Push-Reset-Mechanik:** Jeder menschliche Push auf den PR-Branch (`synchronize`-Event) löst
   `pr-needs-review-label.yml` aus. Dieser entfernt die alten Ergebnis-Labels (`ai:needs-fixup`,
@@ -272,10 +276,10 @@ Verdict (PR-Phasen: `/tmp/claude-verdict`), der Workflow setzt die Labels.
 
 ## Eintrittspunkte
 
-- **Neues Issue** (`issues.opened`) von OWNER/MEMBER/COLLABORATOR und ohne `ai:analysed` →
-  `triage.yml`.
-- **Setzen von `ai:needs-analyse`** (`issues.labeled`) → `triage.yml` (erzwungene Neu-Analyse;
-  gesetzt von Mensch oder `issue-unblock.yml` beim Merge des Blockers).
+- **Setzen von `ai:needs-analyse`** (`issues.labeled`) → `triage.yml`. Das ist der **einzige
+  Einstieg für neue Issues**; ein `issues.opened` startet nichts (bewusst entfernt, s. o.).
+  Gesetzt von Mensch oder `issue-unblock.yml` beim Merge des Blockers; wirkt auf ein bereits
+  analysiertes Ticket als erzwungene Neu-Analyse.
 - **Entfernen von `ai:analysed`** (`issues.unlabeled`) → `triage.yml` (manuelle Neu-Analyse;
   der Laufzeit-Pre-Check verlangt, dass das Label abwesend bleibt — sonst Trigger konsumiert).
 - **Push auf main** (`push` auf `main`, z. B. nach einem Merge) → `pr-conflict-scan.yml`
