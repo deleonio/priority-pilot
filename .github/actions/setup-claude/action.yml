@@ -297,8 +297,22 @@ runs:
     # Deshalb setzt diese Action Endpoint, Modell-Aliase und Key pro Lauf via
     # GITHUB_ENV, gesteuert über vars.LLM_PROVIDER.
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    - name: Claude Code installieren
+    # Claude Code CLI cachen — ohne Cache kostet npm install -g auf jedem kalten
+    # Runner 30–60s. Der Cache-Key ist statisch pro OS; bei Eviction (>7 Tage
+    # ungenutzt oder 10 GB Repo-Limit) reinstalliert ein Lauf frisch und
+    # schreibt den Cache neu. Cache-Bust bei Bedarf über Suffix (v2, v3, …).
+    - name: Claude Code CLI sichern
+      id: cache-claude
       if: steps.preflight.outputs.configured == 'true'
+      uses: actions/cache@v4
+      with:
+        path: |
+          /usr/local/lib/node_modules/@anthropic-ai
+          /usr/local/bin/claude
+        key: claude-code-cli-${{ runner.os }}-v1
+
+    - name: Claude Code installieren
+      if: steps.preflight.outputs.configured == 'true' && steps.cache-claude.outputs.cache-hit != 'true'
       shell: bash
       run: |
         npm install -g @anthropic-ai/claude-code
