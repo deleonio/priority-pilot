@@ -169,8 +169,13 @@ test.describe('#406 Wort-Bild-Marke vergrößern + App-Namen-H1 entfernen', () =
 		await expect(header.locator('.user-info').first()).toBeVisible();
 
 		// Der redundante Text-H1 „Priority Pilot" darf nicht mehr sichtbar sein.
+		//
+		// Geprüft wird die *Überschrift* — das ist die Aussage von #406. Der App-Name als solcher steht
+		// seit #787 wieder als schlichtes Label im Header (`.app-name`, ab 64rem sichtbar): Seit #485
+		// ist das Logo icon-only und trägt die Wortmarke nicht mehr, der Name ist damit nicht länger
+		// redundant. Eine zweite H1 entsteht dabei nicht.
 		await expect(page.getByRole('heading', { name: 'Priority Pilot', level: 1 })).toHaveCount(0);
-		await expect(page.getByText('Priority Pilot', { exact: true })).toBeHidden();
+		await expect(page.getByRole('heading', { name: 'Priority Pilot' })).toHaveCount(0);
 	});
 
 	/**
