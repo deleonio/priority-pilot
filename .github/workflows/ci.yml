@@ -87,7 +87,7 @@ jobs:
       # komplette Server-Suite ab. Frontend-lib-Coverage ist vorbereitet (vitest.config.ts), aber
       # erst nach `pnpm add -D @vitest/coverage-v8` aktiv.
       - name: Coverage-Gate (server/src/logics)
-        run: pnpm --filter priority-pilot test:coverage
+        run: pnpm --filter server test:coverage
 
   # E2E gesharded ueber eine Matrix: jeder Shard ist eine EIGENE Runner-VM mit eigenem localhost —
   # dadurch kollidieren die festen Ports (Backend 3000 / Vite 4173) NICHT zwischen den Shards, und

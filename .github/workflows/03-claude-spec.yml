@@ -89,7 +89,7 @@ jobs:
         id: setup
         uses: ./.github/actions/setup-claude
         with:
-          needs-mcp: false
+          needs-mcp: true
           tools-tier: full
           event-type: ${{ github.event_name }}
           ticket-ref: ${{ github.event.issue.number }}

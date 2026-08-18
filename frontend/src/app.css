@@ -749,9 +749,54 @@ body {
 	margin-bottom: 1rem;
 }
 
-/* Eine Säule im Gewichtungs-Editor: Slider plus darunterliegende Kurzbeschreibung. */
+/* Responsive Grid für Säulen-Gewichtung (#763) — bewusst eine eigene Klasse statt global auf
+   .form-grid: Letztere teilen sich sieben Formulare (u. a. TaskForm/QuickCaptureModal), globale
+   Spalten quetschen dort .range-inputs-row in halbbreite Zellen und verschieben die Slider
+   vertikal (#727-Regression, Y-Versatz 18px). */
+.pillar-weights-grid {
+	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+/* Eine Säule im Gewichtungs-Editor: Card-Struktur für Slider + Beschreibung (#763) */
+.pillar-weight-row {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	padding: 1rem;
+	border: 1px solid var(--pp-border);
+	border-radius: 0.5rem;
+	background: var(--pp-bg-secondary, var(--color-misc-200));
+}
+
+.pillar-weight-row kol-input-range {
+	min-height: 44px; /* Touch-Ziele (Mobile-First, BITV 9.1.3.3) */
+}
+
 .pillar-weight-row .pillar-description {
-	margin: -0.5rem 0 0;
+	margin: 0;
+	font-size: 0.875rem;
+	color: var(--pp-text-muted);
+}
+
+/* Mobile: 1-spaltiges Stack-Layout (#763) */
+@media (max-width: 767px) {
+	.pillar-weights-grid {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* Tablet: 2-spaltiges Layout (#763) */
+@media (min-width: 768px) and (max-width: 1023px) {
+	.pillar-weights-grid {
+		grid-template-columns: repeat(2, 1fr);
+	}
+}
+
+/* Desktop: 3-4-spaltiges Layout (#763) */
+@media (min-width: 1024px) {
+	.pillar-weights-grid {
+		grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+	}
 }
 
 .modal-actions {
@@ -759,6 +804,7 @@ body {
 	gap: 0.5rem;
 	flex-wrap: wrap;
 	margin-top: 1rem;
+	justify-content: flex-end;
 }
 
 .dependency-list {
