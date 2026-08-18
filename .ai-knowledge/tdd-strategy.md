@@ -6,12 +6,12 @@
 > ([ticket-triage.md](ticket-triage.md) Schritt 1/4), die Issue-Templates fragen sie ab.
 > **Stufe 2 (Szenario 2):** Die Umsetzung folgt Red-Green, `pnpm test` ist PR-Pflicht, das Review
 > macht fehlende/rote Tests zum Gate ([pr-review.md](pr-review.md) Schritt 3/5).
-> **Stufe 3 (Szenario 3):** Eigenes Spec-Gate — die Triage setzt `ai:spec-ready` statt `ai:ready`,
-> zwischen `ai:spec-ready` und dem Spec-Lauf laeuft optional die UX-Beratung (die Triage entscheidet
+> **Stufe 3 (Szenario 3):** Eigenes Spec-Gate — die Triage setzt `ai:needs-ux-ui` statt `ai:needs-impl`,
+> zwischen `ai:needs-ux-ui` und dem Spec-Lauf laeuft optional die UX-Beratung (die Triage entscheidet
 > per UI-Bezug-Feld im Analyse-Block; Nicht-UI-Tickets ueberspringen UX),
 > ein eigener Lauf ([ticket-spec.md](ticket-spec.md),
 > [spec.yml](../.github/workflows/03-claude-spec.yml)) schreibt die roten Tests auf einen
-> Draft-PR und gibt per `ai:ready` frei; die Umsetzung macht sie grün, ohne sie zu ändern
+> Draft-PR und gibt per `ai:needs-impl` frei; die Umsetzung macht sie grün, ohne sie zu ändern
 > (Gewaltenteilung).
 
 ## Problem: Die KI „schlingert", weil eine _ausführbare_ Spezifikation fehlt
@@ -70,17 +70,17 @@ Red-Green-Refactor-Loop.
 **Kosten:** mittel (Workflow-Doku + Template). **Risiko:** tautologische Tests (die KI passt Tests
 dem Code an statt umgekehrt) — wird durch das Review-Mapping (Test ↔ AK) abgefedert.
 
-### Szenario 3 — „Spec-Gate mit Gewaltenteilung" (Spec = Tests, getrennt erzeugt, _vor_ `ai:ready`) ✅ adoptiert
+### Szenario 3 — „Spec-Gate mit Gewaltenteilung" (Spec = Tests, getrennt erzeugt, _vor_ `ai:needs-impl`) ✅ adoptiert
 
 **Kerngedanke:** Wer die Tests schreibt, schreibt **nicht** den Code. Die roten Tests entstehen in
 einem eigenen Schritt vor der Freigabe.
 
 **Was sich ändert:**
 
-- Neues Label **`ai:spec-ready`** zwischen `ai:analyzed` und `ai:ready`: Triage (oder ein
-  dedizierter Spec-Lauf) legt **rote Tests mit echten Assertions** an. Zwischen `ai:spec-ready`
+- Neues Label **`ai:needs-ux-ui`** zwischen `ai:analysed` und `ai:needs-impl`: Triage (oder ein
+  dedizierter Spec-Lauf) legt **rote Tests mit echten Assertions** an. Zwischen `ai:needs-ux-ui`
   und dem Spec-Lauf laeuft optional die UX-Beratung (Phase 2, entschieden per UI-Bezug in der
-  Triage; Nicht-UI-Tickets setzen `ux:ready` sofort und ueberspringen UX). `ai:ready` erst, wenn die
+  Triage; Nicht-UI-Tickets setzen `ai:needs-spec` sofort und ueberspringen UX). `ai:needs-impl` erst, wenn die
   roten Tests stehen.
 - [ticket-implementation.md](ticket-implementation.md): Die Umsetzung darf die Tests **nicht ändern**,
   nur grün machen (Tests sind der Vertrag).

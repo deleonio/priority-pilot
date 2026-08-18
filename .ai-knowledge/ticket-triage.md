@@ -6,15 +6,15 @@ Slash-Commands (z. B. für Coding-Agent unter `commands/`) verweisen nur auf die
 Tickets = GitHub-Issues von `deleonio/priority-pilot`. Voraussetzung: `gh` ist authentifiziert.
 
 **Auswahlkriterium:** Analysiert werden alle **offenen** Issues, die **noch nicht** das Label
-`ai:analyzed` tragen. Das Label markiert ein Issue als erledigt und verhindert Doppel-Analysen —
+`ai:analysed` tragen. Das Label markiert ein Issue als erledigt und verhindert Doppel-Analysen —
 der Workflow ist damit wiederholbar (idempotent). Eine **konkret übergebene Nummer** wird immer
-verarbeitet, auch wenn sie bereits `ai:analyzed` trägt (Re-Triage, siehe Schritt 1).
+verarbeitet, auch wenn sie bereits `ai:analysed` trägt (Re-Triage, siehe Schritt 1).
 
 ## Schritt 1 — Ticket(s) wählen & analysieren
 
 - Offene, noch nicht analysierte Issues finden (index-unabhängig, **sofort konsistent**):
-  `gh issue list --state open --json number,title,labels --jq '[.[] | select((.labels | map(.name)) | index("ai:analyzed") | not)] | .[] | "\(.number)\t\(.title)"'`
-  Hinweis: `gh issue list --state open --search '-label:"ai:analyzed"'` funktioniert ebenfalls,
+  `gh issue list --state open --json number,title,labels --jq '[.[] | select((.labels | map(.name)) | index("ai:analysed") | not)] | .[] | "\(.number)\t\(.title)"'`
+  Hinweis: `gh issue list --state open --search '-label:"ai:analysed"'` funktioniert ebenfalls,
   nutzt aber den GitHub-Suchindex (einige Sekunden Verzögerung nach dem Labeln). Bei
   **Batch-Läufen** die `--json`/`jq`-Variante bevorzugen, sonst kann ein gerade gelabeltes
   Issue erneut ausgewählt werden.
@@ -39,7 +39,7 @@ verarbeitet, auch wenn sie bereits `ai:analyzed` trägt (Re-Triage, siehe Schrit
   Lösungsweg, offene Fragen/Risiken sowie **prüfbare Akzeptanzkriterien** und die daraus
   abgeleiteten **Testfälle** (ausformuliert in Schritt 4; Hintergrund:
   [tdd-strategy.md](tdd-strategy.md)).
-- **Re-Triage bestehender Analyse:** Trägt das Issue bereits `ai:analyzed`, lebt die Analyse in einem
+- **Re-Triage bestehender Analyse:** Trägt das Issue bereits `ai:analysed`, lebt die Analyse in einem
   markierten Block im **Body** (`<!-- KI-ANALYSE:START stand=… -->` … `<!-- KI-ANALYSE:END -->`).
   1. Body laden, den Analyse-Block zwischen den Markern extrahieren und den `stand`-Timestamp auslesen:
      `gh issue view <nr> --json body -q .body`.
@@ -97,8 +97,8 @@ Trifft nichts davon zu, bleibt es beim normalen Ablauf (nur Analyse-Block im Bod
 
 Bei einem zu großen Ticket:
 
-- **Vorbedingung — Labels sicherstellen:** Die in diesem Schritt verwendeten Labels (`ai:analyzed`,
-  bei sofort umsetzbaren Teilaufgaben auch `ai:spec-ready`) müssen **existieren**, sonst schlägt
+- **Vorbedingung — Labels sicherstellen:** Die in diesem Schritt verwendeten Labels (`ai:analysed`,
+  bei sofort umsetzbaren Teilaufgaben auch `ai:needs-spec`) müssen **existieren**, sonst schlägt
   `gh issue create --label …` fehl. Das Anlegen aus Schritt 5 (`gh label create …`) daher **vor**
   der ersten Sub-Issue-Anlage ausführen.
 - Aus der Analyse **2–5 möglichst unabhängige Teilaufgaben** ableiten (jede in **einem** PR
@@ -110,7 +110,7 @@ Bei einem zu großen Ticket:
   im Issue), z. B. per `--body-file -` und Heredoc:
 
   ```sh
-  gh issue create --title "<Teilaufgabe>" --label "ai:analyzed" --body-file - <<'EOF'
+  gh issue create --title "<Teilaufgabe>" --label "ai:analysed" --body-file - <<'EOF'
   Teil von #<eltern-nr>
 
   <!-- KI-ANALYSE:START stand=<ISO-8601-UTC> -->
@@ -139,15 +139,15 @@ Bei einem zu großen Ticket:
   (Node-IDs über `gh issue view <nr> --json id`.) Nur **echte** Reihenfolge-Abhängigkeiten verknüpfen;
   unabhängige Sub-Issues bleiben ohne `blocked-by`. Die Kanten gedrosselt setzen — die Dependency-API
   kann bei zu schnellen Schreibzugriffen sekundär rate-limiten.
-- **Rekursionsschutz (Pflicht):** Sub-Issues werden direkt mit `ai:analyzed` angelegt (sie **sind**
+- **Rekursionsschutz (Pflicht):** Sub-Issues werden direkt mit `ai:analysed` angelegt (sie **sind**
   bereits das Analyse-Ergebnis) und fallen so aus dem Auswahlkriterium von Schritt 1 — sie werden
   nicht erneut triagiert/zerlegt. Es ist nur **eine** Zerlegungsebene zulässig: ein Sub-Issue wird
   **nicht** weiter zerlegt. Maximal **5** Sub-Issues, um eine Issue-Flut zu vermeiden.
-- Sind Sub-Issues sofort umsetzbar (Ampel 🟢), zusätzlich `ai:spec-ready` setzen — entweder direkt
-  beim Anlegen (`--label "ai:analyzed,ai:spec-ready"`) oder nachträglich
-  (`gh issue edit <nr> --add-label "ai:spec-ready"`) —, damit die Spec-Stufe (`/spec-ticket`) die
+- Sind Sub-Issues sofort umsetzbar (Ampel 🟢), zusätzlich `ai:needs-spec` setzen — entweder direkt
+  beim Anlegen (`--label "ai:analysed,ai:needs-spec"`) oder nachträglich
+  (`gh issue edit <nr> --add-label "ai:needs-spec"`) —, damit die Spec-Stufe (`/spec-ticket`) die
   roten Tests schreibt. **Bei sequenziellen Ketten (`blocked-by`, s. o.) nur den ersten,
-  unblockierten Sub-Issue** auf `ai:spec-ready` heben; die geblockten Nachfolger bleiben bei
+  unblockierten Sub-Issue** auf `ai:needs-spec` heben; die geblockten Nachfolger bleiben bei
   `ai:analyzed` (auch wenn selbst 🟢) und werden **automatisch freigegeben, sobald ihr Vorgänger
   gemergt ist**: [`issue-unblock.yml`](../.github/workflows/issue-unblock.yml) entfernt
   dann ihr `ai:analyzed` (per App-Token) und stößt eine Re-Triage gegen den neuen Code-Stand an, die

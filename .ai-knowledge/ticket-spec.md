@@ -12,17 +12,17 @@ tautologischen Tests, die nachträglich dem Code angepasst werden — die Tests 
 
 Tickets = GitHub-Issues von `deleonio/priority-pilot`. Voraussetzung: `gh` ist authentifiziert.
 
-**Auswahlkriterium:** Bearbeitet werden **offene** Issues mit Label `ux:ready` (gesetzt von der
+**Auswahlkriterium:** Bearbeitet werden **offene** Issues mit Label `ai:needs-spec` (gesetzt von der
 UX-Phase bei UI-Tickets oder direkt von der Triage bei Nicht-UI-Tickets, siehe
-[ticket-triage.md](ticket-triage.md) Schritt 5 / [ticket-ux.md](ticket-ux.md)) UND `ai:spec-ready`
-UND `ai:analyzed`, für die **noch kein** offener (Draft-)PR existiert (Idempotenz).
+[ticket-triage.md](ticket-triage.md) Schritt 5 / [ticket-ux.md](ticket-ux.md)) UND `ai:needs-ux-ui`
+UND `ai:analysed`, für die **noch kein** offener (Draft-)PR existiert (Idempotenz).
 
-Label-Kette: `ai:analyzed` → `ai:spec-ready` → `ux:ready` → **`ai:ready` (dieser Workflow)** → Umsetzung → PR.
+Label-Kette: `ai:analysed` → `ai:needs-ux-ui` → `ai:needs-spec` → **`ai:needs-impl` (dieser Workflow)** → Umsetzung → PR.
 
 ## Schritt 1 — Ticket wählen & Branch anlegen
 
-- Offene Issues mit `ai:spec-ready` finden (index-unabhängig, sofort konsistent):
-  `gh issue list --state open --label "ai:spec-ready" --json number,title --jq '.[] | "\(.number)\t\(.title)"'`
+- Offene Issues mit `ai:needs-spec` finden (index-unabhängig, sofort konsistent):
+  `gh issue list --state open --label "ai:needs-spec" --json number,title --jq '.[] | "\(.number)\t\(.title)"'`
 - Eine konkret übergebene Nummer hat Vorrang; sonst der Reihe nach (ältestes zuerst).
 - **Idempotenz:** Existiert bereits ein offener PR mit `Closes #<nr>` für das Issue, **nicht** erneut
   spezifizieren — der Vertrag steht schon. Lauf für dieses Issue beenden.
@@ -88,20 +88,20 @@ Label-Kette: `ai:analyzed` → `ai:spec-ready` → `ux:ready` → **`ai:ready` (
 
 ## Schritt 4 — Übergabe an die Umsetzung
 
-- Am Issue **`ai:ready` setzen** und **`ai:spec-ready` entfernen** — damit greift die Umsetzung
+- Am Issue **`ai:needs-impl` setzen** und **`ai:needs-spec` entfernen** — damit greift die Umsetzung
   ([ticket-implementation.md](ticket-implementation.md), Schritt 1) den Draft-PR auf und macht die
-  roten Tests grün, **ohne sie zu ändern**. **`ux:ready` bleibt kleben** — die Umsetzung verlangt
+  roten Tests grün, **ohne sie zu ändern**. **`ai:needs-spec` bleibt kleben** — die Umsetzung verlangt
   es als Pre-Check-Bedingung.
   - Label bei Bedarf vorher anlegen
-    (`gh label create "ai:ready" --color 0E8A16 --description "Analyse klar; zur Umsetzung freigegeben"`),
-    dann `gh issue edit <nr> --add-label "ai:ready" --remove-label "ai:spec-ready"`.
-  - **Partial-Retry-Hinweis:** Bei Teilerfolg (Spec-PR ohne Tests) entfernt der Workflow ux:ready
-    und setzt es sofort wieder (nach ai:spec-ready). Das `ux:ready`-labeled-Event retriggert die
-    Spec automatisch; die UX-Phase bleibt dabei No-op (ux:ready ist beim Pre-Check-Zeitpunkt
+    (`gh label create "ai:needs-impl" --color 0E8A16 --description "Spec klar; zur Umsetzung freigegeben"`),
+    dann `gh issue edit <nr> --add-label "ai:needs-impl" --remove-label "ai:needs-spec"`.
+  - **Partial-Retry-Hinweis:** Bei Teilerfolg (Spec-PR ohne Tests) entfernt der Workflow ai:needs-spec
+    und setzt es sofort wieder (nach ai:needs-ux-ui). Das `ai:needs-spec`-labeled-Event retriggert die
+    Spec automatisch; die UX-Phase bleibt dabei No-op (ai:needs-spec ist beim Pre-Check-Zeitpunkt
     wieder vorhanden).
   - **Hard-Fail-Recovery:** Bricht die Post-Assertion mit `exit 1` ab (kein VERDICT + keine
-    Artefakte), bleiben `ai:spec-ready` und `ux:ready` am Issue kleben, OHNE dass ein Event
-    feuert — die Kette steht. Anstoß: `ux:ready` entfernen und neu setzen (labeled-Event startet
+    Artefakte), bleiben `ai:needs-spec` und `ai:needs-ux-ui` am Issue kleben, OHNE dass ein Event
+    feuert — die Kette steht. Anstoß: `ai:needs-spec` entfernen und neu setzen (labeled-Event startet
     die Spec erneut; die UX bleibt No-op).
 
 ## Hinweise

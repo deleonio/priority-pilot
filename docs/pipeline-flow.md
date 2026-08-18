@@ -39,12 +39,12 @@ flowchart TD
 
     %% ---- Issue-Trigger ----
     start -->|issues.opened| triage
-    triage -->|"label: ai:spec-ready 🟢"| ux
-    ux -->|"label: ux:ready"| spec
-    spec -->|"label: ai:ready"| implement
+    triage -->|"label: ai:needs-ux-ui 🟢"| ux
+    ux -->|"label: ai:needs-spec"| spec
+    spec -->|"label: ai:needs-impl"| implement
 
-    %% ---- Nicht-UI-Skip: Triage setzt ux:ready sofort → UX wird No-op → Spec direkt ----
-    triage -.->|"UI-Bezug: nein (ux:ready sofort)"| spec
+    %% ---- Nicht-UI-Skip: Triage setzt ai:needs-spec sofort → UX wird No-op → Spec direkt ----
+    triage -.->|"UI-Bezug: nein (ai:needs-spec sofort)"| spec
 
     %% ---- Übergang Issue -> PR (implement setzt ai:needs-review SELBST als kontrollierten
     %% letzten Schritt — pr-needs-review-label.yml reagiert bewusst NICHT auf bot-erzeugte
@@ -52,13 +52,13 @@ flowchart TD
     implement -->|"label: ai:needs-review"| review
 
     %% ---- Push-Reset-Pfad (jeder menschliche Push auf den PR-Branch) + menschlich erstellte PRs ----
-    gatemerge -.->|"menschlicher Push<br/>(Reset ai:ready-to-merge)"| autolabel
-    fixup -.->|"menschlicher Push<br/>(Reset ai:needs-changes)"| autolabel
+    gatemerge -.->|"menschlicher Push<br/>(Reset ai:reviewed)"| autolabel
+    fixup -.->|"menschlicher Push<br/>(Reset ai:needs-fixup)"| autolabel
     autolabel -->|"label: ai:needs-review<br/>(nur menschliche Aktoren)"| review
 
     %% ---- Review-Verzweigung ----
-    review -->|"label: ai:needs-changes 🔴"| fixup
-    review -->|"label: ai:ready-to-merge 🟢"| gatemerge
+    review -->|"label: ai:needs-fixup 🔴"| fixup
+    review -->|"label: ai:reviewed 🟢"| gatemerge
 
     %% ---- Fixup-Schleife ----
     fixup -->|"label: ai:needs-review<br/>(erneutes Review)"| review
@@ -67,8 +67,8 @@ flowchart TD
     %% ---- Deterministisches Gate (workflow_run) ----
     review -.->|"CI/Review fertig (workflow_run)"| gatemerge
     fixup -.->|"Push → CI fertig"| gatemerge
-    gatemerge -->|"CI/Reviewer 🔴 → label: ai:needs-changes"| fixup
-    gatemerge -->|"alle 🟢 + ai:ready-to-merge → merge"| merged
+    gatemerge -->|"CI/Reviewer 🔴 → label: ai:needs-fixup"| fixup
+    gatemerge -->|"alle 🟢 + ai:reviewed → merge"| merged
 
     %% ---- Abschluss ----
     merged -.->|pull_request.closed| cancel
@@ -77,12 +77,12 @@ flowchart TD
 
     %% ---- Merge-getriebenes Unblocking aufeinander aufbauender Issues ----
     merged -.->|"pull_request.closed + merged"| unblock
-    unblock -->|"Nachfolger: − ai:analyzed → Re-Triage"| triage
+    unblock -->|"Nachfolger: − ai:analysed → Re-Triage"| triage
 
     %% ---- Konflikt-Scan bei Push auf main (z. B. nach Merge) ----
     merged -.->|"pusht nach main"| pushmain
     pushmain -.->|"push: main"| conflictscan
-    conflictscan -->|"offener PR mit Merge-Konflikt<br/>→ label: ai:needs-changes"| fixup
+    conflictscan -->|"offener PR mit Merge-Konflikt<br/>→ label: ai:needs-fixup"| fixup
 
     classDef wf fill:#1f6feb,stroke:#0b3d91,color:#fff;
     classDef evt fill:#2da44e,stroke:#116329,color:#fff;
@@ -92,36 +92,36 @@ flowchart TD
 
 ## Die Label-Kette in einer Zeile
 
-`ai:spec-ready` → **ux** → `ux:ready` → **spec** → `ai:ready` → **implement** → `ai:needs-review` → **review** →
-( `ai:needs-changes` → **fixup** → `ai:needs-review` → **review** )\* → `ai:ready-to-merge` →
+`ai:needs-ux-ui` → **ux** → `ai:needs-spec` → **spec** → `ai:needs-impl` → **implement** → `ai:needs-review` → **review** →
+( `ai:needs-fixup` → **fixup** → `ai:needs-review` → **review** )\* → `ai:reviewed` →
 **gate-merge** → ✅
 
 ## Label-Referenz
 
-| Label               | Gesetzt von                                                  | Entfernt von                                                        | Triggert                                                      |
-| ------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------- | ------------------------------------------------------------- |
-| `ai:analyzed`       | triage (Triage- oder Re-Triage-Pfad)                         | **issue-unblock** (Merge des Blockers), manuell                     | _Setzen:_ Vorbedingung; _Entfernen:_ `triage.yml` (Re-Triage) |
-| `ai:spec-ready`     | triage (bei 🟢, Triage- oder Re-Triage-Pfad)                 | spec (bei Erfolg)                                                   | `ux.yml` (bei UI-Tickets) / `spec.yml` (bei Nicht-UI: No-op)  |
-| `ux:ready`          | ux (bei UI-Tickets), triage (bei Nicht-UI-Tickets)           | _(kein automatisches Entfernen)_                                    | `spec.yml`                                                    |
-| `ai:ready`          | spec                                                         | _(kein automatisches Entfernen)_                                    | `implement.yml`                                               |
-| `ai:needs-review`   | implement, pr-needs-review-label (nur menschlich), **fixup** | review, gate-merge                                                  | `pr-review.yml`                                               |
-| `ai:needs-changes`  | review (🔴), **gate-merge**, **conflict-scan**               | **fixup**, **pr-needs-review-label** (bei Push)                     | `pr-fixup.yml`                                                |
-| `ai:ready-to-merge` | review (🟢)                                                  | **gate-merge** (rot/Konflikt), **pr-needs-review-label** (bei Push) | `pr-gate-merge.yml`                                           |
-| `ai:to-big-issue`   | triage/spec/implement (Timeout oder fehlendes Agent-Secret)  | manuell (nach Aufteilen / Secret-Fix)                               | _Entfernen:_ `triage.yml` (Neu-Analyse)                       |
+| Label             | Gesetzt von                                                  | Entfernt von                                                        | Triggert                                                      |
+| ----------------- | ------------------------------------------------------------ | ------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `ai:analysed`     | triage (Triage- oder Re-Triage-Pfad)                         | **issue-unblock** (Merge des Blockers), manuell                     | _Setzen:_ Vorbedingung; _Entfernen:_ `triage.yml` (Re-Triage) |
+| `ai:needs-ux-ui`  | triage (bei 🟢, Triage- oder Re-Triage-Pfad)                 | ux (bei Erfolg)                                                     | `ux.yml` (bei UI-Tickets) / `spec.yml` (bei Nicht-UI: No-op)  |
+| `ai:needs-spec`   | ux (bei UI-Tickets), triage (bei Nicht-UI-Tickets)           | _(kein automatisches Entfernen)_                                    | `spec.yml`                                                    |
+| `ai:needs-impl`   | spec                                                         | _(kein automatisches Entfernen)_                                    | `implement.yml`                                               |
+| `ai:needs-review` | implement, pr-needs-review-label (nur menschlich), **fixup** | review, gate-merge                                                  | `pr-review.yml`                                               |
+| `ai:needs-fixup`  | review (🔴), **gate-merge**, **conflict-scan**               | **fixup**, **pr-needs-review-label** (bei Push)                     | `pr-fixup.yml`                                                |
+| `ai:reviewed`     | review (🟢)                                                  | **gate-merge** (rot/Konflikt), **pr-needs-review-label** (bei Push) | `pr-gate-merge.yml`                                           |
+| `ai:to-big-issue` | triage/spec/implement (Timeout oder fehlendes Agent-Secret)  | manuell (nach Aufteilen / Secret-Fix)                               | _Entfernen:_ `triage.yml` (Neu-Analyse)                       |
 
 ## Schlüsselmechanik
 
 - **Labels werden mit GitHub-App-Token gesetzt** (nicht `GITHUB_TOKEN`) — nur so lösen sie die
   Folge-Workflows aus. Das ist der Motor der Kette. (Ausnahme: Timeout-Cleanups nutzen
-  `GITHUB_TOKEN`, damit das Entfernen von `ai:ready`/`ai:spec-ready` nach einem Timeout **nicht**
+  `GITHUB_TOKEN`, damit das Entfernen von `ai:needs-impl`/`ai:needs-spec` nach einem Timeout **nicht**
   kaskadiert.)
-- **`ai:analyzed`** ist Vorbedingung (kein Trigger): triage/retriage setzen es; spec/implement
+- **`ai:analysed`** ist Vorbedingung (kein Trigger): triage/retriage setzen es; spec/implement
   prüfen es per `contains(...)`.
 - **Push-Reset-Mechanik:** Jeder menschliche Push auf den PR-Branch (`synchronize`-Event) löst
-  `pr-needs-review-label.yml` aus. Dieser entfernt die alten Ergebnis-Labels (`ai:needs-changes`,
-  `ai:ready-to-merge`) und setzt `ai:needs-review` neu — der PR geht damit bei jedem Push wieder
+  `pr-needs-review-label.yml` aus. Dieser entfernt die alten Ergebnis-Labels (`ai:needs-fixup`,
+  `ai:reviewed`) und setzt `ai:needs-review` neu — der PR geht damit bei jedem Push wieder
   in den Review. Bot-Pushes (Fixup, Implement-Spec) werden ignoriert (Actor-Filter), um
-  Race-Conditions mit nebenläufigen Label-Switches zu vermeiden. Das bedeutet: **`ai:ready-to-merge`
+  Race-Conditions mit nebenläufigen Label-Switches zu vermeiden. Das bedeutet: **`ai:reviewed`
   ist nicht terminal** — ein menschlicher Push nach grünem Review setzt den PR zurück in den
   Review-Zustand. Soll ein PR mergen bleiben, muss er ohne weitere Pushes grün bleiben.
 - **`pr-needs-review-label.yml` labelt NUR menschliche Aktoren** — für alle drei Event-Typen
@@ -132,35 +132,35 @@ flowchart TD
     der Review auf einem noch unfertigen PR. Echte menschlich erstellte/freigegebene PRs labelt
     `pr-needs-review-label.yml` weiterhin sofort (sein eigentlicher Zweck, Ticket #116).
 - **review ↔ fixup** ist die einzige beabsichtigte Schleife, gedeckelt durch den Stop-Guard
-  (> 10 PR-Commits → `ai:needs-changes` bleibt, der PR-Autor wird getaggt). Der Stop-Guard ist ein
+  (> 10 PR-Commits → `ai:needs-fixup` bleibt, der PR-Autor wird getaggt). Der Stop-Guard ist ein
   **deterministischer Shell-Step** (zählt PR-Commits via `gh pr view --json commits`; eine
   semantische Trennung nur nach Fixup-Commits ist ohne unzuverlässige `ready_for_review`-Timeline
   nicht robust machbar — daher Heuristik alle PR-Commits, Schwelle > 10). **Hinweis:** ein
   0-Commit-Loop (Fixup findet keine Findings und committet nichts) wird davon nicht gebremst — die
   H1-Post-Assertion im Review alarmiert in dem Fall per PR-Kommentar.
-- **gate-merge** wacht zusätzlich deterministisch per `workflow_run` (Allowlist `['CI', '5/7 Review']`, `completed`) **und** per `pull_request` `labeled` (nur `ai:ready-to-merge`):
-  ist mind. ein Allowlist-Check (CI / Reviewer) rot → `ai:needs-changes` (stößt fixup an); ist der PR
-  wegen Merge-Konflikt nicht mergebar (`mergeStateStatus == DIRTY`) → ebenfalls `ai:needs-changes`;
-  sind beide grün und `ai:ready-to-merge` gesetzt und der PR sauber mergebar → Merge
+- **gate-merge** wacht zusätzlich deterministisch per `workflow_run` (Allowlist `['CI', '5/7 Review']`, `completed`) **und** per `pull_request` `labeled` (nur `ai:reviewed`):
+  ist mind. ein Allowlist-Check (CI / Reviewer) rot → `ai:needs-fixup` (stößt fixup an); ist der PR
+  wegen Merge-Konflikt nicht mergebar (`mergeStateStatus == DIRTY`) → ebenfalls `ai:needs-fixup`;
+  sind beide grün und `ai:reviewed` gesetzt und der PR sauber mergebar → Merge
   (`gh pr merge --merge`). Der `workflow_run`-Trigger wird nur aus dem Default-Branch (main) gelesen
   und schließt `head_branch == 'main'`-Läufe aus. Dieser eine Workflow ersetzt die früheren zwei
   (Gate + Auto-Merge).
 - **conflict-scan** (`pr-conflict-scan.yml`) läuft bei jedem **Push auf main** (typischerweise
   nach einem Merge), prüft **alle** offenen Nicht-Draft-same-repo-PRs auf Mergebarkeit und setzt bei
-  Merge-Konflikt (`DIRTY`/`CONFLICTING`) **per App-Token** `ai:needs-changes` → das stößt
+  Merge-Konflikt (`DIRTY`/`CONFLICTING`) **per App-Token** `ai:needs-fixup` → das stößt
   `pr-fixup.yml` an, der den Konflikt auflöst (conflict-scan löst selbst NICHT auf). Guards:
-  `UNKNOWN`/`MERGEABLE` → No-op; trägt der PR bereits `ai:needs-changes`, wird idempotent
+  `UNKNOWN`/`MERGEABLE` → No-op; trägt der PR bereits `ai:needs-fixup`, wird idempotent
   übersprungen. Kein LLM, kein Checkout, kein Agent-Secret-Check.
 - **cancel** beendet laufende review/fixup-Runs beim PR-Close (`pull_request.closed`) — reiner
   `gh`-Aufruf mit `GITHUB_TOKEN` (kein App-Token nötig: bricht nur Runs ab, setzt keine Labels).
 - **unblock** (`issue-unblock.yml`) reagiert auf den **Merge** eines PRs (`pull_request.closed`
   - `merged == true`): Blockt das gemergte Issue nativ (GitHub-Issue-Dependencies) Nachfolge-Issues
     und sind dadurch **alle** deren Blocker geschlossen (Fan-in-Gate, autoritativ per Blocker-`state`),
-    entfernt der Workflow deren `ai:analyzed` **per App-Token** → das re-triggert `triage.yml`,
-    die den Nachfolger gegen den nun gemergten Code-Stand **neu analysiert** (🟢 → `ai:spec-ready`,
-    🟡/🔴 → nur `ai:analyzed` + Hinweise). So laufen aufeinander aufbauende Sub-Issues Glied für Glied.
-    Bewusst **kein** direktes `ai:spec-ready` — die erneute Machbarkeitsprüfung ist der Kern des
-    Ansatzes. Guards: nur offene Kandidaten mit `ai:analyzed`, ohne `ai:spec-ready`/`ai:ready`,
+    entfernt der Workflow deren `ai:analysed` **per App-Token** → das re-triggert `triage.yml`,
+    die den Nachfolger gegen den nun gemergten Code-Stand **neu analysiert** (🟢 → `ai:needs-ux-ui`,
+    🟡/🔴 → nur `ai:analysed` + Hinweise). So laufen aufeinander aufbauende Sub-Issues Glied für Glied.
+    Bewusst **kein** direktes `ai:needs-ux-ui` — die erneute Machbarkeitsprüfung ist der Kern des
+    Ansatzes. Guards: nur offene Kandidaten mit `ai:analysed`, ohne `ai:needs-ux-ui`/`ai:needs-impl`,
     Sammelknoten (`ai:to-big-issue`) übersprungen.
 - **Deterministische Gates statt LLM-Vertrauen:** Kritische Zustandsübergänge sind deterministisch
   erzwungen, nicht dem LLM anvertraut (Prinzip „Gate statt Erinnerung"). Früher waren die
@@ -185,7 +185,7 @@ flowchart TD
     eine Phase pro Issue mehrfach laufen.
   - **Stop-Guard** (fixup): > 10 PR-Commits → Loop stoppt hart (s. o.).
   - **Label-Post-Assertion** (review): vergisst der Agent die Label-Umschaltung, setzt der Step
-    den Safe-Default `ai:needs-changes` (statt stiller PR-Stalle).
+    den Safe-Default `ai:needs-fixup` (statt stiller PR-Stalle).
   - **Doppel-Run-Guard** (spec/implement): existiert schon ein PR/ready-PR mit `Closes #N`, wird
     kein zweiter Branch erzeugt (Race bei schnell aufeinanderfolgenden Label-Events).
   - **Timeout-Alarm** (review/fixup): PR-Workflows vergeben kein `ai:to-big-issue` (AGENTS.md) —
@@ -206,11 +206,11 @@ flowchart TD
 
 ## Eintrittspunkte
 
-- **Neues Issue** (`issues.opened`) von OWNER/MEMBER/COLLABORATOR und ohne `ai:analyzed` →
+- **Neues Issue** (`issues.opened`) von OWNER/MEMBER/COLLABORATOR und ohne `ai:analysed` →
   `triage.yml`.
-- **Entfernen von `ai:analyzed` oder `ai:to-big-issue`** (`issues.unlabeled`) → `triage.yml`
+- **Entfernen von `ai:analysed` oder `ai:to-big-issue`** (`issues.unlabeled`) → `triage.yml`
   (erzwungene Neu-Analyse; das Entfernen setzt bereits Schreibzugriff voraus). Über diesen Pfad
-  triggern auch `issue-unblock.yml` (App-Token entfernt `ai:analyzed` beim Merge des Blockers)
+  triggern auch `issue-unblock.yml` (App-Token entfernt `ai:analysed` beim Merge des Blockers)
   und ein Mensch, der ein aufgeteiltes/behobenes `ai:to-big-issue` entfernt.
 - **Push auf main** (`push` auf `main`, z. B. nach einem Merge) → `pr-conflict-scan.yml`
   (scannt alle offenen PRs auf Merge-Konflikte).
