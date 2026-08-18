@@ -67,8 +67,8 @@ Eine Änderung gilt als fertig, wenn:
    Bevorzugt gezielt statt repo-weit prüfen, z. B.:
 
    ```bash
-   pnpm --filter priority-pilot build
-   pnpm --filter priority-pilot lint
+   pnpm --filter server build
+   pnpm --filter server lint
    ```
 
 4. **Pull Request** öffnen und mit dem zugehörigen Issue verknüpfen (`Closes #<nr>`).
