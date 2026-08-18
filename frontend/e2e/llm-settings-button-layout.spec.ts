@@ -14,8 +14,11 @@ test.describe('LLM Settings Button Layout (Issue 886)', () => {
 	test.beforeEach(async ({ page }) => {
 		// Zur LLM-Settings-Seite navigieren
 		await page.goto('/settings/llm');
-		// Warten bis das Formular geladen ist
-		await page.waitForSelector('kol-button[_label="Speichern"]', { timeout: 5000 });
+		// Warten bis das Formular geladen ist — a11y-scoped statt unscopedem CSS-Attribut-Selector:
+		// `kol-tabs` hält inaktive Panels mit ihrem „Speichern"-Zwilling zwar im DOM, nimmt sie aber
+		// aus dem Accessibility-Baum. `getByRole` adressiert den sichtbaren Button eindeutig; der
+		// CSS-Selector griffe wegen DOM-Reihenfolge zuerst den unsichtbaren Zwilling (#886).
+		await expect(page.getByRole('button', { name: 'Speichern' })).toBeVisible({ timeout: 5000 });
 	});
 
 	/**

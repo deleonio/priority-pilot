@@ -240,35 +240,26 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 						</KolAlert>
 					)}
 				</div>
-				{/* Panel-Inhalte nur für den aktiven Tab rendern (#886): `KolTabs` blendet inaktive Panels
-					    lediglich aus, ihre Inhalte blieben aber im DOM. Beide Formulare tragen einen
-					    „Speichern"-Button — der unsichtbare Zwilling machte den sichtbaren nicht mehr
-					    eindeutig adressierbar (Tests wie assistive Technik). */}
+				{/* Beide Panel-Inhalte bleiben gemountet: `KolTabs` blendet inaktive Panels nur aus dem
+					    Layout- und Accessibility-Baum aus. Ein Unmount würde ungespeicherte Formularwerte
+					    verwerfen und bei jeder Rückkehr einen erneuten LLM-Config-Fetch auslösen (#886). */}
 				<div slot="tab-1">
-					{activeTab === 1 && (
-						<>
-							{/* Überschrift „Säulen-Gewichtung" ist Teil des #270-Vertrags (settings-page.spec.ts):
-								    die Route /settings/pillars rendert den Säulen-Editor mit dieser Überschrift. */}
-							<KolHeading _label="Säulen-Gewichtung" _level={2} />
-							{/* Säulen-Verwaltungs-Komponente (#439): Anlegen, Bearbeiten und Löschen von Säulen
-								    (jeweils als eigener Modal-Dialog, KoliBri-Komponenten). */}
-							<PillarList onPillarChanged={onPillarChanged} />
-							{/* Beim Direktaufruf von /settings/pillars mountet die Seite, BEVOR die Säulen geladen
-								    sind. Das Formular hält seine Rohwerte in einem beim Mount initialisierten Ref —
-								    per `key` neu mounten, sobald die Säulen eintreffen, damit die geladenen Gewichte
-								    übernommen werden. */}
-							<PillarWeightsForm key={pillars.length} pillars={pillars} onSaved={onSaved} />
-						</>
-					)}
+					{/* Überschrift „Säulen-Gewichtung" ist Teil des #270-Vertrags (settings-page.spec.ts):
+						    die Route /settings/pillars rendert den Säulen-Editor mit dieser Überschrift. */}
+					<KolHeading _label="Säulen-Gewichtung" _level={2} />
+					{/* Säulen-Verwaltungs-Komponente (#439): Anlegen, Bearbeiten und Löschen von Säulen
+						    (jeweils als eigener Modal-Dialog, KoliBri-Komponenten). */}
+					<PillarList onPillarChanged={onPillarChanged} />
+					{/* Beim Direktaufruf von /settings/pillars mountet die Seite, BEVOR die Säulen geladen
+						    sind. Das Formular hält seine Rohwerte in einem beim Mount initialisierten Ref —
+						    per `key` neu mounten, sobald die Säulen eintreffen, damit die geladenen Gewichte
+						    übernommen werden. */}
+					<PillarWeightsForm key={pillars.length} pillars={pillars} onSaved={onSaved} />
 				</div>
 				<div slot="tab-2">
-					{activeTab === 2 && (
-						<>
-							{/* LLM-Provider-Konfiguration (#640): Keys/Modell der Mistral/OpenRouter-Kaskade. */}
-							<KolHeading _label="LLM-Provider" _level={2} />
-							<LlmSettingsForm />
-						</>
-					)}
+					{/* LLM-Provider-Konfiguration (#640): Keys/Modell der Mistral/OpenRouter-Kaskade. */}
+					<KolHeading _label="LLM-Provider" _level={2} />
+					<LlmSettingsForm />
 				</div>
 			</KolTabs>
 		</main>

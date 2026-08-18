@@ -28,7 +28,6 @@ Der "Speichern"-Button im LLM-Provider-Settings-Formular ist vollständig sichtb
 - Container-Breite `width: 100%` sichern
 - Buttons haben `min-width: 0` um Flexbox-Overflow zu verhindern
 - Kein horizontaler Scroll auf Viewports ≤768px, Button-Text vollständig lesbar
-- Kein horizontaler Scroll auf Viewports ≤768px
 
 ## Akzeptanzkriterien-Referenz
 
