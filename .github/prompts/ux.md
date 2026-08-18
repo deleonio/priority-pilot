@@ -9,16 +9,19 @@ ABLAUF (STRIKT):
      - Screenshot + Accessibility-Snapshot
      - browser_resize auf 375×812 (Mobile) und 1280×900 (Desktop)
      - KoliBri-Abschnitt: Component-Wahl via KoliBri-MCP prüfen (passende Komponente verfügbar? Properties passen?)
-  5. Mobile-UI-Regeln lesen: docs/mobile-ui-rules.md — verbindlicher Maßstab für Mobile-First, Interaktion und A11y (inkl. Repo-Abstimmung).
+  5. Maßstäbe lesen (beide, sie ergänzen sich):
+     - docs/mobile-ui-rules.md — wie es sich bedient: Mobile-First, Interaktion, A11y (inkl. Repo-Abstimmung).
+     - .ai-knowledge/ux-design.md — wie es aussieht: Farbrollen, Skalen-Tokens, Komponentenwahl (KoliBri zuerst).
   6. UX-Beratung schreiben zwischen <!-- KI-UX:START --> und <!-- KI-UX:END --> im Issue-Body.
      Abschnitte:
      - **Interaktion**: User-Flow, Click-Targets (≥44px), async Zustände (Laden/Leer/Fehler/Erfolg), eine Primäraktion pro Screen
      - **Mobile-First**: Breakpoints, Touch-Ziele, responsive Layouts — Maßstab: docs/mobile-ui-rules.md (Prüfbar-Formeln + Anti-Patterns)
      - **A11y/BITV**: Tastatur-Navigation, Screenreader, ARIA, Kontrast
      - **KoliBri**: Component-Wahl, Theme-Integration, BITV-2.1-PS
+     - **Design-Sprache**: welche Rollen-Tokens und Skalen-Stufen hier gelten (Farbe, Abstand, Typo) — Maßstab: .ai-knowledge/ux-design.md
      - **Offene UX-Fragen**: Unklare Punkte, Entscheidungsbedarf
 
-  6. BERATENDER CHARAKTER:
+  7. BERATENDER CHARAKTER:
      - DU erstellst KEINEN Branch.
      - DU schreibst KEINEN Code.
      - DU erstellst KEINEN PR.

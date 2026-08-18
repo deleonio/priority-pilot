@@ -3,7 +3,9 @@
 UX-Beratung als automatisierte Phase **vor** der Spec -- beratend, nicht blockierend.
 Analysiert das Ticket aus UX-Sicht (Interaktion, Mobile-First, A11y/BITV, KoliBri) und schreibt
 Empfehlungen in den Issue-Body zwischen `<!-- KI-UX:START -->` und `<!-- KI-UX:END -->`.
-Verbindliche Quelle für Mobile-First/A11y-Empfehlungen: [docs/mobile-ui-rules.md](../docs/mobile-ui-rules.md).
+Verbindliche Quellen: [docs/mobile-ui-rules.md](../docs/mobile-ui-rules.md) für Mobile-First/A11y
+(wie es sich bedient) und [ux-design.md](ux-design.md) für die Design-Sprache „Cockpit" — Farbrollen,
+Skalen-Tokens, Komponentenwahl (wie es aussieht).
 
 Diese Stufe ist **Phase 2** der 7-Phasen-Kette: UX-Expertise fließt **vor** der Spec ein, aber
 **ohne** Code zu schreiben oder Branches/PRs zu erstellen.
@@ -49,6 +51,10 @@ KI-UX-Block im Issue-Body zwischen den Markern:
 ### KoliBri
 
 [Component-Wahl, Theme-Integration, BITV-2.1-PS]
+
+### Design-Sprache
+
+[Geltende Rollen-Tokens und Skalen-Stufen — Maßstab: .ai-knowledge/ux-design.md]
 
 ### Offene UX-Fragen
 

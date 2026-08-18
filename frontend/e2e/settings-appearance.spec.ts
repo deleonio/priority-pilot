@@ -3,25 +3,25 @@ import { expect, test, type Page } from './fixtures';
 import { waitForStableView } from './helpers';
 
 /**
- * ROTE Spec-Tests für #285 „Header-Toolbar kompakter (Icon-Buttons) und Dark-Mode-Schalter in die
- * Einstellungen" (Stufe 1 TDD, der einklagbare Vertrag) — Teil Einstellungen.
+ * Spec-Tests für #285 „Dark-Mode-Schalter in den Einstellungen" — angepasst an die
+ * Entscheidung aus PR #848 (P1-2, Menschen-Entscheidung Kommentar 5325527064):
  *
- * Ziel (Teil 2): Der Darstellungs-/Theme-Umschalter wandert aus der Header-Toolbar in den
- * Settings-Tab „Allgemein" (`/settings/general`). Dort steht ein Bedienelement mit den drei
- * Optionen **System / Hell / Dunkel**, verdrahtet mit `useTheme` aus `theme.ts` (localStorage-Key
- * `pp-theme`, siehe STORAGE_KEY dort).
+ * Der Dunkelmodus ist **deaktiviert** — KoliBri-Komponenten rendern im Dunkelmodus weiter
+ * auf Weiß (@public-ui/theme-default reagiert nicht auf `data-theme`), deshalb läuft die App
+ * fix im Hell-Modus. Das Bedienelement „Darstellung" zeigt „Hell" als einzige, deaktivierte
+ * Option; `theme.ts` und der Anti-FOUC-Bootstrap in `index.html` setzen `data-theme` immer
+ * auf `light`.
  *
- * Diese Tests sind bewusst **rot**, bis das Bedienelement im Allgemein-Tab existiert und mit
- * `useTheme` verdrahtet ist. Sie prüfen reines UI-Verhalten gegen das echte Backend (kein Mock);
- * die Fixture authentifiziert `/auth/me`, damit die Auth-Gate durchlässig ist.
+ * Die ursprünglichen AK6-Tests („Dunkel" wählen/wirken/persistieren, „System" folgt OS) sind
+ * damit obsolet — ihr Verhalten ist bewusst entfernt. Der neue AK6 kehrt die Richtung um:
+ * Auch eine localStorage-Altlast `pp-theme=dark` aus Sessions vor der Deaktivierung darf
+ * den Hell-Modus nicht mehr durchbrechen.
  *
- * Robustheit gegenüber der noch offenen Umsetzungsform: Ob das Bedienelement als Radiogruppe
- * (`role="radiogroup"` + `role="radio"`), als Single-Select-Listbox (`role="listbox"` +
- * `role="option"`) oder als Combobox (`role="combobox"`) umgesetzt wird, ist Sache der
- * Implementierung. Die Helfer unten treffen daher jede dieser Formen über den Accessible Name.
+ * Die Tests prüfen reines UI-Verhalten gegen das echte Backend (kein Mock); die Fixture
+ * authentifiziert `/auth/me`, damit die Auth-Gate durchlässig ist.
  */
 
-/** localStorage-Schlüssel der Theme-Wahl — identisch zu STORAGE_KEY in `src/lib/theme.ts`. */
+/** localStorage-Schlüssel aus Zeiten des Umschalters — Altlast, wird von theme.ts nicht mehr gelesen. */
 const THEME_STORAGE_KEY = 'pp-theme';
 
 /**
@@ -36,107 +36,100 @@ const appearanceControl = (page: Page): Locator =>
 		.or(page.getByRole('group', { name: /Darstellung/i }));
 
 /**
- * Findet die auswählbare Option zu einem Modus (System/Hell/Dunkel) — als `radio`, `option`
- * oder (Fallback) als `button`. Wird zum Aktivieren des jeweiligen Modus geklickt.
+ * Findet die Option zu einem Modus — als `radio`, `option` oder (Fallback) als `button`.
  */
 const appearanceOption = (page: Page, name: RegExp): Locator =>
 	page.getByRole('radio', { name }).or(page.getByRole('option', { name })).or(page.getByRole('button', { name }));
 
-test.describe('#285 Einstellungen – Darstellungs-Umschalter (Allgemein-Tab)', () => {
+test.describe('#285 Einstellungen – Darstellung (Dunkelmodus deaktiviert, PR #848)', () => {
 	/**
-	 * AK5 — Bedienelement mit drei Optionen: Der Allgemein-Tab zeigt ein Darstellungs-Bedienelement
-	 * mit den drei Optionen System / Hell / Dunkel.
+	 * AK5 — Bedienelement: Der Allgemein-Tab zeigt das Darstellungs-Bedienelement mit genau
+	 * einer Option „Hell" — deaktiviert, keine Auswahl möglich. „System" und „Dunkel" existieren
+	 * nicht mehr.
 	 */
-	test('AK5: Allgemein-Tab zeigt ein Darstellungs-Bedienelement mit System/Hell/Dunkel', async ({ page }) => {
+	test('AK5: Allgemein-Tab zeigt „Hell" als einzige, deaktivierte Darstellungsoption', async ({ page }) => {
 		await page.goto('/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
 		// Das benannte Bedienelement „Darstellung" ist sichtbar.
 		await expect(appearanceControl(page)).toBeVisible();
 
-		// Die drei Optionen sind vorhanden (im DOM angebunden).
-		await expect(appearanceOption(page, /System/i).first()).toBeAttached();
-		await expect(appearanceOption(page, /Hell/i).first()).toBeAttached();
-		await expect(appearanceOption(page, /Dunkel/i).first()).toBeAttached();
+		// Einzige Option ist „Hell" …
+		const hell = appearanceOption(page, /Hell/i).first();
+		await expect(hell).toBeAttached();
+
+		// … „System" und „Dunkel" existieren nicht mehr.
+		await expect(appearanceOption(page, /System/i)).toHaveCount(0);
+		await expect(appearanceOption(page, /Dunkel/i)).toHaveCount(0);
+
+		// Keine Auswahl möglich: die Option ist deaktiviert.
+		await expect(hell).toBeDisabled();
 	});
 
 	/**
-	 * AK6 (Wirkung) — Auswahl „Dunkel" setzt `data-theme="dark"` am `<html>` und speichert die Wahl
-	 * in localStorage (`pp-theme`="dark").
+	 * AK6 (Wirkung) — Keine Nutzerwahl mehr: `data-theme` bleibt fix „light" — unabhängig von
+	 * einer localStorage-Altlast `pp-theme=dark` (Session vor der Deaktivierung) und unabhängig
+	 * von einer dunklen OS-Präferenz. Kein Dunkel-Blitz beim Laden (Anti-FOUC-Bootstrap).
+	 *
+	 * Der FOUC-Wächter schneidet ab `document_start` jede je gesehene `data-theme`-Phase mit
+	 * (MutationObserver, noch vor dem Inline-Bootstrap im <head> registriert): Ein Dunkel-Blitz,
+	 * den `applyInitialTheme` erst Millisekunden später korrigiert, wäre eine reine
+	 * Endzustands-Assertion nicht.
 	 */
-	test('AK6: Auswahl „Dunkel" setzt data-theme="dark" und speichert die Wahl', async ({ page }) => {
-		// Feste helle OS-Präferenz, damit ein späterer „System"-Wechsel deterministisch auflöst.
-		await page.emulateMedia({ colorScheme: 'light' });
+	test('AK6: data-theme bleibt „light" — Altlast pp-theme=dark und dunkle OS-Präferenz bleiben wirkungslos', async ({
+		page,
+	}) => {
+		await page.emulateMedia({ colorScheme: 'dark' });
+		await page.addInitScript((key) => window.localStorage.setItem(key, 'dark'), THEME_STORAGE_KEY);
+		await page.addInitScript(() => {
+			const seen: string[] = [];
+			(window as unknown as { __themeHistory: string[] }).__themeHistory = seen;
+			const watch = () => {
+				new MutationObserver(() => seen.push(document.documentElement.dataset.theme ?? '')).observe(
+					document.documentElement,
+					{
+						attributes: true,
+						attributeFilter: ['data-theme'],
+					},
+				);
+			};
+			// <html> existiert zu document_start evtl. noch nicht — dann dessen Einfügen abwarten.
+			if (document.documentElement) {
+				watch();
+			} else {
+				new MutationObserver(watch).observe(document, { childList: true });
+			}
+		});
+
 		await page.goto('/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
-		const html = page.locator('html');
-
-		// „Dunkel" auswählen.
-		await appearanceOption(page, /Dunkel/i)
-			.first()
-			.click();
-
-		// Effektives Theme am <html>-Element ist „dark".
-		await expect(html).toHaveAttribute('data-theme', 'dark');
-
-		// Die Wahl ist in localStorage gespeichert.
-		const stored = await page.evaluate((key) => localStorage.getItem(key), THEME_STORAGE_KEY);
-		expect(stored).toBe('dark');
+		// Effektives Theme am <html>-Element ist „light" — von Anfang an, ohne Dunkel-FOUC.
+		await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+		const history = await page.evaluate(
+			() => (window as unknown as { __themeHistory?: string[] }).__themeHistory ?? [],
+		);
+		expect(history, `data-theme-Phasen während des Ladens: ${history.join(' → ')}`).not.toContain('dark');
 	});
 
 	/**
-	 * AK6 (Persistenz) — Die Wahl „Dunkel" bleibt nach einem Seiten-Reload erhalten
-	 * (localStorage-getriebener FOUC-freier Anstrich).
+	 * AK6 (Persistenz) — Auch nach einem Reload bleibt der Hell-Modus wirksam; die Altlast wird
+	 * nicht „wiederbelebt".
 	 */
-	test('AK6: „Dunkel" bleibt nach Reload erhalten (Persistenz)', async ({ page }) => {
-		await page.emulateMedia({ colorScheme: 'light' });
-		await page.goto('/settings/general');
-		await waitForStableView(page, 'Priority Pilot');
+	test('AK6: Hell-Modus bleibt nach Reload erhalten (kein Rückfall in Dunkel)', async ({ page }) => {
+		await page.emulateMedia({ colorScheme: 'dark' });
+		await page.addInitScript((key) => window.localStorage.setItem(key, 'dark'), THEME_STORAGE_KEY);
 
 		const html = page.locator('html');
 
-		await appearanceOption(page, /Dunkel/i)
-			.first()
-			.click();
-		await expect(html).toHaveAttribute('data-theme', 'dark');
-
-		// Nach Reload bleibt „dark" wirksam.
-		await page.reload();
-		await waitForStableView(page, 'Priority Pilot');
-		await expect(html).toHaveAttribute('data-theme', 'dark');
-
-		const stored = await page.evaluate((key) => localStorage.getItem(key), THEME_STORAGE_KEY);
-		expect(stored).toBe('dark');
-	});
-
-	/**
-	 * AK6 (System folgt OS) — Auswahl „System" folgt der OS-Präferenz: Bei heller OS-Präferenz löst
-	 * „System" zu `data-theme="light"` auf. Ausgangspunkt ist eine explizite „Dunkel"-Wahl, damit der
-	 * Wechsel nach „System" tatsächlich einen sichtbaren Zustandswechsel erzwingt.
-	 */
-	test('AK6: „System" folgt der OS-Präferenz (hell → data-theme="light")', async ({ page }) => {
-		await page.emulateMedia({ colorScheme: 'light' });
 		await page.goto('/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
-
-		const html = page.locator('html');
-
-		// Zunächst „Dunkel", damit „System" danach einen echten Wechsel bewirkt.
-		await appearanceOption(page, /Dunkel/i)
-			.first()
-			.click();
-		await expect(html).toHaveAttribute('data-theme', 'dark');
-
-		// „System" auswählen → folgt der (hellen) OS-Präferenz → data-theme="light".
-		await appearanceOption(page, /System/i)
-			.first()
-			.click();
 		await expect(html).toHaveAttribute('data-theme', 'light');
 
-		// Persistiert als „system".
-		const stored = await page.evaluate((key) => localStorage.getItem(key), THEME_STORAGE_KEY);
-		expect(stored).toBe('system');
+		// Nach Reload weiterhin „light".
+		await page.reload();
+		await waitForStableView(page, 'Priority Pilot');
+		await expect(html).toHaveAttribute('data-theme', 'light');
 	});
 
 	/**
