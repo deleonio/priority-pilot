@@ -191,12 +191,12 @@ jobs:
           HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
         run: |
           set -euo pipefail
-          git fetch origin "$TARGET_BRANCH" --no-tags
+          git fetch origin "$TARGET_BRANCH" --depth=1 --no-tags
           if git merge-base --is-ancestor "origin/$TARGET_BRANCH" HEAD; then
             echo "Target-Branch bereits in HEAD enthalten – kein Merge nötig."
             exit 0
           fi
-          if git merge origin/"$TARGET_BRANCH" --no-ff --no-edit -m "Auto-merge: $TARGET_BRANCH into PR #$PR"; then
+          if git merge origin/"$TARGET_BRANCH" --no-ff --no-edit -m "chore(ci): auto-merge $TARGET_BRANCH into PR #$PR"; then
             git push origin HEAD:"$HEAD_BRANCH"
           elif git diff --name-only --diff-filter=U | grep -q .; then
             echo "Merge-Konflikte bleiben liegen – Claude löst sie auf (Prompt Schritt 0)."
