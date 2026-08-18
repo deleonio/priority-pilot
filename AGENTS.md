@@ -76,23 +76,22 @@ zusätzlich in UX (02), Umsetzung (04) und Fixup (06) über `browser-mcp: true` 
 **Jede KI-gesteuerte Phase liest nur ihre eigene Wissensbasis-Datei** + das Issue/PR. Kein domänenübergreifendes
 Lesen — die jeweilige Datei enthält alles Notwendige.
 
-**Label-Kette (Schema `ai:needs-*` → `ai:<Vergangenheitsform>`, Issue #851):** Jede Phase triggert
-auf genau ein `ai:needs-*`-Label, konsumiert es und setzt ihr Done-Label **und** den Trigger der
-Folgephase: `ai:needs-analyse` (oder Issue neu) → Analyse → `ai:analysed` + `ai:needs-ux-ui` (UI)
-bzw. `ai:needs-spec` (Nicht-UI) → UX → `ai:ux-reviewed` + `ai:needs-spec` → Spec → `ai:specified` +
-`ai:needs-impl` → Umsetzung → `ai:implemented` + `ai:needs-review` (PR) → Review ↔ Fixup
-(`ai:reviewed` + `ai:needs-fixup` → `ai:fixed` + `ai:needs-review`) → `ai:reviewed` → Gate-Merge.
-Info-Labels ohne Trigger: `ai:needs-human` (Warum + was der Mensch entscheiden soll),
-`ai:to-big-issue` (Aufgabe zu groß).
+**Label-Kette (Schema `ai:needs-*` → `ai:<Vergangenheitsform>`, Issue #851, verschlankt #873):** Jede
+Phase triggert auf genau ein `ai:needs-*`-Label, konsumiert es und setzt den Trigger der Folgephase
+— plus ein Done-Label nur, wo Logik es liest: `ai:needs-analyse` (oder Issue neu) → Analyse →
+`ai:analysed` + `ai:needs-ux-ui` (UI) bzw. `ai:needs-spec` (Nicht-UI) → UX → `ai:needs-spec` →
+Spec → `ai:needs-impl` → Umsetzung → `ai:needs-review` (PR) → Review ↔ Fixup (`ai:needs-fixup` →
+`ai:needs-review`) → `ai:reviewed` → Gate-Merge. Info-Labels ohne Trigger: `ai:needs-human`
+(Warum + was der Mensch entscheiden soll), `ai:to-big-issue` (Aufgabe zu groß).
 
 | Phase             | Trigger                                       | Wissensbasis (einzige zu lesende Datei)                                                                | Output                                                                                                     |
 | ----------------- | --------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
 | **Triage**        | Issue neu, `ai:needs-analyse` gesetzt         | [ticket-triage.md](.ai-knowledge/ticket-triage.md)                                                     | Analyse-Body-Block + Ampel → `ai:analysed` (+ `ai:needs-ux-ui` bei 🟢+UI, `ai:needs-spec` bei 🟢+Nicht-UI) |
-| **UX-Beratung**   | `ai:needs-ux-ui`                              | [ticket-ux.md](.ai-knowledge/ticket-ux.md)                                                             | KI-UX-Block → `ai:ux-reviewed` + `ai:needs-spec` (Nicht-UI-Tickets: Analyse setzt `ai:needs-spec` direkt)  |
-| **Spec**          | `ai:needs-spec`                               | [ticket-spec.md](.ai-knowledge/ticket-spec.md)                                                         | Rote Tests + Draft-PR → `ai:specified` + `ai:needs-impl`                                                   |
-| **Umsetzung**     | `ai:needs-impl`                               | [ticket-implementation.md](.ai-knowledge/ticket-implementation.md)                                     | Tests grün + PR review-bereit → `ai:implemented` + `ai:needs-review` (am PR)                               |
-| **Review**        | `ai:needs-review` (am PR)                     | [review-kreuzverhoer-Skill](.claude/skills/review-kreuzverhoer/SKILL.md)                               | Sammelkommentar + Ampel → `ai:reviewed` (+ `ai:needs-fixup` bei 🔴)                                        |
-| **Fixup**         | `ai:needs-fixup` (am PR)                      | [review-kreuzverhoer-Skill](.claude/skills/review-kreuzverhoer/SKILL.md)                               | Findings behoben → `ai:fixed` + `ai:needs-review`                                                          |
+| **UX-Beratung**   | `ai:needs-ux-ui`                              | [ticket-ux.md](.ai-knowledge/ticket-ux.md)                                                             | KI-UX-Block → `ai:needs-spec` (Nicht-UI-Tickets: Analyse setzt `ai:needs-spec` direkt)                     |
+| **Spec**          | `ai:needs-spec`                               | [ticket-spec.md](.ai-knowledge/ticket-spec.md)                                                         | Rote Tests + Draft-PR → `ai:needs-impl`                                                                    |
+| **Umsetzung**     | `ai:needs-impl`                               | [ticket-implementation.md](.ai-knowledge/ticket-implementation.md)                                     | Tests grün + PR review-bereit → `ai:needs-review` (am PR)                                                  |
+| **Review**        | `ai:needs-review` (am PR)                     | [review-kreuzverhoer-Skill](.claude/skills/review-kreuzverhoer/SKILL.md)                               | Sammelkommentar + Ampel → `ai:reviewed` (🟢) bzw. `ai:needs-fixup` (🔴)                                    |
+| **Fixup**         | `ai:needs-fixup` (am PR)                      | [review-kreuzverhoer-Skill](.claude/skills/review-kreuzverhoer/SKILL.md)                               | Findings behoben → `ai:needs-review`                                                                       |
 | **PR-Documenter** | `pull_request.closed` + `merged` (PR gemergt) | [documenter.md](.github/prompts/documenter.md) (LLM-Anteil) + `pr-doc-{facts,render}.sh` (Regel-Logik) | PR-Titel, -Beschreibung, Release-Note & Labels nach Merge → `ai:documented`                                |
 
 ## Tests (Server)
