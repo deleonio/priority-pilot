@@ -361,20 +361,16 @@ jobs:
             fi
           fi
 
-          gh label create "ai:implemented" --repo "$GITHUB_REPOSITORY" --color 0E8A16 2>/dev/null || true
           gh label create "ai:needs-review" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
 
           if [ "$final" = "needs-review" ]; then
-            # Erfolg: Trigger konsumieren, Done-Label aufs Issue, Review-Trigger auf den PR
-            # (Übergang Issue → PR: ai:implemented dokumentiert die Phase am Issue,
-            # ai:needs-review startet Phase 5 am PR).
+            # Erfolg: Trigger konsumieren, Review-Trigger auf den PR
+            # (Übergang Issue → PR: ai:needs-review startet Phase 5 am PR).
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-impl" 2>/dev/null || true
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:continued" 2>/dev/null || true
-            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:implemented" 2>/dev/null || true
-            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:implemented"
             gh pr edit "$PR_NR" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-review" 2>/dev/null || true
             gh pr edit "$PR_NR" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-review"
-            echo "::notice::Labels gesetzt: ai:implemented an Issue #${ISSUE}, ai:needs-review an PR #${PR_NR}"
+            echo "::notice::Label gesetzt: ai:needs-review an PR #${PR_NR}"
 
           else
             if [ "${ALREADY_CONTINUED:-false}" = "true" ]; then
