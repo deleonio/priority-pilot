@@ -1,8 +1,8 @@
 name: Cache-Aufraeumen
 
 # Der Repo-Cache (GitHub Actions, 10-GB-Limit) fuellte sich zuletzt spuerbar aus pnpm-Store- und
-# Playwright-Browser-Caches (ci.yml/deploy.yml/02-claude-spec.yml/03-claude-implement.yml/
-# 05-claude-pr-fixup.yml, alle per `cache: pnpm` bzw. eigenem `actions/cache`-Schritt keyed auf den
+# Playwright-Browser-Caches (ci.yml/deploy.yml/03-claude-spec.yml/04-claude-implement.yml/
+# 06-claude-pr-fixup.yml, alle per `cache: pnpm` bzw. eigenem `actions/cache`-Schritt keyed auf den
 # pnpm-lock.yaml-Hash). Jeder Lockfile-Hash-Wechsel (z. B. wenn ein Umsetzungs-Workflow eine neue
 # Dependency committet) erzeugt einen NEUEN, ~130-260 MiB grossen Eintrag, der nach einem Merge/
 # Verwerfen des Branches nie wieder getroffen wird und sonst bis zu GitHubs impliziter 7-Tage-

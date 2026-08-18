@@ -1,58 +1,103 @@
-# Testkonzept für Priority Pilot
+# Testing Guidelines
 
-Dieses Dokument legt fest, **welche** Tests in Priority Pilot geschrieben und gepflegt werden
-und welche bewusst **nicht** getestet werden. Ziel: ein effizientes, klare Richtlinien folgendes
-Vorgehen — so viele Tests wie nötig, so wenige wie möglich.
+## 1. Testarten
 
-## 1. Test-Stack
+### E2E-Tests (Playwright)
 
-| Ebene      | Framework      | Zweck                                                                                                                                                  |
-| ---------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Unit-Tests | **Vitest**     | Fachliche Berechnungen, Sortierlogik und Geschäftslogik (native TS/ESM-Unterstützung, integriertes Mocking/Coverage, Parallelisierung out-of-the-box). |
-| E2E-Tests  | **Playwright** | Happy-Path-Use-Cases durch die PWA im echten Browser.                                                                                                  |
+- Location: `frontend/e2e/**/*.spec.ts`
+- Zweck: Integrationstests gegen echte UI
+- Ausführung: `npx playwright test` (oder `pnpm test:e2e`)
 
-## 2. Unit-Tests (Vitest) — Core-Logik
+### Unit-Tests (Vitest)
 
-Alle fachlichen Berechnungen, Sortierlogiken und Geschäftslogik werden mit Unit-Tests abgedeckt.
-Die Core-Logik-Module sind Unit-Test-Pflicht und bereits implementiert:
+- Location: `frontend/src/**/*.test.{ts,tsx}`
+- Zweck: Isolierte Komponententests
+- Ausführung: `pnpm test` (Vitest)
 
-- `value.ts` — Wertberechnung (Standard-/Grenz-/Nullwerte, deterministische Priorisierung)
-- `tree.ts` — Aufgabenwald-Berechnung (lineare, verzweigte und zirkuläre Strukturen)
-- `find.ts` — Nächste-Aufgabe-Logik (leerer Wald, mehrere Kandidaten, blockierte Abhängigkeiten)
-- `cycle.ts` — Zyklus-Erkennung (direkter/indirekter Ring erkannt, kein False-Positive bei gültigem DAG)
+## 2. Testorganisation
 
-Die zugehörigen Testdateien liegen unter `server/src/logics/*.test.ts`.
+- Struktur: Issue-bezogene Spec-Dateien (z. B. `issue-727-range-inputs-layout.spec.ts`)
+- Beschreibung: Jeder Test hat einen klaren AK-Bezug (Akzeptanzkriterium)
+- Isolation: Tests räumen in `afterEach` auf
 
-## 3. Test-Scope (Scope C: Core-Logik + API-Layer + UI-Helfer)
+## 3. KoliBri-Komponenten testen
 
-Neben der Core-Logik werden zusätzlich der **API-Layer** und **UI-Helfer** bzw. Frontend-Logik getestet:
+### Erlaubt (Öffentliche Schnittstelle)
 
-- **API-Layer** (`server/src/express/*.test.ts`): Endpunkt-Verhalten für zentrale Use Cases.
-- **UI-Helfer / Frontend-Logik** (`frontend/src/lib/*.test.ts`): reine Helfer und Geschäftslogik im Frontend.
+- **Host-Locators:** `page.locator('kol-button')`, `page.locator('kol-input-range')`
+- **Rollen-Locators:** `getByRole('button')`, `getByRole('textbox')`, `getByRole('checkbox')`
+- **Namenens-Locators:** `getByLabel()`, `getByText()`, `getByAccessibleName()`
+- **Interaktion:** `click()`, `fill()`, `press()`, `selectOption()`
+- **Unit-`_`-Prop-Assertions:** Host-Attributes prüfen (z. B. `_label`, `_variant`)
 
-Komponenten-Rendering wird nicht isoliert getestet, sondern über die E2E-Happy-Paths abgedeckt.
+### Verboten (KoliBri-Interna)
 
-## 4. E2E-Tests (Playwright) — Happy-Path-Use-Cases
+- **`.shadowRoot`-Zugriff:** Kein direkter Schatten-DOM-Zugriff in Tests
+- **Interne KoliBri-Klassen:** `.kol-span__label`, `.kol-tooltip__floating`, `.kol-icon`, `kolicon-*`
+- **Struktur-/Style-Checks im Schatten:** `getComputedStyle()` am Shadow-DOM, `querySelector()` im Schatten
 
-Die E2E-Tests (`frontend/e2e/*.spec.ts`) decken die zentralen Use-Cases als Happy-Path ab:
+### Ausnahme
 
-- **Aufgabe anlegen**
-- **Aufgabe bearbeiten** (ändern)
-- **Aufgabe löschen**
-- **Abhängigkeit hinzufügen/entfernen** (Vorgänger / Dependency-Editor)
+- Hydration-Probe in `e2e/helpers.ts` mit dokumentiertem `eslint-disable` (Infrastruktur, keine Assertion)
 
-## 5. Bewusste Ausnahme: Gitter-Workflows
+## 4. ESLint-Guard
 
-**Gitter-Workflows** (GitHub-Actions-/Pipeline-Workflows) werden **nicht explizit getestet**.
-Begründung: Workflows funktionieren entweder oder nicht — eine manuelle Überprüfung ist ausreichend.
+Der ESLint-Guard in `frontend/eslint.config.mjs` verhindert Rückfälle:
 
-## 6. Coverage-Ziel
+```js
+{
+  files: ['e2e/**/*.ts', 'src/**/*.test.{ts,tsx}'],
+  rules: {
+    'no-restricted-syntax': [
+      'error',
+      {
+        selector: "MemberExpression[property.name='shadowRoot']",
+        message: 'KoliBri nicht intern testen — öffentliche Schnittstelle (Rolle/Name/Host) verwenden.',
+      },
+      {
+        selector: 'Literal[value=/^(kol-span--hide-label|kol-tooltip__|kol-icon|kolicon-)/]',
+        message: 'Interne KoliBri-Klasse — nicht in Tests verwenden.',
+      },
+    ],
+  },
+}
+```
 
-- **Ziel:** mindestens **66 %** (2/3) Code-Coverage, gemessen via Vitest/Istanbul-Report.
-- **Prinzip:** So viele Tests wie nötig, so wenige wie möglich. Fokus auf kritische Pfade und komplexe Logik.
+Produktionscode-Piercing (`QuickCaptureModal.tsx`, `lib/focus.ts`, `lib/popoverAlign.ts`, `TaskTree.tsx`) ist vom Guard ausgenommen.
 
-## 7. CI-Einbindung
+## 5. Beispiele
 
-Die Tests laufen **grün in der CI-Pipeline** und erstellen dabei einen **Coverage-Report**, der
-ausgewertet wird. Bei Unterschreitung des Coverage-Ziels schlägt die CI fehl. E2E-Tests werden
-in der CI gegen eine laufende App-Instanz ausgeführt.
+### Gut (Öffentliche Schnittstelle)
+
+```ts
+// Host-Locator + Rolle
+await expect(page.locator('kol-button').getByRole('button', { name: 'Speichern' })).toBeVisible();
+
+// Accessible Name
+await expect(page.getByRole('button', { name: /entfernen/i })).toHaveAccessibleName(/entfernen/i);
+
+// Fokus-Check
+await expect(page.getByRole('button', { name: 'Abbrechen' })).toBeFocused();
+```
+
+### Schlecht (KoliBri-Interna)
+
+```ts
+// VERBOTEN - Shadow-DOM-Piercing
+const shadowBtn = element.shadowRoot?.querySelector('button');
+
+// VERBOTEN - Interne KoliBri-Klasse
+const labelSpan = shadowRoot.querySelector('.kol-span__label');
+
+// VERBOTEN - Icon-Rendering prüfen
+const hasIcon = await kolButton.evaluate((el) => el.shadowRoot?.querySelector('i.kol-icon') != null);
+```
+
+## 6. Bewusste Verluste
+
+Folgende Checks entfallen bewusst (KoliBri-Rendering-Tests, keine App-Verhalten-Tests):
+
+- Icon-Präsenz-Checks (`.kol-icon`, `kolicon-*`)
+- sr-only-„kein sichtbares Label"-Checks (`.kol-span--hide-label`)
+
+Der zugängliche Name und die Funktion bleiben gesichert.

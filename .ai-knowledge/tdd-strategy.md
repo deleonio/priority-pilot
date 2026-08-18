@@ -7,8 +7,10 @@
 > **Stufe 2 (Szenario 2):** Die Umsetzung folgt Red-Green, `pnpm test` ist PR-Pflicht, das Review
 > macht fehlende/rote Tests zum Gate ([pr-review.md](pr-review.md) Schritt 3/5).
 > **Stufe 3 (Szenario 3):** Eigenes Spec-Gate — die Triage setzt `ai:spec-ready` statt `ai:ready`,
+> zwischen `ai:spec-ready` und dem Spec-Lauf laeuft optional die UX-Beratung (die Triage entscheidet
+> per UI-Bezug-Feld im Analyse-Block; Nicht-UI-Tickets ueberspringen UX),
 > ein eigener Lauf ([ticket-spec.md](ticket-spec.md),
-> [spec.yml](../.github/workflows/spec.yml)) schreibt die roten Tests auf einen
+> [spec.yml](../.github/workflows/03-claude-spec.yml)) schreibt die roten Tests auf einen
 > Draft-PR und gibt per `ai:ready` frei; die Umsetzung macht sie grün, ohne sie zu ändern
 > (Gewaltenteilung).
 
@@ -76,7 +78,9 @@ einem eigenen Schritt vor der Freigabe.
 **Was sich ändert:**
 
 - Neues Label **`ai:spec-ready`** zwischen `ai:analyzed` und `ai:ready`: Triage (oder ein
-  dedizierter Spec-Lauf) legt **rote Tests mit echten Assertions** an. `ai:ready` erst, wenn die
+  dedizierter Spec-Lauf) legt **rote Tests mit echten Assertions** an. Zwischen `ai:spec-ready`
+  und dem Spec-Lauf laeuft optional die UX-Beratung (Phase 2, entschieden per UI-Bezug in der
+  Triage; Nicht-UI-Tickets setzen `ux:ready` sofort und ueberspringen UX). `ai:ready` erst, wenn die
   roten Tests stehen.
 - [ticket-implementation.md](ticket-implementation.md): Die Umsetzung darf die Tests **nicht ändern**,
   nur grün machen (Tests sind der Vertrag).

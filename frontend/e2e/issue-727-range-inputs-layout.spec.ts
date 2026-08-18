@@ -25,15 +25,15 @@ test.describe('#727 Range-Inputs Layout über alle Viewports', () => {
 		await waitForStableView(page);
 
 		// Schnellerfassungs-Dialog öffnen (Button mit Plus-Icon)
-		await page.locator('.fa-plus').click();
+		await page.getByRole('button', { name: /neuen task anlegen/i }).click();
 
 		// QuickCapture-Capture-Schritt überspringen, direkt zum Formular
 		await page.getByRole('button', { name: /überspringen/i }).click();
 		await waitForStableView(page);
 
-		// Range-Inputs lokalisieren (Shadow-DOM via KoliBri-Komponente)
-		const prioritySlider = page.locator('kol-input-range').first().locator('input[type="range"]');
-		const effortSlider = page.locator('kol-input-range').nth(1).locator('input[type="range"]');
+		// Range-Inputs am Host lokalisieren (kein Shadow-DOM-Piercing)
+		const prioritySlider = page.locator('kol-input-range').first();
+		const effortSlider = page.locator('kol-input-range').nth(1);
 
 		await expect(prioritySlider).toBeVisible();
 		await expect(effortSlider).toBeVisible();
@@ -67,8 +67,8 @@ test.describe('#727 Range-Inputs Layout über alle Viewports', () => {
 		await waitForStableView(page);
 		await page.getByRole('button', { name: /überspringen/i }).click();
 
-		const prioritySlider = page.locator('kol-input-range').first().locator('input[type="range"]');
-		const effortSlider = page.locator('kol-input-range').nth(1).locator('input[type="range"]');
+		const prioritySlider = page.locator('kol-input-range').first();
+		const effortSlider = page.locator('kol-input-range').nth(1);
 
 		await expect(prioritySlider).toBeVisible();
 		await expect(effortSlider).toBeVisible();
@@ -101,8 +101,8 @@ test.describe('#727 Range-Inputs Layout über alle Viewports', () => {
 		await page.getByRole('button', { name: /überspringen/i }).click();
 		await waitForStableView(page);
 
-		const prioritySlider = page.locator('kol-input-range').first().locator('input[type="range"]');
-		const effortSlider = page.locator('kol-input-range').nth(1).locator('input[type="range"]');
+		const prioritySlider = page.locator('kol-input-range').first();
+		const effortSlider = page.locator('kol-input-range').nth(1);
 
 		await expect(prioritySlider).toBeVisible();
 		await expect(effortSlider).toBeVisible();
@@ -132,8 +132,8 @@ test.describe('#727 Range-Inputs Layout über alle Viewports', () => {
 		await page.getByRole('button', { name: /überspringen/i }).click();
 		await waitForStableView(page);
 
-		const prioritySlider = page.locator('kol-input-range').first().locator('input[type="range"]');
-		const effortSlider = page.locator('kol-input-range').nth(1).locator('input[type="range"]');
+		const prioritySlider = page.locator('kol-input-range').first();
+		const effortSlider = page.locator('kol-input-range').nth(1);
 
 		// Mobile 375px
 		await page.setViewportSize({ width: 375, height: 667 });

@@ -57,14 +57,15 @@ Darunter wechselst du über eine **Tab-Leiste** zwischen den vier Hauptansichten
 2. **Aufgaben** – deine Aufgaben anlegen und pflegen; ein Umschalter wechselt hier
    zwischen **offenen** und **erledigten** Aufgaben
 3. **Serien** – wiederkehrende Aufgaben
-4. **Aufgabenwald** – die Priorisierung als Baum
+4. **Wald** – die Priorisierung als Baum
 
 ---
 
 ## Dashboard
 
 Das Dashboard ist die Startseite und reine Anzeige. Wenn ein Name hinterlegt ist,
-begrüßt es dich mit **„Hallo {Name}!"**. Von oben nach unten:
+begrüßt es dich mit **„Hallo {Name}!"**. Oben rechts findest du einen Button zum
+**Auswählen des KI-Modells** (für die KI-Funktionen). Von oben nach unten:
 
 - **Statuskacheln:** **Gesamt**, **Offen** und **Erledigt** – die Anzahl deiner
   Aufgaben auf einen Blick.
@@ -264,8 +265,10 @@ erzeugt Priority Pilot regelmäßig neue Aufgaben-Instanzen.
 
 - **Neue Serie anlegen:** über **„Neuen Task anlegen"** und den Schalter **„Serie"**
   einschalten. Statt einer Deadline setzt du dann ein **Startdatum** und einen
-  **Rhythmus**: **Täglich**, **Wöchentlich** oder **Monatlich**. Priorität, Aufwand,
-  Beschreibung und Säulen werden als Vorlage für jede Instanz übernommen.
+  **Rhythmus**: **Täglich**, **Wöchentlich**, **Monatlich**, **Werktags** (Mo–Fr),
+  **Wochenende** (Sa+So) oder an einem bestimmten Wochentag (**Montags** bis
+  **Sonntags**). Priorität, Aufwand, Beschreibung und Säulen werden als Vorlage für
+  jede Instanz übernommen.
 - **Verwalten:** im Tab **Serien** siehst du alle Serien mit ihrem Rhythmus. Dort
   kannst du sie **bearbeiten** oder **löschen**.
 - **Fällige Instanzen generieren:** der gleichnamige Button erzeugt die aktuell

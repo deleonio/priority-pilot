@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deterministische Fakten für den PR-Documenter (Phase 6) und den Reviewer (Phase 4).
+# Deterministische Fakten für den PR-Documenter (Phase 7) und den Reviewer (Phase 5).
 #
 # WARUM: Bot-Erkennung, Conventional-Commits-Titelprüfung und Typ-/Scope-Vorschläge
 # sind reine Regel-Logik — sie gehören NICHT ins LLM (empirische Folge des bisherigen
@@ -23,7 +23,7 @@
 #   body_len=N              Länge des aktuellen PR-Bodys (Body-Policy)
 #   linked_issues=1,2,...   Closing-Issue-Nummern (kommasepariert, evtl. leer)
 #
-# --mode title-only: nur facts_ok/title_ok/suggested_* (Phase 4 braucht keine Body-Fakten).
+# --mode title-only: nur facts_ok/title_ok/suggested_* (Phase 5 braucht keine Body-Fakten).
 
 set -uo pipefail
 

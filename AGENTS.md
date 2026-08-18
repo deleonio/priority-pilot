@@ -8,7 +8,6 @@ nicht Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 
 - [Projekt & Aufbau](.ai-knowledge/project.md) — Zweck, Monorepo, Befehle, Datenbank
 - [Konventionen](.ai-knowledge/conventions.md) — Formatierung, ESLint, TypeScript, Commits, Mobile-First
-- [Design-Sprache „Cockpit"](.ai-knowledge/ux-design.md) — verbindlicher Maßstab für jede sichtbare UI-Änderung
 - [Ticket-Triage](.ai-knowledge/ticket-triage.md) — Analyse offener GitHub-Issues
 - [Ticket-Spec](.ai-knowledge/ticket-spec.md) — rote Tests (Vertrag) für `ai:spec-ready`-Issues schreiben
 - [Ticket-Umsetzung](.ai-knowledge/ticket-implementation.md) — freigegebene Issues (`ai:ready`) umsetzen
@@ -23,6 +22,8 @@ nicht Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 - [Tailscale Exit Node](docs/tailscale-exit-node.md) — CI-Traffic über Nürnberger Tailscale-Exit-Node (manueller Test-Workflow)
 - [Multi-Provider-CI](.ai-knowledge/multi-provider-ci.md) — Provider-Setup, Secrets, setup-claude-Action (Betriebs-Doku)
 - [UX-Pattern: Sequenzielle Bestätigung](docs/ux-pattern-sequential-confirmation.md) — verbindliche Referenz für destruktive Aktionen
+- [Mobile-UI-Regeln](docs/mobile-ui-rules.md) — verbindliches Regelset für Mobile-UI (Daumen-Zonen, Touch-Targets, async Zustände, Anti-Patterns; mit Repo-Abstimmung)
+- [Design-Sprache „Cockpit"](.ai-knowledge/ux-design.md) — wie es aussieht: Farbrollen, Skalen-Tokens, Komponentenwahl (Schwesterdatei zu den Mobile-UI-Regeln)
 
 ## Kernregeln
 
@@ -31,6 +32,8 @@ nicht Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
   das Aufnahmekriterium in [TDD-Strategie → Testumfang](.ai-knowledge/tdd-strategy.md#testumfang--so-viel-wie-nötig-so-wenig-wie-irgend-möglich)
   operationalisiert: ein Test muss etwas **auswerten**, einen **Spiegel** absichern oder vor einem
   **stillen/teuren** Ausfall schützen — sonst entsteht er nicht.
+- **KoliBri-First:** Komponenten nur selbst stylen, wenn keine KoliBri-Komponente anwendbar ist
+  (Shadow-Web-Components mit festem Styling; Shadow-DOM-CSS ist unpublizierte API).
 - Monorepo mit **pnpm**.
 - Formatieren: `pnpm format` (Prettier, eine zentrale Config im Root).
 - Linten: `pnpm lint`.
@@ -47,7 +50,7 @@ nicht Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 
 ## KI-Agent — Pipeline-Phasen
 
-Die Pipeline umfasst sieben Phasen: Triage, Spec (2a), UX-Review (2b), Umsetzung, Review, Fixup und PR-Documenter
+Die Pipeline umfasst sieben Phasen: Triage, UX-Beratung, Spec, Umsetzung, Review, Fixup und PR-Documenter
 laufen als KI-gesteuerte Workflows über **Claude Code** in GitHub Actions. Die 7. Phase
 **PR-Documenter** läuft NACH dem Merge und arbeitet in Arbeitsteilung: deterministische
 Regel-Logik (`.github/scripts/pr-doc-facts.sh`) erkennt Bot-PRs und prüft den Titel, das LLM
@@ -55,9 +58,9 @@ liefert nur Klassifikation + Texte (`/tmp/doc.json`), und `.github/scripts/pr-do
 setzt alle Schreibzugriffe um — Titel-Rename (Conventional Commits, **englisch**), Body-Sektion
 zwischen `<!-- ai-documenter-body -->`-Markern (bestehender Body bleibt unangetastet), GENAU EIN
 Release-Note-Kommentar (`<!-- ai-documenter -->`, PATCH statt Duplikat) und Labels
-(`release:*` nach Klassifikation, `ai:documented`). Der Reviewer (Phase 4) korrigiert den Titel
+(`release:*` nach Klassifikation, `ai:documented`). Der Reviewer (Phase 5) korrigiert den Titel
 schon VOR dem Merge (Titel-Gate). Ein täglicher Sweep
-([06b-documenter-sweep.yml](.github/workflows/06b-documenter-sweep.yml)) triggert Phase 6 für
+([06b-documenter-sweep.yml](.github/workflows/06b-documenter-sweep.yml)) triggert Phase 7 für
 verlorene gemergte PRs nach; die `release:*`-Labels speisen die Release Notes
 ([.github/release.yml](.github/release.yml)) der Deploy-Pipeline. Der Provider ist über die
 Repo-Variable **`vars.LLM_PROVIDER`** umschaltbar:
@@ -67,23 +70,26 @@ löst die Setup-Action pro Lauf auf — die eingecheckte
 [`.claude/settings.json`](.claude/settings.json) bleibt bewusst providerneutral, weil sie auch
 für lokale Sessions gilt. CI/Provider/Modell-Doku: [docs/ci-architecture.md](docs/ci-architecture.md).
 
+**CI-MCP-Integration:** KoliBri-MCP (`kolibri-mcp`, Tools `mcp__kolibri-mcp__*`) ist in allen Phasen außer
+Documenter (07) über `needs-mcp: true` verfügbar; Playwright-MCP (`playwright`, Tools `mcp__playwright__*`)
+zusätzlich in UX (02), Umsetzung (04) und Fixup (06) über `browser-mcp: true` für Layout-Prüfung
+(375px/1280px Viewport) bei laufender App auf `http://localhost:4174`.
+
 **Jede KI-gesteuerte Phase liest nur ihre eigene Wissensbasis-Datei** + das Issue/PR. Kein domänenübergreifendes
 Lesen — die jeweilige Datei enthält alles Notwendige.
 
-**Label-Kette:** `ai:analyzed` → `ai:spec-ready` (🟢) → Spec → `ux:ready` → UX-Review → `ai:ready` →
-Umsetzung → `ai:needs-review` → Review ↔ Fixup (`ai:needs-changes`) → `ai:ready-to-merge`.
-Das Laufzeit-Gate der Umsetzung (`.github/scripts/check-phase-label.sh`) verlangt `ai:ready` **und**
-`ux:ready` — die UX-Phase ist damit nicht überspringbar.
+**Label-Kette:** `ai:analyzed` → `ai:spec-ready` (🟢) → [`ux:ready` via UX-Beratung bei UI-Bezug] → `ai:ready` → Umsetzung →
+`ai:needs-review` → Review ↔ Fixup (`ai:needs-changes`) → `ai:ready-to-merge`.
 
-| Phase              | Trigger                                       | Wissensbasis (einzige zu lesende Datei)                                                                | Output                                                                      |
-| ------------------ | --------------------------------------------- | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
-| **Triage**         | Issue neu, `ai:analyzed` entfernt, `@agent`   | [ticket-triage.md](.ai-knowledge/ticket-triage.md)                                                     | Analyse-Body-Block + Ampel, Ping → `ai:analyzed` (+ `ai:spec-ready` bei 🟢) |
-| **Spec (2a)**      | `ai:spec-ready` + `ai:analyzed`               | [ticket-spec.md](.ai-knowledge/ticket-spec.md)                                                         | Rote Tests + Draft-PR → `ux:ready`                                          |
-| **UX-Review (2b)** | `ux:ready` + `ai:analyzed`                    | [ticket-ux.md](.ai-knowledge/ticket-ux.md) + [ux-design.md](.ai-knowledge/ux-design.md)                | UX-Anforderungen im Issue + rote 375px-Tests/Fixes im Spec-PR → `ai:ready`  |
-| **Umsetzung**      | `ai:ready` + `ai:analyzed`                    | [ticket-implementation.md](.ai-knowledge/ticket-implementation.md)                                     | Tests grün + PR review-bereit → `ai:needs-review`                           |
-| **Review**         | `ai:needs-review` (am PR)                     | [pr-review.md](.ai-knowledge/pr-review.md)                                                             | Sammelkommentar + Ampel → `ai:needs-changes` / `ai:ready-to-merge`          |
-| **Fixup**          | `ai:needs-changes` (am PR)                    | [pr-review.md](.ai-knowledge/pr-review.md)                                                             | Findings behoben → `ai:needs-review`                                        |
-| **PR-Documenter**  | `pull_request.closed` + `merged` (PR gemergt) | [documenter.md](.github/prompts/documenter.md) (LLM-Anteil) + `pr-doc-{facts,render}.sh` (Regel-Logik) | PR-Titel, -Beschreibung, Release-Note & Labels nach Merge → `ai:documented` |
+| Phase             | Trigger                                          | Wissensbasis (einzige zu lesende Datei)                                                                | Output                                                                                                    |
+| ----------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| **Triage**        | Issue neu, `ai:analyzed` entfernt, `@agent`      | [ticket-triage.md](.ai-knowledge/ticket-triage.md)                                                     | Analyse-Body-Block + Ampel, Ping → `ai:analyzed` (+ `ai:spec-ready` bei 🟢, ggf. `ux:ready` bei Nicht-UI) |
+| **UX-Beratung**   | `ai:spec-ready` + `ai:analyzed`, ohne `ux:ready` | [ticket-ux.md](.ai-knowledge/ticket-ux.md)                                                             | KI-UX-Block → `ux:ready` (Nicht-UI-Tickets: No-op, Triage setzt ux:ready sofort)                          |
+| **Spec**          | `ux:ready` + `ai:spec-ready` + `ai:analyzed`     | [ticket-spec.md](.ai-knowledge/ticket-spec.md)                                                         | Rote Tests + Draft-PR → `ai:ready`                                                                        |
+| **Umsetzung**     | `ai:ready` + `ai:analyzed` + `ux:ready`          | [ticket-implementation.md](.ai-knowledge/ticket-implementation.md)                                     | Tests grün + PR review-bereit → `ai:needs-review`                                                         |
+| **Review**        | `ai:needs-review` (am PR)                        | [pr-review.md](.ai-knowledge/pr-review.md)                                                             | Sammelkommentar + Ampel → `ai:needs-changes` / `ai:ready-to-merge`                                        |
+| **Fixup**         | `ai:needs-changes` (am PR)                       | [pr-review.md](.ai-knowledge/pr-review.md)                                                             | Findings behoben → `ai:needs-review`                                                                      |
+| **PR-Documenter** | `pull_request.closed` + `merged` (PR gemergt)    | [documenter.md](.github/prompts/documenter.md) (LLM-Anteil) + `pr-doc-{facts,render}.sh` (Regel-Logik) | PR-Titel, -Beschreibung, Release-Note & Labels nach Merge → `ai:documented`                               |
 
 ## Tests (Server)
 

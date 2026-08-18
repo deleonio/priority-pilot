@@ -1,9 +1,9 @@
 name: 6b Documenter Sweep
 
-# Catch-up-Sweep für den PR-Documenter (Phase 6): findet gemergte PRs, die NOCH KEIN
+# Catch-up-Sweep für den PR-Documenter (Phase 7): findet gemergte PRs, die NOCH KEIN
 # ai:documented-Label tragen (verlorener Läufe — z. B. Queue-Discard vor queue:max,
-# Runner-Abbruch, deployte Workflow-Änderung), und triggert Phase 6 pro PR per
-# workflow_dispatch nach. Der fail-closed-Precheck von Phase 6 bleibt die Dedup-
+# Runner-Abbruch, deployte Workflow-Änderung), und triggert Phase 7 pro PR per
+# workflow_dispatch nach. Der fail-closed-Precheck von Phase 7 bleibt die Dedup-
 # Invariante: ist ai:documented inzwischen gesetzt, verläuft der nachgetriggerte Lauf
 # als No-op (proceed=false).
 #
@@ -33,7 +33,7 @@ concurrency:
 
 permissions:
   contents: read # Repo-Kontext für gh-Suche
-  actions: write # workflow_dispatch auf Phase 6 (via App-Token)
+  actions: write # workflow_dispatch auf Phase 7 (via App-Token)
   pull-requests: read
 
 env:
@@ -54,7 +54,7 @@ jobs:
           APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
         run: |
           if [ -z "$APP_ID" ] || [ -z "$APP_PRIVATE_KEY" ]; then
-            echo "::error title=App-Secrets fehlen::Sweep kann Phase 6 nicht nachtriggern (GITHUB_TOKEN-Dispatch startet keine Runs). GitHub-App-Secrets APP_ID + APP_PRIVATE_KEY setzen."
+            echo "::error title=App-Secrets fehlen::Sweep kann Phase 7 nicht nachtriggern (GITHUB_TOKEN-Dispatch startet keine Runs). GitHub-App-Secrets APP_ID + APP_PRIVATE_KEY setzen."
             exit 1
           fi
 
@@ -108,15 +108,15 @@ jobs:
             closed="$(printf '%s' "$pr" | jq -r '.closedAt')"
             if [ "$DRY_RUN" = "true" ]; then
               echo "| #$number | $title | $closed | ⏸️ dry-run |" >> "$GITHUB_STEP_SUMMARY"
-              echo "[dry-run] würde Phase 6 für PR #$number nachtriggern."
+              echo "[dry-run] würde Phase 7 für PR #$number nachtriggern."
               continue
             fi
-            if gh workflow run 06-claude-pr-documenter.yml --repo "$REPO" -f "pr-number=$number"; then
+            if gh workflow run 07-claude-pr-documenter.yml --repo "$REPO" -f "pr-number=$number"; then
               echo "| #$number | $title | $closed | 🚀 nachgetriggert |" >> "$GITHUB_STEP_SUMMARY"
-              echo "🚀 Phase 6 für PR #$number nachgetriggert."
+              echo "🚀 Phase 7 für PR #$number nachgetriggert."
             else
               echo "| #$number | $title | $closed | ❌ Dispatch fehlgeschlagen |" >> "$GITHUB_STEP_SUMMARY"
-              echo "::warning title=Dispatch fehlgeschlagen::Phase 6 für PR #$number konnte nicht nachgetriggert werden."
+              echo "::warning title=Dispatch fehlgeschlagen::Phase 7 für PR #$number konnte nicht nachgetriggert werden."
             fi
             sleep 5 # Phase-6-Queue (queue: max, FIFO) atmet zwischen den Dispatches
           done

@@ -16,7 +16,7 @@
 #
 # Ungültiges/fehlendes doc.json => Fallback: Minimal-Kommentar + ai:documented +
 # release:engineering + ::warning, Exit 0. Bewusst KEIN harter Fehler: der Precheck von
-# Phase 6 ist fail-closed auf ai:documented — ein roter Job wäre nicht re-runbar und
+# Phase 7 ist fail-closed auf ai:documented — ein roter Job wäre nicht re-runbar und
 # damit eine Sackgasse. Nur wenn ai:documented selbst nicht setzbar ist: Exit 1 (der
 # Precheck lässt dann einen Re-Run zu).
 #

@@ -16,7 +16,7 @@ runs:
         # Findet grep nichts (= der Normalfall!), liefert es exit 1, pipefail reicht das durch
         # die Pipe und `-e` bricht den Step ab. Der Check schlug dadurch GENAU DANN fehl, wenn
         # alles in Ordnung war — invertierte Logik. Über den Step hinaus schädlich, weil
-        # claude-pr-gate-merge.yml den Check "4/6 Review" in any_fail wertet und einen sauberen
+        # claude-pr-gate-merge.yml den Check "5/7 Review" in any_fail wertet und einen sauberen
         # PR zu ai:needs-changes degradierte (Fixup-Loop bis zum Stop-Guard).
         # `set +e +o pipefail` verhindert den Abbruch mittendrin, das abschliessende `exit 0`
         # setzt den Step-Status unabhaengig vom letzten Kommando auf Erfolg — beides zusammen,

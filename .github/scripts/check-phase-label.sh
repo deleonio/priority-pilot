@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Prüft, ob der Trigger einer Pipeline-Phase zur LAUFZEIT noch gültig ist.
 #
-# WARUM: Die Phasen-Workflows (01–06) serialisieren global über eine statische
+# WARUM: Die Phasen-Workflows (01–07) serialisieren global über eine statische
 # concurrency-Gruppe pro Phase — Läufe stapeln sich (FIFO). Zwischen Trigger und
 # Job-Start können Minuten liegen, in denen ein anderer Lauf das Trigger-Label
 # längst konsumiert hat. Das `job-if` sieht nur den Event-Payload vom TRIGGER-
@@ -16,19 +16,20 @@
 # Soll-Zustand je Phase (die Tabelle ist die einzige Wahrheit — Workflows
 # übergeben nur den Phasen-Namen):
 #
-#   Phase       Objekt  Zustand        erforderlich                 abwesend
-#   ---------------------------------------------------------------------------
-#   analyse     Issue   offen          —                            Trigger-Label
-#                                                                   (Default ai:analyzed)
-#   spec        Issue   offen          ai:spec-ready + ai:analyzed  —
-#   ux          Issue   offen          ux:ready + ai:analyzed       ai:ready
-#   implement   Issue   offen          ai:ready + ai:analyzed +      —
+#   Phase       Objekt  Zustand        erforderlich                         abwesend
+#   -----------------------------------------------------------------------------------
+#   analyse     Issue   offen          —                                    Trigger-Label
+#                                                                     (Default ai:analyzed)
+#   ux          Issue   offen          ai:analyzed                          ux:ready
+#   spec        Issue   offen          ai:spec-ready + ai:analyzed +        —
 #                                   ux:ready
-#   review      PR      offen, kein    ai:needs-review              —
+#   implement   Issue   offen          ai:ready + ai:analyzed +              —
+#                                   ux:ready
+#   review      PR      offen, kein    ai:needs-review                      —
 #                       Draft
-#   fixup       PR      offen, kein    ai:needs-changes             —
+#   fixup       PR      offen, kein    ai:needs-changes                     —
 #                       Draft
-#   documenter  PR      gemergt        —                            ai:documented
+#   documenter  PR      gemergt        —                                    ai:documented
 #
 # Usage:
 #   bash check-phase-label.sh --repo <owner/repo> --phase <name> --ticket <N> \
@@ -85,11 +86,9 @@ case "$PHASE" in
     ABSENT=("${TRIGGER_LABEL:-ai:analyzed}")
     ;;
   spec)
-    KIND="issue"; WANT_STATE="open"; REQUIRED=("ai:spec-ready" "ai:analyzed") ;;
+    KIND="issue"; WANT_STATE="open"; REQUIRED=("ai:spec-ready" "ai:analyzed" "ux:ready") ;;
   ux)
-    # ux:ready setzt die Spec-Phase; ai:ready setzt die UX-Phase selbst am Ende. Ist ai:ready
-    # bereits da, wurde der Trigger konsumiert (sonst liefe der Review nach der Umsetzung erneut).
-    KIND="issue"; WANT_STATE="open"; REQUIRED=("ux:ready" "ai:analyzed"); ABSENT=("ai:ready") ;;
+    KIND="issue"; WANT_STATE="open"; REQUIRED=("ai:analyzed"); ABSENT=("ux:ready") ;;
   implement)
     KIND="issue"; WANT_STATE="open"; REQUIRED=("ai:ready" "ai:analyzed" "ux:ready") ;;
   review)

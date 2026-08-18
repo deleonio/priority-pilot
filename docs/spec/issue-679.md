@@ -7,6 +7,8 @@ metadata:
 
 # Issue 679: Zeichenzähler für KolInputText/KolTextarea
 
+**Stand:** 2026-08-17
+
 ## Ziel
 
 KolInputText und KolTextarea sollen den eingebaute Zeichenzähler von KoliBri nutzen (via `_hasCounter` und `_maxLength` Props).
@@ -38,3 +40,16 @@ KolInputText und KolTextarea sollen den eingebaute Zeichenzähler von KoliBri nu
 - `_hasCounter`: Boolean Prop, aktiviert den eingebauten Counter
 - `_maxLength`: Number Prop, definiert das Maximum für "X/Y" Anzeige
 - Keine manuelle Counter-Implementierung nötig (KoliBri übernimmt)
+
+---
+
+## Versionierung
+
+- **v1.0** (2026-08-17): Initialefassung für Issue #679. Zeichenzähler für KolInputText/KolTextarea spezifiziert.
+- **v1.1** (2026-08-17): Nightly-Sync — Ist-Stand-Korrektur. Feature ist bereits implementiert: TaskForm.tsx nutzt _hasCounter und _maxLength für Titel-Input.
+
+---
+
+## Status
+
+**ABGESCHLOSSEN** — Zeichenzähler für KolInputText ist implementiert und in Produktion.

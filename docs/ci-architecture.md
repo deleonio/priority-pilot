@@ -108,17 +108,17 @@ oder hat kein Guthaben — dann in der Anthropic Console prüfen und
 > Gilt nur für den `zai`-Zweig. Bei `LLM_PROVIDER=claude` löst `"model": "opus"` auf echtes
 > Claude Opus auf und die folgenden Kontingent-/Parallelitäts-Überlegungen entfallen.
 
-Die sieben LLM-Workflows (sechs Ticket-Phasen 01–06 plus Post-Merge-Documenter) nutzen **phasenspezifische Modell-Defaults**:
+Die sieben LLM-Workflows (sieben Ticket-Phasen 01–07 inkl. Post-Merge-Documenter) nutzen **phasenspezifische Modell-Defaults**:
 Jede Phase reicht ihre eigene `CLAUDE_MODEL_*`-Variable an `setup-claude` durch; GitHub-Vars dienen als Override/Experimente.
 
 | Phase          | Variable                     | Default (`LLM_PROVIDER=claude`) | Default (`LLM_PROVIDER=zai`) | Begründung                                      |
 | -------------- | ---------------------------- | ------------------------------- | ---------------------------- | ----------------------------------------------- |
 | Triage (01)    | `CLAUDE_MODEL_TRIAGE`        | `fable`                         | `glm-5.2`                    | Höchste Qualität für Analyse/Sub-Task-Schneiden |
-| Spec (02a)     | `CLAUDE_MODEL_SPEC`          | `sonnet`                        | `glm-4.7`                    | Balanciert für Design-Dokumente                 |
-| UX (02b)       | `CLAUDE_MODEL_UX`            | `sonnet`                        | `glm-4.7`                    | Balanciert für UX-Review                        |
-| Implement (03) | `CLAUDE_MODEL_IMPLEMENT`     | `opus`                          | `glm-5.1`                    | Maximale Qualität für Code-Generierung          |
-| Review (04)    | `CLAUDE_MODEL_PR_REVIEW`     | `opus`                          | `glm-5.1`                    | Tiefes Verständnis für Code-Review              |
-| Fixup (05)     | `CLAUDE_MODEL_FIXUP`         | `sonnet`                        | `glm-4.7`                    | Großer Context (CI-Logs), kosteneffizient       |
+| Spec (03)      | `CLAUDE_MODEL_SPEC`          | `sonnet`                        | `glm-4.7`                    | Balanciert für Design-Dokumente                 |
+| UX (02)        | `CLAUDE_MODEL_UX`            | `sonnet`                        | `glm-4.7`                    | Balanciert für UX-Review                        |
+| Implement (04) | `CLAUDE_MODEL_IMPLEMENT`     | `opus`                          | `glm-5.1`                    | Maximale Qualität für Code-Generierung          |
+| Review (05)    | `CLAUDE_MODEL_PR_REVIEW`     | `opus`                          | `glm-5.1`                    | Tiefes Verständnis für Code-Review              |
+| Fixup (06)     | `CLAUDE_MODEL_FIXUP`         | `sonnet`                        | `glm-4.7`                    | Großer Context (CI-Logs), kosteneffizient       |
 | Documenter     | `CLAUDE_MODEL_DOCUMENTATION` | `haiku`                         | `glm-4.5-air`                | Schnelle Documentation-Generierung              |
 
 **Override-Syntax:** Jeder Workflow nutzt `model: ${{ vars.CLAUDE_MODEL_<PHASE> || '<default>' }}` — ist die GitHub-Variable nicht gesetzt, greift der Default-Wert. Default-Änderungen erfolgen in den Workflow-Dateien, nicht via Repo-Vars.
@@ -165,12 +165,12 @@ echo "ANTHROPIC_DEFAULT_OPUS_MODEL=glm-5.1"          >> "$GITHUB_ENV"
 
 ### CI-Flags
 
-| Flag                                                        | Zweck                                 |
-| ----------------------------------------------------------- | ------------------------------------- |
-| `-p '<prompt>'`                                             | Single-query, non-interactive         |
-| `--dangerously-skip-permissions`                            | Keine Gefahren-Bestätigung (headless) |
-| `--allowedTools Bash,Read,Write,Edit,Grep,Glob`             | Nur Terminal- und Datei-Tools         |
-| `--allowedTools …,mcp__kolibri__search,mcp__kolibri__fetch` | ergänzt in Triage + Implement         |
+| Flag                                                                | Zweck                                   |
+| ------------------------------------------------------------------- | --------------------------------------- |
+| `-p '<prompt>'`                                                     | Single-query, non-interactive           |
+| `--dangerously-skip-permissions`                                    | Keine Gefahren-Bestätigung (headless)   |
+| `--allowedTools Bash,Read,Write,Edit,Grep,Glob`                     | Nur Terminal- und Datei-Tools           |
+| `--allowedTools …,mcp__kolibri-mcp__search,mcp__kolibri-mcp__fetch` | ergänzt in allen Phasen mit `needs-mcp` |
 
 Kein `--model`: das Modell wird über `"model": "opus"` in der `settings.json` gewählt — bei
 `LLM_PROVIDER=claude` ist das echtes Opus, bei `zai` bildet die Setup-Action es per
@@ -193,7 +193,7 @@ Label-Post-Assertion.
 | `APP_ID`             | GitHub App (Token für Label-/PR-Operationen)                |
 | `APP_PRIVATE_KEY`    | GitHub App (Token für Label-/PR-Operationen)                |
 
-Alle drei LLM-Secrets werden von allen sechs LLM-Workflows durchgereicht; welches davon greift, entscheidet
+Alle drei LLM-Secrets werden von allen sieben LLM-Workflows durchgereicht; welches davon greift, entscheidet
 `vars.LLM_PROVIDER`. Nur das Secret des **aktiven** Providers muss gesetzt sein — die anderen dürfen
 leer bleiben, ohne den Lauf zu brechen.
 
@@ -203,17 +203,31 @@ vollständig verdrahteter dritter Provider (alle Phasen-Workflows reichen den Ke
 durch, `00-set-llm-provider.yml` akzeptiert ihn, `ci-multi-provider.yml` führt die Matrix) — nur
 ist er nicht der Default-Pfad (`claude`).
 
-## KoliBri MCP-Server für Frontend-Implementierung
+## MCP-Server für KoliBri und Playwright (Browser-Inspektion)
 
-Der KoliBri MCP-Server steht dem Agenten in **Triage** und **Implement** zur Verfügung (nicht in
-Review/Fixup/Spec, die keine Frontend-Komponenten schreiben).
+Der **KoliBri MCP-Server** (`kolibri-mcp`) ist in allen Phasen außer Documenter (07) via `needs-mcp: true`
+verfügbar und liefert KoliBri-Komponenten-Suche und Dokumentation. Der **Playwright MCP-Server**
+(`playwright`) steht zusätzlich in UX (02), Umsetzung (04) und Fixup (06) via `browser-mcp: true`
+für Layout-Prüfung bei 375px/1280px Viewport auf der laufenden Inspect-Instanz (http://localhost:4174).
 
-**Einrichtung:** Der Server ist fest in der `.claude/settings.json` unter `mcpServers.kolibri`
-eingetragen (kein pro-Lauf-`claude mcp add` mehr nötig). Die Setup-Action ergänzt für Triage +
-Implement lediglich die Tools in `--allowedTools`.
+**Einrichtung:** Beide Server sind in `.mcp.json` registriert (KoliBri: HTTP, Playwright: `@playwright/mcp@0.0.79`,
+`allowed-origins: localhost:4174;3001`). Die Setup-Action (`setup-claude`) hängt bei `needs-mcp: true` die
+KoliBri-Tools (`mcp__kolibri-mcp__*`) an die Allowlist aller Tiers; bei `browser-mcp: true` zusätzlich die
+Playwright-Tools (`mcp__playwright__*`).
 
-**Verfügbare Tools:** `mcp__kolibri__search` (Komponenten-Suche), `mcp__kolibri__fetch`
-(Beispiel/Dokument holen).
+**Verfügbare Tools:**
+
+- KoliBri: `mcp__kolibri-mcp__search` (Komponenten-Suche), `mcp__kolibri-mcp__fetch` (Beispiel/Dokument)
+- Playwright: `mcp__playwright__browser_navigate`, `mcp__playwright__browser_snapshot`,
+  `mcp__playwright__browser_take_screenshot`, `mcp__playwright__browser_resize`, u.a.
+
+**Chromium + Hintergrund-App:** Die Phasen mit Browser-MCP (02/04/06) installieren Chromium (cached,
+`pnpm --filter frontend exec playwright install --with-deps chromium`), bauen den Server vorab
+(`pnpm --filter server build`) und starten die Inspect-Instanz im Hintergrund
+(`INSPECT_NO_WATCH=1 nohup ./ui-inspect.sh` mit Readiness-Check auf http://localhost:4174, Timeout 120s —
+ohne nodemon-Watch/Rebuild startet der Server in Sekunden; bei Timeout landen die letzten Log-Zeilen
+in der Step-Ausgabe).
+Der Runner killt den Prozess am Ende; `ui-inspect.sh` hat einen trap für eigenen Cleanup.
 
 ## Weiches Zeitlimit (Soft-Abort)
 
@@ -281,9 +295,9 @@ anstößt.
 Die Session-Resume-Funktionalität (MIG-002) ist noch nicht migriert. Derzeit startet jeder Lauf
 frisch ohne Kontext aus vorherigen Läufen derselben Phase.
 
-## PR-Documenter: Arbeitsteilung Regel-Logik + LLM (Phase 6)
+## PR-Documenter: Arbeitsteilung Regel-Logik + LLM (Phase 7)
 
-Der Post-Merge-Documenter ([06-claude-pr-documenter.yml](../.github/workflows/06-claude-pr-documenter.yml))
+Der Post-Merge-Documenter ([07-claude-pr-documenter.yml](../.github/workflows/07-claude-pr-documenter.yml))
 war anfangs eine reine Prompt-Phase — empirisch drifteten dabei Kommentar-Formate, blieben
 Branch-Namen-Titel (`perf/#692: …`, `feat/issue-671-…`) unnormalisiert und landeten UX-Änderungen
 unter `perf(...)` (feste Prompt-Regel `improved→perf`). Jetzt entscheidet Regel-Logik, das LLM
@@ -301,16 +315,16 @@ Fällt Claude oder die Validierung aus, rendert der Fallback-Pfad eine Minimal-D
 wäre durch den Precheck blockiert, ein roter Job also eine Sackgasse.
 
 **Sprachregel:** PR-Titel und Haupttexte englisch (Conventional Commits, Subject klein, ≤72
-Zeichen); die deutsche Zusammenfassung lebt in einer `<details>`-Box. Der Reviewer (Phase 4)
+Zeichen); die deutsche Zusammenfassung lebt in einer `<details>`-Box. Der Reviewer (Phase 5)
 bekommt dieselben Titelfakten (`--mode title-only`) und korrigiert non-konforme Titel schon
 **vor** dem Merge — post-merge ist ein Rename nur noch kosmetisch, der Merge-Commit-Subject
 steht bereits.
 
 **Catch-up-Sweep** ([06b-documenter-sweep.yml](../.github/workflows/06b-documenter-sweep.yml),
 täglich 03:17 UTC + `workflow_dispatch` mit `dry-run`): findet gemergte PRs der letzten 30 Tage
-ohne `ai:documented`/`release:ignore` und triggert Phase 6 pro PR per `workflow_dispatch` nach
+ohne `ai:documented`/`release:ignore` und triggert Phase 7 pro PR per `workflow_dispatch` nach
 (max. 10/Lauf). Muss den App-Token nutzen — ein via `GITHUB_TOKEN` ausgelöster Dispatch startet
-keinen Workflow-Run. Der fail-closed-Precheck von Phase 6 dedupliziert.
+keinen Workflow-Run. Der fail-closed-Precheck von Phase 7 dedupliziert.
 
 ## Release-Notes-Kette
 
@@ -328,7 +342,7 @@ best-effort: ein Fehlschlag warnt, kippt aber nie das Deploy.
 1. **Chat/REPL (interaktiv):** Trigger-Phrasen aktivieren den Agenten direkt: „Kreuzverhör",
    „nimm das auseinander", „stress-teste das", „challenge mich".
 2. **Slash-Command:** `/kreuzverhoer-review [PR-Nummer]`.
-3. **GitHub Actions (automatisch):** `04-claude-pr-review.yml` feuert, wenn ein PR das Label
+3. **GitHub Actions (automatisch):** `05-claude-pr-review.yml` feuert, wenn ein PR das Label
    `ai:needs-review` trägt.
 
 In **GitHub Actions** läuft das über **Labels**: Der Umsetzungs-Workflow macht den PR
@@ -356,21 +370,22 @@ Journeys im user-journeys.md-Format).
 - **Skip-Guard:** Hat `main` denselben SHA wie der letzte erfolgreiche Lauf, wird der Lauf
   übersprungen (deterministisch dasselbe Ergebnis, spart LLM-Budget). Fail-open bei API-Fehlern;
   `workflow_dispatch` mit `force: true` umgeht den Guard.
-- **Branch/PR (pro Datei):** Der Agent committed nur lokal auf `chore/spec-sync-work` (nie
-  gepusht). Die Mechanik überträgt diff-basiert je geänderter Spec-Datei den finalen Stand auf
-  einen eigenen Branch `chore/spec-sync/<datei-stem>` und erzeugt daraus **einen PR (Non-Draft)**
-  mit direkt gesetztem `ai:needs-review`-Label per App-Token — unabhängig von der Commit-
-  Aufteilung des Agenten. Das Label-Setzen erfolgt mit Retry (3 Versuche); bei endgültigem
-  Fehlschlag fällt der Lauf laut (`::error` + Exit 1). Für eine Datei mit bereits offenem
-  Sync-PR wird kein zweiter erzeugt (Skip mit Notice). PR-Body ist der `## <dateiname>`-
-  Abschnitt des Agent-Reports (Fallback: `git log`, mit Warning).
+- **Branch/PR (Sammel-Modell):** Der Agent committed nur lokal auf `chore/spec-sync-work` (nie
+  gepusht). Die Mechanik überträgt diff-basiert für alle geänderten Spec-Dateien den finalen Stand
+  auf einen Sammel-Branch `chore/spec-sync-all` und erzeugt daraus **einen Sammel-PR (Non-Draft)**
+  mit direkt gesetztem `ai:needs-review`-Label per App-Token — dies ersetzt das früere Modell
+  (Branch/PR pro Datei, `chore/spec-sync/<stem>`). Das Label-Setzen erfolgt mit Retry (3 Versuche);
+  bei endgültigem Fehlschlag fällt der Lauf laut (`::error` + Exit 1). PR-Body ist der aggregierte
+  Agent-Report mit je einem `## <dateiname>`-Abschnitt pro Spec-Datei (Fallback: `git log`, mit Warning).
 - **Pipeline-Integration:** Das Label wird per App-Token direkt nach PR-Create gesetzt
   (Autolabeler `pr-needs-review-label.yml` greift bei Bots nicht). Das `labeled`-Event
-  feuert → Kreuzverhör-Review (04) und Fixup-Loop (05) übernehmen Prüfung und Nacharbeit
+  feuert → Kreuzverhör-Review (05) und Fixup-Loop (06) übernehmen Prüfung und Nacharbeitung
   automatisch, ohne Menschseingriff. Ein Workflow-Rerun bleibt idempotent (offene Sync-PRs
   → Skip mit Notice).
-- **Post-Assertion (VERDICT-Muster):** `VERDICT: synced` ↔ null Commits, `VERDICT: updated` ↔
-  Commits vorhanden, geänderte Dateien ⊆ `docs/spec/` — jeder Widerspruch failt laut.
+- **Post-Assertion (VERDICT-Muster):** `VERDICT: synced` ↔ null Commits (0-PR-Pfad: kein PR
+  erzeugt), `VERDICT: updated` ↔ Commits vorhanden, geänderte Dateien ⊆ `docs/spec/` — jeder
+  Widerspruch failt laut. In-Flight-Guard via 4 Labels (`ai:analyzed`, `ai:spec-ready`,
+  `ai:spec-approved`, `ai:implemented`) verhindert konkurrierende Spec-Änderungen.
 - **Bewusst stateless:** Kein pro-Issue-Memory — die offenen Draft-PRs sind der einzige Zustand.
 - **Modell:** `vars.CLAUDE_MODEL_SPEC_SYNC` (Default `sonnet`), Provider wie alle LLM-Phasen via
   `vars.LLM_PROVIDER` (setup-claude, `tools-tier: full`, inkl. Tailscale-Egress und

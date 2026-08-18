@@ -1,21 +1,28 @@
 # Design-Sprache „Cockpit"
 
-Verbindlicher Maßstab für **jede** sichtbare Änderung am Frontend. Diese Datei beantwortet die Frage
-„sieht das richtig aus?" so, dass die Antwort nachprüfbar ist — nicht nach Geschmack.
+**Wie es aussieht** — Farbrollen, Skalen, Komponentenwahl. Die Schwesterdatei
+[docs/mobile-ui-rules.md](../docs/mobile-ui-rules.md) regelt, **wie es sich bedient** (Daumen-Zonen,
+Touch-Targets, asynchrone Zustände, Anti-Patterns). Beide gelten zusammen; hier steht nichts, was
+dort schon steht.
+
+Diese Datei liefert konkret die Tokens, die
+[Regel 6 dort](../docs/mobile-ui-rules.md#die-10-regeln) einfordert und die es bisher nur für Farben
+gab: Abstand, Typografie, Radius, Schatten, Bewegung.
 
 Ergänzende Pflichtlektüre (nicht hier dupliziert):
 
-- [Konventionen → Mobile-First](conventions.md) — 375px-Referenz, 44px-Touch-Targets, Aufwärts-Kaskade,
-  kein horizontales Scrollen, e2e-Pflicht bei 375×812.
+- [Mobile-UI-Regeln](../docs/mobile-ui-rules.md) — die 10 Regeln inkl. Repo-Abstimmung.
+- [Konventionen → Mobile-First](conventions.md) — Aufwärts-Kaskade, e2e-Pflicht bei 375×812.
 - [UX-Pattern: Sequenzielle Bestätigung](../docs/ux-pattern-sequential-confirmation.md) — destruktive Aktionen.
 
 ## 1. Haltung
 
 Priority Pilot beantwortet **eine** Frage: _„Woran arbeite ich als Nächstes?"_
 
-Daraus folgt die Gestaltungsregel: **Pro Ansicht gibt es genau eine Hauptaussage.** Sie trägt die
-Signalfarbe und den größten Typo-Grad; alles andere ordnet sich unter. Auf dem Dashboard ist das die
-nächste sinnvolle Aufgabe — nicht die Statistik-Karten, nicht die Säulen-Balance.
+Daraus folgt die gestalterische Lesart von „ein Screen, eine Aufgabe"
+([Regel 5](../docs/mobile-ui-rules.md)): **Die eine Primäraktion hat auch eine Hauptaussage** — sie
+trägt die Signalfarbe und den größten Typo-Grad, alles andere ordnet sich unter. Auf dem Dashboard
+ist das die nächste sinnvolle Aufgabe — nicht die Statistik-Karten, nicht die Säulen-Balance.
 
 - **Ruhe vor Reichtum.** Flächen sind neutral, Farbe ist ein Signal. Wo eine Farbe nichts bedeutet,
   ist sie falsch.
@@ -64,18 +71,21 @@ sehen dieselben Werte.
 
 ## 3. Skalen
 
-Freihändige Werte sind der häufigste Grund, warum eine Oberfläche unruhig wirkt. Es gibt daher nur
-diese Stufen — jede neue Regel in `app.css` greift auf sie zu.
+Die Umsetzung von [Regel 6](../docs/mobile-ui-rules.md) („Feste Skalen statt freier Werte"): Es gibt
+nur diese Stufen — jede neue Regel in `app.css` greift auf sie zu, statt Werte frei zu setzen.
 
 | Skala        | Tokens                                     | Werte                                                                          |
 | ------------ | ------------------------------------------ | ------------------------------------------------------------------------------ |
-| **Abstand**  | `--pp-space-1` … `--pp-space-8`            | 0.25 / 0.5 / 0.75 / 1 / 1.5 / 2 / 3 / 4 rem                                    |
-| **Typo**     | `--pp-font-size-xs` … `--pp-font-size-2xl` | 0.8125 / 0.875 / 1 / 1.125 / 1.375 / 1.75 rem                                  |
+| **Abstand**  | `--pp-space-1` … `--pp-space-8`            | 4 / 8 / 12 / 16 / 24 / 32 / 48 / 64 px (als rem)                               |
+| **Typo**     | `--pp-font-size-sm` … `--pp-font-size-2xl` | 0.875 / 1 / 1.125 / 1.375 / 1.75 rem — fünf Größen, Fließtext ≥ 16px           |
 | **Zeile**    | `--pp-line-tight`, `--pp-line-base`        | 1.25 / 1.55                                                                    |
-| **Gewicht**  | `--pp-weight-regular/medium/bold`          | 400 / 600 / 700                                                                |
-| **Radius**   | `--pp-radius-sm/md/lg/pill`                | 0.375 / 0.625 / 1 / 999rem                                                     |
+| **Gewicht**  | `--pp-weight-regular`, `--pp-weight-bold`  | 400 / 600 — zwei Gewichte                                                      |
+| **Radius**   | `--pp-radius-sm/md/pill`                   | 0.375 / 0.625 / 999 rem — drei Stufen                                          |
 | **Schatten** | `--pp-shadow-card`, `--pp-shadow-overlay`  | genau zwei — Karte und Overlay. Kein dritter.                                  |
 | **Bewegung** | `--pp-motion-fast/base`, `--pp-ease`       | 120ms / 200ms; unter `prefers-reduced-motion: reduce` global auf 1ms reduziert |
+
+Die Abstands-Stufen sind exakt die 4/8/12/16/24/32/48-Skala der Mobile-UI-Regeln (plus 64 für den
+Seitenfuß); Größen-, Gewichts- und Radien-Obergrenzen ebenfalls von dort.
 
 Zahlenkolonnen (Tabellen, Achsen, Wertbeiträge untereinander) bekommen
 `font-variant-numeric: tabular-nums`; einzelne große Zahlen bleiben proportional.
@@ -116,11 +126,12 @@ z. B. `spec/button`) statt raten.
 
 ## 6. Prüfliste vor „fertig"
 
-1. Nur Tokens verwendet — kein Hex, kein `px`-Abstand außerhalb der Skala?
+Ergänzt die Prüfpunkte der [Mobile-UI-Regeln](../docs/mobile-ui-rules.md) um die visuelle Seite:
+
+1. Nur Tokens verwendet — kein Hex, kein Abstand außerhalb der Skala?
 2. Bedienelemente/Überschriften/Tabellen aus KoliBri — oder Ausnahme begründet?
-3. 375px: kein horizontales Scrollen, Touch-Ziele ≥ 44px?
-4. Hell **und** dunkel geprüft, Kontraste gerechnet?
-5. Lade-, Leer- und Fehlerzustand gestaltet?
-6. Fokus sichtbar (`:focus-visible` mit `--pp-focus-ring`), Reihenfolge logisch, Tastatur reicht?
-7. Genau eine Hauptaussage je Ansicht — und trägt sie die Signalfarbe?
-8. e2e-Test bei 375×812 vorhanden, der den Kernpunkt festnagelt?
+3. Hell **und** dunkel geprüft, Kontraste gerechnet (nicht geschaut)?
+4. Fläche und Textfarbe zusammen gesetzt, wo ein Token-Hintergrund gesetzt wird?
+5. Fokus sichtbar (`:focus-visible` mit `--pp-focus-ring`)?
+6. Trägt die eine Primäraktion auch die Hauptaussage und die Signalfarbe?
+7. e2e-Test bei 375×812 vorhanden, der den Kernpunkt festnagelt?

@@ -99,7 +99,7 @@ jobs:
         run: |
           blocking="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$SYNC_BRANCH" --state open \
             --json labels \
-            --jq '[.[0].labels[]?.name] | map(select(. == "ai:needs-review")) | join(", ")' \
+            --jq '[.[0].labels[]?.name] | map(select(. == "ai:needs-review" or . == "ai:needs-changes" or . == "ai:ready-to-merge" or . == "ai:needs-human")) | join(", ")' \
             2>/dev/null || true)"
           if [ -n "$blocking" ] && [ "$blocking" != "null" ]; then
             echo "::notice title=⏸️ Guide-Sync ausgesetzt::Offener Sync-PR ist noch in der Pipeline (${blocking}) — kein Force-Push heute Nacht."
@@ -342,7 +342,7 @@ jobs:
         # pr-needs-review-label.yml labelt NUR menschliche Aktoren (sender.type != 'Bot') und
         # springt hier deshalb nicht ein — das Label wird hier explizit gesetzt.
         # ERST entfernen, DANN setzen (#536): klebt ai:needs-review noch vom Vorlauf, wäre ein
-        # reines --add-label ein No-op ohne `labeled`-Event → 04-claude-pr-review.yml startet nie.
+        # reines --add-label ein No-op ohne `labeled`-Event → 05-claude-pr-review.yml startet nie.
         # Ergebnis-Labels der Vornacht (needs-changes/ready-to-merge) werden mit abgeräumt.
         # Von GITHUB_TOKEN gesetzte Labels triggern KEINE Folge-Workflows → App-Token ist Pflicht.
         if: ${{ steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true' && steps.setup.outputs.configured == 'true' && env.PR_NUMBER != '' }}

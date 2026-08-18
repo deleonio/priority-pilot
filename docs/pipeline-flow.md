@@ -3,21 +3,21 @@
 Dieser Überblick zeigt, wie ein Ticket von der Analyse bis zum Merge durch die GitHub-Actions-
 Workflows läuft. **Kanten = Trigger**, **fett = Label-Events**, gestrichelt = `workflow_run`/sonstige
 Events. Stand: Gate + Auto-Merge sind zu **einem** Workflow (`pr-gate-merge.yml`)
-zusammengelegt; Triage + Re-Triage sind zu **einem** Workflow (`triage.yml`, zwei Trigger:
-`issues` + `issue_comment`) zusammengelegt.
+zusammengelegt; Triage + Re-Triage laufen in **einem** Workflow (`01-claude-triage.yml`,
+Trigger `issues` [opened/unlabeled]). Der frühere `@agent`-Kommentar-Trigger ist bewusst
+entfernt — Kommentare (insbesondere Bot-Kommentare) dürfen nichts anstoßen.
 
 ```mermaid
 flowchart TD
     %% ====== Eintritt ======
     start([Issue geöffnet<br/>OWNER/MEMBER/COLLAB]):::evt
-    cmt([Kommentar mit @agent<br/>OWNER/MEMBER/COLLAB]):::evt
     pushmain([Push auf main<br/>z. B. nach Merge]):::evt
 
     %% ====== Issue-Phase ======
     subgraph ISSUE [Issue-Phase]
         triage[triage.yml<br/>Analyse + Re-Analyse]:::wf
         spec[spec.yml<br/>rote Tests + Draft-PR]:::wf
-        ux[ux.yml<br/>UX-Review + 375px-Tests]:::wf
+        ux[ux.yml<br/>UX-Beratung + Review]:::wf
         implement[implement.yml<br/>Umsetzung + PR ready]:::wf
         unblock[issue-unblock.yml<br/>Nachfolger freigeben]:::wf
     end
@@ -33,16 +33,18 @@ flowchart TD
     end
 
     merged([PR gemergt ✅]):::done
-    docpr[06-claude-pr-documenter.yml<br/>Phase 6: Titel/Body/Release-Note/Labels<br/>(Facts + LLM doc.json + Render)]:::wf
+    docpr[07-claude-pr-documenter.yml<br/>Phase 7: Titel/Body/Release-Note/Labels<br/>(Facts + LLM doc.json + Render)]:::wf
     docsweep[06b-documenter-sweep.yml<br/>Catch-up: verlorene Läufe nachtriggern]:::wf
     human([⚠️ Mensch<br/>> 10 PR-Commits]):::stop
 
     %% ---- Issue-Trigger ----
     start -->|issues.opened| triage
-    cmt -->|issue_comment| triage
-    triage -->|"label: ai:spec-ready 🟢"| spec
-    spec -->|"label: ux:ready"| ux
-    ux -->|"label: ai:ready"| implement
+    triage -->|"label: ai:spec-ready 🟢"| ux
+    ux -->|"label: ux:ready"| spec
+    spec -->|"label: ai:ready"| implement
+
+    %% ---- Nicht-UI-Skip: Triage setzt ux:ready sofort → UX wird No-op → Spec direkt ----
+    triage -.->|"UI-Bezug: nein (ux:ready sofort)"| spec
 
     %% ---- Übergang Issue -> PR (implement setzt ai:needs-review SELBST als kontrollierten
     %% letzten Schritt — pr-needs-review-label.yml reagiert bewusst NICHT auf bot-erzeugte
@@ -90,7 +92,7 @@ flowchart TD
 
 ## Die Label-Kette in einer Zeile
 
-`ai:spec-ready` → **spec** → `ux:ready` → **ux** → `ai:ready` → **implement** → `ai:needs-review` → **review** →
+`ai:spec-ready` → **ux** → `ux:ready` → **spec** → `ai:ready` → **implement** → `ai:needs-review` → **review** →
 ( `ai:needs-changes` → **fixup** → `ai:needs-review` → **review** )\* → `ai:ready-to-merge` →
 **gate-merge** → ✅
 
@@ -99,10 +101,9 @@ flowchart TD
 | Label               | Gesetzt von                                                  | Entfernt von                                                        | Triggert                                                      |
 | ------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------- | ------------------------------------------------------------- |
 | `ai:analyzed`       | triage (Triage- oder Re-Triage-Pfad)                         | **issue-unblock** (Merge des Blockers), manuell                     | _Setzen:_ Vorbedingung; _Entfernen:_ `triage.yml` (Re-Triage) |
-| `ai:spec-ready`     | triage (bei 🟢, Triage- oder Re-Triage-Pfad)                 | _(kein automatisches Entfernen)_                                    | `spec.yml`                                                    |
-| `ux:ready`          | spec                                                         | _(kein automatisches Entfernen)_                                    | `ux.yml`                                                      |
-| `ai:ready`          | ux                                                           | _(kein automatisches Entfernen)_                                    | `implement.yml`                                               |
-| `ux:failed`         | ux (`VERDICT: ux-not-ready`)                                 | ux (beim nächsten Lauf)                                             | _nichts_ — Umsetzung bleibt ohne `ai:ready` blockiert         |
+| `ai:spec-ready`     | triage (bei 🟢, Triage- oder Re-Triage-Pfad)                 | spec (bei Erfolg)                                                   | `ux.yml` (bei UI-Tickets) / `spec.yml` (bei Nicht-UI: No-op)  |
+| `ux:ready`          | ux (bei UI-Tickets), triage (bei Nicht-UI-Tickets)           | _(kein automatisches Entfernen)_                                    | `spec.yml`                                                    |
+| `ai:ready`          | spec                                                         | _(kein automatisches Entfernen)_                                    | `implement.yml`                                               |
 | `ai:needs-review`   | implement, pr-needs-review-label (nur menschlich), **fixup** | review, gate-merge                                                  | `pr-review.yml`                                               |
 | `ai:needs-changes`  | review (🔴), **gate-merge**, **conflict-scan**               | **fixup**, **pr-needs-review-label** (bei Push)                     | `pr-fixup.yml`                                                |
 | `ai:ready-to-merge` | review (🟢)                                                  | **gate-merge** (rot/Konflikt), **pr-needs-review-label** (bei Push) | `pr-gate-merge.yml`                                           |
@@ -137,7 +138,7 @@ flowchart TD
   nicht robust machbar — daher Heuristik alle PR-Commits, Schwelle > 10). **Hinweis:** ein
   0-Commit-Loop (Fixup findet keine Findings und committet nichts) wird davon nicht gebremst — die
   H1-Post-Assertion im Review alarmiert in dem Fall per PR-Kommentar.
-- **gate-merge** wacht zusätzlich deterministisch per `workflow_run` (Allowlist `['CI', '4/6 Review']`, `completed`) **und** per `pull_request` `labeled` (nur `ai:ready-to-merge`):
+- **gate-merge** wacht zusätzlich deterministisch per `workflow_run` (Allowlist `['CI', '5/7 Review']`, `completed`) **und** per `pull_request` `labeled` (nur `ai:ready-to-merge`):
   ist mind. ein Allowlist-Check (CI / Reviewer) rot → `ai:needs-changes` (stößt fixup an); ist der PR
   wegen Merge-Konflikt nicht mergebar (`mergeStateStatus == DIRTY`) → ebenfalls `ai:needs-changes`;
   sind beide grün und `ai:ready-to-merge` gesetzt und der PR sauber mergebar → Merge
@@ -166,11 +167,11 @@ flowchart TD
   still-ausfallenden Gates (label-schreibende Steps unter dem App-Token, Fan-in-Gate vor der
   Freigabe) testgespiegelt; mit [ADR 0001](./adr/0001-github-workflows-bleiben-ungetestet.md) entfallen diese `.github`-Tests. Alle
   Gates fallen beim ersten Lauf laut auf und sind bewusst nicht zusätzlich abgesichert:
-  - **Agent-Secret-Pre-Flight** (alle 6 KI-Workflows): fehlt `AGENT_SECRET`, bricht der
+  - **Agent-Secret-Pre-Flight** (alle 7 KI-Workflows): fehlt `AGENT_SECRET`, bricht der
     Lauf deterministisch mit `::error::` ab — kein stiller Skip (AGENTS.md: „bewusstes Opt-in"). Bei
     triage/retriage/spec/implement wird zusätzlich `ai:to-big-issue` gesetzt (Issue-Signal); bei
     review/fixup (die kein `ai:to-big-issue` vergeben, s. u.) stattdessen ein PR-Kommentar.
-  - **Phasen-Label-Pre-Check** (alle 6 Phasen): Jede Phase serialisiert global über eine statische
+  - **Phasen-Label-Pre-Check** (alle 7 Phasen): Jede Phase serialisiert global über eine statische
     `concurrency`-Gruppe (`claude-triage`, `claude-spec`, … — genau EIN Lauf je Phase). Das
     Stapeln leistet **`queue: max`**: Ohne diesen Schlüssel hält GitHub pro Gruppe nur EINEN
     wartenden Lauf und verwirft ihn still, sobald ein neuer eintrifft (`queue: single` ist der
@@ -195,7 +196,7 @@ flowchart TD
   gesetzt/entfernt — NIE bevor Issue-Beschreibung, Kommentar, Commit/Push oder PR vollständig
   geschrieben sind. Nachtrag nach einem beobachteten Vorfall (2026-07-01): der Analyse-Workflow
   hatte `ai:spec-ready` gesetzt, bevor die Issue-Beschreibung aktualisiert war — der Spec-Workflow
-  startete daraufhin mit veraltetem Ticket-Inhalt. Alle sechs Prompt-Flows (triage/retriage/spec/
+  startete daraufhin mit veraltetem Ticket-Inhalt. Alle sieben Prompt-Flows (triage/retriage/ux/spec/
   implement/fixup/review) instruieren die Label-Umschaltung jetzt explizit als "ALLERLETZTEN
   Schritt, NIE davor". Da dies eine Prompt-Anweisung bleibt (kein
   Shell-Gate möglich, da der Analyseinhalt vom LLM selbst erzeugt wird), ist es defense-in-depth,
@@ -211,9 +212,5 @@ flowchart TD
   (erzwungene Neu-Analyse; das Entfernen setzt bereits Schreibzugriff voraus). Über diesen Pfad
   triggern auch `issue-unblock.yml` (App-Token entfernt `ai:analyzed` beim Merge des Blockers)
   und ein Mensch, der ein aufgeteiltes/behobenes `ai:to-big-issue` entfernt.
-- **`@agent`-Kommentar** an einem Issue (`issue_comment.created`, NICHT `edited`) von
-  OWNER/MEMBER/COLLABORATOR → `triage.yml` (Re-Triage-Pfad, zweiter Trigger desselben
-  Workflows seit M8). (Der einzige `@agent`-gesteuerte Trigger; die PR-Seite wird ausschließlich
-  über Labels gesteuert, um Event-Kaskaden zu vermeiden.)
 - **Push auf main** (`push` auf `main`, z. B. nach einem Merge) → `pr-conflict-scan.yml`
   (scannt alle offenen PRs auf Merge-Konflikte).

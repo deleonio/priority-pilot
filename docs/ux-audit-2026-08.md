@@ -1,6 +1,7 @@
 # UX/UI-Audit — August 2026
 
-Erst-Audit der laufenden App gegen die Design-Sprache [„Cockpit"](../.ai-knowledge/ux-design.md).
+Erst-Audit der laufenden App gegen die Design-Sprache [„Cockpit"](../.ai-knowledge/ux-design.md) und
+die [Mobile-UI-Regeln](mobile-ui-rules.md).
 
 **Methode:** Inspect-Instanz (`pnpm ui:inspect`, In-Memory-DB mit Demo-Seed) im Chromium,
 Screenshots und Messungen je Hauptansicht bei **375×812** und **1280×900**, hell und dunkel; dazu
@@ -50,14 +51,16 @@ Betroffen: `frontend/src/main.tsx`, `frontend/src/app.css`.
 
 Die Umbenennung des Server-Pakets (`priority-pilot` → `server`, Commit `6677acd`) ließ **20**
 Aufrufe in Doku, Skripten und CI ohne Treffer laufen. `pnpm` meldet dabei nur „No projects matched"
-und endet mit **Exit-Code 0** — die Fehler waren also unsichtbar:
+und endet mit **Exit-Code 0** — die Fehler waren also unsichtbar. Betroffen waren unter anderem
+`pnpm ui:inspect` (der ganze Browser-MCP-Weg), das E2E-Backend in `frontend/playwright.config.ts`
+und das **Coverage-Gate** in `ci.yml`/`ci-multi-provider.yml`.
 
-- `pnpm ui:inspect` startete kein Backend → der ganze Browser-MCP-Weg (`docs/browser-mcp.md`) war tot.
-- `frontend/playwright.config.ts` startete kein Backend für die E2E-Läufe.
-- `.github/workflows/ci.yml` und `ci-multi-provider.yml` führten das **Coverage-Gate** nicht mehr aus
-  (`pnpm --filter priority-pilot test:coverage`) — grün ohne je gelaufen zu sein.
-
-Behoben: alle Aufrufe auf `--filter server` umgestellt.
+Während dieses Audits lief, hat #841 (Issue #839) die **ausführbaren** Stellen auf `--filter server`
+umgestellt. Offen geblieben war die **Dokumentation** — sieben Dateien
+(`AGENTS.md`, `README.md`, `CONTRIBUTING.md`, `server/README.md`, `frontend/README.md`,
+`.ai-knowledge/project.md`, `.ai-knowledge/conventions.md`) nannten weiter den toten Filter, und
+genau dort schlagen Menschen und Agenten die Befehle nach. Das ist hier nachgezogen; `server/README.md`
+trug zusätzlich den falschen Paketnamen in der Überschrift.
 
 ---
 
@@ -134,7 +137,8 @@ Betroffen: `frontend/src/App.tsx`, `app.css` (`.app-tabs`).
 ## Wie es weitergeht
 
 P1-1 und P1-3 sind in diesem Stand behoben. Alles Übrige gehört als Issue in die bestehende
-Label-Pipeline; die UX-Phase (2b) prüft dann jede Umsetzung gegen die Design-Sprache und ergänzt die
-zugehörigen 375px-Tests. Empfohlene Reihenfolge: **P1-2** (Dunkelmodus zu Ende bauen) →
+Label-Pipeline: Die UX-Beratung (Phase 2) prüft jedes UI-Ticket gegen
+[docs/mobile-ui-rules.md](mobile-ui-rules.md) und die Design-Sprache, die Spec-Phase gießt die
+Anforderungen in rote 375px-Tests. Empfohlene Reihenfolge: **P1-2** (Dunkelmodus zu Ende bauen) →
 **P2-1/P2-3** (Hauptaussage und Aktionshierarchie) → **P2-2/P2-5** (Priorisierung sichtbar machen) →
 **P2-4** (Säulenfarben) → Rest.

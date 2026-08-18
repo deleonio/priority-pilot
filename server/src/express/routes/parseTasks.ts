@@ -7,6 +7,7 @@ import {
 	type ParsedTask,
 	type ParseTaskParser,
 } from '../../llm/llm.js';
+import { validateProviderQuery } from '../llmProviderQuery.js';
 import type { components } from '../../api';
 
 type ErrorDto = components['schemas']['Error'];
@@ -19,7 +20,16 @@ export const createParseTasksRouter = (parser: ParseTaskParser = parseTaskTextWi
 	const router = Router();
 
 	// POST /tasks/parse-text — strukturierte Task-Felder aus Freitext extrahieren.
+	// Optionaler Query-Parameter `provider` (#749): pinnt die LLM-Kaskade auf den genannten Provider.
 	router.post('/tasks/parse-text', async (req: Request, res: Response<ParsedTask | ErrorDto>) => {
+		// Provider-Query-Parameter validieren (#749)
+		const providerValidation = validateProviderQuery(req.query as Record<string, unknown>);
+		if (!providerValidation.ok) {
+			res.status(400).json({ message: providerValidation.message });
+			return;
+		}
+		const provider = providerValidation.provider;
+
 		const { text } = (req.body ?? {}) as { text?: unknown };
 
 		if (typeof text !== 'string' || text.trim() === '') {
@@ -33,7 +43,7 @@ export const createParseTasksRouter = (parser: ParseTaskParser = parseTaskTextWi
 		}
 
 		try {
-			const result = await parser(text);
+			const result = await parser(text, provider);
 			res.json(result);
 		} catch (error) {
 			if (error instanceof MissingApiKeyError) {
