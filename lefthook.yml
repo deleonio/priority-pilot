@@ -7,5 +7,11 @@ pre-commit:
       stage_fixed: true
     lint:
       run: pnpm lint
+    # Schema-Check der Workflows/Composite-Actions — hier lokal auf die STAGED Dateien
+    # begrenzt (CI prueft ohnehin alle). Der Glob ist bewusst weit; das Skript filtert
+    # selbst auf echte Pruefziele und ist ein No-op, wenn nichts davon dabei ist.
+    actions:
+      glob: '.github/**/*.{yml,yaml}'
+      run: pnpm lint:actions {staged_files}
     knip:
       run: pnpm knip
