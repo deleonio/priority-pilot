@@ -1,8 +1,9 @@
 import { KolAlert, KolButton, KolHeading, KolInputCheckbox, KolTabs } from '@public-ui/react-v19';
 import type { Pillar } from 'client';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { requestMicrophonePermission } from '../lib/micPermission';
+import { useShadowDOMLayout } from '../lib/useShadowDOMLayout';
 import { useGeolocation } from '../lib/useGeolocation';
 import { usePushSubscription } from '../lib/push';
 import { useVoiceAutostart } from '../lib/voiceAutostart';
@@ -34,6 +35,16 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 	// Aktiven Tab als kontrollierten State führen. Initialwert aus der URL; `setActiveTab` wird bei
 	// manuellem Tab-Wechsel (onSelect) aufgerufen, damit Re-Renders den gewählten Tab nicht zurücksetzen.
 	const [activeTab, setActiveTab] = useState(() => (window.location.pathname.startsWith('/settings/general') ? 0 : 1));
+
+	// #843: Ref für Settings-General Container
+	const settingsGeneralRef = useRef<HTMLDivElement>(null);
+
+	// #843: marginLeft auf Shadow-DOM Controls setzen (24dp = 1.5rem)
+	useShadowDOMLayout(
+		settingsGeneralRef,
+		'kol-input-checkbox, kol-button',
+		'[role="switch"], button:not([type="button"]):not([class*="icon"])',
+	);
 
 	// Stabile Callback-Identität, damit KolTabs nicht bei jedem Render neu verdrahtet (#323).
 	const tabsCallbacks = useMemo(
@@ -119,7 +130,7 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 				_selected={activeTab}
 				_on={tabsCallbacks}
 			>
-				<div slot="tab-0" className="settings-general">
+				<div slot="tab-0" className="settings-general" ref={settingsGeneralRef}>
 					<AppearanceSetting />
 					<KolInputCheckbox
 						_label="Sprachaufnahme automatisch starten"
@@ -224,15 +235,15 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 				</div>
 				<div slot="tab-1">
 					{/* Überschrift „Säulen-Gewichtung" ist Teil des #270-Vertrags (settings-page.spec.ts):
-					    die Route /settings/pillars rendert den Säulen-Editor mit dieser Überschrift. */}
+						    die Route /settings/pillars rendert den Säulen-Editor mit dieser Überschrift. */}
 					<KolHeading _label="Säulen-Gewichtung" _level={2} />
 					{/* Säulen-Verwaltungs-Komponente (#439): Anlegen, Bearbeiten und Löschen von Säulen
-					    (jeweils als eigener Modal-Dialog, KoliBri-Komponenten). */}
+						    (jeweils als eigener Modal-Dialog, KoliBri-Komponenten). */}
 					<PillarList onPillarChanged={onPillarChanged} />
 					{/* Beim Direktaufruf von /settings/pillars mountet die Seite, BEVOR die Säulen geladen
-					    sind. Das Formular hält seine Rohwerte in einem beim Mount initialisierten Ref —
-					    per `key` neu mounten, sobald die Säulen eintreffen, damit die geladenen Gewichte
-					    übernommen werden. */}
+						    sind. Das Formular hält seine Rohwerte in einem beim Mount initialisierten Ref —
+						    per `key` neu mounten, sobald die Säulen eintreffen, damit die geladenen Gewichte
+						    übernommen werden. */}
 					<PillarWeightsForm key={pillars.length} pillars={pillars} onSaved={onSaved} />
 				</div>
 				<div slot="tab-2">
