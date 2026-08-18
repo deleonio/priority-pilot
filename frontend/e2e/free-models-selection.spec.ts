@@ -206,4 +206,6 @@ test('AK3: Fehlende contextLength wird graceful behandelt (nicht angezeigt)', as
 	// modelSize wird angezeigt
 	await expect(modelWithoutContext).toContainText('32B');
 	// Keine contextLength angezeigt (nichts mit "k" oder "m")
+	await expect(modelWithoutContext).not.toContainText('k');
+	await expect(modelWithoutContext).not.toContainText('m');
 });
