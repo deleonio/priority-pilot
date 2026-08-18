@@ -108,6 +108,5 @@ test.describe('Mobile-Shell — Kopfbereich und Seitenränder', () => {
 		}
 
 		await expect(page.getByRole('button', { name: 'Mein Konto' })).toHaveCount(0);
-		await expect(page.locator('.app-header .user-display-name')).toBeVisible();
 	});
 });

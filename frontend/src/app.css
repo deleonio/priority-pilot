@@ -243,46 +243,7 @@ body {
 	--a11y-min-size: var(--pp-toolbar-height);
 }
 
-/*
- * User-Info-Block rechts in der Toolbar: Avatar + Anzeigename inline. Mobil (< 48rem) bleibt nur
- * der Avatar sichtbar (#718); der Klartextname wird ausgeblendet, um mit Logo und Toolbar-Buttons
- * (je 44px WCAG-Mindestgröße plus Lücken) in einer Zeile zu passen. Ab 48rem erscheint der Name
- * wieder (#691: Header-Konsistenz).
- */
-.user-info {
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
-	flex-shrink: 0;
-}
-
-.user-display-name {
-	display: none;
-}
-
-@media (min-width: 48rem) {
-	.user-display-name {
-		display: inline;
-	}
-}
-
-/*
- * AK2 (#222) / AK3 (#485): Avatar harmonisch zur Toolbar — exakt das 1,25-Fache der
- * Toolbar-Button-Höhe. Über `--pp-toolbar-height` bleibt das Verhältnis bei Änderungen erhalten.
- */
-.app-header kol-avatar {
-	/*
-	 * `kol-avatar` setzt im Shadow-DOM `:host { width: 100px; aspect-ratio: 1 }` und bietet dafür
-	 * keine Custom Property an (das frühere `--kol-avatar-size` blieb wirkungslos). Deshalb wird die
-	 * Breite am Host selbst gesetzt — ungeschichtete Dokument-Styles schlagen die `@layer`-Regel des
-	 * Components. Höhe und `aspect-ratio` werden hier ebenfalls explizit gesetzt statt aus dem
-	 * `:host` geerbt: die von AK3 gemessene Höhe soll nicht an einem undokumentierten
-	 * Component-Internum hängen, das eine künftige KoliBri-Version wegfallen lassen kann.
-	 */
-	width: var(--pp-avatar-size);
-	height: var(--pp-avatar-size);
-	aspect-ratio: 1;
-}
+/* Avatar und User Full Name entfernt per Issue #865 — obsolete Selektoren gelöscht */
 
 .loading {
 	display: flex;
