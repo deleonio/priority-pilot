@@ -132,6 +132,47 @@ jobs:
       # precheck dedupliziert über den Label-IST-Zustand. Neu-Triggern bei menschlichem Push
       # übernimmt der Autolabeler (cancel + Neu-Setzen von ai:needs-review).
 
+      - name: Trigger-Label konsumieren (Start-Konsum)
+        # Der precheck (eigener Job) verifiziert ai:needs-review zu SEINEM Zeitpunkt; bis hier
+        # her vergeht Setup-Zeit. Dieser Step konsumiert das Label JETZT atomar (Pipeline-
+        # Bestand → leer) — mit --expect-Guard: Hat zwischenzeitlich ein anderer Akteur
+        # geschrieben (z. B. Gate auf ai:needs-fixup), verwirft dieser Lauf sich selbst
+        # (proceed=false) statt den neueren Zustand zu überschreiben. Nach dem Konsum skippt
+        # jeder in der Phasen-Queue wartende Run im precheck (Label ist weg) — ein Review
+        # parallel zum Fixup ist damit strukturell ausgeschlossen (PR #890).
+        id: consume
+        if: steps.setup.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          OUT=""
+          if ! OUT="$(bash .github/scripts/label-transition.sh \
+            --repo "$GITHUB_REPOSITORY" --pr "$PR" \
+            --set-none --expect ai:needs-review)"; then
+            # Script-Exit != 0: PUT endgültig fehlgeschlagen (Diagnose via stderr im
+            # Job-Log). Bewusst ROT enden statt fail-open: Der Trigger bleibt bewaffnet
+            # (kein Zustandsverlust), ein Re-Push re-triggert. Ein stiller Weiterlauf
+            # wuerde die Single-Runner-Garantie des Konsums aushebeln.
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            echo "::error title=❌ Start-Konsum fehlgeschlagen::label-transition.sh fehlgeschlagen (Details: letzte gh-Fehlerzeile im Log). Trigger bleibt bewaffnet."
+            exit 1
+          fi
+          applied="$(printf '%s\n' "$OUT" | sed -n 's/^applied=//p')"
+          state="$(printf '%s\n' "$OUT" | sed -n 's/^state=//p')"
+          reason="$(printf '%s\n' "$OUT" | sed -n 's/^reason=//p')"
+          echo "reason=${reason:-}" >> "$GITHUB_OUTPUT"
+          # read-failed = fail-open (analog zum precheck): Phase lieber einmal zu viel
+          # laufen lassen als eine Freigabe zu verlieren. Label bleibt dann unkonsumiert —
+          # der precheck des Folge-Laufs dedupliziert.
+          if [ "$applied" = "true" ] || [ "$state" = "read-failed" ]; then
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::ai:needs-review konsumiert (Start-Konsum) — Review läuft."
+          else
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=⏭️ Review verworfen::Trigger nicht mehr unverändert vorhanden — ${reason:-neuerer Zustand regiert}."
+          fi
+
       - name: 🔍 Titel-Fakten deterministisch erheben
         # Conventional-Commits-Prüfung des PR-Titels VOR dem Merge (Regel-Logik, s.
         # .github/scripts/pr-doc-facts.sh --mode title-only). Post-Merge-Umbenennen im
@@ -140,7 +181,7 @@ jobs:
         # Fixup läuft → Titelkorrektur erzeugt keinen Commit → No-Progress-Erkennung
         # schlägt zu → ai:needs-human. Sackgasse; der Reviewer hat gh + vollen Kontext.
         id: facts
-        if: steps.setup.outputs.configured == 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.consume.outputs.proceed == 'true'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           REPO: ${{ github.repository }}
@@ -150,7 +191,7 @@ jobs:
 
       - name: Kreuzverhör-Review via Claude
         id: claude
-        if: steps.setup.outputs.configured == 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.consume.outputs.proceed == 'true'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
@@ -205,11 +246,17 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
           SINCE_EPOCH: ${{ steps.starttime.outputs.since_epoch }}
         run: |
+          # Verdict-Kanal: Datei primär (Claude schreibt /tmp/claude-verdict per Bash —
+          # robuster als Log-Parsing, dessen Brüche PR #524/#530 auslösten), Log-Grep
+          # nur noch Übergangs-Fallback, solange ältere Prompt-Versionen unterwegs sind.
           verdict=""
-          if [ -f /tmp/claude-output.log ]; then
+          if [ -f /tmp/claude-verdict ]; then
+            verdict="$(tr -d -c 'A-Za-z0-9-' < /tmp/claude-verdict)"
+          fi
+          if [ -z "$verdict" ] && [ -f /tmp/claude-output.log ]; then
             verdict="$(grep 'VERDICT:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | tr -d -c 'A-Za-z0-9-' || true)"
           fi
-          echo "Claude-Verdict aus Output: '${verdict:-keins}'"
+          echo "Claude-Verdict: '${verdict:-keins}'"
 
           # Erklärungs-Gate: Nur Kommentare dieses Laufes gelten als Erklärung
           # für ai:needs-human. GNU-date (-d @epoch): nur Ubuntu-Runner.
@@ -254,6 +301,15 @@ jobs:
             esac
           fi
 
+          # Ungültiges/fehlendes Verdict (bei vorhandenem Marker-Kommentar): kein Raten
+          # mehr in needs-fixup — der alte Default konnte einen Fixup-Loop ganz ohne
+          # begründetes Verdict starten. terminal an den Menschen; der needs-human-Pfad
+          # unten erfasst es (Sektion fehlt → Diagnose-Zweig mit Run-Link + Log-Auszug).
+          case "$verdict" in
+            reviewed|needs-fixup|needs-human) ;;
+            *) verdict="needs-human" ;;
+          esac
+
           if [ "$verdict" = "reviewed" ]; then
             allow='[]'
             delays=(2 3 5 8)
@@ -287,63 +343,57 @@ jobs:
             final="needs-fixup"
           fi
 
-          gh label create "ai:reviewed" --repo "$GITHUB_REPOSITORY" --color 0E8A16 2>/dev/null || true
-          gh label create "ai:needs-fixup" --repo "$GITHUB_REPOSITORY" --color D93F0B 2>/dev/null || true
-          gh label create "ai:needs-review" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
-          gh label create "ai:needs-human" --repo "$GITHUB_REPOSITORY" --color 5319e7 --description "Nicht-automatisierbare Entscheidung — wartet auf Mensch (Fixup greift bewusst nicht)" 2>/dev/null || true
-
-          # Label-Operationen MIT Retry (Issue #613): Exponential Backoff 1s, 2s, 4s (max. 3)
-          # Bei persistenten Fehlern → ai:needs-human + Fehlerkommentar
-          label_operation_failed="false"
-          for attempt in 1 2 3; do
-            if gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-review 2>/dev/null && \
-               gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-fixup 2>/dev/null && \
-               gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:reviewed 2>/dev/null && \
-               gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-human 2>/dev/null; then
-              break
+          # EINE atomare Transition statt 4× remove + add: label-transition.sh ersetzt den
+          # gesamten Pipeline-Bestand in EINEM API-Call — kein Zwischenzustand mit 0/2
+          # Triggern, Nicht-Pipeline-Labels bleiben erhalten, und die Invariante
+          # „ai:needs-fixup ⇒ kein ai:needs-review" gilt per Konstruktion (PR #890).
+          # --expect none: Dieser Lauf hat seinen Trigger im Start-Konsum entfernt — ist
+          # zwischenzeitlich ein NEUES Pipeline-Label erschienen, verwirft der Guard den
+          # Write (neuere Entscheidung regiert, z. B. Autolabeler-Re-Arm bei Push).
+          # Retries (Issue #613, Backoff 1s/2s/4s) leben IM Skript.
+          apply_transition() { # $1 = Ziel-Labels (Komma-liste); Return 0=ok, 1=fehlschlagen, 2=Guard-Verwurf
+            if ! OUT="$(bash .github/scripts/label-transition.sh \
+                --repo "$GITHUB_REPOSITORY" --pr "$PR" --set "$1" --expect none)"; then
+              return 1 # PUT nach 3 Retries endgültig fehlgeschlagen
             fi
-            if [ "$attempt" -lt 3 ]; then sleep "$((2 ** (attempt-1)))"; fi
-            if [ "$attempt" -eq 3 ]; then label_operation_failed="true"; fi
-          done
-
-          if [ "$label_operation_failed" = "true" ]; then
-            echo "::error::Label-Entfernen nach 3 Versuchen fehlgeschlagen → ai:needs-human gesetzt"
+            t_applied="$(printf '%s\n' "$OUT" | sed -n 's/^applied=//p')"
+            t_state="$(printf '%s\n' "$OUT" | sed -n 's/^state=//p')"
+            t_reason="$(printf '%s\n' "$OUT" | sed -n 's/^reason=//p')"
+            if [ "$t_state" = "read-failed" ]; then
+              echo "transition_read_failed: ${t_reason:-IST-Zustand unlesbar}" >&2
+              return 1
+            fi
+            if [ "$t_applied" != "true" ]; then
+              echo "::warning title=⏭️ Label-Write verworfen::${t_reason:-Guard}. Verdict '${verdict}' NICHT gesetzt — der neuere Zustand regiert."
+              return 2
+            fi
+            return 0
+          }
+          # #613-Nachfolge: Der Notfall-Pfad (Transition endgültig fehlgeschlagen) eskaliert
+          # terminal an den Menschen statt still zu enden — sonst: Trigger konsumiert,
+          # kein Label, nichts re-armt.
+          transition_failed() {
+            echo "::error::Label-Transition fehlgeschlagen → ai:needs-human gesetzt"
             RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
             {
-              printf '%s\n\n' "⚠️ **Label-Race-Condition (#613): Label-Entfernung fehlgeschlagen**"
-              printf '%s\n\n' "Transienter GitHub-API-Fehler nach 3 Retries (Label-Op: Remove ai:needs-review/ai:needs-fixup/ai:reviewed/ai:needs-human). Bitte manuell prüfen. Run: ${RUN_URL}"
+              printf '%s\n\n' "⚠️ **Label-Race-Condition (#613): Label-Transition fehlgeschlagen**"
+              printf '%s\n\n' "Label-Write nach 3 Retries fehlgeschlagen (Ziel-Verdict: '${verdict:-keins}'). Bitte manuell prüfen. Run: ${RUN_URL}"
               printf '%s\n' "**Checkliste:**"
               printf '%s\n' "- [ ] 1. Labels manuell prüfen und via \`ai:needs-review\` neu triggern"
             } > /tmp/needs-human-body.md
             bash .github/scripts/needs-human-explain.sh post --repo "$GITHUB_REPOSITORY" --pr "$PR" --body-file /tmp/needs-human-body.md
             gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human 2>/dev/null || true
-            exit 1
-          fi
+          }
 
+          rc=0
           if [ "$final" = "reviewed" ]; then
             # 🟢: Done-Label gesetzt — ai:reviewed ist gleichzeitig der Gate-Merge-Trigger.
             # Das Gate verifiziert zusätzlich, dass kein ai:needs-fixup/ai:needs-review/
             # ai:needs-human mehr klebt (Rename-hardening, Issue #851).
-            for attempt in 1 2 3; do
-              if gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:reviewed; then
-                echo "::notice::Label gesetzt: ai:reviewed"
-                break
-              fi
-              if [ "$attempt" -lt 3 ]; then sleep "$((2 ** (attempt-1)))"; fi
-              if [ "$attempt" -eq 3 ]; then
-                echo "::error::ai:reviewed nach 3 Versuchen fehlgeschlagen → ai:needs-human gesetzt"
-                RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-                {
-                  printf '%s\n\n' "⚠️ **Label-Race-Condition (#613): ai:reviewed fehlgeschlagen**"
-                  printf '%s\n\n' "Transienter GitHub-API-Fehler nach 3 Retries (Label-Op: Add ai:reviewed). Bitte manuell prüfen. Run: ${RUN_URL}"
-                  printf '%s\n' "**Checkliste:**"
-                  printf '%s\n' "- [ ] 1. Manuelles Prüfen und Label setzen"
-                } > /tmp/needs-human-body.md
-                bash .github/scripts/needs-human-explain.sh post --repo "$GITHUB_REPOSITORY" --pr "$PR" --body-file /tmp/needs-human-body.md
-                gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human 2>/dev/null || true
-                exit 1
-              fi
-            done
+            apply_transition "ai:reviewed" || rc=$?
+            if [ "$rc" -eq 0 ]; then
+              echo "::notice::Label gesetzt: ai:reviewed"
+            fi
           elif [ "$final" = "needs-human" ]; then
             # Erklärungs-Gate (#848): Der alte Text verwies auf die Sektion
             # "## ⏸️ Entscheidungs-Findings ... Sammelkommentar oben" — die Sektion
@@ -379,42 +429,25 @@ jobs:
               printf '%s\n' "- [ ] 4. Label \`ai:needs-review\` setzen → loest erneuten Review aus"
             } > /tmp/needs-human-body.md
             bash .github/scripts/needs-human-explain.sh post --repo "$GITHUB_REPOSITORY" --pr "$PR" --body-file /tmp/needs-human-body.md
-            for attempt in 1 2 3; do
-              if gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human && \
-                 gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:reviewed; then
-                echo "::notice::Labels gesetzt: ai:reviewed + ai:needs-human (wartet auf Mensch)"
-                break
-              fi
-              if [ "$attempt" -lt 3 ]; then sleep "$((2 ** (attempt-1)))"; fi
-              if [ "$attempt" -eq 3 ]; then
-                echo "::error::ai:needs-human nach 3 Versuchen fehlgeschlagen → manuelle Eingriffe erforderlich"
-                exit 1
-              fi
-            done
+            apply_transition "ai:needs-human,ai:reviewed" || rc=$?
+            if [ "$rc" -eq 0 ]; then
+              echo "::notice::Labels gesetzt: ai:reviewed + ai:needs-human (wartet auf Mensch)"
+            fi
           else
-            for attempt in 1 2 3; do
-              # Kein ai:reviewed im findings-Pfad: Das Done-Label ist Gate-Trigger und
-              # könnte vor diesem Add gelesen werden (TOCTOU-Fenster); der Fixup-Trigger
-              # reicht als Übergang, die Review-Runde dokumentiert der Sammelkommentar.
-              if gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-fixup; then
-                echo "::notice::Label gesetzt: ai:needs-fixup"
-                break
-              fi
-              if [ "$attempt" -lt 3 ]; then sleep "$((2 ** (attempt-1)))"; fi
-              if [ "$attempt" -eq 3 ]; then
-                echo "::error::ai:needs-fixup nach 3 Versuchen fehlgeschlagen → ai:needs-human gesetzt"
-                RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-                {
-                  printf '%s\n\n' "⚠️ **Label-Race-Condition (#613): ai:needs-fixup fehlgeschlagen**"
-                  printf '%s\n\n' "Transienter GitHub-API-Fehler nach 3 Retries (Label-Op: Add ai:needs-fixup). Bitte manuell prüfen. Run: ${RUN_URL}"
-                  printf '%s\n' "**Checkliste:**"
-                  printf '%s\n' "- [ ] 1. Manuelles Prüfen und Label setzen"
-                } > /tmp/needs-human-body.md
-                bash .github/scripts/needs-human-explain.sh post --repo "$GITHUB_REPOSITORY" --pr "$PR" --body-file /tmp/needs-human-body.md
-                gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human 2>/dev/null || true
-                exit 1
-              fi
-            done
+            # Kein ai:reviewed im findings-Pfad: Das Done-Label ist Gate-Trigger und
+            # könnte vor diesem Write gelesen werden (TOCTOU-Fenster); der Fixup-Trigger
+            # reicht als Übergang, die Review-Runde dokumentiert der Sammelkommentar.
+            apply_transition "ai:needs-fixup" || rc=$?
+            if [ "$rc" -eq 0 ]; then
+              echo "::notice::Label gesetzt: ai:needs-fixup"
+            fi
+          fi
+          # Guard-Verwurf (rc=2) ist KEIN Fehler: Eine neuere Entscheidung regiert, dieser
+          # Lauf hat nur noch seinen Sammelkommentar hinterlassen. Nur der echte
+          # Schreib-Fehler (rc=1) eskaliert terminal.
+          if [ "$rc" -eq 1 ]; then
+            transition_failed
+            exit 1
           fi
 
       - name: Bei Timeout PR-Kommentar (Alarm)
@@ -431,9 +464,13 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
           OUTCOME: ${{ steps.claude.outcome }}
+          CONSUME_PROCEED: ${{ steps.consume.outputs.proceed }}
+          CONSUME_REASON: ${{ steps.consume.outputs.reason }}
         run: |
           labels="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
-          if [ "$OUTCOME" = "success" ]; then
+          if [ "$CONSUME_PROCEED" != "true" ]; then
+            echo "::notice title=⏭️ Review verworfen::PR #${PR} — Trigger im Start-Konsum nicht mehr gültig (${CONSUME_REASON:-neuerer Zustand regiert})."
+          elif [ "$OUTCOME" = "success" ]; then
             echo "::notice title=✅ Review erfolgreich::PR #${PR}"
           elif [ "$OUTCOME" = "cancelled" ]; then
             echo "::warning title=⏸️ Review abgebrochen"
@@ -453,7 +490,9 @@ jobs:
         uses: ./.github/actions/llm-fair-usage-check
 
       - name: Review-Ergebnis prüfen (Label via API verifizieren)
-        if: always() && steps.setup.outputs.configured == 'true'
+        # proceed-Gate: Ein im Start-Konsum verworfener Lauf hat bewusst KEIN Label
+        # geschrieben — die Verifikation würde ihn fälschlich rot machen.
+        if: always() && steps.setup.outputs.configured == 'true' && steps.consume.outputs.proceed == 'true'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}

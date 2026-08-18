@@ -15,26 +15,32 @@
 #
 # Soll-Zustand je Phase (die Tabelle ist die einzige Wahrheit — Workflows
 # übergeben nur den Phasen-Namen). Schema: Jede Phase triggert auf GENAU EIN
-# `ai:needs-*`-Label und konsumiert es (Entfernen im eigenen Post-Assertion-Step).
+# `ai:needs-*`-Label und konsumiert es (PR-Phasen: Start-Konsum via
+# label-transition.sh, s. Setz-Konvention unten).
 # Done-Labels ohne Trigger-Rolle gibt es nur noch, wo Logik sie liest (Issue #873):
-# `ai:analysed` (Erst-Triage-Guard + unblock-Parkplatz + unlabeled-Re-Triage-Trigger),
+# `ai:analysed` (unblock-Parkplatz + unlabeled-Re-Triage-Trigger),
 # `ai:reviewed` (Gate-Merge-Trigger), `ai:documented` (fail-closed-Invariante des
 # Documenters).
-# Setz-Konvention: Label-Writes nur im Post-Assertion-Step am Job-Ende; Removes
-# zuerst; Done-Labels idempotent (nur setzen, wenn noch nicht vorhanden); der
-# Trigger der Folgephase ist der LETZTE Write — jedes Add feuert ein labeled-
-# Event und startet bis zu 4 Issue-/3 PR-Workflows als No-Op.
+# Setz-Konvention (PR-Phasen, seit PR #890): Jede PR-Phase konsumiert ihr Trigger-
+# Label per atomarer Transition direkt nach dem Start (label-transition.sh
+# --set-none --expect <Trigger>) und schreibt ihr Ergebnis am Job-Ende als EINE
+# atomare Transition (--set <Verdict> --expect none). Der Zielzustand ersetzt den
+# gesamten Pipeline-Bestand in einem API-Call — es gibt keinen Zwischenzustand mit
+# 0 oder 2 Triggern, und „ai:needs-fixup ⇒ kein ai:needs-review" gilt per
+# Konstruktion. Nicht-Pipeline-Labels bleiben unangetastet; der --expect-Guard
+# verwirft Stale-Writes, wenn zwischenzeitlich ein anderer Akteur geschrieben hat.
 #
 #   Phase       Objekt  Zustand        erforderlich                         abwesend
 #   -----------------------------------------------------------------------------------
-#   analyse     Issue   offen          ai:needs-analyse (Re-Triage via       ai:analysed
-#                                      labeled) — Erst-Triage via           (Erst-Triage und
-#                                      opened/unlabeled: siehe --trigger-label   unlabeled-Re-Triage)
+#   analyse     Issue   offen          ai:needs-analyse (Einstieg via        ai:analysed
+#                                      labeled) — unlabeled-Re-Triage:      (nur beim
+#                                      siehe --trigger-label                 unlabeled-Weg)
 #   ux          Issue   offen          ai:needs-ux-ui                        —
 #   spec        Issue   offen          ai:needs-spec                         —
 #   implement   Issue   offen          ai:needs-impl                         —
-#   review      PR      offen, kein    ai:needs-review                       —
-#                       Draft
+#   review      PR      offen, kein    ai:needs-review                       ai:needs-fixup
+#                       Draft                                               (Doppel-Armung:
+#                                                                            Fixup gewinnt)
 #   fixup       PR      offen, kein    ai:needs-fixup                        —
 #                       Draft
 #   documenter  PR      gemergt        —                                    ai:documented
@@ -42,11 +48,11 @@
 # Usage:
 #   bash check-phase-label.sh --repo <owner/repo> --phase <name> --ticket <N> \
 #                             [--trigger-label <label>]
-#   --trigger-label: nur für `analyse` relevant (github.event.label.name). Bei
-#                    Re-Triage (labeled) muss GENAU das gesetzte Label
-#                    (ai:needs-analyse) noch da sein; leer => Erst-Triage
-#                    (opened) oder unlabeled-Re-Triage (Entfernen von
-#                    ai:analysed) — in beiden muss ai:analysed abwesend bleiben.
+#   --trigger-label: nur für `analyse` relevant (github.event.label.name). Beim
+#                    labeled-Einstieg muss GENAU das gesetzte Label
+#                    (ai:needs-analyse) noch da sein; leer => unlabeled-Re-Triage
+#                    (Entfernen von ai:analysed) — dort muss ai:analysed
+#                    abwesend bleiben.
 #
 # Ausgabe (stdout, key=value — die Action reicht sie nach GITHUB_OUTPUT durch):
 #   proceed=true|false
@@ -90,13 +96,12 @@ ABSENT=()
 case "$PHASE" in
   analyse)
     KIND="issue"; WANT_STATE="open"
-    # Drei Einstiege: Erst-Triage (issues.opened) und unlabeled-Re-Triage
-    # (Entfernen von ai:analysed) kommen ohne trigger-label → ABSENT-Pfad:
-    # ai:analysed darf nicht da sein (schützt vorgelabelte Sub-Issues bei der
-    # Erst-Triage; beim unlabeled-Weg ist es der Konsumiert-Check, wenn ein
-    # paralleler Lauf das Label schon wieder gesetzt hat). Labeled-Re-Triage:
-    # das Trigger-Label muss noch da sein — ein anderer Lauf hat es konsumiert,
-    # wenn es fehlt.
+    # Zwei Einstiege: Der unlabeled-Re-Triage (Entfernen von ai:analysed) kommt
+    # ohne trigger-label → ABSENT-Pfad: ai:analysed darf nicht da sein — das ist
+    # der Konsumiert-Check, wenn ein paralleler Lauf das Label schon wieder
+    # gesetzt hat. Labeled-Einstieg (ai:needs-analyse, seit Wegfall von
+    # issues.opened der einzige aktive Weg in die Pipeline): das Trigger-Label
+    # muss noch da sein — ein anderer Lauf hat es konsumiert, wenn es fehlt.
     if [ -n "$TRIGGER_LABEL" ]; then
       REQUIRED=("$TRIGGER_LABEL")
     else
@@ -110,7 +115,12 @@ case "$PHASE" in
   implement)
     KIND="issue"; WANT_STATE="open"; REQUIRED=("ai:needs-impl") ;;
   review)
-    KIND="pr"; WANT_STATE="open"; NO_DRAFT="true"; REQUIRED=("ai:needs-review") ;;
+    KIND="pr"; WANT_STATE="open"; NO_DRAFT="true"; REQUIRED=("ai:needs-review")
+    # ABSENT ai:needs-fixup: Bei Doppel-Armung (beide Trigger kleben, z. B. manuell
+    # gesetzt) gewinnt der Fixup — der Review skippt, sonst liefen beide Phasen
+    # parallel am selben PR (PR #890). Nach dem Fixup re-armt der Progress-Pfad
+    # sauber mit ai:needs-review.
+    ABSENT=("ai:needs-fixup") ;;
   fixup)
     KIND="pr"; WANT_STATE="open"; NO_DRAFT="true"; REQUIRED=("ai:needs-fixup") ;;
   documenter)
