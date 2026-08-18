@@ -78,7 +78,7 @@ jobs:
       # damit kann eine veraltete/inkonsistente Analyse oder API-Drift nicht nach main gelangen.
       - name: Build
         run: pnpm -r build
-      # Nur Frontend hier — die Server-Suite (priority-pilot) läuft ausschließlich über das
+      # Nur Frontend hier — die Server-Suite (server) läuft ausschließlich über das
       # Coverage-Gate unten, sonst würde sie pro CI-Lauf doppelt ausgeführt (Review #115).
       - name: Test (frontend)
         run: pnpm --filter frontend test
