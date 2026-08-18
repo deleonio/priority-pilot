@@ -18,7 +18,8 @@ inputs:
   trigger-label:
     description: >-
       Nur für Phase `analyse`: das Label aus dem Event (github.event.label.name).
-      Beim Re-Triage muss GENAU dieses Label abwesend bleiben; leer => ai:analyzed.
+      Beim Re-Triage (labeled) muss GENAU dieses Label (ai:needs-analyse) noch
+      vorhanden sein; leer => Erst-Triage (opened), dann muss ai:analysed abwesend sein.
     required: false
     default: ''
   github-token:

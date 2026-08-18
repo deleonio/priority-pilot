@@ -22,6 +22,7 @@ import { ForestPanel } from './components/ForestPanel';
 import { HelpPage } from './components/HelpPage';
 import { InstallPrompt } from './components/InstallPrompt';
 import { UpdatePrompt } from './components/UpdatePrompt';
+import { ModelSelectorButton } from './components/ModelSelectorButton';
 import { PillarAdvisorModal } from './components/PillarAdvisorModal';
 import { QuickCaptureModal } from './components/QuickCaptureModal';
 import { SeriesTab } from './components/SeriesTab';
@@ -442,12 +443,29 @@ export const App = ({ user }: { user: AuthUser }) => {
 				<button type="button" className="logo-btn" aria-label="Zum Dashboard" onClick={handleLogoDashboard}>
 					<img src="/logo/logo.png" alt="Priority Pilot" />
 				</button>
+				<span className="app-name">Priority Pilot</span>
+				{/*
+				 * `user-info` bleibt als Block erhalten (#406 AK2): Avatar und Anzeigename gehören
+				 * zusammen. Neu ist nur seine Position — #787 verlangt die Reihenfolge
+				 * Logo → Name → Avatar → Toolbar, der Block steht deshalb VOR der Toolbar statt darin.
+				 */}
+				<div className="user-info">
+					<KolAvatar _label={user.displayName} _src={user.avatarUrl ?? undefined} />
+					<span className="user-display-name">{user.displayName}</span>
+				</div>
+				{/*
+				 * Gemeinsamer Container für die Kopf-Aktionen (#787): Die KI-Modell-Auswahl steht links
+				 * neben den Toolbar-Buttons und teilt deren Ausrichtung und Höhe.
+				 *
+				 * BEWUSST ohne eigenes `role="toolbar"`: `kol-toolbar` bringt die Rolle (inkl. der von ihr
+				 * erwarteten Pfeiltasten-Navigation) bereits in ihrem Shadow-DOM mit. Ein zweites
+				 * `role="toolbar"` am Wrapper erzeugte eine verschachtelte Toolbar mit identischem
+				 * Accessible Name — Screenreader kündigten zwei Toolbars an, und der Wrapper verspräche
+				 * eine Pfeiltasten-Navigation, die er nicht implementiert.
+				 */}
 				<div className="toolbar">
+					<ModelSelectorButton />
 					<KolToolbar _label="Kopf-Aktionen" _orientation="horizontal" _items={toolbarItems} />
-					<div className="user-info">
-						<KolAvatar _label={user.displayName} _src={user.avatarUrl ?? undefined} />
-						<span className="user-display-name">{user.displayName}</span>
-					</div>
 				</div>
 			</header>
 			<h1 className="visually-hidden">Dashboard</h1>
