@@ -241,7 +241,15 @@ for l in ${TARGET[@]+"${TARGET[@]}"}; do create_label "$l"; done
 # Mit Retry (Issue #613): Backoff 1s, 2s, 4s (max. 3). gh-Stderr wird PRO Versuch
 # aufgefangen und beim endgültigen Scheitern nach stderr ausgegeben — ohne das
 # wäre die Ursache (401/403/422 …) im Job-Log unsichtbar (PR #899).
-TARGET_JSON="$(printf '%s\n' ${NEW[@]+"${NEW[@]}"} | jq -R . | jq -s .)"
+# JSON-Array robust bauen: `printf '%s\n'` OHNE Argumente emittiert EINE Leer-
+# zeile — jq -R . | jq -s . macht daraus [""] (leerer Label-Name → HTTP 422,
+# PR #899). Der Konsum-Pfad (--set-none auf PR ohne Nicht-Pipeline-Labels)
+# trifft genau diesen Fall, deshalb Sonderbehandlung für das leere Array.
+if [ "${#NEW[@]}" -eq 0 ]; then
+  TARGET_JSON="[]"
+else
+  TARGET_JSON="$(printf '%s\n' ${NEW[@]+"${NEW[@]}"} | jq -R . | jq -s .)"
+fi
 GH_ERR="$(mktemp)"
 for attempt in 1 2 3; do
   if printf '{"labels":%s}' "$TARGET_JSON" \
