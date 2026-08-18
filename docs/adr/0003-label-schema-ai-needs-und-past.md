@@ -36,8 +36,11 @@ Vereinheitlichung auf **zwei orthogonale Label-Familien**:
 | 7 Documenter | _(Event: `pull_request.closed` + `merged`)_ | auf gemergtem PR nicht label-triggerbar                                                             |
 
 **Done-Labels `ai:<Vergangenheitsform>`** — jede erfolgreiche Phase setzt ihr Done-Label UND den
-Trigger der Folgephase (der Motor der Kette): `ai:analysed`, `ai:ux-reviewed`, `ai:specified`,
-`ai:implemented`, `ai:reviewed`, `ai:fixed`, `ai:documented`.
+Trigger der Folgephase (der Motor der Kette): `ai:analysed`, `ai:reviewed`, `ai:documented`.
+**Begründung:** Die 4 Done-Marker `ai:ux-reviewed`, `ai:specified`, `ai:implemented`, `ai:fixed`
+waren tote Marker ohne Trigger-/Guard-Logik (Issue #873). Ihr Setzen feuerte 4 (Issue) bzw. 3 (PR)
+No-Op-Workflow-Runs. Die verbleibenden 3 Labels tragen Last: `ai:analysed` (Erst-Triage-ABSENT-Guard),
+`ai:reviewed` (Gate-Trigger), `ai:documented` (fail-closed Idempotenz-Invariante).
 
 **Info-Labels ohne Trigger:** `ai:needs-human` (KI stoppt; PR/Issue-Kommentar mit **Warum** und
 **was der Mensch konkret beitragen/entscheiden soll**), `ai:to-big-issue` (Aufgabe zu groß — reines

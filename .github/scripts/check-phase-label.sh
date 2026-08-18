@@ -13,10 +13,15 @@
 # die Logik LOKAL gegen echte Tickets ausführbar (und damit belegbar) bleibt:
 #   bash .github/scripts/check-phase-label.sh --repo o/r --phase spec --ticket 42
 #
+# SETZ-KONVENTION (Label-Writes nur im Label-Post-Assertion am Job-Ende):
+#   (a) Removes zuerst, (b) Done-Labels idempotent setzen (nur wenn noch nicht vorhanden),
+#   (c) das Trigger-Label der Folgephase ist der letzte Write,
+#   (d) kein remove+add-Re-Arm außer ai:reviewed (dessen Re-Arm ist der Gate-Trigger).
+#
 # Soll-Zustand je Phase (die Tabelle ist die einzige Wahrheit — Workflows
 # übergeben nur den Phasen-Namen). Schema: Jede Phase triggert auf GENAU EIN
 # `ai:needs-*`-Label und konsumiert es (Entfernen im eigenen Post-Assertion-Step);
-# Done-Labels (`ai:analysed`, `ai:ux-reviewed`, …) sind reine Marker ohne Trigger.
+# Done-Labels (`ai:analysed`, …) sind reine Marker ohne Trigger.
 #
 #   Phase       Objekt  Zustand        erforderlich                         abwesend
 #   -----------------------------------------------------------------------------------

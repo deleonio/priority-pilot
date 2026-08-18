@@ -8,8 +8,6 @@ Trigger `issues` [opened/labeled]). Der frühere `@agent`-Kommentar-Trigger ist 
 entfernt — Kommentare (insbesondere Bot-Kommentare) dürfen nichts anstoßen.
 
 **Label-Schema (Issue #851):** Jede Phase triggert auf GENAU EIN `ai:needs-*`-Label und
-konsumiert es; jede erfolgreiche Phase setzt ihr Done-Label (`ai:analysed`, `ai:ux-reviewed`,
-`ai:specified`, `ai:implemented`, `ai:reviewed`, `ai:fixed`, `ai:documented`) **und** den
 Trigger der Folgephase. `ai:needs-human` (warum + was der Mensch tun soll) und
 `ai:to-big-issue` sind reine Info-Labels ohne Trigger.
 
@@ -47,13 +45,13 @@ flowchart TD
     start -->|issues.opened| triage
     triage -->|"🟢 UI: label ai:analysed + ai:needs-ux-ui"| ux
     triage -->|"🟢 Nicht-UI: label ai:analysed + ai:needs-spec"| spec
-    ux -->|"label: ai:ux-reviewed + ai:needs-spec"| spec
-    spec -->|"label: ai:specified + ai:needs-impl"| implement
+    ux -->|"label: ai:needs-spec"| spec
+    spec -->|"label: ai:needs-impl"| implement
 
     %% ---- Übergang Issue -> PR (implement setzt ai:needs-review SELBST als kontrollierten
     %% letzten Schritt — pr-needs-review-label.yml reagiert bewusst NICHT auf bot-erzeugte
     %% Draft→ready-Uebergaenge, nur auf menschliche PR-Erstellung/-Freigabe) ----
-    implement -->|"label: ai:implemented (Issue) +<br/>ai:needs-review (PR)"| review
+    implement -->|"label: ai:needs-review (PR)"| review
 
     %% ---- Push-Reset-Pfad (jeder menschliche Push auf den PR-Branch) + menschlich erstellte PRs ----
     gatemerge -.->|"menschlicher Push<br/>(Reset ai:reviewed)"| autolabel
@@ -97,11 +95,10 @@ flowchart TD
 
 ## Die Label-Kette in einer Zeile
 
-`ai:needs-analyse` → **analyse** → `ai:analysed` + `ai:needs-ux-ui` → **ux** → `ai:ux-reviewed` +
-`ai:needs-spec` → **spec** → `ai:specified` + `ai:needs-impl` → **implement** → `ai:implemented` +
-`ai:needs-review` (PR) → **review** → ( `ai:reviewed` + `ai:needs-fixup` → **fixup** →
-`ai:fixed` + `ai:needs-review` → **review** )\* → `ai:reviewed` → **gate-merge** → ✅ →
-**documenter** → `ai:documented`
+`ai:needs-analyse` → **analyse** → `ai:analysed` + `ai:needs-ux-ui` → **ux** →
+`ai:needs-spec` → **spec** → `ai:needs-impl` → **implement** → PR `ai:needs-review` →
+**review** → ( `ai:reviewed` + `ai:needs-fixup` → **fixup** → `ai:needs-review` →
+**review** )\* → `ai:reviewed` → **gate-merge** → ✅ → **documenter** → `ai:documented`
 
 ## Label-Referenz
 
@@ -116,17 +113,13 @@ flowchart TD
 | `ai:needs-review`  | implement, pr-needs-review-label (nur menschlich), **fixup** | review                | `pr-review.yml` |
 | `ai:needs-fixup`   | review (🔴), **gate-merge**, **conflict-scan**               | fixup                 | `pr-fixup.yml`  |
 
-**Done-Labels (`ai:<Vergangenheitsform>`)** — Marker ohne Trigger:
+**Done-Labels (`ai:<Vergangenheitsform>`)** — Marker ohne Trigger (nur 3 tragende):
 
-| Label            | Gesetzt von                       | Bedeutung                                   |
-| ---------------- | --------------------------------- | ------------------------------------------- |
-| `ai:analysed`    | triage                            | Analyse-Phase abgeschlossen                 |
-| `ai:ux-reviewed` | ux (bei Erfolg)                   | UX-Beratung abgeschlossen                   |
-| `ai:specified`   | spec (bei Erfolg)                 | Spec (rote Tests) abgeschlossen             |
-| `ai:implemented` | implement (bei Erfolg)            | Umsetzung abgeschlossen                     |
-| `ai:reviewed`    | review (🟢 UND 🔴 — Runde fertig) | Review-Runde abgeschlossen; Gate-Trigger 🟢 |
-| `ai:fixed`       | fixup (progress/no-progress)      | Fixup-Runde abgeschlossen                   |
-| `ai:documented`  | documenter                        | Dokumentation abgeschlossen (Terminal)      |
+| Label           | Gesetzt von                       | Bedeutung                                   |
+| --------------- | --------------------------------- | ------------------------------------------- |
+| `ai:analysed`   | triage                            | Analyse-Phase abgeschlossen                 |
+| `ai:reviewed`   | review (🟢 UND 🔴 — Runde fertig) | Review-Runde abgeschlossen; Gate-Trigger 🟢 |
+| `ai:documented` | documenter                        | Dokumentation abgeschlossen (Terminal)      |
 
 **Info-Labels** — kein Trigger, keine automatische Aktion:
 
@@ -136,6 +129,16 @@ flowchart TD
 | `ai:to-big-issue`                                                            | triage, implement (2. Soft-Abort)        | Aufgabe zu groß für die Pipeline — Signal an den Menschen, löst nichts aus       |
 | `ai:continued`                                                               | implement (1. Soft-Abort)                | Fortsetzungs-Marker für den Folgelauf                                            |
 | `ai:spec-ready`/`ux:ready`/`ai:ready`/`ai:needs-changes`/`ai:ready-to-merge` | —                                        | **Entfallen** (Issue #851): ersetzt durch `ai:needs-*`/`ai:<past>`-Schema        |
+
+## Setz-Konvention (Label-Writes)
+
+Label-Änderungen werden **immer erst im Label-Post-Assertion-Step am Job-Ende** ausgeführt, niemals mitten im Lauf. Reihenfolge:
+
+1. **Removes zuerst** — alte Trigger- und Marker-Labels abräumen
+2. **Done-Labels idempotent setzen** — nur wenn noch nicht vorhanden (z. B. `ai:analysed` in 01)
+3. **Trigger-Label der Folgephase als letzter Write** — löst den nächsten Workflow aus
+
+**Ausnahme:** `ai:reviewed` wird im Gate-Workflow absichtlich entfernt+neu gesetzt (Re-Arm für menschliche Pushes). Alle anderen Label-Writes erfolgen ohne remove+add-Re-Arm.
 
 ## Schlüsselmechanik
 

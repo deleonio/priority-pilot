@@ -400,11 +400,8 @@ jobs:
             done
           else
             for attempt in 1 2 3; do
-              # ai:reviewed nur bei klarem Verdict (Review-Runde abgeschlossen); der
-              # Fail-Safe-Pfad (kein Verdict) setzt NUR ai:needs-fixup.
-              if [ "$clear_verdict" = "true" ]; then
-                gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:reviewed 2>/dev/null || true
-              fi
+              # findings-Zweig: nur ai:needs-fixup als letzter Write (ai:reviewed entfällt).
+              # Der Fail-Safe-Pfad (kein Verdict) setzt ebenfalls nur ai:needs-fixup.
               if gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-fixup; then
                 echo "::notice::Label gesetzt: ai:needs-fixup"
                 break

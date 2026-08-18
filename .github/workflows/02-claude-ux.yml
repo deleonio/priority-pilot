@@ -3,7 +3,7 @@ name: 2/7 UX-Beratung
 # UX-Beratung als automatisierte Phase VOR der Spec — beratend, nicht blockierend.
 # Läuft als Phase 2 von 7, sequenziell nach der Analyse. Triggert auf ai:needs-ux-ui,
 # schreibt KI-UX-Block zwischen <!-- KI-UX:START --> und <!-- KI-UX:END --> in den
-# Issue-Body, setzt das Done-Label ai:ux-reviewed und übergibt über ai:needs-spec
+# Issue-Body, übergibt über ai:needs-spec
 # an die Spec-Phase (Trigger wird hier konsumiert).
 #
 # CONCURRENCY: Statische Gruppe pro Phase (globale Serialisierung, FIFO).
@@ -208,7 +208,7 @@ jobs:
           retention-days: 14
           if-no-files-found: ignore
 
-      - name: Label-Post-Assertion (VERDICT parsen, ai:ux-reviewed + ai:needs-spec setzen)
+      - name: Label-Post-Assertion (VERDICT parsen, ai:needs-spec setzen)
         if: always() && steps.setup.outputs.configured == 'true'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
@@ -220,7 +220,6 @@ jobs:
           fi
           echo "Claude-Verdict aus Output: '${verdict:-keins}'"
 
-          gh label create "ai:ux-reviewed" --repo "$GITHUB_REPOSITORY" --color 0E8A16 2>/dev/null || true
           gh label create "ai:needs-spec" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
           gh label create "ai:needs-human" --repo "$GITHUB_REPOSITORY" --color D4C5F9 2>/dev/null || true
 
@@ -229,11 +228,10 @@ jobs:
           gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-spec" 2>/dev/null || true
 
           if [ "$verdict" = "ux-ready" ]; then
-            # Erfolg: Done-Label + Trigger der nächsten Phase (Spec).
+            # Erfolg: Trigger der nächsten Phase (Spec) als letzter Write.
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-human" 2>/dev/null || true
-            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:ux-reviewed"
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-spec"
-            echo "::notice::Labels gesetzt: ai:ux-reviewed + ai:needs-spec"
+            echo "::notice::Label gesetzt: ai:needs-spec"
           elif [ "$verdict" = "ux-not-ready" ]; then
             # KI kommt nicht weiter: ai:needs-human mit Begründung + konkreten Optionen
             # für den Menschen (Bot-Kommentar triggert nichts — Labels sind der einzige

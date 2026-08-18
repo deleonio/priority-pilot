@@ -11,7 +11,7 @@
 > (die Analyse entscheidet per UI-Bezug-Feld im Analyse-Block; Nicht-UI-Tickets ueberspringen UX),
 > ein eigener Lauf ([ticket-spec.md](ticket-spec.md),
 > [spec.yml](../.github/workflows/03-claude-spec.yml)) schreibt die roten Tests auf einen
-> Draft-PR und gibt per `ai:specified` + `ai:needs-impl` frei; die Umsetzung macht sie grün, ohne
+> Draft-PR und gibt per `ai:needs-impl` frei; die Umsetzung macht sie grün, ohne
 > sie zu ändern (Gewaltenteilung).
 
 ## Problem: Die KI „schlingert", weil eine _ausführbare_ Spezifikation fehlt
@@ -81,7 +81,7 @@ einem eigenen Schritt vor der Freigabe.
   die Analyse (bzw. die UX-Phase) gibt den Spec-Lauf frei, der **rote Tests mit echten Assertions**
   anlegt. Zwischen Analyse und dem Spec-Lauf laeuft optional die UX-Beratung (Phase 2, entschieden
   per UI-Bezug in der Analyse; Nicht-UI-Tickets bekommen `ai:needs-spec` sofort und ueberspringen
-  UX). `ai:needs-impl` erst, wenn die roten Tests stehen (`ai:specified`).
+  UX). `ai:needs-impl` erst, wenn die roten Tests stehen und verifiziert sind.
 - [ticket-implementation.md](ticket-implementation.md): Die Umsetzung darf die Tests **nicht ändern**,
   nur grün machen (Tests sind der Vertrag).
 - Neue/erweiterte GitHub-Action analog `.github/workflows/implement.yml`.

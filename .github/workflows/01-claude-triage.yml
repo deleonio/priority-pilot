@@ -303,8 +303,12 @@ jobs:
           gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-spec" 2>/dev/null || true
 
           # Done-Label der Analyse-Phase (immer — auch 🟡/🔴 bleibt die Analyse erledigt)
-          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:analysed" 2>/dev/null || true
-          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:analysed"
+          # Done-Label der Analyse-Phase (immer — auch 🟡/🔴 bleibt die Analyse erledigt)
+          # Idempotent: nur setzen, wenn noch nicht vorhanden (AK4)
+          HAS_ANALYSED="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq 'any(.labels[]; .name == "ai:analysed")' 2>/dev/null || echo false)"
+          if [ "$HAS_ANALYSED" != "true" ]; then
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:analysed"
+          fi
 
           if [ "$final" = "spec-ready" ]; then
             # 🟢: Trigger der nächsten Phase setzen — UX-Phase nur bei UI-Bezug,

@@ -17,8 +17,8 @@ der UX-Phase bei UI-Tickets oder direkt von der Analyse-Phase bei Nicht-UI-Ticke
 [ticket-triage.md](ticket-triage.md) Schritt 5 / [ticket-ux.md](ticket-ux.md)), für die **noch
 kein** offener (Draft-)PR existiert (Idempotenz).
 
-Label-Kette: `ai:analysed` → `ai:needs-ux-ui` → `ai:ux-reviewed` → **`ai:specified` +
-`ai:needs-impl` (dieser Workflow)** → Umsetzung → PR.
+Label-Kette: `ai:analysed` → `ai:needs-ux-ui` → `ai:needs-spec` → **`ai:needs-impl`
+(dieser Workflow)** → Umsetzung → PR.
 
 ## Schritt 1 — Ticket wählen & Branch anlegen
 
@@ -89,12 +89,11 @@ Label-Kette: `ai:analysed` → `ai:needs-ux-ui` → `ai:ux-reviewed` → **`ai:s
 
 ## Schritt 4 — Übergabe an die Umsetzung
 
-- Der Workflow setzt am Issue **`ai:specified`** und **`ai:needs-impl`** (und konsumiert
+- Der Workflow setzt am Issue **`ai:needs-impl`** (und konsumiert
   `ai:needs-spec`) — damit greift die Umsetzung
   ([ticket-implementation.md](ticket-implementation.md), Schritt 1) den Draft-PR auf und macht die
   roten Tests grün, **ohne sie zu ändern**.
   - Label bei Bedarf vorher anlegen
-    (`gh label create "ai:specified" --color 0E8A16 --description "Rote Spec-Tests stehen; zur Umsetzung freigegeben"`).
   - **Partial-Retry-Hinweis:** Bei Teilerfolg (Spec-PR ohne Tests) setzt der Workflow
     `ai:needs-spec` neu (Remove-vor-Add). Das `labeled`-Event retriggert die
     Spec automatisch.
