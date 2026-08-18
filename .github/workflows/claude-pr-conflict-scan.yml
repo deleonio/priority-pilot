@@ -57,6 +57,13 @@ jobs:
             echo "::warning::App-Token nicht verfügbar — nutze GITHUB_TOKEN (Achtung: Label-Wechsel lösen ggf. keine Folge-Workflows aus)."
           fi
 
+      # Checkout NUR fuer label-transition.sh (persist-credentials: false — der Job
+      # schreibt nach GitHub ausschliesslich via App-Token).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        if: steps.preflight.outputs.configured == 'true'
+        with:
+          persist-credentials: false
+
       - name: Alle offenen PRs auf Merge-Konflikte prüfen
         if: steps.preflight.outputs.configured == 'true'
         env:
@@ -66,8 +73,8 @@ jobs:
           set -euo pipefail
 
           # Alle offenen PRs auflisten (kein --label-Filter: alle offenen PRs prüfen, nicht nur markierte)
-          # --repo ist Pflicht: der Workflow hat keinen actions/checkout — ohne --repo ruft gh git auf
-          # und stirbt mit `fatal: not a git repository`.
+          # --repo bleibt Pflicht: der Checkout oben dient NUR label-transition.sh, der Loop
+          # laeuft bewusst repo-agnostisch ueber die API.
           prs=$(gh pr list --repo "$REPO" --state open --json number,isDraft,headRepository \
             --jq '.[] | select(.isDraft == false) | select(.headRepository.nameWithOwner == $ENV.REPO) | .number')
 
@@ -106,9 +113,20 @@ jobs:
               fi
 
               echo "PR #$pr: Merge-Konflikt erkannt (mergeable=$mergeable, state=$merge_state) — setze ai:needs-fixup."
-              gh label create "ai:needs-fixup" --repo "$REPO" --color D93F0B \
-                --description "CI/Reviewer rot oder Findings offen -> Fixup" 2>/dev/null || true
-              gh pr edit "$pr" --repo "$REPO" --add-label ai:needs-fixup
+              # EINE atomare Transition zu ai:needs-fixup (PR #890): Das alte reine Add
+              # liess ein evtl. klebendes ai:needs-review UNBERÜHRT — beide Trigger
+              # gleichzeitig am PR erzeugten Review- und Fixup-Run nebeneinander. Die
+              # Transition ersetzt den gesamten Pipeline-Bestand, die Invariante gilt
+              # damit per Konstruktion. --forbid = Oszillationsschutz zur Laufzeit
+              # (der Check oben las den Zustand nur einmalig).
+              if ! OUT="$(bash .github/scripts/label-transition.sh \
+                  --repo "$REPO" --pr "$pr" --set ai:needs-fixup --forbid ai:needs-fixup)"; then
+                echo "::error::PR #$pr: Label-Transition zu ai:needs-fixup endgültig fehlgeschlagen"
+                continue
+              fi
+              if [ "$(printf '%s\n' "$OUT" | sed -n 's/^applied=//p')" != "true" ]; then
+                echo "PR #$pr: Transition verworfen ($(printf '%s\n' "$OUT" | sed -n 's/^reason=//p')) — kein Fixup-Trigger gesetzt."
+              fi
 
               {
                 echo "### PR #${pr} — ai:needs-fixup wegen Merge-Konflikt gesetzt"

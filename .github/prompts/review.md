@@ -62,7 +62,11 @@ ZEITLIMIT: Soft-Deadline = SOFT_DEADLINE. Vor jedem Schritt: [ $(date +%s) -ge S
 
 WICHTIG: Ändere KEINEN Code, committe nichts. Reiner Review.
 
-VERDICT (DEINE LETZTE OUTPUT-ZEILE, vom Workflow geparsed — ohne sie bleibt der PR stecken): exakt EINE Zeile am Ende, einer der Werte:
+VERDICT (zweifach liefern — ohne Verdict bleibt der PR stecken):
+1. DATEI (primärer Kanal, der Workflow liest NUR sie zuerst): als ALLERLETZTE Aktion
+   den Verdict-Begriff als EINZIGES Wort in /tmp/claude-verdict schreiben (Bash:
+   `printf 'reviewed' > /tmp/claude-verdict` — analog needs-fixup / needs-human).
+2. AUSGABE (letzte Output-Zeile, Fallback-Kanal): exakt EINE Zeile am Ende:
   - VERDICT: reviewed (bei 🟢)
   - VERDICT: needs-fixup (bei fixbaren Findings)
   - VERDICT: needs-human (bei Entscheidungs-Findungen, die ein Mensch treffen muss)
