@@ -123,10 +123,7 @@ export const ModelSelectionDialog = ({ onClose, onModelSaved }: ModelSelectionDi
 					{models.map((model) => {
 						const isSelected = model.id === selected;
 						const contextFormatted = formatContextLength(model.contextLength);
-						const parts = [
-							contextFormatted,
-							'modelSize' in model ? (model as { modelSize?: string }).modelSize : null,
-						].filter(Boolean);
+						const parts = [contextFormatted, model.modelSize ?? null].filter(Boolean);
 						const metaText = parts.length > 0 ? parts.join(' · ') : null;
 						return (
 							<li
