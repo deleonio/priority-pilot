@@ -135,8 +135,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		await openTaskDeleteDialog(page, uniqueTitle('Task'));
 		await assertCancelFocusedWithoutJump(page);
 
-		// Issue 653: Tab-Freiheit — Fokus muss sich bewegen lassen. Helper mit Settle-Wartezeit:
-		// KoliBris setFocus-Loop zieht ein sofortiges Tab zurück (s. Kommentar zu AK4).
+		// Issue 653: Tab-Freiheit — Fokus muss sich bewegen lassen (Mechanik s. Helper-Kommentar).
 		await assertTabFreedomInOpenDeleteDialog(page);
 	});
 
@@ -159,8 +158,7 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 
 		await assertCancelFocusedWithoutJump(page, 'Priority Pilot');
 
-		// Issue 653: Tab-Freiheit — Fokus muss sich bewegen lassen. Helper mit Settle-Wartezeit:
-		// KoliBris setFocus-Loop zieht ein sofortiges Tab zurück (s. Kommentar zu AK4).
+		// Issue 653: Tab-Freiheit — Fokus muss sich bewegen lassen (Mechanik s. Helper-Kommentar).
 		await assertTabFreedomInOpenDeleteDialog(page);
 	});
 
@@ -226,55 +224,17 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 	 * erfüllt AK1–AK3 und sperrt Tastaturnutzer trotzdem aus. Genau das war der Zustand vor dieser
 	 * Konsolidierung: ein `focusin`-Redirect in Modal.tsx hielt den Fokus 500 ms lang fest.
 	 *
-	 * SETTLE_MS = 150 ist bewusst gewählt und keine Beruhigungs-Wartezeit:
-	 *  - KoliBris `setFocus()` (utils/element-focus.js) wiederholt den Fokus über bis zu 10 Frames
-	 *    (~<100 ms gemessen). Innerhalb dieses Fensters zieht die Library einen Tab zurück — das ist
-	 *    Library-Verhalten, das wir nicht ohne eigenen Watchdog aushebeln (und der wäre schlimmer).
-	 *  - 150 ms liegt darüber, aber deutlich unter den 500 ms des früheren Redirects. Der Test wäre
-	 *    mit dem alten Modal.tsx also weiterhin ROT und bleibt damit ein echter Regressionsschutz.
-	 * Wird die Schwelle je erhöht werden müssen, ist das ein Signal, dass jemand wieder einen
-	 * Fokus-Watchdog eingebaut hat — dann gehört die Ursache behoben, nicht die Zahl.
+	 * Mechanik (SETTLE_MS, gestaffeltes Tab, shadow-bewusste Lande-Erkennung) teilt sich dieser
+	 * Test mit AK1/AK2/AK8 über assertTabFreedomInOpenDeleteDialog — Begründung im Helper-Kommentar.
 	 */
 	test('AK4 — Tab bewegt den Fokus weiter (kein Fokus-Gefängnis)', async ({ page }) => {
-		const SETTLE_MS = 150;
-
 		await page.goto('/');
 		await waitForStableView(page);
 
 		await openTaskDeleteDialog(page, uniqueTitle('Tab'));
 		await waitForStableView(page);
 
-		const cancelButton = page.getByRole('button', { name: 'Abbrechen' });
-		const deleteButton = page.getByRole('button', { name: 'Endgültig löschen' });
-		await expect(cancelButton).toBeFocused();
-
-		await page.waitForTimeout(SETTLE_MS);
-
-		// Zeitlich gestaffeltes Tab (alle ~100 ms, maximal ~1 s), bis der Lösch-Button den Fokus hält.
-		// Grund: KoliBris anfänglicher setFocus-Loop (s. Kommentar oben, ~10 Frames) hält den Fokus
-		// auf „Abbrechen" und zieht ein in dieses Fenster fallendes Tab EINMALIG zurück. Lokal ist
-		// das Fenster mit ~<100 ms vorbei, auf langsamen CI-Runnern fällt es länger aus — ein
-		// einzelnes Tab bei SETTLE_MS=150 fällt dann noch in den Loop und wird zurückgezogen
-		// (beobachtet: PR #524, e2e Shard 1, „inactive" über 5 s). Das gestaffelte Tab sorgt dafür,
-		// dass ein Anschlag NACH Loop-Ende trifft und stehen bleibt.
-		//
-		// Schutz bleibt im Wesentlichen erhalten: Ein PERSISTENTER Fokus-Watchdog (focusin-Redirect,
-		// der den Fokus dauerhaft festhält — der Zustand, den dieser Test bewacht) zieht JEDES Tab
-		// zurück, die Ruhe tritt nie ein, die schließende Assertion rotet weiterhin. In Kauf
-		// genommen wird nur ein KURZER (< 2 s), einmaliger Redirect (gerade das Library-Verhalten).
-		// SETTLE_MS wird bewusst NICHT erhöht — ein zu knapper Wert bleibt das Watchdog-Signal.
-		const tabDeadline = Date.now() + 3000;
-		for (;;) {
-			await page.keyboard.press('Tab');
-			const onDelete = await deleteButton.evaluate((el) => document.activeElement === el);
-			if (onDelete || Date.now() >= tabDeadline) {
-				break;
-			}
-			await page.waitForTimeout(100);
-		}
-
-		await expect(deleteButton, 'Tab muss den Fokus weiterbewegen dürfen').toBeFocused();
-		await expect(cancelButton).not.toBeFocused();
+		await assertTabFreedomInOpenDeleteDialog(page);
 	});
 
 	test('AK5 — Abbrechen gibt den Fokus an das auslösende Element zurück', async ({ page }) => {
@@ -335,14 +295,28 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 	});
 
 	/**
-	 * AK8 / AK9 — #522 (Test-Optimierung-Report — Behavior-Coverage-Lücke): Tab-Freiheit für die
-	 * übrigen Löschdialoge.
+	 * Tab-Freiheit im offenen Task-/Säulen-Löschdialog — geteilter Vertrags-Check (AK1, AK2, AK4,
+	 * AK8; #522 hatte die Lücke ursprünglich für die Säulen-/Serien-Dialoge geflaggt, AK4 deckt den
+	 * Task-Dialog ab). AK9 (Serien) prüft inline — der Serien-Dialog hat einen anderen Aufbau
+	 * (Ja/Nein/Abbrechen statt Abbrechen/Endgültig löschen).
 	 *
-	 * AK4 sichert den Tab-Freiheits-Vertrag für den Task-Löschdialog. Der Report flaggt dieselbe
-	 * Lücke für die Säulen- (AK2) und Serien-Löschdialoge (AK3): beide hatten Initialfokus-Tests,
-	 * aber keinen, der Tab drückt. Ein eigener Fokus-Watchdog in einem dieser beiden Dialoge (z. B.
-	 * ein focusin-Redirect wie früher in Modal.tsx) würde nur hier auffallen — deshalb eigener Test
-	 * je Dialog statt Vertrauen auf das geteilte <Modal>. SETTLE_MS wie in AK4 bewusst gewählt.
+	 * Mechanik — SETTLE_MS = 150 plus gestaffelte Tab-Anschläge (~100 ms Abstand, max. ~3 s):
+	 * KoliBris `setFocus()` (utils/element-focus.js) wiederholt den Fokus über bis zu 10 Frames
+	 * (~<100 ms gemessen) und zieht ein in dieses Fenster fallendes Tab EINMALIG zurück —
+	 * Library-Verhalten, das wir nicht ohne eigenen Watchdog aushebeln (und der wäre schlimmer).
+	 * Auf langsamen CI-Runnern fällt das Fenster länger aus (beobachtet: PR #524, e2e Shard 1).
+	 * 150 ms liegt darüber, aber deutlich unter den 500 ms des früheren focusin-Redirects in
+	 * Modal.tsx — der Test bliebe mit dem alten Modal.tsx weiterhin ROT. Muss die Schwelle je
+	 * erhöht werden, ist das ein Signal, dass jemand wieder einen Fokus-Watchdog eingebaut hat.
+	 *
+	 * Lande-Erkennung über die öffentliche Fokus-Assertion (toBeFocused ist shadow-durchdringend):
+	 * Ein früherer manueller Vergleich `document.activeElement === el` war bei KoliBri nie erfüllbar
+	 * — activeElement ist das HOST-Element (<kol-button>), der Locator resolved auf den inneren
+	 * Shadow-DOM-Button. Der Loop lief deshalb stets in die Deadline, und die grüne
+	 * Schluss-Assertion hing davon ab, wo der letzte Tab zufällig landete (Flake-Muster „inactive",
+	 * u. a. main 18.08. und PR #859). toPass wiederholt Tab-Anschlag + Kurz-Assertion, bis der
+	 * Fokus nach dem Pull-back-Fenster tatsächlich auf dem Lösch-Button steht — ganz ohne
+	 * Shadow-DOM-Zugriff (ESLint-Black-Box-Regel, #824).
 	 */
 	const assertTabFreedomInOpenDeleteDialog = async (page: Page): Promise<void> => {
 		const SETTLE_MS = 150;
@@ -350,7 +324,15 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		const deleteButton = page.getByRole('button', { name: 'Endgültig löschen' });
 		await expect(cancelButton).toBeFocused();
 		await page.waitForTimeout(SETTLE_MS);
-		await page.keyboard.press('Tab');
+
+		await expect(async () => {
+			await page.keyboard.press('Tab');
+			// Pull-back-Fenster des KoliBri-setFocus-Loops abwarten, DANN prüfen: ein nur transient
+			// gelandeter Fokus wird zurückgezogen und zählt nicht als angekommen.
+			await page.waitForTimeout(250);
+			await expect(deleteButton).toBeFocused({ timeout: 250 });
+		}).toPass({ timeout: 4000 });
+
 		await expect(deleteButton, 'Tab muss den Fokus weiterbewegen dürfen').toBeFocused();
 		await expect(cancelButton).not.toBeFocused();
 	};
