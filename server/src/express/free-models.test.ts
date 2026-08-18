@@ -182,7 +182,10 @@ describe('Issue 861: contextLength aus OpenRouter', () => {
 
 	it('AK1: OpenAPI-Spec definiert contextLength (optional, number) - Spec issue-861.md', async () => {
 		const fs = await import('node:fs/promises');
-		const openApiPath = 'openapi.yml';
+		const path = await import('node:path');
+		const { fileURLToPath } = await import('node:url');
+		const __dirname = path.dirname(fileURLToPath(import.meta.url));
+		const openApiPath = path.join(__dirname, '../../../openapi.yml');
 		const openApiContent = await fs.readFile(openApiPath, 'utf-8');
 
 		assert.match(openApiContent, /contextLength:/, 'OpenAPI-Spec muss contextLength-Feld definieren');

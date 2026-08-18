@@ -1847,6 +1847,9 @@ components:
         name:
           type: string
           description: Anzeigename des Modells, wie OpenRouter ihn liefert.
+        contextLength:
+          type: number
+          description: Kontext-Länge des Modells (optional, wenn OpenRouter sie liefert).
     FreeModels:
       type: object
       required:
