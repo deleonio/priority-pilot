@@ -31,14 +31,26 @@ Header zeigt die Elemente in der Reihenfolge Logo → Name → Avatar → Toolba
 3. **KI-Modell-Auswahl in Toolbar lokalisieren**
    - KI-Modell-Auswahl ist als Toolbar-Element integriert (nicht separat angehängt)
    - Dropdown-Indikator (Chevron) sichtbar
-   - Label zeigt aktuelles Modell (z.B. „Sonnet 5")
+   - Label zeigt das aktuell konfigurierte Modell (z. B. „sonnet-5"). Benennt das letzte Segment der
+     Modell-ID nur die Preisklasse (`openrouter/free` → „free"), zeigt das Label die vollständige ID —
+     ein Label muss das Modell identifizieren.
 
 ### Erwartetes Ergebnis
 
 - Header-Layout folgt strikt der Reihenfolge: Logo → Name → Avatar → Toolbar
-- KI-Modell-Auswahl ist visuell Teil der Toolbar (gemeinsamer Style/Container)
+- KI-Modell-Auswahl ist visuell Teil der Toolbar: gemeinsamer Container, gemeinsame Ausrichtung,
+  direkt benachbart
 - Keine Layout-Shifts oder broken images
 - Toolbar-Elemente sind gleichmäßig ausgerichtet
+
+### Abgrenzung: ARIA-Rolle `toolbar`
+
+„Teil der Toolbar" ist eine **visuelle** Anforderung. Die Rolle `toolbar` trägt allein die
+KoliBri-Toolbar (`kol-toolbar`), die auch deren Tastatur-Erwartung (Pfeiltasten-Navigation zwischen
+den Items) umsetzt. Der umgebende Container bekommt **kein** zweites `role="toolbar"`: Das ergäbe
+verschachtelte Toolbars mit identischem Accessible Name und verspräche eine Pfeiltasten-Navigation,
+die er nicht implementiert. Die KI-Modell-Auswahl ist als eigenständiges, benanntes Bedienelement im
+`banner` vollständig zugänglich.
 
 ---
 
@@ -70,18 +82,28 @@ KI-Modell-Auswahl ist funktional und a11y-konform bedienbar.
    - Label: „Modell auswählen, aktuell: [Modellname]"
 
 4. **Modell-Auswahl testen**
-   - Klick auf KI-Modell-Auswahl öffnet Dropdown
-   - Dropdown zeigt verfügbare Modelle
+   - Klick auf KI-Modell-Auswahl öffnet das Popup
+   - Popup zeigt die verfügbaren Modelle
    - Auswahl eines Modells aktualisiert Label sofort (kein Lade-Spin nötig)
-   - aria-pressed="true" bei geöffnetem Dropdown
+   - Escape schließt das Popup, `aria-expanded` fällt zurück auf `"false"`
 
 ### Erwartetes Ergebnis
 
 - KI-Modell-Auswahl ist klickbar und funktional
-- Dropdown öffnet sich und zeigt Modelle
+- Popup öffnet sich und zeigt Modelle
 - Auswahl aktualisiert UI sofort
-- A11y-Attribute korrekt gesetzt (role, aria-expanded, aria-pressed)
-- Screenreader kündigt „KI-Modellauswahl, aktuell [Modellname], X Optionen verfügbar" an
+- A11y-Attribute korrekt gesetzt (`role="combobox"`, `aria-haspopup`, `aria-expanded`)
+- Screenreader kündigt „KI-Modellauswahl, aktuell [Modellname]" an
+
+### Abgrenzung: Popup-Art und Label
+
+Das Popup ist der bestehende modale **Dialog** zur Modell-Auswahl (#742), keine Listbox. ARIA 1.2
+lässt für `combobox` genau diese Popup-Rolle zu; sie wird über `aria-haspopup="dialog"` angekündigt.
+Die Liste der auswählbaren Modelle bleibt der Dialog-Inhalt aus #742.
+
+Das Screenreader-Label enthält **keine** Anzahl verfügbarer Optionen: Die Free-Modell-Liste lädt
+dynamisch erst der Dialog (`GET /models/free`). Eine im Button hartcodierte Zahl wäre eine
+Falschaussage, sobald sich die Liste ändert.
 
 ---
 
@@ -103,12 +125,14 @@ Header und KI-Modell-Auswahl funktionieren auf Mobile-Viewports (<600px).
 
 2. **KI-Modell-Auswahl auf Mobile**
    - Touch-Ziele mindestens 48×48px (WCAG 2.5.5)
-   - Als Icon-only mit Tooltip oder in Overflow-Menu (je nach Design-Entscheidung)
+   - Design-Entscheidung: Unter 48rem ist die Auswahl **nicht** im Header, sondern über den
+     Dashboard-Einstieg (#742) erreichbar — siehe Abgrenzung unten
    - Dropdown/Sheet/Modal erscheint bei Auswahl
 
 3. **Breakpoint-Test**
-   - Bei 600px: Volle Toolbar mit Text-Labels
-   - Unter 600px: Optimiert für Mobile (Tooltip/Overflow)
+   - Ab 48rem (768px): KI-Modell-Auswahl im Header mit Modell-Label
+   - Unter 48rem: KI-Modell-Auswahl über den Dashboard-Einstieg
+   - Ab 64rem (1024px): zusätzlich der App-Name im Header
 
 ### Erwartetes Ergebnis
 
@@ -116,6 +140,36 @@ Header und KI-Modell-Auswahl funktionieren auf Mobile-Viewports (<600px).
 - Touch-Ziele sind ausreichend groß (≥48×48px)
 - Header-Height bleibt stabil
 - KI-Modell-Auswahl ist bedienbar auf Mobile
+
+### Abgrenzung: KI-Modell-Auswahl unter 48rem
+
+Der Header muss auf 375px einzeilig bleiben — das ist ein bestehender, mehrfach abgesicherter
+Vertrag (#485 AK6, #718 AK4/AK5, `mobile-shell.spec.ts`). Bei 375px stehen 343px Inhaltsbreite zur
+Verfügung, die Logo (44px), Avatar (44px) und die fünf Kopf-Aktionen (#691, je 44px) bereits
+ausfüllen. Ein sechstes Bedienelement passt dort nicht mehr hinein — auch nicht icon-only.
+
+Deshalb ist die KI-Modell-Auswahl unter 48rem im Header ausgeblendet. Bedienbar bleibt sie über den
+Dashboard-Einstieg aus #742, dessen Touch-Ziel auf Mobile auf 48×48px angehoben ist. Ab 48rem steht
+sie wie spezifiziert in der Kopfzeile.
+
+### Abgrenzung: App-Name und #406
+
+#406 hat die redundante Text-H1 „Priority Pilot" aus dem Header entfernt — damals trug die
+Wort-Bild-Marke den Namen selbst. Seit #485 ist das Logo icon-only, der Name ist also nicht mehr
+redundant. #787 führt ihn deshalb wieder ein, aber **als `span`, nicht als Überschrift**: Die
+Kernaussage von #406 („keine zweite H1 im Header") bleibt unangetastet, der zugehörige E2E-Vertrag
+in `header-logo.spec.ts` prüft das weiterhin.
+
+### Abgrenzung: „Header-Height bleibt stabil"
+
+Gemeint ist die Stabilität **nach** dem Aufbau der Ansicht: Ist die Toolbar ausgelayoutet und das
+aktuelle Modell geladen, darf keine Interaktion (Öffnen des Popups, Auswahl eines Modells) die
+Header-Höhe verändern. Während der Hydration wächst der Header dagegen erwartungsgemäß auf seine
+Endhöhe — `kol-toolbar` baut ihre Buttons asynchron im Shadow-DOM auf.
+
+Auf 375px umfasst der Header dabei zwei Zeilen: Logo, Avatar, KI-Modell-Auswahl und die fünf
+Kopf-Aktionen passen nicht in eine Zeile. Der Umbruch ist gewollt (Alternative wäre ein horizontal
+scrollender Header) und erfüllt die Anforderung „keine horizontalen Überläufe".
 
 ---
 
@@ -137,9 +191,13 @@ Alle UI-Elemente erfüllen BITV 2.1 Kontrast-Anforderungen.
    - Focus-Indikator ≥3:1 Kontrast
 
 2. **Tastatur-Navigation vollständig**
-   - Tab-Reihenfolge: Logo → Name → Avatar → Toolbar-Elemente
+   - Tab-Reihenfolge folgt der visuellen Reihenfolge über die **bedienbaren** Elemente:
+     Logo → KI-Modell-Auswahl → Toolbar-Elemente
+   - App-Name und Avatar sind reine Anzeige-Elemente und erzeugen bewusst **keinen** Tab-Stopp: Ein
+     Tab-Stopp ohne Aktion ist eine Sackgasse für Tastatur-Nutzende. WCAG 2.4.3 fordert eine
+     sinnvolle Reihenfolge der bedienbaren Elemente, nicht einen Stopp je sichtbarem Element.
    - Keine Focus-Traps
-   - Esc schließt Dropdown
+   - Esc schließt das Popup
 
 3. **Screenreader-komplette Journey**
    - Alle Elemente sind appropriat gelabelt
@@ -177,3 +235,7 @@ Alle UI-Elemente erfüllen BITV 2.1 Kontrast-Anforderungen.
 ## Versionierung
 
 - **v1.0** (2026-08-17): Initialefassung für Issue #787. Header-Layout und KI-Modell-Auswahl in Toolbar spezifiziert.
+- **v1.1** (2026-08-17): Abgrenzungen ergänzt, nachdem die Tests die technische Realität gegengeprüft
+  haben: ARIA-Rolle `toolbar` bleibt bei `kol-toolbar`, das Popup ist ein Dialog (nicht Listbox),
+  Label ohne hartcodierte Options-Anzahl, Tab-Reihenfolge über die bedienbaren Elemente,
+  Header-Stabilität ab Ende der Hydration.
