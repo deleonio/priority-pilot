@@ -1,10 +1,10 @@
 name: 2/7 UX-Beratung
 
 # UX-Beratung als automatisierte Phase VOR der Spec — beratend, nicht blockierend.
-# Läuft als Phase 2 von 7, sequenziell nach der Analyse. Triggert auf ai:spec-ready,
+# Läuft als Phase 2 von 7, sequenziell nach der Analyse. Triggert auf ai:needs-ux-ui,
 # schreibt KI-UX-Block zwischen <!-- KI-UX:START --> und <!-- KI-UX:END --> in den
-# Issue-Body und gibt über ux:ready an die Spec-Phase weiter. ai:spec-ready bleibt
-# am Issue kleben — die Spec-Phase konsumiert es.
+# Issue-Body, setzt das Done-Label ai:ux-reviewed und übergibt über ai:needs-spec
+# an die Spec-Phase (Trigger wird hier konsumiert).
 #
 # CONCURRENCY: Statische Gruppe pro Phase (globale Serialisierung, FIFO).
 
@@ -25,8 +25,8 @@ concurrency:
 
 jobs:
   precheck:
-    # Bei workflow_dispatch immer laufen, sonst nur bei Label ai:spec-ready
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.label.name == 'ai:spec-ready' }}
+    # Bei workflow_dispatch immer laufen, sonst nur bei Label ai:needs-ux-ui
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.label.name == 'ai:needs-ux-ui' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -52,7 +52,7 @@ jobs:
             echo "number=${{ github.event.issue.number }}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Label-Pre-Check (ai:spec-ready muss vorhanden sein)
+      - name: Label-Pre-Check (ai:needs-ux-ui muss vorhanden sein)
         id: check
         if: ${{ github.event_name == 'issues' }}
         uses: ./.github/actions/check-phase-label
@@ -208,7 +208,7 @@ jobs:
           retention-days: 14
           if-no-files-found: ignore
 
-      - name: Label-Post-Assertion (VERDICT parsen, ux:ready setzen)
+      - name: Label-Post-Assertion (VERDICT parsen, ai:ux-reviewed + ai:needs-spec setzen)
         if: always() && steps.setup.outputs.configured == 'true'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
@@ -220,24 +220,35 @@ jobs:
           fi
           echo "Claude-Verdict aus Output: '${verdict:-keins}'"
 
-          gh label create "ux:ready" --repo "$GITHUB_REPOSITORY" --color 0E8A16 2>/dev/null || true
-          gh label create "ux:failed" --repo "$GITHUB_REPOSITORY" --color d73a49 2>/dev/null || true
+          gh label create "ai:ux-reviewed" --repo "$GITHUB_REPOSITORY" --color 0E8A16 2>/dev/null || true
+          gh label create "ai:needs-spec" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
+          gh label create "ai:needs-human" --repo "$GITHUB_REPOSITORY" --color D4C5F9 2>/dev/null || true
 
-          # ux:ready/ux:failed werden gemanagt (Idempotenz: remove-vor-add).
-          # ai:spec-ready gehört der Spec-Phase — NICHT hier entfernen.
-          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ux:ready" 2>/dev/null || true
-          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ux:failed" 2>/dev/null || true
+          # Trigger konsumieren + stale Folge-Trigger entfernen (Idempotenz: remove-vor-add).
+          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-ux-ui" 2>/dev/null || true
+          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-spec" 2>/dev/null || true
 
           if [ "$verdict" = "ux-ready" ]; then
-            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ux:ready"
-            echo "::notice::Label gesetzt: ux:ready"
+            # Erfolg: Done-Label + Trigger der nächsten Phase (Spec).
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-human" 2>/dev/null || true
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:ux-reviewed"
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-spec"
+            echo "::notice::Labels gesetzt: ai:ux-reviewed + ai:needs-spec"
           elif [ "$verdict" = "ux-not-ready" ]; then
-            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ux:failed"
-            # Recovery-Wegweiser (fail-safe beim Menschen, aber nicht stumm): Bot-Kommentar
-            # triggert nichts — Labels sind der einzige Ketten-Trigger.
+            # KI kommt nicht weiter: ai:needs-human mit Begründung + konkreten Optionen
+            # für den Menschen (Bot-Kommentar triggert nichts — Labels sind der einzige
+            # Ketten-Trigger, deshalb bleibt die Kette hier bewusst stehen).
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-human"
             gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body \
-              "⚠️ UX-Beratung unklar (\`ux:failed\`) — die Kette wartet. Nach Klärung: *2/7 UX-Beratung* in der Actions-UI erneut anstoßen (Run workflow, Issue-Nummer angeben) oder bei unerheblichem UX-Blocker \`ux:ready\` manuell setzen; die Spec-Phase startet dann." 2>/dev/null || true
-            echo "::notice::Label gesetzt: ux:failed"
+              "⚠️ **UX-Beratung: KI kommt nicht alleine weiter** (\`ai:needs-human\`).
+
+          **Warum:** Die UX-Beratung konnte die UI-Entscheidung für dieses Ticket nicht belastbar treffen. Die offenen Fragen und Überlegungen stehen im KI-UX-Block des Issue-Bodys (zwischen \`KI-UX:START\` und \`KI-UX:END\`).
+
+          **Was du als Mensch beitragen/entscheiden solltest:**
+          1. Die offenen UX-Fragen im Issue klären (z. B. als Kommentar ins Ticket schreiben).
+          2. Danach \`ai:needs-ux-ui\` manuell setzen → UX-Beratung läuft mit deinem Kontext erneut.
+          3. Oder, wenn der UX-Blocker unerheblich ist: \`ai:needs-spec\` manuell setzen → Spec-Phase startet direkt." 2>/dev/null || true
+            echo "::notice::Label gesetzt: ai:needs-human (UX unklar)"
           else
             echo "::warning::Kein VERDICT im Output – kein Label gesetzt"
           fi

@@ -33,7 +33,7 @@ concurrency:
 # GATE-KONTRAKT (nicht brechen): Gate/Auto-Merge (claude-pr-gate-merge.yml) keyt auf den Workflow-
 # NAMEN `CI` (`select(.workflow == "CI")`, `any(.[]; .workflow == "CI")`), NICHT auf einen Job-Namen.
 # Solange dieser Workflow `name: CI` heisst, zaehlen ALLE Job-Checks (verify + e2e-Shards) als „CI":
-# ein roter -> Gate setzt ai:needs-changes; alle gruen -> mergebar. `workflow_run` feuert pro Run
+# ein roter -> Gate setzt ai:needs-fixup; alle gruen -> mergebar. `workflow_run` feuert pro Run
 # (nicht pro Job), das Fan-out bleibt also EIN Gate-Trigger. Jobs duerfen frei aufgeteilt/umbenannt
 # werden — der Workflow-Name `CI` aber nicht.
 jobs:
