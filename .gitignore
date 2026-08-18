@@ -33,3 +33,6 @@ data/
 
 # Lokale Browser-MCP-Session-Logs (UI-Inspektion), kein Repo-Inhalt.
 .playwright-mcp/
+
+# Obsidian-Vault-Konfiguration (lokal-personal, ändert sich je Session), kein Repo-Inhalt.
+.obsidian/

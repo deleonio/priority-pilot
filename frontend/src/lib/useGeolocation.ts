@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { api } from '../api';
 
 /** Geolocation-Intervall: 5 Minuten in ms (AK 6). */
 export const GEOLOCATION_INTERVAL_MS = 5 * 60 * 1000;
@@ -46,6 +47,10 @@ interface UseGeolocationResult {
 	permissionDenied: boolean;
 	/** Aktuelle Position (oder null). */
 	position: GeolocationPosition | null;
+	/** Aktuelle Adresse (oder null/leer bei Fehler/Rate-Limit). */
+	address: string | null;
+	/** Ob gerade eine Adresse abgerufen wird. */
+	addressLoading: boolean;
 	/** Geolocation aktivieren (`true`) oder deaktivieren (`false`). */
 	toggle: (next: boolean) => Promise<void>;
 }
@@ -61,6 +66,8 @@ export const useGeolocation = (): UseGeolocationResult => {
 	const [pending, setPending] = useState(false);
 	const [permissionDenied, setPermissionDenied] = useState(false);
 	const [position, setPosition] = useState<GeolocationPosition | null>(null);
+	const [address, setAddress] = useState<string | null>(null);
+	const [addressLoading, setAddressLoading] = useState(false);
 
 	/** Einmalige Positionsermittlung (ohne Seiteneffekte auf State). */
 	const fetchPosition = useCallback((): Promise<GeolocationPosition> => {
@@ -107,6 +114,20 @@ export const useGeolocation = (): UseGeolocationResult => {
 		};
 	}, [enabled, supported, fetchPosition]);
 
+	/** Reverse Geocoding: Position → Adresse (Issue #866). */
+	useEffect(() => {
+		if (!position || !enabled) {
+			setAddress(null);
+			return;
+		}
+		setAddressLoading(true);
+		api
+			.reverseGeocode({ lat: position.latitude, lon: position.longitude })
+			.then(({ address }) => setAddress(address || null))
+			.catch(() => setAddress(null)) // Fehler/Rate-Limit → null
+			.finally(() => setAddressLoading(false));
+	}, [position, enabled]);
+
 	const toggle = useCallback(
 		async (next: boolean): Promise<void> => {
 			if (pending) {
@@ -145,5 +166,5 @@ export const useGeolocation = (): UseGeolocationResult => {
 		[pending, fetchPosition],
 	);
 
-	return { supported, enabled, pending, permissionDenied, position, toggle };
+	return { supported, enabled, pending, permissionDenied, position, address, addressLoading, toggle };
 };

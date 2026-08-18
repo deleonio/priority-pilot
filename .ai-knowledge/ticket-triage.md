@@ -273,7 +273,7 @@ Ping-Kommentar** (`gh issue comment`), **keine** Vollanalyse mehr (die steht ab 
     `gh label create "ai:needs-spec" --color FBCA04 --description "Spec-Stufe schreibt rote Tests"`),
     dann `gh issue edit <nr> --add-label "ai:needs-ux-ui"` bzw. `"ai:needs-spec"`. Damit schreibt die
     Spec-Stufe (`/spec-ticket`, siehe [ticket-spec.md](ticket-spec.md)) die roten Tests und gibt das Issue
-    anschließend per `ai:specified` + `ai:needs-impl` zur Umsetzung frei. **Nicht** direkt `ai:needs-impl`
+    anschließend per `ai:needs-impl` zur Umsetzung frei. **Nicht** direkt `ai:needs-impl`
     setzen — das ist der Output der Spec-Stufe, nicht der Triage.
     **UI-Bezug-Entscheidung:** Der Analyse-Body-Block enthaelt das Feld `UI-Bezug: ja|nein` (siehe
     BODY-BLOCK-FORMAT oben). Bei **UI-Bezug: nein** (Nicht-UI-Ticket) setzt der Workflow
