@@ -15,8 +15,14 @@
 #
 # Soll-Zustand je Phase (die Tabelle ist die einzige Wahrheit — Workflows
 # übergeben nur den Phasen-Namen). Schema: Jede Phase triggert auf GENAU EIN
-# `ai:needs-*`-Label und konsumiert es (Entfernen im eigenen Post-Assertion-Step);
-# Done-Labels (`ai:analysed`, `ai:ux-reviewed`, …) sind reine Marker ohne Trigger.
+# `ai:needs-*`-Label und konsumiert es (Entfernen im eigenen Post-Assertion-Step).
+# Done-Labels ohne Trigger-Rolle gibt es nur noch, wo Logik sie liest (Issue #873):
+# `ai:analysed` (Erst-Triage-Guard + unblock-Parkplatz), `ai:reviewed` (Gate-Merge-
+# Trigger), `ai:documented` (fail-closed-Invariante des Documenters).
+# Setz-Konvention: Label-Writes nur im Post-Assertion-Step am Job-Ende; Removes
+# zuerst; Done-Labels idempotent (nur setzen, wenn noch nicht vorhanden); der
+# Trigger der Folgephase ist der LETZTE Write — jedes Add feuert ein labeled-
+# Event und startet bis zu 4 Issue-/3 PR-Workflows als No-Op.
 #
 #   Phase       Objekt  Zustand        erforderlich                         abwesend
 #   -----------------------------------------------------------------------------------

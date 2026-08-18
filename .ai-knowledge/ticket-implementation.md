@@ -9,8 +9,8 @@ Tickets = GitHub-Issues von `deleonio/priority-pilot`. Voraussetzung: `gh` ist a
 zugewiesen** sind. Die Zuweisung an sich selbst ist die „in Arbeit"-Markierung und verhindert,
 dass dasselbe Ticket doppelt gegriffen wird (idempotenter Batch).
 
-Label-Kette: `ai:analysed` (analysiert, Analyse im Body-Block) → `ai:specified` (rote Tests stehen)
-→ `ai:needs-impl` (zur Umsetzung freigegeben) → dieser Workflow setzt um. `ai:needs-impl` wird bei
+Label-Kette: `ai:analysed` (analysiert, Analyse im Body-Block) → `ai:needs-spec` (Spec-Stufe
+läuft/gelaufen) → `ai:needs-impl` (zur Umsetzung freigegeben) → dieser Workflow setzt um. `ai:needs-impl` wird bei
 **klarer Analyse (Ampel 🟢)** automatisch von der Spec-Stufe gesetzt; bei 🟡/🔴 entscheidet der
 Mensch und gibt ggf. von Hand frei (siehe [ticket-triage.md](ticket-triage.md), Schritt 5).
 
