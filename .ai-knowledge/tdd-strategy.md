@@ -5,7 +5,7 @@
 > **Stufe 1 (Szenario 1):** Die Triage erzeugt prüfbare Akzeptanzkriterien + Testfälle
 > ([ticket-triage.md](ticket-triage.md) Schritt 1/4), die Issue-Templates fragen sie ab.
 > **Stufe 2 (Szenario 2):** Die Umsetzung folgt Red-Green, `pnpm test` ist PR-Pflicht, das Review
-> macht fehlende/rote Tests zum Gate ([pr-review.md](pr-review.md) Schritt 3/5).
+> macht fehlende/rote Tests zum Gate ([review-kreuzverhoer-Skill](../.claude/skills/review-kreuzverhoer/SKILL.md) Schritt 3/5).
 > **Stufe 3 (Szenario 3):** Eigenes Spec-Gate — die Analyse setzt `ai:needs-ux-ui`/`ai:needs-spec`
 > statt direkt `ai:needs-impl`, zwischen Analyse und dem Spec-Lauf laeuft optional die UX-Beratung
 > (die Analyse entscheidet per UI-Bezug-Feld im Analyse-Block; Nicht-UI-Tickets ueberspringen UX),
@@ -64,7 +64,7 @@ Red-Green-Refactor-Loop.
   plus Punkt „Tests bilden die Akzeptanzkriterien ab".~~ — PR-Template am 2026-08-13 entfernt;
   `pnpm test` ist Pflicht über [AGENTS.md](../AGENTS.md) Kernregeln (`pnpm format`, `pnpm lint` **und
   `pnpm test`** pro PR) + die Pipeline.
-- [pr-review.md](pr-review.md) Schritt 3: kein 🟢-Urteil, wenn Tests fehlen oder rot sind.
+- [review-kreuzverhoer-Skill](../.claude/skills/review-kreuzverhoer/SKILL.md) Schritt 3: kein 🟢-Urteil, wenn Tests fehlen oder rot sind.
 
 **Stärke gegen Schlingern:** hoch — binäres Ziel ab Schritt 1.
 **Kosten:** mittel (Workflow-Doku + Template). **Risiko:** tautologische Tests (die KI passt Tests

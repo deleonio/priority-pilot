@@ -14,7 +14,7 @@ sie nicht rendert.
 Innerhalb eines Ordners (z. B. `.ai-knowledge/` → `.ai-knowledge/`):
 
 ```markdown
-- Grundhaltung: [Kreuzverhör](kreuzverhoer-haltung.md), Umsetzung in [PR-Review](pr-review.md)
+- Ticket-Ablauf: [Ticket-Umsetzung](ticket-implementation.md), Regeln: [Conventions](conventions.md)
 - Testumfang: [TDD-Strategie → Testumfang](tdd-strategy.md#testumfang--so-viel-wie-nötig-so-wenig-wie-irgend-möglich)
 ```
 
@@ -28,7 +28,7 @@ Zwischen Ordnern (z. B. `.ai-knowledge/` → `docs/`):
 Von `AGENTS.md`/`README.md` (Repo-Root) in Unterordner — Pfad mit Ordner:
 
 ```markdown
-- [PR-Review (Kreuzverhör)](.ai-knowledge/pr-review.md) — Pull Requests kritisch prüfen
+- [TDD-Strategie](.ai-knowledge/tdd-strategy.md) — test-getriebene KI-Workflows (Stufen 1+2+3 adoptiert)
 ```
 
 ## Anker-Regeln
