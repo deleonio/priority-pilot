@@ -293,14 +293,44 @@ runs:
         fi
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    # CLAUDE CODE – Install + Provider-Switch + Auth + (optional) KoliBri MCP
+    # ZAI TIME-WINDOW CHECK – ZAI zwischen 08:00–12:00 Europe/Berlin auf Claude fallen
     #
-    # Provider + Modell-Aliase kommen NICHT aus .claude/settings.json: die Datei ist
-    # eingecheckt und wird von lokalen Entwickler-Sessions mitbenutzt – ein dort
-    # gesetztes ANTHROPIC_BASE_URL würde jede lokale Session zwangs-umrouten.
-    # Deshalb setzt diese Action Endpoint, Modell-Aliase und Key pro Lauf via
-    # GITHUB_ENV, gesteuert über vars.LLM_PROVIDER.
+    # Issue #893: Zwischen 08:00 und 12:00 Uhr Europe/Berlin wird ZAI nicht verwendet.
+    # Die Zeitprüfung erfolgt DST-korrekt mit TZ=Europe/Berlin (automatische Sommerzeit).
+    # Nur ZAI wird überschrieben; claude/openrouter bleiben unangetastet.
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    - name: ZAI Zeitfenster-Check (08:00–12:00 Europe/Berlin → Claude Fallback)
+      id: time-window-check
+      if: steps.preflight.outputs.configured == 'true'
+      shell: bash
+      env:
+        LLM_PROVIDER: ${{ inputs.llm-provider }}
+      run: |
+        PROVIDER="${LLM_PROVIDER:-claude}"
+
+        # Nur bei ZAI prüfen, ob wir im Zeitfenster sind
+        if [ "$PROVIDER" != "zai" ]; then
+          echo "original-llm-provider=$PROVIDER" >> "$GITHUB_OUTPUT"
+          echo "time-window-override=false" >> "$GITHUB_OUTPUT"
+          echo "::notice::Zeitfenster-Check übersprungen (Provider=$PROVIDER, nur zai wird geprüft)."
+          exit 0
+        fi
+
+        # Aktuelle Stunde in Europe/Berlin (DST-korrekt durch TZ=)
+        BERLIN_HOUR=$(TZ='Europe/Berlin' date +%H)
+        echo "Berlin-Uhrzeit: ${BERLIN_HOUR}:xx Europe/Berlin."
+
+        # Zeitfenster: 08:00–11:59 (Stunde 08-11)
+        if [ "$BERLIN_HOUR" -ge 8 ] && [ "$BERLIN_HOUR" -le 11 ]; then
+          echo "original-llm-provider=zai" >> "$GITHUB_OUTPUT"
+          echo "time-window-override=true" >> "$GITHUB_OUTPUT"
+          echo "::notice title=🕐 ZAI Zeitfenster-aktiv::08:00–12:00 Europe/Berlin — ZAI wird auf Claude gefallback (Stunde: ${BERLIN_HOUR})."
+        else
+          echo "original-llm-provider=$PROVIDER" >> "$GITHUB_OUTPUT"
+          echo "time-window-override=false" >> "$GITHUB_OUTPUT"
+          echo "::notice::Zeitfenster inaktiv (Berlin-Stunde: $BERLIN_HOUR) — ZAI wird verwendet."
+        fi
+
     # Claude Code CLI cachen — ohne Cache kostet npm install -g auf jedem kalten
     # Runner 30–60s. Der Cache-Key ist statisch pro OS; bei Eviction (>7 Tage
     # ungenutzt oder 10 GB Repo-Limit) reinstalliert ein Lauf frisch und
@@ -343,6 +373,8 @@ runs:
       shell: bash
       env:
         LLM_PROVIDER: ${{ inputs.llm-provider }}
+        TIME_WINDOW_OVERRIDE: ${{ steps.time-window-check.outputs.time-window-override }}
+        ORIGINAL_PROVIDER: ${{ steps.time-window-check.outputs.original-llm-provider }}
         ZAI_API_KEY: ${{ inputs.zai-api-key }}
         CLAUDE_API_KEY: ${{ inputs.claude-api-key }}
         OPENROUTER_API_KEY: ${{ inputs.openrouter-api-key }}
@@ -351,6 +383,12 @@ runs:
         CLAUDE_MODEL: ${{ inputs.model }}
       run: |
         PROVIDER="${LLM_PROVIDER:-claude}"
+
+        # Zeitfenster-Override: Wenn aktiv, ZAI durch Claude ersetzen
+        if [ "$TIME_WINDOW_OVERRIDE" = "true" ]; then
+          echo "::notice title=🔄 Provider-Override::Original=$ORIGINAL_PROVIDER → Fallback=claude (Zeitfenster 08:00–12:00 Europe/Berlin aktiv)."
+          PROVIDER="claude"
+        fi
 
         # Secrets strippen (Whitespace/Newlines)
         CLAUDE_API_KEY="$(printf '%s' "$CLAUDE_API_KEY" | tr -d '[:space:]')"
