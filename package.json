@@ -2,6 +2,7 @@
 	"version": "0.1.420",
 	"license": "EUPL-1.2",
 	"devDependencies": {
+		"@axe-core/playwright": "^4.13.0",
 		"@evilmartians/lefthook": "1.13.6",
 		"knip": "5.88.1",
 		"prettier": "3.9.6",

@@ -14,5 +14,5 @@
 		// #845 Geolocation: Public-API exports (nicht direkt in App verwendet)
 		"src/lib/useGeolocation.ts",
 	],
-	"ignoreDependencies": ["client"],
+	"ignoreDependencies": ["client", "@axe-core/playwright"],
 }
