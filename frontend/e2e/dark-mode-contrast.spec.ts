@@ -78,7 +78,12 @@ test.describe('Dunkelmodus – Lesbarkeit der Dashboard-Panels', () => {
 		// Das Panel rendert erst, wenn die Task-Daten da sind — sonst misst der Test einen leeren DOM.
 		await expect(page.locator('.dashboard-next-task')).toBeVisible();
 
-		for (const selector of ['.dashboard-next-task h3', '.dashboard-next-task p']) {
+		for (const selector of [
+			'.dashboard-next-task h3',
+			'.dashboard-next-task p',
+			'.dashboard-suggestions h3',
+			'.dashboard-suggestions p',
+		]) {
 			const sample = await measureContrast(page, selector);
 			expect(sample, `Element ${selector} nicht gefunden`).not.toBeNull();
 			const { ratio, color, background } = sample as ContrastSample;
