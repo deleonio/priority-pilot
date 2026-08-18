@@ -321,10 +321,12 @@ jobs:
           if [ "$verdict" = "needs-human" ]; then
             final="needs-human"
           elif [ "$verdict" != "ready-to-merge" ]; then
-            final="needs-changes"
+            final="needs-fixup"
           fi
 
-          gh label create "ai:needs-changes" --repo "$GITHUB_REPOSITORY" --color D93F0B 2>/dev/null || true
+          # Neue Labels erstellen
+          gh label create "ai:needs-fixup" --repo "$GITHUB_REPOSITORY" --color D93F0B 2>/dev/null || true
+          gh label create "ai:reviewed" --repo "$GITHUB_REPOSITORY" --color 0E8A16 2>/dev/null || true
           gh label create "ai:ready-to-merge" --repo "$GITHUB_REPOSITORY" --color 0E8A16 2>/dev/null || true
           gh label create "ai:needs-review" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
           gh label create "ai:needs-human" --repo "$GITHUB_REPOSITORY" --color 5319e7 --description "Nicht-automatisierbare Entscheidung — wartet auf Mensch (Fixup greift bewusst nicht)" 2>/dev/null || true
@@ -334,7 +336,7 @@ jobs:
           label_operation_failed="false"
           for attempt in 1 2 3; do
             if gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-review 2>/dev/null && \
-               gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-changes 2>/dev/null && \
+               gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-fixup 2>/dev/null && \
                gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:ready-to-merge 2>/dev/null && \
                gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-human 2>/dev/null; then
               break
@@ -379,14 +381,14 @@ jobs:
             gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⏸️ **Wartet auf menschliche Entscheidung (Review-Entscheidung)**\n\nDieser PR enthaelt Findings, die eine menschliche Entscheidung erfordern. Siehe die Sektion ## ⏸️ Entscheidungs-Findings im <!-- ai-review --> Sammelkommentar oben.\n\n**Checkliste:**\n- [ ] 1. Entscheidungs-Findings durchgehen\n- [ ] 2. Entscheidung treffen (Code anpassen / akzeptieren / Fixup-Anweisung)\n- [ ] 3. Label \`ai:needs-human\` entfernen\n- [ ] 4. Label \`ai:needs-review\` setzen → loest erneuten Review aus" 2>/dev/null || true
           else
             for attempt in 1 2 3; do
-              if gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-changes; then
-                echo "::notice::Label gesetzt: ai:needs-changes"
+              if gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-fixup; then
+                echo "::notice::Label gesetzt: ai:needs-fixup"
                 break
               fi
               if [ "$attempt" -lt 3 ]; then sleep "$((2 ** (attempt-1)))"; fi
               if [ "$attempt" -eq 3 ]; then
-                echo "::error::ai:needs-changes nach 3 Versuchen fehlgeschlagen → ai:needs-human gesetzt"
-                gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⚠️ **Label-Race-Condition (#613): ai:needs-changes fehlgeschlagen**\n\nTransienter GitHub-API-Fehler nach 3 Retries. Bitte manuell prüfen.\n\n**Checkliste:**\n- [ ] 1. Manuelles Prüfen und Label setzen" 2>/dev/null || true
+                echo "::error::ai:needs-fixup nach 3 Versuchen fehlgeschlagen → ai:needs-human gesetzt"
+                gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⚠️ **Label-Race-Condition (#613): ai:needs-fixup fehlgeschlagen**\n\nTransienter GitHub-API-Fehler nach 3 Retries. Bitte manuell prüfen.\n\n**Checkliste:**\n- [ ] 1. Manuelles Prüfen und Label setzen" 2>/dev/null || true
                 gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human 2>/dev/null || true
                 exit 1
               fi

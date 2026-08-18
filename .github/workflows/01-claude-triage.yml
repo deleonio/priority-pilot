@@ -21,7 +21,7 @@ name: 1/7 Analyse
 
 on:
   issues:
-    types: [opened, unlabeled]
+    types: [labeled, opened]
 
 concurrency:
   group: claude-triage
@@ -36,10 +36,11 @@ concurrency:
 jobs:
   precheck:
     # Unveränderliche Event-Fakten filtern hier (spart den Runner für No-op-Trigger — 01 feuert
-    # auf JEDES `unlabeled` im Repo). Sie gaten den precheck, nicht den Hauptjob: wird der
+    # auf JEDES `labeled` im Repo). Sie gaten den precheck, nicht den Hauptjob: wird der
     # precheck übersprungen, ist sein Output leer und der Hauptjob fällt korrekt mit aus.
+    # Trigger: `opened` (Auto-Trigger für neue Issues von Maintainers) oder Label `ai:needs-analyse`.
     if: >-
-      ${{ (github.event.action == 'opened' && (github.event.issue.author_association == 'OWNER' || github.event.issue.author_association == 'MEMBER' || github.event.issue.author_association == 'COLLABORATOR')) || (github.event.action == 'unlabeled' && (github.event.label.name == 'ai:analyzed' || github.event.label.name == 'ai:to-big-issue')) }}
+      ${{ (github.event.action == 'opened' && (github.event.issue.author_association == 'OWNER' || github.event.issue.author_association == 'MEMBER' || github.event.issue.author_association == 'COLLABORATOR')) || (github.event.action == 'labeled' && github.event.label.name == 'ai:needs-analyse') }}
     # Label-IST-Zustand zur Laufzeit abfragen (nicht den Trigger-Zeitpunkt-Payload): Dieser Run
     # kann lange in der globalen Phasen-Queue warten — bis er startet, kann das Token-Label
     # (ai:analyzed bzw. ai:to-big-issue) bereits von einem anderen Lauf gesetzt worden sein.
@@ -63,9 +64,6 @@ jobs:
         with:
           phase: analyse
           ticket: ${{ github.event.issue.number }}
-          # Beim Re-Triage (unlabeled) muss GENAU das entfernte Label abwesend bleiben;
-          # bei `opened` ist der Wert leer und die Action prüft ai:analyzed.
-          trigger-label: ${{ github.event.label.name }}
 
   triage:
     needs: precheck
@@ -281,8 +279,8 @@ jobs:
             exit 1
           fi
 
-          # VERDICT ist autoritativ für die Phasen-Freigabe (Issue #538):
-          #   spec-ready (🟢) + AK vorhanden → Freigabe in die Spec-Stufe
+          # VERDICT ist autoritativ für die Phasen-Freigabe:
+          #   spec-ready (🟢) + AK vorhanden → direkt weitergegeben (ai:needs-ux-ui)
           #   analyzed (🟡/🔴) oder leer/ungültig → beim Menschen bleiben (fail-safe)
           # HAS_AK wirkt nur als zusätzlicher Guard, nie als alleiniger Promoter.
           if [ "$verdict" = "spec-ready" ] && [ "$HAS_AK" = "true" ]; then
@@ -291,30 +289,20 @@ jobs:
             final="analyzed"
           fi
 
-          gh label create "ai:analyzed" --color 0E8A16 2>/dev/null || true
-          gh label create "ai:spec-ready" --color FBCA04 2>/dev/null || true
-          gh label create "ux:ready" --color 0E8A16 2>/dev/null || true
+          # Neue Labels erstellen
+          gh label create "ai:analysed" --color 0E8A16 2>/dev/null || true
+          gh label create "ai:needs-ux-ui" --color FBCA04 2>/dev/null || true
 
-          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:analyzed" 2>/dev/null || true
-          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:analyzed"
-
-          # Post-Assertion für ux:ready (Issue #734): IMMER entfernen, bei spec-ready + UI-Bezug: nein setzen
-          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ux:ready" 2>/dev/null || true
+          # Trigger-Label entfernen, Done-Label setzen (ai:analysed)
+          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-analyse" 2>/dev/null || true
+          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:analysed"
 
           if [ "$final" = "spec-ready" ]; then
-            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:spec-ready" 2>/dev/null || true
-            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:spec-ready"
-            # Bei Nicht-UI-Tickets (UI-Bezug: nein) direkt ux:ready setzen
-            if [ "$UI_BEZUG" = "nein" ]; then
-              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ux:ready"
-              echo "::notice::Labels gesetzt: ai:analyzed + ai:spec-ready + ux:ready (Nicht-UI-Ticket)"
-            else
-              echo "::notice::Labels gesetzt: ai:analyzed + ai:spec-ready (UI-Ticket – 02 kümmert sich)"
-            fi
+            # Bei 🟢: Trigger für Phase 2 setzen
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-ux-ui"
+            echo "::notice::Labels gesetzt: ai:analysed + ai:needs-ux-ui (🟢 direkt weitergegeben)"
           else
-            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:spec-ready" 2>/dev/null || true
-            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:ready" 2>/dev/null || true
-            echo "::notice::Label gesetzt: ai:analyzed (🟡/🔴)"
+            echo "::notice::Label gesetzt: ai:analysed (🟡/🔴 – beim Menschen bleiben)"
           fi
 
       - name: Ergebnis zusammenfassen

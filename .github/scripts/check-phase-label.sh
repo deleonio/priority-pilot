@@ -80,21 +80,40 @@ ABSENT=()
 case "$PHASE" in
   analyse)
     KIND="issue"; WANT_STATE="open"
-    # Erst-Triage (opened): ai:analyzed darf nicht da sein. Re-Triage (unlabeled):
-    # genau das entfernte Label muss abwesend bleiben — sonst hat ein anderer Lauf
-    # den Trigger bereits konsumiert.
-    ABSENT=("${TRIGGER_LABEL:-ai:analyzed}")
+    # Trigger: ai:needs-analyse. Nach Lauf: ai:analysed gesetzt, ai:needs-analyse entfernt.
+    # ABSENT prüft, ob ai:analysed noch nicht gesetzt (nicht bereits analysiert).
+    ABSENT=("ai:analysed")
+    ;;
+  ux)
+    KIND="issue"; WANT_STATE="open"
+    # Trigger: ai:needs-ux-ui. Vorbedingung: ai:analysed. Nach Lauf: ai:ux-reviewed gesetzt.
+    REQUIRED=("ai:needs-ux-ui" "ai:analysed")
+    ABSENT=("ai:ux-reviewed")
     ;;
   spec)
-    KIND="issue"; WANT_STATE="open"; REQUIRED=("ai:spec-ready" "ai:analyzed" "ux:ready") ;;
-  ux)
-    KIND="issue"; WANT_STATE="open"; REQUIRED=("ai:analyzed"); ABSENT=("ux:ready") ;;
+    KIND="issue"; WANT_STATE="open"
+    # Trigger: ai:needs-spec. Vorbedingungen: ai:analysed + ai:ux-reviewed. Nach Lauf: ai:specified gesetzt.
+    REQUIRED=("ai:needs-spec" "ai:analysed" "ai:ux-reviewed")
+    ABSENT=("ai:specified")
+    ;;
   implement)
-    KIND="issue"; WANT_STATE="open"; REQUIRED=("ai:ready" "ai:analyzed" "ux:ready") ;;
+    KIND="issue"; WANT_STATE="open"
+    # Trigger: ai:needs-impl. Vorbedingungen: ai:analysed + ai:ux-reviewed + ai:specified. Nach Lauf: ai:implemented.
+    REQUIRED=("ai:needs-impl" "ai:analysed" "ai:ux-reviewed" "ai:specified")
+    ABSENT=("ai:implemented")
+    ;;
   review)
-    KIND="pr"; WANT_STATE="open"; NO_DRAFT="true"; REQUIRED=("ai:needs-review") ;;
+    KIND="pr"; WANT_STATE="open"; NO_DRAFT="true"
+    # Trigger: ai:needs-review. Nach Lauf: ai:reviewed gesetzt, ai:needs-review entfernt.
+    REQUIRED=("ai:needs-review")
+    ABSENT=("ai:reviewed")
+    ;;
   fixup)
-    KIND="pr"; WANT_STATE="open"; NO_DRAFT="true"; REQUIRED=("ai:needs-changes") ;;
+    KIND="pr"; WANT_STATE="open"; NO_DRAFT="true"
+    # Trigger: ai:needs-fixup. Nach Lauf: ai:fixed gesetzt, ai:needs-fixup entfernt.
+    REQUIRED=("ai:needs-fixup")
+    ABSENT=("ai:fixed")
+    ;;
   documenter)
     # FAIL-CLOSED (Ausnahme): Der Pre-Check ist die EINZIGE Idempotenz-Invariante
     # des Documenters — im Job prüft nichts deterministisch auf ai:documented.
@@ -103,7 +122,7 @@ case "$PHASE" in
     # was nicht rückgängig zu machen ist. Also im Zweifel NICHT laufen.
     KIND="pr"; WANT_STATE="merged"; ABSENT=("ai:documented"); FAIL_MODE="closed" ;;
   *)
-    echo "check-phase-label: unbekannte Phase '$PHASE' (erlaubt: analyse spec ux implement review fixup documenter)" >&2
+    echo "check-phase-label: unbekannte Phase '$PHASE' (erlaubt: analyse ux spec implement review fixup documenter)" >&2
     exit 2
     ;;
 esac
