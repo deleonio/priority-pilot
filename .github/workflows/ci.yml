@@ -74,6 +74,19 @@ jobs:
         run: pnpm exec prettier --check .
       - name: Lint
         run: pnpm lint
+      # Schema-Validierung ALLER Workflows und Composite-Actions gegen die offiziellen
+      # GitHub-Schemas (@action-validator). Faengt genau die Klasse Fehler, die sonst erst
+      # beim Ausfuehren auffaellt — falsch geschriebene Keys, fehlende Pflichtfelder, kaputtes
+      # YAML — und die im Pipeline-Kontext teuer ist: ein defekter Phasen-Workflow bleibt bis
+      # zum naechsten Trigger unsichtbar. Bewusst VOR dem Build (billig, ~1s, schnelles Signal).
+      # `paths`-Globs werden nicht mitgeprueft (das WASM-Modul kann es nicht, es warnt selbst).
+      - name: GitHub-Actions-Schema
+        run: pnpm lint:actions
+      # Fixtures fuer .github/scripts/*.ts (node:test + tsx). Sichert die riskanteste Logik des
+      # Validators ab: die eng gefasste Ausnahme fuer `concurrency.queue` darf GENAU diesen
+      # Befund schlucken — ein zu weiter Filter faerbt das Gate still gruen.
+      - name: Test (.github/scripts)
+        run: pnpm test:scripts
       # Build regeneriert die Vertragstypen frisch aus openapi.yml und type-checkt dagegen —
       # damit kann eine veraltete/inkonsistente Analyse oder API-Drift nicht nach main gelangen.
       - name: Build
