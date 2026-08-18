@@ -33,7 +33,7 @@ concurrency:
 # GATE-KONTRAKT (nicht brechen): Gate/Auto-Merge (claude-pr-gate-merge.yml) keyt auf den Workflow-
 # NAMEN `CI` (`select(.workflow == "CI")`, `any(.[]; .workflow == "CI")`), NICHT auf einen Job-Namen.
 # Solange dieser Workflow `name: CI` heisst, zaehlen ALLE Job-Checks (verify + e2e-Shards) als „CI":
-# ein roter -> Gate setzt ai:needs-changes; alle gruen -> mergebar. `workflow_run` feuert pro Run
+# ein roter -> Gate setzt ai:needs-fixup; alle gruen -> mergebar. `workflow_run` feuert pro Run
 # (nicht pro Job), das Fan-out bleibt also EIN Gate-Trigger. Jobs duerfen frei aufgeteilt/umbenannt
 # werden — der Workflow-Name `CI` aber nicht.
 jobs:
@@ -106,12 +106,25 @@ jobs:
     # noch roten Spec-Draft. Startet erst ab ready_for_review; push-Events laufen immer.
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    # Playwright-Image: Browser + System-Dependencies sind vorinstalliert (/ms-playwright via
+    # PLAYWRIGHT_BROWSERS_PATH) — kein Browser-Install- und kein apt-Lauf (`--with-deps`) mehr.
+    # ACHTUNG: Tag-Version MUSS bei Playwright-Upgrades mit @playwright/test in
+    # frontend/package.json mitgezogen werden (bildet die fruehere Cache-Key-Kopplung ab).
+    container:
+      image: mcr.microsoft.com/playwright:v1.62.0-noble
     strategy:
       # Einen roten Shard NICHT die anderen abbrechen lassen — volles Fehlersignal ueber alle Shards.
       fail-fast: false
       matrix:
         shard: [1, 2, 3, 4]
     steps:
+      # git fehlt im Playwright-Image, actions/checkout braucht es (guarded: No-op falls doch vorhanden).
+      # safe.directory: Container-Jobs mounten den Workspace mit fremdem UID-Owner — checkout fängt
+      # das intern ab, aber lefthooks `prepare` (git rev-parse) stirbt sonst an dubious ownership.
+      - name: git fuer checkout bereitstellen
+        run: |
+          command -v git >/dev/null || (apt-get update && apt-get install -y --no-install-recommends git)
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -121,18 +134,6 @@ jobs:
       # install loest ueber den client-prepare-Hook die Vertragstypen aus (openapi-typescript, kein Java).
       - name: Install
         run: pnpm install --frozen-lockfile
-      # Playwright-Browser cachen, damit nicht jeder Lauf Chromium neu herunterladen muss.
-      # Schluessel an den pnpm-Lockfile gekoppelt (Cache-Bust bei Playwright-Upgrade). Alle Shards
-      # teilen denselben Key: nach dem ersten Populate ist es fuer die uebrigen ein Cache-Hit.
-      - name: Playwright-Browser-Cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
-      # Nur Chromium installieren — playwright.config.ts definiert ausschliesslich das chromium-Projekt.
-      # --with-deps zieht die System-Abhaengigkeiten nach (liegen ausserhalb des Cache-Pfads).
-      - name: Playwright-Browser installieren
-        run: pnpm --filter frontend exec playwright install --with-deps chromium
       # `exec playwright test --shard` (NICHT `test:e2e -- --shard`): pnpm reicht `--` sonst literal
       # ans Skript durch (bekannte Falle) — `exec` startet das Bin direkt. Nenner /4 == Matrix-Groesse
       # (Contract-Test E1). Playwrights Shard-Zuteilung ist deterministisch (stabile Test-Sortierung),

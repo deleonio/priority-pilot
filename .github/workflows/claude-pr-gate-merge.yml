@@ -7,8 +7,8 @@ name: Claude PR Gate & Auto-Merge
 #
 # Beide Zweige teilen denselben App-Token-Preflight, dieselbe PR-Aufloesung und dieselbe
 # Allowlist-Check-Auswertung — sie sind die zwei Haelften EINER Entscheidung:
-#   - mind. ein Allowlist-Check (CI / Reviewer) ROT -> ai:needs-changes setzen (loest Fixup aus).
-#   - alle GRUEN + ai:ready-to-merge gesetzt + mergebar -> mergen.
+#   - mind. ein Allowlist-Check (CI / Reviewer) ROT -> ai:needs-fixup setzen (loest Fixup aus).
+#   - alle GRUEN + ai:reviewed gesetzt + mergebar -> mergen.
 #   - sonst No-op.
 #
 # Nutzt das kurzlebige GitHub-App-Token (APP_ID + APP_PRIVATE_KEY): von GITHUB_TOKEN gesetzte Labels
@@ -33,7 +33,7 @@ on:
     workflows: ['CI', '5/7 Review']
     types: [completed]
   pull_request:
-    # ai:ready-to-merge wird gesetzt (CI evtl. schon gruen). Auf den Label-Namen wird im job-if
+    # ai:reviewed wird gesetzt (CI evtl. schon gruen). Auf den Label-Namen wird im job-if
     # gefiltert, damit nicht jedes Label den Lauf startet.
     types: [labeled]
 
@@ -49,13 +49,13 @@ jobs:
     # Nur same-repo-Laeufe (kein Fork -> App-Token verfuegbar). Beim workflow_run zusaetzlich
     # main-Push-Laeufe ausschliessen: ein Merge pusht nach main -> CI-on-main -> wuerde sonst hier
     # einen No-op-Lauf fuer einen PR wecken, den es nicht gibt. Beim labeled-Event nur reagieren,
-    # wenn wirklich ai:ready-to-merge gesetzt wurde.
+    # wenn wirklich ai:reviewed gesetzt wurde.
     if: >-
       ${{ (github.event_name == 'workflow_run'
             && github.event.workflow_run.head_repository.full_name == github.repository
             && github.event.workflow_run.head_branch != 'main')
           || (github.event_name == 'pull_request'
-            && github.event.label.name == 'ai:ready-to-merge'
+            && github.event.label.name == 'ai:reviewed'
             && github.event.pull_request.head.repo.full_name == github.repository) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -97,7 +97,7 @@ jobs:
           fi
 
       # Reiner gh-Job (kein Checkout, kein LLM). Loest den PR EINMAL auf, wertet die Allowlist-Checks
-      # EINMAL aus und entscheidet dann: rot -> Gate (ai:needs-changes), gruen+ready -> Merge, sonst
+      # EINMAL aus und entscheidet dann: rot -> Gate (ai:needs-fixup), gruen+reviewed -> Merge, sonst
       # No-op. Alle Vorbedingungen sind defensiv: erst wenn wirklich zu handeln ist, schreibt der Job
       # nach GitHub.
       - name: Gate/Auto-Merge auswerten
@@ -156,7 +156,7 @@ jobs:
           # 3) Nur PRs der KI-Pipeline (tragen ein Pipeline-Label) behandeln. Schuetzt fremde/
           #    menschliche PRs davor, durch das Gate ungewollt einen Fixup zu triggern bzw. gemergt
           #    zu werden.
-          in_pipeline="$(echo "$labels" | jq -r 'any(.[]; . == "ai:needs-review" or . == "ai:needs-changes" or . == "ai:ready-to-merge" or . == "ai:needs-human")')"
+          in_pipeline="$(echo "$labels" | jq -r 'any(.[]; . == "ai:needs-review" or . == "ai:needs-fixup" or . == "ai:reviewed" or . == "ai:needs-human")')"
           if [ "$in_pipeline" != "true" ]; then
             echo "PR #$pr traegt kein Pipeline-Label — gehoert nicht zur KI-Pipeline (No-op)."
             exit 0
@@ -197,7 +197,7 @@ jobs:
             # demselben Workflow-NAMEN ("5/7 Review") und wuerde sonst doppelt zaehlen. Zwei
             # Folgen ohne den Filter: (1) ein Infrastruktur-Fehler im precheck (Checkout,
             # Timeout, unbekannte Phase) faerbt any_fail rot und degradiert einen sauberen
-            # Review zu ai:needs-changes — ein Fixup-Loop fuer einen Job, der gar nicht
+            # Review zu ai:needs-fixup — ein Fixup-Loop fuer einen Job, der gar nicht
             # arbeitet; (2) has_review waere schon durch den precheck erfuellt und die
             # Retry-Schleife braeche ab, bevor der echte Review-Check sichtbar ist.
             allow="$(echo "$checks" | jq '[.[] | select(.workflow == "CI" or (.workflow == "5/7 Review" and .name != "precheck"))]')"
@@ -219,7 +219,7 @@ jobs:
           # checkSuite.workflowRun, fehlt dem App-Token die Permission "Actions: Read" — das
           # workflow-Feld ist dann fuer JEDEN Lauf unlesbar. Das ist ein DETERMINISTISCHER
           # Konfigurationsfehler, kein transientes API-Loch: die No-ops unten wuerden ihn dauerhaft
-          # verschlucken (Gate blind, PR bleibt trotz ai:ready-to-merge unmerged, kein Event heilt
+          # verschlucken (Gate blind, PR bleibt trotz ai:reviewed unmerged, kein Event heilt
           # das je). Daher die Signatur nach erschoepften Retries gezielt abfragen und den Lauf
           # sichtbar ROT beenden, plus einmaliger (Marker-deduplizierter) PR-Kommentar — analog
           # S2/S3: der PR-Autor wird aktiv erreicht statt nur den Checks-Tab pruefen zu muessen.
@@ -232,7 +232,7 @@ jobs:
                 gh pr comment "$pr" --repo "$REPO" --body "$marker
           🛑 **CI-Gate #${pr} — App-Permission fehlt (Actions: Read)**
 
-          \`gh pr checks --json workflow\` meldet »Resource not accessible by integration«: Das GitHub-App-Token darf Check-Suites/Workflow-Runs nicht lesen. Gate & Auto-Merge sind damit blind — kein Auto-Merge trotz \`ai:ready-to-merge\`. Bitte der GitHub App die Permission **Actions: Read-only** geben und die aktualisierte Berechtigung in der Repo-Installation bestätigen." 2>/dev/null || true
+          \`gh pr checks --json workflow\` meldet »Resource not accessible by integration«: Das GitHub-App-Token darf Check-Suites/Workflow-Runs nicht lesen. Gate & Auto-Merge sind damit blind — kein Auto-Merge trotz \`ai:reviewed\`. Bitte der GitHub App die Permission **Actions: Read-only** geben und die aktualisierte Berechtigung in der Repo-Installation bestätigen." 2>/dev/null || true
               fi
               echo "::error title=App-Permission fehlt (Actions: Read)::gh pr checks kann checkSuite.workflowRun nicht lesen (Resource not accessible by integration) — der GitHub App fehlt 'Actions: Read'. Gate/Auto-Merge sind blind; Lauf endet rot statt still als No-op."
               exit 1
@@ -256,36 +256,36 @@ jobs:
           fi
 
           any_fail="$(echo "$allow" | jq -r 'any(.[]; .bucket == "fail")')"
-          has_needs_changes="$(echo "$labels" | jq -r 'any(.[]; . == "ai:needs-changes")')"
+          has_needs_fixup="$(echo "$labels" | jq -r 'any(.[]; . == "ai:needs-fixup")')"
 
           # ====================================================================================
-          # GATE-ZWEIG: mind. ein Allowlist-Check ROT -> ai:needs-changes setzen (loest Fixup aus).
+          # GATE-ZWEIG: mind. ein Allowlist-Check ROT -> ai:needs-fixup setzen (loest Fixup aus).
           # ====================================================================================
           if [ "$any_fail" = "true" ]; then
-            # Oszillationsschutz: Traegt der PR bereits ai:needs-changes, laeuft (oder steht bewusst)
+            # Oszillationsschutz: Traegt der PR bereits ai:needs-fixup, laeuft (oder steht bewusst)
             # der Fixup-Loop schon. Erneutes Setzen waere ein No-op; den Zustand NICHT anruehren, um
             # einen bewussten "Stop"-Zustand (> N Fixup-Commits) nicht zu ueberschreiben.
-            if [ "$has_needs_changes" = "true" ]; then
-              echo "PR #$pr traegt bereits ai:needs-changes — Loop laeuft/steht bewusst (No-op)."
+            if [ "$has_needs_fixup" = "true" ]; then
+              echo "PR #$pr traegt bereits ai:needs-fixup — Loop laeuft/steht bewusst (No-op)."
               exit 0
             fi
             red="$(echo "$allow" | jq -r '[.[] | select(.bucket == "fail") | (.workflow + " / " + .name)] | join(", ")')"
-            echo "Rote Allowlist-Checks an PR #$pr: $red — setze ai:needs-changes (loest Fixup aus)."
+            echo "Rote Allowlist-Checks an PR #$pr: $red — setze ai:needs-fixup (loest Fixup aus)."
 
-            # Terminale/abgeschlossene Pipeline-Labels entfernen, dann ai:needs-changes setzen. In
+            # Terminale/abgeschlossene Pipeline-Labels entfernen, dann ai:needs-fixup setzen. In
             # GETRENNTEN Befehlen (nie kombiniert), analog Review/Fixup, um Doppel-Trigger zu meiden.
-            if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:ready-to-merge")')" = "true" ]; then
-              gh pr edit "$pr" --repo "$REPO" --remove-label ai:ready-to-merge
+            if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:reviewed")')" = "true" ]; then
+              gh pr edit "$pr" --repo "$REPO" --remove-label ai:reviewed
             fi
             if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:needs-review")')" = "true" ]; then
               gh pr edit "$pr" --repo "$REPO" --remove-label ai:needs-review
             fi
-            gh label create "ai:needs-changes" --repo "$REPO" --color D93F0B \
+            gh label create "ai:needs-fixup" --repo "$REPO" --color D93F0B \
               --description "CI/Reviewer rot oder Findings offen -> Fixup" 2>/dev/null || true
-            gh pr edit "$pr" --repo "$REPO" --add-label ai:needs-changes
+            gh pr edit "$pr" --repo "$REPO" --add-label ai:needs-fixup
 
             {
-              echo "### CI-Gate #${pr} — ai:needs-changes gesetzt"
+              echo "### CI-Gate #${pr} — ai:needs-fixup gesetzt"
               echo ""
               echo "- Rote Allowlist-Checks: ${red}"
               echo "- Folge: 06-claude-pr-fixup.yml wird ausgeloest."
@@ -294,20 +294,24 @@ jobs:
           fi
 
           # ====================================================================================
-          # MERGE-ZWEIG: alle Allowlist-Checks GRUEN. Nur mergen, wenn ai:ready-to-merge gesetzt,
-          # NICHT ai:needs-changes, und der PR sauber mergebar ist. Sonst No-op (Review vergibt das
-          # terminale ai:ready-to-merge).
+          # MERGE-ZWEIG: alle Allowlist-Checks GRUEN. Nur mergen, wenn ai:reviewed gesetzt,
+          # NICHT ai:needs-fixup / ai:needs-review (Fixup oder Re-Review ausstehend), und der PR
+          # sauber mergebar ist. Sonst No-op (Review vergibt das terminale ai:reviewed).
           # ====================================================================================
           if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:needs-human")')" = "true" ]; then
             echo "PR #$pr traegt ai:needs-human — wartet auf menschliche Entscheidung, kein Auto-Merge (No-op)."
             exit 0
           fi
-          if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:ready-to-merge")')" != "true" ]; then
-            echo "PR #$pr traegt kein ai:ready-to-merge — kein Auto-Merge (No-op; Review vergibt es terminal)."
+          if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:reviewed")')" != "true" ]; then
+            echo "PR #$pr traegt kein ai:reviewed — kein Auto-Merge (No-op; Review vergibt es terminal)."
             exit 0
           fi
-          if [ "$has_needs_changes" = "true" ]; then
-            echo "PR #$pr traegt ai:needs-changes — Fixup laeuft noch, kein Merge (No-op)."
+          if [ "$has_needs_fixup" = "true" ]; then
+            echo "PR #$pr traegt ai:needs-fixup — Fixup laeuft noch, kein Merge (No-op)."
+            exit 0
+          fi
+          if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:needs-review")')" = "true" ]; then
+            echo "PR #$pr traegt ai:needs-review — Re-Review laeuft noch, kein Merge (No-op)."
             exit 0
           fi
 
@@ -317,24 +321,24 @@ jobs:
           mergeable="$(echo "$view" | jq -r '.mergeable')"
           merge_state="$(echo "$view" | jq -r '.mergeStateStatus')"
           if [ "$mergeable" != "MERGEABLE" ]; then
-            # Falls explizit nicht mergebar wegen Merge-Konflikten (DIRTY), setze ai:needs-changes
+            # Falls explizit nicht mergebar wegen Merge-Konflikten (DIRTY), setze ai:needs-fixup
             # damit der Fixup-Workflow die Konflikte auflösen kann
             if [ "$merge_state" = "DIRTY" ]; then
-              echo "PR #$pr hat Merge-Konflikte (mergeable=$mergeable, state=$merge_state) — setze ai:needs-changes."
-              # Terminale/abgeschlossene Pipeline-Labels entfernen, dann ai:needs-changes setzen
-              if [ "$has_needs_changes" != "true" ]; then
-                if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:ready-to-merge")')" = "true" ]; then
-                  gh pr edit "$pr" --repo "$REPO" --remove-label ai:ready-to-merge
+              echo "PR #$pr hat Merge-Konflikte (mergeable=$mergeable, state=$merge_state) — setze ai:needs-fixup."
+              # Terminale/abgeschlossene Pipeline-Labels entfernen, dann ai:needs-fixup setzen
+              if [ "$has_needs_fixup" != "true" ]; then
+                if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:reviewed")')" = "true" ]; then
+                  gh pr edit "$pr" --repo "$REPO" --remove-label ai:reviewed
                 fi
                 if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:needs-review")')" = "true" ]; then
                   gh pr edit "$pr" --repo "$REPO" --remove-label ai:needs-review
                 fi
-                gh label create "ai:needs-changes" --repo "$REPO" --color D93F0B \
+                gh label create "ai:needs-fixup" --repo "$REPO" --color D93F0B \
                   --description "CI/Reviewer rot oder Findings offen -> Fixup" 2>/dev/null || true
-                gh pr edit "$pr" --repo "$REPO" --add-label ai:needs-changes
+                gh pr edit "$pr" --repo "$REPO" --add-label ai:needs-fixup
               fi
               {
-                echo "### CI-Gate #${pr} — ai:needs-changes wegen Merge-Konflikt gesetzt"
+                echo "### CI-Gate #${pr} — ai:needs-fixup wegen Merge-Konflikt gesetzt"
                 echo ""
                 echo "- Merge-Konflikte erkannt (mergeable=$mergeable, state=$merge_state)"
                 echo "- Folge: 06-claude-pr-fixup.yml wird ausgelöst."
@@ -375,6 +379,6 @@ jobs:
           {
             echo "### Auto-Merge #${pr} — gemergt"
             echo ""
-            echo "- CI + Reviewer gruen, ai:ready-to-merge gesetzt, mergebar."
+            echo "- CI + Reviewer gruen, ai:reviewed gesetzt, mergebar."
             echo "- Methode: Merge-Commit (\`gh pr merge --merge\`)."
           } >> "$GITHUB_STEP_SUMMARY"
