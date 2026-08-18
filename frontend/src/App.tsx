@@ -1,6 +1,5 @@
 import {
 	KolAlert,
-	KolAvatar,
 	KolButton,
 	KolInputCheckbox,
 	KolInputText,
@@ -444,15 +443,6 @@ export const App = ({ user }: { user: AuthUser }) => {
 					<img src="/logo/logo.png" alt="Priority Pilot" />
 				</button>
 				<span className="app-name">Priority Pilot</span>
-				{/*
-				 * `user-info` bleibt als Block erhalten (#406 AK2): Avatar und Anzeigename gehören
-				 * zusammen. Neu ist nur seine Position — #787 verlangt die Reihenfolge
-				 * Logo → Name → Avatar → Toolbar, der Block steht deshalb VOR der Toolbar statt darin.
-				 */}
-				<div className="user-info">
-					<KolAvatar _label={user.displayName} _src={user.avatarUrl ?? undefined} />
-					<span className="user-display-name">{user.displayName}</span>
-				</div>
 				{/*
 				 * Gemeinsamer Container für die Kopf-Aktionen (#787): Die KI-Modell-Auswahl steht links
 				 * neben den Toolbar-Buttons und teilt deren Ausrichtung und Höhe.

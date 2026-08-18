@@ -124,7 +124,11 @@ test.describe('#865 Avatar und User Full Name entfernen', () => {
 		const errors: string[] = [];
 		page.on('console', (msg) => {
 			if (msg.type() === 'error' || msg.type() === 'warning') {
-				errors.push(msg.text());
+				const text = msg.text();
+				// Filter: Nur relevante Errors für Avatar-Entfernung (keine Backend-Probleme)
+				if (!text.includes('Modell-Status')) {
+					errors.push(text);
+				}
 			}
 		});
 
