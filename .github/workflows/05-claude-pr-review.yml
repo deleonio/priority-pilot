@@ -272,7 +272,7 @@ jobs:
             # Verdict lieferte (dann fehlt jeder Artefakt-Nachweis — Claude hat vermutlich nicht
             # gearbeitet). Bei klarem Verdict ist der Kommentar ein Hilfssignal, das Verdict primär:
             # wir setzen das Label nach Verdict und warnen nur. Ohne diese Unterscheidung würde ein
-            # fehlender Marker ein klares ready-to-merge zu needs-changes degradieren und einen
+            # fehlender Marker ein klares reviewed zu needs-fixup degradieren und einen
             # Fixup-Loop auslösen (PR #524: Claude postete teils keinen Marker-Kommentar).
             case "$verdict" in
               reviewed|needs-fixup|needs-human)
