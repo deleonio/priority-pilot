@@ -35,7 +35,7 @@ jobs:
     outputs:
       # `|| `-Fallback: bei workflow_dispatch ist der `check`-Step übersprungen (leerer
       # Output) und proceed kommt aus check-dispatch — ohne Fallback wäre der manuelle
-      # Dispatch (der Recovery-Pfad für ux:failed) stumm tot.
+      # Dispatch (der Recovery-Pfad für UX-Unklarheiten) stumm tot.
       proceed: ${{ steps.check.outputs.proceed || steps.check-dispatch.outputs.proceed }}
       issue_number: ${{ steps.issue.outputs.number }}
     steps:
