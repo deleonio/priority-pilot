@@ -42,9 +42,11 @@ describe('useGeolocation – Hook-Verhalten (Spec: #845)', () => {
 		});
 	});
 
-	// AK 1: Default aus – kein Geolocation-Request
-	it('AK1: Default ist aus – navigator.geolocation wird nicht aufgerufen', () => {
-		expect(mockGeolocation.getCurrentPosition).not.toHaveBeenCalled();
+	// AK 1: Default aus – Hook liefert enabled=false (Observable Outcome)
+	it('AK1: Default ist aus – Hook initialisiert mit enabled=false', () => {
+		const { result } = renderHook(() => useGeolocation());
+		// Observable Outcome: Hook State prüfen, nicht Mock-Verhalten
+		expect(result.current.enabled).toBe(false);
 	});
 
 	// AK 2: Einschalten mit granted Permission → Intervall startet
@@ -57,7 +59,11 @@ describe('useGeolocation – Hook-Verhalten (Spec: #845)', () => {
 		const { result } = renderHook(() => useGeolocation());
 		await result.current.toggle(true);
 
-		expect(mockGeolocation.getCurrentPosition).toHaveBeenCalledTimes(1);
+		// Observable Outcomes: Hook State und Position prüfen
+		await waitFor(() => {
+			expect(result.current.enabled).toBe(true);
+			expect(result.current.position).toEqual({ latitude: 52.52, longitude: 13.405 });
+		});
 	});
 
 	// AK 3: Ausschalten stoppt Intervall
