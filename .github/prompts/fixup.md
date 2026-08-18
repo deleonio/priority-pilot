@@ -62,9 +62,11 @@ ABSCHLUSS:
 
 ⚠️ LABELS: KEINE Labels setzen! Workflow übernimmt das automatisch.
 
-VERDICT: GANZ AM ENDE GENAU EINE Zeile (nur bei Entscheidungs-Findungen):
-  - VERDICT: needs-human (offene Entscheidungs-Findings, die ein Mensch treffen muss)
-  - sonst: KEIN Verdict nötig — Commits entscheiden über Fortschritt, Review prüft neu.
+VERDICT (nur bei Entscheidungs-Findungen, sonst KEIN Verdict — Commits entscheiden
+über Fortschritt, Review prüft neu). Bei needs-human ZWEIFACH liefern:
+1. DATEI (primärer Kanal): `printf 'needs-human' > /tmp/claude-verdict` (Bash, als
+   ALLERLETZTE Aktion).
+2. AUSGABE (letzte Output-Zeile, Fallback-Kanal): `VERDICT: needs-human`
 
 ZEITLIMIT: Soft-Deadline = SOFT_DEADLINE. Vor jedem Schritt: [ $(date +%s) -ge SOFT_DEADLINE ]. Bei OVER: aktuellen Stand committen+pushen, Turn beenden.
 

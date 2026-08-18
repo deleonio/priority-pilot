@@ -118,6 +118,43 @@ jobs:
           memory-load: 'true'
           expect-memory: 'true'
 
+      - name: Trigger-Label konsumieren (Start-Konsum)
+        # Atomarer Konsum von ai:needs-fixup direkt nach Setup (analog 05): Der Pipeline-
+        # Bestand geht auf leer, mit --expect-Guard gegen zwischenzeitliche Schreiben
+        # anderer Akteure. Jeder in der Phasen-Queue wartende Fixup-Run skippt danach im
+        # precheck — und ein parallel getriggerter Review sieht kein Trigger-Label mehr
+        # (PR #890). Vorher klebte das Label bis zum Job-ENDE (8+ min Fenster).
+        id: consume
+        if: steps.setup.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          OUT=""
+          if ! OUT="$(bash .github/scripts/label-transition.sh \
+            --repo "$GITHUB_REPOSITORY" --pr "$PR" \
+            --set-none --expect ai:needs-fixup)"; then
+            # Script-Exit != 0: PUT endgültig fehlgeschlagen (Diagnose via stderr im
+            # Job-Log). Bewusst ROT enden statt fail-open — analog 05: Trigger bleibt
+            # bewaffnet, ein Re-Push re-triggert.
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            echo "::error title=❌ Start-Konsum fehlgeschlagen::label-transition.sh fehlgeschlagen (Details: letzte gh-Fehlerzeile im Log). Trigger bleibt bewaffnet."
+            exit 1
+          fi
+          applied="$(printf '%s\n' "$OUT" | sed -n 's/^applied=//p')"
+          state="$(printf '%s\n' "$OUT" | sed -n 's/^state=//p')"
+          reason="$(printf '%s\n' "$OUT" | sed -n 's/^reason=//p')"
+          echo "reason=${reason:-}" >> "$GITHUB_OUTPUT"
+          # read-failed = fail-open (analog zum precheck): lieber einmal zu viel fixen
+          # als eine Freigabe zu verlieren. Label bleibt dann unkonsumiert.
+          if [ "$applied" = "true" ] || [ "$state" = "read-failed" ]; then
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::ai:needs-fixup konsumiert (Start-Konsum) — Fixup läuft."
+          else
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=⏭️ Fixup verworfen::Trigger nicht mehr unverändert vorhanden — ${reason:-neuerer Zustand regiert}."
+          fi
+
       - name: pnpm einrichten
         if: steps.setup.outputs.configured == 'true'
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
@@ -206,7 +243,7 @@ jobs:
 
       - name: Stop-Guard (> 10 PR-Commits)
         id: stop-guard
-        if: steps.setup.outputs.configured == 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.consume.outputs.proceed == 'true'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
@@ -231,12 +268,12 @@ jobs:
 
       - name: HEAD vor Claude merken (Fortschritts-Baseline)
         id: head-before
-        if: steps.setup.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true' && steps.consume.outputs.proceed == 'true'
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Findings umsetzen via Claude
         id: claude
-        if: steps.setup.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true'
+        if: steps.setup.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true' && steps.consume.outputs.proceed == 'true'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
@@ -296,11 +333,17 @@ jobs:
           OUTCOME: ${{ steps.claude.outcome }}
           SINCE_EPOCH: ${{ steps.starttime.outputs.since_epoch }}
         run: |
+          # Verdict-Kanal: Datei primär (/tmp/claude-verdict, per Bash geschrieben —
+          # robuster als Log-Parsing, vgl. PR #524/#530), Log-Grep als Übergangs-Fallback.
+          # Nur `needs-human` ist hier verbindlich; Fortschritt entscheidet HEAD-Bewegung.
           verdict=""
-          if [ -f /tmp/claude-output.log ]; then
+          if [ -f /tmp/claude-verdict ]; then
+            verdict="$(tr -d -c 'A-Za-z0-9-' < /tmp/claude-verdict)"
+          fi
+          if [ -z "$verdict" ] && [ -f /tmp/claude-output.log ]; then
             verdict="$(grep 'VERDICT:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | tr -d -c 'A-Za-z0-9-' || true)"
           fi
-          echo "Claude-Verdict aus Output: '${verdict:-keins}'"
+          echo "Claude-Verdict: '${verdict:-keins}'"
 
           # Erklärungs-Gate: Nur Kommentare dieses Laufes gelten als Erklärung
           # für ai:needs-human — keine alten Marker referenzieren (#842).
@@ -320,16 +363,32 @@ jobs:
             ARTIFACTS_OK="true"
           fi
 
-          gh label create "ai:needs-review" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
-          gh label create "ai:needs-fixup" --repo "$GITHUB_REPOSITORY" --color D93F0B 2>/dev/null || true
-          gh label create "ai:needs-human" --repo "$GITHUB_REPOSITORY" --color 5319e7 --description "Nicht-automatisierbare Entscheidung — wartet auf Mensch (Fixup greift bewusst nicht)" 2>/dev/null || true
-
-          # Trigger-Labels immer erst entfernen (Force-Set-Semantik). Auch ai:reviewed
-          # abräumen: Solange Findings in Arbeit sind, ist der PR nicht review-clean —
-          # sonst könnte das Gate auf dem stale Done-Label vorzeitig mergen.
-          gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-fixup 2>/dev/null || true
-          gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:needs-review 2>/dev/null || true
-          gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --remove-label ai:reviewed 2>/dev/null || true
+          # EINE atomare Transition je Ausgangspfad statt 3× remove + add (PR #890):
+          # label-transition.sh ersetzt den gesamten Pipeline-Bestand in EINEM API-Call —
+          # auch ai:reviewed ist damit immer mit abgeräumt (stale Done-Label könnte das
+          # Gate sonst vorzeitig mergen lassen). --expect none: Dieser Lauf hat seinen
+          # Trigger im Start-Konsum entfernt; zwischenzeitliche Schreiben anderer Akteure
+          # (Autolabeler, Gate) verwerfen diesen Write — der neuere Zustand regiert.
+          # Retries (Issue #613, Backoff 1s/2s/4s) leben IM Skript.
+          apply_transition() { # $1 = Ziel-Labels (Komma-liste); Return 0=ok, 1=fehlschlagen, 2=Guard-Verwurf
+            if ! OUT="$(bash .github/scripts/label-transition.sh \
+                --repo "$GITHUB_REPOSITORY" --pr "$PR" --set "$1" --expect none)"; then
+              echo "::error::Label-Transition zu '$1' endgültig fehlgeschlagen"
+              return 1
+            fi
+            t_applied="$(printf '%s\n' "$OUT" | sed -n 's/^applied=//p')"
+            t_state="$(printf '%s\n' "$OUT" | sed -n 's/^state=//p')"
+            t_reason="$(printf '%s\n' "$OUT" | sed -n 's/^reason=//p')"
+            if [ "$t_state" = "read-failed" ]; then
+              echo "::error::Label-Transition zu '$1': IST-Zustand unlesbar (${t_reason:-API?}) — nichts geschrieben"
+              return 1
+            fi
+            if [ "$t_applied" != "true" ]; then
+              echo "::warning title=⏭️ Label-Write verworfen::${t_reason:-Guard}. Ziel '$1' NICHT gesetzt — der neuere Zustand regiert."
+              return 2
+            fi
+            return 0
+          }
 
           # B1: Claude abgestuerzt/abgebrochen (failure/cancelled) — kein vertrauenswuerdiges
           # Verdict, HEAD-Fortschritt nicht aussagekraeftig (evtl. mittendrin abgebrochen).
@@ -358,7 +417,12 @@ jobs:
               printf '%s\n' "- [ ] 4. Label \`ai:needs-human\` entfernen (nach Klärung)"
             } > /tmp/needs-human-body.md
             bash .github/scripts/needs-human-explain.sh post --repo "$GITHUB_REPOSITORY" --pr "$PR" --body-file /tmp/needs-human-body.md
-            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human
+            rc=0
+            apply_transition "ai:needs-human" || rc=$?
+            if [ "$rc" -eq 2 ]; then
+              echo "stuck=true" >> "$GITHUB_OUTPUT"; echo "stuck_reason=superseded" >> "$GITHUB_OUTPUT"; exit 0
+            fi
+            if [ "$rc" -eq 1 ]; then exit 1; fi
             echo "::warning::Claude-Schritt '${OUTCOME}' -> ai:needs-human (keine Re-Armierung, Mensch prueft)."
             echo "stuck=true" >> "$GITHUB_OUTPUT"
             echo "stuck_reason=crash" >> "$GITHUB_OUTPUT"
@@ -404,16 +468,30 @@ jobs:
               printf '%s\n' "- [ ] 4. Label \`ai:needs-review\` setzen → loest erneuten Review aus"
             } > /tmp/needs-human-body.md
             bash .github/scripts/needs-human-explain.sh post --repo "$GITHUB_REPOSITORY" --pr "$PR" --body-file /tmp/needs-human-body.md
-            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human
-            echo "::notice::Verdict needs-human -> Label gesetzt: ai:needs-human (wartet auf Mensch)."
-            echo "stuck=true" >> "$GITHUB_OUTPUT"
-            echo "stuck_reason=needs-human" >> "$GITHUB_OUTPUT"
+            rc=0
+            apply_transition "ai:needs-human" || rc=$?
+            if [ "$rc" -eq 2 ]; then
+              echo "stuck=true" >> "$GITHUB_OUTPUT"; echo "stuck_reason=superseded" >> "$GITHUB_OUTPUT"
+            elif [ "$rc" -eq 1 ]; then
+              exit 1
+            else
+              echo "::notice::Verdict needs-human -> Label gesetzt: ai:needs-human (wartet auf Mensch)."
+              echo "stuck=true" >> "$GITHUB_OUTPUT"
+              echo "stuck_reason=needs-human" >> "$GITHUB_OUTPUT"
+            fi
           elif [ "$ARTIFACTS_OK" = "true" ]; then
             # Fortschritt -> an Review uebergeben. Konvergiert via Stop-Guard
             # (>10 Commits), falls Review nie gruen wird.
-            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-review
-            echo "::notice::Fortschritt erkannt (HEAD bewegt) -> Label gesetzt: ai:needs-review"
-            echo "stuck=false" >> "$GITHUB_OUTPUT"
+            rc=0
+            apply_transition "ai:needs-review" || rc=$?
+            if [ "$rc" -eq 2 ]; then
+              echo "stuck=true" >> "$GITHUB_OUTPUT"; echo "stuck_reason=superseded" >> "$GITHUB_OUTPUT"
+            elif [ "$rc" -eq 1 ]; then
+              exit 1
+            else
+              echo "::notice::Fortschritt erkannt (HEAD bewegt) -> Label gesetzt: ai:needs-review"
+              echo "stuck=false" >> "$GITHUB_OUTPUT"
+            fi
           else
             # KEIN Fortschritt und kein klares needs-human-Verdict -> NICHT erneut triggern (kappt
             # sowohl Fixup<->Fixup- als auch Review<->Fixup-Endlosloop). Terminal an Mensch
@@ -454,10 +532,17 @@ jobs:
               printf '%s\n' "- [ ] 4. Label \`ai:needs-review\` setzen → loest erneuten Review aus"
             } > /tmp/needs-human-body.md
             bash .github/scripts/needs-human-explain.sh post --repo "$GITHUB_REPOSITORY" --pr "$PR" --body-file /tmp/needs-human-body.md
-            gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human
-            echo "::warning::Kein Fixup-Fortschritt (HEAD unverändert) -> ai:needs-human, keine Re-Armierung, Mensch prüft."
-            echo "stuck=true" >> "$GITHUB_OUTPUT"
-            echo "stuck_reason=no-progress" >> "$GITHUB_OUTPUT"
+            rc=0
+            apply_transition "ai:needs-human" || rc=$?
+            if [ "$rc" -eq 2 ]; then
+              echo "stuck=true" >> "$GITHUB_OUTPUT"; echo "stuck_reason=superseded" >> "$GITHUB_OUTPUT"
+            elif [ "$rc" -eq 1 ]; then
+              exit 1
+            else
+              echo "::warning::Kein Fixup-Fortschritt (HEAD unverändert) -> ai:needs-human, keine Re-Armierung, Mensch prüft."
+              echo "stuck=true" >> "$GITHUB_OUTPUT"
+              echo "stuck_reason=no-progress" >> "$GITHUB_OUTPUT"
+            fi
           fi
 
       - name: Ergebnis zusammenfassen
@@ -469,6 +554,7 @@ jobs:
           STOP_GUARD: ${{ steps.stop-guard.outputs.stop }}
           STUCK: ${{ steps.label-post.outputs.stuck }}
           STUCK_REASON: ${{ steps.label-post.outputs.stuck_reason }}
+          CONSUME_PROCEED: ${{ steps.consume.outputs.proceed }}
         run: |
           labels="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
           # Eigener Arm fuer den Stop-Guard: ohne ihn faellt der gewollte Abbruch auf den
@@ -477,7 +563,9 @@ jobs:
           # bereits selbst kommentiert; hier gehoert eine Warnung hin, kein Fehler.
           # Dasselbe gilt fuer den No-Progress-Fall (STUCK): Claude lief, aber ohne Commit ->
           # bewusst keine Re-Armierung, Mensch prüft.
-          if [ "${STOP_GUARD:-false}" = "true" ]; then
+          if [ "$CONSUME_PROCEED" != "true" ]; then
+            echo "::notice title=⏭️ Fixup verworfen::PR #${PR} — Trigger im Start-Konsum nicht mehr gültig, neuere Entscheidung regiert."
+          elif [ "${STOP_GUARD:-false}" = "true" ]; then
             echo "::warning title=🛑 Fixup gestoppt::PR #${PR} — Stop-Guard (Loop-Schutz), bitte manuell prüfen"
           elif [ "${STUCK:-false}" = "true" ]; then
             # STUCK=true kommt von drei Pfaden (stuck_reason): Claude-Crash (OUTCOME!=success),
@@ -491,6 +579,9 @@ jobs:
                 ;;
               needs-human)
                 echo "::notice title=⏸️ Fixup wartet auf Entscheidung::PR #${PR} — verbleibende Findings nicht automatisierbar (ai:needs-human gesetzt), bitte manuell prüfen"
+                ;;
+              superseded)
+                echo "::notice title=⏭️ Fixup abgelöst::PR #${PR} — Label-Zustand hat sich während des Laufs geändert, Schreib-Zugriff verworfen"
                 ;;
               *)
                 echo "::warning title=🛑 Fixup ohne Fortschritt::PR #${PR} — kein neuer Commit, keine Re-Armierung, bitte manuell prüfen"
