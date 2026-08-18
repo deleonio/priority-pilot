@@ -176,8 +176,10 @@ Kein `--model`: das Modell wird über `"model": "opus"` in der `settings.json` g
 `LLM_PROVIDER=claude` ist das echtes Opus, bei `zai` bildet die Setup-Action es per
 `ANTHROPIC_DEFAULT_OPUS_MODEL` auf `glm-5.1` ab.
 
-**Prompt:** Per Heredoc in eine Datei geschrieben, dann via `-p "$(cat /tmp/claude-prompt.txt)"`
-übergeben — vermeidet Shell-Quoting-Probleme.
+**Prompt:** Kanonisch in `.github/prompts/` (spec, ux, review, fixup, documenter + Memory-Snippets);
+per `sed`/`cat` nach `/tmp/claude-prompt.txt` assembliert und via `-p "$(cat /tmp/claude-prompt.txt)"`
+übergeben — vermeidet Shell-Quoting-Probleme. Triage (01) und Umsetzung (04) tragen ihren Prompt noch
+inline als Heredoc in der Workflow-Datei.
 
 **VERDICT-Hinweis:** `claude -p` schreibt die finale Antwort (inkl. `VERDICT:`-Zeile) auf
 stdout → `tee /tmp/claude-output.log` → `grep -oP 'VERDICT:\s*\K.*'` in der
@@ -341,7 +343,7 @@ best-effort: ein Fehlschlag warnt, kippt aber nie das Deploy.
 
 1. **Chat/REPL (interaktiv):** Trigger-Phrasen aktivieren den Agenten direkt: „Kreuzverhör",
    „nimm das auseinander", „stress-teste das", „challenge mich".
-2. **Slash-Command:** `/kreuzverhoer-review [PR-Nummer]`.
+2. **Skill:** `review-kreuzverhoer` ([SKILL.md](../.claude/skills/review-kreuzverhoer/SKILL.md), mit PR-Nummer).
 3. **GitHub Actions (automatisch):** `05-claude-pr-review.yml` feuert, wenn ein PR das Label
    `ai:needs-review` trägt.
 
