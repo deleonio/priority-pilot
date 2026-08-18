@@ -238,11 +238,15 @@ for l in ${TARGET[@]+"${TARGET[@]}"}; do create_label "$l"; done
 # Zwischenzustände mit 0/2 Triggern existieren nicht, Nicht-Pipeline-Labels
 # bleiben erhalten (GitHub feuert pro Differenz ein labeled-/unlabeled-Event,
 # die Folge-Workflows funktionieren unverändert).
-# Mit Retry (Issue #613): Backoff 1s, 2s, 4s (max. 3).
+# Mit Retry (Issue #613): Backoff 1s, 2s, 4s (max. 3). gh-Stderr wird PRO Versuch
+# aufgefangen und beim endgültigen Scheitern nach stderr ausgegeben — ohne das
+# wäre die Ursache (401/403/422 …) im Job-Log unsichtbar (PR #899).
 TARGET_JSON="$(printf '%s\n' ${NEW[@]+"${NEW[@]}"} | jq -R . | jq -s .)"
+GH_ERR="$(mktemp)"
 for attempt in 1 2 3; do
   if printf '{"labels":%s}' "$TARGET_JSON" \
-     | gh api --method PUT "repos/$REPO/issues/$PR/labels" --input - >/dev/null 2>&1; then
+     | gh api --method PUT "repos/$REPO/issues/$PR/labels" --input - >/dev/null 2>"$GH_ERR"; then
+    rm -f "$GH_ERR"
     out true ok ""
     echo "labels=${LABELS_OUT}"
     echo "changed=${CHANGED}"
@@ -251,4 +255,6 @@ for attempt in 1 2 3; do
   [ "$attempt" -lt 3 ] && sleep "$((2 ** (attempt - 1)))"
 done
 out false put-failed "PUT /issues/$PR/labels nach 3 Versuchen fehlgeschlagen"
+echo "label-transition: letzter gh-Fehler: $(head -c 400 "$GH_ERR" | tr '\n' ' ')" >&2
+rm -f "$GH_ERR"
 exit 1

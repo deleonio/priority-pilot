@@ -130,9 +130,17 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
         run: |
-          OUT="$(bash .github/scripts/label-transition.sh \
+          OUT=""
+          if ! OUT="$(bash .github/scripts/label-transition.sh \
             --repo "$GITHUB_REPOSITORY" --pr "$PR" \
-            --set-none --expect ai:needs-fixup)"
+            --set-none --expect ai:needs-fixup)"; then
+            # Script-Exit != 0: PUT endgültig fehlgeschlagen (Diagnose via stderr im
+            # Job-Log). Bewusst ROT enden statt fail-open — analog 05: Trigger bleibt
+            # bewaffnet, ein Re-Push re-triggert.
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            echo "::error title=❌ Start-Konsum fehlgeschlagen::label-transition.sh fehlgeschlagen (Details: letzte gh-Fehlerzeile im Log). Trigger bleibt bewaffnet."
+            exit 1
+          fi
           applied="$(printf '%s\n' "$OUT" | sed -n 's/^applied=//p')"
           state="$(printf '%s\n' "$OUT" | sed -n 's/^state=//p')"
           reason="$(printf '%s\n' "$OUT" | sed -n 's/^reason=//p')"
