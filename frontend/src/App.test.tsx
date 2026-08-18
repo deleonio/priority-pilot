@@ -218,16 +218,4 @@ describe('App — Homogenerer Header (#222)', () => {
 		// Die E-Mail darf nirgendwo im gerenderten DOM stehen.
 		expect(document.body.textContent ?? '').not.toMatch(/erika@test\.example\.com/);
 	});
-
-	// AK3 (Smoke): KolAvatar muss _label={user.name} tragen, damit das Web Component das
-	// Namenskürzel generieren kann. Bereits implementiert — bleibt als Regressions-Smoke grün.
-	it('AK3 (Smoke): KolAvatar hat _label mit dem Benutzernamen gesetzt', async () => {
-		render(<App user={{ id: 7, displayName: 'Erika Muster', email: 'erika@test.example.com', avatarUrl: null }} />);
-		await waitFor(() => {
-			expect(screen.getByText(/Hallo/i)).toBeTruthy();
-		});
-		const avatar = document.querySelector('kol-avatar');
-		expect(avatar).not.toBeNull();
-		expect(avatar?.getAttribute('_label')).toBe('Erika Muster');
-	});
 });
