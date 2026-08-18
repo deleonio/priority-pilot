@@ -1635,3 +1635,10 @@ body {
 	opacity: 0.5;
 	cursor: not-allowed;
 }
+
+/* --- Issue #866: Geo-Address --- */
+.geo-address {
+	margin-top: 0.5rem;
+	font-size: 0.875rem;
+	color: var(--pp-text-muted);
+}

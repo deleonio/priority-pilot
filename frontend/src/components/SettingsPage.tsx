@@ -95,6 +95,8 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 		enabled: geoEnabled,
 		pending: geoPending,
 		permissionDenied: geoDenied,
+		address,
+		addressLoading,
 		toggle: toggleGeo,
 	} = useGeolocation();
 
@@ -207,6 +209,11 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 							Dieser Browser unterstützt keine Standortabfrage. Nutze einen aktuellen Browser, um die Position zu
 							ermitteln.
 						</KolAlert>
+					)}
+					{geoEnabled && (
+						<div aria-live="polite" className="geo-address">
+							{addressLoading ? 'Adresse wird ermittelt…' : address || 'Keine Adresse für diesen Standort'}
+						</div>
 					)}
 					{geoDenied && (
 						<KolAlert _type="warning" _label="Standortzugriff verweigert">
