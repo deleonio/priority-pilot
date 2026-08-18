@@ -1,9 +1,13 @@
 name: 'Setup Claude Code Agent'
-description: 'Preflight, App-Token, Claude-Code-Install + Auth (Provider-Switch zai/claude), Ticket-Auflösung, Invoke-Resolution, Memory-Load/Save – einheitlich für alle 5 Pipeline-Workflows'
+description: 'Preflight, App-Token, Claude-Code-Install + Auth (Provider-Switch zai/claude), Ticket-Auflösung, Invoke-Resolution, Memory-Load/Save – einheitlich für alle 7 Pipeline-Workflows'
 
 inputs:
   needs-mcp:
-    description: 'Ob KoliBri MCP für diesen Workflow benötigt wird (triage + implement = true). Steuert nur die allowedTools; registriert ist der Server in .claude/settings.json.'
+    description: 'Ob KoliBri MCP für diesen Workflow benötigt wird. Steuert nur die allowedTools; registriert ist der Server in .claude/settings.json. Gilt für alle Phasen außer Documenter (07).'
+    required: false
+    default: 'false'
+  browser-mcp:
+    description: 'Ob Playwright-MCP (Browser-Tools) für diesen Workflow benötigt wird. Bei true werden mcp__playwright__* Tools zur Allowlist aller Tiers hinzugefügt. Nur für Phasen mit UI-Inspektion (02 UX, 04 Umsetzung, 06 Fixup).'
     required: false
     default: 'false'
   tools-tier:
@@ -465,6 +469,7 @@ runs:
       shell: bash
       env:
         NEEDS_MCP: ${{ inputs.needs-mcp }}
+        BROWSER_MCP: ${{ inputs.browser-mcp }}
         TOOLS_TIER: ${{ inputs.tools-tier }}
         CLAUDE_MODEL: ${{ inputs.model }}
         RESOLVED_MODEL: ${{ steps.provider.outputs.resolved-model }}
@@ -480,7 +485,10 @@ runs:
         fi
 
         # MCP-Server-Name spiegelt .mcp.json (kolibri-mcp); aktiv nur bei needs-mcp.
+        # Playwright-MCP bei browser-mcp=true.
         MCP_TOOLS="mcp__kolibri-mcp__*"
+        BROWSER_TOOLS="mcp__playwright__*"
+        [ "$BROWSER_MCP" = "true" ] && MCP_TOOLS="$MCP_TOOLS,$BROWSER_TOOLS"
         VOLLES_TOOLSET="Read,Glob,Grep,Bash,Write,Edit"
 
         case "${TOOLS_TIER:-full}" in
@@ -562,7 +570,7 @@ runs:
 
     - name: Tailscale-Exit-Node verbinden (LLM-Egress über feste IP)
       if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != ''
-      uses: tailscale/github-action@306e68a486fd2350f2bfc3b19fcd143891a4a2d8 # v4
+      uses: tailscale/github-action@780049a30b6ff5c378a9e7b389d15ece7a204888 # v4.1.3
       with:
         authkey: ${{ inputs.tailscale-authkey }}
         args: --exit-node=${{ inputs.tailscale-exit-node }} --exit-node-allow-lan-access=true

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { lektoratTextWithMistral, MissingApiKeyError, MistralRequestError } from '../../llm/llm.js';
+import { validateProviderQuery } from '../llmProviderQuery.js';
 
 type ErrorDto = { message: string };
 
@@ -63,6 +64,14 @@ export const lektoratRouter = (): Router => {
 	const router = Router();
 
 	router.post('/lektorat', async (req: Request, res: Response<{ text: string } | ErrorDto>) => {
+		// Provider-Query-Parameter validieren (#749)
+		const providerValidation = validateProviderQuery(req.query as Record<string, unknown>);
+		if (!providerValidation.ok) {
+			sendError(res, 400, providerValidation.message);
+			return;
+		}
+		const provider = providerValidation.provider;
+
 		const validation = validateBody(req.body);
 		if (!validation.ok) {
 			sendError(res, 400, validation.message);
@@ -70,10 +79,13 @@ export const lektoratRouter = (): Router => {
 		}
 
 		try {
-			const result = await lektoratTextWithMistral({
-				text: validation.value.text,
-				maxLength: validation.value.maxLength,
-			});
+			const result = await lektoratTextWithMistral(
+				{
+					text: validation.value.text,
+					maxLength: validation.value.maxLength,
+				},
+				provider,
+			);
 			res.json({ text: result.text });
 		} catch (error) {
 			if (error instanceof MissingApiKeyError) {

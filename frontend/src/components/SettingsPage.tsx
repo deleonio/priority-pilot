@@ -3,6 +3,7 @@ import type { Pillar } from 'client';
 import { useMemo, useState } from 'react';
 import { api } from '../api';
 import { requestMicrophonePermission } from '../lib/micPermission';
+import { useGeolocation } from '../lib/useGeolocation';
 import { usePushSubscription } from '../lib/push';
 import { useVoiceAutostart } from '../lib/voiceAutostart';
 import { AppearanceSetting } from './AppearanceSetting';
@@ -85,6 +86,17 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 	} = usePushSubscription();
 
 	const [pushTestResult, setPushTestResult] = useState<'success' | 'error' | null>(null);
+
+	// #845: Schalter „Standort erfassen" (Default aus). Beim Einschalten wird die
+	// Geolocation-Berechtigung angefragt; nur bei erteilter Berechtigung wird die Einstellung
+	// aktiviert und alle 5 Minuten die Position ermittelt. Bei Verweigerung bleibt der Schalter aus.
+	const {
+		supported: geoSupported,
+		enabled: geoEnabled,
+		pending: geoPending,
+		permissionDenied: geoDenied,
+		toggle: toggleGeo,
+	} = useGeolocation();
 
 	return (
 		<main className="settings-page">
@@ -175,6 +187,31 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 						<KolAlert _type="warning" _label="Push-Nachrichten nicht aktiviert">
 							Push-Nachrichten konnten nicht aktiviert werden. Bitte erteile die Benachrichtigungs-Berechtigung im
 							Browser und versuche es erneut.
+						</KolAlert>
+					)}
+					{geoSupported ? (
+						<KolInputCheckbox
+							_label="Standort erfassen"
+							_variant="switch"
+							_checked={geoEnabled}
+							_disabled={geoPending}
+							_hint="Ermittle alle 5 Minuten deine aktuelle Position (z. B. für ortsbezogene Aufgaben-Vorschläge)."
+							_on={{
+								onChange: (_event, value) => {
+									void toggleGeo(value === true);
+								},
+							}}
+						/>
+					) : (
+						<KolAlert _type="info" _label="Standort nicht verfügbar">
+							Dieser Browser unterstützt keine Standortabfrage. Nutze einen aktuellen Browser, um die Position zu
+							ermitteln.
+						</KolAlert>
+					)}
+					{geoDenied && (
+						<KolAlert _type="warning" _label="Standortzugriff verweigert">
+							Der Zugriff auf den Standort wurde verweigert. Die Standorterfassung bleibt deaktiviert. Bitte erteile die
+							Berechtigung im Browser und versuche es erneut.
 						</KolAlert>
 					)}
 				</div>

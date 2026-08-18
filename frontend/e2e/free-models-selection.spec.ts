@@ -16,7 +16,7 @@ import { expect, test } from './fixtures';
  * Test-Infra (bei der Umsetzung korrigiert, fachlicher Vertrag unverändert):
  * - Import aus './fixtures': Die Auth-Gate (Root.tsx) zeigt ohne authentifiziertes
  *   `GET /auth/me` die Login-Seite — die Fixture mockt sie standardmäßig durchlässig
- *   (Muster: settings-llm.spec.ts). Ohne sie wäre der Dashboard-Button nie sichtbar.
+ *   (Muster: e2e/fixtures.ts). Ohne sie wäre der Dashboard-Button nie sichtbar.
  * - Mock-Pfad mit /api/v1-Präfix: Der generierte Client ruft alle Endpoints unter
  *   `/api/v1/…` auf (frontend/src/api.ts baseUrl; Vite-Proxy stript das Präfix). Ein
  *   Mock ohne das Präfix träfe die Anfrage nie — sie fiele durch auf den echten

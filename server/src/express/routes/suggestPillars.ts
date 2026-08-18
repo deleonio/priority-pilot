@@ -8,6 +8,7 @@ import {
 	type FeedbackExample,
 	type PillarClassifier,
 } from '../../llm/llm.js';
+import { validateProviderQuery } from '../llmProviderQuery.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
 import type { components } from '../../api';
 
@@ -152,6 +153,14 @@ export const createSuggestPillarsRouter = (classifier: PillarClassifier = classi
 	router.post(
 		'/tasks/suggest-pillars',
 		async (req: Request, res: Response<{ suggestions: PillarSuggestionDto[] } | ErrorDto>) => {
+			// Provider-Query-Parameter validieren (#749)
+			const providerValidation = validateProviderQuery(req.query as Record<string, unknown>);
+			if (!providerValidation.ok) {
+				sendError(res, 400, providerValidation.message);
+				return;
+			}
+			const provider = providerValidation.provider;
+
 			const validation = validateBody(req.body);
 			if (!validation.ok) {
 				sendError(res, 400, validation.message);
@@ -183,17 +192,20 @@ export const createSuggestPillarsRouter = (classifier: PillarClassifier = classi
 			}
 
 			try {
-				const suggestions = await classifier({
-					title: validation.value.title,
-					description: validation.value.description ?? undefined,
-					context: validation.value.context ?? undefined,
-					pillars: pillars.map((pillar) => ({
-						id: pillar.id,
-						name: pillar.name,
-						description: pillar.description ?? undefined,
-					})),
-					examples,
-				});
+				const suggestions = await classifier(
+					{
+						title: validation.value.title,
+						description: validation.value.description ?? undefined,
+						context: validation.value.context ?? undefined,
+						pillars: pillars.map((pillar) => ({
+							id: pillar.id,
+							name: pillar.name,
+							description: pillar.description ?? undefined,
+						})),
+						examples,
+					},
+					provider,
+				);
 				res.json({ suggestions });
 			} catch (error) {
 				if (error instanceof MissingApiKeyError) {

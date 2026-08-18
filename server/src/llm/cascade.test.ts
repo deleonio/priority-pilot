@@ -172,3 +172,88 @@ describe('LLM-Kaskade — OpenRouter API-URL konfigurierbar (AK „konfigurierba
 		);
 	});
 });
+
+describe('LLM-Kaskade — Provider-Pinning (#749)', () => {
+	beforeEach(() => {
+		process.env = { ...ORIGINAL_ENV };
+	});
+
+	afterEach(() => {
+		process.env = { ...ORIGINAL_ENV };
+		mock.restoreAll();
+	});
+
+	it('provider=mistral mit beiden Keys: genau 1 Call an Mistral, kein OpenRouter', async () => {
+		process.env.MISTRAL_API_KEY = 'm-key';
+		process.env.OPENROUTER_API_KEY = 'or-key';
+
+		const calls = mockFetchSequence([{ ok: true, content: { title: 'Mistral only' } }]);
+
+		const result = await parseTaskTextWithMistral('test', 'mistral');
+
+		assert.equal(result.title, 'Mistral only');
+		assert.equal(calls.length, 1, 'provider=mistral darf genau 1× fetch aufrufen');
+		assert.equal(calls[0].url, 'https://api.mistral.ai/v1/chat/completions');
+	});
+
+	it('provider=mistral, Mistral scheitert: MistralRequestError, KEIN OpenRouter-Fallback', async () => {
+		process.env.MISTRAL_API_KEY = 'm-key';
+		process.env.OPENROUTER_API_KEY = 'or-key';
+
+		const calls = mockFetchSequence([{ ok: false, status: 500 }]);
+
+		await assert.rejects(() => parseTaskTextWithMistral('test', 'mistral'), MistralRequestError);
+		assert.equal(calls.length, 1, 'bei provider=mistral darf kein OpenRouter-Fallback erfolgen');
+		assert.equal(calls[0].url, 'https://api.mistral.ai/v1/chat/completions');
+	});
+
+	it('provider=openrouter mit beiden Keys: genau 1 Call an OpenRouter, kein Mistral-Primär-Call', async () => {
+		process.env.MISTRAL_API_KEY = 'm-key';
+		process.env.OPENROUTER_API_KEY = 'or-key';
+
+		const calls = mockFetchSequence([{ ok: true, content: { title: 'OpenRouter solo' } }]);
+
+		const result = await parseTaskTextWithMistral('test', 'openrouter');
+
+		assert.equal(result.title, 'OpenRouter solo');
+		assert.equal(calls.length, 1, 'provider=openrouter darf genau 1× fetch aufrufen');
+		assert.equal(calls[0].url, 'https://openrouter.ai/api/v1/chat/completions');
+	});
+
+	it('provider=openrouter, nur Mistral-Key: MissingApiKeyError mit OpenRouter-Label', async () => {
+		process.env.MISTRAL_API_KEY = 'm-key';
+		delete process.env.OPENROUTER_API_KEY;
+
+		await assert.rejects(
+			() => parseTaskTextWithMistral('test', 'openrouter'),
+			(error: unknown) => {
+				assert.ok(error instanceof MissingApiKeyError);
+				assert.ok(error.message.includes('OPENROUTER_API_KEY'), 'Fehler muss OpenRouter-Key nennen');
+				assert.ok(error.message.includes('OpenRouter'), 'Fehler muss OpenRouter-Provider nennen');
+				return true;
+			},
+		);
+	});
+
+	it('provider=mistral, kein Mistral-Key: MissingApiKeyError', async () => {
+		delete process.env.MISTRAL_API_KEY;
+		process.env.OPENROUTER_API_KEY = 'or-key';
+
+		await assert.rejects(() => parseTaskTextWithMistral('test', 'mistral'), MissingApiKeyError);
+	});
+
+	it('ohne provider (undefined): Kaskade unverändert', async () => {
+		process.env.MISTRAL_API_KEY = 'm-key';
+		process.env.OPENROUTER_API_KEY = 'or-key';
+
+		const calls = mockFetchSequence([
+			{ ok: true, content: { title: 'Mistral' } },
+			{ ok: true, content: { title: 'Verfeinert' } },
+		]);
+
+		const result = await parseTaskTextWithMistral('test', undefined);
+
+		assert.equal(result.title, 'Verfeinert');
+		assert.equal(calls.length, 2, 'ohne provider: Kaskade wie bisher (Mistral + OpenRouter)');
+	});
+});
