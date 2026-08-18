@@ -28,8 +28,8 @@ const SETTINGS_TABS = [{ _label: 'Allgemein' }, { _label: 'Säulen' }, { _label:
 /**
  * Einstellungen-Seite (#271) mit `KolTabs`-Navigation: „Allgemein" (Platzhalter), „Säulen"
  * (Säulen-Gewichtungs-Editor) und „LLM" (Provider-Konfiguration, #640). Der aktive Tab wird beim
- * initialen Laden aus der URL abgeleitet: `/settings/general` → Allgemein (0), alles andere
- * (inkl. `/settings/pillars`) → Säulen (1).
+ * initialen Laden aus der URL abgeleitet: `/settings/general` → Allgemein (0), `/settings/llm` → LLM (2),
+ * alles andere → Säulen (1).
  */
 export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: SettingsPageProps) => {
 	// Aktiven Tab als kontrollierten State führen. Initialwert aus der URL; `setActiveTab` wird bei

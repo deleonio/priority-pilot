@@ -77,9 +77,9 @@ test.describe('LLM Settings Button Layout (Issue 886)', () => {
 	/**
 	 * Testfall für Mobile-Viewport (≤767px)
 	 * Spec-Schritt 3: User prüft den "Speichern"-Button am unteren Rand des Formulars
-	 * Erwartetes Ergebnis 3: Buttons stapeln sich vertikal, alle Texte lesbar, kein horizontales Scrollen
+	 * Erwartetes Ergebnis 3: Button-Text vollständig lesbar, kein horizontales Scrollen
 	 */
-	test('Mobile: Buttons vertikal gestapelt ohne horizontales Scrollen', async ({ page }) => {
+	test('Mobile: Kein horizontales Scrollen, Button-Text lesbar', async ({ page }) => {
 		// Mobile-Viewport einstellen (375px Breite - typisches Smartphone)
 		await page.setViewportSize({ width: 375, height: 812 });
 

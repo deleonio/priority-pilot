@@ -20,14 +20,14 @@ Der "Speichern"-Button im LLM-Provider-Settings-Formular ist vollständig sichtb
 
 1. **Desktop-Viewport (≥1024px):** Der "Speichern"-Button ist vollständig sichtbar (Text "Speichern" komplett lesbar), kein horizontaler Scroll erforderlich
 2. **Tablet-Viewport (768-1023px):** Der "Speichern"-Button ist vollständig sichtbar, ggf. mit Zeilenumbruch im Button-Container
-3. **Mobile-Viewport (≤767px):** Buttons stapeln sich vertikal, alle Texte sind lesbar, kein horizontales Scrollen
+3. **Mobile-Viewport (≤767px):** Button-Text vollständig lesbar, kein horizontales Scrollen (einzelner Button benötigt kein vertikales Stapeln)
 
 ## Technische Anforderungen
 
 - Button-Container nutzt `display: flex` mit `flex-wrap: wrap`
 - Container-Breite `width: 100%` sichern
 - Buttons haben `min-width: 0` um Flexbox-Overflow zu verhindern
-- Media-Queries für mobile Viewports: Buttons stapeln sich vertikal bei ≤768px
+- Kein horizontaler Scroll auf Viewports ≤768px, Button-Text vollständig lesbar
 - Kein horizontaler Scroll auf Viewports ≤768px
 
 ## Akzeptanzkriterien-Referenz
