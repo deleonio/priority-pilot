@@ -26,10 +26,12 @@ name: PR Auto-Label (ai:needs-review)
 #     "ready_for_review" zieht das Label.
 #   - nur same-repo-PRs (kein Fork): Fork-PRs haben kein App-Token und sollen die Pipeline
 #     nicht ungefragt anstossen.
-#   - re-trigger-sicher (#536): der Entfernen-Schritt strippt VOR dem Setzen auch
-#     ai:needs-review selbst, sodass das Neu-Setzen immer ein echtes Hinzufuegen ist, das
-#     `labeled`-Event zuverlaessig feuert und der Review auch bei schon klebendem Label
-#     neu startet. Keine Schleife: dieser Workflow triggert nicht auf `labeled` (siehe AK5-Tests).
+#   - re-trigger-sicher (#536, seit PR #890 via atomarer Transition): label-transition.sh
+#     ersetzt den gesamten Pipeline-Bestand durch ai:needs-review — alte Ergebnis-Labels
+#     sind immer mit abgebaut, es gibt keinen Zwischenzustand. Das alte Remove+Neu-Setzen
+#     (damit das Add ein echtes Hinzufuegen ist und `labeled` feuert) ist seit dem
+#     Start-Konsum in 05 ueberfluessig. Keine Schleife: dieser Workflow triggert nicht
+#     auf `labeled` (siehe AK5-Tests).
 #   - NUR menschliche Aktoren (sender.type != "Bot"), UND ZWAR FUER ALLE DREI Event-Typen
 #     (opened/ready_for_review/synchronize gleichermassen — vormals galt der Bot-Filter nur
 #     bei synchronize). Grund: 04-claude-implement.yml macht PRs per App-Bot-Token review-bereit
@@ -64,8 +66,8 @@ jobs:
     # sobald ai:needs-review bereits klebt. Genau das ist im aktiven Review-Loop erreichbar: Fixup
     # reicht per ai:needs-review an den Review zurueck, waehrend ai:needs-review (und ggf.
     # ai:needs-human) schon klebt. Ein lokaler Fix + Push in diesem Fenster muss die Ergebnis-
-    # Labels trotzdem zuruecksetzen. Ohne das Gate laeuft der Job, strippt die Ergebnis-Labels
-    # UND ai:needs-review (Entfernen-Schritt, #536), und der Setz-Schritt setzt das Label neu →
+    # Labels trotzdem zuruecksetzen. Ohne das Gate laeuft der Job, und die atomare
+    # Transition (PR #890) ersetzt den ganzen Pipeline-Bestand durch ai:needs-review →
     # genau ein `labeled`-Event feuert, der Review startet zuverlaessig.
     if: >-
       ${{ github.event.pull_request.draft == false
@@ -143,43 +145,18 @@ jobs:
                 done
           done
 
-      # Reiner gh-Job (kein Checkout, kein LLM): Alte Ergebnis-Labels entfernen, dann
-      # ai:needs-review setzen. Mit dem App-Token gesetzt, damit das "labeled"-Event den
-      # Kreuzverhoer-Review ausloest.
-      - name: Alte Ergebnis-Labels entfernen (ai:needs-fixup, ai:reviewed, ai:needs-human, ai:needs-review)
+      # Checkout NUR fuer label-transition.sh (persist-credentials: false — der Job
+      # schreibt nach GitHub ausschliesslich via App-Token).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         if: steps.preflight.outputs.configured == 'true'
-        env:
-          GH_TOKEN: ${{ steps.gh-token.outputs.token }}
-          REPO: ${{ github.repository }}
-          PR: ${{ github.event.pull_request.number }}
-        run: |
-          set -euo pipefail
+        with:
+          persist-credentials: false
 
-          # Alte Ergebnis-Labels entfernen, falls vorhanden (Reset bei neuem Push). Ein
-          # menschlicher Push ist echter Fortschritt und bekommt einen sauberen Review ohne
-          # Altlasten. Das Loop-Breaking lebt in den LLM-Phasen (Fixup HEAD-Check/Stop-Guard,
-          # Review ai:needs-human), nicht in diesem Autolabeler.
-          # ai:needs-review wird hier MIT entfernt (#536): haengt es bereits am PR (z. B. im aktiven
-          # Review-Loop), wuerde der Setz-Schritt unten no-op'en und kein `labeled`-Event feuern.
-          # Erst Entfernen + Neu-Setzen macht das Hinzufuegen echt → Review startet zuverlaessig.
-          # MIT Retry (Issue #613): Exponential Backoff 1s, 2s, 4s (max. 3)
-          for label in ai:needs-fixup ai:reviewed ai:needs-human ai:needs-review; do
-            if gh pr view "$PR" --repo "$REPO" --json labels --jq "[.labels[].name]" | grep -q "\"$label\""; then
-              for attempt in 1 2 3; do
-                if gh pr edit "$PR" --repo "$REPO" --remove-label "$label"; then
-                  echo "PR #$PR: Label $label entfernt (Reset)." >> "$GITHUB_STEP_SUMMARY"
-                  break
-                fi
-                if [ "$attempt" -lt 3 ]; then sleep "$((2 ** (attempt-1)))"; fi
-                if [ "$attempt" -eq 3 ]; then
-                  echo "::error::Label-Entfernung $label nach 3 Versuchen fehlgeschlagen (Race-Condition #613)"
-                  exit 1
-                fi
-              done
-            fi
-          done
-
-      - name: Label ai:needs-review setzen
+      # Reiner gh-Job (kein LLM): EINE atomare Transition zu ai:needs-review — ersetzt
+      # den gesamten Pipeline-Bestand, nimmt also alte Ergebnis-Labels (ai:needs-fixup,
+      # ai:reviewed, ai:needs-human) immer mit ab. Mit dem App-Token gesetzt, damit das
+      # `labeled`-Event den Kreuzverhoer-Review ausloest.
+      - name: Label-Transition zu ai:needs-review (Reset + Trigger)
         if: steps.preflight.outputs.configured == 'true'
         env:
           GH_TOKEN: ${{ steps.gh-token.outputs.token }} # App-Token -> loest Folge-Workflows aus
@@ -188,28 +165,23 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Sicherheitsnetz: der Entfernen-Schritt oben hat ai:needs-review bereits entfernt, daher
-          # ist das Label hier in der Regel abwesend und das Neu-Setzen ein echtes Hinzufuegen →
-          # `labeled`-Event feuert. Der Runtime-Check faengt nur den theoretischen Restfall ab, dass
-          # das Label zwischenzeitlich (Konkurrenz-Event) wieder hinzukam — dann No-op statt Duplikat.
-          # MIT Retry (Issue #613): Exponential Backoff 1s, 2s, 4s (max. 3)
-          for attempt in 1 2 3; do
-            labels="$(gh pr view "$PR" --repo "$REPO" --json labels --jq '[.labels[].name]')"
-            if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:needs-review")')" = "true" ]; then
-              echo "PR #$PR traegt bereits ai:needs-review — nichts zu tun (No-op, Re-Arm #536/#613)."
-              exit 0
-            fi
-            # Label bei Bedarf anlegen (gleiche Farbe wie in den uebrigen Pipeline-Workflows).
-            gh label create "ai:needs-review" --repo "$REPO" --color 1D76DB \
-              --description "PR wartet auf den Kreuzverhoer-Review" 2>/dev/null || true
-            if gh pr edit "$PR" --repo "$REPO" --add-label ai:needs-review; then
-              echo "PR #$PR: ai:needs-review gesetzt — Kreuzverhoer-Review wird ausgeloest." \
-                >> "$GITHUB_STEP_SUMMARY"
-              break
-            fi
-            if [ "$attempt" -lt 3 ]; then sleep "$attempt"; fi
-            if [ "$attempt" -eq 3 ]; then
-              echo "::error::ai:needs-review nach 3 Versuchen fehlgeschlagen (Race-Condition #613)"
-              exit 1
-            fi
-          done
+          # Ein menschlicher Push ist echter Fortschritt und bekommt einen sauberen Review
+          # ohne Altlasten. Das Loop-Breaking lebt in den LLM-Phasen (Fixup HEAD-Check/
+          # Stop-Guard, Review ai:needs-human), nicht in diesem Autolabeler.
+          # Das alte Remove-4 + Neu-Setzen (#536-Re-Arm: Add muss ein echtes Hinzufuegen
+          # sein, sonst feuert kein `labeled`-Event) ist seit dem Start-Konsum in 05
+          # ueberfluessig: Klebt ai:needs-review noch, hat der wartende Lauf ihn noch
+          # nicht konsumiert — und sieht den neuen Head beim eigenen Start (Merge-Ref).
+          if ! OUT="$(bash .github/scripts/label-transition.sh \
+              --repo "$REPO" --pr "$PR" --set ai:needs-review)"; then
+            echo "::error::Label-Transition zu ai:needs-review endgültig fehlgeschlagen (Race-Condition #613)"
+            exit 1
+          fi
+          applied="$(printf '%s\n' "$OUT" | sed -n 's/^applied=//p')"
+          reason="$(printf '%s\n' "$OUT" | sed -n 's/^reason=//p')"
+          if [ "$applied" != "true" ]; then
+            echo "::error::Label-Transition zu ai:needs-review verworfen (${reason:-Guard}) — PR bitte manuell prüfen."
+            exit 1
+          fi
+          echo "PR #$PR: ai:needs-review gesetzt (atomar, inkl. Alt-Label-Abbau) — Kreuzverhoer-Review wird ausgeloest." \
+            >> "$GITHUB_STEP_SUMMARY"

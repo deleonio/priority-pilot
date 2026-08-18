@@ -106,7 +106,14 @@ jobs:
             echo "::warning::App-Token nicht verfügbar — nutze GITHUB_TOKEN (Achtung: Label-Wechsel lösen ggf. keine Folge-Workflows aus)."
           fi
 
-      # Reiner gh-Job (kein Checkout, kein LLM). Loest den PR EINMAL auf, wertet die Allowlist-Checks
+      # Checkout NUR fuer label-transition.sh (persist-credentials: false — der Job
+      # schreibt nach GitHub ausschliesslich via App-Token).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        if: steps.preflight.outputs.configured == 'true'
+        with:
+          persist-credentials: false
+
+      # Reiner gh-Job (kein LLM). Loest den PR EINMAL auf, wertet die Allowlist-Checks
       # EINMAL aus und entscheidet dann: rot -> Gate (ai:needs-fixup), gruen+reviewed -> Merge, sonst
       # No-op. Alle Vorbedingungen sind defensiv: erst wenn wirklich zu handeln ist, schreibt der Job
       # nach GitHub.
@@ -283,17 +290,21 @@ jobs:
             red="$(echo "$allow" | jq -r '[.[] | select(.bucket == "fail") | (.workflow + " / " + .name)] | join(", ")')"
             echo "Rote Allowlist-Checks an PR #$pr: $red — setze ai:needs-fixup (loest Fixup aus)."
 
-            # Terminale/abgeschlossene Pipeline-Labels entfernen, dann ai:needs-fixup setzen. In
-            # GETRENNTEN Befehlen (nie kombiniert), analog Review/Fixup, um Doppel-Trigger zu meiden.
-            if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:reviewed")')" = "true" ]; then
-              gh pr edit "$pr" --repo "$REPO" --remove-label ai:reviewed
+            # EINE atomare Transition zu ai:needs-fixup (PR #890): ersetzt den gesamten
+            # Pipeline-Bestand — ai:reviewed/ai:needs-review/ai:needs-human sind damit
+            # IMMER mit entfernt, die Invariante „ai:needs-fixup ⇒ kein ai:needs-review"
+            # gilt per Konstruktion. --forbid ai:needs-fixup = Oszillationsschutz zur
+            # Laufzeit (der has_needs_fixup-Check oben las den Zustand nur einmalig).
+            if ! OUT="$(bash .github/scripts/label-transition.sh \
+                --repo "$REPO" --pr "$pr" --set ai:needs-fixup --forbid ai:needs-fixup)"; then
+              echo "::error::Label-Transition zu ai:needs-fixup endgültig fehlgeschlagen"
+              exit 1
             fi
-            if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:needs-review")')" = "true" ]; then
-              gh pr edit "$pr" --repo "$REPO" --remove-label ai:needs-review
+            if [ "$(printf '%s\n' "$OUT" | sed -n 's/^applied=//p')" != "true" ]; then
+              echo "PR #$pr: Transition verworfen ($(printf '%s\n' "$OUT" | sed -n 's/^reason=//p')) — kein Fixup-Trigger gesetzt."
+            else
+              echo "::notice::PR #$pr: ai:needs-fixup gesetzt (atomar, inkl. Alt-Label-Abbau)."
             fi
-            gh label create "ai:needs-fixup" --repo "$REPO" --color D93F0B \
-              --description "CI/Reviewer rot oder Findings offen -> Fixup" 2>/dev/null || true
-            gh pr edit "$pr" --repo "$REPO" --add-label ai:needs-fixup
 
             {
               echo "### CI-Gate #${pr} — ai:needs-fixup gesetzt"
@@ -355,17 +366,16 @@ jobs:
             # damit der Fixup-Workflow die Konflikte auflösen kann
             if [ "$merge_state" = "DIRTY" ]; then
               echo "PR #$pr hat Merge-Konflikte (mergeable=$mergeable, state=$merge_state) — setze ai:needs-fixup."
-              # Terminale/abgeschlossene Pipeline-Labels entfernen, dann ai:needs-fixup setzen
+              # EINE atomare Transition zu ai:needs-fixup — s. GATE-ZWEIG oben.
               if [ "$has_needs_fixup" != "true" ]; then
-                if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:reviewed")')" = "true" ]; then
-                  gh pr edit "$pr" --repo "$REPO" --remove-label ai:reviewed
+                if ! OUT="$(bash .github/scripts/label-transition.sh \
+                    --repo "$REPO" --pr "$pr" --set ai:needs-fixup --forbid ai:needs-fixup)"; then
+                  echo "::error::Label-Transition zu ai:needs-fixup endgültig fehlgeschlagen"
+                  exit 1
                 fi
-                if [ "$(echo "$labels" | jq -r 'any(.[]; . == "ai:needs-review")')" = "true" ]; then
-                  gh pr edit "$pr" --repo "$REPO" --remove-label ai:needs-review
+                if [ "$(printf '%s\n' "$OUT" | sed -n 's/^applied=//p')" != "true" ]; then
+                  echo "PR #$pr: Transition verworfen ($(printf '%s\n' "$OUT" | sed -n 's/^reason=//p')) — kein Fixup-Trigger gesetzt."
                 fi
-                gh label create "ai:needs-fixup" --repo "$REPO" --color D93F0B \
-                  --description "CI/Reviewer rot oder Findings offen -> Fixup" 2>/dev/null || true
-                gh pr edit "$pr" --repo "$REPO" --add-label ai:needs-fixup
               fi
               {
                 echo "### CI-Gate #${pr} — ai:needs-fixup wegen Merge-Konflikt gesetzt"

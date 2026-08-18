@@ -110,3 +110,22 @@ Label-Namen nicht im `on:`-Block filtern kann, startet 01 nun bei jedem Issue-`u
 einen sofort übersprungenen Precheck-Run (v. a. durch die eigenen Konsum-Removes) — gleiche Klasse
 wie die bekannten labeled-No-Ops („Sekunden-Prechecks", oben). Andere Phasen bleiben beim reinen
 `ai:needs-*`-Schema (Nutzerentscheidung: nur die Analyse).
+
+## Fortschreibung 2026-08-18: Atomare Label-Transitionen für die PR-Phasen
+
+Die Setz-Regeln oben („Removes zuerst, letzter Write") galten bislang für alle Phasen. Für die
+PR-Phasen (Review, Fixup, Gate-Merge, Conflict-Scan, Autolabeler) gelten sie ab heute nicht mehr
+einzeln — sie sind in `.github/scripts/label-transition.sh` aufgegangen: EIN API-Call (PUT
+/issues/N/labels) ersetzt den gesamten Pipeline-Bestand (`ai:needs-review`, `ai:needs-fixup`,
+`ai:reviewed`, `ai:needs-human`), Nicht-Pipeline-Labels bleiben unberührt. Auslöser war PR #890:
+Einzel-Writes erzeugen Zwischenzustände (0 oder 2 Trigger-Labels) mit Minuten-Fenstern, in denen
+wartende Läufe falsch starten — bis hin zu Review parallel zum Fixup —, und der Conflict-Scan
+verletzte die Invariante „ai:needs-fixup ⇒ ai:needs-review entfernen" schlicht durch Vergessen.
+Drei Ergänzungen: Start-Konsum (Review/Fixup entfernen ihr Trigger-Label direkt nach dem Setup,
+guarded mit `--expect <Trigger>`), Final-Write mit Pre-State-Guard (`--expect none` verwirft
+Stale-Writes, wenn zwischenzeitlich ein anderer Akteur geschrieben hat) und der Review-Precheck
+verlangt zusätzlich die Abwesenheit von `ai:needs-fixup` (Doppel-Armung → Fixup gewinnt). Die
+Issue-Phasen (01–04) behalten bewusst das alte Modell — ihre Labels sind Einstiegs-Trigger ohne
+Review↔Fixup-Loop, und der Umbau stünde in keinem Verhältnis (gleiche Abwägung wie beim
+verworfenen Router). Verdict-Kanal: PR-LLM-Phasen schreiben ihr Verdict nach `/tmp/claude-verdict`
+(das Log-Grep bleibt Übergangs-Fallback).

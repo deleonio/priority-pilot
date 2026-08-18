@@ -144,13 +144,30 @@ filtern — der Filter sitzt erst im Job-if. Jedes Label-Add feuert ein eigenes 
 (auch in einem gebündelten API-Call) und startet bis zu 4 Issue-Workflows bzw. 3 PR-Workflows,
 von denen maximal einer arbeitet. Deshalb (Issue #873):
 
-1. Label-Writes nur im Label-Post-Assertion-Step am Job-Ende — nie im Prompt/LLM-Schritt.
-2. Removes zuerst (konsumierte/stale Trigger; `unlabeled` hört nur die Triage-Re-Analyse,
+Grundsätzlich für ALLE Phasen: Label-Writes nie im Prompt/LLM-Schritt — das LLM liefert sein
+Verdict (PR-Phasen: `/tmp/claude-verdict`), der Workflow setzt die Labels.
+
+**Issue-Phasen (01–04)** — Einzel-Writes im Post-Assertion-Step am Job-Ende:
+
+1. Removes zuerst (konsumierte/stale Trigger; `unlabeled` hört nur die Triage-Re-Analyse,
    gefiltert auf `ai:analysed` — sonst niemanden).
-3. Done-Labels idempotent setzen: hängt eins schon, kein Remove+Add (Ausnahme `ai:reviewed`,
-   dessen Re-Arm der Gate-Trigger ist).
-4. Das Trigger-Label der Folgephase ist der LETZTE Write — genau dann entsteht ein Event,
+2. Done-Labels idempotent setzen: hängt eins schon, kein Remove+Add.
+3. Das Trigger-Label der Folgephase ist der LETZTE Write — genau dann entsteht ein Event,
    wenn eine Phase abgeschlossen ist und die nächste starten soll.
+
+**PR-Phasen (05/06/Gate/Conflict-Scan/Autolabeler)** — atomare Transitionen (PR #890):
+
+1. Labels ausschließlich via `.github/scripts/label-transition.sh`: EIN API-Call ersetzt den
+   gesamten Pipeline-Bestand (`ai:needs-review`, `ai:needs-fixup`, `ai:reviewed`,
+   `ai:needs-human`), Nicht-Pipeline-Labels bleiben unberührt. Es gibt keinen Zwischenzustand
+   mit 0 oder 2 Triggern, und „setzt `ai:needs-fixup` ⇒ `ai:needs-review` weg" gilt per
+   Konstruktion.
+2. Start-Konsum: Review und Fixup entfernen ihr Trigger-Label direkt nach dem Setup
+   (`--set-none --expect <Trigger>`) — wartende Läufe derselben Phase skippen dann im
+   Precheck, und kein Review läuft parallel zum Fixup.
+3. Final-Write mit Pre-State-Guard (`--expect none`): Hat zwischenzeitlich ein anderer
+   Akteur geschrieben, verwirft der Guard den Write — ein alter Lauf überschreibt keine
+   neuere Entscheidung mehr.
 
 ## Schlüsselmechanik
 
