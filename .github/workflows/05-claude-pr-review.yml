@@ -100,6 +100,10 @@ jobs:
           now=$(date +%s)
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
           echo "soft_deadline_epoch=$((now + 600))" >> "$GITHUB_OUTPUT"
+          # Erklärungs-Gate (needs-human-explain.sh): Als Erklärung für
+          # ai:needs-human zählen nur Kommentare dieses Laufes. 5 min Toleranz
+          # nach unten decken Queue-/Checkout-Zeit vor dem LLM-Lauf ab.
+          echo "since_epoch=$((now - 300))" >> "$GITHUB_OUTPUT"
 
       - name: Setup Claude Code (mit Memory-Load)
         id: setup
@@ -199,12 +203,17 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
+          SINCE_EPOCH: ${{ steps.starttime.outputs.since_epoch }}
         run: |
           verdict=""
           if [ -f /tmp/claude-output.log ]; then
             verdict="$(grep 'VERDICT:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | tr -d -c 'A-Za-z0-9-' || true)"
           fi
           echo "Claude-Verdict aus Output: '${verdict:-keins}'"
+
+          # Erklärungs-Gate: Nur Kommentare dieses Laufes gelten als Erklärung
+          # für ai:needs-human. GNU-date (-d @epoch): nur Ubuntu-Runner.
+          SINCE_ISO="$(date -u -d "@${SINCE_EPOCH:-0}" +%Y-%m-%dT%H:%M:%SZ)"
 
           # Review-Marker (<!-- ai-review -->) nachsehen — MIT Retry: unmittelbar nach Claudes Post
           # liefert die GitHub-API den Kommentar (Replikationsverzögerung) gelegentlich noch nicht.
@@ -306,7 +315,14 @@ jobs:
 
           if [ "$label_operation_failed" = "true" ]; then
             echo "::error::Label-Entfernen nach 3 Versuchen fehlgeschlagen → ai:needs-human gesetzt"
-            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⚠️ **Label-Race-Condition (#613): Label-Entfernung fehlgeschlagen**\n\nTransienter GitHub-API-Fehler nach 3 Retries. Bitte manuell prüfen.\n\n**Checkliste:**\n- [ ] 1. Labels manuell prüfen und via \`ai:needs-review\` neu triggern" 2>/dev/null || true
+            RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            {
+              printf '%s\n\n' "⚠️ **Label-Race-Condition (#613): Label-Entfernung fehlgeschlagen**"
+              printf '%s\n\n' "Transienter GitHub-API-Fehler nach 3 Retries (Label-Op: Remove ai:needs-review/ai:needs-fixup/ai:reviewed/ai:needs-human). Bitte manuell prüfen. Run: ${RUN_URL}"
+              printf '%s\n' "**Checkliste:**"
+              printf '%s\n' "- [ ] 1. Labels manuell prüfen und via \`ai:needs-review\` neu triggern"
+            } > /tmp/needs-human-body.md
+            bash .github/scripts/needs-human-explain.sh post --repo "$GITHUB_REPOSITORY" --pr "$PR" --body-file /tmp/needs-human-body.md
             gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human 2>/dev/null || true
             exit 1
           fi
@@ -323,12 +339,53 @@ jobs:
               if [ "$attempt" -lt 3 ]; then sleep "$((2 ** (attempt-1)))"; fi
               if [ "$attempt" -eq 3 ]; then
                 echo "::error::ai:reviewed nach 3 Versuchen fehlgeschlagen → ai:needs-human gesetzt"
-                gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⚠️ **Label-Race-Condition (#613): ai:reviewed fehlgeschlagen**\n\nTransienter GitHub-API-Fehler nach 3 Retries. Bitte manuell prüfen.\n\n**Checkliste:**\n- [ ] 1. Manuelles Prüfen und Label setzen" 2>/dev/null || true
+                RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+                {
+                  printf '%s\n\n' "⚠️ **Label-Race-Condition (#613): ai:reviewed fehlgeschlagen**"
+                  printf '%s\n\n' "Transienter GitHub-API-Fehler nach 3 Retries (Label-Op: Add ai:reviewed). Bitte manuell prüfen. Run: ${RUN_URL}"
+                  printf '%s\n' "**Checkliste:**"
+                  printf '%s\n' "- [ ] 1. Manuelles Prüfen und Label setzen"
+                } > /tmp/needs-human-body.md
+                bash .github/scripts/needs-human-explain.sh post --repo "$GITHUB_REPOSITORY" --pr "$PR" --body-file /tmp/needs-human-body.md
                 gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human 2>/dev/null || true
                 exit 1
               fi
             done
           elif [ "$final" = "needs-human" ]; then
+            # Erklärungs-Gate (#848): Der alte Text verwies auf die Sektion
+            # "## ⏸️ Entscheidungs-Findings ... Sammelkommentar oben" — die Sektion
+            # existierte unter anderem Namen, "oben" war vage. lookup verifiziert
+            # stattdessen per Substring (tolerant gg. Heading-Level/Emoji), dass
+            # der ai-review-Kommentar DIESES Laufes die Sektion enthält, und
+            # liefert Permalink + Finding-Titel. Fehlt sie: Diagnose-Fallback.
+            # Kommentar vor Label-Setzen.
+            GUARD="$(bash .github/scripts/needs-human-explain.sh lookup --repo "$GITHUB_REPOSITORY" --pr "$PR" --mode review-section --since "$SINCE_ISO")"
+            GUARD_STATUS="$(printf '%s\n' "$GUARD" | sed -n 's/^status=//p')"
+            GUARD_LINK="$(printf '%s\n' "$GUARD" | sed -n 's/^permalink=//p')"
+            GUARD_FINDINGS="$(printf '%s\n' "$GUARD" | sed -n 's/^findings=//p')"
+            {
+              printf '%s\n\n' "⏸️ **Wartet auf menschliche Entscheidung (Review-Entscheidung)**"
+              if [ "$GUARD_STATUS" = "found" ]; then
+                printf '%s\n\n' "**Warum:** Dieser PR enthält Findings, die eine menschliche Entscheidung erfordern — die KI kann hier nicht alleine weiterarbeiten."
+                [ -n "$GUARD_FINDINGS" ] && printf '%s\n\n' "**Entscheidungs-Findings:** ${GUARD_FINDINGS}"
+                printf '%s\n\n' "**Erklärung (Optionen/Empfehlung, Sektion Entscheidungs-Findings):** ${GUARD_LINK}"
+              else
+                RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+                printf '%s\n\n' "**Warum:** Verdict \`needs-human\`, aber der ai-review-Kommentar dieses Laufes enthält keine Sektion Entscheidungs-Findings — die Begründung ist nicht verifizierbar."
+                printf '%s\n\n' "**Diagnose:** Run: ${RUN_URL} — Claudes letzte Ausgabezeilen können die Findings nennen."
+                printf '%s\n' "<details><summary>Log-Auszug (letzte 25 Zeilen von /tmp/claude-output.log)</summary>"
+                printf '\n%s\n' '```'
+                bash .github/scripts/needs-human-explain.sh logtail
+                printf '%s\n' '```'
+                printf '%s\n\n' "</details>"
+              fi
+              printf '%s\n' "**Was du als Mensch beitragen/entscheiden solltest:**"
+              printf '%s\n' "- [ ] 1. Entscheidungs-Findings durchgehen (Erklärung oben verlinkt)"
+              printf '%s\n' "- [ ] 2. Entscheidung treffen (Code anpassen / akzeptieren / Fixup-Anweisung)"
+              printf '%s\n' "- [ ] 3. Label \`ai:needs-human\` entfernen"
+              printf '%s\n' "- [ ] 4. Label \`ai:needs-review\` setzen → loest erneuten Review aus"
+            } > /tmp/needs-human-body.md
+            bash .github/scripts/needs-human-explain.sh post --repo "$GITHUB_REPOSITORY" --pr "$PR" --body-file /tmp/needs-human-body.md
             for attempt in 1 2 3; do
               if gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:reviewed && \
                  gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human; then
@@ -341,7 +398,6 @@ jobs:
                 exit 1
               fi
             done
-            gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⏸️ **Wartet auf menschliche Entscheidung (Review-Entscheidung)**\n\n**Warum:** Dieser PR enthält Findings, die eine menschliche Entscheidung erfordern — die KI kann hier nicht alleine weiterarbeiten. Die Entscheidungs-Findings mit Optionen und Empfehlung stehen in der Sektion ## ⏸️ Entscheidungs-Findings im <!-- ai-review --> Sammelkommentar oben.\n\n**Was du als Mensch beitragen/entscheiden solltest:**\n- [ ] 1. Entscheidungs-Findings durchgehen\n- [ ] 2. Entscheidung treffen (Code anpassen / akzeptieren / Fixup-Anweisung)\n- [ ] 3. Label \`ai:needs-human\` entfernen\n- [ ] 4. Label \`ai:needs-review\` setzen → loest erneuten Review aus" 2>/dev/null || true
           else
             for attempt in 1 2 3; do
               # ai:reviewed nur bei klarem Verdict (Review-Runde abgeschlossen); der
@@ -356,7 +412,14 @@ jobs:
               if [ "$attempt" -lt 3 ]; then sleep "$((2 ** (attempt-1)))"; fi
               if [ "$attempt" -eq 3 ]; then
                 echo "::error::ai:needs-fixup nach 3 Versuchen fehlgeschlagen → ai:needs-human gesetzt"
-                gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body "⚠️ **Label-Race-Condition (#613): ai:needs-fixup fehlgeschlagen**\n\nTransienter GitHub-API-Fehler nach 3 Retries. Bitte manuell prüfen.\n\n**Checkliste:**\n- [ ] 1. Manuelles Prüfen und Label setzen" 2>/dev/null || true
+                RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+                {
+                  printf '%s\n\n' "⚠️ **Label-Race-Condition (#613): ai:needs-fixup fehlgeschlagen**"
+                  printf '%s\n\n' "Transienter GitHub-API-Fehler nach 3 Retries (Label-Op: Add ai:needs-fixup). Bitte manuell prüfen. Run: ${RUN_URL}"
+                  printf '%s\n' "**Checkliste:**"
+                  printf '%s\n' "- [ ] 1. Manuelles Prüfen und Label setzen"
+                } > /tmp/needs-human-body.md
+                bash .github/scripts/needs-human-explain.sh post --repo "$GITHUB_REPOSITORY" --pr "$PR" --body-file /tmp/needs-human-body.md
                 gh pr edit "$PR" --repo "$GITHUB_REPOSITORY" --add-label ai:needs-human 2>/dev/null || true
                 exit 1
               fi
