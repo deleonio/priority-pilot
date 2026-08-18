@@ -5,6 +5,14 @@ import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { Modal } from './Modal';
 
+/** Formatiert Kontext-Größe: 200000 → "200k", 1000000 → "1m" (#862). */
+const formatContextLength = (contextLength: number | null | undefined): string | null => {
+	if (contextLength == null) return null;
+	if (contextLength >= 1_000_000) return `${Math.floor(contextLength / 1_000_000)}m`;
+	if (contextLength >= 1000) return `${Math.floor(contextLength / 1000)}k`;
+	return String(contextLength);
+};
+
 interface ModelSelectionDialogProps {
 	/** Wird ausgelöst, wenn der Nutzer den Dialog schließt (Schließen-Button, Escape, Backdrop). */
 	onClose: () => void;
@@ -114,6 +122,9 @@ export const ModelSelectionDialog = ({ onClose, onModelSaved }: ModelSelectionDi
 				<ul data-testid="free-models-list" className="model-selection-list">
 					{models.map((model) => {
 						const isSelected = model.id === selected;
+						const contextFormatted = formatContextLength(model.contextLength);
+						const parts = [contextFormatted, model.modelSize ?? null].filter(Boolean);
+						const metaText = parts.length > 0 ? parts.join(' · ') : null;
 						return (
 							<li
 								key={model.id}
@@ -130,6 +141,7 @@ export const ModelSelectionDialog = ({ onClose, onModelSaved }: ModelSelectionDi
 								>
 									<span className="model-selection-item-name">{model.name}</span>
 									<span className="model-selection-item-id">{model.id}</span>
+									{metaText && <span className="model-selection-item-meta">{metaText}</span>}
 								</button>
 							</li>
 						);

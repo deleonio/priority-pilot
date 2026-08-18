@@ -13,7 +13,7 @@
 - **Commits:** nicht automatisch committen ohne ausdrücklichen Wunsch.
 - **Pull Requests:** vorher `pnpm format`, `pnpm lint` und `pnpm test` ausführen und die Ergebnisse
   in der PR-Beschreibung dokumentieren (Tests sind seit TDD-Stufe 2 Pflicht).
-- **Coverage-Gate:** Die Logik-Schicht ist gezielt abgedeckt-gegated — `pnpm --filter priority-pilot test:coverage`
+- **Coverage-Gate:** Die Logik-Schicht ist gezielt abgedeckt-gegated — `pnpm --filter server test:coverage`
   (node:test, `server/src/logics`, Schwellen 90/85/85) läuft in der CI. `frontend/src/lib`-Coverage ist
   in `vitest.config.ts` vorbereitet und mit `pnpm add -D @vitest/coverage-v8` + `test:coverage` aktivierbar.
 - **Mobile-First (Frontend):** Neue/geänderte UI muss zuerst auf schmalen Viewports funktionieren

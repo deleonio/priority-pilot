@@ -14,7 +14,7 @@ Fachliche Details: [../README.md](../README.md).
 
 pnpm-Workspace (siehe `pnpm-workspace.yaml`):
 
-- `server/` (npm-Name **`priority-pilot`**): Node.js + Express 5 + Sequelize 6 (SQLite). Gesamte Fachlogik.
+- `server/` (npm-Name **`server`**): Node.js + Express 5 + Sequelize 6 (SQLite). Gesamte Fachlogik.
 - `client/`: aus `openapi.yml` via `openapi-typescript` generierte API-Typen (`src/schema.d.ts`, nicht versioniert) plus dünner Re-Export (`src/index.ts`).
 - `frontend/`: React 19 + KoliBri (Vite/PWA); spricht die API typsicher per `openapi-fetch` an.
 
@@ -29,10 +29,10 @@ Gemeinsamer API-Vertrag: `openapi.yml`
 - `pnpm lint` — Lint über alle Packages
 - `pnpm format` — Prettier über das ganze Repo (eine zentrale Config im Root)
 - `pnpm dev` — Frontend (Vite) **und** Backend (nodemon) parallel in einer Konsole starten
-- `pnpm --filter priority-pilot dev` — nur Server im Watch-Modus (nodemon)
+- `pnpm --filter server dev` — nur Server im Watch-Modus (nodemon)
 - `pnpm --filter frontend dev` — nur Frontend (Vite)
 
-Bevorzugt **gezielt** statt repo-weit prüfen: `pnpm --filter priority-pilot build` bzw. `... lint`.
+Bevorzugt **gezielt** statt repo-weit prüfen: `pnpm --filter server build` bzw. `... lint`.
 
 ## Konfiguration (Umgebungsvariablen)
 

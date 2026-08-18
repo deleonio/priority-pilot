@@ -1197,6 +1197,45 @@ body {
 	margin: 1rem 0;
 }
 
+/* --- #843: Settings Screen Layout --- */
+/*
+ * Issue 843: Konsistente Layout-Werte für Settings-UI.
+ * Spacing: 24dp linker Margin, 16dp Section-Abstand, 12dp Element-Abstand.
+ * Typografie: Farbe #616161 für deskriptiven Text.
+ *
+ * KoliBri-Komponenten rendern im Shadow-DOM. Wir setzen Layout-Werte auf den
+ * Container, damit alle Controls konsistent aligned sind.
+ */
+
+.settings-general {
+	/* Padding-Left für 24dp linken Abstand aller Controls */
+	padding-left: 1.5rem; /* 24dp */
+	/* Flex-Layout für konsistente vertikale Abstände */
+	display: flex;
+	flex-direction: column;
+	gap: 1rem; /* 16dp Section-Abstand zwischen Controls */
+}
+
+/*
+ * #843 AK3: Typografie für deskriptiven Text.
+ * Wir setzen --pp-text-muted auf #616161 für besseren Kontrast.
+ * --pp-text-hint-font-size garantiert ≥16sp für deskriptive Texte.
+ * KoliBri-Hint-Elemente erben diese Werte über CSS Custom Properties.
+ */
+:root {
+	--pp-text-muted: #616161;
+	--pp-text-hint-font-size: 1rem; /* 16sp Basisschriftgröße für Hint-Texte */
+}
+
+/*
+ * #843: Element-Abstand innerhalb von Radio-Groups (12dp = 0.75rem).
+ * KoliBri setzt Abstände intern; wir stellen sicher, dass keine zusätzlichen
+ * Margins das Layout stören.
+ */
+.settings-general kol-input-radio {
+	margin-bottom: 0.75rem; /* 12dp Abstand zum nächsten Element */
+}
+
 /* --- Erledigte Aufgaben (#228) --- */
 
 /* Nur für Screenreader sichtbar (visuell ausgeblendet, aber im Accessibility-Tree). */
@@ -1519,6 +1558,12 @@ body {
 .model-selection-item-id {
 	color: var(--pp-text-muted);
 	font-size: 0.875rem;
+}
+
+/* Metadaten-Zeile: Kontext-Größe + Model-Größe, durch "·" getrennt (#862). */
+.model-selection-item-meta {
+	color: var(--pp-text-muted);
+	font-size: 0.75rem;
 }
 
 /* --- Checkliste (Issue #728) --- */
