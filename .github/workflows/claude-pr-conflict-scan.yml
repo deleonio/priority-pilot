@@ -118,7 +118,8 @@ jobs:
               # gleichzeitig am PR erzeugten Review- und Fixup-Run nebeneinander. Die
               # Transition ersetzt den gesamten Pipeline-Bestand, die Invariante gilt
               # damit per Konstruktion. --forbid = Oszillationsschutz zur Laufzeit
-              # (der Check oben las den Zustand nur einmalig).
+              # (der Check oben las den Zustand nur einmalig). Transition verwirft bei
+              # klebendem ai:needs-human — Parker bleibt, Konflikt wartet auf den Menschen (PR #903).
               if ! OUT="$(bash .github/scripts/label-transition.sh \
                   --repo "$REPO" --pr "$pr" --set ai:needs-fixup --forbid ai:needs-fixup)"; then
                 echo "::error::PR #$pr: Label-Transition zu ai:needs-fixup endgültig fehlgeschlagen"

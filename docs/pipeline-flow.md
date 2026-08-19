@@ -166,10 +166,13 @@ Verdict (PR-Phasen: `/tmp/claude-verdict`), der Workflow setzt die Labels.
    gesamten Pipeline-Bestand (`ai:needs-review`, `ai:needs-fixup`, `ai:reviewed`,
    `ai:needs-human`), Nicht-Pipeline-Labels bleiben unberührt. Es gibt keinen Zwischenzustand
    mit 0 oder 2 Triggern, und „setzt `ai:needs-fixup` ⇒ `ai:needs-review` weg" gilt per
-   Konstruktion.
+   Konstruktion. Guard 3 (Menschen-Parker, PR #903): Keine Transition darf ein klebendes
+   `ai:needs-human` ersatzlos entfernen — nur der Mensch (UI) darf es entfernen.
 2. Start-Konsum: Review und Fixup entfernen ihr Trigger-Label direkt nach dem Setup
    (`--set-none --expect <Trigger>`) — wartende Läufe derselben Phase skippen dann im
-   Precheck, und kein Review läuft parallel zum Fixup.
+   Precheck, und kein Review läuft parallel zum Fixup. Seit PR #903 läuft `check-phase-label.sh`
+   frisch direkt vor dem Konsum — `ai:needs-human` oder Phasen-Mismatch stoppen hier, bevor
+   irgendein Label bereinigt wird.
 3. Final-Write mit Pre-State-Guard (`--expect none`): Hat zwischenzeitlich ein anderer
    Akteur geschrieben, verwirft der Guard den Write — ein alter Lauf überschreibt keine
    neuere Entscheidung mehr.

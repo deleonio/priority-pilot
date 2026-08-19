@@ -291,10 +291,12 @@ jobs:
             echo "Rote Allowlist-Checks an PR #$pr: $red — setze ai:needs-fixup (loest Fixup aus)."
 
             # EINE atomare Transition zu ai:needs-fixup (PR #890): ersetzt den gesamten
-            # Pipeline-Bestand — ai:reviewed/ai:needs-review/ai:needs-human sind damit
-            # IMMER mit entfernt, die Invariante „ai:needs-fixup ⇒ kein ai:needs-review"
+            # Pipeline-Bestand — ai:reviewed/ai:needs-review sind damit IMMER mit
+            # entfernt, die Invariante „ai:needs-fixup ⇒ kein ai:needs-review"
             # gilt per Konstruktion. --forbid ai:needs-fixup = Oszillationsschutz zur
             # Laufzeit (der has_needs_fixup-Check oben las den Zustand nur einmalig).
+            # ai:needs-human schuetzt seit PR #903 Guard 3 in label-transition.sh — eine
+            # geparkte Entscheidung bleibt geparkt, der Gate-Zweig no-opt't dann (applied=false).
             if ! OUT="$(bash .github/scripts/label-transition.sh \
                 --repo "$REPO" --pr "$pr" --set ai:needs-fixup --forbid ai:needs-fixup)"; then
               echo "::error::Label-Transition zu ai:needs-fixup endgültig fehlgeschlagen"

@@ -147,7 +147,11 @@ verletzte die Invariante „ai:needs-fixup ⇒ ai:needs-review entfernen" schlic
 Drei Ergänzungen: Start-Konsum (Review/Fixup entfernen ihr Trigger-Label direkt nach dem Setup,
 guarded mit `--expect <Trigger>`), Final-Write mit Pre-State-Guard (`--expect none` verwirft
 Stale-Writes, wenn zwischenzeitlich ein anderer Akteur geschrieben hat) und der Review-Precheck
-verlangt zusätzlich die Abwesenheit von `ai:needs-fixup` (Doppel-Armung → Fixup gewinnt). Die
+verlangt zusätzlich die Abwesenheit von `ai:needs-fixup` (Doppel-Armung → Fixup gewinnt).
+Vier Ergänzungen (PR #903): Guard 3 (Menschen-Parker) in `label-transition.sh` verhindert, dass
+jede Transition ein klebendes `ai:needs-human` ersatzlos entfernt — nur der Mensch (UI) darf
+es entfernen. Auslöser: Gate wischte Fixup-Verdict `ai:needs-human` kollateral → Endlosschleife.
+Start-Konsum in 05/06 läuft seither nur nach frisch bestandener Phasen-Prüfung im selben Schritt. Die
 Issue-Phasen (01–04) behalten bewusst das alte Modell — ihre Labels sind Einstiegs-Trigger ohne
 Review↔Fixup-Loop, und der Umbau stünde in keinem Verhältnis (gleiche Abwägung wie beim
 verworfenen Router). Verdict-Kanal: PR-LLM-Phasen schreiben ihr Verdict nach `/tmp/claude-verdict`
