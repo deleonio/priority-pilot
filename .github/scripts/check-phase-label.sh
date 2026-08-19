@@ -29,6 +29,9 @@
 # 0 oder 2 Triggern, und „ai:needs-fixup ⇒ kein ai:needs-review" gilt per
 # Konstruktion. Nicht-Pipeline-Labels bleiben unangetastet; der --expect-Guard
 # verwirft Stale-Writes, wenn zwischenzeitlich ein anderer Akteur geschrieben hat.
+# Start-Konsum nur nach FRISCH bestandener Phasen-Pruefung im selben Schritt (05/06);
+# label-transition.sh verwirft zusaetzlich jede Transition, die ein klebendes
+# ai:needs-human entfernen wuerde (Guard 3, Menschen-Parker, PR #903).
 #
 #   Phase       Objekt  Zustand        erforderlich                         abwesend
 #   -----------------------------------------------------------------------------------

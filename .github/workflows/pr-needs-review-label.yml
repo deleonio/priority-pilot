@@ -28,7 +28,8 @@ name: PR Auto-Label (ai:needs-review)
 #     nicht ungefragt anstossen.
 #   - re-trigger-sicher (#536, seit PR #890 via atomarer Transition): label-transition.sh
 #     ersetzt den gesamten Pipeline-Bestand durch ai:needs-review — alte Ergebnis-Labels
-#     sind immer mit abgebaut, es gibt keinen Zwischenzustand. War der Zielzustand bereits
+#     sind damit abgebaut (ausser ai:needs-human: Parker-Guard, PR #903),
+#     es gibt keinen Zwischenzustand. War der Zielzustand bereits
 #     gesetzt (changed=false → PUT feuert kein `labeled`-Event), re-armt ein Remove+
 #     Transition-Fallback mit frischem Event (PR #899: labeled-Event im Konflikt-Fenster
 #     verloren). Keine Schleife: dieser Workflow triggert nicht auf `labeled`
