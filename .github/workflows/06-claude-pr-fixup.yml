@@ -118,8 +118,41 @@ jobs:
           memory-load: 'true'
           expect-memory: 'true'
 
+      # Fixup checkt explizit head.ref (kein GitHub-Merge-Ref wie beim Review) – der
+      # Target-Branch muss daher aktiv gemergt werden, damit auf demselben Stand
+      # gefixt wird, den das Review bewertet hat (head+base).
+      #
+      # MUSS vor dem Start-Konsum (und vor pnpm install) laufen: Die Workflow-Yaml
+      # kommt vom Merge-Ref (base-Stand), der head.ref-Checkout aber vom PR-Branch.
+      # Branches, die vor Einführung eines Pipeline-Scripts (z. B. label-transition.sh,
+      # 9d8a678) von main zweigten, haben es NICHT im Tree — erst der Merge bringt es
+      # rein (PR #895: bash: label-transition.sh: No such file or directory). Derselbe
+      # Grund für die Position vor pnpm install: ein Merge NACH dem Install kann die
+      # pnpm-lock.yaml unter dem bereits gebauten node_modules austauschen.
+      - name: Target-Branch mergen (immer vor Fixup)
+        id: merge-target
+        if: steps.setup.outputs.configured == 'true'
+        env:
+          PR: ${{ github.event.pull_request.number }}
+          TARGET_BRANCH: ${{ github.event.pull_request.base.ref }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          git fetch origin "$TARGET_BRANCH" --depth=1 --no-tags
+          if git merge-base --is-ancestor "origin/$TARGET_BRANCH" HEAD; then
+            echo "Target-Branch bereits in HEAD enthalten – kein Merge nötig."
+            exit 0
+          fi
+          if git merge origin/"$TARGET_BRANCH" --no-ff --no-edit -m "chore(ci): auto-merge $TARGET_BRANCH into PR #$PR"; then
+            git push origin HEAD:"$HEAD_BRANCH"
+          elif git diff --name-only --diff-filter=U | grep -q .; then
+            echo "Merge-Konflikte bleiben liegen – Claude löst sie auf (Prompt Schritt 0)."
+          else
+            git merge --abort 2>/dev/null || true
+          fi
+
       - name: Trigger-Label konsumieren (Start-Konsum)
-        # Atomarer Konsum von ai:needs-fixup direkt nach Setup (analog 05): Der Pipeline-
+        # Atomarer Konsum von ai:needs-fixup direkt nach Target-Merge (analog 05): Der Pipeline-
         # Bestand geht auf leer, mit --expect-Guard gegen zwischenzeitliche Schreiben
         # anderer Akteure. Jeder in der Phasen-Queue wartende Fixup-Run skippt danach im
         # precheck — und ein parallel getriggerter Review sieht kein Trigger-Label mehr
@@ -215,31 +248,6 @@ jobs:
           tail -n 60 /tmp/ui-inspect.log || true
           echo "::endgroup::"
           exit 1
-
-      # Fixup checkt explizit head.ref (kein GitHub-Merge-Ref wie beim Review) – der
-      # Target-Branch muss daher aktiv gemergt werden, damit auf demselben Stand
-      # gefixt wird, den das Review bewertet hat (head+base).
-      - name: Target-Branch mergen (immer vor Fixup)
-        id: merge-target
-        if: steps.setup.outputs.configured == 'true'
-        env:
-          PR: ${{ github.event.pull_request.number }}
-          TARGET_BRANCH: ${{ github.event.pull_request.base.ref }}
-          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
-        run: |
-          set -euo pipefail
-          git fetch origin "$TARGET_BRANCH" --depth=1 --no-tags
-          if git merge-base --is-ancestor "origin/$TARGET_BRANCH" HEAD; then
-            echo "Target-Branch bereits in HEAD enthalten – kein Merge nötig."
-            exit 0
-          fi
-          if git merge origin/"$TARGET_BRANCH" --no-ff --no-edit -m "chore(ci): auto-merge $TARGET_BRANCH into PR #$PR"; then
-            git push origin HEAD:"$HEAD_BRANCH"
-          elif git diff --name-only --diff-filter=U | grep -q .; then
-            echo "Merge-Konflikte bleiben liegen – Claude löst sie auf (Prompt Schritt 0)."
-          else
-            git merge --abort 2>/dev/null || true
-          fi
 
       - name: Stop-Guard (> 10 PR-Commits)
         id: stop-guard
