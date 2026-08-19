@@ -181,6 +181,14 @@ per `sed`/`cat` nach `/tmp/claude-prompt.txt` assembliert und via `-p "$(cat /tm
 übergeben — vermeidet Shell-Quoting-Probleme. Triage (01) und Umsetzung (04) tragen ihren Prompt noch
 inline als Heredoc in der Workflow-Datei.
 
+**Memory (zwei Ebenen, `.claude/memory/`):** Die Snippets `memory-read.md`/`memory-write.md`
+adressieren beide. `MEMORY.md` ist das **eingecheckte Dauergedächtnis** über Tickets hinweg — es
+reist im normalen Commit der Phasen mit Commit-Auftrag (Spec, Umsetzung, Fixup) und ist deshalb vom
+Artefakt-Upload ausgenommen, sonst überschriebe ein alter Artefakt-Stand beim Restore der Folgephase
+die frisch committete Datei. `issue-<N>-<phase>.md` sind die **flüchtigen** Phasen-Notizen für den
+Soft-Abort-Resume (gitignored, Transport per Artefakt, Teardown in Phase 7). Vertrag und
+Aufnahmekriterium: [AGENTS.md → Memory](../AGENTS.md#memory).
+
 **VERDICT-Hinweis:** `claude -p` schreibt die finale Antwort (inkl. `VERDICT:`-Zeile) auf
 stdout → `tee /tmp/claude-output.log` → `grep -oP 'VERDICT:\s*\K.*'` in der
 Label-Post-Assertion.
