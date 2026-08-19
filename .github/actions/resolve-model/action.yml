@@ -91,6 +91,11 @@ runs:
 
         if [ "$ABORT" = "true" ]; then
           echo "::error title=⛔ Modellwahl unklar::#${TICKET} — ${REASON}"
+        elif [ -z "$MODEL" ]; then
+          # Kein Label UND keine Analyse-Herkunft: Der Lauf gehört nicht zum
+          # analyse-getriebenen Routing (Harness-PR, manuell geöffneter PR, Renovate).
+          # Der Phasen-Default gilt — sichtbar als Notice, nicht stillschweigend.
+          echo "::notice title=🎚️ Modell::#${TICKET} — ${REASON}"
         else
           SUFFIX=""
           [ "$ESCALATED" = "true" ] && SUFFIX=" (hochgestuft — wiederholte Review-Runden)"
