@@ -7,7 +7,7 @@
 
 import { test, expect, type Page } from '@playwright/test';
 
-test.describe('#865 Avatar und User Full Name entfernen', () => {
+test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 	/**
 	 * Hilfsfunktion — Liest Header-Elemente und prüft Layout-Integrität
 	 */
@@ -45,10 +45,10 @@ test.describe('#865 Avatar und User Full Name entfernen', () => {
 	test('AK1: Avatar ist sichtbar (Desktop)', async ({ page }) => {
 		await page.goto('/');
 
-		const { avatar } = await readHeaderState(page);
+		const { avatar, header } = await readHeaderState(page);
 
 		await expect(avatar).toBeVisible();
-		await expect(avatar).toHaveCount(1);
+		await expect(header.locator('kol-avatar')).toHaveCount(1);
 	});
 
 	/**
@@ -101,10 +101,10 @@ test.describe('#865 Avatar und User Full Name entfernen', () => {
 		await page.setViewportSize({ width: 375, height: 667 });
 		await page.goto('/');
 
-		const { avatar } = await readHeaderState(page);
+		const { avatar, header } = await readHeaderState(page);
 
 		await expect(avatar).toBeVisible();
-		await expect(avatar).toHaveCount(1);
+		await expect(header.locator('kol-avatar')).toHaveCount(1);
 	});
 
 	/**

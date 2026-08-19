@@ -147,11 +147,10 @@ test.describe('#406 Wort-Bild-Marke vergrößern + App-Namen-H1 entfernen', () =
 	});
 
 	/**
-	 * AK2 — Header ohne sichtbaren Text-H1: Logo-Button und Kopf-Toolbar bleiben sichtbar,
+	 * AK2 — Header ohne sichtbaren Text-H1: Logo-Button, Kopf-Toolbar und Avatar bleiben sichtbar,
 	 * aber die Text-H1 „Priority Pilot" ist nicht mehr sichtbar.
-	 * Avatar und user-info entfernt per Issue #865.
 	 */
-	test('AK2: Header zeigt Logo-Button und Toolbar — kein sichtbarer Text-H1', async ({ page }) => {
+	test('AK2: Header zeigt Logo-Button, Toolbar und Avatar — kein sichtbarer Text-H1', async ({ page }) => {
 		await page.goto('/');
 		await waitForStableView(page);
 
@@ -164,6 +163,9 @@ test.describe('#406 Wort-Bild-Marke vergrößern + App-Namen-H1 entfernen', () =
 
 		// Kopf-Toolbar bleibt sichtbar.
 		await expect(header.getByRole('toolbar', { name: /Kopf-Aktionen/i })).toBeVisible();
+
+		// Avatar bleibt sichtbar.
+		await expect(header.locator('kol-avatar').first()).toBeVisible();
 
 		// Der redundante Text-H1 „Priority Pilot" darf nicht mehr sichtbar sein.
 		//

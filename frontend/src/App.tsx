@@ -445,9 +445,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 				</button>
 				<span className="app-name">Priority Pilot</span>
 				{/* Avatar wiederhergestellt per Issue #865 Korrektur — Full Name bleibt entfernt */}
-				<div className="user-info">
-					<KolAvatar _label={user.displayName} _src={user.avatarUrl ?? undefined} />
-				</div>
+				<KolAvatar _label={user.displayName} _src={user.avatarUrl ?? undefined} />
 				{/*
 				 * Gemeinsamer Container für die Kopf-Aktionen (#787): Die KI-Modell-Auswahl steht links
 				 * neben den Toolbar-Buttons und teilt deren Ausrichtung und Höhe.
