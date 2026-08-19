@@ -490,12 +490,18 @@ runs:
         if [ -n "$RESOLVED_MODEL_ID" ]; then
           case "$PROVIDER" in
             zai|openrouter)
+              # WICHTIG: Hier den ALIAS ($CLAUDE_MODEL, z.B. "opus") schreiben, NICHT die
+              # aufgeloeste native Anthropic-Modell-ID ($RESOLVED_MODEL_ID, z.B. "claude-opus-5").
+              # Die native ID existiert bei zai/openrouter nicht ("model not found") — der Alias
+              # greift stattdessen ueber den bereits aus vars.CLAUDE_CODE_SETTINGS_LOCAL_{ZAI,
+              # OPENROUTER} geladenen ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU,FABLE}_MODEL-Mechanismus
+              # (exakt wie das checked-in .claude/settings.json es fuer den Default-Fall tut).
               if [ -f .claude/settings.local.json ]; then
                 tmp_model=$(mktemp)
-                jq --arg m "$RESOLVED_MODEL_ID" '.model = $m' .claude/settings.local.json > "$tmp_model" && mv "$tmp_model" .claude/settings.local.json
-                echo "::notice title=Modell::$RESOLVED_MODEL_ID (Alias '$CLAUDE_MODEL', Provider $PROVIDER) via settings.local.json aufgeloest."
+                jq --arg m "$CLAUDE_MODEL" '.model = $m' .claude/settings.local.json > "$tmp_model" && mv "$tmp_model" .claude/settings.local.json
+                echo "::notice title=Modell::Alias '$CLAUDE_MODEL' (Provider $PROVIDER) via settings.local.json gesetzt — Aufloesung ueber ANTHROPIC_DEFAULT_*_MODEL."
               else
-                echo "::warning title=Modell::Phasen-Modell '$CLAUDE_MODEL' ($RESOLVED_MODEL_ID) konnte nicht in settings.local.json geschrieben werden — Datei fehlt (Provider $PROVIDER ohne settings-json). Modell bleibt unaufgeloest."
+                echo "::warning title=Modell::Phasen-Modell-Alias '$CLAUDE_MODEL' konnte nicht in settings.local.json geschrieben werden — Datei fehlt (Provider $PROVIDER ohne settings-json). Modell bleibt unaufgeloest."
               fi
               echo "resolved-model=" >> "$GITHUB_OUTPUT"
               ;;
