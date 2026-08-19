@@ -23,6 +23,7 @@ nicht Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 - [UX-Pattern: Sequenzielle Bestätigung](docs/ux-pattern-sequential-confirmation.md) — verbindliche Referenz für destruktive Aktionen
 - [Mobile-UI-Regeln](docs/mobile-ui-rules.md) — verbindliches Regelset für Mobile-UI (Daumen-Zonen, Touch-Targets, async Zustände, Anti-Patterns; mit Repo-Abstimmung)
 - [Design-Sprache „Cockpit"](.ai-knowledge/ux-design.md) — wie es aussieht: Farbrollen, Skalen-Tokens, Komponentenwahl (Schwesterdatei zu den Mobile-UI-Regeln)
+- [Dauergedächtnis](.claude/memory/MEMORY.md) — Erfahrungs-Log über Tickets hinweg: was in früheren Läufen schiefging und was stattdessen funktioniert hat (Protokoll siehe [Memory](#memory))
 
 ## Kernregeln
 
@@ -39,13 +40,51 @@ nicht Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 - Bevorzugt gezielt statt repo-weit prüfen: `pnpm --filter server build|lint`.
 - TypeScript `strict`, ESM überall, Node `>=26`.
 - Nicht automatisch committen ohne ausdrücklichen Wunsch. **Dokumentierte Ausnahme:** die
-  Ticket-Workflows [`/spec-ticket`](.ai-knowledge/ticket-spec.md) und
-  [`/implement-ticket`](.ai-knowledge/ticket-implementation.md) committen, pushen und
-  erstellen/aktualisieren PRs als **ausdrücklichen Teil ihres Auftrags** — das gilt nur für diese
-  beiden Workflows, nicht als allgemeine Erlaubnis.
+  Ticket-Workflows [`/spec-ticket`](.ai-knowledge/ticket-spec.md),
+  [`/implement-ticket`](.ai-knowledge/ticket-implementation.md) und der Fixup (Phase 6) committen,
+  pushen und erstellen/aktualisieren PRs als **ausdrücklichen Teil ihres Auftrags** — inklusive
+  eines etwaigen [Dauergedächtnis](#memory)-Eintrags, der im normalen Phasen-Commit mitreist. Das
+  gilt nur für diese Workflows, nicht als allgemeine Erlaubnis.
 - Alle Pull Requests müssen `pnpm format`, `pnpm lint` **und `pnpm test`** ausführen (Tests grün ist
   Pflicht, siehe [TDD-Strategie](.ai-knowledge/tdd-strategy.md) Stufe 2) und die Ergebnisse in der
   PR-Beschreibung dokumentieren.
+
+## Memory
+
+`.claude/memory/` (nativer Claude-Code-Memory, `autoMemoryDirectory` in
+[`.claude/settings.json`](.claude/settings.json)) hat **zwei Ebenen** — sie werden leicht
+verwechselt:
+
+| Datei                                   | Lebensdauer                                            | Zweck                                                                             |
+| --------------------------------------- | ------------------------------------------------------ | --------------------------------------------------------------------------------- |
+| [`MEMORY.md`](.claude/memory/MEMORY.md) | **dauerhaft, eingecheckt**                             | Erfahrungs-Log über Tickets hinweg — damit derselbe Fehler nicht zweimal passiert |
+| `issue-<N>-<phase>.md`                  | flüchtig (gitignored, Artefakt 14 Tage, Phase 7 räumt) | Soft-Abort-Resume **eines** Tickets: wo der abgebrochene Lauf aufhörte            |
+
+**Lesen:** immer beide, `MEMORY.md` zuerst — auch beim ersten Lauf an einem Ticket.
+
+**Schreiben (`MEMORY.md`), Aufnahmekriterium — streng, im Zweifel kein Eintrag:** nur was einen
+**zukünftigen Lauf an einem anderen Ticket** vor demselben Fehler oder Umweg bewahrt. Nicht-
+offensichtliche Werkzeug-/CI-Eigenheiten, ein Befehl der erst nach Fehlversuchen funktionierte.
+**Nicht** hierher: Ticket-Spezifisches (→ Phasen-Notiz), was schon in `AGENTS.md`/`.ai-knowledge/`
+steht, Selbstverständlichkeiten, Erfolgsmeldungen. Das ist dasselbe Minimalprinzip wie beim
+[Testumfang](.ai-knowledge/tdd-strategy.md#testumfang--so-viel-wie-nötig-so-wenig-wie-irgend-möglich):
+Die meisten Läufe schreiben hier **gar nichts** — das ist der Normalfall.
+
+**Format:** eine Zeile `- YYYY-MM-DD · <Bereich> — <was schiefging> → <Lösung>.`, **ans Ende** von
+`## Learnings & Erfahrungen`. Bestehende Zeilen nie umschreiben oder umsortieren — die Datei mergt
+per `union` ([`.gitattributes`](.gitattributes)), damit parallele PRs konfliktfrei anhängen; das
+trägt nur bei reinem Anhängen. Prettier fasst die Datei bewusst nicht an
+([`.prettierignore`](.prettierignore)).
+
+**Wer committet:** in der CI nur die Phasen mit Commit-Auftrag (Spec, Umsetzung, Fixup) — der
+Eintrag reist im normalen Phasen-Commit mit, kein eigener Commit, kein Push auf `main`. Phasen ohne
+Branch (Triage, UX, Review) legen den Kandidaten unter `## Fallstricke` in ihrer Phasen-Notiz ab.
+**Lokale Sessions** dürfen anhängen, aber nicht selbst committen (Kernregel oben) — den Eintrag
+vorschlagen, er reist mit dem nächsten regulären Commit mit.
+
+**Kuratierung:** max. ~40 Einträge. Ist ein Learning zur festen Regel geworden → nach
+[Konventionen](.ai-knowledge/conventions.md) überführen und die Zeile entfernen. `MEMORY.md` ist ein
+Erfahrungs-Log, kein Regelwerk.
 
 ## KI-Agent — Pipeline-Phasen
 

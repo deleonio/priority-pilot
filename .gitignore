@@ -1,4 +1,7 @@
-.claude/memory/
+# Flüchtige Phasen-Notizen (Soft-Abort-Resume, Transport via Artefakt) – kein Repo-Inhalt.
+# Das Dauergedächtnis .claude/memory/MEMORY.md ist bewusst NICHT ignoriert und wird versioniert
+# (Verzeichnis-Ignore ginge nicht: ein ignoriertes Verzeichnis lässt sich nicht per ! wieder öffnen).
+.claude/memory/issue-*.md
 .claude/worktrees/
 .claude/settings.local.json
 .zcode/
