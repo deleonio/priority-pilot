@@ -28,6 +28,7 @@ OpenAPI-Spec und Server-Endpunkt erweitern, um Model-Größe und Kontext-Größe
 - TC2: Fehlende contextLength in OpenRouter-Antwort bricht nicht ab (graceful degradation)
 
 ---
+
 ## Versionierung
 
 - **v1.1** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, ContextLength implementiert

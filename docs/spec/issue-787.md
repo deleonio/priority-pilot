@@ -232,6 +232,7 @@ Alle UI-Elemente erfüllen BITV 2.1 Kontrast-Anforderungen.
 - **KI-UX-Block:** UX-Requirements aus KI-UX:END-Block des Issues sind in diese Journeys integriert
 
 ---
+
 ## Versionierung
 
 - **v1.2** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, Header-Layout und KI-Modell-Auswahl implementiert

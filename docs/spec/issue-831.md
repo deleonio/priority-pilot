@@ -40,6 +40,7 @@ Agent kann während der UX-Phase über KoliBri-MCP-Tools auf barrierefreie KoliB
 - Agent kann Component-Alternativen basierend auf Theme-Kompatibilität filtern
 
 ---
+
 ## Versionierung
 
 - **v1.1** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, KoliBri-MCP integriert

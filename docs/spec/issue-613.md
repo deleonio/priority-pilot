@@ -123,6 +123,7 @@ Transiente GitHub-API-Races bei Label-Switch abfangen (optimistic locking oder R
 - Wenn Label sich geändert hat → Race erkannt → noop oder Retry
 
 ---
+
 ## Versionierung
 
 - **v1.1** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, Label-Handling implementiert

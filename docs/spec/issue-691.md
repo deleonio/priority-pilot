@@ -57,6 +57,7 @@ Das Header-Menü zeigt auf allen Bildschirmbreiten (Desktop, Tablet, Mobile) **i
 - **All-Quantor-Test-Falle:** Sicherstellen, dass überhaupt Toolbar-Buttons gefunden werden (nicht dauerhaft grün über leere Menge)
 
 ---
+
 ## Versionierung
 
 - **v1.1** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, Header-Konsistenz implementiert

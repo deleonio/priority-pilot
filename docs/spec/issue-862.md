@@ -31,6 +31,7 @@ Der ModelSelectionDialog zeigt zusätzliche Metadaten pro Modell an: Kontext-Gr�
 Siehe Issue-Body KI-UX-Block: Inline-Layout, Mobile-First, Screenreader-kompatibel
 
 ---
+
 ## Versionierung
 
 - **v1.1** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, ModelSelectionDialog erweitert

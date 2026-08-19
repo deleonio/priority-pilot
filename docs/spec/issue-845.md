@@ -75,6 +75,7 @@ Nutzer:in kann die Standorterfassung aktivieren/deaktivieren. Bei Aktivierung wi
 - Reverse-Geocoding (nur Lat/Long, keine menschenlesbare Adresse)
 
 ---
+
 ## Versionierung
 
 - **v1.1** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, Geolocation implementiert

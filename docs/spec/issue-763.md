@@ -59,6 +59,7 @@ Keine visuellen Überlagerungen mehr im Säulen-Gewichtungs-Bereich, Range Slide
 - **A11y/BITV**: `<label>`, `<output>`, ARIA-Attribute für Screenreader
 
 ---
+
 ## Versionierung
 
 - **v1.1** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, Säulen-Gewichtung responsive

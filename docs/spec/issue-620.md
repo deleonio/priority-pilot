@@ -61,6 +61,7 @@ Bei Ausfall/Timeout des Mistral-Dienstes eine verständliche Fehlermeldung anzei
 - **Files betroffen:** Frontend-Components für `parse-text` + `pillars/advisor` (Error-Handling/API-Client-Layer)
 
 ---
+
 ## Versionierung
 
 - **v1.1** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, Error-Handling implementiert

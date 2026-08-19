@@ -66,6 +66,7 @@ Jeder Löschdialog-Typ (Task, Säule, Serie) braucht einen Test, der:
 3. **Info:** Tautologische Tests mit Behavior-Assertions ergänzen (3 Fälle)
 
 ---
+
 ## Versionierung
 
 - **v1.1** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, Tab-Freiheit implementiert

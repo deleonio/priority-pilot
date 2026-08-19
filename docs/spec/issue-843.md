@@ -56,6 +56,7 @@ Settings Screen verwendet einheitliche Layout-Werte für Abstände, Alignment un
 - **Änderungen:** Bei Layout-Änderungen muss diese Spec aktualisiert werden
 
 ---
+
 ## Versionierung
 
 - **v1.2** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, Settings-Layout konsistent

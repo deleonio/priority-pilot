@@ -42,6 +42,7 @@ Layout von Titel, Beschreibung und Aktionen optimieren: Titel und Beschreibung n
 - A11y-Requirements sind erfüllt (Logical Tab-Order, Focus-Indikator, Screenreader-Support)
 
 ---
+
 ## Versionierung
 
 - **v1.1** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, Layout-Optimierung implementiert

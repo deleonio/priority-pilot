@@ -36,6 +36,7 @@ Der "Speichern"-Button im LLM-Provider-Settings-Formular ist vollständig sichtb
 - AK3: Responsive ohne Abschneideffekte auf kleinen Viewports
 
 ---
+
 ## Versionierung
 
 - **v1.1** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, Button-Layout fix implementiert

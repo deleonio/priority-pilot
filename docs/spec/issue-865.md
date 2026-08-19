@@ -57,6 +57,7 @@ Avatar und User Full Name aus dem Header-Layout entfernen, ohne die Layout-Integ
 - Toolbar-Aktionen bleiben unverändert, nur visuelle Optimierung
 
 ---
+
 ## Versionierung
 
 - **v1.1** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, Avatar/Name entfernt

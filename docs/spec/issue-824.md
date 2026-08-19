@@ -51,6 +51,7 @@ Für jede Fundstelle A–D aus der Fundliste:
 - AK4: Doku vorhanden
 
 ---
+
 ## Versionierung
 
 - **v1.1** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, KoliBri-Test-Guard implementiert

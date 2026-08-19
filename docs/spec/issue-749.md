@@ -116,6 +116,7 @@ LLM-Anfragen für Tests gezielt an Mistral oder OpenRouter senden, statt den Sta
 - Placement: In Provider-Settings oder Quick-Action Bar
 
 ---
+
 ## Versionierung
 
 - **v1.1** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, LLM-Test-Schalter implementiert

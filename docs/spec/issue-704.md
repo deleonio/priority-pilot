@@ -79,6 +79,7 @@ Den Aufgabenbaum so darstellen, dass verschachtelte Strukturen sofort erkennbar 
 - **UX-Prinzipien:** Der Spec orientiert sich an etablierten UI-Prinzipien (Whitespace, visuelle Hierarchie, Konsistenz).
 
 ---
+
 ## Versionierung
 
 - **v1.1** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, Aufgabenbaum-Layout implementiert

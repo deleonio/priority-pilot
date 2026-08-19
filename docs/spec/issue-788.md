@@ -147,6 +147,7 @@ UI ist barrierefrei gemäß BITV-2.1-PS.
 - Kontrastverhältnis 4.5:1 für X-Button (bei hover/focus)
 
 ---
+
 ## Versionierung
 
 - **v1.1** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, LLM-Einstellungen optimiert

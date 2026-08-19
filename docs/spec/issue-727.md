@@ -54,6 +54,7 @@ Range-Inputs (Schieberegler für Priorität 1–5 und Aufwand 0,1–1 Tage) werd
 - **Übergänge**: Keine Layout-Breaks, kein Scroll-Overflow, kein Overlay-Konflikt
 
 ---
+
 ## Versionierung
 
 - **v1.1** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, Range-Inputs responsive

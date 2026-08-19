@@ -92,6 +92,7 @@ Ein globaler `process.on('uncaughtException')`-Handler:
 5. **Normaler Startup:** Keine Fehler → Server läuft, kein Exit
 
 ---
+
 ## Versionierung
 
 - **v1.1** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, alle Handler implementiert
