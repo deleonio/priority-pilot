@@ -275,7 +275,10 @@ runs:
         ISSUE_NR: ${{ steps.ticket.outputs.issue-number }}
         ARTIFACT_FOUND: ${{ steps.memory-load.outputs.found }}
       run: |
-        count=$(find .claude/memory -type f 2>/dev/null | wc -l | tr -d ' ')
+        # Nur die Phasen-Notizen zählen. Das eingecheckte Dauergedächtnis .claude/memory/MEMORY.md
+        # liegt IMMER im Checkout — ungefiltert wäre der Zähler dauerhaft >= 1 und die
+        # expect-memory-Warnung („Restore leer") könnte nie mehr feuern.
+        count=$(find .claude/memory -type f -name 'issue-*.md' 2>/dev/null | wc -l | tr -d ' ')
         restored="false"
         if [ "${ARTIFACT_FOUND}" = "true" ] && [ "${count:-0}" -gt 0 ]; then restored="true"; fi
         echo "file-count=${count:-0}" >> "$GITHUB_OUTPUT"
@@ -394,6 +397,16 @@ runs:
         CLAUDE_API_KEY="$(printf '%s' "$CLAUDE_API_KEY" | tr -d '[:space:]')"
         ZAI_API_KEY="$(printf '%s' "$ZAI_API_KEY" | tr -d '[:space:]')"
         OPENROUTER_API_KEY="$(printf '%s' "$OPENROUTER_API_KEY" | tr -d '[:space:]')"
+
+        # Issue #893: ZAI-Provider zwischen 08:00-12:00 Europe/Berlin auf Claude fallen
+        # DST-korrekt via TZ=Europe/Berlin, keine persistente Mutation
+        if [ "$PROVIDER" = "zai" ]; then
+          BERLIN_HOUR="$(TZ=Europe/Berlin date +%H)"
+          if [ "$BERLIN_HOUR" -ge 8 ] && [ "$BERLIN_HOUR" -le 11 ]; then
+            echo "::notice title=⏰ Zeitfenster-Auto-Fallback::08:00-12:00 Europe/Berlin aktiv — ZAI → Claude."
+            PROVIDER="claude"
+          fi
+        fi
 
         case "$PROVIDER" in
           claude)

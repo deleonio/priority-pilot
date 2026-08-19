@@ -45,6 +45,9 @@
 #                       Draft
 #   documenter  PR      gemergt        —                                    ai:documented
 #
+# Global über alle Phasen (außer documenter): `ai:needs-human` parkt das Ticket beim
+# Menschen — der Lauf endet, auch wenn der Phasen-Trigger noch klebt (s. Check unten).
+#
 # Usage:
 #   bash check-phase-label.sh --repo <owner/repo> --phase <name> --ticket <N> \
 #                             [--trigger-label <label>]
@@ -181,6 +184,19 @@ esac
 if [ "$NO_DRAFT" = "true" ]; then
   DRAFT="$(printf '%s' "$DATA" | jq -r '.isDraft')"
   [ "$DRAFT" != "true" ] || fail "PR #${TICKET} ist inzwischen Draft"
+fi
+
+# Globaler Menschen-Parker: `ai:needs-human` parkt das Ticket bewusst beim Menschen —
+# KEINE Phase darf es trotzdem abarbeiten. Der Continue-Sweep schließt das Label nur
+# in der SUCHE aus; jedes direkte labeled-Event (manuell gesetzter Trigger, Sweep-
+# Re-Add bei Suchindex-Lag) umgeht die Suche — ohne diesen Check entstünde eine
+# Endlosschleife (Phase läuft, setzt wieder needs-human, Sweep feuert nach 6h neu).
+# Ausnahme documenter: läuft NACH dem Merge, protokolliert die (menschliche)
+# Entscheidung nur und kann keine Schleife bilden — ein Block würde nach einem
+# Force-Merge still die Release-Dokumentation verlieren.
+if [ "$PHASE" != "documenter" ]; then
+  HUMAN="$(printf '%s' "$DATA" | jq -r 'any(.labels[]; .name == "ai:needs-human")')"
+  [ "$HUMAN" != "true" ] || fail "#${TICKET} trägt 'ai:needs-human' — wartet auf menschliche Entscheidung. Label entfernen, um die Pipeline fortzusetzen."
 fi
 
 # ${ARR[@]+"${ARR[@]}"} statt "${ARR[@]}": unter `set -u` bricht die kurze Form

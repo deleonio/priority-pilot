@@ -325,6 +325,11 @@ body {
 @media (min-width: 48rem) {
 	.model-selector-button {
 		display: inline-flex;
+		/*
+			 * Der Model-Selector soll visuell an 3. Stelle erscheinen (nach "Neuen Task anlegen"
+			 * und "Säulen-Berater"). CSS `order` ermöglicht dies ohne Änderung der DOM-Struktur.
+			 */
+		order: 2;
 	}
 }
 
@@ -1609,17 +1614,6 @@ body {
 	align-items: center;
 	justify-content: space-between;
 	gap: 0.5rem;
-}
-
-/*
- * Unter 48rem ist dieser Button der einzige Einstieg in die KI-Modell-Auswahl (im Header ist sie
- * dort ausgeblendet, siehe `.model-selector-button`). Als primäres Touch-Ziel erfüllt er deshalb
- * die 48×48px aus WCAG 2.5.5 (#787 Journey 3 AK2) statt nur der 44px-Untergrenze.
- */
-@media (max-width: 47.99rem) {
-	.dashboard-heading kol-button[data-testid='model-selection-button'] {
-		--a11y-min-size: 3rem;
-	}
 }
 
 /* Aktuell gewähltes Modell über der Liste (role=status → Screenreader-Ansage bei Wechsel). */
