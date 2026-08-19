@@ -10,7 +10,7 @@
 import { useEffect, useState } from 'react';
 
 /** Vom Nutzer gewählter Modus. `system` folgt der OS-Einstellung (Standard). */
-export type ThemePreference = 'system' | 'light' | 'dark';
+type ThemePreference = 'system' | 'light' | 'dark';
 
 /** Effektiv angewandtes Theme (aus der Wahl + OS-Einstellung abgeleitet). */
 type ResolvedTheme = 'light' | 'dark';
@@ -62,20 +62,6 @@ export const storeTheme = (preference: ThemePreference): void => {
 };
 
 /**
- * Wendet ein Theme auf das `<html>`-Element an — vor dem ersten Render
- * aufzurufen, damit beim Laden kein Theme-Wechsel aufblitzt (Anti-FOUC).
- */
-const applyTheme = (theme: ResolvedTheme): void => {
-	try {
-		const root = document.documentElement;
-		root.dataset.theme = theme;
-		root.style.colorScheme = theme;
-	} catch {
-		// DOM nicht verfügbar — das Standard-Theme greift dann ohne Vorab-Anstrich.
-	}
-};
-
-/**
  * Wendet das hell Theme auf das `<html>`-Element an — vor dem ersten Render
  * aufzurufen, damit beim Laden kein Theme-Wechsel aufblitzt (Anti-FOUC).
  * Diese Funktion wird im Anti-FOUC-Bootstrap aufgerufen und setzt immer `light`.
@@ -92,14 +78,13 @@ export const applyInitialTheme = (): void => {
 
 /**
  * Hook für Theme-Logik mit Persistenz in localStorage. Liefert die aktuelle
- * Präferenz und eine Setter-Funktion, die auch das DOM aktualisiert.
+ * Präferenz und das daraus abgeleitete, effektive Theme.
  */
 export const useTheme = (): {
 	preference: ThemePreference;
-	setPreference: (preference: ThemePreference) => void;
 	resolvedTheme: ResolvedTheme;
 } => {
-	const [preference, setPreferenceState] = useState<ThemePreference>(() => getStoredTheme());
+	const [preference] = useState<ThemePreference>(() => getStoredTheme());
 	const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(() => getSystemTheme());
 	const [resolvedTheme, setResolvedTheme] = useState<ResolvedTheme>(() => resolveTheme(preference, systemTheme));
 
@@ -117,16 +102,7 @@ export const useTheme = (): {
 		return () => mediaQuery.removeEventListener('change', handleChange);
 	}, [preference]);
 
-	// Präferenz-Änderungen verarbeiten
-	const setPreference = (newPreference: ThemePreference) => {
-		setPreferenceState(newPreference);
-		storeTheme(newPreference);
-		const newResolvedTheme = resolveTheme(newPreference, systemTheme);
-		setResolvedTheme(newResolvedTheme);
-		applyTheme(newResolvedTheme);
-	};
-
-	return { preference, setPreference, resolvedTheme };
+	return { preference, resolvedTheme };
 };
 
 /** Export-Konstanten für die UI */

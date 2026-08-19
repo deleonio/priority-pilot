@@ -1,8 +1,7 @@
 import { KolInputRadio } from '@public-ui/react-v19';
 import { useMemo } from 'react';
 import { useRef } from 'react';
-import { useTheme } from '../lib/theme';
-import { THEME_LABELS, THEME_ORDER } from './ThemeToggle';
+import { THEME_LABELS, THEME_ORDER, useTheme } from '../lib/theme';
 import { useShadowDOMLayout } from '../lib/useShadowDOMLayout';
 
 /**
@@ -15,7 +14,9 @@ import { useShadowDOMLayout } from '../lib/useShadowDOMLayout';
  */
 
 export const AppearanceSetting = () => {
-	const { preference } = useTheme();
+	// Hook aktiv halten fuer eine eventuelle zukuenftige Reaktivierung (siehe Kommentar oben).
+	// _value bleibt bewusst fest auf "light", solange Dunkelmodus deaktiviert ist.
+	useTheme();
 	const ref = useRef<HTMLDivElement>(null);
 
 	// #843: marginLeft auf Shadow-DOM Controls setzen (24dp = 1.5rem)
@@ -31,7 +32,7 @@ export const AppearanceSetting = () => {
 				_label="Darstellung"
 				_orientation="horizontal"
 				_options={options}
-				_value={preference}
+				_value="light"
 				_disabled
 				_hint="Die Anwendung verwendet das helle Farbschema. Dunkelmodus ist aktuell deaktiviert."
 			/>
