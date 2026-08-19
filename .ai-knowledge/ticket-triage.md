@@ -150,7 +150,7 @@ Bei einem zu großen Ticket:
   roten Tests schreibt. **Bei sequenziellen Ketten (`blocked-by`, s. o.) nur den ersten,
   unblockierten Sub-Issue** mit dem Trigger versehen; die geblockten Nachfolger bleiben bei
   `ai:analysed` (auch wenn selbst 🟢) und werden **automatisch freigegeben, sobald ihr Vorgänger
-  gemergt ist**: [`issue-unblock.yml`](../.github/workflows/issue-unblock.yml) setzt
+  gemergt ist**: [`claude-issue-unblock.yml`](../.github/workflows/claude-issue-unblock.yml) setzt
   dann ihr `ai:needs-analyse` (per App-Token) und stößt eine Re-Triage gegen den neuen Code-Stand an, die
   ihrerseits den Phasen-Trigger setzt (🟢) oder mit Hinweisen beim Menschen bleibt (🟡/🔴). So läuft die
   Kette Glied für Glied, ohne dass mehrere „gleiche Dateien"-Sub-Issues gleichzeitig in Umsetzung
@@ -208,6 +208,10 @@ Bei einem zu großen Ticket:
     - UI-Bezug: ja|nein
     - Begründung: <kurz>
 
+    ### Spec
+    - Spec nötig: ja|nein
+    - Begründung: <bei „nein" PFLICHT — warum eine Spezifikation nichts hinzufügt>
+
     ### Aufwandsklasse
     - Aufwandsklasse: haiku|sonnet|opus
     - Begründung: <woran der Aufwand hängt>
@@ -234,6 +238,23 @@ Bei einem zu großen Ticket:
     <!-- KI-ANALYSE:END -->
     ```
 
+  - **`Spec nötig` steuert, ob die Spec-Phase läuft.** Die Spec liefert rote Tests als Vertrag für
+    die Umsetzung; TDD bleibt die Regel. Übersprungen wird nur, wo dieser Vertrag gar nicht
+    entstehen kann: bei Tickets **ohne Anwendungscode** (`server/src/**`, `frontend/src/**`,
+    `frontend/e2e/**`). Für Workflows, Skripte, Config und Markdown verbietet der Test-Carve-out
+    ([spec.md](../.github/prompts/spec.md), ADR-0001) ohnehin Tests — die Spec-Phase produzierte
+    dort nur ein Dokument.
+    - **Technisch begrenzt, nicht nur per Prompt:** `resolve-spec-skip.sh` prüft die Angabe gegen
+      die im selben Block deklarierten `Betroffene Dateien`. Zeigt auch nur ein Pfad in
+      Anwendungscode, läuft die Spec trotzdem. Jede Unsicherheit (Feld fehlt, unlesbar, keine
+      Pfade) führt ebenfalls zu „Spec läuft" — ein überflüssiger Lauf kostet Token, ein
+      fälschlich übersprungener kostet den Vertrag.
+    - **`needs_ux ⇒ needs_spec`:** UI-Bezug erzwingt die Spec — an zwei Stellen verankert, im
+      Skript und im `ux-ready`-Pfad von `02-claude-ux.yml` (der immer `ai:needs-spec` setzt).
+    - **Ohne Spec:** Die Analyse setzt direkt `ai:needs-impl`; die Umsetzung legt Branch **und**
+      PR selbst an (Direkt-Modus in `04-claude-implement.yml`).
+    - Die Aufwandsklasse ist davon **entkoppelt**: Eine `haiku`-Subtask kann eine Spec brauchen,
+      eine `opus`-Subtask rein serverseitig ohne Testpflicht sein.
   - **`Aufwandsklasse` steuert das Modell der Folgephasen.** Der Workflow setzt daraus genau ein
     `ai:model:<klasse>`-Label; `resolve-model-label.sh` liest es vor jedem Claude-Start. Fehlt es
     oder ist es mehrdeutig, bricht die Folgephase ab und parkt mit Begründung beim Menschen —
@@ -315,8 +336,9 @@ Ping-Kommentar** (`gh issue comment`), **keine** Vollanalyse mehr (die steht ab 
 
 - **Phasen-Trigger nach der Ampel aus Schritt 4 steuern** — nur eine **klar umsetzbare** Analyse
   geht weiter in die Pipeline, alles andere bleibt beim Menschen:
-  - **🟢 grün →** zusätzlich den Folge-Trigger setzen: `ai:needs-ux-ui` bei UI-Bezug, sonst
-    `ai:needs-spec` (Nicht-UI überspringt die UX-Beratung). Label bei Bedarf vorher anlegen
+  - **🟢 grün →** zusätzlich den Folge-Trigger setzen, in dieser Reihenfolge: `ai:needs-ux-ui` bei
+    UI-Bezug; sonst `ai:needs-spec`; sonst — wenn `Spec nötig: nein` die Prüfung in
+    `resolve-spec-skip.sh` besteht — direkt `ai:needs-impl` (Spec übersprungen). Label bei Bedarf vorher anlegen
     (`gh label create "ai:needs-ux-ui" --color FBCA04 --description "UX-Beratung läuft als nächste Phase"` bzw.
     `gh label create "ai:needs-spec" --color FBCA04 --description "Spec-Stufe schreibt rote Tests"`),
     dann `gh issue edit <nr> --add-label "ai:needs-ux-ui"` bzw. `"ai:needs-spec"`. Damit schreibt die
