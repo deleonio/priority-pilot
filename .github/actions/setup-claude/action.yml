@@ -275,7 +275,10 @@ runs:
         ISSUE_NR: ${{ steps.ticket.outputs.issue-number }}
         ARTIFACT_FOUND: ${{ steps.memory-load.outputs.found }}
       run: |
-        count=$(find .claude/memory -type f 2>/dev/null | wc -l | tr -d ' ')
+        # Nur die Phasen-Notizen zählen. Das eingecheckte Dauergedächtnis .claude/memory/MEMORY.md
+        # liegt IMMER im Checkout — ungefiltert wäre der Zähler dauerhaft >= 1 und die
+        # expect-memory-Warnung („Restore leer") könnte nie mehr feuern.
+        count=$(find .claude/memory -type f -name 'issue-*.md' 2>/dev/null | wc -l | tr -d ' ')
         restored="false"
         if [ "${ARTIFACT_FOUND}" = "true" ] && [ "${count:-0}" -gt 0 ]; then restored="true"; fi
         echo "file-count=${count:-0}" >> "$GITHUB_OUTPUT"

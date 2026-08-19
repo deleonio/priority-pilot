@@ -28,3 +28,8 @@ pnpm-workspace.yaml
 # `npx impeccable update` aktualisiert, #828): SKILL.md/Referenzen/Scripts sind Fremd-Artefakte —
 # Formatierung wäre beim nächsten Update sofort wieder weg und würde den Format-Check brechen.
 .claude/skills/
+
+# Dauergedächtnis + Phasen-Notizen: von KI-Agents frei geschrieben, nicht von Menschen gepflegt.
+# Prettier würde die Einträge bei jedem Commit umbrechen (lefthook `stage_fixed`) — das erzeugt
+# Diff-Rauschen und bricht den union-Merge aus .gitattributes, der auf unveränderten Zeilen beruht.
+.claude/memory/
