@@ -385,7 +385,19 @@ body {
 	--a11y-min-size: var(--pp-toolbar-height);
 }
 
-/* Avatar und User Full Name entfernt per Issue #865 — obsolete Selektoren gelöscht */
+/* Avatar wiederhergestellt, Full Name entfernt per Issue #865 Korrektur */
+.user-info {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	flex-shrink: 0;
+}
+
+.user-info kol-avatar {
+	display: block;
+	height: var(--pp-avatar-size);
+	width: var(--pp-avatar-size);
+}
 
 .loading {
 	display: flex;

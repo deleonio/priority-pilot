@@ -1,7 +1,7 @@
 /**
- * ROTE Spec-Tests für #865 „Avatar und User Full Name entfernen"
+ * ROTE Spec-Tests für #865 „User Full Name entfernen (Avatar behalten)"
  *
- * Ziel: Avatar und User Full Name werden aus dem Header entfernt, ohne Layout-Integrität zu beeinträchtigen.
+ * Ziel: Nur User Full Name wird aus dem Header entfernt, Avatar bleibt bestehen, ohne Layout-Integrität zu beeinträchtigen.
  * Spec: docs/spec/issue-865.md
  */
 
@@ -39,16 +39,16 @@ test.describe('#865 Avatar und User Full Name entfernen', () => {
 	}
 
 	/**
-	 * AK1 — Avatar-Element ist nicht mehr im DOM vorhanden
+	 * AK1 — Avatar-Element ist sichtbar (wiederhergestellt per Korrektur)
 	 * Spec-Referenz: docs/spec/issue-865.md → Schritt 2
 	 */
-	test('AK1: Avatar ist nicht mehr im DOM vorhanden (Desktop)', async ({ page }) => {
+	test('AK1: Avatar ist sichtbar (Desktop)', async ({ page }) => {
 		await page.goto('/');
 
 		const { avatar } = await readHeaderState(page);
 
-		await expect(avatar).not.toBeVisible();
-		await expect(avatar).toHaveCount(0);
+		await expect(avatar).toBeVisible();
+		await expect(avatar).toHaveCount(1);
 	});
 
 	/**
@@ -65,16 +65,16 @@ test.describe('#865 Avatar und User Full Name entfernen', () => {
 	});
 
 	/**
-	 * AK3 — Keine Leerräume im Layout nach Entfernung (Desktop)
+	 * AK3 — Keine Leerräume im Layout mit Avatar (Desktop)
 	 * Spec-Referenz: docs/spec/issue-865.md → Schritt 4
 	 */
-	test('AK3: Keine Leerräume im Layout nach Entfernung (Desktop 1440px)', async ({ page }) => {
+	test('AK3: Keine Leerräume im Layout mit Avatar (Desktop 1440px)', async ({ page }) => {
 		await page.setViewportSize({ width: 1440, height: 800 });
 		await page.goto('/');
 
-		const { header, toolbar, logo } = await readHeaderState(page);
+		const { header, toolbar, logo, avatar } = await readHeaderState(page);
 
-		// Header ist einzeilig (kein Umbruch durch Avatar-Entfernung)
+		// Header ist einzeilig (kein Umbruch trotz Avatar)
 		const headerBox = await header.boundingBox();
 		expect(headerBox).not.toBeNull();
 
@@ -82,6 +82,9 @@ test.describe('#865 Avatar und User Full Name entfernen', () => {
 		const toolbarBox = await toolbar.boundingBox();
 
 		expect(headerBox!.height).toBeLessThan(logoBox!.height + toolbarBox!.height);
+
+		// Avatar ist sichtbar
+		await expect(avatar).toBeVisible();
 
 		// Toolbar-Aktionen sind weiterhin sichtbar und ≥44px
 		await expect(toolbar).toBeVisible();
@@ -91,16 +94,17 @@ test.describe('#865 Avatar und User Full Name entfernen', () => {
 	});
 
 	/**
-	 * AK4 — Avatar nicht auf Mobile vorhanden (375px)
+	 * AK4 — Avatar ist auf Mobile sichtbar (375px)
 	 * Spec-Referenz: docs/spec/issue-865.md → Randfälle
 	 */
-	test('AK4: Avatar ist nicht mehr auf Mobile vorhanden (375px)', async ({ page }) => {
+	test('AK4: Avatar ist auf Mobile sichtbar (375px)', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 667 });
 		await page.goto('/');
 
 		const { avatar } = await readHeaderState(page);
 
-		await expect(avatar).toHaveCount(0);
+		await expect(avatar).toBeVisible();
+		await expect(avatar).toHaveCount(1);
 	});
 
 	/**
