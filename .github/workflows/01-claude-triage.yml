@@ -176,7 +176,7 @@ jobs:
                   PFLICHT: Der Umsetzungskontext (betroffene Dateien/Komponenten/Muster/Randbedingungen/erwartetes Ergebnis) gehört JE SUB-ISSUE eigenständig ausgefüllt — nicht „siehe Eltern-Ticket". Die Umsetzung liest nur ihr eigenes Sub-Issue; ein Verweis zwingt sie zur Re-Analyse, also genau zu dem, was diese Phase abschaffen soll: gh issue create --title "<Teilaufgabe>" --label "ai:analysed" --label "ai:model:<klasse>" --body-file - <<'EOF' … EOF
                c) Als echtes GitHub-Sub-Issue ans Eltern-Ticket hängen (PFLICHT, nicht nur Textreferenz): gh api graphql -f query='mutation($p:ID!,$c:ID!){addSubIssue(input:{issueId:$p,subIssueId:$c}){clientMutationId}}' -f p="$(gh issue view #ISSUE_NR --json id -q .id)" -f c="$(gh issue view <SUB-NR> --json id -q .id)"
                d) Sequenzielle Abhängigkeit (A1→A2→A3, gleiche Dateien/„A2 nach A1"): Vorgänger blockt Nachfolger — PFLICHT, maschinenlesbar (issue-unblock.yml löst beim Merge des Vorgängers automatisch auf): gh api graphql -f query='mutation($b:ID!,$k:ID!){addBlockedBy(input:{issueId:$b,blockingIssueId:$k}){clientMutationId}}' -f b="$(gh issue view <NACHFOLGER-NR> --json id -q .id)" -f k="$(gh issue view <VORGÄNGER-NR> --json id -q .id)" — Kanten gedrosselt setzen (sekundäres Rate-Limit bei zu schnellen Schreibzugriffen). Nur echte Reihenfolge-Abhängigkeiten; unabhängige Sub-Issues bleiben ohne blocked-by.
-               e) Nur der ERSTE unblockierte Sub-Issue bekommt den Phasen-Trigger: bei UI-Bezug ai:needs-ux-ui, sonst ai:needs-spec (gh issue edit <SUB-NR> --add-label "ai:needs-ux-ui" bzw. "ai:needs-spec") — enthält der Mini-Analyse-Block des Sub-Issues „UI-Bezug: nein", wird die UX-Phase übersprungen wie beim Eltern-Ticket. Geblockte Nachfolger bleiben bei ai:analysed und werden beim Merge des Vorgängers automatisch freigegeben. Unabhängige Sub-Issues folgen ihrer eigenen Ampel.
+               e) Nur der ERSTE unblockierte Sub-Issue bekommt den Phasen-Trigger, abgeleitet aus SEINEM eigenen Block (jede Teilaufgabe wird eigenständig geroutet): UI-Bezug: ja → ai:needs-ux-ui; sonst Spec nötig: ja → ai:needs-spec; sonst → ai:needs-impl (Spec übersprungen, Umsetzung legt Branch und PR selbst an). Auch hier gilt: „Spec nötig: nein" nur ohne Anwendungscode (server/src/**, frontend/src/**, frontend/e2e/**) — gh issue edit <SUB-NR> --add-label "<trigger>". Geblockte Nachfolger bleiben bei ai:analysed und werden beim Merge des Vorgängers automatisch freigegeben. Unabhängige Sub-Issues folgen ihrer eigenen Ampel.
                Sub-Issues sind durch ai:analysed beim Anlegen vor Re-Triage geschützt (nicht erneut zerlegen — Rekursionsschutz). Eltern-Issue nach Zerlegung → VERDICT: analyzed (nur Tracker, nicht direkt umsetzbar).
             5. Analyse schreiben: Akzeptanzkriterien + Testfälle + Ampel (🟢/🟡/🔴) in den BODY-BLOCK.
                ⚠️ ZWINGEND: Der BODY-BLOCK gehört in den Issue-BODY via `gh issue edit --body-file -` (vorhandenen Body erhalten + Block anhängen), NIEMALS als Kommentar. Der Workflow prüft den Body — ein Block nur im Kommentar lässt den Lauf scheitern (bzw. wird nur als Notfall-Migration akzeptiert).
@@ -218,6 +218,27 @@ jobs:
             jede Datei in diesen teuren Kontext. Gezielte Einzelblicke (du kennst den Pfad
             schon) liest du weiter selbst — dafür lohnt der Umweg nicht.
 
+          SPEC NÖTIG? (Routing-Flag — unabhängig von der Aufwandsklasse):
+            Die Spec-Phase liefert ROTE TESTS als Vertrag für die Umsetzung. TDD bleibt die
+            Regel und wird NICHT aufgegeben — die Phase entfällt nur dort, wo sie diesen
+            Vertrag gar nicht liefern kann.
+            - „Spec nötig: nein" NUR, wenn das Ticket KEINEN Anwendungscode anfasst, also
+              keine Datei unter server/src/**, frontend/src/** oder frontend/e2e/**. Für
+              Workflows, Skripte, Config und Markdown verbietet der Test-Carve-out
+              (.github/prompts/spec.md, ADR-0001) ohnehin Tests: Ein String-Match auf selbst
+              geschriebene Dateien findet per Konstruktion keinen Fehler. Die Spec-Phase
+              produzierte dort nur ein Dokument.
+            - Sonst IMMER „Spec nötig: ja". Auch bei kleinen Änderungen an Anwendungscode:
+              Dort sind Tests möglich, also gilt TDD.
+            - UI-Bezug: ja erzwingt „Spec nötig: ja" — ein UX-Entwurf ohne Spezifikation ist
+              nicht anschlussfähig.
+            - Die Begründung ist bei „nein" PFLICHT und muss sagen, WARUM eine Spezifikation
+              nichts hinzufügt — nicht bloß „trivial".
+            Der Workflow prüft die Angabe gegen deine „Betroffene Dateien": Zeigt auch nur
+            ein Pfad in Anwendungscode, läuft die Spec trotzdem. Die Aufwandsklasse spielt
+            hier keine Rolle — eine haiku-Subtask kann eine Spec brauchen, eine opus-Subtask
+            rein serverseitig ohne Testpflicht sein.
+
           UNEINDEUTIGKEIT (Sicherheitsventil — vor allem anderen):
             Ist die Aufgabenstellung nicht eindeutig, wird NICHT „irgendwas" analysiert und
             NICHT geraten. Zuerst versuchen, die Unklarheit selbst aufzulösen (Code lesen,
@@ -240,6 +261,10 @@ jobs:
             ### UI-Bezug
             - UI-Bezug: ja|nein
             - Begründung: [Kurzbegründung]
+
+            ### Spec
+            - Spec nötig: ja|nein
+            - Begründung: [PFLICHT bei „nein" — warum eine Spezifikation hier nichts hinzufügt]
 
             ### Aufwandsklasse
             - Aufwandsklasse: haiku|sonnet|opus
@@ -387,6 +412,17 @@ jobs:
               *) [ -n "$KLASSE" ] && echo "::warning title=Aufwandsklasse::Unbekannter Wert '${KLASSE}' — ignoriert."; KLASSE="" ;;
             esac
             echo "Aufwandsklasse aus Analyse: '${KLASSE:-nicht gefunden}'"
+
+            # Spec nötig? Entscheidung liegt in resolve-spec-skip.sh (dort getestet), nicht
+            # hier inline: Sie prüft die Selbstauskunft der Analyse gegen die deklarierten
+            # Dateien und fällt bei jeder Unsicherheit auf „Spec läuft" zurück.
+            printf '%s' "$BODY" > /tmp/analyse-block.md
+            SPEC_OUT="$(bash .github/scripts/resolve-spec-skip.sh --block-file /tmp/analyse-block.md 2>/dev/null || true)"
+            NEEDS_SPEC="$(printf '%s' "$SPEC_OUT" | sed -n 's/^needs_spec=//p')"
+            SPEC_REASON="$(printf '%s' "$SPEC_OUT" | sed -n 's/^reason=//p')"
+            # Leere Ausgabe (Skript nicht lauffähig) = Spec läuft — gleiche Richtung wie im Skript.
+            [ -n "$NEEDS_SPEC" ] || { NEEDS_SPEC="true"; SPEC_REASON="Spec-Entscheidung nicht ermittelbar — Spec läuft (fail-safe)."; }
+            echo "Spec nötig: ${NEEDS_SPEC} — ${SPEC_REASON}"
           fi
 
           # Self-Heal (Issue #566): Schwachmodell-Agent (zai/GLM) postet den KI-ANALYSE-Block
@@ -497,6 +533,11 @@ jobs:
           gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-analyse" 2>/dev/null || true
           gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-ux-ui" 2>/dev/null || true
           gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-spec" 2>/dev/null || true
+          # ai:needs-impl gehört seit der überspringbaren Spec ebenfalls in die Liste: Die
+          # Analyse kann es jetzt selbst setzen, also muss ein Re-Triage es auch wieder
+          # abräumen können — sonst bliebe nach einer Neubewertung („doch Spec nötig") der
+          # alte Direkt-Trigger kleben und Spec- und Umsetzungsphase liefen beide an.
+          gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:needs-impl" 2>/dev/null || true
 
           # Done-Label der Analyse-Phase (immer — auch 🟡/🔴 bleibt die Analyse erledigt).
           # Idempotent setzen: Hängt es schon (Re-Triage), kein Remove+Add — jedes Add
@@ -511,12 +552,22 @@ jobs:
             # 🟢: Trigger der nächsten Phase setzen — UX-Phase nur bei UI-Bezug,
             # Nicht-UI-Tickets springen direkt zur Spec-Phase (kein separates
             # Skip-Marker-Label mehr nötig: der Trigger IST der Skip).
-            if [ "$UI_BEZUG" = "nein" ]; then
-              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-spec"
-              echo "::notice::Label gesetzt: ai:needs-spec (Nicht-UI-Ticket)"
-            else
+            if [ "$UI_BEZUG" != "nein" ]; then
+              # UI-Ticket: erst UX, dann Spec. 02 setzt auf ux-ready IMMER ai:needs-spec —
+              # damit ist `needs_ux ⇒ needs_spec` auch auf diesem Weg erzwungen.
               gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-ux-ui"
               echo "::notice::Label gesetzt: ai:needs-ux-ui (UI-Ticket – 02 kümmert sich)"
+            elif [ "$NEEDS_SPEC" = "false" ]; then
+              # Spec übersprungen: direkt in die Umsetzung. Die Spec könnte hier keine roten
+              # Tests schreiben (Test-Carve-out), also bliebe nur ein Dokument — dafür lohnt
+              # der Lauf nicht. Die Umsetzung legt Branch und PR selbst an (Direkt-Modus).
+              gh label create "ai:needs-impl" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
+              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-impl"
+              echo "::notice title=⏭️ Spec übersprungen::${SPEC_REASON}"
+              echo "::notice::Label gesetzt: ai:needs-impl (Spec übersprungen)"
+            else
+              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-spec"
+              echo "::notice::Label gesetzt: ai:needs-spec (${SPEC_REASON})"
             fi
           elif [ "$final" = "needs-human" ]; then
             # Harter Stopp: check-phase-label.sh blockt mit diesem Label JEDE

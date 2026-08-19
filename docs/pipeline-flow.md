@@ -56,6 +56,7 @@ flowchart TD
     start -->|"issues.labeled: ai:needs-analyse"| triage
     triage -->|"🟢 UI: label ai:analysed + ai:needs-ux-ui"| ux
     triage -->|"🟢 Nicht-UI: label ai:analysed + ai:needs-spec"| spec
+    triage -.->|"🟢 Nicht-UI, kein Anwendungscode:<br/>Spec übersprungen → ai:needs-impl"| implement
     ux -->|"label: ai:needs-spec"| spec
     spec -->|"label: ai:needs-impl"| implement
 
@@ -111,6 +112,13 @@ flowchart TD
 ( `ai:needs-fixup` → **fixup** → `ai:needs-review` → **review** )\* → `ai:reviewed` →
 **gate-merge** → ✅ → **documenter** → `ai:documented`
 
+**Abkürzung ohne Spec:** Fasst ein Ticket keinen Anwendungscode an (`server/src/**`,
+`frontend/src/**`, `frontend/e2e/**`), setzt die Analyse direkt `ai:needs-impl` — die
+Spec-Phase entfällt. Sie könnte dort keine roten Tests schreiben (Test-Carve-out, ADR-0001),
+es bliebe nur ein Dokument. Entschieden wird das in `.github/scripts/resolve-spec-skip.sh`,
+das die Selbstauskunft der Analyse gegen die deklarierten Dateipfade prüft und bei jeder
+Unsicherheit auf „Spec läuft" zurückfällt. Die Umsetzung legt dann Branch **und** PR selbst an.
+
 ## Label-Referenz
 
 **Trigger-Labels (`ai:needs-*`)** — jede Phase reagiert auf genau eines und konsumiert es:
@@ -120,7 +128,7 @@ flowchart TD
 | `ai:needs-analyse` | Mensch (Einstieg + Re-Triage), issue-unblock (Nachfolger-Freigabe) | triage                | `triage.yml`    |
 | `ai:needs-ux-ui`   | triage (bei 🟢 + UI-Bezug)                                         | ux                    | `ux.yml`        |
 | `ai:needs-spec`    | triage (bei 🟢 + Nicht-UI), ux (bei Erfolg)                        | spec                  | `spec.yml`      |
-| `ai:needs-impl`    | spec (bei Erfolg)                                                  | implement             | `implement.yml` |
+| `ai:needs-impl`    | spec (bei Erfolg), **triage** (wenn die Spec übersprungen wird)    | implement             | `implement.yml` |
 | `ai:needs-review`  | implement, pr-needs-review-label (nur menschlich), **fixup**       | review                | `pr-review.yml` |
 | `ai:needs-fixup`   | review (🔴), **gate-merge**, **conflict-scan**                     | fixup                 | `pr-fixup.yml`  |
 
