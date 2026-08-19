@@ -112,6 +112,9 @@ flowchart TD
 ( `ai:needs-fixup` → **fixup** → `ai:needs-review` → **review** )\* → `ai:reviewed` →
 **gate-merge** → ✅ → **documenter** → `ai:documented`
 
+Warum die Kette bedingt ist und welche Alternative dabei verworfen wurde, steht in
+[ADR 0004 — Analyse-getriebenes Routing](./adr/0004-analyse-getriebenes-routing.md).
+
 **Abkürzung ohne Spec:** Fasst ein Ticket keinen Anwendungscode an (`server/src/**`,
 `frontend/src/**`, `frontend/e2e/**`), setzt die Analyse direkt `ai:needs-impl` — die
 Spec-Phase entfällt. Sie könnte dort keine roten Tests schreiben (Test-Carve-out, ADR-0001),

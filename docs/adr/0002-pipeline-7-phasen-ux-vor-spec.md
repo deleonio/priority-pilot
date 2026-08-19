@@ -1,6 +1,6 @@
 # ADR 0002 -- Pipeline auf 7 sequenzielle Phasen umgestellt (UX vor Spec)
 
-- **Status:** Accepted
+- **Status:** Accepted; Phasenkette bedingt gemacht (2026-08-19, [ADR 0004](0004-analyse-getriebenes-routing.md) — UX und Spec sind formell optional, die Analyse routet je Subtask; die Serialisierungs-Begründung unten bleibt unberührt)
 - **Datum:** 2026-08-17
 - **Entscheidungsquelle:** Umbau der Label-getriebenen KI-Pipeline (Architect-Direktive)
 
