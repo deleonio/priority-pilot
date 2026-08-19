@@ -17,6 +17,7 @@ nicht Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 - [Deployment](docs/deployment.md) — Merge→Build→rsync→PM2, Host-Layout, Rollback
 - [CI-Architektur](docs/ci-architecture.md) — Provider, Modelle, Soft-Abort, Label-Pipeline, KoliBri MCP
 - [Pipeline-Flow](docs/pipeline-flow.md) — Mermaid-Diagramm des label-getriebenen Ticket-Flows
+- [Architektur-Entscheidungen (ADRs)](docs/adr/) — verbindliche Grundsatzentscheidungen: [0001 Workflows ungetestet](docs/adr/0001-github-workflows-bleiben-ungetestet.md), [0002 7-Phasen-Pipeline](docs/adr/0002-pipeline-7-phasen-ux-vor-spec.md), [0003 Label-Schema](docs/adr/0003-label-schema-ai-needs-und-past.md), [0004 Analyse-getriebenes Routing](docs/adr/0004-analyse-getriebenes-routing.md)
 - [CI-Legacy-Vergleich](docs/ci-legacy-comparison.md) — Struktur-/Stabilitäts-Vergleich Legacy vs. aktuell
 - [Tailscale Exit Node](docs/tailscale-exit-node.md) — CI-Traffic über Nürnberger Tailscale-Exit-Node (manueller Test-Workflow)
 - [Multi-Provider-CI](.ai-knowledge/multi-provider-ci.md) — Provider-Setup, Secrets, setup-claude-Action (Betriebs-Doku)
@@ -123,15 +124,34 @@ Einstieg ist das manuell gesetzte `ai:needs-analyse` (bzw. `ai:analysed` entfern
 (`ai:needs-fixup` → `ai:needs-review`) → `ai:reviewed` → Gate-Merge. Info-Labels ohne Trigger:
 `ai:needs-human` (Warum + was der Mensch entscheiden soll), `ai:to-big-issue` (Aufgabe zu groß).
 
-| Phase             | Trigger                                                | Wissensbasis (einzige zu lesende Datei)                                                                | Output                                                                                                     |
-| ----------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
-| **Triage**        | `ai:needs-analyse` gesetzt oder `ai:analysed` entfernt | [ticket-triage.md](.ai-knowledge/ticket-triage.md)                                                     | Analyse-Body-Block + Ampel → `ai:analysed` (+ `ai:needs-ux-ui` bei 🟢+UI, `ai:needs-spec` bei 🟢+Nicht-UI) |
-| **UX-Beratung**   | `ai:needs-ux-ui`                                       | [ticket-ux.md](.ai-knowledge/ticket-ux.md)                                                             | KI-UX-Block → `ai:needs-spec` (Nicht-UI-Tickets: Analyse setzt `ai:needs-spec` direkt)                     |
-| **Spec**          | `ai:needs-spec`                                        | [ticket-spec.md](.ai-knowledge/ticket-spec.md)                                                         | Rote Tests + Draft-PR → `ai:needs-impl`                                                                    |
-| **Umsetzung**     | `ai:needs-impl`                                        | [ticket-implementation.md](.ai-knowledge/ticket-implementation.md)                                     | Tests grün + PR review-bereit → `ai:needs-review` (am PR)                                                  |
-| **Review**        | `ai:needs-review` (am PR)                              | [review-kreuzverhoer-Skill](.claude/skills/review-kreuzverhoer/SKILL.md)                               | Sammelkommentar + Ampel → `ai:reviewed` (🟢) bzw. `ai:needs-fixup` (🔴)                                    |
-| **Fixup**         | `ai:needs-fixup` (am PR)                               | [review-kreuzverhoer-Skill](.claude/skills/review-kreuzverhoer/SKILL.md)                               | Findings behoben → `ai:needs-review`                                                                       |
-| **PR-Documenter** | `pull_request.closed` + `merged` (PR gemergt)          | [documenter.md](.github/prompts/documenter.md) (LLM-Anteil) + `pr-doc-{facts,render}.sh` (Regel-Logik) | PR-Titel, -Beschreibung, Release-Note & Labels nach Merge → `ai:documented`                                |
+**Analyse-getriebenes Routing ([ADR 0004](docs/adr/0004-analyse-getriebenes-routing.md)):** Die
+Kette ist keine feste Reihenfolge mehr, sondern ein Routing — die Analyse entscheidet **je
+Subtask**, welche Phase etwas beiträgt, und dokumentiert das im `KI-ANALYSE`-Block:
+
+- **Modellwahl:** Genau ein Label `ai:model:haiku|sonnet|opus` je Ticket/Subtask bestimmt, mit
+  welchem Modell Umsetzung, Review und Fixup starten (`resolve-model-label.sh`, vor dem Start
+  statisch gelesen). Es ist **Konfiguration, kein Trigger**: wird nie konsumiert und überlebt alle
+  Label-Transitions. Fehlt es oder ist es mehrdeutig, **bricht der Start ab** und setzt
+  `ai:needs-human` — kein stilles Ausweichen auf das Default-Modell. Ab der zweiten Review-Runde
+  am selben PR wird eine Stufe hochgesetzt.
+- **Spec überspringbar:** Fasst ein Ticket keinen Anwendungscode an (`server/src/**`,
+  `frontend/src/**`, `frontend/e2e/**`), setzt die Analyse direkt `ai:needs-impl` — die Spec könnte
+  dort keine roten Tests schreiben (Carve-out, ADR 0001). Die Umsetzung legt dann Branch **und** PR
+  selbst an. `resolve-spec-skip.sh` prüft die Angabe gegen die deklarierten Dateipfade und fällt
+  bei jeder Unsicherheit auf „Spec läuft" zurück. **TDD bleibt die Regel**; `needs_ux ⇒ needs_spec`
+  ist erzwungen.
+- **Token-/Kostenerfassung:** Jede Phase schreibt Verbrauch und Kosten nach `.costs/<issue>.json`
+  (Job-Summary + Artefakt, `.github/actions/record-cost`).
+
+| Phase             | Trigger                                                | Wissensbasis (einzige zu lesende Datei)                                                                | Output                                                                                                                                                            |
+| ----------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Triage**        | `ai:needs-analyse` gesetzt oder `ai:analysed` entfernt | [ticket-triage.md](.ai-knowledge/ticket-triage.md)                                                     | Analyse-Body-Block + Ampel + `ai:model:*` → `ai:analysed` (+ `ai:needs-ux-ui` bei 🟢+UI, `ai:needs-spec` bei 🟢+Nicht-UI, `ai:needs-impl` wenn die Spec entfällt) |
+| **UX-Beratung**   | `ai:needs-ux-ui`                                       | [ticket-ux.md](.ai-knowledge/ticket-ux.md)                                                             | KI-UX-Block → `ai:needs-spec` (Nicht-UI-Tickets: Analyse setzt `ai:needs-spec` direkt)                                                                            |
+| **Spec**          | `ai:needs-spec` (entfällt ohne Anwendungscode)         | [ticket-spec.md](.ai-knowledge/ticket-spec.md)                                                         | Rote Tests + Draft-PR → `ai:needs-impl`                                                                                                                           |
+| **Umsetzung**     | `ai:needs-impl`                                        | [ticket-implementation.md](.ai-knowledge/ticket-implementation.md)                                     | Tests grün + PR review-bereit → `ai:needs-review` (am PR); ohne Spec-Draft-PR: Branch + PR selbst anlegen                                                         |
+| **Review**        | `ai:needs-review` (am PR)                              | [review-kreuzverhoer-Skill](.claude/skills/review-kreuzverhoer/SKILL.md)                               | Sammelkommentar + Ampel → `ai:reviewed` (🟢) bzw. `ai:needs-fixup` (🔴)                                                                                           |
+| **Fixup**         | `ai:needs-fixup` (am PR)                               | [review-kreuzverhoer-Skill](.claude/skills/review-kreuzverhoer/SKILL.md)                               | Findings behoben → `ai:needs-review`                                                                                                                              |
+| **PR-Documenter** | `pull_request.closed` + `merged` (PR gemergt)          | [documenter.md](.github/prompts/documenter.md) (LLM-Anteil) + `pr-doc-{facts,render}.sh` (Regel-Logik) | PR-Titel, -Beschreibung, Release-Note & Labels nach Merge → `ai:documented`                                                                                       |
 
 ## Tests (Server)
 

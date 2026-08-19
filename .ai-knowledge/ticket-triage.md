@@ -150,7 +150,7 @@ Bei einem zu großen Ticket:
   roten Tests schreibt. **Bei sequenziellen Ketten (`blocked-by`, s. o.) nur den ersten,
   unblockierten Sub-Issue** mit dem Trigger versehen; die geblockten Nachfolger bleiben bei
   `ai:analysed` (auch wenn selbst 🟢) und werden **automatisch freigegeben, sobald ihr Vorgänger
-  gemergt ist**: [`issue-unblock.yml`](../.github/workflows/issue-unblock.yml) setzt
+  gemergt ist**: [`claude-issue-unblock.yml`](../.github/workflows/claude-issue-unblock.yml) setzt
   dann ihr `ai:needs-analyse` (per App-Token) und stößt eine Re-Triage gegen den neuen Code-Stand an, die
   ihrerseits den Phasen-Trigger setzt (🟢) oder mit Hinweisen beim Menschen bleibt (🟡/🔴). So läuft die
   Kette Glied für Glied, ohne dass mehrere „gleiche Dateien"-Sub-Issues gleichzeitig in Umsetzung

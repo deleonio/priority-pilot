@@ -1,6 +1,6 @@
 # ADR 0003: Label-Schema `ai:needs-*` (Trigger) + `ai:<Vergangenheitsform>` (Done)
 
-- **Status:** akzeptiert (2026-08-18, Issue #851); Done-Marker verschlankt (2026-08-18, Issue #873); Re-Triage zusätzlich via unlabeled (2026-08-18, s. Fortschreibung unten); `issues.opened` als Einstieg gestrichen (2026-08-18, s. Fortschreibung 2026-08-18b)
+- **Status:** akzeptiert (2026-08-18, Issue #851); Done-Marker verschlankt (2026-08-18, Issue #873); Re-Triage zusätzlich via unlabeled (2026-08-18, s. Fortschreibung unten); `issues.opened` als Einstieg gestrichen (2026-08-18, s. Fortschreibung 2026-08-18b); Label-Familie `ai:model:*` ergänzt (2026-08-19, s. Fortschreibung 2026-08-19)
 - **Kontext:** [docs/pipeline-flow.md](../pipeline-flow.md), [ADR 0002](0002-pipeline-7-phasen-ux-vor-spec.md)
 
 ## Kontext und Problem
@@ -156,3 +156,28 @@ Issue-Phasen (01–04) behalten bewusst das alte Modell — ihre Labels sind Ein
 Review↔Fixup-Loop, und der Umbau stünde in keinem Verhältnis (gleiche Abwägung wie beim
 verworfenen Router). Verdict-Kanal: PR-LLM-Phasen schreiben ihr Verdict nach `/tmp/claude-verdict`
 (das Log-Grep bleibt Übergangs-Fallback).
+
+## Fortschreibung 2026-08-19 — dritte Label-Familie `ai:model:*`
+
+Mit [ADR 0004](0004-analyse-getriebenes-routing.md) kommt eine dritte Kategorie hinzu, die weder
+Trigger noch Done-Marker ist: **`ai:model:haiku|sonnet|opus`** ist **Konfiguration am Ticket** und
+bestimmt, mit welchem Modell die Folgephasen starten.
+
+Sie durchbricht bewusst zwei Regeln dieses ADR:
+
+- **Sie wird nie konsumiert.** Trigger-Labels entfernt die Phase, die auf sie reagiert; `ai:model:*`
+  bleibt kleben, weil es bei JEDEM erneuten Start neu gelesen werden muss — auch im
+  Review↔Fixup-Zyklus.
+- **Sie steht nicht in der `MANAGED`-Liste von `label-transition.sh`.** Eine Transition ersetzt
+  diesen Bestand vollständig in einem API-Call; stünde die Modellwahl darin, wischte sie die erste
+  Phasen-Transition weg — ausgerechnet dort, wo sie gebraucht wird. Diese Invariante ist in
+  `label-transition.test.ts` abgesichert.
+
+Genau eines der drei muss gesetzt sein. Keines oder mehrere brechen den Start ab und setzen
+`ai:needs-human` mit Begründung (`resolve-model-label.sh`, fail-closed) — bewusst nicht still das
+erste oder das teuerste nehmen.
+
+Zusätzlich: **`ai:needs-impl` wird jetzt auch von der Analyse gesetzt**, nicht nur von der
+Spec-Phase — nämlich dann, wenn die Spec übersprungen wird (ADR 0004, Entscheidung 3). Die Analyse
+räumt es im Remove-vor-Add-Block entsprechend auch wieder ab, damit ein Re-Triage einen alten
+Direkt-Trigger nicht kleben lässt.
