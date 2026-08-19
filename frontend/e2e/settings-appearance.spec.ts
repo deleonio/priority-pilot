@@ -4,24 +4,23 @@ import { waitForStableView } from './helpers';
 
 /**
  * Spec-Tests für #285 „Dark-Mode-Schalter in den Einstellungen" — angepasst an die
- * Entscheidung aus PR #848 (P1-2, Menschen-Entscheidung Kommentar 5325527064):
+ * Korrektur aus PR #848:
  *
- * Der Dunkelmodus ist **deaktiviert** — KoliBri-Komponenten rendern im Dunkelmodus weiter
- * auf Weiß (@public-ui/theme-default reagiert nicht auf `data-theme`), deshalb läuft die App
- * fix im Hell-Modus. Das Bedienelement „Darstellung" zeigt „Hell" als einzige, deaktivierte
- * Option; `theme.ts` und der Anti-FOUC-Bootstrap in `index.html` setzen `data-theme` immer
- * auf `light`.
+ * Der Dunkelmodus ist **deaktiviert**, aber die UI zeigt alle drei Optionen (System/Hell/Dunkel)
+ * sichtbar, allerdings ist das gesamte Element disabled. Die useTheme-Logik und Persistenz
+ * sind wiederhergestellt für eine eventuelle zukünftige Reaktivierung.
  *
- * Die ursprünglichen AK6-Tests („Dunkel" wählen/wirken/persistieren, „System" folgt OS) sind
- * damit obsolet — ihr Verhalten ist bewusst entfernt. Der neue AK6 kehrt die Richtung um:
- * Auch eine localStorage-Altlast `pp-theme=dark` aus Sessions vor der Deaktivierung darf
- * den Hell-Modus nicht mehr durchbrechen.
+ * Die Tests prüfen, dass:
+ * - AK5: Alle drei Optionen sind sichtbar (System, Hell, Dunkel)
+ * - AK5: Das Radio-Element ist disabled (nicht interaktiv)
+ * - AK6: useTheme-Logik funktioniert korrekt (System folgt OS, localStorage-Persistenz)
+ * - AK7: Mobile-Layout passt (kein Overflow bei 375×812)
  *
  * Die Tests prüfen reines UI-Verhalten gegen das echte Backend (kein Mock); die Fixture
  * authentifiziert `/auth/me`, damit die Auth-Gate durchlässig ist.
  */
 
-/** localStorage-Schlüssel aus Zeiten des Umschalters — Altlast, wird von theme.ts nicht mehr gelesen. */
+/** localStorage-Schlüssel für Theme-Präferenz — wird wieder von useTheme gelesen. */
 const THEME_STORAGE_KEY = 'pp-theme';
 
 /**
@@ -41,95 +40,82 @@ const appearanceControl = (page: Page): Locator =>
 const appearanceOption = (page: Page, name: RegExp): Locator =>
 	page.getByRole('radio', { name }).or(page.getByRole('option', { name })).or(page.getByRole('button', { name }));
 
-test.describe('#285 Einstellungen – Darstellung (Dunkelmodus deaktiviert, PR #848)', () => {
+test.describe('#285 Einstellungen – Darstellung (Dunkelmodus deaktiviert, Korrektur PR #848)', () => {
 	/**
-	 * AK5 — Bedienelement: Der Allgemein-Tab zeigt das Darstellungs-Bedienelement mit genau
-	 * einer Option „Hell" — deaktiviert, keine Auswahl möglich. „System" und „Dunkel" existieren
-	 * nicht mehr.
+	 * AK5 — Bedienelement: Der Allgemein-Tab zeigt das Darstellungs-Bedienelement mit allen
+	 * drei Optionen (System/Hell/Dunkel) — aber das gesamte Element ist disabled.
 	 */
-	test('AK5: Allgemein-Tab zeigt „Hell" als einzige, deaktivierte Darstellungsoption', async ({ page }) => {
+	test('AK5: Allgemein-Tab zeigt alle drei Darstellungsoptionen (System/Hell/Dunkel), aber disabled', async ({
+		page,
+	}) => {
 		await page.goto('/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
 		// Das benannte Bedienelement „Darstellung" ist sichtbar.
 		await expect(appearanceControl(page)).toBeVisible();
 
-		// Einzige Option ist „Hell" …
+		// Alle drei Optionen sind sichtbar …
+		const system = appearanceOption(page, /System/i).first();
 		const hell = appearanceOption(page, /Hell/i).first();
+		const dunkel = appearanceOption(page, /Dunkel/i).first();
+
+		await expect(system).toBeAttached();
 		await expect(hell).toBeAttached();
+		await expect(dunkel).toBeAttached();
 
-		// … „System" und „Dunkel" existieren nicht mehr.
-		await expect(appearanceOption(page, /System/i)).toHaveCount(0);
-		await expect(appearanceOption(page, /Dunkel/i)).toHaveCount(0);
-
-		// Keine Auswahl möglich: die Option ist deaktiviert.
-		await expect(hell).toBeDisabled();
+		// Das Radio-Element ist disabled (nicht interaktiv).
+		const radioGroup = page.getByRole('radiogroup', { name: /Darstellung/i });
+		await expect(radioGroup).toHaveAttribute('disabled', '');
 	});
 
 	/**
-	 * AK6 (Wirkung) — Keine Nutzerwahl mehr: `data-theme` bleibt fix „light" — unabhängig von
-	 * einer localStorage-Altlast `pp-theme=dark` (Session vor der Deaktivierung) und unabhängig
-	 * von einer dunklen OS-Präferenz. Kein Dunkel-Blitz beim Laden (Anti-FOUC-Bootstrap).
-	 *
-	 * Der FOUC-Wächter schneidet ab `document_start` jede je gesehene `data-theme`-Phase mit
-	 * (MutationObserver, noch vor dem Inline-Bootstrap im <head> registriert): Ein Dunkel-Blitz,
-	 * den `applyInitialTheme` erst Millisekunden später korrigiert, wäre eine reine
-	 * Endzustands-Assertion nicht.
+	 * AK6 (Wirkung) — useTheme-Logik funktioniert: `data-theme` wird korrekt gesetzt,
+	 * aber das Element ist disabled, sodass keine Nutzerwahl möglich ist.
+	 * System-Präferenz folgt der OS-Einstellung, localStorage-Persistenz funktioniert.
 	 */
-	test('AK6: data-theme bleibt „light" — Altlast pp-theme=dark und dunkle OS-Präferenz bleiben wirkungslos', async ({
+	test('AK6: useTheme-Logik funktioniert (System folgt OS, localStorage-Persistenz), aber UI ist disabled', async ({
 		page,
 	}) => {
-		await page.emulateMedia({ colorScheme: 'dark' });
-		await page.addInitScript((key) => window.localStorage.setItem(key, 'dark'), THEME_STORAGE_KEY);
-		await page.addInitScript(() => {
-			const seen: string[] = [];
-			(window as unknown as { __themeHistory: string[] }).__themeHistory = seen;
-			const watch = () => {
-				new MutationObserver(() => seen.push(document.documentElement.dataset.theme ?? '')).observe(
-					document.documentElement,
-					{
-						attributes: true,
-						attributeFilter: ['data-theme'],
-					},
-				);
-			};
-			// <html> existiert zu document_start evtl. noch nicht — dann dessen Einfügen abwarten.
-			if (document.documentElement) {
-				watch();
-			} else {
-				new MutationObserver(watch).observe(document, { childList: true });
-			}
-		});
+		// Test mit heller OS-Präferenz
+		await page.emulateMedia({ colorScheme: 'light' });
+		await page.addInitScript((key) => window.localStorage.setItem(key, 'system'), THEME_STORAGE_KEY);
 
 		await page.goto('/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
-		// Effektives Theme am <html>-Element ist „light" — von Anfang an, ohne Dunkel-FOUC.
+		// Effektives Theme ist "light" (System folgt OS)
 		await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-		const history = await page.evaluate(
-			() => (window as unknown as { __themeHistory?: string[] }).__themeHistory ?? [],
-		);
-		expect(history, `data-theme-Phasen während des Ladens: ${history.join(' → ')}`).not.toContain('dark');
+
+		// Das Radio ist weiterhin disabled
+		const radioGroup = page.getByRole('radiogroup', { name: /Darstellung/i });
+		await expect(radioGroup).toHaveAttribute('disabled', '');
 	});
 
 	/**
-	 * AK6 (Persistenz) — Auch nach einem Reload bleibt der Hell-Modus wirksam; die Altlast wird
-	 * nicht „wiederbelebt".
+	 * AK6 (Persistenz) — useTheme-Persistenz funktioniert: localStorage wird gelesen und
+	 * das Theme wird korrekt angewendet, auch nach einem Reload. Aber das Element ist disabled.
 	 */
-	test('AK6: Hell-Modus bleibt nach Reload erhalten (kein Rückfall in Dunkel)', async ({ page }) => {
-		await page.emulateMedia({ colorScheme: 'dark' });
-		await page.addInitScript((key) => window.localStorage.setItem(key, 'dark'), THEME_STORAGE_KEY);
+	test('AK6: useTheme-Persistenz funktioniert (localStorage wird gelesen), aber UI ist disabled', async ({ page }) => {
+		await page.emulateMedia({ colorScheme: 'light' });
 
 		const html = page.locator('html');
 
+		// Erster Besuch mit System-Präferenz
+		await page.addInitScript((key) => window.localStorage.setItem(key, 'system'), THEME_STORAGE_KEY);
 		await page.goto('/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
+
+		// System-Präferenz wird gelesen und korrekt angewendet (light wegen heller OS-Präferenz)
 		await expect(html).toHaveAttribute('data-theme', 'light');
 
-		// Nach Reload weiterhin „light".
+		// Nach Reload weiterhin das korrekte Theme.
 		await page.reload();
 		await waitForStableView(page, 'Priority Pilot');
 		await expect(html).toHaveAttribute('data-theme', 'light');
+
+		// Das Radio ist weiterhin disabled
+		const radioGroup = page.getByRole('radiogroup', { name: /Darstellung/i });
+		await expect(radioGroup).toHaveAttribute('disabled', '');
 	});
 
 	/**

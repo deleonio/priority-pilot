@@ -14,7 +14,6 @@
 		"test:e2e": "playwright test"
 	},
 	"dependencies": {
-		"workbox-window": "7.4.1",
 		"@public-ui/components": "4.3.0",
 		"@public-ui/react-v19": "4.3.0",
 		"@public-ui/theme-default": "4.3.0",
@@ -22,7 +21,8 @@
 		"openapi-fetch": "0.17.0",
 		"react": "19.2.7",
 		"react-dom": "19.2.7",
-		"react-markdown": "10.1.0"
+		"react-markdown": "10.1.0",
+		"workbox-window": "7.4.1"
 	},
 	"devDependencies": {
 		"@eslint/js": "10.0.1",
@@ -30,6 +30,7 @@
 		"@testing-library/dom": "10.4.1",
 		"@testing-library/jest-dom": "6.9.1",
 		"@testing-library/react": "16.3.2",
+		"@types/jsdom": "30.0.0",
 		"@types/react": "19.2.17",
 		"@types/react-dom": "19.2.3",
 		"@typescript-eslint/eslint-plugin": "8.65.0",
@@ -40,7 +41,7 @@
 		"eslint": "10.8.0",
 		"eslint-plugin-react-hooks": "7.1.1",
 		"eslint-plugin-react-refresh": "0.5.3",
-		"jsdom": "29.1.1",
+		"jsdom": "30.0.1",
 		"knip": "5.88.1",
 		"prettier": "3.9.6",
 		"typescript": "5.9.3",
