@@ -77,14 +77,15 @@ test.describe('#285 Einstellungen – Darstellung (Dunkelmodus deaktiviert, Korr
 	test('AK6: useTheme-Logik funktioniert (System folgt OS, localStorage-Persistenz), aber UI ist disabled', async ({
 		page,
 	}) => {
-		// Test mit heller OS-Präferenz
-		await page.emulateMedia({ colorScheme: 'light' });
-		await page.addInitScript((key) => window.localStorage.setItem(key, 'system'), THEME_STORAGE_KEY);
+		// Test mit dunkler OS-Präferenz und Altlast pp-theme=dark: Dunkelmodus ist deaktiviert,
+		// also muss "light" erzwungen bleiben, obwohl OS und gespeicherte Präferenz "dark" wollen.
+		await page.emulateMedia({ colorScheme: 'dark' });
+		await page.addInitScript((key) => window.localStorage.setItem(key, 'dark'), THEME_STORAGE_KEY);
 
 		await page.goto('/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
-		// Effektives Theme ist "light" (System folgt OS)
+		// Effektives Theme bleibt "light" — der Dunkelmodus ist deaktiviert (FOUC-Wächter).
 		await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 
 		// Alle Optionen sind weiterhin disabled
@@ -102,19 +103,19 @@ test.describe('#285 Einstellungen – Darstellung (Dunkelmodus deaktiviert, Korr
 	 * das Theme wird korrekt angewendet, auch nach einem Reload. Aber das Element ist disabled.
 	 */
 	test('AK6: useTheme-Persistenz funktioniert (localStorage wird gelesen), aber UI ist disabled', async ({ page }) => {
-		await page.emulateMedia({ colorScheme: 'light' });
+		// Dunkle OS-Präferenz + gespeicherte Altlast-Präferenz "dark": Persistenz wird gelesen,
+		// aber der FOUC-Wächter erzwingt weiterhin "light", weil der Dunkelmodus deaktiviert ist.
+		await page.emulateMedia({ colorScheme: 'dark' });
 
 		const html = page.locator('html');
 
-		// Erster Besuch mit System-Präferenz
-		await page.addInitScript((key) => window.localStorage.setItem(key, 'system'), THEME_STORAGE_KEY);
+		await page.addInitScript((key) => window.localStorage.setItem(key, 'dark'), THEME_STORAGE_KEY);
 		await page.goto('/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
-		// System-Präferenz wird gelesen und korrekt angewendet (light wegen heller OS-Präferenz)
 		await expect(html).toHaveAttribute('data-theme', 'light');
 
-		// Nach Reload weiterhin das korrekte Theme.
+		// Nach Reload weiterhin "light" trotz dunkler OS-Präferenz und gespeicherter "dark"-Altlast.
 		await page.reload();
 		await waitForStableView(page, 'Priority Pilot');
 		await expect(html).toHaveAttribute('data-theme', 'light');

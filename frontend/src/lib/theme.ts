@@ -126,12 +126,6 @@ export const useTheme = (): {
 		applyTheme(newResolvedTheme);
 	};
 
-	// Initiales Theme beim ersten Mount anwenden
-	useEffect(() => {
-		applyTheme(resolvedTheme);
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []);
-
 	return { preference, setPreference, resolvedTheme };
 };
 
