@@ -14,13 +14,30 @@ import { fileURLToPath } from 'node:url';
 /** Ablageort der Datensätze (relativ zum rootDir). Eine Datei pro Issue-ID. */
 export const COSTS_DIR = '.costs';
 
-/** Vollständiger Eintrag —Issue-ID + Verbrauch/Kosten eines Workflow-Runs. */
+/**
+ * Vollständiger Eintrag —Issue-ID + Verbrauch/Kosten eines Workflow-Runs.
+ *
+ * Die fünf Pflichtfelder sind unverändert (Bestandsschutz für vorhandene Datensätze).
+ * Die optionalen Felder kamen mit der Transkript-Erfassung dazu (cost-from-transcript.ts)
+ * und sind für den Vorher/Nachher-Vergleich der Pipeline nötig:
+ *   - ohne `phase` lässt sich der Verbrauch nicht je Pipeline-Schritt aufschlüsseln,
+ *   - ohne `model`/`provider` ist ein Kostenwert nicht zuordenbar (GLM ≠ Anthropic-Preise),
+ *   - ohne die Cache-Aufteilung ist `cost` aus den Token nicht rekonstruierbar (Cache-Write
+ *     und Cache-Read werden mit abweichenden Faktoren berechnet, s. cost-from-transcript.ts).
+ * Alt-Einträge ohne diese Felder bleiben gültig — Leser müssen sie als optional behandeln.
+ */
 export type CostEntry = {
 	issueId: string;
 	timestamp: string;
 	tokensIn: number;
 	tokensOut: number;
 	cost: number;
+	phase?: string;
+	model?: string;
+	provider?: string;
+	cacheCreationTokens?: number;
+	cacheReadTokens?: number;
+	sidechainTokens?: number;
 };
 
 /** Eingabe eines Runs (Issue-ID wird beim Anhängen zugewiesen). */
@@ -46,14 +63,28 @@ const normalizeIssueId = (issueId: string | number): string => {
 	return safe.length > 0 ? safe : '_';
 };
 
-/** Gibt einen Eintrag mit exakt den dokumentierten Pflichtfeldern zurück. */
-const toEntry = (issueId: string, input: CostInput): CostEntry => ({
-	timestamp: input.timestamp,
-	tokensIn: input.tokensIn,
-	tokensOut: input.tokensOut,
-	cost: input.cost,
-	issueId,
-});
+/**
+ * Gibt einen Eintrag mit den dokumentierten Pflichtfeldern zurück; optionale Felder
+ * werden nur übernommen, wenn sie gesetzt sind. Bewusst kein Spread von `input`:
+ * so kann ein Aufrufer keine undokumentierten Schlüssel in die Datei schmuggeln,
+ * und ein Datensatz ohne Zusatzangaben sieht exakt aus wie vor der Erweiterung.
+ */
+const toEntry = (issueId: string, input: CostInput): CostEntry => {
+	const entry: CostEntry = {
+		timestamp: input.timestamp,
+		tokensIn: input.tokensIn,
+		tokensOut: input.tokensOut,
+		cost: input.cost,
+		issueId,
+	};
+	if (input.phase !== undefined) entry.phase = input.phase;
+	if (input.model !== undefined) entry.model = input.model;
+	if (input.provider !== undefined) entry.provider = input.provider;
+	if (input.cacheCreationTokens !== undefined) entry.cacheCreationTokens = input.cacheCreationTokens;
+	if (input.cacheReadTokens !== undefined) entry.cacheReadTokens = input.cacheReadTokens;
+	if (input.sidechainTokens !== undefined) entry.sidechainTokens = input.sidechainTokens;
+	return entry;
+};
 
 /**
  * Hängt einen Datensatz für `<rootDir>/.costs/<issueId>.json` an — vorhandene Einträge

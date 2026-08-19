@@ -1,0 +1,124 @@
+name: 'Token-/Kostenerfassung'
+description: >-
+  Liest den Verbrauch DIESES Laufes aus dem Claude-Code-Sitzungstranskript, schreibt
+  ihn nach .costs/<issue>.json, zeigt ihn in der Job-Summary und lädt ihn als Artefakt
+  hoch. Läuft NACH dem claude-Step und lässt den claude-Aufruf selbst unangetastet.
+
+# WARUM DIESE ACTION (Schritt 0 der Harness-Optimierung): Der Vorher/Nachher-Vergleich
+# der Pipeline braucht eine Baseline auf der UNVERÄNDERTEN Pipeline. cost-record.ts lag
+# fertig im Repo, war aber in keinem Workflow verdrahtet — .costs/ enthielt nur SCHEMA.md.
+# Nach dem Umbau ist der alte Wert nicht mehr messbar, deshalb muss die Erfassung zuerst
+# stehen.
+#
+# WARUM AUS DEM TRANSKRIPT: Token-Zahlen direkt aus dem Aufruf gäbe es nur mit
+# `--output-format json`. Das würde die Live-Ausgabe im Actions-Log, den VERDICT-Grep und
+# `needs-human-explain.sh logtail` brechen — also genau die Pipeline verändern, die hier
+# vermessen werden soll. Details im Kopf von cost-from-transcript.ts.
+#
+# WARUM KEIN COMMIT nach .costs/: Sieben Phasen × parallele Tickets, die alle auf denselben
+# Ordner committen, erzeugen Konflikte auf main. Artefakt + Job-Summary reichen für die
+# Messung und fassen den Default-Branch nicht an. Wer dauerhaft sammeln will, aggregiert
+# die Artefakte bewusst in einem eigenen Lauf.
+#
+# NIE FATAL: Jeder Schritt ist fehlertolerant. Eine fehlende Kostenzeile darf keine
+# erfolgreiche Phase rot färben — die Messung ist Beiwerk, nicht Zweck der Pipeline.
+
+inputs:
+  issue:
+    description: 'Ticket-Nummer, unter der der Datensatz abgelegt wird'
+    required: true
+  phase:
+    description: 'Pipeline-Phase (analyse | ux | spec | implement | review | fixup | documenter)'
+    required: true
+  since-epoch:
+    description: >-
+      Startzeit des Laufes als Unix-Epoch (steps.starttime.outputs.epoch). Grenzt die
+      Transkriptzeilen auf DIESEN Lauf ein — ohne die Untergrenze zählte ein Folgelauf
+      im selben Runner-Home die Token des Vorlaufs erneut mit.
+    required: true
+  provider:
+    description: 'Aufgelöster LLM-Provider (steps.setup.outputs.llm-provider) — nur zur Ablage'
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - name: Verbrauch aus dem Transkript erfassen
+      id: collect
+      shell: bash
+      env:
+        ISSUE: ${{ inputs.issue }}
+        PHASE: ${{ inputs.phase }}
+        SINCE_EPOCH: ${{ inputs.since-epoch }}
+        PROVIDER: ${{ inputs.provider }}
+      run: |
+        set -uo pipefail
+
+        # Epoch -> ISO-8601 (UTC). Die Transkript-Timestamps sind ISO-Strings; der
+        # Vergleich im Skript ist ein lexikografischer String-Vergleich, deshalb muss
+        # das Format exakt passen (Z-Suffix, keine lokale Zeitzone).
+        SINCE="$(date -u -d "@${SINCE_EPOCH}" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo '')"
+        if [ -z "$SINCE" ]; then
+          echo "::warning title=Kostenerfassung::since-epoch '${SINCE_EPOCH}' nicht konvertierbar — erfasse ohne Untergrenze."
+        fi
+
+        # Bewusst `node` statt `pnpm exec tsx`: Die Phasen 01, 05 und 07 richten weder
+        # Node-Setup noch pnpm ein (nur 02/03/04/06 tun das). Node >= 22.18 entfernt
+        # TypeScript-Typen nativ beim Laden, das Skript nutzt ausschliesslich loeschbare
+        # Syntax — damit laeuft die Erfassung in ALLEN sieben Phasen ohne Zusatz-Setup.
+        # Faellt das Type-Stripping aus (aelteres Node), greift tsx als Fallback.
+        SCRIPT="${GITHUB_ACTION_PATH}/../../scripts/cost-from-transcript.ts"
+        OUT="$(node "$SCRIPT" \
+          --issue "$ISSUE" --phase "$PHASE" --provider "$PROVIDER" \
+          ${SINCE:+--since "$SINCE"} 2>&1)" \
+          || OUT="$(pnpm exec tsx "$SCRIPT" \
+              --issue "$ISSUE" --phase "$PHASE" --provider "$PROVIDER" \
+              ${SINCE:+--since "$SINCE"} 2>&1 || true)"
+        printf '%s\n' "$OUT"
+
+        # key=value aus der Skript-Ausgabe ziehen; fehlt etwas, bleibt der Wert leer und
+        # die Summary sagt das offen, statt eine Null zu erfinden.
+        for key in tokensIn tokensOut cost model; do
+          val="$(printf '%s' "$OUT" | sed -n "s/^${key}=//p" | tail -1)"
+          echo "${key}=${val}" >> "$GITHUB_OUTPUT"
+        done
+
+    - name: Job-Summary
+      if: always()
+      shell: bash
+      env:
+        PHASE: ${{ inputs.phase }}
+        ISSUE: ${{ inputs.issue }}
+        PROVIDER: ${{ inputs.provider }}
+        TOKENS_IN: ${{ steps.collect.outputs.tokensIn }}
+        TOKENS_OUT: ${{ steps.collect.outputs.tokensOut }}
+        COST: ${{ steps.collect.outputs.cost }}
+        MODEL: ${{ steps.collect.outputs.model }}
+      run: |
+        {
+          echo "### 💰 Token & Kosten — Phase ${PHASE} (#${ISSUE})"
+          echo ""
+          if [ -z "${TOKENS_IN}" ]; then
+            echo "Kein Transkript gefunden — kein Datensatz geschrieben."
+          else
+            echo "| Metrik | Wert |"
+            echo "| --- | --- |"
+            echo "| Modell | \`${MODEL:-unbekannt}\` |"
+            echo "| Provider | \`${PROVIDER:-?}\` |"
+            echo "| Token in (inkl. Cache) | ${TOKENS_IN} |"
+            echo "| Token out | ${TOKENS_OUT} |"
+            echo "| Kosten (USD, Anthropic-Listenpreis) | ${COST} |"
+            echo ""
+            echo "_Bei Nicht-Anthropic-Providern ist \`cost\` 0 — dort gelten Fremdtarife._"
+          fi
+        } >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Kostendatensatz als Artefakt sichern
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      with:
+        name: claude-costs-${{ inputs.phase }}-issue-${{ inputs.issue }}-${{ github.run_id }}
+        path: .costs/${{ inputs.issue }}.json
+        if-no-files-found: ignore
+        retention-days: 90

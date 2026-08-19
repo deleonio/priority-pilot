@@ -199,6 +199,17 @@ jobs:
             2>&1 | tee /tmp/claude-output.log
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
 
+      - name: Token & Kosten erfassen
+        # always(): Auch ein abgebrochener Lauf hat Token verbraucht — gerade teure
+        # Fehlläufe gehören in die Baseline, sonst sieht die alte Pipeline zu günstig aus.
+        if: always() && steps.setup.outputs.configured == 'true'
+        uses: ./.github/actions/record-cost
+        with:
+          issue: ${{ steps.setup.outputs.issue-number || needs.precheck.outputs.issue_number }}
+          phase: ux
+          since-epoch: ${{ steps.starttime.outputs.epoch }}
+          provider: ${{ steps.setup.outputs.llm-provider }}
+
       - name: Memory-Upload
         if: always() && steps.setup.outputs.configured == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

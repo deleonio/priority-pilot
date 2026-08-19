@@ -332,6 +332,19 @@ jobs:
             2>&1 | tee /tmp/claude-output.log
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
 
+      - name: Token & Kosten erfassen
+        # always(): Auch ein abgebrochener Lauf hat Token verbraucht — gerade teure
+        # Fehlläufe gehören in die Baseline, sonst sieht die alte Pipeline zu günstig aus.
+        # issue-number löst den PR über closingIssuesReferences auf das Ticket auf, damit
+        # alle Phasen EINES Tickets in derselben .costs-Datei landen.
+        if: always() && steps.setup.outputs.configured == 'true'
+        uses: ./.github/actions/record-cost
+        with:
+          issue: ${{ steps.setup.outputs.issue-number || github.event.pull_request.number }}
+          phase: fixup
+          since-epoch: ${{ steps.starttime.outputs.epoch }}
+          provider: ${{ steps.setup.outputs.llm-provider }}
+
       - name: Memory-Upload (das Artefakt IST der Speicher der Phasen-Notizen)
         # Kein Cache-Save mehr — er ist für diese Pipeline platform-seitig unmöglich: GitHubs
         # Richtlinie vom 2026-06-26 vergibt für Issue-/Label-/PR-Trigger UND die daraus
