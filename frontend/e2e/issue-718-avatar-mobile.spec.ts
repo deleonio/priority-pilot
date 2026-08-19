@@ -4,21 +4,18 @@ import { expect, test } from './fixtures';
 import { waitForStableView } from './helpers';
 
 /**
- * ROTE Spec-Tests für #718 „Avatar im Header auf Mobile wiederherstellen (unter 48rem ausgeblendet)".
+ * Spec-Tests für #718 „Avatar im Header auf Mobile wiederherstellen (unter 48rem ausgeblendet)".
  *
  * Ziel: Der Avatar (`kol-avatar`) ist über alle Bildschirmgrößen sichtbar — auch auf schmalen Viewports
- * (< 768px / 48rem). Mobil darf ggf. nur der Klartextname entfallen, der Avatar selbst soll erhalten bleiben.
+ * (< 768px / 48rem).
  *
- * Diese Tests waren **rot**, solange `frontend/src/app.css` den `.user-info` Block mobil komplett
- * ausblendet — seit #718 bleibt der Block sichtbar; unter 48rem ist nur der Klartextname
- * (`.user-display-name`) ausgeblendet, der Avatar selbst nicht. #787 gruppiert Avatar und Name
- * wieder gemeinsam in `.user-info` (#406).
+ * Historie: Diese Tests waren **rot**, solange der Avatar mobil per CSS ausgeblendet war — #718 hob
+ * das auf, die #865-Korrektur hält den Avatar endgültig auf jeder Breite. Der Klartextname ist seit
+ * der #865-Korrektur ganz entfernt (auf allen Breiten, nicht nur mobil): `KolAvatar` steht direkt im
+ * Header (`App.tsx`), ein Gruppierungs-Wrapper wie das frühere `.user-info` existiert nicht mehr, und
+ * der Name lebt nur noch als `_label`/Accessible Name des Avatars weiter.
  *
  * Spec: docs/spec/issue-718.md
- *
- * ⚠️ Test-Pflege-Bedarf: `frontend/e2e/header-appearance.spec.ts` AK6 (Zeile 232) erwartet aktuell,
- * dass `.user-info` auf 375px HIDDEN ist. Dieser Test muss nach Umsetzung von #718 ENTFERNT werden,
- * da er das neue Verhalten widerspiegelt (siehe Spec).
  */
 test.describe('#718 Avatar auf Mobile wiederherstellen', () => {
 	/** Toleranz für Rundungen der Layout-Engine (Sub-Pixel). */
@@ -56,8 +53,8 @@ test.describe('#718 Avatar auf Mobile wiederherstellen', () => {
 
 	/**
 	 * AK1 — Avatar ist auf Mobile (< 48rem / 768px) sichtbar.
-	 * Rot wäre er, wenn `app.css` `.user-info` unter 48rem komplett ausblendete — seit #718 bleibt
-	 * der Avatar sichtbar, nur der Klartextname ist mobil weg.
+	 * Rot wäre er, wenn `app.css` den Avatar unter 48rem ausblendete — mobil misst er 44px
+	 * (`--pp-avatar-size` = `--pp-toolbar-height`), Details siehe AK6 in `header-appearance.spec.ts`.
 	 */
 	test('AK1: Avatar ist auf Mobile (< 48rem) sichtbar', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });

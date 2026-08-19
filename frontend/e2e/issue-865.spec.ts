@@ -16,7 +16,12 @@ test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 		await expect(header).toBeVisible();
 
 		const avatar = header.locator('kol-avatar').first();
-		const displayName = header.locator('.user-display-name').first();
+		// Der Klartextname ist seit der #865-Korrektur ganz entfernt — eine `.user-display-name`-Klasse
+		// existiert im Light-DOM nicht mehr, ein Klassen-Locator wäre tote Diagnose (matcht nie).
+		// Geprüft wird deshalb auf den Namen als Text (`fixtures.ts`: displayName 'Test User'): Käme der
+		// Full Name mit anderem Markup zurück, fiele dieser Check rot. Der Name lebt bewusst weiter als
+		// `_label`/Accessible Name des Avatars (kein Text-Knoten).
+		const displayName = header.getByText('Test User', { exact: true });
 		const toolbar = header.locator('[role="toolbar"]').first();
 		const logo = header.locator('img[alt*="Priority Pilot"], .logo').first();
 

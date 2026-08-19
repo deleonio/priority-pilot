@@ -188,16 +188,20 @@ test.describe('#485 Header — Avatar-Größe, gemeinsame Ebene, kompakte Höhe'
 	 * AK6 — Mobile-First (375px): Alle Header-Elemente bleiben sichtbar und bedienbar.
 	 *
 	 * Geändert gegenüber #485: Die 1,25-Relation Avatar/Toolbar-Button gilt bewusst **nur noch ab
-	 * 48rem** (AK3 prüft sie bei 1280px). Seit #691 stehen alle fünf Kopf-Aktionen auf JEDER Breite
-	 * direkt in der Toolbar; damit der Kopfbereich auf 375px einzeilig bleibt (Höhen-Vertrag in
-	 * `mobile-shell.spec.ts`), ist die Identität (Avatar + Klartextname) unter 48rem ausgeblendet:
-	 * Logo (44px) + fünf Toolbar-Buttons (~252px) füllen ~305 der 343px Inhaltsbreite — Avatar und
-	 * Name passen nicht zusätzlich in eine Zeile.
+	 * 48rem** (AK3 prüft sie bei 1280px); mobil misst der Avatar 44px (`--pp-avatar-size` =
+	 * `--pp-toolbar-height`, siehe `app.css`). Seit #691 stehen alle fünf Kopf-Aktionen auf JEDER
+	 * Breite direkt in der Toolbar; mit dem Avatar aus der #865-Korrektur füllen Logo (44px),
+	 * Avatar (44px) und die fünf Kopf-Aktionen (~252px) die 375px-Zeile bereits vollständig aus
+	 * (~340 der ~343px Inhaltsbreite). Das sechste Bedienelement — die KI-Modell-Auswahl — ist
+	 * deshalb unter 48rem im Header ausgeblendet und bleibt über den Dashboard-Einstieg erreichbar
+	 * (#742, siehe `app.css`). Der Klartextname ist seit der #865-Korrektur auf allen Breiten
+	 * entfernt; die Identität steht mobil als Avatar da — deren Sichtbarkeit bei 375px deckt
+	 * `issue-718-avatar-mobile.spec.ts` AK1 ab.
 	 *
-	 * Was hier zählt: Logo und primäre Aktion stehen sichtbar auf EINER Zeile, die Identität ist
-	 * mobil bewusst weg (kein Menü mehr, in dem sie läge), und der Logo-Button bleibt bedienbar.
-	 * Die Sichtbarkeits-Checks mit Retry warten zugleich das asynchrone Shadow-DOM-Layout der
-	 * KoliBri-Toolbar ab — eine Messung davor träfe den Pre-Hydration-Zustand.
+	 * Was hier zählt: Logo und primäre Aktion stehen sichtbar auf EINER Zeile (Höhen-Vertrag in
+	 * `mobile-shell.spec.ts`), und der Logo-Button bleibt bedienbar. Die Sichtbarkeits-Checks mit
+	 * Retry warten zugleich das asynchrone Shadow-DOM-Layout der KoliBri-Toolbar ab — eine Messung
+	 * davor träfe den Pre-Hydration-Zustand.
 	 *
 	 * Hinweis: Die reine Overflow-Prüfung (`scrollWidth <= clientWidth`) ist bereits durch
 	 * `header-logo.spec.ts` (#395 AK5 / #406 AK5) abgedeckt und wird hier nicht dupliziert.
