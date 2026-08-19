@@ -159,11 +159,11 @@ jobs:
             2. Titel prüfen: Konsistenz zur Beschreibung? Falls nein: inhaltlich treu optimieren (gh issue edit --title).
             3. Beschreibung lektorieren (Form verbessern, Inhalt unverändert, gh issue edit --body-file -).
             4. Zu große Tickets ZERLEGEN, wenn mind. EINES zutrifft: mehrere Schichten/Pakete (z. B. Frontend+Backend+DB) ODER mehrere unabhängige AK ODER nicht sinnvoll in 1 PR machbar. Dann in 2–5 Sub-Issues (max. 1 Ebene, max. 5), jede in 1 PR umsetzbar. Pro Sub-Issue:
-               a) VORAB Labels sicherstellen (sonst schlägt --label fehl): gh label create "ai:analysed" --color 0E8A16 2>/dev/null||true; gh label create "ai:needs-ux-ui" --color FBCA04 2>/dev/null||true; gh label create "ai:needs-spec" --color FBCA04 2>/dev/null||true
+               a) VORAB Labels sicherstellen (sonst schlägt --label fehl): gh label create "ai:analysed" --color 0E8A16 2>/dev/null||true; gh label create "ai:needs-ux-ui" --color FBCA04 2>/dev/null||true; gh label create "ai:needs-spec" --color FBCA04 2>/dev/null||true; for m in haiku sonnet opus; do gh label create "ai:model:$m" --color C5DEF5 --description "Modell der Folgephasen" 2>/dev/null||true; done
                b) Sub-Issue anlegen — Body: "Teil von #ISSUE_NR" + Mini-Analyse MIT MARKERN
                   (<!-- KI-ANALYSE:START stand=<ISO-8601> --> … <!-- KI-ANALYSE:END -->, exakt
                   BODY-BLOCK-FORMAT — PFLICHT auch für Sub-Issues: Re-Triage/Unblock prüft den Block,
-                  ohne Marker failt der Workflow hart): gh issue create --title "<Teilaufgabe>" --label "ai:analysed" --body-file - <<'EOF' … EOF
+                  ohne Marker failt der Workflow hart). PFLICHT: GENAU EIN ai:model:<klasse> je Sub-Issue (eigene Einstufung je Teilaufgabe — eine leichte Teilaufgabe eines schweren Tickets ist haiku). Ohne dieses Label bricht die Umsetzung ab und parkt beim Menschen: gh issue create --title "<Teilaufgabe>" --label "ai:analysed" --label "ai:model:<klasse>" --body-file - <<'EOF' … EOF
                c) Als echtes GitHub-Sub-Issue ans Eltern-Ticket hängen (PFLICHT, nicht nur Textreferenz): gh api graphql -f query='mutation($p:ID!,$c:ID!){addSubIssue(input:{issueId:$p,subIssueId:$c}){clientMutationId}}' -f p="$(gh issue view #ISSUE_NR --json id -q .id)" -f c="$(gh issue view <SUB-NR> --json id -q .id)"
                d) Sequenzielle Abhängigkeit (A1→A2→A3, gleiche Dateien/„A2 nach A1"): Vorgänger blockt Nachfolger — PFLICHT, maschinenlesbar (issue-unblock.yml löst beim Merge des Vorgängers automatisch auf): gh api graphql -f query='mutation($b:ID!,$k:ID!){addBlockedBy(input:{issueId:$b,blockingIssueId:$k}){clientMutationId}}' -f b="$(gh issue view <NACHFOLGER-NR> --json id -q .id)" -f k="$(gh issue view <VORGÄNGER-NR> --json id -q .id)" — Kanten gedrosselt setzen (sekundäres Rate-Limit bei zu schnellen Schreibzugriffen). Nur echte Reihenfolge-Abhängigkeiten; unabhängige Sub-Issues bleiben ohne blocked-by.
                e) Nur der ERSTE unblockierte Sub-Issue bekommt den Phasen-Trigger: bei UI-Bezug ai:needs-ux-ui, sonst ai:needs-spec (gh issue edit <SUB-NR> --add-label "ai:needs-ux-ui" bzw. "ai:needs-spec") — enthält der Mini-Analyse-Block des Sub-Issues „UI-Bezug: nein", wird die UX-Phase übersprungen wie beim Eltern-Ticket. Geblockte Nachfolger bleiben bei ai:analysed und werden beim Merge des Vorgängers automatisch freigegeben. Unabhängige Sub-Issues folgen ihrer eigenen Ampel.
@@ -172,11 +172,24 @@ jobs:
                ⚠️ ZWINGEND: Der BODY-BLOCK gehört in den Issue-BODY via `gh issue edit --body-file -` (vorhandenen Body erhalten + Block anhängen), NIEMALS als Kommentar. Der Workflow prüft den Body — ein Block nur im Kommentar lässt den Lauf scheitern (bzw. wird nur als Notfall-Migration akzeptiert).
             6. EINEN Ping-Kommentar (gh issue comment) — nur eine kurze Notiz (z. B. "spec-ready, nach #VORGÄNGER umsetzbar"), OHNE den KI-ANALYSE-Block.
 
+          AUFWANDSKLASSE (steuert das Modell der Folgephasen — PFLICHT):
+            Stufe die Aufgabe ein. Die Klasse ist der Claude-Code-Modell-Alias, mit dem
+            Umsetzung/Review laufen. Sie hängt AM AUFWAND, nicht am Themengebiet:
+              - haiku  = eng umrissen, wenige Dateien, Muster im Code bereits vorhanden (DEFAULT)
+              - sonnet = mehrere Dateien oder Zusammenspiel von Komponenten, aber klarer Weg
+              - opus   = viel Kontext nötig, Entwurfsarbeit, unklarer Lösungsweg
+            Im Zweifel EINE Stufe HÖHER: Eine zu niedrig eingestufte Aufgabe erzeugt
+            Review-Schleifen, die teurer sind als der einmalige Aufpreis.
+
           BODY-BLOCK-FORMAT:
             <!-- KI-ANALYSE:START stand=<ISO-8601-Datum> -->
             ### UI-Bezug
             - UI-Bezug: ja|nein
             - Begründung: [Kurzbegründung]
+
+            ### Aufwandsklasse
+            - Aufwandsklasse: haiku|sonnet|opus
+            - Begründung: [Kurzbegründung, woran der Aufwand hängt]
 
             [Analyse – präzise, ohne Füllwörter]
             <!-- KI-ANALYSE:END -->
@@ -281,6 +294,24 @@ jobs:
               UI_BEZUG="$(printf '%s' "$UI_BEZUG_LINE" | sed -E 's/^.*[Uu][Iu][- ]?[Bb]ezug:[[:space:]]*//' | tr -d '[:space:]' | head -c 4 || true)"
             fi
             echo "UI-Bezug aus Analyse: '${UI_BEZUG:-nicht gefunden}'"
+
+            # Aufwandsklasse aus dem Block parsen — sie steuert das Modell der Folgephasen
+            # (resolve-model-label.sh liest das daraus gesetzte ai:model:*-Label).
+            # Gleiche Robustheit wie beim Verdict: tr -d -c streift Markdown-Dekoration,
+            # die das LLM gern um den Wert legt ("**haiku**" != "haiku").
+            KLASSE=""
+            KLASSE_LINE="$(printf '%s' "$BODY" | grep -iE "Aufwandsklasse:" | head -1 || true)"
+            if [ -n "$KLASSE_LINE" ]; then
+              KLASSE="$(printf '%s' "$KLASSE_LINE" | sed -E 's/^.*[Aa]ufwandsklasse:[[:space:]]*//' | tr -d -c 'a-z' || true)"
+            fi
+            case "$KLASSE" in
+              haiku|sonnet|opus) ;;
+              # Kein stiller Fallback auf haiku: eine geratene Klasse wäre genau das
+              # Verhalten, gegen das die Modellwahl antritt. Leer lassen — die Folgephase
+              # bricht dann ab und parkt mit Begründung beim Menschen (resolve-model).
+              *) [ -n "$KLASSE" ] && echo "::warning title=Aufwandsklasse::Unbekannter Wert '${KLASSE}' — ignoriert."; KLASSE="" ;;
+            esac
+            echo "Aufwandsklasse aus Analyse: '${KLASSE:-nicht gefunden}'"
           fi
 
           # Self-Heal (Issue #566): Schwachmodell-Agent (zai/GLM) postet den KI-ANALYSE-Block
@@ -322,6 +353,25 @@ jobs:
           gh label create "ai:analysed" --color 0E8A16 2>/dev/null || true
           gh label create "ai:needs-ux-ui" --color FBCA04 2>/dev/null || true
           gh label create "ai:needs-spec" --color FBCA04 2>/dev/null || true
+          for m in haiku sonnet opus; do
+            gh label create "ai:model:$m" --color C5DEF5 --description "Modell der Folgephasen" 2>/dev/null || true
+          done
+
+          # Aufwandsklasse als ai:model:*-Label setzen. Genau EINES: die anderen erst
+          # entfernen (Re-Triage kann neu einstufen), dann das aktuelle setzen — zwei
+          # Labels ließen resolve-model-label.sh bewusst abbrechen.
+          # `ai:model:*` ist KEIN Pipeline-Trigger und steht deshalb nicht in der
+          # MANAGED-Liste von label-transition.sh — es überlebt alle Phasen-Transitions.
+          if [ -n "$KLASSE" ]; then
+            for m in haiku sonnet opus; do
+              [ "$m" = "$KLASSE" ] && continue
+              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --remove-label "ai:model:$m" 2>/dev/null || true
+            done
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:model:$KLASSE"
+            echo "::notice title=🎚️ Modell::Aufwandsklasse '$KLASSE' als ai:model:$KLASSE gesetzt."
+          else
+            echo "::warning title=Aufwandsklasse fehlt::Kein ai:model:*-Label gesetzt — die Umsetzung wird abbrechen und beim Menschen parken."
+          fi
 
           # Trigger konsumieren (ai:needs-analyse bei Re-Triage) und stale Folge-Trigger
           # abräumen — Remove-vor-Add (#536), damit kein alter Trigger kleben bleibt.

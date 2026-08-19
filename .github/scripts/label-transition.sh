@@ -96,6 +96,14 @@ if [ "$SET_NONE" != "true" ] && [ -z "$SET" ]; then
 fi
 
 # Der Bestand, den Transitions verwalten. Reihenfolge = kanonische Anlege-Reihenfolge.
+#
+# ⚠️ `ai:model:*` GEHÖRT HIER NICHT HINEIN — und das ist eine Invariante, kein Zufall.
+# Eine Transition ersetzt den gesamten MANAGED-Bestand in EINEM API-Call. Stünde die
+# Modellwahl in dieser Liste, wischte die erste Phasen-Transition sie weg — und zwar
+# ausgerechnet im Review-Fix-Zyklus, wo das Label bei jedem erneuten Start neu gelesen
+# werden muss (resolve-model-label.sh). Der Lauf fiele dann still auf das Default-Modell
+# zurück, also potenziell auf das teuerste. `ai:model:*` ist Konfiguration am Ticket,
+# kein Pipeline-Trigger. Abgesichert in label-transition.test.ts.
 MANAGED=(ai:needs-review ai:needs-fixup ai:reviewed ai:needs-human)
 # Anlege-Definitionen (nur relevant auf frischen Repos; bestehende Labels bleiben
 # unangetastet — gleiche Farben wie bisher in den Workflows gepflegt).

@@ -151,3 +151,26 @@ describe('label-transition.sh — Guard 3 (Menschen-Parker, PR #903)', () => {
 		assert.ok(log.length > 0, 'PUT muss ausgefuehrt werden');
 	});
 });
+
+describe('label-transition.sh — ai:model:* ist NICHT verwaltet (Invariante)', () => {
+	it('lässt die Modellwahl eine Transition überleben', () => {
+		// Eine Transition ersetzt den MANAGED-Bestand vollständig. Stünde ai:model:*
+		// darin, verlöre der Review-Fix-Zyklus die Modellwahl genau dort, wo
+		// resolve-model-label.sh sie bei jedem erneuten Start neu lesen muss — der
+		// Lauf fiele still auf das Default-Modell zurück.
+		writeFileSync(fixturePath, fixture('ai:needs-review', 'ai:model:haiku'));
+		const r = runTransition(['--set', 'ai:needs-fixup', '--expect', 'ai:needs-review']);
+		assert.equal(r.applied, 'true');
+		const log = putLogContents();
+		assert.ok(log.includes('ai:model:haiku'), 'ai:model:* muss im PUT erhalten bleiben');
+		assert.ok(log.includes('ai:needs-fixup'), 'der neue Trigger muss gesetzt werden');
+		assert.ok(!log.includes('ai:needs-review'), 'der alte Trigger muss verschwinden');
+	});
+
+	it('fasst die Modellwahl auch bei --set-none nicht an', () => {
+		writeFileSync(fixturePath, fixture('ai:needs-fixup', 'ai:model:opus'));
+		const r = runTransition(['--set-none', '--expect', 'ai:needs-fixup']);
+		assert.equal(r.applied, 'true');
+		assert.ok(putLogContents().includes('ai:model:opus'), 'ai:model:* überlebt auch das Leeren');
+	});
+});

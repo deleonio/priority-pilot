@@ -52,9 +52,11 @@ jobs:
     timeout-minutes: 5
     permissions:
       contents: read # lokale Action + Skript auschecken
-      pull-requests: read
+      pull-requests: write # Abbruchfall der Modellwahl setzt ai:needs-human + Begründung
     outputs:
       proceed: ${{ steps.check.outputs.proceed }}
+      model: ${{ steps.model.outputs.model }}
+      model_abort: ${{ steps.model.outputs.abort }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -67,6 +69,16 @@ jobs:
           phase: review
           ticket: ${{ github.event.pull_request.number }}
 
+      - name: Modellwahl aus ai:model:*-Label
+        # NACH dem Phasen-Check: Ein konsumierter Trigger soll nicht wegen einer fehlenden
+        # Modellwahl ai:needs-human setzen — der Lauf ist dann ohnehin ein No-op.
+        if: steps.check.outputs.proceed == 'true'
+        id: model
+        uses: ./.github/actions/resolve-model
+        with:
+          ticket: ${{ github.event.pull_request.number }}
+          kind: pr
+
   review:
     needs: precheck
     # `result == 'failure'` ist FAIL-OPEN und beabsichtigt: das Skript fällt bei API-Fehlern
@@ -77,6 +89,7 @@ jobs:
     # der Fork-Guard aus dem precheck-if wirkt dadurch weiterhin auch für den Hauptjob.
     if: >-
       ${{ always()
+          && needs.precheck.outputs.model_abort != 'true'
           && (needs.precheck.outputs.proceed == 'true' || needs.precheck.result == 'failure') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -116,7 +129,10 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
           llm-provider: ${{ vars.LLM_PROVIDER }}
-          model: ${{ vars.CLAUDE_MODEL_PR_REVIEW || 'opus' }}
+          # Modellwahl kommt aus dem ai:model:*-Label (precheck), NICHT mehr statisch:
+          # der PR erbt sie vom verknüpften Issue, ein Label am PR selbst gewinnt.
+          # vars.CLAUDE_MODEL_PR_REVIEW bleibt als manueller Not-Override wirksam.
+          model: ${{ vars.CLAUDE_MODEL_PR_REVIEW || needs.precheck.outputs.model }}
           zai-api-key: ${{ secrets.ZAI_API_KEY }}
           claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
           openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
