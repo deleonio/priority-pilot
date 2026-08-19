@@ -204,17 +204,48 @@ Bei einem zu großen Ticket:
 
     ```
     <!-- KI-ANALYSE:START stand=YYYY-MM-DDTHH:MM:SSZ -->
-    ## 🤖 KI-Analyse — Lösungsvorschlag
+    ### UI-Bezug
+    - UI-Bezug: ja|nein
+    - Begründung: <kurz>
 
-    **Umsetzbarkeit:** 🟢/🟡/🔴 <kurze Begründung>
+    ### Aufwandsklasse
+    - Aufwandsklasse: haiku|sonnet|opus
+    - Begründung: <woran der Aufwand hängt>
 
-    ### Akzeptanzkriterien & Testfälle
-    <AK + Testfälle — Pflichtblock, wird von Spec/Umsetzung gelesen>
+    ### Umsetzungskontext
+    - Betroffene Dateien: `pfad/a.ts`, `pfad/b.ts`
+    - Betroffene Komponenten: <Funktion/Klasse/Endpunkt/Custom-Element>
+    - Vorhandenes Muster: `pfad/vorbild.ts` — <was dort gleichartig gelöst ist>
+    - Randbedingungen: <was nicht brechen darf>
+    - Erwartetes Ergebnis: <von außen beobachtbares Verhalten>
+
+    ### Akzeptanzkriterien
+    - AK1: <prüfbar formuliert>
+
+    ### Testfälle
+    <Testfall je AK, Ebene benannt (node:test | Vitest | e2e)>
+
+    ### Ampel
+    - Ampel: 🟢|🟡|🔴
+    - Begründung: <kurz>
 
     ### ❓ Offene Fragen
     - [ ] <Frage>   (ganzer Abschnitt entfällt, wenn keine offenen Fragen)
     <!-- KI-ANALYSE:END -->
     ```
+
+  - **`Aufwandsklasse` steuert das Modell der Folgephasen.** Der Workflow setzt daraus genau ein
+    `ai:model:<klasse>`-Label; `resolve-model-label.sh` liest es vor jedem Claude-Start. Fehlt es
+    oder ist es mehrdeutig, bricht die Folgephase ab und parkt mit Begründung beim Menschen —
+    es wird bewusst **nicht** still das teuerste Modell genommen.
+  - **`Umsetzungskontext` ist der Kern der Phase.** Die Analyse ist der einzige Schritt auf dem
+    starken Modell; alle Folgeschritte laufen günstiger und dürfen die Analyse nicht wiederholen
+    müssen. Pfade werden **am Code verifiziert** (Read/Glob), nicht geraten — ein erfundener Pfad
+    ist schlechter als keiner. Bei Sub-Issues wird der Kontext **je Sub-Issue eigenständig**
+    ausgefüllt, kein Verweis aufs Eltern-Ticket: die Umsetzung liest nur ihr eigenes Ticket.
+  - **Breite Recherche über einen Explore-Subagent** (Task-Tool) delegieren und nur das Ergebnis
+    zurückholen. Subagents laufen über `CLAUDE_CODE_SUBAGENT_MODEL` auf einem günstigeren Modell;
+    direktes Lesen zöge jede Datei in den teuren Elternkontext.
 
   - `stand` = ISO-8601 UTC, bei **jedem** Schreiben neu setzen: `date -u +%Y-%m-%dT%H:%M:%SZ`.
   - **Erst-Triage:** den Block **unten an den (lektorierten) Body anhängen**.
@@ -265,6 +296,23 @@ Ping-Kommentar** (`gh issue comment`), **keine** Vollanalyse mehr (die steht ab 
 - Setzen: `gh issue edit <nr> --add-label "ai:analysed"`
 - Damit fällt das Issue aus dem Auswahlkriterium von Schritt 1 heraus. (Beim Re-Triage ist das Label
   bereits gesetzt — dann genügt der aktualisierte Body-Block aus Schritt 4 plus der Ping aus Schritt 4b.)
+- **Uneindeutige Aufgabenstellung → `ai:needs-human` statt einer geratenen Analyse.** Lässt sich
+  eine Unklarheit nicht selbst auflösen (Code lesen, bestehendes Verhalten prüfen, Ticket-Historie),
+  wird nichts vorsorglich analysiert. Die Analyse gibt `VERDICT: needs-human` aus und postet **genau
+  einen** Kommentar, dessen erste Zeile exakt `<!-- ai-triage-decision -->` lautet, gefolgt von
+  **Was zu entscheiden ist / Worauf es sich bezieht / Optionen / Empfehlung**.
+  - **Begründungspflicht ist technisch erzwungen:** Der Workflow sucht den Marker über
+    `needs-human-explain.sh lookup --ticket <nr> --mode triage`. Fehlt er, postet der Workflow eine
+    Ersatz-Diagnose — das Label wird nie ohne Begründung gesetzt. „Bitte prüfen" oder „unklar"
+    erfüllt die Anforderung nicht: es verlagert die Analysearbeit zurück auf den Menschen.
+  - **Wirkung:** `check-phase-label.sh` blockt mit diesem Label **jede** Folgephase, auch wenn ein
+    Trigger klebt.
+  - **Fortsetzen:** `ai:needs-human` zu entfernen hebt nur die Sperre auf — es startet nichts.
+    Da das Ticket nach der Analyse `ai:analysed`, aber keinen Phasen-Trigger trägt, braucht es
+    zusätzlich einen Anstoß: Frage im Ticket beantworten, dann `ai:needs-analyse` setzen
+    (Re-Triage mit der Antwort als Delta-Kommentar) — oder, wenn die Analyse bereits taugt,
+    direkt den Folge-Trigger `ai:needs-ux-ui` bzw. `ai:needs-spec` setzen.
+
 - **Phasen-Trigger nach der Ampel aus Schritt 4 steuern** — nur eine **klar umsetzbare** Analyse
   geht weiter in die Pipeline, alles andere bleibt beim Menschen:
   - **🟢 grün →** zusätzlich den Folge-Trigger setzen: `ai:needs-ux-ui` bei UI-Bezug, sonst

@@ -108,7 +108,12 @@ jobs:
         run: |
           now=$(date +%s)
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
-          echo "soft_deadline_epoch=$((now + 600))" >> "$GITHUB_OUTPUT"
+          # 840s statt 600s (Gleichstand mit 02/03): Die Analyse ermittelt den
+          # Umsetzungskontext jetzt AM CODE (Read/Glob/Grep) statt ihn zu raten. Das ist
+          # der Zweck der Phase — alle Folgeschritte sparen sich die Recherche. Mit dem
+          # alten Limit hätte sie den Kontext nur angefangen und die Ersparnis verfehlt.
+          # Job-Timeout (30 min) bleibt unverändert die harte Grenze.
+          echo "soft_deadline_epoch=$((now + 840))" >> "$GITHUB_OUTPUT"
 
       - name: Setup Claude Code (mit Memory-Load)
         id: setup
@@ -122,6 +127,10 @@ jobs:
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
           llm-provider: ${{ vars.LLM_PROVIDER }}
           model: ${{ vars.CLAUDE_MODEL_TRIAGE || 'fable' }}
+          # Fan-out-Lesen läuft günstig: Nur die Schlussfolgerung kehrt in den
+          # fable-Kontext zurück, nicht die gelesenen Dateien. Ohne diese Zeile
+          # liefen Subagents ebenfalls auf fable und der Spareffekt kehrte sich um.
+          subagent-model: ${{ vars.CLAUDE_MODEL_TRIAGE_SUBAGENT || 'haiku' }}
           zai-api-key: ${{ secrets.ZAI_API_KEY }}
           claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
           openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
@@ -163,7 +172,8 @@ jobs:
                b) Sub-Issue anlegen — Body: "Teil von #ISSUE_NR" + Mini-Analyse MIT MARKERN
                   (<!-- KI-ANALYSE:START stand=<ISO-8601> --> … <!-- KI-ANALYSE:END -->, exakt
                   BODY-BLOCK-FORMAT — PFLICHT auch für Sub-Issues: Re-Triage/Unblock prüft den Block,
-                  ohne Marker failt der Workflow hart). PFLICHT: GENAU EIN ai:model:<klasse> je Sub-Issue (eigene Einstufung je Teilaufgabe — eine leichte Teilaufgabe eines schweren Tickets ist haiku). Ohne dieses Label bricht die Umsetzung ab und parkt beim Menschen: gh issue create --title "<Teilaufgabe>" --label "ai:analysed" --label "ai:model:<klasse>" --body-file - <<'EOF' … EOF
+                  ohne Marker failt der Workflow hart). PFLICHT: GENAU EIN ai:model:<klasse> je Sub-Issue (eigene Einstufung je Teilaufgabe — eine leichte Teilaufgabe eines schweren Tickets ist haiku). Ohne dieses Label bricht die Umsetzung ab und parkt beim Menschen.
+                  PFLICHT: Der Umsetzungskontext (betroffene Dateien/Komponenten/Muster/Randbedingungen/erwartetes Ergebnis) gehört JE SUB-ISSUE eigenständig ausgefüllt — nicht „siehe Eltern-Ticket". Die Umsetzung liest nur ihr eigenes Sub-Issue; ein Verweis zwingt sie zur Re-Analyse, also genau zu dem, was diese Phase abschaffen soll: gh issue create --title "<Teilaufgabe>" --label "ai:analysed" --label "ai:model:<klasse>" --body-file - <<'EOF' … EOF
                c) Als echtes GitHub-Sub-Issue ans Eltern-Ticket hängen (PFLICHT, nicht nur Textreferenz): gh api graphql -f query='mutation($p:ID!,$c:ID!){addSubIssue(input:{issueId:$p,subIssueId:$c}){clientMutationId}}' -f p="$(gh issue view #ISSUE_NR --json id -q .id)" -f c="$(gh issue view <SUB-NR> --json id -q .id)"
                d) Sequenzielle Abhängigkeit (A1→A2→A3, gleiche Dateien/„A2 nach A1"): Vorgänger blockt Nachfolger — PFLICHT, maschinenlesbar (issue-unblock.yml löst beim Merge des Vorgängers automatisch auf): gh api graphql -f query='mutation($b:ID!,$k:ID!){addBlockedBy(input:{issueId:$b,blockingIssueId:$k}){clientMutationId}}' -f b="$(gh issue view <NACHFOLGER-NR> --json id -q .id)" -f k="$(gh issue view <VORGÄNGER-NR> --json id -q .id)" — Kanten gedrosselt setzen (sekundäres Rate-Limit bei zu schnellen Schreibzugriffen). Nur echte Reihenfolge-Abhängigkeiten; unabhängige Sub-Issues bleiben ohne blocked-by.
                e) Nur der ERSTE unblockierte Sub-Issue bekommt den Phasen-Trigger: bei UI-Bezug ai:needs-ux-ui, sonst ai:needs-spec (gh issue edit <SUB-NR> --add-label "ai:needs-ux-ui" bzw. "ai:needs-spec") — enthält der Mini-Analyse-Block des Sub-Issues „UI-Bezug: nein", wird die UX-Phase übersprungen wie beim Eltern-Ticket. Geblockte Nachfolger bleiben bei ai:analysed und werden beim Merge des Vorgängers automatisch freigegeben. Unabhängige Sub-Issues folgen ihrer eigenen Ampel.
@@ -181,6 +191,50 @@ jobs:
             Im Zweifel EINE Stufe HÖHER: Eine zu niedrig eingestufte Aufgabe erzeugt
             Review-Schleifen, die teurer sind als der einmalige Aufpreis.
 
+          UMSETZUNGSKONTEXT (der eigentliche Zweck dieser Phase — PFLICHT):
+            Du bist die EINZIGE Phase, die auf dem starken Modell läuft. Alle Folgeschritte
+            laufen günstiger und dürfen die Analyse NICHT wiederholen müssen. Was du hier
+            nicht ermittelst, muss ein schwächeres Modell später selbst herausfinden — genau
+            das soll entfallen.
+            Ermittle deshalb per Read/Glob/Grep AM CODE (nicht raten, nicht aus dem Ticket
+            abschreiben):
+              - Betroffene Dateien: konkrete Pfade, die geändert werden müssen. JEDER Pfad
+                muss existieren — vor dem Eintragen mit Read/Glob verifizieren. Ein erfundener
+                Pfad ist schlimmer als keiner: die Umsetzung sucht dann ins Leere.
+              - Betroffene Komponenten: Funktion/Klasse/Endpunkt/Custom-Element, nicht nur die Datei.
+              - Vorhandenes Muster: wo im Code steht bereits etwas Gleichartiges, an dem sich
+                die Umsetzung orientieren kann (Pfad + kurze Notiz). Das spart der
+                Umsetzungsphase die Suche.
+              - Randbedingungen: was NICHT gebrochen werden darf (bestehende Aufrufer, API-
+                Verträge, Migrationen, Tests, die auf das Verhalten bauen).
+              - Erwartetes Ergebnis: woran man von außen erkennt, dass es funktioniert.
+            Halte dich an Fakten aus dem Code. Bist du bei einem Punkt unsicher, schreibe
+            „unklar: <was>" statt einer Vermutung — eine falsche Angabe kostet mehr als eine
+            fehlende.
+            RECHERCHE-FAN-OUT: Musst du breit suchen (mehrere Verzeichnisse, unklare
+            Namenskonvention, „wo wird X verwendet"), delegiere das Suchen an einen
+            Explore-Subagent (Task-Tool) und lass dir NUR das Ergebnis zurückgeben. Die
+            Subagents laufen auf einem günstigeren Modell; direktes Lesen zieht dagegen
+            jede Datei in diesen teuren Kontext. Gezielte Einzelblicke (du kennst den Pfad
+            schon) liest du weiter selbst — dafür lohnt der Umweg nicht.
+
+          UNEINDEUTIGKEIT (Sicherheitsventil — vor allem anderen):
+            Ist die Aufgabenstellung nicht eindeutig, wird NICHT „irgendwas" analysiert und
+            NICHT geraten. Zuerst versuchen, die Unklarheit selbst aufzulösen (Code lesen,
+            bestehendes Verhalten prüfen, Ticket-Historie). Geht das nicht:
+              - VERDICT: needs-human ausgeben (siehe unten), UND
+              - GENAU EINEN Kommentar posten, dessen ERSTE ZEILE exakt lautet:
+                <!-- ai-triage-decision -->
+                Danach in dieser Reihenfolge:
+                  **Was zu entscheiden ist:** [die konkrete offene Frage — keine allgemeine
+                  Unsicherheit, kein „bitte prüfen"]
+                  **Worauf es sich bezieht:** [Ticket/Codestelle/Akzeptanzkriterium]
+                  **Optionen:** [die Alternativen, die du siehst, je mit Konsequenz; falls du
+                  keine identifizieren kannst, schreibe das ausdrücklich hin]
+                  **Empfehlung:** [welche Option du nehmen würdest und warum]
+            Der Kommentar ist PFLICHT: Ohne ihn ist das Label wertlos, weil es die
+            Analysearbeit nur zurückverlagert. Der Workflow prüft, ob er existiert.
+
           BODY-BLOCK-FORMAT:
             <!-- KI-ANALYSE:START stand=<ISO-8601-Datum> -->
             ### UI-Bezug
@@ -191,7 +245,25 @@ jobs:
             - Aufwandsklasse: haiku|sonnet|opus
             - Begründung: [Kurzbegründung, woran der Aufwand hängt]
 
-            [Analyse – präzise, ohne Füllwörter]
+            ### Umsetzungskontext
+            - Betroffene Dateien: `pfad/zur/datei.ts`, `pfad/zur/anderen.ts`
+            - Betroffene Komponenten: [Funktion/Klasse/Endpunkt/Custom-Element]
+            - Vorhandenes Muster: `pfad/zum/vorbild.ts` — [was dort gleichartig gelöst ist]
+            - Randbedingungen: [was nicht brechen darf]
+            - Erwartetes Ergebnis: [von außen beobachtbares Verhalten]
+
+            ### Akzeptanzkriterien
+            - AK1: [prüfbar formuliert]
+            - AK2: …
+
+            ### Testfälle
+            - [Testfall je AK, Ebene benannt (node:test | Vitest | e2e)]
+
+            ### Ampel
+            - Ampel: 🟢|🟡|🔴
+            - Begründung: [Kurzbegründung]
+
+            [Ergänzende Analyse – präzise, ohne Füllwörter]
             <!-- KI-ANALYSE:END -->
 
           TIPP: Bei UI-Bezug im Lösungsvorschlag konkrete KoliBri-Komponenten via mcp__kolibri-mcp__search/fetch ermitteln und nennen (Custom-Element + Properties).
@@ -201,6 +273,9 @@ jobs:
           VERDICT: GANZ AM ENDE GENAU EINE Zeile:
             - VERDICT: spec-ready (bei 🟢 — Issue direkt umsetzbar, NICHT zerlegt)
             - VERDICT: analyzed (bei 🟡/🔴 ODER nach Zerlegung in Sub-Issues — Eltern-Issue ist nur Tracker)
+            - VERDICT: needs-human (Aufgabenstellung nicht eindeutig auflösbar — NUR zusammen
+              mit dem <!-- ai-triage-decision -->-Kommentar; stoppt die gesamte Pipeline, bis
+              ein Mensch entscheidet)
 
           ZEITLIMIT: Soft-Deadline = SOFT_DEADLINE. Vor jedem Schritt: [ $(date +%s) -ge SOFT_DEADLINE ]. Bei OVER: Body-Block sichern, Turn beenden.
           CLAUDE_EOF
@@ -342,12 +417,56 @@ jobs:
 
           # VERDICT ist autoritativ für die Phasen-Freigabe (Issue #538):
           #   spec-ready (🟢) + AK vorhanden → Freigabe in die Spec-Stufe
+          #   needs-human → harter Stopp, aber NUR mit Begründungs-Kommentar (s. u.)
           #   analyzed (🟡/🔴) oder leer/ungültig → beim Menschen bleiben (fail-safe)
           # HAS_AK wirkt nur als zusätzlicher Guard, nie als alleiniger Promoter.
           if [ "$verdict" = "spec-ready" ] && [ "$HAS_AK" = "true" ]; then
             final="spec-ready"
+          elif [ "$verdict" = "needs-human" ]; then
+            final="needs-human"
           else
             final="analyzed"
+          fi
+
+          # BEGRÜNDUNGSPFLICHT: ai:needs-human darf technisch nicht ohne begleitenden
+          # Kommentar gesetzt werden. Fehlt er, wird NICHT stillschweigend das Label
+          # gesetzt (das verlagerte die Analysearbeit zurück und machte das Label
+          # wertlos) — stattdessen postet der Workflow seine eigene Diagnose, damit am
+          # Ticket IMMER steht, warum es steht. Gleiche Mechanik wie in 05/06.
+          if [ "$final" = "needs-human" ]; then
+            SINCE_ISO="$(date -u -d "@${{ steps.starttime.outputs.epoch }}" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo '')"
+            LOOKUP="$(bash .github/scripts/needs-human-explain.sh lookup \
+              --repo "$GITHUB_REPOSITORY" --ticket "$ISSUE" --mode triage \
+              ${SINCE_ISO:+--since "$SINCE_ISO"} 2>/dev/null || true)"
+            if [ "$(printf '%s' "$LOOKUP" | sed -n 's/^status=//p')" != "found" ]; then
+              echo "::warning title=Begründung fehlt::VERDICT needs-human ohne <!-- ai-triage-decision -->-Kommentar — Workflow postet Ersatz-Diagnose."
+              {
+                echo "<!-- ai-triage-decision -->"
+                echo "## ⛔ Analyse gestoppt — Begründung fehlt"
+                echo ""
+                echo "**Was zu entscheiden ist:** Die Analyse hat das Ticket als nicht eindeutig eingestuft,"
+                echo "aber KEINE Begründung hinterlassen. Was hier zu klären ist, muss aus dem Ticket selbst"
+                echo "bestimmt werden."
+                echo ""
+                echo "**Worauf es sich bezieht:** Issue #${ISSUE}"
+                echo ""
+                echo "**Optionen:**"
+                echo "- Ticket präzisieren, dann \`ai:needs-human\` entfernen **und** \`ai:needs-analyse\` setzen."
+                echo "- War dies ein Fehllauf (Ticket ist eindeutig): genauso vorgehen — \`ai:needs-human\` weg,"
+                echo "  \`ai:needs-analyse\` gesetzt."
+                echo ""
+                echo "> Das Entfernen von \`ai:needs-human\` hebt nur die Sperre auf und startet nichts."
+                echo "> Das Ticket trägt \`ai:analysed\`, aber keinen Phasen-Trigger — der Anstoß fehlt sonst."
+                echo ""
+                echo "**Empfehlung:** Letzten Lauf im Actions-Log prüfen — dort steht, woran die Analyse hing."
+                echo ""
+                echo "---"
+                echo "_Ersatz-Diagnose des Workflows: Das Label wird nie ohne Begründung gesetzt._"
+              } > /tmp/triage-needs-human.md
+              gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file /tmp/triage-needs-human.md || true
+            else
+              echo "::notice title=Begründung vorhanden::$(printf '%s' "$LOOKUP" | sed -n 's/^permalink=//p')"
+            fi
           fi
 
           gh label create "ai:analysed" --color 0E8A16 2>/dev/null || true
@@ -399,6 +518,15 @@ jobs:
               gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-ux-ui"
               echo "::notice::Label gesetzt: ai:needs-ux-ui (UI-Ticket – 02 kümmert sich)"
             fi
+          elif [ "$final" = "needs-human" ]; then
+            # Harter Stopp: check-phase-label.sh blockt mit diesem Label JEDE
+            # Folgephase, auch wenn ein Trigger klebt. Bewusst KEIN Phasen-Trigger —
+            # es wird nichts vorsorglich spezifiziert oder implementiert.
+            # Die Begründung steht bereits am Ticket (oben erzwungen).
+            gh label create "ai:needs-human" --color 5319e7 \
+              --description "Nicht-automatisierbare Entscheidung — wartet auf Mensch" 2>/dev/null || true
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-human"
+            echo "::notice::Label gesetzt: ai:needs-human (Aufgabenstellung nicht eindeutig — Pipeline gestoppt)"
           else
             echo "::notice::Label gesetzt: ai:analysed (🟡/🔴)"
           fi
