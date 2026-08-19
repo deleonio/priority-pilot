@@ -63,9 +63,10 @@ test.describe('#285 Einstellungen – Darstellung (Dunkelmodus deaktiviert, Korr
 		await expect(hell).toBeAttached();
 		await expect(dunkel).toBeAttached();
 
-		// Das Radio-Element ist disabled (nicht interaktiv).
-		const radioGroup = page.getByRole('radiogroup', { name: /Darstellung/i });
-		await expect(radioGroup).toHaveAttribute('disabled', '');
+		// Alle Optionen sind disabled (nicht interaktiv).
+		await expect(system).toBeDisabled();
+		await expect(hell).toBeDisabled();
+		await expect(dunkel).toBeDisabled();
 	});
 
 	/**
@@ -86,9 +87,14 @@ test.describe('#285 Einstellungen – Darstellung (Dunkelmodus deaktiviert, Korr
 		// Effektives Theme ist "light" (System folgt OS)
 		await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 
-		// Das Radio ist weiterhin disabled
-		const radioGroup = page.getByRole('radiogroup', { name: /Darstellung/i });
-		await expect(radioGroup).toHaveAttribute('disabled', '');
+		// Alle Optionen sind weiterhin disabled
+		const system = appearanceOption(page, /System/i).first();
+		const hell = appearanceOption(page, /Hell/i).first();
+		const dunkel = appearanceOption(page, /Dunkel/i).first();
+
+		await expect(system).toBeDisabled();
+		await expect(hell).toBeDisabled();
+		await expect(dunkel).toBeDisabled();
 	});
 
 	/**
@@ -113,9 +119,14 @@ test.describe('#285 Einstellungen – Darstellung (Dunkelmodus deaktiviert, Korr
 		await waitForStableView(page, 'Priority Pilot');
 		await expect(html).toHaveAttribute('data-theme', 'light');
 
-		// Das Radio ist weiterhin disabled
-		const radioGroup = page.getByRole('radiogroup', { name: /Darstellung/i });
-		await expect(radioGroup).toHaveAttribute('disabled', '');
+		// Alle Optionen sind weiterhin disabled
+		const system = appearanceOption(page, /System/i).first();
+		const hell = appearanceOption(page, /Hell/i).first();
+		const dunkel = appearanceOption(page, /Dunkel/i).first();
+
+		await expect(system).toBeDisabled();
+		await expect(hell).toBeDisabled();
+		await expect(dunkel).toBeDisabled();
 	});
 
 	/**
