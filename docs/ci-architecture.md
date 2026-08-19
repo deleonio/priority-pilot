@@ -292,6 +292,19 @@ frei, sobald **alle** seine Blocker gemergt/geschlossen sind (Fan-in-Gate) — i
 `ai:needs-analyse` **per App-Token** setzt und so die Re-Triage gegen den nun gemergten Code-Stand
 anstößt.
 
+### Continue-Sweep (`claude-continue-sweep.yml`)
+
+Sicherheitsnetz für hängengebliebene Phasen (Issue #894): Der Soft-Abort-Selbstretrigger läuft
+im sterbenden Job — stirbt der Lauf davor (Runner-Ausfall, Cancel, hartes Timeout), klebt das
+Trigger-Label am Issue/PR, ohne dass ein Folge-Event die Phase weckt. Der Sweep prüft alle
+6 Stunden (00:05/06:05/12:05/18:05 Europe/Berlin; DST-korrekt über zwei UTC-Crons plus
+Laufzeit-Guard der Berliner Stunde) je Phase, ob sie ruht (kein `queued`/`in_progress`-Run,
+jüngster Run älter als 10 Minuten) und dennoch ein Trigger-Label klebt — und feuert dieses
+per App-Token neu (entfernen + setzen, gleiche Mechanik wie der Selbstretrigger). Bewusst
+nie geweckt: `ai:to-big-issue`, `ai:needs-human`, Draft-PRs. `ai:continued` wird nie angefasst
+und nie als Detektions-Kriterium genutzt — der geweckte Folgelauf liest den Marker selbst und
+setzt fort statt neu zu starten.
+
 ### Named Session Resume (aktuell nicht aktiv)
 
 Die Session-Resume-Funktionalität (MIG-002) ist noch nicht migriert. Derzeit startet jeder Lauf

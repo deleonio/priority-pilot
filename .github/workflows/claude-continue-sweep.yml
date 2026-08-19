@@ -1,0 +1,233 @@
+name: Claude Continue Sweep
+
+# Alle 6 Stunden (jeweils 5 Minuten nach 0, 6, 12 und 18 Uhr Europe/Berlin) Sicherheitsnetz
+# für die label-getriebene Pipeline (01–06): Jede Phase läuft auf `labeled`-Events, und der
+# Soft-Abort-Selbstretrigger (Trigger-Label entfernen + sofort neu setzen, s. ci-architecture.md
+# „Weiches Zeitlimit") läuft IM sterbenden Job. Stirbt der Lauf davor (Runner-Ausfall, Cancel,
+# harte Timeout ohne Cleanup-Pfad, API-Fehler), klebt das Trigger-Label am Issue/PR, ohne dass
+# ein Folge-Event die Phase je wieder weckt — die Arbeit steht still, bis ein Mensch eingreift.
+# Dieser Sweep findet solche Kleber und feuert das Trigger-Label per App-Token neu (exakt die
+# dokumentierte Selbst-Retrigger-Mechanik, nur zeitversetzt als Sicherheitsnetz — analog
+# claude-pr-gate-sweep.yml für das Gate). Der geweckte Phasen-Workflow entscheidet dann mit
+# all seinen eigenen Guards (Konsumiert-Check, Doppel-Run-Guard, ai:continued-Fortsetzung),
+# ob er arbeitet: keine Logik-Duplikate, kein Label-Toggling außer dem Trigger selbst.
+#
+# Bewusst NICHT angefasst:
+# - `ai:continued` (Fortsetzungs-Marker nach dem 1. Soft-Abort): Der Sweep detektiert NIEMALS
+#   über ihn — ein nachgetriggerter Folgelauf liest ihn und SETZT FORT statt neu zu starten.
+# - Issues/PRs mit `ai:to-big-issue` (Signal an den Menschen, löst bewusst nichts aus) oder
+#   `ai:needs-human` (wartet bewusst auf den Menschen) sowie Draft-PRs — kein Wecken.
+#
+# WICHTIG (Token-Trigger-Falle): Label-Writes MÜSSEN mit dem GitHub-App-Token laufen — von
+# GITHUB_TOKEN gesetzte Labels lösen KEINE Folge-Workflows aus, der Sweep wäre wirkungslos
+# (gleiches Muster wie claude-pr-gate-sweep.yml). Fehlen die App-Secrets, ist das bewusst rot
+# statt still grün. Das `unlabeled`-Event des Removes ist harmlos: 01-claude-triage.yml gatet
+# `unlabeled` auf `ai:analysed`, der Sweep entfernt nur `ai:needs-*`.
+#
+# Cron/DST: GitHub-Crons laufen in UTC; Europe/Berlin wechselt zwischen CEST (UTC+2) und CET
+# (UTC+1). Zwei Cron-Zeilen decken beide Offsets ab (8 Feuerungen/Tag), der Job-Guard prüft
+# die tatsächliche Berliner Stunde (TZ=Europe/Berlin) und lässt nur die 4 Feuerungen laufen,
+# die auf 00:05/06:05/12:05/18:05 Berlin fallen — DST-korrekt ohne saisonale Drift (gleiches
+# Laufzeit-Prinzip wie der ZAI-Zeitfenster-Check in setup-claude, Issue #893).
+
+on:
+  schedule:
+    # CEST-Feuerungen: 22:05/04:05/10:05/16:05 UTC = 00:05/06:05/12:05/18:05 Europe/Berlin (Sommer)
+    - cron: '5 22,4,10,16 * * *'
+    # CET-Feuerungen: 23:05/05:05/11:05/17:05 UTC = 00:05/06:05/12:05/18:05 Europe/Berlin (Winter)
+    - cron: '5 23,5,11,17 * * *'
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: 'Nur auflisten, nichts nachtriggern (Erst-Beobachtung eines frisch deployten Sweeps)'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: continue-sweep
+  cancel-in-progress: false
+  # queue: max — konsistent mit den Phasen-Workflows und dem Gate-Sweep: ein gestapelter
+  # Sweep darf den wartenden nicht still verwerfen (er hat evtl. bereits Kandidaten gefunden).
+  queue: max
+
+permissions:
+  # Lesende Minimal-Rechte am GITHUB_TOKEN — sämtliche Schreib-Zugriffe (Label-Toggles)
+  # laufen über das GitHub-App-Token, nie über GITHUB_TOKEN.
+  contents: read
+  actions: read # gh run list (Phasen-Aktivität prüfen)
+  issues: read
+  pull-requests: read
+
+env:
+  REPO: ${{ github.repository }}
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Voraussetzung prüfen (GitHub-App-Secrets)
+        # Kein GITHUB_TOKEN-Fallback: von GITHUB_TOKEN gesetzte Labels lösen keine Folge-
+        # Workflows aus — der Sweep wäre für den Automatik-Zweck (schedule) tot. Bewusst
+        # rot statt still grün (gleiche Begründung wie claude-pr-gate-sweep.yml).
+        id: preflight
+        env:
+          APP_ID: ${{ secrets.APP_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+        run: |
+          if [ -z "$APP_ID" ] || [ -z "$APP_PRIVATE_KEY" ]; then
+            echo "::error title=App-Secrets fehlen::Sweep kann keine Trigger-Labels setzen (GITHUB_TOKEN-Labels lösen keine Folge-Workflows aus). GitHub-App-Secrets APP_ID + APP_PRIVATE_KEY setzen."
+            exit 1
+          fi
+
+      - name: GitHub-App-Token erzeugen
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Zeitfenster prüfen (nur 00/06/12/18 Europe/Berlin; manuell immer)
+        # schedule-Feuerungen laufen 8×/Tag (CEST- und CET-Offsets überlappen je Jahreszeit);
+        # aktiv werden nur die 4, deren Berliner Stunde auf dem 6-Stunden-Raster liegt. Die 4
+        # DST-Doppel-Feuerungen pro Tag enden hier als 12s-No-op. workflow_dispatch umgeht den
+        # Guard bewusst (manueller Test und Steuerversuch jederzeit möglich).
+        id: timegate
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT_NAME" != "schedule" ]; then
+            echo "active=true" >> "$GITHUB_OUTPUT"
+            echo "Manueller Lauf — Zeitfenster-Guard übergangen."
+            exit 0
+          fi
+          BERLIN_HOUR="$(TZ='Europe/Berlin' date +%H)"
+          echo "Berlin-Uhrzeit: ${BERLIN_HOUR}:xx Europe/Berlin."
+          case "$BERLIN_HOUR" in
+            00|06|12|18)
+              echo "active=true" >> "$GITHUB_OUTPUT"
+              echo "::notice title=🕐 Sweep aktiv::${BERLIN_HOUR}:05 Europe/Berlin — Continue-Sweep läuft."
+              ;;
+            *)
+              echo "active=false" >> "$GITHUB_OUTPUT"
+              echo "::notice title=⏭️ Sweep übersprungen::DST-Doppel-Feuerung (Berlin-Stunde ${BERLIN_HOUR} nicht im 6h-Raster) — nichts zu tun."
+              ;;
+          esac
+
+      - name: Hängende Phasen-Trigger finden und nachfeuern
+        if: steps.timegate.outputs.active == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }} # App-Token → labeled-Event startet die Phase wirklich
+          DRY_RUN: ${{ github.event.inputs.dry-run || 'false' }}
+        run: |
+          set -euo pipefail
+
+          {
+            echo "### Claude Continue Sweep"
+            echo
+            echo "| Phase | Issue/PR | Titel | Aktion |"
+            echo "|-------|----------|-------|--------|"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # Phase-Workflow → Trigger-Label|Objekt-Art (issue|pr). Reihenfolge fest (assoziative
+          # Arrays iterieren unsortiert) — deterministische Summary und Logs.
+          declare -A PHASES=(
+            [01-claude-triage.yml]="ai:needs-analyse|issue"
+            [02-claude-ux.yml]="ai:needs-ux-ui|issue"
+            [03-claude-spec.yml]="ai:needs-spec|issue"
+            [04-claude-implement.yml]="ai:needs-impl|issue"
+            [05-claude-pr-review.yml]="ai:needs-review|pr"
+            [06-claude-pr-fixup.yml]="ai:needs-fixup|pr"
+          )
+
+          for WF in $(printf '%s\n' "${!PHASES[@]}" | sort); do
+            LABEL="${PHASES[$WF]%%|*}"
+            KIND="${PHASES[$WF]##*|}"
+
+            # 1) Ruht die Phase? Alle Phasen-Workflows teilen je EINE globale concurrency-Gruppe
+            #    (queue: max) — ist irgendein Run queued/in_progress, kann kein Kandidat dieser
+            #    Phase "in Arbeit" sein, ohne dass die Phase Runs hat. Dann skip (konservativ):
+            #    Der nächste 6h-Zyklus findet den Kleber, sobald die Phase wieder ruht.
+            latest="$(gh run list --workflow "$WF" --repo "$REPO" -L 1 --json status,createdAt 2>/dev/null || echo '[]')"
+            status="$(printf '%s' "$latest" | jq -r '.[0].status // ""')"
+            if [ "$status" = "queued" ] || [ "$status" = "in_progress" ]; then
+              echo "| $WF | — | — | ⏳ Phase aktiv ($status) — skip |" >> "$GITHUB_STEP_SUMMARY"
+              echo "$WF: Phase aktiv ($status) — keine Kandidatenprüfung."
+              continue
+            fi
+
+            # 2) Soft-Abort-Retrigger-Fenster: Zwischen dem Ende des alten Runs und dem Start
+            #    des per Label-Toggles selbst ausgelösten Folgelaufs ist die Phase kurz ruhig.
+            #    Ein Run, der vor weniger als 10 Minuten entstand (oder endete), gehört noch
+            #    zu einer laufenden/gerade beendeten Sequenz — nicht anfassen.
+            created="$(printf '%s' "$latest" | jq -r '.[0].createdAt // ""')"
+            if [ -n "$created" ]; then
+              age_min=$(( ($(date +%s) - $(date -u -d "$created" +%s)) / 60 ))
+              if [ "$age_min" -lt 10 ]; then
+                echo "| $WF | — | — | ⏳ letzter Run erst ${age_min} min alt (Retrigger-Fenster) — skip |" >> "$GITHUB_STEP_SUMMARY"
+                echo "$WF: letzter Run erst ${age_min} min alt — skip (Retrigger-Fenster)."
+                continue
+              fi
+            fi
+
+            # 3) Kandidaten: offene Issues/PRs mit klebendem Trigger-Label. Bewusste
+            #    Menschen-Parker (ai:to-big-issue, ai:needs-human) und Draft-PRs ausgeschlossen
+            #    (ai:to-big-issue wird nur an Issues gesetzt, daher nur im Issue-Zweig).
+            if [ "$KIND" = "issue" ]; then
+              cands="$(gh issue list --repo "$REPO" --state open --limit 100 \
+                --search "is:open label:${LABEL} -label:ai:to-big-issue -label:ai:needs-human" \
+                --json number,title)"
+            else
+              cands="$(gh pr list --repo "$REPO" --state open --limit 50 \
+                --search "is:open label:${LABEL} -label:ai:needs-human draft:false" \
+                --json number,title)"
+            fi
+            cands="$(printf '%s' "$cands" | jq 'sort_by(.number)')"
+            count="$(printf '%s' "$cands" | jq 'length')"
+
+            if [ "$count" -eq 0 ]; then
+              echo "| $WF | — | — | ✅ keine klebenden Trigger |" >> "$GITHUB_STEP_SUMMARY"
+              echo "$WF: keine klebenden ${LABEL}-Trigger."
+              continue
+            fi
+            echo "$WF: $count Kandidat(en) mit klebendem ${LABEL}."
+
+            # 4) Nachfeuern: Trigger-Label entfernen + sofort neu setzen (dokumentierte
+            #    Selbst-Retrigger-Mechanik). Fail-safe: Ein fehlgeschlagener Kandidat darf
+            #    die übrigen nicht abreißen lassen (gleiches Muster wie issue-unblock).
+            printf '%s' "$cands" | jq -c '.[]' | while IFS= read -r item; do
+              n="$(printf '%s' "$item" | jq -r '.number')"
+              title="$(printf '%s' "$item" | jq -r '.title' | tr -d '|')"
+              if [ "$DRY_RUN" = "true" ]; then
+                echo "| $WF | #$n | $title | ⏸️ dry-run |" >> "$GITHUB_STEP_SUMMARY"
+                echo "[dry-run] würde $LABEL für $KIND #$n neu feuern."
+                continue
+              fi
+              if [ "$KIND" = "issue" ]; then
+                gh issue edit "$n" --repo "$REPO" --remove-label "$LABEL" >/dev/null 2>&1 || true
+                if gh issue edit "$n" --repo "$REPO" --add-label "$LABEL" >/dev/null 2>&1 \
+                   || gh issue edit "$n" --repo "$REPO" --add-label "$LABEL" >/dev/null 2>&1; then
+                  echo "| $WF | #$n | $title | 🚀 ${LABEL} neu gefeuert |" >> "$GITHUB_STEP_SUMMARY"
+                  echo "🚀 $WF: ${LABEL} für Issue #$n neu gefeuert."
+                else
+                  # Lauter Fehler statt still: Schlimmster Fall wäre Label-Verlust ohne Event.
+                  echo "| $WF | #$n | $title | ❌ Re-Add fehlgeschlagen |" >> "$GITHUB_STEP_SUMMARY"
+                  echo "::error title=Trigger verloren::Issue #$n: $LABEL entfernt, Re-Add zweimal fehlgeschlagen — manuell nachsetzen."
+                fi
+              else
+                gh pr edit "$n" --repo "$REPO" --remove-label "$LABEL" >/dev/null 2>&1 || true
+                if gh pr edit "$n" --repo "$REPO" --add-label "$LABEL" >/dev/null 2>&1 \
+                   || gh pr edit "$n" --repo "$REPO" --add-label "$LABEL" >/dev/null 2>&1; then
+                  echo "| $WF | #$n | $title | 🚀 ${LABEL} neu gefeuert |" >> "$GITHUB_STEP_SUMMARY"
+                  echo "🚀 $WF: ${LABEL} für PR #$n neu gefeuert."
+                else
+                  echo "| $WF | #$n | $title | ❌ Re-Add fehlgeschlagen |" >> "$GITHUB_STEP_SUMMARY"
+                  echo "::error title=Trigger verloren::PR #$n: $LABEL entfernt, Re-Add zweimal fehlgeschlagen — manuell nachsetzen."
+                fi
+              fi
+              sleep 5 # Label-Events atmen zwischen den Kandidaten (jedes feuert mehrere Workflows)
+            done
+          done
+
+          echo "Sweep abgeschlossen — Details in der Job-Summary."
