@@ -303,7 +303,10 @@ jüngster Run älter als 10 Minuten) und dennoch ein Trigger-Label klebt — und
 per App-Token neu (entfernen + setzen, gleiche Mechanik wie der Selbstretrigger). Bewusst
 nie geweckt: `ai:to-big-issue`, `ai:needs-human`, Draft-PRs. `ai:continued` wird nie angefasst
 und nie als Detektions-Kriterium genutzt — der geweckte Folgelauf liest den Marker selbst und
-setzt fort statt neu zu starten.
+setzt fort statt neu zu starten. Der `ai:needs-human`-Ausschluss ist zweistellig: Die Sweep-
+Suche ist nur Schicht 1 — Schicht 2 ist der globale Parker-Check im Phasen-Pre-Check
+(`check-phase-label.sh`), der jede Phase (außer documenter) blockt, auch wenn ein Trigger-Label
+klebt (manuell gesetzt oder Suchindex-Lag), und damit die Endlosschleife unmöglich macht.
 
 ### Named Session Resume (aktuell nicht aktiv)
 
