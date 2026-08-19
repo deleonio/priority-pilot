@@ -1,6 +1,6 @@
 # Issue 613: Label-Race-Conditions im CI-Workflow
 
-**Stand:** 2026-08-13  
+**Stand:** 2026-08-19
 **Ziel:** Label-Race-Conditions im CI-Workflow verhindern oder sauber handeln.
 
 ## Problemstellung
@@ -123,25 +123,7 @@ Transiente GitHub-API-Races bei Label-Switch abfangen (optimistic locking oder R
 - Wenn Label sich geändert hat → Race erkannt → noop oder Retry
 
 ---
+## Versionierung
 
-## Testfälle (Ableitung)
-
-1. **ai:review-no-result → Retry → needs-human**
-   - Gegeben: KI-Review schlägt fehl mit transientem Fehler
-   - Wenn: Workflow `ai:review-no-result` setzt (mit Retry)
-   - Dann: Nach Retry-Limit → `ai:needs-human` + Fehlerkommentar
-
-2. **ai:needs-review Re-Arm → noop**
-   - Gegeben: PR hat bereits `ai:needs-review`
-   - Wenn: Workflow versucht erneut, `ai:needs-review` zu setzen
-   - Dann: noop (Label bereits vorhanden)
-
-3. **Label-Switch mit Race → Retry → Success**
-   - Gegeben: PR hat `ai:processing`, Workflow will auf `ai:needs-review` switchen
-   - Wenn: Race-Condition tritt auf (konkurrierender Workflow)
-   - Dann: Retry mit Backoff → erfolgreich
-
-4. **Label-Switch mit persistentem Race → needs-human**
-   - Gegeben: Race-Condition wie oben, aber persistent
-   - Wenn: Alle Retries scheitern
-   - Dann: `ai:needs-human` + Fehlerkommentar
+- **v1.1** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, Label-Handling implementiert
+- **v1.0** (2026-08-13): Initialefassung für Issue #613

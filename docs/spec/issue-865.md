@@ -1,6 +1,6 @@
 # Issue 865: Avatar und User Full Name entfernen
 
-**Stand:** 2026-08-18  
+**Stand:** 2026-08-19
 **Ziel:** Entfernung von sichtbaren UI-Elementen (Avatar, Benutzername) aus dem Header-Bereich zur Vereinfachung der Benutzeroberfläche.
 
 ---
@@ -55,3 +55,9 @@ Avatar und User Full Name aus dem Header-Layout entfernen, ohne die Layout-Integ
 
 - UX-Block im Issue bestätigt: keine Auswirkung auf kritische User-Flows
 - Toolbar-Aktionen bleiben unverändert, nur visuelle Optimierung
+
+---
+## Versionierung
+
+- **v1.1** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, Avatar/Name entfernt
+- **v1.0** (2026-08-18): Initialefassung für Issue #865

@@ -1,6 +1,6 @@
 # Issue 831: KoliBri-MCP in UX-Phase integrieren
 
-**Stand:** 2026-08-17  
+**Stand:** 2026-08-19
 **Ziel:** Agent kann über KoliBri-MCP-Tools auf BITV-2.1-PS-konforme Components zugreifen und Alternativen finden
 
 ---
@@ -38,3 +38,9 @@ Agent kann während der UX-Phase über KoliBri-MCP-Tools auf barrierefreie KoliB
 - `mcp__kolibri-mcp__fetch_template` liefert Template mit includeCodeBlocks=true und extrahierten Code-Blocks
 - Ergebnisse enthalten Template-Typen (generic/react/theme)
 - Agent kann Component-Alternativen basierend auf Theme-Kompatibilität filtern
+
+---
+## Versionierung
+
+- **v1.1** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, KoliBri-MCP integriert
+- **v1.0** (2026-08-17): Initialefassung für Issue #831

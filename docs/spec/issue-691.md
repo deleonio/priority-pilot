@@ -1,6 +1,6 @@
 # Issue 691 — Header-Konsistenz über alle Viewports
 
-**Stand:** 2026-08-16  
+**Stand:** 2026-08-19
 **Issue:** #691 "Header-Menü konsistent über alle Bildschirmbreiten"
 
 ## Ziel
@@ -55,3 +55,9 @@ Das Header-Menü zeigt auf allen Bildschirmbreiten (Desktop, Tablet, Mobile) **i
 - **UI-Änderung:** Visuelle Verifikation ist im PR-Body durch Screenshots zu begründen
 - **Mutations-Resistenz:** Tests prüfen das **Fehlen** des Bürgermenüs (Count 0), nicht nur Layout-Änderungen
 - **All-Quantor-Test-Falle:** Sicherstellen, dass überhaupt Toolbar-Buttons gefunden werden (nicht dauerhaft grün über leere Menge)
+
+---
+## Versionierung
+
+- **v1.1** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, Header-Konsistenz implementiert
+- **v1.0** (2026-08-16): Initialefassung für Issue #691

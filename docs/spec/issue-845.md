@@ -1,6 +1,6 @@
 # Issue 845 – Geolocation: Position alle 5 Minuten ermitteln + Einstellungs-Schalter
 
-**Stand:** 2026-08-17  
+**Stand:** 2026-08-19
 **Ziel:** App ermittelt alle 5 Minuten die Geolocation-Position des Geräts und zeigt sie an, steuerbar über Einstellungs-Schalter (Default: deaktiviert)
 
 ---
@@ -73,3 +73,9 @@ Nutzer:in kann die Standorterfassung aktivieren/deaktivieren. Bei Aktivierung wi
 - Standort-basierte Aufgaben-Vorschläge
 - Hintergrund-Standortabfrage (Service Worker)
 - Reverse-Geocoding (nur Lat/Long, keine menschenlesbare Adresse)
+
+---
+## Versionierung
+
+- **v1.1** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, Geolocation implementiert
+- **v1.0** (2026-08-17): Initialefassung für Issue #845

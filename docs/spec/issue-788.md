@@ -1,6 +1,6 @@
 # Issue 788: LLM-Einstellungsmenü optimieren
 
-**Stand:** 2026-08-17  
+**Stand:** 2026-08-19
 **Ziel:** Kompaktere Darstellung der LLM-Einstellungen mit verbesserter UX.
 
 ---
@@ -145,3 +145,9 @@ UI ist barrierefrei gemäß BITV-2.1-PS.
 - X-Button mit aria-label="API-Key löschen" auszeichnet
 - Status-Änderung ("Key gesetzt"/"Key gelöscht") als ARIA-Live-Region
 - Kontrastverhältnis 4.5:1 für X-Button (bei hover/focus)
+
+---
+## Versionierung
+
+- **v1.1** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, LLM-Einstellungen optimiert
+- **v1.0** (2026-08-17): Initialefassung für Issue #788

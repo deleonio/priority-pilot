@@ -1,6 +1,6 @@
 # Settings Screen Layout – Priority Pilot
 
-**Stand:** 2026-08-18
+**Stand:** 2026-08-19
 **Ziel:** Konsistentes Layout im Settings Screen mit einheitlichen Spacing-Werten, korrektem Alignment und lesbarer Typografie
 
 Diese Spezifikation beschreibt das beobachtbare Layout-Verhalten des Settings Screen. Sie ist implementierungsagnostisch und fokussiert auf visuelle Konsistenz.
@@ -56,8 +56,8 @@ Settings Screen verwendet einheitliche Layout-Werte für Abstände, Alignment un
 - **Änderungen:** Bei Layout-Änderungen muss diese Spec aktualisiert werden
 
 ---
-
 ## Versionierung
 
-- **v1.0** (2026-08-17): Initialefassung für Issue #843. Layout-Spezifikation für Settings Screen erstellt.
+- **v1.2** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, Settings-Layout konsistent
 - **v1.1** (2026-08-18): Spec angepasst – Alignment-Logik auf Host-Element-Position (boundingBox.x) statt CSS-Margin.
+- **v1.0** (2026-08-17): Initialefassung für Issue #843. Layout-Spezifikation für Settings Screen erstellt.

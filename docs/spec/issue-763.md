@@ -1,7 +1,7 @@
 # Säulen-Gewichtung Layout-Optimierung
 
-**Stand:** 2025-08-17  
-**Issue:** #763  
+**Stand:** 2026-08-19
+**Issue:** #763
 **Ziel:** Visuelle Überlagerungen bei Säulen-Gewichtung beheben, responsives Layout für Range Sliders
 
 ## Ziel
@@ -57,3 +57,9 @@ Keine visuellen Überlagerungen mehr im Säulen-Gewichtungs-Bereich, Range Slide
 - **Mobile-First**: Breakpoints: <768px (1-spaltig), 768-1024px (2-spaltig), >1024px (3-4-spaltig)
 - **Touch-Ziele**: Mindestens 44px für Range Slider
 - **A11y/BITV**: `<label>`, `<output>`, ARIA-Attribute für Screenreader
+
+---
+## Versionierung
+
+- **v1.1** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, Säulen-Gewichtung responsive
+- **v1.0** (2025-08-17): Initialefassung für Issue #763

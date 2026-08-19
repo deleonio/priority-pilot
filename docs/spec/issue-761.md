@@ -1,7 +1,7 @@
 # Issue 761 – Layout-Optimierung Titel/Beschreibung/Aktionen
 
-**Stand:** 2026-08-17  
-**Issue:** #761  
+**Stand:** 2026-08-19
+**Issue:** #761
 **Bezug:** KI-UX-Block im Issue-Body (KI-UX:START bis KI-UX:END)
 
 ## Ziel
@@ -40,3 +40,9 @@ Layout von Titel, Beschreibung und Aktionen optimieren: Titel und Beschreibung n
 - Responsive Design ist gewährleistet (Mobile, Tablet, Desktop)
 - Touch-Ziele sind ausreichend groß (min. 44x44px laut KoliBri)
 - A11y-Requirements sind erfüllt (Logical Tab-Order, Focus-Indikator, Screenreader-Support)
+
+---
+## Versionierung
+
+- **v1.1** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, Layout-Optimierung implementiert
+- **v1.0** (2026-08-17): Initialefassung für Issue #761

@@ -1,6 +1,6 @@
 # Issue 653: Tab-Freiheit in Löschdialogen
 
-**Stand:** 2026-08-15  
+**Stand:** 2026-08-19
 **Ziel:** Sicherstellen, dass Löschdialoge keine Fokus-Gefängnisse sind - Tab bewegt den Fokus weiter
 
 ---
@@ -64,3 +64,9 @@ Jeder Löschdialog-Typ (Task, Säule, Serie) braucht einen Test, der:
 1. **Critical:** AK1, AK2, AK3, AK8 → Tab-Freiheit ergänzen
 2. **Warning:** Redundante Tests prüfen (6 duplizierte Signaturen)
 3. **Info:** Tautologische Tests mit Behavior-Assertions ergänzen (3 Fälle)
+
+---
+## Versionierung
+
+- **v1.1** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, Tab-Freiheit implementiert
+- **v1.0** (2026-08-15): Initialefassung für Issue #653

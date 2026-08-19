@@ -1,6 +1,6 @@
 # Issue 787 – Header-Layout und KI-Modell-Auswahl in Toolbar
 
-**Stand:** 2026-08-17  
+**Stand:** 2026-08-19
 **Ziel:** Header-Layout optimieren und KI-Modell-Auswahl harmonisch in Toolbar integrieren
 
 ---
@@ -232,11 +232,11 @@ Alle UI-Elemente erfüllen BITV 2.1 Kontrast-Anforderungen.
 - **KI-UX-Block:** UX-Requirements aus KI-UX:END-Block des Issues sind in diese Journeys integriert
 
 ---
-
 ## Versionierung
 
-- **v1.0** (2026-08-17): Initialefassung für Issue #787. Header-Layout und KI-Modell-Auswahl in Toolbar spezifiziert.
+- **v1.2** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, Header-Layout und KI-Modell-Auswahl implementiert
 - **v1.1** (2026-08-17): Abgrenzungen ergänzt, nachdem die Tests die technische Realität gegengeprüft
   haben: ARIA-Rolle `toolbar` bleibt bei `kol-toolbar`, das Popup ist ein Dialog (nicht Listbox),
   Label ohne hartcodierte Options-Anzahl, Tab-Reihenfolge über die bedienbaren Elemente,
   Header-Stabilität ab Ende der Hydration.
+- **v1.0** (2026-08-17): Initialefassung für Issue #787. Header-Layout und KI-Modell-Auswahl in Toolbar spezifiziert.

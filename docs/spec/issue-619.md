@@ -1,6 +1,6 @@
 # Issue 619 – Startup-Error-Handling
 
-**Stand:** 2026-08-13  
+**Stand:** 2026-08-19
 **Ziel:** Prozess bei Startup-Fehlern sauber beenden statt im defs Uhrbelzustand weiterzulaufen
 
 ---
@@ -28,7 +28,7 @@ Der Prozess soll bei kritischen Startup-Fehlern sofort mit `process.exit(1)` bee
 
 **Situation:** In `server/src/index.ts` umschließt ein `try/catch`-Block den gesamten Startup-Code (Zeilen 173-175 aktuell).
 
-**Erwartetes Verhalten:**  
+**Erwartetes Verhalten:**
 Bei Fehler im `catch`-Block:
 
 - Fehler wird geloggt (mit Stack-Trace)
@@ -42,7 +42,7 @@ Bei Fehler im `catch`-Block:
 
 **Situation:** Während des Startup wird ein Promise rejected, ohne dass ein `.catch()`-Handler existiert.
 
-**Erwartetes Verhalten:**  
+**Erwartetes Verhalten:**
 Ein globaler `process.on('unhandledRejection')`-Handler:
 
 - Loggt den Rejection-Grund (Error + Stack)
@@ -54,7 +54,7 @@ Ein globaler `process.on('unhandledRejection')`-Handler:
 
 **Situation:** Während des Startup wird ein synchroner Exception geworfen, der nicht gefangen wird.
 
-**Erwartetes Verhalten:**  
+**Erwartetes Verhalten:**
 Ein globaler `process.on('uncaughtException')`-Handler:
 
 - Loggt den Exception-Grund (Error + Stack)
@@ -66,7 +66,7 @@ Ein globaler `process.on('uncaughtException')`-Handler:
 
 **Situation:** `app.listen()` in `server/src/express/index.ts:236` wird ohne Error-Callback aufgerufen. Der Port kann bereits belegt sein.
 
-**Erwartetes Verhalten:**  
+**Erwartetes Verhalten:**
 `app.listen()` erhält einen Error-Callback als zweiten Parameter:
 
 - Bei Fehler: Loggen + `process.exit(1)`
@@ -90,3 +90,9 @@ Ein globaler `process.on('uncaughtException')`-Handler:
 3. **Unhandled Rejection:** Simulierter rejected Promise im Startup → Exit 1
 4. **Uncaught Exception:** Simulierter geworfener Error im Startup → Exit 1
 5. **Normaler Startup:** Keine Fehler → Server läuft, kein Exit
+
+---
+## Versionierung
+
+- **v1.1** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, alle Handler implementiert
+- **v1.0** (2026-08-13): Initialefassung für Issue #619

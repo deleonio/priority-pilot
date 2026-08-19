@@ -1,6 +1,6 @@
 # LLM-Test-Schalter – Issue 749
 
-**Stand:** 2026-08-17  
+**Stand:** 2026-08-19
 **Ziel:** LLM-Anfragen über Test-Schalter an Mistral oder OpenRouter umleiten
 
 ---
@@ -114,3 +114,9 @@ LLM-Anfragen für Tests gezielt an Mistral oder OpenRouter senden, statt den Sta
 - Exklusive Toggles (nur ein Provider aktiv)
 - Default: System-Standard oder erster verfügbarer Provider
 - Placement: In Provider-Settings oder Quick-Action Bar
+
+---
+## Versionierung
+
+- **v1.1** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, LLM-Test-Schalter implementiert
+- **v1.0** (2026-08-17): Initialefassung für Issue #749

@@ -1,6 +1,6 @@
 # Aufgabenbaum-Layout – Priority Pilot
 
-**Stand:** 2026-08-16  
+**Stand:** 2026-08-19
 **Ziel:** Saubere, strukturierte Darstellung des Aufgabenbaums mit klarer Hierarchie (Issue #704, Teil von #702)
 
 Dieser Spec beschreibt das beobachtbare Verhalten des Aufgabenbaum-Layouts, insbesondere die visuelle Darstellung verschachtelter Aufgabenstrukturen.
@@ -79,7 +79,7 @@ Den Aufgabenbaum so darstellen, dass verschachtelte Strukturen sofort erkennbar 
 - **UX-Prinzipien:** Der Spec orientiert sich an etablierten UI-Prinzipien (Whitespace, visuelle Hierarchie, Konsistenz).
 
 ---
-
 ## Versionierung
 
-- **v1.0** (2026-08-16): Initialefassung für Issue #704.
+- **v1.1** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, Aufgabenbaum-Layout implementiert
+- **v1.0** (2026-08-16): Initialefassung für Issue #704

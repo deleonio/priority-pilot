@@ -30,3 +30,9 @@ Benutzer können im Frontend aus einer aktuellen Liste der kostenlosen Modelle v
 2. Default ist `openrouter/free`
 3. Andere Free Models können ausgewählt werden
 4. Liste ist aktuell
+
+---
+## Versionierung
+
+- **v1.1** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, keine Drift gefunden
+- **v1.0** (Initialefassung)

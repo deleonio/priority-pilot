@@ -7,7 +7,7 @@ Tests greifen nur über öffentliche KoliBri-Schnittstellen auf Web-Components z
 ## Vorbedingung
 
 - ESLint-Config existiert: `frontend/eslint.config.mjs`
-- Test-Dateien existieren in `frontend/e2e/**` und `frontend/src/**/*.test.*`
+- Test-Dateien existieren in `frontend/e2e/**` und `frontend/src/**/*.test.{ts,tsx}`
 - KoliBri-Components werden in der App verwendet
 
 ## Schritte
@@ -49,3 +49,9 @@ Für jede Fundstelle A–D aus der Fundliste:
 - AK2: ESLint-Guard aktiv und gescoped
 - AK3: Tests grün nach Migration
 - AK4: Doku vorhanden
+
+---
+## Versionierung
+
+- **v1.1** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, KoliBri-Test-Guard implementiert
+- **v1.0** (Initialefassung für Issue #824)

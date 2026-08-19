@@ -33,3 +33,9 @@ Tests für Markdown-Inhalte sind Change-Detector (String-Match prüft nur, dass 
 
 - Akzeptanzkriterien aus Issue 813
 - UX-Beratung: `.claude/memory/issue-813-ux.md`
+
+---
+## Versionierung
+
+- **v1.1** (2026-08-19): Nightly-Sync — Ist-Stand verifiziert, Mermaid-Syntax korrigiert
+- **v1.0** (Initialefassung für Issue #813)
