@@ -140,12 +140,37 @@ jobs:
         # (proceed=false) statt den neueren Zustand zu überschreiben. Nach dem Konsum skippt
         # jeder in der Phasen-Queue wartende Run im precheck (Label ist weg) — ein Review
         # parallel zum Fixup ist damit strukturell ausgeschlossen (PR #890).
+        # Seit PR #903 laeuft check-phase-label.sh frisch direkt vor dem Konsum — needs-human
+        # oder Phasen-Mismatch stoppen hier, bevor irgendein Label bereinigt wird
+        # (zusaetzlich verwirft label-transition.sh selbst jede Transition, die ein klebendes
+        # ai:needs-human entfernen wuerde).
         id: consume
         if: steps.setup.outputs.configured == 'true'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
         run: |
+          # User-Direktive (PR #903): Erst die Label-Phasen-Pruefung FRISCH (Phasen-Match +
+          # ai:needs-human), DANN bereinigen. Der precheck-Job lief minutenalt und wird bei
+          # eigenem Job-Failure bewusst fail-open umgangen — diese Pruefung hier ist die
+          # verbindliche vor jedem Label-Write. proceed=false => Abbruch, Labels UNANGETASTET.
+          CHECK=""
+          if ! CHECK="$(bash .github/scripts/check-phase-label.sh \
+            --repo "$GITHUB_REPOSITORY" --phase review --ticket "$PR")"; then
+            # exit 2 = Konfigurationsfehler (unbekannte Phase) — bewusst rot wie im precheck.
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            echo "::error title=❌ Phasen-Prüfung fehlgeschlagen::check-phase-label.sh exited non-zero. Trigger bleibt bewaffnet."
+            exit 1
+          fi
+          c_proceed="$(printf '%s\n' "$CHECK" | sed -n 's/^proceed=//p')"
+          c_reason="$(printf '%s\n' "$CHECK" | sed -n 's/^reason=//p')"
+          if [ "$c_proceed" != "true" ]; then
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            echo "reason=${c_reason:-phasen-pruefung}" >> "$GITHUB_OUTPUT"
+            echo "::notice title=⏭️ Review verworfen::Frische Phasen-Prüfung: ${c_reason:-Label-Ist-Zustand passt nicht zur Phase} — Labels unangetastet."
+            exit 0
+          fi
+
           OUT=""
           if ! OUT="$(bash .github/scripts/label-transition.sh \
             --repo "$GITHUB_REPOSITORY" --pr "$PR" \

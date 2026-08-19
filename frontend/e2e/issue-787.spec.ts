@@ -45,16 +45,23 @@ const mockFreeModels = async (page: Page): Promise<void> => {
 };
 
 /**
- * Einstieg in die Modell-Auswahl auf Mobile (#787 Journey 3): Unter 48rem ist die KI-Modell-Auswahl
- * im Header ausgeblendet — dort füllen Logo und die fünf Kopf-Aktionen (#691) die Zeile
- * bereits aus. Der Einstieg bleibt der Dashboard-Button aus #742.
+ * Einstieg in die Modell-Auswahl (#787 Journey 2/3): Der Header-Button (`ModelSelectorButton`,
+ * role="combobox") öffnet denselben `ModelSelectionDialog`, den früher der Dashboard-Button aus
+ * #742 öffnete — jener wurde mit 8a7d182 bewusst entfernt. Unter 48rem ist der Header-Button
+ * ausgeblendet (Einzeiler-Vertrag); ein mobiler Einstieg existiert seither nicht (siehe AK2).
  */
-const modelSelectionEntryPoint = (page: Page): Locator => page.locator('[data-testid="model-selection-button"]');
+const modelSelectionEntryPoint = (page: Page): Locator => page.locator('[data-testid="model-selector-button"]');
+
+/** Öffnet die Modell-Auswahl über den Header-Button und wartet auf den geöffneten Dialog. */
+const openModelSelection = async (page: Page): Promise<void> => {
+	await modelSelectionEntryPoint(page).click();
+	await expect(page.getByRole('dialog', { name: /KI-Modell auswählen/i })).toBeVisible();
+};
 
 /**
  * Spec-Tests für #787 "Header-Layout und KI-Modell-Auswahl in Toolbar" (Stufe 1 TDD, der einklagbare Vertrag).
  *
- * Ziel: Header-Layout folgt der Reihenfolge Logo → Name → Toolbar und die KI-Modell-Auswahl
+ * Ziel: Header-Layout folgt der Reihenfolge Logo → Name → Avatar → Toolbar und die KI-Modell-Auswahl
  * ist harmonisch in die Toolbar integriert mit voller A11y-Unterstützung.
  *
  * Spezifikation: docs/spec/issue-787.md
@@ -63,10 +70,9 @@ test.describe('#787 Header-Layout und KI-Modell-Auswahl in Toolbar', () => {
 	/**
 	 * Journey 1: Header-Layout auf Desktop
 	 * Spec-Bezug: docs/spec/issue-787.md Journey 1
-	 * AK1: Header-Layout folgt der Reihenfolge Logo → Name → Toolbar
-	 * Avatar entfernt per Issue #865.
+	 * AK1: Header-Layout folgt der Reihenfolge Logo → Name → Avatar → Toolbar
 	 */
-	test('AK1: Header-Layout folgt der Reihenfolge Logo → Name → Toolbar (Desktop)', async ({ page }) => {
+	test('AK1: Header-Layout folgt der Reihenfolge Logo → Name → Avatar → Toolbar (Desktop)', async ({ page }) => {
 		await page.setViewportSize({ width: 1280, height: 800 });
 		await page.goto('/');
 		await waitForSettledHeader(page);
@@ -76,34 +82,39 @@ test.describe('#787 Header-Layout und KI-Modell-Auswahl in Toolbar', () => {
 
 		// Alle relevanten Elemente identifizieren
 		const logo = header.getByRole('button', { name: /Zum Dashboard/i }).locator('img');
+		const avatar = header.locator('kol-avatar').first();
 		const toolbar = header.getByRole('toolbar', { name: /Kopf-Aktionen/i });
 
 		// Alle Elemente müssen sichtbar sein
 		await expect(logo).toBeVisible();
+		await expect(avatar).toBeVisible();
 		await expect(toolbar).toBeVisible();
 
-		// DOM-Reihenfolge prüfen: Logo → App-Name → Toolbar.
+		// DOM-Reihenfolge prüfen: Logo → App-Name → Avatar → Toolbar.
 		// Die Indizes werden über die *semantischen* Merkmale der Kinder bestimmt (Button mit
-		// Logo-Label, Text „Priority Pilot", `role="toolbar"`) — nicht über die
+		// Logo-Label, Text „Priority Pilot", `kol-avatar`, `role="toolbar"`) — nicht über die
 		// CSS-Klassen, damit der Vertrag ein Layout-Vertrag bleibt und kein Klassennamen-Vertrag.
-		const { logoIndex, nameIndex, toolbarIndex } = await header.evaluate((el) => {
+		const { logoIndex, nameIndex, avatarIndex, toolbarIndex } = await header.evaluate((el) => {
 			const children = Array.from((el as HTMLElement).children);
 			return {
 				logoIndex: children.findIndex((child) => child.querySelector('img') !== null),
 				nameIndex: children.findIndex((child) => child.textContent?.trim() === 'Priority Pilot'),
+				avatarIndex: children.findIndex((child) => child.matches('kol-avatar')),
 				// `kol-toolbar` trägt `role="toolbar"` in ihrem Shadow-DOM — aus dem Light-DOM ist der
 				// Toolbar-Block deshalb über das Custom-Element identifizierbar, nicht über die Rolle.
 				toolbarIndex: children.findIndex((child) => child.querySelector('kol-toolbar') !== null),
 			};
 		});
 
-		// Reihenfolge validieren: Logo < Name < Toolbar
+		// Reihenfolge validieren: Logo < Name < Avatar < Toolbar
 		expect(logoIndex, 'Logo muss im Header vorhanden sein').toBeGreaterThanOrEqual(0);
 		expect(nameIndex, 'App-Name muss im Header vorhanden sein').toBeGreaterThanOrEqual(0);
+		expect(avatarIndex, 'Avatar muss im Header vorhanden sein').toBeGreaterThanOrEqual(0);
 		expect(toolbarIndex, 'Toolbar muss im Header vorhanden sein').toBeGreaterThanOrEqual(0);
 
 		expect(logoIndex, 'Logo muss vor App-Name erscheinen').toBeLessThan(nameIndex);
-		expect(nameIndex, 'App-Name muss vor Toolbar erscheinen').toBeLessThan(toolbarIndex);
+		expect(nameIndex, 'App-Name muss vor Avatar erscheinen').toBeLessThan(avatarIndex);
+		expect(avatarIndex, 'Avatar muss vor Toolbar erscheinen').toBeLessThan(toolbarIndex);
 	});
 
 	/**
@@ -300,13 +311,13 @@ test.describe('#787 Header-Layout und KI-Modell-Auswahl in Toolbar', () => {
 	});
 
 	/**
-	 * Journey 3: Responsive Verhalten (Mobile)
+	 * Journey 3: Responsive Verhalten
 	 * Spec-Bezug: docs/spec/issue-787.md Journey 3
-	 * AK1: Header-Height konsistent (kein Layout-Shift) bei 375px
+	 * AK1: Header-Height konsistent (kein Layout-Shift) — geprüft ab 48rem, wo der Einstieg existiert
 	 */
-	test('AK1 (Mobile): Header-Height konsistent bei 375px (kein Layout-Shift)', async ({ page }) => {
+	test('AK1 (Responsive): Header-Height konsistent bei 768px (kein Layout-Shift beim Öffnen)', async ({ page }) => {
 		await mockFreeModels(page);
-		await page.setViewportSize({ width: 375, height: 812 });
+		await page.setViewportSize({ width: 768, height: 1024 });
 		await page.goto('/');
 		// Gemessen wird der *ausgelayoutete* Header — sonst vergleicht der Test den Pre-Hydration-
 		// Zustand der Toolbar mit dem fertigen Layout und meldet einen Shift, den die Interaktion
@@ -319,12 +330,16 @@ test.describe('#787 Header-Layout und KI-Modell-Auswahl in Toolbar', () => {
 		const beforeBox = await header.boundingBox();
 		expect(beforeBox, 'Header muss eine Boundingbox haben').not.toBeNull();
 
-		// Der Header bleibt auf 375px einzeilig — bei Umbruch wäre die Höhe größer.
-		// Avatar entfernt per Issue #865.
+		// Der Header bleibt einzeilig — bei Umbruch läge er bei Logo + Avatar (#485 AK6, #718
+		// AK4/AK5). Unter 48rem gilt derselbe Vertrag; ein Einstieg in die Modell-Auswahl existiert
+		// dort aber nicht mehr (Dashboard-Button seit 8a7d182 entfernt, siehe AK2).
 		const logoBox = await header.getByRole('button', { name: /Zum Dashboard/i }).boundingBox();
-		expect(beforeBox!.height, `Header (${beforeBox!.height}px) muss auf 375px einzeilig bleiben`).toBeLessThan(
-			logoBox!.height * 2,
+		const avatarBox = await header.locator('kol-avatar').first().boundingBox();
+		expect(beforeBox!.height, `Header (${beforeBox!.height}px) muss einzeilig bleiben`).toBeLessThan(
+			logoBox!.height + avatarBox!.height,
 		);
+
+		await openModelSelection(page);
 
 		const afterBox = await header.boundingBox();
 		expect(afterBox, 'Header muss nach dem Öffnen eine Boundingbox haben').not.toBeNull();
@@ -332,28 +347,39 @@ test.describe('#787 Header-Layout und KI-Modell-Auswahl in Toolbar', () => {
 	});
 
 	/**
-	 * Journey 3: Responsive Verhalten (Mobile)
+	 * Journey 3: Responsive Verhalten
 	 * Spec-Bezug: docs/spec/issue-787.md Journey 3
-	 * AK2: Touch-Ziele mindestens 48×48px (WCAG 2.5.5) bei Mobile
+	 * AK2: Touch-Ziel der KI-Modell-Auswahl ≥44px (WCAG 2.5.5) ab 48rem — mobil kein Einstieg
 	 */
-	test('AK2 (Mobile): KI-Modell-Auswahl Touch-Target mindestens 48×48px (WCAG 2.5.5)', async ({ page }) => {
+	test('AK2 (Responsive): KI-Modell-Auswahl Touch-Target ≥44px (WCAG 2.5.5) ab 48rem; mobil kein Einstieg', async ({
+		page,
+	}) => {
+		// Unter 48rem ist die Modell-Auswahl im Header ausgeblendet, damit der Header einzeilig
+		// bleibt. Der frühere Mobile-Ausweg — der Dashboard-Einstieg aus #742 mit 48×48px — ist mit
+		// 8a7d182 bewusst entfernt worden: Unter 48rem existiert kein Einstieg mehr (bekannte
+		// Lücke, dokumentiert in der Spec-Abgrenzung).
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.goto('/');
 		await waitForSettledHeader(page);
 
-		// Auf Mobile ist der Dashboard-Einstieg das Touch-Ziel der Modell-Auswahl — im Header ist sie
-		// ausgeblendet, damit der Header einzeilig bleibt.
 		await expect(
 			page.getByRole('combobox', { name: /Modell auswählen|KI.*Modell/i }),
-			'KI-Modell-Auswahl darf den 375px-Header nicht umbrechen und ist dort ausgeblendet',
+			'Unter 48rem darf die KI-Modell-Auswahl den Header nicht umbrechen — sie ist ausgeblendet',
 		).toBeHidden();
+
+		// Ab 48rem ist der Header-Button das Touch-Ziel. Er misst 44px über die gemeinsame
+		// Toolbar-Einheit (`--pp-toolbar-height`/`--a11y-min-size`) und erfüllt WCAG 2.5.5. Die
+		// früheren 48px galten nur für den entfernten Dashboard-Einstieg; den Header-Button auf 48px
+		// zu heben bräche die 44px-Einheit der Kopf-Aktionen (und damit die #485-Relationen).
+		await page.setViewportSize({ width: 768, height: 1024 });
+		await waitForSettledHeader(page);
 
 		const box = await modelSelectionEntryPoint(page).boundingBox();
 		expect(box, 'KI-Modell-Auswahl muss eine Boundingbox haben').not.toBeNull();
 
 		const { width, height } = box!;
-		expect(width, `Touch-Target Breite (${width}px) muss ≥ 48px sein`).toBeGreaterThanOrEqual(48);
-		expect(height, `Touch-Target Höhe (${height}px) muss ≥ 48px sein`).toBeGreaterThanOrEqual(48);
+		expect(width, `Touch-Target Breite (${width}px) muss ≥ 44px sein`).toBeGreaterThanOrEqual(44);
+		expect(height, `Touch-Target Höhe (${height}px) muss ≥ 44px sein`).toBeGreaterThanOrEqual(44);
 	});
 
 	/**
@@ -389,13 +415,30 @@ test.describe('#787 Header-Layout und KI-Modell-Auswahl in Toolbar', () => {
 		await expect(header).toBeVisible();
 
 		const logo = header.getByRole('button', { name: /Zum Dashboard/i });
+		const avatar = header.locator('kol-avatar').first();
+		const appName = header.locator('.app-name');
+		const toolbar = header.getByRole('toolbar', { name: /Kopf-Aktionen/i });
+
+		// App-Name und Avatar sind reine Anzeige-Elemente. Sie stehen in der visuellen Reihenfolge
+		// zwischen Logo und Toolbar, gehören aber bewusst NICHT in die Tab-Reihenfolge: Ein
+		// Tab-Stopp ohne Aktion ist ein Sackgassen-Stopp für Tastatur-Nutzende (WCAG 2.4.3 zielt auf
+		// eine sinnvolle Reihenfolge der *bedienbaren* Elemente, nicht auf jedes sichtbare Element).
+		for (const [locator, name] of [
+			[appName, 'App-Name'],
+			[avatar, 'Avatar'],
+		] as const) {
+			const isFocusable = await locator.evaluate(
+				(el) => el.matches('a[href],button,input,select,textarea,[tabindex]') || el.hasAttribute('tabindex'),
+			);
+			expect(isFocusable, `${name} ist ein Anzeige-Element und darf keinen Tab-Stopp erzeugen`).toBe(false);
+		}
 
 		// Logo muss focusierbar sein
 		await logo.focus();
 		await expect(logo).toBeFocused();
 
 		// Der nächste Tab-Stopp nach dem Logo ist die KI-Modell-Auswahl — das erste bedienbare Element
-		// des Kopf-Aktionen-Blocks (Spec Journey 1: Toolbar folgt auf Logo/Name).
+		// des Kopf-Aktionen-Blocks (Spec Journey 1: Toolbar folgt auf Logo/Name/Avatar).
 		await page.keyboard.press('Tab');
 		await expect(
 			page.getByRole('combobox', { name: /Modell auswählen|KI.*Modell/i }),
@@ -410,6 +453,7 @@ test.describe('#787 Header-Layout und KI-Modell-Auswahl in Toolbar', () => {
 			.locator('kol-toolbar')
 			.evaluate((el) => el === document.activeElement || el.contains(document.activeElement));
 		expect(toolbarFocused, 'Toolbar-Elemente müssen per Tab erreicht werden können').toBe(true);
+		await expect(toolbar).toBeVisible();
 	});
 
 	/**

@@ -221,11 +221,10 @@ body {
 	 */
 	--pp-toolbar-height: 2.75rem;
 	/*
-	 * Mobile-First: Auf schmalen Viewports bleibt das Logo (der einzige Abnehmer der Variable,
-	 * da `.user-info` unter 48rem ausgeblendet ist) exakt auf Toolbar-Höhe — der 1,25-Faktor aus
-	 * #485 würde den Header hier unnötig hoch machen. Ab 48rem gilt wieder die gewohnte Relation
-	 * (siehe Media-Query unten). Die 2.75rem/44px selbst bleiben unangetastet: sie sind das
-	 * WCAG-2.5.5-Minimum, nicht Deko.
+	 * Mobile-First: Auf schmalen Viewports liegt der Avatar (bzw. das Logo, das sich an ihm bemisst)
+	 * exakt auf Toolbar-Höhe — der 1,25-Faktor aus #485 würde den Header hier unnötig hoch machen.
+	 * Ab 48rem gilt wieder die gewohnte Relation (siehe Media-Query unten). Die 2.75rem/44px selbst
+	 * bleiben unangetastet: sie sind das WCAG-2.5.5-Minimum, nicht Deko.
 	 */
 	--pp-avatar-size: var(--pp-toolbar-height);
 
@@ -272,8 +271,9 @@ body {
  *
  * Unter 48rem ausgeblendet (siehe Media-Query unten): Logo, Avatar und die fünf Kopf-Aktionen
  * (#691) füllen die 375px-Zeile bereits vollständig aus — ein sechstes Bedienelement erzwänge
- * einen Zeilenumbruch und bräche damit den Einzeiler-Vertrag aus #485 AK6 / #718 AK4. Auf Mobile
- * bleibt die Modell-Auswahl über den Dashboard-Einstieg erreichbar (#742).
+ * einen Zeilenumbruch und bräche damit den Einzeiler-Vertrag aus #485 AK6 / #718 AK4. Der frühere
+ * Mobile-Ausweg über den Dashboard-Einstieg (#742) ist mit 8a7d182 bewusst entfernt — unter 48rem
+ * existiert kein Einstieg (bekannte Lücke, siehe docs/spec/issue-787.md).
  */
 .model-selector-button {
 	display: none;
@@ -385,7 +385,23 @@ body {
 	--a11y-min-size: var(--pp-toolbar-height);
 }
 
-/* Avatar und User Full Name entfernt per Issue #865 — obsolete Selektoren gelöscht */
+/*
+ * AK2 (#222) / AK3 (#485): Avatar harmonisch zur Toolbar — exakt das 1,25-Fache der
+ * Toolbar-Button-Höhe. Über `--pp-toolbar-height` bleibt das Verhältnis bei Änderungen erhalten.
+ */
+.app-header kol-avatar {
+	/*
+	 * `kol-avatar` setzt im Shadow-DOM `:host { width: 100px; aspect-ratio: 1 }` und bietet dafür
+	 * keine Custom Property an (das frühere `--kol-avatar-size` blieb wirkungslos). Deshalb wird die
+	 * Breite am Host selbst gesetzt — ungeschichtete Dokument-Styles schlagen die `@layer`-Regel des
+	 * Components. Höhe und `aspect-ratio` werden hier ebenfalls explizit gesetzt statt aus dem
+	 * `:host` geerbt: die von AK3 gemessene Höhe soll nicht an einem undokumentierten
+	 * Component-Internum hängen, das eine künftige KoliBri-Version wegfallen lassen kann.
+	 */
+	width: var(--pp-avatar-size);
+	height: var(--pp-avatar-size);
+	aspect-ratio: 1;
+}
 
 .loading {
 	display: flex;

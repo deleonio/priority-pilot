@@ -24,6 +24,13 @@
 # dann keine neuere Entscheidung mehr (Stale-Write-Race im Minuten-Fenster
 # zwischen Precheck und Label-Write).
 #
+# MENSCHEN-PARKER-GUARD (Guard 3): `ai:needs-human` klebt im aktuellen
+# Bestand => KEINE Transition darf es ersatzlos entfernen — weder der Start-
+# Konsum (--set-none) noch Verdict-/Gate-/Scan-/Autolabeler-Writes. Ziel
+# ENTHAELT needs-human => erlaubt (idempotentes Re-Setzen). Entfernen darf
+# nur der Mensch (UI), kein Skript. reason kann "ai:needs-human klebt"
+# enthalten.
+#
 # Bash (kein .ts): reine gh-/jq-Wrapper-Logik, analog check-phase-label.sh —
 # lokal gegen echte PRs ausführbar und damit belegbar:
 #   bash .github/scripts/label-transition.sh --repo o/r --pr 42 \
@@ -44,6 +51,7 @@
 #   applied=true|false
 #   state=ok|read-failed|put-failed
 #   reason=<Klartext, nur wenn nicht angewendet>   # einzeilig, CR/LF gestrippt
+#                                                  # u. a. „ai:needs-human klebt“ (Guard 3)
 #   labels=<Ziel-Bestand, Komma-liste>             # der Zustand nach angewandter Transition
 #   changed=true|false                             # hat der Write den Bestand GEÄNDERT?
 #                                                  # false = IST war bereits der Zielzustand →
@@ -210,6 +218,20 @@ if [ "$EXPECT" != "any" ]; then
     out false ok "Pre-State geändert: erwartet '${want:-leer}', Ist '${is:-leer}' — neuere Entscheidung regiert, kein Write"
     exit 0
   fi
+fi
+
+# Guard 3 — Menschen-Parker: Klebt `ai:needs-human` im aktuellen Bestand, parkt das
+# Ticket bewusst beim Menschen (vgl. check-phase-label.sh, gleiche Philosophie wie der
+# globale Parker-Check dort). KEINE Transition darf es ersatzlos entfernen — weder der
+# Start-Konsum (--set-none) noch Verdict-/Gate-/Scan-/Autolabeler-Writes. Sonst wuerde
+# z. B. der Gate bei roter CI ein geparktes ai:needs-fixup drueberschreiben (PR #903:
+# Fixup-Verdict needs-human -> Gate setzt needs-fixup -> Parker weg -> Fixup laeuft
+# erneut -> Endlosschleife). Ziel ENTHAELT needs-human => erlaubt (idempotentes
+# Re-Setzen). Entfernen darf nur der Mensch (UI), kein Skript.
+if in_list ai:needs-human ${CURRENT_MANAGED[@]+"${CURRENT_MANAGED[@]}"} \
+   && ! in_list ai:needs-human ${TARGET[@]+"${TARGET[@]}"}; then
+  out false ok "ai:needs-human klebt — Ticket parkt beim Menschen, Transition verworfen (PR #903)"
+  exit 0
 fi
 
 NEW=("${PRESERVED[@]+"${PRESERVED[@]}"}" ${TARGET[@]+"${TARGET[@]}"})
