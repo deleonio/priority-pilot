@@ -82,6 +82,18 @@ inputs:
     description: 'Claude-Modell für diesen Lauf als Alias (fable|opus|sonnet|haiku); leer = kein --model (Default aus .claude/settings.json). Der Alias wird providerspezifisch aufgelöst (claude nativ via --model, zai/openrouter via settings.local.json); ein ungültiger Alias bricht laut ab (kein stiller Fallback).'
     required: false
     default: ''
+  subagent-model:
+    description: >-
+      Modell für Subagents als Alias, oder 'inherit' (Default). Wird als
+      CLAUDE_CODE_SUBAGENT_MODEL gesetzt.
+
+      BEWUSST GESETZT, NICHT UNGESETZT GELASSEN: Die Variable überschreibt das Modell für
+      ALLE Subagents und hat Vorrang vor deren model-Frontmatter. Bliebe sie unbestimmt,
+      liefe ein Subagent-Fan-out einer fable-Phase potenziell ebenfalls auf fable — und
+      genau das kehrte die Kostenlogik um, die die Phasen-Modellwahl herstellt.
+      'inherit' = ausdrücklich das Phasenmodell (bisheriges Verhalten, kein Override).
+    required: false
+    default: 'inherit'
   # Tailscale-Exit-Node: optional. Verbindet den Runner VOR dem claude-Step mit dem Exit Node,
   # sodass der gesamte LLM-Traffic über eine konsistente IP egressiert (verhindert z.ai/
   # OpenRouter "Account geteilt"-Flagging durch wechselnde Azure-Runner-IPs). Kill-Switch:
@@ -384,6 +396,7 @@ runs:
         ZAI_SETTINGS_JSON: ${{ inputs.zai-settings-json }}
         OPENROUTER_SETTINGS_JSON: ${{ inputs.openrouter-settings-json }}
         CLAUDE_MODEL: ${{ inputs.model }}
+        SUBAGENT_MODEL: ${{ inputs.subagent-model }}
       run: |
         PROVIDER="${LLM_PROVIDER:-claude}"
 
@@ -515,6 +528,30 @@ runs:
           echo "resolved-model=" >> "$GITHUB_OUTPUT"
         fi
 
+        # Subagent-Modell: CLAUDE_CODE_SUBAGENT_MODEL überschreibt das Modell ALLER
+        # Subagents und schlägt deren model-Frontmatter. Deshalb wird es hier bewusst
+        # gesetzt statt dem Zufall überlassen — 'inherit' bedeutet ausdrücklich
+        # „kein Override, Subagents laufen auf dem Phasenmodell".
+        # Dieselbe Alias-Tabelle wie oben; ein unbekannter Alias bricht laut ab, damit
+        # ein Tippfehler nicht still das teuerste Modell für den Fan-out wählt.
+        case "$SUBAGENT_MODEL" in
+          inherit|"")
+            echo "::notice title=Subagent-Modell::inherit — Subagents laufen auf dem Phasenmodell (kein Override)."
+            ;;
+          fable)  SUB_ID="claude-fable-5" ;;
+          opus)   SUB_ID="claude-opus-5" ;;
+          sonnet) SUB_ID="claude-sonnet-5" ;;
+          haiku)  SUB_ID="claude-haiku-4-5-20251001" ;;
+          *)
+            echo "::error title=Ungueltiger Subagent-Alias::subagent-model='$SUBAGENT_MODEL' — erlaubt: inherit | fable | opus | sonnet | haiku."
+            exit 1
+            ;;
+        esac
+        if [ -n "${SUB_ID:-}" ]; then
+          echo "CLAUDE_CODE_SUBAGENT_MODEL=$SUB_ID" >> "$GITHUB_ENV"
+          echo "::notice title=Subagent-Modell::$SUB_ID (Alias '$SUBAGENT_MODEL') für alle Subagents."
+        fi
+
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     # INVOKE-RESOLUTION – setzt invoke-cmd + invoke-args
     # --model nur bei gesetztem Phasen-Modell (steps.provider.outputs.resolved-model);
@@ -558,7 +595,14 @@ runs:
             # auto-memory Subdirs anlegt (allein ** matcht Wurzeldateien nicht zuverlässig).
             # Claude Code wertet für Datei-Schreibzugriffe NUR Edit(path)-Regeln aus — Write(path)
             # wird ignoriert (Edit deckt alle file-editing-Tools inkl. Write ab).
-            ALLOWED_TOOLS="Read,Glob,Grep,Bash(gh *),Bash(git *),Edit(.claude/memory/*),Edit(.claude/memory/**)"
+            # Task (Subagents) ist hier bewusst dabei: Die Analyse ist die einzige Phase auf
+            # dem starken Modell und muss den Code breit lesen. Ohne Fan-out landet dieses
+            # Lesen vollstaendig im teuren Elternkontext; mit Subagent kommt nur die
+            # Schlussfolgerung zurueck. Das Subagent-Modell setzt der Aufrufer ueber
+            # subagent-model (CLAUDE_CODE_SUBAGENT_MODEL) — sonst liefe der Fan-out auf
+            # demselben teuren Modell und der Spareffekt kehrte sich um.
+            # Die Schreibrechte bleiben unveraendert eng (nur .claude/memory).
+            ALLOWED_TOOLS="Read,Glob,Grep,Task,Bash(gh *),Bash(git *),Edit(.claude/memory/*),Edit(.claude/memory/**)"
             [ "$NEEDS_MCP" = "true" ] && ALLOWED_TOOLS="$ALLOWED_TOOLS,$MCP_TOOLS"
             # — !WICHTIG! —
             # Zwingendes Single-Quoting des Wertes nach --allowedTools (und --disallowedTools):
