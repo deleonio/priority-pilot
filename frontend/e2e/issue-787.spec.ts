@@ -45,13 +45,14 @@ const mockFreeModels = async (page: Page): Promise<void> => {
 };
 
 /**
- * Einstieg in die Modell-Auswahl auf Mobile (#787 Journey 3): Unter 48rem ist die KI-Modell-Auswahl
- * im Header ausgeblendet — dort füllen Logo, Avatar und die fünf Kopf-Aktionen (#691) die Zeile
- * bereits aus. Der Einstieg bleibt der Dashboard-Button aus #742.
+ * Einstieg in die Modell-Auswahl (#787 Journey 2/3): Der Header-Button (`ModelSelectorButton`,
+ * role="combobox") öffnet denselben `ModelSelectionDialog`, den früher der Dashboard-Button aus
+ * #742 öffnete — jener wurde mit 8a7d182 bewusst entfernt. Unter 48rem ist der Header-Button
+ * ausgeblendet (Einzeiler-Vertrag); ein mobiler Einstieg existiert seither nicht (siehe AK2).
  */
-const modelSelectionEntryPoint = (page: Page): Locator => page.locator('[data-testid="model-selection-button"]');
+const modelSelectionEntryPoint = (page: Page): Locator => page.locator('[data-testid="model-selector-button"]');
 
-/** Öffnet die Modell-Auswahl über den Mobile-Einstieg und wartet auf den geöffneten Dialog. */
+/** Öffnet die Modell-Auswahl über den Header-Button und wartet auf den geöffneten Dialog. */
 const openModelSelection = async (page: Page): Promise<void> => {
 	await modelSelectionEntryPoint(page).click();
 	await expect(page.getByRole('dialog', { name: /KI-Modell auswählen/i })).toBeVisible();
@@ -310,13 +311,13 @@ test.describe('#787 Header-Layout und KI-Modell-Auswahl in Toolbar', () => {
 	});
 
 	/**
-	 * Journey 3: Responsive Verhalten (Mobile)
+	 * Journey 3: Responsive Verhalten
 	 * Spec-Bezug: docs/spec/issue-787.md Journey 3
-	 * AK1: Header-Height konsistent (kein Layout-Shift) bei 375px
+	 * AK1: Header-Height konsistent (kein Layout-Shift) — geprüft ab 48rem, wo der Einstieg existiert
 	 */
-	test('AK1 (Mobile): Header-Height konsistent bei 375px (kein Layout-Shift)', async ({ page }) => {
+	test('AK1 (Responsive): Header-Height konsistent bei 768px (kein Layout-Shift beim Öffnen)', async ({ page }) => {
 		await mockFreeModels(page);
-		await page.setViewportSize({ width: 375, height: 812 });
+		await page.setViewportSize({ width: 768, height: 1024 });
 		await page.goto('/');
 		// Gemessen wird der *ausgelayoutete* Header — sonst vergleicht der Test den Pre-Hydration-
 		// Zustand der Toolbar mit dem fertigen Layout und meldet einen Shift, den die Interaktion
@@ -329,12 +330,12 @@ test.describe('#787 Header-Layout und KI-Modell-Auswahl in Toolbar', () => {
 		const beforeBox = await header.boundingBox();
 		expect(beforeBox, 'Header muss eine Boundingbox haben').not.toBeNull();
 
-		// Der Header bleibt auf 375px einzeilig — bei Umbruch läge er bei Logo + Avatar (#485 AK6,
-		// #718 AK4). Deshalb ist die KI-Modell-Auswahl hier nicht im Header, sondern auf dem
-		// Dashboard (siehe Abgrenzung in der Spec).
+		// Der Header bleibt einzeilig — bei Umbruch läge er bei Logo + Avatar (#485 AK6, #718
+		// AK4/AK5). Unter 48rem gilt derselbe Vertrag; ein Einstieg in die Modell-Auswahl existiert
+		// dort aber nicht mehr (Dashboard-Button seit 8a7d182 entfernt, siehe AK2).
 		const logoBox = await header.getByRole('button', { name: /Zum Dashboard/i }).boundingBox();
 		const avatarBox = await header.locator('kol-avatar').first().boundingBox();
-		expect(beforeBox!.height, `Header (${beforeBox!.height}px) muss auf 375px einzeilig bleiben`).toBeLessThan(
+		expect(beforeBox!.height, `Header (${beforeBox!.height}px) muss einzeilig bleiben`).toBeLessThan(
 			logoBox!.height + avatarBox!.height,
 		);
 
@@ -346,28 +347,39 @@ test.describe('#787 Header-Layout und KI-Modell-Auswahl in Toolbar', () => {
 	});
 
 	/**
-	 * Journey 3: Responsive Verhalten (Mobile)
+	 * Journey 3: Responsive Verhalten
 	 * Spec-Bezug: docs/spec/issue-787.md Journey 3
-	 * AK2: Touch-Ziele mindestens 48×48px (WCAG 2.5.5) bei Mobile
+	 * AK2: Touch-Ziel der KI-Modell-Auswahl ≥44px (WCAG 2.5.5) ab 48rem — mobil kein Einstieg
 	 */
-	test('AK2 (Mobile): KI-Modell-Auswahl Touch-Target mindestens 48×48px (WCAG 2.5.5)', async ({ page }) => {
+	test('AK2 (Responsive): KI-Modell-Auswahl Touch-Target ≥44px (WCAG 2.5.5) ab 48rem; mobil kein Einstieg', async ({
+		page,
+	}) => {
+		// Unter 48rem ist die Modell-Auswahl im Header ausgeblendet, damit der Header einzeilig
+		// bleibt. Der frühere Mobile-Ausweg — der Dashboard-Einstieg aus #742 mit 48×48px — ist mit
+		// 8a7d182 bewusst entfernt worden: Unter 48rem existiert kein Einstieg mehr (bekannte
+		// Lücke, dokumentiert in der Spec-Abgrenzung).
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.goto('/');
 		await waitForSettledHeader(page);
 
-		// Auf Mobile ist der Dashboard-Einstieg das Touch-Ziel der Modell-Auswahl — im Header ist sie
-		// ausgeblendet, damit der Header einzeilig bleibt.
 		await expect(
 			page.getByRole('combobox', { name: /Modell auswählen|KI.*Modell/i }),
-			'KI-Modell-Auswahl darf den 375px-Header nicht umbrechen und ist dort ausgeblendet',
+			'Unter 48rem darf die KI-Modell-Auswahl den Header nicht umbrechen — sie ist ausgeblendet',
 		).toBeHidden();
+
+		// Ab 48rem ist der Header-Button das Touch-Ziel. Er misst 44px über die gemeinsame
+		// Toolbar-Einheit (`--pp-toolbar-height`/`--a11y-min-size`) und erfüllt WCAG 2.5.5. Die
+		// früheren 48px galten nur für den entfernten Dashboard-Einstieg; den Header-Button auf 48px
+		// zu heben bräche die 44px-Einheit der Kopf-Aktionen (und damit die #485-Relationen).
+		await page.setViewportSize({ width: 768, height: 1024 });
+		await waitForSettledHeader(page);
 
 		const box = await modelSelectionEntryPoint(page).boundingBox();
 		expect(box, 'KI-Modell-Auswahl muss eine Boundingbox haben').not.toBeNull();
 
 		const { width, height } = box!;
-		expect(width, `Touch-Target Breite (${width}px) muss ≥ 48px sein`).toBeGreaterThanOrEqual(48);
-		expect(height, `Touch-Target Höhe (${height}px) muss ≥ 48px sein`).toBeGreaterThanOrEqual(48);
+		expect(width, `Touch-Target Breite (${width}px) muss ≥ 44px sein`).toBeGreaterThanOrEqual(44);
+		expect(height, `Touch-Target Höhe (${height}px) muss ≥ 44px sein`).toBeGreaterThanOrEqual(44);
 	});
 
 	/**

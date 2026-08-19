@@ -271,8 +271,9 @@ body {
  *
  * Unter 48rem ausgeblendet (siehe Media-Query unten): Logo, Avatar und die fünf Kopf-Aktionen
  * (#691) füllen die 375px-Zeile bereits vollständig aus — ein sechstes Bedienelement erzwänge
- * einen Zeilenumbruch und bräche damit den Einzeiler-Vertrag aus #485 AK6 / #718 AK4. Auf Mobile
- * bleibt die Modell-Auswahl über den Dashboard-Einstieg erreichbar (#742).
+ * einen Zeilenumbruch und bräche damit den Einzeiler-Vertrag aus #485 AK6 / #718 AK4. Der frühere
+ * Mobile-Ausweg über den Dashboard-Einstieg (#742) ist mit 8a7d182 bewusst entfernt — unter 48rem
+ * existiert kein Einstieg (bekannte Lücke, siehe docs/spec/issue-787.md).
  */
 .model-selector-button {
 	display: none;
