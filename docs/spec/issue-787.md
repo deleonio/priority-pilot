@@ -107,15 +107,15 @@ Falschaussage, sobald sich die Liste ändert.
 
 ---
 
-## Journey 3: Responsive Verhalten (Mobile)
+## Journey 3: Responsive Verhalten
 
 ### Ziel
 
-Header und KI-Modell-Auswahl funktionieren auf Mobile-Viewports (<600px).
+Der Header funktioniert auf allen Viewports; die KI-Modell-Auswahl ist ab 48rem bedienbar (unter 48rem existiert bewusst kein Einstieg — bekannte Lücke, siehe Abgrenzung unten).
 
 ### Vorbedingung
 
-- Anwendung ist auf Mobile-Viewport geöffnet (<600px)
+- Anwendung ist auf Mobile- (<48rem) und Tablet-/Desktop-Viewport (≥48rem) geöffnet
 
 ### Schritte
 
@@ -123,23 +123,23 @@ Header und KI-Modell-Auswahl funktionieren auf Mobile-Viewports (<600px).
    - Header-Height konsistent (kein Layout-Shift bei Toolbar-Änderungen)
    - Toolbar-Elemente passen in Viewport
 
-2. **KI-Modell-Auswahl auf Mobile**
-   - Touch-Ziele mindestens 48×48px (WCAG 2.5.5)
-   - Design-Entscheidung: Unter 48rem ist die Auswahl **nicht** im Header, sondern über den
-     Dashboard-Einstieg (#742) erreichbar — siehe Abgrenzung unten
-   - Dropdown/Sheet/Modal erscheint bei Auswahl
+2. **KI-Modell-Auswahl ab 48rem**
+   - Touch-Ziel des Header-Buttons mindestens 44×44px (WCAG 2.5.5)
+   - Design-Entscheidung: Unter 48rem ist die Auswahl **nicht** im Header und es existiert kein
+     anderer Einstieg — siehe Abgrenzung unten
+   - Modal erscheint bei Auswahl
 
 3. **Breakpoint-Test**
    - Ab 48rem (768px): KI-Modell-Auswahl im Header mit Modell-Label
-   - Unter 48rem: KI-Modell-Auswahl über den Dashboard-Einstieg
+   - Unter 48rem: kein Einstieg in die KI-Modell-Auswahl (bekannte Lücke)
    - Ab 64rem (1024px): zusätzlich der App-Name im Header
 
 ### Erwartetes Ergebnis
 
 - Keine horizontalen Scrollbars oder Überläufe
-- Touch-Ziele sind ausreichend groß (≥48×48px)
+- Touch-Ziel der KI-Modell-Auswahl ist ausreichend groß (≥44×44px ab 48rem)
 - Header-Height bleibt stabil
-- KI-Modell-Auswahl ist bedienbar auf Mobile
+- KI-Modell-Auswahl ist ab 48rem bedienbar
 
 ### Abgrenzung: KI-Modell-Auswahl unter 48rem
 
@@ -148,9 +148,14 @@ Vertrag (#485 AK6, #718 AK4/AK5, `mobile-shell.spec.ts`). Bei 375px stehen 343px
 Verfügung, die Logo (44px), Avatar (44px) und die fünf Kopf-Aktionen (#691, je 44px) bereits
 ausfüllen. Ein sechstes Bedienelement passt dort nicht mehr hinein — auch nicht icon-only.
 
-Deshalb ist die KI-Modell-Auswahl unter 48rem im Header ausgeblendet. Bedienbar bleibt sie über den
-Dashboard-Einstieg aus #742, dessen Touch-Ziel auf Mobile auf 48×48px angehoben ist. Ab 48rem steht
-sie wie spezifiziert in der Kopfzeile.
+Deshalb ist die KI-Modell-Auswahl unter 48rem im Header ausgeblendet. Der frühere Mobile-Ausweg —
+der Dashboard-Einstieg aus #742 mit 48×48px-Touch-Ziel — wurde mit 8a7d182 bewusst entfernt
+(„Unerwünschter KI-Modell-Button im Dashboard-Bereich"): Unter 48rem existiert damit **kein**
+Einstieg mehr. Das ist eine bekannte, bewusst akzeptierte Lücke; soll die Modell-Auswahl mobil
+wieder erreichbar sein, braucht es eine eigene Entscheidung (z. B. Einstellungs-Seite/Menü) —
+nicht die Wiedereinführung des Dashboard-Buttons. Ab 48rem steht die Auswahl wie spezifiziert in
+der Kopfzeile; der Header-Button misst dort 44×44px über die gemeinsame Toolbar-Einheit
+(`--pp-toolbar-height`) und erfüllt WCAG 2.5.5.
 
 ### Abgrenzung: App-Name und #406
 
@@ -214,13 +219,13 @@ Alle UI-Elemente erfüllen BITV 2.1 Kontrast-Anforderungen.
 
 ## Randfälle & Fehler
 
-| Situation                               | Erwartetes Verhalten                                                       |
-| --------------------------------------- | -------------------------------------------------------------------------- |
-| KI-Modell-Auswahl Click-Target <44×44px | Verstößt gegen BITV 2.1 – muss vergrößert werden                           |
-| Fehlender aria-expanded Zustand         | Screenreader erkennt Dropdown-Zustand nicht – Attribut muss gesetzt werden |
-| Kontrast <4.5:1 bei Text-Icons          | BITV 2.1.1 Verstoß – Kontrast muss erhöht werden                           |
-| Layout-Shift bei Toolbar-Änderung       | Header-Height muss stabil bleiben – CSS Grid/Flex für Konsistenz nutzen    |
-| Mobile: Touch-Target <48×48px           | WCAG 2.5.5 Verstoß – Touch-Ziele müssen vergrößert werden                  |
+| Situation                                   | Erwartetes Verhalten                                                                                         |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| KI-Modell-Auswahl Click-Target <44×44px     | Verstößt gegen BITV 2.1 – muss vergrößert werden                                                             |
+| Fehlender aria-expanded Zustand             | Screenreader erkennt Dropdown-Zustand nicht – Attribut muss gesetzt werden                                   |
+| Kontrast <4.5:1 bei Text-Icons              | BITV 2.1.1 Verstoß – Kontrast muss erhöht werden                                                             |
+| Layout-Shift bei Toolbar-Änderung           | Header-Height muss stabil bleiben – CSS Grid/Flex für Konsistenz nutzen                                      |
+| Mobile: kein Einstieg in die Modell-Auswahl | Bekannte Lücke seit 8a7d182 (bewusst akzeptiert) – eigener Beschluss nötig, falls mobil erreichbar sein soll |
 
 ---
 

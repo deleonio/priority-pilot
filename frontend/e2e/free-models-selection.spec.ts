@@ -16,7 +16,8 @@ import { expect, test } from './fixtures';
  * Test-Infra (bei der Umsetzung korrigiert, fachlicher Vertrag unverändert):
  * - Import aus './fixtures': Die Auth-Gate (Root.tsx) zeigt ohne authentifiziertes
  *   `GET /auth/me` die Login-Seite — die Fixture mockt sie standardmäßig durchlässig
- *   (Muster: e2e/fixtures.ts). Ohne sie wäre der Dashboard-Button nie sichtbar.
+ *   (Muster: e2e/fixtures.ts). Ohne sie wäre der Einstiegs-Button (Header-Modell-Auswahl) nie
+ *   sichtbar.
  * - Mock-Pfad mit /api/v1-Präfix: Der generierte Client ruft alle Endpoints unter
  *   `/api/v1/…` auf (frontend/src/api.ts baseUrl; Vite-Proxy stript das Präfix). Ein
  *   Mock ohne das Präfix träfe die Anfrage nie — sie fiele durch auf den echten
@@ -47,7 +48,7 @@ test('AK1+4: Free Models Liste wird angezeigt und dynamisch geladen', async ({ p
 	await page.goto('/dashboard');
 
 	// Model-Selection-Dialog öffnen
-	await page.click('[data-testid="model-selection-button"]');
+	await page.click('[data-testid="model-selector-button"]');
 
 	// Prüfen: Liste wird angezeigt (nicht leer/hartcodiert)
 	const modelList = page.locator('[data-testid="free-models-list"]');
@@ -61,7 +62,7 @@ test('AK2: Default openrouter/free ist vorselektiert', async ({ page }) => {
 	await page.goto('/dashboard');
 
 	// Model-Selection-Dialog öffnen
-	await page.click('[data-testid="model-selection-button"]');
+	await page.click('[data-testid="model-selector-button"]');
 
 	// Prüfen: openrouter/free ist vorselektiert
 	const defaultOption = page.locator('[data-testid="free-model-item"][data-model-id="openrouter/free"]');
@@ -72,7 +73,7 @@ test('AK3: Andere Free Models können ausgewählt werden', async ({ page }) => {
 	await page.goto('/dashboard');
 
 	// Model-Selection-Dialog öffnen
-	await page.click('[data-testid="model-selection-button"]');
+	await page.click('[data-testid="model-selector-button"]');
 
 	// Anderes Free Model auswählen
 	await page.click('[data-testid="free-model-item"][data-model-id="google/gemma-7b-it:free"]');
@@ -87,7 +88,7 @@ test('Spec-Bezug: Free Models Liste ist nicht hartcodiert', async ({ page }) => 
 	await page.goto('/dashboard');
 
 	// Erstes Layout mit 3 Modellen
-	await page.click('[data-testid="model-selection-button"]');
+	await page.click('[data-testid="model-selector-button"]');
 	await expect(page.locator('[data-testid="free-model-item"]')).toHaveCount(3);
 
 	// Dialog schließen
@@ -108,7 +109,7 @@ test('Spec-Bezug: Free Models Liste ist nicht hartcodiert', async ({ page }) => 
 	);
 
 	// Dialog neu öffnen
-	await page.click('[data-testid="model-selection-button"]');
+	await page.click('[data-testid="model-selector-button"]');
 
 	// Prüfen: Liste hat sich geändert (2 Modelle statt 3)
 	await expect(page.locator('[data-testid="free-model-item"]')).toHaveCount(2);
@@ -126,7 +127,7 @@ test('AK1+TF1: contextLength wird angezeigt (formatiert als "200k")', async ({ p
 	await page.goto('/dashboard');
 
 	// Model-Selection-Dialog öffnen
-	await page.click('[data-testid="model-selection-button"]');
+	await page.click('[data-testid="model-selector-button"]');
 
 	// Prüfen: Kontext-Größe wird für Modelle mit contextLength angezeigt
 	const modelWith200k = page.locator('[data-testid="free-model-item"][data-model-id="openrouter/free"]');
@@ -149,7 +150,7 @@ test('AK1+TF1: contextLength wird formatiert ("1m" für 1.000.000)', async ({ pa
 	);
 
 	await page.goto('/dashboard');
-	await page.click('[data-testid="model-selection-button"]');
+	await page.click('[data-testid="model-selector-button"]');
 
 	// Prüfen: 1.000.000 wird als "1m" formatiert
 	const modelWith1m = page.locator('[data-testid="free-model-item"][data-model-id="openrouter/free"]');
@@ -160,7 +161,7 @@ test('AK2+TF2: modelSize wird angezeigt (wenn verfügbar)', async ({ page }) => 
 	await page.goto('/dashboard');
 
 	// Model-Selection-Dialog öffnen
-	await page.click('[data-testid="model-selection-button"]');
+	await page.click('[data-testid="model-selector-button"]');
 
 	// Prüfen: Model-Größe wird für Modelle mit modelSize angezeigt
 	const modelWith32B = page.locator('[data-testid="free-model-item"][data-model-id="openrouter/free"]');
@@ -174,7 +175,7 @@ test('AK3: Fehlende modelSize wird graceful behandelt (nicht angezeigt)', async 
 	await page.goto('/dashboard');
 
 	// Model-Selection-Dialog öffnen
-	await page.click('[data-testid="model-selection-button"]');
+	await page.click('[data-testid="model-selector-button"]');
 
 	// Prüfen: Modell ohne modelSize zeigt nur contextLength (32k formatiert)
 	const modelWithoutSize = page.locator(
@@ -199,7 +200,7 @@ test('AK3: Fehlende contextLength wird graceful behandelt (nicht angezeigt)', as
 	);
 
 	await page.goto('/dashboard');
-	await page.click('[data-testid="model-selection-button"]');
+	await page.click('[data-testid="model-selector-button"]');
 
 	// Prüfen: Modell ohne contextLength zeigt nur modelSize (32B)
 	const modelWithoutContext = page.locator('[data-testid="free-model-item"][data-model-id="openrouter/free"]');
