@@ -183,6 +183,12 @@ Verdict (PR-Phasen: `/tmp/claude-verdict`), der Workflow setzt die Labels.
 - **`ai:analysed`** ist Done-Marker der Analyse und manueller Re-Triage-Trigger: triage/retriage
   setzen es; sein Entfernen (`unlabeled`) startet die erneute Analyse — der Pre-Check verlangt
   dann, dass es bis zum Job-Start abwesend bleibt (Konsumiert-Check bei parallelen Läufen).
+- **Continue-Sweep als Sicherheitsnetz:** Starb ein Phasen-Lauf vor dem Soft-Abort-Selbst-
+  retrigger (Runner-Ausfall, Cancel), klebt das Trigger-Label ohne Folge-Event.
+  `claude-continue-sweep.yml` prüft alle 6 Stunden (00:05/06:05/12:05/18:05 Europe/Berlin),
+  ob eine ruhende Phase ein klebendes Trigger-Label trägt, und feuert es per App-Token neu.
+  `ai:to-big-issue`, `ai:needs-human` und Draft-PRs werden nie geweckt; `ai:continued` bleibt
+  dem Folgelauf überlassen (Fortsetzen statt Neustart). Details: ci-architecture.md.
 - **Push-Reset-Mechanik:** Jeder menschliche Push auf den PR-Branch (`synchronize`-Event) löst
   `pr-needs-review-label.yml` aus. Dieser entfernt die alten Ergebnis-Labels (`ai:needs-fixup`,
   `ai:reviewed`, `ai:needs-human`) und setzt `ai:needs-review` neu — der PR geht damit bei jedem

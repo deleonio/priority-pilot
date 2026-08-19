@@ -204,7 +204,12 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: ${{ steps.setup.outputs.memory-save-key }}
-          path: ${{ steps.setup.outputs.memory-path }}
+          # MEMORY.md ausschliessen: das Dauergedächtnis ist EINGECHECKT, nicht Artefakt-Zustand.
+          # Läge es mit im Artefakt, überschriebe der Restore (gh run download --dir .claude/memory)
+          # in einer Folgephase die frisch committete Datei mit einem alten Stand.
+          path: |
+            ${{ steps.setup.outputs.memory-path }}
+            !${{ steps.setup.outputs.memory-path }}/MEMORY.md
           retention-days: 14
           if-no-files-found: ignore
 

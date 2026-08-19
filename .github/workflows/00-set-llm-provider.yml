@@ -1,4 +1,4 @@
-name: 00-Set LLM Provider
+name: 0/7 LLM-Provider
 
 # Manuelles Umschalten der Repository-Variable LLM_PROVIDER (claude | openrouter | zai)
 # Löst KEINE Folge-Workflows aus — nur Variable setzen + Verifizieren.

@@ -181,6 +181,14 @@ per `sed`/`cat` nach `/tmp/claude-prompt.txt` assembliert und via `-p "$(cat /tm
 übergeben — vermeidet Shell-Quoting-Probleme. Triage (01) und Umsetzung (04) tragen ihren Prompt noch
 inline als Heredoc in der Workflow-Datei.
 
+**Memory (zwei Ebenen, `.claude/memory/`):** Die Snippets `memory-read.md`/`memory-write.md`
+adressieren beide. `MEMORY.md` ist das **eingecheckte Dauergedächtnis** über Tickets hinweg — es
+reist im normalen Commit der Phasen mit Commit-Auftrag (Spec, Umsetzung, Fixup) und ist deshalb vom
+Artefakt-Upload ausgenommen, sonst überschriebe ein alter Artefakt-Stand beim Restore der Folgephase
+die frisch committete Datei. `issue-<N>-<phase>.md` sind die **flüchtigen** Phasen-Notizen für den
+Soft-Abort-Resume (gitignored, Transport per Artefakt, Teardown in Phase 7). Vertrag und
+Aufnahmekriterium: [AGENTS.md → Memory](../AGENTS.md#memory).
+
 **VERDICT-Hinweis:** `claude -p` schreibt die finale Antwort (inkl. `VERDICT:`-Zeile) auf
 stdout → `tee /tmp/claude-output.log` → `grep -oP 'VERDICT:\s*\K.*'` in der
 Label-Post-Assertion.
@@ -291,6 +299,22 @@ Sind Sub-Issues über native GitHub-Issue-Dependencies (`blocked-by`) sequenziel
 frei, sobald **alle** seine Blocker gemergt/geschlossen sind (Fan-in-Gate) — indem es
 `ai:needs-analyse` **per App-Token** setzt und so die Re-Triage gegen den nun gemergten Code-Stand
 anstößt.
+
+### Continue-Sweep (`claude-continue-sweep.yml`)
+
+Sicherheitsnetz für hängengebliebene Phasen (Issue #894): Der Soft-Abort-Selbstretrigger läuft
+im sterbenden Job — stirbt der Lauf davor (Runner-Ausfall, Cancel, hartes Timeout), klebt das
+Trigger-Label am Issue/PR, ohne dass ein Folge-Event die Phase weckt. Der Sweep prüft alle
+6 Stunden (00:05/06:05/12:05/18:05 Europe/Berlin; DST-korrekt über zwei UTC-Crons plus
+Laufzeit-Guard der Berliner Stunde) je Phase, ob sie ruht (kein `queued`/`in_progress`-Run,
+jüngster Run älter als 10 Minuten) und dennoch ein Trigger-Label klebt — und feuert dieses
+per App-Token neu (entfernen + setzen, gleiche Mechanik wie der Selbstretrigger). Bewusst
+nie geweckt: `ai:to-big-issue`, `ai:needs-human`, Draft-PRs. `ai:continued` wird nie angefasst
+und nie als Detektions-Kriterium genutzt — der geweckte Folgelauf liest den Marker selbst und
+setzt fort statt neu zu starten. Der `ai:needs-human`-Ausschluss ist zweistellig: Die Sweep-
+Suche ist nur Schicht 1 — Schicht 2 ist der globale Parker-Check im Phasen-Pre-Check
+(`check-phase-label.sh`), der jede Phase (außer documenter) blockt, auch wenn ein Trigger-Label
+klebt (manuell gesetzt oder Suchindex-Lag), und damit die Endlosschleife unmöglich macht.
 
 ### Named Session Resume (aktuell nicht aktiv)
 
