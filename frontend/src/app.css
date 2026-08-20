@@ -243,9 +243,11 @@ body {
 }
 
 /*
- * App-Name zwischen Logo und Avatar (#787). Seit #485 ist das Logo icon-only und trägt die
+ * App-Name zwischen Logo und Toolbar (#787). Seit #485 ist das Logo icon-only und trägt die
  * Wortmarke nicht mehr — der Name steht deshalb wieder als eigenes Label im Header (bewusst als
  * `span`, NICHT als H1: die Entscheidung aus #406, keine redundante Text-H1 zu führen, bleibt).
+ *
+ * Der Avatar steht seit #912 am rechten Rand (nach der Toolbar).
  *
  * Erst ab 64rem sichtbar: Der Header muss auf 375px UND 768px einzeilig bleiben (#485 AK6,
  * #718 AK4/AK5, mobile-shell). Bis 64rem ist der Platz für Logo, Identität, Modell-Auswahl und die
