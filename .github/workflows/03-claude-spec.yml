@@ -118,13 +118,7 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
-          # Ready-PR (Nicht-Draft) existiert -> Implement schon gelaufen -> skip. Symmetrie zu
-          # 04-claude-implement.yml, dessen Guard ebenfalls nur auf Nicht-Drafts prueft. Ein Draft
-          # allein ist KEIN Skip-Grund: er stammt von einem abgebrochenen Spec-Lauf und wuerde
-          # die Issue sonst dauerhaft blockieren (G5).
-          # Ready-PR = nicht-draft PR zu diesem Issue. Helper probiert primär
-          # closingIssuesReferences und fällt bei fehlendem "#" ("Closes NNN") auf
-          # Body-Suche zurück. schluckt gh-Fehler intern (→ 0), fail-open bleibt erhalten.
+          # Ready-PR (Nicht-Draft) existiert -> Implement schon gelaufen -> skip.
           ready="$(bash .github/scripts/pr-for-issue.sh --repo "$GITHUB_REPOSITORY" \
             --issue "$ISSUE" --draft no --out count)"
           if [ "${ready:-0}" -gt 0 ]; then
@@ -133,18 +127,57 @@ jobs:
             exit 0
           fi
 
-          # Verwaiste Draft-PRs schliessen (Best-Effort, Branch bleibt erhalten), damit beim
-          # Neu-Anstoß kein zweiter Draft neben dem alten akkumuliert.
-          orphans="$(bash .github/scripts/pr-for-issue.sh --repo "$GITHUB_REPOSITORY" \
-            --issue "$ISSUE" --draft yes --out all)"
-          for pr in $orphans; do
+          # Draft-PRs für dieses Issue ermitteln
+          drafts="$(bash .github/scripts/pr-for-issue.sh --repo "$GITHUB_REPOSITORY" \
+            --issue "$ISSUE" --draft yes --out all 2>/dev/null || true)"
+          draft_count=$(echo "$drafts" | grep -v '^$' | wc -w)
+
+          if [ "$draft_count" -eq 1 ]; then
+            # Genau 1 Draft → wiederverwenden (Branch auschecken, weiterarbeiten)
+            DRAFT_PR="$drafts"
+            DRAFT_BRANCH="$(gh pr view "$DRAFT_PR" --repo "$GITHUB_REPOSITORY" --json headRefName -q .headRefName 2>/dev/null || true)"
+            if [ -n "$DRAFT_BRANCH" ] && [ "$DRAFT_BRANCH" != "null" ]; then
+              echo "reuse_draft=true" >> "$GITHUB_OUTPUT"
+              echo "draft_pr=$DRAFT_PR" >> "$GITHUB_OUTPUT"
+              echo "draft_branch=$DRAFT_BRANCH" >> "$GITHUB_OUTPUT"
+              echo "::notice::Draft-PR #$DRAFT_PR (Branch $DRAFT_BRANCH) wird weitergeführt."
+            else
+              echo "reuse_draft=false" >> "$GITHUB_OUTPUT"
+              echo "::warning::Draft-PR #$DRAFT_PR gefunden, aber Branch nicht auflösbar – neu anlegen."
+            fi
+          elif [ "$draft_count" -gt 1 ]; then
+            # Mehrere Drafts → aufräumen (jüngsten behalten, ältere schließen)
+            # Sortiere nach Erstellungsdatum, jüngsten behalten
+            keep_pr=""
+            newest_date=""
+            for pr in $drafts; do
+              created="$(gh pr view "$pr" --repo "$GITHUB_REPOSITORY" --json createdAt -q .createdAt 2>/dev/null || true)"
+              if [ -n "$created" ] && ([ -z "$newest_date" ] || [ "$created" > "$newest_date" ]); then
+                newest_date="$created"
+                keep_pr="$pr"
+              fi
+            done
+            for pr in $drafts; do
+              [ "$pr" = "$keep_pr" ] && continue
               [ -n "$pr" ] || continue
               gh pr close "$pr" --repo "$GITHUB_REPOSITORY" \
-                --comment "🔄 Spec für Issue #$ISSUE neu angestoßen – verwaister Draft geschlossen (Branch bleibt erhalten)." 2>/dev/null || true
-              echo "::notice::Verwaisten Draft-PR #$pr für Issue #$ISSUE geschlossen."
+                --comment "🔄 Spec für Issue #$ISSUE neu angestoßen – älterer Draft geschlossen (jüngster Draft #$keep_pr bleibt)." 2>/dev/null || true
+              echo "::notice::Älterer Draft-PR #$pr für Issue #$ISSUE geschlossen (behalten: #$keep_pr)."
             done
+            # Jüngsten wiederverwenden
+            DRAFT_BRANCH="$(gh pr view "$keep_pr" --repo "$GITHUB_REPOSITORY" --json headRefName -q .headRefName 2>/dev/null || true)"
+            if [ -n "$DRAFT_BRANCH" ] && [ "$DRAFT_BRANCH" != "null" ]; then
+              echo "reuse_draft=true" >> "$GITHUB_OUTPUT"
+              echo "draft_pr=$keep_pr" >> "$GITHUB_OUTPUT"
+              echo "draft_branch=$DRAFT_BRANCH" >> "$GITHUB_OUTPUT"
+              echo "::notice::Jüngster Draft-PR #$keep_pr (Branch $DRAFT_BRANCH) wird weitergeführt."
+            else
+              echo "reuse_draft=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "reuse_draft=false" >> "$GITHUB_OUTPUT"
+          fi
           echo "skip=false" >> "$GITHUB_OUTPUT"
-
       - name: pnpm einrichten
         if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
         uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
@@ -176,6 +209,13 @@ jobs:
               -e "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" \
               .github/prompts/spec.md > /tmp/claude-prompt.txt
 
+          # RESUME_HINT: Draft-Wiederverwendung oder Neu-Lauf
+          if [ "${REUSE_DRAFT}" = "true" ]; then
+            sed -i "s|#RESUME_HINT|⚠️ FORTSETZUNGS-Lauf (Draft-Wiederverwendung) — PR #${DRAFT_PR}, Branch ${DRAFT_BRANCH}. Bestehenden Branch auschecken (git fetch origin && git switch ${DRAFT_BRANCH}), Stand prüfen, weiterschreiben. NICHT neu anlegen.|g" /tmp/claude-prompt.txt
+          else
+            sed -i "s|#RESUME_HINT||g" /tmp/claude-prompt.txt
+          fi
+
           # Memory-Snippets anhängen (Phase 3: restauriert + schreibt). Snippet-Platzhalter
           # separat substituieren, da die spec.md-sed oben nur den Prompt-Teil erfasst hat.
           cat .github/prompts/memory-read.md >> /tmp/claude-prompt.txt
@@ -188,7 +228,6 @@ jobs:
             ${{ steps.setup.outputs.invoke-args }} \
             2>&1 | tee /tmp/claude-output.log
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
-
       - name: Token & Kosten erfassen
         # always(): Auch ein abgebrochener Lauf hat Token verbraucht — gerade teure
         # Fehlläufe gehören in die Baseline, sonst sieht die alte Pipeline zu günstig aus.
