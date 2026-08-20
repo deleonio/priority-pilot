@@ -84,11 +84,13 @@ describe('resolve-model-label.sh — Normalfall', () => {
 });
 
 describe('resolve-model-label.sh — Abbruchfälle (kein stilles Raten)', () => {
-	it('bricht ab, wenn KEIN Label gesetzt ist', () => {
-		const out = run(['--ticket', '42', '--kind', 'issue'], { GH_ISSUE_LABELS: labels('ai:needs-impl') });
-		assert.equal(out.abort, 'true');
+	it('bricht ab, wenn die Analyse lief, aber kein Label setzte', () => {
+		const out = run(['--ticket', '42', '--kind', 'issue'], {
+			GH_ISSUE_LABELS: labels('ai:needs-impl', 'ai:analysed'),
+		});
+		assert.equal(out.abort, 'true', 'ai:analysed ohne Modell-Label ist ein Defekt der Analyse');
 		assert.equal(out.model, '', 'ohne Label darf kein Modell herauskommen');
-		assert.match(out.reason, /Kein 'ai:model:\*'-Label/);
+		assert.match(out.reason, /obwohl die Analyse gelaufen ist/);
 	});
 
 	it('bricht bei MEHREREN Labels ab, statt das erste zu nehmen', () => {
@@ -188,5 +190,81 @@ describe('resolve-model-label.sh — Auto-Eskalation (Hypothese 4)', () => {
 		});
 		assert.equal(out.model, 'haiku');
 		assert.equal(out.escalated, 'false');
+	});
+});
+
+describe('resolve-model-label.sh — Läufe ohne Analyse-Herkunft (Regression PR #914)', () => {
+	// Die Gate-Logik unterstellte ursprünglich, dass JEDER Lauf aus einer Analyse stammt.
+	// Harness-PRs, von Hand geöffnete PRs und Renovate-PRs haben nie ein Issue durchlaufen,
+	// das ein Modell-Label hätte setzen können — sie parkten dadurch dauerhaft beim Menschen
+	// und färbten den Autolabeler rot. Ohne Analyse-Herkunft gilt der Phasen-Default.
+
+	it('parkt einen PR ohne Label und ohne verknüpftes Issue NICHT', () => {
+		const out = run(['--ticket', '914', '--kind', 'pr'], {
+			GH_PR_LABELS: labels('ai:needs-review'),
+			GH_LINKED: '',
+		});
+		assert.equal(out.abort, 'false', 'ein PR ohne Analyse-Herkunft darf nicht beim Menschen parken');
+		assert.equal(out.model, '', 'kein Modell = Phasen-Default greift');
+		assert.match(out.reason, /keine Analyse-Herkunft/);
+	});
+
+	it('parkt ein Issue ohne Label und ohne ai:analysed NICHT', () => {
+		const out = run(['--ticket', '42', '--kind', 'issue'], { GH_ISSUE_LABELS: labels('ai:needs-impl') });
+		assert.equal(out.abort, 'false', 'manuell angestoßenes Issue ohne Analyse → Default');
+		assert.equal(out.model, '');
+	});
+
+	it('parkt sehr wohl, wenn der PR selbst ai:analysed trägt', () => {
+		const out = run(['--ticket', '914', '--kind', 'pr'], {
+			GH_PR_LABELS: labels('ai:needs-review', 'ai:analysed'),
+			GH_LINKED: '',
+		});
+		assert.equal(out.abort, 'true');
+	});
+
+	it('parkt, wenn das verknüpfte Issue analysiert wurde, aber kein Modell trägt', () => {
+		const out = run(['--ticket', '914', '--kind', 'pr'], {
+			GH_PR_LABELS: labels('ai:needs-review'),
+			GH_LINKED: '42',
+			GH_ISSUE_LABELS: labels('ai:analysed'),
+		});
+		assert.equal(out.abort, 'true', 'die Analyse lief und schuldete ein Label');
+		assert.match(out.reason, /obwohl die Analyse gelaufen ist/);
+	});
+
+	it('bleibt bei MEHREREN Labels ein Abbruch, auch ohne Analyse-Herkunft', () => {
+		const out = run(['--ticket', '914', '--kind', 'pr'], {
+			GH_PR_LABELS: labels('ai:model:haiku', 'ai:model:opus'),
+			GH_LINKED: '',
+		});
+		assert.equal(out.abort, 'true', 'Mehrdeutigkeit ist immer ein Defekt');
+	});
+});
+
+describe('resolve-model-label.sh — Herkunfts-Prüfung ist fail-closed (Review-Finding PR #916)', () => {
+	// Ein transienter gh-Fehler bei der Herkunfts-Prüfung darf NICHT als „keine
+	// Analyse-Herkunft" durchgehen: Sonst liefe ein Ticket mit nachweislich gelaufener
+	// Analyse still auf dem Default-Modell — fail-open im einzigen fail-closed-Pfad.
+
+	it('parkt, wenn das verknüpfte Issue nicht lesbar ist', () => {
+		const out = run(['--ticket', '914', '--kind', 'pr'], {
+			GH_PR_LABELS: labels('ai:needs-review'),
+			GH_LINKED: '42',
+			GH_ISSUE_LABELS: 'FAIL',
+		});
+		assert.equal(out.abort, 'true', 'unbestimmbare Herkunft darf nicht zum Default-Modell führen');
+		assert.equal(out.model, '');
+		assert.match(out.reason, /nicht lesbar|fail-closed/);
+	});
+
+	it('unterscheidet weiterhin sauber: lesbar + ohne ai:analysed → kein Parken', () => {
+		const out = run(['--ticket', '914', '--kind', 'pr'], {
+			GH_PR_LABELS: labels('ai:needs-review'),
+			GH_LINKED: '42',
+			GH_ISSUE_LABELS: labels('bug'),
+		});
+		assert.equal(out.abort, 'false');
+		assert.match(out.reason, /keine Analyse-Herkunft/);
 	});
 });

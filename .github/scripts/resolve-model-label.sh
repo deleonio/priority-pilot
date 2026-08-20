@@ -74,43 +74,89 @@ emit() {
   exit 0
 }
 
-# Alle ai:model:*-Aliase eines Objekts, einer je Zeile.
-aliases_of() {
-  local kind="$1" number="$2" data
+# Labels eines Objekts EINMAL holen (Ergebnis in LABELS_JSON). Rückgabe 0 = gelesen,
+# 1 = API nicht erreichbar. Bewusst EIN Aufruf je Objekt: Aliase und das Analyse-Done-Label
+# werden aus derselben Antwort gelesen — zwei Abfragen könnten einen Zwischenstand sehen
+# und wären doppelte Last ohne Gewinn.
+LABELS_JSON=""
+fetch_labels() {
+  local kind="$1" number="$2"
   if [ "$kind" = "pr" ]; then
-    data="$(gh pr view "$number" --repo "$REPO" --json labels 2>/dev/null)"
+    LABELS_JSON="$(gh pr view "$number" --repo "$REPO" --json labels 2>/dev/null)"
   else
-    data="$(gh issue view "$number" --repo "$REPO" --json labels 2>/dev/null)"
+    LABELS_JSON="$(gh issue view "$number" --repo "$REPO" --json labels 2>/dev/null)"
   fi
-  [ -n "$data" ] || return 1
-  printf '%s' "$data" | jq -r --arg p "$PREFIX" '.labels[].name | select(startswith($p)) | ltrimstr($p)'
+  [ -n "$LABELS_JSON" ]
+}
+
+# Alle ai:model:*-Aliase aus einer Labels-Antwort, einer je Zeile.
+aliases_from() {
+  printf '%s' "$1" | jq -r --arg p "$PREFIX" '.labels[].name | select(startswith($p)) | ltrimstr($p)'
+}
+
+# Trägt die Antwort das Done-Label der Analyse? Das entscheidet, ob ein fehlendes
+# Modell-Label ein DEFEKT ist oder schlicht nie vorgesehen war.
+has_analysed_json() {
+  printf '%s' "$1" | jq -e 'any(.labels[]; .name == "ai:analysed")' >/dev/null 2>&1
 }
 
 SOURCE="$KIND"
-FOUND="$(aliases_of "$KIND" "$TICKET")"
-API_OK=$?
 
 # FAIL-CLOSED (Gegenteil von check-phase-label.sh): Dort ist Fail-open richtig, weil eine
 # verschluckte Phase teurer ist als ein doppelter Lauf. Hier startet direkt danach ein
 # LLM-Lauf — ohne gesicherte Modellwahl liefe er auf dem settings.json-Default, also
 # potenziell auf dem teuersten Modell. Im Zweifel also NICHT starten.
-if [ "$API_OK" -ne 0 ]; then
-  emit "" "true" "false" "Label-Abfrage für ${KIND} #${TICKET} fehlgeschlagen — fail-closed (ungeprüfte Modellwahl würde auf dem Default-Modell starten)"
-fi
+fetch_labels "$KIND" "$TICKET" \
+  || emit "" "true" "false" "Label-Abfrage für ${KIND} #${TICKET} fehlgeschlagen — fail-closed (ungeprüfte Modellwahl würde auf dem Default-Modell starten)"
+SELF_JSON="$LABELS_JSON"
+FOUND="$(aliases_from "$SELF_JSON")"
+ORIGIN_JSON="$SELF_JSON"
 
 # Zweite Stufe: PR ohne eigenes Label erbt vom verknüpften Issue.
+LINKED=""
 if [ "$KIND" = "pr" ] && [ -z "$FOUND" ]; then
   LINKED="$(gh pr view "$TICKET" --repo "$REPO" --json closingIssuesReferences \
     --jq '.closingIssuesReferences[0].number // empty' 2>/dev/null)"
   if [ -n "$LINKED" ]; then
-    FOUND="$(aliases_of issue "$LINKED")"
+    # Auch hier fail-closed: Ist das verknüpfte Issue nicht lesbar, lässt sich die
+    # Herkunft nicht bestimmen — und „nicht bestimmbar" darf NICHT als „keine Herkunft"
+    # durchgehen, sonst liefe ein Ticket mit nachweislicher Analyse still auf dem
+    # Default-Modell (fail-open im einzigen fail-closed-Pfad, Review-Finding zu PR #916).
+    fetch_labels issue "$LINKED" \
+      || emit "" "true" "false" "Labels des verknüpften Issues #${LINKED} nicht lesbar — fail-closed (Analyse-Herkunft unbestimmbar)"
+    FOUND="$(aliases_from "$LABELS_JSON")"
+    ORIGIN_JSON="$LABELS_JSON"
     SOURCE="issue #${LINKED}"
   fi
 fi
 
 COUNT="$(printf '%s' "$FOUND" | grep -c . || true)"
 if [ "$COUNT" -eq 0 ]; then
-  emit "" "true" "false" "Kein '${PREFIX}*'-Label an ${KIND} #${TICKET} (und keines am verknüpften Issue) — die Analyse muss genau eines setzen."
+  # KEIN pauschales Parken mehr (Fehlverhalten aus PR #914): Die Gate-Logik unterstellte,
+  # dass JEDER Lauf aus einer Analyse stammt. Das stimmt nicht — Harness-PRs, von Hand
+  # geöffnete PRs und Renovate-PRs haben nie ein Issue durchlaufen, das ein Label hätte
+  # setzen können. Sie parkten dadurch dauerhaft beim Menschen, und der Autolabeler lief
+  # dabei sogar hart auf Fehler.
+  #
+  # Unterschieden wird deshalb nach HERKUNFT:
+  #   - Die Analyse ist nachweislich gelaufen (ai:analysed am Objekt oder am verknüpften
+  #     Issue), hat aber kein Modell gesetzt → das ist ein Defekt der Analyse. Parken.
+  #   - Keine Analyse-Herkunft → es war nie eines vorgesehen. Kein Parken; der Lauf nutzt
+  #     den Phasen-Default (vars.CLAUDE_MODEL_* bzw. .claude/settings.json), also exakt das
+  #     Verhalten von vor der Modellwahl. Das ist kein stilles Raten, sondern der
+  #     unveränderte Status quo für einen Pfad, den das Routing gar nicht abdeckt — und er
+  #     wird als Notice sichtbar gemacht, nicht verschwiegen.
+  # Beide bereits gelesenen Antworten prüfen: das Objekt selbst UND — falls vorhanden —
+  # das verknüpfte Issue. Keine weitere API-Abfrage, keine Fehlerquelle mehr an dieser
+  # Stelle: Unlesbare Antworten sind oben schon fail-closed abgefangen.
+  ANALYSED="false"
+  if has_analysed_json "$SELF_JSON" || has_analysed_json "$ORIGIN_JSON"; then
+    ANALYSED="true"
+  fi
+  if [ "$ANALYSED" = "true" ]; then
+    emit "" "true" "false" "Kein '${PREFIX}*'-Label an ${KIND} #${TICKET}, obwohl die Analyse gelaufen ist (ai:analysed) — sie muss genau eines setzen."
+  fi
+  emit "" "false" "false" "Kein '${PREFIX}*'-Label und keine Analyse-Herkunft an ${KIND} #${TICKET} — Phasen-Default gilt (kein Parken)."
 fi
 if [ "$COUNT" -gt 1 ]; then
   emit "" "true" "false" "Mehrdeutige Modellwahl an ${KIND} #${TICKET}: $(printf '%s' "$FOUND" | tr '\n' ' ')— genau ein '${PREFIX}*'-Label ist erlaubt."
