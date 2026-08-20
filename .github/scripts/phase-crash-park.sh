@@ -95,7 +95,7 @@ ${LOGTAIL}
 **Optionen:**
 ${RE_ARM}
 - Häufigste Ursache sind Provider-Limits (Kontingent erschöpft, Rate-Limit). Dann hilft
-  Warten oder ein Providerwechsel über den Workflow \`0/7 LLM-Provider\`.
+  Warten oder ein Providerwechsel über den Workflow \`0/6 LLM-Provider\`.
 
 ---
 _Ohne diesen Hinweis stünde das Ticket ohne Trigger und ohne Label da — die Kette wäre

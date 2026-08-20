@@ -25,11 +25,14 @@ const issue = (state: string, ...names: string[]) => JSON.stringify({ state, lab
 const pr = (state: string, isDraft: boolean, ...names: string[]) =>
 	JSON.stringify({ state, isDraft, labels: labels(...names) });
 
-const runPhase = (phase: string): { proceed: string; reason: string } => {
-	const res = spawnSync('bash', [script, '--repo', 'o/r', '--phase', phase, '--ticket', '42'], {
+const rawPhase = (phase: string) =>
+	spawnSync('bash', [script, '--repo', 'o/r', '--phase', phase, '--ticket', '42'], {
 		env: { ...process.env, PATH: `${stubDir}:${process.env.PATH}`, GH_FIXTURE: fixturePath },
 		encoding: 'utf8',
 	});
+
+const runPhase = (phase: string): { proceed: string; reason: string } => {
+	const res = rawPhase(phase);
 	assert.equal(res.status, 0, `Skript crashte: ${res.stderr}`);
 	return {
 		proceed: res.stdout.match(/^proceed=(.*)$/m)?.[1] ?? '',
@@ -57,7 +60,7 @@ describe('check-phase-label.sh — globaler Menschen-Parker ai:needs-human', () 
 
 	it('blockt eine PR-Phase trotz klebendem Trigger', () => {
 		writeFileSync(fixturePath, pr('OPEN', false, 'ai:needs-fixup', 'ai:needs-human'));
-		const { proceed, reason } = runPhase('fixup');
+		const { proceed, reason } = runPhase('implement-pr');
 		assert.equal(proceed, 'false');
 		assert.match(reason, /ai:needs-human/);
 	});
@@ -70,5 +73,54 @@ describe('check-phase-label.sh — globaler Menschen-Parker ai:needs-human', () 
 	it('lässt den documenter auch bei needs-human laufen (protokolliert NACH menschlicher Entscheidung)', () => {
 		writeFileSync(fixturePath, pr('MERGED', false, 'ai:needs-human'));
 		assert.equal(runPhase('documenter').proceed, 'true');
+	});
+});
+
+/**
+ * Die Umsetzungsphase hat seit ADR-0005 ZWEI Eingänge (Issue + ai:needs-impl,
+ * PR + ai:needs-fixup). Beide müssen ihren eigenen Soll-Zustand behalten: Ein
+ * versehentliches Zusammenfallen (etwa `implement-pr` auf das Issue-Soll gemappt)
+ * würde den Fixup-Eingang stillschweigend dauerhaft überspringen.
+ */
+describe('check-phase-label.sh — die zwei Eingänge der Umsetzungsphase', () => {
+	it('implement verlangt ai:needs-impl am OFFENEN ISSUE', () => {
+		writeFileSync(fixturePath, issue('OPEN', 'ai:needs-impl'));
+		assert.equal(runPhase('implement').proceed, 'true');
+	});
+
+	it('implement läuft NICHT, wenn nur ai:needs-fixup klebt', () => {
+		writeFileSync(fixturePath, issue('OPEN', 'ai:needs-fixup'));
+		const { proceed, reason } = runPhase('implement');
+		assert.equal(proceed, 'false');
+		assert.match(reason, /ai:needs-impl/);
+	});
+
+	it('implement-pr verlangt ai:needs-fixup am offenen Nicht-Draft-PR', () => {
+		writeFileSync(fixturePath, pr('OPEN', false, 'ai:needs-fixup'));
+		assert.equal(runPhase('implement-pr').proceed, 'true');
+	});
+
+	it('implement-pr läuft NICHT am Draft-PR (Review-Vertrag)', () => {
+		writeFileSync(fixturePath, pr('OPEN', true, 'ai:needs-fixup'));
+		const { proceed, reason } = runPhase('implement-pr');
+		assert.equal(proceed, 'false');
+		assert.match(reason, /Draft/);
+	});
+
+	it('review skippt weiterhin bei Doppel-Armung (ai:needs-fixup gewinnt)', () => {
+		writeFileSync(fixturePath, pr('OPEN', false, 'ai:needs-review', 'ai:needs-fixup'));
+		const { proceed, reason } = runPhase('review');
+		assert.equal(proceed, 'false');
+		assert.match(reason, /ai:needs-fixup/);
+	});
+
+	it('der alte Phasen-Name `fixup` ist ein HARTER Fehler, kein stiller Skip', () => {
+		// Ein Aufrufer, der beim Zusammenlegen übersehen wurde, muss laut scheitern
+		// (exit 2 = Konfigurationsfehler). Ein Fail-open hätte den Fixup-Eingang
+		// stillschweigend an jedem Guard vorbeilaufen lassen.
+		writeFileSync(fixturePath, pr('OPEN', false, 'ai:needs-fixup'));
+		const res = rawPhase('fixup');
+		assert.equal(res.status, 2);
+		assert.match(res.stderr, /unbekannte Phase/);
 	});
 });

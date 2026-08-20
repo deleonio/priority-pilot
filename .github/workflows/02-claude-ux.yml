@@ -1,4 +1,4 @@
-name: 2/7 UX-Beratung
+name: 2/6 UX-Beratung
 
 # UX-Beratung als automatisierte Phase VOR der Spec — beratend, nicht blockierend.
 # Läuft als Phase 2 von 7, sequenziell nach der Analyse. Triggert auf ai:needs-ux-ui,

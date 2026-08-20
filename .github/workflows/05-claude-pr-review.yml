@@ -1,7 +1,7 @@
-name: 5/7 Review
+name: 5/6 Review
 
 # ⚠️ Der `name:` ist lastend: das workflow_run-Allowlist in claude-pr-gate-merge.yml matcht ihn
-#    exakt ("5/7 Review"). Umbenennen schaltet das Gate lautlos ab → stummes Gate. ACHTUNG: es
+#    exakt ("5/6 Review"). Umbenennen schaltet das Gate lautlos ab → stummes Gate. ACHTUNG: es
 #    gibt KEINEN Contract-Test für diese Kopplung (ADR #567 — Workflows bleiben ungetestet), ein
 #    Rename fällt also lautlos durch — vor jeder `name:`-Änderung die Stelle manuell mitpflegen.
 
@@ -384,9 +384,9 @@ jobs:
               # `.name != "precheck"` — analog zum Gate (claude-pr-gate-merge.yml): der
               # Label-Pre-Check laeuft unter demselben Workflow-Namen und darf das eigene
               # Allowlist-Urteil weder rot faerben noch has_reviewer vorzeitig erfuellen.
-              allow="$(echo "$checks" | jq '[.[] | select(.workflow == "CI" or (.workflow == "5/7 Review" and .name != "precheck"))]')"
+              allow="$(echo "$checks" | jq '[.[] | select(.workflow == "CI" or (.workflow == "5/6 Review" and .name != "precheck"))]')"
               has_ci="$(echo "$allow" | jq -r 'any(.[]; .workflow == "CI")')"
-              has_reviewer="$(echo "$allow" | jq -r 'any(.[]; .workflow == "5/7 Review")')"
+              has_reviewer="$(echo "$allow" | jq -r 'any(.[]; .workflow == "5/6 Review")')"
               if [ "$has_ci" = "true" ] && [ "$has_reviewer" = "true" ]; then break; fi
               if [ "$attempt" -lt 5 ]; then sleep "${delays[$((attempt - 1))]}"; fi
             done

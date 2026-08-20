@@ -63,7 +63,11 @@ jobs:
           REPO: ${{ github.repository }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
-          for wf in 05-claude-pr-review.yml 06-claude-pr-fixup.yml; do
+          # 04-claude-implement.yml bedient seit ADR-0005 auch die Nacharbeit am PR
+          # (früher 06-claude-pr-fixup.yml). Der Branch-Filter trennt die beiden Eingänge
+          # zuverlässig: Läufe des Issue-Eingangs hängen am Default-Branch, nie am
+          # PR-Head-Branch — es werden also weiterhin nur PR-Läufe abgebrochen.
+          for wf in 05-claude-pr-review.yml 04-claude-implement.yml; do
             gh run list --repo "$REPO" --workflow "$wf" --branch "$HEAD_REF" \
               --json databaseId,status \
               --jq '.[] | select(.status=="in_progress" or .status=="queued") | .databaseId' \

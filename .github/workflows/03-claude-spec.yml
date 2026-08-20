@@ -1,4 +1,4 @@
-name: 3/7 Spec
+name: 3/6 Spec
 
 # Schreibt die ROTEN Tests (ausführbarer Vertrag) für ein Issue, sobald es
 # das Label "ai:needs-spec" erhält (gesetzt von der UX-Phase bei UI-Tickets oder
