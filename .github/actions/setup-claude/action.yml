@@ -554,16 +554,16 @@ runs:
           echo "CLAUDE_CODE_SUBAGENT_MODEL=$SUB_ID" >> "$GITHUB_ENV"
           echo "::notice title=Subagent-Modell::$SUB_ID (Alias '$SUBAGENT_MODEL') für alle Subagents."
         fi
-
-    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    # TAILSCALE EXIT-NODE – für Provider 'zai' und 'openrouter' (claude nativ verträgt
-    # Azure-IPs). Läuft NACH der Provider-Auflösung, damit der finale Provider (inkl.
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # TAILSCALE EXIT-NODE – nur für Provider 'zai' (z.ai blockt Azure-IPs).
+    # claude (Anthropic nativ) und openrouter vertrennen Azure-IPs problemlos.
+    # Läuft NACH der Provider-Auflösung, damit der finale Provider (inkl.
     # Zeitfenster-Override) bekannt ist. Kill-Switch: tailscale-exit-node leer → deaktiviert.
-    # Fail-closed: Exit-Node gesetzt + Provider in {zai,openrouter}, aber Key fehlt/
+    # Fail-closed: Exit-Node gesetzt + Provider=zai, aber Key fehlt/
     # Connect scheitert → setup-claude rot → claude-Step wird übersprungen.
-    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    - name: Tailscale-Preflight (Auth-Key ist Pflicht bei aktivem Exit-Node für zai/openrouter)
-      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && (steps.provider.outputs.llm-provider == 'zai' || steps.provider.outputs.llm-provider == 'openrouter')
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    - name: Tailscale-Preflight (Auth-Key ist Pflicht bei aktivem Exit-Node für zai)
+      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && steps.provider.outputs.llm-provider == 'zai'
       shell: bash
       env:
         TAILSCALE_AUTHKEY: ${{ inputs.tailscale-authkey }}
@@ -573,15 +573,15 @@ runs:
           exit 1
         fi
 
-    - name: Tailscale-Exit-Node verbinden (LLM-Egress über feste IP, für zai/openrouter)
-      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && (steps.provider.outputs.llm-provider == 'zai' || steps.provider.outputs.llm-provider == 'openrouter')
+    - name: Tailscale-Exit-Node verbinden (LLM-Egress über feste IP, für zai)
+      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && steps.provider.outputs.llm-provider == 'zai'
       uses: tailscale/github-action@780049a30b6ff5c378a9e7b389d15ece7a204888 # v4.1.3
       with:
         authkey: ${{ inputs.tailscale-authkey }}
         args: --exit-node=${{ inputs.tailscale-exit-node }} --exit-node-allow-lan-access=true
 
-    - name: ✅ Tailscale-Verbindung bestätigen (für zai/openrouter)
-      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && (steps.provider.outputs.llm-provider == 'zai' || steps.provider.outputs.llm-provider == 'openrouter')
+    - name: ✅ Tailscale-Verbindung bestätigen (für zai)
+      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && steps.provider.outputs.llm-provider == 'zai'
       shell: bash
       run: |
         sleep 2  # tailscaled kurz Zeit geben, Status zu aktualisieren
@@ -593,8 +593,8 @@ runs:
           echo "::warning::tailscale status nicht verfügbar — Exit-Node evtl. nicht aktiv."
         fi
 
-    - name: DNS fixen + Egress-IP protokollieren (für zai/openrouter)
-      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && (steps.provider.outputs.llm-provider == 'zai' || steps.provider.outputs.llm-provider == 'openrouter')
+    - name: DNS fixen + Egress-IP protokollieren (für zai)
+      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && steps.provider.outputs.llm-provider == 'zai'
       shell: bash
       run: |
         sudo systemctl stop systemd-resolved 2>/dev/null || true
