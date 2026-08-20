@@ -5,6 +5,22 @@ Workflow-Runs fortlaufend ergänzt (Append, kein Überschreiben). Das Format ist
 maschinenlesbares JSON — ein Array von Einträgen, chronologisch nach `timestamp`
 sortierbar. Siehe `.github/scripts/cost-record.ts`.
 
+## Wo die Daten tatsächlich liegen
+
+Im Repo steht **nur diese Datei**. Die Datensätze selbst werden bewusst nicht committet
+(sechs Phasen × parallele Tickets, die alle auf denselben Ordner committen, erzeugen
+Konflikte auf `main`): Jeder Phasen-Lauf lädt seinen Datensatz als Artefakt
+`claude-costs-<phase>-issue-<n>-<run_id>` hoch — 90 Tage Aufbewahrung.
+
+Um die Zahlen eines Tickets als **eine** Tabelle zu sehen, den Workflow
+[`Kosten-Baseline`](../.github/workflows/cost-baseline.yml) manuell mit der Ticket-Nummer
+starten. Er sammelt alle Artefakte des Tickets ein und schreibt den Bericht in die
+Job-Summary. Lokal gegen ein Verzeichnis mit entpackten Artefakten:
+
+```
+node .github/scripts/cost-aggregate.ts --issue 912 --dir /tmp/costs
+```
+
 ## Pflichtfelder (pro Eintrag)
 
 | Feld        | Typ               | Bedeutung                                                       |
