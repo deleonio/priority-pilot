@@ -474,6 +474,9 @@ runs:
             fi
             # Auth Token setzen (OpenRouter nutzt ANTHROPIC_AUTH_TOKEN als Bearer)
             echo "ANTHROPIC_AUTH_TOKEN=$OPENROUTER_API_KEY" >> "$GITHUB_ENV"
+            # Unbekannte Modelle erlauben (CI-Cache kann ältere CLI-Version haben als lokal)
+            echo "CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT=1" >> "$GITHUB_ENV"
+            echo "::notice::OpenRouter: CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT=1 gesetzt (unbekannte Modelle erlaubt)."
             ;;
           *)
             echo "::error title=Unbekannter Provider::vars.LLM_PROVIDER='$PROVIDER' – erlaubt sind 'claude', 'zai' oder 'openrouter'."
