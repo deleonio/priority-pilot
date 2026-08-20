@@ -358,7 +358,7 @@ runs:
         path: |
           /usr/local/lib/node_modules/@anthropic-ai
           /usr/local/bin/claude
-        key: claude-code-cli-${{ runner.os }}-v3
+        key: claude-code-cli-${{ runner.os }}-v4
 
     # VERIFIZIEREN STATT VERTRAUEN: Die Bedingung lautete lange „installiere nur, wenn der
     # Cache NICHT griff". Ein Cache-Treffer beweist aber nur, dass Dateien da sind — nicht,
@@ -394,10 +394,11 @@ runs:
         # Postinstall notfalls von Hand: Manche npm-/pnpm-Konfigurationen überspringen
         # Scripts (--ignore-scripts) oder optionale Abhängigkeiten (--omit=optional) —
         # genau dann fehlt die native Binary. Der Fehlertext der CLI nennt diesen Weg
-        # selbst als Abhilfe. `npm root -g` statt hartem Pfad, damit ein anderer
-        # Runner-/Node-Setup nicht still am falschen Ort sucht.
+        # selbst als Abhilfe. `npm root -g` statt hartem Pfad (aus PR #923), mit
+        # Rückfall auf den Standardpfad, falls npm den Root nicht liefert.
         if ! cli_ok; then
-          PKG="$(npm root -g 2>/dev/null)/@anthropic-ai/claude-code"
+          NPM_ROOT="$(npm root -g 2>/dev/null || echo /usr/local/lib/node_modules)"
+          PKG="${NPM_ROOT}/@anthropic-ai/claude-code"
           if [ -f "$PKG/install.cjs" ]; then
             echo "::notice title=Claude CLI::Postinstall wird manuell nachgeholt ($PKG/install.cjs)."
             node "$PKG/install.cjs" || true
