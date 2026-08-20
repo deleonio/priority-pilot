@@ -358,13 +358,15 @@ runs:
         path: |
           /usr/local/lib/node_modules/@anthropic-ai
           /usr/local/bin/claude
-        key: claude-code-cli-${{ runner.os }}-v1
+        key: claude-code-cli-${{ runner.os }}-v3
 
     - name: Claude Code installieren
       if: steps.preflight.outputs.configured == 'true' && steps.cache-claude.outputs.cache-hit != 'true'
       shell: bash
       run: |
         npm install -g @anthropic-ai/claude-code
+        # Postinstall manuell ausführen (optional dependency / native binary)
+        node /usr/local/lib/node_modules/@anthropic-ai/claude-code/install.cjs 2>/dev/null || true
         echo "::notice::Claude Code CLI installiert."
 
     - name: Claude Code Trust-Dialog für CI-Workspace akzeptieren
