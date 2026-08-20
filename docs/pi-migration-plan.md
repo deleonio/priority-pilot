@@ -8,18 +8,18 @@
 
 ## 1. Architektureller Überblick
 
-| Aspekt                       | Heute (Claude Code)                                          | Ziel (PI)                                                                             |
-| ---------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
-| **Agent-Aufruf**             | `claude -p '<prompt>'` (Single-Query)                        | `pi --mode print` oder SDK `runPrintMode`                                             |
-| **Provider-Switch**          | `setup-claude` Action: `ANTHROPIC_BASE_URL` + Auth-Variablen | `ModelRuntime` mit Runtime-API-Keys, Provider-Katalog                                 |
-| **Modellwahl**               | Alias `fable                                                 | opus                                                                                  | sonnet | haiku`→`--model`oder`settings.local.json` | Echte Model-IDs (`anthropic/claude-opus-4-5`, `zai/glm-5.1`, `openrouter/...`) |
-| **Tools**                    | `--allowedTools 'Read,Glob,Edit(.claude/memory/*),...'`      | SDK: `tools: ["read","bash","edit",...]`, Custom Tools für GitHub/Memory              |
-| **MCP (KoliBri/Playwright)** | `mcp__kolibri-mcp__*`, `mcp__playwright__*` via `.mcp.json`  | **Kein MCP in PI** → Extensions oder CLI-Tools wrappen                                |
-| **Session/Memory**           | GitHub Actions Artefakte (`claude-memory-issue-{N}`)         | PI Sessions (JSONL, Tree-Struktur) + Artefakt-Transport für CI                        |
-| **Tailscale Exit-Node**      | Vor `claude -p` in `setup-claude`                            | Vor PI-Aufruf (identisch, nur anderer Binary)                                         |
-| **Soft-Abort/Deadline**      | Prompt-intern: `date +%s` vs `SOFT_DEADLINE`                 | Gleiches Prinzip, aber PI-Event-Stream überwachen                                     |
-| **VERDICT-Parsing**          | `grep 'VERDICT:'` aus stdout                                 | `--mode json` → strukturiertes `turn_end` Event, oder stdout-Parse bei `--mode print` |
-| **Kosten/Token**             | `record-cost` Action (Anthropic-Response-Header)             | PI `session.agent.state` liefert Usage, oder `--mode json` Events                     |
+| Aspekt                       | Heute (Claude Code)                                                                   | Ziel (PI)                                                                             |
+| ---------------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| **Agent-Aufruf**             | `claude -p '<prompt>'` (Single-Query)                                                 | `pi --mode print` oder SDK `runPrintMode`                                             |
+| **Provider-Switch**          | `setup-claude` Action: `ANTHROPIC_BASE_URL` + Auth-Variablen                          | `ModelRuntime` mit Runtime-API-Keys, Provider-Katalog                                 |
+| **Modellwahl**               | Alias `` `fable \| opus \| sonnet \| haiku` → `--model` oder `settings.local.json` `` | Echte Model-IDs (`anthropic/claude-opus-4-5`, `zai/glm-5.1`, `openrouter/...`)        |
+| **Tools**                    | `--allowedTools 'Read,Glob,Edit(.claude/memory/*),...'`                               | SDK: `tools: ["read","bash","edit",...]`, Custom Tools für GitHub/Memory              |
+| **MCP (KoliBri/Playwright)** | `mcp__kolibri-mcp__*`, `mcp__playwright__*` via `.mcp.json`                           | **Kein MCP in PI** → Extensions oder CLI-Tools wrappen                                |
+| **Session/Memory**           | GitHub Actions Artefakte (`claude-memory-issue-{N}`)                                  | PI Sessions (JSONL, Tree-Struktur) + Artefakt-Transport für CI                        |
+| **Tailscale Exit-Node**      | Vor `claude -p` in `setup-claude`                                                     | Vor PI-Aufruf (identisch, nur anderer Binary)                                         |
+| **Soft-Abort/Deadline**      | Prompt-intern: `date +%s` vs `SOFT_DEADLINE`                                          | Gleiches Prinzip, aber PI-Event-Stream überwachen                                     |
+| **VERDICT-Parsing**          | `grep 'VERDICT:'` aus stdout                                                          | `--mode json` → strukturiertes `turn_end` Event, oder stdout-Parse bei `--mode print` |
+| **Kosten/Token**             | `record-cost` Action (Anthropic-Response-Header)                                      | PI `session.agent.state` liefert Usage, oder `--mode json` Events                     |
 
 ---
 
@@ -136,7 +136,7 @@
 }
 ```
 
-### 3.2 Modell-Mapping pro Phase
+### 3.2 Modell-Mapping pro Phase (Beispiel-Mapping)
 
 | Phase      | Heute (Alias) | PI Model-ID (claude)                  | PI Model-ID (zai) | PI Model-ID (openrouter)                 |
 | ---------- | ------------- | ------------------------------------- | ----------------- | ---------------------------------------- |
@@ -149,6 +149,8 @@
 | Documenter | `haiku`       | `anthropic/claude-haiku-4-5-20251001` | `zai/glm-4.5-air` | `openrouter/anthropic/claude-3-5-haiku`  |
 
 > **Hinweis:** PI kennt `fable` nicht als separates Modell — `claude-fable-5` ist ein Alias für `claude-3-5-haiku-20241022` o.ä. Mapping in `pi-runner.ts` pflegen.
+>
+> **TODO (M0):** Gegen echten PI Model Catalog prüfen und Mapping finalisieren.
 
 ### 3.3 Tools-Mapping
 
@@ -196,6 +198,7 @@ export default function (pi) {
     description: "Search KoliBri components",
     parameters: Type.Object({ query: Type.String() }),
     execute: async (_id, { query }) => {
+      // TODO: Endpoint vor Implementierung verifizieren (lokal oder via Doku)
       const res = await fetch(`https://kolibri-docs.earendil.work/api/search?q=${encodeURIComponent(query)}`);
       const data = await res.json();
       return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }], details: {} };
@@ -341,15 +344,15 @@ import { resolve } from 'path';
 
 ## 7. Risiken & Mitigation
 
-| Risiko                         | Wahrscheinlichkeit | Impact  | Mitigation                                                                                      |
-| ------------------------------ | ------------------ | ------- | ----------------------------------------------------------------------------------------------- |
-| **PI Extension API instabil**  | Mittel             | Hoch    | Erst KoliBri/Playwright Extensions lokal entwickeln & testen, dann CI                           |
-| **Token-Counting anders**      | Hoch               | Mittel  | `record-cost` Action an PI-Output anpassen (Usage aus `turn_end` Event)                         |
-| **Prompt-Kompatibilität**      | Niedrig            | Niedrig | Prompts sind Text — unverändert nutzbar. Nur Tool-Namen ändern (MCP → Extension).               |
-| **Session-Artefakt zu groß**   | Niedrig            | Niedrig | Compaction in PI aktivieren, `retention-days: 14` wie heute.                                    |
-| **Parallelitätsgrenzen (zai)** | Gleich             | Gleich  | Unverändert: `concurrency` Groups in Workflows, PI nutzt gleiche API-Limits.                    |
-| **Tailscale + PI**             | Niedrig            | Hoch    | Tailscale Steps laufen **vor** PI-Aufruf — identisch zu heute.                                  |
-| **VERDICT nicht gefunden**     | Mittel             | Hoch    | Wrapper schreibt VERDICT **immer** am Ende (auch bei Abbruch/Error), Label-Script prüft strikt. |
+| Risiko                         | Wahrscheinlichkeit | Impact  | Mitigation                                                                                                          |
+| ------------------------------ | ------------------ | ------- | ------------------------------------------------------------------------------------------------------------------- |
+| **PI Extension API instabil**  | Mittel             | Hoch    | PI Extension SDK Version pinnen (lockfile), Smoke-Test in M0 CI einbauen (Extension lädt + Tool aufrufbar), dann CI |
+| **Token-Counting anders**      | Hoch               | Mittel  | `record-cost` Action an PI-Output anpassen (Usage aus `turn_end` Event)                                             |
+| **Prompt-Kompatibilität**      | Niedrig            | Niedrig | Prompts sind Text — unverändert nutzbar. Nur Tool-Namen ändern (MCP → Extension).                                   |
+| **Session-Artefakt zu groß**   | Niedrig            | Niedrig | Compaction in PI aktivieren, `retention-days: 14` wie heute.                                                        |
+| **Parallelitätsgrenzen (zai)** | Gleich             | Gleich  | Unverändert: `concurrency` Groups in Workflows, PI nutzt gleiche API-Limits.                                        |
+| **Tailscale + PI**             | Niedrig            | Hoch    | Tailscale Steps laufen **vor** PI-Aufruf — identisch zu heute.                                                      |
+| **VERDICT nicht gefunden**     | Mittel             | Hoch    | Wrapper schreibt VERDICT **immer** am Ende (auch bei Abbruch/Error), Label-Script prüft strikt.                     |
 
 ---
 

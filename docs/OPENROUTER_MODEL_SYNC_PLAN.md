@@ -15,7 +15,7 @@ Täglicher Workflow (oder manuell), der:
 
 ### Trigger
 
-- **Schedule**: Täglich `03:07 UTC` (zwischen Guide-Sync 04:27 und Spec-Sync 03:37)
+- **Schedule**: Täglich `03:47 UTC` (zwischen Spec-Sync 03:37 und Guide-Sync 04:27)
 - **Manual**: `workflow_dispatch` mit Input `force: boolean` (Skip-Guard überspringen)
 
 ### Skip-Guard (wie `claude-spec-sync.yml` / `claude-guide-sync.yml`)
@@ -25,23 +25,24 @@ Täglicher Workflow (oder manuell), der:
 
 ### Schritte
 
-| Step               | Beschreibung                                                                           |
-| ------------------ | -------------------------------------------------------------------------------------- |
-| 1. Checkout        | `actions/checkout@v4`                                                                  |
-| 2. App-Token       | `actions/create-github-app-token` (für `variables:write`)                              |
-| 3. SHA-Check       | Skip-Guard Logik                                                                       |
-| 4. Models fetchen  | `curl https://openrouter.ai/api/v1/models` mit `OPENROUTER_API_KEY`                    |
-| 5. Filtern         | Nur `pricing.prompt == "0" && pricing.completion == "0"`, relevante Felder extrahieren |
-| 6. LLM-Evaluation  | Prompt an kostenloses Modell (`meta-llama/llama-3.1-8b-instruct:free` via OpenRouter)  |
-| 7. JSON bauen      | `settings.local.json` Struktur gemäß `multi-provider-ci.md`                            |
-| 8. Variable setzen | `gh variable set CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER -b <json>`                      |
-| 9. Verifizieren    | `gh variable get` + Summary                                                            |
+| Step               | Beschreibung                                                                                                                       |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Checkout        | `actions/checkout@v4`                                                                                                              |
+| 2. App-Token       | `actions/create-github-app-token` (für `variables:write`)                                                                          |
+| 3. SHA-Check       | Skip-Guard Logik                                                                                                                   |
+| 4. Models fetchen  | `curl https://openrouter.ai/api/v1/models` mit `OPENROUTER_API_KEY`                                                                |
+| 5. Filtern         | Nur `pricing.prompt == "0" && pricing.completion == "0"`, relevante Felder extrahieren                                             |
+| 6. LLM-Evaluation  | Prompt an kostenloses Modell (`meta-llama/llama-3.1-8b-instruct:free` via OpenRouter) mit Fallback auf `google/gemma-2-9b-it:free` |
+| 7. Validierung     | Prüfen: alle 5 Model-IDs existieren in gefetchter Liste (Safety-Net gegen Halluzination)                                           |
+| 8. JSON bauen      | `settings.local.json` Struktur gemäß `multi-provider-ci.md`                                                                        |
+| 9. Variable setzen | `gh variable set CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER -b <json>`                                                                  |
+| 10. Verifizieren   | `gh variable get` + Summary                                                                                                        |
 
 ---
 
 ## LLM-Evaluation Prompt
 
-**Evaluator-Modell**: `meta-llama/llama-3.1-8b-instruct:free` (kostenlos, schnell, via OpenRouter)
+**Evaluator-Modell**: `meta-llama/llama-3.1-8b-instruct:free` (kostenlos, schnell, via OpenRouter) — **Fallback**: `google/gemma-2-9b-it:free`
 
 **Kriterien** (absteigend):
 
@@ -67,7 +68,7 @@ Täglicher Workflow (oder manuell), der:
 ```json
 {
 	"env": {
-		"ANTHROPIC_BASE_URL": "https://openrouter.ai/api",
+		"ANTHROPIC_BASE_URL": "https://openrouter.ai/api/v1",
 		"ANTHROPIC_DEFAULT_HAIKU_MODEL": "<haiku-id>",
 		"ANTHROPIC_DEFAULT_SONNET_MODEL": "<sonnet-id>",
 		"ANTHROPIC_DEFAULT_OPUS_MODEL": "<opus-id>",
@@ -137,7 +138,7 @@ gh workflow run openrouter-model-sync.yml -f force=true
 
 ## Risiken / Offene Punkte
 
-1. **Evaluator-Modell Verfügbarkeit**: `meta-llama/llama-3.1-8b-instruct:free` könnte wegfallen → Fallback in Prompt dokumentieren oder zweites Modell als Backup
+1. **Evaluator-Modell Verfügbarkeit**: `meta-llama/llama-3.1-8b-instruct:free` könnte wegfallen → Fallback `google/gemma-2-9b-it:free` im Workflow implementiert (Step 6)
 2. **API-Rate-Limits**: OpenRouter Models-API ist unlimitiert, Chat-Completions haben Limits → 1 Call/Tag ist unkritisch
-3. **LLM halluziniert Model-IDs**: Validierung im Workflow (Prüfung auf Existenz in gefetchter Liste) als Safety-Net einbauen
+3. **LLM halluziniert Model-IDs**: Validierung im Workflow (Step 7: Prüfung auf Existenz in gefetchter Liste) als Safety-Net eingebaut
 4. **Prompt-Qualität**: Erste Iteration → nach ersten Läufen Reasoning prüfen und Prompt kalibrieren
