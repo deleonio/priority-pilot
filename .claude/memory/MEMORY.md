@@ -40,3 +40,8 @@ Konflikte, die er verhindern soll.
 - 2026-08-20 · Sandbox/Playwright — frische Sandbox hat kein Chromium für `pnpm exec playwright
   test` (`Executable doesn't exist … chromium_headless_shell-…`). → Einmalig
   `pnpm exec playwright install chromium --with-deps` vor dem ersten e2e-Lauf pro Sandbox.
+- 2026-08-20 · Bash-Tool/GitHub-GraphQL — je `Bash`-Aufruf ist eine neue Shell: Shell-Variable
+  (z. B. `BODY`) definiert in einem Call sind im nächsten leer. → Variablen immer im selben
+  Call definieren+verwenden. Außerdem: GraphQL-`deletePullRequestReviewComment` will das
+  Eingabefeld `id` (nicht `commentId`/`pullRequestReviewCommentId`); `addPullRequestReviewThreadReply`
+  will `pullRequestReviewThreadId` (nicht `threadId`).
