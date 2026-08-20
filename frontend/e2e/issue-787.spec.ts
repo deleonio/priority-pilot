@@ -61,18 +61,23 @@ const openModelSelection = async (page: Page): Promise<void> => {
 /**
  * Spec-Tests für #787 "Header-Layout und KI-Modell-Auswahl in Toolbar" (Stufe 1 TDD, der einklagbare Vertrag).
  *
- * Ziel: Header-Layout folgt der Reihenfolge Logo → Name → Avatar → Toolbar und die KI-Modell-Auswahl
- * ist harmonisch in die Toolbar integriert mit voller A11y-Unterstützung.
+ * Ziel: Header-Layout folgt der Reihenfolge Logo → Name → Toolbar → Avatar (#912) und die
+ * KI-Modell-Auswahl ist harmonisch in die Toolbar integriert mit voller A11y-Unterstützung.
  *
  * Spezifikation: docs/spec/issue-787.md
  */
 test.describe('#787 Header-Layout und KI-Modell-Auswahl in Toolbar', () => {
 	/**
 	 * Journey 1: Header-Layout auf Desktop
-	 * Spec-Bezug: docs/spec/issue-787.md Journey 1
-	 * AK1: Header-Layout folgt der Reihenfolge Logo → Name → Avatar → Toolbar
+	 * Spec-Bezug: docs/spec/issue-787.md Journey 1 (v1.2, korrigiert durch #912)
+	 * AK1 (#912): Der Avatar ist das letzte Element ganz rechts im Header — nach Wortmarke,
+	 * KI-Modellauswahl und Kopf-Aktionen.
+	 *
+	 * Test-Pflege (#912): Diese Order-Assertion prüfte bis v1.1 Avatar < Toolbar (Avatar
+	 * links-mittig direkt neben der Wortmarke). Das widerspricht dem neuen AK1 aus #912 — die
+	 * Assertion wurde auf Toolbar < Avatar gedreht, Testname/Ort blieben erhalten.
 	 */
-	test('AK1: Header-Layout folgt der Reihenfolge Logo → Name → Avatar → Toolbar (Desktop)', async ({ page }) => {
+	test('AK1: Header-Layout folgt der Reihenfolge Logo → Name → Toolbar → Avatar (Desktop)', async ({ page }) => {
 		await page.setViewportSize({ width: 1280, height: 800 });
 		await page.goto('/');
 		await waitForSettledHeader(page);
@@ -90,9 +95,9 @@ test.describe('#787 Header-Layout und KI-Modell-Auswahl in Toolbar', () => {
 		await expect(avatar).toBeVisible();
 		await expect(toolbar).toBeVisible();
 
-		// DOM-Reihenfolge prüfen: Logo → App-Name → Avatar → Toolbar.
+		// DOM-Reihenfolge prüfen: Logo → App-Name → Toolbar → Avatar.
 		// Die Indizes werden über die *semantischen* Merkmale der Kinder bestimmt (Button mit
-		// Logo-Label, Text „Priority Pilot", `kol-avatar`, `role="toolbar"`) — nicht über die
+		// Logo-Label, Text „Priority Pilot", `role="toolbar"`, `kol-avatar`) — nicht über die
 		// CSS-Klassen, damit der Vertrag ein Layout-Vertrag bleibt und kein Klassennamen-Vertrag.
 		const { logoIndex, nameIndex, avatarIndex, toolbarIndex } = await header.evaluate((el) => {
 			const children = Array.from((el as HTMLElement).children);
@@ -106,15 +111,18 @@ test.describe('#787 Header-Layout und KI-Modell-Auswahl in Toolbar', () => {
 			};
 		});
 
-		// Reihenfolge validieren: Logo < Name < Avatar < Toolbar
+		// Reihenfolge validieren: Logo < Name < Toolbar < Avatar
 		expect(logoIndex, 'Logo muss im Header vorhanden sein').toBeGreaterThanOrEqual(0);
 		expect(nameIndex, 'App-Name muss im Header vorhanden sein').toBeGreaterThanOrEqual(0);
 		expect(avatarIndex, 'Avatar muss im Header vorhanden sein').toBeGreaterThanOrEqual(0);
 		expect(toolbarIndex, 'Toolbar muss im Header vorhanden sein').toBeGreaterThanOrEqual(0);
 
 		expect(logoIndex, 'Logo muss vor App-Name erscheinen').toBeLessThan(nameIndex);
-		expect(nameIndex, 'App-Name muss vor Avatar erscheinen').toBeLessThan(avatarIndex);
-		expect(avatarIndex, 'Avatar muss vor Toolbar erscheinen').toBeLessThan(toolbarIndex);
+		expect(nameIndex, 'App-Name muss vor Toolbar erscheinen').toBeLessThan(toolbarIndex);
+		expect(
+			toolbarIndex,
+			'Toolbar muss vor Avatar erscheinen — Avatar ist das letzte Element ganz rechts (#912)',
+		).toBeLessThan(avatarIndex);
 	});
 
 	/**
