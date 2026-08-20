@@ -1,8 +1,14 @@
 {
 	"mcpServers": {
+		"kern-mcp": {
+			"command": "npx",
+			"args": ["-y", "@leonio/kern-ux-mcp"],
+			"directTools": true
+		},
 		"kolibri-mcp": {
 			"type": "http",
-			"url": "https://public-ui-kolibri-mcp.vercel.app/mcp"
+			"url": "https://public-ui-kolibri-mcp.vercel.app/mcp",
+			"directTools": true
 		},
 		"playwright": {
 			"command": "npx",
@@ -17,7 +23,8 @@
 				"http://localhost:4174;http://localhost:3001",
 				"--output-dir",
 				".playwright-mcp"
-			]
+			],
+			"directTools": true
 		}
 	}
 }
