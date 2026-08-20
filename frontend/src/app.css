@@ -1848,3 +1848,15 @@ kol-textarea,
 kol-toolbar {
 	background-color: transparent;
 }
+
+/*
+ * kol-heading setzt seine Textfarbe intern über `--kol-a11y-font-color`, per `:host` fest auf
+ * Schwarz vorbelegt — unabhängig von `data-theme`. Ohne Override ergibt das im Dark Mode
+ * schwarzen Text auf dunklem Seitenhintergrund (gemessen 1.15:1 statt geforderter 4.5:1) —
+ * gleiche Ursachenklasse wie bei `.dashboard-next-task` oben (P1-1: hart vorbelegte Farbe
+ * ignoriert `data-theme`), hier über KoliBris eigene Custom Property gelöst statt über eigenes
+ * Styling. Die Property vererbt über die Shadow-DOM-Grenze, daher reicht ein Host-Override.
+ */
+kol-heading {
+	--kol-a11y-font-color: var(--pp-ink);
+}
