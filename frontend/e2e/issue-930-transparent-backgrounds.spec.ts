@@ -69,6 +69,16 @@ test.describe('#930: Transparente KoliBri-Host-Hintergründe', () => {
 		await waitForStableView(page);
 	});
 
+	// Räumt nach jedem Test alle über die API angelegten Tasks weg (z. B. den überfälligen Task aus
+	// AK2), damit Folge-Tests wieder von einer leeren, definierten Task-Liste starten.
+	test.afterEach(async ({ page }) => {
+		const response = await page.request.get('/api/v1/tasks');
+		const tasks = (await response.json()) as { id: number }[];
+		for (const task of tasks) {
+			await page.request.delete(`/api/v1/tasks/${task.id}`);
+		}
+	});
+
 	/**
 	 * AK1: Alle KoliBri-Host-Elemente (kol-*) haben `background-color: transparent`
 	 * im Computed Style.
@@ -185,15 +195,32 @@ test.describe('#930: Transparente KoliBri-Host-Hintergründe', () => {
 	/**
 	 * AK2: Keine visuellen Regressionen — Textinhalte lesbar.
 	 *
-	 * Prüft Kontrast von Text in kritischen Komponenten, die KEINEN eigenen
-	 * Shadow-DOM-Hintergrund haben (kol-heading, kol-badge).
-	 * Siehe UX-Beratung im Issue: diese sind die kritischen Prüfpunkte.
+	 * Prüft den Kontrast von kol-heading auf der Einstellungen-Seite. `getComputedStyle()` wird
+	 * dabei nur auf dem Host-Element gemessen — kein Shadow-DOM-Piercing (`.shadowRoot`), das
+	 * der ESLint-Guard aus Issue #824 verbietet (KoliBri black-box testen, siehe docs/testing.md §3).
+	 * Für kol-heading ist das aussagekräftig: die Textfarbe kommt über eine geerbte CSS-Custom-
+	 * Property (`--kol-a11y-font-color`) vom Host, das Host-`color` entspricht also der tatsächlich
+	 * gerenderten Textfarbe.
 	 *
-	 * Einfacher: prüft auf der Startseite (Dashboard) kol-badge und auf
-	 * Einstellungen-Seite kol-heading, ohne komplexe Navigation.
+	 * kol-badge wird bewusst NICHT auf Kontrast geprüft: seine Farben setzt die Komponente als
+	 * Inline-Style auf einem Element im Shadow-DOM (automatisch kontrastsicher berechnet, siehe
+	 * Kommentar in Dashboard.tsx), nicht über vererbte Host-Properties — eine Messung am Host liefert
+	 * dafür keinen aussagekräftigen Wert und würde Shadow-DOM-Piercing erfordern. Stattdessen prüft
+	 * dieser Test nur, dass kol-badge auf dem Dashboard überhaupt erscheint (AK1 deckt bereits ab,
+	 * dass sein Host-Hintergrund transparent bleibt).
 	 */
 	test('AK2: Text-Kontrast in kritischen Komponenten (kol-heading, kol-badge) ≥ 4.5:1', async ({ page }) => {
 		const MIN_CONTRAST = 4.5;
+
+		// kol-badge rendert im Dashboard nur für Tasks mit überfälliger/baldiger Deadline
+		// (Dashboard.tsx: `urgency !== 'later'`). Ohne einen solchen Task bleibt „Anstehende
+		// Deadlines" leer und kol-badge fehlt im DOM — daher hier gezielt einen überfälligen
+		// Task anlegen, statt uns auf zufällig vorhandene Backend-Daten zu verlassen.
+		await page.request.post('/api/v1/tasks', {
+			data: { title: 'E2E #930 Kontrast-Test', deadline: '2020-01-01T00:00:00.000Z' },
+		});
+		await page.reload();
+		await waitForStableView(page);
 
 		const measureContrast = async (
 			selector: string,
@@ -239,19 +266,21 @@ test.describe('#930: Transparente KoliBri-Host-Hintergründe', () => {
 		// Light Mode
 		await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
 
-		// kol-badge auf Dashboard (Startseite)
-		const badgeSample = await measureContrast('kol-badge');
-		expect(badgeSample, 'kol-badge muss auf dem Dashboard vorhanden sein').not.toBeNull();
-		expect(
-			badgeSample!.ratio,
-			`kol-badge Kontrast ${badgeSample!.ratio}:1 (${badgeSample!.color} auf ${badgeSample!.background})`,
-		).toBeGreaterThanOrEqual(MIN_CONTRAST);
+		// kol-badge auf Dashboard (Startseite): nur Präsenz, kein Kontrast (siehe Testbeschreibung
+		// oben). Die Task-Liste wird erst nach dem Mount asynchron geladen; explizit auf das Badge
+		// warten, statt sofort per `.count()` zu prüfen (sonst race gegen den Fetch nach dem Reload).
+		await expect(page.locator('kol-badge').first()).toBeVisible({ timeout: 10000 });
 
-		// kol-heading: auf Einstellungen-Seite navigieren (über Toolbar-Zahnrad-Button)
+		await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+		await expect(page.locator('kol-badge').first()).toBeVisible();
+
+		// kol-heading: auf Einstellungen-Seite navigieren (über Toolbar-Zahnrad-Button) — Light + Dark.
+		await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
+
 		const settingsButton = page.getByRole('button', { name: /Einstellungen|Settings/i });
 		await expect(settingsButton).toBeVisible({ timeout: 10000 });
 		await settingsButton.click();
-		await waitForStableView(page);
+		await waitForStableView(page, 'Priority Pilot');
 
 		const headingSample = await measureContrast('kol-heading');
 		expect(headingSample, 'kol-heading muss auf der Einstellungen-Seite vorhanden sein').not.toBeNull();
@@ -260,15 +289,7 @@ test.describe('#930: Transparente KoliBri-Host-Hintergründe', () => {
 			`kol-heading Kontrast ${headingSample!.ratio}:1 (${headingSample!.color} auf ${headingSample!.background})`,
 		).toBeGreaterThanOrEqual(MIN_CONTRAST);
 
-		// Dark Mode
 		await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
-
-		const badgeSampleDark = await measureContrast('kol-badge');
-		expect(badgeSampleDark, 'kol-badge (Dark Mode) muss vorhanden sein').not.toBeNull();
-		expect(
-			badgeSampleDark!.ratio,
-			`kol-badge (Dark) Kontrast ${badgeSampleDark!.ratio}:1 (${badgeSampleDark!.color} auf ${badgeSampleDark!.background})`,
-		).toBeGreaterThanOrEqual(MIN_CONTRAST);
 
 		const headingSampleDark = await measureContrast('kol-heading');
 		expect(headingSampleDark, 'kol-heading (Dark Mode) muss vorhanden sein').not.toBeNull();
