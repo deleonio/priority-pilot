@@ -2,9 +2,17 @@ FOKUS: NUR Issue #ISSUE_NR. NUR rote Tests je Akzeptanzkriterium (mit Dedup), ke
 
 ⚠️ KI-UX-Block: Falls das Issue UX-Aspekte hat (KI-UX:END-Block im Issue-Body vorhanden), UX-Anforderungen aus diesem Block bei der Spec-Ableitung beachten.
 
+#RESUME_HINT
+
 ABLAUF (STRIKT):
   1. SOFORT starten.
-  2. Branch anlegen: git switch -c feat/issue-ISSUE_NR-<kurzname>.
+  2. #RESUME_HINT prüfen:
+     - Falls gesetzt (Draft-Wiederverwendung): BESTEHENDEN Branch auschecken
+       (git fetch origin && git switch $DRAFT_BRANCH). NICHT neuen Branch anlegen.
+       Bestehende Commits/Tests ansehen (git log, gh pr view), Stand verstehen.
+       Weiterarbeiten auf bestehendem Stand — NICHT alles neu schreiben.
+     - Falls NICHT gesetzt (Neu-Lauf): Neuen Branch anlegen:
+       git switch -c feat/issue-ISSUE_NR-<kurzname>.
      Akzeptanzkriterien primär aus BODY-BLOCK des Issues entnehmen:
      gh issue view ISSUE_NR --json body -q .body (Abschnitt zwischen <!-- KI-ANALYSE:START --> und <!-- KI-ANALYSE:END -->).
   3. SPEC-UPDATE (zuerst! SPEC-FIRST – spezifikation.*vor.*test – Spezifikation aktualisieren VOR Test-Ableitung):
