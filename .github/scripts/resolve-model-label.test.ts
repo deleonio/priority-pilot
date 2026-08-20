@@ -241,3 +241,30 @@ describe('resolve-model-label.sh — Läufe ohne Analyse-Herkunft (Regression PR
 		assert.equal(out.abort, 'true', 'Mehrdeutigkeit ist immer ein Defekt');
 	});
 });
+
+describe('resolve-model-label.sh — Herkunfts-Prüfung ist fail-closed (Review-Finding PR #916)', () => {
+	// Ein transienter gh-Fehler bei der Herkunfts-Prüfung darf NICHT als „keine
+	// Analyse-Herkunft" durchgehen: Sonst liefe ein Ticket mit nachweislich gelaufener
+	// Analyse still auf dem Default-Modell — fail-open im einzigen fail-closed-Pfad.
+
+	it('parkt, wenn das verknüpfte Issue nicht lesbar ist', () => {
+		const out = run(['--ticket', '914', '--kind', 'pr'], {
+			GH_PR_LABELS: labels('ai:needs-review'),
+			GH_LINKED: '42',
+			GH_ISSUE_LABELS: 'FAIL',
+		});
+		assert.equal(out.abort, 'true', 'unbestimmbare Herkunft darf nicht zum Default-Modell führen');
+		assert.equal(out.model, '');
+		assert.match(out.reason, /nicht lesbar|fail-closed/);
+	});
+
+	it('unterscheidet weiterhin sauber: lesbar + ohne ai:analysed → kein Parken', () => {
+		const out = run(['--ticket', '914', '--kind', 'pr'], {
+			GH_PR_LABELS: labels('ai:needs-review'),
+			GH_LINKED: '42',
+			GH_ISSUE_LABELS: labels('bug'),
+		});
+		assert.equal(out.abort, 'false');
+		assert.match(out.reason, /keine Analyse-Herkunft/);
+	});
+});

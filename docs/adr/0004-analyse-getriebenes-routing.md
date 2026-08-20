@@ -56,8 +56,24 @@ Die Analyse stuft **je Subtask** ein und setzt genau ein Label `ai:model:haiku|s
 Folgephasen lesen es rein statisch aus (`resolve-model-label.sh`) und starten mit dem passenden
 `--model`. Kein LLM-Aufruf, kein Freitext-Parsing.
 
-Fehlt das Label oder ist es mehrdeutig, **bricht der Start ab** und das Ticket wird mit
-`ai:needs-human` beim Menschen geparkt. Diese Auflösung ist als einzige im Repo **fail-closed**.
+Ist das Label **mehrdeutig**, bricht der Start ab und das Ticket wird mit `ai:needs-human` beim
+Menschen geparkt. Fehlt es ganz, entscheidet die **Herkunft** (fortgeschrieben mit
+[PR #916](https://github.com/deleonio/priority-pilot/pull/916)):
+
+| Lage                                                                       | Verhalten                                                           |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Analyse lief nachweislich (`ai:analysed` am Objekt oder verknüpften Issue) | **Parken** — sie schuldete ein Label, das Fehlen ist ein Defekt     |
+| Keine Analyse-Herkunft (Harness-PR, manueller PR, Renovate)                | **Kein Parken** — Phasen-Default gilt, als Notice sichtbar gemacht  |
+| Herkunft nicht bestimmbar (API nicht lesbar)                               | **Parken** — „unbestimmbar" ist nicht dasselbe wie „keine Herkunft" |
+
+Die ursprüngliche Fassung parkte pauschal jeden Lauf ohne Label. Das war falsch: Nicht jeder PR
+stammt aus einer Analyse — Harness-, Fremd- und Renovate-PRs haben nie ein Issue durchlaufen, das
+ein Label hätte setzen können, und parkten dadurch dauerhaft. Der Fallback ist **kein stilles
+Raten**, sondern der unveränderte Zustand vor dieser Entscheidung, für einen Pfad, den das Routing
+nicht abdeckt.
+
+Wo das Routing zuständig ist, bleibt die Auflösung als einzige im Repo **fail-closed** — inklusive
+jeder unlesbaren API-Antwort.
 
 Ab der zweiten Review-Runde am selben PR wird eine Stufe hochgesetzt (`haiku` → `sonnet` →
 `opus`).
@@ -149,9 +165,11 @@ dem sie im Sinne des Ziels Token _sparen_ statt sie zu vervielfachen.
 
 - **Die Analyse wird teurer und langsamer.** Sie liest jetzt Code, um Kontext anzureichern. Das
   ist beabsichtigt: Der Aufwand fällt einmal an statt in jeder Folgephase erneut.
-- **Ein Ticket ohne `ai:model:*` läuft nicht.** Das ist der Preis dafür, dass kein Lauf mehr auf
-  einem geratenen Modell startet. Bestandstickets aus der Zeit vor diesem ADR brauchen ein Label
-  (manuell oder per Re-Triage), sonst parken sie beim Menschen.
+- **Ein analysiertes Ticket ohne `ai:model:*` läuft nicht.** Das ist der Preis dafür, dass kein
+  Lauf mehr auf einem geratenen Modell startet. Bestandstickets, die `ai:analysed` tragen, brauchen
+  ein Label (manuell oder per Re-Triage), sonst parken sie beim Menschen. Läufe **ohne**
+  Analyse-Herkunft sind davon ausgenommen und nutzen den Phasen-Default (s. Entscheidung 2) —
+  andernfalls stünde jeder Harness- und Renovate-PR dauerhaft still.
 - **`ai:model:*` ist Konfiguration, kein Trigger.** Es steht bewusst **nicht** in der
   `MANAGED`-Liste von `label-transition.sh`: Eine Transition ersetzt diesen Bestand vollständig,
   und die Modellwahl muss den Review-Fix-Zyklus überleben. Diese Invariante ist durch Tests
