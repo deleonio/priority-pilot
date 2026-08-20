@@ -73,98 +73,114 @@ test.describe('#930: Transparente KoliBri-Host-Hintergründe', () => {
 	 * AK1: Alle KoliBri-Host-Elemente (kol-*) haben `background-color: transparent`
 	 * im Computed Style.
 	 *
-	 * Prüft eine repräsentative Stichprobe der im Projekt verbauten Komponenten.
-	 * Future-Proofing-Elemente (nicht verbaut) werden nur geloggt, nicht getestet.
+	 * Prüft eine repräsentative Stichprobe der im Projekt verbauten Komponenten auf
+	 * verschiedenen Viewport-Größen (Mobile 375px, Desktop 1280px).
 	 */
-	test('AK1: KoliBri-Host-Elemente haben background-color: transparent (Light Mode)', async ({ page }) => {
-		// Sicherstellen, dass Light Mode aktiv ist (Default)
-		await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
-		await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+	for (const { width, height, name } of [
+		{ width: 375, height: 812, name: 'Mobile (375px)' },
+		{ width: 1280, height: 800, name: 'Desktop (1280px)' },
+	]) {
+		test(`AK1: KoliBri-Host-Elemente auf Startseite haben background-color: transparent (Light Mode, ${name})`, async ({
+			page,
+		}) => {
+			await page.setViewportSize({ width, height });
+			// Sicherstellen, dass Light Mode aktiv ist (Default)
+			await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
+			await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
 
-		const results: { tag: string; backgroundColor: string; used: boolean }[] = [];
+			const results: { tag: string; backgroundColor: string; used: boolean }[] = [];
 
-		for (const tag of KOLOBRI_HOST_ELEMENTS) {
-			// Ersten Vorkommen jedes Tags finden
-			const element = page.locator(tag).first();
-			const count = await element.count();
+			for (const tag of KOLOBRI_HOST_ELEMENTS) {
+				// Ersten Vorkommen jedes Tags finden
+				const element = page.locator(tag).first();
+				const count = await element.count();
 
-			if (count === 0) {
-				// Element nicht im aktuellen View — nur loggen, nicht fehlschlagen
-				results.push({ tag, backgroundColor: 'NOT_FOUND_IN_DOM', used: isElementUsedInProject(tag) });
-				continue;
+				if (count === 0) {
+					// Element nicht im aktuellen View — nur loggen, nicht fehlschlagen
+					results.push({ tag, backgroundColor: 'NOT_FOUND_IN_DOM', used: isElementUsedInProject(tag) });
+					continue;
+				}
+
+				const backgroundColor = await element.evaluate((el) => {
+					return window.getComputedStyle(el).backgroundColor;
+				});
+
+				results.push({ tag, backgroundColor, used: isElementUsedInProject(tag) });
+
+				// Nur für im Projekt verbaute Elemente hart prüfen
+				if (isElementUsedInProject(tag)) {
+					// browser returns '' or 'rgba(0, 0, 0, 0)' or 'transparent' for transparent background
+					const isTransparent =
+						backgroundColor === 'rgba(0, 0, 0, 0)' || backgroundColor === 'transparent' || backgroundColor === '';
+					expect(
+						isTransparent,
+						`${tag} (used in project) muss background-color: transparent haben, aber hat: "${backgroundColor}"`,
+					).toBe(true);
+				}
 			}
 
-			const backgroundColor = await element.evaluate((el) => {
-				return window.getComputedStyle(el).backgroundColor;
-			});
+			// Zusammenfassung loggen für Debugging
+			console.log(`AK1 Light Mode Results (${name}):`, JSON.stringify(results, null, 2));
 
-			results.push({ tag, backgroundColor, used: isElementUsedInProject(tag) });
-
-			// Nur für im Projekt verbaute Elemente hart prüfen
-			if (isElementUsedInProject(tag)) {
-				// browser returns '' or 'rgba(0, 0, 0, 0)' or 'transparent' for transparent background
-				const isTransparent =
-					backgroundColor === 'rgba(0, 0, 0, 0)' || backgroundColor === 'transparent' || backgroundColor === '';
-				expect(
-					isTransparent,
-					`${tag} (used in project) muss background-color: transparent haben, aber hat: "${backgroundColor}"`,
-				).toBe(true);
-			}
-		}
-
-		// Zusammenfassung loggen für Debugging
-		console.log('AK1 Light Mode Results:', JSON.stringify(results, null, 2));
-
-		// Sicherstellen, dass mindestens ein verbautes Element gefunden wurde (Mutations-Schutz)
-		const foundUsed = results.filter((r) => r.used && r.backgroundColor !== 'NOT_FOUND_IN_DOM');
-		expect(
-			foundUsed.length,
-			'Mindestens ein im Projekt verbautes kol-* Element muss im DOM gefunden werden',
-		).toBeGreaterThan(0);
-	});
+			// Sicherstellen, dass mindestens ein verbautes Element gefunden wurde (Mutations-Schutz)
+			const foundUsed = results.filter((r) => r.used && r.backgroundColor !== 'NOT_FOUND_IN_DOM');
+			expect(
+				foundUsed.length,
+				'Mindestens ein im Projekt verbautes kol-* Element muss im DOM gefunden werden',
+			).toBeGreaterThan(0);
+		});
+	}
 
 	/**
-	 * AK1 + AK3: Gleicher Test im Dark Mode.
+	 * AK1 + AK3: Gleicher Test im Dark Mode auf verschiedenen Viewports.
 	 */
-	test('AK1+AK3: KoliBri-Host-Elemente haben background-color: transparent (Dark Mode)', async ({ page }) => {
-		await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
-		await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+	for (const { width, height, name } of [
+		{ width: 375, height: 812, name: 'Mobile (375px)' },
+		{ width: 1280, height: 800, name: 'Desktop (1280px)' },
+	]) {
+		test(`AK1+AK3: KoliBri-Host-Elemente auf Startseite haben background-color: transparent (Dark Mode, ${name})`, async ({
+			page,
+		}) => {
+			await page.setViewportSize({ width, height });
+			await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+			await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 
-		const results: { tag: string; backgroundColor: string; used: boolean }[] = [];
+			const results: { tag: string; backgroundColor: string; used: boolean }[] = [];
 
-		for (const tag of KOLOBRI_HOST_ELEMENTS) {
-			const element = page.locator(tag).first();
-			const count = await element.count();
+			for (const tag of KOLOBRI_HOST_ELEMENTS) {
+				const element = page.locator(tag).first();
+				const count = await element.count();
 
-			if (count === 0) {
-				results.push({ tag, backgroundColor: 'NOT_FOUND_IN_DOM', used: isElementUsedInProject(tag) });
-				continue;
+				if (count === 0) {
+					results.push({ tag, backgroundColor: 'NOT_FOUND_IN_DOM', used: isElementUsedInProject(tag) });
+					continue;
+				}
+
+				const backgroundColor = await element.evaluate((el) => {
+					return window.getComputedStyle(el).backgroundColor;
+				});
+
+				results.push({ tag, backgroundColor, used: isElementUsedInProject(tag) });
+
+				if (isElementUsedInProject(tag)) {
+					const isTransparent =
+						backgroundColor === 'rgba(0, 0, 0, 0)' || backgroundColor === 'transparent' || backgroundColor === '';
+					expect(
+						isTransparent,
+						`${tag} (used in project) muss background-color: transparent haben, aber hat: "${backgroundColor}"`,
+					).toBe(true);
+				}
 			}
 
-			const backgroundColor = await element.evaluate((el) => {
-				return window.getComputedStyle(el).backgroundColor;
-			});
+			console.log(`AK1+AK3 Dark Mode Results (${name}):`, JSON.stringify(results, null, 2));
 
-			results.push({ tag, backgroundColor, used: isElementUsedInProject(tag) });
-
-			if (isElementUsedInProject(tag)) {
-				const isTransparent =
-					backgroundColor === 'rgba(0, 0, 0, 0)' || backgroundColor === 'transparent' || backgroundColor === '';
-				expect(
-					isTransparent,
-					`${tag} (used in project) muss background-color: transparent haben, aber hat: "${backgroundColor}"`,
-				).toBe(true);
-			}
-		}
-
-		console.log('AK1+AK3 Dark Mode Results:', JSON.stringify(results, null, 2));
-
-		const foundUsed = results.filter((r) => r.used && r.backgroundColor !== 'NOT_FOUND_IN_DOM');
-		expect(
-			foundUsed.length,
-			'Mindestens ein im Projekt verbautes kol-* Element muss im DOM gefunden werden',
-		).toBeGreaterThan(0);
-	});
+			const foundUsed = results.filter((r) => r.used && r.backgroundColor !== 'NOT_FOUND_IN_DOM');
+			expect(
+				foundUsed.length,
+				'Mindestens ein im Projekt verbautes kol-* Element muss im DOM gefunden werden',
+			).toBeGreaterThan(0);
+		});
+	}
 
 	/**
 	 * AK2: Keine visuellen Regressionen — Textinhalte lesbar.
