@@ -39,15 +39,16 @@ Administrator.
 
 Ganz oben findest du die **Kopf-Aktionen** (als Icon-Buttons):
 
+- **KI-Modell** (Modell-Name mit Pfeil) – wählt das Modell für KI-Funktionen (Schnellerfassung, Säulen-Vorschlag, Säulen-Berater, Lektorat).
 - **Neuen Task anlegen** (Plus) – der zentrale Einstieg für neue Aufgaben _und_ Serien.
 - **Säulen-Berater** (Glühbirne) – KI-Vorschläge für Aktivitäten.
-- **Einstellungen** (Zahnrad) – Darstellung, Spracheingabe, Push, Säulen-Gewichtung.
+- **Einstellungen** (Zahnrad) – Darstellung, Spracheingabe, Push, Säulen-Gewichtung, LLM-Provider.
 - **Hilfe** (Fragezeichen) – dieses Handbuch.
 - **Abmelden** – beendet die Sitzung.
 
 Rechts daneben stehen dein Profilbild und dein Name.
 
-Die Kopfzeile ist auf allen Bildschirmgrößen einheitlich: Alle fünf Kopf-Aktionen stehen direkt
+Die Kopfzeile ist auf allen Bildschirmgrößen einheitlich: Alle sechs Kopf-Aktionen stehen direkt
 als Icon-Buttons in der Leiste – ein zusätzliche Menüpunkt gibt es nicht. Rechts daneben
 finden sich dein Profilbild und dein Name.
 
@@ -64,8 +65,8 @@ Darunter wechselst du über eine **Tab-Leiste** zwischen den vier Hauptansichten
 ## Dashboard
 
 Das Dashboard ist die Startseite und reine Anzeige. Wenn ein Name hinterlegt ist,
-begrüßt es dich mit **„Hallo {Name}!"**. Oben rechts findest du einen Button zum
-**Auswählen des KI-Modells** (für die KI-Funktionen). Von oben nach unten:
+begrüßt es dich mit **„Hallo {Name}!"**. In der Kopfzeile (KI-Modell-Button) wählst du das
+Modell für die KI-Funktionen. Von oben nach unten:
 
 - **Statuskacheln:** **Gesamt**, **Offen** und **Erledigt** – die Anzahl deiner
   Aufgaben auf einen Blick.
@@ -111,17 +112,19 @@ Rechts an jeder Zeile können **Kennzeichen** stehen:
 
 ### Aktionen je Aufgabe
 
-Alle Aktionen stecken hinter dem **„…"-Menü** (Weitere Aktionen) am Zeilenende:
+Alle Aktionen sind als **Icon-Buttons** in einer Werkzeugleiste am Zeilenende direkt
+sichtbar (kein „…"-Menü):
 
-- **Erledigt / Wieder öffnen** – schaltet die Aufgabe zwischen offen und erledigt um.
-  Eine Aufgabe lässt sich erst abschließen, wenn **alle direkten Unteraufgaben
-  erledigt** sind (der Schalter ist sonst gesperrt). Wieder öffnen ist jederzeit
-  möglich – auch als schnelles Rückgängig direkt nach dem Erledigen.
-- **Bearbeiten** – öffnet das Aufgabenformular.
-- **Abhängigkeiten** – öffnet den Vorgänger-Editor.
-- **Unteraufgabe anlegen** – legt eine neue Aufgabe an, die automatisch als Vorgänger
+- **Bearbeiten** (Zahnrad) – öffnet das Aufgabenformular.
+- **Abhängigkeiten** (Kette) – öffnet den Vorgänger-Editor.
+- **Unteraufgabe anlegen** (Plus) – legt eine neue Aufgabe an, die automatisch als Vorgänger
   mit der aktuellen verknüpft wird.
-- **Löschen** – entfernt die Aufgabe nach Rückfrage.
+- **Löschen** (Kreuz) – entfernt die Aufgabe nach Rückfrage.
+
+Den Status **Erledigt / Wieder öffnen** schaltest du über den **Toggle-Schalter** am Zeilenanfang
+um. Eine Aufgabe lässt sich erst abschließen, wenn **alle direkten Unteraufgaben
+erledigt** sind (der Schalter ist sonst gesperrt). Wieder öffnen ist jederzeit
+möglich – auch als schnelles Rückgängig direkt nach dem Erledigen.
 
 Frisch erledigte Aufgaben wandern beim nächsten Ansichtswechsel automatisch in die
 **Erledigt**-Ansicht des Aufgaben-Tabs.
@@ -158,9 +161,9 @@ Im selben Dialog erscheint das Aufgabenformular. Felder:
 - **Beschreibung (optional)** – weiterer Kontext.
 - **Checkliste (optional)** – zerlege die Aufgabe in abhakbare Teilschritte.
 - **Automatisches Löschen (optional)** – bei verpasster Deadline die Aufgabe nach 3 Tagen
-  automatisch löschen (nur wenn eine Deadline gesetzt ist).
+  automatisch löschen (nur wählbar, wenn eine Deadline gesetzt ist).
 - **Lektorat** – über einen Button neben Titel und Beschreibung kannst du die KI bitten,
-  den Text zu verbessern (Kürzung, smoothing, Rechtschreibung). Ein Diff-Dialog zeigt den
+  den Text zu verbessern (Kürzung, Smoothing, Rechtschreibung). Ein Diff-Dialog zeigt den
   Vergleich; du entscheidest, ob du den Vorschlag übernimmst.
 - **Säulen (optional)** – auf welche Lebensbereiche die Aufgabe einzahlt
   (siehe „Lebensbalance-Säulen").
@@ -189,8 +192,8 @@ Spracherkennung unterstützt.
 ## Abhängigkeiten (Vorgänger)
 
 Aufgaben können voneinander abhängen: Ein **Vorgänger** muss erledigt sein, bevor die
-abhängige Aufgabe sinnvoll begonnen werden kann. Öffne dazu **„Abhängigkeiten"** im
-„…"-Menü einer Aufgabe.
+abhängige Aufgabe sinnvoll begonnen werden kann. Öffne dazu den **Abhängigkeiten**-Button
+(Kette) in der Werkzeugleiste einer Aufgabe.
 
 - **Aktuelle Vorgänger** listet die verknüpften Aufgaben; jede lässt sich einzeln
   entfernen. (Bereits erledigte Vorgänger erscheinen hier nicht mehr.)
@@ -327,17 +330,21 @@ Dein Gesamtstand und die Aufteilung je Säule erscheinen im Dashboard unter
   der Formulare das erste Feld fokussiert und dessen Mikrofon automatisch gestartet.
   Beim Einschalten wird der Mikrofon-Zugriff angefragt.
 - **Push-Nachrichten aktivieren** – siehe „Benachrichtigungen".
+- **Standort erfassen** – ermittelt alle 5 Minuten deine aktuelle Position (z. B. für
+  ortsbezogene Aufgaben-Vorschläge). Beim Einschalten wird die Standort-Berechtigung
+  angefragt.
 
 ### Säulen
 
-Der Editor für die **Säulen-Gewichtung** (siehe „Lebensbalance-Säulen").
+Der Editor für die **Säulen-Gewichtung** (siehe „Lebensbalance-Säulen") sowie die
+Verwaltung der Säulen selbst (Anlegen, Bearbeiten, Löschen).
 
 ### LLM
 
 Konfiguration der KI-Provider (Mistral, OpenRouter). Hier gibst du die API-Keys und
 das gewünschte Modell ein – diese Einstellung ist serverseitig und gilt für alle Nutzer.
-Über „Free-Modelle auswählen…" (und ebenso über den Chip-Button oben rechts auf dem
-Dashboard) öffnet sich eine Liste der **aktuell kostenlosen OpenRouter-Modelle**, aus der
+Über **„Free-Modelle auswählen…"** (und ebenso über den KI-Modell-Button oben in der
+Kopfzeile) öffnet sich eine Liste der **aktuell kostenlosen OpenRouter-Modelle**, aus der
 du das Modell direkt wählen kannst – die Liste wird live von OpenRouter geladen, als
 Standard ist `openrouter/free` voreingestellt. Ohne konfigurierten Provider bleiben die
 KI-Funktionen (Schnellerfassung, Säulen-Vorschlag, Säulen-Berater, Lektorat) ausgegraut.
@@ -398,7 +405,7 @@ Dieser Planer ist ein eigenständiges Extra und unabhängig von deinen Aufgaben.
 
 - **Strg + Enter** (bzw. **⌘ + Enter**) – löst in Dialogen die primäre Aktion aus
   (z. B. Anlegen/Bearbeiten, „Verarbeiten und weiter", Vorgänger „Hinzufügen",
-  „Beraten lassen").
+  „Beraten lassen", „Speichern" in den Einstellungen, „Endgültig löschen").
 - **Esc** oder Klick außerhalb – schließt Dialoge und Menüs.
 
 ---
@@ -407,6 +414,6 @@ Dieser Planer ist ein eigenständiges Extra und unabhängig von deinen Aufgaben.
 
 - Alle Daten werden **serverseitig** gespeichert; Änderungen sind sofort persistent
   und auf all deinen Geräten verfügbar.
-- Die KI-Funktionen (Schnellerfassung, Säulen-Vorschlag, Säulen-Berater) benötigen
+- Die KI-Funktionen (Schnellerfassung, Säulen-Vorschlag, Säulen-Berater, Lektorat) benötigen
   einen serverseitig konfigurierten Zugang. Ist er nicht eingerichtet, bleiben die
   übrigen Funktionen uneingeschränkt nutzbar.
