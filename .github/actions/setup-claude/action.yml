@@ -82,6 +82,18 @@ inputs:
     description: 'Claude-Modell für diesen Lauf als Alias (fable|opus|sonnet|haiku); leer = kein --model (Default aus .claude/settings.json). Der Alias wird providerspezifisch aufgelöst (claude nativ via --model, zai/openrouter via settings.local.json); ein ungültiger Alias bricht laut ab (kein stiller Fallback).'
     required: false
     default: ''
+  subagent-model:
+    description: >-
+      Modell für Subagents als Alias, oder 'inherit' (Default). Wird als
+      CLAUDE_CODE_SUBAGENT_MODEL gesetzt.
+
+      BEWUSST GESETZT, NICHT UNGESETZT GELASSEN: Die Variable überschreibt das Modell für
+      ALLE Subagents und hat Vorrang vor deren model-Frontmatter. Bliebe sie unbestimmt,
+      liefe ein Subagent-Fan-out einer fable-Phase potenziell ebenfalls auf fable — und
+      genau das kehrte die Kostenlogik um, die die Phasen-Modellwahl herstellt.
+      'inherit' = ausdrücklich das Phasenmodell (bisheriges Verhalten, kein Override).
+    required: false
+    default: 'inherit'
   # Tailscale-Exit-Node: optional. Verbindet den Runner VOR dem claude-Step mit dem Exit Node,
   # sodass der gesamte LLM-Traffic über eine konsistente IP egressiert (verhindert z.ai/
   # OpenRouter "Account geteilt"-Flagging durch wechselnde Azure-Runner-IPs). Kill-Switch:
@@ -346,14 +358,60 @@ runs:
         path: |
           /usr/local/lib/node_modules/@anthropic-ai
           /usr/local/bin/claude
-        key: claude-code-cli-${{ runner.os }}-v1
+        key: claude-code-cli-${{ runner.os }}-v4
 
-    - name: Claude Code installieren
-      if: steps.preflight.outputs.configured == 'true' && steps.cache-claude.outputs.cache-hit != 'true'
+    # VERIFIZIEREN STATT VERTRAUEN: Die Bedingung lautete lange „installiere nur, wenn der
+    # Cache NICHT griff". Ein Cache-Treffer beweist aber nur, dass Dateien da sind — nicht,
+    # dass die CLI startet. Die plattform-native Binary kommt über ein Postinstall
+    # (`install.cjs`) bzw. eine optionale Abhängigkeit; fehlt sie im gecachten Stand, endet
+    # jeder Lauf mit „claude native binary not installed", und zwar dauerhaft: Der statische
+    # Key invalidiert nie, und der Install-Step wurde bei Treffer übersprungen. Ein
+    # Key-Bust heilt das genau einmal — die Prüfung unten dauerhaft.
+    #
+    # Zweiter Gewinn: Der Abbruch passiert HIER statt im Phasen-Step. Vorher lief die Phase
+    # erst 5–10 Minuten (Setup, pnpm, Chromium, Server-Build) und starb dann im
+    # claude-Aufruf, wo die Ursache im Log untergeht und wie ein Provider-/Modellfehler
+    # aussieht.
+    - name: Claude Code bereitstellen und prüfen
+      if: steps.preflight.outputs.configured == 'true'
       shell: bash
       run: |
+        set -uo pipefail
+
+        cli_ok() { claude --version >/dev/null 2>&1; }
+
+        if cli_ok; then
+          echo "::notice title=Claude CLI::Lauffähig ($(claude --version 2>/dev/null))."
+          exit 0
+        fi
+
+        if [ "${{ steps.cache-claude.outputs.cache-hit }}" = "true" ]; then
+          echo "::warning title=Claude CLI unvollständig::Cache-Treffer, aber die CLI startet nicht — wird neu installiert. Passiert das in JEDEM Lauf, liegt die native Binary außerhalb der gecachten Pfade: dann die path-Liste oben erweitern."
+        fi
+
         npm install -g @anthropic-ai/claude-code
-        echo "::notice::Claude Code CLI installiert."
+
+        # Postinstall notfalls von Hand: Manche npm-/pnpm-Konfigurationen überspringen
+        # Scripts (--ignore-scripts) oder optionale Abhängigkeiten (--omit=optional) —
+        # genau dann fehlt die native Binary. Der Fehlertext der CLI nennt diesen Weg
+        # selbst als Abhilfe. `npm root -g` statt hartem Pfad (aus PR #923), mit
+        # Rückfall auf den Standardpfad, falls npm den Root nicht liefert.
+        if ! cli_ok; then
+          NPM_ROOT="$(npm root -g 2>/dev/null || echo /usr/local/lib/node_modules)"
+          PKG="${NPM_ROOT}/@anthropic-ai/claude-code"
+          if [ -f "$PKG/install.cjs" ]; then
+            echo "::notice title=Claude CLI::Postinstall wird manuell nachgeholt ($PKG/install.cjs)."
+            node "$PKG/install.cjs" || true
+          else
+            echo "::warning title=Claude CLI::install.cjs nicht gefunden unter $PKG — Paketlayout abweichend?"
+          fi
+        fi
+
+        if ! cli_ok; then
+          echo "::error title=Claude CLI nicht lauffähig::'claude --version' startet auch nach Neuinstallation nicht. Der Lauf wird hier beendet, statt später im LLM-Aufruf zu scheitern."
+          exit 1
+        fi
+        echo "::notice title=Claude CLI::Neu installiert und lauffähig ($(claude --version 2>/dev/null))."
 
     - name: Claude Code Trust-Dialog für CI-Workspace akzeptieren
       if: steps.preflight.outputs.configured == 'true'
@@ -384,6 +442,7 @@ runs:
         ZAI_SETTINGS_JSON: ${{ inputs.zai-settings-json }}
         OPENROUTER_SETTINGS_JSON: ${{ inputs.openrouter-settings-json }}
         CLAUDE_MODEL: ${{ inputs.model }}
+        SUBAGENT_MODEL: ${{ inputs.subagent-model }}
       run: |
         PROVIDER="${LLM_PROVIDER:-claude}"
 
@@ -461,6 +520,9 @@ runs:
             fi
             # Auth Token setzen (OpenRouter nutzt ANTHROPIC_AUTH_TOKEN als Bearer)
             echo "ANTHROPIC_AUTH_TOKEN=$OPENROUTER_API_KEY" >> "$GITHUB_ENV"
+            # Unbekannte Modelle erlauben (CI-Cache kann ältere CLI-Version haben als lokal)
+            echo "CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT=1" >> "$GITHUB_ENV"
+            echo "::notice::OpenRouter: CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT=1 gesetzt (unbekannte Modelle erlaubt)."
             ;;
           *)
             echo "::error title=Unbekannter Provider::vars.LLM_PROVIDER='$PROVIDER' – erlaubt sind 'claude', 'zai' oder 'openrouter'."
@@ -490,12 +552,18 @@ runs:
         if [ -n "$RESOLVED_MODEL_ID" ]; then
           case "$PROVIDER" in
             zai|openrouter)
+              # WICHTIG: Hier den ALIAS ($CLAUDE_MODEL, z.B. "opus") schreiben, NICHT die
+              # aufgeloeste native Anthropic-Modell-ID ($RESOLVED_MODEL_ID, z.B. "claude-opus-5").
+              # Die native ID existiert bei zai/openrouter nicht ("model not found") — der Alias
+              # greift stattdessen ueber den bereits aus vars.CLAUDE_CODE_SETTINGS_LOCAL_{ZAI,
+              # OPENROUTER} geladenen ANTHROPIC_DEFAULT_{OPUS,SONNET,HAIKU,FABLE}_MODEL-Mechanismus
+              # (exakt wie das checked-in .claude/settings.json es fuer den Default-Fall tut).
               if [ -f .claude/settings.local.json ]; then
                 tmp_model=$(mktemp)
-                jq --arg m "$RESOLVED_MODEL_ID" '.model = $m' .claude/settings.local.json > "$tmp_model" && mv "$tmp_model" .claude/settings.local.json
-                echo "::notice title=Modell::$RESOLVED_MODEL_ID (Alias '$CLAUDE_MODEL', Provider $PROVIDER) via settings.local.json aufgeloest."
+                jq --arg m "$CLAUDE_MODEL" '.model = $m' .claude/settings.local.json > "$tmp_model" && mv "$tmp_model" .claude/settings.local.json
+                echo "::notice title=Modell::Alias '$CLAUDE_MODEL' (Provider $PROVIDER) via settings.local.json gesetzt — Aufloesung ueber ANTHROPIC_DEFAULT_*_MODEL."
               else
-                echo "::warning title=Modell::Phasen-Modell '$CLAUDE_MODEL' ($RESOLVED_MODEL_ID) konnte nicht in settings.local.json geschrieben werden — Datei fehlt (Provider $PROVIDER ohne settings-json). Modell bleibt unaufgeloest."
+                echo "::warning title=Modell::Phasen-Modell-Alias '$CLAUDE_MODEL' konnte nicht in settings.local.json geschrieben werden — Datei fehlt (Provider $PROVIDER ohne settings-json). Modell bleibt unaufgeloest."
               fi
               echo "resolved-model=" >> "$GITHUB_OUTPUT"
               ;;
@@ -507,6 +575,92 @@ runs:
         else
           echo "::notice title=Modell::Kein Phasen-Modell gesetzt — Default aus .claude/settings.json."
           echo "resolved-model=" >> "$GITHUB_OUTPUT"
+        fi
+
+        # Subagent-Modell: CLAUDE_CODE_SUBAGENT_MODEL überschreibt das Modell ALLER
+        # Subagents und schlägt deren model-Frontmatter. Deshalb wird es hier bewusst
+        # gesetzt statt dem Zufall überlassen — 'inherit' bedeutet ausdrücklich
+        # „kein Override, Subagents laufen auf dem Phasenmodell".
+        # Dieselbe Alias-Tabelle wie oben; ein unbekannter Alias bricht laut ab, damit
+        # ein Tippfehler nicht still das teuerste Modell für den Fan-out wählt.
+        case "$SUBAGENT_MODEL" in
+          inherit|"")
+            echo "::notice title=Subagent-Modell::inherit — Subagents laufen auf dem Phasenmodell (kein Override)."
+            ;;
+          fable)  SUB_ID="claude-fable-5" ;;
+          opus)   SUB_ID="claude-opus-5" ;;
+          sonnet) SUB_ID="claude-sonnet-5" ;;
+          haiku)  SUB_ID="claude-haiku-4-5-20251001" ;;
+          *)
+            echo "::error title=Ungueltiger Subagent-Alias::subagent-model='$SUBAGENT_MODEL' — erlaubt: inherit | fable | opus | sonnet | haiku."
+            exit 1
+            ;;
+        esac
+        if [ -n "${SUB_ID:-}" ]; then
+          echo "CLAUDE_CODE_SUBAGENT_MODEL=$SUB_ID" >> "$GITHUB_ENV"
+          echo "::notice title=Subagent-Modell::$SUB_ID (Alias '$SUBAGENT_MODEL') für alle Subagents."
+        fi
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # TAILSCALE EXIT-NODE – nur für Provider 'zai' (z.ai blockt Azure-IPs).
+    # claude (Anthropic nativ) und openrouter vertrennen Azure-IPs problemlos.
+    # Läuft NACH der Provider-Auflösung, damit der finale Provider (inkl.
+    # Zeitfenster-Override) bekannt ist. Kill-Switch: tailscale-exit-node leer → deaktiviert.
+    # Fail-closed: Exit-Node gesetzt + Provider=zai, aber Key fehlt/
+    # Connect scheitert → setup-claude rot → claude-Step wird übersprungen.
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    - name: Tailscale-Preflight (Auth-Key ist Pflicht bei aktivem Exit-Node für zai)
+      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && steps.provider.outputs.llm-provider == 'zai'
+      shell: bash
+      env:
+        TAILSCALE_AUTHKEY: ${{ inputs.tailscale-authkey }}
+      run: |
+        if [ -z "$TAILSCALE_AUTHKEY" ]; then
+          echo "::error::TAILSCALE_EXIT_NODE ist gesetzt, aber TAILSCALE_AUTH_KEY fehlt — fail-closed (kein LLM-Egress von der Azure-IP)."
+          exit 1
+        fi
+
+    - name: Tailscale-Exit-Node verbinden (LLM-Egress über feste IP, für zai)
+      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && steps.provider.outputs.llm-provider == 'zai'
+      uses: tailscale/github-action@780049a30b6ff5c378a9e7b389d15ece7a204888 # v4.1.3
+      with:
+        authkey: ${{ inputs.tailscale-authkey }}
+        args: --exit-node=${{ inputs.tailscale-exit-node }} --exit-node-allow-lan-access=true
+
+    - name: ✅ Tailscale-Verbindung bestätigen (für zai)
+      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && steps.provider.outputs.llm-provider == 'zai'
+      shell: bash
+      run: |
+        sleep 2  # tailscaled kurz Zeit geben, Status zu aktualisieren
+        if tailscale status >/dev/null 2>&1; then
+          SELF_IP=$(tailscale ip -4 2>/dev/null | head -1)
+          echo "::notice title=✅ Tailscale Exit-Node verbunden::Tailscale aktiv (Runner-IP: ${SELF_IP:-?}). LLM-Traffic routet über Nürnberg."
+          echo "Tailscale-Status: verbunden, Runner-Tailscale-IP: ${SELF_IP:-unbekannt}"
+        else
+          echo "::warning::tailscale status nicht verfügbar — Exit-Node evtl. nicht aktiv."
+        fi
+
+    - name: DNS fixen + Egress-IP protokollieren (für zai)
+      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && steps.provider.outputs.llm-provider == 'zai'
+      shell: bash
+      run: |
+        sudo systemctl stop systemd-resolved 2>/dev/null || true
+        sudo rm -f /etc/resolv.conf
+        echo "nameserver 1.1.1.1" | sudo tee /etc/resolv.conf >/dev/null
+        echo "nameserver 8.8.8.8" | sudo tee -a /etc/resolv.conf >/dev/null
+        if getent hosts api.anthropic.com >/dev/null 2>&1; then
+          EGRESS=$(curl -s --max-time 5 https://ipinfo.io/json 2>/dev/null || echo "")
+          if [ -n "$EGRESS" ]; then
+            IP=$(printf '%s' "$EGRESS" | jq -r '.ip // "?"')
+            CITY=$(printf '%s' "$EGRESS" | jq -r '.city // "?"')
+            COUNTRY=$(printf '%s' "$EGRESS" | jq -r '.country // "?"')
+            echo "::notice title=🌐 LLM-Egress über Tailscale::Exit-Node aktiv — IP ${IP} (${CITY}, ${COUNTRY})."
+            echo "Egress-IP: ${IP} (${CITY}, ${COUNTRY})"
+          else
+            echo "::notice::Tailscale-Exit-Node aktiv + DNS via 1.1.1.1/8.8.8.8 (Egress-IP nicht abrufbar)."
+          fi
+        else
+          echo "::error::DNS-Auflösung schlägt trotz Resolver-Wechsel fehl — Exit-Node/Forwarding prüfen."
+          exit 1
         fi
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -552,7 +706,14 @@ runs:
             # auto-memory Subdirs anlegt (allein ** matcht Wurzeldateien nicht zuverlässig).
             # Claude Code wertet für Datei-Schreibzugriffe NUR Edit(path)-Regeln aus — Write(path)
             # wird ignoriert (Edit deckt alle file-editing-Tools inkl. Write ab).
-            ALLOWED_TOOLS="Read,Glob,Grep,Bash(gh *),Bash(git *),Edit(.claude/memory/*),Edit(.claude/memory/**)"
+            # Task (Subagents) ist hier bewusst dabei: Die Analyse ist die einzige Phase auf
+            # dem starken Modell und muss den Code breit lesen. Ohne Fan-out landet dieses
+            # Lesen vollstaendig im teuren Elternkontext; mit Subagent kommt nur die
+            # Schlussfolgerung zurueck. Das Subagent-Modell setzt der Aufrufer ueber
+            # subagent-model (CLAUDE_CODE_SUBAGENT_MODEL) — sonst liefe der Fan-out auf
+            # demselben teuren Modell und der Spareffekt kehrte sich um.
+            # Die Schreibrechte bleiben unveraendert eng (nur .claude/memory).
+            ALLOWED_TOOLS="Read,Glob,Grep,Task,Bash(gh *),Bash(git *),Edit(.claude/memory/*),Edit(.claude/memory/**)"
             [ "$NEEDS_MCP" = "true" ] && ALLOWED_TOOLS="$ALLOWED_TOOLS,$MCP_TOOLS"
             # — !WICHTIG! —
             # Zwingendes Single-Quoting des Wertes nach --allowedTools (und --disallowedTools):
@@ -592,85 +753,3 @@ runs:
     # Phasen (01..05) laden nach dem claude-Step das Memory als Artefakt hoch (upload-artifact,
     # Name = memory-save-Key) — das Artefakt IST der Speicher, es folgt kein Cache-Save mehr
     # (Cache-Writes sind für diese Trigger platform-seitig gesperrt, s. Kopf-Kommentar).
-
-    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    # TAILSCALE EXIT-NODE — LLM-Egress über eine feste IP (z.ai/OpenRouter-Flagging-Schutz)
-    #
-    # Letzter Akt VOR dem claude-Step (der im Caller läuft): verbindet den Runner mit dem
-    # Exit-Node, sodass der gesamte folgende LLM-Traffic über den Nürnberger Server egressiert.
-    # Pre-LLM-Setup (Token/Cache/npm install oben) bleibt bewusst DIREKT (keine Exit-Node-Last
-    # für GitHub/npm). Kill-Switch: tailscale-exit-node leer → alle drei Schritte übersprungen
-    # (if-Bedingung). Fail-closed: Exit-Node gesetzt, aber Key fehlt oder Connect scheitert →
-    # setup-claude rot → claude-Step übersprungen (lieber gar nicht laufen als LLM von Azure-IP
-    # und wieder geflaggt werden).
-    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    - name: Tailscale-Preflight (Auth-Key ist Pflicht bei aktivem Exit-Node)
-      # Ohne diesen Check wäre ein fehlender/leerer TAILSCALE_AUTH_KEY ein stiller Fail-OPEN:
-      # Connect- und DNS-Step würden per if-Bedingung übersprungen, setup-claude bliebe grün und
-      # claude -p liefe direkt von der Azure-Runner-IP. Kill-Switch ist ausschließlich
-      # tailscale-exit-node — ein fehlender Key ist eine Fehlkonfiguration und muss laut scheitern.
-      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != ''
-      shell: bash
-      env:
-        TAILSCALE_AUTHKEY: ${{ inputs.tailscale-authkey }}
-      run: |
-        if [ -z "$TAILSCALE_AUTHKEY" ]; then
-          echo "::error::TAILSCALE_EXIT_NODE ist gesetzt, aber TAILSCALE_AUTH_KEY fehlt — fail-closed (kein LLM-Egress von der Azure-IP)."
-          exit 1
-        fi
-
-    - name: Tailscale-Exit-Node verbinden (LLM-Egress über feste IP)
-      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != ''
-      uses: tailscale/github-action@780049a30b6ff5c378a9e7b389d15ece7a204888 # v4.1.3
-      with:
-        authkey: ${{ inputs.tailscale-authkey }}
-        args: --exit-node=${{ inputs.tailscale-exit-node }} --exit-node-allow-lan-access=true
-
-    - name: ✅ Tailscale-Verbindung bestätigen
-      # Macht den Connect im Workflow-Log sofort sichtbar: prominente Notice oben im Job,
-      # statt im tailscale/github-action-Step-Output vergraben. Läuft NACH dem Connect-Step
-      # (der bei Misserfolg selbst rot wird) → hier steht die Verbindung bereits.
-      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != ''
-      shell: bash
-      run: |
-        sleep 2  # tailscaled kurz Zeit geben, Status zu aktualisieren
-        if tailscale status >/dev/null 2>&1; then
-          SELF_IP=$(tailscale ip -4 2>/dev/null | head -1)
-          echo "::notice title=✅ Tailscale Exit-Node verbunden::Tailscale aktiv (Runner-IP: ${SELF_IP:-?}). LLM-Traffic routet über Nürnberg."
-          echo "Tailscale-Status: verbunden, Runner-Tailscale-IP: ${SELF_IP:-unbekannt}"
-        else
-          echo "::warning::tailscale status nicht verfügbar — Exit-Node evtl. nicht aktiv."
-        fi
-
-    - name: DNS fixen + Egress-IP protokollieren
-      # Exit-Node-Routing bricht die Azure-Standard-DNS des Runners: systemd-resolved im
-      # Stub-Modus intercepted DNS-Queries und fragt weiterhin den Azure-DNS (168.63.129.16),
-      # der durch den Tunnel nicht erreichbar ist. Ohne diesen Step macht der Connect zwar
-      # grün, aber claude -p erreicht seinen Provider nicht (curl exit 28 / DNS-Failure).
-      # Fix: systemd-resolved stoppen, Stub-Symlink entfernen, echte resolv.conf mit
-      # öffentlichen Resolvern schreiben (über den Tunnel erreichbar).
-      # Zusätzlich wird die egressierende IP + Standort abgefragt → pro Lauf im Log sichtbar,
-      # dass der LLM-Traffic wirklich über den Nürnberger Exit Node läuft.
-      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != ''
-      shell: bash
-      run: |
-        sudo systemctl stop systemd-resolved 2>/dev/null || true
-        sudo rm -f /etc/resolv.conf
-        echo "nameserver 1.1.1.1" | sudo tee /etc/resolv.conf >/dev/null
-        echo "nameserver 8.8.8.8" | sudo tee -a /etc/resolv.conf >/dev/null
-        if getent hosts api.anthropic.com >/dev/null 2>&1; then
-          # Egress-IP über den Exit Node abfragen (verifiziert das Routing pro Lauf sichtbar).
-          EGRESS=$(curl -s --max-time 5 https://ipinfo.io/json 2>/dev/null || echo "")
-          if [ -n "$EGRESS" ]; then
-            IP=$(printf '%s' "$EGRESS" | jq -r '.ip // "?"')
-            CITY=$(printf '%s' "$EGRESS" | jq -r '.city // "?"')
-            COUNTRY=$(printf '%s' "$EGRESS" | jq -r '.country // "?"')
-            echo "::notice title=🌐 LLM-Egress über Tailscale::Exit-Node aktiv — IP ${IP} (${CITY}, ${COUNTRY})."
-            echo "Egress-IP: ${IP} (${CITY}, ${COUNTRY})"
-          else
-            echo "::notice::Tailscale-Exit-Node aktiv + DNS via 1.1.1.1/8.8.8.8 (Egress-IP nicht abrufbar)."
-          fi
-        else
-          echo "::error::DNS-Auflösung schlägt trotz Resolver-Wechsel fehl — Exit-Node/Forwarding prüfen."
-          exit 1
-        fi

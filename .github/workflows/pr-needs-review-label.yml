@@ -122,7 +122,7 @@ jobs:
           echo "::notice::Nutze GitHub-App-Token für gh-Befehle."
 
       # SUPERSEDE-Kompensation (nur synchronize — opened/ready_for_review können keine laufenden
-      # Reviews haben): Die Phasen-Workflows 05/06 serialisieren seit der statischen
+      # Reviews haben): Review (05) und Umsetzung (04, PR-Eingang) serialisieren seit der statischen
       # concurrency-Gruppe global mit cancel-in-progress: false. Ohne diesen Cancel wuerde ein
       # LAUFENDER Review den frisch gesteckten Trigger konsumieren (entfernt ai:needs-review in
       # seiner Post-Assertion), der queued Folge-Lauf im Label-Pre-Check skippen — und der
@@ -137,7 +137,11 @@ jobs:
           REPO: ${{ github.repository }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
-          for wf in 05-claude-pr-review.yml 06-claude-pr-fixup.yml; do
+          # 04-claude-implement.yml bedient seit ADR-0005 auch die Nacharbeit am PR
+          # (früher 06-claude-pr-fixup.yml). Der Branch-Filter trennt die beiden Eingänge
+          # zuverlässig: Läufe des Issue-Eingangs hängen am Default-Branch, nie am
+          # PR-Head-Branch — es werden also weiterhin nur PR-Läufe abgebrochen.
+          for wf in 05-claude-pr-review.yml 04-claude-implement.yml; do
             gh run list --repo "$REPO" --workflow "$wf" --branch "$HEAD_REF" --limit 100 \
               --json databaseId,status \
               --jq '.[] | select(.status=="in_progress" or .status=="queued") | .databaseId' \
@@ -176,10 +180,23 @@ jobs:
             exit 1
           fi
           applied="$(printf '%s\n' "$OUT" | sed -n 's/^applied=//p')"
+          state="$(printf '%s\n' "$OUT" | sed -n 's/^state=//p')"
           reason="$(printf '%s\n' "$OUT" | sed -n 's/^reason=//p')"
           changed="$(printf '%s\n' "$OUT" | sed -n 's/^changed=//p')"
+          # Auf `state` verzweigen, nicht nur auf `applied` — das war der Fehler (PR #914):
+          # label-transition.sh unterscheidet ABSICHTLICHE Ablehnungen (state=ok, u. a. Guard 3
+          # „ai:needs-human klebt") von echten Fehlern (read-failed/put-failed). Ein beim
+          # Menschen geparkter PR ist ein gewollter Halt und darf den Autolabeler NICHT rot
+          # färben — sonst meldet jeder geparkte PR dauerhaft eine fehlgeschlagene Action.
+          # gate-merge und conflict-scan machen das seit PR #903 bereits so; dieser Workflow
+          # wurde damals übersehen und fiel erst auf, als die Modellwahl anfing,
+          # ai:needs-human automatisch zu setzen.
+          if [ "$applied" != "true" ] && [ "$state" = "ok" ]; then
+            echo "::notice title=⏭️ Kein Review-Trigger::PR #$PR — ${reason:-neuere Entscheidung regiert}."
+            exit 0
+          fi
           if [ "$applied" != "true" ]; then
-            echo "::error::Label-Transition zu ai:needs-review verworfen (${reason:-Guard}) — PR bitte manuell prüfen."
+            echo "::error::Label-Transition zu ai:needs-review fehlgeschlagen (state=${state:-?}, ${reason:-Guard}) — PR bitte manuell prüfen."
             exit 1
           fi
           # #536-Re-Arm: Klebte ai:needs-review bereits (identischer Zielzustand,
@@ -197,8 +214,19 @@ jobs:
               echo "::error::Re-Arm-Transition fehlgeschlagen — Label bitte manuell prüfen."
               exit 1
             fi
-            if [ "$(printf '%s\n' "$OUT" | sed -n 's/^applied=//p')" != "true" ]; then
-              echo "::error::Re-Arm verworfen ($(printf '%s\n' "$OUT" | sed -n 's/^reason=//p')) — Label bitte manuell prüfen."
+            rearm_applied="$(printf '%s\n' "$OUT" | sed -n 's/^applied=//p')"
+            rearm_state="$(printf '%s\n' "$OUT" | sed -n 's/^state=//p')"
+            rearm_reason="$(printf '%s\n' "$OUT" | sed -n 's/^reason=//p')"
+            if [ "$rearm_applied" != "true" ]; then
+              # Das Remove oben ist bereits passiert — der PR steht jetzt ohne
+              # ai:needs-review da. Bei einer absichtlichen Ablehnung (state=ok, z. B. ein
+              # zwischenzeitlich gesetztes ai:needs-human) ist genau das richtig: Der PR
+              # parkt, ein Review-Trigger wäre falsch. Nur ein echter Fehler ist rot.
+              if [ "$rearm_state" = "ok" ]; then
+                echo "::notice title=⏭️ Re-Arm verworfen::PR #$PR — ${rearm_reason:-neuere Entscheidung regiert}; ai:needs-review bleibt entfernt."
+                exit 0
+              fi
+              echo "::error::Re-Arm fehlgeschlagen (state=${rearm_state:-?}, ${rearm_reason:-Guard}) — ai:needs-review wurde entfernt, Label bitte manuell prüfen."
               exit 1
             fi
           fi

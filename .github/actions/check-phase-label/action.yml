@@ -6,7 +6,10 @@ description: >-
   nicht, liefert die Action proceed=false und der Job endet ohne Fehler.
 inputs:
   phase:
-    description: 'analyse | spec | implement | review | fixup | documenter'
+    description: >-
+      analyse | ux | spec | implement | implement-pr | review | documenter.
+      `implement` (Issue, ai:needs-impl) und `implement-pr` (PR, ai:needs-fixup) sind
+      die zwei Eingänge derselben Phase 4 — siehe Tabelle in check-phase-label.sh.
     required: true
   ticket:
     description: 'Issue- bzw. PR-Nummer'

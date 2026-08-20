@@ -47,7 +47,11 @@ LOG_LINES="25"
 while [ $# -gt 0 ]; do
   case "$1" in
     --repo) REPO="$2"; shift 2 ;;
-    --pr) PR="$2"; shift 2 ;;
+    # --ticket ist ein Alias für --pr: `lookup` fragt ohnehin den Endpunkt
+    # repos/…/issues/<n>/comments ab, der für Issues UND PRs dieselben Kommentare
+    # liefert. Der Alias macht nur lesbar, dass die Triage (Phase 01) ein ISSUE
+    # prüft — die Mechanik ist identisch, es gibt keinen zweiten Codepfad.
+    --pr|--ticket) PR="$2"; shift 2 ;;
     --mode) MODE="$2"; shift 2 ;;
     --since) SINCE="$2"; shift 2 ;;
     --body-file) BODY_FILE="$2"; shift 2 ;;
@@ -70,7 +74,12 @@ case "$CMD" in
       decisions) FILTER='[.[] | select(.body | startswith("<!-- ai-fixup-decisions -->"))] | last' ;;
       review) FILTER='[.[] | select(.body | startswith("<!-- ai-review -->"))] | last' ;;
       review-section) FILTER='[.[] | select((.body | startswith("<!-- ai-review -->")) and (.body | test("Entscheidungs-Findings")))] | last' ;;
-      *) echo "lookup: unbekannter Modus '$MODE' (erlaubt: decisions review review-section)" >&2; exit 2 ;;
+      # triage: Erklärung der Analyse-Phase, wenn sie das Ticket als nicht
+      # eindeutig einstuft. Ohne diesen Kommentar darf ai:needs-human NICHT
+      # gesetzt werden — ein Label ohne Begründung verlagert die Analysearbeit
+      # zurück auf den Menschen und ist damit wertlos.
+      triage) FILTER='[.[] | select(.body | startswith("<!-- ai-triage-decision -->"))] | last' ;;
+      *) echo "lookup: unbekannter Modus '$MODE' (erlaubt: decisions review review-section triage)" >&2; exit 2 ;;
     esac
 
     # Mit Retry: unmittelbar nach Claudes Post liefert die API den Kommentar
@@ -135,7 +144,7 @@ case "$CMD" in
     ;;
 
   *)
-    echo "Usage: needs-human-explain.sh lookup --repo <o/r> --pr <N> --mode <decisions|review|review-section> [--since <ISO>]" >&2
+    echo "Usage: needs-human-explain.sh lookup --repo <o/r> --pr|--ticket <N> --mode <decisions|review|review-section|triage> [--since <ISO>]" >&2
     echo "       needs-human-explain.sh logtail [--file <path>] [--lines <N>]" >&2
     echo "       needs-human-explain.sh post --repo <o/r> --pr <N> --body-file <path>" >&2
     [ -n "$CMD" ] && echo "unbekannter Befehl: $CMD" >&2

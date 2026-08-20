@@ -1,8 +1,15 @@
-name: 'Z.AI Fair-Usage-Check (1313)'
+name: 'LLM-Kontingent-Check (1310/1313)'
 description: >-
-  Durchsucht die Claude-Rohausgabe (/tmp/claude-output.log) nach dem z.ai-Fehler
-  1313 (Fair Usage Policy / „Account geteilt"-Flagging) und schreibt das Ergebnis
-  als Annotation + Job-Summary — pro Lauf sichtbar, ob das Limit zuschlägt.
+  Durchsucht die Claude-Rohausgabe (/tmp/claude-output.log) nach Provider-Limits und
+  schreibt das Ergebnis als Annotation + Job-Summary — pro Lauf sichtbar, ob ein Limit
+  zugeschlagen hat.
+
+# WARUM ZWEI FEHLERCODES: Ursprünglich prüfte dieser Check NUR 1313 (Fair Usage Policy /
+# „Account geteilt"-Flagging). Am 2026-08-20 scheiterten zwei UX-Läufe zu Issue #912
+# tatsächlich an 1310 ("Weekly/Monthly Limit Exhausted") — der Check meldete dabei beide
+# Male „kein Treffer" und gab damit falsche Entwarnung, während die eigentliche Ursache
+# nur tief im Log stand. Ein Diagnose-Werkzeug, das beim häufigsten Limit schweigt, ist
+# schlimmer als keines: Es lenkt die Fehlersuche aktiv in die falsche Richtung.
 runs:
   using: composite
   steps:
@@ -16,7 +23,7 @@ runs:
         # Findet grep nichts (= der Normalfall!), liefert es exit 1, pipefail reicht das durch
         # die Pipe und `-e` bricht den Step ab. Der Check schlug dadurch GENAU DANN fehl, wenn
         # alles in Ordnung war — invertierte Logik. Über den Step hinaus schädlich, weil
-        # claude-pr-gate-merge.yml den Check "5/7 Review" in any_fail wertet und einen sauberen
+        # claude-pr-gate-merge.yml den Check "5/6 Review" in any_fail wertet und einen sauberen
         # PR zu ai:needs-fixup degradierte (Fixup-Loop bis zum Stop-Guard).
         # `set +e +o pipefail` verhindert den Abbruch mittendrin, das abschliessende `exit 0`
         # setzt den Step-Status unabhaengig vom letzten Kommando auf Erfolg — beides zusammen,
@@ -29,16 +36,22 @@ runs:
           exit 0
         fi
 
-        FAIR_LINE="$(grep -E '\[1313\]|Fair Usage Policy' /tmp/claude-output.log | head -1 | cut -c1-400)"
+        # 1313 = Fair Usage Policy, 1310 = Weekly/Monthly Limit Exhausted. Die Klartext-
+        # Varianten fangen zusaetzlich Provider ab, die keinen Zahlencode mitschicken.
+        FAIR_LINE="$(grep -E '\[131[03]\]|Fair Usage Policy|Limit Exhausted' /tmp/claude-output.log | head -1 | cut -c1-400)"
         if [ -n "$FAIR_LINE" ]; then
-          # BEWUSST ::warning statt ::error — ein Fair-Usage-Treffer ist eine Information ueber
+          # BEWUSST ::warning statt ::error — ein Limit-Treffer ist eine Information ueber
           # den Provider, kein Defekt dieses Laufs. `::error` faerbt die Run-Uebersicht rot und
           # sieht nach kaputtem Build aus, obwohl der Job gruen bleibt.
-          echo "::warning title=🚫 Z.AI Fair-Usage-Limit (1313)::${FAIR_LINE}"
-          echo "🚫 **Z.AI Fair-Usage-Limit (1313):** \`${FAIR_LINE}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "::warning title=🚫 LLM-Kontingent/Fair-Usage-Limit::${FAIR_LINE}"
+          echo "🚫 **LLM-Kontingent/Fair-Usage-Limit:** \`${FAIR_LINE}\`" >> "$GITHUB_STEP_SUMMARY"
+          # Reset-Zeitpunkt ist die einzige handlungsleitende Angabe — extra herausziehen,
+          # damit sie nicht in der abgeschnittenen Zeile untergeht.
+          RESET="$(printf '%s' "$FAIR_LINE" | grep -oE 'reset at [0-9-]+ [0-9:]+' | head -1)"
+          [ -n "$RESET" ] && echo "- ⏳ Kontingent-${RESET}" >> "$GITHUB_STEP_SUMMARY"
         else
-          echo "::notice title=✅ Kein Z.AI Fair-Usage-Fehler (1313)::LLM-Aufruf ohne Fair-Usage-Beschränkung"
-          echo "- ✅ Z.AI Fair-Usage-Check (1313): kein Treffer" >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=✅ Kein LLM-Kontingent-Fehler::LLM-Aufruf ohne Limit-Beschraenkung (1310/1313 geprueft)"
+          echo "- ✅ LLM-Kontingent-Check (1310/1313): kein Treffer" >> "$GITHUB_STEP_SUMMARY"
         fi
 
         # Immer Erfolg: siehe Kopfkommentar.

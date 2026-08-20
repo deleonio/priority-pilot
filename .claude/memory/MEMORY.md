@@ -32,3 +32,16 @@ Konflikte, die er verhindern soll.
   `Edit(path)`-Allowlist modellieren, nicht über Bypass + Disallow.
 - 2026-08-19 · Build — repo-weites `pnpm build`/`pnpm lint` ist in den meisten Läufen unnötig
   teuer. → Gezielt filtern: `pnpm --filter server build`, `pnpm --filter server lint`.
+- 2026-08-20 · Labels/Spec-Phase — der lokale `/spec-ticket`-Wrapper nennt generische
+  Label-Namen "ai:ready"/"ai:spec-ready", die in diesem Repo nicht existieren. Die echte
+  Konvention steht in `.github/workflows/03-claude-spec.yml`: bei Erfolg `ai:needs-spec`
+  entfernen + `ai:needs-impl` setzen (Phase 4/7). → Vor dem Label-Setzen `gh label list`
+  gegenprüfen statt Wrapper-Namen blind übernehmen.
+- 2026-08-20 · Sandbox/Playwright — frische Sandbox hat kein Chromium für `pnpm exec playwright
+  test` (`Executable doesn't exist … chromium_headless_shell-…`). → Einmalig
+  `pnpm exec playwright install chromium --with-deps` vor dem ersten e2e-Lauf pro Sandbox.
+- 2026-08-20 · Bash-Tool/GitHub-GraphQL — je `Bash`-Aufruf ist eine neue Shell: Shell-Variable
+  (z. B. `BODY`) definiert in einem Call sind im nächsten leer. → Variablen immer im selben
+  Call definieren+verwenden. Außerdem: GraphQL-`deletePullRequestReviewComment` will das
+  Eingabefeld `id` (nicht `commentId`/`pullRequestReviewCommentId`); `addPullRequestReviewThreadReply`
+  will `pullRequestReviewThreadId` (nicht `threadId`).

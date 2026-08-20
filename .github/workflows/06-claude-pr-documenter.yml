@@ -1,4 +1,4 @@
-name: 7/7 Dokumentation
+name: 6/6 Dokumentation
 
 # 7. Pipeline-Phase — PR-Documenter (Arbeitsteilung Regel-Logik + LLM).
 # Läuft NACH einem erfolgreichen PR-Merge und pflegt Titel, Beschreibung,
@@ -234,6 +234,19 @@ jobs:
             ${{ steps.setup.outputs.invoke-args }} \
             2>&1 | tee /tmp/claude-output.log
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
+
+      - name: Token & Kosten erfassen
+        # always(): Auch ein abgebrochener Lauf hat Token verbraucht — gerade teure
+        # Fehlläufe gehören in die Baseline, sonst sieht die alte Pipeline zu günstig aus.
+        # issue-number löst den PR über closingIssuesReferences auf das Ticket auf, damit
+        # alle Phasen EINES Tickets in derselben .costs-Datei landen.
+        if: always() && steps.setup.outputs.configured == 'true'
+        uses: ./.github/actions/record-cost
+        with:
+          issue: ${{ steps.setup.outputs.issue-number || github.event.pull_request.number || github.event.inputs.pr-number }}
+          phase: documenter
+          since-epoch: ${{ steps.starttime.outputs.epoch }}
+          provider: ${{ steps.setup.outputs.llm-provider }}
 
       - name: 🖨️ Rendern — Titel/Body/Kommentar/Labels deterministisch
         # Alle Schreibzugriffe in einem Schritt: Titel-Rename, Body-Marker-Splice, GENAU EIN

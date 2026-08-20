@@ -231,3 +231,26 @@ describe('App — Homogenerer Header (#222)', () => {
 		expect(avatar?.getAttribute('_label')).toBe('Erika Muster');
 	});
 });
+
+/**
+ * #912: Avatar als letztes Element ganz rechts im Header (nach Wortmarke, KI-Modellauswahl und
+ * Kopf-Aktionen). Spec-Bezug: docs/spec/issue-787.md Journey 1 (v1.2, korrigiert durch #912).
+ */
+describe('App — Avatar-Position im Header (#912)', () => {
+	// AK1: Der Avatar ist das letzte Element ganz rechts im Header (DOM-Reihenfolge nach `.toolbar`).
+	it('AK1: KolAvatar folgt im DOM auf den .toolbar-Container', async () => {
+		render(<App user={{ id: 7, displayName: 'Erika Muster', email: 'erika@test.example.com', avatarUrl: null }} />);
+		await waitFor(() => {
+			expect(screen.getByText(/Hallo/i)).toBeTruthy();
+		});
+
+		const toolbar = document.querySelector('.toolbar');
+		const avatar = document.querySelector('kol-avatar');
+		expect(toolbar).not.toBeNull();
+		expect(avatar).not.toBeNull();
+
+		// DOCUMENT_POSITION_FOLLOWING (4): `avatar` liegt im DOM-Baum NACH `toolbar`.
+		const position = toolbar!.compareDocumentPosition(avatar!);
+		expect((position & Node.DOCUMENT_POSITION_FOLLOWING) !== 0).toBe(true);
+	});
+});

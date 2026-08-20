@@ -1,4 +1,4 @@
-name: 2/7 UX-Beratung
+name: 2/6 UX-Beratung
 
 # UX-Beratung als automatisierte Phase VOR der Spec — beratend, nicht blockierend.
 # Läuft als Phase 2 von 7, sequenziell nach der Analyse. Triggert auf ai:needs-ux-ui,
@@ -199,6 +199,17 @@ jobs:
             2>&1 | tee /tmp/claude-output.log
           test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
 
+      - name: Token & Kosten erfassen
+        # always(): Auch ein abgebrochener Lauf hat Token verbraucht — gerade teure
+        # Fehlläufe gehören in die Baseline, sonst sieht die alte Pipeline zu günstig aus.
+        if: always() && steps.setup.outputs.configured == 'true'
+        uses: ./.github/actions/record-cost
+        with:
+          issue: ${{ steps.setup.outputs.issue-number || needs.precheck.outputs.issue_number }}
+          phase: ux
+          since-epoch: ${{ steps.starttime.outputs.epoch }}
+          provider: ${{ steps.setup.outputs.llm-provider }}
+
       - name: Memory-Upload
         if: always() && steps.setup.outputs.configured == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -253,7 +264,15 @@ jobs:
           3. Oder, wenn der UX-Blocker unerheblich ist: \`ai:needs-spec\` manuell setzen → Spec-Phase startet direkt." 2>/dev/null || true
             echo "::notice::Label gesetzt: ai:needs-human (UX unklar)"
           else
-            echo "::warning::Kein VERDICT im Output – kein Label gesetzt"
+            # ABSTURZ (kein verwertbares VERDICT): Der Trigger ai:needs-ux-ui ist oben bereits
+            # konsumiert. Ohne Gegenmaßnahme stünde das Ticket jetzt ohne Trigger, ohne Label
+            # und ohne Hinweis da — die Kette wäre still tot (beobachtet an Issue #912, das so
+            # zweimal über Stunden unbemerkt liegenblieb). Deshalb sichtbar beim Menschen
+            # parken, mit Log-Auszug, in dem die echte Ursache steht.
+            echo "::warning::Kein VERDICT im Output — Phase abgebrochen, Ticket wird beim Menschen geparkt."
+            bash .github/scripts/phase-crash-park.sh \
+              --repo "$GITHUB_REPOSITORY" --issue "$ISSUE" \
+              --phase ux --trigger ai:needs-ux-ui || true
           fi
 
       - name: Ergebnis zusammenfassen

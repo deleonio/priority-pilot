@@ -1,0 +1,171 @@
+name: 'Modellwahl aus ai:model:*-Label'
+description: >-
+  Liest die Modellwahl statisch aus dem Label `ai:model:<alias>` und liefert den Alias
+  für `setup-claude`. Fehlt das Label oder ist es mehrdeutig, wird der Start abgebrochen
+  und das Ticket mit `ai:needs-human` samt Begründung beim Menschen geparkt.
+
+# WARUM IM PRECHECK-JOB: Die Auswertung muss VOR dem Claude-Start sitzen (`--model` gilt
+# nur für die Session, mit der es gestartet wird) und darf nicht erst nach dem teuren
+# Setup greifen — bei einem Abbruch soll gar kein Runner-Setup, kein Memory-Load und kein
+# Tailscale-Aufbau passieren. Der precheck-Job hat bereits Checkout und gh-Token.
+#
+# WARUM KEIN STILLER FALLBACK: Ohne Label liefe der Start auf dem Default aus
+# .claude/settings.json — potenziell dem teuersten Modell. Genau dieses „macht halt
+# irgendwas" ist der Anlass des Umbaus. Deshalb Abbruch statt Annahme.
+#
+# GITHUB_TOKEN GENÜGT: Gesetzt wird nur `ai:needs-human` — ein Info-Label, das bewusst
+# KEINEN Folge-Workflow auslöst (ADR-0003). Die bekannte Token-Trigger-Falle (von
+# GITHUB_TOKEN gesetzte Labels starten keine Workflows) ist hier also kein Problem,
+# sondern genau das gewünschte Verhalten.
+
+inputs:
+  ticket:
+    description: 'Issue- bzw. PR-Nummer'
+    required: true
+  kind:
+    description: 'issue | pr'
+    required: true
+  auto-escalate:
+    description: >-
+      'true' = ab der zweiten Review-Runde eine Stufe hochsetzen (haiku -> sonnet -> opus).
+      Gegenmaßnahme gegen zu niedrig eingestufte Subtasks, deren Review-Schleifen die
+      Ersparnis auffressen. Nur für --kind pr sinnvoll.
+    required: false
+    default: 'false'
+  repo:
+    description: 'owner/repo (Default: aktuelles Repository)'
+    required: false
+    default: ${{ github.repository }}
+  github-token:
+    description: 'Token für gh (lesend für das Label, schreibend nur im Abbruchfall)'
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  model:
+    description: 'Aufgelöster Modell-Alias (leer bei Abbruch)'
+    value: ${{ steps.resolve.outputs.model }}
+  abort:
+    description: 'true = Start abgebrochen, Ticket trägt ai:needs-human'
+    value: ${{ steps.resolve.outputs.abort }}
+  escalated:
+    description: 'true = Modell wurde wegen wiederholter Review-Runden hochgestuft'
+    value: ${{ steps.resolve.outputs.escalated }}
+
+runs:
+  using: composite
+  steps:
+    - name: Modell-Label auswerten
+      id: resolve
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        REPO: ${{ inputs.repo }}
+        TICKET: ${{ inputs.ticket }}
+        KIND: ${{ inputs.kind }}
+        AUTO: ${{ inputs.auto-escalate }}
+      run: |
+        set -uo pipefail
+        ESC_FLAG=""
+        [ "$AUTO" = "true" ] && ESC_FLAG="--auto-escalate"
+
+        OUT="$(bash "${GITHUB_ACTION_PATH}/../../scripts/resolve-model-label.sh" \
+          --repo "$REPO" --ticket "$TICKET" --kind "$KIND" $ESC_FLAG)"
+
+        MODEL="$(printf '%s' "$OUT" | sed -n 's/^model=//p')"
+        ABORT="$(printf '%s' "$OUT" | sed -n 's/^abort=//p')"
+        ESCALATED="$(printf '%s' "$OUT" | sed -n 's/^escalated=//p')"
+        REASON="$(printf '%s' "$OUT" | sed -n 's/^reason=//p')"
+
+        # Mehrzeiliger Wert über Heredoc mit Zufalls-Delimiter (gleiche Leine wie in
+        # check-phase-label: `reason` trägt Labelnamen aus dem Event).
+        DELIM="EOF_$(date +%s%N)_$RANDOM"
+        {
+          echo "model=${MODEL}"
+          echo "abort=${ABORT:-true}"
+          echo "escalated=${ESCALATED:-false}"
+          echo "reason<<${DELIM}"
+          printf '%s\n' "$REASON"
+          echo "${DELIM}"
+        } >> "$GITHUB_OUTPUT"
+
+        if [ "$ABORT" = "true" ]; then
+          echo "::error title=⛔ Modellwahl unklar::#${TICKET} — ${REASON}"
+        elif [ -z "$MODEL" ]; then
+          # Kein Label UND keine Analyse-Herkunft: Der Lauf gehört nicht zum
+          # analyse-getriebenen Routing (Harness-PR, manuell geöffneter PR, Renovate).
+          # Der Phasen-Default gilt — sichtbar als Notice, nicht stillschweigend.
+          echo "::notice title=🎚️ Modell::#${TICKET} — ${REASON}"
+        else
+          SUFFIX=""
+          [ "$ESCALATED" = "true" ] && SUFFIX=" (hochgestuft — wiederholte Review-Runden)"
+          echo "::notice title=🎚️ Modell::#${TICKET} läuft mit '${MODEL}'${SUFFIX}."
+        fi
+
+    - name: Bei Abbruch beim Menschen parken (ai:needs-human + Begründung)
+      if: steps.resolve.outputs.abort == 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        REPO: ${{ inputs.repo }}
+        TICKET: ${{ inputs.ticket }}
+        KIND: ${{ inputs.kind }}
+        REASON: ${{ steps.resolve.outputs.reason }}
+      run: |
+        set -uo pipefail
+
+        gh label create "ai:needs-human" --repo "$REPO" --color 5319e7 \
+          --description "Nicht-automatisierbare Entscheidung — wartet auf Mensch" 2>/dev/null || true
+
+        # Der Kommentar MUSS die Begründungspflicht erfüllen: Was ist zu entscheiden, worauf
+        # bezieht es sich, welche Optionen gibt es. „Bitte prüfen" wäre wertlos — es
+        # verlagert die Analysearbeit zurück auf den Menschen.
+        BODY="$(cat <<EOF
+        <!-- ai-model-label -->
+        ## ⛔ Modellwahl unklar — Pipeline gestoppt
+
+        **Was zu entscheiden ist:** Mit welchem Modell dieser Schritt laufen soll.
+
+        **Worauf es sich bezieht:** ${KIND} #${TICKET}
+
+        **Befund:** ${REASON}
+
+        **Optionen** — genau EIN Label setzen, dann läuft die Pipeline weiter:
+
+        | Label | Wann |
+        | --- | --- |
+        | \`ai:model:haiku\` | einfache, eng umrissene Aufgabe (Default) |
+        | \`ai:model:sonnet\` | mittlere Aufgabe |
+        | \`ai:model:opus\` | schwere Aufgabe, viel Kontext oder Entwurfsarbeit |
+
+        Danach \`ai:needs-human\` entfernen.
+
+        ---
+        _Automatisch gesetzt von der Modellwahl-Auswertung vor dem Claude-Start._
+        EOF
+        )"
+        # Einrückung des Heredocs entfernen (der YAML-Block ist eingerückt, der Kommentar
+        # soll es nicht sein — sonst rendert GitHub alles als Code-Block).
+        BODY="$(printf '%s' "$BODY" | sed 's/^        //')"
+
+        if [ "$KIND" = "pr" ]; then
+          LATEST="$(gh pr view "$TICKET" --repo "$REPO" --json comments --jq '.comments[-1].body // ""' 2>/dev/null || echo "")"
+        else
+          LATEST="$(gh issue view "$TICKET" --repo "$REPO" --json comments --jq '.comments[-1].body // ""' 2>/dev/null || echo "")"
+        fi
+
+        # Dedupe: Ein erneuter Trigger (Sweep, manuelles Re-Labeln) darf denselben Hinweis
+        # nicht ein zweites Mal posten — sonst ertrinkt das Ticket in Wiederholungen.
+        if [ "$LATEST" = "$BODY" ]; then
+          echo "::notice::Begründung steht bereits als jüngster Kommentar — kein Doppel-Post."
+        elif [ "$KIND" = "pr" ]; then
+          printf '%s' "$BODY" | gh pr comment "$TICKET" --repo "$REPO" --body-file -
+        else
+          printf '%s' "$BODY" | gh issue comment "$TICKET" --repo "$REPO" --body-file -
+        fi
+
+        if [ "$KIND" = "pr" ]; then
+          gh pr edit "$TICKET" --repo "$REPO" --add-label "ai:needs-human"
+        else
+          gh issue edit "$TICKET" --repo "$REPO" --add-label "ai:needs-human"
+        fi

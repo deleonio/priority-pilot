@@ -323,7 +323,7 @@ frisch ohne Kontext aus vorherigen Läufen derselben Phase.
 
 ## PR-Documenter: Arbeitsteilung Regel-Logik + LLM (Phase 7)
 
-Der Post-Merge-Documenter ([07-claude-pr-documenter.yml](../.github/workflows/07-claude-pr-documenter.yml))
+Der Post-Merge-Documenter ([06-claude-pr-documenter.yml](../.github/workflows/06-claude-pr-documenter.yml))
 war anfangs eine reine Prompt-Phase — empirisch drifteten dabei Kommentar-Formate, blieben
 Branch-Namen-Titel (`perf/#692: …`, `feat/issue-671-…`) unnormalisiert und landeten UX-Änderungen
 unter `perf(...)` (feste Prompt-Regel `improved→perf`). Jetzt entscheidet Regel-Logik, das LLM

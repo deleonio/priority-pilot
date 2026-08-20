@@ -150,7 +150,7 @@ Bei einem zu großen Ticket:
   roten Tests schreibt. **Bei sequenziellen Ketten (`blocked-by`, s. o.) nur den ersten,
   unblockierten Sub-Issue** mit dem Trigger versehen; die geblockten Nachfolger bleiben bei
   `ai:analysed` (auch wenn selbst 🟢) und werden **automatisch freigegeben, sobald ihr Vorgänger
-  gemergt ist**: [`issue-unblock.yml`](../.github/workflows/issue-unblock.yml) setzt
+  gemergt ist**: [`claude-issue-unblock.yml`](../.github/workflows/claude-issue-unblock.yml) setzt
   dann ihr `ai:needs-analyse` (per App-Token) und stößt eine Re-Triage gegen den neuen Code-Stand an, die
   ihrerseits den Phasen-Trigger setzt (🟢) oder mit Hinweisen beim Menschen bleibt (🟡/🔴). So läuft die
   Kette Glied für Glied, ohne dass mehrere „gleiche Dateien"-Sub-Issues gleichzeitig in Umsetzung
@@ -204,17 +204,69 @@ Bei einem zu großen Ticket:
 
     ```
     <!-- KI-ANALYSE:START stand=YYYY-MM-DDTHH:MM:SSZ -->
-    ## 🤖 KI-Analyse — Lösungsvorschlag
+    ### UI-Bezug
+    - UI-Bezug: ja|nein
+    - Begründung: <kurz>
 
-    **Umsetzbarkeit:** 🟢/🟡/🔴 <kurze Begründung>
+    ### Spec
+    - Spec nötig: ja|nein
+    - Begründung: <bei „nein" PFLICHT — warum eine Spezifikation nichts hinzufügt>
 
-    ### Akzeptanzkriterien & Testfälle
-    <AK + Testfälle — Pflichtblock, wird von Spec/Umsetzung gelesen>
+    ### Aufwandsklasse
+    - Aufwandsklasse: haiku|sonnet|opus
+    - Begründung: <woran der Aufwand hängt>
+
+    ### Umsetzungskontext
+    - Betroffene Dateien: `pfad/a.ts`, `pfad/b.ts`
+    - Betroffene Komponenten: <Funktion/Klasse/Endpunkt/Custom-Element>
+    - Vorhandenes Muster: `pfad/vorbild.ts` — <was dort gleichartig gelöst ist>
+    - Randbedingungen: <was nicht brechen darf>
+    - Erwartetes Ergebnis: <von außen beobachtbares Verhalten>
+
+    ### Akzeptanzkriterien
+    - AK1: <prüfbar formuliert>
+
+    ### Testfälle
+    <Testfall je AK, Ebene benannt (node:test | Vitest | e2e)>
+
+    ### Ampel
+    - Ampel: 🟢|🟡|🔴
+    - Begründung: <kurz>
 
     ### ❓ Offene Fragen
     - [ ] <Frage>   (ganzer Abschnitt entfällt, wenn keine offenen Fragen)
     <!-- KI-ANALYSE:END -->
     ```
+
+  - **`Spec nötig` steuert, ob die Spec-Phase läuft.** Die Spec liefert rote Tests als Vertrag für
+    die Umsetzung; TDD bleibt die Regel. Übersprungen wird nur, wo dieser Vertrag gar nicht
+    entstehen kann: bei Tickets **ohne Anwendungscode** (`server/src/**`, `frontend/src/**`,
+    `frontend/e2e/**`). Für Workflows, Skripte, Config und Markdown verbietet der Test-Carve-out
+    ([spec.md](../.github/prompts/spec.md), ADR-0001) ohnehin Tests — die Spec-Phase produzierte
+    dort nur ein Dokument.
+    - **Technisch begrenzt, nicht nur per Prompt:** `resolve-spec-skip.sh` prüft die Angabe gegen
+      die im selben Block deklarierten `Betroffene Dateien`. Zeigt auch nur ein Pfad in
+      Anwendungscode, läuft die Spec trotzdem. Jede Unsicherheit (Feld fehlt, unlesbar, keine
+      Pfade) führt ebenfalls zu „Spec läuft" — ein überflüssiger Lauf kostet Token, ein
+      fälschlich übersprungener kostet den Vertrag.
+    - **`needs_ux ⇒ needs_spec`:** UI-Bezug erzwingt die Spec — an zwei Stellen verankert, im
+      Skript und im `ux-ready`-Pfad von `02-claude-ux.yml` (der immer `ai:needs-spec` setzt).
+    - **Ohne Spec:** Die Analyse setzt direkt `ai:needs-impl`; die Umsetzung legt Branch **und**
+      PR selbst an (Direkt-Modus in `04-claude-implement.yml`).
+    - Die Aufwandsklasse ist davon **entkoppelt**: Eine `haiku`-Subtask kann eine Spec brauchen,
+      eine `opus`-Subtask rein serverseitig ohne Testpflicht sein.
+  - **`Aufwandsklasse` steuert das Modell der Folgephasen.** Der Workflow setzt daraus genau ein
+    `ai:model:<klasse>`-Label; `resolve-model-label.sh` liest es vor jedem Claude-Start. Fehlt es
+    oder ist es mehrdeutig, bricht die Folgephase ab und parkt mit Begründung beim Menschen —
+    es wird bewusst **nicht** still das teuerste Modell genommen.
+  - **`Umsetzungskontext` ist der Kern der Phase.** Die Analyse ist der einzige Schritt auf dem
+    starken Modell; alle Folgeschritte laufen günstiger und dürfen die Analyse nicht wiederholen
+    müssen. Pfade werden **am Code verifiziert** (Read/Glob), nicht geraten — ein erfundener Pfad
+    ist schlechter als keiner. Bei Sub-Issues wird der Kontext **je Sub-Issue eigenständig**
+    ausgefüllt, kein Verweis aufs Eltern-Ticket: die Umsetzung liest nur ihr eigenes Ticket.
+  - **Breite Recherche über einen Explore-Subagent** (Task-Tool) delegieren und nur das Ergebnis
+    zurückholen. Subagents laufen über `CLAUDE_CODE_SUBAGENT_MODEL` auf einem günstigeren Modell;
+    direktes Lesen zöge jede Datei in den teuren Elternkontext.
 
   - `stand` = ISO-8601 UTC, bei **jedem** Schreiben neu setzen: `date -u +%Y-%m-%dT%H:%M:%SZ`.
   - **Erst-Triage:** den Block **unten an den (lektorierten) Body anhängen**.
@@ -265,10 +317,28 @@ Ping-Kommentar** (`gh issue comment`), **keine** Vollanalyse mehr (die steht ab 
 - Setzen: `gh issue edit <nr> --add-label "ai:analysed"`
 - Damit fällt das Issue aus dem Auswahlkriterium von Schritt 1 heraus. (Beim Re-Triage ist das Label
   bereits gesetzt — dann genügt der aktualisierte Body-Block aus Schritt 4 plus der Ping aus Schritt 4b.)
+- **Uneindeutige Aufgabenstellung → `ai:needs-human` statt einer geratenen Analyse.** Lässt sich
+  eine Unklarheit nicht selbst auflösen (Code lesen, bestehendes Verhalten prüfen, Ticket-Historie),
+  wird nichts vorsorglich analysiert. Die Analyse gibt `VERDICT: needs-human` aus und postet **genau
+  einen** Kommentar, dessen erste Zeile exakt `<!-- ai-triage-decision -->` lautet, gefolgt von
+  **Was zu entscheiden ist / Worauf es sich bezieht / Optionen / Empfehlung**.
+  - **Begründungspflicht ist technisch erzwungen:** Der Workflow sucht den Marker über
+    `needs-human-explain.sh lookup --ticket <nr> --mode triage`. Fehlt er, postet der Workflow eine
+    Ersatz-Diagnose — das Label wird nie ohne Begründung gesetzt. „Bitte prüfen" oder „unklar"
+    erfüllt die Anforderung nicht: es verlagert die Analysearbeit zurück auf den Menschen.
+  - **Wirkung:** `check-phase-label.sh` blockt mit diesem Label **jede** Folgephase, auch wenn ein
+    Trigger klebt.
+  - **Fortsetzen:** `ai:needs-human` zu entfernen hebt nur die Sperre auf — es startet nichts.
+    Da das Ticket nach der Analyse `ai:analysed`, aber keinen Phasen-Trigger trägt, braucht es
+    zusätzlich einen Anstoß: Frage im Ticket beantworten, dann `ai:needs-analyse` setzen
+    (Re-Triage mit der Antwort als Delta-Kommentar) — oder, wenn die Analyse bereits taugt,
+    direkt den Folge-Trigger `ai:needs-ux-ui` bzw. `ai:needs-spec` setzen.
+
 - **Phasen-Trigger nach der Ampel aus Schritt 4 steuern** — nur eine **klar umsetzbare** Analyse
   geht weiter in die Pipeline, alles andere bleibt beim Menschen:
-  - **🟢 grün →** zusätzlich den Folge-Trigger setzen: `ai:needs-ux-ui` bei UI-Bezug, sonst
-    `ai:needs-spec` (Nicht-UI überspringt die UX-Beratung). Label bei Bedarf vorher anlegen
+  - **🟢 grün →** zusätzlich den Folge-Trigger setzen, in dieser Reihenfolge: `ai:needs-ux-ui` bei
+    UI-Bezug; sonst `ai:needs-spec`; sonst — wenn `Spec nötig: nein` die Prüfung in
+    `resolve-spec-skip.sh` besteht — direkt `ai:needs-impl` (Spec übersprungen). Label bei Bedarf vorher anlegen
     (`gh label create "ai:needs-ux-ui" --color FBCA04 --description "UX-Beratung läuft als nächste Phase"` bzw.
     `gh label create "ai:needs-spec" --color FBCA04 --description "Spec-Stufe schreibt rote Tests"`),
     dann `gh issue edit <nr> --add-label "ai:needs-ux-ui"` bzw. `"ai:needs-spec"`. Damit schreibt die

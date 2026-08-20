@@ -1,0 +1,75 @@
+name: 'Claude-Arbeitsumgebung (pnpm, Playwright, Inspect-Instanz)'
+description: >-
+  Baut die Umgebung auf, die eine Code-schreibende Claude-Phase braucht: pnpm + Node aus
+  .nvmrc, Abhängigkeiten, Git-Hooks, Chromium für Playwright und die laufende Inspect-Instanz
+  auf http://localhost:4174.
+
+# WARUM AUSGELAGERT: Diese acht Schritte standen wortgleich in 04-claude-implement.yml und
+# 06-claude-pr-fixup.yml. Beim Zusammenführen beider Phasen (ADR-0005) wären sie zweimal in
+# EINER Datei gelandet — zwei Kopien, die auseinanderlaufen, sobald jemand nur eine anfasst.
+# Der Playwright-Cache-Key und die Readiness-Schwelle der Inspect-Instanz sind genau die Art
+# Detail, bei der eine übersehene Kopie erst im Produktivlauf auffällt.
+#
+# KEIN `if:` NÖTIG: Die aufrufenden Jobs gaten den Step, der diese Action einbindet. Composite-
+# Actions haben keinen eigenen Job-Kontext — was hier steht, läuft immer, wenn der Aufruf läuft.
+
+runs:
+  using: composite
+  steps:
+    - name: pnpm einrichten
+      uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
+
+    - name: Node.js einrichten
+      uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+      with:
+        node-version-file: .nvmrc
+        cache: pnpm
+
+    - name: Abhängigkeiten installieren
+      shell: bash
+      run: pnpm install --frozen-lockfile
+
+    - name: Git-Hooks installieren (lefthook)
+      shell: bash
+      run: pnpm exec lefthook install
+
+    - name: Playwright-Cache (ms-playwright)
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/ms-playwright
+        key: ${{ runner.os }}-playwright-${{ hashFiles('**/pnpm-lock.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-playwright-
+
+    - name: Chromium installieren (Playwright)
+      shell: bash
+      run: pnpm --filter frontend exec playwright install --with-deps chromium
+
+    - name: Server bauen (für Inspect no-watch)
+      shell: bash
+      run: pnpm --filter server build
+
+    - name: Inspect-Instanz im Hintergrund starten
+      shell: bash
+      env:
+        INSPECT_NO_WATCH: '1'
+      run: |
+        nohup ./ui-inspect.sh > /tmp/ui-inspect.log 2>&1 &
+        echo "::notice::Inspect-Instanz gestartet (Hintergrund)"
+        # Readiness-Check mit Timeout 120s: der Server startet ohne nodemon/Rebuild
+        # (INSPECT_NO_WATCH + vorab gebautes dist) in Sekunden. Beim Fail das Log mitgeben.
+        timeout=120
+        elapsed=0
+        while [ $elapsed -lt $timeout ]; do
+          if curl -s http://localhost:4174 >/dev/null 2>&1; then
+            echo "::notice::✅ Inspect-Instanz bereit nach ${elapsed}s"
+            exit 0
+          fi
+          sleep 2
+          elapsed=$((elapsed + 2))
+        done
+        echo "::error::Inspect-Instanz nicht innerhalb von ${timeout}s bereit (Timeout)"
+        echo "::group::ui-inspect.log (letzte 60 Zeilen)"
+        tail -n 60 /tmp/ui-inspect.log || true
+        echo "::endgroup::"
+        exit 1

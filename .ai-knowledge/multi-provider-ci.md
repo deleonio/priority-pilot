@@ -168,7 +168,7 @@ gh workflow run ci-multi-provider.yml  # Default: claude
 ## Dateien
 
 - Action: `.github/actions/setup-claude/action.yml`
-- Pipeline-Workflows: `.github/workflows/01-claude-triage.yml` bis `07-claude-pr-documenter.yml` (inkl. `02-claude-ux.yml`)
+- Pipeline-Workflows: `.github/workflows/01-claude-triage.yml` bis `06-claude-pr-documenter.yml` (inkl. `02-claude-ux.yml`)
 - Haupt-CI (Gate): `.github/workflows/ci.yml`
 - CI Multi-Provider (Vergleich): `.github/workflows/ci-multi-provider.yml`
 - Local Config: `.claude/settings.local.json` (gitignored)

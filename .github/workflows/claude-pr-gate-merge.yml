@@ -30,7 +30,7 @@ on:
     # Allowlist: NUR diese beiden Workflows gaten/wecken. Externe Checks (z. B. Renovate) zaehlen
     # bewusst nicht mit. Die Namen muessen exakt den `name:`-Feldern von ci.yml bzw.
     # 05-claude-pr-review.yml entsprechen.
-    workflows: ['CI', '5/7 Review']
+    workflows: ['CI', '5/6 Review']
     types: [completed]
   pull_request:
     # ai:reviewed wird gesetzt (CI evtl. schon gruen). Auf den Label-Namen wird im job-if
@@ -212,15 +212,15 @@ jobs:
             checks="$(gh pr checks "$pr" --repo "$REPO" --json name,bucket,workflow)" || true
             if [ -z "$checks" ]; then checks='[]'; fi
             # `.name != "precheck"` schliesst den Label-Pre-Check-Job aus: Er laeuft unter
-            # demselben Workflow-NAMEN ("5/7 Review") und wuerde sonst doppelt zaehlen. Zwei
+            # demselben Workflow-NAMEN ("5/6 Review") und wuerde sonst doppelt zaehlen. Zwei
             # Folgen ohne den Filter: (1) ein Infrastruktur-Fehler im precheck (Checkout,
             # Timeout, unbekannte Phase) faerbt any_fail rot und degradiert einen sauberen
             # Review zu ai:needs-fixup — ein Fixup-Loop fuer einen Job, der gar nicht
             # arbeitet; (2) has_review waere schon durch den precheck erfuellt und die
             # Retry-Schleife braeche ab, bevor der echte Review-Check sichtbar ist.
-            allow="$(echo "$checks" | jq '[.[] | select(.workflow == "CI" or (.workflow == "5/7 Review" and .name != "precheck"))]')"
+            allow="$(echo "$checks" | jq '[.[] | select(.workflow == "CI" or (.workflow == "5/6 Review" and .name != "precheck"))]')"
             has_ci="$(echo "$allow" | jq -r 'any(.[]; .workflow == "CI")')"
-            has_review="$(echo "$allow" | jq -r 'any(.[]; .workflow == "5/7 Review")')"
+            has_review="$(echo "$allow" | jq -r 'any(.[]; .workflow == "5/6 Review")')"
             if [ "$has_ci" = "true" ] && [ "$has_review" = "true" ]; then
               break
             fi
@@ -312,7 +312,7 @@ jobs:
               echo "### CI-Gate #${pr} — ai:needs-fixup gesetzt"
               echo ""
               echo "- Rote Allowlist-Checks: ${red}"
-              echo "- Folge: 06-claude-pr-fixup.yml wird ausgeloest."
+              echo "- Folge: 04-claude-implement.yml (PR-Eingang) wird ausgeloest."
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
@@ -383,7 +383,7 @@ jobs:
                 echo "### CI-Gate #${pr} — ai:needs-fixup wegen Merge-Konflikt gesetzt"
                 echo ""
                 echo "- Merge-Konflikte erkannt (mergeable=$mergeable, state=$merge_state)"
-                echo "- Folge: 06-claude-pr-fixup.yml wird ausgelöst."
+                echo "- Folge: 04-claude-implement.yml (PR-Eingang) wird ausgelöst."
               } >> "$GITHUB_STEP_SUMMARY"
             else
               echo "PR #$pr ist nicht sauber mergebar (mergeable=$mergeable, state=$merge_state) — warte auf nächsten Event (No-op)."

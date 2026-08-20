@@ -9,7 +9,9 @@
 
 ### Ziel
 
-Header zeigt die Elemente in der Reihenfolge Logo → Name → Avatar → Toolbar, mit integrierter KI-Modell-Auswahl.
+Header zeigt die Elemente in der Reihenfolge Logo → Name → Toolbar → Avatar, mit integrierter
+KI-Modell-Auswahl. (Korrigiert in v1.2 durch #912 — Avatar steht seither als letztes Element ganz
+rechts, siehe Versionierung.)
 
 ### Vorbedingung
 
@@ -21,11 +23,12 @@ Header zeigt die Elemente in der Reihenfolge Logo → Name → Avatar → Toolba
 1. **Header-Elemente identifizieren**
    - Logo (App-Icon/Brand)
    - App-Name „Priority Pilot"
-   - User-Avatar mit Profil-Bild
    - Toolbar mit verschiedenen Aktionen
+   - User-Avatar mit Profil-Bild
 
 2. **Reihenfolge prüfen**
-   - Visuelle Anordnung von links nach rechts: Logo → Name → Avatar → Toolbar
+   - Visuelle Anordnung von links nach rechts: Logo → Name → Toolbar → Avatar
+   - Avatar ist das letzte Element ganz rechts im Header
    - Keine Elemente außerhalb dieser Sequenz
 
 3. **KI-Modell-Auswahl in Toolbar lokalisieren**
@@ -37,7 +40,7 @@ Header zeigt die Elemente in der Reihenfolge Logo → Name → Avatar → Toolba
 
 ### Erwartetes Ergebnis
 
-- Header-Layout folgt strikt der Reihenfolge: Logo → Name → Avatar → Toolbar
+- Header-Layout folgt strikt der Reihenfolge: Logo → Name → Toolbar → Avatar
 - KI-Modell-Auswahl ist visuell Teil der Toolbar: gemeinsamer Container, gemeinsame Ausrichtung,
   direkt benachbart
 - Keine Layout-Shifts oder broken images
@@ -245,3 +248,8 @@ Alle UI-Elemente erfüllen BITV 2.1 Kontrast-Anforderungen.
   haben: ARIA-Rolle `toolbar` bleibt bei `kol-toolbar`, das Popup ist ein Dialog (nicht Listbox),
   Label ohne hartcodierte Options-Anzahl, Tab-Reihenfolge über die bedienbaren Elemente,
   Header-Stabilität ab Ende der Hydration.
+- **v1.2** (2026-08-20): Journey 1 korrigiert für #912 — Nutzer-Feedback ergab, dass der Avatar
+  links-mittig direkt neben der Wortmarke sitzt statt rechtsbündig. Reihenfolge geändert von
+  Logo → Name → Avatar → Toolbar auf Logo → Name → Toolbar → Avatar; der Avatar ist jetzt das
+  letzte Element ganz rechts im Header. Größenrelation (1,25 × `--pp-toolbar-height`) und
+  Einzeiler-Vertrag bei 375px/768px bleiben unverändert.
