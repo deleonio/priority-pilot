@@ -360,14 +360,57 @@ runs:
           /usr/local/bin/claude
         key: claude-code-cli-${{ runner.os }}-v3
 
-    - name: Claude Code installieren
-      if: steps.preflight.outputs.configured == 'true' && steps.cache-claude.outputs.cache-hit != 'true'
+    # VERIFIZIEREN STATT VERTRAUEN: Die Bedingung lautete lange „installiere nur, wenn der
+    # Cache NICHT griff". Ein Cache-Treffer beweist aber nur, dass Dateien da sind — nicht,
+    # dass die CLI startet. Die plattform-native Binary kommt über ein Postinstall
+    # (`install.cjs`) bzw. eine optionale Abhängigkeit; fehlt sie im gecachten Stand, endet
+    # jeder Lauf mit „claude native binary not installed", und zwar dauerhaft: Der statische
+    # Key invalidiert nie, und der Install-Step wurde bei Treffer übersprungen. Ein
+    # Key-Bust heilt das genau einmal — die Prüfung unten dauerhaft.
+    #
+    # Zweiter Gewinn: Der Abbruch passiert HIER statt im Phasen-Step. Vorher lief die Phase
+    # erst 5–10 Minuten (Setup, pnpm, Chromium, Server-Build) und starb dann im
+    # claude-Aufruf, wo die Ursache im Log untergeht und wie ein Provider-/Modellfehler
+    # aussieht.
+    - name: Claude Code bereitstellen und prüfen
+      if: steps.preflight.outputs.configured == 'true'
       shell: bash
       run: |
+        set -uo pipefail
+
+        cli_ok() { claude --version >/dev/null 2>&1; }
+
+        if cli_ok; then
+          echo "::notice title=Claude CLI::Lauffähig ($(claude --version 2>/dev/null))."
+          exit 0
+        fi
+
+        if [ "${{ steps.cache-claude.outputs.cache-hit }}" = "true" ]; then
+          echo "::warning title=Claude CLI unvollständig::Cache-Treffer, aber die CLI startet nicht — wird neu installiert. Passiert das in JEDEM Lauf, liegt die native Binary außerhalb der gecachten Pfade: dann die path-Liste oben erweitern."
+        fi
+
         npm install -g @anthropic-ai/claude-code
-        # Postinstall manuell ausführen (optional dependency / native binary)
-        node /usr/local/lib/node_modules/@anthropic-ai/claude-code/install.cjs 2>/dev/null || true
-        echo "::notice::Claude Code CLI installiert."
+
+        # Postinstall notfalls von Hand: Manche npm-/pnpm-Konfigurationen überspringen
+        # Scripts (--ignore-scripts) oder optionale Abhängigkeiten (--omit=optional) —
+        # genau dann fehlt die native Binary. Der Fehlertext der CLI nennt diesen Weg
+        # selbst als Abhilfe. `npm root -g` statt hartem Pfad, damit ein anderer
+        # Runner-/Node-Setup nicht still am falschen Ort sucht.
+        if ! cli_ok; then
+          PKG="$(npm root -g 2>/dev/null)/@anthropic-ai/claude-code"
+          if [ -f "$PKG/install.cjs" ]; then
+            echo "::notice title=Claude CLI::Postinstall wird manuell nachgeholt ($PKG/install.cjs)."
+            node "$PKG/install.cjs" || true
+          else
+            echo "::warning title=Claude CLI::install.cjs nicht gefunden unter $PKG — Paketlayout abweichend?"
+          fi
+        fi
+
+        if ! cli_ok; then
+          echo "::error title=Claude CLI nicht lauffähig::'claude --version' startet auch nach Neuinstallation nicht. Der Lauf wird hier beendet, statt später im LLM-Aufruf zu scheitern."
+          exit 1
+        fi
+        echo "::notice title=Claude CLI::Neu installiert und lauffähig ($(claude --version 2>/dev/null))."
 
     - name: Claude Code Trust-Dialog für CI-Workspace akzeptieren
       if: steps.preflight.outputs.configured == 'true'
