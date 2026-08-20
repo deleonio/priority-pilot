@@ -125,7 +125,7 @@ unverändert 3000). Überschreibbar per `INSPECT_BACKEND_PORT` / `INSPECT_FRONTE
   aktiv. Die Workflows installieren Chromium (cached, `pnpm --filter frontend exec playwright install --with-deps chromium`),
   bauen den Server vorab und starten die Inspect-Instanz im Hintergrund (`INSPECT_NO_WATCH=1 nohup ./ui-inspect.sh`
   mit Readiness-Check auf http://localhost:4174, Timeout 120s). Die anderen Phasen (01 Triage, 03 Spec, 05 Review)
-  nutzen nur KoliBri-MCP; Documenter (07) hat keinen
+  nutzen nur KoliBri-MCP; Documenter (06) hat keinen
   MCP-Zugang. Siehe [ci-architecture.md](ci-architecture.md).
 - Der Agent ersetzt keine E2E-Tests: was dauerhaft gelten soll, gehört als Spec nach
   `frontend/e2e/` (siehe [TDD-Strategie](../.ai-knowledge/tdd-strategy.md)).

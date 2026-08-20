@@ -219,7 +219,7 @@ ist er nicht der Default-Pfad (`claude`).
 
 ## MCP-Server für KoliBri und Playwright (Browser-Inspektion)
 
-Der **KoliBri MCP-Server** (`kolibri-mcp`) ist in allen Phasen außer Documenter (07) via `needs-mcp: true`
+Der **KoliBri MCP-Server** (`kolibri-mcp`) ist in allen Phasen außer Documenter (06) via `needs-mcp: true`
 verfügbar und liefert KoliBri-Komponenten-Suche und Dokumentation. Der **Playwright MCP-Server**
 (`playwright`) steht zusätzlich in UX (02) und Umsetzung (04, beide Eingänge) via `browser-mcp: true`
 für Layout-Prüfung bei 375px/1280px Viewport auf der laufenden Inspect-Instanz (http://localhost:4174).

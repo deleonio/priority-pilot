@@ -120,9 +120,9 @@ Review in einer eigenen Concurrency-Gruppe läuft und die gemeinsame Gruppe ihn 
   >
   > - PR-Eingang — [Lauf 32333104609](https://github.com/deleonio/priority-pilot/actions/runs/32333104609)
   >   (`feat/issue-902-axe-core-e2e`): Job `fixup` grün über alle Steps, Job `implement` korrekt
-  >   übersprungen. Damit ist auch der Start-Konsum belegt, der `check-phase-label.sh --phase
-implement-pr` aufruft — die Stelle, an der ein Branch mit altem Skript hätte scheitern
-  >   können (der Target-Merge davor greift wie vorgesehen).
+  >   übersprungen. Damit ist auch der Start-Konsum belegt, der
+  >   `check-phase-label.sh --phase implement-pr` aufruft — die Stelle, an der ein Branch mit
+  >   altem Skript hätte scheitern können (der Target-Merge davor greift wie vorgesehen).
   > - Issue-Eingang — [Lauf 32347325911](https://github.com/deleonio/priority-pilot/actions/runs/32347325911):
   >   Job `implement` grün, Job `fixup` korrekt übersprungen.
   >
