@@ -17,6 +17,7 @@ nicht Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 - [Deployment](docs/deployment.md) — Merge→Build→rsync→PM2, Host-Layout, Rollback
 - [CI-Architektur](docs/ci-architecture.md) — Provider, Modelle, Soft-Abort, Label-Pipeline, KoliBri MCP
 - [Pipeline-Flow](docs/pipeline-flow.md) — Mermaid-Diagramm des label-getriebenen Ticket-Flows
+- [Kosten-Baseline #912](docs/kosten-baseline-912.md) — was ein Ticket über alle Phasen an Token und Geld kostet (erste Vollmessung)
 - [Architektur-Entscheidungen (ADRs)](docs/adr/) — verbindliche Grundsatzentscheidungen: [0001 Workflows ungetestet](docs/adr/0001-github-workflows-bleiben-ungetestet.md), [0002 7-Phasen-Pipeline](docs/adr/0002-pipeline-7-phasen-ux-vor-spec.md), [0003 Label-Schema](docs/adr/0003-label-schema-ai-needs-und-past.md), [0004 Analyse-getriebenes Routing](docs/adr/0004-analyse-getriebenes-routing.md), [0005 Fixup+Umsetzung = eine Phase](docs/adr/0005-fixup-und-umsetzung-sind-eine-phase.md)
 - [CI-Legacy-Vergleich](docs/ci-legacy-comparison.md) — Struktur-/Stabilitäts-Vergleich Legacy vs. aktuell
 - [Tailscale Exit Node](docs/tailscale-exit-node.md) — CI-Traffic über Nürnberger Tailscale-Exit-Node (manueller Test-Workflow)

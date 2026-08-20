@@ -108,18 +108,22 @@ oder hat kein Guthaben — dann in der Anthropic Console prüfen und
 > Gilt nur für den `zai`-Zweig. Bei `LLM_PROVIDER=claude` löst `"model": "opus"` auf echtes
 > Claude Opus auf und die folgenden Kontingent-/Parallelitäts-Überlegungen entfallen.
 
-Die sieben LLM-Workflows (sieben Ticket-Phasen 01–07 inkl. Post-Merge-Documenter) nutzen **phasenspezifische Modell-Defaults**:
+Die sechs LLM-Workflows (Ticket-Phasen 01–06 inkl. Post-Merge-Documenter) nutzen **phasenspezifische Modell-Defaults**:
 Jede Phase reicht ihre eigene `CLAUDE_MODEL_*`-Variable an `setup-claude` durch; GitHub-Vars dienen als Override/Experimente.
 
-| Phase          | Variable                     | Default (`LLM_PROVIDER=claude`) | Default (`LLM_PROVIDER=zai`) | Begründung                                      |
-| -------------- | ---------------------------- | ------------------------------- | ---------------------------- | ----------------------------------------------- |
-| Triage (01)    | `CLAUDE_MODEL_TRIAGE`        | `fable`                         | `glm-5.2`                    | Höchste Qualität für Analyse/Sub-Task-Schneiden |
-| Spec (03)      | `CLAUDE_MODEL_SPEC`          | `sonnet`                        | `glm-4.7`                    | Balanciert für Design-Dokumente                 |
-| UX (02)        | `CLAUDE_MODEL_UX`            | `sonnet`                        | `glm-4.7`                    | Balanciert für UX-Review                        |
-| Implement (04) | `CLAUDE_MODEL_IMPLEMENT`     | `opus`                          | `glm-5.1`                    | Maximale Qualität für Code-Generierung          |
-| Review (05)    | `CLAUDE_MODEL_PR_REVIEW`     | `opus`                          | `glm-5.1`                    | Tiefes Verständnis für Code-Review              |
-| Fixup (06)     | `CLAUDE_MODEL_FIXUP`         | `sonnet`                        | `glm-4.7`                    | Großer Context (CI-Logs), kosteneffizient       |
-| Documenter     | `CLAUDE_MODEL_DOCUMENTATION` | `haiku`                         | `glm-4.5-air`                | Schnelle Documentation-Generierung              |
+Seit [ADR 0005](adr/0005-fixup-und-umsetzung-sind-eine-phase.md) ist die Nacharbeit an Review-Findings kein eigener Workflow mehr, sondern der PR-Eingang der Umsetzungsphase — `CLAUDE_MODEL_FIXUP` gilt weiterhin, nur eben für den zweiten Eingang von 04.
+
+Was diese Wahl an einem realen Ticket gekostet hat, steht in der [Kosten-Baseline zu #912](kosten-baseline-912.md).
+
+| Phase                       | Variable                     | Default (`LLM_PROVIDER=claude`) | Default (`LLM_PROVIDER=zai`) | Begründung                                      |
+| --------------------------- | ---------------------------- | ------------------------------- | ---------------------------- | ----------------------------------------------- |
+| Triage (01)                 | `CLAUDE_MODEL_TRIAGE`        | `fable`                         | `glm-5.2`                    | Höchste Qualität für Analyse/Sub-Task-Schneiden |
+| Spec (03)                   | `CLAUDE_MODEL_SPEC`          | `sonnet`                        | `glm-4.7`                    | Balanciert für Design-Dokumente                 |
+| UX (02)                     | `CLAUDE_MODEL_UX`            | `sonnet`                        | `glm-4.7`                    | Balanciert für UX-Review                        |
+| Implement (04)              | `CLAUDE_MODEL_IMPLEMENT`     | `opus`                          | `glm-5.1`                    | Maximale Qualität für Code-Generierung          |
+| Review (05)                 | `CLAUDE_MODEL_PR_REVIEW`     | `opus`                          | `glm-5.1`                    | Tiefes Verständnis für Code-Review              |
+| Nacharbeit (04, PR-Eingang) | `CLAUDE_MODEL_FIXUP`         | `sonnet`                        | `glm-4.7`                    | Großer Context (CI-Logs), kosteneffizient       |
+| Documenter (06)             | `CLAUDE_MODEL_DOCUMENTATION` | `haiku`                         | `glm-4.5-air`                | Schnelle Documentation-Generierung              |
 
 **Override-Syntax:** Jeder Workflow nutzt `model: ${{ vars.CLAUDE_MODEL_<PHASE> || '<default>' }}` — ist die GitHub-Variable nicht gesetzt, greift der Default-Wert. Default-Änderungen erfolgen in den Workflow-Dateien, nicht via Repo-Vars.
 
@@ -132,7 +136,7 @@ Jede Phase reicht ihre eigene `CLAUDE_MODEL_*`-Variable an `setup-claude` durch;
 - **Kontingent:** Alle Modelle außer `glm-5.2`/`glm-5-turbo` kosten **denselben** Anteil (1×) —
   ein leichteres Modell spart also nichts, kostet aber Qualität.
 - **Parallelität:** `glm-5.1` erlaubt **10 parallele Läufe**. Die label-getriebene Pipeline kann
-  mehrere Workflows gleichzeitig feuern (Triage + Implement + Review + Fixup + Spec).
+  mehrere Workflows gleichzeitig feuern (Triage + Umsetzung + Review + Spec).
   `glm-4.7-flash` erlaubt nur **1 gleichzeitigen Aufruf** → Läufe würden sich gegenseitig
   blockieren.
   Seit der globalen Phasen-Serialisierung (statische `concurrency`-Gruppe je Phase, s.
@@ -203,7 +207,7 @@ Label-Post-Assertion.
 | `APP_ID`             | GitHub App (Token für Label-/PR-Operationen)                |
 | `APP_PRIVATE_KEY`    | GitHub App (Token für Label-/PR-Operationen)                |
 
-Alle drei LLM-Secrets werden von allen sieben LLM-Workflows durchgereicht; welches davon greift, entscheidet
+Alle drei LLM-Secrets werden von allen sechs LLM-Workflows durchgereicht; welches davon greift, entscheidet
 `vars.LLM_PROVIDER`. Nur das Secret des **aktiven** Providers muss gesetzt sein — die anderen dürfen
 leer bleiben, ohne den Lauf zu brechen.
 
@@ -217,7 +221,7 @@ ist er nicht der Default-Pfad (`claude`).
 
 Der **KoliBri MCP-Server** (`kolibri-mcp`) ist in allen Phasen außer Documenter (07) via `needs-mcp: true`
 verfügbar und liefert KoliBri-Komponenten-Suche und Dokumentation. Der **Playwright MCP-Server**
-(`playwright`) steht zusätzlich in UX (02), Umsetzung (04) und Fixup (06) via `browser-mcp: true`
+(`playwright`) steht zusätzlich in UX (02) und Umsetzung (04, beide Eingänge) via `browser-mcp: true`
 für Layout-Prüfung bei 375px/1280px Viewport auf der laufenden Inspect-Instanz (http://localhost:4174).
 
 **Einrichtung:** Beide Server sind in `.mcp.json` registriert (KoliBri: HTTP, Playwright: `@playwright/mcp@0.0.79`,

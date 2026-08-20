@@ -121,7 +121,7 @@ unverändert 3000). Überschreibbar per `INSPECT_BACKEND_PORT` / `INSPECT_FRONTE
 
 - **Provider-Umschaltung** (`export ANTHROPIC_BASE_URL=…`) gehört in die Shell, nicht in
   `.claude/settings.json` — die bleibt bewusst providerneutral (siehe [AGENTS.md](../AGENTS.md)).
-- **CI:** Playwright-MCP ist in den Phasen UX (02), Umsetzung (04) und Fixup (06) via `browser-mcp: true`
+- **CI:** Playwright-MCP ist in den Phasen UX (02) und Umsetzung (04, beide Eingänge) via `browser-mcp: true`
   aktiv. Die Workflows installieren Chromium (cached, `pnpm --filter frontend exec playwright install --with-deps chromium`),
   bauen den Server vorab und starten die Inspect-Instanz im Hintergrund (`INSPECT_NO_WATCH=1 nohup ./ui-inspect.sh`
   mit Readiness-Check auf http://localhost:4174, Timeout 120s). Die anderen Phasen (01 Triage, 03 Spec, 05 Review)
