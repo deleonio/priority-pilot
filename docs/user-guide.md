@@ -222,8 +222,9 @@ Spracherkennung unterstützt.
 
 - Im Feld erscheint ein **Mikrofon-Button**. Ein Klick startet die Aufnahme, ein
   weiterer stoppt sie. Erkannter Text wird an den bestehenden Inhalt angehängt.
-- Die erkannte Sprache richtet sich nach deiner Browser-/System-Einstellung
-  (keine fest vorgegebene Sprache).
+- Standardmäßig wird **Deutsch** (`de-DE`) verwendet. Die Sprache lässt sich
+  über den optionalen `lang`-Parameter anpassen (Browser-Default wird genutzt,
+  wenn `undefined` übergeben wird).
 - Optional startet die Aufnahme **automatisch** beim Öffnen der Formulare – aktivierbar
   über _Einstellungen → Allgemein → „Sprachaufnahme automatisch starten"_.
 
