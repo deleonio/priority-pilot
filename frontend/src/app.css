@@ -1821,3 +1821,38 @@ body {
 	font-size: 0.875rem;
 	color: var(--pp-text-muted);
 }
+
+/* --- Issue #930: Transparente Host-Hintergründe für alle KoliBri-Komponenten --- */
+/* KoliBri-Komponenten liefern Standard-Hintergründe mit; wir setzen sie auf transparent,
+   damit die Seiten-Farbe (--pp-surface-0) durchscheint. Custom Properties vererben
+   weiterhin in den Shadow-DOM, sodass interne Token (--kol-*, --a11y-*) wirksam bleiben. */
+kol-alert,
+kol-avatar,
+kol-badge,
+kol-button,
+kol-card,
+kol-dialog,
+kol-heading,
+kol-input-checkbox,
+kol-input-date,
+kol-input-password,
+kol-input-radio,
+kol-input-range,
+kol-input-text,
+kol-meter,
+kol-popover-button,
+kol-single-select,
+kol-spin,
+kol-tabs,
+kol-textarea,
+kol-toolbar,
+/* Future-Proofing (aktuell nicht im Projekt verbaut): */
+kol-icon,
+kol-span,
+kol-table-stateful,
+kol-tooltip,
+kol-tree,
+kol-tree-item,
+kol-bx {
+	background-color: transparent;
+}
