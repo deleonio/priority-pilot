@@ -1845,14 +1845,6 @@ kol-single-select,
 kol-spin,
 kol-tabs,
 kol-textarea,
-kol-toolbar,
-/* Future-Proofing (aktuell nicht im Projekt verbaut): */
-kol-icon,
-kol-span,
-kol-table-stateful,
-kol-tooltip,
-kol-tree,
-kol-tree-item,
-kol-bx {
+kol-toolbar {
 	background-color: transparent;
 }

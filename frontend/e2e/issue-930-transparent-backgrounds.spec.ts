@@ -35,14 +35,6 @@ const KOLOBRI_HOST_ELEMENTS = [
 	'kol-tabs',
 	'kol-textarea',
 	'kol-toolbar',
-	// Future-Proofing (aktuell nicht im Projekt verbaut, aber in CSS-Regel enthalten):
-	'kol-icon',
-	'kol-span',
-	'kol-table-stateful',
-	'kol-tooltip',
-	'kol-tree',
-	'kol-tree-item',
-	'kol-bx',
 ] as const;
 
 const isElementUsedInProject = (tag: string): boolean => {
@@ -196,6 +188,10 @@ test.describe('#930: Transparente KoliBri-Host-Hintergründe', () => {
 
 			return element.evaluate((el) => {
 				const channels = (value: string): number[] => (value.match(/\d+/g) ?? []).slice(0, 3).map(Number);
+				const alpha = (value: string): number => {
+					const parts = value.match(/[\d.]+/g) ?? [];
+					return parts.length > 3 ? Number(parts[3]) : 1;
+				};
 				const luminance = ([r, g, b]: number[]): number => {
 					const linear = (channel: number): number => {
 						const v = channel / 255;
@@ -208,7 +204,7 @@ test.describe('#930: Transparente KoliBri-Host-Hintergründe', () => {
 				let background = 'rgb(255, 255, 255)';
 				while (node !== null) {
 					const candidate = window.getComputedStyle(node).backgroundColor;
-					if (candidate !== '' && !candidate.startsWith('rgba(0, 0, 0, 0')) {
+					if (candidate !== '' && alpha(candidate) > 0) {
 						background = candidate;
 						break;
 					}
@@ -229,12 +225,11 @@ test.describe('#930: Transparente KoliBri-Host-Hintergründe', () => {
 
 		// kol-badge auf Dashboard (Startseite)
 		const badgeSample = await measureContrast('kol-badge');
-		if (badgeSample) {
-			expect(
-				badgeSample.ratio,
-				`kol-badge Kontrast ${badgeSample.ratio}:1 (${badgeSample.color} auf ${badgeSample.background})`,
-			).toBeGreaterThanOrEqual(MIN_CONTRAST);
-		}
+		expect(badgeSample, 'kol-badge muss auf dem Dashboard vorhanden sein').not.toBeNull();
+		expect(
+			badgeSample!.ratio,
+			`kol-badge Kontrast ${badgeSample!.ratio}:1 (${badgeSample!.color} auf ${badgeSample!.background})`,
+		).toBeGreaterThanOrEqual(MIN_CONTRAST);
 
 		// kol-heading: auf Einstellungen-Seite navigieren (über Toolbar-Zahnrad-Button)
 		const settingsButton = page.getByRole('button', { name: /Einstellungen|Settings/i });
@@ -243,31 +238,28 @@ test.describe('#930: Transparente KoliBri-Host-Hintergründe', () => {
 		await waitForStableView(page);
 
 		const headingSample = await measureContrast('kol-heading');
-		if (headingSample) {
-			expect(
-				headingSample.ratio,
-				`kol-heading Kontrast ${headingSample.ratio}:1 (${headingSample.color} auf ${headingSample.background})`,
-			).toBeGreaterThanOrEqual(MIN_CONTRAST);
-		}
+		expect(headingSample, 'kol-heading muss auf der Einstellungen-Seite vorhanden sein').not.toBeNull();
+		expect(
+			headingSample!.ratio,
+			`kol-heading Kontrast ${headingSample!.ratio}:1 (${headingSample!.color} auf ${headingSample!.background})`,
+		).toBeGreaterThanOrEqual(MIN_CONTRAST);
 
 		// Dark Mode
 		await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
 
 		const badgeSampleDark = await measureContrast('kol-badge');
-		if (badgeSampleDark) {
-			expect(
-				badgeSampleDark.ratio,
-				`kol-badge (Dark) Kontrast ${badgeSampleDark.ratio}:1 (${badgeSampleDark.color} auf ${badgeSampleDark.background})`,
-			).toBeGreaterThanOrEqual(MIN_CONTRAST);
-		}
+		expect(badgeSampleDark, 'kol-badge (Dark Mode) muss vorhanden sein').not.toBeNull();
+		expect(
+			badgeSampleDark!.ratio,
+			`kol-badge (Dark) Kontrast ${badgeSampleDark!.ratio}:1 (${badgeSampleDark!.color} auf ${badgeSampleDark!.background})`,
+		).toBeGreaterThanOrEqual(MIN_CONTRAST);
 
 		const headingSampleDark = await measureContrast('kol-heading');
-		if (headingSampleDark) {
-			expect(
-				headingSampleDark.ratio,
-				`kol-heading (Dark) Kontrast ${headingSampleDark.ratio}:1 (${headingSampleDark.color} auf ${headingSampleDark.background})`,
-			).toBeGreaterThanOrEqual(MIN_CONTRAST);
-		}
+		expect(headingSampleDark, 'kol-heading (Dark Mode) muss vorhanden sein').not.toBeNull();
+		expect(
+			headingSampleDark!.ratio,
+			`kol-heading (Dark) Kontrast ${headingSampleDark!.ratio}:1 (${headingSampleDark!.color} auf ${headingSampleDark!.background})`,
+		).toBeGreaterThanOrEqual(MIN_CONTRAST);
 	});
 
 	/**
