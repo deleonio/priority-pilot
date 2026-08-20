@@ -264,7 +264,15 @@ jobs:
           3. Oder, wenn der UX-Blocker unerheblich ist: \`ai:needs-spec\` manuell setzen → Spec-Phase startet direkt." 2>/dev/null || true
             echo "::notice::Label gesetzt: ai:needs-human (UX unklar)"
           else
-            echo "::warning::Kein VERDICT im Output – kein Label gesetzt"
+            # ABSTURZ (kein verwertbares VERDICT): Der Trigger ai:needs-ux-ui ist oben bereits
+            # konsumiert. Ohne Gegenmaßnahme stünde das Ticket jetzt ohne Trigger, ohne Label
+            # und ohne Hinweis da — die Kette wäre still tot (beobachtet an Issue #912, das so
+            # zweimal über Stunden unbemerkt liegenblieb). Deshalb sichtbar beim Menschen
+            # parken, mit Log-Auszug, in dem die echte Ursache steht.
+            echo "::warning::Kein VERDICT im Output — Phase abgebrochen, Ticket wird beim Menschen geparkt."
+            bash .github/scripts/phase-crash-park.sh \
+              --repo "$GITHUB_REPOSITORY" --issue "$ISSUE" \
+              --phase ux --trigger ai:needs-ux-ui || true
           fi
 
       - name: Ergebnis zusammenfassen
