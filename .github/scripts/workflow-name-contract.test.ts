@@ -79,7 +79,8 @@ describe('Workflow-Namensvertrag — Phasen-Nummerierung', () => {
 	it('die Phasen-Workflows tragen eine lückenlose 0..6-Nummerierung im 6er-Schema', () => {
 		// Die Nummer im Namen ist die einzige Stelle, an der ein Mensch die Pipeline-Länge
 		// abliest. Nach dem Zusammenlegen von Fixup und Umsetzung (ADR-0005) gibt es sechs
-		// Phasen; ein zurückgebliebenes "x/7" wäre schlicht eine Falschaussage.
+		// Pipeline-Phasen (1..6), dazu Phase 0 (Setup) — zusammen 7 Workflows (00..06).
+		// Ein zurückgebliebenes "x/7" wäre schlicht eine Falschaussage.
 		const phaseFiles = readdirSync(workflows)
 			.filter((f) => /^\d\d-.*\.yml$/.test(f))
 			.sort();
