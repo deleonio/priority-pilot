@@ -158,6 +158,14 @@ dem sie im Sinne des Ziels Token _sparen_ statt sie zu vervielfachen.
   `pull_request`), verlangt eine Neufassung des „Fixup gewinnt"-Guards in `check-phase-label.sh`
   und liegt in einem laut ADR 0001 ungetesteten Bereich — bei **null Token-Ersparnis**. Erst nach
   einem belegten Referenzlauf neu zu bewerten.
+
+  > **Nachtrag 2026-08-20:** entschieden in
+  > [ADR 0005](0005-fixup-und-umsetzung-sind-eine-phase.md) — und zwar auf ausdrückliche
+  > Anweisung, ohne den hier verlangten Referenzlauf. Die Einschätzung oben wurde damit nicht
+  > widerlegt: Der Umbau spart weiterhin keine Token, er ist eine Wartbarkeits-Entscheidung.
+  > Der „Fixup gewinnt"-Guard blieb inhaltlich unverändert, weil `ai:needs-fixup` als Label
+  > bestehen bleibt und nur eine andere Phase startet.
+
 - **GLM-Mapping über `ANTHROPIC_DEFAULT_*_MODEL`.** Das Ausgangskonzept sah dafür
   Environment-Variablen vor. Das Repo löst Modell-Aliase für `zai`/`openrouter` bereits über einen
   `jq`-Patch auf `settings.local.json` auf (`setup-claude/action.yml`), gespeist aus

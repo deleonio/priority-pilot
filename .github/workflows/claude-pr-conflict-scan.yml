@@ -1,8 +1,8 @@
 name: PR Conflict Scan
 
 # Erkennt Merge-Konflikte in offenen PRs bei jedem Push auf main und setzt
-# ai:needs-fixup, damit 06-claude-pr-fixup.yml sie automatisch auflöst.
-# Kein eigener Auflöser — die Auflösung übernimmt 06-claude-pr-fixup.yml.
+# ai:needs-fixup, damit die Umsetzungsphase (04-claude-implement.yml) sie automatisch auflöst.
+# Kein eigener Auflöser — die Auflösung übernimmt 04-claude-implement.yml (PR-Eingang).
 #
 # Muster: pr-needs-review-label.yml (App-Token), claude-pr-gate-merge.yml (DIRTY-Erkennung).
 
@@ -133,7 +133,7 @@ jobs:
                 echo "### PR #${pr} — ai:needs-fixup wegen Merge-Konflikt gesetzt"
                 echo ""
                 echo "- Merge-Konflikte erkannt (mergeable=$mergeable, state=$merge_state)"
-                echo "- Folge: 06-claude-pr-fixup.yml wird ausgelöst."
+                echo "- Folge: 04-claude-implement.yml (PR-Eingang) wird ausgelöst."
               } >> "$GITHUB_STEP_SUMMARY"
             else
               echo "PR #$pr: Nicht sauber mergebar (mergeable=$mergeable, state=$merge_state) — No-op."

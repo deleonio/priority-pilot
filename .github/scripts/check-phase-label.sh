@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Prüft, ob der Trigger einer Pipeline-Phase zur LAUFZEIT noch gültig ist.
 #
-# WARUM: Die Phasen-Workflows (01–07) serialisieren global über eine statische
+# WARUM: Die Phasen-Workflows (01–06) serialisieren global über eine statische
 # concurrency-Gruppe pro Phase — Läufe stapeln sich (FIFO). Zwischen Trigger und
 # Job-Start können Minuten liegen, in denen ein anderer Lauf das Trigger-Label
 # längst konsumiert hat. Das `job-if` sieht nur den Event-Payload vom TRIGGER-
@@ -29,24 +29,31 @@
 # 0 oder 2 Triggern, und „ai:needs-fixup ⇒ kein ai:needs-review" gilt per
 # Konstruktion. Nicht-Pipeline-Labels bleiben unangetastet; der --expect-Guard
 # verwirft Stale-Writes, wenn zwischenzeitlich ein anderer Akteur geschrieben hat.
-# Start-Konsum nur nach FRISCH bestandener Phasen-Pruefung im selben Schritt (05/06);
+# Start-Konsum nur nach FRISCH bestandener Phasen-Pruefung im selben Schritt
+# (Review und der PR-Eingang der Umsetzung);
 # label-transition.sh verwirft zusaetzlich jede Transition, die ein klebendes
 # ai:needs-human entfernen wuerde (Guard 3, Menschen-Parker, PR #903).
 #
-#   Phase       Objekt  Zustand        erforderlich                         abwesend
+#   Phase         Objekt  Zustand      erforderlich                         abwesend
 #   -----------------------------------------------------------------------------------
-#   analyse     Issue   offen          ai:needs-analyse (Einstieg via        ai:analysed
+#   analyse       Issue   offen        ai:needs-analyse (Einstieg via        ai:analysed
 #                                      labeled) — unlabeled-Re-Triage:      (nur beim
 #                                      siehe --trigger-label                 unlabeled-Weg)
-#   ux          Issue   offen          ai:needs-ux-ui                        —
-#   spec        Issue   offen          ai:needs-spec                         —
-#   implement   Issue   offen          ai:needs-impl                         —
-#   review      PR      offen, kein    ai:needs-review                       ai:needs-fixup
-#                       Draft                                               (Doppel-Armung:
+#   ux            Issue   offen        ai:needs-ux-ui                        —
+#   spec          Issue   offen        ai:needs-spec                         —
+#   implement     Issue   offen        ai:needs-impl                         —
+#   implement-pr  PR      offen, kein  ai:needs-fixup                        —
+#                         Draft
+#   review        PR      offen, kein  ai:needs-review                       ai:needs-fixup
+#                         Draft                                             (Doppel-Armung:
 #                                                                            Fixup gewinnt)
-#   fixup       PR      offen, kein    ai:needs-fixup                        —
-#                       Draft
-#   documenter  PR      gemergt        —                                    ai:documented
+#   documenter    PR      gemergt      —                                    ai:documented
+#
+# `implement` und `implement-pr` sind ZWEI EINGÄNGE DERSELBEN Phase (4/6 Umsetzung,
+# ADR-0005): Erstumsetzung am Issue bzw. Nacharbeit am PR. Sie brauchen getrennte
+# Zeilen, weil Objekt-Art und Trigger-Label sich unterscheiden — nicht, weil es zwei
+# Phasen wären. Der frühere Name `fixup` benannte einen eigenen Workflow, den es nicht
+# mehr gibt.
 #
 # Global über alle Phasen (außer documenter): `ai:needs-human` parkt das Ticket beim
 # Menschen — der Lauf endet, auch wenn der Phasen-Trigger noch klebt (s. Check unten).
@@ -120,15 +127,20 @@ case "$PHASE" in
     KIND="issue"; WANT_STATE="open"; REQUIRED=("ai:needs-spec") ;;
   implement)
     KIND="issue"; WANT_STATE="open"; REQUIRED=("ai:needs-impl") ;;
+  implement-pr)
+    KIND="pr"; WANT_STATE="open"; NO_DRAFT="true"; REQUIRED=("ai:needs-fixup") ;;
   review)
     KIND="pr"; WANT_STATE="open"; NO_DRAFT="true"; REQUIRED=("ai:needs-review")
     # ABSENT ai:needs-fixup: Bei Doppel-Armung (beide Trigger kleben, z. B. manuell
-    # gesetzt) gewinnt der Fixup — der Review skippt, sonst liefen beide Phasen
-    # parallel am selben PR (PR #890). Nach dem Fixup re-armt der Progress-Pfad
-    # sauber mit ai:needs-review.
+    # gesetzt) gewinnt die Nacharbeit — der Review skippt, sonst liefen beide am
+    # selben PR parallel (PR #890). Das gilt UNVERÄNDERT nach dem Zusammenlegen von
+    # Fixup und Umsetzung: `ai:needs-fixup` ist weiterhin ein eigenes Trigger-Label,
+    # es startet nur jetzt Phase 4 statt einer eigenen Phase 6. Die Doppel-Armung
+    # bleibt damit genau derselbe Fall — die Serialisierung über die gemeinsame
+    # concurrency-Gruppe deckt sie NICHT ab, weil der Review in seiner eigenen
+    # Gruppe läuft. Nach der Nacharbeit re-armt der Progress-Pfad sauber mit
+    # ai:needs-review.
     ABSENT=("ai:needs-fixup") ;;
-  fixup)
-    KIND="pr"; WANT_STATE="open"; NO_DRAFT="true"; REQUIRED=("ai:needs-fixup") ;;
   documenter)
     # FAIL-CLOSED (Ausnahme): Der Pre-Check ist die EINZIGE Idempotenz-Invariante
     # des Documenters — im Job prüft nichts deterministisch auf ai:documented.
@@ -137,7 +149,7 @@ case "$PHASE" in
     # was nicht rückgängig zu machen ist. Also im Zweifel NICHT laufen.
     KIND="pr"; WANT_STATE="merged"; ABSENT=("ai:documented"); FAIL_MODE="closed" ;;
   *)
-    echo "check-phase-label: unbekannte Phase '$PHASE' (erlaubt: analyse spec ux implement review fixup documenter)" >&2
+    echo "check-phase-label: unbekannte Phase '$PHASE' (erlaubt: analyse ux spec implement implement-pr review documenter)" >&2
     exit 2
     ;;
 esac

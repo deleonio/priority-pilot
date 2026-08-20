@@ -41,14 +41,14 @@ flowchart TD
     subgraph PR [PR-Phase]
         autolabel[pr-needs-review-label.yml]:::wf
         review[pr-review.yml<br/>Kreuzverhör 🟢/🔴]:::wf
-        fixup[pr-fixup.yml<br/>Findings umsetzen]:::wf
+        fixup[04-claude-implement.yml<br/>PR-Eingang: Findings umsetzen]:::wf
         gatemerge[pr-gate-merge.yml<br/>Gate + Auto-Merge]:::wf
         cancel[pr-cancel.yml]:::wf
         conflictscan[pr-conflict-scan.yml<br/>Konflikt-Scan]:::wf
     end
 
     merged([PR gemergt ✅]):::done
-    docpr[07-claude-pr-documenter.yml<br/>Phase 7: Titel/Body/Release-Note/Labels<br/>(Facts + LLM doc.json + Render)]:::wf
+    docpr[06-claude-pr-documenter.yml<br/>Phase 6: Titel/Body/Release-Note/Labels<br/>(Facts + LLM doc.json + Render)]:::wf
 
     human([⚠️ Mensch<br/>> 10 PR-Commits]):::stop
 
@@ -109,8 +109,13 @@ flowchart TD
 
 `ai:needs-analyse` → **analyse** → `ai:analysed` + `ai:needs-ux-ui` → **ux** → `ai:needs-spec`
 → **spec** → `ai:needs-impl` → **implement** → `ai:needs-review` (PR) → **review** →
-( `ai:needs-fixup` → **fixup** → `ai:needs-review` → **review** )\* → `ai:reviewed` →
+( `ai:needs-fixup` → **implement (PR-Eingang)** → `ai:needs-review` → **review** )\* → `ai:reviewed` →
 **gate-merge** → ✅ → **documenter** → `ai:documented`
+
+`ai:needs-impl` und `ai:needs-fixup` starten seit
+[ADR 0005](./adr/0005-fixup-und-umsetzung-sind-eine-phase.md) **denselben Workflow**
+(`04-claude-implement.yml`) — der eine am Issue, der andere am PR. Im Diagramm bleiben sie
+zwei Knoten, weil sie zwei getrennte Jobs mit eigenen Guards sind.
 
 Warum die Kette bedingt ist und welche Alternative dabei verworfen wurde, steht in
 [ADR 0004 — Analyse-getriebenes Routing](./adr/0004-analyse-getriebenes-routing.md).
@@ -126,14 +131,14 @@ Unsicherheit auf „Spec läuft" zurückfällt. Die Umsetzung legt dann Branch *
 
 **Trigger-Labels (`ai:needs-*`)** — jede Phase reagiert auf genau eines und konsumiert es:
 
-| Label              | Gesetzt von                                                        | Entfernt von (Konsum) | Triggert        |
-| ------------------ | ------------------------------------------------------------------ | --------------------- | --------------- |
-| `ai:needs-analyse` | Mensch (Einstieg + Re-Triage), issue-unblock (Nachfolger-Freigabe) | triage                | `triage.yml`    |
-| `ai:needs-ux-ui`   | triage (bei 🟢 + UI-Bezug)                                         | ux                    | `ux.yml`        |
-| `ai:needs-spec`    | triage (bei 🟢 + Nicht-UI), ux (bei Erfolg)                        | spec                  | `spec.yml`      |
-| `ai:needs-impl`    | spec (bei Erfolg), **triage** (wenn die Spec übersprungen wird)    | implement             | `implement.yml` |
-| `ai:needs-review`  | implement, pr-needs-review-label (nur menschlich), **fixup**       | review                | `pr-review.yml` |
-| `ai:needs-fixup`   | review (🔴), **gate-merge**, **conflict-scan**                     | fixup                 | `pr-fixup.yml`  |
+| Label              | Gesetzt von                                                        | Entfernt von (Konsum)  | Triggert                  |
+| ------------------ | ------------------------------------------------------------------ | ---------------------- | ------------------------- |
+| `ai:needs-analyse` | Mensch (Einstieg + Re-Triage), issue-unblock (Nachfolger-Freigabe) | triage                 | `triage.yml`              |
+| `ai:needs-ux-ui`   | triage (bei 🟢 + UI-Bezug)                                         | ux                     | `ux.yml`                  |
+| `ai:needs-spec`    | triage (bei 🟢 + Nicht-UI), ux (bei Erfolg)                        | spec                   | `spec.yml`                |
+| `ai:needs-impl`    | spec (bei Erfolg), **triage** (wenn die Spec übersprungen wird)    | implement              | `implement.yml`           |
+| `ai:needs-review`  | implement, pr-needs-review-label (nur menschlich), **fixup**       | review                 | `pr-review.yml`           |
+| `ai:needs-fixup`   | review (🔴), **gate-merge**, **conflict-scan**                     | implement (PR-Eingang) | `04-claude-implement.yml` |
 
 **Done-Labels (`ai:<Vergangenheitsform>`)** — nur wo Logik sie liest (Issue #873):
 

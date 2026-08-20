@@ -1,17 +1,42 @@
-name: 4/7 Umsetzung
+name: 4/6 Umsetzung
 
-# Setzt ein Issue um, sobald es das Label "ai:needs-impl" erhält (gesetzt von
-# der Spec-Phase bei fertigen roten Tests).
+# Die EINE Phase, die Code schreibt. Sie hat zwei Eingänge:
+#
+#   Issue + ai:needs-impl   → Erstumsetzung (aus der Spec oder im Direkt-Modus)
+#   PR    + ai:needs-fixup  → Nacharbeit an Review-Findings / roter CI / Merge-Konflikten
+#
 # Setzt **Claude Code** ein; Provider via `vars.LLM_PROVIDER` (zai|claude), aufgelöst in setup-claude.
 #
-# CONCURRENCY: Statische Gruppe pro Phase (globale Serialisierung, FIFO). Der `precheck`-Job
-# prüft den LABEL-IST-ZUSTAND zur LAUFZEIT — queued Runs würden mit dem Label-Zustand zum
-# TRIGGER-Zeitpunkt falsch wiederholen (Label inzwischen von einem anderen Lauf konsumiert).
-# Ausnahme Continuation: Der Soft-Abort unten entfernt+re-addet ai:needs-impl absichtlich — der
-# Folgelauf sieht das Label dann (korrekt) noch vorhanden und setzt fort.
+# WARUM ZUSAMMENGEFÜHRT (ADR-0005, vormals 06-claude-pr-fixup.yml): Beide Eingänge machen
+# dasselbe — Code ändern, Tests grün bekommen, committen, an den Review übergeben. Getrennt
+# gehalten bedeutete: zwei Setup-Ketten, zwei Memory-Blöcke und zwei Stellen, an denen jeder
+# Fix nachgezogen werden muss. Der Nutzen ist Wartbarkeit, NICHT Token-Ersparnis — beide
+# Eingänge starten weiterhin je eine eigene Claude-Session, es wird kein Kontext geteilt.
+#
+# PREIS DER GEMEINSAMEN GRUPPE: Umsetzung und Nacharbeit stapeln sich jetzt in EINER Queue,
+# der Durchsatz sinkt also unter Last. Dafür kann eine Umsetzung am Issue nicht mehr parallel
+# zur Nacharbeit am zugehörigen PR laufen. Dieser Fall war schon vorher unwahrscheinlich (der
+# Doppel-Run-Guard fängt „ready-PR existiert bereits" ab) — die gemeinsame Gruppe macht daraus
+# eine Invariante statt eines Guards, der greifen muss.
+#
+# WARUM TROTZDEM ZWEI JOBS: Die Eingänge unterscheiden sich in allem, was den Job ausmacht —
+# Checkout-Ref (Merge-Ref vs. head.ref), Fork-Guard, Vor-Guards (Doppel-Run vs. Target-Merge +
+# Start-Konsum + Stop-Guard), Fortschrittsmessung (fertiger PR vs. HEAD-Bewegung) und
+# Ergebnis-Labels. In EINEN Job gepresst wäre jeder zweite Step ein `if` auf den Event-Typ —
+# genau die Sorte Bedingungsgeflecht, in der Fehler unsichtbar werden. Geteilt wird, was
+# tatsächlich geteilt gehört: Workflow-Datei, Concurrency-Gruppe, Precheck und Modellwahl.
+#
+# CONCURRENCY: EINE statische Gruppe für beide Eingänge (globale Serialisierung, FIFO). Der
+# `precheck`-Job prüft den LABEL-IST-ZUSTAND zur LAUFZEIT — queued Runs würden mit dem
+# Label-Zustand zum TRIGGER-Zeitpunkt falsch wiederholen (Label inzwischen von einem anderen
+# Lauf konsumiert). Ausnahme Continuation: Der Soft-Abort im Issue-Zweig entfernt+re-addet
+# ai:needs-impl absichtlich — der Folgelauf sieht das Label dann (korrekt) noch vorhanden und
+# setzt fort.
 
 on:
   issues:
+    types: [labeled]
+  pull_request:
     types: [labeled]
 
 concurrency:
@@ -26,18 +51,25 @@ concurrency:
 
 jobs:
   precheck:
-    # Unveränderliches Event-Faktum filtert hier (spart den Runner für No-op-Trigger — 03 feuert
-    # auf JEDES `labeled` im Repo). Es gatet den precheck, nicht den Hauptjob: wird der precheck
-    # übersprungen, ist sein Output leer und der Hauptjob fällt korrekt mit aus.
-    if: ${{ github.event.label.name == 'ai:needs-impl' }}
-    # Label-IST-Zustand zur Laufzeit: ai:needs-impl muss JETZT (nach dem Warten in
-    # der globalen Phasen-Queue) noch am Issue kleben. Soll-Werte stehen zentral in
-    # .github/scripts/check-phase-label.sh; hier wird nur der Phasen-Name übergeben.
+    # Unveränderliche Event-Fakten filtern hier (spart den Runner für No-op-Trigger — der
+    # Workflow feuert auf JEDES `labeled` an Issues UND PRs im Repo).
+    #
+    # FORK-GUARD im PR-Zweig: `actions/checkout` holt bei pull_request den Merge-Ref, also
+    # PR-Code, und die lokale Action samt Skript würde daraus ausgeführt. Stünde der Guard erst
+    # am Hauptjob, führte ein Fork-PR mit manipuliertem check-phase-label.sh eigenen Bash aus,
+    # sobald irgendjemand ein Label setzt. Ein Fork-PR lässt den precheck `skipped` — das
+    # erfüllt keine Klausel im `if` des fixup-Jobs, der Guard wirkt also für beide Jobs.
+    if: >-
+      ${{ (github.event_name == 'issues' && github.event.label.name == 'ai:needs-impl')
+          || (github.event_name == 'pull_request'
+              && github.event.label.name == 'ai:needs-fixup'
+              && github.event.pull_request.head.repo.full_name == github.repository) }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       contents: read # lokale Action + Skript auschecken
-      issues: write # Abbruchfall der Modellwahl setzt ai:needs-human + Begründung
+      issues: write # Abbruchfall der Modellwahl setzt ai:needs-human + Begründung (Issue-Zweig)
+      pull-requests: write # dito am PR (Fixup-Zweig)
     outputs:
       proceed: ${{ steps.check.outputs.proceed }}
       model: ${{ steps.model.outputs.model }}
@@ -47,12 +79,45 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Eingang bestimmen (Issue-Umsetzung oder PR-Fixup)
+        id: route
+        env:
+          ISSUE_NR: ${{ github.event.issue.number }}
+          PR_NR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          # Die beiden Eingänge derselben Phase tragen unterschiedliche Soll-Zustände
+          # (Objekt-Art + Trigger-Label). Aufgelöst wird das über den Phasen-Namen, den
+          # check-phase-label.sh kennt — hier fällt nur die Zuordnung.
+          if [ "$GITHUB_EVENT_NAME" = "issues" ]; then
+            {
+              echo "ticket=${ISSUE_NR}"
+              echo "kind=issue"
+              echo "phase=implement"
+              # Auto-Eskalation ist an Review-Runden gebunden (Zählung der ai-review-
+              # Kommentare am PR) und für ein Issue ohne Bedeutung.
+              echo "escalate=false"
+            } >> "$GITHUB_OUTPUT"
+          else
+            {
+              echo "ticket=${PR_NR}"
+              echo "kind=pr"
+              echo "phase=implement-pr"
+              # Ab der zweiten Review-Runde eine Stufe hochsetzen: Eine zu niedrig
+              # eingestufte Subtask erzeugt sonst Schleifen, die die Ersparnis auffressen.
+              echo "escalate=true"
+            } >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Label-Pre-Check (IST-Zustand zur Laufzeit)
+        # Label-IST-Zustand zur Laufzeit: Das Trigger-Label muss JETZT (nach dem Warten in
+        # der globalen Phasen-Queue) noch am Objekt kleben. Soll-Werte stehen zentral in
+        # .github/scripts/check-phase-label.sh; hier wird nur der Phasen-Name übergeben.
         id: check
         uses: ./.github/actions/check-phase-label
         with:
-          phase: implement
-          ticket: ${{ github.event.issue.number }}
+          phase: ${{ steps.route.outputs.phase }}
+          ticket: ${{ steps.route.outputs.ticket }}
 
       - name: Modellwahl aus ai:model:*-Label
         # NACH dem Phasen-Check: Ein konsumierter Trigger soll nicht wegen einer fehlenden
@@ -61,9 +126,13 @@ jobs:
         id: model
         uses: ./.github/actions/resolve-model
         with:
-          ticket: ${{ github.event.issue.number }}
-          kind: issue
+          ticket: ${{ steps.route.outputs.ticket }}
+          kind: ${{ steps.route.outputs.kind }}
+          auto-escalate: ${{ steps.route.outputs.escalate }}
 
+  # ---------------------------------------------------------------------------
+  # Eingang 1: Issue + ai:needs-impl  →  Erstumsetzung
+  # ---------------------------------------------------------------------------
   implement:
     needs: precheck
     # `result == 'failure'` ist FAIL-OPEN und beabsichtigt: das Skript fällt bei API-Fehlern
@@ -74,8 +143,10 @@ jobs:
     # `model_abort == 'true'` stoppt zusätzlich hart: Ohne gesicherte Modellwahl liefe der
     # Lauf auf dem settings.json-Default, also potenziell auf dem teuersten Modell. Das
     # Ticket trägt dann bereits ai:needs-human samt Begründung (s. resolve-model).
+    # `github.event_name` trennt die beiden Eingänge — der precheck ist für beide derselbe.
     if: >-
       ${{ always()
+          && github.event_name == 'issues'
           && needs.precheck.outputs.model_abort != 'true'
           && (needs.precheck.outputs.proceed == 'true' || needs.precheck.result == 'failure') }}
     runs-on: ubuntu-latest
@@ -171,66 +242,10 @@ jobs:
           fi
           echo "skip=false" >> "$GITHUB_OUTPUT"
 
-      - name: pnpm einrichten
+      - name: Arbeitsumgebung aufbauen (pnpm, Playwright, Inspect-Instanz)
+        id: workbench
         if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
-
-      - name: Node.js einrichten
-        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-
-      - name: Abhängigkeiten installieren
-        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
-        run: pnpm install --frozen-lockfile
-
-      - name: Git-Hooks installieren (lefthook)
-        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
-        run: pnpm exec lefthook install
-
-      - name: Playwright-Cache (ms-playwright)
-        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-playwright-
-
-      - name: Chromium installieren (Playwright)
-        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
-        run: pnpm --filter frontend exec playwright install --with-deps chromium
-
-      - name: Server bauen (für Inspect no-watch)
-        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
-        run: pnpm --filter server build
-
-      - name: Inspect-Instanz im Hintergrund starten
-        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
-        env:
-          INSPECT_NO_WATCH: '1'
-        run: |
-          nohup ./ui-inspect.sh > /tmp/ui-inspect.log 2>&1 &
-          echo "::notice::Inspect-Instanz gestartet (Hintergrund)"
-          # Readiness-Check mit Timeout 120s: der Server startet ohne nodemon/Rebuild
-          # (INSPECT_NO_WATCH + vorab gebautes dist) in Sekunden. Beim Fail das Log mitgeben.
-          timeout=120
-          elapsed=0
-          while [ $elapsed -lt $timeout ]; do
-            if curl -s http://localhost:4174 >/dev/null 2>&1; then
-              echo "::notice::✅ Inspect-Instanz bereit nach ${elapsed}s"
-              exit 0
-            fi
-            sleep 2
-            elapsed=$((elapsed + 2))
-          done
-          echo "::error::Inspect-Instanz nicht innerhalb von ${timeout}s bereit (Timeout)"
-          echo "::group::ui-inspect.log (letzte 60 Zeilen)"
-          tail -n 60 /tmp/ui-inspect.log || true
-          echo "::endgroup::"
-          exit 1
+        uses: ./.github/actions/claude-workbench
 
       - name: Fortsetzungs-Stand prüfen (ai:continued)
         id: continued-before
@@ -249,54 +264,10 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
-          cat > /tmp/claude-prompt.txt << 'CLAUDE_EOF'
-          #RESUME_HINT
-          FOKUS: NUR Issue #ISSUE_NR. Nur die für die Akzeptanzkriterien notwendigen Dateien/Zeilen ändern, kein Refactoring am Rande. KEINE Abstecher. Token sparen: kurz, präzise, direkt.
-
-          ⚠️ KI-UX-Block: Falls das Issue UX-Aspekte hat (KI-UX:END-Block im Issue-Body vorhanden), UX-Anforderungen aus diesem Block beachten.
-
-          ABLAUF (STRIKT):
-            1. SOFORT starten.
-            2. Analyse lesen & schnell verifizieren (KEINE vollständige Re-Triage!):
-               Akzeptanzkriterien aus BODY-BLOCK übernehmen (gh issue view #ISSUE_NR --json body -q .body).
-               Prüfe NUR, ob die genannten Dateien noch existieren. Ampel 🔴 → NICHT umsetzen, begründet kommentieren und stoppen (VERDICT not-ready).
-            3. Spec-Modus (Regelfall): vorhandenen DRAFT-PR auschecken
-               (gh pr list --state open --draft --json number,headRefName,closingIssuesReferences,
-               den mit Issue #ISSUE_NR; FALLS leer weil Spec "Closes NNN" ohne "#" schrieb:
-               Fallback gh pr list --state open --draft --search "ISSUE_NR in:body" --json number,headRefName;
-               dann git fetch origin && git switch <headRefName>).
-               Dessen ROTE Tests GRÜN machen – Tests NICHT ändern (Gewaltenteilung).
-               **Hinweis:** Obsolete Tests wurden bereits in der Spec-Stufe entfernt. Falls trotzdem Widerspruch auffällt → NICHT still ändern/löschen, sondern im PR-Body Abschnitt "Test-Pflege-Bedarf" mit Datei:Zeile + Begründung anlegen.
-            3b. DIREKT-MODUS (kein Draft-PR vorhanden — die Analyse hat die Spec bewusst übersprungen,
-               weil das Ticket keinen Anwendungscode anfasst; siehe Feld „Spec nötig: nein" im Analyse-Block):
-               Branch selbst anlegen (git switch -c feat/issue-ISSUE_NR-<kurzname>), umsetzen, committen, pushen
-               und den PR SELBST erstellen: gh pr create --title "<...>" --body "... Closes #ISSUE_NR ..." (NICHT --draft,
-               der PR geht direkt in den Review). Ohne diesen Schritt gibt es nichts zu reviewen und der Lauf endet wirkungslos.
-               Tests: Berührst du wider Erwarten doch Anwendungscode (server/src/**, frontend/src/**, frontend/e2e/**),
-               schreibe die Tests selbst mit — der Test-Carve-out (siehe .github/prompts/spec.md, ADR-0001) gilt NUR für
-               Workflows, Skripte, Config und Markdown. Ist der Umfang dadurch deutlich größer als gedacht, ist das ein
-               Zeichen für eine Fehleinschätzung der Analyse: VERDICT not-ready und im PR-Body begründen.
-            3.5. UI-ARBEITEN bei Frontend-Änderungen (frontend/src/**, frontend/e2e/**):
-               a) KoliBri-First: passende Komponente via mcp__kolibri-mcp__search/fetch finden und mit ihren Properties/Features einsetzen.
-                  Eigene Komponenten nur stylen/bauen, wenn KEINE KoliBri-Komponente passt.
-                  Begründung im PR-Body (KoliBri = Shadow-Web-Components mit festem Styling).
-               b) Layout: App läuft im Hintergrund auf http://localhost:4174; sichtbare Änderungen per Playwright-MCP bei 375px UND 1280px prüfen (Screenshot + A11y-Snapshot).
-                  Layout-Brüche (horizontales Scrollen/Overflow) fixen.
-            4. Code bis pnpm test grün, dann pnpm format + pnpm lint + pnpm knip.
-               Bei Confirm-/Lösch-/Zerstör-Dialogen: docs/ux-pattern-sequential-confirmation.md anwenden – sequenzielle Ja/Nein-Schritte, striktes Fokus-Management beim Übergang (verbindliche A11y-Vorgabe).
-               Bei sichtbarer UI: docs/mobile-ui-rules.md anwenden – Touch-Targets ≥44px, async Zustände entwerfen, Anti-Patterns meiden (Repo-Abstimmung im Doc beachten).
-            5. Committen, Branch pushen. Im Spec-Modus den vorhandenen Draft-PR review-bereit machen (gh pr ready <nr>), Beschreibung ergänzen. Im Direkt-Modus den PR aus 3b anlegen (nicht als Draft). In BEIDEN Fällen muss am Ende ein offener, nicht-als-Draft markierter PR mit Commits existieren — der Workflow prüft genau das, bevor er ai:needs-review setzt.
-
-          ⚠️ LABELS: KEINE Labels setzen! Workflow übernimmt das automatisch.
-
-          VERDICT: GANZ AM ENDE GENAU EINE Zeile:
-            - VERDICT: needs-review (Implementierung fertig + PR review-bereit)
-            - VERDICT: not-ready (Partial – PR als Draft belassen, Folgelauf nötig)
-
-          ZEITLIMIT: Soft-Deadline = SOFT_DEADLINE. Vor jedem Schritt: [ $(date +%s) -ge SOFT_DEADLINE ]. Bei OVER: aktuellen Stand committen+pushen, Turn beenden.
-
-          Idempotenz: Draft-PR mit Closes #ISSUE_NR ist normaler Spec-Eingang – aufgreifen. Nicht-Draft-PR = Umsetzung schon gelaufen → Lauf beenden.
-          CLAUDE_EOF
+          # Prompt liegt kanonisch in .github/prompts/implement.md — dieselbe Ablage wie der
+          # Fixup-Prompt der Schwesterphase. Snippet-Platzhalter (#ISSUE_NR, #PHASE,
+          # #MEMORY_STATUS) werden erst NACH dem Anhängen der Memory-Snippets substituiert.
+          cp .github/prompts/implement.md /tmp/claude-prompt.txt
 
           # Memory-Snippets anhängen (Phase 4: restauriert + schreibt). Vor den seds, damit
           # deren Platzhalter (#ISSUE_NR/#PHASE/#MEMORY_STATUS) mit substituiert werden.
@@ -306,7 +277,7 @@ jobs:
           sed -i "s/#ISSUE_NR/${{ github.event.issue.number }}/g" /tmp/claude-prompt.txt
           sed -i "s/#PHASE/implement/g" /tmp/claude-prompt.txt
           sed -i "s/#MEMORY_STATUS/${{ steps.setup.outputs.memory-status-text }}/g" /tmp/claude-prompt.txt
-          # Resume-Hinweis: bei ai:continued (Folgelauaf nach Soft-Abort) Memory-Pflicht betonen.
+          # Resume-Hinweis: bei ai:continued (Folgelauf nach Soft-Abort) Memory-Pflicht betonen.
           if [ "${{ steps.continued-before.outputs.already }}" = "true" ]; then
             sed -i "s|#RESUME_HINT|⚠️ FORTSETZUNGS-Lauf (ai:continued) — lies ZUERST .claude/memory/ und SETZE FORT, starte NICHT neu, wiederhole nichts aus 'Erledigt'!|g" /tmp/claude-prompt.txt
           else
@@ -351,7 +322,7 @@ jobs:
             !${{ steps.setup.outputs.memory-path }}/MEMORY.md
           # 14 Tage: das Artefakt ist jetzt der einzige Speicher, nicht mehr nur ein Transport-
           # vehikel zum Cache (dort war 1 Tag genug). Muss den ganzen Ticket-Lebenszyklus
-          # überdauern; Phase 7 räumt am Ende ohnehin deterministisch auf. Größe: ~1 KB.
+          # überdauern; Phase 6 räumt am Ende ohnehin deterministisch auf. Größe: ~1 KB.
           retention-days: 14
           if-no-files-found: ignore
 
@@ -378,7 +349,7 @@ jobs:
             echo "::notice::Doppel-Run-Guard: PR existiert bereits — behandele als needs-review."
           fi
 
-          # PR finden: primär closingIssuesReferences, Fallback auf Body-Suche
+          # PR finden: primär closingIssuesReferences, Fallback auf Closing-Keyword im Body
           # (PR #585: "Closes NNN" ohne "#" lässt die Referenz sonst leer → Crash).
           PR_NR="$(bash .github/scripts/pr-for-issue.sh --repo "$GITHUB_REPOSITORY" \
             --issue "$ISSUE" --draft no --out first)"
@@ -461,6 +432,556 @@ jobs:
           fi
           {
             echo "### Umsetzung #${ISSUE} – fertig"
+            echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\`"
+            echo "- Labels: ${labels:-keine}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 🩺 Z.AI Fair-Usage-Check (1313)
+        # Rohausgabe des Claude-Laufs auf z.ai-Fehler 1313 (Fair Usage) durchsuchen
+        # und Ergebnis als Annotation + Job-Summary sichtbar machen.
+        if: always()
+        uses: ./.github/actions/llm-fair-usage-check
+
+  # ---------------------------------------------------------------------------
+  # Eingang 2: PR + ai:needs-fixup  →  Nacharbeit an Review-Findings
+  #   review → ai:needs-fixup → fixup → ai:needs-review → review → ... bis 🟢
+  # ---------------------------------------------------------------------------
+  fixup:
+    needs: precheck
+    # Gleiche Fail-open-Leine wie im implement-Job (siehe dort). Zusätzlich trennt
+    # `github.event_name` die beiden Eingänge, und ein `skipped` precheck (No-op-Trigger
+    # ODER Fork-PR) erfüllt keine Klausel — der Fork-Guard aus dem precheck-if wirkt
+    # dadurch weiterhin auch für diesen Job.
+    if: >-
+      ${{ always()
+          && github.event_name == 'pull_request'
+          && needs.precheck.outputs.model_abort != 'true'
+          && (needs.precheck.outputs.proceed == 'true' || needs.precheck.result == 'failure') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    permissions:
+      contents: read
+      id-token: write
+      actions: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Startzeit merken (für weiches Zeitlimit)
+        id: starttime
+        run: |
+          now=$(date +%s)
+          echo "epoch=$now" >> "$GITHUB_OUTPUT"
+          echo "soft_deadline_epoch=$((now + 600))" >> "$GITHUB_OUTPUT"
+          # Erklärungs-Gate (needs-human-explain.sh): Als Erklärung für
+          # ai:needs-human zählen nur Kommentare dieses Laufes. 5 min Toleranz
+          # nach unten decken Queue-/Checkout-Zeit vor dem LLM-Lauf ab.
+          echo "since_epoch=$((now - 300))" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Claude Code (mit Memory-Load)
+        id: setup
+        uses: ./.github/actions/setup-claude
+        with:
+          needs-mcp: true
+          browser-mcp: true
+          tools-tier: full
+          event-type: ${{ github.event_name }}
+          ticket-ref: ${{ github.event.pull_request.number }}
+          app-id: ${{ secrets.APP_ID }}
+          app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          llm-provider: ${{ vars.LLM_PROVIDER }}
+          # Modellwahl kommt aus dem ai:model:*-Label (precheck), NICHT mehr statisch:
+          # der PR erbt sie vom verknüpften Issue, ein Label am PR selbst gewinnt.
+          # vars.CLAUDE_MODEL_FIXUP bleibt als manueller Not-Override wirksam.
+          # Dritter Fallback ist der frühere Phasen-Default und KEIN Schmuck: Läuft ein PR
+          # ohne Analyse-Herkunft, liefert der Resolver bewusst ein leeres Modell. Leer
+          # bedeutet in setup-claude aber „kein Alias auflösen" — bei zai/openrouter bleibt
+          # dann das Modell aus settings.local.json stehen, das der Provider als
+          # `unrecognized_model` ablehnen kann (beobachtet an PR #916). Der Literal-Default
+          # stellt exakt das Verhalten von vor der Modellwahl wieder her.
+          model: ${{ vars.CLAUDE_MODEL_FIXUP || needs.precheck.outputs.model || 'sonnet' }}
+          zai-api-key: ${{ secrets.ZAI_API_KEY }}
+          claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
+          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+          zai-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI }}
+          openrouter-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER }}
+          tailscale-authkey: ${{ secrets.TAILSCALE_AUTH_KEY }}
+          tailscale-exit-node: ${{ vars.TAILSCALE_EXIT_NODE }}
+          memory-load: 'true'
+          expect-memory: 'true'
+
+      # Fixup checkt explizit head.ref (kein GitHub-Merge-Ref wie beim Review) – der
+      # Target-Branch muss daher aktiv gemergt werden, damit auf demselben Stand
+      # gefixt wird, den das Review bewertet hat (head+base).
+      #
+      # MUSS vor dem Start-Konsum (und vor pnpm install) laufen: Die Workflow-Yaml
+      # kommt vom Merge-Ref (base-Stand), der head.ref-Checkout aber vom PR-Branch.
+      # Branches, die vor Einführung eines Pipeline-Scripts (z. B. label-transition.sh,
+      # 9d8a678) von main zweigten, haben es NICHT im Tree — erst der Merge bringt es
+      # rein (PR #895: bash: label-transition.sh: No such file or directory). Genau
+      # deshalb steht auch der Phasen-Name `implement-pr` erst NACH dem Merge zur
+      # Verfügung: ein Branch mit altem check-phase-label.sh kennt ihn nicht.
+      # Derselbe Grund für die Position vor pnpm install: ein Merge NACH dem Install
+      # kann die pnpm-lock.yaml unter dem bereits gebauten node_modules austauschen.
+      - name: Target-Branch mergen (immer vor Fixup)
+        id: merge-target
+        if: steps.setup.outputs.configured == 'true'
+        env:
+          PR: ${{ github.event.pull_request.number }}
+          TARGET_BRANCH: ${{ github.event.pull_request.base.ref }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          git fetch origin "$TARGET_BRANCH" --depth=1 --no-tags
+          if git merge-base --is-ancestor "origin/$TARGET_BRANCH" HEAD; then
+            echo "Target-Branch bereits in HEAD enthalten – kein Merge nötig."
+            exit 0
+          fi
+          if git merge origin/"$TARGET_BRANCH" --no-ff --no-edit -m "chore(ci): auto-merge $TARGET_BRANCH into PR #$PR"; then
+            git push origin HEAD:"$HEAD_BRANCH"
+          elif git diff --name-only --diff-filter=U | grep -q .; then
+            echo "Merge-Konflikte bleiben liegen – Claude löst sie auf (Prompt Schritt 0)."
+          else
+            git merge --abort 2>/dev/null || true
+          fi
+
+      - name: Trigger-Label konsumieren (Start-Konsum)
+        # Atomarer Konsum von ai:needs-fixup direkt nach Target-Merge (analog 05): Der Pipeline-
+        # Bestand geht auf leer, mit --expect-Guard gegen zwischenzeitliche Schreiben
+        # anderer Akteure. Jeder in der Phasen-Queue wartende Fixup-Run skippt danach im
+        # precheck — und ein parallel getriggerter Review sieht kein Trigger-Label mehr
+        # (PR #890). Vorher klebte das Label bis zum Job-ENDE (8+ min Fenster).
+        # Seit PR #903 laeuft check-phase-label.sh frisch direkt vor dem Konsum — needs-human
+        # oder Phasen-Mismatch stoppen hier, bevor irgendein Label bereinigt wird
+        # (zusaetzlich verwirft label-transition.sh selbst jede Transition, die ein klebendes
+        # ai:needs-human entfernen wuerde).
+        id: consume
+        if: steps.setup.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          # User-Direktive (PR #903): Erst die Label-Phasen-Pruefung FRISCH (Phasen-Match +
+          # ai:needs-human), DANN bereinigen. Der precheck-Job lief minutenalt und wird bei
+          # eigenem Job-Failure bewusst fail-open umgangen — diese Pruefung hier ist die
+          # verbindliche vor jedem Label-Write. proceed=false => Abbruch, Labels UNANGETASTET.
+          CHECK=""
+          if ! CHECK="$(bash .github/scripts/check-phase-label.sh \
+            --repo "$GITHUB_REPOSITORY" --phase implement-pr --ticket "$PR")"; then
+            # exit 2 = Konfigurationsfehler (unbekannte Phase) — bewusst rot wie im precheck.
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            echo "::error title=❌ Phasen-Prüfung fehlgeschlagen::check-phase-label.sh exited non-zero. Trigger bleibt bewaffnet."
+            exit 1
+          fi
+          c_proceed="$(printf '%s\n' "$CHECK" | sed -n 's/^proceed=//p')"
+          c_reason="$(printf '%s\n' "$CHECK" | sed -n 's/^reason=//p')"
+          if [ "$c_proceed" != "true" ]; then
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            echo "reason=${c_reason:-phasen-pruefung}" >> "$GITHUB_OUTPUT"
+            echo "::notice title=⏭️ Fixup verworfen::Frische Phasen-Prüfung: ${c_reason:-Label-Ist-Zustand passt nicht zur Phase} — Labels unangetastet."
+            exit 0
+          fi
+
+          OUT=""
+          if ! OUT="$(bash .github/scripts/label-transition.sh \
+            --repo "$GITHUB_REPOSITORY" --pr "$PR" \
+            --set-none --expect ai:needs-fixup)"; then
+            # Script-Exit != 0: PUT endgültig fehlgeschlagen (Diagnose via stderr im
+            # Job-Log). Bewusst ROT enden statt fail-open — analog 05: Trigger bleibt
+            # bewaffnet, ein Re-Push re-triggert.
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            echo "::error title=❌ Start-Konsum fehlgeschlagen::label-transition.sh fehlgeschlagen (Details: letzte gh-Fehlerzeile im Log). Trigger bleibt bewaffnet."
+            exit 1
+          fi
+          applied="$(printf '%s\n' "$OUT" | sed -n 's/^applied=//p')"
+          state="$(printf '%s\n' "$OUT" | sed -n 's/^state=//p')"
+          reason="$(printf '%s\n' "$OUT" | sed -n 's/^reason=//p')"
+          echo "reason=${reason:-}" >> "$GITHUB_OUTPUT"
+          # read-failed = fail-open (analog zum precheck): lieber einmal zu viel fixen
+          # als eine Freigabe zu verlieren. Label bleibt dann unkonsumiert.
+          if [ "$applied" = "true" ] || [ "$state" = "read-failed" ]; then
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::ai:needs-fixup konsumiert (Start-Konsum) — Fixup läuft."
+          else
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=⏭️ Fixup verworfen::Trigger nicht mehr unverändert vorhanden — ${reason:-neuerer Zustand regiert}."
+          fi
+
+      - name: Arbeitsumgebung aufbauen (pnpm, Playwright, Inspect-Instanz)
+        id: workbench
+        if: steps.setup.outputs.configured == 'true'
+        uses: ./.github/actions/claude-workbench
+
+      - name: Stop-Guard (> 10 PR-Commits)
+        id: stop-guard
+        if: steps.setup.outputs.configured == 'true' && steps.consume.outputs.proceed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          if ! commits="$(gh pr view "$PR" --repo "$REPO" --json commits --jq '.commits | length' 2>/dev/null)"; then
+            echo "stop=true" >> "$GITHUB_OUTPUT"
+            gh pr comment "$PR" --repo "$REPO" --body "🛑 Stop-Guard: gh-API nicht erreichbar – fail-closed." 2>/dev/null || true
+            exit 0
+          fi
+          if [ "${commits:-0}" -gt 10 ]; then
+            echo "stop=true" >> "$GITHUB_OUTPUT"
+            gh pr comment "$PR" --repo "$REPO" --body "🛑 **Stop-Guard: Fixup-Loop gestoppt** (${commits} Commits > 10). Bitte manuell prüfen." 2>/dev/null || true
+            exit 0
+          fi
+          echo "stop=false" >> "$GITHUB_OUTPUT"
+
+      # Kein Supersede-Check mehr: Die globale Phasen-Serialisierung (statische
+      # concurrency-Gruppe) lässt Fixup-Läufe desselben Branches nie parallel laufen, und der
+      # precheck dedupliziert über den Label-IST-Zustand. Ein Lauf-Listen-Guard würde hier nur
+      # noch queued Nachfolger finden und das FALSCHE Skip auslösen.
+
+      - name: HEAD vor Claude merken (Fortschritts-Baseline)
+        id: head-before
+        if: steps.setup.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true' && steps.consume.outputs.proceed == 'true'
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Findings umsetzen via Claude
+        id: claude
+        if: steps.setup.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true' && steps.consume.outputs.proceed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          # Prompt liegt kanonisch in .github/prompts/fixup.md (Quelle fuer CI). Snippet-Platzhalter
+          # (#ISSUE_NR, #PHASE, #MEMORY_STATUS) werden erst NACH dem Anhaengen der Memory-Snippets
+          # substituiert.
+          sed -e "s/#PR_NR/${{ github.event.pull_request.number }}/g" \
+              -e "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" \
+              .github/prompts/fixup.md > /tmp/claude-prompt.txt
+
+          # Memory-Snippets anhängen (restauriert + schreibt)
+          cat .github/prompts/memory-read.md >> /tmp/claude-prompt.txt
+          cat .github/prompts/memory-write.md >> /tmp/claude-prompt.txt
+          # #ISSUE_NR kommt aus memory-write.md (Dateiname der Phasen-Notiz). Ohne diese Zeile
+          # schrieb der Fixup seine Notiz in eine Datei mit LITERALEM Platzhalter im Namen.
+          sed -i "s/#ISSUE_NR/${{ steps.setup.outputs.issue-number }}/g" /tmp/claude-prompt.txt
+          sed -i "s/#PHASE/fixup/g" /tmp/claude-prompt.txt
+          sed -i "s/#MEMORY_STATUS/${{ steps.setup.outputs.memory-status-text }}/g" /tmp/claude-prompt.txt
+
+          ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
+            ${{ steps.setup.outputs.invoke-args }} \
+            2>&1 | tee /tmp/claude-output.log
+          test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
+
+      - name: Token & Kosten erfassen
+        # always(): Auch ein abgebrochener Lauf hat Token verbraucht — gerade teure
+        # Fehlläufe gehören in die Baseline, sonst sieht die alte Pipeline zu günstig aus.
+        # issue-number löst den PR über closingIssuesReferences auf das Ticket auf, damit
+        # alle Phasen EINES Tickets in derselben .costs-Datei landen.
+        # phase bleibt `fixup` (nicht `implement`): Die Kostendatei ist eine Messreihe —
+        # ein umbenannter Phasen-Schlüssel würde die Baseline gegen den alten Workflow
+        # unvergleichbar machen, genau die Messung, für die sie angelegt wurde.
+        if: always() && steps.setup.outputs.configured == 'true'
+        uses: ./.github/actions/record-cost
+        with:
+          issue: ${{ steps.setup.outputs.issue-number || github.event.pull_request.number }}
+          phase: fixup
+          since-epoch: ${{ steps.starttime.outputs.epoch }}
+          provider: ${{ steps.setup.outputs.llm-provider }}
+
+      - name: Memory-Upload (das Artefakt IST der Speicher der Phasen-Notizen)
+        # Siehe implement-Job — identische Begründung (Cache-Token ist für diese
+        # Trigger-Arten platform-seitig lese-only).
+        if: always() && steps.setup.outputs.configured == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ steps.setup.outputs.memory-save-key }}
+          path: |
+            ${{ steps.setup.outputs.memory-path }}
+            !${{ steps.setup.outputs.memory-path }}/MEMORY.md
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Label-Post-Assertion (Labels via App-Token force-setzen)
+        id: label-post
+        # B1: Label-Transition auch bei Claude failure/cancelled — sonst bleibt der PR bei einem
+        # Crash/Timeout dauerhaft auf ai:needs-fixup kleben (kein Re-Arm, keine Eskalation).
+        # Analog 05-claude-pr-review.yml (dort success|failure; hier zusaetzlich cancelled wg.
+        # timeout-minutes-Backstop). Skip-Reasons (stop-guard) liefern outcome=skipped und
+        # fallen hier korrekt raus.
+        if: always() && steps.setup.outputs.configured == 'true' && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure' || steps.claude.outcome == 'cancelled')
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          PR: ${{ github.event.pull_request.number }}
+          OUTCOME: ${{ steps.claude.outcome }}
+          SINCE_EPOCH: ${{ steps.starttime.outputs.since_epoch }}
+        run: |
+          # Verdict-Kanal: Datei primär (/tmp/claude-verdict, per Bash geschrieben —
+          # robuster als Log-Parsing, vgl. PR #524/#530), Log-Grep als Übergangs-Fallback.
+          # Nur `needs-human` ist hier verbindlich; Fortschritt entscheidet HEAD-Bewegung.
+          verdict=""
+          if [ -f /tmp/claude-verdict ]; then
+            verdict="$(tr -d -c 'A-Za-z0-9-' < /tmp/claude-verdict)"
+          fi
+          if [ -z "$verdict" ] && [ -f /tmp/claude-output.log ]; then
+            verdict="$(grep 'VERDICT:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | tr -d -c 'A-Za-z0-9-' || true)"
+          fi
+          echo "Claude-Verdict: '${verdict:-keins}'"
+
+          # Erklärungs-Gate: Nur Kommentare dieses Laufes gelten als Erklärung
+          # für ai:needs-human — keine alten Marker referenzieren (#842).
+          # GNU-date (-d @epoch): Läuft nur auf dem Ubuntu-Runner.
+          SINCE_ISO="$(date -u -d "@${SINCE_EPOCH:-0}" +%Y-%m-%dT%H:%M:%SZ)"
+
+          # Fortschritt = hat HEAD sich in DIESEM Lauf bewegt? Robust gg. amend/reset/force-push
+          # (jede HEAD-Bewegung = Arbeit; keine Bewegung = nichts getan) und self-contained
+          # (lokales Repo, keine API-/Marker-Abhaengigkeit). Das alte REVIEW_TS-Konstrukt fiel
+          # bei fehlendem Review-Marker auf Total-Commits zurueck und meldete Fortschritt, wo
+          # keiner war -> Review<->Fixup-Endlosloop (PR #524).
+          sha_before="${{ steps.head-before.outputs.sha }}"
+          sha_after="$(git rev-parse HEAD)"
+          echo "HEAD vor Claude: ${sha_before:-?} | nach Claude: ${sha_after:-?}"
+          ARTIFACTS_OK="false"
+          if [ -n "$sha_before" ] && [ "$sha_after" != "$sha_before" ]; then
+            ARTIFACTS_OK="true"
+          fi
+
+          # EINE atomare Transition je Ausgangspfad statt 3× remove + add (PR #890):
+          # label-transition.sh ersetzt den gesamten Pipeline-Bestand in EINEM API-Call —
+          # auch ai:reviewed ist damit immer mit abgeräumt (stale Done-Label könnte das
+          # Gate sonst vorzeitig mergen lassen). --expect none: Dieser Lauf hat seinen
+          # Trigger im Start-Konsum entfernt; zwischenzeitliche Schreiben anderer Akteure
+          # (Autolabeler, Gate) verwerfen diesen Write — der neuere Zustand regiert.
+          # Retries (Issue #613, Backoff 1s/2s/4s) leben IM Skript.
+          apply_transition() { # $1 = Ziel-Labels (Komma-liste); Return 0=ok, 1=fehlschlagen, 2=Guard-Verwurf
+            if ! OUT="$(bash .github/scripts/label-transition.sh \
+                --repo "$GITHUB_REPOSITORY" --pr "$PR" --set "$1" --expect none)"; then
+              echo "::error::Label-Transition zu '$1' endgültig fehlgeschlagen"
+              return 1
+            fi
+            t_applied="$(printf '%s\n' "$OUT" | sed -n 's/^applied=//p')"
+            t_state="$(printf '%s\n' "$OUT" | sed -n 's/^state=//p')"
+            t_reason="$(printf '%s\n' "$OUT" | sed -n 's/^reason=//p')"
+            if [ "$t_state" = "read-failed" ]; then
+              echo "::error::Label-Transition zu '$1': IST-Zustand unlesbar (${t_reason:-API?}) — nichts geschrieben"
+              return 1
+            fi
+            if [ "$t_applied" != "true" ]; then
+              echo "::warning title=⏭️ Label-Write verworfen::${t_reason:-Guard}. Ziel '$1' NICHT gesetzt — der neuere Zustand regiert."
+              return 2
+            fi
+            return 0
+          }
+
+          # B1: Claude abgestuerzt/abgebrochen (failure/cancelled) — kein vertrauenswuerdiges
+          # Verdict, HEAD-Fortschritt nicht aussagekraeftig (evtl. mittendrin abgebrochen).
+          # Terminal ai:needs-human + Kommentar, KEINE Re-Armierung: ein wiederholt abstuerzender
+          # Claude wuerde sonst eine Re-Arm-Schleife erzeugen. Review macht analog den Safe-Default.
+          if [ "$OUTCOME" != "success" ]; then
+            # Erklärungs-Gate: Erst der Kommentar mit echten Fakten (Run-Link,
+            # HEADs, Log-Auszug — die Crash-Ursache steht im Log, z.B. 402
+            # Credits/1313 Fair Usage), DANN das Label. Der alte generische Text
+            # erklärte den Mechanismus statt die Ursache und wurde bei Re-Runs
+            # wortidentisch doppelt gepostet (#870).
+            RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            {
+              printf '%s\n\n' "🛑 **Fixup #${PR}: Claude-Schritt \`${OUTCOME}\` (Crash)**"
+              printf '%s\n\n' "**Warum:** Kein Verdict, HEAD-Fortschritt nach Absturz/Abbruch nicht vertrauenswuerdig — die KI kann hier nicht alleine weiterarbeiten."
+              printf '%s\n\n' "**Diagnose:** Step-Outcome \`${OUTCOME}\` · HEAD vor Claude: \`${sha_before:-?}\` · nach Claude: \`${sha_after:-?}\` · Run: ${RUN_URL}"
+              printf '%s\n' "<details><summary>Log-Auszug (letzte 25 Zeilen von /tmp/claude-output.log)</summary>"
+              printf '\n%s\n' '```'
+              bash .github/scripts/needs-human-explain.sh logtail
+              printf '%s\n' '```'
+              printf '%s\n\n' "</details>"
+              printf '%s\n' "**Was du als Mensch beitragen/entscheiden solltest:**"
+              printf '%s\n' "- [ ] 1. Crash-Ursache im Log-Auszug pruefen: transienter API-Fehler (\`ai:needs-fixup\` neu setzen) oder echter Blocker?"
+              printf '%s\n' "- [ ] 2. Bei transientem Fehler: \`ai:needs-fixup\` setzen → loest Fixup neu aus"
+              printf '%s\n' "- [ ] 3. Bei echtem Blocker: manuell pruefen und entscheiden"
+              printf '%s\n' "- [ ] 4. Label \`ai:needs-human\` entfernen (nach Klärung)"
+            } > /tmp/needs-human-body.md
+            bash .github/scripts/needs-human-explain.sh post --repo "$GITHUB_REPOSITORY" --pr "$PR" --body-file /tmp/needs-human-body.md
+            rc=0
+            apply_transition "ai:needs-human" || rc=$?
+            if [ "$rc" -eq 2 ]; then
+              echo "stuck=true" >> "$GITHUB_OUTPUT"; echo "stuck_reason=superseded" >> "$GITHUB_OUTPUT"; exit 0
+            fi
+            if [ "$rc" -eq 1 ]; then exit 1; fi
+            echo "::warning::Claude-Schritt '${OUTCOME}' -> ai:needs-human (keine Re-Armierung, Mensch prueft)."
+            echo "stuck=true" >> "$GITHUB_OUTPUT"
+            echo "stuck_reason=crash" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # B2: Verdict ist beratend — EINZIG `needs-human` ist verbindlich (terminal). Fortschritt
+          # entscheidet der workflow ausschliesslich ueber HEAD-Bewegung (Commits = Ground Truth),
+          # niemals ueber ein `fixup-complete`-Verdict. Vgl. Prompt-Vertrag (VERDICT-Abschnitt).
+          if [ "$verdict" = "needs-human" ]; then
+            # Claude hat erkannt: verbleibende Findings sind Entscheidungs-Findings, die ein Mensch
+            # treffen muss (kein automatisierbarer Fix). Done-Label + terminal an Mensch — kein
+            # Re-Arm, kein Loop.
+            #
+            # Erklärungs-Gate: lookup verifiziert den ai-fixup-decisions-Kommentar
+            # DIESES Laufes und liefert Permalink + Finding-Titel (Vorbild #844).
+            # Fehlt er, postet der Workflow selbst eine Diagnose statt einen
+            # Verweis ins Leere zu hinterlassen. Kommentar vor Label-Setzen.
+            GUARD="$(bash .github/scripts/needs-human-explain.sh lookup --repo "$GITHUB_REPOSITORY" --pr "$PR" --mode decisions --since "$SINCE_ISO")"
+            GUARD_STATUS="$(printf '%s\n' "$GUARD" | sed -n 's/^status=//p')"
+            GUARD_LINK="$(printf '%s\n' "$GUARD" | sed -n 's/^permalink=//p')"
+            GUARD_FINDINGS="$(printf '%s\n' "$GUARD" | sed -n 's/^findings=//p')"
+            {
+              printf '%s\n\n' "⏸️ **Wartet auf menschliche Entscheidung (Fixup-Entscheidung)**"
+              if [ "$GUARD_STATUS" = "found" ]; then
+                printf '%s\n\n' "**Warum:** Verbleibende Findings sind nicht automatisierbar (Architektur-/Produkt-/Designentscheidung) — die KI kommt hier nicht alleine weiter."
+                [ -n "$GUARD_FINDINGS" ] && printf '%s\n\n' "**Entscheidungs-Findings:** ${GUARD_FINDINGS}"
+                printf '%s\n\n' "**Erklärung (Was/Wo/Optionen/Empfehlung):** ${GUARD_LINK}"
+              else
+                RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+                printf '%s\n\n' "**Warum:** Verdict \`needs-human\`, aber der Kommentar mit Marker \`ai-fixup-decisions\` fehlt in diesem Lauf — die Begründung ist nicht verifizierbar."
+                printf '%s\n\n' "**Diagnose:** Run: ${RUN_URL} — Claudes letzte Ausgabezeilen können die Findings nennen."
+                printf '%s\n' "<details><summary>Log-Auszug (letzte 25 Zeilen von /tmp/claude-output.log)</summary>"
+                printf '\n%s\n' '```'
+                bash .github/scripts/needs-human-explain.sh logtail
+                printf '%s\n' '```'
+                printf '%s\n\n' "</details>"
+              fi
+              printf '%s\n' "**Was du als Mensch beitragen/entscheiden solltest:**"
+              printf '%s\n' "- [ ] 1. Entscheidungs-Findings durchgehen (Erklärung oben verlinkt)"
+              printf '%s\n' "- [ ] 2. Entscheidung treffen (Code anpassen / akzeptieren)"
+              printf '%s\n' "- [ ] 3. Label \`ai:needs-human\` entfernen"
+              printf '%s\n' "- [ ] 4. Label \`ai:needs-review\` setzen → loest erneuten Review aus"
+            } > /tmp/needs-human-body.md
+            bash .github/scripts/needs-human-explain.sh post --repo "$GITHUB_REPOSITORY" --pr "$PR" --body-file /tmp/needs-human-body.md
+            rc=0
+            apply_transition "ai:needs-human" || rc=$?
+            if [ "$rc" -eq 2 ]; then
+              echo "stuck=true" >> "$GITHUB_OUTPUT"; echo "stuck_reason=superseded" >> "$GITHUB_OUTPUT"
+            elif [ "$rc" -eq 1 ]; then
+              exit 1
+            else
+              echo "::notice::Verdict needs-human -> Label gesetzt: ai:needs-human (wartet auf Mensch)."
+              echo "stuck=true" >> "$GITHUB_OUTPUT"
+              echo "stuck_reason=needs-human" >> "$GITHUB_OUTPUT"
+            fi
+          elif [ "$ARTIFACTS_OK" = "true" ]; then
+            # Fortschritt -> an Review uebergeben. Konvergiert via Stop-Guard
+            # (>10 Commits), falls Review nie gruen wird.
+            rc=0
+            apply_transition "ai:needs-review" || rc=$?
+            if [ "$rc" -eq 2 ]; then
+              echo "stuck=true" >> "$GITHUB_OUTPUT"; echo "stuck_reason=superseded" >> "$GITHUB_OUTPUT"
+            elif [ "$rc" -eq 1 ]; then
+              exit 1
+            else
+              echo "::notice::Fortschritt erkannt (HEAD bewegt) -> Label gesetzt: ai:needs-review"
+              echo "stuck=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            # KEIN Fortschritt und kein klares needs-human-Verdict -> NICHT erneut triggern (kappt
+            # sowohl Fixup<->Fixup- als auch Review<->Fixup-Endlosloop). Terminal an Mensch
+            # via ai:needs-human + Kommentar.
+            #
+            # Erklärungs-Gate: Erst schauen, ob Claude in DIESEM Lauf einen
+            # ai-fixup-decisions-Kommentar gepostet hat — in #842 existierte er
+            # 25 s vor dem Label, wurde aber nicht referenziert. Sonst Fakten
+            # statt Vermutung (das alte "vermutlich" war geraten): Review-
+            # Kommentar verlinken + Claudes eigene Begründung aus dem Log.
+            DEC_GUARD="$(bash .github/scripts/needs-human-explain.sh lookup --repo "$GITHUB_REPOSITORY" --pr "$PR" --mode decisions --since "$SINCE_ISO")"
+            DEC_STATUS="$(printf '%s\n' "$DEC_GUARD" | sed -n 's/^status=//p')"
+            DEC_LINK="$(printf '%s\n' "$DEC_GUARD" | sed -n 's/^permalink=//p')"
+            DEC_FINDINGS="$(printf '%s\n' "$DEC_GUARD" | sed -n 's/^findings=//p')"
+            {
+              printf '%s\n\n' "🛑 **Fixup #${PR} ohne Fortschritt (Kein neuer Commit)**"
+              if [ "$DEC_STATUS" = "found" ]; then
+                printf '%s\n\n' "**Warum:** Kein neuer Commit in diesem Lauf (HEAD unverändert: \`${sha_before}\` → \`${sha_after}\`). Claude hat den Block als Entscheidungs-Finding markiert:"
+                [ -n "$DEC_FINDINGS" ] && printf '%s\n\n' "**Entscheidungs-Findings:** ${DEC_FINDINGS}"
+                printf '%s\n\n' "**Erklärung (Was/Wo/Optionen/Empfehlung):** ${DEC_LINK}"
+              else
+                REVIEW_GUARD="$(bash .github/scripts/needs-human-explain.sh lookup --repo "$GITHUB_REPOSITORY" --pr "$PR" --mode review)"
+                REVIEW_LINK="$(printf '%s\n' "$REVIEW_GUARD" | sed -n 's/^permalink=//p')"
+                RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+                printf '%s\n\n' "**Warum:** Kein neuer Commit in diesem Lauf (HEAD unverändert: \`${sha_before}\` → \`${sha_after}\`). Claudes eigene Begründung steht im Log-Auszug unten."
+                [ -n "$REVIEW_LINK" ] && printf '%s\n\n' "**Offene Findings (Review-Kommentar):** ${REVIEW_LINK}"
+                printf '%s\n\n' "**Diagnose:** Run: ${RUN_URL}"
+                printf '%s\n' "<details><summary>Log-Auszug (letzte 25 Zeilen von /tmp/claude-output.log)</summary>"
+                printf '\n%s\n' '```'
+                bash .github/scripts/needs-human-explain.sh logtail
+                printf '%s\n' '```'
+                printf '%s\n\n' "</details>"
+              fi
+              printf '%s\n' "**Was du als Mensch beitragen/entscheiden solltest:**"
+              printf '%s\n' "- [ ] 1. Begründung/Findings pruefen (oben verlinkt) — nicht-automatisierbares Finding?"
+              printf '%s\n' "- [ ] 2. Entscheidung treffen (Code anpassen / akzeptieren / Manuelles Fixup)"
+              printf '%s\n' "- [ ] 3. Label \`ai:needs-human\` entfernen"
+              printf '%s\n' "- [ ] 4. Label \`ai:needs-review\` setzen → loest erneuten Review aus"
+            } > /tmp/needs-human-body.md
+            bash .github/scripts/needs-human-explain.sh post --repo "$GITHUB_REPOSITORY" --pr "$PR" --body-file /tmp/needs-human-body.md
+            rc=0
+            apply_transition "ai:needs-human" || rc=$?
+            if [ "$rc" -eq 2 ]; then
+              echo "stuck=true" >> "$GITHUB_OUTPUT"; echo "stuck_reason=superseded" >> "$GITHUB_OUTPUT"
+            elif [ "$rc" -eq 1 ]; then
+              exit 1
+            else
+              echo "::warning::Kein Fixup-Fortschritt (HEAD unverändert) -> ai:needs-human, keine Re-Armierung, Mensch prüft."
+              echo "stuck=true" >> "$GITHUB_OUTPUT"
+              echo "stuck_reason=no-progress" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - name: Ergebnis zusammenfassen
+        if: always() && steps.setup.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          PR: ${{ github.event.pull_request.number }}
+          OUTCOME: ${{ steps.claude.outcome }}
+          STOP_GUARD: ${{ steps.stop-guard.outputs.stop }}
+          STUCK: ${{ steps.label-post.outputs.stuck }}
+          STUCK_REASON: ${{ steps.label-post.outputs.stuck_reason }}
+          CONSUME_PROCEED: ${{ steps.consume.outputs.proceed }}
+        run: |
+          labels="$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json labels --jq '[.labels[].name] | join(", ")' 2>/dev/null || true)"
+          # Eigener Arm fuer den Stop-Guard: ohne ihn faellt der gewollte Abbruch auf den
+          # Fehler-Arm (OUTCOME ist leer, weil der claude-Step nie lief) und meldet ❌.
+          # Der Stop-Guard ist ein GEWOLLTER Abbruch (Loop-Schutz, > 10 Commits) — er hat
+          # bereits selbst kommentiert; hier gehoert eine Warnung hin, kein Fehler.
+          # Dasselbe gilt fuer den No-Progress-Fall (STUCK): Claude lief, aber ohne Commit ->
+          # bewusst keine Re-Armierung, Mensch prüft.
+          if [ "$CONSUME_PROCEED" != "true" ]; then
+            echo "::notice title=⏭️ Fixup verworfen::PR #${PR} — Trigger im Start-Konsum nicht mehr gültig, neuere Entscheidung regiert."
+          elif [ "${STOP_GUARD:-false}" = "true" ]; then
+            echo "::warning title=🛑 Fixup gestoppt::PR #${PR} — Stop-Guard (Loop-Schutz), bitte manuell prüfen"
+          elif [ "${STUCK:-false}" = "true" ]; then
+            # STUCK=true kommt von drei Pfaden (stuck_reason): Claude-Crash (OUTCOME!=success),
+            # needs-human-Verdict ODER echtem No-Progress. Jeder braucht seine eigene Wahrheit:
+            # beim Crash ist der HEAD-Fortschritt nicht vertrauenswuerdig, bei needs-human wartet
+            # der PR auf eine menschliche Entscheidung (Claude kann trotzdem Commits gemacht
+            # haben — "kein neuer Commit" waere hier falsch), bei No-Progress gab es wirklich keinen.
+            case "${STUCK_REASON:-no-progress}" in
+              crash)
+                echo "::warning title=🛑 Fixup abgestürzt/abgebrochen::PR #${PR} — Claude-Schritt \`${OUTCOME:-unbekannt}\`, HEAD-Fortschritt nicht vertrauenswürdig, keine Re-Armierung, bitte manuell prüfen"
+                ;;
+              needs-human)
+                echo "::notice title=⏸️ Fixup wartet auf Entscheidung::PR #${PR} — verbleibende Findings nicht automatisierbar (ai:needs-human gesetzt), bitte manuell prüfen"
+                ;;
+              superseded)
+                echo "::notice title=⏭️ Fixup abgelöst::PR #${PR} — Label-Zustand hat sich während des Laufs geändert, Schreib-Zugriff verworfen"
+                ;;
+              *)
+                echo "::warning title=🛑 Fixup ohne Fortschritt::PR #${PR} — kein neuer Commit, keine Re-Armierung, bitte manuell prüfen"
+                ;;
+            esac
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "::notice title=✅ Fixup erfolgreich::PR #${PR}"
+          elif [ "$OUTCOME" = "cancelled" ]; then
+            echo "::warning title=⏸️ Fixup abgebrochen"
+          else
+            echo "::error title=❌ Fixup fehlgeschlagen"
+          fi
+          {
+            echo "### Fixup #${PR}"
             echo "- Claude-Schritt: \`${OUTCOME:-unbekannt}\`"
             echo "- Labels: ${labels:-keine}"
           } >> "$GITHUB_STEP_SUMMARY"

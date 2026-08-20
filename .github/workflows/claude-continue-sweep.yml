@@ -130,20 +130,25 @@ jobs:
             echo "|-------|----------|-------|--------|"
           } >> "$GITHUB_STEP_SUMMARY"
 
-          # Phase-Workflow → Trigger-Label|Objekt-Art (issue|pr). Reihenfolge fest (assoziative
-          # Arrays iterieren unsortiert) — deterministische Summary und Logs.
+          # Eingang → Workflow-Datei|Trigger-Label|Objekt-Art (issue|pr). Reihenfolge fest
+          # (assoziative Arrays iterieren unsortiert) — deterministische Summary und Logs.
+          #
+          # Der Schlüssel ist der EINGANG, nicht die Workflow-Datei: Seit dem Zusammenlegen
+          # von Fixup und Umsetzung (ADR-0005) bedienen zwei Eingänge dieselbe Datei
+          # (04-claude-implement.yml — Issue+ai:needs-impl und PR+ai:needs-fixup). Als
+          # Dateiname-Schlüssel liesse sich das nicht ausdrücken; einer der beiden Eingänge
+          # wäre still aus dem Sweep gefallen und klebende Trigger blieben liegen.
           declare -A PHASES=(
-            [01-claude-triage.yml]="ai:needs-analyse|issue"
-            [02-claude-ux.yml]="ai:needs-ux-ui|issue"
-            [03-claude-spec.yml]="ai:needs-spec|issue"
-            [04-claude-implement.yml]="ai:needs-impl|issue"
-            [05-claude-pr-review.yml]="ai:needs-review|pr"
-            [06-claude-pr-fixup.yml]="ai:needs-fixup|pr"
+            [1-analyse]="01-claude-triage.yml|ai:needs-analyse|issue"
+            [2-ux]="02-claude-ux.yml|ai:needs-ux-ui|issue"
+            [3-spec]="03-claude-spec.yml|ai:needs-spec|issue"
+            [4-implement]="04-claude-implement.yml|ai:needs-impl|issue"
+            [4-implement-pr]="04-claude-implement.yml|ai:needs-fixup|pr"
+            [5-review]="05-claude-pr-review.yml|ai:needs-review|pr"
           )
 
-          for WF in $(printf '%s\n' "${!PHASES[@]}" | sort); do
-            LABEL="${PHASES[$WF]%%|*}"
-            KIND="${PHASES[$WF]##*|}"
+          for ENTRY in $(printf '%s\n' "${!PHASES[@]}" | sort); do
+            IFS='|' read -r WF LABEL KIND <<< "${PHASES[$ENTRY]}"
 
             # 1) Ruht die Phase? Alle Phasen-Workflows teilen je EINE globale concurrency-Gruppe
             #    (queue: max) — ist irgendein Run queued/in_progress, kann kein Kandidat dieser
@@ -152,8 +157,8 @@ jobs:
             latest="$(gh run list --workflow "$WF" --repo "$REPO" -L 1 --json status,createdAt 2>/dev/null || echo '[]')"
             status="$(printf '%s' "$latest" | jq -r '.[0].status // ""')"
             if [ "$status" = "queued" ] || [ "$status" = "in_progress" ]; then
-              echo "| $WF | — | — | ⏳ Phase aktiv ($status) — skip |" >> "$GITHUB_STEP_SUMMARY"
-              echo "$WF: Phase aktiv ($status) — keine Kandidatenprüfung."
+              echo "| $ENTRY | — | — | ⏳ Phase aktiv ($status) — skip |" >> "$GITHUB_STEP_SUMMARY"
+              echo "$ENTRY: Phase aktiv ($status) — keine Kandidatenprüfung."
               continue
             fi
 
@@ -165,8 +170,8 @@ jobs:
             if [ -n "$created" ]; then
               age_min=$(( ($(date +%s) - $(date -u -d "$created" +%s)) / 60 ))
               if [ "$age_min" -lt 10 ]; then
-                echo "| $WF | — | — | ⏳ letzter Run erst ${age_min} min alt (Retrigger-Fenster) — skip |" >> "$GITHUB_STEP_SUMMARY"
-                echo "$WF: letzter Run erst ${age_min} min alt — skip (Retrigger-Fenster)."
+                echo "| $ENTRY | — | — | ⏳ letzter Run erst ${age_min} min alt (Retrigger-Fenster) — skip |" >> "$GITHUB_STEP_SUMMARY"
+                echo "$ENTRY: letzter Run erst ${age_min} min alt — skip (Retrigger-Fenster)."
                 continue
               fi
             fi
@@ -187,11 +192,11 @@ jobs:
             count="$(printf '%s' "$cands" | jq 'length')"
 
             if [ "$count" -eq 0 ]; then
-              echo "| $WF | — | — | ✅ keine klebenden Trigger |" >> "$GITHUB_STEP_SUMMARY"
-              echo "$WF: keine klebenden ${LABEL}-Trigger."
+              echo "| $ENTRY | — | — | ✅ keine klebenden Trigger |" >> "$GITHUB_STEP_SUMMARY"
+              echo "$ENTRY: keine klebenden ${LABEL}-Trigger."
               continue
             fi
-            echo "$WF: $count Kandidat(en) mit klebendem ${LABEL}."
+            echo "$ENTRY: $count Kandidat(en) mit klebendem ${LABEL}."
 
             # 4) Nachfeuern: Trigger-Label entfernen + sofort neu setzen (dokumentierte
             #    Selbst-Retrigger-Mechanik). Fail-safe: Ein fehlgeschlagener Kandidat darf
@@ -200,7 +205,7 @@ jobs:
               n="$(printf '%s' "$item" | jq -r '.number')"
               title="$(printf '%s' "$item" | jq -r '.title' | tr -d '|')"
               if [ "$DRY_RUN" = "true" ]; then
-                echo "| $WF | #$n | $title | ⏸️ dry-run |" >> "$GITHUB_STEP_SUMMARY"
+                echo "| $ENTRY | #$n | $title | ⏸️ dry-run |" >> "$GITHUB_STEP_SUMMARY"
                 echo "[dry-run] würde $LABEL für $KIND #$n neu feuern."
                 continue
               fi
@@ -208,21 +213,21 @@ jobs:
                 gh issue edit "$n" --repo "$REPO" --remove-label "$LABEL" >/dev/null 2>&1 || true
                 if gh issue edit "$n" --repo "$REPO" --add-label "$LABEL" >/dev/null 2>&1 \
                    || gh issue edit "$n" --repo "$REPO" --add-label "$LABEL" >/dev/null 2>&1; then
-                  echo "| $WF | #$n | $title | 🚀 ${LABEL} neu gefeuert |" >> "$GITHUB_STEP_SUMMARY"
-                  echo "🚀 $WF: ${LABEL} für Issue #$n neu gefeuert."
+                  echo "| $ENTRY | #$n | $title | 🚀 ${LABEL} neu gefeuert |" >> "$GITHUB_STEP_SUMMARY"
+                  echo "🚀 $ENTRY: ${LABEL} für Issue #$n neu gefeuert."
                 else
                   # Lauter Fehler statt still: Schlimmster Fall wäre Label-Verlust ohne Event.
-                  echo "| $WF | #$n | $title | ❌ Re-Add fehlgeschlagen |" >> "$GITHUB_STEP_SUMMARY"
+                  echo "| $ENTRY | #$n | $title | ❌ Re-Add fehlgeschlagen |" >> "$GITHUB_STEP_SUMMARY"
                   echo "::error title=Trigger verloren::Issue #$n: $LABEL entfernt, Re-Add zweimal fehlgeschlagen — manuell nachsetzen."
                 fi
               else
                 gh pr edit "$n" --repo "$REPO" --remove-label "$LABEL" >/dev/null 2>&1 || true
                 if gh pr edit "$n" --repo "$REPO" --add-label "$LABEL" >/dev/null 2>&1 \
                    || gh pr edit "$n" --repo "$REPO" --add-label "$LABEL" >/dev/null 2>&1; then
-                  echo "| $WF | #$n | $title | 🚀 ${LABEL} neu gefeuert |" >> "$GITHUB_STEP_SUMMARY"
-                  echo "🚀 $WF: ${LABEL} für PR #$n neu gefeuert."
+                  echo "| $ENTRY | #$n | $title | 🚀 ${LABEL} neu gefeuert |" >> "$GITHUB_STEP_SUMMARY"
+                  echo "🚀 $ENTRY: ${LABEL} für PR #$n neu gefeuert."
                 else
-                  echo "| $WF | #$n | $title | ❌ Re-Add fehlgeschlagen |" >> "$GITHUB_STEP_SUMMARY"
+                  echo "| $ENTRY | #$n | $title | ❌ Re-Add fehlgeschlagen |" >> "$GITHUB_STEP_SUMMARY"
                   echo "::error title=Trigger verloren::PR #$n: $LABEL entfernt, Re-Add zweimal fehlgeschlagen — manuell nachsetzen."
                 fi
               fi
