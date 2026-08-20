@@ -1,6 +1,7 @@
 ---
 name: knowledge-graph
-description: Nutze, wenn Repo-Dokumentation verlinkt, der Wissensgraph gepflegt, tote Links geprüft, verwaiste Dokumente gefunden oder der AGENTS.md-Index aktualisiert werden soll — auch automatisch bei jeder Änderung an .ai-knowledge/, docs/ oder AGENTS.md, selbst wenn nicht ausdrücklich nach dem Graphen gefragt wird. Trigger: "Wissensgraph", "Graph", "Obsidian", "verlinke die Doku", "Link-Check", "Index aktualisieren". Nicht für Code-Analyse oder UI-Arbeit.
+description: >-
+  Nutze, wenn Repo-Dokumentation verlinkt, der Wissensgraph gepflegt, tote Links geprüft, verwaiste Dokumente gefunden oder der AGENTS.md-Index aktualisiert werden soll — auch automatisch bei jeder Änderung an .ai-knowledge/, docs/ oder AGENTS.md, selbst wenn nicht ausdrücklich nach dem Graphen gefragt wird. Trigger: "Wissensgraph", "Graph", "Obsidian", "verlinke die Doku", "Link-Check", "Index aktualisieren". Nicht für Code-Analyse oder UI-Arbeit.
 version: 1.0.0
 user-invocable: true
 argument-hint: "[audit · verlinde · index] [ziel]"
@@ -41,13 +42,13 @@ Wenn du eine Datei im Geltungsbereich bearbeitest oder neu anlegst, ohne dass di
 explizit aufgerufen wurde:
 
 1. **Neue Datei** → ergänze einen Eintrag in der Wissensbasis-Liste in `AGENTS.md`. Format wie
-   die bestehenden Zeilen: Link, Gedankenstrich, ein Kurz-Hook, was die Datei liefert.
+die bestehenden Zeilen: Link, Gedankenstrich, ein Kurz-Hook, was die Datei liefert.
 2. **Bearbeitete Datei** → prüfe ihre Links: Existiert jede Zieldatei noch? Passt der Anker noch
-   zur Überschrift? Tote Links sofort korrigieren oder entfernen — ein toter Link ist schlimmer
-   als kein Link.
+zur Überschrift? Tote Links sofort korrigieren oder entfernen — ein toter Link ist schlimmer
+als kein Link.
 3. **Echte Querbezüge setzen** → wenn die Änderung einen thematischen Bezug zu einer anderen
-   Geltungsbereich-Datei hat, verlinke sie an der Stelle, wo der Bezug entsteht. Die Kante muss
-   vom Inhalt her begründet sein, nicht vom Thema bloß ähnlich.
+Geltungsbereich-Datei hat, verlinke sie an der Stelle, wo der Bezug entsteht. Die Kante muss
+vom Inhalt her begründet sein, nicht vom Thema bloß ähnlich.
 
 Der inkrementelle Modus läuft **im Schlusscheck** der eigentlichen Aufgabe ab — er ersetzt die
 Aufgabe nicht und erweitert sie nicht um Voll-Audits.
@@ -57,15 +58,15 @@ Aufgabe nicht und erweitert sie nicht um Voll-Audits.
 Voll-Prüfung des Graphen. Lese alle Geltungsbereich-Dateien, dann erhebe in dieser Reihenfolge:
 
 1. **Tote Links:** Jeder interne Markdown-Link (Zieldatei + Anker) — existiert das Ziel?
-   Externe URLs werden nicht angefasst.
+Externe URLs werden nicht angefasst.
 2. **Inseln:** Dateien im Geltungsbereich ohne einen einzigen eingehenden Link aus anderen
-   Geltungsbereich-Dateien. `README.md` als Einstiegspunkt, `docs/spec/issue-*.md` als
-   historisches Ticket-Archiv und neue, noch unverbundene Dateien sind **erwartbare Inseln** —
-   bewerte, bevor du algo-artig alles verdrahtest.
+Geltungsbereich-Dateien. `README.md` als Einstiegspunkt, `docs/spec/issue-*.md` als
+historisches Ticket-Archiv und neue, noch unverbundene Dateien sind **erwartbare Inseln** —
+bewerte, bevor du algo-artig alles verdrahtest.
 3. **Fehlende Kanten:** Paare, die inhaltlich aufeinander Bezug nehmen sollten, aber nicht
-   verlinkt sind. Nur Kanten nennen, die ein Leser wirklich folgen würde.
+verlinkt sind. Nur Kanten nennen, die ein Leser wirklich folgen würde.
 4. **Index-Abgleich:** Jede Geltungsbereich-Datei aus `.ai-knowledge/` hat einen Eintrag in der
-   `AGENTS.md`-Liste — und jeder Listeneintrag zeigt auf eine existierende Datei.
+`AGENTS.md`-Liste — und jeder Listeneintrag zeigt auf eine existierende Datei.
 
 Dann wende die Fixes minimalinvasiv an: tote Links korrigieren/entfernen, fehlende Kanten setzen,
 Index angleichen, Inseln nur verbinden, wo ein echter Bezug besteht. Berichte am Ende kompakt:
@@ -85,13 +86,13 @@ Nur der `AGENTS.md`-Abgleich aus dem Audit (Punkt 4), ohne Link-Prüfung.
 ## Kernregeln
 
 - **Minimalprinzip:** Jede Zeile ist Wartungslast. Eine Kante entsteht nur, wenn ein Leser ihr
-  folgen würde, um etwas zu verstehen, das im Text gerade relevant wird. Kein Link-Spam, keine
-  "Siehe auch"-Sammlungen ohne konkreten Anlass.
+folgen würde, um etwas zu verstehen, das im Text gerade relevant wird. Kein Link-Spam, keine
+"Siehe auch"-Sammlungen ohne konkreten Anlass.
 - **Verlinken, nicht umschreiben:** Du ergänzt Links und Index-Einträge — du formulierst keine
-  Absätze um, um Verlinkbarkeit zu erzwingen.
+Absätze um, um Verlinkbarkeit zu erzwingen.
 - **Kein Stil-Bruch:** Relative Markdown-Links, GitHub-Anker, deutscher Text wie in der
-  jeweiligen Datei. Keine Wiki-Links, keine absoluten Pfade, keine Frontmatter-Migration.
+jeweiligen Datei. Keine Wiki-Links, keine absoluten Pfade, keine Frontmatter-Migration.
 - **Bestandsschutz:** Vorhandene, funktionierende Links bleiben stehen, auch wenn eine andere
-  Formulierung schöner wäre.
+Formulierung schöner wäre.
 - **Berichtspflicht:** Jeder Lauf endet mit einer kurzen Zusammenfassung der Änderungen. Ein
-  Lauf ohne Änderungen endet mit "Graph konsistent" — kein Herbeizaubern von Arbeit.
+Lauf ohne Änderungen endet mit "Graph konsistent" — kein Herbeizaubern von Arbeit.
