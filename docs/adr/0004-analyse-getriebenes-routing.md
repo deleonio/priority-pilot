@@ -200,6 +200,13 @@ dem sie im Sinne des Ziels Token _sparen_ statt sie zu vervielfachen.
   Folgeschritten tatsächlich trägt, ist am Referenzticket zu messen — die Baseline dafür steht
   jetzt. Bis dahin ist dieses ADR eine begründete Wette, keine gemessene Wahrheit.
 
+  > **Nachtrag 2026-08-20:** Der Referenzlauf ist durch und gemessen —
+  > [docs/kosten-baseline-912.md](../kosten-baseline-912.md). Er stützt Entscheidung 2
+  > (Umsetzung, Review und Dokumentation liefen alle drei auf `haiku`, zusammen $0.47) und
+  > zeigt einen unerwarteten Schwerpunkt: **Die Spec-Phase allein trägt 81 % der messbaren
+  > Kosten** ($1.95 von $2.42), weil sie auf `sonnet` läuft. Die Hypothesen selbst bleiben
+  > unbelegt — ein Ticket ist keine Stichprobe, und ein Vorher-Wert existiert nicht.
+
 ## Fortschreibung von ADR 0002 und ADR 0003
 
 **ADR 0002 (7 Phasen):** Die Phasenkette bleibt, wird aber bedingt. UX und Spec sind formell

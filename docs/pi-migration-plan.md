@@ -484,5 +484,5 @@ _Anhänge:_
 - [PI SDK Docs](https://pi.dev/docs/sdk.md)
 - [PI Extensions Guide](https://pi.dev/docs/extensions.md)
 - [PI Skills Spec](https://pi.dev/docs/skills.md)
-- [Aktuelle Pipeline-Docs](docs/ci-architecture.md)
-- [Pipeline Flow Diagram](docs/pipeline-flow.md)
+- [Aktuelle Pipeline-Docs](ci-architecture.md)
+- [Pipeline Flow Diagram](pipeline-flow.md)
