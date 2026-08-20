@@ -11,8 +11,8 @@ Zwei Ideen stecken dahinter:
   Aufgaben und die sinnvolle nächste Aufgabe werden dadurch sichtbar.
 - **Lebensbalance-Säulen.** Jede Aufgabe zahlt auf eine oder mehrere deiner persönlichen
   Lebens­bereiche ein. Die Säulen sind **nutzerdefiniert**: Du legst eigene Säulen an, benennst,
-  gewichtest und löschst sie. Neue Konten starten mit einem Default-Bestand von fünf Säulen, den du
-  frei bearbeiten kannst. Über eine Gewichtung steuerst du, welche Bereiche gerade
+  gewichtest und löschst sie. Beim ersten Anmelden werden fünf Standard-Säulen angelegt,
+  die du frei bearbeiten kannst. Über eine Gewichtung steuerst du, welche Bereiche gerade
   wichtig sind – und siehst, ob deine Zeit dorthin fließt.
 
 Dieses Handbuch erklärt alle Funktionen der Anwendung.
@@ -37,20 +37,18 @@ Administrator.
 
 ## Überblick: Kopfzeile und Ansichten
 
-Ganz oben findest du die **Kopf-Aktionen** (als Icon-Buttons):
+Ganz oben findest du die **Kopf-Aktionen**:
 
-- **KI-Modell** (Modell-Name mit Pfeil) – wählt das Modell für KI-Funktionen (Schnellerfassung, Säulen-Vorschlag, Säulen-Berater, Lektorat).
+- **KI-Modell** (Modell-Name mit Pfeil) – wählt das Modell für KI-Funktionen (Schnellerfassung, Säulen-Vorschlag, Säulen-Berater, Lektorat). Ein Klick öffnet eine Liste der aktuell kostenlosen OpenRouter-Modelle, die live vom Server geladen werden.
 - **Neuen Task anlegen** (Plus) – der zentrale Einstieg für neue Aufgaben _und_ Serien.
 - **Säulen-Berater** (Glühbirne) – KI-Vorschläge für Aktivitäten.
-- **Einstellungen** (Zahnrad) – Darstellung, Spracheingabe, Push, Säulen-Gewichtung, LLM-Provider.
+- **Einstellungen** (Zahnrad) – Darstellung, Spracheingabe, Push, Standort, Säulen-Gewichtung, LLM-Provider.
 - **Hilfe** (Fragezeichen) – dieses Handbuch.
 - **Abmelden** – beendet die Sitzung.
 
 Rechts daneben stehen dein Profilbild und dein Name.
 
-Die Kopfzeile ist auf allen Bildschirmgrößen einheitlich: Alle sechs Kopf-Aktionen stehen direkt
-als Icon-Buttons in der Leiste – ein zusätzliche Menüpunkt gibt es nicht. Rechts daneben
-finden sich dein Profilbild und dein Name.
+Die Kopfzeile ist auf allen Bildschirmgrößen einheitlich: Alle sechs Elemente (KI-Modell-Auswahl plus fünf Icon-Buttons) stehen direkt in der Leiste – ein zusätzliches Menü gibt es nicht.
 
 Darunter wechselst du über eine **Tab-Leiste** zwischen den vier Hauptansichten:
 
@@ -96,7 +94,7 @@ mit Oberaufgaben, Abhängigkeiten und dem Aufgabenwald findest du im Tab **Aufga
 
 Oben im Tab findest du zwei Bedienelemente:
 
-- einen **Umschalter Offen/Erledigt**, der zwischen dem Baum der offenen Aufgaben und
+- einen **Umschalter Offen/Erledigt**, der zwischen der Liste der offenen Aufgaben und
   der Tabelle der erledigten Aufgaben wechselt, und
 - ein **Suchfeld**, das die aktuelle Ansicht nach **Titel** filtert (Teiltreffer,
   Groß-/Kleinschreibung egal). Im offenen Baum bleiben passende Aufgaben samt ihrem
@@ -112,22 +110,22 @@ Rechts an jeder Zeile können **Kennzeichen** stehen:
 
 ### Aktionen je Aufgabe
 
-Alle Aktionen sind als **Icon-Buttons** in einer Werkzeugleiste am Zeilenende direkt
-sichtbar (kein „…"-Menü):
+Alle Aktionen liegen hinter einem **„Weitere Aktionen"-Menü** (Drei-Punkte-Button) am Zeilenende.
+Im Menü findest du:
 
+- **Erledigt / Wieder öffnen** – als erster Eintrag, schaltet den Status um.
+  Eine Aufgabe lässt sich erst abschließen, wenn **alle direkten Unteraufgaben
+  erledigt** sind (der Eintrag ist sonst gesperrt). Wieder öffnen ist jederzeit
+  möglich – auch als schnelles Rückgängig direkt nach dem Erledigen.
 - **Bearbeiten** (Zahnrad) – öffnet das Aufgabenformular.
 - **Abhängigkeiten** (Kette) – öffnet den Vorgänger-Editor.
 - **Unteraufgabe anlegen** (Plus) – legt eine neue Aufgabe an, die automatisch als Vorgänger
   mit der aktuellen verknüpft wird.
 - **Löschen** (Kreuz) – entfernt die Aufgabe nach Rückfrage.
 
-Den Status **Erledigt / Wieder öffnen** schaltest du über den **Toggle-Schalter** am Zeilenanfang
-um. Eine Aufgabe lässt sich erst abschließen, wenn **alle direkten Unteraufgaben
-erledigt** sind (der Schalter ist sonst gesperrt). Wieder öffnen ist jederzeit
-möglich – auch als schnelles Rückgängig direkt nach dem Erledigen.
-
-Frisch erledigte Aufgaben wandern beim nächsten Ansichtswechsel automatisch in die
-**Erledigt**-Ansicht des Aufgaben-Tabs.
+Frisch erledigte Aufgaben bleiben für **5 Sekunden** „sticky" im offenen Baum (für ein
+sofortiges Undo per „Wieder öffnen"). Danach werden sie beim nächsten Reload (z. B. durch
+Tab-Wechsel) automatisch in die **Erledigt**-Ansicht verschoben.
 
 ---
 
@@ -152,7 +150,7 @@ Danach hast du zwei Möglichkeiten:
 
 Im selben Dialog erscheint das Aufgabenformular. Felder:
 
-- **Titel** (Pflichtfeld) – kurzer, prägnanter Name.
+- **Titel** (Pflichtfeld, max. 30 Zeichen) – kurzer, prägnanter Name.
 - **Priorität** – Schieberegler, ganze Zahl von **1 bis 5** (Standard 3). Höher =
   wichtiger; fließt direkt in den Wert ein.
 - **Geschätzter Aufwand in Tagen** – Schieberegler von **0,1 bis 1** (Standard 0,5).
@@ -160,8 +158,9 @@ Im selben Dialog erscheint das Aufgabenformular. Felder:
   unabhängig von der Zeitzone.
 - **Beschreibung (optional)** – weiterer Kontext.
 - **Checkliste (optional)** – zerlege die Aufgabe in abhakbare Teilschritte.
+  Einträge können hinzugefügt, abgehakt und entfernt werden.
 - **Automatisches Löschen (optional)** – bei verpasster Deadline die Aufgabe nach 3 Tagen
-  automatisch löschen (nur wählbar, wenn eine Deadline gesetzt ist).
+  automatisch löschen (nur wählbar, wenn eine Deadline gesetzt ist; gilt auch für Serien).
 - **Lektorat** – über einen Button neben Titel und Beschreibung kannst du die KI bitten,
   den Text zu verbessern (Kürzung, Smoothing, Rechtschreibung). Ein Diff-Dialog zeigt den
   Vergleich; du entscheidest, ob du den Vorschlag übernimmst.
@@ -175,6 +174,46 @@ Speichern mit **„Anlegen"** (bzw. **„Bearbeiten"**), verwerfen mit **„Abbr
 
 ---
 
+## Checkliste
+
+Im Aufgabenformular kannst du eine **Checkliste** anlegen. Damit zerlegst du eine Aufgabe
+in einzelne, abhakbare Teilschritte:
+
+- **Hinzufügen:** Text eingeben, Enter oder Button – neuer Eintrag erscheint.
+- **Abhaken:** Schalter je Eintrag toggelt zwischen erledigt / offen.
+- **Entfernen:** Kreuz-Button löscht den Eintrag.
+
+Die Checkliste wird mit der Aufgabe gespeichert und ist beim Bearbeiten wieder da.
+Sie fließt nicht in die Wertberechnung ein, dient rein der Übersicht.
+
+---
+
+## Automatisches Löschen nach verpasster Deadline
+
+Aktivierst du im Formular **„Automatisch löschen nach 3 Tagen bei verpasster Deadline"**
+(Checkbox, nur sichtbar bei gesetzter Deadline), wird die Aufgabe **3 Tage nach Ablauf
+der Deadline** automatisch gelöscht – **aber nur, wenn sie bis dahin nicht erledigt ist**.
+
+Das gilt auch für Serien-Instanzen: Wird die Option im Serien-Template gesetzt,
+erben alle künftig generierten Instanzen diese Einstellung.
+
+---
+
+## Lektorat
+
+Neben dem **Titel**- und dem **Beschreibungs**-Feld findest du einen Button mit
+Zauberstab-Icon: **Lektorat**.
+
+- Klick schickt den aktuellen Text an die KI (Mistral/OpenRouter-Kaskade).
+- Die KI liefert einen verbesserten Vorschlag (Kürzung, Glättung, Rechtschreibung).
+- Ein **Diff-Dialog** zeigt den Vergleich nebeneinander (Original ↔ Vorschlag).
+- Du übernimmst den Vorschlag per **„Übernehmen"** oder brichst ab – der Originaltext
+  bleibt dann erhalten.
+
+Das Lektorat ist unabhängig von der Schnellerfassung und jederzeit nutzbar.
+
+---
+
 ## Spracheingabe
 
 Textfelder wie **Titel**, **Beschreibung**, die **Schnellerfassung** und das Feld
@@ -183,7 +222,8 @@ Spracherkennung unterstützt.
 
 - Im Feld erscheint ein **Mikrofon-Button**. Ein Klick startet die Aufnahme, ein
   weiterer stoppt sie. Erkannter Text wird an den bestehenden Inhalt angehängt.
-- Erkannte Sprache: **Deutsch**. Es kann immer nur ein Feld gleichzeitig aufnehmen.
+- Die erkannte Sprache richtet sich nach deiner Browser-/System-Einstellung
+  (keine fest vorgegebene Sprache).
 - Optional startet die Aufnahme **automatisch** beim Öffnen der Formulare – aktivierbar
   über _Einstellungen → Allgemein → „Sprachaufnahme automatisch starten"_.
 
@@ -192,14 +232,14 @@ Spracherkennung unterstützt.
 ## Abhängigkeiten (Vorgänger)
 
 Aufgaben können voneinander abhängen: Ein **Vorgänger** muss erledigt sein, bevor die
-abhängige Aufgabe sinnvoll begonnen werden kann. Öffne dazu den **Abhängigkeiten**-Button
-(Kette) in der Werkzeugleiste einer Aufgabe.
+abhängige Aufgabe sinnvoll begonnen werden kann. Öffne dazu das **„Weitere Aktionen"-
+Menü** (Drei-Punkte-Button) einer Aufgabe und wähle **„Abhängigkeiten"**.
 
 - **Aktuelle Vorgänger** listet die verknüpften Aufgaben; jede lässt sich einzeln
   entfernen. (Bereits erledigte Vorgänger erscheinen hier nicht mehr.)
-- **Vorgänger hinzufügen:** eine Aufgabe auswählen, ein **Gewicht (0,1–1)** setzen und
+- **Vorgänger hinzufügen:** eine Aufgabe auswählen, ein **Gewicht (0–1)** setzen und
   **„Hinzufügen"**. Das Gewicht steuert, wie stark der Vorgänger zum Wert der
-  abhängigen Aufgabe beiträgt.
+  abhängigen Aufgabe beiträgt (0 = kein Einfluss, 1 = voller Einfluss).
 
 Priority Pilot verhindert **zyklische Abhängigkeiten** (z. B. A → B → A) und lehnt sie
 mit einem verständlichen Hinweis ab. So bleibt der Abhängigkeitsgraph immer
@@ -212,7 +252,7 @@ Vorgänger alle erledigt sind.
 
 Lebensbalance-Säulen beschreiben, in welche Lebensbereiche eine Aufgabe einzahlt.
 Sie sind **nutzerdefiniert**: Du legst eigene Säulen an, benennst, gewichtest und löschst sie.
-Neue Konten starten mit folgendem Default-Bestand von fünf Säulen, den du frei bearbeiten,
+Beim ersten Anmelden werden fünf Standard-Säulen angelegt, die du frei bearbeiten,
 ergänzen und ersetzen kannst:
 
 - **Körper** – physische Gesundheit: Bewegung, Ernährung, Schlaf, Vorsorge.
@@ -280,6 +320,19 @@ erzeugt Priority Pilot regelmäßig neue Aufgaben-Instanzen.
 Aus einer Serie entstandene Aufgaben tragen im Aufgabenbaum das Kennzeichen **Serie**;
 weichst du eine Instanz individuell ab, kommt **geändert** hinzu.
 
+### Serien bearbeiten – Kaskade auf bestehende Instanzen
+
+Wenn du ein Serien-Template bearbeitest und **kaskadierbare Felder** änderst
+(Titel, Priorität, Aufwand, Beschreibung, Automatisches Löschen, Säulen), erscheint
+vor dem Speichern ein Bestätigungs-Dialog: **„Änderungen auch auf bestehende Instanzen anwenden?"**
+
+- **Ja** – die geänderten Werte werden auf alle bereits generierten Instanzen
+  übertragen (auch auf solche, die du individuell angepasst hast).
+- **Nein** (Standard) – nur das Template wird aktualisiert; künftige Instanzen
+  erhalten die neuen Werte, bestehende bleiben unberührt.
+
+Rhythmus, Startdatum und Aktiv-Status werden **nie** kaskadiert.
+
 ---
 
 ## Aufgabenwald
@@ -337,7 +390,8 @@ Dein Gesamtstand und die Aufteilung je Säule erscheinen im Dashboard unter
 ### Säulen
 
 Der Editor für die **Säulen-Gewichtung** (siehe „Lebensbalance-Säulen") sowie die
-Verwaltung der Säulen selbst (Anlegen, Bearbeiten, Löschen).
+Verwaltung der Säulen selbst (Anlegen, Bearbeiten, Löschen – jeweils über eigene
+Modal-Dialoge).
 
 ### LLM
 
