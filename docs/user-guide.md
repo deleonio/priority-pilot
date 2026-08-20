@@ -343,9 +343,9 @@ Verwaltung der Säulen selbst (Anlegen, Bearbeiten, Löschen).
 
 Konfiguration der KI-Provider (Mistral, OpenRouter). Hier gibst du die API-Keys und
 das gewünschte Modell ein – diese Einstellung ist serverseitig und gilt für alle Nutzer.
-Über **„Free-Modelle auswählen…"** (und ebenso über den KI-Modell-Button oben in der
-Kopfzeile) öffnet sich eine Liste der **aktuell kostenlosen OpenRouter-Modelle**, aus der
-du das Modell direkt wählen kannst – die Liste wird live von OpenRouter geladen, als
+Die aktuell kostenlosen OpenRouter-Modelle lassen sich **im LLM-Tab per Dropdown**
+auswählen (wird live von OpenRouter geladen); per Klick auf den **KI-Modell-Button** in
+der Kopfzeile öffnet sich zusätzlich eine Liste, aus der du das Modell direkt wählst. Als
 Standard ist `openrouter/free` voreingestellt. Ohne konfigurierten Provider bleiben die
 KI-Funktionen (Schnellerfassung, Säulen-Vorschlag, Säulen-Berater, Lektorat) ausgegraut.
 
