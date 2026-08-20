@@ -552,6 +552,68 @@ runs:
           echo "::notice title=Subagent-Modell::$SUB_ID (Alias '$SUBAGENT_MODEL') für alle Subagents."
         fi
 
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # TAILSCALE EXIT-NODE – für Provider 'zai' und 'openrouter' (claude nativ verträgt
+    # Azure-IPs). Läuft NACH der Provider-Auflösung, damit der finale Provider (inkl.
+    # Zeitfenster-Override) bekannt ist. Kill-Switch: tailscale-exit-node leer → deaktiviert.
+    # Fail-closed: Exit-Node gesetzt + Provider in {zai,openrouter}, aber Key fehlt/
+    # Connect scheitert → setup-claude rot → claude-Step wird übersprungen.
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    - name: Tailscale-Preflight (Auth-Key ist Pflicht bei aktivem Exit-Node für zai/openrouter)
+      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && (steps.provider.outputs.llm-provider == 'zai' || steps.provider.outputs.llm-provider == 'openrouter')
+      shell: bash
+      env:
+        TAILSCALE_AUTHKEY: ${{ inputs.tailscale-authkey }}
+      run: |
+        if [ -z "$TAILSCALE_AUTHKEY" ]; then
+          echo "::error::TAILSCALE_EXIT_NODE ist gesetzt, aber TAILSCALE_AUTH_KEY fehlt — fail-closed (kein LLM-Egress von der Azure-IP)."
+          exit 1
+        fi
+
+    - name: Tailscale-Exit-Node verbinden (LLM-Egress über feste IP, für zai/openrouter)
+      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && (steps.provider.outputs.llm-provider == 'zai' || steps.provider.outputs.llm-provider == 'openrouter')
+      uses: tailscale/github-action@780049a30b6ff5c378a9e7b389d15ece7a204888 # v4.1.3
+      with:
+        authkey: ${{ inputs.tailscale-authkey }}
+        args: --exit-node=${{ inputs.tailscale-exit-node }} --exit-node-allow-lan-access=true
+
+    - name: ✅ Tailscale-Verbindung bestätigen (für zai/openrouter)
+      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && (steps.provider.outputs.llm-provider == 'zai' || steps.provider.outputs.llm-provider == 'openrouter')
+      shell: bash
+      run: |
+        sleep 2  # tailscaled kurz Zeit geben, Status zu aktualisieren
+        if tailscale status >/dev/null 2>&1; then
+          SELF_IP=$(tailscale ip -4 2>/dev/null | head -1)
+          echo "::notice title=✅ Tailscale Exit-Node verbunden::Tailscale aktiv (Runner-IP: ${SELF_IP:-?}). LLM-Traffic routet über Nürnberg."
+          echo "Tailscale-Status: verbunden, Runner-Tailscale-IP: ${SELF_IP:-unbekannt}"
+        else
+          echo "::warning::tailscale status nicht verfügbar — Exit-Node evtl. nicht aktiv."
+        fi
+
+    - name: DNS fixen + Egress-IP protokollieren (für zai/openrouter)
+      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != '' && (steps.provider.outputs.llm-provider == 'zai' || steps.provider.outputs.llm-provider == 'openrouter')
+      shell: bash
+      run: |
+        sudo systemctl stop systemd-resolved 2>/dev/null || true
+        sudo rm -f /etc/resolv.conf
+        echo "nameserver 1.1.1.1" | sudo tee /etc/resolv.conf >/dev/null
+        echo "nameserver 8.8.8.8" | sudo tee -a /etc/resolv.conf >/dev/null
+        if getent hosts api.anthropic.com >/dev/null 2>&1; then
+          EGRESS=$(curl -s --max-time 5 https://ipinfo.io/json 2>/dev/null || echo "")
+          if [ -n "$EGRESS" ]; then
+            IP=$(printf '%s' "$EGRESS" | jq -r '.ip // "?"')
+            CITY=$(printf '%s' "$EGRESS" | jq -r '.city // "?"')
+            COUNTRY=$(printf '%s' "$EGRESS" | jq -r '.country // "?"')
+            echo "::notice title=🌐 LLM-Egress über Tailscale::Exit-Node aktiv — IP ${IP} (${CITY}, ${COUNTRY})."
+            echo "Egress-IP: ${IP} (${CITY}, ${COUNTRY})"
+          else
+            echo "::notice::Tailscale-Exit-Node aktiv + DNS via 1.1.1.1/8.8.8.8 (Egress-IP nicht abrufbar)."
+          fi
+        else
+          echo "::error::DNS-Auflösung schlägt trotz Resolver-Wechsel fehl — Exit-Node/Forwarding prüfen."
+          exit 1
+        fi
+
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     # INVOKE-RESOLUTION – setzt invoke-cmd + invoke-args
     # --model nur bei gesetztem Phasen-Modell (steps.provider.outputs.resolved-model);
@@ -642,85 +704,3 @@ runs:
     # Phasen (01..05) laden nach dem claude-Step das Memory als Artefakt hoch (upload-artifact,
     # Name = memory-save-Key) — das Artefakt IST der Speicher, es folgt kein Cache-Save mehr
     # (Cache-Writes sind für diese Trigger platform-seitig gesperrt, s. Kopf-Kommentar).
-
-    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    # TAILSCALE EXIT-NODE — LLM-Egress über eine feste IP (z.ai/OpenRouter-Flagging-Schutz)
-    #
-    # Letzter Akt VOR dem claude-Step (der im Caller läuft): verbindet den Runner mit dem
-    # Exit-Node, sodass der gesamte folgende LLM-Traffic über den Nürnberger Server egressiert.
-    # Pre-LLM-Setup (Token/Cache/npm install oben) bleibt bewusst DIREKT (keine Exit-Node-Last
-    # für GitHub/npm). Kill-Switch: tailscale-exit-node leer → alle drei Schritte übersprungen
-    # (if-Bedingung). Fail-closed: Exit-Node gesetzt, aber Key fehlt oder Connect scheitert →
-    # setup-claude rot → claude-Step übersprungen (lieber gar nicht laufen als LLM von Azure-IP
-    # und wieder geflaggt werden).
-    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    - name: Tailscale-Preflight (Auth-Key ist Pflicht bei aktivem Exit-Node)
-      # Ohne diesen Check wäre ein fehlender/leerer TAILSCALE_AUTH_KEY ein stiller Fail-OPEN:
-      # Connect- und DNS-Step würden per if-Bedingung übersprungen, setup-claude bliebe grün und
-      # claude -p liefe direkt von der Azure-Runner-IP. Kill-Switch ist ausschließlich
-      # tailscale-exit-node — ein fehlender Key ist eine Fehlkonfiguration und muss laut scheitern.
-      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != ''
-      shell: bash
-      env:
-        TAILSCALE_AUTHKEY: ${{ inputs.tailscale-authkey }}
-      run: |
-        if [ -z "$TAILSCALE_AUTHKEY" ]; then
-          echo "::error::TAILSCALE_EXIT_NODE ist gesetzt, aber TAILSCALE_AUTH_KEY fehlt — fail-closed (kein LLM-Egress von der Azure-IP)."
-          exit 1
-        fi
-
-    - name: Tailscale-Exit-Node verbinden (LLM-Egress über feste IP)
-      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != ''
-      uses: tailscale/github-action@780049a30b6ff5c378a9e7b389d15ece7a204888 # v4.1.3
-      with:
-        authkey: ${{ inputs.tailscale-authkey }}
-        args: --exit-node=${{ inputs.tailscale-exit-node }} --exit-node-allow-lan-access=true
-
-    - name: ✅ Tailscale-Verbindung bestätigen
-      # Macht den Connect im Workflow-Log sofort sichtbar: prominente Notice oben im Job,
-      # statt im tailscale/github-action-Step-Output vergraben. Läuft NACH dem Connect-Step
-      # (der bei Misserfolg selbst rot wird) → hier steht die Verbindung bereits.
-      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != ''
-      shell: bash
-      run: |
-        sleep 2  # tailscaled kurz Zeit geben, Status zu aktualisieren
-        if tailscale status >/dev/null 2>&1; then
-          SELF_IP=$(tailscale ip -4 2>/dev/null | head -1)
-          echo "::notice title=✅ Tailscale Exit-Node verbunden::Tailscale aktiv (Runner-IP: ${SELF_IP:-?}). LLM-Traffic routet über Nürnberg."
-          echo "Tailscale-Status: verbunden, Runner-Tailscale-IP: ${SELF_IP:-unbekannt}"
-        else
-          echo "::warning::tailscale status nicht verfügbar — Exit-Node evtl. nicht aktiv."
-        fi
-
-    - name: DNS fixen + Egress-IP protokollieren
-      # Exit-Node-Routing bricht die Azure-Standard-DNS des Runners: systemd-resolved im
-      # Stub-Modus intercepted DNS-Queries und fragt weiterhin den Azure-DNS (168.63.129.16),
-      # der durch den Tunnel nicht erreichbar ist. Ohne diesen Step macht der Connect zwar
-      # grün, aber claude -p erreicht seinen Provider nicht (curl exit 28 / DNS-Failure).
-      # Fix: systemd-resolved stoppen, Stub-Symlink entfernen, echte resolv.conf mit
-      # öffentlichen Resolvern schreiben (über den Tunnel erreichbar).
-      # Zusätzlich wird die egressierende IP + Standort abgefragt → pro Lauf im Log sichtbar,
-      # dass der LLM-Traffic wirklich über den Nürnberger Exit Node läuft.
-      if: steps.preflight.outputs.configured == 'true' && inputs.tailscale-exit-node != ''
-      shell: bash
-      run: |
-        sudo systemctl stop systemd-resolved 2>/dev/null || true
-        sudo rm -f /etc/resolv.conf
-        echo "nameserver 1.1.1.1" | sudo tee /etc/resolv.conf >/dev/null
-        echo "nameserver 8.8.8.8" | sudo tee -a /etc/resolv.conf >/dev/null
-        if getent hosts api.anthropic.com >/dev/null 2>&1; then
-          # Egress-IP über den Exit Node abfragen (verifiziert das Routing pro Lauf sichtbar).
-          EGRESS=$(curl -s --max-time 5 https://ipinfo.io/json 2>/dev/null || echo "")
-          if [ -n "$EGRESS" ]; then
-            IP=$(printf '%s' "$EGRESS" | jq -r '.ip // "?"')
-            CITY=$(printf '%s' "$EGRESS" | jq -r '.city // "?"')
-            COUNTRY=$(printf '%s' "$EGRESS" | jq -r '.country // "?"')
-            echo "::notice title=🌐 LLM-Egress über Tailscale::Exit-Node aktiv — IP ${IP} (${CITY}, ${COUNTRY})."
-            echo "Egress-IP: ${IP} (${CITY}, ${COUNTRY})"
-          else
-            echo "::notice::Tailscale-Exit-Node aktiv + DNS via 1.1.1.1/8.8.8.8 (Egress-IP nicht abrufbar)."
-          fi
-        else
-          echo "::error::DNS-Auflösung schlägt trotz Resolver-Wechsel fehl — Exit-Node/Forwarding prüfen."
-          exit 1
-        fi
