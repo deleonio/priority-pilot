@@ -60,11 +60,11 @@ Ist das Label **mehrdeutig**, bricht der Start ab und das Ticket wird mit `ai:ne
 Menschen geparkt. Fehlt es ganz, entscheidet die **Herkunft** (fortgeschrieben mit
 [PR #916](https://github.com/deleonio/priority-pilot/pull/916)):
 
-| Lage                                                                       | Verhalten                                                           |
-| -------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| Analyse lief nachweislich (`ai:analysed` am Objekt oder verknüpften Issue) | **Parken** — sie schuldete ein Label, das Fehlen ist ein Defekt     |
-| Keine Analyse-Herkunft (Harness-PR, manueller PR, Renovate)                | **Kein Parken** — Phasen-Default gilt, als Notice sichtbar gemacht  |
-| Herkunft nicht bestimmbar (API nicht lesbar)                               | **Parken** — „unbestimmbar" ist nicht dasselbe wie „keine Herkunft" |
+| Lage                                                                       | Verhalten                                                             |
+| -------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Analyse lief nachweislich (`ai:analysed` am Objekt oder verknüpften Issue) | **Parken** — sie schuldete ein Label, das Fehlen ist ein Defekt       |
+| Keine Analyse-Herkunft (Harness-PR, manueller PR, Renovate)                | **Kein Parken** — Literal-Default der Phase gilt, als Notice sichtbar |
+| Herkunft nicht bestimmbar (API nicht lesbar)                               | **Parken** — „unbestimmbar" ist nicht dasselbe wie „keine Herkunft"   |
 
 Die ursprüngliche Fassung parkte pauschal jeden Lauf ohne Label. Das war falsch: Nicht jeder PR
 stammt aus einer Analyse — Harness-, Fremd- und Renovate-PRs haben nie ein Issue durchlaufen, das
@@ -74,6 +74,11 @@ nicht abdeckt.
 
 Wo das Routing zuständig ist, bleibt die Auflösung als einzige im Repo **fail-closed** — inklusive
 jeder unlesbaren API-Antwort.
+
+„Phasen-Default" heißt dabei der **Literal-Default im Workflow** (`opus` für Umsetzung und Review,
+`sonnet` für Fixup), nicht das Modell aus `settings.json`: Ein leerer Alias lässt `setup-claude` die
+Auflösung überspringen, womit bei `zai`/`openrouter` das Modell aus `settings.local.json`
+stehenbleibt — das der Provider ablehnen kann (`unrecognized_model`, beobachtet an PR #916).
 
 Ab der zweiten Review-Runde am selben PR wird eine Stufe hochgesetzt (`haiku` → `sonnet` →
 `opus`).
