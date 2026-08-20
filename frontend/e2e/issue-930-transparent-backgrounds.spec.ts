@@ -209,16 +209,20 @@ test.describe('#930: Transparente KoliBri-Host-Hintergründe', () => {
 	 * dieser Test nur, dass kol-badge auf dem Dashboard überhaupt erscheint (AK1 deckt bereits ab,
 	 * dass sein Host-Hintergrund transparent bleibt).
 	 */
-	test('AK2: Text-Kontrast in kritischen Komponenten (kol-heading, kol-badge) ≥ 4.5:1', async ({ page }) => {
+	test('AK2: kol-heading Text-Kontrast ≥ 4.5:1 (Light + Dark), kol-badge sichtbar', async ({ page }) => {
 		const MIN_CONTRAST = 4.5;
 
 		// kol-badge rendert im Dashboard nur für Tasks mit überfälliger/baldiger Deadline
 		// (Dashboard.tsx: `urgency !== 'later'`). Ohne einen solchen Task bleibt „Anstehende
 		// Deadlines" leer und kol-badge fehlt im DOM — daher hier gezielt einen überfälligen
-		// Task anlegen, statt uns auf zufällig vorhandene Backend-Daten zu verlassen.
-		await page.request.post('/api/v1/tasks', {
+		// Task anlegen, statt uns auf zufällig vorhandene Backend-Daten zu verlassen. Response
+		// prüfen, sonst scheitert der Test erst 10s später am Badge-Timeout mit irreführender Meldung.
+		const createdTask = await page.request.post('/api/v1/tasks', {
 			data: { title: 'E2E #930 Kontrast-Test', deadline: '2020-01-01T00:00:00.000Z' },
 		});
+		expect(createdTask.ok(), `Task-Anlage fehlgeschlagen: ${createdTask.status()} ${await createdTask.text()}`).toBe(
+			true,
+		);
 		await page.reload();
 		await waitForStableView(page);
 
@@ -269,18 +273,21 @@ test.describe('#930: Transparente KoliBri-Host-Hintergründe', () => {
 		// kol-badge auf Dashboard (Startseite): nur Präsenz, kein Kontrast (siehe Testbeschreibung
 		// oben). Die Task-Liste wird erst nach dem Mount asynchron geladen; explizit auf das Badge
 		// warten, statt sofort per `.count()` zu prüfen (sonst race gegen den Fetch nach dem Reload).
+		// Ein Theme-Wechsel entfernt kein bereits gerendertes Element aus dem DOM — die Sichtbarkeit
+		// hängt an der Task-Liste, nicht am Theme, daher genügt eine Prüfung (AK1 deckt den
+		// transparenten Host-Hintergrund je Theme bereits separat ab).
 		await expect(page.locator('kol-badge').first()).toBeVisible({ timeout: 10000 });
 
-		await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
-		await expect(page.locator('kol-badge').first()).toBeVisible();
-
 		// kol-heading: auf Einstellungen-Seite navigieren (über Toolbar-Zahnrad-Button) — Light + Dark.
-		await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'light'));
-
 		const settingsButton = page.getByRole('button', { name: /Einstellungen|Settings/i });
 		await expect(settingsButton).toBeVisible({ timeout: 10000 });
 		await settingsButton.click();
-		await waitForStableView(page, 'Priority Pilot');
+
+		// `waitForStableView(page, 'Priority Pilot')` wäre hier ein No-Op: der Text steht als
+		// `.app-name`-Span schon im App-Header auf JEDER Seite, auch vor diesem Klick. Stattdessen
+		// direkt auf das per Navigation neu gemountete kol-heading warten (Auto-Wait statt Race
+		// gegen `measureContrast()`s ungeduldiges `.count()`).
+		await expect(page.locator('kol-heading').first()).toBeVisible({ timeout: 10000 });
 
 		const headingSample = await measureContrast('kol-heading');
 		expect(headingSample, 'kol-heading muss auf der Einstellungen-Seite vorhanden sein').not.toBeNull();
