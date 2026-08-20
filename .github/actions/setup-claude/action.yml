@@ -358,7 +358,7 @@ runs:
         path: |
           /usr/local/lib/node_modules/@anthropic-ai
           /usr/local/bin/claude
-        key: claude-code-cli-${{ runner.os }}-v1
+        key: claude-code-cli-${{ runner.os }}-v2
 
     - name: Claude Code installieren
       if: steps.preflight.outputs.configured == 'true' && steps.cache-claude.outputs.cache-hit != 'true'
