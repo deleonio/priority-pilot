@@ -45,3 +45,10 @@ Konflikte, die er verhindern soll.
   Call definieren+verwenden. Außerdem: GraphQL-`deletePullRequestReviewComment` will das
   Eingabefeld `id` (nicht `commentId`/`pullRequestReviewCommentId`); `addPullRequestReviewThreadReply`
   will `pullRequestReviewThreadId` (nicht `threadId`).
+- 2026-08-20 · Prettier/Markdown — ein Zeilenumbruch mitten in einem Inline-Code-Span
+  (`` `foo\nbar` ``) lässt sich NICHT per Einrückung/Blockquote-Präfix „reparieren": Prettier
+  behandelt Code-Span-Inhalt über Zeilenumbrüche hinweg als literal und entfernt eingefügte
+  Präfixe beim nächsten `--write` wieder kommentarlos. → Stattdessen den Umbruch aus der Mitte
+  des Code-Spans herausziehen (ganzen Span in eine Zeile), dann wrapped Prettier den Absatz
+  selbst korrekt. Nach jedem Markdown-Fix `prettier --write` + `git diff` gegenprüfen, ob die
+  Änderung überlebt.
