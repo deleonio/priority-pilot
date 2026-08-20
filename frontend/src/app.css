@@ -405,6 +405,36 @@ body {
 	aspect-ratio: 1;
 }
 
+/* KoliBri-Komponenten: Host-Element-Hintergrund transparent, sodass die Seiten-Hintergrundfarbe durchscheint (#930). */
+kol-alert,
+kol-avatar,
+kol-badge,
+kol-button,
+kol-card,
+kol-dialog,
+kol-heading,
+kol-icon,
+kol-input-checkbox,
+kol-input-date,
+kol-input-password,
+kol-input-radio,
+kol-input-range,
+kol-input-text,
+kol-meter,
+kol-popover-button,
+kol-single-select,
+kol-span,
+kol-table-stateful,
+kol-tabs,
+kol-textarea,
+kol-toolbar,
+kol-tooltip,
+kol-tree,
+kol-tree-item,
+kol-bx {
+	background-color: transparent;
+}
+
 .loading {
 	display: flex;
 	align-items: center;
