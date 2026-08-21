@@ -1,4 +1,6 @@
 {
+	"alwaysThinkingEnabled": true,
+	"autoCompactThreshold": 0.65,
 	"autoMemoryDirectory": ".claude/memory",
 	"enabledMcpjsonServers": ["kolibri-mcp", "playwright"],
 	"env": {
