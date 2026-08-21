@@ -8,10 +8,12 @@ import {
 	KolTabs,
 	KolToolbar,
 } from '@public-ui/react-v19';
-import type { Pillar, Task, TaskTreeNode } from 'client';
+import type { LlmConfigStatus, Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { api } from './api';
+import { toApiError } from './lib/apiError';
 import { CompletedTasksTable } from './components/CompletedTasksTable';
 import { Footer } from './components/Footer';
 import { Dashboard } from './components/Dashboard';
@@ -22,7 +24,7 @@ import { ForestPanel } from './components/ForestPanel';
 import { HelpPage } from './components/HelpPage';
 import { InstallPrompt } from './components/InstallPrompt';
 import { UpdatePrompt } from './components/UpdatePrompt';
-import { ModelSelectorButton } from './components/ModelSelectorButton';
+import { ModelSelectionDialog } from './components/ModelSelectionDialog';
 import { PillarAdvisorModal } from './components/PillarAdvisorModal';
 import { QuickCaptureModal } from './components/QuickCaptureModal';
 import { SeriesTab } from './components/SeriesTab';
@@ -52,14 +54,38 @@ type Dialog =
 const VIEW_TABS = [{ _label: 'Dashboard' }, { _label: 'Aufgaben' }, { _label: 'Serien' }, { _label: 'Wald' }];
 
 // Modulkonstanten für Toolbar-Icons: stabile Objektidentität pro Render, damit der Icon-Watcher
-// nicht unnötig erneut feuert (z. B. CREATE_ICON für „Neuen Task anlegen").
+// nicht unnötig erneut feuert (z. B. CREATE_ICON für "Neuen Task anlegen").
 const DONE_REMOVAL_DELAY_MS = 5000;
 
 const CREATE_ICON = { left: { icon: 'fa-solid fa-plus' } };
 const ADVISOR_ICON = { left: { icon: 'fa-solid fa-lightbulb' } };
+const MODEL_ICON = { left: { icon: 'fa-solid fa-robot' } };
 const HELP_ICON = { left: { icon: 'fa-solid fa-circle-question' } };
 const SETTINGS_ICON = { left: { icon: 'fa-solid fa-gear' } };
 const LOGOUT_ICON = { left: { icon: 'fa-solid fa-right-from-bracket' } };
+
+/**
+ * Endsegmente einer Modell-ID, die für sich genommen nichts über das Modell aussagen. Der Server
+ * defaultet auf `openrouter/free` — ein Label "free" benennt dann nur die Preisklasse, nicht das
+ * Modell. In diesen Fällen bleibt der Anbieter im Label stehen (siehe `toShortName`).
+ */
+const GENERIC_ID_SEGMENTS = new Set(['free', 'chat', 'instruct', 'preview', 'latest', 'beta']);
+
+/**
+ * Kurzname für die Anzeige im Button, abgeleitet aus der OpenRouter-Modell-ID:
+ * `anthropic/claude-sonnet-5` → `sonnet-5`, `google/gemma-7b-it:free` → `gemma-7b-it`.
+ *
+ * Ist das letzte Segment nur eine Preis-/Varianten-Angabe (`openrouter/free`), wäre der Kurzname
+ * nichtssagend — dann wird die vollständige ID (ohne `:free`-Suffix) gezeigt.
+ */
+const toShortName = (model: string | null): string => {
+	if (model === null) {
+		return 'Laden…';
+	}
+	const withoutTier = model.replace(/:free$/, '');
+	const lastSegment = withoutTier.split('/').at(-1) ?? withoutTier;
+	return GENERIC_ID_SEGMENTS.has(lastSegment.toLowerCase()) ? withoutTier : lastSegment.replace(/^claude-/, '');
+};
 
 export const App = ({ user }: { user: AuthUser }) => {
 	const [showHelp, setShowHelp] = useState(() => window.location.pathname.startsWith('/hilfe'));
@@ -76,16 +102,31 @@ export const App = ({ user }: { user: AuthUser }) => {
 	const [logoutError, setLogoutError] = useState<string | null>(null);
 	const [updateError, setUpdateError] = useState<string | null>(null);
 	const [activeTab, setActiveTab] = useState(0);
+	const [currentModel, setCurrentModel] = useState<string | null>(null);
+	const [modelDialogOpen, setModelDialogOpen] = useState(false);
 	const doneRemovalTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
 
-	// Aufgaben-Tab: Suchtext und Offen/Erledigt-Switch (State wird beim Umschalten erhalten, AK6).
-	// `searchDraft` ist der Eingabe-Entwurf im Suchfeld; der Filter wird erst per „Filtern"-Button
-	// oder Enter in `taskSearch` übernommen (deferred filter). `taskSearch` treibt die gefilterten Listen.
-	const [taskSearch, setTaskSearch] = useState('');
-	const [searchDraft, setSearchDraft] = useState('');
-	const [taskViewMode, setTaskViewMode] = useState<'open' | 'done'>('open');
-	// Übernimmt den aktuellen Eingabe-Entwurf als aktiven Filter (Button-Klick oder Enter im Suchfeld).
-	const applyTaskFilter = useCallback((value: string): void => setTaskSearch(value), []);
+	// Aktuelles Modell beim Mount laden
+	useEffect(() => {
+		const controller = new AbortController();
+		api
+			.getLlmConfig({ signal: controller.signal })
+			.then((config) => {
+				if (!controller.signal.aborted) setCurrentModel(config.openrouterModel);
+			})
+			.catch(async (reason) => {
+				// Fehler stillschweigend ignorieren — das UI zeigt "Laden…" bis zum nächsten Reload
+				console.error('Modell-Status konnte nicht geladen werden:', await toApiError(reason));
+			});
+		return () => controller.abort();
+	}, []);
+
+	const handleModelSaved = useCallback((status: LlmConfigStatus) => {
+		setCurrentModel(status.openrouterModel);
+	}, []);
+
+	const handleModelOpen = useCallback((): void => setModelDialogOpen(true), []);
+	const handleModelClose = useCallback((): void => setModelDialogOpen(false), []);
 
 	const reload = useCallback(async (signal?: AbortSignal): Promise<void> => {
 		setLoading(true);
@@ -162,7 +203,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 	const dependencyMap = useMemo(() => buildDependencyMap(forest), [forest]);
 
 	// Aktuelle Säulen-Verteilung (Soll `weight` vs. Ist `actualShare`), exakt wie im Dashboard-Widget
-	// „Meine Themen" berechnet — wird dem Säulen-Berater mitgeschickt, damit er die Vorschläge primär
+	// "Meine Themen" berechnet — wird dem Säulen-Berater mitgeschickt, damit er die Vorschläge primär
 	// auf die schwächsten (am stärksten unterversorgten) Säulen ausrichtet. `undefined`, solange die
 	// Aufgaben noch nicht geladen sind (dann berät er ohne Verteilung über alle Säulen hinweg).
 	const advisorDistribution = useMemo(() => {
@@ -178,7 +219,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 	}, [pillars, tasks, forest]);
 
 	// Alle Aufgaben-IDs, die aktuell im Aufgabenwald stehen (inkl. Unteraufgaben). Frisch per Toggle
-	// erledigte Aufgaben bleiben bis zum nächsten Reload im (dann veralteten) Wald „sticky" — die
+	// erledigte Aufgaben bleiben bis zum nächsten Reload im (dann veralteten) Wald "sticky" — die
 	// Erledigte-Tabelle blendet genau diese IDs aus, damit ein Titel nie doppelt im DOM steht (#228).
 	const forestTaskIds = useMemo(() => {
 		const ids = new Set<number>();
@@ -230,7 +271,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 		setLogoutError(null);
 		try {
 			await api.logout();
-			// Issue #396 PR B — Logout-Sperre: „gerade abgemeldet"-Marker unterdrückt den nächsten
+			// Issue #396 PR B — Logout-Sperre: "gerade abgemeldet"-Marker unterdrückt den nächsten
 			// stillen Re-Login (s. Root.tsx), sonst wäre ein Ausloggen praktisch unmöglich.
 			sessionStorage.setItem('pp_just_logged_out', '1');
 			window.location.href = '/login';
@@ -306,7 +347,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 	const openDependencies = useCallback((task: Task): void => setDialog({ kind: 'dependencies', taskId: task.id }), []);
 	const openAddSubtask = useCallback((task: Task): void => setDialog({ kind: 'create', parentTask: task }), []);
 
-	// Binärer Erledigt-Toggle (#315): schaltet die Aufgabe zwischen „Erledigt" und „Offen" um und lädt
+	// Binärer Erledigt-Toggle (#315): schaltet die Aufgabe zwischen "Erledigt" und "Offen" um und lädt
 	// die Daten neu. Der Toggle-Guard gegen offene Unteraufgaben sitzt in der Liste (`TaskTree`).
 	const handleDoneToggle = useCallback(
 		async (task: Task): Promise<void> => {
@@ -328,7 +369,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 				if (markingDone) {
 					// Kein reload(): Der Wald (`GET /forest`) enthält nur offene Aufgaben — nach einem Reload
 					// verschwände die Zeile samt Toggle sofort. Der optimistische Status-Update hält die Zeile
-					// im Aufgabenbaum „sticky" für ein Sofort-Undo (#315 AK1); die Erledigte-Tabelle blendet
+					// im Aufgabenbaum "sticky" für ein Sofort-Undo (#315 AK1); die Erledigte-Tabelle blendet
 					// solche noch im Wald stehenden Aufgaben aus (`forestTaskIds`), damit der Titel nicht
 					// doppelt im DOM steht (#228). Nach DONE_REMOVAL_DELAY_MS löst ein automatischer Reload
 					// die Zeile auf (#392).
@@ -374,6 +415,8 @@ export const App = ({ user }: { user: AuthUser }) => {
 		setDialog({ kind: 'advisor' });
 	}, []);
 
+	const shortName = toShortName(currentModel);
+
 	// Toolbar-Buttons sind auf allen Viewports identisch — keine unterschiedliche Menüstruktur je nach
 	// Viewport-Breite (#691). `_label`s und Reihenfolge sind stabil, damit Accessible Names konsistent bleiben.
 	const toolbarItems = useMemo(() => {
@@ -393,6 +436,17 @@ export const App = ({ user }: { user: AuthUser }) => {
 				_icons: ADVISOR_ICON,
 				_variant: 'secondary' as const,
 				_on: { onClick: openAdvisor },
+			},
+			{
+				type: 'button' as const,
+				_label: `KI-Modellauswahl, aktuell ${shortName}. Öffnet die Liste der verfügbaren Modelle.`,
+				_hideLabel: true,
+				_icons: MODEL_ICON,
+				_variant: 'secondary' as const,
+				_on: { onClick: handleModelOpen },
+				role: 'combobox',
+				'aria-haspopup': 'dialog',
+				'aria-expanded': modelDialogOpen,
 			},
 			{
 				type: 'button' as const,
@@ -420,7 +474,16 @@ export const App = ({ user }: { user: AuthUser }) => {
 				_on: { onClick: (): void => void handleLogout() },
 			},
 		];
-	}, [logoutLoading, openCreateDialog, openAdvisor, openSettings, openHelp, handleLogout]);
+	}, [logoutLoading, openCreateDialog, openAdvisor, openSettings, openHelp, handleLogout, shortName, modelDialogOpen, handleModelOpen]);
+
+	// Aufgaben-Tab: Suchtext und Offen/Erledigt-Switch (State wird beim Umschalten erhalten, AK6).
+	// `searchDraft` ist der Eingabe-Entwurf im Suchfeld; der Filter wird erst per "Filtern"-Button
+	// oder Enter in `taskSearch` übernommen (deferred filter). `taskSearch` treibt die gefilterten Listen.
+	const [taskSearch, setTaskSearch] = useState('');
+	const [searchDraft, setSearchDraft] = useState('');
+	const [taskViewMode, setTaskViewMode] = useState<'open' | 'done'>('open');
+	// Übernimmt den aktuellen Eingabe-Entwurf als aktiven Filter (Button-Klick oder Enter im Suchfeld).
+	const applyTaskFilter = useCallback((value: string): void => setTaskSearch(value), []);
 
 	if (showSettings) {
 		return (
@@ -453,12 +516,11 @@ export const App = ({ user }: { user: AuthUser }) => {
 					 * neben den Toolbar-Buttons und teilt deren Ausrichtung und Höhe.
 					 *
 					 * BEWUSST ohne eigenes `role="toolbar"`: `kol-toolbar` bringt die Rolle (inkl. der von ihr
-					 * erwarteten Pfeiltasten-Navigation) bereits in seinem Shadow-DOM mit. Ein zweites
+					 * erwarteten Pfeiltasten-Navigation) bereits in ihrem Shadow-DOM mit. Ein zweites
 					 * `role="toolbar"` am Wrapper erzeugte eine verschachtelte Toolbar mit identischem
 					 * Accessible Name — Screenreader kündigten zwei Toolbars an, und der Wrapper verspräche
 					 * eine Pfeiltasten-Navigation, die er nicht implementiert.
 					 */}
-					<ModelSelectorButton />
 					<KolToolbar _label="Kopf-Aktionen" _orientation="horizontal" _items={toolbarItems} />
 				</div>
 				{/* Avatar wiederhergestellt per Issue #865 Korrektur — Full Name bleibt entfernt; seit #912 am rechten Rand */}
@@ -535,7 +597,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 											onInput: (event: Event) => {
 												setSearchDraft((event.target as HTMLInputElement).value);
 											},
-											// Enter übernimmt den Entwurf sofort als aktiven Filter (neben dem „Filtern"-Button).
+											// Enter übernimmt den Entwurf sofort als aktiven Filter (neben dem "Filtern"-Button).
 											onKeyDown: (event: KeyboardEvent) => {
 												if (event.key === 'Enter') {
 													applyTaskFilter((event.target as HTMLInputElement).value);
@@ -655,6 +717,8 @@ export const App = ({ user }: { user: AuthUser }) => {
 			<InstallPrompt />
 			<UpdatePrompt />
 			<Footer version={APP_VERSION} />
+			{modelDialogOpen &&
+				createPortal(<ModelSelectionDialog onClose={handleModelClose} onModelSaved={handleModelSaved} />, document.body)}
 		</main>
 	);
 };

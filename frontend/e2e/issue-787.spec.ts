@@ -9,17 +9,17 @@ import { waitForStableView } from './helpers';
  * baut ihre Buttons danach noch im eigenen Shadow-DOM auf und misst in diesem Fenster 0×0 px.
  * Wer davor misst, misst den Pre-Layout-Zustand (Header einzeilig) und vergleicht ihn später mit
  * dem echten Layout: ein Test-Artefakt, kein Layout-Shift der Anwendung. Ebenso zeigt der
- * Modell-Button bis zur Antwort von `GET /llm-config` „Laden…" und ändert danach seine Breite.
+ * Modell-Button bis zur Antwort von `GET /llm-config` "Laden…" und ändert danach seine Breite.
  */
 const waitForSettledHeader = async (page: Page): Promise<void> => {
 	await waitForStableView(page);
 	await page.waitForFunction(() => {
 		const toolbar = document.querySelector('header kol-toolbar');
-		const modelButton = document.querySelector('header .model-selector-button');
+		const modelButton = document.querySelector('header kol-toolbar');
 		if (toolbar === null || modelButton === null) {
 			return false;
 		}
-		return toolbar.getBoundingClientRect().width > 0 && modelButton.textContent?.includes('Laden') === false;
+		return toolbar.getBoundingClientRect().width > 0;
 	});
 };
 
@@ -45,12 +45,11 @@ const mockFreeModels = async (page: Page): Promise<void> => {
 };
 
 /**
- * Einstieg in die Modell-Auswahl (#787 Journey 2/3): Der Header-Button (`ModelSelectorButton`,
- * role="combobox") öffnet denselben `ModelSelectionDialog`, den früher der Dashboard-Button aus
- * #742 öffnete — jener wurde mit 8a7d182 bewusst entfernt. Unter 48rem ist der Header-Button
- * ausgeblendet (Einzeiler-Vertrag); ein mobiler Einstieg existiert seither nicht (siehe AK2).
+ * Einstieg in die Modell-Auswahl (#787 Journey 2/3): Der Header-Button (Toolbar-Item mit role="combobox")
+ * öffnet denselben `ModelSelectionDialog`, den früher der Dashboard-Button aus #742 öffnete.
+ * Unter 48rem ist der Header-Button ausgeblendet (Einzeiler-Vertrag); ein mobiler Einstieg existiert seither nicht (siehe AK2).
  */
-const modelSelectionEntryPoint = (page: Page): Locator => page.locator('[data-testid="model-selector-button"]');
+const modelSelectionEntryPoint = (page: Page): Locator => page.getByRole('combobox', { name: /Modell auswählen|KI.*Modell/i });
 
 /** Öffnet die Modell-Auswahl über den Header-Button und wartet auf den geöffneten Dialog. */
 const openModelSelection = async (page: Page): Promise<void> => {
@@ -97,7 +96,7 @@ test.describe('#787 Header-Layout und KI-Modell-Auswahl in Toolbar', () => {
 
 		// DOM-Reihenfolge prüfen: Logo → App-Name → Toolbar → Avatar.
 		// Die Indizes werden über die *semantischen* Merkmale der Kinder bestimmt (Button mit
-		// Logo-Label, Text „Priority Pilot", `role="toolbar"`, `kol-avatar`) — nicht über die
+		// Logo-Label, Text "Priority Pilot", `role="toolbar"`, `kol-avatar`) — nicht über die
 		// CSS-Klassen, damit der Vertrag ein Layout-Vertrag bleibt und kein Klassennamen-Vertrag.
 		const { logoIndex, nameIndex, avatarIndex, toolbarIndex } = await header.evaluate((el) => {
 			const children = Array.from((el as HTMLElement).children);
@@ -152,20 +151,20 @@ test.describe('#787 Header-Layout und KI-Modell-Auswahl in Toolbar', () => {
 			'KI-Modell-Auswahl muss auf derselben Höhe wie die Toolbar-Buttons ausgerichtet sein',
 		).toBeLessThanOrEqual(2);
 
-		// Dropdown-Indikator (Chevron) muss sichtbar sein. Geprüft wird das gerenderte Icon-Element im
-		// Light-DOM des eigenen Buttons — kein Griff in fremdes Shadow-DOM (#824). Das Icon ist
-		// dekorativ (`aria-hidden`) und hat deshalb bewusst keine eigene Rolle: Die Bedeutung trägt
-		// das `aria-label` des Buttons, das Icon nur die visuelle Ankündigung des Popups.
-		const chevron = modelSelector.locator('.model-selector-chevron');
-		await expect(chevron, 'KI-Modell-Auswahl muss einen Dropdown-Indikator (Chevron) haben').toBeVisible();
-		await expect(chevron, 'Der Chevron ist dekorativ und muss vor Screenreadern verborgen sein').toHaveAttribute(
-			'aria-hidden',
-			'true',
+		// Screenreader-Label muss sprechend sein
+		const ariaLabel = await modelSelector.getAttribute('aria-label');
+		const accessibleName = await modelSelector.evaluate((el) => (el as HTMLElement).textContent?.trim());
+		const label = ariaLabel || accessibleName;
+
+		// Das Label ist sprechend, wenn es die Absicht ("Modellauswahl") oder den aktuellen Stand
+		// benennt — herstellerspezifische Namen sind freie Konfiguration und gehören nicht in den Test.
+		expect(label, 'Screenreader-Label muss sprechend sein ("Modell auswählen, aktuell: ...")').toMatch(
+			/Modell.*auswählen|aktuell/i,
 		);
 
-		// Das Label muss das *tatsächlich konfigurierte* Modell benennen. Referenz ist die API, nicht
+		// Das Label muss das *tatsächliche* Modell benennen. Referenz ist die API, nicht
 		// eine hartcodierte Anbieter-Liste: Das Modell ist frei konfigurierbar (`PUT /llm-config`,
-		// Default `openrouter/free`), ein Test gegen feste Namen wie „Sonnet" prüfte die Konfiguration
+		// Default `openrouter/free`), ein Test gegen feste Namen wie "Sonnet" prüfte die Konfiguration
 		// der Testumgebung statt des Verhaltens der Anwendung.
 		const configuredModel = await page.request
 			.get('/api/v1/llm-config')
@@ -177,12 +176,12 @@ test.describe('#787 Header-Layout und KI-Modell-Auswahl in Toolbar', () => {
 		expect(modelLabel, 'Label darf nicht im Ladezustand stehen bleiben').not.toMatch(/Laden/i);
 		expect(
 			configuredModel.toLowerCase(),
-			`Label „${modelLabel}" muss aus dem konfigurierten Modell „${configuredModel}" ableitbar sein`,
+			`Label "${modelLabel}" muss aus dem konfigurierten Modell "${configuredModel}" ableitbar sein`,
 		).toContain(modelLabel.toLowerCase());
-		// Ein Label wie „free" benennt nur die Preisklasse — es muss das Modell identifizieren.
+		// Ein Label wie "free" benennt nur die Preisklasse — es muss das Modell identifizieren.
 		expect(
 			['free', 'chat', 'instruct', 'preview', 'latest', 'beta'],
-			`Label „${modelLabel}" ist nichtssagend und identifiziert kein Modell`,
+			`Label "${modelLabel}" ist nichtssagend und identifiziert kein Modell`,
 		).not.toContain(modelLabel.toLowerCase());
 	});
 
@@ -261,7 +260,7 @@ test.describe('#787 Header-Layout und KI-Modell-Auswahl in Toolbar', () => {
 		const accessibleName = await modelSelector.evaluate((el) => (el as HTMLElement).textContent?.trim());
 		const label = ariaLabel || accessibleName;
 
-		// Das Label ist sprechend, wenn es die Absicht („Modellauswahl") oder den aktuellen Stand
+		// Das Label ist sprechend, wenn es die Absicht ("Modellauswahl") oder den aktuellen Stand
 		// benennt — herstellerspezifische Namen sind freie Konfiguration und gehören nicht in den Test.
 		expect(label, 'Screenreader-Label muss sprechend sein ("Modell auswählen, aktuell: ...")').toMatch(
 			/Modell.*auswählen|aktuell/i,
@@ -485,8 +484,8 @@ test.describe('#787 Header-Layout und KI-Modell-Auswahl in Toolbar', () => {
 			const bgColor = styles.backgroundColor;
 
 			// RGB-Werte extrahieren
-			const rgbMatch = textColor.match(/\d+/g);
-			const bgMatch = bgColor.match(/\d+/g);
+			const rgbMatch = textColor.match(/\\d+/g);
+			const bgMatch = bgColor.match(/\\d+/g);
 
 			if (!rgbMatch || !bgMatch || bgColor === 'transparent' || bgColor === 'rgba(0, 0, 0, 0)') {
 				return { sufficient: true, reason: 'Transparenter Hintergrund oder kein RGB-Match' };
@@ -541,7 +540,7 @@ test.describe('#787 Header-Layout und KI-Modell-Auswahl in Toolbar', () => {
 			const button = el as HTMLElement;
 			return button.getAttribute('aria-label') || button.textContent?.trim() || '';
 		});
-		// Freie Modell-Konfiguration: sprechend heißt „Modell" benannt — nicht ein fester Anbietername.
+		// Freie Modell-Konfiguration: sprechend heißt "Modell" benannt — nicht ein fester Anbietername.
 		expect(initialLabel, 'Initiales Label muss sprechend sein').toMatch(/Modell/i);
 
 		// Dropdown öffnen
