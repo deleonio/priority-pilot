@@ -1,0 +1,10 @@
+{
+	"version": 1,
+	"appRoot": "/Users/moppitz/Workspace/priority-pilot/frontend",
+	"repoRoot": "/Users/moppitz/Workspace/priority-pilot",
+	"contextRoot": "/Users/moppitz/Workspace/priority-pilot/frontend",
+	"sessionRoot": "/Users/moppitz/Workspace/priority-pilot/frontend/.impeccable/live",
+	"productPath": "/Users/moppitz/Workspace/priority-pilot/frontend/PRODUCT.md",
+	"designPath": "/Users/moppitz/Workspace/priority-pilot/frontend/DESIGN.md",
+	"resolvedFrom": "target:frontend"
+}
