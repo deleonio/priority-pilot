@@ -105,8 +105,7 @@ jobs:
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
           llm-provider: ${{ vars.LLM_PROVIDER }}
           model: ${{ vars.CLAUDE_MODEL_UX || 'haiku' }}
-          compact-tokens: 'auto'
-          zai-api-key: ${{ secrets.ZAI_API_KEY }}
+                    zai-api-key: ${{ secrets.ZAI_API_KEY }}
           claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
           openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
           zai-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI }}
