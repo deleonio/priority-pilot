@@ -1466,6 +1466,11 @@ body {
 	margin-bottom: 0.75rem; /* 12dp Abstand zum nächsten Element */
 }
 
+/* #932: „Push testen"-Button inline statt block-füllend */
+.settings-general kol-button {
+	align-self: flex-start;
+}
+
 /* --- Erledigte Aufgaben (#228) --- */
 
 /* Nur für Screenreader sichtbar (visuell ausgeblendet, aber im Accessibility-Tree). */
