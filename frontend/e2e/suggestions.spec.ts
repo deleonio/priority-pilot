@@ -29,27 +29,33 @@ test.describe('„Was ist jetzt dran?"-Liste (#122)', () => {
 	});
 
 	test('zeigt die Vorschläge in erwarteter Reihenfolge (höchste Priorität zuerst)', async ({ page }) => {
+		// P2-1: Die Vorschlagsliste schließt die bereits als „Nächste Aufgabe"
+		// prominent angezeigte Aufgabe aus (keine doppelte Hauptaussage, #443). Damit nach dem Filtern
+		// noch genügend Vorschläge übrig sind, legen wir drei Tasks an.
 		const titelNiedrig = uniqueTitle('Niedrig');
+		const titelMittel = uniqueTitle('Mittel');
 		const titelHoch = uniqueTitle('Hoch');
 
 		// Seed über die echte API (Vite-Proxy → Backend): gleiche Voraussetzungen außer Priorität.
-		await page.request.post('/api/v1/tasks', { data: { title: titelNiedrig, priority: 2, estimatedEffort: 1 } });
+		await page.request.post('/api/v1/tasks', { data: { title: titelNiedrig, priority: 1, estimatedEffort: 1 } });
+		await page.request.post('/api/v1/tasks', { data: { title: titelMittel, priority: 2, estimatedEffort: 1 } });
 		await page.request.post('/api/v1/tasks', { data: { title: titelHoch, priority: 5, estimatedEffort: 1 } });
 
 		await page.goto('/');
 		await waitForStableView(page);
 
-		// Die „Was ist jetzt dran?"-Ansicht ist als benannte Region erreichbar.
+		// Die höchste Priorität (5) ist die „Nächste Aufgabe" — sie darf NICHT in der Vorschlagsliste
+		// auftauchen (P2-1: keine Wiederholung der Hauptaussage).
 		const region = page.getByRole('region', { name: /Was ist jetzt dran/i });
 		await expect(region).toBeVisible();
-		await expect(region.getByText(titelHoch)).toBeVisible();
+		await expect(region.getByText(titelHoch)).not.toBeVisible();
 
-		// Reihenfolge: der höher priorisierte Task steht vor dem niedriger priorisierten.
+		// Die beiden übrigen Vorschläge erscheinen in Prioritätsreihenfolge (höhere zuerst).
 		const eintraege = await region.getByRole('listitem').allTextContents();
-		const idxHoch = eintraege.findIndex((t) => t.includes(titelHoch));
+		const idxMittel = eintraege.findIndex((t) => t.includes(titelMittel));
 		const idxNiedrig = eintraege.findIndex((t) => t.includes(titelNiedrig));
-		expect(idxHoch, 'höher priorisierter Task ist gelistet').toBeGreaterThanOrEqual(0);
-		expect(idxNiedrig, 'niedriger priorisierter Task ist gelistet').toBeGreaterThanOrEqual(0);
-		expect(idxHoch).toBeLessThan(idxNiedrig);
+		expect(idxMittel, 'mittlerer Task ist gelistet').toBeGreaterThanOrEqual(0);
+		expect(idxNiedrig, 'niedriger Task ist gelistet').toBeGreaterThanOrEqual(0);
+		expect(idxMittel).toBeLessThan(idxNiedrig);
 	});
 });
