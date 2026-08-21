@@ -440,26 +440,31 @@ export const App = ({ user }: { user: AuthUser }) => {
 	return (
 		<main className="app" ref={deleteFallbackRef} tabIndex={-1} data-focus-fallback>
 			<header role="banner" className="app-header">
-				<button type="button" className="logo-btn" aria-label="Zum Dashboard" onClick={handleLogoDashboard}>
-					<img src="/logo/logo.png" alt="Priority Pilot" />
-				</button>
-				<span className="app-name">Priority Pilot</span>
-				{/*
-				 * Gemeinsamer Container für die Kopf-Aktionen (#787): Die KI-Modell-Auswahl steht links
-				 * neben den Toolbar-Buttons und teilt deren Ausrichtung und Höhe.
-				 *
-				 * BEWUSST ohne eigenes `role="toolbar"`: `kol-toolbar` bringt die Rolle (inkl. der von ihr
-				 * erwarteten Pfeiltasten-Navigation) bereits in ihrem Shadow-DOM mit. Ein zweites
-				 * `role="toolbar"` am Wrapper erzeugte eine verschachtelte Toolbar mit identischem
-				 * Accessible Name — Screenreader kündigten zwei Toolbars an, und der Wrapper verspräche
-				 * eine Pfeiltasten-Navigation, die er nicht implementiert.
-				 */}
-				<div className="toolbar">
+				{/* P1: Header in 3 semantische Gruppen (Brand | Primary | User) */}
+				<div className="app-header__brand">
+					<button type="button" className="logo-btn" aria-label="Zum Dashboard" onClick={handleLogoDashboard}>
+						<img src="/logo/logo.png" alt="Priority Pilot" />
+					</button>
+					<span className="app-name">Priority Pilot</span>
+				</div>
+				<div className="app-header__primary">
+					{/*
+					 * Gemeinsamer Container für die Kopf-Aktionen (#787): Die KI-Modell-Auswahl steht links
+					 * neben den Toolbar-Buttons und teilt deren Ausrichtung und Höhe.
+					 *
+					 * BEWUSST ohne eigenes `role="toolbar"`: `kol-toolbar` bringt die Rolle (inkl. der von ihr
+					 * erwarteten Pfeiltasten-Navigation) bereits in seinem Shadow-DOM mit. Ein zweites
+					 * `role="toolbar"` am Wrapper erzeugte eine verschachtelte Toolbar mit identischem
+					 * Accessible Name — Screenreader kündigten zwei Toolbars an, und der Wrapper verspräche
+					 * eine Pfeiltasten-Navigation, die er nicht implementiert.
+					 */}
 					<ModelSelectorButton />
 					<KolToolbar _label="Kopf-Aktionen" _orientation="horizontal" _items={toolbarItems} />
 				</div>
 				{/* Avatar wiederhergestellt per Issue #865 Korrektur — Full Name bleibt entfernt; seit #912 am rechten Rand */}
-				<KolAvatar _label={user.displayName} _src={user.avatarUrl ?? undefined} />
+				<div className="app-header__user">
+					<KolAvatar _label={user.displayName} _src={user.avatarUrl ?? undefined} />
+				</div>
 			</header>
 			<h1 className="visually-hidden">Dashboard</h1>
 

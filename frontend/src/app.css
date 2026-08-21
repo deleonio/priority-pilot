@@ -113,6 +113,12 @@
 	--pp-motion-fast: 120ms;
 	--pp-motion-base: 200ms;
 	--pp-ease: cubic-bezier(0.2, 0, 0.2, 1);
+
+	/* Semantische Gap-Tokens (P0: Rhythm & Spacing Scale) */
+	--pp-gap-tight: var(--pp-space-2); /* 0.5rem — intra-group */
+	--pp-gap-base: var(--pp-space-4); /* 1rem — inter-group */
+	--pp-gap-generous: var(--pp-space-6); /* 1.5rem — section break */
+	--pp-gap-major: var(--pp-space-7); /* 2rem — major section */
 }
 
 /*
@@ -228,17 +234,23 @@ body {
 	 */
 	--pp-avatar-size: var(--pp-toolbar-height);
 
+	/*
+	 * P1: Header in 3 semantische Gruppen (Brand | Primary | User).
+	 * Das Markup gruppiert die Elemente in .app-header__brand,
+	 * .app-header__primary und .app-header__user. Der Header selbst
+	 * nutzt das Gap-Token zur Trennung der Gruppen.
+	 */
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 }
 
 @media (min-width: 48rem) {
 	.app-header {
 		--pp-avatar-size: calc(var(--pp-toolbar-height) * 1.25);
 
-		gap: 1rem;
+		gap: var(--pp-gap-base);
 	}
 }
 
@@ -280,7 +292,7 @@ body {
 .model-selector-button {
 	display: none;
 	align-items: center;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 	min-height: var(--pp-toolbar-height);
 	min-width: var(--pp-toolbar-height);
 	padding: 0 0.75rem;
@@ -363,19 +375,30 @@ body {
 	max-width: 100%;
 }
 
-.toolbar {
+.app-header__brand {
 	display: flex;
-	gap: 0.5rem;
+	align-items: center;
+	gap: var(--pp-gap-tight);
+}
+
+.app-header__primary {
+	display: flex;
+	gap: var(--pp-gap-tight);
 	flex-wrap: wrap;
 	align-items: center;
 	margin-left: auto;
+}
+
+.app-header__user {
+	display: flex;
+	align-items: center;
 }
 
 /*
  * #485 AK3/AK4: Die Toolbar-Buttons werden auf die gemeinsame Bezugshöhe festgenagelt.
  * `--a11y-min-size` ist die von KoliBri im Shadow-DOM genutzte Variable für `min-height`/`min-width`
  * der Buttons; Custom Properties vererben durch die Shadow-Grenze, deshalb greift die Vorgabe hier.
- * Die Buttons rendert `kol-toolbar` im eigenen Shadow-DOM — im Light-DOM unterhalb von `.toolbar`
+ * Die Buttons rendert `kol-toolbar` im eigenen Shadow-DOM — im Light-DOM unterhalb von `.app-header__primary`
  * steht kein `kol-button`, ein solcher Selektor wäre wirkungslos.
  *
  * Sollbruchstelle: `--a11y-min-size` legt nur eine *Untergrenze* fest. `--pp-toolbar-height`
@@ -383,7 +406,7 @@ body {
  * bricht die von AK3 geforderte 1,25-Relation hier — nicht am Avatar, der weiter korrekt aus
  * `--pp-toolbar-height` ableitet.
  */
-.toolbar kol-toolbar {
+.app-header__primary kol-toolbar {
 	--a11y-min-size: var(--pp-toolbar-height);
 }
 
@@ -415,12 +438,12 @@ body {
 .dashboard,
 .task-section,
 .forest-panel {
-	margin-top: 2rem;
+	margin-top: var(--pp-gap-major);
 }
 
 /* Tab-Leiste der Hauptansichten: Abstand zur Kopf-Toolbar. */
 .app-tabs {
-	margin-top: 2rem;
+	margin-top: var(--pp-gap-major);
 }
 
 /* Innerhalb eines Tabs ist der jeweilige Bereich der einzige Inhalt – der Stapel-Abstand entfällt. */
@@ -449,7 +472,7 @@ body {
 	margin: 0.5rem 0 0;
 	padding: 0;
 	display: grid;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 	grid-template-columns: repeat(3, 1fr);
 }
 
@@ -492,7 +515,7 @@ body {
  * gemessene 1.34:1 statt geforderter 4.5:1 (docs/ux-audit-2026-08.md, P1-1).
  */
 .dashboard-next-task {
-	margin-top: 1.5rem;
+	margin-top: var(--pp-gap-generous);
 	padding: 1rem 1.25rem;
 	border: 1px solid var(--pp-border);
 	border-radius: 0.5rem;
@@ -517,7 +540,7 @@ body {
  * Handlungs-Widgets heben sich so gemeinsam von den reinen Übersichts-Listen ab.
  */
 .dashboard-suggestions {
-	margin-top: 1.5rem;
+	margin-top: var(--pp-gap-generous);
 	padding: 1rem 1.25rem;
 	border: 1px solid var(--pp-border);
 	border-radius: 0.5rem;
@@ -565,7 +588,7 @@ body {
 }
 
 .dashboard-top-tasks {
-	margin-top: 1.5rem;
+	margin-top: var(--pp-gap-generous);
 }
 
 .dashboard-top-tasks h3 {
@@ -573,7 +596,7 @@ body {
 }
 
 .dashboard-deadlines {
-	margin-top: 1.5rem;
+	margin-top: var(--pp-gap-generous);
 }
 
 .dashboard-deadlines h3 {
@@ -589,7 +612,7 @@ body {
 .dashboard-deadline {
 	display: flex;
 	justify-content: space-between;
-	gap: 1rem;
+	gap: var(--pp-gap-base);
 	padding: 0.375rem 0;
 	border-bottom: 1px solid var(--pp-border);
 }
@@ -608,7 +631,7 @@ body {
 .dashboard-deadline-aside {
 	display: inline-flex;
 	align-items: center;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 	flex-shrink: 0;
 }
 
@@ -637,7 +660,7 @@ body {
 
 	/* Ab Tablet wieder das großzügigere Kachel-Raster mit größeren Zahlen. */
 	.dashboard-cards {
-		gap: 1rem;
+		gap: var(--pp-gap-base);
 		grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
 	}
 
@@ -664,7 +687,7 @@ body {
 }
 
 .dashboard-pillars {
-	margin-top: 1.5rem;
+	margin-top: var(--pp-gap-generous);
 	/* AK4 (#440): Bei 8+ Säulen und 375px Viewport kein horizontales Scrollen. */
 	max-width: 100%;
 	overflow-x: hidden;
@@ -703,7 +726,7 @@ body {
 /* Gesamtguthaben: prominente Punktzahl, darunter je Säule eine Zeile mit Wert rechtsbündig —
    gleiches Zeilenmuster wie Meine Themen/Deadlines (Border-getrennte Listenzeilen). */
 .dashboard-balance {
-	margin-top: 1.5rem;
+	margin-top: var(--pp-gap-generous);
 }
 
 .dashboard-balance h3 {
@@ -773,7 +796,7 @@ body {
 	list-style: none;
 	margin: 0;
 	padding: 0;
-	--task-tree-row-gap: 0.5rem;
+	--task-tree-row-gap: var(--pp-gap-tight);
 }
 
 .task-list-item {
@@ -874,7 +897,7 @@ body {
 
 .form-grid {
 	display: grid;
-	gap: 1rem;
+	gap: var(--pp-gap-base);
 	margin-bottom: 1rem;
 	width: 100%;
 }
@@ -891,7 +914,7 @@ body {
 .pillar-weight-row {
 	display: flex;
 	flex-direction: column;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 	padding: 1rem;
 	border: 1px solid var(--pp-border);
 	border-radius: 0.5rem;
@@ -935,7 +958,7 @@ body {
 .modal-actions,
 .form-actions {
 	display: flex;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 	flex-wrap: wrap;
 	margin-top: 1rem;
 	justify-content: flex-end;
@@ -954,7 +977,7 @@ body {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	gap: 1rem;
+	gap: var(--pp-gap-base);
 	padding: 0.375rem 0;
 	border-bottom: 1px solid var(--pp-border);
 }
@@ -1022,7 +1045,7 @@ body {
 .pillar-actions {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 	flex-shrink: 0;
 }
 
@@ -1042,7 +1065,7 @@ body {
 	flex-wrap: wrap;
 	align-items: center;
 	justify-content: space-between;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 }
 
 .pillar-editor-loading {
@@ -1054,7 +1077,7 @@ body {
 .pillar-row {
 	display: grid;
 	grid-template-columns: 1fr 1fr auto;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 	align-items: end;
 	padding: 0.5rem;
 	border: 1px solid var(--pp-border);
@@ -1068,7 +1091,7 @@ body {
 	padding: 0;
 	display: flex;
 	flex-direction: column;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 }
 
 .series-list-item {
@@ -1091,7 +1114,7 @@ body {
 
 .series-list-actions {
 	display: flex;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 }
 
 .series-form h3 {
@@ -1103,7 +1126,7 @@ body {
    auf Mobilbreite (375px) ohne horizontales Scrollen umbricht. */
 .series-actions {
 	display: flex;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 	flex-wrap: wrap;
 	margin-top: 0.5rem;
 	margin-bottom: 1rem;
@@ -1130,7 +1153,7 @@ body {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 	min-width: 0;
 }
 
@@ -1145,7 +1168,7 @@ body {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 }
 
 .series-tree-badge {
@@ -1226,7 +1249,7 @@ body {
 
 /* --- Empty-State / Onboarding (keine Tasks) --- */
 .empty-state {
-	margin-top: 2rem;
+	margin-top: var(--pp-gap-major);
 }
 
 .empty-state p {
@@ -1296,13 +1319,13 @@ body {
 .settings-page-header {
 	display: flex;
 	align-items: center;
-	gap: 1rem;
+	gap: var(--pp-gap-base);
 	margin-bottom: 1.5rem;
 	flex-wrap: wrap;
 }
 
 .settings-tabs {
-	margin-top: 1.5rem;
+	margin-top: var(--pp-gap-generous);
 }
 
 /*
@@ -1351,7 +1374,7 @@ body {
 	/* Flex-Layout für konsistente vertikale Abstände */
 	display: flex;
 	flex-direction: column;
-	gap: 1rem; /* 16dp Section-Abstand zwischen Controls */
+	gap: var(--pp-gap-base); /* 16dp Section-Abstand zwischen Controls */
 }
 
 /*
@@ -1512,7 +1535,7 @@ body {
 	padding-bottom: calc(1rem + env(safe-area-inset-bottom));
 	display: flex;
 	flex-direction: column;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 	pointer-events: none;
 }
 
@@ -1522,7 +1545,7 @@ body {
 
 /* --- App-Fußzeile (#290) --- */
 .app-footer {
-	margin-top: 2rem;
+	margin-top: var(--pp-gap-major);
 	padding: 0.75rem 0;
 	text-align: center;
 	color: var(--pp-text-muted);
@@ -1553,7 +1576,7 @@ body {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 }
 
 .advisor-activity {
@@ -1575,7 +1598,7 @@ body {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 1rem;
+	gap: var(--pp-gap-base);
 	margin-bottom: 1.5rem;
 }
 
@@ -1589,7 +1612,7 @@ body {
 .task-filter-search {
 	display: flex;
 	align-items: center;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 	flex: 1 1 100%;
 	min-width: 0;
 }
@@ -1616,7 +1639,7 @@ body {
 .range-inputs-row {
 	display: flex;
 	flex-direction: column;
-	gap: 1rem;
+	gap: var(--pp-gap-base);
 }
 
 @media (min-width: 769px) {
@@ -1631,7 +1654,7 @@ body {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 }
 
 /* Aktuell gewähltes Modell über der Liste (role=status → Screenreader-Ansage bei Wechsel). */
@@ -1647,7 +1670,7 @@ body {
 	margin: 0;
 	display: flex;
 	flex-direction: column;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 	max-height: 22rem;
 	overflow-y: auto;
 }
@@ -1699,7 +1722,7 @@ body {
 	display: flex;
 	flex-direction: column;
 	gap: 0.75rem;
-	margin-top: 1.5rem;
+	margin-top: var(--pp-gap-generous);
 }
 
 /* Label über der Checklist */
@@ -1714,7 +1737,7 @@ body {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 }
 
 .checklist-add > * {
@@ -1745,14 +1768,14 @@ body {
 .llm-key-input-group {
 	display: flex;
 	align-items: center;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 }
 
 /* Modell-Select Container für konsistentes Layout. */
 .llm-model-select {
 	display: flex;
 	flex-direction: column;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 }
 
 .llm-model-select label {
