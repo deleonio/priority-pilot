@@ -1446,6 +1446,10 @@ body {
 	gap: var(--pp-gap-base); /* 16dp Section-Abstand zwischen Controls */
 }
 
+.settings-general kol-button {
+	align-self: flex-start;
+}
+
 /*
  * #843 AK3: Typografie für deskriptiven Text.
  * Wir setzen --pp-text-muted auf #616161 für besseren Kontrast.
