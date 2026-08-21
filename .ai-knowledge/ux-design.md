@@ -140,19 +140,20 @@ Ergänzt die Prüfpunkte der [Mobile-UI-Regeln](../docs/mobile-ui-rules.md) um d
 
 Diese Checks laufen **gebatcht in einer Inspektionsrunde** (Desktop + Mobile zusammen), nicht als separate Screenshot-Trips:
 
-| Check | Kriterium |
-|-------|-----------|
-| **Contrast** | Body/Placeholder ≥4.5:1, Large Text ≥3:1. Auf farbigen Flächen Secondary Text aus Hue tinten, nie Grau. |
-| **Depth** | Shadows tragen Offset + Soft Blur. Zero-offset colored Halo = Deko. |
-| **Spacing** | Tight Groups, generöse Separation, mehr Space über Heading als darunter. Computed Values lesen. |
-| **Type** | Body Measure 65–75ch, Display max 6rem, Tracking floor -0.04em, balancierte Headings, offensichtliche Scale/Weight Steps. Real Copy an jedem Breakpoint, Overflow fixen. |
-| **Motion** | **Ein** authored Moment, nicht scattered Effects, nicht identischer Entrance auf jeder Section. Exponential ease-out von already-visible Default. Beyond transform/opacity: blur, backdrop-filter, clip-path, mask, shadow gehören zur Palette. |
-| **States** | hover, disabled, loading, error, empty — **plus** real content, working controls, responsive composition, keyboard focus. |
-| **Browser Surfaces** | Parts you didn't draw: text selection, caret, custom scrollbars, focus rings, underline offset, tabular numerals. **Theme them from palette** — cheapest signal for "built not assembled". |
-| **Copy** | Produkt-Eigene Sprache. Controls benennen Action; Errors benennen Problem + Recovery. |
-| **Coverage** | Every brief requirement present and findable within seconds. |
+| Check                | Kriterium                                                                                                                                                                                                                                       |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Contrast**         | Body/Placeholder ≥4.5:1, Large Text ≥3:1. Auf farbigen Flächen Secondary Text aus Hue tinten, nie Grau.                                                                                                                                         |
+| **Depth**            | Shadows tragen Offset + Soft Blur. Zero-offset colored Halo = Deko.                                                                                                                                                                             |
+| **Spacing**          | Tight Groups, generöse Separation, mehr Space über Heading als darunter. Computed Values lesen.                                                                                                                                                 |
+| **Type**             | Body Measure 65–75ch, Display max 6rem, Tracking floor -0.04em, balancierte Headings, offensichtliche Scale/Weight Steps. Real Copy an jedem Breakpoint, Overflow fixen.                                                                        |
+| **Motion**           | **Ein** authored Moment, nicht scattered Effects, nicht identischer Entrance auf jeder Section. Exponential ease-out von already-visible Default. Beyond transform/opacity: blur, backdrop-filter, clip-path, mask, shadow gehören zur Palette. |
+| **States**           | hover, disabled, loading, error, empty — **plus** real content, working controls, responsive composition, keyboard focus.                                                                                                                       |
+| **Browser Surfaces** | Parts you didn't draw: text selection, caret, custom scrollbars, focus rings, underline offset, tabular numerals. **Theme them from palette** — cheapest signal for "built not assembled".                                                      |
+| **Copy**             | Produkt-Eigene Sprache. Controls benennen Action; Errors benennen Problem + Recovery.                                                                                                                                                           |
+| **Coverage**         | Every brief requirement present and findable within seconds.                                                                                                                                                                                    |
 
 **Refuse (Defaults, die das Brief explizit verdienen muss):**
+
 - Same-size Icon+Heading+Text Cards als Page-Struktur
 - Hero-Metric Template (Big Number + Small Label)
 - Kicker/Eyebrow über Heading (Ban — kein Brief verdient es zurück)
@@ -173,12 +174,12 @@ Diese Checks laufen **gebatcht in einer Inspektionsrunde** (Desktop + Mobile zus
 
 Jede Surface hat **einen Modus**, der bestimmt, was Erfolg bedeutet:
 
-| Modus | Ziel | Priority Pilot Beispiel |
-|-------|------|------------------------|
-| **Persuade** | Visitor decides & acts | Landing, Pricing, Kampagnen |
-| **Operate** | Visitor completes task | Dashboard, Editor, Settings, Tools |
-| **Read** | Visitor understands | Docs, Help, Guides, Changelogs |
-| **Experience** | Visitor is inside work | Portfolio, Showcase |
+| Modus          | Ziel                   | Priority Pilot Beispiel            |
+| -------------- | ---------------------- | ---------------------------------- |
+| **Persuade**   | Visitor decides & acts | Landing, Pricing, Kampagnen        |
+| **Operate**    | Visitor completes task | Dashboard, Editor, Settings, Tools |
+| **Read**       | Visitor understands    | Docs, Help, Guides, Changelogs     |
+| **Experience** | Visitor is inside work | Portfolio, Showcase                |
 
 **Regel:** Modus aus **Surface** ableiten, nicht aus Product. Ein Tool's Landing = Persuade, Fashion House Docs = Read, Docs Index = Read.
 
@@ -189,6 +190,7 @@ Jede Surface hat **einen Modus**, der bestimmt, was Erfolg bedeutet:
 ## 9. Farb-Strategie & Faces
 
 **Color Strategy vor Colors picken:**
+
 - **Restrained** (Neutrals + 1 Accent) — Default für Operate/Read
 - **Committed** (1 Saturated Color trägt 30–60% Surface) — Persuade/Experience mit Brief-Erlaubnis
 - **Full Palette** (3–4 Named Roles)

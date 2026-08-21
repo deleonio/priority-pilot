@@ -1,5 +1,5 @@
 {
-	"version": "0.1.468",
+	"version": "0.1.472",
 	"license": "EUPL-1.2",
 	"devDependencies": {
 		"@action-validator/core": "0.6.0",
@@ -14,7 +14,7 @@
 	"scripts": {
 		"build": "pnpm -r generate && pnpm -r build",
 		"dev": "pnpm -r --parallel dev",
-		"format": "pnpm -r format",
+		"format": "prettier . --write --ignore-unknown",
 		"knip": "pnpm -r knip",
 		"lint": "pnpm -r lint",
 		"lint:actions": "tsx .github/scripts/validate-actions.ts",
