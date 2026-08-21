@@ -1,11 +1,12 @@
 import type { KoliBriTableDataType, KoliBriTableHeaderCellWithLogic } from '@public-ui/components';
-import { KolTableStateful, KolToolbar } from '@public-ui/react-v19';
+import { KolBadge, KolTableStateful, KolToolbar } from '@public-ui/react-v19';
 import type { ChecklistItem, Task } from 'client';
 import { memo } from 'react';
 import type { DependencyRef } from '../lib/dependencies';
 import { renderIntoCell } from '../lib/reactCellRoot';
 import { seriesBadge } from '../lib/series';
 import { formatDeadline } from '../lib/task';
+import { priorityBadge } from '../lib/task';
 
 interface TaskTableProps {
 	tasks: Task[];
@@ -47,6 +48,20 @@ interface TaskRow extends KoliBriTableDataType {
 	_task: Task;
 }
 
+/** P2-2: Farb-Mapping für Prioritäts-Badges (analog URGENCY_COLOR im Dashboard). */
+const PRIORITY_COLOR: Record<'info' | 'warning' | 'danger', string> = {
+	info: '#005b99', // --kol-color-primary
+	warning: '#c66a00', // --kol-color-warning
+	danger: '#b42318', // --kol-color-danger (red)
+};
+
+/** Rendert die Priorität als farbigen Badge für die Tabellenzelle (P2-2). */
+const renderPriorityBadge = (priority: number) => {
+	const { label, type } = priorityBadge(priority);
+	const color = PRIORITY_COLOR[type];
+	return <KolBadge _label={label} _color={color} />;
+};
+
 /**
  * Tabellarische Übersicht aller Tasks mit Aktionen je Zeile.
  *
@@ -79,7 +94,16 @@ export const TaskTable = memo((props: TaskTableProps) => {
 				{ key: 'id', label: 'ID' },
 				{ key: 'title', label: 'Titel' },
 				{ key: 'status', label: 'Status' },
-				{ key: 'priority', label: 'Priorität' },
+				{
+					key: 'priority',
+					label: 'Priorität',
+					render: (domNode, _cell, tupel) => {
+						const priority = (tupel as TaskRow).priority;
+						const badge = renderPriorityBadge(priority);
+						// Über renderIntoCell wie bei der Toolbar-Spalte (reactCellRoot)
+						renderIntoCell(domNode, badge);
+					},
+				},
 				{ key: 'estimatedEffort', label: 'Aufwand (Tage)' },
 				{ key: 'deadline', label: 'Deadline' },
 				{ key: 'checklist', label: 'Checkliste' },

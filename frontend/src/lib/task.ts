@@ -134,3 +134,10 @@ export const statusAccentClass = (status: TaskStatus): string => {
 /** Prüft, ob das Auf-„Erledigt"-Schalten durch offene direkte Unteraufgaben gesperrt ist (#315). */
 export const isDoneBlockedBySubtasks = (subtasks: { status: TaskStatus }[]): boolean =>
 	subtasks.some((s) => s.status !== TaskStatus.Done);
+
+/** Liefert Badge-Text und -Typ für eine Priorität (P2-2: Priorisierung sichtbar machen). */
+export const priorityBadge = (priority: number): { label: string; type: 'info' | 'warning' | 'danger' } => {
+	if (priority >= 4) return { label: `P${priority}`, type: 'danger' };
+	if (priority >= 2) return { label: `P${priority}`, type: 'warning' };
+	return { label: `P${priority}`, type: 'info' };
+};

@@ -1,8 +1,9 @@
-import { KolPopoverButton, KolToolbar } from '@public-ui/react-v19';
+import { KolBadge, KolHeading, KolPopoverButton, KolToolbar } from '@public-ui/react-v19';
 import type { Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useEffect, useRef, useState } from 'react';
 import { extractLeaves } from '../lib/extractLeaves';
+import { priorityBadge } from '../lib/task';
 import { setupPopoverAlignment } from '../lib/popoverAlign';
 
 interface TaskTreeProps {
@@ -68,25 +69,42 @@ const LeafItem = ({
 	// der frühere Guard `isDoneBlockedBySubtasks` (#315) hier obsolet — der Toggle ist stets frei.
 	const isDone = task?.status === TaskStatus.Done;
 	const doneToggleLabel = isDone ? 'Wieder öffnen' : 'Erledigt';
+	const priority = task?.priority ?? 1;
+	const priorityBadgeInfo = priorityBadge(priority);
+
+	// P2-2: Farb-Mapping für Prioritäts-Badges (analog URGENCY_COLOR im Dashboard).
+	const PRIORITY_COLOR: Record<'info' | 'warning' | 'danger', string> = {
+		info: '#005b99', // --kol-color-primary
+		warning: '#c66a00', // --kol-color-warning
+		danger: '#b42318', // --kol-color-danger (red)
+	};
+	const priorityColor = PRIORITY_COLOR[priorityBadgeInfo.type];
 
 	return (
 		<li className="task-list-item" data-testid={`task-list-item-${node.id}`}>
 			<div className="task-tree-row">
 				<div className="task-tree-row-header">
-					<span className="task-tree-title">{node.title}</span>
+					<KolHeading _label={node.title} _level={4} className="task-tree-title" />
 				</div>
 				<div className="task-tree-row-controls">
-					{task !== null && task.seriesId != null && (
-						<span className="task-tree-badge task-tree-badge--series">Serie</span>
-					)}
-					{task !== null && task.isException && (
-						<span className="task-tree-badge task-tree-badge--exception">geändert</span>
-					)}
-					{progress !== undefined && (
-						<span className="task-tree-badge task-tree-badge--progress">
-							{progress.done}/{progress.total}
-						</span>
-					)}
+					<div className="task-tree-badges">
+						{task !== null && task.seriesId != null && (
+							<KolBadge _label="Serie" _color="#005b99" className="task-tree-badge" />
+						)}
+						{task !== null && task.isException && (
+							<KolBadge _label="geändert" _color="#c66a00" className="task-tree-badge" />
+						)}
+						{progress !== undefined && (
+							<KolBadge _label={`${progress.done}/${progress.total}`} _color="#2e7d32" className="task-tree-badge" />
+						)}
+						{task !== null && (
+							<KolBadge
+								_label={priorityBadgeInfo.label}
+								_color={priorityColor}
+								className="task-tree-badge task-tree-badge--priority"
+							/>
+						)}
+					</div>
 					{task !== null && (
 						<div className="task-tree-actions">
 							<KolPopoverButton
