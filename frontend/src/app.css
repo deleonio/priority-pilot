@@ -1420,7 +1420,15 @@ body {
 	gap: var(--pp-gap-base); /* 16dp Section-Abstand zwischen Controls */
 }
 
-.settings-general kol-button {
+/*
+ * #932 AK1: Der 'Push testen'-Button darf nicht die volle Flex-Breite einnehmen.
+ * Wir setzen `align-self: flex-start` auf eine zielgerichtete Utility-Klasse statt auf
+ * `.settings-general kol-button`, um zukünftige weitere Buttons nicht versehentlich zu treffen.
+ * KoliBri `_inline` wird bewusst NICHT verwendet: Mobile-UI-Regel 2 erfordert einen 44px-Touch-Target,
+ * den `_inline` entfernen würde. `align-self: flex-start` lässt den Button nur so breit werden wie sein
+ * Inhalt, lässt die KoliBri-Default-Paddings und -Höhe unberührt.
+ */
+.push-test-btn {
 	align-self: flex-start;
 }
 
