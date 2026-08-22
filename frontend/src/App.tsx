@@ -440,6 +440,11 @@ export const App = ({ user }: { user: AuthUser }) => {
 				_hideLabel: false,
 				_icons: { left: { icon: 'fa-solid fa-brain' } },
 				_variant: 'secondary' as const,
+				_aria: {
+					role: 'combobox',
+					ariaHasPopup: 'dialog',
+					ariaExpanded: modelSelectorOpen,
+				},
 				_on: { onClick: handleModelSelectorOpen },
 			},
 			{
@@ -485,6 +490,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 		handleLogout,
 		handleModelSelectorOpen,
 		currentModel,
+		modelSelectorOpen,
 	]);
 
 	if (showSettings) {
