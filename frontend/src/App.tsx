@@ -1,6 +1,5 @@
 import {
 	KolAlert,
-	KolAvatar,
 	KolButton,
 	KolInputCheckbox,
 	KolInputText,
@@ -461,10 +460,8 @@ export const App = ({ user }: { user: AuthUser }) => {
 					<ModelSelectorButton />
 					<KolToolbar _label="Kopf-Aktionen" _orientation="horizontal" _items={toolbarItems} />
 				</div>
-				{/* Avatar wiederhergestellt per Issue #865 Korrektur — Full Name bleibt entfernt; seit #912 am rechten Rand */}
-				<div className="app-header__user">
-					<KolAvatar _label={user.displayName} _src={user.avatarUrl ?? undefined} />
-				</div>
+				{/* Avatar entfernt — siehe #933 */}
+				<div className="app-header__user" />
 			</header>
 			<h1 className="visually-hidden">Dashboard</h1>
 
