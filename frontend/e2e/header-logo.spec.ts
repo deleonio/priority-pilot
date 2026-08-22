@@ -164,9 +164,6 @@ test.describe('#406 Wort-Bild-Marke vergrößern + App-Namen-H1 entfernen', () =
 		// Kopf-Toolbar bleibt sichtbar.
 		await expect(header.getByRole('toolbar', { name: /Kopf-Aktionen/i })).toBeVisible();
 
-		// Avatar bleibt sichtbar.
-		await expect(header.locator('kol-avatar').first()).toBeVisible();
-
 		// Der redundante Text-H1 „Priority Pilot" darf nicht mehr sichtbar sein.
 		//
 		// Geprüft wird die *Überschrift* — das ist die Aussage von #406. Der App-Name als solcher steht

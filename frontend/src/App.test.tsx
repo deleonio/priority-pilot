@@ -218,39 +218,4 @@ describe('App — Homogenerer Header (#222)', () => {
 		// Die E-Mail darf nirgendwo im gerenderten DOM stehen.
 		expect(document.body.textContent ?? '').not.toMatch(/erika@test\.example\.com/);
 	});
-
-	// AK3 (Smoke): KolAvatar muss _label={user.name} tragen, damit das Web Component das
-	// Namenskürzel generieren kann. Bereits implementiert — bleibt als Regressions-Smoke grün.
-	it('AK3 (Smoke): KolAvatar hat _label mit dem Benutzernamen gesetzt', async () => {
-		render(<App user={{ id: 7, displayName: 'Erika Muster', email: 'erika@test.example.com', avatarUrl: null }} />);
-		await waitFor(() => {
-			expect(screen.getByText(/Hallo/i)).toBeTruthy();
-		});
-		const avatar = document.querySelector('kol-avatar');
-		expect(avatar).not.toBeNull();
-		expect(avatar?.getAttribute('_label')).toBe('Erika Muster');
-	});
-});
-
-/**
- * #912: Avatar als letztes Element ganz rechts im Header (nach Wortmarke, KI-Modellauswahl und
- * Kopf-Aktionen). Spec-Bezug: docs/spec/issue-787.md Journey 1 (v1.2, korrigiert durch #912).
- */
-describe('App — Avatar-Position im Header (#912)', () => {
-	// AK1: Der Avatar ist das letzte Element ganz rechts im Header (DOM-Reihenfolge nach `.app-header__primary`).
-	it('AK1: KolAvatar folgt im DOM auf den .app-header__primary-Container', async () => {
-		render(<App user={{ id: 7, displayName: 'Erika Muster', email: 'erika@test.example.com', avatarUrl: null }} />);
-		await waitFor(() => {
-			expect(screen.getByText(/Hallo/i)).toBeTruthy();
-		});
-
-		const primary = document.querySelector('.app-header__primary');
-		const avatar = document.querySelector('kol-avatar');
-		expect(primary).not.toBeNull();
-		expect(avatar).not.toBeNull();
-
-		// DOCUMENT_POSITION_FOLLOWING (4): `avatar` liegt im DOM-Baum NACH `primary`.
-		const position = primary!.compareDocumentPosition(avatar!);
-		expect((position & Node.DOCUMENT_POSITION_FOLLOWING) !== 0).toBe(true);
-	});
 });

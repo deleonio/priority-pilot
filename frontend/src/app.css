@@ -225,25 +225,15 @@ body {
 
 .app-header {
 	/*
-	 * #485: Eine gemeinsame Maß-Basis für Logo, Toolbar-Buttons und Avatar.
+	 * #485: Eine gemeinsame Maß-Basis für Toolbar-Buttons.
 	 * `--pp-toolbar-height` ist die Höhe der Toolbar-Buttons: 2.75rem = 44px entspricht der
 	 * WCAG-2.5.5-Mindestgröße (`--a11y-min-size` der KoliBri-Buttons) — kleiner darf sie nicht sein.
-	 * Der Avatar leitet sich davon mit Faktor 1,25 ab, das Logo bleibt auf Avatar-Höhe.
+	 * Das Logo bleibt auf Toolbar-Höhe.
 	 */
 	--pp-toolbar-height: 2.75rem;
-	/*
-	 * Mobile-First: Auf schmalen Viewports liegt der Avatar (bzw. das Logo, das sich an ihm bemisst)
-	 * exakt auf Toolbar-Höhe — der 1,25-Faktor aus #485 würde den Header hier unnötig hoch machen.
-	 * Ab 48rem gilt wieder die gewohnte Relation (siehe Media-Query unten). Die 2.75rem/44px selbst
-	 * bleiben unangetastet: sie sind das WCAG-2.5.5-Minimum, nicht Deko.
-	 */
-	--pp-avatar-size: var(--pp-toolbar-height);
 
 	/*
-	 * P1: Header in 3 semantische Gruppen (Brand | Primary | User).
-	 * Das Markup gruppiert die Elemente in .app-header__brand,
-	 * .app-header__primary und .app-header__user. Der Header selbst
-	 * nutzt das Gap-Token zur Trennung der Gruppen.
+	 * P1: Header in 2 semantische Gruppen (Brand | Primary).
 	 */
 	display: flex;
 	flex-wrap: wrap;
@@ -251,20 +241,11 @@ body {
 	gap: var(--pp-gap-tight);
 }
 
-@media (min-width: 48rem) {
-	.app-header {
-		--pp-avatar-size: calc(var(--pp-toolbar-height) * 1.25);
-
-		gap: var(--pp-gap-base);
-	}
-}
-
 /*
  * App-Name zwischen Logo und Toolbar (#787). Seit #485 ist das Logo icon-only und trägt die
  * Wortmarke nicht mehr — der Name steht deshalb wieder als eigenes Label im Header (bewusst als
  * `span`, NICHT als H1: die Entscheidung aus #406, keine redundante Text-H1 zu führen, bleibt).
  *
- * Der Avatar steht seit #912 am rechten Rand (nach der Toolbar).
  *
  * Erst ab 64rem sichtbar: Der Header muss auf 375px UND 768px einzeilig bleiben (#485 AK6,
  * #718 AK4/AK5, mobile-shell). Bis 64rem ist der Platz für Logo, Identität, Modell-Auswahl und die
@@ -374,7 +355,7 @@ body {
  */
 .logo-btn img {
 	display: block;
-	height: var(--pp-avatar-size);
+	height: var(--pp-toolbar-height);
 	max-height: none;
 	width: auto;
 	max-width: 100%;
@@ -394,11 +375,6 @@ body {
 	margin-left: auto;
 }
 
-.app-header__user {
-	display: flex;
-	align-items: center;
-}
-
 /*
  * #485 AK3/AK4: Die Toolbar-Buttons werden auf die gemeinsame Bezugshöhe festgenagelt.
  * `--a11y-min-size` ist die von KoliBri im Shadow-DOM genutzte Variable für `min-height`/`min-width`
@@ -413,24 +389,6 @@ body {
  */
 .app-header__primary kol-toolbar {
 	--a11y-min-size: var(--pp-toolbar-height);
-}
-
-/*
- * AK2 (#222) / AK3 (#485): Avatar harmonisch zur Toolbar — exakt das 1,25-Fache der
- * Toolbar-Button-Höhe. Über `--pp-toolbar-height` bleibt das Verhältnis bei Änderungen erhalten.
- */
-.app-header kol-avatar {
-	/*
-	 * `kol-avatar` setzt im Shadow-DOM `:host { width: 100px; aspect-ratio: 1 }` und bietet dafür
-	 * keine Custom Property an (das frühere `--kol-avatar-size` blieb wirkungslos). Deshalb wird die
-	 * Breite am Host selbst gesetzt — ungeschichtete Dokument-Styles schlagen die `@layer`-Regel des
-	 * Components. Höhe und `aspect-ratio` werden hier ebenfalls explizit gesetzt statt aus dem
-	 * `:host` geerbt: die von AK3 gemessene Höhe soll nicht an einem undokumentierten
-	 * Component-Internum hängen, das eine künftige KoliBri-Version wegfallen lassen kann.
-	 */
-	width: var(--pp-avatar-size);
-	height: var(--pp-avatar-size);
-	aspect-ratio: 1;
 }
 
 .loading {
