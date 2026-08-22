@@ -61,23 +61,20 @@ const openModelSelection = async (page: Page): Promise<void> => {
 /**
  * Spec-Tests für #787 "Header-Layout und KI-Modell-Auswahl in Toolbar" (Stufe 1 TDD, der einklagbare Vertrag).
  *
- * Ziel: Header-Layout folgt der Reihenfolge Logo → Name → Toolbar → Avatar (#912) und die
+ * Ziel: Header-Layout folgt der Reihenfolge Logo → Name → Toolbar und die
  * KI-Modell-Auswahl ist harmonisch in die Toolbar integriert mit voller A11y-Unterstützung.
+ * (Der früher am rechten Rand stehende Avatar (#912) wurde später aus dem Header entfernt.)
  *
  * Spezifikation: docs/spec/issue-787.md
  */
 test.describe('#787 Header-Layout und KI-Modell-Auswahl in Toolbar', () => {
 	/**
 	 * Journey 1: Header-Layout auf Desktop
-	 * Spec-Bezug: docs/spec/issue-787.md Journey 1 (v1.2, korrigiert durch #912)
-	 * AK1 (#912): Der Avatar ist das letzte Element ganz rechts im Header — nach Wortmarke,
-	 * KI-Modellauswahl und Kopf-Aktionen.
-	 *
-	 * Test-Pflege (#912): Diese Order-Assertion prüfte bis v1.1 Avatar < Toolbar (Avatar
-	 * links-mittig direkt neben der Wortmarke). Das widerspricht dem neuen AK1 aus #912 — die
-	 * Assertion wurde auf Toolbar < Avatar gedreht, Testname/Ort blieben erhalten.
+	 * Spec-Bezug: docs/spec/issue-787.md Journey 1
+	 * AK1: Die Reihenfolge ist Logo → Name → Toolbar (die Toolbar ist das letzte Element).
+	 * Der frühere Avatar am rechten Rand (#912) wurde später aus dem Header entfernt.
 	 */
-	test('AK1: Header-Layout folgt der Reihenfolge Logo → Name → Toolbar → Avatar (Desktop)', async ({ page }) => {
+	test('AK1: Header-Layout folgt der Reihenfolge Logo → Name → Toolbar (Desktop)', async ({ page }) => {
 		await page.setViewportSize({ width: 1280, height: 800 });
 		await page.goto('/');
 		await waitForSettledHeader(page);
@@ -87,42 +84,42 @@ test.describe('#787 Header-Layout und KI-Modell-Auswahl in Toolbar', () => {
 
 		// Alle relevanten Elemente identifizieren
 		const logo = header.getByRole('button', { name: /Zum Dashboard/i }).locator('img');
-		const avatar = header.locator('kol-avatar').first();
 		const toolbar = header.getByRole('toolbar', { name: /Kopf-Aktionen/i });
 
 		// Alle Elemente müssen sichtbar sein
 		await expect(logo).toBeVisible();
-		await expect(avatar).toBeVisible();
 		await expect(toolbar).toBeVisible();
 
-		// DOM-Reihenfolge prüfen: Logo → App-Name → Toolbar → Avatar.
+		// Der Avatar wurde aus dem Header entfernt — im Banner darf kein `kol-avatar` mehr stehen.
+		await expect(header.locator('kol-avatar')).toHaveCount(0);
+
+		// DOM-Reihenfolge prüfen: Logo + App-Name (Brand-Gruppe) → Toolbar (Primary-Gruppe).
 		// Die Indizes werden über die *semantischen* Merkmale der Kinder bestimmt (Button mit
-		// Logo-Label, Text „Priority Pilot", `role="toolbar"`, `kol-avatar`) — nicht über die
+		// Logo-Label, Text „Priority Pilot", `role="toolbar"`) — nicht über die
 		// CSS-Klassen, damit der Vertrag ein Layout-Vertrag bleibt und kein Klassennamen-Vertrag.
-		const { logoIndex, nameIndex, avatarIndex, toolbarIndex } = await header.evaluate((el) => {
+		// Seit der semantischen Gruppierung teilen sich Logo und App-Name die Brand-Gruppe —
+		// geordnet wird daher auf Gruppenebene: beide Gruppen vor der Toolbar, Toolbar zuletzt.
+		const { logoIndex, nameIndex, toolbarIndex } = await header.evaluate((el) => {
 			const children = Array.from((el as HTMLElement).children);
 			return {
 				logoIndex: children.findIndex((child) => child.querySelector('img') !== null),
 				nameIndex: children.findIndex((child) => child.textContent?.trim() === 'Priority Pilot'),
-				avatarIndex: children.findIndex((child) => child.matches('kol-avatar')),
 				// `kol-toolbar` trägt `role="toolbar"` in ihrem Shadow-DOM — aus dem Light-DOM ist der
 				// Toolbar-Block deshalb über das Custom-Element identifizierbar, nicht über die Rolle.
 				toolbarIndex: children.findIndex((child) => child.querySelector('kol-toolbar') !== null),
 			};
 		});
 
-		// Reihenfolge validieren: Logo < Name < Toolbar < Avatar
+		// Reihenfolge validieren: Logo und App-Name vor der Toolbar, Toolbar als letztes Element
 		expect(logoIndex, 'Logo muss im Header vorhanden sein').toBeGreaterThanOrEqual(0);
 		expect(nameIndex, 'App-Name muss im Header vorhanden sein').toBeGreaterThanOrEqual(0);
-		expect(avatarIndex, 'Avatar muss im Header vorhanden sein').toBeGreaterThanOrEqual(0);
 		expect(toolbarIndex, 'Toolbar muss im Header vorhanden sein').toBeGreaterThanOrEqual(0);
 
-		expect(logoIndex, 'Logo muss vor App-Name erscheinen').toBeLessThan(nameIndex);
-		expect(nameIndex, 'App-Name muss vor Toolbar erscheinen').toBeLessThan(toolbarIndex);
+		expect(logoIndex, 'Logo muss vor der Toolbar erscheinen').toBeLessThan(toolbarIndex);
 		expect(
-			toolbarIndex,
-			'Toolbar muss vor Avatar erscheinen — Avatar ist das letzte Element ganz rechts (#912)',
-		).toBeLessThan(avatarIndex);
+			nameIndex,
+			'App-Name muss vor der Toolbar erscheinen — die Toolbar ist das letzte Element des Headers',
+		).toBeLessThan(toolbarIndex);
 	});
 
 	/**
@@ -338,13 +335,16 @@ test.describe('#787 Header-Layout und KI-Modell-Auswahl in Toolbar', () => {
 		const beforeBox = await header.boundingBox();
 		expect(beforeBox, 'Header muss eine Boundingbox haben').not.toBeNull();
 
-		// Der Header bleibt einzeilig — bei Umbruch läge er bei Logo + Avatar (#485 AK6, #718
-		// AK4/AK5). Unter 48rem gilt derselbe Vertrag; ein Einstieg in die Modell-Auswahl existiert
-		// dort aber nicht mehr (Dashboard-Button seit 8a7d182 entfernt, siehe AK2).
+		// Der Header bleibt einzeilig — bei Umbruch läge er bei Logo + Toolbar-Button
+		// (#485 AK6). Unter 48rem gilt derselbe Vertrag; ein Einstieg in die Modell-Auswahl
+		// existiert dort aber nicht mehr (Dashboard-Button seit 8a7d182 entfernt, siehe AK2).
 		const logoBox = await header.getByRole('button', { name: /Zum Dashboard/i }).boundingBox();
-		const avatarBox = await header.locator('kol-avatar').first().boundingBox();
+		const toolbarBtnBox = await header
+			.getByRole('toolbar', { name: /Kopf-Aktionen/i })
+			.getByRole('button', { name: 'Neuen Task anlegen' })
+			.boundingBox();
 		expect(beforeBox!.height, `Header (${beforeBox!.height}px) muss einzeilig bleiben`).toBeLessThan(
-			logoBox!.height + avatarBox!.height,
+			logoBox!.height + toolbarBtnBox!.height,
 		);
 
 		await openModelSelection(page);
@@ -423,30 +423,24 @@ test.describe('#787 Header-Layout und KI-Modell-Auswahl in Toolbar', () => {
 		await expect(header).toBeVisible();
 
 		const logo = header.getByRole('button', { name: /Zum Dashboard/i });
-		const avatar = header.locator('kol-avatar').first();
 		const appName = header.locator('.app-name');
 		const toolbar = header.getByRole('toolbar', { name: /Kopf-Aktionen/i });
 
-		// App-Name und Avatar sind reine Anzeige-Elemente. Sie stehen in der visuellen Reihenfolge
-		// zwischen Logo und Toolbar, gehören aber bewusst NICHT in die Tab-Reihenfolge: Ein
+		// Der App-Name ist ein reines Anzeige-Element. Er steht in der visuellen Reihenfolge
+		// zwischen Logo und Toolbar, gehört aber bewusst NICHT in die Tab-Reihenfolge: Ein
 		// Tab-Stopp ohne Aktion ist ein Sackgassen-Stopp für Tastatur-Nutzende (WCAG 2.4.3 zielt auf
 		// eine sinnvolle Reihenfolge der *bedienbaren* Elemente, nicht auf jedes sichtbare Element).
-		for (const [locator, name] of [
-			[appName, 'App-Name'],
-			[avatar, 'Avatar'],
-		] as const) {
-			const isFocusable = await locator.evaluate(
-				(el) => el.matches('a[href],button,input,select,textarea,[tabindex]') || el.hasAttribute('tabindex'),
-			);
-			expect(isFocusable, `${name} ist ein Anzeige-Element und darf keinen Tab-Stopp erzeugen`).toBe(false);
-		}
+		const isFocusable = await appName.evaluate(
+			(el) => el.matches('a[href],button,input,select,textarea,[tabindex]') || el.hasAttribute('tabindex'),
+		);
+		expect(isFocusable, 'App-Name ist ein Anzeige-Element und darf keinen Tab-Stopp erzeugen').toBe(false);
 
 		// Logo muss focusierbar sein
 		await logo.focus();
 		await expect(logo).toBeFocused();
 
 		// Der nächste Tab-Stopp nach dem Logo ist die KI-Modell-Auswahl — das erste bedienbare Element
-		// des Kopf-Aktionen-Blocks (Spec Journey 1: Toolbar folgt auf Logo/Name/Avatar).
+		// des Kopf-Aktionen-Blocks (Spec Journey 1: Toolbar folgt auf Logo/Name).
 		await page.keyboard.press('Tab');
 		await expect(
 			page.getByRole('combobox', { name: /Modell auswählen|KI.*Modell/i }),

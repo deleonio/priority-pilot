@@ -1,6 +1,5 @@
 import {
 	KolAlert,
-	KolAvatar,
 	KolButton,
 	KolInputCheckbox,
 	KolInputText,
@@ -440,7 +439,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 	return (
 		<main className="app" ref={deleteFallbackRef} tabIndex={-1} data-focus-fallback>
 			<header role="banner" className="app-header">
-				{/* P1: Header in 3 semantische Gruppen (Brand | Primary | User) */}
+				{/* P1: Header in 2 semantische Gruppen (Brand | Primary) */}
 				<div className="app-header__brand">
 					<button type="button" className="logo-btn" aria-label="Zum Dashboard" onClick={handleLogoDashboard}>
 						<img src="/logo/logo.png" alt="Priority Pilot" />
@@ -460,10 +459,6 @@ export const App = ({ user }: { user: AuthUser }) => {
 					 */}
 					<ModelSelectorButton />
 					<KolToolbar _label="Kopf-Aktionen" _orientation="horizontal" _items={toolbarItems} />
-				</div>
-				{/* Avatar wiederhergestellt per Issue #865 Korrektur — Full Name bleibt entfernt; seit #912 am rechten Rand */}
-				<div className="app-header__user">
-					<KolAvatar _label={user.displayName} _src={user.avatarUrl ?? undefined} />
 				</div>
 			</header>
 			<h1 className="visually-hidden">Dashboard</h1>

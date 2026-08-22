@@ -10,8 +10,8 @@
  * Alle Shadow-DOM-Zugriffe sind unpublizierte KoliBri-API (@public-ui/react-v19 v4.2.1) —
  * bei KoliBri-Upgrades prüfen.
  *
- * Genutzt von den „…"-Menüs der Aufgabenliste (`TaskTree`) und vom Avatar-Menü im Kopfbereich
- * (`App`); deshalb liegt der Helper hier und nicht in einer der beiden Komponenten.
+ * Genutzt von den „…"-Menüs der Aufgabenliste (`TaskTree`); deshalb liegt der Helper hier und
+ * nicht in der Komponente.
  *
  * Modul-privat: Einstiegspunkt für Komponenten ist {@link setupPopoverAlignment}, das zusätzlich das
  * asynchrone Custom-Element-Upgrade abwartet.

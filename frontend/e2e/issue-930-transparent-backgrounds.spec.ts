@@ -16,7 +16,6 @@ import { waitForStableView } from './helpers';
 // Repräsentative Auswahl der im Projekt verbauten KoliBri-Host-Elemente
 const KOLOBRI_HOST_ELEMENTS = [
 	'kol-alert',
-	'kol-avatar',
 	'kol-badge',
 	'kol-button',
 	'kol-card',
@@ -40,7 +39,6 @@ const KOLOBRI_HOST_ELEMENTS = [
 const isElementUsedInProject = (tag: string): boolean => {
 	const usedInProject = [
 		'kol-alert',
-		'kol-avatar',
 		'kol-badge',
 		'kol-button',
 		'kol-card',

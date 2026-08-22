@@ -1,13 +1,15 @@
 /**
  * ROTE Spec-Tests für #865 „User Full Name entfernen (Avatar behalten)"
  *
- * Ziel: Nur User Full Name wird aus dem Header entfernt, Avatar bleibt bestehen, ohne Layout-Integrität zu beeinträchtigen.
+ * Ziel: Nur User Full Name wird aus dem Header entfernt, ohne Layout-Integrität zu beeinträchtigen.
+ * (Der damals behaltene Avatar wurde später wieder aus dem Header entfernt — die Avatar-AKs aus
+ * #865 fielen deshalb weg, die übrigen Layout-/A11y-Prüfungen bleiben.)
  * Spec: docs/spec/issue-865.md
  */
 
 import { test, expect, type Page } from '@playwright/test';
 
-test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
+test.describe('#865 User Full Name entfernen', () => {
 	/**
 	 * Hilfsfunktion — Liest Header-Elemente und prüft Layout-Integrität
 	 */
@@ -15,12 +17,10 @@ test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 		const header = page.locator('header').first();
 		await expect(header).toBeVisible();
 
-		const avatar = header.locator('kol-avatar').first();
 		// Der Klartextname ist seit der #865-Korrektur ganz entfernt — eine `.user-display-name`-Klasse
 		// existiert im Light-DOM nicht mehr, ein Klassen-Locator wäre tote Diagnose (matcht nie).
 		// Geprüft wird deshalb auf den Namen als Text (`fixtures.ts`: displayName 'Test User'): Käme der
-		// Full Name mit anderem Markup zurück, fiele dieser Check rot. Der Name lebt bewusst weiter als
-		// `_label`/Accessible Name des Avatars (kein Text-Knoten).
+		// Full Name mit anderem Markup zurück, fiele dieser Check rot.
 		const displayName = header.getByText('Test User', { exact: true });
 		const toolbar = header.locator('[role="toolbar"]').first();
 		const logo = header.locator('img[alt*="Priority Pilot"], .logo').first();
@@ -36,25 +36,11 @@ test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 			logoBox: logoBox!,
 			buttonBox: buttonBox!,
 			toolbarBox: toolbarBox!,
-			avatar,
 			displayName,
 			toolbar,
 			logo,
 		};
 	}
-
-	/**
-	 * AK1 — Avatar-Element ist sichtbar (wiederhergestellt per Korrektur)
-	 * Spec-Referenz: docs/spec/issue-865.md → Schritt 2
-	 */
-	test('AK1: Avatar ist sichtbar (Desktop)', async ({ page }) => {
-		await page.goto('/');
-
-		const { avatar, header } = await readHeaderState(page);
-
-		await expect(avatar).toBeVisible();
-		await expect(header.locator('kol-avatar')).toHaveCount(1);
-	});
 
 	/**
 	 * AK2 — User Full Name ist nicht mehr im DOM vorhanden
@@ -70,16 +56,16 @@ test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 	});
 
 	/**
-	 * AK3 — Keine Leerräume im Layout mit Avatar (Desktop)
+	 * AK3 — Keine Leerräume im Header-Layout (Desktop)
 	 * Spec-Referenz: docs/spec/issue-865.md → Schritt 4
 	 */
-	test('AK3: Keine Leerräume im Layout mit Avatar (Desktop 1440px)', async ({ page }) => {
+	test('AK3: Keine Leerräume im Header-Layout (Desktop 1440px)', async ({ page }) => {
 		await page.setViewportSize({ width: 1440, height: 800 });
 		await page.goto('/');
 
-		const { header, toolbar, logo, avatar } = await readHeaderState(page);
+		const { header, toolbar, logo } = await readHeaderState(page);
 
-		// Header ist einzeilig (kein Umbruch trotz Avatar)
+		// Header ist einzeilig (kein Umbruch)
 		const headerBox = await header.boundingBox();
 		expect(headerBox).not.toBeNull();
 
@@ -88,28 +74,11 @@ test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 
 		expect(headerBox!.height).toBeLessThan(logoBox!.height + toolbarBox!.height);
 
-		// Avatar ist sichtbar
-		await expect(avatar).toBeVisible();
-
 		// Toolbar-Aktionen sind weiterhin sichtbar und ≥44px
 		await expect(toolbar).toBeVisible();
 		const firstButton = toolbar.locator('button').first();
 		const buttonBox = await firstButton.boundingBox();
 		expect(buttonBox!.height).toBeGreaterThanOrEqual(44);
-	});
-
-	/**
-	 * AK4 — Avatar ist auf Mobile sichtbar (375px)
-	 * Spec-Referenz: docs/spec/issue-865.md → Randfälle
-	 */
-	test('AK4: Avatar ist auf Mobile sichtbar (375px)', async ({ page }) => {
-		await page.setViewportSize({ width: 375, height: 667 });
-		await page.goto('/');
-
-		const { avatar, header } = await readHeaderState(page);
-
-		await expect(avatar).toBeVisible();
-		await expect(header.locator('kol-avatar')).toHaveCount(1);
 	});
 
 	/**
@@ -134,8 +103,10 @@ test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 		page.on('console', (msg) => {
 			if (msg.type() === 'error' || msg.type() === 'warning') {
 				const text = msg.text();
-				// Filter: Nur relevante Errors für Avatar-Entfernung (keine Backend-Probleme)
-				if (!text.includes('Modell-Status')) {
+				// Filter: Nur relevante Errors für die Header-Änderung (keine Backend-Probleme).
+				// `localhost:8401/live.js` ist das lokal eingecheckte impeccable-Live-Tool — in der
+				// Testumgebung lauscht dort nichts, der Connection-Refused ist erwartbar.
+				if (!text.includes('Modell-Status') && !text.includes('ERR_CONNECTION_REFUSED')) {
 					errors.push(text);
 				}
 			}
