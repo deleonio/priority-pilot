@@ -15,7 +15,7 @@ const waitForSettledHeader = async (page: Page): Promise<void> => {
 	await waitForStableView(page);
 	await page.waitForFunction(() => {
 		const toolbar = document.querySelector('header kol-toolbar');
-		const modelButton = document.querySelector('header .model-selector-button');
+		const modelButton = document.querySelector('header kol-toolbar button[role="combobox"]');
 		if (toolbar === null || modelButton === null) {
 			return false;
 		}
@@ -50,7 +50,7 @@ const mockFreeModels = async (page: Page): Promise<void> => {
  * #742 öffnete — jener wurde mit 8a7d182 bewusst entfernt. Unter 48rem ist der Header-Button
  * ausgeblendet (Einzeiler-Vertrag); ein mobiler Einstieg existiert seither nicht (siehe AK2).
  */
-const modelSelectionEntryPoint = (page: Page): Locator => page.locator('[data-testid="model-selector-button"]');
+const modelSelectionEntryPoint = (page: Page): Locator => page.locator('header kol-toolbar button[role="combobox"]');
 
 /** Öffnet die Modell-Auswahl über den Header-Button und wartet auf den geöffneten Dialog. */
 const openModelSelection = async (page: Page): Promise<void> => {
@@ -156,7 +156,7 @@ test.describe('#787 Header-Layout und KI-Modell-Auswahl in Toolbar', () => {
 		// Light-DOM des eigenen Buttons — kein Griff in fremdes Shadow-DOM (#824). Das Icon ist
 		// dekorativ (`aria-hidden`) und hat deshalb bewusst keine eigene Rolle: Die Bedeutung trägt
 		// das `aria-label` des Buttons, das Icon nur die visuelle Ankündigung des Popups.
-		const chevron = modelSelector.locator('.model-selector-chevron');
+		const chevron = modelSelector.locator('.fa-chevron-down');
 		await expect(chevron, 'KI-Modell-Auswahl muss einen Dropdown-Indikator (Chevron) haben').toBeVisible();
 		await expect(chevron, 'Der Chevron ist dekorativ und muss vor Screenreadern verborgen sein').toHaveAttribute(
 			'aria-hidden',
