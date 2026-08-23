@@ -1,4 +1,4 @@
-import { KolBadge, KolCard, KolMeter } from '@public-ui/react-v19';
+import { KolBadge, KolButton, KolCard, KolMeter } from '@public-ui/react-v19';
 import type { Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useMemo } from 'react';
@@ -34,6 +34,8 @@ interface DashboardProps {
 	pillars: Pillar[];
 	/** Anzeigename des Nutzers für die personalisierte Begrüßung (aus `localStorage`). Leer → keine Begrüßung. */
 	displayName?: string;
+	/** Öffnet die nächste Aufgabe zum Bearbeiten („Jetzt starten" im Signal-Panel, P2-1). */
+	onStartTask?: (task: Task) => void;
 }
 
 interface StatCard {
@@ -68,7 +70,15 @@ const hasDeadline = (task: Task): task is TaskWithDeadline =>
  * werden dabei je Säule nach Status aufgeschlüsselt (#124): offen (`Open`/`In process`) vs. erledigt
  * (`Done`), damit erkennbar ist, wie eine Säule bereits abgearbeitet ist.
  */
-export const Dashboard = ({ tasks, forest, nextTask, suggestions = [], pillars, displayName = '' }: DashboardProps) => {
+export const Dashboard = ({
+	tasks,
+	forest,
+	nextTask,
+	suggestions = [],
+	pillars,
+	displayName = '',
+	onStartTask,
+}: DashboardProps) => {
 	const greeting = displayName.trim();
 	const cards = useMemo<StatCard[]>(() => {
 		let openCount = 0;
@@ -127,6 +137,13 @@ export const Dashboard = ({ tasks, forest, nextTask, suggestions = [], pillars, 
 		[tasks],
 	);
 
+	// P2-1: Vorschläge, die die bereits angezeigte Nächste-Aufgabe ausschließen — sonst wiederholt
+	// "Was ist jetzt dran?" dieselbe Hauptaussage (#443).
+	const suggestionsFiltered = useMemo(
+		() => suggestions.filter((task) => nextTask === null || task.id !== nextTask.id),
+		[suggestions, nextTask],
+	);
+
 	return (
 		<section className="dashboard">
 			<div className="dashboard-heading">
@@ -145,26 +162,47 @@ export const Dashboard = ({ tasks, forest, nextTask, suggestions = [], pillars, 
 					</li>
 				))}
 			</ul>
-			<section className="dashboard-next-task">
-				<h3>Nächste Aufgabe</h3>
+			{/*
+			 * P2-1: „Nächste Aufgabe" ist die EINE Hauptaussage einer Ansicht (ux-design.md §1).
+			 * Sie trägt die Signalfarbe `--pp-signal` / `--pp-signal-wash` und eine klare
+			 * Folgehandlung („Jetzt starten"). Die Säulen-Balance, Statistik-Karten und
+			 * Deadline-Liste ordnen sich darunter.
+			 */}
+			<section className="dashboard-next-task" role="region" aria-labelledby="dashboard-next-task-heading">
+				<h3 id="dashboard-next-task-heading">Nächste Aufgabe</h3>
 				{nextTask === null ? (
-					<p>Aktuell steht keine Aufgabe an (alle erledigt oder durch offene Vorgänger blockiert).</p>
-				) : (
-					<p className="dashboard-next-task-value">
-						<strong>
-							#{nextTask.id} – {nextTask.title}
-						</strong>{' '}
-						(Priorität {nextTask.priority})
+					<p className="dashboard-next-task-empty">
+						Aktuell steht keine Aufgabe an (alle erledigt oder durch offene Vorgänger blockiert).
 					</p>
+				) : (
+					<div className="dashboard-next-task-content">
+						<span className="dashboard-next-task-title">
+							#{nextTask.id} – {nextTask.title}
+						</span>
+						<span className="dashboard-next-task-priority">Priorität {nextTask.priority}</span>
+						{onStartTask !== undefined && (
+							<KolButton
+								_label="Jetzt starten"
+								_variant="primary"
+								_icons={{ left: { icon: 'fa-solid fa-play' } }}
+								_on={{ onClick: () => onStartTask(nextTask) }}
+							/>
+						)}
+					</div>
 				)}
 			</section>
+			{/*
+			 * P2-1: „Was ist jetzt dran?" — Vorschläge, die die nächste Aufgabe ausschließen,
+			 * um keine doppelte Hauptaussage zu erzeugen. Visuell eine schlichtere Liste ohne
+			 * Signal-Färbung; die Signalfläche gehört allein der „Nächste Aufgabe"-Zeile.
+			 */}
 			<section className="dashboard-suggestions" aria-label="Was ist jetzt dran?">
 				<h3>Was ist jetzt dran?</h3>
-				{suggestions.length === 0 ? (
-					<p>Aktuell stehen keine Vorschläge an.</p>
+				{suggestionsFiltered.length === 0 ? (
+					<p className="dashboard-suggestions-empty">Aktuell stehen keine weiteren Vorschläge an.</p>
 				) : (
 					<ol className="dashboard-suggestions-list">
-						{suggestions.map((task) => (
+						{suggestionsFiltered.map((task) => (
 							<li key={task.id} className="dashboard-suggestion">
 								<span className="dashboard-suggestion-title">
 									#{task.id} – {task.title}

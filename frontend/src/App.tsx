@@ -506,6 +506,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 							suggestions={suggestions}
 							pillars={pillars}
 							displayName={user.displayName}
+							onStartTask={openEdit}
 						/>
 					</div>
 					<div slot="tab-1">
@@ -545,7 +546,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 									<KolButton
 										className="task-filter-search__submit"
 										_label="Filtern"
-										_variant="primary"
+										_variant="secondary"
 										_icons="fa-solid fa-magnifying-glass"
 										_on={{ onClick: () => applyTaskFilter(searchDraft) }}
 									/>

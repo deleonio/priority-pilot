@@ -35,7 +35,7 @@ Bestands-Konventionen.
 
 ---
 
-## Die 10 Regeln
+## Die 10 Regeln (erweitert um Craft Floor)
 
 1. **Der Daumen bestimmt die Hierarchie** — Unteres Drittel bequem erreichbar, Mitte mit Streckung, obere Ecke
    gegenüber der Greifhand gar nicht. Primäraktion in Bottom-Bar/Bottom-Sheet/FAB unten rechts; oben rechts nur
@@ -79,6 +79,13 @@ Settings-Zeile ohne sichtbaren aktuellen Wert · Speichern-Button in Einstellung
 Label · Fließtext unter 16px · Toast als einziger Ort für Fehlermeldungen · mehr als eine
 Primäraktion pro Screen · Abstandswerte außerhalb der 4-dp-Skala
 
+**Zusätzlich aus Craft Floor Refuse:**
+Icon+Heading+Text Cards als Page-Scaffold · Hero-Metric Template · Kicker über Heading ·
+Section Numbers ohne Info-Wert · Modal ohne Interruption/Focus-Grund · Gradient Text ·
+Glass/Blur Deko · Farbige Borders >1px · Harte Offset Shadows außerhalb neobrutalist ·
+Sparklines/Progress Rings als Content-Platzhalter · Monospace Kostüm · System Display Face ·
+Emoji als Icons · Geometrische Masks · Light/Dark nach Kategorie
+
 ## Review-Checkliste
 
 _(Mit Repo-Abstimmung: 375px Breite, ≥44px Touch-Targets.)_
@@ -90,3 +97,5 @@ _(Mit Repo-Abstimmung: 375px Breite, ≥44px Touch-Targets.)_
 
 Bedienbarkeit schlägt Ästhetik. Konsistenz schlägt Kreativität. Weniger Elemente schlägt bessere
 Anordnung vieler Elemente.
+
+**Impeccable Ergänzung:** Mit jedem Check grün — die Page dem committed World widmen. Zwischen refined und committed: commit.

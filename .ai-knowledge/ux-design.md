@@ -135,3 +135,71 @@ Ergänzt die Prüfpunkte der [Mobile-UI-Regeln](../docs/mobile-ui-rules.md) um d
 5. Fokus sichtbar (`:focus-visible` mit `--pp-focus-ring`)?
 6. Trägt die eine Primäraktion auch die Hauptaussage und die Signalfarbe?
 7. e2e-Test bei 375×812 vorhanden, der den Kernpunkt festnagelt?
+
+## 7. Craft Floor (aus Impeccable Skill — verbindliche Qualitätsuntergrenze)
+
+Diese Checks laufen **gebatcht in einer Inspektionsrunde** (Desktop + Mobile zusammen), nicht als separate Screenshot-Trips:
+
+| Check                | Kriterium                                                                                                                                                                                                                                       |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Contrast**         | Body/Placeholder ≥4.5:1, Large Text ≥3:1. Auf farbigen Flächen Secondary Text aus Hue tinten, nie Grau.                                                                                                                                         |
+| **Depth**            | Shadows tragen Offset + Soft Blur. Zero-offset colored Halo = Deko.                                                                                                                                                                             |
+| **Spacing**          | Tight Groups, generöse Separation, mehr Space über Heading als darunter. Computed Values lesen.                                                                                                                                                 |
+| **Type**             | Body Measure 65–75ch, Display max 6rem, Tracking floor -0.04em, balancierte Headings, offensichtliche Scale/Weight Steps. Real Copy an jedem Breakpoint, Overflow fixen.                                                                        |
+| **Motion**           | **Ein** authored Moment, nicht scattered Effects, nicht identischer Entrance auf jeder Section. Exponential ease-out von already-visible Default. Beyond transform/opacity: blur, backdrop-filter, clip-path, mask, shadow gehören zur Palette. |
+| **States**           | hover, disabled, loading, error, empty — **plus** real content, working controls, responsive composition, keyboard focus.                                                                                                                       |
+| **Browser Surfaces** | Parts you didn't draw: text selection, caret, custom scrollbars, focus rings, underline offset, tabular numerals. **Theme them from palette** — cheapest signal for "built not assembled".                                                      |
+| **Copy**             | Produkt-Eigene Sprache. Controls benennen Action; Errors benennen Problem + Recovery.                                                                                                                                                           |
+| **Coverage**         | Every brief requirement present and findable within seconds.                                                                                                                                                                                    |
+
+**Refuse (Defaults, die das Brief explizit verdienen muss):**
+
+- Same-size Icon+Heading+Text Cards als Page-Struktur
+- Hero-Metric Template (Big Number + Small Label)
+- Kicker/Eyebrow über Heading (Ban — kein Brief verdient es zurück)
+- Section Numbers (01/02/03) ohne Sequenz-Info
+- Modal für Task ohne Interruption/Focus-Grund
+- Gradient Text (Emphasis = Weight/Size)
+- Glass/Blur als Deko
+- Farbige border-left/right >1px auf Cards/Alerts
+- Hard Offset Shadows (4px 4px 0) außerhalb neobrutalist
+- Sparklines/Progress Rings als Content-Platzhalter
+- Monospace als "technical" Kostüm
+- System Display Face (Impact, Arial Black) als Display Voice
+- Emoji/Unicode als Icon-System Ersatz
+- Geometric Masks statt Organic Contours
+- Light/Dark nach Kategorie statt Use Scene
+
+## 8. Modus-Entscheidung (Persuade / Operate / Read / Experience)
+
+Jede Surface hat **einen Modus**, der bestimmt, was Erfolg bedeutet:
+
+| Modus          | Ziel                   | Priority Pilot Beispiel            |
+| -------------- | ---------------------- | ---------------------------------- |
+| **Persuade**   | Visitor decides & acts | Landing, Pricing, Kampagnen        |
+| **Operate**    | Visitor completes task | Dashboard, Editor, Settings, Tools |
+| **Read**       | Visitor understands    | Docs, Help, Guides, Changelogs     |
+| **Experience** | Visitor is inside work | Portfolio, Showcase                |
+
+**Regel:** Modus aus **Surface** ableiten, nicht aus Product. Ein Tool's Landing = Persuade, Fashion House Docs = Read, Docs Index = Read.
+
+- **Persuade/Experience** dürfen bolder Color Strategies (Committed/Full/Drenched)
+- **Operate/Read** default zu Restrained (Neutrals + 1 Accent)
+- Dark/Light nie Default — physikalische Scene (wer, wo, Licht) zwängt die Entscheidung
+
+## 9. Farb-Strategie & Faces
+
+**Color Strategy vor Colors picken:**
+
+- **Restrained** (Neutrals + 1 Accent) — Default für Operate/Read
+- **Committed** (1 Saturated Color trägt 30–60% Surface) — Persuade/Experience mit Brief-Erlaubnis
+- **Full Palette** (3–4 Named Roles)
+- **Drenched** (Surface IS the Color)
+
+Color commits at page scale: Fields owning whole regions, not scattered accents.
+
+**Faces aus Subject's World wählen** (Training-Defaults = you stopped looking):
+Fraunces, Playfair Display, Cormorant, Lora, Crimson, Newsreader, Syne, Space Grotesk, Space Mono, IBM Plex, Inter-as-display, DM Sans, DM Serif, Outfit, Plus Jakarta Sans, Instrument Sans. Naming one = Reason no other face satisfies.
+
+**Calibration gegen AI-Defaults:**
+AI Interfaces clustern um: Warm Cream + High-Contrast Serif + Terracotta/Red • Near-Black + Neon + Glow • Broadsheet Editorial Hairlines + Italic Serif + Tracked Mono. Landing in one ohne Brief-Pin = Self-Check Failed. Rework until neither answer obvious from category alone.
