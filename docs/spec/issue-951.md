@@ -111,6 +111,19 @@ Nutzer können mehrere LLM-Provider (z.B. Mistral, OpenRouter, Ollama, OpenAI, A
 
 ---
 
+## Test-Pflege (verbindlich für die Implementierungsphase)
+
+Die neue Architektur (Single-Provider statt Kaskade) macht folgende bestehende Tests überflüssig bzw. erfordert deren Anpassung. Die Implementierungsphase setzt diese Liste um, ohne sie neu zu entscheiden:
+
+1. **`server/src/llm/cascade.test.ts`** – testet die Kaskaden-Logik Mistral → OpenRouter, die entfernt wird. Anpassen oder entfernen.
+2. **`frontend/src/lib/llm-provider.test.ts`** – testet Provider-State mit festen Strings (`'mistral' | 'openrouter'`). Auf dynamische Provider-Objekte umstellen.
+3. **`frontend/e2e/llm-provider-toggle.spec.ts`** – testet UI-Toggle für feste Provider. Auf dynamische Radio-Group umstellen.
+4. **`frontend/e2e/llm-settings-button-layout.spec.ts`** – testet Settings-Button-Layout. Prüfen, ob er mit der neuen UI weiterhin gültig ist.
+
+Die alten API-Endpunkte (`/llm-config`) bleiben für Migration erhalten, daher bleiben `server/src/express/llm-config.test.ts` und `server/src/llm/llmConfig.test.ts` vorerst gültig.
+
+---
+
 ## Technische Hinweise
 
 ### Provider-Templates
