@@ -1528,6 +1528,26 @@ body {
 	.completed-tasks-table td[data-label]::before {
 		content: none;
 	}
+
+	/*
+	 * Fixes Spaltenlayout (#931): Ab Desktop bestimmt nicht mehr der Browser-Auto-Layout die
+	 * Breiten, sondern eine dominante Titel-Spalte. Sie belegt 55 %; die restlichen 45 % teilen
+	 * sich Punkte- und Aktion-Spalten gleichmäßig (worst case eine Säule: 22,5 % < 27,5 %), sodass
+	 * lange Titel lesbar bleiben und Zahlenspalten schmal (AK-931-1/2).
+	 */
+	.completed-tasks-table {
+		table-layout: fixed;
+	}
+
+	.completed-tasks-table thead th:first-child {
+		width: 55%;
+	}
+
+	/* Punkte untereinander vergleichbar: rechtsbündig, tabellarische Ziffern (AK-931-3). */
+	.completed-tasks-table td[data-label] {
+		text-align: right;
+		font-variant-numeric: tabular-nums;
+	}
 }
 
 /* --- PWA-Update-/Offline-Hinweis (#373) --- */

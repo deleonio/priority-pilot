@@ -69,3 +69,8 @@ Konflikte, die er verhindern soll.
 - 2026-08-23 · Vitest 4 — `--reporter=basic` existiert nicht mehr („Failed to load custom
   Reporter"); nur noch default/tap/etc. → Default-Reporter nutzen und Output per `tail`
   kürzen.
+- 2026-08-23 · Spec-Phase/Issue-Body — gelegentlich ist der KI-ANALYSE-Block im Issue-Body defekt (enthält wörtlich `$(gh issue view …)` statt Inhalt). → AKs dann aus Titel + KI-UX-Block + Analyse-Bot-Kommentar (`gh issue view N --json comments`) ableiten und den Defekt im Spec/PR-Body dokumentieren.
+- 2026-08-23 · GraphQL/Threads — Review-Threads auflösen: `resolvePullRequestReviewThread` existiert
+  im Schema dieses Endpoints NICHT (`Field doesn't exist on type "Mutation"`); Introspektion ergab
+  `resolveReviewThread(input:{threadId})`. Außerdem `body` als `$b:String!` deklarieren und der
+  Reply-Payload hat kein `thread`-Feld — `comment{databaseId}` selektieren.
