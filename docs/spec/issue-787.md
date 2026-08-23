@@ -55,7 +55,6 @@ den Items) umsetzt. Der umgebende Container bekommt **kein** zweites `role="tool
 verschachtelte Toolbars mit identischem Accessible Name und verspräche eine Pfeiltasten-Navigation,
 die er nicht implementiert. Die KI-Modell-Auswahl ist als eigenständiges, benanntes Bedienelement im
 `banner` vollständig zugänglich.
-
 ---
 
 ## Journey 2: KI-Modell-Auswahl Interaktion
@@ -77,33 +76,33 @@ KI-Modell-Auswahl ist funktional und a11y-konform bedienbar.
 
 2. **Tastatur-Navigation**
    - Tab-Reihenfolge erreicht KI-Modell-Auswahl nach anderen Toolbar-Elementen
-   - Focus-Indikator sichtbar (2px solid, Kontrast ≥3:1)
-   - Enter/Space öffnet Dropdown
+   - Enter/Space öffnet den Dialog
 
-3. **Screenreader-Test**
-   - Element hat role="combobox"
-   - aria-expanded wechselt zwischen "true" und "false"
-   - Label: „KI-Modellauswahl, aktuell [Modellname]. Öffnet die Liste der verfügbaren Modelle."
+3. **Screenreader-Test** _(geändert durch Menschen-Entscheidung zu #929)_
+   - Element ist ein nativer Button — Semantik, Fokus-Optik und Accessible Name
+     („KI-Modell: [Kurzname]") trägt `kol-toolbar` im Shadow-DOM selbst
+   - Der frühere role="combobox"-Vertrag (aria-haspopup, aria-expanded, Chevron) ist aufgehoben:
+     `kol-toolbar` verwirft ARIA-Attribute an Items still, ein nachgerüstetes combobox-Semantik-
+     Muster wäre nicht einklagbar. Die Bedienbarkeit bleibt über den nativen Button erhalten.
 
 4. **Modell-Auswahl testen**
    - Klick auf KI-Modell-Auswahl öffnet das Popup
    - Popup zeigt die verfügbaren Modelle
    - Auswahl eines Modells aktualisiert Label sofort (kein Lade-Spin nötig)
-   - Escape schließt das Popup, `aria-expanded` fällt zurück auf `"false"`
+   - Escape schließt das Popup
 
 ### Erwartetes Ergebnis
 
 - KI-Modell-Auswahl ist klickbar und funktional
 - Popup öffnet sich und zeigt Modelle
 - Auswahl aktualisiert UI sofort
-- A11y-Attribute korrekt gesetzt (`role="combobox"`, `aria-haspopup`, `aria-expanded`)
-- Screenreader kündigt „KI-Modellauswahl, aktuell [Modellname]" an
+- Button ist als natives KoliBri-Toolbar-Bedienelement vollständig zugänglich
 
 ### Abgrenzung: Popup-Art und Label
 
-Das Popup ist der bestehende modale **Dialog** zur Modell-Auswahl (#742), keine Listbox. ARIA 1.2
-lässt für `combobox` genau diese Popup-Rolle zu; sie wird über `aria-haspopup="dialog"` angekündigt.
-Die Liste der auswählbaren Modelle bleibt der Dialog-Inhalt aus #742.
+Das Popup ist der bestehende modale **Dialog** zur Modell-Auswahl (#742), keine Listbox — der
+Toolbar-Button öffnet ihn wie jeder Aktionsbutton. Die Liste der auswählbaren Modelle bleibt der
+Dialog-Inhalt aus #742.
 
 Das Screenreader-Label enthält **keine** Anzahl verfügbarer Optionen: Die Free-Modell-Liste lädt
 dynamisch erst der Dialog (`GET /models/free`). Eine im Button hartcodierte Zahl wäre eine

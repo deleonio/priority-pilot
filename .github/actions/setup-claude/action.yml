@@ -327,13 +327,18 @@ runs:
         fi
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    # ZAI TIME-WINDOW CHECK – ZAI zwischen 08:00–12:00 Europe/Berlin auf Claude fallen
+    # ZAI TIME-WINDOW CHECK – ZAI in z.ai-Peak-Zeiten (3× Quota) auf Claude fallen
     #
-    # Issue #893: Zwischen 08:00 und 12:00 Uhr Europe/Berlin wird ZAI nicht verwendet.
-    # Die Zeitprüfung erfolgt DST-korrekt mit TZ=Europe/Berlin (automatische Sommerzeit).
+    # Issue #893: z.ai berechnet den 3×-Peak-Tarif nur Mo–Fr 14:00–18:00 Asia/Singapore
+    # (= 08:00–12:00 MESZ bzw. 07:00–11:00 MEZ); am Wochenende gilt ganztägig Off-Peak.
+    # Abo-Realität: Nur glm-4.7/glm-5-turbo/glm-5.3 gebucht; der 2×/3×-Tarif trifft im Abo
+    # einzig glm-5-turbo (CLAUDE_CODE_SUBAGENT_MODEL) — der Fallback bleibt bewusst pauschal.
+    # Die Prüfung läuft in Singapore-Zeit (UTC+8, kein DST) — dadurch verschiebt sich das
+    # Berliner Fenster mit der Sommerzeit automatisch korrekt (die frühere harte
+    # Berlin-Stunde 08–11 lag im Winter daneben).
     # Nur ZAI wird überschrieben; claude/openrouter bleiben unangetastet.
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    - name: ZAI Zeitfenster-Check (08:00–12:00 Europe/Berlin → Claude Fallback)
+    - name: ZAI Zeitfenster-Check (Mo–Fr 14:00–18:00 Asia/Singapore → Claude Fallback)
       id: time-window-check
       if: steps.preflight.outputs.configured == 'true'
       shell: bash
@@ -342,7 +347,7 @@ runs:
       run: |
         PROVIDER="${LLM_PROVIDER:-claude}"
 
-        # Nur bei ZAI prüfen, ob wir im Zeitfenster sind
+        # Nur bei ZAI prüfen, ob wir im Peak-Fenster sind
         if [ "$PROVIDER" != "zai" ]; then
           echo "original-llm-provider=$PROVIDER" >> "$GITHUB_OUTPUT"
           echo "time-window-override=false" >> "$GITHUB_OUTPUT"
@@ -350,19 +355,19 @@ runs:
           exit 0
         fi
 
-        # Aktuelle Stunde in Europe/Berlin (DST-korrekt durch TZ=)
-        BERLIN_HOUR=$(TZ='Europe/Berlin' date +%H)
-        echo "Berlin-Uhrzeit: ${BERLIN_HOUR}:xx Europe/Berlin."
+        # Peak-Fenster in Singapore-Zeit (UTC+8, kein DST): Mo–Fr 14:00–17:59
+        SGT_HOUR=$(TZ='Asia/Singapore' date +%H)
+        SGT_DOW=$(TZ='Asia/Singapore' date +%u) # 1=Mo … 7=So
+        echo "Singapore-Zeit: Wochentag ${SGT_DOW}, ${SGT_HOUR}:xx (Asia/Singapore)."
 
-        # Zeitfenster: 08:00–11:59 (Stunde 08-11)
-        if [ "$BERLIN_HOUR" -ge 8 ] && [ "$BERLIN_HOUR" -le 11 ]; then
+        if [ "$SGT_DOW" -le 5 ] && [ "$SGT_HOUR" -ge 14 ] && [ "$SGT_HOUR" -le 17 ]; then
           echo "original-llm-provider=zai" >> "$GITHUB_OUTPUT"
           echo "time-window-override=true" >> "$GITHUB_OUTPUT"
-          echo "::notice title=🕐 ZAI Zeitfenster-aktiv::08:00–12:00 Europe/Berlin — ZAI wird auf Claude gefallback (Stunde: ${BERLIN_HOUR})."
+          echo "::notice title=🕐 ZAI Peak-Zeit aktiv::Mo–Fr 14:00–18:00 Asia/Singapore (3× Quota) — ZAI wird auf Claude gefallback (SGT Wochentag ${SGT_DOW}, ${SGT_HOUR}:xx)."
         else
           echo "original-llm-provider=$PROVIDER" >> "$GITHUB_OUTPUT"
           echo "time-window-override=false" >> "$GITHUB_OUTPUT"
-          echo "::notice::Zeitfenster inaktiv (Berlin-Stunde: $BERLIN_HOUR) — ZAI wird verwendet."
+          echo "::notice::Zeitfenster inaktiv (SGT Wochentag ${SGT_DOW}, ${SGT_HOUR}:xx — Wochenende oder außerhalb Mo–Fr 14:00–18:00 SGT) — ZAI wird verwendet."
         fi
 
     # Claude Code CLI cachen — ohne Cache kostet npm install -g auf jedem kalten
@@ -467,7 +472,7 @@ runs:
 
         # Zeitfenster-Override: Wenn aktiv, ZAI durch Claude ersetzen
         if [ "$TIME_WINDOW_OVERRIDE" = "true" ]; then
-          echo "::notice title=🔄 Provider-Override::Original=$ORIGINAL_PROVIDER → Fallback=claude (Zeitfenster 08:00–12:00 Europe/Berlin aktiv)."
+          echo "::notice title=🔄 Provider-Override::Original=$ORIGINAL_PROVIDER → Fallback=claude (z.ai-Peak-Zeit Mo–Fr 14:00–18:00 Asia/Singapore aktiv)."
           PROVIDER="claude"
         fi
 
@@ -476,15 +481,8 @@ runs:
         ZAI_API_KEY="$(printf '%s' "$ZAI_API_KEY" | tr -d '[:space:]')"
         OPENROUTER_API_KEY="$(printf '%s' "$OPENROUTER_API_KEY" | tr -d '[:space:]')"
 
-        # Issue #893: ZAI-Provider zwischen 08:00-12:00 Europe/Berlin auf Claude fallen
-        # DST-korrekt via TZ=Europe/Berlin, keine persistente Mutation
-        if [ "$PROVIDER" = "zai" ]; then
-          BERLIN_HOUR="$(TZ=Europe/Berlin date +%H)"
-          if [ "$BERLIN_HOUR" -ge 8 ] && [ "$BERLIN_HOUR" -le 11 ]; then
-            echo "::notice title=⏰ Zeitfenster-Auto-Fallback::08:00-12:00 Europe/Berlin aktiv — ZAI → Claude."
-            PROVIDER="claude"
-          fi
-        fi
+        # Zeitfenster-Logik (Issue #893) lebt ausschließlich im Step "ZAI Zeitfenster-Check"
+        # (Single Source); dieser Step konsumiert deren Output über TIME_WINDOW_OVERRIDE oben.
 
         case "$PROVIDER" in
           claude)
