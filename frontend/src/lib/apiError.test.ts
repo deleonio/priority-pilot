@@ -31,6 +31,22 @@ const responseError = (status: number, body?: unknown): ResponseError => {
 	return new ResponseError(response);
 };
 
+/**
+ * Real-Flow (CI-Run 32635064021): openapi-fetch liest den Body JEDER non-ok Response selbst —
+ * danach wirft `response.clone()`, und ohne Body-Feld würde der 401 fälschlich in den
+ * Session-Fallback fallen. Genau so wirft `api.ts` (ResponseError mit konsumierter Response
+ * + geparstem `body`).
+ */
+const consumedResponseError = (status: number, body: unknown): ResponseError => {
+	const response = {
+		status,
+		clone: () => {
+			throw new TypeError('Response.clone: Body has already been consumed.');
+		},
+	} as unknown as Response;
+	return new ResponseError(response, body);
+};
+
 describe('toApiError — 401 Session vs. KI (#948, Spec issue-948.md)', () => {
 	// AK1: Session-401 (lesbarer Body) → Session-Meldung, keine KI-Meldung.
 	it.each(SESSION_MESSAGES)('401 mit Server-Message "%s" → Session-Meldung statt KI-Text', async (message) => {
@@ -73,5 +89,21 @@ describe('toApiError — 401 Session vs. KI (#948, Spec issue-948.md)', () => {
 
 		expect(result.status).toBe(status);
 		expect(result.message).toBe(message);
+	});
+
+	// Real-Flow-Regression (e2e issue-620 „API-Key ungültig" war rot): Body aus dem
+	// ResponseError.body-Feld, Response bereits konsumiert — clone() wirft.
+	it('401 mit fremder Message und konsumierter Response (Real-Flow) → KI-Meldung bleibt', async () => {
+		const result = await toApiError(consumedResponseError(401, { message: 'Unauthorized: Invalid API key' }));
+
+		expect(result.status).toBe(401);
+		expect(result.message).toBe(KI_CONFIG_TEXT);
+	});
+
+	it('401 mit Session-Message und konsumierter Response (Real-Flow) → Session-Meldung', async () => {
+		const result = await toApiError(consumedResponseError(401, { message: 'Nicht eingeloggt.' }));
+
+		expect(result.status).toBe(401);
+		expect(result.message).toBe(SESSION_TEXT);
 	});
 });
