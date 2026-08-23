@@ -25,6 +25,14 @@ interface SettingsPageProps {
 // (Index 1), LLM (Index 2, #640).
 const SETTINGS_TABS = [{ _label: 'Allgemein' }, { _label: 'Säulen' }, { _label: 'LLM' }];
 
+/** Formatiert den Unix-ms-Zeitstempel der letzten Standortermittlung als „HH:MM" (#933 AK4). */
+const formatGeoTimestamp = (updatedAt: number): string => {
+	const date = new Date(updatedAt);
+	const hours = String(date.getHours()).padStart(2, '0');
+	const minutes = String(date.getMinutes()).padStart(2, '0');
+	return `${hours}:${minutes}`;
+};
+
 /**
  * Einstellungen-Seite (#271) mit `KolTabs`-Navigation: „Allgemein" (Platzhalter), „Säulen"
  * (Säulen-Gewichtungs-Editor) und „LLM" (Provider-Konfiguration, #640). Der aktive Tab wird beim
@@ -115,7 +123,9 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 		permissionDenied: geoDenied,
 		address,
 		addressLoading,
+		positionUpdatedAt,
 		toggle: toggleGeo,
+		refresh: refreshGeo,
 	} = useGeolocation();
 
 	return (
@@ -178,6 +188,7 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 					{pushEnabled && (
 						<KolButton
 							_label="Push testen"
+							class="push-test-btn"
 							_variant="secondary"
 							_on={{
 								onClick: () => {
@@ -229,9 +240,28 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 						</KolAlert>
 					)}
 					{geoEnabled && (
-						<div aria-live="polite" className="geo-address">
-							{addressLoading ? 'Adresse wird ermittelt…' : address || 'Keine Adresse für diesen Standort'}
-						</div>
+						<>
+							{/* #933 AK1/AK5: Test-Schalter stößt refresh() an; während der Ermittlung
+								    deaktiviert (Re-Entrancy-Guard im Hook). Der key-Wechsel auf geoPending
+								    erzwingt einen Remount: Der KoliBri-Adapter setzt Props nach dem Mount als
+								    Element-Properties, sodass der `_disabled`-Attributwechsel beim Rerender
+								    nicht durchschlägt — der Remount stellt den korrekten Zustand sicher. */}
+							<KolButton
+								key={geoPending ? 'geo-refresh-pending' : 'geo-refresh-idle'}
+								_label="Standort jetzt ermitteln"
+								_variant="secondary"
+								_disabled={geoPending}
+								_on={{
+									onClick: () => {
+										void refreshGeo();
+									},
+								}}
+							/>
+							<div aria-live="polite" className="geo-address">
+								{addressLoading ? 'Adresse wird ermittelt…' : address || 'Keine Adresse für diesen Standort'}
+								{positionUpdatedAt !== null && ` (Stand: ${formatGeoTimestamp(positionUpdatedAt)})`}
+							</div>
+						</>
 					)}
 					{geoDenied && (
 						<KolAlert _type="warning" _label="Standortzugriff verweigert">

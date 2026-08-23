@@ -63,6 +63,9 @@ ZEITLIMIT: Soft-Deadline = SOFT_DEADLINE. Vor jedem Schritt: [ $(date +%s) -ge S
 WICHTIG: Ändere KEINEN Code, committe nichts. Reiner Review.
 
 VERDICT (zweifach liefern — ohne Verdict bleibt der PR stecken):
+REIHENFOLGE: ERST den Sammelkommentar mit gefüllter Sektion Entscheidungs-Findings
+posten (ohne sie parkt der PR mit generischer Diagnose beim Menschen), DANN die
+Verdict-Kanäle.
 1. DATEI (primärer Kanal, der Workflow liest NUR sie zuerst): als ALLERLETZTE Aktion
    den Verdict-Begriff als EINZIGES Wort in /tmp/claude-verdict schreiben (Bash:
    `printf 'reviewed' > /tmp/claude-verdict` — analog needs-fixup / needs-human).
