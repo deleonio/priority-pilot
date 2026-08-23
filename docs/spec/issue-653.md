@@ -1,6 +1,7 @@
 # Issue 653: Tab-Freiheit in Löschdialogen
 
-**Stand:** 2026-08-15  
+**Stand:** 2026-08-23  
+**Version:** v1.1 (2026-08-23): Nightly-Sync — transitorische Test-Abdeckungs- und Ticket-AK-Passagen entfernt.  
 **Ziel:** Sicherstellen, dass Löschdialoge keine Fokus-Gefängnisse sind - Tab bewegt den Fokus weiter
 
 ---
@@ -54,13 +55,3 @@ Jeder Löschdialog-Typ (Task, Säule, Serie) braucht einen Test, der:
 4. Verifiziert dass Fokus sich bewegt hat
 
 **Kritisch:** Der Test darf nicht nur prüfen „Button enthält String X", sondern das tatsächliche Fokus-Verhalten (toBeFocused/not.toBeFocused).
-
-**Abdeckung:** AK1/AK2 nutzen den Helper `assertTabFreedomInOpenDeleteDialog` (Settle-Wartezeit + Tab + Ziel-Assertion „Endgültig löschen"), AK3 prüft inline das Ziel „Abbrechen" (DOM-Reihenfolge: Ja → Nein → Abbrechen). AK8 (Säulen-Tab-Freiheit) ist durch den gleichnamigen eigenen Test mit demselben Helper abgedeckt.
-
----
-
-## Akzeptanzkriterien (aus Issue 653)
-
-1. **Critical:** AK1, AK2, AK3, AK8 → Tab-Freiheit ergänzen
-2. **Warning:** Redundante Tests prüfen (6 duplizierte Signaturen)
-3. **Info:** Tautologische Tests mit Behavior-Assertions ergänzen (3 Fälle)

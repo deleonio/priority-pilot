@@ -8,10 +8,12 @@ import {
 	KolTabs,
 	KolToolbar,
 } from '@public-ui/react-v19';
-import type { Pillar, Task, TaskTreeNode } from 'client';
+import type { LlmConfigStatus, Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { api } from './api';
+import { useIsMobile } from './lib/use-is-mobile';
 import { CompletedTasksTable } from './components/CompletedTasksTable';
 import { Footer } from './components/Footer';
 import { Dashboard } from './components/Dashboard';
@@ -22,7 +24,7 @@ import { ForestPanel } from './components/ForestPanel';
 import { HelpPage } from './components/HelpPage';
 import { InstallPrompt } from './components/InstallPrompt';
 import { UpdatePrompt } from './components/UpdatePrompt';
-import { ModelSelectorButton } from './components/ModelSelectorButton';
+import { ModelSelectionDialog } from './components/ModelSelectionDialog';
 import { PillarAdvisorModal } from './components/PillarAdvisorModal';
 import { QuickCaptureModal } from './components/QuickCaptureModal';
 import { SeriesTab } from './components/SeriesTab';
@@ -61,6 +63,29 @@ const HELP_ICON = { left: { icon: 'fa-solid fa-circle-question' } };
 const SETTINGS_ICON = { left: { icon: 'fa-solid fa-gear' } };
 const LOGOUT_ICON = { left: { icon: 'fa-solid fa-right-from-bracket' } };
 
+/**
+ * Endsegmente einer Modell-ID, die für sich genommen nichts über das Modell aussagen.
+ * Der Server defaultet auf `openrouter/free` — ein Label "free" benennt dann nur die Preisklasse,
+ * nicht das Modell. In diesen Fällen bleibt der Anbieter im Label stehen (siehe `toShortName`).
+ */
+const GENERIC_ID_SEGMENTS = new Set(['free', 'chat', 'instruct', 'preview', 'latest', 'beta']);
+
+/**
+ * Kurzname für die Anzeige im Button, abgeleitet aus der OpenRouter-Modell-ID:
+ * `anthropic/claude-sonnet-5` → `sonnet-5`, `google/gemma-7b-it:free` → `gemma-7b-it`.
+ *
+ * Ist das letzte Segment nur eine Preis-/Varianten-Angabe (`openrouter/free`), wäre der Kurzname
+ * nichtssagend — dann wird die vollständige ID (ohne `:free`-Suffix) gezeigt.
+ */
+const toShortName = (model: string | null): string => {
+	if (model === null) {
+		return 'Laden…';
+	}
+	const withoutTier = model.replace(/:free$/, '');
+	const lastSegment = withoutTier.split('/').at(-1) ?? withoutTier;
+	return GENERIC_ID_SEGMENTS.has(lastSegment.toLowerCase()) ? withoutTier : lastSegment.replace(/^claude-/, '');
+};
+
 export const App = ({ user }: { user: AuthUser }) => {
 	const [showHelp, setShowHelp] = useState(() => window.location.pathname.startsWith('/hilfe'));
 	const [showSettings, setShowSettings] = useState(() => window.location.pathname.startsWith('/settings'));
@@ -75,6 +100,13 @@ export const App = ({ user }: { user: AuthUser }) => {
 	const [logoutLoading, setLogoutLoading] = useState(false);
 	const [logoutError, setLogoutError] = useState<string | null>(null);
 	const [updateError, setUpdateError] = useState<string | null>(null);
+	const [currentModel, setCurrentModel] = useState<string | null>(null);
+	// Mobile-Ausblendung des KI-Modell-Buttons (#929): Unter 48rem füllt die Toolbar die Zeile
+	// komplett aus — der Button mit Klartext-Label würde den Header umbrechen. Er wird deshalb
+	// mobil gar nicht erst gerendert (matchMedia statt CSS: der Button lebt im KoliBri-Shadow-DOM,
+	// ein Light-DOM-Selektor griffe ins Leere). Muster: useIsMobile (LlmProviderToggle).
+	const isMobile = useIsMobile();
+	const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
 	const [activeTab, setActiveTab] = useState(0);
 	const doneRemovalTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
 
@@ -124,6 +156,21 @@ export const App = ({ user }: { user: AuthUser }) => {
 		void reload(controller.signal);
 		return () => controller.abort();
 	}, [reload]);
+
+	// Aktuelles KI-Modell beim Mount laden (für Modell-Selector Button)
+	useEffect(() => {
+		const controller = new AbortController();
+		api
+			.getLlmConfig({ signal: controller.signal })
+			.then((config) => {
+				if (!controller.signal.aborted) setCurrentModel(config.openrouterModel);
+			})
+			.catch(async (reason) => {
+				// Fehler stillschweigend ignorieren — das UI zeigt "Laden…" bis zum nächsten Reload
+				console.error('Modell-Status konnte nicht geladen werden:', await toApiError(reason));
+			});
+		return () => controller.abort();
+	}, []);
 
 	useEffect(() => {
 		const onPop = () => {
@@ -374,8 +421,20 @@ export const App = ({ user }: { user: AuthUser }) => {
 		setDialog({ kind: 'advisor' });
 	}, []);
 
+	// Callbacks für Model-Selector
+	const handleModelSelectorOpen = useCallback((): void => setModelSelectorOpen(true), []);
+	const handleModelSelectorClose = useCallback((): void => setModelSelectorOpen(false), []);
+	const handleModelSaved = useCallback((status: LlmConfigStatus): void => {
+		setCurrentModel(status.openrouterModel);
+	}, []);
+
 	// Toolbar-Buttons sind auf allen Viewports identisch — keine unterschiedliche Menüstruktur je nach
 	// Viewport-Breite (#691). `_label`s und Reihenfolge sind stabil, damit Accessible Names konsistent bleiben.
+	// Ausnahme (#929): Der KI-Modell-Button (Klartext-Label) wird unter 48rem ausgelassen — die fünf
+	// Kopf-Aktionen füllen die Mobile-Zeile vollständig (mobile-shell-Vertrag, Header ≤ 64px).
+	// KoliBri liefert die Button-Semantik im Shadow-DOM; zusätzliche ARIA-Attribute am Item werden
+	// von `kol-toolbar` still verworfen — der frühere role="combobox"-Vertrag ist damit aufgehoben
+	// (Menschen-Entscheidung zu #929): nativer Button, A11y trägt KoliBri.
 	const toolbarItems = useMemo(() => {
 		return [
 			{
@@ -386,6 +445,18 @@ export const App = ({ user }: { user: AuthUser }) => {
 				_variant: 'primary' as const,
 				_on: { onClick: openCreateDialog },
 			},
+			...(isMobile
+				? []
+				: [
+						{
+							type: 'button' as const,
+							_label: `KI-Modell: ${toShortName(currentModel)}`,
+							_hideLabel: false,
+							_icons: { left: { icon: 'fa-solid fa-brain' } },
+							_variant: 'secondary' as const,
+							_on: { onClick: handleModelSelectorOpen },
+						},
+					]),
 			{
 				type: 'button' as const,
 				_label: 'Säulen-Berater',
@@ -420,7 +491,17 @@ export const App = ({ user }: { user: AuthUser }) => {
 				_on: { onClick: (): void => void handleLogout() },
 			},
 		];
-	}, [logoutLoading, openCreateDialog, openAdvisor, openSettings, openHelp, handleLogout]);
+	}, [
+		logoutLoading,
+		openCreateDialog,
+		openAdvisor,
+		openSettings,
+		openHelp,
+		handleLogout,
+		handleModelSelectorOpen,
+		currentModel,
+		isMobile,
+	]);
 
 	if (showSettings) {
 		return (
@@ -458,7 +539,6 @@ export const App = ({ user }: { user: AuthUser }) => {
 					 * Accessible Name — Screenreader kündigten zwei Toolbars an, und der Wrapper verspräche
 					 * eine Pfeiltasten-Navigation, die er nicht implementiert.
 					 */}
-					<ModelSelectorButton />
 					<KolToolbar _label="Kopf-Aktionen" _orientation="horizontal" _items={toolbarItems} />
 				</div>
 				{/* Avatar wiederhergestellt per Issue #865 Korrektur — Full Name bleibt entfernt; seit #912 am rechten Rand */}
@@ -652,6 +732,11 @@ export const App = ({ user }: { user: AuthUser }) => {
 					onChanged={refreshKeepingDialog}
 				/>
 			)}
+			{modelSelectorOpen &&
+				createPortal(
+					<ModelSelectionDialog onClose={handleModelSelectorClose} onModelSaved={handleModelSaved} />,
+					document.body,
+				)}
 			<InstallPrompt />
 			<UpdatePrompt />
 			<Footer version={APP_VERSION} />

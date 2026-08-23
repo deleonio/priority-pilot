@@ -52,6 +52,11 @@ Konflikte, die er verhindern soll.
   des Code-Spans herausziehen (ganzen Span in eine Zeile), dann wrapped Prettier den Absatz
   selbst korrekt. Nach jedem Markdown-Fix `prettier --write` + `git diff` gegenprüfen, ob die
   Änderung überlebt.
+- 2026-08-23 · CI/Rerun — `gh run rerun <id> --failed` direkt nach einem Push landet in derselben
+  Concurrency-Gruppe und CANCELLT den frisch gestarteten Run des neuen Commits („higher priority
+  waiting request"). Der Rerun testet zudem den ALTEN SHA. → Erst Rerun abwarten, dann den gecancelten
+  Run des neuen SHA per `gh run rerun <cancelled-run-id>` (ohne --failed) neu starten statt nachzu-
+  pushen (Commit-Stop-Guard).
 - 2026-08-23 · Spec-Phase/Pre-Commit — der Pre-Commit-Hook läuft `tsc --noEmit` über den
   ganzen Frontend-Workspace; rote Tests, die die noch NICHT existierende API benennen
   (`result.current.refresh`), sterben am Hook statt rot zu laufen. → Neue API im Test per

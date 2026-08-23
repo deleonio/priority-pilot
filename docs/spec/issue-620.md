@@ -1,6 +1,7 @@
 # User Journey – Frontend-Error-Handling für LLM-Calls
 
-**Stand:** 2026-08-13  
+**Stand:** 2026-08-23  
+**Version:** v1.1 (2026-08-23): Nightly-Sync — Ist-Meldungstext und Retry-Umfang aus Code belegt ergänzt.  
 **Issue:** #620 (Teil von #617)
 
 ---
@@ -33,8 +34,8 @@ Bei Ausfall/Timeout des Mistral-Dienstes eine verständliche Fehlermeldung anzei
 ### Erwartetes Ergebnis
 
 - **Primär:** Fehlermeldung ist verständlich und nicht technisch (keine rohe HTTP 502)
-- **Inhalt der Fehlermeldung:** Klartext-Text wie „KI-Dienst gerade nicht erreichbar, bitte später erneut" oder ähnlich
-- **Optional (Retry):** Bei transienten 5xx-Fehlern wird ein limitierter Retry versucht (z.B. 1-2 Versuche)
+- **Inhalt der Fehlermeldung:** Bei 502/503/504 (oder nicht-JSON-Antwort): „Der KI-Dienst ist gerade nicht erreichbar. Bitte versuche es später erneut."
+- **Retry:** Bei transienten 5xx-Fehlern (502/503/504) versucht der Client automatisch bis zu 3 Versuche gesamt — für `parse-text` und `pillars/advisor`; `suggest-pillars` und `lektorat` schlagen direkt fehl
 - **UX:** Nutzer kann die Fehlermeldung dismissen oder erneut versuchen
 - **Persistenz:** Fehlerzustand wird nicht gespeichert, Nutzer kann es erneut versuchen
 
@@ -42,14 +43,14 @@ Bei Ausfall/Timeout des Mistral-Dienstes eine verständliche Fehlermeldung anzei
 
 ## Randfälle & Fehler
 
-| Situation                              | Erwartetes Verhalten                                                       |
-| -------------------------------------- | -------------------------------------------------------------------------- |
-| Mistral-Dienst antwortet mit HTTP 502  | Verständliche Fehlermeldung statt roher Fehlercode                         |
-| Mistral-Dienst Timeout                 | Verständliche Fehlermeldung statt technischer Timeout-Meldung              |
-| Transienter 5xx-Fehler (502, 503, 504) | Optional: Begrenzter Retry (1-2 Versuche) mit anschließender Fehlermeldung |
-| API-Key ungültig                       | Verständliche Fehlermeldung über Konfigurationsproblem                     |
-| Netzwerkprobleme (Client-seitig)       | Verständliche Fehlermeldung über Netzwerkprobleme                          |
-| Wiederholte Fehler nach Retry          | Klarstellung, dass der Dienst vorübergehend nicht erreichbar ist           |
+| Situation                              | Erwartetes Verhalten                                                                                                                                        |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Mistral-Dienst antwortet mit HTTP 502  | Verständliche Fehlermeldung statt roher Fehlercode                                                                                                          |
+| Mistral-Dienst Timeout                 | Verständliche Fehlermeldung statt technischer Timeout-Meldung                                                                                               |
+| Transienter 5xx-Fehler (502, 503, 504) | Automatischer Retry (bis 3 Versuche gesamt) bei `parse-text`/`pillars/advisor`, danach verständliche Fehlermeldung; `suggest-pillars`/`lektorat` ohne Retry |
+| API-Key ungültig                       | Verständliche Fehlermeldung über Konfigurationsproblem                                                                                                      |
+| Netzwerkprobleme (Client-seitig)       | Verständliche Fehlermeldung über Netzwerkprobleme                                                                                                           |
+| Wiederholte Fehler nach Retry          | Klarstellung, dass der Dienst vorübergehend nicht erreichbar ist                                                                                            |
 
 ---
 

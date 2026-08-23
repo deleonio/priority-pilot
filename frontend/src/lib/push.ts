@@ -98,6 +98,32 @@ export const disablePush = async (): Promise<void> => {
 	await subscription.unsubscribe();
 };
 
+/** `localStorage`-Schlüssel der gespeicherten Wahl (Spiegel des Subscription-Zustands). */
+const STORAGE_KEY = 'pp-push-enabled';
+
+/**
+ * Liest die gespeicherte Wahl als **synchronen** Anfangszustand — genau wie `voiceAutostart.ts` und
+ * `useGeolocation.ts`. Die tatsächliche Subscription ist nur async ermittelbar (`serviceWorker.ready`);
+ * ohne diesen Spiegel rendert der Schalter beim Seitenwechsel erst „aus" und kippt dann auf „an".
+ * Fehlt der Eintrag oder ist `localStorage` gesperrt, gilt der Default **aus** (`false`).
+ */
+const readPushPreference = (): boolean => {
+	try {
+		return localStorage.getItem(STORAGE_KEY) === 'true';
+	} catch {
+		return false;
+	}
+};
+
+/** Speichert die Wahl; Fehler (z. B. voller/gesperrter Storage) werden bewusst ignoriert. */
+const storePushPreference = (enabled: boolean): void => {
+	try {
+		localStorage.setItem(STORAGE_KEY, String(enabled));
+	} catch {
+		// Best-Effort; der async Abgleich korrigiert beim nächsten Mount.
+	}
+};
+
 interface UsePushSubscriptionResult {
 	/** Ob der Browser Web-Push überhaupt unterstützt. */
 	supported: boolean;
@@ -112,12 +138,15 @@ interface UsePushSubscriptionResult {
 }
 
 /**
- * React-Hook für den Push-Toggle in der Einstellungen-Seite. Liest den Anfangszustand aus der
- * aktiven Subscription; `toggle` fragt beim Aktivieren die Berechtigung an und meldet an/ab.
+ * React-Hook für den Push-Toggle in der Einstellungen-Seite. Anfangszustand synchron aus dem
+ * `localStorage`-Spiegel (`readPushPreference`, kein Flackern beim Seitenwechsel); ein `useEffect`
+ * gleicht async mit der tatsächlichen Subscription ab und korrigiert Zustand wie Spiegel, falls die
+ * Subscription extern entfernt wurde. `toggle` fragt beim Aktivieren die Berechtigung an und meldet
+ * an/ab.
  */
 export const usePushSubscription = (): UsePushSubscriptionResult => {
 	const supported = isPushSupported();
-	const [enabled, setEnabled] = useState(false);
+	const [enabled, setEnabled] = useState<boolean>(readPushPreference);
 	const [pending, setPending] = useState(false);
 	const [failed, setFailed] = useState(false);
 
@@ -129,6 +158,7 @@ export const usePushSubscription = (): UsePushSubscriptionResult => {
 		void hasActiveSubscription().then((has) => {
 			if (active) {
 				setEnabled(has);
+				storePushPreference(has);
 			}
 		});
 		return () => {
@@ -147,14 +177,17 @@ export const usePushSubscription = (): UsePushSubscriptionResult => {
 				if (next) {
 					const ok = await enablePush();
 					setEnabled(ok);
+					storePushPreference(ok);
 					setFailed(!ok);
 				} else {
 					await disablePush();
 					setEnabled(false);
+					storePushPreference(false);
 				}
 			} catch {
 				// Netzwerk-/API-Fehler beim An-/Abmelden → Zustand nicht als aktiv ausweisen, Hinweis zeigen.
 				setEnabled(false);
+				storePushPreference(false);
 				setFailed(true);
 			} finally {
 				setPending(false);

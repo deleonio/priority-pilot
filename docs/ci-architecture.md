@@ -18,7 +18,7 @@ umschaltbar; aufgelöst wird sie zentral in
 | `vars.LLM_PROVIDER` | Endpoint                                            | Secret           | Auth-Variable                                   | Modell (`"model": "opus"`) |
 | ------------------- | --------------------------------------------------- | ---------------- | ----------------------------------------------- | -------------------------- |
 | `claude` (Default)  | Anthropic-Default (kein `ANTHROPIC_BASE_URL`)       | `CLAUDE_API_KEY` | `ANTHROPIC_API_KEY` / `CLAUDE_CODE_OAUTH_TOKEN` | Claude Opus (nativ)        |
-| `zai`               | `ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic` | `ZAI_API_KEY`    | `ANTHROPIC_AUTH_TOKEN` (Bearer)                 | `glm-5.1`                  |
+| `zai`               | `ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic` | `ZAI_API_KEY`    | `ANTHROPIC_AUTH_TOKEN` (Bearer)                 | `glm-5.3[1m]`              |
 
 **Warum unterschiedliche Auth-Variablen?** `ANTHROPIC_API_KEY` sendet den Token als
 `x-api-key`-Header, `ANTHROPIC_AUTH_TOKEN` als `Authorization: Bearer`. z.ai akzeptiert nur
@@ -64,7 +64,7 @@ jede lokale Claude-Session zwangsweise nach z.ai umrouten. Deshalb:
   `CLAUDE_CODE_SUBAGENT_MODEL`.
 
 Der Alias-Trick hält `settings.json` providerneutral: `"model": "opus"` bedeutet bei `zai`
-`glm-5.1` und bei `claude` echtes Opus — dieselbe Datei, beide Backends.
+`glm-5.3[1m]` und bei `claude` echtes Opus — dieselbe Datei, beide Backends.
 
 **Provider wechseln** (kein Commit nötig):
 
@@ -117,37 +117,47 @@ Was diese Wahl an einem realen Ticket gekostet hat, steht in der [Kosten-Baselin
 
 | Phase                       | Variable                     | Default (`LLM_PROVIDER=claude`) | Default (`LLM_PROVIDER=zai`) | Begründung                                      |
 | --------------------------- | ---------------------------- | ------------------------------- | ---------------------------- | ----------------------------------------------- |
-| Triage (01)                 | `CLAUDE_MODEL_TRIAGE`        | `fable`                         | `glm-5.2`                    | Höchste Qualität für Analyse/Sub-Task-Schneiden |
-| Spec (03)                   | `CLAUDE_MODEL_SPEC`          | `sonnet`                        | `glm-4.7`                    | Balanciert für Design-Dokumente                 |
-| UX (02)                     | `CLAUDE_MODEL_UX`            | `sonnet`                        | `glm-4.7`                    | Balanciert für UX-Review                        |
-| Implement (04)              | `CLAUDE_MODEL_IMPLEMENT`     | `opus`                          | `glm-5.1`                    | Maximale Qualität für Code-Generierung          |
-| Review (05)                 | `CLAUDE_MODEL_PR_REVIEW`     | `opus`                          | `glm-5.1`                    | Tiefes Verständnis für Code-Review              |
-| Nacharbeit (04, PR-Eingang) | `CLAUDE_MODEL_FIXUP`         | `sonnet`                        | `glm-4.7`                    | Großer Context (CI-Logs), kosteneffizient       |
-| Documenter (06)             | `CLAUDE_MODEL_DOCUMENTATION` | `haiku`                         | `glm-4.5-air`                | Schnelle Documentation-Generierung              |
+| Triage (01)                 | `CLAUDE_MODEL_TRIAGE`        | `fable`                         | `glm-5.3[1m]`                | Höchste Qualität für Analyse/Sub-Task-Schneiden |
+| Spec (03)                   | `CLAUDE_MODEL_SPEC`          | `sonnet`                        | `glm-5.3[1m]`                | Balanciert für Design-Dokumente                 |
+| UX (02)                     | `CLAUDE_MODEL_UX`            | `sonnet`                        | `glm-5.3[1m]`                | Balanciert für UX-Review                        |
+| Implement (04)              | `CLAUDE_MODEL_IMPLEMENT`     | `opus`                          | `glm-5.3[1m]`                | Maximale Qualität für Code-Generierung          |
+| Review (05)                 | `CLAUDE_MODEL_PR_REVIEW`     | `opus`                          | `glm-5.3[1m]`                | Tiefes Verständnis für Code-Review              |
+| Nacharbeit (04, PR-Eingang) | `CLAUDE_MODEL_FIXUP`         | `sonnet`                        | `glm-5.3[1m]`                | Großer Context (CI-Logs), kosteneffizient       |
+| Documenter (06)             | `CLAUDE_MODEL_DOCUMENTATION` | `haiku`                         | `glm-4.7`                    | Schnelle Documentation-Generierung              |
 
 **Override-Syntax:** Jeder Workflow nutzt `model: ${{ vars.CLAUDE_MODEL_<PHASE> || '<default>' }}` — ist die GitHub-Variable nicht gesetzt, greift der Default-Wert. Default-Änderungen erfolgen in den Workflow-Dateien, nicht via Repo-Vars.
 
-| Faktor               | `glm-5.1`           | `glm-4.7-flash`      | `glm-5.2` / `glm-5-turbo`              |
-| -------------------- | ------------------- | -------------------- | -------------------------------------- |
-| Kontingent-Verbrauch | **1×**              | 1×                   | **2×** normal / **3×** Spitzenzeit     |
-| Parallelitätsgrenze  | **10** (Höchstwert) | **1** → Flaschenhals | 10 / 1                                 |
-| Sperrzeiten          | keine (immer 1×)    | keine                | 14:00–18:00 UTC+8 (= 08:00–12:00 CEST) |
+Das Abo (GLM Coding Plan) umfasst nur **`glm-4.7`, `glm-5-turbo` und `glm-5.3`** — die Modelle aus dem
+ursprünglichen #893-Vergleich (`glm-5.1`, `glm-5.2`, `glm-4.7-flash`, `glm-4.5-air`) sind nicht gebucht.
+Die z.ai-Spalte oben zeigt die aktuelle Auflösung aus `vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI`.
 
-- **Kontingent:** Alle Modelle außer `glm-5.2`/`glm-5-turbo` kosten **denselben** Anteil (1×) —
-  ein leichteres Modell spart also nichts, kostet aber Qualität.
-- **Parallelität:** `glm-5.1` erlaubt **10 parallele Läufe**. Die label-getriebene Pipeline kann
-  mehrere Workflows gleichzeitig feuern (Triage + Umsetzung + Review + Spec).
-  `glm-4.7-flash` erlaubt nur **1 gleichzeitigen Aufruf** → Läufe würden sich gegenseitig
-  blockieren.
+| Faktor               | `glm-5.3[1m]` — Hauptmodell (sonnet/opus/fable) | `glm-4.7` — haiku-Aliase | `glm-5-turbo` — nur `CLAUDE_CODE_SUBAGENT_MODEL`                                              |
+| -------------------- | ----------------------------------------------- | ------------------------ | --------------------------------------------------------------------------------------------- |
+| Kontingent-Verbrauch | **1×**                                          | 1×                       | **2×** normal / **3×** Spitzenzeit                                                            |
+| Sperrzeiten          | keine (immer 1×)                                | keine                    | Mo–Fr 14:00–18:00 UTC+8 (= 08:00–12:00 MESZ / 07:00–11:00 MEZ); Wochenende ganztägig Off-Peak |
+| Parallelität         | —                                               | —                        | 1 → Flaschenhals für parallele Subagent-Calls                                                 |
+
+- **Kontingent:** Alle gebuchten Modelle außer `glm-5-turbo` kosten denselben Anteil (1×) — ein
+  leichteres Modell spart also nichts, kostet aber Qualität.
+- **Parallelität:** `glm-5-turbo` erlaubt nur **1 gleichzeitigen Call** und ist nur als Subagent-Modell
+  im Spiel; die Phasenmodelle `glm-5.3[1m]`/`glm-4.7` sind davon nicht betroffen.
   Seit der globalen Phasen-Serialisierung (statische `concurrency`-Gruppe je Phase, s.
   [pipeline-flow.md](./pipeline-flow.md)) ist die Obergrenze strukturell **6 gleichzeitige
   Agent-Läufe** — einer je Phase; weitere Läufe derselben Phase stapeln sich, statt parallel
-  Kontingent zu ziehen. Die Wahl bleibt damit komfortabel innerhalb der 10er-Grenze.
-- **Sperrzeiten:** Nur `glm-5.2` und `glm-5-turbo` verbrauchen in Spitzenzeiten (14:00–18:00
-  UTC+8 = dt. Vormittag) 3× bzw. außerhalb 2×. `glm-5.1` ist davon **nicht betroffen**.
+  Kontingent zu ziehen.
+- **Sperrzeiten:** Das einzige gebuchte Modell mit Spitzenzeit-Aufschlag ist `glm-5-turbo`
+  (Mo–Fr 14:00–18:00 UTC+8 = dt. Vormittag, DST-abhängig 07:00–11:00 MEZ / 08:00–12:00 MESZ;
+  am Wochenende gilt ganztägig der Nebenzeittarif). Der Zeitfenster-Fallback in `setup-claude`
+  prüft direkt die Singapore-Zeit (UTC+8, kein DST) und greift damit an Samstagen/Sonntagen
+  nicht mehr; er ist bewusst pauschal (konservativ), solange unklar ist, ob der 3×-Tarif
+  planweit oder nur für 2×/3×-Modelle gilt.
 
-**Fazit:** `glm-5.1` für alle Workflows ist die optimale Wahl unter den drei Constraints
-Kontingent, Parallelität und Sperrzeiten.
+**Fazit (Abo-Realität):** `glm-5.3[1m]` trägt alle Phasen-Aliase außer `haiku` (→ `glm-4.7`) —
+1× Kontingent, keine Sperrzeit. `glm-5-turbo` läuft nur als `CLAUDE_CODE_SUBAGENT_MODEL` und ist
+der einzige 2×/3×-Tarif-Nutzer sowie mit Parallelität 1 der Flaschenhals für parallele
+Subagent-Calls. Wer beides vermeiden will, setzt `CLAUDE_CODE_SUBAGENT_MODEL` in
+`vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI` auf `glm-4.7` oder `glm-5.3[1m]` — dann ist der
+Peak-Fallback praktisch rein defensiv.
 
 ### Claude-Code-Installation im CI-Lauf
 
@@ -164,7 +174,7 @@ echo "CLAUDE_CODE_OAUTH_TOKEN=$CLAUDE_API_KEY" >> "$GITHUB_ENV"  # sk-ant-oat…
 # ...oder zai (Bearer-Auth + Endpoint + Modell-Aliase):
 echo "ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic" >> "$GITHUB_ENV"
 echo "ANTHROPIC_AUTH_TOKEN=$ZAI_API_KEY"                 >> "$GITHUB_ENV"
-echo "ANTHROPIC_DEFAULT_OPUS_MODEL=glm-5.1"          >> "$GITHUB_ENV"
+echo "ANTHROPIC_DEFAULT_OPUS_MODEL=glm-5.3[1m]"     >> "$GITHUB_ENV"
 ```
 
 ### CI-Flags
@@ -178,7 +188,7 @@ echo "ANTHROPIC_DEFAULT_OPUS_MODEL=glm-5.1"          >> "$GITHUB_ENV"
 
 Kein `--model`: das Modell wird über `"model": "opus"` in der `settings.json` gewählt — bei
 `LLM_PROVIDER=claude` ist das echtes Opus, bei `zai` bildet die Setup-Action es per
-`ANTHROPIC_DEFAULT_OPUS_MODEL` auf `glm-5.1` ab.
+`ANTHROPIC_DEFAULT_OPUS_MODEL` auf `glm-5.3[1m]` ab.
 
 **Prompt:** Kanonisch in `.github/prompts/` (spec, ux, review, fixup, documenter + Memory-Snippets);
 per `sed`/`cat` nach `/tmp/claude-prompt.txt` assembliert und via `-p "$(cat /tmp/claude-prompt.txt)"`
