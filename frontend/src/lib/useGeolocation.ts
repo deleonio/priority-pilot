@@ -88,10 +88,11 @@ export const useGeolocation = (): UseGeolocationResult => {
 		setPositionUpdatedAt(Date.now());
 	}, []);
 
-	/** Position (und damit Zeitstempel-Anzeige) zurücksetzen. */
+	/** Position und Zeitstempel-Anzeige zurücksetzen. */
 	const clearPosition = useCallback((): void => {
 		positionRef.current = null;
 		setPosition(null);
+		setPositionUpdatedAt(null);
 	}, []);
 
 	/** Einmalige Positionsermittlung (ohne Seiteneffekte auf State). */
@@ -119,6 +120,13 @@ export const useGeolocation = (): UseGeolocationResult => {
 		}
 
 		const locate = (): void => {
+			// Gleicher Re-Entrancy-Guard wie toggle/refresh (#933 AK5): kein paralleler Fetch
+			// zum manuellen Stoß — sonst lösen beide Positions-Updates je einen reverseGeocode
+			// aus und laufen ins Nominatim-Rate-Limit (1 req/s).
+			if (pendingRef.current) {
+				return;
+			}
+			pendingRef.current = true;
 			fetchPosition()
 				.then((p) => applyPosition(p))
 				.catch((err) => {
@@ -127,6 +135,9 @@ export const useGeolocation = (): UseGeolocationResult => {
 						setEnabled(false);
 						storeGeolocationPreference(false);
 					}
+				})
+				.finally(() => {
+					pendingRef.current = false;
 				});
 		};
 

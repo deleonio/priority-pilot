@@ -220,6 +220,10 @@ describe('useGeolocation – #933: Initial-Fetch, refresh(), Zeitstempel', () =>
 			await result.current.refresh();
 		}
 
-		expect(result.current.positionUpdatedAt ?? 0).toBeGreaterThan(0);
+		// Ohne act()-Wrapper flusht renderHook das setPositionUpdatedAt aus applyPosition
+		// erst asynchron — wie im AK1/AK5-Test per waitFor auf das übernommene Re-Render warten.
+		await waitFor(() => {
+			expect(result.current.positionUpdatedAt ?? 0).toBeGreaterThan(0);
+		});
 	});
 });
