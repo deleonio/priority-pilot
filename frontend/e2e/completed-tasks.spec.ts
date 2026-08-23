@@ -219,6 +219,10 @@ test.describe('Priority Pilot — Erledigt-Ansicht (#228/#307) gegen das echte B
 			await markTaskDoneViaUi(page);
 			await openCompletedTab(page);
 
+			// Auto-retryend auf die gerenderte Tabelle warten — waitForStableView deckt den
+			// Async-Fetch der Erledigt-Liste nicht ab (Race, CI-Run 32637060845).
+			await expect(page.locator('table.completed-tasks-table tbody tr').first()).toBeVisible();
+
 			// Ist heute 'auto' (kein Desktop-Spaltenlayout) → rot bis zum Fix (Spec AK-931-1).
 			const geometry = await tableGeometry(page);
 			expect(geometry).not.toBeNull();
@@ -235,6 +239,10 @@ test.describe('Priority Pilot — Erledigt-Ansicht (#228/#307) gegen das echte B
 			await createTaskViaUi(page, uniqueTitle('931-Breite'));
 			await markTaskDoneViaUi(page);
 			await openCompletedTab(page);
+
+			// Auto-retryend auf die gerenderte Tabelle warten — waitForStableView deckt den
+			// Async-Fetch der Erledigt-Liste nicht ab (Race, CI-Run 32637060845).
+			await expect(page.locator('table.completed-tasks-table tbody tr').first()).toBeVisible();
 
 			const geometry = await tableGeometry(page);
 			expect(geometry).not.toBeNull();

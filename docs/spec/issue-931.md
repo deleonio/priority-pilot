@@ -28,7 +28,7 @@ weit/niedrig dimensioniert sind. Das Mobile-Karten-Layout (< 48rem) bleibt unver
   375px (bereits durch den bestehenden Test `AK-6` in `frontend/e2e/completed-tasks.spec.ts`
   gedeckt, kein neuer Test).
 - **AK-931-2 (Titel-Spalte dominant):** Die Titel-Spalte ist auf Desktop die dominante Spalte:
-  Sie ist mindestens ** doppelt so breit wie jede einzelne Punkte-Spalte** und belegt mindestens
+  Sie ist mindestens **doppelt so breit wie jede einzelne Punkte-Spalte** und belegt mindestens
   **45 % der Tabellenbreite**; die Tabelle bleibt dabei ohne horizontales Scrollen vollständig im
   Viewport (`scrollWidth ≤` Viewport-Breite).
 - **AK-931-3 (tabellarische Zahlen, rechtsbündig):** Die Punkte-Zellen (`td[data-label]`) sind
