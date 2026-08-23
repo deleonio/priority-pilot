@@ -188,6 +188,7 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 					{pushEnabled && (
 						<KolButton
 							_label="Push testen"
+							class="push-test-btn"
 							_variant="secondary"
 							_on={{
 								onClick: () => {
