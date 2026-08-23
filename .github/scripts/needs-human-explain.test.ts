@@ -106,6 +106,48 @@ describe('needs-human-explain.sh — triage-Modus', () => {
 	});
 });
 
+describe('needs-human-explain.sh — logtail', () => {
+	const logtail = (args: string[]): string => {
+		const res = spawnSync('bash', [script, 'logtail', ...args], {
+			env: { ...process.env, PATH: `${stubDir}:${process.env.PATH}` },
+			encoding: 'utf8',
+		});
+		assert.equal(res.status, 0, `Skript crashte: ${res.stderr}`);
+		return res.stdout;
+	};
+
+	it('zentriert das Fenster auf die letzte VERDICT-Zeile — Begründung davor bleibt sichtbar', () => {
+		// PR #903/#944: „letzte 25 Zeilen“ schnitten die Findings ab und ließen nur
+		// Noise — die Erklärung steht VOR dem Verdict, Noise kommt NACH ihm.
+		const lines: string[] = [];
+		for (let i = 1; i <= 30; i++) lines.push(`filler ${i}`);
+		lines.push('## ⏸️ Entscheidungs-Findings');
+		lines.push('4. Combobox-A11y: Vertrag AK4 bricht — Option 4.1 KoliBri-Combo, 4.2 manuell');
+		lines.push('VERDICT: needs-human');
+		for (let i = 1; i <= 40; i++) lines.push(`noise ${i}`);
+		const logPath = join(stubDir, 'log-verdict.txt');
+		writeFileSync(logPath, lines.join('\n'));
+
+		const out = logtail(['--file', logPath]);
+		assert.match(out, /Entscheidungs-Findings/, 'Sektion vor dem Verdict muss sichtbar sein');
+		assert.match(out, /Combobox-A11y/, 'Finding-Detail vor dem Verdict muss sichtbar sein');
+		assert.match(out, /VERDICT: needs-human/);
+		assert.doesNotMatch(out, /noise 40/, 'Trailing-Noise nach dem Verdict wird abgeschnitten');
+	});
+
+	it('fällt ohne VERDICT-Zeile auf die letzten N Zeilen zurück (Crash-Fall)', () => {
+		const lines: string[] = [];
+		for (let i = 1; i <= 30; i++) lines.push(`filler ${i}`);
+		lines.push('API Error: 500 [1234] — try again later');
+		const logPath = join(stubDir, 'log-crash.txt');
+		writeFileSync(logPath, lines.join('\n'));
+
+		const out = logtail(['--file', logPath, '--lines', '5']);
+		assert.match(out, /API Error: 500/);
+		assert.doesNotMatch(out, /filler 1/, 'alte Zeilen werden gekappt');
+	});
+});
+
 describe('needs-human-explain.sh — --ticket ist Alias für --pr', () => {
 	it('liefert für beide Flags dasselbe Ergebnis', () => {
 		writeFileSync(fixturePath, JSON.stringify([comment(TRIAGE_BODY, 9)]));
