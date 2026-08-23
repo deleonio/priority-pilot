@@ -848,7 +848,13 @@ jobs:
                 printf '%s\n\n' "</details>"
               fi
               printf '%s\n' "**Was du als Mensch beitragen/entscheiden solltest:**"
-              printf '%s\n' "- [ ] 1. Entscheidungs-Findings durchgehen (Erklärung oben verlinkt)"
+              if [ "$GUARD_STATUS" = "found" ]; then
+                printf '%s\n' "- [ ] 1. Entscheidungs-Findings durchgehen (Erklärung oben verlinkt)"
+              else
+                # Kein toter Verweis: In diesem Zweig existiert KEIN Link — der
+                # Marker-Kommentar fehlt (PR #903: Checkliste verwies ins Leere).
+                printf '%s\n' "- [ ] 1. Findings aus dem Log-Auszug ableiten — Claude hat den Entscheidungs-Kommentar (Marker \`ai-fixup-decisions\`) in diesem Lauf NICHT gepostet"
+              fi
               printf '%s\n' "- [ ] 2. Entscheidung treffen (Code anpassen / akzeptieren)"
               printf '%s\n' "- [ ] 3. Label \`ai:needs-human\` entfernen"
               printf '%s\n' "- [ ] 4. Label \`ai:needs-review\` setzen → loest erneuten Review aus"
@@ -912,7 +918,13 @@ jobs:
                 printf '%s\n\n' "</details>"
               fi
               printf '%s\n' "**Was du als Mensch beitragen/entscheiden solltest:**"
-              printf '%s\n' "- [ ] 1. Begründung/Findings pruefen (oben verlinkt) — nicht-automatisierbares Finding?"
+              if [ "$DEC_STATUS" = "found" ]; then
+                printf '%s\n' "- [ ] 1. Begründung/Findings pruefen (oben verlinkt) — nicht-automatisierbares Finding?"
+              else
+                # Kein toter Verweis: Entscheidungs-Kommentar fehlt in diesem Lauf —
+                # Review-Kommentar (falls verlinkt) und Log-Auszug sind die Quelle.
+                printf '%s\n' "- [ ] 1. Offene Findings pruefen: verlinkter Review-Kommentar / Log-Auszug — ein Entscheidungs-Kommentar fehlt in diesem Lauf"
+              fi
               printf '%s\n' "- [ ] 2. Entscheidung treffen (Code anpassen / akzeptieren / Manuelles Fixup)"
               printf '%s\n' "- [ ] 3. Label \`ai:needs-human\` entfernen"
               printf '%s\n' "- [ ] 4. Label \`ai:needs-review\` setzen → loest erneuten Review aus"
