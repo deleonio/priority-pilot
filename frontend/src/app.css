@@ -113,6 +113,17 @@
 	--pp-motion-fast: 120ms;
 	--pp-motion-base: 200ms;
 	--pp-ease: cubic-bezier(0.2, 0, 0.2, 1);
+
+	/* Semantische Gap-Tokens (P0: Rhythm & Spacing Scale) */
+	--pp-gap-tight: var(--pp-space-2); /* 0.5rem — intra-group */
+	--pp-gap-base: var(--pp-space-4); /* 1rem — inter-group */
+	--pp-gap-generous: var(--pp-space-6); /* 1.5rem — section break */
+	--pp-gap-major: var(--pp-space-7); /* 2rem — major section */
+
+	/* P2: Responsive Modal Width Tokens */
+	--pp-modal-width-mobile: 100vw;
+	--pp-modal-width-tablet: 90vw;
+	--pp-modal-width-desktop: 40rem;
 }
 
 /*
@@ -185,9 +196,11 @@ body {
 }
 
 /*
- * Mobile-First: Die Basis-Ränder gelten für den schmalsten Viewport (Referenz 375px) — 1rem statt
- * der früheren 1.5rem gibt 32px Inhaltsbreite zurück, die dort spürbar fehlen. Die großzügigeren
- * Desktop-Werte kommen per Aufwärts-Kaskade ab 48rem zurück (siehe unten), nicht per max-width-Abzug.
+ * Mobile-First: Die Basis-Ränder gelten für den schmalsten Viewport (Referenz 375px) — 0.75rem statt
+ * der früheren 1rem gibt weitere 8px Inhaltsbreite zurück, die #965 braucht: Die sechs icon-only
+ * Kopf-Aktionen (6 × 44px Touch-Target) plus Logo und Avatar passen sonst nicht in die 375px-Zeile.
+ * Die großzügigeren Desktop-Werte kommen per Aufwärts-Kaskade ab 48rem zurück (siehe unten), nicht
+ * per max-width-Abzug.
  *
  * Safe-Area (installierte PWA, `display: standalone`): Die `env(safe-area-inset-*)`-Werte greifen nur
  * zusammen mit `viewport-fit=cover` im Viewport-Meta (index.html). Im normalen Browser-Tab sind sie 0,
@@ -198,9 +211,9 @@ body {
 	max-width: 80rem;
 	margin: 0 auto;
 	padding-top: calc(1rem + env(safe-area-inset-top));
-	padding-right: max(1rem, env(safe-area-inset-right));
+	padding-right: max(0.75rem, env(safe-area-inset-right));
 	padding-bottom: calc(3rem + env(safe-area-inset-bottom));
-	padding-left: max(1rem, env(safe-area-inset-left));
+	padding-left: max(0.75rem, env(safe-area-inset-left));
 }
 
 @media (min-width: 48rem) {
@@ -221,24 +234,34 @@ body {
 	 */
 	--pp-toolbar-height: 2.75rem;
 	/*
-	 * Mobile-First: Auf schmalen Viewports liegt der Avatar (bzw. das Logo, das sich an ihm bemisst)
-	 * exakt auf Toolbar-Höhe — der 1,25-Faktor aus #485 würde den Header hier unnötig hoch machen.
-	 * Ab 48rem gilt wieder die gewohnte Relation (siehe Media-Query unten). Die 2.75rem/44px selbst
-	 * bleiben unangetastet: sie sind das WCAG-2.5.5-Minimum, nicht Deko.
+	 * Mobile-First: Auf schmalen Viewports bemisst sich das Logo (als einziges Element) exakt auf
+	 * Toolbar-Höhe — der 1,25-Faktor aus #485 würde den Header hier unnötig hoch machen. Der Avatar
+	 * selbst ist seit #965 mobil auf 2rem verkleinert (siehe Regel unten), um die sechste icon-only
+	 * Kopf-Aktion in die 375px-Zeile zu bekommen. Ab 48rem gilt wieder die gewohnte Relation (siehe
+	 * Media-Query unten). Die 2.75rem/44px selbst bleiben unangetastet: sie sind das WCAG-2.5.5-
+	 * Minimum, nicht Deko.
 	 */
 	--pp-avatar-size: var(--pp-toolbar-height);
 
+	/*
+	 * P1: Header in 3 semantische Gruppen (Brand | Primary | User).
+	 * Das Markup gruppiert die Elemente in .app-header__brand,
+	 * .app-header__primary und .app-header__user. Der Header selbst
+	 * nutzt das Gap-Token zur Trennung der Gruppen.
+	 */
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 0.5rem;
+	/* #965: Mobil 0.25rem statt --pp-gap-tight (0.5rem) — mit der sechsten icon-only Kopf-Aktion
+	 * zählt jedes Pixel der 375px-Zeile; ab 48rem gilt wieder der Base-Abstand. */
+	gap: 0.25rem;
 }
 
 @media (min-width: 48rem) {
 	.app-header {
 		--pp-avatar-size: calc(var(--pp-toolbar-height) * 1.25);
 
-		gap: 1rem;
+		gap: var(--pp-gap-base);
 	}
 }
 
@@ -250,8 +273,8 @@ body {
  * Der Avatar steht seit #912 am rechten Rand (nach der Toolbar).
  *
  * Erst ab 64rem sichtbar: Der Header muss auf 375px UND 768px einzeilig bleiben (#485 AK6,
- * #718 AK4/AK5, mobile-shell). Bis 64rem ist der Platz für Logo, Identität, Modell-Auswahl und die
- * fünf Kopf-Aktionen bereits ausgereizt — der Name ist von allen Elementen das einzige rein
+ * #718 AK4/AK5, mobile-shell). Bis 64rem ist der Platz für Logo, Identität und die sechs
+ * icon-only Kopf-Aktionen bereits ausgereizt — der Name ist von allen Elementen das einzige rein
  * dekorative und weicht daher zuerst.
  */
 .app-name {
@@ -264,74 +287,6 @@ body {
 @media (min-width: 64rem) {
 	.app-name {
 		display: inline;
-	}
-}
-
-/*
- * KI-Modell-Auswahl-Button in der Toolbar (#787). Nativer Button mit role="combobox"
- * für A11y-Konformität. Minimale Click-Target-Größe 44×44px (BITV 2.1).
- *
- * Unter 48rem ausgeblendet (siehe Media-Query unten): Logo, Avatar und die fünf Kopf-Aktionen
- * (#691) füllen die 375px-Zeile bereits vollständig aus — ein sechstes Bedienelement erzwänge
- * einen Zeilenumbruch und bräche damit den Einzeiler-Vertrag aus #485 AK6 / #718 AK4. Der frühere
- * Mobile-Ausweg über den Dashboard-Einstieg (#742) ist mit 8a7d182 bewusst entfernt — unter 48rem
- * existiert kein Einstieg (bekannte Lücke, siehe docs/spec/issue-787.md).
- */
-.model-selector-button {
-	display: none;
-	align-items: center;
-	gap: 0.5rem;
-	min-height: var(--pp-toolbar-height);
-	min-width: var(--pp-toolbar-height);
-	padding: 0 0.75rem;
-	border: 1px solid var(--pp-border);
-	border-radius: 0.375rem;
-	background: var(--pp-bg);
-	color: var(--pp-text);
-	font: inherit;
-	font-size: 0.875rem;
-	cursor: pointer;
-	transition:
-		background 0.15s,
-		border-color 0.15s;
-}
-
-.model-selector-button:hover {
-	background: var(--pp-bg-muted);
-	border-color: var(--pp-accent-open);
-}
-
-.model-selector-button:focus-visible {
-	outline: 2px solid var(--pp-accent-open);
-	outline-offset: 2px;
-}
-
-.model-selector-chevron {
-	font-size: 0.75rem;
-	opacity: 0.7;
-	flex-shrink: 0;
-}
-
-/*
- * Der Modellname ist eine frei konfigurierbare ID (`PUT /llm-config`) und kann beliebig lang
- * werden. Ohne Deckel schöbe ein langer Name die Kopf-Aktionen aus der Zeile; gekürzt wird deshalb
- * visuell per Ellipse — der vollständige Name bleibt im `title` und im `aria-label`.
- */
-.model-selector-label {
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-	max-width: 10rem;
-}
-
-@media (min-width: 48rem) {
-	.model-selector-button {
-		display: inline-flex;
-		/*
-			 * Der Model-Selector soll visuell an 3. Stelle erscheinen (nach "Neuen Task anlegen"
-			 * und "Säulen-Berater"). CSS `order` ermöglicht dies ohne Änderung der DOM-Struktur.
-			 */
-		order: 2;
 	}
 }
 
@@ -363,19 +318,30 @@ body {
 	max-width: 100%;
 }
 
-.toolbar {
+.app-header__brand {
 	display: flex;
-	gap: 0.5rem;
+	align-items: center;
+	gap: var(--pp-gap-tight);
+}
+
+.app-header__primary {
+	display: flex;
+	gap: var(--pp-gap-tight);
 	flex-wrap: wrap;
 	align-items: center;
 	margin-left: auto;
+}
+
+.app-header__user {
+	display: flex;
+	align-items: center;
 }
 
 /*
  * #485 AK3/AK4: Die Toolbar-Buttons werden auf die gemeinsame Bezugshöhe festgenagelt.
  * `--a11y-min-size` ist die von KoliBri im Shadow-DOM genutzte Variable für `min-height`/`min-width`
  * der Buttons; Custom Properties vererben durch die Shadow-Grenze, deshalb greift die Vorgabe hier.
- * Die Buttons rendert `kol-toolbar` im eigenen Shadow-DOM — im Light-DOM unterhalb von `.toolbar`
+ * Die Buttons rendert `kol-toolbar` im eigenen Shadow-DOM — im Light-DOM unterhalb von `.app-header__primary`
  * steht kein `kol-button`, ein solcher Selektor wäre wirkungslos.
  *
  * Sollbruchstelle: `--a11y-min-size` legt nur eine *Untergrenze* fest. `--pp-toolbar-height`
@@ -383,13 +349,17 @@ body {
  * bricht die von AK3 geforderte 1,25-Relation hier — nicht am Avatar, der weiter korrekt aus
  * `--pp-toolbar-height` ableitet.
  */
-.toolbar kol-toolbar {
+.app-header__primary kol-toolbar {
 	--a11y-min-size: var(--pp-toolbar-height);
 }
 
 /*
- * AK2 (#222) / AK3 (#485): Avatar harmonisch zur Toolbar — exakt das 1,25-Fache der
+ * AK2 (#222) / AK3 (#485): Avatar harmonisch zur Toolbar — ab 48rem exakt das 1,25-Fache der
  * Toolbar-Button-Höhe. Über `--pp-toolbar-height` bleibt das Verhältnis bei Änderungen erhalten.
+ *
+ * #965: Mobil (Basis) weicht der Avatar auf 2rem ab — er ist nicht interaktiv (kein Touch-Target-
+ * Minimum) und ist das einzige Element der Kopf-Zeile, das Platz hergeben kann, damit Logo, die
+ * sechs icon-only Kopf-Aktionen und der Avatar bei 375px einzeilig bleiben (mobile-shell, ≤ 64px).
  */
 .app-header kol-avatar {
 	/*
@@ -400,9 +370,16 @@ body {
 	 * `:host` geerbt: die von AK3 gemessene Höhe soll nicht an einem undokumentierten
 	 * Component-Internum hängen, das eine künftige KoliBri-Version wegfallen lassen kann.
 	 */
-	width: var(--pp-avatar-size);
-	height: var(--pp-avatar-size);
+	width: 2rem;
+	height: 2rem;
 	aspect-ratio: 1;
+}
+
+@media (min-width: 48rem) {
+	.app-header kol-avatar {
+		width: var(--pp-avatar-size);
+		height: var(--pp-avatar-size);
+	}
 }
 
 .loading {
@@ -415,12 +392,12 @@ body {
 .dashboard,
 .task-section,
 .forest-panel {
-	margin-top: 2rem;
+	margin-top: var(--pp-gap-major);
 }
 
 /* Tab-Leiste der Hauptansichten: Abstand zur Kopf-Toolbar. */
 .app-tabs {
-	margin-top: 2rem;
+	margin-top: var(--pp-gap-major);
 }
 
 /* Innerhalb eines Tabs ist der jeweilige Bereich der einzige Inhalt – der Stapel-Abstand entfällt. */
@@ -449,7 +426,7 @@ body {
 	margin: 0.5rem 0 0;
 	padding: 0;
 	display: grid;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 	grid-template-columns: repeat(3, 1fr);
 }
 
@@ -492,32 +469,54 @@ body {
  * gemessene 1.34:1 statt geforderter 4.5:1 (docs/ux-audit-2026-08.md, P1-1).
  */
 .dashboard-next-task {
-	margin-top: 1.5rem;
+	margin-top: var(--pp-gap-generous);
 	padding: 1rem 1.25rem;
 	border: 1px solid var(--pp-border);
+	border-left-width: 0.375rem;
+	border-left-color: var(--pp-signal);
 	border-radius: 0.5rem;
-	background: var(--pp-bg-muted);
-	color: var(--pp-ink);
+	background: var(--pp-signal-wash);
+	color: var(--pp-signal-ink);
 }
 
 .dashboard-next-task h3 {
 	margin: 0 0 0.5rem;
+	color: var(--pp-signal-ink);
 }
 
 .dashboard-next-task p {
 	margin: 0;
 }
 
-.dashboard-next-task-value {
-	font-size: 1.125rem;
+/* P2-1: Hauptaussage im Signal-Panel — größere Schrift, fette Aufzählung. */
+.dashboard-next-task-content {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-gap-tight);
+}
+
+.dashboard-next-task-title {
+	font-size: var(--pp-font-size-lg);
+	font-weight: var(--pp-weight-bold);
+}
+
+.dashboard-next-task-priority {
+	font-size: var(--pp-font-size-sm);
+	color: var(--pp-signal-ink);
+}
+
+.dashboard-next-task-empty {
+	font-size: var(--pp-font-size-sm);
 }
 
 /*
- * „Was ist jetzt dran?": gleiche Panel-Gestaltung wie „Nächste Aufgabe" — die beiden
- * Handlungs-Widgets heben sich so gemeinsam von den reinen Übersichts-Listen ab.
+ * P2-1: „Was ist jetzt dran?" — sekundäre Liste ohne Signal-Färbung. Die Signalfarbe gehört
+ * ausschließlich der „Nächste Aufgabe"-Zeile; diese Vorschlagslinks bleiben in der normalen
+ * Textfarbe, um Hierarchie zu wahren. Wiederholt nicht mehr die nächste Aufgabe (gefiltert in
+ * Dashboard.tsx über `suggestionsFiltered`).
  */
 .dashboard-suggestions {
-	margin-top: 1.5rem;
+	margin-top: var(--pp-gap-generous);
 	padding: 1rem 1.25rem;
 	border: 1px solid var(--pp-border);
 	border-radius: 0.5rem;
@@ -527,6 +526,10 @@ body {
 
 .dashboard-suggestions h3 {
 	margin: 0 0 0.5rem;
+}
+
+.dashboard-suggestions-empty {
+	font-size: var(--pp-font-size-sm);
 }
 
 /* Rang-Zahl als eigener Counter (statt Browser-Default-Nummerierung mit Einrückung). */
@@ -565,7 +568,7 @@ body {
 }
 
 .dashboard-top-tasks {
-	margin-top: 1.5rem;
+	margin-top: var(--pp-gap-generous);
 }
 
 .dashboard-top-tasks h3 {
@@ -573,7 +576,7 @@ body {
 }
 
 .dashboard-deadlines {
-	margin-top: 1.5rem;
+	margin-top: var(--pp-gap-generous);
 }
 
 .dashboard-deadlines h3 {
@@ -589,7 +592,7 @@ body {
 .dashboard-deadline {
 	display: flex;
 	justify-content: space-between;
-	gap: 1rem;
+	gap: var(--pp-gap-base);
 	padding: 0.375rem 0;
 	border-bottom: 1px solid var(--pp-border);
 }
@@ -608,7 +611,7 @@ body {
 .dashboard-deadline-aside {
 	display: inline-flex;
 	align-items: center;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 	flex-shrink: 0;
 }
 
@@ -637,7 +640,7 @@ body {
 
 	/* Ab Tablet wieder das großzügigere Kachel-Raster mit größeren Zahlen. */
 	.dashboard-cards {
-		gap: 1rem;
+		gap: var(--pp-gap-base);
 		grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
 	}
 
@@ -664,7 +667,7 @@ body {
 }
 
 .dashboard-pillars {
-	margin-top: 1.5rem;
+	margin-top: var(--pp-gap-generous);
 	/* AK4 (#440): Bei 8+ Säulen und 375px Viewport kein horizontales Scrollen. */
 	max-width: 100%;
 	overflow-x: hidden;
@@ -703,7 +706,7 @@ body {
 /* Gesamtguthaben: prominente Punktzahl, darunter je Säule eine Zeile mit Wert rechtsbündig —
    gleiches Zeilenmuster wie Meine Themen/Deadlines (Border-getrennte Listenzeilen). */
 .dashboard-balance {
-	margin-top: 1.5rem;
+	margin-top: var(--pp-gap-generous);
 }
 
 .dashboard-balance h3 {
@@ -746,7 +749,7 @@ body {
 	font-variant-numeric: tabular-nums;
 }
 
-/* --- Aufgabenwald --- */
+/* --- Aufgabenwald (P2-5: strukturierte Cards statt Textwüste) --- */
 .forest-panel .tree-root,
 .forest-panel ul {
 	list-style: none;
@@ -761,6 +764,49 @@ body {
 	margin: 0.25rem 0;
 }
 
+/* P2-5: Forest-Node Cards */
+.forest-node-card {
+	margin-bottom: var(--pp-gap-tight);
+}
+
+.forest-node-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--pp-gap-tight);
+	margin-bottom: var(--pp-gap-tight);
+	flex-wrap: wrap;
+}
+
+.forest-node-title {
+	margin: 0;
+	flex: 1 1 auto;
+	min-width: 120px;
+}
+
+.forest-node-priority {
+	flex-shrink: 0;
+}
+
+.forest-node-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--pp-gap-base);
+	font-size: var(--pp-font-size-sm);
+	color: var(--pp-text-muted);
+}
+
+.forest-node-meta-item {
+	white-space: nowrap;
+}
+
+.forest-node-children {
+	list-style: none;
+	padding-left: var(--pp-space-4);
+	margin-top: var(--pp-gap-tight);
+	border-left: 2px solid var(--pp-border);
+}
+
 .tree-node-meta {
 	color: var(--pp-text-muted);
 	font-size: 0.875rem;
@@ -773,11 +819,11 @@ body {
 	list-style: none;
 	margin: 0;
 	padding: 0;
-	--task-tree-row-gap: 0.5rem;
+	--task-tree-row-gap: var(--pp-gap-tight);
 }
 
 .task-list-item {
-	margin: 0.25rem 0;
+	margin: var(--pp-gap-tight) 0;
 	min-width: 0;
 }
 
@@ -815,7 +861,14 @@ body {
 	gap: var(--task-tree-row-gap);
 }
 
-@media (min-width: 600px) {
+.task-tree-badges {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--task-tree-row-gap);
+}
+
+@media (min-width: 48rem) {
 	.task-tree-row-controls {
 		flex-wrap: nowrap;
 	}
@@ -844,37 +897,28 @@ body {
 }
 
 .task-tree-badge {
+	/* Basis-Styles für rohe Badges (falls noch genutzt); KolBadge stylt sich selbst */
 	font-size: 0.75rem;
 	padding: 0.125rem 0.375rem;
 	border-radius: 0.25rem;
 	white-space: nowrap;
 }
 
-.task-tree-badge--series {
-	background: var(--kol-color-primary, #005b99);
-	color: #fff;
-}
-
-.task-tree-badge--exception {
-	background: var(--kol-color-warning, #c66a00);
-	color: #fff;
-}
-
-.task-tree-badge--progress {
-	background: var(--kol-color-success, #2e7d32);
-	color: #fff;
+.task-tree-badge--priority {
+	/* Farbe kommt über KolBadge _type (info/warning/danger) */
+	font-variant-numeric: tabular-nums;
 }
 
 /* --- Modal-Inhalt --- */
 /* Overlay, Rahmen, Titel und Schließen-Button liefert jetzt `KolDialog` (Variant `card`);
    hier bleibt nur das Layout des Dialog-Inhalts. */
 .modal-body section {
-	margin-bottom: 1.5rem;
+	margin-bottom: var(--pp-gap-generous);
 }
 
 .form-grid {
 	display: grid;
-	gap: 1rem;
+	gap: var(--pp-gap-base);
 	margin-bottom: 1rem;
 	width: 100%;
 }
@@ -891,7 +935,7 @@ body {
 .pillar-weight-row {
 	display: flex;
 	flex-direction: column;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 	padding: 1rem;
 	border: 1px solid var(--pp-border);
 	border-radius: 0.5rem;
@@ -935,7 +979,7 @@ body {
 .modal-actions,
 .form-actions {
 	display: flex;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 	flex-wrap: wrap;
 	margin-top: 1rem;
 	justify-content: flex-end;
@@ -954,7 +998,7 @@ body {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	gap: 1rem;
+	gap: var(--pp-gap-base);
 	padding: 0.375rem 0;
 	border-bottom: 1px solid var(--pp-border);
 }
@@ -1022,7 +1066,7 @@ body {
 .pillar-actions {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 	flex-shrink: 0;
 }
 
@@ -1042,7 +1086,7 @@ body {
 	flex-wrap: wrap;
 	align-items: center;
 	justify-content: space-between;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 }
 
 .pillar-editor-loading {
@@ -1054,7 +1098,7 @@ body {
 .pillar-row {
 	display: grid;
 	grid-template-columns: 1fr 1fr auto;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 	align-items: end;
 	padding: 0.5rem;
 	border: 1px solid var(--pp-border);
@@ -1068,7 +1112,7 @@ body {
 	padding: 0;
 	display: flex;
 	flex-direction: column;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 }
 
 .series-list-item {
@@ -1091,7 +1135,7 @@ body {
 
 .series-list-actions {
 	display: flex;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 }
 
 .series-form h3 {
@@ -1103,7 +1147,7 @@ body {
    auf Mobilbreite (375px) ohne horizontales Scrollen umbricht. */
 .series-actions {
 	display: flex;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 	flex-wrap: wrap;
 	margin-top: 0.5rem;
 	margin-bottom: 1rem;
@@ -1130,7 +1174,7 @@ body {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 	min-width: 0;
 }
 
@@ -1145,7 +1189,7 @@ body {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 }
 
 .series-tree-badge {
@@ -1226,7 +1270,7 @@ body {
 
 /* --- Empty-State / Onboarding (keine Tasks) --- */
 .empty-state {
-	margin-top: 2rem;
+	margin-top: var(--pp-gap-major);
 }
 
 .empty-state p {
@@ -1296,37 +1340,34 @@ body {
 .settings-page-header {
 	display: flex;
 	align-items: center;
-	gap: 1rem;
+	gap: var(--pp-gap-base);
 	margin-bottom: 1.5rem;
 	flex-wrap: wrap;
 }
 
 .settings-tabs {
-	margin-top: 1.5rem;
+	margin-top: var(--pp-gap-generous);
 }
 
 /*
- * #703: Tabs bei schmalen Viewports (< 768px) alternatives Layout (vertikale Anordnung).
- * Bei Desktop (≥ 768px) bleiben Tabs nebeneinander (Standard).
- * KoliBri-KolTabs rendert im Shadow-DOM; der ::slotted-Selektor greift die Tab-Buttons ab.
+ * #703 P2-7: Tabs bei schmalen Viewports (< 768px) — vertikale Anordnung als vollbreitige Buttons.
+ * KoliBri `kol-tabs` legt die `flex-direction` der internen Button-Gruppe über die Custom-Property
+ * `--button-group-flex-direction` fest (im Shadow-DOM: `.kol-tabs__button-group { flex-direction:
+ * var(--button-group-flex-direction); flex-wrap: wrap; }`). Da Custom Properties die Shadow-DOM-
+ * Grenze passieren, genügt das Setzen auf dem Host-Element — `::part(tab-list)` würde dagegen nichts
+ * helfen, weil KoliBri keine Parts exportiert (validiert 2026-08-21 per Shadow-Inspektion: kein
+ * `part`-Attribut an irgendeinem Kind). Mit `column` stapeln sich die Tabs vertikal statt zu wrappen;
+ * `align-items: stretch` (Default) dehnt sie dabei auf die volle Container-Breite — passend zum
+ * Mobile-First-Prinzip „eine primäre Aktion pro Zeile" (ux-design.md §1).
+ *
+ * Wichtig: `.app-tabs` bzw. `.settings-tabs` ist der `kol-tabs`-Host selbst (die `className` wird
+ * direkt auf dem React-Komponenten-Element gesetzt). Der Selektor `.app-tabs kol-tabs` wäre daher
+ * ein Nachkomme-Sucher ohne Treffer — die Property muss am Host stehen.
  */
 @media (max-width: 767px) {
-	.settings-tabs kol-tabs::part(tab-list) {
-		flex-direction: column;
-	}
-
-	.settings-tabs kol-tabs::part(tab-button) {
-		width: 100%;
-		text-align: left;
-	}
-
-	.app-tabs kol-tabs::part(tab-list) {
-		flex-direction: column;
-	}
-
-	.app-tabs kol-tabs::part(tab-button) {
-		width: 100%;
-		text-align: left;
+	.app-tabs,
+	.settings-tabs {
+		--button-group-flex-direction: column;
 	}
 }
 
@@ -1351,7 +1392,19 @@ body {
 	/* Flex-Layout für konsistente vertikale Abstände */
 	display: flex;
 	flex-direction: column;
-	gap: 1rem; /* 16dp Section-Abstand zwischen Controls */
+	gap: var(--pp-gap-base); /* 16dp Section-Abstand zwischen Controls */
+}
+
+/*
+ * #932 AK1: Der 'Push testen'-Button darf nicht die volle Flex-Breite einnehmen.
+ * Wir setzen `align-self: flex-start` auf eine zielgerichtete Utility-Klasse statt auf
+ * `.settings-general kol-button`, um zukünftige weitere Buttons nicht versehentlich zu treffen.
+ * KoliBri `_inline` wird bewusst NICHT verwendet: Mobile-UI-Regel 2 erfordert einen 44px-Touch-Target,
+ * den `_inline` entfernen würde. `align-self: flex-start` lässt den Button nur so breit werden wie sein
+ * Inhalt, lässt die KoliBri-Default-Paddings und -Höhe unberührt.
+ */
+.push-test-btn {
+	align-self: flex-start;
 }
 
 /*
@@ -1492,6 +1545,26 @@ body {
 	.completed-tasks-table td[data-label]::before {
 		content: none;
 	}
+
+	/*
+	 * Fixes Spaltenlayout (#931): Ab Desktop bestimmt nicht mehr der Browser-Auto-Layout die
+	 * Breiten, sondern eine dominante Titel-Spalte. Sie belegt 55 %; die restlichen 45 % teilen
+	 * sich Punkte- und Aktion-Spalten gleichmäßig (worst case eine Säule: 22,5 % < 27,5 %), sodass
+	 * lange Titel lesbar bleiben und Zahlenspalten schmal (AK-931-1/2).
+	 */
+	.completed-tasks-table {
+		table-layout: fixed;
+	}
+
+	.completed-tasks-table thead th:first-child {
+		width: 55%;
+	}
+
+	/* Punkte untereinander vergleichbar: rechtsbündig, tabellarische Ziffern (AK-931-3). */
+	.completed-tasks-table td[data-label] {
+		text-align: right;
+		font-variant-numeric: tabular-nums;
+	}
 }
 
 /* --- PWA-Update-/Offline-Hinweis (#373) --- */
@@ -1512,7 +1585,7 @@ body {
 	padding-bottom: calc(1rem + env(safe-area-inset-bottom));
 	display: flex;
 	flex-direction: column;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 	pointer-events: none;
 }
 
@@ -1522,7 +1595,7 @@ body {
 
 /* --- App-Fußzeile (#290) --- */
 .app-footer {
-	margin-top: 2rem;
+	margin-top: var(--pp-gap-major);
 	padding: 0.75rem 0;
 	text-align: center;
 	color: var(--pp-text-muted);
@@ -1553,7 +1626,7 @@ body {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 }
 
 .advisor-activity {
@@ -1575,7 +1648,7 @@ body {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 1rem;
+	gap: var(--pp-gap-base);
 	margin-bottom: 1.5rem;
 }
 
@@ -1589,7 +1662,7 @@ body {
 .task-filter-search {
 	display: flex;
 	align-items: center;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 	flex: 1 1 100%;
 	min-width: 0;
 }
@@ -1616,7 +1689,7 @@ body {
 .range-inputs-row {
 	display: flex;
 	flex-direction: column;
-	gap: 1rem;
+	gap: var(--pp-gap-base);
 }
 
 @media (min-width: 769px) {
@@ -1631,7 +1704,7 @@ body {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 }
 
 /* Aktuell gewähltes Modell über der Liste (role=status → Screenreader-Ansage bei Wechsel). */
@@ -1647,7 +1720,7 @@ body {
 	margin: 0;
 	display: flex;
 	flex-direction: column;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 	max-height: 22rem;
 	overflow-y: auto;
 }
@@ -1699,7 +1772,7 @@ body {
 	display: flex;
 	flex-direction: column;
 	gap: 0.75rem;
-	margin-top: 1.5rem;
+	margin-top: var(--pp-gap-generous);
 }
 
 /* Label über der Checklist */
@@ -1714,7 +1787,7 @@ body {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 }
 
 .checklist-add > * {
@@ -1745,14 +1818,14 @@ body {
 .llm-key-input-group {
 	display: flex;
 	align-items: center;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 }
 
 /* Modell-Select Container für konsistentes Layout. */
 .llm-model-select {
 	display: flex;
 	flex-direction: column;
-	gap: 0.5rem;
+	gap: var(--pp-gap-tight);
 }
 
 .llm-model-select label {
@@ -1820,4 +1893,43 @@ body {
 	margin-top: 0.5rem;
 	font-size: 0.875rem;
 	color: var(--pp-text-muted);
+}
+
+/* --- Issue #930: Transparente Host-Hintergründe für alle KoliBri-Komponenten --- */
+/* KoliBri-Komponenten liefern Standard-Hintergründe mit; wir setzen sie auf transparent,
+   damit die Seiten-Farbe (--pp-surface-0) durchscheint. Custom Properties vererben
+   weiterhin in den Shadow-DOM, sodass interne Token (--kol-*, --a11y-*) wirksam bleiben. */
+kol-alert,
+kol-avatar,
+kol-badge,
+kol-button,
+kol-card,
+kol-dialog,
+kol-heading,
+kol-input-checkbox,
+kol-input-date,
+kol-input-password,
+kol-input-radio,
+kol-input-range,
+kol-input-text,
+kol-meter,
+kol-popover-button,
+kol-single-select,
+kol-spin,
+kol-tabs,
+kol-textarea,
+kol-toolbar {
+	background-color: transparent;
+}
+
+/*
+ * kol-heading setzt seine Textfarbe intern über `--kol-a11y-font-color`, per `:host` fest auf
+ * Schwarz vorbelegt — unabhängig von `data-theme`. Ohne Override ergibt das im Dark Mode
+ * schwarzen Text auf dunklem Seitenhintergrund (gemessen 1.15:1 statt geforderter 4.5:1) —
+ * gleiche Ursachenklasse wie bei `.dashboard-next-task` oben (P1-1: hart vorbelegte Farbe
+ * ignoriert `data-theme`), hier über KoliBris eigene Custom Property gelöst statt über eigenes
+ * Styling. Die Property vererbt über die Shadow-DOM-Grenze, daher reicht ein Host-Override.
+ */
+kol-heading {
+	--kol-a11y-font-color: var(--pp-ink);
 }

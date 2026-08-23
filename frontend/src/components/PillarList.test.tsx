@@ -69,6 +69,24 @@ vi.mock('@public-ui/react-v19', () => ({
 	}) => (
 		<input aria-label={_label} value={_value ?? ''} onChange={(e) => _on?.onChange?.(e.nativeEvent, e.target.value)} />
 	),
+	KolTextarea: ({
+		_label,
+		_value,
+		_on,
+	}: {
+		_label?: string;
+		_value?: string;
+		_on?: {
+			onInput?: (_e: unknown, v: string) => void;
+			onChange?: (_e: unknown, v: string) => void;
+		};
+	}) => (
+		<textarea
+			aria-label={_label}
+			value={_value ?? ''}
+			onChange={(e) => _on?.onChange?.(e.nativeEvent, e.target.value)}
+		/>
+	),
 }));
 
 afterEach(cleanup);

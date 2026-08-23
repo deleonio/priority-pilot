@@ -5,7 +5,8 @@ ABLAUF (STRIKT):
   1. SOFORT starten.
   2. Findings lesen: gh pr view, gh pr diff, Review-Threads (gh api .../pulls/PR_NR/comments) und CI (gh pr checks).
   3. Zutreffende, EINDEUTIGE Findings fixen:
-     - Code ändern, vor jedem Commit lokale Checks: pnpm format && pnpm exec prettier --check . && pnpm lint && pnpm knip.
+     - Code ändern, vor jedem Commit lokale Checks: pnpm lint && pnpm knip && pnpm format.
+       Tests (vitest, playwright, node --test) laufen ausschliesslich in den klassischen CI-Pipelines – hier NICHT ausführen.
      - Erst wenn alle grün, committen und pushen.
      - Im jeweiligen Thread antworten und auflösen.
      - Mehrdeutige/große/Entscheidungs-Punkte NICHT fixen → stattdessen am Ende VERDICT: needs-human (der Mensch entscheidet).
@@ -64,6 +65,8 @@ ABSCHLUSS:
 
 VERDICT (nur bei Entscheidungs-Findungen, sonst KEIN Verdict — Commits entscheiden
 über Fortschritt, Review prüft neu). Bei needs-human ZWEIFACH liefern:
+REIHENFOLGE: ERST den ai-fixup-decisions-Kommentar posten (ohne ihn parkt der PR
+mit generischer Diagnose beim Menschen), DANN die Verdict-Kanäle.
 1. DATEI (primärer Kanal): `printf 'needs-human' > /tmp/claude-verdict` (Bash, als
    ALLERLETZTE Aktion).
 2. AUSGABE (letzte Output-Zeile, Fallback-Kanal): `VERDICT: needs-human`

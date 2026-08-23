@@ -1,6 +1,7 @@
 # Issue 619 – Startup-Error-Handling
 
-**Stand:** 2026-08-13  
+**Stand:** 2026-08-23  
+**Version:** v1.1 (2026-08-23): Nightly-Sync — Schritt 4 an Ist-Stand angepasst (Error-Handler via `server.on('error')`, Zeilennummer entfernt).  
 **Ziel:** Prozess bei Startup-Fehlern sauber beenden statt im defs Uhrbelzustand weiterzulaufen
 
 ---
@@ -64,12 +65,12 @@ Ein globaler `process.on('uncaughtException')`-Handler:
 
 ### 4. App.listen Error-Callback
 
-**Situation:** `app.listen()` in `server/src/express/index.ts:236` wird ohne Error-Callback aufgerufen. Der Port kann bereits belegt sein.
+**Situation:** Der Server startet und lauscht auf einem Port (`launchServer` in `server/src/express/index.ts`). Der Port kann bereits belegt sein.
 
 **Erwartetes Verhalten:**  
-`app.listen()` erhält einen Error-Callback als zweiten Parameter:
+Der vom `app.listen()`-Aufruf zurückgegebene Server hat einen Error-Handler registriert (`server.on('error')`):
 
-- Bei Fehler: Loggen + `process.exit(1)`
+- Bei Fehler (insb. `EADDRINUSE`): Loggen + `process.exit(1)`
 - Bei Erfolg: Server läuft normal
 
 ---

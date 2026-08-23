@@ -1,6 +1,5 @@
 /**
  * Issue 611: CI Fortschrittsmetrik
- * Spec: docs/spec/issue-611.md
  *
  * Reproduzierbare Metrik für "Fortschritt im CI-Lauf" basierend auf HEAD-Bewegung
  * seit Run-Start (Anzahl der Commits zwischen base und HEAD).

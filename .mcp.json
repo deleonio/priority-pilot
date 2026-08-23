@@ -1,23 +1,14 @@
 {
 	"mcpServers": {
+		"kern-mcp": {
+			"command": "npx",
+			"args": ["-y", "@leonio/kern-ux-mcp"],
+			"directTools": false
+		},
 		"kolibri-mcp": {
 			"type": "http",
-			"url": "https://public-ui-kolibri-mcp.vercel.app/mcp"
-		},
-		"playwright": {
-			"command": "npx",
-			"args": [
-				"-y",
-				"@playwright/mcp@0.0.79",
-				"--headless",
-				"--isolated",
-				"--viewport-size",
-				"1280,900",
-				"--allowed-origins",
-				"http://localhost:4174;http://localhost:3001",
-				"--output-dir",
-				".playwright-mcp"
-			]
+			"url": "https://public-ui-kolibri-mcp.vercel.app/mcp",
+			"directTools": ["search", "fetch"]
 		}
 	}
 }

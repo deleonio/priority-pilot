@@ -1,13 +1,14 @@
 {
+	"alwaysThinkingEnabled": true,
+	"autocompact": "auto",
+	"autoCompactThreshold": 0.65,
 	"autoMemoryDirectory": ".claude/memory",
-	"enabledMcpjsonServers": ["kolibri-mcp", "playwright"],
+	"enabledMcpjsonServers": ["kern-mcp", "kolibri-mcp", "playwright"],
 	"env": {
 		"API_TIMEOUT_MS": "600000",
 		"BASH_MAX_OUTPUT_LENGTH": "20000",
-		"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1"
+		"CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+		"CLAUDE_CODE_DISABLE_UNKNOWN_MODEL_WINDOW_ENFORCEMENT": "1"
 	},
-	"model": "opus",
-	"permissions": {
-		"allow": ["Bash(node .claude/skills/impeccable/scripts/detect.mjs)"]
-	}
+	"model": "opus"
 }

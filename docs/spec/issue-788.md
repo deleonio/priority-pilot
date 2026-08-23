@@ -1,6 +1,7 @@
 # Issue 788: LLM-Einstellungsmenü optimieren
 
-**Stand:** 2026-08-17  
+**Stand:** 2026-08-23  
+**Version:** v1.1 (2026-08-23): Nightly-Sync — Szenario 5 an Ist-Stand angepasst: keine „key-status"-Live-Region mit „Key gesetzt"/„Key gelöscht"; Feedback erfolgt über allgemeine Speichern-Meldungen.  
 **Ziel:** Kompaktere Darstellung der LLM-Einstellungen mit verbesserter UX.
 
 ---
@@ -141,7 +142,6 @@ UI ist barrierefrei gemäß BITV-2.1-PS.
 
 ### Erwartetes Ergebnis
 
-- inputPassword mit aria-describedby="key-status" verknüpft
-- X-Button mit aria-label="API-Key löschen" auszeichnet
-- Status-Änderung ("Key gesetzt"/"Key gelöscht") als ARIA-Live-Region
+- X-Button mit aria-label="API-Key löschen" ausgezeichnet und mit Tab erreichbar / Enter/Space aktivierbar
+- Erfolgs-/Fehler-Feedback des Speicherns erfolgt als allgemeine Meldung (KolAlert „Gespeichert" bzw. „Speichern fehlgeschlagen")
 - Kontrastverhältnis 4.5:1 für X-Button (bei hover/focus)

@@ -127,6 +127,8 @@ jobs:
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
           llm-provider: ${{ vars.LLM_PROVIDER }}
           model: ${{ vars.CLAUDE_MODEL_TRIAGE || 'fable' }}
+          # Compaction: Triage nutzt Subagent-Fanout (haiku) für Reads — der Eltern-
+          # kontext bleibt klein. "auto" lässt Claude bei Bedarf kompaktieren.
           # Fan-out-Lesen läuft günstig: Nur die Schlussfolgerung kehrt in den
           # fable-Kontext zurück, nicht die gelesenen Dateien. Ohne diese Zeile
           # liefen Subagents ebenfalls auf fable und der Spareffekt kehrte sich um.

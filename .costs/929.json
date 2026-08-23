@@ -1,0 +1,14 @@
+[
+	{
+		"timestamp": "2026-08-21T04:31:24.050Z",
+		"tokensIn": 3601967,
+		"tokensOut": 13826,
+		"cost": 0,
+		"issueId": "929",
+		"phase": "analyse",
+		"model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+		"provider": "openrouter",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 3032640
+	}
+]

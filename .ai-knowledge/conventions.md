@@ -40,4 +40,11 @@
 - **KoliBri-Komponenten black-box testen:** Tests greifen nur über die öffentliche Schnittstelle auf KoliBri-Web-Components
   zu (Host-Locator, Rolle/Name/Interaktion) — kein Shadow-DOM-Piercing (`.shadowRoot`, interne Klassen wie
   `.kol-span__label`, `.kol-tooltip__floating`, `kolicon-*`). Der ESLint-Guard in `frontend/eslint.config.mjs`
-  erzwingt dies. Details: [docs/testing.md §4](../docs/testing.md#4-kolibri-komponenten-testen).
+  erzwingt dies. Details: [docs/testing.md §3](../docs/testing.md#3-kolibri-komponenten-testen).
+- **KoliBri-A11y wird vertraut, nicht getestet (#929):** Barrierefreiheit ist Kernkompetenz der KoliBri-Components
+  (BITV/WCAG-geprüfte Semantik, Fokus-Optik, Tastaturbedienung inkl. Roving Tabindex in `kol-toolbar`).
+  ARIA-Attribute, Focus-Styles o. Ä. von KoliBri-gerenderten Elementen sind deshalb **kein Testgegenstand** —
+  eigene Tests klagen nur den Kompositions-Vertrag der App ein: Element existiert und ist erreichbar
+  (Tab/Pfeiltasten), Accessible Name, Position im Layout, Touch-Target-Größe. Nachgerüstete ARIA-Attribute
+  an KoliBri-Items verwirft die Bibliothek still (beobachtet #929: `_aria: { role: 'combobox' }` an einem
+  Toolbar-Item) — Semantik kommt aus der Komponente, nicht aus dem Item.

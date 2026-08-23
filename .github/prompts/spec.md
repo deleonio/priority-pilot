@@ -2,9 +2,17 @@ FOKUS: NUR Issue #ISSUE_NR. NUR rote Tests je Akzeptanzkriterium (mit Dedup), ke
 
 ⚠️ KI-UX-Block: Falls das Issue UX-Aspekte hat (KI-UX:END-Block im Issue-Body vorhanden), UX-Anforderungen aus diesem Block bei der Spec-Ableitung beachten.
 
+#RESUME_HINT
+
 ABLAUF (STRIKT):
   1. SOFORT starten.
-  2. Branch anlegen: git switch -c feat/issue-ISSUE_NR-<kurzname>.
+  2. #RESUME_HINT prüfen:
+     - Falls gesetzt (Draft-Wiederverwendung): BESTEHENDEN Branch auschecken
+       (git fetch origin && git switch $DRAFT_BRANCH). NICHT neuen Branch anlegen.
+       Bestehende Commits/Tests ansehen (git log, gh pr view), Stand verstehen.
+       Weiterarbeiten auf bestehendem Stand — NICHT alles neu schreiben.
+     - Falls NICHT gesetzt (Neu-Lauf): Neuen Branch anlegen:
+       git switch -c feat/issue-ISSUE_NR-<kurzname>.
      Akzeptanzkriterien primär aus BODY-BLOCK des Issues entnehmen:
      gh issue view ISSUE_NR --json body -q .body (Abschnitt zwischen <!-- KI-ANALYSE:START --> und <!-- KI-ANALYSE:END -->).
   3. SPEC-UPDATE (zuerst! SPEC-FIRST – spezifikation.*vor.*test – Spezifikation aktualisieren VOR Test-Ableitung):
@@ -16,6 +24,7 @@ ABLAUF (STRIKT):
      Bei UI-Tickets: geplante KoliBri-Komponenten (Custom-Element + Properties) via KoliBri-MCP verifizieren, damit Tests die richtigen Elemente adressieren.
      TEST-QUALITÄT (Test-Konzept — KEINE dogmatische Coverage): ein Test gehört in den PR NUR, wenn er mind. EINES leistet — (a) Auswertung: rechnet etwas aus, das nicht wörtlich in der Quelle steht; (b) Spiegel: sichert Konsistenz zwischen Dateien, Sollwert aus der führenden Quelle gelesen (nie als Literal in den Test geschrieben); (c) Schutz: vor stillen/teuren Ausfällen (Datenverlust, Secret-Leak, Endlosschleife, still übersprungene Suite). KEIN Test der Form „Datei enthält den String, den ich geschrieben habe" (Change-Detector — findet per Konstruktion keinen Fehler). KEIN Test für Fehler, die beim nächsten Lauf ohnehin laut krachen. Lieber 3 Tests mit Biss als 12 Statistik-Füller.
      NICHT-ANWENDUNGSCODE-CARVE-OUT: Tests sind NUR für Anwendungscode (server/src/**, frontend/src/**, frontend/e2e/**). KEINE Tests für .github/workflows, .github/scripts, setup-claude-Composite-Actions, CI-Plumbing (ci.yml/deploy.yml), Config-Dateien (yml/json/toml) ODER Markdown-Inhalt (jede .md-Datei, egal wo — nicht nur unter docs/; auch KEIN Test, der den Spec .github/prompts/*.md oder docs/spec/*.md selbst prüft). String/YAML/Config-Match auf diese Dateien ist ein reiner Change-Detector („die Datei enthält den String, den ich hineingeschrieben habe") und fängt per Konstruktion keinen Fehler — siehe ADR 0001. Stattdessen im PR-Body die Akzeptanzkriterien durchgehen und je AC belegen (Zitat/Link), dass es erfüllt ist; der Review prüft die AC-Erfüllung im Text.
+     SPEC-PHASE-ARTEFAKTE: Der Spec-PR (3/6) darf NUR docs/spec/*.md und rote Tests enthalten — KEINE Implementierung (weder Produktivcode noch CSS noch Config). Implementation ist Phase 4. Jede App-Code-Änderung (frontend/src/**, server/src/**, auch CSS!) gehört in den IMPLEMENTIERUNGS-PR, nicht in den Spec-PR. Falls während der Spec-Phase App-Code/Änderungen nötig sind (z.B. CSS für Story-Backing), im WORKSPACE-Kommentar notieren — Phase 4 nimmt diese Anforderung auf.
      VORAB Dedup: Prüfe per grep, ob ein AK bereits durch bestehenden Test abgedeckt ist.
        - Schon abgedeckt → NICHT duplizieren.
        - Widerspricht AK einem bestehenden Test → alten Test ENTFERNEN und im PR-Body im Abschnitt "Test-Pflege-Bedarf" dokumentieren (Datei:Zeile + Begründung).

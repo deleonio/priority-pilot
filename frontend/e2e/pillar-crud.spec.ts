@@ -1,5 +1,6 @@
 import { expect, test, type Page } from './fixtures';
 import { waitForStableView } from './helpers';
+import { TITLE_MAX_LENGTH } from '../src/lib/titleLengthValidation.ts';
 
 /**
  * E2E-Spec-Tests für #439 „Säulen-Verwaltungs-UI im Einstellungen-Tab (anlegen/bearbeiten/löschen)".
@@ -13,9 +14,16 @@ import { waitForStableView } from './helpers';
  */
 test.describe('#439 Säulen-Verwaltung — CRUD im Einstellungen-Tab', () => {
 	// Eindeutige Namen je Test, damit Assertions ausschließlich auf selbst angelegte Daten zielen
-	// und parallele/aufeinanderfolgende Läufe sich nicht stören.
+	// und parallele/aufeinanderfolgende Läufe sich nicht stören. Maximal TITLE_MAX_LENGTH Zeichen:
+	// Das Säulen-Formular kappt den Namen per nativem `maxlength` (#935) — auch bei Playwright
+	// `fill()` —, längere Namen würden still gekappt und Assertions auf den vollen Namen scheitern.
+	// Muster: `delete-dialog-focus.spec.ts` (uniqueTitle).
 	let runId = 0;
-	const uniqueName = (label: string): string => `E2E-Pillar-${label}-#${(runId += 1)}-${Date.now()}`;
+	const uniqueName = (label: string): string => {
+		const tail = `#${(runId += 1)}`;
+		const head = `E2E-Pillar-${label}`.slice(0, TITLE_MAX_LENGTH - tail.length);
+		return `${head}${tail}`;
+	};
 
 	/** Löscht alle Säulen (außer den Default-Säulen) über die echte API. */
 	const deleteAllPillars = async (page: Page): Promise<void> => {

@@ -1,0 +1,126 @@
+name: Kosten-Baseline
+
+# Sammelt die Kosten-Artefakte EINES Tickets ein und schreibt sie als eine Tabelle in die
+# Job-Summary.
+#
+# WARUM ES DIESEN WORKFLOW BRAUCHT: `.github/actions/record-cost` schreibt bewusst NICHT nach
+# `.costs/` im Repo — sechs Phasen × parallele Tickets, die alle auf denselben Ordner
+# committen, erzeugen Konflikte auf main. Jeder Phasen-Lauf lädt seinen Datensatz stattdessen
+# als eigenes Artefakt hoch. Die Zahlen sind damit vollständig, aber über N Artefakte
+# verstreut, und die Job-Summary eines Laufs zeigt nur ihre eigene Phase. Für die Baseline aus
+# ADR-0004 („erst messen, dann umbauen") braucht es die Zusammenschau — genau die liefert
+# dieser Lauf, ohne den Default-Branch anzufassen. Der Kopf von record-cost verweist auf
+# diesen Weg („wer dauerhaft sammeln will, aggregiert die Artefakte bewusst in einem eigenen
+# Lauf").
+#
+# WARUM ÜBER DIE API STATT `actions/download-artifact`: Diese Action lädt nur Artefakte des
+# EIGENEN Laufs. Die Kosten-Artefakte liegen aber in den Phasen-Läufen, also repository-weit —
+# dafür gibt es keinen Action-Weg, nur die Artefakt-API.
+#
+# NUR MANUELL: Es gibt keinen sinnvollen automatischen Auslöser. Ein Ticket ist erst nach dem
+# Merge fertig gemessen, und wann jemand die Zahlen braucht, weiss nur der Mensch. Ein
+# schedule würde bloss Läufe verbrennen.
+#
+# NUR LESEND: Der Workflow schreibt nichts nach GitHub — kein Label, kein Kommentar, kein
+# Commit. Deshalb genügt das GITHUB_TOKEN mit `actions: read`; ein App-Token ist nicht nötig
+# (und wäre hier zusätzliche Angriffsfläche ohne Gegenwert).
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: 'Ticket-Nummer, deren Kosten zusammengefasst werden sollen (z. B. 912)'
+        required: true
+        type: string
+
+concurrency:
+  group: cost-baseline-${{ github.event.inputs.issue }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read # Skript auschecken
+  actions: read # Artefakte der Phasen-Läufe lesen
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Ticket-Nummer prüfen
+        id: input
+        env:
+          ISSUE: ${{ github.event.inputs.issue }}
+        run: |
+          set -euo pipefail
+          # Der Wert fliesst in einen Artefaktnamen-Filter und in Dateipfade. Auf Ziffern
+          # begrenzen, damit weder Filter noch Pfad manipulierbar sind.
+          if ! printf '%s' "$ISSUE" | grep -Eq '^[0-9]+$'; then
+            echo "::error title=Ungültige Ticket-Nummer::'${ISSUE}' ist keine reine Zahl."
+            exit 1
+          fi
+          echo "issue=${ISSUE}" >> "$GITHUB_OUTPUT"
+
+      - name: Kosten-Artefakte des Tickets holen
+        id: fetch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ISSUE: ${{ steps.input.outputs.issue }}
+        run: |
+          set -uo pipefail
+          mkdir -p /tmp/costs
+
+          # Alle nicht-abgelaufenen Artefakte durchblättern und auf das Ticket filtern.
+          # `--paginate` holt ALLE Seiten; ohne das fehlten bei einem aktiven Repo genau die
+          # älteren Phasen (Analyse zuerst!) und die Baseline wäre still unvollständig.
+          #
+          # Der Filter verlangt `-issue-<n>-` mit beiden Bindestrichen: ein blosses
+          # `contains("912")` träfe auch Ticket 9120 und 1912 und mischte fremde Läufe unter.
+          LIST="$(gh api --paginate "repos/${REPO}/actions/artifacts?per_page=100" \
+            --jq ".artifacts[] | select(.expired == false) \
+                  | select(.name | startswith(\"claude-costs-\") and contains(\"-issue-${ISSUE}-\")) \
+                  | [.id, .name] | @tsv" 2>/dev/null || true)"
+
+          if [ -z "$LIST" ]; then
+            # Kein Fehler, sondern eine AUSSAGE über das Ticket: nie gemessen, oder die
+            # Artefakte sind älter als ihre 90 Tage. Der Bericht sagt das gleich im Klartext;
+            # ein roter Job würde nur verschleiern, dass die Frage beantwortet ist.
+            echo "::notice title=Keine Artefakte::Für Ticket #${ISSUE} wurden keine Kosten-Artefakte gefunden."
+            exit 0
+          fi
+
+          count=0
+          failed=0
+          while IFS="$(printf '\t')" read -r id name; do
+            [ -n "$id" ] || continue
+            # Jedes Artefakt in einen EIGENEN Ordner: alle enthalten eine Datei desselben
+            # Namens (`<issue>.json`). Flach entpackt überschrieben sie einander und übrig
+            # bliebe genau eine Phase.
+            dest="/tmp/costs/${name}"
+            mkdir -p "$dest"
+            if gh api "repos/${REPO}/actions/artifacts/${id}/zip" > "/tmp/${id}.zip" 2>/dev/null \
+               && unzip -o -q "/tmp/${id}.zip" -d "$dest" 2>/dev/null; then
+              count=$((count + 1))
+            else
+              failed=$((failed + 1))
+              echo "::warning title=Artefakt nicht ladbar::${name} (id ${id}) übersprungen — die Summen sind untererfasst."
+            fi
+            rm -f "/tmp/${id}.zip"
+          done <<< "$LIST"
+
+          echo "::notice title=Artefakte geladen::${count} Kosten-Artefakt(e) für Ticket #${ISSUE} (${failed} übersprungen)."
+
+      - name: Bericht bauen
+        env:
+          ISSUE: ${{ steps.input.outputs.issue }}
+        run: |
+          set -uo pipefail
+          # Bewusst `node` statt `pnpm exec tsx`: Dieser Job richtet kein pnpm ein, und das
+          # Skript nutzt ausschliesslich löschbare TypeScript-Syntax (gleiche Begründung wie
+          # in record-cost).
+          node .github/scripts/cost-aggregate.ts --issue "$ISSUE" --dir /tmp/costs \
+            | tee -a "$GITHUB_STEP_SUMMARY"
