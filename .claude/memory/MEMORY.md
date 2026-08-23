@@ -74,3 +74,8 @@ Konflikte, die er verhindern soll.
   im Schema dieses Endpoints NICHT (`Field doesn't exist on type "Mutation"`); Introspektion ergab
   `resolveReviewThread(input:{threadId})`. Außerdem `body` als `$b:String!` deklarieren und der
   Reply-Payload hat kein `thread`-Feld — `comment{databaseId}` selektieren.
+- 2026-08-23 · Workflows/YAML — mehrzeilige String-Literale in `run:`-Blöcken mit
+  fortsetzenden Zeilen ab Spalte 0 (z. B. zugewiesener Markdown-Block) brechen den YAML-
+  Block-Skalar (Parser: "expected <block end>"). → Solche Blöcke per `printf '%s\n%s' "…" "…"`
+  bauen (jede Zeile eingerückt) und danach `python3 -c "yaml.safe_load(...)"` + `bash -n` auf
+  den extrahierten Step als Guard laufen lassen.

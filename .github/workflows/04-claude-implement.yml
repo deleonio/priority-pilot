@@ -780,6 +780,11 @@ jobs:
           # Verdict, HEAD-Fortschritt nicht aussagekraeftig (evtl. mittendrin abgebrochen).
           # Terminal ai:needs-human + Kommentar, KEINE Re-Armierung: ein wiederholt abstuerzender
           # Claude wuerde sonst eine Re-Arm-Schleife erzeugen. Review macht analog den Safe-Default.
+          # AUSNAHME seit #960: Ein als TRANSIENT klassifizierter Crash (API 500/429/402,
+          # 1313 Fair Usage, Network error) wird GENAU EINMAL automatisch re-armt — der
+          # Mensch bekam vorher eine Checkliste, deren einziger Schritt genau das war.
+          # Exactly-once-Sicherung: Marker-Kommentar <!-- ai-transient-rearm -->; klebt er
+          # als letzter Kommentar (zweiter transienter Crash in Folge), wird geparkt.
           if [ "$OUTCOME" != "success" ]; then
             # Erklärungs-Gate: Erst der Kommentar mit echten Fakten (Run-Link,
             # HEADs, Log-Auszug — die Crash-Ursache steht im Log, z.B. 402
@@ -787,6 +792,46 @@ jobs:
             # erklärte den Mechanismus statt die Ursache und wurde bei Re-Runs
             # wortidentisch doppelt gepostet (#870).
             RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            DETECT="$(bash .github/scripts/transient-api-error.sh detect --log /tmp/claude-output.log)"
+            T_IS="$(printf '%s\n' "$DETECT" | sed -n 's/^transient=//p')"
+            T_CAUSE="$(printf '%s\n' "$DETECT" | sed -n 's/^cause=//p')"
+            REPEAT_BLOCK=""
+            if [ "$T_IS" = "true" ]; then
+              MARK="$(bash .github/scripts/transient-api-error.sh marker --repo "$GITHUB_REPOSITORY" --pr "$PR")"
+              M_STATE="$(printf '%s\n' "$MARK" | sed -n 's/^marker=//p')"
+              M_PREV_RUN="$(printf '%s\n' "$MARK" | sed -n 's/^prev_run=//p')"
+              M_PREV_CAUSE="$(printf '%s\n' "$MARK" | sed -n 's/^prev_cause=//p')"
+              if [ "$M_STATE" != "present" ]; then
+                # Re-Arm (1/1): Marker-Kommentar mit Ursache + Neustart-Hinweis, DANN
+                # ai:needs-fixup setzen (nicht remove+add) — das Setzen loest
+                # pull_request[labeled] -> precheck -> Fixup erneut aus; die
+                # Concurrency-Gruppe claude-implement serialisiert beide Laeufe.
+                # Der HTML-Kommentar-Marker ist in der PR-Ansicht unsichtbar (Maschinen-
+                # Marker); die menschenlesbare Aussage steht im Text darueber.
+                {
+                  printf '%s\n\n' "<!-- ai-transient-rearm -->"
+                  printf '%s\n\n' "🔁 **Fixup #${PR}: transienter Crash — automatisch 1× neu gestartet**"
+                  printf '%s\n\n' "**Ursache:** \`${T_CAUSE}\`"
+                  printf '%s\n\n' "Gestoppter Lauf: ${RUN_URL} — der Fixup wurde über \`ai:needs-fixup\` automatisch 1× neu gestartet. Tritt derselbe transiente Fehler erneut auf, parkt das Ticket beim Menschen (kein zweiter Neustart)."
+                } > /tmp/transient-rearm-body.md
+                bash .github/scripts/needs-human-explain.sh post --repo "$GITHUB_REPOSITORY" --pr "$PR" --body-file /tmp/transient-rearm-body.md
+                rc=0
+                apply_transition "ai:needs-fixup" || rc=$?
+                if [ "$rc" -eq 2 ]; then
+                  echo "stuck=true" >> "$GITHUB_OUTPUT"; echo "stuck_reason=superseded" >> "$GITHUB_OUTPUT"; exit 0
+                fi
+                if [ "$rc" -eq 1 ]; then exit 1; fi
+                echo "::notice::Transienter Crash (${T_CAUSE}) -> ai:needs-fixup (automatisch 1× neu gestartet)."
+                exit 0
+              fi
+              # Marker klebt bereits: zweiter transienter Crash in Folge -> parken, und der
+              # Park-Kommentar nennt BEIDE Laeufe und Ursachen (s.u. REPEAT_BLOCK).
+              REPEAT_BLOCK="$(printf '%s\n%s\n%s\n\n%s' \
+                "🔁 **Erneut transienter Crash nach automatischem Neustart — beim Menschen geparkt**" \
+                "- Re-Arm-Lauf (gestoppt): ${M_PREV_RUN:-(Run-Link nicht extrahierbar)} — Ursache: \`${M_PREV_CAUSE:-unbekannt}\`" \
+                "- Dieser Lauf (gestoppt): ${RUN_URL} — Ursache: \`${T_CAUSE}\`" \
+                "Zwei transiente Crashes hintereinander sind kein Zufall mehr — kein zweiter automatischer Neustart.")"
+            fi
             {
               printf '%s\n\n' "🛑 **Fixup #${PR}: Claude-Schritt \`${OUTCOME}\` (Crash)**"
               printf '%s\n\n' "**Warum:** Kein Verdict, HEAD-Fortschritt nach Absturz/Abbruch nicht vertrauenswuerdig — die KI kann hier nicht alleine weiterarbeiten."
@@ -796,6 +841,9 @@ jobs:
               bash .github/scripts/needs-human-explain.sh logtail
               printf '%s\n' '```'
               printf '%s\n\n' "</details>"
+              # Wiederholter transienter Crash: BEIDE Laeufe/Ursachen nennen (#960) —
+              # nur der aktuelle Lauf zu zeigen wuerde den automatischen Neustart verstecken.
+              [ -n "$REPEAT_BLOCK" ] && printf '%s\n\n' "$REPEAT_BLOCK"
               printf '%s\n' "**Was du als Mensch beitragen/entscheiden solltest:**"
               printf '%s\n' "- [ ] 1. Crash-Ursache im Log-Auszug pruefen: transienter API-Fehler (\`ai:needs-fixup\` neu setzen) oder echter Blocker?"
               printf '%s\n' "- [ ] 2. Bei transientem Fehler: \`ai:needs-fixup\` setzen → loest Fixup neu aus"
