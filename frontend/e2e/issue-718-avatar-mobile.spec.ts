@@ -53,8 +53,9 @@ test.describe('#718 Avatar auf Mobile wiederherstellen', () => {
 
 	/**
 	 * AK1 — Avatar ist auf Mobile (< 48rem / 768px) sichtbar.
-	 * Rot wäre er, wenn `app.css` den Avatar unter 48rem ausblendete — mobil misst er 44px
-	 * (`--pp-avatar-size` = `--pp-toolbar-height`), Details siehe AK6 in `header-appearance.spec.ts`.
+	 * Rot wäre er, wenn `app.css` den Avatar unter 48rem ausblendete — mobil misst er seit #965
+	 * 2rem (32px), ab 48rem 1,25 × Toolbar-Höhe (`--pp-avatar-size`), Details siehe AK6 in
+	 * `header-appearance.spec.ts` und app.css/#965.
 	 */
 	test('AK1: Avatar ist auf Mobile (< 48rem) sichtbar', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });

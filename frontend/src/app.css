@@ -196,9 +196,11 @@ body {
 }
 
 /*
- * Mobile-First: Die Basis-Ränder gelten für den schmalsten Viewport (Referenz 375px) — 1rem statt
- * der früheren 1.5rem gibt 32px Inhaltsbreite zurück, die dort spürbar fehlen. Die großzügigeren
- * Desktop-Werte kommen per Aufwärts-Kaskade ab 48rem zurück (siehe unten), nicht per max-width-Abzug.
+ * Mobile-First: Die Basis-Ränder gelten für den schmalsten Viewport (Referenz 375px) — 0.75rem statt
+ * der früheren 1rem gibt weitere 8px Inhaltsbreite zurück, die #965 braucht: Die sechs icon-only
+ * Kopf-Aktionen (6 × 44px Touch-Target) plus Logo und Avatar passen sonst nicht in die 375px-Zeile.
+ * Die großzügigeren Desktop-Werte kommen per Aufwärts-Kaskade ab 48rem zurück (siehe unten), nicht
+ * per max-width-Abzug.
  *
  * Safe-Area (installierte PWA, `display: standalone`): Die `env(safe-area-inset-*)`-Werte greifen nur
  * zusammen mit `viewport-fit=cover` im Viewport-Meta (index.html). Im normalen Browser-Tab sind sie 0,
@@ -209,9 +211,9 @@ body {
 	max-width: 80rem;
 	margin: 0 auto;
 	padding-top: calc(1rem + env(safe-area-inset-top));
-	padding-right: max(1rem, env(safe-area-inset-right));
+	padding-right: max(0.75rem, env(safe-area-inset-right));
 	padding-bottom: calc(3rem + env(safe-area-inset-bottom));
-	padding-left: max(1rem, env(safe-area-inset-left));
+	padding-left: max(0.75rem, env(safe-area-inset-left));
 }
 
 @media (min-width: 48rem) {
@@ -232,10 +234,12 @@ body {
 	 */
 	--pp-toolbar-height: 2.75rem;
 	/*
-	 * Mobile-First: Auf schmalen Viewports liegt der Avatar (bzw. das Logo, das sich an ihm bemisst)
-	 * exakt auf Toolbar-Höhe — der 1,25-Faktor aus #485 würde den Header hier unnötig hoch machen.
-	 * Ab 48rem gilt wieder die gewohnte Relation (siehe Media-Query unten). Die 2.75rem/44px selbst
-	 * bleiben unangetastet: sie sind das WCAG-2.5.5-Minimum, nicht Deko.
+	 * Mobile-First: Auf schmalen Viewports bemisst sich das Logo (als einziges Element) exakt auf
+	 * Toolbar-Höhe — der 1,25-Faktor aus #485 würde den Header hier unnötig hoch machen. Der Avatar
+	 * selbst ist seit #965 mobil auf 2rem verkleinert (siehe Regel unten), um die sechste icon-only
+	 * Kopf-Aktion in die 375px-Zeile zu bekommen. Ab 48rem gilt wieder die gewohnte Relation (siehe
+	 * Media-Query unten). Die 2.75rem/44px selbst bleiben unangetastet: sie sind das WCAG-2.5.5-
+	 * Minimum, nicht Deko.
 	 */
 	--pp-avatar-size: var(--pp-toolbar-height);
 
@@ -248,7 +252,9 @@ body {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: var(--pp-gap-tight);
+	/* #965: Mobil 0.25rem statt --pp-gap-tight (0.5rem) — mit der sechsten icon-only Kopf-Aktion
+	 * zählt jedes Pixel der 375px-Zeile; ab 48rem gilt wieder der Base-Abstand. */
+	gap: 0.25rem;
 }
 
 @media (min-width: 48rem) {
@@ -267,8 +273,8 @@ body {
  * Der Avatar steht seit #912 am rechten Rand (nach der Toolbar).
  *
  * Erst ab 64rem sichtbar: Der Header muss auf 375px UND 768px einzeilig bleiben (#485 AK6,
- * #718 AK4/AK5, mobile-shell). Bis 64rem ist der Platz für Logo, Identität, Modell-Auswahl und die
- * fünf Kopf-Aktionen bereits ausgereizt — der Name ist von allen Elementen das einzige rein
+ * #718 AK4/AK5, mobile-shell). Bis 64rem ist der Platz für Logo, Identität und die sechs
+ * icon-only Kopf-Aktionen bereits ausgereizt — der Name ist von allen Elementen das einzige rein
  * dekorative und weicht daher zuerst.
  */
 .app-name {
@@ -348,8 +354,12 @@ body {
 }
 
 /*
- * AK2 (#222) / AK3 (#485): Avatar harmonisch zur Toolbar — exakt das 1,25-Fache der
+ * AK2 (#222) / AK3 (#485): Avatar harmonisch zur Toolbar — ab 48rem exakt das 1,25-Fache der
  * Toolbar-Button-Höhe. Über `--pp-toolbar-height` bleibt das Verhältnis bei Änderungen erhalten.
+ *
+ * #965: Mobil (Basis) weicht der Avatar auf 2rem ab — er ist nicht interaktiv (kein Touch-Target-
+ * Minimum) und ist das einzige Element der Kopf-Zeile, das Platz hergeben kann, damit Logo, die
+ * sechs icon-only Kopf-Aktionen und der Avatar bei 375px einzeilig bleiben (mobile-shell, ≤ 64px).
  */
 .app-header kol-avatar {
 	/*
@@ -360,9 +370,16 @@ body {
 	 * `:host` geerbt: die von AK3 gemessene Höhe soll nicht an einem undokumentierten
 	 * Component-Internum hängen, das eine künftige KoliBri-Version wegfallen lassen kann.
 	 */
-	width: var(--pp-avatar-size);
-	height: var(--pp-avatar-size);
+	width: 2rem;
+	height: 2rem;
 	aspect-ratio: 1;
+}
+
+@media (min-width: 48rem) {
+	.app-header kol-avatar {
+		width: var(--pp-avatar-size);
+		height: var(--pp-avatar-size);
+	}
 }
 
 .loading {

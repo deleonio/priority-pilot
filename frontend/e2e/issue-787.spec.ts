@@ -8,15 +8,13 @@ import { waitForStableView } from './helpers';
  * `waitForStableView` garantiert nur, dass die Custom-Elements registriert sind — `kol-toolbar`
  * baut ihre Buttons danach noch im eigenen Shadow-DOM auf und misst in diesem Fenster 0×0 px.
  * Wer davor misst, misst den Pre-Layout-Zustand (Header einzeilig) und vergleicht ihn später mit
- * dem echten Layout: ein Test-Artefakt, kein Layout-Shift der Anwendung. Ebenso zeigt der
- * Modell-Button bis zur Antwort von `GET /llm-config` „Laden…" und ändert danach seine Breite.
+ * dem echten Layout: ein Test-Artefakt, kein Layout-Shift der Anwendung. Der Button-Name ist seit
+ * #965 statisch (icon-only) — ein Config-abhängiges Abwarten entfällt.
  * Gewartet wird über die öffentliche Schnittstelle (Rolle/Name) — kein Shadow-DOM-Piercing.
  */
 const waitForSettledHeader = async (page: Page): Promise<void> => {
 	await waitForStableView(page);
-	const modelButton = page.getByRole('button', { name: /KI-Modell:/i });
-	await expect(modelButton).toBeVisible();
-	await expect(modelButton).not.toHaveText(/Laden/);
+	await expect(page.getByRole('button', { name: 'KI-Modell auswählen' })).toBeVisible();
 };
 
 /**
@@ -41,18 +39,18 @@ const mockFreeModels = async (page: Page): Promise<void> => {
 };
 
 /**
- * Einstieg in die Modell-Auswahl (#787 Journey 2/3): Der Toolbar-Button (Accessible Name
- * „KI-Modell: …") öffnet denselben `ModelSelectionDialog`, den früher der Dashboard-Button aus
- * #742 öffnete — jener wurde mit 8a7d182 bewusst entfernt.
+ * Einstieg in die Modell-Auswahl (#787 Journey 2/3): Der Toolbar-Button (seit #965 icon-only mit
+ * statischem Accessible Name „KI-Modell auswählen") öffnet denselben `ModelSelectionDialog`, den
+ * früher der Dashboard-Button aus #742 öffnete — jener wurde mit 8a7d182 bewusst entfernt.
  *
  * Menschen-Entscheidung zu #929: Der frühere role="combobox"-Vertrag (aria-haspopup,
  * aria-expanded, Chevron) ist aufgehoben — `kol-toolbar` verwirft ARIA-Attribute an Items still,
  * und KoliBri liefert die vollständige Button-Semantik im Shadow-DOM selbst. Getestet wird der
- * native Button (Rolle, Name, Klick/Escape), keine hinzgefakten Combobox-Attribute. Unter 48rem
- * wird der Button gar nicht gerendert (matchMedia, App.tsx); ein mobiler Einstieg existiert
- * seither nicht (siehe AK2 Responsive).
+ * native Button (Rolle, Name, Klick/Escape), keine hinzgefakten Combobox-Attribute. Seit #965
+ * wird der Button auf allen Breiten gerendert (Mobile-Ausblendung rückgebaut, siehe AK2
+ * Responsive).
  */
-const modelSelectionEntryPoint = (page: Page): Locator => page.getByRole('button', { name: /KI-Modell:/i });
+const modelSelectionEntryPoint = (page: Page): Locator => page.getByRole('button', { name: 'KI-Modell auswählen' });
 
 /** Öffnet die Modell-Auswahl über den Toolbar-Button und wartet auf den geöffneten Dialog. */
 const openModelSelection = async (page: Page): Promise<void> => {
@@ -147,29 +145,12 @@ test.describe('#787 Header-Layout und KI-Modell-Auswahl in Toolbar', () => {
 			'KI-Modell-Auswahl muss auf derselben Höhe wie die Toolbar-Buttons ausgerichtet sein',
 		).toBeLessThanOrEqual(2);
 
-		// Das Label muss das *tatsächlich konfigurierte* Modell benennen. Referenz ist die API, nicht
-		// eine hartcodierte Anbieter-Liste: Das Modell ist frei konfigurierbar (`PUT /llm-config`,
-		// Default `openrouter/free`), ein Test gegen feste Namen wie „Sonnet" prüfte die Konfiguration
-		// der Testumgebung statt des Verhaltens der Anwendung.
-		const configuredModel = await page.request
-			.get('/api/v1/llm-config')
-			.then((response) => response.json())
-			.then((config: { openrouterModel: string }) => config.openrouterModel);
-
-		const modelLabel = await modelButton.evaluate((el) => (el as HTMLElement).textContent?.trim() ?? '');
-
-		expect(modelLabel, 'Label darf nicht im Ladezustand stehen bleiben').not.toMatch(/Laden/i);
-		// Der sichtbare Klartext trägt den Präfix „KI-Modell: “ — geprüft wird der Modellantail daraus.
-		const modelPart = modelLabel.replace(/^KI-Modell:\s*/i, '');
-		expect(
-			configuredModel.toLowerCase(),
-			`Label „${modelLabel}" muss aus dem konfigurierten Modell „${configuredModel}" ableitbar sein`,
-		).toContain(modelPart.toLowerCase());
-		// Ein Label wie „free" benennt nur die Preisklasse — es muss das Modell identifizieren.
-		expect(
-			['free', 'chat', 'instruct', 'preview', 'latest', 'beta'],
-			`Label "${modelLabel}" ist nichtssagend und identifiziert kein Modell`,
-		).not.toContain(modelPart.toLowerCase());
+		// Test-Pflege (#965, AK1/AK2): Bis #965 benannte das sichtbare Klartext-Label das konfigurierte
+		// Modell (Referenz API). Der Button ist seit #965 icon-only mit statischem Namen — der
+		// Modellname darf im Button NICHT mehr auftauchen; wo er steht, prüft issue-965.spec.ts AK1
+		// (Spiegel gegen `GET /llm-config`). Hier nur noch der Negativ-Vertrag ohne API-Abhängigkeit:
+		const buttonName = await modelButton.evaluate((el) => el.getAttribute('aria-label') ?? el.textContent ?? '');
+		expect(buttonName, 'Button darf kein „KI-Modell:“-Klartext-Präfix mehr tragen').not.toMatch(/KI-Modell\s*:|Laden/i);
 	});
 
 	/**
@@ -287,24 +268,24 @@ test.describe('#787 Header-Layout und KI-Modell-Auswahl in Toolbar', () => {
 
 	/**
 	 * Journey 3: Responsive Verhalten
-	 * Spec-Bezug: docs/spec/issue-787.md Journey 3
-	 * AK2: Touch-Ziel der KI-Modell-Auswahl ≥44px (WCAG 2.5.5) ab 48rem — mobil kein Einstieg
+	 * Spec-Bezug: docs/spec/issue-787.md Journey 3, überschrieben durch docs/spec/issue-965.md AK3
+	 * AK2: Touch-Ziel der KI-Modell-Auswahl ≥44px (WCAG 2.5.5) — seit #965 auch mobil der Einstieg
 	 */
-	test('AK2 (Responsive): KI-Modell-Auswahl Touch-Target ≥44px (WCAG 2.5.5) ab 48rem; mobil kein Einstieg', async ({
+	test('AK2 (Responsive): KI-Modell-Auswahl Touch-Target ≥44px (WCAG 2.5.5) ab 48rem und mobil sichtbar', async ({
 		page,
 	}) => {
-		// Unter 48rem wird die Modell-Auswahl gar nicht gerendert (matchMedia in App.tsx), damit der
-		// Header einzeilig bleibt. Der frühere Mobile-Ausweg — der Dashboard-Einstieg aus #742 mit
-		// 48×48px — ist mit 8a7d182 bewusst entfernt worden: Unter 48rem existiert kein Einstieg
-		// mehr (bekannte Lücke, dokumentiert in der Spec-Abgrenzung).
+		// Test-Pflege (#965, AK3): Bis #929/#787 wurde der Button unter 48rem gar nicht gerendert
+		// (`toHaveCount(0)`), damit der Mobile-Header einzeilig blieb. #965 hebt die Ausblendung
+		// auf (icon-only ist kompakt genug; Platzfragen löst app.css, nicht Ausblenden). Der
+		// Header-Höhen-Vertrag bei 375px trägt mobile-shell.spec.ts (≤ 64px).
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.goto('/');
 		await waitForStableView(page);
 
 		await expect(
 			modelSelectionEntryPoint(page),
-			'Unter 48rem darf die KI-Modell-Auswahl den Header nicht umbrechen — sie wird nicht gerendert',
-		).toHaveCount(0);
+			'Bei 375px muss die KI-Modell-Auswahl gerendert werden (#965 AK3)',
+		).toBeVisible();
 
 		// Ab 48rem ist der Toolbar-Button das Touch-Ziel. Er misst 44px über die gemeinsame
 		// Toolbar-Einheit (`--pp-toolbar-height`/`--a11y-min-size`) und erfüllt WCAG 2.5.5. Die
@@ -383,11 +364,13 @@ test.describe('#787 Header-Layout und KI-Modell-Auswahl in Toolbar', () => {
 			'Nach dem Logo muss der Fokus auf dem ersten Toolbar-Button landen',
 		).toBeFocused();
 
-		// Pfeiltaste navigiert im Roving-Verbund zum KI-Modell-Button — und Enter öffnet den Dialog.
+		// Pfeiltasten navigieren im Roving-Verbund zum KI-Modell-Button — seit #965 (AK4) an 3. Stelle,
+		// nach „Neuen Task anlegen“ und „Säulen-Berater“ — und Enter öffnet den Dialog.
+		await page.keyboard.press('ArrowRight');
 		await page.keyboard.press('ArrowRight');
 		await expect(
 			modelSelectionEntryPoint(page),
-			'Pfeiltaste muss den Fokus auf die KI-Modell-Auswahl bewegen',
+			'Pfeiltasten müssen den Fokus auf die KI-Modell-Auswahl (Position 3, #965) bewegen',
 		).toBeFocused();
 		await page.keyboard.press('Enter');
 		await expect(page.getByRole('dialog', { name: /KI-Modell auswählen/i })).toBeVisible();
