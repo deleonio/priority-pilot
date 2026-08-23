@@ -17,7 +17,7 @@ import { waitForStableView } from './helpers';
  *
  * Viewport 375×812 nach Mobile-First-Konvention (.ai-knowledge/conventions.md).
  *
- * Pattern: docs/e2e-a11y-pattern.md — AxeBuilder mit KoliBri Shadow DOM
+ * Pattern: public/docs/e2e-a11y-pattern.md — AxeBuilder mit KoliBri Shadow DOM
  */
 
 test.describe('Dunkelmodus – Lesbarkeit der Dashboard-Panels', () => {
@@ -39,7 +39,7 @@ test.describe('Dunkelmodus – Lesbarkeit der Dashboard-Panels', () => {
 		// Das Panel rendert erst, wenn die Task-Daten da sind — sonst misst der Test einen leeren DOM.
 		await expect(page.locator('.dashboard-next-task')).toBeVisible();
 
-		// AxeBuilder-Scan für Kontrast-Verstöße (Pattern: docs/e2e-a11y-pattern.md)
+		// AxeBuilder-Scan für Kontrast-Verstöße (Pattern: public/docs/e2e-a11y-pattern.md)
 		const results = await new AxeBuilder({ page })
 			.include('.dashboard-next-task')
 			.include('.dashboard-suggestions')

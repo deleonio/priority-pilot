@@ -78,7 +78,7 @@ Pattern-Doc/Kommentar: wie axe-core korrekt mit KoliBri Shadow DOM genutzt wird.
 ### Schritte
 
 1. **Pattern-Doc erstellen**
-   - Neue Datei docs/e2e-a11y-pattern.md
+   - Neue Datei frontend/public/docs/e2e-a11y-pattern.md (im Browser unter `/docs/e2e-a11y-pattern.md` erreichbar)
    - ODER Inline-Kommentar im ersten migrierten Test
 
 2. **Pattern-Elemente**
@@ -89,7 +89,7 @@ Pattern-Doc/Kommentar: wie axe-core korrekt mit KoliBri Shadow DOM genutzt wird.
 
 ### Erwartetes Ergebnis
 
-- Pattern-Doc existiert (docs/e2e-a11y-pattern.md ODER Inline-Kommentar)
+- Pattern-Doc existiert (frontend/public/docs/e2e-a11y-pattern.md ODER Inline-Kommentar)
 - Entwickler können Pattern für neue A11y-Tests nutzen
 - Shadow-DOM-Herausforderungen sind dokumentiert
 
@@ -148,3 +148,7 @@ Alle E2E-Tests bleiben grün nach axe-core Integration.
 ## Versionierung
 
 - **v1.0** (2026-08-18): Initialefassung für Issue #902. Vier Journeys dokumentiert.
+- **v1.1** (2026-08-23): Pattern-Doc-Pfad korrigiert (frontend/public/docs/, Review-Finding #2).
+  Umsetzung nach Besitzer-Entscheidung „Test ganz machen“: ein einziger echter AxeBuilder-Scan
+  als Vertrag — Repo-Struktur-Assertions (page.request auf package.json/Spec-Dateien) sind
+  bewusst kein E2E-Gegenstand (Anti-Pattern, Review-Finding #1).
