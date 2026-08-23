@@ -19,21 +19,35 @@ const openPillarTab = async (page: Page): Promise<void> => {
 	await waitForStableView(page, 'Priority Pilot');
 };
 
-/** Löscht alle Säulen (außer den Default-Säulen) über die echte API — sauberer Start je Test. */
-const deleteAllPillars = async (page: Page): Promise<void> => {
+/**
+ * Löscht nur die E2E-Test-Säulen (Präfix `E2E-`) über die echte API — sauberer Start je Test.
+ *
+ * Bewusst NICHT alle Säulen: Der直接 danach laufende `keyboard-shortcuts.spec.ts` AK7 erwartet
+ * die Default-Säulen (Slider) — ein komplettes Aufräumen bricht diesen Test im selben Shard
+ * (CI-Run 32634489399). `pillar-crud.spec.ts` hat denselben Helper, lief aber schon vorher grün.
+ */
+const deleteE2ePillars = async (page: Page): Promise<void> => {
 	const response = await page.request.get('/api/v1/pillars');
-	const pillars = (await response.json()) as { id: number }[];
-	for (const pillar of pillars) {
+	const pillars = (await response.json()) as { id: number; name: string }[];
+	for (const pillar of pillars.filter((p) => p.name.startsWith('E2E-'))) {
 		await page.request.delete(`/api/v1/pillars/${pillar.id}`);
 	}
 };
 
 test.describe('#935 Säulen-Formular — Beschreibung als Textarea, Name auf 30 Zeichen', () => {
+	// Eindeutige Namen je Test, maximal TITLE_MAX_LENGTH Zeichen: KolInputText kappt den Wert
+	// per nativem `maxlength` (Behavior „hard") — auch bei Playwright `fill()`. Längere Namen
+	// würden still gekappt und jede exakte Namens-Assertion danach fehlschlagen. Muster:
+	// `delete-dialog-focus.spec.ts` (uniqueTitle).
 	let runId = 0;
-	const uniqueName = (label: string): string => `E2E-P935-${label}-#${(runId += 1)}-${Date.now()}`;
+	const uniqueName = (label: string): string => {
+		const tail = `#${(runId += 1)}`;
+		const head = `E2E-P935-${label}`.slice(0, TITLE_MAX_LENGTH - tail.length);
+		return `${head}${tail}`;
+	};
 
 	test.afterEach(async ({ page }) => {
-		await deleteAllPillars(page);
+		await deleteE2ePillars(page);
 	});
 
 	/**
@@ -64,7 +78,7 @@ test.describe('#935 Säulen-Formular — Beschreibung als Textarea, Name auf 30 
 		await page.request.post('/api/v1/pillars', { data: { name, description: 'Dummy' } });
 		await page.reload();
 		await openPillarTab(page);
-		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
+		await page.locator('li.pillar-item', { hasText: name }).getByRole('button', { name: 'Bearbeiten' }).click();
 		await waitForStableView(page, 'Priority Pilot');
 		await expect(dialog.locator('kol-textarea textarea')).toHaveCount(1);
 		await expect(dialog.locator('kol-input-text input[type="text"]')).toHaveCount(1);
@@ -90,10 +104,12 @@ test.describe('#935 Säulen-Formular — Beschreibung als Textarea, Name auf 30 
 		await dialog.getByRole('button', { name: 'Anlegen' }).click();
 		await expect(page.getByText(name, { exact: true })).toBeVisible();
 
-		// Reload + Bearbeiten-Dialog: Zeilenumbruch muss im Textarea-Wert stehen
+		// Reload + Bearbeiten-Dialog: Zeilenumbruch muss im Textarea-Wert stehen. Die eigene Zeile
+		// wird per `li.pillar-item` mit dem Namen getroffen (nicht `.first()` — das kann bei
+		// verbleibenden Default-Säulen die falsche Säule öffnen).
 		await page.reload();
 		await openPillarTab(page);
-		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
+		await page.locator('li.pillar-item', { hasText: name }).getByRole('button', { name: 'Bearbeiten' }).click();
 		await waitForStableView(page, 'Priority Pilot');
 		await expect(dialog.locator('kol-textarea').locator('textarea')).toHaveValue(description);
 	});
