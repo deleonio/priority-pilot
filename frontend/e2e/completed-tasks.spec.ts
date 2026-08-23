@@ -187,6 +187,97 @@ test.describe('Priority Pilot — Erledigt-Ansicht (#228/#307) gegen das echte B
 	});
 
 	/**
+	 * Roter TDD-Vertrag für #931 (Spec: docs/spec/issue-931.md): Auf Desktop (≥ 48rem) hat die
+	 * Erledigt-Tabelle bisher KEIN Spaltenlayout — `table-layout` ist browser-gesteuert (`auto`),
+	 * alle Zellen linksbündig, Ziffern proportional. Die drei Specs sind rot, bis der Desktop-Zweig
+	 * von `app.css`/`CompletedTasksTable.tsx` ein fixes Spaltenlayout mit dominanter Titel-Spalte
+	 * und rechtsbündigen tabellarischen Zahlen setzt. Mobile (< 48rem) bleibt unberührt — das deckt
+	 * der bestehende AK-6-Test oben ab (Dedup, kein neuer Mobile-Test).
+	 */
+	test.describe('#931 — Desktop-Spaltenbreiten (Spec docs/spec/issue-931.md)', () => {
+		/** Messbare Geometrie der Erledigt-Tabelle: Layout-Modus, Kopf-Spaltenbreiten, Tabellenbreite. */
+		const tableGeometry = (page: Page) =>
+			page.evaluate(() => {
+				const table = document.querySelector('table.completed-tasks-table');
+				if (!table) return null;
+				const headerWidths = Array.from(table.querySelectorAll('thead th')).map(
+					(th) => th.getBoundingClientRect().width,
+				);
+				return {
+					layout: getComputedStyle(table).tableLayout,
+					headerWidths,
+					tableWidth: table.getBoundingClientRect().width,
+				};
+			});
+
+		test('AK-931-1: Ab 48rem nutzt die Tabelle ein fixes Spaltenlayout (table-layout: fixed)', async ({ page }) => {
+			await page.setViewportSize({ width: 1280, height: 800 });
+			await page.goto('/');
+			await waitForStableView(page);
+
+			await createTaskViaUi(page, uniqueTitle('931-Fixed'));
+			await markTaskDoneViaUi(page);
+			await openCompletedTab(page);
+
+			// Ist heute 'auto' (kein Desktop-Spaltenlayout) → rot bis zum Fix (Spec AK-931-1).
+			const geometry = await tableGeometry(page);
+			expect(geometry).not.toBeNull();
+			expect(geometry?.layout).toBe('fixed');
+		});
+
+		test('AK-931-2: Titel-Spalte ist dominant (≥ 2× jede Punkte-Spalte, ≥ 45 % Tabellenbreite) ohne Scrollen', async ({
+			page,
+		}) => {
+			await page.setViewportSize({ width: 1280, height: 800 });
+			await page.goto('/');
+			await waitForStableView(page);
+
+			await createTaskViaUi(page, uniqueTitle('931-Breite'));
+			await markTaskDoneViaUi(page);
+			await openCompletedTab(page);
+
+			const geometry = await tableGeometry(page);
+			expect(geometry).not.toBeNull();
+			const widths = geometry?.headerWidths ?? [];
+			// Kopfzeile: [Titel, …Säulen, Aktion] — Punkte-Spalten sind die zwischen erster und letzter.
+			expect(widths.length).toBeGreaterThanOrEqual(3);
+			const [titleWidth, ...rest] = widths;
+			const pointWidths = rest.slice(0, -1); // letzte Spalte ist „Aktion"
+			const maxPointWidth = Math.max(...pointWidths);
+
+			// Lesbarkeits-Kern des Tickets: Der Titel dominiert, Zahlen bleiben schmal (Spec AK-931-2).
+			expect(titleWidth).toBeGreaterThan(2 * maxPointWidth);
+			expect(titleWidth / (geometry?.tableWidth ?? 1)).toBeGreaterThanOrEqual(0.45);
+
+			// Und das feste Layout darf kein horizontales Scrollen erzeugen.
+			const scrollWidth = await page.evaluate(() => document.body.scrollWidth);
+			expect(scrollWidth).toBeLessThanOrEqual(1280);
+		});
+
+		test('AK-931-3: Punkte-Zellen sind rechtsbündig mit tabellarischen Ziffern', async ({ page }) => {
+			await page.setViewportSize({ width: 1280, height: 800 });
+			await page.goto('/');
+			await waitForStableView(page);
+
+			await createTaskViaUi(page, uniqueTitle('931-Zahlen'));
+			await markTaskDoneViaUi(page);
+			await openCompletedTab(page);
+
+			// Punkte-Zellen sind die `td[data-label]` (Säulen-Beschriftung, siehe Komponente).
+			const pointCell = page.locator('table.completed-tasks-table td[data-label]').first();
+			await expect(pointCell).toBeVisible();
+			const styles = await pointCell.evaluate((el) => {
+				const computed = getComputedStyle(el);
+				return { align: computed.textAlign, numeric: computed.fontVariantNumeric };
+			});
+
+			// Heute linksbündig/mit proportionalen Ziffern → rot bis zum Fix (Spec AK-931-3).
+			expect(styles.align).toBe('right');
+			expect(styles.numeric).toBe('tabular-nums');
+		});
+	});
+
+	/**
 	 * Roter TDD-Vertrag für #307: „Wieder öffnen" wird zu einem Icon-Button innerhalb einer neuen
 	 * `KolToolbar` (`[role="toolbar"]`) je Zeile. Der Accessible Name bleibt „Wieder öffnen" (durch AK-4
 	 * oben gedeckt), aber es gibt keinen sichtbaren Klartext mehr. Diese Specs sind rot, bis
