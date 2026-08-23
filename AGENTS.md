@@ -38,6 +38,12 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
   ist Wartungslast. Ein Test entsteht nur, wenn er etwas **auswertet**, einen **Spiegel** absichert
   oder vor **stillen/teuren** Ausfällen schützt
   ([TDD-Strategie → Testumfang](.ai-knowledge/tdd-strategy.md#testumfang--so-viel-wie-nötig-so-wenig-wie-irgend-möglich)).
+- **Verbessern vs. Erweitern:** Soll Funktionierendes verbessert werden, zuerst fragen: Ist der
+  Gewinn den zusätzlichen Code und seine Wartung wert — oder entsteht er durch Optimieren
+  vorhandenen Codes? Neue Mechanismen nur, wenn kein bestehendes Muster passt.
+  Beispiel: Der Push-Schalter flackerte beim Seitenwechsel, weil sein Zustand nur async ermittelbar
+  war — behoben mit einem localStorage-Spiegel nach dem Muster der Nachbar-Switches
+  (`frontend/src/lib/push.ts`, ~15 Zeilen am vorhandenen Hook statt eines neuen Mechanismus).
 - **KoliBri-First:** Komponenten nur selbst stylen, wenn keine KoliBri-Komponente passt
   (Shadow-Web-Components; Shadow-DOM-CSS ist unpublizierte API).
 - Monorepo mit **pnpm**; TypeScript `strict`, ESM überall, Node `>=26`.

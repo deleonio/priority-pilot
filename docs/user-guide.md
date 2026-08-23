@@ -87,18 +87,18 @@ Modell für die KI-Funktionen. Von oben nach unten:
 
 ## Aufgaben verwalten
 
-Im Tab **Aufgaben** stehen deine Aufgaben als **Liste der ausführbaren Aufgaben** (ohne
-Oberaufgaben). Das sind genau die Aufgaben, deren alle Vorgänger erledigt sind – die Aufgaben,
-die du jetzt tatsächlich erledigen kannst. Den Überblick über den gesamten Aufgabenbaum
-mit Oberaufgaben, Abhängigkeiten und dem Aufgabenwald findest du im Tab **Aufgabenwald**.
+Im Tab **Aufgaben** stehen deine Aufgaben als **flache Liste der ausführbaren Blatt-Aufgaben**.
+Das sind genau die Aufgaben, die **keine Unteraufgaben** haben – die Aufgaben,
+die du jetzt tatsächlich erledigen kannst, ohne dass noch etwas davor erledigt werden muss.
+Den Überblick über den gesamten Aufgabenbaum mit Oberaufgaben, Abhängigkeiten und dem
+Aufgabenwald findest du im Tab **Aufgabenwald**.
 
 Oben im Tab findest du zwei Bedienelemente:
 
 - einen **Umschalter Offen/Erledigt**, der zwischen der Liste der offenen Aufgaben und
   der Tabelle der erledigten Aufgaben wechselt, und
 - ein **Suchfeld**, das die aktuelle Ansicht nach **Titel** filtert (Teiltreffer,
-  Groß-/Kleinschreibung egal). Im offenen Baum bleiben passende Aufgaben samt ihrem
-  Kontext (Oberaufgaben) erhalten. Der Suchtext bleibt beim Umschalten bestehen; bei
+  Groß-/Kleinschreibung egal). Der Suchtext bleibt beim Umschalten bestehen; bei
   keinem Treffer erscheint ein Leerhinweis.
 
 Rechts an jeder Zeile können **Kennzeichen** stehen:
@@ -160,7 +160,8 @@ Im selben Dialog erscheint das Aufgabenformular. Felder:
 - **Checkliste (optional)** – zerlege die Aufgabe in abhakbare Teilschritte.
   Einträge können hinzugefügt, abgehakt und entfernt werden.
 - **Automatisches Löschen (optional)** – bei verpasster Deadline die Aufgabe nach 3 Tagen
-  automatisch löschen (nur wählbar, wenn eine Deadline gesetzt ist; gilt auch für Serien).
+  automatisch löschen (nur wählbar, wenn eine Deadline gesetzt ist; bei Serien immer
+  wählbar, da das Startdatum als Fälligkeit dient).
 - **Lektorat** – über einen Button neben Titel und Beschreibung kannst du die KI bitten,
   den Text zu verbessern (Kürzung, Smoothing, Rechtschreibung). Ein Diff-Dialog zeigt den
   Vergleich; du entscheidest, ob du den Vorschlag übernimmst.
@@ -195,7 +196,8 @@ Aktivierst du im Formular **„Automatisch löschen nach 3 Tagen bei verpasster 
 der Deadline** automatisch gelöscht – **aber nur, wenn sie bis dahin nicht erledigt ist**.
 
 Das gilt auch für Serien-Instanzen: Wird die Option im Serien-Template gesetzt,
-erben alle künftig generierten Instanzen diese Einstellung.
+erben alle künftig generierten Instanzen diese Einstellung. Im Serien-Modus ist die
+Option immer wählbar, da das Startdatum der Serie als Fälligkeit dient.
 
 ---
 
@@ -222,9 +224,7 @@ Spracherkennung unterstützt.
 
 - Im Feld erscheint ein **Mikrofon-Button**. Ein Klick startet die Aufnahme, ein
   weiterer stoppt sie. Erkannter Text wird an den bestehenden Inhalt angehängt.
-- Standardmäßig wird **Deutsch** (`de-DE`) verwendet. Die Sprache lässt sich
-  über den optionalen `lang`-Parameter anpassen (Browser-Default wird genutzt,
-  wenn `undefined` übergeben wird).
+- Die Sprache ist auf Deutsch (`de-DE`) festgelegt.
 - Optional startet die Aufnahme **automatisch** beim Öffnen der Formulare – aktivierbar
   über _Einstellungen → Allgemein → „Sprachaufnahme automatisch starten"_.
 
@@ -424,7 +424,8 @@ wenn die App gerade nicht geöffnet ist.
 > Plattformverhalten von Chrome, nicht von Priority Pilot. **Workaround:** Installiere die
 > App als eigenständige App (siehe unten „App installieren und aktualisieren") – dann wird
 > nur noch die gewünschte App-Benachrichtigung angezeigt. Aufeinanderfolgende Pushes
-> ersetzen sich zudem gegenseitig, sodass nichts gestapelt wird.
+> ersetzen sich zudem gegenseitig, sodass nichts gestapelt wird – die App vergibt ihren
+> Benachrichtigungen dazu einen festen Tag.
 
 ---
 
