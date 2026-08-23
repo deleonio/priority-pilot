@@ -76,6 +76,11 @@ test.describe('#787 Header-Layout und KI-Modell-Auswahl in Toolbar', () => {
 	 * Test-Pflege (#912): Diese Order-Assertion prüfte bis v1.1 Avatar < Toolbar (Avatar
 	 * links-mittig direkt neben der Wortmarke). Das widerspricht dem neuen AK1 aus #912 — die
 	 * Assertion wurde auf Toolbar < Avatar gedreht, Testname/Ort blieben erhalten.
+	 * Test-Pflege (Semantic-Groups-Refactor): Seit der Header in Brand|Primary|User-Container
+	 * zerlegt ist, sind Logo+Name bzw. Toolbar+Modellauswahl keine direkten Header-Kinder mehr —
+	 * ein Kind-Index-Vergleich scheitert grundsätzlich (Avatar-Index = −1). Geprüft wird deshalb
+	 * die *visuelle* Links-nach-rechts-Ordnung (x-Positionen), die der eigentliche Layout-Vertrag
+	 * ist — unabhängig von der Container-Verschachtelung.
 	 */
 	test('AK1: Header-Layout folgt der Reihenfolge Logo → Name → Toolbar → Avatar (Desktop)', async ({ page }) => {
 		await page.setViewportSize({ width: 1280, height: 800 });
@@ -85,44 +90,32 @@ test.describe('#787 Header-Layout und KI-Modell-Auswahl in Toolbar', () => {
 		const header = page.getByRole('banner');
 		await expect(header).toBeVisible();
 
-		// Alle relevanten Elemente identifizieren
+		// Alle relevanten Elemente identifizieren — über *semantische* Merkmale (Button mit
+		// Logo-Label, Text „Priority Pilot", `role="toolbar"`, `kol-avatar`), nicht über CSS-Klassen,
+		// damit der Vertrag ein Layout-Vertrag bleibt und kein Klassennamen-Vertrag.
 		const logo = header.getByRole('button', { name: /Zum Dashboard/i }).locator('img');
+		const name = header.getByText('Priority Pilot', { exact: true });
 		const avatar = header.locator('kol-avatar').first();
 		const toolbar = header.getByRole('toolbar', { name: /Kopf-Aktionen/i });
 
 		// Alle Elemente müssen sichtbar sein
 		await expect(logo).toBeVisible();
+		await expect(name).toBeVisible();
 		await expect(avatar).toBeVisible();
 		await expect(toolbar).toBeVisible();
 
-		// DOM-Reihenfolge prüfen: Logo → App-Name → Toolbar → Avatar.
-		// Die Indizes werden über die *semantischen* Merkmale der Kinder bestimmt (Button mit
-		// Logo-Label, Text „Priority Pilot", `role="toolbar"`, `kol-avatar`) — nicht über die
-		// CSS-Klassen, damit der Vertrag ein Layout-Vertrag bleibt und kein Klassennamen-Vertrag.
-		const { logoIndex, nameIndex, avatarIndex, toolbarIndex } = await header.evaluate((el) => {
-			const children = Array.from((el as HTMLElement).children);
-			return {
-				logoIndex: children.findIndex((child) => child.querySelector('img') !== null),
-				nameIndex: children.findIndex((child) => child.textContent?.trim() === 'Priority Pilot'),
-				avatarIndex: children.findIndex((child) => child.matches('kol-avatar')),
-				// `kol-toolbar` trägt `role="toolbar"` in ihrem Shadow-DOM — aus dem Light-DOM ist der
-				// Toolbar-Block deshalb über das Custom-Element identifizierbar, nicht über die Rolle.
-				toolbarIndex: children.findIndex((child) => child.querySelector('kol-toolbar') !== null),
-			};
-		});
+		// Reihenfolge validieren (visuell, einzeiliger Header): Logo < Name < Toolbar < Avatar.
+		const logoBox = (await logo.boundingBox())!;
+		const nameBox = (await name.boundingBox())!;
+		const toolbarBox = (await toolbar.boundingBox())!;
+		const avatarBox = (await avatar.boundingBox())!;
 
-		// Reihenfolge validieren: Logo < Name < Toolbar < Avatar
-		expect(logoIndex, 'Logo muss im Header vorhanden sein').toBeGreaterThanOrEqual(0);
-		expect(nameIndex, 'App-Name muss im Header vorhanden sein').toBeGreaterThanOrEqual(0);
-		expect(avatarIndex, 'Avatar muss im Header vorhanden sein').toBeGreaterThanOrEqual(0);
-		expect(toolbarIndex, 'Toolbar muss im Header vorhanden sein').toBeGreaterThanOrEqual(0);
-
-		expect(logoIndex, 'Logo muss vor App-Name erscheinen').toBeLessThan(nameIndex);
-		expect(nameIndex, 'App-Name muss vor Toolbar erscheinen').toBeLessThan(toolbarIndex);
+		expect(logoBox.x, 'Logo muss vor App-Name erscheinen').toBeLessThan(nameBox.x);
+		expect(nameBox.x, 'App-Name muss vor Toolbar erscheinen').toBeLessThan(toolbarBox.x);
 		expect(
-			toolbarIndex,
+			toolbarBox.x + toolbarBox.width,
 			'Toolbar muss vor Avatar erscheinen — Avatar ist das letzte Element ganz rechts (#912)',
-		).toBeLessThan(avatarIndex);
+		).toBeLessThanOrEqual(avatarBox.x);
 	});
 
 	/**
