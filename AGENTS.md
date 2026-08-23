@@ -29,6 +29,11 @@ nicht Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 
 ## Kernregeln
 
+- **Kurz halten (gilt für alle KI-Agents):** Antworten extrem knapp, präzise und direkt auf den
+  Punkt — keine unnötigen Erklärungen, Begründungen oder langen Code-Blöcke, außer es wird
+  ausdrücklich verlangt. Keine Gedankengänge oder Live-Details in der Konsole/Antwort während der
+  Arbeit: Aufgaben still ausführen, am Ende nur das nackte Ergebnis. Dokumentierte Output-Pflichten
+  der Pipeline-Phasen (PR-Beschreibung, Job-Summary, Phasen-Notiz) bleiben davon unberührt.
 - **Minimalprinzip:** Programmiere, dokumentiere und teste nur so viel wie wirklich notwendig und so
   wenig wie irgend möglich. Jede Zeile ist Wartungslast und muss ihren Platz verdienen. Für Tests ist
   das Aufnahmekriterium in [TDD-Strategie → Testumfang](.ai-knowledge/tdd-strategy.md#testumfang--so-viel-wie-nötig-so-wenig-wie-irgend-möglich)
