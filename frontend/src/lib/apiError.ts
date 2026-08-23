@@ -18,30 +18,55 @@ interface ApiError {
  * **KI-spezifische Fehler (#620):** Für LLM-Endpoints (502/503) werden technische
  * Fehlermeldungen in nutzerfreundliche Texte übersetzt, damit Nutzer verstehen, dass der
  * KI-Dienst vorübergehend nicht erreichbar ist.
+ *
+ * **Session-401 (#948):** Der Serververtrag liefert 401 fast ausschließlich aus der Session-Auth
+ * (`requireAuth` → „Nicht eingeloggt.", Auth-Routen → „Ungültige Zugangsdaten."). Nur für diese
+ * bekannten Session-Messages (und bei unlesbarem Body) erscheint eine Session-Meldung; ein 401
+ * mit anderer Message (z. B. LLM-/Proxy-401 „Invalid API key") bleibt beim KI-Text aus #620.
  */
+
+/** Bekannte Session-401-Messages aus dem Serververtrag (server/src/express). */
+const SESSION_MESSAGES = new Set(['Nicht eingeloggt.', 'Ungültige Zugangsdaten.']);
+
+/** Session-Meldung für abgelaufene/ungültige Session statt der irreführenden KI-Meldung (#948). */
+const SESSION_TEXT = 'Nicht eingeloggt. Bitte melde dich erneut an.';
 export const toApiError = async (reason: unknown): Promise<ApiError> => {
 	if (reason instanceof ResponseError) {
 		const { status } = reason.response;
 		let message = `Serverfehler (HTTP ${status}).`;
-		try {
-			const body: unknown = await reason.response.clone().json();
-			if (typeof body === 'object' && body !== null && typeof (body as { message?: unknown }).message === 'string') {
-				const serverMessage = (body as { message: string }).message;
-				// Für LLM-Dienst-Fehler: nutzerfreundliche Meldung statt technischem Server-Text
-				if (status === 502 || status === 503 || status === 504) {
-					message = 'Der KI-Dienst ist gerade nicht erreichbar. Bitte versuche es später erneut.';
-				} else if (status === 401) {
-					message = 'Die KI-Konfiguration ist ungültig. Bitte prüfe die Einstellungen.';
-				} else {
-					message = serverMessage;
-				}
+		// Body-Beschaffung in zwei Stufen (#948): openapi-fetch liest den Body JEDER non-ok Response
+		// selbst (`response.text()`), ein nachgelagertes `response.clone().json()` wirft danach
+		// „Body has already been consumed“. Das geparste Objekt reist im `ResponseError.body` mit
+		// (geworfen aus api.ts); der clone-Fallback deckt frische Responses ohne Body-Feld
+		// (z. B. Unit-Tests, die `new ResponseError(res)` direkt konstruieren).
+		let body: unknown = reason.body;
+		if (body === undefined) {
+			try {
+				body = await reason.response.clone().json();
+			} catch {
+				body = undefined;
 			}
-		} catch {
-			// Body ist kein JSON oder leer — für wichtige Statuscodes nutzerfreundliche Meldung
+		}
+		if (typeof body === 'object' && body !== null && typeof (body as { message?: unknown }).message === 'string') {
+			const serverMessage = (body as { message: string }).message;
+			// Für LLM-Dienst-Fehler: nutzerfreundliche Meldung statt technischem Server-Text
+			if (status === 502 || status === 503 || status === 504) {
+				message = 'Der KI-Dienst ist gerade nicht erreichbar. Bitte versuche es später erneut.';
+			} else if (status === 401 && SESSION_MESSAGES.has(serverMessage)) {
+				// Session-401 (#948): bekannte Session-Auth-Message → Login-Hinweis statt KI-Meldung
+				message = SESSION_TEXT;
+			} else if (status === 401) {
+				message = 'Die KI-Konfiguration ist ungültig. Bitte prüfe die Einstellungen.';
+			} else {
+				message = serverMessage;
+			}
+		} else if (body === undefined) {
+			// Body nicht lesbar (weder Body-Feld noch clone) — für wichtige Statuscodes nutzerfreundliche Meldung
 			if (status === 502 || status === 503 || status === 504) {
 				message = 'Der KI-Dienst ist gerade nicht erreichbar. Bitte versuche es später erneut.';
 			} else if (status === 401) {
-				message = 'Die KI-Konfiguration ist ungültig. Bitte prüfe die Einstellungen.';
+				// Ohne lesbaren Body ist ein 401 laut Serververtrag Session-Auth (#948)
+				message = SESSION_TEXT;
 			}
 		}
 		return { status, message };
