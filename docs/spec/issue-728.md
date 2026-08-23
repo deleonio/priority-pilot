@@ -1,29 +1,26 @@
-# Issue 728: Checklist-Abstandsoptimierung
+# Issue 728: Checklist-Abstände (CSS Gaps)
+
+**Stand:** 2026-08-23  
+**Version:** v1.1 (2026-08-23): Nightly-Sync — Soll-Arbeitsauftrag durch Ist-Beschreibung ersetzt (Verhalten ist per E2E `issue-728-checklist-layout.spec.ts` gesichert).
 
 ## Ziel
 
-Optimierung der vertikalen Abstände zwischen Checklist-Items und effektive Nutzung des verfügbaren Freiraums durch Einsatz von CSS Gaps.
+Die Checkliste im Task-Formular nutzt CSS Gaps für ihre Abstände: vertikal zwischen den Items sowie horizontal zwischen Eingabefeld + „Hinzufügen"-Button und innerhalb eines Items (Checkbox, Titel, Entfernen-Button).
 
 ## Vorbedingung
 
-- Checklist-Komponente ist im Frontend vorhanden
-- Aktuelle Abstände sind suboptimal
+- Task-Formular ist geöffnet (Schnellerfassung mit „Überspringen" oder Bearbeitung)
+- Checklist-Sektion ist sichtbar
 
 ## Schritte
 
-1. Analyse der aktuellen Checklist-Item-Abstände
-2. Optimierung der vertikalen Abstände zwischen Items
-3. Einsatz von CSS Gap für effektive Freiraumnutzung
-4. Sicherstellen dass keine negativen Seiteneffekte auf andere UI-Elemente entstehen
+1. Checklisten-Einträge anlegen
+2. Abstände der Items untereinander prüfen
+3. Abstände innerhalb eines Items (Checkbox, Titel, Entfernen-Button) und zwischen Eingabefeld und „Hinzufügen"-Button prüfen
 
 ## Erwartetes Ergebnis
 
-- Checklist-Items haben optimierte vertikale Abstände
-- Freiraum wird effektiv genutzt (durch Gaps)
-- Keine visuellen Regressions in anderen UI-Elementen
-- Verbesserte visuelle Darstellung der Checkliste
-
-## Testfälle
-
-- Visueller Check: Checklist in verschiedenen Viewports
-- Regressionstest: Andere Listen/Items bleiben unverändert
+- Zwischen Checklist-Items besteht vertikaler Freiraum (Gap), Items stapeln sich nicht randlos
+- Eingabefeld und „Hinzufügen"-Button sind mit horizontalem Freiraum nebeneinander angeordnet
+- Item-Inhalte (Checkbox, Titel, Entfernen-Button) sind strukturiert mit Freiraum ausgerichtet
+- Keine visuellen Regressionen in anderen Formularelementen

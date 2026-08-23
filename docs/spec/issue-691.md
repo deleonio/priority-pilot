@@ -1,6 +1,7 @@
 # Issue 691 — Header-Konsistenz über alle Viewports
 
-**Stand:** 2026-08-16  
+**Stand:** 2026-08-23  
+**Version:** v1.1 (2026-08-23): Nightly-Sync — Kopf-Aktionen um „Säulen-Berater" ergänzt (im Code vorhanden, fehlte in der Liste).  
 **Issue:** #691 "Header-Menü konsistent über alle Bildschirmbreiten"
 
 ## Ziel
@@ -36,7 +37,7 @@ Das Header-Menü zeigt auf allen Bildschirmbreiten (Desktop, Tablet, Mobile) **i
 ## Erwartetes Ergebnis
 
 - Bürgermenü existiert in **keinem** Viewport (Count 0 bei allen Breiten)
-- Toolbar-Buttons sind bei allen Viewports vorhanden: „Neuen Task anlegen", „Hilfe", „Einstellungen", „Abmelden"
+- Toolbar-Buttons sind bei allen Viewports vorhanden: „Neuen Task anlegen", „Säulen-Berater", „Einstellungen", „Hilfe", „Abmelden"
 - Keine unterschiedlichen Menüstrukturen je nach Viewport-Breite
 - Responsive-Verhalten nur durch Layout/Positionierung, nicht durch Entfernen von Menüpunkten
 

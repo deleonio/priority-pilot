@@ -1,6 +1,7 @@
 # Issue 787 – Header-Layout und KI-Modell-Auswahl in Toolbar
 
-**Stand:** 2026-08-17  
+**Stand:** 2026-08-23  
+**Version:** v1.3 (2026-08-23): Nightly-Sync — Accessible Name des Modell-Buttons auf den Ist-Text korrigiert.  
 **Ziel:** Header-Layout optimieren und KI-Modell-Auswahl harmonisch in Toolbar integrieren
 
 ---
@@ -82,7 +83,7 @@ KI-Modell-Auswahl ist funktional und a11y-konform bedienbar.
 3. **Screenreader-Test**
    - Element hat role="combobox"
    - aria-expanded wechselt zwischen "true" und "false"
-   - Label: „Modell auswählen, aktuell: [Modellname]"
+   - Label: „KI-Modellauswahl, aktuell [Modellname]. Öffnet die Liste der verfügbaren Modelle."
 
 4. **Modell-Auswahl testen**
    - Klick auf KI-Modell-Auswahl öffnet das Popup

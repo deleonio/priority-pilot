@@ -1,6 +1,7 @@
 # Säulen-Gewichtung Layout-Optimierung
 
-**Stand:** 2025-08-17  
+**Stand:** 2026-08-23  
+**Version:** v1.1 (2026-08-23): Nightly-Sync — Stand-Datum korrigiert (Tippfehler 2025).  
 **Issue:** #763  
 **Ziel:** Visuelle Überlagerungen bei Säulen-Gewichtung beheben, responsives Layout für Range Sliders
 

@@ -1,6 +1,7 @@
 # Issue 845 – Geolocation: Position alle 5 Minuten ermitteln + Einstellungs-Schalter
 
-**Stand:** 2026-08-17  
+**Stand:** 2026-08-23  
+**Version:** v1.1 (2026-08-23): Nightly-Sync — Reverse-Geocoding ist umgesetzt (#866): Adresse wird ermittelt und angezeigt, Nicht-Ziele korrigiert; Positionsanzeige im Footer (kein Badge).  
 **Ziel:** App ermittelt alle 5 Minuten die Geolocation-Position des Geräts und zeigt sie an, steuerbar über Einstellungs-Schalter (Default: deaktiviert)
 
 ---
@@ -28,7 +29,7 @@ Nutzer:in kann die Standorterfassung aktivieren/deaktivieren. Bei Aktivierung wi
    - App empfängt erste Position (lat/long)
    - Schalter wechselt auf **AN**
    - App startet 5-Minuten-Intervall für weitere Abfragen
-   - Position wird im Footer/Dashboard angezeigt
+   - Position wird im Footer angezeigt
 
 3. **Berechtigung verweigert (Fehler-Flow)**
    - Nutzer:in klickt **„Blockieren"** oder bricht ab
@@ -55,7 +56,7 @@ Nutzer:in kann die Standorterfassung aktivieren/deaktivieren. Bei Aktivierung wi
 - **Default-Zustand:** Schalter ist AUS, kein `navigator.geolocation`-Call, keine Positionsanzeige
 - **Aktiviert (Permission granted):**
   - Schalter AN, erste Position sofort ermittelt
-  - Position im Footer/Dashboard sichtbar (Format: „52.5200° N, 13.4050° E")
+  - Position im Footer sichtbar (Format: „52.5200° N, 13.4050° E"); Adresse (Reverse-Geocoding) in den Settings
   - Intervall läuft alle 5 Minuten
 - **Deaktiviert:** Intervall stoppt sofort, keine weiteren Anfragen
 - **Permission denied:** Schalter AUS, KolAlert warning mit Handlungsaufforderung
@@ -64,7 +65,9 @@ Nutzer:in kann die Standorterfassung aktivieren/deaktivieren. Bei Aktivierung wi
 
 - Hook: `frontend/src/lib/useGeolocation.ts` (Pattern: `useVoiceAutostart.ts` / `usePushSubscription.ts`)
 - Konstante: `GEOLOCATION_INTERVAL_MS = 5 * 60 * 1000` (nicht mehrfach hartkodiert)
-- UI-Komponenten: `KolInputCheckbox _variant="switch"`, `KolAlert _type="warning"`, `KolBadge` für Positionsanzeige
+- UI-Komponenten: `KolInputCheckbox _variant="switch"`, `KolAlert _type="warning"`
+- Positionsanzeige: Footer-Span „📍 {Lat}° N, {Lon}° E" (4 Dezimalstellen), nur bei aktivierter Erfassung mit Position
+- Reverse-Geocoding (#866): Server-Endpunkt `GET /reverse-geocode?lat={lat}&lon={lon}` (Nominatim) liefert eine Adresse; die Settings zeigen sie unter dem Schalter (ARIA-Live: „Adresse wird ermittelt…" / Adresse / „Keine Adresse für diesen Standort"). Fehler/Rate-Limit fallen auf „Keine Adresse" zurück, ohne die Positionserfassung zu stören.
 - Berechtigungs-Flow analog Mikrofon/Push-Permission in SettingsPage
 
 ## Nicht-Ziele (Out of Scope)
@@ -72,4 +75,3 @@ Nutzer:in kann die Standorterfassung aktivieren/deaktivieren. Bei Aktivierung wi
 - Persistierung der Positions-Historie (Backend/DB)
 - Standort-basierte Aufgaben-Vorschläge
 - Hintergrund-Standortabfrage (Service Worker)
-- Reverse-Geocoding (nur Lat/Long, keine menschenlesbare Adresse)

@@ -1,6 +1,7 @@
 # Settings Screen Layout – Priority Pilot
 
-**Stand:** 2026-08-18
+**Stand:** 2026-08-23
+**Version:** v1.2 (2026-08-23): Nightly-Sync — Checkmark-Icon-Passage (20×20dp/8dp) entfernt: im Code nicht vorhanden.
 **Ziel:** Konsistentes Layout im Settings Screen mit einheitlichen Spacing-Werten, korrektem Alignment und lesbarer Typografie
 
 Diese Spezifikation beschreibt das beobachtbare Layout-Verhalten des Settings Screen. Sie ist implementierungsagnostisch und fokussiert auf visuelle Konsistenz.
@@ -26,14 +27,11 @@ Settings Screen verwendet einheitliche Layout-Werte für Abstände, Alignment un
 
 4. **Typografie-Inspektion** - Deskriptiver Text (z.B. Beschreibungen zu Einstellungen) hat Schriftgröße ≥ **16sp** - Farbe des deskriptiven Textes ist **#616161** (besserer Kontrast als bisher #757575)
 
-5. **Icon-Inspektion** - Checkmark-Icons (z.B. für aktivierte Einstellungen) haben Größe **20×20dp** - Icons haben **8dp Padding** um das Icon herum
-
 ### Erwartetes Ergebnis
 
 - Settings Screen verwendet konsistente Spacing-Werte (24dp linker Startpunkt, 16dp Section-Abstand, 12dp Element-Abstand)
 - Alle Controls sind horizontal aligned (gleiche X-Position, 24dp vom Container-Rand)
 - Deskriptiver Text ist lesbar (≥16sp, Farbe #616161)
-- Checkmark-Icons haben ausreichende Größe (20×20dp) mit Padding (8dp)
 
 ---
 
@@ -44,7 +42,6 @@ Settings Screen verwendet einheitliche Layout-Werte für Abstände, Alignment un
 | Settings Screen leer     | Hinweis: „Keine Einstellungen verfügbar."                                        |
 | Control ohne Label       | Label ist erforderlich, Controls ohne Label werden nicht gerendert               |
 | Deskriptiver Text fehlt  | Optional – wenn vorhanden, muss er ≥16sp und #616161 sein                        |
-| Icon-Größe nicht 20×20dp | Icon sollte 20×20dp sein, Abweichungen führen zu inkonsistentem Erscheinungsbild |
 
 ---
 
