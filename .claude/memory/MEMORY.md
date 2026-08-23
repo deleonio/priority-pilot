@@ -78,3 +78,8 @@ Konflikte, die er verhindern soll.
   das ist in der Spec-Phase der Normalzustand, kein Fix-Ziel. → Rot-Assertionen (Zielverhalten) NICHT
   auf 404-Status-quo zurückbauen, um CI grün zu bekommen — der Review-Workflow läuft trotz rotem
   verify weiter; erst die Impl-Phase macht die Tests grün.
+- 2026-08-23 · Workflows/YAML — mehrzeilige String-Literale in `run:`-Blöcken mit
+  fortsetzenden Zeilen ab Spalte 0 (z. B. zugewiesener Markdown-Block) brechen den YAML-
+  Block-Skalar (Parser: "expected <block end>"). → Solche Blöcke per `printf '%s\n%s' "…" "…"`
+  bauen (jede Zeile eingerückt) und danach `python3 -c "yaml.safe_load(...)"` + `bash -n` auf
+  den extrahierten Step als Guard laufen lassen.
