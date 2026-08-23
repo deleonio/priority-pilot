@@ -32,7 +32,9 @@ ABLAUF (STRIKT):
         Begründung im PR-Body (KoliBri = Shadow-Web-Components mit festem Styling).
      b) Layout: App läuft im Hintergrund auf http://localhost:4174; sichtbare Änderungen per Playwright-MCP bei 375px UND 1280px prüfen (Screenshot + A11y-Snapshot).
         Layout-Brüche (horizontales Scrollen/Overflow) fixen.
-  4. Code bis pnpm test grün, dann pnpm format + pnpm lint + pnpm knip.
+  4. Code bis TypeScript + ESLint + knip + Prettier (am Ende) grün:
+     pnpm lint && pnpm knip && pnpm format.
+     Tests (vitest, playwright, node --test) laufen ausschliesslich in den klassischen CI-Pipelines – hier NICHT ausführen.
      Bei Confirm-/Lösch-/Zerstör-Dialogen: docs/ux-pattern-sequential-confirmation.md anwenden – sequenzielle Ja/Nein-Schritte, striktes Fokus-Management beim Übergang (verbindliche A11y-Vorgabe).
      Bei sichtbarer UI: docs/mobile-ui-rules.md anwenden – Touch-Targets ≥44px, async Zustände entwerfen, Anti-Patterns meiden (Repo-Abstimmung im Doc beachten).
   5. Committen, Branch pushen. Im Spec-Modus den vorhandenen Draft-PR review-bereit machen (gh pr ready <nr>), Beschreibung ergänzen. Im Direkt-Modus den PR aus 3b anlegen (nicht als Draft). In BEIDEN Fällen muss am Ende ein offener, nicht-als-Draft markierter PR mit Commits existieren — der Workflow prüft genau das, bevor er ai:needs-review setzt.
