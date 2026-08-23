@@ -100,6 +100,14 @@ case "$CMD" in
 
     PERMALINK="$(printf '%s' "$COMMENTS" | jq -r "$FILTER | select(. != null) | .html_url" 2>/dev/null || true)"
 
+    # Kommentar-Metadaten (Issue #961): Der Fixup-Workflow merkt sich beim Start-
+    # Konsum id + updated_at des letzten ai-review-Sammelkommentars als Baseline
+    # und erkennt am Laufende daran das Review-Delta (Sammelkommentar wird über
+    # Runden FORTGESCHRIEBEN — eine ID, wechselndes updatedAt; nur die ID wäre
+    # blind gegen in-place Edits). Für die anderen Modi harmloses Beiwerk.
+    COMMENT_ID="$(printf '%s' "$COMMENTS" | jq -r "$FILTER | select(. != null) | .id" 2>/dev/null || true)"
+    COMMENT_UPDATED="$(printf '%s' "$COMMENTS" | jq -r "$FILTER | select(. != null) | .updated_at" 2>/dev/null || true)"
+
     # Finding-Titel: Markdown-Headings und nummerierte Listeneinträge des
     # Erklärungs-Kommentars, einzeilig zusammengefasst (key=value-tauglich).
     FINDINGS="$(printf '%s\n' "$BODY" | tr -d '\r' \
@@ -110,6 +118,8 @@ case "$CMD" in
 
     echo "status=found"
     echo "permalink=${PERMALINK}"
+    [ -n "$COMMENT_ID" ] && echo "id=${COMMENT_ID}"
+    [ -n "$COMMENT_UPDATED" ] && echo "updated_at=${COMMENT_UPDATED}"
     [ -n "$FINDINGS" ] && echo "findings=${FINDINGS}"
     ;;
 
