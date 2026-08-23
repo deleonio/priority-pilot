@@ -1,5 +1,6 @@
 import { expect, test, type Page } from './fixtures';
 import { waitForStableView } from './helpers';
+import { TITLE_MAX_LENGTH } from '../src/lib/titleLengthValidation.ts';
 
 /**
  * ROTE Spec-Tests für #431 „Frontend — Säulen-Verwaltung + dynamische Grenzfälle"
@@ -28,9 +29,16 @@ import { waitForStableView } from './helpers';
  */
 test.describe('#431 Säulen-Verwaltung — dynamische Grenzfälle', () => {
 	// Eindeutige Namen je Test, damit Assertions ausschließlich auf selbst angelegte Daten zielen
-	// und parallele/aufeinanderfolgende Läufe sich nicht stören.
+	// und parallele/aufeinanderfolgende Läufe sich nicht stören. Maximal TITLE_MAX_LENGTH Zeichen:
+	// Das Säulen-Formular kappt den Namen per nativem `maxlength` (#935) — auch bei Playwright
+	// `fill()` —, längere Namen würden still gekappt und Assertions auf den vollen Namen scheitern.
+	// Muster: `delete-dialog-focus.spec.ts` (uniqueTitle).
 	let runId = 0;
-	const uniqueName = (label: string): string => `E2E-431-${label}-#${(runId += 1)}-${Date.now()}`;
+	const uniqueName = (label: string): string => {
+		const tail = `#${(runId += 1)}`;
+		const head = `E2E-431-${label}`.slice(0, TITLE_MAX_LENGTH - tail.length);
+		return `${head}${tail}`;
+	};
 
 	/** Löscht alle Säulen über die echte API (Vite-Proxy → Backend). */
 	const deleteAllPillars = async (page: Page): Promise<void> => {
