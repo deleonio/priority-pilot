@@ -4,7 +4,6 @@ import { calculateProgressMetric, checkNoProgressThreshold, ProgressMetricError 
 
 /**
  * Issue 611: CI Fortschrittsmetrik
- * Spec: docs/spec/issue-611.md
  *
  * Testet die Fortschrittsmetrik für CI-Läufe basierend auf Commit-Anzahl.
  */
