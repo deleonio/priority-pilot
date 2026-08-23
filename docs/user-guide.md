@@ -224,7 +224,7 @@ Spracherkennung unterstützt.
 
 - Im Feld erscheint ein **Mikrofon-Button**. Ein Klick startet die Aufnahme, ein
   weiterer stoppt sie. Erkannter Text wird an den bestehenden Inhalt angehängt.
-- Die Sprache richtet sich nach der Browsereinstellung (Standard: Deutsch `de-DE`).
+- Die Sprache ist auf Deutsch (`de-DE`) festgelegt.
 - Optional startet die Aufnahme **automatisch** beim Öffnen der Formulare – aktivierbar
   über _Einstellungen → Allgemein → „Sprachaufnahme automatisch starten"_.
 
@@ -423,7 +423,9 @@ wenn die App gerade nicht geöffnet ist.
 > „URL kopieren", „Teilen", „In Chrome öffnen"). Diese Mehrfachbenachrichtigung ist ein
 > Plattformverhalten von Chrome, nicht von Priority Pilot. **Workaround:** Installiere die
 > App als eigenständige App (siehe unten „App installieren und aktualisieren") – dann wird
-> nur noch die gewünschte App-Benachrichtigung angezeigt.
+> nur noch die gewünschte App-Benachrichtigung angezeigt. Aufeinanderfolgende Pushes
+> ersetzen sich zudem gegenseitig, sodass nichts gestapelt wird – die App vergibt ihren
+> Benachrichtigungen dazu einen festen Tag.
 
 ---
 
