@@ -79,3 +79,9 @@ Konflikte, die er verhindern soll.
   Block-Skalar (Parser: "expected <block end>"). → Solche Blöcke per `printf '%s\n%s' "…" "…"`
   bauen (jede Zeile eingerückt) und danach `python3 -c "yaml.safe_load(...)"` + `bash -n` auf
   den extrahierten Step als Guard laufen lassen.
+- 2026-08-23 · KoliBri/E2e — `KolTabs` (4.3.0) benennt die `slot`-Attribute seiner Light-DOM-Kinder
+  zur Laufzeit um (JSX `slot="tab-1"` → DOM `slot="tabpanel-slot-1"`); CSS-Selektoren wie
+  `[slot="tab-1"]` matchen daher 0 Elemente. → Panels via `[slot^="tabpanel-slot-"]` suchen,
+  Trigger via `getByRole('tab', { name })` statt `getByText` (matcht sonst zusätzlich Panel-Headings
+  → strict-mode violation). Baseline-Spiegel für zentrierte max-width-Seiten als Bounding-Box-Insets
+  messen, nicht als computed Padding (sonst falsch bei Viewport > Seitenbreite).
