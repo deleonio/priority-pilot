@@ -488,7 +488,13 @@ jobs:
                 printf '%s\n\n' "</details>"
               fi
               printf '%s\n' "**Was du als Mensch beitragen/entscheiden solltest:**"
-              printf '%s\n' "- [ ] 1. Entscheidungs-Findings durchgehen (Erklärung oben verlinkt)"
+              if [ "$GUARD_STATUS" = "found" ]; then
+                printf '%s\n' "- [ ] 1. Entscheidungs-Findings durchgehen (Erklärung oben verlinkt)"
+              else
+                # Kein toter Verweis (PR #848/#903): In diesem Zweig existiert KEIN Link —
+                # die Sektion Entscheidungs-Findings fehlt im ai-review-Kommentar.
+                printf '%s\n' "- [ ] 1. Findings aus dem Log-Auszug ableiten — der ai-review-Kommentar dieses Laufes enthält KEINE Sektion Entscheidungs-Findings"
+              fi
               printf '%s\n' "- [ ] 2. Entscheidung treffen (Code anpassen / akzeptieren / Fixup-Anweisung)"
               printf '%s\n' "- [ ] 3. Label \`ai:needs-human\` entfernen"
               printf '%s\n' "- [ ] 4. Label \`ai:needs-review\` setzen → loest erneuten Review aus"

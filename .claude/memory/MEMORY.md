@@ -57,3 +57,15 @@ Konflikte, die er verhindern soll.
   waiting request"). Der Rerun testet zudem den ALTEN SHA. → Erst Rerun abwarten, dann den gecancelten
   Run des neuen SHA per `gh run rerun <cancelled-run-id>` (ohne --failed) neu starten statt nachzu-
   pushen (Commit-Stop-Guard).
+- 2026-08-23 · Spec-Phase/Pre-Commit — der Pre-Commit-Hook läuft `tsc --noEmit` über den
+  ganzen Frontend-Workspace; rote Tests, die die noch NICHT existierende API benennen
+  (`result.current.refresh`), sterben am Hook statt rot zu laufen. → Neue API im Test per
+  Intersection-Typ optional deklarieren (`type T = ReturnType<typeof hook> & { neu?: … }`)
+  und casten — Produktiv-Typ unangetastet.
+- 2026-08-23 · Git/Sandbox — frische Runner-Sandbox hat kein `git config user.name/email`:
+  `git commit` scheitert mit „empty ident name", ein vorher gestarteter `git push -u origin
+  <branch>` legt trotzdem einen LEEREN Remote-Branch an. → Vor dem ersten Commit lokal
+  `git config user.name/user.email` setzen und Commit-Ergebnis per `git log -1` verifizieren.
+- 2026-08-23 · Vitest 4 — `--reporter=basic` existiert nicht mehr („Failed to load custom
+  Reporter"); nur noch default/tap/etc. → Default-Reporter nutzen und Output per `tail`
+  kürzen.
