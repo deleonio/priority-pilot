@@ -37,11 +37,11 @@ Settings Screen verwendet einheitliche Layout-Werte für Abstände, Alignment un
 
 ## Randfälle & Fehler
 
-| Situation                | Erwartetes Verhalten                                                             |
-| ------------------------ | -------------------------------------------------------------------------------- |
-| Settings Screen leer     | Hinweis: „Keine Einstellungen verfügbar."                                        |
-| Control ohne Label       | Label ist erforderlich, Controls ohne Label werden nicht gerendert               |
-| Deskriptiver Text fehlt  | Optional – wenn vorhanden, muss er ≥16sp und #616161 sein                        |
+| Situation               | Erwartetes Verhalten                                               |
+| ----------------------- | ------------------------------------------------------------------ |
+| Settings Screen leer    | Hinweis: „Keine Einstellungen verfügbar."                          |
+| Control ohne Label      | Label ist erforderlich, Controls ohne Label werden nicht gerendert |
+| Deskriptiver Text fehlt | Optional – wenn vorhanden, muss er ≥16sp und #616161 sein          |
 
 ---
 

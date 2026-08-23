@@ -43,14 +43,14 @@ Bei Ausfall/Timeout des Mistral-Dienstes eine verständliche Fehlermeldung anzei
 
 ## Randfälle & Fehler
 
-| Situation                              | Erwartetes Verhalten                                                       |
-| -------------------------------------- | -------------------------------------------------------------------------- |
-| Mistral-Dienst antwortet mit HTTP 502  | Verständliche Fehlermeldung statt roher Fehlercode                         |
-| Mistral-Dienst Timeout                 | Verständliche Fehlermeldung statt technischer Timeout-Meldung              |
+| Situation                              | Erwartetes Verhalten                                                                                                                                        |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Mistral-Dienst antwortet mit HTTP 502  | Verständliche Fehlermeldung statt roher Fehlercode                                                                                                          |
+| Mistral-Dienst Timeout                 | Verständliche Fehlermeldung statt technischer Timeout-Meldung                                                                                               |
 | Transienter 5xx-Fehler (502, 503, 504) | Automatischer Retry (bis 3 Versuche gesamt) bei `parse-text`/`pillars/advisor`, danach verständliche Fehlermeldung; `suggest-pillars`/`lektorat` ohne Retry |
-| API-Key ungültig                       | Verständliche Fehlermeldung über Konfigurationsproblem                     |
-| Netzwerkprobleme (Client-seitig)       | Verständliche Fehlermeldung über Netzwerkprobleme                          |
-| Wiederholte Fehler nach Retry          | Klarstellung, dass der Dienst vorübergehend nicht erreichbar ist           |
+| API-Key ungültig                       | Verständliche Fehlermeldung über Konfigurationsproblem                                                                                                      |
+| Netzwerkprobleme (Client-seitig)       | Verständliche Fehlermeldung über Netzwerkprobleme                                                                                                           |
+| Wiederholte Fehler nach Retry          | Klarstellung, dass der Dienst vorübergehend nicht erreichbar ist                                                                                            |
 
 ---
 
