@@ -1,6 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
+import { api } from '../api';
 import { GEOLOCATION_INTERVAL_MS, useGeolocation } from './useGeolocation';
+
+// #933: api.reverseGeocode mocken — verhindert Netzwerk-Calls in ALLEN Tests dieser Datei
+// (der #845-Block löst den Reverse-Geocoding-Effekt unbeabsichtigt mit aus).
+vi.mock('../api', () => ({
+	api: {
+		reverseGeocode: vi.fn().mockResolvedValue({ address: 'Musterstraße 1, 10117 Berlin' }),
+	},
+}));
 
 /**
  * Rote Spec-Tests für #845 — „Geolocation: Position alle 5 Min ermitteln + Einstellungs-Schalter"
@@ -109,5 +118,108 @@ describe('useGeolocation – Hook-Verhalten (Spec: #845)', () => {
 	it('AK6: GEOLOCATION_INTERVAL_MS ist als Konstante definiert (5 Minuten)', () => {
 		// Observable Outcome: Konstante aus dem Produktivcode, kein Literal gegen Literal
 		expect(GEOLOCATION_INTERVAL_MS).toBe(5 * 60 * 1000);
+	});
+});
+
+/**
+ * Rote Spec-Tests für #933 — „Geolokation manuell anstoßen + aktuelle Adresse stets sichtbar".
+ *
+ * Spec-Bezug: docs/spec/issue-933.md
+ *
+ * Dedup: toggle (Berechtigung + erste Position), Intervall-Stopp und Denied-Behandlung deckt
+ * bereits der #845-Block oben ab. Hier NUR die neuen Verhalten:
+ * - AK3: Initial-Fetch beim Mount mit enabled=true (nicht erst nach 5 Minuten Intervall-Tick).
+ * - AK1/AK5: öffentliche refresh() mit Re-Entrancy-Guard (pending) — schützt das
+ *   Nominatim-Rate-Limit (1 req/s).
+ * - AK4: Zeitstempel positionUpdatedAt der letzten Ermittlung (Unix-ms).
+ */
+describe('useGeolocation – #933: Initial-Fetch, refresh(), Zeitstempel', () => {
+	// Rot-Phase: `refresh`/`positionUpdatedAt` existieren im Hook-Typ noch NICHT — daher
+	// optional erweitert, damit tsc die roten Tests kompiliert (Implementation folgt in Phase 4).
+	type Hook933 = ReturnType<typeof useGeolocation> & {
+		refresh?: () => Promise<void>;
+		positionUpdatedAt?: number;
+	};
+	const renderGeoHook = () => renderHook(() => useGeolocation() as Hook933);
+
+	const geoMock = {
+		getCurrentPosition: vi.fn(),
+		watchPosition: vi.fn(),
+		clearWatch: vi.fn(),
+	};
+
+	beforeEach(() => {
+		localStorage.clear();
+		vi.clearAllMocks();
+		Object.defineProperty(global.navigator, 'geolocation', {
+			value: geoMock,
+			writable: true,
+		});
+	});
+
+	afterEach(() => {
+		localStorage.clear();
+	});
+
+	// AK3: Mount mit gespeichertem enabled=true (z. B. nach Reload) holt SOFORT eine Position
+	// und stößt danach Reverse Geocoding an — ohne toggle-Aufruf, ohne Intervall-Tick.
+	it('AK3: Mount mit enabled=true ermittelt sofort Position + Reverse Geocoding (Initial-Fetch)', async () => {
+		localStorage.setItem('pp-geolocation-enabled', 'true');
+		geoMock.getCurrentPosition.mockImplementationOnce((success) => {
+			success({ coords: { latitude: 48.137, longitude: 11.575 } });
+		});
+
+		renderGeoHook();
+
+		// Kein toggle(), kein advanceTimersByTime: Der Fetch muss allein durch den Mount ausgelöst werden.
+		await waitFor(() => {
+			expect(geoMock.getCurrentPosition).toHaveBeenCalledTimes(1);
+			expect(api.reverseGeocode).toHaveBeenCalledWith({ lat: 48.137, lon: 11.575 });
+		});
+	});
+
+	// AK1 + AK5: refresh() holt Position; ein zweiter Aufruf während pending startet KEINE
+	// zweite Abfrage (Guard analog toggle — Rate-Limit-Schutz).
+	it('AK1/AK5: refresh() ermittelt sofort; Re-Entrancy während pending wird ignoriert', async () => {
+		let releasePosition!: () => void;
+		geoMock.getCurrentPosition.mockImplementation((success) => {
+			releasePosition = () => success({ coords: { latitude: 1.25, longitude: 6.5 } });
+		});
+
+		const { result } = renderGeoHook();
+
+		// AK1-Vertrag: Der Hook stellt refresh() öffentlich bereit.
+		expect(result.current.refresh).toBeTypeOf('function');
+
+		const first = result.current.refresh!();
+		// Zweiter Klick, während die erste Ermittlung noch hängt (pending):
+		void result.current.refresh?.();
+
+		// Trotz zweier Aufrufe: nur EINE Abfrage an navigator.geolocation.
+		expect(geoMock.getCurrentPosition).toHaveBeenCalledTimes(1);
+
+		releasePosition();
+		await first;
+		await waitFor(() => {
+			expect(result.current.position).toEqual({ latitude: 1.25, longitude: 6.5 });
+		});
+		// Guard ist nur während pending aktiv — danach wäre ein neuer refresh erlaubt:
+		expect(result.current.pending).toBe(false);
+	});
+
+	// AK4: Nach jeder erfolgreichen Ermittlung steht der Zeitpunkt der Ermittlung bereit,
+	// damit die UI „Stand: HH:MM" rendern kann.
+	it('AK4: nach refresh() ist positionUpdatedAt gesetzt (Unix-ms)', async () => {
+		geoMock.getCurrentPosition.mockImplementationOnce((success) => {
+			success({ coords: { latitude: 1.25, longitude: 6.5 } });
+		});
+
+		const { result } = renderGeoHook();
+
+		if (typeof result.current.refresh === 'function') {
+			await result.current.refresh();
+		}
+
+		expect(result.current.positionUpdatedAt ?? 0).toBeGreaterThan(0);
 	});
 });
