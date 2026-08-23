@@ -52,3 +52,25 @@ Konflikte, die er verhindern soll.
   des Code-Spans herausziehen (ganzen Span in eine Zeile), dann wrapped Prettier den Absatz
   selbst korrekt. Nach jedem Markdown-Fix `prettier --write` + `git diff` gegenprüfen, ob die
   Änderung überlebt.
+- 2026-08-23 · CI/Rerun — `gh run rerun <id> --failed` direkt nach einem Push landet in derselben
+  Concurrency-Gruppe und CANCELLT den frisch gestarteten Run des neuen Commits („higher priority
+  waiting request"). Der Rerun testet zudem den ALTEN SHA. → Erst Rerun abwarten, dann den gecancelten
+  Run des neuen SHA per `gh run rerun <cancelled-run-id>` (ohne --failed) neu starten statt nachzu-
+  pushen (Commit-Stop-Guard).
+- 2026-08-23 · Spec-Phase/Pre-Commit — der Pre-Commit-Hook läuft `tsc --noEmit` über den
+  ganzen Frontend-Workspace; rote Tests, die die noch NICHT existierende API benennen
+  (`result.current.refresh`), sterben am Hook statt rot zu laufen. → Neue API im Test per
+  Intersection-Typ optional deklarieren (`type T = ReturnType<typeof hook> & { neu?: … }`)
+  und casten — Produktiv-Typ unangetastet.
+- 2026-08-23 · Git/Sandbox — frische Runner-Sandbox hat kein `git config user.name/email`:
+  `git commit` scheitert mit „empty ident name", ein vorher gestarteter `git push -u origin
+  <branch>` legt trotzdem einen LEEREN Remote-Branch an. → Vor dem ersten Commit lokal
+  `git config user.name/user.email` setzen und Commit-Ergebnis per `git log -1` verifizieren.
+- 2026-08-23 · Vitest 4 — `--reporter=basic` existiert nicht mehr („Failed to load custom
+  Reporter"); nur noch default/tap/etc. → Default-Reporter nutzen und Output per `tail`
+  kürzen.
+- 2026-08-23 · Spec-Phase/Issue-Body — gelegentlich ist der KI-ANALYSE-Block im Issue-Body defekt (enthält wörtlich `$(gh issue view …)` statt Inhalt). → AKs dann aus Titel + KI-UX-Block + Analyse-Bot-Kommentar (`gh issue view N --json comments`) ableiten und den Defekt im Spec/PR-Body dokumentieren.
+- 2026-08-23 · GraphQL/Threads — Review-Threads auflösen: `resolvePullRequestReviewThread` existiert
+  im Schema dieses Endpoints NICHT (`Field doesn't exist on type "Mutation"`); Introspektion ergab
+  `resolveReviewThread(input:{threadId})`. Außerdem `body` als `$b:String!` deklarieren und der
+  Reply-Payload hat kein `thread`-Feld — `comment{databaseId}` selektieren.

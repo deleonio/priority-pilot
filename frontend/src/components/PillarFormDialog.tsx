@@ -1,10 +1,11 @@
-import { KolAlert, KolButton, KolInputText } from '@public-ui/react-v19';
+import { KolAlert, KolButton, KolInputText, KolTextarea } from '@public-ui/react-v19';
 import type { Pillar } from 'client';
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { useCtrlEnter } from '../lib/useCtrlEnter';
 import { readString } from '../lib/inputValue';
+import { TITLE_MAX_LENGTH } from '../lib/titleLengthValidation';
 import { Modal } from './Modal';
 
 interface PillarFormDialogProps {
@@ -93,6 +94,7 @@ export const PillarFormDialog = ({ pillar, onClose, onSaved }: PillarFormDialogP
 				<KolInputText
 					_label="Name"
 					_required
+					_maxLength={TITLE_MAX_LENGTH}
 					_value={nameState}
 					_on={{
 						onInput: (_event, value) => {
@@ -107,7 +109,7 @@ export const PillarFormDialog = ({ pillar, onClose, onSaved }: PillarFormDialogP
 						},
 					}}
 				/>
-				<KolInputText
+				<KolTextarea
 					_label="Beschreibung"
 					_value={descriptionState}
 					_on={{

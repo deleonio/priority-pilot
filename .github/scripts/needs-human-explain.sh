@@ -118,9 +118,20 @@ case "$CMD" in
     # Resttext einer OSC-Sequenz bleibt als Klartext stehen — kosmetisch, aber
     # unschädlich in einem Markdown-Codeblock.
     [ -r "$LOG_FILE" ] || exit 0
-    tail -n "$LOG_LINES" "$LOG_FILE" \
-      | LC_ALL=C tr -d '\000-\010\013\014\016-\037' \
-      | cut -c1-400
+    # Fenster um die LETZTE VERDICT:-Zeile statt blinder letzter N Zeilen: Die
+    # Begründung (Findings, Entscheidungs-Sektion) steht typischerweise VOR dem
+    # Verdict — "letzte 25 Zeilen" schnitt sie systematisch ab und ließ nur
+    # Noise übrig (PR #903, #944). Ohne VERDICT:-Zeile: Fallback tail
+    # (Crash-Fall — dort steht die Ursache, z. B. 402/1313, am Ende).
+    clean() { LC_ALL=C tr -d '\000-\010\013\014\016-\037'; }
+    VLINE="$(grep -n 'VERDICT:' "$LOG_FILE" | tail -1 | cut -d: -f1)"
+    if [ -n "$VLINE" ]; then
+      START=$(( VLINE > LOG_LINES ? VLINE - LOG_LINES : 1 ))
+      END=$(( VLINE + 3 ))
+      sed -n "${START},${END}p" "$LOG_FILE" | clean | cut -c1-400
+    else
+      tail -n "$LOG_LINES" "$LOG_FILE" | clean | cut -c1-400
+    fi
     ;;
 
   post)

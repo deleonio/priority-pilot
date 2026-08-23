@@ -40,6 +40,15 @@
 
 - Hydration-Probe in `e2e/helpers.ts` mit dokumentiertem `eslint-disable` (Infrastruktur, keine Assertion)
 
+### A11y wird vertraut, nicht getestet (#929)
+
+Barrierefreiheit ist Kernkompetenz der KoliBri-Components — Semantik, Fokus-Optik und
+Tastaturbedienung (z. B. Roving Tabindex in `kol-toolbar`) liefert die Bibliothek BITV/WCAG-geprüft.
+Eigene Tests prüfen sie deshalb **nicht** (keine ARIA-/Focus-Style-Assertions an KoliBri-gerenderten
+Elementen). Einklagbar bleibt nur der Kompositions-Vertrag der App: Element existiert und ist
+per Tastatur erreichbar, Accessible Name, Layout-Position, Touch-Target-Größe. Nachgerüstete
+ARIA-Attribute an Items verwirft KoliBri still — Semantik kommt aus der Komponente.
+
 ## 4. ESLint-Guard
 
 Der ESLint-Guard in `frontend/eslint.config.mjs` verhindert Rückfälle:

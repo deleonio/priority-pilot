@@ -76,6 +76,12 @@ export const TaskStatus = {
 export class ResponseError extends Error {
 	constructor(
 		public response: Response,
+		/**
+		 * Geparster Fehler-Body der Response, wenn er beim Throw bereits vorlag. openapi-fetch liest
+		 * den Body JEDER non-ok Response (`response.text()`), danach ist `response.clone()` unbrauchbar
+		 * („Body has already been consumed") — `toApiError` nimmt deshalb zuerst dieses Feld (#948).
+		 */
+		public body?: unknown,
 		message = `Response returned an error code (HTTP ${response.status}).`,
 	) {
 		super(message);

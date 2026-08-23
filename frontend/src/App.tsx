@@ -11,6 +11,7 @@ import {
 import type { Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { api } from './api';
 import { CompletedTasksTable } from './components/CompletedTasksTable';
 import { Footer } from './components/Footer';
@@ -22,7 +23,7 @@ import { ForestPanel } from './components/ForestPanel';
 import { HelpPage } from './components/HelpPage';
 import { InstallPrompt } from './components/InstallPrompt';
 import { UpdatePrompt } from './components/UpdatePrompt';
-import { ModelSelectorButton } from './components/ModelSelectorButton';
+import { ModelSelectionDialog } from './components/ModelSelectionDialog';
 import { PillarAdvisorModal } from './components/PillarAdvisorModal';
 import { QuickCaptureModal } from './components/QuickCaptureModal';
 import { SeriesTab } from './components/SeriesTab';
@@ -57,6 +58,7 @@ const DONE_REMOVAL_DELAY_MS = 5000;
 
 const CREATE_ICON = { left: { icon: 'fa-solid fa-plus' } };
 const ADVISOR_ICON = { left: { icon: 'fa-solid fa-lightbulb' } };
+const MODEL_ICON = { left: { icon: 'fa-solid fa-brain' } };
 const HELP_ICON = { left: { icon: 'fa-solid fa-circle-question' } };
 const SETTINGS_ICON = { left: { icon: 'fa-solid fa-gear' } };
 const LOGOUT_ICON = { left: { icon: 'fa-solid fa-right-from-bracket' } };
@@ -75,6 +77,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 	const [logoutLoading, setLogoutLoading] = useState(false);
 	const [logoutError, setLogoutError] = useState<string | null>(null);
 	const [updateError, setUpdateError] = useState<string | null>(null);
+	const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
 	const [activeTab, setActiveTab] = useState(0);
 	const doneRemovalTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
 
@@ -374,8 +377,16 @@ export const App = ({ user }: { user: AuthUser }) => {
 		setDialog({ kind: 'advisor' });
 	}, []);
 
+	// Callbacks für Model-Selector
+	const handleModelSelectorOpen = useCallback((): void => setModelSelectorOpen(true), []);
+	const handleModelSelectorClose = useCallback((): void => setModelSelectorOpen(false), []);
+
 	// Toolbar-Buttons sind auf allen Viewports identisch — keine unterschiedliche Menüstruktur je nach
 	// Viewport-Breite (#691). `_label`s und Reihenfolge sind stabil, damit Accessible Names konsistent bleiben.
+	// Der KI-Modell-Button ist seit #965 icon-only mit statischem Accessible Name „KI-Modell auswählen“
+	// und auf allen Breiten sichtbar (Rückbau der #929-Mobil-Ausblendung); das aktuelle Modell steht
+	// nur noch im Dialog. KoliBri liefert die Button-Semantik im Shadow-DOM; zusätzliche ARIA-Attribute
+	// am Item werden von `kol-toolbar` still verworfen: nativer Button, A11y trägt KoliBri.
 	const toolbarItems = useMemo(() => {
 		return [
 			{
@@ -393,6 +404,14 @@ export const App = ({ user }: { user: AuthUser }) => {
 				_icons: ADVISOR_ICON,
 				_variant: 'secondary' as const,
 				_on: { onClick: openAdvisor },
+			},
+			{
+				type: 'button' as const,
+				_label: 'KI-Modell auswählen',
+				_hideLabel: true,
+				_icons: MODEL_ICON,
+				_variant: 'secondary' as const,
+				_on: { onClick: handleModelSelectorOpen },
 			},
 			{
 				type: 'button' as const,
@@ -420,7 +439,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 				_on: { onClick: (): void => void handleLogout() },
 			},
 		];
-	}, [logoutLoading, openCreateDialog, openAdvisor, openSettings, openHelp, handleLogout]);
+	}, [logoutLoading, openCreateDialog, openAdvisor, openSettings, openHelp, handleLogout, handleModelSelectorOpen]);
 
 	if (showSettings) {
 		return (
@@ -458,7 +477,6 @@ export const App = ({ user }: { user: AuthUser }) => {
 					 * Accessible Name — Screenreader kündigten zwei Toolbars an, und der Wrapper verspräche
 					 * eine Pfeiltasten-Navigation, die er nicht implementiert.
 					 */}
-					<ModelSelectorButton />
 					<KolToolbar _label="Kopf-Aktionen" _orientation="horizontal" _items={toolbarItems} />
 				</div>
 				{/* Avatar wiederhergestellt per Issue #865 Korrektur — Full Name bleibt entfernt; seit #912 am rechten Rand */}
@@ -652,6 +670,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 					onChanged={refreshKeepingDialog}
 				/>
 			)}
+			{modelSelectorOpen && createPortal(<ModelSelectionDialog onClose={handleModelSelectorClose} />, document.body)}
 			<InstallPrompt />
 			<UpdatePrompt />
 			<Footer version={APP_VERSION} />
