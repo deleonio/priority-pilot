@@ -8,7 +8,7 @@
 		"kolibri-mcp": {
 			"type": "http",
 			"url": "https://public-ui-kolibri-mcp.vercel.app/mcp",
-			"directTools": true
+			"directTools": ["search", "fetch"]
 		}
 	}
 }
