@@ -13,6 +13,7 @@ import { TaskStatus } from 'client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from './api';
+import { useIsMobile } from './lib/use-is-mobile';
 import { CompletedTasksTable } from './components/CompletedTasksTable';
 import { Footer } from './components/Footer';
 import { Dashboard } from './components/Dashboard';
@@ -100,6 +101,11 @@ export const App = ({ user }: { user: AuthUser }) => {
 	const [logoutError, setLogoutError] = useState<string | null>(null);
 	const [updateError, setUpdateError] = useState<string | null>(null);
 	const [currentModel, setCurrentModel] = useState<string | null>(null);
+	// Mobile-Ausblendung des KI-Modell-Buttons (#929): Unter 48rem füllt die Toolbar die Zeile
+	// komplett aus — der Button mit Klartext-Label würde den Header umbrechen. Er wird deshalb
+	// mobil gar nicht erst gerendert (matchMedia statt CSS: der Button lebt im KoliBri-Shadow-DOM,
+	// ein Light-DOM-Selektor griffe ins Leere). Muster: useIsMobile (LlmProviderToggle).
+	const isMobile = useIsMobile();
 	const [modelSelectorOpen, setModelSelectorOpen] = useState(false);
 	const [activeTab, setActiveTab] = useState(0);
 	const doneRemovalTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
@@ -424,6 +430,11 @@ export const App = ({ user }: { user: AuthUser }) => {
 
 	// Toolbar-Buttons sind auf allen Viewports identisch — keine unterschiedliche Menüstruktur je nach
 	// Viewport-Breite (#691). `_label`s und Reihenfolge sind stabil, damit Accessible Names konsistent bleiben.
+	// Ausnahme (#929): Der KI-Modell-Button (Klartext-Label) wird unter 48rem ausgelassen — die fünf
+	// Kopf-Aktionen füllen die Mobile-Zeile vollständig (mobile-shell-Vertrag, Header ≤ 64px).
+	// KoliBri liefert die Button-Semantik im Shadow-DOM; zusätzliche ARIA-Attribute am Item werden
+	// von `kol-toolbar` still verworfen — der frühere role="combobox"-Vertrag ist damit aufgehoben
+	// (Menschen-Entscheidung zu #929): nativer Button, A11y trägt KoliBri.
 	const toolbarItems = useMemo(() => {
 		return [
 			{
@@ -434,19 +445,18 @@ export const App = ({ user }: { user: AuthUser }) => {
 				_variant: 'primary' as const,
 				_on: { onClick: openCreateDialog },
 			},
-			{
-				type: 'button' as const,
-				_label: `KI-Modell: ${toShortName(currentModel)}`,
-				_hideLabel: false,
-				_icons: { left: { icon: 'fa-solid fa-brain' } },
-				_variant: 'secondary' as const,
-				_aria: {
-					role: 'combobox',
-					ariaHasPopup: 'dialog',
-					ariaExpanded: modelSelectorOpen,
-				},
-				_on: { onClick: handleModelSelectorOpen },
-			},
+			...(isMobile
+				? []
+				: [
+						{
+							type: 'button' as const,
+							_label: `KI-Modell: ${toShortName(currentModel)}`,
+							_hideLabel: false,
+							_icons: { left: { icon: 'fa-solid fa-brain' } },
+							_variant: 'secondary' as const,
+							_on: { onClick: handleModelSelectorOpen },
+						},
+					]),
 			{
 				type: 'button' as const,
 				_label: 'Säulen-Berater',
@@ -490,7 +500,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 		handleLogout,
 		handleModelSelectorOpen,
 		currentModel,
-		modelSelectorOpen,
+		isMobile,
 	]);
 
 	if (showSettings) {

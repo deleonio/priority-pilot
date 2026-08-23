@@ -157,12 +157,14 @@ test.describe('#865 User Full Name entfernen (Avatar behalten)', () => {
 		const toolbar = page.locator('[role="toolbar"]').first();
 		await expect(toolbar).toBeVisible();
 
-		// Tab-Taste drücken, um durch Toolbar zu navigieren
+		// Tab-Taste drücken, um durch Toolbar zu navigieren. Der erste Toolbar-Button liegt im KoliBri-
+		// Shadow-DOM: `:focus` matcht dort zusätzlich den `kol-toolbar`-Host (Fokus-Delegation), ein
+		// barer `locator(':focus')` läuft in eine strict-mode violation — geprüft wird der Button-Scope.
 		await page.keyboard.press('Tab');
 		await page.keyboard.press('Tab');
 
-		const focusedElement = page.locator(':focus');
-		await expect(focusedElement).toBeVisible();
-		expect(await focusedElement.evaluate((el) => el.tagName)).toBe('BUTTON');
+		const focusedButton = page.locator('button:focus');
+		await expect(focusedButton, 'Nach zwei Tabs muss der Fokus auf einem Button liegen').toBeVisible();
+		expect(await focusedButton.evaluate((el) => el.tagName)).toBe('BUTTON');
 	});
 });

@@ -1896,12 +1896,3 @@ kol-toolbar {
 kol-heading {
 	--kol-a11y-font-color: var(--pp-ink);
 }
-
-/* --- Issue #929: KI-Modell-Selector responsive ausblenden (AK5) --- */
-/* Unter 48rem (Mobile) wird der Model-Selector-Button ausgeblendet, um Layout-Umbrüche zu vermeiden.
-   Der Button hat role="combobox" und wird im KoliBri-Toolbar gerendert. */
-@media (max-width: 47.99rem) {
-	.app-header kol-toolbar button[role='combobox'] {
-		display: none !important;
-	}
-}
