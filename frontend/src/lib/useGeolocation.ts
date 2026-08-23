@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api';
 
 /** Geolocation-Intervall: 5 Minuten in ms (AK 6). */
@@ -51,8 +51,12 @@ interface UseGeolocationResult {
 	address: string | null;
 	/** Ob gerade eine Adresse abgerufen wird. */
 	addressLoading: boolean;
+	/** Unix-ms-Zeitstempel der letzten erfolgreichen Positionsermittlung (null: noch keine, #933). */
+	positionUpdatedAt: number | null;
 	/** Geolocation aktivieren (`true`) oder deaktivieren (`false`). */
 	toggle: (next: boolean) => Promise<void>;
+	/** Standortermittlung manuell anstoßen: sofort Position + Reverse Geocoding (#933). */
+	refresh: () => Promise<void>;
 }
 
 /**
@@ -68,6 +72,27 @@ export const useGeolocation = (): UseGeolocationResult => {
 	const [position, setPosition] = useState<GeolocationPosition | null>(null);
 	const [address, setAddress] = useState<string | null>(null);
 	const [addressLoading, setAddressLoading] = useState(false);
+	const [positionUpdatedAt, setPositionUpdatedAt] = useState<number | null>(null);
+
+	// Re-Entrancy-Guard als Ref (#933 AK5): `pending` als React-State reicht nicht — zwei synchrone
+	// Aufrufe (Doppelklick) würden beide noch `false` lesen, bevor ein Re-Render den State übernommen hat.
+	const pendingRef = useRef(false);
+	// Position-Spiegel als Ref: erlaubt dem Interval-Effekt, auf die aktuelle Position zu prüfen,
+	// ohne sie in die Deps aufzunehmen (sonst würde jeder Positions-Update den Effekt neu starten).
+	const positionRef = useRef<GeolocationPosition | null>(null);
+
+	/** Position + Zeitstempel der Ermittlung setzen (#933 AK4). */
+	const applyPosition = useCallback((pos: GeolocationPosition): void => {
+		positionRef.current = pos;
+		setPosition(pos);
+		setPositionUpdatedAt(Date.now());
+	}, []);
+
+	/** Position (und damit Zeitstempel-Anzeige) zurücksetzen. */
+	const clearPosition = useCallback((): void => {
+		positionRef.current = null;
+		setPosition(null);
+	}, []);
 
 	/** Einmalige Positionsermittlung (ohne Seiteneffekte auf State). */
 	const fetchPosition = useCallback((): Promise<GeolocationPosition> => {
@@ -92,12 +117,10 @@ export const useGeolocation = (): UseGeolocationResult => {
 		if (!enabled || !supported) {
 			return;
 		}
-		let intervalId: number | null = null;
 
-		// Intervall starten (erste Position wurde bereits in toggle geholt)
-		intervalId = window.setInterval(() => {
+		const locate = (): void => {
 			fetchPosition()
-				.then((p) => setPosition(p))
+				.then((p) => applyPosition(p))
 				.catch((err) => {
 					if (err.code === 1) {
 						setPermissionDenied(true);
@@ -105,14 +128,22 @@ export const useGeolocation = (): UseGeolocationResult => {
 						storeGeolocationPreference(false);
 					}
 				});
-		}, GEOLOCATION_INTERVAL_MS);
+		};
+
+		// Initial-Fetch (#933 AK3): Beim Mount mit enabled=true (z. B. nach Reload/Seitenwechsel)
+		// sofort die erste Position ermitteln — nicht erst nach Ablauf der 5 Minuten. Hat toggle(true)
+		// sie gerade schon geholt, wird übersprungen (Dedup, schont das Nominatim-Rate-Limit 1 req/s).
+		if (positionRef.current === null) {
+			locate();
+		}
+
+		// Danach alle 5 Minuten erneut (Intervall).
+		const intervalId = window.setInterval(locate, GEOLOCATION_INTERVAL_MS);
 
 		return () => {
-			if (intervalId !== null) {
-				clearInterval(intervalId);
-			}
+			clearInterval(intervalId);
 		};
-	}, [enabled, supported, fetchPosition]);
+	}, [enabled, supported, fetchPosition, applyPosition]);
 
 	/** Reverse Geocoding: Position → Adresse (Issue #866). */
 	useEffect(() => {
@@ -130,9 +161,10 @@ export const useGeolocation = (): UseGeolocationResult => {
 
 	const toggle = useCallback(
 		async (next: boolean): Promise<void> => {
-			if (pending) {
+			if (pendingRef.current) {
 				return;
 			}
+			pendingRef.current = true;
 			setPending(true);
 			setPermissionDenied(false);
 
@@ -140,14 +172,14 @@ export const useGeolocation = (): UseGeolocationResult => {
 				if (next) {
 					// Berechtigung anfragen + erste Position ermitteln
 					const pos = await fetchPosition();
-					setPosition(pos);
+					applyPosition(pos);
 					setPermissionDenied(false);
 					setEnabled(true);
 					storeGeolocationPreference(true);
 				} else {
 					// Ausschalten: Intervall stoppt durch useEffect-Cleanup
 					setEnabled(false);
-					setPosition(null);
+					clearPosition();
 					setPermissionDenied(false);
 					storeGeolocationPreference(false);
 				}
@@ -157,14 +189,54 @@ export const useGeolocation = (): UseGeolocationResult => {
 					setPermissionDenied(true);
 				}
 				setEnabled(false);
-				setPosition(null);
+				clearPosition();
 				storeGeolocationPreference(false);
 			} finally {
+				pendingRef.current = false;
 				setPending(false);
 			}
 		},
-		[pending, fetchPosition],
+		[fetchPosition, applyPosition, clearPosition],
 	);
 
-	return { supported, enabled, pending, permissionDenied, position, address, addressLoading, toggle };
+	/**
+	 * Standortermittlung manuell anstoßen (#933 AK1/AK5): sofort Position holen — die Adresse
+	 * liefert der bestehende Reverse-Geocoding-Effekt auf Positions-Änderung. Erneuter Aufruf
+	 * während einer laufenden Ermittlung wird ignoriert (Rate-Limit-Schutz analog `toggle`).
+	 */
+	const refresh = useCallback(async (): Promise<void> => {
+		if (pendingRef.current) {
+			return;
+		}
+		pendingRef.current = true;
+		setPending(true);
+
+		try {
+			const pos = await fetchPosition();
+			applyPosition(pos);
+		} catch (err: unknown) {
+			// Verweigern beim manuellen Stoß → gleiche Denied-Behandlung wie im Intervall (#845).
+			if (err && typeof err === 'object' && 'code' in err && err.code === 1) {
+				setPermissionDenied(true);
+				setEnabled(false);
+				storeGeolocationPreference(false);
+			}
+		} finally {
+			pendingRef.current = false;
+			setPending(false);
+		}
+	}, [fetchPosition, applyPosition]);
+
+	return {
+		supported,
+		enabled,
+		pending,
+		permissionDenied,
+		position,
+		address,
+		addressLoading,
+		positionUpdatedAt,
+		toggle,
+		refresh,
+	};
 };
