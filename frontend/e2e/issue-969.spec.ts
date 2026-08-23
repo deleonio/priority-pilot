@@ -11,7 +11,7 @@ import { waitForStableView } from './helpers';
  * Bezug zur Spec (docs/spec/issue-969.md):
  * - Test 1 → Spec Schritt 2 / AK1: computed padding-left === padding-right auf `.settings-general`
  * - Test 2 → Spec Schritt 3 / AK2: linker und rechter Abstand des Contents zum Viewportrand gleich (±1px)
- * - Test 3 → Spec Schritt 4 / AK4: Insets der Tabs „Säulen“/„LLM“ entsprechen unverändert dem `.settings-page`-Padding
+ * - Test 3 → Spec Schritt 4 / AK4: Insets der Tabs „Säulen“/„LLM“ entsprechen unverändert den `.settings-page`-Insets
  *
  * AK3 (#843-Regressionsschutz) ist durch die bestehende Suite `issue-843.spec.ts` gedeckt
  * und wird hier bewusst nicht dupliziert.
@@ -66,29 +66,41 @@ test.describe('#969 Settings-Tab „Allgemein“: symmetrisches horizontales Pad
 
 	/**
 	 * Spec-Bezug: Schritt 4 — AK4: Tabs „Säulen“ und „LLM“ zeigen keine Layout-Änderung.
-	 * Ihre horizontalen Insets müssen weiterhin exakt dem computed Padding von `.settings-page`
+	 * Ihre horizontalen Insets müssen weiterhin exakt den Insets von `.settings-page`
 	 * entsprechen (Spiegel: Sollwert aus der führenden Quelle `.settings-page` gelesen, nicht
 	 * als Literal im Test) — der Fix darf nur auf `.settings-general` wirken.
+	 *
+	 * Test-Pflege (Umsetzungsphase, s. PR-Body „Test-Pflege-Bedarf“): Drei Selektor-/Baseline-
+	 * Defekte repariert, die der Test selbst nie grün machen konnte — Assertion (±1px gegen
+	 * `.settings-page`) unverändert:
+	 * 1. KoliBri 4.3.0 `KolTabs` benennt die slot-Attribute der Host-Kinder zur Laufzeit um:
+	 *    JSX `slot="tab-1"` → DOM `slot="tabpanel-slot-1"` (shadow.tsx, setAttribute).
+	 * 2. `getByText('Säulen')` löste strict-mode violation aus (matchte zusätzlich das
+	 *    Panel-Heading „Säulen-Gewichtung“) → `getByRole('tab', …)` (pierct Shadow-DOM).
+	 * 3. Spiegel als Bounding-Box-Insets statt computed Padding: `.settings-page` ist
+	 *    max-width 800px und zentriert — der Viewport-Inset enthält bei >832px (Playwright-
+	 *    Default 1280) den Zentrier-Margin (256 statt 16).
 	 */
-	test('AK4: Insets der Tabs „Säulen“ und „LLM“ entsprechen unverändert dem .settings-page-Padding', async ({
+	test('AK4: Insets der Tabs „Säulen“ und „LLM“ entsprechen unverändert den .settings-page-Insets', async ({
 		page,
 	}) => {
 		await page.goto('/settings/general');
 		await waitForStableView(page, 'Priority Pilot');
 
-		const pagePadding = await page
+		const pageInsets = await page
 			.locator('.settings-page')
 			.first()
 			.evaluate((el) => {
-				const styles = window.getComputedStyle(el);
+				const box = el.getBoundingClientRect();
 				return {
-					left: parseFloat(styles.paddingLeft),
-					right: parseFloat(styles.paddingRight),
+					left: box.x,
+					right: window.innerWidth - box.right,
 				};
 			});
 
-		for (const tab of ['tab-1', 'tab-2']) {
-			const trigger = page.locator('.settings-tabs').getByText(tab === 'tab-1' ? 'Säulen' : 'LLM');
+		for (const tab of ['tabpanel-slot-1', 'tabpanel-slot-2']) {
+			const label = tab === 'tabpanel-slot-1' ? 'Säulen' : 'LLM';
+			const trigger = page.locator('.settings-tabs').getByRole('tab', { name: label });
 			await trigger.click();
 
 			const panel = page.locator(`[slot="${tab}"]`);
@@ -101,9 +113,9 @@ test.describe('#969 Settings-Tab „Allgemein“: symmetrisches horizontales Pad
 			const leftInset = box!.x;
 			const rightInset = viewportWidth - (box!.x + box!.width);
 
-			// Insets der Tabs folgen allein dem `.settings-page`-Padding (±1px Rundung)
-			expect(Math.abs(leftInset - pagePadding.left)).toBeLessThanOrEqual(1);
-			expect(Math.abs(rightInset - pagePadding.right)).toBeLessThanOrEqual(1);
+			// Insets der Tabs folgen allein den `.settings-page`-Insets (±1px Rundung)
+			expect(Math.abs(leftInset - pageInsets.left)).toBeLessThanOrEqual(1);
+			expect(Math.abs(rightInset - pageInsets.right)).toBeLessThanOrEqual(1);
 		}
 	});
 });
