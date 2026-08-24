@@ -125,7 +125,7 @@ jobs:
           tools-tier: full # Write/Edit auf docs/spec + git commit nötig; Push/PR macht der Workflow
           event-type: ${{ github.event_name }}
           # ticket-ref ist Pflicht-Input, dieser Job hat kein Ticket: '0' fließt NUR in den
-          # ungenutzten Memory-Key (claude-memory-issue-0) — Memory ist komplett aus.
+          # ungenutzten Storage-Namen (ai/state/issue-0) — Memory ist komplett aus (memory-load: false).
           ticket-ref: '0'
           app-id: ${{ secrets.APP_ID }}
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}

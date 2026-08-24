@@ -279,30 +279,15 @@ jobs:
           since-epoch: ${{ steps.starttime.outputs.epoch }}
           provider: ${{ steps.setup.outputs.llm-provider }}
 
-      - name: Memory-Upload (das Artefakt IST der Speicher der Phasen-Notizen)
-        # Kein Cache-Save mehr — er ist für diese Pipeline platform-seitig unmöglich: GitHubs
-        # Richtlinie vom 2026-06-26 vergibt für Issue-/Label-/PR-Trigger UND die daraus
-        # kaskadierten workflow_run-Läufe nur lese-only Cache-Token. Der frühere Companion
-        # (claude-memory-save.yml) scheiterte deshalb in JEDEM Lauf still mit "cache write
-        # denied: token has no writable scopes" — als ##[warning], also bei grünem Job.
-        # Artefakte unterliegen dieser Restriktion nicht; die Folgephase holt sich das jüngste
-        # nicht-abgelaufene Artefakt dieses Namens (s. setup-claude, Step "Memory-Load").
-        # Name = claude-memory-issue-{N} (steps.setup.outputs.memory-save-key).
+      - name: Issue-Storage sichern (State-Branch)
+        # ADR 0006: Fetch-then-Commit auf ai/state/issue-{N} — der Branch IST der Speicher
+        # (unbefristet, versioniert, kein Artefakt-/Cache-Transport mehr; Cache-Writes sind
+        # für diese Trigger platform-seitig gesperrt, s. setup-claude Kopf-Kommentar).
         if: always() && steps.setup.outputs.configured == 'true'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: ./.github/actions/issue-state-save
         with:
-          name: ${{ steps.setup.outputs.memory-save-key }}
-          # MEMORY.md ausschliessen: das Dauergedächtnis ist EINGECHECKT, nicht Artefakt-Zustand.
-          # Läge es mit im Artefakt, überschriebe der Restore (gh run download --dir .claude/memory)
-          # in einer Folgephase die frisch committete Datei mit einem alten Stand.
-          path: |
-            ${{ steps.setup.outputs.memory-path }}
-            !${{ steps.setup.outputs.memory-path }}/MEMORY.md
-          # 14 Tage: das Artefakt ist jetzt der einzige Speicher, nicht mehr nur ein Transport-
-          # vehikel zum Cache (dort war 1 Tag genug). Muss den ganzen Ticket-Lebenszyklus
-          # überdauern; Phase 7 räumt am Ende ohnehin deterministisch auf. Größe: ~1 KB.
-          retention-days: 14
-          if-no-files-found: ignore
+          issue-number: ${{ steps.setup.outputs.issue-number || github.event.pull_request.number }}
+          phase: review
 
       - name: Label-Post-Assertion (Labels via App-Token force-setzen)
         if: always() && steps.setup.outputs.configured == 'true' && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure')
