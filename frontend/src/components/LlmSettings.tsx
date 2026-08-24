@@ -209,11 +209,11 @@ export const LlmSettings = ({ onChanged }: LlmSettingsProps) => {
 									_label={`Modell von ${activeProvider.name}${activeProvider.kind === 'builtin' ? ' (fix)' : ''}`}
 									_options={modelOptions}
 									_value={activeProvider.model}
-								_hint={
-									modelsAreFallback
-										? 'Live-Liste nicht erreichbar — es werden bekannte Standard-Modelle angeboten.'
-										: 'Die Modelle werden live vom gewählten Provider geladen.'
-								}
+									_hint={
+										modelsAreFallback
+											? 'Live-Liste nicht erreichbar — es werden bekannte Standard-Modelle angeboten.'
+											: 'Die Modelle werden live vom gewählten Provider geladen.'
+									}
 									_on={{
 										onChange: (_event, value) => void handleModelChange(readString(value)),
 									}}
