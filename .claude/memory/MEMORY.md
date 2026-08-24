@@ -90,3 +90,12 @@ Konflikte, die er verhindern soll.
   → strict-mode violation). Baseline-Spiegel für zentrierte max-width-Seiten als Bounding-Box-Insets
   messen, nicht als computed Padding (sonst falsch bei Viewport > Seitenbreite).
 - 2026-08-23 · E2E/Viewport — `waitForStableView(page, 'Priority Pilot')` scheitert auf `/` bei ≤375px: `.app-name` ist dort per CSS versteckt (app.css:288, Banner zeigt nur Logo-Img). → Auf Hauptansicht den Default-ReadyText `Dashboard` nutzen.
+- 2026-08-24 · KoliBri/E2E — `KolInputCheckbox` rendert einen nativen `<input type="checkbox">`, dessen `aria-checked` IMPLIZIT ist (kein wörtliches Attribut) — `toHaveAttribute('aria-checked')` scheitert an „Received string: \"\"". → Zustand über `toBeChecked()`/`not.toBeChecked()` (Accessibility-Baum) prüfen; Rollen-Fallback `getByRole('switch').or(getByRole('checkbox'))`.
+- 2026-08-24 · KoliBri/Flex-Row — KoliBri-Hosts sind block-level (`width:auto` = 100%): als
+  Flex-Item in einer Row füllen sie die Zeile und zerquetschen Nachbarn auf min-content
+  (45px-breiter, 3000px hoher Alert-Textblock) — dabei bleiben boundingBox-Reihenfolge-Assertions
+  (Alert.x > Switch.rechts) trotzdem GRÜN. → Bei Row-Layout Breiten explizit teilen
+  (`flex: 1 1 60%; min-width: 0` auf dem Host, `flex: 0 1 40%` auf dem Nachbar), nie
+  `flex-shrink: 0` auf einem 100%-Host. Zusätzlich: `locator.boundingBox()` misst die Border-Box
+  inkl. Padding — eine „≥95% der Container-Breite"-AK braucht Full-Bleed
+  (`margin-inline: -1.5rem; padding-inline: 1.5rem`), sonst scheitert sie am Container-Padding.

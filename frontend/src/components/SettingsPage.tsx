@@ -149,36 +149,50 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 			>
 				<div slot="tab-0" className="settings-general" ref={settingsGeneralRef}>
 					<AppearanceSetting />
-					<KolInputCheckbox
-						_label="Sprachaufnahme automatisch starten"
-						_variant="switch"
-						_checked={voiceAutostart}
-						_hint="Beim Öffnen der Formulare zum Anlegen und Bearbeiten von Tasks und Serien wird das erste Eingabefeld fokussiert und dessen Mikrofon automatisch gestartet."
-						_on={{
-							onChange: (_event, value) => {
-								void onToggleVoiceAutostart(value === true);
-							},
-						}}
-					/>
-					{micDenied && (
-						<KolAlert _type="warning" _label="Mikrofon-Zugriff verweigert">
-							Der Zugriff auf das Mikrofon wurde verweigert. Die automatische Sprachaufnahme bleibt deaktiviert. Bitte
-							erteile die Berechtigung im Browser und versuche es erneut.
-						</KolAlert>
-					)}
-					{pushSupported ? (
+					{/* #971: Switch + zugehörige Alerts je in einer `.settings-switch-row` — mobil volle
+							Breite im Stack-Layout, desktop eine Zeile (Switch links, Alert rechts). */}
+					<div className="settings-switch-row">
 						<KolInputCheckbox
-							_label="Push-Nachrichten aktivieren"
+							_label="Sprachaufnahme automatisch starten"
 							_variant="switch"
-							_checked={pushEnabled}
-							_disabled={pushPending}
-							_hint="Erlaube Priority Pilot, dir Erinnerungen (z. B. an fällige Aufgaben) als Push-Nachricht zu senden – auch wenn die App gerade nicht geöffnet ist."
+							_checked={voiceAutostart}
+							_hint="Beim Öffnen der Formulare zum Anlegen und Bearbeiten von Tasks und Serien wird das erste Eingabefeld fokussiert und dessen Mikrofon automatisch gestartet."
 							_on={{
 								onChange: (_event, value) => {
-									void togglePush(value === true);
+									void onToggleVoiceAutostart(value === true);
 								},
 							}}
 						/>
+						{micDenied && (
+							<KolAlert _type="warning" _label="Mikrofon-Zugriff verweigert">
+								Der Zugriff auf das Mikrofon wurde verweigert. Die automatische Sprachaufnahme bleibt deaktiviert. Bitte
+								erteile die Berechtigung im Browser und versuche es erneut.
+							</KolAlert>
+						)}
+					</div>
+					{pushSupported ? (
+						<div className="settings-switch-row">
+							<KolInputCheckbox
+								_label="Push-Nachrichten aktivieren"
+								_variant="switch"
+								_checked={pushEnabled}
+								_disabled={pushPending}
+								_hint="Erlaube Priority Pilot, dir Erinnerungen (z. B. an fällige Aufgaben) als Push-Nachricht zu senden – auch wenn die App gerade nicht geöffnet ist."
+								_on={{
+									onChange: (_event, value) => {
+										void togglePush(value === true);
+									},
+								}}
+							/>
+							{/* #971: `pushFailed` gehört zur Switch-Zeile; der „Push testen"-Button und die
+								    Test-Push-Ergebnis-Alerts (#932/#886) bleiben eigene Zeilen außerhalb. */}
+							{pushFailed && (
+								<KolAlert _type="warning" _label="Push-Nachrichten nicht aktiviert">
+									Push-Nachrichten konnten nicht aktiviert werden. Bitte erteile die Benachrichtigungs-Berechtigung im
+									Browser und versuche es erneut.
+								</KolAlert>
+							)}
+						</div>
 					) : (
 						<KolAlert _type="info" _label="Push-Nachrichten nicht verfügbar">
 							Dieser Browser unterstützt keine Push-Nachrichten. Installiere die App bzw. nutze einen aktuellen Browser,
@@ -214,25 +228,29 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 							Push fehlgeschlagen.
 						</KolAlert>
 					)}
-					{pushFailed && (
-						<KolAlert _type="warning" _label="Push-Nachrichten nicht aktiviert">
-							Push-Nachrichten konnten nicht aktiviert werden. Bitte erteile die Benachrichtigungs-Berechtigung im
-							Browser und versuche es erneut.
-						</KolAlert>
-					)}
 					{geoSupported ? (
-						<KolInputCheckbox
-							_label="Standort erfassen"
-							_variant="switch"
-							_checked={geoEnabled}
-							_disabled={geoPending}
-							_hint="Ermittle alle 5 Minuten deine aktuelle Position (z. B. für ortsbezogene Aufgaben-Vorschläge)."
-							_on={{
-								onChange: (_event, value) => {
-									void toggleGeo(value === true);
-								},
-							}}
-						/>
+						<div className="settings-switch-row">
+							<KolInputCheckbox
+								_label="Standort erfassen"
+								_variant="switch"
+								_checked={geoEnabled}
+								_disabled={geoPending}
+								_hint="Ermittle alle 5 Minuten deine aktuelle Position (z. B. für ortsbezogene Aufgaben-Vorschläge)."
+								_on={{
+									onChange: (_event, value) => {
+										void toggleGeo(value === true);
+									},
+								}}
+							/>
+							{/* #971: `geoDenied` gehört zur Switch-Zeile; der `geoEnabled`-Block
+								    (Ermitteln-Button + Adresse, #933) bleibt eigene Zeilen außerhalb. */}
+							{geoDenied && (
+								<KolAlert _type="warning" _label="Standortzugriff verweigert">
+									Der Zugriff auf den Standort wurde verweigert. Die Standorterfassung bleibt deaktiviert. Bitte erteile
+									die Berechtigung im Browser und versuche es erneut.
+								</KolAlert>
+							)}
+						</div>
 					) : (
 						<KolAlert _type="info" _label="Standort nicht verfügbar">
 							Dieser Browser unterstützt keine Standortabfrage. Nutze einen aktuellen Browser, um die Position zu
@@ -262,12 +280,6 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 								{positionUpdatedAt !== null && ` (Stand: ${formatGeoTimestamp(positionUpdatedAt)})`}
 							</div>
 						</>
-					)}
-					{geoDenied && (
-						<KolAlert _type="warning" _label="Standortzugriff verweigert">
-							Der Zugriff auf den Standort wurde verweigert. Die Standorterfassung bleibt deaktiviert. Bitte erteile die
-							Berechtigung im Browser und versuche es erneut.
-						</KolAlert>
 					)}
 				</div>
 				{/* Beide Panel-Inhalte bleiben gemountet: `KolTabs` blendet inaktive Panels nur aus dem

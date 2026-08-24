@@ -31,7 +31,7 @@ test.describe('#843 Settings Screen Layout', () => {
 
 		// Wir prüfen die Host-Elemente für konsistentes Spacing
 		const controls = page.locator(
-			'.settings-general > kol-input-radio, .settings-general > kol-input-checkbox, .settings-general > kol-button',
+			'.settings-general > kol-input-radio, .settings-general kol-input-checkbox, .settings-general > kol-button',
 		);
 		const count = await controls.count();
 
@@ -66,7 +66,7 @@ test.describe('#843 Settings Screen Layout', () => {
 
 		// Wir prüfen die Host-Elemente, nicht die role-Elemente im Shadow-DOM
 		const controls = page.locator(
-			'.settings-general > kol-input-radio, .settings-general > kol-input-checkbox, .settings-general > kol-button',
+			'.settings-general > kol-input-radio, .settings-general kol-input-checkbox, .settings-general > kol-button',
 		);
 		const count = await controls.count();
 
