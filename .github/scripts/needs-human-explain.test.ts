@@ -197,3 +197,21 @@ describe('needs-human-explain.sh — --ticket ist Alias für --pr', () => {
 		assert.match(res.stderr, /triage/, 'die Fehlermeldung muss den neuen Modus mit auflisten');
 	});
 });
+
+describe('needs-human-explain.sh lookup — Pagination (>100 Kommentare)', () => {
+	it('flacht konkatenierte gh --paginate-Seiten und findet den jüngsten Marker auch jenseits der ersten Seite', () => {
+		// Regression (Review zu PR #995): Der lookup fragte ohne --paginate ab —
+		// bei >100 Issue-Kommentaren (realistisch genau in den langen Loops, die
+		// der Runden-Deckel stoppen soll) sah `| last` nur die ältesten 100 und
+		// verlinkte einen veralteten Marker-Kommentar. gh --paginate hängt die
+		// Seiten als konkatenierte JSON-Arrays aneinander; lookup muss sie
+		// flattening, damit `last` wieder den jüngsten Marker insgesamt meint.
+		const page1 = JSON.stringify([comment('<!-- ai-triage-decision -->\n## Entscheidung nötig (veralteter Stand)', 1)]);
+		const page2 = JSON.stringify([comment(TRIAGE_BODY, 9)]);
+		writeFileSync(fixturePath, page1 + page2);
+		const out = lookup(['--ticket', '42', '--mode', 'triage']);
+		assert.equal(out.status, 'found');
+		assert.match(out.permalink, /issuecomment-9$/, 'der jüngste Marker über ALLE Seiten gewinnt');
+		assert.equal(out.id, '9');
+	});
+});

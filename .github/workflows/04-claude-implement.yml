@@ -658,7 +658,7 @@ jobs:
               printf '%s\n\n' "**Verbrauch:** Kosten-Daten werden erst nach Merge versiegelt (\`.costs/\`) — zum Laufzeitpunkt liegen keine verifizierten Zahlen vor."
               printf '%s\n' "**Entscheidung — bitte genau eine Option wählen:**"
               printf '%s\n' "- [ ] **F.1 — Findings selbst fixen:** Label \`ai:needs-human\` entfernen, Fixes committen, dann \`ai:needs-review\` setzen"
-              printf '%s\n' "- [ ] **F.2 — Spec/PR neu zuschneiden:** PR-Beschreibung/Spec präzisieren, dann \`ai:needs-human\` entfernen und \`ai:needs-fixup\` setzen (Runde ${N} läuft dann bewusst und zuletzt)"
+              printf '%s\n' "- [ ] **F.2 — Spec/PR neu zuschneiden:** PR-Beschreibung/Spec präzisieren + Fixes committen, dann \`ai:needs-human\` entfernen und \`ai:needs-review\` setzen; für eine weitere KI-Fixup-Runde vorher \`MAX_FIXUP_ROUNDS\` im 04er erhöhen (der Rundenzähler zählt jedes Setzen von \`ai:needs-fixup\` — ein Re-Arm allein startet keine Runde mehr)"
               printf '%s\n' "- [ ] **F.3 — Verwerfen:** PR schließen und Label \`ai:needs-human\` entfernen"
             } > /tmp/needs-human-body.md
             bash .github/scripts/needs-human-explain.sh post --repo "$REPO" --pr "$PR" --body-file /tmp/needs-human-body.md

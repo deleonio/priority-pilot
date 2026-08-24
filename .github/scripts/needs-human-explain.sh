@@ -85,9 +85,16 @@ case "$CMD" in
     # Mit Retry: unmittelbar nach Claudes Post liefert die API den Kommentar
     # (Replikationsverzögerung) gelegentlich noch nicht — gleiche Lektion wie der
     # Marker-Check in 05 (PR #524).
+    # --paginate: Der Runden-Deckel (04) und das Review-Delta greifen genau bei
+    # langen Loops, wo >100 Issue-Kommentare am PR realistisch werden — ohne
+    # Pagination liefert die API nur die ältesten 100 und `| last` im FILTER
+    # verlinkt einen veralteten Marker-Kommentar. gh hängt die Seiten als
+    # konkatenierte JSON-Arrays aneinander; jq -s 'add' flacht sie zu einem
+    # Array (Fehler/leere Antwort → []). Fail-open bleibt: lookup meldet dann
+    # status=missing, nie fatal.
     COMMENTS="[]"
     for attempt in 1 2 3; do
-      COMMENTS="$(gh api "repos/${REPO}/issues/${PR}/comments?per_page=100&since=${SINCE}" 2>/dev/null || echo '[]')"
+      COMMENTS="$(gh api --paginate "repos/${REPO}/issues/${PR}/comments?per_page=100&since=${SINCE}" 2>/dev/null | jq -s 'add // []' 2>/dev/null || echo '[]')"
       [ "$(printf '%s' "$COMMENTS" | jq -r "$FILTER | select(. != null) | .id" 2>/dev/null)" != "" ] && break
       [ "$attempt" -lt 3 ] && sleep "$attempt"
     done

@@ -145,6 +145,15 @@ describe('fixup-rounds.sh count — TF4: Argument-Validierung', () => {
 		const res = spawnSync('bash', [script, 'count'], { encoding: 'utf8' });
 		assert.equal(res.status, 2);
 	});
+
+	it('Wert-loses Flag als letztes Token (--repo/--pr/--max ohne Wert) → Usage-Exit 2 statt Crash', () => {
+		// Regression: `REPO="$2"` crashte unter set -u mit „unbound variable" (Exit 1)
+		// statt des sauberen Usage-Exit 2, den jeder andere Missbrauch liefert.
+		for (const flag of ['--repo', '--pr', '--max']) {
+			const res = spawnSync('bash', [script, 'count', flag], { encoding: 'utf8' });
+			assert.equal(res.status, 2, `${flag}: ${res.stderr}`);
+		}
+	});
 });
 
 describe('Struktur-Check — Deckel-Konfiguration an genau einer Stelle (AK3)', () => {

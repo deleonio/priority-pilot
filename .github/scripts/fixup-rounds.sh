@@ -42,20 +42,24 @@ REPO=""
 PR=""
 MAX="3"
 
-while [ $# -gt 0 ]; do
-  case "$1" in
-    --repo) REPO="$2"; shift 2 ;;
-    --pr) PR="$2"; shift 2 ;;
-    --max) MAX="$2"; shift 2 ;;
-    *) shift ;;
-  esac
-done
-
 die_usage() {
   echo "Usage: fixup-rounds.sh count --repo <owner/repo> --pr <nr> [--max <runden>]" >&2
   [ -n "$1" ] && echo "$1" >&2
   exit 2
 }
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    # Wert-loses Flag (z. B. `--repo` als letztes Token) → sauberer Usage-Exit 2
+    # statt Crash über unbound $2. Die Prüfung VOR dem Zugriff ist Pflicht: bash
+    # shifft bei `shift 2` mit nur einem Rest-Argument nichts — ohne sie würde
+    # die Loop dasselbe Token endlos wieder matchen.
+    --repo) [ $# -ge 2 ] || die_usage "--repo erfordert einen Wert"; REPO="$2"; shift 2 ;;
+    --pr) [ $# -ge 2 ] || die_usage "--pr erfordert einen Wert"; PR="$2"; shift 2 ;;
+    --max) [ $# -ge 2 ] || die_usage "--max erfordert einen Wert"; MAX="$2"; shift 2 ;;
+    *) shift ;;
+  esac
+done
 
 case "$CMD" in
   count)
