@@ -1,0 +1,26 @@
+[
+	{
+		"timestamp": "2026-08-20T02:32:40.969Z",
+		"tokensIn": 443564,
+		"tokensOut": 7491,
+		"cost": 0.1114477,
+		"issueId": "923",
+		"phase": "review",
+		"model": "claude-haiku-4-5-20251001",
+		"provider": "claude",
+		"cacheCreationTokens": 25694,
+		"cacheReadTokens": 417772
+	},
+	{
+		"timestamp": "2026-08-20T02:32:43.170Z",
+		"tokensIn": 112553,
+		"tokensOut": 2731,
+		"cost": 0.039436650000000004,
+		"issueId": "923",
+		"phase": "documenter",
+		"model": "claude-haiku-4-5-20251001",
+		"provider": "claude",
+		"cacheCreationTokens": 12605,
+		"cacheReadTokens": 99914
+	}
+]

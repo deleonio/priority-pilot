@@ -15,10 +15,12 @@ description: >-
 # `needs-human-explain.sh logtail` brechen — also genau die Pipeline verändern, die hier
 # vermessen werden soll. Details im Kopf von cost-from-transcript.ts.
 #
-# WARUM KEIN COMMIT nach .costs/: Sieben Phasen × parallele Tickets, die alle auf denselben
-# Ordner committen, erzeugen Konflikte auf main. Artefakt + Job-Summary reichen für die
-# Messung und fassen den Default-Branch nicht an. Wer dauerhaft sammeln will, aggregiert
-# die Artefakte bewusst in einem eigenen Lauf.
+# WARUM ARTEFAKT STATT COMMIT JE PHASE: Sieben Phasen × parallele Tickets, die alle auf
+# denselben Ordner committen, erzeugen Konflikte auf main. Das Artefakt ist deshalb der
+# 90-Tage-ZWISCHENPUFFER. Dauerhaft eingecheckt wird terminal: Der Documenter siegelt
+# nach dem Merge alle Artefakte eines Tickets in .costs/<n>.json (cost-seal.ts, Schritt
+# „Kostenlauf versiegeln" in 06-claude-pr-documenter.yml) — ein Schreiber je Datei,
+# kein Konflikt. Die Job-Summary zeigt den Verbrauch des eigenen Laufes live.
 #
 # NIE FATAL: Jeder Schritt ist fehlertolerant. Eine fehlende Kostenzeile darf keine
 # erfolgreiche Phase rot färben — die Messung ist Beiwerk, nicht Zweck der Pipeline.

@@ -1,0 +1,98 @@
+[
+	{
+		"timestamp": "2026-08-19T17:29:46.490Z",
+		"tokensIn": 719926,
+		"tokensOut": 9761,
+		"cost": 0,
+		"issueId": "912",
+		"phase": "analyse",
+		"model": "glm-5.3",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 656576
+	},
+	{
+		"timestamp": "2026-08-19T18:11:53.102Z",
+		"tokensIn": 567219,
+		"tokensOut": 9437,
+		"cost": 0,
+		"issueId": "912",
+		"phase": "analyse",
+		"model": "glm-5.3",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 505984
+	},
+	{
+		"timestamp": "2026-08-19T18:23:44.071Z",
+		"tokensIn": 1237024,
+		"tokensOut": 3013,
+		"cost": 0,
+		"issueId": "912",
+		"phase": "ux",
+		"model": "glm-5-turbo",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 1181440
+	},
+	{
+		"timestamp": "2026-08-20T02:35:42.845Z",
+		"tokensIn": 731959,
+		"tokensOut": 6426,
+		"cost": 0.44592509999999996,
+		"issueId": "912",
+		"phase": "ux",
+		"model": "claude-sonnet-5",
+		"provider": "claude",
+		"cacheCreationTokens": 37644,
+		"cacheReadTokens": 694287
+	},
+	{
+		"timestamp": "2026-08-20T02:51:40.350Z",
+		"tokensIn": 4095063,
+		"tokensOut": 27669,
+		"cost": 1.9516807500000002,
+		"issueId": "912",
+		"phase": "spec",
+		"model": "claude-sonnet-5",
+		"provider": "claude",
+		"cacheCreationTokens": 89237,
+		"cacheReadTokens": 4005730
+	},
+	{
+		"timestamp": "2026-08-20T02:58:04.507Z",
+		"tokensIn": 1631191,
+		"tokensOut": 10598,
+		"cost": 0.2582107,
+		"issueId": "912",
+		"phase": "implement",
+		"model": "claude-haiku-4-5-20251001",
+		"provider": "claude",
+		"cacheCreationTokens": 36380,
+		"cacheReadTokens": 1594517
+	},
+	{
+		"timestamp": "2026-08-20T03:00:47.062Z",
+		"tokensIn": 572069,
+		"tokensOut": 10221,
+		"cost": 0.14383450000000003,
+		"issueId": "912",
+		"phase": "review",
+		"model": "claude-haiku-4-5-20251001",
+		"provider": "claude",
+		"cacheCreationTokens": 30800,
+		"cacheReadTokens": 541155
+	},
+	{
+		"timestamp": "2026-08-20T03:02:37.441Z",
+		"tokensIn": 165899,
+		"tokensOut": 4439,
+		"cost": 0.0671081,
+		"issueId": "912",
+		"phase": "documenter",
+		"model": "claude-haiku-4-5-20251001",
+		"provider": "claude",
+		"cacheCreationTokens": 24596,
+		"cacheReadTokens": 141261
+	}
+]

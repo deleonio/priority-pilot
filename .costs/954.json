@@ -1,0 +1,26 @@
+[
+	{
+		"timestamp": "2026-08-22T06:27:08.974Z",
+		"tokensIn": 3298123,
+		"tokensOut": 10635,
+		"cost": 0,
+		"issueId": "954",
+		"phase": "review",
+		"model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+		"provider": "openrouter",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 2730240
+	},
+	{
+		"timestamp": "2026-08-22T11:17:47.811Z",
+		"tokensIn": 804346,
+		"tokensOut": 5175,
+		"cost": 0,
+		"issueId": "954",
+		"phase": "review",
+		"model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+		"provider": "openrouter",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 527040
+	}
+]

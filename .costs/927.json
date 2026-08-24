@@ -1,0 +1,74 @@
+[
+	{
+		"timestamp": "2026-08-20T03:08:16.684Z",
+		"tokensIn": 404304,
+		"tokensOut": 5956,
+		"cost": 0.63455375,
+		"issueId": "927",
+		"phase": "review",
+		"model": "claude-opus-5",
+		"provider": "claude",
+		"cacheCreationTokens": 49289,
+		"cacheReadTokens": 354995
+	},
+	{
+		"timestamp": "2026-08-20T03:25:04.566Z",
+		"tokensIn": 2080161,
+		"tokensOut": 13044,
+		"cost": 0,
+		"issueId": "927",
+		"phase": "review",
+		"model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+		"provider": "openrouter",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 1607040
+	},
+	{
+		"timestamp": "2026-08-20T03:55:34.753Z",
+		"tokensIn": 1649264,
+		"tokensOut": 88700,
+		"cost": 0,
+		"issueId": "927",
+		"phase": "fixup",
+		"model": "poolside/laguna-s-2.1:free",
+		"provider": "openrouter",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 1308576
+	},
+	{
+		"timestamp": "2026-08-20T04:07:02.887Z",
+		"tokensIn": 1904894,
+		"tokensOut": 9171,
+		"cost": 0,
+		"issueId": "927",
+		"phase": "fixup",
+		"model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+		"provider": "openrouter",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 1546560
+	},
+	{
+		"timestamp": "2026-08-20T04:13:39.240Z",
+		"tokensIn": 645993,
+		"tokensOut": 3856,
+		"cost": 0,
+		"issueId": "927",
+		"phase": "review",
+		"model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+		"provider": "openrouter",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 406080
+	},
+	{
+		"timestamp": "2026-08-20T04:15:32.106Z",
+		"tokensIn": 146188,
+		"tokensOut": 2280,
+		"cost": 0,
+		"issueId": "927",
+		"phase": "documenter",
+		"model": "nvidia/nemotron-3-nano-30b-a3b:free",
+		"provider": "openrouter",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 97152
+	}
+]

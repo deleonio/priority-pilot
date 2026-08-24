@@ -4,7 +4,14 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { computeCost, lookupPrice, sumUsage, type Usage } from './cost-from-transcript.ts';
+import {
+	classifyModel,
+	computeCost,
+	computeValueCost,
+	lookupPrice,
+	sumUsage,
+	type Usage,
+} from './cost-from-transcript.ts';
 import { readCostRecords } from './cost-record.ts';
 
 /**
@@ -126,6 +133,7 @@ describe('lookupPrice / computeCost', () => {
 			cacheCreationTokens: 1_000_000,
 			cacheReadTokens: 1_000_000,
 			sidechainTokens: 0,
+			turns: 1,
 			model: 'claude-opus-5',
 		};
 		// 5.00 (Input) + 6.25 (Cache-Write) + 0.50 (Cache-Read) = 11.75
@@ -139,9 +147,91 @@ describe('lookupPrice / computeCost', () => {
 			cacheCreationTokens: 0,
 			cacheReadTokens: 0,
 			sidechainTokens: 0,
+			turns: 1,
 			model: 'glm-4.6',
 		};
 		assert.equal(computeCost(usage), undefined, 'Anthropic-Preise dürfen nicht auf GLM angewandt werden');
+	});
+});
+
+describe('sumUsage — Turns (Issue #984)', () => {
+	it('zählt deduplizierte Antworten: Doppelzeilen derselben message.id zählen nicht', () => {
+		assert.equal(sumUsage([line(), line()]).turns, 1);
+	});
+
+	it('zählt jede echte Antwort, Subagenten inklusive', () => {
+		const zweite = JSON.stringify({
+			timestamp: '2026-08-19T12:00:01.000Z',
+			message: { id: 'msg_2', model: 'claude-opus-5', usage: { output_tokens: 7 } },
+		});
+		const sub = JSON.stringify({
+			timestamp: '2026-08-19T12:00:02.000Z',
+			isSidechain: true,
+			message: { id: 'msg_sub', model: 'claude-haiku-4-5-20251001', usage: { output_tokens: 2 } },
+		});
+		assert.equal(sumUsage([line(), zweite, sub]).turns, 3);
+	});
+});
+
+describe('classifyModel / computeValueCost (Issue #984)', () => {
+	it('ordnet alle beobachteten Modelle der Kosten-Artefakte ein', () => {
+		assert.equal(classifyModel('claude-opus-5'), 'flagship');
+		assert.equal(classifyModel('claude-sonnet-5'), 'mid');
+		assert.equal(classifyModel('claude-haiku-4-5-20251001'), 'small');
+		assert.equal(classifyModel('glm-5.3'), 'flagship');
+		assert.equal(classifyModel('glm-5-turbo'), 'mid');
+		assert.equal(classifyModel('glm-4.7'), 'small');
+		assert.equal(classifyModel('nvidia/nemotron-3-ultra-550b-a55b:free'), 'flagship');
+		assert.equal(classifyModel('nvidia/nemotron-3-nano-30b-a3b:free'), 'small');
+		assert.equal(classifyModel('moonshotai/kimi-k2.5'), 'mid');
+		assert.equal(classifyModel('moonshotai/kimi-k2.6'), 'flagship');
+		assert.equal(classifyModel('deepseek/deepseek-v3.2'), 'mid');
+		assert.equal(classifyModel('poolside/laguna-s-2.1:free'), 'mid');
+	});
+
+	it('liefert undefined für unbekannte Modelle (Aufrufer warnt und nimmt Default mid)', () => {
+		assert.equal(classifyModel('weird-model-v9'), undefined);
+	});
+
+	it('bewertet GLM-Verbrauch zu Flagship-Preisen mit denselben Cache-Faktoren wie cost', () => {
+		const usage: Usage = {
+			inputTokens: 1_000_000,
+			outputTokens: 0,
+			cacheCreationTokens: 1_000_000,
+			cacheReadTokens: 1_000_000,
+			sidechainTokens: 0,
+			turns: 3,
+			model: 'glm-5.3',
+		};
+		// 5.00 + 6.25 + 0.50 = 11.75 — identische Rechnung wie computeCost für claude-opus
+		assert.equal(computeValueCost(usage).toFixed(2), '11.75');
+	});
+
+	it('bewertet ein unbekanntes Modell zur Default-Klasse mid', () => {
+		const usage: Usage = {
+			inputTokens: 1_000_000,
+			outputTokens: 10_000,
+			cacheCreationTokens: 0,
+			cacheReadTokens: 0,
+			sidechainTokens: 0,
+			turns: 1,
+			model: 'weird-model-v9',
+		};
+		// 3.00 (Input) + 0.15 (Output)
+		assert.equal(computeValueCost(usage).toFixed(2), '3.15');
+	});
+
+	it('bewertet :free-Modelle trotzdem — bewertet wird der Verbrauch, nicht die Rechnung', () => {
+		const usage: Usage = {
+			inputTokens: 1_000_000,
+			outputTokens: 0,
+			cacheCreationTokens: 0,
+			cacheReadTokens: 0,
+			sidechainTokens: 0,
+			turns: 1,
+			model: 'nvidia/nemotron-3-nano-30b-a3b:free',
+		};
+		assert.ok(computeValueCost(usage) > 0, 'ein free-Modell ist nicht „unendlich effizient"');
 	});
 });
 

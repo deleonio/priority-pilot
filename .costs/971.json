@@ -1,0 +1,98 @@
+[
+	{
+		"timestamp": "2026-08-23T20:55:48.895Z",
+		"tokensIn": 1117291,
+		"tokensOut": 10083,
+		"cost": 0,
+		"issueId": "971",
+		"phase": "analyse",
+		"model": "glm-5.3",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 1081152
+	},
+	{
+		"timestamp": "2026-08-23T20:58:36.578Z",
+		"tokensIn": 1500837,
+		"tokensOut": 11109,
+		"cost": 0,
+		"issueId": "971",
+		"phase": "ux",
+		"model": "glm-4.7",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 1467840
+	},
+	{
+		"timestamp": "2026-08-24T10:27:31.377Z",
+		"tokensIn": 1547163,
+		"tokensOut": 23604,
+		"cost": 0,
+		"issueId": "971",
+		"phase": "analyse",
+		"model": "glm-5.3",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 1328128
+	},
+	{
+		"timestamp": "2026-08-24T10:31:42.553Z",
+		"tokensIn": 1672824,
+		"tokensOut": 13810,
+		"cost": 0,
+		"issueId": "971",
+		"phase": "ux",
+		"model": "glm-4.7",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 1579200
+	},
+	{
+		"timestamp": "2026-08-24T10:43:10.600Z",
+		"tokensIn": 2474965,
+		"tokensOut": 21992,
+		"cost": 0,
+		"issueId": "971",
+		"phase": "spec",
+		"model": "glm-5.3",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 2346240
+	},
+	{
+		"timestamp": "2026-08-24T11:02:42.944Z",
+		"tokensIn": 5449865,
+		"tokensOut": 31415,
+		"cost": 0,
+		"issueId": "971",
+		"phase": "implement",
+		"model": "glm-5.3",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 5306112
+	},
+	{
+		"timestamp": "2026-08-24T11:10:01.547Z",
+		"tokensIn": 1309253,
+		"tokensOut": 12369,
+		"cost": 0,
+		"issueId": "971",
+		"phase": "review",
+		"model": "glm-5.3",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 1175232
+	},
+	{
+		"timestamp": "2026-08-24T11:18:36.484Z",
+		"tokensIn": 764655,
+		"tokensOut": 11123,
+		"cost": 0,
+		"issueId": "971",
+		"phase": "fixup",
+		"model": "glm-5.3",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 732928
+	}
+]
