@@ -46,8 +46,10 @@ native `process.loadEnvFile`, Node ≥ 22 — keine zusätzliche Abhängigkeit).
 Umgebungsvariablen (z. B. Deployment-Secrets) haben Vorrang; ohne `.env` (CI/Deployment) wird der
 Schritt still übersprungen.
 
-- `MISTRAL_API_KEY` (Pflicht für die Säulen-Klassifikation `POST /tasks/suggest-pillars`; fehlt er,
-  antwortet der Endpoint mit **HTTP 503**), optional `MISTRAL_MODEL` (Default `mistral-small-latest`)).
+- `MISTRAL_API_KEY`/`OPENROUTER_API_KEY` (fixe Built-in-Provider; ohne aktiven Provider und
+  Key antworten die LLM-Endpoints mit **HTTP 503**), optional `MISTRAL_MODEL`,
+  `MISTRAL_API_URL`, `OPENROUTER_MODEL`, `OPENROUTER_API_URL` — Details:
+  [docs/llm-providers.md](../docs/llm-providers.md).
 - `DB_RESET`, `DATABASE_STORAGE`, `PORT` — siehe `server/.env.example`.
 
 ## Datenbank

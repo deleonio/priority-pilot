@@ -8,7 +8,7 @@ import { useGeolocation } from '../lib/useGeolocation';
 import { usePushSubscription } from '../lib/push';
 import { useVoiceAutostart } from '../lib/voiceAutostart';
 import { AppearanceSetting } from './AppearanceSetting';
-import { LlmSettingsForm } from './LlmSettingsForm';
+import { LlmSettings } from './LlmSettings';
 import { PillarList } from './PillarList';
 import { PillarWeightsForm } from './PillarWeightsForm';
 
@@ -22,8 +22,9 @@ interface SettingsPageProps {
 
 // Die Tab-Leiste der Settings-Seite (#271). Modulkonstante, damit `KolTabs` nicht bei jedem Render
 // eine neue Tab-Liste erhält und die Auswahl zurücksetzt. Reihenfolge: Allgemein (Index 0), Säulen
-// (Index 1), LLM (Index 2, #640).
-const SETTINGS_TABS = [{ _label: 'Allgemein' }, { _label: 'Säulen' }, { _label: 'LLM' }];
+// (Index 1), KI-Provider (Index 2).
+// Reihenfolge: Allgemein (Index 0), Säulen (Index 1), KI-Provider (Index 2).
+const SETTINGS_TABS = [{ _label: 'Allgemein' }, { _label: 'Säulen' }, { _label: 'KI-Provider' }];
 
 /** Formatiert den Unix-ms-Zeitstempel der letzten Standortermittlung als „HH:MM" (#933 AK4). */
 const formatGeoTimestamp = (updatedAt: number): string => {
@@ -35,8 +36,8 @@ const formatGeoTimestamp = (updatedAt: number): string => {
 
 /**
  * Einstellungen-Seite (#271) mit `KolTabs`-Navigation: „Allgemein" (Platzhalter), „Säulen"
- * (Säulen-Gewichtungs-Editor) und „LLM" (Provider-Konfiguration, #640). Der aktive Tab wird beim
- * initialen Laden aus der URL abgeleitet: `/settings/general` → Allgemein (0), `/settings/llm` → LLM (2),
+ * (Säulen-Gewichtungs-Editor) und „KI-Provider" (Provider-Auswahl & -Verwaltung). Der aktive Tab wird beim
+ * initialen Laden aus der URL abgeleitet: `/settings/general` → Allgemein (0), `/settings/llm` → KI-Provider (2),
  * alles andere → Säulen (1).
  */
 export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: SettingsPageProps) => {
@@ -45,7 +46,7 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 	const [activeTab, setActiveTab] = useState(() => {
 		const path = window.location.pathname;
 		if (path.startsWith('/settings/general')) return 0;
-		// `/settings/llm` muss den LLM-Tab öffnen — sonst zeigt der Direktaufruf den Säulen-Editor
+		// `/settings/llm` muss den KI-Provider-Tab öffnen — sonst zeigt der Direktaufruf den Säulen-Editor
 		// und das Provider-Formular bleibt im inaktiven Panel unsichtbar (#886).
 		if (path.startsWith('/settings/llm')) return 2;
 		return 1;
@@ -284,7 +285,7 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 				</div>
 				{/* Beide Panel-Inhalte bleiben gemountet: `KolTabs` blendet inaktive Panels nur aus dem
 					    Layout- und Accessibility-Baum aus. Ein Unmount würde ungespeicherte Formularwerte
-					    verwerfen und bei jeder Rückkehr einen erneuten LLM-Config-Fetch auslösen (#886). */}
+					    verwerfen und bei jeder Rückkehr einen erneuten Provider-Fetch auslösen (#886). */}
 				<div slot="tab-1">
 					{/* Überschrift „Säulen-Gewichtung" ist Teil des #270-Vertrags (settings-page.spec.ts):
 						    die Route /settings/pillars rendert den Säulen-Editor mit dieser Überschrift. */}
@@ -299,9 +300,9 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 					<PillarWeightsForm key={pillars.length} pillars={pillars} onSaved={onSaved} />
 				</div>
 				<div slot="tab-2" className="settings-llm">
-					{/* LLM-Provider-Konfiguration (#640): Keys/Modell der Mistral/OpenRouter-Kaskade. */}
-					<KolHeading _label="LLM-Provider" _level={2} />
-					<LlmSettingsForm />
+					{/* KI-Provider: Radio-Auswahl (Custom + fixe Built-ins), Modellwahl, Verwaltung. */}
+					<KolHeading _label="KI-Provider" _level={2} />
+					<LlmSettings />
 				</div>
 			</KolTabs>
 		</main>

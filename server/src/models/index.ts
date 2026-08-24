@@ -9,7 +9,6 @@ import SeriesPillar from './seriesPillar.js';
 import User from './user.js';
 import PushSubscription from './pushSubscription.js';
 import NotificationLog from './notificationLog.js';
-import LlmConfig from './llmConfig.js';
 import LlmProvider from './llmProvider.js';
 
 Task.belongsToMany(Task, {
@@ -71,6 +70,5 @@ export {
 	User,
 	PushSubscription,
 	NotificationLog,
-	LlmConfig,
 	LlmProvider,
 };

@@ -2,22 +2,13 @@ import { findProviderByName } from '../llm/llmProviders.js';
 import type { LlmProvider } from '../llm/llm.js';
 
 /**
- * Legacy-Werte des `provider`-Query-Parameters (LLM-Test-Schalter, #749) — fest
- * verdrahtet für die Kaskade. Dazu kommen seit #951 die Namen aller dynamisch
- * konfigurierten `llm_providers` (DB-Lookup, Case-insensitiv).
- */
-const LEGACY_PROVIDERS = new Set<string>(['mistral', 'openrouter']);
-
-/**
  * Validiert den optionalen `provider`-Query-Parameter — für alle LLM-Routen
  * (`/pillars/advisor`, `/tasks/parse-text`, `/tasks/suggest-pillars`, `/lektorat`).
  *
- * Fehlt er (oder ist leer) → undefined (Standard-Auflösung: aktiver Provider bzw.
- * Kaskade). Gültig sind die Legacy-Namen `mistral`/`openrouter` sowie der Name
- * eines konfigurierten dynamischen Providers (#951). Alles andere → HTTP 400.
- *
- * Async, weil die dynamischen Namen aus der DB stammen — die Legacy-Prüfung ist
- * billig, der DB-Lookup läuft nur für nicht-Legacy-Werte.
+ * Fehlt er (oder ist leer) → undefined (Standard-Auflösung: der effektiv aktive
+ * Provider, inkl. Built-in-Fallback). Gültig ist der Name eines konfigurierten
+ * Providers — seit den Built-ins auch „mistral“/„openrouter“ (DB-Auflösung,
+ * Case-insensitiv). Alles andere → HTTP 400.
  */
 export const validateProviderQuery = async (
 	query: Record<string, unknown>,
@@ -29,18 +20,15 @@ export const validateProviderQuery = async (
 	if (typeof raw !== 'string' || raw.length > 64) {
 		return {
 			ok: false,
-			message: `Ungültiger provider-Query-Parameter: "${String(raw)}". Erlaubt: "mistral", "openrouter" oder ein konfigurierter Provider-Name.`,
+			message: `Ungültiger provider-Query-Parameter: "${String(raw)}". Erlaubt: der Name eines konfigurierten Providers.`,
 		};
 	}
-	if (LEGACY_PROVIDERS.has(raw)) {
-		return { ok: true, provider: raw };
-	}
-	const dynamic = await findProviderByName(raw);
-	if (dynamic !== null) {
+	const provider = await findProviderByName(raw);
+	if (provider !== null) {
 		return { ok: true, provider: raw };
 	}
 	return {
 		ok: false,
-		message: `Ungültiger provider-Query-Parameter: "${raw}". Erlaubt: "mistral", "openrouter" oder ein konfigurierter Provider-Name.`,
+		message: `Ungültiger provider-Query-Parameter: "${String(raw)}". Erlaubt: der Name eines konfigurierten Providers.`,
 	};
 };

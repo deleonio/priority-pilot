@@ -192,10 +192,9 @@ test.describe('#485 Header — Avatar-Größe, gemeinsame Ebene, kompakte Höhe'
 	 * `--pp-toolbar-height`, siehe `app.css`). Seit #691 stehen alle fünf Kopf-Aktionen auf JEDER
 	 * Breite direkt in der Toolbar; mit dem Avatar aus der #865-Korrektur füllen Logo (44px),
 	 * Avatar (44px) und die fünf Kopf-Aktionen (~252px) die 375px-Zeile bereits vollständig aus
-	 * (~340 der ~343px Inhaltsbreite). Das sechste Bedienelement — die KI-Modell-Auswahl — ist
-	 * seit #965 als kompakter icon-only-Button auf allen Breiten in der Toolbar (die #929-
-	 * Ausblendung ist rückgebaut; Platzfragen löst `app.css`, nicht Ausblenden — Höhen-Vertrag
-	 * siehe `mobile-shell.spec.ts`). Der
+	 * (~340 der ~343px Inhaltsbreite). Die frühere sechste Kopf-Aktion — die KI-Modell-Auswahl —
+	 * ist mit dem Provider-System in die Einstellungen (Tab „KI-Provider“) gewandert; die Toolbar
+	 * führt wieder fünf Aktionen. Der
 	 * Klartextname ist seit der #865-Korrektur auf allen Breiten
 	 * entfernt; die Identität steht mobil als Avatar da — deren Sichtbarkeit bei 375px deckt
 	 * `issue-718-avatar-mobile.spec.ts` AK1 ab.

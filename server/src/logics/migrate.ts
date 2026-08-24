@@ -370,6 +370,34 @@ export const migratePillarFeedbackUserId = async (db: Sequelize): Promise<void> 
 };
 
 /**
+ * Zieht die `kind`- und `builtin_key`-Spalten auf einer **bestehenden** `llm_providers`-Tabelle
+ * nach (Built-in-Provider Mistral/OpenRouter mit ENV-Keys). `sequelize.sync()` ohne `alter`
+ * ergänzt vorhandene Tabellen nicht um neue Spalten — ohne Nachziehen bräche jeder Provider-Zugriff
+ * mit `no such column: kind`.
+ *
+ * `kind` ist NOT NULL und braucht daher zwingend einen DEFAULT (SQLite-Constraint): `'custom'` —
+ * Bestandszeilen aus #951 sind Custom-Provider. `builtin_key` ist nullable. Die zwei Built-in-
+ * Zeilen legt der Service lazy an (`ensureBuiltins`), nicht diese Migration. Idempotent; No-op bei
+ * frischer DB (keine `llm_providers`-Tabelle) — `sync()` legt Tabelle inkl. Spalten an.
+ */
+export const migrateLlmProviderKindColumns = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('llm_providers')");
+	const existing = (columns as { name: string }[]).map((column) => column.name);
+
+	if (existing.length === 0) {
+		return;
+	}
+	if (!existing.includes('kind')) {
+		await db.query("ALTER TABLE `llm_providers` ADD COLUMN `kind` VARCHAR(255) NOT NULL DEFAULT 'custom'");
+		console.log('Spalte kind an llm_providers nachgezogen.');
+	}
+	if (!existing.includes('builtin_key')) {
+		await db.query('ALTER TABLE `llm_providers` ADD COLUMN `builtin_key` VARCHAR(255)');
+		console.log('Spalte builtin_key an llm_providers nachgezogen.');
+	}
+};
+
+/**
  * Zieht die `checklist`-Spalte (JSON-Array, #531) auf einer **bestehenden** `tasks`-Tabelle nach,
  * BEVOR `sequelize.sync()` läuft. `sync()` ohne `alter` ergänzt vorhandene Tabellen nicht um neue
  * Spalten — ohne Nachziehen bräche jeder Lese-/Schreibzugriff mit `no such column`. Bestehende Tasks
