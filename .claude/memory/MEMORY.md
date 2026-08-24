@@ -99,3 +99,7 @@ Konflikte, die er verhindern soll.
   `flex-shrink: 0` auf einem 100%-Host. Zusätzlich: `locator.boundingBox()` misst die Border-Box
   inkl. Padding — eine „≥95% der Container-Breite"-AK braucht Full-Bleed
   (`margin-inline: -1.5rem; padding-inline: 1.5rem`), sonst scheitert sie am Container-Padding.
+- 2026-08-24 · KoliBri/ESLint-Guard — TAG-Selektor `kol-icon` kollidiert mit dem #824-Guard-Regex
+  `^(kol-icon|kolicon-…)` (meint die interne Shadow-DOM-Klasse, nicht den Host-Tag) → `eslint-disable-next-line
+  no-restricted-syntax` mit Begründung statt Selektor-Verrenkung. Außerdem: `KolIcon` hat `_label` als
+  Pflicht-Property; `_label=""` ist der dekorative Modus (aria-hidden + role=presentation).
