@@ -69,5 +69,19 @@
 		"cacheReadTokens": 621120,
 		"turns": 10,
 		"valueCost": 0.736355
+	},
+	{
+		"timestamp": "2026-08-24T19:39:50.102Z",
+		"tokensIn": 234908,
+		"tokensOut": 3127,
+		"cost": 0,
+		"issueId": "993",
+		"phase": "documenter",
+		"model": "glm-4.7",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 125760,
+		"turns": 4,
+		"valueCost": 0.137359
 	}
 ]
