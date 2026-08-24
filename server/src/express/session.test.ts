@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { unlinkSync, existsSync } from 'node:fs';
+import { createConnection } from 'node:net';
 import { startTestServer, resetDb, closeDb, type TestServer } from '../test/helpers.js';
 
 // createSessionStore ist die Store-Factory aus session.ts (wird durch die Implementierung angelegt).
@@ -176,16 +177,44 @@ describe('AK-4 — Session-TTL wird eingehalten', () => {
 });
 
 // ── AK-5 — SESSION_STORE=redis → Zwei Instanzen teilen Sessions ─────────────
-// Anmerkung: Dieser Test erfordert eine laufende Redis-Instanz (REDIS_URL gesetzt).
-// In CI ohne Redis wird er als Integrations-Hinweis betrachtet.
-// Die Implementierung muss sicherstellen, dass connect-redis Sessions korrekt serialisiert.
+// Integrationstest: verlangt eine laufende Redis-Instanz (REDIS_URL, Default
+// redis://localhost:6379). Die CI stellt Redis als Service-Container bereit (ci.yml);
+// lokal ohne Redis wird der Test deterministisch übersprungen statt rot zu laufen —
+// eine flache TCP-Verbindungsprobe entscheidet, ein echter PING ist dafür nicht nötig.
 
 describe('AK-5 — Redis-Store: Zwei Server-Instanzen teilen Sessions', () => {
 	const redisUrl = process.env.REDIS_URL ?? 'redis://localhost:6379';
 	let server1: TestServer;
 	let server2: TestServer;
 
+	/** Flache TCP-Erreichbarkeitsprobe (true/false) mit Kurz-Timeout gegen Hang-Sockets. */
+	const isRedisReachable = (url: string, timeoutMs = 500): Promise<boolean> =>
+		new Promise((resolve) => {
+			let urlObject: URL;
+			try {
+				urlObject = new URL(url);
+			} catch {
+				resolve(false);
+				return;
+			}
+			const socket = createConnection({ host: urlObject.hostname, port: Number(urlObject.port) || 6379 });
+			const settle = (reachable: boolean): void => {
+				socket.destroy();
+				resolve(reachable);
+			};
+			socket.setTimeout(timeoutMs, () => settle(false));
+			socket.once('connect', () => settle(true));
+			socket.once('error', () => settle(false));
+		});
+
+	// Einmalige Probe IM before-Hook: steuert Setup (keine Server ohne Redis) UND den Skip.
+	let redisAvailable = false;
+	const skipReason = 'Kein Redis erreichbar — Integrationstest übersprungen (CI stellt Redis als Service bereit)';
+
 	before(async () => {
+		redisAvailable = await isRedisReachable(redisUrl);
+		if (!redisAvailable) return;
+
 		process.env.SESSION_STORE = 'redis';
 		process.env.REDIS_URL = redisUrl;
 		process.env.NODE_ENV = 'test';
@@ -199,7 +228,9 @@ describe('AK-5 — Redis-Store: Zwei Server-Instanzen teilen Sessions', () => {
 		delete process.env.SESSION_STORE;
 	});
 
-	it('Session von Instanz 1 ist auf Instanz 2 gültig', async () => {
+	// Skip-Option statt t.skip() im before-Hook: Die Option überspringt den Test zuverlässig,
+	// t.skip() im before-Hook ließe ihn in diesem Node-Stand trotzdem laufen.
+	it('Session von Instanz 1 ist auf Instanz 2 gültig', { skip: !redisAvailable && skipReason }, async () => {
 		// Beide Instanzen starten (teilen denselben Redis-Store via REDIS_URL)
 		[server1, server2] = await Promise.all([startTestServer(), startTestServer()]);
 
