@@ -151,9 +151,7 @@ export const LlmSettingsForm = () => {
 							disabled={saving}
 							onClick={() => (mistralKeyInput !== '' ? setMistralKeyInput('') : void clearField('mistralApiKey'))}
 						>
-							{/* #972: echtes Icon statt Unicode „✕" (U+2715), das je nach Systemfont unsichtbar bleibt.
-    Leeres `_label` macht KolIcon rein dekorativ (aria-hidden, role=presentation) — der
-								    accessible name kommt weiterhin aus dem aria-label des Buttons (e2e-Vertrag aus #788). */}
+							{/* #972: echtes Icon statt Unicode „✕" (U+2715), das je nach Systemfont unsichtbar bleibt. Leeres `_label` macht KolIcon rein dekorativ — der accessible name kommt aus dem aria-label des Buttons (e2e-Vertrag aus #788). */}
 							<KolIcon _label="" _icons="kolicon-cross" />
 						</button>
 					)}

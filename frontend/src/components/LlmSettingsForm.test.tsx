@@ -31,7 +31,11 @@ vi.mock('../api', () => ({
 					? getLlmConfigMock
 					: prop === 'getFreeModels'
 						? getFreeModelsMock
-						: vi.fn().mockResolvedValue(undefined),
+						: // LlmProviderToggle rendert nur bei einem Array; undefined würde dort auf
+							// `providers.length` crashen (siehe Review Finding 1).
+							prop === 'listLlmProviders'
+							? vi.fn().mockResolvedValue([])
+							: vi.fn().mockResolvedValue(undefined),
 		},
 	),
 }));
