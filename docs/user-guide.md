@@ -39,14 +39,14 @@ Administrator.
 
 Ganz oben findest du die **Kopf-Aktionen**:
 
-- **KI-Modell** (Modell-Name mit Pfeil) – wählt das Modell für KI-Funktionen (Schnellerfassung, Säulen-Vorschlag, Säulen-Berater, Lektorat). Ein Klick öffnet eine Liste der aktuell kostenlosen OpenRouter-Modelle, die live vom Server geladen werden.
 - **Neuen Task anlegen** (Plus) – der zentrale Einstieg für neue Aufgaben _und_ Serien.
 - **Säulen-Berater** (Glühbirne) – KI-Vorschläge für Aktivitäten.
+- **KI-Modell** (Gehirn-Icon) – wählt das Modell für KI-Funktionen (Schnellerfassung, Säulen-Vorschlag, Säulen-Berater, Lektorat). Welches Modell aktiv ist, steht erst im Dialog; die Liste der aktuell kostenlosen OpenRouter-Modelle wird live vom Server geladen.
 - **Einstellungen** (Zahnrad) – Darstellung, Spracheingabe, Push, Standort, Säulen-Gewichtung, LLM-Provider.
 - **Hilfe** (Fragezeichen) – dieses Handbuch.
 - **Abmelden** – beendet die Sitzung.
 
-Rechts daneben stehen dein Profilbild und dein Name.
+Rechts daneben siehst du dein Profilbild.
 
 Die Kopfzeile ist auf allen Bildschirmgrößen einheitlich: Alle sechs Elemente (KI-Modell-Auswahl plus fünf Icon-Buttons) stehen direkt in der Leiste – ein zusätzliches Menü gibt es nicht.
 
@@ -69,10 +69,10 @@ Modell für die KI-Funktionen. Von oben nach unten:
 - **Statuskacheln:** **Gesamt**, **Offen** und **Erledigt** – die Anzahl deiner
   Aufgaben auf einen Blick.
 - **Nächste Aufgabe:** die wichtigste Aufgabe, deren Vorgänger alle erledigt sind.
-  Steht nichts an, erscheint ein Hinweis (alles erledigt oder durch offene
-  Vorgänger blockiert).
-- **Was ist jetzt dran?** Eine nummerierte Vorschlagsliste, nach Priorität sortiert
-  und bewusst kurz gehalten, damit sie nicht überfordert.
+  Über **„Jetzt starten"** öffnest du sie direkt zum Bearbeiten. Steht nichts an,
+  erscheint ein Hinweis (alles erledigt oder durch offene Vorgänger blockiert).
+- **Was ist jetzt dran?** Eine nummerierte Vorschlagsliste, bewusst kurz gehalten.
+  Die bereits als „Nächste Aufgabe" angezeigte Aufgabe taucht hier nicht erneut auf.
 - **Wichtigste Tasks:** die Top 5 nach berechnetem **Wert**.
 - **Meine Themen:** je Säule ein Fortschrittsbalken, der den **tatsächlichen Anteil**
   (wohin dein Aufwand fließt) gegen die **Zielgewichtung** der Säule stellt. Darunter
@@ -95,11 +95,12 @@ Aufgabenwald findest du im Tab **Aufgabenwald**.
 
 Oben im Tab findest du zwei Bedienelemente:
 
-- einen **Umschalter Offen/Erledigt**, der zwischen der Liste der offenen Aufgaben und
-  der Tabelle der erledigten Aufgaben wechselt, und
+- einen **Umschalter „Erledigte Aufgaben anzeigen"**, der zwischen der Liste der offenen
+  Aufgaben und der Tabelle der erledigten Aufgaben wechselt, und
 - ein **Suchfeld**, das die aktuelle Ansicht nach **Titel** filtert (Teiltreffer,
-  Groß-/Kleinschreibung egal). Der Suchtext bleibt beim Umschalten bestehen; bei
-  keinem Treffer erscheint ein Leerhinweis.
+  Groß-/Kleinschreibung egal). Der Filter greift erst, wenn du **„Filtern"** klickst
+  oder Enter drückst. Der Suchtext bleibt beim Umschalten bestehen; bei keinem Treffer
+  erscheint ein Leerhinweis.
 
 Rechts an jeder Zeile können **Kennzeichen** stehen:
 
@@ -107,6 +108,8 @@ Rechts an jeder Zeile können **Kennzeichen** stehen:
 - **geändert** – eine Serien-Instanz, die du abweichend bearbeitet hast.
 - **Fortschritt** als `erledigt/gesamt` – nur bei Aufgaben mit Unteraufgaben; zählt
   alle darunterliegenden Unteraufgaben mit.
+- **Priorität** als `P1` bis `P5` – je höher die Zahl, desto auffälliger die Farbe
+  des Kennzeichens.
 
 ### Aktionen je Aufgabe
 
@@ -114,18 +117,19 @@ Alle Aktionen liegen hinter einem **„Weitere Aktionen"-Menü** (Drei-Punkte-Bu
 Im Menü findest du:
 
 - **Erledigt / Wieder öffnen** – als erster Eintrag, schaltet den Status um.
-  Eine Aufgabe lässt sich erst abschließen, wenn **alle direkten Unteraufgaben
-  erledigt** sind (der Eintrag ist sonst gesperrt). Wieder öffnen ist jederzeit
-  möglich – auch als schnelles Rückgängig direkt nach dem Erledigen.
-- **Bearbeiten** (Zahnrad) – öffnet das Aufgabenformular.
+  Eine Aufgabe mit offenen Unteraufgaben lässt sich nicht abschließen; du bekommst
+  dann den Hinweis, erst alle Unteraufgaben zu erledigen. In dieser Liste stehen
+  allerdings nur Aufgaben ohne Unteraufgaben. Wieder öffnen ist jederzeit möglich –
+  auch als schnelles Rückgängig direkt nach dem Erledigen.
+- **Bearbeiten** (Stift) – öffnet das Aufgabenformular.
 - **Abhängigkeiten** (Kette) – öffnet den Vorgänger-Editor.
 - **Unteraufgabe anlegen** (Plus) – legt eine neue Aufgabe an, die automatisch als Vorgänger
   mit der aktuellen verknüpft wird.
 - **Löschen** (Kreuz) – entfernt die Aufgabe nach Rückfrage.
 
 Frisch erledigte Aufgaben bleiben für **5 Sekunden** „sticky" im offenen Baum (für ein
-sofortiges Undo per „Wieder öffnen"). Danach werden sie beim nächsten Reload (z. B. durch
-Tab-Wechsel) automatisch in die **Erledigt**-Ansicht verschoben.
+sofortiges Undo per „Wieder öffnen"). Danach lädt die Ansicht automatisch neu, und die
+Aufgabe erscheint in der **Erledigt**-Ansicht.
 
 ---
 
@@ -150,7 +154,8 @@ Danach hast du zwei Möglichkeiten:
 
 Im selben Dialog erscheint das Aufgabenformular. Felder:
 
-- **Titel** (Pflichtfeld, max. 30 Zeichen) – kurzer, prägnanter Name.
+- **Titel** (Pflichtfeld, max. 30 Zeichen) – kurzer, prägnanter Name. Ein Zähler am
+  Feld zeigt, wie viele Zeichen noch frei sind.
 - **Priorität** – Schieberegler, ganze Zahl von **1 bis 5** (Standard 3). Höher =
   wichtiger; fließt direkt in den Wert ein.
 - **Geschätzter Aufwand in Tagen** – Schieberegler von **0,1 bis 1** (Standard 0,5).
@@ -180,7 +185,8 @@ Speichern mit **„Anlegen"** (bzw. **„Bearbeiten"**), verwerfen mit **„Abbr
 Im Aufgabenformular kannst du eine **Checkliste** anlegen. Damit zerlegst du eine Aufgabe
 in einzelne, abhakbare Teilschritte:
 
-- **Hinzufügen:** Text eingeben, Enter oder Button – neuer Eintrag erscheint.
+- **Hinzufügen:** Text eingeben und **„Hinzufügen"** klicken – der neue Eintrag
+  erscheint in der Liste.
 - **Abhaken:** Schalter je Eintrag toggelt zwischen erledigt / offen.
 - **Entfernen:** Kreuz-Button löscht den Eintrag.
 
@@ -238,9 +244,9 @@ Menü** (Drei-Punkte-Button) einer Aufgabe und wähle **„Abhängigkeiten"**.
 
 - **Aktuelle Vorgänger** listet die verknüpften Aufgaben; jede lässt sich einzeln
   entfernen. (Bereits erledigte Vorgänger erscheinen hier nicht mehr.)
-- **Vorgänger hinzufügen:** eine Aufgabe auswählen, ein **Gewicht (0–1)** setzen und
+- **Vorgänger hinzufügen:** eine Aufgabe auswählen, ein **Gewicht (0,1–1)** setzen und
   **„Hinzufügen"**. Das Gewicht steuert, wie stark der Vorgänger zum Wert der
-  abhängigen Aufgabe beiträgt (0 = kein Einfluss, 1 = voller Einfluss).
+  abhängigen Aufgabe beiträgt (1 = voller Einfluss).
 
 Priority Pilot verhindert **zyklische Abhängigkeiten** (z. B. A → B → A) und lehnt sie
 mit einem verständlichen Hinweis ab. So bleibt der Abhängigkeitsgraph immer
@@ -273,7 +279,8 @@ Im Aufgabenformular ordnest du unter **„Säulen"** eine oder mehrere Säulen z
 
 Ohne Säulen-Zuordnung bleibt die Aufgabe **wertneutral**. Mit **„Säulen vorschlagen"**
 kann eine KI aus Titel und Beschreibung passende Säulen samt Anteil und Konfidenz
-vorschlagen.
+vorschlagen. Nach der Schnellerfassung mit vorbelegtem Titel passiert das automatisch –
+den Vorschlag kannst du vor dem Speichern anpassen.
 
 ### Säulen-Gewichtung anpassen
 
@@ -311,10 +318,14 @@ erzeugt Priority Pilot regelmäßig neue Aufgaben-Instanzen.
   einschalten. Statt einer Deadline setzt du dann ein **Startdatum** und einen
   **Rhythmus**: **Täglich**, **Wöchentlich**, **Monatlich**, **Werktags** (Mo–Fr),
   **Wochenende** (Sa+So) oder an einem bestimmten Wochentag (**Montags** bis
-  **Sonntags**). Priorität, Aufwand, Beschreibung und Säulen werden als Vorlage für
+  **Sonntags**). Bei einem Wochentag-Rhythmus muss das Startdatum auf den passenden
+  Wochentag fallen – sonst zeigt dir die App vor dem Speichern einen Hinweis.
+  Priorität, Aufwand, Beschreibung und Säulen werden als Vorlage für
   jede Instanz übernommen.
 - **Verwalten:** im Tab **Serien** siehst du alle Serien mit ihrem Rhythmus. Dort
-  kannst du sie **bearbeiten** oder **löschen**.
+  kannst du sie **bearbeiten** oder **löschen**. Beim Löschen entscheidest du, ob die
+  Serie **mitsamt aller zugehörigen Aufgaben** entfernt wird oder **nur die Serie** –
+  die bereits generierten Aufgaben bleiben dann eigenständig bestehen.
 - **Fällige Instanzen generieren:** der gleichnamige Button erzeugt die aktuell
   fälligen Aufgaben aus allen Serien.
 
@@ -325,7 +336,7 @@ weichst du eine Instanz individuell ab, kommt **geändert** hinzu.
 
 Wenn du ein Serien-Template bearbeitest und **kaskadierbare Felder** änderst
 (Titel, Priorität, Aufwand, Beschreibung, Automatisches Löschen, Säulen), erscheint
-vor dem Speichern ein Bestätigungs-Dialog: **„Änderungen auch auf bestehende Instanzen anwenden?"**
+vor dem Speichern ein Bestätigungs-Dialog: **„Änderungen auf alle Instanzen übernehmen?"**
 
 - **Ja** – die geänderten Werte werden auf alle bereits generierten Instanzen
   übertragen (auch auf solche, die du individuell angepasst hast).
@@ -378,15 +389,16 @@ Dein Gesamtstand und die Aufteilung je Säule erscheinen im Dashboard unter
 
 ### Allgemein
 
-- **Darstellung** – Farbschema **System**, **Hell** oder **Dunkel**. „System" folgt
-  deinem Betriebssystem. Die Wahl wird im Browser gespeichert.
+- **Darstellung** – die Auswahl (System, Hell, Dunkel) ist aktuell deaktiviert; die
+  App nutzt durchgehend das helle Farbschema.
 - **Sprachaufnahme automatisch starten** – ist der Schalter aktiv, wird beim Öffnen
   der Formulare das erste Feld fokussiert und dessen Mikrofon automatisch gestartet.
   Beim Einschalten wird der Mikrofon-Zugriff angefragt.
 - **Push-Nachrichten aktivieren** – siehe „Benachrichtigungen".
-- **Standort erfassen** – ermittelt alle 5 Minuten deine aktuelle Position (z. B. für
-  ortsbezogene Aufgaben-Vorschläge). Beim Einschalten wird die Standort-Berechtigung
-  angefragt.
+- **Standort erfassen** – ermittelt alle 5 Minuten deine aktuelle Position. Beim
+  Einschalten wird die Standort-Berechtigung angefragt. Mit **„Standort jetzt
+  ermitteln"** holst du die Position sofort; dazu siehst du die Uhrzeit der letzten
+  Erfassung und eine Adresse zum Standort.
 
 ### Säulen
 
