@@ -2,23 +2,11 @@
  * Dünner, fetch-basierter LLM-Client (ESM, Node >= 22 — globales `fetch`/`AbortController`,
  * kein externes SDK). Spricht die OpenAI-kompatible Chat-Completions-API an.
  *
- * **Kaskade:** Jede Anfrage geht zuerst an Mistral (Primär-Call). Ist ein OpenRouter-Key
- * konfiguriert, bekommt OpenRouter Mistral's Antwort als Kontext und verfeinert sie
- * (Zweitmeinung). Fällt ein Provider aus, liefert der andere allein das Ergebnis. Fällt
- * alles aus, wirft die Kaskade {@link MistralRequestError} (→ HTTP 502).
  *
- * Env-Variablen:
- * - `MISTRAL_API_KEY` (optional einzeln, Pflicht für die Kaskade), `MISTRAL_MODEL` (Default `mistral-medium-latest`)
- * - `OPENROUTER_API_KEY` (optional einzeln, aktiviert die Verfeinerungs-Stufe), `OPENROUTER_MODEL` (Default Free-Modell),
- *   `OPENROUTER_API_URL` (Default `https://openrouter.ai/api/v1`)
- * - Kein Key überhaupt → {@link MissingApiKeyError} (→ HTTP 503).
- *
- * Seit #640 sind Keys/Modell zusätzlich über `PUT /llm-config` persistierbar. Eine gesetzte
- * DB-Konfiguration hat Vorrang, die Env-Variablen bleiben Fallback (siehe
- * {@link loadEffectiveLlmConfig}).
  */
 
-import { LlmConfig } from '../models/index.js';
+import { findProviderByName, loadActiveProvider } from './llmProviders.js';
+import type { LlmProvider as LlmProviderRow } from '../models/index.js';
 
 /** Eine vorgeschlagene Säulen-Einzahlung: Säulen-ID plus Konfidenz in Prozent (0–100). */
 export interface PillarSuggestion {
@@ -73,12 +61,12 @@ export interface ParsedTask {
 export type ParseTaskParser = (text: string, provider?: LlmProvider) => Promise<ParsedTask>;
 
 /**
- * Optionaler Provider-Pinning für den LLM-Test-Schalter (#749).
- * - `mistral`: Nur Mistral-Call, kein OpenRouter-Fallback/Verfeinerung.
- * - `openrouter`: Nur OpenRouter solo, kein Mistral-Primär-Call.
- * - `undefined`: Kaskade wie bisher (keine Verhaltensänderung).
+ * Optionaler Provider-Pinning für den LLM-Test-Schalter (#749) und dynamische Provider (#951).
+ * - Jeder String: Name eines konfigurierten Providers (`llm_providers`, #951; Auflösung
+ *   Case-insensitiv — die Legacy-Namen 'mistral'/'openrouter' sind darin aufgegangen).
+ * - `undefined`: der aktive Provider aus `llm_providers`.
  */
-export type LlmProvider = 'mistral' | 'openrouter' | undefined;
+export type LlmProvider = string | undefined;
 
 /** Fehlt der API-Key, ist der Dienst nicht konfiguriert → der Handler antwortet mit HTTP 503. */
 export class MissingApiKeyError extends Error {
@@ -104,75 +92,12 @@ interface ProviderConfig {
 	label: string;
 }
 
-const MISTRAL_ENDPOINT = 'https://api.mistral.ai/v1/chat/completions';
 /** Basis-URL der OpenRouter-API — auch `GET /models/free` (#742) fragt sie ab (modellisten-Call braucht keinen Key). */
 export const DEFAULT_OPENROUTER_API_URL = 'https://openrouter.ai/api/v1';
-const DEFAULT_MISTRAL_MODEL = 'mistral-medium-latest';
 /** Default-Modell der OpenRouter-Stufe — zugleich der Anzeige-Default von `GET /llm-config` (#640). */
 export const DEFAULT_OPENROUTER_MODEL = 'openrouter/free';
 const REQUEST_TIMEOUT_MS = 30_000;
 
-/** Die konfigurierbaren Felder der Kaskade (#640) — leerer String bedeutet „nicht gesetzt". */
-export interface EffectiveLlmConfig {
-	mistralApiKey: string;
-	openrouterApiKey: string;
-	openrouterModel: string;
-}
-
-/**
- * Effektive Kaskaden-Konfiguration (#640): Werte aus der persistierten `llm_configs`-Zeile haben
- * Vorrang, leere/fehlende Werte fallen auf die Env-Variablen zurück. Existiert die Tabelle noch
- * nicht (Unit-Tests ohne DB-Sync, frischer Prozess vor `sequelize.sync()`), gilt ebenfalls der
- * Env-Fallback — die Kaskade darf daran nicht scheitern.
- */
-export const loadEffectiveLlmConfig = async (): Promise<EffectiveLlmConfig> => {
-	let stored: LlmConfig | null;
-	try {
-		stored = await LlmConfig.findOne({ order: [['id', 'ASC']] });
-	} catch {
-		stored = null;
-	}
-	return {
-		mistralApiKey: stored?.mistralApiKey || (process.env.MISTRAL_API_KEY ?? ''),
-		openrouterApiKey: stored?.openrouterApiKey || (process.env.OPENROUTER_API_KEY ?? ''),
-		openrouterModel: stored?.openrouterModel || process.env.OPENROUTER_MODEL || DEFAULT_OPENROUTER_MODEL,
-	};
-};
-
-/** Mistral-Config aus der effektiven Konfiguration (DB vor Env). */
-function getMistralConfig(effective: EffectiveLlmConfig): ProviderConfig {
-	return {
-		endpoint: MISTRAL_ENDPOINT,
-		apiKey: effective.mistralApiKey || undefined,
-		model: process.env.MISTRAL_MODEL ?? DEFAULT_MISTRAL_MODEL,
-		label: 'Mistral',
-	};
-}
-
-/**
- * OpenRouter-Config aus der effektiven Konfiguration (DB vor Env). Die Basis-URL bleibt über
- * `OPENROUTER_API_URL` konfigurierbar (#651); Key und Modell kommen aus der effektiven Config,
- * die persistierte DB-Werte vorzieht (#640). `loadEffectiveLlmConfig` deckt bewusst nur Key und
- * Modell — nicht die Endpoint-URL —, da `/llm-config` ausschließlich Key/Modell persistiert.
- */
-function getOpenRouterConfig(effective: EffectiveLlmConfig): ProviderConfig {
-	const baseUrl = (process.env.OPENROUTER_API_URL ?? DEFAULT_OPENROUTER_API_URL).replace(/\/+$/, '');
-	return {
-		endpoint: `${baseUrl}/chat/completions`,
-		apiKey: effective.openrouterApiKey || undefined,
-		model: effective.openrouterModel,
-		label: 'OpenRouter',
-	};
-}
-
-/**
- * Verfeinerungs-Anweisung für den zweiten Kaskaden-Schritt (OpenRouter). Wird als `user`-Message
- * nach Mistral's Antwort angehängt, damit OpenRouter die erste Antwort als Zweitmeinung optimiert.
- */
-const REFINEMENT_PROMPT =
-	'Ein anderes Modell hat die obige Antwort generiert. Überprüfe und optimiere sie: ' +
-	'korrigiere Fehler, mache die Zuordnungen präziser, ergänze Aspekte, die das erste Modell ' +
-	'übersehen haben könnte. Behalte exakt das gleiche JSON-Format bei.';
 /**
  * Konfidenz-Obergrenze für die „weichen" Säulen: Laut #39 sind Körper/Beziehungen/Wirksamkeit
  * zuverlässig aus dem Text ableitbar, Sinn/Mentale Gesundheit nur ein schwaches Signal — deren
@@ -440,90 +365,52 @@ const callProvider = async (
 	return parseModelContent(payload);
 };
 
+/** ProviderConfig aus einer dynamischen `llm_providers`-Zeile (#951). */
+const toDynamicProviderConfig = (provider: LlmProviderRow): ProviderConfig => ({
+	endpoint: provider.endpoint,
+	apiKey: provider.apiKey || undefined,
+	model: provider.model,
+	label: provider.name,
+});
+
 /**
- * Kaskaden-Aufruf: Mistral zuerst (Primär), dann OpenRouter als Verfeinerung (Zweitmeinung).
+ * Provider-Auflösung (#951): GENAU EIN Provider pro Anfrage.
  *
- * Optionaler Provider-Pinning (#749):
- * - `provider === 'mistral'`: Nur Mistral-Call. Key fehlt → {@link MissingApiKeyError}.
- *   Call scheitert → {@link MistralRequestError}. KEIN OpenRouter-Fallback.
- * - `provider === 'openrouter'`: Nur OpenRouter solo. Key fehlt → {@link MissingApiKeyError}
- *   mit OpenRouter-Label. Call scheitert → {@link MistralRequestError}. KEIN Mistral-Primär-Call.
- * - `provider === undefined`: Kaskade unverändert (siehe unten).
+ * - `pinned` gesetzt: der gleichnamige DB-Provider (Case-insensitiv, Query-Pinning #749).
+ * - `pinned` leer: der aktive DB-Provider (Radio-Button-Auswahl).
  *
- * Ohne Pinning (Standard-Kaskade):
- * - Beide Keys → Mistral generiert, OpenRouter verfeinert mit Mistral's Antwort als Kontext.
- * - Ein Key fällt aus → der andere liefert allein das Ergebnis.
- * - Beide Keys, beide Calls failen → {@link MistralRequestError} (→ HTTP 502).
- * - Gar kein Key → {@link MissingApiKeyError} (→ HTTP 503).
+ * `null` = kein Provider im Spiel (nicht konfiguriert oder Tabelle fehlt) → Aufrufer
+ * wirft {@link MissingApiKeyError} (HTTP 503). Eine Kaskade/Fallback gibt es nicht mehr.
  */
+const resolveProvider = async (pinned?: LlmProvider): Promise<LlmProviderRow | null> => {
+	try {
+		if (pinned !== undefined && pinned !== '') {
+			return await findProviderByName(pinned);
+		}
+		return await loadActiveProvider();
+	} catch {
+		return null;
+	}
+};
+
 const requestModelJson = async (
 	messages: { role: string; content: string }[],
 	provider?: LlmProvider,
 ): Promise<unknown> => {
-	const effective = await loadEffectiveLlmConfig();
-	const mistral = getMistralConfig(effective);
-	const openrouter = getOpenRouterConfig(effective);
-
-	// --- Provider-Pinning: nur ein Provider, kein Fallback ---
-	if (provider === 'mistral') {
-		if (!mistral.apiKey) {
-			throw new MissingApiKeyError();
-		}
-		return callProvider(mistral, messages);
+	// Single-Provider (#951): GENAU EIN Call an den aufgelösten Provider — keine Kaskade,
+	// kein Verfeinerungs-Schritt, kein Fallback auf einen anderen Provider.
+	const resolved = await resolveProvider(provider);
+	if (resolved === null) {
+		throw new MissingApiKeyError('kein aktiver Provider', 'LLM_PROVIDERS');
 	}
-
-	if (provider === 'openrouter') {
-		if (!openrouter.apiKey) {
-			throw new MissingApiKeyError('OpenRouter', 'OPENROUTER_API_KEY');
-		}
-		return callProvider(openrouter, messages);
+	if (!resolved.apiKey) {
+		throw new MissingApiKeyError(resolved.name, `API-Key von ${resolved.name}`);
 	}
-
-	// --- Standard-Kaskade (provider === undefined) ---
-	if (!mistral.apiKey && !openrouter.apiKey) {
-		throw new MissingApiKeyError();
-	}
-
-	// Stage 1: Mistral (Primär-Call) — nur wenn Key konfiguriert.
-	let primaryResult: unknown | undefined;
-	if (mistral.apiKey) {
-		try {
-			primaryResult = await callProvider(mistral, messages);
-		} catch {
-			// Mistral ausgefallen — OpenRouter unten ggf. allein versuchen.
-		}
-	}
-
-	// Stage 2: OpenRouter (Verfeinerung oder Fallback) — nur wenn Key konfiguriert.
-	if (openrouter.apiKey) {
-		try {
-			if (primaryResult !== undefined) {
-				// Verfeinerung: Original-Nachrichten + Mistral's Antwort + Optimierungs-Anweisung.
-				return await callProvider(openrouter, [
-					...messages,
-					{ role: 'assistant', content: JSON.stringify(primaryResult) },
-					{ role: 'user', content: REFINEMENT_PROMPT },
-				]);
-			}
-			// Kein Mistral-Ergebnis — OpenRouter allein (Fallback).
-			return await callProvider(openrouter, messages);
-		} catch {
-			if (primaryResult !== undefined) {
-				return primaryResult; // OpenRouter ausgefallen → Mistral's Antwort verwenden.
-			}
-		}
-	}
-
-	// Nur Mistral konfiguriert (kein OpenRouter-Key) oder OpenRouter ohne Mistral ausgefallen.
-	if (primaryResult !== undefined) {
-		return primaryResult;
-	}
-
-	throw new MistralRequestError('Alle konfigurierten LLM-Provider sind ausgefallen.');
+	return callProvider(toDynamicProviderConfig(resolved), messages);
 };
 
 /**
- * Realer Klassifikator: ruft die LLM-Kaskade auf (Mistral → OpenRouter-Verfeinerung).
+ * Realer Klassifikator: ruft den aktiven LLM-Provider auf (#951).
  * Wirft {@link MissingApiKeyError}, wenn kein API-Key gesetzt ist, und {@link MistralRequestError}
  * bei jedem Upstream-/Format-Problem.
  */
@@ -585,7 +472,7 @@ const extractParsedTask = (parsed: unknown): ParsedTask => {
 };
 
 /**
- * Realer Task-Text-Parser: ruft die LLM-Kaskade auf (Mistral → OpenRouter-Verfeinerung)
+ * Realer Task-Text-Parser: ruft den aktiven LLM-Provider auf (#951)
  * und extrahiert strukturierte Task-Felder aus Freitext (Schnellerfassung, #235). Wirft
  * {@link MissingApiKeyError}, wenn kein API-Key gesetzt ist, und {@link MistralRequestError}
  * bei jedem Upstream-/Format-Problem.
@@ -823,7 +710,7 @@ export const extractLektoratOutput = (parsed: unknown): LektoratOutput => {
 };
 
 /**
- * Reale Lektorat-Funktion: ruft die LLM-Kaskade auf (Mistral → OpenRouter-Verfeinerung).
+ * Reale Lektorat-Funktion: ruft den aktiven LLM-Provider auf (#951).
  * Lektorisiert Texte und kürzt sie optional auf eine Maximallänge (Issue #645).
  * Wirft {@link MissingApiKeyError}, wenn kein API-Key gesetzt ist, und {@link MistralRequestError}
  * bei jedem Upstream-/Format-Problem.
@@ -849,7 +736,7 @@ export const lektoratTextWithMistral: LektoratFunction = async (input, provider)
 };
 
 /**
- * Realer Aktivitäten-Berater: ruft die LLM-Kaskade auf (Mistral → OpenRouter-Verfeinerung)
+ * Realer Aktivitäten-Berater: ruft den aktiven LLM-Provider auf (#951)
  * und schlägt Aktivitäten samt Säulen-Zuordnung vor. Wirft {@link MissingApiKeyError},
  * wenn kein API-Key gesetzt ist, und {@link MistralRequestError} bei jedem Upstream-/Format-Problem.
  */

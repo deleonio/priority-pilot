@@ -21,7 +21,7 @@ const sendError = (res: Response<ErrorDto>, status: number, message: string): vo
  * Serialisiert die persistierte Zeile (oder deren Fehlen) in den Status. Bewusst **ohne**
  * Key-Werte und **ohne** Env-Fallback: die API signalisiert nur, OB ein Key in der DB steht —
  * weder der Secret-Wert noch die bloße Anwesenheit einer Umgebungsvariable werden preisgegeben.
- * Für `openrouterModel` gilt der Kaskaden-Default als Anzeigewert (das Modell ist nicht geheim).
+ * Für `openrouterModel` gilt der Default als Anzeigewert (das Modell ist nicht geheim).
  */
 const serialize = (stored: LlmConfig | null): LlmConfigStatusDto => ({
 	hasMistralApiKey: Boolean(stored?.mistralApiKey),
@@ -58,7 +58,7 @@ const validateBody = (body: unknown): ValidationResult => {
 export const llmConfigRouter = Router();
 
 /**
- * `GET /llm-config` (#640): liefert den Status der Mistral/OpenRouter-Kaskade — ob jeweils ein
+ * `GET /llm-config` (#640): Legacy-Endpoint (#640, Migration siehe #951): liefert den Status — ob jeweils ein
  * API-Key persistiert ist (Booleans) sowie das OpenRouter-Modell. Die Key-Werte selbst werden
  * bewusst nicht zurückgegeben (Write-Only). Ohne gespeicherte Zeile die Defaults.
  */

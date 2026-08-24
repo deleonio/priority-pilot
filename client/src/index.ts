@@ -43,6 +43,9 @@ export type ApiError = Schemas['Error'];
 // ausgelesen (Sicherheit: LLM-Keys gehören nicht in den Client).
 export type LlmConfigStatus = Schemas['LlmConfigStatus'];
 export type LlmConfigInput = Schemas['LlmConfigInput'];
+export type LlmProvider = Schemas['LlmProvider'];
+export type LlmProviderInput = Schemas['LlmProviderInput'];
+export type LlmProviderUpdate = Schemas['LlmProviderUpdate'];
 
 // Aktuelle kostenlose OpenRouter-Modelle (#742) für die Frontend-Auswahl (dynamisch, nie hartcodiert).
 export type FreeModel = Schemas['FreeModel'];

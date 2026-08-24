@@ -1,7 +1,7 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { Pillar, PillarFeedback } from '../models/index.js';
-import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
+import { resetDb, closeDb, startTestServer, type TestServer, setTestLlmProvider } from '../test/helpers.js';
 
 // Die DB ist ein Singleton, das von allen describe-Blöcken geteilt wird. Daher genau
 // einmal am Dateiende schließen — nicht je describe, sonst reißt das erste after()
@@ -292,7 +292,6 @@ describe('classifyPillarsWithMistral (Unit, gemockter fetch)', () => {
 	const input: ClassifyPillarsInput = { title: 'Test', pillars };
 
 	const originalFetch = globalThis.fetch;
-	const originalKey = process.env.MISTRAL_API_KEY;
 
 	// Hilfsfunktion: stellt eine Chat-Completion-Antwort mit gegebenem JSON-Content bereit.
 	const stubFetch = (content: string, ok = true, status = 200): void => {
@@ -308,20 +307,15 @@ describe('classifyPillarsWithMistral (Unit, gemockter fetch)', () => {
 
 	after(() => {
 		globalThis.fetch = originalFetch;
-		if (originalKey === undefined) {
-			delete process.env.MISTRAL_API_KEY;
-		} else {
-			process.env.MISTRAL_API_KEY = originalKey;
-		}
 	});
 
 	it('wirft MissingApiKeyError ohne API-Key', async () => {
-		delete process.env.MISTRAL_API_KEY;
+		await setTestLlmProvider(false);
 		await assert.rejects(() => classifyPillarsWithMistral(input), MissingApiKeyError);
 	});
 
 	it('parst gültige Antwort, filtert unbekannte IDs und sortiert nach pillarId', async () => {
-		process.env.MISTRAL_API_KEY = 'test-key';
+		await setTestLlmProvider(true);
 		stubFetch(
 			JSON.stringify({
 				pillars: [
@@ -339,7 +333,7 @@ describe('classifyPillarsWithMistral (Unit, gemockter fetch)', () => {
 	});
 
 	it('deckelt die Konfidenz der schwachen Säulen (Sinn/Mentale Gesundheit) auf 60', async () => {
-		process.env.MISTRAL_API_KEY = 'test-key';
+		await setTestLlmProvider(true);
 		stubFetch(
 			JSON.stringify({
 				pillars: [
@@ -356,26 +350,26 @@ describe('classifyPillarsWithMistral (Unit, gemockter fetch)', () => {
 	});
 
 	it('clamped Konfidenz auf [0,100] und rundet', async () => {
-		process.env.MISTRAL_API_KEY = 'test-key';
+		await setTestLlmProvider(true);
 		stubFetch(JSON.stringify({ pillars: [{ pillarId: 1, confidence: 150.6 }] }));
 		const result = await classifyPillarsWithMistral(input);
 		assert.deepEqual(result, [{ pillarId: 1, confidence: 100 }]);
 	});
 
 	it('wirft MistralRequestError bei ungültigem JSON-Content', async () => {
-		process.env.MISTRAL_API_KEY = 'test-key';
+		await setTestLlmProvider(true);
 		stubFetch('das ist kein json');
 		await assert.rejects(() => classifyPillarsWithMistral(input), MistralRequestError);
 	});
 
 	it('wirft MistralRequestError bei HTTP-Fehlerstatus', async () => {
-		process.env.MISTRAL_API_KEY = 'test-key';
+		await setTestLlmProvider(true);
 		stubFetch('', false, 429);
 		await assert.rejects(() => classifyPillarsWithMistral(input), MistralRequestError);
 	});
 
 	it('hängt gelernte Feedback-Beispiele als user/assistant-Paare an den Prompt (nur gültige Säulen)', async () => {
-		process.env.MISTRAL_API_KEY = 'test-key';
+		await setTestLlmProvider(true);
 		let sentBody: { messages: { role: string; content: string }[] } | undefined;
 		globalThis.fetch = (async (_url: string, init: { body: string }) => {
 			sentBody = JSON.parse(init.body);
@@ -414,7 +408,7 @@ describe('classifyPillarsWithMistral (Unit, gemockter fetch)', () => {
 	});
 
 	it('deckelt die Konfidenz der schwachen Säulen auch in gelernten Feedback-Beispielen auf 60', async () => {
-		process.env.MISTRAL_API_KEY = 'test-key';
+		await setTestLlmProvider(true);
 		let sentBody: { messages: { role: string; content: string }[] } | undefined;
 		globalThis.fetch = (async (_url: string, init: { body: string }) => {
 			sentBody = JSON.parse(init.body);
@@ -457,7 +451,7 @@ describe('classifyPillarsWithMistral (Unit, gemockter fetch)', () => {
 		// gültigen Säulen-Liste stehen, müssen diese einfach herausgefiltert werden —
 		// ohne Ausnahme, ohne Crash. Das gesamte Feedback-Sample wird verworfen, wenn
 		// danach keine gültige pillarId mehr übrig ist.
-		process.env.MISTRAL_API_KEY = 'test-key';
+		await setTestLlmProvider(true);
 		let sentBody: { messages: { role: string; content: string }[] } | undefined;
 		globalThis.fetch = (async (_url: string, init: { body: string }) => {
 			sentBody = JSON.parse(init.body);
@@ -519,7 +513,7 @@ describe('classifyPillarsWithMistral (Unit, gemockter fetch)', () => {
 	it('AK5 (#424): Ende-zu-Ende — Klassifikation mit Custom-Säulen funktioniert fehlerfrei', async () => {
 		// Vollständiger Durchlauf: Klassifikation mit ausschließlich Custom-Säulen,
 		// ohne Seed-Namen. Die Weak-Signal-Nachschärfung greift dann einfach nicht.
-		process.env.MISTRAL_API_KEY = 'test-key';
+		await setTestLlmProvider(true);
 		const customPillars = [
 			{ id: 10, name: 'Garten' },
 			{ id: 20, name: 'Haushalt' },

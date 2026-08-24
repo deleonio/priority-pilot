@@ -1,7 +1,7 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { Pillar } from '../models/index.js';
-import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
+import { resetDb, closeDb, startTestServer, type TestServer, setTestLlmProvider } from '../test/helpers.js';
 
 // Die DB ist ein Singleton, das von allen describe-Blöcken geteilt wird. Daher genau
 // einmal am Dateiende schließen — nicht je describe, sonst reißt das erste after()
@@ -193,7 +193,6 @@ describe('adviseActivitiesWithMistral (Unit, gemockter fetch)', () => {
 	const input: AdviseActivitiesInput = { pillars };
 
 	const originalFetch = globalThis.fetch;
-	const originalKey = process.env.MISTRAL_API_KEY;
 
 	// Hilfsfunktion: stellt eine Chat-Completion-Antwort mit gegebenem JSON-Content bereit.
 	const stubFetch = (content: string, ok = true, status = 200): void => {
@@ -209,20 +208,15 @@ describe('adviseActivitiesWithMistral (Unit, gemockter fetch)', () => {
 
 	after(() => {
 		globalThis.fetch = originalFetch;
-		if (originalKey === undefined) {
-			delete process.env.MISTRAL_API_KEY;
-		} else {
-			process.env.MISTRAL_API_KEY = originalKey;
-		}
 	});
 
 	it('wirft MissingApiKeyError ohne API-Key', async () => {
-		delete process.env.MISTRAL_API_KEY;
+		await setTestLlmProvider(false);
 		await assert.rejects(() => adviseActivitiesWithMistral(input), MissingApiKeyError);
 	});
 
 	it('parst gültige Antworten; unbekannte/doppelte pillarIds werden gefiltert und sortiert', async () => {
-		process.env.MISTRAL_API_KEY = 'test-key';
+		await setTestLlmProvider(true);
 		stubFetch(
 			JSON.stringify({
 				advice: [
@@ -241,7 +235,7 @@ describe('adviseActivitiesWithMistral (Unit, gemockter fetch)', () => {
 	});
 
 	it('begrenzt die Vorschläge auf 8 Einträge', async () => {
-		process.env.MISTRAL_API_KEY = 'test-key';
+		await setTestLlmProvider(true);
 		stubFetch(
 			JSON.stringify({
 				advice: Array.from({ length: 12 }, (_, i) => ({
@@ -256,19 +250,19 @@ describe('adviseActivitiesWithMistral (Unit, gemockter fetch)', () => {
 	});
 
 	it('wirft MistralRequestError bei unerwartetem Format', async () => {
-		process.env.MISTRAL_API_KEY = 'test-key';
+		await setTestLlmProvider(true);
 		stubFetch(JSON.stringify({ falsch: [] }));
 		await assert.rejects(() => adviseActivitiesWithMistral(input), MistralRequestError);
 	});
 
 	it('wirft MistralRequestError bei HTTP-Fehlerstatus', async () => {
-		process.env.MISTRAL_API_KEY = 'test-key';
+		await setTestLlmProvider(true);
 		stubFetch('', false, 429);
 		await assert.rejects(() => adviseActivitiesWithMistral(input), MistralRequestError);
 	});
 
 	it('injiziert die Säulen-Kurzbeschreibungen und die Frage in den Prompt', async () => {
-		process.env.MISTRAL_API_KEY = 'test-key';
+		await setTestLlmProvider(true);
 		let sentBody: { messages: { role: string; content: string }[] } | undefined;
 		globalThis.fetch = (async (_url: string, init: { body: string }) => {
 			sentBody = JSON.parse(init.body);
@@ -293,7 +287,7 @@ describe('adviseActivitiesWithMistral (Unit, gemockter fetch)', () => {
 	it('AK3 (#424): filtert unbekannte pillarIds aus den Vorschlägen (nur Nutzer-Säulen)', async () => {
 		// Der Berater soll NUR pillarIds des Nutzers ausspielen — fremde/ungültige IDs
 		// werden von extractActivityAdvice herausgefiltert, selbst wenn das LLM sie liefert.
-		process.env.MISTRAL_API_KEY = 'test-key';
+		await setTestLlmProvider(true);
 		stubFetch(
 			JSON.stringify({
 				advice: [
@@ -315,7 +309,7 @@ describe('adviseActivitiesWithMistral (Unit, gemockter fetch)', () => {
 	});
 
 	it('AK3 (#424): Berater mit ausschließlich Custom-Säulen (keine Seed-Namen) funktioniert', async () => {
-		process.env.MISTRAL_API_KEY = 'test-key';
+		await setTestLlmProvider(true);
 		const customPillars: AdviseActivitiesInput = {
 			pillars: [
 				{ id: 10, name: 'Garten', description: 'Alles rund um Pflanzen und Beet.' },

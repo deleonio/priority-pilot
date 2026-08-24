@@ -126,10 +126,10 @@ export const LlmSettingsForm = () => {
 			<LlmProviderToggle />
 
 			<p className="hint">
-				Die Kaskade fragt zuerst Mistral (Primär) und lässt die Antwort optional von OpenRouter verfeinern. Aus
-				Sicherheitsgründen werden gespeicherte API-Keys nicht zurückgelesen — das Feld zeigt nur, ob ein Key gesetzt
-				ist. Ein leeres Eingabefeld belässt den bisherigen Wert unverändert; über „Key löschen" bzw. „Modell
-				zurücksetzen" fällt die Kaskade wieder auf die Umgebungsvariablen des Servers zurück.
+				Genau ein Provider ist aktiv und bearbeitet alle KI-Anfragen (#951); die frühere Mistral→OpenRouter-Kaskade ist
+				entfallen. Aus Sicherheitsgründen werden gespeicherte API-Keys nicht zurückgelesen — das Bearbeiten-Formular
+				startet mit leerem Key-Feld; leer lassen belässt den gespeicherten Key unverändert. Die Felder darunter sind die
+				Legacy-Konfiguration (Migration); neue Provider legst du über „Neuer Provider" an.
 			</p>
 
 			<div className="form-grid">

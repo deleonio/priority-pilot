@@ -8,6 +8,9 @@ import type {
 	FreeModels,
 	LlmConfigInput,
 	LlmConfigStatus,
+	LlmProvider,
+	LlmProviderInput,
+	LlmProviderUpdate,
 	ParsedTask,
 	paths,
 	PillarCreate,
@@ -154,7 +157,10 @@ export const api = {
 	async parseText({ text }: { text: string }): Promise<ParsedTask> {
 		const provider = getProvider();
 		const { data } = await withRetry(() =>
-			client.POST('/tasks/parse-text', { body: { text }, params: { query: provider ? { provider } : {} } }),
+			client.POST('/tasks/parse-text', {
+				body: { text },
+				params: { query: provider ? { provider: provider.name } : {} },
+			}),
 		);
 		return data;
 	},
@@ -250,7 +256,7 @@ export const api = {
 		const { data, error, response } = await client.POST('/tasks/suggest-pillars', {
 			body: suggestPillarsInput,
 			signal,
-			params: { query: provider ? { provider } : {} },
+			params: { query: provider ? { provider: provider.name } : {} },
 		});
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
@@ -270,7 +276,7 @@ export const api = {
 			client.POST('/pillars/advisor', {
 				body: activityAdvisorInput,
 				signal,
-				params: { query: provider ? { provider } : {} },
+				params: { query: provider ? { provider: provider.name } : {} },
 			}),
 		);
 		return data;
@@ -296,7 +302,9 @@ export const api = {
 	// Auth via Session-Cookie (same-origin) — direkter fetch, nicht im OpenAPI-Spec.
 	async lektorat({ text, maxLength, signal }: { text: string; maxLength?: number } & Init): Promise<{ text: string }> {
 		const provider = getProvider();
-		const lektoratUrl = provider ? `${baseUrl}/lektorat?provider=${provider}` : `${baseUrl}/lektorat`;
+		const lektoratUrl = provider
+			? `${baseUrl}/lektorat?provider=${encodeURIComponent(provider.name)}`
+			: `${baseUrl}/lektorat`;
 		const response = await fetch(lektoratUrl, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
@@ -451,6 +459,57 @@ export const api = {
 	// ausgefüllte Felder überschreiben den DB-Stand. Liefert den neuen Status (ohne Key-Werte).
 	async setLlmConfig({ llmConfig }: { llmConfig: LlmConfigInput }): Promise<LlmConfigStatus> {
 		const { data, error, response } = await client.PUT('/llm-config', { body: llmConfig });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// --- Single-Provider-Verwaltung (#951): dynamische Provider statt fester Kaskade ---
+
+	// Alle konfigurierten Provider inkl. Aktiv-Markierung (ohne API-Keys — Write-Only).
+	async listLlmProviders(init: Init = {}): Promise<LlmProvider[]> {
+		const { data, error, response } = await client.GET('/llm-providers', { signal: init.signal });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// Legt einen Provider an; der erste wird direkt aktiv. Liefert den Provider ohne API-Key.
+	async createLlmProvider({ input }: { input: LlmProviderInput }): Promise<LlmProvider> {
+		const { data, error, response } = await client.POST('/llm-providers', { body: input });
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// Aktualisiert einen Provider; apiKey nur bei Änderung (nicht-leerer String).
+	async updateLlmProvider({ id, input }: { id: number; input: LlmProviderUpdate }): Promise<LlmProvider> {
+		const { data, error, response } = await client.PUT('/llm-providers/{id}', {
+			params: { path: { id } },
+			body: input,
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// Löscht einen Provider (204 → void).
+	async deleteLlmProvider({ id }: { id: number }): Promise<void> {
+		const { error, response } = await client.DELETE('/llm-providers/{id}', { params: { path: { id } } });
+		if (!response.ok) {
+			throw new ResponseError(response, error);
+		}
+	},
+
+	// Setzt den Provider als einzigen aktiven Provider (Radio-Button-Logik, #951).
+	async activateLlmProvider({ id }: { id: number }): Promise<LlmProvider> {
+		const { data, error, response } = await client.POST('/llm-providers/{id}/activate', {
+			params: { path: { id } },
+		});
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
 		}

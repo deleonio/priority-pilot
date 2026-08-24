@@ -1,5 +1,32 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { getProvider, setProvider, setToastCallback, isExclusiveProviderActive, resetProvider } from './llm-provider';
+import {
+	getProvider,
+	setProvider,
+	setToastCallback,
+	isExclusiveProviderActive,
+	resetProvider,
+	type ActiveLlmProvider,
+} from './llm-provider';
+
+/**
+ * Tests für das dynamische Provider-State-Management (#951, Fortführung von #749):
+ * Der Provider ist ein Objekt aus `GET /llm-providers` — die festen Strings
+ * 'mistral' | 'openrouter' sind Legacy. DTO-Form wie in der OpenAPI-Spec.
+ */
+
+const mistral: ActiveLlmProvider = {
+	id: 1,
+	name: 'Mistral',
+	endpoint: 'https://api.mistral.ai/v1/chat/completions',
+	model: 'mistral-medium-latest',
+};
+
+const openrouter: ActiveLlmProvider = {
+	id: 2,
+	name: 'OpenRouter',
+	endpoint: 'https://openrouter.ai/api/v1/chat/completions',
+	model: 'openrouter/free',
+};
 
 describe('LLM Provider State Management', () => {
 	beforeEach(() => {
@@ -13,100 +40,73 @@ describe('LLM Provider State Management', () => {
 		setToastCallback(null);
 	});
 
-	describe('Provider Selection – Spec: Issue-749 Journey Steps 1-2', () => {
-		it('should default to system standard provider', () => {
-			// Arrange: No explicit provider selection yet
-			// Act: Get initial provider state
-			const provider = getProvider();
-			// Assert: Provider is undefined or system default (undefined ist gültig)
-			expect(provider === undefined || provider === 'mistral' || provider === 'openrouter').toBe(true);
+	describe('Provider Selection – Spec: Issue-951 Journey (Radio-Button-Auswahl)', () => {
+		it('defaultet auf System-Standard (undefined)', () => {
+			expect(getProvider()).toBeUndefined();
 		});
 
-		it('should select Mistral provider', () => {
-			// Arrange: Initial provider state
-			// Act: Select Mistral provider
-			const success = setProvider('mistral');
-			// Assert: Provider state is 'mistral'
-			expect(success).toBe(true);
-			expect(getProvider()).toBe('mistral');
+		it('setzt einen dynamischen Provider (Objekt) und liest ihn zurück', () => {
+			expect(setProvider(mistral)).toBe(true);
+			expect(getProvider()).toEqual(mistral);
 		});
 
-		it('should select OpenRouter provider', () => {
-			// Arrange: Initial provider state
-			// Act: Select OpenRouter provider
-			const success = setProvider('openrouter');
-			// Assert: Provider state is 'openrouter'
-			expect(success).toBe(true);
-			expect(getProvider()).toBe('openrouter');
+		it('erzwingt Exklusivität — ein neuer Provider ersetzt den alten', () => {
+			setProvider(mistral);
+			setProvider(openrouter);
+			expect(getProvider()).toEqual(openrouter);
 		});
 
-		it('should enforce exclusivity – only one provider active', () => {
-			// Arrange: Mistral provider is selected
-			setProvider('mistral');
-			// Act: Select OpenRouter provider
-			setProvider('openrouter');
-			// Assert: Mistral is deactivated, only OpenRouter is active
-			const mistralActive = getProvider() === 'mistral';
-			const openrouterActive = getProvider() === 'openrouter';
-			expect(mistralActive && openrouterActive).toBe(false); // nur einer aktiv
-			expect(getProvider()).toBe('openrouter'); // OpenRouter ist jetzt aktiv
-		});
-
-		it('should trigger toast feedback on provider switch – Spec: Issue-749 Journey Step 2', () => {
-			// Arrange: Provider state change occurs, toast callback registered
+		it('löst Toast-Feedback beim Wechsel aus (Name im Toast)', () => {
 			let toastTriggered = false;
 			let toastMessage = '';
 			setToastCallback((msg) => {
 				toastTriggered = true;
 				toastMessage = msg;
 			});
-			setProvider('mistral'); // zuerst Mistral setzen
-			// Act: Switch from Mistral to OpenRouter
-			setProvider('openrouter');
-			// Assert: Toast notification "Provider gewechselt: OpenRouter" is triggered
+			setProvider(mistral); // zuerst Mistral setzen
+			setProvider(openrouter); // dann Wechsel auf OpenRouter
 			expect(toastTriggered).toBe(true);
 			expect(toastMessage).toContain('OpenRouter');
 		});
+
+		it('kein Toast beim Setzen desselben Providers erneut', () => {
+			let calls = 0;
+			setToastCallback(() => {
+				calls += 1;
+			});
+			setProvider(mistral); // erster Set → Toast
+			setProvider({ ...mistral }); // gleicher Name → kein Toast
+			expect(calls).toBe(1);
+		});
 	});
 
-	describe('Persistence – Spec: Issue-749 Journey Step 4', () => {
-		it('should persist provider selection across sessions', () => {
-			// Arrange: User selects Mistral provider
-			setProvider('mistral');
-			// Act: Close and reopen app (simuliert durch erneuten get-Aufruf)
-			const persistedProvider = getProvider();
-			// Assert: Mistral provider is still active
-			expect(persistedProvider).toBe('mistral');
+	describe('Persistence – Spec: Issue-749 Journey Step 4 (unverändert)', () => {
+		it('hält die Auswahl über get-Aufrufe (localStorage)', () => {
+			setProvider(mistral);
+			expect(getProvider()).toEqual(mistral);
 		});
 
-		it('should fallback to system default if no provider selected', () => {
-			// Arrange: No provider selection in storage
+		it('fällt ohne Auswahl auf System-Standard zurück', () => {
 			resetProvider();
-			// Act: Initialize provider state
-			const systemDefault = getProvider();
-			// Assert: System default provider is used
-			expect(systemDefault).toBeUndefined();
+			expect(getProvider()).toBeUndefined();
 		});
 	});
 
-	describe('Provider Error Handling – Spec: Issue-749 Randfälle', () => {
-		it('should handle unavailable provider gracefully', () => {
-			// Arrange: Selected provider is not available (simuliert durch invaliden Wert)
-			// Act: Attempt to set invalid provider
-			const success = setProvider('invalid' as 'mistral' | 'openrouter' | undefined);
-			// Assert: Error handled gracefully, returns false, no crash
-			expect(success).toBe(false);
-			expect(getProvider()).toBeUndefined(); // State bleibt unverändert
+	describe('Error Handling – Spec: Issue-749 Randfälle (adaptiert auf Objekte)', () => {
+		it('lehnt ungültige Werte ab (false, kein Crash, State unverändert)', () => {
+			expect(setProvider('mistral' as unknown as ActiveLlmProvider)).toBe(false);
+			expect(getProvider()).toBeUndefined();
 		});
 
-		it('should not allow both providers active simultaneously', () => {
-			// Arrange: Both providers somehow selected (simuliert durch direkten Storage-Zugriff)
-			setProvider('mistral');
-			// Act: Validate provider state
-			const exclusive = isExclusiveProviderActive();
-			// Assert: Only one provider is active, invalid state rejected
-			expect(exclusive).toBe(true);
-			expect(getProvider()).toBe('mistral'); // nur Mistral ist aktiv
+		it('Exklusivitäts-Check bleibt true (Single-Auswahl per Konstruktion)', () => {
+			setProvider(mistral);
+			expect(isExclusiveProviderActive()).toBe(true);
+		});
+
+		it('bereinigt Legacy-String-Bestände aus #749 beim Lesen', () => {
+			localStorage.setItem('llm-provider-selection', 'mistral');
+			expect(getProvider()).toBeUndefined();
+			expect(localStorage.getItem('llm-provider-selection')).toBeNull();
 		});
 	});
 });

@@ -74,6 +74,10 @@ Konflikte, die er verhindern soll.
   im Schema dieses Endpoints NICHT (`Field doesn't exist on type "Mutation"`); Introspektion ergab
   `resolveReviewThread(input:{threadId})`. Außerdem `body` als `$b:String!` deklarieren und der
   Reply-Payload hat kein `thread`-Feld — `comment{databaseId}` selektieren.
+- 2026-08-23 · CI/Spec-Phase — der verify-Job läuft die (beabsichtigt roten) Spec-Tests und ist rot;
+  das ist in der Spec-Phase der Normalzustand, kein Fix-Ziel. → Rot-Assertionen (Zielverhalten) NICHT
+  auf 404-Status-quo zurückbauen, um CI grün zu bekommen — der Review-Workflow läuft trotz rotem
+  verify weiter; erst die Impl-Phase macht die Tests grün.
 - 2026-08-23 · Workflows/YAML — mehrzeilige String-Literale in `run:`-Blöcken mit
   fortsetzenden Zeilen ab Spalte 0 (z. B. zugewiesener Markdown-Block) brechen den YAML-
   Block-Skalar (Parser: "expected <block end>"). → Solche Blöcke per `printf '%s\n%s' "…" "…"`

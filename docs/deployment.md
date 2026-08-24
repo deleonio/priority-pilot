@@ -98,27 +98,20 @@ DATABASE_STORAGE=/var/www/gh-deploy/priority-pilot/data/database.sqlite
 DB_SEED=false           # KEINE Demo-Daten bei jedem Start (Default würde seeden)
 # DB_RESET   absichtlich NICHT gesetzt — "true" LEERT die DB bei jedem Start!
 
-# LLM-Kaskade. Mindestens EIN Key nötig — sonst antworten die LLM-Endpunkte mit 503.
-MISTRAL_API_KEY=...
-# MISTRAL_MODEL=mistral-medium-latest                      # optional, Default mistral-medium-latest
-# OPENROUTER_API_KEY=sk-or-v1-...                          # optional, aktiviert die Verfeinerungs-Stufe
-# OPENROUTER_MODEL=openrouter/free                         # optional
+# LLM: seit dem Single-Provider-System (#951) KEINE Env-Keys mehr — Provider
+# (Name, Endpoint, API-Key, Modell) werden zur Laufzeit in der App konfiguriert
+# (Einstellungen → Tab „LLM" bzw. /llm-providers-API). Ohne aktiven Provider → 503.
 ```
 
-**Provider-Strategie:** Die LLM-Anbindung ist eine Kaskade, kein Entweder-oder-Schalter. Du kannst
-**nur Mistral**, **nur OpenRouter** oder **beide** betreiben — bei beiden generiert Mistral und
-OpenRouter verfeinert (höhere Qualität, ~doppelte Latenz), bei einem einzelnen Key liefert dieser
-Provider allein. **Migration:** Bestehende Mistral-only-Deployments laufen unverändert weiter, es
-ist keine Anpassung nötig; OpenRouter ist rein additiv. Zusätzlich lassen sich Keys/Modell zur
-Laufzeit über die Settings-UI (`/settings` → Tab „LLM") persistieren — diese DB-Werte haben pro
-Feld Vorrang vor der Env, fehlen sie, greift wie bisher die Env-Datei.
+**Provider-Strategie (#951):** Genau EIN aktiver Provider pro Instanz, konfiguriert in der
+Settings-UI (`/settings` → Tab „LLM") — keine Env-Keys mehr, keine Kaskade. Bestehende
+`/llm-config`-Keys werden beim ersten Zugriff automatisch als Provider migriert (Mistral aktiv).
+Ein Update-Deploy ohne weiteren Handgriff übernimmt damit die alte Konfiguration.
 
 Ausführliche Anleitung zu LLM-Provider-Konfiguration (Mistral + OpenRouter): [docs/llm-providers.md](llm-providers.md).
 
 Quellen der Variablen: `server/src/index.ts` (`DB_RESET`, `DB_SEED`, dotenv-Load),
-`server/src/database.ts` (`DATABASE_STORAGE`), `server/src/express/index.ts` (`PORT`),
-`server/src/llm/llm.ts` (`MISTRAL_API_KEY`, `MISTRAL_MODEL`, `OPENROUTER_API_KEY`,
-`OPENROUTER_MODEL`, `OPENROUTER_API_URL`).
+`server/src/database.ts` (`DATABASE_STORAGE`), `server/src/express/index.ts` (`PORT`).
 
 ---
 
@@ -171,7 +164,7 @@ neueren Version — vor Schema-ändernden Releases ein `data/database.sqlite`-Ba
   GitHub-Actions-Secret (`DEPLOY_SSH_KEY`) und in `authorized_keys` des `gh-deploy`-Users vor.
 - **Least Privilege:** Der `gh-deploy`-User braucht nur Schreibrecht auf die zwei Zielverzeichnisse
   sowie `pm2 reload`/`pm2 start` — kein sudo, kein systemd.
-- **Secrets** (`MISTRAL_API_KEY`) nur in der `.env` im App-Verzeichnis (chmod 600), nie im Repo.
+- API-Keys der LLM-Provider liegen ausschließlich (write-only) in der Datenbank — nie in Env-Dateien oder im Repo (#951).
 - **DB-Backup:** [`maintenance.sh`](../maintenance.sh) per Cron nightly ausführen (sichert
   `data/database.sqlite` via SQLite `.backup` mit 30-Tage-Retention — Einrichtung siehe
   [server-setup.md](server-setup.md)), besonders **vor** Schema-ändernden Releases.

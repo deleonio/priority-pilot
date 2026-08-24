@@ -15,6 +15,7 @@ import { authRouter } from './routes/auth.js';
 import { transitRouter } from './routes/transit.js';
 import { createPushRouter } from './routes/push.js';
 import { llmConfigRouter } from './routes/llmConfig.js';
+import { llmProvidersRouter } from './routes/llmProviders.js';
 import { createFreeModelsRouter } from './routes/freeModels.js';
 import type { FetchFreeModels } from './routes/freeModels.js';
 import { lektoratRouter } from './routes/lektorat.js';
@@ -209,6 +210,10 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// LLM-Provider-Konfiguration (#640): Keys/Modell der Mistral/OpenRouter-Kaskade lesen/speichern.
 	app.use(llmConfigRouter);
+
+	// Single-Provider-Verwaltung (#951): dynamische Provider (CRUD + activate) — Ablösung der
+	// festen Kaskade; die Kaskade bleibt als Fallback bestehen, solange kein Provider aktiv ist.
+	app.use(llmProvidersRouter);
 
 	// Aktuelle kostenlose OpenRouter-Modelle (#742) für die Frontend-Auswahl — hinter requireAuth,
 	// damit der Server kein öffentlicher OpenRouter-Proxy ist (Session-Pflicht wie bei /llm-config).

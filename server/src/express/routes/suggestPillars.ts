@@ -154,7 +154,7 @@ export const createSuggestPillarsRouter = (classifier: PillarClassifier = classi
 		'/tasks/suggest-pillars',
 		async (req: Request, res: Response<{ suggestions: PillarSuggestionDto[] } | ErrorDto>) => {
 			// Provider-Query-Parameter validieren (#749)
-			const providerValidation = validateProviderQuery(req.query as Record<string, unknown>);
+			const providerValidation = await validateProviderQuery(req.query as Record<string, unknown>);
 			if (!providerValidation.ok) {
 				sendError(res, 400, providerValidation.message);
 				return;

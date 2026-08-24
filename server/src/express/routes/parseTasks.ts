@@ -23,7 +23,7 @@ export const createParseTasksRouter = (parser: ParseTaskParser = parseTaskTextWi
 	// Optionaler Query-Parameter `provider` (#749): pinnt die LLM-Kaskade auf den genannten Provider.
 	router.post('/tasks/parse-text', async (req: Request, res: Response<ParsedTask | ErrorDto>) => {
 		// Provider-Query-Parameter validieren (#749)
-		const providerValidation = validateProviderQuery(req.query as Record<string, unknown>);
+		const providerValidation = await validateProviderQuery(req.query as Record<string, unknown>);
 		if (!providerValidation.ok) {
 			res.status(400).json({ message: providerValidation.message });
 			return;

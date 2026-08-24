@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
+import { resetDb, closeDb, startTestServer, type TestServer, setTestLlmProvider } from '../test/helpers.js';
 
 // Spec-Referenz: Journey 5 in docs/spec/issue-645.md
 // Akzeptanzkriterien aus Issue 680:
@@ -11,7 +11,6 @@ let server: TestServer;
 
 describe('POST /lektorat — Lektorat API', () => {
 	const originalFetch = globalThis.fetch;
-	const originalKey = process.env.MISTRAL_API_KEY;
 
 	// Hilfsfunktion: stellt eine Chat-Completion-Antwort mit givenem JSON-Content bereit.
 	// Mockt NUR LLM-API-Calls (Mistral/OpenRouter), andere Requests gehen durch.
@@ -35,7 +34,7 @@ describe('POST /lektorat — Lektorat API', () => {
 			server = await startTestServer();
 		}
 		// Test-Setup: Mock-API-Key und fetch für Lektorat-Calls
-		process.env.MISTRAL_API_KEY = 'test-key';
+		await setTestLlmProvider(true);
 		stubFetch(JSON.stringify({ text: 'Lektorierter Text.' }));
 	});
 
@@ -46,11 +45,6 @@ describe('POST /lektorat — Lektorat API', () => {
 		await closeDb();
 		// Cleanup
 		globalThis.fetch = originalFetch;
-		if (originalKey === undefined) {
-			delete process.env.MISTRAL_API_KEY;
-		} else {
-			process.env.MISTRAL_API_KEY = originalKey;
-		}
 	});
 
 	const post = (path: string, body: unknown) =>

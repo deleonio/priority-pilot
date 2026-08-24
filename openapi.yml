@@ -258,14 +258,13 @@ paths:
           in: query
           required: false
           description: >-
-            Optionaler Provider-Pinning für LLM-Test-Schalter (#749).
-            `mistral`: Nur Mistral-Call, kein OpenRouter-Fallback/Verfeinerung.
-            `openrouter`: Nur OpenRouter solo, kein Mistral-Primär-Call.
-            Fehlt der Parameter → Kaskade wie bisher (keine Verhaltensänderung).
+            Optionaler Provider-Pinning (#749/#951): Name eines konfigurierten
+            Providers — überschreibt den aktiven Provider für diesen EINEN Aufruf.
+            Fehlt der Parameter → der aktive Provider (`llm_providers`, #951).
             Ungültiger Wert → HTTP 400.
           schema:
             type: string
-            enum: [mistral, openrouter]
+            maxLength: 64
       requestBody:
         required: true
         content:
@@ -302,14 +301,13 @@ paths:
           in: query
           required: false
           description: >-
-            Optionaler Provider-Pinning für LLM-Test-Schalter (#749).
-            `mistral`: Nur Mistral-Call, kein OpenRouter-Fallback/Verfeinerung.
-            `openrouter`: Nur OpenRouter solo, kein Mistral-Primär-Call.
-            Fehlt der Parameter → Kaskade wie bisher (keine Verhaltensänderung).
+            Optionaler Provider-Pinning (#749/#951): Name eines konfigurierten
+            Providers — überschreibt den aktiven Provider für diesen EINEN Aufruf.
+            Fehlt der Parameter → der aktive Provider (`llm_providers`, #951).
             Ungültiger Wert → HTTP 400.
           schema:
             type: string
-            enum: [mistral, openrouter]
+            maxLength: 64
       requestBody:
         required: true
         content:
@@ -374,14 +372,13 @@ paths:
           in: query
           required: false
           description: >-
-            Optionaler Provider-Pinning für LLM-Test-Schalter (#749).
-            `mistral`: Nur Mistral-Call, kein OpenRouter-Fallback/Verfeinerung.
-            `openrouter`: Nur OpenRouter solo, kein Mistral-Primär-Call.
-            Fehlt der Parameter → Kaskade wie bisher (keine Verhaltensänderung).
+            Optionaler Provider-Pinning (#749/#951): Name eines konfigurierten
+            Providers — überschreibt den aktiven Provider für diesen EINEN Aufruf.
+            Fehlt der Parameter → der aktive Provider (`llm_providers`, #951).
             Ungültiger Wert → HTTP 400.
           schema:
             type: string
-            enum: [mistral, openrouter]
+            maxLength: 64
       requestBody:
         required: true
         content:
@@ -783,11 +780,138 @@ paths:
                 $ref: '#/components/schemas/TestPushResult'
         '503':
           $ref: '#/components/responses/ServiceUnavailable'
+  /llm-providers:
+    get:
+      summary: Konfigurierte LLM-Provider auflisten
+      description: >-
+        Listet alle konfigurierten LLM-Provider des Single-Provider-Systems
+        (#951) inklusive des aktiven Providers. API-Keys werden bewusst NICHT
+        zurückgegeben (Write-Only) — die Antwort enthält weder ein apiKey-Feld
+        noch Key-Werte.
+      operationId: listLlmProviders
+      tags: [llm]
+      responses:
+        '200':
+          description: Liste aller Provider (ohne API-Keys)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LlmProvider'
+    post:
+      summary: Neuen LLM-Provider anlegen
+      description: >-
+        Legt einen neuen LLM-Provider an (#951). Der erste angelegte Provider
+        wird direkt aktiv gesetzt. Der Endpoint muss eine gültige http(s)-URL
+        sein; andernfalls HTTP 400. Die Antwort enthält den Provider ohne
+        API-Key.
+      operationId: createLlmProvider
+      tags: [llm]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LlmProviderInput'
+      responses:
+        '201':
+          description: Provider angelegt (ohne API-Key)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LlmProvider'
+        '400':
+          description: Ungültiger Payload (Validierung fehlgeschlagen)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /llm-providers/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID des Providers
+        schema:
+          type: integer
+    put:
+      summary: LLM-Provider aktualisieren
+      description: >-
+        Aktualisiert einen Provider (#951). Alle Felder optional: abwesende
+        Felder bleiben unverändert. Der API-Key wird nur gesetzt, wenn ein
+        nicht-leerer String übergeben wird (Write-Only, Bearbeiten-Dialog
+        startet leer).
+      operationId: updateLlmProvider
+      tags: [llm]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LlmProviderUpdate'
+      responses:
+        '200':
+          description: Aktualisierter Provider (ohne API-Key)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LlmProvider'
+        '404':
+          description: Provider unbekannt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: LLM-Provider löschen
+      description: >-
+        Löscht einen Provider (#951). Response 204 ohne Body.
+      operationId: deleteLlmProvider
+      tags: [llm]
+      responses:
+        '204':
+          description: Provider gelöscht
+        '404':
+          description: Provider unbekannt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /llm-providers/{id}/activate:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID des Providers
+        schema:
+          type: integer
+    post:
+      summary: Provider als aktiv setzen
+      description: >-
+        Setzt den Provider als einzigen aktiven Provider (#951): alle anderen
+        werden deaktiviert. Genau ein Provider ist aktiv (Radio-Button-Logik).
+      operationId: activateLlmProvider
+      tags: [llm]
+      responses:
+        '200':
+          description: Aktivierter Provider (ohne API-Key)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LlmProvider'
+        '404':
+          description: Provider unbekannt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /llm-config:
     get:
       summary: Status der LLM-Provider-Konfiguration lesen
       description: >-
-        Liefert den Status der Mistral/OpenRouter-Kaskade: ob jeweils ein
+        Legacy-Endpoint (#640, Migration siehe #951): Liefert den Status der
+        alten Key-Konfiguration: ob jeweils ein
         API-Key persistiert ist (Booleans) sowie das OpenRouter-Modell. Die
         API-Key-Werte werden bewusst NICHT zurückgegeben (Write-Only) — der
         Client erfährt nur, OB ein Key gesetzt ist, niemals dessen Wert. Ohne
@@ -805,7 +929,8 @@ paths:
     put:
       summary: LLM-Provider-Konfiguration speichern
       description: >-
-        Persistiert die Konfiguration der Kaskade. Ein abwesendes Feld bleibt
+        Legacy-Endpoint (#640, Migration siehe #951): Persistiert die alte
+        Key-Konfiguration. Ein abwesendes Feld bleibt
         unverändert; ein gesetzter Wert überschreibt den DB-Stand (ein leerer
         String löscht den Key). Gesetzte API-Keys dürfen nicht ausschließlich
         aus Whitespace bestehen; alle Felder sind Strings. Die Antwort liefert
@@ -1836,13 +1961,13 @@ components:
         - hasOpenrouterApiKey
         - openrouterModel
       description: >-
-        Status der LLM-Kaskaden-Konfiguration (#640). API-Keys werden bewusst
+        Status der Legacy-LLM-Konfiguration (#640; Migrationsquelle für #951). API-Keys werden bewusst
         NICHT zurückgegeben (Write-Only) — der Client erfährt nur, ob jeweils
         ein Key in der Datenbank persistiert ist, niemals dessen Wert. Die
         Umgebungsvariablen des Servers bleiben dabei vollständig verborgen
         (auch ihre bloße Anwesenheit wird nicht signalisiert). Persistierte
-        Werte haben innerhalb der Kaskade Vorrang vor den gleichnamigen
-        Umgebungsvariablen; ohne DB-Zeile bleibt Env der serverseitige Fallback.
+        Werte sind seit dem Single-Provider-System (#951) nur noch Migrationsquelle;
+        die Kaskade selbst ist entfallen.
       properties:
         hasMistralApiKey:
           type: boolean
@@ -1856,7 +1981,7 @@ components:
     LlmConfigInput:
       type: object
       description: >-
-        Schreib-Seite der LLM-Kaskaden-Konfiguration (#640). Alle Felder sind
+        Schreib-Seite der Legacy-LLM-Konfiguration (#640). Alle Felder sind
         optional: ein abwesendes Feld bleibt unverändert; ein leerer String
         löscht den jeweiligen Key; ein nicht-leerer Wert überschreibt ihn.
         Whitespace-only und Nicht-Strings führen zu HTTP 400. Die Key-Werte
@@ -1871,6 +1996,75 @@ components:
         openrouterModel:
           type: string
           description: Modellkennung für OpenRouter.
+    LlmProvider:
+      type: object
+      required:
+        - id
+        - name
+        - endpoint
+        - model
+        - isActive
+      description: >-
+        Ein konfigurierter LLM-Provider des Single-Provider-Systems (#951).
+        Genau ein Provider ist aktiv (`isActive`). API-Keys werden bewusst
+        NICHT zurückgegeben (Write-Only).
+      properties:
+        id:
+          type: integer
+          description: ID des Providers.
+        name:
+          type: string
+          description: Anzeigename (z. B. "Mistral", "OpenRouter", "z.ai").
+        endpoint:
+          type: string
+          description: OpenAI-kompatible Chat-Completions-URL des Providers.
+        model:
+          type: string
+          description: Modellkennung (z. B. "mistral-medium-latest").
+        isActive:
+          type: boolean
+          description: Ist dieser Provider der aktive Provider (Radio-Button-Auswahl)?
+    LlmProviderInput:
+      type: object
+      required:
+        - name
+        - endpoint
+        - apiKey
+        - model
+      description: >-
+        Anlegen eines Providers (#951): Name, Endpoint (gültige http(s)-URL),
+        API-Key und Modell sind Pflicht. Der Key wird nie zurückgegeben.
+      properties:
+        name:
+          type: string
+          description: Anzeigename des Providers.
+        endpoint:
+          type: string
+          description: OpenAI-kompatible Chat-Completions-URL (http/https).
+        apiKey:
+          type: string
+          description: API-Key des Providers (Write-Only).
+        model:
+          type: string
+          description: Modellkennung.
+    LlmProviderUpdate:
+      type: object
+      description: >-
+        Bearbeiten eines Providers (#951): alle Felder optional; der API-Key
+        wird nur bei nicht-leerem String gesetzt (Bearbeiten-Dialog startet leer).
+      properties:
+        name:
+          type: string
+          description: Neuer Anzeigename.
+        endpoint:
+          type: string
+          description: Neue Endpoint-URL.
+        apiKey:
+          type: string
+          description: Neuer API-Key (nur bei Änderung senden; leer = unverändert).
+        model:
+          type: string
+          description: Neue Modellkennung.
     FreeModel:
       type: object
       required:

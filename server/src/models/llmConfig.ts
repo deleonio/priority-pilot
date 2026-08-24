@@ -2,11 +2,11 @@ import { DataTypes, Model } from 'sequelize';
 import sequelize from '../database.js';
 
 /**
- * Persistierte Konfiguration der LLM-Kaskade (#640): Mistral als Primär-Provider, OpenRouter als
- * optionale Verfeinerungsstufe. Bewusst eine **Singleton-Zeile** ohne `userId` — die Konfiguration
- * gilt instanzweit (das Ticket fordert nur Auth-Schutz, keine Datenisolation zwischen Nutzern).
- * Gesetzte Werte haben Vorrang vor den gleichnamigen Umgebungsvariablen; ohne Zeile bleibt Env der
- * Fallback (siehe `loadEffectiveLlmConfig` in `../llm/llm.ts`).
+ * Persistierte Konfiguration des Legacy-LLM-Systems (#640): Mistral/OpenRouter-Keys. Seit dem
+ * Single-Provider-System (#951) nur noch Migrationsquelle für `llm_providers`.
+ * Bewusst eine **Singleton-Zeile** ohne `userId` — instanzweit (nur Auth-Schutz, keine
+ * Nutzerisolation).
+ * Die gleichnamigen Umgebungsvariablen sind mit der Kaskade entfallen (#951).
  */
 class LlmConfig extends Model {
 	public id!: number;
