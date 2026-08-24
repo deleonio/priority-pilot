@@ -85,3 +85,4 @@ Konflikte, die er verhindern soll.
   Trigger via `getByRole('tab', { name })` statt `getByText` (matcht sonst zusätzlich Panel-Headings
   → strict-mode violation). Baseline-Spiegel für zentrierte max-width-Seiten als Bounding-Box-Insets
   messen, nicht als computed Padding (sonst falsch bei Viewport > Seitenbreite).
+- 2026-08-23 · E2E/Viewport — `waitForStableView(page, 'Priority Pilot')` scheitert auf `/` bei ≤375px: `.app-name` ist dort per CSS versteckt (app.css:288, Banner zeigt nur Logo-Img). → Auf Hauptansicht den Default-ReadyText `Dashboard` nutzen.
