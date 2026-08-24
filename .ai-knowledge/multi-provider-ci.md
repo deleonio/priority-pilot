@@ -158,6 +158,41 @@ gh workflow run ci-multi-provider.yml  # Default: claude
 
 ---
 
+## Modell-Allowlist & Freigabe neuer Modelle
+
+Pipeline-Phasen laufen nur mit erprobten Modell-Aliassen. Ein `ai:model:<alias>`-Label
+mit unbekanntem Alias bricht im **Precheck** ab (04/05: `resolve-model-label.sh`) statt
+halb erfüllte Prompt-Verträge im Lauf zu hinterlassen — die Lektion aus PR #903, wo ein
+Free-Modell nur die `VERDICT:`-Zeile lieferte und die Begründungs-Kommentare übersprang.
+
+**Geltende Allowlist:** `fable | opus | sonnet | haiku`
+
+**Stellen, die bei einem neuen Alias synchron zu pflegen sind:**
+
+| #   | Datei                                         | Stelle                                                                |
+| --- | --------------------------------------------- | --------------------------------------------------------------------- |
+| 1   | `.github/scripts/resolve-model-label.sh`      | case-Filter `haiku                                                    | sonnet | opus | fable` + Abbruch-Meldung (~Zeile 167) |
+| 2   | `.github/actions/setup-claude/action.yml`     | Phasen-Modell-Auflösung: case + `::error`-Meldung (~Zeile 552–564)    |
+| 3   | `.github/actions/setup-claude/action.yml`     | Subagent-Alias: case + `::error`-Meldung (~Zeile 607–612)             |
+| 4   | `.github/scripts/resolve-model-label.test.ts` | neuer Fall „bekannter Alias → durch" + alter Abbruch-Fall bleibt grün |
+| 5   | `.ai-knowledge/multi-provider-ci.md`          | Allowlist-Zeile in diesem Abschnitt                                   |
+
+**Freigabe-Prozess:** Alias in allen fünf Stellen eintragen, Resolve-Ziel je Provider
+(`claude` nativ via `--model`; `zai`/`openrouter` über die `ANTHROPIC_DEFAULT_*_MODEL`-
+Einträge der GitHub Variables) ergänzen, `pnpm test:scripts` grün, dann erst das Label
+im Betrieb nutzen. Die `vars.CLAUDE_MODEL_*` tragen nur Phasen-**Defaults** — sie
+erweitern die Allowlist nicht.
+
+**`unrecognized_model`-Warnung (Issue #962):** Die CLI loggt bei nicht-nativ bekannten
+Modell-IDs (zai/openrouter) pro Request eine `[claude-code:unrecognized_model]`-Zeile.
+Es gibt **kein ENV/Flag** zur globalen Unterdrückung; die CLI kennt nur `modelOverrides`
+(per Modell-ID, siehe [Model configuration](https://code.claude.com/docs/en/model-config)).
+Da unsere Modell-IDs aus den dynamischen GitHub Variables stammen, wäre eine statische
+Override-Map bei jeder Variablen-Änderung veraltet — deshalb filtert der `logtail`-
+Subcommand von `needs-human-explain.sh` diese Zeilen aus den Diagnose-Auszügen.
+
+---
+
 ## Troubleshooting
 
 | Problem                                   | Lösung                                                                                              |
@@ -166,6 +201,7 @@ gh workflow run ci-multi-provider.yml  # Default: claude
 | Auth-Fehler                               | Secrets `CLAUDE_API_KEY` / `ZAI_API_KEY` / `OPENROUTER_API_KEY` gesetzt?                            |
 | settings.local.json nicht erstellt        | Variables `CLAUDE_CODE_SETTINGS_LOCAL_*` existieren & valides JSON? `gh variable get` funktioniert? |
 | Model falsch                              | Variables `CLAUDE_CODE_SETTINGS_LOCAL_*` prüfen (Base-URL + Model-Namen)                            |
+| `unrecognized_model`-Zeilen im Log        | Erwartet bei zai/openrouter, laufunschädlich; `needs-human-explain.sh logtail` filtert sie bereits  |
 
 ---
 

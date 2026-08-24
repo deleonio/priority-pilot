@@ -134,13 +134,20 @@ case "$CMD" in
     # Noise übrig (PR #903, #944). Ohne VERDICT:-Zeile: Fallback tail
     # (Crash-Fall — dort steht die Ursache, z. B. 402/1313, am Ende).
     clean() { LC_ALL=C tr -d '\000-\010\013\014\016-\037'; }
+    # unrecognized_model-Zeilen des Multi-Provider-Setups rausfiltern (Issue
+    # #962): Die CLI warnt bei jedem nicht-nativ bekannten Modellnamen (zai/
+    # openrouter), obwohl der Lauf funktioniert — die Warnung verdünnt jeden
+    # Auszug und suggeriert eine Ursache, wo keine ist. Nur Zeilen MIT diesem
+    # Marker fallen raus; echte Fehlerzeilen bleiben unberührt. sed statt
+    # grep -v, damit die Pipeline auch bei geleertem Fenster exit 0 liefert.
+    drop_model_noise() { sed '/unrecognized_model/d'; }
     VLINE="$(grep -n 'VERDICT:' "$LOG_FILE" | tail -1 | cut -d: -f1)"
     if [ -n "$VLINE" ]; then
       START=$(( VLINE > LOG_LINES ? VLINE - LOG_LINES : 1 ))
       END=$(( VLINE + 3 ))
-      sed -n "${START},${END}p" "$LOG_FILE" | clean | cut -c1-400
+      sed -n "${START},${END}p" "$LOG_FILE" | drop_model_noise | clean | cut -c1-400
     else
-      tail -n "$LOG_LINES" "$LOG_FILE" | clean | cut -c1-400
+      tail -n "$LOG_LINES" "$LOG_FILE" | drop_model_noise | clean | cut -c1-400
     fi
     ;;
 
