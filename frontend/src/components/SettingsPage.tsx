@@ -298,7 +298,7 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 						    übernommen werden. */}
 					<PillarWeightsForm key={pillars.length} pillars={pillars} onSaved={onSaved} />
 				</div>
-				<div slot="tab-2">
+				<div slot="tab-2" className="settings-llm">
 					{/* LLM-Provider-Konfiguration (#640): Keys/Modell der Mistral/OpenRouter-Kaskade. */}
 					<KolHeading _label="LLM-Provider" _level={2} />
 					<LlmSettingsForm />

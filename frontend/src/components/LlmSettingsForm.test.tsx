@@ -1,7 +1,6 @@
 import { cleanup, render, waitFor } from '@testing-library/react';
 import type { LlmConfigStatus } from 'client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { api } from '../api';
 import { LlmSettingsForm } from './LlmSettingsForm';
 
 /**
@@ -72,6 +71,7 @@ describe('#972 AK3: X-Button zeigt Icon statt Unicode „✕"', () => {
 			expect(button.textContent).not.toContain('✕');
 
 			// … stattdessen existiert ein echtes Icon-Element (KolIcon-Host oder Inline-SVG).
+			// eslint-disable-next-line no-restricted-syntax -- `kol-icon` ist hier TAG-Selektor des öffentlichen Host-Elements (nicht die interne Shadow-DOM-Klasse `.kol-icon`, auf die der #824-Guard zielt); `i[class*=…]` fängt KolButton-_icons-Varianten ab.
 			const icon = button.querySelector('kol-icon, svg, i[class*="kolicon"]');
 			expect(icon).not.toBeNull();
 		}

@@ -56,6 +56,7 @@ test.describe('#972 LLM-Tab-Layout & X-Icon', () => {
 
 		// AK3: Im Button existiert ein Icon-Element mit messbarer, sichtbarer Größe —
 		// ein unsichtbares Unicode-Zeichen hätte kein eigenes Bounding-Box.
+		// eslint-disable-next-line no-restricted-syntax -- `kol-icon` ist hier TAG-Selektor des öffentlichen Host-Elements (nicht die interne Shadow-DOM-Klasse `.kol-icon`, auf die der #824-Guard zielt); `i[class*=…]` fängt KolButton-_icons-Varianten ab.
 		const icon = xButton.locator('kol-icon, svg, i[class*="kolicon"]').first();
 		await expect(icon).toBeVisible();
 		const iconBox = await icon.boundingBox();
