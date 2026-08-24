@@ -1,8 +1,11 @@
 # Issue 893: ZAI-Provider Timeout-Fallback 08-12 Berlin
 
+**Stand:** 2026-08-24  
+**Version:** v1.1 (2026-08-24): Nightly-Sync — Fenster-Mechanik an Ist-Stand angepasst: Prüfung in Asia/Singapore-Zeit, Mo–Fr 14:00–18:00 SGT (= 08:00–12:00 MESZ), Wochenende ist Off-Peak; Soll-Empfehlungen entfernt.
+
 ## Ziel
 
-ZAI-Provider automatisch zwischen 08:00 und 12:00 Uhr Europe/Berlin auf Claude fallen lassen, unabhängig von der konfigurierten `vars.LLM_PROVIDER`.
+ZAI-Provider automatisch in den z.ai-Peak-Zeiten (Mo–Fr 08:00–12:00 Uhr Europe/Berlin) auf Claude fallen lassen, unabhängig von der konfigurierten `vars.LLM_PROVIDER`.
 
 ## Vorbedingung
 
@@ -13,17 +16,17 @@ ZAI-Provider automatisch zwischen 08:00 und 12:00 Uhr Europe/Berlin auf Claude f
 
 ## Schritte
 
-1. **Zeitfenster erkennen**: Laufzeit-Prüfung der aktuellen Berliner Zeit (`TZ=Europe/Berlin date +%H`)
-   - Stunden 08-11 → innerhalb Zeitfenster
-   - Stunden 00-07 oder 12-23 → außerhalb Zeitfenster
-2. **Provider-Entscheidung**: Wenn `LLM_PROVIDER=zai` UND Zeitfenster aktiv → auf `claude` fallen
-3. **DST-Korrektheit**: `TZ=Europe/Berlin` berücksichtigt Sommer-/Winterzeit automatisch
-4. **Observability**: Auto-Switch im Log via `::notice::` und optional Step Summary
+1. **Zeitfenster erkennen**: Laufzeit-Prüfung in Singapore-Zeit (`TZ='Asia/Singapore' date +%H` und `date +%u`) — das z.ai-Peak-Fenster ist Mo–Fr 14:00–17:59 Asia/Singapore (UTC+8, kein DST)
+   - Wochentag 1–5 (Mo–Fr) und Stunden 14-17 SGT → innerhalb Zeitfenster (= 08:00–12:00 MESZ bzw. 07:00–11:00 MEZ Berlin)
+   - Wochenende (Sa/So) oder Stunden außerhalb → außerhalb Zeitfenster (am Wochenende gilt bei z.ai ganztägig Off-Peak)
+2. **Provider-Entscheidung**: Wenn `LLM_PROVIDER=zai` UND Zeitfenster aktiv → auf `claude` fallen; andere Provider werden gar nicht geprüft (Notice „Zeitfenster-Check übersprungen")
+3. **DST-Korrektheit**: Das Fenster ist in Singapore-Zeit (UTC+8, ohne DST) definiert — das Berliner Fenster verschiebt sich mit Sommer-/Winterzeit automatisch korrekt
+4. **Observability**: Auto-Switch im Log via `::notice::` (mit Wochentag/Stunde in SGT)
 
 ## Erwartetes Ergebnis
 
-- Zwischen 08:00-12:00 Berlin: ZAI wird NICHT verwendet, selbst wenn `vars.LLM_PROVIDER=zai`
-- Außerhalb des Fensters: konfigurierter `LLM_PROVIDER`-Wert gilt unverändert
+- Mo–Fr zwischen 08:00-12:00 Berlin: ZAI wird NICHT verwendet, selbst wenn `vars.LLM_PROVIDER=zai`
+- Am Wochenende sowie außerhalb des Fensters: konfigurierter `LLM_PROVIDER`-Wert gilt unverändert
 - Lösung ist DST-korrekt (kein zweimaliges Fehlschalten im Jahr)
 - CI-Läufe sind nicht blockiert, CLAUDE_API_KEY ist verfügbar
 - Jeder Auto-Switch ist im Job-Log sichtbar
@@ -31,17 +34,8 @@ ZAI-Provider automatisch zwischen 08:00 und 12:00 Uhr Europe/Berlin auf Claude f
 
 ## Testfälle
 
-1. **Innerhalb Zeitfenster (08-11 Berlin)**: `LLM_PROVIDER=zai` → effektiv `claude`
-2. **Außerhalb Zeitfenster (12-07 Berlin)**: `LLM_PROVIDER=zai` → effektiv `zai`
+1. **Innerhalb Zeitfenster (Mo–Fr, 14-17 SGT)**: `LLM_PROVIDER=zai` → effektiv `claude`
+2. **Außerhalb Zeitfenster (Wochenende oder 18-13 SGT)**: `LLM_PROVIDER=zai` → effektiv `zai`
 3. **Andere Provider unverändert**: `LLM_PROVIDER=claude` oder `openrouter` → keine Änderung
 4. **DST-Wechsel**: Zeitfenster arbeitet korrekt bei UTC+1 (Winter) und UTC+2 (Sommer)
 5. **Log-Sichtbarkeit**: Auto-Switches erscheinen als `::notice::` Messages
-6. **CI-Stabilität**: Pipeline-Läufe schließen nicht ab wegen fehlender Secrets
-
-## Implementierungshinweise
-
-- Variante (b) empfohlen: Laufzeitbasierte Entscheidung in `setup-claude` Action
-- Keine persistente Variablen-Mutation (keine Race-Conditions mit manuellen Switches)
-- DST-Prüfung via `TZ=Europe/Berlin date +%H` (robuster als statisches UTC-Fenster)
-- Voraussetzung: `CLAUDE_API_KEY` muss vorhanden sein (in Setup prüfen/dokumentieren)
-- Nur betroffene Workflows: 5 Pipeline-Workflows + Haupt-CI, nicht `ci-multi-provider.yml`

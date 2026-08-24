@@ -1,6 +1,8 @@
 # Spec 931 — Erledigte-Aufgaben-Tabelle: Spaltenbreiten für Lesbarkeit (Desktop)
 
-Status: Spec-Phase (rote Tests) · Issue: #931 · Vorgänger: #228 (Tabelle), #307 (Toolbar-Icon-Button)
+**Stand:** 2026-08-24  
+**Version:** v1.1 (2026-08-24): Nightly-Sync — umgesetzt (55 % Titel-Spalte im Code); transitorische Spec-Phasen-/„derzeit rot"-Passagen entfernt.  
+Issue: #931 · Vorgänger: #228 (Tabelle), #307 (Toolbar-Icon-Button)
 
 > Hinweis: Der KI-ANALYSE-Block im Issue-Body ist defekt (enthält eine Shell-Platzhalter-Zeile statt
 > Inhalt). Die Akzeptanzkriterien unten sind aus Titel, KI-UX-Block („UX-Beratung", Verdict ux-ready)
@@ -47,13 +49,13 @@ weit/niedrig dimensioniert sind. Das Mobile-Karten-Layout (< 48rem) bleibt unver
 
 ## Erwartetes Ergebnis
 
-- Schritte 2–4 erfüllen die drei AK oben (derzeit rot: Ist-Zustand ist `table-layout: auto`,
-  alle Zellen linksbündig, `font-variant-numeric: normal`, Titel-Spalte ohne definierte Breite).
+- Schritte 2–4 erfüllen die drei AK oben; im Code belegt die Titel-Spalte 55 % der Tabellenbreite,
+  die übrigen Spalten teilen sich die restlichen 45 %.
 - Rein visuelle Anteile des KI-UX-Blocks (Touch-Target ≥ 44px des „Wieder öffnen"-Buttons,
-  Kontrast/Farbtokens) werden ohne Test im Implementierungs-PR visuell begründet — die
-  Test-Regel des Repos erzwingt für reines Styling keinen Test.
+  Kontrast/Farbtokens) sind nicht test-erzwungen — die Test-Regel des Repos erzwingt für
+  reines Styling keinen Test.
 
-## Testabdeckung (rot bis Implementierung)
+## Testabdeckung
 
 - `frontend/e2e/completed-tasks.spec.ts`, Describe `#931 — Desktop-Spaltenbreiten`:
   - AK-931-1 → Test „table-layout fixed ab 48rem"
