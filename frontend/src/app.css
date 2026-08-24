@@ -123,7 +123,10 @@
 	/* P2: Responsive Modal Width Tokens */
 	--pp-modal-width-mobile: 100vw;
 	--pp-modal-width-tablet: 90vw;
-	--pp-modal-width-desktop: 40rem;
+	/* #934/#727: Desktop-Dialog muss 2 × 300 px Range-Mindestbreite + 16 px Gap + 2 × 16 px
+	   Card-Padding fassen (616 px Content); 40rem = 608 px Content war 8 px zu schmal und brach
+	   Priorität/Aufwand bei ≥1024 px vertikal um (#727-Regression). */
+	--pp-modal-width-desktop: 44rem;
 }
 
 /*
