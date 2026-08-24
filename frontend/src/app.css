@@ -1378,8 +1378,12 @@ body {
  */
 
 .settings-general {
-	/* Padding-Left für 24dp linken Abstand aller Controls */
-	padding-left: 1.5rem; /* 24dp */
+	/*
+	 * #969: Symmetrisches horizontales Padding — vorher nur `padding-left: 1.5rem` (#843),
+	 * was zusammen mit dem `.settings-page`-Padding die Seite asymmetrisch einrückte
+	 * (links ≈ 2,5rem, rechts 1rem). Die linke Control-Position (24dp) bleibt erhalten.
+	 */
+	padding-inline: 1.5rem; /* 24dp */
 	/* Flex-Layout für konsistente vertikale Abstände */
 	display: flex;
 	flex-direction: column;
