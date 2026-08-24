@@ -1,6 +1,7 @@
 # Issue 787 – Header-Layout und KI-Modell-Auswahl in Toolbar
 
-**Stand:** 2026-08-23  
+**Stand:** 2026-08-24  
+**Version:** v1.4 (2026-08-24): Nightly-Sync — #965 umgesetzt: Button icon-only mit statischem Namen „KI-Modell auswählen", auf allen Viewport-Breiten gerendert (Mobile-Lücke geschlossen); Modellname nur im Dialog.  
 **Version:** v1.3 (2026-08-23): Nightly-Sync — Accessible Name des Modell-Buttons auf den Ist-Text korrigiert.  
 **Ziel:** Header-Layout optimieren und KI-Modell-Auswahl harmonisch in Toolbar integrieren
 
@@ -34,10 +35,9 @@ rechts, siehe Versionierung.)
 
 3. **KI-Modell-Auswahl in Toolbar lokalisieren**
    - KI-Modell-Auswahl ist als Toolbar-Element integriert (nicht separat angehängt)
-   - Dropdown-Indikator (Chevron) sichtbar
-   - Label zeigt das aktuell konfigurierte Modell (z. B. „sonnet-5"). Benennt das letzte Segment der
-     Modell-ID nur die Preisklasse (`openrouter/free` → „free"), zeigt das Label die vollständige ID —
-     ein Label muss das Modell identifizieren.
+   - Icon-only-Button (Gehirn-Icon, kein sichtbarer Text) mit statischem Accessible Name
+     „KI-Modell auswählen" (#965) — kein Modellname im Button
+   - Das aktuell konfigurierte Modell ist ausschließlich im Modell-Dialog sichtbar
 
 ### Erwartetes Ergebnis
 
@@ -78,9 +78,9 @@ KI-Modell-Auswahl ist funktional und a11y-konform bedienbar.
    - Tab-Reihenfolge erreicht KI-Modell-Auswahl nach anderen Toolbar-Elementen
    - Enter/Space öffnet den Dialog
 
-3. **Screenreader-Test** _(geändert durch Menschen-Entscheidung zu #929)_
-   - Element ist ein nativer Button — Semantik, Fokus-Optik und Accessible Name
-     („KI-Modell: [Kurzname]") trägt `kol-toolbar` im Shadow-DOM selbst
+3. **Screenreader-Test** _(geändert durch Menschen-Entscheidung zu #929; #965)_
+   - Element ist ein nativer Button — Semantik, Fokus-Optik und der statische Accessible Name
+     („KI-Modell auswählen") trägt `kol-toolbar` im Shadow-DOM selbst
    - Der frühere role="combobox"-Vertrag (aria-haspopup, aria-expanded, Chevron) ist aufgehoben:
      `kol-toolbar` verwirft ARIA-Attribute an Items still, ein nachgerüstetes combobox-Semantik-
      Muster wäre nicht einklagbar. Die Bedienbarkeit bleibt über den nativen Button erhalten.
@@ -88,7 +88,7 @@ KI-Modell-Auswahl ist funktional und a11y-konform bedienbar.
 4. **Modell-Auswahl testen**
    - Klick auf KI-Modell-Auswahl öffnet das Popup
    - Popup zeigt die verfügbaren Modelle
-   - Auswahl eines Modells aktualisiert Label sofort (kein Lade-Spin nötig)
+   - Auswahl eines Modells wird sofort übernommen (Dialog zeigt das neue Modell)
    - Escape schließt das Popup
 
 ### Erwartetes Ergebnis
@@ -114,7 +114,7 @@ Falschaussage, sobald sich die Liste ändert.
 
 ### Ziel
 
-Der Header funktioniert auf allen Viewports; die KI-Modell-Auswahl ist ab 48rem bedienbar (unter 48rem existiert bewusst kein Einstieg — bekannte Lücke, siehe Abgrenzung unten).
+Der Header funktioniert auf allen Viewports; die KI-Modell-Auswahl ist auf allen Viewport-Breiten gerendert und bedienbar (#965 hat die frühere Mobile-Ausblendung aus #929 aufgehoben).
 
 ### Vorbedingung
 
@@ -126,38 +126,30 @@ Der Header funktioniert auf allen Viewports; die KI-Modell-Auswahl ist ab 48rem 
    - Header-Height konsistent (kein Layout-Shift bei Toolbar-Änderungen)
    - Toolbar-Elemente passen in Viewport
 
-2. **KI-Modell-Auswahl ab 48rem**
+2. **KI-Modell-Auswahl auf allen Breiten**
    - Touch-Ziel des Header-Buttons mindestens 44×44px (WCAG 2.5.5)
-   - Design-Entscheidung: Unter 48rem ist die Auswahl **nicht** im Header und es existiert kein
-     anderer Einstieg — siehe Abgrenzung unten
+   - Auch unter 48rem ist der icon-only Button im Header vorhanden
    - Modal erscheint bei Auswahl
 
 3. **Breakpoint-Test**
-   - Ab 48rem (768px): KI-Modell-Auswahl im Header mit Modell-Label
-   - Unter 48rem: kein Einstieg in die KI-Modell-Auswahl (bekannte Lücke)
+   - Unter und ab 48rem (768px): KI-Modell-Auswahl (icon-only) im Header
    - Ab 64rem (1024px): zusätzlich der App-Name im Header
 
 ### Erwartetes Ergebnis
 
 - Keine horizontalen Scrollbars oder Überläufe
-- Touch-Ziel der KI-Modell-Auswahl ist ausreichend groß (≥44×44px ab 48rem)
+- Touch-Ziel der KI-Modell-Auswahl ist ausreichend groß (≥44×44px)
 - Header-Height bleibt stabil
-- KI-Modell-Auswahl ist ab 48rem bedienbar
+- KI-Modell-Auswahl ist auf allen Viewport-Breiten bedienbar
 
 ### Abgrenzung: KI-Modell-Auswahl unter 48rem
 
 Der Header muss auf 375px einzeilig bleiben — das ist ein bestehender, mehrfach abgesicherter
-Vertrag (#485 AK6, #718 AK4/AK5, `mobile-shell.spec.ts`). Bei 375px stehen 343px Inhaltsbreite zur
-Verfügung, die Logo (44px), Avatar (44px) und die fünf Kopf-Aktionen (#691, je 44px) bereits
-ausfüllen. Ein sechstes Bedienelement passt dort nicht mehr hinein — auch nicht icon-only.
-
-Deshalb ist die KI-Modell-Auswahl unter 48rem im Header ausgeblendet. Der frühere Mobile-Ausweg —
-der Dashboard-Einstieg aus #742 mit 48×48px-Touch-Ziel — wurde mit 8a7d182 bewusst entfernt
-(„Unerwünschter KI-Modell-Button im Dashboard-Bereich"): Unter 48rem existiert damit **kein**
-Einstieg mehr. Das ist eine bekannte, bewusst akzeptierte Lücke; soll die Modell-Auswahl mobil
-wieder erreichbar sein, braucht es eine eigene Entscheidung (z. B. Einstellungs-Seite/Menü) —
-nicht die Wiedereinführung des Dashboard-Buttons. Ab 48rem steht die Auswahl wie spezifiziert in
-der Kopfzeile; der Header-Button misst dort 44×44px über die gemeinsame Toolbar-Einheit
+Vertrag (#485 AK6, #718 AK4/AK5, `mobile-shell.spec.ts`). #929 blendete die KI-Modell-Auswahl
+deshalb unter 48rem aus; #965 hat diese Ausblendung aufgehoben: Der Button ist seither icon-only
+(Gehirn-Icon, kein Text-Label) und passt auf allen Breiten in die einzeilige Kopfzeile. Ein
+Dashboard-Einstieg existiert weiterhin nicht — die Kopfzeile ist der einzige Einstieg in die
+KI-Modell-Auswahl. Der Header-Button misst 44×44px über die gemeinsame Toolbar-Einheit
 (`--pp-toolbar-height`) und erfüllt WCAG 2.5.5.
 
 ### Abgrenzung: App-Name und #406
@@ -175,9 +167,9 @@ aktuelle Modell geladen, darf keine Interaktion (Öffnen des Popups, Auswahl ein
 Header-Höhe verändern. Während der Hydration wächst der Header dagegen erwartungsgemäß auf seine
 Endhöhe — `kol-toolbar` baut ihre Buttons asynchron im Shadow-DOM auf.
 
-Auf 375px bleibt der Header einzeilig (Vertrag aus #485 AK6 / #718 AK4): Logo, Avatar und die fünf
-Kopf-Aktionen füllen die Zeile aus — die KI-Modell-Auswahl ist dort deshalb ausgeblendet (siehe
-Abgrenzung oben). Ein zweizeiliger Umbruch tritt nicht ein; die Anforderung „keine horizontalen
+Auf 375px bleibt der Header einzeilig (Vertrag aus #485 AK6 / #718 AK4): Logo, Avatar und die sechs
+Kopf-Aktionen (#691 inkl. icon-only KI-Modell-Button aus #965) füllen die Zeile aus. Ein
+zweizeiliger Umbruch tritt nicht ein; die Anforderung „keine horizontalen
 Überläufe" bleibt erfüllt.
 
 ---
@@ -222,13 +214,12 @@ Alle UI-Elemente erfüllen BITV 2.1 Kontrast-Anforderungen.
 
 ## Randfälle & Fehler
 
-| Situation                                   | Erwartetes Verhalten                                                                                         |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| KI-Modell-Auswahl Click-Target <44×44px     | Verstößt gegen BITV 2.1 – muss vergrößert werden                                                             |
-| Fehlender aria-expanded Zustand             | Screenreader erkennt Dropdown-Zustand nicht – Attribut muss gesetzt werden                                   |
-| Kontrast <4.5:1 bei Text-Icons              | BITV 2.1.1 Verstoß – Kontrast muss erhöht werden                                                             |
-| Layout-Shift bei Toolbar-Änderung           | Header-Height muss stabil bleiben – CSS Grid/Flex für Konsistenz nutzen                                      |
-| Mobile: kein Einstieg in die Modell-Auswahl | Bekannte Lücke seit 8a7d182 (bewusst akzeptiert) – eigener Beschluss nötig, falls mobil erreichbar sein soll |
+| Situation                               | Erwartetes Verhalten                                                                     |
+| --------------------------------------- | ---------------------------------------------------------------------------------------- |
+| KI-Modell-Auswahl Click-Target <44×44px | Verstößt gegen BITV 2.1 – muss vergrößert werden                                         |
+| Kontrast <4.5:1 bei Text-Icons          | BITV 2.1.1 Verstoß – Kontrast muss erhöht werden                                         |
+| Layout-Shift bei Toolbar-Änderung       | Header-Height muss stabil bleiben – CSS Grid/Flex für Konsistenz nutzen                  |
+| Mobile: Überlauf der Kopfzeile          | Header bleibt einzeilig (≤ 64px, kein Overflow) – Platz über Gap/Padding, nie Ausblenden |
 
 ---
 
