@@ -214,12 +214,12 @@ Alle UI-Elemente erfüllen BITV 2.1 Kontrast-Anforderungen.
 
 ## Randfälle & Fehler
 
-| Situation                                   | Erwartetes Verhalten                                                                    |
-| ------------------------------------------- | --------------------------------------------------------------------------------------- |
-| KI-Modell-Auswahl Click-Target <44×44px     | Verstößt gegen BITV 2.1 – muss vergrößert werden                                        |
-| Kontrast <4.5:1 bei Text-Icons              | BITV 2.1.1 Verstoß – Kontrast muss erhöht werden                                        |
-| Layout-Shift bei Toolbar-Änderung           | Header-Height muss stabil bleiben – CSS Grid/Flex für Konsistenz nutzen                 |
-| Mobile: Überlauf der Kopfzeile              | Header bleibt einzeilig (≤ 64px, kein Overflow) – Platz über Gap/Padding, nie Ausblenden |
+| Situation                               | Erwartetes Verhalten                                                                     |
+| --------------------------------------- | ---------------------------------------------------------------------------------------- |
+| KI-Modell-Auswahl Click-Target <44×44px | Verstößt gegen BITV 2.1 – muss vergrößert werden                                         |
+| Kontrast <4.5:1 bei Text-Icons          | BITV 2.1.1 Verstoß – Kontrast muss erhöht werden                                         |
+| Layout-Shift bei Toolbar-Änderung       | Header-Height muss stabil bleiben – CSS Grid/Flex für Konsistenz nutzen                  |
+| Mobile: Überlauf der Kopfzeile          | Header bleibt einzeilig (≤ 64px, kein Overflow) – Platz über Gap/Padding, nie Ausblenden |
 
 ---
 
