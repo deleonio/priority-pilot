@@ -99,12 +99,16 @@ async function setupDashboardWithPillars(page: Page) {
 	);
 }
 
-/** Oeffnet die Einstellungen, navigiert zum LLM-Tab und wartet auf die geladenen Provider-Optionen. */
+/** Oeffnet die Einstellungen, navigiert zum LLM-Tab und wartet auf die geladene Radio-Group. */
 async function openLlmSettings(page: Page) {
 	await page.getByRole('button', { name: 'Einstellungen' }).click();
 	await page.getByRole('tab', { name: 'LLM', exact: true }).click();
 	await expect(page.locator(LLM_RADIO)).toBeVisible();
-	// Die Optionen kommen asynchron aus GET /llm-providers — auf den Seed warten.
+}
+
+/** Wie openLlmSettings, wartet ZUSAETZLICH auf die geseedete Mistral-Option (Optionsliste asynchron). */
+async function openLlmSettingsWithProviders(page: Page) {
+	await openLlmSettings(page);
 	await expect(page.getByRole('radio', { name: 'Mistral' })).toBeAttached();
 }
 
@@ -135,7 +139,7 @@ test.describe('LLM Provider Toggle – Einstellungen (#951)', () => {
 		await seedProviders(page);
 		await setupDashboardMocks(page);
 		await page.goto('/');
-		await openLlmSettings(page);
+		await openLlmSettingsWithProviders(page);
 	});
 
 	test.afterEach(async ({ page }) => {
@@ -187,7 +191,7 @@ test.describe('LLM Provider Toggle – Einstellungen (#951)', () => {
 
 		// Navigation: Weg und zurueck (neuer Mount → frischer GET /llm-providers)
 		await page.goto('/');
-		await openLlmSettings(page);
+		await openLlmSettingsWithProviders(page);
 
 		await expect(page.getByRole('radio', { name: 'OpenRouter' })).toBeChecked();
 	});
@@ -261,7 +265,7 @@ test.describe('LLM Provider Toggle – Request-Integration', () => {
 		});
 
 		await page.goto('/');
-		await openLlmSettings(page);
+		await openLlmSettingsWithProviders(page);
 		await page.getByText('Mistral', { exact: true }).click();
 		await expect(page.getByRole('radio', { name: 'Mistral' })).toBeChecked();
 		// Aktivierung ist ein async POST (fire-and-forget im Component): Server-Wahrheit
@@ -302,7 +306,7 @@ test.describe('LLM Provider Toggle – Request-Integration', () => {
 		});
 
 		await page.goto('/');
-		await openLlmSettings(page);
+		await openLlmSettingsWithProviders(page);
 		await page.getByText('OpenRouter', { exact: true }).click();
 		await expect(page.getByRole('radio', { name: 'OpenRouter' })).toBeChecked();
 		await expectServerActiveProvider(page, 'OpenRouter');
@@ -348,5 +352,145 @@ test.describe('LLM Provider Toggle – Request-Integration', () => {
 
 		expect(capturedUrl).not.toBeNull();
 		expect(capturedUrl!).not.toContain('provider=');
+	});
+});
+
+// -------------------------------------------------------------------------
+// Verwaltungs-UI (Spec Journey 2/4/5): Anlegen, Bearbeiten, Löschen (#951)
+// -------------------------------------------------------------------------
+
+test.describe('LLM Provider Verwaltung (#951, Spec Journey 2/4/5)', () => {
+	test.beforeEach(async ({ page }) => {
+		await cleanupProviders(page);
+		await setupDashboardMocks(page);
+		await page.goto('/');
+		// Bewusst ohne *WithProviders: Der leere Zustand ist hier teilweise der
+		// Testgegenstand (Journey 2 legt den ersten Provider selbst an).
+		await openLlmSettings(page);
+	});
+
+	test('Journey 2: legt einen neuen Provider über den Dialog an (Name, Endpoint, Key, Modell)', async ({ page }) => {
+		await expect(page.getByText('Noch kein Provider konfiguriert')).toBeVisible();
+
+		await page.getByRole('button', { name: 'Neuer Provider' }).click();
+		await expect(page.getByRole('dialog', { name: /Neuen Provider anlegen/i })).toBeVisible();
+
+		const dialog = page.locator('kol-dialog'); // Felder sind Light-DOM im Host — NICHT im inneren <dialog> (Shadow-DOM)
+		await dialog.getByRole('textbox', { name: /Name/ }).fill('z.ai');
+		await dialog.getByRole('textbox', { name: /Endpoint/ }).fill('https://api.z.ai/api/anthropic/v1/chat/completions');
+		await dialog.getByRole('textbox', { name: /API-Key/ }).fill('e2e-zai-key');
+		await dialog.getByRole('textbox', { name: /Modell/ }).fill('glm-4.7');
+		await dialog.getByRole('button', { name: 'Anlegen' }).click();
+
+		// Nach dem Anlegen: Dialog zu, Provider in Liste + Radio, ERSTER Provider ist aktiv
+		await expect(page.getByRole('dialog', { name: /Neuen Provider anlegen/i })).toBeHidden();
+		await expect(page.getByText('z.ai (aktiv)', { exact: false })).toBeVisible();
+		await expect(page.getByRole('radio', { name: 'z.ai' })).toBeChecked();
+	});
+
+	test('Journey 2: Validierung — ungültiger Endpoint wird abgelehnt, nichts wird angelegt', async ({ page }) => {
+		await page.getByRole('button', { name: 'Neuer Provider' }).click();
+		const dialog = page.locator('kol-dialog'); // Felder sind Light-DOM im Host — NICHT im inneren <dialog> (Shadow-DOM)
+		await dialog.getByRole('textbox', { name: /Name/ }).fill('Kaputt');
+		await dialog.getByRole('textbox', { name: /Endpoint/ }).fill('not-a-url');
+		await dialog.getByRole('textbox', { name: /API-Key/ }).fill('key');
+		await dialog.getByRole('textbox', { name: /Modell/ }).fill('any');
+		await dialog.getByRole('button', { name: 'Anlegen' }).click();
+
+		await expect(dialog.getByText(/gültige http\(s\)-URL/)).toBeVisible();
+		// Server bestätigt: nichts angelegt
+		const list = (await (await page.request.get('/api/v1/llm-providers')).json()) as ProviderDto[];
+		expect(list.length).toBe(0);
+	});
+
+	test('Journey 4: bearbeitet einen Provider — Key-Feld bleibt leer (write-only), leer = unverändert', async ({
+		page,
+	}) => {
+		await seedProviders(page);
+		await page.goto('/');
+		await openLlmSettingsWithProviders(page);
+
+		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
+		const dialog = page.locator('kol-dialog');
+		// Sichtbarkeit am inneren Dialog prüfen (der Host hat selbst keine Box)
+		await expect(page.getByRole('dialog', { name: /Provider bearbeiten/i })).toBeVisible();
+
+		// Vorausgefüllt: Name + Modell; API-Key-Feld startet LEER (write-only-Vertrag)
+		await expect(dialog.getByRole('textbox', { name: /Name/ })).toHaveValue('Mistral');
+		await expect(dialog.getByRole('textbox', { name: /API-Key/ })).toHaveValue('');
+
+		await dialog.getByRole('textbox', { name: /Name/ }).fill('Mistral Prod');
+		await dialog.getByRole('button', { name: 'Speichern' }).click();
+		await expect(page.getByRole('dialog', { name: /Provider bearbeiten/i })).toBeHidden();
+
+		// Server-Wahrheit: umbenannt, Key unverändert (Provider bleibt aktiv funktionsfähig)
+		const list = (await (await page.request.get('/api/v1/llm-providers')).json()) as ProviderDto[];
+		expect(list[0]?.name).toBe('Mistral Prod');
+		expect(list[0]?.isActive).toBe(true);
+	});
+
+	test('Journey 5: löscht einen Provider mit Bestätigungsdialog', async ({ page }) => {
+		await seedProviders(page);
+		await page.goto('/');
+		await openLlmSettingsWithProviders(page);
+
+		const row = page.locator('.llm-provider-admin__item', { hasText: 'OpenRouter' });
+		await row.getByRole('button', { name: 'Löschen' }).click();
+
+		const dialog = page.locator('kol-dialog'); // Felder/Buttons sind Light-DOM im Host
+		// Sichtbarkeit am inneren Dialog prüfen (der Host hat selbst keine Box)
+		await expect(page.getByRole('dialog', { name: /Provider löschen/i })).toBeVisible();
+		await expect(dialog.getByText(/OpenRouter/)).toBeVisible();
+		// Initial-Fokus auf Abbrechen (#472): irreversible Aktion nicht per Enter auslösbar
+		await expect(dialog.getByRole('button', { name: 'Abbrechen' })).toBeFocused();
+
+		await dialog.getByRole('button', { name: 'Endgültig löschen' }).click();
+		await expect(page.getByRole('dialog', { name: /Provider löschen/i })).toBeHidden();
+
+		const list = (await (await page.request.get('/api/v1/llm-providers')).json()) as ProviderDto[];
+		expect(list.map((p) => p.name)).toEqual(['Mistral']);
+	});
+
+	test('Journey 5: Löschen des AKTIVEN Providers warnt vor dem 503-Zustand', async ({ page }) => {
+		await seedProviders(page);
+		await page.goto('/');
+		await openLlmSettingsWithProviders(page);
+
+		const row = page.locator('.llm-provider-admin__item', { hasText: 'Mistral' });
+		await row.getByRole('button', { name: 'Löschen' }).click();
+
+		const dialog = page.locator('kol-dialog'); // Felder/Buttons sind Light-DOM im Host
+		await expect(dialog.getByText(/AKTIVE Provider/)).toBeVisible();
+		await dialog.getByRole('button', { name: 'Abbrechen' }).click();
+		await expect(page.getByRole('dialog', { name: /Provider löschen/i })).toBeHidden();
+	});
+
+	test('beliebig viele Provider: n Alternativen anlegbar, Liste zeigt alle', async ({ page }) => {
+		const test = await page; // Alias für Lesbarkeit
+		// Dritte und vierte Alternative zusätzlich zum Seed anlegen
+		await seedProviders(test);
+		await test.goto('/');
+		await openLlmSettingsWithProviders(test);
+
+		for (const [name, endpoint, model] of [
+			['z.ai', 'https://api.z.ai/api/anthropic/v1/chat/completions', 'glm-4.7'],
+			['Ollama lokal', 'http://localhost:11434/v1/chat/completions', 'llama3'],
+		] as const) {
+			await test.getByRole('button', { name: 'Neuer Provider' }).click();
+			const dialog = test.locator('kol-dialog'); // Felder sind Light-DOM im Host
+			await dialog.getByRole('textbox', { name: /Name/ }).fill(name);
+			await dialog.getByRole('textbox', { name: /Endpoint/ }).fill(endpoint);
+			await dialog.getByRole('textbox', { name: /API-Key/ }).fill('e2e-key');
+			await dialog.getByRole('textbox', { name: /Modell/ }).fill(model);
+			await dialog.getByRole('button', { name: 'Anlegen' }).click();
+			await expect(page.getByRole('dialog', { name: /Neuen Provider anlegen/i })).toBeHidden();
+		}
+
+		const list = (await (await test.request.get('/api/v1/llm-providers')).json()) as ProviderDto[];
+		expect(list.map((p) => p.name)).toEqual(['Mistral', 'OpenRouter', 'z.ai', 'Ollama lokal']);
+		// Radio-Group bietet alle vier an
+		for (const name of ['Mistral', 'OpenRouter', 'z.ai', 'Ollama lokal']) {
+			await expect(test.getByRole('radio', { name })).toBeAttached();
+		}
 	});
 });

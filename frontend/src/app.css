@@ -1538,7 +1538,7 @@ body {
 	.completed-tasks-table td {
 		display: table-cell;
 		padding: 0.5rem;
-		border-bottom: 1px solid var(--pp-border, #d0d0d0);
+		border-bottom: 1px solid var(--pp-border);
 		margin: 0;
 	}
 
@@ -1932,4 +1932,69 @@ kol-toolbar {
  */
 kol-heading {
 	--kol-a11y-font-color: var(--pp-ink);
+}
+
+/* --- LLM-Provider-Verwaltung (#951, Spec Journey 2/4/5) --- */
+/* Liste der konfigurierten Provider unter der Radio-Group: Name (aktiv-Markierung, Modell)
+   je Zeile links, Bearbeiten/Löschen rechts. Mobile-First: einzeilig gestapelt, ab 48rem
+   Zeilen mit rechtsbündigen Aktionen. KoliBri-Buttons tragen ihr eigenes Styling. */
+.llm-provider-admin {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-gap-tight);
+	margin-top: var(--pp-gap);
+}
+
+.llm-provider-admin__heading {
+	font-weight: 600;
+	font-size: 0.875rem;
+	margin: 0;
+}
+
+.llm-provider-admin__list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-gap-tight);
+}
+
+.llm-provider-admin__item {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-gap-tight);
+	padding: var(--pp-gap-tight) 0;
+	border-bottom: 1px solid var(--pp-border);
+}
+
+.llm-provider-admin__item:last-child {
+	border-bottom: none;
+}
+
+.llm-provider-admin__name {
+	font-size: 0.875rem;
+	overflow-wrap: anywhere;
+}
+
+.llm-provider-admin__meta {
+	color: var(--pp-text-muted);
+}
+
+.llm-provider-admin__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--pp-gap-tight);
+}
+
+@media (min-width: 48rem) {
+	.llm-provider-admin__item {
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.llm-provider-admin__actions {
+		flex-shrink: 0;
+	}
 }

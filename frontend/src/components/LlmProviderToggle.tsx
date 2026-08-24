@@ -1,43 +1,56 @@
-import { KolAlert, KolInputRadio } from '@public-ui/react-v19';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { api } from '../api';
+import { KolAlert, KolButton, KolInputRadio } from '@public-ui/react-v19';
 import type { LlmProvider } from 'client';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { api } from '../api';
 import { setProvider, setToastCallback } from '../lib/llm-provider';
 import { useIsMobile } from '../lib/use-is-mobile';
+import { LlmProviderFormDialog } from './LlmProviderFormDialog';
+import { LlmProviderDeleteDialog } from './LlmProviderDeleteDialog';
+
+type DialogState =
+	| { kind: 'closed' }
+	| { kind: 'create' }
+	| { kind: 'edit'; provider: LlmProvider }
+	| { kind: 'delete'; provider: LlmProvider };
 
 /**
- * LLM-Provider-Auswahl: dynamische Radio-Group über alle konfigurierten Provider
- * (`GET /llm-providers`, #951) statt der festen Mistral/OpenRouter-Umschaltung (#749).
+ * LLM-Provider-Verwaltung (#951): dynamische Radio-Group über alle konfigurierten
+ * Provider (`GET /llm-providers`) plus Verwaltung — „Neuer Provider"-Dialog,
+ * Bearbeiten und Löschen mit Bestätigung (Spec Journey 1–5). Ablösung der festen
+ * Mistral/OpenRouter-Umschaltung (#749).
  *
  * - Radio-Auswahl = serverseitig aktiver Provider: Klick löst `POST
- *   /llm-providers/{id}/activate` aus (alle anderen werden deaktiviert).
- * - Zusätzlich pinnt die Auswahl lokale LLM-Anfragen auf den Provider (Query-Parameter,
- *   Muster aus #749) — „System-Standard“ hebt das Pinning auf.
- * - Ist kein Provider konfiguriert, zeigt die Gruppe nur „System-Standard“ mit Hinweis
- *   (die Kaskade bleibt serverseitiger Fallback, solange kein Provider aktiv ist).
- * - Auf Mobile (<768px) werden die Optionen vertikal gestapelt (useIsMobile aus ../lib).
+ *   /llm-providers/{id}/activate` aus (alle anderen werden deaktiviert) und pinnt
+ *   lokale LLM-Anfragen auf den Provider (Query-Parameter, Muster aus #749).
+ * - „System-Standard" hebt nur das lokale Pinning auf (Server-Aktivierung bleibt).
+ * - Beliebig viele Provider anlegbar (Name, Endpoint, API-Key, Modell); API-Keys
+ *   sind write-only — das Bearbeiten-Formular startet mit leerem Key-Feld.
+ * - Auf Mobile (<768px) stapeln Radio-Optionen und Verwaltungsliste vertikal.
  */
 export const LlmProviderToggle = () => {
 	const [providers, setProviders] = useState<LlmProvider[] | null>(null);
 	const [toastMessage, setToastMessage] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const [dialog, setDialog] = useState<DialogState>({ kind: 'closed' });
 	const isMobile = useIsMobile();
+
+	// Fokus-Rückgabe nach Dialog-Ende: der Trigger-Button kann aus dem DOM gefallen sein
+	// (z. B. Löschen des letzten Providers) — Fallback wie in DeleteTaskDialog (#472).
+	const deleteTriggerRef = useRef<HTMLKolButtonElement>(null);
+
+	const reloadProviders = useCallback(async (): Promise<void> => {
+		try {
+			setProviders(await api.listLlmProviders());
+			setError(null);
+		} catch {
+			setError('Provider-Liste konnte nicht geladen werden.');
+		}
+	}, []);
 
 	// Provider-Liste einmalig laden (inkl. Aktiv-Markierung des Servers).
 	useEffect(() => {
-		let cancelled = false;
-		api
-			.listLlmProviders()
-			.then((list) => {
-				if (!cancelled) setProviders(list);
-			})
-			.catch(() => {
-				if (!cancelled) setError('Provider-Liste konnte nicht geladen werden.');
-			});
-		return () => {
-			cancelled = true;
-		};
-	}, []);
+		void reloadProviders();
+	}, [reloadProviders]);
 
 	// Toast-Callback registrieren (Feedback beim Wechsel, siehe lib/llm-provider).
 	useEffect(() => {
@@ -79,7 +92,6 @@ export const LlmProviderToggle = () => {
 					setProviders((current) => current?.map((p) => ({ ...p, isActive: p.id === selected.id })) ?? current);
 				})
 				.catch(() => {
-					setProviders((current) => current); // kein State-Rerender nötig; Fehler Alert unten
 					setToastMessage(null);
 					setError(`„${selected.name}“ konnte nicht aktiviert werden.`);
 				});
@@ -101,7 +113,7 @@ export const LlmProviderToggle = () => {
 				</KolAlert>
 			)}
 			{error !== null && (
-				<KolAlert _type="error" _alert _label="Provider-Wechsel fehlgeschlagen">
+				<KolAlert _type="error" _alert _label="Provider-Verwaltung">
 					{error}
 				</KolAlert>
 			)}
@@ -112,13 +124,80 @@ export const LlmProviderToggle = () => {
 				_value={radioValue}
 				_hint={
 					(providers ?? []).length === 0
-						? 'Kein Provider konfiguriert — der Server nutzt die Standard-Kaskade. Lege unten einen Provider an.'
+						? 'Noch kein Provider konfiguriert — lege unten einen an.'
 						: 'Wähle den aktiven LLM-Provider. Die Auswahl gilt serverweit; „System-Standard“ hebt das lokale Pinning auf.'
 				}
 				_on={{
 					onChange: handleProviderChange,
 				}}
 			/>
+
+			{/* Verwaltung (Spec Journey 2/4/5): Anlegen + je Provider Bearbeiten/Löschen */}
+			<div className="llm-provider-admin">
+				<p className="llm-provider-admin__heading">Provider verwalten</p>
+				<KolButton
+					_label="Neuer Provider"
+					_variant="secondary"
+					_on={{ onClick: () => setDialog({ kind: 'create' }) }}
+				/>
+				{providers !== null && providers.length > 0 && (
+					<ul className="llm-provider-admin__list">
+						{providers.map((provider) => (
+							<li key={provider.id} className="llm-provider-admin__item">
+								<span className="llm-provider-admin__name">
+									{provider.name}
+									{provider.isActive ? ' (aktiv)' : ''}
+									<span className="llm-provider-admin__meta"> · {provider.model}</span>
+								</span>
+								<span className="llm-provider-admin__actions">
+									<KolButton
+										_label="Bearbeiten"
+										_variant="secondary"
+										_on={{ onClick: () => setDialog({ kind: 'edit', provider }) }}
+									/>
+									<KolButton
+										ref={provider.id === providers.at(-1)?.id ? deleteTriggerRef : undefined}
+										_label="Löschen"
+										_variant="danger"
+										_on={{ onClick: () => setDialog({ kind: 'delete', provider }) }}
+									/>
+								</span>
+							</li>
+						))}
+					</ul>
+				)}
+			</div>
+
+			{dialog.kind === 'create' && (
+				<LlmProviderFormDialog
+					onClose={() => setDialog({ kind: 'closed' })}
+					onSaved={() => {
+						setDialog({ kind: 'closed' });
+						void reloadProviders();
+					}}
+				/>
+			)}
+			{dialog.kind === 'edit' && (
+				<LlmProviderFormDialog
+					provider={dialog.provider}
+					onClose={() => setDialog({ kind: 'closed' })}
+					onSaved={() => {
+						setDialog({ kind: 'closed' });
+						void reloadProviders();
+					}}
+				/>
+			)}
+			{dialog.kind === 'delete' && (
+				<LlmProviderDeleteDialog
+					provider={dialog.provider}
+					onClose={() => setDialog({ kind: 'closed' })}
+					onDeleted={() => {
+						setDialog({ kind: 'closed' });
+						void reloadProviders();
+					}}
+					fallbackFocusRef={deleteTriggerRef as React.RefObject<HTMLElement | null>}
+				/>
+			)}
 		</>
 	);
 };
