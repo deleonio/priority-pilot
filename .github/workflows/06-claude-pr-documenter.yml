@@ -408,8 +408,11 @@ jobs:
         run: |
           set -uo pipefail
           # Laufzeit-Guard: dispatch auf einen NICHT gemergten PR wäre ein No-op mit
-          # falschem Signal — offen melden statt leise siegeln.
-          if [ "$(gh pr view "$PR" --repo "$REPO" --json merged --jq .merged 2>/dev/null || echo false)" != "true" ]; then
+          # falschem Signal — offen melden statt leise siegeln. Bewusst --json state
+          # (`.state == "MERGED"`): `merged` ist KEIN gültiges gh-JSON-Feld — der
+          # unbekannte Feldname crasht gh, das `|| echo false` machte daraus im ersten
+          # Live-Lauf die Falschmeldung „nicht gemergt" für längst gemergte PRs.
+          if [ "$(gh pr view "$PR" --repo "$REPO" --json state --jq '.state == "MERGED"' 2>/dev/null || echo false)" != "true" ]; then
             echo "::notice title=Catch-up übersprungen::PR #$PR ist nicht gemergt — nichts nachzuziehen."
             exit 0
           fi
