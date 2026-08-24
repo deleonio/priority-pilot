@@ -108,3 +108,7 @@ Konflikte, die er verhindern soll.
 - 2026-08-24 · Knip/QM-Gates — `knip` exit 1 mit nur „Configuration hints" (knip.json
   ignore-/entry-Vorschläge) ist pre-existing Rot auf main, kein Fix-Ziel der Phase. → Vor
   jedem „Reparieren"-Abstecher Gegenprobe per `git stash` + knip + `git stash pop`.
+- 2026-08-24 · KoliBri/ESLint-Guard — TAG-Selektor `kol-icon` kollidiert mit dem #824-Guard-Regex
+  `^(kol-icon|kolicon-…)` (meint die interne Shadow-DOM-Klasse, nicht den Host-Tag) → `eslint-disable-next-line
+  no-restricted-syntax` mit Begründung statt Selektor-Verrenkung. Außerdem: `KolIcon` hat `_label` als
+  Pflicht-Property; `_label=""` ist der dekorative Modus (aria-hidden + role=presentation).

@@ -1867,11 +1867,39 @@ kol-input-range {
 }
 
 /* --- Issue #788: LLM-Einstellungsmenü optimiert --- */
+/*
+ * #972 AK1: Container-Rhythmus des LLM-Tabs analog `.settings-general` (flex column +
+ * einheitlicher `gap`) — Heading, Provider-Toggle, Hinweistext, Key-Felder, Modell-Auswahl
+ * und Aktionen stehen damit auf Mobile und Desktop im gleichen vertikalen Rhythmus.
+ * Bewusst OHNE `padding-inline` (anders als `.settings-general`): Der LLM-Tab wird nicht
+ * zusätzlich eingerückt, die Felder füllen die Inhaltsbreite der `.settings-page` (#972 E2).
+ */
+.settings-llm {
+	display: flex;
+	flex-direction: column;
+	gap: var(--pp-gap-base); /* 16dp Section-Abstand, wie `.settings-general` */
+}
+
 /* Input-Group für API-Key + X-Button nebeneinander. */
 .llm-key-input-group {
 	display: flex;
 	align-items: center;
 	gap: var(--pp-gap-tight);
+}
+
+/*
+ * #972 AK2: Der KoliBri-Host ist block-level (`width: auto` = 100 %) und darf als Flex-Kind
+ * wachsen UND schrumpfen — `min-width: 0` verhindert, dass der Host seine Inhalts-Mindestbreite
+ * in die Zeile drückt und den Tab horizontal überlaufen lässt (WCAG 1.4.10 Reflow). Der
+ * X-Button behält sein fixes 44×44px-Mass und wird nicht verdrängt.
+ */
+.llm-key-input-group > kol-input-password {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.llm-key-input-group > .llm-key-x-button {
+	flex: 0 0 auto;
 }
 
 /* Modell-Select Container für konsistentes Layout. */
