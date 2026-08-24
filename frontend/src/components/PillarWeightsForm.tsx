@@ -118,9 +118,8 @@ export const PillarWeightsForm = ({ pillars, onSaved, onCancel }: PillarWeightsF
 										},
 									}}
 								/>
-								{/* Kurzbeschreibung der Säule (globale Stammdaten) — hilft, beim Gewichten
-								    sofort zu sehen, wofür die jeweilige Säule steht. */}
-								<p className="hint pillar-description">{pillar.description}</p>
+								{/* #934: Keine Säulen-Beschreibung mehr je Slider — dieselben Beschreibungen
+								    stehen bereits in der Säulenliste darüber (`.pillar-list-description`). */}
 							</div>
 						))}
 					</div>
