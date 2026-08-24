@@ -1,0 +1,16 @@
+[
+	{
+		"timestamp": "2026-08-24T18:16:31.044Z",
+		"tokensIn": 518739,
+		"tokensOut": 6463,
+		"cost": 0,
+		"issueId": "991",
+		"phase": "review",
+		"model": "glm-5.3",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 494144,
+		"turns": 9,
+		"valueCost": 0.531622
+	}
+]
