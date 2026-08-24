@@ -142,6 +142,21 @@ describe('cost-aggregate — Summen je Phase', () => {
 		assert.equal(totals[0].cacheReadTokens, 0);
 	});
 
+	it('summiert turns und valueCost je Phase (Issue #984)', () => {
+		const totals = totalsByPhase([
+			entry({ phase: 'review', turns: 40, valueCost: 0.5, timestamp: '2026-08-24T01:00:00Z' }),
+			entry({ phase: 'review', turns: 30, valueCost: 0.25, timestamp: '2026-08-24T02:00:00Z' }),
+		]);
+		assert.equal(totals[0].turns, 70);
+		assert.ok(Math.abs(totals[0].valueCost - 0.75) < 1e-9);
+	});
+
+	it('behandelt fehlende turns/valueCost als 0 statt NaN (Alt-Datensätze)', () => {
+		const totals = totalsByPhase([entry({ phase: 'analyse' })]);
+		assert.equal(totals[0].turns, 0);
+		assert.equal(totals[0].valueCost, 0);
+	});
+
 	it('fasst Einträge ohne Phase unter einem eigenen Schlüssel zusammen', () => {
 		const totals = totalsByPhase([entry({ phase: undefined })]);
 		assert.equal(totals[0].phase, '(ohne Phase)');
@@ -157,6 +172,31 @@ describe('cost-aggregate — Bericht', () => {
 		assert.match(report, /Fremdtarif/);
 		assert.match(report, /Die Kostenspalte ist unvollständig/);
 		assert.doesNotMatch(report, /\*\*\$0\.0000\*\*/);
+	});
+
+	it('rendert für reine Altdaten „—" statt $0.0000 in der Wert-Spalte (Issue #984)', () => {
+		// Dasselbe Prinzip wie beim Fremdtarif: Ein Altdatensatz OHNE turns/valueCost ist
+		// „nicht erfasst", nicht „null Prompts / wertlos" — die Spalte muss das sagen.
+		const report = renderReport('912', [entry({ phase: 'implement', provider: 'zai', cost: 0 })]);
+		assert.match(report, /vor der Erfassung dieser Felder/);
+		assert.doesNotMatch(report, /\*\*\$0\.0000\*\*/);
+	});
+
+	it('rendert Zahlen, sobald ein Eintrag turns/valueCost trägt', () => {
+		const report = renderReport('912', [
+			entry({ phase: 'analyse', provider: 'zai', cost: 0, timestamp: '2026-08-23T01:00:00Z' }),
+			entry({
+				phase: 'implement',
+				provider: 'zai',
+				cost: 0,
+				turns: 5,
+				valueCost: 0.042,
+				timestamp: '2026-08-24T01:00:00Z',
+			}),
+		]);
+		assert.match(report, /\*\*5\*\*/, 'Turns-Summe');
+		assert.match(report, /\*\*\$0\.0420\*\*/, 'Wert-Summe');
+		assert.doesNotMatch(report, /vor der Erfassung dieser Felder/);
 	});
 
 	it('rendert eine Dollar-Summe, wenn alle Läufe über claude liefen', () => {

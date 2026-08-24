@@ -98,11 +98,13 @@ export function mergeRecords(files: string[]): { entries: CostEntry[]; skipped: 
 export type PhaseTotal = {
 	phase: string;
 	runs: number;
+	turns: number;
 	tokensIn: number;
 	tokensOut: number;
 	cacheCreationTokens: number;
 	cacheReadTokens: number;
 	cost: number;
+	valueCost: number;
 	models: string[];
 	providers: string[];
 	/** true = mindestens ein Lauf lief bei einem Nicht-Anthropic-Provider (cost dort 0). */
@@ -127,11 +129,13 @@ export function totalsByPhase(entries: CostEntry[]): PhaseTotal[] {
 			total = {
 				phase,
 				runs: 0,
+				turns: 0,
 				tokensIn: 0,
 				tokensOut: 0,
 				cacheCreationTokens: 0,
 				cacheReadTokens: 0,
 				cost: 0,
+				valueCost: 0,
 				models: [],
 				providers: [],
 				foreignTariff: false,
@@ -140,11 +144,13 @@ export function totalsByPhase(entries: CostEntry[]): PhaseTotal[] {
 			order.push(phase);
 		}
 		total.runs += 1;
+		total.turns += ZERO(entry.turns);
 		total.tokensIn += ZERO(entry.tokensIn);
 		total.tokensOut += ZERO(entry.tokensOut);
 		total.cacheCreationTokens += ZERO(entry.cacheCreationTokens);
 		total.cacheReadTokens += ZERO(entry.cacheReadTokens);
 		total.cost += ZERO(entry.cost);
+		total.valueCost += ZERO(entry.valueCost);
 		if (entry.model && !total.models.includes(entry.model)) total.models.push(entry.model);
 		if (entry.provider && !total.providers.includes(entry.provider)) total.providers.push(entry.provider);
 		// `cost` ist bei zai/openrouter per Konstruktion 0 (Fremdtarif, s. .costs/SCHEMA.md).
@@ -178,31 +184,49 @@ export function renderReport(issueId: string, entries: CostEntry[], skipped: str
 	const sum = totals.reduce(
 		(acc, t) => ({
 			runs: acc.runs + t.runs,
+			turns: acc.turns + t.turns,
 			tokensIn: acc.tokensIn + t.tokensIn,
 			tokensOut: acc.tokensOut + t.tokensOut,
 			cacheCreationTokens: acc.cacheCreationTokens + t.cacheCreationTokens,
 			cacheReadTokens: acc.cacheReadTokens + t.cacheReadTokens,
 			cost: acc.cost + t.cost,
+			valueCost: acc.valueCost + t.valueCost,
 		}),
-		{ runs: 0, tokensIn: 0, tokensOut: 0, cacheCreationTokens: 0, cacheReadTokens: 0, cost: 0 },
+		{
+			runs: 0,
+			turns: 0,
+			tokensIn: 0,
+			tokensOut: 0,
+			cacheCreationTokens: 0,
+			cacheReadTokens: 0,
+			cost: 0,
+			valueCost: 0,
+		},
 	);
 	const anyForeign = totals.some((t) => t.foreignTariff);
+	// Reine Altdaten (vor Issue #984) haben weder turns noch valueCost. Für sie wären
+	// „0" und „$0.0000" Falschaussagen („brauchte keine Prompts" / „war wertlos") —
+	// dieselbe Falle, vor der der Fremdtarif-Hinweis die Kostenspalte bewahrt.
+	const legacyOnly =
+		sum.tokensIn > 0 && !entries.some((e) => typeof e.valueCost === 'number' || typeof e.turns === 'number');
+	const turnsCell = legacyOnly ? '—' : undefined;
+	const valueCell = legacyOnly ? '—' : undefined;
 
 	lines.push(
-		'| Phase | Läufe | Modell | Token in (inkl. Cache) | davon Cache-Write | davon Cache-Read | Token out | Kosten (USD) |',
+		'| Phase | Läufe | Turns | Modell | Token in (inkl. Cache) | davon Cache-Write | davon Cache-Read | Token out | Wert (USD) | Kosten (USD) |',
 	);
-	lines.push('| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: |');
+	lines.push('| --- | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |');
 	for (const t of totals) {
 		const model = t.models.length > 0 ? t.models.map((m) => `\`${m}\``).join(', ') : '—';
 		const cost = t.foreignTariff ? '_Fremdtarif_' : usd(t.cost);
 		lines.push(
-			`| ${t.phase} | ${t.runs} | ${model} | ${num(t.tokensIn)} | ${num(t.cacheCreationTokens)} | ` +
-				`${num(t.cacheReadTokens)} | ${num(t.tokensOut)} | ${cost} |`,
+			`| ${t.phase} | ${t.runs} | ${turnsCell ?? num(t.turns)} | ${model} | ${num(t.tokensIn)} | ${num(t.cacheCreationTokens)} | ` +
+				`${num(t.cacheReadTokens)} | ${num(t.tokensOut)} | ${valueCell ?? usd(t.valueCost)} | ${cost} |`,
 		);
 	}
 	lines.push(
-		`| **Summe** | **${sum.runs}** | | **${num(sum.tokensIn)}** | **${num(sum.cacheCreationTokens)}** | ` +
-			`**${num(sum.cacheReadTokens)}** | **${num(sum.tokensOut)}** | ` +
+		`| **Summe** | **${sum.runs}** | **${turnsCell ?? num(sum.turns)}** | | **${num(sum.tokensIn)}** | **${num(sum.cacheCreationTokens)}** | ` +
+			`**${num(sum.cacheReadTokens)}** | **${num(sum.tokensOut)}** | **${valueCell ?? usd(sum.valueCost)}** | ` +
 			`${anyForeign ? '**unvollständig**' : `**${usd(sum.cost)}**`} |`,
 	);
 	lines.push('');
@@ -219,8 +243,16 @@ export function renderReport(issueId: string, entries: CostEntry[], skipped: str
 			'> ⚠️ **Die Kostenspalte ist unvollständig.** Mindestens ein Lauf lief über einen ' +
 				'Nicht-Anthropic-Provider (`zai`/`openrouter`). Dort gelten Fremdtarife, und `cost` ist ' +
 				'per Konstruktion `0` — ein mit Anthropic-Listenpreisen gerechneter Wert wäre schlicht ' +
-				'falsch (siehe `.costs/SCHEMA.md`). Die **Token-Zahlen sind vollständig** und für den ' +
-				'Vorher/Nachher-Vergleich die belastbarere Grösse.',
+				'falsch (siehe `.costs/SCHEMA.md`). Für den provider-unabhängigen Vergleich dient die ' +
+				'Spalte **Wert (USD)**: Verbrauchsbewertung zu Modellklassen-Preisen (Issue #984).',
+		);
+	}
+
+	if (legacyOnly) {
+		lines.push('');
+		lines.push(
+			'> ℹ️ Weder Turns noch Wert erfasst — die Datensätze stammen von Läufen vor der ' +
+				'Erfassung dieser Felder (Issue #984). Beide Spalten zeigen für sie „—".',
 		);
 	}
 
