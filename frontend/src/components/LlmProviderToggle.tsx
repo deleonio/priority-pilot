@@ -73,6 +73,10 @@ export const LlmProviderToggle = () => {
 					// bleibt dadurch stabil, auch wenn das DTO künftig Felder ergänzt.
 					const { id, name, endpoint, model } = selected;
 					setProvider({ id, name, endpoint, model });
+					// Radio-Gruppe sofort spiegeln: Der Server hat umgeschaltet — ohne dieses
+					// State-Update wuerde ein Re-Render (z. B. der Toast) die Auswahl auf den
+					// VORHER aktiven Provider zuruecksetzen.
+					setProviders((current) => current?.map((p) => ({ ...p, isActive: p.id === selected.id })) ?? current);
 				})
 				.catch(() => {
 					setProviders((current) => current); // kein State-Rerender nötig; Fehler Alert unten

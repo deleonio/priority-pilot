@@ -116,6 +116,16 @@ async function pinnedProviderName(page: Page): Promise<string | null> {
 	return parsed.name ?? null;
 }
 
+/** Wartet deterministisch darauf, dass der Server den genannten Provider aktiv hat. */
+async function expectServerActiveProvider(page: Page, name: string) {
+	await expect
+		.poll(async () => {
+			const list = (await (await page.request.get('/api/v1/llm-providers')).json()) as ProviderDto[];
+			return list.find((p) => p.name === name)?.isActive ?? false;
+		})
+		.toBe(true);
+}
+
 // -------------------------------------------------------------------------
 // Journey: Toggle in den Einstellungen (dynamische Provider, #951)
 // -------------------------------------------------------------------------
@@ -173,6 +183,7 @@ test.describe('LLM Provider Toggle – Einstellungen (#951)', () => {
 	test('hält die Auswahl nach Reload (Server-Aktivierung persistiert)', async ({ page }) => {
 		await page.getByText('OpenRouter', { exact: true }).click();
 		await expect(page.getByRole('radio', { name: 'OpenRouter' })).toBeChecked();
+		await expectServerActiveProvider(page, 'OpenRouter');
 
 		// Navigation: Weg und zurueck (neuer Mount → frischer GET /llm-providers)
 		await page.goto('/');
@@ -253,6 +264,11 @@ test.describe('LLM Provider Toggle – Request-Integration', () => {
 		await openLlmSettings(page);
 		await page.getByText('Mistral', { exact: true }).click();
 		await expect(page.getByRole('radio', { name: 'Mistral' })).toBeChecked();
+		// Aktivierung ist ein async POST (fire-and-forget im Component): Server-Wahrheit
+		// UND lokales Pinning pollend abwarten — erst dann darf navigiert werden, sonst
+		// reisst der Seitenwechsel die Response ab und das Pinning laeuft ins Leere.
+		await expectServerActiveProvider(page, 'Mistral');
+		await expect.poll(() => pinnedProviderName(page)).toBe('Mistral');
 
 		await page.goto('/', { waitUntil: 'networkidle' });
 
@@ -289,6 +305,8 @@ test.describe('LLM Provider Toggle – Request-Integration', () => {
 		await openLlmSettings(page);
 		await page.getByText('OpenRouter', { exact: true }).click();
 		await expect(page.getByRole('radio', { name: 'OpenRouter' })).toBeChecked();
+		await expectServerActiveProvider(page, 'OpenRouter');
+		await expect.poll(() => pinnedProviderName(page)).toBe('OpenRouter');
 
 		await page.goto('/', { waitUntil: 'networkidle' });
 		expect(await pinnedProviderName(page)).toBe('OpenRouter');
