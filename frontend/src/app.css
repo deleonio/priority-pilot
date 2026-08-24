@@ -123,7 +123,10 @@
 	/* P2: Responsive Modal Width Tokens */
 	--pp-modal-width-mobile: 100vw;
 	--pp-modal-width-tablet: 90vw;
-	--pp-modal-width-desktop: 40rem;
+	/* #934/#727: Desktop-Dialog muss 2 × 300 px Range-Mindestbreite + 16 px Gap + 2 × 16 px
+	   Card-Padding fassen (616 px Content); 40rem = 608 px Content war 8 px zu schmal und brach
+	   Priorität/Aufwand bei ≥1024 px vertikal um (#727-Regression). */
+	--pp-modal-width-desktop: 44rem;
 }
 
 /*
@@ -928,10 +931,12 @@ body {
    Spalten quetschen dort .range-inputs-row in halbbreite Zellen und verschieben die Slider
    vertikal (#727-Regression, Y-Versatz 18px). */
 .pillar-weights-grid {
-	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+	/* #934: 334 px = 300 px Content-Mindestbreite der Range-Felder + 2 × 1rem Card-Padding
+	   + 2 × 1 px Border — sonst quetscht die Bahn die Slider unter die 300-px-Regel unten. */
+	grid-template-columns: repeat(auto-fit, minmax(334px, 1fr));
 }
 
-/* Eine Säule im Gewichtungs-Editor: Card-Struktur für Slider + Beschreibung (#763) */
+/* Eine Säule im Gewichtungs-Editor: Card-Struktur für den Slider (#763, ohne Beschreibung #934) */
 .pillar-weight-row {
 	display: flex;
 	flex-direction: column;
@@ -944,12 +949,6 @@ body {
 
 .pillar-weight-row kol-input-range {
 	min-height: 44px; /* Touch-Ziele (Mobile-First, BITV 9.1.3.3) */
-}
-
-.pillar-weight-row .pillar-description {
-	margin: 0;
-	font-size: 0.875rem;
-	color: var(--pp-text-muted);
 }
 
 /* Mobile: 1-spaltiges Stack-Layout (#763) */
@@ -966,10 +965,10 @@ body {
 	}
 }
 
-/* Desktop: 3-4-spaltiges Layout (#763) */
+/* Desktop: 3-4-spaltiges Layout (#763); minmax ≥ 334 px für die Range-Mindestbreite (#934) */
 @media (min-width: 1024px) {
 	.pillar-weights-grid {
-		grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(334px, 1fr));
 	}
 }
 
@@ -1737,7 +1736,19 @@ body {
 @media (min-width: 769px) {
 	.range-inputs-row {
 		flex-direction: row;
+		/* #934: Je Feld ≥ 300 px Host-Breite — passt das nicht nebeneinander, wird umbrochen
+		   statt überzulaufen (Dialog-/Containerbreite variiert). */
+		flex-wrap: wrap;
 	}
+}
+
+/* --- #934: Mindestbreite der Range-Felder --- */
+/* Slider + Zahlenfeld innerhalb der KolInputRange brechen unter ~300 px Host-Breite um. Die
+   Mindestbreite gilt global für alle Verwendungsstellen (Säulen-Gewichtung, TaskForm, Dependency-
+   Modal); `min(300px, 100%)` caps sie auf die Containerbreite, damit schmale Viewports (375/320)
+   nicht horizontal überlaufen. */
+kol-input-range {
+	min-width: min(300px, 100%);
 }
 
 /* --- #742: Auswahl der OpenRouter-Free-Modelle --- */

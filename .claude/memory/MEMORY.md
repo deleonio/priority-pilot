@@ -99,6 +99,15 @@ Konflikte, die er verhindern soll.
   `flex-shrink: 0` auf einem 100%-Host. Zusätzlich: `locator.boundingBox()` misst die Border-Box
   inkl. Padding — eine „≥95% der Container-Breite"-AK braucht Full-Bleed
   (`margin-inline: -1.5rem; padding-inline: 1.5rem`), sonst scheitert sie am Container-Padding.
+- 2026-08-24 · E2E/Horizontal-Overflow — „kein horizontaler Scroll"-AKs sind in dieser App per
+  `scrollWidth ≤ viewport` NICHT prüfbar: die App-Shell clippt mit `overflow-x: hidden`
+  (app.css ~1290/1337), `scrollWidth` bleibt strukturell ≤ Viewport (Mutations-Probe: selbst
+  `min-width: 340px` blieb grün). → Statt dessen Bounding-Box messen (`el.x + el.width ≤
+  viewportWidth` = nichts geclippt); Card-Padding (~33px) schluckt Überlauf zusätzlich, deshalb
+  schmale Viewports (320px) mitprüfen, sonst hat der Test keinen Biss.
+- 2026-08-24 · Knip/QM-Gates — `knip` exit 1 mit nur „Configuration hints" (knip.json
+  ignore-/entry-Vorschläge) ist pre-existing Rot auf main, kein Fix-Ziel der Phase. → Vor
+  jedem „Reparieren"-Abstecher Gegenprobe per `git stash` + knip + `git stash pop`.
 - 2026-08-24 · KoliBri/ESLint-Guard — TAG-Selektor `kol-icon` kollidiert mit dem #824-Guard-Regex
   `^(kol-icon|kolicon-…)` (meint die interne Shadow-DOM-Klasse, nicht den Host-Tag) → `eslint-disable-next-line
   no-restricted-syntax` mit Begründung statt Selektor-Verrenkung. Außerdem: `KolIcon` hat `_label` als
