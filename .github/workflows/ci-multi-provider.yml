@@ -100,7 +100,7 @@ jobs:
     # mehr. ACHTUNG: Tag-Version MUSS bei Playwright-Upgrades mit @playwright/test in
     # frontend/package.json mitgezogen werden (bildet die fruehere Cache-Key-Kopplung ab).
     container:
-      image: mcr.microsoft.com/playwright:v1.62.0-noble
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
     strategy:
       fail-fast: false
       matrix:
