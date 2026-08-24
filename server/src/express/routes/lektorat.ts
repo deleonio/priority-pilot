@@ -65,7 +65,7 @@ export const lektoratRouter = (): Router => {
 
 	router.post('/lektorat', async (req: Request, res: Response<{ text: string } | ErrorDto>) => {
 		// Provider-Query-Parameter validieren (#749)
-		const providerValidation = validateProviderQuery(req.query as Record<string, unknown>);
+		const providerValidation = await validateProviderQuery(req.query as Record<string, unknown>);
 		if (!providerValidation.ok) {
 			sendError(res, 400, providerValidation.message);
 			return;

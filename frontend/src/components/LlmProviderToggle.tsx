@@ -1,27 +1,45 @@
 import { KolAlert, KolInputRadio } from '@public-ui/react-v19';
-import { useMemo, useState, useEffect } from 'react';
-import type { LlmProvider } from '../lib/llm-provider';
-import { getProvider, setProvider, setToastCallback } from '../lib/llm-provider';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { api } from '../api';
+import type { LlmProvider } from 'client';
+import { setProvider, setToastCallback } from '../lib/llm-provider';
 import { useIsMobile } from '../lib/use-is-mobile';
 
 /**
- * LLM-Provider-Toggle fuer Issue-749: Test-Schalter für Mistral und OpenRouter.
+ * LLM-Provider-Auswahl: dynamische Radio-Group über alle konfigurierten Provider
+ * (`GET /llm-providers`, #951) statt der festen Mistral/OpenRouter-Umschaltung (#749).
  *
- * Ermöglicht das gezielte Umleiten von LLM-Anfragen an einen bestimmten Provider.
- * Persistiert die Auswahl im localStorage.
- * Auf Mobile (<768px) werden die Optionen vertikal gestapelt (useIsMobile aus ../lib).
+ * - Radio-Auswahl = serverseitig aktiver Provider: Klick löst `POST
+ *   /llm-providers/{id}/activate` aus (alle anderen werden deaktiviert).
+ * - Zusätzlich pinnt die Auswahl lokale LLM-Anfragen auf den Provider (Query-Parameter,
+ *   Muster aus #749) — „System-Standard“ hebt das Pinning auf.
+ * - Ist kein Provider konfiguriert, zeigt die Gruppe nur „System-Standard“ mit Hinweis
+ *   (die Kaskade bleibt serverseitiger Fallback, solange kein Provider aktiv ist).
+ * - Auf Mobile (<768px) werden die Optionen vertikal gestapelt (useIsMobile aus ../lib).
  */
 export const LlmProviderToggle = () => {
-	const [provider, setProviderState] = useState<LlmProvider>(undefined);
+	const [providers, setProviders] = useState<LlmProvider[] | null>(null);
 	const [toastMessage, setToastMessage] = useState<string | null>(null);
+	const [error, setError] = useState<string | null>(null);
 	const isMobile = useIsMobile();
 
-	// Initialisierung: Provider aus localStorage laden
+	// Provider-Liste einmalig laden (inkl. Aktiv-Markierung des Servers).
 	useEffect(() => {
-		setProviderState(getProvider());
+		let cancelled = false;
+		api
+			.listLlmProviders()
+			.then((list) => {
+				if (!cancelled) setProviders(list);
+			})
+			.catch(() => {
+				if (!cancelled) setError('Provider-Liste konnte nicht geladen werden.');
+			});
+		return () => {
+			cancelled = true;
+		};
 	}, []);
 
-	// Toast-Callback registrieren
+	// Toast-Callback registrieren (Feedback beim Wechsel, siehe lib/llm-provider).
 	useEffect(() => {
 		setToastCallback((message) => {
 			setToastMessage(message);
@@ -31,33 +49,45 @@ export const LlmProviderToggle = () => {
 		return () => setToastCallback(null);
 	}, []);
 
-	// Optionen für die Radiogruppe (exklusive Toggles)
-	const options = useMemo(
-		() => [
-			{ label: 'System-Standard', value: '' },
-			{ label: 'Mistral', value: 'mistral' },
-			{ label: 'OpenRouter', value: 'openrouter' },
-		],
-		[],
+	const activeProvider = useMemo(() => providers?.find((p) => p.isActive) ?? null, [providers]);
+
+	// Radio-Wert: '' = System-Standard, sonst die Provider-ID als String (stabil & eindeutig).
+	const radioValue = activeProvider === null ? '' : String(activeProvider.id);
+
+	const handleProviderChange = useCallback(
+		(_event: unknown, value: unknown): void => {
+			if (providers === null || typeof value !== 'string') return;
+			if (value === '') {
+				// System-Standard: lokales Pinning aufheben (Server-Aktivierung bleibt unangetastet).
+				setProvider(undefined);
+				return;
+			}
+			const selected = providers.find((p) => String(p.id) === value);
+			if (selected === undefined) return;
+
+			// Serverseitig aktivieren + lokal pinnen (Toast kommt aus dem Lib-Callback).
+			void api
+				.activateLlmProvider({ id: selected.id })
+				.then(() => {
+					// Pinning nutzt die schlanke Lib-Form (ohne isActive) — das localStorage-Format
+					// bleibt dadurch stabil, auch wenn das DTO künftig Felder ergänzt.
+					const { id, name, endpoint, model } = selected;
+					setProvider({ id, name, endpoint, model });
+				})
+				.catch(() => {
+					setProviders((current) => current); // kein State-Rerender nötig; Fehler Alert unten
+					setToastMessage(null);
+					setError(`„${selected.name}“ konnte nicht aktiviert werden.`);
+				});
+		},
+		[providers],
 	);
 
-	// Provider-Wechsel behandeln
-	const handleProviderChange = (_event: unknown, value: unknown) => {
-		if (typeof value !== 'string') return;
-
-		let newProvider: LlmProvider = undefined;
-		if (value === 'mistral') newProvider = 'mistral';
-		else if (value === 'openrouter') newProvider = 'openrouter';
-		// '' bleibt undefined (System-Standard)
-
-		const success = setProvider(newProvider);
-		if (success) {
-			setProviderState(newProvider);
-		}
-	};
-
-	// Mapping für KolInputRadio: undefined → '' (System-Standard)
-	const radioValue = provider === undefined ? '' : provider;
+	// Optionen: System-Standard + je konfiguriertem Provider eine Option (Label = Name).
+	const options = useMemo(() => {
+		const providerOptions = (providers ?? []).map((p) => ({ label: p.name, value: String(p.id) }));
+		return [{ label: 'System-Standard', value: '' }, ...providerOptions];
+	}, [providers]);
 
 	return (
 		<>
@@ -66,12 +96,21 @@ export const LlmProviderToggle = () => {
 					{toastMessage}
 				</KolAlert>
 			)}
+			{error !== null && (
+				<KolAlert _type="error" _alert _label="Provider-Wechsel fehlgeschlagen">
+					{error}
+				</KolAlert>
+			)}
 			<KolInputRadio
 				_label="LLM-Provider"
 				_orientation={isMobile ? 'vertical' : 'horizontal'}
 				_options={options}
 				_value={radioValue}
-				_hint="Wähle den LLM-Provider für Test-Zwecke. Standard nutzt die Kaskade (Mistral primär, optional OpenRouter-Verfeinerung)."
+				_hint={
+					(providers ?? []).length === 0
+						? 'Kein Provider konfiguriert — der Server nutzt die Standard-Kaskade. Lege unten einen Provider an.'
+						: 'Wähle den aktiven LLM-Provider. Die Auswahl gilt serverweit; „System-Standard“ hebt das lokale Pinning auf.'
+				}
 				_on={{
 					onChange: handleProviderChange,
 				}}

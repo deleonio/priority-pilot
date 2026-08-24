@@ -1,9 +1,8 @@
 /**
  * LLM-Modul — Barrel-Exporte.
  *
- * Jede Anfrage läuft als Kaskade: Mistral (Primär-Call) → OpenRouter (Verfeinerung mit
- * Mistral's Antwort als Zweitmeinung). Fällt ein Provider aus, liefert der andere allein
- * das Ergebnis. Die Key-Verfügbarkeit steuert, welche Stufen aktiv sind.
+ * Jede Anfrage läuft an den EINEN aktiven Provider (#951); die frühere
+ * Mistral→OpenRouter-Kaskade ist entfernt.
  */
 
 export type {

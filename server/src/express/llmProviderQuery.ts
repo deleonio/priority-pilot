@@ -1,30 +1,46 @@
+import { findProviderByName } from '../llm/llmProviders.js';
 import type { LlmProvider } from '../llm/llm.js';
 
 /**
- * Gültige Werte für den `provider`-Query-Parameter (LLM-Test-Schalter, #749).
- * Geteilt zwischen allen LLM-Routen, damit die Werteliste an einem Ort gepflegt wird.
+ * Legacy-Werte des `provider`-Query-Parameters (LLM-Test-Schalter, #749) — fest
+ * verdrahtet für die Kaskade. Dazu kommen seit #951 die Namen aller dynamisch
+ * konfigurierten `llm_providers` (DB-Lookup, Case-insensitiv).
  */
-const VALID_PROVIDERS = new Set<string>(['mistral', 'openrouter']);
+const LEGACY_PROVIDERS = new Set<string>(['mistral', 'openrouter']);
 
 /**
- * Validiert den optionalen `provider`-Query-Parameter (#749) — für alle LLM-Routen
+ * Validiert den optionalen `provider`-Query-Parameter — für alle LLM-Routen
  * (`/pillars/advisor`, `/tasks/parse-text`, `/tasks/suggest-pillars`, `/lektorat`).
- * Fehlt er (oder ist leer) → undefined (Kaskade unverändert). Ungültiger Wert →
- * Fehlermeldung für HTTP 400.
+ *
+ * Fehlt er (oder ist leer) → undefined (Standard-Auflösung: aktiver Provider bzw.
+ * Kaskade). Gültig sind die Legacy-Namen `mistral`/`openrouter` sowie der Name
+ * eines konfigurierten dynamischen Providers (#951). Alles andere → HTTP 400.
+ *
+ * Async, weil die dynamischen Namen aus der DB stammen — die Legacy-Prüfung ist
+ * billig, der DB-Lookup läuft nur für nicht-Legacy-Werte.
  */
-export const validateProviderQuery = (
+export const validateProviderQuery = async (
 	query: Record<string, unknown>,
-): { ok: true; provider: LlmProvider } | { ok: false; message: string } => {
+): Promise<{ ok: true; provider: LlmProvider } | { ok: false; message: string }> => {
 	const raw = query.provider;
 	if (raw === undefined || raw === null || raw === '') {
 		return { ok: true, provider: undefined };
 	}
-	if (typeof raw === 'string' && VALID_PROVIDERS.has(raw)) {
-		// Narrowing über das geprüfte Set: raw ist hier nachweislich 'mistral' | 'openrouter'.
-		return { ok: true, provider: raw as LlmProvider };
+	if (typeof raw !== 'string' || raw.length > 64) {
+		return {
+			ok: false,
+			message: `Ungültiger provider-Query-Parameter: "${String(raw)}". Erlaubt: "mistral", "openrouter" oder ein konfigurierter Provider-Name.`,
+		};
+	}
+	if (LEGACY_PROVIDERS.has(raw)) {
+		return { ok: true, provider: raw };
+	}
+	const dynamic = await findProviderByName(raw);
+	if (dynamic !== null) {
+		return { ok: true, provider: raw };
 	}
 	return {
 		ok: false,
-		message: `Ungültiger provider-Query-Parameter: "${String(raw)}". Erlaubt: "mistral", "openrouter".`,
+		message: `Ungültiger provider-Query-Parameter: "${raw}". Erlaubt: "mistral", "openrouter" oder ein konfigurierter Provider-Name.`,
 	};
 };

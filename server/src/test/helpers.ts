@@ -9,6 +9,28 @@ export const resetDb = async (): Promise<void> => {
 	await sequelize.sync({ force: true });
 };
 
+/**
+ * Test-Helper für das Single-Provider-System (#951): ersetzt den früheren
+ * `MISTRAL_API_KEY`-Env-Fallback. Seedy (`active === true`) genau EINEN aktiven
+ * Mistral-Provider mit Endpoint `api.mistral.ai` — die bestehenden fetch-Stubs der
+ * LLM-Tests erkennen genau diese URL — bzw. räumt alle Provider ab (`active === false`,
+ * z. B. für „kein aktiver Provider → MissingApiKeyError").
+ */
+export const setTestLlmProvider = async (active: boolean): Promise<void> => {
+	const { default: LlmProvider } = await import('../models/llmProvider.js');
+	await sequelize.sync();
+	await LlmProvider.destroy({ where: {}, truncate: true });
+	if (active) {
+		await LlmProvider.create({
+			name: 'Mistral',
+			endpoint: 'https://api.mistral.ai/v1/chat/completions',
+			apiKey: 'test-key',
+			model: 'mistral-medium-latest',
+			isActive: true,
+		});
+	}
+};
+
 export const closeDb = async (): Promise<void> => {
 	// No-op: closing the Sequelize singleton prevents subsequent resetDb() calls in later
 	// test suites from working (SQLITE_MISUSE: Database is closed). In-memory SQLite

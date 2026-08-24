@@ -94,7 +94,7 @@ describe('LLM-Config API (#640)', () => {
 	});
 
 	// ── Löschen — leerer String entfernt den persistierten Wert (Env-Fallback greift wieder) ──
-	it('Leerer String löscht Key und Modell → Status „nicht gesetzt", Kaskade fällt auf Env zurück', async () => {
+	it('Leerer String löscht Key und Modell → Status „nicht gesetzt", Anzeige-Default zurück', async () => {
 		const cookie = await register('clear@example.com', 'sicheres-passwort-1');
 		await putConfig(cookie, { mistralApiKey: 'm-key-123', openrouterModel: 'custom/model' });
 
@@ -104,7 +104,7 @@ describe('LLM-Config API (#640)', () => {
 		// `''` muss die Validierung passieren und den DB-Wert wirklich leeren — sonst bliebe der
 		// „Key löschen"-Button der UI still wirkungslos, ohne dass ein Test rot wird.
 		assert.equal(body.hasMistralApiKey, false);
-		// Ohne DB-Wert zeigt GET wieder den Anzeige-Default; die Kaskade nutzt dann Env (llm.ts).
+		// Ohne DB-Wert zeigt GET wieder den Anzeige-Default (Legacy-Endpoint, reine Statusanzeige).
 		assert.equal(body.openrouterModel, 'openrouter/free');
 
 		const after = await (await getConfig(cookie)).json();

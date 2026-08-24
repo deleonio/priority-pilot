@@ -96,7 +96,7 @@ export const createPillarAdvisorRouter = (advisor: ActivityAdvisor = adviseActiv
 
 	// POST /pillars/advisor — Aktivitäten samt Säulen-Zuordnung vorschlagen (optional zu einer Frage).
 	router.post('/pillars/advisor', async (req: Request, res: Response<{ advice: ActivityAdviceDto[] } | ErrorDto>) => {
-		const providerValidation = validateProviderQuery(req.query as Record<string, unknown>);
+		const providerValidation = await validateProviderQuery(req.query as Record<string, unknown>);
 		if (!providerValidation.ok) {
 			sendError(res, 400, providerValidation.message);
 			return;
