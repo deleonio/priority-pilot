@@ -1,0 +1,122 @@
+[
+	{
+		"timestamp": "2026-08-21T14:57:56.381Z",
+		"tokensIn": 6018924,
+		"tokensOut": 25428,
+		"cost": 0,
+		"issueId": "951",
+		"phase": "spec",
+		"model": "deepseek/deepseek-v3.2",
+		"provider": "openrouter",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 1949760
+	},
+	{
+		"timestamp": "2026-08-22T16:42:30.888Z",
+		"tokensIn": 18719953,
+		"tokensOut": 40165,
+		"cost": 0,
+		"issueId": "951",
+		"phase": "implement",
+		"model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+		"provider": "openrouter",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 17167680
+	},
+	{
+		"timestamp": "2026-08-22T17:00:31.418Z",
+		"tokensIn": 7482662,
+		"tokensOut": 10732,
+		"cost": 0,
+		"issueId": "951",
+		"phase": "implement",
+		"model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+		"provider": "openrouter",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 6272640
+	},
+	{
+		"timestamp": "2026-08-23T19:53:49.753Z",
+		"tokensIn": 941862,
+		"tokensOut": 16345,
+		"cost": 0,
+		"issueId": "951",
+		"phase": "review",
+		"model": "glm-5.3",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 904064
+	},
+	{
+		"timestamp": "2026-08-23T20:21:38.753Z",
+		"tokensIn": 3367209,
+		"tokensOut": 24380,
+		"cost": 0,
+		"issueId": "951",
+		"phase": "fixup",
+		"model": "glm-5.3",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 3306496
+	},
+	{
+		"timestamp": "2026-08-23T20:28:17.682Z",
+		"tokensIn": 757860,
+		"tokensOut": 8733,
+		"cost": 0,
+		"issueId": "951",
+		"phase": "review",
+		"model": "glm-5.3",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 726848
+	},
+	{
+		"timestamp": "2026-08-23T20:49:08.033Z",
+		"tokensIn": 254211,
+		"tokensOut": 1839,
+		"cost": 0,
+		"issueId": "951",
+		"phase": "fixup",
+		"model": "glm-5.3",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 171520
+	},
+	{
+		"timestamp": "2026-08-24T05:21:36.858Z",
+		"tokensIn": 2550739,
+		"tokensOut": 24214,
+		"cost": 0,
+		"issueId": "951",
+		"phase": "review",
+		"model": "glm-5.3",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 2418752
+	},
+	{
+		"timestamp": "2026-08-24T05:30:44.881Z",
+		"tokensIn": 525612,
+		"tokensOut": 9284,
+		"cost": 0,
+		"issueId": "951",
+		"phase": "fixup",
+		"model": "glm-5.3",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 500416
+	},
+	{
+		"timestamp": "2026-08-24T06:33:55.643Z",
+		"tokensIn": 129058,
+		"tokensOut": 4508,
+		"cost": 0.0611766,
+		"issueId": "951",
+		"phase": "documenter",
+		"model": "claude-haiku-4-5-20251001",
+		"provider": "claude",
+		"cacheCreationTokens": 22348,
+		"cacheReadTokens": 106676
+	}
+]

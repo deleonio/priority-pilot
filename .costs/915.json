@@ -1,0 +1,14 @@
+[
+	{
+		"timestamp": "2026-08-19T18:58:33.465Z",
+		"tokensIn": 182951,
+		"tokensOut": 3158,
+		"cost": 0,
+		"issueId": "915",
+		"phase": "documenter",
+		"model": "glm-4.7",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 163328
+	}
+]

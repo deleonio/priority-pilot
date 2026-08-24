@@ -61,8 +61,26 @@ export function findRecordFiles(dir: string): string[] {
  * Kaputte Dateien werden übersprungen und gemeldet, statt den Bericht scheitern zu lassen —
  * ein unlesbares Artefakt darf nicht die Zahlen der anderen fünf Phasen verschlucken.
  */
-export function mergeRecords(files: string[]): { entries: CostEntry[]; skipped: string[] } {
+/**
+ * Dedupe + chronologische Sortierung einer beliebigen Menge von Einträgen — das Herz
+ * aus `mergeRecords`, als eigene Funktion auch für den terminalen Siegel-Lauf nutzbar
+ * (cost-seal.ts): dort kommen Bestandsdatei UND Artefakte als EIN Eingabestrom zusammen.
+ */
+export function mergeEntries(input: CostEntry[]): CostEntry[] {
 	const seen = new Set<string>();
+	const entries: CostEntry[] = [];
+	for (const entry of input) {
+		if (typeof entry?.timestamp !== 'string') continue;
+		const key = `${entry.timestamp}|${entry.phase ?? ''}|${entry.tokensIn}|${entry.tokensOut}`;
+		if (seen.has(key)) continue;
+		seen.add(key);
+		entries.push(entry);
+	}
+	entries.sort((a, b) => (a.timestamp < b.timestamp ? -1 : a.timestamp > b.timestamp ? 1 : 0));
+	return entries;
+}
+
+export function mergeRecords(files: string[]): { entries: CostEntry[]; skipped: string[] } {
 	const entries: CostEntry[] = [];
 	const skipped: string[] = [];
 
@@ -84,15 +102,11 @@ export function mergeRecords(files: string[]): { entries: CostEntry[]; skipped: 
 				skipped.push(file);
 				continue;
 			}
-			const key = `${entry.timestamp}|${entry.phase ?? ''}|${entry.tokensIn}|${entry.tokensOut}`;
-			if (seen.has(key)) continue;
-			seen.add(key);
 			entries.push(entry);
 		}
 	}
 
-	entries.sort((a, b) => (a.timestamp < b.timestamp ? -1 : a.timestamp > b.timestamp ? 1 : 0));
-	return { entries, skipped };
+	return { entries: mergeEntries(entries), skipped };
 }
 
 export type PhaseTotal = {

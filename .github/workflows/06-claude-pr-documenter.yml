@@ -247,6 +247,75 @@ jobs:
           since-epoch: ${{ steps.starttime.outputs.epoch }}
           provider: ${{ steps.setup.outputs.llm-provider }}
 
+      - name: 💰 Kostenlauf versiegeln (.costs/<n>.json auf main committen)
+        # Dauerhafte Kosten-Ablage: Die Artefakte (90-Tage-Zwischenpuffer) EINES Tickets
+        # werden in die Repo-Datei .costs/<n>.json gemergt und auf main committet. Der
+        # Documenter ist der EINZIGE Schreiber je Ticket-Datei — er läuft nach dem Merge
+        # (alle Phasen fertig, Nummer final) und serialisiert durch die statische
+        # Phasen-Queue, das Konflikt-Argument gegen .costs/-Commits aus parallelen Phasen
+        # greift für den terminalen Seal nicht (s. .github/scripts/cost-seal.ts Kopf und
+        # .costs/SCHEMA.md). Läuft NACH der Kostenerfassung, damit der eigene Documenter-
+        # Eintrag (frisch in die Workspace-Datei geschrieben) mit versiegelt wird.
+        # NIE FATAL wie record-cost: Ein fehlgeschlagener Seal lässt die Phase grün —
+        # die Artefakte leben 90 Tage, ein Catch-up-Seal holt nach.
+        if: always() && steps.setup.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          ISSUE: ${{ steps.setup.outputs.issue-number || github.event.pull_request.number || github.event.inputs.pr-number }}
+        run: |
+          set -uo pipefail
+
+          # Alle nicht-abgelaufenen Kosten-Artefakte des Tickets laden (gleiches Muster
+          # wie cost-baseline.yml: --paginate, strenger -issue-<n>- Filter, ein Ordner je
+          # Artefakt — alle enthalten eine Datei desselben Namens).
+          mkdir -p /tmp/costs
+          LIST="$(gh api --paginate "repos/${REPO}/actions/artifacts?per_page=100" \
+            --jq ".artifacts[] | select(.expired == false) \
+                  | select(.name | startswith(\"claude-costs-\") and contains(\"-issue-${ISSUE}-\")) \
+                  | [.id, .name] | @tsv" 2>/dev/null || true)"
+          count=0
+          while IFS="$(printf '\t')" read -r id name; do
+            [ -n "$id" ] || continue
+            dest="/tmp/costs/${name}"
+            mkdir -p "$dest"
+            if gh api "repos/${REPO}/actions/artifacts/${id}/zip" > "/tmp/${id}.zip" 2>/dev/null \
+               && unzip -o -q "/tmp/${id}.zip" -d "$dest" 2>/dev/null; then
+              count=$((count + 1))
+            fi
+            rm -f "/tmp/${id}.zip"
+          done <<< "$LIST"
+          echo "::notice title=Kosten-Artefakte::${count} Artefakt(e) für #${ISSUE} geladen."
+
+          OUT="$(node .github/scripts/cost-seal.ts --issue "$ISSUE" --dir /tmp/costs 2>&1 || true)"
+          printf '%s\n' "$OUT"
+          if ! printf '%s' "$OUT" | grep -q 'changed=true'; then
+            echo "::notice title=Versiegeln::.costs/${ISSUE}.json bereits vollständig — kein Commit."
+            exit 0
+          fi
+
+          # Bot-Identität aus dem App-Slug (Muster deploy.yml / claude-guide-sync.yml),
+          # Push via App-Token auf main (Installation hat Contents:Write; main ist
+          # ungeschützt). Push-Konflikt (Release-Commit dazwischen): einmal rebase-fetchen
+          # und erneut versuchen, danach verwarnen statt rot werden.
+          slug="$(gh api app --jq .slug 2>/dev/null || true)"
+          user="${slug:-app}[bot]"
+          bot_id="$(gh api "users/${user}%5Bbot%5D" --jq .id 2>/dev/null || true)"
+          email="${user}@users.noreply.github.com"
+          [ -n "$bot_id" ] && email="${bot_id}+${user}@users.noreply.github.com"
+          git config user.name "$user"
+          git config user.email "$email"
+          PUSH_URL="https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+          git add ".costs/${ISSUE}.json"
+          git commit -m "chore(costs): Ticket #${ISSUE} versiegelt [skip ci]"
+          if git push "$PUSH_URL" HEAD:main 2>/dev/null \
+             || { git fetch "$PUSH_URL" main 2>/dev/null \
+                  && git rebase FETCH_HEAD 2>/dev/null \
+                  && git push "$PUSH_URL" HEAD:main 2>/dev/null; }; then
+            echo "::notice title=✅ Versiegelt::.costs/${ISSUE}.json auf main committet."
+          else
+            echo "::warning title=Versiegeln fehlgeschlagen::Push auf main nicht möglich — Datensatz bleibt in den Artefakten (90 Tage), Catch-up-Seal holt nach."
+          fi
+
       - name: 🖨️ Rendern — Titel/Body/Kommentar/Labels deterministisch
         # Alle Schreibzugriffe in einem Schritt: Titel-Rename, Body-Marker-Splice, GENAU EIN
         # ai-documenter-Kommentar (PATCH statt Duplikat), Labels (ai:documented zuletzt).

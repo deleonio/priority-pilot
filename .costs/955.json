@@ -1,0 +1,26 @@
+[
+	{
+		"timestamp": "2026-08-22T06:22:01.323Z",
+		"tokensIn": 2135651,
+		"tokensOut": 7671,
+		"cost": 0,
+		"issueId": "955",
+		"phase": "review",
+		"model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+		"provider": "openrouter",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 1689120
+	},
+	{
+		"timestamp": "2026-08-22T11:20:05.170Z",
+		"tokensIn": 4864336,
+		"tokensOut": 90902,
+		"cost": 0,
+		"issueId": "955",
+		"phase": "fixup",
+		"model": "poolside/laguna-s-2.1:free",
+		"provider": "openrouter",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 4498336
+	}
+]

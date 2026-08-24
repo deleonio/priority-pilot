@@ -1,0 +1,50 @@
+[
+	{
+		"timestamp": "2026-08-20T04:56:32.595Z",
+		"tokensIn": 4252922,
+		"tokensOut": 11412,
+		"cost": 0,
+		"issueId": "937",
+		"phase": "review",
+		"model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+		"provider": "openrouter",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 3607200
+	},
+	{
+		"timestamp": "2026-08-20T05:03:37.508Z",
+		"tokensIn": 1253229,
+		"tokensOut": 3547,
+		"cost": 0,
+		"issueId": "937",
+		"phase": "fixup",
+		"model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+		"provider": "openrouter",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 933120
+	},
+	{
+		"timestamp": "2026-08-20T05:05:01.617Z",
+		"tokensIn": 444069,
+		"tokensOut": 2638,
+		"cost": 0,
+		"issueId": "937",
+		"phase": "review",
+		"model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+		"provider": "openrouter",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 276480
+	},
+	{
+		"timestamp": "2026-08-20T05:07:35.706Z",
+		"tokensIn": 162455,
+		"tokensOut": 5957,
+		"cost": 0,
+		"issueId": "937",
+		"phase": "documenter",
+		"model": "nvidia/nemotron-3-nano-30b-a3b:free",
+		"provider": "openrouter",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 76032
+	}
+]
