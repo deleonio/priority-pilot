@@ -105,3 +105,6 @@ Konflikte, die er verhindern soll.
   `min-width: 340px` blieb grün). → Statt dessen Bounding-Box messen (`el.x + el.width ≤
   viewportWidth` = nichts geclippt); Card-Padding (~33px) schluckt Überlauf zusätzlich, deshalb
   schmale Viewports (320px) mitprüfen, sonst hat der Test keinen Biss.
+- 2026-08-24 · Knip/QM-Gates — `knip` exit 1 mit nur „Configuration hints" (knip.json
+  ignore-/entry-Vorschläge) ist pre-existing Rot auf main, kein Fix-Ziel der Phase. → Vor
+  jedem „Reparieren"-Abstecher Gegenprobe per `git stash` + knip + `git stash pop`.
