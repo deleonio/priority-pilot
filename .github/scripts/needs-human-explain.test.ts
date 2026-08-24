@@ -146,6 +146,40 @@ describe('needs-human-explain.sh — logtail', () => {
 		assert.match(out, /API Error: 500/);
 		assert.doesNotMatch(out, /filler 1/, 'alte Zeilen werden gekappt');
 	});
+
+	it('filtert unrecognized_model-Zeilen um die VERDICT-Zeile heraus (Issue #962)', () => {
+		// Multi-Provider-Switch (zai/openrouter): Die CLI warnt bei jedem nicht
+		// nativ bekannten Modellnamen, obwohl der Lauf funktioniert. Die Warnung
+		// darf den Auszug nicht verdünnen — vor UND nach dem Verdict gefiltert.
+		const lines: string[] = [];
+		for (let i = 1; i <= 5; i++) lines.push(`filler ${i}`);
+		lines.push('[claude-code:unrecognized_model] {"model":"glm-5.3[1m]","query_source":"sdk"}');
+		lines.push('## ⏸️ Entscheidungs-Findings');
+		lines.push('4. Combobox-A11y: Vertrag AK4 bricht — Option 4.1 KoliBri-Combo, 4.2 manuell');
+		lines.push('VERDICT: needs-human');
+		lines.push('[claude-code:unrecognized_model] {"model":"glm-5.3[1m]","query_source":"sdk"}');
+		const logPath = join(stubDir, 'log-model-noise.txt');
+		writeFileSync(logPath, lines.join('\n'));
+
+		const out = logtail(['--file', logPath]);
+		assert.doesNotMatch(out, /unrecognized_model/, 'Warnzeilen gehören nicht in den Auszug');
+		assert.match(out, /VERDICT: needs-human/);
+		assert.match(out, /Combobox-A11y/, 'die Begründung bleibt sichtbar');
+	});
+
+	it('filtert unrecognized_model-Zeilen auch im Crash-Fallback (ohne VERDICT)', () => {
+		const lines: string[] = [];
+		for (let i = 1; i <= 5; i++) lines.push(`filler ${i}`);
+		lines.push('[claude-code:unrecognized_model] {"model":"nvidia/nemotron-3-nano-30b-a3b:free"}');
+		lines.push('API Error: 402 Credits — billing hard limit');
+		lines.push('[claude-code:unrecognized_model] {"model":"nvidia/nemotron-3-nano-30b-a3b:free"}');
+		const logPath = join(stubDir, 'log-crash-noise.txt');
+		writeFileSync(logPath, lines.join('\n'));
+
+		const out = logtail(['--file', logPath, '--lines', '10']);
+		assert.doesNotMatch(out, /unrecognized_model/);
+		assert.match(out, /API Error: 402/, 'die echte Ursache bleibt sichtbar');
+	});
 });
 
 describe('needs-human-explain.sh — --ticket ist Alias für --pr', () => {
