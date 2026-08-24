@@ -112,6 +112,10 @@ Konflikte, die er verhindern soll.
   `^(kol-icon|kolicon-…)` (meint die interne Shadow-DOM-Klasse, nicht den Host-Tag) → `eslint-disable-next-line
   no-restricted-syntax` mit Begründung statt Selektor-Verrenkung. Außerdem: `KolIcon` hat `_label` als
   Pflicht-Property; `_label=""` ist der dekorative Modus (aria-hidden + role=presentation).
+- 2026-08-24 · Shell/Scripts — `--flag) X="$2"; shift 2` crasht unter `set -u` bei wert-losem
+  Flag (unbound $2) UND bash shifft bei `shift 2` mit <2 Rest-Argumenten nichts → Endlosschleife.
+  → `[ $# -ge 2 ] || die_usage` VOR dem Zugriff; gh `--paginate`-Output (konkatenierte
+  JSON-Arrays) via `jq -s 'add // []'` zu einem Array flattening.
 - 2026-08-24 · node:test — `it()`-Optionen (`{skip: …}`) werden synchron bei der REGISTRIERUNG
   ausgewertet; Flags, die ein `before`-Hook setzt, sind dort garantiert noch false → der Test ist
   IMMER geskippt, auch in CI (grüner Job maskiert das: Skips zählen nicht als Fail). → Skip

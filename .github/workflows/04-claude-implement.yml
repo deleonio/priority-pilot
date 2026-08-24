@@ -446,6 +446,11 @@ jobs:
     timeout-minutes: 30
     env:
       PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+      # Fixup-Runden-Deckel (Issue #993): Nach dieser Anzahl Fixup-Runden ohne
+      # grünes Review geht die (max+1). Runde an den Menschen (ai:needs-human,
+      # siehe Stop-Guard-Step). EIN Konfigurationsort für den Deckel — bewusst
+      # als env, nicht im Prompt vergraben.
+      MAX_FIXUP_ROUNDS: '3'
     permissions:
       contents: read
       id-token: write
@@ -603,7 +608,14 @@ jobs:
         if: steps.setup.outputs.configured == 'true'
         uses: ./.github/actions/claude-workbench
 
-      - name: Stop-Guard (> 10 PR-Commits)
+      # Zwei Bremsen mit unterschiedlichem Meterstab (Issue #993):
+      #   1. Fixup-Runden-Deckel — die frühe, sinnvolle Bremse: Nach MAX_FIXUP_ROUNDS
+      #      Runden ohne grünes Review geht die nächste Runde an den Menschen
+      #      (ai:needs-human + Entscheidungs-Kommentar). Runden skalieren die Kosten
+      #      (#932: 10 Review- + 4 Fixup-Läufe, 34,5 Mio Token, keine Bremse feuerte).
+      #   2. Commit-Guard (> 10) — bleibt als grobe Ausfallsicherung: Commits ≠ Runden,
+      #      aber ein PR mit > 10 Commits ist in jedem Fall ein Fall für den Menschen.
+      - name: Stop-Guard (Fixup-Runden-Deckel / > 10 PR-Commits)
         id: stop-guard
         if: steps.setup.outputs.configured == 'true' && steps.consume.outputs.proceed == 'true'
         env:
@@ -611,6 +623,59 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
           REPO: ${{ github.repository }}
         run: |
+          # ── Bremse 1: Fixup-Runden-Deckel (Issue #993) ─────────────────────────
+          # MAX_FIXUP_ROUNDS kommt aus dem Job-env (der eine Konfigurationsort).
+          # Läuft NACH dem Start-Konsum (steps.consume): ai:needs-fixup klebt nicht
+          # mehr, der Loop stirbt also natürlich, wenn wir hier stoppen. Trotzdem
+          # ai:needs-human setzen — sonst parkt der PR stumm. Kommentar VOR Label
+          # (Erklärungs-Gat, Muster aus dem resolve-Step).
+          if ! ROUNDS="$(bash .github/scripts/fixup-rounds.sh count --repo "$REPO" --pr "$PR" --max "$MAX_FIXUP_ROUNDS")"; then
+            echo "stop=true" >> "$GITHUB_OUTPUT"
+            gh pr comment "$PR" --repo "$REPO" --body "🛑 Stop-Guard: Fixup-Runden ließen sich nicht zählen (Timeline-Lesefehler) – fail-closed, bitte manuell prüfen." 2>/dev/null || true
+            exit 0
+          fi
+          if [ "$(printf '%s\n' "$ROUNDS" | sed -n 's/^stop=//p')" = "true" ]; then
+            N="$(printf '%s\n' "$ROUNDS" | sed -n 's/^count=//p')"
+            M="$(printf '%s\n' "$ROUNDS" | sed -n 's/^max=//p')"
+            echo "stop=true" >> "$GITHUB_OUTPUT"
+            # Offene Findings der letzten Review-Runde: jüngster ai-review-Sammel-
+            # kommentar (bewusst OHNE --since — hier zählt der letzte Stand, nicht
+            # dieser Lauf). lookup ist nie fatal; ohne Fund zeigt der Kommentar
+            # einen Hinweis statt eines toten Links.
+            GUARD="$(bash .github/scripts/needs-human-explain.sh lookup --repo "$REPO" --pr "$PR" --mode review || true)"
+            GUARD_STATUS="$(printf '%s\n' "$GUARD" | sed -n 's/^status=//p')"
+            GUARD_LINK="$(printf '%s\n' "$GUARD" | sed -n 's/^permalink=//p')"
+            GUARD_FINDINGS="$(printf '%s\n' "$GUARD" | sed -n 's/^findings=//p')"
+            {
+              printf '%s\n\n' "🛑 **Fixup-Runden-Deckel erreicht — an den Menschen übergeben**"
+              printf '%s\n\n' "**Warum:** Dies wäre Fixup-Runde ${N} von maximal ${M}. Die Review→Fixup-Schleife hat zuvor ${M} Runden ohne grünes Review durchlaufen — jede weitere Runde kostet erfahrungsgemäß 2–4 Mio Token und eine halbe Stunde Wanduhr, ohne Konvergenz-Garantie (Ausreißer #932: 10 Review- + 4 Fixup-Läufe, 34,5 Mio Token)."
+              if [ "$GUARD_STATUS" = "found" ]; then
+                printf '%s\n\n' "**Offene Findings der letzten Review-Runde:** ${GUARD_FINDINGS:-—}"
+                printf '%s\n\n' "**Letzter Review (Details):** ${GUARD_LINK}"
+              else
+                printf '%s\n\n' "**Offene Findings der letzten Review-Runde:** siehe letzten ai-review-Kommentar am PR (hier nicht verlinkbar)."
+              fi
+              printf '%s\n\n' "**Verbrauch:** Kosten-Daten werden erst nach Merge versiegelt (\`.costs/\`) — zum Laufzeitpunkt liegen keine verifizierten Zahlen vor."
+              printf '%s\n' "**Entscheidung — bitte genau eine Option wählen:**"
+              printf '%s\n' "- [ ] **F.1 — Findings selbst fixen:** Label \`ai:needs-human\` entfernen, Fixes committen, dann \`ai:needs-review\` setzen"
+              printf '%s\n' "- [ ] **F.2 — Spec/PR neu zuschneiden:** PR-Beschreibung/Spec präzisieren + Fixes committen, dann \`ai:needs-human\` entfernen und \`ai:needs-review\` setzen; für eine weitere KI-Fixup-Runde vorher \`MAX_FIXUP_ROUNDS\` im 04er erhöhen (der Rundenzähler zählt jedes Setzen von \`ai:needs-fixup\` — ein Re-Arm allein startet keine Runde mehr)"
+              printf '%s\n' "- [ ] **F.3 — Verwerfen:** PR schließen und Label \`ai:needs-human\` entfernen"
+            } > /tmp/needs-human-body.md
+            bash .github/scripts/needs-human-explain.sh post --repo "$REPO" --pr "$PR" --body-file /tmp/needs-human-body.md
+            # --expect none: Der Start-Konsum hat eben alle Pipeline-Labels
+            # entfernt; klebt hier doch etwas, regiert der neuere Zustand (dann
+            # bewusst OHNE ai:needs-human lassen und nur warnen).
+            if ! OUT="$(bash .github/scripts/label-transition.sh \
+              --repo "$REPO" --pr "$PR" \
+              --set ai:needs-human --expect none)"; then
+              echo "::error title=⚠️ Deckel: Label-Übergabe fehlgeschlagen::ai:needs-human konnte nicht gesetzt werden (Details: letzte gh-Fehlerzeile im Log). Loop ist trotzdem gestoppt (kein ai:needs-fixup mehr am PR) — bitte manuell labeln."
+            else
+              echo "::warning title=🛑 Fixup-Runden-Deckel::PR #${PR} — Runde ${N} > Deckel ${M}, ai:needs-human gesetzt, keine weitere automatische Runde."
+            fi
+            exit 0
+          fi
+
+          # ── Bremse 2: Commit-Guard (grobe Ausfallsicherung, unverändert) ──────
           if ! commits="$(gh pr view "$PR" --repo "$REPO" --json commits --jq '.commits | length' 2>/dev/null)"; then
             echo "stop=true" >> "$GITHUB_OUTPUT"
             gh pr comment "$PR" --repo "$REPO" --body "🛑 Stop-Guard: gh-API nicht erreichbar – fail-closed." 2>/dev/null || true
