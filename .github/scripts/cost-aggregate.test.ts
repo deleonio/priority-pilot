@@ -151,6 +151,17 @@ describe('cost-aggregate — Summen je Phase', () => {
 		assert.ok(Math.abs(totals[0].valueCost - 0.75) < 1e-9);
 	});
 
+	it('erkennt Wert-Daten je Phase (hasValueData), nicht nur global — gemischte Tickets', () => {
+		// Rollout-Fenster: jedes laufende Ticket hat Alt-Läufe und neue in EINEM Bericht.
+		const totals = totalsByPhase([
+			entry({ phase: 'analyse', timestamp: '2026-08-23T01:00:00Z' }), // Alt: ohne turns/valueCost
+			entry({ phase: 'implement', turns: 7, valueCost: 0.1234, timestamp: '2026-08-24T01:00:00Z' }),
+		]);
+		const byPhase = new Map(totals.map((t) => [t.phase, t]));
+		assert.equal(byPhase.get('analyse')?.hasValueData, false, 'Alt-Phase ohne erfasste Wert-Daten');
+		assert.equal(byPhase.get('implement')?.hasValueData, true, 'Neu-Phase mit erfassten Wert-Daten');
+	});
+
 	it('behandelt fehlende turns/valueCost als 0 statt NaN (Alt-Datensätze)', () => {
 		const totals = totalsByPhase([entry({ phase: 'analyse' })]);
 		assert.equal(totals[0].turns, 0);
@@ -197,6 +208,21 @@ describe('cost-aggregate — Bericht', () => {
 		assert.match(report, /\*\*5\*\*/, 'Turns-Summe');
 		assert.match(report, /\*\*\$0\.0420\*\*/, 'Wert-Summe');
 		assert.doesNotMatch(report, /vor der Erfassung dieser Felder/);
+	});
+
+	it('entscheidet „—" je PHASE, nicht nur global — gemischtes Ticket (Rollout-Fenster)', () => {
+		// Dasselbe Prinzip wie bei reinen Altdaten, nur auf Phasenebene: Global entschieden
+		// („irgendein Eintrag hat Daten") zeigt die reine Alt-Phase weiter „0" Turns und
+		// „$0.0000" — die Falschaussage, vor der der „—"-Pfad gerade schützt.
+		const report = renderReport('912', [
+			entry({ phase: 'analyse', timestamp: '2026-08-23T01:00:00Z' }), // Alt: ohne turns/valueCost
+			entry({ phase: 'implement', turns: 7, valueCost: 0.1234, timestamp: '2026-08-24T01:00:00Z' }),
+		]);
+		assert.match(report, /\| analyse \| 1 \| — \|/, 'Alt-Phase: Turns „—" statt 0');
+		assert.match(report, /\| implement \| 1 \| 7 \|/, 'Neu-Phase: echte Turns');
+		assert.match(report, /\| — \| \$0\.0500 \|/, 'Alt-Phase: Wert „—" statt $0.0000');
+		assert.match(report, /\| \$0\.1234 \| \$/, 'Neu-Phase: echter Wert');
+		assert.match(report, /\*\*7\*\*/, 'Summenzeile bleibt global: Zahlen');
 	});
 
 	it('rendert eine Dollar-Summe, wenn alle Läufe über claude liefen', () => {

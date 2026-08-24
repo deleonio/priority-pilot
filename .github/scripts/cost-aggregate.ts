@@ -109,6 +109,8 @@ export type PhaseTotal = {
 	providers: string[];
 	/** true = mindestens ein Lauf lief bei einem Nicht-Anthropic-Provider (cost dort 0). */
 	foreignTariff: boolean;
+	/** true = mindestens ein Lauf der Phase hat turns/valueCost erfasst (vor #984: nein). */
+	hasValueData: boolean;
 };
 
 const ZERO = (n: number | undefined): number => (typeof n === 'number' && Number.isFinite(n) ? n : 0);
@@ -139,6 +141,7 @@ export function totalsByPhase(entries: CostEntry[]): PhaseTotal[] {
 				models: [],
 				providers: [],
 				foreignTariff: false,
+				hasValueData: false,
 			};
 			byPhase.set(phase, total);
 			order.push(phase);
@@ -156,6 +159,9 @@ export function totalsByPhase(entries: CostEntry[]): PhaseTotal[] {
 		// `cost` ist bei zai/openrouter per Konstruktion 0 (Fremdtarif, s. .costs/SCHEMA.md).
 		// Das muss im Bericht stehen — sonst liest sich „$0.00" wie „war kostenlos".
 		if (entry.provider && entry.provider !== 'claude') total.foreignTariff = true;
+		// JE PHASE, nicht global: Ein gemischtes Ticket (Rollout-Fenster) hat Alt-Läufe und
+		// neue in einem Bericht — nur so kann eine reine Alt-Phase „—" statt „0" rendern.
+		if (typeof entry.valueCost === 'number' || typeof entry.turns === 'number') total.hasValueData = true;
 	}
 
 	return order.map((phase) => byPhase.get(phase) as PhaseTotal);
@@ -207,10 +213,12 @@ export function renderReport(issueId: string, entries: CostEntry[], skipped: str
 	// Reine Altdaten (vor Issue #984) haben weder turns noch valueCost. Für sie wären
 	// „0" und „$0.0000" Falschaussagen („brauchte keine Prompts" / „war wertlos") —
 	// dieselbe Falle, vor der der Fremdtarif-Hinweis die Kostenspalte bewahrt.
+	// Nur für die SUMMENZEILE global entschieden; die Phasen-Zeilen entscheiden selbst
+	// (hasValueData), damit in gemischten Tickets reine Alt-Phasen nicht „0"/„$0.0000" zeigen.
 	const legacyOnly =
 		sum.tokensIn > 0 && !entries.some((e) => typeof e.valueCost === 'number' || typeof e.turns === 'number');
-	const turnsCell = legacyOnly ? '—' : undefined;
-	const valueCell = legacyOnly ? '—' : undefined;
+	const sumTurnsCell = legacyOnly ? '—' : num(sum.turns);
+	const sumValueCell = legacyOnly ? '—' : usd(sum.valueCost);
 
 	lines.push(
 		'| Phase | Läufe | Turns | Modell | Token in (inkl. Cache) | davon Cache-Write | davon Cache-Read | Token out | Wert (USD) | Kosten (USD) |',
@@ -220,13 +228,13 @@ export function renderReport(issueId: string, entries: CostEntry[], skipped: str
 		const model = t.models.length > 0 ? t.models.map((m) => `\`${m}\``).join(', ') : '—';
 		const cost = t.foreignTariff ? '_Fremdtarif_' : usd(t.cost);
 		lines.push(
-			`| ${t.phase} | ${t.runs} | ${turnsCell ?? num(t.turns)} | ${model} | ${num(t.tokensIn)} | ${num(t.cacheCreationTokens)} | ` +
-				`${num(t.cacheReadTokens)} | ${num(t.tokensOut)} | ${valueCell ?? usd(t.valueCost)} | ${cost} |`,
+			`| ${t.phase} | ${t.runs} | ${t.hasValueData ? num(t.turns) : '—'} | ${model} | ${num(t.tokensIn)} | ${num(t.cacheCreationTokens)} | ` +
+				`${num(t.cacheReadTokens)} | ${num(t.tokensOut)} | ${t.hasValueData ? usd(t.valueCost) : '—'} | ${cost} |`,
 		);
 	}
 	lines.push(
-		`| **Summe** | **${sum.runs}** | **${turnsCell ?? num(sum.turns)}** | | **${num(sum.tokensIn)}** | **${num(sum.cacheCreationTokens)}** | ` +
-			`**${num(sum.cacheReadTokens)}** | **${num(sum.tokensOut)}** | **${valueCell ?? usd(sum.valueCost)}** | ` +
+		`| **Summe** | **${sum.runs}** | **${sumTurnsCell}** | | **${num(sum.tokensIn)}** | **${num(sum.cacheCreationTokens)}** | ` +
+			`**${num(sum.cacheReadTokens)}** | **${num(sum.tokensOut)}** | **${sumValueCell}** | ` +
 			`${anyForeign ? '**unvollständig**' : `**${usd(sum.cost)}**`} |`,
 	);
 	lines.push('');
