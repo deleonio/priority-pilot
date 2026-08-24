@@ -43,6 +43,7 @@ permissions:
   actions: write # Cache-Deletes
   contents: write # Branch-Deletes im State-Branch-Sweep
   issues: read # Issue-Status (offen/geschlossen) im State-Branch-Sweep
+  pull-requests: read # PR-Fallback im State-Branch-Sweep (PR-keyed Storages ohne Closing-Issue)
 
 concurrency:
   group: cache-cleanup
