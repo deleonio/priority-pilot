@@ -7,10 +7,20 @@ sortierbar. Siehe `.github/scripts/cost-record.ts`.
 
 ## Wo die Daten tatsächlich liegen
 
-Im Repo steht **nur diese Datei**. Die Datensätze selbst werden bewusst nicht committet
-(sechs Phasen × parallele Tickets, die alle auf denselben Ordner committen, erzeugen
-Konflikte auf `main`): Jeder Phasen-Lauf lädt seinen Datensatz als Artefakt
-`claude-costs-<phase>-issue-<n>-<run_id>` hoch — 90 Tage Aufbewahrung.
+**Zwischenpuffer (90 Tage):** Jeder Phasen-Lauf lädt seinen Datensatz als Artefakt
+`claude-costs-<phase>-issue-<n>-<run_id>` hoch — die Phasen selbst committen NICHT nach
+`.costs/` (sieben Phasen × parallele Tickets auf denselben Ordner erzeugen Konflikte auf
+main).
+
+**Dauerhaft eingecheckt — der Siegel-Lauf:** Der Documenter (Phase 6) merged nach dem
+Merge des PRs alle Artefakte eines Tickets in **eine** Datei `.costs/<n>.json` und
+committet sie auf main (`chore(costs): Ticket #<n> versiegelt [skip ci]`, siehe
+`.github/scripts/cost-seal.ts` und den Schritt „Kostenlauf versiegeln" in
+`06-claude-pr-documenter.yml`). Er ist der einzige Schreiber je Datei — damit ist das
+Konflikt-Argument gegen `.costs/`-Commits für den terminalen Seal entkräftet, und die
+Repo-Datei ist die dauerhafte Instanz. Idempotent über das Dedupe: Re-Runs zählen nicht
+doppelt; ein fehlgeschlagener Seal lässt sich per Documenter-`workflow_dispatch`
+nachholen, solange die Artefakte leben.
 
 Um die Zahlen eines Tickets als **eine** Tabelle zu sehen, den Workflow
 [`Kosten-Baseline`](../.github/workflows/cost-baseline.yml) manuell mit der Ticket-Nummer

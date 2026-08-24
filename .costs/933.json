@@ -1,0 +1,111 @@
+[
+	{
+		"timestamp": "2026-08-23T03:58:35.117Z",
+		"tokensIn": 1168496,
+		"tokensOut": 10844,
+		"cost": 0,
+		"issueId": "933",
+		"phase": "analyse",
+		"model": "glm-5.3",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 1129984,
+		"sidechainTokens": 240750
+	},
+	{
+		"timestamp": "2026-08-23T04:01:10.360Z",
+		"tokensIn": 771227,
+		"tokensOut": 8884,
+		"cost": 0,
+		"issueId": "933",
+		"phase": "ux",
+		"model": "glm-4.7",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 669888
+	},
+	{
+		"timestamp": "2026-08-23T04:10:52.819Z",
+		"tokensIn": 2318755,
+		"tokensOut": 18802,
+		"cost": 0,
+		"issueId": "933",
+		"phase": "spec",
+		"model": "glm-5.3",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 2263424
+	},
+	{
+		"timestamp": "2026-08-23T05:10:48.729Z",
+		"tokensIn": 7133271,
+		"tokensOut": 34822,
+		"cost": 0,
+		"issueId": "933",
+		"phase": "implement",
+		"model": "glm-5.3",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 7052800
+	},
+	{
+		"timestamp": "2026-08-23T05:17:04.471Z",
+		"tokensIn": 1065111,
+		"tokensOut": 15802,
+		"cost": 0,
+		"issueId": "933",
+		"phase": "review",
+		"model": "glm-5.3",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 953920
+	},
+	{
+		"timestamp": "2026-08-23T05:51:02.100Z",
+		"tokensIn": 2064710,
+		"tokensOut": 10484,
+		"cost": 0,
+		"issueId": "933",
+		"phase": "fixup",
+		"model": "glm-5.3",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 2027776
+	},
+	{
+		"timestamp": "2026-08-23T05:57:10.800Z",
+		"tokensIn": 1435957,
+		"tokensOut": 16974,
+		"cost": 0,
+		"issueId": "933",
+		"phase": "review",
+		"model": "poolside/laguna-s-2.1:free",
+		"provider": "openrouter",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 1320608
+	},
+	{
+		"timestamp": "2026-08-23T06:12:39.168Z",
+		"tokensIn": 551566,
+		"tokensOut": 8984,
+		"cost": 0,
+		"issueId": "933",
+		"phase": "review",
+		"model": "poolside/laguna-s-2.1:free",
+		"provider": "openrouter",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 451808
+	},
+	{
+		"timestamp": "2026-08-23T06:15:17.025Z",
+		"tokensIn": 334511,
+		"tokensOut": 4683,
+		"cost": 0,
+		"issueId": "933",
+		"phase": "documenter",
+		"model": "nvidia/nemotron-3-nano-30b-a3b:free",
+		"provider": "openrouter",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 244992
+	}
+]

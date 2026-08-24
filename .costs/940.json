@@ -1,0 +1,50 @@
+[
+	{
+		"timestamp": "2026-08-20T08:43:45.362Z",
+		"tokensIn": 853581,
+		"tokensOut": 16570,
+		"cost": 1.123116,
+		"issueId": "940",
+		"phase": "review",
+		"model": "claude-opus-5",
+		"provider": "claude",
+		"cacheCreationTokens": 49030,
+		"cacheReadTokens": 804517
+	},
+	{
+		"timestamp": "2026-08-20T08:49:21.987Z",
+		"tokensIn": 1700574,
+		"tokensOut": 11135,
+		"cost": 0.84505485,
+		"issueId": "940",
+		"phase": "fixup",
+		"model": "claude-sonnet-5",
+		"provider": "claude",
+		"cacheCreationTokens": 48609,
+		"cacheReadTokens": 1651907
+	},
+	{
+		"timestamp": "2026-08-20T08:52:01.935Z",
+		"tokensIn": 446696,
+		"tokensOut": 8716,
+		"cost": 0.60907775,
+		"issueId": "940",
+		"phase": "review",
+		"model": "claude-opus-5",
+		"provider": "claude",
+		"cacheCreationTokens": 29169,
+		"cacheReadTokens": 417503
+	},
+	{
+		"timestamp": "2026-08-20T08:54:53.206Z",
+		"tokensIn": 119584,
+		"tokensOut": 4060,
+		"cost": 0.05164350000000001,
+		"issueId": "940",
+		"phase": "documenter",
+		"model": "claude-haiku-4-5-20251001",
+		"provider": "claude",
+		"cacheCreationTokens": 16830,
+		"cacheReadTokens": 102720
+	}
+]

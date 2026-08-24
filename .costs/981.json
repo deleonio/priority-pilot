@@ -1,0 +1,38 @@
+[
+	{
+		"timestamp": "2026-08-24T05:57:00.831Z",
+		"tokensIn": 1319414,
+		"tokensOut": 13010,
+		"cost": 0,
+		"issueId": "981",
+		"phase": "review",
+		"model": "glm-5.3",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 1214784
+	},
+	{
+		"timestamp": "2026-08-24T06:07:16.846Z",
+		"tokensIn": 1237121,
+		"tokensOut": 4307,
+		"cost": 0,
+		"issueId": "981",
+		"phase": "fixup",
+		"model": "glm-5.3",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 1145664
+	},
+	{
+		"timestamp": "2026-08-24T06:35:35.709Z",
+		"tokensIn": 211028,
+		"tokensOut": 4296,
+		"cost": 0.07612845,
+		"issueId": "981",
+		"phase": "documenter",
+		"model": "claude-haiku-4-5-20251001",
+		"provider": "claude",
+		"cacheCreationTokens": 29131,
+		"cacheReadTokens": 181847
+	}
+]

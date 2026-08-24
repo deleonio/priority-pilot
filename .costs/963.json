@@ -1,0 +1,26 @@
+[
+	{
+		"timestamp": "2026-08-23T10:50:11.622Z",
+		"tokensIn": 775371,
+		"tokensOut": 9022,
+		"cost": 0,
+		"issueId": "963",
+		"phase": "review",
+		"model": "glm-5.3",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 739264
+	},
+	{
+		"timestamp": "2026-08-23T11:04:54.642Z",
+		"tokensIn": 3504992,
+		"tokensOut": 24399,
+		"cost": 0,
+		"issueId": "963",
+		"phase": "fixup",
+		"model": "glm-5.3",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 3375104
+	}
+]

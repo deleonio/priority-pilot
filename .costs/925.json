@@ -1,0 +1,14 @@
+[
+	{
+		"timestamp": "2026-08-20T02:50:53.689Z",
+		"tokensIn": 123344,
+		"tokensOut": 3399,
+		"cost": 0.050645350000000006,
+		"issueId": "925",
+		"phase": "documenter",
+		"model": "claude-haiku-4-5-20251001",
+		"provider": "claude",
+		"cacheCreationTokens": 18509,
+		"cacheReadTokens": 104801
+	}
+]

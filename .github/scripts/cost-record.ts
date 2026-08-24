@@ -120,6 +120,20 @@ export function readCostRecords(issueId: string | number, opts: CostOptions = {}
 }
 
 /**
+ * Schreibt die GESAMTE Eintragsliste eines Issues — Gegenstück zu readCostRecords für den
+ * terminalen Siegel-Lauf (cost-seal.ts): der Documenter ersetzt die Datei durch die
+ * vollständig gemergte, deduplizierte Menge statt appendschrittweise zu erweitern.
+ * Tab-Einrückung wie Prettier (useTabs) — der Siegel-Commit landet auf main und darf
+ * dort keinen Format-Churn mit `pnpm format` erzeugen.
+ */
+export function writeCostRecords(issueId: string | number, entries: CostEntry[], opts: CostOptions = {}): void {
+	const rootDir = resolveDir(opts);
+	const file = recordPath(rootDir, normalizeIssueId(issueId));
+	mkdirSync(dirname(file), { recursive: true });
+	writeFileSync(file, `${JSON.stringify(entries, null, '\t')}\n`, 'utf8');
+}
+
+/**
  * Bekannte Secret-Muster der Pipeline (Anthropic-/GitHub-Token u. a.). Liefert die Treffer,
  * damit `.costs/`-Inhalt vor dem Commit geprüft werden kann — saubere Datensätze bleiben grün.
  */
