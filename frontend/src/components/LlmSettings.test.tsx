@@ -57,6 +57,32 @@ vi.mock('@public-ui/react-v19', () => ({
 		</button>
 	),
 	KolInputRadio: ({ _label }: { _label?: string }) => <fieldset aria-label={_label} />,
+	// KolSingleSelect als natives <select> mit stabiler id — die Modellwahl-Tests greifen
+	// darauf über `#llm-active-model` zu (Muster wie TaskForm.test.tsx).
+	KolSingleSelect: ({
+		_label,
+		_options,
+		_value,
+		_on,
+	}: {
+		_label?: string;
+		_options?: { label: string; value: string }[];
+		_value?: string;
+		_on?: { onChange?: (_e: unknown, v: string) => void };
+	}) => (
+		<select
+			id="llm-active-model"
+			aria-label={_label}
+			value={_value ?? ''}
+			onChange={(e) => _on?.onChange?.(e.nativeEvent, e.target.value)}
+		>
+			{(_options ?? []).map((option) => (
+				<option key={option.value} value={option.value}>
+					{option.label}
+				</option>
+			))}
+		</select>
+	),
 }));
 
 const mistral: LlmProvider = {

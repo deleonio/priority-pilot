@@ -216,7 +216,11 @@ export const createLlmProvidersRouter = (
 			return;
 		}
 		try {
-			res.json(await updateProvider(id, validation.input));
+			const updated = await updateProvider(id, validation.input);
+			// Endpoint/API-Key können sich geändert haben — die gecachte Modellliste der alten
+			// Konfiguration wäre bis zum TTL-Ablauf veraltet und zeigt Modelle, die es nicht mehr gibt.
+			modelsCache.delete(id);
+			res.json(updated);
 		} catch (error) {
 			if (!sendServiceError(res, error)) sendError(res, 500, 'Interner Serverfehler.');
 		}
@@ -231,6 +235,7 @@ export const createLlmProvidersRouter = (
 		}
 		try {
 			await deleteProvider(id);
+			modelsCache.delete(id); // Cache-Eintrag des gelöschten Providers freigeben.
 			res.status(204).end();
 		} catch (error) {
 			if (sendServiceError(res, error)) return;

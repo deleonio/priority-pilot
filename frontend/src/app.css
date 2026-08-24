@@ -1827,26 +1827,15 @@ kol-input-range {
 	gap: var(--pp-gap-tight);
 }
 
-.llm-model-select label {
-	font-weight: 600;
-	font-size: 0.875rem;
-}
-
-.llm-model-select select {
-	padding: 0.5rem;
-	border: 1px solid var(--pp-border);
-	border-radius: 0.375rem;
-	background: var(--pp-bg);
-	color: var(--pp-text);
-	font: inherit;
-	min-height: 2.75rem; /* 44px WCAG minimum */
-	/* Ohne `min-width: 0` erbt das Select seine automatische Mindestbreite von der längsten
-	   Modell-Option (~708px). Diese Mindestbreite wandert über das Grid von `kol-tabs` nach oben
-	   und dehnt das gesamte Panel — der „Speichern"-Button landet dann außerhalb des Viewports
-	   (#886). `width: 100%` + `box-sizing` halten das Feld stattdessen in der Spaltenbreite. */
+/* Modellwahl als KolSingleSelect: Label/Hint liefert die Komponente selbst (Shadow-DOM).
+   Ohne `min-width: 0` gibt der Host die automatische Mindestbreite der längsten Modell-Option
+   (~708px) an das Grid von `kol-tabs` weiter und dehnt das gesamte Panel — der „Speichern"-
+   Button landet dann außerhalb des Viewports (#886). `width: 100%` + `min-width: 0` am Host
+   halten das Feld stattdessen in der Spaltenbreite. */
+.llm-model-select kol-single-select {
+	display: block;
 	width: 100%;
 	min-width: 0;
-	box-sizing: border-box;
 }
 
 /* --- Issue #866: Geo-Address --- */

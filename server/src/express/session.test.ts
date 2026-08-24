@@ -207,7 +207,8 @@ describe('AK-5 — Redis-Store: Zwei Server-Instanzen teilen Sessions', () => {
 			socket.once('error', () => settle(false));
 		});
 
-	// Einmalige Probe IM before-Hook: steuert Setup (keine Server ohne Redis) UND den Skip.
+	// Einmalige Probe IM before-Hook: steuert das Setup (keine Server ohne Redis). Der Skip
+	// selbst passiert dynamisch im Test-Body via t.skip().
 	let redisAvailable = false;
 	const skipReason = 'Kein Redis erreichbar — Integrationstest übersprungen (CI stellt Redis als Service bereit)';
 
@@ -228,9 +229,13 @@ describe('AK-5 — Redis-Store: Zwei Server-Instanzen teilen Sessions', () => {
 		delete process.env.SESSION_STORE;
 	});
 
-	// Skip-Option statt t.skip() im before-Hook: Die Option überspringt den Test zuverlässig,
-	// t.skip() im before-Hook ließe ihn in diesem Node-Stand trotzdem laufen.
-	it('Session von Instanz 1 ist auf Instanz 2 gültig', { skip: !redisAvailable && skipReason }, async () => {
+	// t.skip() im Body statt {skip}-Option: node:test wertet it()-Optionen synchron bei der
+	// Registrierung aus — ein Flag aus dem before-Hook ist dort garantiert false und der Test
+	// wäre IMMER geskippt, auch in CI mit Redis (stiller Deckungsverlust). t.skip() im
+	// before-Hook hingegen ließe den Test in diesem Node-Stand trotzdem laufen.
+	it('Session von Instanz 1 ist auf Instanz 2 gültig', async (t) => {
+		if (!redisAvailable) t.skip(skipReason);
+
 		// Beide Instanzen starten (teilen denselben Redis-Store via REDIS_URL)
 		[server1, server2] = await Promise.all([startTestServer(), startTestServer()]);
 

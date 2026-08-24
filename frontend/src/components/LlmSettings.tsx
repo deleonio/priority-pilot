@@ -1,8 +1,9 @@
-import { KolAlert, KolButton, KolInputRadio } from '@public-ui/react-v19';
+import { KolAlert, KolButton, KolInputRadio, KolSingleSelect } from '@public-ui/react-v19';
 import type { LlmModel, LlmProvider } from 'client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
+import { readString } from '../lib/inputValue';
 import { useIsMobile } from '../lib/use-is-mobile';
 import { LlmProviderFormDialog } from './LlmProviderFormDialog';
 import { LlmProviderDeleteDialog } from './LlmProviderDeleteDialog';
@@ -141,6 +142,16 @@ export const LlmSettings = ({ onChanged }: LlmSettingsProps) => {
 	// Ist das aktuell gewählte Modell (Server-Default) nicht in der Liste, bleibt es trotzdem
 	// wählbar sichtbar — sonst springt das Select still auf eine andere Option.
 	const selectedModelInList = models?.some((m) => m.id === activeProvider?.model) ?? false;
+	const modelOptions = useMemo(() => {
+		if (models === null) return [];
+		const list = models.map((m) => ({
+			label: m.name === m.id ? m.id : `${m.name} (${m.id})`,
+			value: m.id,
+		}));
+		const current = activeProvider?.model ?? '';
+		if (current === '') return [{ label: 'Bitte Modell wählen…', value: '' }, ...list];
+		return selectedModelInList ? list : [{ label: current, value: current }, ...list];
+	}, [models, activeProvider, selectedModelInList]);
 
 	return (
 		<>
@@ -174,36 +185,26 @@ export const LlmSettings = ({ onChanged }: LlmSettingsProps) => {
 
 					{activeProvider !== null && (
 						<div className="llm-model-select">
-							<label htmlFor="llm-active-model">
-								Modell von {activeProvider.name}
-								{activeProvider.kind === 'builtin' ? ' (fix)' : ''}
-							</label>
 							{models === null && modelsError === null && <p className="hint">Modelle werden geladen…</p>}
 							{modelsError !== null && (
 								<p className="hint" role="alert">
 									Modellliste nicht verfügbar: {modelsError}
 								</p>
 							)}
+							{/* KoliBri-First (ux-design.md): Bedienelemente kommen aus KoliBri — die
+							    Modellwahl ist ein Auswahl-Element und daher KolSingleSelect (wie in
+							    TaskForm/DependencyModal), kein natives Select im Eigen-Styling. */}
 							{models !== null && (
-								<select
-									id="llm-active-model"
-									name="model"
-									data-testid="llm-model-select"
-									value={activeProvider.model}
-									onChange={(e) => void handleModelChange(e.target.value)}
-								>
-									{activeProvider.model === '' && <option value="">Bitte Modell wählen…</option>}
-									{!selectedModelInList && activeProvider.model !== '' && (
-										<option value={activeProvider.model}>{activeProvider.model}</option>
-									)}
-									{models.map((model) => (
-										<option key={model.id} value={model.id}>
-											{model.name === model.id ? model.id : `${model.name} (${model.id})`}
-										</option>
-									))}
-								</select>
+								<KolSingleSelect
+									_label={`Modell von ${activeProvider.name}${activeProvider.kind === 'builtin' ? ' (fix)' : ''}`}
+									_options={modelOptions}
+									_value={activeProvider.model}
+									_hint="Die Modelle werden live vom gewählten Provider geladen."
+									_on={{
+										onChange: (_event, value) => void handleModelChange(readString(value)),
+									}}
+								/>
 							)}
-							<p className="hint">Die Modelle werden live vom gewählten Provider geladen.</p>
 						</div>
 					)}
 
