@@ -111,9 +111,16 @@ test.describe('Frontend-Error-Handling für LLM-Calls (#620)', () => {
 		await page.getByRole('button', { name: 'Verarbeiten und weiter' }).click();
 
 		// Vertrag: Klartext-Text wie "KI-Dienst gerade nicht erreichbar, bitte später erneut"
-		// NEGATIV-Test: Technische Begriffe wie "502", "Bad Gateway", "timeout" sollten NICHT erscheinen
-		await expect(page.getByText(/KI-Dienst.*nicht erreichbar/)).toBeVisible();
-		await expect(page.getByText(/502|503|Bad Gateway|timeout|Service Unavailable/i)).not.toBeVisible();
+		// NEGATIV-Test: In der FEHLERMELDUNG (KolAlert) dürfen keine technischen Begriffe
+		// wie "502", "Bad Gateway", "timeout" stehen. Bewusst auf das Alert gescoped: Ein
+		// seitenweiter getByText-Match trifft auch die Footer-Versionsanzeige —
+		// „Version 0.1.502" matcht /502/ und färbte ab Release v0.1.502 die CI rot.
+		// Anchor ist der kol-alert-Host (Slot-Text ist Light-DOM), nicht getByRole('alert') —
+		// KolAlert exponiert die Rolle nicht zuverlässig (gleiches Muster wie geolocation.spec).
+		// Die positive Assertion auf DEMSELBEN Anchor verhindert ein vakuum-grünes Negativ.
+		const meldung = page.locator('kol-alert');
+		await expect(meldung).toContainText(/KI-Dienst.*nicht erreichbar/);
+		await expect(meldung.getByText(/502|503|Bad Gateway|timeout|Service Unavailable/i)).not.toBeVisible();
 	});
 
 	test('AK3: Optionaler Retry bei transienten 5xx-Fehlern (parse-text)', async ({ page }) => {
