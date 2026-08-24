@@ -5,8 +5,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // `Modal` nutzt KoliBris `KolDialog` (natives `<dialog>`), das in jsdom nicht lauffähig ist
 // (`dialog.close is not a function`). Für diesen Komponententest reduzieren wir das Modal auf
-// einen reinen Passthrough — die Kurzbeschreibung wird von `PillarWeightsModal` selbst gerendert,
-// nicht vom Dialog-Rahmen, sodass die Logik isoliert und deterministisch prüfbar bleibt.
+// einen reinen Passthrough — der Formularinhalt wird von `PillarWeightsForm` gerendert, nicht
+// vom Dialog-Rahmen, sodass die Logik isoliert und deterministisch prüfbar bleibt.
 vi.mock('./Modal', () => ({
 	Modal: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
@@ -23,12 +23,14 @@ const pillar = (id: number, name: string, description: string, weight: number): 
 });
 
 /**
- * Die Kurzbeschreibung der Säulen (globale Stammdaten) wird im Einstellungs-Modal unter dem
- * jeweiligen Slider ausgegeben, damit beim Gewichten sofort erkennbar ist, wofür eine Säule steht.
- * Dieser Test sichert, dass die aus der API gelieferte `description` je Säule wirklich gerendert wird.
+ * #934 AK3 — Die Säulen-Gewichtung rendert die Säulen-Beschreibung nicht mehr pro Slider
+ * (`.pillar-description` entfällt): dieselben Beschreibungen stehen bereits in der Säulenliste
+ * darüber (`.pillar-list-description`, siehe PillarList.test.tsx) — die Wiederholung ist
+ * redundant und verursachte Layout-Umbrüche. Der Test ist rot, solange `PillarWeightsForm`
+ * den Beschreibungs-Absatz noch rendert.
  */
-describe('PillarWeightsModal — Kurzbeschreibung je Säule', () => {
-	it('zeigt die Beschreibung jeder Säule unter dem Slider an', () => {
+describe('PillarWeightsModal — keine Säulen-Beschreibung mehr je Slider (#934 AK3)', () => {
+	it('rendert kein .pillar-description-Element, wohl aber je Säule ein Range-Feld', () => {
 		const pillars = [
 			pillar(1, 'Körper', 'Physische Gesundheit: Bewegung, Ernährung, Schlaf, Vorsorge.', 40),
 			pillar(2, 'Sinn', 'Das „Wofür": Werte, Lebensziele, Spiritualität, Ehrenamt.', 60),
@@ -38,9 +40,12 @@ describe('PillarWeightsModal — Kurzbeschreibung je Säule', () => {
 			<PillarWeightsModal pillars={pillars} onClose={() => undefined} onSaved={() => undefined} />,
 		);
 
-		const descriptions = container.querySelectorAll('.pillar-description');
-		expect(descriptions).toHaveLength(2);
-		expect(descriptions[0]?.textContent).toBe(pillars[0].description);
-		expect(descriptions[1]?.textContent).toBe(pillars[1].description);
+		// Guard gegen einen dauerhaft grünen Test über eine leere Menge: Das Formular muss
+		// wirklich gerendert sein — je Säule ein Range-Feld im Gewichtungs-Grid.
+		const ranges = container.querySelectorAll('.pillar-weights-grid kol-input-range');
+		expect(ranges).toHaveLength(pillars.length);
+
+		// Kern-Assertion (AK3): keine je-Säule-Beschreibung mehr im DOM.
+		expect(container.querySelectorAll('.pillar-description')).toHaveLength(0);
 	});
 });

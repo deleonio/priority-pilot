@@ -544,3 +544,32 @@ describe('PillarList — Säulen-Verwaltung (Issue #439)', () => {
 		});
 	});
 });
+
+/**
+ * #934 AK3 (Spiegel) — Während die Säulen-Gewichtung die je-Säule-Beschreibung entfernt
+ * (PillarWeightsModal.test.tsx), bleiben die Kurzbeschreibungen in der Säulenliste die einzige
+ * Stelle, an der `pillar.description` angezeigt wird. Dieser Test sichert, dass die Liste sie
+ * je Säule weiterhin unverändert rendert — der Solltext kommt dabei aus dem API-Fixture, nicht
+ * aus dem Test-Literal (Spiegel gegen stillen Verlust der Stammdaten-Anzeige).
+ */
+describe('PillarList — Kurzbeschreibung je Säule bleibt (#934 AK3)', () => {
+	it('rendert .pillar-list-description je Säule mit dem API-Beschreibungstext', async () => {
+		const pillars = [
+			pillar(1, 'Körper', 'Physische Gesundheit: Bewegung, Ernährung, Schlaf, Vorsorge.', 40),
+			pillar(2, 'Sinn', 'Das „Wofür": Werte, Lebensziele, Spiritualität, Ehrenamt.', 60),
+		];
+		vi.mocked(api.listPillars).mockResolvedValueOnce(pillars);
+
+		const { container } = render(<PillarList />);
+
+		// Warten, bis die Liste tatsächlich steht (sonst läuft die Assertion über eine leere Menge).
+		await waitFor(() => {
+			expect(container.querySelectorAll('.pillar-item')).toHaveLength(pillars.length);
+		});
+
+		const descriptions = container.querySelectorAll('.pillar-list-description');
+		expect(descriptions).toHaveLength(pillars.length);
+		expect(descriptions[0]?.textContent).toBe(pillars[0].description);
+		expect(descriptions[1]?.textContent).toBe(pillars[1].description);
+	});
+});
