@@ -197,11 +197,21 @@ inline als Heredoc in der Workflow-Datei.
 
 **Memory (zwei Ebenen, `.claude/memory/`):** Die Snippets `memory-read.md`/`memory-write.md`
 adressieren beide. `MEMORY.md` ist das **eingecheckte Dauergedächtnis** über Tickets hinweg — es
-reist im normalen Commit der Phasen mit Commit-Auftrag (Spec, Umsetzung, Fixup) und ist deshalb vom
-Artefakt-Upload ausgenommen, sonst überschriebe ein alter Artefakt-Stand beim Restore der Folgephase
-die frisch committete Datei. `issue-<N>-<phase>.md` sind die **flüchtigen** Phasen-Notizen für den
-Soft-Abort-Resume (gitignored, Transport per Artefakt, Teardown in Phase 7). Vertrag und
-Aufnahmekriterium: [AGENTS.md → Memory](../AGENTS.md#memory).
+reist im normalen Commit der Phasen mit Commit-Auftrag (Spec, Umsetzung, Fixup) und kommt nie in
+den Issue-Storage, sonst überschriebe ein alter Stand beim Restore der Folgephase die frisch
+committete Datei. `issue-<N>-<phase>.md` sind die **flüchtigen** Phasen-Notizen für den
+Soft-Abort-Resume (lokal gitignored). Vertrag und Aufnahmekriterium:
+[AGENTS.md → Memory](../AGENTS.md#memory).
+
+**Issue-Storage (Transport):** Der Zustand pro Issue liegt auf einem **State-Branch
+`ai/state/issue-{N}`** — Phasen-Notizen plus `state.json` (Phase → Session-ID, Run, Branch),
+Stufe 2 optional gefilterte Sessions. Jede Phase lädt per `git fetch` + `git restore` in den
+Workspace (Index unberührt) und sichert nach dem Claude-Lauf über die Composite-Action
+`issue-state-save` per Fetch-then-Commit zurück (App-Token); der Documenter-Teardown löscht den
+Branch, der Hygiene-Sweep in `cache-cleanup.yml` fängt Verwaiste (Issue geschlossen + 7 Tage
+Ruhe). Nie gemergt, triggert kein CI/Deploy (beide hören nur auf `push: [main]`).
+Entscheidung inkl. Cache-Ablehnung (read-only Cache-Tokens für Issue-/Label-/PR-Trigger):
+[ADR 0006](./adr/0006-issue-storage-state-branch.md).
 
 **VERDICT-Hinweis:** `claude -p` schreibt die finale Antwort (inkl. `VERDICT:`-Zeile) auf
 stdout → `tee /tmp/claude-output.log` → `grep -oP 'VERDICT:\s*\K.*'` in der
@@ -330,10 +340,13 @@ Suche ist nur Schicht 1 — Schicht 2 ist der globale Parker-Check im Phasen-Pre
 (`check-phase-label.sh`), der jede Phase (außer documenter) blockt, auch wenn ein Trigger-Label
 klebt (manuell gesetzt oder Suchindex-Lag), und damit die Endlosschleife unmöglich macht.
 
-### Named Session Resume (aktuell nicht aktiv)
+### Named Session Resume (Stufe 2 aus ADR 0006, aktuell nicht aktiv)
 
-Die Session-Resume-Funktionalität (MIG-002) ist noch nicht migriert. Derzeit startet jeder Lauf
-frisch ohne Kontext aus vorherigen Läufen derselben Phase.
+Die Session-Resume-Funktionalität (MIG-002) ist noch nicht aktiviert. Derzeit startet jeder Lauf
+frisch ohne Kontext aus vorherigen Läufen derselben Phase. Der Zielzustand ist als Stufe 2 in
+[ADR 0006](./adr/0006-issue-storage-state-branch.md) entschieden (nur jüngste Session je Phase,
+~5-MB-Cap, `--resume` ausschließlich beim `ai:continued`-Folgelauf derselben Phase) — aktiviert
+wird sie erst, wenn `record-cost` belegt, dass Resumes nennenswert Wiederarbeit sparen.
 
 ## PR-Documenter: Arbeitsteilung Regel-Logik + LLM (Phase 7)
 

@@ -22,7 +22,7 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 - [CI-Architektur](docs/ci-architecture.md) — Provider, Modelle, Soft-Abort, Label-Pipeline, KoliBri MCP
 - [Pipeline-Flow](docs/pipeline-flow.md) — Diagramm + Tabellen zum label-getriebenen Ticket-Flows
 - [Kosten-Baseline #912](docs/kosten-baseline-912.md) — Token/Kosten eines Tickets über alle Phasen
-- [ADRs](docs/adr/) — verbindliche Grundsatzentscheidungen: [0001 Workflows ungetestet](docs/adr/0001-github-workflows-bleiben-ungetestet.md), [0002 7-Phasen-Pipeline](docs/adr/0002-pipeline-7-phasen-ux-vor-spec.md), [0003 Label-Schema](docs/adr/0003-label-schema-ai-needs-und-past.md), [0004 Analyse-getriebenes Routing](docs/adr/0004-analyse-getriebenes-routing.md), [0005 Fixup+Umsetzung = eine Phase](docs/adr/0005-fixup-und-umsetzung-sind-eine-phase.md)
+- [ADRs](docs/adr/) — verbindliche Grundsatzentscheidungen: [0001 Workflows ungetestet](docs/adr/0001-github-workflows-bleiben-ungetestet.md), [0002 7-Phasen-Pipeline](docs/adr/0002-pipeline-7-phasen-ux-vor-spec.md), [0003 Label-Schema](docs/adr/0003-label-schema-ai-needs-und-past.md), [0004 Analyse-getriebenes Routing](docs/adr/0004-analyse-getriebenes-routing.md), [0005 Fixup+Umsetzung = eine Phase](docs/adr/0005-fixup-und-umsetzung-sind-eine-phase.md), [0006 Issue-Storage = State-Branch](docs/adr/0006-issue-storage-state-branch.md)
 - [CI-Legacy-Vergleich](docs/ci-legacy-comparison.md) — Struktur-/Stabilitätsvergleich Legacy vs. aktuell
 - [Tailscale Exit Node](docs/tailscale-exit-node.md) — CI-Traffic über Tailscale-Exit-Node
 - [UX-Pattern: Sequenzielle Bestätigung](docs/ux-pattern-sequential-confirmation.md) — verbindliche Referenz für destruktive Aktionen
@@ -62,10 +62,10 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 `.claude/memory/` (nativer Claude-Code-Memory, `autoMemoryDirectory` in
 [`.claude/settings.json`](.claude/settings.json)) hat zwei Ebenen:
 
-| Datei                                   | Lebensdauer                          | Zweck                                                 |
-| --------------------------------------- | ------------------------------------ | ----------------------------------------------------- |
-| [`MEMORY.md`](.claude/memory/MEMORY.md) | dauerhaft, eingecheckt               | Erfahrungs-Log — derselbe Fehler kein zweites Mal     |
-| `issue-<N>-<phase>.md`                  | flüchtig (gitignored, Phase 7 räumt) | Soft-Abort-Resume eines Tickets: wo der Lauf aufhörte |
+| Datei                                   | Lebensdauer                                                            | Zweck                                                 |
+| --------------------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------- |
+| [`MEMORY.md`](.claude/memory/MEMORY.md) | dauerhaft, eingecheckt                                                 | Erfahrungs-Log — derselbe Fehler kein zweites Mal     |
+| `issue-<N>-<phase>.md`                  | flüchtig (lokal gitignored, Transport per State-Branch, Phase 7 räumt) | Soft-Abort-Resume eines Tickets: wo der Lauf aufhörte |
 
 **Lesen:** immer beide, `MEMORY.md` zuerst — auch beim ersten Lauf an einem Ticket.
 

@@ -42,9 +42,8 @@ permissions:
   contents: read # Claude ändert PR-Metadaten via gh, nicht den Repo-Inhalt — kein Commit mehr.
   pull-requests: write
   issues: write
-  # actions: write — fuer das Loeschen der Memory-Artefakte beim Issue-Memory-Abbau.
-  actions: write
-  # id-token: write — App-Token (setup-claude).
+  # id-token: write — App-Token (setup-claude). Branch-Deletes im Teardown laufen über
+  # dasselbe App-Token (Contents:Write der Installation), nicht über GITHUB_TOKEN.
   id-token: write
 
 env:
@@ -262,9 +261,9 @@ jobs:
         run: |
           bash .github/scripts/pr-doc-render.sh --repo "$REPO" --pr "$PR" --doc /tmp/doc.json
 
-      # Kein Memory-Save (im Gegensatz zu 01-05): der Documenter ist terminal, der nachfolgende
-      # Teardown (🧹 Issue-Memory abbau) löscht die Memory-Artefakte ohnehin. Ein Save wäre save-then-delete
-      # (redundant). Der Documenter ist terminal - Persistenz hat keine Folge-Phase mehr.
+      # Kein Issue-Storage-Save (im Gegensatz zu 01-05): der Documenter ist terminal, der
+      # nachfolgende Teardown (🧹 Issue-Storage abbau) löscht den State-Branch ohnehin. Ein
+      # Save wäre save-then-delete (redundant).
 
       - name: 🏷️ Label-Post-Assertion (ai:documented muss am PR hängen)
         # Erfolgskriterium des Documenter ist nicht ein Review-Verdict, sondern dass ai:documented
@@ -291,18 +290,13 @@ jobs:
           fi
           echo "::notice title=✅ Dokumentation abgeschlossen::PR #$PR — ai:documented gesetzt."
 
-      - name: 🧹 Issue-Memory abbauen (deterministisch)
-        # Claude pflegt seinen nativen Memory nach .claude/memory/ (autoMemoryDirectory), pro Issue
-        # persistiert als ARTEFAKT claude-memory-issue-{N} (s. setup-claude, memory-save-key).
-        # Nach Merge ist dieser Memory stale -> abbauen. Issue-Auflösung wie setup-claude: Closing-Issue,
-        # sonst PR-Nummer als Fallback. Best-Effort: ein fehlgeschlagener Delete darf den Lauf nicht
-        # abbrechen (retention-days: 14 ist der Backstop).
-        # NUR bei Job-Erfolg (kein always()): schlägt der Documenter fehl, bleibt der Memory für den
-        # Re-Run erhalten — always() würde die Vor-Phasen-Notizen vor dem Retry wegputzen.
-        #
-        # Räumt ARTEFAKTE, nicht Caches: der Cache war nie der Speicher (Cache-Writes sind für
-        # diese Trigger platform-seitig gesperrt, s. setup-claude Kopf-Kommentar), dieser Schritt
-        # lief also bisher wirkungslos gegen eine leere Liste.
+      - name: 🧹 Issue-Storage abbauen (deterministisch)
+        # ADR 0006: Der Issue-Storage ist der State-Branch ai/state/issue-{N}. Nach Merge ist
+        # er stale → löschen. Issue-Auflösung wie setup-claude: Closing-Issue, sonst PR-Nummer
+        # als Fallback. Best-Effort: ein fehlgeschlagener Delete darf den Lauf nicht abbrechen
+        # (der Hygiene-Sweep in cache-cleanup.yml ist der Backstop für Verwaiste).
+        # NUR bei Job-Erfolg (kein always()): schlägt der Documenter fehl, bleibt der Storage
+        # für den Re-Run erhalten — always() würde die Vor-Phasen-Notizen vor dem Retry wegputzen.
         if: steps.setup.outputs.configured == 'true'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
@@ -311,12 +305,16 @@ jobs:
             --jq '[.closingIssuesReferences[].number] | first' 2>/dev/null || true)"
           for ref in "$closing_issue" "$PR"; do
             if [ -z "$ref" ] || [ "$ref" = "null" ]; then continue; fi
-            while IFS= read -r aid; do
-              [ -z "$aid" ] && continue
-              gh api -X DELETE "repos/$REPO/actions/artifacts/$aid" 2>/dev/null \
-                && echo "🗑️ Memory-Artefakt $aid gelöscht" || true
-            done < <(gh api "repos/$REPO/actions/artifacts?name=claude-memory-issue-${ref}&per_page=100" \
-              --jq '.artifacts[] | select(.expired == false) | .id' 2>/dev/null || true)
+            branch="ai/state/issue-${ref}"
+            if ! gh api "repos/$REPO/git/ref/heads/$branch" >/dev/null 2>&1; then
+              echo "ℹ️ Kein State-Branch $branch vorhanden — nichts zu tun."
+              continue
+            fi
+            if gh api -X DELETE "repos/$REPO/git/refs/heads/$branch" 2>/dev/null; then
+              echo "🗑️ State-Branch $branch gelöscht"
+            else
+              echo "::warning::Löschen von $branch fehlgeschlagen (übersprungen — Hygiene-Sweep fängt ihn)"
+            fi
           done
           exit 0
 

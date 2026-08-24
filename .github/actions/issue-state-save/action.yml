@@ -1,0 +1,101 @@
+name: 'Issue-State Save'
+description: 'Issue-Storage sichern (ADR 0006): Phasen-Notizen + state.json als Fetch-then-Commit auf den State-Branch ai/state/issue-{N}. NACH dem claude-Step aufrufen — origin trägt bereits das App-Token aus setup-claude.'
+
+inputs:
+  issue-number:
+    description: 'Issue-Nummer = Storage-Key (bei PRs ohne Closing-Issue die PR-Nummer, gleiche Auflösung wie setup-claude).'
+    required: true
+  phase:
+    description: 'Phasen-Name (triage|ux|spec|implement|fixup|review) für state.json und Commit-Message.'
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: State-Branch ai/state/issue-{N} fortschreiben
+      shell: bash
+      env:
+        ISSUE_NR: ${{ inputs.issue-number }}
+        PHASE: ${{ inputs.phase }}
+        RUN_ID: ${{ github.run_id }}
+        HEAD_BRANCH: ${{ github.head_ref || github.ref_name }}
+        GIT_AUTHOR_NAME: priority-pipeline
+        GIT_AUTHOR_EMAIL: noreply@users.noreply.github.com
+        GIT_COMMITTER_NAME: priority-pipeline
+        GIT_COMMITTER_EMAIL: noreply@users.noreply.github.com
+      run: |
+        set -uo pipefail
+        STATE="ai/state/issue-${ISSUE_NR}"
+
+        # sessionId: jüngste Session-JSONL dieses Laufs (der Runner ist jungfräulich, also
+        # die zuletzt geschriebene Datei). Nur Manifest-Eintrag für Stufe 2 (ADR 0006) — der
+        # Session-Transport selbst ist in Stufe 1 NICHT aktiv.
+        session_json="null"
+        latest="$(find "$HOME/.claude/projects" -type f -name '*.jsonl' -printf '%T@\t%p\n' 2>/dev/null | sort -rn | head -n1 | cut -f2)"
+        [ -n "$latest" ] && session_json="\"$(basename "$latest" .jsonl)\""
+
+        # state.json fortschreiben — der Restore zu Laufbeginn (setup-claude) hat den
+        # Vor-Stand bereits in den Workspace geolt; phases.<phase> = letzter Lauf gewinnt.
+        state=".claude/state.json"
+        now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        entry="$(printf '{"sessionId":%s,"runId":"%s","branch":"%s","timestamp":"%s"}' \
+          "$session_json" "$RUN_ID" "$HEAD_BRANCH" "$now")"
+        if [ -f "$state" ] && jq -e . "$state" >/dev/null 2>&1; then
+          jq --arg p "$PHASE" --argjson e "$entry" '.phases[$p] = $e' "$state" > "$state.tmp" \
+            && mv "$state.tmp" "$state"
+        else
+          printf '{"phases":{"%s":%s}}\n' "$PHASE" "$entry" > "$state"
+        fi
+
+        # Commit über einen TEMP-INDEX bauen: Workspace und sein Index bleiben unberührt —
+        # die Storage-Dateien können so nie in ein Phasen-Commit des Agenten rutschen.
+        # WICHTIG: GIT_INDEX_FILE wird erst NACH dem Fetch exportiert und auf einen PFAD
+        # gesetzt, der noch nicht existiert — eine 0-Byte-Index-Datei (mktemp-Anlage) ist
+        # für Git ein ungültiger Index und lässt selbst `git fetch` still scheitern; der
+        # Save-Fallback „Branch fehlt → orphan" würde dann ab der zweiten Phase fälschlich
+        # greifen und der Push als non-FF abgelehnt (belegt per lokalem Smoke-Test).
+        idx="$(mktemp -d)/index"
+        parents=()
+        if git fetch --quiet origin "$STATE" 2>/dev/null && git rev-parse --verify -q FETCH_HEAD >/dev/null; then
+          export GIT_INDEX_FILE="$idx"
+          git read-tree "FETCH_HEAD^{tree}" # Fortschreiben: alter Branch-Stand ist die Basis
+          parents=(-p FETCH_HEAD)
+        else
+          export GIT_INDEX_FILE="$idx"
+          git read-tree --empty # Erst-Phase: eigene Wurzel (orphan), nur Storage-Pfade
+        fi
+
+        # MEMORY.md bewusst NICHT gestaged: eingechecktes Dauergedächtnis, reist in den
+        # Phasen-Commits (ADR 0006 Punkt 4). Der Branch basiert auf leerem Baum bzw. dem
+        # alten Storage-Stand — die Datei gelangt strukturell nie hinein.
+        staged=0
+        while IFS= read -r f; do
+          [ -f "$f" ] || continue
+          git update-index --add --cacheinfo "100644,$(git hash-object -w "$f"),$f"
+          staged=$((staged + 1))
+        done < <(find .claude/memory -maxdepth 1 -type f -name 'issue-*.md' 2>/dev/null; echo "$state")
+
+        if [ "$staged" -eq 0 ]; then
+          echo "::notice title=🗄️ Issue-Storage leer::Keine Phasen-Notiz vorhanden — $STATE unberührt."
+          exit 0
+        fi
+
+        tree="$(git write-tree)"
+        unset GIT_INDEX_FILE # ab hier nur noch Plumbing ohne Index; Fetch im Retry braucht ihn nicht
+        msg="state: ${PHASE} (run ${RUN_ID}, branch ${HEAD_BRANCH})"
+        commit="$(git commit-tree "$tree" ${parents[@]+"${parents[@]}"} -m "$msg")"
+
+        # Push mit Retry: non-FF (remote zwischenzeitlich bewegt, z. B. versetzter
+        # Continue-Sweep) → frisch fetchen, Baum auf den neuen HEAD re-parenten, nochmal.
+        # Der Baum ist autoritativ — Re-Parenten verliert nichts.
+        for attempt in 1 2 3; do
+          if git push --quiet origin "${commit}:refs/heads/${STATE}"; then
+            echo "::notice title=🗄️ Issue-Storage gesichert::${STATE} ← ${msg} (${staged} Datei(en))."
+            exit 0
+          fi
+          if git fetch --quiet origin "$STATE" 2>/dev/null && git rev-parse --verify -q FETCH_HEAD >/dev/null; then
+            commit="$(git commit-tree "$tree" -p FETCH_HEAD -m "$msg")"
+          fi
+        done
+        echo "::error title=❌ Issue-Storage Push fehlgeschlagen::${STATE} nach 3 Versuchen nicht aktualisiert — die Folge-Phase restored einen älteren Stand."
+        exit 1
