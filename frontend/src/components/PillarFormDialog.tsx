@@ -111,6 +111,7 @@ export const PillarFormDialog = ({ pillar, onClose, onSaved }: PillarFormDialogP
 				/>
 				<KolTextarea
 					_label="Beschreibung"
+					_rows={4}
 					_value={descriptionState}
 					_on={{
 						onInput: (_event, value) => {
