@@ -90,3 +90,4 @@ Konflikte, die er verhindern soll.
   → strict-mode violation). Baseline-Spiegel für zentrierte max-width-Seiten als Bounding-Box-Insets
   messen, nicht als computed Padding (sonst falsch bei Viewport > Seitenbreite).
 - 2026-08-23 · E2E/Viewport — `waitForStableView(page, 'Priority Pilot')` scheitert auf `/` bei ≤375px: `.app-name` ist dort per CSS versteckt (app.css:288, Banner zeigt nur Logo-Img). → Auf Hauptansicht den Default-ReadyText `Dashboard` nutzen.
+- 2026-08-24 · KoliBri/E2E — `KolInputCheckbox` rendert einen nativen `<input type="checkbox">`, dessen `aria-checked` IMPLIZIT ist (kein wörtliches Attribut) — `toHaveAttribute('aria-checked')` scheitert an „Received string: \"\"". → Zustand über `toBeChecked()`/`not.toBeChecked()` (Accessibility-Baum) prüfen; Rollen-Fallback `getByRole('switch').or(getByRole('checkbox'))`.
