@@ -129,6 +129,11 @@
 	--pp-modal-width-desktop: 44rem;
 }
 
+/* Lektorat-Buttons (#997): Gemeinsame Ausrichtungsregel für beide Buttons (Titel/Beschreibung). */
+.lektorat-button-align {
+	margin-top: var(--pp-space-4);
+}
+
 /*
  * Dunkelmodus ist gewählt, nicht gespiegelt: jede Rolle trägt einen eigenen, gegen die dunkle
  * Fläche (#161b22) gerechneten Wert. Die Säulen-Rampe ist dieselbe Hue-Folge in dunkler Stufung.
