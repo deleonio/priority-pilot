@@ -3,6 +3,7 @@ import type { Response } from 'express';
 import type { components } from '../../api';
 import {
 	activateProvider,
+	builtinModelFallback,
 	createProvider,
 	deleteProvider,
 	listProviders,
@@ -41,7 +42,7 @@ const validateCreate = (body: unknown): CreateValidation => {
 		return { ok: false, message: 'Request-Body muss ein Objekt sein.' };
 	}
 	const raw = body as Record<string, unknown>;
-	for (const field of ['name', 'endpoint', 'apiKey'] as const) {
+	for (const field of ['name', 'endpoint', 'apiKey', 'model'] as const) {
 		if (!isNonEmptyString(raw[field])) {
 			return { ok: false, message: `${field} muss ein nicht-leerer String sein.` };
 		}
@@ -55,6 +56,7 @@ const validateCreate = (body: unknown): CreateValidation => {
 			name: (raw.name as string).trim(),
 			endpoint: (raw.endpoint as string).trim(),
 			apiKey: (raw.apiKey as string).trim(),
+			model: (raw.model as string).trim(),
 		},
 	};
 };
@@ -260,38 +262,48 @@ export const createLlmProvidersRouter = (
 
 	/**
 	 * Verfügbare Modelle eines Providers: fragt dessen OpenAI-kompatiblen `GET /models`-Endpoint
-	 * ab (mit Key, falls vorhanden) und cacht das Ergebnis kurz. Upstream-Fehler → 502.
+	 * ab (mit Key, falls vorhanden) und cacht das Ergebnis kurz. Scheitert der Live-Abruf,
+	 * liefert ein Built-in mit Katalog (Mistral) diesen als `source: 'fallback'` — sonst 502.
+	 * Der Fallback wird bewusst NICHT gecacht: Der nächste Aufruf versucht wieder den Live-Abruf.
 	 */
-	router.get('/llm-providers/:id/models', async (req, res: Response<{ models: LlmModelDto[] } | ErrorDto>) => {
-		const id = parseId(req.params.id);
-		if (id === null) {
-			sendError(res, 400, 'Provider-ID muss eine positive Ganzzahl sein.');
-			return;
-		}
-		let row: LlmProvider | null;
-		try {
-			row = await LlmProvider.findByPk(id);
-		} catch {
-			sendError(res, 500, 'Interner Serverfehler.');
-			return;
-		}
-		if (row === null) {
-			sendError(res, 404, 'Provider nicht gefunden.');
-			return;
-		}
-		const cached = modelsCache.get(id);
-		if (cached !== undefined && cached.expiresAt > Date.now()) {
-			res.json({ models: cached.models });
-			return;
-		}
-		try {
-			const models = await fetchModels(toRuntimeConfig(row));
-			modelsCache.set(id, { models, expiresAt: Date.now() + MODELS_CACHE_TTL_MS });
-			res.json({ models });
-		} catch {
-			sendError(res, 502, 'Die Modellliste des Providers konnte nicht geladen werden.');
-		}
-	});
+	router.get(
+		'/llm-providers/:id/models',
+		async (req, res: Response<{ models: LlmModelDto[]; source?: string } | ErrorDto>) => {
+			const id = parseId(req.params.id);
+			if (id === null) {
+				sendError(res, 400, 'Provider-ID muss eine positive Ganzzahl sein.');
+				return;
+			}
+			let row: LlmProvider | null;
+			try {
+				row = await LlmProvider.findByPk(id);
+			} catch {
+				sendError(res, 500, 'Interner Serverfehler.');
+				return;
+			}
+			if (row === null) {
+				sendError(res, 404, 'Provider nicht gefunden.');
+				return;
+			}
+			const cached = modelsCache.get(id);
+			if (cached !== undefined && cached.expiresAt > Date.now()) {
+				res.json({ models: cached.models });
+				return;
+			}
+			try {
+				const models = await fetchModels(toRuntimeConfig(row));
+				modelsCache.set(id, { models, expiresAt: Date.now() + MODELS_CACHE_TTL_MS });
+				res.json({ models });
+			} catch {
+				const fallback = builtinModelFallback(row);
+				if (fallback !== null) {
+					res.json({ models: fallback, source: 'fallback' });
+					return;
+				}
+				sendError(res, 502, 'Die Modellliste des Providers konnte nicht geladen werden.');
+			}
+		},
+	);
 
 	return router;
 };

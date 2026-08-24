@@ -20,7 +20,12 @@ HTTP 503.
 **Modellwahl:** Die verfügbaren Modelle des aktiven Providers werden live von dessen
 OpenAI-kompatiblen `GET /models`-Endpoint geholt (`GET /llm-providers/{id}/models`) und in der
 App als Single-Select angeboten. Die Wahl persistiert am Provider; Built-ins defaulten auf das
-ENV-Modell (`MISTRAL_MODEL`/`OPENROUTER_MODEL`), solange nichts gewählt ist.
+ENV-Modell (`MISTRAL_MODEL`/`OPENROUTER_MODEL`), solange nichts gewählt ist. Die Radio-Group
+zeigt jeden Provider als „Name (Modell)“. Scheitert der Live-Abruf, liefert der Built-in Mistral
+einen eingebauten Katalog bekannter `-latest`-Modelle als Fallback (Antwort `source:
+'fallback'`, in der App gekennzeichnet) — Mistral verlangt für `/models` einen Key mit aktivem
+Abo und antwortet z. B. nach Free-Tier-Ablauf mit HTTP 402. Custom-Provider verlangen deshalb
+das Modell schon beim Anlegen; ohne Katalog bliebe ein Live-Fehler sonst ohne Wahlmöglichkeit.
 
 > **Wo der Code lebt:** [`server/src/llm/`](../server/src/llm/) — `llm.ts` (Aufruf),
 > `llmProviders.ts` (Provider-Verwaltung, Built-ins, ENV-Auflösung), `index.ts` (Barrel-Exporte).
@@ -62,20 +67,20 @@ Eingeloggte Nutzer verwalten die Provider in der App: **Einstellungen → Tab �
 - **Modell-Select:** darunter erscheint die Modellliste des aktiven Providers; die Wahl wird
   sofort gespeichert.
 - **Verwaltung:** „Neuer Provider“ legt einen Custom-Provider an (Name, Endpoint-Basis-URL,
-  API-Key). Bearbeiten/Löschen gibt es nur für Custom-Provider — Built-ins sind fix.
+  API-Key, Modell). Bearbeiten/Löschen gibt es nur für Custom-Provider — Built-ins sind fix.
 - **Status-Hinweis:** zeigt, ob die KI-Features nutzbar sind (aktiver Provider mit Key und
   Modell) oder was fehlt.
 
 Dazu gibt es die REST-API (alles hinter Login):
 
-| Endpunkt                            | Wirkung                                                                          |
-| ----------------------------------- | -------------------------------------------------------------------------------- |
-| `GET /llm-providers`                | Alle Provider inkl. effektiver Aktiv-Markierung — **ohne** API-Keys              |
-| `POST /llm-providers`               | Custom-Provider anlegen (Name, Endpoint, API-Key) — startet inaktiv, ohne Modell |
-| `PUT /llm-providers/{id}`           | Bearbeiten; für Built-ins ist nur `model` erlaubt, sonst HTTP 400                |
-| `DELETE /llm-providers/{id}`        | Custom-Provider löschen (Built-ins → HTTP 400); Fallback übernimmt               |
-| `POST /llm-providers/{id}/activate` | Genau diesen Provider aktivieren, alle anderen deaktivieren                      |
-| `GET /llm-providers/{id}/models`    | Verfügbare Modelle des Providers (Proxy auf dessen `GET /models`, kurz gecacht)  |
+| Endpunkt                            | Wirkung                                                                                                                   |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `GET /llm-providers`                | Alle Provider inkl. effektiver Aktiv-Markierung — **ohne** API-Keys                                                       |
+| `POST /llm-providers`               | Custom-Provider anlegen (Name, Endpoint, API-Key, Modell) — startet inaktiv                                               |
+| `PUT /llm-providers/{id}`           | Bearbeiten; für Built-ins ist nur `model` erlaubt, sonst HTTP 400                                                         |
+| `DELETE /llm-providers/{id}`        | Custom-Provider löschen (Built-ins → HTTP 400); Fallback übernimmt                                                        |
+| `POST /llm-providers/{id}/activate` | Genau diesen Provider aktivieren, alle anderen deaktivieren                                                               |
+| `GET /llm-providers/{id}/models`    | Verfügbare Modelle des Providers (Proxy auf dessen `GET /models`, kurz gecacht); Mistral-Fallback-Katalog bei Live-Fehler |
 
 **API-Keys sind write-only.** Sie werden nie in API-Antworten serialisiert und nie in die UI
 geladen; das Eingabefeld startet immer leer. Für Built-ins liegt der Key nie in der DB, sondern

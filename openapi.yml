@@ -1987,11 +1987,14 @@ components:
         - name
         - endpoint
         - apiKey
+        - model
       description: >-
-        Anlegen eines Custom-Providers: Name, Endpoint (gültige http(s)-URL) und
-        API-Key sind Pflicht. Der Provider startet inaktiv (Aktivierung über die
-        Radio-Auswahl) und ohne Modell (Wahl über die Modellliste des Providers).
-        Der Key wird nie zurückgegeben.
+        Anlegen eines Custom-Providers: Name, Endpoint (gültige http(s)-URL),
+        API-Key und Modell sind Pflicht. Das Modell ist bewusst schon beim
+        Anlegen Pflicht, weil der `/models`-Endpoint nicht bei jedem Anbieter
+        erreichbar/öffentlich ist — nach dem Anlegen kann es über die
+        Modellliste des Providers geändert werden. Der Key wird nie
+        zurückgegeben.
       properties:
         name:
           type: string
@@ -2004,6 +2007,9 @@ components:
         apiKey:
           type: string
           description: API-Key des Providers (Write-Only).
+        model:
+          type: string
+          description: Modellkennung, z. B. `glm-4.7` (Pflicht — Modellliste nicht immer abrufbar).
     LlmProviderUpdate:
       type: object
       description: >-
@@ -2046,13 +2052,22 @@ components:
       description: >-
         Antwort von `GET /llm-providers/{id}/models`: die verfügbaren Modelle des
         Providers, dynamisch aus dessen OpenAI-kompatibler `GET /models`-Antwort
-        ausgelesen und nach `id` sortiert.
+        ausgelesen und nach `id` sortiert. Scheitert der Live-Abruf, kann ein
+        Built-in mit Katalog (Mistral) diesen als Fallback liefern (`source:
+        'fallback'`) — stabile `-latest`-Aliasse, damit die Modellwahl möglich
+        bleibt (z. B. bei abgelaufenem Mistral-Abo, HTTP 402).
       properties:
         models:
           type: array
-          description: Verfügbare Modelle (dynamisch geladen, nie hartcodiert).
+          description: Verfügbare Modelle (live geladen; im Fallback-Fall eingebauter Katalog).
           items:
             $ref: '#/components/schemas/LlmModel'
+        source:
+          type: string
+          enum: [live, fallback]
+          description: >-
+            Herkunft der Liste: `live` (oder abwesend) = vom Provider geladen;
+            `fallback` = eingebauter Katalog, weil der Live-Abruf scheiterte.
     ReverseGeocodeResponse:
       type: object
       required:

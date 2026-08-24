@@ -17,8 +17,9 @@ interface LlmProviderFormDialogProps {
 
 /**
  * Dialog zum Anlegen (`provider === undefined`) oder Bearbeiten (`provider` gesetzt) eines
- * Custom-Providers: Name, Endpoint (http(s)-URL) und API-Key (write-only). Das Modell wird
- * bewusst NICHT hier gesetzt, sondern danach aus der Modellliste des Providers im Settings-Tab.
+ * Custom-Providers: Name, Endpoint (http(s)-URL), API-Key (write-only) und Modell. Das Modell
+ * ist Pflicht, weil der `/models`-Endpoint nicht bei jedem Anbieter abrufbar ist — nach dem
+ * Anlegen lässt es sich über die Modellliste des Providers im Settings-Tab ändern.
  * Basiert auf dem generischen `Modal` (KolDialog Variant `card`) und verwendet KoliBri-
  * Eingabefelder — Muster: `PillarFormDialog`.
  *
@@ -34,10 +35,12 @@ export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProvide
 		name: provider?.name ?? '',
 		endpoint: provider?.endpoint ?? '',
 		apiKey: '',
+		model: provider?.model ?? '',
 	});
 	const [nameState, setNameState] = useState(form.current.name);
 	const [endpointState, setEndpointState] = useState(form.current.endpoint);
 	const [apiKeyState, setApiKeyState] = useState(form.current.apiKey);
+	const [modelState, setModelState] = useState(form.current.model);
 
 	const [error, setError] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);
@@ -47,10 +50,12 @@ export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProvide
 			name: provider?.name ?? '',
 			endpoint: provider?.endpoint ?? '',
 			apiKey: '',
+			model: provider?.model ?? '',
 		};
 		setNameState(form.current.name);
 		setEndpointState(form.current.endpoint);
 		setApiKeyState(form.current.apiKey);
+		setModelState(form.current.model);
 	}, [provider]);
 
 	const submit = async (): Promise<void> => {
@@ -75,18 +80,23 @@ export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProvide
 			setError('API-Key darf beim Anlegen nicht leer sein.');
 			return;
 		}
+		const model = form.current.model.trim();
+		if (model === '') {
+			setError('Modell darf nicht leer sein — die Modellliste ist nicht bei jedem Anbieter abrufbar.');
+			return;
+		}
 
 		setError(null);
 		setSaving(true);
 		try {
 			if (isEdit && provider !== undefined) {
-				const input: LlmProviderUpdate = { name, endpoint };
+				const input: LlmProviderUpdate = { name, endpoint, model };
 				if (apiKey !== '') {
 					input.apiKey = apiKey; // Nur bei Änderung senden (leer = unverändert)
 				}
 				await api.updateLlmProvider({ id: provider.id, input });
 			} else {
-				const input: LlmProviderInput = { name, endpoint, apiKey };
+				const input: LlmProviderInput = { name, endpoint, apiKey, model };
 				await api.createLlmProvider({ input });
 			}
 			onSaved();
@@ -154,6 +164,21 @@ export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProvide
 						onChange: (_event: unknown, v: unknown) => {
 							form.current.apiKey = readString(v);
 							setApiKeyState(form.current.apiKey);
+						},
+					}}
+				/>
+				<KolInputText
+					_label="Modell"
+					_value={modelState}
+					_hint="Modellkennung, z. B. glm-4.7 — später änderbar über die Modellliste."
+					_on={{
+						onInput: (_event: unknown, v: unknown) => {
+							form.current.model = readString(v);
+							setModelState(form.current.model);
+						},
+						onChange: (_event: unknown, v: unknown) => {
+							form.current.model = readString(v);
+							setModelState(form.current.model);
 						},
 					}}
 				/>

@@ -95,6 +95,7 @@ describe('LLM-Providers API', () => {
 		name: 'z.ai',
 		endpoint: 'https://api.z.ai/v1',
 		apiKey: 'secret-key-123',
+		model: 'glm-4.7',
 	};
 
 	/** Legt einen Custom-Provider an und gibt dessen ID aus der Antwort zurück. */
@@ -176,14 +177,14 @@ describe('LLM-Providers API', () => {
 	});
 
 	// ── Custom-Provider ────────────────────────────────────────────────
-	it('Custom-Provider anlegen: ohne Modell-Feld, inaktiv, ohne Key-Rückgabe', async () => {
+	it('Custom-Provider anlegen: mit Modell (Pflicht), inaktiv, ohne Key-Rückgabe', async () => {
 		const cookie = await register('create@example.com');
 		const res = await createProvider(cookie, customPayload);
 		assert.equal(res.status, 201);
 		const created = await res.json();
 		assert.ok(!('apiKey' in created), 'Antwort darf den API-Key nicht enthalten');
 		assert.equal(created.isActive, false, 'Neuer Provider ist inaktiv (Radio entscheidet)');
-		assert.equal(created.model, '', 'Ohne Modellwahl ist model leer');
+		assert.equal(created.model, 'glm-4.7', 'Angegebenes Modell wird gespeichert');
 		assert.equal(created.kind, 'custom');
 
 		const list = await listProviders(cookie);
@@ -234,8 +235,18 @@ describe('LLM-Providers API', () => {
 
 	it('Validation: POST ohne Pflichtfelder oder mit ungültiger URL → 400', async () => {
 		const cookie = await register('validation@example.com');
-		assert.equal((await createProvider(cookie, { name: 'x', endpoint: 'ftp://nope', apiKey: 'k' })).status, 400);
-		assert.equal((await createProvider(cookie, { name: '', endpoint: 'https://a.de/v1', apiKey: 'k' })).status, 400);
+		assert.equal(
+			(await createProvider(cookie, { name: 'x', endpoint: 'ftp://nope', apiKey: 'k', model: 'm' })).status,
+			400,
+		);
+		assert.equal(
+			(await createProvider(cookie, { name: '', endpoint: 'https://a.de/v1', apiKey: 'k', model: 'm' })).status,
+			400,
+		);
+		assert.equal(
+			(await createProvider(cookie, { name: 'x', endpoint: 'https://a.de/v1', apiKey: 'k', model: '' })).status,
+			400,
+		);
 	});
 
 	// ── Modellliste ────────────────────────────────────────────────────
@@ -257,5 +268,30 @@ describe('LLM-Providers API', () => {
 	it('GET models: unbekannte ID → 404', async () => {
 		const cookie = await register('models-404@example.com');
 		assert.equal((await getModels(cookie, 99999)).status, 404);
+	});
+
+	// ── Mistral-Fallback-Katalog bei gescheitertem Live-Abruf ──────────
+	it('Mistral hat einen Fallback-Katalog mit den bekannten -latest-Modellen', async () => {
+		const cookie = await register('models-fallback@example.com');
+		const mistral = (await listProviders(cookie)).find((p) => p.name === 'Mistral');
+		assert.ok(mistral);
+
+		const { LlmProvider } = await import('../../models/index.js');
+		const { builtinModelFallback } = await import('../../llm/llmProviders.js');
+		const fallback = builtinModelFallback(await LlmProvider.findByPk(mistral.id));
+		assert.ok(fallback !== null, 'Mistral hat einen Fallback-Katalog');
+		assert.ok(
+			fallback.some((m) => m.id === 'mistral-medium-latest'),
+			'Katalog enthält mistral-medium-latest',
+		);
+	});
+
+	it('OpenRouter hat keinen Katalog — ohne Katalog bleibt ein Live-Fehler 502', async () => {
+		const cookie = await register('models-no-fallback@example.com');
+		const openrouter = (await listProviders(cookie)).find((p) => p.name === 'OpenRouter');
+		assert.ok(openrouter);
+		const { LlmProvider } = await import('../../models/index.js');
+		const { builtinModelFallback } = await import('../../llm/llmProviders.js');
+		assert.equal(builtinModelFallback(await LlmProvider.findByPk(openrouter.id)), null, 'OpenRouter ohne Katalog');
 	});
 });

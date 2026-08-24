@@ -2,7 +2,7 @@ import { describe, it, before, beforeEach, after, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import sequelize from '../database.js';
 import { parseTaskTextWithMistral, MissingApiKeyError } from './llm.js';
-import { activateProvider, createProvider, listProviders, updateProvider } from './llmProviders.js';
+import { activateProvider, createProvider, listProviders } from './llmProviders.js';
 
 /**
  * Vertrag der Provider-Auflösung im LLM-Aufruf: genau EIN Call an den effektiv aktiven
@@ -68,8 +68,8 @@ describe('LLM-Aufrufe mit aktivem Provider', () => {
 			name: 'z.ai',
 			endpoint: 'https://api.z.ai/v1',
 			apiKey: 'db-key',
+			model: 'glm-4.7',
 		});
-		await updateProvider(id, { model: 'glm-4.7' });
 		await activateProvider(id);
 		const { calls } = mockFetch();
 
@@ -126,9 +126,12 @@ describe('LLM-Aufrufe mit aktivem Provider', () => {
 		assert.match(calls[0]?.url ?? '', /openrouter\.ai/, 'Explizite Wahl schlägt Mistral-Fallback');
 	});
 
-	it('Custom-Provider ohne Modellwahl → MissingApiKeyError, kein Call', async () => {
-		const { id } = await createProvider({ name: 'keyless', endpoint: 'https://x.example.com/v1', apiKey: 'k' });
-		await activateProvider(id);
+	it('Custom-Provider ohne Modell (Legacy-Zeile) → MissingApiKeyError, kein Call', async () => {
+		// Per API nicht mehr erzeugbar (Modell ist Pflicht) — Legacy-Zeile direkt in die DB.
+		await sequelize.query(
+			'INSERT INTO llm_providers (name, endpoint, api_key, model, is_active, kind, "createdAt", "updatedAt") ' +
+				"VALUES ('Keyless', 'https://x.example.com/v1', 'k', '', 1, 'custom', datetime('now'), datetime('now'))",
+		);
 		const fetchMock = mock.method(globalThis, 'fetch', (async () => {
 			throw new Error('darf nicht aufgerufen werden');
 		}) as typeof fetch);
@@ -142,8 +145,12 @@ describe('LLM-Aufrufe mit aktivem Provider', () => {
 	});
 
 	it('Provider-Pinning per Name bleibt erhalten (Custom und Built-in)', async () => {
-		const pinned = await createProvider({ name: 'z.ai', endpoint: 'https://api.z.ai/v1', apiKey: 'db-key' });
-		await updateProvider(pinned.id, { model: 'glm-4.7' });
+		await createProvider({
+			name: 'z.ai',
+			endpoint: 'https://api.z.ai/v1',
+			apiKey: 'db-key',
+			model: 'glm-4.7',
+		});
 		process.env.MISTRAL_API_KEY = 'env-mistral-key';
 		const { calls } = mockFetch();
 
