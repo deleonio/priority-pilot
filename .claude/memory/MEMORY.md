@@ -120,3 +120,7 @@ Konflikte, die er verhindern soll.
   ausgewertet; Flags, die ein `before`-Hook setzt, sind dort garantiert noch false → der Test ist
   IMMER geskippt, auch in CI (grüner Job maskiert das: Skips zählen nicht als Fail). → Skip
   dynamisch per `t.skip(reason)` im Test-Body; `{skip}`-Option nur mit Modul-Level-Flag.
+- 2026-08-24 · Bash/gh-PR-Body — `gh pr create --body "…"` mit Klammern im Text lässt bash `(` als
+  Subshell-Start parsen → `syntax error near unexpected token '('`, exit 2 (gleiche Ursache wie der
+  Workflow-Quoting-Eintrag vom 08-19, hier im interaktiven Bash-Tool). → Body per `Write` in Datei
+  legen und `gh pr create --body-file <pfad>` nutzen.

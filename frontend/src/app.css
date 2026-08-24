@@ -1103,12 +1103,27 @@ body {
 
 .pillar-row {
 	display: grid;
-	grid-template-columns: 1fr 1fr auto;
 	gap: var(--pp-gap-tight);
-	align-items: end;
 	padding: 0.5rem;
 	border: 1px solid var(--pp-border);
 	border-radius: 0.375rem;
+	grid-template-columns: 1fr;
+	align-items: start;
+}
+
+/* Desktop: zweispaltig nebeneinander */
+@media (min-width: 769px) {
+	.pillar-row {
+		grid-template-columns: 1fr 1fr auto;
+		align-items: end;
+	}
+}
+
+/* Mobile: Entfernen-Button rechts, ≥44px Tap-Target */
+.pillar-row .kol-button {
+	justify-self: end;
+	min-width: 44px;
+	min-height: 44px;
 }
 
 /* --- Serien-Verwaltung (#142) --- */
