@@ -26,6 +26,7 @@ ABSCHLUSS:
   - Committen+pushen ist der ECHTE Fortschritt: das Workflow misst HEAD-Bewegung (neue
     Commits), um zu entscheiden, ob ein erneuter Review nötig ist. Ein "fertig"-Verdict
     ohne Commit bewirkt NICHTS — der Workflow übergibt nur bei gerücktem HEAD an Review.
+    EINZIGE Ausnahme: `already-done` (unten) für "alles erledigt, kein Commit nötig".
   - VERDICT: needs-human NUR bei Entscheidungs-Findings (Architektur/Produkt/Design,
     "Mensch entscheidet") — das ist das EINZIG verbindliche Verdict (terminal an Mensch).
     Bei needs-human: GENAU EINEN Kommentar mit erster Zeile <!-- ai-fixup-decisions -->
@@ -63,13 +64,28 @@ ABSCHLUSS:
 
 ⚠️ LABELS: KEINE Labels setzen! Workflow übernimmt das automatisch.
 
-VERDICT (nur bei Entscheidungs-Findungen, sonst KEIN Verdict — Commits entscheiden
-über Fortschritt, Review prüft neu). Bei needs-human ZWEIFACH liefern:
-REIHENFOLGE: ERST den ai-fixup-decisions-Kommentar posten (ohne ihn parkt der PR
-mit generischer Diagnose beim Menschen), DANN die Verdict-Kanäle.
-1. DATEI (primärer Kanal): `printf 'needs-human' > /tmp/claude-verdict` (Bash, als
-   ALLERLETZTE Aktion).
-2. AUSGABE (letzte Output-Zeile, Fallback-Kanal): `VERDICT: needs-human`
+VERDICT (needs-human bei Entscheidungs-Findings — terminal an Mensch; already-done
+bei "alles erledigt, kein Commit nötig" — zurück an Review; sonst KEIN Verdict —
+Commits entscheiden über Fortschritt, Review prüft neu). In beiden Fällen ZWEIFACH
+liefern. REIHENFOLGE: ERST den ai-fixup-decisions-Kommentar posten (needs-human,
+ohne ihn parkt der PR mit generischer Diagnose beim Menschen) bzw. die Begründung
+ausgeben (already-done), DANN die Verdict-Kanäle.
+1. DATEI (primärer Kanal): `printf 'needs-human' > /tmp/claude-verdict` bzw.
+   `printf 'already-done' > /tmp/claude-verdict` (Bash, als ALLERLETZTE Aktion).
+2. AUSGABE (letzte Output-Zeile, Fallback-Kanal): `VERDICT: needs-human` bzw.
+   `VERDICT: already-done`
+
+already-done — nur ausgeben, wenn ALLE Bedingungen erfüllt sind:
+- Jedes gemeldete Finding ist nachweislich in einer FRÜHEREN Runde zugehörig gelöst:
+  Review-Threads resolved, die passenden Fix-Commits existieren (SHA eruieren).
+- CI geprüft: keine roten Checks, die dieser PR verursacht (unrelated rot → 4c).
+- In DIESEM Lauf entsteht bewusst KEIN Commit — es gibt schlicht nichts zu tun.
+Begründungspflicht (im Abschluss-Output, VOR der VERDICT-Zeile — der Workflow zitiert
+genau dieses Log-Fenster im PR-Kommentar): pro Finding eine Zeile
+`Finding #<N> — gefixt in <SHA> (Runde <n>), Thread resolved`.
+Missbrauch-Schutz: Der Workflow verlangt, dass seit Laufbeginn NEUE Review-Findings
+eingetroffen sind (Sammelkommentar-Delta). Ohne Delta parkt der PR beim Menschen
+(Ping-Pong-Schutz) — already-done also nur melden, wenn es nachweislich stimmt.
 
 ZEITLIMIT: Soft-Deadline = SOFT_DEADLINE. Vor jedem Schritt: [ $(date +%s) -ge SOFT_DEADLINE ]. Bei OVER: aktuellen Stand committen+pushen, Turn beenden.
 

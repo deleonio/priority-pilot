@@ -648,6 +648,24 @@ jobs:
         if: steps.setup.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true' && steps.consume.outputs.proceed == 'true'
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
+      # Review-Baseline für das already-done-Verdict (Issue #961): id + updated_at
+      # des letzten ai-review-Sammelkommentars JETZT merken, am Laufende erneut
+      # lesen und vergleichen. Der Sammelkommentar wird über Runden FORTGESCHRIEBEN
+      # (eine Kommentar-ID, wechselndes updatedAt) — nur die ID zu merken wäre blind
+      # gegen in-place Edits. Bewusst OHNE --since: Die Baseline braucht den
+      # ungefilterten Ist-Zustand, nicht die Kommentare dieses Laufes. Als eigener
+      # Step analog head-before: Steps teilen keine env, nur outputs.
+      - name: Review-Kommentar vor Claude merken (Delta-Baseline für already-done)
+        id: review-before
+        if: steps.setup.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true' && steps.consume.outputs.proceed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          OUT="$(bash .github/scripts/needs-human-explain.sh lookup --repo "$GITHUB_REPOSITORY" --pr "$PR" --mode review || true)"
+          echo "id=$(printf '%s\n' "$OUT" | sed -n 's/^id=//p')" >> "$GITHUB_OUTPUT"
+          echo "updated=$(printf '%s\n' "$OUT" | sed -n 's/^updated_at=//p')" >> "$GITHUB_OUTPUT"
+
       - name: Findings umsetzen via Claude
         id: claude
         if: steps.setup.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true' && steps.consume.outputs.proceed == 'true'
@@ -933,61 +951,117 @@ jobs:
               echo "stuck=false" >> "$GITHUB_OUTPUT"
             fi
           else
-            # KEIN Fortschritt und kein klares needs-human-Verdict -> NICHT erneut triggern (kappt
-            # sowohl Fixup<->Fixup- als auch Review<->Fixup-Endlosloop). Terminal an Mensch
-            # via ai:needs-human + Kommentar.
-            #
-            # Erklärungs-Gate: Erst schauen, ob Claude in DIESEM Lauf einen
-            # ai-fixup-decisions-Kommentar gepostet hat — in #842 existierte er
-            # 25 s vor dem Label, wurde aber nicht referenziert. Sonst Fakten
-            # statt Vermutung (das alte "vermutlich" war geraten): Review-
-            # Kommentar verlinken + Claudes eigene Begründung aus dem Log.
-            DEC_GUARD="$(bash .github/scripts/needs-human-explain.sh lookup --repo "$GITHUB_REPOSITORY" --pr "$PR" --mode decisions --since "$SINCE_ISO")"
-            DEC_STATUS="$(printf '%s\n' "$DEC_GUARD" | sed -n 's/^status=//p')"
-            DEC_LINK="$(printf '%s\n' "$DEC_GUARD" | sed -n 's/^permalink=//p')"
-            DEC_FINDINGS="$(printf '%s\n' "$DEC_GUARD" | sed -n 's/^findings=//p')"
-            {
-              printf '%s\n\n' "🛑 **Fixup #${PR} ohne Fortschritt (Kein neuer Commit)**"
-              if [ "$DEC_STATUS" = "found" ]; then
-                printf '%s\n\n' "**Warum:** Kein neuer Commit in diesem Lauf (HEAD unverändert: \`${sha_before}\` → \`${sha_after}\`). Claude hat den Block als Entscheidungs-Finding markiert:"
-                [ -n "$DEC_FINDINGS" ] && printf '%s\n\n' "**Entscheidungs-Findings:** ${DEC_FINDINGS}"
-                printf '%s\n\n' "**Erklärung (Was/Wo/Optionen/Empfehlung):** ${DEC_LINK}"
-              else
-                REVIEW_GUARD="$(bash .github/scripts/needs-human-explain.sh lookup --repo "$GITHUB_REPOSITORY" --pr "$PR" --mode review)"
-                REVIEW_LINK="$(printf '%s\n' "$REVIEW_GUARD" | sed -n 's/^permalink=//p')"
-                RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-                printf '%s\n\n' "**Warum:** Kein neuer Commit in diesem Lauf (HEAD unverändert: \`${sha_before}\` → \`${sha_after}\`). Claudes eigene Begründung steht im Log-Auszug unten."
-                [ -n "$REVIEW_LINK" ] && printf '%s\n\n' "**Offene Findings (Review-Kommentar):** ${REVIEW_LINK}"
-                printf '%s\n\n' "**Diagnose:** Run: ${RUN_URL}"
-                printf '%s\n' "<details><summary>Log-Auszug (letzte 25 Zeilen von /tmp/claude-output.log)</summary>"
+            # KEIN Fortschritt (HEAD unverändert). Issue #961: Bevor terminal geparkt wird,
+            # ist Claudes already-done-Verdict auf Glaubwürdigkeit zu prüfen — der Review-
+            # Sammelkommentar muss seit Laufbeginn NEUE Findings geliefert haben (id/
+            # updated_at-Delta gegen die review-before-Baseline). fixup-verdict.sh kapselt
+            # die gesamte Tabelle; ohne already-done-Verdict fällt sie unverändert auf
+            # no-progress — der klassische Loop-Schutz-Pfad bleibt exakt erhalten (AK4).
+            REVIEW_NOW="$(bash .github/scripts/needs-human-explain.sh lookup --repo "$GITHUB_REPOSITORY" --pr "$PR" --mode review || true)"
+            EVAL="$(bash .github/scripts/fixup-verdict.sh evaluate \
+              --verdict "$verdict" --head-progress "$ARTIFACTS_OK" \
+              --review-id-before "${{ steps.review-before.outputs.id }}" \
+              --review-updated-before "${{ steps.review-before.outputs.updated }}" \
+              --review-id-after "$(printf '%s\n' "$REVIEW_NOW" | sed -n 's/^id=//p')" \
+              --review-updated-after "$(printf '%s\n' "$REVIEW_NOW" | sed -n 's/^updated_at=//p')")"
+            EVAL_TARGET="$(printf '%s\n' "$EVAL" | sed -n 's/^target=//p')"
+            EVAL_REASON="$(printf '%s\n' "$EVAL" | sed -n 's/^reason=//p')"
+
+            if [ "$EVAL_TARGET" = "ai:needs-review" ]; then
+              # already-done + Review-Delta (AK2): fertig gemeldet, glaubwürdig — zurück an
+              # den Review. Der bestätigt den Zustand oder widerspricht (dann setzt er
+              # ai:needs-fixup und der nächste No-Progress-Lauf fällt unten wieder korrekt
+              # in die Loop-Sicherung). Kommentar OHNE Task-Checkliste — es gibt nichts
+              # menschlich zu entscheiden; Claudes Begründung (Findings → Fix-Commits)
+              # steht im Log-Fenster vor der VERDICT:-Zeile, logtail schneidet genau das aus.
+              {
+                printf '%s\n\n' "✅ **Fixup #${PR}: bereits erledigt — erneuter Review läuft**"
+                printf '%s\n\n' "**Warum:** Claude meldet \`already-done\` (alle Findings nachweislich in früheren Runden gelöst, kein Commit nötig), und seit Laufbeginn hat der Review neue Findings geliefert (Kommentar-Delta erkannt). Der erneute Review bestätigt den Zustand — oder meldet neue Findings zurück."
+                printf '%s\n' "<details><summary>Claudes Begründung (Log-Auszug: Findings → Fix-Commits)</summary>"
                 printf '\n%s\n' '```'
                 bash .github/scripts/needs-human-explain.sh logtail
                 printf '%s\n' '```'
                 printf '%s\n\n' "</details>"
-              fi
-              printf '%s\n' "**Was du als Mensch beitragen/entscheiden solltest:**"
-              if [ "$DEC_STATUS" = "found" ]; then
-                printf '%s\n' "- [ ] 1. Begründung/Findings pruefen (oben verlinkt) — nicht-automatisierbares Finding?"
+              } > /tmp/already-done-body.md
+              bash .github/scripts/needs-human-explain.sh post --repo "$GITHUB_REPOSITORY" --pr "$PR" --body-file /tmp/already-done-body.md
+              rc=0
+              apply_transition "ai:needs-review" || rc=$?
+              if [ "$rc" -eq 2 ]; then
+                echo "stuck=true" >> "$GITHUB_OUTPUT"; echo "stuck_reason=superseded" >> "$GITHUB_OUTPUT"
+              elif [ "$rc" -eq 1 ]; then
+                exit 1
               else
-                # Kein toter Verweis: Entscheidungs-Kommentar fehlt in diesem Lauf —
-                # Review-Kommentar (falls verlinkt) und Log-Auszug sind die Quelle.
-                printf '%s\n' "- [ ] 1. Offene Findings pruefen: verlinkter Review-Kommentar / Log-Auszug — ein Entscheidungs-Kommentar fehlt in diesem Lauf"
+                echo "::notice::already-done mit Review-Delta -> Label gesetzt: ai:needs-review (erneuter Review läuft)."
+                echo "stuck=false" >> "$GITHUB_OUTPUT"
               fi
-              printf '%s\n' "- [ ] 2. Entscheidung treffen (Code anpassen / akzeptieren / Manuelles Fixup)"
-              printf '%s\n' "- [ ] 3. Label \`ai:needs-human\` entfernen"
-              printf '%s\n' "- [ ] 4. Label \`ai:needs-review\` setzen → loest erneuten Review aus"
-            } > /tmp/needs-human-body.md
-            bash .github/scripts/needs-human-explain.sh post --repo "$GITHUB_REPOSITORY" --pr "$PR" --body-file /tmp/needs-human-body.md
-            rc=0
-            apply_transition "ai:needs-human" || rc=$?
-            if [ "$rc" -eq 2 ]; then
-              echo "stuck=true" >> "$GITHUB_OUTPUT"; echo "stuck_reason=superseded" >> "$GITHUB_OUTPUT"
-            elif [ "$rc" -eq 1 ]; then
-              exit 1
             else
-              echo "::warning::Kein Fixup-Fortschritt (HEAD unverändert) -> ai:needs-human, keine Re-Armierung, Mensch prüft."
-              echo "stuck=true" >> "$GITHUB_OUTPUT"
-              echo "stuck_reason=no-progress" >> "$GITHUB_OUTPUT"
+              # KEIN Fortschritt und kein klares needs-human-Verdict -> NICHT erneut triggern (kappt
+              # sowohl Fixup<->Fixup- als auch Review<->Fixup-Endlosloop). Terminal an Mensch
+              # via ai:needs-human + Kommentar.
+              #
+              # Erklärungs-Gate: Erst schauen, ob Claude in DIESEM Lauf einen
+              # ai-fixup-decisions-Kommentar gepostet hat — in #842 existierte er
+              # 25 s vor dem Label, wurde aber nicht referenziert. Sonst Fakten
+              # statt Vermutung (das alte "vermutlich" war geraten): Review-
+              # Kommentar verlinken + Claudes eigene Begründung aus dem Log.
+              DEC_GUARD="$(bash .github/scripts/needs-human-explain.sh lookup --repo "$GITHUB_REPOSITORY" --pr "$PR" --mode decisions --since "$SINCE_ISO")"
+              DEC_STATUS="$(printf '%s\n' "$DEC_GUARD" | sed -n 's/^status=//p')"
+              DEC_LINK="$(printf '%s\n' "$DEC_GUARD" | sed -n 's/^permalink=//p')"
+              DEC_FINDINGS="$(printf '%s\n' "$DEC_GUARD" | sed -n 's/^findings=//p')"
+              {
+                printf '%s\n\n' "🛑 **Fixup #${PR} ohne Fortschritt (Kein neuer Commit)**"
+                if [ "$DEC_STATUS" = "found" ]; then
+                  printf '%s\n\n' "**Warum:** Kein neuer Commit in diesem Lauf (HEAD unverändert: \`${sha_before}\` → \`${sha_after}\`). Claude hat den Block als Entscheidungs-Finding markiert:"
+                  [ -n "$DEC_FINDINGS" ] && printf '%s\n\n' "**Entscheidungs-Findings:** ${DEC_FINDINGS}"
+                  printf '%s\n\n' "**Erklärung (Was/Wo/Optionen/Empfehlung):** ${DEC_LINK}"
+                else
+                  REVIEW_GUARD="$(bash .github/scripts/needs-human-explain.sh lookup --repo "$GITHUB_REPOSITORY" --pr "$PR" --mode review)"
+                  REVIEW_LINK="$(printf '%s\n' "$REVIEW_GUARD" | sed -n 's/^permalink=//p')"
+                  RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+                  if [ "$EVAL_REASON" = "no-review-delta" ]; then
+                    # AK3 — Ping-Pong-Schutz: already-done ist nur mit neuem Review-Delta
+                    # glaubwürdig. Der Sammelkommentar ist unverändert, also parken statt
+                    # Review→Fixup→already-done→… endlos durchzureichen.
+                    printf '%s\n\n' "**Warum:** Verdict \`already-done\`, aber der Review-Sammelkommentar ist seit Laufbeginn unverändert (kein id/updated_at-Delta, keine neuen Findings) — Ping-Pong-Schutz (Issue #961): \`already-done\` darf nicht zwei Fixup-Runden in Folge durchreichen, ohne dass der Review dazwischen etwas gemeldet hat. Claudes Begründung steht im Log-Auszug unten."
+                  else
+                    printf '%s\n\n' "**Warum:** Kein neuer Commit in diesem Lauf (HEAD unverändert: \`${sha_before}\` → \`${sha_after}\`). Claudes eigene Begründung steht im Log-Auszug unten."
+                  fi
+                  [ -n "$REVIEW_LINK" ] && printf '%s\n\n' "**Offene Findings (Review-Kommentar):** ${REVIEW_LINK}"
+                  printf '%s\n\n' "**Diagnose:** Run: ${RUN_URL}"
+                  printf '%s\n' "<details><summary>Log-Auszug (letzte 25 Zeilen von /tmp/claude-output.log)</summary>"
+                  printf '\n%s\n' '```'
+                  bash .github/scripts/needs-human-explain.sh logtail
+                  printf '%s\n' '```'
+                  printf '%s\n\n' "</details>"
+                fi
+                printf '%s\n' "**Was du als Mensch beitragen/entscheiden solltest:**"
+                if [ "$DEC_STATUS" = "found" ]; then
+                  printf '%s\n' "- [ ] 1. Begründung/Findings pruefen (oben verlinkt) — nicht-automatisierbares Finding?"
+                else
+                  # Kein toter Verweis: Entscheidungs-Kommentar fehlt in diesem Lauf —
+                  # Review-Kommentar (falls verlinkt) und Log-Auszug sind die Quelle.
+                  printf '%s\n' "- [ ] 1. Offene Findings pruefen: verlinkter Review-Kommentar / Log-Auszug — ein Entscheidungs-Kommentar fehlt in diesem Lauf"
+                fi
+                printf '%s\n' "- [ ] 2. Entscheidung treffen (Code anpassen / akzeptieren / Manuelles Fixup)"
+                printf '%s\n' "- [ ] 3. Label \`ai:needs-human\` entfernen"
+                printf '%s\n' "- [ ] 4. Label \`ai:needs-review\` setzen → loest erneuten Review aus"
+              } > /tmp/needs-human-body.md
+              bash .github/scripts/needs-human-explain.sh post --repo "$GITHUB_REPOSITORY" --pr "$PR" --body-file /tmp/needs-human-body.md
+              rc=0
+              apply_transition "ai:needs-human" || rc=$?
+              if [ "$rc" -eq 2 ]; then
+                echo "stuck=true" >> "$GITHUB_OUTPUT"; echo "stuck_reason=superseded" >> "$GITHUB_OUTPUT"
+              elif [ "$rc" -eq 1 ]; then
+                exit 1
+              else
+                echo "::warning::Kein Fixup-Fortschritt (HEAD unverändert) -> ai:needs-human, keine Re-Armierung, Mensch prüft."
+                echo "stuck=true" >> "$GITHUB_OUTPUT"
+                if [ "$EVAL_REASON" = "no-review-delta" ]; then
+                  echo "stuck_reason=already-done-stale" >> "$GITHUB_OUTPUT"
+                else
+                  echo "stuck_reason=no-progress" >> "$GITHUB_OUTPUT"
+                fi
+              fi
             fi
           fi
 
@@ -1025,6 +1099,9 @@ jobs:
                 ;;
               needs-human)
                 echo "::notice title=⏸️ Fixup wartet auf Entscheidung::PR #${PR} — verbleibende Findings nicht automatisierbar (ai:needs-human gesetzt), bitte manuell prüfen"
+                ;;
+              already-done-stale)
+                echo "::warning title=⏸️ Fixup already-done ohne Review-Delta::PR #${PR} — Verdict already-done, aber keine neuen Review-Findings seit Laufbeginn (Ping-Pong-Schutz, Issue #961), bitte manuell prüfen"
                 ;;
               superseded)
                 echo "::notice title=⏭️ Fixup abgelöst::PR #${PR} — Label-Zustand hat sich während des Laufs geändert, Schreib-Zugriff verworfen"
