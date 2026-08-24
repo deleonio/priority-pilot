@@ -79,7 +79,9 @@ test.describe('#969 Settings-Tab „Allgemein“: symmetrisches horizontales Pad
 	 *    Panel-Heading „Säulen-Gewichtung“) → `getByRole('tab', …)` (pierct Shadow-DOM).
 	 * 3. Spiegel als Bounding-Box-Insets statt computed Padding: `.settings-page` ist
 	 *    max-width 800px und zentriert — der Viewport-Inset enthält bei >832px (Playwright-
-	 *    Default 1280) den Zentrier-Margin (256 statt 16).
+	 *    Default 1280) den Zentrier-Margin (256 statt 16). Vom Border-Box-Inset wird das
+	 *    computed Padding abgezogen (Content-Box-Inset), weil die Tab-Panels im
+	 *    Content-Bereich von `.settings-page` liegen.
 	 */
 	test('AK4: Insets der Tabs „Säulen“ und „LLM“ entsprechen unverändert den .settings-page-Insets', async ({
 		page,
@@ -92,9 +94,10 @@ test.describe('#969 Settings-Tab „Allgemein“: symmetrisches horizontales Pad
 			.first()
 			.evaluate((el) => {
 				const box = el.getBoundingClientRect();
+				const cs = window.getComputedStyle(el);
 				return {
-					left: box.x,
-					right: window.innerWidth - box.right,
+					left: box.x + parseFloat(cs.paddingLeft),
+					right: window.innerWidth - box.right + parseFloat(cs.paddingRight),
 				};
 			});
 
