@@ -23,7 +23,11 @@ export const COSTS_DIR = '.costs';
  *   - ohne `phase` lässt sich der Verbrauch nicht je Pipeline-Schritt aufschlüsseln,
  *   - ohne `model`/`provider` ist ein Kostenwert nicht zuordenbar (GLM ≠ Anthropic-Preise),
  *   - ohne die Cache-Aufteilung ist `cost` aus den Token nicht rekonstruierbar (Cache-Write
- *     und Cache-Read werden mit abweichenden Faktoren berechnet, s. cost-from-transcript.ts).
+ *     und Cache-Read werden mit abweichenden Faktoren berechnet, s. cost-from-transcript.ts),
+ *   - ohne `turns` fehlt die Granularität zwischen Läufen und Token (wie viele API-Calls
+ *     brauchte der Lauf — die Kennzahl zur Bearbeitungseffizienz, Issue #984),
+ *   - ohne `valueCost` sind Läufe über zai/openrouter in USD nicht vergleichbar (cost ist
+ *     dort 0, bewertet wird der Verbrauch zu Modellklassen-Preisen, Issue #984).
  * Alt-Einträge ohne diese Felder bleiben gültig — Leser müssen sie als optional behandeln.
  */
 export type CostEntry = {
@@ -38,6 +42,8 @@ export type CostEntry = {
 	cacheCreationTokens?: number;
 	cacheReadTokens?: number;
 	sidechainTokens?: number;
+	turns?: number;
+	valueCost?: number;
 };
 
 /** Eingabe eines Runs (Issue-ID wird beim Anhängen zugewiesen). */
@@ -83,6 +89,8 @@ const toEntry = (issueId: string, input: CostInput): CostEntry => {
 	if (input.cacheCreationTokens !== undefined) entry.cacheCreationTokens = input.cacheCreationTokens;
 	if (input.cacheReadTokens !== undefined) entry.cacheReadTokens = input.cacheReadTokens;
 	if (input.sidechainTokens !== undefined) entry.sidechainTokens = input.sidechainTokens;
+	if (input.turns !== undefined) entry.turns = input.turns;
+	if (input.valueCost !== undefined) entry.valueCost = input.valueCost;
 	return entry;
 };
 

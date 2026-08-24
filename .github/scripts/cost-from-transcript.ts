@@ -52,12 +52,68 @@ export const PRICES_USD_PER_MTOK: ReadonlyArray<readonly [string, number, number
 export const CACHE_WRITE_FACTOR = 1.25;
 export const CACHE_READ_FACTOR = 0.1;
 
+/**
+ * Modellklassen mit BEWERTUNGSPREISEN in USD je 1 Mio. Token (in/out) — Issue #984.
+ *
+ * WARUM BEWERTUNGSPREISE STATT PROVIDERPREISE: `cost` bleibt die echte Abrechnungsbasis
+ * (nur Anthropic-Listenpreise, sonst 0 „Fremdtarif"). Für den Effizienzvergleich braucht
+ * es aber EINEN Maßstab über alle Provider — sonst wären über `:free`-Modelle geroutete
+ * Tickets in USD „unendlich effizient" bei vollem Tokenverbrauch. Die Klassenpreise
+ * orientieren sich an den Anthropic-Referenzstufen; bewertet wird der VERBRAUCH, nicht
+ * die Rechnung. Basis: Anthropic-Listenpreise (opus/sonnet/haiku-Stufe).
+ */
+export type ModelClass = 'flagship' | 'mid' | 'small';
+
+export const CLASS_PRICES_USD_PER_MTOK: Readonly<Record<ModelClass, readonly [number, number]>> = {
+	flagship: [5.0, 25.0],
+	mid: [3.0, 15.0],
+	small: [1.0, 5.0],
+};
+
+/** Fallback-Klasse für unbekannte Modelle — der Aufrufer warnt (gleiche Stelle wie cost). */
+export const DEFAULT_MODEL_CLASS: ModelClass = 'mid';
+
+/**
+ * Modell-Präfixe → Klasse. Schlüssel sind PRÄFIXE (längster passender gewinnt, wie
+ * PRICES_USD_PER_MTOK). Beobachtete Schreibweisen (Kosten-Artefakte 19.–24.08.2026):
+ * `glm-5.3`, `glm-5-turbo`, `glm-4.7` (zai), `claude-*`,
+ * `nvidia/nemotron-3-ultra-550b-a55b:free`, `nvidia/nemotron-3-nano-30b-a3b:free`,
+ * `moonshotai/kimi-k2.5`, `moonshotai/kimi-k2.6`, `deepseek/deepseek-v3.2`,
+ * `poolside/laguna-s-2.1:free` (openrouter). Vendor- und Bare-Formen, weil das
+ * Transkript je nach Provider beides meldet.
+ */
+export const MODEL_CLASSES: ReadonlyArray<readonly [string, ModelClass]> = [
+	// flagship
+	['claude-opus', 'flagship'],
+	['glm-5.3', 'flagship'],
+	['nvidia/nemotron-3-ultra', 'flagship'],
+	['nemotron-3-ultra', 'flagship'],
+	['moonshotai/kimi-k2.6', 'flagship'],
+	['kimi-k2.6', 'flagship'],
+	// mid
+	['claude-sonnet', 'mid'],
+	['glm-5-turbo', 'mid'],
+	['deepseek/deepseek-v3.2', 'mid'],
+	['deepseek-v3.2', 'mid'],
+	['moonshotai/kimi-k2.5', 'mid'],
+	['kimi-k2.5', 'mid'],
+	['poolside/laguna-s', 'mid'],
+	['laguna-s', 'mid'],
+	// small
+	['claude-haiku', 'small'],
+	['glm-4.7', 'small'],
+	['nvidia/nemotron-3-nano', 'small'],
+	['nemotron-3-nano', 'small'],
+];
+
 export type Usage = {
 	inputTokens: number;
 	outputTokens: number;
 	cacheCreationTokens: number;
 	cacheReadTokens: number;
 	sidechainTokens: number;
+	/** Deduplizierte Assistant-Antworten (= API-Calls) des Laufes, inkl. Subagenten. */
+	turns: number;
 	/** Modell mit dem größten Output-Anteil — das die Kosten dominierende. */
 	model: string;
 };
@@ -85,6 +141,22 @@ export function lookupPrice(model: string): readonly [string, number, number] | 
 	)[0];
 }
 
+/** Modellklasse mit dem längsten passenden Präfix, oder undefined bei unbekanntem Modell. */
+export function classifyModel(model: string): ModelClass | undefined {
+	return MODEL_CLASSES.filter(([prefix]) => model.startsWith(prefix)).sort((a, b) => b[0].length - a[0].length)[0]?.[1];
+}
+
+/** Verbrauch → USD zu gegebenen Token-Preisen (Cache-Faktoren eingerechnet). */
+const usageToUsd = (usage: Usage, inRate: number, outRate: number): number => {
+	const perToken = (tokens: number, rate: number) => (tokens / 1_000_000) * rate;
+	return (
+		perToken(usage.inputTokens, inRate) +
+		perToken(usage.cacheCreationTokens, inRate * CACHE_WRITE_FACTOR) +
+		perToken(usage.cacheReadTokens, inRate * CACHE_READ_FACTOR) +
+		perToken(usage.outputTokens, outRate)
+	);
+};
+
 /**
  * Kosten eines Verbrauchs in USD. Unbekannte Modelle (GLM über zai/openrouter) liefern
  * `undefined` — dort gelten fremde Tarife, ein mit Anthropic-Preisen gerechneter Wert
@@ -94,13 +166,18 @@ export function computeCost(usage: Usage): number | undefined {
 	const price = lookupPrice(usage.model);
 	if (!price) return undefined;
 	const [, inRate, outRate] = price;
-	const perToken = (tokens: number, rate: number) => (tokens / 1_000_000) * rate;
-	return (
-		perToken(usage.inputTokens, inRate) +
-		perToken(usage.cacheCreationTokens, inRate * CACHE_WRITE_FACTOR) +
-		perToken(usage.cacheReadTokens, inRate * CACHE_READ_FACTOR) +
-		perToken(usage.outputTokens, outRate)
-	);
+	return usageToUsd(usage, inRate, outRate);
+}
+
+/**
+ * Bewertungskosten zu Modellklassen-Preisen (Issue #984) — im Gegensatz zu `computeCost`
+ * für JEDES Modell definiert, auch `:free`: Bewertet wird der Verbrauch, nicht die
+ * Rechnung. Unbekannte Modelle zählen als `DEFAULT_MODEL_CLASS`; der Aufrufer warnt.
+ */
+export function computeValueCost(usage: Usage): number {
+	const cls = classifyModel(usage.model) ?? DEFAULT_MODEL_CLASS;
+	const [inRate, outRate] = CLASS_PRICES_USD_PER_MTOK[cls];
+	return usageToUsd(usage, inRate, outRate);
 }
 
 /**
@@ -122,6 +199,7 @@ export function sumUsage(lines: readonly string[], since?: string): Usage {
 		cacheCreationTokens: 0,
 		cacheReadTokens: 0,
 		sidechainTokens: 0,
+		turns: 0,
 		model: '',
 	};
 
@@ -141,6 +219,9 @@ export function sumUsage(lines: readonly string[], since?: string): Usage {
 		const key = parsed.message?.id ?? parsed.requestId ?? parsed.uuid;
 		if (!key || seen.has(key)) continue;
 		seen.add(key);
+		// Jede deduplizierte Antwortzeile ist genau ein API-Call — dasselbe Dedupe, das
+		// die Token vor Mehrfachzählung schützt (s. Kopf-Kommentar), liefert die Turnzahl.
+		usage.turns += 1;
 
 		const input = num(raw.input_tokens);
 		const output = num(raw.output_tokens);
@@ -252,12 +333,19 @@ export function main(argv: readonly string[] = process.argv.slice(2)): number {
 			`cost-from-transcript: unbekanntes Modell '${usage.model}' — cost=0 (Fremdtarif, s. PRICES_USD_PER_MTOK)\n`,
 		);
 	}
+	if (usage.model && classifyModel(usage.model) === undefined) {
+		process.stderr.write(
+			`cost-from-transcript: unbekanntes Modell '${usage.model}' — valueCost zur Default-Klasse '${DEFAULT_MODEL_CLASS}' bewertet (s. MODEL_CLASSES)\n`,
+		);
+	}
+	const valueCost = computeValueCost(usage);
 
 	const input: CostInput = {
 		timestamp: new Date().toISOString(),
 		tokensIn,
 		tokensOut: usage.outputTokens,
 		cost: computed ?? 0,
+		valueCost,
 		cacheCreationTokens: usage.cacheCreationTokens,
 		cacheReadTokens: usage.cacheReadTokens,
 	};
@@ -267,10 +355,11 @@ export function main(argv: readonly string[] = process.argv.slice(2)): number {
 	if (provider) input.provider = provider;
 	if (usage.model) input.model = usage.model;
 	if (usage.sidechainTokens > 0) input.sidechainTokens = usage.sidechainTokens;
+	if (usage.turns > 0) input.turns = usage.turns;
 
 	appendCostRecord(issue, input, { rootDir: flag(argv, 'root-dir') });
 	process.stdout.write(
-		`tokensIn=${tokensIn}\ntokensOut=${usage.outputTokens}\ncost=${(computed ?? 0).toFixed(4)}\nmodel=${usage.model}\n`,
+		`tokensIn=${tokensIn}\ntokensOut=${usage.outputTokens}\nturns=${usage.turns}\ncost=${(computed ?? 0).toFixed(4)}\nvalueCost=${valueCost.toFixed(4)}\nmodel=${usage.model}\n`,
 	);
 	return 0;
 }
