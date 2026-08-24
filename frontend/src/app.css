@@ -1403,6 +1403,53 @@ body {
 }
 
 /*
+ * #971: Switch-Zeilen im Tab „Allgemein" — mobil (<768px, Default) volle Breite im Stack-Layout
+ * (Switch oben, zugehöriger Alert darunter), desktop (≥768px) eine Zeile (Switch links, Alert
+ * rechtsbündig via `margin-left: auto`). Der KoliBri-Host ist unteilbar (Shadow-DOM ohne
+ * CSS-Parts), das Layout wird daher ausschließlich über das Host-Wrapper-Element gesteuert.
+ *
+ * Full-Bleed-Trick: `.settings-general` trägt `padding-inline: 1.5rem` (#843/#969). Negative
+ * `margin-inline` + inneres `padding-inline` lassen die Zeile die gesamte Container-Breite
+ * (inkl. Padding) einnehmen, OHNE die Control-Position zu verschieben — der Switch bleibt bei
+ * seinem 24dp-linken-Margin-Alignment und die Hint-Breite ändert sich nicht.
+ */
+.settings-switch-row {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem; /* 8dp */
+	width: auto;
+	margin-inline: -1.5rem;
+	padding-inline: 1.5rem;
+	box-sizing: border-box;
+}
+
+@media (min-width: 768px) {
+	.settings-switch-row {
+		flex-direction: row;
+		align-items: center;
+		gap: 1rem; /* 16dp */
+	}
+
+	/*
+	 * Der KoliBri-Switch-Host ist block-level und füllt als Flex-Item sonst die komplette
+	 * Zeile (width: auto → 100%) — der Alert würde dabei auf seine min-content-Breite
+	 * zerquetscht (schmaler, extrem hoher Textblock). Deterministische Aufteilung statt
+	 * `flex-shrink: 0` (Ticket-CSS): Switch erhält 60%-Basis und darf wachsen/schrumpfen
+	 * (`min-width: 0`), Alert 40% Basis — ohne Alert füllt der Switch weiter die volle Breite.
+	 */
+	.settings-switch-row kol-input-checkbox[_variant='switch'] {
+		flex: 1 1 60%;
+		min-width: 0;
+	}
+
+	.settings-switch-row kol-alert {
+		margin-left: auto; /* Alert nach rechts schieben */
+		flex: 0 1 40%;
+		max-width: 60%; /* Platzbegrenzung für Alert-Text (Ticket-Vorgabe) */
+	}
+}
+
+/*
  * #843 AK3: Typografie für deskriptiven Text.
  * Wir setzen --pp-text-muted auf #616161 für besseren Kontrast.
  * --pp-text-hint-font-size garantiert ≥16sp für deskriptive Texte.
