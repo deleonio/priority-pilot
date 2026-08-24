@@ -14,10 +14,8 @@ import { seriesRouter } from './routes/series.js';
 import { authRouter } from './routes/auth.js';
 import { transitRouter } from './routes/transit.js';
 import { createPushRouter } from './routes/push.js';
-import { llmConfigRouter } from './routes/llmConfig.js';
-import { llmProvidersRouter } from './routes/llmProviders.js';
-import { createFreeModelsRouter } from './routes/freeModels.js';
-import type { FetchFreeModels } from './routes/freeModels.js';
+import { createLlmProvidersRouter } from './routes/llmProviders.js';
+import type { FetchProviderModels } from './routes/llmProviders.js';
 import { lektoratRouter } from './routes/lektorat.js';
 import { reverseGeocodeRouter } from './routes/reverseGeocode.js';
 import { handleServerError } from './server-error-handler.js';
@@ -41,8 +39,8 @@ export interface AppDeps {
 	activityAdvisor?: ActivityAdvisor;
 	sessionStore?: Store;
 	pushSender?: PushSender;
-	/** Upstream für `GET /models/free` (#742) — Tests injizieren hieran einen deterministischen Mock. */
-	fetchFreeModels?: FetchFreeModels;
+	/** Upstream für `GET /llm-providers/{id}/models` — Tests injizieren hieran einen Mock. */
+	fetchProviderModels?: FetchProviderModels;
 }
 
 export const createApp = (deps: AppDeps = {}) => {
@@ -208,16 +206,10 @@ export const createApp = (deps: AppDeps = {}) => {
 	// Bewusst kein client-aufrufbarer „send"-Endpunkt — der Versand läuft server-intern (logics/push.ts).
 	app.use(createPushRouter(deps.pushSender));
 
-	// LLM-Provider-Konfiguration (#640): Keys/Modell der Mistral/OpenRouter-Kaskade lesen/speichern.
-	app.use(llmConfigRouter);
-
-	// Single-Provider-Verwaltung (#951): dynamische Provider (CRUD + activate) — Ablösung der
-	// festen Kaskade; die Kaskade bleibt als Fallback bestehen, solange kein Provider aktiv ist.
-	app.use(llmProvidersRouter);
-
-	// Aktuelle kostenlose OpenRouter-Modelle (#742) für die Frontend-Auswahl — hinter requireAuth,
-	// damit der Server kein öffentlicher OpenRouter-Proxy ist (Session-Pflicht wie bei /llm-config).
-	app.use(createFreeModelsRouter(deps.fetchFreeModels));
+	// Provider-Verwaltung: Custom-Provider (CRUD + activate), fixe Built-ins (Mistral/
+	// OpenRouter, Key aus ENV) sowie deren Modelllisten — alles hinter requireAuth, damit der
+	// Server kein öffentlicher Provider-Proxy ist.
+	app.use(createLlmProvidersRouter(deps.fetchProviderModels));
 
 	// Reverse Geocoding: Koordinaten → Adresse (Issue #866).
 	app.use('/reverse-geocode', reverseGeocodeRouter);

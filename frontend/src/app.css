@@ -413,6 +413,13 @@ body {
 /* --- Dashboard --- */
 
 /* Personalisierte Begrüßung zwischen H2 und Kennzahlen-Kacheln. */
+.dashboard-heading {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--pp-gap-tight);
+}
+
 .dashboard-greeting {
 	margin: 0.25rem 0 0;
 	font-size: 1.125rem;
@@ -1752,73 +1759,6 @@ kol-input-range {
 }
 
 /* --- #742: Auswahl der OpenRouter-Free-Modelle --- */
-/* Überschriftenzeile des Dashboards: Titel links, KI-Modell-Button rechts in derselben Zeile. */
-.dashboard-heading {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: var(--pp-gap-tight);
-}
-
-/* Aktuell gewähltes Modell über der Liste (role=status → Screenreader-Ansage bei Wechsel). */
-.model-selection-current {
-	margin: 0 0 0.75rem;
-	font-weight: 600;
-}
-
-/* Scrollbare Liste der Free-Modelle — viele Modelle sprengen sonst den Dialog. */
-.model-selection-list {
-	list-style: none;
-	padding: 0;
-	margin: 0;
-	display: flex;
-	flex-direction: column;
-	gap: var(--pp-gap-tight);
-	max-height: 22rem;
-	overflow-y: auto;
-}
-
-/* Ein Modelleintrag als vollflächiger nativer Button (Anzeigename + Kennung darunter). */
-.model-selection-item-button {
-	display: flex;
-	flex-direction: column;
-	gap: 0.125rem;
-	width: 100%;
-	padding: 0.5rem 0.75rem;
-	border: 1px solid var(--pp-border);
-	border-radius: 0.375rem;
-	background: var(--pp-bg);
-	cursor: pointer;
-	text-align: left;
-	font: inherit;
-	color: var(--pp-text);
-}
-
-.model-selection-item-button:hover {
-	background: var(--pp-bg-muted);
-}
-
-/* Gewähltes Modell: Akzentrahmen statt nur aria-pressed (auch visuell erkennbar). */
-.model-selection-item-button[aria-pressed='true'] {
-	border-color: var(--pp-accent-open);
-	background: var(--pp-bg-muted);
-}
-
-.model-selection-item-name {
-	font-weight: 600;
-}
-
-.model-selection-item-id {
-	color: var(--pp-text-muted);
-	font-size: 0.875rem;
-}
-
-/* Metadaten-Zeile: Kontext-Größe + Model-Größe, durch "·" getrennt (#862). */
-.model-selection-item-meta {
-	color: var(--pp-text-muted);
-	font-size: 0.75rem;
-}
-
 /* --- Checkliste (Issue #728) --- */
 /* Checklist-Editor: vertikale Flex-Kolumne; Abstände ausschließlich über Gap. */
 .checklist-editor {
@@ -1880,28 +1820,6 @@ kol-input-range {
 	gap: var(--pp-gap-base); /* 16dp Section-Abstand, wie `.settings-general` */
 }
 
-/* Input-Group für API-Key + X-Button nebeneinander. */
-.llm-key-input-group {
-	display: flex;
-	align-items: center;
-	gap: var(--pp-gap-tight);
-}
-
-/*
- * #972 AK2: Der KoliBri-Host ist block-level (`width: auto` = 100 %) und darf als Flex-Kind
- * wachsen UND schrumpfen — `min-width: 0` verhindert, dass der Host seine Inhalts-Mindestbreite
- * in die Zeile drückt und den Tab horizontal überlaufen lässt (WCAG 1.4.10 Reflow). Der
- * X-Button behält sein fixes 44×44px-Mass und wird nicht verdrängt.
- */
-.llm-key-input-group > kol-input-password {
-	flex: 1 1 auto;
-	min-width: 0;
-}
-
-.llm-key-input-group > .llm-key-x-button {
-	flex: 0 0 auto;
-}
-
 /* Modell-Select Container für konsistentes Layout. */
 .llm-model-select {
 	display: flex;
@@ -1909,64 +1827,15 @@ kol-input-range {
 	gap: var(--pp-gap-tight);
 }
 
-.llm-model-select label {
-	font-weight: 600;
-	font-size: 0.875rem;
-}
-
-.llm-model-select select {
-	padding: 0.5rem;
-	border: 1px solid var(--pp-border);
-	border-radius: 0.375rem;
-	background: var(--pp-bg);
-	color: var(--pp-text);
-	font: inherit;
-	min-height: 2.75rem; /* 44px WCAG minimum */
-	/* Ohne `min-width: 0` erbt das Select seine automatische Mindestbreite von der längsten
-	   Modell-Option (~708px). Diese Mindestbreite wandert über das Grid von `kol-tabs` nach oben
-	   und dehnt das gesamte Panel — der „Speichern"-Button landet dann außerhalb des Viewports
-	   (#886). `width: 100%` + `box-sizing` halten das Feld stattdessen in der Spaltenbreite. */
+/* Modellwahl als KolSingleSelect: Label/Hint liefert die Komponente selbst (Shadow-DOM).
+   Ohne `min-width: 0` gibt der Host die automatische Mindestbreite der längsten Modell-Option
+   (~708px) an das Grid von `kol-tabs` weiter und dehnt das gesamte Panel — der „Speichern"-
+   Button landet dann außerhalb des Viewports (#886). `width: 100%` + `min-width: 0` am Host
+   halten das Feld stattdessen in der Spaltenbreite. */
+.llm-model-select kol-single-select {
+	display: block;
 	width: 100%;
 	min-width: 0;
-	box-sizing: border-box;
-}
-
-/* X-Button: WCAG 2.5.5 Min 44×44px, ideal 48×48px für Mobile-Touch. */
-.llm-key-x-button {
-	width: 2.75rem; /* 44px */
-	height: 2.75rem; /* 44px */
-	min-width: 2.75rem;
-	min-height: 2.75rem;
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	padding: 0;
-	border: 1px solid var(--pp-border);
-	border-radius: 0.25rem;
-	background: var(--pp-bg);
-	cursor: pointer;
-	font-size: 1.25rem;
-	color: var(--pp-text-muted);
-	transition:
-		color 0.15s ease,
-		background-color 0.15s ease,
-		border-color 0.15s ease;
-}
-
-.llm-key-x-button:hover:not(:disabled) {
-	color: var(--pp-text);
-	background: var(--pp-bg-muted);
-	border-color: var(--pp-accent-open);
-}
-
-.llm-key-x-button:focus-visible {
-	outline: 2px solid var(--pp-accent-open);
-	outline-offset: 2px;
-}
-
-.llm-key-x-button:disabled {
-	opacity: 0.5;
-	cursor: not-allowed;
 }
 
 /* --- Issue #866: Geo-Address --- */

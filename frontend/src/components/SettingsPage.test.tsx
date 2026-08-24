@@ -34,7 +34,7 @@ vi.mock('../lib/useGeolocation', () => ({
 }));
 
 // api-Double: Proxy beantwortet jede Methode mit einem leeren Promise — verhindert
-// Netzwerk-Calls aus SettingsPage und eingebetteten Formularen (PillarList, LlmSettingsForm).
+// Netzwerk-Calls aus SettingsPage und eingebetteten Formularen (PillarList, LlmSettings).
 vi.mock('../api', () => ({
 	api: new Proxy(
 		{},

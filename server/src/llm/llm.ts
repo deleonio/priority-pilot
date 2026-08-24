@@ -5,7 +5,7 @@
  *
  */
 
-import { findProviderByName, loadActiveProvider } from './llmProviders.js';
+import { findProviderByName, loadActiveProvider, toRuntimeConfig } from './llmProviders.js';
 import type { LlmProvider as LlmProviderRow } from '../models/index.js';
 
 /** Eine vorgeschlagene Säulen-Einzahlung: Säulen-ID plus Konfidenz in Prozent (0–100). */
@@ -62,9 +62,9 @@ export type ParseTaskParser = (text: string, provider?: LlmProvider) => Promise<
 
 /**
  * Optionaler Provider-Pinning für den LLM-Test-Schalter (#749) und dynamische Provider (#951).
- * - Jeder String: Name eines konfigurierten Providers (`llm_providers`, #951; Auflösung
- *   Case-insensitiv — die Legacy-Namen 'mistral'/'openrouter' sind darin aufgegangen).
- * - `undefined`: der aktive Provider aus `llm_providers`.
+ * - Jeder String: Name eines konfigurierten Providers (`llm_providers`, inkl. der Built-ins
+ *   „Mistral“/„OpenRouter“; Auflösung Case-insensitiv).
+ * - `undefined`: der effektiv aktive Provider (explizite Wahl oder Built-in-Fallback).
  */
 export type LlmProvider = string | undefined;
 
@@ -92,10 +92,6 @@ interface ProviderConfig {
 	label: string;
 }
 
-/** Basis-URL der OpenRouter-API — auch `GET /models/free` (#742) fragt sie ab (modellisten-Call braucht keinen Key). */
-export const DEFAULT_OPENROUTER_API_URL = 'https://openrouter.ai/api/v1';
-/** Default-Modell der OpenRouter-Stufe — zugleich der Anzeige-Default von `GET /llm-config` (#640). */
-export const DEFAULT_OPENROUTER_MODEL = 'openrouter/free';
 const REQUEST_TIMEOUT_MS = 30_000;
 
 /**
@@ -365,22 +361,25 @@ const callProvider = async (
 	return parseModelContent(payload);
 };
 
-/** ProviderConfig aus einer dynamischen `llm_providers`-Zeile (#951). */
-const toDynamicProviderConfig = (provider: LlmProviderRow): ProviderConfig => ({
-	endpoint: provider.endpoint,
-	apiKey: provider.apiKey || undefined,
-	model: provider.model,
-	label: provider.name,
-});
+/** ProviderConfig aus einer `llm_providers`-Zeile — Built-ins lösen ENV-Werte auf (llmProviders.ts). */
+const toDynamicProviderConfig = (provider: LlmProviderRow): ProviderConfig => {
+	const runtime = toRuntimeConfig(provider);
+	return {
+		endpoint: runtime.chatEndpoint,
+		apiKey: runtime.apiKey || undefined,
+		model: runtime.model,
+		label: runtime.label,
+	};
+};
 
 /**
- * Provider-Auflösung (#951): GENAU EIN Provider pro Anfrage.
+ * Provider-Auflösung: GENAU EIN Provider pro Anfrage.
  *
  * - `pinned` gesetzt: der gleichnamige DB-Provider (Case-insensitiv, Query-Pinning #749).
- * - `pinned` leer: der aktive DB-Provider (Radio-Button-Auswahl).
+ * - `pinned` leer: der effektiv aktive Provider (explizite Wahl oder Built-in-Fallback).
  *
  * `null` = kein Provider im Spiel (nicht konfiguriert oder Tabelle fehlt) → Aufrufer
- * wirft {@link MissingApiKeyError} (HTTP 503). Eine Kaskade/Fallback gibt es nicht mehr.
+ * wirft {@link MissingApiKeyError} (HTTP 503).
  */
 const resolveProvider = async (pinned?: LlmProvider): Promise<LlmProviderRow | null> => {
 	try {
@@ -397,14 +396,17 @@ const requestModelJson = async (
 	messages: { role: string; content: string }[],
 	provider?: LlmProvider,
 ): Promise<unknown> => {
-	// Single-Provider (#951): GENAU EIN Call an den aufgelösten Provider — keine Kaskade,
-	// kein Verfeinerungs-Schritt, kein Fallback auf einen anderen Provider.
+	// GENAU EIN Call an den aufgelösten Provider — keine Kaskade, kein Provider-Fallback.
 	const resolved = await resolveProvider(provider);
 	if (resolved === null) {
 		throw new MissingApiKeyError('kein aktiver Provider', 'LLM_PROVIDERS');
 	}
-	if (!resolved.apiKey) {
-		throw new MissingApiKeyError(resolved.name, `API-Key von ${resolved.name}`);
+	const runtime = toRuntimeConfig(resolved);
+	if (!runtime.apiKey) {
+		throw new MissingApiKeyError(runtime.label, runtime.keySource);
+	}
+	if (!runtime.model) {
+		throw new MissingApiKeyError(resolved.name, `Modell von ${resolved.name}`);
 	}
 	return callProvider(toDynamicProviderConfig(resolved), messages);
 };

@@ -1,13 +1,22 @@
 import { col, fn, where } from 'sequelize';
-import { LlmConfig, LlmProvider } from '../models/index.js';
+import { LlmProvider } from '../models/index.js';
 
 /**
- * Service-Schicht des Single-Provider-Systems (#951): CRUD + Aktivierung der
- * `llm_providers`-Zeilen plus Lazy-Migration der Legacy-`llm_configs`-Keys.
+ * Service-Schicht des Provider-Systems: CRUD + Aktivierung der `llm_providers`-Zeilen,
+ * dazu die zwei fest eingebauten Provider „Mistral“ und „OpenRouter“.
  *
- * Die Serialisierung lässt `apiKey` bewusst ALWAYS weg (Write-Only, Spec
- * „Sicherheit") — weder das Feld noch der Wert dürfen je eine API-Antwort
- * erreichen.
+ * Built-ins sind normale Zeilen (`kind='builtin'`) — so funktionieren Radio-Auswahl und
+ * Modell-Persistenz über die bestehende Tabelle. Ihre Verbindungswerte (Endpoint, Key,
+ * Default-Modell) stehen bewusst NICHT in der DB, sondern werden zur Laufzeit aus den
+ * ENV-Variablen aufgelöst: `endpoint`/`apiKey` bleiben leer, `model` ist leer, solange der
+ * Nutzer kein Modell gewählt hat.
+ *
+ * Fallback: Ist kein Custom-Provider aktiv (nie gewählt oder aktiver gelöscht), übernimmt
+ * automatisch einer der Built-ins — Mistral, wenn `MISTRAL_API_KEY` gesetzt ist, sonst
+ * OpenRouter. Ohne jeden ENV-Key ist kein Provider aktiv (LLM-Endpunkte antworten 503).
+ *
+ * Die Serialisierung lässt `apiKey` bewusst ALWAYS weg (Write-Only) — weder das Feld noch
+ * der Wert dürfen je eine API-Antwort erreichen.
  */
 
 /** Provider ohne API-Key — die einzige Form, die die API je ausgibt. */
@@ -17,15 +26,17 @@ interface LlmProviderDto {
 	endpoint: string;
 	model: string;
 	isActive: boolean;
+	/** 'custom' = frei verwaltbar, 'builtin' = fix (Mistral/OpenRouter, Key aus ENV). */
+	kind: 'custom' | 'builtin';
+	/** Ob ein Key vorhanden ist (Built-in: ENV gesetzt; Custom: DB-Key gesetzt). */
+	hasApiKey: boolean;
 }
 
 interface LlmProviderCreateInput {
 	name: string;
 	endpoint: string;
 	apiKey: string;
-	model: string;
 }
-
 /** Alle Felder optional; `apiKey` nur bei nicht-leerem String gesetzt (Bearbeiten-Dialog startet leer). */
 interface LlmProviderUpdateInput {
 	name?: string;
@@ -34,75 +45,202 @@ interface LlmProviderUpdateInput {
 	model?: string;
 }
 
-const toDto = (provider: LlmProvider): LlmProviderDto => ({
-	id: provider.id,
-	name: provider.name,
-	endpoint: provider.endpoint,
-	model: provider.model,
-	isActive: provider.isActive,
-});
+/** Definition eines fest eingebauten Providers — alle Werte stammen aus ENV/Code, nie aus der DB. */
+interface BuiltinDefinition {
+	key: 'mistral' | 'openrouter';
+	name: string;
+	/** ENV-Variable mit dem API-Key. */
+	envKey: string;
+	/** ENV-Variable mit der Basis-URL (optional). */
+	envUrl: string;
+	/** Code-Default der Basis-URL (OpenAI-kompatibel, ohne `/chat/completions`). */
+	defaultUrl: string;
+	/** ENV-Variable mit dem Default-Modell (optional). */
+	envModel: string;
+	/** Code-Default des Modells, wenn weder DB-Wahl noch ENV vorliegen. */
+	defaultModel: string;
+}
+
+/** Die zwei fixen Provider — Reihenfolge = Fallback-Priorität (Mistral vor OpenRouter). */
+const BUILTIN_DEFINITIONS: readonly BuiltinDefinition[] = [
+	{
+		key: 'mistral',
+		name: 'Mistral',
+		envKey: 'MISTRAL_API_KEY',
+		envUrl: 'MISTRAL_API_URL',
+		defaultUrl: 'https://api.mistral.ai/v1',
+		envModel: 'MISTRAL_MODEL',
+		defaultModel: 'mistral-medium-latest',
+	},
+	{
+		key: 'openrouter',
+		name: 'OpenRouter',
+		envKey: 'OPENROUTER_API_KEY',
+		envUrl: 'OPENROUTER_API_URL',
+		defaultUrl: 'https://openrouter.ai/api/v1',
+		envModel: 'OPENROUTER_MODEL',
+		defaultModel: 'openrouter/free',
+	},
+] as const;
+
+/** Liefert die Definition eines Built-ins — wirft bei unbekanntem Schlüssel (DB-Korruption). */
+const builtinDefinition = (key: string | null): BuiltinDefinition => {
+	const definition = BUILTIN_DEFINITIONS.find((entry) => entry.key === key);
+	if (definition === undefined) {
+		throw new Error(`Unbekannter builtin-Provider-Schlüssel: ${String(key)}`);
+	}
+	return definition;
+};
 
 /**
- * Migriert die Legacy-Kaskaden-Konfiguration (#640) einmalig in Provider-Einträge:
- * Ist die `llm_providers`-Tabelle leer UND steht eine `llm_configs`-Zeile mit Keys,
- * werden „Mistral“ (aktiv, wenn Mistral-Key vorhanden) und „OpenRouter“ (inaktiv)
- * angelegt. Env-Variablen migrieren bewusst NICHT — nur persistierte Bestandsdaten
- * (Spec: „Bestehende LlmConfig-Daten werden migriert“; Env bleibt Legacy-Fallback
- * der Kaskade, kein Bestand im Sinne der Migration).
- *
- * Lazy statt beim Boot: `startTestServer` bootet die App ohne Migrations-Hook —
- * die Migration hängt damit am ersten Lesezugriff und ist in jedem Prozesszustand
- * (inkl. frisch gesyncter Test-DBs) deterministisch. Fehler (Tabelle existiert
- * noch nicht, z. B. Unit-Tests ohne DB-Sync) sind No-Ops.
+ * Der Fallback-Built-in: Mistral, wenn dessen ENV-Key gesetzt ist, sonst OpenRouter —
+ * `null`, wenn kein Built-in konfiguriert ist (dann ist ohne aktiven Custom-Provider
+ * gar kein Provider aktiv und LLM-Aufrufe antworten 503).
  */
-const migrateLegacyLlmConfig = async (): Promise<void> => {
+const builtinFallbackKey = (): 'mistral' | 'openrouter' | null => {
+	if (process.env.MISTRAL_API_KEY !== undefined && process.env.MISTRAL_API_KEY !== '') return 'mistral';
+	if (process.env.OPENROUTER_API_KEY !== undefined && process.env.OPENROUTER_API_KEY !== '') return 'openrouter';
+	return null;
+};
+
+/** Entfernt einen `/chat/completions`-Suffix und abschließende Slashes → OpenAI-kompatible Basis-URL. */
+const toBaseUrl = (endpoint: string): string => endpoint.replace(/\/chat\/completions\/?$/, '').replace(/\/+$/, '');
+
+/**
+ * Laufzeit-Konfiguration eines Providers für LLM- und Modelllisten-Aufrufe.
+ * Built-ins lösen Endpoint/Key/Modell aus den ENV-Variablen auf; bei Custom-Providern
+ * wird eine evtl. gespeicherte vollständige Chat-Completions-URL (Legacy-Bestand aus #951)
+ * für den Chat-Call unverändert verwendet und nur für die Modellliste auf die Basis-URL
+ * gekürzt.
+ */
+export interface ProviderRuntime {
+	/** Basis-URL (OpenAI-kompatibel) — Modellliste: `{baseUrl}/models`. */
+	baseUrl: string;
+	/** Chat-Completions-Endpoint für LLM-Aufrufe. */
+	chatEndpoint: string;
+	/** API-Key ('' = nicht gesetzt). */
+	apiKey: string;
+	/** Modell ('' = keins gewählt — nur bei Custom-Providern möglich). */
+	model: string;
+	/** Anzeigename für Fehlermeldungen. */
+	label: string;
+	/** Kennung der Key-Quelle für 503-Meldungen (ENV-Name oder „API-Key von X"). */
+	keySource: string;
+}
+
+/** Löst die effektive Laufzeit-Konfiguration einer Provider-Zeile auf (ENV für Built-ins). */
+export const toRuntimeConfig = (provider: LlmProvider): ProviderRuntime => {
+	if (provider.kind === 'builtin') {
+		const definition = builtinDefinition(provider.builtinKey);
+		const baseUrl = (process.env[definition.envUrl] || definition.defaultUrl).replace(/\/+$/, '');
+		return {
+			baseUrl,
+			chatEndpoint: `${baseUrl}/chat/completions`,
+			apiKey: process.env[definition.envKey] ?? '',
+			model: provider.model || process.env[definition.envModel] || definition.defaultModel,
+			label: provider.name,
+			keySource: definition.envKey,
+		};
+	}
+	const baseUrl = toBaseUrl(provider.endpoint);
+	return {
+		baseUrl,
+		chatEndpoint: provider.endpoint.endsWith('/chat/completions') ? provider.endpoint : `${baseUrl}/chat/completions`,
+		apiKey: provider.apiKey,
+		model: provider.model,
+		label: provider.name,
+		keySource: `API-Key von ${provider.name}`,
+	};
+};
+
+/**
+ * Legt die zwei Built-in-Zeilen lazy an, falls sie fehlen (frische DB, später dazugekommene
+ * Spalten o. Ä.). Fehler (Tabelle existiert noch nicht, z. B. Unit-Tests ohne DB-Sync) sind
+ * No-Ops — dann bleibt der Aufrufer bei „kein Provider“.
+ */
+const ensureBuiltins = async (): Promise<void> => {
 	try {
-		if ((await LlmProvider.count()) > 0) {
-			return;
-		}
-		const legacy = await LlmConfig.findOne({ order: [['id', 'ASC']] });
-		if (legacy === null) {
-			return;
-		}
-		if (legacy.mistralApiKey) {
-			await LlmProvider.create({
-				name: 'Mistral',
-				endpoint: 'https://api.mistral.ai/v1/chat/completions',
-				apiKey: legacy.mistralApiKey,
-				model: 'mistral-medium-latest',
-				isActive: true, // Default: Mistral ist aktiv, wenn vorhanden (Spec Migration)
-			});
-		}
-		if (legacy.openrouterApiKey) {
-			const mistralAlreadyActive = legacy.mistralApiKey !== '';
-			await LlmProvider.create({
-				name: 'OpenRouter',
-				endpoint: 'https://openrouter.ai/api/v1/chat/completions',
-				apiKey: legacy.openrouterApiKey,
-				model: 'openrouter/free',
-				isActive: !mistralAlreadyActive, // Ohne Mistral-Key ist OpenRouter der einzige Kandidat.
-			});
+		for (const definition of BUILTIN_DEFINITIONS) {
+			const existing = await LlmProvider.findOne({ where: { kind: 'builtin', builtinKey: definition.key } });
+			if (existing === null) {
+				await LlmProvider.create({
+					name: definition.name,
+					endpoint: '',
+					apiKey: '',
+					model: '',
+					isActive: false,
+					kind: 'builtin',
+					builtinKey: definition.key,
+				});
+			}
 		}
 	} catch {
-		// Tabelle(n) existieren nicht (Unit-Tests ohne DB-Sync) — Legacy-Pfad bleibt zuständig.
+		// Tabelle existiert nicht (Unit-Tests ohne DB-Sync) — Aufrufer behandelt „kein Provider“.
 	}
 };
 
-/** Alle Provider (ohne API-Keys), aktiver zuerst — stabile Reihenfolge für die Radio-Group. */
-export const listProviders = async (): Promise<LlmProviderDto[]> => {
-	await migrateLegacyLlmConfig();
-	const providers = await LlmProvider.findAll({ order: [['id', 'ASC']] });
-	return providers.map(toDto);
+/** Effektive Serialisierung einer Zeile: Built-ins lösen Endpoint/Modell/Key-Präsenz aus ENV auf. */
+const toDto = (provider: LlmProvider, isActive: boolean): LlmProviderDto => {
+	if (provider.kind === 'builtin') {
+		const runtime = toRuntimeConfig(provider);
+		return {
+			id: provider.id,
+			name: provider.name,
+			endpoint: runtime.baseUrl,
+			model: runtime.model,
+			isActive,
+			kind: 'builtin',
+			hasApiKey: runtime.apiKey !== '',
+		};
+	}
+	return {
+		id: provider.id,
+		name: provider.name,
+		endpoint: provider.endpoint,
+		model: provider.model,
+		isActive,
+		kind: 'custom',
+		hasApiKey: provider.apiKey !== '',
+	};
 };
 
 /**
- * Der aktive Provider (Raw-Model inkl. `apiKey` — NUR für den LLM-Aufruf, nie
- * serialisieren). `null`, wenn keiner aktiv ist (Legacy-Kaskade übernimmt).
+ * Bestimmt die effektive Aktiv-Markierung: die explizit aktive Zeile, sonst der
+ * Fallback-Built-in (nach ENV-Key-Präsenz). `null` = kein Provider aktiv.
+ */
+const effectiveActive = (providers: LlmProvider[]): LlmProvider | null => {
+	const explicit = providers.find((provider) => provider.isActive);
+	if (explicit !== undefined) return explicit;
+	const fallbackKey = builtinFallbackKey();
+	if (fallbackKey === null) return null;
+	return providers.find((provider) => provider.kind === 'builtin' && provider.builtinKey === fallbackKey) ?? null;
+};
+
+/** Alle Provider (ohne API-Keys) — Built-ins zuerst (feste Reihenfolge für die Radio-Group). */
+export const listProviders = async (): Promise<LlmProviderDto[]> => {
+	await ensureBuiltins();
+	const providers = await LlmProvider.findAll({ order: [['id', 'ASC']] });
+	const active = effectiveActive(providers);
+	const builtins = BUILTIN_DEFINITIONS.map(
+		(definition) =>
+			providers.find((provider) => provider.kind === 'builtin' && provider.builtinKey === definition.key) ?? null,
+	);
+	const customs = providers.filter((provider) => provider.kind === 'custom');
+	return [...builtins, ...customs]
+		.filter((provider): provider is LlmProvider => provider !== null)
+		.map((provider) => toDto(provider, provider.id === active?.id));
+};
+
+/**
+ * Der effektiv aktive Provider als DB-Zeile (Raw-Model inkl. `apiKey` — NUR für den
+ * LLM-Aufruf via {@link toRuntimeConfig}, nie serialisieren). Explizit aktive Zeile,
+ * sonst Fallback-Built-in; `null`, wenn gar kein Provider verfügbar ist.
  */
 export const loadActiveProvider = async (): Promise<LlmProvider | null> => {
-	await migrateLegacyLlmConfig();
+	await ensureBuiltins();
 	try {
-		return await LlmProvider.findOne({ where: { isActive: true }, order: [['id', 'ASC']] });
+		const providers = await LlmProvider.findAll({ order: [['id', 'ASC']] });
+		return effectiveActive(providers);
 	} catch {
 		return null;
 	}
@@ -110,9 +248,10 @@ export const loadActiveProvider = async (): Promise<LlmProvider | null> => {
 
 /**
  * Findet einen Provider anhand seines Namens (Case-insensitiv) — Auflösung des
- * `provider`-Query-Pinnings auf einen dynamisch konfigurierten Provider (#951).
+ * `provider`-Query-Pinnings; findet seit den Built-ins auch „mistral“/„openrouter“.
  */
 export const findProviderByName = async (name: string): Promise<LlmProvider | null> => {
+	await ensureBuiltins();
 	try {
 		return await LlmProvider.findOne({
 			where: where(fn('lower', col('name')), name.toLowerCase()),
@@ -123,40 +262,59 @@ export const findProviderByName = async (name: string): Promise<LlmProvider | nu
 	}
 };
 
-/** Legt einen Provider an; der ERSTE Provider wird direkt aktiv (Spec: „Genau ein aktiver Provider“). */
+/**
+ * Legt einen Custom-Provider an — inaktiv; die Aktivierung erfolgt bewusst über die
+ * Radio-Auswahl (`activateProvider`), nicht automatisch.
+ */
 export const createProvider = async (input: LlmProviderCreateInput): Promise<LlmProviderDto> => {
-	const anyExisting = (await LlmProvider.count()) > 0;
-	const created = await LlmProvider.create({ ...input, isActive: !anyExisting });
-	return toDto(created);
+	const created = await LlmProvider.create({ ...input, model: '', isActive: false, kind: 'custom', builtinKey: null });
+	return toDto(created, false);
 };
 
-/** Aktualisiert einen Provider; `apiKey` nur bei nicht-leerem String. Wirft bei unbekannter ID. */
+/**
+ * Aktualisiert einen Provider. Built-ins sind bis auf die Modell-Wahl unveränderlich
+ * (`BUILTIN_IMMUTABLE`); bei Custom-Providern wird `apiKey` nur bei nicht-leerem String
+ * gesetzt. Wirft bei unbekannter ID (`NOT_FOUND`).
+ */
 export const updateProvider = async (id: number, input: LlmProviderUpdateInput): Promise<LlmProviderDto> => {
 	const provider = await LlmProvider.findByPk(id);
 	if (provider === null) {
 		throw new Error('NOT_FOUND');
 	}
 	const patch: LlmProviderUpdateInput = {};
-	if (input.name !== undefined) patch.name = input.name;
-	if (input.endpoint !== undefined) patch.endpoint = input.endpoint;
 	if (input.model !== undefined) patch.model = input.model;
-	if (input.apiKey !== undefined && input.apiKey !== '') patch.apiKey = input.apiKey;
+	if (provider.kind === 'builtin') {
+		if (input.name !== undefined || input.endpoint !== undefined || input.apiKey !== undefined) {
+			throw new Error('BUILTIN_IMMUTABLE');
+		}
+	} else {
+		if (input.name !== undefined) patch.name = input.name;
+		if (input.endpoint !== undefined) patch.endpoint = input.endpoint;
+		if (input.apiKey !== undefined && input.apiKey !== '') patch.apiKey = input.apiKey;
+	}
 	await provider.update(patch);
-	return toDto(provider);
+	const active = await loadActiveProvider();
+	return toDto(provider, provider.id === active?.id);
 };
 
-/** Löscht einen Provider. Wirft bei unbekannter ID. */
+/**
+ * Löscht einen Custom-Provider (Built-ins: `BUILTIN_IMMUTABLE`). War er aktiv, übernimmt
+ * automatisch der Built-in-Fallback. Wirft bei unbekannter ID.
+ */
 export const deleteProvider = async (id: number): Promise<void> => {
 	const provider = await LlmProvider.findByPk(id);
 	if (provider === null) {
 		throw new Error('NOT_FOUND');
 	}
+	if (provider.kind === 'builtin') {
+		throw new Error('BUILTIN_IMMUTABLE');
+	}
 	await provider.destroy();
 };
 
 /**
- * Setzt genau einen Provider aktiv und deaktiviert alle anderen (Radio-Button-Logik).
- * Wirft bei unbekannter ID.
+ * Setzt genau einen Provider aktiv und deaktiviert alle anderen (Radio-Button-Logik) —
+ * für Custom- UND Built-in-Provider. Wirft bei unbekannter ID.
  */
 export const activateProvider = async (id: number): Promise<LlmProviderDto> => {
 	const provider = await LlmProvider.findByPk(id);
@@ -165,5 +323,5 @@ export const activateProvider = async (id: number): Promise<LlmProviderDto> => {
 	}
 	await LlmProvider.update({ isActive: false }, { where: { isActive: true } });
 	await provider.update({ isActive: true });
-	return toDto(provider);
+	return toDto(provider, true);
 };

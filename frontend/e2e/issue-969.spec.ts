@@ -102,7 +102,7 @@ test.describe('#969 Settings-Tab „Allgemein“: symmetrisches horizontales Pad
 			});
 
 		for (const tab of ['tabpanel-slot-1', 'tabpanel-slot-2']) {
-			const label = tab === 'tabpanel-slot-1' ? 'Säulen' : 'LLM';
+			const label = tab === 'tabpanel-slot-1' ? 'Säulen' : 'KI-Provider';
 			const trigger = page.locator('.settings-tabs').getByRole('tab', { name: label });
 			await trigger.click();
 

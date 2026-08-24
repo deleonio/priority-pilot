@@ -8,6 +8,7 @@ import {
 	migrateUserIdColumns,
 	migratePillarDescription,
 	migrateTaskChecklist,
+	migrateLlmProviderKindColumns,
 } from './migrate.js';
 import { SEED_PILLARS } from '../models/pillarData.js';
 import { closeDb } from '../test/helpers.js';
@@ -405,3 +406,66 @@ describe('migratePillarDescription', () => {
 // nutzer-eigen (Spalte `userId` + Unique-Index `pillars_name_user_id`); die Umstellung deckt
 // `migrate-pillar-per-user.test.ts` ab. Die alte Drop-Migration widerspricht dem neuen Modell und ist
 // mit ihr entfallen.
+
+describe('migrateLlmProviderKindColumns', () => {
+	/** Spaltennamen der `llm_providers`-Tabelle (leer, falls die Tabelle nicht existiert). */
+	const llmProviderColumns = async (): Promise<string[]> => {
+		const [rows] = await sequelize.query("PRAGMA table_info('llm_providers')");
+		return (rows as { name: string }[]).map((row) => row.name);
+	};
+
+	/** Erzeugt eine `llm_providers`-Tabelle im Alt-Schema von #951 — ohne kind/builtin_key. */
+	const createLegacyLlmProvidersTable = async (): Promise<void> => {
+		await sequelize.query(
+			'CREATE TABLE `llm_providers` (' +
+				'`id` INTEGER PRIMARY KEY AUTOINCREMENT, ' +
+				'`name` VARCHAR(255) NOT NULL, ' +
+				'`endpoint` VARCHAR(255) NOT NULL, ' +
+				"`api_key` VARCHAR(255) NOT NULL DEFAULT '', " +
+				'`model` VARCHAR(255) NOT NULL, ' +
+				'`is_active` INTEGER NOT NULL DEFAULT 0, ' +
+				'`createdAt` DATETIME NOT NULL, ' +
+				'`updatedAt` DATETIME NOT NULL' +
+				')',
+		);
+	};
+
+	it('zieht auf einem #951-Alt-Schema kind/builtin_key nach, Bestandszeilen werden custom', async () => {
+		await createLegacyLlmProvidersTable();
+		await sequelize.query(
+			'INSERT INTO llm_providers (name, endpoint, api_key, model, is_active, "createdAt", "updatedAt") ' +
+				"VALUES ('Alt-Provider', 'https://alt.example.com/v1', 'key', 'm1', 1, datetime('now'), datetime('now'))",
+		);
+
+		await migrateLlmProviderKindColumns(sequelize);
+		await assert.doesNotReject(() => sequelize.sync(), 'sync() bricht nach der Migration nicht mehr ab');
+
+		const columns = await llmProviderColumns();
+		assert.ok(columns.includes('kind'), 'kind wurde nachgezogen');
+		assert.ok(columns.includes('builtin_key'), 'builtin_key wurde nachgezogen');
+
+		// Bestandszeilen gelten als Custom-Provider; LlmProvider.findAll() läuft ohne SQLITE_ERROR.
+		const { LlmProvider } = await import('../models/index.js');
+		const rows = await LlmProvider.findAll();
+		assert.equal(rows.length, 1);
+		assert.equal(rows[0]?.kind, 'custom', 'Bestandszeile aus #951 wird custom');
+	});
+
+	it('ist idempotent: erneuter Aufruf wirft nicht und erzeugt keine doppelten Spalten', async () => {
+		await createLegacyLlmProvidersTable();
+		await migrateLlmProviderKindColumns(sequelize);
+		await assert.doesNotReject(() => migrateLlmProviderKindColumns(sequelize), 'zweiter Lauf bleibt stabil');
+		assert.equal((await llmProviderColumns()).filter((name) => name === 'kind').length, 1, 'kind genau einmal');
+	});
+
+	it('ist auf einer DB ohne llm_providers-Tabelle ein No-op und sync() legt sie korrekt an', async () => {
+		assert.deepEqual(await llmProviderColumns(), [], 'Vorbedingung: keine llm_providers-Tabelle');
+
+		await assert.doesNotReject(() => migrateLlmProviderKindColumns(sequelize), 'Migration ohne Tabelle ist no-op');
+		await assert.doesNotReject(() => sequelize.sync(), 'sync() legt die Tabelle frisch an');
+
+		const columns = await llmProviderColumns();
+		assert.ok(columns.includes('kind'), 'frische Tabelle enthält kind');
+		assert.ok(columns.includes('builtin_key'), 'frische Tabelle enthält builtin_key');
+	});
+});
