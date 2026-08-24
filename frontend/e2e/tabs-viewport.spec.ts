@@ -2,24 +2,23 @@ import { expect, test } from './fixtures';
 import { waitForStableView } from './helpers';
 
 /**
- * ROTE Spec-Tests für #703 „Tabs bei schmalen Viewports".
+ * Spec-Tests für Tab-Leisten über Viewport-Größen hinweg.
  *
- * Ziel des Tickets: Tabs bleiben auch bei schmalen Viewports bedienbar, ohne Umbruch oder Überlappung.
- * Bei Platzmangel alternatives Menü (z.B. Dropdown/Stack). Konsistentes UX-Verhalten über alle Viewport-Größen.
- *
- * Diese Tests sind bewusst **rot**, bis das viewport-spezifische Tab-Verhalten implementiert ist.
- * Sie prüfen gegen die Spezifikation in docs/spec/issue-703.md.
+ * Ursprünglich #703 „Tabs bei schmalen Viewports" (vertikales Stapeln < 768px als Mobile-First-
+ * Lösung). #968 revidiert genau diese Entscheidung: Tab-Leisten sollen auch mobil **nebeneinander**
+ * stehen (KoliBri-Default `row` + `flex-wrap: wrap`); bei Platzmangel sauber umgebrochen werden,
+ * ohne horizontalen Seitenüberlauf. Siehe docs/spec/issue-968.md.
  *
  * Bezug zu bestehenden Tests:
- * - settings-tabs.spec.ts AK5 prüft bereits Mobile-First (375px) für Settings-Tabs.
- * - Issue 703 erweitert dies auf viewport-spezifisches Verhalten (alternative Darstellung, Übergänge).
+ * - settings-tabs.spec.ts AK5 prüft Mobile-First (375px, kein horizontaler Scroll) — bleibt grün.
+ * - Die #968-Tests AK1/AK6 sind **rot**, bis der Media-Query-Override in app.css entfernt ist.
  */
-test.describe('#703 Tabs bei schmalen Viewports', () => {
+test.describe('#968/#703 Tab-Leisten über Viewports', () => {
 	/**
-	 * AK1 — Mobile-Viewport (< 768px): Tabs sind bedienbar, alternatives Layout.
-	 * Bezug: Spec issue-703.md → Schritte 1, Testfall 1.
+	 * AK1 — Mobile-Viewport (< 768px): Settings-Tabs stehen nebeneinander, nicht gestapelt.
+	 * Bezug: Spec issue-968.md → E1; ersetzt den #703-Check „alternatives Layout".
 	 */
-	test('AK1: Tabs sind bei Mobile-Viewport (< 768px) bedienbar, alternatives Layout aktiv', async ({ page }) => {
+	test('AK1: Settings-Tabs sind bei Mobile-Viewport (375px) nebeneinander in einer Zeile', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await page.goto('/settings/pillars');
 		await waitForStableView(page, 'Priority Pilot');
@@ -28,21 +27,56 @@ test.describe('#703 Tabs bei schmalen Viewports', () => {
 		await expect(page.getByRole('tab', { name: 'Allgemein', exact: true })).toBeVisible();
 		await expect(page.getByRole('tab', { name: 'Säulen', exact: true })).toBeVisible();
 
+		// Nebeneinander: gleiche Zeile (y identisch), Säulen rechts von Allgemein (x aufsteigend).
+		const firstTabBox = await page.getByRole('tab', { name: 'Allgemein', exact: true }).boundingBox();
+		expect(firstTabBox).not.toBeNull();
+		const secondTabBox = await page.getByRole('tab', { name: 'Säulen', exact: true }).boundingBox();
+		expect(secondTabBox).not.toBeNull();
+		expect(secondTabBox!.y).toBeCloseTo(firstTabBox!.y, 0);
+		expect(secondTabBox!.x).toBeGreaterThan(firstTabBox!.x);
+
 		// Kein horizontaler Überlauf.
 		const overflowsHorizontally = await page.evaluate(() => {
 			const body = document.body;
 			return body.scrollWidth > window.innerWidth + 1;
 		});
 		expect(overflowsHorizontally).toBe(false);
+	});
 
-		// Prüfung: Entweder Tabs sind anders angeordnet (nicht standard horizontal nebeneinander)
-		// oder Dropdown/Stack ist sichtbar. Für rote Tests genügt die Prüfung, dass kein Überlauf besteht.
-		// Implementierungsspezifische Prüfungen (z.B. Dropdown-Element) folgen in grünen Tests.
+	/**
+	 * AK6 — Mobile-Viewport (< 768px): App-Tabs (Hauptansicht) stehen nebeneinander, nicht gestapelt.
+	 * Bezug: Spec issue-968.md → E2 (Dashboard/Aufgaben/Serien/Wald auf `/`).
+	 */
+	test('AK6: App-Tabs sind bei Mobile-Viewport (375px) nebeneinander in einer Zeile', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 812 });
+		await page.goto('/');
+		// Hinweis: Auf der Hauptansicht ist der App-Name bei 375px per CSS versteckt (app.css:288,
+		// Banner zeigt nur das Logo-Img) — daher hier der Default-ReadyText „Dashboard".
+		await waitForStableView(page);
+
+		// Tabs sind sichtbar und bedienbar.
+		await expect(page.getByRole('tab', { name: 'Dashboard', exact: true })).toBeVisible();
+		await expect(page.getByRole('tab', { name: 'Aufgaben', exact: true })).toBeVisible();
+
+		// Nebeneinander: gleiche Zeile (y identisch), Aufgaben rechts von Dashboard (x aufsteigend).
+		const firstTabBox = await page.getByRole('tab', { name: 'Dashboard', exact: true }).boundingBox();
+		expect(firstTabBox).not.toBeNull();
+		const secondTabBox = await page.getByRole('tab', { name: 'Aufgaben', exact: true }).boundingBox();
+		expect(secondTabBox).not.toBeNull();
+		expect(secondTabBox!.y).toBeCloseTo(firstTabBox!.y, 0);
+		expect(secondTabBox!.x).toBeGreaterThan(firstTabBox!.x);
+
+		// Kein horizontaler Überlauf — bei Platzmangel wird umgebrochen, nicht überlaufen.
+		const overflowsHorizontally = await page.evaluate(() => {
+			const body = document.body;
+			return body.scrollWidth > window.innerWidth + 1;
+		});
+		expect(overflowsHorizontally).toBe(false);
 	});
 
 	/**
 	 * AK2 — Desktop-Viewport (≥ 768px): Tabs nebeneinander, kein Umbruch.
-	 * Bezug: Spec issue-703.md → Schritte 2, Testfall 2.
+	 * Bezug: Spec issue-703.md → Schritte 2, Testfall 2; deckt auch issue-968.md → E3 (Desktop unverändert).
 	 */
 	test('AK2: Tabs sind bei Desktop-Viewport (≥ 768px) nebeneinander, kein Umbruch', async ({ page }) => {
 		await page.setViewportSize({ width: 768, height: 1024 });

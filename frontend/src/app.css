@@ -1350,26 +1350,17 @@ body {
 }
 
 /*
- * #703 P2-7: Tabs bei schmalen Viewports (< 768px) — vertikale Anordnung als vollbreitige Buttons.
- * KoliBri `kol-tabs` legt die `flex-direction` der internen Button-Gruppe über die Custom-Property
- * `--button-group-flex-direction` fest (im Shadow-DOM: `.kol-tabs__button-group { flex-direction:
- * var(--button-group-flex-direction); flex-wrap: wrap; }`). Da Custom Properties die Shadow-DOM-
- * Grenze passieren, genügt das Setzen auf dem Host-Element — `::part(tab-list)` würde dagegen nichts
- * helfen, weil KoliBri keine Parts exportiert (validiert 2026-08-21 per Shadow-Inspektion: kein
- * `part`-Attribut an irgendeinem Kind). Mit `column` stapeln sich die Tabs vertikal statt zu wrappen;
- * `align-items: stretch` (Default) dehnt sie dabei auf die volle Container-Breite — passend zum
- * Mobile-First-Prinzip „eine primäre Aktion pro Zeile" (ux-design.md §1).
+ * #968: Tab-Leisten nebeneinander auf allen Viewports.
+ * Die ursprüngliche #703-Entscheidung, Tabs unter 768 px vertikal zu stapeln (Mobile-First „eine
+ * primäre Aktion pro Zeile"), wurde revidiert: Tabs passen auch auf 375 px gut nebeneinander.
+ * KoliBri `kol-tabs` rendert die Button-Gruppe im Shadow-DOM mit `flex-direction: row` und
+ * `flex-wrap: wrap` als Default — ohne Override werden Tabs auf allen Viewports horizontal mit
+ * sauberem Umbruch bei Platzmangel angezeigt.
  *
  * Wichtig: `.app-tabs` bzw. `.settings-tabs` ist der `kol-tabs`-Host selbst (die `className` wird
  * direkt auf dem React-Komponenten-Element gesetzt). Der Selektor `.app-tabs kol-tabs` wäre daher
- * ein Nachkomme-Sucher ohne Treffer — die Property muss am Host stehen.
+ * ein Nachkomme-Sucher ohne Treffer — die Property würde am Host stehen (falls Override nötig).
  */
-@media (max-width: 767px) {
-	.app-tabs,
-	.settings-tabs {
-		--button-group-flex-direction: column;
-	}
-}
 
 .settings-placeholder {
 	color: var(--pp-text-muted);
