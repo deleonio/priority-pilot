@@ -784,10 +784,10 @@ paths:
     get:
       summary: Konfigurierte LLM-Provider auflisten
       description: >-
-        Listet alle konfigurierten LLM-Provider des Single-Provider-Systems
-        (#951) inklusive des aktiven Providers. API-Keys werden bewusst NICHT
-        zurückgegeben (Write-Only) — die Antwort enthält weder ein apiKey-Feld
-        noch Key-Werte.
+        Listet alle LLM-Provider inklusive effektiver Aktiv-Markierung — Built-ins
+        (Mistral/OpenRouter) zuerst, danach die Custom-Provider. Ohne explizit
+        aktiven Provider ist der Built-in-Fallback als aktiv markiert. API-Keys
+        werden bewusst NICHT zurückgegeben (Write-Only).
       operationId: listLlmProviders
       tags: [llm]
       responses:
@@ -800,12 +800,12 @@ paths:
                 items:
                   $ref: '#/components/schemas/LlmProvider'
     post:
-      summary: Neuen LLM-Provider anlegen
+      summary: Neuen Custom-Provider anlegen
       description: >-
-        Legt einen neuen LLM-Provider an (#951). Der erste angelegte Provider
-        wird direkt aktiv gesetzt. Der Endpoint muss eine gültige http(s)-URL
-        sein; andernfalls HTTP 400. Die Antwort enthält den Provider ohne
-        API-Key.
+        Legt einen neuen Custom-Provider an — inaktiv (Aktivierung über die
+        Radio-Auswahl) und ohne Modell (Wahl über die Modellliste). Der Endpoint
+        muss eine gültige http(s)-URL sein; andernfalls HTTP 400. Die Antwort
+        enthält den Provider ohne API-Key.
       operationId: createLlmProvider
       tags: [llm]
       requestBody:
@@ -838,10 +838,10 @@ paths:
     put:
       summary: LLM-Provider aktualisieren
       description: >-
-        Aktualisiert einen Provider (#951). Alle Felder optional: abwesende
-        Felder bleiben unverändert. Der API-Key wird nur gesetzt, wenn ein
-        nicht-leerer String übergeben wird (Write-Only, Bearbeiten-Dialog
-        startet leer).
+        Aktualisiert einen Provider. Alle Felder optional: abwesende Felder bleiben
+        unverändert. Der API-Key wird nur gesetzt, wenn ein nicht-leerer String
+        übergeben wird (Write-Only, Bearbeiten-Dialog startet leer). Für Built-in-
+        Provider ist ausschließlich `model` erlaubt — andere Felder führen zu HTTP 400.
       operationId: updateLlmProvider
       tags: [llm]
       requestBody:
@@ -857,6 +857,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LlmProvider'
+        '400':
+          description: Ungültiger Payload oder Built-in-Provider (nur `model` erlaubt)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '404':
           description: Provider unbekannt
           content:
@@ -864,14 +870,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
     delete:
-      summary: LLM-Provider löschen
+      summary: Custom-Provider löschen
       description: >-
-        Löscht einen Provider (#951). Response 204 ohne Body.
+        Löscht einen Custom-Provider (Built-ins antworten HTTP 400). War er aktiv,
+        übernimmt automatisch der Built-in-Fallback. Response 204 ohne Body.
       operationId: deleteLlmProvider
       tags: [llm]
       responses:
         '204':
           description: Provider gelöscht
+        '400':
+          description: Built-in-Provider ist fix und nicht löschbar
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '404':
           description: Provider unbekannt
           content:
@@ -889,8 +902,8 @@ paths:
     post:
       summary: Provider als aktiv setzen
       description: >-
-        Setzt den Provider als einzigen aktiven Provider (#951): alle anderen
-        werden deaktiviert. Genau ein Provider ist aktiv (Radio-Button-Logik).
+        Setzt den Provider als einzigen aktiven Provider: alle anderen werden
+        deaktiviert (Radio-Button-Logik) — für Custom- UND Built-in-Provider.
       operationId: activateLlmProvider
       tags: [llm]
       responses:
@@ -906,72 +919,37 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-  /llm-config:
-    get:
-      summary: Status der LLM-Provider-Konfiguration lesen
-      description: >-
-        Legacy-Endpoint (#640, Migration siehe #951): Liefert den Status der
-        alten Key-Konfiguration: ob jeweils ein
-        API-Key persistiert ist (Booleans) sowie das OpenRouter-Modell. Die
-        API-Key-Werte werden bewusst NICHT zurückgegeben (Write-Only) — der
-        Client erfährt nur, OB ein Key gesetzt ist, niemals dessen Wert. Ohne
-        persistierte Werte kommen `false`/`false` und der Default für
-        openrouterModel zurück (#640).
-      operationId: getLlmConfig
-      tags: [llm]
-      responses:
-        '200':
-          description: Status der LLM-Konfiguration (ohne Key-Werte)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LlmConfigStatus'
-    put:
-      summary: LLM-Provider-Konfiguration speichern
-      description: >-
-        Legacy-Endpoint (#640, Migration siehe #951): Persistiert die alte
-        Key-Konfiguration. Ein abwesendes Feld bleibt
-        unverändert; ein gesetzter Wert überschreibt den DB-Stand (ein leerer
-        String löscht den Key). Gesetzte API-Keys dürfen nicht ausschließlich
-        aus Whitespace bestehen; alle Felder sind Strings. Die Antwort liefert
-        den neuen Status — niemals die Key-Werte.
-      operationId: setLlmConfig
-      tags: [llm]
-      requestBody:
+  /llm-providers/{id}/models:
+    parameters:
+      - name: id
+        in: path
         required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/LlmConfigInput'
-      responses:
-        '200':
-          description: Der neue Status der LLM-Konfiguration (ohne Key-Werte)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LlmConfigStatus'
-        '400':
-          $ref: '#/components/responses/ValidationError'
-  /models/free:
+        description: ID des Providers
+        schema:
+          type: integer
     get:
-      summary: Aktuelle kostenlose OpenRouter-Modelle lesen
+      summary: Verfügbare Modelle eines Providers lesen
       description: >-
-        Lädt die aktuelle Modellliste von OpenRouter und liefert die
-        kostenlosen Modelle (#742): den Auto-Router `openrouter/free` sowie
-        alle Varianten mit `:free`-Suffix. `openrouter/free` steht zuerst,
-        der Rest alphabetisch nach Name — die Liste ist dynamisch (nie
-        hartcodiert) und wird serverseitig kurz (5 min) gecacht. Der Aufruf
-        von OpenRouter braucht keinen API-Key; ist der Upstream nicht
-        erreichbar oder antwortet ungültig, folgt HTTP 502.
-      operationId: getFreeModels
+        Fragt die Modellliste des Providers von dessen OpenAI-kompatiblen
+        `GET /models`-Endpoint ab (mit API-Key, falls vorhanden) und liefert sie
+        nach `id` sortiert — die Basis für die Modell-Auswahl im Frontend. Das
+        Ergebnis wird serverseitig kurz (5 min) je Provider gecacht. Ist der
+        Upstream nicht erreichbar oder antwortet ungültig, folgt HTTP 502.
+      operationId: listLlmProviderModels
       tags: [llm]
       responses:
         '200':
-          description: Aktuelle Liste der kostenlosen OpenRouter-Modelle
+          description: Verfügbare Modelle des Providers
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/FreeModels'
+                $ref: '#/components/schemas/LlmModels'
+        '404':
+          description: Provider unbekannt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '502':
           $ref: '#/components/responses/BadGateway'
 components:
@@ -1954,48 +1932,6 @@ components:
         author:
           type: string
           description: Urheber des Zitats.
-    LlmConfigStatus:
-      type: object
-      required:
-        - hasMistralApiKey
-        - hasOpenrouterApiKey
-        - openrouterModel
-      description: >-
-        Status der Legacy-LLM-Konfiguration (#640; Migrationsquelle für #951). API-Keys werden bewusst
-        NICHT zurückgegeben (Write-Only) — der Client erfährt nur, ob jeweils
-        ein Key in der Datenbank persistiert ist, niemals dessen Wert. Die
-        Umgebungsvariablen des Servers bleiben dabei vollständig verborgen
-        (auch ihre bloße Anwesenheit wird nicht signalisiert). Persistierte
-        Werte sind seit dem Single-Provider-System (#951) nur noch Migrationsquelle;
-        die Kaskade selbst ist entfallen.
-      properties:
-        hasMistralApiKey:
-          type: boolean
-          description: Ist ein Mistral-API-Key in der Datenbank persistiert?
-        hasOpenrouterApiKey:
-          type: boolean
-          description: Ist ein OpenRouter-API-Key in der Datenbank persistiert?
-        openrouterModel:
-          type: string
-          description: Modellkennung für OpenRouter (Default `openrouter/free`).
-    LlmConfigInput:
-      type: object
-      description: >-
-        Schreib-Seite der Legacy-LLM-Konfiguration (#640). Alle Felder sind
-        optional: ein abwesendes Feld bleibt unverändert; ein leerer String
-        löscht den jeweiligen Key; ein nicht-leerer Wert überschreibt ihn.
-        Whitespace-only und Nicht-Strings führen zu HTTP 400. Die Key-Werte
-        werden danach nie wieder ausgelesen (siehe LlmConfigStatus).
-      properties:
-        mistralApiKey:
-          type: string
-          description: API-Key des Primär-Providers Mistral; abwesend = unverändert, leer = löschen.
-        openrouterApiKey:
-          type: string
-          description: API-Key der optionalen OpenRouter-Verfeinerungsstufe; abwesend = unverändert, leer = löschen.
-        openrouterModel:
-          type: string
-          description: Modellkennung für OpenRouter.
     LlmProvider:
       type: object
       required:
@@ -2004,10 +1940,17 @@ components:
         - endpoint
         - model
         - isActive
+        - kind
+        - hasApiKey
       description: >-
-        Ein konfigurierter LLM-Provider des Single-Provider-Systems (#951).
-        Genau ein Provider ist aktiv (`isActive`). API-Keys werden bewusst
-        NICHT zurückgegeben (Write-Only).
+        Ein LLM-Provider. Zwei Arten: `kind=custom` (frei anlegbar, bearbeitbar,
+        löschbar; Key liegt write-only in der DB) und `kind=builtin` („Mistral“
+        und „OpenRouter“ — fix, nicht lösch-/bearbeitbar; Key und Endpoint
+        kommen aus den ENV-Variablen des Servers). Genau ein Provider ist
+        effektiv aktiv (`isActive`): die explizite Radio-Auswahl oder — wenn
+        kein Custom-Provider gewählt ist — der Built-in-Fallback (Mistral vor
+        OpenRouter, nach ENV-Key-Präsenz). API-Keys werden bewusst NICHT
+        zurückgegeben (Write-Only).
       properties:
         id:
           type: integer
@@ -2017,90 +1960,99 @@ components:
           description: Anzeigename (z. B. "Mistral", "OpenRouter", "z.ai").
         endpoint:
           type: string
-          description: OpenAI-kompatible Chat-Completions-URL des Providers.
+          description: >-
+            Basis-URL des Providers (OpenAI-kompatibel); bei Custom-Providern kann
+            auch die vollständige Chat-Completions-URL gespeichert sein (Legacy).
         model:
           type: string
-          description: Modellkennung (z. B. "mistral-medium-latest").
+          description: >-
+            Effektive Modellkennung (z. B. "mistral-medium-latest"). Bei Built-ins
+            der Default aus ENV/Code, solange der Nutzer keins gewählt hat; leer bei
+            Custom-Providern ohne Modellwahl.
         isActive:
           type: boolean
-          description: Ist dieser Provider der aktive Provider (Radio-Button-Auswahl)?
+          description: Ist dieser Provider der effektiv aktive (Radio-Button-Auswahl oder Fallback)?
+        kind:
+          type: string
+          enum: [custom, builtin]
+          description: '„custom“ = frei verwaltbar, „builtin“ = fix (Mistral/OpenRouter).'
+        hasApiKey:
+          type: boolean
+          description: >-
+            Ob ein Key vorhanden ist (Built-in: ENV-Variable gesetzt; Custom: DB-Key
+            gesetzt). Signalisiert nur die Präsenz, nie den Wert.
     LlmProviderInput:
       type: object
       required:
         - name
         - endpoint
         - apiKey
-        - model
       description: >-
-        Anlegen eines Providers (#951): Name, Endpoint (gültige http(s)-URL),
-        API-Key und Modell sind Pflicht. Der Key wird nie zurückgegeben.
+        Anlegen eines Custom-Providers: Name, Endpoint (gültige http(s)-URL) und
+        API-Key sind Pflicht. Der Provider startet inaktiv (Aktivierung über die
+        Radio-Auswahl) und ohne Modell (Wahl über die Modellliste des Providers).
+        Der Key wird nie zurückgegeben.
       properties:
         name:
           type: string
           description: Anzeigename des Providers.
         endpoint:
           type: string
-          description: OpenAI-kompatible Chat-Completions-URL (http/https).
+          description: >-
+            OpenAI-kompatible Basis-URL (http/https), z. B. https://api.mistral.ai/v1 —
+            ein `/chat/completions`-Suffix wird toleriert und abgeschnitten.
         apiKey:
           type: string
           description: API-Key des Providers (Write-Only).
-        model:
-          type: string
-          description: Modellkennung.
     LlmProviderUpdate:
       type: object
       description: >-
-        Bearbeiten eines Providers (#951): alle Felder optional; der API-Key
-        wird nur bei nicht-leerem String gesetzt (Bearbeiten-Dialog startet leer).
+        Bearbeiten eines Providers: alle Felder optional; der API-Key wird nur bei
+        nicht-leerem String gesetzt (Bearbeiten-Dialog startet leer). Für Built-in-
+        Provider ist ausschließlich `model` erlaubt (Modellwahl aus der Modellliste)
+        — alles andere führt zu HTTP 400.
       properties:
         name:
           type: string
-          description: Neuer Anzeigename.
+          description: Neuer Anzeigename (nur Custom-Provider).
         endpoint:
           type: string
-          description: Neue Endpoint-URL.
+          description: Neue Endpoint-URL (nur Custom-Provider).
         apiKey:
           type: string
-          description: Neuer API-Key (nur bei Änderung senden; leer = unverändert).
+          description: Neuer API-Key (nur bei Änderung senden; leer = unverändert; nur Custom-Provider).
         model:
           type: string
-          description: Neue Modellkennung.
-    FreeModel:
+          description: Gewählte Modellkennung (Custom- und Built-in-Provider).
+    LlmModel:
       type: object
       required:
         - id
         - name
       description: >-
-        Ein kostenloses OpenRouter-Modell (#742): der Auto-Router
-        `openrouter/free` oder eine `:free`-Variante eines Modells.
+        Ein verfügbares Modell eines Providers, aus dessen OpenAI-kompatibler
+        `GET /models`-Antwort ausgelesen (nach `id` sortiert).
       properties:
         id:
           type: string
-          description: Modellkennung (z. B. `openrouter/free` oder `meta-llama/llama-3-8b-instruct:free`).
+          description: Modellkennung (z. B. `mistral-medium-latest`).
         name:
           type: string
-          description: Anzeigename des Modells, wie OpenRouter ihn liefert.
-        contextLength:
-          type: number
-          description: Kontext-Länge des Modells (optional, wenn OpenRouter sie liefert).
-        modelSize:
-          type: string
-          description: >-
-            Modell-Größe, aus der Modell-ID abgeleitet (z. B. `32B`) — optional, wenn die ID
-            keine Größenangabe enthält (#862).
-    FreeModels:
+          description: Anzeigename — fiel der Upstream keinen, gilt die Modellkennung.
+    LlmModels:
       type: object
       required:
         - models
       description: >-
-        Antwort von `GET /models/free` (#742): die aktuell kostenlosen
-        OpenRouter-Modelle, `openrouter/free` zuerst, Rest alphabetisch.
+        Antwort von `GET /llm-providers/{id}/models`: die verfügbaren Modelle des
+        Providers, dynamisch aus dessen OpenAI-kompatibler `GET /models`-Antwort
+        ausgelesen und nach `id` sortiert.
       properties:
         models:
           type: array
-          description: Aktuelle Free-Modelle (dynamisch geladen, nie hartcodiert).
+          description: Verfügbare Modelle (dynamisch geladen, nie hartcodiert).
           items:
-            $ref: '#/components/schemas/FreeModel'
+            $ref: '#/components/schemas/LlmModel'
     ReverseGeocodeResponse:
       type: object
       required:

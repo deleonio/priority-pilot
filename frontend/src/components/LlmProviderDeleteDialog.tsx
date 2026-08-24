@@ -16,10 +16,10 @@ interface LlmProviderDeleteDialogProps {
 }
 
 /**
- * Bestätigungsdialog vor dem Löschen eines LLM-Providers (#951, Spec Journey 5) —
- * Muster: `DeleteTaskDialog`. Ist der Provider der aktive, übernimmt der Server das
- * Um Aktivieren eines verbleibenden Providers (Radio); ohne aktiven Provider
- * antworten LLM-Endpunkte 503.
+ * Bestätigungsdialog vor dem Löschen eines Custom-Providers — Muster: `DeleteTaskDialog`.
+ * Built-in-Provider (Mistral/OpenRouter) sind nicht löschbar und erreichen diesen Dialog
+ * nicht. Ist der gelöschte Provider der aktive, übernimmt automatisch der Built-in-Fallback
+ * (Mistral vor OpenRouter) — die KI-Features laufen dann damit weiter.
  */
 export const LlmProviderDeleteDialog = ({
 	provider,
@@ -63,9 +63,9 @@ export const LlmProviderDeleteDialog = ({
 				</KolAlert>
 			)}
 			<p>
-				Soll der Provider <strong>„{provider.name}"</strong> ({provider.endpoint}) wirklich gelöscht werden?{' '}
+				Soll der Provider <strong>„{provider.name}“</strong> ({provider.endpoint}) wirklich gelöscht werden?{' '}
 				{provider.isActive
-					? 'Er ist der AKTIVE Provider — danach ist kein Provider aktiv, bis du einen anderen aktivierst (LLM-Funktionen antworten bis dahin mit 503).'
+					? 'Er ist der AKTIVE Provider — danach übernimmt automatisch der Fallback (Mistral vor OpenRouter, je nach Server-ENV).'
 					: 'Diese Aktion kann nicht rückgängig gemacht werden.'}
 			</p>
 			<div className="modal-actions">

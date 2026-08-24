@@ -38,18 +38,14 @@ export type ParseTaskInput = Schemas['ParseTaskInput'];
 export type ParsedTask = Schemas['ParsedTask'];
 export type ApiError = Schemas['Error'];
 
-// LLM-Provider-Konfiguration (#640). Read/Write-Spalten: der Client liest nur den Status
-// (ohne Key-Werte) und schreibt optional neue Keys/Modell — die Key-Werte selbst werden nie
-// ausgelesen (Sicherheit: LLM-Keys gehören nicht in den Client).
-export type LlmConfigStatus = Schemas['LlmConfigStatus'];
-export type LlmConfigInput = Schemas['LlmConfigInput'];
+// LLM-Provider: Custom-Provider (frei anlegbar) und fixe Built-ins (Mistral/OpenRouter,
+// Key aus Server-ENV). Der Client liest nur den Status ohne Key-Werte und schreibt optional
+// neue Keys/Modell — die Key-Werte selbst werden nie ausgelesen (Sicherheit).
 export type LlmProvider = Schemas['LlmProvider'];
 export type LlmProviderInput = Schemas['LlmProviderInput'];
 export type LlmProviderUpdate = Schemas['LlmProviderUpdate'];
-
-// Aktuelle kostenlose OpenRouter-Modelle (#742) für die Frontend-Auswahl (dynamisch, nie hartcodiert).
-export type FreeModel = Schemas['FreeModel'];
-export type FreeModels = Schemas['FreeModels'];
+export type LlmModel = Schemas['LlmModel'];
+export type LlmModels = Schemas['LlmModels'];
 
 // Web-Push (#355): Opt-in-Subscription-Flow der PWA.
 export type PushSubscriptionInput = Schemas['PushSubscriptionInput'];

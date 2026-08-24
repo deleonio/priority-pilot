@@ -17,14 +17,15 @@ interface LlmProviderFormDialogProps {
 
 /**
  * Dialog zum Anlegen (`provider === undefined`) oder Bearbeiten (`provider` gesetzt) eines
- * LLM-Providers (#951, Spec Journey 2/4): Name, Endpoint (http(s)-URL), API-Key (write-only)
- * und Modell. Basiert auf dem generischen `Modal` (KolDialog Variant `card`) und verwendet
- * KoliBri-Eingabefelder — Muster: `PillarFormDialog`.
+ * Custom-Providers: Name, Endpoint (http(s)-URL) und API-Key (write-only). Das Modell wird
+ * bewusst NICHT hier gesetzt, sondern danach aus der Modellliste des Providers im Settings-Tab.
+ * Basiert auf dem generischen `Modal` (KolDialog Variant `card`) und verwendet KoliBri-
+ * Eingabefelder — Muster: `PillarFormDialog`.
  *
  * Die Eingaben liegen in einem Ref parallel zum State, damit KoliBri-Felder ihren Anzeigewert
  * selbst verwalten können und Strg+Enter den frischen Wert synchron liest (Race zum Re-Render).
- * Der API-Key startet im Bearbeiten-Modus bewusst LEER (write-only, Spec „Sicherheit"): leer
- * lassen = unverändert; nur ein eingegebener Wert wird gesendet.
+ * Der API-Key startet im Bearbeiten-Modus bewusst LEER (write-only): leer lassen = unverändert;
+ * nur ein eingegebener Wert wird gesendet.
  */
 export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProviderFormDialogProps) => {
 	const isEdit = provider !== undefined;
@@ -33,12 +34,10 @@ export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProvide
 		name: provider?.name ?? '',
 		endpoint: provider?.endpoint ?? '',
 		apiKey: '',
-		model: provider?.model ?? '',
 	});
 	const [nameState, setNameState] = useState(form.current.name);
 	const [endpointState, setEndpointState] = useState(form.current.endpoint);
 	const [apiKeyState, setApiKeyState] = useState(form.current.apiKey);
-	const [modelState, setModelState] = useState(form.current.model);
 
 	const [error, setError] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);
@@ -48,19 +47,16 @@ export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProvide
 			name: provider?.name ?? '',
 			endpoint: provider?.endpoint ?? '',
 			apiKey: '',
-			model: provider?.model ?? '',
 		};
 		setNameState(form.current.name);
 		setEndpointState(form.current.endpoint);
 		setApiKeyState(form.current.apiKey);
-		setModelState(form.current.model);
 	}, [provider]);
 
 	const submit = async (): Promise<void> => {
 		const name = form.current.name.trim();
 		const endpoint = form.current.endpoint.trim();
 		const apiKey = form.current.apiKey.trim();
-		const model = form.current.model.trim();
 
 		if (name === '') {
 			setError('Name darf nicht leer sein.');
@@ -72,11 +68,7 @@ export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProvide
 				throw new Error('protocol');
 			}
 		} catch {
-			setError('Endpoint muss eine gültige http(s)-URL sein (z. B. https://api.mistral.ai/v1/chat/completions).');
-			return;
-		}
-		if (model === '') {
-			setError('Modell darf nicht leer sein.');
+			setError('Endpoint muss eine gültige http(s)-URL sein (z. B. https://api.mistral.ai/v1).');
 			return;
 		}
 		if (!isEdit && apiKey === '') {
@@ -88,13 +80,13 @@ export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProvide
 		setSaving(true);
 		try {
 			if (isEdit && provider !== undefined) {
-				const input: LlmProviderUpdate = { name, endpoint, model };
+				const input: LlmProviderUpdate = { name, endpoint };
 				if (apiKey !== '') {
 					input.apiKey = apiKey; // Nur bei Änderung senden (leer = unverändert)
 				}
 				await api.updateLlmProvider({ id: provider.id, input });
 			} else {
-				const input: LlmProviderInput = { name, endpoint, apiKey, model };
+				const input: LlmProviderInput = { name, endpoint, apiKey };
 				await api.createLlmProvider({ input });
 			}
 			onSaved();
@@ -119,7 +111,7 @@ export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProvide
 				<KolInputText
 					_label="Name"
 					_value={nameState}
-					_hint="Anzeigename, z. B. Mistral, OpenRouter oder z.ai"
+					_hint="Anzeigename, z. B. z.ai oder Groq"
 					_on={{
 						onInput: (_event: unknown, v: unknown) => {
 							form.current.name = readString(v);
@@ -134,7 +126,7 @@ export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProvide
 				<KolInputText
 					_label="Endpoint"
 					_value={endpointState}
-					_hint="OpenAI-kompatible Chat-Completions-URL (http/https)"
+					_hint="OpenAI-kompatible Basis-URL (http/https), z. B. https://api.mistral.ai/v1"
 					_on={{
 						onInput: (_event: unknown, v: unknown) => {
 							form.current.endpoint = readString(v);
@@ -162,21 +154,6 @@ export const LlmProviderFormDialog = ({ provider, onClose, onSaved }: LlmProvide
 						onChange: (_event: unknown, v: unknown) => {
 							form.current.apiKey = readString(v);
 							setApiKeyState(form.current.apiKey);
-						},
-					}}
-				/>
-				<KolInputText
-					_label="Modell"
-					_value={modelState}
-					_hint="Modellkennung, z. B. mistral-medium-latest"
-					_on={{
-						onInput: (_event: unknown, v: unknown) => {
-							form.current.model = readString(v);
-							setModelState(form.current.model);
-						},
-						onChange: (_event: unknown, v: unknown) => {
-							form.current.model = readString(v);
-							setModelState(form.current.model);
 						},
 					}}
 				/>

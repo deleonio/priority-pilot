@@ -1,13 +1,10 @@
 import { ResponseError } from 'client';
-import { getProvider } from './lib/llm-provider';
 import type {
 	ActivityAdvisorInput,
 	ActivityAdvisorResult,
 	components,
 	DependencyInput,
-	FreeModels,
-	LlmConfigInput,
-	LlmConfigStatus,
+	LlmModels,
 	LlmProvider,
 	LlmProviderInput,
 	LlmProviderUpdate,
@@ -155,13 +152,7 @@ export const api = {
 	// per LLM (`POST /tasks/parse-text`), die anschließend das Anlege-Formular vorausfüllen.
 	// **Retry bei transienten 5xx-Fehlern (#620):** Bei Ausfall/Timeout wird bis zu 2× retry-t.
 	async parseText({ text }: { text: string }): Promise<ParsedTask> {
-		const provider = getProvider();
-		const { data } = await withRetry(() =>
-			client.POST('/tasks/parse-text', {
-				body: { text },
-				params: { query: provider ? { provider: provider.name } : {} },
-			}),
-		);
+		const { data } = await withRetry(() => client.POST('/tasks/parse-text', { body: { text } }));
 		return data;
 	},
 
@@ -252,11 +243,9 @@ export const api = {
 		suggestPillarsInput,
 		signal,
 	}: { suggestPillarsInput: SuggestPillarsInput } & Init): Promise<PillarSuggestion[]> {
-		const provider = getProvider();
 		const { data, error, response } = await client.POST('/tasks/suggest-pillars', {
 			body: suggestPillarsInput,
 			signal,
-			params: { query: provider ? { provider: provider.name } : {} },
 		});
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
@@ -271,14 +260,7 @@ export const api = {
 		activityAdvisorInput,
 		signal,
 	}: { activityAdvisorInput: ActivityAdvisorInput } & Init): Promise<ActivityAdvisorResult> {
-		const provider = getProvider();
-		const { data } = await withRetry(() =>
-			client.POST('/pillars/advisor', {
-				body: activityAdvisorInput,
-				signal,
-				params: { query: provider ? { provider: provider.name } : {} },
-			}),
-		);
+		const { data } = await withRetry(() => client.POST('/pillars/advisor', { body: activityAdvisorInput, signal }));
 		return data;
 	},
 
@@ -301,11 +283,7 @@ export const api = {
 	// Lektorat (#680): Lektoriert Texte und kürzt sie optional auf eine Maximallänge.
 	// Auth via Session-Cookie (same-origin) — direkter fetch, nicht im OpenAPI-Spec.
 	async lektorat({ text, maxLength, signal }: { text: string; maxLength?: number } & Init): Promise<{ text: string }> {
-		const provider = getProvider();
-		const lektoratUrl = provider
-			? `${baseUrl}/lektorat?provider=${encodeURIComponent(provider.name)}`
-			: `${baseUrl}/lektorat`;
-		const response = await fetch(lektoratUrl, {
+		const response = await fetch(`${baseUrl}/lektorat`, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({ text, maxLength }),
@@ -445,29 +423,9 @@ export const api = {
 		return data;
 	},
 
-	// Status der LLM-Provider-Konfiguration lesen (#640). Liefert nur, OB jeweils ein Key
-	// persistiert ist, plus das Modell — nie die Key-Werte selbst (Sicherheit).
-	async getLlmConfig(init: Init = {}): Promise<LlmConfigStatus> {
-		const { data, error, response } = await client.GET('/llm-config', { signal: init.signal });
-		if (!response.ok || data === undefined) {
-			throw new ResponseError(response, error);
-		}
-		return data;
-	},
+	// --- Provider-Verwaltung: Custom-Provider + fixe Built-ins (Mistral/OpenRouter aus ENV) ---
 
-	// LLM-Provider-Konfiguration speichern (#640). Abwesende Felder bleiben unverändert; nur
-	// ausgefüllte Felder überschreiben den DB-Stand. Liefert den neuen Status (ohne Key-Werte).
-	async setLlmConfig({ llmConfig }: { llmConfig: LlmConfigInput }): Promise<LlmConfigStatus> {
-		const { data, error, response } = await client.PUT('/llm-config', { body: llmConfig });
-		if (!response.ok || data === undefined) {
-			throw new ResponseError(response, error);
-		}
-		return data;
-	},
-
-	// --- Single-Provider-Verwaltung (#951): dynamische Provider statt fester Kaskade ---
-
-	// Alle konfigurierten Provider inkl. Aktiv-Markierung (ohne API-Keys — Write-Only).
+	// Alle Provider inkl. effektiver Aktiv-Markierung — Built-ins zuerst (ohne API-Keys, Write-Only).
 	async listLlmProviders(init: Init = {}): Promise<LlmProvider[]> {
 		const { data, error, response } = await client.GET('/llm-providers', { signal: init.signal });
 		if (!response.ok || data === undefined) {
@@ -476,7 +434,7 @@ export const api = {
 		return data;
 	},
 
-	// Legt einen Provider an; der erste wird direkt aktiv. Liefert den Provider ohne API-Key.
+	// Legt einen Custom-Provider an — inaktiv; Aktivierung und Modellwahl erfolgen danach.
 	async createLlmProvider({ input }: { input: LlmProviderInput }): Promise<LlmProvider> {
 		const { data, error, response } = await client.POST('/llm-providers', { body: input });
 		if (!response.ok || data === undefined) {
@@ -505,7 +463,8 @@ export const api = {
 		}
 	},
 
-	// Setzt den Provider als einzigen aktiven Provider (Radio-Button-Logik, #951).
+	// Setzt den Provider als einzigen aktiven Provider (Radio-Button-Logik) — für Custom- UND
+	// Built-in-Provider. Ohne explizite Wahl bleibt der Built-in-Fallback (Mistral vor OpenRouter).
 	async activateLlmProvider({ id }: { id: number }): Promise<LlmProvider> {
 		const { data, error, response } = await client.POST('/llm-providers/{id}/activate', {
 			params: { path: { id } },
@@ -516,11 +475,13 @@ export const api = {
 		return data;
 	},
 
-	// Aktuelle kostenlose OpenRouter-Modelle (#742) für die Auswahl im Frontend. Die Liste kommt
-	// dynamisch vom Server (TTL-gecachter OpenRouter-Proxy) — der Client cached bewusst nicht,
-	// damit jeder Dialog-Öffnungsvorgang den aktuellen Stand zeigt.
-	async getFreeModels(init: Init = {}): Promise<FreeModels> {
-		const { data, error, response } = await client.GET('/models/free', { signal: init.signal });
+	// Verfügbare Modelle eines Providers — dynamisch aus dessen OpenAI-kompatibler
+	// `GET /models`-Antwort (serverseitig kurz gecacht); Basis der Modell-Auswahl.
+	async listLlmProviderModels({ id, signal }: { id: number } & Init): Promise<LlmModels> {
+		const { data, error, response } = await client.GET('/llm-providers/{id}/models', {
+			params: { path: { id } },
+			signal,
+		});
 		if (!response.ok || data === undefined) {
 			throw new ResponseError(response, error);
 		}

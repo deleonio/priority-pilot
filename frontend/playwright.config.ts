@@ -66,9 +66,14 @@ export default defineConfig({
 				GOOGLE_CLIENT_SECRET: '',
 				GOOGLE_ALLOWED_EMAILS: '',
 				GOOGLE_ALLOWED_EMAIL: '',
-				// LLM-Calls sind ohne aktiven Provider deterministisch 503 (#951): Die frische
-				// In-Memory-DB enthält keine llm_providers — ungemockte LLM-Aufrufe
-				// (parse-text/suggest-pillars) können nie real/kostenpflichtig werden.
+				// LLM-Built-ins deterministisch OHNE Key: Eine lokale `server/.env` mit echten Keys würde
+				// sonst den Built-in-Fallback aktivieren und Modelllisten-Fetches gegen echte Provider
+				// auslösen. Leere Strings gewinnen über `.env` und sind für die Key-Checks falsy — LLM-
+				// Aufrufe bleiben ohne aktiven Custom-Provider 503, Modelle werden nie real geladen.
+				MISTRAL_API_KEY: '',
+				OPENROUTER_API_KEY: '',
+				MISTRAL_MODEL: '',
+				OPENROUTER_MODEL: '',
 			},
 			// Backend bewusst NIE wiederverwenden: ein lokal laufendes `pnpm --filter server dev`
 			// nutzt die persistente, geseedete `./database.sqlite` — das würde den leeren, definierten

@@ -1,25 +1,27 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../../test/helpers.js';
-import LlmConfig from '../../models/llmConfig.js';
+import { resetProviderModelsCache } from './llmProviders.js';
 
 /**
- * Rote Spec-Tests für Issue #951 — Single LLM-Provider-System mit Radio-Button-Auswahl.
- * Spec: docs/spec/issue-951.md (Journey: LLM-Provider verwalten).
+ * Vertrag der Provider-API: Custom-Provider (CRUD + Radio-Aktivierung), fixe Built-ins
+ * (Mistral/OpenRouter, Key aus ENV) und die Modellliste je Provider.
  *
- * Diese Tests assertieren das Zielverhalten und sind ROT, bis `GET/POST/PUT/DELETE
- * /llm-providers` existiert (aktuell nicht geroutet → 404 statt 200/201) und die
- * Tabelle `llm_providers` mit Migration angelegt ist.
+ * Die ENV-Keys der Built-ins werden je Fall deterministisch gesetzt/gelöscht — der Fallback
+ * (Mistral vor OpenRouter) hängt an `MISTRAL_API_KEY`/`OPENROUTER_API_KEY`. Der Upstream der
+ * Modellliste wird über AppDeps injiziert (kein echter Provider-Call).
  */
 
-process.env.SESSION_SECRET = 'test-secret-issue-951';
+process.env.SESSION_SECRET = 'test-secret-llm-providers';
 process.env.GOOGLE_CLIENT_ID = 'test-client-id';
 process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
 process.env.GOOGLE_CALLBACK_URL = 'http://localhost/auth/google/callback';
 
+const ENV_KEYS = ['MISTRAL_API_KEY', 'OPENROUTER_API_KEY', 'MISTRAL_MODEL', 'OPENROUTER_MODEL'] as const;
+const envBackup: Record<string, string | undefined> = {};
+
 let server: TestServer;
 
-/** Registriert einen neuen Nutzer auf dem übergebenen Server und gibt den Session-Cookie zurück. */
 const registerOn = async (target: TestServer, email: string, password: string): Promise<string> => {
 	const res = await fetch(`${target.baseUrl}/auth/register`, {
 		method: 'POST',
@@ -32,16 +34,32 @@ const registerOn = async (target: TestServer, email: string, password: string): 
 	return setCookie.split(';')[0];
 };
 
-describe('LLM-Providers API (#951)', () => {
+describe('LLM-Providers API', () => {
 	before(async () => {
-		server = await startTestServer();
+		for (const key of ENV_KEYS) {
+			envBackup[key] = process.env[key];
+		}
+		server = await startTestServer({
+			fetchProviderModels: async (runtime) => [{ id: `${runtime.label}-model-a` }, { id: 'z-model' }],
+		});
 	});
 
 	beforeEach(async () => {
+		for (const key of ENV_KEYS) {
+			delete process.env[key];
+		}
+		resetProviderModelsCache(); // Provider-IDs starten nach resetDb von vorn — Cache deterministisch kalt halten
 		await resetDb();
 	});
 
 	after(async () => {
+		for (const [key, value] of Object.entries(envBackup)) {
+			if (value === undefined) {
+				delete process.env[key];
+			} else {
+				process.env[key] = value;
+			}
+		}
 		if (server) await server.close();
 		await closeDb();
 	});
@@ -70,14 +88,16 @@ describe('LLM-Providers API (#951)', () => {
 	const activateProvider = (cookie: string, id: number) =>
 		fetch(`${server.baseUrl}/llm-providers/${id}/activate`, { method: 'POST', headers: { Cookie: cookie } });
 
-	const providerPayload = {
-		name: 'Mistral',
-		endpoint: 'https://api.mistral.ai/v1/chat/completions',
+	const getModels = (cookie: string, id: number) =>
+		fetch(`${server.baseUrl}/llm-providers/${id}/models`, { headers: { Cookie: cookie } });
+
+	const customPayload = {
+		name: 'z.ai',
+		endpoint: 'https://api.z.ai/v1',
 		apiKey: 'secret-key-123',
-		model: 'mistral-medium-latest',
 	};
 
-	/** Legt einen Provider an und gibt dessen ID aus der Antwort zurück. */
+	/** Legt einen Custom-Provider an und gibt dessen ID aus der Antwort zurück. */
 	const createProviderAndGetId = async (cookie: string, payload: unknown): Promise<number> => {
 		const res = await createProvider(cookie, payload);
 		assert.equal(res.status, 201, 'POST /llm-providers muss 201 liefern');
@@ -86,122 +106,156 @@ describe('LLM-Providers API (#951)', () => {
 		return body.id;
 	};
 
-	// ── Journey 1 — Provider-Liste anzeigen ───────────────────────────
-	it('Journey 1: GET /llm-providers ohne konfigurierte Provider → leeres Array', async () => {
-		const cookie = await register('journey1@example.com');
-
+	/** Holt die Liste als getyptes Array. */
+	const listProviders = async (cookie: string): Promise<Array<Record<string, unknown> & { id: number }>> => {
 		const res = await getProviders(cookie);
 		assert.equal(res.status, 200, 'GET /llm-providers muss 200 liefern');
-		const body = await res.json();
-		assert.deepEqual(body, [], 'Ohne Provider muss ein leeres Array kommen');
+		return (await res.json()) as Array<Record<string, unknown> & { id: number }>;
+	};
+
+	// ── Built-ins: immer angelegt, fix ────────────────────────────────
+	it('listet Mistral und OpenRouter immer — zuerst, kind=builtin, mit ENV-Key-Präsenz', async () => {
+		process.env.MISTRAL_API_KEY = 'env-mistral-key';
+		const cookie = await register('builtins@example.com');
+
+		const list = await listProviders(cookie);
+		assert.equal(list.length, 2, 'Ohne Custom-Provider exakt die zwei Built-ins');
+		assert.equal(list[0]?.name, 'Mistral');
+		assert.equal(list[0]?.kind, 'builtin');
+		assert.equal(list[0]?.hasApiKey, true, 'ENV-Key-Präsenz wird signalisiert (nie der Wert)');
+		assert.equal(list[1]?.name, 'OpenRouter');
+		assert.equal(list[1]?.kind, 'builtin');
+		assert.equal(list[1]?.hasApiKey, false);
+		assert.ok(!('apiKey' in list[0]), 'Feld apiKey darf nicht serialisiert werden');
 	});
 
-	// ── Journey 2 — Neuen Provider anlegen ────────────────────────────
-	it('Neuen Provider anlegen: POST /llm-providers mit Name, Endpoint, API-Key, Modell', async () => {
-		const cookie = await register('journey2@example.com');
+	it('ohne ENV-Key und ohne Wahl ist kein Provider aktiv; mit ENV-Key ist der Fallback aktiv', async () => {
+		const cookie = await register('fallback-off@example.com');
+		assert.equal(
+			(await listProviders(cookie)).every((p) => p.isActive !== true),
+			true,
+			'Kein Fallback ohne ENV-Key',
+		);
 
-		const res = await createProvider(cookie, providerPayload);
-		assert.equal(res.status, 201, 'POST /llm-providers muss 201 liefern');
+		process.env.OPENROUTER_API_KEY = 'env-or-key';
+		const withKey = await listProviders(cookie);
+		const active = withKey.filter((p) => p.isActive === true);
+		assert.equal(active.length, 1);
+		assert.equal(active[0]?.name, 'OpenRouter', 'Ohne Mistral-Key ist OpenRouter der Fallback');
+	});
+
+	it('Mistral hat als Fallback Vorrang vor OpenRouter', async () => {
+		process.env.MISTRAL_API_KEY = 'env-mistral-key';
+		process.env.OPENROUTER_API_KEY = 'env-or-key';
+		const cookie = await register('fallback-order@example.com');
+		const active = (await listProviders(cookie)).filter((p) => p.isActive === true);
+		assert.equal(active.length, 1);
+		assert.equal(active[0]?.name, 'Mistral');
+	});
+
+	it('Built-ins sind fix: DELETE → 400, PUT mit name/endpoint/apiKey → 400', async () => {
+		const cookie = await register('immutable@example.com');
+		const mistral = (await listProviders(cookie)).find((p) => p.name === 'Mistral');
+		assert.ok(mistral);
+
+		assert.equal((await deleteProvider(cookie, mistral.id)).status, 400, 'Built-in nicht löschbar');
+		assert.equal((await updateProvider(cookie, mistral.id, { name: 'Hack' })).status, 400, 'Name nicht änderbar');
+		assert.equal((await updateProvider(cookie, mistral.id, { apiKey: 'x' })).status, 400, 'Key nicht änderbar');
+	});
+
+	it('Built-in-Modellwahl: PUT mit nur model → 200; Default-Modell ohne Wahl', async () => {
+		process.env.MISTRAL_API_KEY = 'env-mistral-key';
+		const cookie = await register('builtin-model@example.com');
+		const mistral = (await listProviders(cookie)).find((p) => p.name === 'Mistral');
+		assert.equal(mistral.model, 'mistral-medium-latest', 'Ohne Wahl gilt der Code-Default');
+
+		const res = await updateProvider(cookie, mistral.id, { model: 'mistral-small-latest' });
+		assert.equal(res.status, 200);
+		const updated = (await listProviders(cookie)).find((p) => p.id === mistral.id);
+		assert.equal(updated.model, 'mistral-small-latest', 'Gewähltes Modell persistiert');
+	});
+
+	// ── Custom-Provider ────────────────────────────────────────────────
+	it('Custom-Provider anlegen: ohne Modell-Feld, inaktiv, ohne Key-Rückgabe', async () => {
+		const cookie = await register('create@example.com');
+		const res = await createProvider(cookie, customPayload);
+		assert.equal(res.status, 201);
 		const created = await res.json();
 		assert.ok(!('apiKey' in created), 'Antwort darf den API-Key nicht enthalten');
+		assert.equal(created.isActive, false, 'Neuer Provider ist inaktiv (Radio entscheidet)');
+		assert.equal(created.model, '', 'Ohne Modellwahl ist model leer');
+		assert.equal(created.kind, 'custom');
 
-		const listRes = await getProviders(cookie);
-		const list = await listRes.json();
-		assert.equal(list.length, 1, 'Angelegter Provider muss in der Liste erscheinen');
-		assert.equal(list[0].name, 'Mistral');
+		const list = await listProviders(cookie);
+		assert.equal(list.length, 3, 'Zwei Built-ins + ein Custom');
+		assert.equal(JSON.stringify(list).includes('secret-key-123'), false, 'Key-Wert darf nirgends auftauchen');
 	});
 
-	// ── Sicherheit — API-Keys werden nie zurückgegeben ────────────────
-	it('SECURITY: GET /llm-providers darf keine API-Keys enthalten', async () => {
-		const cookie = await register('security@example.com');
-
-		await createProviderAndGetId(cookie, providerPayload);
-
-		const res = await getProviders(cookie);
-		assert.equal(res.status, 200, 'GET /llm-providers muss 200 liefern');
-		const body = await res.json();
-		assert.equal(body.length, 1, 'Angelegter Provider muss gelistet sein');
-		assert.ok(!('apiKey' in body[0]), 'Feld apiKey darf nicht serialisiert werden');
-		assert.equal(JSON.stringify(body).includes('secret-key-123'), false, 'Key-Wert darf nirgends auftauchen');
-	});
-
-	// ── Aktivierungslogik — genau ein Provider aktiv ──────────────────
-	it('Aktivieren eines Providers: POST /llm-providers/{id}/activate setzt isActive=true, andere auf false', async () => {
+	it('Radio-Aktivierung: genau einer aktiv — Custom UND Built-in wählbar', async () => {
 		const cookie = await register('activate@example.com');
+		const customId = await createProviderAndGetId(cookie, customPayload);
+		const builtins = await listProviders(cookie);
+		const openrouter = builtins.find((p) => p.name === 'OpenRouter');
 
-		const firstId = await createProviderAndGetId(cookie, providerPayload);
-		const secondId = await createProviderAndGetId(cookie, {
-			...providerPayload,
-			name: 'OpenRouter',
-			endpoint: 'https://openrouter.ai/api/v1/chat/completions',
-		});
+		assert.equal((await activateProvider(cookie, customId)).status, 200);
+		let list = await listProviders(cookie);
+		assert.equal(list.find((p) => p.id === customId)?.isActive, true);
+		assert.equal(list.find((p) => p.id === openrouter.id)?.isActive, false);
 
-		const activateRes = await activateProvider(cookie, secondId);
-		assert.equal(activateRes.status, 200, 'Aktivierung muss 200 liefern');
-
-		const list = await (await getProviders(cookie)).json();
-		const second = list.find((p: { id: number }) => p.id === secondId);
-		const first = list.find((p: { id: number }) => p.id === firstId);
-		assert.equal(second.isActive, true, 'Aktivierter Provider muss isActive=true haben');
-		assert.equal(first.isActive, false, 'Alle anderen Provider müssen isActive=false haben');
+		assert.equal((await activateProvider(cookie, openrouter.id)).status, 200);
+		list = await listProviders(cookie);
+		assert.equal(list.find((p) => p.id === openrouter.id)?.isActive, true, 'Auch Built-in explizit wählbar');
+		assert.equal(list.find((p) => p.id === customId)?.isActive, false, 'Alle anderen deaktiviert');
 	});
 
-	// ── PUT /llm-providers/{id} ──────────────────────────────────────
-	it('PUT /llm-providers/{id} aktualisiert Provider-Daten', async () => {
+	it('Löschen des aktiven Custom-Providers → Built-in-Fallback übernimmt', async () => {
+		process.env.MISTRAL_API_KEY = 'env-mistral-key';
+		const cookie = await register('delete-active@example.com');
+		const customId = await createProviderAndGetId(cookie, customPayload);
+		await activateProvider(cookie, customId);
+
+		assert.equal((await deleteProvider(cookie, customId)).status, 204);
+		const list = await listProviders(cookie);
+		assert.equal(list.length, 2, 'Nur die Built-ins bleiben');
+		const active = list.filter((p) => p.isActive === true);
+		assert.equal(active[0]?.name, 'Mistral', 'Fallback ist wieder aktiv');
+	});
+
+	it('PUT aktualisiert Custom-Provider; apiKey nur bei nicht-leerem Wert', async () => {
 		const cookie = await register('update@example.com');
-		const id = await createProviderAndGetId(cookie, providerPayload);
+		const id = await createProviderAndGetId(cookie, customPayload);
 
-		const res = await updateProvider(cookie, id, { name: 'Mistral Updated', model: 'mistral-small-latest' });
-		assert.equal(res.status, 200, 'PUT /llm-providers/{id} muss 200 liefern');
-
-		const list = await (await getProviders(cookie)).json();
-		const updated = list.find((p: { id: number }) => p.id === id);
-		assert.equal(updated.name, 'Mistral Updated', 'Name muss aktualisiert sein');
-		assert.equal(updated.model, 'mistral-small-latest', 'Modell muss aktualisiert sein');
+		const res = await updateProvider(cookie, id, { name: 'z.ai staging', endpoint: 'https://staging.z.ai/v1' });
+		assert.equal(res.status, 200);
+		const updated = (await listProviders(cookie)).find((p) => p.id === id);
+		assert.equal(updated.name, 'z.ai staging');
+		assert.equal(updated.endpoint, 'https://staging.z.ai/v1');
 	});
 
-	// ── DELETE /llm-providers/{id} ───────────────────────────────────
-	it('DELETE /llm-providers/{id} löscht Provider', async () => {
-		const cookie = await register('delete@example.com');
-		const id = await createProviderAndGetId(cookie, providerPayload);
-
-		const res = await deleteProvider(cookie, id);
-		assert.equal(res.status, 204, 'DELETE /llm-providers/{id} muss 204 liefern');
-
-		const list = await (await getProviders(cookie)).json();
-		assert.equal(list.length, 0, 'Gelöschter Provider darf nicht mehr gelistet sein');
+	it('Validation: POST ohne Pflichtfelder oder mit ungültiger URL → 400', async () => {
+		const cookie = await register('validation@example.com');
+		assert.equal((await createProvider(cookie, { name: 'x', endpoint: 'ftp://nope', apiKey: 'k' })).status, 400);
+		assert.equal((await createProvider(cookie, { name: '', endpoint: 'https://a.de/v1', apiKey: 'k' })).status, 400);
 	});
 
-	// ── Migration — bestehende LlmConfig-Daten werden migriert ────────
-	it('Migration: bestehende Mistral/OpenRouter Keys werden in Provider-Einträge konvertiert', async () => {
-		await resetDb();
-		await LlmConfig.create({
-			mistralApiKey: 'legacy-mistral-key',
-			openrouterApiKey: 'legacy-openrouter-key',
-		});
+	// ── Modellliste ────────────────────────────────────────────────────
+	it('GET /llm-providers/{id}/models liefert die Modelle des Providers (Upstream-Mock)', async () => {
+		process.env.MISTRAL_API_KEY = 'env-mistral-key';
+		const cookie = await register('models@example.com');
+		const mistral = (await listProviders(cookie)).find((p) => p.name === 'Mistral');
 
-		// Eigener Server-Start nach dem Seeding: Die Migration läuft beim Boot bzw.
-		// lazy — der frische Server muss die Legacy-Keys vorfinden.
-		const migrationServer = await startTestServer();
-		try {
-			const cookie = await registerOn(migrationServer, 'migration@example.com', 'password');
-			const res = await fetch(`${migrationServer.baseUrl}/llm-providers`, { headers: { Cookie: cookie } });
-			assert.equal(res.status, 200, 'GET /llm-providers muss 200 liefern');
-			const body = await res.json();
+		const res = await getModels(cookie, mistral.id);
+		assert.equal(res.status, 200);
+		const body = (await res.json()) as { models: { id: string; name: string }[] };
+		assert.deepEqual(
+			body.models.map((m) => m.id),
+			['Mistral-model-a', 'z-model'],
+			'Modelle kommen vom injizierten Upstream, nach id sortiert',
+		);
+	});
 
-			const mistral = body.find((p: { name: string }) => p.name === 'Mistral');
-			const openrouter = body.find((p: { name: string }) => p.name === 'OpenRouter');
-			assert.ok(mistral, 'Mistral-Provider muss aus Legacy-Key migriert sein');
-			assert.ok(openrouter, 'OpenRouter-Provider muss aus Legacy-Key migriert sein');
-			assert.equal(mistral.isActive, true, 'Mistral muss laut Default aktiv sein');
-			assert.equal(openrouter.isActive, false, 'OpenRouter muss inaktiv sein');
-			assert.equal(
-				JSON.stringify(body).includes('legacy-'),
-				false,
-				'Migrierte Key-Werte dürfen nie serialisiert werden',
-			);
-		} finally {
-			await migrationServer.close();
-		}
+	it('GET models: unbekannte ID → 404', async () => {
+		const cookie = await register('models-404@example.com');
+		assert.equal((await getModels(cookie, 99999)).status, 404);
 	});
 });

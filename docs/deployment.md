@@ -98,15 +98,21 @@ DATABASE_STORAGE=/var/www/gh-deploy/priority-pilot/data/database.sqlite
 DB_SEED=false           # KEINE Demo-Daten bei jedem Start (Default würde seeden)
 # DB_RESET   absichtlich NICHT gesetzt — "true" LEERT die DB bei jedem Start!
 
-# LLM: seit dem Single-Provider-System (#951) KEINE Env-Keys mehr — Provider
-# (Name, Endpoint, API-Key, Modell) werden zur Laufzeit in der App konfiguriert
-# (Einstellungen → Tab „LLM" bzw. /llm-providers-API). Ohne aktiven Provider → 503.
+# LLM: Fixe Built-ins Mistral/OpenRouter — Key liegt IMMER im ENV (siehe server/.env.example).
+# Ist kein Custom-Provider aktiv, übernimmt der Fallback: Mistral (wenn Key gesetzt), sonst
+# OpenRouter. Custom-Provider (Name, URL, Token) werden zur Laufzeit in der App konfiguriert
+# (Einstellungen → Tab „KI-Provider“ bzw. /llm-providers-API).
+MISTRAL_API_KEY=
+# OPENROUTER_API_KEY=
+# MISTRAL_MODEL=mistral-medium-latest
+# OPENROUTER_MODEL=openrouter/free
 ```
 
-**Provider-Strategie (#951):** Genau EIN aktiver Provider pro Instanz, konfiguriert in der
-Settings-UI (`/settings` → Tab „LLM") — keine Env-Keys mehr, keine Kaskade. Bestehende
-`/llm-config`-Keys werden beim ersten Zugriff automatisch als Provider migriert (Mistral aktiv).
-Ein Update-Deploy ohne weiteren Handgriff übernimmt damit die alte Konfiguration.
+**Provider-Strategie:** Genau EIN effektiv aktiver Provider pro Instanz — explizit per Radio in
+der Settings-UI (`/settings` → Tab „KI-Provider“) gewählt, sonst der Built-in-Fallback (Mistral
+vor OpenRouter, nach ENV-Key-Präsenz). Die Built-in-Keys (Mistral/OpenRouter) liegen im ENV,
+Custom-Provider-Keys write-only in der DB. Ein Update-Deploy braucht außer den ENV-Keys keinen
+weiteren Handgriff; alte `/llm-config`-Keys aus #640 sind mit dem Provider-System entfallen.
 
 Ausführliche Anleitung zu LLM-Provider-Konfiguration (Mistral + OpenRouter): [docs/llm-providers.md](llm-providers.md).
 
