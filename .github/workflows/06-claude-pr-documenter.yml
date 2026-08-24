@@ -274,14 +274,16 @@ jobs:
           # Der Listen-Abruf läuft über das App-Token (erster Actions-API-Nutzer damit
           # im Repo): Schlägt er fehl (z. B. Installation ohne „Actions: lesen" → 403),
           # darf das NICHT als „Liste leer = nichts gemessen = bereits vollständig"
-          # durchgehen — der Seal würde lautlos nichts committen. Deshalb Exit-Code
-          # prüfen (stderr steht ungeschminkt im Job-Log) und sichtbar verwarnen.
+          # durchgehen — der Seal würde lautlos nichts committen. Deshalb den Misserfall
+          # abfangen (stderr steht ungeschminkt im Job-Log) und sichtbar verwarnen.
+          # Als if-Bedingung, NICHT als `$?`-Check: GitHub führt run: ohne shell:-Key
+          # als `bash -e` aus, ein nackter Misserfolg beendet den Step sofort rot,
+          # bevor eine Warnung laufen könnte. In einer if-Bedingung gilt errexit nicht.
           mkdir -p /tmp/costs
-          LIST="$(gh api --paginate "repos/${REPO}/actions/artifacts?per_page=100" \
+          if ! LIST="$(gh api --paginate "repos/${REPO}/actions/artifacts?per_page=100" \
             --jq ".artifacts[] | select(.expired == false) \
                   | select(.name | startswith(\"claude-costs-\") and contains(\"-issue-${ISSUE}-\")) \
-                  | [.id, .name] | @tsv")"
-          if [ "$?" -ne 0 ]; then
+                  | [.id, .name] | @tsv")"; then
             echo "::warning title=Versiegeln::Artefakt-Liste nicht abrufbar (App-Token braucht ggf. Actions:Read) — kein Seal in diesem Lauf, Catch-up möglich."
             exit 0
           fi
