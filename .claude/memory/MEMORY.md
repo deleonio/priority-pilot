@@ -79,3 +79,4 @@ Konflikte, die er verhindern soll.
   Block-Skalar (Parser: "expected <block end>"). → Solche Blöcke per `printf '%s\n%s' "…" "…"`
   bauen (jede Zeile eingerückt) und danach `python3 -c "yaml.safe_load(...)"` + `bash -n` auf
   den extrahierten Step als Guard laufen lassen.
+- 2026-08-23 · E2E/Viewport — `waitForStableView(page, 'Priority Pilot')` scheitert auf `/` bei ≤375px: `.app-name` ist dort per CSS versteckt (app.css:288, Banner zeigt nur Logo-Img). → Auf Hauptansicht den Default-ReadyText `Dashboard` nutzen.

@@ -1,6 +1,8 @@
 # Spec #935 — Säulen-Formular: Beschreibung als Textarea, Titel auf 30 Zeichen begrenzt
 
-Status: Spec-Phase (rote Tests) · Issue: #935 · Muster: `TaskForm.tsx` (Titel + Beschreibung)
+**Stand:** 2026-08-24  
+**Version:** v1.1 (2026-08-24): Nightly-Sync — umgesetzt (KolTextarea + TITLE_MAX_LENGTH im Code); Spec-Phasen-Status und Meta-Kriterium-Passage entfernt.  
+Issue: #935 · Muster: `TaskForm.tsx` (Titel + Beschreibung)
 
 ## Ziel
 
@@ -42,7 +44,7 @@ begrenzt.
 
 ## Erwartetes Ergebnis (Test-Vertrag)
 
-Rote E2E-Tests in `frontend/e2e/issue-935.spec.ts` (Feature/UI-Verhalten, echtes Backend):
+E2E-Tests in `frontend/e2e/issue-935.spec.ts` (Feature/UI-Verhalten, echtes Backend):
 
 | Test                                       | deckt | Erwartung                                                                                                                                                                                 |
 | ------------------------------------------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -50,6 +52,4 @@ Rote E2E-Tests in `frontend/e2e/issue-935.spec.ts` (Feature/UI-Verhalten, echtes
 | „Mehrzeilige Beschreibung überlebt Reload" | AK1   | Angelegte Beschreibung mit `\n` steht nach Reload im Bearbeiten-Dialog wieder zeilengenau im Textarea                                                                                     |
 | „Name auf TITLE_MAX_LENGTH begrenzt"       | AK2   | `maxlength` des Name-Inputs = `TITLE_MAX_LENGTH` (Import aus `../src/lib/titleLengthValidation`, Sollwert aus führender Quelle); `pressSequentially` über die Grenze kappt bei 30 Zeichen |
 
-AK3 („Tests laufen grün") ist Meta-Kriterium der Umsetzungsphase — kein eigener Test, sondern
-Erfüllung durch Grün-Werden dieser Spec-Tests in Phase 4. Reines Styling (einspaltige
-Dialogstruktur, Abstände) wird visuell im PR-Body belegt, nicht test-erzwungen.
+Reines Styling (einspaltige Dialogstruktur, Abstände) ist nicht test-erzwungen.

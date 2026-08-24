@@ -1,6 +1,8 @@
 # Spec #933 — Geolokation manuell anstoßen und aktuelle Adresse stets sichtbar
 
-Status: Spec-Phase (rote Tests) · Issue: #933 · Vorgänger: #845 (Hook), #866 (Reverse Geocoding)
+**Stand:** 2026-08-24  
+**Version:** v1.1 (2026-08-24): Nightly-Sync — umgesetzt (refresh()/positionUpdatedAt/Button im Code); Spec-Phasen-Status entfernt.  
+Issue: #933 · Vorgänger: #845 (Hook), #866 (Reverse Geocoding)
 
 ## Ziel
 
