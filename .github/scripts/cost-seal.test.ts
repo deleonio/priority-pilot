@@ -117,4 +117,30 @@ describe('cost-seal — Zusammenführen', () => {
 			rmSync(repo, { recursive: true, force: true });
 		}
 	});
+
+	it('schreibt NICHT und meldet Treffer, wenn der gemergte Datensatz ein Secret enthält', () => {
+		const artifacts = mkdtempSync(join(tmpdir(), 'cost-seal-sec-'));
+		const repo = mkdtempSync(join(tmpdir(), 'cost-seal-sec-repo-'));
+		try {
+			// Ein Transcript-Feld (hier: model) trägt einen Token-Schnipsel in die Datei.
+			writeArtifact(artifacts, 'lauf', [entry({ phase: 'analyse', model: 'sk-ant-api03-0123456789abcdefghij' })]);
+
+			const result = sealCostRecord('42', artifacts, { rootDir: repo });
+			assert.equal(result.secretFindings, 1, 'genau ein Muster trifft');
+			assert.equal(result.changed, false, 'Secret-Befund darf NICHT geschrieben werden');
+			assert.equal(result.added, 0);
+			assert.deepEqual(readCostRecords('42', { rootDir: repo }), [], 'keine Datei entstanden');
+			assert.ok(
+				result.skipped.some((s) => s.startsWith('secret-match: ')),
+				'Treffer reist über skipped an den Aufrufer',
+			);
+			assert.ok(
+				!result.skipped.some((s) => s.includes('0123456789abcdefghij')),
+				'Meldung darf das Secret nicht im Klartext enthalten',
+			);
+		} finally {
+			rmSync(artifacts, { recursive: true, force: true });
+			rmSync(repo, { recursive: true, force: true });
+		}
+	});
 });

@@ -39,7 +39,10 @@ concurrency:
   queue: max
 
 permissions:
-  contents: read # Claude ändert PR-Metadaten via gh, nicht den Repo-Inhalt — kein Commit mehr.
+  # GITHUB_TOKEN bleibt lesend: Checkout + PR-Metadaten via gh. Der Siegel-Schritt
+  # committet .costs/<n>.json — aber über das App-Token (Installation: Contents:Write),
+  # nicht über GITHUB_TOKEN.
+  contents: read
   pull-requests: write
   issues: write
   # id-token: write — App-Token (setup-claude). Branch-Deletes im Teardown laufen über
@@ -268,11 +271,20 @@ jobs:
           # Alle nicht-abgelaufenen Kosten-Artefakte des Tickets laden (gleiches Muster
           # wie cost-baseline.yml: --paginate, strenger -issue-<n>- Filter, ein Ordner je
           # Artefakt — alle enthalten eine Datei desselben Namens).
+          # Der Listen-Abruf läuft über das App-Token (erster Actions-API-Nutzer damit
+          # im Repo): Schlägt er fehl (z. B. Installation ohne „Actions: lesen" → 403),
+          # darf das NICHT als „Liste leer = nichts gemessen = bereits vollständig"
+          # durchgehen — der Seal würde lautlos nichts committen. Deshalb Exit-Code
+          # prüfen (stderr steht ungeschminkt im Job-Log) und sichtbar verwarnen.
           mkdir -p /tmp/costs
           LIST="$(gh api --paginate "repos/${REPO}/actions/artifacts?per_page=100" \
             --jq ".artifacts[] | select(.expired == false) \
                   | select(.name | startswith(\"claude-costs-\") and contains(\"-issue-${ISSUE}-\")) \
-                  | [.id, .name] | @tsv" 2>/dev/null || true)"
+                  | [.id, .name] | @tsv")"
+          if [ "$?" -ne 0 ]; then
+            echo "::warning title=Versiegeln::Artefakt-Liste nicht abrufbar (App-Token braucht ggf. Actions:Read) — kein Seal in diesem Lauf, Catch-up möglich."
+            exit 0
+          fi
           count=0
           while IFS="$(printf '\t')" read -r id name; do
             [ -n "$id" ] || continue
@@ -288,8 +300,21 @@ jobs:
 
           OUT="$(node .github/scripts/cost-seal.ts --issue "$ISSUE" --dir /tmp/costs 2>&1 || true)"
           printf '%s\n' "$OUT"
-          if ! printf '%s' "$OUT" | grep -q 'changed=true'; then
+          # Drei Ausgänge VOR dem Commit — alle bewusst grün (NIE FATAL), aber mit dem
+          # PASSENDEN Signal statt pauschal „bereits vollständig":
+          #   1. secretFindings>0 — Secret-Verdacht im gemergten Datensatz: nicht committen.
+          #   2. changed=false — Bestand vollständig: legitimes „nichts zu tun".
+          #   3. keine changed=-Marke — Skript gecrasht: Crash nicht als „fertig" missdeuten.
+          if printf '%s' "$OUT" | grep -q 'secretFindings=[1-9]'; then
+            echo "::warning title=Versiegeln::Secret-Verdacht im gemergten Datensatz — .costs/${ISSUE}.json NICHT committet (Treffer s. secret-match-Zeilen)."
+            exit 0
+          fi
+          if printf '%s' "$OUT" | grep -q 'changed=false'; then
             echo "::notice title=Versiegeln::.costs/${ISSUE}.json bereits vollständig — kein Commit."
+            exit 0
+          fi
+          if ! printf '%s' "$OUT" | grep -q 'changed=true'; then
+            echo "::warning title=Versiegeln::Seal-Skript ohne changed=-Ergebnis (Crash?) — kein Commit: $(printf '%s' "$OUT" | tail -n 3 | tr '\n' ' ')"
             exit 0
           fi
 
