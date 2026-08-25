@@ -129,6 +129,7 @@ export const LlmSettings = ({ onChanged }: LlmSettingsProps) => {
 			try {
 				const updated = await api.updateLlmProvider({ id: activeProvider.id, input: { model } });
 				setProviders((current) => current?.map((p) => (p.id === updated.id ? updated : p)) ?? current);
+				setTestResults((current) => ({ ...current, [updated.id]: undefined }));
 				showToast(`Modell gesetzt: ${model}`);
 				onChanged?.();
 			} catch (reason) {

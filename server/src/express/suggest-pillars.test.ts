@@ -176,7 +176,7 @@ describe('POST /tasks/suggest-pillars', () => {
 	it('503 wenn der API-Key fehlt (MissingApiKeyError)', async () => {
 		await seedPillars();
 		classifierImpl = async () => {
-			throw new MissingApiKeyError();
+			throw new MissingApiKeyError('Mistral: API-Key fehlt (MISTRAL_API_KEY) — Provider in den Einstellungen prüfen.');
 		};
 		const res = await post(server.baseUrl, { title: 'X' });
 		assert.equal(res.status, 503);
