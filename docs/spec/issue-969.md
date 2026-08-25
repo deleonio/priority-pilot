@@ -1,19 +1,21 @@
 # Spec: Symmetrisches horizontales Padding im Tab „Allgemein“ der Einstellungen (#969)
 
-Status: Spec-Phase (rote Tests) · Issue: #969 · Verwandt: #843 (Settings Screen Layout), #271 (Einstellungen-Seite)
+**Stand:** 2026-08-25
+**Version:** v1.1 (2026-08-25): Nightly-Sync — umgesetzt (`.settings-general` mit beidseitigem `padding-inline: 1.5rem` im Code); Spec-Phasen-Status entfernt.
+Issue: #969 · Verwandt: #843 (Settings Screen Layout), #271 (Einstellungen-Seite)
 
 ## Ziel
 
 Auf `/settings/general` schließt der Content links und rechts mit gleichem horizontalem Abstand
-zum Viewport ab. Heute beträgt der linke Abstand ≈ 2,5rem (1rem `.settings-page` + 1,5rem
-`.settings-general`), der rechte nur 1rem — das Panel wirkt nach links eingerückt.
+zum Viewport ab: `1rem` `.settings-page`-Padding plus `1.5rem` `.settings-general`-Padding je
+Seite.
 
 ## Vorbedingung
 
 - App läuft, Route `/settings/general` ist erreichbar, Tab „Allgemein“ ist aktiv.
-- Ursache verifiziert im Code: `frontend/src/app.css` — `.settings-page` (ca. Zeile 1330) hat
-  symmetrisches Padding `max(1rem, env(safe-area-inset-*))`, `.settings-general` (ca. Zeile 1389)
-  setzt zusätzlich `padding-left: 1.5rem` ohne rechtes Gegenstück.
+- Im Code: `frontend/src/app.css` — `.settings-page` hat symmetrisches Padding
+  `max(1rem, env(safe-area-inset-*))`, `.settings-general` zusätzlich beidseitiges
+  `padding-inline: 1.5rem` (24dp); die linke Control-Position (24dp) bleibt dadurch erhalten.
 - `useShadowDOMLayout` (`frontend/src/lib/useShadowDOMLayout.ts`, genutzt in
   `SettingsPage.tsx` und `AppearanceSetting.tsx`) justiert das Alignment der Controls
   untereinander und bleibt unverändert.
@@ -42,12 +44,9 @@ zum Viewport ab. Heute beträgt der linke Abstand ≈ 2,5rem (1rem `.settings-pa
   entsprechen weiterhin exakt dem `.settings-page`-Padding (Fix wirkt nur auf
   `.settings-general`).
 
-## Abgrenzungen / Test-Pflege
+## Abgrenzungen
 
-- Keine Änderung an `useShadowDOMLayout`, `.settings-page`, `.settings-tabs` oder anderen
-  Seiten — nur `.settings-general` bekommt ein symmetrisches horizontales Padding.
-- Nach dem Fix ist zu prüfen, dass die Controls in der 800px-max-width ohne horizontalen
-  Overflow passen (`overflow-x: hidden` auf `.settings-page` versteckt Überlauf sonst
-  unbemerkt).
-- UX-Beratung (Issue-Body, `ux-ready`): rein technisches CSS-Problem, symmetrisches Padding
-  ist die Lösung; Touch-Targets, Kontraste und A11y sind von Padding unberührt.
+- `useShadowDOMLayout`, `.settings-page`, `.settings-tabs` und andere Seiten sind unberührt —
+  das symmetrische Padding wirkt nur auf `.settings-general`.
+- `overflow-x: hidden` auf `.settings-page` versteckt möglichen Überlauf der Controls in der
+  800px-max-width unbemerkt.

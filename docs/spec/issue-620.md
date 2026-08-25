@@ -1,6 +1,7 @@
 # User Journey – Frontend-Error-Handling für LLM-Calls
 
-**Stand:** 2026-08-23  
+**Stand:** 2026-08-25  
+**Version:** v1.2 (2026-08-25): Nightly-Sync — „nicht-JSON-Antwort"-Klammer entfernt: die Meldung wird rein nach Statuscode 502/503/504 erzeugt, unabhängig von der Body-Lesbarkeit.  
 **Version:** v1.1 (2026-08-23): Nightly-Sync — Ist-Meldungstext und Retry-Umfang aus Code belegt ergänzt.  
 **Issue:** #620 (Teil von #617)
 
@@ -34,7 +35,7 @@ Bei Ausfall/Timeout des Mistral-Dienstes eine verständliche Fehlermeldung anzei
 ### Erwartetes Ergebnis
 
 - **Primär:** Fehlermeldung ist verständlich und nicht technisch (keine rohe HTTP 502)
-- **Inhalt der Fehlermeldung:** Bei 502/503/504 (oder nicht-JSON-Antwort): „Der KI-Dienst ist gerade nicht erreichbar. Bitte versuche es später erneut."
+- **Inhalt der Fehlermeldung:** Bei 502/503/504: „Der KI-Dienst ist gerade nicht erreichbar. Bitte versuche es später erneut."
 - **Retry:** Bei transienten 5xx-Fehlern (502/503/504) versucht der Client automatisch bis zu 3 Versuche gesamt — für `parse-text` und `pillars/advisor`; `suggest-pillars` und `lektorat` schlagen direkt fehl
 - **UX:** Nutzer kann die Fehlermeldung dismissen oder erneut versuchen
 - **Persistenz:** Fehlerzustand wird nicht gespeichert, Nutzer kann es erneut versuchen

@@ -1,6 +1,7 @@
 # User Journeys – Priority Pilot
 
-**Stand:** 2026-08-18  
+**Stand:** 2026-08-25  
+**Version:** v1.2 (2026-08-25): Nightly-Sync — Ist-Korrekturen: Erfassungs-Dialog heißt „Neuen Task anlegen", Tab-Label „Wald" (nicht „Aufgabenwald"), Entfernen-Aktion im Abhängigkeits-Dialog ist Icon-only; Validierungszeilen für Priorität/Aufwand entfernt (Range-Inputs begrenzen die Werte, Meldungstexte existieren nicht).  
 **Ziel:** Reale Nutzerabläufe als Spezifikation für Test-Neuaufbau (Epic #563, Issue #565)
 
 Diese Journeys beschreiben **von außen sichtbares Verhalten** der laufenden Priority Pilot App. Sie sind die referenzierbare Quelle für neue Tests, implementierungsagnostisch und auf reale Abläufe fokussiert.
@@ -22,7 +23,7 @@ Neue Aufgabe in das System aufnehmen, mit allen relevanten Metadaten (Priorität
 
 1. **Aufgaben anlegen auslösen**
    - Klick auf **„Neuen Task anlegen"** in der Kopfzeile (Plus-Icon)
-   - Dialog „Schnellerfassung" öffnet sich
+   - Dialog „Neuen Task anlegen" (Schnellerfassung) öffnet sich
 
 2. **Option A: KI-gestützte Erfassung**
    - Text eingeben: _„Bis Freitag den Kundenbericht fertigstellen, hohe Priorität, etwa ein halber Tag"_
@@ -120,7 +121,7 @@ Das Gewicht einer bestehenden Abhängigkeit anpassen, um die Priorisierungslogik
    - Der aktuelle Gewichtswert ist angezeigt
 
 3. **Gewicht ändern**
-   - **ENTFERNEN**: Klick auf **„Entfernen"** neben der Abhängigkeit
+   - **ENTFERNEN**: Entfernen-Aktion (Icon-Button „Vorgänger … entfernen") neben der Abhängigkeit auslösen
    - **NEU HINZUFÜGEN**: Aufgabe erneut auswählen mit neuem Gewicht (z. B. **0,9** statt **0,7**)
    - Klick auf **„Hinzufügen"**
 
@@ -146,7 +147,7 @@ Die automatische Priorisierungsberechnung auslösen, die den Wertbeitrag und die
 ### Schritte
 
 1. **Aufgabenwald anzeigen**
-   - Tab **„Aufgabenwald"** auswählen
+   - Tab **„Wald"** auswählen
    - Der Aufgabenwald zeigt die Aufgaben als Baumstruktur, sortiert nach Wert
 
 2. **Wertberechnung beobachten**
@@ -188,17 +189,16 @@ _Wert-Berechnung als beobachtbarer Effekt – ohne interne Formel:_
 
 ## Randfälle & Fehler
 
-| Situation                                  | Erwartetes Verhalten                                                                  |
-| ------------------------------------------ | ------------------------------------------------------------------------------------- |
-| Keine Aufgaben vorhanden / Filter leer     | Hinweis: „Keine Aufgaben gefunden. Passen Sie ggf. die Filter an."                    |
-| Aufgabe ohne Vorgänger                     | Im Abhängigkeits-Dialog: „Dieser Task hat keine Vorgänger."                           |
-| Keine weiteren Tasks als Vorgänger wählbar | Hinweis: „Kein weiterer Task verfügbar, der als Vorgänger hinzugefügt werden könnte." |
-| Zyklische Abhängigkeit (z. B. A → B → A)   | Wird zurückgewiesen (HTTP 409): „… Es würde ein Zyklus entstehen."                    |
-| Titel fehlt beim Anlegen                   | „Bitte einen Titel angeben."                                                          |
-| Titel länger als 30 Zeichen                | „Titel darf maximal 30 Zeichen haben." (Eingabe wird blockiert)                       |
-| Kantengewicht außerhalb 0,1–1              | „Das Gewicht muss eine Zahl zwischen 0,1 und 1 sein."                                 |
-| Priorität keine Ganzzahl zwischen 1 und 5  | „Priorität muss eine Ganzzahl zwischen 1 und 5 sein."                                 |
-| Geschätzter Aufwand außerhalb 0,1–1        | „Geschätzter Aufwand muss eine Zahl zwischen 0,1 und 1 sein."                         |
+| Situation                                  | Erwartetes Verhalten                                                                                       |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| Keine Aufgaben vorhanden / Filter leer     | Hinweis: „Keine Aufgaben gefunden. Passen Sie ggf. die Filter an."                                         |
+| Aufgabe ohne Vorgänger                     | Im Abhängigkeits-Dialog: „Dieser Task hat keine Vorgänger."                                                |
+| Keine weiteren Tasks als Vorgänger wählbar | Hinweis: „Kein weiterer Task verfügbar, der als Vorgänger hinzugefügt werden könnte."                      |
+| Zyklische Abhängigkeit (z. B. A → B → A)   | Wird zurückgewiesen (HTTP 409): „… Es würde ein Zyklus entstehen."                                         |
+| Titel fehlt beim Anlegen                   | „Bitte einen Titel angeben."                                                                               |
+| Titel länger als 30 Zeichen                | „Titel darf maximal 30 Zeichen haben." (Eingabe wird blockiert)                                            |
+| Kantengewicht außerhalb 0,1–1              | „Das Gewicht muss eine Zahl zwischen 0,1 und 1 sein."                                                      |
+| Priorität / Aufwand außerhalb des Bereichs | Werte sind über die Schieberegler begrenzt (1–5 bzw. 0,1–1), außerhalb liegende Werte sind nicht eingebbar |
 
 ---
 
@@ -218,3 +218,4 @@ _Wert-Berechnung als beobachtbarer Effekt – ohne interne Formel:_
 
 - **v1.0** (2026-08-12): Initialefassung für Issue #565. Vier Kern-Workflows dokumentiert.
 - **v1.1** (2026-08-12): Review-Findings adressiert – konkretes Wert-Berechnungsbeispiel (Journey 4), Kantengewicht-UI spezifiziert (Schieberegler), neue Sektion „Randfälle & Fehler".
+- **v1.2** (2026-08-25): Nightly-Sync — Ist-Korrekturen (Dialog-Titel, Tab-Label „Wald", Icon-only-Entfernen, Validierungszeilen ersetzt).
