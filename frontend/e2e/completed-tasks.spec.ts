@@ -1,4 +1,4 @@
-import { expect, test, type Page } from './fixtures';
+import { expect, test, type Locator, type Page } from './fixtures';
 import { waitForStableView } from './helpers';
 
 /**
@@ -167,7 +167,16 @@ test.describe('Priority Pilot — Erledigt-Ansicht (#228/#307) gegen das echte B
 		await expect(page.getByText(title, { exact: true })).toBeVisible();
 	});
 
-	test('AK-6: Erledigte-Ansicht bei 375px ohne horizontales Scrollen', async ({ page }) => {
+	/**
+	 * Roter TDD-Vertrag für #1020, AK3+AK4 (Spec: docs/spec/issue-1020.md) — ersetzt den alten
+	 * #228-AK-6-Test („passt ohne Scrollen in 375px"): Der Mobile-Karten-Modus ist per
+	 * Nutzer-Entscheidung (Issue-Kommentar 2026-08-25 12:50Z) entfallen. Die Erledigt-Tabelle ist
+	 * eine `KolTableStateful`; bei 375px scrollt sie INTERN horizontal, während die Seiten-Shell
+	 * ohne Überlauf bleibt. Rot, bis `CompletedTasksTable.tsx` auf KolTable umgebaut ist.
+	 */
+	test('AK-6 (neu, #1020): Erledigt-Tabelle scrollt bei 375px intern — kein Karten-Modus, Seite ohne Überlauf', async ({
+		page,
+	}) => {
 		await page.setViewportSize({ width: 375, height: 667 });
 		await page.goto('/');
 		await waitForStableView(page);
@@ -177,111 +186,131 @@ test.describe('Priority Pilot — Erledigt-Ansicht (#228/#307) gegen das echte B
 		await markTaskDoneViaUi(page);
 
 		await openCompletedTab(page);
-		// Der „Wieder öffnen"-Schalter ist auch mobil erreichbar.
+		// Der „Wieder öffnen"-Schalter ist auch mobil erreichbar (Rollen-Locators piercen das
+		// KoliBri-Shadow-DOM nativ — gültig für native wie KolTable-Zeilen).
 		const row = page.getByRole('row').filter({ hasText: title });
 		await expect(row.getByRole('button', { name: 'Wieder öffnen' })).toBeVisible();
 
-		// Kein horizontales Scrollen: Der Inhalt passt in die 375px-Breite.
-		const scrollWidth = await page.evaluate(() => document.body.scrollWidth);
-		expect(scrollWidth).toBeLessThanOrEqual(375);
+		// #1020 AK1/AK4: KolTable-Host statt nativer Tabelle — ohne ihn ist alles Folgende sinnlos.
+		const host = page.locator('.completed-tasks kol-table-stateful');
+		await expect(host).toBeVisible();
+
+		// #1020 AK4: kein Karten-Modus — die Kopfzeile ist sichtbar (der Karten-Modus blendete sie
+		// visuell aus), und das native Karten-/Tabellen-Gerüst existiert nicht mehr (count 0 statt 1 —
+		// schließt die `td[data-label]`-Beschriftungslogik mit ein, ohne KoliBri-Internelements zu raten).
+		await expect(host.getByRole('columnheader').first()).toBeVisible();
+		await expect(page.locator('.completed-tasks table.completed-tasks-table')).toHaveCount(0);
+
+		// #1020 AK3: interner Scroll + Seite ohne Überlauf. Gemessen wird NICHT `body.scrollWidth`
+		// (die App-Shell clippt mit `overflow-x: hidden`, der Wert wäre strukturell grün), sondern:
+		// der Host bleibt in der Seitenbreite (Bounding-Box) und hat im Inneren (rekursiv durch die
+		// offenen Shadow-Roots) einen horizontal scrollbaren Container mit echtem Überlauf.
+		const geometry = await host.evaluate((el) => {
+			const findScroller = (root: ParentNode): HTMLElement | null => {
+				for (const node of Array.from(root.querySelectorAll('*'))) {
+					if (node instanceof HTMLElement) {
+						const overflowX = getComputedStyle(node).overflowX;
+						if ((overflowX === 'auto' || overflowX === 'scroll') && node.scrollWidth > node.clientWidth + 1) {
+							return node;
+						}
+						// eslint-disable-next-line no-restricted-syntax -- KolTable-Scroll-Verhalten ist über die öffentliche Rollen-Schnittstelle nicht abfragbar; die Shadow-Roots werden ausschließlich lesend nach dem overflow-Container durchsucht (keine internen Klassen-/Tag-Selektoren, #824-Guard).
+						const shadow = node.shadowRoot;
+						if (shadow) {
+							const hit = findScroller(shadow);
+							if (hit) return hit;
+						}
+					}
+				}
+				return null;
+			};
+			return {
+				hostRight: el.getBoundingClientRect().right,
+				scroller: (() => {
+					const hit = findScroller(el);
+					return hit ? { scrollWidth: hit.scrollWidth, clientWidth: hit.clientWidth } : null;
+				})(),
+			};
+		});
+		expect(geometry.hostRight).toBeLessThanOrEqual(375 + 1);
+		expect(geometry.scroller).not.toBeNull();
+		expect(geometry.scroller?.scrollWidth ?? 0).toBeGreaterThan(geometry.scroller?.clientWidth ?? 0);
 	});
 
 	/**
-	 * Roter TDD-Vertrag für #931 (Spec: docs/spec/issue-931.md): Auf Desktop (≥ 48rem) hat die
-	 * Erledigt-Tabelle bisher KEIN Spaltenlayout — `table-layout` ist browser-gesteuert (`auto`),
-	 * alle Zellen linksbündig, Ziffern proportional. Die drei Specs sind rot, bis der Desktop-Zweig
-	 * von `app.css`/`CompletedTasksTable.tsx` ein fixes Spaltenlayout mit dominanter Titel-Spalte
-	 * und rechtsbündigen tabellarischen Zahlen setzt. Mobile (< 48rem) bleibt unberührt — das deckt
-	 * der bestehende AK-6-Test oben ab (Dedup, kein neuer Mobile-Test).
+	 * Roter TDD-Vertrag für #1020, AK2 (Spec: docs/spec/issue-1020.md): Desktop-Geometrie der
+	 * Erledigt-Tabelle am KolTable — kurze, inhaltsbezogene Spalten (Titel dominiert, Punkte bleiben
+	 * schmaler) und einzeilige Kopfzellen. Ersetzt den #931-Geometrie-Block, dessen Messungen
+	 * (`table-layout: fixed`, `th:first-child { width: 55 % }`, `td[data-label]`-Styling) an der
+	 * nativen Tabelle hingen und mit ihr entfallen — die #931-Lesbarkeits-Essenz lebt hier in
+	 * KoliBri-tauglicher Form weiter (Details: Spec „Abgrenzung"). Rot, bis der Umbau existiert:
+	 * Alle Messungen sind auf den `kol-table-stateful`-Host scoped, der heute nicht gerendert wird.
 	 */
-	test.describe('#931 — Desktop-Spaltenbreiten (Spec docs/spec/issue-931.md)', () => {
-		/** Messbare Geometrie der Erledigt-Tabelle: Layout-Modus, Kopf-Spaltenbreiten, Tabellenbreite. */
-		const tableGeometry = (page: Page) =>
-			page.evaluate(() => {
-				const table = document.querySelector('table.completed-tasks-table');
-				if (!table) return null;
-				const headerWidths = Array.from(table.querySelectorAll('thead th')).map(
-					(th) => th.getBoundingClientRect().width,
-				);
+	test.describe('#1020 — Desktop-Spaltengeometrie am KolTable (Spec docs/spec/issue-1020.md)', () => {
+		/**
+		 * Messbare Geometrie der KolTable-Kopfzeile: Breiten/Höhen der `th` im thead (rekursiv durch
+		 * die offenen Shadow-Roots des Hosts gesammelt — Rollen-Locators allein geben keine Boxen) und
+		 * das Höhen-/Zeilenhöhe-Verhältnis jeder Kopfzelle.
+		 */
+		const kolHeaderGeometry = (host: Locator) =>
+			host.evaluate((el) => {
+				const collect = (root: ParentNode, acc: HTMLElement[]): HTMLElement[] => {
+					for (const node of Array.from(root.querySelectorAll('*'))) {
+						if (node instanceof HTMLElement) {
+							acc.push(node);
+							// eslint-disable-next-line no-restricted-syntax -- Kopfzellen-Geometrie liegt im KolTable-Shadow-DOM; Rollen-Locators liefern keine Bounding-Boxen aller th. Lesende Durchquerung ohne interne Selektoren (#824-Guard).
+							const shadow = node.shadowRoot;
+							if (shadow) collect(shadow, acc);
+						}
+					}
+					return acc;
+				};
+				const headers = collect(el, []).filter((n) => n.tagName === 'TH' && n.closest('thead'));
+				const ratio = (h: HTMLElement): number => {
+					const cs = getComputedStyle(h);
+					const lineHeight = parseFloat(cs.lineHeight);
+					const reference = Number.isFinite(lineHeight) ? lineHeight : parseFloat(cs.fontSize) * 1.5;
+					return h.getBoundingClientRect().height / reference;
+				};
 				return {
-					layout: getComputedStyle(table).tableLayout,
-					headerWidths,
-					tableWidth: table.getBoundingClientRect().width,
+					count: headers.length,
+					widths: headers.map((h) => h.getBoundingClientRect().width),
+					maxHeightRatio: headers.reduce((max, h) => Math.max(max, ratio(h)), 0),
 				};
 			});
 
-		test('AK-931-1: Ab 48rem nutzt die Tabelle ein fixes Spaltenlayout (table-layout: fixed)', async ({ page }) => {
-			await page.setViewportSize({ width: 1280, height: 800 });
-			await page.goto('/');
-			await waitForStableView(page);
-
-			await createTaskViaUi(page, uniqueTitle('931-Fixed'));
-			await markTaskDoneViaUi(page);
-			await openCompletedTab(page);
-
-			// Auto-retryend auf die gerenderte Tabelle warten — waitForStableView deckt den
-			// Async-Fetch der Erledigt-Liste nicht ab (Race, CI-Run 32637060845).
-			await expect(page.locator('table.completed-tasks-table tbody tr').first()).toBeVisible();
-
-			// Ist heute 'auto' (kein Desktop-Spaltenlayout) → rot bis zum Fix (Spec AK-931-1).
-			const geometry = await tableGeometry(page);
-			expect(geometry).not.toBeNull();
-			expect(geometry?.layout).toBe('fixed');
-		});
-
-		test('AK-931-2: Titel-Spalte ist dominant (≥ 2× jede Punkte-Spalte, ≥ 45 % Tabellenbreite) ohne Scrollen', async ({
+		test('AK2: Titel-Spalte dominiert, Punkte-Spalten bleiben schmal, Kopfzeile einzeilig (1280px)', async ({
 			page,
 		}) => {
 			await page.setViewportSize({ width: 1280, height: 800 });
 			await page.goto('/');
 			await waitForStableView(page);
 
-			await createTaskViaUi(page, uniqueTitle('931-Breite'));
+			const title = uniqueTitle('1020-Geometrie');
+			await createTaskViaUi(page, title);
 			await markTaskDoneViaUi(page);
 			await openCompletedTab(page);
 
-			// Auto-retryend auf die gerenderte Tabelle warten — waitForStableView deckt den
-			// Async-Fetch der Erledigt-Liste nicht ab (Race, CI-Run 32637060845).
-			await expect(page.locator('table.completed-tasks-table tbody tr').first()).toBeVisible();
+			const host = page.locator('.completed-tasks kol-table-stateful');
+			// Auto-retryend auf die gerenderte Zeile warten — waitForStableView deckt den Async-Fetch
+			// der Erledigt-Liste nicht ab (Race, #931-Erfahrung, CI-Run 32637060845).
+			await expect(host.getByRole('row').filter({ hasText: title })).toBeVisible();
 
-			const geometry = await tableGeometry(page);
-			expect(geometry).not.toBeNull();
-			const widths = geometry?.headerWidths ?? [];
-			// Kopfzeile: [Titel, …Säulen, Aktion] — Punkte-Spalten sind die zwischen erster und letzter.
-			expect(widths.length).toBeGreaterThanOrEqual(3);
-			const [titleWidth, ...rest] = widths;
+			const geometry = await kolHeaderGeometry(host);
+			// All-Quantor-Schutz: Ohne gefundene Kopfzellen wäre `Math.max(…[])` = -Infinity und die
+			// Breiten-Assertions leer-mengen-grün. Kopfzeile: [Titel, …Säulen, Aktion].
+			expect(geometry.count).toBeGreaterThanOrEqual(3);
+			const [titleWidth, ...rest] = geometry.widths;
 			const pointWidths = rest.slice(0, -1); // letzte Spalte ist „Aktion"
-			const maxPointWidth = Math.max(...pointWidths);
 
-			// Lesbarkeits-Kern des Tickets: Der Titel dominiert, Zahlen bleiben schmal (Spec AK-931-2).
-			expect(titleWidth).toBeGreaterThan(2 * maxPointWidth);
-			expect(titleWidth / (geometry?.tableWidth ?? 1)).toBeGreaterThanOrEqual(0.45);
+			// Lesbarkeits-Kern (ehem. #931, KoliBri-tauglich): Der Titel dominiert, die Punkte-Spalten
+			// bleiben schmaler als die Titel-Spalte.
+			expect(pointWidths.length).toBeGreaterThanOrEqual(1);
+			for (const width of pointWidths) {
+				expect(width).toBeLessThan(titleWidth);
+			}
 
-			// Und das feste Layout darf kein horizontales Scrollen erzeugen.
-			const scrollWidth = await page.evaluate(() => document.body.scrollWidth);
-			expect(scrollWidth).toBeLessThanOrEqual(1280);
-		});
-
-		test('AK-931-3: Punkte-Zellen sind rechtsbündig mit tabellarischen Ziffern', async ({ page }) => {
-			await page.setViewportSize({ width: 1280, height: 800 });
-			await page.goto('/');
-			await waitForStableView(page);
-
-			await createTaskViaUi(page, uniqueTitle('931-Zahlen'));
-			await markTaskDoneViaUi(page);
-			await openCompletedTab(page);
-
-			// Punkte-Zellen sind die `td[data-label]` (Säulen-Beschriftung, siehe Komponente).
-			const pointCell = page.locator('table.completed-tasks-table td[data-label]').first();
-			await expect(pointCell).toBeVisible();
-			const styles = await pointCell.evaluate((el) => {
-				const computed = getComputedStyle(el);
-				return { align: computed.textAlign, numeric: computed.fontVariantNumeric };
-			});
-
-			// Heute linksbündig/mit proportionalen Ziffern → rot bis zum Fix (Spec AK-931-3).
-			expect(styles.align).toBe('right');
-			expect(styles.numeric).toBe('tabular-nums');
+			// Kurze Header brechen nicht um: jede Kopfzelle ist einzeilig (Höhe < 2 × Zeilenhöhe).
+			expect(geometry.maxHeightRatio).toBeLessThan(2);
 		});
 	});
 
@@ -328,9 +357,16 @@ test.describe('Priority Pilot — Erledigt-Ansicht (#228/#307) gegen das echte B
 			const reopenButton = row.locator('[role="toolbar"]').getByRole('button', { name: 'Wieder öffnen' });
 			await expect(reopenButton).toBeVisible();
 
-			// Kein horizontales Scrollen: Der Inhalt passt in die 375px-Breite.
-			const scrollWidth = await page.evaluate(() => document.body.scrollWidth);
-			expect(scrollWidth).toBeLessThanOrEqual(375);
+			// Kein Überlauf der Seiten-Shell (#1020): Der KolTable-Host verlässt die 375px-Breite
+			// nicht (Bounding-Box statt `body.scrollWidth` — die App-Shell clippt mit
+			// `overflow-x: hidden`, der alte Check war strukturell immer grün; Messtechnik: Spec
+			// docs/spec/issue-1020.md).
+			const host = page.locator('.completed-tasks kol-table-stateful');
+			// Erst sichtbar warten, dann messen: `locator.evaluate` auf fehlendem Element liefe
+			// sonst in den vollen 30s-Test-Timeout statt schnell rot zu werden.
+			await expect(host).toBeVisible();
+			const hostRight = await host.evaluate((el) => el.getBoundingClientRect().right);
+			expect(hostRight).toBeLessThanOrEqual(375 + 1);
 		});
 	});
 });
