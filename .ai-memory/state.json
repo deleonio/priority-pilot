@@ -11,6 +11,12 @@
       "runId": "32805456775",
       "branch": "fix/issue-1009-state-merge-basis-fetchhead",
       "timestamp": "2026-08-25T03:33:57Z"
+    },
+    "documenter": {
+      "sessionId": "cbed4df9-237b-4e0d-b28a-3e036415fa66",
+      "runId": "32805791961",
+      "branch": "fix/issue-1009-state-merge-basis-fetchhead",
+      "timestamp": "2026-08-25T03:38:07Z"
     }
   }
 }
