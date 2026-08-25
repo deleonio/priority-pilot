@@ -19,8 +19,9 @@ Konflikte, die er verhindern soll.
 
 - 2026-08-19 · CI/Memory — GitHub vergibt für Issue-/Label-/PR-Trigger (und daraus kaskadierte
   `workflow_run`-Läufe) nur lesende Cache-Token; ein Cache-Save scheitert still als `##[warning]`
-  („token has no writable scopes") bei grünem Job. → Artefakte statt Cache; sie unterliegen der
-  Restriktion nicht.
+  („token has no writable scopes") bei grünem Job. → Kein Cache für Pipeline-State. (Korrektur
+  2026-08-25: die damalige Lösung „Artefakte" ist überholt — der Issue-Storage ist seit
+  2026-08-23 der State-Branch `ai/state/issue-{N}`, ADR 0006. Der Cache-Befund gilt unverändert.)
 - 2026-08-19 · CI/Workflows — `${{ steps.*.outputs.* }}` wird wörtlich in den `run:`-Block
   substituiert, ohne Quoting-Layer. Tool-Spezifizierer mit Klammern (`Bash(gh *)`) lassen bash
   dann `(` als Subshell-Start parsen → `syntax error near unexpected token '('`, exit 2. → Wert
@@ -30,6 +31,12 @@ Konflikte, die er verhindern soll.
   inkl. `Write` ab). Ein globales `Edit`-Disallow lässt sich per Allow-Regel nicht wieder
   punktuell öffnen — Disallow gewinnt. → Schreibrechte ausschliesslich über eine
   `Edit(path)`-Allowlist modellieren, nicht über Bypass + Disallow.
+  **TEILWEISE WIDERLEGT (2026-08-25):** Der daraus gezogene Schluss, eine `Edit(path)`-Allowlist
+  öffne beliebige Pfade, stimmt NICHT für `.claude/**`. Dort greift eine Sensitive-File-Sperre
+  VOR der Allowlist, die keine Allow-Regel aufhebt — Write-Tool und Bash-Heredoc werden beide
+  abgelehnt. Dieses Learning hat den Irrtum knapp eine Woche konserviert und vier von sechs
+  Pipeline-Phasen schreibunfähig gemacht (Runs 32747085777, 32741816829). → Agenten-Schreibpfade
+  IMMER ausserhalb von `.claude/` legen; der Memory liegt seither in `.ai-memory/`.
 - 2026-08-19 · Build — repo-weites `pnpm build`/`pnpm lint` ist in den meisten Läufen unnötig
   teuer. → Gezielt filtern: `pnpm --filter server build`, `pnpm --filter server lint`.
 - 2026-08-20 · Labels/Spec-Phase — der lokale `/spec-ticket`-Wrapper nennt generische

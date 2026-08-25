@@ -256,6 +256,7 @@ jobs:
           # Memory-Snippets anhängen (Phase 5 = Review: restauriert + schreibt Review-Notizen;
           # {{ISSUE_NR}} aus dem Setup-Output, da dieser Workflow am PR hängt, nicht am Issue)
           cat .github/prompts/memory-read.md >> /tmp/claude-prompt.txt
+          bash .github/scripts/render-memory-context.sh >> /tmp/claude-prompt.txt
           cat .github/prompts/memory-write.md >> /tmp/claude-prompt.txt
           sed -i "s/{{ISSUE_NR}}/${{ steps.setup.outputs.issue-number }}/g" /tmp/claude-prompt.txt
           sed -i "s/{{PHASE}}/review/g" /tmp/claude-prompt.txt

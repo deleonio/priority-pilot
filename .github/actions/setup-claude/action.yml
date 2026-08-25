@@ -163,7 +163,7 @@ outputs:
     description: 'Anzahl restaurierter Memory-Dateien in .ai-memory/.'
     value: ${{ steps.memory-verify.outputs.file-count }}
   memory-status-text:
-    description: 'Sed-sicherer Restore-Status für den Prompt-Platzhalter #MEMORY_STATUS ("vorhanden" | "leer").'
+    description: 'Sed-sicherer Restore-Status für den Prompt-Platzhalter {{MEMORY_STATUS}} ("vorhanden" | "leer").'
     value: ${{ steps.memory-verify.outputs.status-text }}
 
 runs:

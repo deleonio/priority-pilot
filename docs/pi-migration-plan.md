@@ -263,7 +263,7 @@ import { resolve } from 'path';
 // 4. ResourceLoader: Extensions (KoliBri, Playwright bedingt), Skills, Prompts, AGENTS.md
 // 5. Custom Tools registrieren: gh_*, git_*, memory_*, kolibri_*, playwright_*
 // 6. SessionManager: In-Memory oder Datei-basiert (Artefakt-Pfad)
-// 7. Prompt laden, Platzhalter ersetzen (#ISSUE_NR, #PHASE, #MEMORY_STATUS, SOFT_DEADLINE)
+// 7. Prompt laden, Platzhalter ersetzen ({{ISSUE_NR}}, {{PHASE}}, {{MEMORY_STATUS}}, {{SOFT_DEADLINE}})
 // 8. Session starten, prompt() mit streamingBehavior="followUp" (kein Streaming in CI)
 // 9. Events sammeln: turn_end → VERDICT, Usage, Cost
 // 10. Session speichern (falls Datei-basiert) für Artefakt-Upload

@@ -311,6 +311,7 @@ jobs:
           # Re-Triage setzt anhand des restaurierten Standes fort; vor den seds, damit
           # {{ISSUE_NR}}/{{PHASE}}/{{MEMORY_STATUS}} mit substituiert werden)
           cat .github/prompts/memory-read.md >> /tmp/claude-prompt.txt
+          bash .github/scripts/render-memory-context.sh >> /tmp/claude-prompt.txt
           cat .github/prompts/memory-write.md >> /tmp/claude-prompt.txt
 
           sed -i "s/{{ISSUE_NR}}/${{ github.event.issue.number }}/g" /tmp/claude-prompt.txt

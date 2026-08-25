@@ -53,7 +53,7 @@ schreiben; Write-Tool und Bash-Heredoc wurden beide abgelehnt (Runs `32747085777
 Durchgekommen sind nur die `full`-Phasen, weil `--dangerously-skip-permissions` die Prüfung
 überspringt — von sechs Übergaben je Ticket funktionierte damit genau eine (Spec → Umsetzung).
 
-Sechs Punkte gehören zur Entscheidung:
+Acht Punkte gehören zur Entscheidung:
 
 **1. Stufe 1 ohne Sessions, Stufe 2 evidence-gated.** Committet werden zunächst nur Phasen-Notizen
 und `state.json` (~KB). Session-JSONLs sind MB-schwer (Playwright-Screenshots als Base64) und
@@ -84,10 +84,26 @@ Exclude im Restore), sonst überschriebe ein alter Stand die frisch committete D
 — Notice statt Fehler, wie zuvor beim Artefakt-Miss. Die `expect-memory`-Warnung ab Phase 2 bleibt
 bestehen.
 
-**6. Teardown + Verwaisungs-Schutz.** Der Documenter löscht am Ende den Branch (ersetzt den
-Artefakt-Abbau). Der Hygiene-Sweep in `cache-cleanup.yml` entfernt `ai/state/issue-*`-Branches,
-deren Issue geschlossen UND deren letzter Commit älter als 7 Tage ist — fängt Tickets, die nie
-Phase 6 erreichen (`ai:needs-human`, `ai:to-big-issue`, Abbruch).
+**6. Abbau nur durch den Hygiene-Sweep.** _(Geändert 2026-08-25 — vorher löschte der
+Documenter den Branch am Ticket-Ende.)_ Der Sweep in `cache-cleanup.yml` entfernt
+`ai/state/issue-*`-Branches, deren Issue GESCHLOSSEN ist und deren letzter Commit älter als
+7 Tage ist. Das ist ab sofort der einzige Abbau-Pfad. Grund für die Änderung: Der Documenter
+schreibt seit 2026-08-25 selbst eine Phasen-Notiz — den Speicher im selben Lauf anzulegen und
+wegzuräumen ist widersprüchlich. Und ein Ticket ist mit dem Merge nicht zwingend erledigt:
+Re-Open, Nachtrags-PR oder ein Documenter-Re-Run fänden nach dem Löschen nichts mehr vor.
+Das 7-Tage-Fenster deckt Nacharbeit ab, und es räumt genau eine Stelle auf statt zweier.
+
+**7. Der Vor-Phasen-Kontext wird in den Prompt einmontiert, nicht angefragt.**
+_(Neu 2026-08-25.)_ `render-memory-context.sh` rendert die restaurierten Phasen-Notizen als
+Block direkt in `/tmp/claude-prompt.txt`, chronologisch nach Pipeline-Reihenfolge, mit Deckel
+(48 000 Zeichen gesamt, 12 000 je Datei). Vorher lag der Memory zwar im Workspace, gelesen wurde
+er aber nur, WEIL `memory-read.md` darum bat — das hing an Gehorsam. Damit ist „initial laden"
+eine Eigenschaft des Prompt-Baus, keine Bitte an das Modell. Die Dateien bleiben zusätzlich auf
+Platte, falls der Agent das Original braucht.
+
+**8. Jede Phase speichert, ohne Ausnahme.** _(Geändert 2026-08-25 — der Documenter war vorher
+als terminale Phase vom Schreiben ausgenommen.)_ Auch die letzte Phase legt ihren Checkpoint an,
+damit ein Re-Run nach Teilerfolg nicht bei null beginnt.
 
 Helper-Workflows (spec-sync, guide-sync, cost-baseline, Sweeps) bleiben bewusst **stateless** und
 greifen nicht auf Issue-Storages zu.

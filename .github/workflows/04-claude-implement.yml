@@ -272,6 +272,7 @@ jobs:
           # Memory-Snippets anhängen (Phase 4: restauriert + schreibt). Vor den seds, damit
           # deren Platzhalter ({{ISSUE_NR}}/{{PHASE}}/{{MEMORY_STATUS}}) mit substituiert werden.
           cat .github/prompts/memory-read.md >> /tmp/claude-prompt.txt
+          bash .github/scripts/render-memory-context.sh >> /tmp/claude-prompt.txt
           cat .github/prompts/memory-write.md >> /tmp/claude-prompt.txt
 
           sed -i "s/{{ISSUE_NR}}/${{ github.event.issue.number }}/g" /tmp/claude-prompt.txt
@@ -725,7 +726,7 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
         run: |
           # Prompt liegt kanonisch in .github/prompts/fixup.md (Quelle fuer CI). Snippet-Platzhalter
-          # ({{ISSUE_NR}}, {{PHASE}}, #MEMORY_STATUS) werden erst NACH dem Anhaengen der Memory-Snippets
+          # ({{ISSUE_NR}}, {{PHASE}}, {{MEMORY_STATUS}}) werden erst NACH dem Anhaengen der Memory-Snippets
           # substituiert.
           sed -e "s/{{PR_NR}}/${{ github.event.pull_request.number }}/g" \
               -e "s/{{SOFT_DEADLINE}}/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" \
@@ -733,6 +734,7 @@ jobs:
 
           # Memory-Snippets anhängen (restauriert + schreibt)
           cat .github/prompts/memory-read.md >> /tmp/claude-prompt.txt
+          bash .github/scripts/render-memory-context.sh >> /tmp/claude-prompt.txt
           cat .github/prompts/memory-write.md >> /tmp/claude-prompt.txt
           # {{ISSUE_NR}} kommt aus memory-write.md (Dateiname der Phasen-Notiz). Ohne diese Zeile
           # schrieb der Fixup seine Notiz in eine Datei mit LITERALEM Platzhalter im Namen.

@@ -219,6 +219,7 @@ jobs:
           # Memory-Snippets anhängen (Phase 3: restauriert + schreibt). Snippet-Platzhalter
           # separat substituieren, da die spec.md-sed oben nur den Prompt-Teil erfasst hat.
           cat .github/prompts/memory-read.md >> /tmp/claude-prompt.txt
+          bash .github/scripts/render-memory-context.sh >> /tmp/claude-prompt.txt
           cat .github/prompts/memory-write.md >> /tmp/claude-prompt.txt
           sed -i "s/{{ISSUE_NR}}/${{ github.event.issue.number }}/g" /tmp/claude-prompt.txt
           sed -i "s/{{PHASE}}/spec/g" /tmp/claude-prompt.txt

@@ -20,9 +20,15 @@ if [ ! -f "$f" ]; then
   exit 1
 fi
 
+# Der einmontierte Vor-Phasen-Kontext wird AUSGENOMMEN. Er ist Freitext, den ein Agent in einer
+# früheren Phase geschrieben hat, und darf {{...}} enthalten — eine Review-Notiz, die über
+# Platzhalter berichtet ("jedes {{TOKEN}} hat seinen sed"), ist völlig legitim und würde den
+# Guard sonst in jedem Folgelauf fälschlich auslösen. Geprüft wird nur der Template-Anteil.
+#
 # `|| true` ist Pflicht: grep ohne Treffer liefert 1, und unter `set -o pipefail` bricht das
 # die Zuweisung ab — der Guard wäre dann ausgerechnet im GUTEN Fall rot.
-rest="$(grep -oE '\{\{[A-Z_]+\}\}' "$f" | sort -u | tr '\n' ' ' || true)"
+rest="$(sed '/^═══ KONTEXT AUS DEN VORHERIGEN PHASEN DIESES TICKETS ═══$/,/^═══ ENDE VOR-PHASEN-KONTEXT ═══$/d' "$f" \
+  | grep -oE '\{\{[A-Z_]+\}\}' | sort -u | tr '\n' ' ' || true)"
 if [ -n "$rest" ]; then
   echo "::error title=❌ Prompt unvollständig::Nicht ersetzte Platzhalter in $f: ${rest% }. Fehlt ein sed-Aufruf im Workflow, oder wurde der Platzhalter im Prompt umbenannt?"
   exit 1
