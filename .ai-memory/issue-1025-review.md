@@ -1,34 +1,65 @@
-# Review PR #1026 (Issue #1025, Prompt-Audit-Umsetzung) — Kreuzverhör Runde 1
+# Review PR #1026 (Issue #1025, Prompt-Audit-Umsetzung)
 
 ## Erledigt
-- Modus bestimmt: KREUZVERHÖR (kein `<!-- ai-review -->`-Kommentar vorhanden, geprüft via Issues-API).
-- Vollständiger Diff gelesen (/tmp/pr1026.diff); Issue #1025 (Prompt-Audit) gelesen — kein KI-ANALYSE-Block (Alt-Ticket), AKs = Audit-Findings.
-- Kreuzverhör abgeschlossen, VERDICT: needs-fixup gepostet (1 Finding F1).
+
+- **Runde 1 (Kreuzverhör):** voller Diff geprüft, 1 Finding F1 (`.github/prompts/implement.md:36`,
+  `pnpm test:e2e` kein Root-Script), Sammelkommentar 5411586185 angelegt, VERDICT needs-fixup.
+- **Runde 2 (Fixup-Nachweis, dieser Lauf):** Modus per Marker `<!-- ai-review -->` bestimmt
+  (Kommentar 5411586185, updatedAt 2026-08-25T14:06:21Z vorhanden → FIXUP-NACHWEIS).
+  Fixup-Commits seit updatedAt: `de07865a` (14:24:34), `b7317434` (14:26:20), `61972dca` (Merge main).
+  - F1 **behoben** verifiziert: `git show de07865a` → implement.md:36 jetzt
+    `pnpm --filter frontend test:e2e`; Script existiert (`frontend/package.json:14` = `playwright test`).
+  - `b7317434`: nur `.ai-memory/MEMORY.md` +7 Zeilen (t.skip-Learning), ans Ende angehängt →
+    union-Merge-Regel aus AGENTS.md § Memory gewahrt, kein Umschreiben bestehender Zeilen.
+  - `61972dca`: reiner Merge von main (bringt .costs/1021.json, pr-image-strip.sh, strip-images.*,
+    06-Workflow, package.json) — kein Evil-Merge, keine Konfliktauflösung in PR-Dateien.
+  - Titel-Gate: `refactor(prompts): dedupe phase prompts against knowledge base` erfüllt
+    Conventional Commits (63 Zeichen, englisch, Subject klein) → keine Umbenennung.
+  - VERDICT: reviewed, Sammelkommentar 5411586185 auf Runde 2 fortgeschrieben.
 
 ## Relevante Stellen
-- .github/prompts/implement.md:36 — F1: `pnpm test:e2e` existiert nicht als Root-Script (nur frontend/package.json:14); CI nutzt `pnpm --filter frontend exec playwright test` (ci.yml:150).
-- .ai-knowledge/ticket-triage.md Schritt 4 — Delegationsziel des Triage-Heredocs; enthält vollständig Struktur/Feldsemantik/stand/Erst-vs-Re-Triage. ✓
-- .ai-knowledge/ticket-spec.md Schritt 2 — Delegationsziel spec.md; enthält Testebnen/Carve-out/Dedup/Mutations-Probe. ✓
-- .github/workflows/01-claude-triage.yml:246–253 — neue 5-Feld-Literal-Struktur; Post-Parser grept `UI-Bezug:`/`Aufwandsklasse:`/`Akzeptanzkriterien|AK n` → erfüllt. ✓
-- .github/workflows/03-claude-spec.yml:267–268 — Parser nimmt spec-partial|spec-ready|ready, mappt Alt-Token. `final` nur intern (ready→ai:needs-impl, sonst ai:needs-spec). ✓
-- .github/scripts/ensure-labels.sh — beide Aufrufer (01:153 pre, 01:~462 post) haben GH_TOKEN. ✓
-- .github/actions/claude-workbench/action.yml:30,46 — install + chromium → `pnpm test`-Gate in CI ausführbar, PR-Body-Behauptung stimmt. ✓
+
+- `.github/prompts/implement.md:36` — Ort von F1, jetzt workspace-scoped e2e-Kommando.
+- `frontend/package.json:14` — `"test:e2e": "playwright test"`, das einzige Vorkommen des Scripts.
+- `.github/workflows/ci.yml:150` — CI ruft `pnpm --filter frontend exec playwright test --shard`,
+  Kommentar dort erklärt, warum nicht `test:e2e -- --shard` (pnpm reicht `--` literal durch).
+- `docs/testing.md:9` — nennt weiterhin nacktes `pnpm test:e2e`; ausserhalb des Diffs, vom PR nicht
+  eingeführt → kein Finding, nur Nebenbemerkung im Sammelkommentar.
+- Sammelkommentar-ID `5411586185` (Issues-API `/issues/1026/comments`), per PATCH fortgeschrieben.
 
 ## Annahmen
-- docs/ci-architecture.md:315 (`VERDICT: spec-ready`-Beispiel) beschreibt die TRIAGE-Assertion, wo spec-ready weiterhin der korrekte Token ist → kein Stale-Doc-Finding.
-- pi-migration-plan.md:232 ist Zukunftsentwurf, Token-Beispiel nicht normativ.
+
+- CI wird grün: zum Review-Zeitpunkt waren `precheck`/`label`/Trigger pass, `verify`/`e2e`/`review`
+  noch pending. Inhaltsurteil 🟢 ist per SKILL notwendig, nicht hinreichend — `pr-gate-merge.yml`
+  entscheidet über `ai:ready-to-merge`.
+- `pnpm --filter frontend test:e2e` läuft im CI-Runner; lokal nicht ausführbar (pnpm nicht im PATH
+  dieser Sandbox), Auflösung nur statisch über package.json belegt.
 
 ## Verworfen
-- F2-Kandidat ci-architecture.md — siehe Annahmen: kein Finding (wäre Pseudo-Finding).
-- „Zeile 5"-Hardcode in spec.md Schritt 2 als Finding — akkurat heute (Zeile 5 = {{RESUME_HINT}}), bewusster Dedup-Kompromiss; nur Nebenbemerkung im Sammelkommentar.
+
+- `docs/testing.md:9` als Finding — ausserhalb des Diffs, pre-existing, nicht vom PR verursacht.
+- Erneutes Kreuzverhör des ganzen Diffs — Modus FIXUP-NACHWEIS verbietet das Aufrollen unveränderter
+  Teile (Runde 1 hatte sie bereits verifiziert).
+- Prozess-Nit „b7317434 ist ein eigener Memory-Commit, AGENTS.md will ihn im Phasen-Commit" als
+  Finding — nicht ohne History-Rewrite behebbar, Inhalt korrekt und regelkonform angehängt.
+- Neuer MEMORY.md-Eintrag aus diesem Lauf — nichts Nicht-Offensichtliches gelernt; Review-Phase darf
+  ohnehin nicht committen.
 
 ## Offen
-- F1 wartet auf Fixup: implement.md:36 `pnpm test:e2e` → `pnpm --filter frontend test:e2e`.
+
+- Keine Findings offen. CI-Endergebnis (`verify`, `e2e 1-4`) zum Zeitpunkt des Verdicts pending.
 
 ## Nächster Schritt
-- (Erledigt: Review + Sammelkommentar neu angelegt + Verdict needs-fixup in /tmp/claude-verdict.) Fixup-Runde: nur F1 verifizieren.
+
+- Nichts. Review abgeschlossen (VERDICT: reviewed). Bei rotem CI setzt `pr-gate-merge.yml`
+  `ai:needs-changes` und startet eine neue Fixup-Runde — dann Runde 3 wieder als Fixup-Nachweis.
 
 ## Fallstricke
-- Issue #1025 hat KEINEN KI-ANALYSE-Block — AKs sind die Audit-Befunde selbst; nicht nach Marker suchen.
-- HEAD der Sandbox = pull/1026/merge (Post-State direkt lesbar, kein zusätzlicher Checkout nötig).
-- 01-Triage und 03-Spec nutzen BEIDE einen Token `spec-ready` mit unterschiedlicher Bedeutung — nur der Spec-Token wurde umbenannt; 01:263 bleibt absichtlich.
+
+- Modus-Erkennung MUSS über die **Issues**-API laufen (`/issues/1026/comments`), nicht
+  `/pulls/1026/comments` — der Sammelkommentar ist ein Issue-Comment, kein Review-Comment.
+- `gh pr view --json commits` liefert `committedDate`; danach filtern statt `git log` auf dem
+  Sandbox-HEAD (HEAD ist `pull/1026/merge`, enthält zusätzlich den main-Merge af024068).
+- Sammelkommentar-Body per Datei + `gh api --method PATCH -F body=@datei` schreiben — Klammern und
+  Backticks im Body würden bash sonst als Subshell parsen (MEMORY.md 2026-08-24).
+- Finding-Nummern über Runden stabil halten: F1 bleibt F1, wandert nur in „Behobene Anmerkungen".
