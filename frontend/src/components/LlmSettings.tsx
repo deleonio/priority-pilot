@@ -36,6 +36,8 @@ interface LlmSettingsProps {
 export const LlmSettings = ({ onChanged }: LlmSettingsProps) => {
 	const [providers, setProviders] = useState<LlmProvider[] | null>(null);
 	const [models, setModels] = useState<LlmModel[] | null>(null);
+	/** True, wenn die Liste nicht live vom Provider kam, sondern aus dem eingebauten Katalog. */
+	const [modelsAreFallback, setModelsAreFallback] = useState(false);
 	const [modelsError, setModelsError] = useState<string | null>(null);
 	const [toastMessage, setToastMessage] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
@@ -72,11 +74,15 @@ export const LlmSettings = ({ onChanged }: LlmSettingsProps) => {
 		}
 		const controller = new AbortController();
 		setModels(null);
+		setModelsAreFallback(false);
 		setModelsError(null);
 		api
 			.listLlmProviderModels({ id: activeProvider.id, signal: controller.signal })
 			.then((result) => {
-				if (!controller.signal.aborted) setModels(result.models);
+				if (!controller.signal.aborted) {
+					setModels(result.models);
+					setModelsAreFallback(result.source === 'fallback');
+				}
 			})
 			.catch(async (reason) => {
 				if (!controller.signal.aborted) setModelsError((await toApiError(reason)).message);
@@ -128,11 +134,15 @@ export const LlmSettings = ({ onChanged }: LlmSettingsProps) => {
 		[activeProvider, onChanged, showToast],
 	);
 
-	// Optionen: je Provider eine Option (Built-ins zuerst — Server-Reihenfolge). Ist kein Provider
-	// aktiv (kein ENV-Key, keine Wahl), bekommt die Gruppe eine passende „inaktiv“-Option — sonst
-	// markiert KoliBri nativ die erste Option als gewählt und signalisiert falsch eine Auswahl.
+	// Optionen: je Provider eine Option „Name (Modell)“ (Built-ins zuerst — Server-Reihenfolge),
+	// damit die Radio-Group direkt zeigt, mit welchem Modell jeder Provider läuft. Ist kein
+	// Provider aktiv (kein ENV-Key, keine Wahl), bekommt die Gruppe eine passende „inaktiv“-Option —
+	// sonst markiert KoliBri nativ die erste Option als gewählt und signalisiert falsch eine Auswahl.
 	const options = useMemo(() => {
-		const providerOptions = (providers ?? []).map((p) => ({ label: p.name, value: String(p.id) }));
+		const providerOptions = (providers ?? []).map((p) => ({
+			label: p.model !== '' ? `${p.name} (${p.model})` : p.name,
+			value: String(p.id),
+		}));
 		return activeProvider === null
 			? [{ label: 'Kein Provider aktiv', value: '' }, ...providerOptions]
 			: providerOptions;
@@ -199,7 +209,11 @@ export const LlmSettings = ({ onChanged }: LlmSettingsProps) => {
 									_label={`Modell von ${activeProvider.name}${activeProvider.kind === 'builtin' ? ' (fix)' : ''}`}
 									_options={modelOptions}
 									_value={activeProvider.model}
-									_hint="Die Modelle werden live vom gewählten Provider geladen."
+									_hint={
+										modelsAreFallback
+											? 'Live-Liste nicht erreichbar — es werden bekannte Standard-Modelle angeboten.'
+											: 'Die Modelle werden live vom gewählten Provider geladen.'
+									}
 									_on={{
 										onChange: (_event, value) => void handleModelChange(readString(value)),
 									}}

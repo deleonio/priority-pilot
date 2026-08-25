@@ -65,6 +65,7 @@ test.describe('KI-Provider-Einstellungen', () => {
 		await dialog.getByRole('textbox', { name: 'Name' }).fill('E2E Provider');
 		await dialog.getByRole('textbox', { name: 'Endpoint' }).fill('http://localhost:9/v1');
 		await dialog.getByRole('textbox', { name: 'API-Key' }).fill('e2e-key');
+		await dialog.getByRole('textbox', { name: 'Modell' }).fill('e2e-model');
 		await dialog.getByRole('button', { name: 'Anlegen' }).click();
 		await expect(page.getByRole('heading', { name: 'Neuen Provider anlegen' })).toBeHidden();
 
@@ -77,7 +78,8 @@ test.describe('KI-Provider-Einstellungen', () => {
 		const custom = providers.find((p) => p.name === 'E2E Provider');
 		expect(custom?.isActive).toBe(false);
 		const radio = page.locator('kol-input-radio[_label="KI-Provider"]');
-		await radio.getByRole('radio', { name: 'E2E Provider' }).click();
+		// Radio-Label zeigt Provider inkl. gewähltem Modell: „E2E Provider (e2e-model)“.
+		await radio.getByRole('radio', { name: 'E2E Provider (e2e-model)' }).click();
 		const after = (await (await page.request.get('/api/v1/llm-providers')).json()) as ProviderDto[];
 		expect(after.find((p) => p.name === 'E2E Provider')?.isActive).toBe(true);
 

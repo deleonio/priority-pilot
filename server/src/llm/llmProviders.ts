@@ -36,6 +36,8 @@ interface LlmProviderCreateInput {
 	name: string;
 	endpoint: string;
 	apiKey: string;
+	/** Pflicht beim Anlegen: `/models` ist nicht bei jedem Anbieter abrufbar. */
+	model: string;
 }
 /** Alle Felder optional; `apiKey` nur bei nicht-leerem String gesetzt (Bearbeiten-Dialog startet leer). */
 interface LlmProviderUpdateInput {
@@ -59,6 +61,15 @@ interface BuiltinDefinition {
 	envModel: string;
 	/** Code-Default des Modells, wenn weder DB-Wahl noch ENV vorliegen. */
 	defaultModel: string;
+	/**
+	 * Eingebauter Katalog, wenn der Live-Abruf der Modellliste scheitert. Bewusst NUR für
+	 * Mistral befüllt: Dessen `GET /models` verlangt einen Key mit aktivem Abo (z. B. HTTP 402
+	 * nach Ablauf des Free-Tiers) — ohne Katalog bliebe die Modellwahl leer. Die Einträge sind
+	 * stabile `-latest`-Aliasse, die Mistral per Design auf die aktuelle Version zeigen lässt,
+	 * veralten also nicht (anders als rotierende `:free`-Modelle, deshalb bewusst kein Katalog
+	 * für OpenRouter — dessen Liste ist zudem öffentlich abrufbar).
+	 */
+	fallbackModels: readonly { id: string; name: string }[];
 }
 
 /** Die zwei fixen Provider — Reihenfolge = Fallback-Priorität (Mistral vor OpenRouter). */
@@ -71,6 +82,15 @@ const BUILTIN_DEFINITIONS: readonly BuiltinDefinition[] = [
 		defaultUrl: 'https://api.mistral.ai/v1',
 		envModel: 'MISTRAL_MODEL',
 		defaultModel: 'mistral-medium-latest',
+		fallbackModels: [
+			{ id: 'mistral-large-latest', name: 'Mistral Large' },
+			{ id: 'mistral-medium-latest', name: 'Mistral Medium' },
+			{ id: 'mistral-small-latest', name: 'Mistral Small' },
+			{ id: 'magistral-medium-latest', name: 'Magistral Medium' },
+			{ id: 'magistral-small-latest', name: 'Magistral Small' },
+			{ id: 'ministral-8b-latest', name: 'Ministral 8B' },
+			{ id: 'open-mistral-nemo', name: 'Open Mistral Nemo' },
+		],
 	},
 	{
 		key: 'openrouter',
@@ -80,6 +100,7 @@ const BUILTIN_DEFINITIONS: readonly BuiltinDefinition[] = [
 		defaultUrl: 'https://openrouter.ai/api/v1',
 		envModel: 'OPENROUTER_MODEL',
 		defaultModel: 'openrouter/free',
+		fallbackModels: [],
 	},
 ] as const;
 
@@ -90,6 +111,18 @@ const builtinDefinition = (key: string | null): BuiltinDefinition => {
 		throw new Error(`Unbekannter builtin-Provider-Schlüssel: ${String(key)}`);
 	}
 	return definition;
+};
+
+/**
+ * Eingebauter Fallback-Katalog eines Built-ins für die Modellliste — `null`, wenn es keinen
+ * gibt (Custom-Provider, OpenRouter). Der Aufrufer nutzt ihn, wenn der Live-Abruf scheitert.
+ */
+export const builtinModelFallback = (provider: LlmProvider): { id: string; name: string }[] | null => {
+	if (provider.kind !== 'builtin') {
+		return null;
+	}
+	const { fallbackModels } = builtinDefinition(provider.builtinKey);
+	return fallbackModels.length > 0 ? [...fallbackModels] : null;
 };
 
 /**
@@ -267,7 +300,7 @@ export const findProviderByName = async (name: string): Promise<LlmProvider | nu
  * Radio-Auswahl (`activateProvider`), nicht automatisch.
  */
 export const createProvider = async (input: LlmProviderCreateInput): Promise<LlmProviderDto> => {
-	const created = await LlmProvider.create({ ...input, model: '', isActive: false, kind: 'custom', builtinKey: null });
+	const created = await LlmProvider.create({ ...input, isActive: false, kind: 'custom', builtinKey: null });
 	return toDto(created, false);
 };
 
