@@ -1,7 +1,6 @@
 # Spec: Symmetrisches horizontales Padding im Tab „Allgemein“ der Einstellungen (#969)
 
 **Stand:** 2026-08-25
-**Version:** v1.1 (2026-08-25): Nightly-Sync — umgesetzt (`.settings-general` mit beidseitigem `padding-inline: 1.5rem` im Code); Spec-Phasen-Status entfernt.
 Issue: #969 · Verwandt: #843 (Settings Screen Layout), #271 (Einstellungen-Seite)
 
 ## Ziel

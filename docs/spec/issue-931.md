@@ -1,7 +1,6 @@
 # Spec 931 — Erledigte-Aufgaben-Tabelle: Spaltenbreiten für Lesbarkeit (Desktop)
 
 **Stand:** 2026-08-24  
-**Version:** v1.1 (2026-08-24): Nightly-Sync — umgesetzt (55 % Titel-Spalte im Code); transitorische Spec-Phasen-/„derzeit rot"-Passagen entfernt.  
 Issue: #931 · Vorgänger: #228 (Tabelle), #307 (Toolbar-Icon-Button)
 
 > Hinweis: Der KI-ANALYSE-Block im Issue-Body ist defekt (enthält eine Shell-Platzhalter-Zeile statt

@@ -1,7 +1,6 @@
 # Issue 653: Tab-Freiheit in Löschdialogen
 
 **Stand:** 2026-08-23  
-**Version:** v1.1 (2026-08-23): Nightly-Sync — transitorische Test-Abdeckungs- und Ticket-AK-Passagen entfernt.  
 **Ziel:** Sicherstellen, dass Löschdialoge keine Fokus-Gefängnisse sind - Tab bewegt den Fokus weiter
 
 ---

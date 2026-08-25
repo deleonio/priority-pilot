@@ -1,7 +1,6 @@
 # Settings Screen Layout – Priority Pilot
 
 **Stand:** 2026-08-23
-**Version:** v1.2 (2026-08-23): Nightly-Sync — Checkmark-Icon-Passage (20×20dp/8dp) entfernt: im Code nicht vorhanden.
 **Ziel:** Konsistentes Layout im Settings Screen mit einheitlichen Spacing-Werten, korrektem Alignment und lesbarer Typografie
 
 Diese Spezifikation beschreibt das beobachtbare Layout-Verhalten des Settings Screen. Sie ist implementierungsagnostisch und fokussiert auf visuelle Konsistenz.
@@ -51,10 +50,3 @@ Settings Screen verwendet einheitliche Layout-Werte für Abstände, Alignment un
 - **Implementierung:** Diese Spec ist implementierungsagnostisch – sie beschreibt beobachtbares Layout-Verhalten, nicht CSS-Details
 - **Test-Strategie:** Aus dieser Spec werden E2E-Tests abgeleitet, die: - **visuell** sind (Screenshot-Vergleich, Layout-Messung) - **konsistenzorientiert** sind (einheitliche Werte prüfen) - **zugänglich** sind (Kontrast, Lesbarkeit prüfen)
 - **Änderungen:** Bei Layout-Änderungen muss diese Spec aktualisiert werden
-
----
-
-## Versionierung
-
-- **v1.0** (2026-08-17): Initialefassung für Issue #843. Layout-Spezifikation für Settings Screen erstellt.
-- **v1.1** (2026-08-18): Spec angepasst – Alignment-Logik auf Host-Element-Position (boundingBox.x) statt CSS-Margin.

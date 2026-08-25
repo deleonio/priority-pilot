@@ -1,7 +1,6 @@
 # Spec: Tab-Leisten nebeneinander statt untereinander (auch mobil) — #968
 
 **Stand:** 2026-08-24  
-**Version:** v1.1 (2026-08-24): Nightly-Sync — umgesetzt; transitorische Spec-Phasen-/Ursachen-Passagen entfernt.  
 Revidiert [#703](./issue-703.md) (P2-7 „Mobile-First: eine primäre Aktion pro Zeile") für Tab-Leisten.
 
 ## Ziel

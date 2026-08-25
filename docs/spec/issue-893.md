@@ -1,7 +1,6 @@
 # Issue 893: ZAI-Provider Timeout-Fallback 08-12 Berlin
 
-**Stand:** 2026-08-24  
-**Version:** v1.1 (2026-08-24): Nightly-Sync — Fenster-Mechanik an Ist-Stand angepasst: Prüfung in Asia/Singapore-Zeit, Mo–Fr 14:00–18:00 SGT (= 08:00–12:00 MESZ), Wochenende ist Off-Peak; Soll-Empfehlungen entfernt.
+**Stand:** 2026-08-24
 
 ## Ziel
 

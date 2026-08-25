@@ -1,7 +1,6 @@
 # Issue 845 – Geolocation: Position alle 5 Minuten ermitteln + Einstellungs-Schalter
 
 **Stand:** 2026-08-23  
-**Version:** v1.1 (2026-08-23): Nightly-Sync — Reverse-Geocoding ist umgesetzt (#866): Adresse wird ermittelt und angezeigt, Nicht-Ziele korrigiert; Positionsanzeige im Footer (kein Badge).  
 **Ziel:** App ermittelt alle 5 Minuten die Geolocation-Position des Geräts und zeigt sie an, steuerbar über Einstellungs-Schalter (Default: deaktiviert)
 
 ---
