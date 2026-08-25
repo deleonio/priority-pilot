@@ -1,39 +1,35 @@
 # PR 1019 Review (CI-Phase 5) — VERDICT-Parser-Härtung
 
 ## Erledigt
-- KREUZVERHÖR abgeschlossen, VERDICT: needs-fixup (Review-Runde 1, 2026-08-25)
-- Titel-Gate angewendet: `fix(ci): make VERDICT parser ignore prose after token` ({{TITLE_OK}}=false, deutschsprachiges Subject)
-- Inline-Review gepostet (Review-ID 5018555723): F1 implement.md:7, F2 04-claude-implement.yml:800, F3 review.md:47 (F3-Body per PATCH 3852677610 korrigiert — Python-\`-Escape-Falle)
-- ai-review-Sammelkommentar angelegt: issuecomment-5409993735 (Marker gesetzt, 3 offene Findings)
-- Parser live verifiziert: beide echten #1017-Zeilen → ux-ready; GNU grep 3.11 leftmost-longest (`spec-ready`≠`ready` ✓); Fail-safe-Leerzeile ✓; Aufwandsklasse „sonnet (mittel)" → sonnet ✓
-- CI grün: verify, e2e ×4, label, precheck pass (implement/fixup/gate-merge skipping = trigger-bedingt normal)
-- Repo-weit keine weitere `tr -d -c`-VERDICT-Stelle außer den 2 bewusst unberührten Dateikanälen (04:796, 05:306)
+- Runde 1 (Kreuzverhör, 2026-08-25 11:54): needs-fixup, F1–F3, Sammelkommentar issuecomment-5409993735
+- Runde 2 (Fixup-Nachweis, 2026-08-25): Fixup = Force-Push/Squash cd3f9fba4e (12:05:52Z), alter reviewed SHA 62bfc9a4da via Review-5018555723.commit_id rekonstruiert
+- F1 BEHOBEN: alle 4 Prompts auf Vollversion restauriert, Delta vs main jetzt NUR die VERDICT-Abschnitte (Token nackt, Bedeutungen in Folgezeile) — per tarball-Diff verifiziert
+- F2 BEHOBEN: 04-claude-implement.yml:800 jetzt `grep -oE 'needs-human|already-done'` (+2 Kommentarzeilen), fixup-verdict.sh (unverändert) hat bereits already-done-Decision-Table
+- F3 BEHOBEN: review.md:73–75 Tokens je eigene Zeile
+- CI am neuen Head: verify/e2e ×4/label/precheck pass; review=pending (eigener Lauf); gate-merge skipping normal
+- VERDICT: reviewed (Sammelkommentar gepatcht, /tmp/claude-verdict geschrieben)
 
 ## Relevante Stellen
-- `.github/workflows/04-claude-implement.yml:800` — Fixup-Fallback `grep -oE 'needs-human'` ohne `already-done` (Finding 2)
-- `.github/prompts/fixup.md:67-76` — lehrt Output-Fallback `VERDICT: needs-human` bzw. `already-done`
-- `.github/scripts/fixup-verdict.sh:59-96` — Decision-Table: already-done + Review-Delta → Re-Review, sonst Parken
-- `.github/prompts/{ux,spec,implement,review}.md` — komplett umgeschrieben (−188 Zeilen), Verluste s. Finding 1
-- `05-claude-pr-review.yml:258-260` — Workflow hängt memory-read/write-Snippets an Prompt an (Memory-Pflicht bleibt wirksam trotz entferntem Hinweis in review.md)
-- Workflow-Trigger 01–05: `issues/pull_request: labeled(/unlabeled)` — Grund für Labels-Guardrail-Bewertung
+- `.github/workflows/04-claude-implement.yml:797–804` — Fixup-Fallback-Grep mit beiden Tokens
+- `.github/prompts/{ux,spec,implement,review}.md` — VERDICT-Abschnitte je Datei (ux:28, spec:38, implement:44, review:70–77)
+- `/tmp/fixup.diff`, `/tmp/fx{old,new}/` — rekonstruierter Runde-1↔Runde-2-Diff (flüchtig)
 
 ## Annahmen
-- {{TITLE_OK}}=false korrekt interpretiert (Prompt zeigte wörtlich „Bei `false=false` umbenennen")
-- ADR 0001 gilt → keine Workflow-Tests gefordert; MEMORY.md-Eintrag im PR regelkonform (committende Phase)
+- Dangling-Commit 62bfc9a4da ist via `curl -L -H "Authorization: Bearer $(gh auth token)" https://api.github.com/repos/deleonio/priority-pilot/tarball/<sha>` holbar (gh api folgt Redirects NICHT — 0-Byte-Datei)
+- Titel-Gate: `fix(ci): make VERDICT parser ignore prose after token` erfüllt Conventional Commits → kein Rename nötig
 
 ## Verworfen
-- „Memory-Hinweis-Wegfall in review.md ist Finding" — 05 hängt memory-write.md an den Prompt, Pflicht bleibt wirksam
-- „Mehrtoken-Echo ist Blocker" — nur noch Konsistenz-Finding F3 (Echo parkt vorher wie nachher beim Menschen)
-- „Trailing-Newline-Verlust der 4 Prompts ist Finding" — CI/verify grün, Prettier akzeptiert
+- „Neue Probleme im Fixup-Diff" — keine gefunden: Token-Paare disjunkt (needs-human/already-done), YAML/Quoting intakt (verify grün), restaurierte Prompts verlieren Token-Fix nicht
+- „fixup.md:75–76 Zweizeiler-Beispiel als Echo-Risiko" — fixup.md unverändert am PR (nicht in Dateiliste), kein PR-Gegenstand
 
 ## Offen
-- Erwartet: Fixup-Runde setzt F1–F3 um (F1: Prompts restore + nur VERDICT-Zeilen ändern ODER Side-Scope im Body deklarieren; F2: `grep -oE 'needs-human|already-done'`; F3: Beispielzeile marker-frei)
 - Issue #1017 bleibt vom Menschen zu entblocken (im PR-Body deklariert, kein Scope dieses PR)
+- Memory-Kandidat „PRs mit Prompt-Rewrite-Nebenscope müssen Side-Scope im Body deklarieren" — Runde 2 hat per Restore gelöst; Konvention wäre noch worthochzustufen (keine Review-Aktion mehr)
 
 ## Nächster Schritt
-- Fixup-Nachweis-Runde: ai-review-Kommentar 5409993735 laden, Fixup-Diff seit updatedAt auf F1–F3 prüfen + neue Probleme im Fixup-Diff
+- Keine — PR ist review-abgeschlossen (reviewed); Weiterverarbeitung läuft über den Workflow
 
 ## Fallstricke
-- Python-JSON-Payload mit `\``in normalen Strings produziert Literal-Backslash im geposteten Markdown → raw-Strings (r""") oder Code-Blöcke nutzen
-- Der 04-Fixup-Fallback (Z. 800) ist ein ANDERER Parser als der Implement-Parser (Z. 328) — Vokabulare differieren absichtlich (fixup.md vs. implement.md lehren unterschiedliche Tokens)
-- Dauer-Gedächtnis-Kandidat für Fixup/Spec-Phase: „PRs mit Prompt-Rewrite-Nebenscope müssen diesen im Body deklarieren" — Review hat es als F1 etabliert; falls das Fixup es umsetzt, könnte ein künftiger Lauf das als Konvention hochstufen
+- Force-Push-Squash zerstört `gh pr view --json commits`-Historie: reviewed SHA stattdessen aus `pulls/N/reviews[].commit_id` holen; `compare/A..B` 404t bei Dangling-Commits → beide Trees als tarball/`git archive` extrahieren und lokal diffen
+- Repo ist `deleonio/priority-pilot`; remote URL enthält Token-Userinfo → REPO-Parsing per sed scheitert, hardcoden
+- gh api tarball-Endpoint: Redirect wird nicht gefolgt → curl -L nehmen (siehe Annahmen)
