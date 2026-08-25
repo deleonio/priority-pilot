@@ -1420,15 +1420,23 @@ body {
 }
 
 /*
- * #932 AK1: Der 'Push testen'-Button darf nicht die volle Flex-Breite einnehmen.
- * Wir setzen `align-self: flex-start` auf eine zielgerichtete Utility-Klasse statt auf
- * `.settings-general kol-button`, um zukünftige weitere Buttons nicht versehentlich zu treffen.
+ * #1017: Die sekundären Aktions-Buttons im Tab „Allgemein" („Push testen",
+ * „Standort jetzt ermitteln") teilen sich eine Layout-Klasse. Mobil (<768px, Default) füllt
+ * jeder Button die Container-Innenbreite (Flex-Default `align-self: stretch` in der
+ * flex-column), desktop (≥768px) ist er inhaltsbreit linksbündig — #932 AK1 gilt damit
+ * als Desktop-Zweig weiter, mobile Vollbreite ist bewusst gewollt.
  * KoliBri `_inline` wird bewusst NICHT verwendet: Mobile-UI-Regel 2 erfordert einen 44px-Touch-Target,
  * den `_inline` entfernen würde. `align-self: flex-start` lässt den Button nur so breit werden wie sein
  * Inhalt, lässt die KoliBri-Default-Paddings und -Höhe unberührt.
  */
-.push-test-btn {
-	align-self: flex-start;
+.settings-action-btn {
+	align-self: stretch; /* mobil: volle Container-Innenbreite (explizit statt implizitem Flex-Default) */
+}
+
+@media (min-width: 768px) {
+	.settings-action-btn {
+		align-self: flex-start; /* #932: desktop inhaltsbreit linksbündig statt volle Flex-Breite */
+	}
 }
 
 /*
