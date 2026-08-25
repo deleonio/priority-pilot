@@ -1,9 +1,9 @@
-# Issue 787 – Header-Layout und KI-Modell-Auswahl in Toolbar
+# Issue 787 – Header-Layout
 
-**Stand:** 2026-08-24  
+**Stand:** 2026-08-25  
+**Version:** v1.5 (2026-08-25): Nightly-Sync — KI-Modell-Auswahl-Passagen entfernt: Der Toolbar-Button wurde mit dem LLM-Provider-System (#951) zurückgebaut, die Modellwahl lebt in den Einstellungen (Tab „KI-Provider"). Übrig bleibt der Header-Layout-Vertrag.  
 **Version:** v1.4 (2026-08-24): Nightly-Sync — #965 umgesetzt: Button icon-only mit statischem Namen „KI-Modell auswählen", auf allen Viewport-Breiten gerendert (Mobile-Lücke geschlossen); Modellname nur im Dialog.  
-**Version:** v1.3 (2026-08-23): Nightly-Sync — Accessible Name des Modell-Buttons auf den Ist-Text korrigiert.  
-**Ziel:** Header-Layout optimieren und KI-Modell-Auswahl harmonisch in Toolbar integrieren
+**Ziel:** Header-Layout optimieren und stabil halten
 
 ---
 
@@ -11,9 +11,7 @@
 
 ### Ziel
 
-Header zeigt die Elemente in der Reihenfolge Logo → Name → Toolbar → Avatar, mit integrierter
-KI-Modell-Auswahl. (Korrigiert in v1.2 durch #912 — Avatar steht seither als letztes Element ganz
-rechts, siehe Versionierung.)
+Header zeigt die Elemente in der Reihenfolge Logo → Name → Toolbar → Avatar.
 
 ### Vorbedingung
 
@@ -25,7 +23,7 @@ rechts, siehe Versionierung.)
 1. **Header-Elemente identifizieren**
    - Logo (App-Icon/Brand)
    - App-Name „Priority Pilot"
-   - Toolbar mit verschiedenen Aktionen
+   - Toolbar mit den fünf Kopf-Aktionen (#691: „Neuen Task anlegen", „Säulen-Berater", „Einstellungen", „Hilfe", „Abmelden")
    - User-Avatar mit Profil-Bild
 
 2. **Reihenfolge prüfen**
@@ -33,88 +31,32 @@ rechts, siehe Versionierung.)
    - Avatar ist das letzte Element ganz rechts im Header
    - Keine Elemente außerhalb dieser Sequenz
 
-3. **KI-Modell-Auswahl in Toolbar lokalisieren**
-   - KI-Modell-Auswahl ist als Toolbar-Element integriert (nicht separat angehängt)
-   - Icon-only-Button (Gehirn-Icon, kein sichtbarer Text) mit statischem Accessible Name
-     „KI-Modell auswählen" (#965) — kein Modellname im Button
-   - Das aktuell konfigurierte Modell ist ausschließlich im Modell-Dialog sichtbar
-
 ### Erwartetes Ergebnis
 
 - Header-Layout folgt strikt der Reihenfolge: Logo → Name → Toolbar → Avatar
-- KI-Modell-Auswahl ist visuell Teil der Toolbar: gemeinsamer Container, gemeinsame Ausrichtung,
-  direkt benachbart
 - Keine Layout-Shifts oder broken images
 - Toolbar-Elemente sind gleichmäßig ausgerichtet
 
 ### Abgrenzung: ARIA-Rolle `toolbar`
 
-„Teil der Toolbar" ist eine **visuelle** Anforderung. Die Rolle `toolbar` trägt allein die
-KoliBri-Toolbar (`kol-toolbar`), die auch deren Tastatur-Erwartung (Pfeiltasten-Navigation zwischen
-den Items) umsetzt. Der umgebende Container bekommt **kein** zweites `role="toolbar"`: Das ergäbe
-verschachtelte Toolbars mit identischem Accessible Name und verspräche eine Pfeiltasten-Navigation,
-die er nicht implementiert. Die KI-Modell-Auswahl ist als eigenständiges, benanntes Bedienelement im
-`banner` vollständig zugänglich.
----
+Die Rolle `toolbar` trägt allein die KoliBri-Toolbar (`kol-toolbar`), die auch deren
+Tastatur-Erwartung (Pfeiltasten-Navigation zwischen den Items) umsetzt. Der umgebende Container
+bekommt **kein** zweites `role="toolbar"`: Das ergäbe verschachtelte Toolbars mit identischem
+Accessible Name und verspräche eine Pfeiltasten-Navigation, die er nicht implementiert.
 
-## Journey 2: KI-Modell-Auswahl Interaktion
+### Abgrenzung: KI-Modell-Auswahl
 
-### Ziel
-
-KI-Modell-Auswahl ist funktional und a11y-konform bedienbar.
-
-### Vorbedingung
-
-- Header ist sichtbar
-- KI-Modell-Auswahl ist in Toolbar integriert
-
-### Schritte
-
-1. **Click-Target prüfen**
-   - KI-Modell-Auswahl hat mindestens 44×44px Click-Target (BITV 2.1, Touch-optimiert)
-   - Hover-Visualisierung bei Desktop (Border/Background-Change)
-
-2. **Tastatur-Navigation**
-   - Tab-Reihenfolge erreicht KI-Modell-Auswahl nach anderen Toolbar-Elementen
-   - Enter/Space öffnet den Dialog
-
-3. **Screenreader-Test** _(geändert durch Menschen-Entscheidung zu #929; #965)_
-   - Element ist ein nativer Button — Semantik, Fokus-Optik und der statische Accessible Name
-     („KI-Modell auswählen") trägt `kol-toolbar` im Shadow-DOM selbst
-   - Der frühere role="combobox"-Vertrag (aria-haspopup, aria-expanded, Chevron) ist aufgehoben:
-     `kol-toolbar` verwirft ARIA-Attribute an Items still, ein nachgerüstetes combobox-Semantik-
-     Muster wäre nicht einklagbar. Die Bedienbarkeit bleibt über den nativen Button erhalten.
-
-4. **Modell-Auswahl testen**
-   - Klick auf KI-Modell-Auswahl öffnet das Popup
-   - Popup zeigt die verfügbaren Modelle
-   - Auswahl eines Modells wird sofort übernommen (Dialog zeigt das neue Modell)
-   - Escape schließt das Popup
-
-### Erwartetes Ergebnis
-
-- KI-Modell-Auswahl ist klickbar und funktional
-- Popup öffnet sich und zeigt Modelle
-- Auswahl aktualisiert UI sofort
-- Button ist als natives KoliBri-Toolbar-Bedienelement vollständig zugänglich
-
-### Abgrenzung: Popup-Art und Label
-
-Das Popup ist der bestehende modale **Dialog** zur Modell-Auswahl (#742), keine Listbox — der
-Toolbar-Button öffnet ihn wie jeder Aktionsbutton. Die Liste der auswählbaren Modelle bleibt der
-Dialog-Inhalt aus #742.
-
-Das Screenreader-Label enthält **keine** Anzahl verfügbarer Optionen: Die Free-Modell-Liste lädt
-dynamisch erst der Dialog (`GET /models/free`). Eine im Button hartcodierte Zahl wäre eine
-Falschaussage, sobald sich die Liste ändert.
+Die KI-Modellwahl lebt seit dem Provider-System (#951) in den Einstellungen (Tab „KI-Provider")
+— es gibt keinen Einstieg mehr in der Kopfzeile. Frühere Journeys dazu (Toolbar-Button,
+Modell-Dialog, #929/#965) sind obsolet.
 
 ---
 
-## Journey 3: Responsive Verhalten
+## Journey 2: Responsive Verhalten
 
 ### Ziel
 
-Der Header funktioniert auf allen Viewports; die KI-Modell-Auswahl ist auf allen Viewport-Breiten gerendert und bedienbar (#965 hat die frühere Mobile-Ausblendung aus #929 aufgehoben).
+Der Header funktioniert auf allen Viewports.
 
 ### Vorbedingung
 
@@ -126,31 +68,15 @@ Der Header funktioniert auf allen Viewports; die KI-Modell-Auswahl ist auf allen
    - Header-Height konsistent (kein Layout-Shift bei Toolbar-Änderungen)
    - Toolbar-Elemente passen in Viewport
 
-2. **KI-Modell-Auswahl auf allen Breiten**
-   - Touch-Ziel des Header-Buttons mindestens 44×44px (WCAG 2.5.5)
-   - Auch unter 48rem ist der icon-only Button im Header vorhanden
-   - Modal erscheint bei Auswahl
-
-3. **Breakpoint-Test**
-   - Unter und ab 48rem (768px): KI-Modell-Auswahl (icon-only) im Header
+2. **Breakpoint-Test**
+   - Unter und ab 48rem (768px): alle fünf Kopf-Aktionen (icon-only) im Header
    - Ab 64rem (1024px): zusätzlich der App-Name im Header
 
 ### Erwartetes Ergebnis
 
 - Keine horizontalen Scrollbars oder Überläufe
-- Touch-Ziel der KI-Modell-Auswahl ist ausreichend groß (≥44×44px)
+- Touch-Ziele der Kopf-Aktionen mindestens 44×44px (WCAG 2.5.5)
 - Header-Height bleibt stabil
-- KI-Modell-Auswahl ist auf allen Viewport-Breiten bedienbar
-
-### Abgrenzung: KI-Modell-Auswahl unter 48rem
-
-Der Header muss auf 375px einzeilig bleiben — das ist ein bestehender, mehrfach abgesicherter
-Vertrag (#485 AK6, #718 AK4/AK5, `mobile-shell.spec.ts`). #929 blendete die KI-Modell-Auswahl
-deshalb unter 48rem aus; #965 hat diese Ausblendung aufgehoben: Der Button ist seither icon-only
-(Gehirn-Icon, kein Text-Label) und passt auf allen Breiten in die einzeilige Kopfzeile. Ein
-Dashboard-Einstieg existiert weiterhin nicht — die Kopfzeile ist der einzige Einstieg in die
-KI-Modell-Auswahl. Der Header-Button misst 44×44px über die gemeinsame Toolbar-Einheit
-(`--pp-toolbar-height`) und erfüllt WCAG 2.5.5.
 
 ### Abgrenzung: App-Name und #406
 
@@ -162,19 +88,17 @@ in `header-logo.spec.ts` prüft das weiterhin.
 
 ### Abgrenzung: „Header-Height bleibt stabil"
 
-Gemeint ist die Stabilität **nach** dem Aufbau der Ansicht: Ist die Toolbar ausgelayoutet und das
-aktuelle Modell geladen, darf keine Interaktion (Öffnen des Popups, Auswahl eines Modells) die
-Header-Höhe verändern. Während der Hydration wächst der Header dagegen erwartungsgemäß auf seine
-Endhöhe — `kol-toolbar` baut ihre Buttons asynchron im Shadow-DOM auf.
+Gemeint ist die Stabilität **nach** dem Aufbau der Ansicht: Ist die Toolbar ausgelayoutet, darf
+keine Interaktion die Header-Höhe verändern. Während der Hydration wächst der Header dagegen
+erwartungsgemäß auf seine Endhöhe — `kol-toolbar` baut ihre Buttons asynchron im Shadow-DOM auf.
 
-Auf 375px bleibt der Header einzeilig (Vertrag aus #485 AK6 / #718 AK4): Logo, Avatar und die sechs
-Kopf-Aktionen (#691 inkl. icon-only KI-Modell-Button aus #965) füllen die Zeile aus. Ein
-zweizeiliger Umbruch tritt nicht ein; die Anforderung „keine horizontalen
-Überläufe" bleibt erfüllt.
+Auf 375px bleibt der Header einzeilig (Vertrag aus #485 AK6 / #718 AK4): Logo, Avatar und die fünf
+Kopf-Aktionen (#691) füllen die Zeile aus. Ein zweizeiliger Umbruch tritt nicht ein; die
+Anforderung „keine horizontalen Überläufe" bleibt erfüllt.
 
 ---
 
-## Journey 4: A11y und Kontrast
+## Journey 3: A11y und Kontrast
 
 ### Ziel
 
@@ -193,12 +117,11 @@ Alle UI-Elemente erfüllen BITV 2.1 Kontrast-Anforderungen.
 
 2. **Tastatur-Navigation vollständig**
    - Tab-Reihenfolge folgt der visuellen Reihenfolge über die **bedienbaren** Elemente:
-     Logo → KI-Modell-Auswahl → Toolbar-Elemente
+     Logo → Toolbar-Elemente
    - App-Name und Avatar sind reine Anzeige-Elemente und erzeugen bewusst **keinen** Tab-Stopp: Ein
      Tab-Stopp ohne Aktion ist eine Sackgasse für Tastatur-Nutzende. WCAG 2.4.3 fordert eine
      sinnvolle Reihenfolge der bedienbaren Elemente, nicht einen Stopp je sichtbarem Element.
    - Keine Focus-Traps
-   - Esc schließt das Popup
 
 3. **Screenreader-komplette Journey**
    - Alle Elemente sind appropriat gelabelt
@@ -214,12 +137,11 @@ Alle UI-Elemente erfüllen BITV 2.1 Kontrast-Anforderungen.
 
 ## Randfälle & Fehler
 
-| Situation                               | Erwartetes Verhalten                                                                     |
-| --------------------------------------- | ---------------------------------------------------------------------------------------- |
-| KI-Modell-Auswahl Click-Target <44×44px | Verstößt gegen BITV 2.1 – muss vergrößert werden                                         |
-| Kontrast <4.5:1 bei Text-Icons          | BITV 2.1.1 Verstoß – Kontrast muss erhöht werden                                         |
-| Layout-Shift bei Toolbar-Änderung       | Header-Height muss stabil bleiben – CSS Grid/Flex für Konsistenz nutzen                  |
-| Mobile: Überlauf der Kopfzeile          | Header bleibt einzeilig (≤ 64px, kein Overflow) – Platz über Gap/Padding, nie Ausblenden |
+| Situation                         | Erwartetes Verhalten                                                                     |
+| --------------------------------- | ---------------------------------------------------------------------------------------- |
+| Kontrast <4.5:1 bei Text-Icons    | BITV 2.1.1 Verstoß – Kontrast muss erhöht werden                                         |
+| Layout-Shift bei Toolbar-Änderung | Header-Height muss stabil bleiben – CSS Grid/Flex für Konsistenz nutzen                  |
+| Mobile: Überlauf der Kopfzeile    | Header bleibt einzeilig (≤ 64px, kein Overflow) – Platz über Gap/Padding, nie Ausblenden |
 
 ---
 
@@ -227,8 +149,7 @@ Alle UI-Elemente erfüllen BITV 2.1 Kontrast-Anforderungen.
 
 - **Format:** Dieser Spec folgt dem User-Journey-Format aus docs/spec/user-journeys.md
 - **Implementierung:** Spezifikation ist implementierungsagnostisch – beschreibt beobachtbares Verhalten
-- **Test-Strategie:** E2E-Tests (frontend/e2e/*.spec.ts) prüfen Layout-Reihenfolge, A11y-Attribute, Responsive-Verhalten und Funktionalität
-- **KI-UX-Block:** UX-Requirements aus KI-UX:END-Block des Issues sind in diese Journeys integriert
+- **Test-Strategie:** E2E-Tests (frontend/e2e/*.spec.ts) prüfen Layout-Reihenfolge, A11y-Attribute und Responsive-Verhalten
 
 ---
 

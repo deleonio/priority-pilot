@@ -1,6 +1,7 @@
 # Aufgabenbaum-Layout – Priority Pilot
 
-**Stand:** 2026-08-16  
+**Stand:** 2026-08-25  
+**Version:** v1.1 (2026-08-25): Nightly-Sync — Tab-Label auf Ist korrigiert („Wald", nicht „Aufgabenwald").  
 **Ziel:** Saubere, strukturierte Darstellung des Aufgabenbaums mit klarer Hierarchie (Issue #704, Teil von #702)
 
 Dieser Spec beschreibt das beobachtbare Verhalten des Aufgabenbaum-Layouts, insbesondere die visuelle Darstellung verschachtelter Aufgabenstrukturen.
@@ -21,7 +22,7 @@ Den Aufgabenbaum so darstellen, dass verschachtelte Strukturen sofort erkennbar 
 ### Schritte
 
 1. **Aufgabenbaum anzeigen**
-   - Tab **„Aufgabenwald"** auswählen
+   - Tab **„Wald"** auswählen
    - Der Aufgabenbaum zeigt Aufgaben als Baumstruktur, sortiert nach Wert
 
 2. **Hierarchie erkennen**
