@@ -140,15 +140,16 @@ test.describe('#1028 KolAlert-Host: leichtes Padding + Radius', () => {
 			`Alert-Rechte (${alertBox!.x + alertBox!.width}px) darf Container-Rechte nicht überschreiten (${containerBox!.x + containerBox!.width}px)`,
 		).toBeLessThanOrEqual(containerBox!.x + containerBox!.width + 1);
 
-		// Kein horizontaler Dokument-Scroll durch die gewachsene Host-Box.
-		const scroll = await page.evaluate(() => ({
-			scrollWidth: document.documentElement.scrollWidth,
-			clientWidth: document.documentElement.clientWidth,
-		}));
+		// Kein horizontaler Überlauf durch die gewachsene Host-Box: Die App-Shell clippt mit
+		// `overflow-x: hidden`, deshalb wäre `scrollWidth` strukturell ≤ Viewport und hätte
+		// keinen Biss (Mutationsprobe, Memory 2026-08-24 „E2E/Horizontal-Overflow“). Stattdessen
+		// Bounding-Box gegen den Viewport prüfen — das deckt Clip-Fälle, die ein reiner
+		// Container-Vergleich (Container-Kante + Card-Padding schlucken Überlauf) nicht sieht.
+		const viewportWidth = page.viewportSize()!.width;
 		expect(
-			scroll.scrollWidth,
-			`Dokument darf bei 320px nicht horizontal scrollen (scrollWidth ${scroll.scrollWidth} > clientWidth ${scroll.clientWidth})`,
-		).toBeLessThanOrEqual(scroll.clientWidth);
+			alertBox!.x + alertBox!.width,
+			`Alert-Rechte (${alertBox!.x + alertBox!.width}px) darf den Viewport (${viewportWidth}px) nicht überschreiten`,
+		).toBeLessThanOrEqual(viewportWidth);
 	});
 });
 

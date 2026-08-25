@@ -1804,9 +1804,11 @@ kol-toolbar {
 
 /* --- Issue #1028: Padding & Radius für KolAlert-Host --- */
 /* Leichter Innenabstand (0.25rem) und kleine Rundung (0.375rem) am Host,
-   damit alle Alert-Meldungen app-weit profitieren. #930 (transparenter Hintergrund)
-   bleibt unverändert; Radius wirkt auf Host-Fläche, interne Custom-Properties
-   vererben weiterhin in den Shadow-DOM. */
+   damit alle Alert-Meldungen app-weit profitieren (UX-Entscheidung #1028).
+   #930 (transparenter Hintergrund) bleibt unverändert — die sichtbare Fläche
+   und Rundung bleiben KoliBri-intern (Shadow-DOM, black-box nicht am Host
+   messbar, siehe Spec „Abgrenzung“); interne Custom-Properties vererben
+   weiterhin. */
 kol-alert {
 	padding: 0.25rem;
 	border-radius: 0.375rem;
