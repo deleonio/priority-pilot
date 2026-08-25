@@ -34,12 +34,18 @@ test.describe('#996 Säulen-Beiträge im TaskForm (Mobile-Layout)', () => {
 	 * `.pillar-row` und die Task-Id (Aufrufer löscht im `finally`).
 	 */
 	const openTaskFormWithPillarRow = async (page: Page): Promise<{ row: Locator; taskId: number }> => {
+		// Erste verfügbare Säule aus dem Backend holen (Muster: series.spec.ts) — weder Existenz
+		// noch Id einer Säule ist garantiert (DB_SEED=false erhält nur Stammdaten, keine festen Ids).
+		const pillars = (await (await page.request.get('/api/v1/pillars')).json()) as Array<{ id: number }>;
+		expect(pillars.length, 'Es muss mindestens eine Säule existieren').toBeGreaterThan(0);
+
+		// `share`-Summe muss 100 ergeben (validatePillars), sonst lehnt das Backend mit 400 ab.
 		const response = await page.request.post('/api/v1/tasks', {
 			data: {
 				title: 'e2e #996 Säulen-Mobil',
 				priority: 3,
 				estimatedEffort: 0.5,
-				pillars: [{ pillarId: 1, share: 0.5, confidence: 80 }],
+				pillars: [{ pillarId: pillars[0].id, share: 100, confidence: 80 }],
 			},
 		});
 		expect(response.ok(), 'Task-Anlage mit Säulen-Beitrag muss gelingen').toBe(true);
