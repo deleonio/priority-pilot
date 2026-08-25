@@ -28,10 +28,20 @@
 - waitForStableView('Priority Pilot') bei 320px als Risiko (Memory: auf `/` versteckt): CI mit diesem Test bei 320px grün — empirisch widerlegt.
 
 ## Offen
-- -
+- - (Ticket aus Review-Sicht abgeschlossen)
 
 ## Nächster Schritt
-- Runde abgeschlossen (2026-08-25): Review 5021294638 (2 Inline-Findings F1/F2) gepostet, Sammelkommentar 5413389544 angelegt, PR-Titel → `feat(frontend): padding and radius for kol-alert host (#1028)`, Verdict needs-fixup. Nächste Runde = Fixup-Nachweis (Kommentar 5413389544 fortschreiben, F1/F2 gegen Fixup-Diff verifizieren).
+- Keiner. Fixup-Nachweis-Runde (2026-08-25) abgeschlossen mit Verdict reviewed; Merge entscheidet der Gate/Auto-Merge-Workflow bzw. der Mensch. Falls doch eine neue Runde kommt: nur neue Commits nach d1f97d13 prüfen, Sammelkommentar 5413389544 fortschreiben.
+
+## Erledigt (Runde 3, Fixup-Nachweis)
+- MODUS: Fixup-Nachweis — Marker in Kommentar 5413389544 vorhanden (updatedAt 2026-08-25T16:33:03Z).
+- Fixup-Diff `git diff a466fe4d..d1f97d13` geprüft: nur e2e-Spec-Block + app.css-Kommentar, keine Mitnahmem.
+- F1 verifiziert behoben: Viewport-Check `alertBox.x + alertBox.width ≤ viewportSize().width` mit Mutations-Biss (rechter Überlauf → rot; alter scrollWidth-Check konnte nie rot werden), Begründungskommentar am Test.
+- F2 verifiziert behoben: Kommentar app.css:1806–1813 jetzt konsistent mit Spec-Abgrenzung („sichtbare Fläche/Rundung KoliBri-intern, black-box"), CSS-Regeln unverändert.
+- CI offene Annahme aus Fixup-Notizen geklärt: Run 32872504867 (d1f97d13) — verify PASS, e2e 4/4 Shards PASS.
+- Titel-Gate: `feat(frontend): padding and radius for kol-alert host (#1028)` konform (klein, englisch, 62 ≤ 72) — keine Änderung.
+- Sammelkommentar 5413389544 auf „reviewed" fortgeschrieben (F1/F2 mit Verifikations-Zusatz in Behobene-Tabelle).
+- Verdict: reviewed (Datei + Output).
 
 ## Erledigt (Runde 1)
 - Titel-Gate: PR-Titel auf Conventional Commits umbenannt.
