@@ -83,9 +83,9 @@ describe('CompletedTasksTable — KolTable-Umbau (#1020, AK1)', () => {
 		// KolTableStateful wirklich nutzt. Heute rot: die native Tabelle rendert keine Test-ID.
 		const kolTable = screen.getByTestId('completed-kol-table');
 		expect(kolTable.dataset.tableLabel).toBe('Liste der erledigten Aufgaben');
-		// UX-Block: `_fixedCols={[0,1]}` fixiert Titel (erste) und Aktion (letzte) Spalte beim
-		// internen horizontalen Scrollen — analog TaskTable.tsx:173.
-		expect(kolTable.dataset.fixedCols).toBe('[0,1]');
+		// KoliBri-Semantik: `_fixedCols={[1,1]}` = 1 Spalte vom Anfang + 1 Spalte vom Ende fixiert —
+		// hält damit Titel (erste) und Aktion (letzte) Spalte beim internen horizontalen Scrollen.
+		expect(kolTable.dataset.fixedCols).toBe('[1,1]');
 
 		// … und die native Tabelle ist weg (AK4-DOM-Seite: kein Karten-/Native-Gerüst mehr).
 		expect(container.querySelector('table.completed-tasks-table')).toBeNull();

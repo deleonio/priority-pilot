@@ -226,7 +226,11 @@ test.describe('Priority Pilot — Erledigt-Ansicht (#228/#307) gegen das echte B
 			return {
 				hostRight: el.getBoundingClientRect().right,
 				scroller: (() => {
-					const hit = findScroller(el);
+					// `el.querySelectorAll('*')` durchsucht nur das Light-DOM des Hosts (leer, da
+					// KolTableStateful ohne Kinder verwendet wird) — der Scroll-Container liegt im
+					// eigenen Shadow-Root des Hosts, deshalb dort statt bei `el` selbst starten.
+					// eslint-disable-next-line no-restricted-syntax -- s.o. Kommentar bei findScroller: lesende Durchquerung, kein interner Selektor.
+					const hit = findScroller(el.shadowRoot ?? el);
 					return hit ? { scrollWidth: hit.scrollWidth, clientWidth: hit.clientWidth } : null;
 				})(),
 			};
@@ -247,9 +251,13 @@ test.describe('Priority Pilot — Erledigt-Ansicht (#228/#307) gegen das echte B
 	 */
 	test.describe('#1020 — Desktop-Spaltengeometrie am KolTable (Spec docs/spec/issue-1020.md)', () => {
 		/**
-		 * Messbare Geometrie der KolTable-Kopfzeile: Breiten/Höhen der `th` im thead (rekursiv durch
+		 * Messbare Geometrie der KolTable-Kopfzeile: Breiten/Höhen der `th` im `thead` (rekursiv durch
 		 * die offenen Shadow-Roots des Hosts gesammelt — Rollen-Locators allein geben keine Boxen) und
-		 * das Höhen-/Zeilenhöhe-Verhältnis jeder Kopfzelle.
+		 * das Höhen-/Zeilenhöhe-Verhältnis jeder Kopfzelle. `role="columnheader"` wäre ein Kandidat
+		 * gewesen, matcht als reflektiertes Attribut aber nicht (native `th` haben die Rolle nur
+		 * implizit) — `getAttribute('role')` lieferte `null`. Der eigentliche Grund für `count: 0` in
+		 * CI war der Einstiegspunkt: `collect(el, [])` durchsuchte nur das (leere) Light-DOM des Hosts,
+		 * statt in dessen eigenem Shadow-Root zu starten (s. u.).
 		 */
 		const kolHeaderGeometry = (host: Locator) =>
 			host.evaluate((el) => {
@@ -264,7 +272,10 @@ test.describe('Priority Pilot — Erledigt-Ansicht (#228/#307) gegen das echte B
 					}
 					return acc;
 				};
-				const headers = collect(el, []).filter((n) => n.tagName === 'TH' && n.closest('thead'));
+				// `el.querySelectorAll('*')` durchsucht nur das Light-DOM des Hosts (leer, da
+				// KolTableStateful ohne Kinder verwendet wird) — im eigenen Shadow-Root starten.
+				// eslint-disable-next-line no-restricted-syntax -- s.o.: lesende Durchquerung, kein interner Selektor.
+				const headers = collect(el.shadowRoot ?? el, []).filter((n) => n.tagName === 'TH' && n.closest('thead'));
 				const ratio = (h: HTMLElement): number => {
 					const cs = getComputedStyle(h);
 					const lineHeight = parseFloat(cs.lineHeight);

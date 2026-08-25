@@ -36,6 +36,17 @@ const HEADER_MAX_CHARS = 20;
 const shortPillarHeader = (name: string): string =>
 	name.length > HEADER_MAX_CHARS ? `${name.slice(0, HEADER_MAX_CHARS - 1)}…` : name;
 
+/**
+ * Breite einer Punkte-Spalte in px (#1020 AK2): am (gekürzten) Header-Text bemessen, statt für alle
+ * Säulen den `HEADER_MAX_CHARS`-Grenzfall vorzuhalten — kurze Namen („Sinn") bleiben schmal, lange
+ * bekommen genug Platz für eine Zeile. `table-layout: fixed` (KoliBri) verteilt Spalten ohne `width`
+ * sonst gleichmäßig auf den Rest, unabhängig vom Textbedarf (CI-Beleg: „Mentale Gesundheit" brach bei
+ * auto-Breite auf 2 Zeilen um). Die ~8,5 px/Zeichen sind aus Verdana-16px-Messungen realistischer
+ * Säulennamen geschätzt (Canvas `measureText`, Worst Case ~167px für 20 Zeichen); 24px decken das
+ * Zellen-Padding, 16px sind Sicherheitsspanne gegen Schriftrendering-Abweichungen.
+ */
+const pillarHeaderWidth = (label: string): number => Math.ceil(label.length * 8.5) + 24 + 16;
+
 /** Header-Schlüssel der Säulen-Spalte zu einer Säule-ID (identisch in `_headers` und Datenzeilen). */
 const pillarKey = (pillarId: number): string => `pillar-${pillarId}`;
 
@@ -56,7 +67,8 @@ interface DoneTaskRow extends KoliBriTableDataType {
  *
  * Als `KolTableStateful` (#1020): schmale Hosts scrollen seitlich INNERHALB der Komponente, es gibt
  * keinen separaten Mobile-Karten-Modus mehr (Nutzer-Entscheidung 2026-08-25, ersetzt #228 AK-6).
- * `_fixedCols={[0, 1]}` hält Titel- und Aktion-Spalte beim Scrollen sichtbar (analog `TaskTable`).
+ * `_fixedCols={[1, 1]}` = „1 Spalte vom Anfang, 1 Spalte vom Ende fixiert" (KoliBri-Semantik, nicht
+ * „Spalten 0 und 1") und hält damit Titel- (erste) und Aktion-Spalte (letzte) beim Scrollen sichtbar.
  */
 export const CompletedTasksTable = memo((props: CompletedTasksTableProps) => {
 	const { tasks, pillars, forestTaskIds, onReloaded } = props;
@@ -95,14 +107,14 @@ export const CompletedTasksTable = memo((props: CompletedTasksTableProps) => {
 	const headers: { horizontal: KoliBriTableHeaderCellWithLogic[][] } = {
 		horizontal: [
 			[
-				// #1020 AK2: Titel-Spalte dominiert (feste Mindestbreite; Überschuss teilt das Auto-Layout
-				// vorrangig ihr zu), Punkte-Spalten orientieren sich am (gekürzten) Header — das hält die
-				// Kopfzeile einzeilig.
+				// #1020 AK2: Titel-Spalte dominiert (feste Mindestbreite), Punkte-Spalten bekommen eine
+				// am Header-Text bemessene feste Breite (`pillarHeaderWidth`) — hält die Kopfzeile
+				// einzeilig, ohne kurze Säulennamen unnötig aufzublähen.
 				{ key: 'title', label: 'Titel', width: 360 },
-				...pillars.map((pillar) => ({
-					key: pillarKey(pillar.id),
-					label: shortPillarHeader(pillar.name),
-				})),
+				...pillars.map((pillar) => {
+					const label = shortPillarHeader(pillar.name);
+					return { key: pillarKey(pillar.id), label, width: pillarHeaderWidth(label) };
+				}),
 				{
 					key: 'action',
 					label: 'Aktion',
@@ -143,7 +155,7 @@ export const CompletedTasksTable = memo((props: CompletedTasksTableProps) => {
 					{error}
 				</p>
 			)}
-			<KolTableStateful _label="Liste der erledigten Aufgaben" _data={data} _headers={headers} _fixedCols={[0, 1]} />
+			<KolTableStateful _label="Liste der erledigten Aufgaben" _data={data} _headers={headers} _fixedCols={[1, 1]} />
 		</div>
 	);
 });

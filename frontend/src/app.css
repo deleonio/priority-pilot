@@ -406,6 +406,16 @@ body {
 /* Tab-Leiste der Hauptansichten: Abstand zur Kopf-Toolbar. */
 .app-tabs {
 	margin-top: var(--pp-gap-major);
+	/*
+	 * KolTabs legt sein Grid (`.kol-tabs`) intern ohne `grid-template-columns` an — die einzige
+	 * Spalte bleibt `auto` und wächst auf den Max-Content jedes Tabpanel-Inhalts (#1020: die
+	 * KolTable-Erledigt-Tabelle mit festen Spaltenbreiten). Das lässt Kopfzeile und Tabpanels über
+	 * `.app-tabs` hinauswachsen (bei 375px z. B. 456px statt 351px) — sichtbarer Überlauf bleibt nur
+	 * aus, weil die App-Shell weiter oben mit `overflow-x: hidden` clippt. Die Custom Property
+	 * durchdringt den Shadow-DOM-Rand (vererbbar) und macht die Spalte schrumpfbar, ohne KolTabs
+	 * selbst zu patchen.
+	 */
+	--grid-template-columns: minmax(0, 1fr);
 }
 
 /* Innerhalb eines Tabs ist der jeweilige Bereich der einzige Inhalt – der Stapel-Abstand entfällt. */
