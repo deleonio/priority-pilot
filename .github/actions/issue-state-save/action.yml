@@ -9,10 +9,16 @@ inputs:
     description: 'Phasen-Name (triage|ux|spec|implement|fixup|review) für state.json und Commit-Message.'
     required: true
 
+outputs:
+  new-notes:
+    description: 'Anzahl NEUER/geänderter Phasen-Notizen (Blob-Diff gegen den Branch-Stand; ohne State-Branch = alles neu). Restaurierte Notizen zählen NICHT.'
+    value: ${{ steps.save.outputs.new-notes }}
+
 runs:
   using: composite
   steps:
     - name: State-Branch ai/state/issue-{N} fortschreiben
+      id: save
       shell: bash
       env:
         ISSUE_NR: ${{ inputs.issue-number }}
@@ -52,11 +58,20 @@ runs:
         idx="$(mktemp -d)/index"
         parents=()
         base=""
+        has_base=0
+        declare -A old_hash=()
         if git fetch --quiet origin "$STATE" 2>/dev/null && git rev-parse --verify -q FETCH_HEAD >/dev/null; then
           parents=(-p FETCH_HEAD)
           base="$(git show "FETCH_HEAD:${state}" 2>/dev/null || true)" # Basis: Branch-Stand, nicht der Workspace
           export GIT_INDEX_FILE="$idx"
           git read-tree "FETCH_HEAD^{tree}" # Fortschreiben: alter Branch-Stand ist die Basis
+          # Diff-Basis für die notes-Zählung (#1010): Blob-Hashes des Branch-Stands.
+          # ls-tree-Format: "<mode> <typ> <hash>\t<pfad>" → Hash als letztes Token vor dem Tab.
+          has_base=1
+          while IFS=$'\t' read -r meta path; do
+            [ -n "$path" ] || continue
+            old_hash["$path"]="${meta##* }"
+          done < <(git ls-tree FETCH_HEAD -- .ai-memory 2>/dev/null)
         else
           export GIT_INDEX_FILE="$idx"
           git read-tree --empty # Erst-Phase: eigene Wurzel (orphan), nur Storage-Pfade
@@ -85,14 +100,24 @@ runs:
         # ist damit immer dabei. Ein reines "gesichert (1 Datei)" bedeutet in Wahrheit "die
         # Phase hat KEINEN Checkpoint geschrieben" — genau diese Formulierung hat den toten
         # Memory eine Woche lang als Erfolg getarnt (siehe Warning unten).
+        # #1010 AK1: notes zählt nur NEUE/geänderte Notizen (Blob-Diff gegen den Branch-Stand,
+        # ohne Branch = alles neu). Restaurierte Vorgänger-Notizen bleiben committet (AK3),
+        # dürfen aber nicht als Arbeit dieser Phase erscheinen.
         staged=0
         notes=0
         while IFS= read -r f; do
           [ -f "$f" ] || continue
-          git update-index --add --cacheinfo "100644,$(git hash-object -w "$f"),$f"
+          blob="$(git hash-object -w "$f")"
+          git update-index --add --cacheinfo "100644,${blob},$f"
           staged=$((staged + 1))
-          case "$f" in .ai-memory/issue-*) notes=$((notes + 1)) ;; esac
+          case "$f" in .ai-memory/issue-*)
+            if [ "$has_base" -eq 0 ] || [ "${old_hash[$f]:-}" != "$blob" ]; then
+              notes=$((notes + 1))
+            fi
+            ;;
+          esac
         done < <(find .ai-memory -maxdepth 1 -type f -name 'issue-*.md' 2>/dev/null; echo "$state")
+        echo "new-notes=${notes}" >> "$GITHUB_OUTPUT"
 
         if [ "$staged" -eq 0 ]; then
           echo "::notice title=🗄️ Issue-Storage leer::Keine Phasen-Notiz vorhanden — $STATE unberührt."
@@ -113,7 +138,7 @@ runs:
         # Der Baum ist autoritativ — Re-Parenten verliert nichts.
         for attempt in 1 2 3; do
           if git push --quiet origin "${commit}:refs/heads/${STATE}"; then
-            echo "::notice title=🗄️ Issue-Storage gesichert::${STATE} ← ${msg} (${notes} Notiz(en) + state.json)."
+            echo "::notice title=🗄️ Issue-Storage gesichert::${STATE} ← ${msg} (${notes} neue Notiz(en) + state.json)."
             exit 0
           fi
           if git fetch --quiet origin "$STATE" 2>/dev/null && git rev-parse --verify -q FETCH_HEAD >/dev/null; then
