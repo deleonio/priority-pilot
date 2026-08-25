@@ -91,7 +91,7 @@ describe('POST /tasks/parse-text', () => {
 	// AK2: Fehlende Mistral-Key → 503
 	it('AK2: 503 wenn MissingApiKeyError geworfen wird', async () => {
 		parserImpl = async () => {
-			throw new MissingApiKeyError();
+			throw new MissingApiKeyError('Mistral: API-Key fehlt (MISTRAL_API_KEY) — Provider in den Einstellungen prüfen.');
 		};
 
 		const res = await post(server.baseUrl, {

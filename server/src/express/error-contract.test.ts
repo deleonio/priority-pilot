@@ -10,6 +10,7 @@
  * (siehe `expectError`). Ergänzt werden die bislang in Tests nicht ausgelösten 500er-Branche
  * von `/forest` und `/next`.
  */
+import assert from 'node:assert/strict';
 import { describe, it, beforeEach, after } from 'node:test';
 import { Task, Pillar } from '../models/index.js';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../test/helpers.js';
@@ -235,10 +236,12 @@ describe('Fehler-Response-Vertrag: POST /tasks/suggest-pillars', () => {
 
 	it('503 bei fehlendem API-Key (MissingApiKeyError) → message', async () => {
 		await seedPillars();
+		const cause = 'Mistral: API-Key fehlt (MISTRAL_API_KEY) — Provider in den Einstellungen prüfen.';
 		classifierImpl = async () => {
-			throw new MissingApiKeyError();
+			throw new MissingApiKeyError(cause);
 		};
-		await expectError(await post({ title: 'X' }), 503);
+		const body = await expectError(await post({ title: 'X' }), 503);
+		assert.ok(body.message.startsWith(cause), 'Ursache muss vor dem Testen-Hinweis im Body stehen');
 	});
 
 	it('502 bei Upstream-/Format-Fehler (MistralRequestError) → message', async () => {

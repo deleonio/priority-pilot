@@ -1,13 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import {
-	parseTaskTextWithMistral,
-	MissingApiKeyError,
-	MistralRequestError,
-	type ParsedTask,
-	type ParseTaskParser,
-} from '../../llm/llm.js';
-import { validateProviderQuery } from '../llmProviderQuery.js';
+import { parseTaskTextWithMistral, type ParsedTask, type ParseTaskParser } from '../../llm/llm.js';
+import { sendLlmError, validateProviderQuery } from '../llmProviderQuery.js';
 import type { components } from '../../api';
 
 type ErrorDto = components['schemas']['Error'];
@@ -46,15 +40,7 @@ export const createParseTasksRouter = (parser: ParseTaskParser = parseTaskTextWi
 			const result = await parser(text, provider);
 			res.json(result);
 		} catch (error) {
-			if (error instanceof MissingApiKeyError) {
-				res.status(503).json({ message: error.message });
-				return;
-			}
-			if (error instanceof MistralRequestError) {
-				res.status(502).json({ message: error.message });
-				return;
-			}
-			res.status(500).json({ message: 'Interner Serverfehler.' });
+			sendLlmError(res, error);
 		}
 	});
 

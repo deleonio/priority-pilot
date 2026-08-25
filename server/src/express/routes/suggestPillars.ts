@@ -1,14 +1,8 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { Pillar, PillarFeedback } from '../../models/index.js';
-import {
-	classifyPillarsWithMistral,
-	MissingApiKeyError,
-	MistralRequestError,
-	type FeedbackExample,
-	type PillarClassifier,
-} from '../../llm/llm.js';
-import { validateProviderQuery } from '../llmProviderQuery.js';
+import { classifyPillarsWithMistral, type FeedbackExample, type PillarClassifier } from '../../llm/llm.js';
+import { sendLlmError, validateProviderQuery } from '../llmProviderQuery.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
 import type { components } from '../../api';
 
@@ -208,15 +202,7 @@ export const createSuggestPillarsRouter = (classifier: PillarClassifier = classi
 				);
 				res.json({ suggestions });
 			} catch (error) {
-				if (error instanceof MissingApiKeyError) {
-					sendError(res, 503, error.message);
-					return;
-				}
-				if (error instanceof MistralRequestError) {
-					sendError(res, 502, error.message);
-					return;
-				}
-				sendError(res, 500, 'Interner Serverfehler.');
+				sendLlmError(res, error);
 			}
 		},
 	);

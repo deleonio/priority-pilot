@@ -129,6 +129,7 @@ export const LlmSettings = ({ onChanged }: LlmSettingsProps) => {
 			try {
 				const updated = await api.updateLlmProvider({ id: activeProvider.id, input: { model } });
 				setProviders((current) => current?.map((p) => (p.id === updated.id ? updated : p)) ?? current);
+				setTestResults((current) => ({ ...current, [updated.id]: undefined }));
 				showToast(`Modell gesetzt: ${model}`);
 				onChanged?.();
 			} catch (reason) {
@@ -245,13 +246,40 @@ export const LlmSettings = ({ onChanged }: LlmSettingsProps) => {
 						</div>
 					)}
 
-					{/* Bereitschaft der KI-Features: aktiv + Key + Modell = nutzbar. */}
-					{activeProvider !== null && activeProvider.model !== '' && activeProvider.hasApiKey ? (
-						<KolAlert _type="success" _label="KI-Features bereit">
-							Alle KI-Features laufen über {activeProvider.name} mit Modell {activeProvider.model}.
-						</KolAlert>
-					) : (
-						activeProvider !== null && (
+					{/*
+					 * Bereitschaft der KI-Features — drei Stufen: Konfiguration (aktiv + Key + Modell)
+					 * UND das letzte Test-Ergebnis des aktiven Providers. Ein konfigurierter Provider
+					 * kann trotzdem scheitern (z. B. abgelaufenes Abo → HTTP 402): Ohne diese Stufe
+					 * behauptete der grüne Hinweis „bereit“, während alle KI-Features rot laufen.
+					 */}
+					{(() => {
+						if (activeProvider === null) return null;
+						const configured = activeProvider.model !== '' && activeProvider.hasApiKey;
+						const testResult = testResults[activeProvider.id];
+						if (configured && testResult?.ok) {
+							return (
+								<KolAlert _type="success" _label="KI-Features bereit">
+									Alle KI-Features laufen über {activeProvider.name} mit Modell {activeProvider.model} (getestet,{' '}
+									{testResult.latencyMs ?? 0} ms).
+								</KolAlert>
+							);
+						}
+						if (configured && testResult !== undefined && !testResult.ok) {
+							return (
+								<KolAlert _type="error" _label="KI-Features schlagen derzeit fehl">
+									{activeProvider.name} ist aktiv, aber der Test schlug fehl: {testResult.message}
+								</KolAlert>
+							);
+						}
+						if (configured) {
+							return (
+								<KolAlert _type="info" _label="KI-Features bereit (noch ungetestet)">
+									Alle KI-Features laufen über {activeProvider.name} mit Modell {activeProvider.model}. Drücke unten
+									„Testen“, um die Verbindung wirklich zu prüfen.
+								</KolAlert>
+							);
+						}
+						return (
 							<KolAlert _type="warning" _label="KI-Features noch nicht nutzbar">
 								{!activeProvider.hasApiKey
 									? activeProvider.kind === 'builtin'
@@ -259,8 +287,8 @@ export const LlmSettings = ({ onChanged }: LlmSettingsProps) => {
 										: `Für ${activeProvider.name} ist kein API-Key hinterlegt — bearbeite den Provider und trage den Key ein.`
 									: 'Wähle oben ein Modell, dann sind alle KI-Features nutzbar.'}
 							</KolAlert>
-						)
-					)}
+						);
+					})()}
 				</>
 			)}
 

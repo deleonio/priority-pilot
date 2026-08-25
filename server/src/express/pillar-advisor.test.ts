@@ -162,7 +162,7 @@ describe('POST /pillars/advisor', () => {
 	it('503 wenn der API-Key fehlt (MissingApiKeyError)', async () => {
 		await seedPillars();
 		advisorImpl = async () => {
-			throw new MissingApiKeyError();
+			throw new MissingApiKeyError('Mistral: API-Key fehlt (MISTRAL_API_KEY) — Provider in den Einstellungen prüfen.');
 		};
 		assert.equal((await post({})).status, 503);
 	});

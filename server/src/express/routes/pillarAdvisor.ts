@@ -1,15 +1,9 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { Pillar } from '../../models/index.js';
-import {
-	adviseActivitiesWithMistral,
-	MissingApiKeyError,
-	MistralRequestError,
-	type ActivityAdvisor,
-	type PillarDistribution,
-} from '../../llm/llm.js';
+import { adviseActivitiesWithMistral, type ActivityAdvisor, type PillarDistribution } from '../../llm/llm.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
-import { validateProviderQuery } from '../llmProviderQuery.js';
+import { sendLlmError, validateProviderQuery } from '../llmProviderQuery.js';
 import type { components } from '../../api';
 
 type ActivityAdviceDto = components['schemas']['ActivityAdvice'];
@@ -136,15 +130,7 @@ export const createPillarAdvisorRouter = (advisor: ActivityAdvisor = adviseActiv
 			);
 			res.json({ advice });
 		} catch (error) {
-			if (error instanceof MissingApiKeyError) {
-				sendError(res, 503, error.message);
-				return;
-			}
-			if (error instanceof MistralRequestError) {
-				sendError(res, 502, error.message);
-				return;
-			}
-			sendError(res, 500, 'Interner Serverfehler.');
+			sendLlmError(res, error);
 		}
 	});
 
