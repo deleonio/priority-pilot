@@ -25,17 +25,9 @@
 
 ---
 
-## DAUERGEDÄCHTNIS FORTSCHREIBEN — `MEMORY.md`
+## DAUERGEDÄCHTNIS FORTSCHREIBEN — `.ai-memory/MEMORY.md`
 
-**WANN** (streng, im Zweifel KEIN Eintrag): Nur wenn ein ANDERES Ticket ohne dies denselben Fehler machen würde. Nicht-offensichtliche Werkzeug-/CI-Eigenheiten, Befehle nach Fehlversuchen.
-
-**NICHT HIERHER**: Ticket-Spezifisches (→ Phasen-Notiz), was in AGENTS.md/.ai-knowledge/ steht, Selbstverständliches, Erfolgsmeldungen. Meistens GAR NICHTS schreiben.
-
-**FORMAT** (eine Zeile):
+**FORMAT** (eine Zeile, ans Ende von `## Learnings & Erfahrungen`):
 `- YYYY-MM-DD · <Bereich> — <was schiefging> → <Lösung>.`
 
-**WO**: Am Ende von `## Learnings & Erfahrungen` anhängen. Bestehende Zeilen NICHT umschreiben/umsortieren/löschen (union-Merge). AUSNAHME: Eintrag ist nachweislich FALSCH → korrigieren + Beleg.
-
-**WER**: Nur Phasen mit Commit-Auftrag (Spec, Umsetzung, Fixup) — Eintrag reist im normalen Phasen-Commit mit. Ohne Commit → Kandidat unter `## Fallstricke` der Phasen-Notiz.
-
-**KURATIERUNG**: Max. ~40 Einträge. Voll oder zur Regel geworden → nach `.ai-knowledge/conventions.md` überführen, Zeile entfernen.
+**Aufnahmekriterium, Merge- und Kuratierungsregeln, wer committen darf**: AGENTS.md → Abschnitt „Memory" (verbindlich, hier nicht wiederholt). Kurz: streng — im Zweifel KEIN Eintrag, die meisten Läufe schreiben gar nichts.

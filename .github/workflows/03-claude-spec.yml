@@ -260,9 +260,12 @@ jobs:
         run: |
           verdict=""
           if [ -f /tmp/claude-output.log ]; then
-            # Erster bekanntter Token gewinnt, längstes zuerst (spec-ready vor ready) —
+            # Erster bekannter Token gewinnt, längstes zuerst (spec-partial/spec-ready vor ready) —
             # Prosa/Markdown nach dem Token ist egal (#1017-Klasse, exakter Vergleich klebte sie fest).
-            verdict="$(grep 'VERDICT:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | grep -oE 'spec-ready|ready' | head -1 || true)"
+            # spec-ready ist der ALT-Token für "Partial" und wird nur noch entgegengenommen: er kollidierte
+            # mit dem gleichnamigen Triage-Token ("Issue direkt umsetzbar") und heißt hier jetzt spec-partial.
+            verdict="$(grep 'VERDICT:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | grep -oE 'spec-partial|spec-ready|ready' | head -1 || true)"
+            if [ "$verdict" = "spec-ready" ]; then verdict="spec-partial"; fi
           fi
           echo "Claude-Verdict aus Output: '${verdict:-keins}'"
 
@@ -298,11 +301,11 @@ jobs:
               exit 1
             fi
             final="ready"
-          elif [ "$verdict" = "spec-ready" ]; then
+          elif [ "$verdict" = "spec-partial" ]; then
             if [ "$ARTIFACTS_OK" = "true" ]; then
               final="ready"
             else
-              final="spec-ready"
+              final="spec-partial"
             fi
           else
             if [ "$ARTIFACTS_OK" = "true" ]; then

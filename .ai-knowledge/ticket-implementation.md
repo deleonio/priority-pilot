@@ -94,11 +94,19 @@ wird dagegen geschrieben — ein binäres Ziel statt Prosa.
   fehlerhaften eigenen Test **bewusst** und nachvollziehbar korrigieren.
 - **(c) Refactor & Gate (CI-Spiegel, vor jedem Commit):** Erst mit grünen Tests aufräumen,
   dann das lokale CI-Gate fahren — exakt wie `ci.yml`:
+
   ```
   pnpm format                      # schreibt Formatierung
   pnpm exec prettier --check .     # verifiziert (wie CI-Format-Check)
   pnpm lint                        # repo-weit (CI lintet rekursiv, nicht nur ein Package)
+  pnpm knip                        # ungenutzte Exports/Dateien/Deps
+  pnpm test                        # der Vertrag aus der Spec-Stufe, grün ist Pflicht
   ```
+
+  Das Gate läuft **vollständig**, auch in der CI-Umsetzungsphase: `claude-workbench` installiert
+  Abhängigkeiten und Chromium, die Kommandos sind dort also ausführbar. Rot heißt nachbessern —
+  ein rotes Gate, das erst in `ci.yml` auffällt, kostet eine komplette Fixup-Runde und damit ein
+  Vielfaches des lokalen Laufs.
   Bei **geänderten UI-Dateien** (unter `frontend/`) zusätzlich den Impeccable-Detektor laufen
   lassen: `node .claude/skills/impeccable/scripts/detect.mjs <dateien…>` (Exit 0 = sauber,
   2 = Findings; #828). Funde vor dem Push beheben — deterministische Design-Regeln sind Teil

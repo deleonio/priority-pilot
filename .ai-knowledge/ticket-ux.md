@@ -60,9 +60,11 @@ KI-UX-Block im Issue-Body zwischen den Markern:
 
 [Unklare Punkte, Entscheidungsbedarf]
 
-VERDICT: ux-ready
 <!-- KI-UX:END -->
 ```
+
+Die `VERDICT:`-Zeile gehört **nicht** in den Block: Der Workflow parst sie aus dem Agenten-Output
+(`/tmp/claude-output.log`), nicht aus dem Issue-Body — ein Signal, ein Kanal.
 
 ## Verifikation & Label-Setzung
 
@@ -86,9 +88,15 @@ VERDICT: ux-ready
 - **Impeccable Design-Skill** (`.claude/skills/impeccable/`, #828): Die UX-Beratung bei UI-Tickets
   mit `/impeccable critique <ziel-komponente>` stützen — Heuristik-Scores (Nielsen, 0-4),
   Cognitive-Load-Check und Persona-Red-Flags liefern belastbare Punkte für die Blöcke
-  Interaktion/Mobile-First/A11y. Browser-Inspektion via Playwright-MCP (375px/1280px Viewport)
-  und KoliBri-Component-Verifikation via KoliBri-MCP, wo verfügbar (#823). Die
-  Referenz-Dateien des Skills lädt der Agent on demand — keine Token-Kosten ohne Nutzung.
+  Interaktion/Mobile-First/A11y. Die Referenz-Dateien des Skills lädt der Agent on demand —
+  keine Token-Kosten ohne Nutzung.
+- **KoliBri-MCP** (`mcp__kolibri-mcp__search/fetch`): Component-Dokumentation (Properties,
+  Varianten, A11y-Hinweise) lesen, um die Component-Wahl zu prüfen.
+- **Browser-Inspektion (375px/1280px Viewport) via Playwright-MCP nur LOKAL/per Command** (#823).
+  **In CI läuft diese Phase rein statisch:** `02-claude-ux.yml` startet keine App, und
+  [ux.md](../.github/prompts/ux.md) verbietet Browser-Calls ausdrücklich — dort gilt allein die
+  Regel-Prüfung gegen Design-System, `mobile-ui-rules.md` und `ux-design.md`. Dynamische
+  Inspektion ist Sache der Umsetzungsphase, die die App tatsächlich laufen hat.
 
 ## Modell
 

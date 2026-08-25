@@ -74,7 +74,8 @@ davon mehr aus.
   Doppelpflege. Die Pipeline kann schneller evolvieren.
 - **Gewinn:** Agenten und Spec-Phase bekommen ein klares Signal (dieses ADR + die Regel in
   [tdd-strategy.md](../../.ai-knowledge/tdd-strategy.md) Testumfang sowie der
-  Nicht-Anwendungscode-Carve-out im Spec-Prompt `.github/prompts/spec.md`) und schreiben keine
+  Nicht-Anwendungscode-Carve-out in [ticket-spec.md](../../.ai-knowledge/ticket-spec.md) Schritt 2,
+  auf den der Spec-Prompt verweist) und schreiben keine
   neuen Workflow-/Config-/Markdown-Tests mehr. Das Spec-Gate in `02-claude-spec.yml` setzt das
   operativ um: ein Test zählt nur, wenn er unter `server/src/`, `frontend/src/` oder `frontend/e2e/`
   liegt.
