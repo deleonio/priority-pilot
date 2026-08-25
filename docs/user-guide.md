@@ -11,8 +11,7 @@ Zwei Ideen stecken dahinter:
   Aufgaben und die sinnvolle nächste Aufgabe werden dadurch sichtbar.
 - **Lebensbalance-Säulen.** Jede Aufgabe zahlt auf eine oder mehrere deiner persönlichen
   Lebens­bereiche ein. Die Säulen sind **nutzerdefiniert**: Du legst eigene Säulen an, benennst,
-  gewichtest und löschst sie. Beim ersten Anmelden werden fünf Standard-Säulen angelegt,
-  die du frei bearbeiten kannst. Über eine Gewichtung steuerst du, welche Bereiche gerade
+  gewichtest und löschst sie. Über eine Gewichtung steuerst du, welche Bereiche gerade
   wichtig sind – und siehst, ob deine Zeit dorthin fließt.
 
 Dieses Handbuch erklärt alle Funktionen der Anwendung.
@@ -41,14 +40,13 @@ Ganz oben findest du die **Kopf-Aktionen**:
 
 - **Neuen Task anlegen** (Plus) – der zentrale Einstieg für neue Aufgaben _und_ Serien.
 - **Säulen-Berater** (Glühbirne) – KI-Vorschläge für Aktivitäten.
-- **KI-Modell** (Gehirn-Icon) – wählt das Modell für KI-Funktionen (Schnellerfassung, Säulen-Vorschlag, Säulen-Berater, Lektorat). Welches Modell aktiv ist, steht erst im Dialog; die Liste der aktuell kostenlosen OpenRouter-Modelle wird live vom Server geladen.
-- **Einstellungen** (Zahnrad) – Darstellung, Spracheingabe, Push, Standort, Säulen-Gewichtung, LLM-Provider.
+- **Einstellungen** (Zahnrad) – Darstellung, Spracheingabe, Push, Standort, Säulen-Gewichtung, KI-Provider.
 - **Hilfe** (Fragezeichen) – dieses Handbuch.
 - **Abmelden** – beendet die Sitzung.
 
 Rechts daneben siehst du dein Profilbild.
 
-Die Kopfzeile ist auf allen Bildschirmgrößen einheitlich: Alle sechs Elemente (KI-Modell-Auswahl plus fünf Icon-Buttons) stehen direkt in der Leiste – ein zusätzliches Menü gibt es nicht.
+Die Kopfzeile ist auf allen Bildschirmgrößen einheitlich: Alle fünf Icon-Buttons stehen direkt in der Leiste – ein zusätzliches Menü gibt es nicht.
 
 Darunter wechselst du über eine **Tab-Leiste** zwischen den vier Hauptansichten:
 
@@ -63,16 +61,17 @@ Darunter wechselst du über eine **Tab-Leiste** zwischen den vier Hauptansichten
 ## Dashboard
 
 Das Dashboard ist die Startseite und reine Anzeige. Wenn ein Name hinterlegt ist,
-begrüßt es dich mit **„Hallo {Name}!"**. In der Kopfzeile (KI-Modell-Button) wählst du das
-Modell für die KI-Funktionen. Von oben nach unten:
+begrüßt es dich mit **„Hallo {Name}!"**. Von oben nach unten:
 
 - **Statuskacheln:** **Gesamt**, **Offen** und **Erledigt** – die Anzahl deiner
   Aufgaben auf einen Blick.
-- **Nächste Aufgabe:** die wichtigste Aufgabe, deren Vorgänger alle erledigt sind.
+- **Nächste Aufgabe:** die Aufgabe mit der höchsten Priorität, deren Vorgänger alle
+  erledigt sind.
   Über **„Jetzt starten"** öffnest du sie direkt zum Bearbeiten. Steht nichts an,
   erscheint ein Hinweis (alles erledigt oder durch offene Vorgänger blockiert).
-- **Was ist jetzt dran?** Eine nummerierte Vorschlagsliste, bewusst kurz gehalten.
-  Die bereits als „Nächste Aufgabe" angezeigte Aufgabe taucht hier nicht erneut auf.
+- **Was ist jetzt dran?** Eine nummerierte Vorschlagsliste mit höchstens fünf Einträgen,
+  davon maximal zwei je Säule. Die bereits als „Nächste Aufgabe" angezeigte Aufgabe taucht
+  hier nicht erneut auf.
 - **Wichtigste Tasks:** die Top 5 nach berechnetem **Wert**.
 - **Meine Themen:** je Säule ein Fortschrittsbalken, der den **tatsächlichen Anteil**
   (wohin dein Aufwand fließt) gegen die **Zielgewichtung** der Säule stellt. Darunter
@@ -108,8 +107,8 @@ Rechts an jeder Zeile können **Kennzeichen** stehen:
 - **geändert** – eine Serien-Instanz, die du abweichend bearbeitet hast.
 - **Fortschritt** als `erledigt/gesamt` – nur bei Aufgaben mit Unteraufgaben; zählt
   alle darunterliegenden Unteraufgaben mit.
-- **Priorität** als `P1` bis `P5` – je höher die Zahl, desto auffälliger die Farbe
-  des Kennzeichens.
+- **Priorität** als `P1` bis `P5` – die Farbe stuft die Wichtigkeit ein: P1 blau,
+  P2 und P3 orange, P4 und P5 rot.
 
 ### Aktionen je Aufgabe
 
@@ -117,10 +116,9 @@ Alle Aktionen liegen hinter einem **„Weitere Aktionen"-Menü** (Drei-Punkte-Bu
 Im Menü findest du:
 
 - **Erledigt / Wieder öffnen** – als erster Eintrag, schaltet den Status um.
-  Eine Aufgabe mit offenen Unteraufgaben lässt sich nicht abschließen; du bekommst
-  dann den Hinweis, erst alle Unteraufgaben zu erledigen. In dieser Liste stehen
-  allerdings nur Aufgaben ohne Unteraufgaben. Wieder öffnen ist jederzeit möglich –
-  auch als schnelles Rückgängig direkt nach dem Erledigen.
+  In dieser Liste stehen nur Aufgaben ohne Unteraufgaben, der Umschalter ist daher nie
+  blockiert. Wieder öffnen ist jederzeit möglich – auch als schnelles Rückgängig direkt
+  nach dem Erledigen.
 - **Bearbeiten** (Stift) – öffnet das Aufgabenformular.
 - **Abhängigkeiten** (Kette) – öffnet den Vorgänger-Editor.
 - **Unteraufgabe anlegen** (Plus) – legt eine neue Aufgabe an, die automatisch als Vorgänger
@@ -155,7 +153,7 @@ Danach hast du zwei Möglichkeiten:
 Im selben Dialog erscheint das Aufgabenformular. Felder:
 
 - **Titel** (Pflichtfeld, max. 30 Zeichen) – kurzer, prägnanter Name. Ein Zähler am
-  Feld zeigt, wie viele Zeichen noch frei sind.
+  Feld zeigt die aktuelle Zeichenzahl.
 - **Priorität** – Schieberegler, ganze Zahl von **1 bis 5** (Standard 3). Höher =
   wichtiger; fließt direkt in den Wert ein.
 - **Geschätzter Aufwand in Tagen** – Schieberegler von **0,1 bis 1** (Standard 0,5).
@@ -212,7 +210,8 @@ Option immer wählbar, da das Startdatum der Serie als Fälligkeit dient.
 Neben dem **Titel**- und dem **Beschreibungs**-Feld findest du einen Button mit
 Zauberstab-Icon: **Lektorat**.
 
-- Klick schickt den aktuellen Text an die KI (Mistral/OpenRouter-Kaskade).
+- Klick schickt den aktuellen Text an die KI – an den Provider, der in den
+  Einstellungen aktiviert ist.
 - Die KI liefert einen verbesserten Vorschlag (Kürzung, Glättung, Rechtschreibung).
 - Ein **Diff-Dialog** zeigt den Vergleich nebeneinander (Original ↔ Vorschlag).
 - Du übernimmst den Vorschlag per **„Übernehmen"** oder brichst ab – der Originaltext
@@ -259,14 +258,9 @@ Vorgänger alle erledigt sind.
 
 Lebensbalance-Säulen beschreiben, in welche Lebensbereiche eine Aufgabe einzahlt.
 Sie sind **nutzerdefiniert**: Du legst eigene Säulen an, benennst, gewichtest und löschst sie.
-Beim ersten Anmelden werden fünf Standard-Säulen angelegt, die du frei bearbeiten,
-ergänzen und ersetzen kannst:
-
-- **Körper** – physische Gesundheit: Bewegung, Ernährung, Schlaf, Vorsorge.
-- **Beziehungen** – soziale Verbundenheit: Familie, Freunde, Partnerschaft.
-- **Sinn** – das „Wofür": Werte, Lebensziele, Spiritualität, Ehrenamt.
-- **Mentale Gesundheit** – psychisches Wohlbefinden: Stressabbau, Ruhe, Achtsamkeit.
-- **Wirksamkeit** – etwas bewirken: Beruf, Projekte, Lernen, sichtbarer Output.
+Zu Beginn hast du noch keine Säulen – im Aufgabenformular erscheint dann der Hinweis,
+zuerst welche in den Einstellungen anzulegen. Jede Säule besteht aus einem Namen und
+einer kurzen Beschreibung.
 
 ### Beitrag je Aufgabe (Anteil und Konfidenz)
 
@@ -340,7 +334,7 @@ vor dem Speichern ein Bestätigungs-Dialog: **„Änderungen auf alle Instanzen 
 
 - **Ja** – die geänderten Werte werden auf alle bereits generierten Instanzen
   übertragen (auch auf solche, die du individuell angepasst hast).
-- **Nein** (Standard) – nur das Template wird aktualisiert; künftige Instanzen
+- **Nein (nur Serie)** – nur das Template wird aktualisiert; künftige Instanzen
   erhalten die neuen Werte, bestehende bleiben unberührt.
 
 Rhythmus, Startdatum und Aktiv-Status werden **nie** kaskadiert.
@@ -365,7 +359,8 @@ Aufgaben den größten Hebel haben. Bearbeitet wird im Tab „Aufgaben".
 
 In der **Erledigt**-Ansicht des Aufgaben-Tabs (Umschalter oben) stehen alle
 abgeschlossenen Aufgaben. Je Säule wird angezeigt, wie viele **Punkte** die Aufgabe
-dort eingebracht hat. Mit **„Wieder öffnen"** holst du eine Aufgabe zurück in den
+dort eingebracht hat – die Spaltenwerte sind der auf die Säulen verteilte Aufwand;
+Priorität und Termintreue zählen zusätzlich ins Gesamtguthaben. Mit **„Wieder öffnen"** holst du eine Aufgabe zurück in den
 offenen Zustand.
 
 ### Punkte (Gamification)
@@ -375,7 +370,7 @@ Beim Erledigen einer Aufgabe werden Punkte vergeben:
 - Der volle Wert ergibt sich aus **geschätztem Aufwand × Priorität** und wird
   anteilig auf die Säulen der Aufgabe verteilt.
 - **Pünktlich** (ohne Deadline oder bis zur Deadline) gibt es die volle Punktzahl,
-  **verspätet** (nach der Deadline) eine reduzierte. Pünktliches Erledigen zahlt sich
+  **verspätet** (nach der Deadline) die halbe Punktzahl. Pünktliches Erledigen zahlt sich
   also aus.
 
 Dein Gesamtstand und die Aufteilung je Säule erscheinen im Dashboard unter
@@ -406,15 +401,15 @@ Der Editor für die **Säulen-Gewichtung** (siehe „Lebensbalance-Säulen") sow
 Verwaltung der Säulen selbst (Anlegen, Bearbeiten, Löschen – jeweils über eigene
 Modal-Dialoge).
 
-### LLM
+### KI-Provider
 
-Konfiguration der KI-Provider (Mistral, OpenRouter). Hier gibst du die API-Keys und
-das gewünschte Modell ein – diese Einstellung ist serverseitig und gilt für alle Nutzer.
-Die aktuell kostenlosen OpenRouter-Modelle lassen sich **im LLM-Tab per Dropdown**
-auswählen (wird live von OpenRouter geladen); per Klick auf den **KI-Modell-Button** in
-der Kopfzeile öffnet sich zusätzlich eine Liste, aus der du das Modell direkt wählst. Als
-Standard ist `openrouter/free` voreingestellt. Ohne konfigurierten Provider bleiben die
-KI-Funktionen (Schnellerfassung, Säulen-Vorschlag, Säulen-Berater, Lektorat) ausgegraut.
+Hier wird die KI konfiguriert (Schnellerfassung, Säulen-Vorschlag, Säulen-Berater,
+Lektorat). Du wählst den aktiven Provider und daraus per Dropdown das Modell – die
+Modellliste wird live vom Provider geladen. Mitgelieferte Provider (Mistral, OpenRouter)
+beziehen ihren Zugang vom Server; eigene Provider legst du über **„Neuer Provider"** an
+(Name, Adresse, API-Key, Modell) und kannst sie **testen**, bearbeiten und löschen. Diese
+Einstellung gilt serverseitig für alle Nutzer. Ist kein Provider eingerichtet, zeigt der
+Tab den Hinweis, dass die KI-Features noch nicht nutzbar sind.
 
 ---
 
@@ -428,6 +423,9 @@ wenn die App gerade nicht geöffnet ist.
 - Mit **„Push testen"** kannst du eine Testnachricht auslösen.
 - Unterstützt dein Browser keine Push-Nachrichten, erscheint ein Hinweis – meist hilft
   es, die App zu installieren (siehe unten).
+- Erinnerungen verschickt die App einmal täglich: gebündelt in einer Nachricht alle
+  offenen Aufgaben, deren Deadline innerhalb der nächsten 24 Stunden abläuft oder schon
+  überschritten ist.
 
 > **Hinweis: Doppelte Benachrichtigung vermeiden.** Wenn du Priority Pilot nur als
 > Browser-Tab (Chrome) und **nicht** als eigenständige App nutzt, kann neben der
@@ -451,7 +449,10 @@ Priority Pilot ist eine **installierbare Web-App (PWA)** und funktioniert auch o
 - **Aktualisieren:** Ist eine neue Version verfügbar, erscheint unten eine Karte mit
   **„Neu laden"**. Ein Klick lädt die aktuelle Version.
 
-Die laufende Versionsnummer steht in der **Fußzeile**.
+Nach der Installation bestätigt eine Karte, dass die App offline-bereit ist.
+
+Die laufende Versionsnummer steht in der **Fußzeile**; ist die Standort-Erfassung
+aktiv, steht dort zusätzlich deine zuletzt ermittelte Position.
 
 ---
 
@@ -462,8 +463,9 @@ Anmeldung) erreichbaren **Bahn-Routenplaner**:
 
 - **Start-** und **Zielbahnhof** eingeben (mit Vorschlagsliste), dazu **Datum** und
   **Uhrzeit**.
-- **„Verbindungen suchen"** zeigt Verbindungen mit Abfahrt, Ankunft, Dauer, Umstiegen
-  und Pünktlichkeit.
+- **„Verbindungen suchen"** zeigt Verbindungen mit Abfahrt, Ankunft, Dauer und
+  Umstiegen; je Verbindung zusätzlich, ob sie pünktlich ist oder wie viele Minuten
+  Verspätung angekündigt sind.
 
 Dieser Planer ist ein eigenständiges Extra und unabhängig von deinen Aufgaben.
 
