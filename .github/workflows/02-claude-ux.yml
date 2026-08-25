@@ -122,16 +122,17 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ needs.precheck.outputs.issue_number }}
         run: |
-          sed -e "s/#ISSUE_NR/${{ needs.precheck.outputs.issue_number }}/g" \
-              -e "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" \
+          sed -e "s/{{ISSUE_NR}}/${{ needs.precheck.outputs.issue_number }}/g" \
+              -e "s/{{SOFT_DEADLINE}}/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" \
               .github/prompts/ux.md > /tmp/claude-prompt.txt
 
           # Memory-Snippets anhängen (Phase 2: restauriert + schreibt).
           cat .github/prompts/memory-read.md >> /tmp/claude-prompt.txt
           cat .github/prompts/memory-write.md >> /tmp/claude-prompt.txt
-          sed -i "s/#ISSUE_NR/${{ needs.precheck.outputs.issue_number }}/g" /tmp/claude-prompt.txt
-          sed -i "s/#PHASE/ux/g" /tmp/claude-prompt.txt
-          sed -i "s/#MEMORY_STATUS/${{ steps.setup.outputs.memory-status-text }}/g" /tmp/claude-prompt.txt
+          sed -i "s/{{ISSUE_NR}}/${{ needs.precheck.outputs.issue_number }}/g" /tmp/claude-prompt.txt
+          sed -i "s/{{PHASE}}/ux/g" /tmp/claude-prompt.txt
+          sed -i "s/{{MEMORY_STATUS}}/${{ steps.setup.outputs.memory-status-text }}/g" /tmp/claude-prompt.txt
+          bash .github/scripts/assert-prompt-complete.sh /tmp/claude-prompt.txt
 
           ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
             ${{ steps.setup.outputs.invoke-args }} \

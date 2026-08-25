@@ -244,22 +244,23 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
         run: |
           # Prompt liegt kanonisch in .github/prompts/review.md (Quelle fuer CI; Methode:
-          # Skill .claude/skills/review-kreuzverhoer/SKILL.md). Snippet-Platzhalter (#ISSUE_NR, #PHASE,
-          # #MEMORY_STATUS) werden erst NACH dem Anhaengen der Memory-Snippets substituiert.
-          sed -e "s/#PR_NR/${{ github.event.pull_request.number }}/g" \
-              -e "s/TITLE_OK/${{ steps.facts.outputs.title_ok || 'unbekannt' }}/g" \
-              -e "s/SUGGESTED_TYPE/${{ steps.facts.outputs.suggested_type || 'chore' }}/g" \
-              -e "s/SUGGESTED_SCOPE/${{ steps.facts.outputs.suggested_scope || 'k.A.' }}/g" \
-              -e "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" \
+          # Skill .claude/skills/review-kreuzverhoer/SKILL.md). Snippet-Platzhalter ({{ISSUE_NR}}, {{PHASE}},
+          # {{MEMORY_STATUS}}) werden erst NACH dem Anhaengen der Memory-Snippets substituiert.
+          sed -e "s/{{PR_NR}}/${{ github.event.pull_request.number }}/g" \
+              -e "s/{{TITLE_OK}}/${{ steps.facts.outputs.title_ok || 'unbekannt' }}/g" \
+              -e "s/{{SUGGESTED_TYPE}}/${{ steps.facts.outputs.suggested_type || 'chore' }}/g" \
+              -e "s/{{SUGGESTED_SCOPE}}/${{ steps.facts.outputs.suggested_scope || 'k.A.' }}/g" \
+              -e "s/{{SOFT_DEADLINE}}/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" \
               .github/prompts/review.md > /tmp/claude-prompt.txt
 
           # Memory-Snippets anhängen (Phase 5 = Review: restauriert + schreibt Review-Notizen;
-          # #ISSUE_NR aus dem Setup-Output, da dieser Workflow am PR hängt, nicht am Issue)
+          # {{ISSUE_NR}} aus dem Setup-Output, da dieser Workflow am PR hängt, nicht am Issue)
           cat .github/prompts/memory-read.md >> /tmp/claude-prompt.txt
           cat .github/prompts/memory-write.md >> /tmp/claude-prompt.txt
-          sed -i "s/#ISSUE_NR/${{ steps.setup.outputs.issue-number }}/g" /tmp/claude-prompt.txt
-          sed -i "s/#PHASE/review/g" /tmp/claude-prompt.txt
-          sed -i "s/#MEMORY_STATUS/${{ steps.setup.outputs.memory-status-text }}/g" /tmp/claude-prompt.txt
+          sed -i "s/{{ISSUE_NR}}/${{ steps.setup.outputs.issue-number }}/g" /tmp/claude-prompt.txt
+          sed -i "s/{{PHASE}}/review/g" /tmp/claude-prompt.txt
+          sed -i "s/{{MEMORY_STATUS}}/${{ steps.setup.outputs.memory-status-text }}/g" /tmp/claude-prompt.txt
+          bash .github/scripts/assert-prompt-complete.sh /tmp/claude-prompt.txt
 
           ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
             ${{ steps.setup.outputs.invoke-args }} \

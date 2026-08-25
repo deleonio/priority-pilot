@@ -265,25 +265,26 @@ jobs:
           ISSUE: ${{ github.event.issue.number }}
         run: |
           # Prompt liegt kanonisch in .github/prompts/implement.md — dieselbe Ablage wie der
-          # Fixup-Prompt der Schwesterphase. Snippet-Platzhalter (#ISSUE_NR, #PHASE,
-          # #MEMORY_STATUS) werden erst NACH dem Anhängen der Memory-Snippets substituiert.
+          # Fixup-Prompt der Schwesterphase. Snippet-Platzhalter ({{ISSUE_NR}}, {{PHASE}},
+          # {{MEMORY_STATUS}}) werden erst NACH dem Anhängen der Memory-Snippets substituiert.
           cp .github/prompts/implement.md /tmp/claude-prompt.txt
 
           # Memory-Snippets anhängen (Phase 4: restauriert + schreibt). Vor den seds, damit
-          # deren Platzhalter (#ISSUE_NR/#PHASE/#MEMORY_STATUS) mit substituiert werden.
+          # deren Platzhalter ({{ISSUE_NR}}/{{PHASE}}/{{MEMORY_STATUS}}) mit substituiert werden.
           cat .github/prompts/memory-read.md >> /tmp/claude-prompt.txt
           cat .github/prompts/memory-write.md >> /tmp/claude-prompt.txt
 
-          sed -i "s/#ISSUE_NR/${{ github.event.issue.number }}/g" /tmp/claude-prompt.txt
-          sed -i "s/#PHASE/implement/g" /tmp/claude-prompt.txt
-          sed -i "s/#MEMORY_STATUS/${{ steps.setup.outputs.memory-status-text }}/g" /tmp/claude-prompt.txt
+          sed -i "s/{{ISSUE_NR}}/${{ github.event.issue.number }}/g" /tmp/claude-prompt.txt
+          sed -i "s/{{PHASE}}/implement/g" /tmp/claude-prompt.txt
+          sed -i "s/{{MEMORY_STATUS}}/${{ steps.setup.outputs.memory-status-text }}/g" /tmp/claude-prompt.txt
           # Resume-Hinweis: bei ai:continued (Folgelauf nach Soft-Abort) Memory-Pflicht betonen.
           if [ "${{ steps.continued-before.outputs.already }}" = "true" ]; then
-            sed -i "s|#RESUME_HINT|⚠️ FORTSETZUNGS-Lauf (ai:continued) — lies ZUERST .ai-memory/ und SETZE FORT, starte NICHT neu, wiederhole nichts aus 'Erledigt'!|g" /tmp/claude-prompt.txt
+            sed -i "s|{{RESUME_HINT}}|⚠️ FORTSETZUNGS-Lauf (ai:continued) — lies ZUERST .ai-memory/ und SETZE FORT, starte NICHT neu, wiederhole nichts aus 'Erledigt'!|g" /tmp/claude-prompt.txt
           else
-            sed -i "s/#RESUME_HINT//g" /tmp/claude-prompt.txt
+            sed -i "s/{{RESUME_HINT}}//g" /tmp/claude-prompt.txt
           fi
-          sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
+          sed -i "s/{{SOFT_DEADLINE}}/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
+          bash .github/scripts/assert-prompt-complete.sh /tmp/claude-prompt.txt
 
           ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
             ${{ steps.setup.outputs.invoke-args }} \
@@ -724,20 +725,21 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
         run: |
           # Prompt liegt kanonisch in .github/prompts/fixup.md (Quelle fuer CI). Snippet-Platzhalter
-          # (#ISSUE_NR, #PHASE, #MEMORY_STATUS) werden erst NACH dem Anhaengen der Memory-Snippets
+          # ({{ISSUE_NR}}, {{PHASE}}, #MEMORY_STATUS) werden erst NACH dem Anhaengen der Memory-Snippets
           # substituiert.
-          sed -e "s/#PR_NR/${{ github.event.pull_request.number }}/g" \
-              -e "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" \
+          sed -e "s/{{PR_NR}}/${{ github.event.pull_request.number }}/g" \
+              -e "s/{{SOFT_DEADLINE}}/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" \
               .github/prompts/fixup.md > /tmp/claude-prompt.txt
 
           # Memory-Snippets anhängen (restauriert + schreibt)
           cat .github/prompts/memory-read.md >> /tmp/claude-prompt.txt
           cat .github/prompts/memory-write.md >> /tmp/claude-prompt.txt
-          # #ISSUE_NR kommt aus memory-write.md (Dateiname der Phasen-Notiz). Ohne diese Zeile
+          # {{ISSUE_NR}} kommt aus memory-write.md (Dateiname der Phasen-Notiz). Ohne diese Zeile
           # schrieb der Fixup seine Notiz in eine Datei mit LITERALEM Platzhalter im Namen.
-          sed -i "s/#ISSUE_NR/${{ steps.setup.outputs.issue-number }}/g" /tmp/claude-prompt.txt
-          sed -i "s/#PHASE/fixup/g" /tmp/claude-prompt.txt
-          sed -i "s/#MEMORY_STATUS/${{ steps.setup.outputs.memory-status-text }}/g" /tmp/claude-prompt.txt
+          sed -i "s/{{ISSUE_NR}}/${{ steps.setup.outputs.issue-number }}/g" /tmp/claude-prompt.txt
+          sed -i "s/{{PHASE}}/fixup/g" /tmp/claude-prompt.txt
+          sed -i "s/{{MEMORY_STATUS}}/${{ steps.setup.outputs.memory-status-text }}/g" /tmp/claude-prompt.txt
+          bash .github/scripts/assert-prompt-complete.sh /tmp/claude-prompt.txt
 
           ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
             ${{ steps.setup.outputs.invoke-args }} \

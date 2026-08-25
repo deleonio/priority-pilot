@@ -223,13 +223,14 @@ jobs:
 
           # Fakten aus dem Facts-Schritt injizieren (Werte sind sichere Token: true/false,
           # Zahlen, Scope-Wörter). Fehlende Fakten (facts_ok=false) => Fallback-Defaults.
-          sed -i "s/#PR_NR/$PR/g" /tmp/claude-prompt.txt
-          sed -i "s/TITLE_OK/${{ steps.facts.outputs.title_ok || 'unbekannt' }}/g" /tmp/claude-prompt.txt
-          sed -i "s/SUGGESTED_TYPE/${{ steps.facts.outputs.suggested_type || 'chore' }}/g" /tmp/claude-prompt.txt
-          sed -i "s/SUGGESTED_SCOPE/${{ steps.facts.outputs.suggested_scope || 'k.A.' }}/g" /tmp/claude-prompt.txt
-          sed -i "s/LINKED_ISSUES/${{ steps.facts.outputs.linked_issues || 'keine' }}/g" /tmp/claude-prompt.txt
-          sed -i "s/#MEMORY_STATUS/${{ steps.setup.outputs.memory-status-text }}/g" /tmp/claude-prompt.txt
-          sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
+          sed -i "s/{{PR_NR}}/$PR/g" /tmp/claude-prompt.txt
+          sed -i "s/{{TITLE_OK}}/${{ steps.facts.outputs.title_ok || 'unbekannt' }}/g" /tmp/claude-prompt.txt
+          sed -i "s/{{SUGGESTED_TYPE}}/${{ steps.facts.outputs.suggested_type || 'chore' }}/g" /tmp/claude-prompt.txt
+          sed -i "s/{{SUGGESTED_SCOPE}}/${{ steps.facts.outputs.suggested_scope || 'k.A.' }}/g" /tmp/claude-prompt.txt
+          sed -i "s/{{LINKED_ISSUES}}/${{ steps.facts.outputs.linked_issues || 'keine' }}/g" /tmp/claude-prompt.txt
+          sed -i "s/{{MEMORY_STATUS}}/${{ steps.setup.outputs.memory-status-text }}/g" /tmp/claude-prompt.txt
+          sed -i "s/{{SOFT_DEADLINE}}/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
+          bash .github/scripts/assert-prompt-complete.sh /tmp/claude-prompt.txt
 
           rm -f /tmp/doc.json
           ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \

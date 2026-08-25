@@ -1,5 +1,5 @@
 ## MEMORY SCHREIBEN — PFLICHT, nicht optional (ein Folgelauf setzt NUR darüber fort)
-Lege/aktualisiere die Datei `.ai-memory/issue-#ISSUE_NR-#PHASE.md` exakt in diesem Format:
+Lege/aktualisiere die Datei `.ai-memory/issue-{{ISSUE_NR}}-{{PHASE}}.md` exakt in diesem Format:
   ## Erledigt         — was läuft / ran (mit Datei:Zeile)
   ## Offen            — was blockiert, inkl. Fehlermeldung/Ursache
   ## Nächster Schritt  — der EINE nächste Handgriff für den Folgelauf

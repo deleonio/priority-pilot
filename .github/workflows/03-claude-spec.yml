@@ -205,24 +205,25 @@ jobs:
           ISSUE: ${{ github.event.issue.number }}
         run: |
           # Prompt liegt kanonisch in .github/prompts/spec.md (Quelle fuer CI + lokalen /spec-ticket-Command).
-          sed -e "s/#ISSUE_NR/${{ github.event.issue.number }}/g" \
-              -e "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" \
+          sed -e "s/{{ISSUE_NR}}/${{ github.event.issue.number }}/g" \
+              -e "s/{{SOFT_DEADLINE}}/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" \
               .github/prompts/spec.md > /tmp/claude-prompt.txt
 
           # RESUME_HINT: Draft-Wiederverwendung oder Neu-Lauf
           if [ "${REUSE_DRAFT}" = "true" ]; then
-            sed -i "s|#RESUME_HINT|⚠️ FORTSETZUNGS-Lauf (Draft-Wiederverwendung) — PR #${DRAFT_PR}, Branch ${DRAFT_BRANCH}. Bestehenden Branch auschecken (git fetch origin && git switch ${DRAFT_BRANCH}), Stand prüfen, weiterschreiben. NICHT neu anlegen.|g" /tmp/claude-prompt.txt
+            sed -i "s|{{RESUME_HINT}}|⚠️ FORTSETZUNGS-Lauf (Draft-Wiederverwendung) — PR #${DRAFT_PR}, Branch ${DRAFT_BRANCH}. Bestehenden Branch auschecken (git fetch origin && git switch ${DRAFT_BRANCH}), Stand prüfen, weiterschreiben. NICHT neu anlegen.|g" /tmp/claude-prompt.txt
           else
-            sed -i "s|#RESUME_HINT||g" /tmp/claude-prompt.txt
+            sed -i "s|{{RESUME_HINT}}||g" /tmp/claude-prompt.txt
           fi
 
           # Memory-Snippets anhängen (Phase 3: restauriert + schreibt). Snippet-Platzhalter
           # separat substituieren, da die spec.md-sed oben nur den Prompt-Teil erfasst hat.
           cat .github/prompts/memory-read.md >> /tmp/claude-prompt.txt
           cat .github/prompts/memory-write.md >> /tmp/claude-prompt.txt
-          sed -i "s/#ISSUE_NR/${{ github.event.issue.number }}/g" /tmp/claude-prompt.txt
-          sed -i "s/#PHASE/spec/g" /tmp/claude-prompt.txt
-          sed -i "s/#MEMORY_STATUS/${{ steps.setup.outputs.memory-status-text }}/g" /tmp/claude-prompt.txt
+          sed -i "s/{{ISSUE_NR}}/${{ github.event.issue.number }}/g" /tmp/claude-prompt.txt
+          sed -i "s/{{PHASE}}/spec/g" /tmp/claude-prompt.txt
+          sed -i "s/{{MEMORY_STATUS}}/${{ steps.setup.outputs.memory-status-text }}/g" /tmp/claude-prompt.txt
+          bash .github/scripts/assert-prompt-complete.sh /tmp/claude-prompt.txt
 
           ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
             ${{ steps.setup.outputs.invoke-args }} \
