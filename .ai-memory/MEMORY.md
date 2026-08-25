@@ -144,3 +144,10 @@ Konflikte, die er verhindern soll.
   (#1017 zweimal geparkt, obwohl 2× ux-ready entschieden). → Parser extrahiert jetzt per
   grep -oE '<Vokabular>' | head -1 den ersten bekannten Token (8 Stellen + Aufwandsklasse
   in 01); Prompt-Beispiele tragen den Token nackt, Bedeutungen in eigene Zeile.
+- 2026-08-25 · node:test/t.skip — `t.skip()` im Test-Body markiert den Test nur, bricht ihn NICHT
+  ab: der Body läuft weiter; eine Exception darin zählt nicht als `fail` (Summary zeigt `fail 0,
+  skipped 1`), setzt aber den Exit-Code auf 1 („✖ failing tests" trotz Skip-Marker). Der
+  2026-08-24-Eintrag empfiehlt genau dieses Muster OHNE `return` — damit ist `pnpm test` in jeder
+  Sandbox ohne Redis rot (server/src/express/session.test.ts, CI hat redis:8-Service und merkt es
+  nicht). → Nach `t.skip(reason)` IMMER `return`. Und: Exit-Codes nie aus Pipes lesen (`| tail`
+  verschluckt sie) — `$?` im selben Call ohne Pipe prüfen.
