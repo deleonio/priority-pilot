@@ -260,6 +260,31 @@ jobs:
           since-epoch: ${{ steps.starttime.outputs.epoch }}
           provider: ${{ steps.setup.outputs.llm-provider }}
 
+      - name: App-Token für Kosten-Siegel holen
+        # always(): Auch bei Fehlläufen die bereits erfassten Costs versiegeln
+        if: always() && steps.setup.outputs.configured == 'true'
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
+        with:
+          client-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: 💰 Kostenlauf versiegeln
+        # Siegelt alle Artefakte dieses Tickets in .costs/<n>.json (idempotent).
+        # Läuft immer, damit auch abgebrochene Läufe ihre Costs versiegeln.
+        if: always() && steps.setup.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          PR: ${{ github.event.pull_request.number || github.event.inputs.pr-number }}
+        run: |
+          set -uo pipefail
+          # Issue-Auflösung wie im catchup-Job: Closing-Issue, sonst PR-Nummer —
+          # alle Phasen EINES Tickets landen in derselben .costs-Datei.
+          issue="$(gh pr view "$PR" --repo "$REPO" --json closingIssuesReferences \
+            --jq '[.closingIssuesReferences[].number] | first' 2>/dev/null || true)"
+          issue="${issue:-$PR}"
+          bash .github/scripts/seal-costs.sh --repo "$REPO" --issue "$issue"
+
       - name: Issue-Storage sichern (State-Branch)
         # Der Documenter schreibt jetzt ebenfalls: "am Ende jeder Phase speichern" gilt ohne
         # Ausnahme. Nutzen auch in der terminalen Phase: schlaegt er fehl und laeuft erneut,
