@@ -23,6 +23,12 @@
       "runId": "32844011935",
       "branch": "main",
       "timestamp": "2026-08-25T11:58:02Z"
+    },
+    "review": {
+      "sessionId": "8eb26f28-9fde-4300-9901-b05075d5e7b4",
+      "runId": "32845058804",
+      "branch": "feat/issue-1017-button-vereinheitlichen",
+      "timestamp": "2026-08-25T12:07:25Z"
     }
   }
 }
