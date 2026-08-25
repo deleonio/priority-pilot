@@ -1,0 +1,129 @@
+name: Nightly Prompt Audit
+
+on:
+  schedule:
+    # Jeden Tag um 3 Uhr UTC (5 Uhr CET / 4 Uhr CEST)
+    - cron: '0 3 * * *'
+  workflow_dispatch: # Manuelle Auslösung möglich
+
+permissions:
+  contents: read
+  issues: write # Issues erstellen/aktualisieren
+
+jobs:
+  prompt-audit:
+    name: Prompt-Optimierungsprüfung
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prompt-Analyse
+        id: analyze
+        run: |
+          set -euo pipefail
+
+          cd .github/prompts
+
+          # Prompts analysieren
+          results=()
+          for file in *.md; do
+            if [[ "$file" == "_"* ]]; then
+              continue  # _prompt-conventions.md skippen
+            fi
+
+            bytes=$(wc -c < "$file")
+            tokens=$((bytes / 4))  # Näherung: 1 Token ≈ 4 Bytes
+            lines=$(wc -l < "$file")
+
+            # Heuristiken für Optimierungsbedarf
+            issues=()
+
+            # > 2000 Tokens = potentiell zu lang
+            if [[ $tokens -gt 2000 ]]; then
+              issues+=("Token-Count hoch ($tokens > 2000)")
+            fi
+
+            # Redundanzen prüfen
+            if grep -q "Token sparen" "$file" && grep -q "prüf.*präzis" "$file"; then
+              issues+=("Wiederholende Token-Hinweise")
+            fi
+
+            # Lange Erklärungsblöcke (> 5 Zeilen ohne结构性-Markierung)
+            if grep -Pzo '(?s)[A-Z][a-z]+:\n[^\n#]+\n([^\n]+\n){5,}' "$file" 2>/dev/null; then
+              issues+=("Lange unstrukturierte Blöcke gefunden")
+            fi
+
+            # Auf Referenzen prüfen (sollten in Wissensbasis sein)
+            if ! grep -qi ".ai-knowledge\|AGENTS.md\|SKILL.md" "$file"; then
+              issues+=("Keine Referenzen auf Wissensbasis")
+            fi
+
+            # Doppelte Abschnitte prüfen (gleiche Überschrift mehrfach)
+            duplicate_headers=$(grep -E "^#+ " "$file" | sort | uniq -d | wc -l)
+            if [[ $duplicate_headers -gt 0 ]]; then
+              issues+=("Doppelte Abschnittsüberschriften ($duplicate_headers)")
+            fi
+
+            # Ergebnis speichern
+            if [[ ${#issues[@]} -gt 0 ]]; then
+              results+=("## $file ($tokens tokens, $lines Zeilen)")
+              for issue in "${issues[@]}"; do
+                results+=("  - $issue")
+              done
+            fi
+          done
+
+          # Ergebnisse ausgeben
+          if [[ ${#results[@]} -eq 0 ]]; then
+            echo "findings=0" >> $GITHUB_OUTPUT
+            echo "Keine Optimierungsmöglichkeiten gefunden."
+          else
+            echo "findings=1" >> $GITHUB_OUTPUT
+            {
+              echo "## Prompt-Optimierungsbedarf"
+              echo ""
+              printf '%s\n' "${results[@]}"
+              echo ""
+              echo "**Zeitstempel:** $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            } > /tmp/findings.txt
+            cat /tmp/findings.txt
+          fi
+
+      - name: Issue erstellen oder aktualisieren
+        if: steps.analyze.outputs.findings == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TITLE="Prompt-Optimierung: Nightly Audit $(date +%Y-%m-%d)"
+
+          # Prüfen, ob bereits ein offenes Issue existiert
+          EXISTING=$(gh issue list \
+            --state open \
+            --search "prompt-optimierung nightly audit" \
+            --json number,title \
+            --jq '.[] | select(.title | contains("Nightly Audit")) | .number' \
+            || echo "")
+
+          FINDINGS=$(cat /tmp/findings.txt)
+
+          if [[ -n "$EXISTING" ]]; then
+            # Issue aktualisieren
+            gh issue comment "$EXISTING" --body "$FINDINGS"
+            echo "Issue #$EXISTING aktualisiert"
+          else
+            # Neues Issue erstellen
+            gh issue create \
+              --title "$TITLE" \
+              --label "ai:needs-analyse,ci:prompts" \
+              --body "$FINDINGS"
+            echo "Neues Issue erstellt"
+          fi
+
+      - name: Zusammenfassung
+        run: |
+          if [[ "${{ steps.analyze.outputs.findings }}" == "1" ]]; then
+            echo "::notice::Prompt-Optimierungsbedarf gefunden, Issue erstellt/aktualisiert"
+          else
+            echo "::notice::Kein Prompt-Optimierungsbedarf"
+          fi
