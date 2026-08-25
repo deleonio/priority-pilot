@@ -35,14 +35,23 @@ Verwaisungs-Sweep deterministisch arbeiten können.
 
 ```
 ai/state/issue-{N}              (eigene Wurzel — orphan; enthält NUR die Storage-Pfade)
-├── .claude/memory/issue-*.md   # Phasen-Notizen (Claude schreibt nativ dorthin)
-├── .claude/state.json          # Phase → { sessionId, runId, branch, timestamp }
+├── .ai-memory/issue-*.md       # Phasen-Notizen (Claude schreibt nativ dorthin)
+├── .ai-memory/state.json       # Phase → { sessionId, runId, branch, timestamp }
 └── .claude/sessions/           # [Stufe 2] Session-JSONLs, gefiltert (s. u.)
 ```
 
 Die **eigene Wurzel** ist bewusst: Der Branch teilt keine Historie mit `main` und trägt keine
 Repo-Dateien — nur die Storage-Pfade. Damit ist `MEMORY.md` (in `main` eingecheckt) **strukturell**
 außerhalb, nicht nur per Exclude-Regel.
+
+**Der Memory liegt in `.ai-memory/` und nicht unter `.claude/`** (Korrektur vom 2026-08-25).
+Claude Code sperrt alles unterhalb von `.claude/` als „sensitive file", und zwar **bevor** die
+`--allowedTools`-Allowlist ausgewertet wird — eine `Edit(path)`-Allow-Regel kann die Sperre nicht
+wieder öffnen. Im alten Layout `.claude/memory/` konnten deshalb ausgerechnet die Phasen mit
+`tools-tier` `restricted`/`review` (Triage, UX, Review, Documenter) ihre Phasen-Notiz **nie**
+schreiben; Write-Tool und Bash-Heredoc wurden beide abgelehnt (Runs `32747085777`, `32741816829`).
+Durchgekommen sind nur die `full`-Phasen, weil `--dangerously-skip-permissions` die Prüfung
+überspringt — von sechs Übergaben je Ticket funktionierte damit genau eine (Spec → Umsetzung).
 
 Sechs Punkte gehören zur Entscheidung:
 
@@ -112,7 +121,7 @@ greifen nicht auf Issue-Storages zu.
 - Kein CI-/Deploy-Trigger: beide Workflows hören nur auf `push: [main]` — ein Versehen am Branch
   feuert nichts. Ein versehentlicher Merge müsste manuell erfolgen.
 - Storage-Dateien erreichen den Workspace-Index nie: Restore per `git restore` (ohne `--staged`),
-  Save per Temp-Index, `.gitignore` hält `.claude/state.json` zusätzlich zurück.
+  Save per Temp-Index, `.gitignore` hält `.ai-memory/state.json` zusätzlich zurück.
 
 **Offen und ausdrücklich nicht behauptet:**
 

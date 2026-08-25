@@ -13,7 +13,7 @@
 | **Agent-Aufruf**             | `claude -p '<prompt>'` (Single-Query)                                                 | `pi --mode print` oder SDK `runPrintMode`                                             |
 | **Provider-Switch**          | `setup-claude` Action: `ANTHROPIC_BASE_URL` + Auth-Variablen                          | `ModelRuntime` mit Runtime-API-Keys, Provider-Katalog                                 |
 | **Modellwahl**               | Alias `` `fable \| opus \| sonnet \| haiku` → `--model` oder `settings.local.json` `` | Echte Model-IDs (`anthropic/claude-opus-4-5`, `zai/glm-5.1`, `openrouter/...`)        |
-| **Tools**                    | `--allowedTools 'Read,Glob,Edit(.claude/memory/*),...'`                               | SDK: `tools: ["read","bash","edit",...]`, Custom Tools für GitHub/Memory              |
+| **Tools**                    | `--allowedTools 'Read,Glob,Edit(.ai-memory/*),...'`                                   | SDK: `tools: ["read","bash","edit",...]`, Custom Tools für GitHub/Memory              |
 | **MCP (KoliBri/Playwright)** | `mcp__kolibri-mcp__*`, `mcp__playwright__*` via `.mcp.json`                           | **Kein MCP in PI** → Extensions oder CLI-Tools wrappen                                |
 | **Session/Memory**           | GitHub Actions Artefakte (`claude-memory-issue-{N}`)                                  | PI Sessions (JSONL, Tree-Struktur) + Artefakt-Transport für CI                        |
 | **Tailscale Exit-Node**      | Vor `claude -p` in `setup-claude`                                                     | Vor PI-Aufruf (identisch, nur anderer Binary)                                         |
@@ -158,7 +158,7 @@
 | -------------------------------- | ----------------------------------------------------------------------------- |
 | `Read,Glob,Grep,Bash,Write,Edit` | `["read","bash","edit","write","grep","find","ls"]` (built-in)                |
 | `Bash(gh *)`, `Bash(git *)`      | Custom Tools: `gh_api`, `git_cmd` (sicherer als globales `bash`)              |
-| `Edit(.claude/memory/*)`         | Built-in `edit` + Pfad-Prüfung in Custom Tool Wrapper                         |
+| `Edit(.ai-memory/*)`             | Built-in `edit` + Pfad-Prüfung in Custom Tool Wrapper                         |
 | `Task` (Subagents)               | PI Subagents via Extension oder SDK `session.agent.spawnSubagent()`           |
 | `mcp__kolibri-mcp__search/fetch` | **Extension Tool** `kolibri_search`, `kolibri_fetch`                          |
 | `mcp__playwright__browser_*`     | **Extension Tool** `pw_navigate`, `pw_snapshot`, `pw_resize`, `pw_screenshot` |
@@ -167,11 +167,11 @@
 
 ### 3.4 Memory & Session Handling
 
-| Heute                                                                   | PI                                                                                                                                                                                                                                                                                                  |
-| ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Artefakt `claude-memory-issue-{N}` (JSONL-Dateien in `.claude/memory/`) | PI Session JSONL (Tree-Struktur) — **aber**: CI braucht Persistenz über Job-Grenzen hinweg                                                                                                                                                                                                          |
-| `memory-load` Step restored Artefakt in `.claude/memory/`               | **Option A:** PI Session pro Issue als Artefakt speichern (`pi-session-issue-{N}.jsonl`), nächste Phase lädt via `SessionManager.open()`<br>**Option B:** In-Memory `SessionManager` + nur `MEMORY.md` (eingecheckt) als persistent State; Phasen-Notizen als Issue-Kommentare oder Dateien im Repo |
-| `autoMemoryDirectory: .claude/memory` in `.claude/settings.json`        | PI Session-Datei liegt woanders; `MEMORY.md` bleibt eingecheckt                                                                                                                                                                                                                                     |
+| Heute                                                               | PI                                                                                                                                                                                                                                                                                                  |
+| ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Artefakt `claude-memory-issue-{N}` (JSONL-Dateien in `.ai-memory/`) | PI Session JSONL (Tree-Struktur) — **aber**: CI braucht Persistenz über Job-Grenzen hinweg                                                                                                                                                                                                          |
+| `memory-load` Step restored Artefakt in `.ai-memory/`               | **Option A:** PI Session pro Issue als Artefakt speichern (`pi-session-issue-{N}.jsonl`), nächste Phase lädt via `SessionManager.open()`<br>**Option B:** In-Memory `SessionManager` + nur `MEMORY.md` (eingecheckt) als persistent State; Phasen-Notizen als Issue-Kommentare oder Dateien im Repo |
+| `autoMemoryDirectory: .ai-memory` in `.claude/settings.json`        | PI Session-Datei liegt woanders; `MEMORY.md` bleibt eingecheckt                                                                                                                                                                                                                                     |
 
 **Empfehlung Option A:** PI Session als Artefakt transportieren. `SessionManager` kann JSONL-Datei laden/speichern. Vorteil: Volle Conversation-History, Tree-Branching, Compaction erhalten.
 
