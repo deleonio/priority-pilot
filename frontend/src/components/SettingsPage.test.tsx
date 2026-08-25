@@ -45,7 +45,10 @@ vi.mock('../api', () => ({
 }));
 
 // Neben-Hooks der Seite durch no-op-Doubles ersetzen (jsdom hat kein ServiceWorker/Mic).
-vi.mock('../lib/push', () => ({ usePushSubscription: () => ({}) }));
+// Push-Zustand als überschreibbares Objekt (#1017): Default bleibt leer wie bisher
+// (kein `enabled` → Push-Sektion unsichtbar), der #1017-Test aktiviert den Button gezielt.
+const pushState: Record<string, unknown> = {};
+vi.mock('../lib/push', () => ({ usePushSubscription: () => pushState }));
 vi.mock('../lib/voiceAutostart', () => ({ useVoiceAutostart: () => ({}) }));
 vi.mock('../lib/useShadowDOMLayout', () => ({ useShadowDOMLayout: () => ({}) }));
 vi.mock('../lib/micPermission', () => ({ requestMicrophonePermission: vi.fn() }));
@@ -57,6 +60,7 @@ const defaultProps = {
 };
 
 beforeEach(() => {
+	pushState.enabled = false;
 	geoState.supported = true;
 	geoState.enabled = false;
 	geoState.pending = false;
@@ -126,5 +130,34 @@ describe('SettingsPage – #933: Standort-Test-Schalter und Adressanzeige', () =
 		geoState.positionUpdatedAt = new Date('2026-08-23T14:05:00').getTime();
 		const { container } = render(<SettingsPage {...defaultProps} />);
 		expect(container.querySelector('.geo-address')?.textContent).toMatch(/Stand:\s*14:05/);
+	});
+});
+
+describe('SettingsPage – #1017: Vereinheitlichtes Layout der Aktions-Buttons', () => {
+	/**
+	 * Roter Spec-Test — Spec-Bezug: docs/spec/issue-1017.md AK1.
+	 *
+	 * Beide Aktions-Buttons („Push testen", „Standort jetzt ermitteln") tragen dieselbe nicht-leere
+	 * Layout-Klasse; die heutige Einzelregel `.push-test-btn` (nur Push-Button) wird durch die
+	 * gemeinsame Regel ersetzt. Spiegel-Test: Der Sollwert (Klasse des Push-Buttons) wird aus der
+	 * führenden Quelle gelesen und auf den Geo-Button gespiegelt — kein Klassen-Literal im Test,
+	 * damit die Implementierung den Klassennamen frei wählen kann.
+	 *
+	 * Rot heute: Der Geo-Button trägt gar keine Klasse, der Push-Button `push-test-btn`.
+	 */
+	it('AK1: beide Aktions-Buttons tragen dieselbe nicht-leere Layout-Klasse', () => {
+		pushState.enabled = true;
+		geoState.enabled = true;
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		const pushButton = container.querySelector('kol-button[_label="Push testen"]');
+		const geoButton = container.querySelector('kol-button[_label="Standort jetzt ermitteln"]');
+		expect(pushButton).not.toBeNull();
+		expect(geoButton).not.toBeNull();
+
+		const pushClass = pushButton?.getAttribute('class') ?? '';
+		// Nicht leer — sonst wäre der Gleichheits-Spiegel über eine leere Menge grün.
+		expect(pushClass.trim().length).toBeGreaterThan(0);
+		expect(geoButton?.getAttribute('class')).toBe(pushClass);
 	});
 });
