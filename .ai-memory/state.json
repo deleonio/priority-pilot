@@ -11,6 +11,12 @@
       "runId": "32806254775",
       "branch": "main",
       "timestamp": "2026-08-25T04:10:25Z"
+    },
+    "review": {
+      "sessionId": "6fc5c0ea-4eb9-4f0a-b7c1-0a54adc55be2",
+      "runId": "32807957822",
+      "branch": "feat/issue-1010-notes-diff-count",
+      "timestamp": "2026-08-25T04:19:49Z"
     }
   }
 }
