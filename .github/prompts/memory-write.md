@@ -1,35 +1,41 @@
-## MEMORY SCHREIBEN — PFLICHT, nicht optional
+## MEMORY SCHREIBEN — PFLICHT
 
-Du schreibst für ZWEI Leser: den Folgelauf DERSELBEN Phase (falls du abbrichst) und die NÄCHSTE Phase dieses Tickets. Der zweite ist der wichtigere — was du hier nicht hinterlässt, erarbeitet die nächste Phase auf Kosten des Tickets nochmal.
+**ZWEI ZWECKE**:
+1. Folgelauf DIESER Phase bei Soft-Abort → nahtlos weitermachen
+2. NÄCHSTE Phase dieses Tickets → Arbeit nicht nochmal machen
 
-Lege/aktualisiere die Datei `.ai-memory/issue-{{ISSUE_NR}}-{{PHASE}}.md` exakt in diesem Format:
-  ## Erledigt          — was läuft / ran (mit Datei:Zeile)
-  ## Relevante Stellen — die Dateien/Funktionen, um die es geht, je EIN Halbsatz warum
-  ## Annahmen          — worauf du dich verlässt, ohne es bewiesen zu haben
-  ## Verworfen         — was du geprüft und NICHT genommen hast, mit Grund
-  ## Offen             — was blockiert, inkl. Fehlermeldung/Ursache
-  ## Nächster Schritt  — der EINE nächste Handgriff für den Folgelauf
-  ## Fallstricke       — Entscheidungen und Dinge, die leicht falsch laufen
+**DATEI**: `.ai-memory/issue-{{ISSUE_NR}}-{{PHASE}}.md`
 
-`Relevante Stellen`, `Annahmen` und `Verworfen` sind der teure Teil und der eigentliche Zweck. Ein „geprüft, geht nicht, weil …" spart der nächsten Phase den kompletten Umweg. Leere Abschnitte mit `-` füllen, nicht weglassen.
+**FORMAT**:
+```markdown
+## Erledigt          — was läuft / ran (mit Datei:Zeile)
+## Relevante Stellen — die Dateien/Funktionen, je EIN Halbsatz warum
+## Annahmen          — worauf du dich verlässt, ohne bewiesen
+## Verworfen         — was geprüft und NICHT genommen, mit Grund
+## Offen             — was blockiert, inkl. Fehlermeldung/Ursache
+## Nächster Schritt  — der EINE nächste Handgriff
+## Fallstricke       — Entscheidungen/Dinge, die leicht falsch laufen
+```
 
-SCHREIB FÜR JEMANDEN OHNE DEINEN KONTEXT: Die nächste Phase läuft womöglich auf einem anderen Modell und sieht dein Transkript nie. „wie besprochen", „der Ansatz von vorhin" oder „siehe oben" sind dort wertlos. Nenne Dateien, Zeilen und Namen.
+**WICHTIG**:
+- Schreib für JEMANDEN OHNE DEINEN KONTEXT → Nenne Dateien, Zeilen, Namen
+- Aussagen prüfbar (Datei:Zeile plus was dort stand) — Dateistände altern!
+- ERSTEN Stand SOFORT nach Analyse, vor JEDEM Soft-Deadline-Check aktualisieren
+- Leere Abschnitte mit `-` füllen, nicht weglassen
 
-DATEISTÄNDE ALTERN: Was du über Dateiinhalte schreibst, kann in der nächsten Phase überholt sein (anderer Branch, zwischenzeitliche Commits). Schreib Aussagen prüfbar — Datei:Zeile plus was dort stand — nicht als Tatsache über den aktuellen Stand.
+---
 
-TIMING (kritisch): ersten Stand SOFORT nach deiner Eingangs-Analyse schreiben. Vor JEDEM Soft-Deadline-Check aktualisieren. NIEMALS erst am Ende — ein Soft-Abort kommt vorher, und ohne Checkpoint ist der gesamte Fortschritt verloren. Ein Folgelauf MUSS ohne dein Zutun nahtlos weitermachen können.
+## DAUERGEDÄCHTNIS FORTSCHREIBEN — `MEMORY.md`
 
-## DAUERGEDÄCHTNIS FORTSCHREIBEN — `.ai-memory/MEMORY.md`
-Das ist die eingecheckte, ticket-übergreifende Lern-Datei (nicht zu verwechseln mit der Phasen-Notiz oben). Sie wächst über alle Läufe hinweg weiter.
+**WANN** (streng, im Zweifel KEIN Eintrag): Nur wenn ein ANDERES Ticket ohne dies denselben Fehler machen würde. Nicht-offensichtliche Werkzeug-/CI-Eigenheiten, Befehle nach Fehlversuchen.
 
-WANN (Aufnahmekriterium, streng — im Zweifel KEIN Eintrag): nur wenn ein ZUKÜNFTIGER Lauf an einem ANDEREN Ticket ohne diese Notiz denselben Fehler machen oder denselben Umweg gehen würde. Also: nicht-offensichtliche Fallstricke, Werkzeug-/CI-Eigenheiten, ein Befehl der nach mehreren Fehlversuchen funktionierte. NICHT hierher gehören: was in diesem Ticket passiert ist (→ Phasen-Notiz), was schon in AGENTS.md/.ai-knowledge/ steht, Selbstverständlichkeiten, Erfolgsmeldungen. Die meisten Läufe schreiben hier GAR NICHTS — das ist der Normalfall, kein Versäumnis.
+**NICHT HIERHER**: Ticket-Spezifisches (→ Phasen-Notiz), was in AGENTS.md/.ai-knowledge/ steht, Selbstverständliches, Erfolgsmeldungen. Meistens GAR NICHTS schreiben.
 
-WAS: genau eine Zeile, Format
-  `- YYYY-MM-DD · <Bereich> — <was schiefging> → <Lösung>.`
-Den Befehl, der funktioniert hat, in Backticks mit hineinnehmen, falls einer im Spiel war.
+**FORMAT** (eine Zeile):
+`- YYYY-MM-DD · <Bereich> — <was schiefging> → <Lösung>.`
 
-WIE: ANS ENDE des Abschnitts `## Learnings & Erfahrungen` anhängen. Bestehende Zeilen NIEMALS umschreiben, umsortieren oder löschen — die Datei mergt per `union` aus `.gitattributes`, das trägt nur bei reinem Anhängen. EINZIGE Ausnahme: ein Eintrag ist nachweislich FALSCH, also ein Lauf hat das Gegenteil belegt. Dann korrigiere ihn und schreib den Beleg dazu — ein falsches Learning richtet mehr Schaden an als gar keines, weil ihm jeder Folgelauf glaubt.
+**WO**: Am Ende von `## Learnings & Erfahrungen` anhängen. Bestehende Zeilen NICHT umschreiben/umsortieren/löschen (union-Merge). AUSNAHME: Eintrag ist nachweislich FALSCH → korrigieren + Beleg.
 
-WER: nur Phasen, deren Auftrag ohnehin Committen einschliesst (Spec, Umsetzung, Fixup). Der Eintrag reist im NORMALEN Phasen-Commit mit — kein eigener Commit, kein Push auf main. Committest du in dieser Phase nicht (Triage, UX, Review, Documenter), dann schreibe den Kandidaten stattdessen unter `## Fallstricke` in deine Phasen-Notiz; eine spätere Phase zieht ihn hoch.
+**WER**: Nur Phasen mit Commit-Auftrag (Spec, Umsetzung, Fixup) — Eintrag reist im normalen Phasen-Commit mit. Ohne Commit → Kandidat unter `## Fallstricke` der Phasen-Notiz.
 
-KURATIERUNG: max. ~40 Einträge. Ist die Datei voll oder ein Learning zur festen Regel geworden → nach `.ai-knowledge/conventions.md` überführen und die Zeile hier entfernen (bewusster Aufräum-Schritt).
+**KURATIERUNG**: Max. ~40 Einträge. Voll oder zur Regel geworden → nach `.ai-knowledge/conventions.md` überführen, Zeile entfernen.
