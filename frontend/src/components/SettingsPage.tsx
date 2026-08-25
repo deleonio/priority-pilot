@@ -203,7 +203,7 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 					{pushEnabled && (
 						<KolButton
 							_label="Push testen"
-							class="push-test-btn"
+							class="settings-action-btn"
 							_variant="secondary"
 							_on={{
 								onClick: () => {
@@ -268,6 +268,7 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 							<KolButton
 								key={geoPending ? 'geo-refresh-pending' : 'geo-refresh-idle'}
 								_label="Standort jetzt ermitteln"
+								class="settings-action-btn"
 								_variant="secondary"
 								_disabled={geoPending}
 								_on={{
