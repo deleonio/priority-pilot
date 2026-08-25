@@ -5,6 +5,12 @@
       "runId": "32845842869",
       "branch": "fix/verdict-parser-token-extraktion",
       "timestamp": "2026-08-25T12:17:28Z"
+    },
+    "documenter": {
+      "sessionId": "a4a8caec-b461-4f58-8638-4ccdd28fe57e",
+      "runId": "32846991025",
+      "branch": "fix/verdict-parser-token-extraktion",
+      "timestamp": "2026-08-25T12:22:48Z"
     }
   }
 }
