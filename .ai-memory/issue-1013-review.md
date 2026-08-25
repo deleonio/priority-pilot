@@ -1,29 +1,43 @@
 # Review PR #1013 (docs(spec): Ist-Stand-Sync 2026-08-25)
 
 ## Erledigt
-- Modus bestimmt: KREUZVERHÖR (kein `<!-- ai-review -->`-Kommentar am PR, Stand 2026-08-25).
-- PR-Metadaten gelesen: 1 Commit `2229f324`, Branch `chore/spec-sync-all` → `main`, OPEN.
-- Diff-Umfang: 18 Dateien, alle in `docs/spec/`; gelöscht: 1003,1004,742,749,788,824,861,862,902,965,972; geändert: 620,691,704,787,951,969,user-journeys.
+- Runde 2 (2026-08-25): MODUS = FIXUP-NACHWEIS (Sammelkommentar 5404982772 vorhanden,
+  updatedAt 2026-08-25T04:11:54Z). Fixup-Commit `efd9e5ee` (04:19:39Z) = einziger Commit danach.
+- Finding #1 (Tab-Label-Drift) als BEHOBEN verifiziert: docs/spec/issue-951.md:7 und :20
+  sagen jetzt „Tab „KI-Provider““, Label-Gegenprobe gegen SETTINGS_TABS
+  (frontend/src/components/SettingsPage.tsx:27, `_label: 'KI-Provider'`) ✓.
+- Fixup-Diff 2229f324..efd9e5ee adversarial geprüft: nur 2 Dateien — issue-951.md
+  (Finding-Fix) + user-journeys.md (189–204, reine Prettier-Tabellen-Ausrichtung,
+  kein Inhaltsdelta). KEINE neuen Probleme.
+- CI auf efd9e5ee: verify pass, e2e 1–4 pass.
+- Sammelkommentar 5404982772 fortgeschrieben: Status reviewed, Finding 1 in
+  Behobene-Tabelle, Review-Typ Fixup-Nachweis. Titel-Gate ok (keine Umbenennung nötig).
+- Verdict `reviewed` nach /tmp/claude-verdict geschrieben.
 
 ## Relevante Stellen
-- PR-Body = Sync-Report mit Begründung pro Datei (kein KI-ANALYSE-Block, kein Ticket-AK — Report ist der Vertrag).
-- `docs/spec/issue-951.md` — Konsolidierungsziel der gelöschten LLM-Specs (742/749/788); muss die Verträge weitertragen.
-- `frontend/src/App.tsx` — Toolbar/Tab-Labels (51, 378–424, 446–467) für user-journeys/691/704/787-Behauptungen.
-- `server/src/express/routes/llmProviders.ts`, `server/src/llm/llm.ts` — Ist-Stand LLM-System für issue-951.
-- `frontend/src/app.css` (~1409, ~1840) — Padding-Behauptungen (969, 972).
+- docs/spec/issue-951.md — Zeilen 7, 20: Tab-Label-Stellen des fixierten Findings.
+- docs/spec/user-journeys.md — ~189–204: Prettier-Ausrichtung im Fixup (CI-Fix, cosmetic).
+- frontend/src/components/SettingsPage.tsx:27 — SETTINGS_TABS, Quelle des echten Labels.
+- docs/server-setup.md:146 — enthält noch „Tab „LLM““ (veraltet), NICHT im PR-Diff → out of scope.
 
 ## Annahmen
-- Review-Massstab: PR-Body-Behauptungen gegen Code verifizieren + Diff auf Konsistenz (tote Links nach Löschungen).
+- docs/server-setup.md liegt außerhalb des PR-Diffs (per git diff origin/main...efd9e5ee
+  verifiziert, 0 Dateien) → alter Drift dort ist kein Finding dieser Runde.
 
 ## Verworfen
--
+- Neues Finding für server-setup.md:146 — Datei vom PR unberührt, FIXUP-NACHWEIS prüft nur
+  Fixup + neue Probleme im Fixup-Diff. Drift für einen künftigen Sync/das Ticket notiert.
 
 ## Offen
 -
 
 ## Nächster Schritt
-- FERTIG: Verdict `needs-fixup` geschrieben (/tmp/claude-verdict), Sammelkommentar 5404982772, Inline-Thread PRRT_kwDONloM186b7uGj, Titel auf `docs(spec): sync specs to actual state 2026-08-25` umbenannt (Titel-Gate). Fixup-Runde = FIXUP-NACHWEIS: nur Finding 1 (Tab-Label „LLM"→„KI-Provider" in issue-951.md:7+20) + Fixup-Diff auf neue Probleme prüfen.
+- Nichts. Review abgeschlossen (reviewed). PR kann gemergt werden.
 
 ## Fallstricke
-- Kein Ticket-AK-Block vorhanden — nicht danach suchen, Report ist der Vertrag.
 - Review-Phase: KEIN Code ändern, KEINE Labels setzen, KEINE Commits.
+- Kein Ticket-AK-Block im PR-Body — Sync-Report ist der Vertrag.
+- PR-Titel wurde in Runde 1 gesetzt: „docs(spec): sync specs to actual state 2026-08-25“
+  (Conventional Commits konform, keine erneute Umbenennung nötig).
+- MEMORY.md-Kandidat (server-setup.md:146 „Tab „LLM““ veraltet) gehört in ein künftiges
+  Ticket, nicht ins Dauergedächtnis (ticket-spezifisch).
