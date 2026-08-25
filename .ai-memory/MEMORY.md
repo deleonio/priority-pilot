@@ -144,3 +144,9 @@ Konflikte, die er verhindern soll.
   (#1017 zweimal geparkt, obwohl 2× ux-ready entschieden). → Parser extrahiert jetzt per
   grep -oE '<Vokabular>' | head -1 den ersten bekannten Token (8 Stellen + Aufwandsklasse
   in 01); Prompt-Beispiele tragen den Token nackt, Bedeutungen in eigene Zeile.
+- 2026-08-25 · gh/--jq-Newline — `gh api`/`gh pr view` mit `--jq` hängen an JEDE Ausgabe
+  genau einen Newline an (Println; per xxd verifiziert), während `"$(gh …)"` ALLE trailing
+  Newlines strippt. Byte-identische Body-Verarbeitung (PATCH ohne Kollateral-Bytes):
+  Direkt-Redirect in Datei + `head -c -1` (GNU) entfernt allein den gh-Newline. gh-Stubs
+  in Tests müssen den Newline emulieren (`cat fixture; printf '\n'`), sonst frisst head
+  den letzten Content-Byte.
