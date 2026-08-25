@@ -348,7 +348,28 @@ const callProvider = async (
 	}
 
 	if (!response.ok) {
-		throw new MistralRequestError(`${config.label} antwortete mit HTTP ${response.status}.`);
+		// Upstream-Fehlerdiagnose: viele Provider liefern im Body eine klare Ursache (z. B. Mistral
+		// `{"detail":"Check your subscription …"}` bei HTTP 402, Key-Fehler bei 401). Diese-Kurzform
+		// in den Fehler übernehmen — ohne sie bleibt nur ein wertloses „HTTP 402" und der Nutzer
+		// kann nicht unterscheiden, ob Key, Modell oder Abo das Problem ist.
+		let detail = '';
+		try {
+			const body = (await response.json()) as Record<string, unknown>;
+			const raw =
+				typeof body.detail === 'string'
+					? body.detail
+					: typeof (body.error as Record<string, unknown> | undefined)?.message === 'string'
+						? String((body.error as Record<string, unknown>).message)
+						: typeof body.message === 'string'
+							? body.message
+							: '';
+			detail = raw.slice(0, 200);
+		} catch {
+			// Body nicht lesbar → nur Status melden.
+		}
+		throw new MistralRequestError(
+			`${config.label} antwortete mit HTTP ${response.status}${detail !== '' ? `: ${detail}` : '.'}`,
+		);
 	}
 
 	let payload: unknown;

@@ -15,7 +15,7 @@ import { authRouter } from './routes/auth.js';
 import { transitRouter } from './routes/transit.js';
 import { createPushRouter } from './routes/push.js';
 import { createLlmProvidersRouter } from './routes/llmProviders.js';
-import type { FetchProviderModels } from './routes/llmProviders.js';
+import type { FetchProviderModels, RunProviderTest } from './routes/llmProviders.js';
 import { lektoratRouter } from './routes/lektorat.js';
 import { reverseGeocodeRouter } from './routes/reverseGeocode.js';
 import { handleServerError } from './server-error-handler.js';
@@ -41,6 +41,8 @@ export interface AppDeps {
 	pushSender?: PushSender;
 	/** Upstream für `GET /llm-providers/{id}/models` — Tests injizieren hieran einen Mock. */
 	fetchProviderModels?: FetchProviderModels;
+	/** Test-Prompt-Runner für `POST /llm-providers/{id}/test` — Tests injizieren hieran einen Mock. */
+	runProviderTest?: RunProviderTest;
 }
 
 export const createApp = (deps: AppDeps = {}) => {
@@ -209,7 +211,7 @@ export const createApp = (deps: AppDeps = {}) => {
 	// Provider-Verwaltung: Custom-Provider (CRUD + activate), fixe Built-ins (Mistral/
 	// OpenRouter, Key aus ENV) sowie deren Modelllisten — alles hinter requireAuth, damit der
 	// Server kein öffentlicher Provider-Proxy ist.
-	app.use(createLlmProvidersRouter(deps.fetchProviderModels));
+	app.use(createLlmProvidersRouter(deps.fetchProviderModels, deps.runProviderTest));
 
 	// Reverse Geocoding: Koordinaten → Adresse (Issue #866).
 	app.use('/reverse-geocode', reverseGeocodeRouter);

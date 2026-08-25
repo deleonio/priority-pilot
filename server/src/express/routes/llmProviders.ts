@@ -112,6 +112,100 @@ const sendServiceError = (res: Response<ErrorDto>, error: unknown): boolean => {
 	return false;
 };
 
+// ─── Verbindungs-Test (`POST /llm-providers/{id}/test`) ────────────────────────
+
+/** Zeitlimit für den Test-Call — Diagnose-Feedback soll zügig kommen. */
+const TEST_TIMEOUT_MS = 20_000;
+/** Maximal angezeigte Länge der Modell-Antwort im Ergebnis. */
+const TEST_SAMPLE_MAX_CHARS = 120;
+
+/**
+ * Test-Ergebnis an den Client — nie den Key, nur Ursache/Latenz/Antwort-Auszug. Der API-Vertrag
+ * (openapi.yml `LlmProviderTestResult`) ist die öffentliche Form; dieser Typ ist die interne.
+ */
+interface ProviderTestResultDto {
+	ok: boolean;
+	model?: string;
+	latencyMs?: number;
+	sample?: string;
+	message?: string;
+}
+
+/** Liest aus einem Upstream-Fehler-Body die menschenlesbare Ursache (detail/message). */
+const upstreamErrorDetail = async (response: globalThis.Response): Promise<string> => {
+	try {
+		const body = (await response.json()) as Record<string, unknown>;
+		const raw =
+			typeof body.detail === 'string'
+				? body.detail
+				: typeof (body.error as Record<string, unknown> | undefined)?.message === 'string'
+					? String((body.error as Record<string, unknown>).message)
+					: typeof body.message === 'string'
+						? body.message
+						: '';
+		return raw.slice(0, 200);
+	} catch {
+		return '';
+	}
+};
+
+/**
+ * Führt den Test-Prompt aus — mit EXAKT den Parametern echter KI-Aufrufe (Endpoint, Key, Modell,
+ * JSON-Mode, Temperatur 0), damit der Test repräsentativ ist: Schlägt er fehl, schlagen es auch
+ * die KI-Features, und die gemeldete Ursache (Auth/Modell/Abo/Netzwerk) ist die echte.
+ * Der Prompt verlangt bewusst JSON, weil `response_format: json_object` aktiv ist.
+ * Injizierbar, damit Route-Tests deterministisch ohne echten Provider laufen.
+ */
+export const runProviderTest = async (runtime: ProviderRuntime): Promise<ProviderTestResultDto> => {
+	const startedAt = Date.now();
+	let response: globalThis.Response;
+	try {
+		response = await fetch(runtime.chatEndpoint, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${runtime.apiKey}`,
+			},
+			body: JSON.stringify({
+				model: runtime.model,
+				temperature: 0,
+				response_format: { type: 'json_object' },
+				messages: [{ role: 'user', content: 'Antworte ausschließlich mit JSON: {"ok": true}' }],
+			}),
+			signal: AbortSignal.timeout(TEST_TIMEOUT_MS),
+		});
+	} catch (error) {
+		const reason = error instanceof Error ? error.message : 'unbekannter Fehler';
+		return { ok: false, message: `Anfrage an ${runtime.label} fehlgeschlagen: ${reason}` };
+	}
+	const latencyMs = Date.now() - startedAt;
+	if (!response.ok) {
+		const detail = await upstreamErrorDetail(response);
+		return {
+			ok: false,
+			message: `${runtime.label} antwortete mit HTTP ${response.status}${detail !== '' ? `: ${detail}` : '.'}`,
+		};
+	}
+	try {
+		const payload = (await response.json()) as { choices?: { message?: { content?: unknown } }[] };
+		const content = payload.choices?.[0]?.message?.content;
+		if (typeof content !== 'string') {
+			return { ok: false, message: `${runtime.label}-Antwort hatte keine Modell-Ausgabe (unerwartetes Format).` };
+		}
+		return {
+			ok: true,
+			model: runtime.model,
+			latencyMs,
+			sample: content.length > TEST_SAMPLE_MAX_CHARS ? `${content.slice(0, TEST_SAMPLE_MAX_CHARS)}…` : content,
+		};
+	} catch {
+		return { ok: false, message: `${runtime.label}-Antwort konnte nicht als JSON gelesen werden.` };
+	}
+};
+
+/** Injizierbarer Test-Runner für `createLlmProvidersRouter`. */
+export type RunProviderTest = typeof runProviderTest;
+
 // ─── Modellliste des Providers (`GET /llm-providers/{id}/models`) ───────────────
 
 /** Wie lange eine einmal geladene Modellliste als „aktuell“ gilt (verhindert Upstream-Hämmern). */
@@ -173,6 +267,7 @@ export const resetProviderModelsCache = (): void => {
 
 export const createLlmProvidersRouter = (
 	fetchModels: FetchProviderModels = fetchProviderModelsFromUpstream,
+	runTest: RunProviderTest = runProviderTest,
 ): Router => {
 	const router = Router();
 
@@ -258,6 +353,43 @@ export const createLlmProvidersRouter = (
 			if (sendServiceError(res, error)) return;
 			sendError(res, 500, 'Interner Serverfehler.');
 		}
+	});
+
+	/**
+	 * Verbindungstest: schickt den minimalen Test-Prompt über den Provider (unabhängig von der
+	 * Aktivierung) und meldet Erfolg inkl. Latenz/Antwort oder die konkrete Fehlerursache.
+	 */
+	router.post('/llm-providers/:id/test', async (req, res: Response<ProviderTestResultDto | ErrorDto>) => {
+		const id = parseId(req.params.id);
+		if (id === null) {
+			sendError(res, 400, 'Provider-ID muss eine positive Ganzzahl sein.');
+			return;
+		}
+		let row: LlmProvider | null;
+		try {
+			row = await LlmProvider.findByPk(id);
+		} catch {
+			sendError(res, 500, 'Interner Serverfehler.');
+			return;
+		}
+		if (row === null) {
+			sendError(res, 404, 'Provider nicht gefunden.');
+			return;
+		}
+		const runtime = toRuntimeConfig(row);
+		// Vorab-Checks mit klarer Meldung, bevor der Upstream sinnlos gefragt wird.
+		if (runtime.apiKey === '') {
+			res.json({
+				ok: false,
+				message: `Kein API-Key vorhanden (${runtime.keySource}) — Provider kann keine Anfragen stellen.`,
+			});
+			return;
+		}
+		if (runtime.model === '') {
+			res.json({ ok: false, message: 'Kein Modell gewählt — wähle zuerst ein Modell.' });
+			return;
+		}
+		res.json(await runTest(runtime));
 	});
 
 	/**

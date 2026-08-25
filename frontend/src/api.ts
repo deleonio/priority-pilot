@@ -6,6 +6,7 @@ import type {
 	DependencyInput,
 	LlmModels,
 	LlmProvider,
+	LlmProviderTestResult,
 	LlmProviderInput,
 	LlmProviderUpdate,
 	ParsedTask,
@@ -467,6 +468,19 @@ export const api = {
 	// Built-in-Provider. Ohne explizite Wahl bleibt der Built-in-Fallback (Mistral vor OpenRouter).
 	async activateLlmProvider({ id }: { id: number }): Promise<LlmProvider> {
 		const { data, error, response } = await client.POST('/llm-providers/{id}/activate', {
+			params: { path: { id } },
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data;
+	},
+
+	// Test-Prompt über den Provider (Settings „KI-Provider"): meldet Erfolg inkl. Latenz und
+	// Antwort-Auszug oder die konkrete Fehlerursache (Auth/Modell/Abo/Netzwerk) — unabhängig
+	// davon, ob der Provider aktiv ist.
+	async testLlmProvider({ id }: { id: number }): Promise<LlmProviderTestResult> {
+		const { data, error, response } = await client.POST('/llm-providers/{id}/test', {
 			params: { path: { id } },
 		});
 		if (!response.ok || data === undefined) {

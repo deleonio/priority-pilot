@@ -41,6 +41,7 @@ describe('LLM-Providers API', () => {
 		}
 		server = await startTestServer({
 			fetchProviderModels: async (runtime) => [{ id: `${runtime.label}-model-a` }, { id: 'z-model' }],
+			runProviderTest: async (runtime) => ({ ok: true, model: runtime.model, latencyMs: 42, sample: '{"ok": true}' }),
 		});
 	});
 
@@ -284,6 +285,48 @@ describe('LLM-Providers API', () => {
 			fallback.some((m) => m.id === 'mistral-medium-latest'),
 			'Katalog enthält mistral-medium-latest',
 		);
+	});
+
+	// ── Verbindungstest (`POST /llm-providers/{id}/test`) ───────────────
+	it('Test: Erfolg meldet ok, Modell, Latenz und Antwort-Auszug', async () => {
+		process.env.MISTRAL_API_KEY = 'env-mistral-key'; // Vorab-Check Key-Presence bestehen lassen
+		const cookie = await register('test-ok@example.com');
+		const mistral = (await listProviders(cookie)).find((p) => p.name === 'Mistral');
+		assert.ok(mistral);
+
+		const res = await fetch(`${server.baseUrl}/llm-providers/${mistral.id}/test`, {
+			method: 'POST',
+			headers: { Cookie: cookie },
+		});
+		assert.equal(res.status, 200);
+		const body = (await res.json()) as { ok: boolean; model?: string; latencyMs?: number; sample?: string };
+		assert.equal(body.ok, true, 'Injizierter Runner meldet Erfolg');
+		assert.equal(body.model, 'mistral-medium-latest', 'Effektives Modell wird genannt');
+		assert.equal(body.latencyMs, 42);
+		assert.equal(body.sample, '{"ok": true}');
+	});
+
+	it('Test ohne ENV-Key: klare Vorab-Meldung statt sinnlosem Upstream-Call', async () => {
+		const cookie = await register('test-nokey@example.com');
+		const openrouter = (await listProviders(cookie)).find((p) => p.name === 'OpenRouter');
+		assert.ok(openrouter);
+
+		const res = await fetch(`${server.baseUrl}/llm-providers/${openrouter.id}/test`, {
+			method: 'POST',
+			headers: { Cookie: cookie },
+		});
+		const body = (await res.json()) as { ok: boolean; message?: string };
+		assert.equal(body.ok, false);
+		assert.match(body.message ?? '', /Kein API-Key vorhanden/, 'Ursache Key-Fehlen wird genannt');
+	});
+
+	it('Test unbekannter Provider → 404', async () => {
+		const cookie = await register('test-404@example.com');
+		const res = await fetch(`${server.baseUrl}/llm-providers/99999/test`, {
+			method: 'POST',
+			headers: { Cookie: cookie },
+		});
+		assert.equal(res.status, 404);
 	});
 
 	it('OpenRouter hat keinen Katalog — ohne Katalog bleibt ein Live-Fehler 502', async () => {

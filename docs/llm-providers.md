@@ -70,6 +70,12 @@ Eingeloggte Nutzer verwalten die Provider in der App: **Einstellungen → Tab �
   API-Key, Modell). Bearbeiten/Löschen gibt es nur für Custom-Provider — Built-ins sind fix.
 - **Status-Hinweis:** zeigt, ob die KI-Features nutzbar sind (aktiver Provider mit Key und
   Modell) oder was fehlt.
+- **Testen-Button:** je Provider-Zeile. Schickt einen minimalen Test-Prompt mit exakt den
+  Parametern echter KI-Aufrufe (Modell, Key, Endpoint, JSON-Mode) und zeigt das Ergebnis inline —
+  Erfolg mit Latenz und Antwort-Auszug, Misserfolg mit der konkreten Ursache inkl. Upstream-Detail
+  (z. B. Mistral-HTTP 402 „Check your subscription“, ungültiger Key, falsches Modell). Damit lässt
+  sich ein Provider prüfen, BEVOR er aktiviert wird — schlägt der Test fehl, schlagen es auch die
+  KI-Features, mit derselben Ursache.
 
 Dazu gibt es die REST-API (alles hinter Login):
 
@@ -81,6 +87,7 @@ Dazu gibt es die REST-API (alles hinter Login):
 | `DELETE /llm-providers/{id}`        | Custom-Provider löschen (Built-ins → HTTP 400); Fallback übernimmt                                                        |
 | `POST /llm-providers/{id}/activate` | Genau diesen Provider aktivieren, alle anderen deaktivieren                                                               |
 | `GET /llm-providers/{id}/models`    | Verfügbare Modelle des Providers (Proxy auf dessen `GET /models`, kurz gecacht); Mistral-Fallback-Katalog bei Live-Fehler |
+| `POST /llm-providers/{id}/test`     | Test-Prompt über den Provider (Produktions-Shape); Erfolg inkl. Latenz/Antwort oder konkrete Ursache (Auth/Modell/Abo)    |
 
 **API-Keys sind write-only.** Sie werden nie in API-Antworten serialisiert und nie in die UI
 geladen; das Eingabefeld startet immer leer. Für Built-ins liegt der Key nie in der DB, sondern

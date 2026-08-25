@@ -1,5 +1,5 @@
 import { KolAlert, KolButton, KolInputRadio, KolSingleSelect } from '@public-ui/react-v19';
-import type { LlmModel, LlmProvider } from 'client';
+import type { LlmModel, LlmProvider, LlmProviderTestResult } from 'client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
@@ -42,6 +42,10 @@ export const LlmSettings = ({ onChanged }: LlmSettingsProps) => {
 	const [toastMessage, setToastMessage] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [dialog, setDialog] = useState<DialogState>({ kind: 'closed' });
+	/** Test-Ergebnis je Provider-ID (undefined = noch nicht getestet). */
+	const [testResults, setTestResults] = useState<Record<number, LlmProviderTestResult | undefined>>({});
+	/** ID des gerade laufenden Tests (Button deaktiviert). */
+	const [testingId, setTestingId] = useState<number | null>(null);
 	const isMobile = useIsMobile();
 
 	// Fokus-Rückgabe nach Dialog-Ende: der Trigger-Button kann aus dem DOM gefallen sein
@@ -132,6 +136,25 @@ export const LlmSettings = ({ onChanged }: LlmSettingsProps) => {
 			}
 		},
 		[activeProvider, onChanged, showToast],
+	);
+
+	/** Führt den Test-Prompt für einen Provider aus und speichert das Ergebnis inline. */
+	const handleTest = useCallback(
+		async (provider: LlmProvider): Promise<void> => {
+			if (testingId !== null) return;
+			setTestingId(provider.id);
+			setTestResults((current) => ({ ...current, [provider.id]: undefined }));
+			try {
+				const result = await api.testLlmProvider({ id: provider.id });
+				setTestResults((current) => ({ ...current, [provider.id]: result }));
+			} catch (reason) {
+				const message = (await toApiError(reason)).message;
+				setTestResults((current) => ({ ...current, [provider.id]: { ok: false, message } }));
+			} finally {
+				setTestingId(null);
+			}
+		},
+		[testingId],
 	);
 
 	// Optionen: je Provider eine Option „Name (Modell)“ (Built-ins zuerst — Server-Reihenfolge),
@@ -261,21 +284,45 @@ export const LlmSettings = ({ onChanged }: LlmSettingsProps) => {
 										{provider.model !== '' ? ` · ${provider.model}` : ' · kein Modell gewählt'}
 									</span>
 								</span>
-								{provider.kind === 'custom' && (
-									<span className="llm-provider-admin__actions">
-										<KolButton
-											_label="Bearbeiten"
-											_variant="secondary"
-											_on={{ onClick: () => setDialog({ kind: 'edit', provider }) }}
-										/>
-										<KolButton
-											ref={provider.id === providers.at(-1)?.id ? deleteTriggerRef : undefined}
-											_label="Löschen"
-											_variant="danger"
-											_on={{ onClick: () => setDialog({ kind: 'delete', provider }) }}
-										/>
-									</span>
-								)}
+								<span className="llm-provider-admin__actions">
+									<KolButton
+										_label={testingId === provider.id ? 'Testen…' : 'Testen'}
+										_variant="secondary"
+										_disabled={testingId !== null}
+										_on={{ onClick: () => void handleTest(provider) }}
+									/>
+									{provider.kind === 'custom' && (
+										<>
+											<KolButton
+												_label="Bearbeiten"
+												_variant="secondary"
+												_on={{ onClick: () => setDialog({ kind: 'edit', provider }) }}
+											/>
+											<KolButton
+												ref={provider.id === providers.at(-1)?.id ? deleteTriggerRef : undefined}
+												_label="Löschen"
+												_variant="danger"
+												_on={{ onClick: () => setDialog({ kind: 'delete', provider }) }}
+											/>
+										</>
+									)}
+								</span>
+								{(() => {
+									// Test-Ergebnis direkt unter der Zeile: Erfolg mit Latenz/Antwort,
+									// Misserfolg mit der konkreten Ursache (Auth/Modell/Abo/Netzwerk).
+									const result = testResults[provider.id];
+									if (result === undefined) return null;
+									return result.ok ? (
+										<KolAlert _type="success" _label={`Test erfolgreich (${result.latencyMs ?? 0} ms)`}>
+											{provider.name} antwortete über Modell {result.model}
+											{result.sample !== undefined ? `: „${result.sample}“` : '.'}
+										</KolAlert>
+									) : (
+										<KolAlert _type="error" _label="Test fehlgeschlagen">
+											{result.message}
+										</KolAlert>
+									);
+								})()}
 							</li>
 						))}
 					</ul>

@@ -46,6 +46,7 @@ export type LlmProviderInput = Schemas['LlmProviderInput'];
 export type LlmProviderUpdate = Schemas['LlmProviderUpdate'];
 export type LlmModel = Schemas['LlmModel'];
 export type LlmModels = Schemas['LlmModels'];
+export type LlmProviderTestResult = Schemas['LlmProviderTestResult'];
 
 // Web-Push (#355): Opt-in-Subscription-Flow der PWA.
 export type PushSubscriptionInput = Schemas['PushSubscriptionInput'];
