@@ -1,32 +1,30 @@
-# Review #1024 (PR #1024) — Kreuzverhör Erst-Runde
+# Review #1024 (PR #1024) — KOMPLETT
 
 ## Erledigt
-- 2026-08-25 Review-Phase (KREUZVERHÖR, Erst-Review): Modus erkannt (0 Kommentare → kein ai-review-Marker), vollständigen Diff + Issue-AKs + CI geprüft. **VERDICT: needs-fixup** — 3 e2e rot in CI (Run 32854083826, e2e-Shard 1/4). Inline-Findings als GH-Review (COMMENT) gepostet (Review-ID 5019624840), Sammelkommentar <!-- ai-review --> angelegt (**Comment-ID 5411292417** — Folge-Runden per PATCH fortschreiben), PR-Titel via Gate umbenannt.
+- 2026-08-25 Runde 1 (KREUZVERHÖR): 3 Findings (F1 Host-Überlauf 375px, F2 Messtechnik count=0, F3 _fixedCols-Semantik), GH-Review 5019624840, Sammelkommentar angelegt, Titel-Gate erledigt, VERDICT needs-fixup.
+- 2026-08-25 Runde 2 (FIXUP-NACHWEIS): Zwischenlauf hatte Sammelkommentar bereits auf fixup-applied fortgeschrieben (alle 3 behoben via bae1f1fd), aber KEIN Verdict geliefert. Dieser Lauf: kein Commit nach updatedAt, Fixup-Diff bae1f1fd adversarial gegengeprüft (siehe Relevante Stellen), CI auf Head grün (verify, precheck, e2e 1–4), Sammelkommentar 5411292417 per PATCH auf `reviewed` aktualisiert (15:03:34Z), **VERDICT: reviewed**. Review-Phase abgeschlossen.
 
 ## Relevante Stellen
-- `frontend/src/components/CompletedTasksTable.tsx:146` — KolTableStateful-Render OHNE Host-Breiten-Constraint; CI: hostRight=468 > 376 bei 375px (AK3/AK-307-5 rot). Header-width 360+96 (Z. 101/109) treiben min-content.
-- `frontend/src/components/CompletedTasksTable.tsx:59` — Kommentar „_fixedCols={[0,1]} hält Titel- und Aktion-Spalte sichtbar" ist FALSCH: KoliBri-Spec table-stateful `_fixedCols: [number, number]` = „fixed number of columns from start and end" → [0,1] fixiert NUR die letzte. Richtig für Titel+Aktion: [1,1]. Vorbild TaskTable.tsx:172 kommentiert korrekt („fixiert die letzte Spalte").
-- `frontend/e2e/completed-tasks.spec.ts:267` — kolHeaderGeometry-Filter `TH && closest('thead')` findet 0 Zellen (CI: count=0, Zeile 301). KoliBri 4.3.0 rendert Kopfzellen offenbar nicht als th-im-thead; `getByRole('columnheader')` funktioniert dagegen (AK-6 kam bis hostRight-Assertion) → Messung auf role umstellen.
-- `frontend/e2e/completed-tasks.spec.ts:234/369` — die rot-laufenden hostRight-Assertionen (Beleg-Zeilen).
-- `frontend/src/components/CompletedTasksTable.test.tsx:88` —_assertiert `data-fixed-cols='[0,1]'`; bei [1,1]-Fix mit anpassen (begründete Test-Korrektur).
-- CI-Befund: e2e Shard 1: ✘ :177 (AK-6-neu), ✘ :281 (AK2), ✘ :343 (AK-307-5); AK-1..4 + AK-307-3 grün; Shards 2–4 grün (done-toggle/auto-remove ok); vitest lief NICHT im e2e-Job.
+- `frontend/src/app.css:411` — F1-Fix: `--grid-template-columns: minmax(0, 1fr)` auf `.app-tabs` (Root Cause KolTabs-Grid, ausführlicher Kommentar); einzige `.app-tabs`-Verwendung App.tsx:501, e2e-Suite aller Shards grün → kein Fremd-Regressionsrisiko.
+- `frontend/src/components/CompletedTasksTable.tsx:155` — F3-Fix: `_fixedCols={[1,1]}`; Kommentar Z. ~70 erklärt KoliBri-Semantik (Anzahl von Anfang/Ende). Spec + Vitest test.tsx:88 synchron angepasst.
+- `frontend/src/components/CompletedTasksTable.tsx:47` — `pillarHeaderWidth()` (8,5px/Zeichen + 24 Padding + 16 Reserve, dokumentierte Schätzung): Punkte-Spalten einzeilig bei realistischen Säulennamen; AK2-Geometrie grün in CI.
+- `frontend/e2e/completed-tasks.spec.ts:233/279` — F2-Fix: `el.shadowRoot ?? el` als Einstiegspunkt für findScroller + kolHeaderGeometry-Collect (Light-DOM des Hosts ist leer); je `eslint-disable-next-line no-restricted-syntax` mit Begründung.
 
 ## Annahmen
-- [0,1]→[1,1]-Fix entspricht dem UX-/Spec-Willen („fixiert Titel (erste) und Aktion (letzte)", Spec docs/spec/issue-1020.md) — Spec-Text selbst nennt noch [0,1], ist also mitzukorrigieren.
-- hostRight=468 ≈ 360 (Titel) + 96 (Aktion) + Punkte-Spalte → Host wächst auf min-content statt zu clippen; Fix = CSS-Constraint (max-width:100%/min-width:0-Kette) + ggf. kleinere Header-Widths; genaue KoliBri-Scroll-Mechanik muss Fixup ausmessen (interner Scroller existiert? Ungeprüft — Assertion lief nie).
+- CI-Lauf 32862381023 (e2e 1–4, verify) lief auf Head bae1f1fd — Status via gh pr checks verifiziert.
+- pillarHeaderWidth-Heuristik kann bei extremen Glyphen-Mischungen theoretisch knapper werden — dokumentiert, CI grün, kein Handlungsbedarf.
 
 ## Verworfen
-- Eigene KoliBri-DOM-Rekonstruktion (node_modules nicht installiert in Sandbox) — CI-Befund count=0 reicht als Beleg; Struktur-Recherche ist Fixup-Aufgabe.
-- needs-human: F3 (_fixedCols) ist per KoliBri-Doku eindeutig entschieden, keine Mensch-Entscheidung.
+- Neue Inline-Findings zum Fixup — keiner gefunden (nur Verifizierung, kein Aufrollen unveränderter Teile).
+- MEMORY.md-Dauereintrag — kein ticket-übergreifendes, nicht-offensichtliches Learning.
 
 ## Offen
-- Fixup muss F1 (Host-Constraint + CSS zurück), F2 (Messtechnik role-basiert, begründete Test-Korrektur), F3 ([1,1] + Kommentar + Spec + Vitest) umsetzen und alle 3 e2e grün fahren.
+- -
 
 ## Nächster Schritt
-- Fixup-Runde: Nach Push MODUS FIXUP-NACHWEIS — nur fixup-Diff seit updatedAt des Sammelkommentars prüfen, F1/F2/F3 verifizieren, dann CI (e2e Shard 1) grün abwarten.
+- Keiner — Review abgeschlossen (reviewed). Workflow übernimmt Merge-Gate/Labels.
 
 ## Fallstricke
-- Sammelkommentar per PATCH fortschreiben (Comment-ID merken), NICHT neu anlegen.
-- GH-Review/Kommentare mit Unicode → --body-file/--input-JSON (jq) nutzen.
-- PR-Titel bereits umbenannt zu `feat(frontend): rebuild completed tasks table as KolTableStateful (#1020)` (Titel-Gate) — in Folge-Runden nicht erneut prüfen.
-- Titel-Gate gilt als erledigt; KEINE Labels setzen (Workflow macht das).
+- Sammelkommentar 5411292417 ist der EINZIGE ai-review-Kommentar — weiter per PATCH fortschreiben, nicht neu anlegen.
+- Titel-Gate bereits erledigt (`feat(frontend): rebuild completed tasks table as KolTableStateful (#1020)`) — nicht erneut anfassen.
+- Unicode-Bodies per --body-file + jq --rawfile (hat funktioniert).

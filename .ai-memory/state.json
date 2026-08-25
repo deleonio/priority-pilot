@@ -25,10 +25,10 @@
       "timestamp": "2026-08-25T13:35:05Z"
     },
     "review": {
-      "sessionId": "6e88d721-9333-4bb0-a45b-85d84c68d331",
-      "runId": "32854246085",
+      "sessionId": "893cb2cd-3101-45b3-ba6b-dbc828ee7231",
+      "runId": "32862935321",
       "branch": "feat/issue-1020-koltable-erledigt",
-      "timestamp": "2026-08-25T13:44:56Z"
+      "timestamp": "2026-08-25T15:04:35Z"
     },
     "fixup": {
       "sessionId": "3a35add8-4b99-450e-a975-9927175ae377",
