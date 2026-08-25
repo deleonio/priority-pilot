@@ -1,7 +1,7 @@
 import { describe, it, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { resetDb, closeDb, startTestServer, type TestServer } from '../../test/helpers.js';
-import { resetProviderModelsCache } from './llmProviders.js';
+import { resetProviderModelsCache, resetProviderTestCache } from './llmProviders.js';
 
 /**
  * Vertrag der Provider-API: Custom-Provider (CRUD + Radio-Aktivierung), fixe Built-ins
@@ -22,6 +22,9 @@ const envBackup: Record<string, string | undefined> = {};
 
 let server: TestServer;
 
+/** Zählt Aufrufe des injizierten Test-Runners — Grundlage der Cooldown/Dedupe-Assertions. */
+let testRunnerCalls = 0;
+
 const registerOn = async (target: TestServer, email: string, password: string): Promise<string> => {
 	const res = await fetch(`${target.baseUrl}/auth/register`, {
 		method: 'POST',
@@ -41,7 +44,10 @@ describe('LLM-Providers API', () => {
 		}
 		server = await startTestServer({
 			fetchProviderModels: async (runtime) => [{ id: `${runtime.label}-model-a` }, { id: 'z-model' }],
-			runProviderTest: async (runtime) => ({ ok: true, model: runtime.model, latencyMs: 42, sample: '{"ok": true}' }),
+			runProviderTest: async (runtime) => {
+				testRunnerCalls += 1;
+				return { ok: true, model: runtime.model, latencyMs: 42, sample: '{"ok": true}' };
+			},
 		});
 	});
 
@@ -50,6 +56,7 @@ describe('LLM-Providers API', () => {
 			delete process.env[key];
 		}
 		resetProviderModelsCache(); // Provider-IDs starten nach resetDb von vorn — Cache deterministisch kalt halten
+		resetProviderTestCache();
 		await resetDb();
 	});
 
@@ -327,6 +334,29 @@ describe('LLM-Providers API', () => {
 			headers: { Cookie: cookie },
 		});
 		assert.equal(res.status, 404);
+	});
+
+	it('Test-Cooldown: Wiederholung innerhalb der TTL hämmert den Upstream nicht; PUT testet neu', async () => {
+		process.env.MISTRAL_API_KEY = 'env-mistral-key'; // Vorab-Check Key-Presence bestehen lassen
+		const cookie = await register('test-cooldown@example.com');
+		const mistral = (await listProviders(cookie)).find((p) => p.name === 'Mistral');
+		assert.ok(mistral);
+
+		const postTest = () =>
+			fetch(`${server.baseUrl}/llm-providers/${mistral.id}/test`, { method: 'POST', headers: { Cookie: cookie } });
+		const before = testRunnerCalls;
+		const first = await postTest();
+		assert.equal(first.status, 200);
+		assert.equal(testRunnerCalls - before, 1, 'Erster Aufruf testet tatsächlich');
+
+		const second = await postTest();
+		assert.equal(second.status, 200);
+		assert.deepEqual(await second.json(), await first.clone().json(), 'Wiederholung liefert dasselbe Ergebnis');
+		assert.equal(testRunnerCalls - before, 1, 'Wiederholung innerhalb der TTL spart den Upstream-Call');
+
+		await updateProvider(cookie, mistral.id, { model: 'mistral-small-latest' });
+		assert.equal((await postTest()).status, 200);
+		assert.equal(testRunnerCalls - before, 2, 'Nach Konfigurationsänderung (PUT) wird neu getestet');
 	});
 
 	it('OpenRouter hat keinen Katalog — ohne Katalog bleibt ein Live-Fehler 502', async () => {

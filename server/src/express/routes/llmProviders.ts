@@ -12,6 +12,7 @@ import {
 	type ProviderRuntime,
 } from '../../llm/llmProviders.js';
 import { LlmProvider } from '../../models/index.js';
+import { upstreamErrorDetail } from '../../llm/upstreamError.js';
 
 type LlmProviderDto = components['schemas']['LlmProvider'];
 type LlmProviderInputDto = components['schemas']['LlmProviderInput'];
@@ -131,24 +132,6 @@ interface ProviderTestResultDto {
 	message?: string;
 }
 
-/** Liest aus einem Upstream-Fehler-Body die menschenlesbare Ursache (detail/message). */
-const upstreamErrorDetail = async (response: globalThis.Response): Promise<string> => {
-	try {
-		const body = (await response.json()) as Record<string, unknown>;
-		const raw =
-			typeof body.detail === 'string'
-				? body.detail
-				: typeof (body.error as Record<string, unknown> | undefined)?.message === 'string'
-					? String((body.error as Record<string, unknown>).message)
-					: typeof body.message === 'string'
-						? body.message
-						: '';
-		return raw.slice(0, 200);
-	} catch {
-		return '';
-	}
-};
-
 /**
  * Führt den Test-Prompt aus — mit EXAKT den Parametern echter KI-Aufrufe (Endpoint, Key, Modell,
  * JSON-Mode, Temperatur 0), damit der Test repräsentativ ist: Schlägt er fehl, schlagen es auch
@@ -205,6 +188,27 @@ export const runProviderTest = async (runtime: ProviderRuntime): Promise<Provide
 
 /** Injizierbarer Test-Runner für `createLlmProvidersRouter`. */
 export type RunProviderTest = typeof runProviderTest;
+
+/**
+ * Wie lange ein Test-Ergebnis als aktuell gilt: Jeder Test-Call kostet Geld beim Upstream — der
+ * Cooldown (analog `MODELS_CACHE_TTL_MS`, nur kürzer, weil „Testen“ Live-Feedback ist) hält
+ * Doppelklicks und Skripting vom Upstream fern. Konfigurationsänderungen (PUT/DELETE)
+ * invalidieren sofort, deshalb darf die TTL kurz bleiben.
+ */
+const TEST_RESULT_TTL_MS = 10_000;
+
+/**
+ * Test-Ergebnis-Cache pro Provider-ID — In-Flight-Dedupe und Cooldown in einem: Während ein Test
+ * läuft, teilen parallele Aufrufe dessen Promise (`expiresAt` = Infinity); nach der Antwort gilt
+ * das Ergebnis kurz als aktuell. Wirft der Runner unerwartet, wird der Eintrag freigegeben, damit
+ * der nächste Aufruf neu testet. Tests resettet ihn via `resetProviderTestCache`.
+ */
+let testResultsCache = new Map<number, { promise: Promise<ProviderTestResultDto>; expiresAt: number }>();
+
+/** Setzt den Test-Ergebnis-Cache zurück — nur für Tests (definierter Kaltstart je Fall). */
+export const resetProviderTestCache = (): void => {
+	testResultsCache = new Map();
+};
 
 // ─── Modellliste des Providers (`GET /llm-providers/{id}/models`) ───────────────
 
@@ -314,9 +318,10 @@ export const createLlmProvidersRouter = (
 		}
 		try {
 			const updated = await updateProvider(id, validation.input);
-			// Endpoint/API-Key können sich geändert haben — die gecachte Modellliste der alten
-			// Konfiguration wäre bis zum TTL-Ablauf veraltet und zeigt Modelle, die es nicht mehr gibt.
+			// Endpoint/API-Key können sich geändert haben — die gecachte Modellliste und das
+			// Test-Ergebnis der alten Konfiguration wären bis zum TTL-Ablauf veraltet.
 			modelsCache.delete(id);
+			testResultsCache.delete(id);
 			res.json(updated);
 		} catch (error) {
 			if (!sendServiceError(res, error)) sendError(res, 500, 'Interner Serverfehler.');
@@ -332,7 +337,8 @@ export const createLlmProvidersRouter = (
 		}
 		try {
 			await deleteProvider(id);
-			modelsCache.delete(id); // Cache-Eintrag des gelöschten Providers freigeben.
+			modelsCache.delete(id); // Cache-Einträge des gelöschten Providers freigeben.
+			testResultsCache.delete(id);
 			res.status(204).end();
 		} catch (error) {
 			if (sendServiceError(res, error)) return;
@@ -389,7 +395,27 @@ export const createLlmProvidersRouter = (
 			res.json({ ok: false, message: 'Kein Modell gewählt — wähle zuerst ein Modell.' });
 			return;
 		}
-		res.json(await runTest(runtime));
+		// Serverseitiger Schutz vor Upstream-Hämmern: laufende/frische Tests teilen ein Ergebnis.
+		const cached = testResultsCache.get(id);
+		if (cached !== undefined && cached.expiresAt > Date.now()) {
+			res.json(await cached.promise);
+			return;
+		}
+		const entry: { promise: Promise<ProviderTestResultDto>; expiresAt: number } = {
+			promise: runTest(runtime).then(
+				(result) => {
+					entry.expiresAt = Date.now() + TEST_RESULT_TTL_MS; // TTL ab Antwort, nicht ab Start
+					return result;
+				},
+				(error: unknown) => {
+					testResultsCache.delete(id); // unerwarteter Runner-Fehler → neu testen lassen
+					throw error;
+				},
+			),
+			expiresAt: Number.POSITIVE_INFINITY, // läuft gerade → parallele Aufrufer teilen das Ergebnis
+		};
+		testResultsCache.set(id, entry);
+		res.json(await entry.promise);
 	});
 
 	/**

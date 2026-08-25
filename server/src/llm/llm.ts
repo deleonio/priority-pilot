@@ -6,6 +6,7 @@
  */
 
 import { findProviderByName, loadActiveProvider, toRuntimeConfig } from './llmProviders.js';
+import { upstreamErrorDetail } from './upstreamError.js';
 import type { LlmProvider as LlmProviderRow } from '../models/index.js';
 
 /** Eine vorgeschlagene Säulen-Einzahlung: Säulen-ID plus Konfidenz in Prozent (0–100). */
@@ -348,25 +349,8 @@ const callProvider = async (
 	}
 
 	if (!response.ok) {
-		// Upstream-Fehlerdiagnose: viele Provider liefern im Body eine klare Ursache (z. B. Mistral
-		// `{"detail":"Check your subscription …"}` bei HTTP 402, Key-Fehler bei 401). Diese-Kurzform
-		// in den Fehler übernehmen — ohne sie bleibt nur ein wertloses „HTTP 402" und der Nutzer
-		// kann nicht unterscheiden, ob Key, Modell oder Abo das Problem ist.
-		let detail = '';
-		try {
-			const body = (await response.json()) as Record<string, unknown>;
-			const raw =
-				typeof body.detail === 'string'
-					? body.detail
-					: typeof (body.error as Record<string, unknown> | undefined)?.message === 'string'
-						? String((body.error as Record<string, unknown>).message)
-						: typeof body.message === 'string'
-							? body.message
-							: '';
-			detail = raw.slice(0, 200);
-		} catch {
-			// Body nicht lesbar → nur Status melden.
-		}
+		// Upstream-Fehlerdiagnose: Klartext-Ursache aus dem Body übernehmen (siehe upstreamError.ts).
+		const detail = await upstreamErrorDetail(response);
 		throw new MistralRequestError(
 			`${config.label} antwortete mit HTTP ${response.status}${detail !== '' ? `: ${detail}` : '.'}`,
 		);
