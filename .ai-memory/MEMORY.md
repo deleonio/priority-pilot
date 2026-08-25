@@ -158,3 +158,4 @@ Konflikte, die er verhindern soll.
   Direkt-Redirect in Datei + `head -c -1` (GNU) entfernt allein den gh-Newline. gh-Stubs
   in Tests müssen den Newline emulieren (`cat fixture; printf '\n'`), sonst frisst head
   den letzten Content-Byte.
+- 2026-08-25 · Git/Runner — frischer Runner hat keine Git-Identität (`Author identity unknown` beim ersten Commit) → vor dem Commit `git config user.name/email` aus `git log -1 --format=%an/%ae` übernehmen (Bot-Identität des Repos).
