@@ -239,7 +239,11 @@ runs:
             --jq '[.closingIssuesReferences[].number] | first' 2>/dev/null || echo "")
           if [ -z "$ISSUE_NR" ] || [ "$ISSUE_NR" = "null" ]; then
             ISSUE_NR="$TICKET_REF"
-            echo "::notice::Kein Closing-Issue am PR #$TICKET_REF gefunden – nutze PR-Nummer als Fallback."
+            # WARNING, nicht NOTICE: Der Fallback bedeutet ein ZWEITES Speicher-Silo
+            # (ai/state/issue-<PR> statt ai/state/issue-<Ticket>) — Fixup/Review/Documenter
+            # sehen dann nichts von Triage/UX/Spec/Umsetzung. Als Notice ist genau das eine
+            # Woche lang in grünen Läufen untergegangen (PRs #988–#992).
+            echo "::warning title=⚠️ Kein Closing-Issue am PR::PR #$TICKET_REF hat kein verlinktes Closing-Issue — Speicher-Schlüssel fällt auf die PR-Nummer zurück, der Memory der Vor-Phasen ist für diesen Lauf unerreichbar. Fehlt ein 'Closes #<Nr>' im PR-Body?"
           else
             echo "::notice::PR #$TICKET_REF → Issue #$ISSUE_NR."
           fi
