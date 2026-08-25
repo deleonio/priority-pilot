@@ -1,14 +1,14 @@
-// Gesamt-Übersicht über ALLE versiegelten Kosten-Datensätze (.costs/*.json) – das
+// Gesamt-Übersicht über ALLE versiegelten Kosten-Datensätze (.costs/*.json) — das
 // Gegenstück zu cost-aggregate.ts (EIN Ticket): Es rendert die repo-weite Tabelle,
 // mit der die Bearbeitungseffizienz beurteilt wird (oberstes Ziel, s. Issue #984).
 //
 // Datenbasis sind die versiegelten Dateien, NICHT die 90-Tage-Artefakte: Der Report
 // zeigt damit genau das, was dauerhaft erhalten ist. Läuft lokal und im Workflow
-// "Kosten-Übersicht" (manuell oder nightly, read-only) in die Job-Summary:
+// „Kosten-Übersicht" (manuell oder nightly, read-only) in die Job-Summary:
 //   node .github/scripts/costs-report.ts --dir .costs
 //
 // Stil-Spiegel von cost-aggregate.ts: Node-Eintritt, keine externen Deps, ESM,
-// ausschliesslich lösbare TypeScript-Syntax.
+// ausschliesslich löschbare TypeScript-Syntax.
 
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -25,7 +25,7 @@ export type TicketTotal = {
 	cost: number;
 	first: string;
 	last: string;
-	/** Phasen-Verteilung in Erstauftreten-Reihenfolge, z. B. "analyse:1 · fixup:4". */
+	/** Phasen-Verteilung in Erstauftreten-Reihenfolge, z. B. „analyse:1 … fixup:4". */
 	phases: string[];
 };
 
@@ -41,15 +41,15 @@ export type ProviderTotal = {
 
 const ZERO = (n: number | undefined): number => (typeof n === 'number' && Number.isFinite(n) ? n : 0);
 
-/** Liest alle <issueId>.json unter `dir` und summiert je Ticket. Kaputte Dateien übersprungen+gemeldet. */
-export function ticketTotals(dir: string): { tickets: TicketTotal[]; skipped: string[] } {
-	const tickets: TicketTotal[] = [];
+/** Liest alle <issueId>.json unter `dir` einmalig ein. Kaputte Dateien übersprungen+gemeldet. */
+const readEntries = (dir: string): { byIssue: Map<string, CostEntry[]>; skipped: string[] } => {
+	const byIssue = new Map<string, CostEntry[]>();
 	const skipped: string[] = [];
 	let names: string[] = [];
 	try {
 		names = readdirSync(dir);
 	} catch {
-		return { tickets, skipped: [dir] };
+		return { byIssue, skipped: [dir] };
 	}
 	for (const name of names.sort()) {
 		if (!name.endsWith('.json') || name === 'SCHEMA.md') continue;
@@ -64,9 +64,16 @@ export function ticketTotals(dir: string): { tickets: TicketTotal[]; skipped: st
 			skipped.push(name);
 			continue;
 		}
-		const entries = parsed as CostEntry[];
+		byIssue.set(name.replace(/\.json$/, ''), parsed as CostEntry[]);
+	}
+	return { byIssue, skipped };
+};
+
+/** Summiert die je Ticket-Datei eingelesenen Einträge je Ticket. */
+const aggregateTickets = (byIssue: Map<string, CostEntry[]>): TicketTotal[] => {
+	const tickets: TicketTotal[] = [];
+	for (const [issue, entries] of byIssue) {
 		if (entries.length === 0) continue;
-		const issue = name.replace(/\.json$/, '');
 		const byPhase = new Map<string, number>();
 		const total: TicketTotal = {
 			issue,
@@ -92,65 +99,42 @@ export function ticketTotals(dir: string): { tickets: TicketTotal[]; skipped: st
 		total.phases = [...byPhase.entries()].map(([phase, n]) => `${phase}:${n}`);
 		tickets.push(total);
 	}
-	// Schleifen-Kandidaten zuerst: absteigend nach Wert, dann Issue-Nummer aufsteigend –
+	// Schleifen-Kandidaten zuerst: absteigend nach Wert, dann Issue-Nummer aufsteigend —
 	// der Bericht soll die Ausreisser oben zeigen, nicht sie in 50 Zeilen verstecken.
 	tickets.sort((a, b) => b.valueCost - a.valueCost || Number(a.issue) - Number(b.issue));
-	return { tickets, skipped };
+	return tickets;
+};
+
+/** Summiert Einträge je Provider, absteigend nach Wert (teuerster Provider zuerst). */
+const aggregateProviders = (entries: CostEntry[]): ProviderTotal[] => {
+	const byProvider = new Map<string, ProviderTotal>();
+	for (const e of entries) {
+		const provider = e.provider ?? 'unbekannt';
+		let total = byProvider.get(provider);
+		if (!total) {
+			total = { provider, runs: 0, turns: 0, tokensIn: 0, tokensOut: 0, valueCost: 0, cost: 0 };
+			byProvider.set(provider, total);
+		}
+		total.runs += 1;
+		total.turns += ZERO(e.turns);
+		total.tokensIn += ZERO(e.tokensIn);
+		total.tokensOut += ZERO(e.tokensOut);
+		total.valueCost += ZERO(e.valueCost);
+		total.cost += ZERO(e.cost);
+	}
+	return [...byProvider.values()].sort((a, b) => b.valueCost - a.valueCost);
+};
+
+/** Liest alle <issueId>.json unter `dir` und summiert je Ticket. Kaputte Dateien übersprungen+gemeldet. */
+export function ticketTotals(dir: string): { tickets: TicketTotal[]; skipped: string[] } {
+	const { byIssue, skipped } = readEntries(dir);
+	return { tickets: aggregateTickets(byIssue), skipped };
 }
 
 /** Liest alle Einträge aus allen Ticket-Dateien unter `dir` und summiert je Provider. */
 export function providerTotals(dir: string): { providers: ProviderTotal[]; skipped: string[] } {
-	const byProvider = new Map<string, ProviderTotal>();
-	const order: string[] = [];
-	const skipped: string[] = [];
-
-	let names: string[] = [];
-	try {
-		names = readdirSync(dir);
-	} catch {
-		return { providers: [], skipped: [dir] };
-	}
-
-	for (const name of names.sort()) {
-		if (!name.endsWith('.json') || name === 'SCHEMA.md') continue;
-		let parsed: unknown;
-		try {
-			parsed = JSON.parse(readFileSync(join(dir, name), 'utf8'));
-		} catch {
-			skipped.push(name);
-			continue;
-		}
-		if (!Array.isArray(parsed)) {
-			skipped.push(name);
-			continue;
-		}
-		const entries = parsed as CostEntry[];
-		for (const e of entries) {
-			const provider = e.provider ?? 'unbekannt';
-			let total = byProvider.get(provider);
-			if (!total) {
-				total = {
-					provider,
-					runs: 0,
-					turns: 0,
-					tokensIn: 0,
-					tokensOut: 0,
-					valueCost: 0,
-					cost: 0,
-				};
-				byProvider.set(provider, total);
-				order.push(provider);
-			}
-			total.runs += 1;
-			total.turns += ZERO(e.turns);
-			total.tokensIn += ZERO(e.tokensIn);
-			total.tokensOut += ZERO(e.tokensOut);
-			total.valueCost += ZERO(e.valueCost);
-			total.cost += ZERO(e.cost);
-		}
-	}
-
-	return { providers: order.map((p) => byProvider.get(p) as ProviderTotal), skipped };
+	const { byIssue, skipped } = readEntries(dir);
+	return { providers: aggregateProviders([...byIssue.values()].flat()), skipped };
 }
 
 const num = (n: number): string => n.toLocaleString('de-DE');
@@ -159,17 +143,17 @@ const mio = (n: number): string => `${(n / 1_000_000).toLocaleString('de-DE', { 
 
 /** Markdown-Bericht: Summen, Phasen-Verteilung, Provider-Verteilung, Tabelle je Ticket (Wert absteigend). */
 export function renderReport(dir: string): string {
-	const { tickets, skipped: skippedTickets } = ticketTotals(dir);
-	const { providers, skipped: skippedProviders } = providerTotals(dir);
+	const { byIssue, skipped } = readEntries(dir);
+	const tickets = aggregateTickets(byIssue);
 	const lines: string[] = [];
-	lines.push('## 📊 Kosten-Übersicht – alle versiegelten Tickets', '');
+	lines.push('## 💰 Kosten-Übersicht — alle versiegelten Tickets', '');
 	if (tickets.length === 0) {
 		lines.push(`Keine Datensätze unter \`${dir}\` gefunden.`, '');
 		return `${lines.join('\n')}\n`;
 	}
 
-	const allEntries: CostEntry[] = [];
-	for (const t of tickets) allEntries.push(...readCostEntries(dir, t.issue));
+	const allEntries = [...byIssue.values()].flat();
+	const providers = aggregateProviders(allEntries);
 	const phases = totalsByPhase(allEntries);
 	const sum = tickets.reduce(
 		(a, t) => ({
@@ -184,7 +168,7 @@ export function renderReport(dir: string): string {
 	);
 	const anyTurns = sum.turns > 0;
 	// Zeitraum über ALLE Tickets (min/max), nicht über die Enden der wert-sortierten
-	// Liste – der billigste Ticket-Datensatz stammt selten vom ersten Tag.
+	// Liste — der billigste Ticket-Datensatz stammt selten vom ersten Tag.
 	const first = tickets.reduce((min, t) => (t.first < min ? t.first : min), tickets[0].first);
 	const last = tickets.reduce((max, t) => (t.last > max ? t.last : max), tickets[0].last);
 
@@ -247,30 +231,19 @@ export function renderReport(dir: string): string {
 
 	if (!anyTurns) {
 		lines.push(
-			'> ℹ️ Keine Turns erfasst – alle Datensätze stammen von Läufen vor der Turns-Erfassung (Issue #984).',
+			'> ℹ️ Keine Turns erfasst — alle Datensätze stammen von Läufen vor der Turns-Erfassung (Issue #984).',
 			'',
 		);
 	}
 	lines.push(
-		'> Wert = Verbrauchsbewertung zu Modellklassen-Preisen (provider-unabhängig), Echt = gemessene Anthropic-Kosten (Fremdtarife: 0, s. `.costs/SCHEMA.md`). Sortiert nach Wert absteigend – oben stehen die teuersten Durchläufe und damit die ersten Optimierungskandidaten (Review-/Fixup-Schleifen).',
+		'> Wert = Verbrauchsbewertung zu Modellklassen-Preisen (provider-unabhängig), Echt = gemessene Anthropic-Kosten (Fremdtarife: 0, s. `.costs/SCHEMA.md`). Sortiert nach Wert absteigend — oben stehen die teuersten Durchläufe und damit die ersten Optimierungskandidaten (Review-/Fixup-Schleifen).',
 		'',
 	);
-	const allSkipped = [...new Set([...skippedTickets, ...skippedProviders])];
-	if (allSkipped.length > 0) {
-		lines.push(`> ⚠️ ${allSkipped.length} Datei(en) nicht lesbar und übersprungen: ${allSkipped.join(', ')}`, '');
+	if (skipped.length > 0) {
+		lines.push(`> ⚠️ ${skipped.length} Datei(en) nicht lesbar und übersprungen: ${skipped.join(', ')}`, '');
 	}
 	return `${lines.join('\n')}\n`;
 }
-
-/** Einträge einer Ticket-Datei erneut roh lesen (die Tabelle braucht sie für die Phasen-Summen). */
-const readCostEntries = (dir: string, issue: string): CostEntry[] => {
-	try {
-		const parsed = JSON.parse(readFileSync(join(dir, `${issue}.json`), 'utf8')) as CostEntry[];
-		return Array.isArray(parsed) ? parsed : [];
-	} catch {
-		return [];
-	}
-};
 
 const main = (argv: readonly string[]): number => {
 	let dir = '.costs';
