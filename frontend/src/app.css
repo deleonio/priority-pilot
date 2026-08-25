@@ -1124,8 +1124,11 @@ body {
 	}
 }
 
-/* Mobile: Entfernen-Button rechts, ≥44px Tap-Target */
-.pillar-row .kol-button {
+/* Gilt für alle Breiten (keine Media-Query), Wirkungsfall ist Mobile: Entfernen-Button
+   rechts, ≥44px Tap-Target. Auf Desktop deckungsgleich mit AK3 (Button rechts, keine Regression).
+   Tag-Selektor (kein `.kol-button`-Klassenselektor): KoliBri-Hosts tragen die Klasse nicht,
+   `.pillar-row .kol-button` hätte nie gematcht (Muster: `.pillar-weight-row kol-input-range`). */
+.pillar-row kol-button {
 	justify-self: end;
 	min-width: 44px;
 	min-height: 44px;
