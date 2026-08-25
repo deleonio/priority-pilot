@@ -41,9 +41,11 @@ ABLAUF (STRIKT):
 
 ⚠️ LABELS: KEINE Labels setzen! Workflow übernimmt das automatisch.
 
-VERDICT: GANZ AM ENDE GENAU EINE Zeile:
-  - VERDICT: needs-review (Implementierung fertig + PR review-bereit)
-  - VERDICT: not-ready (Partial – PR als Draft belassen, Folgelauf nötig)
+VERDICT: GANZ AM ENDE GENAU EINE Zeile, NUR der Token — kein Text dahinter (der Workflow parst die Zeile maschinell):
+  - VERDICT: needs-review
+  - VERDICT: not-ready
+  (needs-review = Implementierung fertig + PR review-bereit;
+   not-ready = Partial – PR als Draft belassen, Folgelauf nötig)
 
 ZEITLIMIT: Soft-Deadline = {{SOFT_DEADLINE}}. Vor jedem Schritt: [ $(date +%s) -ge {{SOFT_DEADLINE}} ]. Bei OVER: aktuellen Stand committen+pushen, Turn beenden.
 

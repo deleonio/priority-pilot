@@ -35,9 +35,11 @@ ABLAUF (STRIKT):
 
 ⚠️ LABELS: KEINE Labels setzen! Workflow übernimmt das automatisch.
 
-VERDICT: GANZ AM ENDE GENAU EINE Zeile:
-  - VERDICT: ready (rote Tests geschrieben + Draft-PR erstellt → gibt Issue zur Umsetzung frei)
-  - VERDICT: spec-ready (Partial – Tests unvollständig, braucht Folgelauf)
+VERDICT: GANZ AM ENDE GENAU EINE Zeile, NUR der Token — kein Text dahinter (der Workflow parst die Zeile maschinell):
+  - VERDICT: ready
+  - VERDICT: spec-ready
+  (ready = rote Tests geschrieben + Draft-PR erstellt → gibt Issue zur Umsetzung frei;
+   spec-ready = Partial – Tests unvollständig, braucht Folgelauf)
 
 EHRLICHKEITS-REGEL: VERDICT: ready NUR ausgeben, wenn Draft-PR tatsächlich existiert UND mindestens eine Test-Datei committed+gepusht ist (vorher mit gh pr view/git log verifizieren).
 

@@ -260,7 +260,9 @@ jobs:
         run: |
           verdict=""
           if [ -f /tmp/claude-output.log ]; then
-            verdict="$(grep 'VERDICT:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | tr -d -c 'A-Za-z0-9-' || true)"
+            # Erster bekanntter Token gewinnt, längstes zuerst (spec-ready vor ready) —
+            # Prosa/Markdown nach dem Token ist egal (#1017-Klasse, exakter Vergleich klebte sie fest).
+            verdict="$(grep 'VERDICT:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | grep -oE 'spec-ready|ready' | head -1 || true)"
           fi
           echo "Claude-Verdict aus Output: '${verdict:-keins}'"
 

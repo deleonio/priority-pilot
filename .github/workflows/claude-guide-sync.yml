@@ -222,9 +222,10 @@ jobs:
             - KEINE Soll-/Absichts-/Ankündigungs-Formulierungen — nur Ist.
             - PFLICHT-ABSCHNITTE (Vertrag aus server/src/logics/user-guide.test.ts, AK 2.1–2.9): Dashboard, "Aufgaben verwalten", (KI-)Schnellerfassung, Abhängigkeiten, Säulen, Aufgabenwald, Serien, Punkte/Gamification, Kopf-/Header-Aktionen. Diese Themen dürfen NICHT wegfallen und ihre Überschriften-Stichwörter NICHT verschwinden. Genau eine "# "-H1 am Dateianfang bleibt bestehen.
 
-          VERDICT: GANZ AM ENDE GENAU EINE Zeile:
-            - VERDICT: synced (keine Drift gefunden, kein Commit)
-            - VERDICT: updated (Handbuch-Korrekturen committed)
+          VERDICT: GANZ AM ENDE GENAU EINE Zeile, NUR der Token — kein Text dahinter (der Workflow parst die Zeile maschinell):
+            - VERDICT: synced
+            - VERDICT: updated
+            (synced = keine Drift gefunden, kein Commit; updated = Handbuch-Korrekturen committed)
 
           EHRLICHKEITS-REGEL: VERDICT: updated NUR ausgeben, wenn der Commit existiert (git log verifizieren). VERDICT: synced NUR ohne lokale Commits.
 
@@ -255,10 +256,11 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           OUTCOME: ${{ steps.claude.outcome }}
         run: |
-          # Portables VERDICT-Parsen wie in 01 (BSD/GNU-grep-sicher, Markdown-Dekoration strippen).
+          # Portables VERDICT-Parsen wie in 01 (BSD/GNU-grep-sicher): erster bekannter
+          # Token gewinnt, Prosa/Markdown nach dem Token ist egal (#1017-Klasse).
           verdict=""
           if [ -f /tmp/claude-output.log ]; then
-            verdict="$(grep 'VERDICT:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | tr -d -c 'A-Za-z0-9-' || true)"
+            verdict="$(grep 'VERDICT:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | grep -oE 'updated|synced' | head -1 || true)"
           fi
           echo "Claude-Verdict aus Output: '${verdict:-keins}'"
 
