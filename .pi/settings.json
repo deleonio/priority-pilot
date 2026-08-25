@@ -45,5 +45,7 @@
 			"maxRetries": 0,
 			"maxRetryDelayMs": 120000
 		}
-	}
+	},
+	"defaultProvider": "zai",
+	"defaultModel": "glm-4.7"
 }
