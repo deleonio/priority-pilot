@@ -1,0 +1,72 @@
+[
+	{
+		"timestamp": "2026-08-24T19:43:33.114Z",
+		"tokensIn": 2390759,
+		"tokensOut": 13790,
+		"cost": 0,
+		"issueId": "997",
+		"phase": "analyse",
+		"model": "glm-5.3",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 2325632,
+		"turns": 26,
+		"valueCost": 1.8332009999999999
+	},
+	{
+		"timestamp": "2026-08-24T19:46:26.940Z",
+		"tokensIn": 762894,
+		"tokensOut": 11626,
+		"cost": 0,
+		"issueId": "997",
+		"phase": "ux",
+		"model": "glm-4.7",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 727296,
+		"turns": 12,
+		"valueCost": 0.16645759999999998
+	},
+	{
+		"timestamp": "2026-08-25T01:18:33.159Z",
+		"tokensIn": 996819,
+		"tokensOut": 6631,
+		"cost": 0,
+		"issueId": "997",
+		"phase": "review",
+		"model": "glm-4.7",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 903552,
+		"turns": 14,
+		"valueCost": 0.2167772
+	},
+	{
+		"timestamp": "2026-08-25T01:25:33.982Z",
+		"tokensIn": 478836,
+		"tokensOut": 2943,
+		"cost": 0,
+		"issueId": "997",
+		"phase": "fixup",
+		"model": "glm-4.7",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 376448,
+		"turns": 7,
+		"valueCost": 0.15474780000000002
+	},
+	{
+		"timestamp": "2026-08-25T01:56:27.731Z",
+		"tokensIn": 226374,
+		"tokensOut": 2581,
+		"cost": 0.0525985,
+		"issueId": "997",
+		"phase": "review",
+		"model": "claude-haiku-4-5-20251001",
+		"provider": "claude",
+		"cacheCreationTokens": 14786,
+		"cacheReadTokens": 211530,
+		"turns": 7,
+		"valueCost": 0.0525985
+	}
+]
