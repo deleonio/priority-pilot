@@ -29,6 +29,12 @@
       "runId": "32854246085",
       "branch": "feat/issue-1020-koltable-erledigt",
       "timestamp": "2026-08-25T13:44:56Z"
+    },
+    "fixup": {
+      "sessionId": "3a35add8-4b99-450e-a975-9927175ae377",
+      "runId": "32857976164",
+      "branch": "feat/issue-1020-koltable-erledigt",
+      "timestamp": "2026-08-25T14:58:30Z"
     }
   }
 }
