@@ -2,72 +2,70 @@
 
 ## Erledigt
 
-- Modus bestimmt: KEIN `<!-- ai-review -->`-Kommentar an PR 1016 vorhanden → **KREUZVERHÖR** (Erst-Review).
-- Diff komplett gelesen (9 Dateien, 381 Zeilen Patch): `sendLlmError` neu in
-  `server/src/express/llmProviderQuery.ts:16-31`, 4 LLM-Routen darauf umgestellt,
-  `MissingApiKeyError`-Konstruktor umgebaut (`server/src/llm/llm.ts:73-78`),
-  Readiness-Alert als IIFE in `frontend/src/components/LlmSettings.tsx:248-292`.
-- Kein verknüpftes Issue: `gh pr view 1016 --json closingIssuesReferences` → leer, PR-Body
-  ohne `Closes #N`. Ticket-Nummer daher unbekannt (Sammelkommentar formuliert ohne Nummer).
-- 2 Findings verifiziert (siehe Fallstricke), Titel-Gate: false → umbenannt.
+- **Runde 1 (Kreuzverhör, 2026-08-25):** Modus KREUZVERHÖR, Diff komplett gelesen (9 Dateien),
+  2 Findings (🟠 F1 `MissingApiKeyError()` ohne Argument in 4 Tests, 🟠 F2 `testResults` nicht
+  nach Modellwechsel invalidiert). Titel-Gate: false → umbenannt auf
+  `feat(llm): surface provider cause and test status in readiness hint`.
+- **Runde 2 (Fixup-Nachweis, 2026-08-25):** Sammelkommentar-ID 5406846539,
+  updated_at 2026-08-25T07:14:49Z. Fixup-Commit danach: `4e98d679` (07:18:41Z), 5 Dateien.
+  - F1 behoben: alle 4 `new MissingApiKeyError()` haben jetzt eine realistische Message
+    (`'Mistral: API-Key fehlt (MISTRAL_API_KEY) — …'`); `error-contract.test.ts:236-245`
+    assertiert zusätzlich `body.message.startsWith(cause)`. Verifiziert: `expectError`
+    (`server/src/express/test-helpers.ts:12-24`) gibt `{message: string}` ZURÜCK, die neue
+    Assertion ist typkorrekt; `sendLlmError` (`llmProviderQuery.ts:17-19`) baut
+    `${error.message} (Hinweis)` → `startsWith` hält.
+  - F2 behoben: `frontend/src/components/LlmSettings.tsx:132`
+    `setTestResults((current) => ({...current, [updated.id]: undefined}))` — 1:1 dasselbe
+    Muster wie `handleTest` (`:146`), also typkonform.
+- Titel-Gate Runde 2: true (67 Zeichen, englisch, Subject klein) → keine Aktion.
 
 ## Relevante Stellen
 
-- `server/src/llm/llm.ts:73-78` — `MissingApiKeyError` hat jetzt `constructor(message: string)`
-  (Pflichtparameter) statt zwei Defaults; hier liegt Finding 1.
-- `server/src/llm/llm.ts:404-420` — die drei neuen Wortlaute (kein Provider / Key fehlt / kein Modell).
-- `server/src/express/llmProviderQuery.ts:16-31` — `sendLlmError`, hängt an 503/502 den Hinweis
-  „(Einstellungen → KI-Provider: „Testen" zeigt die Ursache.)" an.
-- `server/tsconfig.json:15` — `exclude: [..., "src/**/*.test.ts", "src/test/**"]`: Testdateien
-  laufen NICHT durch `tsc`, deshalb bleibt ein Arity-Fehler in Tests unsichtbar.
-- `server/src/express/suggest-pillars.test.ts:179`, `error-contract.test.ts:239`,
-  `pillar-advisor.test.ts:165`, `routes/parseTasks.test.ts:94` — je `new MissingApiKeyError()`
-  ohne Argument (Finding 1).
-- `frontend/src/components/LlmSettings.tsx:126-139` — `handleModelChange`, invalidiert
-  `testResults[activeProvider.id]` NICHT (Finding 2).
-- `frontend/src/components/LlmSettings.tsx:141-158` — `handleTest`, setzt das Ergebnis vor dem
-  Call auf `undefined` (Vorbild für den Fix von Finding 2).
+- `server/src/express/test-helpers.ts:12-24` — `expectError` liefert den geparsten Body zurück
+  (nicht void), deshalb ist die neue `startsWith`-Assertion gültig.
+- `server/src/express/llmProviderQuery.ts:17-19` — 503-Body = `${error.message} + Hinweis`,
+  Ursache steht vorn.
+- `frontend/src/components/LlmSettings.tsx:126-140` (`handleModelChange`, F2-Fix in :132),
+  `:141-158` (`handleTest`, Vorbild-Muster).
+- `server/tsconfig.json:15` — schliesst `src/**/*.test.ts` aus `tsc` aus (Ursache, warum F1
+  in Runde 1 an Lint/Build vorbeikam).
 
 ## Annahmen
 
-- Dass `new MissingApiKeyError()` zur Laufzeit `message === ''` erzeugt, ist aus dem Code
-  geschlossen (`super(undefined)`), NICHT lokal ausgeführt — im Sandbox-Repo fehlen
-  `node_modules` komplett (`pnpm: command not found`, kein `server/node_modules`), also weder
-  `tsc` noch `node --test` lauffähig. Nur `npx tsc` lief und scheiterte an
-  `moduleResolution=node10` (fremde tsc-Version, nicht die des Projekts).
-- PR-Body-Behauptung „`pnpm lint` grün" ist plausibel genau WEIL Tests aus `tsc` ausgeschlossen
-  sind — der Widerspruch zu Finding 1 ist damit erklärt, nicht widerlegt.
+- Der Fixup-Diff wurde statisch geprüft; Server-Tests liefen in dieser Phase nicht lokal
+  (Sandbox ohne `node_modules`/`pnpm` — Befund aus Runde 1 gilt weiter). Grün-Beleg stützt
+  sich auf `gh pr checks 1016`.
+- Die Route `routes/suggestPillars.ts:205` (`sendLlmError` im catch) fängt den
+  `MissingApiKeyError` — nicht neu verifiziert, war schon vor dem Fixup so und der Test
+  assertierte bereits 503.
 
 ## Verworfen
 
-- „`sendError`-Helfer in den Routen sind jetzt tot" — geprüft per grep: `sendError` wird in
-  `lektorat.ts:70,77`, `pillarAdvisor.ts:95,101,109,113`, `suggestPillars.ts:153,160,168,172,217,224,237`
-  weiter für 400/500/503-Fälle genutzt. Kein Dead-Code-Finding.
-- „Typ-Konflikt `Response<{text}|ErrorDto>` → `Response<components['schemas']['Error']>` in
-  lektorat.ts" — Express-Methoden sind bivariant, kompiliert; kein Finding.
-- „KoliBri-First verletzt" — der Readiness-Hinweis nutzt durchgehend `KolAlert`, kein eigenes
-  Styling im Diff. Kein Finding.
-- `testResult.latencyMs ?? 0` → „getestet, 0 ms" — bewusst NICHT als Finding gemeldet: dasselbe
-  Muster steht schon vor dem PR in `LlmSettings.tsx:343`, wäre ein Pseudo-Finding.
+- Erneutes Kreuzverhör des unveränderten PR-Teils — Modus FIXUP-NACHWEIS verbietet das.
+- „`undefined`-Zuweisung in `testResults` verletzt `exactOptionalPropertyTypes`" — verworfen:
+  identisches Muster steht seit vor dem PR in `LlmSettings.tsx:146` und kompiliert.
+- „`assert`-Import in `error-contract.test.ts` doppelt" — verworfen: die Datei hatte vorher
+  KEINEN `assert`-Import, der neue `import assert from 'node:assert/strict'` (Zeile 13) ist
+  nötig und einmalig.
 
 ## Offen
 
-- Ticket-/Issue-Nummer zu PR 1016 nicht ermittelbar (keine Verknüpfung, kein `Closes`), daher
-  konnten die AK aus `<!-- KI-ANALYSE:START/END -->` nicht gegengeprüft werden — beurteilt
-  wurde gegen den PR-Body als Ersatz-Spezifikation.
+- Weiterhin kein verknüpftes Issue am PR (`closingIssuesReferences` leer) → beurteilt gegen
+  den PR-Body als Ersatz-Spezifikation; AK aus `<!-- KI-ANALYSE -->` nicht gegenprüfbar.
 
 ## Nächster Schritt
 
-- Fixup-Phase: die 4 `new MissingApiKeyError()`-Aufrufe mit einer Message versorgen und in
-  `handleModelChange` (`LlmSettings.tsx:126-139`) `setTestResults((c) => ({...c, [activeProvider.id]: undefined }))`
-  nach erfolgreichem `updateLlmProvider` ergänzen.
+- Keiner. Runde 2 endet mit VERDICT: reviewed (beide Findings behoben, keine neuen Probleme
+  im Fixup-Diff). Falls eine Runde 3 kommt: nur einen dann NEUEN Fixup-Diff prüfen.
 
 ## Fallstricke
 
-- **MEMORY.md-Kandidat (Review-Phase committet nicht, daher hier):** In diesem Repo schliesst
-  `server/tsconfig.json` `src/**/*.test.ts` aus. Signatur-Änderungen an exportierten Klassen/
-  Funktionen werden dadurch in Tests NICHT typgeprüft, und `tsx` strippt Typen ohne Check →
-  `pnpm lint`/`pnpm build` bleiben grün, während Tests mit `undefined` weiterlaufen. → Nach
-  jeder Konstruktor-/Signatur-Änderung `grep -rn "<Name>(" --include=*.test.ts server/src`.
-- Sandbox ohne `node_modules` und ohne `pnpm` im PATH: lokales Verifizieren von Server-Tests
-  ist in der Review-Phase nicht möglich, Befunde müssen statisch belegt werden (Datei:Zeile).
+- **MEMORY.md-Kandidat (Review-Phase committet nicht, daher hier — schon in Runde 1 notiert,
+  weiterhin ungehoben):** `server/tsconfig.json` schliesst `src/**/*.test.ts` aus `tsc` aus.
+  Signatur-Änderungen an exportierten Klassen werden in Tests NICHT typgeprüft (`tsx` strippt
+  Typen ohne Check) → `pnpm lint`/`build` bleiben grün, während Tests mit `undefined`
+  weiterlaufen. → Nach jeder Konstruktor-/Signatur-Änderung
+  `grep -rn "<Name>(" --include=*.test.ts server/src`.
+- Sammelkommentar-`updated_at` ist der Cutoff für „Fixup-Commits seit Runde N" — hier
+  07:14:49Z vs. Commit 07:18:41Z, sauber trennbar. `gh pr view --json commits` liefert
+  `committedDate` in UTC, direkt vergleichbar.
