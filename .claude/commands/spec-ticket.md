@@ -29,7 +29,7 @@ Die `.md` ist primär für den CI-Workflow geschrieben. Lokal gilt:
   VERDICT) — hier ignorieren.
 - **Keine Soft-Deadline** — die `ZEITLIMIT`-Zeile entfällt, bleib aber dennoch fokussiert
   (`FOKUS: KEINE Abstecher, Token sparen`).
-- Ersetze `#ISSUE_NR` / `ISSUE_NR` gedanklich durch **$ARGUMENTS**.
+- Ersetze `{{ISSUE_NR}}` gedanklich durch **$ARGUMENTS**.
 
 Vor dem Push: `pnpm format && pnpm lint` (rot ist ok — die Tests sollen rot sein; format/lint
 müssen aber sauber sein). Beschreibe im Draft-PR die abgedeckten AK und, falls du alte Tests

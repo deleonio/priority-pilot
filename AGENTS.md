@@ -16,7 +16,7 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 - [TDD-Strategie](.ai-knowledge/tdd-strategy.md) — test-getriebene KI-Workflows (Stufen 1+2+3 adoptiert)
 - [Multi-Provider-CI](.ai-knowledge/multi-provider-ci.md) — Provider-Setup, Secrets, setup-claude-Action
 - [Design-Sprache „Cockpit"](.ai-knowledge/ux-design.md) — Farbrollen, Skalen-Tokens, Komponentenwahl
-- [Dauergedächtnis](.claude/memory/MEMORY.md) — Erfahrungs-Log über Tickets hinweg (Protokoll: [Memory](#memory))
+- [Dauergedächtnis](.ai-memory/MEMORY.md) — Erfahrungs-Log über Tickets hinweg (Protokoll: [Memory](#memory))
 - [Browser-MCP](docs/browser-mcp.md) — laufende App visuell prüfen (`pnpm ui:inspect` + Playwright-MCP)
 - [Deployment](docs/deployment.md) — Merge→Build→rsync→PM2, Host-Layout, Rollback
 - [CI-Architektur](docs/ci-architecture.md) — Provider, Modelle, Soft-Abort, Label-Pipeline, KoliBri MCP
@@ -59,13 +59,13 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 
 ## Memory
 
-`.claude/memory/` (nativer Claude-Code-Memory, `autoMemoryDirectory` in
+`.ai-memory/` (nativer Claude-Code-Memory, `autoMemoryDirectory` in
 [`.claude/settings.json`](.claude/settings.json)) hat zwei Ebenen:
 
-| Datei                                   | Lebensdauer                                                            | Zweck                                                 |
-| --------------------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------- |
-| [`MEMORY.md`](.claude/memory/MEMORY.md) | dauerhaft, eingecheckt                                                 | Erfahrungs-Log — derselbe Fehler kein zweites Mal     |
-| `issue-<N>-<phase>.md`                  | flüchtig (lokal gitignored, Transport per State-Branch, Phase 7 räumt) | Soft-Abort-Resume eines Tickets: wo der Lauf aufhörte |
+| Datei                               | Lebensdauer                                                            | Zweck                                                 |
+| ----------------------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------- |
+| [`MEMORY.md`](.ai-memory/MEMORY.md) | dauerhaft, eingecheckt                                                 | Erfahrungs-Log — derselbe Fehler kein zweites Mal     |
+| `issue-<N>-<phase>.md`              | flüchtig (lokal gitignored, Transport per State-Branch, Phase 7 räumt) | Soft-Abort-Resume eines Tickets: wo der Lauf aufhörte |
 
 **Lesen:** immer beide, `MEMORY.md` zuerst — auch beim ersten Lauf an einem Ticket.
 

@@ -36,7 +36,8 @@ runs:
 
         # state.json fortschreiben — der Restore zu Laufbeginn (setup-claude) hat den
         # Vor-Stand bereits in den Workspace geolt; phases.<phase> = letzter Lauf gewinnt.
-        state=".claude/state.json"
+        state=".ai-memory/state.json"
+        mkdir -p .ai-memory
         now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
         entry="$(printf '{"sessionId":%s,"runId":"%s","branch":"%s","timestamp":"%s"}' \
           "$session_json" "$RUN_ID" "$HEAD_BRANCH" "$now")"
@@ -68,16 +69,27 @@ runs:
         # MEMORY.md bewusst NICHT gestaged: eingechecktes Dauergedächtnis, reist in den
         # Phasen-Commits (ADR 0006 Punkt 4). Der Branch basiert auf leerem Baum bzw. dem
         # alten Storage-Stand — die Datei gelangt strukturell nie hinein.
+        #
+        # notes wird GETRENNT von staged gezählt: state.json schreibt dieser Step selbst und
+        # ist damit immer dabei. Ein reines "gesichert (1 Datei)" bedeutet in Wahrheit "die
+        # Phase hat KEINEN Checkpoint geschrieben" — genau diese Formulierung hat den toten
+        # Memory eine Woche lang als Erfolg getarnt (siehe Warning unten).
         staged=0
+        notes=0
         while IFS= read -r f; do
           [ -f "$f" ] || continue
           git update-index --add --cacheinfo "100644,$(git hash-object -w "$f"),$f"
           staged=$((staged + 1))
-        done < <(find .claude/memory -maxdepth 1 -type f -name 'issue-*.md' 2>/dev/null; echo "$state")
+          case "$f" in .ai-memory/issue-*) notes=$((notes + 1)) ;; esac
+        done < <(find .ai-memory -maxdepth 1 -type f -name 'issue-*.md' 2>/dev/null; echo "$state")
 
         if [ "$staged" -eq 0 ]; then
           echo "::notice title=🗄️ Issue-Storage leer::Keine Phasen-Notiz vorhanden — $STATE unberührt."
           exit 0
+        fi
+
+        if [ "$notes" -eq 0 ]; then
+          echo "::warning title=⚠️ Keine Phasen-Notiz::${PHASE} hat keinen Checkpoint nach .ai-memory/ geschrieben — nur state.json wird gesichert. Die Folgephase startet ohne Resume-Kontext."
         fi
 
         tree="$(git write-tree)"
@@ -90,7 +102,7 @@ runs:
         # Der Baum ist autoritativ — Re-Parenten verliert nichts.
         for attempt in 1 2 3; do
           if git push --quiet origin "${commit}:refs/heads/${STATE}"; then
-            echo "::notice title=🗄️ Issue-Storage gesichert::${STATE} ← ${msg} (${staged} Datei(en))."
+            echo "::notice title=🗄️ Issue-Storage gesichert::${STATE} ← ${msg} (${notes} Notiz(en) + state.json)."
             exit 0
           fi
           if git fetch --quiet origin "$STATE" 2>/dev/null && git rev-parse --verify -q FETCH_HEAD >/dev/null; then

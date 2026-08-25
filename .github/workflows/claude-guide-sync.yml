@@ -201,7 +201,7 @@ jobs:
                a) Verhalten hat sich geändert → Beschreibung auf den neuen Ist-Zustand umformulieren.
                b) Beschriebene Funktion existiert nicht mehr → Absatz/Abschnitt STREICHEN.
                c) Implementiertes Nutzer-Feature fehlt im Handbuch → ERGÄNZEN, im Stil und an der passenden Stelle der bestehenden Gliederung.
-            4. ALLE Änderungen lokal committen (ein Commit genügt): git add docs/user-guide.md && git commit -m "docs(guide): Ist-Stand-Sync SYNC_DATE"
+            4. ALLE Änderungen lokal committen (ein Commit genügt): git add docs/user-guide.md && git commit -m "docs(guide): Ist-Stand-Sync {{SYNC_DATE}}"
                NICHT pushen, KEINEN PR anlegen — das macht der Workflow nach dir.
             5. Report schreiben nach /tmp/guide-sync-report.md (Markdown): je Fund ein Abschnitt (Handbuch-Abschnitt, Befund, Korrektur, Beleg im Code als Datei:Zeile), plus Liste offener Unklarheiten (nicht aus Code Ableitbares: NICHT geändert, nur gelistet).
 
@@ -228,11 +228,12 @@ jobs:
 
           EHRLICHKEITS-REGEL: VERDICT: updated NUR ausgeben, wenn der Commit existiert (git log verifizieren). VERDICT: synced NUR ohne lokale Commits.
 
-          ZEITLIMIT: Soft-Deadline = SOFT_DEADLINE. Vor jedem Schritt: [ $(date +%s) -ge SOFT_DEADLINE ]. Bei OVER: committen was vorliegt, Report schreiben, Turn beenden.
+          ZEITLIMIT: Soft-Deadline = {{SOFT_DEADLINE}}. Vor jedem Schritt: [ $(date +%s) -ge {{SOFT_DEADLINE}} ]. Bei OVER: committen was vorliegt, Report schreiben, Turn beenden.
           CLAUDE_EOF
 
-          sed -i "s/SYNC_DATE/$(date -u +%F)/g" /tmp/claude-prompt.txt
-          sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
+          sed -i "s/{{SYNC_DATE}}/$(date -u +%F)/g" /tmp/claude-prompt.txt
+          sed -i "s/{{SOFT_DEADLINE}}/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
+          bash .github/scripts/assert-prompt-complete.sh /tmp/claude-prompt.txt
 
           ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
             ${{ steps.setup.outputs.invoke-args }} \

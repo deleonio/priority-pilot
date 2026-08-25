@@ -3,4 +3,4 @@
 # zweiten Merge ein Konflikt auf derselben Stelle. `union` ist ein Git-Builtin (kein eigener
 # Merge-Driver nötig) und behält beide Seiten, statt Konfliktmarker zu schreiben. Das trägt nur,
 # solange ausschliesslich ANGEHÄNGT wird – Umsortieren/Umschreiben bestehender Zeilen bricht es.
-.claude/memory/MEMORY.md merge=union
+.ai-memory/MEMORY.md merge=union

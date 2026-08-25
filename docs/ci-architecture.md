@@ -195,7 +195,7 @@ per `sed`/`cat` nach `/tmp/claude-prompt.txt` assembliert und via `-p "$(cat /tm
 übergeben — vermeidet Shell-Quoting-Probleme. Triage (01) und Umsetzung (04) tragen ihren Prompt noch
 inline als Heredoc in der Workflow-Datei.
 
-**Memory (zwei Ebenen, `.claude/memory/`):** Die Snippets `memory-read.md`/`memory-write.md`
+**Memory (zwei Ebenen, `.ai-memory/`):** Die Snippets `memory-read.md`/`memory-write.md`
 adressieren beide. `MEMORY.md` ist das **eingecheckte Dauergedächtnis** über Tickets hinweg — es
 reist im normalen Commit der Phasen mit Commit-Auftrag (Spec, Umsetzung, Fixup) und kommt nie in
 den Issue-Storage, sonst überschriebe ein alter Stand beim Restore der Folgephase die frisch

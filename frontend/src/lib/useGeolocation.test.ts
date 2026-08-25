@@ -169,12 +169,20 @@ describe('useGeolocation – #933: Initial-Fetch, refresh(), Zeitstempel', () =>
 			success({ coords: { latitude: 48.137, longitude: 11.575 } });
 		});
 
-		renderGeoHook();
+		const { result } = renderGeoHook();
 
 		// Kein toggle(), kein advanceTimersByTime: Der Fetch muss allein durch den Mount ausgelöst werden.
+		// Mock-Assertions (#945/A AK2): Abfrage wurde angestoßen, Reverse Geocoding mit den Koordinaten.
 		await waitFor(() => {
 			expect(geoMock.getCurrentPosition).toHaveBeenCalledTimes(1);
 			expect(api.reverseGeocode).toHaveBeenCalledWith({ lat: 48.137, lon: 11.575 });
+		});
+
+		// Observable Outcomes (#945/A AK1, Spec issue-1003.md E1): Der Hook übernimmt Position UND
+		// Adresse in seinen State — Mock-Calls allein beweisen nicht, dass die Werte ankommen.
+		await waitFor(() => {
+			expect(result.current.position).toEqual({ latitude: 48.137, longitude: 11.575 });
+			expect(result.current.address).toBe('Musterstraße 1, 10117 Berlin');
 		});
 	});
 
