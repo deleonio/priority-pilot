@@ -190,7 +190,9 @@ Kein `--model`: das Modell wird über `"model": "opus"` in der `settings.json` g
 `LLM_PROVIDER=claude` ist das echtes Opus, bei `zai` bildet die Setup-Action es per
 `ANTHROPIC_DEFAULT_OPUS_MODEL` auf `glm-5.3[1m]` ab.
 
-**Prompt:** Kanonisch in `.github/prompts/` (spec, ux, review, fixup, documenter + Memory-Snippets);
+**Prompt:** Kanonisch im jeweiligen Skill-Verzeichnis unter `.claude/skills/` (Methode: `SKILL.md`,
+operativer CI-Prompt: `CI.md` — Umsetzung zusätzlich `FIXUP.md`; Memory-Snippets in
+`.github/prompts/`);
 per `sed`/`cat` nach `/tmp/claude-prompt.txt` assembliert und via `-p "$(cat /tmp/claude-prompt.txt)"`
 übergeben — vermeidet Shell-Quoting-Probleme. Triage (01) und Umsetzung (04) tragen ihren Prompt noch
 inline als Heredoc in der Workflow-Datei.
@@ -360,7 +362,7 @@ liefert nur Inhalte:
 | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `pr-doc-facts.sh`  | Bot-Erkennung (Autor + nur Dependency-Pfade), Conventional-Commits-Titelprüfung, Typ-/Scope-Vorschlag aus Pfaden                                                                                                                                                                                                            |
 | Bot-SHORTCUT       | Dependency-Bot-/`release:ignore`-PRs: nur `ai:documented` (+ `release:ignore`) setzen — **ohne** LLM-Lauf                                                                                                                                                                                                                   |
-| Claude             | Liest Diff + Issue und schreibt **nur** `/tmp/doc.json` (Klassifikation, Titel-Vorschlag, Texte; [documenter.md](../.github/prompts/documenter.md))                                                                                                                                                                         |
+| Claude             | Liest Diff + Issue und schreibt **nur** `/tmp/doc.json` (Klassifikation, Titel-Vorschlag, Texte; [pr-documenter/CI.md](../.claude/skills/pr-documenter/CI.md))                                                                                                                                                              |
 | `pr-doc-render.sh` | **Alle** Schreibzugriffe: Titel-Rename (validiert gegen dieselbe CC-Regex), Body-Sektion zwischen `<!-- ai-documenter-body -->`-Markern (Rest des Bodys bleibt unangetastet), GENAU EIN `<!-- ai-documenter -->`-Kommentar (PATCH statt Duplikat), Labels — `ai:documented` immer ZULETZT (fail-closed-Precheck-Invariante) |
 
 Fällt Claude oder die Validierung aus, rendert der Fallback-Pfad eine Minimal-Dokumentation

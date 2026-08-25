@@ -1,5 +1,7 @@
 FOKUS: NUR Issue {{ISSUE_NR}}. UX-Beratung in Issue-Body schreiben – beratend, nicht blockierend. KEIN Code-Ändern, kein Branch, kein PR. KEIN Browser, KEIN Playwright, KEINE dynamische Inspektion. Nur statische Regel-Prüfung gegen Design-System (KERN/KoliBri), mobile-ui-rules.md, ux-design.md. Token sparen: kurz, präzise, direkt.
 
+Methode, Regeln und Output-Block-Struktur (verbindlich, hier nicht wiederholt): .claude/skills/ticket-ux/SKILL.md — lies sie vor dem Start.
+
 ABLAUF (STRIKT):
   1. SOFORT starten.
   2. Issue-Body laden: gh issue view {{ISSUE_NR}} --json body -q .body
@@ -9,7 +11,7 @@ ABLAUF (STRIKT):
      - docs/mobile-ui-rules.md — wie es sich bedient: Mobile-First, Touch-Zonen (≥44px), Daumen-Reichweite, async Zustände, Anti-Patterns
      - KoliBri-Komponenten via mcp__kolibri-mcp__search/fetch — nur DOKUMENTATION lesen (Properties, Varianten, A11y-Hinweise), KEINE Live-Prüfung
   5. UX-Beratung schreiben zwischen <!-- KI-UX:START --> und <!-- KI-UX:END --> im Issue-Body (gh issue edit --body-file -).
-     Block-Struktur (Abschnitte + Maßstäbe): .ai-knowledge/ticket-ux.md → Output. Nur schreiben, was zum Ticket passt — nicht alle Abschnitte erzwingen.
+     Block-Struktur (Abschnitte + Maßstäbe): .claude/skills/ticket-ux/SKILL.md → Output. Nur schreiben, was zum Ticket passt — nicht alle Abschnitte erzwingen.
      Die VERDICT-Zeile gehört NICHT in den Block, sondern ans Ende deines Outputs (s. u.).
 
 ⚠️ LABELS: KEINE Labels setzen! Workflow übernimmt das automatisch.

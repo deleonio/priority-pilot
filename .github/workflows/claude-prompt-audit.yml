@@ -5,9 +5,11 @@ name: Prompt-Audit (nightly)
 # INITIALLE Token-Aufwand pro Phase minimieren, ohne dass Korrektheit, Vollständigkeit,
 # Präzision, Prägnanz, Klarheit oder Widerspruchsfreiheit leiden?
 #
-# PRÜFOBJEKT: .github/prompts/*.md (ux, spec, implement, review, fixup, documenter,
-# memory-read, memory-write) UND der Triage-Prompt, der INLINE als Heredoc in
-# 01-claude-triage.yml liegt. Referenz für Redundanz-Funde: .ai-knowledge/*.md + AGENTS.md.
+# PRÜFOBJEKT: die CI-Prompts in .claude/skills/*/CI.md bzw. FIXUP.md (ticket-ux, ticket-spec,
+# ticket-implementation, review-kreuzverhoer, pr-documenter) plus die Memory-Snippets
+# .github/prompts/memory-{read,write}.md UND der Triage-Prompt, der INLINE als Heredoc in
+# 01-claude-triage.yml liegt. Referenz für Redundanz-Funde: die zugehörigen SKILL.md-Dateien
+# der Skills, .ai-knowledge/*.md + AGENTS.md.
 #
 # DELIVERY: Bei Funden Issue mit Label ci:prompt-audit (bewusst NICHT ai:needs-analyse —
 # das würde die Ticket-Pipeline starten!). Ist bereits ein offenes Audit-Issue vorhanden,
@@ -122,12 +124,12 @@ jobs:
           RAHMEN (Leitfrage): Wie lässt sich der initiale Token-Aufwand pro Phase minimieren — ohne dass Korrektheit, Vollständigkeit, Präzision, Prägnanz, Klarheit oder Widerspruchsfreiheit leiden? Der Prompt ist nur EIN Teil des initialen Kontexts; auch Doppelungen gegen die Wissensbasis zahlen auf dieselbe Rechnung.
 
           PRÜFOBJEKT (alles selbst lesen):
-            1. Phasen-Prompts: .github/prompts/ux.md, spec.md, implement.md, review.md, fixup.md, documenter.md, memory-read.md, memory-write.md
+            1. CI-Prompts: .claude/skills/ticket-ux/CI.md, .claude/skills/ticket-spec/CI.md, .claude/skills/ticket-implementation/CI.md, .claude/skills/ticket-implementation/FIXUP.md, .claude/skills/review-kreuzverhoer/CI.md, .claude/skills/pr-documenter/CI.md, .github/prompts/memory-read.md, memory-write.md
             2. TRIAGE-Prompt: liegt INLINE als Heredoc in .github/workflows/01-claude-triage.yml (Block zwischen «cat > /tmp/claude-prompt.txt << 'CLAUDE_EOF'» und dessen «CLAUDE_EOF») — MITprüfen, er ist der längste Phasen-Prompt.
-            3. Referenz für Redundanz: .ai-knowledge/*.md und AGENTS.md — was dort schon steht, gehört NICHT wörtlich in einen Prompt (Verweis genügt).
+            3. Referenz für Redundanz: die SKILL.md-Dateien der gleichen Skills (die Methode, auf die jeder CI-Prompt verweist), .ai-knowledge/*.md und AGENTS.md — was dort schon steht, gehört NICHT wörtlich in einen Prompt (Verweis genügt).
 
           PRÜFKRITERIEN (je Prompt):
-            A. REDUNDANZ — steht der Inhalt (ganze Sätze, Regeln, Befehle, Templates) schon in .ai-knowledge/, AGENTS.md oder wörtlich in einem anderen Prompt? → Verweis statt Wiederholung.
+            A. REDUNDANZ — steht der Inhalt (ganze Sätze, Regeln, Befehle, Templates) schon in der SKILL.md des gleichen Skills, in .ai-knowledge/, AGENTS.md oder wörtlich in einem anderen Prompt? → Verweis statt Wiederholung.
             B. KÜRZBARKEIT — welche Absätze tragen denselben Informationsgehalt auch in halber Länge? Konkrete Umformulierung vorschlagen, geschätzte Ersparnis (Bytes/Zeilen) nennen.
             C. WIDERSPRUCH — widerspricht der Prompt anderen Prompts, AGENTS.md, der Wissensbasis oder der Workflow-Mechanik (Label-Verbote, Verdict-Kanäle, Soft-Deadline)?
             D. PRÄZISION/KLARHEIT — mehrdeutige oder weitschweifige Formulierungen, die ein Agent falsch verstehen kann.

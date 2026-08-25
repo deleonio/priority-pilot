@@ -204,7 +204,7 @@ jobs:
             Review-Schleifen, die teurer sind als der einmalige Aufpreis.
 
           UMSETZUNGSKONTEXT (der eigentliche Zweck dieser Phase — PFLICHT):
-            Methode, Rationale und Feldsemantik: .ai-knowledge/ticket-triage.md Schritt 4
+            Methode, Rationale und Feldsemantik: .claude/skills/ticket-triage/SKILL.md Schritt 4
             (verbindlich, hier nicht wiederholt) — lies den Abschnitt, bevor du den Block füllst.
             Operativ: Die fünf Felder (Betroffene Dateien / Komponenten / Vorhandenes Muster /
             Randbedingungen / Erwartetes Ergebnis) per Read/Glob/Grep AM CODE ermitteln, nicht
@@ -216,7 +216,7 @@ jobs:
             (Pfad bekannt) liest du selbst.
 
           SPEC NÖTIG? (Routing-Flag — unabhängig von der Aufwandsklasse):
-            Regel + Begründung: .ai-knowledge/ticket-triage.md Schritt 4, Abschnitt „Spec nötig".
+            Regel + Begründung: .claude/skills/ticket-triage/SKILL.md Schritt 4, Abschnitt „Spec nötig".
             Kurz: „nein" NUR, wenn das Ticket KEINEN Anwendungscode anfasst (server/src/**,
             frontend/src/**, frontend/e2e/**) — Begründung dann PFLICHT und muss sagen, WARUM
             eine Spezifikation nichts hinzufügt (nicht bloß „trivial"). Sonst IMMER „ja";
@@ -242,7 +242,7 @@ jobs:
 
           BODY-BLOCK-FORMAT:
             Kanonische Struktur (Abschnitte, Feldsemantik, stand-Timestamp, Erst- vs. Re-Triage-
-            Schreibregel): .ai-knowledge/ticket-triage.md Schritt 4 — exakt daraus übernehmen.
+            Schreibregel): .claude/skills/ticket-triage/SKILL.md Schritt 4 — exakt daraus übernehmen.
             Maschinell geparst und deshalb WÖRTLICH so zu schreiben (Zeilenanfang, ein Feld je Zeile):
               <!-- KI-ANALYSE:START stand=<ISO-8601-Datum> -->   (stand = date -u +%Y-%m-%dT%H:%M:%SZ)
               - UI-Bezug: ja|nein

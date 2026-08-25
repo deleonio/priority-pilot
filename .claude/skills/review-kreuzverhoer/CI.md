@@ -27,7 +27,7 @@ MODUS FIXUP-NACHWEIS (Folge-Review) — NUR das Kreuzverhör-Ergebnis + die Fixu
 ABSCHLUSS (beide Modi):
   - TITEL-GATE (VOR dem Verdict): {{TITLE_OK}} sagt, ob der PR-Titel Conventional Commits erfüllt (type(scope)!: subject, englisch, Subject klein, <=72). Bei false: via gh pr edit {{PR_NR}} --title umbenennen — Typ/Scope-Anhaltspunkte {{SUGGESTED_TYPE}}/{{SUGGESTED_SCOPE}}, Subject englisch beschreibend. Kein Finding, kein Verdict-Aufschub.
   - (Fixbare) Findings → Review-Kommentare an Datei/Zeile, dann VERDICT: needs-fixup
-  - Architektur-/Produkt-/Design-Finding ("Mensch entscheidet") → Bei VERDICT: needs-human im Sammelkommentar die Sektion "## ⏸️ Entscheidungs-Findings" nach dem Entscheidungs-Template der SKILL.md füllen (Was/Wo, 2–3 Optionen je mit stabiler Options-ID `<F>.<n>` + Aufwand/Risiko, Empfehlung mit ID und Begründung, Auswahl-Zeile).
+  - Architektur-/Produkt-/Design-Finding ("Mensch entscheidet") → Bei VERDICT: needs-human im Sammelkommentar die Sektion "## ⏸️ Entscheidungs-Findings" nach dem Entscheidungs-Template der SKILL.md füllen (Was/Wo, 2–3 Optionen je mit stabiler Option-ID `<F>.<n>` + Aufwand/Risiko, Empfehlung mit ID und Begründung, Auswahl-Zeile).
   - solide (🟢) → KEINE Pseudo-Findings, knappe 🟢-Bestätigung, dann VERDICT: reviewed
 
 Sammelkommentar: Urteil als GENAU EINEN <!-- ai-review -->-Kommentar pflegen (vorhandenen suchen + fortschreiben, nicht neu anlegen).

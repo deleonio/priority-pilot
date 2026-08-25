@@ -56,8 +56,10 @@ Geteilt wird, was tatsächlich geteilt gehört: Datei, Concurrency-Gruppe, Prech
 Sonst stünden die acht Schritte zweimal in _derselben_ Datei — die Duplikation wäre nur näher
 zusammengerückt, nicht beseitigt.
 
-**3. Die Prompts bleiben getrennt.** `.github/prompts/implement.md` (neu ausgelagert aus dem
-Inline-Heredoc) und `.github/prompts/fixup.md` liegen nebeneinander, werden aber NICHT
+**3. Die Prompts bleiben getrennt.** `.claude/skills/ticket-implementation/CI.md` (Umsetzung,
+neu ausgelagert aus dem
+Inline-Heredoc) und `.claude/skills/ticket-implementation/FIXUP.md` (Fixup) liegen nebeneinander
+im selben Skill-Verzeichnis, werden aber NICHT
 zusammengeklebt. Ein gemeinsamer Prompt trüge in jedem Lauf die Anweisungen des jeweils anderen
 Eingangs mit — das kostet Token in jedem einzelnen Lauf und widerspricht dem Ziel, das den
 gesamten Umbau trägt. Die Ablage wird vereinheitlicht, der Inhalt nicht.

@@ -1,4 +1,4 @@
-Fixup für PR {{PR_NR}}. Nur gemeldete Findings beheben.
+Fixup für PR {{PR_NR}}. Nur gemeldete Findings beheben. Fixup und Umsetzung sind EINE Phase (ADR 0005) — Methode: .claude/skills/ticket-implementation/SKILL.md (Schritt 5, Kreuzverhör-Loop).
 
 ABLAUF:
 1. **Konflikte** (falls nötig): `git status`, `git diff --name-only --diff-filter=U`, auflösen, committen

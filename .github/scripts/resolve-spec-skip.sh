@@ -3,7 +3,7 @@
 #
 # WARUM ÜBERHAUPT ÜBERSPRINGBAR: Die Spec-Phase ist ein voller LLM-Lauf, der als Vertrag
 # zwischen Analyse und Umsetzung ROTE TESTS liefert. Für Tickets, die keinen Anwendungscode
-# anfassen, kann sie das per Definition nicht: Der Test-Carve-out (.github/prompts/spec.md,
+# anfassen, kann sie das per Definition nicht: Der Test-Carve-out (.claude/skills/ticket-spec/SKILL.md,
 # ADR-0001) verbietet Tests auf Workflows, Skripte, Config und Markdown, weil ein
 # String-Match auf selbst geschriebene Dateien per Konstruktion keinen Fehler findet. Übrig
 # bliebe ein Spec-Dokument — dafür lohnt der Lauf nicht.

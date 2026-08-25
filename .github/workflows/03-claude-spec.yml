@@ -204,10 +204,10 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
-          # Prompt liegt kanonisch in .github/prompts/spec.md (Quelle fuer CI + lokalen /spec-ticket-Command).
+          # Prompt liegt kanonisch in .claude/skills/ticket-spec/CI.md (Quelle fuer CI).
           sed -e "s/{{ISSUE_NR}}/${{ github.event.issue.number }}/g" \
               -e "s/{{SOFT_DEADLINE}}/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" \
-              .github/prompts/spec.md > /tmp/claude-prompt.txt
+              .claude/skills/ticket-spec/CI.md > /tmp/claude-prompt.txt
 
           # RESUME_HINT: Draft-Wiederverwendung oder Neu-Lauf
           if [ "${REUSE_DRAFT}" = "true" ]; then

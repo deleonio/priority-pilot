@@ -5,7 +5,7 @@
 # Struktur-Entscheidungen — im LLM-Prompt waren sie Prosa und drifteten (empirisch:
 # "### Release Note (feat, dx)" vs. "**Release Note (fixed/ci):**" vs. drittes Format
 # auf #698/#690/#684). Dieses Skript konsumiert das LLM-Ergebnis (/tmp/doc.json, s.
-# .github/prompts/documenter.md), validiert es hart und rendert daraus:
+# .claude/skills/pr-documenter/CI.md), validiert es hart und rendert daraus:
 #   1. Titel   — nur wenn doc.title valid ist (gleiche CC-Regex wie pr-doc-facts.sh)
 #   2. Body    — eigene Sektion zwischen <!-- ai-documenter-body -->-Markern, REST DES
 #                BODYS BLEIBT UNANGETASTET (Implement-/Human-Beschreibung bleibt stehen)
@@ -91,7 +91,7 @@ if [ -s "$DOC" ]; then
       NEW_TITLE=""
     fi
   else
-    echo "::warning title=doc.json ungültig::Validierung fehlgeschlagen (Schema siehe .github/prompts/documenter.md) — Fallback-Dokumentation."
+    echo "::warning title=doc.json ungültig::Validierung fehlgeschlagen (Schema siehe .claude/skills/pr-documenter/CI.md) — Fallback-Dokumentation."
   fi
 else
   echo "::warning title=doc.json fehlt::Claude hat keine Ausgabedatei geschrieben — Fallback-Dokumentation."

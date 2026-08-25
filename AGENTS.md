@@ -8,10 +8,10 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 
 - [Projekt & Aufbau](.ai-knowledge/project.md) — Zweck, Monorepo, Befehle, Datenbank
 - [Konventionen](.ai-knowledge/conventions.md) — Formatierung, ESLint, TypeScript, Commits, Mobile-First
-- [Ticket-Triage](.ai-knowledge/ticket-triage.md) — Analyse offener GitHub-Issues
-- [Ticket-UX](.ai-knowledge/ticket-ux.md) — UX-Beratung für UI-Tickets
-- [Ticket-Spec](.ai-knowledge/ticket-spec.md) — rote Tests (Vertrag) für `ai:needs-spec`-Issues
-- [Ticket-Umsetzung](.ai-knowledge/ticket-implementation.md) — freigegebene Issues (`ai:needs-impl`) umsetzen
+- [Ticket-Triage](.claude/skills/ticket-triage/SKILL.md) — Analyse offener GitHub-Issues
+- [Ticket-UX](.claude/skills/ticket-ux/SKILL.md) — UX-Beratung für UI-Tickets
+- [Ticket-Spec](.claude/skills/ticket-spec/SKILL.md) — rote Tests (Vertrag) für `ai:needs-spec`-Issues
+- [Ticket-Umsetzung](.claude/skills/ticket-implementation/SKILL.md) — freigegebene Issues (`ai:needs-impl`) umsetzen
 - [PR-Review (Kreuzverhör)](.claude/skills/review-kreuzverhoer/SKILL.md) — PRs adversarial prüfen, Findings kommentieren
 - [TDD-Strategie](.ai-knowledge/tdd-strategy.md) — test-getriebene KI-Workflows (Stufen 1+2+3 adoptiert)
 - [Multi-Provider-CI](.ai-knowledge/multi-provider-ci.md) — Provider-Setup, Secrets, setup-claude-Action
@@ -50,7 +50,7 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 - `pnpm format` (Prettier, zentrale Root-Config) und `pnpm lint` — gezielt statt repo-weit:
   `pnpm --filter server build|lint`.
 - **Nicht automatisch committen** ohne ausdrücklichen Wunsch. Ausnahme: die Ticket-Workflows
-  ([Spec](.ai-knowledge/ticket-spec.md), [Umsetzung](.ai-knowledge/ticket-implementation.md) — beide
+  ([Spec](.claude/skills/ticket-spec/SKILL.md), [Umsetzung](.claude/skills/ticket-implementation/SKILL.md) — beide
   Eingänge) committen, pushen und erstellen/aktualisieren PRs als ausdrücklichen Teil ihres Auftrags,
   inkl. eines etwaigen [Memory](#memory)-Eintrags im Phasen-Commit.
 - Jeder PR führt `pnpm format`, `pnpm lint` **und `pnpm test`** aus (grün ist Pflicht,
@@ -98,10 +98,10 @@ durch `ai:needs-analyse`. Ablauf, Trigger, Info-Labels: [Pipeline-Flow](docs/pip
 Provider, Modelle, Soft-Abort, MCP-Integration (KoliBri-MCP in allen Phasen außer Documenter,
 Playwright-MCP in UX und Umsetzung): [CI-Architektur](docs/ci-architecture.md).
 
-**Jede Phase liest nur ihre eigene Wissensbasis-Datei** (siehe [Wissensbasis](#wissensbasis)) plus
+**Jede Phase liest nur ihren eigenen Phase-Skill** (siehe [Wissensbasis](#wissensbasis)) plus
 das Issue/PR — kein domänenübergreifendes Lesen. Routing (Modell-Label `ai:model:*`, Spec-Skip)
 entscheidet die Triage je Subtask im `KI-ANALYSE`-Block — Details:
-[ADR 0004](docs/adr/0004-analyse-getriebenes-routing.md), [Triage-Wissensbasis](.ai-knowledge/ticket-triage.md).
+[ADR 0004](docs/adr/0004-analyse-getriebenes-routing.md), [Triage-Skill](.claude/skills/ticket-triage/SKILL.md).
 
 ## Tests (Server)
 

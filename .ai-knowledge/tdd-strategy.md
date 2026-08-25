@@ -3,13 +3,13 @@
 > **Status: Stufen 1 + 2 + 3 adoptiert.** Dieses Dokument hält den Plan fest, mit dem die
 > KI-Workflows (Triage → Spec → Umsetzung → Review) test-getrieben sind.
 > **Stufe 1 (Szenario 1):** Die Triage erzeugt prüfbare Akzeptanzkriterien + Testfälle
-> ([ticket-triage.md](ticket-triage.md) Schritt 1/4), die Issue-Templates fragen sie ab.
+> ([ticket-triage](../.claude/skills/ticket-triage/SKILL.md) Schritt 1/4), die Issue-Templates fragen sie ab.
 > **Stufe 2 (Szenario 2):** Die Umsetzung folgt Red-Green, `pnpm test` ist PR-Pflicht, das Review
 > macht fehlende/rote Tests zum Gate ([review-kreuzverhoer-Skill](../.claude/skills/review-kreuzverhoer/SKILL.md) Schritt 3/5).
 > **Stufe 3 (Szenario 3):** Eigenes Spec-Gate — die Analyse setzt `ai:needs-ux-ui`/`ai:needs-spec`
 > statt direkt `ai:needs-impl`, zwischen Analyse und dem Spec-Lauf laeuft optional die UX-Beratung
 > (die Analyse entscheidet per UI-Bezug-Feld im Analyse-Block; Nicht-UI-Tickets ueberspringen UX),
-> ein eigener Lauf ([ticket-spec.md](ticket-spec.md),
+> ein eigener Lauf ([ticket-spec](../.claude/skills/ticket-spec/SKILL.md),
 > [spec.yml](../.github/workflows/03-claude-spec.yml)) schreibt die roten Tests auf einen
 > Draft-PR und gibt per `ai:needs-impl` frei; die Umsetzung macht sie grün, ohne
 > sie zu ändern (Gewaltenteilung).
@@ -17,7 +17,7 @@
 ## Problem: Die KI „schlingert", weil eine _ausführbare_ Spezifikation fehlt
 
 Ohne diese Strategie erzeugt die Pipeline als Spezifikation **Prosa + Umsetzbarkeits-Ampel** (Triage,
-[ticket-triage.md](ticket-triage.md) Schritt 4). Die Umsetzung ([ticket-implementation.md](ticket-implementation.md)
+[ticket-triage](../.claude/skills/ticket-triage/SKILL.md) Schritt 4). Die Umsetzung ([ticket-implementation](../.claude/skills/ticket-implementation/SKILL.md)
 Schritt 3) muss daraus selbst ableiten, was „fertig" bedeutet — und interpretiert das bei jeder
 Iteration neu. Es gibt keinen fixen, einklagbaren Vertrag, an dem sich die Umsetzung festhält.
 
@@ -37,13 +37,13 @@ die 1:1 zu Tests werden können.
 
 **Was sich ändert:**
 
-- [ticket-triage.md](ticket-triage.md) Schritt 1 + 4: Triage formuliert **Akzeptanzkriterien +
+- [ticket-triage](../.claude/skills/ticket-triage/SKILL.md) Schritt 1 + 4: Triage formuliert **Akzeptanzkriterien +
   konkrete Testfälle** (welche Datei, welche Assertion) als festen Bestandteil des Analyse-Body-Blocks.
-- [ticket-triage.md](ticket-triage.md) Schritt 4: 🟢 setzt zusätzlich voraus, dass die AK **prüfbar**
+- [ticket-triage](../.claude/skills/ticket-triage/SKILL.md) Schritt 4: 🟢 setzt zusätzlich voraus, dass die AK **prüfbar**
   formuliert sind (sonst 🟡).
 - ~~`.github/ISSUE_TEMPLATE/bug_report.yml` + `feature_request.yml`: Feld „Akzeptanzkriterien / Wie
   verifiziert man die Lösung?".~~ — Issue-/PR-Templates am 2026-08-13 entfernt; die AK-Pflicht trägt
-  nun [ticket-triage.md](ticket-triage.md) Schritt 4 (AK + Testfälle im Analyse-Body).
+  nun [ticket-triage](../.claude/skills/ticket-triage/SKILL.md) Schritt 4 (AK + Testfälle im Analyse-Body).
 
 **Stärke gegen Schlingern:** mittel — klare Zielliste, aber noch Interpretationsspielraum (Prosa).
 **Kosten:** niedrig (nur Doku/Templates). **Risiko:** minimal.
@@ -51,12 +51,12 @@ die 1:1 zu Tests werden können.
 
 ### Szenario 2 — „Red-Green im Umsetzungs-Schritt" (Spec = Tests, KI schreibt sie zuerst selbst) ✅ adoptiert
 
-**Kerngedanke:** [ticket-implementation.md](ticket-implementation.md) Schritt 3 wird ein echter
+**Kerngedanke:** [ticket-implementation](../.claude/skills/ticket-implementation/SKILL.md) Schritt 3 wird ein echter
 Red-Green-Refactor-Loop.
 
 **Was sich ändert:**
 
-- [ticket-implementation.md](ticket-implementation.md) Schritt 3:
+- [ticket-implementation](../.claude/skills/ticket-implementation/SKILL.md) Schritt 3:
   **(a)** rote Tests aus den AK schreiben → als **erster Commit** sichtbar,
   **(b)** Code implementieren, bis Tests grün sind (`pnpm test` als primärer Erfolgsindikator),
   **(c)** erst danach `pnpm format` + Lint.
@@ -82,7 +82,7 @@ einem eigenen Schritt vor der Freigabe.
   anlegt. Zwischen Analyse und dem Spec-Lauf laeuft optional die UX-Beratung (Phase 2, entschieden
   per UI-Bezug in der Analyse; Nicht-UI-Tickets bekommen `ai:needs-spec` sofort und ueberspringen
   UX). `ai:needs-impl` erst, wenn die roten Tests stehen.
-- [ticket-implementation.md](ticket-implementation.md): Die Umsetzung darf die Tests **nicht ändern**,
+- [ticket-implementation](../.claude/skills/ticket-implementation/SKILL.md): Die Umsetzung darf die Tests **nicht ändern**,
   nur grün machen (Tests sind der Vertrag).
 - Neue/erweiterte GitHub-Action analog `.github/workflows/implement.yml`.
 
@@ -140,7 +140,7 @@ krachen (fehlender Build-Step, falscher Host, vergessenes Secret) — dafür ist
 Getestet wird **nur Anwendungscode** (`server/src/**`, `frontend/src/**`) sowie Frontend-E2E
 (`frontend/e2e/**`). Für `.github/workflows/`, `.github/scripts/`, die `setup-claude`-Composite-Actions,
 die `ci.yml`/`deploy.yml`-Plumbing, Config-Dateien (`.yml`/`.json`/`.toml`) und **Markdown-Inhalt
-(jede `.md`-Datei, egal wo — auch Spec-Prompts `.github/prompts/*.md` und `docs/spec/*.md`)** werden
+(jede `.md`-Datei, egal wo — auch CI-Prompts (`.claude/skills/*/CI.md`) und `docs/spec/*.md`)** werden
 **keine** Tests geschrieben oder gepflegt. Meta-Tests auf diese Dateien sind überwiegend
 Tautologie-/Change-Detector-Tests ohne Fehlerfangwert (sie re-encodieren die Datei und werden rot bei
 _Änderung_, nicht bei _Defekt_) und blockieren den Pipeline-Umbau durch ständigen Meta-Test-Churn — sie

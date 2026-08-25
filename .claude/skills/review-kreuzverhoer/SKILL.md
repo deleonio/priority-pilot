@@ -1,6 +1,6 @@
 ---
 name: review-kreuzverhoer
-description: "PR-Kreuzverhör — Pull Requests adversarial reviewen, Findings als Inline-Kommentare posten, Ampel-Urteil im ai-review-Sammelkommentar. Nutzen bei „review PR <Nr>“, „prüf/kreuzverhöre diesen PR“, Re-Review nach Fixup. CI-Phase 5/7 arbeitet mit derselben Methode (.github/prompts/review.md)."
+description: "PR-Kreuzverhör — Pull Requests adversarial reviewen, Findings als Inline-Kommentare posten, Ampel-Urteil im ai-review-Sammelkommentar. Nutzen bei „review PR <Nr>“, „prüf/kreuzverhöre diesen PR“, Re-Review nach Fixup. CI-Phase 5/7 arbeitet mit derselben Methode (CI-Prompt: CI.md neben dieser Datei)."
 allowed-tools: Read, Grep, Glob, Bash(gh *)
 ---
 
@@ -8,7 +8,7 @@ allowed-tools: Read, Grep, Glob, Bash(gh *)
 
 Prüft einen Pull Request **kritisch wie im Kreuzverhör**. Diese Datei ist die kanonische Methode
 für lokale/manuelle Reviews — die CI-Review-Phase (5/7) setzt sie über den operativen Prompt
-`.github/prompts/review.md` um.
+`CI.md` (neben dieser Datei) um.
 
 PRs = Pull Requests von `deleonio/priority-pilot`. Voraussetzung: `gh` ist authentifiziert.
 
@@ -49,7 +49,7 @@ Den Diff gegen diese Fragen prüfen:
 - **Security:** Eingabevalidierung, Injection (SQL/Pfad), Secrets im Code, fehlende AuthZ-Prüfungen.
 - **Regression/Obsoleszenz:** Macht die Änderung bestehende Tests oder Verhalten **außerhalb des
   Diffs** obsolet oder widerspricht sie ihnen (Anforderung geändert)? **Hinweis:** Obsolete Tests sollten bereits in der Spec-Stufe entfernt worden sein (ticket-spec.md). Falls trotzdem noch ein Widerspruch auffällt → als Finding benennen („Test-Pflege-Bedarf" mit Datei/Zeile) — nicht still hinnehmen, aber auch nicht selbst ändern (Anpassung/Entfernung entscheidet der Mensch bzw. ein Folge-Spec).
-- **KoliBri-First bei UI-Änderungen** ([conventions.md](.ai-knowledge/conventions.md)): Eigenes Styling ohne KoliBri-Alternative?
+- **KoliBri-First bei UI-Änderungen** ([conventions.md](../../../.ai-knowledge/conventions.md)): Eigenes Styling ohne KoliBri-Alternative?
   Im Zweifel via `mcp__kolibri-mcp__search` nach Alternativen suchen. Fehlende Begründung der
   Eigene-Styling-Entscheidung im PR-Body ist ein Finding.
 
@@ -58,20 +58,20 @@ Den Diff gegen diese Fragen prüfen:
 - **Benennung & Lesbarkeit:** sprechende Namen, klare Funktionsschnitte, Kommentare nur wo nötig.
 - **Tests (Pflicht-Gate):** Sind die Akzeptanzkriterien des Tickets durch **grüne** Tests abgedeckt?
   Decken sie die neuen Pfade und Edge Cases ab? Ist die test-getriebene Reihenfolge erkennbar (Tests
-  als eigener/erster Commit, vgl. [ticket-implementation.md](.ai-knowledge/ticket-implementation.md) Schritt 3)?
+  als eigener/erster Commit, vgl. [ticket-implementation](../ticket-implementation/SKILL.md) Schritt 3)?
   **Fehlende Tests für ein Akzeptanzkriterium oder rote Tests verhindern ein 🟢** (Ausnahme: reines
   Styling/Layout, im PR begründet). Bei **Spec-PRs** (Stufe 3) zusätzlich: Wurden die **roten
   Spec-Tests aus dem ersten Commit unverändert grün** gemacht? Aufgeweichte/gelöschte oder dem Code
   angepasste Spec-Tests sind ein **Gewaltenteilungs-Bruch** → kein 🟢, außer eine Test-Korrektur ist
   im PR begründet zurückgemeldet und freigegeben.
-- **Test-Substanz statt Test-Menge** ([tdd-strategy.md → Testumfang](.ai-knowledge/tdd-strategy.md#testumfang--so-viel-wie-nötig-so-wenig-wie-irgend-möglich)):
+- **Test-Substanz statt Test-Menge** ([tdd-strategy.md → Testumfang](../../../.ai-knowledge/tdd-strategy.md#testumfang--so-viel-wie-nötig-so-wenig-wie-irgend-möglich)):
   Viele Tests sind kein Qualitätsmerkmal. Bei jedem neuen Test gegenprüfen, ob er überhaupt scheitern
   **kann** — Tests, die nur bestätigen, dass eine Datei den selbst geschriebenen String enthält, sind
   ein Finding („tautologischer Test"), kein Pluspunkt. Ebenso ein Finding: ein All-Quantor („für alle
   X gilt…") ohne Absicherung, dass die geprüfte Menge nicht leer ist.
-- **Projekt-Konventionen** ([conventions.md](.ai-knowledge/conventions.md)): Tabs, `strict`, ESM mit `.js`-Importen,
+- **Projekt-Konventionen** ([conventions.md](../../../.ai-knowledge/conventions.md)): Tabs, `strict`, ESM mit `.js`-Importen,
   keine Type-Assertions zum Unterdrücken von Fehlern, genau eine zentrale Prettier-Config.
-- **Mobile-First bei UI-Änderungen** ([conventions.md](.ai-knowledge/conventions.md)): neue `@media`-Regeln als
+- **Mobile-First bei UI-Änderungen** ([conventions.md](../../../.ai-knowledge/conventions.md)): neue `@media`-Regeln als
   `min-width` (Aufwärts-Kaskade), kein `max-width`-Downgrade vom Desktop aus. Breite Tabellen/Grids ohne
   schmale Alternative auf Handy-Breite prüfen (horizontales Scrollen des Kerninhalts vermeiden). Fehlt
   bei sichtbarer UI-Änderung ein 375px-Viewport-e2e-Test (siehe `login.spec.ts` AK5,
