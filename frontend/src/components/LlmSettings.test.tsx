@@ -171,6 +171,31 @@ describe('LlmSettings — Modellwahl des aktiven Providers', () => {
 		await waitFor(() => expect(screen.getByText(/KI-Features bereit/)).toBeInTheDocument());
 	});
 
+	it('readiness: konfiguriert + Test ok → grün mit „getestet“', async () => {
+		testMock.mockResolvedValue({ ok: true, model: 'mistral-medium-latest', latencyMs: 210, sample: '{"ok": true}' });
+		render(<LlmSettings />);
+		await waitFor(() => expect(screen.getByText('Provider verwalten')).toBeInTheDocument());
+
+		fireEvent.click(screen.getAllByRole('button', { name: 'Testen' })[0]);
+		await waitFor(() => expect(screen.getByText(/getestet, 210 ms/)).toBeInTheDocument());
+	});
+
+	it('readiness: konfiguriert, aber Test schlägt fehl → roter Hinweis mit Ursache', async () => {
+		testMock.mockResolvedValue({ ok: false, message: 'Mistral antwortete mit HTTP 402: Check your subscription' });
+		render(<LlmSettings />);
+		await waitFor(() => expect(screen.getByText('Provider verwalten')).toBeInTheDocument());
+
+		fireEvent.click(screen.getAllByRole('button', { name: 'Testen' })[0]);
+		await waitFor(() => expect(screen.getByText(/KI-Features schlagen derzeit fehl/)).toBeInTheDocument());
+		// Ursache erscheint doppelt (inline Test-Ergebnis + readiness-Hinweis) — beides gewollt.
+		expect(screen.getAllByText(/Check your subscription/).length).toBeGreaterThanOrEqual(2);
+	});
+
+	it('readiness: konfiguriert, noch ungetestet → blauer Hinweis mit Testen-Hinweis', async () => {
+		render(<LlmSettings />);
+		await waitFor(() => expect(screen.getByText(/KI-Features bereit \(noch ungetestet\)/)).toBeInTheDocument());
+	});
+
 	it('warnt, wenn der aktive Provider ohne ENV-Key ist', async () => {
 		listMock.mockResolvedValue([{ ...mistral, isActive: true, hasApiKey: false }]);
 
@@ -204,7 +229,7 @@ describe('LlmSettings — Test-Prompt je Provider', () => {
 
 		fireEvent.click(screen.getAllByRole('button', { name: 'Testen' })[0]);
 
-		await waitFor(() => expect(screen.getByText(/Test fehlgeschlagen/)).toBeInTheDocument());
-		await waitFor(() => expect(screen.getByText(/Check your subscription/)).toBeInTheDocument());
+		await waitFor(() => expect(screen.getAllByText(/Test fehlgeschlagen/).length).toBeGreaterThanOrEqual(1));
+		await waitFor(() => expect(screen.getAllByText(/Check your subscription/).length).toBeGreaterThanOrEqual(1));
 	});
 });

@@ -1,5 +1,29 @@
 import { findProviderByName } from '../llm/llmProviders.js';
+import { MissingApiKeyError, MistralRequestError } from '../llm/llm.js';
 import type { LlmProvider } from '../llm/llm.js';
+import type { Response } from 'express';
+import type { components } from '../api.js';
+
+/**
+ * Sendet einen LLM-Fehler einheitlich für ALLE LLM-Routen — inkl. Handlungshinweis, wo der
+ * Nutzer den Provider prüfen kann. Ohne den Hinweis bleibt unklar, dass „HTTP 402: Check your
+ * subscription“ & Co. über Einstellungen → KI-Provider (Testen-Button) diagnostizierbar sind.
+ *
+ * - {@link MissingApiKeyError} → 503 (kein Provider/Key/Modell)
+ * - {@link MistralRequestError} → 502 (Upstream-Fehler inkl. Detail, siehe callProvider)
+ * - alles andere → 500 (intern, unverändert ohne Hinweis)
+ */
+export const sendLlmError = (res: Response<components['schemas']['Error']>, error: unknown): void => {
+	if (error instanceof MissingApiKeyError) {
+		res.status(503).json({ message: `${error.message} (Einstellungen → KI-Provider: „Testen“ zeigt die Ursache.)` });
+		return;
+	}
+	if (error instanceof MistralRequestError) {
+		res.status(502).json({ message: `${error.message} (Einstellungen → KI-Provider: „Testen“ zeigt die Ursache.)` });
+		return;
+	}
+	res.status(500).json({ message: 'Interner Serverfehler.' });
+};
 
 /**
  * Validiert den optionalen `provider`-Query-Parameter — für alle LLM-Routen

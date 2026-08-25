@@ -69,10 +69,10 @@ export type ParseTaskParser = (text: string, provider?: LlmProvider) => Promise<
  */
 export type LlmProvider = string | undefined;
 
-/** Fehlt der API-Key, ist der Dienst nicht konfiguriert → der Handler antwortet mit HTTP 503. */
+/** Der Dienst ist nicht nutzbar (kein Provider/Key/Modell) → der Handler antwortet mit HTTP 503. */
 export class MissingApiKeyError extends Error {
-	constructor(providerLabel = 'Mistral', envVar = 'MISTRAL_API_KEY') {
-		super(`${envVar} ist nicht gesetzt — der LLM-Provider (${providerLabel}) ist nicht konfiguriert.`);
+	constructor(message: string) {
+		super(message);
 		this.name = 'MissingApiKeyError';
 	}
 }
@@ -404,14 +404,20 @@ const requestModelJson = async (
 	// GENAU EIN Call an den aufgelösten Provider — keine Kaskade, kein Provider-Fallback.
 	const resolved = await resolveProvider(provider);
 	if (resolved === null) {
-		throw new MissingApiKeyError('kein aktiver Provider', 'LLM_PROVIDERS');
+		throw new MissingApiKeyError(
+			'Kein aktiver LLM-Provider — wähle einen unter Einstellungen → KI-Provider und teste ihn dort.',
+		);
 	}
 	const runtime = toRuntimeConfig(resolved);
 	if (!runtime.apiKey) {
-		throw new MissingApiKeyError(runtime.label, runtime.keySource);
+		throw new MissingApiKeyError(
+			`${runtime.label}: API-Key fehlt (${runtime.keySource}) — Provider in den Einstellungen prüfen.`,
+		);
 	}
 	if (!runtime.model) {
-		throw new MissingApiKeyError(resolved.name, `Modell von ${resolved.name}`);
+		throw new MissingApiKeyError(
+			`${resolved.name}: kein Modell gewählt — Modell in den Einstellungen (KI-Provider) festlegen.`,
+		);
 	}
 	return callProvider(toDynamicProviderConfig(resolved), messages);
 };

@@ -52,8 +52,13 @@ Basis-URL und Key in der `llm_providers`-Tabelle (ein gespeicherter `/chat/compl
 aus Altbeständen wird toleriert).
 
 **Fehlerverhalten:** Kein aktiver Provider, fehlender Key oder fehlendes Modell → HTTP 503 mit
-klarer Meldung. Upstream-Fehler des Providers (HTTP-Fehler, Timeout, ungültige Antwort) → HTTP 502.
-Ein Fallback auf einen _anderen_ Provider bei Upstream-Fehlern gibt es bewusst nicht — der
+klarer Meldung. Upstream-Fehler des Providers (HTTP-Fehler inkl. Detailursache, Timeout,
+ungültige Antwort) → HTTP 502. Jede LLM-Fehlermeldung trägt einen Hinweis auf Einstellungen →
+KI-Provider („Testen“ zeigt die Ursache) — dort verrät der Test-Button sofort, ob Key, Modell,
+Endpoint oder z. B. ein abgelaufenes Abo (Mistral-HTTP 402) das Problem ist. Der Bereitschafts-
+Hinweis im Settings-Tab bindet das letzte Test-Ergebnis des aktiven Providers ein: „bereit
+(getestet)“, „bereit (noch ungetestet)“ oder rot „KI-Features schlagen derzeit fehl: …“. Ein
+Fallback auf einen _anderen_ Provider bei Upstream-Fehlern gibt es bewusst nicht — der
 Built-in-Fallback greift nur bei der _Auswahl_, nicht bei Fehlerfällen.
 
 ---

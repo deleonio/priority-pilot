@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { lektoratTextWithMistral, MissingApiKeyError, MistralRequestError } from '../../llm/llm.js';
-import { validateProviderQuery } from '../llmProviderQuery.js';
+import { lektoratTextWithMistral } from '../../llm/llm.js';
+import { sendLlmError, validateProviderQuery } from '../llmProviderQuery.js';
 
 type ErrorDto = { message: string };
 
@@ -88,15 +88,7 @@ export const lektoratRouter = (): Router => {
 			);
 			res.json({ text: result.text });
 		} catch (error) {
-			if (error instanceof MissingApiKeyError) {
-				sendError(res, 503, error.message);
-				return;
-			}
-			if (error instanceof MistralRequestError) {
-				sendError(res, 502, error.message);
-				return;
-			}
-			sendError(res, 500, 'Interner Serverfehler.');
+			sendLlmError(res, error);
 		}
 	});
 
