@@ -13,10 +13,10 @@
       "timestamp": "2026-08-25T13:22:08Z"
     },
     "review": {
-      "sessionId": "7d30730e-54fa-47c7-a86f-e1debb04b7eb",
-      "runId": "32852933541",
+      "sessionId": "c7dfe213-bc55-4176-8da0-9cb07332c905",
+      "runId": "32857305364",
       "branch": "feat/issue-1021-bildentfernung",
-      "timestamp": "2026-08-25T13:29:09Z"
+      "timestamp": "2026-08-25T14:12:07Z"
     },
     "fixup": {
       "sessionId": "abda2f90-e906-470f-93fc-8420180d5214",
