@@ -1,7 +1,6 @@
 # Aufgabenbaum-Layout – Priority Pilot
 
 **Stand:** 2026-08-25  
-**Version:** v1.1 (2026-08-25): Nightly-Sync — Tab-Label auf Ist korrigiert („Wald", nicht „Aufgabenwald").  
 **Ziel:** Saubere, strukturierte Darstellung des Aufgabenbaums mit klarer Hierarchie (Issue #704, Teil von #702)
 
 Dieser Spec beschreibt das beobachtbare Verhalten des Aufgabenbaum-Layouts, insbesondere die visuelle Darstellung verschachtelter Aufgabenstrukturen.
@@ -78,9 +77,3 @@ Den Aufgabenbaum so darstellen, dass verschachtelte Strukturen sofort erkennbar 
 - **Format:** Dieser Spec beschreibt das beobachtbare Verhalten, nicht die technische Implementierung.
 - **Test-Strategie:** Da es sich um Layout/UI handelt, werden Tests primär über E2E-Tests abgebildet, die das visuelle Ergebnis prüfen.
 - **UX-Prinzipien:** Der Spec orientiert sich an etablierten UI-Prinzipien (Whitespace, visuelle Hierarchie, Konsistenz).
-
----
-
-## Versionierung
-
-- **v1.0** (2026-08-16): Initialefassung für Issue #704.

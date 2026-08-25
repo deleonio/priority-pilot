@@ -1,7 +1,6 @@
 # Issue 728: Checklist-Abstände (CSS Gaps)
 
-**Stand:** 2026-08-23  
-**Version:** v1.1 (2026-08-23): Nightly-Sync — Soll-Arbeitsauftrag durch Ist-Beschreibung ersetzt (Verhalten ist per E2E `issue-728-checklist-layout.spec.ts` gesichert).
+**Stand:** 2026-08-23
 
 ## Ziel
 

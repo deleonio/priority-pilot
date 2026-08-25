@@ -1,7 +1,6 @@
 # Issue 761 – Layout Titel/Beschreibung/Aktionen im Task-Formular
 
-**Stand:** 2026-08-23  
-**Version:** v1.1 (2026-08-23): Nightly-Sync — IST/SOLL-Arbeitsstand durch Ist-Beschreibung ersetzt (Verhalten ist per E2E `issue-761-layout-optimization.spec.ts` gesichert).
+**Stand:** 2026-08-23
 
 ## Ziel
 

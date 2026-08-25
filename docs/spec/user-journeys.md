@@ -1,7 +1,6 @@
 # User Journeys – Priority Pilot
 
 **Stand:** 2026-08-25  
-**Version:** v1.2 (2026-08-25): Nightly-Sync — Ist-Korrekturen: Erfassungs-Dialog heißt „Neuen Task anlegen", Tab-Label „Wald" (nicht „Aufgabenwald"), Entfernen-Aktion im Abhängigkeits-Dialog ist Icon-only; Validierungszeilen für Priorität/Aufwand entfernt (Range-Inputs begrenzen die Werte, Meldungstexte existieren nicht).  
 **Ziel:** Reale Nutzerabläufe als Spezifikation für Test-Neuaufbau (Epic #563, Issue #565)
 
 Diese Journeys beschreiben **von außen sichtbares Verhalten** der laufenden Priority Pilot App. Sie sind die referenzierbare Quelle für neue Tests, implementierungsagnostisch und auf reale Abläufe fokussiert.
@@ -211,11 +210,3 @@ _Wert-Berechnung als beobachtbarer Effekt – ohne interne Formel:_
   - **mutationsresistent** sind (prüfen Verhalten, nicht Implementierungsdetails)
   - **ergebnisorientiert** sind (validieren das Ergebnis, nicht nur Schritte)
 - **Änderungen:** Bei Änderungen an der App müssen diese Journeys aktualisiert werden, damit Tests weiterhin gültig bleiben.
-
----
-
-## Versionierung
-
-- **v1.0** (2026-08-12): Initialefassung für Issue #565. Vier Kern-Workflows dokumentiert.
-- **v1.1** (2026-08-12): Review-Findings adressiert – konkretes Wert-Berechnungsbeispiel (Journey 4), Kantengewicht-UI spezifiziert (Schieberegler), neue Sektion „Randfälle & Fehler".
-- **v1.2** (2026-08-25): Nightly-Sync — Ist-Korrekturen (Dialog-Titel, Tab-Label „Wald", Icon-only-Entfernen, Validierungszeilen ersetzt).

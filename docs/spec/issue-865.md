@@ -1,7 +1,6 @@
 # Issue 865: User Full Name entfernen (Avatar behalten)
 
 **Stand:** 2026-08-23  
-**Version:** v1.1 (2026-08-23): Nightly-Sync — Begrüßungstext sitzt im Dashboard, nicht im Header; Ist-Aussage korrigiert.  
 **Ziel:** Nur User Full Name aus dem Header-Bereich entfernen, Avatar bleibt bestehen.
 
 ---

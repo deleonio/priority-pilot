@@ -7,15 +7,15 @@ Stehengebliebene Pipeline-Workflows werden automatisch fortgesetzt: Alle 6 Stund
 Phase (01–06) ein Trigger-Label klebt, ohne dass ein Lauf existiert, und feuert das Trigger-
 Label dann neu.
 
-## Hintergrund (geklärte Offene Frage)
+## Hintergrund
 
 Die Phase-Workflows (01-claude-triage … 06-claude-pr-fixup) laufen auf `labeled`-Events. Der
 Soft-Abort-Selbstretrigger (Trigger-Label entfernen + sofort neu setzen) läuft **im sterbenden
 Job**. Stirbt der Lauf davor (Runner-Ausfall, Cancel, hartes Timeout ohne Cleanup-Pfad,
 API-Fehler), klebt das Trigger-Label am Issue/PR, ohne dass ein Folge-Event die Phase je wieder
-weckt — die Arbeit steht still, bis ein Mensch eingreift. Die Aufgabe des Workflows (Issue
-„Offene Frage") wurde geklärt: **Sicherheitsnetz-Continue-Sweep**, analog zum bestehenden
-`claude-pr-gate-sweep.yml` für das Merge-Gate.
+weckt — die Arbeit steht still, bis ein Mensch eingreift. Gegenmaßnahme:
+**Sicherheitsnetz-Continue-Sweep**, analog zum bestehenden `claude-pr-gate-sweep.yml` für das
+Merge-Gate.
 
 ## Vorbedingung
 
