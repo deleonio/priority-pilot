@@ -34,8 +34,8 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
   oder langen Code-Blöcke außer auf ausdrücklichen Wunsch. Keine Gedankengänge oder Live-Details
   während der Arbeit: Aufgaben still ausführen, am Ende nur das nackte Ergebnis. Output-Pflichten
   der Pipeline-Phasen (PR-Beschreibung, Job-Summary, Phasen-Notiz) bleiben unberührt.
-- **Minimalprinzip:** Nur so viel programmieren, dokumentieren und testen wie notwendig — jede Zeile
-  ist Wartungslast. Ein Test entsteht nur, wenn er etwas **auswertet**, einen **Spiegel** absichert
+- **Minimalprinzip:** Nur so viel programmieren, dokumentieren und testen wie wirklich notwendig
+  — und so wenig wie irgend möglich; jede Zeile ist Wartungslast. Ein Test entsteht nur, wenn er etwas **auswertet**, einen **Spiegel** absichert
   oder vor **stillen/teuren** Ausfällen schützt
   ([TDD-Strategie → Testumfang](.ai-knowledge/tdd-strategy.md#testumfang--so-viel-wie-nötig-so-wenig-wie-irgend-möglich)).
 - **Verbessern vs. Erweitern:** Soll Funktionierendes verbessert werden, zuerst fragen: Ist der

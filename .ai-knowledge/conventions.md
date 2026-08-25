@@ -1,8 +1,7 @@
 # Konventionen
 
-- **Minimalprinzip:** Programmiere, dokumentiere und teste nur so viel wie wirklich notwendig und so
-  wenig wie irgend möglich — jede Zeile ist Wartungslast. Aufnahmekriterium für Tests (auswerten /
-  spiegeln / vor stillem Ausfall schützen) und die zwei Gegenproben:
+- **Minimalprinzip:** verbindlich definiert in den [Kernregeln der AGENTS.md](../AGENTS.md#kernregeln);
+  Ausprägung für den Testumfang:
   [tdd-strategy.md → Testumfang](tdd-strategy.md#testumfang--so-viel-wie-nötig-so-wenig-wie-irgend-möglich).
 - **Formatierung:** Tabs, Single Quotes, printWidth 120 — genau **eine** Prettier-Config im Root
   (`prettier.config.mjs`). Keine package-lokalen Prettier-Configs neu anlegen.
