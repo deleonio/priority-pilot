@@ -1,0 +1,175 @@
+name: Prompt LLM Audit (Fable)
+
+on:
+  schedule:
+    - cron: '0 4 * * *' # 4 Uhr UTC (1 Stunde nach einfacher Heuristik)
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry-Run (nur Ausgabe, kein Issue)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  prompt-llm-audit:
+    name: LLM-Prompt-Analyse (Fable)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prompts sammeln
+        id: collect
+        run: |
+          set -euo pipefail
+
+          PROMPT_FILES=$(cd .github/prompts && ls -1 *.md | grep -v "^_" | tr '\n' ' ')
+          echo "files=$PROMPT_FILES" >> $GITHUB_OUTPUT
+          echo "Prompts: $PROMPT_FILES"
+
+      - name: Fable Setup
+        run: |
+          # Fable CLI installieren (falls nicht global verfügbar)
+          npm install -g @earendil-works/fable-cli
+
+      - name: LLM-Analyse (Fable)
+        id: analyze
+        env:
+          FABLE_API_KEY: ${{ secrets.FABLE_API_KEY }}
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
+        run: |
+          set -euo pipefail
+
+          cd .github/prompts
+
+          # Prompt für die LLM-Analyse
+          ANALYSIS_PROMPT='Du analysierst CI-Workflow-Prompts auf Optimierungspotenzial für geringere Token-Kosten bei erhaltener Präzision.
+
+          BEWERTUNGSPUNKTE:
+          1. Redundanzen: Wiederholende Informationen die in .ai-knowledge/ oder _prompt-conventions.md stehen
+          2. Länge: Wäre kürzer möglich ohne Informationsverlust?
+          3. Prägnanz: Kann dasselbe knapper, direkter formuliert werden?
+          4. Widersprüche: Gibt es widersprüchliche Anweisungen?
+          5. Struktur: Ist die Struktur klar, oder gibt es unnötige Verschachtelung?
+          6. Referenzen: Verweist der Prompt auf relevante Wissensbasis-Dateien statt alles zu wiederholen?
+
+          AUSGABE-FORMAT (nur JSON, kein sonstiger Text):
+          {
+            "needs_optimization": true/false,
+            "issues": [
+              {
+                "type": "redundancy|length|precision|contradiction|structure|reference",
+                "severity": "high|medium|low",
+                "description": "Kurze Beschreibung des Problems",
+                "suggestion": "Konkreter Vorschlag zur Verbesserung"
+              }
+            ],
+            "token_estimate": {
+              "current": <geschätzte Tokens>,
+              "potential": <Tokens nach Optimierung>
+            }
+          }
+
+          Analysiere den folgenden Prompt:'
+
+          results=()
+          has_findings=false
+
+          for file in ${{ steps.collect.outputs.files }}; do
+            echo "Analysiere: $file"
+
+            content=$(cat "$file")
+
+            # Fable-Analyse
+            response=$(echo "$ANALYSIS_PROMPT
+
+          $content" | fable --model gpt-4.1-mini --output json 2>/dev/null || echo '{"needs_optimization":false,"issues":[],"token_estimate":{"current":0,"potential":0}}')
+
+            # JSON parsen (jq prüfen)
+            if echo "$response" | jq . >/dev/null 2>&1; then
+              needs=$(echo "$response" | jq -r '.needs_optimization')
+              current_tokens=$(echo "$response" | jq -r '.token_estimate.current // 0')
+              potential_tokens=$(echo "$response" | jq -r '.token_estimate.potential // 0')
+
+              if [[ "$needs" == "true" ]]; then
+                has_findings=true
+                results+=("## $file")
+                results+=("**Aktuell:** $current_tokens tokens → **Potenzial:** $potential_tokens tokens")
+                results+=("")
+
+                issues_count=$(echo "$response" | jq '.issues | length')
+                if [[ $issues_count -gt 0 ]]; then
+                  echo "$response" | jq -r '.issues[] | "- **\(.severity)**: \(.description)\n  Vorschlag: \(.suggestion)"' >> /tmp/issues.txt
+                  results+=("$(cat /tmp/issues.txt)")
+                  rm /tmp/issues.txt
+                fi
+                results+=("")
+              fi
+            else
+              echo "::warning::Fable-Antwort für $file kein gültiges JSON: $response"
+            fi
+          done
+
+          # Ergebnisse ausgeben
+          if [[ "$has_findings" == "true" ]]; then
+            echo "findings=1" >> $GITHUB_OUTPUT
+
+            {
+              echo "## Prompt-Optimierungsbedarf (LLM-Analyse)"
+              echo ""
+              printf '%s\n' "${results[@]}"
+              echo ""
+              echo "**Analyse durch:** Fable (gpt-4.1-mini)"
+              echo "**Zeitstempel:** $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            } > /tmp/findings.txt
+            cat /tmp/findings.txt
+          else
+            echo "findings=0" >> $GITHUB_OUTPUT
+            echo "::notice::Kein LLM-Optimierungsbedarf gefunden"
+          fi
+
+      - name: Issue erstellen oder aktualisieren
+        if: steps.analyze.outputs.findings == '1' && (inputs.dry_run != 'true')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TITLE="Prompt-LLM-Optimierung: $(date +%Y-%m-%d)"
+
+          # Prüfen, ob bereits ein offenes LLM-Prompt-Optimierungs-Issue existiert
+          EXISTING=$(gh issue list \
+            --state open \
+            --search "prompt-llm-optimierung" \
+            --json number,title \
+            --jq '.[] | select(.title | contains("LLM-Optimierung")) | .number' \
+            || echo "")
+
+          FINDINGS=$(cat /tmp/findings.txt)
+
+          if [[ -n "$EXISTING" ]]; then
+            # Issue aktualisieren
+            gh issue comment "$EXISTING" --body "$FINDINGS"
+            echo "::notice::Issue #$EXISTING aktualisiert"
+          else
+            # Neues Issue erstellen
+            gh issue create \
+              --title "$TITLE" \
+              --label "ai:needs-analyse,ci:prompts,llm:audit" \
+              --body "$FINDINGS"
+            echo "::notice::Neues LLM-Prompt-Optimierungs-Issue erstellt"
+          fi
+
+      - name: Dry-Run Ausgabe
+        if: inputs.dry_run == 'true'
+        run: |
+          echo "::notice::DRY-RUN - kein Issue erstellt"
+          if [[ -f /tmp/findings.txt ]]; then
+            cat /tmp/findings.txt
+          fi
