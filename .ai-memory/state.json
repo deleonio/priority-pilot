@@ -1,1 +1,16 @@
-{"phases":{"review":{"sessionId":"3e36ec1b-3ccc-449f-a5c3-4aec09be63ba","runId":"32856570755","branch":"claude/optimize-findings-f5tk15","timestamp":"2026-08-25T14:06:39Z"}}}
+{
+  "phases": {
+    "review": {
+      "sessionId": "3e36ec1b-3ccc-449f-a5c3-4aec09be63ba",
+      "runId": "32856570755",
+      "branch": "claude/optimize-findings-f5tk15",
+      "timestamp": "2026-08-25T14:06:39Z"
+    },
+    "fixup": {
+      "sessionId": "95dfd331-b673-4224-8bb7-af2a0bb1ca4e",
+      "runId": "32857464893",
+      "branch": "claude/optimize-findings-f5tk15",
+      "timestamp": "2026-08-25T14:26:39Z"
+    }
+  }
+}
