@@ -54,5 +54,19 @@
 		"cacheReadTokens": 498741,
 		"turns": 13,
 		"valueCost": 0.5838505
+	},
+	{
+		"timestamp": "2026-08-25T02:05:38.551Z",
+		"tokensIn": 191429,
+		"tokensOut": 5331,
+		"cost": 0.07775625,
+		"issueId": "999",
+		"phase": "documenter",
+		"model": "claude-haiku-4-5-20251001",
+		"provider": "claude",
+		"cacheCreationTokens": 27757,
+		"cacheReadTokens": 163630,
+		"turns": 5,
+		"valueCost": 0.07775625
 	}
 ]
