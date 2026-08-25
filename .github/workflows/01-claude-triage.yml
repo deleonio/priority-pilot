@@ -146,6 +146,16 @@ jobs:
           memory-load: 'true'
           expect-memory: 'false'
 
+      # Labels VOR dem Claude-Lauf anlegen: Der Zerlegungspfad ruft `gh issue create --label`,
+      # was ohne existierendes Label fehlschlägt. Deterministisch hier statt als Prompt-Anweisung —
+      # die Triage läuft im restricted-Tier (nur Bash(gh *)), ein `bash …`-Aufruf wäre dort gar
+      # nicht erlaubt, und Seiteneffekte gehören ohnehin in den Workflow, nicht in den Agenten.
+      - name: Labels sicherstellen (für den Zerlegungspfad)
+        if: steps.setup.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+        run: bash .github/scripts/ensure-labels.sh
+
       - name: Triage via Claude
         id: claude
         if: steps.setup.outputs.configured == 'true'
@@ -170,7 +180,7 @@ jobs:
             2. Titel prüfen: Konsistenz zur Beschreibung? Falls nein: inhaltlich treu optimieren (gh issue edit --title).
             3. Beschreibung lektorieren (Form verbessern, Inhalt unverändert, gh issue edit --body-file -).
             4. Zu große Tickets ZERLEGEN, wenn mind. EINES zutrifft: mehrere Schichten/Pakete (z. B. Frontend+Backend+DB) ODER mehrere unabhängige AK ODER nicht sinnvoll in 1 PR machbar. Dann in 2–5 Sub-Issues (max. 1 Ebene, max. 5), jede in 1 PR umsetzbar. Pro Sub-Issue:
-               a) VORAB Labels sicherstellen (sonst schlägt --label fehl): gh label create "ai:analysed" --color 0E8A16 2>/dev/null||true; gh label create "ai:needs-ux-ui" --color FBCA04 2>/dev/null||true; gh label create "ai:needs-spec" --color FBCA04 2>/dev/null||true; for m in haiku sonnet opus; do gh label create "ai:model:$m" --color C5DEF5 --description "Modell der Folgephasen" 2>/dev/null||true; done
+               a) Labels (ai:analysed, ai:needs-ux-ui, ai:needs-spec, ai:needs-impl, ai:model:*) hat der Workflow bereits angelegt — direkt --label benutzen.
                b) Sub-Issue anlegen — Body: "Teil von #{{ISSUE_NR}}" + Mini-Analyse MIT MARKERN
                   (<!-- KI-ANALYSE:START stand=<ISO-8601> --> … <!-- KI-ANALYSE:END -->, exakt
                   BODY-BLOCK-FORMAT — PFLICHT auch für Sub-Issues: Re-Triage/Unblock prüft den Block,
@@ -194,52 +204,24 @@ jobs:
             Review-Schleifen, die teurer sind als der einmalige Aufpreis.
 
           UMSETZUNGSKONTEXT (der eigentliche Zweck dieser Phase — PFLICHT):
-            Du bist die EINZIGE Phase, die auf dem starken Modell läuft. Alle Folgeschritte
-            laufen günstiger und dürfen die Analyse NICHT wiederholen müssen. Was du hier
-            nicht ermittelst, muss ein schwächeres Modell später selbst herausfinden — genau
-            das soll entfallen.
-            Ermittle deshalb per Read/Glob/Grep AM CODE (nicht raten, nicht aus dem Ticket
-            abschreiben):
-              - Betroffene Dateien: konkrete Pfade, die geändert werden müssen. JEDER Pfad
-                muss existieren — vor dem Eintragen mit Read/Glob verifizieren. Ein erfundener
-                Pfad ist schlimmer als keiner: die Umsetzung sucht dann ins Leere.
-              - Betroffene Komponenten: Funktion/Klasse/Endpunkt/Custom-Element, nicht nur die Datei.
-              - Vorhandenes Muster: wo im Code steht bereits etwas Gleichartiges, an dem sich
-                die Umsetzung orientieren kann (Pfad + kurze Notiz). Das spart der
-                Umsetzungsphase die Suche.
-              - Randbedingungen: was NICHT gebrochen werden darf (bestehende Aufrufer, API-
-                Verträge, Migrationen, Tests, die auf das Verhalten bauen).
-              - Erwartetes Ergebnis: woran man von außen erkennt, dass es funktioniert.
-            Halte dich an Fakten aus dem Code. Bist du bei einem Punkt unsicher, schreibe
-            „unklar: <was>" statt einer Vermutung — eine falsche Angabe kostet mehr als eine
-            fehlende.
-            RECHERCHE-FAN-OUT: Musst du breit suchen (mehrere Verzeichnisse, unklare
-            Namenskonvention, „wo wird X verwendet"), delegiere das Suchen an einen
-            Explore-Subagent (Task-Tool) und lass dir NUR das Ergebnis zurückgeben. Die
-            Subagents laufen auf einem günstigeren Modell; direktes Lesen zieht dagegen
-            jede Datei in diesen teuren Kontext. Gezielte Einzelblicke (du kennst den Pfad
-            schon) liest du weiter selbst — dafür lohnt der Umweg nicht.
+            Methode, Rationale und Feldsemantik: .ai-knowledge/ticket-triage.md Schritt 4
+            (verbindlich, hier nicht wiederholt) — lies den Abschnitt, bevor du den Block füllst.
+            Operativ: Die fünf Felder (Betroffene Dateien / Komponenten / Vorhandenes Muster /
+            Randbedingungen / Erwartetes Ergebnis) per Read/Glob/Grep AM CODE ermitteln, nicht
+            raten und nicht aus dem Ticket abschreiben. JEDER Pfad muss existieren — vor dem
+            Eintragen verifizieren. Unsicher? „unklar: <was>" schreiben statt zu vermuten.
+            RECHERCHE-FAN-OUT: Breite Suche (mehrere Verzeichnisse, unklare Namenskonvention,
+            „wo wird X verwendet") an einen Explore-Subagent (Task-Tool) delegieren und NUR das
+            Ergebnis zurückholen — er läuft auf dem günstigeren Modell. Gezielte Einzelblicke
+            (Pfad bekannt) liest du selbst.
 
           SPEC NÖTIG? (Routing-Flag — unabhängig von der Aufwandsklasse):
-            Die Spec-Phase liefert ROTE TESTS als Vertrag für die Umsetzung. TDD bleibt die
-            Regel und wird NICHT aufgegeben — die Phase entfällt nur dort, wo sie diesen
-            Vertrag gar nicht liefern kann.
-            - „Spec nötig: nein" NUR, wenn das Ticket KEINEN Anwendungscode anfasst, also
-              keine Datei unter server/src/**, frontend/src/** oder frontend/e2e/**. Für
-              Workflows, Skripte, Config und Markdown verbietet der Test-Carve-out
-              (.github/prompts/spec.md, ADR-0001) ohnehin Tests: Ein String-Match auf selbst
-              geschriebene Dateien findet per Konstruktion keinen Fehler. Die Spec-Phase
-              produzierte dort nur ein Dokument.
-            - Sonst IMMER „Spec nötig: ja". Auch bei kleinen Änderungen an Anwendungscode:
-              Dort sind Tests möglich, also gilt TDD.
-            - UI-Bezug: ja erzwingt „Spec nötig: ja" — ein UX-Entwurf ohne Spezifikation ist
-              nicht anschlussfähig.
-            - Die Begründung ist bei „nein" PFLICHT und muss sagen, WARUM eine Spezifikation
-              nichts hinzufügt — nicht bloß „trivial".
-            Der Workflow prüft die Angabe gegen deine „Betroffene Dateien": Zeigt auch nur
-            ein Pfad in Anwendungscode, läuft die Spec trotzdem. Die Aufwandsklasse spielt
-            hier keine Rolle — eine haiku-Subtask kann eine Spec brauchen, eine opus-Subtask
-            rein serverseitig ohne Testpflicht sein.
+            Regel + Begründung: .ai-knowledge/ticket-triage.md Schritt 4, Abschnitt „Spec nötig".
+            Kurz: „nein" NUR, wenn das Ticket KEINEN Anwendungscode anfasst (server/src/**,
+            frontend/src/**, frontend/e2e/**) — Begründung dann PFLICHT und muss sagen, WARUM
+            eine Spezifikation nichts hinzufügt (nicht bloß „trivial"). Sonst IMMER „ja";
+            UI-Bezug: ja erzwingt „ja". resolve-spec-skip.sh prüft die Angabe gegen deine
+            „Betroffene Dateien" und lässt die Spec bei jedem App-Code-Pfad trotzdem laufen.
 
           UNEINDEUTIGKEIT (Sicherheitsventil — vor allem anderen):
             Ist die Aufgabenstellung nicht eindeutig, wird NICHT „irgendwas" analysiert und
@@ -259,39 +241,19 @@ jobs:
             Analysearbeit nur zurückverlagert. Der Workflow prüft, ob er existiert.
 
           BODY-BLOCK-FORMAT:
-            <!-- KI-ANALYSE:START stand=<ISO-8601-Datum> -->
-            ### UI-Bezug
-            - UI-Bezug: ja|nein
-            - Begründung: [Kurzbegründung]
-
-            ### Spec
-            - Spec nötig: ja|nein
-            - Begründung: [PFLICHT bei „nein" — warum eine Spezifikation hier nichts hinzufügt]
-
-            ### Aufwandsklasse
-            - Aufwandsklasse: haiku|sonnet|opus
-            - Begründung: [Kurzbegründung, woran der Aufwand hängt]
-
-            ### Umsetzungskontext
-            - Betroffene Dateien: `pfad/zur/datei.ts`, `pfad/zur/anderen.ts`
-            - Betroffene Komponenten: [Funktion/Klasse/Endpunkt/Custom-Element]
-            - Vorhandenes Muster: `pfad/zum/vorbild.ts` — [was dort gleichartig gelöst ist]
-            - Randbedingungen: [was nicht brechen darf]
-            - Erwartetes Ergebnis: [von außen beobachtbares Verhalten]
-
-            ### Akzeptanzkriterien
-            - AK1: [prüfbar formuliert]
-            - AK2: …
-
-            ### Testfälle
-            - [Testfall je AK, Ebene benannt (node:test | Vitest | e2e)]
-
-            ### Ampel
-            - Ampel: 🟢|🟡|🔴
-            - Begründung: [Kurzbegründung]
-
-            [Ergänzende Analyse – präzise, ohne Füllwörter]
-            <!-- KI-ANALYSE:END -->
+            Kanonische Struktur (Abschnitte, Feldsemantik, stand-Timestamp, Erst- vs. Re-Triage-
+            Schreibregel): .ai-knowledge/ticket-triage.md Schritt 4 — exakt daraus übernehmen.
+            Maschinell geparst und deshalb WÖRTLICH so zu schreiben (Zeilenanfang, ein Feld je Zeile):
+              <!-- KI-ANALYSE:START stand=<ISO-8601-Datum> -->   (stand = date -u +%Y-%m-%dT%H:%M:%SZ)
+              - UI-Bezug: ja|nein
+              - Spec nötig: ja|nein
+              - Aufwandsklasse: haiku|sonnet|opus
+              - Betroffene Dateien: `pfad/a.ts`, `pfad/b.ts`
+              - Ampel: 🟢|🟡|🔴
+              <!-- KI-ANALYSE:END -->
+            Fehlt eines dieser Felder, greift das Routing daneben (Spec-Skip, Modell-Label) oder
+            der Lauf failt hart. Die übrigen Abschnitte (Begründungen, Umsetzungskontext,
+            Akzeptanzkriterien, Testfälle, Offene Fragen) nach der Wissensbasis-Struktur füllen.
 
           TIPP: Bei UI-Bezug im Lösungsvorschlag konkrete KoliBri-Komponenten via mcp__kolibri-mcp__search/fetch ermitteln und nennen (Custom-Element + Properties).
 
@@ -499,12 +461,7 @@ jobs:
             fi
           fi
 
-          gh label create "ai:analysed" --color 0E8A16 2>/dev/null || true
-          gh label create "ai:needs-ux-ui" --color FBCA04 2>/dev/null || true
-          gh label create "ai:needs-spec" --color FBCA04 2>/dev/null || true
-          for m in haiku sonnet opus; do
-            gh label create "ai:model:$m" --color C5DEF5 --description "Modell der Folgephasen" 2>/dev/null || true
-          done
+          bash .github/scripts/ensure-labels.sh
 
           # Aufwandsklasse als ai:model:*-Label setzen. Genau EINES: die anderen erst
           # entfernen (Re-Triage kann neu einstufen), dann das aktuelle setzen — zwei
