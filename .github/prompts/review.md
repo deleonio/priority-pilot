@@ -1,6 +1,6 @@
 Methode (Haltung, Schritte, Sammelkommentar-Pflege): .claude/skills/review-kreuzverhoer/SKILL.md
 
-HINWEIS: Review-Tier — du liest UND schreibst Memory (issue-spezifische Notizen in .claude/memory; Details siehe Memory-Abschnitte am Prompt-Ende). Code bleibt tabu.
+HINWEIS: Review-Tier — du liest UND schreibst Memory (issue-spezifische Notizen in .ai-memory; Details siehe Memory-Abschnitte am Prompt-Ende). Code bleibt tabu.
 FOKUS: NUR PR #PR_NR. NUR den Diff prüfen. KEINE Abstecher. Token sparen: kurz, präzise, direkt.
 
 MODUS bestimmen (ALLERERSTER Schritt): Prüfe, ob bereits ein <!-- ai-review -->-Sammelkommentar am PR existiert (gh api repos/{owner}/{repo}/issues/#PR_NR/comments, nach "<!-- ai-review -->" filtern).

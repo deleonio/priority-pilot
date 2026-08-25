@@ -32,4 +32,4 @@ pnpm-workspace.yaml
 # Dauergedächtnis + Phasen-Notizen: von KI-Agents frei geschrieben, nicht von Menschen gepflegt.
 # Prettier würde die Einträge bei jedem Commit umbrechen (lefthook `stage_fixed`) — das erzeugt
 # Diff-Rauschen und bricht den union-Merge aus .gitattributes, der auf unveränderten Zeilen beruht.
-.claude/memory/
+.ai-memory/

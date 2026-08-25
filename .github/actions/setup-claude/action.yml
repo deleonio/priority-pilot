@@ -79,10 +79,19 @@ inputs:
   #
   # Memory-Save passiert NICHT hier (die Action läuft nur pre-claude), sondern als
   # issue-state-save-Step (.github/actions/issue-state-save) im Workflow nach dem claude-Step.
-  # Claude liest/schreibt seinen Memory NATIV nach .claude/memory (autoMemoryDirectory in
+  # Claude liest/schreibt seinen Memory NATIV nach .ai-memory (autoMemoryDirectory in
   # .claude/settings.json) — Isolierung pro Issue erfolgt NICHT über einen Subdir, sondern
   # rein über den Branch-Namen ai/state/issue-{N}: jeder Lauf restored/saved den zum Issue
   # passenden Stand in denselben flachen Pfad.
+  #
+  # WARUM .ai-memory UND NICHT .claude/memory: Claude Code sperrt alles unterhalb von .claude/
+  # als "sensitive file", BEVOR die --allowedTools-Allowlist ausgewertet wird. Eine Allow-Regel
+  # kann diese Sperre nicht wieder öffnen. Folge im alten Layout: die Phasen mit tools-tier
+  # restricted/review (Triage, UX, Review, Documenter) konnten ihre Phasen-Notiz NIE schreiben —
+  # Write-Tool UND Bash-Heredoc wurden beide abgelehnt (belegt in Run 32747085777, Review an
+  # PR #989, und Run 32741816829, Triage an #934). Nur die full-Phasen kamen durch, weil
+  # --dangerously-skip-permissions die Prüfung komplett überspringt. Ein gewöhnlicher Repo-Pfad
+  # ausserhalb .claude/ plus Edit(path)-Allowlist löst das für alle Tiers.
   memory-load:
     description: 'Memory-Load zu Beginn des Workflows (true = restauriert dateibasierte Memory für ticket-ref aus dem State-Branch ai/state/issue-{N}). Alle 6 Phasen-Workflows laden (auch Triage: Erst-Triage startet leer, Re-Triage nutzt den bisherigen Stand); false nur für bewusst stateless Helper-Workflows.'
     required: false
@@ -151,7 +160,7 @@ outputs:
     description: 'Ob tatsächlich Memory-Dateien restauriert wurden (State-Branch geladen UND Dateianzahl > 0).'
     value: ${{ steps.memory-verify.outputs.restored }}
   memory-file-count:
-    description: 'Anzahl restaurierter Memory-Dateien in .claude/memory/.'
+    description: 'Anzahl restaurierter Memory-Dateien in .ai-memory/.'
     value: ${{ steps.memory-verify.outputs.file-count }}
   memory-status-text:
     description: 'Sed-sicherer Restore-Status für den Prompt-Platzhalter #MEMORY_STATUS ("vorhanden" | "leer").'
@@ -244,10 +253,12 @@ runs:
       # (beide hören nur auf push:[main]). Hier: fetchen und die Storage-Pfade in den Workspace
       # restoren. git restore OHNE --staged lässt den Index unberührt — die Storage-Dateien
       # können so nie in ein Phasen-Commit des Agenten rutschen (zustätzlich hält .gitignore
-      # .claude/state.json zurück). MEMORY.md wird via :(exclude) ausgespart: es ist einge-
+      # .ai-memory/state.json zurück). MEMORY.md wird via :(exclude) ausgespart: es ist einge-
       # checkt und reist in den Phasen-Commits — ein alter Stand aus dem Storage dürfte es nie
       # überschreiben. Fehlt der Branch (Erst-Triage/Erst-Phase) → found=false, Phase startet
-      # mit leerem Memory (fail-open, wie früher beim Artefakt-Miss).
+      # mit leerem Memory (fail-open, wie früher beim Artefakt-Miss). Dasselbe greift für
+      # State-Branches aus der Zeit vor dem .ai-memory-Umzug: dort matcht der Pathspec nicht,
+      # der Restore scheitert kontrolliert und die Phase startet leer statt mit Müll.
       id: memory-load
       if: steps.preflight.outputs.configured == 'true' && inputs.memory-load == 'true'
       shell: bash
@@ -255,12 +266,12 @@ runs:
         ISSUE_NR: ${{ steps.ticket.outputs.issue-number }}
       run: |
         set -uo pipefail
-        mkdir -p .claude/memory
+        mkdir -p .ai-memory
         found="false"
         STATE="ai/state/issue-${ISSUE_NR}"
         if git fetch --quiet origin "$STATE" 2>/dev/null \
            && git rev-parse --verify -q FETCH_HEAD >/dev/null 2>&1 \
-           && git restore --source=FETCH_HEAD --worktree -- .claude ':(exclude).claude/memory/MEMORY.md'; then
+           && git restore --source=FETCH_HEAD --worktree -- .ai-memory ':(exclude).ai-memory/MEMORY.md'; then
           found="true"
           echo "::notice title=🧠 Memory geladen::$STATE → .claude/ (worktree, Index unberührt)."
         else
@@ -273,7 +284,7 @@ runs:
       # (stateless Helper) MUSS geschrieben werden dürfen → Verzeichnis immer anlegen.
       if: steps.preflight.outputs.configured == 'true'
       shell: bash
-      run: mkdir -p ".claude/memory"
+      run: mkdir -p ".ai-memory"
 
     - name: Memory-Restore verifizieren (ab Phase 2)
       # Prüft, OB wirklich Memory restauriert wurde (Artefakt geladen + Dateianzahl > 0). Phase 1
@@ -288,10 +299,10 @@ runs:
         ISSUE_NR: ${{ steps.ticket.outputs.issue-number }}
         ARTIFACT_FOUND: ${{ steps.memory-load.outputs.found }}
       run: |
-        # Nur die Phasen-Notizen zählen. Das eingecheckte Dauergedächtnis .claude/memory/MEMORY.md
+        # Nur die Phasen-Notizen zählen. Das eingecheckte Dauergedächtnis .ai-memory/MEMORY.md
         # liegt IMMER im Checkout — ungefiltert wäre der Zähler dauerhaft >= 1 und die
         # expect-memory-Warnung („Restore leer") könnte nie mehr feuern.
-        count=$(find .claude/memory -type f -name 'issue-*.md' 2>/dev/null | wc -l | tr -d ' ')
+        count=$(find .ai-memory -type f -name 'issue-*.md' 2>/dev/null | wc -l | tr -d ' ')
         restored="false"
         if [ "${ARTIFACT_FOUND}" = "true" ] && [ "${count:-0}" -gt 0 ]; then restored="true"; fi
         echo "file-count=${count:-0}" >> "$GITHUB_OUTPUT"
@@ -714,20 +725,22 @@ runs:
           restricted)
             # Tier 1 — nur lesender GitHub-Zugriff, KEIN Bypass (Triage arbeitet nur via gh).
             # Bash(gh *)/Bash(git *) bleiben eng, Write/Edit bewusst nicht erlaubt — einzige
-            # Ausnahme: Edit auf den nativen Memory (autoMemoryDirectory = .claude/memory), damit
+            # Ausnahme: Edit auf den nativen Memory (autoMemoryDirectory = .ai-memory), damit
             # Claude seine Phasen-Notizen schreiben kann. Zwei Globs defensiv: /* deckt Wurzeldateien
             # (MEMORY.md + Notizen — das flache auto-memory Layout), /** verschachtelte Pfade falls
             # auto-memory Subdirs anlegt (allein ** matcht Wurzeldateien nicht zuverlässig).
             # Claude Code wertet für Datei-Schreibzugriffe NUR Edit(path)-Regeln aus — Write(path)
             # wird ignoriert (Edit deckt alle file-editing-Tools inkl. Write ab).
+            # DER PFAD MUSS AUSSERHALB VON .claude/ LIEGEN: dort greift eine Sensitive-File-Sperre
+            # VOR der Allowlist, die keine Allow-Regel aufhebt (siehe Kopf-Kommentar memory-load).
             # Task (Subagents) ist hier bewusst dabei: Die Analyse ist die einzige Phase auf
             # dem starken Modell und muss den Code breit lesen. Ohne Fan-out landet dieses
             # Lesen vollstaendig im teuren Elternkontext; mit Subagent kommt nur die
             # Schlussfolgerung zurueck. Das Subagent-Modell setzt der Aufrufer ueber
             # subagent-model (CLAUDE_CODE_SUBAGENT_MODEL) — sonst liefe der Fan-out auf
             # demselben teuren Modell und der Spareffekt kehrte sich um.
-            # Die Schreibrechte bleiben unveraendert eng (nur .claude/memory).
-            ALLOWED_TOOLS="Read,Glob,Grep,Task,Bash(gh *),Bash(git *),Edit(.claude/memory/*),Edit(.claude/memory/**)"
+            # Die Schreibrechte bleiben unveraendert eng (nur .ai-memory).
+            ALLOWED_TOOLS="Read,Glob,Grep,Task,Bash(gh *),Bash(git *),Edit(.ai-memory/*),Edit(.ai-memory/**)"
             [ "$NEEDS_MCP" = "true" ] && ALLOWED_TOOLS="$ALLOWED_TOOLS,$MCP_TOOLS"
             # — !WICHTIG! —
             # Zwingendes Single-Quoting des Wertes nach --allowedTools (und --disallowedTools):
@@ -743,11 +756,11 @@ runs:
           review)
             # Vollzugriff auf Lesen/Ausführen, schreibgeschützt für Code — Review liest
             # untrusted Diffs und ändert keinen Code. EINZIGE Schreiböffnung: der Issue-Memory
-            # (.claude/memory) über dieselbe Edit(path)-Allowlist-Mechanik wie im restricted-
+            # (.ai-memory) über dieselbe Edit(path)-Allowlist-Mechanik wie im restricted-
             # Tier. Bewusst KEIN Bypass+disallowTools mehr: einer globalen 'Edit'-Disallow
             # könnte keine Allow-Regel den Memory-Pfad wieder öffnen (Disallow gewinnt) —
             # die Allowlist hält Code schreibgeschützt UND Memory schreibbar zugleich.
-            ALLOWED_TOOLS="Read,Glob,Grep,Bash,Edit(.claude/memory/*),Edit(.claude/memory/**)"
+            ALLOWED_TOOLS="Read,Glob,Grep,Bash,Edit(.ai-memory/*),Edit(.ai-memory/**)"
             [ "$NEEDS_MCP" = "true" ] && ALLOWED_TOOLS="$ALLOWED_TOOLS,$MCP_TOOLS"
             echo "invoke-args=$COMPACT_FLAG --allowedTools '$ALLOWED_TOOLS' $MODEL_FLAG" >> "$GITHUB_OUTPUT"
             ;;

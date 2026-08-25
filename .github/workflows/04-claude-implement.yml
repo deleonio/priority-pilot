@@ -279,7 +279,7 @@ jobs:
           sed -i "s/#MEMORY_STATUS/${{ steps.setup.outputs.memory-status-text }}/g" /tmp/claude-prompt.txt
           # Resume-Hinweis: bei ai:continued (Folgelauf nach Soft-Abort) Memory-Pflicht betonen.
           if [ "${{ steps.continued-before.outputs.already }}" = "true" ]; then
-            sed -i "s|#RESUME_HINT|⚠️ FORTSETZUNGS-Lauf (ai:continued) — lies ZUERST .claude/memory/ und SETZE FORT, starte NICHT neu, wiederhole nichts aus 'Erledigt'!|g" /tmp/claude-prompt.txt
+            sed -i "s|#RESUME_HINT|⚠️ FORTSETZUNGS-Lauf (ai:continued) — lies ZUERST .ai-memory/ und SETZE FORT, starte NICHT neu, wiederhole nichts aus 'Erledigt'!|g" /tmp/claude-prompt.txt
           else
             sed -i "s/#RESUME_HINT//g" /tmp/claude-prompt.txt
           fi
