@@ -33,7 +33,7 @@ ABLAUF (STRIKT):
      pnpm format && pnpm exec prettier --check . && pnpm lint && pnpm knip && pnpm test
      Die Tests SOLLEN hier laufen (sie sind der Vertrag aus der Spec-Phase und der primäre Erfolgsindikator) — rot heisst nachbessern, nicht weiterreichen. Ein rotes Gate in CI kostet eine komplette Fixup-Runde und ist teurer als jeder lokale Lauf.
      Ergebnisse der Kommandos in den PR-Body (AGENTS.md-Pflicht: format/lint/Test-Ergebnisse dokumentieren).
-     e2e (pnpm test:e2e) NUR, wenn die Änderung UI-Verhalten betrifft und ein e2e-Spec dafür existiert — sonst überspringen und im PR-Body vermerken.
+     e2e (pnpm --filter frontend test:e2e) NUR, wenn die Änderung UI-Verhalten betrifft und ein e2e-Spec dafür existiert — sonst überspringen und im PR-Body vermerken.
      Bei Confirm-/Lösch-/Zerstör-Dialogen: docs/ux-pattern-sequential-confirmation.md anwenden – sequenzielle Ja/Nein-Schritte, striktes Fokus-Management beim Übergang (verbindliche A11y-Vorgabe).
      Bei sichtbarer UI: docs/mobile-ui-rules.md anwenden – Touch-Targets ≥44px, async Zustände entwerfen, Anti-Patterns meiden (Repo-Abstimmung im Doc beachten).
   5. Committen, Branch pushen. Im Spec-Modus den vorhandenen Draft-PR review-bereit machen (gh pr ready <nr>), Beschreibung ergänzen. Im Direkt-Modus den PR aus 3b anlegen (nicht als Draft). In BEIDEN Fällen muss am Ende ein offener, nicht-als-Draft markierter PR mit Commits existieren — der Workflow prüft genau das, bevor er ai:needs-review setzt.
