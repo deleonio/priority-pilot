@@ -250,22 +250,6 @@ jobs:
           since-epoch: ${{ steps.starttime.outputs.epoch }}
           provider: ${{ steps.setup.outputs.llm-provider }}
 
-      - name: 💰 Kostenlauf versiegeln (.costs/<n>.json auf main committen)
-        # Dauerhafte Kosten-Ablage: Die Artefakte (90-Tage-Zwischenpuffer) EINES Tickets
-        # werden in die Repo-Datei .costs/<n>.json gemergt und auf main committet. Der
-        # Documenter ist der EINZIGE Schreiber je Ticket-Datei — er läuft nach dem Merge
-        # (alle Phasen fertig, Nummer final) und serialisiert durch die statische
-        # Phasen-Queue, das Konflikt-Argument gegen .costs/-Commits aus parallelen Phasen
-        # greift für den terminalen Seal nicht (s. .github/scripts/cost-seal.ts Kopf und
-        # .costs/SCHEMA.md). Läuft NACH der Kostenerfassung, damit der eigene Documenter-
-        # Eintrag (frisch in die Workspace-Datei geschrieben) mit versiegelt wird.
-        # NIE FATAL wie record-cost: Schlägt der Seal fehl, übernimmt der Catch-up-Job
-        # unten (workflow_dispatch) — die Artefakte leben 90 Tage.
-        if: always() && steps.setup.outputs.configured == 'true'
-        env:
-          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
-          ISSUE: ${{ steps.setup.outputs.issue-number || github.event.pull_request.number || github.event.inputs.pr-number }}
-        run: bash .github/scripts/seal-costs.sh --repo "$REPO" --issue "$ISSUE"
 
       - name: 🖨️ Rendern — Titel/Body/Kommentar/Labels deterministisch
         # Alle Schreibzugriffe in einem Schritt: Titel-Rename, Body-Marker-Splice, GENAU EIN
