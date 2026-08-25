@@ -760,14 +760,14 @@ export const TaskForm = ({
 						_hideLabel
 						_variant="minimal"
 						_disabled={saving || lektoratingTitle || lektoratingDescription || pendingLektorat !== null}
-						_icons={{ left: { icon: 'codex-icon-magic' } }}
+						_icons={{ left: { icon: 'fa-solid fa-magic' } }}
 						_on={{
 							onClick: () => void runLektorat('title', 30),
 						}}
 						style={{
 							flexShrink: 0,
-							marginTop: '24px',
 						}}
+						className="lektorat-button-align"
 					/>
 				</div>
 				{/* #727: Range-Inputs responsiv (vertikal ≤768px, horizontal >768px) */}
@@ -944,14 +944,14 @@ export const TaskForm = ({
 						_hideLabel
 						_variant="minimal"
 						_disabled={saving || lektoratingTitle || lektoratingDescription || pendingLektorat !== null}
-						_icons={{ left: { icon: 'codex-icon-magic' } }}
+						_icons={{ left: { icon: 'fa-solid fa-magic' } }}
 						_on={{
 							onClick: () => void runLektorat('description'),
 						}}
 						style={{
 							flexShrink: 0,
-							marginTop: '24px',
 						}}
+						className="lektorat-button-align"
 					/>
 				</div>
 			</div>
