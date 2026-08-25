@@ -378,10 +378,9 @@ jobs:
     # Eigenständiger Retry-Pfad für fehlgeschlagene Siegel: Der Documenter-Precheck
     # bricht bei gesetztem ai:documented ab (Idempotenz gegen Doppel-Dokumentation) —
     # genau dann brauchte der Seal bisher einen Weg, der an derselben Invariante
-    # hing. Dieser Job läuft NUR den Daten-Siegel (kein LLM, kein Rendering): beim
-    # Merge-Ereignis zusätzlich zum Documenter-Job (double-seal harmlos, Dedupe),
-    # per workflow_dispatch auch nachträglich für bereits dokumentierte PRs.
-    if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
+    # hing. Dieser Job läuft NUR den Daten-Siegel (kein LLM, kein Rendering):
+    # per workflow_dispatch nachträglich für bereits dokumentierte PRs.
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
