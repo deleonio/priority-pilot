@@ -5,6 +5,12 @@
       "runId": "32820329148",
       "branch": "fix/llm-ux-provider-fehlerhinweis",
       "timestamp": "2026-08-25T07:15:05Z"
+    },
+    "fixup": {
+      "sessionId": "3c5df327-f596-4623-97d0-7f967d24986f",
+      "runId": "32820689307",
+      "branch": "fix/llm-ux-provider-fehlerhinweis",
+      "timestamp": "2026-08-25T07:19:31Z"
     }
   }
 }
