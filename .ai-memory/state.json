@@ -11,6 +11,12 @@
       "runId": "32820689307",
       "branch": "fix/llm-ux-provider-fehlerhinweis",
       "timestamp": "2026-08-25T07:19:31Z"
+    },
+    "documenter": {
+      "sessionId": "bd13f850-cd1a-4ca0-80d6-f096c355e1a9",
+      "runId": "32821293836",
+      "branch": "fix/llm-ux-provider-fehlerhinweis",
+      "timestamp": "2026-08-25T07:24:47Z"
     }
   }
 }
