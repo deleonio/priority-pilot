@@ -266,9 +266,27 @@ jobs:
         # setzt der Re-Run auf seinem eigenen Checkpoint auf statt bei null.
         if: always() && steps.setup.outputs.configured == 'true'
         uses: ./.github/actions/issue-state-save
+        id: save
         with:
           issue-number: ${{ steps.setup.outputs.issue-number || github.event.pull_request.number || github.event.inputs.pr-number }}
           phase: documenter
+
+      - name: 🔍 Notiz-Post-Assertion (Claude-Pfad muss neue Phasen-Notiz schreiben)
+        # Spiegelstück zur Label-Post-Assertion unten (#1010 AK2): Der Save meldet nur noch
+        # NEUE Notizen (Blob-Diff gegen den State-Branch) — ein grüner Lauf ohne neue
+        # .ai-memory/issue-*.md bedeutet, Claude hat den Checkpoint vergessen. Fail-hard
+        # statt stiller Speicher-Schein (Beobachtungsfall Run 32803685957 aus #1008).
+        # Bot-/Ignore-Shortcut läuft bewusst ohne Claude und bleibt ausgenommen (analog
+        # Bedingung des Claude-Steps); auch ein leerer/fehlender Output zählt als Verstoß.
+        if: always() && steps.setup.outputs.configured == 'true' && steps.shortcut.outputs.skip != 'true'
+        run: |
+          new_notes="${{ steps.save.outputs.new-notes }}"
+          if [ "$new_notes" -ge 1 ] 2>/dev/null; then
+            echo "::notice title=✅ Phasen-Notiz gesichert::${new_notes} neue Notiz(en) im Issue-Storage."
+          else
+            echo "::error title=❌ Documenter ohne neue Phasen-Notiz::Claude-Pfad lief ohne neu geschriebene .ai-memory/issue-*.md — Storage-Commit enthält nur restaurierte Notizen/state.json. Re-Run mit Checkpoint erforderlich."
+            exit 1
+          fi
 
       - name: 🖨️ Rendern — Titel/Body/Kommentar/Labels deterministisch
         # Alle Schreibzugriffe in einem Schritt: Titel-Rename, Body-Marker-Splice, GENAU EIN
