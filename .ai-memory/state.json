@@ -1,1 +1,16 @@
-{"phases":{"review":{"sessionId":"2d91ebf3-5e9d-4a4e-b0ba-c2884f5c7027","runId":"32807780007","branch":"chore/spec-sync-all","timestamp":"2026-08-25T04:12:15Z"}}}
+{
+  "phases": {
+    "review": {
+      "sessionId": "2d91ebf3-5e9d-4a4e-b0ba-c2884f5c7027",
+      "runId": "32807780007",
+      "branch": "chore/spec-sync-all",
+      "timestamp": "2026-08-25T04:12:15Z"
+    },
+    "fixup": {
+      "sessionId": "b21edc70-0fab-4e7b-9d9f-313e99a5e754",
+      "runId": "32808071525",
+      "branch": "chore/spec-sync-all",
+      "timestamp": "2026-08-25T04:25:54Z"
+    }
+  }
+}
