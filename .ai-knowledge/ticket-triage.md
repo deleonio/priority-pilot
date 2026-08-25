@@ -242,7 +242,7 @@ Bei einem zu großen Ticket:
     die Umsetzung; TDD bleibt die Regel. Übersprungen wird nur, wo dieser Vertrag gar nicht
     entstehen kann: bei Tickets **ohne Anwendungscode** (`server/src/**`, `frontend/src/**`,
     `frontend/e2e/**`). Für Workflows, Skripte, Config und Markdown verbietet der Test-Carve-out
-    ([spec.md](../.github/prompts/spec.md), ADR-0001) ohnehin Tests — die Spec-Phase produzierte
+    ([ticket-spec.md](ticket-spec.md) Schritt 2, ADR-0001) ohnehin Tests — die Spec-Phase produzierte
     dort nur ein Dokument.
     - **Technisch begrenzt, nicht nur per Prompt:** `resolve-spec-skip.sh` prüft die Angabe gegen
       die im selben Block deklarierten `Betroffene Dateien`. Zeigt auch nur ein Pfad in

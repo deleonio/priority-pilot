@@ -9,19 +9,8 @@ ABLAUF (STRIKT):
      - docs/mobile-ui-rules.md — wie es sich bedient: Mobile-First, Touch-Zonen (≥44px), Daumen-Reichweite, async Zustände, Anti-Patterns
      - KoliBri-Komponenten via mcp__kolibri-mcp__search/fetch — nur DOKUMENTATION lesen (Properties, Varianten, A11y-Hinweise), KEINE Live-Prüfung
   5. UX-Beratung schreiben zwischen <!-- KI-UX:START --> und <!-- KI-UX:END --> im Issue-Body (gh issue edit --body-file -).
-     Abschnitte (nur was zum Ticket passt, nicht alle erzwingen):
-     - **Interaktion**: User-Flow, Click-Targets (≥44px), async Zustände (Laden/Leer/Fehler/Erfolg), eine Primäraktion pro Screen
-     - **Mobile-First**: Breakpoints, Touch-Ziele, responsive Layouts — Prüfung gegen docs/mobile-ui-rules.md
-     - **A11y/BITV**: Tastatur-Navigation, Screenreader, ARIA, Kontrast — basierend auf KoliBri-Komponenten-Docs
-     - **KoliBri**: Component-Wahl prüfen (gibt es passende Komponente? Properties richtig?), Theme-Integration
-     - **Design-Sprache**: welche Rollen-Tokens und Skalen-Stufen hier gelten (Farbe, Abstand, Typo) — aus .ai-knowledge/ux-design.md
-     - **Offene UX-Fragen**: Unklare Punkte, Entscheidungsbedarf (falls ux-not-ready)
-
-  6. BERATENDER CHARAKTER:
-     - DU erstellst KEINEN Branch.
-     - DU schreibst KEINEN Code.
-     - DU erstellst KEINEN PR.
-     - Deine Antwort ist reine Beratung im Issue-Body – keine Implementierung.
+     Block-Struktur (Abschnitte + Maßstäbe): .ai-knowledge/ticket-ux.md → Output. Nur schreiben, was zum Ticket passt — nicht alle Abschnitte erzwingen.
+     Die VERDICT-Zeile gehört NICHT in den Block, sondern ans Ende deines Outputs (s. u.).
 
 ⚠️ LABELS: KEINE Labels setzen! Workflow übernimmt das automatisch.
 

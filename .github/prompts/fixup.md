@@ -4,14 +4,14 @@ ABLAUF:
 1. **Konflikte** (falls nötig): `git status`, `git diff --name-only --diff-filter=U`, auflösen, committen
 2. Findings lesen: PR-Diff, Review-Threads, CI
 3. Fixen:
-   - Eindeutige Findings → Code ändern, `pnpm lint && pnpm knip && pnpm format`, committen+pushen, Thread lösen
+   - Eindeutige Findings → Code ändern, GATE fahren (`pnpm format && pnpm exec prettier --check . && pnpm lint && pnpm knip && pnpm test` — alles grün vor dem Push, sonst dreht sich die Fixup-Schleife weiter), committen+pushen, Thread lösen
    - Mehrdeutige/Entscheidungs-Findings → Nicht fixen
 4. **Entscheidungs-Findings** (bereits gewählt): Kommentar mit Options-ID beachten, GENAU diese Option umsetzen
 5. **CI rot**:
    - FLAKY (Timeout/Timing, thematisch unrelated): `gh run rerun <run-id> --failed`, 60s warten
    - Echter Fehler: Log lesen, fixen, committen+pushen
    - Unrelated: Im PR-Kommentar dokumentieren
-6. **UI-Findings**: Playwright-MCP (375px + 1280px), Layout-Brüche fixen, KoliBri-First
+6. **UI-Findings**: zuerst billig+deterministisch prüfen (`node .claude/skills/impeccable/scripts/detect.mjs <dateien…>`, docs/mobile-ui-rules.md); Playwright-MCP nur für den kurzen 375/1280-Layoutbruch-Check, nicht für Design-Analysen. Layout-Brüche fixen, KoliBri-First
 
 ABSCHLUSS:
 - `VERDICT: needs-human` bei Entscheidungs-Findings (TERMINAL)
@@ -47,4 +47,4 @@ Review-Typ: Fixup-Nachweis
 Updated: JJJJ-MM-TT
 ```
 
-ZEITLIMIT: {{SOFT_DEADLINE}}. Bei OVER: aktuellen Stand committen+pushen.
+ZEITLIMIT: Soft-Deadline = {{SOFT_DEADLINE}}. Vor jedem Schritt: [ $(date +%s) -ge {{SOFT_DEADLINE}} ]. Bei OVER: aktuellen Stand committen+pushen, Turn beenden.
