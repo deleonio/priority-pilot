@@ -144,7 +144,7 @@ export function renderReport(dir: string): string {
 	);
 	for (const t of tickets) {
 		lines.push(
-			`| #${t.issue} | ${t.runs} | ${t.turns > 0 ? num(t.turns) : '—'} | ${mio(t.tokensIn)} | ${usd(t.valueCost)} | ${t.cost > 0 ? usd(t.cost) : '—'} | ${t.phases.join(' ')} |`,
+			`| [#${t.issue}](https://github.com/deleonio/priority-pilot/issues/${t.issue}) | ${t.runs} | ${t.turns > 0 ? num(t.turns) : '—'} | ${mio(t.tokensIn)} | ${usd(t.valueCost)} | ${t.cost > 0 ? usd(t.cost) : '—'} | ${t.phases.join(' ')} |`,
 		);
 	}
 	lines.push('');
