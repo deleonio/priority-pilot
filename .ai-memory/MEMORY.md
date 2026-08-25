@@ -144,6 +144,7 @@ Konflikte, die er verhindern soll.
   (#1017 zweimal geparkt, obwohl 2× ux-ready entschieden). → Parser extrahiert jetzt per
   grep -oE '<Vokabular>' | head -1 den ersten bekannten Token (8 Stellen + Aufwandsklasse
   in 01); Prompt-Beispiele tragen den Token nackt, Bedeutungen in eigene Zeile.
+- 2026-08-25 · Playwright/E2e — `locator.evaluate` auf nicht existierendem Element läuft in den vollen 30s-Test-Timeout statt schnell zu failen (Fehlermeldung nennt dann „toBeVisible/evaluate“-Gemisch). → Vor evaluate ein `await expect(locator).toBeVisible()` setzen: fails in 5s mit klarem Ziel-Locator; auch für rote Spec-Tests die schnellere Rot-Signatur.
 - 2026-08-25 · node:test/t.skip — `t.skip()` im Test-Body markiert den Test nur, bricht ihn NICHT
   ab: der Body läuft weiter; eine Exception darin zählt nicht als `fail` (Summary zeigt `fail 0,
   skipped 1`), setzt aber den Exit-Code auf 1 („✖ failing tests" trotz Skip-Marker). Der
