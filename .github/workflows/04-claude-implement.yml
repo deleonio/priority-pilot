@@ -787,6 +787,15 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
           OUTCOME: ${{ steps.claude.outcome }}
           SINCE_EPOCH: ${{ steps.starttime.outputs.since_epoch }}
+          # Diese drei MÜSSEN hier stehen und dürfen NICHT in den run-Block zurück:
+          # Sobald der run-Block auch nur EIN ${{ }} enthält, kompiliert Actions ihn als
+          # Expression — und dieser Block sprengt mit ~24k Zeichen das harte Limit von
+          # 21000 ("Exceeded max expression length"). Die Datei gilt dann bei JEDEM Push
+          # im Repo als ungültig (Push validiert alle Workflow-Dateien, auch die, die
+          # gar nicht auf push hören). Ohne ${{ }} ist der Block ein reines Literal.
+          HEAD_BEFORE_SHA: ${{ steps.head-before.outputs.sha }}
+          REVIEW_ID_BEFORE: ${{ steps.review-before.outputs.id }}
+          REVIEW_UPDATED_BEFORE: ${{ steps.review-before.outputs.updated }}
         run: |
           # Verdict-Kanal: Datei primär (/tmp/claude-verdict, per Bash geschrieben —
           # robuster als Log-Parsing, vgl. PR #524/#530), Log-Grep als Übergangs-Fallback.
@@ -814,7 +823,7 @@ jobs:
           # (lokales Repo, keine API-/Marker-Abhaengigkeit). Das alte REVIEW_TS-Konstrukt fiel
           # bei fehlendem Review-Marker auf Total-Commits zurueck und meldete Fortschritt, wo
           # keiner war -> Review<->Fixup-Endlosloop (PR #524).
-          sha_before="${{ steps.head-before.outputs.sha }}"
+          sha_before="$HEAD_BEFORE_SHA"
           sha_after="$(git rev-parse HEAD)"
           echo "HEAD vor Claude: ${sha_before:-?} | nach Claude: ${sha_after:-?}"
           ARTIFACTS_OK="false"
@@ -1015,8 +1024,8 @@ jobs:
             REVIEW_NOW="$(bash .github/scripts/needs-human-explain.sh lookup --repo "$GITHUB_REPOSITORY" --pr "$PR" --mode review || true)"
             EVAL="$(bash .github/scripts/fixup-verdict.sh evaluate \
               --verdict "$verdict" --head-progress "$ARTIFACTS_OK" \
-              --review-id-before "${{ steps.review-before.outputs.id }}" \
-              --review-updated-before "${{ steps.review-before.outputs.updated }}" \
+              --review-id-before "$REVIEW_ID_BEFORE" \
+              --review-updated-before "$REVIEW_UPDATED_BEFORE" \
               --review-id-after "$(printf '%s\n' "$REVIEW_NOW" | sed -n 's/^id=//p')" \
               --review-updated-after "$(printf '%s\n' "$REVIEW_NOW" | sed -n 's/^updated_at=//p')")"
             EVAL_TARGET="$(printf '%s\n' "$EVAL" | sed -n 's/^target=//p')"
