@@ -1,1 +1,10 @@
-{"phases":{"review":{"sessionId":"2aa1b121-57f8-4c2b-b709-c77e7310a6a4","runId":"32815878822","branch":"fix/llm-ux-provider-fehlerhinweis","timestamp":"2026-08-25T06:11:50Z"}}}
+{
+  "phases": {
+    "review": {
+      "sessionId": "0df327e6-f707-4a04-8153-859dfc35335b",
+      "runId": "32816336290",
+      "branch": "fix/llm-ux-provider-fehlerhinweis",
+      "timestamp": "2026-08-25T06:18:07Z"
+    }
+  }
+}
