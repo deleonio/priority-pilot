@@ -786,12 +786,12 @@ body {
 }
 
 .forest-panel li {
-	margin: 0.25rem 0;
+	margin: var(--pp-space-6) 0;
 }
 
 /* P2-5: Forest-Node Cards */
-.forest-node-card {
-	margin-bottom: var(--pp-gap-tight);
+.forest-panel .forest-node-card {
+	margin-bottom: var(--pp-space-8);
 }
 
 .forest-node-header {
