@@ -6,6 +6,7 @@
  */
 
 import { findProviderByName, loadActiveProvider, toRuntimeConfig } from './llmProviders.js';
+import { upstreamErrorDetail } from './upstreamError.js';
 import type { LlmProvider as LlmProviderRow } from '../models/index.js';
 
 /** Eine vorgeschlagene Säulen-Einzahlung: Säulen-ID plus Konfidenz in Prozent (0–100). */
@@ -348,7 +349,11 @@ const callProvider = async (
 	}
 
 	if (!response.ok) {
-		throw new MistralRequestError(`${config.label} antwortete mit HTTP ${response.status}.`);
+		// Upstream-Fehlerdiagnose: Klartext-Ursache aus dem Body übernehmen (siehe upstreamError.ts).
+		const detail = await upstreamErrorDetail(response);
+		throw new MistralRequestError(
+			`${config.label} antwortete mit HTTP ${response.status}${detail !== '' ? `: ${detail}` : '.'}`,
+		);
 	}
 
 	let payload: unknown;

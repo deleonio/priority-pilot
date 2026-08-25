@@ -919,6 +919,39 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /llm-providers/{id}/test:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        description: ID des Providers
+        schema:
+          type: integer
+    post:
+      summary: Provider-Verbindung testen
+      description: >-
+        Schickt einen minimalen Test-Prompt über den Provider — mit denselben
+        Parametern wie echte KI-Aufrufe (Modell, Key, Endpoint,
+        JSON-Mode) — und meldet Erfolg inkl. Latenz oder die konkrete
+        Fehlerursache (Auth/Modell/Abo/Netzwerk) mit vom Upstream
+        gelieferter Detailmeldung. Testet den Provider unabhängig davon,
+        ob er aktiv ist — so lässt sich ein neu angelegter Provider vor der
+        Aktivierung prüfen.
+      operationId: testLlmProvider
+      tags: [llm]
+      responses:
+        '200':
+          description: Testergebnis (Feld `ok` unterscheidet Erfolg/Misserfolg)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LlmProviderTestResult'
+        '404':
+          description: Provider unbekannt
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
   /llm-providers/{id}/models:
     parameters:
       - name: id
@@ -2045,6 +2078,31 @@ components:
         name:
           type: string
           description: Anzeigename — fiel der Upstream keinen, gilt die Modellkennung.
+    LlmProviderTestResult:
+      type: object
+      required:
+        - ok
+      description: >-
+        Ergebnis von `POST /llm-providers/{id}/test`: `ok=true` mit Modell,
+        Latenz und Antwort-Auszug bei Erfolg; `ok=false` mit konkreter
+        Fehlerursache (inkl. Upstream-Detail wie „Check your subscription“)
+        bei Misserfolg. Nie den API-Key.
+      properties:
+        ok:
+          type: boolean
+          description: Hat der Test-Prompt den Provider erfolgreich durchlaufen?
+        model:
+          type: string
+          description: Effektiv genutztes Modell (Erfolgsfall).
+        latencyMs:
+          type: number
+          description: Round-Trip-Zeit des Test-Calls in Millisekunden (Erfolgsfall).
+        sample:
+          type: string
+          description: Gekürzter Antwort-Text des Modells (Erfolgsfall).
+        message:
+          type: string
+          description: Konkrete Fehlerursache bei Misserfolg (inkl. Upstream-Detail).
     LlmModels:
       type: object
       required:

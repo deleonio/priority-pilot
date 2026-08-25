@@ -10,11 +10,12 @@ import { LlmSettings } from './LlmSettings';
  * Built-ins (Mistral/OpenRouter: kein Bearbeiten/Löschen, Key aus Server-ENV).
  */
 
-const { listMock, modelsMock, updateMock, activateMock } = vi.hoisted(() => ({
+const { listMock, modelsMock, updateMock, activateMock, testMock } = vi.hoisted(() => ({
 	listMock: vi.fn(),
 	modelsMock: vi.fn(),
 	updateMock: vi.fn(),
 	activateMock: vi.fn(),
+	testMock: vi.fn(),
 }));
 
 vi.mock('../api', () => ({
@@ -30,7 +31,9 @@ vi.mock('../api', () => ({
 							? updateMock
 							: prop === 'activateLlmProvider'
 								? activateMock
-								: vi.fn().mockResolvedValue(undefined),
+								: prop === 'testLlmProvider'
+									? testMock
+									: vi.fn().mockResolvedValue(undefined),
 		},
 	),
 }));
@@ -173,5 +176,35 @@ describe('LlmSettings — Modellwahl des aktiven Providers', () => {
 
 		render(<LlmSettings />);
 		await waitFor(() => expect(screen.getByText(/kein API-Key auf dem Server hinterlegt/)).toBeInTheDocument());
+	});
+});
+
+describe('LlmSettings — Test-Prompt je Provider', () => {
+	it('Testen-Button je Provider-Zeile: Erfolg zeigt Latenz-Alert mit Antwort-Auszug', async () => {
+		testMock.mockResolvedValue({ ok: true, model: 'mistral-medium-latest', latencyMs: 321, sample: '{"ok": true}' });
+		render(<LlmSettings />);
+		await waitFor(() => expect(screen.getByText('Provider verwalten')).toBeInTheDocument());
+
+		// Ein Testen-Button je Provider (2 Built-ins + 1 Custom).
+		expect(screen.getAllByRole('button', { name: 'Testen' })).toHaveLength(3);
+		fireEvent.click(screen.getAllByRole('button', { name: 'Testen' })[0]);
+
+		await waitFor(() => expect(testMock).toHaveBeenCalledWith({ id: mistral.id }));
+		await waitFor(() => expect(screen.getByText(/Test erfolgreich \(321 ms\)/)).toBeInTheDocument());
+		await waitFor(() => expect(screen.getByText(/„\{"ok": true\}“/)).toBeInTheDocument());
+	});
+
+	it('Testen-Button: Misserfolg zeigt die konkrete Ursache (z. B. totes Abo)', async () => {
+		testMock.mockResolvedValue({
+			ok: false,
+			message: 'Mistral antwortete mit HTTP 402: Check your subscription on https://admin.mistral.ai/subscription',
+		});
+		render(<LlmSettings />);
+		await waitFor(() => expect(screen.getByText('Provider verwalten')).toBeInTheDocument());
+
+		fireEvent.click(screen.getAllByRole('button', { name: 'Testen' })[0]);
+
+		await waitFor(() => expect(screen.getByText(/Test fehlgeschlagen/)).toBeInTheDocument());
+		await waitFor(() => expect(screen.getByText(/Check your subscription/)).toBeInTheDocument());
 	});
 });

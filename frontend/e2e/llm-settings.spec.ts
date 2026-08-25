@@ -101,6 +101,18 @@ test.describe('KI-Provider-Einstellungen', () => {
 		await expect(page.getByRole('button', { name: 'Neuer Provider' })).toBeVisible();
 	});
 
+	test('Test-Prompt: Testen-Button zeigt das Ergebnis inline unter der Zeile', async ({ page }) => {
+		await openLlmTab(page);
+
+		// E2E-Backend hat keine LLM-ENV-Keys → deterministische Vorab-Meldung des Servers.
+		const buttons = page.getByRole('button', { name: 'Testen' });
+		await expect(buttons, 'Ein Testen-Button je Built-in').toHaveCount(2);
+		await buttons.first().click();
+
+		await expect(page.getByText(/Test fehlgeschlagen/)).toBeVisible();
+		await expect(page.getByText(/Kein API-Key vorhanden/)).toBeVisible();
+	});
+
 	test('Built-ins bleiben nach Lösch-Versuch über die API erhalten (400)', async ({ page }) => {
 		const providers = (await (await page.request.get('/api/v1/llm-providers')).json()) as ProviderDto[];
 		const mistral = providers.find((p) => p.name === 'Mistral');
