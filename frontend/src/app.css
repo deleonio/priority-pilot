@@ -1802,6 +1802,16 @@ kol-toolbar {
 	background-color: transparent;
 }
 
+/* --- Issue #1028: Padding & Radius für KolAlert-Host --- */
+/* Leichter Innenabstand (0.25rem) und kleine Rundung (0.375rem) am Host,
+   damit alle Alert-Meldungen app-weit profitieren. #930 (transparenter Hintergrund)
+   bleibt unverändert; Radius wirkt auf Host-Fläche, interne Custom-Properties
+   vererben weiterhin in den Shadow-DOM. */
+kol-alert {
+	padding: 0.25rem;
+	border-radius: 0.375rem;
+}
+
 /*
  * kol-heading setzt seine Textfarbe intern über `--kol-a11y-font-color`, per `:host` fest auf
  * Schwarz vorbelegt — unabhängig von `data-theme`. Ohne Override ergibt das im Dark Mode
