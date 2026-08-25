@@ -14,8 +14,9 @@ import { PLACEHOLDER, stripImages } from './strip-images.mjs';
  *    user-attachments-URLs; Codebloecke, Marker und normale Links bleiben unberuehrt.
  *  - AK1 (CLI): --in-place meldet changed=0|1 und schreibt nur bei Aenderung.
  *  - AK3: doppelte Anwendung ist ein Fixpunkt (Idempotenz fuer Catch-up-Re-Runs).
- *  - AK2: pr-image-strip.sh durchlaeuft alle vier Zielarten (PR-Body, PR-Kommentar,
- *    Issue-Body, Issue-Kommentar) und PATCHed nur veraenderte Objekte.
+ *  - AK2: pr-image-strip.sh durchlaeuft alle fuenf Zielarten (PR-Body, PR-Kommentar,
+ *    Inline-Review-Kommentar, Issue-Body, Issue-Kommentar) und PATCHed nur veraenderte
+ *    Objekte.
  *
  * `gh` wird per PATH-Stub ersetzt (Stil-Vorbild: label-transition.test.ts): Fixtures
  * liegen als Dateien in $GH_FIXTURE_DIR, Schreibaufrufe landen in $GH_WRITE_LOG.
@@ -33,9 +34,25 @@ describe('stripImages() — AK1: Bild-Referenzen werden ersetzt, Rest bleibt', (
 		assert.equal(stripImages('![alt](url "title")'), PLACEHOLDER);
 	});
 
+	it('ersetzt Markdown-Bilder mit EINEM verschachtelten Klammern-Paar im Alt-Text', () => {
+		// CommonMark erlaubt balancierte Klammern im Link-Text — GitHub rendert das
+		// als Bild. [^\]]* alleine wuerde am ersten ] aufgeben (Issue-#1023-Review, Finding 1).
+		assert.equal(stripImages('![alt [x]](https://example.com/pic.png)'), PLACEHOLDER);
+		assert.equal(stripImages('vor ![a [b] c](u.png) nach'), `vor ${PLACEHOLDER} nach`);
+		// Verschachtelter Alt-Text auch bei LINKS auf Bild-Quellen (kein [x]](P)-Muell)
+		assert.equal(stripImages('[alt [x]](https://github.com/user-attachments/assets/n-1)'), PLACEHOLDER);
+	});
+
 	it('ersetzt HTML-<img>-Tags, auch mehrzeilig und self-closing', () => {
 		assert.equal(stripImages('<img src="x.png" alt="y">'), PLACEHOLDER);
 		assert.equal(stripImages('vor <img\n  src="a.png"\n  alt="b"\n/> nach'), `vor ${PLACEHOLDER} nach`);
+	});
+
+	it('ersetzt HTML-<img>-Tags mit ">" in Attributwerten, ohne die src-URL zu leaken', () => {
+		// [^>]* alleine stoppt am ersten ">" im gequoteten Wert — die dahinterstehende
+		// src-URL ueberlebt im Klartext (Issue-#1023-Review, Finding 1).
+		assert.equal(stripImages('<img title="a > b" src="https://x/y.png">'), PLACEHOLDER);
+		assert.equal(stripImages("<img title='a > b' src='https://x/y.png'>"), PLACEHOLDER);
 	});
 
 	it('ersetzt data:-URIs (als Bild-URL und nacktes URI)', () => {
@@ -166,12 +183,15 @@ before(() => {
 	fixtureDir = join(stubDir, 'fixtures');
 	writeLogPath = join(stubDir, 'writes.log');
 	mkdirSync(join(fixtureDir, 'comment-ids'), { recursive: true });
+	mkdirSync(join(fixtureDir, 'pull-comment-ids'), { recursive: true });
 	mkdirSync(join(fixtureDir, 'comment-bodies'), { recursive: true });
 	mkdirSync(join(fixtureDir, 'issue-bodies'), { recursive: true });
 
 	// gh-Stub: Lesezugriffe aus Fixtures, Schreibzugriffe ins Log. Der Pfad ist das
 	// erste Argument mit repos/-Praefix; NUMMER-Extraktion schiebt PR 42 und Issue 77
-	// in dieselben Verzeichnisse.
+	// in dieselben Verzeichnisse. Body-Ausgaben erhalten wie das echte gh genau einen
+	// abschliessenden Newline (--jq druckt per Println) — der Sweep entfernt ihn per
+	// head -c -1 wieder (Issue-#1023-Review, Finding 3).
 	const gh = join(stubDir, 'gh');
 	writeFileSync(
 		gh,
@@ -182,12 +202,15 @@ before(() => {
 			'for a in "$@"; do case "$a" in repos/*) path="$a"; break ;; esac; done',
 			'if [ "$1" = "pr" ] && [ "$2" = "view" ]; then',
 			'  case "$*" in',
-			'    *"--json body"*) cat "$GH_FIXTURE_DIR/pr-body.md"; exit 0 ;;',
+			'    *"--json body"*) cat "$GH_FIXTURE_DIR/pr-body.md"; printf "\\n"; exit 0 ;;',
 			'    *closingIssuesReferences*) cat "$GH_FIXTURE_DIR/closing-issues.txt"; exit 0 ;;',
 			'  esac',
 			'fi',
 			'if [ "$1" = "pr" ] && [ "$2" = "edit" ]; then',
-			'  echo "PR-EDIT" >> "$GH_WRITE_LOG"',
+			'  f=""',
+			'  prev=""',
+			'  for a in "$@"; do [ "$prev" = "--body-file" ] && f="$a"; prev="$a"; done',
+			'  { echo "PR-EDIT"; [ -n "$f" ] && cat "$f"; echo "---"; } >> "$GH_WRITE_LOG"',
 			'  exit 0',
 			'fi',
 			'if [ "$1" = "api" ]; then',
@@ -197,17 +220,23 @@ before(() => {
 			'    { echo "PATCH $path"; cat "$f"; echo "---"; } >> "$GH_WRITE_LOG"',
 			'    exit 0',
 			'  fi',
-			'  num="$(printf "%s" "$path" | sed -E "s#repos/([^/]+)/([^/]+)/issues/([0-9]+).*#\\3#")"',
+			'  num="$(printf "%s" "$path" | sed -E "s#repos/([^/]+)/([^/]+)/(issues|pulls)/([0-9]+).*#\\4#")"',
 			'  case "$path" in',
-			'    */issues/comments/*)',
+			'    */issues/comments/*|*/pulls/comments/*)',
 			'      id="${path##*/}"',
-			'      cat "$GH_FIXTURE_DIR/comment-bodies/$id.md" 2>/dev/null || echo ""',
+			'      cat "$GH_FIXTURE_DIR/comment-bodies/$id.md" 2>/dev/null',
+			'      printf "\\n"',
 			'      exit 0 ;;',
 			'    */comments*)',
-			'      cat "$GH_FIXTURE_DIR/comment-ids/$num.txt" 2>/dev/null',
+			'      if [[ "$path" == */pulls/* ]]; then',
+			'        cat "$GH_FIXTURE_DIR/pull-comment-ids/$num.txt" 2>/dev/null',
+			'      else',
+			'        cat "$GH_FIXTURE_DIR/comment-ids/$num.txt" 2>/dev/null',
+			'      fi',
 			'      exit 0 ;;',
 			'    *)',
-			'      cat "$GH_FIXTURE_DIR/issue-bodies/$num.md" 2>/dev/null || echo ""',
+			'      cat "$GH_FIXTURE_DIR/issue-bodies/$num.md" 2>/dev/null',
+			'      printf "\\n"',
 			'      exit 0 ;;',
 			'  esac',
 			'fi',
@@ -220,14 +249,16 @@ before(() => {
 
 after(() => rmSync(stubDir, { recursive: true, force: true }));
 
-describe('pr-image-strip.sh — AK2: alle vier Zielarten durchlaufen', () => {
-	it('PATCHed PR-Body, PR-Kommentar, Issue-Body und Issue-Kommentar', () => {
+describe('pr-image-strip.sh — AK2: alle fuenf Zielarten durchlaufen', () => {
+	it('PATCHed PR-Body, PR-Kommentar, Inline-Review-Kommentar, Issue-Body und Issue-Kommentar', () => {
 		writeFixture('pr-body.md', 'PR mit ![shot](https://github.com/user-attachments/assets/a-1)');
 		writeFixture('closing-issues.txt', '77\n');
-		writeFixture('comment-ids/42.txt', '11\n33\n'); // PR-Kommentare
+		writeFixture('comment-ids/42.txt', '11\n33\n'); // PR-Konversations-Kommentare
+		writeFixture('pull-comment-ids/42.txt', '44\n'); // Inline-Review-Kommentare
 		writeFixture('comment-ids/77.txt', '22\n'); // Issue-Kommentare
 		writeFixture('comment-bodies/11.md', 'kommentar mit <img src="x.png">');
 		writeFixture('comment-bodies/33.md', 'kommentar ohne bild — darf nicht gepatcht werden');
+		writeFixture('comment-bodies/44.md', 'inline-review-kommentar mit ![d](https://example.com/d.png)');
 		writeFixture('comment-bodies/22.md', 'issue-kommentar mit ![i](data:image/png;base64,AA)');
 		writeFixture('issue-bodies/77.md', 'issue body mit nacktem https://github.com/user-attachments/assets/b-2 link');
 
@@ -235,21 +266,47 @@ describe('pr-image-strip.sh — AK2: alle vier Zielarten durchlaufen', () => {
 		assert.equal(res.status, 0, res.stderr);
 		assert.match(log, /^PR-EDIT$/m, 'PR-Body muss geschrieben werden');
 		assert.match(log, /^PATCH repos\/o\/r\/issues\/comments\/11$/m, 'PR-Kommentar 11 muss gepatcht werden');
+		assert.match(log, /^PATCH repos\/o\/r\/pulls\/comments\/44$/m, 'Inline-Review-Kommentar 44 muss gepatcht werden');
 		assert.match(log, /^PATCH repos\/o\/r\/issues\/77$/m, 'Issue-Body 77 muss gepatcht werden');
 		assert.match(log, /^PATCH repos\/o\/r\/issues\/comments\/22$/m, 'Issue-Kommentar 22 muss gepatcht werden');
 		assert.ok(!log.includes('comments/33'), 'bildfreier Kommentar darf nicht gepatcht werden');
 		assert.ok(log.includes(PLACEHOLDER), 'gepatchte Bodies enthalten den Platzhalter');
 		assert.ok(!log.includes('user-attachments'), 'keine Bild-URL bleibt zurueck');
+		assert.ok(!log.includes('example.com/d.png'), 'Dritt-Host-Bild-URL bleibt nicht zurueck');
 	});
 
 	it('ohne Closing-Issues bleibt der Issue-Teil unberuehrt', () => {
 		writeFixture('pr-body.md', '![x](x.png)');
 		writeFixture('closing-issues.txt', '');
 		writeFixture('comment-ids/42.txt', '');
+		writeFixture('pull-comment-ids/42.txt', '');
 		const { res, log } = runSweep();
 		assert.equal(res.status, 0, res.stderr);
 		assert.match(log, /^PR-EDIT$/m);
 		assert.ok(!/PATCH repos\/o\/r\/issues\/[0-9]+$/.test(log), 'kein Issue-PATCH ohne Closing-Issue');
+	});
+});
+
+describe('pr-image-strip.sh — AK1: Bodies bleiben byte-identisch', () => {
+	it('erhaelt trailing Newlines in PR-Body und Kommentar (kein $()-Strip, kein gh-Newline)', () => {
+		writeFixture('pr-body.md', 'PR mit ![x](x.png)\n\n\n');
+		writeFixture('closing-issues.txt', '');
+		writeFixture('comment-ids/42.txt', '11\n');
+		writeFixture('pull-comment-ids/42.txt', '');
+		writeFixture('comment-bodies/11.md', 'kommentar mit <img src="y.png">\n\n');
+		const { res, log } = runSweep();
+		assert.equal(res.status, 0, res.stderr);
+		// Write-Log-Format: "PR-EDIT\n<body>---\n" bzw. "PATCH <pfad>\n<body>---\n" —
+		// die eigenen trailing Newlines des Bodys muessen vor der --- Zeile stehen,
+		// weder weggestrippt ($()) noch verdoppelt (gh-Println-Newline).
+		assert.ok(
+			log.includes(`PR mit ${PLACEHOLDER}\n\n\n---`),
+			'PR-Body: drei trailing Newlines muessen erhalten bleiben',
+		);
+		assert.ok(
+			log.includes(`kommentar mit ${PLACEHOLDER}\n\n---`),
+			'Kommentar: zwei trailing Newlines muessen erhalten bleiben',
+		);
 	});
 });
 
@@ -258,8 +315,10 @@ describe('pr-image-strip.sh — AK3: Sweep ist idempotent', () => {
 		writeFixture('pr-body.md', `PR ${PLACEHOLDER} alt`);
 		writeFixture('closing-issues.txt', '77\n');
 		writeFixture('comment-ids/42.txt', '11\n');
+		writeFixture('pull-comment-ids/42.txt', '44\n');
 		writeFixture('comment-ids/77.txt', '22\n');
 		writeFixture('comment-bodies/11.md', `ok ${PLACEHOLDER}`);
+		writeFixture('comment-bodies/44.md', 'ok');
 		writeFixture('comment-bodies/22.md', 'ok');
 		writeFixture('issue-bodies/77.md', 'ok');
 		const { res, log } = runSweep();

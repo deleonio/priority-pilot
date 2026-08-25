@@ -16,13 +16,17 @@ const BARE_IMAGE_SOURCE =
 
 const transformSegment = (segment) =>
 	segment
-		// HTML-<img> (auch mehrzeilig, mit oder ohne schließenden Slash)
-		.replace(/<img\b[^>]*\/?>/gi, PLACEHOLDER)
-		// Markdown-Bilder ![alt](url "title") — data:- und user-attachments-URLs inklusive
-		.replace(/!\[[^\]]*\]\([^)]*\)/g, PLACEHOLDER)
-		// Markdown-LINKS auf Bild-Quellen: [Text](data:...) / [Text](...user-attachments/...)
+		// HTML-<img> (auch mehrzeilig, mit oder ohne schließenden Slash). Attribute dürfen
+		// gequotete Werte mit ">" enthalten (title="a > b"), sonst leakt die src-URL.
+		.replace(/<img\b(?:"[^"]*"|'[^']*'|[^>"'])*\/?>/gi, PLACEHOLDER)
+		// Markdown-Bilder ![alt](url "title") — data:- und user-attachments-URLs inklusive.
+		// Alt-Text mit EINER Klammern-Ebene (CommonMark: balancierte Klammern erlaubt),
+		// damit ![alt [x]](url) nicht am ersten ] die Erkennung verliert.
+		.replace(/!\[(?:[^\[\]]|\[[^\]]*\])*\]\([^)]*\)/g, PLACEHOLDER)
+		// Markdown-LINKS auf Bild-Quellen: [Text](data:...) / [Text](...user-attachments/...),
+		// Alt-Text ebenfalls mit einer Klammern-Ebene
 		.replace(
-			/\[[^\]]*\]\(\s*(?:data:image\/[^)\s]*|https:\/\/github\.com\/user-attachments\/assets\/[^)\s]*)[^)]*\)/gi,
+			/\[(?:[^\[\]]|\[[^\]]*\])*\]\(\s*(?:data:image\/[^)\s]*|https:\/\/github\.com\/user-attachments\/assets\/[^)\s]*)[^)]*\)/gi,
 			PLACEHOLDER,
 		)
 		// Nackte Quellen (autolinked oder im Fliesstext)
