@@ -34,19 +34,13 @@ runs:
         latest="$(find "$HOME/.claude/projects" -type f -name '*.jsonl' -printf '%T@\t%p\n' 2>/dev/null | sort -rn | head -n1 | cut -f2)"
         [ -n "$latest" ] && session_json="\"$(basename "$latest" .jsonl)\""
 
-        # state.json fortschreiben — der Restore zu Laufbeginn (setup-claude) hat den
-        # Vor-Stand bereits in den Workspace geolt; phases.<phase> = letzter Lauf gewinnt.
+        # state.json fortschreiben. Der Eintrag selbst wird erst NACH dem Fetch gebaut,
+        # weil die Merge-Basis vom Branch-Stand abhängt (siehe unten, #1009).
         state=".ai-memory/state.json"
         mkdir -p .ai-memory
         now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
         entry="$(printf '{"sessionId":%s,"runId":"%s","branch":"%s","timestamp":"%s"}' \
           "$session_json" "$RUN_ID" "$HEAD_BRANCH" "$now")"
-        if [ -f "$state" ] && jq -e . "$state" >/dev/null 2>&1; then
-          jq --arg p "$PHASE" --argjson e "$entry" '.phases[$p] = $e' "$state" > "$state.tmp" \
-            && mv "$state.tmp" "$state"
-        else
-          printf '{"phases":{"%s":%s}}\n' "$PHASE" "$entry" > "$state"
-        fi
 
         # Commit über einen TEMP-INDEX bauen: Workspace und sein Index bleiben unberührt —
         # die Storage-Dateien können so nie in ein Phasen-Commit des Agenten rutschen.
@@ -57,13 +51,30 @@ runs:
         # greifen und der Push als non-FF abgelehnt (belegt per lokalem Smoke-Test).
         idx="$(mktemp -d)/index"
         parents=()
+        base=""
         if git fetch --quiet origin "$STATE" 2>/dev/null && git rev-parse --verify -q FETCH_HEAD >/dev/null; then
+          parents=(-p FETCH_HEAD)
+          base="$(git show "FETCH_HEAD:${state}" 2>/dev/null || true)" # Basis: Branch-Stand, nicht der Workspace
           export GIT_INDEX_FILE="$idx"
           git read-tree "FETCH_HEAD^{tree}" # Fortschreiben: alter Branch-Stand ist die Basis
-          parents=(-p FETCH_HEAD)
         else
           export GIT_INDEX_FILE="$idx"
           git read-tree --empty # Erst-Phase: eigene Wurzel (orphan), nur Storage-Pfade
+        fi
+
+        # Merge-Basis (#1009): Existiert der Branch, ist dessen state.json autoritativ —
+        # die Workspace-Kopie kann älter sein als der Branch (Fixup setzt ai:needs-review,
+        # BEVOR sein eigener Save läuft → Review restored den Vorgänger-Stand; ein Merge
+        # auf der Workspace-Kopie löscht dann den fixup-Eintrag). Nur ohne Branch dient
+        # die Workspace-Kopie als Basis bzw. wird neu angelegt.
+        if [ -n "$base" ] && printf '%s' "$base" | jq -e . >/dev/null 2>&1; then
+          printf '%s' "$base" | jq --arg p "$PHASE" --argjson e "$entry" '.phases[$p] = $e' > "$state.tmp" \
+            && mv "$state.tmp" "$state"
+        elif [ -f "$state" ] && jq -e . "$state" >/dev/null 2>&1; then
+          jq --arg p "$PHASE" --argjson e "$entry" '.phases[$p] = $e' "$state" > "$state.tmp" \
+            && mv "$state.tmp" "$state"
+        else
+          printf '{"phases":{"%s":%s}}\n' "$PHASE" "$entry" > "$state"
         fi
 
         # MEMORY.md bewusst NICHT gestaged: eingechecktes Dauergedächtnis, reist in den
