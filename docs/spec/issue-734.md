@@ -1,7 +1,6 @@
 # Issue 734 – UI-Bezug Klassifizierung im Triage-Workflow
 
-**Stand:** 2026-08-23  
-**Version:** v1.1 (2026-08-23): Nightly-Sync — ux:ready-Label-Logik entfernt: im Triage-Workflow nicht implementiert. Umgesetzt ist nur das UI-Bezug-Pflichtfeld.
+**Stand:** 2026-08-23
 
 ---
 

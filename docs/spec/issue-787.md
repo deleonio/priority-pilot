@@ -1,8 +1,6 @@
 # Issue 787 – Header-Layout
 
 **Stand:** 2026-08-25  
-**Version:** v1.5 (2026-08-25): Nightly-Sync — KI-Modell-Auswahl-Passagen entfernt: Der Toolbar-Button wurde mit dem LLM-Provider-System (#951) zurückgebaut, die Modellwahl lebt in den Einstellungen (Tab „KI-Provider"). Übrig bleibt der Header-Layout-Vertrag.  
-**Version:** v1.4 (2026-08-24): Nightly-Sync — #965 umgesetzt: Button icon-only mit statischem Namen „KI-Modell auswählen", auf allen Viewport-Breiten gerendert (Mobile-Lücke geschlossen); Modellname nur im Dialog.  
 **Ziel:** Header-Layout optimieren und stabil halten
 
 ---
@@ -78,13 +76,11 @@ Der Header funktioniert auf allen Viewports.
 - Touch-Ziele der Kopf-Aktionen mindestens 44×44px (WCAG 2.5.5)
 - Header-Height bleibt stabil
 
-### Abgrenzung: App-Name und #406
+### Abgrenzung: App-Name und Logo
 
-#406 hat die redundante Text-H1 „Priority Pilot" aus dem Header entfernt — damals trug die
-Wort-Bild-Marke den Namen selbst. Seit #485 ist das Logo icon-only, der Name ist also nicht mehr
-redundant. #787 führt ihn deshalb wieder ein, aber **als `span`, nicht als Überschrift**: Die
-Kernaussage von #406 („keine zweite H1 im Header") bleibt unangetastet, der zugehörige E2E-Vertrag
-in `header-logo.spec.ts` prüft das weiterhin.
+Der Header trägt den App-Namen **als `span`, nicht als Überschrift** — es gibt keine zweite
+Text-H1 im Header. Das Logo ist icon-only, der Name ist also nicht redundant. Der zugehörige
+E2E-Vertrag in `header-logo.spec.ts` prüft beides.
 
 ### Abgrenzung: „Header-Height bleibt stabil"
 
@@ -150,18 +146,3 @@ Alle UI-Elemente erfüllen BITV 2.1 Kontrast-Anforderungen.
 - **Format:** Dieser Spec folgt dem User-Journey-Format aus docs/spec/user-journeys.md
 - **Implementierung:** Spezifikation ist implementierungsagnostisch – beschreibt beobachtbares Verhalten
 - **Test-Strategie:** E2E-Tests (frontend/e2e/*.spec.ts) prüfen Layout-Reihenfolge, A11y-Attribute und Responsive-Verhalten
-
----
-
-## Versionierung
-
-- **v1.0** (2026-08-17): Initialefassung für Issue #787. Header-Layout und KI-Modell-Auswahl in Toolbar spezifiziert.
-- **v1.1** (2026-08-17): Abgrenzungen ergänzt, nachdem die Tests die technische Realität gegengeprüft
-  haben: ARIA-Rolle `toolbar` bleibt bei `kol-toolbar`, das Popup ist ein Dialog (nicht Listbox),
-  Label ohne hartcodierte Options-Anzahl, Tab-Reihenfolge über die bedienbaren Elemente,
-  Header-Stabilität ab Ende der Hydration.
-- **v1.2** (2026-08-20): Journey 1 korrigiert für #912 — Nutzer-Feedback ergab, dass der Avatar
-  links-mittig direkt neben der Wortmarke sitzt statt rechtsbündig. Reihenfolge geändert von
-  Logo → Name → Avatar → Toolbar auf Logo → Name → Toolbar → Avatar; der Avatar ist jetzt das
-  letzte Element ganz rechts im Header. Größenrelation (1,25 × `--pp-toolbar-height`) und
-  Einzeiler-Vertrag bei 375px/768px bleiben unverändert.

@@ -1,7 +1,6 @@
 # Single LLM-Provider-System – Issue 951
 
 **Stand:** 2026-08-25  
-**Version:** v1.1 (2026-08-25): Nightly-Sync — auf Ist-Stand synchronisiert: /llm-config-Legacy-Endpunkte und LlmProviderList.tsx existieren nicht, Built-in-Provider beziehen Keys aus Server-ENV, Modell-Auswahl läuft pro Provider über GET /llm-providers/{id}/models; provider-Query-Param-Vertrag aus #749 übernommen (dessen Spec entfernt).  
 **Ziel:** Genau ein aktiver LLM-Provider für alle KI-Anfragen, per Radio-Button gewählt — statt fester Kaskade aus Mistral + OpenRouter
 
 Diese Spezifikation beschreibt das Single-Provider-System: Alle LLM-Anfragen laufen gegen genau einen aktiven Provider; konfiguriert wird er unter Einstellungen → Tab „KI-Provider“.

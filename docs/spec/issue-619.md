@@ -1,7 +1,6 @@
 # Issue 619 – Startup-Error-Handling
 
 **Stand:** 2026-08-23  
-**Version:** v1.1 (2026-08-23): Nightly-Sync — Schritt 4 an Ist-Stand angepasst (Error-Handler via `server.on('error')`, Zeilennummer entfernt).  
 **Ziel:** Prozess bei Startup-Fehlern sauber beenden statt im defs Uhrbelzustand weiterzulaufen
 
 ---

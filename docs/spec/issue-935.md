@@ -1,7 +1,6 @@
 # Spec #935 — Säulen-Formular: Beschreibung als Textarea, Titel auf 30 Zeichen begrenzt
 
 **Stand:** 2026-08-24  
-**Version:** v1.1 (2026-08-24): Nightly-Sync — umgesetzt (KolTextarea + TITLE_MAX_LENGTH im Code); Spec-Phasen-Status und Meta-Kriterium-Passage entfernt.  
 Issue: #935 · Muster: `TaskForm.tsx` (Titel + Beschreibung)
 
 ## Ziel

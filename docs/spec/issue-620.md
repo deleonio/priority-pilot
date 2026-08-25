@@ -1,8 +1,6 @@
 # User Journey – Frontend-Error-Handling für LLM-Calls
 
 **Stand:** 2026-08-25  
-**Version:** v1.2 (2026-08-25): Nightly-Sync — „nicht-JSON-Antwort"-Klammer entfernt: die Meldung wird rein nach Statuscode 502/503/504 erzeugt, unabhängig von der Body-Lesbarkeit.  
-**Version:** v1.1 (2026-08-23): Nightly-Sync — Ist-Meldungstext und Retry-Umfang aus Code belegt ergänzt.  
 **Issue:** #620 (Teil von #617)
 
 ---
@@ -61,9 +59,3 @@ Bei Ausfall/Timeout des Mistral-Dienstes eine verständliche Fehlermeldung anzei
 - **Implementierung:** Implementierungsagnostisch – beschreibt das beobachtbare Verhalten, nicht den technischen Pfad
 - **Test-Strategie:** Tests validieren das User-Experience-Verhalten (verständliche Fehlermeldung) nicht technische Implementierungsdetails
 - **Files betroffen:** Frontend-Components für `parse-text` + `pillars/advisor` (Error-Handling/API-Client-Layer)
-
----
-
-## Versionierung
-
-- **v1.0** (2026-08-13): Initialefassung für Issue #620. Frontend-Error-Handling für LLM-Calls spezifiziert.
