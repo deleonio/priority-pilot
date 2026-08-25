@@ -152,6 +152,12 @@ EOF
       exit 1
     }
   fi
+  # Datenschutz (Issue #1021) gilt auch im Fallback-Pfad: Bilder entfernen, obwohl
+  # keine reguläre Doku gerendert wurde. Best-effort — ai:documented ist ggf. schon
+  # gesetzt, ein roter Job wäre nicht re-runbar.
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  bash "$SCRIPT_DIR/pr-image-strip.sh" --repo "$REPO" --pr "$PR" $([ "$DRY_RUN" = "true" ] && echo --dry-run) \
+    || echo "::warning title=Bild-Sweep fehlgeschlagen::Best-effort."
   exit 0
 fi
 
@@ -323,5 +329,14 @@ if [ "$DRY_RUN" != "true" ]; then
     exit 1
   }
 fi
+
+# ---------------------------------------------------------------------------
+# 5) Bild-Entfernung (Issue #1021, Datenschutz) — NACH Body-Splice und Kommentar,
+#    damit auch der frisch geschriebene Body und der neue ai-documenter-Kommentar
+#    erfasst werden. Best-effort (kein Exit 1), idempotent.
+# ---------------------------------------------------------------------------
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+bash "$SCRIPT_DIR/pr-image-strip.sh" --repo "$REPO" --pr "$PR" $([ "$DRY_RUN" = "true" ] && echo --dry-run) \
+  || echo "::warning title=Bild-Sweep fehlgeschlagen::Best-effort."
 
 echo "✅ Rendering abgeschlossen: classification=$CLASSIFICATION title_changed=$([ -n "$NEW_TITLE" ] && echo true || echo false)"

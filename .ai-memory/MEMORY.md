@@ -151,3 +151,9 @@ Konflikte, die er verhindern soll.
   Sandbox ohne Redis rot (server/src/express/session.test.ts, CI hat redis:8-Service und merkt es
   nicht). → Nach `t.skip(reason)` IMMER `return`. Und: Exit-Codes nie aus Pipes lesen (`| tail`
   verschluckt sie) — `$?` im selben Call ohne Pipe prüfen.
+- 2026-08-25 · gh/--jq-Newline — `gh api`/`gh pr view` mit `--jq` hängen an JEDE Ausgabe
+  genau einen Newline an (Println; per xxd verifiziert), während `"$(gh …)"` ALLE trailing
+  Newlines strippt. Byte-identische Body-Verarbeitung (PATCH ohne Kollateral-Bytes):
+  Direkt-Redirect in Datei + `head -c -1` (GNU) entfernt allein den gh-Newline. gh-Stubs
+  in Tests müssen den Newline emulieren (`cat fixture; printf '\n'`), sonst frisst head
+  den letzten Content-Byte.
