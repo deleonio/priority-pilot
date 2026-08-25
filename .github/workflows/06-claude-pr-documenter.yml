@@ -270,23 +270,6 @@ jobs:
           issue-number: ${{ steps.setup.outputs.issue-number || github.event.pull_request.number || github.event.inputs.pr-number }}
           phase: documenter
 
-      - name: 💰 Kostenlauf versiegeln (.costs/<n>.json auf main committen)
-        # Dauerhafte Kosten-Ablage: Die Artefakte (90-Tage-Zwischenpuffer) EINES Tickets
-        # werden in die Repo-Datei .costs/<n>.json gemergt und auf main committet. Der
-        # Documenter ist der EINZIGE Schreiber je Ticket-Datei — er läuft nach dem Merge
-        # (alle Phasen fertig, Nummer final) und serialisiert durch die statische
-        # Phasen-Queue, das Konflikt-Argument gegen .costs/-Commits aus parallelen Phasen
-        # greift für den terminalen Seal nicht (s. .github/scripts/cost-seal.ts Kopf und
-        # .costs/SCHEMA.md). Läuft NACH der Kostenerfassung, damit der eigene Documenter-
-        # Eintrag (frisch in die Workspace-Datei geschrieben) mit versiegelt wird.
-        # NIE FATAL wie record-cost: Schlägt der Seal fehl, übernimmt der Catch-up-Job
-        # unten (workflow_dispatch) — die Artefakte leben 90 Tage.
-        if: always() && steps.setup.outputs.configured == 'true'
-        env:
-          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
-          ISSUE: ${{ steps.setup.outputs.issue-number || github.event.pull_request.number || github.event.inputs.pr-number }}
-        run: bash .github/scripts/seal-costs.sh --repo "$REPO" --issue "$ISSUE"
-
       - name: 🖨️ Rendern — Titel/Body/Kommentar/Labels deterministisch
         # Alle Schreibzugriffe in einem Schritt: Titel-Rename, Body-Marker-Splice, GENAU EIN
         # ai-documenter-Kommentar (PATCH statt Duplikat), Labels (ai:documented zuletzt).
@@ -386,10 +369,9 @@ jobs:
     # Eigenständiger Retry-Pfad für fehlgeschlagene Siegel: Der Documenter-Precheck
     # bricht bei gesetztem ai:documented ab (Idempotenz gegen Doppel-Dokumentation) —
     # genau dann brauchte der Seal bisher einen Weg, der an derselben Invariante
-    # hing. Dieser Job läuft NUR den Daten-Siegel (kein LLM, kein Rendering): beim
-    # Merge-Ereignis zusätzlich zum Documenter-Job (double-seal harmlos, Dedupe),
-    # per workflow_dispatch auch nachträglich für bereits dokumentierte PRs.
-    if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
+    # hing. Dieser Job läuft NUR den Daten-Siegel (kein LLM, kein Rendering):
+    # per workflow_dispatch nachträglich für bereits dokumentierte PRs.
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
