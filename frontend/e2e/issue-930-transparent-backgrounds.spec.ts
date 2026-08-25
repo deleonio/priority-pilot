@@ -333,8 +333,23 @@ test.describe('#930: Transparente KoliBri-Host-Hintergründe', () => {
 		await innerButton.hover();
 		await expect(innerButton).toBeVisible();
 
-		// Focus-Zustand
-		await innerButton.focus();
+		// Focus-Zustand — per echter Tastatur-Navigation erreichen (Spec issue-1004, AK1):
+		// Vor dem ersten kol-button liegen fokussierbare Banner-Elemente, daher Tab
+		// in begrenzter Schleife pressen, bis der innere Button fokussiert ist.
+		// Wird der Button aus der Tab-Reihenfolge entfernt (z. B. tabindex="-1"),
+		// schlägt dieser Test aus (Schutz vor still verlorener Tastatur-Bedienbarkeit).
+		let focusedViaKeyboard = false;
+		for (let i = 0; i < 15 && !focusedViaKeyboard; i++) {
+			await page.keyboard.press('Tab');
+			// toBeFocused pierct das Shadow DOM nativ (document.activeElement täte es nicht)
+			try {
+				await expect(innerButton).toBeFocused({ timeout: 150 });
+				focusedViaKeyboard = true;
+			} catch {
+				// noch nicht beim Button — weiter tabben
+			}
+		}
+		expect(focusedViaKeyboard, 'kol-button muss per Tab-Taste erreichbar sein (max. 15 Tabs)').toBe(true);
 		await expect(innerButton).toBeFocused();
 
 		const hasFocusIndicator = await innerButton.evaluate((el) => {
