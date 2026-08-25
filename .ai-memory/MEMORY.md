@@ -131,3 +131,11 @@ Konflikte, die er verhindern soll.
   Subshell-Start parsen → `syntax error near unexpected token '('`, exit 2 (gleiche Ursache wie der
   Workflow-Quoting-Eintrag vom 08-19, hier im interaktiven Bash-Tool). → Body per `Write` in Datei
   legen und `gh pr create --body-file <pfad>` nutzen.
+- 2026-08-25 · E2E/Shadow-Fokus — Fokus in KoliBri-Shadow-DOM nicht per
+  `document.activeElement === el` prüfen (pierct kein Shadow Root, dauerhaft falsch-negativ)
+  UND nicht per eigener `.shadowRoot.activeElement`-Kette (#824-ESLint-Guard schlägt an) →
+  Playwrights `expect(locator).toBeFocused({timeout:150})` im try/catch als Poll nutzen; es
+  pierct nativ und lintet grün.
+- 2026-08-25 · Git/Mutationsprobe — nach sed-Mutationsprobe NICHT mit `git checkout -- <file>`
+  aufräumen: das verwirft die eigene (ungesicherte) Änderung mit. → Vorher `cp` nach /tmp,
+  Zurückkopieren statt checkout.
