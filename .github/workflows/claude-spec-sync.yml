@@ -184,8 +184,8 @@ jobs:
                a) AKTUALISIEREN: Passage (oder ganze Datei) auf den neuen Ist-Zustand umformulieren.
                b) ENTFERNEN: Passage ohne langfristigen Spec-Wert streichen — insb. transitorische Soll-Aussagen („X soll entfernt werden“, Ankündigungen, Absichten, Ticket-Historie). Ganze Dateien: siehe DATEI-TRIAGE.
                c) ERGÄNZEN: implementiertes Verhalten, das in KEINER Spec steht → neue Journey in der passenden Datei; nur bei eigenständig abgrenzbarem Verhaltenbereich eine NEUE DATEI (Format wie user-journeys.md: Ziel/Vorbedingung/Schritte/Erwartetes Ergebnis; implementierungsagnostisch, nur von außen beobachtbares Verhalten).
-            5. Je geänderter/neuer Datei: „**Stand:**“-Datum auf SYNC_DATE setzen + eine Versionszeile ergänzen (vX.Y (SYNC_DATE): Nightly-Sync — <Kurzbegründung>).
-            6. ALLE Änderungen lokal committen (ein Commit genügt): git add docs/spec && git commit -m "docs(spec): Ist-Stand-Sync SYNC_DATE"
+            5. Je geänderter/neuer Datei: „**Stand:**“-Datum auf {{SYNC_DATE}} setzen + eine Versionszeile ergänzen (vX.Y ({{SYNC_DATE}}): Nightly-Sync — <Kurzbegründung>).
+            6. ALLE Änderungen lokal committen (ein Commit genügt): git add docs/spec && git commit -m "docs(spec): Ist-Stand-Sync {{SYNC_DATE}}"
                NICHT pushen, KEINE PRs anlegen — das macht der Workflow nach dir (pro Datei ein PR mit ai:needs-review).
             7. Report schreiben nach /tmp/spec-sync-report.md (Markdown), STRENG nach Datei gegliedert — der Workflow baut daraus die PR-Beschreibungen:
                - Pro betroffener Datei ein Abschnitt mit Überschrift „## <dateiname>“ (exakt der Dateiname, z. B. „## user-journeys.md“): darunter je Fund (Abschnitt, Befund, Korrektur — auch entfernte Dateien mit Begründung).
@@ -204,11 +204,12 @@ jobs:
 
           EHRLICHKEITS-REGEL: VERDICT: updated NUR ausgeben, wenn der Commit existiert (git log verifizieren). VERDICT: synced NUR ohne lokale Commits.
 
-          ZEITLIMIT: Soft-Deadline = SOFT_DEADLINE. Vor jedem Schritt: [ $(date +%s) -ge SOFT_DEADLINE ]. Bei OVER: committen was vorliegt, Report schreiben, Turn beenden.
+          ZEITLIMIT: Soft-Deadline = {{SOFT_DEADLINE}}. Vor jedem Schritt: [ $(date +%s) -ge {{SOFT_DEADLINE}} ]. Bei OVER: committen was vorliegt, Report schreiben, Turn beenden.
           CLAUDE_EOF
 
-          sed -i "s/SYNC_DATE/$(date -u +%F)/g" /tmp/claude-prompt.txt
-          sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
+          sed -i "s/{{SYNC_DATE}}/$(date -u +%F)/g" /tmp/claude-prompt.txt
+          sed -i "s/{{SOFT_DEADLINE}}/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
+          bash .github/scripts/assert-prompt-complete.sh /tmp/claude-prompt.txt
 
           ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
             ${{ steps.setup.outputs.invoke-args }} \

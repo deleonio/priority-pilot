@@ -215,21 +215,31 @@ jobs:
           # Inspektion, analog spec.md in Phase 3). Kein Inline-Heredoc mehr: der Vertrag
           # (doc.json-Schema, Mapping-Regeln) ist damit reviewbar ohne Workflow-Diff.
           {
-            echo 'HINWEIS: Documenter ist terminal + Review-Tier — du schreibst KEINEN Memory (nur Lesen). Lesedetails siehe Memory-Abschnitt am Prompt-Ende.'
+            echo 'HINWEIS: Documenter ist Review-Tier — Code bleibt tabu, aber du SCHREIBST deine Phasen-Notiz (Details in den Memory-Abschnitten am Prompt-Ende).'
             echo
             cat .github/prompts/documenter.md
             cat .github/prompts/memory-read.md
+            # Kein '>>' hier: der Block schreibt bereits nach /tmp/claude-prompt.txt, ein
+            # zweiter Handle auf dieselbe Datei würde sich mit der äusseren Umleitung
+            # überschreiben. stdout des Skripts fliesst in den Block.
+            bash .github/scripts/render-memory-context.sh
+            cat .github/prompts/memory-write.md
           } > /tmp/claude-prompt.txt
 
           # Fakten aus dem Facts-Schritt injizieren (Werte sind sichere Token: true/false,
           # Zahlen, Scope-Wörter). Fehlende Fakten (facts_ok=false) => Fallback-Defaults.
-          sed -i "s/#PR_NR/$PR/g" /tmp/claude-prompt.txt
-          sed -i "s/TITLE_OK/${{ steps.facts.outputs.title_ok || 'unbekannt' }}/g" /tmp/claude-prompt.txt
-          sed -i "s/SUGGESTED_TYPE/${{ steps.facts.outputs.suggested_type || 'chore' }}/g" /tmp/claude-prompt.txt
-          sed -i "s/SUGGESTED_SCOPE/${{ steps.facts.outputs.suggested_scope || 'k.A.' }}/g" /tmp/claude-prompt.txt
-          sed -i "s/LINKED_ISSUES/${{ steps.facts.outputs.linked_issues || 'keine' }}/g" /tmp/claude-prompt.txt
-          sed -i "s/#MEMORY_STATUS/${{ steps.setup.outputs.memory-status-text }}/g" /tmp/claude-prompt.txt
-          sed -i "s/SOFT_DEADLINE/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
+          sed -i "s/{{PR_NR}}/$PR/g" /tmp/claude-prompt.txt
+          sed -i "s/{{TITLE_OK}}/${{ steps.facts.outputs.title_ok || 'unbekannt' }}/g" /tmp/claude-prompt.txt
+          sed -i "s/{{SUGGESTED_TYPE}}/${{ steps.facts.outputs.suggested_type || 'chore' }}/g" /tmp/claude-prompt.txt
+          sed -i "s/{{SUGGESTED_SCOPE}}/${{ steps.facts.outputs.suggested_scope || 'k.A.' }}/g" /tmp/claude-prompt.txt
+          sed -i "s/{{LINKED_ISSUES}}/${{ steps.facts.outputs.linked_issues || 'keine' }}/g" /tmp/claude-prompt.txt
+          sed -i "s/{{MEMORY_STATUS}}/${{ steps.setup.outputs.memory-status-text }}/g" /tmp/claude-prompt.txt
+          # Aus memory-write.md (Dateiname der Phasen-Notiz) — der Documenter schreibt jetzt
+          # ebenfalls einen Checkpoint, damit ein Re-Run nach Teilerfolg fortsetzen kann.
+          sed -i "s/{{ISSUE_NR}}/${{ steps.setup.outputs.issue-number || github.event.pull_request.number }}/g" /tmp/claude-prompt.txt
+          sed -i "s/{{PHASE}}/documenter/g" /tmp/claude-prompt.txt
+          sed -i "s/{{SOFT_DEADLINE}}/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
+          bash .github/scripts/assert-prompt-complete.sh /tmp/claude-prompt.txt
 
           rm -f /tmp/doc.json
           ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
@@ -250,6 +260,15 @@ jobs:
           since-epoch: ${{ steps.starttime.outputs.epoch }}
           provider: ${{ steps.setup.outputs.llm-provider }}
 
+      - name: Issue-Storage sichern (State-Branch)
+        # Der Documenter schreibt jetzt ebenfalls: "am Ende jeder Phase speichern" gilt ohne
+        # Ausnahme. Nutzen auch in der terminalen Phase: schlaegt er fehl und laeuft erneut,
+        # setzt der Re-Run auf seinem eigenen Checkpoint auf statt bei null.
+        if: always() && steps.setup.outputs.configured == 'true'
+        uses: ./.github/actions/issue-state-save
+        with:
+          issue-number: ${{ steps.setup.outputs.issue-number || github.event.pull_request.number || github.event.inputs.pr-number }}
+          phase: documenter
 
       - name: 🖨️ Rendern — Titel/Body/Kommentar/Labels deterministisch
         # Alle Schreibzugriffe in einem Schritt: Titel-Rename, Body-Marker-Splice, GENAU EIN
@@ -294,33 +313,21 @@ jobs:
           fi
           echo "::notice title=✅ Dokumentation abgeschlossen::PR #$PR — ai:documented gesetzt."
 
-      - name: 🧹 Issue-Storage abbauen (deterministisch)
-        # ADR 0006: Der Issue-Storage ist der State-Branch ai/state/issue-{N}. Nach Merge ist
-        # er stale → löschen. Issue-Auflösung wie setup-claude: Closing-Issue, sonst PR-Nummer
-        # als Fallback. Best-Effort: ein fehlgeschlagener Delete darf den Lauf nicht abbrechen
-        # (der Hygiene-Sweep in cache-cleanup.yml ist der Backstop für Verwaiste).
-        # NUR bei Job-Erfolg (kein always()): schlägt der Documenter fehl, bleibt der Storage
-        # für den Re-Run erhalten — always() würde die Vor-Phasen-Notizen vor dem Retry wegputzen.
+      - name: 🧹 Issue-Storage stehen lassen (Abbau macht der Hygiene-Sweep)
+        # GEÄNDERT gegenüber ADR 0006 Punkt 6: Der Documenter löscht den State-Branch NICHT mehr.
+        #
+        # Grund: Er schreibt seit dieser Änderung selbst eine Phasen-Notiz — den Speicher im
+        # selben Lauf anzulegen und wieder wegzuräumen ist widersprüchlich. Und ein Ticket ist
+        # mit dem Merge nicht zwingend zu Ende: Re-Open, Nachtrags-PR oder ein Documenter-Re-Run
+        # fänden nach dem Löschen nichts mehr vor und begännen bei null.
+        #
+        # Der Abbau bleibt deterministisch, nur später: der Sweep in cache-cleanup.yml entfernt
+        # ai/state/issue-*-Branches, deren Issue GESCHLOSSEN ist und deren letzter Commit älter
+        # als 7 Tage ist. Damit räumt genau eine Stelle auf statt zweier, und das Zeitfenster
+        # deckt Nacharbeit ab.
         if: steps.setup.outputs.configured == 'true'
-        env:
-          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
         run: |
-          closing_issue="$(gh pr view "$PR" --repo "$REPO" --json closingIssuesReferences \
-            --jq '[.closingIssuesReferences[].number] | first' 2>/dev/null || true)"
-          for ref in "$closing_issue" "$PR"; do
-            if [ -z "$ref" ] || [ "$ref" = "null" ]; then continue; fi
-            branch="ai/state/issue-${ref}"
-            if ! gh api "repos/$REPO/git/ref/heads/$branch" >/dev/null 2>&1; then
-              echo "ℹ️ Kein State-Branch $branch vorhanden — nichts zu tun."
-              continue
-            fi
-            if gh api -X DELETE "repos/$REPO/git/refs/heads/$branch" 2>/dev/null; then
-              echo "🗑️ State-Branch $branch gelöscht"
-            else
-              echo "::warning::Löschen von $branch fehlgeschlagen (übersprungen — Hygiene-Sweep fängt ihn)"
-            fi
-          done
-          exit 0
+          echo "::notice title=🗄️ Issue-Storage bleibt::State-Branch wird nicht mehr im Documenter gelöscht — der Hygiene-Sweep (Issue geschlossen + >7 Tage) räumt ihn ab. Nacharbeit am Ticket findet den Kontext dadurch noch vor."
 
       - name: 📋 Ergebnis zusammenfassen
         if: always() && steps.setup.outputs.configured == 'true'

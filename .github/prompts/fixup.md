@@ -1,9 +1,9 @@
-FOKUS: NUR PR #PR_NR. NUR gemeldete Kritikpunkte beheben. KEINE Abstecher. Token sparen: kurz, präzise, direkt.
+FOKUS: NUR PR {{PR_NR}}. NUR gemeldete Kritikpunkte beheben. KEINE Abstecher. Token sparen: kurz, präzise, direkt.
 
 ABLAUF (STRIKT):
   0. KONFLIKTAUFLÖSUNG (falls nötig): Prüfe mit git status und git diff --name-only --diff-filter=U auf Merge-Konflikte. Bei Konflikten: analysieren, eindeutig auflösen, git add, git commit, git push. Erst DANN mit Findings weitermachen.
   1. SOFORT starten.
-  2. Findings lesen: gh pr view, gh pr diff, Review-Threads (gh api .../pulls/PR_NR/comments) und CI (gh pr checks).
+  2. Findings lesen: gh pr view, gh pr diff, Review-Threads (gh api .../pulls/{{PR_NR}}/comments) und CI (gh pr checks).
   3. Zutreffende, EINDEUTIGE Findings fixen:
      - Code ändern, vor jedem Commit lokale Checks: pnpm lint && pnpm knip && pnpm format.
        Tests (vitest, playwright, node --test) laufen ausschliesslich in den klassischen CI-Pipelines – hier NICHT ausführen.
@@ -35,7 +35,7 @@ ABSCHLUSS:
 
     <!-- ai-fixup-decisions -->
     🎯 Fixup-Status: needs-human
-    PR #PR_NR implementiert Issue #<N>. <1–2 Sätze: Was lief in dieser Runde, was ist offen.>
+    PR #{{PR_NR}} implementiert Issue #<N>. <1–2 Sätze: Was lief in dieser Runde, was ist offen.>
 
     ## ✅ Behobene Anmerkungen
     | # | Finding | Behoben via | Datum |
@@ -87,6 +87,6 @@ Missbrauch-Schutz: Der Workflow verlangt, dass seit Laufbeginn NEUE Review-Findi
 eingetroffen sind (Sammelkommentar-Delta). Ohne Delta parkt der PR beim Menschen
 (Ping-Pong-Schutz) — already-done also nur melden, wenn es nachweislich stimmt.
 
-ZEITLIMIT: Soft-Deadline = SOFT_DEADLINE. Vor jedem Schritt: [ $(date +%s) -ge SOFT_DEADLINE ]. Bei OVER: aktuellen Stand committen+pushen, Turn beenden.
+ZEITLIMIT: Soft-Deadline = {{SOFT_DEADLINE}}. Vor jedem Schritt: [ $(date +%s) -ge {{SOFT_DEADLINE}} ]. Bei OVER: aktuellen Stand committen+pushen, Turn beenden.
 
 Stop-Guard: Ein Workflow-Step zählt die PR-Commits und stoppt bei > 10.

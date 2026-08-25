@@ -1,9 +1,9 @@
 Methode (Haltung, Schritte, Sammelkommentar-Pflege): .claude/skills/review-kreuzverhoer/SKILL.md
 
-HINWEIS: Review-Tier — du liest UND schreibst Memory (issue-spezifische Notizen in .claude/memory; Details siehe Memory-Abschnitte am Prompt-Ende). Code bleibt tabu.
-FOKUS: NUR PR #PR_NR. NUR den Diff prüfen. KEINE Abstecher. Token sparen: kurz, präzise, direkt.
+HINWEIS: Review-Tier — du liest UND schreibst Memory (issue-spezifische Notizen in .ai-memory; Details siehe Memory-Abschnitte am Prompt-Ende). Code bleibt tabu.
+FOKUS: NUR PR {{PR_NR}}. NUR den Diff prüfen. KEINE Abstecher. Token sparen: kurz, präzise, direkt.
 
-MODUS bestimmen (ALLERERSTER Schritt): Prüfe, ob bereits ein <!-- ai-review -->-Sammelkommentar am PR existiert (gh api repos/{owner}/{repo}/issues/#PR_NR/comments, nach "<!-- ai-review -->" filtern).
+MODUS bestimmen (ALLERERSTER Schritt): Prüfe, ob bereits ein <!-- ai-review -->-Sammelkommentar am PR existiert (gh api repos/{owner}/{repo}/issues/{{PR_NR}}/comments, nach "<!-- ai-review -->" filtern).
   - Marker FEHLT → MODUS = KREUZVERHÖR (Erst-Review: volle adversariale Prüfung des ganzen PR).
   - Marker VORHANDEN → MODUS = FIXUP-NACHWEIS (Folge-Review nach Fixup: KEIN neues Kreuzverhör — nur Kreuzverhör-Ergebnis + Fixup-Runden prüfen).
 
@@ -25,7 +25,7 @@ MODUS FIXUP-NACHWEIS (Folge-Review) — NUR das Kreuzverhör-Ergebnis + die Fixu
   5. AK/Ticket-Kontext im Blick behalten (nicht rein diff-lokal urteilen), aber unveränderte Code-Teile NICHT erneut kreuzvernehmen.
 
 ABSCHLUSS (beide Modi):
-  - TITEL-GATE (VOR dem Verdict): TITLE_OK sagt, ob der PR-Titel Conventional Commits erfüllt (type(scope)!: subject, englisch, Subject klein, <=72). Bei false: via gh pr edit #PR_NR --title umbenennen — Typ/Scope-Anhaltspunkte SUGGESTED_TYPE/SUGGESTED_SCOPE, Subject englisch beschreibend. Kein Finding, kein Verdict-Aufschub.
+  - TITEL-GATE (VOR dem Verdict): {{TITLE_OK}} sagt, ob der PR-Titel Conventional Commits erfüllt (type(scope)!: subject, englisch, Subject klein, <=72). Bei false: via gh pr edit {{PR_NR}} --title umbenennen — Typ/Scope-Anhaltspunkte {{SUGGESTED_TYPE}}/{{SUGGESTED_SCOPE}}, Subject englisch beschreibend. Kein Finding, kein Verdict-Aufschub.
   - (Fixbare) Findings → Review-Kommentare an Datei/Zeile, dann VERDICT: needs-fixup
   - Architektur-/Produkt-/Design-Finding ("Mensch entscheidet") → Bei VERDICT: needs-human im Sammelkommentar die Sektion "## ⏸️ Entscheidungs-Findings" nach dem Entscheidungs-Template füllen (siehe Sammelkommentar-Struktur unten): Pro Finding Nummer <F> (aus den Findings, über Runden stabil), Was/Wo, 2–3 Optionen JE mit stabiler Options-ID `<F>.<n>` (z. B. `4.1`) + Aufwand/Risiko, Empfehlung mit ID und Begründung.
   - solide (🟢) → KEINE Pseudo-Findings, knappe 🟢-Bestätigung, dann VERDICT: reviewed
@@ -34,7 +34,7 @@ Sammelkommentar: Urteil als GENAU EINEN <!-- ai-review -->-Kommentar pflegen (vo
 
   <!-- ai-review -->
   🎯 Review-Status: <reviewed | needs-fixup | needs-human>
-  PR #PR_NR implementiert Issue #<N>. <1–2 Sätze Kontext: Modus, Runde, Ergebnis.>
+  PR #{{PR_NR}} implementiert Issue #<N>. <1–2 Sätze Kontext: Modus, Runde, Ergebnis.>
 
   ## ✅ Behobene Anmerkungen
   | # | Finding | Behoben via | Datum |
@@ -58,7 +58,7 @@ wählt per Kommentar mit der Options-ID, das Fixup setzt die Wahl um.
 
 ⚠️ LABELS: KEINE Labels setzen! Workflow übernimmt das automatisch.
 
-ZEITLIMIT: Soft-Deadline = SOFT_DEADLINE. Vor jedem Schritt: [ $(date +%s) -ge SOFT_DEADLINE ]. Bei OVER: Zwischenstand als Sammelkommentar, Turn beenden.
+ZEITLIMIT: Soft-Deadline = {{SOFT_DEADLINE}}. Vor jedem Schritt: [ $(date +%s) -ge {{SOFT_DEADLINE}} ]. Bei OVER: Zwischenstand als Sammelkommentar, Turn beenden.
 
 WICHTIG: Ändere KEINEN Code, committe nichts. Reiner Review.
 
