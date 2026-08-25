@@ -29,14 +29,16 @@ test.describe('#996 Säulen-Beiträge im TaskForm (Mobile-Layout)', () => {
 	const RIGHT_EDGE_TOLERANCE_PX = 40;
 
 	/**
-	 * Legt einen Task mit Säulen-Beitrag (Default-Pillar 1) an und öffnet den
+	 * Legt einen Task mit Säulen-Beitrag auf der ersten verfügbaren Säule an und öffnet den
 	 * TaskForm-Bearbeiten-Dialog (Navigationsmuster: issue-934.spec.ts). Liefert die erste
 	 * `.pillar-row` und die Task-Id (Aufrufer löscht im `finally`).
 	 */
 	const openTaskFormWithPillarRow = async (page: Page): Promise<{ row: Locator; taskId: number }> => {
 		// Erste verfügbare Säule aus dem Backend holen (Muster: series.spec.ts) — weder Existenz
 		// noch Id einer Säule ist garantiert (DB_SEED=false erhält nur Stammdaten, keine festen Ids).
-		const pillars = (await (await page.request.get('/api/v1/pillars')).json()) as Array<{ id: number }>;
+		const pillarsResponse = await page.request.get('/api/v1/pillars');
+		expect(pillarsResponse.ok(), 'Säulen-Liste muss abrufbar sein').toBe(true);
+		const pillars = (await pillarsResponse.json()) as Array<{ id: number }>;
 		expect(pillars.length, 'Es muss mindestens eine Säule existieren').toBeGreaterThan(0);
 
 		// `share`-Summe muss 100 ergeben (validatePillars), sonst lehnt das Backend mit 400 ab.
