@@ -169,7 +169,10 @@ jobs:
         run: |
           verdict=""
           if [ -f /tmp/claude-output.log ]; then
-            verdict="$(grep 'VERDICT:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | tr -d -c 'A-Za-z0-9-' || true)"
+            # Erster bekanntter Token aus der VERDICT-Zeile gewinnt: Prosa nach dem
+            # Token („ux-ready (steht im Issue-Body)", #1017) darf das Verdict nicht
+            # unkenntlich machen — exakter Zeilenvergleich klebte sie vorher daran fest.
+            verdict="$(grep 'VERDICT:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | grep -oE 'ux-not-ready|ux-ready' | head -1 || true)"
           fi
           echo "Claude-Verdict aus Output: '${verdict:-keins}'"
 

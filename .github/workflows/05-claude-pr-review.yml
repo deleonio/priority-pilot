@@ -306,7 +306,8 @@ jobs:
             verdict="$(tr -d -c 'A-Za-z0-9-' < /tmp/claude-verdict)"
           fi
           if [ -z "$verdict" ] && [ -f /tmp/claude-output.log ]; then
-            verdict="$(grep 'VERDICT:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | tr -d -c 'A-Za-z0-9-' || true)"
+            # Fallback: erster bekannter Token, Prosa/Markdown dahinter egal (#1017-Klasse).
+            verdict="$(grep 'VERDICT:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | grep -oE 'needs-fixup|needs-human|reviewed' | head -1 || true)"
           fi
           echo "Claude-Verdict: '${verdict:-keins}'"
 

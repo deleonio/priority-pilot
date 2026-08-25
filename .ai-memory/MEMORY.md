@@ -139,3 +139,8 @@ Konflikte, die er verhindern soll.
 - 2026-08-25 · Git/Mutationsprobe — nach sed-Mutationsprobe NICHT mit `git checkout -- <file>`
   aufräumen: das verwirft die eigene (ungesicherte) Änderung mit. → Vorher `cp` nach /tmp,
   Zurückkopieren statt checkout.
+- 2026-08-25 · CI/VERDICT-Parser — Prosa hinter dem Verdict-Token („ux-ready (steht im
+  Issue-Body)") klebte via tr -d an den Token → exakter Vergleich scheiterte → Crash-Park
+  (#1017 zweimal geparkt, obwohl 2× ux-ready entschieden). → Parser extrahiert jetzt per
+  grep -oE '<Vokabular>' | head -1 den ersten bekannten Token (8 Stellen + Aufwandsklasse
+  in 01); Prompt-Beispiele tragen den Token nackt, Bedeutungen in eigene Zeile.

@@ -25,8 +25,10 @@ ABLAUF (STRIKT):
 
 ⚠️ LABELS: KEINE Labels setzen! Workflow übernimmt das automatisch.
 
-VERDICT: GANZ AM ENDE GENAU EINE Zeile:
-  - VERDICT: ux-ready (UX-Beratung geschrieben → Issue zur Implementierung bereit)
-  - VERDICT: ux-not-ready (UX unklar – braucht Klärung vor Implementierung)
+VERDICT: GANZ AM ENDE GENAU EINE Zeile, NUR der Token — kein Text dahinter (der Workflow parst die Zeile maschinell):
+  - VERDICT: ux-ready
+  - VERDICT: ux-not-ready
+  (ux-ready = UX-Beratung geschrieben → Issue zur Implementierung bereit;
+   ux-not-ready = UX unklar – braucht Klärung vor Implementierung)
 
 ZEITLIMIT: Soft-Deadline = {{SOFT_DEADLINE}}. Vor jedem Schritt: [ $(date +%s) -ge {{SOFT_DEADLINE}} ]. Bei OVER: aktuellen Stand im Issue-Body speichern, Turn beenden.

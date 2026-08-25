@@ -323,7 +323,9 @@ jobs:
         run: |
           verdict=""
           if [ -f /tmp/claude-output.log ]; then
-            verdict="$(grep 'VERDICT:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | tr -d -c 'A-Za-z0-9-' || true)"
+            # Erster bekanntter Token gewinnt — Prosa/Markdown nach dem Token ist egal
+            # (#1017-Klasse: exakter Zeilenvergleich klebte sie vorher an den Token fest).
+            verdict="$(grep 'VERDICT:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | grep -oE 'needs-review|not-ready' | head -1 || true)"
           fi
           echo "Claude-Verdict aus Output: '${verdict:-keins}'"
 
@@ -794,7 +796,11 @@ jobs:
             verdict="$(tr -d -c 'A-Za-z0-9-' < /tmp/claude-verdict)"
           fi
           if [ -z "$verdict" ] && [ -f /tmp/claude-output.log ]; then
-            verdict="$(grep 'VERDICT:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | tr -d -c 'A-Za-z0-9-' || true)"
+            # Fallback wie oben: erster bekannter Token, Prosa dahinter egal (#1017-Klasse).
+            # Beide Tokens laut fixup.md-Ausgabe-Kanal: needs-human UND already-done
+            # (Review-Runde 1: ohne already-done parkt "alles erledigt, kein Commit"
+            # fälschlich als no-progress beim Menschen statt zurück in den Review).
+            verdict="$(grep 'VERDICT:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | grep -oE 'needs-human|already-done' | head -1 || true)"
           fi
           echo "Claude-Verdict: '${verdict:-keins}'"
 

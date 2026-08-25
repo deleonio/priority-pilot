@@ -297,12 +297,15 @@ jobs:
 
           ⚠️ LABELS: KEINE Labels aufs ELTERN-Issue #{{ISSUE_NR}} setzen — der Workflow übernimmt das via VERDICT. Ausnahme Zerlegung (Schritt 4): neu angelegte SUB-Issues werden direkt beim Anlegen mit ai:analysed (bzw. dem Phasen-Trigger ai:needs-ux-ui/ai:needs-spec) gelabelt, weil der Workflow nur das Eltern-Issue verwaltet.
 
-          VERDICT: GANZ AM ENDE GENAU EINE Zeile:
-            - VERDICT: spec-ready (bei 🟢 — Issue direkt umsetzbar, NICHT zerlegt)
-            - VERDICT: analyzed (bei 🟡/🔴 ODER nach Zerlegung in Sub-Issues — Eltern-Issue ist nur Tracker)
-            - VERDICT: needs-human (Aufgabenstellung nicht eindeutig auflösbar — NUR zusammen
-              mit dem <!-- ai-triage-decision -->-Kommentar; stoppt die gesamte Pipeline, bis
-              ein Mensch entscheidet)
+          VERDICT: GANZ AM ENDE GENAU EINE Zeile, NUR der Token — kein Text dahinter (der Workflow parst die Zeile maschinell):
+            - VERDICT: spec-ready
+            - VERDICT: analyzed
+            - VERDICT: needs-human
+            (spec-ready = bei 🟢 — Issue direkt umsetzbar, NICHT zerlegt;
+             analyzed = bei 🟡/🔴 ODER nach Zerlegung in Sub-Issues — Eltern-Issue ist nur Tracker;
+             needs-human = Aufgabenstellung nicht eindeutig auflösbar — NUR zusammen
+             mit dem <!-- ai-triage-decision -->-Kommentar; stoppt die gesamte Pipeline, bis
+             ein Mensch entscheidet)
 
           ZEITLIMIT: Soft-Deadline = {{SOFT_DEADLINE}}. Vor jedem Schritt: [ $(date +%s) -ge {{SOFT_DEADLINE}} ]. Bei OVER: Body-Block sichern, Turn beenden.
           CLAUDE_EOF
@@ -359,12 +362,12 @@ jobs:
           if [ -f "$LOG" ]; then
             # Portabel statt `grep -oP '…\K…'` (\K = Perl-Lookbehind): BSD-grep (macOS
             # /usr/bin/grep) kennt -P nicht → verdict leer → fälschlich fail-safe „analyzed".
-            # sed -E ist BSD wie GNU portabel (CI: GNU-grep; macOS Manuell-Test: BSD-grep).
-            # tr -d -c 'A-Za-z0-9-' streift neben Whitespaces auch Markdown-Dekoration (**…**,
-            # Backticks), die Claude gern ums VERDICT legt — sonst wird "spec-ready**" != "spec-ready"
-            # und der Vergleich fällt fälschlich auf fail-safe (Issue #582). A-Za-z0-9- deckt alle
-            # gültigen Verdicts (spec-ready, analyzed); Complement-Delete ist BSD wie GNU portabel.
-            verdict="$(grep 'VERDICT:' "$LOG" | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | tr -d -c 'A-Za-z0-9-' || true)"
+            # sed -E und grep -oE sind BSD wie GNU portabel (CI: GNU-grep; macOS Manuell-Test:
+            # BSD-grep). grep -oE nimmt den ERSTEN bekannten Token aus dem Zeilenrest —
+            # Markdown-Dekoration (**…**, Backticks, #582) UND Prosa hinter dem Token
+            # („spec-ready, AKs im Body", #1017) sind damit egal; tr -d klebte beides
+            # vorher an den Token und der exakte Vergleich fiel fälschlich auf fail-safe.
+            verdict="$(grep 'VERDICT:' "$LOG" | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | grep -oE 'spec-ready|needs-human|analyzed' | head -1 || true)"
           fi
           echo "Claude-Verdict aus Output: '${verdict:-keins}'"
 
@@ -388,12 +391,12 @@ jobs:
 
             # Aufwandsklasse aus dem Block parsen — sie steuert das Modell der Folgephasen
             # (resolve-model-label.sh liest das daraus gesetzte ai:model:*-Label).
-            # Gleiche Robustheit wie beim Verdict: tr -d -c streift Markdown-Dekoration,
-            # die das LLM gern um den Wert legt ("**haiku**" != "haiku").
+            # Gleiche Robustheit wie beim Verdict: grep -oE nimmt den ersten bekannten
+            # Wert — Markdown-Dekoration ("**haiku**") und Prosa dahinter sind egal.
             KLASSE=""
             KLASSE_LINE="$(printf '%s' "$BODY" | grep -iE "Aufwandsklasse:" | head -1 || true)"
             if [ -n "$KLASSE_LINE" ]; then
-              KLASSE="$(printf '%s' "$KLASSE_LINE" | sed -E 's/^.*[Aa]ufwandsklasse:[[:space:]]*//' | tr -d -c 'a-z' || true)"
+              KLASSE="$(printf '%s' "$KLASSE_LINE" | sed -E 's/^.*[Aa]ufwandsklasse:[[:space:]]*//' | grep -oE 'haiku|sonnet|opus' | head -1 || true)"
             fi
             case "$KLASSE" in
               haiku|sonnet|opus) ;;
