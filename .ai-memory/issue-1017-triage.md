@@ -1,39 +1,41 @@
-# Issue #1017 — Triage „UX Schalter links inline oder in mobil volle breite gestapelt"
+# Issue #1017 — Triage „UX: Buttons ‚Push testen‘ + ‚Standort jetzt ermitteln‘ vereinheitlichen“
 
 ## Erledigt
-- Issue gelesen (Erst-Triage, kein KI-ANALYSE-Block, 0 Kommentare).
-- Screenshot analysiert (mobile Settings „Allgemein"): 3 Switches, Toggle links, Label inline, Hint darunter, „Push testen"-Button dazwischen.
-- Code-Recherche abgeschlossen (siehe Relevante Stellen).
+- RE-TRIAGE 2026-08-25 nach Autoren-Kommentar (11:05Z): Scope grundlegend korrigiert — es geht NICHT um Switches, sondern nur um die beiden Aktions-Buttons.
+- Titel + Body neu geschrieben (`gh issue edit`), alter KI-ANALYSE-Block (Switches app-weit) und alter KI-UX-Block + „VERDICT: ux-ready“-Zeile ENTFERNT (falscher Scope).
+- Neuer KI-ANALYSE-Block (stand=2026-08-25) im Body verifiziert (START+END, kein KI-UX mehr).
+- Ping-Kommentar gepostet (issuecomment-5409515786).
 
 ## Relevante Stellen
-- `frontend/src/components/SettingsPage.tsx:155-254` — die 3 Settings-Switches (Sprachaufnahme/Push/Standort), je in `.settings-switch-row` (#971-Muster).
-- `frontend/src/lib/useShadowDOMLayout.ts:18` — Hook setzt marginLeft 1.5rem auf Shadow-Controls (#843), genutzt in SettingsPage.tsx:59.
-- `frontend/src/app.css:1445-1479` — `.settings-switch-row`: mobil column (full-bleed via negative margin-inline), ≥768px row (Switch 60%/Alert 40%). Das responsive Vorbild.
-- `frontend/src/App.tsx:519` — Switch „Erledigte Aufgaben anzeigen" (`.task-view-switch`, Filterleiste Aufgaben-Tab) — BISHER ohne responsive Klassen.
-- `frontend/src/components/TaskForm.tsx:704` — „Serie"-Umschalter (`data-testid="mode-switch"`), ohne Klassen/Layout.
-- `frontend/src/components/TaskForm.tsx:1081` — Checklisten-„Erledigt"-Switches in `.checklist-item` (app.css:1819), Zeilenlayout mit Titel + Entfernen-Button.
-- `frontend/e2e/settings-switch-layout.spec.ts` — #971-e2e-Vorbild (Bounding-Box-Assertions, Viewport-Wechsel).
-- KoliBri-Komponente überall identisch: `KolInputCheckbox _variant="switch"` — kein neuer Baustein nötig.
+- `frontend/src/components/SettingsPage.tsx:204-220` — KolButton „Push testen“ (nur bei pushEnabled), `class="push-test-btn"`, `_variant="secondary"`.
+- `frontend/src/components/SettingsPage.tsx:268-278` — KolButton „Standort jetzt ermitteln“ (nur bei geoEnabled), OHNE Layout-Klasse → füllt volle Zeile; Remount-Key `geoPending` (:269); danach `.geo-address` (:279).
+- `frontend/src/app.css:1430-1432` — `.push-test-btn { align-self: flex-start }` (#932 AK1): inhaltsbreit in ALLEN Viewports — Ursache der Uneinheitlichkeit.
+- `frontend/src/app.css:1409-1420` — `.settings-general`: flex-column, gap 16dp, padding-inline 1.5rem (Buttons sind direkte Kinder, „gestapelt“ strukturell schon vorhanden).
+- `frontend/src/app.css:1445-1479` — `.settings-switch-row`: Mobile-First-Responsive-Muster (mobil Default, `@media (min-width:768px)` Desktop) — Vorbild für die Breitenschaltung.
+- `frontend/e2e/push-test-button.spec.ts:19-47` — Fake-ServiceWorker-Init-Script macht „Push testen“ im e2e sichtbar (pushEnabled ohne echte Permission).
+- `frontend/e2e/settings-switch-layout.spec.ts` — #971-Bounding-Box-Viewport-Test-Vorbild.
+- `frontend/e2e/geolocation.spec.ts` — Muster, Geo im e2e zu aktivieren (nicht im Detail gelesen).
+- `frontend/src/components/SettingsPage.test.tsx:77-110` — bestehende Selektoren `kol-button[_label="Standort jetzt ermitteln"]` dürfen nicht brechen.
 
 ## Annahmen
-- Gewünschtes Ziel: EINheitliches Switch-Layout app-weit; Desktop (≥768px): Toggle links + Label inline daneben (KoliBri-Default, wie Screenshot); Mobil (<768px): Switch-Zeile volle Breite, gestapelt (Label über/unter Toggle — genaue Anordnung ist UX-Entscheidung, nicht Triage).
-- „Einheitlich" bezieht sich auf die 6 Fundstellen oben (Settings 3x, Filterleiste, Serie-Umschalter, Checkliste); Checkliste evtl. bewusst ausgenommen (Zeilenlayout mit Titel/Entfernen) → UX-Phase klärt Geltungsbereich.
-- Umsetzung vermutlich: gemeinsame CSS-Klasse + `@media (min-width: 768px)` in app.css, angewandt auf alle Hosts; Shadow-DOM-internes Layout nur über Host-CSS/Custom Properties (kein ::part in app.css gefunden).
+- Gewollt: beide Buttons identisch — desktop (≥768px) inhaltsbreit linksbündig (`align-self: flex-start`), mobil (<768px) volle Container-Innenbreite (Flex-Default stretch), je eigene Zeile.
+- „Gestapelt“ ist bei einzelnen Buttons bereits durch flex-column-Container gegeben; Vereinheitlichung = Breitenschaltung je Viewport.
+- Offene UX-Detailfrage (für UX-Phase): mobil Full-Bleed über Container-Padding (wie .settings-switch-row) oder Container-Innenbreite ausreichend.
 
 ## Verworfen
-- Zerlegung in Sub-Issues — eine Schicht (Frontend CSS/Markup), ein kohäives Anliegen, 1 PR machbar.
-- Neue KoliBri-Komponente — es ist überall schon KolInputCheckbox _variant="switch".
+- Alte Switch-Analyse (6 Fundstellen app-weit) — durch Autoren-Kommentar gegenstandslos.
+- Zerlegung in Sub-Issues — ein Anliegen (2 Buttons, 1 Komponente + CSS), 1 PR.
+- KoliBri `_inline` für Desktop — verletzt 44px-Touch-Target (app.css:1426-Kommentar, #932).
 
 ## Offen
-- - (nichts — Triage abgeschlossen)
+- - (nichts — Re-Triage abgeschlossen)
 
 ## Nächster Schritt
-- Fertig. Titel+Body editiert (KI-ANALYSE-Block im Body verifiziert, 2 Marker), Ping-Kommentar gepostet (issuecomment-5409376434), VERDICT: spec-ready. Keine Zerlegung, keine Labels auf #1017. Nächste Phase: UX (UI-Bezug ja).
+- Fertig. VERDICT: spec-ready. Nächste Phase: UX (UI-Bezug ja) — muss NEU laufen, alter UX-Block war Switch-Scope und wurde entfernt.
 
 ## Fallstricke
-- #1017 nicht mit #971 (settings-switch-row) verwechseln — #971 war Settings-spezifisch Switch↔Alert, #1017 ist app-weite Switch-Einheitlichkeit + mobiles Umschalten.
-- KoliBri-Host ist block-level/width:100% als Flex-Item (Memory 08-24) — Breiten explizit teilen.
-- „Kein horizontaler Scroll"-AKs per Bounding-Box prüfen, nicht scrollWidth (Memory 08-24).
-- Fokus/aria-checked in KoliBri-Shadow-DOM: toBeChecked(), nicht Attribut (Memory 08-24).
-- Ziel-Kommentar-Format `<!-- ai-triage-decision -->` nur bei needs-human — hier nicht genutzt.
-- `.ai-memory/tmp-issue-1017-body.md` konnte nicht gelöscht werden (rm braucht Freigabe) — gitignored, bei Bedarf löschen.
+- ALTER Stand (vor 2026-08-25 11:05Z): Analyse + UX-Block zielten auf Switches — das war falsch verstanden; „Schalter“ meinte im Originalticket die Buttons.
+- Beide Buttons sind bedingt gerendert (pushEnabled/geoEnabled) — e2e braucht Fake-ServiceWorker-Init-Script (push-test-button.spec.ts) bzw. Geo-Aktivierung (geolocation.spec.ts).
+- #932-AK1 („nicht volle Flex-Breite“) gilt weiter, aber nur noch als Desktop-Zweig — mobil ist Vollbreite jetzt gefordert; Kommentar in app.css:1423 mit anpassen.
+- KoliBri-Host block-level: keine `flex-shrink:0`-Muster; Breiten per Bounding-Box, nicht scrollWidth (Memory 08-24).
+- `.ai-memory/tmp-issue-1017-body.md` enthält den aktuellen Body (gitignored).
