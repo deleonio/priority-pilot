@@ -525,6 +525,17 @@ body {
 	font-weight: var(--pp-weight-bold);
 }
 
+/* #1042: „Jetzt starten" mobil volle Breite, desktop (≥768px) inhaltsbreit linksbündig, analog #1017. */
+.dashboard-next-task-content kol-button {
+	align-self: stretch;
+}
+
+@media (min-width: 768px) {
+	.dashboard-next-task-content kol-button {
+		align-self: flex-start;
+	}
+}
+
 .dashboard-next-task-priority {
 	font-size: var(--pp-font-size-sm);
 	color: var(--pp-signal-ink);
