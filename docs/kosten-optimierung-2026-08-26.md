@@ -1,5 +1,7 @@
 # Kosten-Optimierung der KI-Pipeline — Session-Report 2026-08-26
 
+> `pi --session 01a03b68-9415-7ed5-b330-f3820c6736b2`
+
 Session-Fenster: 2026-08-26, ca. 01:00–04:30 Uhr. Referenzlauf: Ticket #1034 → PR #1035
 (PWA-Update-/Offline-Hinweis: mobile Bedienbarkeit + beschreibende Texte), gemergt und dokumentiert.
 
