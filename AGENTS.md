@@ -35,11 +35,17 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
   — und so wenig wie irgend möglich; jede Zeile ist Wartungslast. Ein Test entsteht nur, wenn er etwas **auswertet**, einen **Spiegel** absichert
   oder vor **stillen/teuren** Ausfällen schützt
   ([TDD-Strategie → Testumfang](.ai-knowledge/tdd-strategy.md#testumfang--so-viel-wie-nötig-so-wenig-wie-irgend-möglich)).
-- **Turns bündeln:** Erst kurz planen, dann gebündelt ausführen — Lese-Schritte zusammenfassen
-  (ein Tool-Call statt fünf einzelner), keine Zwischen- oder Bestätigungs-Turns, keine
-  explorativen Rückfragen. Jeder Turn reißt den Kontext erneut an den LLM (Cache-Read) und
-  zählt im Abo als eigener Prompt. Qualität geht vor: Ein nachgebesserter Schritt kostet
-  mehr Turns als ein gründlicher erster (eine Fixup-Schleife ≈ 5+ Turns).
+- **Turns bündeln:** Erst kurz planen, dann gebündelt ausführen — jeder Turn reißt den Kontext
+  erneut an den LLM (Cache-Read) und zählt im Abo als eigener Prompt. Mechanisch heißt das:
+  unabhängige Lese-/Such-Schritte in **einem** Tool-Call statt fünf einzelnen, Shell-Befehle
+  verketten statt sequenziell aufrufen, nichts erneut lesen, was schon im Kontext steht, und
+  wiederholbare Prüfläufe (GATE, Tests, Linter) **einmal am Ende über alle Änderungen** fahren
+  statt je Einzeländerung. Keine Bestätigungs-Rückfragen im Arbeitsfluss — der
+  `needs-human`-Weg der Pipeline-Phasen bleibt davon unberührt.
+  **Qualität geht vor:** Ein nachgebesserter Schritt kostet mehr Turns als ein gründlicher
+  erster — eine Fixup-Schleife kostet ~50 Turns (gemessen: 51,5 = Fixup 36,3 + Re-Review 15,2,
+  Quelle `.costs/`). Nie einen Prüfschritt überspringen, um Turns zu sparen: der Tausch geht
+  immer zulasten des Kontingents.
 - **Verbessern vs. Erweitern:** Soll Funktionierendes verbessert werden, zuerst fragen: Ist der
   Gewinn den zusätzlichen Code und seine Wartung wert — oder entsteht er durch Optimieren
   vorhandenen Codes? Neue Mechanismen nur, wenn kein bestehendes Muster passt.
