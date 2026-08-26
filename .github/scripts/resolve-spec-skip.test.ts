@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 /**
  * Tests für resolve-spec-skip.sh — die Entscheidung, ob die Spec-Phase laufen muss.
  *
- * Schwerpunkt ist die Gegenprobe: „Spec nötig: nein" ist eine Selbstauskunft der Analyse.
+ * Schwerpunkt ist die Gegenprobe: „spec: nein" ist eine Selbstauskunft der Analyse.
  * Sobald die im selben Block deklarierten Dateien in Anwendungscode zeigen, gilt die Spec
  * trotzdem als nötig — sonst würde der Skip zum bequemen Default und TDD fiele genau dort
  * weg, wo Tests möglich sind.
@@ -31,23 +31,28 @@ const run = (body: string): Out => {
 	};
 };
 
-/** Analyse-Block im Format aus 01-claude-triage.yml. */
-const block = (over: Partial<{ ui: string; spec: string; dateien: string }> = {}): string =>
+/**
+ * Analyse-Block im Format aus 01-claude-triage.yml. ux/spec kommen seit der
+ * analysegetriebenen Routing-Tabelle (ADR-0004-Umbau) aus der ai-phase-routing-Tabelle,
+ * nicht mehr aus "### UI-Bezug"/"### Spec"-Ueberschriften — Format 1:1 aus dem
+ * Kopf-Kommentar von resolve-phase-routing.sh.
+ */
+const block = (over: Partial<{ ux: string; spec: string; dateien: string }> = {}): string =>
 	[
 		'<!-- KI-ANALYSE:START stand=2026-08-19T12:00:00Z -->',
-		'### UI-Bezug',
-		`- UI-Bezug: ${over.ui ?? 'nein'}`,
-		'- Begründung: rein serverseitig',
-		'',
-		'### Spec',
-		...(over.spec === undefined
-			? ['- Spec nötig: nein', '- Begründung: nur CI-Konfiguration']
-			: [`- Spec nötig: ${over.spec}`]),
-		'',
 		'### Umsetzungskontext',
 		`- Betroffene Dateien: ${over.dateien ?? '`.github/workflows/ci.yml`'}`,
 		'- Erwartetes Ergebnis: CI läuft wieder grün',
 		'<!-- KI-ANALYSE:END -->',
+		'',
+		'<!-- ai-phase-routing:START -->',
+		'| Phase | Run | Modell | Effort |',
+		'| --- | --- | --- | --- |',
+		`| ux | ${over.ux ?? 'nein'} | haiku | low |`,
+		`| spec | ${over.spec ?? 'nein'} | - | - |`,
+		'| impl | ja | haiku | medium |',
+		'| review | ja | sonnet | high |',
+		'<!-- ai-phase-routing:END -->',
 	].join('\n');
 
 describe('resolve-spec-skip.sh — Skip erlaubt', () => {
@@ -89,26 +94,26 @@ describe('resolve-spec-skip.sh — Gegenprobe an den Pfaden', () => {
 });
 
 describe('resolve-spec-skip.sh — fail-safe Richtung Spec', () => {
-	it('erzwingt die Spec bei UI-Bezug, egal was das Spec-Feld sagt', () => {
-		const out = run(block({ ui: 'ja', spec: 'nein', dateien: '`docs/x.md`' }));
+	it('erzwingt die Spec bei ux: ja, egal was die spec-Zeile sagt', () => {
+		const out = run(block({ ux: 'ja', spec: 'nein', dateien: '`docs/x.md`' }));
 		assert.equal(out.needsSpec, 'true', 'needs_ux ⇒ needs_spec');
-		assert.match(out.reason, /UI-Bezug/);
+		assert.match(out.reason, /UX-Ergebnis/);
 	});
 
-	it('erzwingt die Spec, wenn das Feld fehlt', () => {
-		const ohneFeld = block().replace(/- Spec nötig: nein\n/, '');
-		const out = run(ohneFeld);
+	it('erzwingt die Spec, wenn die spec-Zeile fehlt', () => {
+		const ohneSpecZeile = block().replace(/\| spec \|.*\|\n/, '');
+		const out = run(ohneSpecZeile);
 		assert.equal(out.needsSpec, 'true');
 		assert.match(out.reason, /fehlt/);
 	});
 
-	it('erzwingt die Spec bei unlesbarem Feldwert', () => {
+	it('erzwingt die Spec bei unlesbarem Run-Wert der spec-Zeile', () => {
 		const out = run(block({ spec: 'vielleicht' }));
 		assert.equal(out.needsSpec, 'true');
 		assert.match(out.reason, /unlesbar/);
 	});
 
-	it('erzwingt die Spec, wenn "nein" ohne deklarierte Dateien steht', () => {
+	it('erzwingt die Spec, wenn "spec: nein" ohne deklarierte Dateien steht', () => {
 		const ohneDateien = block().replace(/- Betroffene Dateien:.*\n/, '');
 		const out = run(ohneDateien);
 		assert.equal(out.needsSpec, 'true', 'ohne Pfade ist die Selbstauskunft nicht überprüfbar');
@@ -119,7 +124,7 @@ describe('resolve-spec-skip.sh — fail-safe Richtung Spec', () => {
 		assert.equal(run('').needsSpec, 'true');
 	});
 
-	it('respektiert ein ausdrückliches "Spec nötig: ja"', () => {
+	it('respektiert ein ausdrückliches "spec: ja"', () => {
 		const out = run(block({ spec: 'ja' }));
 		assert.equal(out.needsSpec, 'true');
 	});

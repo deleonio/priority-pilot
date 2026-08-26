@@ -1,0 +1,66 @@
+name: '00 - Issue-Güte (Vorab-Check, ohne LLM)'
+
+# Vorab-Feedback fuer Autoren: Beim ERSTELLEN und JEDEM EDIT des Issues laeuft die
+# rein mechanische Guete-Pruefung (verify-issue-quality.sh) und aktualisiert EINEN
+# ai-quality-Markerkommentar + das Label ticket:incomplete. Kein Runner-Setup fuer
+# LLMs, kein Claude — der Check kostet Sekunden.
+#
+# Das AUTORITATIVE Gate vor der Analyse sitzt im Precheck von 01-claude-triage.yml
+# (gleiche Skript-Grundlage): Dort wird ai:needs-analyse bei unzureichender Guete
+# konsumiert und das Ticket mit ai:needs-human geparkt. Dieser Workflow hier ist
+# die fruehe Autor-Rueckmeldung, nicht das Gate — er entfernt nie Pipeline-Label.
+#
+# KEIN Trigger auf labeled: Das Gate in 01 ist bei ai:needs-analyse zustaendig;
+# wuerden beide feuern, wetteiferten sie um denselben Markerkommentar (Edit-Race).
+
+on:
+  issues:
+    types: [opened, edited]
+
+concurrency:
+  # Schnelle Edit-Folgen: nur der letzte Zustand zaehlt.
+  group: issue-quality-${{ github.event.issue.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  quality:
+    # Geschlossene Issues nicht pruefen (reopen feuert erneut, falls noetig).
+    if: github.event.issue.state == 'open'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Issue-Güte prüfen (rein mechanisch)
+        id: verify
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bash .github/scripts/verify-issue-quality.sh \
+            --repo "$GITHUB_REPOSITORY" \
+            --issue "${{ github.event.issue.number }}"
+
+      - name: Feedback aktualisieren (Markerkommentar + Label)
+        # skipped=true = Ticket laeuft bereits in der Pipeline (Analyse-Block im
+        # Body) — kein Feedback, sonst wuerde jeder Phasen-Body-Edit einen
+        # Vorab-Check-Kommentar ueberschreiben.
+        if: steps.verify.outputs.skipped != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Multiline/Quotes sicher durchreichen — direkte Interpolation in
+          # Single-Quotes wuerde an Apostrophen im Text brechen.
+          OK: ${{ steps.verify.outputs.ok }}
+          DETAILS: ${{ steps.verify.outputs.details }}
+        run: |
+          printf '%s\n' "$DETAILS" > /tmp/quality-details.md
+          bash .github/scripts/post-quality-feedback.sh \
+            --repo "$GITHUB_REPOSITORY" \
+            --issue "${{ github.event.issue.number }}" \
+            --ok "$OK" \
+            --details-file /tmp/quality-details.md
