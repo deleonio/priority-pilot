@@ -25,6 +25,7 @@ import { PLACEHOLDER, stripImages } from './strip-images.mjs';
 const here = fileURLToPath(new URL('.', import.meta.url));
 const mjs = join(here, 'strip-images.mjs');
 const sweep = join(here, 'pr-image-strip.sh');
+const backfill = join(here, 'image-strip-backfill.sh');
 
 // --- AK1: reine Funktion ----------------------------------------------------
 
@@ -164,9 +165,25 @@ const writeFixture = (rel: string, content: string) => {
 	writeFileSync(join(fixtureDir, rel), content);
 };
 
-const runSweep = (extra: string[] = []) => {
+const runSweep = (extra: string[] = [], extraEnv: Record<string, string> = {}) => {
 	writeFileSync(writeLogPath, '');
 	const res = spawnSync('bash', [sweep, '--repo', 'o/r', '--pr', '42', ...extra], {
+		env: {
+			...process.env,
+			PATH: `${stubDir}:${process.env.PATH}`,
+			GH_FIXTURE_DIR: fixtureDir,
+			GH_WRITE_LOG: writeLogPath,
+			...extraEnv,
+		},
+		encoding: 'utf8',
+	});
+	return { res, log: readFileSync(writeLogPath, 'utf8') };
+};
+
+// Backfill-Modus (image-strip-backfill.sh): Issue OHNE PR-Link, direkt per --issue.
+const runSweepIssue = (issueNumber: string, extra: string[] = []) => {
+	writeFileSync(writeLogPath, '');
+	const res = spawnSync('bash', [sweep, '--repo', 'o/r', '--issue', issueNumber, ...extra], {
 		env: {
 			...process.env,
 			PATH: `${stubDir}:${process.env.PATH}`,
@@ -176,6 +193,56 @@ const runSweep = (extra: string[] = []) => {
 		encoding: 'utf8',
 	});
 	return { res, log: readFileSync(writeLogPath, 'utf8') };
+};
+
+/** image-strip-backfill.sh gegen dieselbe gh-Stub-Harness. */
+const runBackfill = (extra: string[] = [], extraEnv: Record<string, string> = {}) => {
+	writeFileSync(writeLogPath, '');
+	const res = spawnSync('bash', [backfill, 'o/r', ...extra], {
+		env: {
+			...process.env,
+			PATH: `${stubDir}:${process.env.PATH}`,
+			GH_FIXTURE_DIR: fixtureDir,
+			GH_WRITE_LOG: writeLogPath,
+			...extraEnv,
+		},
+		encoding: 'utf8',
+	});
+	return { res, log: readFileSync(writeLogPath, 'utf8'), out: `${res.stdout}${res.stderr}` };
+};
+
+/**
+ * Minimal-Fixtures, die JEDES vom Backfill besuchte Objekt bedienen — sonst laeuft der
+ * Sweep in den "unhandled"-Zweig des Stubs. Bildfrei, damit ein Test nur die BESUCHTE
+ * Menge prueft; wer Schreibzugriffe braucht, ueberschreibt einzelne Eintraege.
+ */
+const seedBackfillFixtures = () => {
+	// 2 gemergte PRs (7, 8), 1 geschlossener-nicht-gemergter PR (9) — F4: alle drei muessen laufen.
+	writeFixture(
+		'closed-pulls.json',
+		JSON.stringify([
+			{ number: 7, merged_at: '2026-01-01T00:00:00Z' },
+			{ number: 8, merged_at: '2026-01-02T00:00:00Z' },
+			{ number: 9, merged_at: null },
+		]),
+	);
+	// 2 echte Issues (70, 71) + 1 PR, der ueber den issues-Endpoint mitkommt (8) —
+	// der select(.pull_request == null)-Filter muss 8 aussortieren.
+	writeFixture(
+		'closed-issues.json',
+		JSON.stringify([
+			{ number: 70 },
+			{ number: 8, pull_request: { url: 'https://api.github.com/repos/o/r/pulls/8' } },
+			{ number: 71 },
+		]),
+	);
+	writeFixture('pr-body.md', 'kein bild');
+	writeFixture('closing-issues.txt', '');
+	for (const n of ['7', '8', '9', '70', '71']) {
+		writeFixture(`comment-ids/${n}.txt`, '');
+		writeFixture(`pull-comment-ids/${n}.txt`, '');
+		writeFixture(`issue-bodies/${n}.md`, 'kein bild');
+	}
 };
 
 before(() => {
@@ -200,6 +267,25 @@ before(() => {
 			'set -uo pipefail',
 			'path=""',
 			'for a in "$@"; do case "$a" in repos/*) path="$a"; break ;; esac; done',
+			// Erzwingt einen Fehlschlag fuer die Failure-Pfad-Tests (F2/F3, Review PR
+			// #1043): matcht die volle Argumentliste gegen GH_FAIL_MATCH.
+			'if [ -n "${GH_FAIL_MATCH:-}" ] && [[ "$*" == *"$GH_FAIL_MATCH"* ]]; then exit 1; fi',
+			// Listen-Endpunkte des Backfills: Roh-JSON aus der Fixture durch das ECHTE jq
+			// mit dem uebergebenen --jq-Filter schicken. Damit prueft der Test die
+			// tatsaechlichen Filterausdruecke (select(.pull_request == null) usw.) statt
+			// vorgefilterter Nummern (Review-Finding PR #1043 F6).
+			'listsrc=""',
+			'case "$path" in',
+			'  */pulls\\?state=closed*)  listsrc="$GH_FIXTURE_DIR/closed-pulls.json" ;;',
+			'  */issues\\?state=closed*) listsrc="$GH_FIXTURE_DIR/closed-issues.json" ;;',
+			'esac',
+			'if [ -n "$listsrc" ]; then',
+			'  filter=""; prev=""',
+			'  for a in "$@"; do [ "$prev" = "--jq" ] && filter="$a"; prev="$a"; done',
+			'  jq -r "$filter" < "$listsrc"',
+			'  exit 0',
+			'fi',
+			'if [ "$1" = "api" ] && [ "$2" = "rate_limit" ]; then echo 5000; exit 0; fi',
 			'if [ "$1" = "pr" ] && [ "$2" = "view" ]; then',
 			'  case "$*" in',
 			'    *"--json body"*) cat "$GH_FIXTURE_DIR/pr-body.md"; printf "\\n"; exit 0 ;;',
@@ -310,6 +396,21 @@ describe('pr-image-strip.sh — AK1: Bodies bleiben byte-identisch', () => {
 	});
 });
 
+describe('pr-image-strip.sh — --issue-Modus (Backfill ohne PR-Link)', () => {
+	it('PATCHed Issue-Body und Issue-Kommentar, ruehrt keine PR-Endpunkte an', () => {
+		writeFixture('issue-bodies/91.md', 'issue body mit ![shot](https://github.com/user-attachments/assets/c-3)');
+		writeFixture('comment-ids/91.txt', '55\n');
+		writeFixture('comment-bodies/55.md', 'kommentar mit <img src="z.png">');
+
+		const { res, log } = runSweepIssue('91');
+		assert.equal(res.status, 0, res.stderr);
+		assert.match(log, /^PATCH repos\/o\/r\/issues\/91$/m, 'Issue-Body 91 muss gepatcht werden');
+		assert.match(log, /^PATCH repos\/o\/r\/issues\/comments\/55$/m, 'Issue-Kommentar 55 muss gepatcht werden');
+		assert.ok(!log.includes('PR-EDIT'), '--issue darf keinen PR-Body anfassen');
+		assert.ok(!log.includes('pulls/comments'), '--issue darf keine Inline-Review-Kommentare anfassen');
+	});
+});
+
 describe('pr-image-strip.sh — AK3: Sweep ist idempotent', () => {
 	it('schreibt nichts, wenn alle Inhalte bereits bereinigt sind', () => {
 		writeFixture('pr-body.md', `PR ${PLACEHOLDER} alt`);
@@ -324,5 +425,78 @@ describe('pr-image-strip.sh — AK3: Sweep ist idempotent', () => {
 		const { res, log } = runSweep();
 		assert.equal(res.status, 0, res.stderr);
 		assert.equal(log, '', 'zweiter Lauf darf keinerlei Schreibzugriffe machen');
+	});
+});
+
+// --- image-strip-backfill.sh (Review-Findings PR #1043 F2/F3/F4/F6) -------------
+//
+// Das Backfill-Skript schreibt EINMALIG ueber den gesamten Repo-Verlauf. Die
+// fehleranfaellige Logik sind die beiden --jq-Filter (welche Objekte werden besucht)
+// und die Fehlerbilanz (wird ein Teilausfall sichtbar). Beides hier gegen dieselbe
+// gh-Stub-Harness geprueft; die Listen-Endpunkte laufen durch das echte jq.
+
+describe('image-strip-backfill.sh — Auswahl der Objekte', () => {
+	it('nimmt auch geschlossene, NICHT gemergte PRs mit (F4: kein merged_at-Filter)', () => {
+		seedBackfillFixtures();
+		const { res, out } = runBackfill(['--dry-run']);
+		assert.equal(res.status, 0, out);
+		for (const n of ['7', '8', '9']) {
+			assert.ok(out.includes(`--- PR #${n} ---`), `PR #${n} muss besucht werden (auch der unmergte #9)`);
+		}
+		assert.match(out, /^PRs geprüft:\s+3$/m);
+	});
+
+	it('sortiert PRs aus der Issue-Liste aus (select(.pull_request == null))', () => {
+		seedBackfillFixtures();
+		const { res, out } = runBackfill(['--dry-run']);
+		assert.equal(res.status, 0, out);
+		assert.ok(out.includes('--- Issue #70 ---'), 'echtes Issue 70 muss laufen');
+		assert.ok(out.includes('--- Issue #71 ---'), 'echtes Issue 71 muss laufen');
+		assert.ok(!out.includes('--- Issue #8 ---'), 'PR 8 darf nicht ein zweites Mal als Issue laufen');
+		assert.match(out, /^Issues geprüft:\s+2$/m);
+	});
+
+	it('schreibt im --dry-run nichts', () => {
+		seedBackfillFixtures();
+		writeFixture('issue-bodies/70.md', 'issue mit ![s](https://github.com/user-attachments/assets/x-1)');
+		const { res, log } = runBackfill(['--dry-run']);
+		assert.equal(res.status, 0);
+		assert.equal(log, '', 'dry-run darf keinerlei Schreibzugriffe machen');
+	});
+});
+
+describe('image-strip-backfill.sh — Fehler werden laut, nicht still', () => {
+	it('bricht ab, wenn das PR-Listing fehlschlägt (F3: kein Schein-Erfolg)', () => {
+		seedBackfillFixtures();
+		const { res, out } = runBackfill(['--dry-run'], { GH_FAIL_MATCH: 'pulls?state=closed' });
+		assert.notEqual(res.status, 0, 'ein totes Listing darf nicht grün enden');
+		assert.match(out, /Listing fehlgeschlagen/);
+		assert.ok(!/PRs geprüft:\s+0/.test(out), '"0 geprüft" darf nicht als Ergebnis erscheinen');
+	});
+
+	it('bricht ab, wenn das Issue-Listing fehlschlägt', () => {
+		seedBackfillFixtures();
+		const { res, out } = runBackfill(['--dry-run'], { GH_FAIL_MATCH: 'issues?state=closed' });
+		assert.notEqual(res.status, 0);
+		assert.match(out, /Listing fehlgeschlagen/);
+	});
+
+	it('zählt fehlgeschlagene PATCHes und endet rot (F2: Bilanz ist nicht blind)', () => {
+		seedBackfillFixtures();
+		// Issue 70 traegt ein Bild -> Sweep will PATCHen; der Stub laesst genau diesen
+		// PATCH scheitern. Ohne die failures=-Weitergabe meldete der Backfill "0 Fehler".
+		writeFixture('issue-bodies/70.md', 'issue mit ![s](https://github.com/user-attachments/assets/x-1)');
+		const { res, out } = runBackfill([], { GH_FAIL_MATCH: '--method PATCH' });
+		assert.notEqual(res.status, 0, 'gescheiterte Schreibversuche muessen den Job rot machen');
+		assert.match(out, /Backfill unvollständig/);
+		assert.ok(!/Fehlgeschlagene Schreibversuche: 0$/m.test(out), 'die Fehlerzahl darf nicht 0 sein');
+	});
+
+	it('wertet einen Lauf ganz ohne Objekte als Fehler', () => {
+		writeFixture('closed-pulls.json', '[]');
+		writeFixture('closed-issues.json', '[]');
+		const { res, out } = runBackfill(['--dry-run']);
+		assert.notEqual(res.status, 0, 'leeres Repo-Ergebnis ist ein stiller Ausfall, kein Erfolg');
+		assert.match(out, /Nichts verarbeitet/);
 	});
 });
