@@ -1,51 +1,59 @@
 # Issue #1042 — Triage (Phase 1/7)
 
 ## Erledigt
-- Erst-Triage (kein `KI-ANALYSE`-Block im Body, keine Kommentare vorhanden).
-- Titel unveraendert gelassen (inhaltlich korrekt, nur Rechtschreibung — laut Auftrag kein Lektorat).
-- EIN Kommentar mit `<!-- ai-triage-decision -->` gepostet:
-  https://github.com/deleonio/priority-pilot/issues/1042#issuecomment-5424223047
-- Labels: `ai:needs-human` gesetzt, `ai:needs-analyse` entfernt. KEIN `ai:analysed`
-  (Re-Triage soll nach menschlicher Klaerung erneut greifen).
-- KEIN Analyse-Block, KEINE Routing-Tabelle im Body — bewusst, da needs-human.
+
+- Lauf 1 (10:49Z): Erst-Triage → `ai:needs-human`, EIN `<!-- ai-triage-decision -->`-Kommentar
+  (https://github.com/deleonio/priority-pilot/issues/1042#issuecomment-5424223047), kein Analyse-Block.
+- Lauf 2 (10:54Z, Re-Triage): Delta-Kommentar von `deleonio` (2026-08-26T10:52:50Z) beantwortet die
+  Frage: **„Jetzt starten"-Schalter auf der Dashboard-Seite**.
+- Analyse-Block (`KI-ANALYSE`, stand=2026-08-26T10:54:29Z) + `ai-phase-routing`-Tabelle in den
+  Issue-Body geschrieben (Quelle: `.ai-memory/issue-1042-body.md`, gitignored).
+- Body leicht lektoriert (Grossschreibung im IST-Satz), Bild-Tag unveraendert. Titel NICHT geaendert
+  (inhaltlich korrekt).
+- Labels final: `ai:analysed` + `ai:needs-ux-ui`; `ai:needs-analyse` und `ai:needs-human` entfernt
+  (per `gh issue view --json labels` verifiziert).
+- KEIN Ping-Kommentar (Auftrag: Body-Block + Label = vollstaendige Kommunikation).
 
 ## Relevante Stellen
-- `frontend/src/app.css:1442` `.settings-action-btn` — Referenzmuster: `align-self: stretch`,
-  ab `@media (min-width: 768px)` `align-self: flex-start` (#1017).
-- `frontend/src/app.css:1583-1600` `.update-prompt kol-card kol-button` — zweites Muster
-  (`display:block; width:100%`, ab 768px `inline-block/auto`, #1034).
-- `frontend/src/components/LlmSettings.tsx:298,317,326,332` — Buttons tragen bereits
-  `class="settings-action-btn"` (#1037, Issue geschlossen).
-- `frontend/src/components/SettingsPage.tsx:203,262` — "Push testen"/"Standort jetzt ermitteln"
-  mit `settings-action-btn`.
-- `frontend/src/components/PillarList.tsx:84,106,111` — Buttons OHNE Klasse, in
-  `.pillar-list-toolbar` (block) bzw. `.pillar-item` (flex row) → Kandidat 1.
-- `frontend/src/components/LoginPage.tsx:81-100` — nativer Button mit `width: '100%'`
-  im 24rem-Container → Kandidat 3.
+
+- `frontend/src/components/Dashboard.tsx:184-189` — `KolButton _label="Jetzt starten"`, rendert nur bei
+  `onStartTask !== undefined` und vorhandener `nextTask`.
+- `frontend/src/app.css:517-521` `.dashboard-next-task-content` — `display:flex; flex-direction:column`
+  → Button erbt `align-self: stretch` = Root Cause der Desktop-Vollbreite.
+- `frontend/src/app.css:1441-1452` `.settings-action-btn` — Zielmuster (`stretch` → ab 768px `flex-start`).
+- `frontend/src/app.css:1583-1600` `.update-prompt kol-card kol-button` — Muster fuer Selektor-Scoping
+  ohne TSX-Aenderung.
+- `frontend/e2e/settings-action-buttons.spec.ts` — e2e-Vorbild fuer die neue Spec.
+- Breakpoint: Datei nutzt `48rem` (=768px) durchgehend (`grep -n "@media" frontend/src/app.css`).
 
 ## Annahmen
-- KoliBri `kol-button`-Host ist NICHT block-level per Default (sonst waere `display: block`
-  in `.update-prompt kol-card kol-button` unnoetig) → volle Breite entsteht nur als
-  Flex-Item in `flex-direction: column`-Containern (`align-self: stretch`).
-- Alle bekannten column-Flex-Container mit direkten Button-Kindern (`.settings-general`,
-  `.settings-llm`, `.llm-provider-admin__actions`) sind bereits gefixt.
+
+- CSS-only reicht; `Dashboard.tsx` muss nicht angefasst werden (Selektor `.dashboard-next-task-content
+  kol-button`).
+- Bounding-Box-Messung ist die tragfaehige Pruefmethode (Memory 2026-08-24: `scrollWidth` untauglich,
+  boundingBox misst Border-Box).
 
 ## Verworfen
-- Analyse auf Verdacht fuer einen der Kandidaten — Aufgabenstellung ohne Screenshot nicht
-  eindeutig auflosbar, Skill Schritt 5 verlangt dann `ai:needs-human`.
-- Screenshot laden: `curl`/`gh api` + Redirect scheitern (Netzzugriff nicht freigegeben,
-  Output-Redirect ausserhalb Working-Dir blockiert). Read-Tool braucht lokale Datei.
+
+- KoliBri `_inline`: entfernt den 44px-Touch-Target (Mobile-UI-Regel 2), steht so schon im
+  `.settings-action-btn`-Kommentar.
+- Wiederverwendung der Klasse `.settings-action-btn` am Dashboard-Button: Name ist settings-spezifisch,
+  Scoping-Muster #1034 ist sauberer.
+- Screenshot laden (Lauf 1): kein Netzzugriff auf `user-attachments` — Bilder sind fuer die Pipeline
+  grundsaetzlich unsichtbar.
 
 ## Offen
-- WELCHER Button in WELCHER Ansicht? Wartet auf menschliche Antwort im Ticket.
+
+- `-`
 
 ## Naechster Schritt
-- Nach der Antwort: Re-Triage — Delta-Kommentar lesen, Analyse-Block + Routing-Tabelle
-  schreiben (Ampel voraussichtlich gruen, Muster `.settings-action-btn` uebernehmen,
-  e2e-Vorbild `frontend/e2e/settings-action-buttons.spec.ts` aus #1017).
+
+- Phase 2 (UX, laut Routing `haiku`/`low`): kurze Pruefung, dann Spec.
 
 ## Fallstricke
-- Bilder in Issues sind fuer die Pipeline unsichtbar (kein Netz). Tickets, die den Ort nur
-  per Screenshot benennen, sind ohne Textangabe grundsaetzlich needs-human.
-- #1021 entfernt Bilder nachtraeglich aus Issues ("[Bild entfernt - Datenschutz]") — der
-  Screenshot ist also auch fuer spaetere Laeufe kein verlaesslicher Kontext.
+
+- Tickets, die den Ort nur per Screenshot benennen, sind ohne Textangabe zwingend `needs-human` —
+  #1021 entfernt Bilder ausserdem nachtraeglich.
+- Body-Schreiben nur per `Write` in `.ai-memory/issue-<N>-*.md` + `gh issue edit --body-file`;
+  Heredoc mit mehrzeiligem Markdown scheitert am Bash-Tool-Parser (MEMORY 2026-08-26).
+- Routing-Tabelle muss ASCII bleiben (wird maschinell von `resolve-phase-routing.sh` gelesen).
