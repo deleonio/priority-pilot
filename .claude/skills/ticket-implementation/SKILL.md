@@ -87,4 +87,4 @@ Der frisch erstellte PR wird aktiv im Kreuzverhör geprüft und nachgebessert �
 
 - Zuweisen, Push/PR und Review-Kommentare schreiben **öffentlich** auf GitHub — vorher bestätigen lassen.
 - Ergebnis ist ein **review-bereiter PR**, der den Kreuzverhör-Loop durchlaufen hat und weiter verfolgt wird. Der finale Merge bleibt beim Menschen.
-- **CI-Mechanik** (VERDICT-Zeilen, Soft-Deadline, Label-Verbot) ist headless-only und ausschließlich in der [.github/prompts/implement.md](.github/prompts/implement.md) geregelt.
+- **CI-Mechanik** (VERDICT-Zeilen, Soft-Deadline, Label-Verbot) ist headless-only und im CI-Prompt der Pipeline geregelt.

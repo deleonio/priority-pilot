@@ -1,14 +1,13 @@
 ---
 name: review-kreuzverhoer
-description: "PR-Kreuzverhör — Pull Requests adversarial reviewen, Findings als Inline-Kommentare posten, Ampel-Urteil im ai-review-Sammelkommentar. Nutzen bei „review PR <Nr>“, „prüf/kreuzverhöre diesen PR“, Re-Review nach Fixup. CI-Phase 5/7 arbeitet mit derselben Methode (CI-Prompt: CI.md neben dieser Datei)."
+description: "PR-Kreuzverhör — Pull Requests adversarial reviewen, Findings als Inline-Kommentare posten, Ampel-Urteil im ai-review-Sammelkommentar. Nutzen bei „review PR <Nr>", „prüf/kreuzverhöre diesen PR", Re-Review nach Fixup. CI-Phase 5/7 arbeitet mit derselben Methode."
 allowed-tools: Read, Grep, Glob, Bash(gh *)
 ---
 
 # PR-Kreuzverhör (Review von Pull Requests)
 
 Prüft einen Pull Request **kritisch wie im Kreuzverhör**. Diese Datei ist die kanonische Methode
-für lokale/manuelle Reviews — die CI-Review-Phase (5/7) setzt sie über den operativen Prompt
-`CI.md` (neben dieser Datei) um.
+für lokale/manuelle Reviews — die CI-Review-Phase (5/7) setzt sie über ihren operativen Prompt um.
 
 PRs = Pull Requests von `deleonio/priority-pilot`. Voraussetzung: `gh` ist authentifiziert.
 
