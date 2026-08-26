@@ -92,3 +92,107 @@ test.describe('Priority Pilot — UpdatePrompt KoliBri-Card Fixierung (#373)', (
 		expect(bottom).toBe('0px');
 	});
 });
+
+/**
+ * Mobile-Bedienbarkeit + Overflow-Schutz (#1034, docs/spec/issue-1034.md AK1-AK3).
+ *
+ * Der reale Update-/Offline-Zustand ist in Playwright nicht deterministisch reproduzierbar
+ * (siehe #353-Block oben), deshalb wird die tatsächliche `UpdatePrompt`-Markup-Struktur
+ * (`.update-prompt` > `kol-card` > Klick-Wrapper-`span[data-testid]` > `kol-button`) als
+ * Stellvertreter injiziert und der CSS-Kontrakt gemessen.
+ */
+test.describe('Priority Pilot — UpdatePrompt Mobile-Bedienbarkeit (#1034)', () => {
+	/** WCAG 2.5.8: Mindest-Tap-Target. */
+	const MIN_TARGET_PX = 44;
+	/** Sub-Pixel-Rundungstoleranz. */
+	const TOLERANCE_PX = 1;
+
+	const CARDS = [
+		{ card: 'update', testId: 'pwa-update-reload' },
+		{ card: 'offline', testId: 'pwa-offline-close' },
+	];
+
+	/** Injiziert die reale UpdatePrompt-Struktur als Stellvertreter für eine Card. */
+	const injectCardProxy = (testId: string) => `
+		const container = document.createElement('div');
+		container.className = 'update-prompt';
+		container.innerHTML = \`
+			<kol-card>
+				<p>Fließtext</p>
+				<span data-testid="${testId}"><kol-button></kol-button></span>
+			</kol-card>
+		\`;
+		document.body.appendChild(container);
+	`;
+
+	for (const { card, testId } of CARDS) {
+		// AK1 — Tap-Target ≥ 44x44px und ≥ 90% der Card-Innenbreite bei 375px.
+		test(`AK1: ${card}-Card-Button ist bei 375px ≥44x44px und füllt ≥90% der Card-Innenbreite`, async ({ page }) => {
+			await mockAuthenticated(page);
+			await page.setViewportSize({ width: 375, height: 812 });
+			await page.goto('/');
+
+			await page.evaluate(injectCardProxy(testId));
+
+			const card_ = page.locator('.update-prompt kol-card');
+			const button = page.locator(`[data-testid="${testId}"]`);
+
+			const cardBox = await card_.boundingBox();
+			const buttonBox = await button.boundingBox();
+			expect(cardBox, 'Card-Bounding-Box muss messbar sein').not.toBeNull();
+			expect(buttonBox, 'Button-Bounding-Box muss messbar sein').not.toBeNull();
+
+			expect(buttonBox!.height).toBeGreaterThanOrEqual(MIN_TARGET_PX - TOLERANCE_PX);
+			expect(buttonBox!.width).toBeGreaterThanOrEqual(MIN_TARGET_PX - TOLERANCE_PX);
+			expect(buttonBox!.width).toBeGreaterThanOrEqual(cardBox!.width * 0.9 - TOLERANCE_PX);
+
+			await page.evaluate(() => document.querySelector('.update-prompt')?.remove());
+		});
+	}
+
+	// AK2 — kein Kind-Element läuft bei 320px horizontal aus dem Viewport.
+	test('AK2: kein Kind-Element von .update-prompt überragt den Viewport bei 320px', async ({ page }) => {
+		await mockAuthenticated(page);
+		await page.setViewportSize({ width: 320, height: 812 });
+		await page.goto('/');
+
+		await page.evaluate(injectCardProxy('pwa-update-reload'));
+
+		const overflow = await page.evaluate(() => {
+			const els = Array.from(document.querySelectorAll('.update-prompt, .update-prompt *'));
+			return els.map((el) => {
+				const box = el.getBoundingClientRect();
+				return box.x + box.width;
+			});
+		});
+
+		expect(overflow.length).toBeGreaterThan(0);
+		for (const rightEdge of overflow) {
+			expect(rightEdge).toBeLessThanOrEqual(321);
+		}
+
+		await page.evaluate(() => document.querySelector('.update-prompt')?.remove());
+	});
+
+	// AK3 — Desktop-Regression-Schutz: .update-prompt bleibt bei ≥768px fixiert am unteren Rand.
+	test('AK3: .update-prompt bleibt bei 1280px position:fixed; bottom:0px (keine Desktop-Regression)', async ({
+		page,
+	}) => {
+		await mockAuthenticated(page);
+		await page.setViewportSize({ width: 1280, height: 800 });
+		await page.goto('/');
+
+		const style = await page.evaluate(() => {
+			const el = document.createElement('div');
+			el.className = 'update-prompt';
+			document.body.appendChild(el);
+			const computed = getComputedStyle(el);
+			const result = { position: computed.position, bottom: computed.bottom };
+			el.remove();
+			return result;
+		});
+
+		expect(style.position).toBe('fixed');
+		expect(style.bottom).toBe('0px');
+	});
+});

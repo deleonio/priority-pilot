@@ -1571,6 +1571,33 @@ body {
 	pointer-events: auto;
 }
 
+/* Mobile-Bedienbarkeit (#1034): Aktionsbutton als volle-Breite-Tap-Fläche (WCAG 2.5.8,
+   Muster #996). Der native `<span>`-Klick-Wrapper (siehe UpdatePrompt.tsx) muss ebenfalls
+   Block-Level werden, sonst bleibt die Klickfläche trotz breitem Button schmal.
+   Mobile-First: Basis-Styles gelten für den schmalsten Viewport, `min-width` schaltet ab
+   768px wieder auf die kompakte KoliBri-Standardbreite zurück. */
+.update-prompt kol-card span[data-testid] {
+	display: block;
+}
+
+.update-prompt kol-card kol-button {
+	display: block;
+	width: 100%;
+	min-height: 44px;
+}
+
+@media (min-width: 768px) {
+	.update-prompt kol-card span[data-testid] {
+		display: inline;
+	}
+
+	.update-prompt kol-card kol-button {
+		display: inline-block;
+		width: auto;
+		min-height: 0;
+	}
+}
+
 /* --- App-Fußzeile (#290) --- */
 .app-footer {
 	margin-top: var(--pp-gap-major);

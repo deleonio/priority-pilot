@@ -76,16 +76,6 @@ beforeEach(() => {
 });
 
 describe('UpdatePrompt (#353)', () => {
-	// AK2 — Update-Banner bei neuer Version
-	it('AK2: zeigt Update-Banner „Neue Version verfügbar" + „Neu laden", wenn needRefresh=true', () => {
-		needRefreshValue = true;
-
-		render(<UpdatePrompt />);
-
-		expect(screen.getByText(/Neue Version verfügbar/i)).toBeInTheDocument();
-		expect(screen.getByText(/Neu laden/i)).toBeInTheDocument();
-	});
-
 	// AK3 — Reload löst Update aus.
 	// Testbare Naht: KolButton ist ein Web Component, dessen `_on.onClick`-Callback in JSDOM nicht
 	// über einen echten DOM-Klick auslösbar ist (siehe InstallPrompt-Präzedenzfall). Das Reload-
@@ -104,24 +94,7 @@ describe('UpdatePrompt (#353)', () => {
 		expect(updateServiceWorker).toHaveBeenCalledWith(true);
 	});
 
-	// AK4 — Offline-bereit-Hinweis
-	it('AK4a: zeigt „App ist offline-bereit", wenn offlineReady=true', () => {
-		offlineReadyValue = true;
-
-		render(<UpdatePrompt />);
-
-		expect(screen.getByText(/App ist offline-bereit/i)).toBeInTheDocument();
-	});
-
-	it('AK4b: zeigt „App ist offline-bereit" NICHT, wenn offlineReady=false', () => {
-		offlineReadyValue = false;
-
-		render(<UpdatePrompt />);
-
-		expect(screen.queryByText(/App ist offline-bereit/i)).not.toBeInTheDocument();
-	});
-
-	it('AK4c: Klick auf „Schließen" ruft setOfflineReady(false) auf', () => {
+	it('AK4c: Klick auf „Schließen"/"Verstanden" ruft setOfflineReady(false) auf', () => {
 		offlineReadyValue = true;
 
 		render(<UpdatePrompt />);
@@ -172,14 +145,14 @@ describe('UpdatePrompt — KoliBri-Card & Fixierung (#373)', () => {
 		expect(container.querySelector('[data-comp="kol-card"]')).toBeInTheDocument();
 	});
 
-	it('AK2d: offlineReady=true → Schließen-Aktion als kol-button „Schließen"', () => {
+	it('AK2d: offlineReady=true → Schließen-Aktion als kol-button „Verstanden" (#1034)', () => {
 		offlineReadyValue = true;
 
 		const { container } = render(<UpdatePrompt />);
 
 		const button = container.querySelector('[data-comp="kol-button"]');
 		expect(button).toBeInTheDocument();
-		expect(button).toHaveTextContent(/Schließen/i);
+		expect(button).toHaveTextContent(/Verstanden/i);
 	});
 
 	// AK1 — Umgebender Container mit Klasse update-prompt (später position: fixed via CSS).
@@ -240,5 +213,47 @@ describe('vite.config.ts — PWA Update-Fluss (AK1, #353)', () => {
 
 	it('AK1d: workbox setzt skipWaiting: false', () => {
 		expect(configSource).toMatch(/skipWaiting:\s*false/);
+	});
+});
+
+/**
+ * Spec-Tests (#1034, docs/spec/issue-1034.md AK4/AK5) — beschreibende Texte statt Stichwort.
+ * Ersetzt die bisherigen Stichwort-Assertions der #353-Suite (siehe „Test-Pflege-Bedarf" im Spec).
+ */
+describe('UpdatePrompt — beschreibende Texte (#1034)', () => {
+	// AK4 — Update-Card
+	it('AK4: Update-Card zeigt Label „Neue Version verfügbar", Fließtext und Button „Jetzt neu laden"', () => {
+		needRefreshValue = true;
+
+		const { container } = render(<UpdatePrompt />);
+
+		const card = container.querySelector('[data-comp="kol-card"]');
+		expect(card).toHaveAttribute('data-label', 'Neue Version verfügbar');
+		expect(
+			screen.getByText('Priority Pilot wurde aktualisiert. Lade die App neu, um die neue Version zu nutzen.'),
+		).toBeInTheDocument();
+		expect(screen.getByText('Jetzt neu laden')).toBeInTheDocument();
+	});
+
+	// AK5 — Offline-Card
+	it('AK5: Offline-Card zeigt Label „Offline einsatzbereit", Fließtext und Button „Verstanden"', () => {
+		offlineReadyValue = true;
+
+		const { container } = render(<UpdatePrompt />);
+
+		const card = container.querySelector('[data-comp="kol-card"]');
+		expect(card).toHaveAttribute('data-label', 'Offline einsatzbereit');
+		expect(screen.getByText('Priority Pilot funktioniert ab jetzt auch ohne Internetverbindung.')).toBeInTheDocument();
+		expect(screen.getByText('Verstanden')).toBeInTheDocument();
+	});
+
+	it('AK5b: zeigt den Offline-Fließtext NICHT, wenn offlineReady=false', () => {
+		offlineReadyValue = false;
+
+		render(<UpdatePrompt />);
+
+		expect(
+			screen.queryByText('Priority Pilot funktioniert ab jetzt auch ohne Internetverbindung.'),
+		).not.toBeInTheDocument();
 	});
 });
