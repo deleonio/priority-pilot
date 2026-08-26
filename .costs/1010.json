@@ -3,7 +3,7 @@
 		"timestamp": "2026-08-25T03:43:07.774Z",
 		"tokensIn": 1099229,
 		"tokensOut": 11945,
-		"cost": 0,
+		"cost": 0.794477,
 		"issueId": "1010",
 		"phase": "analyse",
 		"model": "glm-5.3",
@@ -11,13 +11,13 @@
 		"cacheCreationTokens": 0,
 		"cacheReadTokens": 993152,
 		"turns": 14,
-		"valueCost": 1.325586
+		"valueCost": 0.794477
 	},
 	{
 		"timestamp": "2026-08-25T04:10:22.660Z",
 		"tokensIn": 1244848,
 		"tokensOut": 10301,
-		"cost": 0,
+		"cost": 0.810334,
 		"issueId": "1010",
 		"phase": "implement",
 		"model": "glm-5.3",
@@ -25,13 +25,13 @@
 		"cacheCreationTokens": 0,
 		"cacheReadTokens": 1143424,
 		"turns": 16,
-		"valueCost": 1.336357
+		"valueCost": 0.810334
 	},
 	{
 		"timestamp": "2026-08-25T04:19:46.095Z",
 		"tokensIn": 1177278,
 		"tokensOut": 14895,
-		"cost": 0,
+		"cost": 0.697196,
 		"issueId": "1010",
 		"phase": "review",
 		"model": "glm-5.3",
@@ -39,13 +39,13 @@
 		"cacheCreationTokens": 0,
 		"cacheReadTokens": 1124160,
 		"turns": 14,
-		"valueCost": 1.200045
+		"valueCost": 0.697196
 	},
 	{
 		"timestamp": "2026-08-25T04:23:33.842Z",
 		"tokensIn": 223871,
 		"tokensOut": 4058,
-		"cost": 0,
+		"cost": 0.080232,
 		"issueId": "1010",
 		"phase": "documenter",
 		"model": "glm-4.7",
@@ -53,6 +53,6 @@
 		"cacheCreationTokens": 0,
 		"cacheReadTokens": 120192,
 		"turns": 4,
-		"valueCost": 0.1359882
+		"valueCost": 0.080232
 	}
 ]

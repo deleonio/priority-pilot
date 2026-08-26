@@ -3,96 +3,104 @@
 		"timestamp": "2026-08-23T20:55:48.895Z",
 		"tokensIn": 1117291,
 		"tokensOut": 10083,
-		"cost": 0,
+		"cost": 0.57628,
 		"issueId": "971",
 		"phase": "analyse",
 		"model": "glm-5.3",
 		"provider": "zai",
 		"cacheCreationTokens": 0,
-		"cacheReadTokens": 1081152
+		"cacheReadTokens": 1081152,
+		"valueCost": 0.57628
 	},
 	{
 		"timestamp": "2026-08-23T20:58:36.578Z",
 		"tokensIn": 1500837,
 		"tokensOut": 11109,
-		"cost": 0,
+		"cost": 0.130895,
 		"issueId": "971",
 		"phase": "ux",
 		"model": "glm-4.7",
 		"provider": "zai",
 		"cacheCreationTokens": 0,
-		"cacheReadTokens": 1467840
+		"cacheReadTokens": 1467840,
+		"valueCost": 0.130895
 	},
 	{
 		"timestamp": "2026-08-24T10:27:31.377Z",
 		"tokensIn": 1547163,
 		"tokensOut": 23604,
-		"cost": 0,
+		"cost": 1.39491,
 		"issueId": "971",
 		"phase": "analyse",
 		"model": "glm-5.3",
 		"provider": "zai",
 		"cacheCreationTokens": 0,
-		"cacheReadTokens": 1328128
+		"cacheReadTokens": 1328128,
+		"valueCost": 1.39491
 	},
 	{
 		"timestamp": "2026-08-24T10:31:42.553Z",
 		"tokensIn": 1672824,
 		"tokensOut": 13810,
-		"cost": 0,
+		"cost": 0.180898,
 		"issueId": "971",
 		"phase": "ux",
 		"model": "glm-4.7",
 		"provider": "zai",
 		"cacheCreationTokens": 0,
-		"cacheReadTokens": 1579200
+		"cacheReadTokens": 1579200,
+		"valueCost": 0.180898
 	},
 	{
 		"timestamp": "2026-08-24T10:43:10.600Z",
 		"tokensIn": 2474965,
 		"tokensOut": 21992,
-		"cost": 0,
+		"cost": 1.414764,
 		"issueId": "971",
 		"phase": "spec",
 		"model": "glm-5.3",
 		"provider": "zai",
 		"cacheCreationTokens": 0,
-		"cacheReadTokens": 2346240
+		"cacheReadTokens": 2346240,
+		"valueCost": 1.414764
 	},
 	{
 		"timestamp": "2026-08-24T11:02:42.944Z",
 		"tokensIn": 5449865,
 		"tokensOut": 31415,
-		"cost": 0,
+		"cost": 2.524222,
 		"issueId": "971",
 		"phase": "implement",
 		"model": "glm-5.3",
 		"provider": "zai",
 		"cacheCreationTokens": 0,
-		"cacheReadTokens": 5306112
+		"cacheReadTokens": 5306112,
+		"valueCost": 2.524222
 	},
 	{
 		"timestamp": "2026-08-24T11:10:01.547Z",
 		"tokensIn": 1309253,
 		"tokensOut": 12369,
-		"cost": 0,
+		"cost": 0.948588,
 		"issueId": "971",
 		"phase": "review",
 		"model": "glm-5.3",
 		"provider": "zai",
 		"cacheCreationTokens": 0,
-		"cacheReadTokens": 1175232
+		"cacheReadTokens": 1175232,
+		"valueCost": 0.948588
 	},
 	{
 		"timestamp": "2026-08-24T11:18:36.484Z",
 		"tokensIn": 764655,
 		"tokensOut": 11123,
-		"cost": 0,
+		"cost": 0.460393,
 		"issueId": "971",
 		"phase": "fixup",
 		"model": "glm-5.3",
 		"provider": "zai",
 		"cacheCreationTokens": 0,
-		"cacheReadTokens": 732928
+		"cacheReadTokens": 732928,
+		"valueCost": 0.460393
 	}
 ]

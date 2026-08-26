@@ -3,74 +3,80 @@
 		"timestamp": "2026-08-23T03:58:35.117Z",
 		"tokensIn": 1168496,
 		"tokensOut": 10844,
-		"cost": 0,
+		"cost": 0.608009,
 		"issueId": "933",
 		"phase": "analyse",
 		"model": "glm-5.3",
 		"provider": "zai",
 		"cacheCreationTokens": 0,
 		"cacheReadTokens": 1129984,
-		"sidechainTokens": 240750
+		"sidechainTokens": 240750,
+		"valueCost": 0.608009
 	},
 	{
 		"timestamp": "2026-08-23T04:01:10.360Z",
 		"tokensIn": 771227,
 		"tokensOut": 8884,
-		"cost": 0,
+		"cost": 0.12059,
 		"issueId": "933",
 		"phase": "ux",
 		"model": "glm-4.7",
 		"provider": "zai",
 		"cacheCreationTokens": 0,
-		"cacheReadTokens": 669888
+		"cacheReadTokens": 669888,
+		"valueCost": 0.12059
 	},
 	{
 		"timestamp": "2026-08-23T04:10:52.819Z",
 		"tokensIn": 2318755,
 		"tokensOut": 18802,
-		"cost": 0,
+		"cost": 1.115683,
 		"issueId": "933",
 		"phase": "spec",
 		"model": "glm-5.3",
 		"provider": "zai",
 		"cacheCreationTokens": 0,
-		"cacheReadTokens": 2263424
+		"cacheReadTokens": 2263424,
+		"valueCost": 1.115683
 	},
 	{
 		"timestamp": "2026-08-23T05:10:48.729Z",
 		"tokensIn": 7133271,
 		"tokensOut": 34822,
-		"cost": 0,
+		"cost": 2.921911,
 		"issueId": "933",
 		"phase": "implement",
 		"model": "glm-5.3",
 		"provider": "zai",
 		"cacheCreationTokens": 0,
-		"cacheReadTokens": 7052800
+		"cacheReadTokens": 7052800,
+		"valueCost": 2.921911
 	},
 	{
 		"timestamp": "2026-08-23T05:17:04.471Z",
 		"tokensIn": 1065111,
 		"tokensOut": 15802,
-		"cost": 0,
+		"cost": 0.839991,
 		"issueId": "933",
 		"phase": "review",
 		"model": "glm-5.3",
 		"provider": "zai",
 		"cacheCreationTokens": 0,
-		"cacheReadTokens": 953920
+		"cacheReadTokens": 953920,
+		"valueCost": 0.839991
 	},
 	{
 		"timestamp": "2026-08-23T05:51:02.100Z",
 		"tokensIn": 2064710,
 		"tokensOut": 10484,
-		"cost": 0,
+		"cost": 0.889893,
 		"issueId": "933",
 		"phase": "fixup",
 		"model": "glm-5.3",
 		"provider": "zai",
 		"cacheCreationTokens": 0,
-		"cacheReadTokens": 2027776
+		"cacheReadTokens": 2027776,
+		"valueCost": 0.889893
 	},
 	{
 		"timestamp": "2026-08-23T05:57:10.800Z",

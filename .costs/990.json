@@ -3,7 +3,7 @@
 		"timestamp": "2026-08-24T17:47:07.562Z",
 		"tokensIn": 915376,
 		"tokensOut": 11666,
-		"cost": 0,
+		"cost": 0.76461,
 		"issueId": "990",
 		"phase": "review",
 		"model": "glm-5.3",
@@ -11,13 +11,13 @@
 		"cacheCreationTokens": 0,
 		"cacheReadTokens": 798080,
 		"turns": 13,
-		"valueCost": 1.27717
+		"valueCost": 0.76461
 	},
 	{
 		"timestamp": "2026-08-24T17:52:09.567Z",
 		"tokensIn": 246996,
 		"tokensOut": 3238,
-		"cost": 0,
+		"cost": 0.087883,
 		"issueId": "990",
 		"phase": "documenter",
 		"model": "glm-4.7",
@@ -25,6 +25,6 @@
 		"cacheCreationTokens": 0,
 		"cacheReadTokens": 130944,
 		"turns": 5,
-		"valueCost": 0.1453364
+		"valueCost": 0.087883
 	}
 ]

@@ -265,7 +265,7 @@ export function renderReport(dir: string): string {
 		);
 	}
 	lines.push(
-		'> Wert = Verbrauchsbewertung zu Modellklassen-Preisen (provider-unabhängig), Echt = gemessene Anthropic-Kosten (Fremdtarife: 0, s. `.costs/SCHEMA.md`). Sortiert nach Wert absteigend — oben stehen die teuersten Durchläufe und damit die ersten Optimierungskandidaten (Review-/Fixup-Schleifen).',
+		'> Wert = Verbrauchsbewertung (echter Listenpreis, wo vorhanden — sonst Modellklasse), Echt = gemessene Kosten zu Listenpreisen von Anthropic und z.ai (ohne Preisliste, also openrouter: 0, s. `.costs/SCHEMA.md`). Sortiert nach Wert absteigend — oben stehen die teuersten Durchläufe und damit die ersten Optimierungskandidaten (Review-/Fixup-Schleifen).',
 		'',
 	);
 	if (skipped.length > 0) {

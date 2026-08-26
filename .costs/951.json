@@ -39,73 +39,79 @@
 		"timestamp": "2026-08-23T19:53:49.753Z",
 		"tokensIn": 941862,
 		"tokensOut": 16345,
-		"cost": 0,
+		"cost": 0.591908,
 		"issueId": "951",
 		"phase": "review",
 		"model": "glm-5.3",
 		"provider": "zai",
 		"cacheCreationTokens": 0,
-		"cacheReadTokens": 904064
+		"cacheReadTokens": 904064,
+		"valueCost": 0.591908
 	},
 	{
 		"timestamp": "2026-08-23T20:21:38.753Z",
 		"tokensIn": 3367209,
 		"tokensOut": 24380,
-		"cost": 0,
+		"cost": 1.531319,
 		"issueId": "951",
 		"phase": "fixup",
 		"model": "glm-5.3",
 		"provider": "zai",
 		"cacheCreationTokens": 0,
-		"cacheReadTokens": 3306496
+		"cacheReadTokens": 3306496,
+		"valueCost": 1.531319
 	},
 	{
 		"timestamp": "2026-08-23T20:28:17.682Z",
 		"tokensIn": 757860,
 		"tokensOut": 8733,
-		"cost": 0,
+		"cost": 0.430294,
 		"issueId": "951",
 		"phase": "review",
 		"model": "glm-5.3",
 		"provider": "zai",
 		"cacheCreationTokens": 0,
-		"cacheReadTokens": 726848
+		"cacheReadTokens": 726848,
+		"valueCost": 0.430294
 	},
 	{
 		"timestamp": "2026-08-23T20:49:08.033Z",
 		"tokensIn": 254211,
 		"tokensOut": 1839,
-		"cost": 0,
+		"cost": 0.343353,
 		"issueId": "951",
 		"phase": "fixup",
 		"model": "glm-5.3",
 		"provider": "zai",
 		"cacheCreationTokens": 0,
-		"cacheReadTokens": 171520
+		"cacheReadTokens": 171520,
+		"valueCost": 0.343353
 	},
 	{
 		"timestamp": "2026-08-24T05:21:36.858Z",
 		"tokensIn": 2550739,
 		"tokensOut": 24214,
-		"cost": 0,
+		"cost": 1.472825,
 		"issueId": "951",
 		"phase": "review",
 		"model": "glm-5.3",
 		"provider": "zai",
 		"cacheCreationTokens": 0,
-		"cacheReadTokens": 2418752
+		"cacheReadTokens": 2418752,
+		"valueCost": 1.472825
 	},
 	{
 		"timestamp": "2026-08-24T05:30:44.881Z",
 		"tokensIn": 525612,
 		"tokensOut": 9284,
-		"cost": 0,
+		"cost": 0.344037,
 		"issueId": "951",
 		"phase": "fixup",
 		"model": "glm-5.3",
 		"provider": "zai",
 		"cacheCreationTokens": 0,
-		"cacheReadTokens": 500416
+		"cacheReadTokens": 500416,
+		"valueCost": 0.344037
 	},
 	{
 		"timestamp": "2026-08-24T06:33:55.643Z",

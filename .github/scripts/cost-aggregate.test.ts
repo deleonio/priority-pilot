@@ -131,8 +131,22 @@ describe('cost-aggregate — Summen je Phase', () => {
 		);
 	});
 
-	it('markiert Fremdtarife, sobald ein Lauf nicht über claude lief', () => {
+	it('markiert Fremdtarife, wenn ein Nicht-Claude-Lauf kein bepreistes Modell nennt', () => {
 		const totals = totalsByPhase([entry({ phase: 'implement', provider: 'zai', cost: 0 })]);
+		assert.equal(totals[0].foreignTariff, true, 'ohne `model` ist der Preis nicht belegbar');
+	});
+
+	it('markiert bepreiste z.ai-Laeufe NICHT als Fremdtarif', () => {
+		// Seit der Aufnahme der GLM-Listenpreise ist `cost` hier echt — die Kostenspalte
+		// zu entwerten wuerde den groessten Teil des Datensatzes unsichtbar machen.
+		const totals = totalsByPhase([entry({ phase: 'implement', provider: 'zai', model: 'glm-5.3', cost: 0.48 })]);
+		assert.equal(totals[0].foreignTariff, false);
+	});
+
+	it('markiert openrouter weiterhin als Fremdtarif — dort gibt es keine Preisliste', () => {
+		const totals = totalsByPhase([
+			entry({ phase: 'implement', provider: 'openrouter', model: 'deepseek/deepseek-v3.2', cost: 0 }),
+		]);
 		assert.equal(totals[0].foreignTariff, true);
 	});
 

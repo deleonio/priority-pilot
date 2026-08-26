@@ -140,7 +140,7 @@ describe('lookupPrice / computeCost', () => {
 		assert.equal(computeCost(usage)?.toFixed(2), '11.75');
 	});
 
-	it('liefert undefined für ein unbekanntes Modell (GLM-Fremdtarif)', () => {
+	it('liefert undefined für ein Modell ohne eigenen Listenpreis (openrouter-Fremdtarif)', () => {
 		const usage: Usage = {
 			inputTokens: 100,
 			outputTokens: 100,
@@ -148,9 +148,28 @@ describe('lookupPrice / computeCost', () => {
 			cacheReadTokens: 0,
 			sidechainTokens: 0,
 			turns: 1,
-			model: 'glm-4.6',
+			model: 'deepseek/deepseek-v3.2',
 		};
-		assert.equal(computeCost(usage), undefined, 'Anthropic-Preise dürfen nicht auf GLM angewandt werden');
+		assert.equal(computeCost(usage), undefined, 'Anthropic-Preise dürfen nicht auf Fremdmodelle angewandt werden');
+	});
+
+	it('bepreist z.ai-Modelle aus der EUR-Liste, zum festen Kurs umgerechnet', () => {
+		const usage: Usage = {
+			inputTokens: 1_000_000,
+			outputTokens: 1_000_000,
+			cacheCreationTokens: 0,
+			cacheReadTokens: 0,
+			sidechainTokens: 0,
+			turns: 1,
+			model: 'glm-5.3',
+		};
+		// 3 EUR in + 10 EUR out, je x1,08 => 3.24 + 10.80 = 14.04
+		assert.equal(computeCost(usage)?.toFixed(2), '14.04');
+	});
+
+	it('trifft das Suffix-behaftete z.ai-Modell der Pipeline über den Präfix', () => {
+		// setup-claude löst `opus` bei zai auf `glm-5.3[1m]` auf
+		assert.equal(lookupPrice('glm-5.3[1m]')?.[0], 'glm-5.3');
 	});
 });
 
@@ -193,7 +212,7 @@ describe('classifyModel / computeValueCost (Issue #984)', () => {
 		assert.equal(classifyModel('weird-model-v9'), undefined);
 	});
 
-	it('bewertet GLM-Verbrauch zu Flagship-Preisen mit denselben Cache-Faktoren wie cost', () => {
+	it('bewertet GLM-Verbrauch zum echten z.ai-Preis statt zur Klassenstufe', () => {
 		const usage: Usage = {
 			inputTokens: 1_000_000,
 			outputTokens: 0,
@@ -203,8 +222,23 @@ describe('classifyModel / computeValueCost (Issue #984)', () => {
 			turns: 3,
 			model: 'glm-5.3',
 		};
-		// 5.00 + 6.25 + 0.50 = 11.75 — identische Rechnung wie computeCost für claude-opus
-		assert.equal(computeValueCost(usage).toFixed(2), '11.75');
+		// 3.24 (Input) + 4.05 (Cache-Write) + 0.324 (Cache-Read) = 7.614
+		// Klassenstufe flagship haette 11.75 ergeben — der echte Preis bewertet genauer.
+		assert.equal(computeValueCost(usage).toFixed(2), '7.61');
+	});
+
+	it('bewertet Anthropic-Modelle unveraendert — Listen- und Klassenpreis sind identisch', () => {
+		const usage: Usage = {
+			inputTokens: 1_000_000,
+			outputTokens: 1_000_000,
+			cacheCreationTokens: 0,
+			cacheReadTokens: 0,
+			sidechainTokens: 0,
+			turns: 1,
+			model: 'claude-opus-5',
+		};
+		// 5.00 + 25.00 — der z.ai-Vorrang darf die bestehende Baseline nicht verschieben
+		assert.equal(computeValueCost(usage).toFixed(2), '30.00');
 	});
 
 	it('bewertet ein unbekanntes Modell zur Default-Klasse mid', () => {
