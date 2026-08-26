@@ -94,7 +94,7 @@ export default defineConfig({
 				description: 'Aufgaben-Priorisierung über einen gewichteten Abhängigkeitsgraphen und Lebensbalance-Säulen.',
 				theme_color: '#1a1a1a',
 				background_color: '#ffffff',
-				display: 'fullscreen',
+				display: 'standalone',
 				start_url: '/',
 				icons: [
 					{
