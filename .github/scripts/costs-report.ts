@@ -183,6 +183,70 @@ export function renderReport(dir: string): string {
 		'',
 	);
 
+	// Zeitlicher Trend der Durchschnittskosten je Run (nur messende Läufe, valueCost > 0).
+	// Grund: ein Trend ist der Kompass für Optimierungen — Tagesmittel glätten Ticket-Streuung,
+	// Phasen-Mittel zeigen, WELCHE Phase den Trend treibt. Läufe ohne Messung (valueCost=0,
+	// vor #984) würden den Trend gegen 0 ziehen und sind ausgeschlossen.
+	const byDay = new Map<string, { runs: number; vc: number }>();
+	const byDayPhase = new Map<string, Map<string, { runs: number; vc: number }>>();
+	for (const e of allEntries) {
+		const vc = ZERO(e.valueCost);
+		if (vc <= 0) continue;
+		const day = e.timestamp.slice(0, 10);
+		let d = byDay.get(day);
+		if (!d) {
+			d = { runs: 0, vc: 0 };
+			byDay.set(day, d);
+		}
+		d.runs += 1;
+		d.vc += vc;
+		const ph = e.phase ?? '(ohne)';
+		let dm = byDayPhase.get(day);
+		if (!dm) {
+			dm = new Map();
+			byDayPhase.set(day, dm);
+		}
+		let pd = dm.get(ph);
+		if (!pd) {
+			pd = { runs: 0, vc: 0 };
+			dm.set(ph, pd);
+		}
+		pd.runs += 1;
+		pd.vc += vc;
+	}
+	const days = [...byDay.entries()].sort(([a], [b]) => a.localeCompare(b));
+	if (days.length > 0) {
+		lines.push('### Zeitlicher Trend — Durchschnitt je Run', '');
+		lines.push('```mermaid');
+		lines.push('xychart-beta');
+		lines.push('\ttitle "Ø Kosten je Run (USD, nur messende Läufe)"');
+		lines.push('\tx-axis ["' + days.map(([d]) => d.slice(5)).join('", "') + '"]');
+		lines.push(
+			'\ty-axis "Ø USD je Run" 0 --> ' + Math.max(2, Math.ceil(Math.max(...days.map(([, v]) => v.vc / v.runs)) + 0.5)),
+		);
+		lines.push('\tbar "Ø je Run" [' + days.map(([, v]) => (v.vc / v.runs).toFixed(3)).join(', ') + ']');
+		lines.push('```');
+		lines.push(
+			'',
+			'> Nur Läufe mit Messung (valueCost > 0, seit #984). Wenige Runs pro Tag können den',
+			'> Tageswert stark bewegen — der Trend zählt, nicht der Einzelpunkt.',
+			'',
+		);
+		// Phasen-Trendtabelle:Ø je Phase je Tag — zeigt, welche Phase den Trend treibt.
+		const phaseNames = [...new Set(allEntries.filter((e) => ZERO(e.valueCost) > 0).map((e) => e.phase ?? '(ohne)'))];
+		lines.push('| Tag | ' + phaseNames.join(' | ') + ' |');
+		lines.push('| --- |' + ' ---: |'.repeat(phaseNames.length));
+		for (const [day] of days) {
+			const dm = byDayPhase.get(day) ?? new Map();
+			const cells = phaseNames.map((ph) => {
+				const pd = dm.get(ph);
+				return pd ? `$${(pd.vc / pd.runs).toFixed(2)}` : '—';
+			});
+			lines.push(`| ${day.slice(5)} | ${cells.join(' | ')} |`);
+		}
+		lines.push('');
+	}
+
 	lines.push(
 		'| Ticket | Läufe | Turns | Token in | Wert (USD) | Echt (USD) | Phasen |',
 		'| --- | ---: | ---: | ---: | ---: | ---: | --- |',
