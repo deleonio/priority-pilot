@@ -81,7 +81,7 @@ runs:
 
         # key=value aus der Skript-Ausgabe ziehen; fehlt etwas, bleibt der Wert leer und
         # die Summary sagt das offen, statt eine Null zu erfinden.
-        for key in tokensIn tokensOut cost model; do
+        for key in tokensIn tokensOut cost model inputTokens cacheCreationTokens cacheReadTokens costInputUsd costCacheWriteUsd costCacheReadUsd costOutputUsd; do
           val="$(printf '%s' "$OUT" | sed -n "s/^${key}=//p" | tail -1)"
           echo "${key}=${val}" >> "$GITHUB_OUTPUT"
         done
@@ -97,6 +97,13 @@ runs:
         TOKENS_OUT: ${{ steps.collect.outputs.tokensOut }}
         COST: ${{ steps.collect.outputs.cost }}
         MODEL: ${{ steps.collect.outputs.model }}
+        INPUT_TOKENS: ${{ steps.collect.outputs.inputTokens }}
+        CACHE_CREATION: ${{ steps.collect.outputs.cacheCreationTokens }}
+        CACHE_READ: ${{ steps.collect.outputs.cacheReadTokens }}
+        COST_INPUT: ${{ steps.collect.outputs.costInputUsd }}
+        COST_CACHE_W: ${{ steps.collect.outputs.costCacheWriteUsd }}
+        COST_CACHE_R: ${{ steps.collect.outputs.costCacheReadUsd }}
+        COST_OUTPUT: ${{ steps.collect.outputs.costOutputUsd }}
       run: |
         {
           echo "### 💰 Token & Kosten — Phase ${PHASE} (#${ISSUE})"
@@ -109,8 +116,15 @@ runs:
             echo "| Modell | \`${MODEL:-unbekannt}\` |"
             echo "| Provider | \`${PROVIDER:-?}\` |"
             echo "| Token in (inkl. Cache) | ${TOKENS_IN} |"
+            echo "| → echter Input | ${INPUT_TOKENS:-?} |"
+            echo "| → Cache-Write (1,25×) | ${CACHE_CREATION:-?} |"
+            echo "| → Cache-Read (0,1×) | ${CACHE_READ:-?} |"
             echo "| Token out | ${TOKENS_OUT} |"
             echo "| Kosten (USD, Anthropic-Listenpreis) | ${COST} |"
+            if [ -n "${COST_OUTPUT}" ]; then
+              echo ""
+              echo "**Kosten nach Block:** Input $${COST_INPUT} · Cache-Write $${COST_CACHE_W:-0} · Cache-Read $${COST_CACHE_R:-0} · Output $${COST_OUTPUT}"
+            fi
             echo ""
             echo "_Bei Nicht-Anthropic-Providern ist \`cost\` 0 — dort gelten Fremdtarife._"
           fi

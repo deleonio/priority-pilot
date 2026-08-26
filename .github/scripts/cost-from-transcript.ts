@@ -358,8 +358,20 @@ export function main(argv: readonly string[] = process.argv.slice(2)): number {
 	if (usage.turns > 0) input.turns = usage.turns;
 
 	appendCostRecord(issue, input, { rootDir: flag(argv, 'root-dir') });
+	// Kostenaufschluesselung nach Block: Input-/Cache-Write-/Cache-Read-/Output-Anteil in USD.
+	// Grund: die Summe "Token in (inkl. Cache)" verdeckt, WO das Geld fliesst — Output
+	// dominiert (>75%), Cache-Reads sind bei 10% fast gratis. Ohne Aufschluesselung
+	// optimiert man den falschen Block (Beobachtung aus den Laeufen #1031-#1033).
+	const price = lookupPrice(usage.model);
+	const blockUsd = (tokens: number, rate: number) => (tokens / 1_000_000) * rate;
+	const inRate = price?.[1] ?? 0;
+	const outRate = price?.[2] ?? 0;
+	const costInputUsd = blockUsd(usage.inputTokens, inRate);
+	const costCacheWriteUsd = blockUsd(usage.cacheCreationTokens, inRate * CACHE_WRITE_FACTOR);
+	const costCacheReadUsd = blockUsd(usage.cacheReadTokens, inRate * CACHE_READ_FACTOR);
+	const costOutputUsd = blockUsd(usage.outputTokens, outRate);
 	process.stdout.write(
-		`tokensIn=${tokensIn}\ntokensOut=${usage.outputTokens}\nturns=${usage.turns}\ncost=${(computed ?? 0).toFixed(4)}\nvalueCost=${valueCost.toFixed(4)}\nmodel=${usage.model}\n`,
+		`tokensIn=${tokensIn}\ntokensOut=${usage.outputTokens}\nturns=${usage.turns}\ncost=${(computed ?? 0).toFixed(4)}\nvalueCost=${valueCost.toFixed(4)}\nmodel=${usage.model}\ninputTokens=${usage.inputTokens}\ncacheCreationTokens=${usage.cacheCreationTokens}\ncacheReadTokens=${usage.cacheReadTokens}\ncostInputUsd=${costInputUsd.toFixed(4)}\ncostCacheWriteUsd=${costCacheWriteUsd.toFixed(4)}\ncostCacheReadUsd=${costCacheReadUsd.toFixed(4)}\ncostOutputUsd=${costOutputUsd.toFixed(4)}\n`,
 	);
 	return 0;
 }
