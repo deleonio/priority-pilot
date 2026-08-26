@@ -126,7 +126,7 @@ runs:
               echo "**Kosten nach Block:** Input \$${COST_INPUT} · Cache-Write \$${COST_CACHE_W:-0} · Cache-Read \$${COST_CACHE_R:-0} · Output \$${COST_OUTPUT}"
             fi
             echo ""
-            echo "_Bei Nicht-Anthropic-Providern ist \`cost\` 0 — dort gelten Fremdtarife._"
+            echo "_\`cost\` ist 0, wo keine Preisliste vorliegt (openrouter) — Anthropic und z.ai sind bepreist._"
           fi
         } >> "$GITHUB_STEP_SUMMARY"
 

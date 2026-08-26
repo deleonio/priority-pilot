@@ -63,13 +63,38 @@ als optional behandeln.
 Wer die Kosten nachrechnen will, braucht deshalb die Aufteilung: die drei Anteile werden
 mit unterschiedlichen Faktoren berechnet.
 
-**`cost` ist 0 bei Nicht-Anthropic-Providern.** Für GLM-Modelle über `zai`/`openrouter`
-gelten Fremdtarife; ein mit Anthropic-Listenpreisen gerechneter Wert wäre schlicht falsch.
-Das Feld `model` zeigt dann, worauf sich der Verbrauch bezieht.
+**`cost` ist 0 nur noch bei `openrouter`.** Für dessen Modelle gibt es keine Preisliste im
+Repo; ein mit Anthropic-Listenpreisen gerechneter Wert wäre schlicht falsch. Das Feld
+`model` zeigt dann, worauf sich der Verbrauch bezieht.
+
+**`zai` ist bepreist** (Listenpreise des GLM Coding Plan, `PRICES_EUR_PER_MTOK_ZAI` in
+`cost-from-transcript.ts`):
+
+| Modell-Präfix  | EUR je Mio. Token (in/out) |
+| -------------- | -------------------------- |
+| `glm-5.3*`     | 3,00 / 10,00               |
+| `glm-5-turbo*` | 1,20 / 4,00                |
+| `glm-4.7*`     | 0,60 / 1,20                |
+
+Die Preise stehen bewusst in **EUR** (so sind sie gegen die z.ai-Preisliste prüfbar) und
+werden an genau einer Stelle über die Konstante `EUR_TO_USD` in USD umgerechnet — alle
+Felder und der gesamte Report rechnen in USD, weil in einer Report-Summe claude-, zai- und
+openrouter-Läufe nebeneinanderstehen und eine gemischte Währungssumme still falsch wäre.
+Der Kurs ist **fest**, nicht tagesaktuell: Baseline und Nachher-Messung müssen mit
+demselben Kurs gerechnet werden, sonst vergleicht der Trend Wechselkurse statt
+Pipeline-Änderungen. Wer den Kurs ändert, rechnet die Altdaten mit
+`node --import tsx .github/scripts/cost-backfill-zai.ts --write` neu.
+
+**Nachträglich bepreist:** Die 236 z.ai-Läufe, die vor der Preisaufnahme mit `cost: 0`
+versiegelt wurden, sind einmalig mit demselben Skript nachgerechnet worden — die
+Token-Felder machen das deterministisch reproduzierbar, und ohne den Backfill wären 236
+von 371 Datensätzen in der Kosten-Übersicht leer geblieben. Das Skript rechnet immer aus
+den Token-Feldern, nie aus dem Vorwert, und ist damit idempotent.
 
 **`valueCost` bewertet den Verbrauch, nicht die Rechnung** (Issue #984). Jeder Lauf wird
-unabhängig vom Provider — auch `:free`-Modelle — zu Modellklassen-Preisen bewertet,
-orientiert an den Anthropic-Referenzstufen:
+unabhängig vom Provider — auch `:free`-Modelle — bewertet. Liegt ein echter Listenpreis
+vor (Anthropic, z.ai), gilt dieser; sonst die Modellklasse, orientiert an den
+Anthropic-Referenzstufen:
 
 | Klasse   | USD je Mio. Token (in/out) | Modell-Präfixe (Auswahl, längster Präfix gewinnt)                             |
 | -------- | -------------------------- | ----------------------------------------------------------------------------- |
@@ -80,8 +105,19 @@ orientiert an den Anthropic-Referenzstufen:
 Unbekannte Modelle zählen als `mid` (mit Warnung im Job-Log). Vollständige Zuordnung:
 `MODEL_CLASSES` in `cost-from-transcript.ts`. Zweck ist die vergleichbare Effizienz-Messung
 über alle Provider — `cost` bleibt die echte Abrechnungsbasis, `valueCost` ist der
-Bewertungsmaßstab. Bewusst NICHT nachträglich für Altdatensätze errechnet: Wer historische
-Läufe bewerten will, macht das ad hoc lokal gegen die entpackten Artefakte.
+Bewertungsmaßstab.
+
+**GLM-Läufe werden zum z.ai-Listenpreis bewertet, nicht zur Klassenstufe.** Die Stufe war
+für sie zu grob: `glm-5.3` zählt als `flagship` ($5/$25), kostet real aber 3/10 EUR — der
+GLM-Output war damit um mehr als das Doppelte überbewertet. Für Anthropic-Modelle ändert
+der Vorrang nichts, weil deren Listenpreise mit den Klassenpreisen identisch sind, aus
+denen die Stufen abgeleitet wurden; openrouter bleibt beim Klassenmaßstab.
+
+Für Altdatensätze wurde `valueCost` ursprünglich bewusst nicht nachgerechnet. Mit der
+z.ai-Bepreisung ist das für `zai`-Läufe einmalig nachgeholt worden (s. o.), weil `cost` und
+`valueCost` dort sonst zwei verschiedene Preisstände gemischt hätten. Wer andere
+historische Läufe bewerten will, macht das weiterhin ad hoc lokal gegen die entpackten
+Artefakte.
 
 **`turns` zählt API-Calls, nicht Zeilen.** Eine Assistant-Antwort erscheint im Transkript
 als mehrere JSONL-Zeilen mit identischer Nutzung; gezählt werden deduplizierte Antworten

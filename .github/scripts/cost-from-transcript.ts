@@ -26,16 +26,51 @@ import { appendCostRecord, type CostInput } from './cost-record.ts';
 export const TRANSCRIPT_ROOT = join(homedir(), '.claude', 'projects');
 
 /**
- * Anthropic-Listenpreise in USD je 1 Mio. Token (Stand 2026-08).
+ * z.ai-Listenpreise in EUR je 1 Mio. Token (in/out), Stand 2026-08.
+ *
+ * Bewusst in EUR notiert — so bleiben die Zeilen direkt gegen die z.ai-Preisliste prüfbar,
+ * statt als schon umgerechnete Zahlen ohne Herkunft dazustehen. Umgerechnet wird an genau
+ * EINER Stelle (`EUR_TO_USD`), weil `cost`, `valueCost` und der gesamte Report in USD
+ * rechnen: In einer Report-Summe stehen claude-, zai- und openrouter-Läufe nebeneinander,
+ * eine gemischte Währungssumme wäre still falsch.
+ */
+export const PRICES_EUR_PER_MTOK_ZAI: ReadonlyArray<readonly [string, number, number]> = [
+	// [Modell-Präfix, Input, Output]
+	['glm-5.3', 3.0, 10.0],
+	['glm-5-turbo', 1.2, 4.0],
+	['glm-4.7', 0.6, 1.2],
+];
+
+/**
+ * Umrechnungskurs EUR→USD (Stand 2026-08).
+ *
+ * BEWUSST FEST, nicht tagesaktuell: Baseline und Nachher-Messung müssen mit demselben Kurs
+ * gerechnet werden, sonst vergleicht der A/B-Test Wechselkurse statt Pipeline-Änderungen —
+ * dieselbe Begründung wie beim ausgelassenen Sonnet-Einführungspreis unten. Wer den Kurs
+ * ändert, rechnet die Altdaten mit `cost-backfill-zai.ts` neu, sonst mischt der Trend zwei
+ * Kurse. Wer absolute Rechnungsbeträge braucht, nimmt die Abrechnung — hier zählt die Relation.
+ */
+export const EUR_TO_USD = 1.08;
+
+/** EUR-Preiszeile → USD-Preiszeile (einzige Umrechnungsstelle). */
+const eurRowToUsd = ([prefix, inEur, outEur]: readonly [string, number, number]) =>
+	[prefix, inEur * EUR_TO_USD, outEur * EUR_TO_USD] as const;
+
+/**
+ * Listenpreise in USD je 1 Mio. Token (Stand 2026-08) — Anthropic nativ, z.ai umgerechnet.
  *
  * Schlüssel sind PRÄFIXE: die Pipeline löst `haiku` auf `claude-haiku-4-5-20251001` auf
  * (setup-claude/action.yml), das Transkript meldet je nach Modell mit oder ohne
- * Datums-Suffix. Längster passender Präfix gewinnt.
+ * Datums-Suffix; z.ai meldet `glm-5.3[1m]` für den Präfix `glm-5.3`. Längster passender
+ * Präfix gewinnt.
  *
  * Bewusst OHNE das Sonnet-5-Einführungspreisfenster ($2/$10 bis 2026-08-31): Baseline und
  * Nachher-Messung müssen mit derselben Tabelle gerechnet werden, sonst vergleicht der
  * A/B-Test Preisänderungen statt Pipeline-Änderungen. Wer absolute Rechnungsbeträge
  * braucht, nimmt die Abrechnung — hier zählt die Relation.
+ *
+ * Nicht gelistet bleiben openrouter-Modelle: dort gilt weiter der Fremdtarif-Weg (cost=0),
+ * bewertet wird ihr Verbrauch über `MODEL_CLASSES`/`valueCost`.
  */
 export const PRICES_USD_PER_MTOK: ReadonlyArray<readonly [string, number, number]> = [
 	// [Modell-Präfix, Input, Output]
@@ -46,6 +81,7 @@ export const PRICES_USD_PER_MTOK: ReadonlyArray<readonly [string, number, number
 	['claude-sonnet-5', 3.0, 15.0],
 	['claude-sonnet-4', 3.0, 15.0],
 	['claude-haiku-4', 1.0, 5.0],
+	...PRICES_EUR_PER_MTOK_ZAI.map(eurRowToUsd),
 ];
 
 /** Cache-Write kostet ~1,25x, Cache-Read ~0,1x des Input-Preises. */
@@ -56,10 +92,11 @@ export const CACHE_READ_FACTOR = 0.1;
  * Modellklassen mit BEWERTUNGSPREISEN in USD je 1 Mio. Token (in/out) — Issue #984.
  *
  * WARUM BEWERTUNGSPREISE STATT PROVIDERPREISE: `cost` bleibt die echte Abrechnungsbasis
- * (nur Anthropic-Listenpreise, sonst 0 „Fremdtarif"). Für den Effizienzvergleich braucht
- * es aber EINEN Maßstab über alle Provider — sonst wären über `:free`-Modelle geroutete
- * Tickets in USD „unendlich effizient" bei vollem Tokenverbrauch. Die Klassenpreise
- * orientieren sich an den Anthropic-Referenzstufen; bewertet wird der VERBRAUCH, nicht
+ * (nur Modelle mit Listenpreis — Anthropic und z.ai —, sonst 0 „Fremdtarif"). Für den
+ * Effizienzvergleich braucht es aber EINEN Maßstab über alle Provider — sonst wären über
+ * `:free`-Modelle geroutete Tickets in USD „unendlich effizient" bei vollem Tokenverbrauch.
+ * Die Klassenpreise greifen, wo kein echter Listenpreis vorliegt (openrouter); sie
+ * orientieren sich an den Anthropic-Referenzstufen. Bewertet wird der VERBRAUCH, nicht
  * die Rechnung. Basis: Anthropic-Listenpreise (opus/sonnet/haiku-Stufe).
  */
 export type ModelClass = 'flagship' | 'mid' | 'small';
@@ -141,6 +178,14 @@ export function lookupPrice(model: string): readonly [string, number, number] | 
 	)[0];
 }
 
+/** z.ai-Listenpreis in USD (längster passender Präfix), oder undefined bei fremdem Modell. */
+export function lookupZaiPrice(model: string): readonly [string, number, number] | undefined {
+	const row = PRICES_EUR_PER_MTOK_ZAI.filter(([prefix]) => model.startsWith(prefix)).sort(
+		(a, b) => b[0].length - a[0].length,
+	)[0];
+	return row && eurRowToUsd(row);
+}
+
 /** Modellklasse mit dem längsten passenden Präfix, oder undefined bei unbekanntem Modell. */
 export function classifyModel(model: string): ModelClass | undefined {
 	return MODEL_CLASSES.filter(([prefix]) => model.startsWith(prefix)).sort((a, b) => b[0].length - a[0].length)[0]?.[1];
@@ -158,9 +203,10 @@ const usageToUsd = (usage: Usage, inRate: number, outRate: number): number => {
 };
 
 /**
- * Kosten eines Verbrauchs in USD. Unbekannte Modelle (GLM über zai/openrouter) liefern
- * `undefined` — dort gelten fremde Tarife, ein mit Anthropic-Preisen gerechneter Wert
- * wäre schlicht falsch. Der Aufrufer schreibt dann cost=0 und protokolliert das Modell.
+ * Kosten eines Verbrauchs in USD — für Modelle mit eigenem Listenpreis (Anthropic, z.ai).
+ * Alles andere (openrouter) liefert `undefined`: dort gelten fremde Tarife, ein mit
+ * Anthropic-Preisen gerechneter Wert wäre schlicht falsch. Der Aufrufer schreibt dann
+ * cost=0 und protokolliert das Modell.
  */
 export function computeCost(usage: Usage): number | undefined {
 	const price = lookupPrice(usage.model);
@@ -170,11 +216,22 @@ export function computeCost(usage: Usage): number | undefined {
 }
 
 /**
- * Bewertungskosten zu Modellklassen-Preisen (Issue #984) — im Gegensatz zu `computeCost`
- * für JEDES Modell definiert, auch `:free`: Bewertet wird der Verbrauch, nicht die
- * Rechnung. Unbekannte Modelle zählen als `DEFAULT_MODEL_CLASS`; der Aufrufer warnt.
+ * Bewertungskosten in USD (Issue #984) — im Gegensatz zu `computeCost` für JEDES Modell
+ * definiert, auch `:free`: Bewertet wird der Verbrauch, nicht die Rechnung.
+ *
+ * Reihenfolge: Ein bekannter z.ai-Listenpreis schlägt den Klassenpreis, weil er den
+ * Verbrauch genauer bewertet als die Anthropic-Referenzstufe — `glm-5.3` galt als
+ * flagship ($5/$25), kostet real aber 3/10 EUR, was den GLM-Verbrauch beim Output um
+ * mehr als das Doppelte überbewertete. Alles ohne echten Preis (openrouter, `:free`)
+ * bleibt beim Klassenmaßstab; unbekannte Modelle zählen als `DEFAULT_MODEL_CLASS` und
+ * der Aufrufer warnt.
+ *
+ * Für Anthropic-Modelle ändert das nichts: deren Listenpreise sind identisch mit den
+ * Klassenpreisen, aus denen die Stufen abgeleitet wurden.
  */
 export function computeValueCost(usage: Usage): number {
+	const zai = lookupZaiPrice(usage.model);
+	if (zai) return usageToUsd(usage, zai[1], zai[2]);
 	const cls = classifyModel(usage.model) ?? DEFAULT_MODEL_CLASS;
 	const [inRate, outRate] = CLASS_PRICES_USD_PER_MTOK[cls];
 	return usageToUsd(usage, inRate, outRate);

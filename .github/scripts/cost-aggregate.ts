@@ -16,6 +16,7 @@
 
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
+import { lookupPrice } from './cost-from-transcript.ts';
 import type { CostEntry } from './cost-record.ts';
 
 /**
@@ -170,9 +171,14 @@ export function totalsByPhase(entries: CostEntry[]): PhaseTotal[] {
 		total.valueCost += ZERO(entry.valueCost);
 		if (entry.model && !total.models.includes(entry.model)) total.models.push(entry.model);
 		if (entry.provider && !total.providers.includes(entry.provider)) total.providers.push(entry.provider);
-		// `cost` ist bei zai/openrouter per Konstruktion 0 (Fremdtarif, s. .costs/SCHEMA.md).
-		// Das muss im Bericht stehen — sonst liest sich „$0.00" wie „war kostenlos".
-		if (entry.provider && entry.provider !== 'claude') total.foreignTariff = true;
+		// `cost` ist 0, wo es keine Preisliste gibt (openrouter, s. .costs/SCHEMA.md). Das muss
+		// im Bericht stehen — sonst liest sich „$0.00" wie „war kostenlos". Maßgeblich ist der
+		// PREIS, nicht der Provider: seit der Aufnahme der GLM-Listenpreise sind zai-Läufe echt
+		// bepreist und dürfen die Kostenspalte nicht mehr entwerten. Ein Lauf ohne `model`
+		// bleibt Fremdtarif — ohne Modell ist sein Preis nicht belegbar.
+		if (entry.provider && entry.provider !== 'claude' && !(entry.model && lookupPrice(entry.model))) {
+			total.foreignTariff = true;
+		}
 		// JE PHASE, nicht global: Ein gemischtes Ticket (Rollout-Fenster) hat Alt-Läufe und
 		// neue in einem Bericht — nur so kann eine reine Alt-Phase „—" statt „0" rendern.
 		if (typeof entry.valueCost === 'number' || typeof entry.turns === 'number') total.hasValueData = true;
@@ -262,11 +268,12 @@ export function renderReport(issueId: string, entries: CostEntry[], skipped: str
 	if (anyForeign) {
 		lines.push('');
 		lines.push(
-			'> ⚠️ **Die Kostenspalte ist unvollständig.** Mindestens ein Lauf lief über einen ' +
-				'Nicht-Anthropic-Provider (`zai`/`openrouter`). Dort gelten Fremdtarife, und `cost` ist ' +
-				'per Konstruktion `0` — ein mit Anthropic-Listenpreisen gerechneter Wert wäre schlicht ' +
-				'falsch (siehe `.costs/SCHEMA.md`). Für den provider-unabhängigen Vergleich dient die ' +
-				'Spalte **Wert (USD)**: Verbrauchsbewertung zu Modellklassen-Preisen (Issue #984).',
+			'> ⚠️ **Die Kostenspalte ist unvollständig.** Mindestens ein Lauf lief über ein Modell ohne ' +
+				'Preisliste im Repo (`openrouter`, oder ein Lauf ohne `model`-Angabe). Dort gilt ein ' +
+				'Fremdtarif, und `cost` ist per Konstruktion `0` — ein mit Anthropic-Listenpreisen ' +
+				'gerechneter Wert wäre schlicht falsch (siehe `.costs/SCHEMA.md`). Anthropic- und ' +
+				'z.ai-Läufe sind davon nicht betroffen, die sind echt bepreist. Für den ' +
+				'provider-unabhängigen Vergleich dient die Spalte **Wert (USD)** (Issue #984).',
 		);
 	}
 
