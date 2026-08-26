@@ -145,14 +145,14 @@ describe('UpdatePrompt — KoliBri-Card & Fixierung (#373)', () => {
 		expect(container.querySelector('[data-comp="kol-card"]')).toBeInTheDocument();
 	});
 
-	it('AK2d: offlineReady=true → Schließen-Aktion als kol-button „Schließen"', () => {
+	it('AK2d: offlineReady=true → Schließen-Aktion als kol-button „Verstanden" (#1034)', () => {
 		offlineReadyValue = true;
 
 		const { container } = render(<UpdatePrompt />);
 
 		const button = container.querySelector('[data-comp="kol-button"]');
 		expect(button).toBeInTheDocument();
-		expect(button).toHaveTextContent(/Schließen/i);
+		expect(button).toHaveTextContent(/Verstanden/i);
 	});
 
 	// AK1 — Umgebender Container mit Klasse update-prompt (später position: fixed via CSS).

@@ -40,6 +40,7 @@ Die folgenden bestehenden Tests in `UpdatePrompt.test.tsx` widersprechen AK4/AK5
 
 - „AK2: zeigt Update-Banner „Neue Version verfügbar" + „Neu laden"" (#353) — „Neue Version verfügbar" wird zum Card-Label (Attribut), nicht mehr Fließtext-Kind.
 - „AK4a: zeigt „App ist offline-bereit"" und „AK4b: zeigt … NICHT" (#353) — Text wird durch den neuen Fließtext ersetzt.
+- „AK2d: … kol-button „Schließen"" (#373) — Button-Label wechselt zu „Verstanden" (AK5); Assertion entsprechend angepasst statt entfernt (Test bleibt als Komponenten-Typ-Schutz erhalten).
 
 ## Abgrenzungen
 
