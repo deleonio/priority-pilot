@@ -1931,3 +1931,61 @@ kol-heading {
 		flex-shrink: 0;
 	}
 }
+
+/* SearchModal Styling */
+.search-modal {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+.search-modal__input-wrapper {
+	position: relative;
+}
+
+.search-modal__mic-button {
+	position: absolute;
+	right: 0.5rem;
+	top: 50%;
+	transform: translateY(-50%);
+	width: 2rem;
+	height: 2rem;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	line-height: 1;
+	padding: 0;
+	cursor: pointer;
+	border-radius: 50%;
+	background: var(--pp-surface-2);
+	border: none;
+	color: var(--pp-ink);
+}
+
+.search-modal__mic-button:hover {
+	background: var(--pp-border-subtle);
+}
+
+.search-modal__mic-button--recording {
+	background: var(--pp-danger);
+	color: white;
+	animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+	0% { opacity: 1; }
+	50% { opacity: 0.7; }
+	100% { opacity: 1; }
+}
+
+.search-modal__actions {
+	display: flex;
+	gap: 0.5rem;
+	justify-content: flex-end;
+}
+
+.mic-error {
+	color: var(--pp-danger);
+	font-size: 0.875rem;
+	margin: 0;
+}

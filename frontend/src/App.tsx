@@ -23,8 +23,8 @@ import { HelpPage } from './components/HelpPage';
 import { InstallPrompt } from './components/InstallPrompt';
 import { UpdatePrompt } from './components/UpdatePrompt';
 import { PillarAdvisorModal } from './components/PillarAdvisorModal';
+import { SearchModal } from './components/SearchModal';
 import { QuickCaptureModal } from './components/QuickCaptureModal';
-import { SeriesTab } from './components/SeriesTab';
 import { SettingsPage } from './components/SettingsPage';
 import { TaskFormModal } from './components/TaskFormModal';
 import { TaskTree } from './components/TaskTree';
@@ -42,6 +42,7 @@ type Dialog =
 	| { kind: 'edit'; task: Task }
 	| { kind: 'delete'; task: Task }
 	| { kind: 'dependencies'; taskId: number }
+	| { kind: 'search' }
 	| { kind: 'advisor' }
 	| null;
 
@@ -55,6 +56,7 @@ const VIEW_TABS = [{ _label: 'Dashboard' }, { _label: 'Aufgaben' }, { _label: 'S
 const DONE_REMOVAL_DELAY_MS = 5000;
 
 const CREATE_ICON = { left: { icon: 'fa-solid fa-plus' } };
+const SEARCH_ICON = { left: { icon: 'fa-solid fa-magnifying-glass' } };
 const ADVISOR_ICON = { left: { icon: 'fa-solid fa-lightbulb' } };
 const HELP_ICON = { left: { icon: 'fa-solid fa-circle-question' } };
 const SETTINGS_ICON = { left: { icon: 'fa-solid fa-gear' } };
@@ -369,6 +371,9 @@ export const App = ({ user }: { user: AuthUser }) => {
 	const openCreateDialog = useCallback((): void => {
 		setDialog({ kind: 'create' });
 	}, []);
+	const openSearch = useCallback((): void => {
+		setDialog({ kind: 'search' });
+	}, []);
 	const openAdvisor = useCallback((): void => {
 		setDialog({ kind: 'advisor' });
 	}, []);
@@ -380,6 +385,14 @@ export const App = ({ user }: { user: AuthUser }) => {
 	// am Item werden von `kol-toolbar` still verworfen: nativer Button, A11y trägt KoliBri.
 	const toolbarItems = useMemo(() => {
 		return [
+			{
+				type: 'button' as const,
+				_label: 'Suche',
+				_hideLabel: true,
+				_icons: SEARCH_ICON,
+				_variant: 'secondary' as const,
+				_on: { onClick: openSearch },
+			},
 			{
 				type: 'button' as const,
 				_label: 'Neuen Task anlegen',
@@ -422,7 +435,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 				_on: { onClick: (): void => void handleLogout() },
 			},
 		];
-	}, [logoutLoading, openCreateDialog, openAdvisor, openSettings, openHelp, handleLogout]);
+	}, [logoutLoading, openSearch, openCreateDialog, openAdvisor, openSettings, openHelp, handleLogout]);
 
 	if (showSettings) {
 		return (
@@ -616,6 +629,17 @@ export const App = ({ user }: { user: AuthUser }) => {
 					pillars={pillars}
 					onClose={closeDialog}
 					onSaved={afterMutation}
+				/>
+			)}
+			{dialog?.kind === 'search' && (
+				<SearchModal
+					onClose={closeDialog}
+					onSearch={(query) => {
+						setActiveTab(1);
+						setTaskSearch(query);
+						setTaskViewMode('open');
+						applyTaskFilter(query);
+					}}
 				/>
 			)}
 			{dialog?.kind === 'edit' && (
