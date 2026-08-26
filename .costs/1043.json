@@ -1,0 +1,30 @@
+[
+	{
+		"timestamp": "2026-08-26T11:07:03.623Z",
+		"tokensIn": 1161610,
+		"tokensOut": 20092,
+		"cost": 1.431137,
+		"issueId": "1043",
+		"phase": "review",
+		"model": "claude-opus-5",
+		"provider": "claude",
+		"cacheCreationTokens": 60496,
+		"cacheReadTokens": 1101074,
+		"turns": 20,
+		"valueCost": 1.431137
+	},
+	{
+		"timestamp": "2026-08-26T11:52:13.730Z",
+		"tokensIn": 477240,
+		"tokensOut": 4610,
+		"cost": 0.05499757440000001,
+		"issueId": "1043",
+		"phase": "documenter",
+		"model": "glm-4.7",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 446208,
+		"turns": 7,
+		"valueCost": 0.05499757440000001
+	}
+]
