@@ -44,3 +44,6 @@ VERDICT: GANZ AM ENDE GENAU EINE Zeile, NUR der Token — kein Text dahinter (de
 ZEITLIMIT: Soft-Deadline = {{SOFT_DEADLINE}}. Vor jedem Schritt: [ $(date +%s) -ge {{SOFT_DEADLINE}} ]. Bei OVER: aktuellen Stand committen+pushen, Turn beenden.
 
 Idempotenz: Draft-PR mit Closes #{{ISSUE_NR}} ist normaler Spec-Eingang – aufgreifen. Nicht-Draft-PR = Umsetzung schon gelaufen → Lauf beenden.
+
+KEIN Ping-Kommentar: PR + Commits sind die vollständige Kommunikation. Der not-ready-Fall dokumentiert sich im PR-Body (Draft + Begründung), nicht per Kommentar.
+Bei Ampel 🔴 gilt dasselbe: VERDICT not-ready, Begründung in den PR-Body — der Workflow stoppt, der Mensch entscheidet.

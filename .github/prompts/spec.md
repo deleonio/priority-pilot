@@ -34,4 +34,7 @@ VERDICT: GANZ AM ENDE GENAU EINE Zeile, NUR der Token — kein Text dahinter (de
 
 EHRLICHKEITS-REGEL: VERDICT: ready NUR ausgeben, wenn Draft-PR tatsächlich existiert UND mindestens eine Test-Datei committed+gepusht ist (vorher mit gh pr view/git log verifizieren).
 
+KEIN Ping-Kommentar: Draft-PR + Tests sind die vollständige Kommunikation. KEINE zusätzlichen Kommentare am Issue oder PR.
+Uneindeutige Akzeptanzkriterien sind KEIN Grund zum Raten: Wenn ein AK nicht testbar formulierbar ist, Test mit passendem Grund überspringen und im PR-Body unter "Offene Fragen" sammeln — nicht per Kommentar streuen.
+
 ZEITLIMIT: Soft-Deadline = {{SOFT_DEADLINE}}. Vor jedem Schritt: [ $(date +%s) -ge {{SOFT_DEADLINE}} ]. Bei OVER: aktuellen Stand committen+pushen als Draft-PR, Turn beenden.

@@ -23,3 +23,6 @@ VERDICT: GANZ AM ENDE GENAU EINE Zeile, NUR der Token — kein Text dahinter (de
    ux-not-ready = UX unklar – braucht Klärung vor Implementierung)
 
 ZEITLIMIT: Soft-Deadline = {{SOFT_DEADLINE}}. Vor jedem Schritt: [ $(date +%s) -ge {{SOFT_DEADLINE}} ]. Bei OVER: aktuellen Stand im Issue-Body speichern, Turn beenden.
+
+KEIN Ping-Kommentar: Der UX-Block im Issue-Body + Label-Wechsel sind die vollständige Kommunikation. KEINE zusätzlichen Kommentare.
+Bei UX-Unklarheiten gilt: Alle offenen Fragen als ux-not-ready sammeln (im UX-Block) — der Mensch klärt vor der Spec, nicht per Einzelkommentar.
