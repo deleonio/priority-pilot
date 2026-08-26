@@ -159,3 +159,5 @@ Konflikte, die er verhindern soll.
   in Tests müssen den Newline emulieren (`cat fixture; printf '\n'`), sonst frisst head
   den letzten Content-Byte.
 - 2026-08-25 · Git/Runner — frischer Runner hat keine Git-Identität (`Author identity unknown` beim ersten Commit) → vor dem Commit `git config user.name/email` aus `git log -1 --format=%an/%ae` übernehmen (Bot-Identität des Repos).
+- 2026-08-26 · Skills — YAML-Frontmatter brach an deutschen Anführungszeichen: schließendes " muss typografisch (U+201C) sein, ASCII 0x22 terminiert den "…"-String vorzeitig (Extension-Load-Fehler "Unexpected scalar").
+- 2026-08-26 · Alle-Agents/Text — sprachspezifische Sonderzeichen und Umlaute in maschinen-gelesenen Feldern (YAML-Frontmatter, Verdict-Zeilen, Marker) vermeiden: ASCII-Quotes/„"“-Mix brachen schon zwei Parser (Extension-Load, Verdict). Fliesstext unangetastet lassen, nur strukturierte Felder ASCII-sauber halten.

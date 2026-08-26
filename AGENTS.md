@@ -45,6 +45,10 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 - **KoliBri-First:** Komponenten nur selbst stylen, wenn keine KoliBri-Komponente passt
   (Shadow-Web-Components; Shadow-DOM-CSS ist unpublizierte API).
 - Monorepo mit **pnpm**; TypeScript `strict`, ESM überall, Node `>=26`.
+- **ASCII in maschinen-gelesenen Feldern:** YAML-Frontmatter, Verdict-Zeilen, HTML-Marker und
+  ähnliche strukturierte Felder ohne sprachspezifische Sonderzeichen/Umlaute halten — gemischte
+  Anführungszeichen („"“/\") haben schon Parser gebrochen (Extension-Load, Verdict-Auswertung).
+  Fließtext in Doku/Prompts bleibt unverändert Deutsch.
 - `pnpm format` (Prettier, zentrale Root-Config) und `pnpm lint` — gezielt statt repo-weit:
   `pnpm --filter server build|lint`.
 - **Nicht automatisch committen** ohne ausdrücklichen Wunsch. Ausnahme: die Ticket-Workflows
