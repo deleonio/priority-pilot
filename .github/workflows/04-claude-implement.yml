@@ -727,12 +727,12 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
         run: |
-          # Prompt liegt kanonisch in .claude/skills/ticket-implementation/FIXUP.md (Quelle fuer CI). Snippet-Platzhalter
+          # Prompt liegt kanonisch in .github/prompts/fixup.md (Quelle fuer CI). Snippet-Platzhalter
           # ({{ISSUE_NR}}, {{PHASE}}, {{MEMORY_STATUS}}) werden erst NACH dem Anhaengen der Memory-Snippets
           # substituiert.
           sed -e "s/{{PR_NR}}/${{ github.event.pull_request.number }}/g" \
               -e "s/{{SOFT_DEADLINE}}/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" \
-              .claude/skills/ticket-implementation/FIXUP.md > /tmp/claude-prompt.txt
+              .github/prompts/fixup.md > /tmp/claude-prompt.txt
 
           # Memory-Snippets anhängen (restauriert + schreibt)
           cat .github/prompts/memory-read.md >> /tmp/claude-prompt.txt

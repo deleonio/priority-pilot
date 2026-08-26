@@ -140,7 +140,7 @@ krachen (fehlender Build-Step, falscher Host, vergessenes Secret) — dafür ist
 Getestet wird **nur Anwendungscode** (`server/src/**`, `frontend/src/**`) sowie Frontend-E2E
 (`frontend/e2e/**`). Für `.github/workflows/`, `.github/scripts/`, die `setup-claude`-Composite-Actions,
 die `ci.yml`/`deploy.yml`-Plumbing, Config-Dateien (`.yml`/`.json`/`.toml`) und **Markdown-Inhalt
-(jede `.md`-Datei, egal wo — auch CI-Prompts (`.claude/skills/*/CI.md`) und `docs/spec/*.md`)** werden
+(jede `.md`-Datei, egal wo — auch CI-Prompts (`.github/prompts/*.md`) und `docs/spec/*.md`)** werden
 **keine** Tests geschrieben oder gepflegt. Meta-Tests auf diese Dateien sind überwiegend
 Tautologie-/Change-Detector-Tests ohne Fehlerfangwert (sie re-encodieren die Datei und werden rot bei
 _Änderung_, nicht bei _Defekt_) und blockieren den Pipeline-Umbau durch ständigen Meta-Test-Churn — sie
