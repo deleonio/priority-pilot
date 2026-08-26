@@ -38,6 +38,55 @@ Gemeinsamer API-Vertrag: `openapi.yml`
 
 Bevorzugt **gezielt** statt repo-weit prüfen: `pnpm --filter server build` bzw. `... lint`.
 
+## Konventionen
+
+Die verbindlichen Kernregeln (Minimalprinzip, KoliBri-First, Commit-/PR-Pflichten) stehen in den
+[Kernregeln der AGENTS.md](../AGENTS.md#kernregeln) — hier nur deren Ausprägungen und Details:
+
+- **Formatierung:** Tabs, Single Quotes, printWidth 120 — genau **eine** Prettier-Config im Root
+  (`prettier.config.mjs`). Keine package-lokalen Prettier-Configs neu anlegen.
+- **ESLint:** Flat-Config in `server/eslint.config.mjs` (ESLint 10).
+- **TypeScript:** `strict`; keine Type-Assertions zum Unterdrücken von Fehlern.
+- **Module:** ESM überall (`"type": "module"`); Server-Importe mit `.js`-Endung.
+- **Runtime:** pnpm `11` (Node-Version steht in `.nvmrc`).
+- **Coverage-Gate:** Die Logik-Schicht ist gezielt abgedeckt-gegated — `pnpm --filter server test:coverage`
+  (node:test, `server/src/logics`, Schwellen 90/85/85) läuft in der CI. `frontend/src/lib`-Coverage ist
+  in `vitest.config.ts` vorbereitet und mit `pnpm add -D @vitest/coverage-v8` + `test:coverage` aktivierbar.
+
+### Mobile-First (Frontend)
+
+Neue/geänderte UI muss zuerst auf schmalen Viewports funktionieren (Referenzbreite **375px**), bevor
+Desktop-Verbesserungen ergänzt werden — nicht umgekehrt.
+
+- **CSS:** Basis-Styles gelten für den schmalsten Viewport; breitere Layouts kommen ausschließlich per
+  `@media (min-width: …)` hinzu (Aufwärts-Kaskade), kein `max-width`-Downgrade vom Desktop-Layout aus.
+  Kanonisches Beispiel im Repo: das `.dashboard`-Grid in `frontend/src/app.css`
+  (`@media (min-width: 48rem)` schaltet erst ab Tablet-Breite auf zweispaltig).
+- **Kein horizontales Scrollen** für primären Seiteninhalt auf Handy-Breite. Breite Tabellen/Grids
+  brauchen eine schmale Alternative statt erzwungenem Scroll-Container — Beispiel: `TaskTree.tsx`
+  (aufklappbare Liste) als Ersatz für die frühere `TaskTable` (KoliBri-Tabelle mit 9 Spalten, #238).
+- **Touch-Targets ≥ 44px:** KoliBri-Buttons erfüllen das per Default (`spec/button` `_inline: false`) —
+  nicht durch eigenes CSS verkleinern.
+- **Verifikation ist Pflicht, kein optionales Extra:** jede neue/geänderte, für den Nutzer sichtbare
+  UI-Funktion braucht mindestens einen e2e-Test bei **375×812**-Viewport
+  (`page.setViewportSize({ width: 375, height: 812 })`), der belegt, dass der Kerninhalt ohne
+  horizontalen Overflow lesbar/bedienbar ist (`element.scrollWidth <= window.innerWidth`). Kanonisches
+  Muster im Repo: `frontend/e2e/login.spec.ts` (AK5) und `frontend/e2e/task-tree.spec.ts` (AK-6).
+
+### KoliBri-Tests
+
+- **Black-box testen:** Tests greifen nur über die öffentliche Schnittstelle auf KoliBri-Web-Components
+  zu (Host-Locator, Rolle/Name/Interaktion) — kein Shadow-DOM-Piercing (`.shadowRoot`, interne Klassen
+  wie `.kol-span__label`, `.kol-tooltip__floating`, `kolicon-*`); der ESLint-Guard in
+  `frontend/eslint.config.mjs` erzwingt dies. Details:
+  [docs/testing.md §3](../docs/testing.md#3-kolibri-komponenten-testen).
+- **A11y wird vertraut, nicht getestet (#929):** Barrierefreiheit ist Kernkompetenz der
+  KoliBri-Components (BITV/WCAG-geprüfte Semantik, Fokus-Optik, Tastaturbedienung). Eigene Tests klagen
+  nur den Kompositions-Vertrag der App ein: Element existiert und ist erreichbar (Tab/Pfeiltasten),
+  Accessible Name, Position im Layout, Touch-Target-Größe. Nachgerüstete ARIA-Attribute an KoliBri-Items
+  verwirft die Bibliothek still (beobachtet #929: `_aria: { role: 'combobox' }` an einem Toolbar-Item) —
+  Semantik kommt aus der Komponente, nicht aus dem Item.
+
 ## Konfiguration (Umgebungsvariablen)
 
 Der Server lädt beim Start automatisch eine `server/.env` in `process.env` (`server/src/env.ts`,

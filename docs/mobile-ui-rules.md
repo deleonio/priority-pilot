@@ -79,12 +79,9 @@ Settings-Zeile ohne sichtbaren aktuellen Wert · Speichern-Button in Einstellung
 Label · Fließtext unter 16px · Toast als einziger Ort für Fehlermeldungen · mehr als eine
 Primäraktion pro Screen · Abstandswerte außerhalb der 4-dp-Skala
 
-**Zusätzlich aus Craft Floor Refuse:**
-Icon+Heading+Text Cards als Page-Scaffold · Hero-Metric Template · Kicker über Heading ·
-Section Numbers ohne Info-Wert · Modal ohne Interruption/Focus-Grund · Gradient Text ·
-Glass/Blur Deko · Farbige Borders >1px · Harte Offset Shadows außerhalb neobrutalist ·
-Sparklines/Progress Rings als Content-Platzhalter · Monospace Kostüm · System Display Face ·
-Emoji als Icons · Geometrische Masks · Light/Dark nach Kategorie
+**Zusätzlich aus Craft Floor:** die
+[Refuse-Liste der Design-Sprache](../.ai-knowledge/ux-design.md#7-craft-floor-aus-impeccable-skill--verbindliche-qualitätsuntergrenze)
+— Defaults, die ein Brief explizit verdienen muss, bevor sie zurückkommen.
 
 ## Review-Checkliste
 

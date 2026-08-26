@@ -6,13 +6,14 @@ Touch-Targets, asynchrone Zustände, Anti-Patterns). Beide gelten zusammen; hier
 dort schon steht.
 
 Diese Datei liefert konkret die Tokens, die
-[Regel 6 dort](../docs/mobile-ui-rules.md#die-10-regeln) einfordert und die es bisher nur für Farben
+[Regel 6 dort](../docs/mobile-ui-rules.md#die-10-regeln-erweitert-um-craft-floor)
+einfordert und die es bisher nur für Farben
 gab: Abstand, Typografie, Radius, Schatten, Bewegung.
 
 Ergänzende Pflichtlektüre (nicht hier dupliziert):
 
 - [Mobile-UI-Regeln](../docs/mobile-ui-rules.md) — die 10 Regeln inkl. Repo-Abstimmung.
-- [Konventionen → Mobile-First](conventions.md) — Aufwärts-Kaskade, e2e-Pflicht bei 375×812.
+- [Konventionen → Mobile-First](project.md#mobile-first-frontend) — Aufwärts-Kaskade, e2e-Pflicht bei 375×812.
 - [UX-Pattern: Sequenzielle Bestätigung](../docs/ux-pattern-sequential-confirmation.md) — destruktive Aktionen.
 
 ## 1. Haltung
@@ -110,14 +111,15 @@ für Layout-Container zulässig (`div`, `section`, `ul`/`li`, `p`, `span`).
 | Marker (Serie, Ausnahme, …) | `KolBadge`                                             |
 
 **Ausnahmen** brauchen im Code einen Kommentar mit Grund (Muster im Repo: die Kommentare in
-`main.tsx` und `app.css`). Ohne Begründung gilt rohes `<button>`/`<input>`/`<table>`/`<h1>` als Fehler.
+`main.tsx` und `app.css`) sowie die Begründung im PR-Body. Ohne Begründung gilt rohes
+`<button>`/`<input>`/`<table>`/`<h1>` als Fehler.
 
 Bei Unsicherheit über Props oder Verhalten: **KoliBri-MCP** (`mcp__kolibri-mcp__search` / `fetch`,
 z. B. `spec/button`) statt raten.
 
 ## 5. Layout
 
-- **Mobile-first** nach [conventions.md](conventions.md) — Basis ist 375px, Desktop kommt per
+- **Mobile-first** nach [project.md → Mobile-First](project.md#mobile-first-frontend) — Basis ist 375px, Desktop kommt per
   `@media (min-width: …)` dazu.
 - Ein Bruchpunkt trägt die Hauptlast: **48rem** (Tablet). Weitere nur mit Begründung.
 - Inhaltsbreite bleibt bei `max-width: 80rem` zentriert (`.app`).

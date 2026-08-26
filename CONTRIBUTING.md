@@ -81,8 +81,7 @@ Eine Änderung gilt als fertig, wenn:
 - Kleine, thematisch fokussierte Commits sind besser als große Sammel-Commits.
 - TypeScript `strict`, ESM überall.
 
-Weitere Details zu Konventionen stehen in
-[`.ai-knowledge/conventions.md`](.ai-knowledge/conventions.md).
+Weitere Details zu Konventionen stehen im Abschnitt [„Konventionen“ der Projekt-Wissensbasis](.ai-knowledge/project.md#konventionen).
 
 ## Lizenz der Beiträge
 

@@ -14,7 +14,7 @@ sie nicht rendert.
 Innerhalb eines Ordners (z. B. `.ai-knowledge/` → `.ai-knowledge/`):
 
 ```markdown
-- Ticket-Ablauf: [Ticket-Umsetzung](ticket-implementation.md), Regeln: [Conventions](conventions.md)
+- Ticket-Ablauf: [Ticket-Umsetzung](ticket-implementation.md), Regeln: [Projekt-Konventionen](project.md#konventionen)
 - Testumfang: [TDD-Strategie → Testumfang](tdd-strategy.md#testumfang--so-viel-wie-nötig-so-wenig-wie-irgend-möglich)
 ```
 

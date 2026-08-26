@@ -4,9 +4,7 @@
 > warten. Sie wird **nicht** in den Agent-Kontext injiziert — der Agent bekommt seine Aufgabenbeschreibung
 > vom Workflow-Prompt, nicht von hier.
 >
-> **Weiterführend:** [pipeline-flow.md](./pipeline-flow.md) (Trigger-Fluss) ·
-> [ci-legacy-comparison.md](./ci-legacy-comparison.md) (Struktur- & Stabilitäts-Vergleich Legacy
-> 08.07.2026 vs. aktuell, inkl. Härte-Empfehlungen).
+> **Weiterführend:** [pipeline-flow.md](./pipeline-flow.md) (Trigger-Fluss).
 
 ## Aktuelle Konfiguration: Claude Code, Provider umschaltbar (Z.AI / Anthropic)
 
@@ -158,6 +156,38 @@ der einzige 2×/3×-Tarif-Nutzer sowie mit Parallelität 1 der Flaschenhals für
 Subagent-Calls. Wer beides vermeiden will, setzt `CLAUDE_CODE_SUBAGENT_MODEL` in
 `vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI` auf `glm-4.7` oder `glm-5.3[1m]` — dann ist der
 Peak-Fallback praktisch rein defensiv.
+
+### Modell-Allowlist & Freigabe neuer Modelle
+
+Pipeline-Phasen laufen nur mit erprobten Modell-Aliassen. Ein `ai:model:<alias>`-Label
+mit unbekanntem Alias bricht im **Precheck** ab (04/05: `resolve-model-label.sh`) statt
+halb erfüllte Prompt-Verträge im Lauf zu hinterlassen — die Lektion aus PR #903, wo ein
+Free-Modell nur die `VERDICT:`-Zeile lieferte und die Begründungs-Kommentare übersprang.
+
+**Geltende Allowlist:** `fable | opus | sonnet | haiku`
+
+**Stellen, die bei einem neuen Alias synchron zu pflegen sind:**
+
+| #   | Datei                                         | Stelle                                                                |
+| --- | --------------------------------------------- | --------------------------------------------------------------------- |
+| 1   | `.github/scripts/resolve-model-label.sh`      | case-Filter + Abbruch-Meldung (~Zeile 167)                            |
+| 2   | `.github/actions/setup-claude/action.yml`     | Phasen-Modell-Auflösung: case + `::error`-Meldung (~Zeile 552–564)    |
+| 3   | `.github/actions/setup-claude/action.yml`     | Subagent-Alias: case + `::error`-Meldung (~Zeile 607–612)             |
+| 4   | `.github/scripts/resolve-model-label.test.ts` | neuer Fall „bekannter Alias → durch“ + alter Abbruch-Fall bleibt grün |
+
+**Freigabe-Prozess:** Alias in allen vier Stellen eintragen, das Resolve-Ziel je Provider ergänzen
+(`claude` nativ via `--model`; `zai`/`openrouter` über die `ANTHROPIC_DEFAULT_*_MODEL`-Einträge der
+GitHub Variables `CLAUDE_CODE_SETTINGS_LOCAL_*` — deren JSON ist dort Source of Truth und wird hier
+nicht gespiegelt), `pnpm test:scripts` grün, dann erst das Label im Betrieb nutzen. Die
+`vars.CLAUDE_MODEL_*` tragen nur Phasen-**Defaults** — sie erweitern die Allowlist nicht.
+
+**`unrecognized_model`-Warnung (Issue #962):** Die CLI loggt bei nicht-nativ bekannten Modell-IDs
+(zai/openrouter) pro Request eine `[claude-code:unrecognized_model]`-Zeile. Es gibt **kein** ENV/Flag
+zur globalen Unterdrückung; die CLI kennt nur `modelOverrides` (per Modell-ID, siehe
+[Model configuration](https://code.claude.com/docs/en/model-config)). Da unsere Modell-IDs aus den
+dynamischen GitHub Variables stammen, wäre eine statische Override-Map bei jeder Variablen-Änderung
+veraltet — deshalb filtert der `logtail`-Subcommand von `needs-human-explain.sh` diese Zeilen aus
+den Diagnose-Auszügen. Erwartet bei zai/openrouter, laufunschädlich.
 
 ### Claude-Code-Installation im CI-Lauf
 

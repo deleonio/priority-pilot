@@ -11,7 +11,7 @@ import { headerAction, waitForStableView } from './helpers';
  * ist die tatsächlich nutzbare Fläche auf 375px, nicht die Schreibweise im Stylesheet.
  */
 
-/** Referenz-Viewport der Projekt-Konventionen (.ai-knowledge/conventions.md). */
+/** Referenz-Viewport der Projekt-Konventionen (.ai-knowledge/project.md → Mobile-First). */
 const MOBILE = { width: 375, height: 812 } as const;
 const DESKTOP = { width: 1280, height: 800 } as const;
 

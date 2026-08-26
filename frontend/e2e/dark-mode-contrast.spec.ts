@@ -15,7 +15,7 @@ import { waitForStableView } from './helpers';
  * hier der **gemessene Kontrast** ausgewertet, nicht ein Farbwert festgeschrieben (eine
  * Palettenänderung darf den Test nicht rot machen, eine Regression der Lesbarkeit schon).
  *
- * Viewport 375×812 nach Mobile-First-Konvention (.ai-knowledge/conventions.md).
+ * Viewport 375×812 nach Mobile-First-Konvention (.ai-knowledge/project.md → Mobile-First).
  *
  * Pattern: public/docs/e2e-a11y-pattern.md — AxeBuilder mit KoliBri Shadow DOM
  */

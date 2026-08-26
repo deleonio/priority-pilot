@@ -6,15 +6,13 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 
 ## Wissensbasis
 
-- [Projekt & Aufbau](.ai-knowledge/project.md) — Zweck, Monorepo, Befehle, Datenbank
-- [Konventionen](.ai-knowledge/conventions.md) — Formatierung, ESLint, TypeScript, Commits, Mobile-First
+- [Projekt & Konventionen](.ai-knowledge/project.md) — Zweck, Monorepo, Befehle, Konventionen, Mobile-First, Datenbank
 - [Ticket-Triage](.claude/skills/ticket-triage/SKILL.md) — Analyse offener GitHub-Issues
 - [Ticket-UX](.claude/skills/ticket-ux/SKILL.md) — UX-Beratung für UI-Tickets
 - [Ticket-Spec](.claude/skills/ticket-spec/SKILL.md) — rote Tests (Vertrag) für `ai:needs-spec`-Issues
 - [Ticket-Umsetzung](.claude/skills/ticket-implementation/SKILL.md) — freigegebene Issues (`ai:needs-impl`) umsetzen
 - [PR-Review (Kreuzverhör)](.claude/skills/review-kreuzverhoer/SKILL.md) — PRs adversarial prüfen, Findings kommentieren
 - [TDD-Strategie](.ai-knowledge/tdd-strategy.md) — test-getriebene KI-Workflows (Stufen 1+2+3 adoptiert)
-- [Multi-Provider-CI](.ai-knowledge/multi-provider-ci.md) — Provider-Setup, Secrets, setup-claude-Action
 - [Design-Sprache „Cockpit"](.ai-knowledge/ux-design.md) — Farbrollen, Skalen-Tokens, Komponentenwahl
 - [Dauergedächtnis](.ai-memory/MEMORY.md) — Erfahrungs-Log über Tickets hinweg (Protokoll: [Memory](#memory))
 - [Browser-MCP](docs/browser-mcp.md) — laufende App visuell prüfen (`pnpm ui:inspect` + Playwright-MCP)
@@ -23,7 +21,6 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 - [Pipeline-Flow](docs/pipeline-flow.md) — Diagramm + Tabellen zum label-getriebenen Ticket-Flows
 - [Kosten-Baseline #912](docs/kosten-baseline-912.md) — Token/Kosten eines Tickets über alle Phasen
 - [ADRs](docs/adr/) — verbindliche Grundsatzentscheidungen: [0001 Workflows ungetestet](docs/adr/0001-github-workflows-bleiben-ungetestet.md), [0002 7-Phasen-Pipeline](docs/adr/0002-pipeline-7-phasen-ux-vor-spec.md), [0003 Label-Schema](docs/adr/0003-label-schema-ai-needs-und-past.md), [0004 Analyse-getriebenes Routing](docs/adr/0004-analyse-getriebenes-routing.md), [0005 Fixup+Umsetzung = eine Phase](docs/adr/0005-fixup-und-umsetzung-sind-eine-phase.md), [0006 Issue-Storage = State-Branch](docs/adr/0006-issue-storage-state-branch.md)
-- [CI-Legacy-Vergleich](docs/ci-legacy-comparison.md) — Struktur-/Stabilitätsvergleich Legacy vs. aktuell
 - [Tailscale Exit Node](docs/tailscale-exit-node.md) — CI-Traffic über Tailscale-Exit-Node
 - [UX-Pattern: Sequenzielle Bestätigung](docs/ux-pattern-sequential-confirmation.md) — verbindliche Referenz für destruktive Aktionen
 - [Mobile-UI-Regeln](docs/mobile-ui-rules.md) — Daumen-Zonen, Touch-Targets, async Zustände, Anti-Patterns (Schwesterdatei: Cockpit-Design)
@@ -86,7 +83,7 @@ Kandidaten unter `## Fallstricke` ihrer Phasen-Notiz ab. Lokale Sessions dürfen
 selbst committen — Eintrag vorschlagen, er reist mit dem nächsten regulären Commit mit.
 
 **Kuratierung:** max. ~40 Einträge. Zur festen Regel Gewordenes nach
-[Konventionen](.ai-knowledge/conventions.md) überführen und die Zeile entfernen — MEMORY.md ist ein
+[Konventionen](.ai-knowledge/project.md#konventionen) überführen und die Zeile entfernen — MEMORY.md ist ein
 Erfahrungs-Log, kein Regelwerk.
 
 ## KI-Pipeline (CI)

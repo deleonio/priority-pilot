@@ -149,7 +149,7 @@ beide **gitignored** — private Schlüssel sind Secrets) liegt im Projekt-Setup
 Hosts siehe [server-setup.md](server-setup.md).
 
 **Caddy** terminiert TLS davor und reverse-proxyt `/api/v1/*` (Präfix-Strip) und `/auth/*` ans
-Backend — Konfiguration und Pfad-Tabelle: [caddy-setup.md](caddy-setup.md).
+Backend — Konfiguration und Pfad-Tabelle: [server-setup.md § 7](server-setup.md#7-caddy-block--dns).
 
 ---
 
@@ -174,6 +174,33 @@ neueren Version — vor Schema-ändernden Releases ein `data/database.sqlite`-Ba
 - **DB-Backup:** [`maintenance.sh`](../maintenance.sh) per Cron nightly ausführen (sichert
   `data/database.sqlite` via SQLite `.backup` mit 30-Tage-Retention — Einrichtung siehe
   [server-setup.md](server-setup.md)), besonders **vor** Schema-ändernden Releases.
+
+---
+
+## 6. Local-Betrieb und Cloud↔Local-Wechsel
+
+Neben dem Cloud-Betrieb läuft Priority Pilot lokal: Entwicklung per `pnpm dev` (Befehle:
+[project.md](../.ai-knowledge/project.md)), dauerhaftes Selbsthosting per `pnpm build` +
+`node server/dist/index.js` (Autostart analog PM2, Schritt 6 in
+[server-setup.md](server-setup.md)). Die App ist eine **Single-User-Anwendung** — Kapazitätsgrenzen
+sind SQLite (Festplatte; alte Aufgaben archivieren ab ~100 MB, ab ~500 MB PostgreSQL erwägen) und die
+LLM-Provider-Quota.
+
+**Cloud → Local (Daten mitnehmen):**
+
+```bash
+sqlite3 <APP_DIR>/data/database.sqlite ".backup '/tmp/backup.sqlite'"   # konsistentes Backup auf dem Server
+scp gh-deploy@<cloud-host>:/tmp/backup.sqlite ./database.sqlite           # lokal übernehmen
+```
+
+**Local → Cloud (Rollback):** DB zurückkopieren — auf dem Server `pm2 stop priority-pilot`, die
+`database.sqlite` tauschen, `pm2 start priority-pilot`. Die Cloud-App selbst deployt weiterhin jeder
+Merge auf `main` neu.
+
+**Env-Unterschiede:** Cloud nutzt absolute Pfade (`DATABASE_STORAGE`, `DB_SEED=false`), lokal gelten
+die Defaults (`./database.sqlite`, Seeding nur in leere DB). Das Frontend ruft die API in beiden
+Betriebsarten unter `/api/v1/*` auf — in Produktion streift Caddy das Präfix, lokal der Vite-Dev-Proxy
+(derselbe Rewrite, siehe [server-setup.md § 7](server-setup.md#7-caddy-block--dns)).
 
 ---
 

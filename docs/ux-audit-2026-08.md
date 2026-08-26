@@ -58,7 +58,7 @@ und das **Coverage-Gate** in `ci.yml`/`ci-multi-provider.yml`.
 Während dieses Audits lief, hat #841 (Issue #839) die **ausführbaren** Stellen auf `--filter server`
 umgestellt. Offen geblieben war die **Dokumentation** — sieben Dateien
 (`AGENTS.md`, `README.md`, `CONTRIBUTING.md`, `server/README.md`, `frontend/README.md`,
-`.ai-knowledge/project.md`, `.ai-knowledge/conventions.md`) nannten weiter den toten Filter, und
+`.ai-knowledge/project.md`) nannten weiter den toten Filter, und
 genau dort schlagen Menschen und Agenten die Befehle nach. Das ist hier nachgezogen; `server/README.md`
 trug zusätzlich den falschen Paketnamen in der Überschrift.
 

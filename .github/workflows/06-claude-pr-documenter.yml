@@ -4,7 +4,7 @@ name: 6/6 Dokumentation
 # Läuft NACH einem erfolgreichen PR-Merge und pflegt Titel, Beschreibung,
 # Release-Note-Kommentar und Labels des EINEN gemergten PRs.
 # Aufteilung (empirisch: Prompt-only erzeugte driftende Kommentar-Formate und
-# unnormalisierte Titel, s. docs/ci-legacy-comparison.md):
+# unnormalisierte Titel — Legacy-Erfahrung aus dem Prompt-only-Betrieb):
 #   - pr-doc-facts.sh    — Bot-Erkennung, Conventional-Commits-Titelprüfung (deterministisch)
 #   - Claude (doc.json)  — NUR Klassifikation + Fließtext (Titel/Beschreibung/Kommentar-Texte)
 #   - pr-doc-render.sh   — sämtliche Schreibzugriffe: Titel-Rename, Body-Marker-Splice,

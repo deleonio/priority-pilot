@@ -180,10 +180,8 @@ Eine vollständige Beschreibung aller Funktionen für Endnutzer:
 Deployment auf einen dedizierten Server (Merge auf `main` → Build in GitHub Actions →
 `rsync` der `dist`-Verzeichnisse auf den Host → Backend-Reload via PM2, Caddy davor):
 
-- [`docs/operation-modes.md`](docs/operation-modes.md) — Betriebsarten: Cloud und Local (Übergangspfad, Kapazität).
-- [`docs/deployment.md`](docs/deployment.md) — Konzept & Ablauf (Architektur, rsync + PM2, Rollback).
-- [`docs/server-setup.md`](docs/server-setup.md) — Schritt-für-Schritt-Einrichtung des Linux-Servers.
-- [`docs/caddy-setup.md`](docs/caddy-setup.md) — Caddyfile: Reverse-Proxy, SPA-Fallback, Pfad-Tabelle.
+- [`docs/deployment.md`](docs/deployment.md) — Konzept & Ablauf (Architektur, rsync + PM2, Rollback, Local-Betrieb & Cloud↔Local-Wechsel).
+- [`docs/server-setup.md`](docs/server-setup.md) — Schritt-für-Schritt-Einrichtung des Linux-Servers (inkl. Caddy-Reverse-Proxy).
 - [`docs/llm-providers.md`](docs/llm-providers.md) — LLM-Kaskade einrichten (Mistral → OpenRouter-Verfeinerung, ENV-Konfiguration).
 
 ## Mitwirken

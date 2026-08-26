@@ -165,15 +165,43 @@ dem ersten Deploy ausgeführt werden — es friert die Prozessliste für den Boo
 ## 7. Caddy-Block + DNS
 
 **DNS zuerst:** A-Record `priority-pilot.example.de` → Server-IP setzen (sonst scheitert die
-TLS-Ausstellung). Die vollständige Caddyfile mit Erläuterungen
-(`/api/v1/*`-Präfix-Strip, `/auth/*`-OAuth-Proxy, SPA-Fallback, Pfad-Tabelle) steht in
-[`caddy-setup.md`](caddy-setup.md). Einrichten:
+TLS-Ausstellung). Das Frontend wird als statischer Build von Caddy ausgeliefert; das Backend
+(Express, Port 3000) ist **nicht** direkt erreichbar — Caddy reicht `/api/v1/*` (API-Daten,
+Präfix-Strip) und `/auth/*` (OAuth-Login-Flow, ohne Strip) weiter. Einrichten:
 
 ```bash
 sudo tee -a /etc/caddy/Caddyfile >/dev/null <<'EOF'
 
 priority-pilot.example.de {
-    # … Block aus caddy-setup.md: handle /api/v1/*, handle /auth/*, SPA-Fallback …
+    root * /var/www/gh-deploy/priority-pilot/frontend/
+
+    # Health-Endpoint: Liveness-Check für externes Monitoring (ohne Auth).
+    handle /health {
+        reverse_proxy localhost:3000
+    }
+
+    # API: Präfix abstreifen und zum Express-Backend weiterleiten.
+    # MUSS vor dem SPA-Fallback stehen und in einem eigenen handle-Block:
+    # handle-Blöcke sind gegenseitig exklusiv (erster Treffer gewinnt).
+    handle /api/v1/* {
+        uri strip_prefix /api/v1
+        reverse_proxy localhost:3000
+    }
+
+    # Auth-Routen: ohne Präfix-Strip ans Backend weiterleiten (OAuth-Login-Flow).
+    handle /auth/* {
+        reverse_proxy localhost:3000
+    }
+
+    # SPA-Fallback: alle übrigen Pfade liefern statische Dateien bzw. index.html.
+    # try_files MUSS in einem eigenen handle-Block stehen. Auf Top-Level würde
+    # es sonst – wegen Caddys fester Direktiven-Reihenfolge (try_files vor handle/
+    # reverse_proxy) – ZUERST laufen und /api/v1/* intern auf /index.html
+    # umschreiben, bevor der API-Block greift. Der reverse_proxy feuert dann nie.
+    handle {
+        try_files {path} /index.html
+        file_server
+    }
 }
 EOF
 
@@ -184,6 +212,23 @@ sudo systemctl reload caddy
 Caddy holt das TLS-Zertifikat automatisch (Let's Encrypt). **Wichtig (seit #171):** Das Frontend ruft
 die API unter `/api/v1/*` auf; Caddy streift das Präfix ab und reicht z. B. `/api/v1/pillars` als
 `/pillars` an das Backend weiter, das seine Router an der Wurzel mountet (`app.use(pillarsRouter)`).
+
+**Pfad-Tabelle:**
+
+| Eingehende URL                 | Backend-Pfad                                                         |
+| ------------------------------ | -------------------------------------------------------------------- |
+| `GET :80/health`               | `GET localhost:3000/health` (Liveness-Check, JSON `{"status":"ok"}`) |
+| `GET :80/api/v1/tasks`         | `GET localhost:3000/tasks`                                           |
+| `POST :80/api/v1/tasks`        | `POST localhost:3000/tasks`                                          |
+| `GET :80/api/v1/pillars`       | `GET localhost:3000/pillars`                                         |
+| `GET :80/auth/google`          | `GET localhost:3000/auth/google` (OAuth-Start)                       |
+| `GET :80/auth/google/callback` | `GET localhost:3000/auth/google/callback` (OAuth-Callback)           |
+| `GET :80/`                     | statische `index.html` aus dem Web-Verzeichnis (`root` oben)         |
+
+**Abgleich mit dem Vite-Dev-Proxy:** Lokal übernimmt `vite.config.ts` denselben Rewrite
+(`/api/v1` → Präfix-Strip auf `localhost:3000`) — API-Verhalten in Entwicklung und Produktion ist
+identisch. Der OAuth-Callback von Google trifft **direkt** auf `http://localhost:3000` (Backend-Port),
+da der Vite-Proxy nur ausgehende Requests bedient.
 
 ---
 
@@ -239,7 +284,7 @@ vom Server wegsichern.
 | Symptom                               | Wahrscheinliche Ursache                                                                      | Prüfen / Fix                                                                                      |
 | ------------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | `pm2 status` zeigt `errored`/restarts | `node_modules`/`sqlite3`-ABI passt nicht zum Host                                            | `pm2 logs priority-pilot`; ggf. Host-Install (`pnpm install --prod` im App-Verzeichnis)           |
-| API-Calls liefern HTML/404            | Caddy kennt `/api/v1/*` nicht (SPA-Fallback greift)                                          | `handle /api/v1/*`-Block + `strip_prefix` prüfen ([caddy-setup.md](caddy-setup.md))               |
+| API-Calls liefern HTML/404            | Caddy kennt `/api/v1/*` nicht (SPA-Fallback greift)                                          | `handle /api/v1/*`-Block + `strip_prefix` prüfen ([§ 7](#7-caddy-block--dns))                     |
 | Daten weg nach Deploy                 | `DATABASE_STORAGE` zeigt in gespiegeltes Verzeichnis                                         | absoluten `data/`-Pfad setzen (Schritt 5)                                                         |
 | Demo-Daten erscheinen in Prod         | `DB_SEED` nicht auf `false`                                                                  | Env-Datei korrigieren, `pm2 reload priority-pilot --update-env`                                   |
 | LLM-Endpunkte → 503                   | **kein** LLM-Key gesetzt (weder DB noch Env)                                                 | `MISTRAL_API_KEY` **oder** `OPENROUTER_API_KEY` setzen ([llm-providers.md](llm-providers.md))     |
