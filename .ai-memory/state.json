@@ -23,6 +23,12 @@
       "runId": "32945059847",
       "branch": "main",
       "timestamp": "2026-08-26T08:02:48Z"
+    },
+    "review": {
+      "sessionId": "7f4be291-5228-4f3f-beed-0afe10f1ee60",
+      "runId": "32945767153",
+      "branch": "feat/issue-1037-llm-provider-buttons",
+      "timestamp": "2026-08-26T08:06:29Z"
     }
   }
 }
