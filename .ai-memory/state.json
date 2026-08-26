@@ -23,6 +23,12 @@
       "runId": "32961452305",
       "branch": "main",
       "timestamp": "2026-08-26T11:20:59Z"
+    },
+    "review": {
+      "sessionId": "e8409a93-2a4a-4ec1-8a8f-2ebd40969c4c",
+      "runId": "32962886624",
+      "branch": "feat/issue-1042-dashboard-start-button",
+      "timestamp": "2026-08-26T11:25:43Z"
     }
   }
 }
