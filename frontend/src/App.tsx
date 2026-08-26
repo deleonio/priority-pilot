@@ -25,6 +25,7 @@ import { UpdatePrompt } from './components/UpdatePrompt';
 import { PillarAdvisorModal } from './components/PillarAdvisorModal';
 import { SearchModal } from './components/SearchModal';
 import { QuickCaptureModal } from './components/QuickCaptureModal';
+import { SeriesTab } from './components/SeriesTab';
 import { SettingsPage } from './components/SettingsPage';
 import { TaskFormModal } from './components/TaskFormModal';
 import { TaskTree } from './components/TaskTree';
@@ -636,8 +637,11 @@ export const App = ({ user }: { user: AuthUser }) => {
 					onClose={closeDialog}
 					onSearch={(query) => {
 						setActiveTab(1);
-						setTaskSearch(query);
-						setTaskViewMode('open');
+						// `searchDraft` mitschreiben, damit das Filterfeld im Aufgaben-Tab den aktiven
+						// Suchbegriff anzeigt und „Filtern“ ihn nicht sofort verwirft; `applyTaskFilter`
+						// setzt `taskSearch` bereits selbst. Der View-Mode bleibt beim Nutzer-Modus —
+						// beide Listen filtern über `taskSearch`.
+						setSearchDraft(query);
 						applyTaskFilter(query);
 					}}
 				/>

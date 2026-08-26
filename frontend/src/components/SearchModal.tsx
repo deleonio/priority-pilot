@@ -1,7 +1,7 @@
-import { KolButton, KolInputText, KolModal } from '@public-ui/react-v19';
+import { KolButton, KolInputText } from '@public-ui/react-v19';
 import { useEffect, useRef, useState } from 'react';
-import { useVoiceInput } from '../lib/useVoiceInput';
 import { Modal } from './Modal';
+import { VoiceField } from './VoiceField';
 
 interface SearchModalProps {
 	onClose: () => void;
@@ -10,20 +10,13 @@ interface SearchModalProps {
 
 /**
  * Modal-Dialog für die globale Suche (#8009e9bf-9e02-491c-8c73-6b4bac74f087).
- * Enthält ein Suchfeld mit Audioaufzeichnungs-Funktionalität und übergibt den
- * Suchbegriff an die Aufgabenansicht, die dann zum Aufgaben-Tab wechselt und filtert.
+ * Enthält ein Suchfeld mit Audioaufzeichnungs-Funktionalität (via `VoiceField`, #264/#522)
+ * und übergibt den Suchbegriff an die Aufgabenansicht, die dann zum Aufgaben-Tab wechselt
+ * und filtert.
  */
 export const SearchModal = ({ onClose, onSearch }: SearchModalProps) => {
 	const [searchQuery, setSearchQuery] = useState('');
 	const inputRef = useRef<HTMLKolInputTextElement>(null);
-
-	// Voice Input für die Audioaufzeichnung
-	const { isRecording, startRecording, stopRecording, isSupported, voiceError } = useVoiceInput({
-		onTranscript: (text: string) => {
-			setSearchQuery((prev) => prev + (prev.endsWith(' ') ? text : ' ' + text));
-		},
-		lang: 'de-DE',
-	});
 
 	// Autofokus auf das Suchfeld beim Öffnen
 	useEffect(() => {
@@ -40,24 +33,22 @@ export const SearchModal = ({ onClose, onSearch }: SearchModalProps) => {
 		}
 	};
 
-	const handleKeyDown = (event: React.KeyboardEvent): void => {
+	const handleKeyDown = (event: KeyboardEvent): void => {
 		if (event.key === 'Enter') {
 			handleSearch();
-		}
-	};
-
-	const handleVoiceClick = (): void => {
-		if (isRecording) {
-			stopRecording();
-		} else {
-			startRecording();
 		}
 	};
 
 	return (
 		<Modal title="Suche" onClose={onClose} width="var(--pp-modal-width-desktop)">
 			<div className="search-modal">
-				<div className="search-modal__input-wrapper">
+				<VoiceField
+					variant="input"
+					fieldLabel="Suchbegriff eingeben"
+					onTranscript={(text) => {
+						setSearchQuery((prev) => prev + (prev.endsWith(' ') ? text : ' ' + text));
+					}}
+				>
 					<KolInputText
 						ref={inputRef}
 						_label="Suchbegriff eingeben"
@@ -71,23 +62,7 @@ export const SearchModal = ({ onClose, onSearch }: SearchModalProps) => {
 							onKeyDown: handleKeyDown,
 						}}
 					/>
-					{isSupported && (
-						<button
-							type="button"
-							aria-label={isRecording ? 'Aufnahme stoppen' : 'Sprachaufnahme starten'}
-							aria-pressed={isRecording}
-							className={`search-modal__mic-button${isRecording ? ' search-modal__mic-button--recording' : ''}`}
-							onClick={handleVoiceClick}
-						>
-							🎤
-						</button>
-					)}
-				</div>
-				{voiceError !== null && (
-					<p className="mic-error" role="alert">
-						{voiceError}
-					</p>
-				)}
+				</VoiceField>
 				<div className="search-modal__actions">
 					<KolButton
 						_label="Suche starten"
