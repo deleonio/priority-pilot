@@ -122,19 +122,64 @@ export function renderReport(dir: string): string {
 	const first = tickets.reduce((min, t) => (t.first < min ? t.first : min), tickets[0].first);
 	const last = tickets.reduce((max, t) => (t.last > max ? t.last : max), tickets[0].last);
 
+	// Block-Aufschlüsselung: echter Input / Cache-Write / Cache-Read aus tokensIn ableiten.
+	// Grund: die Summe verdeckt, wo das Geld fliesst — Cache-Read ist rabattiert (0,1x)
+	// und trotzdem oft der groesste Block; Output-Disziplin optimiert nur einen Anteil.
+	const blockTokens = (p: PhaseTotal): { input: number; write: number; read: number } => ({
+		input: Math.max(0, p.tokensIn - p.cacheCreationTokens - p.cacheReadTokens),
+		write: p.cacheCreationTokens,
+		read: p.cacheReadTokens,
+	});
+
 	lines.push(
 		`**${tickets.length} Tickets · ${sum.runs} Läufe · Zeitraum ${first.slice(0, 10)} bis ${last.slice(0, 10)}**`,
 		'',
-		'| Phase | Läufe | Turns | Token in | Token out | Wert (USD) |',
-		'| --- | ---: | ---: | ---: | ---: | ---: |',
+		'| Phase | Läufe | Turns | Input | Cache-W (1,25×) | Cache-R (0,1×) | Token out | Wert (USD) |',
+		'| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
 	);
 	for (const p of phases) {
+		const b = blockTokens(p);
 		lines.push(
-			`| ${p.phase} | ${p.runs} | ${anyTurns ? num(p.turns) : '—'} | ${mio(p.tokensIn)} | ${num(p.tokensOut)} | ${usd(p.valueCost)} |`,
+			`| ${p.phase} | ${p.runs} | ${anyTurns ? num(p.turns) : '—'} | ${mio(b.input)} | ${mio(b.write)} | ${mio(b.read)} | ${num(p.tokensOut)} | ${usd(p.valueCost)} |`,
 		);
 	}
+	const sumBlocks = phases.reduce(
+		(a, p) => {
+			const b = blockTokens(p);
+			return { input: a.input + b.input, write: a.write + b.write, read: a.read + b.read };
+		},
+		{ input: 0, write: 0, read: 0 },
+	);
 	lines.push(
-		`| **Summe** | **${sum.runs}** | **${anyTurns ? num(sum.turns) : '—'}** | **${mio(sum.tokensIn)}** | **${num(sum.tokensOut)}** | **${usd(sum.valueCost)}** |`,
+		`| **Summe** | **${sum.runs}** | **${anyTurns ? num(sum.turns) : '—'}** | **${mio(sumBlocks.input)}** | **${mio(sumBlocks.write)}** | **${mio(sumBlocks.read)}** | **${num(sum.tokensOut)}** | **${usd(sum.valueCost)}** |`,
+		'',
+	);
+
+	// Block-Kosten-Verteilung: USD je Block über alle Phasen. Roh-Bewertung zu
+	// mid-Klassenpreisen (3/15 je M), dann auf die valueCost-Summe skaliert — je
+	// Eintrag gerechnete Klassen-Preise sind fuer den Ueberblick zu fein; Anteile
+	// stimmen, der Gesamtwert bleibt konsistent zur Tabelle oben.
+	const rawIn = (sumBlocks.input / 1e6) * 3;
+	const rawWrite = (sumBlocks.write / 1e6) * 3 * 1.25;
+	const rawRead = (sumBlocks.read / 1e6) * 3 * 0.1;
+	const rawOut = (sum.tokensOut / 1e6) * 15;
+	const rawSum = rawIn + rawWrite + rawRead + rawOut || 1;
+	const scale = sum.valueCost / rawSum;
+	const blockRow = (label: string, tokens: number, usd: number): string =>
+		`| ${label} | ${mio(tokens)} | $${usd.toFixed(2)} |`;
+	lines.push(
+		'### Kosten nach Block',
+		'',
+		'| Block | Token | Wert (USD) |',
+		'| --- | ---: | ---: |',
+		blockRow('Input (echt)', sumBlocks.input, rawIn * scale),
+		blockRow('Cache-Write (1,25×)', sumBlocks.write, rawWrite * scale),
+		blockRow('Cache-Read (0,1×)', sumBlocks.read, rawRead * scale),
+		blockRow('Output', sum.tokensOut, rawOut * scale),
+		'',
+		'> Cache-Read ist rabattiert, aber bei hoher Turn-Zahl der größte Treiber;',
+		'> Output ist pro Token am teuersten. Achtung: Datensätze vor der',
+		'> Cache-Erfassung zählen komplett als „echter Input“ und überzeichnen ihn.',
 		'',
 	);
 
