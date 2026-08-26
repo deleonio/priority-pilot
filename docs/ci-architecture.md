@@ -115,7 +115,7 @@ Was diese Wahl an einem realen Ticket gekostet hat, steht in der [Kosten-Baselin
 
 | Phase                       | Variable                     | Default (`LLM_PROVIDER=claude`) | Default (`LLM_PROVIDER=zai`) | Begründung                                      |
 | --------------------------- | ---------------------------- | ------------------------------- | ---------------------------- | ----------------------------------------------- |
-| Triage (01)                 | `CLAUDE_MODEL_TRIAGE`        | `fable`                         | `glm-5.3[1m]`                | Höchste Qualität für Analyse/Sub-Task-Schneiden |
+| Triage (01)                 | `CLAUDE_MODEL_TRIAGE`        | `opus`                          | `glm-5.3[1m]`                | Höchste Qualität für Analyse/Sub-Task-Schneiden |
 | Spec (03)                   | `CLAUDE_MODEL_SPEC`          | `sonnet`                        | `glm-5.3[1m]`                | Balanciert für Design-Dokumente                 |
 | UX (02)                     | `CLAUDE_MODEL_UX`            | `sonnet`                        | `glm-5.3[1m]`                | Balanciert für UX-Review                        |
 | Implement (04)              | `CLAUDE_MODEL_IMPLEMENT`     | `opus`                          | `glm-5.3[1m]`                | Maximale Qualität für Code-Generierung          |
