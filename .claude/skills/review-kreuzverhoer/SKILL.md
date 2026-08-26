@@ -1,6 +1,6 @@
 ---
 name: review-kreuzverhoer
-description: "PR-Kreuzverhör — Pull Requests adversarial reviewen, Findings als Inline-Kommentare posten, Ampel-Urteil im ai-review-Sammelkommentar. Nutzen bei „review PR <Nr>", „prüf/kreuzverhöre diesen PR", Re-Review nach Fixup. CI-Phase 5/7 arbeitet mit derselben Methode."
+description: "PR-Kreuzverhör — Pull Requests adversarial reviewen, Findings als Inline-Kommentare posten, Ampel-Urteil im ai-review-Sammelkommentar. Nutzen bei „review PR <Nr>“, „prüf/kreuzverhöre diesen PR“, Re-Review nach Fixup. CI-Phase 5/7 arbeitet mit derselben Methode."
 allowed-tools: Read, Grep, Glob, Bash(gh *)
 ---
 
