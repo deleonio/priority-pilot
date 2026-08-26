@@ -29,6 +29,12 @@
       "runId": "32945767153",
       "branch": "feat/issue-1037-llm-provider-buttons",
       "timestamp": "2026-08-26T08:06:29Z"
+    },
+    "documenter": {
+      "sessionId": "c1f8d116-ae50-42df-8b5a-a402201d9845",
+      "runId": "32946096197",
+      "branch": "feat/issue-1037-llm-provider-buttons",
+      "timestamp": "2026-08-26T08:09:05Z"
     }
   }
 }
