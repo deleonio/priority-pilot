@@ -31,23 +31,28 @@ const run = (body: string): Out => {
 	};
 };
 
-/** Analyse-Block im Format aus 01-claude-triage.yml. */
+/**
+ * Analyse-Block im Format aus 01-claude-triage.yml. ux/spec kommen seit der
+ * analysegetriebenen Routing-Tabelle (ADR-0004-Umbau) aus der ai-phase-routing-Tabelle,
+ * nicht mehr aus "### UI-Bezug"/"### Spec"-Ueberschriften — Format 1:1 aus dem
+ * Kopf-Kommentar von resolve-phase-routing.sh.
+ */
 const block = (over: Partial<{ ui: string; spec: string; dateien: string }> = {}): string =>
 	[
 		'<!-- KI-ANALYSE:START stand=2026-08-19T12:00:00Z -->',
-		'### UI-Bezug',
-		`- UI-Bezug: ${over.ui ?? 'nein'}`,
-		'- Begründung: rein serverseitig',
-		'',
-		'### Spec',
-		...(over.spec === undefined
-			? ['- Spec nötig: nein', '- Begründung: nur CI-Konfiguration']
-			: [`- Spec nötig: ${over.spec}`]),
-		'',
 		'### Umsetzungskontext',
 		`- Betroffene Dateien: ${over.dateien ?? '`.github/workflows/ci.yml`'}`,
 		'- Erwartetes Ergebnis: CI läuft wieder grün',
 		'<!-- KI-ANALYSE:END -->',
+		'',
+		'<!-- ai-phase-routing:START -->',
+		'| Phase | Run | Modell | Effort |',
+		'| --- | --- | --- | --- |',
+		`| ux | ${over.ui ?? 'nein'} | haiku | low |`,
+		`| spec | ${over.spec ?? 'nein'} | - | - |`,
+		'| impl | ja | haiku | medium |',
+		'| review | ja | sonnet | high |',
+		'<!-- ai-phase-routing:END -->',
 	].join('\n');
 
 describe('resolve-spec-skip.sh — Skip erlaubt', () => {
@@ -92,12 +97,12 @@ describe('resolve-spec-skip.sh — fail-safe Richtung Spec', () => {
 	it('erzwingt die Spec bei UI-Bezug, egal was das Spec-Feld sagt', () => {
 		const out = run(block({ ui: 'ja', spec: 'nein', dateien: '`docs/x.md`' }));
 		assert.equal(out.needsSpec, 'true', 'needs_ux ⇒ needs_spec');
-		assert.match(out.reason, /UI-Bezug/);
+		assert.match(out.reason, /UX-Ergebnis/);
 	});
 
 	it('erzwingt die Spec, wenn das Feld fehlt', () => {
-		const ohneFeld = block().replace(/- Spec nötig: nein\n/, '');
-		const out = run(ohneFeld);
+		const ohneSpecZeile = block().replace(/\| spec \|.*\|\n/, '');
+		const out = run(ohneSpecZeile);
 		assert.equal(out.needsSpec, 'true');
 		assert.match(out.reason, /fehlt/);
 	});
