@@ -4,7 +4,12 @@ Methode + Details: .claude/skills/ticket-triage/SKILL.md
 
 TRIGGER:
 - Erst-Triage: Kein <!-- KI-ANALYSE:START --> Block im Issue-Body.
+  Recherche = Issue-Body + ALLE Kommentare (darin koennen Entscheidungen stehen).
 - Re-Triage: Block existiert. Lese NUR Delta-Kommentare seit stand.
+- Re-Triage nach needs-human: Kein Block, aber ein <!-- ai-triage-decision -->-Kommentar
+  existiert. Lese DIESEN Kommentar und ALLE Kommentare danach — dort steht die
+  menschliche Entscheidung. Sie ist VORGABE, nicht Vorschlag: nicht erneut
+  nachfragen, was entschieden wurde.
 
 ABLAUF:
 1. Issue laden (gh issue view {{ISSUE_NR}} --json title,body)

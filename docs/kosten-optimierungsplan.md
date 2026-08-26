@@ -6,12 +6,12 @@
 
 ## 🎯 Executive Summary
 
-| Metrik | Aktuell | Ziel | Verbesserung |
-|--------|---------|------|--------------|
-| **Durchschnittskosten pro Ticket** | ~$6.00 | ~$2.50-3.00 | **-50-66%** |
-| Cache-Effizienz | 95-96% | >95% | ✅ Bereits optimal |
-| Modell-Mix | Opus-heavy | Sonnet/Haiku | ⭐ Haupthebel |
-| Review-Runden | 1-2 | 1 | -33-50% |
+| Metrik                             | Aktuell    | Ziel         | Verbesserung       |
+| ---------------------------------- | ---------- | ------------ | ------------------ |
+| **Durchschnittskosten pro Ticket** | ~$6.00     | ~$2.50-3.00  | **-50-66%**        |
+| Cache-Effizienz                    | 95-96%     | >95%         | ✅ Bereits optimal |
+| Modell-Mix                         | Opus-heavy | Sonnet/Haiku | ⭐ Haupthebel      |
+| Review-Runden                      | 1-2        | 1            | -33-50%            |
 
 **Ziel:** Kosten pro Ticket von **$6.00 auf ~$2.50-3.00 senken** durch intelligentes Modell-Routing und Prozessoptimierung.
 
@@ -20,12 +20,14 @@
 ## 📊 Analyse der Referenztickets
 
 ### Ticket #1037 (UI/CSS - Responsiv Layout)
+
 - **Aktuelle Kosten:** $4.89
 - **Optimierungspotenzial:** $3.25 (66%)
 - **Zielkosten:** ~$1.64
 - **Hauptkostentreiber:** Analyse (Opus), Spec, Implement (Sonnet)
 
 ### Ticket #1034 (UI/PWA - Update-Prompt)
+
 - **Aktuelle Kosten:** $7.13
 - **Optimierungspotenzial:** $4.10 (55%)
 - **Zielkosten:** ~$3.03
@@ -40,11 +42,13 @@
 ### 🥇 Priorität 1: Spec-Phase überspringen bei UI-only Tickets (⭐⭐⭐)
 
 **Problem:**
+
 - Spec-Phase auf Sonnet kostet **$1.20-1.40 pro Ticket**
 - Für reine UI-Anpassungen (CSS, Layout, Texte) ist Spec oft unnötig
 - ADR-0004 erlaubt bereits Spec-Skip bei Tickets OHNE Anwendungscode-Logik
 
 **Lösung:**
+
 ```
 IF Ticket-Typ == "UI-only" AND "Betroffene Dateien" enthalten nur:
   - *.css
@@ -57,6 +61,7 @@ THEN
 ```
 
 **Implementierung:**
+
 1. **Erkennungslogik** in Analyse-Phase erweitern
    - Prüfe `Betroffene Dateien` aus Analyse-Block
    - Kategorisiere als "UI-only" wenn nur Layout/Styling betroffen
@@ -66,6 +71,7 @@ THEN
    - ADR-0004 um konkrete Kriterien erweitern
 
 **Erwartete Ersparnis:**
+
 - **$1.20-1.40 pro UI-Ticket** (25-30% der Gesamtkosten)
 - **Aufwand:** Niedrig (1-2 Tage)
 - **Risiko:** Niedrig (bereits durch ADR-0004 abgedeckt)
@@ -75,11 +81,13 @@ THEN
 ### 🥈 Priorität 2: Haiku für Implement-Phase bei UI-Tickets (⭐⭐⭐)
 
 **Problem:**
+
 - Implement-Phase auf Sonnet kostet **$1.20-1.60 pro Ticket**
 - UI-Code (CSS, einfache React-Komponenten) ist oft repetitiv
 - Haiku ist **3x günstiger** ($1/Mio vs. $3/Mio Input)
 
 **Lösung:**
+
 ```
 IF ai:model:sonnet AND Ticket-Typ == "UI"
 THEN
@@ -87,6 +95,7 @@ THEN
 ```
 
 **Implementierung:**
+
 1. **Modell-Routing** anpassen
    - `.github/scripts/resolve-model-label.sh` erweitern
    - Neue Regel: `ai:model:haiku` für UI-Tickets
@@ -97,6 +106,7 @@ THEN
    - Prüfe `Betroffene Dateien` auf UI-spezifische Pfade
 
 **Erwartete Ersparnis:**
+
 - **$0.80-1.20 pro UI-Ticket** (15-25% der Gesamtkosten)
 - **Aufwand:** Niedrig (1 Tag)
 - **Risiko:** Niedrig (Haiku gut für UI-Code getestet)
@@ -106,11 +116,13 @@ THEN
 ### 🥉 Priorität 3: Sonnet für Analyse-Phase bei einfachen Tickets (⭐⭐⭐)
 
 **Problem:**
+
 - Analyse-Phase auf Opus kostet **$1.10-1.60 pro Ticket**
 - Opus kostet **$5/Mio Input**, Sonnet nur **$3/Mio** (40% günstiger)
 - Für UI/CSS/PWA-Tickets reicht Sonnet aus
 
 **Lösung:**
+
 ```
 IF Ticket-Typ IN ["UI", "CSS", "PWA", "Layout"] AND Komplexität == "niedrig-mittel"
 THEN
@@ -120,6 +132,7 @@ ELSE
 ```
 
 **Implementierung:**
+
 1. **Komplexitätsklassifikation** einführen
    - Analyse-Phase klassifiziert Ticket-Typ und Komplexität
    - Setzt `ai:complexity:low|medium|high`
@@ -129,6 +142,7 @@ ELSE
 3. **Fallback:** Opus für unbekannte/komplexe Tickets
 
 **Erwartete Ersparnis:**
+
 - **$0.45-1.15 pro Ticket** (10-20% der Gesamtkosten)
 - **Aufwand:** Mittel (2-3 Tage)
 - **Risiko:** Mittel (neue Klassifikationslogik nötig)
@@ -138,11 +152,13 @@ ELSE
 ### 🏅 Priorität 4: Review-Optimierung - Haiku für erste Runde (⭐⭐)
 
 **Problem:**
+
 - Review-Phase auf Sonnet kostet **$0.75-1.69 pro Ticket**
 - Ticket #1034 hatte **2 Review-Runden** (24% der Gesamtkosten!)
 - Viele Findings sind einfach und benötigen kein starkes Modell
 
 **Lösung:**
+
 ```
 Review-Runde 1: claude-haiku-4-5-20251001
 IF Findings komplex OR 2. Runde nötig
@@ -151,6 +167,7 @@ THEN
 ```
 
 **Implementierung:**
+
 1. **Review-Phasen** trennen
    - Erste Review immer auf Haiku
    - Eskalation auf Sonnet nur bei Bedarf
@@ -161,6 +178,7 @@ THEN
    - `05-claude-pr-review.yml` prüft Finding-Typ
 
 **Erwartete Ersparnis:**
+
 - **$0.40-0.80 pro Ticket** mit Review (5-15% der Gesamtkosten)
 - **Aufwand:** Mittel (2-3 Tage)
 - **Risiko:** Niedrig (Haiku kann einfache Reviews durchführen)
@@ -170,11 +188,13 @@ THEN
 ### 🏅 Priorität 5: Fixup-Phase auf Haiku (⭐⭐)
 
 **Problem:**
+
 - Fixup-Phase auf Sonnet kostet **$0.69 pro Ticket** (Ticket #1034)
 - Fixes sind oft einfache Anpassungen
 - Haiku ist ausreichend für einfache Code-Fixes
 
 **Lösung:**
+
 ```
 IF Fixup nach Review AND Findings == "einfach"
 THEN
@@ -182,6 +202,7 @@ THEN
 ```
 
 **Implementierung:**
+
 1. **Fixup-Klassifikation** einführen
    - Review markiert Findings als "einfach" oder "komplex"
    - Einfache Findings → Haiku für Fixup
@@ -189,6 +210,7 @@ THEN
    - `04-claude-implement.yml` (Fixup-Modus) prüft Finding-Typ
 
 **Erwartete Ersparnis:**
+
 - **$0.40-0.60 pro Ticket** mit Fixup (5-10% der Gesamtkosten)
 - **Aufwand:** Niedrig (1 Tag)
 - **Risiko:** Niedrig
@@ -199,22 +221,22 @@ THEN
 
 ### Kostenreduktion pro Ticket-Typ
 
-| Ticket-Typ | Aktuell | Nach Optimierung | Ersparnis | Reduktion |
-|------------|---------|------------------|-----------|-----------|
-| UI/CSS (einfach) | $4.89 | ~$1.64 | $3.25 | **66%** |
-| UI/PWA (mittel) | $7.13 | ~$3.03 | $4.10 | **55%** |
-| **Durchschnitt** | **~$6.00** | **~$2.34** | **~$3.66** | **~61%** |
+| Ticket-Typ       | Aktuell    | Nach Optimierung | Ersparnis  | Reduktion |
+| ---------------- | ---------- | ---------------- | ---------- | --------- |
+| UI/CSS (einfach) | $4.89      | ~$1.64           | $3.25      | **66%**   |
+| UI/PWA (mittel)  | $7.13      | ~$3.03           | $4.10      | **55%**   |
+| **Durchschnitt** | **~$6.00** | **~$2.34**       | **~$3.66** | **~61%**  |
 
 ### Kumulierte Ersparnis (bei 100 Tickets/Jahr)
 
-| Maßnahme | Ersparnis pro Ticket | 100 Tickets | Priorität |
-|----------|---------------------|-------------|-----------|
-| Spec überspringen | $1.30 | **$130.00** | ⭐⭐⭐ |
-| Haiku für Implement | $1.00 | **$100.00** | ⭐⭐⭐ |
-| Sonnet für Analyse | $0.80 | **$80.00** | ⭐⭐⭐ |
-| Review auf Haiku | $0.60 | **$60.00** | ⭐⭐ |
-| Haiku für Fixup | $0.50 | **$50.00** | ⭐⭐ |
-| **Gesamt** | **$4.20** | **$420.00** | - |
+| Maßnahme            | Ersparnis pro Ticket | 100 Tickets | Priorität |
+| ------------------- | -------------------- | ----------- | --------- |
+| Spec überspringen   | $1.30                | **$130.00** | ⭐⭐⭐    |
+| Haiku für Implement | $1.00                | **$100.00** | ⭐⭐⭐    |
+| Sonnet für Analyse  | $0.80                | **$80.00**  | ⭐⭐⭐    |
+| Review auf Haiku    | $0.60                | **$60.00**  | ⭐⭐      |
+| Haiku für Fixup     | $0.50                | **$50.00**  | ⭐⭐      |
+| **Gesamt**          | **$4.20**            | **$420.00** | -         |
 
 **🎯 Jährliche Ersparnis: ~$420 bei 100 Tickets**
 
@@ -224,11 +246,11 @@ THEN
 
 ### Phase 1: Quick Wins (Woche 1-2) – **$260 Ersparnis/Jahr**
 
-| Aufgabe | Verantwortlich | Aufwand | Ersparnis |
-|---------|---------------|---------|-----------|
-| Spec-Skip für UI-Tickets implementieren | Team | 1-2 Tage | $130/Jahr |
-| Haiku für Implement-Phase | Team | 1 Tag | $100/Jahr |
-| Dokumentation aktualisieren | Team | 0.5 Tage | - |
+| Aufgabe                                 | Verantwortlich | Aufwand  | Ersparnis |
+| --------------------------------------- | -------------- | -------- | --------- |
+| Spec-Skip für UI-Tickets implementieren | Team           | 1-2 Tage | $130/Jahr |
+| Haiku für Implement-Phase               | Team           | 1 Tag    | $100/Jahr |
+| Dokumentation aktualisieren             | Team           | 0.5 Tage | -         |
 
 **Ziel:** 43% Kostensenkung nach 2 Wochen
 
@@ -236,11 +258,11 @@ THEN
 
 ### Phase 2: Modell-Routing (Woche 3-4) – **+$120 Ersparnis/Jahr**
 
-| Aufgabe | Verantwortlich | Aufwand | Ersparnis |
-|---------|---------------|---------|-----------|
-| Sonnet für Analyse bei UI-Tickets | Team | 2-3 Tage | $80/Jahr |
-| Review auf Haiku (1. Runde) | Team | 2-3 Tage | $60/Jahr |
-| Testing & Validierung | Team | 2 Tage | - |
+| Aufgabe                           | Verantwortlich | Aufwand  | Ersparnis |
+| --------------------------------- | -------------- | -------- | --------- |
+| Sonnet für Analyse bei UI-Tickets | Team           | 2-3 Tage | $80/Jahr  |
+| Review auf Haiku (1. Runde)       | Team           | 2-3 Tage | $60/Jahr  |
+| Testing & Validierung             | Team           | 2 Tage   | -         |
 
 **Ziel:** 55% Kostensenkung nach 4 Wochen
 
@@ -248,11 +270,11 @@ THEN
 
 ### Phase 3: Feinabstimmung (Woche 5-6) – **+$40 Ersparnis/Jahr**
 
-| Aufgabe | Verantwortlich | Aufwand | Ersparnis |
-|---------|---------------|---------|-----------|
-| Haiku für Fixup-Phase | Team | 1 Tag | $50/Jahr |
-| Prompt-Optimierung | Team | 2 Tage | $40/Jahr |
-| Monitoring & Metriken | Team | 1 Tag | - |
+| Aufgabe               | Verantwortlich | Aufwand | Ersparnis |
+| --------------------- | -------------- | ------- | --------- |
+| Haiku für Fixup-Phase | Team           | 1 Tag   | $50/Jahr  |
+| Prompt-Optimierung    | Team           | 2 Tage  | $40/Jahr  |
+| Monitoring & Metriken | Team           | 1 Tag   | -         |
 
 **Ziel:** 61% Kostensenkung nach 6 Wochen
 
@@ -314,12 +336,12 @@ node .github/scripts/cost-aggregate.ts --issue <n> --dir .costs
 
 ### Risikominimierung
 
-| Risiko | Mitigation |
-|--------|------------|
-| Modell zu schwach | Fallback auf Sonnet/Opus |
-| Qualitätsverlust | Automatisierte Tests + manuelle Review |
-| falsche Klassifikation | Manuelle Überschreibungsmöglichkeit |
-| Performance-Probleme | Monitoring + Alerting |
+| Risiko                 | Mitigation                             |
+| ---------------------- | -------------------------------------- |
+| Modell zu schwach      | Fallback auf Sonnet/Opus               |
+| Qualitätsverlust       | Automatisierte Tests + manuelle Review |
+| falsche Klassifikation | Manuelle Überschreibungsmöglichkeit    |
+| Performance-Probleme   | Monitoring + Alerting                  |
 
 ---
 
@@ -328,6 +350,7 @@ node .github/scripts/cost-aggregate.ts --issue <n> --dir .costs
 ### ADR-0004: Analyse-getriebenes Routing
 
 **Erweiterungen:**
+
 1. Neue Modell-Klassifikation für Phasen
 2. Dynamische Modellwahl basierend auf Ticket-Typ
 3. Spec-Skip-Kriterien konkretisieren
@@ -335,6 +358,7 @@ node .github/scripts/cost-aggregate.ts --issue <n> --dir .costs
 ### ADR-0005: Fixup und Umsetzung sind eine Phase
 
 **Erweiterungen:**
+
 1. Fixup-Modell basierend auf Finding-Komplexität
 2. Integration mit Review-Phase
 
@@ -393,6 +417,7 @@ esac
 ### 2. Workflow-Anpassungen
 
 **01-claude-triage.yml:**
+
 ```yaml
 # Dynamische Modellwahl für Analyse
 - name: Bestimme Analyse-Modell
@@ -408,6 +433,7 @@ esac
 ```
 
 **04-claude-implement.yml:**
+
 ```yaml
 # Dynamische Modellwahl für Implement/Fixup
 - name: Bestimme Implement-Modell
@@ -429,4 +455,4 @@ esac
 
 ---
 
-*Erstellt am 26. August 2026 | Version: 1.0 | Status: Entwurf*
+_Erstellt am 26. August 2026 | Version: 1.0 | Status: Entwurf_
