@@ -710,12 +710,15 @@ runs:
         # Claude Code fasst den ältesten Kontext automatisch zusammen, wenn die
         # angegebene Schwelle überschreitet — verhindert Kontext-Explosion innerhalb
         # eines Laufs (insbesondere bei langen Fixup- und Review-Läufen mit CI-Logs).
-        # Leerer compact-tokens = disabled (kein Breaking-Change für Helper-Workflows).
+        # Leerer compact-tokens = --autocompact auto (nutzt .claude/settings.json Default).
+        # Expliziter Wert (z.B. "80k") überschreibt den Default.
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        COMPACT_FLAG=""
+        COMPACT_FLAG="--autocompact auto"
         if [ -n "$COMPACT_TOKENS" ]; then
           COMPACT_FLAG="--autocompact $COMPACT_TOKENS"
-          echo "::notice::Auto-Compaction aktiviert bei $COMPACT_TOKENS Tokens."
+          echo "::notice::Auto-Compaction explizit auf $COMPACT_TOKENS Tokens (override settings.json)."
+        else
+          echo "::notice::Auto-Compaction aktiviert (nutzt .claude/settings.json Default: auto, threshold 0.65)."
         fi
 
         # MCP-Server-Name spiegelt .mcp.json (kolibri-mcp); aktiv nur bei needs-mcp.
