@@ -123,7 +123,7 @@ runs:
             echo "| Kosten (USD, Anthropic-Listenpreis) | ${COST} |"
             if [ -n "${COST_OUTPUT}" ]; then
               echo ""
-              echo "**Kosten nach Block:** Input $${COST_INPUT} · Cache-Write $${COST_CACHE_W:-0} · Cache-Read $${COST_CACHE_R:-0} · Output $${COST_OUTPUT}"
+              echo "**Kosten nach Block:** Input \$${COST_INPUT} · Cache-Write \$${COST_CACHE_W:-0} · Cache-Read \$${COST_CACHE_R:-0} · Output \$${COST_OUTPUT}"
             fi
             echo ""
             echo "_Bei Nicht-Anthropic-Providern ist \`cost\` 0 — dort gelten Fremdtarife._"
