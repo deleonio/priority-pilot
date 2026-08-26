@@ -1,0 +1,48 @@
+name: Bild-Backfill (Datenschutz)
+
+# Einmaliger, manuell ausgelöster Nachzieh-Sweep für den Bild-Entfernungs-Job aus
+# 06-claude-pr-documenter.yml (.github/scripts/pr-image-strip.sh, Issue #1021): dieser
+# lief bisher nur automatisch beim MERGE eines PRs bzw. einzeln per workflow_dispatch-
+# Catch-up. Historische PRs/Issues (vor Einführung des Sweeps) blieben unbereinigt.
+#
+# Dieser Workflow zieht den Sweep einmalig über den gesamten Altbestand nach
+# (.github/scripts/image-strip-backfill.sh):
+#   - alle gemergten PRs (Body + Konversations-/Inline-Kommentare + deren Closing-Issues)
+#   - alle geschlossenen Issues direkt (Body + Kommentare), auch ohne verlinkten PR
+#
+# Best-effort + idempotent wie der Basis-Sweep: ein erneuter Lauf schreibt nur dort,
+# wo noch unbereinigte Bild-Referenzen stehen. Kein LLM-Lauf — reine Regel-Logik.
+
+on:
+  workflow_dispatch: {}
+
+concurrency:
+  group: image-strip-backfill
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    # Grosszügig bemessen: mehrere hundert PRs/Issues, je mehrere gh-API-Calls
+    # (Body + Kommentar-Liste + Einzel-Patches) inkl. Kurz-Retries bei API-Löchern.
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: App-Token holen (höheres Rate-Limit für Massen-Edits)
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1
+        with:
+          client-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: 🧼 Bild-Backfill über gesamten Altbestand
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          bash .github/scripts/image-strip-backfill.sh "${{ github.repository }}"

@@ -178,6 +178,21 @@ const runSweep = (extra: string[] = []) => {
 	return { res, log: readFileSync(writeLogPath, 'utf8') };
 };
 
+// Backfill-Modus (image-strip-backfill.sh): Issue OHNE PR-Link, direkt per --issue.
+const runSweepIssue = (issueNumber: string, extra: string[] = []) => {
+	writeFileSync(writeLogPath, '');
+	const res = spawnSync('bash', [sweep, '--repo', 'o/r', '--issue', issueNumber, ...extra], {
+		env: {
+			...process.env,
+			PATH: `${stubDir}:${process.env.PATH}`,
+			GH_FIXTURE_DIR: fixtureDir,
+			GH_WRITE_LOG: writeLogPath,
+		},
+		encoding: 'utf8',
+	});
+	return { res, log: readFileSync(writeLogPath, 'utf8') };
+};
+
 before(() => {
 	stubDir = mkdtempSync(join(tmpdir(), 'strip-stub-'));
 	fixtureDir = join(stubDir, 'fixtures');
@@ -307,6 +322,21 @@ describe('pr-image-strip.sh — AK1: Bodies bleiben byte-identisch', () => {
 			log.includes(`kommentar mit ${PLACEHOLDER}\n\n---`),
 			'Kommentar: zwei trailing Newlines muessen erhalten bleiben',
 		);
+	});
+});
+
+describe('pr-image-strip.sh — --issue-Modus (Backfill ohne PR-Link)', () => {
+	it('PATCHed Issue-Body und Issue-Kommentar, ruehrt keine PR-Endpunkte an', () => {
+		writeFixture('issue-bodies/91.md', 'issue body mit ![shot](https://github.com/user-attachments/assets/c-3)');
+		writeFixture('comment-ids/91.txt', '55\n');
+		writeFixture('comment-bodies/55.md', 'kommentar mit <img src="z.png">');
+
+		const { res, log } = runSweepIssue('91');
+		assert.equal(res.status, 0, res.stderr);
+		assert.match(log, /^PATCH repos\/o\/r\/issues\/91$/m, 'Issue-Body 91 muss gepatcht werden');
+		assert.match(log, /^PATCH repos\/o\/r\/issues\/comments\/55$/m, 'Issue-Kommentar 55 muss gepatcht werden');
+		assert.ok(!log.includes('PR-EDIT'), '--issue darf keinen PR-Body anfassen');
+		assert.ok(!log.includes('pulls/comments'), '--issue darf keine Inline-Review-Kommentare anfassen');
 	});
 });
 
