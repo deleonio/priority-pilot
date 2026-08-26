@@ -1,84 +1,56 @@
-# Issue 1034 / PR 1035 — Kreuzverhör (Review-Phase)
+# Issue 1034 / PR 1035 — Fixup-Nachweis (Kreuzverhör-Loop, Runde 2)
 
 ## Erledigt
 
-- MODUS bestimmt: kein `<!-- ai-review -->`-Marker in den PR-1035-Kommentaren gefunden →
-  Erstreview (Kreuzverhör), vollständiger Diff geprüft (`gh pr diff 1035`).
-- TITEL-GATE: Titel war deutsch/nicht Conventional-Commits-konform
-  („PWA-Update-/Offline-Hinweis: mobile Bedienbarkeit + beschreibende Texte (#1034)") →
-  umbenannt zu `feat(frontend): improve pwa update/offline prompt tap targets and copy`
-  (`gh pr edit 1035 --title …`).
-- Finding 1 (🟡, needs-fixup) als Inline-Review-Kommentar gepostet:
-  `frontend/src/app.css:1577` — `@media (max-width: 767px)` verstößt gegen die explizite
-  Mobile-First-Regel in `.ai-knowledge/project.md` (Zeile 61-64: Basis-Styles für schmalsten
-  Viewport, nur `min-width`-Aufwärtskaskade, kein `max-width`-Downgrade). Repo hat bereits an
-  Zeile 977 dasselbe Anti-Pattern (Präzedenzfall, aber kein Freifahrtschein für neue Instanzen).
-  Review gepostet über `gh api .../pulls/1035/reviews` (Review-ID `5026261217`, `event=COMMENT`).
-  **Fallstrick dabei:** `-f body=@/tmp/datei.txt` liest die Datei NICHT ein (anders als curl) —
-  Ergebnis war der literale String `@/tmp/review-body.txt` im Review-Body. Korrigiert per
-  `gh api --method PUT repos/.../pulls/1035/reviews/5026261217 -f body="…"` (Inline-String statt
-  `@file`). Der Inline-Kommentar selbst (via `-f "comments[][body]=$(cat datei.txt)"`) kam korrekt an.
-- KoliBri-Alternative geprüft: `mcp__kolibri-mcp__fetch spec/button` zeigt `kol-button` hat
-  `_inline` (Default `false`, erzwingt bereits ≥44px), aber **keine** `_block`/Vollbreiten-Prop
-  (anders als das unrelated `mcp__kern-mcp__get_button`, das ein `block`-Flag hat — anderes
-  Design-System, nicht das hier verwendete KoliBri). Eigenes CSS für `width: 100%` ist also
-  sachlich gerechtfertigt, nur Begründung im PR-Body fehlt (als Randnotiz im Sammelkommentar
-  vermerkt, kein eigenes Finding).
-- Sammelkommentar `<!-- ai-review -->` neu angelegt (`gh pr comment 1035 --body-file …`,
-  https://github.com/deleonio/priority-pilot/pull/1035#issuecomment-5419837914) mit Status
-  `needs-fixup`, Finding 1, Randnotiz, „Sonstiges"-Abschnitt (Tests/TDD-Trennung/Titel-Fix), Footer
-  `Review-Typ: Kreuzverhör`.
+- Modus bestimmt: `<!-- ai-review -->`-Marker war vorhanden (Kommentar-ID `5419837914`,
+  `updatedAt` 2026-08-26T02:42:56Z, Runde 1 = needs-fixup mit Finding 1) → MODUS = FIXUP-NACHWEIS.
+- Fixup-Diff seit `updatedAt` ermittelt: nur EIN Commit danach, `0a957e99`
+  (2026-08-26T02:47:52Z, `fix(frontend): mobile-first Media-Query für PWA-Update-Prompt (#1034)`).
+- `git show 0a957e99 -- frontend/src/app.css` geprüft: Finding 1 korrekt behoben — Basis-Styles
+  für `.update-prompt kol-card span[data-testid]` und `.update-prompt kol-card kol-button` jetzt
+  ohne Media-Query (mobile-first), `@media (min-width: 768px)` setzt Desktop-Kompaktdarstellung
+  zurück (`display: inline`/`inline-block`, `width: auto`, `min-height: 0`). Keine neuen Findings
+  im Fixup-Diff selbst — reine Media-Query-Richtungsumkehr, Selektoren/Werte sonst identisch.
+- Titel-Gate geprüft: `feat(frontend): improve pwa update/offline prompt tap targets and copy`,
+  70 Zeichen, `type(scope): subject`, Englisch, klein — konform, keine Umbenennung nötig.
+- Sammelkommentar (ID `5419837914`) per PATCH fortgeschrieben: Status `reviewed`, Finding 1 in
+  „✅ Behobene Anmerkungen"-Tabelle verschoben, „📋 Offene Findings" entfernt (leer), Footer
+  „Review-Typ: Fixup-Nachweis", `Updated: 2026-08-26`.
+- Verdict-Datei `/tmp/claude-verdict` mit `reviewed` beschrieben (letzte Aktion).
 
 ## Relevante Stellen
 
-- `frontend/src/app.css:1574-1587` — die neue Media-Query, Gegenstand von Finding 1.
-- `.ai-knowledge/project.md:56-70` — die verletzte Mobile-First-Konvention (min-width-Pflicht).
-- `frontend/src/app.css:977-981` — bestehender Präzedenzfall desselben Anti-Patterns (nicht Teil
-  dieses Diffs, nur als Kontext für die Begründung zitiert).
-- `docs/spec/issue-1034.md` „Test-Pflege-Bedarf" — bestätigt, dass die drei entfernten/angepassten
-  Tests in `UpdatePrompt.test.tsx` bereits in der Spec-Phase begründet waren (kein neuer Fund nötig).
+- `frontend/src/app.css:1573-1600` — die fixup-umgebaute Mobile-First-Regel, Gegenstand von Finding 1
+  (jetzt behoben).
+- PR #1035, Kommentar `5419837914` (https://github.com/deleonio/priority-pilot/pull/1035#issuecomment-5419837914) —
+  gepflegter Sammelkommentar.
 
 ## Annahmen
 
-- AK1 (375px) und AK3 (1280px, prüft nur `position`/`bottom` von `.update-prompt`, nicht die
-  Button-Breite) legen sich nicht auf eine Media-Query-Richtung fest — ein Umbau auf
-  Mobile-First (`min-width: 768px`-Override statt `max-width: 767px`-Regel) sollte beide e2e-Tests
-  unverändert grün lassen. **Nicht selbst verifiziert** (reiner Review, kein Code geändert) —
-  Fixup-Phase sollte das nach dem Umbau bestätigen.
+- Lokale Testergebnisse aus `.ai-memory/issue-1034-fixup.md` (Vitest 414/414 grün, e2e
+  `pwa-update-prompt.spec.ts` 7/7 grün) wurden übernommen/vertraut, NICHT selbst erneut
+  lokal ausgeführt (reiner Diff-Review laut Skill-Vorgabe, kein Code ausführen/ändern).
 
 ## Verworfen
 
-- Kein `needs-human`: Finding 1 ist eine reine CSS-Umbau-Frage (Mobile-First-Konvention), keine
-  Architektur-/Produktentscheidung — braucht keinen Menschen.
-- Kein eigenes Finding für die fehlende KoliBri-Begründung im PR-Body — nach Prüfung sachlich
-  gerechtfertigt (keine Vollbreiten-Prop vorhanden), nur als Randnotiz vermerkt.
-- Kein Finding zu `min-height: 44px` als „redundant" (KolButton `_inline=false` garantiert laut
-  Spec-Doku bereits ≥44px) — der PR-Body dokumentiert einen **live gelaufenen** e2e-Test (7/7
-  grün) vor UND wäre ohne die CSS-Regel rot gewesen (Spec: „Rot im Status quo"), also ist die
-  Regel empirisch nötig (Host-Element vermutlich nicht automatisch block-level/44px, nur das
-  Shadow-DOM-Innenelement) — nicht widerlegt, nicht als Finding aufgenommen.
+- Erneutes volles Kreuzverhör des Gesamt-PR-Diffs — MODUS war eindeutig FIXUP-NACHWEIS
+  (Marker vorhanden), Skill schreibt vor, nur Fixup-Diff seit `updatedAt` zu prüfen.
 
 ## Offen
 
-- Fixup zu Finding 1 steht aus (Mensch/Fixup-Agent muss `app.css` umbauen).
-- Scratch-Datei `.ai-memory/issue-1034-review-body-scratch.md` liegt im Working Tree (passt auf
-  `.gitignore`-Muster `.ai-memory/issue-*.md`, sollte nicht committed werden — analog zum
-  Fallstrick aus der Triage-Phase).
+- CI-Status zum Review-Zeitpunkt: `verify` grün, `e2e (1)`-`e2e (4)` und der `review`-Check
+  selbst waren noch **pending** (`gh pr checks 1035`, ca. 4 Min nach dem Fixup-Push). NICHT
+  abgewartet (Soft-Deadline-Nähe, kein Polling erlaubt). Content-Urteil ist unabhängig davon
+  reviewed; das Gate/Auto-Merge-Workflow (`pr-gate-merge.yml`) prüft CI separat vor
+  `ai:ready-to-merge` — laut Skill-Text ist das keine Blockade für den Kreuzverhör-Verdict.
 
 ## Nächster Schritt
 
-- Fixup-Runde: `frontend/src/app.css:1574-1587` auf Mobile-First (`min-width: 768px`-Override)
-  umstellen, danach `npx playwright test e2e/pwa-update-prompt.spec.ts` (AK1/AK3) erneut grün
-  bestätigen. Danach Folge-Review (FIXUP-NACHWEIS-Modus, da Marker jetzt existiert) nur den
-  Fixup-Diff seit `updatedAt` des Sammelkommentars prüfen.
+- Falls CI (`e2e 1-4`, `review`-Check) am Ende rot durchläuft: neue Fixup-Runde nötig, dann
+  wieder FIXUP-NACHWEIS-Modus mit `updatedAt` = 2026-08-26T02:51:47Z (neuer PATCH-Zeitstempel
+  dieser Runde) als Cutoff für den nächsten Diff-Scope.
 
 ## Fallstricke
 
-- `gh api ... -f body=@/tmp/datei` liest die Datei **nicht** ein wie bei curl — Ergebnis ist der
-  literale String. Für Review-Summary-Bodies entweder `-f body="$(cat datei)"` (Command-Substitution)
-  verwenden, oder nach dem Posten mit `gh api --method PUT .../reviews/<id> -f body="…"` korrigieren.
-  Bei `comments[][body]` (Array-Feld) funktionierte `$(cat …)` inline direkt korrekt.
-- `kern-mcp` und `kolibri-mcp` sind zwei unterschiedliche, unabhängige MCP-Server (KERN- vs.
-  KoliBri-Designsystem) — beim Prüfen von „gibt es eine native Vollbreiten-Prop" unbedingt
-  `mcp__kolibri-mcp__*` verwenden, nicht `mcp__kern-mcp__*` (letzteres hat ein `block`-Flag, das
-  aber zu einem anderen, hier nicht verwendeten Designsystem gehört und in die Irre führen kann).
+- Kein neuer Fallstrick in dieser Runde — reiner Verifikations-Durchlauf, Methode aus
+  Runde 1 (`.ai-memory/issue-1034-fixup.md`) hat unverändert funktioniert.
