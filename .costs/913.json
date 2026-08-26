@@ -3,12 +3,13 @@
 		"timestamp": "2026-08-19T18:07:15.207Z",
 		"tokensIn": 215931,
 		"tokensOut": 3128,
-		"cost": 0,
+		"cost": 0.050926,
 		"issueId": "913",
 		"phase": "documenter",
 		"model": "glm-4.7",
 		"provider": "zai",
 		"cacheCreationTokens": 0,
-		"cacheReadTokens": 159552
+		"cacheReadTokens": 159552,
+		"valueCost": 0.050926
 	}
 ]

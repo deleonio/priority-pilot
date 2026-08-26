@@ -3,24 +3,26 @@
 		"timestamp": "2026-08-23T19:51:04.702Z",
 		"tokensIn": 2091863,
 		"tokensOut": 30434,
-		"cost": 0,
+		"cost": 1.409626,
 		"issueId": "960",
 		"phase": "analyse",
 		"model": "glm-5.3",
 		"provider": "zai",
 		"cacheCreationTokens": 0,
-		"cacheReadTokens": 1953600
+		"cacheReadTokens": 1953600,
+		"valueCost": 1.409626
 	},
 	{
 		"timestamp": "2026-08-23T20:03:43.137Z",
 		"tokensIn": 2863777,
 		"tokensOut": 20444,
-		"cost": 0,
+		"cost": 1.315597,
 		"issueId": "960",
 		"phase": "implement",
 		"model": "glm-5.3",
 		"provider": "zai",
 		"cacheCreationTokens": 0,
-		"cacheReadTokens": 2806528
+		"cacheReadTokens": 2806528,
+		"valueCost": 1.315597
 	}
 ]

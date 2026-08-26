@@ -3,7 +3,7 @@
 		"timestamp": "2026-08-24T18:37:39.146Z",
 		"tokensIn": 2941895,
 		"tokensOut": 33469,
-		"cost": 0,
+		"cost": 1.86688,
 		"issueId": "993",
 		"phase": "analyse",
 		"model": "glm-5.3",
@@ -12,13 +12,13 @@
 		"cacheReadTokens": 2752512,
 		"sidechainTokens": 921372,
 		"turns": 48,
-		"valueCost": 3.159896
+		"valueCost": 1.86688
 	},
 	{
 		"timestamp": "2026-08-24T18:49:49.520Z",
 		"tokensIn": 2490369,
 		"tokensOut": 20428,
-		"cost": 0,
+		"cost": 1.400753,
 		"issueId": "993",
 		"phase": "implement",
 		"model": "glm-5.3",
@@ -26,13 +26,13 @@
 		"cacheCreationTokens": 0,
 		"cacheReadTokens": 2362368,
 		"turns": 28,
-		"valueCost": 2.331889
+		"valueCost": 1.400753
 	},
 	{
 		"timestamp": "2026-08-24T19:02:23.959Z",
 		"tokensIn": 1412411,
 		"tokensOut": 20461,
-		"cost": 0,
+		"cost": 0.825085,
 		"issueId": "993",
 		"phase": "review",
 		"model": "glm-5.3",
@@ -40,13 +40,13 @@
 		"cacheCreationTokens": 0,
 		"cacheReadTokens": 1362176,
 		"turns": 17,
-		"valueCost": 1.443788
+		"valueCost": 0.825085
 	},
 	{
 		"timestamp": "2026-08-24T19:25:52.168Z",
 		"tokensIn": 4033434,
 		"tokensOut": 22187,
-		"cost": 0,
+		"cost": 1.938812,
 		"issueId": "993",
 		"phase": "fixup",
 		"model": "glm-5.3",
@@ -54,13 +54,13 @@
 		"cacheCreationTokens": 0,
 		"cacheReadTokens": 3898880,
 		"turns": 44,
-		"valueCost": 3.176885
+		"valueCost": 1.938812
 	},
 	{
 		"timestamp": "2026-08-24T19:35:44.209Z",
 		"tokensIn": 660859,
 		"tokensOut": 9084,
-		"cost": 0,
+		"cost": 0.428104,
 		"issueId": "993",
 		"phase": "review",
 		"model": "glm-5.3",
@@ -68,13 +68,13 @@
 		"cacheCreationTokens": 0,
 		"cacheReadTokens": 621120,
 		"turns": 10,
-		"valueCost": 0.736355
+		"valueCost": 0.428104
 	},
 	{
 		"timestamp": "2026-08-24T19:39:50.102Z",
 		"tokensIn": 234908,
 		"tokensOut": 3127,
-		"cost": 0,
+		"cost": 0.08293,
 		"issueId": "993",
 		"phase": "documenter",
 		"model": "glm-4.7",
@@ -82,6 +82,6 @@
 		"cacheCreationTokens": 0,
 		"cacheReadTokens": 125760,
 		"turns": 4,
-		"valueCost": 0.137359
+		"valueCost": 0.08293
 	}
 ]
