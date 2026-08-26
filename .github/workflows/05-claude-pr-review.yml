@@ -243,7 +243,7 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number }}
         run: |
-          # Prompt liegt kanonisch in .claude/skills/review-kreuzverhoer/CI.md (Quelle fuer CI; Methode:
+          # Prompt liegt kanonisch in .github/prompts/review.md (Quelle fuer CI; Methode:
           # Skill .claude/skills/review-kreuzverhoer/SKILL.md). Snippet-Platzhalter ({{ISSUE_NR}}, {{PHASE}},
           # {{MEMORY_STATUS}}) werden erst NACH dem Anhaengen der Memory-Snippets substituiert.
           sed -e "s/{{PR_NR}}/${{ github.event.pull_request.number }}/g" \
@@ -251,7 +251,7 @@ jobs:
               -e "s/{{SUGGESTED_TYPE}}/${{ steps.facts.outputs.suggested_type || 'chore' }}/g" \
               -e "s/{{SUGGESTED_SCOPE}}/${{ steps.facts.outputs.suggested_scope || 'k.A.' }}/g" \
               -e "s/{{SOFT_DEADLINE}}/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" \
-              .claude/skills/review-kreuzverhoer/CI.md > /tmp/claude-prompt.txt
+              .github/prompts/review.md > /tmp/claude-prompt.txt
 
           # Memory-Snippets anhängen (Phase 5 = Review: restauriert + schreibt Review-Notizen;
           # {{ISSUE_NR}} aus dem Setup-Output, da dieser Workflow am PR hängt, nicht am Issue)

@@ -264,10 +264,10 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
-          # Prompt liegt kanonisch in .claude/skills/ticket-implementation/CI.md — dieselbe Ablage wie der
+          # Prompt liegt kanonisch in .github/prompts/implement.md — dieselbe Ablage wie der
           # Fixup-Prompt der Schwesterphase. Snippet-Platzhalter ({{ISSUE_NR}}, {{PHASE}},
           # {{MEMORY_STATUS}}) werden erst NACH dem Anhängen der Memory-Snippets substituiert.
-          cp .claude/skills/ticket-implementation/CI.md /tmp/claude-prompt.txt
+          cp .github/prompts/implement.md /tmp/claude-prompt.txt
 
           # Memory-Snippets anhängen (Phase 4: restauriert + schreibt). Vor den seds, damit
           # deren Platzhalter ({{ISSUE_NR}}/{{PHASE}}/{{MEMORY_STATUS}}) mit substituiert werden.

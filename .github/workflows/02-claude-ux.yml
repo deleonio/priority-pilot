@@ -124,7 +124,7 @@ jobs:
         run: |
           sed -e "s/{{ISSUE_NR}}/${{ needs.precheck.outputs.issue_number }}/g" \
               -e "s/{{SOFT_DEADLINE}}/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" \
-              .claude/skills/ticket-ux/CI.md > /tmp/claude-prompt.txt
+              .github/prompts/ux.md > /tmp/claude-prompt.txt
 
           # Memory-Snippets anhängen (Phase 2: restauriert + schreibt).
           cat .github/prompts/memory-read.md >> /tmp/claude-prompt.txt

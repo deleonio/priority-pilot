@@ -215,13 +215,13 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           PR: ${{ github.event.pull_request.number || github.event.inputs.pr-number }}
         run: |
-          # Prompt liegt kanonisch in .claude/skills/pr-documenter/CI.md (Quelle fuer CI + lokale
+          # Prompt liegt kanonisch in .github/prompts/documenter.md (Quelle fuer CI + lokale
           # Inspektion, analog ticket-spec/CI.md in Phase 3). Kein Inline-Heredoc mehr: der Vertrag
           # (doc.json-Schema, Mapping-Regeln) ist damit reviewbar ohne Workflow-Diff.
           {
             echo 'HINWEIS: Documenter ist Review-Tier — Code bleibt tabu, aber du SCHREIBST deine Phasen-Notiz (Details in den Memory-Abschnitten am Prompt-Ende).'
             echo
-            cat .claude/skills/pr-documenter/CI.md
+            cat .github/prompts/documenter.md
             cat .github/prompts/memory-read.md
             # Kein '>>' hier: der Block schreibt bereits nach /tmp/claude-prompt.txt, ein
             # zweiter Handle auf dieselbe Datei würde sich mit der äusseren Umleitung
