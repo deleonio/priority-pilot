@@ -64,6 +64,22 @@ inputs:
     description: 'Auto-compact threshold für Claude Code (z.B. "80k", "100k", "auto"). Leer = disabled.'
     required: false
     default: ''
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  # EFFORT-LEVEL (Thinking-Budget): --effort an Claude Code CLI übergeben.
+  #
+  # Extended Thinking zaehlt als OUTPUT-Preis ($75/M) und dominiert damit die
+  # Phasen-Kosten (~79% bei Triage-Runs). alwaysThinkingEnabled=true in
+  # .claude/settings.json gilt GLOBAL — der mechanische Documenter denkt
+  # genauso viel wie die Recherche-Triage. --effort stuft ab:
+  #   low    = triviale/mechanische Laeufe (Documenter, UX-Regelcheck)
+  #   medium = Handwerk mit klarem Weg (Spec, Fixup)
+  #   high   = Recherche/Urteil (Triage, Implement, Review)
+  # Leer = kein Flag (bisheriges Verhalten, settings.json-Default gilt).
+  # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  effort:
+    description: 'Effort-Level (Thinking-Budget) für diesen Lauf: low | medium | high | xhigh | max. Leer = kein Flag.'
+    required: false
+    default: ''
   # Memory-Funktionen für pro-Issue Persistenz (dateibasiert via STATE-BRANCH, ADR 0006).
   #
   # WARUM STATE-BRANCH STATT CACHE/ARTEFAKT: Der Actions-Cache ist für diese Pipeline
@@ -693,6 +709,7 @@ runs:
         CLAUDE_MODEL: ${{ inputs.model }}
         RESOLVED_MODEL: ${{ steps.provider.outputs.resolved-model }}
         COMPACT_TOKENS: ${{ inputs.compact-tokens }}
+        EFFORT_LEVEL: ${{ inputs.effort }}
       run: |
         echo "invoke-cmd=claude -p" >> "$GITHUB_OUTPUT"
 
@@ -719,6 +736,27 @@ runs:
           echo "::notice::Auto-Compaction explizit auf $COMPACT_TOKENS Tokens (override settings.json)."
         else
           echo "::notice::Auto-Compaction aktiviert (nutzt .claude/settings.json Default: auto, threshold 0.65)."
+        fi
+
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        # EFFORT-LEVEL (Thinking-Budget): --effort an die Invoke-Args anhaengen.
+        # Extended Thinking zaehlt als Output-Preis — ohne Abstufung denkt der
+        # mechanische Documenter auf demselben Niveau wie die Recherche-Triage.
+        # Leer = kein Flag (settings.json-Default gilt). Ungueltiger Wert = laut
+        # Abbruch (kein stiller Fallback).
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        EFFORT_FLAG=""
+        if [ -n "$EFFORT_LEVEL" ]; then
+          case "$EFFORT_LEVEL" in
+            low|medium|high|xhigh|max)
+              EFFORT_FLAG="--effort $EFFORT_LEVEL"
+              echo "::notice::Effort-Level: $EFFORT_LEVEL (Thinking-Budget)."
+              ;;
+            *)
+              echo "::error title=Ungueltiges effort::effort='$EFFORT_LEVEL' — erlaubt: low | medium | high | xhigh | max"
+              exit 1
+              ;;
+          esac
         fi
 
         # MCP-Server-Name spiegelt .mcp.json (kolibri-mcp); aktiv nur bei needs-mcp.
@@ -758,7 +796,7 @@ runs:
             # und review-Tier (Edit(path)-Globs), full nutzt weiter das klammerfreie
             # VOLLES_TOOLSET — wir quoten konsistent in allen drei Zweigen, damit ein späteres
             # Tool mit '(' in full nicht denselben Crash auslöst.
-            echo "invoke-args=$COMPACT_FLAG --allowedTools '$ALLOWED_TOOLS' $MODEL_FLAG" >> "$GITHUB_OUTPUT"
+            echo "invoke-args=$COMPACT_FLAG $EFFORT_FLAG --allowedTools '$ALLOWED_TOOLS' $MODEL_FLAG" >> "$GITHUB_OUTPUT"
             ;;
           review)
             # Vollzugriff auf Lesen/Ausführen, schreibgeschützt für Code — Review liest
@@ -769,13 +807,13 @@ runs:
             # die Allowlist hält Code schreibgeschützt UND Memory schreibbar zugleich.
             ALLOWED_TOOLS="Read,Glob,Grep,Bash,Edit(.ai-memory/*),Edit(.ai-memory/**)"
             [ "$NEEDS_MCP" = "true" ] && ALLOWED_TOOLS="$ALLOWED_TOOLS,$MCP_TOOLS"
-            echo "invoke-args=$COMPACT_FLAG --allowedTools '$ALLOWED_TOOLS' $MODEL_FLAG" >> "$GITHUB_OUTPUT"
+            echo "invoke-args=$COMPACT_FLAG $EFFORT_FLAG --allowedTools '$ALLOWED_TOOLS' $MODEL_FLAG" >> "$GITHUB_OUTPUT"
             ;;
           full)
             # Tier 2 — vollautonom (Bypass + volles Toolset inkl. Write/Edit).
             ALLOWED_TOOLS="$VOLLES_TOOLSET"
             [ "$NEEDS_MCP" = "true" ] && ALLOWED_TOOLS="$ALLOWED_TOOLS,$MCP_TOOLS"
-            echo "invoke-args=$COMPACT_FLAG --dangerously-skip-permissions --allowedTools '$ALLOWED_TOOLS' $MODEL_FLAG" >> "$GITHUB_OUTPUT"
+            echo "invoke-args=$COMPACT_FLAG $EFFORT_FLAG --dangerously-skip-permissions --allowedTools '$ALLOWED_TOOLS' $MODEL_FLAG" >> "$GITHUB_OUTPUT"
             ;;
           *)
             echo "::error title=Ungueltiges tools-tier::tools-tier='$TOOLS_TIER' — erlaubt: restricted | review | full"
