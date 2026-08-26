@@ -29,18 +29,18 @@ export const UpdatePrompt = () => {
 	return (
 		<div className="update-prompt">
 			{needRefresh && (
-				<KolCard _label="Update">
-					<p>Neue Version verfügbar</p>
+				<KolCard _label="Neue Version verfügbar">
+					<p>Priority Pilot wurde aktualisiert. Lade die App neu, um die neue Version zu nutzen.</p>
 					<span data-testid="pwa-update-reload" onClick={() => updateServiceWorker(true)}>
-						<KolButton _label="Neu laden" _variant="primary" />
+						<KolButton _label="Jetzt neu laden" _variant="primary" />
 					</span>
 				</KolCard>
 			)}
 			{offlineReady && (
-				<KolCard _label="Offline">
-					<p>App ist offline-bereit</p>
+				<KolCard _label="Offline einsatzbereit">
+					<p>Priority Pilot funktioniert ab jetzt auch ohne Internetverbindung.</p>
 					<span data-testid="pwa-offline-close" onClick={() => setOfflineReady(false)}>
-						<KolButton _label="Schließen" _variant="secondary" />
+						<KolButton _label="Verstanden" _variant="secondary" />
 					</span>
 				</KolCard>
 			)}

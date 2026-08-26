@@ -1571,6 +1571,21 @@ body {
 	pointer-events: auto;
 }
 
+/* Mobile-Bedienbarkeit (#1034): Aktionsbutton als volle-Breite-Tap-Fläche (WCAG 2.5.8,
+   Muster #996). Der native `<span>`-Klick-Wrapper (siehe UpdatePrompt.tsx) muss ebenfalls
+   Block-Level werden, sonst bleibt die Klickfläche trotz breitem Button schmal. */
+@media (max-width: 767px) {
+	.update-prompt kol-card span[data-testid] {
+		display: block;
+	}
+
+	.update-prompt kol-card kol-button {
+		display: block;
+		width: 100%;
+		min-height: 44px;
+	}
+}
+
 /* --- App-Fußzeile (#290) --- */
 .app-footer {
 	margin-top: var(--pp-gap-major);
