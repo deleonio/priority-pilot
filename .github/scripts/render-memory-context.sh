@@ -34,8 +34,8 @@ done
 # Deckel gegen Prompt-Explosion. Notizen liegen bei ~2-4 KB; sechs Phasen bleiben deutlich
 # darunter. Reisst eine Phase aus, wird sie gekappt statt den ganzen Lauf zu sprengen —
 # sichtbar, damit niemand still einen halben Kontext bekommt.
-max_total=48000
-max_file=12000
+max_total=20000
+max_file=8000
 
 printf '\n═══ KONTEXT AUS DEN VORHERIGEN PHASEN DIESES TICKETS ═══\n'
 printf 'Das folgende haben die Phasen vor dir hinterlassen. Es ist bereits geladen — du musst\n'
