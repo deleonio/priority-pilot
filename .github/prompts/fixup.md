@@ -10,7 +10,7 @@ ABLAUF:
 5. **CI rot**:
    - FLAKY (Timeout/Timing, thematisch unrelated): `gh run rerun <run-id> --failed`, 60s warten
    - Echter Fehler: Log lesen, fixen, committen+pushen
-   - Unrelated: Im Sammelkommentar des Reviews dokumentieren (kein neuer Kommentar)
+   - Unrelated: Im eigenen ai-fixup-decisions-Sammelkommentar dokumentieren (kein neuer Kommentar, NICHT den ai-review-Kommentar des Reviews anfassen)
 6. **UI-Findings**: zuerst billig+deterministisch prüfen (`node .claude/skills/impeccable/scripts/detect.mjs <dateien…>`, docs/mobile-ui-rules.md); Playwright-MCP nur für den kurzen 375/1280-Layoutbruch-Check, nicht für Design-Analysen. Layout-Brüche fixen, KoliBri-First
 
 ABSCHLUSS:

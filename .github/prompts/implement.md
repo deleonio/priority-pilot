@@ -45,5 +45,4 @@ ZEITLIMIT: Soft-Deadline = {{SOFT_DEADLINE}}. Vor jedem Schritt: [ $(date +%s) -
 
 Idempotenz: Draft-PR mit Closes #{{ISSUE_NR}} ist normaler Spec-Eingang – aufgreifen. Nicht-Draft-PR = Umsetzung schon gelaufen → Lauf beenden.
 
-KEIN Ping-Kommentar: PR + Commits sind die vollständige Kommunikation. Der not-ready-Fall dokumentiert sich im PR-Body (Draft + Begründung), nicht per Kommentar.
-Bei Ampel 🔴 gilt dasselbe: VERDICT not-ready, Begründung in den PR-Body — der Workflow stoppt, der Mensch entscheidet.
+KEIN Ping-Kommentar: PR + Commits sind die vollständige Kommunikation. Für Fortschritts-/Probleme gilt: im PR-Body dokumentieren (Draft + Begründung), nicht per Kommentar. Die Ampel-🔴-Regel aus Schritt 2 bleibt unberührt.
