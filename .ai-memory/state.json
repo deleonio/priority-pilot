@@ -29,6 +29,12 @@
       "runId": "32963730168",
       "branch": "feat/issue-1042-dashboard-start-button",
       "timestamp": "2026-08-26T11:32:12Z"
+    },
+    "fixup": {
+      "sessionId": "26d3afd3-e1c7-4a7c-a569-ebfbec3e6f69",
+      "runId": "32963270568",
+      "branch": "feat/issue-1042-dashboard-start-button",
+      "timestamp": "2026-08-26T11:34:05Z"
     }
   }
 }
