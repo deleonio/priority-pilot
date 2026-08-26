@@ -57,9 +57,10 @@ jobs:
     timeout-minutes: 5
     permissions:
       contents: read # lokale Action + Skript auschecken
-      issues: read
+      issues: write # Guete-Gate: Feedback-Kommentar + Label (ai:needs-human, ai:needs-analyse konsumieren)
     outputs:
       proceed: ${{ steps.check.outputs.proceed }}
+      quality_ok: ${{ steps.quality.outputs.ok || 'true' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -78,6 +79,47 @@ jobs:
           # (muss noch da sein = konsumiert wäre entfernt).
           trigger-label: ${{ github.event.action == 'labeled' && github.event.label.name || '' }}
 
+      - name: Issue-Güte-Gate (ohne LLM)
+        # AUTORITATIVES Gate vor jedem LLM-Lauf: Ein unstrukturiertes Ticket erzeugt
+        # eine ratende Analyse und teure needs-human-Runden (beobachtet an #1042).
+        # Die Pruefung ist rein mechanisch (Sekunden) — sie konsumiert den Trigger
+        # und parkt das Ticket beim Menschen, statt die Analyse raten zu lassen.
+        # Der Vorab-Check (00-issue-quality.yml) hat denselben Autor meist schon
+        # vorher informiert; hier ist die letzte Kontrollinstanz.
+        if: steps.check.outputs.proceed == 'true'
+        id: quality
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          OUT="$(mktemp)"
+          GITHUB_OUTPUT="$OUT" bash .github/scripts/verify-issue-quality.sh \
+            --repo "$GITHUB_REPOSITORY" \
+            --issue "${{ github.event.issue.number }}"
+
+          # Outputs der Hilfsdatei durchreichen (self-referenzierende
+          # steps.*.outputs sind im eigenen Step noch nicht materialisiert).
+          OK="$(sed -n 's/^ok=//p' "$OUT")"
+          echo "ok=${OK}" >> "$GITHUB_OUTPUT"
+          sed -n '/^details<<VERIFY_EOF$/,/^VERIFY_EOF$/p' "$OUT" \
+            | sed '1d;$d' > /tmp/quality-details.md
+
+          if [ "$OK" != "true" ]; then
+            bash .github/scripts/post-quality-feedback.sh \
+              --repo "$GITHUB_REPOSITORY" \
+              --issue "${{ github.event.issue.number }}" \
+              --ok false \
+              --details-file /tmp/quality-details.md \
+              --hint "Das Analyse-Label wurde entfernt. Nach der Überarbeitung wieder ai:needs-analyse setzen."
+            # Trigger konsumieren + beim Menschen parken (blockt alle Phasen,
+            # check-phase-label.sh kennt ai:needs-human als Stopp).
+            gh issue edit "${{ github.event.issue.number }}" --repo "$GITHUB_REPOSITORY" \
+              --remove-label "ai:needs-analyse" 2>/dev/null || true
+            gh label create "ai:needs-human" --color 5319e7 \
+              --description "Nicht-automatisierbare Entscheidung - wartet auf Mensch" 2>/dev/null || true
+            gh issue edit "${{ github.event.issue.number }}" --repo "$GITHUB_REPOSITORY" \
+              --add-label "ai:needs-human"
+          fi
+
   triage:
     needs: precheck
     # `result == 'failure'` ist FAIL-OPEN und beabsichtigt: das Skript fällt bei API-Fehlern
@@ -87,7 +129,8 @@ jobs:
     # erfüllt keine der beiden Klauseln und lässt den Hauptjob korrekt entfallen.
     if: >-
       ${{ always()
-          && (needs.precheck.outputs.proceed == 'true' || needs.precheck.result == 'failure') }}
+          && (needs.precheck.outputs.proceed == 'true' || needs.precheck.result == 'failure')
+          && needs.precheck.outputs.quality_ok != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -279,8 +322,11 @@ jobs:
           # Statt dann den kompletten Lauf (und die Token-Spende) wegzuwerfen, den Block aus
           # dem neuesten passenden Kommentar in den Body migrieren — modellunabhängige
           # Sicherheitsleine. hart-fail nur, wenn der Block WEDER im Body NOCH in einem
-          # Kommentar existiert.
-          if [ "$HAS_BLOCK" != "true" ]; then
+          # Kommentar existiert — AUSNAHME needs-human: Der Prompt verbietet seit dem
+          # Output-Disziplin-Umbau das Raten einer Analyse bei unklarer Aufgabenstellung;
+          # dort ist der ai-triage-decision-Kommentar das Artefakt (weiter unten erzwungen),
+          # ein Analyse-Block existiert bewusst nicht. Rot wäre ein falscher Alarm.
+          if [ "$HAS_BLOCK" != "true" ] && [ "$verdict" != "needs-human" ]; then
             BLOCK_FROM_COMMENT="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json comments -q \
               '[.comments[] | select(.body | test("KI-ANALYSE:START"))] | last | .body // ""' 2>/dev/null || true)"
             if [ -n "$BLOCK_FROM_COMMENT" ]; then
