@@ -163,7 +163,7 @@ jobs:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
           ISSUE: ${{ github.event.issue.number }}
         run: |
-          cp .claude/skills/ticket-triage/CI.md /tmp/claude-prompt.txt
+          cp .github/prompts/triage.md /tmp/claude-prompt.txt
 
           # Memory-Snippets anhängen (Read + Write: Erst-Triage startet mit leerem Memory,
           # Re-Triage setzt anhand des restaurierten Standes fort; vor den seds, damit

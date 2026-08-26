@@ -64,4 +64,4 @@ Diese Stufe ist die **Gewaltenteilung** der TDD-Strategie (Stufe 3, siehe [tdd-s
 - Dieser Workflow schreibt **nur Tests**, **keinen** Produktivcode (das ist die bewusste Gewaltenteilung).
 - **Bearbeitung durch `/team*`:** Lokal/per Command kann das Multi-Agent-Team die Spec übernehmen. In GitHub Actions läuft die Spec als eigener headless Lauf (`spec.yml`) — getrennt vom Umsetzungs-Lauf.
 - Greift die Analyse ein Issue bewusst **nicht** auf 🟢 (🟡/🔴), gibt es keinen Phasen-Trigger — dann entscheidet der Mensch.
-- **CI-Mechanik** (VERDICT-Zeilen, Soft-Deadline, Label-Verbot) ist headless-only und ausschließlich in der [CI.md](CI.md) geregelt.
+- **CI-Mechanik** (VERDICT-Zeilen, Soft-Deadline, Label-Verbot) ist headless-only und ausschließlich in der [.github/prompts/spec.md](.github/prompts/spec.md) geregelt.
