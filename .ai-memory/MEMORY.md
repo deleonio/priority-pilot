@@ -166,4 +166,4 @@ Konflikte, die er verhindern soll.
   Working Directory beschränkt, Schreiben nach `/tmp` wird abgelehnt. → Body-Text per `Write` in
   eine Datei UNTERHALB des Repos ablegen, die auf ein bestehendes `.gitignore`-Muster passt (z. B.
   `.ai-memory/issue-<N>-*.md`), danach `gh issue edit --body-file <pfad>` (analog für PR-Bodies).
-- 2026-08-26 · CI-Shell — awk `gsub()` auf einem Feld ($2) baute $0 mit OFS neu auf, die Markdown-Pipes verschwanden und das Nachparsen der Zeile lieferte leer. → Felder in EINEM awk-Durchlauf extrahieren und per printf ausgeben, die Zeile nie zwischenspeichern und二次 parsen.
+- 2026-08-26 · CI-Shell — awk `gsub()` auf einem Feld ($2) baute $0 mit OFS neu auf, die Markdown-Pipes verschwanden und das Nachparsen der Zeile lieferte leer. → Felder in EINEM awk-Durchlauf extrahieren und per printf ausgeben, die Zeile nie zwischenspeichern und spaeter erneut parsen.
