@@ -1,0 +1,73 @@
+name: 🎫 Ticket
+description: Aufgabe oder Fehler — strukturiert, damit die KI-Pipeline direkt arbeiten kann
+labels: []
+body:
+  # Zwangsführung ohne Überbordung: Genau EIN Pflichtfeld pro Facette.
+  # Die Prüfpunkte decken sich 1:1 mit .github/scripts/verify-issue-quality.sh —
+  # ein Feld hier ohne Prüfung dort wäre Deko, eine Prüfung ohne Feld wäre unfair.
+
+  - type: markdown
+    attributes:
+      value: |
+        **Kurz halten.** Ein Feld, ein Satz / ein Punkt pro Zeile. Konkret schreiben,
+        was beobachtet wird und was stattdessen erwartet wird — keine Lösungsvorschläge,
+        keine Hintergrundgeschichten. Die Analyse-Phase ergänzt Kontext selbst.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Was ist das Problem?
+      description: Beobachtetes Verhalten in einem Satz. Was passiert, wo, für wen?
+      placeholder: Auf dem Smartphone ist der Speichern-Button im Formular X so schmal, dass man ihn kaum trifft.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Was soll stattdessen passieren?
+      description: Erwartetes Verhalten in einem Satz — vom außen beobachtbar, nicht als technische Lösung.
+      placeholder: Der Button ist auf Mobil mindestens 44px hoch und über die volle Breite erreichbar.
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Wo tritt es auf?
+      description: Ein Ort pro Zeile — Seite, Komponente, Datei oder Endpunkt, sofern bekannt.
+      placeholder: |
+        frontend/src/components/TicketForm.tsx
+        Einstellungen → Push-Benachrichtigungen
+    validations:
+      required: true
+
+  - type: textarea
+    id: criteria
+    attributes:
+      label: Wann ist es gelöst?
+      description: Mindestens ein prüfbarer Punkt pro Zeile. „Funktioniert" ist keins — was genau ist nach dem Fix anders?
+      placeholder: |
+        Bei 375px Breite füllt der Button die Formularbreite
+        Der Button bleibt per Tastatur bedienbar
+    validations:
+      required: true
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Art
+      options:
+        - Bug (etwas kaputt)
+        - Änderung (Verhalten anpassen)
+        - Neu (etwas fehlt)
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Screenshots / weitere Hinweise (optional)
+      description: Was immer hilft — optional, gern leer lassen.
+    validations:
+      required: false
