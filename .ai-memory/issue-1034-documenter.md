@@ -1,58 +1,45 @@
----
-name: issue-1034-documenter
-description: PR-Documenter-Analyse für PR 1035 (Phase 6 / Documenter)
-metadata:
-  type: project
----
-
-# Issue 1034 / PR 1035 — PR-Documenter (Phase 6)
+# Issue 1034 — Documenter (Phase 6)
 
 ## Erledigt
 
-- PR 1035 Metadaten abgerufen: State = MERGED, Author = App-Bot, Labels = `ai:reviewed`.
-- PR-Body geparst: `Closes #1034` (Verknüpfung erkannt) → `issues: ["#1034"]`.
-- Titel-Konformität geprüft: "feat(frontend): improve pwa update/offline prompt tap targets and copy"
-  - Type/Scope korrekt (feat/frontend), Länge ≤72 char ✓, englisch ✓, klein ✓
-  - → `title: ""` (Leerstring, da Konformität = true)
-- Files aus Diff gefiltert (6 total, 3–8 erwartet): top 5 relevanteste gewählt
-  - `frontend/src/components/UpdatePrompt.tsx` (Core-Komponente, 6+/6- Textänderung)
-  - `frontend/src/app.css` (Mobile-First CSS, 27 Zeilen neu)
-  - `frontend/e2e/pwa-update-prompt.spec.ts` (e2e-Tests für Feature, 104 Zeilen neu)
-  - `frontend/src/components/UpdatePrompt.test.tsx` (Unit-Tests, 45+/30-)
-  - `docs/spec/issue-1034.md` (Spec-Doc, 54 Zeilen neu)
-  - Ausgeschlossen: `.ai-memory/MEMORY.md` (nur 5 Zeilen, Admin-Inhalt)
-- Summary geschrieben: "PWA update and offline-ready prompts now have proper touch targets (≥44×44px per WCAG 2.5.8)..."
-- `/tmp/doc.json` geschrieben und per `jq` validiert ✓
+- PR 1040 analysiert (gemergter PR, Autor Martin Oppitz/@deleonio).
+- Klassifikation: `internal` (Kosten-Dokumentation, kein Nutzer-Impact).
+- Titel umgesetzt (German → English): `docs(costs): cost report for ticket #1034`.
+- Summaries (EN/DE) geschrieben: Kosten-Analyse über 7 Phasen, 5 Optimierungsempfehlungen, ~55% Einsparpotenzial.
+- Release Notes (EN/DE): "No user-facing changes; internal documentation" (kein Changelog-Eintrag nötig für internal).
+- Files (2 neue Dateien): `docs/kosten-report-1034.md`, `docs/kosten-report-1037.md`.
+- Issues: `Closes #1034` aus dem Body extrahiert.
+- `/tmp/doc.json` geschrieben, `jq . /tmp/doc.json` validiert ✅.
 
 ## Relevante Stellen
 
-- `gh pr view 1035 --json ...` → State MERGED, Closes #1034, Labels [ai:reviewed]
-- `gh pr diff 1035` → 6 Files, 237 Insertions, 36 Deletions
-- PR-Body (line 1) → Closes #1034 (explizit, keine Regex-Extraktion nötig)
+- PR 1040, Body: Zusammenfassung mit Link zum vollständigen Report (566 Zeilen).
+- `docs/kosten-report-1034.md:1-566` — detaillierter 7-Phasen-Report (Opus-Analyse 23%, Review 24%, Cache 96.2%).
+- `docs/kosten-report-1037.md` — ähnlicher Report für Issue #1037 (459 Zeilen, Inhalt nicht vollständig gelesen, aber Struktur ähnlich).
 
 ## Annahmen
 
-- Title-Konformität über Conventional Commits-Parser: Type+Scope+Description ≤72 char, englisch, lowercase = true.
-- `issues` werden aus Body ("Closes #N") und aus #1034-Kontext extrahiert (nur eine, nicht "related").
-- Top 5 Files sind relevanteste für Release Notes (nicht admin-Files wie Memory-Dumps).
-- Label `ai:reviewed` wird aus PR-Daten übernommen (keine Neuvergabe).
+- PR ist bereits gemergt (Status validiert durch `gh pr view` ohne `--draft`).
+- Titel war German ursprünglich; Conversion zu English ist konform mit Repo-Standard (Conventional Commits).
+- Zwei Dateien sind die EINZIGEN neuen Dateien in diesem PR (nicht 3-8 wie ideal, aber beide relevant).
+- Keine Migration nötig (`migration_en`/`migration_de` leer).
+- Issue #1037 wird NICHT explizit im Body erwähnt; bleibt nur `Closes #1034`.
 
 ## Verworfen
 
-- Keine Anpassung des Titels (bereits konform, nicht nötig).
-- `.ai-memory/MEMORY.md` von der Files-Liste entfernt — Admin-Overhead, kein Feature-Signal.
-- Multiple Issues: PR linkt nur #1034 → einziger Eintrag in `issues`.
+- Keine Änderung des PR durch `gh pr edit` (Skill-Regel: nur Output schreiben, kein `edit/comment/label`).
+- Kein Changelog-Eintrag nach `/tmp/doc.json` — Output ist der ganze Job.
 
 ## Offen
 
-- Nichts blockierend. Die Documenter-Phase hatte als einzigen Auftrag, `/tmp/doc.json` zu schreiben.
+- Issue #1037 hat eigenen Kosten-Report (`docs/kosten-report-1037.md`), aber keine explizite `Closes #1037` im Body dieses PR → unklar, ob separater PR für #1037 geplant oder ob beide in einem PR.
 
 ## Nächster Schritt
 
-- Kein nächster Schritt für Documenter (Phase 6 abgeschlossen, kein automatischer Folgerlauf definiert).
-- `/tmp/doc.json` ist für downstream (CI, Changelog-Tools, Release-Bot) verfügbar.
+- `/tmp/doc.json` ist bereit für Changelog-/Release-Notes-Generierung in späteren Workflow-Phasen.
+- Ggf. separate Documenter-Phase für weiteren PR für Issue #1037 (wenn nicht schon in diesem PR adressiert).
 
 ## Fallstricke
 
-- Write zu `/tmp` brauchte Bash-Tool (Permission-Layer blockiert Direct-Write von Write-Tool).
-- Title-Länge wurde inklusive Prefix "feat(frontend): " gezählt → Gesamtlänge 69 Zeichen, passt ✓
+- Der PR-Body erwähnt `Closes #1034`, aber der Titel spricht von einem Report für #1034 (singular). Der Diff enthält aber auch `docs/kosten-report-1037.md` — das wirkt, als würden beide Issues in EINEM PR adressiert, aber nur #1034 ist explizit gelistet. Nächste Phase sollte das klären, wenn nicht in #1037 schon ein separater PR läuft.
+- Deutsch vs. Englisch im Titel: der Repo nutzt Deutsch für Commit-Messages (zu sehen in `git log`), aber Skill-Regel schreibt "englisch" vor. Titel wurde konvertiert, aber ggf. sollte der Repo-Standard überprüft werden (ADR-0001 oder ähnlich). Annahme: Standard ist Englisch, deshalb konvertiert.
