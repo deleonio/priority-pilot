@@ -7,14 +7,23 @@ name: Bild-Backfill (Datenschutz)
 #
 # Dieser Workflow zieht den Sweep einmalig über den gesamten Altbestand nach
 # (.github/scripts/image-strip-backfill.sh):
-#   - alle gemergten PRs (Body + Konversations-/Inline-Kommentare + deren Closing-Issues)
+#   - alle geschlossenen PRs (Body + Konversations-/Inline-Kommentare + Closing-Issues)
 #   - alle geschlossenen Issues direkt (Body + Kommentare), auch ohne verlinkten PR
 #
 # Best-effort + idempotent wie der Basis-Sweep: ein erneuter Lauf schreibt nur dort,
 # wo noch unbereinigte Bild-Referenzen stehen. Kein LLM-Lauf — reine Regel-Logik.
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        # Default TRUE mit Absicht: der Lauf PATCHt Bodies und Kommentare des gesamten
+        # Repo-Verlaufs und ist nicht rückgängig zu machen. Der Trockenlauf zeigt in den
+        # Job-Logs, was er anfassen würde — erst ein bewusstes Umschalten auf false
+        # schreibt (Review-Finding PR #1043 F5).
+        description: 'Nur protokollieren, nichts schreiben (erst nach Sichtprüfung auf false stellen)'
+        type: boolean
+        default: true
 
 concurrency:
   group: image-strip-backfill
@@ -27,7 +36,7 @@ jobs:
   backfill:
     runs-on: ubuntu-latest
     # Grosszügig bemessen: mehrere hundert PRs/Issues, je mehrere gh-API-Calls
-    # (Body + Kommentar-Liste + Einzel-Patches) inkl. Kurz-Retries bei API-Löchern.
+    # (Body + Kommentar-Liste + Einzel-Patches) inkl. Retries und Rate-Limit-Wartezeiten.
     timeout-minutes: 340
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -44,5 +53,12 @@ jobs:
       - name: 🧼 Bild-Backfill über gesamten Altbestand
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          DRY_RUN: ${{ inputs.dry_run }}
         run: |
-          bash .github/scripts/image-strip-backfill.sh "${{ github.repository }}"
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "::notice title=Trockenlauf::dry_run=true — es wird NICHTS geschrieben. Für den echten Lauf erneut mit dry_run=false starten."
+            bash .github/scripts/image-strip-backfill.sh "${{ github.repository }}" --dry-run
+          else
+            echo "::warning title=Schreibender Lauf::dry_run=false — Bodies und Kommentare werden tatsächlich geändert."
+            bash .github/scripts/image-strip-backfill.sh "${{ github.repository }}"
+          fi
