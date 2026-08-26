@@ -41,6 +41,7 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
   Beispiel: Der Push-Schalter flackerte beim Seitenwechsel, weil sein Zustand nur async ermittelbar
   war — behoben mit einem localStorage-Spiegel nach dem Muster der Nachbar-Switches
   (`frontend/src/lib/push.ts`, ~15 Zeilen am vorhandenen Hook statt eines neuen Mechanismus).
+- **Muster-Treue:** Reproduktion, Erweiterung und Adaption setzen das vorhandene Muster einheitlich fort — gleiche Struktur, Namen, Ablagen und Style wie der Nachbar-Code ([Konventionen](.ai-knowledge/project.md#konventionen)). Kein zweites Muster für dasselbe Problem; wer bewusst abweicht, begründet es im PR und führt die Abweichung konsequent überall durch. Nur so bleiben Muster langfristig nachvollziehbar, pflegbar, review- und refaktorierbar.
 - **KoliBri-First:** Komponenten nur selbst stylen, wenn keine KoliBri-Komponente passt
   (Shadow-Web-Components; Shadow-DOM-CSS ist unpublizierte API).
 - Monorepo mit **pnpm**; TypeScript `strict`, ESM überall, Node `>=26`.
