@@ -297,6 +297,7 @@ export const LlmSettings = ({ onChanged }: LlmSettingsProps) => {
 				<p className="llm-provider-admin__heading">Provider verwalten</p>
 				<KolButton
 					_label="Neuer Provider"
+					class="settings-action-btn"
 					_variant="secondary"
 					_on={{ onClick: () => setDialog({ kind: 'create' }) }}
 				/>
@@ -315,6 +316,7 @@ export const LlmSettings = ({ onChanged }: LlmSettingsProps) => {
 								<span className="llm-provider-admin__actions">
 									<KolButton
 										_label={testingId === provider.id ? 'Testen…' : 'Testen'}
+										class="settings-action-btn"
 										_variant="secondary"
 										_disabled={testingId !== null}
 										_on={{ onClick: () => void handleTest(provider) }}
@@ -323,12 +325,14 @@ export const LlmSettings = ({ onChanged }: LlmSettingsProps) => {
 										<>
 											<KolButton
 												_label="Bearbeiten"
+												class="settings-action-btn"
 												_variant="secondary"
 												_on={{ onClick: () => setDialog({ kind: 'edit', provider }) }}
 											/>
 											<KolButton
 												ref={provider.id === providers.at(-1)?.id ? deleteTriggerRef : undefined}
 												_label="Löschen"
+												class="settings-action-btn"
 												_variant="danger"
 												_on={{ onClick: () => setDialog({ kind: 'delete', provider }) }}
 											/>
