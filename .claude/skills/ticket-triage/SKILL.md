@@ -92,18 +92,6 @@ Bei einem zu großen Ticket:
 - Die Analyse als markierten **Block in den Issue-Body** schreiben:
   ```
   <!-- KI-ANALYSE:START stand=YYYY-MM-DDTHH:MM:SSZ -->
-  ### UI-Bezug
-  - UI-Bezug: ja|nein
-  - Begründung: <kurz>
-
-  ### Spec
-  - Spec nötig: ja|nein
-  - Begründung: <bei „nein" PFLICHT>
-
-  ### Aufwandsklasse
-  - Aufwandsklasse: haiku|sonnet|opus
-  - Begründung: <woran der Aufwand hängt>
-
   ### Umsetzungskontext
   - Betroffene Dateien: `pfad/a.ts`, `pfad/b.ts`
   - Betroffene Komponenten: <Funktion/Klasse/Endpunkt/Custom-Element>
@@ -124,9 +112,28 @@ Bei einem zu großen Ticket:
   ### ❓ Offene Fragen
   - [ ] <Frage>
   <!-- KI-ANALYSE:END -->
+
+  <!-- ai-phase-routing:START -->
+  | Phase | Run | Modell | Effort |
+  | --- | --- | --- | --- |
+  | ux | ja|nein | haiku|sonnet|opus | low|medium|high |
+  | spec | ja|nein | haiku|sonnet|opus | low|medium|high |
+  | impl | ja | haiku|sonnet|opus | low|medium|high |
+  | review | ja | haiku|sonnet|opus | low|medium|high |
+  <!-- ai-phase-routing:END -->
   ```
-  - **`Spec nötig` steuert, ob die Spec-Phase läuft.** Übersprungen wird nur bei Tickets **ohne Anwendungscode**.
-  - **`Aufwandsklasse` steuert das Modell der Folgephasen.** Der Workflow setzt daraus `ai:model:<klasse>`.
+  - **Die Routing-Tabelle ist die EINE Steuerung für alle Folgephasen** (ADR-0004,
+    konsequent analysgetrieben): Run-Spalte = Phasen-Trigger (UX-Label, Spec-Skip),
+    Modell+Effort = Phase-Setup. Bei `Run: nein` Modell/Effort als `-` setzen.
+  - **Pflichtwerte:** `impl` und `review` laufen IMMER (`Run: ja` — review ist das
+    Merge-Gate). `ux` läuft bei UI-Bezug, `spec` entfällt nur bei Tickets **ohne
+    Anwendungscode** (Begründung dann im Analyse-Block unter „Umsetzungskontext").
+  - **Kompatibilität:** Das Modell der `impl`-Zeile setzt der Workflow zusätzlich als
+    `ai:model:<klasse>`-Label (manueller Override-Weg, Auto-Eskalation bei
+    Review-Schleifen bleibt wirksam).
+  - Tabelle und Analyse-Block gehören zusammen: bei Re-Triage BEIDE neu schreiben.
+    ASCII ohne Umlaute/typografische Anführungszeichen — die Tabelle wird maschinell
+    gelesen (`resolve-phase-routing.sh`).
   - `stand` = ISO-8601 UTC, bei **jedem** Schreiben neu setzen: `date -u +%Y-%m-%dT%H:%M:%SZ`.
   - Schreiben via `gh issue edit <nr> --body-file -` mit Heredoc.
 
@@ -142,7 +149,9 @@ Pro Lauf **einen kurzen Ping-Kommentar** (`gh issue comment`):
 - Label `ai:analysed` setzen: `gh issue edit <nr> --add-label "ai:analysed"`
 - **Uneindeutige Aufgabenstellung → `ai:needs-human` statt einer geratenen Analyse.** Postet **genau einen** Kommentar, dessen erste Zeile exakt `<!-- ai-triage-decision -->` lautet, gefolgt von **Was zu entscheiden ist / Optionen / Empfehlung**.
 - **Phasen-Trigger nach der Ampel:**
-  - **🟢 grün →** zusätzlich den Folge-Trigger setzen: `ai:needs-ux-ui` bei UI-Bezug; sonst `ai:needs-spec`; sonst — wenn `Spec nötig: nein` die Prüfung besteht — direkt `ai:needs-impl`.
+  - **🟢 grün →** zusätzlich den Folge-Trigger setzen — gemäß Routing-Tabelle:
+    `ux: ja` → `ai:needs-ux-ui`; sonst `spec: ja` → `ai:needs-spec`; sonst — wenn die
+    `spec`-Zeile `nein` steht (Ticket ohne Anwendungscode) — direkt `ai:needs-impl`.
   - **🟡 gelb / 🔴 rot →** **keinen** Phasen-Trigger setzen. Trägt ein Issue beim **Re-Triage** bereits einen Phasen-Trigger, ihn **automatisch entfernen**.
 
 ## Schritt 6 — Autonomes Schließen (wenn Anforderungen bereits erfüllt)

@@ -92,6 +92,18 @@ jobs:
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
           echo "soft_deadline_epoch=$((now + 600))" >> "$GITHUB_OUTPUT"
 
+      - name: Phasen-Routing aus ai-phase-routing-Tabelle
+        # Modell+Effort je Phase aus der analysgetriebenen Tabelle am Issue (ADR-0004).
+        # Fail-open: Keine Tabelle/Zeile -> leere Outputs -> die Defaults unten greifen.
+        id: routing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bash .github/scripts/resolve-phase-routing.sh \
+            --repo "$GITHUB_REPOSITORY" \
+            --issue "${{ needs.precheck.outputs.issue_number }}" \
+            --phase ux || true
+
       - name: Setup Claude Code (mit Memory-Load)
         id: setup
         uses: ./.github/actions/setup-claude
@@ -104,8 +116,9 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
           llm-provider: ${{ vars.LLM_PROVIDER }}
-          model: ${{ vars.CLAUDE_MODEL_UX || 'haiku' }}
-          effort: 'low'
+          # vars.* = manueller Not-Override; sonst Tabelle; sonst bewährter Default.
+          model: ${{ vars.CLAUDE_MODEL_UX || steps.routing.outputs.model || 'haiku' }}
+          effort: ${{ steps.routing.outputs.effort || 'low' }}
           zai-api-key: ${{ secrets.ZAI_API_KEY }}
           claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
           openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}

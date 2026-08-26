@@ -245,23 +245,22 @@ jobs:
             fi
             echo "UI-Bezug aus Analyse: '${UI_BEZUG:-nicht gefunden}'"
 
-            # Aufwandsklasse aus dem Block parsen — sie steuert das Modell der Folgephasen
-            # (resolve-model-label.sh liest das daraus gesetzte ai:model:*-Label).
-            # Gleiche Robustheit wie beim Verdict: grep -oE nimmt den ersten bekannten
-            # Wert — Markdown-Dekoration ("**haiku**") und Prosa dahinter sind egal.
-            KLASSE=""
-            KLASSE_LINE="$(printf '%s' "$BODY" | grep -iE "Aufwandsklasse:" | head -1 || true)"
-            if [ -n "$KLASSE_LINE" ]; then
-              KLASSE="$(printf '%s' "$KLASSE_LINE" | sed -E 's/^.*[Aa]ufwandsklasse:[[:space:]]*//' | grep -oE 'haiku|sonnet|opus' | head -1 || true)"
-            fi
+            # Aufwandsklasse = Modell der impl-Zeile aus der ai-phase-routing-Tabelle
+            # (die EINE analysgetriebene Steuerung, ADR-0004; resolve-model-label.sh
+            # liest das daraus gesetzte ai:model:*-Label).
+            # Parselogik deckungsgleich mit resolve-phase-routing.sh (Feld $4 der
+            # Markdown-Zeile, Whitespace entfernt) — BODY liegt hier bereits vor,
+            # deshalb inline statt Script-Call (kein zweiter API-Roundtrip).
+            KLASSE="$(printf '%s' "$BODY" | sed -n '/ai-phase-routing:START/,/ai-phase-routing:END/p' \
+              | awk -F'|' '/^\|[[:space:]]*impl[[:space:]]*\|/ { m=$4; gsub(/[ \t]/, "", m); print m; exit }')"
             case "$KLASSE" in
               haiku|sonnet|opus) ;;
-              # Kein stiller Fallback auf haiku: eine geratene Klasse wäre genau das
-              # Verhalten, gegen das die Modellwahl antritt. Leer lassen — die Folgephase
-              # bricht dann ab und parkt mit Begründung beim Menschen (resolve-model).
-              *) [ -n "$KLASSE" ] && echo "::warning title=Aufwandsklasse::Unbekannter Wert '${KLASSE}' — ignoriert."; KLASSE="" ;;
+              # Kein stiller Fallback: eine geratene Klasse wäre genau das Verhalten,
+              # gegen das die Modellwahl antritt. Leer lassen — die Folgephase bricht
+              # dann ab und parkt mit Begründung beim Menschen (resolve-model).
+              *) [ -n "$KLASSE" ] && echo "::warning title=Aufwandsklasse::Unbekannter Wert '${KLASSE}' aus Routing-Tabelle — ignoriert."; KLASSE="" ;;
             esac
-            echo "Aufwandsklasse aus Analyse: '${KLASSE:-nicht gefunden}'"
+            echo "Aufwandsklasse aus Routing-Tabelle (impl-Zeile): '${KLASSE:-nicht gefunden}'"
 
             # Spec nötig? Entscheidung liegt in resolve-spec-skip.sh (dort getestet), nicht
             # hier inline: Sie prüft die Selbstauskunft der Analyse gegen die deklarierten

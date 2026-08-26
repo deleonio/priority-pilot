@@ -157,12 +157,26 @@ Subagent-Calls. Wer beides vermeiden will, setzt `CLAUDE_CODE_SUBAGENT_MODEL` in
 `vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI` auf `glm-4.7` oder `glm-5.3[1m]` — dann ist der
 Peak-Fallback praktisch rein defensiv.
 
+### Modell-Routing je Phase (ai-phase-routing-Tabelle)
+
+Die Triage schreibt neben dem Analyse-Block eine Routing-Tabelle in den Issue-Body
+(Marken `<!-- ai-phase-routing:START/END -->`): je Phase ux/spec/impl/review die Spalten
+Run (ja/nein), Modell (haiku/sonnet/opus) und Effort (low/medium/high). `impl` und `review`
+laufen immer; die Run-Spalte dokumentiert dieselbe Entscheidung wie die Label-Kette.
+
+**Vorrang:** Tabelle > `ai:model:*`-Label > Workflow-Default (`vars.CLAUDE_MODEL_*` bleibt
+manueller Not-Override). `resolve-phase-routing.sh` liest die Tabelle (am Issue; bei PRs über
+das Closing-Issue) und ist fail-open: fehlt sie oder ist eine Zeile ungültig, gelten Label bzw.
+Defaults unverändert — ein Tippfehler des LLM parkt die Pipeline nie. Details: ADR 0004.
+
 ### Modell-Allowlist & Freigabe neuer Modelle
 
 Pipeline-Phasen laufen nur mit erprobten Modell-Aliassen. Ein `ai:model:<alias>`-Label
-mit unbekanntem Alias bricht im **Precheck** ab (04/05: `resolve-model-label.sh`) statt
-halb erfüllte Prompt-Verträge im Lauf zu hinterlassen — die Lektion aus PR #903, wo ein
-Free-Modell nur die `VERDICT:`-Zeile lieferte und die Begründungs-Kommentare übersprang.
+mit unbekanntem Alias bricht im **Precheck** ab (04/05: `resolve-model-label.sh`, nur noch
+Fallback-Pfad ohne Routing-Tabelle) statt halb erfüllte Prompt-Verträge im Lauf zu
+hinterlassen — die Lektion aus PR #903, wo ein Free-Modell nur die `VERDICT:`-Zeile lieferte
+und die Begründungs-Kommentare übersprang. Dieselbe Allowlist gilt für die
+Modell-Spalte der Routing-Tabelle.
 
 **Geltende Allowlist:** `fable | opus | sonnet | haiku`
 

@@ -13,11 +13,11 @@
 # überflüssiger Spec-Lauf kostet Token, ein fälschlich übersprungener kostet den Vertrag,
 # auf dem die Umsetzung aufsetzt. Die teurere Richtung ist die sichere.
 #
-# WARUM NICHT ALLEIN AUF DIE LLM-ANGABE VERTRAUEN: „Spec nötig: nein" ist eine Selbstauskunft
-# der Analyse. Das Konzept verlangt ausdrücklich, dass der Skip nicht zum bequemen Default
-# wird. Deshalb wird die Angabe gegen die im selben Block deklarierten „Betroffene Dateien"
-# geprüft: Sobald ein Pfad in Anwendungscode zeigt, gilt die Spec als nötig — egal was das
-# Feld sagt. Der Skip ist damit technisch begrenzt, nicht nur per Prompt.
+# WARUM NICHT ALLEIN AUF DIE LLM-ANGABE VERTRAUEN: „spec: nein" in der Routing-Tabelle ist
+# eine Selbstauskunft der Analyse. Das Konzept verlangt ausdrücklich, dass der Skip nicht
+# zum bequemen Default wird. Deshalb wird die Angabe gegen die im Analyse-Block deklarierten
+# „Betroffene Dateien" geprüft: Sobald ein Pfad in Anwendungscode zeigt, gilt die Spec als
+# nötig — egal was die Tabelle sagt. Der Skip ist damit technisch begrenzt, nicht nur per Prompt.
 #
 # Usage:
 #   bash resolve-spec-skip.sh --block-file <pfad>     # Datei mit dem Issue-Body
@@ -63,27 +63,37 @@ field() {
     | sed -E "s/^[^:]*:[[:space:]]*//" || true
 }
 
-# UI-Bezug erzwingt die Spec: Ein UX-Entwurf ohne Spezifikation ist nicht anschlussfähig —
-# die Spec formalisiert ihn. `needs_ux ⇒ needs_spec` ist damit hier UND in 02 verankert
-# (dessen ux-ready-Pfad setzt immer ai:needs-spec).
-UI="$(field 'UI-Bezug' | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')"
-case "$UI" in
-  ja|yes|true) out true "UI-Bezug: ja — UX-Ergebnis braucht die Spec zur Formalisierung." ;;
+# Run-Wert (ja|nein) einer Phase aus der ai-phase-routing-Tabelle — Parse-Logik
+# deckungsgleich mit resolve-phase-routing.sh (Feld $3 der Markdown-Zeile).
+routing_run() {
+  printf '%s' "$BODY" | sed -n '/ai-phase-routing:START/,/ai-phase-routing:END/p' \
+    | awk -F'|' -v ph="$1" '/^\|/ {
+        c = $2; gsub(/[ \t]/, "", c)
+        if (c == ph) { r = $3; gsub(/[ \t]/, "", r); print r; exit }
+      }'
+}
+
+# UX-Bezug (ux-Zeile) erzwingt die Spec: Ein UX-Entwurf ohne Spezifikation ist nicht
+# anschlussfähig — die Spec formalisiert ihn. `needs_ux ⇒ needs_spec` ist damit hier UND
+# in 02 verankert (dessen ux-ready-Pfad setzt immer ai:needs-spec).
+UX="$(routing_run ux)"
+case "$UX" in
+  ja) out true "Routing ux: ja — UX-Ergebnis braucht die Spec zur Formalisierung." ;;
 esac
 
-SPEC_FIELD="$(field 'Spec nötig|Spec noetig|Spec' | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')"
+SPEC_FIELD="$(routing_run spec)"
 
-# Feld fehlt oder trägt etwas Unerwartetes → Spec läuft. Kein Raten.
+# Zeile fehlt oder trägt etwas Unerwartetes → Spec läuft. Kein Raten.
 case "$SPEC_FIELD" in
-  nein|no|false) ;;
-  ja|yes|true) out true "Analyse verlangt die Spec (Spec nötig: ja)." ;;
-  '') out true "Feld 'Spec nötig' fehlt im Analyse-Block — Spec läuft (fail-safe)." ;;
-  *) out true "Feld 'Spec nötig' unlesbar ('${SPEC_FIELD}') — Spec läuft (fail-safe)." ;;
+  nein) ;;
+  ja) out true "Analyse verlangt die Spec (Routing spec: ja)." ;;
+  '') out true "spec-Zeile fehlt in der Routing-Tabelle — Spec läuft (fail-safe)." ;;
+  *) out true "spec-Zeile unlesbar ('${SPEC_FIELD}') — Spec läuft (fail-safe)." ;;
 esac
 
-# Ab hier steht „Spec nötig: nein" im Block. Gegenprobe an den deklarierten Pfaden.
+# Ab hier steht „spec: nein" in der Tabelle. Gegenprobe an den deklarierten Pfaden.
 DATEIEN="$(field 'Betroffene Dateien')"
-[ -n "$DATEIEN" ] || out true "'Spec nötig: nein', aber keine 'Betroffene Dateien' deklariert — nicht überprüfbar, Spec läuft."
+[ -n "$DATEIEN" ] || out true "'spec: nein', aber keine 'Betroffene Dateien' deklariert — nicht überprüfbar, Spec läuft."
 
 # Backticks/Kommata/Aufzählungszeichen zu Zeilen normalisieren, dann gegen die
 # Anwendungscode-Präfixe prüfen. Ein Treffer genügt.
@@ -91,7 +101,7 @@ TREFFER="$(printf '%s' "$DATEIEN" | tr '`,;' '\n\n\n' | sed -E 's/^[[:space:]]*[
   | grep -E "^($APP_PREFIXES)" | head -3 | tr '\n' ' ' || true)"
 
 if [ -n "$TREFFER" ]; then
-  out true "'Spec nötig: nein', aber Anwendungscode betroffen (${TREFFER}) — Spec läuft, TDD gilt dort."
+  out true "'spec: nein', aber Anwendungscode betroffen (${TREFFER}) — Spec läuft, TDD gilt dort."
 fi
 
 out false "Kein Anwendungscode betroffen (${DATEIEN}) — die Spec könnte hier keine Tests schreiben (Carve-out), Umsetzung übernimmt direkt."

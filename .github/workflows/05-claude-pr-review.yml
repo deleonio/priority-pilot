@@ -53,10 +53,14 @@ jobs:
     permissions:
       contents: read # lokale Action + Skript auschecken
       pull-requests: write # Abbruchfall der Modellwahl setzt ai:needs-human + Begründung
+      issues: read # ai-phase-routing-Tabelle wird am closing-Issue gelesen
     outputs:
       proceed: ${{ steps.check.outputs.proceed }}
       model: ${{ steps.model.outputs.model }}
       model_abort: ${{ steps.model.outputs.abort }}
+      # Tabelle > Label gemergtes Ergebnis
+      model_final: ${{ steps.merge.outputs.model_final }}
+      effort_final: ${{ steps.merge.outputs.effort_final }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -69,15 +73,46 @@ jobs:
           phase: review
           ticket: ${{ github.event.pull_request.number }}
 
-      - name: Modellwahl aus ai:model:*-Label
-        # NACH dem Phasen-Check: Ein konsumierter Trigger soll nicht wegen einer fehlenden
-        # Modellwahl ai:needs-human setzen — der Lauf ist dann ohnehin ein No-op.
+      - name: Phasen-Routing aus ai-phase-routing-Tabelle
+        # ZUERST: Die Tabelle ist die analysgetriebene Primärsteuerung (ADR-0004),
+        # gelesen am closing-Issue des PR. Liefert sie ein Modell, wird das Label
+        # nicht mal gelesen — ein fehlendes Label darf dann auch nicht abbrechen.
         if: steps.check.outputs.proceed == 'true'
+        id: routing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bash .github/scripts/resolve-phase-routing.sh \
+            --repo "$GITHUB_REPOSITORY" \
+            --ticket "${{ github.event.pull_request.number }}" \
+            --kind pr \
+            --phase review || true
+
+      - name: Modellwahl aus ai:model:*-Label (nur ohne Routing-Tabelle)
+        # Fallback-Pfad: Alttickets ohne Tabelle, PRs ohne Closing-Issue, invalid
+        # geschriebene Tabelle. Bewusst mit vollem Guard (abort + ai:needs-human bei
+        # fehlendem/mehrdeutigem Label) — hier ist das Label die EINE Quelle.
+        if: steps.check.outputs.proceed == 'true' && steps.routing.outputs.source != 'table'
         id: model
         uses: ./.github/actions/resolve-model
         with:
           ticket: ${{ github.event.pull_request.number }}
           kind: pr
+
+      - name: Modellzusammenfuehrung (Tabelle gewinnt, Label Fallback)
+        if: steps.check.outputs.proceed == 'true'
+        id: merge
+        run: |
+          if [ "${{ steps.routing.outputs.source }}" = "table" ]; then
+            echo "model_final=${{ steps.routing.outputs.model }}"   >> "$GITHUB_OUTPUT"
+            echo "effort_final=${{ steps.routing.outputs.effort }}" >> "$GITHUB_OUTPUT"
+          else
+            # Label-Pfad: Effort bleibt Phasen-Default. Auto-Eskalation sitzt nicht
+            # hier, sondern im Fixup-Pfad von 04 (dort escalate=true, Runden-Zaehlung
+            # am PR — s. resolve-model-label.sh).
+            echo "model_final=${{ steps.model.outputs.model }}" >> "$GITHUB_OUTPUT"
+            echo "effort_final=" >> "$GITHUB_OUTPUT"
+          fi
 
   review:
     needs: precheck
@@ -138,8 +173,8 @@ jobs:
           # dann das Modell aus settings.local.json stehen, das der Provider als
           # `unrecognized_model` ablehnen kann (beobachtet an PR #916). Der Literal-Default
           # stellt exakt das Verhalten von vor der Modellwahl wieder her.
-          model: ${{ vars.CLAUDE_MODEL_PR_REVIEW || needs.precheck.outputs.model || 'opus' }}
-          effort: 'high'
+          model: ${{ vars.CLAUDE_MODEL_PR_REVIEW || needs.precheck.outputs.model_final || 'opus' }}
+          effort: ${{ needs.precheck.outputs.effort_final || 'high' }}
           zai-api-key: ${{ secrets.ZAI_API_KEY }}
           claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
           openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}

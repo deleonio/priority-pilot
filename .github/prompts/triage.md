@@ -16,7 +16,10 @@ ABLAUF:
    Alle offenen Fragen SAMMELN und in diesen EINEN Kommentar schreiben — nicht einzeln
    nachreichen, nicht im Analyse-Block verstecken, nicht per Ping-Kommentar streuen.
 4. Zerlegen (falls zu gross, siehe Skill Schritt 3)
-5. Analyse-Block in den Issue-Body schreiben (Skill Schritt 4)
+5. Analyse-Block UND Routing-Tabelle in den Issue-Body schreiben (Skill Schritt 4).
+   Routing-Tabelle (eigener ai-phase-routing-Block, ASCII, exaktes Format im Skill):
+   impl+review IMMER ja; Modell haiku|sonnet|opus, Effort low|medium|high;
+   bei Run=nein Modell/Effort als '-'. Sie steuert Modell+Effort JE Phase.
 
 KEIN Ping-Kommentar: Bei eindeutigem Ergebnis (spec-ready/analyzed) ist der Body-Block +
 Label-Wechsel die vollstaendige Kommunikation. KEINE zusaetzlichen Kommentare, KEINE

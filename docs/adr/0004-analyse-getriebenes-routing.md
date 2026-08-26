@@ -218,14 +218,42 @@ Stellen: in `resolve-spec-skip.sh` und im `ux-ready`-Pfad von `02-claude-ux.yml`
 weder Trigger (`ai:needs-*`) noch Done-Marker (`ai:<Vergangenheitsform>`), sondern
 **Konfiguration am Ticket**:
 
-| Label             | Bedeutung                       | Gesetzt von                              | Konsumiert |
-| ----------------- | ------------------------------- | ---------------------------------------- | ---------- |
-| `ai:model:haiku`  | Folgephasen laufen auf `haiku`  | Analyse (je Subtask), Mensch, Eskalation | nie        |
-| `ai:model:sonnet` | Folgephasen laufen auf `sonnet` | dito                                     | nie        |
-| `ai:model:opus`   | Folgephasen laufen auf `opus`   | dito                                     | nie        |
+| Label             | Bedeutung                       | Gesetzt von                                                  | Konsumiert                           |
+| ----------------- | ------------------------------- | ------------------------------------------------------------ | ------------------------------------ |
+| `ai:model:haiku`  | Folgephasen laufen auf `haiku`  | Analyse (impl-Zeile der Routing-Tabelle), Mensch, Eskalation | Fallback-Pfad (ohne Routing-Tabelle) |
+| `ai:model:sonnet` | Folgephasen laufen auf `sonnet` | dito                                                         | nie                                  |
+| `ai:model:opus`   | Folgephasen laufen auf `opus`   | dito                                                         | nie                                  |
 
 Genau eines muss gesetzt sein; keines oder mehrere brechen den Start ab. Das Label wird **nie**
 konsumiert und überlebt alle Phasen-Transitions.
 
 Ergänzend zu ADR 0003: **`ai:needs-impl` kann jetzt auch von der Analyse gesetzt werden** (wenn
 die Spec übersprungen wird), nicht nur von der Spec-Phase.
+
+## Ergänzung 2026-08-26: Routing-Tabelle als Primärsteuerung
+
+Die Analyse schreibt zusätzlich zum Analyse-Block eine **`ai-phase-routing`-Tabelle** in den
+Issue-Body (Marken `<!-- ai-phase-routing:START/END -->`, ASCII):
+
+| Phase  | Run        | Modell            | Effort          |
+| ------ | ---------- | ----------------- | --------------- |
+| ux     | ja/nein    | haiku/sonnet/opus | low/medium/high |
+| spec   | ja/nein    | …                 | …               |
+| impl   | ja (immer) | …                 | …               |
+| review | ja (immer) | …                 | …               |
+
+Sie ist die konsequente Weiterführung dieses ADR: Eine Analyse, EINE Steuerung — Modell und
+Effort **je Phase** statt einer globalen Aufwandsklasse. Die Run-Spalte dokumentiert dieselbe
+Entscheidung, die auch die Label-Kette trifft (UX-Trigger, Spec-Skip via `resolve-spec-skip.sh`,
+das seitdem die ux/spec-Zeilen liest).
+
+**Vorrang:** Tabelle > `ai:model:*`-Label > Workflow-Default. Das Label bleibt in drei Rollen:
+Fallback (Alttickets ohne Tabelle, PRs ohne Closing-Issue, invalid geschriebene Tabelle —
+fail-open), manueller Override (Label setzen statt Body-Edit) und Träger der Auto-Eskalation
+(Fixup-Pfad in 04). Lesen tut sie `resolve-phase-routing.sh`; dort auch die Validierungsregeln
+(ungültige Zeile ⇒ ganze Zeile verwerfen, Defaults gelten).
+
+**Bewusste Lücke:** Die Auto-Eskalation (2. Review-Runde ⇒ Stufe hoch) wirkt nur im Label-Pfad.
+Bei Tabellen-Tickets ist die Analyse phasenfein eingestuft; wiederholte Fixups lösen heute KEIN
+automatisches Hochstufen aus — der Mensch editiert die Tabelle (bestehender Override-Weg).
+Ob die Eskalation in den Tabellen-Pfad zieht, entscheiden wir mit Daten aus den nächsten Läufen.
