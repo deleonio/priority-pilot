@@ -279,8 +279,11 @@ jobs:
           # Statt dann den kompletten Lauf (und die Token-Spende) wegzuwerfen, den Block aus
           # dem neuesten passenden Kommentar in den Body migrieren — modellunabhängige
           # Sicherheitsleine. hart-fail nur, wenn der Block WEDER im Body NOCH in einem
-          # Kommentar existiert.
-          if [ "$HAS_BLOCK" != "true" ]; then
+          # Kommentar existiert — AUSNAHME needs-human: Der Prompt verbietet seit dem
+          # Output-Disziplin-Umbau das Raten einer Analyse bei unklarer Aufgabenstellung;
+          # dort ist der ai-triage-decision-Kommentar das Artefakt (weiter unten erzwungen),
+          # ein Analyse-Block existiert bewusst nicht. Rot wäre ein falscher Alarm.
+          if [ "$HAS_BLOCK" != "true" ] && [ "$verdict" != "needs-human" ]; then
             BLOCK_FROM_COMMENT="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json comments -q \
               '[.comments[] | select(.body | test("KI-ANALYSE:START"))] | last | .body // ""' 2>/dev/null || true)"
             if [ -n "$BLOCK_FROM_COMMENT" ]; then
