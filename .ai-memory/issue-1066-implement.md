@@ -1,40 +1,45 @@
-# Issue 1066 — Implement-Phase (2026-08-27, Run 1: SOFT-DEADLINE-ABBRUCH)
+# Issue 1066 — Implement-Phase (2026-08-27, Run 2: Frontend committed, GATE offen)
 
 ## Erledigt
-- Branch `feat/issue-1066-nearby-card` (Draft PR #1071) ausgecheckt, rote Spec-Tests lokal bestätigt.
-- SERVER KOMPLETT (alle Server-Spec-Tests GRÜN):
-  - `server/src/models/task.ts` — Felder + Spalten `latitude`/`longitude` (FLOAT, nullable, validate -90..90/-180..180) neben `address`.
-  - `server/src/models/series.ts` — analog (mit defaultValue null).
-  - `server/src/logics/migrate.ts` — lat/lon an `SERIES_COLUMNS` (tasks) UND `SERIES_TABLE_COLUMNS` (series) angehängt (FLOAT, nullable → kein DEFAULT nötig).
-  - `server/src/logics/series.ts` — Snapshot `latitude: series.latitude ?? null, longitude: series.longitude ?? null` direkt unter der address-Zeile in generateDueInstances.
-  - `server/src/express/routes/tasks.ts` — TaskAttributes + Validierung lat/lon (Zahl/null, Bereich, eigene Fehlermeldungen), serializeTask liefert lat/lon, NEU `GET /tasks/nearby` (Op importiert, Haversine `haversineKm`, status != Done, lat/lon != null, ownerScope, sortiert, slice(0,10), distanceKm auf 1 Nachkommastelle gerundet; Route VOR `/tasks/:id` registriert; ungültige Query → 400). NearbyTaskDto-Typ importiert.
-  - `server/src/express/routes/series.ts` — SeriesAttributes + Validierung lat/lon analog address, serialize + instanceAttrs-Übernahme (PATCH auf offene Instanzen).
-  - `openapi.yml` — latitude/longitude in Task/TaskCreate/TaskUpdate/Series/SeriesCreate/SeriesUpdate; NEU Schema `NearbyTask` (id/title/distanceKm required) + Pfad `/tasks/nearby` (400 → `$ref: '#/components/responses/ValidationError'`; KEIN security-Block — Repo hat keine securitySchemes, openapi-typescript bricht sonst).
-  - `pnpm build:api` lief grün (api.d.ts regeneriert), `npx tsc --noEmit`: keine Fehler in geänderten Dateien.
-- Test-Verifikation einzeln pro Datei: tasks-coordinates 5/5, tasks-nearby 5/5, series 18/0 — GRÜN.
+- Run 1 (Server komplett grün): s. Commit 0d950f87 — Modelle/Migration/Snapshot/Routes/openapi; Details im Git-Stand.
+- Run 2 (Frontend KOMPLETT, Commit d7b9a29e `feat(frontend): Nearby-Card, Koordinaten in Adresssuche und GeoBadge-Reverse-Geocoding für #1066`, gepusht):
+  - `pnpm --filter client generate` — client/src/schema.d.ts hatte nearby/latitude NICHT (Run 1 lief nur build:api für server!). Jetzt `/tasks/nearby` + `latitude` drin.
+  - `client/src/index.ts` — `export type NearbyTask = Schemas['NearbyTask'];`.
+  - `frontend/src/api.ts` — `listNearbyTasks({lat, lon, signal})` via `client.GET('/tasks/nearby', {params:{query:{lat, lon}}})` (Query typisiert als number, KEIN `__unsafe`-Cast nötig).
+  - `frontend/src/lib/useAddressSearch.ts` — Vorschläge jetzt `AddressSuggestion[]` ({address, lat, lon}), Export `export interface AddressSuggestion`.
+  - `frontend/src/components/TaskForm.tsx` — form-Ref um latitude/longitude (init aus task/series), `findAddressSuggestion`/`applyAddressCoords` (Text==Vorschlag → dessen lat/lon, sonst null — AK1/AK10), alle 4 DTOs (TaskCreate/Update, SeriesCreate/Update) senden latitude/longitude, `hasSeriesCascadeChange` prüft lat/lon (Kaskade-Modal vor Instanz-Übernahme, AK6), `_suggestions` mapt auf Strings (KolCombobox nimmt nur `W3CInputValue[]` = string|number!).
+  - `frontend/src/components/NearbyCard.tsx` NEU — KolCard `data-testid="nearby-card"`, eigene useGeolocation-Instanz, Zustände: denied/!supported → `nearby-denied`; !enabled → `nearby-preference-off` (Text enthält „Einstellungen“); null → Lade-Hinweis; leer → `nearby-empty`; Liste `nearby-item` mit `#id – Titel` + `formatKm` (de-DE, 1 Nachkommastelle) + „ km“.
+  - `frontend/src/components/Dashboard.tsx` — `<NearbyCard />` zwischen „Was ist jetzt dran?“ und „Wichtigste Tasks“.
+  - `frontend/src/components/GeoBadge.tsx` — Props `{latitude, longitude, address?}`; Reverse-Geocoding mit modul-level Session-Cache (Map „lat,lon“→Adresse), Fallback „Adresse nicht verfügbar“ (AK11), Legacy-`address` nur ohne Koordinaten.
+  - Caller angepasst: CompletedTasksTable.tsx, SeriesTab.tsx, TaskTree.tsx (TaskTree nutzt GeoBadge JETZT doch — merge 2a0eb97b — Triage-Notiz war veraltet).
+  - `frontend/src/app.css` — .dashboard-nearby*-Block (44px min-height Items, flex-wrap, distance nowrap).
+  - Test-Pflege (dokumentiert, nicht heimlich): `useAddressSearch.test.ts` Zeile ~108 alte Assertion `toEqual(['Neu'])` → `toEqual(results(['Neu']))` — String-Erwartung widerspricht AK1-Objektvertrag.
+- Verifiziert: `npx tsc --noEmit` (frontend) SAUBER; `npx vitest run` frontend: 422 passed / 13 skipped, 0 fail; `pnpm format` + `prettier --check .` GRÜN; Pre-Commit-Hook (format/lint/knip) lief durch.
+- knip-Falle behoben: `AddressSuggestion` war ungenutzt exportiert → knip Failed → Commit blockiert; Fix: TaskForm importiert den Typ für `findAddressSuggestion`.
 
 ## Relevante Stellen
-- `server/src/express/routes/tasks.ts` — `/tasks/nearby` + lat/lon-Validierung (Insert in validateTaskFields vor dem deadline-Block).
-- `openapi.yml` — `/tasks/nearby` Pfad direkt vor `/tasks/{id}:`; NearbyTask-Schema vor ReverseGeocodeResponse.
-- `frontend/src/lib/useAddressSearch.test.ts` + `frontend/e2e/issue-1066-nearby-card.spec.ts` — NOCH ROT, Frontend fehlt komplett.
+- `frontend/e2e/issue-1066-nearby-card.spec.ts` — NICHT gelaufen in Run 2 (Zeit): erwartet nearby-card/-item/-empty/-denied/-preference-off, `,\d km`-Regex, AK11 geo-badge ohne Rohkoordinaten bei reverse-geocode 500.
+- `docs/spec/issue-1066.md` — Vertrag; Hinweistexte sind frei (Anker = testids).
+- PR #1071 — noch DRAFT (Gate/e2e fehlen).
 
 ## Annahmen
-- `pnpm test` (node --test Glob) startet JEDE Datei im eigenen Prozess → der Cross-File-Sequelize-Fehler („no such table: main.pillars" bei drop) tritt nur auf, wenn man MEHRERE Testdateien in EINEM tsx-Aufruf startet — kein Produktionsfehler.
+- KolCombobox-Auswahl feuert onChange mit dem Vorschlags-String; Koordinaten-Übernahme per Text-Match (deterministisch unabhängig von onInput/onChange-Reihenfolge).
+- Nach Browser-Denial zeigt die Card `nearby-denied` (permissionDenied-Flag), nach Reload `nearby-preference-off` (Präferenz wurde auf false gespeichert) — e2e deckt nur den Erstfall.
 
 ## Verworfen
-- Frontend in Run 1 — Zeitlimit (soft deadline) erreichte den Server-Abschluss; sauberes Committen statt halbfertigem Frontend.
+- Objekte direkt in `_suggestions` der KolCombobox — Typ ist `W3CInputValue[]` (string|number), daher Map auf Strings + separates Koordinaten-Lookup.
 
 ## Offen
-- FRONTEND KOMPLETT (Run 2): `frontend/src/api.ts` nearby-Client (GET /tasks/nearby?lat=&lon=), `frontend/src/lib/useAddressSearch.ts` Vorschläge `{address, lat, lon}` statt Strings (roter Test vorhanden!), `frontend/src/components/TaskForm.tsx` Koordinate des Vorschlags übernehmen + Leeren → null/null, Dashboard-Card „In der Nähe" (Test-Anker nearby-card/nearby-item/nearby-empty/nearby-denied/nearby-preference-off, KolCard-Muster Dashboard.tsx:156, max. 10, #id+Titel+km, KEINE Adresse im Eintrag — Spec docs/spec/issue-1066.md), AK4/AK8-Hinweise, SeriesTab lat/lon mitspeichern, GeoBadge auf lat/lon keyen + Reverse-Geocoding (AK11, "Adresse nicht verfügbar").
-- Gate komplett: `pnpm format && pnpm exec prettier --check . && pnpm lint && pnpm knip && pnpm test` — in Run 1 NICHT mehr gelaufen (nur tsc + Einzeltests). Vor dem nächsten Push zwingend.
-- e2e `frontend/e2e/issue-1066-nearby-card.spec.ts` rot — braucht Card. Direkt laufen lassen mit `npx playwright test e2e/issue-1066-nearby-card.spec.ts` im frontend-Verzeichnis (Memory: --filter greift nicht).
-- PR #1071 bleibt DRAFT bis Frontend + Gate grün → dann `gh pr ready 1071` + Body erweitern (Format/Lint/Test-Ergebnisse dokumentieren, e2e-Befund).
+- GATE vollständig: `pnpm lint && pnpm knip && pnpm test` (repo-weit) NICHT in Run 2 gelaufen (nur Pre-Commit-Hook-Teile + frontend-vitest). `pnpm test` lokal an session.test.ts/Redis pre-existing rot (Memory 2026-08-27) — per git stash gegenprüfen, im PR-Body dokumentieren.
+- e2e `frontend/e2e/issue-1066-nearby-card.spec.ts` laufen lassen (`cd frontend && npx playwright test e2e/issue-1066-nearby-card.spec.ts`; Chromium-Install pro Sandbox, Memory 08-20) — vermutlich Nacharbeit an Hint-Texten/Render-Timing.
+- 375/1280-Layout-Check (SKILL 3b/3c) — AK5-e2e deckt 375px bounding-box ab, 1280px-Screenshot ausständig.
+- Danach: PR-Body von #1071 erweitern (Zusammenfassung, Format/Lint/Test-Ergebnisse, Test-Pflege-Bedarf: useAddressSearch.test.ts:108, e2e-Befund, offene Frage „Kein Prompt vor Card-Render“) und `gh pr ready 1071`.
 
 ## Nächster Schritt
-- Run 2: Frontend umsetzen (api.ts → useAddressSearch → TaskForm/SeriesTab → Dashboard-Card), dann GATE in voller Länge, erst dann pushen + PR ready.
+- Run 3: e2e laufen lassen → Fixes → GATE komplett → PR-Body → `gh pr ready 1071` → VERDICT needs-review.
 
 ## Fallstricke
-- openapi-typescript bricht bei unbekannten $refs (responses/BadRequest|Unauthorized existieren NICHT — ValidationError/NotFound sind die vorhandenen) und bei security-Schemes ohne Deklaration.
-- Die nearby-Route MUSS vor `/tasks/:id` bleiben (sonst fängt parseId sie als 404).
-- Server-Testdateien NICHT mehrere in einem tsx-Aufruf (s. Annahmen).
-- PR-Body/Commit: deutscher Text, Commit-Message-Referenz `#1066`.
+- `pnpm --filter client generate` NACH openapi-Änderung nicht vergessen — sonst fehlen frontend die Typen (Run-2-Fund).
+- Server-Testdateien NICHT mehrere in einem tsx-Aufruf (Run-1-Notiz, Cross-File-Sequelize).
+- Commit-Hook: knip Failed bei ungenutzten Exports blockiert STILL (Ausgabe endet nach „🥊 knip“ ohne Fehlerzeile) → `git log -1` gegenprüfen, ob der Commit wirklich existiert.
+- Die nearby-Route MUSS vor `/tasks/:id` registriert bleiben (server, Run-1-Notiz).

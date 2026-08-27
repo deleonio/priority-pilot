@@ -45,3 +45,13 @@ Rot-Status verifiziert: Nearby-Endpoint 404 (Test-Run), `useAddressSearch`-Asser
 
 ### Test-Pflege-Bedarf
 - `frontend/e2e/issue-1066-nearby-card.spec.ts:141-142`: `expect(...).not.toMatch(/…/, 'Nachricht')` — Playwrights `toMatch` ist typisiert mit nur 1 Argument (TS2554 im Pre-Commit-Lint, blockierte alle Commits). Zweites Argument entfernt und als Kommentar erhalten; **Assertions semantisch unverändert**.
+
+
+## Zwischenstand Implementierung Run 2 2026-08-27
+
+Frontend umgesetzt in Commit d7b9a29e: Nearby-Card auf dem Dashboard, Koordinaten-Uebernahme aus der Adresssuche AK1 AK10, lat/lon in Task Series DTOs, GeoBadge per Reverse-Geocoding mit Session-Cache AK11. Verifiziert: tsc, frontend-vitest 422 Tests gruen, format prettier, Pre-Commit-Hook format lint knip.
+
+Noch offen daher Draft: repo-weites Gate pnpm lint knip test, e2e frontend/e2e/issue-1066-nearby-card.spec.ts, 1280px-Kontrolle, abschliessende PR-Beschreibung.
+
+### Test-Pflege-Bedarf
+- frontend/src/lib/useAddressSearch.test.ts Zeile 108: alte Assertion toEqual string-Vorschlaege widerspricht dem AK1-Vertrag Objekte mit lat lon. Minimale Anpassung zu results Neu, begruendet im Test-Kommentar.
