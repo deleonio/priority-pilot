@@ -25,15 +25,16 @@ Vereinheitlichung auf **zwei orthogonale Label-Familien**:
 **Trigger-Labels `ai:needs-*`** — jede Phase reagiert auf GENAU EIN Startlabel und konsumiert es
 (Entfernen in der eigenen Post-Assertion):
 
-| Phase        | Trigger                                     | Bemerkung                                                                                                                           |
-| ------------ | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| 1 Analyse    | `ai:needs-analyse`                          | Einziger Einstieg (kein `issues.opened` mehr, s. Fortschreibung 2026-08-18b); Re-Triage = Label setzen oder `ai:analysed` entfernen |
-| 2 UX-UI      | `ai:needs-ux-ui`                            | Nicht-UI-Tickets bekommen es nie → Phase natürlicher Skip                                                                           |
-| 3 Spec       | `ai:needs-spec`                             |                                                                                                                                     |
-| 4 Umsetzung  | `ai:needs-impl`                             |                                                                                                                                     |
-| 5 Review     | `ai:needs-review`                           | unverändert                                                                                                                         |
-| 6 Fixup      | `ai:needs-fixup`                            | war `ai:needs-changes`                                                                                                              |
-| 7 Documenter | _(Event: `pull_request.closed` + `merged`)_ | auf gemergtem PR nicht label-triggerbar                                                                                             |
+| Phase          | Trigger                                     | Bemerkung                                                                                                                           |
+| -------------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| 1 Analyse      | `ai:needs-analyse`                          | Einziger Einstieg (kein `issues.opened` mehr, s. Fortschreibung 2026-08-18b); Re-Triage = Label setzen oder `ai:analysed` entfernen |
+| PO-Review-Gate | `ai:needs-po-review`                        | Menschen-Parker-Label: Analyse setzt es, PO prüft und setzt UX/Spec/Impl-Trigger (s. Fortschreibung 2026-08-27)                     |
+| 2 UX-UI        | `ai:needs-ux-ui`                            | Nicht-UI-Tickets bekommen es nie → Phase natürlicher Skip                                                                           |
+| 3 Spec         | `ai:needs-spec`                             |                                                                                                                                     |
+| 4 Umsetzung    | `ai:needs-impl`                             |                                                                                                                                     |
+| 5 Review       | `ai:needs-review`                           | unverändert                                                                                                                         |
+| 6 Fixup        | `ai:needs-fixup`                            | war `ai:needs-changes`                                                                                                              |
+| 7 Documenter   | _(Event: `pull_request.closed` + `merged`)_ | auf gemergtem PR nicht label-triggerbar                                                                                             |
 
 **Done-Labels `ai:<Vergangenheitsform>`** — die erfolgreiche Phase setzt den Trigger der
 Folgephase (der Motor der Kette) plus ein Done-Label, wo Logik es liest: `ai:analysed`,
@@ -179,5 +180,33 @@ erste oder das teuerste nehmen.
 
 Zusätzlich: **`ai:needs-impl` wird jetzt auch von der Analyse gesetzt**, nicht nur von der
 Spec-Phase — nämlich dann, wenn die Spec übersprungen wird (ADR 0004, Entscheidung 3). Die Analyse
-räumt es im Remove-vor-Add-Block entsprechend auch wieder ab, damit ein Re-Triage einen alten
+räumt es im Remove-vor-Add-Block entsprechend wieder ab, damit ein Re-Triage einen alten
 Direkt-Trigger nicht kleben lässt.
+
+## Fortschreibung 2026-08-27 (Issue #XXXX): PO-Review-Gate nach Triage-Analyse
+
+Die Analyse-Phase (01) setzt ab heute nicht mehr direkt `ai:needs-ux-ui`, `ai:needs-spec` oder
+`ai:needs-impl`. Stattdessen setzt sie `ai:needs-po-review` — ein neues Menschen-Parker-Label,
+das den PO-Review-Step vor der eigentlichen Phasen-Entscheidung einfügt.
+
+**Neues Trigger-Label:**
+
+- `ai:needs-po-review` — Menschen-Parker-Label analog zu `ai:needs-human`
+- Wird von Phase 1 (Triage) am Ende gesetzt, wenn Analyse fertig ist
+- Der Produkt-Owner (PO) prüft die Analyse im Issue-Body
+- Nach Prüfung setzt der PO manuell eines dieser Labels:
+  - `ai:needs-ux-ui` (wenn UI-Bezug)
+  - `ai:needs-spec` (wenn Spec nötig)
+  - `ai:needs-impl` (wenn direkt umgesetzt)
+
+**Begründung:** Der PO soll die KI-Analyse prüfen können, bevor das Issue automatisiert in UX,
+Spec oder Implementierung geht. Das gibt dem PO volle Kontrolle über das Routing und verhindert
+Fehlentscheidungen der KI-Triage. Das Label ist ein Menschen-Parker-Label analog zu
+`ai:needs-human` — nur der Mensch (PO) kann es entfernen und durch das passende Phasen-Label
+ersetzen.
+
+**Konsequenzen:**
+
+- Die Pipeline ist langsamer, da ein manueller Schritt nötig ist
+- Der PO muss aktiv Labels setzen, nachdem die Analyse fertig ist
+- Die Analyse entscheidet nicht mehr über das Routing — nur noch der PO
