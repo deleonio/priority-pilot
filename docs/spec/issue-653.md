@@ -1,6 +1,6 @@
 # Issue 653: Tab-Freiheit in Löschdialogen
 
-**Stand:** 2026-08-23  
+**Stand:** 2026-08-27  
 **Ziel:** Sicherstellen, dass Löschdialoge keine Fokus-Gefängnisse sind - Tab bewegt den Fokus weiter
 
 ---
@@ -41,16 +41,3 @@ Das UX-Pattern `docs/ux-pattern-sequential-confirmation.md` definiert striktes F
 - Fokus liegt auf einem anderen Dialog-Button oder Element
 - Ursprünglicher Button ist nicht mehr fokussiert
 - Kein persistenter Fokus-Watchdog hält den Fokus fest
-
----
-
-## Testableitung
-
-Jeder Löschdialog-Typ (Task, Säule, Serie) braucht einen Test, der:
-
-1. Dialog öffnet
-2. Initialfokus prüft (Abbrechen/Nein)
-3. Tab drückt
-4. Verifiziert dass Fokus sich bewegt hat
-
-**Kritisch:** Der Test darf nicht nur prüfen „Button enthält String X", sondern das tatsächliche Fokus-Verhalten (toBeFocused/not.toBeFocused).
