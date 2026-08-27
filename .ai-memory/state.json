@@ -17,6 +17,12 @@
       "runId": "33107145210",
       "branch": "main",
       "timestamp": "2026-08-27T19:22:43Z"
+    },
+    "review": {
+      "sessionId": "3955c4e2-c021-4350-9162-bacb740d4b1b",
+      "runId": "33108167013",
+      "branch": "feat/issue-1067-search-focus",
+      "timestamp": "2026-08-27T19:35:59Z"
     }
   }
 }
