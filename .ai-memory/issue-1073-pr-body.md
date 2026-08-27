@@ -1,26 +1,25 @@
-Rote Spec-Tests; die Umsetzung folgt in Phase 4.
+## Implementierung (#1073)
 
-## Abgedeckte Akzeptanzkriterien
-- **AK1** – Adresse aus `useGeolocation().address` wird angezeigt, Roh-Koordinaten entfallen:
-  Unit (`Footer.test.tsx` AK1) + e2e (`issue-1073-footer-address.spec.ts`, `/reverse-geocode`-Mock).
-- **AK2** – `address` null/leer → Koordinaten als stiller Fallback (KI-UX: kein Alert):
-  Unit AK2a/AK2b + e2e (429-Antwort).
-- **AK3** – Separator `" | "` zwischen Adresse bzw. Fallback und Version: Unit AK3a/AK3b + e2e.
-- **AK6** – Mobile-First 375px: e2e Bounding-Box-Prüfung mit langer Adresse (inkl. langer Adresse
-  aus dem KI-UX-Block). Bewusst keine `scrollWidth`-Assertion: die App-Shell clippt mit
-  `overflow-x: hidden`, der Check wäre mutationstest-geprüft zahnlos.
+Fußzeile zeigt die lesbare Adresse aus `useGeolocation().address` statt der Roh-Koordinaten; ohne Adresse (null/leer) werden die Koordinaten als stiller Fallback angezeigt. Trennung Adresse/Koordinaten ↔ Version exakt mit `" | "` (statt nur `marginRight`).
 
-## Dedup
-- **AK4** (Versionsnummer) und **AK5** (`role="contentinfo"`) sind durch die bestehenden
-  `#290`-Tests in `frontend/src/components/Footer.test.tsx` bereits abgedeckt — keine Duplikate.
+**Geänderte Dateien**
+- `frontend/src/components/Footer.tsx` — konsumiert jetzt auch `address`; Fallback-Logik; Separator `" | "` als `aria-hidden`-Span; `min-width: 0` + `overflow-wrap: anywhere` gegen Überlauf bei 375px (AK6); 📍-Emoji entfernt (KI-UX-Empfehlung: doppelt neben lesbarer Adresse + Screenreader-Geräusch)
+- `frontend/e2e/issue-1073-footer-address.spec.ts` — siehe „Test-Pflege-Bedarf"
 
-## Test-Pflege-Bedarf
-- Keiner. Bestehende `#290`-Tests bleiben unverändert gültig.
+**AK-Abdeckung**
+- AK1/AK2a/AK2b/AK3a/AK3b: Unit-Tests `frontend/src/components/Footer.test.tsx` (8/8 grün)
+- AK1/AK2/AK3/AK6: e2e `frontend/e2e/issue-1073-footer-address.spec.ts` (3/3 grün)
+- AK4/AK5 (Version, `role="contentinfo"`): bereits durch bestehende Tests in `Footer.test.tsx` (#290) abgedeckt — bewusst keine Duplikate ergänzt
 
-## Offene Fragen
-- Keine.
+**Test-Pflege-Bedarf**
+- `frontend/e2e/issue-1073-footer-address.spec.ts:29` (neu, Helper `enableGeolocationPreference`): Die Spec-Tests scheiterten trotz korrekter Implementierung an **allen drei** Tests — auch am Koordinaten-Fallback (AK2). Ursache: der Footer rendert nur bei `enabled=true`, und `useGeolocation` liest die Präferenz aus `localStorage['pp-geolocation-enabled']` mit Default **aus** (`useGeolocation.ts:17-27`, bewusste Entscheidung aus #845). `test.use({ permissions: ['geolocation'] }` ersetzt diese Präferenz nicht. Der Kommentar in Zeile 38 des Spec-Entwurfs („gespeicherte Präferenz, damit der Footer position/address lädt") benennt die Absicht, das `addInitScript` fehlte aber. Fix: drei Aufrufe `enableGeolocationPreference(page)` vor `goto('/')` ergänzt; keine Assertion verändert.
 
-Hinweis: die roten Tests scheitern erwartungsgemäß, bis `Footer.tsx` `address` konsumiert
-und den Separator `" | "` setzt.
+**Gate-Ergebnisse**
+- `pnpm format` ✅ · `pnpm exec prettier --check .` ✅ · `pnpm lint` ✅ · `pnpm knip` ✅
+- `pnpm test` ⚠️ — server: 1 bekannter, umgebungsbedingter Fehler (`server/src/express/session.test.ts:249` „AK-5 — Redis-Store", braucht Redis, lokal nicht vorhanden; per `git stash` auf sauberem Stand verifiziert → pre-existing, nicht von diesem PR berührt). Frontend: 426 passed / 13 skipped ✅
+- e2e: `npx playwright test e2e/issue-1073-footer-address.spec.ts` 3/3 ✅, bestehende `e2e/footer-version.spec.ts` 2/2 ✅ (Regression geprüft, da Footer-Verhalten sichtbar geändert wurde)
 
-Closes #1073
+**UX (KI-UX-Block)**
+- Kein KoliBri nötig (keine bedienbare Komponente, reiner Text-Span wie zuvor)
+- Stiller Fallback statt Ladezustand/Alert; Footer-Höhe springt nicht (einzeiliger Span)
+- Reflow: `min-width: 0` + `overflow-wrap: anywhere`; AK6 prüft per Bounding-Box bei 375px (scrollWidth ist wegen `overflow-x: hidden` der App-Shell zahnlos)
