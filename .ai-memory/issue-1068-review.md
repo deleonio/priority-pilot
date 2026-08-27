@@ -1,37 +1,34 @@
-# PR 1068 — Review (Kreuzverhör Runde 1)
+# PR 1068 — Review (Kreuzverhör Runde 1 + Fixup-Nachweis Runde 2)
 
 ## Erledigt
-- MODE bestimmt: Kreuzverhör (kein `<!-- ai-review -->`-Kommentar vorhanden, geprüft via issues/1068/comments).
-- Kein Closing-Issue (`closingIssuesReferences` = []) → „Review ohne Issue - PR-Beschreibung ist massgebend".
-- Vollständigen Diff gelesen (1 Commit a99e67ea, nur `.github/scripts/costs-report.ts`, +187/−34).
-- `docs/kosten-optimierungsplan.md` verifiziert: existiert, Ziele (< $3.00 / ≤ 1,2 / > 95 %) stehen dort (Zeilen 283–296) — Fußnoten-Referenz valide.
-- Testdatei `.github/scripts/costs-report.test.ts` geprüft: 3 Tests decken KEINEN der neuen Code-Teile ab (nur Sortierung, Skip-Handling, Alt-Regex `\| review \| 1 \| — \|` — prefix-match bleibt durch neue Anteil-Spalte grün).
-- Finding 1 als Inline-Kommentar (costs-report.ts:105) + Sammelkommentar + Verdict `needs-fixup` gepostet; Titel-Gate: Titel war deutsch + >72 Zeichen → umbenannt in `ci(costs): add KPI header, weekly trend, share bars, direction table`.
+- Runde 1 (Kreuzverhör): siehe Git-Historik dieser Datei; Kernpunkte: MODE Kreuzverhör, kein Closing-Issue („Review ohne Issue"), F1 (Inline-Kommentar 3875041148, costs-report.ts:105) + Sammelkommentar (ID 5444022861) + Verdict needs-fixup; Titel umbenannt in `ci(costs): add KPI header, weekly trend, share bars, direction table` (nicht nochmal umbenennen).
+- Runde 2 (Fixup-Nachweis, 2026-08-27): MODE Fixup VERIFICATION — Marker-Kommentar 5444022861 vorhanden (updatedAt 2026-08-27T19:11:26Z), Delta = genau 1 Commit danach: `54f5e60e` (19:38:02Z), Diff nur `costs-report.ts` (+8/−4) + `costs-report.test.ts` (+65/−1).
+- Fixup-Diff verifiziert: `richtung` entscheidet an `Math.abs(raw) < 0.1` (costs-report.ts:375-383), Runden nur Anzeige; Grenzfall raw = exakt 0,1 → „↑ 10 %" korrekt zur Fußnote „unter ±10 %". 3 neue Tests: ISO-Grenze (2027-01-01 → `2026-W53`, 2027-01-01 = Freitag), Schwellen-Pin (Ø 1,00 vs 1,0995 → „→", Gegenprobe ↑ 25 %), Fenster-Ausschluss (20-Tage-Eintrag raus, 1 Run → „—").
+- Determinismus verifiziert: `anchorDay` aus `Math.max(Date.parse(...))` der Daten (costs-report.ts:354), keine Wanduhr → Tests zeitunabhängig; Fenster-Ausschluss `age > 13` (367-368).
+- Testnachweis: CI-Workflow ci.yml:89 führt `pnpm test:scripts` im verify-Job aus; CI-Run 33109414134 auf Head `54f5e60e` = success (verify + 4 e2e-Shards grün) → autoritativ grün. Lokal NICHT reproduzierbar: Runner hat kein node_modules/tsx (node --import tsx → ERR_MODULE_NOT_FOUND); pnpm fehlt im PATH. Fixup-Phase hatte zusätzlich Red-Check per git stash gemacht (alt: 5 pass/1 fail).
+- Sammelkommentar 5444022861 per PATCH aktualisiert (F1 → Behoben-Tabelle, Status reviewed, Review-Typ: Fixup-Nachweis); Verdict `reviewed` nach /tmp/claude-verdict + Output.
 
 ## Relevante Stellen
-- `.github/scripts/costs-report.ts:105` — `isoWeek`: handgewickelte ISO-8601-Woche (Donnerstags-Anker), Jahreswechsel = Fehlerstelle; Prüfung „2027-01-01 → 2026-W53" steht nur im PR-Body, nicht als Test.
-- `.github/scripts/costs-report.ts:375` — `richtung`: Schwelle `Math.round(Math.abs(raw)*100) < 10` — 9,95 % Änderung rundet auf 10 → zeigt „↑ 10 %" obwohl Fußnote „→ = unter ±10 %" verspricht.
-- `.github/scripts/costs-report.ts:98/94` — `bar`/`share`: clamping sauber, aber ungetestet.
-- `.github/scripts/costs-report.ts:412` — Pareto-Fußnote Top-5-Anteil, ungetestet.
+- `.github/scripts/costs-report.ts:375-383` — `richtung`: Schwelle am Rohwert (Bugfix aus F1).
+- `.github/scripts/costs-report.ts:352-373` — Richtungsfenster: Anker aus Daten, age ≤ 6 neu / 8-13 alt, > 13 ausgeschlossen.
+- `.github/scripts/costs-report.test.ts:84-141` — die 3 neuen Tests, alle über `renderReport`-Ausgabe (keine Helfer-Exporte, knip-sicher).
+- `.github/workflows/ci.yml:89` — `pnpm test:scripts` im verify-Job (Nachweiskanal für Script-Tests).
 
 ## Annahmen
-- Lokales HEAD (4532d338, Merge von a99e67ea) entspricht PR-Head → Zeilennummern aus lokalem grep gelten fürs PR-Diff.
-- Review-Runden-KPI (alle Tickets als Nenner, nicht nur messende) ist eine tragbare Definition — kein Finding.
-- Division-durch-0 in `richtung` unmöglich, weil `messende` nur valueCost > 0 enthält und alt.runs ≥ 2 gefordert ist.
+- Lokales HEAD (Merge cd621baa aus 54f5e60e) entspricht PR-Head — Commit-Daten via API gegengeprüft (a99e67ea + 54f5e60e).
+- „Review pending" in gh pr checks ist der eigene Review-Workflow-Run — kein rotes Gate.
 
 ## Verworfen
-- „KPI-Zeilen-Guard `if (kpiRows.length > 0)` ist immer true" — harmlose Robustheit, kein Finding (nur Nebenbemerkung in der Review-Summary).
-- NaN bei leeren tickets (`tickets[0].first`) — pre-existing, außerhalb des Diffs.
-- KoliBri-first / Impeccable / Mobile-first — N/A (Markdown-Report, kein `frontend/`-Code).
-- Math.max-Spread über große Arrays — pre-existing Idiom, aktuelles Datenvolumen (88 Datensätze) unkritisch.
+- Lokaler Testlauf — kein pnpm/tsx/node_modules im Runner; CI-Verify auf dem Head ist der stärkere Nachweis. Monorepo-Install (>Minuten) lohnt nicht.
+- Erneutes Abwägen der Runde-1-Nebenbemerkungen (KPI-Guard immer true etc.) — Fixup-Verifikation prüft nur Delta + offene Findings.
 
 ## Offen
 - -
 
 ## Nächster Schritt
-- Fixup-Runde: prüfen, ob costs-report.test.ts um (a) ISO-Jahresgrenzen-Fixture (2027-01-01 → „2026-W53"), (b) Schwellen-Pin bei 9,95 % roher Änderung (→ vs ↑), (c) Fenster-Ausschluss (> 14 Tage) erweitert wurde → dann Fixup-Nachweis.
+- Keine — PR ist aus Review-Sicht fertig (reviewed); Gate/Merge übernimmt pr-gate-merge.yml (CI grün auf 54f5e60e).
 
 ## Fallstricke
-- PR-Titel wurde vom Reviewer umbenannt — in Runde 2 nicht nochmal umbenennen.
-- Finding-Nummerierung: Finding 1 = „keine Tests für neue Berechnungen" — stabil halten, in Runde 2 bei Behoben-Tabelle als #1 führen.
-- Kein Issue hinter PR 1068 (Direktauftrag) — AK-Verifikation ist nie möglich, nur PR-Beschreibung.
+- Frischer Review-Runner: pnpm NICHT im PATH, node_modules fehlt → Script-Tests nie lokal laufen lassen, stattdessen ci.yml-Verify-Job als Nachweis nehmen.
+- Sammelkommentar-ID 5444022861 bleibt stabil über alle Runden (PATCH, nie neu anlegen).
+- Finding-Nummer F1 ist verbraucht/behoben — neue Findings in einer allfälligen Runde 3 ab F2 nummerieren.

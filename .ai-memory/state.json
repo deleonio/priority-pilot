@@ -1,10 +1,10 @@
 {
   "phases": {
     "review": {
-      "sessionId": "c5c2185c-aaf1-4e25-8fb3-e70d25467f2a",
-      "runId": "33106846733",
+      "sessionId": "1de06f91-ad52-48e6-ac55-230ec7265bc0",
+      "runId": "33109812411",
       "branch": "ci/kosten-report-transparenz",
-      "timestamp": "2026-08-27T19:11:53Z"
+      "timestamp": "2026-08-27T19:48:07Z"
     },
     "fixup": {
       "sessionId": "dbd90a90-7e33-4360-93ae-c33a6ba1c852",
