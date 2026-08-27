@@ -47,6 +47,14 @@ Der Header zeigt auf allen Bildschirmbreiten (Desktop, Tablet, Mobile) dieselbe 
 dieselben fünf Kopf-Aktionen, keine Elemente, die nur in bestimmten Breiten erscheinen.
 Responsives Verhalten entsteht nur durch Layout/Positionierung, nicht durch Entfernen von Menüpunkten.
 
+### Abgrenzung: Tab-Leisten über alle Viewports
+
+Beide Tab-Leisten der App bleiben auch auf schmalen Viewports (< 768px) horizontal nebeneinander
+statt vertikal zu stapeln: die Ansichten-Wahl („Dashboard / Aufgaben / Serien / Wald") und die
+Settings-Bereiche („Allgemein / Säulen / KI-Provider"). Bei echtem Platzmangel bricht die Leiste
+sauber um, statt einen horizontalen Seitenüberlauf zu erzeugen. Dies ist eine bewusste Abweichung
+von der Mobile-First-Regel „eine primäre Aktion pro Zeile": Sie gilt für Tab-Leisten nicht.
+
 ### Abgrenzung: KI-Modell-Auswahl
 
 Die KI-Modellwahl lebt in den Einstellungen (Tab „KI-Provider"). Es gibt keinen Einstieg dazu in
@@ -127,8 +135,8 @@ Alle Header-Elemente erfüllen BITV-Kontrast- und Bedienbarkeits-Anforderungen.
 
 ## Randfälle & Fehler
 
-| Situation                         | Erwartetes Verhalten                                   |
-| --------------------------------- | ------------------------------------------------------ |
-| Kontrast <4.5:1 bei Text-Icons    | Kontrast erhöhen                                       |
-| Interaktion während Nutzung       | Header-Höhe bleibt stabil                              |
-| Mobile Überlauf der Kopfzeile     | Header bleibt einzeilig (≤ 64px, kein Overflow)        |
+| Situation                      | Erwartetes Verhalten                            |
+| ------------------------------ | ----------------------------------------------- |
+| Kontrast <4.5:1 bei Text-Icons | Kontrast erhöhen                                |
+| Interaktion während Nutzung    | Header-Höhe bleibt stabil                       |
+| Mobile Überlauf der Kopfzeile  | Header bleibt einzeilig (≤ 64px, kein Overflow) |
