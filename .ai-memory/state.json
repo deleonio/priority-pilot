@@ -11,6 +11,12 @@
       "runId": "33107279031",
       "branch": "ci/kosten-report-transparenz",
       "timestamp": "2026-08-27T19:43:14Z"
+    },
+    "documenter": {
+      "sessionId": "e828e070-d59a-44ed-b43c-34fd7e4a985d",
+      "runId": "33110369034",
+      "branch": "ci/kosten-report-transparenz",
+      "timestamp": "2026-08-27T19:55:15Z"
     }
   }
 }
