@@ -1,6 +1,7 @@
 import {
 	KolAlert,
 	KolButton,
+	KolCombobox,
 	KolInputCheckbox,
 	KolInputDate,
 	KolInputRange,
@@ -43,6 +44,7 @@ import {
 	weightToRaw,
 } from '../lib/pillar';
 import { deadlineToDateInput, formatNumber } from '../lib/task';
+import { useAddressSearch } from '../lib/useAddressSearch';
 import { TITLE_MAX_LENGTH } from '../lib/titleLengthValidation';
 
 /**
@@ -234,6 +236,7 @@ export const TaskForm = ({
 		priority: number | null;
 		estimatedEffort: number | null;
 		description: string;
+		address: string;
 		deadline: string;
 		startDate: string;
 		rhythm: SeriesRhythm;
@@ -242,6 +245,7 @@ export const TaskForm = ({
 		priority: task?.priority ?? series?.priority ?? initialValues?.priority ?? 3,
 		estimatedEffort: task?.estimatedEffort ?? series?.estimatedEffort ?? initialValues?.estimatedEffort ?? 0.5,
 		description: task?.description ?? series?.description ?? initialValues?.description ?? '',
+		address: task?.address ?? '',
 		deadline: task !== null ? deadlineToDateInput(task.deadline) : isoToDateInput(initialValues?.deadline),
 		startDate: series != null ? startDateToInput(series.startDate) : '',
 		rhythm: series?.rhythm ?? 'weekly',
@@ -265,6 +269,10 @@ export const TaskForm = ({
 	// selbst, aber ein per Transkript geänderter Wert muss über `_value` ins Feld gespiegelt werden.
 	const [title, setTitle] = useState(form.current.title);
 	const [description, setDescription] = useState(form.current.description);
+	const [address, setAddress] = useState(form.current.address);
+	// Adresssuche (Forward Geocoding, Ortsbezug einer Aufgabe): Vorschläge zum aktuellen Adresstext.
+	// `loading` wird als Hint angezeigt — ohne Rückmeldung wirkt das Feld während Debounce + Suche kaputt.
+	const { suggestions: addressSuggestions, loading: addressLoading } = useAddressSearch(address);
 	// State-Mirror für Range-Slider: `KolInputRange` muss über `_value` + `_label` den aktuellen
 	// Wert erhalten — ohne State würde der Slider nach jedem Re-Render auf den Ref-Initialwert
 	// zurückspringen (bekannte KoliBri-Falle, vgl. PillarWeightsForm.tsx:107–109).
@@ -568,6 +576,7 @@ export const TaskForm = ({
 					priority,
 					estimatedEffort,
 					description: description === '' ? null : description,
+					address: form.current.address.trim() === '' ? null : form.current.address.trim(),
 					deadline,
 					autoDeleteAfterDeadline: autoDelete,
 					pillars,
@@ -580,6 +589,7 @@ export const TaskForm = ({
 					priority,
 					estimatedEffort,
 					description: description === '' ? null : description,
+					address: form.current.address.trim() === '' ? null : form.current.address.trim(),
 					deadline,
 					autoDeleteAfterDeadline: autoDelete,
 					pillars,
@@ -871,6 +881,26 @@ export const TaskForm = ({
 									const next = value instanceof Date ? deadlineToDateInput(value) : readString(value);
 									form.current.deadline = next;
 									setDeadlineInput(next);
+								},
+							}}
+						/>
+						{/* Adressuche (Forward Geocoding): Ortsbezug der Aufgabe, analog Reverse Geocoding (#866). */}
+						<KolCombobox
+							_label="Adresse (optional)"
+							_placeholder="Straße, Hausnummer, Ort …"
+							_hint={addressLoading ? 'Adresse wird gesucht …' : undefined}
+							_suggestions={addressSuggestions}
+							_value={address}
+							_on={{
+								onChange: (_event, value) => {
+									const next = readString(value);
+									form.current.address = next;
+									setAddress(next);
+								},
+								onInput: (_event, value) => {
+									const next = readString(value);
+									form.current.address = next;
+									setAddress(next);
 								},
 							}}
 						/>

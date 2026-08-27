@@ -25,6 +25,7 @@ interface TaskAttributes {
 	actualEffort?: number | null;
 	description?: string | null;
 	deadline?: Date | null;
+	address?: string | null;
 	autoDeleteAfterDeadline?: boolean;
 	checklist?: ChecklistItem[];
 }
@@ -88,6 +89,7 @@ export const serializeTask = (task: Task): TaskDto => ({
 	estimatedEffort: task.estimatedEffort,
 	actualEffort: task.actualEffort ?? null,
 	description: task.description ?? null,
+	address: task.address ?? null,
 	deadline: task.deadline ? task.deadline.toISOString() : null,
 	autoDeleteAfterDeadline: task.autoDeleteAfterDeadline ?? false,
 	checklist: task.checklist ?? [],
@@ -197,6 +199,13 @@ const validateTaskFields = (body: unknown, requireTitle: boolean): ValidationRes
 			return { ok: false, message: 'description muss ein String oder null sein.' };
 		}
 		attrs.description = input.description;
+	}
+
+	if (input.address !== undefined) {
+		if (input.address !== null && (typeof input.address !== 'string' || input.address.length > 255)) {
+			return { ok: false, message: 'address muss ein String (max. 255 Zeichen) oder null sein.' };
+		}
+		attrs.address = input.address === null ? null : input.address.trim() === '' ? null : input.address.trim();
 	}
 
 	if (input.deadline !== undefined) {

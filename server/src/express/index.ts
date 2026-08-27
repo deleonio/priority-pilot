@@ -18,6 +18,7 @@ import { createLlmProvidersRouter } from './routes/llmProviders.js';
 import type { FetchProviderModels, RunProviderTest } from './routes/llmProviders.js';
 import { lektoratRouter } from './routes/lektorat.js';
 import { reverseGeocodeRouter } from './routes/reverseGeocode.js';
+import { geocodeSearchRouter } from './routes/geocodeSearch.js';
 import { handleServerError } from './server-error-handler.js';
 import type { PillarClassifier, ParseTaskParser, ActivityAdvisor } from '../llm/llm.js';
 import type { PushSender } from '../logics/push.js';
@@ -215,6 +216,9 @@ export const createApp = (deps: AppDeps = {}) => {
 
 	// Reverse Geocoding: Koordinaten → Adresse (Issue #866).
 	app.use('/reverse-geocode', reverseGeocodeRouter);
+
+	// Adresssuche (Forward Geocoding): Suchtext → Adress-Vorschläge, für die Ortsauswahl im Task-Formular.
+	app.use('/geocode-search', geocodeSearchRouter);
 
 	// GET /forest — Aufgabenwald nach Wertschöpfung sortiert (auf den eingeloggten Nutzer gefiltert).
 	app.get('/forest', async (req, res: express.Response<TaskTreeNodeDto[] | ErrorDto>) => {

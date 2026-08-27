@@ -414,3 +414,20 @@ export const migrateTaskChecklist = async (db: Sequelize): Promise<void> => {
 	await db.query("ALTER TABLE `tasks` ADD COLUMN `checklist` JSON NOT NULL DEFAULT '[]'");
 	console.log('Spalte checklist an tasks nachgezogen (#531).');
 };
+
+/**
+ * Zieht die `address`-Spalte (Aufgabenort, Adresssuche im Formular) auf einer **bestehenden**
+ * `tasks`-Tabelle nach, BEVOR `sequelize.sync()` läuft — analog `migrateTaskChecklist`. Nullable,
+ * daher kein Default nötig; bestehende Tasks bleiben ohne Adresse (`NULL`). Idempotent (Spalte
+ * vorhanden → No-op); bei frischer DB ebenso No-op — `sync()` legt die Spalte an.
+ */
+export const migrateTaskAddress = async (db: Sequelize): Promise<void> => {
+	const [columns] = await db.query("PRAGMA table_info('tasks')");
+	const existing = (columns as { name: string }[]).map((column) => column.name);
+
+	if (existing.length === 0 || existing.includes('address')) {
+		return;
+	}
+	await db.query('ALTER TABLE `tasks` ADD COLUMN `address` VARCHAR(255)');
+	console.log('Spalte address an tasks nachgezogen.');
+};

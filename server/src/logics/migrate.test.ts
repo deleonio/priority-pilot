@@ -8,6 +8,7 @@ import {
 	migrateUserIdColumns,
 	migratePillarDescription,
 	migrateTaskChecklist,
+	migrateTaskAddress,
 	migrateLlmProviderKindColumns,
 } from './migrate.js';
 import { SEED_PILLARS } from '../models/pillarData.js';
@@ -319,11 +320,12 @@ describe('migrateUserIdColumns', () => {
 	it('erlaubt nach Migration ein Task.findAll filtert nach userId ohne SQLITE_ERROR', async () => {
 		await createLegacyTasksTableBefore207();
 		await migrateUserIdColumns(sequelize);
-		// `checklist` (#531) und `originSeriesId` (#553) werden von Task.findAll mitselektiert — hier
-		// nachziehen, damit die Query nicht an der fehlenden Spalte bricht (separate Migrationen, nicht
-		// Teil der userId-Spalten).
+		// `checklist` (#531), `originSeriesId` (#553) und `address` werden von Task.findAll
+		// mitselektiert — hier nachziehen, damit die Query nicht an der fehlenden Spalte bricht
+		// (separate Migrationen, nicht Teil der userId-Spalten).
 		await migrateTaskChecklist(sequelize);
 		await migrateSeriesColumns(sequelize);
+		await migrateTaskAddress(sequelize);
 		await sequelize.sync();
 
 		await assert.doesNotReject(
@@ -467,5 +469,42 @@ describe('migrateLlmProviderKindColumns', () => {
 		const columns = await llmProviderColumns();
 		assert.ok(columns.includes('kind'), 'frische Tabelle enthält kind');
 		assert.ok(columns.includes('builtin_key'), 'frische Tabelle enthält builtin_key');
+	});
+});
+
+describe('migrateTaskAddress', () => {
+	it('zieht auf einem Alt-Schema die address-Spalte nach, sodass sync() nicht mehr bricht', async () => {
+		await createLegacyTasksTable();
+		// Serien-Spalten + checklist nachziehen (Vorbedingung für sync()/Task.create() auf dem
+		// Alt-Schema, siehe migrateSeriesColumns/migrateTaskChecklist) — nicht Teil dieser Migration,
+		// aber ohne sie bricht sync() bzw. das INSERT an anderer Stelle.
+		await migrateSeriesColumns(sequelize);
+		await migrateTaskChecklist(sequelize);
+
+		assert.ok(!(await taskColumns()).includes('address'), 'Alt-Schema hat address noch nicht');
+
+		await migrateTaskAddress(sequelize);
+		await assert.doesNotReject(() => sequelize.sync(), 'sync() bricht nach der Migration nicht mehr ab');
+
+		assert.ok((await taskColumns()).includes('address'), 'address wurde nachgezogen');
+
+		const task = await Task.create({ title: 'Ohne Adresse' });
+		assert.equal(task.address ?? null, null, 'Bestands-Tasks bleiben ohne Adresse (NULL)');
+	});
+
+	it('ist idempotent: erneuter Aufruf wirft nicht und erzeugt keine doppelte Spalte', async () => {
+		await createLegacyTasksTable();
+		await migrateTaskAddress(sequelize);
+		await assert.doesNotReject(() => migrateTaskAddress(sequelize), 'zweiter Lauf bleibt stabil');
+		assert.equal((await taskColumns()).filter((name) => name === 'address').length, 1, 'address genau einmal');
+	});
+
+	it('ist auf einer DB ohne tasks-Tabelle ein No-op und sync() legt sie korrekt an', async () => {
+		assert.deepEqual(await taskColumns(), [], 'Vorbedingung: keine tasks-Tabelle');
+
+		await assert.doesNotReject(() => migrateTaskAddress(sequelize), 'Migration ohne Tabelle ist no-op');
+		await assert.doesNotReject(() => sequelize.sync(), 'sync() legt die Tabelle frisch an');
+
+		assert.ok((await taskColumns()).includes('address'), 'frische Tabelle enthält address');
 	});
 });
