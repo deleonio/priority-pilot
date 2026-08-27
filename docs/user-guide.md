@@ -374,8 +374,9 @@ Beim Erledigen einer Aufgabe sammelst du Punkte:
 
 - Die Punkte entsprechen dem **geschätzten Aufwand** der Aufgabe, anteilig auf ihre
   Säulen verteilt – entsprechend dem Anteil, mit dem die Aufgabe auf jede Säule einzahlt.
-- Aufgaben ohne Säulen-Zuordnung zählen gleichmäßig auf alle Säulen ein, gewichtet nach
-  deiner Säulen-Gewichtung. Erledigte Arbeit wird so auch ohne zugeordnete Säule sichtbar.
+- Aufgaben ohne Säulen-Zuordnung fließen ins **Dashboard-Gesamtguthaben** ein, verteilt
+  nach deiner Säulen-Gewichtung — in der Erledigt-Tabelle zeigen sie 0 Punkte je Spalte.
+  Erledigte Arbeit wird so auch ohne zugeordnete Säule sichtbar.
 
 Dein Gesamtstand und die Aufteilung je Säule erscheinen im Dashboard unter
 **„Gesamtguthaben"**.
@@ -427,10 +428,10 @@ wenn die App gerade nicht geöffnet ist.
 - Mit **„Push testen"** kannst du eine Testnachricht auslösen.
 - Unterstützt dein Browser keine Push-Nachrichten, erscheint ein Hinweis – meist hilft
   es, die App zu installieren (siehe unten).
-- Erinnerungen verschickt die App einmal täglich, jeweils gebündelt in einer Nachricht:
+- Erinnerungen verschickt die App einmal täglich als **je eine gebündelte Nachricht**:
   alle offenen Aufgaben, deren Deadline innerhalb der nächsten 24 Stunden abläuft oder
-  schon überschritten ist, sowie deine drei wichtigsten offenen Aufgaben (nach
-  Priorität). Eine bereits gemeldete Fälligkeit wird nicht erneut gemeldet.
+  schon überschritten ist — sowie **separat** deine drei wichtigsten offenen Aufgaben
+  (nach Priorität). Eine bereits gemeldete Fälligkeit wird nicht erneut gemeldet.
 
 > **Hinweis: Doppelte Benachrichtigung vermeiden.** Wenn du Priority Pilot nur als
 > Browser-Tab (Chrome) und **nicht** als eigenständige App nutzt, kann neben der
