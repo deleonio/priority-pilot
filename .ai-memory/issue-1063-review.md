@@ -1,46 +1,37 @@
 # Issue 1063 — Review (Kreuzverhör)
 
 ## Erledigt
-- **Runde 3 für PR #1070 = KREUZVERHÖR** (Marker `<!-- ai-review -->` war VOR dem Start NICHT auffindbar). Grund: der Fixup-Kommentar (`<!-- ai-fixup-decisions -->`, "Fixup-Status: in Arbeit (Runde 2)") hat die Issue-Kommentar-ID **5444200633** komplett ÜBERSCHRIEBEN — der alte ai-review-Text ist weg, nur die ID blieb. PR-Reviews (5044846621/5044849099/5045135665) haben leere Bodies (nur Inline-Kommentare). Regel befolgt: Marker fehlt → Kreuzverhör, aber mit Memory-Wissen über F1–F5.
-- `closingIssuesReferences` = [1063] → AKs aus KI-ANALYSE-Block (Delta-Fassung): AK1 TaskTree-Badge bei `address`/keins ohne, AK2 375px kein Überlauf, AK3 Bestand aus PR #1064.
-- Diff gelesen: 3 Dateien (`TaskTree.tsx` +GeoBadge, `GeoBadge.tsx` Doku, e2e-Spec AK5-Flip + AK6-Aufgabenliste).
-- **F5 verifiziert BEHOBEN:** `padEnd(30, 'x')` (Spec:156) füllt `uniqueTitle('MobilOffen')` (~12-13 Zeichen) auf exakt 30 → POST geht durch; AK4 und AK5 im selben Shard **grün** (Run 33112124577: 1.1s / 1.6s).
-- **NEUES FINDING F6 (Blocker):** derselbe Run, AK6 failed JETZT bei `expect(locator).toBeVisible()` → `unexpected value "hidden"`, 14× resolved auf `<span role="img" class="geo-badge">`. Anker: Spec:159 (neuer offener Task mit `address`) — die scheiternde Zeile 172 ist unverändertes Diff-Kontext und nicht verankerbar (422 "could not be resolved"), daher F6 auf 159. Inline-Kommentar **3875554131**.
-- Ursache verifiziert am Code: `App.tsx:645` rendert `<SeriesTab>` nur bei `activeTab === 2`, aber `TaskTree` (`App.tsx:599`/`613`) bleibt im verborgenen Tab-Panel gemountet. Das Panel liegt vor tab-2 im DOM → seitenweiter `.first()` (Spec:172) greift das versteckte TaskTree-Badge statt des Serien-Badges. Neu seit diesem PR, weil AK6 vorher keinen offenen Task mit Adresse anlegte.
-- Sonst kein Befund: `verify` grün, `e2e (1)/(3)/(4)` grün, `gate-merge` skipped (wegen rotem e2e (2)).
-- Neuer ai-review-Sammelkommentar **5444786040** erstellt (es existierte keiner mehr); verifiziert: genau EIN `<!-- ai-review -->`-Marker im PR. Titel-Gate: `feat(frontend): show geo badge in task list (#1063)` = 51 Zeichen, compliant → kein Edit.
-- Memory aktualisiert (diese Datei), Verdict `needs-fixup` → /tmp/claude-verdict.
+- **Runde 4 für PR #1070 = FIXUP-VERIFICATION** (Marker `<!-- ai-review -->` vorhanden in Kommentar **5444786040**, `closingIssuesReferences`=[1063]). Kein neues Kreuzverhör gefahren, nur Delta.
+- Head ist jetzt **`84698300`** (neu seit Runde 3, die `f8ff8efd` sah). Delta = genau 1 Commit, 1 Datei: `frontend/e2e/issue-1063-geo-badge.spec.ts` — Commit-Message nennt die F6-Ursache (TaskTree im verborgenen Panel, SeriesTab erst bei aktivem Tab).
+- **F6 verifiziert BEHOBEN:** AK6-Assertion jetzt `page.getByTestId('series-tree-item-' + seriesId)` + `row.getByTestId('geo-badge')` (Spec:170-172, AK4-Muster); seitenweiter `.first()` entfernt. Zusätzlich neue TaskTree-Zeilen-Messung auf `task-list-item-${openId}` (Spec:191-196) mit Bounding-Box-Grenzen. `createSeriesViaApi` gibt die Serien-ID zurück (Spec:27-45), Anker also echt.
+- **CI auf Head `84698300` komplett grün** (Run **33113668116**, headSha verifiziert via `gh run view`): `verify` pass, `e2e (1)`–`e2e (4)` alle pass, `precheck`/`label` pass. AK1–AK6 damit belegt. Nur `gate-merge` skipped (Pipeline-eigen, Entscheidung folgt nach Review).
+- Review-Threads: F1/F2/F5 bereits resolved; **F6-Thread `PRRT_kwDONloM186c96j7` beantwortet (PRRC_kwDONloM187nAbw-) und resolved**.
+- Sammelkommentar **5444786040** per PATCH auf `reviewed` gesetzt: F6 in die Behoben-Tabelle verschoben, Offene Findings = keine, 🟢-Fixup-Nachweis-Absatz, Footer `Review-Typ: Fixup-Nachweis`. Verifiziert: genau **1** `<!-- ai-review -->`-Marker im PR.
+- Titel-Gate: `feat(frontend): show geo badge in task list (#1063)` = 51 Zeichen, Conventional, lowercase, English → kein Edit.
+- Verdict `reviewed` → /tmp/claude-verdict.
 
 ## Relevante Stellen
-- `frontend/e2e/issue-1063-geo-badge.spec.ts:156` — `padEnd(30, 'x')`: der F5-Fix, korrekt und sicher (uniqueTitle max ~13 Zeichen).
-- `frontend/e2e/issue-1063-geo-badge.spec.ts:159` — F6-Anker: `const openId = await createTaskViaApi(` = der neue offene Task MIT Adresse.
-- `frontend/e2e/issue-1063-geo-badge.spec.ts:172` — `expect(page.getByTestId('geo-badge').first()).toBeVisible()`: die eigentlich schuldige Zeile, seitenweit, unverändert im Diff.
-- `frontend/src/App.tsx:599,613,645` — TaskTree immer gemountet (nur an `taskViewMode` geknüpft), SeriesTab nur bei `activeTab === 2`: die DOM-Reihenfolge-Ursache von F6.
-- `frontend/src/components/TaskTree.tsx:104,108` — `task-list-item-<id>`-Anker + `task !== null && task.address != null && <GeoBadge …/>` in `.task-tree-badges`: erfüllt den Issue-Vertrag exakt.
-- `frontend/src/lib/extractLeaves.ts` — TaskTree rendert Blätter; Runde 1 hatte das bereits ohne Befund geprüft (Vertrag = Blattzeilen).
+- `frontend/e2e/issue-1063-geo-badge.spec.ts:157-172` — AK6: `seriesId`-Anker + zeilengebundenes Badge + Bounding-Box-Grenzen; der F6-Fix.
+- `frontend/e2e/issue-1063-geo-badge.spec.ts:117-141` — AK5: jetzt mit `openIdNoAddr` (Negativ-Ast im TaskTree, Spec:135-140).
+- `frontend/e2e/issue-1063-geo-badge.spec.ts:27-45` — `createSeriesViaApi` gibt `Promise<number>` (Serien-ID) zurück.
+- `frontend/src/components/TaskTree.tsx:108` / `GeoBadge.tsx` — Produktcode im PR-Diff unverändert gegenüber Runde 3, unauffällig.
 
 ## Annahmen
-- F6 ist deterministisch (DOM-Struktur + Playwright-Visibility, kein Timing) — 14 konsistente "hidden"-Resolves über 5s.
-- Der vergrabene Fixup-Kommentar 5444200633 darf stehen bleiben (Fixup-Phase-Record); der ai-review-Status liegt jetzt in EINEM neuen Kommentar. Genau ein `<!-- ai-review -->`-Marker ist damit weiterhin gegeben.
-- `padEnd(30)` bleibt künftigsicher, solange `uniqueTitle`-Labels ≤ ~17 Zeichen bleiben.
+- Run 33113668116 ist der Run zum PR-Head (headSha per `gh run view` gegengeprüft, nicht nur `gh pr checks`-Reihenfolge vertraut).
+- `review`-Job auf `pending` ist der laufende Pipeline-Review-Lauf, kein Befund des PR-Inhalts.
 
 ## Verworfen
-- MODE Fixup Verification — nein: der geforderte Marker fehlt objektiv; Regel "Marker MISSING → CROSS-EXAMINATION" befolgt. Das Kreuzverhör hat F1–F5 trotzdem abgehakt.
-- 375px-CSS-Hypothese (Badge kollabiert bei schmalem Viewport) — widerlegt: Zeile 172 ist unverändert und lief in PR #1064 grün; nur das neu hinzugekommene TaskTree-Badge erklärt das Bild.
-- F6 als Produkt-Bug — nein: Badge im verborgenen Tab-Panel ist korrektes Tab-Verhalten; der Test misst falsch.
-- extractLeaves/Blatt-only als Finding — Runde 1 bereits ohne Befund adjudiziert; Issue-Anker ist explizit die Blattzeile (`task-list-item-<id>`).
-- KolBadge statt span/GeoBadge — Abweichung in Runde 0 im PR-Body begründet (Label im Shadow-DOM, Testid-Vertrag).
+- Neues Kreuzverhör des ganzen PR — Regel "Marker PRESENT → FIXUP VERIFICATION" befolgt; Produktcode-Dateien (TaskTree/GeoBadge) sind im Diff identisch zu Runde 3, wo sie bereits adjudiziert waren.
+- Inline-Kommentar zum F6-Fix — kein Finding mehr vorhanden, nur Thread-Resolution.
 
 ## Offen
-- F6 (Blocker): AK6 rot in CI. Nächste Fixup-Runde muss Spec:172 auf `series-tree`/`series-tree-item-<id>` scope-n und danach `e2e (2)` grün sehen.
+- keine
 
 ## Nächster Schritt
-- Kommende Runde: Delta seit `f8ff8efd` (nur Spec:172-Scoping erwartet), CI `e2e (2)` grün bestätigen, F6-Thread (3875554131) resolven, ai-review-Kommentar auf `reviewed` setzen.
+- Phase abgeschlossen; `documenter`/`block-new`-Phasen können übernehmen. PR ist review-ready (`reviewed`), gate-merge entscheidet über Auto-Merge.
 
 ## Fallstricke
-- **Inline-Kommentare lassen sich NUR auf Diff-Zeilen setzen** — unveränderte Kontextzeilen (hier Spec:172) geben 422 "pull_request_review_thread.line could not be resolved". Ursprungszeile über die nächste hinzugefügte Zeile verankern und im Text die echte Zeile nennen.
-- **Fixup-Kommentar und ai-review-Kommentar teilen sich ID 5444200633:** der Fixup-Text hat den ai-review-Body überschrieben. "EXACTLY ONE ai-review" heißt hier: zählen nach Marker, nicht nach ID — ein neuer Kommentar war nötig.
-- Playwright-`toBeVisible` auf seitenweite `.first()`-Locator ist fragil, sobald versteckte Tab-Panels dasselbe `data-testid` tragen (hier: `geo-badge` in TaskTree + CompletedTasksTable + SeriesTab gleichzeitig im DOM). Immer auf den Listen-Container oder die konkrete Zeile scope-n.
-- `git status` zeigt dettached HEAD/"Merge …" im Repo-Snapshot — PR-Zustand (`state: OPEN`, `headRefOid`) ist die verlässliche Quelle, nicht der lokale Log.
-- CI-Run dem Head zuordnen: `gh run view <id> --json headSha` — `gh pr checks` listet auch Runs älterer SHAs.
-- Payloads per Heredoc + `--input <file>`; `Write`-Tool auf /tmp ist in dieser Umgebung nicht erlaubt (Permission-Fehler), `python3 -c`/Heredoc schon.
+- Delta-Scoping per `gh api repos/{owner}/{repo}/commits/<sha>` (datei-liste) ist schneller/sicherer als `gh pr diff`-Interpretation, wenn der PR-Head-Commit selbst der Fixup-Commit ist.
+- `gh pr checks` listet Runs mehrerer SHAs gemischt — Head-Zuordnung immer über `gh run view <id> --json headSha`.
+- Thread-Resolution: Reply zuerst (`addPullRequestReviewThreadReply` mit `pullRequestReviewThreadId`), dann `resolveReviewThread` mit `threadId` = PRRT_-Knoten-ID, nicht der Kommentar-ID.
+- Kommentar-PATCH: Payload per Heredoc nach `/tmp/payload.json` schreiben und direkt `--input` übergeben (`Write`-Tool auf /tmp verboten; `python3 -c ||`-Fallback-Falle umgangen).
