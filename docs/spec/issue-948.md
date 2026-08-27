@@ -61,7 +61,6 @@ ungültigem API-Key) konservativ zu erhalten, gilt folgende Unterscheidungslogik
 „Invalid API key") fällt weiterhin unter die KI-Konfigurations-Meldung; das hält #620 intakt,
 falls ein LLM-Endpoint heute oder künftig doch mit 401 antwortet.
 
-
 ## Randfälle & Fehler
 
 | Situation                                          | Erwartetes Verhalten                                                       |
@@ -69,7 +68,7 @@ falls ein LLM-Endpoint heute oder künftig doch mit 401 antwortet.
 | 401 mit `{ "message": "Nicht eingeloggt." }`       | Session-Meldung, kein KI-Text (AK1)                                        |
 | 401 ohne lesbaren JSON-Body                        | Session-Fallback-Meldung, kein KI-Text (AK1)                               |
 | 401 mit `{ "message": "Ungültige Zugangsdaten." }` | Session-Meldung (gleiche Kategorie Session-Auth)                           |
-| 401 mit fremder Message (z. B. „Invalid API key")  | KI-Konfigurations-Meldung                |
+| 401 mit fremder Message (z. B. „Invalid API key")  | KI-Konfigurations-Meldung                                                  |
 | 503 (Mistral-Ausfall)                              | „KI-Dienst … nicht erreichbar" unverändert (AK3)                           |
 | 409 / 400 (Zyklus / Validierung)                   | Server-Message wird durchgereicht (AK3)                                    |
 | DeleteTaskDialog bei Session-401                   | Session-Meldung im bestehenden KolAlert, Dialog-Struktur unverändert (AK4) |

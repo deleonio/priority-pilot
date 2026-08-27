@@ -43,8 +43,8 @@ Bei neuer App-Version bzw. abgeschlossener Offline-Vorbereitung zeigt die App ei
 
 ### Randfälle & Fehler
 
-| Situation                        | Erwartetes Verhalten                                     |
-| -------------------------------- | -------------------------------------------------------- |
-| Weder Update noch Offline ready  | Keine Card sichtbar                                      |
-| Sehr schmaler Viewport (320 px)  | Kein horizontales Überlaufen der Card-Inhalte            |
-| Beide Ereignisse gleichzeitig    | Beide Cards erscheinen untereinander                     |
+| Situation                       | Erwartetes Verhalten                          |
+| ------------------------------- | --------------------------------------------- |
+| Weder Update noch Offline ready | Keine Card sichtbar                           |
+| Sehr schmaler Viewport (320 px) | Kein horizontales Überlaufen der Card-Inhalte |
+| Beide Ereignisse gleichzeitig   | Beide Cards erscheinen untereinander          |

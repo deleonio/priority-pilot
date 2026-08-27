@@ -41,8 +41,8 @@ Die Tabelle der erledigten Aufgaben ist auf allen Viewports lesbar und bedienbar
 
 ### Randfälle & Fehler
 
-| Situation                     | Erwartetes Verhalten                                              |
-| ----------------------------- | ----------------------------------------------------------------- |
-| Keine erledigten Aufgaben     | Hinweis: „Noch keine erledigten Aufgaben vorhanden."              |
-| „Wieder öffnen" schlägt fehl  | Fehlermeldung über der Tabelle (role="alert"), Button reaktiviert |
-| Sehr langer Säulenname        | Header auf ≤ 20 Zeichen gekürzt („…" am Ende)                     |
+| Situation                    | Erwartetes Verhalten                                              |
+| ---------------------------- | ----------------------------------------------------------------- |
+| Keine erledigten Aufgaben    | Hinweis: „Noch keine erledigten Aufgaben vorhanden."              |
+| „Wieder öffnen" schlägt fehl | Fehlermeldung über der Tabelle (role="alert"), Button reaktiviert |
+| Sehr langer Säulenname       | Header auf ≤ 20 Zeichen gekürzt („…" am Ende)                     |
