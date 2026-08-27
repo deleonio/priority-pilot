@@ -21,7 +21,7 @@ Der Header zeigt seine Elemente in der festen Reihenfolge Logo → Name → Tool
 1. **Header-Elemente identifizieren**
    - Logo (App-Icon, icon-only)
    - App-Name „Priority Pilot"
-   - Toolbar mit den fünf Kopf-Aktionen (#691): „Neuen Task anlegen", „Säulen-Berater", „Einstellungen", „Hilfe", „Abmelden"
+   - Toolbar mit den sechs Kopf-Aktionen: „Suche", „Neuen Task anlegen", „Säulen-Berater", „Einstellungen", „Hilfe", „Abmelden"
    - User-Avatar mit Profil-Bild
 
 2. **Reihenfolge prüfen**
@@ -44,7 +44,7 @@ eine Pfeiltasten-Navigation, die er nicht implementiert.
 ### Abgrenzung: Menüstruktur über alle Viewports
 
 Der Header zeigt auf allen Bildschirmbreiten (Desktop, Tablet, Mobile) dieselbe Menüstruktur:
-dieselben fünf Kopf-Aktionen, keine Elemente, die nur in bestimmten Breiten erscheinen.
+dieselben sechs Kopf-Aktionen, keine Elemente, die nur in bestimmten Breiten erscheinen.
 Responsives Verhalten entsteht nur durch Layout/Positionierung, nicht durch Entfernen von Menüpunkten.
 
 ### Abgrenzung: Tab-Leisten über alle Viewports
@@ -79,7 +79,7 @@ Der Header funktioniert auf allen Viewports.
    - Toolbar-Elemente passen in den Viewport
 
 2. **Breakpoint prüfen**
-   - Unter und ab 48rem (768px): alle fünf Kopf-Aktionen (icon-only) im Header
+   - Unter und ab 48rem (768px): alle sechs Kopf-Aktionen (icon-only) im Header
    - Ab 64rem (1024px): zusätzlich der App-Name im Header
 
 ### Erwartetes Ergebnis
@@ -99,7 +99,7 @@ Während der Hydration wächst der Header erwartungsgemäß auf seine Endhöhe (
 Buttons asynchron im Shadow-DOM auf). Ist die Toolbar ausgelayoutet, darf keine Interaktion die
 Header-Höhe verändern.
 
-Auf 375px bleibt der Header einzeilig: Logo, Avatar und die fünf Kopf-Aktionen füllen die Zeile aus.
+Auf 375px bleibt der Header einzeilig: Logo, Avatar und die sechs Kopf-Aktionen füllen die Zeile aus.
 Ein zweizeiliger Umbruch tritt nicht ein.
 
 ---

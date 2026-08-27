@@ -1,6 +1,6 @@
 # Settings Screen Layout – Priority Pilot
 
-**Stand:** 2026-08-23
+**Stand:** 2026-08-27
 **Ziel:** Konsistentes Layout im Settings Screen mit einheitlichen Spacing-Werten, korrektem Alignment und lesbarer Typografie
 
 Diese Spezifikation beschreibt das beobachtbare Layout-Verhalten des Settings Screen. Sie ist implementierungsagnostisch und fokussiert auf visuelle Konsistenz.
@@ -36,17 +36,6 @@ Settings Screen verwendet einheitliche Layout-Werte für Abstände, Alignment un
 
 ## Randfälle & Fehler
 
-| Situation               | Erwartetes Verhalten                                               |
-| ----------------------- | ------------------------------------------------------------------ |
-| Settings Screen leer    | Hinweis: „Keine Einstellungen verfügbar."                          |
-| Control ohne Label      | Label ist erforderlich, Controls ohne Label werden nicht gerendert |
-| Deskriptiver Text fehlt | Optional – wenn vorhanden, muss er ≥16sp und #616161 sein          |
-
----
-
-## Hinweise zur Nutzung
-
-- **Format:** Diese Spezifikation verwendet ein informelles „Given/When/Then"-Format
-- **Implementierung:** Diese Spec ist implementierungsagnostisch – sie beschreibt beobachtbares Layout-Verhalten, nicht CSS-Details
-- **Test-Strategie:** Aus dieser Spec werden E2E-Tests abgeleitet, die: - **visuell** sind (Screenshot-Vergleich, Layout-Messung) - **konsistenzorientiert** sind (einheitliche Werte prüfen) - **zugänglich** sind (Kontrast, Lesbarkeit prüfen)
-- **Änderungen:** Bei Layout-Änderungen muss diese Spec aktualisiert werden
+| Situation               | Erwartetes Verhalten                               |
+| ----------------------- | -------------------------------------------------- |
+| Deskriptiver Text fehlt | Optional – wenn vorhanden, ≥16sp und Farbe #616161 |

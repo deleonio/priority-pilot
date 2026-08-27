@@ -39,7 +39,7 @@ Neue Aufgabe in das System aufnehmen, mit allen relevanten Metadaten (Priorität
    - **Geschätzter Aufwand**: Schieberegler auf **0,5** Tage (0,1–1)
    - **Deadline** (optional): _2026-08-15_ wählen
    - **Beschreibung** (optional): _„Finanzkennzahlen und Prognose für Q3"_
-   - **Säulen** (optional): Säule „Wirksamkeit" mit **Anteil 100%** und **Konfidenz 80%** zuordnen
+   - **Säulen** (optional): Säule „Wirksamkeit" mit **Anteil 1** (Schieberegler 0–1, Schritt 0,1) und **Konfidenz 80 %** (0–100 %) zuordnen
 
 5. **Aufgabe speichern**
    - Klick auf **„Anlegen"**

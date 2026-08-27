@@ -1,6 +1,6 @@
 # User Journey – Session-401 korrekt von KI-401 unterscheiden
 
-**Stand:** 2026-08-23  
+**Stand:** 2026-08-27  
 **Issue:** #948 (Folge von #620)
 
 ---
@@ -24,10 +24,9 @@ der irreführenden KI-Meldung „Die KI-Konfiguration ist ungültig. Bitte prüf
 1. **Löschen auslösen**
    - Klick auf **„Endgültig löschen"** im Task-Lösch-Dialog (`DELETE /tasks/{id}`).
 2. **Server antwortet mit Session-401**
-   - `requireAuth` lehnt den Request ab: HTTP 401 mit Body `{ "message": "Nicht eingeloggt." }`
-     (Serververtrag, `server/src/express/requireAuth.ts`).
+   - Die Session-Auth lehnt den Request ab: HTTP 401 mit Body `{ "message": "Nicht eingeloggt." }`.
 3. **Fehlerbeobachtung**
-   - `toApiError` übersetzt den 401 in eine Session-Meldung.
+   - Die Fehlertextauflösung (`toApiError`) übersetzt den 401 in eine Session-Meldung.
    - Der Dialog zeigt die Meldung im bestehenden Fehler-Alert (KolAlert „Löschen fehlgeschlagen").
 
 ### Erwartetes Ergebnis
@@ -35,8 +34,7 @@ der irreführenden KI-Meldung „Die KI-Konfiguration ist ungültig. Bitte prüf
 - **Primär:** Alert zeigt „Nicht eingeloggt. Bitte melde dich erneut an." — keine Erwähnung von
   KI/Konfiguration.
 - **Struktur:** Dialog unverändert (gleiche Buttons, gleiches Alert-Element; nur der Fehlertext ändert sich).
-- **Keine Server-Änderung:** `DELETE /tasks/:id` berührt serverseitig kein LLM; das Mapping ist
-  frontend-lokal in `toApiError` zu korrigieren.
+- `DELETE /tasks/:id` berührt serverseitig kein LLM; das Mapping ist frontend-lokal.
 
 ---
 
@@ -63,11 +61,6 @@ ungültigem API-Key) konservativ zu erhalten, gilt folgende Unterscheidungslogik
 „Invalid API key") fällt weiterhin unter die KI-Konfigurations-Meldung; das hält #620 intakt,
 falls ein LLM-Endpoint heute oder künftig doch mit 401 antwortet.
 
-**Signatur unverändert:** Alle ~20 Konsumenten von `toApiError` (DeleteTaskDialog, TaskForm,
-PillarFormDialog u. a.) erben das korrigierte Mapping automatisch.
-
----
-
 ## Randfälle & Fehler
 
 | Situation                                          | Erwartetes Verhalten                                                       |
@@ -75,7 +68,7 @@ PillarFormDialog u. a.) erben das korrigierte Mapping automatisch.
 | 401 mit `{ "message": "Nicht eingeloggt." }`       | Session-Meldung, kein KI-Text (AK1)                                        |
 | 401 ohne lesbaren JSON-Body                        | Session-Fallback-Meldung, kein KI-Text (AK1)                               |
 | 401 mit `{ "message": "Ungültige Zugangsdaten." }` | Session-Meldung (gleiche Kategorie Session-Auth)                           |
-| 401 mit fremder Message (z. B. „Invalid API key")  | KI-Konfigurations-Meldung bleibt (AK2, #620-Bestandsschutz)                |
+| 401 mit fremder Message (z. B. „Invalid API key")  | KI-Konfigurations-Meldung                                                  |
 | 503 (Mistral-Ausfall)                              | „KI-Dienst … nicht erreichbar" unverändert (AK3)                           |
 | 409 / 400 (Zyklus / Validierung)                   | Server-Message wird durchgereicht (AK3)                                    |
 | DeleteTaskDialog bei Session-401                   | Session-Meldung im bestehenden KolAlert, Dialog-Struktur unverändert (AK4) |
