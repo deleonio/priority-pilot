@@ -127,4 +127,37 @@ test.describe('#1051 Header-Toolbar einheitlich + Mic-Button ausrichten', () => 
 			`375px: Mic-Button Center-Y (${micCenterY}) muss in Inputbox [${inputBox!.y}, ${inputBox!.y + inputBox!.height}] liegen`,
 		).toBe(true);
 	});
+
+	/**
+	 * #1054 (F1, Kollateral-Check): Mic-Button im TaskForm-Titelfeld bleibt auch MIT
+	 * KoliBri-Zeichenzähler (`_hasCounter`) vertikal in der Inputbox — der Zähler rendert
+	 * eine Zeile UNTER der Inputbox und darf den Bottom-Anker nicht verschieben.
+	 */
+	test('F1: Mic-Button im TaskForm-Titelfeld bleibt mit Zähler in der Inputbox zentriert', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await page.getByRole('button', { name: 'Neuen Task anlegen' }).click();
+		// Vorgeschalteter Schnellerfassungs-Schritt wird übersprungen (siehe issue-761 openTaskForm).
+		await page.getByRole('button', { name: /überspringen/i }).click();
+		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
+
+		const titleInput = page.locator('[data-testid="task-title"] input').first();
+		await expect(titleInput).toBeVisible();
+
+		// Mic-Button des Titelfelds (Light-DOM innerhalb des VoiceField-Wrappers).
+		const micButton = page.locator('[data-testid="task-title"] .mic-button');
+		await expect(micButton).toBeVisible();
+
+		const micBox = await micButton.boundingBox();
+		const inputBox = await titleInput.boundingBox();
+		expect(micBox).not.toBeNull();
+		expect(inputBox).not.toBeNull();
+
+		const micCenterY = micBox!.y + micBox!.height / 2;
+		expect(
+			micCenterY >= inputBox!.y && micCenterY <= inputBox!.y + inputBox!.height,
+			`Mic-Button Center-Y (${micCenterY}) muss in Inputbox [${inputBox!.y}, ${inputBox!.y + inputBox!.height}] liegen`,
+		).toBe(true);
+	});
 });
