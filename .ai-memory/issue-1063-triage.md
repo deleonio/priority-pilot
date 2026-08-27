@@ -1,42 +1,32 @@
-# Issue 1063 — Triage (Geo-Badge in Erledigt-/Serienliste)
+# Issue 1063 — Triage (Geo-Badge in Listen)
 
 ## Erledigt
-- Initial-Triage (Vorlauf): needs-human gestellt, Decision-Kommentar mit `<!-- ai-triage-decision -->` gepostet (2026-08-27T17:36:52Z).
-- Menschenentscheidung erhalten (@deleonio, 2026-08-27T17:51:04Z, BINDEND): **Option B** (Series-Modell um `address` erweitern), **nicht im TaskTree** (Badge nur CompletedTasksTable + SeriesTab), **Font-Awesome-Icon** (`fa-solid fa-globe`).
-- Re-Triage abgeschlossen (2026-08-27T17:54Z): Analyse-Block (🟢, stand=2026-08-27T17:54:18Z) + Routing-Tabelle in den Body geschrieben; Titel geaendert zu „Geo-Badge für Ortsbezug in Erledigt- und Serienliste (address für Serien)"; Labels: `ai:needs-analyse` entfernt, `ai:analysed` + `ai:needs-ux-ui` gesetzt (per gh verifiziert). Kein Ping-Kommentar (eindeutiger Ausgang).
-- Code-Recherche verifiziert: Series hat kein address (`server/src/models/series.ts`); Migrations-Vorbild `migrateTaskAddress` (`server/src/logics/migrate.ts:424`); Einreihung vor sync() (`server/src/index.ts:157-187`); Kaskade `applyToInstances` (`server/src/express/routes/series.ts:393-402`); Instanz-Vererbung `generateDueInstances` (`server/src/logics/series.ts:136-152`); OpenAPI `Series`/`SeriesCreate`/`SeriesUpdate` (openapi.yml:1771/1829/1874); Client-Regeneration `pnpm --filter client generate` + `pnpm --filter server build:api`.
+- Issue-Body + Kommentare geladen (nur 1 Bot-Kommentar `ai-quality`, keine Entscheidungen) — Initial-Triage.
+- Code-Recherche Geolocation: `address` existiert NUR am Task (`server/src/models/task.ts:37`, Spalte wird in `server/src/index.ts:182` nachgezogen). Serie hat KEIN address-Feld (`server/src/models/series.ts:20-45`, nichts); `SeriesCreate` in `frontend/src/components/TaskForm.tsx:560-570` schickt kein address.
+- Listen-Recherche: `TaskTable.tsx` ist ungenutzt (kein `<TaskTable` im Repo ausser Test). Live: `TaskTree` (App.tsx:573+587) und `CompletedTasksTable` (App.tsx:600+610). Serienliste: `SeriesTab.tsx` (series-tree-row, Zeile ~146 Rhythmus-Badge als Vorbild).
+- Verdict: needs-human (siehe Offen), Decision-Kommentar mit Marker gepostet, Label `ai:needs-human` gesetzt, `ai:needs-analyse` entfernt. Body/Title unveraendert.
 
 ## Relevante Stellen
-- `server/src/models/series.ts` — address-Feld + Spalte ergaenzen (Vorbild `task.ts:37`).
-- `server/src/logics/migrate.ts:424` — `migrateTaskAddress` als Muster fuer neue `migrateSeriesAddress`.
-- `server/src/express/routes/series.ts` — validateSeriesFields (~129), serializeSeries (~109), Kaskade (~393-402).
-- `server/src/logics/series.ts:136-152` — `Task.create` im Generator: address vererben (Snapshot wie autoDeleteAfterDeadline).
-- `openapi.yml:1771/1829/1874` — Series/SeriesCreate/SeriesUpdate um address erweitern; applyToInstances-Doku (~1912).
-- `frontend/src/components/TaskForm.tsx` — SeriesUpdate (~541-550), SeriesCreate (~561-571), `hasSeriesCascadeChange` (~70), Adressfeld im Serien-Modus.
-- `frontend/src/components/SeriesTab.tsx:146` — Rhythmus-Badge als Styling-Vorbild; Badge hier ergaenzen.
-- `frontend/src/components/CompletedTasksTable.tsx` — Titel-Zelle/Renderer fuer Task-Badge.
-- Test-Vorbilder: `server/src/express/tasks-address.test.ts`, `series.cascade.test.ts`, `server/src/logics/series.test.ts`.
+- `server/src/models/task.ts:37` — `address?: string | null`, einzige Geolocation-Datenquelle.
+- `frontend/src/components/TaskForm.tsx:579` — TaskUpdate setzt address (Geocoding via `useAddressSearch`).
+- `frontend/src/components/SeriesTab.tsx:146` — Serien-Zeile: `series-tree-badge--rhythm` = Styling-Vorbild fuer Badge.
+- `frontend/src/components/TaskTree.tsx` / `CompletedTasksTable.tsx` — die echten Aufgabenlisten.
+- `frontend/src/components/TaskTable.tsx` — ungenutzt/tot (nur eigener Test).
 
 ## Annahmen
-- Geolocation == `address`-String (Forward-Geocoding), keine Lat/Lon-Spalten.
-- address wird kaskadierbar wie `description` (#553-Modal + #555 Done-Aussnivers); aus Option B als Konsistenz-Folge abgeleitet, nicht explizit vom Menschen entschieden.
-- Ein PR reicht (Vertikal-Schnitt, Vorbild #523); kein Split.
+- Geolocation == `address`-Feld (String aus Forward-Geocoding), keine Lat/Lon-Spalten.
 
 ## Verworfen
-- Option A (Badge nur Aufgabenlisten) — vom Menschen zugunsten von Option B abgelehnt.
-- TaskTree als Badge-Ort — explizit „Nicht in TaskTree" entschieden.
-- Emoji 🌍 — vom Menschen zugunsten Font-Awesome abgelehnt.
-- Split in Sub-Issues — kleiner Vertikal-Schnitt, ein PR reviewbar.
-- `TaskTable.tsx` anpassen — unbenutzt/tot.
+- Analyse-Block + Ampel schreiben: verboten bei Unklarheit (Skill Schritt 3/5) — Serien-Teil der AKs ist mit heutigem Modell unerfuellbar.
+- Titel-Edit: "Geo badge an aufgabenliste" ist unvollständig (Serie fehlt), aber Scope-Entscheidung steht aus → nicht vorweggenommen.
 
 ## Offen
-- - (alles entschieden, Phase UX laeuft naechst an)
+- Menschenentscheidung ausstaendig (Option A nur Tasks vs. Option B Series-Modell um address erweitern; welche Zaehlen als Aufgabenlisten). Blockiert alles weitere.
 
 ## Nächster Schritt
-- Phase UX (Label `ai:needs-ux-ui` gesetzt): KI-UX-Block schreiben; danach Spec/Impl gemaess Routing-Tabelle (ux haiku/low, spec sonnet/medium, impl+review sonnet/high).
+- Re-Triage nach Decision-Kommentar: nur DIESEN Kommentar + alle danach lesen (binding), dann Analyse-Block + Routing-Tabelle in den Body, Label gemaess Ampel setzen.
 
 ## Fallstricke
-- Migration VOR `sequelize.sync()` einfuegen, sonst `no such column` auf Bestands-DBs.
-- OpenAPI first, dann Client (`pnpm --filter client generate`) + `pnpm --filter server build:api`, sonst fehlt `address` im `Series`/`SeriesCreate`/`SeriesUpdate`-Typ.
-- TaskTree nicht anfassen (Explizit-Entscheidung), TaskTable ist tot.
-- „Kein horizontaler Überlauf"-AKs per Bounding-Box messen (App-Shell clippt `overflow-x: hidden`, scrollWidth unbrauchbar — MEMORY.md 2026-08-24).
+- Bei Option B: DB-Spalte analog `server/src/index.ts:182` (address-Spalte nachziehen) + OpenAPI-Client neu generieren, sonst fehlt `address` im `Series`-Typ.
+- Nicht fälschlich `TaskTable` anpassen — Komponente ist unbenutzt; wirksame Stellen sind TaskTree/CompletedTasksTable.
+- Emoji 🌍 vs. KoliBri-Icon: KolIcons-Font kennt vermutlich keinen Globus; Font Awesome (`fa-solid fa-globe`) ist im Projekt etabliert (SeriesTab nutzt `fa-solid fa-pen`) — Empfehlung im Decision-Kommentar steht.
