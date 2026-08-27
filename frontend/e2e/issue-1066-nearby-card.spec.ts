@@ -92,9 +92,7 @@ test.describe('Priority Pilot — #1066: Dashboard-Card „In der Nähe“', () 
 		await expect(page.getByTestId('nearby-item')).toHaveCount(0);
 	});
 
-	test('AK2/AK3 — offene Tasks aufsteigend nach Distanz, Distanz in km mit einer Nachkommastelle', async ({
-		page,
-	}) => {
+	test('AK2/AK3 — offene Tasks aufsteigend nach Distanz, Distanz in km mit einer Nachkommastelle', async ({ page }) => {
 		await page.addInitScript(GEO_INIT('granted', true));
 		await createTaskViaApi(page, 'E2E 1066 weit', { latitude: 53.5511, longitude: 9.9937 }); // Hamburg
 		await createTaskViaApi(page, 'E2E 1066 nah', { latitude: 52.3906, longitude: 13.0645 }); // Potsdam
@@ -139,7 +137,8 @@ test.describe('Priority Pilot — #1066: Dashboard-Card „In der Nähe“', () 
 		const badge = page.getByTestId('geo-badge').first();
 		await expect(badge).toBeVisible({ timeout: 5000 });
 		const label = (await badge.getAttribute('aria-label')) ?? '';
-		expect(label).not.toMatch(/52[.,]/, 'Latitude-Rohwert darf nicht im Label landen');
-		expect(label).not.toMatch(/13[.,]/, 'Longitude-Rohwert darf nicht im Label landen');
+		// (Nachricht als Kommentar: toMatch akzeptiert typisiert nur 1 Argument, TS2554)
+		expect(label).not.toMatch(/52[.,]/); // Latitude-Rohwert darf nicht im Label landen
+		expect(label).not.toMatch(/13[.,]/); // Longitude-Rohwert darf nicht im Label landen
 	});
 });

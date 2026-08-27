@@ -23,6 +23,9 @@ const SERIES_COLUMNS = [
 	// nachträglichem ADD COLUMN einen DEFAULT für NOT NULL). Wird hier mitgezogen, damit Bestands-DBs
 	// die Spalte erhalten, bevor Queries (Task.findAll/-create) sie selektieren.
 	{ name: 'autoDeleteAfterDeadline', definition: 'INTEGER NOT NULL DEFAULT 0' },
+	// Standort-Koordinaten (#1066): nullable, daher kein NOT NULL/DEFAULT nötig. Bestand bleibt `NULL`.
+	{ name: 'latitude', definition: 'FLOAT' },
+	{ name: 'longitude', definition: 'FLOAT' },
 ] as const;
 
 /**
@@ -76,6 +79,9 @@ const SERIES_TABLE_COLUMNS = [
 	// Auto-Löschung bei verpasster Deadline (#523): NOT NULL DEFAULT 0 (SQLite verlangt DEFAULT bei
 	// nachträglichem ADD COLUMN); wird beim Generieren auf die Instanzen vererbt.
 	{ name: 'autoDeleteAfterDeadline', definition: 'INTEGER NOT NULL DEFAULT 0' },
+	// Standort-Koordinaten des Serien-Orts (#1066): nullable, daher kein NOT NULL/DEFAULT nötig.
+	{ name: 'latitude', definition: 'FLOAT' },
+	{ name: 'longitude', definition: 'FLOAT' },
 ] as const;
 
 /**
