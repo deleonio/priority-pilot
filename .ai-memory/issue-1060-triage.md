@@ -2,80 +2,85 @@
 
 ## Erledigt
 
-- Re-Triage-Lauf 2 (2026-08-27T13:43Z). Vorheriger Block hatte `stand=2026-08-27T13:39:52Z`,
-  Ampel 🟡, 4 offene Fragen. Delta-Kommentare seit `stand`: NUR der eigene Ping-Kommentar
-  (`issuecomment-5439980399`, 13:40:24Z) — keine menschliche Antwort.
-- Code gelesen: `server/src/llm/llmProviders.ts` (komplett, 361 Z.), `server/src/llm/llm.ts`
-  (komplett, 766 Z.). Kein Bug gefunden — Provider-Aufloesung schluessig.
-- ENV-Namen gegengeprueft (`grep MISTRAL_API_KEY` ueber yml/md/example): konsistent in
-  `server/.env.example:16`, `docs/server-setup.md:127`, `docs/deployment.md:105`,
-  `.ai-knowledge/project.md:98`, `openapi.yml:251`. KEIN Rename beim Refactoring.
-- Issue-Body neu geschrieben mit `stand=2026-08-27T13:43:03Z`, Ampel auf 🔴 gesetzt,
-  Routing-Tabelle unveraendert (ux nein / spec+impl+review ja, sonnet, medium).
-- EINEN `<!-- ai-triage-decision -->`-Kommentar gepostet
-  (`issuecomment-5440024966`) mit Ursachen-Tabelle a/b/c + 4 Fragen + Empfehlung.
-- Labels: `ai:needs-analyse` entfernt, `ai:analysed` + `ai:needs-human` gesetzt.
-  Kein Phasen-Trigger (korrekt bei 🔴).
+- Re-Triage-Lauf 4 (2026-08-27T16:23Z): Abschluss des soft-aborteden 16:18er-Laufs. Der Lauf
+  um 16:18:09Z hatte Body (🟢-Analyse + Routing) geschrieben und `.ai-memory/issue-1060-body.md`
+  gepflegt, aber Step 5 (Labels) NICHT mehr ausgefuehrt — deshalb stand das Ticket noch auf
+  `ai:needs-analyse`. Delta-Kommentare seit `stand=2026-08-27T16:18:09Z`: KEINE
+  (letzter Kommentar 16:16:11Z, die Antwort von @deleonio).
+- Body verifiziert (nicht umgeschrieben, `stand` bewusst unveraendert — keine neue Info):
+  KI-ANALYSE-Block mit Ampel 🟢, Routing ux=nein / spec+impl+review=ja (sonnet, medium),
+  offene Fragen: keine.
+- Code-Behauptungen der Analyse gegengeprueft (2026-08-27T16:23Z, alle stimmen):
+  `llmProviders.ts:84` = `defaultModel: 'mistral-medium-latest'`; `openapi.yml:252/296/367`
+  dokumentieren Default `mistral-small-latest`; `fallbackModels` enthaelt `mistral-small-latest`
+  (Z. 88) und `mistral-large/medium/ministral`-Eintraege.
+- Menschen-Antwort (Kommentar 16:16:11Z von @deleonio) auf den Decision-Kommentar
+  13:44:01Z: HTTP **402**, Subscription war NICHT das Problem, `MISTRAL_API_KEY` gesetzt,
+  Mistral als aktiv markiert, OpenRouter funktioniert. Damit Fall (a)+(b) ausgeschlossen →
+  Ursache = Code-Default `mistral-medium-latest` (abo-pflichtig) statt dokumentiertem
+  `mistral-small-latest`.
+- Labels final gesetzt: `ai:needs-analyse` entfernt, `ai:analysed` + `ai:needs-spec`
+  hinzugefuegt. Stand: `ai:analysed`, `ai:model:sonnet`, `ai:needs-spec`.
+- Kein Ping-Kommentar (spec-ready, keine offenen Fragen — Body-Block + Labels sind die
+  komplette Kommunikation). Kein autonomes Schliessen: Anforderung im Code nicht erfuellt
+  (`llmProviders.ts:84` steht noch auf `mistral-medium-latest`).
+- Kein MEMORY.md-Eintrag: nichts ueber dieses Ticket hinaus Generalisierbares
+  (needs-human-Mechanik steht bereits im Skill-TRIGGER).
 
 ## Relevante Stellen
 
-- `server/src/llm/llmProviders.ts:76-105` — `BUILTIN_DEFINITIONS`, Mistral zuerst
-  (Fallback-Prioritaet), `defaultUrl: https://api.mistral.ai/v1`,
-  `defaultModel: mistral-medium-latest`.
-- `server/src/llm/llmProviders.ts:64-71` — Kommentar zu `fallbackModels` dokumentiert, dass
-  Mistrals `GET /models` **HTTP 402 nach Ablauf des Free-Tiers** liefert. Das ist der stärkste
-  Hinweis auf die wahrscheinlichste Ursache (Abo abgelaufen, kein Code-Bug).
-- `server/src/llm/llmProviders.ts:133-137` — `builtinFallbackKey()`: Mistral nur, wenn
-  `MISTRAL_API_KEY` nicht leer; sonst OpenRouter; sonst `null`.
-- `server/src/llm/llmProviders.ts:244-250` — `effectiveActive()`: explizit aktive Zeile schlaegt
-  Fallback. Ein unbeabsichtigt aktiv gebliebener Custom-Provider verdraengt Mistral hier.
-- `server/src/llm/llmProviders.ts:165-187` — `toRuntimeConfig()`: Built-in loest ENV auf,
-  `model = provider.model || ENV || default`.
-- `server/src/llm/llm.ts:400-423` — `requestModelJson()`: die drei 503-Meldungen
-  (kein Provider / API-Key fehlt / kein Modell) im Wortlaut.
-- `server/src/llm/llm.ts:351-357` — 502-Meldung `"<label> antwortete mit HTTP <status>: <detail>"`.
-  Wortlaut-Unterschied zu den 503ern ist das Unterscheidungsmerkmal a vs. b.
+- `server/src/llm/llmProviders.ts:84` — `defaultModel: 'mistral-medium-latest'`: DER Fix-Punkt
+  (AK1: zurueck auf `mistral-small-latest`).
+- `server/src/llm/llmProviders.ts:85-93` — `fallbackModels`-Katalog (mistral-small-latest Z. 88);
+  greift auch, wenn `GET /models` mit 402 antwortet.
+- `server/src/llm/llmProviders.ts:165-187` — `toRuntimeConfig()`: Aufloesung
+  `provider.model || ENV(MISTRAL_MODEL) || defaultModel` (AK2-Reihenfolge unveraendert lassen).
+- `server/src/llm/llm.ts:322-357` — `callProvider()`, 502-Meldung Z. ~354: hier soll das
+  verwendete Modell mit in die Fehlermeldung (AK3).
+- `openapi.yml:252/296/367` — dokumentieren `mistral-small-latest` (AK4: Code an Doku
+  angleichen, nicht umgekehrt; Z. 2002/2077 sind nur Beispiele, nicht aendern).
+- Tests, die den Default assertieren und mitgezogen werden muessen:
+  `server/src/llm/llmProviderActivation.test.ts:103`,
+  `server/src/express/routes/llmProviders.test.ts:179`.
+- Weitere AK4-Doku-Stellen: `server/.env.example` (MISTRAL_MODEL-Kommentar),
+  `docs/server-setup.md`, `docs/deployment.md`, `docs/llm-providers.md`.
 
 ## Annahmen
 
-- Der Ping-Kommentar aus Lauf 1 hat die Pipeline NICHT gestoppt (kein
-  `ai-triage-decision`-Marker) — deshalb kam dieser Re-Triage-Lauf ohne neue Info an.
-  Mit `ai:needs-human` + Decision-Kommentar steht die Pipeline jetzt.
-- Ampel 🔴 statt 🟡, weil der zweite Durchlauf belegt hat, dass die fehlende Information
-  in dieser Umgebung nicht beschaffbar ist (nicht nur "noch nicht geklaert").
+- Die 16:18er-Analyse interpretiert "Subscription war nicht das Problem" zutreffend:
+  402 entsteht durch Modell/Plan-Mismatch (Free-Tier-Key + medium-Modell), nicht durch
+  abgelaufenes Abo. Vom Melder bestaetigt indirekt (OpenRouter/free laeuft, Mistral/medium 402).
+- Shallow-Clone (`true`): Refactoring-Historie nicht einsehbar — die Default-Umstellung selbst
+  ist per git log NICHT belegbar, nur die Code/Doku-Diskrepanz ist belegt.
 
 ## Verworfen
 
 - **Screenshot auslesen** (`curl -sL .../user-attachments/2b57a443-...`): vom Bash-Tool als
-  genehmigungspflichtig abgelehnt (2x versucht, auch ohne `;`-Verkettung). Der Fehlertext,
-  die entscheidende Information, bleibt damit unerreichbar. NICHT nochmal versuchen ohne
-  vorherige Freigabe von `curl`.
-- **Git-Archaeologie** (`git log -- server/src/llm/`): liefert nur `cd100af`, weil
-  `git rev-parse --is-shallow-repository` = `true`. Historie des Refactorings vom
-  24./25.08.2026 ist nicht einsehbar. Kein Workaround ohne `git fetch --unshallow`.
-- **Analyse raten**: bewusst NICHT gemacht. Ohne Fehlertext ist nicht entscheidbar, ob
-  ueberhaupt ein Code-Fix noetig ist (Fall a/b = Konfiguration bzw. abgelaufenes Abo).
+  genehmigungspflichtig abgelehnt. Ueberfluessig geworden — der Melder hat den Fehlertext
+  (HTTP 402) zwischenzeitlich selbst genannt.
+- **Git-Archaeologie** (`git log -- server/src/llm/`): nur `cd100af` sichtbar (shallow clone).
+  Kein Workaround ohne `git fetch --unshallow`.
+- **Ticket schliessen / auf "Fehlermeldung verstaendlicher machen" umformulieren**: verworfen,
+  weil die Antwort Fall (c) belegt (Regression im Code-Default), nicht (a)/(b).
 
 ## Offen
 
-- Alle 4 Fragen aus dem Decision-Kommentar (Fehlertext woertlich / `MISTRAL_API_KEY` gesetzt
-  und Account aktiv / welcher Provider ist aktiv markiert / funktioniert OpenRouter?).
-- Ticket ist blockiert bis zur menschlichen Antwort.
+- Nichts aus Triage-Sicht. Pipeline: Spec-Phase laeuft als naechstes (`ai:needs-spec` gesetzt).
 
 ## Nächster Schritt
 
-Auf die Antwort von @deleonio im Kommentar `issuecomment-5440024966` warten. Beim naechsten
-Re-Triage: dieser Kommentar UND alle danach folgenden lesen — die Antwort ist bindend.
-Bestaetigt sie Fall (a) oder (b) → Ticket schliessen bzw. auf "Fehlermeldung verstaendlicher
-machen" umformulieren, NICHT in die Umsetzung geben. Nur Fall (c) rechtfertigt eine Impl.
+Triage ist abgeschlossen. Naechste Phase: Spec (AK1-AK4 aus dem Body-Block als rote Tests,
+sonnet/medium). Ein Re-Triage gibt es nur bei neuen Kommentaren — dann Delta seit
+`stand=2026-08-27T16:18:09Z` lesen.
 
 ## Fallstricke
 
-- Der 503-Text ("Kein aktiver LLM-Provider …" / "Mistral: API-Key fehlt (MISTRAL_API_KEY) …")
-  und der 502-Text ("Mistral antwortete mit HTTP …") sind wortwoertlich verschieden. Der
-  Screenshot-Text allein entscheidet a/b/c — nicht weiter im Code suchen, bevor er vorliegt.
-- Ein Ping-Kommentar (Skill Schritt 4b) stoppt die Pipeline NICHT. Fuer echte Blockade braucht
-  es `<!-- ai-triage-decision -->` als ERSTE Zeile plus Label `ai:needs-human`. Genau das war
-  der Fehler von Lauf 1.
-- Bei 🔴/🟡 darf KEIN Phasen-Trigger (`ai:needs-spec`/`ai:needs-ux-ui`/`ai:needs-impl`) gesetzt
-  sein; ein vorhandener waere zu entfernen. Hier war keiner gesetzt.
+- Der 503-Text ("Kein aktiver LLM-Provider …") und der 502-Text ("Mistral antwortete mit
+  HTTP …") sind wortwoertlich verschieden — bei Rueckfragen zur Diagnose nicht vermischen.
+- Ein Ping-Kommentar (Skill 4b) stoppt die Pipeline NICHT; dafuer braucht es
+  `<!-- ai-triage-decision -->` als erste Zeile + `ai:needs-human` (Fehler von Lauf 1).
+- Body nicht mehr anfassen, wenn sich nichts geaendert hat: `stand` nur bei echtem Rewrite
+  zuruecksetzen (Skill Schritt 4), kein Pro-forma-Edit.
+- Nutzer mit persistiertem `provider.model='mistral-medium-latest'` in der DB bleiben auf dem
+  bezahltpflichtigen Modell — kein Migrations-Fall, die Modellwahl in der App bleibt bewusst
+  vorrangig (AK2).
