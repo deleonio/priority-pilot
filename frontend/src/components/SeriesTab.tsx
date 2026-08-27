@@ -145,7 +145,13 @@ export const SeriesTab = ({ pillars }: SeriesTabProps) => {
 							<div className="series-tree-row">
 								<span className="series-tree-title">{entry.title}</span>
 								<span className="series-tree-badge series-tree-badge--rhythm">{RHYTHM_LABEL[entry.rhythm]}</span>
-								{entry.address != null && <GeoBadge address={entry.address} />}
+								{(entry.latitude != null || entry.address != null) && (
+									<GeoBadge
+										latitude={entry.latitude ?? null}
+										longitude={entry.longitude ?? null}
+										address={entry.address}
+									/>
+								)}
 								<div className="series-tree-actions">
 									<KolToolbar
 										_label={`Aktionen für ${entry.title}`}

@@ -100,12 +100,13 @@ describe('useAddressSearch – Debounce, Mindestlänge, Überholschutz', () => {
 		});
 		expect(result.current.suggestions).toEqual([]);
 
-		// … die Antwort der aktuellen Anfrage schon.
+		// … die Antwort der aktuellen Anfrage schon. (#1066 AK1: Vorschläge sind Objekte mit lat/lon —
+		// alte String-Erwartung Test-pflegebedürftig geändert, siehe PR-Body „Test-Pflege-Bedarf".)
 		await act(async () => {
 			second.resolve(results(['Neu']));
 			await Promise.resolve();
 		});
-		expect(result.current.suggestions).toEqual(['Neu']);
+		expect(result.current.suggestions).toEqual(results(['Neu']));
 	});
 
 	it('Unmount: laufende Anfrage wird abgebrochen statt bis zum Timeout weiterzulaufen', () => {

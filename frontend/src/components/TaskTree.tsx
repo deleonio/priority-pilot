@@ -105,7 +105,9 @@ const LeafItem = ({
 								className="task-tree-badge task-tree-badge--priority"
 							/>
 						)}
-						{task !== null && task.address != null && <GeoBadge address={task.address} />}
+						{task !== null && (task.latitude != null || task.address != null) && (
+							<GeoBadge latitude={task.latitude ?? null} longitude={task.longitude ?? null} address={task.address} />
+						)}
 					</div>
 					{task !== null && (
 						<div className="task-tree-actions">

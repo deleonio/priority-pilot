@@ -598,6 +598,57 @@ body {
 	color: var(--pp-text-muted);
 }
 
+/*
+ * #1066: „In der Nähe" — Distanzliste unter „Was ist jetzt dran?". Einträge mindestens 44px hoch
+ * (mobile-ui-rules.md Touch-Ziel), Titel einzeilig kappbar, Distanz rechtsbündig. Wie die
+ * Vorschlagsliste bewusst ohne Signal-Färbung.
+ */
+.dashboard-nearby {
+	margin-top: var(--pp-gap-generous);
+}
+
+.dashboard-nearby kol-card {
+	display: block;
+	max-width: 100%;
+}
+
+.dashboard-nearby-hint {
+	font-size: var(--pp-font-size-sm);
+	margin: 0;
+}
+
+.dashboard-nearby-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.dashboard-nearby-item {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.25rem 0.5rem;
+	min-height: 44px;
+	padding: 0.25rem 0;
+	border-bottom: 1px solid var(--pp-border);
+}
+
+.dashboard-nearby-item:last-child {
+	border-bottom: none;
+}
+
+.dashboard-nearby-title {
+	font-weight: 600;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.dashboard-nearby-distance {
+	color: var(--pp-text-muted);
+	white-space: nowrap;
+}
+
 .dashboard-suggestion-meta {
 	color: var(--pp-text-muted);
 	font-size: 0.875rem;
