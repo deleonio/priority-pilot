@@ -600,3 +600,102 @@ test.describe('#283 Autostart: früh gesprochenes Ergebnis geht nicht verloren',
 		await expect(page.locator('.mic-error')).toHaveCount(0);
 	});
 });
+
+// ---------------------------------------------------------------------------
+// #1058 — Suche-Dialog: Voice-Autostart im Suchfeld
+// ---------------------------------------------------------------------------
+
+/** Öffnet den Suchen-Dialog über den Toolbar-Button „Suche". */
+const openSearchModal = async (page: Page): Promise<void> => {
+	await page.getByRole('button', { name: 'Suche', exact: true }).click();
+	await expect(page.getByRole('heading', { name: 'Suche', exact: true })).toBeVisible();
+	await waitForStableView(page);
+};
+
+test.describe('Suche-Dialog: Voice-Autostart im Suchfeld', () => {
+	/**
+	 * AK1 — Auto-Start bei aktiver Einstellung:
+	 * pp-voice-autostart=true + Sprachunterstützung vorhanden → Aufnahme startet automatisch
+	 * im Suchfeld „Suchbegriff eingeben" (window.__speechRecognitionStarted===true,
+	 * Mic-Button aria-pressed="true"), ohne Klick auf den Mikrofon-Button.
+	 */
+	test('AK1: Einstellung an → Aufnahme startet automatisch im Suchfeld', async ({ page }) => {
+		await setVoiceAutostartInStorage(page, true);
+		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'granted' }));
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await openSearchModal(page);
+
+		await expect.poll(() => page.evaluate(() => window.__speechRecognitionStarted === true)).toBe(true);
+		await expect(micButton(page, 'Suchbegriff eingeben')).toHaveAttribute('aria-pressed', 'true');
+	});
+
+	/**
+	 * AK2 — Kein Auto-Start bei ausgeschalteter Einstellung (Default): keine automatische
+	 * Aufnahme im Suchfeld; ein Klick auf den Mikrofon-Button startet weiterhin manuell.
+	 */
+	test('AK2: Einstellung aus (Default) → kein Auto-Start, manueller Start bleibt möglich', async ({ page }) => {
+		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'granted' }));
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await openSearchModal(page);
+
+		const started = await page.evaluate(() => window.__speechRecognitionStarted === true);
+		expect(started).toBe(false);
+		await expect(micButton(page, 'Suchbegriff eingeben')).not.toHaveAttribute('aria-pressed', 'true');
+
+		await micButton(page, 'Suchbegriff eingeben').click();
+		await expect.poll(() => page.evaluate(() => window.__speechRecognitionStarted === true)).toBe(true);
+	});
+
+	/**
+	 * AK3 — Keine Sprachunterstützung → kein Absturz: Einstellung an, aber SpeechRecognition
+	 * nicht verfügbar → Dialog öffnet fehlerfrei, Suchfeld bedienbar, kein Mikrofon-Button.
+	 */
+	test('AK3: Einstellung an, SpeechRecognition nicht verfügbar → kein Absturz', async ({ page }) => {
+		const pageErrors: string[] = [];
+		page.on('pageerror', (err) => pageErrors.push(err.message));
+
+		await setVoiceAutostartInStorage(page, true);
+		await page.addInitScript(buildInitScript({ speechSupported: false, mediaPermission: 'granted' }));
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await openSearchModal(page);
+
+		expect(pageErrors, `Unerwartete pageerrors: ${pageErrors.join(' | ')}`).toEqual([]);
+		const searchField = page.getByRole('searchbox', { name: /Suchbegriff eingeben/i });
+		await expect(searchField).toBeVisible();
+		await expect(searchField).toBeEditable();
+		await expect(page.getByRole('button', { name: /^Aufnahme (starten|stoppen)/ })).toHaveCount(0);
+	});
+
+	/**
+	 * AK4 — Mobile-First (375px): AK1 gilt unverändert, Mikrofon-Button bleibt sichtbar und
+	 * vollständig im Viewport, kein horizontaler Überlauf im Dialog.
+	 */
+	test('AK4: 375px-Viewport — Auto-Start unverändert, Mic-Button vollständig sichtbar', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 667 });
+		await setVoiceAutostartInStorage(page, true);
+		await page.addInitScript(buildInitScript({ speechSupported: true, mediaPermission: 'granted' }));
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await openSearchModal(page);
+
+		await expect.poll(() => page.evaluate(() => window.__speechRecognitionStarted === true)).toBe(true);
+
+		const mic = micButton(page, 'Suchbegriff eingeben');
+		await expect(mic).toBeVisible();
+		const box = await mic.boundingBox();
+		expect(box).not.toBeNull();
+		if (box) {
+			expect(box.x + box.width).toBeLessThanOrEqual(375);
+		}
+
+		const overflowsHorizontally = await page.evaluate(() => document.body.scrollWidth > window.innerWidth + 1);
+		expect(overflowsHorizontally).toBe(false);
+	});
+});

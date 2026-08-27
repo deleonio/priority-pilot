@@ -1,5 +1,6 @@
 import { KolButton, KolInputText } from '@public-ui/react-v19';
 import { useEffect, useRef, useState } from 'react';
+import { readVoiceAutostartPreference } from '../lib/voiceAutostart';
 import { Modal } from './Modal';
 import { VoiceField } from './VoiceField';
 
@@ -16,6 +17,7 @@ interface SearchModalProps {
  */
 export const SearchModal = ({ onClose, onSearch }: SearchModalProps) => {
 	const [searchQuery, setSearchQuery] = useState('');
+	const [voiceAutostart] = useState(readVoiceAutostartPreference);
 	const inputRef = useRef<HTMLKolInputTextElement>(null);
 
 	// Autofokus auf das Suchfeld beim Öffnen
@@ -45,6 +47,7 @@ export const SearchModal = ({ onClose, onSearch }: SearchModalProps) => {
 				<VoiceField
 					variant="input"
 					fieldLabel="Suchbegriff eingeben"
+					autoStart={voiceAutostart}
 					onTranscript={(text) => {
 						setSearchQuery((prev) => (prev ? `${prev} ${text}` : text));
 					}}
