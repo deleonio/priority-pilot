@@ -144,14 +144,23 @@ test.describe('Priority Pilot — #1063: Geo-Badge in Serien-, Erledigt- und Auf
 	});
 
 	// AK6 — Mobile 375px: das Badge verursacht in allen drei Listen keinen horizontalen Überlauf.
-	test('AK6 — 375px: Badge verursacht in Serienliste, Erledigt-Liste und Aufgabenliste keinen Überlauf', async ({ page }) => {
+	test('AK6 — 375px: Badge verursacht in Serienliste, Erledigt-Liste und Aufgabenliste keinen Überlauf', async ({
+		page,
+	}) => {
 		await page.setViewportSize({ width: 375, height: 667 });
 		const seriesTitle = uniqueTitle('MobilSerie');
 		const doneTitle = uniqueTitle('MobilDone');
-		const openTitle = uniqueTitle('MobilOffen');
+		// Langer Titel neben den Badges ist der eigentliche Überlauf-Stressor in der Aufgabenzeile;
+		// uniqueTitle kürzt auf 30 Zeichen, deshalb kommt der Lange-Teil als Suffix dazu.
+		const openTitle = `${uniqueTitle('MobilOffen')} sehr langer Aufgabenname für die Mobile-Prüfung mit breitem Badge-Kontext Musterstadt`;
 		await createSeriesViaApi(page, seriesTitle, 'Lange Musterstraße 123, 12345 Musterstadt, Brandenburg');
 		await createTaskViaApi(page, doneTitle, true, 'Lange Musterstraße 123, 12345 Musterstadt, Brandenburg');
-		await createTaskViaApi(page, openTitle, false, 'Lange Musterstraße 123, 12345 Musterstadt, Brandenburg');
+		const openId = await createTaskViaApi(
+			page,
+			openTitle,
+			false,
+			'Lange Musterstraße 123, 12345 Musterstadt, Brandenburg',
+		);
 
 		// Serienliste: Zeile bleibt vollständig in der Viewport-Breite (Bounding-Box, nicht
 		// scrollWidth — die App-Shell clippt mit overflow-x: hidden, siehe issue-1020-Spec).
@@ -174,8 +183,8 @@ test.describe('Priority Pilot — #1063: Geo-Badge in Serien-, Erledigt- und Auf
 
 		// Aufgabenliste: Task-Zeile bleibt in der Viewport-Breite
 		await openTasksView(page);
-		const taskRow = page.getByTestId('task-list').locator('li[class*="task-list-item"]').first();
-		await expect(page.getByTestId('geo-badge').first()).toBeVisible();
+		const taskRow = page.getByTestId(`task-list-item-${openId}`);
+		await expect(taskRow.getByTestId('geo-badge')).toBeVisible();
 		const taskRowBox = await taskRow.boundingBox();
 		expect(taskRowBox).not.toBeNull();
 		expect(taskRowBox!.x).toBeGreaterThanOrEqual(0);
