@@ -308,7 +308,7 @@ describe('LLM-Providers API', () => {
 		assert.equal(res.status, 200);
 		const body = (await res.json()) as { ok: boolean; model?: string; latencyMs?: number; sample?: string };
 		assert.equal(body.ok, true, 'Injizierter Runner meldet Erfolg');
-		assert.equal(body.model, 'mistral-medium-latest', 'Effektives Modell wird genannt');
+		assert.equal(body.model, 'mistral-small-latest', 'Effektives Modell wird genannt');
 		assert.equal(body.latencyMs, 42);
 		assert.equal(body.sample, '{"ok": true}');
 	});

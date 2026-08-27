@@ -81,7 +81,7 @@ const BUILTIN_DEFINITIONS: readonly BuiltinDefinition[] = [
 		envUrl: 'MISTRAL_API_URL',
 		defaultUrl: 'https://api.mistral.ai/v1',
 		envModel: 'MISTRAL_MODEL',
-		defaultModel: 'mistral-medium-latest',
+		defaultModel: 'mistral-small-latest',
 		fallbackModels: [
 			{ id: 'mistral-large-latest', name: 'Mistral Large' },
 			{ id: 'mistral-medium-latest', name: 'Mistral Medium' },
