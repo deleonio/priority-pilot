@@ -150,9 +150,10 @@ test.describe('Priority Pilot — #1063: Geo-Badge in Serien-, Erledigt- und Auf
 		await page.setViewportSize({ width: 375, height: 667 });
 		const seriesTitle = uniqueTitle('MobilSerie');
 		const doneTitle = uniqueTitle('MobilDone');
-		// Langer Titel neben den Badges ist der eigentliche Überlauf-Stressor in der Aufgabenzeile;
-		// uniqueTitle kürzt auf 30 Zeichen, deshalb kommt der Lange-Teil als Suffix dazu.
-		const openTitle = `${uniqueTitle('MobilOffen')} sehr langer Aufgabenname für die Mobile-Prüfung mit breitem Badge-Kontext Musterstadt`;
+		// Langer Titel neben den Badges ist der eigentliche Überlauf-Stressor in der Aufgabenzeile.
+		// Das Modell begrenzt title auf 30 Zeichen (server/src/models/task.ts:93) — der Stressor
+		// ist deshalb das Domänen-Maximum, nicht darüber hinaus (sonst scheitert der API-Call).
+		const openTitle = uniqueTitle('MobilOffen').padEnd(30, 'x');
 		await createSeriesViaApi(page, seriesTitle, 'Lange Musterstraße 123, 12345 Musterstadt, Brandenburg');
 		await createTaskViaApi(page, doneTitle, true, 'Lange Musterstraße 123, 12345 Musterstadt, Brandenburg');
 		const openId = await createTaskViaApi(
