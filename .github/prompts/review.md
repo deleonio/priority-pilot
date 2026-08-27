@@ -9,6 +9,9 @@ Determine MODE (VERY FIRST step): check whether an <!-- ai-review --> collected 
 
 MODE CROSS-EXAMINATION (initial review) — adversarial, whole PR:
   1. Read the full diff (gh pr diff) and the linked issue (acceptance criteria from the body block <!-- KI-ANALYSE:START/END -->).
+     - FIRST: check if the PR has a closing issue (gh pr view {{PR_NR}} --json closingIssuesReferences --jq '.closingIssuesReferences | length').
+     - IF a closing issue exists (length > 0): read the acceptance criteria from the KI-ANALYSE block in the issue body.
+     - IF NO closing issue exists (length == 0): use the PR description/title as the informal specification — note this explicitly in the verdict ("Review ohne Issue - PR-Beschreibung ist massgebend").
   2. Check adversarially: does the PR fully solve the problem? Edge cases? Simplest path? Performance/security?
      Regression: does the PR make existing tests/behavior OUTSIDE the diff obsolete? (Obsolete tests should already have been removed at the spec stage; if there's a contradiction → finding "Test-Pflege-Bedarf" (test maintenance needed), file:line.)
   2.5. KoliBri-first followed? (for UI changes)
@@ -18,17 +21,19 @@ MODE CROSS-EXAMINATION (initial review) — adversarial, whole PR:
   3. Code quality: naming, readability, tests (green + covering the acceptance criteria).
 
 MODE FIXUP VERIFICATION (follow-up review) — ONLY the cross-examination result + the fixup rounds, NOT the whole PR again:
-  1. Load the existing <!-- ai-review --> comment, note its "Open findings" + updatedAt.
+  1. Load the existing <!-- ai-review --> comment, note its "Open findings" + updatedAt. Check line 2 for whether this was a "Review ohne Issue".
   2. Fixup diff since updatedAt: gh pr view --json commits, filter committedDate > updatedAt, then git diff on that.
   3. Per open finding: resolved by the fixup (verify file/line)? → mark as resolved, otherwise leave open — don't re-litigate.
   4. Adversarially check ONLY the fixup diff for NEW problems (did the fix introduce new bugs/regressions?).
   5. Keep the acceptance criteria/issue context in view (don't judge purely diff-locally), but do NOT re-cross-examine unchanged parts of the code.
+     - If the original review was "ohne Issue": continue using PR description as the informal specification (no AK verification possible).
 
 WRAP-UP (both modes):
   - TITLE GATE (BEFORE the verdict): {{TITLE_OK}} says whether the PR title satisfies Conventional Commits (type(scope)!: subject, English, lowercase subject, <=72). If false: rename it via gh pr edit {{PR_NR}} --title — using the type/scope hints {{SUGGESTED_TYPE}}/{{SUGGESTED_SCOPE}}, subject in descriptive English. Not a finding, doesn't delay the verdict.
   - (Fixable) findings → review comments on file/line, then VERDICT: needs-fixup
   - Architecture/product/design finding ("a human decides") → for VERDICT: needs-human, fill the "## ⏸️ Entscheidungs-Findings" section in the collected comment per the SKILL.md decision template (what/where, 2–3 options each with a stable option ID `<F>.<n>` + effort/risk, a recommendation with ID and justification, the selection line).
   - solid (🟢) → NO pseudo-findings, a brief 🟢 confirmation (1-2 sentences), then VERDICT: reviewed
+    - If NO closing issue exists: explicitly note "Review ohne Issue - PR-Beschreibung ist massgebend (keine AK-Verifikation möglich)" in the 🟢 confirmation and in the collected comment line 2.
 
 Collected comment: maintain the verdict as EXACTLY ONE <!-- ai-review --> comment (find the existing one + update it, don't create a new one).
 Structure (Review-Status, Behobene Anmerkungen, Entscheidungs-Findings, Offene Findings, Footer — these headings are written verbatim in German, see SKILL.md): SKILL.md section "Struktur des Sammelkommentars" — reuse it from there, not repeated here.

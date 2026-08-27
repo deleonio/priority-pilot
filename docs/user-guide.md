@@ -38,6 +38,7 @@ Administrator.
 
 Ganz oben findest du die **Kopf-Aktionen**:
 
+- **Suche** (Lupe) – durchsucht deine Aufgaben nach Titel.
 - **Neuen Task anlegen** (Plus) – der zentrale Einstieg für neue Aufgaben _und_ Serien.
 - **Säulen-Berater** (Glühbirne) – KI-Vorschläge für Aktivitäten.
 - **Einstellungen** (Zahnrad) – Darstellung, Spracheingabe, Push, Standort, Säulen-Gewichtung, KI-Provider.
@@ -46,7 +47,7 @@ Ganz oben findest du die **Kopf-Aktionen**:
 
 Rechts daneben siehst du dein Profilbild.
 
-Die Kopfzeile ist auf allen Bildschirmgrößen einheitlich: Alle fünf Icon-Buttons stehen direkt in der Leiste – ein zusätzliches Menü gibt es nicht.
+Die Kopfzeile ist auf allen Bildschirmgrößen einheitlich: Alle sechs Icon-Buttons stehen direkt in der Leiste – ein zusätzliches Menü gibt es nicht.
 
 Darunter wechselst du über eine **Tab-Leiste** zwischen den vier Hauptansichten:
 
@@ -61,7 +62,8 @@ Darunter wechselst du über eine **Tab-Leiste** zwischen den vier Hauptansichten
 ## Dashboard
 
 Das Dashboard ist die Startseite und reine Anzeige. Wenn ein Name hinterlegt ist,
-begrüßt es dich mit **„Hallo {Name}!"**. Von oben nach unten:
+begrüßt es dich mit **„Hallo {Name}!"**. Solange du noch keine Aufgaben hast, zeigt
+die App stattdessen eine Karte mit dem Button **„Ersten Task anlegen"**. Von oben nach unten:
 
 - **Statuskacheln:** **Gesamt**, **Offen** und **Erledigt** – die Anzahl deiner
   Aufgaben auf einen Blick.
@@ -90,7 +92,7 @@ Im Tab **Aufgaben** stehen deine Aufgaben als **flache Liste der ausführbaren B
 Das sind genau die Aufgaben, die **keine Unteraufgaben** haben – die Aufgaben,
 die du jetzt tatsächlich erledigen kannst, ohne dass noch etwas davor erledigt werden muss.
 Den Überblick über den gesamten Aufgabenbaum mit Oberaufgaben, Abhängigkeiten und dem
-Aufgabenwald findest du im Tab **Aufgabenwald**.
+Aufgabenwald findest du im Tab **Wald**.
 
 Oben im Tab findest du zwei Bedienelemente:
 
@@ -100,6 +102,10 @@ Oben im Tab findest du zwei Bedienelemente:
   Groß-/Kleinschreibung egal). Der Filter greift erst, wenn du **„Filtern"** klickst
   oder Enter drückst. Der Suchtext bleibt beim Umschalten bestehen; bei keinem Treffer
   erscheint ein Leerhinweis.
+
+Daneben öffnet die **Lupe in der Kopfzeile** ein Suchfenster: Gib einen Begriff ein
+(optional per Sprache) und starte die Suche – die App wechselt dazu in den Aufgaben-Tab
+und übernimmt den Begriff als Titel-Filter.
 
 Rechts an jeder Zeile können **Kennzeichen** stehen:
 
@@ -223,9 +229,9 @@ Das Lektorat ist unabhängig von der Schnellerfassung und jederzeit nutzbar.
 
 ## Spracheingabe
 
-Textfelder wie **Titel**, **Beschreibung**, die **Schnellerfassung** und das Feld
-des Säulen-Beraters lassen sich per Sprache füllen – sofern dein Browser
-Spracherkennung unterstützt.
+Textfelder wie **Titel**, **Beschreibung**, die **Schnellerfassung**, das Suchfeld
+der Kopfzeilen-Suche und das Feld des Säulen-Beraters lassen sich per Sprache füllen –
+sofern dein Browser Spracherkennung unterstützt.
 
 - Im Feld erscheint ein **Mikrofon-Button**. Ein Klick startet die Aufnahme, ein
   weiterer stoppt sie. Erkannter Text wird an den bestehenden Inhalt angehängt.
@@ -359,19 +365,18 @@ Aufgaben den größten Hebel haben. Bearbeitet wird im Tab „Aufgaben".
 
 In der **Erledigt**-Ansicht des Aufgaben-Tabs (Umschalter oben) stehen alle
 abgeschlossenen Aufgaben. Je Säule wird angezeigt, wie viele **Punkte** die Aufgabe
-dort eingebracht hat – die Spaltenwerte sind der auf die Säulen verteilte Aufwand;
-Priorität und Termintreue zählen zusätzlich ins Gesamtguthaben. Mit **„Wieder öffnen"** holst du eine Aufgabe zurück in den
-offenen Zustand.
+dort eingebracht hat – die Spaltenwerte sind der auf die Säulen verteilte Aufwand.
+Mit **„Wieder öffnen"** holst du eine Aufgabe zurück in den offenen Zustand.
 
 ### Punkte (Gamification)
 
-Beim Erledigen einer Aufgabe werden Punkte vergeben:
+Beim Erledigen einer Aufgabe sammelst du Punkte:
 
-- Der volle Wert ergibt sich aus **geschätztem Aufwand × Priorität** und wird
-  anteilig auf die Säulen der Aufgabe verteilt.
-- **Pünktlich** (ohne Deadline oder bis zur Deadline) gibt es die volle Punktzahl,
-  **verspätet** (nach der Deadline) die halbe Punktzahl. Pünktliches Erledigen zahlt sich
-  also aus.
+- Die Punkte entsprechen dem **geschätzten Aufwand** der Aufgabe, anteilig auf ihre
+  Säulen verteilt – entsprechend dem Anteil, mit dem die Aufgabe auf jede Säule einzahlt.
+- Aufgaben ohne Säulen-Zuordnung fließen ins **Dashboard-Gesamtguthaben** ein, verteilt
+  nach deiner Säulen-Gewichtung — in der Erledigt-Tabelle zeigen sie 0 Punkte je Spalte.
+  Erledigte Arbeit wird so auch ohne zugeordnete Säule sichtbar.
 
 Dein Gesamtstand und die Aufteilung je Säule erscheinen im Dashboard unter
 **„Gesamtguthaben"**.
@@ -423,9 +428,10 @@ wenn die App gerade nicht geöffnet ist.
 - Mit **„Push testen"** kannst du eine Testnachricht auslösen.
 - Unterstützt dein Browser keine Push-Nachrichten, erscheint ein Hinweis – meist hilft
   es, die App zu installieren (siehe unten).
-- Erinnerungen verschickt die App einmal täglich: gebündelt in einer Nachricht alle
-  offenen Aufgaben, deren Deadline innerhalb der nächsten 24 Stunden abläuft oder schon
-  überschritten ist.
+- Erinnerungen verschickt die App einmal täglich als **je eine gebündelte Nachricht**:
+  alle offenen Aufgaben, deren Deadline innerhalb der nächsten 24 Stunden abläuft oder
+  schon überschritten ist — sowie **separat** deine drei wichtigsten offenen Aufgaben
+  (nach Priorität). Eine bereits gemeldete Fälligkeit wird nicht erneut gemeldet.
 
 > **Hinweis: Doppelte Benachrichtigung vermeiden.** Wenn du Priority Pilot nur als
 > Browser-Tab (Chrome) und **nicht** als eigenständige App nutzt, kann neben der
@@ -449,7 +455,8 @@ Priority Pilot ist eine **installierbare Web-App (PWA)** und funktioniert auch o
 - **Aktualisieren:** Ist eine neue Version verfügbar, erscheint unten eine Karte mit
   **„Neu laden"**. Ein Klick lädt die aktuelle Version.
 
-Nach der Installation bestätigt eine Karte, dass die App offline-bereit ist.
+Eine Karte **„Offline einsatzbereit"** bestätigt, dass die App auch ohne Verbindung
+nutzbar ist.
 
 Die laufende Versionsnummer steht in der **Fußzeile**; ist die Standort-Erfassung
 aktiv, steht dort zusätzlich deine zuletzt ermittelte Position.
