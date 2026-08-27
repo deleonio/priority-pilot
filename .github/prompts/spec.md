@@ -22,7 +22,7 @@ PROCEDURE (STRICT):
   4. Write RED tests — derived from the spec (rules incl. dedup, mutation check,
      spec-PR scope: SKILL.md step 3 — read that section before writing the first test).
   5. Commit the red tests as the FIRST commit (test: red spec tests for {{ISSUE_NR}}), push the branch.
-     Create a DRAFT PR (gh pr create --draft) with Closes #{{ISSUE_NR}} in the body. Do NOT set ai:needs-review.
+     Create a DRAFT PR (gh pr create --draft) titled "<issue title> (#{{ISSUE_NR}})" — issue title verbatim, never rephrase it or mention red tests — with Closes #{{ISSUE_NR}} in the body. Do NOT set ai:needs-review.
 
 ⚠️ LABELS: do NOT set labels! The workflow handles that automatically.
 
