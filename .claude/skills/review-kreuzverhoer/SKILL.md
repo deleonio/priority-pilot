@@ -137,19 +137,24 @@ age with the diff regardless; what gets consolidated is the **collected comment*
   "Resolved comments". Keep the issue context and architectural touchpoints in view (don't judge
   purely diff-locally). If the marked comment is missing (first review), always check the full
   diff (step 1 stays unchanged).
-- **Structure of the collected comment** (status line, then sections as needed):
-  - **🎯 Review status** — line 2 (after the marker): `reviewed | needs-fixup | needs-human`
+- **Struktur des Sammelkommentars** (status line, then sections as needed). The section
+  headings below are written **verbatim in German** — they are the German artifact's own
+  headings, `.github/prompts/fixup.md` uses the same ones for the sibling comment, and
+  `needs-human-explain.sh` (mode `review-section`) substring-tests the comment body for
+  `Entscheidungs-Findings`. Translating a heading makes workflow 05 fall back to
+  "Begründung ist nicht verifizierbar" (the #848 failure mode):
+  - **🎯 Review-Status** — line 2 (after the marker): `reviewed | needs-fixup | needs-human`
     plus 1–2 sentences of context (mode, round, outcome).
-  - **✅ Resolved comments** — a **history table** of findings already resolved across rounds
-    (columns: **#** | finding | resolved via | **date**). When updating, resolved points
+  - **✅ Behobene Anmerkungen** — a **history table** of findings already resolved across rounds
+    (columns: **#** | Finding | Behoben via | **Datum**). When updating, resolved points
     move here so the historical view of what has already been handled is preserved.
-  - **⏸️ Decision findings** — only for needs-human: per finding, a stable number `<F>`
+  - **⏸️ Entscheidungs-Findings** — only for needs-human: per finding, a stable number `<F>`
     (stable across rounds), what/where, 2–3 options EACH with a stable option ID `` `<F>.<n>` ``
     (e.g. `4.1`) and effort/risk, a recommendation with ID and justification. Finally, the
     **selection line**: the human replies with a comment containing the option ID and sets
     `ai:needs-fixup` (implement) or `ai:needs-review` (accept) — the fixup implements the
     chosen option without re-evaluating.
-  - **📋 Open findings** — only for needs-fixup: the points of the **current** round (with
+  - **📋 Offene Findings** — only for needs-fixup: the points of the **current** round (with
     traffic light, file/line, suggestion).
   - **Footer** — `Review-Typ: Kreuzverhör | Fixup-Nachweis` (review type: cross-examination | fixup evidence) and `Updated: JJJJ-MM-TT` (ISO date; the German placeholder is kept so it matches the sibling ai-fixup-decisions comment in .github/prompts/fixup.md).
 

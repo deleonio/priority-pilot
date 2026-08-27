@@ -93,9 +93,10 @@ follow it to understand something currently relevant in the text. No link spam, 
 "see also" collections without concrete cause.
 - **Link, don't rewrite:** you add links and index entries — you don't rephrase
 paragraphs to force linkability.
-- **No style breaks:** relative Markdown links, GitHub anchors, text in the language the target
-file already uses. No wiki links, no absolute paths, no frontmatter migration.
+- **No style breaks:** relative Markdown links, GitHub anchors, German prose like the rest of
+the file (the whole scope — `.ai-knowledge/`, `docs/`, `AGENTS.md`, `README.md` — is German).
+No wiki links, no absolute paths, no frontmatter migration.
 - **Preserve what exists:** existing, working links stay as they are, even if a different
 wording would be nicer.
 - **Reporting duty:** every run ends with a short summary of the changes. A
-run without changes ends with "graph consistent" — never conjure up work that wasn't there.
+run without changes ends with `Graph konsistent` — never conjure up work that wasn't there.

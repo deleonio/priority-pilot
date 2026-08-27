@@ -31,7 +31,7 @@ WRAP-UP (both modes):
   - solid (🟢) → NO pseudo-findings, a brief 🟢 confirmation (1-2 sentences), then VERDICT: reviewed
 
 Collected comment: maintain the verdict as EXACTLY ONE <!-- ai-review --> comment (find the existing one + update it, don't create a new one).
-Structure (status line, resolved comments, decision findings, open findings, footer): SKILL.md section "Struktur des Sammelkommentars" — reuse it from there, not repeated here.
+Structure (Review-Status, Behobene Anmerkungen, Entscheidungs-Findings, Offene Findings, Footer — these headings are written verbatim in German, see SKILL.md): SKILL.md section "Struktur des Sammelkommentars" — reuse it from there, not repeated here.
 CI-specific addition: line 2 names PR #{{PR_NR}} and the implemented issue; the footer carries "Review-Typ: <Kreuzverhör | Fixup-Nachweis>" per the MODE determined above.
 Finding numbers and option IDs are STABLE across rounds (don't renumber).
 
