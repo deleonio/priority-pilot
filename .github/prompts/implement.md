@@ -1,48 +1,49 @@
 {{RESUME_HINT}}
-FOKUS: NUR Issue {{ISSUE_NR}}. Nur die für die Akzeptanzkriterien notwendigen Dateien/Zeilen ändern, kein Refactoring am Rande. KEINE Abstecher. Token sparen: kurz, präzise, direkt.
+FOCUS: ONLY issue {{ISSUE_NR}}. Only change the files/lines needed for the acceptance criteria, no incidental refactoring. NO side trips. Save tokens: short, precise, direct.
 
-⚠️ KI-UX-Block: Falls das Issue UX-Aspekte hat (KI-UX:END-Block im Issue-Body vorhanden), UX-Anforderungen aus diesem Block beachten.
+⚠️ KI-UX block: if the issue has UX aspects (a KI-UX:END block present in the issue body), take the UX requirements from that block into account.
 
-Methode, Modi (Spec-/Direkt-Modus) und Regeln (verbindlich, hier nicht wiederholt): .claude/skills/ticket-implementation/SKILL.md — lies sie vor dem Start.
+Method, modes (spec/direct mode), and rules (binding, not repeated here): .claude/skills/ticket-implementation/SKILL.md — read it before starting.
 
-ABLAUF (STRIKT):
-  1. SOFORT starten.
-  2. Analyse lesen & schnell verifizieren (KEINE vollständige Re-Triage!):
-     Akzeptanzkriterien aus BODY-BLOCK übernehmen (gh issue view {{ISSUE_NR}} --json body -q .body).
-     Prüfe NUR, ob die genannten Dateien noch existieren. Ampel 🔴 → NICHT umsetzen, begründet kommentieren und stoppen (VERDICT not-ready).
-  3. Spec-Modus (Regelfall): vorhandenen DRAFT-PR auschecken — inkl. Closing-Keyword-Falle und
-     Idempotenz-Regel (SKILL.md Schritt 1). Dessen ROTE Tests GRÜN machen – Tests NICHT ändern
-     (Gewaltenteilung). Widerspricht ein Test dem Soll → NICHT still ändern/löschen, sondern im
-     PR-Body Abschnitt "Test-Pflege-Bedarf" mit Datei:Zeile + Begründung anlegen.
-  3b. DIREKT-MODUS (kein Draft-PR vorhanden — Analyse hat die Spec bewusst übersprungen):
-     Branch selbst anlegen, umsetzen, committen, pushen und den PR SELBST erstellen
-     (gh pr create … Closes #{{ISSUE_NR}} …, NICHT --draft). Testpflicht bei Anwendungscode:
-     SKILL.md Schritt 3a.
-  3.5. UI-ARBEITEN bei Frontend-Änderungen: SKILL.md Schritt 3b/3c (KoliBri-First inkl.
-     Begründungspflicht im PR-Body, deterministische Werkzeuge zuerst — Impeccable-Detektor
-     + mobile-ui-rules.md —, Playwright-MCP nur für den kurzen 375/1280-Layoutbruch-Check).
-  4. GATE — vollständig durchlaufen, jedes Kommando grün, VOR dem Push:
+PROCEDURE (STRICT):
+  1. Start IMMEDIATELY.
+  2. Read the analysis & quickly verify it (NO full re-triage!):
+     take the acceptance criteria from the BODY BLOCK (gh issue view {{ISSUE_NR}} --json body -q .body).
+     Check ONLY whether the named files still exist. Traffic light 🔴 → do NOT implement, comment with a justification and stop (VERDICT not-ready).
+  3. Spec mode (the normal case): check out the existing DRAFT PR — including the closing-keyword trap and
+     the idempotency rule (SKILL.md step 1). Turn its RED tests GREEN — do NOT change the tests
+     (separation of duties). If a test contradicts the expected behavior → do NOT silently
+     change/delete it; instead add a "Test-Pflege-Bedarf" (test maintenance needed) section in the
+     PR body with file:line + justification.
+  3b. DIRECT MODE (no draft PR exists — the analysis deliberately skipped the spec):
+     create the branch yourself, implement, commit, push, and create the PR YOURSELF
+     (gh pr create … Closes #{{ISSUE_NR}} …, NOT --draft). Test obligation for application code:
+     SKILL.md step 3a.
+  3.5. UI WORK on frontend changes: SKILL.md step 3b/3c (KoliBri-first incl.
+     the mandatory justification in the PR body, deterministic tools first — Impeccable detector
+     + mobile-ui-rules.md —, Playwright MCP only for the short 375/1280 layout-break check).
+  4. GATE — run it in full, every command green, BEFORE the push:
      pnpm format && pnpm exec prettier --check . && pnpm lint && pnpm knip && pnpm test
-     Die Tests SOLLEN hier laufen (sie sind der Vertrag aus der Spec-Phase und der primäre
-     Erfolgsindikator) — rot heisst nachbessern, nicht weiterreichen.
-     Ergebnisse der Kommandos in den PR-Body (AGENTS.md-Pflicht: format/lint/Test-Ergebnisse dokumentieren).
-     e2e (pnpm --filter frontend test:e2e) NUR, wenn die Änderung UI-Verhalten betrifft und ein
-     e2e-Spec dafür existiert — sonst überspringen und im PR-Body vermerken.
-  5. Committen, Branch pushen. Im Spec-Modus den vorhandenen Draft-PR review-bereit machen
-     (gh pr ready <nr>), Beschreibung ergänzen. Im Direkt-Modus den PR aus 3b anlegen (nicht als
-     Draft). In BEIDEN Fällen muss am Ende ein offener, nicht-als-Draft markierter PR mit Commits
-     existieren — der Workflow prüft genau das, bevor er ai:needs-review setzt.
+     The tests SHOULD pass here (they are the contract from the spec phase and the primary
+     success indicator) — red means fix it, not pass it on.
+     Put the commands' results in the PR body (AGENTS.md requirement: document format/lint/test results).
+     e2e (pnpm --filter frontend test:e2e) ONLY if the change affects UI behavior and an
+     e2e spec exists for it — otherwise skip and note it in the PR body.
+  5. Commit, push the branch. In spec mode, make the existing draft PR review-ready
+     (gh pr ready <nr>), extend the description. In direct mode, create the PR from step 3b
+     (not as a draft). In BOTH cases, an open, non-draft PR with commits must exist at the
+     end — the workflow checks exactly that before setting ai:needs-review.
 
-⚠️ LABELS: KEINE Labels setzen! Workflow übernimmt das automatisch.
+⚠️ LABELS: do NOT set labels! The workflow handles that automatically.
 
-VERDICT: GANZ AM ENDE GENAU EINE Zeile, NUR der Token — kein Text dahinter (der Workflow parst die Zeile maschinell):
+VERDICT: exactly ONE line at the very end, ONLY the token — no text after it (the workflow parses the line by machine):
   - VERDICT: needs-review
   - VERDICT: not-ready
-  (needs-review = Implementierung fertig + PR review-bereit;
-   not-ready = Partial – PR als Draft belassen, Folgelauf nötig)
+  (needs-review = implementation done + PR review-ready;
+   not-ready = partial — leave the PR as a draft, needs a follow-up run)
 
-ZEITLIMIT: Soft-Deadline = {{SOFT_DEADLINE}}. Vor jedem Schritt: [ $(date +%s) -ge {{SOFT_DEADLINE}} ]. Bei OVER: aktuellen Stand committen+pushen, Turn beenden.
+TIME LIMIT: soft deadline = {{SOFT_DEADLINE}}. Before every step: [ $(date +%s) -ge {{SOFT_DEADLINE}} ]. If OVER: commit+push the current state, end the turn.
 
-Idempotenz: Draft-PR mit Closes #{{ISSUE_NR}} ist normaler Spec-Eingang – aufgreifen. Nicht-Draft-PR = Umsetzung schon gelaufen → Lauf beenden.
+Idempotency: a draft PR with Closes #{{ISSUE_NR}} is the normal spec handoff — pick it up. A non-draft PR = implementation already ran → end the run.
 
-KEIN Ping-Kommentar: PR + Commits sind die vollständige Kommunikation. Für Fortschritts-/Probleme gilt: im PR-Body dokumentieren (Draft + Begründung), nicht per Kommentar. Die Ampel-🔴-Regel aus Schritt 2 bleibt unberührt.
+NO ping comment: the PR + commits are the complete communication. For progress/problems: document in the PR body (draft + justification), not via comments. The traffic-light-🔴 rule from step 2 remains unaffected.

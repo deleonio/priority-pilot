@@ -1,38 +1,38 @@
-FOKUS: NUR Issue #{{ISSUE_NR}}. Recherche = Issue-Body + ggf. Delta-Kommentare seit stand, sonst nichts. KEINE Abstecher. Token sparen: kurz, präzise, direkt.
+FOCUS: ONLY issue #{{ISSUE_NR}}. Research = issue body + delta comments since `stand` if applicable, nothing else. NO side trips. Save tokens: short, precise, direct.
 
-Methode + Details: .claude/skills/ticket-triage/SKILL.md
+Method + details: .claude/skills/ticket-triage/SKILL.md
 
 TRIGGER:
-- Erst-Triage: Kein <!-- KI-ANALYSE:START --> Block im Issue-Body.
-  Recherche = Issue-Body + ALLE Kommentare (darin koennen Entscheidungen stehen).
-- Re-Triage: Block existiert. Lese NUR Delta-Kommentare seit stand.
-- Re-Triage nach needs-human: Kein Block, aber ein <!-- ai-triage-decision -->-Kommentar
-  existiert. Lese DIESEN Kommentar und ALLE Kommentare danach — dort steht die
-  menschliche Entscheidung. Sie ist VORGABE, nicht Vorschlag: nicht erneut
-  nachfragen, was entschieden wurde.
+- Initial triage: no <!-- KI-ANALYSE:START --> block in the issue body.
+  Research = issue body + ALL comments (they may contain decisions).
+- Re-triage: block exists. Read ONLY delta comments since `stand`.
+- Re-triage after needs-human: no block, but an <!-- ai-triage-decision --> comment
+  exists. Read THIS comment and ALL comments after it — that's where the
+  human decision is. It is BINDING, not a suggestion: don't ask
+  again what was decided.
 
-ABLAUF:
-1. Issue laden (gh issue view {{ISSUE_NR}} --json title,body)
-2. Titel nur aendern, wenn er inhaltlich falsch ist — EIN Edit, kein Lektorat.
-3. UNEINDEUTIGKEIT ZUERST klaeren (VOR der Analyse): Ist die Aufgabenstellung nicht eindeutig
-   aufloesbar (auch nach Code-Lektuere), KEINE Analyse raten. Stattdessen:
-   VERDICT: needs-human UND GENAU EINEN Kommentar mit <!-- ai-triage-decision -->-Marker
-   (Template: SKILL.md). Der Workflow stoppt die Pipeline, bis ein Mensch entscheidet.
-   Alle offenen Fragen SAMMELN und in diesen EINEN Kommentar schreiben — nicht einzeln
-   nachreichen, nicht im Analyse-Block verstecken, nicht per Ping-Kommentar streuen.
-4. Zerlegen (falls zu gross, siehe Skill Schritt 3)
-5. Analyse-Block UND Routing-Tabelle in den Issue-Body schreiben (Skill Schritt 4).
-   Routing-Tabelle (eigener ai-phase-routing-Block, ASCII, exaktes Format im Skill):
-   impl+review IMMER ja; Modell haiku|sonnet|opus, Effort low|medium|high;
-   bei Run=nein Modell/Effort als '-'. Sie steuert Modell+Effort JE Phase.
+PROCEDURE:
+1. Load the issue (gh issue view {{ISSUE_NR}} --json title,body)
+2. Only change the title if it's substantively wrong — ONE edit, not a copyedit.
+3. CLARIFY AMBIGUITY FIRST (BEFORE the analysis): if the task can't be resolved unambiguously
+   (even after reading the code), do NOT guess an analysis. Instead:
+   VERDICT: needs-human AND EXACTLY ONE comment with the <!-- ai-triage-decision --> marker
+   (template: SKILL.md). The workflow stops the pipeline until a human decides.
+   COLLECT all open questions and write them into this ONE comment — don't add them one by
+   one, don't hide them in the analysis block, don't scatter them across ping comments.
+4. Split up (if too large, see skill step 3)
+5. Write the analysis block AND routing table into the issue body (skill step 4).
+   Routing table (its own ai-phase-routing block, ASCII, exact format in the skill):
+   impl+review ALWAYS `ja` (yes); model haiku|sonnet|opus, effort low|medium|high;
+   for Run=`nein` (no), set model/effort to '-'. It controls model+effort PER phase.
 
-KEIN Ping-Kommentar: Bei eindeutigem Ergebnis (spec-ready/analyzed) ist der Body-Block +
-Label-Wechsel die vollstaendige Kommunikation. KEINE zusaetzlichen Kommentare, KEINE
-Zusammenfassungen, KEINE Rückfragen ausserhalb des needs-human-Wegs.
+NO ping comment: for an unambiguous outcome (spec-ready/analyzed), the body block +
+label change is the complete communication. NO extra comments, NO
+summaries, NO follow-up questions outside the needs-human path.
 
-VERDICT (eine Zeile):
+VERDICT (one line):
 - VERDICT: spec-ready
 - VERDICT: analyzed
 - VERDICT: needs-human
 
-ZEITLIMIT: Soft-Deadline = {{SOFT_DEADLINE}}
+TIME LIMIT: soft deadline = {{SOFT_DEADLINE}}
