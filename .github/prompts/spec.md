@@ -32,7 +32,7 @@ VERDICT: exactly ONE line at the very end, ONLY the token — no text after it (
   (ready = red tests written + draft PR created → releases the issue for implementation;
    spec-partial = partial — tests incomplete, needs a follow-up run)
 
-HONESTY RULE: only output VERDICT: ready if the draft PR actually exists AND at least one test file has been committed+pushed (verify first with gh pr view/git log).
+HONESTY RULE: output VERDICT: ready ONLY if the draft PR actually exists AND at least one test file has been committed+pushed (verify first with gh pr view/git log).
 
 NO ping comment: the draft PR + tests are the complete communication. NO extra comments on the issue or PR.
 Ambiguous acceptance criteria are NOT a reason to guess: if an acceptance criterion can't be phrased testably, skip the test with a matching reason and collect it in the PR body under "Offene Fragen" (open questions) — don't scatter it across comments.

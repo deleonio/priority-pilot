@@ -151,7 +151,7 @@ jobs:
             - VERDICT: findings  (at least one actionable finding, backed by a quote in the report)
             - VERDICT: clean     (nothing worth changing)
 
-          HONESTY RULE: only output VERDICT: findings if /tmp/prompt-audit.md exists, is non-empty, and the findings are backed by quotes there.
+          HONESTY RULE: output VERDICT: findings ONLY if /tmp/prompt-audit.md exists, is non-empty, and the findings are backed by quotes there.
 
           TIME LIMIT: soft deadline = {{SOFT_DEADLINE}}. Before every step: [ $(date +%s) -ge {{SOFT_DEADLINE}} ]. If OVER: write the report with the current state, end the turn.
           CLAUDE_EOF
