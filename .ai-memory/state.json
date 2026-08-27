@@ -17,6 +17,12 @@
       "runId": "33046060237",
       "branch": "ci/issue-1055-review-md-trim",
       "timestamp": "2026-08-27T06:31:06Z"
+    },
+    "documenter": {
+      "sessionId": "608b14e3-16cb-45da-85a7-7655f61f375c",
+      "runId": "33046266898",
+      "branch": "ci/issue-1055-review-md-trim",
+      "timestamp": "2026-08-27T06:34:49Z"
     }
   }
 }
