@@ -91,19 +91,19 @@ fi
 echo "skipped=false" >> "$GITHUB_OUTPUT"
 
 PROBLEM="$(section 'Was ist das Problem')"
-EXPECTED="$(section 'Was soll stattdessen passieren')"
+EXPECTED="$(section 'Wie soll es sein')"
 SCOPE="$(section 'Wo tritt es auf')"
-CRITERIA="$(section 'Wann ist es gelöst')"
+CRITERIA="$(section 'Woran messen wir das')"
 
 # 1. Felder vorhanden?
 MISSING=""
 [[ -z "$PROBLEM"   ]] && MISSING="- Abschnitt **Was ist das Problem?** fehlt"
 [[ -z "$EXPECTED" ]] && MISSING="${MISSING:+$MISSING
-}- Abschnitt **Was soll stattdessen passieren?** fehlt"
+}- Abschnitt **Wie soll es sein?** fehlt"
 [[ -z "$SCOPE"     ]] && MISSING="${MISSING:+$MISSING
 }- Abschnitt **Wo tritt es auf?** fehlt"
 [[ -z "$CRITERIA" ]] && MISSING="${MISSING:+$MISSING
-}- Abschnitt **Wann ist es gelöst?** fehlt"
+}- Abschnitt **Woran messen wir das?** fehlt"
 if [ -n "$MISSING" ]; then
   MSG="Das Ticket folgt nicht dem Template. Bitte Struktur uebernehmen:
 $MISSING
@@ -133,7 +133,7 @@ fi
 # 3. Loesungskriterien: mindestens 1 pruefbarer Punkt (Bullet-Zeile)
 BULLETS="$(printf '%s' "$CRITERIA" | grep -cE '^[[:space:]]*[-*+] ' || true)"
 if [ "$BULLETS" -lt 1 ]; then
-  MSG='Der Abschnitt **Wann ist es geloest?** enthaelt keinen pruefbaren Punkt.
+  MSG='Der Abschnitt **Woran messen wir das?** enthaelt keinen pruefbaren Punkt.
 Schreibe mindestens EINE Zeile mit einem Bindestrich-Bullet, die man von aussen nachpruefen kann (z. B. "- Bei 375px fuellt der Button die Formularbreite").'
   fail "$MSG"
 fi
@@ -142,8 +142,30 @@ fi
 VAGUE="$(printf '%s\n%s' "$PROBLEM" "$EXPECTED" | grep -inE 'irgendwie|einfach mal|besser machen|verschönern|ohne weiteres|irgendwas|kann man nicht|funzt nicht geht nicht' | head -3 || true)"
 if [ -n "$VAGUE" ]; then
   MSG='Die Beschreibung enthaelt vage Formulierungen (z. B. "besser machen"), ohne WAS konkret anders sein soll.
-Ersetze sie durch beobachtbares Verhalten: Was passiert jetzt (wo, fuer wen) - was soll stattdessen passieren?'
+Ersetze sie durch beobachtbares Verhalten: Was passiert jetzt (wo, fuer wen) - wie soll es stattdessen sein?'
   fail "$MSG"
+fi
+
+# 5. Optionale Felder: wenn ausgefuellt, auf gueltige Werte pruefen
+AREA="$(section 'Thema')"
+COMPLEXITY="$(section 'Komplexität')"
+
+# Pruefung nur wenn Feld vorhanden ist (nicht leer)
+if [ -n "$AREA" ]; then
+  # Erlaubte Werte aus dem Template
+  VALID_AREA="UX/UI|Feature|Test|Logik|Performance|Security|Documentation|Infrastructure|Other"
+  if ! printf '%s' "$AREA" | grep -qE "^(${VALID_AREA})$"; then
+    MSG="Das Feld **Thema** hat einen ungueltigen Wert. Erlaubt sind: ${VALID_AREA}."
+    fail "$MSG"
+  fi
+fi
+
+if [ -n "$COMPLEXITY" ]; then
+  # Komplexitaet muss einem der drei Werte entsprechen
+  if ! printf '%s' "$COMPLEXITY" | grep -qE "^(Einfach|Mittel|Komplex)"; then
+    MSG='Das Feld **Komplexitaet** hat einen ungueltigen Wert. Erlaubt sind: Einfach, Mittel, Komplex.'
+    fail "$MSG"
+  fi
 fi
 
 emit true "Issue-Struktur ok — Analyse kann starten." ""
