@@ -142,6 +142,7 @@ export const main = async (): Promise<void> => {
 			migratePillarPerUser,
 			migratePillarFeedbackUserId,
 			migrateTaskChecklist,
+			migrateTaskAddress,
 			migrateLlmProviderKindColumns,
 		} = await import('./logics/migrate.js');
 		const { buildTaskForest } = await import('./logics/tree.js');
@@ -178,6 +179,9 @@ export const main = async (): Promise<void> => {
 		// Fehlende checklist-Spalte an tasks nachziehen (#531) — vor sync(), damit Lese-/Schreib-
 		// zugriffe auf bestehenden DBs nicht mit `no such column` brechen.
 		await migrateTaskChecklist(sequelize);
+		// Fehlende address-Spalte an tasks nachziehen — vor sync(), damit Lese-/Schreibzugriffe auf
+		// bestehenden DBs nicht mit `no such column` brechen.
+		await migrateTaskAddress(sequelize);
 		// Fehlende kind/builtin_key-Spalten an llm_providers nachziehen (Built-in-Provider) — vor
 		// sync(), damit Provider-Zugriffe auf Bestands-DBs aus #951 nicht mit `no such column` brechen.
 		await migrateLlmProviderKindColumns(sequelize);
