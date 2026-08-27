@@ -1,1 +1,16 @@
-{"phases":{"review":{"sessionId":"a0a1134a-e183-48f8-a052-135ffed95b0d","runId":"33092049352","branch":"claude/geoposition-adresssuche-aufgaben-1xdsbw","timestamp":"2026-08-27T16:17:58Z"}}}
+{
+  "phases": {
+    "review": {
+      "sessionId": "a0a1134a-e183-48f8-a052-135ffed95b0d",
+      "runId": "33092049352",
+      "branch": "claude/geoposition-adresssuche-aufgaben-1xdsbw",
+      "timestamp": "2026-08-27T16:17:58Z"
+    },
+    "fixup": {
+      "sessionId": "0017ad9a-b45a-4a29-b30b-84a6a9322def",
+      "runId": "33092786722",
+      "branch": "claude/geoposition-adresssuche-aufgaben-1xdsbw",
+      "timestamp": "2026-08-27T16:41:59Z"
+    }
+  }
+}
