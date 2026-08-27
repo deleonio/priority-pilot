@@ -1277,9 +1277,9 @@ body {
    des KoliBri-Default-Themes ist als Custom Property kalibrierbar.
    Mit _hasCounter erhöht sich die Container-Höhe (KoliBri built-in Counter). */
 .voice-field--input > .mic-button {
-	top: 50%;
-	transform: translateY(-50%);
-	bottom: auto;
+	/* #1051: Bottom-Anker an der Inputbox statt Zentrierung am Gesamt-Wrapper
+	   (der das Label mit umschließt und den Button zu hoch sitzen ließ). */
+	bottom: calc((var(--pp-input-height, 2.75rem) - 2rem) / 2);
 }
 
 .mic-button {
