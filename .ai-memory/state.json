@@ -25,10 +25,10 @@
       "timestamp": "2026-08-27T20:39:41Z"
     },
     "review": {
-      "sessionId": "f889bded-b978-43eb-900a-0f906e0175c1",
-      "runId": "33114430892",
+      "sessionId": "de512606-3738-4392-a290-bea5ad27b9f3",
+      "runId": "33117778123",
       "branch": "feat/issue-1072-deadline-group",
-      "timestamp": "2026-08-27T20:45:35Z"
+      "timestamp": "2026-08-27T21:24:04Z"
     },
     "fixup": {
       "sessionId": "69d4080d-cac9-4d0e-ae0d-2e9471fdc93d",
