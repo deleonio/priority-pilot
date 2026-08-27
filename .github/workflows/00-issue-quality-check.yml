@@ -1,4 +1,4 @@
-name: '00 - Issue-Güte (Vorab-Check, ohne LLM)'
+name: 0/6 Issue-Validator
 
 # Vorab-Feedback fuer Autoren: Beim ERSTELLEN und JEDEM EDIT des Issues laeuft die
 # rein mechanische Guete-Pruefung (verify-issue-quality.sh) und aktualisiert EINEN
