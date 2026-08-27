@@ -23,6 +23,12 @@
       "runId": "33101897327",
       "branch": "main",
       "timestamp": "2026-08-27T18:27:44Z"
+    },
+    "review": {
+      "sessionId": "2e75e775-abcb-4247-9b1c-e7d04c38fc9b",
+      "runId": "33103606904",
+      "branch": "feat/issue-1063-geo-badge",
+      "timestamp": "2026-08-27T18:32:44Z"
     }
   }
 }
