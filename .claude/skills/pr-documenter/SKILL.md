@@ -1,54 +1,54 @@
 ---
 name: pr-documenter
-description: "PR-Documenter — gemergte PRs analysieren und als /tmp/doc.json für Changelog/Release Notes dokumentieren (Klassifikation, Titel, Zusammenfassungen, Migration). Nutzen bei ‚dokumentiere PR‘, CI-Phase 6."
+description: "PR documenter — analyze merged PRs and document them as /tmp/doc.json for the changelog/release notes (classification, title, summaries, migration). Use for 'dokumentiere PR' (German: document PR), CI phase 6."
 ---
 
-# Workflow: PR-Documenter (nach Merge)
+# Workflow: PR Documenter (after merge)
 
-Nutzen für gemergte PRs — analysiert den PR und schreibt Dokumentations-Output (`/tmp/doc.json`) für Changelog/Release Notes.
+Use for merged PRs — analyzes the PR and writes documentation output (`/tmp/doc.json`) for the changelog/release notes.
 
-**Auswahlkriterium:** Gemergte PRs, die der Workflow via `{{PR_NR}}` übergibt. Kein `gh pr edit/comment/label` — nur Output schreiben.
+**Selection criterion:** merged PRs that the workflow passes in via `{{PR_NR}}`. No `gh pr edit/comment/label` — only write output.
 
-## Inputs (selbst lesen)
+## Inputs (read them yourself)
 
 - `gh pr diff {{PR_NR}}`
 - `gh pr view {{PR_NR}} --json title,body,files,labels,author`
-- `{{LINKED_ISSUES}}` (Kontext zu verknüpften Issues)
-- `{{TITLE_OK}}` — ist der Titel bereits konform?
-- `{{SUGGESTED_TYPE}}` — vorgeschlagener Typ aus Titel-Parsing
-- `{{SUGGESTED_SCOPE}}` — vorgeschlagener Scope aus Titel-Parsing
+- `{{LINKED_ISSUES}}` (context on linked issues)
+- `{{TITLE_OK}}` — is the title already compliant?
+- `{{SUGGESTED_TYPE}}` — suggested type from title parsing
+- `{{SUGGESTED_SCOPE}}` — suggested scope from title parsing
 
-## Klassifikation (genau eine)
+## Classification (exactly one)
 
-- `breaking` — API/Vertragsänderung, Migration nötig
-- `new` — neue Funktion/Komponente/Endpoint
-- `improved` — Erweiterung, UX, Performance (nicht reine Optik)
-- `fixed` — Bugfix, Fehlerkorrektur
-- `internal` — nur Tests/CI/Refactoring ohne Nutzer-Impact (Im Zweifel **NICHT** internal)
+- `breaking` — API/contract change, migration needed
+- `new` — new feature/component/endpoint
+- `improved` — extension, UX, performance (not pure visuals)
+- `fixed` — bugfix, error correction
+- `internal` — tests/CI/refactoring only, no user impact (when in doubt, **NOT** internal)
 
 ## Output (`/tmp/doc.json`)
 
 ```json
 {
   "classification": "breaking|new|improved|fixed|internal",
-  "title": "leer oder neuer Titel (Conventional Commits, englisch, klein, ≤72)",
-  "title_reason": "ein Satz, warum umbenannt (nur wenn title gesetzt)",
-  "summary_en": "3-5 Sätze: Dateien/Komponenten, technische Kernänderung",
-  "summary_de": "gleiche Aussage auf Deutsch",
-  "release_note_en": "2-4 Sätze: Was können Endnutzer jetzt tun? (bei internal: ein Satz, warum keine Note nötig)",
-  "migration_en": "nur bei breaking, sonst leer",
-  "files": [{"path": "pfad", "note_de": "ein Satz: was geändert"}],
-  "issues": [{"ref": "Closes #692", "note": "kurze Beschreibung"}]
+  "title": "empty or new title (Conventional Commits, English, lowercase, ≤72)",
+  "title_reason": "one sentence why it was renamed (only if title is set)",
+  "summary_en": "3-5 sentences: files/components, core technical change",
+  "summary_de": "the same statement in German",
+  "release_note_en": "2-4 sentences: what can end users do now? (for internal: one sentence on why no note is needed)",
+  "migration_en": "only for breaking, otherwise empty",
+  "files": [{"path": "path", "note_de": "one sentence in German: what changed"}],
+  "issues": [{"ref": "Closes #692", "note": "short description"}]
 }
 ```
 
-## Regeln
+## Rules
 
-- `title`: Leer wenn `{{TITLE_OK}}`=`true` und Typ passt. Sonst Conventional Commits, englisch, klein, ≤72 Zeichen.
-- `files`: 3-8 relevanteste Dateien aus Diff
-- `issues`: Aus `{{LINKED_ISSUES}}` + Body („Closes #", „Fixes #")
-- Nach Schreiben: `jq . /tmp/doc.json` prüfen
+- `title`: empty if `{{TITLE_OK}}`=`true` and the type fits. Otherwise Conventional Commits, English, lowercase, ≤72 characters.
+- `files`: the 3-8 most relevant files from the diff.
+- `issues`: from `{{LINKED_ISSUES}}` + body ("Closes #", "Fixes #").
+- After writing: verify with `jq . /tmp/doc.json`.
 
-## Zeitlimit
+## Time limit
 
-`{{SOFT_DEADLINE}}`. Bei Timeout: Minimal-stand schreiben (nicht komplett leeres JSON).
+`{{SOFT_DEADLINE}}`. On timeout: write a minimal snapshot (not a completely empty JSON).

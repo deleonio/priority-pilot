@@ -118,42 +118,42 @@ jobs:
         if: steps.guard.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
         run: |
           cat > /tmp/claude-prompt.txt << 'CLAUDE_EOF'
-          FOKUS: Review der Phasen-Prompts der KI-Pipeline auf initialen Token-Aufwand. NUR Analyse + Report — KEINE Dateiänderungen, KEIN Commit, KEIN Label, KEIN Issue (macht der Workflow nach dir). Token sparen: kurz, präzise, direkt.
+          FOCUS: review the AI pipeline's phase prompts for initial token cost. ONLY analysis + report — NO file changes, NO commit, NO label, NO issue (the workflow does that after you). Save tokens: short, precise, direct.
 
-          RAHMEN (Leitfrage): Wie lässt sich der initiale Token-Aufwand pro Phase minimieren — ohne dass Korrektheit, Vollständigkeit, Präzision, Prägnanz, Klarheit oder Widerspruchsfreiheit leiden? Der Prompt ist nur EIN Teil des initialen Kontexts; auch Doppelungen gegen die Wissensbasis zahlen auf dieselbe Rechnung.
+          FRAME (guiding question): how can the initial token cost per phase be minimized — without correctness, completeness, precision, concision, clarity, or freedom from contradiction suffering? The prompt is only ONE part of the initial context; duplication against the knowledge base counts toward the same total.
 
-          PRÜFOBJEKT (alles selbst lesen):
-            1. CI-Prompts: .github/prompts/ux.md, .github/prompts/spec.md, .github/prompts/implement.md, .github/prompts/fixup.md, .github/prompts/review.md, .github/prompts/documenter.md, .github/prompts/triage.md, .github/prompts/memory-read.md, memory-write.md
-            2. Referenz für Redundanz: die SKILL.md-Dateien der gleichen Skills (die Methode, auf die jeder Prompt verweist), .ai-knowledge/*.md und AGENTS.md — was dort schon steht, gehört NICHT wörtlich in einen Prompt (Verweis genügt).
+          REVIEW TARGET (read it all yourself):
+            1. CI prompts: .github/prompts/ux.md, .github/prompts/spec.md, .github/prompts/implement.md, .github/prompts/fixup.md, .github/prompts/review.md, .github/prompts/documenter.md, .github/prompts/triage.md, .github/prompts/memory-read.md, memory-write.md
+            2. Reference for redundancy: the SKILL.md files of the same skills (the method each prompt points to), .ai-knowledge/*.md, and AGENTS.md — what's already stated there does NOT belong verbatim in a prompt (a reference is enough).
 
-          PRÜFKRITERIEN (je Prompt):
-            A. REDUNDANZ — steht der Inhalt (ganze Sätze, Regeln, Befehle, Templates) schon in der SKILL.md des gleichen Skills, in .ai-knowledge/, AGENTS.md oder wörtlich in einem anderen Prompt? → Verweis statt Wiederholung.
-            B. KÜRZBARKEIT — welche Absätze tragen denselben Informationsgehalt auch in halber Länge? Konkrete Umformulierung vorschlagen, geschätzte Ersparnis (Bytes/Zeilen) nennen.
-            C. WIDERSPRUCH — widerspricht der Prompt anderen Prompts, AGENTS.md, der Wissensbasis oder der Workflow-Mechanik (Label-Verbote, Verdict-Kanäle, Soft-Deadline)?
-            D. PRÄZISION/KLARHEIT — mehrdeutige oder weitschweifige Formulierungen, die ein Agent falsch verstehen kann.
-            E. KORRECTHEIT/VOLLSTÄNDIGKEIT — tote Verweise (Datei existiert nicht), falsche Befehle, fehlende Pflicht-Elemente (Verdict-Zeile, Zeitlimit, Label-Verbot).
+          REVIEW CRITERIA (per prompt):
+            A. REDUNDANCY — is the content (whole sentences, rules, commands, templates) already in the SKILL.md of the same skill, in .ai-knowledge/, AGENTS.md, or verbatim in another prompt? → reference instead of repetition.
+            B. SHORTENABILITY — which paragraphs carry the same information content in half the length? Propose a concrete rewrite, name the estimated savings (bytes/lines).
+            C. CONTRADICTION — does the prompt contradict other prompts, AGENTS.md, the knowledge base, or the workflow mechanics (label bans, verdict channels, soft deadline)?
+            D. PRECISION/CLARITY — ambiguous or long-winded phrasing an agent could misunderstand.
+            E. CORRECTNESS/COMPLETENESS — dead references (file doesn't exist), wrong commands, missing mandatory elements (verdict line, time limit, label ban).
 
-          REIHENFOLGE: Erst ALLE Prompts lesen, DANN quer urteilen — Widerspruchs-Funde brauchen den Überblick.
+          ORDER: read ALL prompts first, THEN judge across them — finding contradictions needs the overview.
 
-          REPORT (PFLICHT): via Bash-Heredoc nach /tmp/prompt-audit.md schreiben, Struktur:
+          REPORT (MANDATORY): write via bash heredoc to /tmp/prompt-audit.md. The workflow posts this file verbatim as the body of the ci:prompt-audit issue, so WRITE THE REPORT IN GERMAN (headings and findings alike) — the readers are the German-speaking maintainers. Structure:
             # Prompt-Audit {{AUDIT_DATE}}
             ## Gesamturteil
-            2-3 Sätze: Gesamtzustand, größter Hebel.
-            ## <datei> — 🟢|🟡|🔴
-            je Fund: kurzes Zitat — Problem — konkreter Vorschlag — geschätzte Ersparnis.
-            🟢 nur, wenn wirklich nichts zu holen ist.
+            2-3 sentences: overall state, biggest lever.
+            ## <file> — 🟢|🟡|🔴
+            per finding: short quote — problem — concrete suggestion — estimated savings.
+            🟢 only if there's genuinely nothing to gain.
             ## Widersprüche (quer über die Phasen)
             ## Token-Hebel (Rangfolge der Maßnahmen nach Wirkung)
 
-          NUR belegbare Funde mit Zitat — keine Spekulation, keine Style-Nörgelei ohne messbaren Nutzen.
+          ONLY substantiated findings with a quote — no speculation, no style nitpicking without measurable benefit.
 
-          VERDICT: GANZ AM ENDE GENAU EINE Zeile, NUR der Token — kein Text dahinter (der Workflow parst die Zeile maschinell):
-            - VERDICT: findings  (mind. ein verwertbarer Fund, im Report mit Zitat belegt)
-            - VERDICT: clean     (nichts, was eine Änderung lohnt)
+          VERDICT: exactly ONE line at the very end, ONLY the token — no text after it (the workflow parses the line by machine):
+            - VERDICT: findings  (at least one actionable finding, backed by a quote in the report)
+            - VERDICT: clean     (nothing worth changing)
 
-          EHRLICHKEITS-REGEL: VERDICT: findings NUR ausgeben, wenn /tmp/prompt-audit.md existiert, nicht-leer ist und die Funde dort mit Zitat stehen.
+          HONESTY RULE: output VERDICT: findings ONLY if /tmp/prompt-audit.md exists, is non-empty, and the findings are backed by quotes there.
 
-          ZEITLIMIT: Soft-Deadline = {{SOFT_DEADLINE}}. Vor jedem Schritt: [ $(date +%s) -ge {{SOFT_DEADLINE}} ]. Bei OVER: Report mit bisherigem Stand schreiben, Turn beenden.
+          TIME LIMIT: soft deadline = {{SOFT_DEADLINE}}. Before every step: [ $(date +%s) -ge {{SOFT_DEADLINE}} ]. If OVER: write the report with the current state, end the turn.
           CLAUDE_EOF
 
           sed -i "s/{{AUDIT_DATE}}/$(date -u +%F)/g" /tmp/claude-prompt.txt

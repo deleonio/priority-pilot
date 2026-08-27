@@ -1,33 +1,33 @@
-## MEMORY SCHREIBEN — PFLICHT
+## WRITING MEMORY — MANDATORY
 
-**ZWEI ZWECKE**:
-1. Folgelauf DIESER Phase bei Soft-Abort → nahtlos weitermachen
-2. NÄCHSTE Phase dieses Tickets → Arbeit nicht nochmal machen
+**TWO PURPOSES**:
+1. A follow-up run of THIS phase after a soft-abort → pick up seamlessly
+2. The NEXT phase of this issue → don't redo the work
 
-**DATEI**: `.ai-memory/issue-{{ISSUE_NR}}-{{PHASE}}.md`
+**FILE**: `.ai-memory/issue-{{ISSUE_NR}}-{{PHASE}}.md`
 
-**FORMAT**:
+**FORMAT** (section headers stay German — they're the fixed contract other phases and workflows read):
 ```markdown
-## Erledigt          — was läuft / ran (mit Datei:Zeile)
-## Relevante Stellen — die Dateien/Funktionen, je EIN Halbsatz warum
-## Annahmen          — worauf du dich verlässt, ohne bewiesen
-## Verworfen         — was geprüft und NICHT genommen, mit Grund
-## Offen             — was blockiert, inkl. Fehlermeldung/Ursache
-## Nächster Schritt  — der EINE nächste Handgriff
-## Fallstricke       — Entscheidungen/Dinge, die leicht falsch laufen
+## Erledigt          — what's done / ran (with file:line)
+## Relevante Stellen — the files/functions, one clause each on why
+## Annahmen          — what you're relying on without proof
+## Verworfen         — what you checked and did NOT use, with the reason
+## Offen             — what's blocked, incl. error message/cause
+## Nächster Schritt  — the ONE next concrete action
+## Fallstricke       — decisions/things that easily go wrong
 ```
 
-**WICHTIG**:
-- Schreib für JEMANDEN OHNE DEINEN KONTEXT → Nenne Dateien, Zeilen, Namen
-- Aussagen prüfbar (Datei:Zeile plus was dort stand) — Dateistände altern!
-- ERSTEN Stand SOFORT nach Analyse, vor JEDEM Soft-Deadline-Check aktualisieren
-- Leere Abschnitte mit `-` füllen, nicht weglassen
+**IMPORTANT**:
+- Write for SOMEONE WITHOUT YOUR CONTEXT → name files, lines, identifiers
+- Statements must be verifiable (file:line plus what was there) — file states go stale!
+- Write the FIRST snapshot IMMEDIATELY after the analysis, update before EVERY soft-deadline check
+- Fill empty sections with `-`, don't omit them
 
 ---
 
-## DAUERGEDÄCHTNIS FORTSCHREIBEN — `.ai-memory/MEMORY.md`
+## EXTENDING PERSISTENT MEMORY — `.ai-memory/MEMORY.md`
 
-**FORMAT** (eine Zeile, ans Ende von `## Learnings & Erfahrungen`):
-`- YYYY-MM-DD · <Bereich> — <was schiefging> → <Lösung>.`
+**FORMAT** (one line, appended to the end of `## Learnings & Erfahrungen`):
+`- YYYY-MM-DD · <Area> — <what went wrong> → <solution>.`
 
-**Aufnahmekriterium, Merge- und Kuratierungsregeln, wer committen darf**: AGENTS.md → Abschnitt „Memory" (verbindlich, hier nicht wiederholt). Kurz: streng — im Zweifel KEIN Eintrag, die meisten Läufe schreiben gar nichts.
+**Inclusion criterion, merge/curation rules, who may commit**: AGENTS.md → "Memory" section (binding, not repeated here). Short version: strict — when in doubt, NO entry; most runs write nothing at all.

@@ -1,95 +1,97 @@
 ---
 name: ticket-triage
-description: "Ticket-Triage — offene GitHub-Issues analysieren, lektorieren, ggf. zerlegen, Analyse-Block (KI-ANALYSE) in den Body schreiben, Ampel setzen und Labels steuern. Nutzen bei ‚triage‘, ‚analysiere Issues‘, CI-Phase 1."
+description: "Ticket triage — analyze open GitHub issues, copyedit them, split them up if needed, write the analysis block (KI-ANALYSE) into the body, set the traffic-light verdict, and steer labels. Use for 'triage', 'analyze issues' (German: 'triage', 'analysiere Issues'), CI phase 1."
 ---
 
-# Workflow: Ticket-Triage (GitHub Issues)
+# Workflow: Ticket Triage (GitHub Issues)
 
-Nutzen, wenn du offene GitHub-Issues analysieren sollst — bewertet Umsetzbarkeit, schreibt den Body-Block mit Analyse und steuert die Folgophasen über Labels.
+Use when you need to analyze open GitHub issues — assesses feasibility, writes the analysis block into the body, and steers the following phases via labels.
 
-Tickets = GitHub-Issues von `deleonio/priority-pilot`. Voraussetzung: `gh` ist authentifiziert.
+Note: this file's prose is English; text written into GitHub issues/comments (the analysis block, ping comments, decision comments) stays German — that content is for the project's German-speaking issue authors and reviewers.
 
-**Auswahlkriterium:** Analysiert werden alle **offenen** Issues, die **noch nicht** das Label
-`ai:analysed` tragen. Eine **konkret übergebene Nummer** wird immer verarbeitet, auch wenn sie bereits `ai:analysed` trägt (Re-Triage).
+Issues = GitHub issues of `deleonio/priority-pilot`. Prerequisite: `gh` is authenticated.
 
-## Schritt 1 — Ticket(s) wählen & analysieren
+**Selection criterion:** All **open** issues that do **not yet** carry the label
+`ai:analysed` are analyzed. A **specifically given number** is always processed, even if it already carries `ai:analysed` (re-triage).
 
-- Offene, noch nicht analysierte Issues finden:
+## Step 1 — Select & analyze issue(s)
+
+- Find open, not-yet-analyzed issues:
   `gh issue list --state open --json number,title,labels --jq '[.[] | select((.labels | map(.name)) | index("ai:analysed") | not)] | .[] | "\(.number)\t\(.title)"'`
-- Eine konkret übergebene Nummer hat Vorrang; sonst der Reihe nach (ältestes zuerst).
-- **Batch-Verarbeitung:** Ohne konkrete Nummer **alle** passenden Issues in **einem** Lauf abarbeiten. Jedes Ticket vollständig durch die Schritte 1–5 führen, dann das nächste.
-- Gibt es kein passendes Issue: klar sagen und stoppen.
-- Pro Issue Details laden: bei **Erst-Triage** Titel + Beschreibung (`gh issue view <nr> --json title,body`);
-  bei **Re-Triage** zusätzlich **nur die Delta-Kommentare** seit dem letzten `stand`.
-- **Titel und Beschreibung** des Issues zusammen mit dem **Repo** zu einer Lösung konzipieren:
-  relevante Dateien via Grep/Glob/Read finden, Architektur/Konventionen aus der Wissensbasis
-  berücksichtigen — nicht raten.
-- Ergebnis: Problemzusammenfassung, betroffene Dateien/Bereiche, Root Cause/Lösungsweg, offene Fragen/Risiken sowie **prüfbare Akzeptanzkriterien** und **Testfälle**.
-- **Re-Triage bestehender Analyse:** Trägt das Issue bereits `ai:analysed`, lebt die Analyse in einem
-  markierten Block im **Body** (`<!-- KI-ANALYSE:START stand=… -->` … `<!-- KI-ANALYSE:END -->`).
-  1. Body laden, den Analyse-Block extrahieren und den `stand`-Timestamp auslesen.
-  2. **Nur die Delta-Kommentare seit `stand` lesen** (NICHT den ganzen Thread).
-  3. Die vorhandene Analyse **nicht unverändert übernehmen**: prüfen, ob sie zur (ggf. überarbeiteten)
-     Aufgabenstellung samt Delta-Antworten **noch passt** und **vollständig** ist. Passt sie nicht mehr
-     oder fehlen Aspekte: beantwortete offene Fragen **einarbeiten/entfernen**, Ampel ggf. kippen, AK
-     aktualisieren — Lücken nicht stehen lassen.
+- A specifically given number takes priority; otherwise process in order (oldest first).
+- **Batch processing:** Without a specific number, work through **all** matching issues in **one** run. Take each issue completely through steps 1–5, then move to the next.
+- If no matching issue exists: say so clearly and stop.
+- Load details per issue: for **initial triage** title + description (`gh issue view <nr> --json title,body`);
+  for **re-triage** additionally **only the delta comments** since the last `stand` (as-of) timestamp.
+- Design a solution from the issue's **title and description** together with the **repo**:
+  find relevant files via Grep/Glob/Read, take architecture/conventions from the knowledge base
+  into account — don't guess.
+- Result: problem summary, affected files/areas, root cause/solution approach, open questions/risks, plus **verifiable acceptance criteria** and **test cases**.
+- **Re-triage of an existing analysis:** If the issue already carries `ai:analysed`, the analysis lives in a
+  marked block in the **body** (`<!-- KI-ANALYSE:START stand=… -->` … `<!-- KI-ANALYSE:END -->`).
+  1. Load the body, extract the analysis block, and read out the `stand` timestamp.
+  2. **Read only the delta comments since `stand`** (NOT the whole thread).
+  3. **Don't carry over the existing analysis unchanged:** check whether it **still fits** the (possibly revised)
+     task, including the delta answers, and is **complete**. If it no longer fits
+     or aspects are missing: **incorporate/remove** answered open questions, flip the traffic light if needed, update the
+     acceptance criteria — don't leave gaps standing.
 
-## Schritt 2 — Beschreibung lektorieren (Inhalt unverändert)
+## Step 2 — Copyedit the description (content unchanged)
 
-- Die **Ticket-Beschreibung lektorieren**: Rechtschreibung, Grammatik und Verständlichkeit verbessern.
-- **Der Inhalt darf dabei nicht verändert werden:** keine neuen oder entfernten Anforderungen,
-  keine Bedeutungsänderung, keine zusätzlichen Annahmen.
-- Lektorierte Fassung übernehmen — mehrzeiligen Body mit **echten Zeilenumbrüchen** übergeben, z. B.
-  `gh issue edit <nr> --body-file -` mit Heredoc.
-- Ändert das Lektorat fachlich nichts, bleibt die Beschreibung unangetastet (kein Edit „pro forma").
+- **Copyedit the issue description:** improve spelling, grammar, and clarity.
+- **The content must not be changed in the process:** no new or removed requirements,
+  no change in meaning, no additional assumptions.
+- Apply the copyedited version — pass a multi-line body with **real line breaks**, e.g.
+  `gh issue edit <nr> --body-file -` with a heredoc.
+- If the copyedit changes nothing substantively, leave the description untouched (no "pro forma" edit).
 
-## Schritt 2b — Titel optimieren (Inhalt unverändert)
+## Step 2b — Optimize the title (content unchanged)
 
-- **Konsistenz prüfen:** Bildet der Titel die (lektorierte) **Beschreibung** und das **eigentliche
-  Ziel des Tickets** noch treffend ab? Ist er kurz, präzise und inhaltlich stimmig?
-- **Nur bei tatsächlicher Inkonsistenz anpassen** — analog zum Lektorat **inhaltlich treu**:
-  keine Bedeutungsänderung, keine neuen Anforderungen.
-- Übernehmen via `gh issue edit <nr> --title "<neuer Titel>"`.
+- **Check consistency:** Does the title still accurately reflect the (copyedited) **description** and the issue's **actual
+  goal**? Is it short, precise, and substantively coherent?
+- **Adjust only on actual inconsistency** — faithful to the content, as with the copyedit:
+  no change in meaning, no new requirements.
+- Apply via `gh issue edit <nr> --title "<new title>"`.
 
-## Schritt 3 — Zerlegen bei zu großen Tickets (optional)
+## Step 3 — Split up oversized issues (optional)
 
-Ein Ticket gilt als **zu groß**, wenn **mindestens eines** zutrifft:
+An issue counts as **too large** if **at least one** of the following applies:
 
-- es berührt mehrere Schichten/Pakete des Monorepos,
-- es enthält mehrere unabhängige Akzeptanzkriterien / „und"-verknüpfte Anforderungen,
-- es ließe sich nicht sinnvoll in **einem** PR umsetzen/reviewen.
+- it touches multiple layers/packages of the monorepo,
+- it contains multiple independent acceptance criteria / requirements joined by "and",
+- it couldn't reasonably be implemented/reviewed in **one** PR.
 
-Bei einem zu großen Ticket:
+For an oversized issue:
 
-- **Vorbedingung — Labels sicherstellen:** `ai:analysed`, bei sofort umsetzbaren Teilaufgaben auch `ai:needs-ux-ui`/`ai:needs-spec` müssen **existieren**.
-- Aus der Analyse **2–5 möglichst unabhängige Teilaufgaben** ableiten (jede in **einem** PR umsetzbar).
-- Pro Teilaufgabe ein **Sub-Issue** anlegen — bereits mit Mini-Analyse + Ampel im Body, **inklusive der START/END-Marker**.
-- Sub-Issue als **echtes GitHub-Sub-Issue** unter das Eltern-Ticket hängen (GraphQL, Pflicht):
+- **Precondition — ensure labels exist:** `ai:analysed`, and for immediately implementable sub-tasks also `ai:needs-ux-ui`/`ai:needs-spec`, must **exist**.
+- Derive **2–5 sub-tasks that are as independent as possible** from the analysis (each implementable in **one** PR).
+- Create a **sub-issue** per sub-task — already with a mini-analysis + traffic light in the body, **including the START/END markers**.
+- Attach the sub-issue as a **real GitHub sub-issue** under the parent issue (GraphQL, mandatory):
   `gh api graphql -f query='mutation($p:ID!,$c:ID!){addSubIssue(input:{issueId:$p,subIssueId:$c}){clientMutationId}}' -f p=<parent-node-id> -f c=<child-node-id>`
-- **Bei sequenziellen Abhängigkeiten — native `blocked-by`-Relation setzen (Pflicht):**
-  `gh api graphql -f query='mutation($b:ID!,$k:ID!){addBlockedBy(input:{issueId:$b,blockingIssueId:$k}){clientMutationId}}' -f b=<nachfolger-node-id> -f k=<vorgänger-node-id>`
-- **Rekursionsschutz (Pflicht):** Sub-Issues werden direkt mit `ai:analysed` angelegt (sie **sind**
-  bereits das Analyse-Ergebnis) und fallen so aus dem Auswahlkriterium von Schritt 1. Nur **eine** Zerlegungsebene zulässig.
-- Sind Sub-Issues sofort umsetzbar (Ampel 🟢), zusätzlich den passenden Phasen-Trigger setzen (`ai:needs-ux-ui` bei UI-Bezug, sonst `ai:needs-spec`). **Bei sequenziellen Ketten (`blocked-by`) nur den ersten, unblockierten Sub-Issue** mit dem Trigger versehen.
+- **For sequential dependencies — set the native `blocked-by` relation (mandatory):**
+  `gh api graphql -f query='mutation($b:ID!,$k:ID!){addBlockedBy(input:{issueId:$b,blockingIssueId:$k}){clientMutationId}}' -f b=<successor-node-id> -f k=<predecessor-node-id>`
+- **Recursion guard (mandatory):** Sub-issues are created directly with `ai:analysed` (they **are**
+  already the analysis result) and thus fall outside step 1's selection criterion. Only **one** level of splitting is allowed.
+- If sub-issues are immediately implementable (traffic light 🟢), also set the matching phase trigger (`ai:needs-ux-ui` for UI relevance, otherwise `ai:needs-spec`). **For sequential chains (`blocked-by`), give the trigger only to the first, unblocked sub-issue.**
 
-## Schritt 4 — Lösungsvorschlag im Body-Block (mit Ampel)
+## Step 4 — Solution proposal in the body block (with traffic light)
 
-- Den Lösungsweg konkret und umsetzbar formulieren: betroffene Dateien, Schritte, Alternativen, Risiken.
-- **Akzeptanzkriterien & Testfälle (Pflichtbestandteil):**
-  Den Lösungsvorschlag um eine Liste **prüfbarer Akzeptanzkriterien** ergänzen und je Kriterium den
-  konkreten **Testfall** benennen — **nur für Anwendungscode** (`server/src/**`, `frontend/src/**`, `frontend/e2e/**`). Testebene und Zieldatei nach Ticket-Typ:
-  - **Backend-Logik / API** → `node:test`-Unit (`server/src/logics/*.test.ts`) bzw. API-Test (`server/src/express/*.test.ts`).
-  - **Frontend-Logik** → Vitest-Unit (`frontend/src/lib/*.test.ts`).
-  - **Feature / UI-Verhalten** → Akzeptanz-e2e (`frontend/e2e/*.spec.ts`, Stil `crud.spec.ts`). Bei für den Nutzer sichtbaren UI-Funktionen zusätzlich ein **Mobile-First-Akzeptanzkriterium** (375px-Viewport) mit eigenem Testfall.
-  - **Reines Styling/Layout** → visuelle Verifikation statt Test (kurz begründen).
-  - **Nicht-Anwendungscode** → **keine Testfälle**.
+- Formulate the solution approach concretely and actionably: affected files, steps, alternatives, risks.
+- **Acceptance criteria & test cases (mandatory part):**
+  Extend the solution proposal with a list of **verifiable acceptance criteria** and name the
+  concrete **test case** for each criterion — **only for application code** (`server/src/**`, `frontend/src/**`, `frontend/e2e/**`). Test level and target file by issue type:
+  - **Backend logic / API** → `node:test` unit (`server/src/logics/*.test.ts`) or API test (`server/src/express/*.test.ts`).
+  - **Frontend logic** → Vitest unit (`frontend/src/lib/*.test.ts`).
+  - **Feature / UI behavior** → acceptance e2e (`frontend/e2e/*.spec.ts`, style `crud.spec.ts`). For user-visible UI features, add a **mobile-first acceptance criterion** (375px viewport) with its own test case.
+  - **Pure styling/layout** → visual verification instead of a test (briefly justify).
+  - **Non-application code** → **no test cases**.
 
-- **Umsetzbarkeits-Ampel** an den Anfang des Analyse-Blocks stellen:
-  - 🟢 **grün** — klar umsetzbar: Anforderungen eindeutig, betroffene Dateien bekannt, in einem PR machbar **und prüfbare AK + Testfälle liegen vor**.
-  - 🟡 **gelb** — bedingt umsetzbar: offene Fragen/Annahmen, **AK (noch) nicht prüfbar formulierbar**, größerer Umfang oder Zerlegung empfohlen.
-  - 🔴 **rot** — noch nicht umsetzbar: Anforderungen unklar/widersprüchlich oder Infos fehlen; Rückfrage nötig.
+- Put the **feasibility traffic light** at the start of the analysis block:
+  - 🟢 **green** — clearly implementable: requirements unambiguous, affected files known, feasible in one PR **and verifiable acceptance criteria + test cases are in place**.
+  - 🟡 **yellow** — conditionally implementable: open questions/assumptions, **acceptance criteria cannot (yet) be phrased verifiably**, larger scope or splitting recommended.
+  - 🔴 **red** — not yet implementable: requirements unclear/contradictory or information missing; clarification needed.
 
-- Die Analyse als markierten **Block in den Issue-Body** schreiben:
+- Write the analysis as a marked **block into the issue body**. This block's content is written in German — it is the ticket content itself, read by the (German-speaking) issue author and other contributors:
   ```
   <!-- KI-ANALYSE:START stand=YYYY-MM-DDTHH:MM:SSZ -->
   ### Umsetzungskontext
@@ -122,47 +124,47 @@ Bei einem zu großen Ticket:
   | review | ja | haiku|sonnet|opus | low|medium|high |
   <!-- ai-phase-routing:END -->
   ```
-  - **Die Routing-Tabelle ist die EINE Steuerung für alle Folgephasen** (ADR-0004,
-    konsequent analysgetrieben): Run-Spalte = Phasen-Trigger (UX-Label, Spec-Skip),
-    Modell+Effort = Phase-Setup. Bei `Run: nein` Modell/Effort als `-` setzen.
-  - **Pflichtwerte:** `impl` und `review` laufen IMMER (`Run: ja` — review ist das
-    Merge-Gate). `ux` läuft bei UI-Bezug, `spec` entfällt nur bei Tickets **ohne
-    Anwendungscode** (Begründung dann im Analyse-Block unter „Umsetzungskontext").
-  - **Kompatibilität:** Das Modell der `impl`-Zeile setzt der Workflow zusätzlich als
-    `ai:model:<klasse>`-Label (manueller Override-Weg, Auto-Eskalation bei
-    Review-Schleifen bleibt wirksam).
-  - Tabelle und Analyse-Block gehören zusammen: bei Re-Triage BEIDE neu schreiben.
-    ASCII ohne Umlaute/typografische Anführungszeichen — die Tabelle wird maschinell
-    gelesen (`resolve-phase-routing.sh`).
-  - `stand` = ISO-8601 UTC, bei **jedem** Schreiben neu setzen: `date -u +%Y-%m-%dT%H:%M:%SZ`.
-  - Schreiben via `gh issue edit <nr> --body-file -` mit Heredoc.
+  - **The routing table is the ONE control mechanism for all following phases** (ADR-0004,
+    consistently analysis-driven): the Run column = phase trigger (UX label, spec skip),
+    Model+Effort = phase setup. For `Run: nein` (no), set model/effort to `-`.
+  - **Mandatory values:** `impl` and `review` ALWAYS run (`Run: ja` [yes] — review is the
+    merge gate). `ux` runs when there's UI relevance; `spec` is skipped only for issues **without
+    application code** (justify then in the analysis block under "Umsetzungskontext").
+  - **Compatibility:** The workflow additionally sets the model of the `impl` row as an
+    `ai:model:<class>` label (manual override path; auto-escalation on
+    review loops remains in effect).
+  - The table and analysis block belong together: on re-triage, rewrite BOTH.
+    ASCII without umlauts/typographic quotes — the table is parsed by machine
+    (`resolve-phase-routing.sh`).
+  - `stand` = ISO-8601 UTC, reset on **every** write: `date -u +%Y-%m-%dT%H:%M:%SZ`.
+  - Write via `gh issue edit <nr> --body-file -` with a heredoc.
 
-## Schritt 4b — Kurzer Ping-Kommentar
+## Step 4b — Short ping comment
 
-Pro Lauf **einen kurzen Ping-Kommentar** (`gh issue comment`):
+One **short ping comment** per run (`gh issue comment`), written in German:
 
-- 1 Satz, dass die Analyse in der Beschreibung steht.
-- **Nur wenn offene Fragen bestehen:** den Issue-Autor mit `@<issue-author>` adressieren und die offenen Fragen als Liste anhängen.
+- 1 sentence noting that the analysis is in the description.
+- **Only if open questions exist:** address the issue author with `@<issue-author>` and attach the open questions as a list.
 
-## Schritt 5 — Markieren (`ai:analysed`; bei klarer Analyse 🟢 zusätzlich den Phasen-Trigger)
+## Step 5 — Label (`ai:analysed`; for a clear 🟢 analysis, also the phase trigger)
 
-- Label `ai:analysed` setzen: `gh issue edit <nr> --add-label "ai:analysed"`
-- **Uneindeutige Aufgabenstellung → `ai:needs-human` statt einer geratenen Analyse.** Postet **genau einen** Kommentar, dessen erste Zeile exakt `<!-- ai-triage-decision -->` lautet, gefolgt von **Was zu entscheiden ist / Optionen / Empfehlung**.
-- **Phasen-Trigger nach der Ampel:**
-  - **🟢 grün →** zusätzlich den Folge-Trigger setzen — gemäß Routing-Tabelle:
-    `ux: ja` → `ai:needs-ux-ui`; sonst `spec: ja` → `ai:needs-spec`; sonst — wenn die
-    `spec`-Zeile `nein` steht (Ticket ohne Anwendungscode) — direkt `ai:needs-impl`.
-  - **🟡 gelb / 🔴 rot →** **keinen** Phasen-Trigger setzen. Trägt ein Issue beim **Re-Triage** bereits einen Phasen-Trigger, ihn **automatisch entfernen**.
+- Set the `ai:analysed` label: `gh issue edit <nr> --add-label "ai:analysed"`
+- **Ambiguous task → `ai:needs-human` instead of a guessed analysis.** Post **exactly one** comment (in German) whose first line is exactly `<!-- ai-triage-decision -->`, followed by **what needs to be decided / options / recommendation**.
+- **Phase trigger based on the traffic light:**
+  - **🟢 green →** also set the follow-up trigger — per the routing table:
+    `ux: ja` (yes) → `ai:needs-ux-ui`; otherwise `spec: ja` (yes) → `ai:needs-spec`; otherwise — if the
+    `spec` row says `nein` (no) (issue without application code) — go directly to `ai:needs-impl`.
+  - **🟡 yellow / 🔴 red →** set **no** phase trigger. If an issue already carries a phase trigger during **re-triage**, **remove it automatically**.
 
-## Schritt 6 — Autonomes Schließen (wenn Anforderungen bereits erfüllt)
+## Step 6 — Autonomous closing (when requirements are already met)
 
-Nach Schritt 5 prüft die KI genau **ein** Kriterium:
+After step 5, the AI checks exactly **one** criterion:
 
-> **Sind die im Issue beschriebenen Anforderungen bereits vollständig im Codebase umgesetzt?**
+> **Are the requirements described in the issue already fully implemented in the codebase?**
 
-Trifft das Kriterium eindeutig zu und liegt ein konkreter Beleg (Commit-SHA, PR-Nr. oder Datei/Zeile) vor, wird das Ticket geschlossen.
+If this criterion is clearly met and a concrete piece of evidence (commit SHA, PR number, or file/line) exists, the issue is closed.
 
-**Ablauf bei Erfüllung:**
+**Procedure when met** (comment text stays German):
 
 ```sh
 gh issue comment <nr> --body-file - <<'CLOSE'
@@ -174,9 +176,9 @@ CLOSE
 gh issue close <nr> --reason "completed"
 ```
 
-**Sicherheitsnetz:** Nur schließen, wenn ein **konkreter Beleg** vorliegt — kein Schließen auf Basis von Vermutungen.
+**Safety net:** Only close if **concrete evidence** exists — never close based on assumptions.
 
-## Hinweise
+## Notes
 
-- Schritt 2, 3, 4, 4b und 5 schreiben **öffentlich** auf GitHub — vor der Ausführung bestätigen lassen, besonders bei Batch-Verarbeitung.
-- **Kein Produktivcode committen**; Triage bedeutet nur Analyse, Lektorat, ggf. Zerlegung, Analyse-Block im Body, Ping-Kommentar und Label.
+- Steps 2, 3, 4, 4b, and 5 write **publicly** to GitHub — get confirmation before executing, especially for batch processing.
+- **Never commit production code**; triage means only analysis, copyediting, optional splitting, the analysis block in the body, the ping comment, and labeling.

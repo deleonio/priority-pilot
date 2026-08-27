@@ -1,28 +1,28 @@
-Fixup für PR {{PR_NR}}. Nur gemeldete Findings beheben. Fixup und Umsetzung sind EINE Phase (ADR 0005) — Methode: .claude/skills/ticket-implementation/SKILL.md (Schritt 5, Kreuzverhör-Loop).
+Fixup for PR {{PR_NR}}. Only fix reported findings. Fixup and implementation are ONE phase (ADR 0005) — method: .claude/skills/ticket-implementation/SKILL.md (step 5, cross-examination loop).
 
-ABLAUF:
-1. **Konflikte** (falls nötig): `git status`, `git diff --name-only --diff-filter=U`, auflösen, committen
-2. Findings lesen: PR-Diff, Review-Threads, CI
-3. Fixen:
-   - Eindeutige Findings → Code ändern, GATE fahren (`pnpm format && pnpm exec prettier --check . && pnpm lint && pnpm knip && pnpm test` — alles grün vor dem Push, sonst dreht sich die Fixup-Schleife weiter), committen+pushen, Thread lösen
-   - Mehrdeutige/Entscheidungs-Findings → Nicht fixen
-4. **Entscheidungs-Findings** (bereits gewählt): Kommentar mit Options-ID beachten, GENAU diese Option umsetzen
-5. **CI rot**:
-   - FLAKY (Timeout/Timing, thematisch unrelated): `gh run rerun <run-id> --failed`, 60s warten
-   - Echter Fehler: Log lesen, fixen, committen+pushen
-   - Unrelated: Im eigenen ai-fixup-decisions-Sammelkommentar dokumentieren (kein neuer Kommentar, NICHT den ai-review-Kommentar des Reviews anfassen)
-6. **UI-Findings**: zuerst billig+deterministisch prüfen (`node .claude/skills/impeccable/scripts/detect.mjs <dateien…>`, docs/mobile-ui-rules.md); Playwright-MCP nur für den kurzen 375/1280-Layoutbruch-Check, nicht für Design-Analysen. Layout-Brüche fixen, KoliBri-First
+PROCEDURE:
+1. **Conflicts** (if needed): `git status`, `git diff --name-only --diff-filter=U`, resolve, commit
+2. Read findings: PR diff, review threads, CI
+3. Fix:
+   - Unambiguous findings → change the code, run the GATE (`pnpm format && pnpm exec prettier --check . && pnpm lint && pnpm knip && pnpm test` — everything green before the push, otherwise the fixup loop keeps spinning), commit+push, resolve the thread
+   - Ambiguous/decision findings → don't fix
+4. **Decision findings** (already chosen): follow the comment with the option ID, implement EXACTLY that option
+5. **CI red**:
+   - FLAKY (timeout/timing, thematically unrelated): `gh run rerun <run-id> --failed`, wait 60s
+   - Real failure: read the log, fix it, commit+push
+   - Unrelated: document in your own ai-fixup-decisions collected comment (no new comment, do NOT touch the review's ai-review comment)
+6. **UI findings**: check with the cheap+deterministic tools first (`node .claude/skills/impeccable/scripts/detect.mjs <files…>`, docs/mobile-ui-rules.md); Playwright MCP only for the short 375/1280 layout-break check, not for design analysis. Fix layout breaks, KoliBri-first
 
-ABSCHLUSS:
-- `VERDICT: needs-human` bei Entscheidungs-Findings (TERMINAL)
-- `VERDICT: already-done` bei "alles erledigt, kein Commit nötig" (Begründung pro Finding: `Finding #<N> — gefixt in <SHA>`)
-- Sonst KEIN Verdict (Commits entscheiden über Fortschritt)
+WRAP-UP:
+- `VERDICT: needs-human` for decision findings (TERMINAL)
+- `VERDICT: already-done` for "everything done, no commit needed" (justification per finding: `Finding #<N> — fixed in <SHA>`)
+- Otherwise NO verdict (commits determine progress)
 
-Bei needs-human/already-done ZWEIFACH liefern:
-1. Datei: `printf 'needs-human' > /tmp/claude-verdict` (ALLERLETZTE Aktion)
-2. Ausgabe: `VERDICT: needs-human` | `VERDICT: already-done`
+For needs-human/already-done, deliver it TWICE:
+1. File: `printf 'needs-human' > /tmp/claude-verdict` (VERY LAST action)
+2. Output: `VERDICT: needs-human` | `VERDICT: already-done`
 
-ai-fixup-decisions-Kommentar-Struktur (bei needs-human):
+ai-fixup-decisions comment structure (for needs-human), written in German:
 ```markdown
 <!-- ai-fixup-decisions -->
 🎯 Fixup-Status: needs-human
@@ -47,4 +47,4 @@ Review-Typ: Fixup-Nachweis
 Updated: JJJJ-MM-TT
 ```
 
-ZEITLIMIT: Soft-Deadline = {{SOFT_DEADLINE}}. Vor jedem Schritt: [ $(date +%s) -ge {{SOFT_DEADLINE}} ]. Bei OVER: aktuellen Stand committen+pushen, Turn beenden.
+TIME LIMIT: soft deadline = {{SOFT_DEADLINE}}. Before every step: [ $(date +%s) -ge {{SOFT_DEADLINE}} ]. If OVER: commit+push the current state, end the turn.
