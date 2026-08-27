@@ -1,1 +1,16 @@
-{"phases":{"review":{"sessionId":"5757d463-7914-457a-9b59-1851669fe77f","runId":"33113129580","branch":"chore/schichten-trennung-skills-prompts","timestamp":"2026-08-27T20:31:07Z"}}}
+{
+  "phases": {
+    "review": {
+      "sessionId": "5757d463-7914-457a-9b59-1851669fe77f",
+      "runId": "33113129580",
+      "branch": "chore/schichten-trennung-skills-prompts",
+      "timestamp": "2026-08-27T20:31:07Z"
+    },
+    "documenter": {
+      "sessionId": "763bf76d-41a1-4bfd-927a-ec6d5daf6b21",
+      "runId": "33113888468",
+      "branch": "chore/schichten-trennung-skills-prompts",
+      "timestamp": "2026-08-27T20:37:23Z"
+    }
+  }
+}
