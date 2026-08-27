@@ -3,6 +3,7 @@ import type { Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useEffect, useRef, useState } from 'react';
 import { extractLeaves } from '../lib/extractLeaves';
+import { GeoBadge } from './GeoBadge';
 import { priorityBadge } from '../lib/task';
 import { setupPopoverAlignment } from '../lib/popoverAlign';
 
@@ -104,6 +105,7 @@ const LeafItem = ({
 								className="task-tree-badge task-tree-badge--priority"
 							/>
 						)}
+						{task !== null && task.address != null && <GeoBadge address={task.address} />}
 					</div>
 					{task !== null && (
 						<div className="task-tree-actions">

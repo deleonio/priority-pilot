@@ -1,22 +1,19 @@
 ---
 name: pr-documenter
-description: "PR documenter — analyze merged PRs and document them as /tmp/doc.json for the changelog/release notes (classification, title, summaries, migration). Use for 'dokumentiere PR' (German: document PR), CI phase 6."
+description: "PR documenter — analyze merged PRs and produce the changelog/release-notes JSON (classification, title, summaries, migration). Use for 'dokumentiere PR' (German: document PR), CI phase 6."
 ---
 
 # Workflow: PR Documenter (after merge)
 
-Use for merged PRs — analyzes the PR and writes documentation output (`/tmp/doc.json`) for the changelog/release notes.
+Use for merged PRs — analyzes the PR and produces the documentation output for the changelog/release notes.
 
-**Selection criterion:** merged PRs that the workflow passes in via `{{PR_NR}}`. No `gh pr edit/comment/label` — only write output.
+**Selection criterion:** merged PRs passed in by the calling run. No `gh pr edit/comment/label` — only read input and write output.
 
 ## Inputs (read them yourself)
 
-- `gh pr diff {{PR_NR}}`
-- `gh pr view {{PR_NR}} --json title,body,files,labels,author`
-- `{{LINKED_ISSUES}}` (context on linked issues)
-- `{{TITLE_OK}}` — is the title already compliant?
-- `{{SUGGESTED_TYPE}}` — suggested type from title parsing
-- `{{SUGGESTED_SCOPE}}` — suggested scope from title parsing
+- `gh pr diff <pr>` and `gh pr view <pr> --json title,body,files,labels,author`
+- Context on the linked issues, the title-compliance flag, and the suggested type/scope from title parsing — all provided by the calling prompt.
+- The output write path is likewise given by the calling prompt.
 
 ## Classification (exactly one)
 
@@ -26,7 +23,9 @@ Use for merged PRs — analyzes the PR and writes documentation output (`/tmp/do
 - `fixed` — bugfix, error correction
 - `internal` — tests/CI/refactoring only, no user impact (when in doubt, **NOT** internal)
 
-## Output (`/tmp/doc.json`)
+## Output (JSON document)
+
+Written to the path given by the calling prompt:
 
 ```json
 {
@@ -44,11 +43,7 @@ Use for merged PRs — analyzes the PR and writes documentation output (`/tmp/do
 
 ## Rules
 
-- `title`: empty if `{{TITLE_OK}}`=`true` and the type fits. Otherwise Conventional Commits, English, lowercase, ≤72 characters.
+- `title`: empty if the existing title is already compliant and the type fits. Otherwise Conventional Commits, English, lowercase, ≤72 characters.
 - `files`: the 3-8 most relevant files from the diff.
-- `issues`: from `{{LINKED_ISSUES}}` + body ("Closes #", "Fixes #").
-- After writing: verify with `jq . /tmp/doc.json`.
-
-## Time limit
-
-`{{SOFT_DEADLINE}}`. On timeout: write a minimal snapshot (not a completely empty JSON).
+- `issues`: from the linked-issues context + body ("Closes #", "Fixes #").
+- After writing: verify the JSON with `jq`.

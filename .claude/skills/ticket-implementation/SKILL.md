@@ -18,14 +18,14 @@ Note: this file's prose is English; PR/comment text written to GitHub stays Germ
 - **Assign yourself:** `gh issue edit <nr> --add-assignee @me`
 - Load context + analysis: read the analysis block from the **body** (`gh issue view <nr> --json body -q .body`); if missing, fall back to the most recent `🤖 KI-Analyse` comment.
 - **Pick up the spec draft PR (the normal case):** find and check it out: `gh pr list --state open --draft --json number,headRefName,closingIssuesReferences` → choose the PR whose `closingIssuesReferences` contains `<nr>`.
-  **Fallback for an empty `closingIssuesReferences`:** check the PR body, but **ONLY with a closing keyword** — `grep -Ei "(clos(e|es|ed)|fix(es|ed)?|resolv(e|es|ed))[[:space:]]*:?[[:space:]]*#?<nr>([^0-9]|$)"`. A mere mention of the number does **NOT** count (otherwise you'd check out a foreign PR that only describes the issue — the same trap as in `.github/scripts/pr-for-issue.sh`). Then `git fetch origin` and `git switch <headRefName>`.
+  **Fallback for an empty `closingIssuesReferences`:** check the PR body, but **ONLY with a closing keyword** — `grep -Ei "(clos(e|es|ed)|fix(es|ed)?|resolv(e|es|ed))[[:space:]]*:?[[:space:]]*#?<nr>([^0-9]|$)"`. A mere mention of the number does **NOT** count (otherwise you'd check out a foreign PR that only describes the issue). Then `git fetch origin` and `git switch <headRefName>`.
 - **Idempotency:** if **no** draft PR exists, but a **non-draft PR** with a closing keyword does → implementation already ran → end the run. Otherwise **direct mode** applies (own branch + write tests yourself).
 
 ## Step 2 — Read the analysis & quickly verify
 
 - Take the **acceptance criteria + test cases** from the body block.
 - **Check affected files:** do the files named there still exist?
-- **Traffic light 🔴** → don't implement, comment with a justification, and stop (`VERDICT: not-ready`).
+- **Traffic light 🔴** → don't implement, comment with a justification, and end the run as not ready.
 - **Traffic light 🟢/🟡** → proceed directly to step 3.
 
 **No full re-triage.** The triage stage already did the work — implementation trusts it.
@@ -35,7 +35,7 @@ Note: this file's prose is English; PR/comment text written to GitHub stays Germ
 - **Branch:** in **spec mode** the branch is already checked out. In **fallback mode**, create your own branch: `git switch -c feat/issue-<nr>-<short-name>`.
 - **(a) Red — tests exist before the code:**
   - **Spec mode:** the **red tests already exist** (from the spec stage). They are the **contract** and are **not changed**.
-  - **Fallback/direct mode** (the analysis deliberately skipped the spec, field "Spec nötig: nein" [spec needed: no]): create the branch yourself, implement, commit, push, and create the PR **yourself** (`gh pr create`, **not** `--draft` — the PR goes straight into review; without this step there is nothing to review). **Test obligation in direct mode:** if, against expectations, application code is touched after all (`server/src/**`, `frontend/src/**`, `frontend/e2e/**`), write the tests yourself too — the test carve-out ([ticket-spec](../ticket-spec/SKILL.md) step 3, ADR 0001) applies ONLY to workflows, scripts, config, and markdown. If the scope turns out to be significantly larger than expected as a result, that's a sign the analysis misjudged it: `VERDICT not-ready`, with a justification in the PR body.
+  - **Fallback/direct mode** (the analysis deliberately skipped the spec, field "Spec nötig: nein" [spec needed: no]): create the branch yourself, implement, commit, push, and create the PR **yourself** (`gh pr create`, **not** `--draft` — the PR goes straight into review; without this step there is nothing to review). **Test obligation in direct mode:** if, against expectations, application code is touched after all (`server/src/**`, `frontend/src/**`, `frontend/e2e/**`), write the tests yourself too — the test carve-out ([ticket-spec](../ticket-spec/SKILL.md) step 3, ADR 0001) applies ONLY to workflows, scripts, config, and markdown. If the scope turns out to be significantly larger than expected as a result, that's a sign the analysis misjudged it: end the run as not ready, with a justification in the PR body.
 - **(b) Green — code until green:** implement production code until **all** tests are green (`pnpm test`). Follow conventions (tabs, `strict`, ESM). For **frontend changes**, **KoliBri-first** applies: find and use the matching component via KoliBri MCP. Additionally check visible UI changes via Playwright MCP at **375px and 1280px viewport** against the running inspect instance.
 - **(c) Refactor & gate (CI mirror, before every commit):** clean up only once tests are green, then run the local CI gate:
   ```
@@ -45,7 +45,7 @@ Note: this file's prose is English; PR/comment text written to GitHub stays Germ
   pnpm knip
   pnpm test
   ```
-  For **changed UI files**, additionally run the Impeccable detector: `node .claude/skills/impeccable/scripts/detect.mjs <files…>`. **SPARINGLY:** for design/layout checks, use the deterministic, cheap tools first (detector + rules from `docs/mobile-ui-rules.md`); use Playwright MCP only for the short 375/1280 layout-break check on actually visible changes (screenshot + A11y snapshot), NOT for exploratory design analysis.
+  For **changed UI files**, apply the same order — **SPARINGLY:** for design/layout checks, use the deterministic, cheap tools first (design detectors + rules from `docs/mobile-ui-rules.md`); use Playwright MCP only for the short 375/1280 layout-break check on actually visible changes (screenshot + A11y snapshot), NOT for exploratory design analysis.
   **e2e:** `pnpm --filter frontend test:e2e` ONLY if the change affects UI behavior and an e2e spec exists for it — otherwise skip and note it in the PR body.
   **For confirm/delete/destructive dialogs:** apply `docs/ux-pattern-sequential-confirmation.md`. **For visible UI:** apply `docs/mobile-ui-rules.md` (touch targets ≥44px, async states, anti-patterns).
   Only commit/push once everything is green.
@@ -59,13 +59,13 @@ Note: this file's prose is English; PR/comment text written to GitHub stays Germ
   - **Fallback mode:** create a normal PR: `gh pr create --assignee @me --title "<title> (#<nr>)" --body "… Closes #<nr> …"`.
 - **Development link:** the `Closes #<nr>` keyword in the PR body creates the association in the **"Development" section**.
 - The PR description contains: a short implementation summary, affected files, `pnpm format`/lint/**test** results.
-- **Subscribe to the PR** — right after creating it, subscribe so that incoming review comments automatically trigger the next round.
+- **Follow up on the PR** — after creating it, react to incoming review comments and CI results in further rounds (step 5).
 
 ## Step 5 — Cross-examination loop (implement ⇄ review, until clean)
 
 The freshly created PR is actively cross-examined and reworked — in rounds, until **no comment is left open**.
 
-**Follow the PR & react automatically:** subscribe to the PR and react automatically to incoming review comments, new commits, and CI results.
+**Follow the PR:** react to incoming review comments, new commits, and CI results round by round.
 
 **Per round:**
 
@@ -89,4 +89,4 @@ The freshly created PR is actively cross-examined and reworked — in rounds, un
 
 - Assigning, push/PR, and review comments write **publicly** to GitHub — get confirmation first.
 - The result is a **review-ready PR** that has gone through the cross-examination loop and continues to be followed. The final merge stays with a human.
-- **CI mechanics** (VERDICT lines, soft deadline, label ban) are headless-only and governed by the pipeline's CI prompt.
+- **Run mechanics** (verdict lines, time limit, label rules) are governed by the calling run's prompt, not by this skill.

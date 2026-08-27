@@ -14,7 +14,7 @@ Note: this file's prose is English; the review body and collected comment writte
 PRs = pull requests of `deleonio/priority-pilot`. Prerequisite: `gh` is authenticated.
 
 **Selection criterion:** a specifically given PR is reviewed; without one, the most recently
-opened/updated open PR (or the PR currently subscribed to via `Session-Fortsetzung` — the coding agent's session-continuation feature).
+opened/updated open PR.
 
 ## Stance
 
@@ -51,7 +51,7 @@ Check the diff against these questions:
 - **Regression/obsolescence:** does the change make existing tests or behavior **outside the
   diff** obsolete, or contradict them (requirement changed)? **Note:** obsolete tests should already have been removed at the spec stage (ticket-spec.md). If a contradiction still turns up anyway → name it as a finding (`Test-Pflege-Bedarf`, the German section literal, with file/line) — don't silently accept it, but also don't change it yourself (a human, or a follow-up spec, decides on the adjustment/removal).
 - **KoliBri-first for UI changes** ([design language § 4](../../../.ai-knowledge/ux-design.md#4-komponentenwahl--kolibri-zuerst)): custom styling without a KoliBri alternative?
-  When in doubt, search for alternatives via `mcp__kolibri-mcp__search`. A missing justification for
+  When in doubt, search for alternatives via the KoliBri MCP. A missing justification for
   a custom-styling decision in the PR body is a finding.
 
 ## Step 3 — Code quality
@@ -77,12 +77,10 @@ Check the diff against these questions:
   a narrow alternative at phone width (avoid horizontal scrolling of the core content). If a
   375px-viewport e2e test is missing for a visible UI change (see `login.spec.ts` AC5,
   `task-tree.spec.ts` AC-6 as a pattern), that's a finding — exception only if justified in the PR.
-- **Impeccable audit for UI PRs** (#828): for changes under `frontend/`, extend the cross-examination with
-  `/impeccable audit` (skill in `.claude/skills/impeccable/`) — five dimensions
-  (accessibility, performance, theming, responsive, implementation integrity, each 0-4). The
-  detector (`node .claude/skills/impeccable/scripts/detect.mjs <files…>`, exit 2 = findings)
-  provides deterministic evidence instead of guesses; verify false positives in context and
-  name them as such.
+- **Design audit for UI PRs:** for changes under `frontend/`, extend the cross-examination with
+  a systematic UI audit — five dimensions (accessibility, performance, theming, responsive,
+  implementation integrity, each scored 0-4). Prefer deterministic detector evidence over
+  guesses; verify false positives in context and name them as such.
 - **Format/lint:** are `pnpm format`/`pnpm lint` documented in the PR description? Follow up if in doubt.
 
 ## Step 4 — Post findings as review comments
@@ -139,10 +137,9 @@ age with the diff regardless; what gets consolidated is the **collected comment*
   diff (step 1 stays unchanged).
 - **Struktur des Sammelkommentars** (status line, then sections as needed). The section
   headings below are written **verbatim in German** — they are the German artifact's own
-  headings, `.github/prompts/fixup.md` uses the same ones for the sibling comment, and
-  `needs-human-explain.sh` (mode `review-section`) substring-tests the comment body for
-  `Entscheidungs-Findings`. Translating a heading makes workflow 05 fall back to
-  "Begründung ist nicht verifizierbar" (the #848 failure mode):
+  headings, the fixup sibling comment uses the same ones, and the pipeline's needs-human
+  verification substring-tests the comment body for `Entscheidungs-Findings`. Translating a
+  heading makes that verification fall back to "Begründung ist nicht verifizierbar":
   - **🎯 Review-Status** — line 2 (after the marker): `reviewed | needs-fixup | needs-human`
     plus 1–2 sentences of context (mode, round, outcome).
   - **✅ Behobene Anmerkungen** — a **history table** of findings already resolved across rounds
@@ -156,21 +153,18 @@ age with the diff regardless; what gets consolidated is the **collected comment*
     chosen option without re-evaluating.
   - **📋 Offene Findings** — only for needs-fixup: the points of the **current** round (with
     traffic light, file/line, suggestion).
-  - **Footer** — `Review-Typ: Kreuzverhör | Fixup-Nachweis` (review type: cross-examination | fixup evidence) and `Updated: JJJJ-MM-TT` (ISO date; the German placeholder is kept so it matches the sibling ai-fixup-decisions comment in .github/prompts/fixup.md).
+  - **Footer** — `Review-Typ: Kreuzverhör | Fixup-Nachweis` (review type: cross-examination | fixup evidence) and `Updated: JJJJ-MM-TT` (ISO date; the German placeholder is kept so it matches the sibling ai-fixup-decisions comment).
 
 **CI/quality gate as a precondition:** a green content verdict (🟢) is **necessary but not
 sufficient** for `ai:ready-to-merge` — the mandatory checks (CI: format/lint/build/test) must
-also be green. In the GitHub Actions pipeline, a deterministic gate/auto-merge workflow
-(`.github/workflows/pr-gate-merge.yml`) handles this: if, after completion, at least one of the
-allowlisted checks **CI** or **Reviewer** is red, it sets `ai:needs-changes` and thereby
-triggers the fixup — `ai:ready-to-merge` is only granted once both are green (if both are
-green and `ai:ready-to-merge` is set, the same workflow merges the PR). Manually (this skill),
-the same rule applies: don't conclude with 🟢 while CI is red.
+also be green. In the pipeline, a deterministic gate/auto-merge step handles this: if at least
+one of the allowlisted checks **CI** or **Reviewer** is red, it degrades to `ai:needs-changes`
+and thereby triggers the fixup — `ai:ready-to-merge` is only granted once both are green (and
+then the PR is merged automatically). The same rule applies in any mode: don't conclude with 🟢
+while CI is red.
 
 ## Notes
 
 - Posting a review/comments writes **publicly** to GitHub — get confirmation first.
 - Stay brief and concrete; anchor and justify every point against code lines.
 - Pure review: **never** change or commit production code.
-- In the coding agent, the PR can be subscribed to via `Session-Fortsetzung` — new commits/CI/review
-  events then land directly in the session (re-review after fixes).

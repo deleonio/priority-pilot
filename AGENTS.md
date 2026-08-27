@@ -55,6 +55,11 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 - **Muster-Treue:** Reproduktion, Erweiterung und Adaption setzen das vorhandene Muster einheitlich fort — gleiche Struktur, Namen, Ablagen und Style wie der Nachbar-Code ([Konventionen](.ai-knowledge/project.md#konventionen)). Kein zweites Muster für dasselbe Problem; wer bewusst abweicht, begründet es im PR und führt die Abweichung konsequent überall durch. Nur so bleiben Muster langfristig nachvollziehbar, pflegbar, review- und refaktorierbar.
 - **KoliBri-First:** Komponenten nur selbst stylen, wenn keine KoliBri-Komponente passt
   (Shadow-Web-Components; Shadow-DOM-CSS ist unpublizierte API).
+- **Schichten-Trennung Pipeline:** `.github/` orchestriert (Trigger, Gates, Label-Mechanik;
+  Ein-/Ausgabeprotokoll der LLM-Läufe in `.github/prompts/`), `.claude/skills/` tragen die
+  orchestrator-neutrale Rollen-Methode — dort gehören keine Workflow-Namen, `.github`-Pfade,
+  VERDICT-Tokens, `{{Platzhalter}}` oder Laufzeit-Mechanik hinein. GitHub-Plattform-Vertrag
+  (gh-Befehle, Label-Namen, HTML-Marker, Kommentarformate) bleibt im Skill.
 - Monorepo mit **pnpm**; TypeScript `strict`, ESM überall, Node `>=26`.
 - **ASCII in maschinen-gelesenen Feldern:** YAML-Frontmatter, Verdict-Zeilen, HTML-Marker und
   ähnliche strukturierte Felder ohne sprachspezifische Sonderzeichen/Umlaute halten — gemischte

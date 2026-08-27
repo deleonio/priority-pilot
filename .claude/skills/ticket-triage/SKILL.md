@@ -130,12 +130,8 @@ For an oversized issue:
   - **Mandatory values:** `impl` and `review` ALWAYS run (`Run: ja` [yes] — review is the
     merge gate). `ux` runs when there's UI relevance; `spec` is skipped only for issues **without
     application code** (justify then in the analysis block under "Umsetzungskontext").
-  - **Compatibility:** The workflow additionally sets the model of the `impl` row as an
-    `ai:model:<class>` label (manual override path; auto-escalation on
-    review loops remains in effect).
   - The table and analysis block belong together: on re-triage, rewrite BOTH.
-    ASCII without umlauts/typographic quotes — the table is parsed by machine
-    (`resolve-phase-routing.sh`).
+    ASCII without umlauts/typographic quotes — the table is parsed by machine.
   - `stand` = ISO-8601 UTC, reset on **every** write: `date -u +%Y-%m-%dT%H:%M:%SZ`.
   - Write via `gh issue edit <nr> --body-file -` with a heredoc.
 

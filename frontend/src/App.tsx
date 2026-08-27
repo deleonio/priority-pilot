@@ -255,6 +255,31 @@ export const App = ({ user }: { user: AuthUser }) => {
 	// tabIndex={-1} erlaubt programmatischen Fokus ohne visuelle Tab-Stop-Wirkung.
 	const deleteFallbackRef = useRef<HTMLElement>(null);
 
+	// Filterfeld im Aufgaben-Tab (#1067): Ziel des programmatischen Fokus nach der Suche im Suchdialog.
+	const taskFilterInputRef = useRef<HTMLKolInputTextElement>(null);
+
+	// #1067: Nach der Suche im Suchdialog liegt der Fokus im Filterfeld des Aufgaben-Tabs, damit direkt
+	// weitergetippt werden kann. Der Modal-Cleanup gibt den Fokus per `setTimeout(0)` erst an den
+	// Auslöser (Toolbar-Such-Button) zurück (Modal.tsx) — dieser Aufruf läuft also NACH der Rückgabe
+	// und muss sie überdauern; deshalb Retry über mehrere Frames statt eines einzelnen `focus()`.
+	const focusTaskFilter = useCallback((): void => {
+		let attempts = 0;
+		const attempt = (): void => {
+			const host = taskFilterInputRef.current;
+			if (!host) {
+				return;
+			}
+			host.focus();
+			if (document.activeElement === host.shadowRoot?.querySelector('input') || attempts >= 20) {
+				return;
+			}
+			attempts += 1;
+			requestAnimationFrame(attempt);
+		};
+		// Erst hinter der `setTimeout(0)`-Fokus-Rückgabe des Modals beginnen.
+		setTimeout(() => requestAnimationFrame(attempt), 0);
+	}, []);
+
 	// Nach erfolgreichem Löschen ist der auslösende Button mit seiner Tabellenzeile aus dem DOM
 	// gefallen, sobald `reload()` aufgelöst und die Tabelle re-rendert hat. Der Modal-Cleanup setzt
 	// den Fokus zu früh (vor dem Reload, Trigger noch verbunden), sodass er anschließend auf `body`
@@ -540,6 +565,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 								/>
 								<div className="task-filter-search">
 									<KolInputText
+										ref={taskFilterInputRef}
 										className="task-filter-search__field"
 										_label="Nach Titel filtern"
 										_hideLabel
@@ -643,6 +669,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 						// beide Listen filtern über `taskSearch`.
 						setSearchDraft(query);
 						applyTaskFilter(query);
+						focusTaskFilter();
 					}}
 				/>
 			)}

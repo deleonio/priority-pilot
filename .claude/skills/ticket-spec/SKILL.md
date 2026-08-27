@@ -39,7 +39,7 @@ This stage is the **separation of duties** of the TDD strategy (stage 3, see [td
   - **Feature / UI behavior** → acceptance e2e (`frontend/e2e/*.spec.ts`, style `crud.spec.ts`).
   - **Pure styling/layout** → don't force a test; justify in the PR body that visual verification is used instead.
   - **Non-application code** (`.github/workflows`, `.github/scripts`, CI plumbing, config files, markdown content anywhere) → **write no test**. A string/YAML/config match is a change detector with no teeth (ADR 0001).
-- **Dedup before writing:** use `grep` to check whether an acceptance criterion is already covered by an existing test. Already covered → **don't** duplicate. Does an acceptance criterion contradict an existing test? → **remove the old test** and name why in the PR body under `Test-Pflege-Bedarf` (test maintenance needed — the section name stays German; `.github/prompts/implement.md` and `review.md` use the same literal).
+- **Dedup before writing:** use `grep` to check whether an acceptance criterion is already covered by an existing test. Already covered → **don't** duplicate. Does an acceptance criterion contradict an existing test? → **remove the old test** and name why in the PR body under `Test-Pflege-Bedarf` (test maintenance needed — the section name stays German; the implementation and review phases use the same literal).
 - **As few as possible, but each with teeth:** a test must **evaluate** something, guard a **mirror** between files, or protect against a **silent/costly** failure. No test of the form "the file contains the string I just wrote into it".
 - **Red, not broken:** every test checks real **expected behavior** and turns green as soon as the production code exists. For **new** functionality, a missing export/import is the legitimate first red state; for **existing** code, `pnpm test` shows the new tests as **failing**.
 - **Write no production code** — only tests (at most minimal test helpers/fixtures).
@@ -54,16 +54,9 @@ This stage is the **separation of duties** of the TDD strategy (stage 3, see [td
 - Create a **draft PR**: `gh pr create --draft --title "<issue title> (#<nr>)" --body "… Closes #<nr> …"` — `<issue title>` is the issue's title verbatim (no rephrasing, no "red tests"/"rote Tests" in the title). The body contains a short list of the covered acceptance criteria and the note "red spec tests; implementation follows" (PR body text in German).
 - Verify the link: `gh pr view <pr> --json closingIssuesReferences --jq '.closingIssuesReferences[].number'` must contain `<nr>`.
 
-## Step 5 — Hand off to implementation
-
-- The workflow sets `ai:needs-impl` on the issue (and consumes `ai:needs-spec`). Create the label first if needed.
-- **Partial-retry note:** on partial success (spec PR without tests), the workflow sets `ai:needs-spec` again (remove-then-add).
-- **Hard-fail recovery:** if the post-assertion aborts, `ai:needs-spec` stays stuck. To retrigger: remove and re-add `ai:needs-spec`.
-
 ## Notes
 
 - Branch/push/PR/labels write **publicly** to GitHub — get confirmation first.
 - This workflow writes **only tests**, **no** production code (that is the deliberate separation of duties).
-- **Handling via `/team*`:** locally/on-demand, the multi-agent team can take over the spec. In GitHub Actions, the spec runs as its own headless run (`spec.yml`) — separate from the implementation run.
 - If the analysis deliberately doesn't mark an issue 🟢 (🟡/🔴), there is no phase trigger — a human decides.
-- **CI mechanics** (VERDICT lines, soft deadline, label ban) are headless-only and governed by the pipeline's CI prompt.
+- **Run mechanics** (verdict lines, time limit, label rules) are governed by the calling run's prompt, not by this skill.
