@@ -142,7 +142,7 @@ test.describe('#1051 Header-Toolbar einheitlich + Mic-Button ausrichten', () => 
 		await page.getByRole('button', { name: /überspringen/i }).click();
 		await expect(page.getByRole('heading', { name: 'Neuen Task anlegen' })).toBeVisible();
 
-		const titleInput = page.locator('[data-testid="task-title"] input').first();
+		const titleInput = page.getByRole('textbox', { name: 'Titel' });
 		await expect(titleInput).toBeVisible();
 
 		// Mic-Button des Titelfelds (Light-DOM innerhalb des VoiceField-Wrappers).
@@ -154,10 +154,13 @@ test.describe('#1051 Header-Toolbar einheitlich + Mic-Button ausrichten', () => 
 		expect(micBox).not.toBeNull();
 		expect(inputBox).not.toBeNull();
 
+		// Gleiche Toleranz wie AK10 (#264): Button-Mitte max. 4px von der Feldmitte —
+		// bewacht die Kalibrierung von --pp-counter-height (ehemals vakuum-grün).
 		const micCenterY = micBox!.y + micBox!.height / 2;
+		const inputCenterY = inputBox!.y + inputBox!.height / 2;
 		expect(
-			micCenterY >= inputBox!.y && micCenterY <= inputBox!.y + inputBox!.height,
-			`Mic-Button Center-Y (${micCenterY}) muss in Inputbox [${inputBox!.y}, ${inputBox!.y + inputBox!.height}] liegen`,
-		).toBe(true);
+			Math.abs(micCenterY - inputCenterY),
+			`Mic-Button Center-Y (${micCenterY}) muss um max. 4px zur Feldmitte (${inputCenterY}) zentriert sein`,
+		).toBeLessThanOrEqual(4);
 	});
 });
