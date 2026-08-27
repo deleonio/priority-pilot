@@ -72,6 +72,7 @@ const hasSeriesCascadeChange = (update: SeriesUpdate, original: Series): boolean
 	if (update.priority !== undefined && update.priority !== original.priority) return true;
 	if (update.estimatedEffort !== undefined && update.estimatedEffort !== original.estimatedEffort) return true;
 	if ((update.description ?? null) !== (original.description ?? null)) return true;
+	if ((update.address ?? null) !== (original.address ?? null)) return true;
 	if ((update.autoDeleteAfterDeadline ?? false) !== (original.autoDeleteAfterDeadline ?? false)) return true;
 	if (update.pillars !== undefined && !pillarsEqual(update.pillars, original.pillars ?? [])) return true;
 	return false;
@@ -245,7 +246,7 @@ export const TaskForm = ({
 		priority: task?.priority ?? series?.priority ?? initialValues?.priority ?? 3,
 		estimatedEffort: task?.estimatedEffort ?? series?.estimatedEffort ?? initialValues?.estimatedEffort ?? 0.5,
 		description: task?.description ?? series?.description ?? initialValues?.description ?? '',
-		address: task?.address ?? '',
+		address: task?.address ?? series?.address ?? '',
 		deadline: task !== null ? deadlineToDateInput(task.deadline) : isoToDateInput(initialValues?.deadline),
 		startDate: series != null ? startDateToInput(series.startDate) : '',
 		rhythm: series?.rhythm ?? 'weekly',
@@ -543,6 +544,7 @@ export const TaskForm = ({
 					priority,
 					estimatedEffort,
 					description: description === '' ? null : description,
+					address: form.current.address.trim() === '' ? null : form.current.address.trim(),
 					pillars,
 					startDate: form.current.startDate.trim() === '' ? undefined : startDate,
 					rhythm: form.current.rhythm,
@@ -563,6 +565,7 @@ export const TaskForm = ({
 					priority,
 					estimatedEffort,
 					description: description === '' ? null : description,
+					address: form.current.address.trim() === '' ? null : form.current.address.trim(),
 					pillars,
 					startDate,
 					rhythm: form.current.rhythm,
@@ -884,28 +887,29 @@ export const TaskForm = ({
 								},
 							}}
 						/>
-						{/* Adressuche (Forward Geocoding): Ortsbezug der Aufgabe, analog Reverse Geocoding (#866). */}
-						<KolCombobox
-							_label="Adresse (optional)"
-							_placeholder="Straße, Hausnummer, Ort …"
-							_hint={addressLoading ? 'Adresse wird gesucht …' : undefined}
-							_suggestions={addressSuggestions}
-							_value={address}
-							_on={{
-								onChange: (_event, value) => {
-									const next = readString(value);
-									form.current.address = next;
-									setAddress(next);
-								},
-								onInput: (_event, value) => {
-									const next = readString(value);
-									form.current.address = next;
-									setAddress(next);
-								},
-							}}
-						/>
 					</>
 				)}
+				{/* Adressuche (Forward Geocoding): Ortsbezug der Aufgabe ODER Serie (#1063 — auch im
+				    Serie-Modus, die Adresse wird an generierte Instanzen vererbt). */}
+				<KolCombobox
+					_label="Adresse (optional)"
+					_placeholder="Straße, Hausnummer, Ort …"
+					_hint={addressLoading ? 'Adresse wird gesucht …' : undefined}
+					_suggestions={addressSuggestions}
+					_value={address}
+					_on={{
+						onChange: (_event, value) => {
+							const next = readString(value);
+							form.current.address = next;
+							setAddress(next);
+						},
+						onInput: (_event, value) => {
+							const next = readString(value);
+							form.current.address = next;
+							setAddress(next);
+						},
+					}}
+				/>
 				{/* #523/#534/#546: Auto-Löschung bei verpasster Deadline. Im Task-Modus an die Deadline-Präsenz
 				    gekoppelt (deaktiviert ohne Deadline, #534 Anforderung 2); bei Serien stets frei anwählbar,
 				    da das Startdatum als Deadline gilt (#534 Anforderung 1). #546: Statt nativer Checkbox wird

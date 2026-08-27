@@ -434,6 +434,88 @@ describe('generateDueInstances — vergangenes startDate (nur zukünftig generie
 	});
 });
 
+// Rote Spec-Tests für #1063 — `address`-Snapshot an generierten Serien-Instanzen (AK2, Spec
+// docs/spec/issue-1063.md): `generateDueInstances` vererbt die Serien-Adresse als Snapshot
+// (Semantik wie `description`, #295). KEIN Produktivcode — die Tests werden grün, sobald das
+// Series-Modell `address` führt und der Generator es auf jede Instanz schreibt.
+//
+// `address` existiert am Serien-Modell noch nicht (rote Spec): Der Intersection-Typ deklariert
+// die neue API im Test optional, ohne den Produktiv-Typ anzufassen (Pre-Commit-Hook läuft
+// tsc über den Workspace — Memory-Learning 2026-08-23).
+type SeriesWithAddress = InstanceType<typeof Series> & { address?: string | null };
+
+const createSeriesWithAddress = async (attrs: Record<string, unknown>): Promise<SeriesWithAddress> =>
+	(await Series.create(attrs as unknown as Parameters<typeof Series.create>[0])) as unknown as SeriesWithAddress;
+
+describe('generateDueInstances — address-Snapshot (#1063, AK2)', () => {
+	it('Serie mit address → jede generierte Instanz erbt die Adresse als Snapshot', async () => {
+		const series = await createSeriesWithAddress({
+			title: 'Zahnarzt',
+			rhythm: 'weekly',
+			priority: 3,
+			estimatedEffort: 0.5,
+			active: true,
+			startDate: futureDate(1),
+			address: 'Zahnstraße 5, 10785 Berlin',
+		});
+
+		const instances = await generateDueInstances(series, { until: futureDate(20) });
+		assert.ok(instances.length >= 1, 'es entstehen Instanzen');
+		for (const inst of instances) {
+			assert.equal(inst.address, 'Zahnstraße 5, 10785 Berlin', 'Instanz trägt die Serien-Adresse');
+		}
+	});
+
+	it('Serie ohne address → generierte Instanzen erhalten address === null', async () => {
+		const series = await createSeriesWithAddress({
+			title: 'Ohne Ort',
+			rhythm: 'weekly',
+			priority: 3,
+			estimatedEffort: 0.5,
+			active: true,
+			startDate: futureDate(1),
+		});
+
+		const instances = await generateDueInstances(series, { until: futureDate(20) });
+		assert.ok(instances.length >= 1, 'es entstehen Instanzen');
+		for (const inst of instances) {
+			assert.equal(inst.address, null, 'Instanz ohne Ortsbezug ist null');
+		}
+	});
+
+	it('Template-Änderung der Adresse wirkt nur auf künftige Instanzen (Snapshot)', async () => {
+		const series = await createSeriesWithAddress({
+			title: 'Sport',
+			rhythm: 'weekly',
+			priority: 3,
+			estimatedEffort: 0.5,
+			active: true,
+			startDate: futureDate(1),
+			address: 'Alte Halle 1, 10115 Berlin',
+		});
+
+		const existing = await generateDueInstances(series, { until: futureDate(20) });
+		assert.ok(existing.length >= 1);
+
+		// Template-Adresse ändern …
+		await (series as unknown as { update(attrs: Record<string, unknown>): Promise<unknown> }).update({
+			address: 'Neue Halle 2, 10115 Berlin',
+		});
+
+		// … bestehende Instanzen behalten ihren Snapshot …
+		for (const inst of await Task.findAll({ where: { id: existing.map((t) => t.id) } })) {
+			assert.equal(inst.address, 'Alte Halle 1, 10115 Berlin', 'bestehende Instanz behält ihren Snapshot');
+		}
+
+		// … künftige Instanzen erben die neue Adresse.
+		const future = await generateDueInstances(series, { until: futureDate(40) });
+		assert.ok(future.length >= 1, 'es entstehen neue künftige Instanzen');
+		for (const inst of future) {
+			assert.equal(inst.address, 'Neue Halle 2, 10115 Berlin', 'künftige Instanz erbt die geänderte Adresse');
+		}
+	});
+});
+
 // Rote Spec-Tests für #244 — `materializeDueSeries` bündelt die Serien-Materialisierung serverseitig:
 // es generiert die fälligen Instanzen ALLER aktiven Serien (optional auf einen User eingeschränkt) und
 // isoliert Fehler einzelner Serien, sodass ein Ausreißer den Gesamtlauf nicht abbricht. KEIN Produktivcode.

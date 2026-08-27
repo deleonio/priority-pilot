@@ -1814,6 +1814,14 @@ components:
           type: string
           nullable: true
           description: Freitext-Beschreibung des Templates (optional).
+        address:
+          type: string
+          maxLength: 255
+          nullable: true
+          description: >-
+            Adresse des Serien-Orts, über die Adresssuche (Forward-Geocoding) ausgewählt.
+            Wird beim Generieren als Snapshot auf jede Instanz vererbt. `null`, wenn
+            kein Ortsbezug gesetzt ist (#1063).
         autoDeleteAfterDeadline:
           type: boolean
           description: >-
@@ -1858,6 +1866,11 @@ components:
         description:
           type: string
           nullable: true
+        address:
+          type: string
+          maxLength: 255
+          nullable: true
+          description: Adresse des Serien-Orts (optional, #1063). Fehlt das Feld, gilt `null`.
         autoDeleteAfterDeadline:
           type: boolean
           description: >-
@@ -1896,6 +1909,13 @@ components:
         description:
           type: string
           nullable: true
+        address:
+          type: string
+          maxLength: 255
+          nullable: true
+          description: >-
+            Adresse des Serien-Orts (#1063). `null` entfernt einen bestehenden Ortsbezug.
+            Fehlt das Feld, bleibt die Adresse unverändert.
         autoDeleteAfterDeadline:
           type: boolean
           description: >-
@@ -1913,9 +1933,10 @@ components:
           type: boolean
           description: >-
             `true` überträgt die im Serie-Edit GEÄNDERTEN kaskadierbaren Felder (`title`, `priority`,
-            `estimatedEffort`, `description`, `autoDeleteAfterDeadline`, `pillars`) zusätzlich auf alle
-            bestehenden Instanzen (inkl. `isException`). `rhythm`/`startDate`/`active` werden nie
-            kaskadiert. Default `false` (nur Template, künftige Instanzen).
+            `estimatedEffort`, `description`, `address`, `autoDeleteAfterDeadline`, `pillars`)
+            zusätzlich auf alle bestehenden offenen Instanzen (inkl. `isException`; erledigte bleiben
+            unverändert, #555). `rhythm`/`startDate`/`active` werden nie kaskadiert. Default `false`
+            (nur Template, künftige Instanzen).
     SeriesGenerateInput:
       type: object
       required:

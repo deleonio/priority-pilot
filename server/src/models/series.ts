@@ -29,6 +29,10 @@ class Series extends Model {
 	// Beschreibung bleiben lesbar; ohne Angabe angelegte Serien tragen `description === null`.
 	public description?: string | null;
 
+	// Adresse des Serien-Orts (#1063, analog `Task.address`): wird beim Generieren als Snapshot auf
+	// jede Instanz vererbt. Nullable — die meisten Serien haben keinen Ortsbezug.
+	public address?: string | null;
+
 	// Auto-Löschung bei verpasster Deadline (Issue #523): wird beim Generieren auf jede Instanz
 	// vererbt, sodass die Cron-Löschlogik auch für Serien-Aufgaben greift. Default `false`.
 	public autoDeleteAfterDeadline!: boolean;
@@ -116,6 +120,13 @@ Series.init(
 		// eine ohne Angabe angelegte Serie `description === null` (statt `undefined`) trägt.
 		description: {
 			type: DataTypes.TEXT,
+			allowNull: true,
+			defaultValue: null,
+		},
+		// Adresse des Serien-Orts (#1063), analog `Task.address`. `null` erlaubt; `defaultValue: null`
+		// stellt sicher, dass eine ohne Angabe angelegte Serie `address === null` trägt.
+		address: {
+			type: DataTypes.STRING(255),
 			allowNull: true,
 			defaultValue: null,
 		},
