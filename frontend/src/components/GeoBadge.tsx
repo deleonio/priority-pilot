@@ -1,6 +1,7 @@
 /**
  * Icon-only Globus-Badge für Ortsbezug (#1063): zeigt an, dass ein Eintrag (Serie in der Serienliste,
- * erledigter Task in der Erledigt-Liste) eine `address` trägt. Rein informativ — nicht klickbar, kein
+ * erledigter Task in der Erledigt-Liste, offene Aufgabe in der Aufgabenliste/TaskTree) eine `address`
+ * trägt. Rein informativ — nicht klickbar, kein
  * Filter, kein Tooltip-Handler. Die Adresse selbst wird bewusst NICHT angezeigt (Datensparsamkeit in
  * Listen); ihre Präsenz transportiert das `aria-label` für assistive Technologien (BITV, KI-UX-Block).
  *
