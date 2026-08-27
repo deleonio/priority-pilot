@@ -34,27 +34,36 @@ export const useAddressSearch = (query: string): UseAddressSearchResult => {
 			return;
 		}
 
+		let controller: AbortController | undefined;
 		const timer = window.setTimeout(() => {
-			const controller = new AbortController();
-			abortRef.current = controller;
+			const current = new AbortController();
+			controller = current;
+			abortRef.current = current;
 			setLoading(true);
 			api
-				.geocodeSearch({ q: trimmed, signal: controller.signal })
-				.then((results) => setSuggestions(results.map((entry) => entry.address)))
+				.geocodeSearch({ q: trimmed, signal: current.signal })
+				.then((results) => {
+					if (!current.signal.aborted) {
+						setSuggestions(results.map((entry) => entry.address));
+					}
+				})
 				.catch(() => {
-					if (!controller.signal.aborted) {
+					if (!current.signal.aborted) {
 						setSuggestions([]);
 					}
 				})
 				.finally(() => {
-					if (!controller.signal.aborted) {
+					if (!current.signal.aborted) {
 						setLoading(false);
 					}
 				});
 		}, DEBOUNCE_MS);
 
+		// Timer entsorgen UND eine bereits gestartete Anfrage abbrechen — sonst läuft sie beim
+		// Unmount (Formular geschlossen) bis zum 5-s-Server-Timeout weiter und setzt State ins Nichts.
 		return () => {
 			window.clearTimeout(timer);
+			controller?.abort();
 		};
 	}, [query]);
 

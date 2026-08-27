@@ -1,6 +1,6 @@
 import express from 'express';
 import type { components } from '../../api.js';
-import { createNominatimRateLimiter, NOMINATIM_USER_AGENT } from '../../logics/nominatim.js';
+import { isNominatimRateLimited, NOMINATIM_USER_AGENT } from '../../logics/nominatim.js';
 
 type ReverseGeocodeDto = components['schemas']['ReverseGeocodeResponse'];
 type ErrorDto = components['schemas']['Error'];
@@ -12,8 +12,6 @@ type ErrorDto = components['schemas']['Error'];
  * User-Agent ist Pflicht (Policy).
  */
 const NOMINATIM_API = 'https://nominatim.openstreetmap.org/reverse';
-
-const isRateLimited = createNominatimRateLimiter();
 
 /**
  * Baut eine Adresse aus dem Nominatim-Response-Objekt.
@@ -65,7 +63,7 @@ reverseGeocodeRouter.get('/', async (req, res: express.Response<ReverseGeocodeDt
 	// Rate-Limit: 1 req/sec (Nominatim Policy)
 	const ip = req.ip || 'unknown';
 	const session = (req.headers['x-session-token'] as string) || '';
-	if (isRateLimited(ip, session)) {
+	if (isNominatimRateLimited(ip, session)) {
 		// Rate-Limit verletzt → leere Adresse (Fallback)
 		res.json({ address: '' });
 		return;

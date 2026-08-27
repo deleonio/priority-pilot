@@ -271,7 +271,8 @@ export const TaskForm = ({
 	const [description, setDescription] = useState(form.current.description);
 	const [address, setAddress] = useState(form.current.address);
 	// Adresssuche (Forward Geocoding, Ortsbezug einer Aufgabe): Vorschläge zum aktuellen Adresstext.
-	const { suggestions: addressSuggestions } = useAddressSearch(address);
+	// `loading` wird als Hint angezeigt — ohne Rückmeldung wirkt das Feld während Debounce + Suche kaputt.
+	const { suggestions: addressSuggestions, loading: addressLoading } = useAddressSearch(address);
 	// State-Mirror für Range-Slider: `KolInputRange` muss über `_value` + `_label` den aktuellen
 	// Wert erhalten — ohne State würde der Slider nach jedem Re-Render auf den Ref-Initialwert
 	// zurückspringen (bekannte KoliBri-Falle, vgl. PillarWeightsForm.tsx:107–109).
@@ -887,6 +888,7 @@ export const TaskForm = ({
 						<KolCombobox
 							_label="Adresse (optional)"
 							_placeholder="Straße, Hausnummer, Ort …"
+							_hint={addressLoading ? 'Adresse wird gesucht …' : undefined}
 							_suggestions={addressSuggestions}
 							_value={address}
 							_on={{

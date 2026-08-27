@@ -1,6 +1,6 @@
 import express from 'express';
 import type { components } from '../../api.js';
-import { createNominatimRateLimiter, NOMINATIM_USER_AGENT } from '../../logics/nominatim.js';
+import { isNominatimRateLimited, NOMINATIM_USER_AGENT } from '../../logics/nominatim.js';
 
 type GeocodeSearchResultDto = components['schemas']['GeocodeSearchResult'];
 type ErrorDto = components['schemas']['Error'];
@@ -14,8 +14,6 @@ const NOMINATIM_API = 'https://nominatim.openstreetmap.org/search';
 
 /** Höchstzahl an Vorschlägen je Suche — reicht für eine Adress-Autovervollständigung. */
 const RESULT_LIMIT = 5;
-
-const isRateLimited = createNominatimRateLimiter();
 
 interface NominatimSearchResult {
 	display_name?: string;
@@ -41,7 +39,7 @@ geocodeSearchRouter.get('/', async (req, res: express.Response<GeocodeSearchResu
 	// Rate-Limit: 1 req/sec (Nominatim Policy)
 	const ip = req.ip || 'unknown';
 	const session = (req.headers['x-session-token'] as string) || '';
-	if (isRateLimited(ip, session)) {
+	if (isNominatimRateLimited(ip, session)) {
 		res.json([]);
 		return;
 	}

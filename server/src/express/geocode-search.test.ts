@@ -93,4 +93,33 @@ describe('Adresssuche (GET /geocode-search)', () => {
 		assert.equal(second.status, 200);
 		assert.deepEqual(await second.json(), [], 'zweite Anfrage innerhalb 1s wird rate-limitiert');
 	});
+
+	it('Rate-Limit ist geteilt: Reverse-Geocode direkt nach Suche derselben Session → gedrosselt', async () => {
+		// Nominatim würde für /reverse eine echte Adresse liefern — käme die Anfrage durch,
+		// wäre die Antwort nicht leer. Der geteilte Zähler muss sie vorher abfangen.
+		mockNominatim({ status: 200, body: [{ display_name: 'Treffer', lat: '1', lon: '1' }] });
+		const original = globalThis.fetch;
+		globalThis.fetch = async function (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) {
+			const url = input instanceof Request ? input.url : String(input);
+			if (url.startsWith('https://nominatim.openstreetmap.org/reverse')) {
+				return new Response(JSON.stringify({ address: { road: 'Daumenkino' } }), {
+					status: 200,
+					headers: { 'Content-Type': 'application/json' },
+				});
+			}
+			return original(input, init);
+		} as typeof fetch;
+
+		const search = await get('/geocode-search?q=Erste', 'test-6');
+		assert.equal(search.status, 200);
+		assert.equal(((await search.json()) as unknown[]).length, 1);
+
+		const reverse = await get('/reverse-geocode?lat=52.52&lon=13.405', 'test-6');
+		assert.equal(reverse.status, 200);
+		assert.deepEqual(
+			await reverse.json(),
+			{ address: '' },
+			'Reverse-Geocode binnen 1s nach der Suche muss vom geteilten Zähler gedrosselt werden',
+		);
+	});
 });
