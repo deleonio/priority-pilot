@@ -10,7 +10,7 @@ export const Footer = ({ version }: { version: string }) => {
 
 	return (
 		<footer className="app-footer" role="contentinfo">
-			<span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>{location}</span>
+			<span style={{ overflowWrap: 'anywhere' }}>{location}</span>
 			{location && <span aria-hidden="true"> | </span>}
 			<span>Version {version}</span>
 		</footer>

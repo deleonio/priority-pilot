@@ -27,7 +27,8 @@ Die Fußzeile zeigt statt der Roh-Koordinaten die lesbare Adresse aus dem Revers
    (bereits durch bestehende Tests abgedeckt — Dedup).
 6. **AK6 — Mobile-First:** Bei 375px Viewport bleibt die Fußzeile im sichtbaren Bereich
    (kein Clipping/horizontaler Überlauf), auch bei einer langen Adresse. Umsetzungshinweis aus
-   dem KI-UX-Block: `min-width: 0` + `overflow-wrap`/`text-overflow: ellipsis`; die Prüfung
+   dem KI-UX-Block: `overflow-wrap: anywhere` (greift nicht auf non-replaced Inline-Elemente
+   wie diesen Span, daher kein `min-width: 0`); die Prüfung
    erfolgt über die Bounding-Box (`scrollWidth` ist in der App-Shell wegen
    `overflow-x: hidden` strukturell zahnlos). Reflow bei 200 % Textvergrößerung/320px wird
    über denselben Bounding-Box-Mechanismus abgesichert.
