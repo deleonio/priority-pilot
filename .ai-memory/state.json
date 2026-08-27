@@ -23,6 +23,12 @@
       "runId": "33099121526",
       "branch": "feat/issue-1060-mistral-default-model",
       "timestamp": "2026-08-27T17:40:36Z"
+    },
+    "documenter": {
+      "sessionId": "11351d09-beb2-472a-9281-eb27000e985e",
+      "runId": "33099810354",
+      "branch": "feat/issue-1060-mistral-default-model",
+      "timestamp": "2026-08-27T17:45:29Z"
     }
   }
 }
