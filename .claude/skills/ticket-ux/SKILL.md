@@ -13,11 +13,6 @@ Mandatory sources: [docs/mobile-ui-rules.md](../../../docs/mobile-ui-rules.md) f
 
 **Selection criterion:** Issues with the label `ai:needs-ux-ui` (set by the analysis phase) for which **no** UX input yet exists (KI-UX block missing from the body). Non-UI issues never get this label.
 
-## Trigger
-
-- **Automatic:** The `ai:needs-ux-ui` label is set → GitHub Action `02-claude-ux.yml` triggers.
-- **Manual:** `workflow_dispatch` with the issue number as input.
-
 ## Output
 
 KI-UX block in the issue body between the markers (written in German):
@@ -54,13 +49,7 @@ KI-UX block in the issue body between the markers (written in German):
 <!-- KI-UX:END -->
 ```
 
-The `VERDICT:` line does **not** belong in the block: the workflow parses it from the agent output (`/tmp/claude-output.log`).
-
-## Verification & label setting
-
-- The workflow checks the verdict line in the output.
-- On `VERDICT: ux-ready` → set the label `ai:needs-spec` (`ai:needs-ux-ui` is consumed = removed).
-- On `VERDICT: ux-not-ready` → set the label `ai:needs-human` (fail-safe) plus a comment (in German) with **why** and **concrete options** (clarify questions + set `ai:needs-ux-ui` again, or manually set `ai:needs-spec` if the blocker is immaterial).
+The `VERDICT:` line does **not** belong in the block — the verdict is reported by the run itself, not written into the issue body.
 
 ## Characteristics
 
@@ -68,14 +57,12 @@ The `VERDICT:` line does **not** belong in the block: the workflow parses it fro
 - **No code changes:** the prompt explicitly contains NO instructions about branch/PR/code.
 - **No separation of duties like spec/implement:** UX is advice, not a contract.
 - **Optional:** for non-UI issues (the analysis sets `ai:needs-spec` directly), the UX phase never runs.
+- **Fail-safe:** if UX questions remain unclear, don't guess — collect the open questions in the UX block and report the issue as not UX-ready; a human clarifies before the spec.
 
 ## Tools
 
-- **Impeccable design skill** (`.claude/skills/impeccable/`, #828): back the UX review with `/impeccable critique <target-component>` — heuristic scores (Nielsen, 0-4), a cognitive-load check, and persona red flags provide solid evidence.
-- **KoliBri MCP** (`mcp__kolibri-mcp__search/fetch`): read component documentation to verify component choice.
-- **Browser inspection (375px/1280px viewport) via Playwright MCP, LOCAL/on-demand only** (#823). **In CI this phase runs purely statically:** `02-claude-ux.yml` doesn't start the app — only the rule check against the design system applies there. Dynamic inspection is the implementation phase's job.
-
-## Model
-
-- Default: `vars.CLAUDE_MODEL_SPEC` (default: `sonnet`)
-- Provider via `vars.LLM_PROVIDER` (zai|claude)
+- **KoliBri MCP** (search/fetch): read component documentation to verify component choice.
+- **Browser inspection (375px/1280px viewport) via Playwright MCP, LOCAL/on-demand only:**
+  in the pipeline this phase runs purely statically (the app is not started) — only the rule
+  check against the design system applies there. Dynamic inspection is the implementation
+  phase's job.
