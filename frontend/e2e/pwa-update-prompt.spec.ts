@@ -196,3 +196,78 @@ test.describe('Priority Pilot — UpdatePrompt Mobile-Bedienbarkeit (#1034)', ()
 		expect(style.bottom).toBe('0px');
 	});
 });
+
+/**
+ * Desktop-Ausrichtung (#1077, docs/spec/issue-1077.md AK1-AK3).
+ *
+ * Gleiches Stellvertreter-Muster wie #373 oben: der reale Update-Zustand ist in Playwright
+ * nicht deterministisch, deshalb wird der reine CSS-Kontrakt der Klasse `.update-prompt`
+ * geprueft — Desktop (≥ 768px) rechtsbündig und breitenbegrenzt, Mobil (375px) vollbreit.
+ */
+interface ProxyMetrics {
+	left: string;
+	right: string;
+	maxWidth: string;
+	width: number;
+	viewportWidth: number;
+}
+
+test.describe('Priority Pilot — UpdatePrompt Desktop-Ausrichtung (#1077)', () => {
+	/** Sub-Pixel-Rundungstoleranz. */
+	const TOLERANCE_PX = 1;
+
+	/** Liest Position und Breite eines injizierten `.update-prompt`-Stellvertreters aus. */
+	const measureProxy = `(() => {
+		const el = document.createElement('div');
+		el.className = 'update-prompt';
+		document.body.appendChild(el);
+		const style = getComputedStyle(el);
+		const rect = el.getBoundingClientRect();
+		const result = {
+			left: style.left,
+			right: style.right,
+			maxWidth: style.maxWidth,
+			width: rect.width,
+			viewportWidth: document.documentElement.clientWidth,
+		};
+		el.remove();
+		return result;
+	})();`;
+
+	// AK1 — Desktop (≥ 768px): rechtsbündig (left: auto), nicht mehr vollbreit.
+	test('AK1: .update-prompt ist bei 1280px rechtsbündig (left:auto) und nicht vollbreit', async ({ page }) => {
+		await mockAuthenticated(page);
+		await page.setViewportSize({ width: 1280, height: 800 });
+		await page.goto('/');
+
+		const m = await page.evaluate<ProxyMetrics>(measureProxy);
+
+		expect(m.left).toBe('auto');
+		expect(m.width).toBeLessThan(m.viewportWidth - TOLERANCE_PX);
+	});
+
+	// AK2 — Desktop (≥ 768px): Maximalbreite begrenzt (≤ 480px).
+	test('AK2: .update-prompt hat bei 1280px ein max-width ≤ 480px', async ({ page }) => {
+		await mockAuthenticated(page);
+		await page.setViewportSize({ width: 1280, height: 800 });
+		await page.goto('/');
+
+		const m = await page.evaluate<ProxyMetrics>(measureProxy);
+
+		// 'none' (Basiszustand) → RED; Begrenzung im Media-Query → GREEN.
+		expect(m.maxWidth).not.toBe('none');
+		expect(parseFloat(m.maxWidth)).toBeLessThanOrEqual(480);
+	});
+
+	// AK3 — Mobil (375px): volle Breite wie bisher (left/right je 0).
+	test('AK3: .update-prompt bleibt bei 375px vollbreit (left:0, right:0)', async ({ page }) => {
+		await mockAuthenticated(page);
+		await page.setViewportSize({ width: 375, height: 812 });
+		await page.goto('/');
+
+		const m = await page.evaluate<ProxyMetrics>(measureProxy);
+
+		expect(m.left).toBe('0px');
+		expect(m.right).toBe('0px');
+	});
+});
