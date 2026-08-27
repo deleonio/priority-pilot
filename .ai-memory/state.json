@@ -23,6 +23,12 @@
       "runId": "33113167361",
       "branch": "main",
       "timestamp": "2026-08-27T20:39:41Z"
+    },
+    "review": {
+      "sessionId": "f889bded-b978-43eb-900a-0f906e0175c1",
+      "runId": "33114430892",
+      "branch": "feat/issue-1072-deadline-group",
+      "timestamp": "2026-08-27T20:45:35Z"
     }
   }
 }
