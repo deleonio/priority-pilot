@@ -29,6 +29,12 @@
       "runId": "33118992101",
       "branch": "feat/issue-1073-footer-address",
       "timestamp": "2026-08-27T21:52:50Z"
+    },
+    "review": {
+      "sessionId": "a500a12f-8f7f-4baa-96fd-5371cdab558a",
+      "runId": "33120144155",
+      "branch": "feat/issue-1073-footer-address",
+      "timestamp": "2026-08-27T21:59:24Z"
     }
   }
 }
