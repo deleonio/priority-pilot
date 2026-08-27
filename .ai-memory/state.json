@@ -1,1 +1,16 @@
-{"phases":{"review":{"sessionId":"53c74e43-a212-4a3f-ae08-f59c047cefc8","runId":"33104723698","branch":"chore/spec-pr-title","timestamp":"2026-08-27T18:46:29Z"}}}
+{
+  "phases": {
+    "review": {
+      "sessionId": "53c74e43-a212-4a3f-ae08-f59c047cefc8",
+      "runId": "33104723698",
+      "branch": "chore/spec-pr-title",
+      "timestamp": "2026-08-27T18:46:29Z"
+    },
+    "documenter": {
+      "sessionId": "e20c3d48-45a1-437e-9bf9-f90b30861414",
+      "runId": "33105342172",
+      "branch": "chore/spec-pr-title",
+      "timestamp": "2026-08-27T18:54:01Z"
+    }
+  }
+}
