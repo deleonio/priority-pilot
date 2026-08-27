@@ -827,70 +827,97 @@ export const TaskForm = ({
 						}}
 					/>
 				</div>
-				{isSeriesMode ? (
-					<>
-						{/* Serie-Modus (#316): Startdatum (Anker der Serie) + Rhythmus statt Deadline. */}
-						<KolInputDate
-							_label="Startdatum"
-							_type="date"
-							_value={startDateValue}
-							_on={{
-								onChange: (_event, value) => {
-									const next = value instanceof Date ? startDateToInput(value) : readString(value);
-									form.current.startDate = next;
-									setStartDateInput(next);
-								},
-								onInput: (_event, value) => {
-									const next = value instanceof Date ? startDateToInput(value) : readString(value);
-									form.current.startDate = next;
-									setStartDateInput(next);
-								},
-							}}
-						/>
-						<KolSingleSelect
-							_label="Rhythmus"
-							_options={RHYTHM_OPTIONS}
-							_value={form.current.rhythm}
-							_on={{
-								onChange: (_event, value) => {
-									const next = readString(value);
-									if (isSeriesRhythm(next)) {
-										form.current.rhythm = next;
-										setRhythm(next);
-									}
-								},
-							}}
-						/>
-						{weekdayMismatch !== null && (
-							<KolAlert
-								_type="warning"
-								_label={`Der Rhythmus ist ${WEEKDAY_ADVERB[weekdayMismatch]} gebunden — bitte wähle ein Startdatum, das auf einen ${WEEKDAY_NOUN[weekdayMismatch]} fällt.`}
+				{/* #1072: Deadline-Feld(er) + Auto-Lösch-Schalter (+ Hinweis) als logische Gruppe; die
+				    Adresse folgt erst danach (siehe unten). */}
+				<div className="deadline-group" data-testid="deadline-group">
+					{isSeriesMode ? (
+						<>
+							{/* Serie-Modus (#316): Startdatum (Anker der Serie) + Rhythmus statt Deadline. */}
+							<KolInputDate
+								_label="Startdatum"
+								_type="date"
+								_value={startDateValue}
+								_on={{
+									onChange: (_event, value) => {
+										const next = value instanceof Date ? startDateToInput(value) : readString(value);
+										form.current.startDate = next;
+										setStartDateInput(next);
+									},
+									onInput: (_event, value) => {
+										const next = value instanceof Date ? startDateToInput(value) : readString(value);
+										form.current.startDate = next;
+										setStartDateInput(next);
+									},
+								}}
 							/>
-						)}
-					</>
-				) : (
-					<>
-						<KolInputDate
-							_label="Deadline (optional)"
-							_type="date"
-							_value={deadlineValue}
-							_on={{
-								onChange: (_event, value) => {
-									const next = value instanceof Date ? deadlineToDateInput(value) : readString(value);
-									form.current.deadline = next;
-									setDeadlineInput(next);
-								},
-								onInput: (_event, value) => {
-									const next = value instanceof Date ? deadlineToDateInput(value) : readString(value);
-									form.current.deadline = next;
-									setDeadlineInput(next);
-								},
-							}}
+							<KolSingleSelect
+								_label="Rhythmus"
+								_options={RHYTHM_OPTIONS}
+								_value={form.current.rhythm}
+								_on={{
+									onChange: (_event, value) => {
+										const next = readString(value);
+										if (isSeriesRhythm(next)) {
+											form.current.rhythm = next;
+											setRhythm(next);
+										}
+									},
+								}}
+							/>
+							{weekdayMismatch !== null && (
+								<KolAlert
+									_type="warning"
+									_label={`Der Rhythmus ist ${WEEKDAY_ADVERB[weekdayMismatch]} gebunden — bitte wähle ein Startdatum, das auf einen ${WEEKDAY_NOUN[weekdayMismatch]} fällt.`}
+								/>
+							)}
+						</>
+					) : (
+						<>
+							<KolInputDate
+								_label="Deadline (optional)"
+								_type="date"
+								_value={deadlineValue}
+								_on={{
+									onChange: (_event, value) => {
+										const next = value instanceof Date ? deadlineToDateInput(value) : readString(value);
+										form.current.deadline = next;
+										setDeadlineInput(next);
+									},
+									onInput: (_event, value) => {
+										const next = value instanceof Date ? deadlineToDateInput(value) : readString(value);
+										form.current.deadline = next;
+										setDeadlineInput(next);
+									},
+								}}
+							/>
+						</>
+					)}
+					{/* #523/#534/#546: Auto-Löschung bei verpasster Deadline. Im Task-Modus an die Deadline-Präsenz
+					    gekoppelt (deaktiviert ohne Deadline, #534 Anforderung 2); bei Serien stets frei anwählbar,
+					    da das Startdatum als Deadline gilt (#534 Anforderung 1). #546: Statt nativer Checkbox wird
+					    KolInputCheckbox verwendet; der Hinweis im aktivierten Zustand wird als KolAlert gezeigt. */}
+					<KolInputCheckbox
+						className="auto-delete-toggle"
+						_label="Automatisch löschen nach 3 Tagen bei verpasster Deadline"
+						_checked={autoDelete}
+						_disabled={autoDeleteDisabled}
+						_on={{
+							// #534: Ohne Deadline darf der Schalter nicht aktivierbar sein — der `_disabled`-Prop
+							// reicht im Test-jsdom allein nicht aus (rohes dispatchEvent umgeht ihn), daher zusätzlich
+							// die Wertzurückweisung im onChange-Handler.
+							onChange: (_event, checked) => setAutoDelete(autoDeleteDisabled ? false : checked === true),
+						}}
+					/>
+					{autoDelete && (
+						<KolAlert
+							_type="info"
+							_label="Die Aufgabe wird bei verpasster Deadline automatisch nach 3 Tagen gelöscht, sofern sie bis dahin nicht erledigt ist."
 						/>
-					</>
-				)}
+					)}
+				</div>
 				{/* Adressuche (Forward Geocoding): Ortsbezug der Aufgabe ODER Serie (#1063 — auch im
-				    Serie-Modus, die Adresse wird an generierte Instanzen vererbt). */}
+				    Serie-Modus, die Adresse wird an generierte Instanzen vererbt). #1072: steht nach der
+				    kompletten Deadline-Gruppe. */}
 				<KolCombobox
 					_label="Adresse (optional)"
 					_placeholder="Straße, Hausnummer, Ort …"
@@ -910,28 +937,6 @@ export const TaskForm = ({
 						},
 					}}
 				/>
-				{/* #523/#534/#546: Auto-Löschung bei verpasster Deadline. Im Task-Modus an die Deadline-Präsenz
-				    gekoppelt (deaktiviert ohne Deadline, #534 Anforderung 2); bei Serien stets frei anwählbar,
-				    da das Startdatum als Deadline gilt (#534 Anforderung 1). #546: Statt nativer Checkbox wird
-				    KolInputCheckbox verwendet; der Hinweis im aktivierten Zustand wird als KolAlert gezeigt. */}
-				<KolInputCheckbox
-					className="auto-delete-toggle"
-					_label="Automatisch löschen nach 3 Tagen bei verpasster Deadline"
-					_checked={autoDelete}
-					_disabled={autoDeleteDisabled}
-					_on={{
-						// #534: Ohne Deadline darf der Schalter nicht aktivierbar sein — der `_disabled`-Prop
-						// reicht im Test-jsdom allein nicht aus (rohes dispatchEvent umgeht ihn), daher zusätzlich
-						// die Wertzurückweisung im onChange-Handler.
-						onChange: (_event, checked) => setAutoDelete(autoDeleteDisabled ? false : checked === true),
-					}}
-				/>
-				{autoDelete && (
-					<KolAlert
-						_type="info"
-						_label="Die Aufgabe wird bei verpasster Deadline automatisch nach 3 Tagen gelöscht, sofern sie bis dahin nicht erledigt ist."
-					/>
-				)}
 				{pendingLektorat !== null && (
 					<LektoratDiffModal
 						original={pendingLektorat.original}

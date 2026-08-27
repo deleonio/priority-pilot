@@ -1102,6 +1102,13 @@ body {
 	flex-shrink: 0;
 }
 
+/* --- Deadline-Gruppe im Task-Formular (#1072): Deadline(-Felder) + Auto-Lösch-Schalter
+   untereinander; die Adresse folgt erst danach (Separation über den form-grid-Gap) --- */
+.deadline-group {
+	display: grid;
+	gap: 0.75rem;
+}
+
 /* --- Säulen-Beiträge im Task-Formular (Mehrfach-Einzahlung) --- */
 .pillar-editor {
 	display: grid;
