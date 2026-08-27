@@ -1,33 +1,33 @@
-# Issue 1077 — Implement (Phase 4)
+# Issue 1077 — Implement (Phase 4) — RESUME-Lauf 2026-08-27
 
 ## Erledigt
-- Spec-PR #1078 (Branch `feat/issue-1077-desktop-notification`) ausgecheckt; `docs/spec/issue-1077.md` existiert nur auf dem BRANCH, nicht auf main (Git ls-files auf main leer).
-- Grün-Implementierung: `frontend/src/app.css:1645-1650` — im bestehenden `@media (min-width: 768px)`-Block `.update-prompt { left: auto; max-width: 480px; align-items: flex-end; }` ergänzt (einzige Produktivänderung, +7 Zeilen).
-- e2e: `npx playwright test e2e/pwa-update-prompt.spec.ts` → 9 passed, 1 failed — NUR AK1 (`expect(m.left).toBe('auto')`), AK2/AK3 + alle #373/#1034-Tests grün.
-- Gate: `pnpm format` ok, `prettier --check .` ok, `pnpm lint` ok (server+frontend), `pnpm knip` ok (nur pre-existing Configuration-Hints), frontend vitest 421 passed/13 skipped, server test: fail 0 aber Exit 1 (t.skip-Anomalie session.test.ts AK-5 Redis, per `git stash` auf sauberem Baum VERIFIZIERT identisch → pre-existing/umgebungsbedingt).
-- Verdict not-ready: AK1-Assertion ist per CSSOM unerfüllbar (s. Fallstricke) → Test-Pflege-Bedarf dokumentiert statt Test geändert.
+- Resume: Branch `feat/issue-1077-desktop-notification` ausgecheckt, PR #1078 weiterhin DRAFT (verifiziert via `gh pr view`: OPEN draft=true). Implementierung unverändert auf dem Branch: Commit `4af6bcb2 fix(frontend): Update-Prompt am Desktop unten rechts mit max-width (#1077)`, `frontend/src/app.css` `@media (min-width: 768px)` → `.update-prompt { left: auto; max-width: 480px; align-items: flex-end; }`.
+- AK1-Blocker NICHT blind übernommen, sondern frisch verifiziert: e2e-Lauf `npx playwright test e2e/pwa-update-prompt.spec.ts` (frontend/) → **9 passed, 1 failed**; einziger Fail `frontend/e2e/pwa-update-prompt.spec.ts:245` `expect(m.left).toBe('auto')` (empirisch `left` = px-Wert, nicht `'auto'`). AK2 (`max-width ≤ 480px`) und AK3 (375px vollbreit) grün, #373- und #1034-Tests der Datei grün.
+- Gegenprüfung des Auswegs: `frontend/e2e/pwa-update-prompt.spec.ts:59-70` (#373) asserted `getComputedStyle(el).position === 'fixed'` am DEFAULT-Viewport 1280×720, d. h. der Desktop-Zweig des Media-Query ist genau der gemessene Kontext → `position: static` im Desktop-Zweig würde diesen Vertragstest brechen UND die Fixierung real zerstören. AK1-`toBe('auto')` und Fixier-Anforderung sind per CSSOM unvereinbar (Resolved-Value-Regel für `top/right/bottom/left` liefert bei positionierten Elementen den verwendeten px-Wert).
+- Test NICHT geändert (Trennungsprinzip, binding in der Run-Anweisung); Test-Pflege-Bedarf steht bereits im PR-Body #1078 (Abschnitt „Test-Pflege-Bedarf", file:line + Vorschlag). Kein neuer Commit nötig — Arbeitsbaum clean, Stand ist der gepushte HEAD.
+- Verdict: not-ready — AK1 ohne Testfreigabe unerfüllbar, PR bleibt Draft.
 
 ## Relevante Stellen
-- `frontend/src/app.css:1611-1624` — Basisregel `.update-prompt` (position:fixed, left/right:0): durch Desktop-Override `left:auto` + `max-width` + `align-items:flex-end` rechts unten auf 480px begrenzt.
-- `frontend/src/app.css:1645` — `@media (min-width: 768px)`-Block, Anker der Änderung.
-- `frontend/e2e/pwa-update-prompt.spec.ts:229-252` — AK1 (rot, Testdefekt) / AK2 (grün) / AK3 (grün).
-- `frontend/e2e/pwa-update-prompt.spec.ts:60-67` — #373-Vertragsstest `position: fixed` (Default-Viewport 1280×720) — der Grund, warum `position: static` als Ausweg ausscheidet.
+- `frontend/src/app.css` — `@media (min-width: 768px)`-Block: Desktop-Override `left: auto; max-width: 480px; align-items: flex-end;` (Implementierung fertig, unverändert lassen).
+- `frontend/e2e/pwa-update-prompt.spec.ts:238-247` — AK1-Test (rot, Testdefekt); `:249-258` AK2 (grün); `:214` describe-Block #1077.
+- `frontend/e2e/pwa-update-prompt.spec.ts:59-70` — #373-Vertragstest `position: fixed` (Default-Viewport 1280×720), der Grund, warum `position: static` keine Lösung ist.
+- PR #1078 — Body enthält bereits vollständige Implementierungs-, Gate- und Test-Pflege-Bedarf-Doku; nur noch `gh pr ready 1078` nötig, sobald AK1 korrigiert ist.
 
 ## Annahmen
-- Playwright-Default-Viewport ist 1280×720 (deshalb pinnt der #373-Test `position:fixed` auch auf Desktop). Nicht in der Config gegengeprüft, aber `width < viewportWidth` bei 375px und die #1034-Tests sind grün, d.h. Mobil ist unberührt.
-- Proxy-Div ist leer → shrink-to-fit 32px breit; im echten UI (Cards) greift `max-width: 480px`.
+- Playwright-Default-Viewport 1280×720 (deshalb gilt der #373-Fixed-Test auch auf Desktop); aus Testcode abgeleitet, nicht aus playwright.config gelesen.
 
 ## Verworfen
-- `position: static` im Desktop-Zweig (einziger Weg, computed `left: 'auto'` zu erreichen) — bricht `position:fixed` (#373 AK1) und das echte Verhalten (Hinweis wäre nicht mehr fixiert).
-- `margin-left:auto` statt `left:auto` — bei fixierten Elementen überbestimmt (left/right/width gesetzt), Margins werden ignoriert.
-- Testkorrektur an AK1 — Trennungsprinzip: Spec-Tests sind Vertrag; die Korrektur ist als Test-Pflege-Bedarf im PR-Body dokumentiert (file:line + Vorschlag).
+- `position: static` / keine Fixierung im Desktop-Zweig — bricht #373-Vertragstest (Zeile 59-70) und das reale Verhalten (Hinweis würde wegscrollen).
+- `margin-left: auto` statt `left: auto` — bei fixed Elementen mit `right: 0` überbestimmt, Margins werden zu 0 aufgelöst.
+- Testkorrektur an AK1 in DIESEM Lauf — Trennungsprinzip (Run-Anweisung: Spec-Tests sind Vertrag); bedarf eines Spezial-Runs mit Testfreigabe.
 
 ## Offen
-- AK1 `frontend/e2e/pwa-update-prompt.spec.ts:245` kann durch KEINE CSS-Änderung grün werden → PR bleibt Draft, Folge-Run muss den Test korrigieren.
+- AK1 `frontend/e2e/pwa-update-prompt.spec.ts:245` ist durch KEINE CSS-Änderung erfüllbar → PR #1078 muss Draft bleiben, bis der Test korrigiert ist.
 
 ## Nächster Schritt
-- Test-Pflege-Bedarf umsetzen (Spezial-Run mit Testfreigabe): `expect(m.left).toBe('auto')` ersetzen durch rechtsbündig-Metrik, z.B. `expect(m.right).toBe('0px')` + `expect(rect.left).toBeGreaterThan(m.viewportWidth / 2)`; danach PR `gh pr ready 1078`.
+- Spezial-Run mit Testfreigabe: `expect(m.left).toBe('auto')` (Zeile 245) ersetzen durch rechtsbündig-Metrik, z. B. `expect(m.right).toBe('0px')` + `expect(Number.parseFloat(m.left)).toBeGreaterThan(m.viewportWidth / 2)`; danach Gate (`pnpm format && pnpm exec prettier --check . && pnpm lint && pnpm knip && pnpm test`), Commit, Push, `gh pr ready 1078`.
 
 ## Fallstricke
-- CSSOM Resolved-Value-Regel: für `top/right/bottom/left` liefert `getComputedStyle()` bei positionierten Elementen (`fixed`/`absolute`) den VERWENDETEN px-Wert, nur bei `position: static` den String `'auto'`. `left: auto` + `right: 0` ergibt also `1248px` (1280 − 32px shrink-to-fit), nie `'auto'` — eine `toBe('auto')`-Assertion auf einem fixed Element ist unerfüllbar.
-- `pnpm test` (recursive) bricht beim Server ab, bevor die Frontend-Vitest laufen → Frontend-Unit-Tests separat per `pnpm --filter frontend test` laufen lassen, sonst fehlt die Abdeckung im Gate-Nachweis.
+- CSSOM Resolved-Value-Regel: `getComputedStyle().left` liefert bei `position: fixed/absolute` den VERWENDETEN px-Wert, nie den String `'auto'` — `toBe('auto')` auf einem fixierten Element ist unerfüllbar; empirisch `left` = `1248px` (1280 − 32px shrink-to-fit des leeren Proxy-Divs).
+- `pnpm test` (recursive) bricht am Server (`session.test.ts`, t.skip-Anomalie, Redis nur als CI-Service) ab, bevor Frontend-Vitest laufen — pre-existing/umgebungsbedingt, per `git stash` verifiziert; Frontend-Vitest separat `pnpm --filter frontend test` nachziehen.
+- Gezielte Spec-Verifikation direkt `npx playwright test e2e/<datei>.spec.ts` im `frontend/` — `pnpm --filter frontend test:e2e -- <pattern>` filtert nicht.
