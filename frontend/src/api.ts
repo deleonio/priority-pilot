@@ -38,6 +38,7 @@ const client = createClient<paths>({ baseUrl });
 
 type RawTask = components['schemas']['Task'];
 type RawSeries = components['schemas']['Series'];
+type GeocodeSearchResultDto = components['schemas']['GeocodeSearchResult'];
 
 // Serien-`startDate` (im Vertrag ISO-String) zu einem echten `Date` revivieren — analog zu `reviveTask`.
 const reviveSeries = (raw: RawSeries): Series => {
@@ -517,5 +518,22 @@ export const api = {
 			throw new ResponseError(response, error);
 		}
 		return data as { address: string };
+	},
+
+	// --- Adresssuche / Forward Geocoding (Aufgaben-Ortsbezug) ---
+
+	// Adresssuche: Suchtext → Vorschlagsliste (Nominatim).
+	async geocodeSearch({ q, signal }: { q: string } & Init): Promise<GeocodeSearchResultDto[]> {
+		const { data, error, response } = await (client.GET as unknown as typeof client.GET & { __unsafe: true })(
+			'/geocode-search',
+			{
+				params: { query: { q } } as never,
+				signal,
+			},
+		);
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data as GeocodeSearchResultDto[];
 	},
 };

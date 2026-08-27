@@ -32,6 +32,9 @@ class Task extends Model {
 	public actualEffort?: number | null;
 	public description?: string | null;
 	public deadline?: Date | null;
+	// Adresse des Aufgabenorts (Forward-Geocoding-Suche im Formular, siehe openapi.yml). Nullable —
+	// die meisten Tasks haben keinen Ortsbezug.
+	public address?: string | null;
 	// Auto-Löschung bei verpasster Deadline (Issue #523): löst der Cron-Trigger die Aufgabe 3 Tage nach
 	// Ablauf der Deadline, wenn sie nicht erledigt ist. Default `false` (kein automatischer Eingriff).
 	public autoDeleteAfterDeadline!: boolean;
@@ -127,6 +130,11 @@ Task.init(
 		},
 		deadline: {
 			type: DataTypes.DATE,
+			allowNull: true,
+		},
+		// Adresse des Aufgabenorts: freier Text aus der Forward-Geocoding-Suche im Formular.
+		address: {
+			type: DataTypes.STRING(255),
 			allowNull: true,
 		},
 		// Auto-Löschung bei verpasster Deadline (Issue #523). Default `false`, damit bestehende Aufgaben

@@ -510,6 +510,39 @@ paths:
                 $ref: '#/components/schemas/Error'
         '500':
           $ref: '#/components/responses/InternalServerError'
+  /geocode-search:
+    get:
+      summary: Adresssuche (Forward Geocoding) — Suchtext → Adress-Vorschläge
+      description: >-
+        Sucht Adress-Vorschläge zu einem Suchtext über OpenStreetMap Nominatim, für
+        die Ortsauswahl im Task-Formular. Bei Rate-Limit/Timeout/Offline wird eine
+        leere Liste zurückgegeben. Rate-Limit: 1 req/sec (Nominatim-Policy).
+      operationId: geocodeSearch
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+          description: Suchtext (z. B. "Musterstraße 1 Berlin")
+      responses:
+        '200':
+          description: Adress-Vorschläge (leer bei Fehler/Rate-Limit, max. 5 Einträge)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/GeocodeSearchResult'
+        '400':
+          description: Ungültiger oder fehlender q-Parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
   /scores:
     get:
       summary: Vergebene Gamification-Punkte je erledigtem Task
@@ -1100,6 +1133,13 @@ components:
         description:
           type: string
           nullable: true
+        address:
+          type: string
+          maxLength: 255
+          nullable: true
+          description: >-
+            Adresse des Aufgabenorts, über die Adresssuche (Forward-Geocoding,
+            OpenStreetMap Nominatim) ausgewählt. `null`, wenn kein Ortsbezug gesetzt ist.
         deadline:
           type: string
           format: date-time
@@ -1175,6 +1215,14 @@ components:
         description:
           type: string
           nullable: true
+        address:
+          type: string
+          maxLength: 255
+          nullable: true
+          description: >-
+            Adresse des Aufgabenorts, über die Adresssuche (Forward-Geocoding,
+            OpenStreetMap Nominatim) ausgewählt. Fehlt das Feld, bleibt der Task
+            ohne Ortsbezug.
         deadline:
           type: string
           format: date-time
@@ -1224,6 +1272,13 @@ components:
         description:
           type: string
           nullable: true
+        address:
+          type: string
+          maxLength: 255
+          nullable: true
+          description: >-
+            Adresse des Aufgabenorts. Fehlt das Feld, bleibt sie unverändert;
+            `null` entfernt einen bestehenden Ortsbezug.
         deadline:
           type: string
           format: date-time
@@ -2140,3 +2195,23 @@ components:
             Lesbare Adresse (z. B. "Musterstraße 1, 12345 Musterstadt").
             Leer bei Fehler/Rate-Limit/Offline — die Position wird ohne Adresse
             angezeigt.
+    GeocodeSearchResult:
+      type: object
+      required:
+        - address
+        - lat
+        - lon
+      description: >-
+        Ein Adress-Vorschlag der Adresssuche (Forward Geocoding, GET /geocode-search).
+      properties:
+        address:
+          type: string
+          description: Lesbare Adresse (Nominatim-Anzeigename).
+        lat:
+          type: number
+          format: float
+          description: Breitengrad des Vorschlags.
+        lon:
+          type: number
+          format: float
+          description: Längengrad des Vorschlags.

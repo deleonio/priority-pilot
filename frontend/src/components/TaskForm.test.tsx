@@ -53,6 +53,24 @@ vi.mock('@public-ui/react-v19', () => ({
 			onBlur={(e) => _on?.onBlur?.(e.nativeEvent)}
 		/>
 	),
+	KolCombobox: ({
+		_label,
+		_value,
+		_on,
+	}: {
+		_label?: string;
+		_value?: string;
+		_on?: { onChange?: (_e: unknown, v: string) => void; onInput?: (_e: unknown, v: string) => void };
+	}) => (
+		<input
+			aria-label={_label}
+			defaultValue={_value}
+			onChange={(e) => {
+				_on?.onChange?.(e.nativeEvent, e.target.value);
+				_on?.onInput?.(e.nativeEvent, e.target.value);
+			}}
+		/>
+	),
 	KolInputCheckbox: ({
 		_label,
 		_checked,
@@ -154,6 +172,7 @@ vi.mock('../api', () => ({
 		createSeries: vi.fn(),
 		updateSeries: vi.fn(),
 		parseText: vi.fn(),
+		geocodeSearch: vi.fn().mockResolvedValue([]),
 	},
 }));
 
@@ -1348,6 +1367,48 @@ describe('TaskForm — Checklisten-Feld (#531)', () => {
 		expect(typeof taskCreate.checklist![0].id).toBe('string');
 		expect(taskCreate.checklist![0].title).toBe('Schritt 1');
 		expect(taskCreate.checklist![0].completed).toBe(false);
+	});
+});
+
+/**
+ * Adressuche für Aufgaben: optionales Adressfeld im Task-Formular (Forward Geocoding, Ortsbezug).
+ */
+describe('TaskForm — Adressfeld (Ortsbezug einer Aufgabe)', () => {
+	it('rendert ein Adressfeld im Task-Anlegen-Modus', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		expect(screen.getByLabelText(/Adresse/i)).toBeInTheDocument();
+	});
+
+	it('Submit sendet die eingegebene Adresse im Create-Payload', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockCreateTask.mockResolvedValue(minimalNewTask());
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+		await fillTitle('Aufgabe mit Ortsbezug');
+		await act(async () => {
+			fireEvent.change(screen.getByLabelText(/Adresse/i), {
+				target: { value: 'Musterstraße 1, 12345 Musterstadt' },
+			});
+		});
+		await clickSave();
+
+		expect(mockCreateTask).toHaveBeenCalledTimes(1);
+		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as [{ taskCreate: { address?: string | null } }];
+		expect(taskCreate.address).toBe('Musterstraße 1, 12345 Musterstadt');
+	});
+
+	it('vorbelegtes Adressfeld beim Bearbeiten eines Tasks mit gespeicherter Adresse', async () => {
+		const task = { ...minimalNewTask(), address: 'Alte Adresse 5, 10115 Berlin' };
+		await act(async () => {
+			render(<TaskForm task={task} {...defaultProps} />);
+		});
+
+		expect(screen.getByLabelText(/Adresse/i)).toHaveValue('Alte Adresse 5, 10115 Berlin');
 	});
 });
 
