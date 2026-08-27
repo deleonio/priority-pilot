@@ -1,6 +1,6 @@
 # User Journey – Frontend-Error-Handling für LLM-Calls
 
-**Stand:** 2026-08-25  
+**Stand:** 2026-08-27  
 **Issue:** #620 (Teil von #617)
 
 ---
@@ -55,7 +55,4 @@ Bei Ausfall/Timeout des Mistral-Dienstes eine verständliche Fehlermeldung anzei
 
 ## Hinweise zur Nutzung
 
-- **Scope:** Dieser Journey fokussiert auf das Frontend-Error-Handling für LLM-Calls
 - **Implementierung:** Implementierungsagnostisch – beschreibt das beobachtbare Verhalten, nicht den technischen Pfad
-- **Test-Strategie:** Tests validieren das User-Experience-Verhalten (verständliche Fehlermeldung) nicht technische Implementierungsdetails
-- **Files betroffen:** Frontend-Components für `parse-text` + `pillars/advisor` (Error-Handling/API-Client-Layer)

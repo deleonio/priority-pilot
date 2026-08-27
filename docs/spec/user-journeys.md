@@ -1,7 +1,7 @@
 # User Journeys – Priority Pilot
 
-**Stand:** 2026-08-25  
-**Ziel:** Reale Nutzerabläufe als Spezifikation für Test-Neuaufbau (Epic #563, Issue #565)
+**Stand:** 2026-08-27  
+**Ziel:** Reale Nutzerabläufe als Spezifikation des Ist-Zustands.
 
 Diese Journeys beschreiben **von außen sichtbares Verhalten** der laufenden Priority Pilot App. Sie sind die referenzierbare Quelle für neue Tests, implementierungsagnostisch und auf reale Abläufe fokussiert.
 

@@ -1,92 +1,54 @@
-# Issue 619 – Startup-Error-Handling
+# Startup-Fehlerbehandlung – Priority Pilot
 
-**Stand:** 2026-08-23  
-**Ziel:** Prozess bei Startup-Fehlern sauber beenden statt im defs Uhrbelzustand weiterzulaufen
+**Stand:** 2026-08-27
 
----
+## Journey: Kritischen Startup-Fehler sauber beenden
 
-## Ziel
+### Ziel
 
-Der Prozess soll bei kritischen Startup-Fehlern sofort mit `process.exit(1)` beenden werden, nicht im Zombie-Zustand weiterlaufen (ohne `app.listen()` aufzurufen). PM2 soll den Prozess dann sauber neu starten können.
+Bei kritischen Startup-Fehlern beendet sich der Server-Prozess sofort mit Exit-Code 1 statt im unbenutzbaren Zustand weiterzulaufen. Der Prozessbetreiber (z. B. PM2) erkennt den Exit-Code und startet den Prozess neu.
 
----
+### Vorbedingung
 
-## Vorbedingung
-
-- Server-Start wird initiiert (`node server/src/index.ts`)
-- Mindestens einer der folgenden Fehler tritt im Startup auf:
-  - Konfigurationsfehler (ungültige `.env`, fehlende Required-Env-Vars)
+- Server-Start wird initiiert
+- Mindestens einer der folgenden Fehler tritt beim Start auf:
+  - Konfigurationsfehler (ungültige `.env`, fehlende Pflicht-Umgebungsvariablen)
   - Port bereits belegt
   - Database-Connection-Error
-  - Unhandled Rejection/Uncaught Exception während des Startup
+  - Unhandled Rejection / Uncaught Exception während des Starts
+
+### Schritte
+
+1. **Fehler im Startup-Block**
+   - Ein Fehler innerhalb des Startup-Ablaufs (`try/catch` um den gesamten Startup-Code) wird geloggt (inklusive Stack-Trace)
+   - Der Prozess endet mit `process.exit(1)`; `app.listen()` wird nicht aufgerufen
+
+2. **Unhandled Rejection während des Starts**
+   - Ein Promise rejected, ohne dass ein `.catch()`-Handler existiert
+   - Der globale `unhandledRejection`-Handler loggt Grund und Stack und ruft `process.exit(1)` auf
+
+3. **Uncaught Exception während des Starts**
+   - Eine nicht gefangene synchrone Exception wird geworfen
+   - Der globale `uncaughtException`-Handler loggt Grund und Stack und ruft `process.exit(1)` auf
+
+4. **Port bereits belegt**
+   - `app.listen()` meldet einen Fehler über einen registrierten Error-Handler am zurückgegebenen Server
+   - Insbesondere bei `EADDRINUSE` wird der Fehler geloggt und `process.exit(1)` aufgerufen
+
+### Erwartetes Ergebnis
+
+- Bei jedem kritischen Startup-Fehler beendet sich der Prozess sofort mit Exit-Code 1
+- Alle Fehler werden vor dem Beenden geloggt
+- Kein weiterlaufender Prozess ohne lauschenden HTTP-Server
 
 ---
 
-## Schritte
+## Randfälle & Fehler
 
-### 1. Startup-Catch-all-Error-Handler
-
-**Situation:** In `server/src/index.ts` umschließt ein `try/catch`-Block den gesamten Startup-Code (Zeilen 173-175 aktuell).
-
-**Erwartetes Verhalten:**  
-Bei Fehler im `catch`-Block:
-
-- Fehler wird geloggt (mit Stack-Trace)
-- `process.exit(1)` wird aufgerufen
-
-**Verboten:** Prozess darf ohne `process.exit(1)` weiterlaufen.
-
----
-
-### 2. Unhandled Rejection Handler
-
-**Situation:** Während des Startup wird ein Promise rejected, ohne dass ein `.catch()`-Handler existiert.
-
-**Erwartetes Verhalten:**  
-Ein globaler `process.on('unhandledRejection')`-Handler:
-
-- Loggt den Rejection-Grund (Error + Stack)
-- Ruft `process.exit(1)` auf
-
----
-
-### 3. Uncaught Exception Handler
-
-**Situation:** Während des Startup wird ein synchroner Exception geworfen, der nicht gefangen wird.
-
-**Erwartetes Verhalten:**  
-Ein globaler `process.on('uncaughtException')`-Handler:
-
-- Loggt den Exception-Grund (Error + Stack)
-- Ruft `process.exit(1)` auf
-
----
-
-### 4. App.listen Error-Callback
-
-**Situation:** Der Server startet und lauscht auf einem Port (`launchServer` in `server/src/express/index.ts`). Der Port kann bereits belegt sein.
-
-**Erwartetes Verhalten:**  
-Der vom `app.listen()`-Aufruf zurückgegebene Server hat einen Error-Handler registriert (`server.on('error')`):
-
-- Bei Fehler (insb. `EADDRINUSE`): Loggen + `process.exit(1)`
-- Bei Erfolg: Server läuft normal
-
----
-
-## Erwartetes Ergebnis
-
-- Bei jedem kritischen Startup-Fehler beendet der Prozess sich sofort mit Exit-Code 1
-- PM2 erkennt den Exit-Code und startet den Prozess neu
-- Kein Zombie-Zustand (Prozess läuft weiter ohne `app.listen()`)
-- Alle Fehler werden vor dem Exit geloggt
-
----
-
-## Test-Szenarien (für rote Tests)
-
-1. **Invalid .env:** Startup mit ungültiger `DATABASE_URL` → Exit 1
-2. **Port belegt:** Startup mit belegtem Port → Exit 1
-3. **Unhandled Rejection:** Simulierter rejected Promise im Startup → Exit 1
-4. **Uncaught Exception:** Simulierter geworfener Error im Startup → Exit 1
-5. **Normaler Startup:** Keine Fehler → Server läuft, kein Exit
+| Situation                        | Erwartetes Verhalten          |
+| -------------------------------- | ----------------------------- |
+| Ungültige `DATABASE_URL`         | Log + Exit-Code 1             |
+| Port belegt                      | Log + Exit-Code 1             |
+| Rejected Promise beim Start      | Log + Exit-Code 1             |
+| Nicht gefangene Exception        | Log + Exit-Code 1             |
+| Normaler Start ohne Fehler       | Server läuft, kein Beenden    |
