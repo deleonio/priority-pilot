@@ -25,6 +25,10 @@ PROCEDURE (STRICT):
      Create a DRAFT PR (gh pr create --draft) titled "<issue title> (#{{ISSUE_NR}})" — issue title verbatim, never rephrase it or mention red tests — with Closes #{{ISSUE_NR}} in the body. Do NOT set ai:needs-review.
 
 ⚠️ LABELS: do NOT set labels! The workflow handles that automatically.
+Label flow (workflow-driven): on `ready` it sets `ai:needs-impl` on the issue (and consumes
+`ai:needs-spec`); on partial success (`spec-partial`) it re-arms `ai:needs-spec`
+(remove-then-add). Hard-fail recovery: if the post-assertion aborts, `ai:needs-spec` stays
+stuck — retrigger manually by removing and re-adding `ai:needs-spec`.
 
 VERDICT: exactly ONE line at the very end, ONLY the token — no text after it (the workflow parses the line by machine):
   - VERDICT: ready

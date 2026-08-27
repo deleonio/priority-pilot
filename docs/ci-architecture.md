@@ -234,7 +234,8 @@ Kein `--model`: das Modell wird über `"model": "opus"` in der `settings.json` g
 `LLM_PROVIDER=claude` ist das echtes Opus, bei `zai` bildet die Setup-Action es per
 `ANTHROPIC_DEFAULT_OPUS_MODEL` auf `glm-5.3[1m]` ab.
 
-**Prompt:** Kanonisch in `.github/prompts/` (triage, ux, spec, implement, fixup, review, documenter;
+**Prompt:** Kanonisch in `.github/prompts/` (triage, ux, spec, implement, fixup, review,
+documenter, dazu die Nightly-Helfer spec-sync/guide-sync/prompt-audit;
 Memory-Snippets memory-read.md/memory-write.md am selben Ort);
 per `sed`/`cat` nach `/tmp/claude-prompt.txt` assembliert und via `-p "$(cat /tmp/claude-prompt.txt)"`
 übergeben — vermeidet Shell-Quoting-Probleme. Die Methode je Phase lebt in der `SKILL.md` des

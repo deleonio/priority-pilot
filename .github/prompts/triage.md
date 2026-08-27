@@ -25,6 +25,9 @@ PROCEDURE:
    Routing table (its own ai-phase-routing block, ASCII, exact format in the skill):
    impl+review ALWAYS `ja` (yes); model haiku|sonnet|opus, effort low|medium|high;
    for Run=`nein` (no), set model/effort to '-'. It controls model+effort PER phase.
+   CI note: the workflow additionally sets the model of the `impl` row as an
+   `ai:model:<class>` label on the issue (manual override path; auto-escalation on
+   review loops remains in effect).
 
 NO ping comment: for an unambiguous outcome (spec-ready/analyzed), the body block +
 label change is the complete communication. NO extra comments, NO
