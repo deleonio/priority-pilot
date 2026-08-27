@@ -91,6 +91,25 @@ export function ticketTotals(dir: string): { tickets: TicketTotal[]; skipped: st
 const num = (n: number): string => n.toLocaleString('de-DE');
 const usd = (n: number): string => `$${n.toFixed(2)}`;
 const mio = (n: number): string => `${(n / 1_000_000).toLocaleString('de-DE', { maximumFractionDigits: 1 })} Mio`;
+const pct = (n: number): string => `${(n * 100).toLocaleString('de-DE', { maximumFractionDigits: 1 })} %`;
+const share = (part: number, total: number): number => (total > 0 ? part / total : 0);
+
+/** Unicode-Balken (10 Zeichen █/░) plus Prozent — Anteile direkt in der Tabellenzeile sichtbar. */
+const bar = (part: number, total: number): string => {
+	const anteil = share(part, total);
+	const filled = Math.round(Math.max(0, Math.min(1, anteil)) * 10);
+	return `${'█'.repeat(filled)}${'░'.repeat(10 - filled)} ${pct(anteil)}`;
+};
+
+/** ISO-Woche eines ISO-Timestamps („2026-W35") — Anker ist der Donnerstag der Woche. */
+const isoWeek = (timestamp: string): string => {
+	const d = new Date(timestamp);
+	const thursday = new Date(d);
+	thursday.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7) + 3);
+	const jan1 = new Date(Date.UTC(thursday.getUTCFullYear(), 0, 1));
+	const week = Math.ceil(((thursday.getTime() - jan1.getTime()) / 86_400_000 + 1) / 7);
+	return `${thursday.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+};
 
 /** Markdown-Bericht: Summen, Phasen-Verteilung, Tabelle je Ticket (Wert absteigend). */
 export function renderReport(dir: string): string {
@@ -122,6 +141,44 @@ export function renderReport(dir: string): string {
 	const first = tickets.reduce((min, t) => (t.first < min ? t.first : min), tickets[0].first);
 	const last = tickets.reduce((max, t) => (t.last > max ? t.last : max), tickets[0].last);
 
+	// KPI-Kopf: die vier Ziele aus docs/kosten-optimierungsplan.md („Erfolgsmessung") direkt
+	// gegen die Ist-Werte — der Report soll bewerten, nicht nur aufschlüsseln. Läufe ohne
+	// Modell-/Cache-Felder (Altdaten) fließen in die jeweilige Kennzahl nicht ein.
+	const messende = allEntries.filter((e) => ZERO(e.valueCost) > 0);
+	const vcTickets = tickets.filter((t) => t.valueCost > 0);
+	const kpiRows: string[] = [];
+	if (vcTickets.length > 0) {
+		const jeTicket = sum.valueCost / vcTickets.length;
+		kpiRows.push(`| Ø Wert je Ticket (nur messende) | ${usd(jeTicket)} | < $3.00 | ${jeTicket < 3 ? '🟢' : '🔴'} |`);
+	}
+	const reviewRuns = allEntries.filter((e) => e.phase === 'review').length;
+	const runden = reviewRuns / tickets.length;
+	kpiRows.push(
+		`| Review-Runden je Ticket | ${runden.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} | ≤ 1,2 | ${runden <= 1.2 ? '🟢' : '🔴'} |`,
+	);
+	const mitCache = allEntries.filter(
+		(e): e is CostEntry & { cacheReadTokens: number } => typeof e.cacheReadTokens === 'number',
+	);
+	const cacheIn = mitCache.reduce((a, e) => a + ZERO(e.tokensIn), 0);
+	const cacheRead = mitCache.reduce((a, e) => a + ZERO(e.cacheReadTokens), 0);
+	if (cacheIn > 0) {
+		kpiRows.push(
+			`| Cache-Effizienz (Read / Input) | ${pct(share(cacheRead, cacheIn))} | > 95 % | ${cacheRead / cacheIn > 0.95 ? '🟢' : '🔴'} |`,
+		);
+	}
+	const mitModell = allEntries.filter(
+		(e): e is CostEntry & { model: string } => typeof e.model === 'string' && e.model.length > 0,
+	);
+	const opusRuns = mitModell.filter((e) => /opus/i.test(e.model)).length;
+	const haikuRuns = mitModell.filter((e) => /haiku/i.test(e.model)).length;
+	if (mitModell.length > 0) {
+		const opus = share(opusRuns, mitModell.length);
+		const haiku = share(haikuRuns, mitModell.length);
+		kpiRows.push(
+			`| Modell-Mix Opus / Haiku | ${pct(opus)} / ${pct(haiku)} | < 10 % / > 50 % | ${opus < 0.1 && haiku > 0.5 ? '🟢' : '🔴'} |`,
+		);
+	}
+
 	// Block-Aufschlüsselung: echter Input / Cache-Write / Cache-Read aus tokensIn ableiten.
 	// Grund: die Summe verdeckt, wo das Geld fliesst — Cache-Read ist rabattiert (0,1x)
 	// und trotzdem oft der groesste Block; Output-Disziplin optimiert nur einen Anteil.
@@ -134,13 +191,27 @@ export function renderReport(dir: string): string {
 	lines.push(
 		`**${tickets.length} Tickets · ${sum.runs} Läufe · Zeitraum ${first.slice(0, 10)} bis ${last.slice(0, 10)}**`,
 		'',
-		'| Phase | Läufe | Turns | Input | Cache-W (1,25×) | Cache-R (0,1×) | Token out | Wert (USD) |',
-		'| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+	);
+	if (kpiRows.length > 0) {
+		lines.push(
+			'| Kennzahl | Ist | Ziel | Status |',
+			'| --- | ---: | ---: | :---: |',
+			...kpiRows,
+			'',
+			'> Ziele aus `docs/kosten-optimierungsplan.md` (26.08.). Der Modell-Mix zielte auf den',
+			'> Claude-Fuhrpark — glm-Läufe zählen zu keiner Klasse, der z.ai-Standard (#1060) macht',
+			'> den Haiku-Anteil als Hebel obsolet.',
+			'',
+		);
+	}
+	lines.push(
+		'| Phase | Läufe | Turns | Input | Cache-W (1,25×) | Cache-R (0,1×) | Token out | Wert (USD) | Anteil |',
+		'| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | :--- |',
 	);
 	for (const p of phases) {
 		const b = blockTokens(p);
 		lines.push(
-			`| ${p.phase} | ${p.runs} | ${anyTurns ? num(p.turns) : '—'} | ${mio(b.input)} | ${mio(b.write)} | ${mio(b.read)} | ${num(p.tokensOut)} | ${usd(p.valueCost)} |`,
+			`| ${p.phase} | ${p.runs} | ${anyTurns ? num(p.turns) : '—'} | ${mio(b.input)} | ${mio(b.write)} | ${mio(b.read)} | ${num(p.tokensOut)} | ${usd(p.valueCost)} | ${bar(p.valueCost, sum.valueCost)} |`,
 		);
 	}
 	const sumBlocks = phases.reduce(
@@ -151,7 +222,7 @@ export function renderReport(dir: string): string {
 		{ input: 0, write: 0, read: 0 },
 	);
 	lines.push(
-		`| **Summe** | **${sum.runs}** | **${anyTurns ? num(sum.turns) : '—'}** | **${mio(sumBlocks.input)}** | **${mio(sumBlocks.write)}** | **${mio(sumBlocks.read)}** | **${num(sum.tokensOut)}** | **${usd(sum.valueCost)}** |`,
+		`| **Summe** | **${sum.runs}** | **${anyTurns ? num(sum.turns) : '—'}** | **${mio(sumBlocks.input)}** | **${mio(sumBlocks.write)}** | **${mio(sumBlocks.read)}** | **${num(sum.tokensOut)}** | **${usd(sum.valueCost)}** | ${bar(1, 1)} |`,
 		'',
 	);
 
@@ -166,12 +237,12 @@ export function renderReport(dir: string): string {
 	const rawSum = rawIn + rawWrite + rawRead + rawOut || 1;
 	const scale = sum.valueCost / rawSum;
 	const blockRow = (label: string, tokens: number, usd: number): string =>
-		`| ${label} | ${mio(tokens)} | $${usd.toFixed(2)} |`;
+		`| ${label} | ${mio(tokens)} | $${usd.toFixed(2)} | ${bar(usd, sum.valueCost)} |`;
 	lines.push(
 		'### Kosten nach Block',
 		'',
-		'| Block | Token | Wert (USD) |',
-		'| --- | ---: | ---: |',
+		'| Block | Token | Wert (USD) | Anteil |',
+		'| --- | ---: | ---: | :--- |',
 		blockRow('Input (echt)', sumBlocks.input, rawIn * scale),
 		blockRow('Cache-Write (1,25×)', sumBlocks.write, rawWrite * scale),
 		blockRow('Cache-Read (0,1×)', sumBlocks.read, rawRead * scale),
@@ -188,10 +259,10 @@ export function renderReport(dir: string): string {
 	// Phasen-Mittel zeigen, WELCHE Phase den Trend treibt. Läufe ohne Messung (valueCost=0,
 	// vor #984) würden den Trend gegen 0 ziehen und sind ausgeschlossen.
 	const byDay = new Map<string, { runs: number; vc: number }>();
-	const byDayPhase = new Map<string, Map<string, { runs: number; vc: number }>>();
-	for (const e of allEntries) {
+	const byWeek = new Map<string, { runs: number; vc: number; issues: Set<string> }>();
+	const byWeekPhase = new Map<string, Map<string, { runs: number; vc: number }>>();
+	for (const e of messende) {
 		const vc = ZERO(e.valueCost);
-		if (vc <= 0) continue;
 		const day = e.timestamp.slice(0, 10);
 		let d = byDay.get(day);
 		if (!d) {
@@ -200,31 +271,55 @@ export function renderReport(dir: string): string {
 		}
 		d.runs += 1;
 		d.vc += vc;
+		const wk = isoWeek(e.timestamp);
+		let w = byWeek.get(wk);
+		if (!w) {
+			w = { runs: 0, vc: 0, issues: new Set<string>() };
+			byWeek.set(wk, w);
+		}
+		w.runs += 1;
+		w.vc += vc;
+		w.issues.add(e.issueId);
 		const ph = e.phase ?? '(ohne)';
-		let dm = byDayPhase.get(day);
-		if (!dm) {
-			dm = new Map();
-			byDayPhase.set(day, dm);
+		let wm = byWeekPhase.get(wk);
+		if (!wm) {
+			wm = new Map();
+			byWeekPhase.set(wk, wm);
 		}
-		let pd = dm.get(ph);
-		if (!pd) {
-			pd = { runs: 0, vc: 0 };
-			dm.set(ph, pd);
+		let pw = wm.get(ph);
+		if (!pw) {
+			pw = { runs: 0, vc: 0 };
+			wm.set(ph, pw);
 		}
-		pd.runs += 1;
-		pd.vc += vc;
+		pw.runs += 1;
+		pw.vc += vc;
 	}
 	const days = [...byDay.entries()].sort(([a], [b]) => a.localeCompare(b));
 	if (days.length > 0) {
-		lines.push('### Zeitlicher Trend — Durchschnitt je Run', '');
+		lines.push('### Zeitlicher Trend — nur messende Läufe', '');
 		lines.push('```mermaid');
 		lines.push('xychart-beta');
-		lines.push('\ttitle "Ø Kosten je Run (USD, nur messende Läufe)"');
+		lines.push('\ttitle "Ø Kosten je Run (USD)"');
 		lines.push('\tx-axis ["' + days.map(([d]) => d.slice(5)).join('", "') + '"]');
 		lines.push(
 			'\ty-axis "Ø USD je Run" 0 --> ' + Math.max(2, Math.ceil(Math.max(...days.map(([, v]) => v.vc / v.runs)) + 0.5)),
 		);
 		lines.push('\tbar "Ø je Run" [' + days.map(([, v]) => (v.vc / v.runs).toFixed(3)).join(', ') + ']');
+		lines.push('```');
+		// Kumulierte Linie im EIGENEN Chart — andere Skala als der Ø-Balken, gemeinsame
+		// Achse würde die Balken plätten.
+		const cumSeries: string[] = [];
+		let cum = 0;
+		for (const [, v] of days) {
+			cum += v.vc;
+			cumSeries.push(cum.toFixed(2));
+		}
+		lines.push('```mermaid');
+		lines.push('xychart-beta');
+		lines.push('\ttitle "Kumulierter Wert (USD)"');
+		lines.push('\tx-axis ["' + days.map(([d]) => d.slice(5)).join('", "') + '"]');
+		lines.push('\ty-axis "USD kumuliert" 0 --> ' + Math.ceil(cum + 1));
+		lines.push('\tline "Kumuliert" [' + cumSeries.join(', ') + ']');
 		lines.push('```');
 		lines.push(
 			'',
@@ -232,31 +327,89 @@ export function renderReport(dir: string): string {
 			'> Tageswert stark bewegen — der Trend zählt, nicht der Einzelpunkt.',
 			'',
 		);
-		// Phasen-Trendtabelle:Ø je Phase je Tag — zeigt, welche Phase den Trend treibt.
-		const phaseNames = [...new Set(allEntries.filter((e) => ZERO(e.valueCost) > 0).map((e) => e.phase ?? '(ohne)'))];
-		lines.push('| Tag | ' + phaseNames.join(' | ') + ' |');
-		lines.push('| --- |' + ' ---: |'.repeat(phaseNames.length));
-		for (const [day] of days) {
-			const dm = byDayPhase.get(day) ?? new Map();
-			const cells = phaseNames.map((ph) => {
-				const pd = dm.get(ph);
-				return pd ? `$${(pd.vc / pd.runs).toFixed(2)}` : '—';
-			});
-			lines.push(`| ${day.slice(5)} | ${cells.join(' | ')} |`);
+		// Wochen-Raster: Wochen statt Tage — weniger Rauschen, und Ø je Ticket ist direkt
+		// am Zielwert aus dem Optimierungsplan (< $3,00) ablesbar.
+		const weeks = [...byWeek.entries()].sort(([a], [b]) => a.localeCompare(b));
+		lines.push('| Woche | Läufe | Tickets | Wert (USD) | Ø Wert je Ticket |');
+		lines.push('| --- | ---: | ---: | ---: | ---: |');
+		for (const [wk, w] of weeks) {
+			lines.push(`| ${wk} | ${w.runs} | ${w.issues.size} | ${usd(w.vc)} | ${usd(w.vc / w.issues.size)} |`);
 		}
 		lines.push('');
+		// Phasen-Trendtabelle: Ø je Phase je Woche — zeigt, welche Phase den Trend treibt.
+		const phaseNames = [...new Set(messende.map((e) => e.phase ?? '(ohne)'))];
+		lines.push('| Woche | ' + phaseNames.join(' | ') + ' |');
+		lines.push('| --- |' + ' ---: |'.repeat(phaseNames.length));
+		for (const [wk] of weeks) {
+			const wm = byWeekPhase.get(wk) ?? new Map<string, { runs: number; vc: number }>();
+			const cells = phaseNames.map((ph) => {
+				const pw = wm.get(ph);
+				return pw ? `$${(pw.vc / pw.runs).toFixed(2)}` : '—';
+			});
+			lines.push(`| ${wk} | ${cells.join(' | ')} |`);
+		}
+		lines.push('');
+		// Richtung: letzte 7 Kalendertage gegen die 8–14 davor — Anker ist der jüngste
+		// messende Datensatz, deterministisch aus den Daten statt von der Wanduhr.
+		const anchorDay = Math.max(...messende.map((e) => Date.parse(`${e.timestamp.slice(0, 10)}T00:00:00Z`)));
+		const dirNew = new Map<string, { runs: number; vc: number }>();
+		const dirOld = new Map<string, { runs: number; vc: number }>();
+		const addDir = (m: Map<string, { runs: number; vc: number }>, ph: string, vc: number): void => {
+			let x = m.get(ph);
+			if (!x) {
+				x = { runs: 0, vc: 0 };
+				m.set(ph, x);
+			}
+			x.runs += 1;
+			x.vc += vc;
+		};
+		for (const e of messende) {
+			const age = (anchorDay - Date.parse(`${e.timestamp.slice(0, 10)}T00:00:00Z`)) / 86_400_000;
+			if (age < 0 || age > 13) continue;
+			const fenster = age <= 6 ? dirNew : dirOld;
+			const ph = e.phase ?? '(ohne)';
+			addDir(fenster, ph, ZERO(e.valueCost));
+			addDir(fenster, '(gesamt)', ZERO(e.valueCost));
+		}
+		const avgFenster = (x?: { runs: number; vc: number }): string => (x && x.runs > 0 ? usd(x.vc / x.runs) : '—');
+		const richtung = (alt?: { runs: number; vc: number }, neu?: { runs: number; vc: number }): string => {
+			if (!alt || alt.runs < 2 || !neu || neu.runs < 2) return '—';
+			const raw = (neu.vc / neu.runs - alt.vc / alt.runs) / (alt.vc / alt.runs);
+			const delta = Math.round(Math.abs(raw) * 100);
+			if (delta < 10) return '→';
+			return `${raw > 0 ? '↑' : '↓'} ${delta} %`;
+		};
+		const richtRow = (label: string, ph: string): void =>
+			lines.push(
+				`| ${label} | ${avgFenster(dirOld.get(ph))} → ${avgFenster(dirNew.get(ph))} | ${richtung(dirOld.get(ph), dirNew.get(ph))} |`,
+			);
+		lines.push('### Richtung — letzte 7 vs. 8–14 Tage', '');
+		lines.push('| Phase | Ø je Run | Trend |');
+		lines.push('| --- | ---: | :---: |');
+		for (const ph of phaseNames) {
+			if (dirNew.has(ph) || dirOld.has(ph)) richtRow(ph, ph);
+		}
+		richtRow('**Alle Phasen**', '(gesamt)');
+		lines.push(
+			'',
+			'> Anker ist der jüngste Datensatz (Kalendertage). „—" = zu wenige Runs (< 2) im Fenster,',
+			'> „→" = unter ±10 % Änderung. „Alle Phasen" verschiebt sich auch mit dem Phasen-Mix',
+			'> (z. B. kaum implement-Läufe im alten Fenster) — je Phase lesen, nicht nur die Summe.',
+			'',
+		);
 	}
 
 	lines.push(
-		'| Ticket | Läufe | Turns | Token in | Wert (USD) | Echt (USD) | Phasen |',
-		'| --- | ---: | ---: | ---: | ---: | ---: | --- |',
+		'| Ticket | Läufe | Turns | Token in | Wert (USD) | Echt (USD) | Anteil | Phasen |',
+		'| --- | ---: | ---: | ---: | ---: | ---: | :--- | --- |',
 	);
 	for (const t of tickets) {
 		lines.push(
-			`| [#${t.issue}](https://github.com/deleonio/priority-pilot/issues/${t.issue}) | ${t.runs} | ${t.turns > 0 ? num(t.turns) : '—'} | ${mio(t.tokensIn)} | ${usd(t.valueCost)} | ${t.cost > 0 ? usd(t.cost) : '—'} | ${t.phases.join(' ')} |`,
+			`| [#${t.issue}](https://github.com/deleonio/priority-pilot/issues/${t.issue}) | ${t.runs} | ${t.turns > 0 ? num(t.turns) : '—'} | ${mio(t.tokensIn)} | ${usd(t.valueCost)} | ${t.cost > 0 ? usd(t.cost) : '—'} | ${bar(t.valueCost, sum.valueCost)} | ${t.phases.join(' ')} |`,
 		);
 	}
-	lines.push('');
+	const top5 = tickets.slice(0, 5).reduce((a, t) => a + t.valueCost, 0);
+	lines.push('', `> **Top 5 Tickets** stehen für ${pct(share(top5, sum.valueCost))} des Gesamtwerts.`);
 
 	if (!anyTurns) {
 		lines.push(
