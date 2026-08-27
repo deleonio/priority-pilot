@@ -154,7 +154,11 @@ test.describe('Priority Pilot — #1063: Geo-Badge in Serien-, Erledigt- und Auf
 		// Das Modell begrenzt title auf 30 Zeichen (server/src/models/task.ts:93) — der Stressor
 		// ist deshalb das Domänen-Maximum, nicht darüber hinaus (sonst scheitert der API-Call).
 		const openTitle = uniqueTitle('MobilOffen').padEnd(30, 'x');
-		await createSeriesViaApi(page, seriesTitle, 'Lange Musterstraße 123, 12345 Musterstadt, Brandenburg');
+		const seriesId = await createSeriesViaApi(
+			page,
+			seriesTitle,
+			'Lange Musterstraße 123, 12345 Musterstadt, Brandenburg',
+		);
 		await createTaskViaApi(page, doneTitle, true, 'Lange Musterstraße 123, 12345 Musterstadt, Brandenburg');
 		const openId = await createTaskViaApi(
 			page,
@@ -168,8 +172,11 @@ test.describe('Priority Pilot — #1063: Geo-Badge in Serien-, Erledigt- und Auf
 		await page.goto('/');
 		await waitForStableView(page);
 		await openSeriesTab(page);
-		const row = page.getByTestId('series-tree').locator('li[class*="series-tree-item"]').first();
-		await expect(page.getByTestId('geo-badge').first()).toBeVisible();
+		// Badge-Assertion an der Serienzeile selbst (AK4-Muster): ein seitenweiter
+		// `.first()` greift sich das Badge des im verborgenen Tab-Panel gemounteten
+		// TaskTree, bevor die Serienliste im DOM folgt.
+		const row = page.getByTestId(`series-tree-item-${seriesId}`);
+		await expect(row.getByTestId('geo-badge')).toBeVisible();
 		const rowBox = await row.boundingBox();
 		expect(rowBox).not.toBeNull();
 		expect(rowBox!.x).toBeGreaterThanOrEqual(0);
