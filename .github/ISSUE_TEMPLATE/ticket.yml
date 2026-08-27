@@ -13,6 +13,10 @@ body:
         was beobachtet wird und was stattdessen erwartet wird — keine Lösungsvorschläge,
         keine Hintergrundgeschichten. Die Analyse-Phase ergänzt Kontext selbst.
 
+        Das Ticket wird vor der KI-Analyse mechanisch geprüft: je Pflichtfeld mind. 10
+        Zeichen echten Texts; „Wann ist es gelöst?" mind. ein Bullet (Zeile mit `-`).
+        Vage Formulierungen ohne konkretes Was/Wo werden abgewiesen.
+
   - type: textarea
     id: problem
     attributes:
@@ -46,21 +50,10 @@ body:
     id: criteria
     attributes:
       label: Wann ist es gelöst?
-      description: Mindestens ein prüfbarer Punkt pro Zeile. „Funktioniert" ist keins — was genau ist nach dem Fix anders?
+      description: Mindestens ein prüfbarer Punkt pro Zeile (mit Bindestrich beginnen). „Funktioniert" ist keins — was genau ist nach dem Fix anders?
       placeholder: |
-        Bei 375px Breite füllt der Button die Formularbreite
-        Der Button bleibt per Tastatur bedienbar
-    validations:
-      required: true
-
-  - type: dropdown
-    id: type
-    attributes:
-      label: Art
-      options:
-        - Bug (etwas kaputt)
-        - Änderung (Verhalten anpassen)
-        - Neu (etwas fehlt)
+        - Bei 375px Breite füllt der Button die Formularbreite
+        - Der Button bleibt per Tastatur bedienbar
     validations:
       required: true
 
