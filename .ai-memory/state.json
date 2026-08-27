@@ -25,10 +25,10 @@
       "timestamp": "2026-08-27T18:27:44Z"
     },
     "review": {
-      "sessionId": "2e75e775-abcb-4247-9b1c-e7d04c38fc9b",
-      "runId": "33103606904",
-      "branch": "feat/issue-1063-geo-badge",
-      "timestamp": "2026-08-27T18:32:44Z"
+      "sessionId": "6c7277b3-9af5-4efc-b955-a9a3988bb84a",
+      "runId": "33107941132",
+      "branch": "vibe/issue-1063-tasktree-geo-badge",
+      "timestamp": "2026-08-27T19:29:26Z"
     },
     "documenter": {
       "sessionId": "a943f6e8-2afe-4cb1-9182-5125d1dadd26",
