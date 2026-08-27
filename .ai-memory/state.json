@@ -25,10 +25,10 @@
       "timestamp": "2026-08-27T05:09:34Z"
     },
     "review": {
-      "sessionId": "5abbdff6-d324-48ca-bf31-efad3b49f3c8",
-      "runId": "33041637809",
+      "sessionId": "1e8f8072-f807-489d-843d-61efe6b6e723",
+      "runId": "33045607519",
       "branch": "feat/issue-1051-header-toolbar-mic-align",
-      "timestamp": "2026-08-27T05:13:30Z"
+      "timestamp": "2026-08-27T06:24:44Z"
     },
     "fixup": {
       "sessionId": "3e5a8592-6986-4747-934a-69a12408e344",

@@ -1,39 +1,39 @@
-# Issue 1051 — Review-Phase (Kreuzverhör Runde 1, 2026-08-27)
+# Issue 1051 — Review-Phase (Fixup-Nachweis Runde 1, 2026-08-27)
 
-Verdict: needs-fixup (🟡 F1). Sammelkommentar `<!-- ai-review -->` erstellt
-(https://github.com/deleonio/priority-pilot/pull/1054#issuecomment-5434668195),
-Inline-Review mit F1 gepostet (pullrequestreview-5037438269), PR-Titel auf
-`fix(frontend): unify header toolbar buttons and align mic button in search dialog` geändert.
+Verdict: needs-fixup (F1 weiterhin offen, jetzt Kalibrierungsproblem statt struktureller Fehler).
+Inline-Kommentar gepostet (pullrequestreview-5037823457), Sammelkommentar aktualisiert
+(issuecomment-5434668195, MODE=Fixup-Nachweis).
 
 ## Erledigt
-- Modus bestimmt: kein `<!-- ai-review -->-Marker vorhanden → Kreuzverhör (Gesamt-PR)
-- Diff geprüft (4 Dateien, +186/−4): Spec-Doc, e2e-Datei, App.tsx:402 (`primary`→`secondary`), app.css:1279-1283 (Bottom-Anker)
-- Impl-Commit 388f40ef änderte nur App.tsx + app.css → Spec-Tests unverändert gelassen (Trennung der Pflichten ✓)
-- F1 als Inline-Kommentar app.css:1282 + Sammelkommentar gepostet, Titel-Gate erledigt
+- Modus bestimmt: `<!-- ai-review -->`-Marker vorhanden (Kommentar-ID 5434668195, updatedAt 2026-08-27T05:12:27Z) → Fixup-Verifikation, kein Neu-Kreuzverhör
+- Fixup-Commits seit updatedAt ermittelt: `73023576` (Merge, kein Content) + `a5326b3f` (der eigentliche F1-Fix)
+- Fixup-Diff geprüft (`git show a5326b3f`): app.css (`--pp-input-below`/`.voice-field--counter`), VoiceField.tsx (`counter`-Prop), TaskForm.tsx (Titelfeld markiert), neuer e2e-Test
+- Struktur des Fixes verifiziert: korrekt nur der `_hasCounter`-Call-Site (TaskForm-Titel, TaskForm.tsx:742) markiert, Beschreibungsfeld (ohne `_hasCounter`) unverändert gelassen
+- CI-Status geprüft (`gh pr checks 1054`): `e2e (4)` ROT — `voice-transcription.spec.ts:246` (AK10, #264, Bestandstest außerhalb des Fixup-Diffs) schlägt fehl: `Math.abs(buttonCenter-fieldCenter)` = 4.796875 > 4px-Toleranz
+- Root Cause identifiziert: `--pp-counter-height: 1.5rem` (app.css:1291) ist ein geschätzter, nicht kalibrierter Default — trifft die reale KoliBri-Counter-Zeilenhöhe knapp nicht
+- F1 NICHT als "behoben" verbucht (Gate-Regel: CI rot → kein 🟢/Resolved)
 
 ## Relevante Stellen
-- `frontend/src/app.css:1279-1283` — neue Regel `bottom: calc((var(--pp-input-height, 2.75rem) - 2rem) / 2)`; Annahme „Inputbox = unterstes Wrapper-Element" (Kommentar app.css:1258-1260)
-- `frontend/src/components/TaskForm.tsx:723-744` — Titelfeld: `variant="input"` MIT `_hasCounter` (Zeile 739) → Counter-Zeile unter der Inputbox, Bottom-Anker trifft Counter statt Input
-- `frontend/e2e/issue-1051-header-toolbar-mic-align.spec.ts` — 3 AK-Tests, unverändert grün laut Impl-Phase
-- `--pp-input-height` ist nirgends definiert (nur Fallback 2.75rem in app.css:1282) — funktioniert, nur Kalibrier-Hebel
+- `frontend/src/app.css:1279-1291` — Bottom-Anker-Formel + neuer `--pp-input-below`/`--pp-counter-height`-Mechanismus (Default 1.5rem = 24px, unkalibriert)
+- `frontend/e2e/voice-transcription.spec.ts:246-273` — AK10 (#264), Bestandstest, prüft exakt dasselbe TaskForm-Titelfeld mit ±4px-Toleranz — deckt die Fehlkalibrierung auf; NICHT Teil des PR-1054-Diffs
+- `frontend/e2e/issue-1051-header-toolbar-mic-align.spec.ts` (Fixup-Ergänzung, Zeilen ~130-163) — neuer F1-Test hat offenbar großzügigere Toleranz, deckt die 0.8px-Abweichung nicht auf
+- CI-Lauf: https://github.com/deleonio/priority-pilot/actions/runs/33042924794 (Job e2e (4))
 
 ## Annahmen
-- KoliBri rendert den Counter unter der Inputbox innerhalb des Hosts (Wrapper wird höher) — gestützt durch den eigenen CSS-Kommentar app.css:1278 („Mit _hasCounter erhöht sich die Container-Höhe")
-- Alter `top:50%`-Anker war im TaskForm näherungsweise richtig (Label-Höhe ≈ Counter-Höhe) → F1 ist wohl eine Regression, nicht nur fortbestehender Mangel
-- e2e 3/3 grün laut Impl-Phase (lokal nicht erneut ausgeführt — CI-e2e-Shards waren bei Review noch pending)
+- Die 4.796875-Abweichung ist rein durch den geschätzten `--pp-counter-height`-Wert verursacht, nicht durch Flakiness (Fehler ist deterministisch an der Zentrierungs-Formel, kein Timing-Test)
+- `titleInput(page)` in voice-transcription.spec.ts referenziert exakt dieselbe Inputbox (`getByRole('textbox', {name:'Titel'})`) wie der neue F1-Test — beide messen dieselbe Geometrie, nur mit unterschiedlicher Toleranz
 
 ## Verworfen
-- Eigener e2e-Lauf zur Verifikation — Zeitbudget (Soft Deadline) + CI-e2e-Shards für den PR liefen ohnehin
-- Finding zu undefiniertem `--pp-input-height` — Fallback ist die Definition, Kommentar dokumentiert den Kalibrier-Gedanken; kein Mangel
-- MEMORY.md-Eintrag — rein issue-spezifisch (Aufnahmekriterium nicht erfüllt)
+- Neu-Kreuzverhör des Gesamt-PR — Modus ist Fixup-Verifikation, nur Fixup-Diff + offene Findings geprüft
+- Eigene lokale e2e-Ausführung zur Nachmessung der realen Counter-Höhe — CI-Beweis (deterministischer Fehlbetrag) reicht als Evidenz, Zeitbudget
 
 ## Offen
-- F1 wartet auf Fixup: Counter-Versatz (z. B. `--pp-input-below` oder `.voice-field--input--counter`) + TaskForm-Bounding-Box-e2e
+- F1 weiterhin offen: `--pp-counter-height`-Default muss an der real gerenderten KoliBri-Counter-Zeilenhöhe kalibriert werden (nicht geschätzt), bis `voice-transcription.spec.ts:246` (AK10) wieder grün ist
 
 ## Nächster Schritt
-- Fixup-Runde: F1 umsetzen, dann Fixup-Nachweis (Modus über `<!-- ai-review -->`-Marker in PR 1054)
+- Nächste Fixup-Runde: `--pp-counter-height` korrekt kalibrieren (z. B. reale Zeilenhöhe im Browser messen statt 1.5rem zu schätzen), dann erneute Fixup-Verifikation (nur den neuen Diff + F1 prüfen)
 
 ## Fallstricke
-- Bei Fixup-Verifikation: nur F1 + Fixup-Diff prüfen, nicht den ganzen PR neu kreuzverhören
-- Finding-Nummer F1 stabil halten; nach Behoben-Verschiebung in „Behobene Anmerkungen"-Tabelle
-- `--pp-input-height`-Fallback 2.75rem ist KoliBri-Default-Annahme — falls Theme/Input-Höhe wechselt, Custom Property überschreiben
+- F1-Nummer bleibt stabil über alle Runden — nicht neu nummerieren, auch wenn der Fixup den Fehler nur teilweise behebt
+- Der neue F1-e2e-Test im Fixup-Commit ist selbst NICHT scharf genug (Toleranz zu großzügig) — bei der nächsten Prüfung ggf. zusätzlich als Kollateral-Hinweis nennen, falls die Toleranz nicht verschärft wird
+- CI-Rot-Gate strikt einhalten: 🟢 nur wenn sowohl Content als auch CI grün sind (SKILL.md „CI/quality gate als Precondition")
