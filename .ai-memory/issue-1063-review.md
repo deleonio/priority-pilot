@@ -1,48 +1,53 @@
 # Issue 1063 — Review (Kreuzverhör)
 
 ## Erledigt
-- **Runde 1 für PR #1070** („Geo-Badge in Aufgabenliste“, Branch `vibe/issue-1063-tasktree-geo-badge`, Head `2aa9279`). Vorgänger-Runde für PR #1064 (gemergt) ist unten dokumentiert.
-- MODE: kein `<!-- ai-review -->` auf PR 1070 → Kreuzverhör. `closingIssuesReferences` = [1063] → AKs aus dem KI-ANALYSE-Block (Revision 2026-08-27, bindend).
-- Diff gelesen: 2 Dateien — `frontend/src/components/TaskTree.tsx` (GeoBadge-Import + Render in `.task-tree-badges`) und `frontend/e2e/issue-1063-geo-badge.spec.ts` (AK5-Flip + AK6-Erweiterung).
-- **F1 verifiziert:** `prettier@3.9.6` mit `prettier.config.mjs` meldet `frontend/e2e/issue-1063-geo-badge.spec.ts` (Zeile 147, AK6-Titel zu lang → Signatur muss umbrechen). CI: `verify` FAILURE am Schritt `Format-Check` (Run 33107926716), `gate-merge` skipped. Wichtig: **ohne** Repo-Config meldet prettier fälschlich alles (Quotes) — erst mit `--config prettier.config.mjs` laufen lassen.
-- **F2:** AK6-Aufgabenliste misst `.first()`-`li`, prüft Badge aber seitenweit (`page.getByTestId('geo-badge').first()`), und der Issue-Testfall „langer Titel“ fehlt.
-- **F3:** `GeoBadge.tsx:2-3` Dokkommentar nennt nur zwei Konsumenten (außerhalb des Diffs → kein Inline-Kommentar möglich).
-- **F4:** PR-Body hat abgeschnittene Inline-Code-Bezeichner („eine  definiert hat“).
-- Inline-Kommentare gepostet: F1 = 3875149700, F2 = 3875151929.
-- Sammelkommentar gepostet: **issuecomment-5444200633**, Review-Status `needs-fixup`, Footer „Review-Typ: Kreuzverhör“.
-- Titel-Gate: `feat: Geo-Badge in Aufgabenliste anzeigen (#1063)` (deutsch, groß) → `feat(frontend): show geo badge in task list (#1063)`.
-- Verdict: `needs-fixup` → /tmp/claude-verdict.
-- Ohne Befund geprüft: extractLeaves = Blatt-only ⇒ AK1 vollständig; KoliBri-first (Wiederverwendung GeoBadge, Abweichung begründet); A11y-Vertrag (`role="img"`+aria-label) unverändert; SoD ok (Spec-Test-Flip ist vom Issue gefordert); kein Server-Delta (gemäß Issue).
+- **Runde 2 für PR #1070 = FIXUP VERIFICATION** (Marker `<!-- ai-review -->` vorhanden auf Kommentar **5444200633**). Vorgänger-Runden: Runde 1 (Kreuzverhör, `needs-fixup`) und Archiv Runde 0 (PR #1064, gemergt) unten.
+- Delta-Verifikation `git diff 2aa9279 98e352eb`: 2 Dateien (e2e-Spec AK6 + GeoBadge-Dokkommentar), 16+/6−. Umfang sauber, kein Produktcode.
+- **F1 verifiziert behoben:** CI `verify` = pass (Run 33110648538); lokal `npx prettier@3.9.6 --config prettier.config.mjs --check` grün über Spec + GeoBadge + TaskTree.
+- **F2 inhaltlich behoben:** Anker `task-list-item-${openId}` (Vertrag `TaskTree.tsx:85`) + `taskRow.getByTestId('geo-badge')` statt seitenweitem `.first()`.
+- **F3 verifiziert behoben:** GeoBadge.tsx:2-4 nennt jetzt alle drei Konsumenten.
+- **F4 verifiziert behoben:** PR-Body enthält `address` (3×), `TaskTree.tsx`, `task.address != null`, Spec-Datei — keine abgeschnittenen Bezeichner.
+- **NEUES FINDING F5 (Blocker):** CI Job `e2e (2)` **FAIL** — AK6 scheitert nach 121 ms im API-Setup (`createTaskViaApi` → Spec:48 `expect(response.ok())`, Aufrufstelle Spec:158 = der Long-Title-Call; Spalte 18 unterscheidet ihn vom doneTitle-Call in 157). Ursache: `server/src/models/task.ts:93-98` = `title: DataTypes.STRING(30)` + `validate: { len: [1, 30] }`. Der Fixup-Suffix (`Spec:155`, ~100 Zeichen extra) verletzt das Limit → POST 4xx/5xx. `AK4`/`AK5` im selben Shard grün, `gate-merge` skipped.
+- F5 als Inline-Kommentar gepostet: **3875401836** auf `frontend/e2e/issue-1063-geo-badge.spec.ts:155`.
+- Threads F1 (**PRRT_kwDONloM186c85pN** = 3875149700) und F2 (**PRRT_kwDONloM186c86Ax** = 3875151929) resolviert (GraphQL `resolveReviewThread`, Variablentyp `ID!`).
+- Sammelkommentar **5444200633** per PATCH aktualisiert (Fixup-Nachweis-Tabelle F1–F4 + Offenes Finding F5, Status `needs-fixup`, updated_at 2026-08-27T20:02:34Z).
+- Titel-Gate: `feat(frontend): show geo badge in task list (#1063)` = 51 Zeichen, compliant → kein Edit.
+- Verdict `needs-fixup` → /tmp/claude-verdict.
 
 ## Relevante Stellen
-- `frontend/src/components/TaskTree.tsx:108` — neue Badge-Zeile `task.address != null && <GeoBadge …/>`; konsistent mit `task.seriesId != null` (gleiche Datei) und `SeriesTab.tsx:148` / `CompletedTasksTable.tsx:127`.
-- `frontend/src/components/TaskTree.tsx:224` — `extractLeaves(forest)`: TaskTree listet NUR Blatt-Tasks ⇒ kein zweites Row-Rendering, das das Badge bräuchte.
-- `frontend/e2e/issue-1063-geo-badge.spec.ts:82-85` — `openTasksView` wählt „Erledigte Aufgaben“ ab (deshalb ist `.first()` heute zufällig richtig).
-- `frontend/src/components/GeoBadge.tsx:2-3` — veralteter Dokkommentar (F3).
-- `prettier.config.mjs` + Repo-Pin `prettier@3.9.6` — nötig für reproduzierbaren Format-Check.
+- `server/src/models/task.ts:93-98` — `title: STRING(30)` + `len [1,30]`: die Domänengrenze, die F5 auslöst. GILT AUCH FÜR SERIEN-TITEL (siehe Fallstricke).
+- `frontend/e2e/issue-1063-geo-badge.spec.ts:22` — `uniqueTitle` schneidet auf `30 - tail.length`: bewusstes Einhalten des Limits; der Fixup-Suffix umgeht es.
+- `frontend/e2e/issue-1063-geo-badge.spec.ts:155` — F5-Anker (Long-Title-Zeile); `:158` Aufrufstelle des fehlschlagenden Calls.
+- `frontend/e2e/issue-1063-geo-badge.spec.ts:158-163` — Anker `task-list-item-${openId}` + Scoped-Assertion: korrekt, beim Fix behalten.
+- `frontend/src/components/TaskTree.tsx:85` — `data-testid={'task-list-item-${node.id}'}`: Anker-Vertrag, von AK6 erfüllt.
 
 ## Annahmen
-- E2e-Matrix (4 Jobs, pending bei Review-Ende) läuft grün; F1 betrifft nur `Format-Check`.
-- Fixup-Runde setzt `ai:needs-changes` via pr-gate-merge (verify rot) — Label-Handling komplett beim Workflow.
+- F5 ist deterministisch (Modell-Validierung + reproduzierbares Setup, nicht Timing) — verifiziert am CI-Log, nicht lokal nachgestellt.
+- `page.setViewportSize(375x667)` vor den API-Calls ist unschädlich (AK4/AK5-Pattern identisch).
+- F2 zählt als behoben, obwohl sein Titel-Teil F5 erzeugt hat — Anker/Scoped-Assertion sind der eigentliche Kern des Findings.
 
 ## Verworfen
-- Inline-Kommentar auf `GeoBadge.tsx` (F3) — Datei ist nicht Teil des Diffs, kein Anker; nur im Sammelkommentar.
-- F2 als Blocker — das `.first()`-Idiom ist im gemergten Serien-Block identisch; nur der neue Block sollte den stabilen Anker `task-list-item-<id>` nutzen.
-- MEMORY.md-Eintrag — kein neues Scheitern/Lösungsmuster meines Prozesses (CI-Fang ist Normalfall, strenges Aufnahmekriterium).
+- F5 als `needs-human` — nein: der Fix (Titel auf exakt 30 Zeichen auffüllen) ist eindeutig und im PR-Scope; das Modell-Limit zu lockern wäre die Produktänderung, nicht der Test-Fix.
+- "Langer Titel" ganz streichen — nein: das Domänen-Maximum (30 Zeichen) IST der realistische Stressor neben dem Badge.
+- Thread F5 resolven — nein, offen bis zum Fix.
 
 ## Offen
-- keine
+- F5 (Blocker): AK6 rot in CI. Nächste Fixup-Runde muss den Titel auf ≤30 Zeichen bringen und danach `e2e (2)` grün sehen.
 
 ## Nächster Schritt
-- Falls Fixup-Push auf PR 1070 kommt: FIXUP VERIFICATION — Sammelkommentar **5444200633** per PATCH updaten (KEIN neuer Kommentar; 5443550920 gehört zu PR #1064), nur Delta-Diff seit Head `2aa9279` prüfen, F1–F4 abhaken.
+- Kommende Fixup-Runde: Titel-Fix prüfen (Spec:155), Delta seit `98e352eb`, CI `e2e (2)` grün bestätigen, F5-Thread **PRRT_kwDONloM186c9iS0** (3875401836) resolven, Sammelkommentar 5444200633 auf `reviewed` setzen.
 
 ## Fallstricke
-- Zwei ai-review-Sammelkommentare im Issue-Umfeld: **PR #1064 = 5443550920**, **PR #1070 = 5444200633**. Beim Fixup immer die PR-Zugehörigkeit prüfen (`in_reply_to`/PR-Diff), nicht die alte ID recyceln.
-- Prettier ohne Repo-Config meldet die gesamte Datei (Single-vs-Double-Quotes) — das ist kein echtes Finding; immer `--config prettier.config.mjs` bzw. Repo-Pin 3.9.6.
-- `gh pr edit` kennt kein `--json` (nur `gh pr view --json`) — Titel-Verifikation separat.
-- `gh api -F body="…"` mit Backticks/Backslashes bricht in der Shell; Payload als JSON-Datei + `--input <file>` verwenden.
-- Längere Test-Titel (hier: „… und Aufgabenliste“) drücken die Zeile über die Print-Width → prettier will die `async ({ page })`-Signatur umbrechen. Beim Umbenennen von Testnamen Format-Check mitdenken.
+- **Task- UND Serien-Titel sind auf 30 Zeichen begrenzt** (`models/task.ts:93` STRING(30)); `uniqueTitle()` baut das ein. Jeder Test, der einen "langen Titel" erzwingen will, muss AUF 30 auffüllen, nicht darüber hinaus. Sonst: POST rot, Test scheitert im Setup (nicht in der Assertion) → Fehlerbild sieht nach Flakiness aus.
+- Stack-Zuordnung: `at createTaskViaApi (...:48:25)` + Outer-Frame `at ...:158:18` — die Aufrufstelle (nicht die Helper-Zeile) nennt den schuldigen Call. `sed`-Offsets blind lesen führt zum falschen Call (157 vs 158 liegen 1 Zeile auseinander).
+- Thread-Resolution nur via GraphQL, Variablentyp muss `ID!` sein (`String!` → variableMismatch).
+- Zwei ai-review-Sammelkommentare im Issue-Umfeld: **PR #1064 = 5443550920**, **PR #1070 = 5444200633** — immer PR-Zugehörigkeit prüfen.
+- Prettier ohne Repo-Config meldet die ganze Datei (Quotes) — immer `--config prettier.config.mjs` + Pin 3.9.6.
+- Payloads mit Backticks/Backslashes: JSON-Datei + `--input <file>`, niemals `-F body="…"`.
 
 ---
+## Archiv: Runde 1 (Kreuzverhör, Head 2aa9279)
+- MODE Kreuzverhör (kein Marker), `closingIssuesReferences` = [1063] → AKs aus KI-ANALYSE. 4 Findings (F1 Format-Check rot/CI verify FAILURE, F2 AK6 misst `.first()` + langer Titel fehlt, F3 GeoBadge-Dokkommentar veraltet, F4 PR-Body abgeschnittene Bezeichner), Sammelkommentar 5444200633, Titel auf `feat(frontend): show geo badge in task list (#1063)` umbenannt, Verdict `needs-fixup`. Ohne Befund: extractLeaves = Blatt-only ⇒ AK1 vollständig; KoliBri-first (GeoBadge-Wiederverwendung); A11y-Vertrag (role="img"+aria-label); SoD ok.
+
 ## Archiv: Runde 0 (PR #1064, gemergt)
-- MODE Kreuzverhör, findungsfrei, `reviewed`. Vollständiger Diff (877 Zeilen) geprüft: Kaskade nur auf offene Instanzen (`openInstancesWhere`, `status != 'Done'`), e2e-Anker vorhanden, `git diff 8e9ae3a9 9001fc73 -- '*test*'` leer (Spec-Tests unverändert). Sammelkommentar **5443550920**, Titel damals auf `feat(server): add series address field and geo badges in lists` umbenannt. KolBadge-Abweichung + Migration über `SERIES_TABLE_COLUMNS` waren im PR-Body begründet ⇒ keine Findings.
+- MODE Kreuzverhör, findungsfrei, `reviewed`. Kaskade nur auf offene Instanzen, e2e-Anker vorhanden, `git diff 8e9ae3a9 9001fc73 -- '*test*'` leer. Sammelkommentar 5443550920, Titel damals auf `feat(server): add series address field and geo badges in lists`.
