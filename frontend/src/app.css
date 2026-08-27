@@ -1643,6 +1643,13 @@ body {
 }
 
 @media (min-width: 768px) {
+	/* Desktop (#1077): unten rechts statt vollbreit — Cards schrumpfen auf Inhaltsbreite. */
+	.update-prompt {
+		left: auto;
+		max-width: 480px;
+		align-items: flex-end;
+	}
+
 	.update-prompt kol-card span[data-testid] {
 		display: inline;
 	}
