@@ -51,7 +51,7 @@ This stage is the **separation of duties** of the TDD strategy (stage 3, see [td
 
 - Commit the red tests as your **own, first commit**, e.g. `test: red spec tests for #<nr>`.
 - Push the branch: `git push -u origin <branch>`.
-- Create a **draft PR**: `gh pr create --draft --title "<title> (#<nr>)" --body "… Closes #<nr> …"`. The body contains a short list of the covered acceptance criteria and the note "red spec tests; implementation follows" (PR body text in German).
+- Create a **draft PR**: `gh pr create --draft --title "<issue title> (#<nr>)" --body "… Closes #<nr> …"` — `<issue title>` is the issue's title verbatim (no rephrasing, no "red tests"/"rote Tests" in the title). The body contains a short list of the covered acceptance criteria and the note "red spec tests; implementation follows" (PR body text in German).
 - Verify the link: `gh pr view <pr> --json closingIssuesReferences --jq '.closingIssuesReferences[].number'` must contain `<nr>`.
 
 ## Step 5 — Hand off to implementation
