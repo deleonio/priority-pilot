@@ -1,5 +1,5 @@
 <!-- ai-review -->
-🎯 Review-Status: **reviewed** — Fixup-Nachweis (Runde 3) zu PR #1048 (implementiert Issue #1049). Fixup-Commit 96832482 behebt F9 und F10 vollständig (am PR-Head verifiziert); Merge 2079b01d von main berührt keine PR-Dateien (nur Workflows/Prompts/Doku). Keine neuen Findings im Fixup-Diff.
+🎯 Review-Status: **reviewed** — Fixup-Nachweis (Runde 3) zu PR #1048 (implementiert Issue #1049). Fixup-Commit 96832482 behebt F9 und F10 vollständig (am PR-Head verifiziert); Merge 2079b01d von main berührt keine PR-Dateien (nur Workflows/Prompts/Doku). Keine neuen Findings im Fixup-Diff. Runde 4 (Nachweis): kein neuer Commit seit Runde 3, Head unverändert 2079b01d — CI auf Head jetzt vollständig grün.
 
 ## ✅ Behobene Anmerkungen
 
@@ -24,7 +24,7 @@
 
 — (keine) —
 
-**Ampel: 🟢** — F1–F10 alle behoben und verifiziert; Fixup-Diff minimal und normkonform (je 1-Zeiler exakt nach Vorschlag). CI auf 96832482 komplett grün (verify + alle 4 e2e-Shards); auf Head 2079b01d (Merge main, keine Frontend-Quellen berührt) laufen verify/e2e erneut. Issue #1049 vollständig umgesetzt.
+**Ampel: 🟢** — F1–F10 alle behoben und verifiziert; Fixup-Diff minimal und normkonform (je 1-Zeiler exakt nach Vorschlag). CI auf Head 2079b01d vollständig grün (verify + alle 4 e2e-Shards success). Issue #1049 vollständig umgesetzt.
 
 ---
 Review-Typ: Fixup-Nachweis | Updated: 2026-08-27
