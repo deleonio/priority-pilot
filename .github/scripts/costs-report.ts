@@ -375,9 +375,11 @@ export function renderReport(dir: string): string {
 		const richtung = (alt?: { runs: number; vc: number }, neu?: { runs: number; vc: number }): string => {
 			if (!alt || alt.runs < 2 || !neu || neu.runs < 2) return '—';
 			const raw = (neu.vc / neu.runs - alt.vc / alt.runs) / (alt.vc / alt.runs);
-			const delta = Math.round(Math.abs(raw) * 100);
-			if (delta < 10) return '→';
-			return `${raw > 0 ? '↑' : '↓'} ${delta} %`;
+			// Schwelle an der ROHEN Änderung, nicht am gerundeten Prozentwert: 9,95 % würde
+			// auf 10 runden und als „↑ 10 %“ erscheinen, obwohl die Fußnote „→ = unter
+			// ±10 %“ verspricht. Das Runden gehört allein in die Anzeige.
+			if (Math.abs(raw) < 0.1) return '→';
+			return `${raw > 0 ? '↑' : '↓'} ${Math.round(Math.abs(raw) * 100)} %`;
 		};
 		const richtRow = (label: string, ph: string): void =>
 			lines.push(
