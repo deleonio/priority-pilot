@@ -1,7 +1,7 @@
 <!-- ai-review -->
 ## 🎯 Review-Status
 
-**reviewed** — PR #1056 (Spec-Sync 2026-08-27), **Review ohne Issue** — PR-Beschreibung/Spec-Sync-Report ist massgebend (keine AK-Verifikation möglich). Kreuzverhör Runde 1: alle 12 geänderten Spec-Dateien stichprobenartig gegen die Implementation verifiziert — sämtliche geprüften Ist-Aussagen stimmen (KolTableStateful mit `_fixedCols`, Header-Kürzung ≤ 20 Zeichen, forestTaskIds-Dedup, Update-/Offline-Texte, „Suche" als sechste Kopf-Aktion, Continue-Sweep-Crons, Footer-Position nur bei `enabled && position`). Beide offenen Tippfehler sind behoben.
+🟢 **reviewed** — PR #1056 (Spec-Sync 2026-08-27), **Review ohne Issue** — PR-Beschreibung/Spec-Sync-Report ist massgebend (keine AK-Verifikation möglich). Fixup-Nachweis: Commit `e4f9e464` behebt exakt die beiden offenen Findings (2 Zeilen in 2 Dateien, kein Kollateral-Diff), keine neuen Probleme eingeschleppt. Damit sind alle Findings aus Kreuzverhör Runde 1 erledigt.
 
 ## ✅ Behobene Anmerkungen
 

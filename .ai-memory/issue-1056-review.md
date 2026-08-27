@@ -1,39 +1,33 @@
-# PR #1056 — Review (Kreuzverhör Runde 1), 2026-08-27
+# PR #1056 — Review (Fixup-Nachweis, Runde 2), 2026-08-27
 
 ## Erledigt
-- MODE = Kreuzverhör bestimmt: kein `<!-- ai-review -->`-Kommentar auf PR 1056 vorhanden (gh api issues/1056/comments gefiltert).
-- Kein Closing-Issue (`closingIssuesReferences` = []) → „Review ohne Issue", PR-Beschreibung (Spec-Sync-Report, deckt alle 12 geänderten Dateien) massgebend.
-- Voll-Diff gelesen (`/tmp/pr1056.diff`, 722 Zeilen, nur `docs/spec/**`).
-- Ist-Aussagen stichprobenartig gegen Code verifiziert — ALLE bestätigt:
-  - `frontend/src/components/CompletedTasksTable.tsx:158` KolTableStateful, `_label="Liste der erledigten Aufgaben"`, `_fixedCols={[1,1]}`; `:29/:37` Header-Kürzung `HEADER_MAX_CHARS=20` mit „…"; `:78` forestTaskIds-Dedup; `:95` Leerhinweis-Text.
-  - `frontend/src/components/UpdatePrompt.tsx:32,35,40,43` alle vier Texte („Neue Version verfügbar"/„Jetzt neu laden"/„Offline einsatzbereit"/„Verstanden").
-  - `frontend/src/App.tsx:391` `_label: 'Suche'` (sechste Kopf-Aktion, issue-787).
-  - `.github/workflows/claude-continue-sweep.yml:36,38` beide Cron-Zeilen (`5 22,4,10,16 * * *` / `5 23,5,11,17 * * *`).
-  - `frontend/src/components/Footer.tsx:8` Position nur bei `geoEnabled && position` (issue-845).
-- Sammelkommentar erstellt (via `gh pr comment 1056 --body-file .ai-memory/issue-1056-comment.md`): Review-Status needs-fixup, Offene Findings #1/#2, Footer „Review-Typ: Kreuzverhör", Updated 2026-08-27.
-- Verdict-Datei: `printf 'needs-fixup' > /tmp/claude-verdict`.
-- Titel-Gate: `docs(spec): Ist-Stand-Sync 2026-08-27` = workflows-dokumentierte Konvention (issue-817.md) → nicht umbenannt.
+- MODE = Fixup-Nachweis bestimmt: `<!-- ai-review -->`-Kommentar vorhanden (ID `5435015507`, updated_at `2026-08-27T06:07:50Z`).
+- Fixup-Diff seit updatedAt geprüft: nur Commit `e4f9e464` „fix(spec): typos in issue-817 und issue-894" (committedDate `06:07:19Z`), `--stat`: 2 Dateien, 2 Insertions, 2 Deletions — kein Kollateral-Diff.
+- Finding #1 verifiziert behoben: `docs/spec/issue-817.md:41` lautet jetzt „Body mit komplettem Per-Datei-Report".
+- Finding #2 verifiziert behoben: `docs/spec/issue-894.md:22` lautet jetzt „Phase ruht (jüngster Run des Phase-Workflows …".
+- Fixup-Diff adversarisch geprüft: reine Textkorrekturen innerhalb bestehender Listenzeilen, keine Semantikänderung, keine neuen Regressionen (PR berührt ausschliesslich `docs/spec/**`).
+- Sammelkommentar per `gh api repos/deleonio/priority-pilot/issues/comments/5435015507 -X PATCH -F body=@.ai-memory/issue-1056-comment.md` aktualisiert (Status 🟢 reviewed, Findings #1/#2 in „Behobene Anmerkungen", Offene-Findings-Tabelle leer, Footer „Review-Typ: Fixup-Nachweis").
+- Verdict-Datei: `printf 'reviewed' > /tmp/claude-verdict`.
 
 ## Relevante Stellen
-- `docs/spec/issue-817.md:41` — Finding #1: Tippfehler „komplettlem" → „komplettem".
-- `docs/spec/issue-894.md:22` — Finding #2: „( jüngster" → überzähliges Leerzeichen nach Klammer.
-- `.ai-memory/issue-1056-comment.md` — lokal gespeicherter Body des Sammelkommentars (Quelle für spätere PATCH-Updates).
+- `docs/spec/issue-817.md:41` — Finding #1, korrigiert.
+- `docs/spec/issue-894.md:22` — Finding #2, korrigiert.
+- `.ai-memory/issue-1056-comment.md` — lokaler Body des Sammelkommentars, synchron zum geposteten Stand.
 
 ## Annahmen
-- Die beiden Tippfehler sind die einzigen redaktionellen Mängel (Diff manuell durchgesehen; keine Volltext-Rechtschreibprüfung).
-- Titel bewusst nicht an Conventional-Commits-Englisch-Regel angepasst, weil der Titel vom Workflow `claude-spec-sync.yml` fix generiert wird (in issue-817.md als Soll dokumentiert).
+- Kein Closing-Issue (aus Runde 1 bekannt) → PR-Beschreibung bleibt informelle Spec, keine AK-Verifikation möglich.
+- Unveränderte Teile des PR wurden bewusst NICHT erneut kreuzverhört (Fixup-Modus).
 
 ## Verworfen
-- Gebündelte Review via `POST pulls/1056/reviews` mit `comments[][]`: an gh-Param-Übersetzung gescheitert — `[0]`-Syntax erzeugt Objekt statt Array (422 „not an array"); `[]`-Syntax mit `-F line` läuft in GraphQL-Draft-Kommentar-Mutation und erzeugt „position (Expected value to not be null)". → Nicht erneut versuchen, Einzelpostings nehmen.
-- Einzelkommentare via `POST pulls/1056/comments` mit `line`+`side` bzw. `subject_type`+`commit_id`: Schema-oneOf lehnt ab („positioning wasn't supplied", „line is not a permitted key") — API vermutlich neues Anchoring (`positioning`/`subject`-basiert). Wegen Soft-Deadline (31s Rest) abgebrochen; Findings stehen vollständig im Sammelkommentar (Offene-Findings-Tabelle mit file:line).
+- Titel-Umbenennung `docs(spec): Ist-Stand-Sync 2026-08-27` → englischer Kleinschreib-Subject: verworfen (stabil zu Runde 1). Der Titel wird von `.github/workflows/claude-spec-sync.yml` fix erzeugt und ist in `docs/spec/issue-817.md:41` genau so als Soll dokumentiert; ein Rename würde den PR gegen seine eigene Spec stellen.
+- Inline-Zeilenkommentare: nicht nötig, da keine offenen Findings mehr.
 
 ## Offen
-- Inline-Kommentare zu Findings #1/#2 NICHT als Zeilen-Reviews gepostet (siehe Verworfen). Fixup-Phase kann sie aus der Offene-Findings-Tabelle des Sammelkommentars übernehmen; alternativ beim nächsten Mal `positioning`/`subject`-Anchoring der aktuellen GitHub-API ausprobieren.
+- Keine.
 
 ## Nächster Schritt
-- Fixup-Runde (Phase 6/7): die zwei Tippfehler fixen, Sammelkommentar per PATCH aktualisieren (Findings #1/#2 nach „Behobene Anmerkungen" verschieben), dann Fixup-Nachweis mit VERDICT reviewed abschliessen.
+- Keiner — PR ist reviewed und mergefähig (aus Review-Sicht).
 
 ## Fallstricke
-- Sammelkommentar NICHT neu anlegen: existiert seit 2026-08-27 auf PR 1056, Marker `<!-- ai-review -->` — Updates per `PATCH issues/comments/<id>`.
-- Finding-Nummern stabil halten: #1 = issue-817.md:41, #2 = issue-894.md:22.
-- Kein Closing-Issue: keine AK-Verifikation möglich; PR-Beschreibung als informelle Spec weiterführen.
+- Sammelkommentar NIE neu anlegen: ID `5435015507`, Update per `PATCH issues/comments/<id>` mit `-F body=@<datei>`.
+- Finding-Nummern stabil: #1 = issue-817.md:41, #2 = issue-894.md:22.
