@@ -5,17 +5,17 @@ import { waitForStableView } from './helpers';
  * ROTE Spec-Tests für #1063 „Geo-Badge in Listen" (Spec docs/spec/issue-1063.md).
  *
  * Vertrag: Einträge mit Ortsbezug (`address`) zeigen ein Globus-Badge (Font Awesome
- * `fa-solid fa-globe`, icon-only, rein informativ) — in der Serienliste (`SeriesTab`) und in der
- * Erledigt-Liste (`CompletedTasksTable`). Der TaskTree zeigt bewusst KEIN Badge (bindende
- * Entscheidung im Issue-Body). Das Badge ist icon-only und transportiert seine Bedeutung für
- * assistive Technologien über `aria-label` mit „Standort" (BITV, KI-UX-Block); Test-Anker ist
+ * `fa-solid fa-globe`, icon-only, rein informativ) — in der Serienliste (`SeriesTab`),
+ * in der Erledigt-Liste (`CompletedTasksTable`) und in der Aufgabenliste (`TaskTree`).
+ * Das Badge ist icon-only und transportiert seine Bedeutung für assistive Technologien
+ * über `aria-label` mit „Standort" (BITV, KI-UX-Block); Test-Anker ist
  * `data-testid="geo-badge"`.
  *
  * Wie `series-tab.spec.ts` / `completed-tasks.spec.ts` laufen diese Specs gegen das echte
  * Backend (In-Memory-DB, Vite-Proxy). Daten werden direkt über die API angelegt, `afterEach`
- * räumt auf. Rot, bis `address` an Serien (AK1) existiert und beide Listen das Badge rendern.
+ * räumt auf. Rot, bis `address` an Serien (AK1) existiert und alle drei Listen das Badge rendern.
  */
-test.describe('Priority Pilot — #1063: Geo-Badge in Serien- und Erledigt-Liste', () => {
+test.describe('Priority Pilot — #1063: Geo-Badge in Serien-, Erledigt- und Aufgabenliste', () => {
 	let runId = 0;
 	const uniqueTitle = (label: string): string => {
 		const tail = `#${(runId += 1)}`;
@@ -85,7 +85,7 @@ test.describe('Priority Pilot — #1063: Geo-Badge in Serien- und Erledigt-Liste
 		await waitForStableView(page);
 	};
 
-	// AK4 — Serienliste: Globus-Badge nur bei Serien mit Adresse, mit „Standort"-aria-label.
+	// AK4 — Serienliste: Globus-Badge nur bei Serien mit Adresse, mit „Standort“-aria-label.
 	test('AK4 — Serie mit Adresse zeigt Globus-Badge in der Serienzeile, Serie ohne Adresse keins', async ({ page }) => {
 		const withAddress = uniqueTitle('MitOrt');
 		const withoutAddress = uniqueTitle('OhneOrt');
@@ -96,7 +96,7 @@ test.describe('Priority Pilot — #1063: Geo-Badge in Serien- und Erledigt-Liste
 		await waitForStableView(page);
 		await openSeriesTab(page);
 
-		// Serie mit Adresse: Badge sichtbar, icon-only mit „Standort"-aria-label (BITV).
+		// Serie mit Adresse: Badge sichtbar, icon-only mit „Standort“-aria-label (BITV).
 		const badge = page.getByTestId('series-tree-item-' + idWith).getByTestId('geo-badge');
 		await expect(badge).toBeVisible();
 		await expect(badge).toHaveAttribute('aria-label', /Standort/i);
@@ -105,16 +105,18 @@ test.describe('Priority Pilot — #1063: Geo-Badge in Serien- und Erledigt-Liste
 		await expect(page.getByTestId('series-tree-item-' + idWithout).getByTestId('geo-badge')).toHaveCount(0);
 	});
 
-	// AK5 — Erledigt-Liste: Badge nur bei erledigten Tasks mit Adresse; TaskTree zeigt keins.
-	test('AK5 — Erledigter Task mit Adresse zeigt Globus-Badge; Task ohne Adresse keins; TaskTree ohne Badge', async ({
+	// AK5 — Erledigt-Liste: Badge nur bei erledigten Tasks mit Adresse; TaskTree zeigt Badge bei Adresse.
+	test('AK5 — Erledigter Task mit Adresse zeigt Globus-Badge; Task ohne Adresse keins; TaskTree mit Badge bei Adresse', async ({
 		page,
 	}) => {
 		const doneWithAddress = uniqueTitle('DoneOrt');
 		const doneWithoutAddress = uniqueTitle('DoneOhn');
 		const openWithAddress = uniqueTitle('OffenOrt');
+		const openWithoutAddress = uniqueTitle('OffenOhn');
 		await createTaskViaApi(page, doneWithAddress, true, 'Hauptplatz 3, 10115 Berlin');
 		await createTaskViaApi(page, doneWithoutAddress, true);
 		const openId = await createTaskViaApi(page, openWithAddress, false, 'Weg 4, 10115 Berlin');
+		const openIdNoAddr = await createTaskViaApi(page, openWithoutAddress, false);
 
 		await page.goto('/');
 		await waitForStableView(page);
@@ -130,20 +132,26 @@ test.describe('Priority Pilot — #1063: Geo-Badge in Serien- und Erledigt-Liste
 		await expect(plainRow).toBeVisible();
 		await expect(plainRow.getByTestId('geo-badge')).toHaveCount(0);
 
-		// TaskTree (offene Aufgaben): der offene Task mit Adresse ist sichtbar, hat aber KEIN Badge.
+		// TaskTree (offene Aufgaben): der offene Task mit Adresse zeigt das Badge.
 		await openTasksView(page);
 		const treeItem = page.getByTestId(`task-list-item-${openId}`);
 		await expect(treeItem).toBeVisible();
-		await expect(treeItem.getByTestId('geo-badge')).toHaveCount(0);
+		await expect(treeItem.getByTestId('geo-badge')).toBeVisible();
+		// Task ohne Adresse in TaskTree zeigt kein Badge
+		const treeItemWithout = page.getByTestId(`task-list-item-${openIdNoAddr}`);
+		await expect(treeItemWithout).toBeVisible();
+		await expect(treeItemWithout.getByTestId('geo-badge')).toHaveCount(0);
 	});
 
-	// AK6 — Mobile 375px: das Badge verursacht in beiden Listen keinen horizontalen Überlauf.
-	test('AK6 — 375px: Badge verursacht in Serienliste und Erledigt-Liste keinen Überlauf', async ({ page }) => {
+	// AK6 — Mobile 375px: das Badge verursacht in allen drei Listen keinen horizontalen Überlauf.
+	test('AK6 — 375px: Badge verursacht in Serienliste, Erledigt-Liste und Aufgabenliste keinen Überlauf', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 667 });
 		const seriesTitle = uniqueTitle('MobilSerie');
 		const doneTitle = uniqueTitle('MobilDone');
+		const openTitle = uniqueTitle('MobilOffen');
 		await createSeriesViaApi(page, seriesTitle, 'Lange Musterstraße 123, 12345 Musterstadt, Brandenburg');
 		await createTaskViaApi(page, doneTitle, true, 'Lange Musterstraße 123, 12345 Musterstadt, Brandenburg');
+		await createTaskViaApi(page, openTitle, false, 'Lange Musterstraße 123, 12345 Musterstadt, Brandenburg');
 
 		// Serienliste: Zeile bleibt vollständig in der Viewport-Breite (Bounding-Box, nicht
 		// scrollWidth — die App-Shell clippt mit overflow-x: hidden, siehe issue-1020-Spec).
@@ -163,5 +171,14 @@ test.describe('Priority Pilot — #1063: Geo-Badge in Serien- und Erledigt-Liste
 		await expect(host).toBeVisible();
 		const hostRight = await host.evaluate((el) => el.getBoundingClientRect().right);
 		expect(hostRight).toBeLessThanOrEqual(375 + 1);
+
+		// Aufgabenliste: Task-Zeile bleibt in der Viewport-Breite
+		await openTasksView(page);
+		const taskRow = page.getByTestId('task-list').locator('li[class*="task-list-item"]').first();
+		await expect(page.getByTestId('geo-badge').first()).toBeVisible();
+		const taskRowBox = await taskRow.boundingBox();
+		expect(taskRowBox).not.toBeNull();
+		expect(taskRowBox!.x).toBeGreaterThanOrEqual(0);
+		expect(taskRowBox!.x + taskRowBox!.width).toBeLessThanOrEqual(375 + 1);
 	});
 });
