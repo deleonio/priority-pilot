@@ -1,8 +1,8 @@
 import { describe, it, before, beforeEach, after, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import sequelize from '../database.js';
-import { parseTaskTextWithMistral, MissingApiKeyError } from './llm.js';
-import { activateProvider, createProvider, listProviders } from './llmProviders.js';
+import { parseTaskTextWithMistral, MissingApiKeyError, MistralRequestError } from './llm.js';
+import { activateProvider, createProvider, listProviders, updateProvider } from './llmProviders.js';
 
 /**
  * Vertrag der Provider-Auflösung im LLM-Aufruf: genau EIN Call an den effektiv aktiven
@@ -100,7 +100,11 @@ describe('LLM-Aufrufe mit aktivem Provider', () => {
 		assert.equal(calls.length, 1);
 		assert.equal(calls[0]?.url, 'https://api.mistral.ai/v1/chat/completions');
 		assert.equal(calls[0]?.auth, 'Bearer env-mistral-key');
-		assert.equal(calls[0]?.model, 'mistral-medium-latest', 'Code-Default-Modell ohne Wahl');
+		assert.equal(
+			calls[0]?.model,
+			'mistral-small-latest',
+			'Code-Default-Modell ohne Wahl (AK1, #1060: kostenfrei, wie dokumentiert)',
+		);
 	});
 
 	it('Fallback nur mit OpenRouter-Key: OpenRouter-Endpoint und ENV-Modell', async () => {
@@ -112,6 +116,50 @@ describe('LLM-Aufrufe mit aktivem Provider', () => {
 		assert.equal(calls[0]?.url, 'https://openrouter.ai/api/v1/chat/completions');
 		assert.equal(calls[0]?.auth, 'Bearer env-or-key');
 		assert.equal(calls[0]?.model, 'vendor/model-x', 'ENV-Modell schlägt Code-Default');
+	});
+
+	it('MISTRAL_MODEL schlägt den Code-Default (AK2, #1060: Wahl > ENV > Default)', async () => {
+		process.env.MISTRAL_API_KEY = 'env-mistral-key';
+		process.env.MISTRAL_MODEL = 'ministral-8b-latest';
+		const { calls } = mockFetch();
+
+		await parseTaskTextWithMistral('test');
+		assert.equal(calls[0]?.model, 'ministral-8b-latest', 'ENV-Modell schlägt Mistral-Code-Default');
+	});
+
+	it('App-Modellwahl des Built-ins schlägt ENV und Code-Default (AK2, #1060)', async () => {
+		process.env.MISTRAL_API_KEY = 'env-mistral-key';
+		process.env.MISTRAL_MODEL = 'ministral-8b-latest';
+		const mistral = (await listProviders()).find((p) => p.name === 'Mistral');
+		assert.ok(mistral);
+		await updateProvider(mistral.id, { model: 'mistral-large-latest' });
+		const { calls } = mockFetch();
+
+		await parseTaskTextWithMistral('test');
+		assert.equal(calls[0]?.model, 'mistral-large-latest', 'Persistierte Wahl schlägt ENV und Default');
+	});
+
+	it('402-Fehlermeldung nennt Label, Modell und Upstream-Ursache — nie den API-Key (AK3, #1060)', async () => {
+		process.env.MISTRAL_API_KEY = 'secret-mistral-key';
+		mock.method(globalThis, 'fetch', (async () => ({
+			ok: false,
+			status: 402,
+			json: async () => ({ detail: 'Check your subscription on https://admin.mistral.ai/subscription' }),
+		})) as typeof fetch);
+
+		await assert.rejects(
+			() => parseTaskTextWithMistral('test'),
+			(error: unknown) => {
+				assert.ok(error instanceof MistralRequestError, `MistralRequestError statt ${String(error)}`);
+				const message = error.message;
+				assert.match(message, /Mistral/, 'Label genannt');
+				assert.match(message, /mistral-small-latest/, 'Verwendetes Modell genannt (Default ohne Wahl)');
+				assert.match(message, /HTTP 402/, 'Status genannt');
+				assert.match(message, /Check your subscription/, 'Upstream-Ursache erhalten');
+				assert.ok(!message.includes('secret-mistral-key'), 'API-Key darf nicht in der Meldung stehen');
+				return true;
+			},
+		);
 	});
 
 	it('explizit aktivierter Built-in gewinnt über den Fallback; gewähltes Modell persistiert', async () => {
