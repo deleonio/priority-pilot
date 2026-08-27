@@ -58,7 +58,7 @@ file provides — not what it's called.
 
 ## Anti-patterns
 
-- `[[Wiki links]]` — GitHub doesn't render them, the graph loses the GitHub side.
+- `[[Wiki-Links]]` — GitHub doesn't render them, the graph loses the GitHub side.
 - Absolute paths (`/docs/…`) and URL-style repo paths — they break on a local clone.
 - Line-number anchors (`file.md#L42`) — break on every change to the target file.
 - Links inside code blocks and inline code: ignore them when checking, never place one there.

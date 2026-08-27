@@ -135,7 +135,7 @@ jobs:
 
           ORDER: read ALL prompts first, THEN judge across them — finding contradictions needs the overview.
 
-          REPORT (MANDATORY): write via bash heredoc to /tmp/prompt-audit.md, structure:
+          REPORT (MANDATORY): write via bash heredoc to /tmp/prompt-audit.md. The workflow posts this file verbatim as the body of the ci:prompt-audit issue, so WRITE THE REPORT IN GERMAN (headings and findings alike) — the readers are the German-speaking maintainers. Structure:
             # Prompt-Audit {{AUDIT_DATE}}
             ## Gesamturteil
             2-3 sentences: overall state, biggest lever.

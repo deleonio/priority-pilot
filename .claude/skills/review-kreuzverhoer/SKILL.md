@@ -14,7 +14,7 @@ Note: this file's prose is English; the review body and collected comment writte
 PRs = pull requests of `deleonio/priority-pilot`. Prerequisite: `gh` is authenticated.
 
 **Selection criterion:** a specifically given PR is reviewed; without one, the most recently
-opened/updated open PR (or the PR currently subscribed to via session continuation).
+opened/updated open PR (or the PR currently subscribed to via `Session-Fortsetzung` — the coding agent's session-continuation feature).
 
 ## Stance
 
@@ -151,7 +151,7 @@ age with the diff regardless; what gets consolidated is the **collected comment*
     chosen option without re-evaluating.
   - **📋 Open findings** — only for needs-fixup: the points of the **current** round (with
     traffic light, file/line, suggestion).
-  - **Footer** — `Review-Typ: Kreuzverhör | Fixup-Nachweis` (review type: cross-examination | fixup evidence) and `Updated: YYYY-MM-DD`.
+  - **Footer** — `Review-Typ: Kreuzverhör | Fixup-Nachweis` (review type: cross-examination | fixup evidence) and `Updated: JJJJ-MM-TT` (ISO date; the German placeholder is kept so it matches the sibling ai-fixup-decisions comment in .github/prompts/fixup.md).
 
 **CI/quality gate as a precondition:** a green content verdict (🟢) is **necessary but not
 sufficient** for `ai:ready-to-merge` — the mandatory checks (CI: format/lint/build/test) must
@@ -167,5 +167,5 @@ the same rule applies: don't conclude with 🟢 while CI is red.
 - Posting a review/comments writes **publicly** to GitHub — get confirmation first.
 - Stay brief and concrete; anchor and justify every point against code lines.
 - Pure review: **never** change or commit production code.
-- In the coding agent, the PR can be subscribed to via session continuation — new commits/CI/review
+- In the coding agent, the PR can be subscribed to via `Session-Fortsetzung` — new commits/CI/review
   events then land directly in the session (re-review after fixes).

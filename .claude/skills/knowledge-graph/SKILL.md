@@ -4,7 +4,7 @@ description: >-
   Use when repo documentation is being linked, the knowledge graph needs maintenance, dead links need checking, orphaned documents need finding, or the AGENTS.md index needs updating — also automatically on every change to .ai-knowledge/, docs/, or AGENTS.md, even when not explicitly asked about the graph. Triggers: "knowledge graph", "graph", "Obsidian", "link the docs", "link check", "update index" (German: "Wissensgraph", "Graph", "Obsidian", "verlinke die Doku", "Link-Check", "Index aktualisieren"). Not for code analysis or UI work.
 version: 1.0.0
 user-invocable: true
-argument-hint: "[audit · link · index] [target]"
+argument-hint: "[audit · verlinde · index] [ziel]"
 ---
 
 # Knowledge Graph
@@ -34,7 +34,7 @@ there, and no index is maintained for it.
 
 Read [references/link-style.md](references/link-style.md) before any link work. It covers
 formats, anchor rules, and anti-patterns with repo examples. In short: relative Markdown links in
-the file's existing style, never `[[wiki links]]` (GitHub doesn't render them).
+the file's existing style, never `[[Wiki-Links]]` (GitHub doesn't render them).
 
 ## Mode: incremental (runs automatically alongside other work)
 
@@ -73,11 +73,14 @@ align the index, connect islands only where a real connection exists. End with a
 report: what you changed and which findings you deliberately **did not** fix (with one sentence
 of justification each).
 
-## Mode: `link [target]`
+## Mode: `verlinde [ziel]`
 
 Find cross-references for a specific file or topic: read the file, identify related
 in-scope files, set edges at the points where the connection arises in the text. Here too:
 only edges with genuine informational value.
+
+(The mode keywords `audit`, `verlinde`, and `index` stay German — they are the invocation
+vocabulary the user types, not prose.)
 
 ## Mode: `index`
 
