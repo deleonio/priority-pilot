@@ -166,7 +166,7 @@ export const runProviderTest = async (runtime: ProviderRuntime): Promise<Provide
 		const detail = await upstreamErrorDetail(response);
 		return {
 			ok: false,
-			message: `${runtime.label} antwortete mit HTTP ${response.status}${detail !== '' ? `: ${detail}` : '.'}`,
+			message: `${runtime.label} (${runtime.model}) antwortete mit HTTP ${response.status}${detail !== '' ? `: ${detail}` : '.'}`,
 		};
 	}
 	try {
@@ -238,7 +238,7 @@ export const fetchProviderModelsFromUpstream = async (runtime: ProviderRuntime):
 		signal: AbortSignal.timeout(MODELS_UPSTREAM_TIMEOUT_MS),
 	});
 	if (!response.ok) {
-		throw new Error(`${runtime.label} antwortete mit HTTP ${response.status}.`);
+		throw new Error(`${runtime.label} (${runtime.model}) antwortete mit HTTP ${response.status}.`);
 	}
 	const payload: unknown = await response.json();
 	const raw = Array.isArray(payload) ? payload : (payload as { data?: unknown }).data;

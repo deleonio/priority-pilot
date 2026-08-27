@@ -352,7 +352,7 @@ const callProvider = async (
 		// Upstream-Fehlerdiagnose: Klartext-Ursache aus dem Body übernehmen (siehe upstreamError.ts).
 		const detail = await upstreamErrorDetail(response);
 		throw new MistralRequestError(
-			`${config.label} antwortete mit HTTP ${response.status}${detail !== '' ? `: ${detail}` : '.'}`,
+			`${config.label} (${config.model}) antwortete mit HTTP ${response.status}${detail !== '' ? `: ${detail}` : '.'}`,
 		);
 	}
 

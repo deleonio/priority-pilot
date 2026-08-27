@@ -176,12 +176,12 @@ describe('LLM-Providers API', () => {
 		process.env.MISTRAL_API_KEY = 'env-mistral-key';
 		const cookie = await register('builtin-model@example.com');
 		const mistral = (await listProviders(cookie)).find((p) => p.name === 'Mistral');
-		assert.equal(mistral.model, 'mistral-medium-latest', 'Ohne Wahl gilt der Code-Default');
+		assert.equal(mistral.model, 'mistral-small-latest', 'Ohne Wahl gilt der Code-Default (AK1, #1060)');
 
-		const res = await updateProvider(cookie, mistral.id, { model: 'mistral-small-latest' });
+		const res = await updateProvider(cookie, mistral.id, { model: 'mistral-large-latest' });
 		assert.equal(res.status, 200);
 		const updated = (await listProviders(cookie)).find((p) => p.id === mistral.id);
-		assert.equal(updated.model, 'mistral-small-latest', 'Gewähltes Modell persistiert');
+		assert.equal(updated.model, 'mistral-large-latest', 'Gewähltes Modell persistiert');
 	});
 
 	// ── Custom-Provider ────────────────────────────────────────────────
@@ -308,7 +308,7 @@ describe('LLM-Providers API', () => {
 		assert.equal(res.status, 200);
 		const body = (await res.json()) as { ok: boolean; model?: string; latencyMs?: number; sample?: string };
 		assert.equal(body.ok, true, 'Injizierter Runner meldet Erfolg');
-		assert.equal(body.model, 'mistral-medium-latest', 'Effektives Modell wird genannt');
+		assert.equal(body.model, 'mistral-small-latest', 'Effektives Modell wird genannt');
 		assert.equal(body.latencyMs, 42);
 		assert.equal(body.sample, '{"ok": true}');
 	});
