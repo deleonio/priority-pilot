@@ -64,6 +64,7 @@ interface SeriesAttributes {
 	active?: boolean;
 	startDate?: Date;
 	description?: string | null;
+	address?: string | null;
 	autoDeleteAfterDeadline?: boolean;
 }
 
@@ -107,6 +108,7 @@ const serializeSeries = (series: Series): SeriesDto => ({
 	active: series.active,
 	startDate: series.startDate.toISOString(),
 	description: series.description ?? null,
+	address: series.address ?? null,
 	autoDeleteAfterDeadline: series.autoDeleteAfterDeadline ?? false,
 	pillars: (series.Pillars ?? [])
 		.map((pillar) => ({
@@ -210,6 +212,15 @@ const validateSeriesFields = (
 			return { ok: false, message: 'description muss ein String oder null sein.' };
 		}
 		attrs.description = input.description;
+	}
+
+	// Ortsbezug der Serie (#1063): Validierung analog `Task.address` (routes/tasks.ts) — String ≤ 255
+	// oder null; trim/leerer String wird wie null behandelt.
+	if (input.address !== undefined) {
+		if (input.address !== null && (typeof input.address !== 'string' || input.address.length > 255)) {
+			return { ok: false, message: 'address muss ein String (max. 255 Zeichen) oder null sein.' };
+		}
+		attrs.address = input.address === null ? null : input.address.trim() === '' ? null : input.address.trim();
 	}
 
 	if (input.autoDeleteAfterDeadline !== undefined) {
@@ -397,6 +408,7 @@ seriesRouter.patch('/series/:id', async (req: Request, res: Response<SeriesDto |
 					instanceAttrs.estimatedEffort = validation.attrs.estimatedEffort;
 				}
 				if (validation.attrs.description !== undefined) instanceAttrs.description = validation.attrs.description;
+				if (validation.attrs.address !== undefined) instanceAttrs.address = validation.attrs.address;
 				if (validation.attrs.autoDeleteAfterDeadline !== undefined) {
 					instanceAttrs.autoDeleteAfterDeadline = validation.attrs.autoDeleteAfterDeadline;
 				}

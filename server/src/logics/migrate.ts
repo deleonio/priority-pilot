@@ -71,6 +71,8 @@ const SERIES_TABLE_COLUMNS = [
 	{ name: 'userId', definition: 'INTEGER' },
 	// Freitext-Beschreibung (#301): nullable, daher kein NOT NULL/DEFAULT nötig.
 	{ name: 'description', definition: 'TEXT' },
+	// Serien-Ortsbezug (#1063), analog `Task.address`: nullable, daher kein NOT NULL/DEFAULT nötig.
+	{ name: 'address', definition: 'VARCHAR(255)' },
 	// Auto-Löschung bei verpasster Deadline (#523): NOT NULL DEFAULT 0 (SQLite verlangt DEFAULT bei
 	// nachträglichem ADD COLUMN); wird beim Generieren auf die Instanzen vererbt.
 	{ name: 'autoDeleteAfterDeadline', definition: 'INTEGER NOT NULL DEFAULT 0' },

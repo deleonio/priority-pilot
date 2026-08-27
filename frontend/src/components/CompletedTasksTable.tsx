@@ -7,6 +7,7 @@ import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { getTaskPillarPoints } from '../lib/pillar';
 import { renderIntoCell } from '../lib/reactCellRoot';
+import { GeoBadge } from './GeoBadge';
 
 interface CompletedTasksTableProps {
 	tasks: Task[];
@@ -110,7 +111,24 @@ export const CompletedTasksTable = memo((props: CompletedTasksTableProps) => {
 				// #1020 AK2: Titel-Spalte dominiert (feste Mindestbreite), Punkte-Spalten bekommen eine
 				// am Header-Text bemessene feste Breite (`pillarHeaderWidth`) — hält die Kopfzeile
 				// einzeilig, ohne kurze Säulennamen unnötig aufzublähen.
-				{ key: 'title', label: 'Titel', width: 360 },
+				{
+					key: 'title',
+					label: 'Titel',
+					width: 360,
+					// #1063: hinter dem Titel zeigt der Ortsbezug das Geo-Badge (nur bei `address`).
+					// Wie die Aktion-Spalte wird die Zelle über `render` in eine pro Zelle gecachte
+					// React-Root gemountet; der reine `title`-Datenwert bleibt Sortierung/Filter erhalten.
+					render: (domNode: HTMLElement, _cell: unknown, tupel: unknown) => {
+						const task = (tupel as DoneTaskRow)._task;
+						renderIntoCell(
+							domNode,
+							<span className="done-title-cell">
+								{task.title}
+								{task.address != null && <GeoBadge address={task.address} />}
+							</span>,
+						);
+					},
+				},
 				...pillars.map((pillar) => {
 					const label = shortPillarHeader(pillar.name);
 					return { key: pillarKey(pillar.id), label, width: pillarHeaderWidth(label) };

@@ -137,6 +137,9 @@ export const generateDueInstances = async (series: Series, options: GenerateOpti
 			priority: series.priority,
 			estimatedEffort: series.estimatedEffort,
 			description: series.description ?? null,
+			// #1063: Serien-Ortsbezug wird als Snapshot auf jede Instanz vererbt (Semantik wie
+			// `description`): Template-Änderungen wirken nur auf künftige Instanzen.
+			address: series.address ?? null,
 			deadline: occurrence,
 			seriesId: series.id,
 			seriesOccurrence: occurrence,

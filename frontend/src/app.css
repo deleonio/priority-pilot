@@ -1254,6 +1254,32 @@ body {
 	color: #fff;
 }
 
+/* --- Geo-Badge: Ortsbezug in Serien- und Erledigt-Liste (#1063) --- */
+/* Icon-only-Chip in den Metriken des Rhythmus-Badges (gleiche Schriftgröße/Padding/Radius, damit
+   beide Chips in der Serienzeile bündig ausrichten). Dezent statt Signal-Farbe: Geolocation ist
+   Information, keine Aktion (KI-UX-Entscheidung). Kein Wachstum mit Inhalt — nur ein Icon. */
+.geo-badge {
+	display: inline-flex;
+	align-items: center;
+	font-size: 0.75rem;
+	padding: 0.125rem 0.375rem;
+	border-radius: 0.25rem;
+	white-space: nowrap;
+	background: var(--pp-bg-muted);
+	color: var(--pp-text-muted);
+}
+
+/* Titel-Zelle der Erledigt-Tabelle (#1063): Titel + Geo-Badge nebeneinander; Umbruch erlaubt,
+   damit das Badge bei 375px keinen horizontalen Überlauf erzeugt (AK6). */
+.done-title-cell {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25rem;
+	flex-wrap: wrap;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
 /* --- Textfelder mit Mikrofon-Button (#251, #264) --- */
 /* Der Mic-Button liegt als Overlay IN der Inputbox. Da KoliBri-Felder Shadow-DOM-Komponenten
    sind, ankert der absolut positionierte Button am unteren Rand des Wrappers — die Inputbox ist
