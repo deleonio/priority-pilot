@@ -872,25 +872,23 @@ export const TaskForm = ({
 							)}
 						</>
 					) : (
-						<>
-							<KolInputDate
-								_label="Deadline (optional)"
-								_type="date"
-								_value={deadlineValue}
-								_on={{
-									onChange: (_event, value) => {
-										const next = value instanceof Date ? deadlineToDateInput(value) : readString(value);
-										form.current.deadline = next;
-										setDeadlineInput(next);
-									},
-									onInput: (_event, value) => {
-										const next = value instanceof Date ? deadlineToDateInput(value) : readString(value);
-										form.current.deadline = next;
-										setDeadlineInput(next);
-									},
-								}}
-							/>
-						</>
+						<KolInputDate
+							_label="Deadline (optional)"
+							_type="date"
+							_value={deadlineValue}
+							_on={{
+								onChange: (_event, value) => {
+									const next = value instanceof Date ? deadlineToDateInput(value) : readString(value);
+									form.current.deadline = next;
+									setDeadlineInput(next);
+								},
+								onInput: (_event, value) => {
+									const next = value instanceof Date ? deadlineToDateInput(value) : readString(value);
+									form.current.deadline = next;
+									setDeadlineInput(next);
+								},
+							}}
+						/>
 					)}
 					{/* #523/#534/#546: Auto-Löschung bei verpasster Deadline. Im Task-Modus an die Deadline-Präsenz
 					    gekoppelt (deaktiviert ohne Deadline, #534 Anforderung 2); bei Serien stets frei anwählbar,
