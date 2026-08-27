@@ -19,7 +19,7 @@ Die Phase-Workflows (01-claude-triage … 06-claude-pr-fixup) laufen auf `labele
 
 - **Trigger:** `schedule` mit zwei Cron-Zeilen (GitHub-Cron ist UTC; Europe/Berlin wechselt zwischen CEST/CET): `5 22,4,10,16 * * *` (Sommer-Offsets) und `5 23,5,11,17 * * *` (Winter-Offsets); ergänzend `workflow_dispatch` mit `dry-run`-Input (umgeht den Zeitfenster-Guard bewusst)
 - **Laufzeit-Guard:** `TZ='Europe/Berlin' date +%H` ∈ {00, 06, 12, 18} — nur die 4 Feuerungen laufen, die auf 00:05/06:05/12:05/18:05 Berlin fallen (DST-korrekt, 8 Feuerungen/Tag, davon 4 No-ops)
-- **Kandidaten-Erkennung (pro Phase):** Phase ruht ( jüngster Run des Phase-Workflows weder `queued`/`in_progress` noch jünger als 10 Minuten) UND offenes Issue mit `ai:needs-analyse`/`ai:needs-ux-ui`/`ai:needs-spec`/`ai:needs-impl` bzw. offener, nicht-Draft-PR mit `ai:needs-review`/`ai:needs-fixup`. Ausgeschlossen: `ai:to-big-issue` (Menschen-Signal), `ai:needs-human` (wartet auf Menschen), Draft-PRs
+- **Kandidaten-Erkennung (pro Phase):** Phase ruht (jüngster Run des Phase-Workflows weder `queued`/`in_progress` noch jünger als 10 Minuten) UND offenes Issue mit `ai:needs-analyse`/`ai:needs-ux-ui`/`ai:needs-spec`/`ai:needs-impl` bzw. offener, nicht-Draft-PR mit `ai:needs-review`/`ai:needs-fixup`. Ausgeschlossen: `ai:to-big-issue` (Menschen-Signal), `ai:needs-human` (wartet auf Menschen), Draft-PRs
 - **Nachfeuern:** Trigger-Label per GitHub-App-Token entfernen + sofort neu setzen. `ai:continued` wird nie angefasst und nie als Detektions-Kriterium genutzt — der Marker signalisiert dem Folgelauf „fortsetzen statt neu starten". Der geweckte Workflow entscheidet mit seinen eigenen Guards (Konsumiert-Check, Doppel-Run-Guard), ob er arbeitet
 
 ## Erwartetes Ergebnis

@@ -38,7 +38,7 @@ Der Workflow `.github/workflows/claude-spec-sync.yml` synchronisiert `docs/spec/
 
 ## Erwartetes Ergebnis
 
-- Lauf mit Drift in ≥ 2 Spec-Dateien erzeugt genau EINEN PR: Branch `chore/spec-sync-all`, Titel `docs(spec): Ist-Stand-Sync <datum>`, Body mit komplettlem Per-Datei-Report
+- Lauf mit Drift in ≥ 2 Spec-Dateien erzeugt genau EINEN PR: Branch `chore/spec-sync-all`, Titel `docs(spec): Ist-Stand-Sync <datum>`, Body mit komplettem Per-Datei-Report
 - `VERDICT: synced` → kein Push, kein PR
 - Offener PR mit Pipeline-Label → Lauf setzt mit Notice aus
 - Offener PR ohne Label → PR wird aktualisiert, Review angestoßen
