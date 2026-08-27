@@ -22,6 +22,12 @@ const mockAuthenticated = async (page: Page): Promise<void> => {
 	);
 };
 
+// Test-Pflege (Impl-Phase, dokumentiert im PR-Body): ohne gespeicherte Präferenz bleibt
+// `enabled=false` (Default aus, #845) und der Footer rendert nie position/address.
+const enableGeolocationPreference = async (page: Page): Promise<void> => {
+	await page.addInitScript(() => localStorage.setItem('pp-geolocation-enabled', 'true'));
+};
+
 const mockReverseGeocode = async (page: Page, address: string | null): Promise<void> => {
 	await page.route('**/reverse-geocode*', (route: Route) => {
 		if (address === null) {
@@ -44,6 +50,7 @@ test.use({
 test.describe('Fußzeile: Adresse statt Koordinaten (#1073)', () => {
 	test('AK1 + AK3: zeigt die Adresse, getrennt von der Version mit " | "', async ({ page }) => {
 		await mockAuthenticated(page);
+		await enableGeolocationPreference(page);
 		await mockReverseGeocode(page, ADDRESS);
 		await page.goto('/');
 
@@ -57,6 +64,7 @@ test.describe('Fußzeile: Adresse statt Koordinaten (#1073)', () => {
 
 	test('AK2 + AK3: bei ausbleibender Adresse erscheinen die Koordinaten als Fallback', async ({ page }) => {
 		await mockAuthenticated(page);
+		await enableGeolocationPreference(page);
 		await mockReverseGeocode(page, null);
 		await page.goto('/');
 
@@ -71,6 +79,7 @@ test.describe('Fußzeile: Adresse statt Koordinaten (#1073)', () => {
 	test('AK6: Fußzeile bleibt bei 375px Viewport vollständig im Viewport (lange Adresse)', async ({ page }) => {
 		await page.setViewportSize({ width: 375, height: 812 });
 		await mockAuthenticated(page);
+		await enableGeolocationPreference(page);
 		await mockReverseGeocode(page, ADDRESS);
 		await page.goto('/');
 
