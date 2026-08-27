@@ -5,7 +5,7 @@ Method, rules, and output block structure (binding, not repeated here): .claude/
 PROCEDURE (STRICT):
   1. Start IMMEDIATELY.
   2. Load the issue body: gh issue view {{ISSUE_NR}} --json body -q .body
-  3. Read the analysis block: the section between <!-- KI-ANALYSE:START --> and <!-- KI-ANALYSE:END --> in the issue body (UI relevance, acceptance criteria, implementation context) — the UX review runs BEFORE the spec.
+  3. Read the analysis block: the section between <!-- KI-ANALYSE:START --> and <!-- KI-ANALYSE:END --> in the issue body — the fields are named in German there: `UI-Bezug`, `Akzeptanzkriterien`, `Umsetzungskontext`. The UX review runs BEFORE the spec.
   4. Read the design-system rules (locally, no browser calls):
      - .ai-knowledge/ux-design.md — what it looks like: color roles, scale tokens, component choice (KoliBri first)
      - docs/mobile-ui-rules.md — how it's operated: mobile-first, touch zones (≥44px), thumb reach, async states, anti-patterns

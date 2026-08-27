@@ -49,7 +49,7 @@ Check the diff against these questions:
 - **Performance:** avoidable O(n²) loops, N+1 queries (Sequelize), unnecessary allocations/re-reads.
 - **Security:** input validation, injection (SQL/path), secrets in code, missing authorization checks.
 - **Regression/obsolescence:** does the change make existing tests or behavior **outside the
-  diff** obsolete, or contradict them (requirement changed)? **Note:** obsolete tests should already have been removed at the spec stage (ticket-spec.md). If a contradiction still turns up anyway → name it as a finding ("test maintenance needed" with file/line) — don't silently accept it, but also don't change it yourself (a human, or a follow-up spec, decides on the adjustment/removal).
+  diff** obsolete, or contradict them (requirement changed)? **Note:** obsolete tests should already have been removed at the spec stage (ticket-spec.md). If a contradiction still turns up anyway → name it as a finding (`Test-Pflege-Bedarf`, the German section literal, with file/line) — don't silently accept it, but also don't change it yourself (a human, or a follow-up spec, decides on the adjustment/removal).
 - **KoliBri-first for UI changes** ([design language § 4](../../../.ai-knowledge/ux-design.md#4-komponentenwahl--kolibri-zuerst)): custom styling without a KoliBri alternative?
   When in doubt, search for alternatives via `mcp__kolibri-mcp__search`. A missing justification for
   a custom-styling decision in the PR body is a finding.
