@@ -1,61 +1,48 @@
-# Review PR #1052 — docs(user-guide)-Sync, Mode: Kreuzverhör (Erstrunde)
+# Review PR #1052 — docs(user-guide)-Sync, Runde 2: Fixup-Nachweis (reviewed)
 
 ## Erledigt
-- MODE bestimmt: kein `<!-- ai-review -->`-Kommentar vorhanden → Kreuzverhör (Erstrunde).
-- PR-Metadaten + voller Diff gelesen: nur `docs/user-guide.md`, 25+/19−, 2 Commits
-  (e7d7eba1 + Merge von main). Kein closing issue → Vertrag ist der Guide-Sync-Report im PR-Body.
-- Alle 8 „Fund“-Behauptungen des Reports gegen Code verifiziert — ALLE bestätigt:
-  - F1: App.tsx:387-439 toolbarItems = 6 Buttons, erster = „Suche“ (Lupe). ✓
-  - F2: SearchModal.tsx (Dialog „Suche“, „Suchbegriff eingeben“, „Suche starten“/„Abbrechen“, Enter);
-    App.tsx:638-647 → setActiveTab(1)=Aufgaben + setSearchDraft + applyTaskFilter; taskSearch
-    filtert nach Titel (App.tsx:219 filterForestByTitle, :227 title.includes). ✓
-  - F3: App.tsx:53 VIEW_TABS[3]=‚Wald‘. ✓ Stichwort „Aufgabenwald“ bleibt (guide.md:350ff) → AK 2.6 ok.
-  - F4: CompletedTasksTable/pillar.ts:218-226 getTaskPillarPoints = effort × share/100;
-    Dashboard.tsx:108-127 Gesamtguthaben; säulenlose Done-Tasks nach weight/totalWeight;
-    grep ‚scores‘ über frontend/src = leer. ✓ AK 2.8 (Punkte/Gamification-Stichwörter) erhalten.
-  - F5: dailyTopTasks.ts (Top 3 nach Priorität, dedup pro Kalendertag), dueTaskReminders.ts
-    (24h-Fenster, dedup pro task+deadline), scheduler/index.ts (1× täglich). ✓
-  - F6: UpdatePrompt.tsx:39-45 KolCard „Offline einsatzbereit“ unten fixiert, nicht installationsgebunden. ✓
-  - F7: SearchModal.tsx:45-51 VoiceField ums Suchfeld. ✓
-  - F8: EmptyState.tsx:12-19 „Noch keine Aufgaben“/„Ersten Task anlegen“, App.tsx:512. ✓
-- CI: e2e (×4) + verify grün, review pending (= dieser Lauf).
-- Titel-Gate: „docs(guide): Ist-Stand-Sync 2026-08-27“ — deutscher/Großbuchstaben-Subject →
-  umbenannt zu „docs: sync user guide with the actual app state (2026-08-27)“.
-- 2 Findings als Review (event=COMMENT) mit Inline-Kommentaren gepostet — Review-ID 5037066026.
-- Sammelkommentar (Marker, 🟡/needs-fixup) erstellt — Kommentar-ID 5434142764
-  (nächste Runde: PATCH repos/…/issues/comments/5434142764, nicht neu anlegen).
-- Verdict needs-fixup nach /tmp/claude-verdict geschrieben.
+- MODE bestimmt: `<!-- ai-review -->`-Marker vorhanden (Kommentar 5434142764,
+  updatedAt 2026-08-27T03:52:08Z) → Fixup-Nachweis, kein neues Kreuzverhör.
+- Fixup-Diff seit updatedAt: genau 1 Commit **45463a16**, nur `docs/user-guide.md` 6+/5−.
+- Finding 1 (guide.md:377) als behoben verifiziert: neuer Text „fließen ins
+  **Dashboard-Gesamtguthaben** ein, verteilt nach deiner Säulen-Gewichtung — in der
+  Erledigt-Tabelle zeigen sie 0 Punkte je Spalte" — stimmt mit Code überein
+  (Dashboard.tsx:112-127: Done-ohne-Pillar → `estimatedEffort * pillar.weight/totalWeight`;
+  pillar.ts:218-226: `share ?? 0` → 0 Punkte/Spalte in Erledigt-Tabelle).
+- Finding 2 (guide.md:430) als behoben verifiziert: „als **je eine gebündelte Nachricht** …
+  — sowie **separat** deine drei wichtigsten offenen Aufgaben" = zwei separate Push
+  (dailyTopTasks/dueTaskReminders, Runde 1 verifiziert, Code unverändert).
+- Adversarial-Check des Fixup-Diffs: keine neuen Probleme (Docs-only, Formulierungen
+  deckungsgleich mit den Review-Vorschlägen aus Runde 1).
+- Titel-Gate: „docs: sync user guide with the actual app state (2026-08-27)" — CC-konform,
+  KEIN erneutes Umbenennen.
+- Sammelkommentar 5434142764 per PATCH aktualisiert: Status reviewed, beide Findings in
+  „Behobene Anmerkungen"-Tabelle, Footer „Review-Typ: Fixup-Nachweis".
+- Verdict `reviewed` nach /tmp/claude-verdict geschrieben.
 
 ## Relevante Stellen
-- docs/user-guide.md:377 — Finding 1: „zählen gleichmäßig … ein“ gilt nur fürs Dashboard-
-  Gesamtguthaben; Erledigt-Tabelle zeigt säulenlose Tasks mit 0 je Spalte
-  (pillar.ts getTaskPillarPoints, share ?? 0). „gleichmäßig … gewichtet“ zudem widersprüchlich.
-- docs/user-guide.md:430 — Finding 2: „jeweils gebündelt in einer Nachricht: … sowie …“ liest
-  sich als EINE Nachricht; real ZWEI separate Push (dailyTopTasks + dueTaskReminders, eigene
-  kinds/titles). PR-Body selbst sagt „zwei gebündelte Nachrichten“.
-- PR-Body „Offene Unklarheiten“ (Server-/scores ungenutzt, Push-Stunde ENV, Abmelden-Icon):
-  bewusst nicht geändert, dokumentiert — nicht re-litigiert.
+- docs/user-guide.md:377-379 (Finding-1-Fix), :430-433 (Finding-2-Fix).
+- frontend/src/components/Dashboard.tsx:112-127 (Gesamtguthaben-Verteilung säulenloser
+  Done-Tasks), frontend/src/lib/pillar.ts:218-226 (getTaskPillarPoints, share ?? 0).
 
 ## Annahmen
-- Kein verlinktes Issue → AK 2.6/2.8 aus dem PR-Body als Vertrag genommen (Quell-Issue nicht
-  identifizierbar; Suche „user-guide sync“/„Benutzerhandbuch“ leer).
-- Docs-only → keine Test-Pflicht (reine Doku), KoliBri/Mobile-first entfallen.
+- CI für 45463a16 war beim Verfassen pending, nicht rot (e2e ×4 + review); docs-only →
+  kein Blocker, pr-gate-merge prüft final.
+- Runde-1-Verifikation der 8 Fund-Stellen bleibt gültig (Fixup touched nur Doku).
 
 ## Verworfen
-- Findings zu Fund 6/„Verstanden“-Button und „gleichmäßig gewichtet“-Wortlaut des Code-Kommentars
-  (Dashboard.tsx) — Letzterer ist Code-Kommentar, nicht Nutzerdokumentation.
-- needs-human für „Server-vergibt-Punkte-ohne-Anzeige“: vorbestehendes Produkt-Debt, im PR-Body
-  als Offene Unklarheit dokumentiert, kein Entscheidungs-Bedarf DIESER PR-Änderung.
+- Erneutes Kreuzverhör des Gesamtdiffs (MODE Fixup-Nachweis verbietet es).
+- Finding zum Edge-Case `totalWeight === 0` (dann kein Dashboard-Eintrag säulenloser
+  Tasks): pre-existing Code-Edge, für Nutzer-Doku irrelevant.
 
 ## Offen
-- -
+- e2e ×4 + review-Check für 45463a16 liefen noch pending — falls danach rot, greift
+  pr-gate-merge (ai:needs-changes), nicht dieser Review.
 
 ## Nächster Schritt
-- Fixup-Runde abwarten; dann MODE=Fixup-Nachweis: nur diff seit updatedAt der Sammelkommentar-ID
-  prüfen, Findings 1+2 (guide.md:377/:430) auf Behebung nachsehen, NICHT neu kreuzverhören.
+- keiner (Review abgeschlossen, verdict reviewed; Pipeline übernimmt Merge-Gate).
 
 ## Fallstricke
-- Sammelkommentar-ID nach dem Erstellen nicht vergessen/notieren — nächster Lauf PATCHt sie,
-  statt einen neuen Marker-Kommentar anzulegen.
-- Finding-Nummern stabil halten: 1 = guide.md:377 (Punkte säulenlos), 2 = guide.md:430 (Push eine/zwei Nachrichten).
-- Titel bereits umbenannt — in Folgerunden nicht erneut umbenennen.
+- Kommentar-Body per Datei unter `.ai-memory/` + `-F body=@datei` (Bash-Parser-Klammern,
+  Learning 2026-08-26); Datei danach gelöscht.
+- Finding-Nummern stabil: 1 = guide.md:377, 2 = guide.md:430 — in Tabelle beibehalten.

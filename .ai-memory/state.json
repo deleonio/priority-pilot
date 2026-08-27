@@ -1,10 +1,10 @@
 {
   "phases": {
     "review": {
-      "sessionId": "3a972f35-c333-438f-9f55-8c5f99091afb",
-      "runId": "33037318777",
+      "sessionId": "96e3cc59-1518-4d12-a833-fbbfb34e0667",
+      "runId": "33040781132",
       "branch": "chore/user-guide-sync",
-      "timestamp": "2026-08-27T03:52:40Z"
+      "timestamp": "2026-08-27T04:56:35Z"
     },
     "fixup": {
       "sessionId": "7f937ad6-1300-4e4d-b377-09256e2cda8b",
