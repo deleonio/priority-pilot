@@ -1,32 +1,38 @@
-# Issue 1063 — Triage (Geo-Badge in Listen)
+# Issue 1063 — Triage (Geo-Badge in Listen; Re-Triage nach Reopen)
 
 ## Erledigt
-- Issue-Body + Kommentare geladen (nur 1 Bot-Kommentar `ai-quality`, keine Entscheidungen) — Initial-Triage.
-- Code-Recherche Geolocation: `address` existiert NUR am Task (`server/src/models/task.ts:37`, Spalte wird in `server/src/index.ts:182` nachgezogen). Serie hat KEIN address-Feld (`server/src/models/series.ts:20-45`, nichts); `SeriesCreate` in `frontend/src/components/TaskForm.tsx:560-570` schickt kein address.
-- Listen-Recherche: `TaskTable.tsx` ist ungenutzt (kein `<TaskTable` im Repo ausser Test). Live: `TaskTree` (App.tsx:573+587) und `CompletedTasksTable` (App.tsx:600+610). Serienliste: `SeriesTab.tsx` (series-tree-row, Zeile ~146 Rhythmus-Badge als Vorbild).
-- Verdict: needs-human (siehe Offen), Decision-Kommentar mit Marker gepostet, Label `ai:needs-human` gesetzt, `ai:needs-analyse` entfernt. Body/Title unveraendert.
+- Re-Triage nach Reopen: Delta-Kommentar seit stand=2026-08-27T17:54:18Z gelesen — genau einer, @deleonio 18:42:18Z: „in der aufgabenliste fehlt das icon!" (Issue war nach Merge PR #1064, mergeCommit 7b815d91, 18:34:57Z wieder geöffnet worden).
+- Code-Verifikation auf main (13726f4): Badge-Code gelandet — GeoBadge.tsx, SeriesTab.tsx:148, CompletedTasksTable.tsx:127; Task-API serialisiert `address` (server/src/express/routes/tasks.ts:92) → Erledigt-Liste funktioniert, KEIN Bug dort.
+- Begriffs-Klärung: „Aufgabenliste" = `TaskTree` im Repo-Jargon (frontend/src/lib/popoverAlign.ts:13: „…"-Menüs der Aufgabenliste (`TaskTree`)); Erledigt-Liste heisst überall „Erledigt-Liste"/„Liste der erledigten Aufgaben" → Kommentar ist eine Scope-Revision des Entscheiders selbst (widerruft „Nicht im TaskTree"), nicht ein Bug-Report. Eindeutig, kein needs-human nötig.
+- Analyse-Block neu geschrieben (stand=2026-08-27T18:47:32Z): Revision dokumentiert, Delta-Umsetzungskontext (nur TaskTree + e2e-Flip), AK1–AK3 (Delta + Bestand), Ampel 🟢, keine offenen Fragen. Routing-Tabelle mitgeschrieben (ux ja/haiku/low, spec ja/sonnet/medium, impl ja/sonnet/high, review ja/sonnet/high).
+- Titel geändert (eine substanzielle Korrektur): „Geo-Badge für Ortsbezug in Aufgaben-, Erledigt- und Serienliste (address für Serien)".
+- Labels: `ai:analysed` + `ai:needs-ux-ui` gesetzt, `ai:needs-analyse` entfernt; `ai:model:sonnet` belassen (impl-Zeile = sonnet). Verifiziert per Re-Query.
+- Kein Ping-Kommentar (eindeutiger Ausgang — Body-Block + Labels sind die komplette Kommunikation).
 
 ## Relevante Stellen
-- `server/src/models/task.ts:37` — `address?: string | null`, einzige Geolocation-Datenquelle.
-- `frontend/src/components/TaskForm.tsx:579` — TaskUpdate setzt address (Geocoding via `useAddressSearch`).
-- `frontend/src/components/SeriesTab.tsx:146` — Serien-Zeile: `series-tree-badge--rhythm` = Styling-Vorbild fuer Badge.
-- `frontend/src/components/TaskTree.tsx` / `CompletedTasksTable.tsx` — die echten Aufgabenlisten.
-- `frontend/src/components/TaskTable.tsx` — ungenutzt/tot (nur eigener Test).
+- `frontend/src/components/TaskTree.tsx:84` — `task-list-item-<id>` Anker; `:90` `.task-tree-badges` — Ziel-Slot fürs GeoBadge (neben Serie/geändert/Fortschritt/Priorität).
+- `frontend/src/components/GeoBadge.tsx` — bestehende Badge-Komponente (testid `geo-badge`, aria-label, `fa-solid fa-globe`), unverändert wiederverwenden.
+- `frontend/e2e/issue-1063-geo-badge.spec.ts` — enthält TaskTree-NEGATIV-Assertion, die gedreht werden muss (jetzt positiv).
+- `frontend/src/components/SeriesTab.tsx:148` / `CompletedTasksTable.tsx:127` — gemergte Vorbilder für den Badge-Einbau.
+- `.ai-memory/issue-1063-body-new.md` — aktuell geschriebener Issue-Body (Quelle der Wahrheit).
 
 ## Annahmen
-- Geolocation == `address`-Feld (String aus Forward-Geocoding), keine Lat/Lon-Spalten.
+- „aufgabenliste" im Kommentar meint den TaskTree (offene Aufgaben), nicht die Erledigt-Liste — gestützt auf Repo-Terminologie, funktionierende Erledigt-Liste und Original-Issue-Text („Aufgabenlisten"); Risiko als gering eingeschätzt, da selbst beim Fehlgriff das Original-Ticket genau dieses wollte.
+- KI-UX-Block im Body bleibt gültig und wird von der UX-Phase (haiku/low) um die TaskTree-Position ergänzt.
 
 ## Verworfen
-- Analyse-Block + Ampel schreiben: verboten bei Unklarheit (Skill Schritt 3/5) — Serien-Teil der AKs ist mit heutigem Modell unerfuellbar.
-- Titel-Edit: "Geo badge an aufgabenliste" ist unvollständig (Serie fehlt), aber Scope-Entscheidung steht aus → nicht vorweggenommen.
+- needs-human-Runde: Kommentar ist vom selben Entscheider, der die Eingrenzung „nicht im TaskTree" traf — neuere Aussage gewinnt, eindeutig auswertbar.
+- Bug-Hypothese Erledigt-Liste: Code + Serialisierung + e2e (3/3 grün in Impl-Phase) belegen Funktion.
+- Copyedit des Issue-Texts: unverändert gelassen, kein pro-forma-Edit (Skill Schritt 2).
 
 ## Offen
-- Menschenentscheidung ausstaendig (Option A nur Tasks vs. Option B Series-Modell um address erweitern; welche Zaehlen als Aufgabenlisten). Blockiert alles weitere.
+- keine
 
 ## Nächster Schritt
-- Re-Triage nach Decision-Kommentar: nur DIESEN Kommentar + alle danach lesen (binding), dann Analyse-Block + Routing-Tabelle in den Body, Label gemaess Ampel setzen.
+- UX-Phase läuft als Nächstes (Label `ai:needs-ux-ui` gesetzt): KI-UX-Block um Badge-Position in der TaskTree-Zeile (`.task-tree-badges`) erweitern.
 
 ## Fallstricke
-- Bei Option B: DB-Spalte analog `server/src/index.ts:182` (address-Spalte nachziehen) + OpenAPI-Client neu generieren, sonst fehlt `address` im `Series`-Typ.
-- Nicht fälschlich `TaskTable` anpassen — Komponente ist unbenutzt; wirksame Stellen sind TaskTree/CompletedTasksTable.
-- Emoji 🌍 vs. KoliBri-Icon: KolIcons-Font kennt vermutlich keinen Globus; Font Awesome (`fa-solid fa-globe`) ist im Projekt etabliert (SeriesTab nutzt `fa-solid fa-pen`) — Empfehlung im Decision-Kommentar steht.
+- In `frontend/e2e/issue-1063-geo-badge.spec.ts` MUSS die TaskTree-Negativ-Assertion gedreht werden, sonst ist der neue Vertrag inkonsistent (Spec-Phase: Tests ändern ist dort zulässig, Separation of Duties gilt pro PR).
+- TaskTree nicht umbauen — Badge NUR in `.task-tree-badges` ergänzen; bestehende Badges/Popover-Aktionen unangetastet lassen.
+- Body-Edit künftig ohne python3/heredoc im Bash-Tool (Permission-Gates): Body per Write in `.ai-memory/issue-*.md` bauen + `gh issue edit --body-file` — hat diesmal sauber funktioniert.
+- Routing-Tabelle bleibt ASCII-only (Maschinen-geparst); Analyse-Block darf Umlaute/typografische Anführungszeichen enthalten.
