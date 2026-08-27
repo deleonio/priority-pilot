@@ -1,40 +1,40 @@
-FOKUS: NUR Issue {{ISSUE_NR}}. NUR rote Tests je Akzeptanzkriterium (mit Dedup), kein Produktivcode. KEINE Abstecher. Token sparen: kurz, präzise, direkt.
+FOCUS: ONLY issue {{ISSUE_NR}}. ONLY red tests per acceptance criterion (with dedup), no production code. NO side trips. Save tokens: short, precise, direct.
 
-⚠️ KI-UX-Block: Falls das Issue UX-Aspekte hat (KI-UX:END-Block im Issue-Body vorhanden), UX-Anforderungen aus diesem Block bei der Spec-Ableitung beachten.
+⚠️ KI-UX block: if the issue has UX aspects (a KI-UX:END block present in the issue body), take the UX requirements from that block into account when deriving the spec.
 
-Methode, Test-Konzept und Regeln (verbindlich, hier nicht wiederholt): .claude/skills/ticket-spec/SKILL.md — lies sie vor dem ersten Test.
+Method, test concept, and rules (binding, not repeated here): .claude/skills/ticket-spec/SKILL.md — read it before the first test.
 
 {{RESUME_HINT}}
 
-ABLAUF (STRIKT):
-  1. SOFORT starten.
-  2. Fortsetzungs-Hinweis (oben) prüfen:
-     - Falls gesetzt (Draft-Wiederverwendung): BESTEHENDEN Branch auschecken
-       (git fetch origin && git switch $DRAFT_BRANCH). NICHT neuen Branch anlegen.
-       Bestehende Commits/Tests ansehen (git log, gh pr view), Stand verstehen.
-       Weiterarbeiten auf bestehendem Stand — NICHT alles neu schreiben.
-     - Falls NICHT gesetzt (Neu-Lauf): Neuen Branch anlegen:
-       git switch -c feat/issue-{{ISSUE_NR}}-<kurzname>.
-     Akzeptanzkriterien primär aus BODY-BLOCK des Issues entnehmen:
-     gh issue view {{ISSUE_NR}} --json body -q .body (Abschnitt zwischen <!-- KI-ANALYSE:START --> und <!-- KI-ANALYSE:END -->).
-  3. SPEC-FIRST — Spezifikation VOR Test-Ableitung aktualisieren (Regel: SKILL.md Schritt 2):
-     docs/spec/*.md prüfen, existierenden erweitern oder neuen anlegen, im gleichen Commit wie die Tests.
-  4. ROTE Tests schreiben — aus dem Spec abgeleitet (Regelwerk inkl. Dedup, Mutations-Probe,
-     Spec-PR-Scope: SKILL.md Schritt 3 — lies den Abschnitt, bevor du den ersten Test schreibst).
-  5. Rote Tests als ERSTEN Commit (test: rote Spec-Tests für {{ISSUE_NR}}), Branch pushen.
-     DRAFT-PR erstellen (gh pr create --draft) mit Closes #{{ISSUE_NR}} im Body. KEIN ai:needs-review setzen.
+PROCEDURE (STRICT):
+  1. Start IMMEDIATELY.
+  2. Check the resume hint (above):
+     - If set (draft reuse): check out the EXISTING branch
+       (git fetch origin && git switch $DRAFT_BRANCH). Do NOT create a new branch.
+       Look at existing commits/tests (git log, gh pr view), understand the state.
+       Continue on the existing state — do NOT rewrite everything.
+     - If NOT set (fresh run): create a new branch:
+       git switch -c feat/issue-{{ISSUE_NR}}-<short-name>.
+     Take acceptance criteria primarily from the issue's BODY BLOCK:
+     gh issue view {{ISSUE_NR}} --json body -q .body (the section between <!-- KI-ANALYSE:START --> and <!-- KI-ANALYSE:END -->).
+  3. SPEC-FIRST — update the specification BEFORE deriving tests (rule: SKILL.md step 2):
+     check docs/spec/*.md, extend the existing one or create a new one, in the same commit as the tests.
+  4. Write RED tests — derived from the spec (rules incl. dedup, mutation check,
+     spec-PR scope: SKILL.md step 3 — read that section before writing the first test).
+  5. Commit the red tests as the FIRST commit (test: red spec tests for {{ISSUE_NR}}), push the branch.
+     Create a DRAFT PR (gh pr create --draft) with Closes #{{ISSUE_NR}} in the body. Do NOT set ai:needs-review.
 
-⚠️ LABELS: KEINE Labels setzen! Workflow übernimmt das automatisch.
+⚠️ LABELS: do NOT set labels! The workflow handles that automatically.
 
-VERDICT: GANZ AM ENDE GENAU EINE Zeile, NUR der Token — kein Text dahinter (der Workflow parst die Zeile maschinell):
+VERDICT: exactly ONE line at the very end, ONLY the token — no text after it (the workflow parses the line by machine):
   - VERDICT: ready
   - VERDICT: spec-partial
-  (ready = rote Tests geschrieben + Draft-PR erstellt → gibt Issue zur Umsetzung frei;
-   spec-partial = Partial – Tests unvollständig, braucht Folgelauf)
+  (ready = red tests written + draft PR created → releases the issue for implementation;
+   spec-partial = partial — tests incomplete, needs a follow-up run)
 
-EHRLICHKEITS-REGEL: VERDICT: ready NUR ausgeben, wenn Draft-PR tatsächlich existiert UND mindestens eine Test-Datei committed+gepusht ist (vorher mit gh pr view/git log verifizieren).
+HONESTY RULE: only output VERDICT: ready if the draft PR actually exists AND at least one test file has been committed+pushed (verify first with gh pr view/git log).
 
-KEIN Ping-Kommentar: Draft-PR + Tests sind die vollständige Kommunikation. KEINE zusätzlichen Kommentare am Issue oder PR.
-Uneindeutige Akzeptanzkriterien sind KEIN Grund zum Raten: Wenn ein AK nicht testbar formulierbar ist, Test mit passendem Grund überspringen und im PR-Body unter "Offene Fragen" sammeln — nicht per Kommentar streuen.
+NO ping comment: the draft PR + tests are the complete communication. NO extra comments on the issue or PR.
+Ambiguous acceptance criteria are NOT a reason to guess: if an acceptance criterion can't be phrased testably, skip the test with a matching reason and collect it in the PR body under "Offene Fragen" (open questions) — don't scatter it across comments.
 
-ZEITLIMIT: Soft-Deadline = {{SOFT_DEADLINE}}. Vor jedem Schritt: [ $(date +%s) -ge {{SOFT_DEADLINE}} ]. Bei OVER: aktuellen Stand committen+pushen als Draft-PR, Turn beenden.
+TIME LIMIT: soft deadline = {{SOFT_DEADLINE}}. Before every step: [ $(date +%s) -ge {{SOFT_DEADLINE}} ]. If OVER: commit+push the current state as a draft PR, end the turn.

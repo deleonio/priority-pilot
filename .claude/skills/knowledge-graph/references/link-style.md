@@ -1,65 +1,67 @@
-# Link-Stil (Wissensgraph)
+# Link Style (Knowledge Graph)
 
-Verbindliche Formate für alle Kanten im Geltungsbereich des Skills. Der Stil folgt dem
-Bestand in `.ai-knowledge/` — dort nichts umstellen, nur fortführen.
+Mandatory formats for all edges within the skill's scope. The style follows the
+existing conventions in `.ai-knowledge/` — don't change anything there, only continue it.
 
-## Grundregel
+## Basic rule
 
-Relative Markdown-Links in GitHub-Syntax. Obsidian baut Graph View und Backlinks aus genau
-diesen Links — dieselbe Kante wirkt in beiden Welten. Wiki-Links sind verboten, weil GitHub
-sie nicht rendert.
+Relative Markdown links in GitHub syntax. Obsidian builds Graph View and backlinks from exactly
+these links — the same edge works in both worlds. Wiki links are forbidden because GitHub
+doesn't render them.
 
-## Formate mit Repo-Beispielen
+## Formats with repo examples
 
-Innerhalb eines Ordners (z. B. `.ai-knowledge/` → `.ai-knowledge/`):
+Within a single folder (e.g. `.ai-knowledge/` → `.ai-knowledge/`):
 
 ```markdown
 - Ticket-Ablauf: [Ticket-Umsetzung](ticket-implementation.md), Regeln: [Projekt-Konventionen](project.md#konventionen)
 - Testumfang: [TDD-Strategie → Testumfang](tdd-strategy.md#testumfang--so-viel-wie-nötig-so-wenig-wie-irgend-möglich)
 ```
 
-Zwischen Ordnern (z. B. `.ai-knowledge/` → `docs/`):
+Between folders (e.g. `.ai-knowledge/` → `docs/`):
 
 ```markdown
 - Begründung in [ADR 0001](../docs/adr/0001-github-workflows-bleiben-ungetestet.md)
 - Konzept: [Testing](../docs/testing.md#4-abgrenzung)
 ```
 
-Von `AGENTS.md`/`README.md` (Repo-Root) in Unterordner — Pfad mit Ordner:
+From `AGENTS.md`/`README.md` (repo root) into a subfolder — path with folder:
 
 ```markdown
 - [TDD-Strategie](.ai-knowledge/tdd-strategy.md) — test-getriebene KI-Workflows (Stufen 1+2+3 adoptiert)
 ```
 
-## Anker-Regeln
+(These examples are quoted verbatim from the still-German `.ai-knowledge/` content — keep them as-is.)
 
-Anker sind GitHub-Autoidentifikation der Zielüberschrift: kleingeschrieben, Leerzeichen →
-Bindestriche, Satzzeichen außer Bindestrichen entfernt, Umlaute bleiben erhalten. Mehrfache
-Bindestriche kollabieren nicht (`nötig-so` → `--so`).
+## Anchor rules
 
-- Überschrift `## Testumfang — so viel wie nötig, so wenig wie irgend möglich`
-- Anker `#testumfang--so-viel-wie-nötig-so-wenig-wie-irgend-möglich`
+Anchors are GitHub's auto-generated ID of the target heading: lowercased, spaces →
+hyphens, punctuation other than hyphens removed, umlauts preserved. Repeated
+hyphens don't collapse (`nötig-so` → `--so`).
 
-Vor dem Setzen eines Ankers die Zieldatei lesen und den Anker aus der echten Überschrift
-ableiten — nicht raten.
+- Heading `## Testumfang — so viel wie nötig, so wenig wie irgend möglich`
+- Anchor `#testumfang--so-viel-wie-nötig-so-wenig-wie-irgend-möglich`
 
-## Index-Eintrag in `AGENTS.md`
+Before setting an anchor, read the target file and derive the anchor from the actual
+heading — don't guess.
 
-Eine Zeile pro `.ai-knowledge/`-Datei in der Wissensbasis-Liste (Anschnitt):
+## Index entry in `AGENTS.md`
+
+One line per `.ai-knowledge/` file in the knowledge-base list (excerpt):
 
 ```markdown
 - [Projekt & Aufbau](.ai-knowledge/project.md) — Zweck, Monorepo, Befehle, Datenbank
 ```
 
-Gedankenstrich mit je zwei Leerzeichen, danach ein Hook aus 3–8 Worten, der sagt, was die
-Datei liefert — nicht, wie sie heißt.
+Dash with two spaces on each side, then a hook of 3–8 words saying what the
+file provides — not what it's called.
 
-## Anti-Patterns
+## Anti-patterns
 
-- `[[Wiki-Links]]` — GitHub rendert sie nicht, der Graph verliert die GitHub-Seite.
-- Absolute Pfade (`/docs/…`) und URL-artige Repo-Pfade — sie brechen beim Lokal-Klon.
-- Zeilennummern-Anker (`datei.md#L42`) — brechen bei jeder Änderung der Zieldatei.
-- Links in Code-Blöcken und Inline-Code: ignorieren beim Prüfen, nie dort hinein setzen.
-- Externe URLs (github.com, …): gehören nicht zum internen Graphen; beim Audit nicht prüfen.
-- "Siehe auch"-Listen am Dateiende als Kanten-Ausweichlager — eine Kante gehört an die
-  Textstelle, wo der Bezug entsteht, sonst hat sie keinen Informationswert.
+- `[[Wiki links]]` — GitHub doesn't render them, the graph loses the GitHub side.
+- Absolute paths (`/docs/…`) and URL-style repo paths — they break on a local clone.
+- Line-number anchors (`file.md#L42`) — break on every change to the target file.
+- Links inside code blocks and inline code: ignore them when checking, never place one there.
+- External URLs (github.com, …): not part of the internal graph; don't check them during audit.
+- "See also" lists at the end of a file as a dumping ground for edges — an edge belongs at
+  the point in the text where the connection arises, otherwise it has no informational value.

@@ -1,19 +1,19 @@
-PR-Documenter für PR {{PR_NR}}. Analysiert gemergten PR, schreibt `/tmp/doc.json`. KEIN gh pr edit/comment/label.
+PR documenter for PR {{PR_NR}}. Analyzes the merged PR, writes `/tmp/doc.json`. NO gh pr edit/comment/label.
 
-Methode und Regeln (verbindlich, hier nicht wiederholt): .claude/skills/pr-documenter/SKILL.md.
+Method and rules (binding, not repeated here): .claude/skills/pr-documenter/SKILL.md.
 
-INPUTS (selbst lesen):
+INPUTS (read them yourself):
 - `gh pr diff {{PR_NR}}`
 - `gh pr view {{PR_NR}} --json title,body,files,labels,author`
-- {{LINKED_ISSUES}} (Kontext)
-- Titel konform = {{TITLE_OK}}, Typ/Scope = {{SUGGESTED_TYPE}}/{{SUGGESTED_SCOPE}}
+- {{LINKED_ISSUES}} (context)
+- title compliant = {{TITLE_OK}}, type/scope = {{SUGGESTED_TYPE}}/{{SUGGESTED_SCOPE}}
 
-OUTPUT (`/tmp/doc.json`): Struktur gemäß SKILL.md → Output.
+OUTPUT (`/tmp/doc.json`): structure per SKILL.md → Output.
 
-Regeln (Kurzform, Details SKILL.md):
-- `title`: Leer wenn {{TITLE_OK}}=true und Typ passt. Sonst Conventional Commits, englisch, klein, ≤72.
-- `files`: 3-8 relevanteste Dateien aus Diff
-- `issues`: Aus {{LINKED_ISSUES}} + Body ("Closes #", "Fixes #")
-- Nach Schreiben: `jq . /tmp/doc.json` prüfen
+Rules (short form, details in SKILL.md):
+- `title`: empty if {{TITLE_OK}}=true and the type fits. Otherwise Conventional Commits, English, lowercase, ≤72.
+- `files`: the 3-8 most relevant files from the diff
+- `issues`: from {{LINKED_ISSUES}} + body ("Closes #", "Fixes #")
+- After writing: verify with `jq . /tmp/doc.json`
 
-ZEITLIMIT: {{SOFT_DEADLINE}}. Bei OVER: Minimal-stand schreiben.
+TIME LIMIT: {{SOFT_DEADLINE}}. If OVER: write a minimal snapshot.

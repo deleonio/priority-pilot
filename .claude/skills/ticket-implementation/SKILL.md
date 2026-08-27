@@ -1,41 +1,43 @@
 ---
 name: ticket-implementation
-description: "Ticket-Umsetzung — freigegebene Issues test-getrieben umsetzen (Red-Green-Refactor), Spec-Draft-PR aufgreifen oder Direkt-Modus, GATE fahren, PR review-bereit machen; umfasst die Fixup-Nacharbeit nach Review (ADR 0005). Nutzen bei ‚implementiere Issue‘, CI-Phase 4."
+description: "Ticket implementation — implement approved issues test-driven (red-green-refactor), pick up the spec draft PR or run direct mode, drive the gate, make the PR review-ready; includes fixup follow-up work after review (ADR 0005). Use for 'implementiere Issue' (German: implement issue), CI phase 4."
 ---
 
-# Workflow: Ticket-Umsetzung (GitHub Issues)
+# Workflow: Ticket Implementation (GitHub Issues)
 
-Nutzen für freigegebene Tickets — setzt sie in Code um. Follows **Red → Green → Refactor** gegen die roten Tests aus der Spec-Stufe.
+Use for approved issues — turns them into code. Follows **Red → Green → Refactor** against the red tests from the spec stage.
 
-**Auswahlkriterium:** Offene Issues mit Label `ai:needs-impl`, die **noch nicht zugewiesen** sind. Die Zuweisung ist die „in Arbeit"-Markierung.
+Note: this file's prose is English; PR/comment text written to GitHub stays German — that content is for the project's German-speaking contributors.
 
-## Schritt 1 — Ticket wählen & sich zuweisen
+**Selection criterion:** Open issues with the label `ai:needs-impl` that are **not yet assigned**. The assignment is the "in progress" marker.
 
-- Offene, freigegebene, noch nicht zugewiesene Issues finden: `gh issue list --state open --label "ai:needs-impl" --json number,title,assignees --jq '[.[] | select(.assignees | length == 0)] | .[] | "\(.number)\t\(.title)"'`
-- Eine konkret übergebene Nummer hat Vorrang.
-- **Sich selbst zuweisen:** `gh issue edit <nr> --add-assignee @me`
-- Kontext + Analyse laden: den Analyse-Block aus dem **Body** lesen (`gh issue view <nr> --json body -q .body`); fehlt er, Fallback auf den jüngsten `🤖 KI-Analyse`-Kommentar.
-- **Spec-Draft-PR aufgreifen (Regelfall):** Ihn finden und auschecken: `gh pr list --state open --draft --json number,headRefName,closingIssuesReferences` → den PR wählen, dessen `closingIssuesReferences` `<nr>` enthält.
-  **Fallback bei leerem `closingIssuesReferences`:** PR-Body prüfen, aber **NUR mit Closing-Keyword** — `grep -Ei "(clos(e|es|ed)|fix(es|ed)?|resolv(e|es|ed))[[:space:]]*:?[[:space:]]*#?<nr>([^0-9]|$)"`. Eine bloße Erwähnung der Nummer zählt **NICHT** (sonst checkt man einen fremden PR aus, der das Issue nur beschreibt — dieselbe Falle wie in `.github/scripts/pr-for-issue.sh`). Dann `git fetch origin` und `git switch <headRefName>`.
-- **Idempotenz:** Existiert **kein** Draft-PR, aber ein **Nicht-Draft-PR** mit Closing-Keyword → Umsetzung schon gelaufen → Lauf beenden. Sonst gilt der **Direkt-Modus** (eigener Branch + Tests selbst schreiben).
+## Step 1 — Select issue & assign yourself
 
-## Schritt 2 — Analyse lesen & schnell verifizieren
+- Find open, approved, not-yet-assigned issues: `gh issue list --state open --label "ai:needs-impl" --json number,title,assignees --jq '[.[] | select(.assignees | length == 0)] | .[] | "\(.number)\t\(.title)"'`
+- A specifically given number takes priority.
+- **Assign yourself:** `gh issue edit <nr> --add-assignee @me`
+- Load context + analysis: read the analysis block from the **body** (`gh issue view <nr> --json body -q .body`); if missing, fall back to the most recent `🤖 KI-Analyse` comment.
+- **Pick up the spec draft PR (the normal case):** find and check it out: `gh pr list --state open --draft --json number,headRefName,closingIssuesReferences` → choose the PR whose `closingIssuesReferences` contains `<nr>`.
+  **Fallback for an empty `closingIssuesReferences`:** check the PR body, but **ONLY with a closing keyword** — `grep -Ei "(clos(e|es|ed)|fix(es|ed)?|resolv(e|es|ed))[[:space:]]*:?[[:space:]]*#?<nr>([^0-9]|$)"`. A mere mention of the number does **NOT** count (otherwise you'd check out a foreign PR that only describes the issue — the same trap as in `.github/scripts/pr-for-issue.sh`). Then `git fetch origin` and `git switch <headRefName>`.
+- **Idempotency:** if **no** draft PR exists, but a **non-draft PR** with a closing keyword does → implementation already ran → end the run. Otherwise **direct mode** applies (own branch + write tests yourself).
 
-- **Akzeptanzkriterien + Testfälle** aus dem Body-Block übernehmen.
-- **Betroffene Dateien prüfen:** existieren die genannten Dateien noch?
-- **Ampel 🔴** → nicht umsetzen, begründet kommentieren und stoppen (`VERDICT: not-ready`).
-- **Ampel 🟢/🟡** → direkt weiter mit Schritt 3.
+## Step 2 — Read the analysis & quickly verify
 
-**Keine vollständige Re-Triage.** Die Triage-Stufe hat die Arbeit gemacht — die Umsetzung vertraut darauf.
+- Take the **acceptance criteria + test cases** from the body block.
+- **Check affected files:** do the files named there still exist?
+- **Traffic light 🔴** → don't implement, comment with a justification, and stop (`VERDICT: not-ready`).
+- **Traffic light 🟢/🟡** → proceed directly to step 3.
 
-## Schritt 3 — Umsetzen (test-getrieben: Red-Green)
+**No full re-triage.** The triage stage already did the work — implementation trusts it.
 
-- **Branch:** Im **Spec-Modus** ist der Branch bereits ausgecheckt. Im **Fallback-Modus** eigenen Branch anlegen: `git switch -c feat/issue-<nr>-<kurzname>`.
-- **(a) Red — Tests stehen vor dem Code:**
-  - **Spec-Modus:** Die **roten Tests liegen bereits** vor (aus der Spec-Stufe). Sie sind der **Vertrag** und werden **nicht geändert**.
-  - **Fallback-/Direkt-Modus** (Analyse hat die Spec bewusst übersprungen, Feld „Spec nötig: nein“): Branch selbst anlegen, umsetzen, committen, pushen und den PR **selbst erstellen** (`gh pr create`, **nicht** `--draft` — der PR geht direkt in den Review; ohne diesen Schritt gibt es nichts zu reviewen). **Testpflicht im Direkt-Modus:** Berührt man wider Erwarten doch Anwendungscode (`server/src/**`, `frontend/src/**`, `frontend/e2e/**`), schreibt man die Tests selbst mit — der Test-Carve-out ([ticket-spec](../ticket-spec/SKILL.md) Schritt 3, ADR 0001) gilt NUR für Workflows, Skripte, Config und Markdown. Ist der Umfang dadurch deutlich größer als gedacht, ist das ein Zeichen für eine Fehleinschätzung der Analyse: `VERDICT not-ready` und im PR-Body begründen.
-- **(b) Green — Code bis grün:** Produktivcode implementieren, bis **alle** Tests grün sind (`pnpm test`). Konventionen beachten (Tabs, `strict`, ESM). Bei **Frontend-Änderungen** gilt **KoliBri-First**: passende Komponente via KoliBri-MCP finden und einsetzen. Sichtbare UI-Änderungen zusätzlich per Playwright-MCP bei **375px- und 1280px-Viewport** gegen die laufende Inspect-Instanz prüfen.
-- **(c) Refactor & Gate (CI-Spiegel, vor jedem Commit):** Erst mit grünen Tests aufräumen, dann das lokale CI-Gate fahren:
+## Step 3 — Implement (test-driven: red-green)
+
+- **Branch:** in **spec mode** the branch is already checked out. In **fallback mode**, create your own branch: `git switch -c feat/issue-<nr>-<short-name>`.
+- **(a) Red — tests exist before the code:**
+  - **Spec mode:** the **red tests already exist** (from the spec stage). They are the **contract** and are **not changed**.
+  - **Fallback/direct mode** (the analysis deliberately skipped the spec, field "Spec nötig: nein" [spec needed: no]): create the branch yourself, implement, commit, push, and create the PR **yourself** (`gh pr create`, **not** `--draft` — the PR goes straight into review; without this step there is nothing to review). **Test obligation in direct mode:** if, against expectations, application code is touched after all (`server/src/**`, `frontend/src/**`, `frontend/e2e/**`), write the tests yourself too — the test carve-out ([ticket-spec](../ticket-spec/SKILL.md) step 3, ADR 0001) applies ONLY to workflows, scripts, config, and markdown. If the scope turns out to be significantly larger than expected as a result, that's a sign the analysis misjudged it: `VERDICT not-ready`, with a justification in the PR body.
+- **(b) Green — code until green:** implement production code until **all** tests are green (`pnpm test`). Follow conventions (tabs, `strict`, ESM). For **frontend changes**, **KoliBri-first** applies: find and use the matching component via KoliBri MCP. Additionally check visible UI changes via Playwright MCP at **375px and 1280px viewport** against the running inspect instance.
+- **(c) Refactor & gate (CI mirror, before every commit):** clean up only once tests are green, then run the local CI gate:
   ```
   pnpm format
   pnpm exec prettier --check .
@@ -43,48 +45,48 @@ Nutzen für freigegebene Tickets — setzt sie in Code um. Follows **Red → Gre
   pnpm knip
   pnpm test
   ```
-  Bei **geänderten UI-Dateien** zusätzlich den Impeccable-Detektor laufen: `node .claude/skills/impeccable/scripts/detect.mjs <dateien…>`. **SPARSAM:** Für Design-/Layout-Prüfung zuerst die deterministischen, billigen Werkzeuge (Detektor + Regeln aus `docs/mobile-ui-rules.md`); Playwright-MCP nur für den kurzen 375/1280-Layoutbruch-Check bei tatsächlich sichtbaren Änderungen (Screenshot + A11y-Snapshot), NICHT für explorative Design-Analysen.
-  **e2e:** `pnpm --filter frontend test:e2e` NUR, wenn die Änderung UI-Verhalten betrifft und ein e2e-Spec dafür existiert — sonst überspringen und im PR-Body vermerken.
-  **Bei Confirm-/Lösch-/Zerstör-Dialogen:** `docs/ux-pattern-sequential-confirmation.md` anwenden. **Bei sichtbarer UI:** `docs/mobile-ui-rules.md` anwenden (Touch-Targets ≥44px, async Zustände, Anti-Patterns).
-  Erst wenn alle grün sind, committen/pushen.
+  For **changed UI files**, additionally run the Impeccable detector: `node .claude/skills/impeccable/scripts/detect.mjs <files…>`. **SPARINGLY:** for design/layout checks, use the deterministic, cheap tools first (detector + rules from `docs/mobile-ui-rules.md`); use Playwright MCP only for the short 375/1280 layout-break check on actually visible changes (screenshot + A11y snapshot), NOT for exploratory design analysis.
+  **e2e:** `pnpm --filter frontend test:e2e` ONLY if the change affects UI behavior and an e2e spec exists for it — otherwise skip and note it in the PR body.
+  **For confirm/delete/destructive dialogs:** apply `docs/ux-pattern-sequential-confirmation.md`. **For visible UI:** apply `docs/mobile-ui-rules.md` (touch targets ≥44px, async states, anti-patterns).
+  Only commit/push once everything is green.
 
-## Schritt 4 — PR (ready to review) erstellen & verknüpfen
+## Step 4 — Create & link the PR (ready to review)
 
-- Änderungen committen (Issue-Bezug in der Message).
-- Branch pushen.
-- **PR review-bereit machen:**
-  - **Spec-Modus:** Den aus der Spec-Stufe vorhandenen **Draft-PR** aus dem Draft holen (`gh pr ready <pr>`) und seine Beschreibung um die Umsetzungs-Zusammenfassung ergänzen.
-  - **Fallback-Modus:** Einen normalen PR erstellen: `gh pr create --assignee @me --title "<titel> (#<nr>)" --body "… Closes #<nr> …"`.
-- **Development-Verknüpfung:** Das Schlüsselwort `Closes #<nr>` im PR-Body erzeugt die Zuordnung im **„Development"-Bereich**.
-- PR-Beschreibung enthält: kurze Umsetzungs-Zusammenfassung, betroffene Dateien, `pnpm format`-/Lint-/**Test**-Ergebnisse.
-- **PR abonnieren** — direkt nach dem Erstellen den PR abonnieren, damit eingehende Review-Anmerkungen automatisch die nächste Runde anstoßen.
+- Commit the changes (reference the issue in the message).
+- Push the branch.
+- **Make the PR review-ready:**
+  - **Spec mode:** take the existing **draft PR** from the spec stage out of draft (`gh pr ready <pr>`) and extend its description with the implementation summary.
+  - **Fallback mode:** create a normal PR: `gh pr create --assignee @me --title "<title> (#<nr>)" --body "… Closes #<nr> …"`.
+- **Development link:** the `Closes #<nr>` keyword in the PR body creates the association in the **"Development" section**.
+- The PR description contains: a short implementation summary, affected files, `pnpm format`/lint/**test** results.
+- **Subscribe to the PR** — right after creating it, subscribe so that incoming review comments automatically trigger the next round.
 
-## Schritt 5 — Kreuzverhör-Loop (umsetzen ⇄ prüfen, bis sauber)
+## Step 5 — Cross-examination loop (implement ⇄ review, until clean)
 
-Der frisch erstellte PR wird aktiv im Kreuzverhör geprüft und nachgebessert — in Runden, bis **keine Anmerkung mehr offen** ist.
+The freshly created PR is actively cross-examined and reworked — in rounds, until **no comment is left open**.
 
-**PR verfolgen & automatisch reagieren:** Den PR abonnieren und automatisch auf eingehende Review-Anmerkungen, neue Commits und CI-Ergebnisse reagieren.
+**Follow the PR & react automatically:** subscribe to the PR and react automatically to incoming review comments, new commits, and CI results.
 
-**Pro Runde:**
+**Per round:**
 
-1. **Kreuzverhör auslösen** — den vollständigen PR-Diff adversarial prüfen (siehe [review-kreuzverhoer](../review-kreuzverhoer/SKILL.md)). Jedes Finding als verankerter Review-Kommentar gepostet, abgeschlossen mit einem Urteil samt **Ampel** (🟢/🟡/🔴).
-2. **CI prüfen** — `gh pr checks <pr>`. Schlägt etwas fehl, Ursache diagnostizieren und beheben.
-3. **Findings abarbeiten:**
-   - **Zutreffend, klein, eindeutig →** fixen: Fix committen + pushen, `pnpm format && prettier && lint`, im Thread antworten und auflösen.
-   - **Mehrdeutig oder architektonisch relevant →** rückfragen, bis Antwort da.
-   - **Nicht zutreffend →** sachlich kommentieren, warum nichts geändert wird, und auflösen.
-4. **Erneut kreuzverhören** — nach den Fix-Commits den aktualisierten Diff erneut prüfen.
+1. **Trigger a cross-examination** — adversarially review the full PR diff (see [review-kreuzverhoer](../review-kreuzverhoer/SKILL.md)). Post every finding as an anchored review comment, concluded with a verdict including a **traffic light** (🟢/🟡/🔴).
+2. **Check CI** — `gh pr checks <pr>`. If something fails, diagnose and fix the cause.
+3. **Work through findings:**
+   - **Valid, small, unambiguous →** fix it: commit + push the fix, `pnpm format && prettier && lint`, reply in the thread and resolve.
+   - **Ambiguous or architecturally relevant →** ask a follow-up question and wait for an answer.
+   - **Not valid →** comment factually on why nothing is changed, and resolve.
+4. **Cross-examine again** — after the fix commits, review the updated diff again.
 
-**Abbruchbedingung:** Loop endet, wenn das Kreuzverhör **🟢** urteilt und **keine offenen Findings** mehr übrig sind.
+**Exit condition:** the loop ends once the cross-examination verdict is **🟢** and **no open findings** remain.
 
-**Schleifenschutz:**
+**Loop guard:**
 
-- Antworten knapp halten; nicht jede Fix-Runde einzeln ankündigen.
-- Bereits begründet abgelehnte Findings nicht erneut aufmachen.
-- Bleiben nach **3 Runden** noch substanzielle Findings offen, den Menschen entscheiden lassen.
+- Keep replies brief; don't announce every fix round individually.
+- Don't reopen findings that were already rejected with a justification.
+- If substantial findings are still open after **3 rounds**, let a human decide.
 
-## Hinweise
+## Notes
 
-- Zuweisen, Push/PR und Review-Kommentare schreiben **öffentlich** auf GitHub — vorher bestätigen lassen.
-- Ergebnis ist ein **review-bereiter PR**, der den Kreuzverhör-Loop durchlaufen hat und weiter verfolgt wird. Der finale Merge bleibt beim Menschen.
-- **CI-Mechanik** (VERDICT-Zeilen, Soft-Deadline, Label-Verbot) ist headless-only und im CI-Prompt der Pipeline geregelt.
+- Assigning, push/PR, and review comments write **publicly** to GitHub — get confirmation first.
+- The result is a **review-ready PR** that has gone through the cross-examination loop and continues to be followed. The final merge stays with a human.
+- **CI mechanics** (VERDICT lines, soft deadline, label ban) are headless-only and governed by the pipeline's CI prompt.

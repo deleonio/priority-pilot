@@ -1,67 +1,69 @@
 ---
 name: ticket-spec
-description: "Ticket-Spec — rote Tests als ausführbaren Vertrag je Akzeptanzkriterium schreiben (Spec-First, TDD-Gewaltenteilung), Draft-PR erstellen. CI-Phase 3."
+description: "Ticket spec — write red tests as an executable contract per acceptance criterion (spec-first, TDD separation of duties), create a draft PR. CI phase 3."
 ---
 
-# Workflow: Ticket-Spec (rote Tests vor der Umsetzung)
+# Workflow: Ticket Spec (red tests before implementation)
 
-Nutzen für freigegebene Tickets — schreibt die **roten Tests** (ausführbarer Vertrag) aus den Akzeptanzkriterien, **bevor** der Produktivcode entsteht.
+Use for approved issues — writes the **red tests** (executable contract) from the acceptance criteria, **before** production code exists.
 
-Diese Stufe ist die **Gewaltenteilung** der TDD-Strategie (Stufe 3, siehe [tdd-strategy.md](../../../.ai-knowledge/tdd-strategy.md)): Wer die Tests schreibt (dieser Workflow), schreibt **nicht** den Code (die Umsetzung, [ticket-implementation](../ticket-implementation/SKILL.md)).
+Note: this file's prose is English; PR/comment text written to GitHub and spec documents under `docs/spec/**` stay German — that content is for the project's German-speaking contributors.
 
-**Auswahlkriterium:** Offene Issues mit Label `ai:needs-spec` (gesetzt von der UX-Phase bei UI-Tickets oder direkt von der Analyse-Phase bei Nicht-UI-Tickets), für die **noch kein** offener (Draft-)PR existiert (Idempotenz).
+This stage is the **separation of duties** of the TDD strategy (stage 3, see [tdd-strategy.md](../../../.ai-knowledge/tdd-strategy.md)): whoever writes the tests (this workflow) does **not** write the code (the implementation, [ticket-implementation](../ticket-implementation/SKILL.md)).
 
-## Schritt 1 — Ticket wählen & Branch anlegen
+**Selection criterion:** Open issues with the label `ai:needs-spec` (set by the UX phase for UI issues, or directly by the analysis phase for non-UI issues), for which **no** open (draft) PR yet exists (idempotency).
 
-- Offene Issues mit `ai:needs-spec` finden: `gh issue list --state open --label "ai:needs-spec" --json number,title --jq '.[] | "\(.number)\t\(.title)"'`
-- Eine konkret übergebene Nummer hat Vorrang; sonst der Reihe nach (ältestes zuerst).
-- **Idempotenz:** Existiert bereits ein offener PR mit `Closes #<nr>` für das Issue, **nicht** erneut spezifizieren — Lauf beenden.
-- Kontext + Analyse laden: den **Akzeptanzkriterien + Testfälle**-Block primär aus dem **Body-Block** des Issues lesen (`gh issue view <nr> --json body -q .body`, Abschnitt zwischen `<!-- KI-ANALYSE:START … -->` und `<!-- KI-ANALYSE:END -->`). Fehlt der Body-Block (Alt-Issue), Fallback auf den jüngsten `🤖 KI-Analyse`-Kommentar.
-- Branch von `main` anlegen: `git switch -c feat/issue-<nr>-<kurzname>`.
+## Step 1 — Select issue & create branch
 
-## Schritt 2 — Spec-First: Spezifikation aktualisieren (VOR der Test-Ableitung)
+- Find open issues with `ai:needs-spec`: `gh issue list --state open --label "ai:needs-spec" --json number,title --jq '.[] | "\(.number)\t\(.title)"'`
+- A specifically given number takes priority; otherwise process in order (oldest first).
+- **Idempotency:** If an open PR with `Closes #<nr>` already exists for the issue, **do not** spec it again — end the run.
+- Load context + analysis: read the **acceptance criteria + test cases** block primarily from the issue's **body block** (`gh issue view <nr> --json body -q .body`, the section between `<!-- KI-ANALYSE:START … -->` and `<!-- KI-ANALYSE:END -->`). If the body block is missing (legacy issue), fall back to the most recent `🤖 KI-Analyse` comment.
+- Create a branch from `main`: `git switch -c feat/issue-<nr>-<short-name>`.
 
-- Prüfen, ob ein relevanter Spec bereits existiert: `ls docs/spec/*.md`
-- **Falls ja** (z. B. `user-journeys.md` für Feature-Änderungen): existierenden Spec erweitern/korrigieren/kürzen — das Verhalten dokumentieren, das getestet werden soll.
-- **Falls nein:** neuen Spec `docs/spec/issue-<nr>.md` anlegen — strukturiert nach Ziel/Vorbedingung/Schritte/Erwartetes Ergebnis (Format-Referenz: `user-journeys.md`).
-- Spec-Update im **gleichen Commit** wie die Tests (kein separater Commit — der Spec gehört zur Spec-Phase).
+## Step 2 — Spec-first: update the specification (BEFORE deriving tests)
 
-## Schritt 3 — Rote Tests schreiben (der Vertrag)
+- Check whether a relevant spec already exists: `ls docs/spec/*.md`
+- **If yes** (e.g. `user-journeys.md` for feature changes): extend/correct/shorten the existing spec — document the behavior that is to be tested.
+- **If no:** create a new spec `docs/spec/issue-<nr>.md` — structured by goal/precondition/steps/expected result (format reference: `user-journeys.md`).
+- Update the spec in the **same commit** as the tests (no separate commit — the spec belongs to the spec phase).
 
-- Tests werden aus dem **Spec** abgeleitet (nicht direkt aus den Akzeptanzkriterien). Jedes AK muss durch den Spec gedeckt sein; jeder Test muss auf den Spec oder ein AK Bezug nehmen.
-- **KI-UX-Block beachten:** Hat das Issue UX-Aspekte (KI-UX-Block im Body vorhanden), dessen Anforderungen in die Spec-Ableitung einfließen lassen.
-- **Bei Confirm-/Lösch-/Zerstör-Dialogen:** Tests an `docs/ux-pattern-sequential-confirmation.md` orientieren — sequenzielle Ja/Nein-Schritte, verbindliches Fokus-Management beim Übergang.
-- Je Akzeptanzkriterium den/die Testfälle als **echte, ausführbare** Tests schreiben — **nur** für Anwendungscode (`server/src/**`, `frontend/src/**`, `frontend/e2e/**`). Testebene und Zieldatei nach Ticket-Typ:
-  - **Backend-Logik / API** → `node:test` (`server/src/logics/*.test.ts`, `server/src/express/*.test.ts`).
-  - **Frontend-Logik** → Vitest (`frontend/src/lib/*.test.ts`).
-  - **Feature / UI-Verhalten** → Akzeptanz-e2e (`frontend/e2e/*.spec.ts`, Stil `crud.spec.ts`).
-  - **Reines Styling/Layout** → keinen Test erzwingen; im PR-Body begründen, dass stattdessen visuell verifiziert wird.
-  - **Nicht-Anwendungscode** (`.github/workflows`, `.github/scripts`, CI-Plumbing, Config-Dateien, Markdown-Inhalt egal wo) → **keinen Test schreiben**. String/YAML/Config-Match ist ein Change-Detector ohne Biss (ADR 0001).
-- **Dedup vor dem Schreiben:** Per `grep` prüfen, ob ein Akzeptanzkriterium bereits durch einen bestehenden Test abgedeckt ist. Bereits abgedeckt → **nicht** duplizieren. Widerspricht ein AK einem bestehenden Test? → den **alten Test ENTFERNEN** und im PR-Body im Abschnitt „Test-Pflege-Bedarf" benennen, warum.
-- **So wenig wie möglich, aber jeder mit Biss:** Ein Test muss etwas **auswerten**, einen **Spiegel** zwischen Dateien sichern oder vor einem **stillen/teuren** Ausfall schützen. Kein Test der Form „die Datei enthält den String, den ich hineingeschrieben habe".
-- **Red, nicht kaputt:** Jeder Test prüft echtes **Soll-Verhalten** und wird grün, sobald der Produktivcode existiert. Bei **neuen** Funktionen ist ein fehlender Export/Import die legitime erste Rotfärbung; bei **bestehendem** Code zeigt `pnpm test` die neuen Tests als **failing**.
-- **Keinen Produktivcode** schreiben — nur Tests (höchstens minimale Test-Helfer/Fixtures).
-- **Mutations-Probe vor dem Commit:** Bei zentraler Logik kurz prüfen, dass jeder neue Test wirklich etwas auswertet — gedanklich (oder per Hand) das getestete Verhalten brechen: Würde der Test rot? Ein Test, der auch bei kaputtem Verhalten grün bleibt, hat keinen Biss und fliegt raus.
-- **Spec-PR-Scope (Pflicht):** Der Spec-PR darf **nur** `docs/spec/*.md` und rote Tests enthalten — **keine** Implementierung (weder Produktivcode noch CSS noch Config). Jede App-Code-Änderung gehört in den Implementierungs-PR (Phase 4). Werden während der Spec-Phase App-Code-Änderungen nötig, sie im Workspace-Kommentar notieren — Phase 4 nimmt die Anforderung auf.
-- **Bei UI-Tickets:** geplante KoliBri-Komponenten (Custom-Element + Properties) via KoliBri-MCP verifizieren, damit Tests die richtigen Elemente adressieren.
+## Step 3 — Write red tests (the contract)
 
-## Schritt 4 — Commit, Push, Draft-PR
+- Tests are derived from the **spec** (not directly from the acceptance criteria). Every acceptance criterion must be covered by the spec; every test must reference the spec or an acceptance criterion.
+- **Mind the KI-UX block:** if the issue has UX aspects (a KI-UX block present in the body), let its requirements flow into the spec derivation.
+- **For confirm/delete/destructive dialogs:** base tests on `docs/ux-pattern-sequential-confirmation.md` — sequential yes/no steps, mandatory focus management on transition.
+- Write the test case(s) for each acceptance criterion as **real, executable** tests — **only** for application code (`server/src/**`, `frontend/src/**`, `frontend/e2e/**`). Test level and target file by issue type:
+  - **Backend logic / API** → `node:test` (`server/src/logics/*.test.ts`, `server/src/express/*.test.ts`).
+  - **Frontend logic** → Vitest (`frontend/src/lib/*.test.ts`).
+  - **Feature / UI behavior** → acceptance e2e (`frontend/e2e/*.spec.ts`, style `crud.spec.ts`).
+  - **Pure styling/layout** → don't force a test; justify in the PR body that visual verification is used instead.
+  - **Non-application code** (`.github/workflows`, `.github/scripts`, CI plumbing, config files, markdown content anywhere) → **write no test**. A string/YAML/config match is a change detector with no teeth (ADR 0001).
+- **Dedup before writing:** use `grep` to check whether an acceptance criterion is already covered by an existing test. Already covered → **don't** duplicate. Does an acceptance criterion contradict an existing test? → **remove the old test** and name why in the PR body under "Test maintenance needed".
+- **As few as possible, but each with teeth:** a test must **evaluate** something, guard a **mirror** between files, or protect against a **silent/costly** failure. No test of the form "the file contains the string I just wrote into it".
+- **Red, not broken:** every test checks real **expected behavior** and turns green as soon as the production code exists. For **new** functionality, a missing export/import is the legitimate first red state; for **existing** code, `pnpm test` shows the new tests as **failing**.
+- **Write no production code** — only tests (at most minimal test helpers/fixtures).
+- **Mutation check before commit:** for central logic, briefly verify that every new test actually evaluates something — mentally (or by hand) break the tested behavior: would the test turn red? A test that stays green even with broken behavior has no teeth and gets removed.
+- **Spec-PR scope (mandatory):** the spec PR may contain **only** `docs/spec/*.md` and red tests — **no** implementation (neither production code nor CSS nor config). Any app-code change belongs in the implementation PR (phase 4). If app-code changes turn out to be necessary during the spec phase, note them in a workspace comment — phase 4 picks up the requirement.
+- **For UI issues:** verify planned KoliBri components (custom element + properties) via KoliBri MCP so tests address the right elements.
 
-- Die roten Tests als **eigenen, ersten Commit** committen, z. B. `test: rote Spec-Tests für #<nr>`.
-- Branch pushen: `git push -u origin <branch>`.
-- **Draft-PR** erstellen: `gh pr create --draft --title "<titel> (#<nr>)" --body "… Closes #<nr> …"`. Body enthält kurze Liste der abgedeckten Akzeptanzkriterien und den Hinweis „rote Spec-Tests; Implementierung folgt".
-- Verknüpfung prüfen: `gh pr view <pr> --json closingIssuesReferences --jq '.closingIssuesReferences[].number'` muss `<nr>` enthalten.
+## Step 4 — Commit, push, draft PR
 
-## Schritt 5 — Übergabe an die Umsetzung
+- Commit the red tests as your **own, first commit**, e.g. `test: red spec tests for #<nr>`.
+- Push the branch: `git push -u origin <branch>`.
+- Create a **draft PR**: `gh pr create --draft --title "<title> (#<nr>)" --body "… Closes #<nr> …"`. The body contains a short list of the covered acceptance criteria and the note "red spec tests; implementation follows" (PR body text in German).
+- Verify the link: `gh pr view <pr> --json closingIssuesReferences --jq '.closingIssuesReferences[].number'` must contain `<nr>`.
 
-- Der Workflow setzt am Issue **`ai:needs-impl`** (und konsumiert `ai:needs-spec`). Label bei Bedarf vorher anlegen.
-- **Partial-Retry-Hinweis:** Bei Teilerfolg (Spec-PR ohne Tests) setzt der Workflow `ai:needs-spec` neu (Remove-vor-Add).
-- **Hard-Fail-Recovery:** Bricht die Post-Assertion ab, bleibt `ai:needs-spec` kleben. Anstoß: `ai:needs-spec` entfernen und neu setzen.
+## Step 5 — Hand off to implementation
 
-## Hinweise
+- The workflow sets `ai:needs-impl` on the issue (and consumes `ai:needs-spec`). Create the label first if needed.
+- **Partial-retry note:** on partial success (spec PR without tests), the workflow sets `ai:needs-spec` again (remove-then-add).
+- **Hard-fail recovery:** if the post-assertion aborts, `ai:needs-spec` stays stuck. To retrigger: remove and re-add `ai:needs-spec`.
 
-- Branch/Push/PR/Labels schreiben **öffentlich** auf GitHub — vorher bestätigen lassen.
-- Dieser Workflow schreibt **nur Tests**, **keinen** Produktivcode (das ist die bewusste Gewaltenteilung).
-- **Bearbeitung durch `/team*`:** Lokal/per Command kann das Multi-Agent-Team die Spec übernehmen. In GitHub Actions läuft die Spec als eigener headless Lauf (`spec.yml`) — getrennt vom Umsetzungs-Lauf.
-- Greift die Analyse ein Issue bewusst **nicht** auf 🟢 (🟡/🔴), gibt es keinen Phasen-Trigger — dann entscheidet der Mensch.
-- **CI-Mechanik** (VERDICT-Zeilen, Soft-Deadline, Label-Verbot) ist headless-only und im CI-Prompt der Pipeline geregelt.
+## Notes
+
+- Branch/push/PR/labels write **publicly** to GitHub — get confirmation first.
+- This workflow writes **only tests**, **no** production code (that is the deliberate separation of duties).
+- **Handling via `/team*`:** locally/on-demand, the multi-agent team can take over the spec. In GitHub Actions, the spec runs as its own headless run (`spec.yml`) — separate from the implementation run.
+- If the analysis deliberately doesn't mark an issue 🟢 (🟡/🔴), there is no phase trigger — a human decides.
+- **CI mechanics** (VERDICT lines, soft deadline, label ban) are headless-only and governed by the pipeline's CI prompt.

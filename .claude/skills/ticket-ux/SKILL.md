@@ -1,24 +1,26 @@
 ---
 name: ticket-ux
-description: "Ticket-UX — beratende UX-Prüfung für UI-Tickets (Interaktion, Mobile-First, A11y/BITV, KoliBri) vor der Spec; schreibt den KI-UX-Block in den Issue-Body. Nutzen bei ‚ux-beratung‘, CI-Phase 2."
+description: "Ticket UX — advisory UX review for UI issues (interaction, mobile-first, A11y/BITV, KoliBri) before spec; writes the KI-UX block into the issue body. Use for 'ux-beratung' (German: UX review), CI phase 2."
 ---
 
-# Workflow: Ticket-UX (Beratung vor Spec)
+# Workflow: Ticket UX (Advisory review before spec)
 
-Nutzen bei UI-Tickets nach der Triage — analysiert aus UX-Sicht (Interaktion, Mobile-First, A11y/BITV, KoliBri) und schreibt Empfehlungen in den Issue-Body zwischen `<!-- KI-UX:START -->` und `<!-- KI-UX:END -->`.
+Use for UI issues after triage — analyzes from a UX perspective (interaction, mobile-first, A11y/BITV, KoliBri) and writes recommendations into the issue body between `<!-- KI-UX:START -->` and `<!-- KI-UX:END -->`.
 
-Verbindliche Quellen: [docs/mobile-ui-rules.md](../../../docs/mobile-ui-rules.md) für Mobile-First/A11y und [ux-design.md](../../../.ai-knowledge/ux-design.md) für die Design-Sprache „Cockpit" — Farbrollen, Skalen-Tokens, Komponentenwahl.
+Note: this file's prose is English; the KI-UX block content written into the issue body stays German — that content is for the project's German-speaking issue authors and reviewers.
 
-**Auswahlkriterium:** Issues mit Label `ai:needs-ux-ui` (von der Analyse-Phase gesetzt), für die **noch kein** UX-Input existiert (KI-UX-Block fehlt im Body). Nicht-UI-Tickets bekommen das Label nie.
+Mandatory sources: [docs/mobile-ui-rules.md](../../../docs/mobile-ui-rules.md) for mobile-first/A11y and [ux-design.md](../../../.ai-knowledge/ux-design.md) for the "Cockpit" design language — color roles, scale tokens, component choice.
+
+**Selection criterion:** Issues with the label `ai:needs-ux-ui` (set by the analysis phase) for which **no** UX input yet exists (KI-UX block missing from the body). Non-UI issues never get this label.
 
 ## Trigger
 
-- **Automatisch:** Label `ai:needs-ux-ui` wird gesetzt → GitHub Action `02-claude-ux.yml` triggert.
-- **Manuell:** `workflow_dispatch` mit Issue-Nummer als Input
+- **Automatic:** The `ai:needs-ux-ui` label is set → GitHub Action `02-claude-ux.yml` triggers.
+- **Manual:** `workflow_dispatch` with the issue number as input.
 
 ## Output
 
-KI-UX-Block im Issue-Body zwischen den Markern:
+KI-UX block in the issue body between the markers (written in German):
 
 ```markdown
 <!-- KI-UX:START -->
@@ -52,28 +54,28 @@ KI-UX-Block im Issue-Body zwischen den Markern:
 <!-- KI-UX:END -->
 ```
 
-Die `VERDICT:`-Zeile gehört **nicht** in den Block: Der Workflow parst sie aus dem Agenten-Output (`/tmp/claude-output.log`).
+The `VERDICT:` line does **not** belong in the block: the workflow parses it from the agent output (`/tmp/claude-output.log`).
 
-## Verifikation & Label-Setzung
+## Verification & label setting
 
-- Workflow prueft Verdict-Line im Output
-- Bei `VERDICT: ux-ready` → Label `ai:needs-spec` setzen (`ai:needs-ux-ui` wird konsumiert = entfernt)
-- Bei `VERDICT: ux-not-ready` → Label `ai:needs-human` setzen (fail-safe) plus Kommentar mit **Warum** und **konkreten Optionen** (Fragen klären + `ai:needs-ux-ui` neu setzen, oder bei unerheblichem Blocker `ai:needs-spec` manuell setzen)
+- The workflow checks the verdict line in the output.
+- On `VERDICT: ux-ready` → set the label `ai:needs-spec` (`ai:needs-ux-ui` is consumed = removed).
+- On `VERDICT: ux-not-ready` → set the label `ai:needs-human` (fail-safe) plus a comment (in German) with **why** and **concrete options** (clarify questions + set `ai:needs-ux-ui` again, or manually set `ai:needs-spec` if the blocker is immaterial).
 
-## Charakteristik
+## Characteristics
 
-- **Beratend, nicht blockierend:** UX-Empfehlungen sind Hinweise, keine harten Blocker
-- **Kein Code-Ändern:** Prompt enthaelt explizit KEINE Anweisungen zu Branch/PR/Code
-- **Keine Gewaltenteilung wie Spec/Implement:** UX ist eine Beratung, kein Vertrag
-- **Optional:** Bei Nicht-UI-Tickets (Analyse setzt `ai:needs-spec` direkt) laeuft die UX-Phase nie
+- **Advisory, not blocking:** UX recommendations are hints, not hard blockers.
+- **No code changes:** the prompt explicitly contains NO instructions about branch/PR/code.
+- **No separation of duties like spec/implement:** UX is advice, not a contract.
+- **Optional:** for non-UI issues (the analysis sets `ai:needs-spec` directly), the UX phase never runs.
 
-## Werkzeuge
+## Tools
 
-- **Impeccable Design-Skill** (`.claude/skills/impeccable/`, #828): UX-Beratung mit `/impeccable critique <ziel-komponente>` stützen — Heuristik-Scores (Nielsen, 0-4), Cognitive-Load-Check und Persona-Red-Flags liefern belastbare Punkte.
-- **KoliBri-MCP** (`mcp__kolibri-mcp__search/fetch`): Component-Dokumentation lesen, um Component-Wahl zu prüfen.
-- **Browser-Inspektion (375px/1280px Viewport) via Playwright-MCP nur LOKAL/per Command** (#823). **In CI läuft diese Phase rein statisch:** `02-claude-ux.yml` startet keine App — dort gilt allein die Regel-Prüfung gegen Design-System. Dynamische Inspektion ist Sache der Umsetzungsphase.
+- **Impeccable design skill** (`.claude/skills/impeccable/`, #828): back the UX review with `/impeccable critique <target-component>` — heuristic scores (Nielsen, 0-4), a cognitive-load check, and persona red flags provide solid evidence.
+- **KoliBri MCP** (`mcp__kolibri-mcp__search/fetch`): read component documentation to verify component choice.
+- **Browser inspection (375px/1280px viewport) via Playwright MCP, LOCAL/on-demand only** (#823). **In CI this phase runs purely statically:** `02-claude-ux.yml` doesn't start the app — only the rule check against the design system applies there. Dynamic inspection is the implementation phase's job.
 
-## Modell
+## Model
 
-- Standard: `vars.CLAUDE_MODEL_SPEC` (default: `sonnet`)
+- Default: `vars.CLAUDE_MODEL_SPEC` (default: `sonnet`)
 - Provider via `vars.LLM_PROVIDER` (zai|claude)
