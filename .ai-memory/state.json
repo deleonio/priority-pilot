@@ -29,6 +29,12 @@
       "runId": "33114430892",
       "branch": "feat/issue-1072-deadline-group",
       "timestamp": "2026-08-27T20:45:35Z"
+    },
+    "fixup": {
+      "sessionId": "69d4080d-cac9-4d0e-ae0d-2e9471fdc93d",
+      "runId": "33114898681",
+      "branch": "feat/issue-1072-deadline-group",
+      "timestamp": "2026-08-27T21:21:29Z"
     }
   }
 }
