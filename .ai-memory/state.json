@@ -1,1 +1,16 @@
-{"phases":{"triage":{"sessionId":"79058f4d-dbd1-4209-83f1-d99d34c3d166","runId":"33075433152","branch":"main","timestamp":"2026-08-27T13:13:00Z"}}}
+{
+  "phases": {
+    "triage": {
+      "sessionId": "79058f4d-dbd1-4209-83f1-d99d34c3d166",
+      "runId": "33075433152",
+      "branch": "main",
+      "timestamp": "2026-08-27T13:13:00Z"
+    },
+    "spec": {
+      "sessionId": "24f98113-abc7-4681-b4df-bc0ead19b674",
+      "runId": "33075617871",
+      "branch": "main",
+      "timestamp": "2026-08-27T13:15:15Z"
+    }
+  }
+}
