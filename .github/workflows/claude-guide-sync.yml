@@ -184,53 +184,53 @@ jobs:
         if: steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
         run: |
           cat > /tmp/claude-prompt.txt << 'CLAUDE_EOF'
-          FOCUS: sync docs/user-guide.md against the implementation. THE IMPLEMENTATION IS THE TRUTH — the guide only describes the current state, from the END USER's perspective. NO side trips, NO code changes. Save tokens: short, precise, direct.
+          FOKUS: Handbuch-Sync docs/user-guide.md gegen die Implementation. DIE IMPLEMENTATION IST DIE WAHRHEIT — das Handbuch beschreibt NUR den Ist-Zustand, und zwar aus ENDNUTZER-Sicht. KEINE Abstecher, KEINE Code-Änderungen. Token sparen: kurz, präzise, direkt.
 
-          CONTEXT: docs/user-guide.md IS the app's help page (vite.config.ts serves it at /user-guide.md, HelpPage.tsx renders it as Markdown). Every line in it is read by an end user in the app.
+          KONTEXT: docs/user-guide.md IST die Hilfe-Seite der App (vite.config.ts liefert sie unter /user-guide.md aus, HelpPage.tsx rendert sie als Markdown). Jede Zeile darin liest ein Endnutzer in der App.
 
-          SOURCES (read them yourself, not repeated in the prompt):
-            - Guide: docs/user-guide.md
-            - Actual UI state: frontend/src/** (components, dialogs, buttons, routes in App.tsx, visible message text, keyboard shortcuts)
-            - Actual server state: server/src/** (push notifications, LLM/settings behavior, allowlist/error messages) + openapi.yml (which features exist at all)
-            - Cross-reference for observable behavior: frontend/e2e/*.spec.ts and docs/spec/user-journeys.md
+          QUELLEN (liest selbst, nicht im Prompt wiederholen):
+            - Handbuch: docs/user-guide.md
+            - Ist-Zustand UI: frontend/src/** (Komponenten, Dialoge, Buttons, Routen in App.tsx, sichtbare Meldungstexte, Tastaturkürzel)
+            - Ist-Zustand Server: server/src/** (Push-Benachrichtigungen, LLM-/Einstellungs-Verhalten, Allowlist-/Fehlermeldungen) + openapi.yml (welche Funktionen es überhaupt gibt)
+            - Querbeleg für beobachtbares Verhalten: frontend/e2e/*.spec.ts und docs/spec/user-journeys.md
 
-          PROCEDURE (STRICT):
-            1. Start IMMEDIATELY. Read docs/user-guide.md completely.
-            2. Verify EVERY user-visible statement (flow descriptions, button/menu labels, message text, keyboard shortcuts, edge cases) against the code.
-            3. Adjust the guide ONLY on a substantiated discrepancy:
-               a) Behavior has changed → rephrase the description to match the new actual state.
-               b) The described feature no longer exists → DELETE the paragraph/section.
-               c) An implemented user feature is missing from the guide → ADD it, in the style and at the fitting place in the existing structure.
-            4. Commit ALL changes locally (one commit is enough): git add docs/user-guide.md && git commit -m "docs(guide): Ist-Stand-Sync {{SYNC_DATE}}"
-               Do NOT push, do NOT create a PR — the workflow does that after you.
-            5. Write a report to /tmp/guide-sync-report.md (Markdown): one section per finding (guide section, finding, correction, evidence in the code as file:line), plus a list of open ambiguities (things not derivable from code: NOT changed, only listed).
+          ABLAUF (STRIKT):
+            1. SOFORT starten. docs/user-guide.md vollständig lesen.
+            2. JEDE nutzersichtbare Aussage (Ablaufbeschreibungen, Button-/Menü-Bezeichnungen, Meldungstexte, Tastaturkürzel, Randfälle) gegen den Code verifizieren.
+            3. NUR bei belegter Abweichung das Handbuch anpassen:
+               a) Verhalten hat sich geändert → Beschreibung auf den neuen Ist-Zustand umformulieren.
+               b) Beschriebene Funktion existiert nicht mehr → Absatz/Abschnitt STREICHEN.
+               c) Implementiertes Nutzer-Feature fehlt im Handbuch → ERGÄNZEN, im Stil und an der passenden Stelle der bestehenden Gliederung.
+            4. ALLE Änderungen lokal committen (ein Commit genügt): git add docs/user-guide.md && git commit -m "docs(guide): Ist-Stand-Sync {{SYNC_DATE}}"
+               NICHT pushen, KEINEN PR anlegen — das macht der Workflow nach dir.
+            5. Report schreiben nach /tmp/guide-sync-report.md (Markdown): je Fund ein Abschnitt (Handbuch-Abschnitt, Befund, Korrektur, Beleg im Code als Datei:Zeile), plus Liste offener Unklarheiten (nicht aus Code Ableitbares: NICHT geändert, nur gelistet).
 
-          STYLE (the guide is end-user prose, not a developer document):
-            - German, informal "du" form, friendly and matter-of-fact — like the existing text.
-            - NO file/component names, NO API paths, NO implementation jargon.
-            - Mobile-first: describe what the user sees and taps.
-            - Keep the existing structure/section order; don't restructure without a finding.
-            - Write it de-roboticized (rules from LOGIN-TB/claude-skills:vermenschlichen):
-              NO marketing language, no inflated phrasing, no "not only … but also" constructions,
-              no conclusion/challenges sections, no "bold: explanation" pattern, no piled-up
-              em dashes, plain verbs instead of stiff synonyms, no synonym rotation, no
-              chatbot leftovers ("I hope this helps"), no emojis in factual text.
+          STIL (das Handbuch ist Endnutzer-Prosa, kein Entwicklerdokument):
+            - Deutsch, Du-Form, freundlich-sachlich — wie der bestehende Text.
+            - KEINE Datei-/Komponentennamen, KEINE API-Pfade, KEIN Implementierungsjargon.
+            - Mobile-First: beschreibe, was der Nutzer sieht und antippt.
+            - Bestehende Gliederung/Abschnittsreihenfolge beibehalten, nicht ohne Befund umbauen.
+            - Vermenschlicht schreiben (Regeln aus LOGIN-TB/claude-skills:vermenschlichen):
+              KEINE Werbesprache, keine Bedeutungsaufblähung, keine "nicht nur … sondern auch"-Konstruktionen,
+              keine Fazit-/Herausforderungen-Abschnitte, kein Schema "Fett: Erklärung", keine gehäuften
+              Gedankenstriche, schlichte Verben statt steifer Synonyme, keine Synonym-Rotation, keine
+              Chatbot-Reste ("Ich hoffe, das hilft"), keine Emojis in sachlichen Texten.
 
           CONSTRAINTS:
-            - Change ONLY docs/user-guide.md — no code, no other documents.
-            - NO speculation: describe only substantiated behavior visible in the code.
-            - NO should-be/intent/announcement phrasing — only the current state.
-            - NO change history: no "was changed", no "since/new/now" in the sense of "it used to be different" — the guide describes the current state as if there had never been another.
-            - MANDATORY SECTIONS (contract from server/src/logics/user-guide.test.ts, AC 2.1–2.9): Dashboard, "Aufgaben verwalten", (KI-)Schnellerfassung, Abhängigkeiten, Säulen, Aufgabenwald, Serien, Punkte/Gamification, Kopf-/Header-Aktionen. These topics must NOT disappear, and their heading keywords must NOT vanish. Exactly one "# " H1 at the top of the file remains.
+            - NUR docs/user-guide.md ändern — kein Code, keine anderen Dokumente.
+            - KEINE Spekulation: nur belegbares, im Code sichtbares Verhalten beschreiben.
+            - KEINE Soll-/Absichts-/Ankündigungs-Formulierungen — nur Ist.
+            - KEINE Änderungs-Historie: kein „wurde geändert“, kein „seit/neu/jetzt“ im Sinne von „früher war es anders“ — das Handbuch beschreibt den aktuellen Zustand, als gäbe es nie einen anderen.
+            - PFLICHT-ABSCHNITTE (Vertrag aus server/src/logics/user-guide.test.ts, AK 2.1–2.9): Dashboard, "Aufgaben verwalten", (KI-)Schnellerfassung, Abhängigkeiten, Säulen, Aufgabenwald, Serien, Punkte/Gamification, Kopf-/Header-Aktionen. Diese Themen dürfen NICHT wegfallen und ihre Überschriften-Stichwörter NICHT verschwinden. Genau eine "# "-H1 am Dateianfang bleibt bestehen.
 
-          VERDICT: exactly ONE line at the very end, ONLY the token — no text after it (the workflow parses the line by machine):
+          VERDICT: GANZ AM ENDE GENAU EINE Zeile, NUR der Token — kein Text dahinter (der Workflow parst die Zeile maschinell):
             - VERDICT: synced
             - VERDICT: updated
-            (synced = no drift found, no commit; updated = guide corrections committed)
+            (synced = keine Drift gefunden, kein Commit; updated = Handbuch-Korrekturen committed)
 
-          HONESTY RULE: only output VERDICT: updated if the commit exists (verify with git log). VERDICT: synced only without local commits.
+          EHRLICHKEITS-REGEL: VERDICT: updated NUR ausgeben, wenn der Commit existiert (git log verifizieren). VERDICT: synced NUR ohne lokale Commits.
 
-          TIME LIMIT: soft deadline = {{SOFT_DEADLINE}}. Before every step: [ $(date +%s) -ge {{SOFT_DEADLINE}} ]. If OVER: commit what you have, write the report, end the turn.
+          ZEITLIMIT: Soft-Deadline = {{SOFT_DEADLINE}}. Vor jedem Schritt: [ $(date +%s) -ge {{SOFT_DEADLINE}} ]. Bei OVER: committen was vorliegt, Report schreiben, Turn beenden.
           CLAUDE_EOF
 
           sed -i "s/{{SYNC_DATE}}/$(date -u +%F)/g" /tmp/claude-prompt.txt
