@@ -399,7 +399,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 				_label: 'Neuen Task anlegen',
 				_hideLabel: true,
 				_icons: CREATE_ICON,
-				_variant: 'primary' as const,
+				_variant: 'secondary' as const,
 				_on: { onClick: openCreateDialog },
 			},
 			{

@@ -1277,9 +1277,21 @@ body {
    des KoliBri-Default-Themes ist als Custom Property kalibrierbar.
    Mit _hasCounter erhöht sich die Container-Höhe (KoliBri built-in Counter). */
 .voice-field--input > .mic-button {
-	top: 50%;
-	transform: translateY(-50%);
-	bottom: auto;
+	/* #1051: Bottom-Anker an der Inputbox statt Zentrierung am Gesamt-Wrapper
+	   (der das Label mit umschließt und den Button zu hoch sitzen ließ).
+	   #1054 (F1): `--pp-input-below` hebt den Anker um Elemente unter der Inputbox an
+	   (Default 0 — ohne Counter ist die Inputbox das unterste Wrapper-Element).
+	   Default 2.5rem = gemessene Inputbox-Höhe des Default-Themes (40px — die 44px
+	   a11y-Mindesthöhe gilt für den KoliBri-Container, nicht die Input-Box). */
+	bottom: calc(var(--pp-input-below, 0rem) + (var(--pp-input-height, 2.5rem) - 2rem) / 2);
+}
+
+/* #1054 (F1): Mit `_hasCounter` rendert KoliBri eine Zählerzeile UNTER der Inputbox — der Wrapper
+   ist dadurch höher und der Bottom-Anker träfe die Counter-Zeile statt der Inputbox. Die Call-Site
+   markiert das Feld, der Anker wird um den gesamten Stapel unter der Inputbox angehoben.
+   Default 1.925rem = e2e-gemessen (Chromium, #1054 F1): 4px Grid-Gap + ~26.8px Zählerzeile. */
+.voice-field--counter > .mic-button {
+	--pp-input-below: var(--pp-counter-height, 1.925rem);
 }
 
 .mic-button {
