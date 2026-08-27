@@ -11,6 +11,12 @@
       "runId": "33112445335",
       "branch": "main",
       "timestamp": "2026-08-27T20:18:46Z"
+    },
+    "spec": {
+      "sessionId": "e73e845a-5679-4149-98b9-af3bb0fff322",
+      "runId": "33112726503",
+      "branch": "main",
+      "timestamp": "2026-08-27T20:24:15Z"
     }
   }
 }
