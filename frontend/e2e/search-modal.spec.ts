@@ -114,4 +114,100 @@ test.describe('Priority Pilot — globale Suche über den Toolbar-Button', () =>
 		await page.getByRole('button', { name: 'Suche starten' }).click();
 		await expect(page.getByText(matchTitle, { exact: true })).toBeVisible();
 	});
+
+	// #1067 — Nach dem Schließen des Suchdialogs liegt der Fokus im Filterfeld des Aufgaben-Tabs
+	// (docs/spec/issue-1067.md, AK1–AK4), damit direkt weitergetippt werden kann.
+	test('AK1: Suche per „Suche starten" → Fokus liegt im Filterfeld des Aufgaben-Tabs', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+
+		const matchTitle = uniqueTitle('Fokus');
+		const otherTitle = uniqueTitle('Nebenan');
+		await createTaskViaUi(page, matchTitle);
+		await createTaskViaUi(page, otherTitle);
+
+		await searchButton(page).click();
+		await modalSearchInput(page).fill(matchTitle);
+		await page.getByRole('button', { name: 'Suche starten' }).click();
+
+		// Modal zu, Aufgaben-Tab aktiv, Liste gefiltert — und der Fokus im Filterfeld.
+		await expect(page.getByRole('heading', { name: 'Suche', exact: true })).toBeHidden();
+		await expect(page.getByRole('tab', { name: 'Aufgaben', exact: true })).toHaveAttribute('aria-selected', 'true');
+		await expect(page.getByText(matchTitle, { exact: true })).toBeVisible();
+		await expect(page.getByText(otherTitle, { exact: true })).not.toBeVisible();
+		await expect(
+			tabFilterInput(page),
+			'Nach der Suche muss der Fokus programmatisch im Filterfeld liegen',
+		).toBeFocused();
+	});
+
+	test('AK1/AK2: Suche per Enter → Fokus im Filterfeld, Weitertippen verengt den Filter', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+
+		const alphaTitle = uniqueTitle('Alpha');
+		const betaTitle = uniqueTitle('Beta');
+		await createTaskViaUi(page, alphaTitle);
+		await createTaskViaUi(page, betaTitle);
+
+		await searchButton(page).click();
+		// „E2E" matcht beide Tasks; der Rest wird nach dem Tab-Wechsel getippt.
+		await modalSearchInput(page).fill('E2E');
+		await modalSearchInput(page).press('Enter');
+
+		await expect(page.getByRole('heading', { name: 'Suche', exact: true })).toBeHidden();
+		await expect(page.getByText(alphaTitle, { exact: true })).toBeVisible();
+		await expect(page.getByText(betaTitle, { exact: true })).toBeVisible();
+		await expect(tabFilterInput(page)).toBeFocused();
+
+		// Weitertippen OHNE Klick: Zeichen landen im Filterfeld (AK2)…
+		await page.keyboard.type(' Alpha');
+		await expect(tabFilterInput(page)).toHaveValue('E2E Alpha');
+
+		// …und der ergänzte Begriff verengt die Liste (deferred Filter per Enter, App.tsx:552-558).
+		await page.keyboard.press('Enter');
+		await expect(page.getByText(alphaTitle, { exact: true })).toBeVisible();
+		await expect(page.getByText(betaTitle, { exact: true })).not.toBeVisible();
+	});
+
+	test('AK3: 375px — nach der Suche liegt der Fokus im Filterfeld', async ({ page }) => {
+		await page.setViewportSize({ width: 375, height: 667 });
+		await page.goto('/');
+		await waitForStableView(page);
+
+		const matchTitle = uniqueTitle('MobilFokus');
+		await createTaskViaUi(page, matchTitle);
+
+		await searchButton(page).click();
+		await modalSearchInput(page).fill(matchTitle);
+		await page.getByRole('button', { name: 'Suche starten' }).click();
+
+		await expect(page.getByRole('heading', { name: 'Suche', exact: true })).toBeHidden();
+		await expect(page.getByText(matchTitle, { exact: true })).toBeVisible();
+		await expect(tabFilterInput(page), 'Auch mobil muss der Fokus im Filterfeld landen').toBeFocused();
+	});
+
+	test('AK4: Schließen OHNE Suche (Escape, „Abbrechen") — Fokus bleibt beim Auslöser', async ({ page }) => {
+		await page.goto('/');
+		await waitForStableView(page);
+
+		// Escape: Fokus kehrt zum Toolbar-Button zurück, nicht ins Filterfeld.
+		await searchButton(page).click();
+		await expect(modalSearchInput(page)).toBeFocused();
+		await modalSearchInput(page).press('Escape');
+		await expect(page.getByRole('heading', { name: 'Suche', exact: true })).toBeHidden();
+		await expect(searchButton(page), 'Fokus muss beim Auslöser bleiben').toBeFocused();
+
+		// „Abbrechen": gleiches Verhalten.
+		await searchButton(page).click();
+		await expect(modalSearchInput(page)).toBeFocused();
+		await page.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+		await expect(page.getByRole('heading', { name: 'Suche', exact: true })).toBeHidden();
+		await expect(searchButton(page)).toBeFocused();
+
+		// Der Fokus darf zu keinem Zeitpunkt automatisch im Filterfeld gelandet sein.
+		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
+		await expect(tabFilterInput(page)).toBeVisible();
+		await expect(tabFilterInput(page)).not.toBeFocused();
+	});
 });
