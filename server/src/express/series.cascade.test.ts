@@ -213,6 +213,34 @@ describe('Series API — Kaskade (#553)', () => {
 			}
 		});
 
+		// 🔴 #1063 AK3: geänderte Serien-Adresse kaskadiert auf offene, NICHT auf erledigte Instanzen 🔴
+		it('kaskadiert ein geändertes address auf offene Instanzen; erledigte bleiben unverändert (#1063)', async () => {
+			const created = (await (await post('/series', validSeries())).json()) as { id: number };
+			const instances = await seedInstances(created.id, 3);
+			// Eine Instanz als erledigt markiert (#555: erledigte bleiben von der Kaskade ausgenommen).
+			await instances[2].update({ status: 'Done' });
+
+			const res = await patch(`/series/${created.id}`, {
+				address: 'Kaskadenweg 7, 20095 Hamburg',
+				applyToInstances: true,
+			});
+			assert.equal(res.status, 200);
+
+			// Beide offenen Instanzen übernehmen die neue Adresse …
+			for (const open of [instances[0], instances[1]]) {
+				const reloaded = await Task.findByPk(open.id);
+				assert.equal(reloaded?.address, 'Kaskadenweg 7, 20095 Hamburg', 'offene Instanz erhält die geänderte Adresse');
+			}
+
+			// … die erledigte Instanz bleibt unverändert (kein Ortsbezug nachträglich aufgezwungen).
+			const done = await Task.findByPk(instances[2].id);
+			assert.notEqual(
+				done?.address,
+				'Kaskadenweg 7, 20095 Hamburg',
+				'erledigte Instanz bleibt von der Kaskade ausgenommen',
+			);
+		});
+
 		// AK5: rhythm / startDate / active werden NIEMALS auf bestehende Instanzen übertragen.
 		// Guard: eine rhythm-only-Änderung mit applyToInstances=true tastet die Instanzen nicht an.
 		it('kaskadiert rhythm/startDate/active NICHT (Instanzen bleiben unangetastet)', async () => {
