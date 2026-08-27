@@ -22,6 +22,12 @@ interface VoiceFieldProps {
 	 * innerhalb des Custom-Elements (also im Wrapper) rendern und genau diesen Fehler auslösen.
 	 */
 	hint?: string;
+	/**
+	 * Nur für `variant: 'input'`: Das Feld nutzt den KoliBri built-in Zähler (`_hasCounter`),
+	 * der eine Zeile UNTER der Inputbox rendert. Der Wrapper wird dadurch höher — die
+	 * Modifier-Klasse hebt den Bottom-Anker des Mic-Buttons um diese Zeile an (#1054 F1).
+	 */
+	counter?: boolean;
 	children: ReactNode;
 }
 
@@ -41,6 +47,7 @@ export const VoiceField = ({
 	onTranscript,
 	autoStart = false,
 	hint,
+	counter = false,
 	children,
 }: VoiceFieldProps) => {
 	const { isRecording, startRecording, stopRecording, isSupported, voiceError } = useVoiceInput({ onTranscript });
@@ -64,7 +71,7 @@ export const VoiceField = ({
 	return (
 		<>
 			{/* Der Wrapper bleibt auch ohne Browser-Unterstützung stehen, damit das Grid-Layout stabil ist. */}
-			<div className={`voice-field voice-field--${variant}`}>
+			<div className={`voice-field voice-field--${variant}${counter ? ' voice-field--counter' : ''}`}>
 				{children}
 				{isSupported && (
 					<button

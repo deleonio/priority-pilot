@@ -722,6 +722,9 @@ export const TaskForm = ({
 						<VoiceField
 							variant="input"
 							fieldLabel="Titel"
+							// #1054 (F1): _hasCounter (siehe unten) rendert eine Zählerzeile unter der
+							// Inputbox — Anker-Anhebung, damit der Mic-Button in der Inputbox bleibt.
+							counter
 							autoStart={voiceAutostart}
 							onTranscript={(text) => {
 								const newVal = form.current.title ? `${form.current.title} ${text}` : text;

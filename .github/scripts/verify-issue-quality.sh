@@ -12,7 +12,7 @@
 #      Auftritt / Gelöst) muessen als Markdown-Abschnitte existieren.
 #   2. Mindestfuellung: jedes Pflichtfeld >= 10 Zeichen echten Texts
 #      (Platzhalter-Text des Templates zaehlt nicht).
-#   3. Kriterium-Zaehlung: „Wann ist es gelöst?" braucht >= 1 pruefbaren Punkt
+#   3. Kriterium-Zaehlung: „Woran messen wir das?" braucht >= 1 pruefbaren Punkt
 #      (Zeile mit `-` oder `*` Bullet, nicht nur Fliesstext).
 #   4. Vage-Wort-Filter: Beispiele wie „irgendwie", „einfach mal", „besser
 #      machen" ohne konkretes Was/Wo → zurueckgewiesen.

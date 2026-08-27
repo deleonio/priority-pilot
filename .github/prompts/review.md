@@ -12,20 +12,13 @@ MODE CROSS-EXAMINATION (initial review) — adversarial, whole PR:
      - FIRST: check if the PR has a closing issue (gh pr view {{PR_NR}} --json closingIssuesReferences --jq '.closingIssuesReferences | length').
      - IF a closing issue exists (length > 0): read the acceptance criteria from the KI-ANALYSE block in the issue body.
      - IF NO closing issue exists (length == 0): use the PR description/title as the informal specification — note this explicitly in the verdict ("Review ohne Issue - PR-Beschreibung ist massgebend").
-  2. Check adversarially: does the PR fully solve the problem? Edge cases? Simplest path? Performance/security?
-     Regression: does the PR make existing tests/behavior OUTSIDE the diff obsolete? (Obsolete tests should already have been removed at the spec stage; if there's a contradiction → finding "Test-Pflege-Bedarf" (test maintenance needed), file:line.)
-  2.5. KoliBri-first followed? (for UI changes)
-     - Custom styling without a KoliBri alternative = finding.
-     - When in doubt, search for alternatives via mcp__kolibri-mcp__search.
-     - A missing justification for the custom-styling decision in the PR body = finding.
+  2. Cross-examination questions incl. regression/Test-Pflege-Bedarf: SKILL.md step 2.
+  2.5. KoliBri-first: SKILL.md step 2.
   3. Code quality: naming, readability, tests (green + covering the acceptance criteria).
 
 MODE FIXUP VERIFICATION (follow-up review) — ONLY the cross-examination result + the fixup rounds, NOT the whole PR again:
   1. Load the existing <!-- ai-review --> comment, note its "Open findings" + updatedAt. Check line 2 for whether this was a "Review ohne Issue".
-  2. Fixup diff since updatedAt: gh pr view --json commits, filter committedDate > updatedAt, then git diff on that.
-  3. Per open finding: resolved by the fixup (verify file/line)? → mark as resolved, otherwise leave open — don't re-litigate.
-  4. Adversarially check ONLY the fixup diff for NEW problems (did the fix introduce new bugs/regressions?).
-  5. Keep the acceptance criteria/issue context in view (don't judge purely diff-locally), but do NOT re-cross-examine unchanged parts of the code.
+  Delta-Review per SKILL.md step 5 (Diff scoping): only the fixup diff + new problems; tick off open findings, keep context in view.
      - If the original review was "ohne Issue": continue using PR description as the informal specification (no AK verification possible).
 
 WRAP-UP (both modes):
@@ -46,10 +39,8 @@ TIME LIMIT: soft deadline = {{SOFT_DEADLINE}}. Before every step: [ $(date +%s) 
 
 IMPORTANT: change NO code, commit nothing. Pure review.
 
-VERDICT (deliver it twice — without a verdict the PR gets stuck):
-ORDER: FIRST post the collected comment with the Entscheidungs-Findings section filled in
-(without it, the PR gets parked on a human with a generic diagnosis), THEN the
-verdict channels.
+VERDICT — ORDER: first the collected comment (inkl. Entscheidungs-Findings), then the
+verdict channels (otherwise the PR gets stuck).
 1. FILE (primary channel, the workflow reads ONLY this one first): as the VERY LAST action,
    write the verdict term as the ONLY word into /tmp/claude-verdict (bash:
    `printf 'reviewed' > /tmp/claude-verdict` — likewise for needs-fixup / needs-human).

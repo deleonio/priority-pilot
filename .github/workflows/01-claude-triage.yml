@@ -439,26 +439,25 @@ jobs:
           fi
 
           if [ "$final" = "spec-ready" ]; then
-            # 🟢: Trigger der nächsten Phase setzen — UX-Phase nur bei UI-Bezug,
-            # Nicht-UI-Tickets springen direkt zur Spec-Phase (kein separates
-            # Skip-Marker-Label mehr nötig: der Trigger IST der Skip).
+            # 🟢: PO-Review-Gate statt direkter Phasen-Trigger. Der Produkt-Owner (PO)
+            # prüft die Analyse und setzt dann manuell eines dieser Labels:
+            # - ai:needs-ux-ui (wenn UI-Bezug)
+            # - ai:needs-spec (wenn Spec nötig)
+            # - ai:needs-impl (wenn direkt umgesetzt)
+            # Dies gibt dem PO volle Kontrolle über das Routing und verhindert Fehlentscheidungen.
+            gh label create "ai:needs-po-review" --repo "$GITHUB_REPOSITORY" --color 009698 \
+              --description "PO-Review nach Triage-Analyse — PO prüft und setzt Phasen-Label" 2>/dev/null || true
+            gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-po-review"
+
+            # Hinweise für den PO, welches Label zu setzen wäre (basierend auf Analyse)
             if [ "$UI_BEZUG" != "nein" ]; then
-              # UI-Ticket: erst UX, dann Spec. 02 setzt auf ux-ready IMMER ai:needs-spec —
-              # damit ist `needs_ux ⇒ needs_spec` auch auf diesem Weg erzwungen.
-              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-ux-ui"
-              echo "::notice::Label gesetzt: ai:needs-ux-ui (UI-Ticket – 02 kümmert sich)"
+              echo "::notice title=🔍 PO-Review: UI-Ticket erkannt::Der Analyse-Logik nach wäre ai:needs-ux-ui zu setzen (UI-Bezug: ${UI_BEZUG})"
             elif [ "$NEEDS_SPEC" = "false" ]; then
-              # Spec übersprungen: direkt in die Umsetzung. Die Spec könnte hier keine roten
-              # Tests schreiben (Test-Carve-out), also bliebe nur ein Dokument — dafür lohnt
-              # der Lauf nicht. Die Umsetzung legt Branch und PR selbst an (Direkt-Modus).
-              gh label create "ai:needs-impl" --repo "$GITHUB_REPOSITORY" --color FBCA04 2>/dev/null || true
-              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-impl"
-              echo "::notice title=⏭️ Spec übersprungen::${SPEC_REASON}"
-              echo "::notice::Label gesetzt: ai:needs-impl (Spec übersprungen)"
+              echo "::notice title=🔍 PO-Review: Spec könnte übersprungen werden::Der Analyse-Logik nach wäre ai:needs-impl zu setzen (Spec-Skip: ${SPEC_REASON})"
             else
-              gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:needs-spec"
-              echo "::notice::Label gesetzt: ai:needs-spec (${SPEC_REASON})"
+              echo "::notice title=🔍 PO-Review: Spec nötig::Der Analyse-Logik nach wäre ai:needs-spec zu setzen (${SPEC_REASON})"
             fi
+            echo "::notice::Label gesetzt: ai:needs-po-review (PO prüft Analyse und setzt Phasen-Label)"
           elif [ "$final" = "needs-human" ]; then
             # Harter Stopp: check-phase-label.sh blockt mit diesem Label JEDE
             # Folgephase, auch wenn ein Trigger klebt. Bewusst KEIN Phasen-Trigger —

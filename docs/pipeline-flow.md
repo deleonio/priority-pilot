@@ -54,9 +54,11 @@ flowchart TD
 
     %% ---- Issue-Trigger ----
     start -->|"issues.labeled: ai:needs-analyse"| triage
-    triage -->|"🟢 UI: label ai:analysed + ai:needs-ux-ui"| ux
-    triage -->|"🟢 Nicht-UI: label ai:analysed + ai:needs-spec"| spec
-    triage -.->|"🟢 Nicht-UI, kein Anwendungscode:<br/>Spec übersprungen → ai:needs-impl"| implement
+    triage -->|"🟢: label ai:analysed + ai:needs-po-review"| poreview
+    poreview([PO prüft Analyse<br/>+ ai:needs-ux-ui/spec/impl]):::human
+    poreview -->|"PO setzt: ai:needs-ux-ui"| ux
+    poreview -->|"PO setzt: ai:needs-spec"| spec
+    poreview -.->|"PO setzt: ai:needs-impl<br/>(Spec übersprungen)"| implement
     ux -->|"label: ai:needs-spec"| spec
     spec -->|"label: ai:needs-impl"| implement
 
@@ -107,8 +109,7 @@ flowchart TD
 
 ## Die Label-Kette in einer Zeile
 
-`ai:needs-analyse` → **analyse** → `ai:analysed` + `ai:needs-ux-ui` → **ux** → `ai:needs-spec`
-→ **spec** → `ai:needs-impl` → **implement** → `ai:needs-review` (PR) → **review** →
+`ai:needs-analyse` → **analyse** → `ai:analysed` + `ai:needs-po-review` → **PO prüft** → `ai:needs-ux-ui`/`ai:needs-spec`/`ai:needs-impl` → **ux**/`**spec**`/`**implement**` → `ai:needs-review` (PR) → **review** →
 ( `ai:needs-fixup` → **implement (PR-Eingang)** → `ai:needs-review` → **review** )\* → `ai:reviewed` →
 **gate-merge** → ✅ → **documenter** → `ai:documented`
 
@@ -131,14 +132,15 @@ Unsicherheit auf „Spec läuft" zurückfällt. Die Umsetzung legt dann Branch *
 
 **Trigger-Labels (`ai:needs-*`)** — jede Phase reagiert auf genau eines und konsumiert es:
 
-| Label              | Gesetzt von                                                        | Entfernt von (Konsum)  | Triggert                  |
-| ------------------ | ------------------------------------------------------------------ | ---------------------- | ------------------------- |
-| `ai:needs-analyse` | Mensch (Einstieg + Re-Triage), issue-unblock (Nachfolger-Freigabe) | triage                 | `triage.yml`              |
-| `ai:needs-ux-ui`   | triage (bei 🟢 + UI-Bezug)                                         | ux                     | `ux.yml`                  |
-| `ai:needs-spec`    | triage (bei 🟢 + Nicht-UI), ux (bei Erfolg)                        | spec                   | `spec.yml`                |
-| `ai:needs-impl`    | spec (bei Erfolg), **triage** (wenn die Spec übersprungen wird)    | implement              | `implement.yml`           |
-| `ai:needs-review`  | implement, pr-needs-review-label (nur menschlich), **fixup**       | review                 | `pr-review.yml`           |
-| `ai:needs-fixup`   | review (🔴), **gate-merge**, **conflict-scan**                     | implement (PR-Eingang) | `04-claude-implement.yml` |
+| Label                | Gesetzt von                                                        | Entfernt von (Konsum)  | Triggert                  |
+| -------------------- | ------------------------------------------------------------------ | ---------------------- | ------------------------- |
+| `ai:needs-analyse`   | Mensch (Einstieg + Re-Triage), issue-unblock (Nachfolger-Freigabe) | triage                 | `triage.yml`              |
+| `ai:needs-po-review` | triage (bei 🟢)                                                    | PO (Mensch)            | —                         |
+| `ai:needs-ux-ui`     | PO (nach Prüfung)                                                  | ux                     | `ux.yml`                  |
+| `ai:needs-spec`      | PO (nach Prüfung), ux (bei Erfolg)                                 | spec                   | `spec.yml`                |
+| `ai:needs-impl`      | PO (nach Prüfung), spec (bei Erfolg)                               | implement              | `implement.yml`           |
+| `ai:needs-review`    | implement, pr-needs-review-label (nur menschlich), **fixup**       | review                 | `pr-review.yml`           |
+| `ai:needs-fixup`     | review (🔴), **gate-merge**, **conflict-scan**                     | implement (PR-Eingang) | `04-claude-implement.yml` |
 
 **Done-Labels (`ai:<Vergangenheitsform>`)** — nur wo Logik sie liest (Issue #873):
 
@@ -153,6 +155,7 @@ Unsicherheit auf „Spec läuft" zurückfällt. Die Umsetzung legt dann Branch *
 | Label                                                                        | Gesetzt von                              | Bedeutung                                                                        |
 | ---------------------------------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------- |
 | `ai:needs-human`                                                             | ux, review, fixup (+ PR/Issue-Kommentar) | KI kommt nicht weiter: **Warum** + **was der Mensch beitragen/entscheiden soll** |
+| `ai:needs-po-review`                                                         | triage (🟢)                              | PO-Review nach Triage-Analyse — PO prüft und setzt Phasen-Label                  |
 | `ai:to-big-issue`                                                            | triage, implement (2. Soft-Abort)        | Aufgabe zu groß für die Pipeline — Signal an den Menschen, löst nichts aus       |
 | `ai:continued`                                                               | implement (1. Soft-Abort)                | Fortsetzungs-Marker für den Folgelauf                                            |
 | `ai:spec-ready`/`ux:ready`/`ai:ready`/`ai:needs-changes`/`ai:ready-to-merge` | —                                        | **Entfallen** (Issue #851): ersetzt durch `ai:needs-*`/`ai:<past>`-Schema        |
