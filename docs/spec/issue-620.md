@@ -35,7 +35,7 @@ Bei Ausfall/Timeout des Mistral-Dienstes eine verständliche Fehlermeldung anzei
 - **Primär:** Fehlermeldung ist verständlich und nicht technisch (keine rohe HTTP 502)
 - **Inhalt der Fehlermeldung:** Bei 502/503/504: „Der KI-Dienst ist gerade nicht erreichbar. Bitte versuche es später erneut."
 - **Retry:** Bei transienten 5xx-Fehlern (502/503/504) versucht der Client automatisch bis zu 3 Versuche gesamt — für `parse-text` und `pillars/advisor`; `suggest-pillars` und `lektorat` schlagen direkt fehl
-- **UX:** Nutzer kann die Fehlermeldung dismissen oder erneut versuchen
+- **UX:** Die Fehlermeldung erscheint im Fehler-Alert des jeweiligen Dialogs; der Nutzer kann den Vorgang erneut versuchen
 - **Persistenz:** Fehlerzustand wird nicht gespeichert, Nutzer kann es erneut versuchen
 
 ---

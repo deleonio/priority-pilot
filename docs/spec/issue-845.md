@@ -1,6 +1,6 @@
 # Issue 845 – Geolocation: Position alle 5 Minuten ermitteln + Einstellungs-Schalter
 
-**Stand:** 2026-08-23  
+**Stand:** 2026-08-27  
 **Ziel:** App ermittelt alle 5 Minuten die Geolocation-Position des Geräts und zeigt sie an, steuerbar über Einstellungs-Schalter (Default: deaktiviert)
 
 ---
@@ -42,7 +42,7 @@ Nutzer:in kann die Standorterfassung aktivieren/deaktivieren. Bei Aktivierung wi
    - Klick auf **„Standort erfassen"** (AN → AUS)
    - App stoppt den Intervall sofort
    - Keine weiteren Standortabfragen
-   - Positionsanzeige verschwindet oder zeigt „deaktiviert"
+   - Positionsanzeige im Footer verschwindet
 
 ### 3. Intervall-Verhalten
 
@@ -62,12 +62,9 @@ Nutzer:in kann die Standorterfassung aktivieren/deaktivieren. Bei Aktivierung wi
 
 ## Technische Referenz
 
-- Hook: `frontend/src/lib/useGeolocation.ts` (Pattern: `useVoiceAutostart.ts` / `usePushSubscription.ts`)
-- Konstante: `GEOLOCATION_INTERVAL_MS = 5 * 60 * 1000` (nicht mehrfach hartkodiert)
-- UI-Komponenten: `KolInputCheckbox _variant="switch"`, `KolAlert _type="warning"`
-- Positionsanzeige: Footer-Span „📍 {Lat}° N, {Lon}° E" (4 Dezimalstellen), nur bei aktivierter Erfassung mit Position
-- Reverse-Geocoding (#866): Server-Endpunkt `GET /reverse-geocode?lat={lat}&lon={lon}` (Nominatim) liefert eine Adresse; die Settings zeigen sie unter dem Schalter (ARIA-Live: „Adresse wird ermittelt…" / Adresse / „Keine Adresse für diesen Standort"). Fehler/Rate-Limit fallen auf „Keine Adresse" zurück, ohne die Positionserfassung zu stören.
-- Berechtigungs-Flow analog Mikrofon/Push-Permission in SettingsPage
+- Positionsanzeige im Footer: „📍 {Lat}° N, {Lon}° E" (4 Dezimalstellen), nur bei aktivierter Erfassung mit ermittelter Position
+- Reverse-Geocoding: Server-Endpunkt `GET /reverse-geocode?lat={lat}&lon={lon}` (Nominatim) liefert eine Adresse; die Settings zeigen sie unter dem Schalter (ARIA-Live: „Adresse wird ermittelt…" / Adresse / „Keine Adresse für diesen Standort"). Fehler/Rate-Limit fallen auf „Keine Adresse" zurück, ohne die Positionserfassung zu stören.
+- Berechtigungs-Flow analog Mikrofon-/Push-Berechtigung in den Einstellungen
 
 ## Nicht-Ziele (Out of Scope)
 
