@@ -46,7 +46,7 @@ export const SearchModal = ({ onClose, onSearch }: SearchModalProps) => {
 					variant="input"
 					fieldLabel="Suchbegriff eingeben"
 					onTranscript={(text) => {
-						setSearchQuery((prev) => prev + (prev.endsWith(' ') ? text : ' ' + text));
+						setSearchQuery((prev) => (prev ? `${prev} ${text}` : text));
 					}}
 				>
 					<KolInputText

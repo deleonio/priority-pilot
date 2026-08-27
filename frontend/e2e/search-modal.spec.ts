@@ -61,9 +61,7 @@ test.describe('Priority Pilot — globale Suche über den Toolbar-Button', () =>
 		await searchButton(page).click();
 		await expect(page.getByRole('heading', { name: 'Suche', exact: true })).toBeVisible();
 		await expect(modalSearchInput(page)).toBeVisible();
-		await expect(modalSearchInput(page))
-			.toBeFocused({ timeout: 150 })
-			.catch(() => undefined);
+		await expect(modalSearchInput(page)).toBeFocused();
 
 		// Begriff eingeben und Suche starten.
 		await modalSearchInput(page).fill('Match');
