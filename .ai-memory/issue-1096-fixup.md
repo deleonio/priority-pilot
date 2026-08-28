@@ -24,3 +24,4 @@
 
 ## Fallstricke
 - Commit-Nachbarn: `.ai-memory/issue-1091-fixup.md`/`-implement.md` liegen untracked im Arbeitsverzeichnis — beim `git add` nur `issue-1096-fixup.md` + die Prompt-Datei nehmen, nicht `git add -A`.
+- CI auf fa388991: verify + e2e(1,3,4) GRÜN, **e2e (2) ROT** (run 33189831836, job 98912186131) — Änderung ist Markdown-only, also vermutlich flaky/pre-existing; Log prüfen, dann FLAKY-Rerun (`gh run rerun 33189831836 --failed` nur wenn Log timing/timeout-Charakter zeigt, sonst Fix).
