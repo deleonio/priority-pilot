@@ -327,14 +327,15 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 							</KolAlert>
 						)}
 					</div>
-					{/* #1080: Unabhängig vom Hauptschalter wählbar — auch bei aktiver KI kann der
-							Capture-Schritt beim Anlegen entfallen; dann öffnet sich direkt das Task-Formular. */}
+					{/* #1080: Schnellerfassung ist ein KI-Feature — bei deaktivierter KI wird der Schalter
+							deaktiviert, damit er nicht umschaltbar ist. */}
 					<div className="settings-llm-switch-row">
 						<KolInputCheckbox
 							_label="Schnellerfassung aktiv"
 							_variant="switch"
-							_hint="Bei deaktivierter Schnellerfassung öffnet „Neuen Task anlegen“ direkt das vollständige Formular."
+							_hint="Bei deaktivierter Schnellerfassung öffnet „Neuen Task anlegen“ direkt das vollständige Formular. Erfordert aktive KI."
 							_checked={quickCaptureEnabled}
+							_disabled={!aiEnabled}
 							_on={{
 								onChange: (_event, value) => {
 									setAiPreference('quickCaptureEnabled', value === true);
