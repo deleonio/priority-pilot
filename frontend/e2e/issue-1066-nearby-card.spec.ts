@@ -79,8 +79,9 @@ test.describe('Priority Pilot — #1066: Dashboard-Card „In der Nähe“', () 
 
 		const denied = page.getByTestId('nearby-denied');
 		await expect(denied).toBeVisible({ timeout: 5000 });
-		// Rest-Dashboard bleibt unbeeinträchtigt
-		await expect(page.getByRole('region', { name: /jetzt dran|nächste aufgabe/i })).toBeVisible();
+		// Rest-Dashboard bleibt unbeeinträchtigt (exakter Name: /jetzt dran|nächste/ matcht
+		// strict-mode zwei Regions — „Nächste Aufgabe" und „Was ist jetzt dran?").
+		await expect(page.getByRole('region', { name: 'Nächste Aufgabe' })).toBeVisible();
 	});
 
 	test('AK9 — keine Tasks mit Koordinaten: klare Leer-Aussage statt Fehler', async ({ page }) => {
@@ -132,7 +133,10 @@ test.describe('Priority Pilot — #1066: Dashboard-Card „In der Nähe“', () 
 		await page.request.patch(`/api/v1/tasks/${id}`, { data: { status: 'Done' } });
 		await page.goto('/');
 		await waitForStableView(page);
-		await page.getByRole('tab', { name: /erledigt/i }).click();
+		// Erledigt-Ansicht liegt seit #399 im „Aufgaben"-Tab hinter dem Offen/Erledigt-Switch
+		// (Muster completed-tasks.spec.ts), nicht in einem eigenen Tab.
+		await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
+		await page.getByRole('checkbox', { name: /Erledigte Aufgaben/i }).click();
 
 		const badge = page.getByTestId('geo-badge').first();
 		await expect(badge).toBeVisible({ timeout: 5000 });
