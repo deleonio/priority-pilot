@@ -36,6 +36,7 @@ import { buildDependencyMap } from './lib/dependencies';
 import { collectTaskValues } from './lib/forest';
 import { buildPillarSummaries } from './lib/pillar';
 import { APP_VERSION } from './lib/version';
+import { useAiPreferences } from './lib/aiPreferences';
 
 type Dialog =
 	// `parentTask` gesetzt → die neu angelegte Aufgabe wird als Vorgänger mit ihr verknüpft (Unteraufgabe).
@@ -404,6 +405,11 @@ export const App = ({ user }: { user: AuthUser }) => {
 		setDialog({ kind: 'advisor' });
 	}, []);
 
+	// #1080: KI-Einstellungen (clientseitig, localStorage). `aiEnabled` blendet die KI-Bedienelemente
+	// aus (Toolbar-Button „Säulen-Berater", Lektorat-Buttons im TaskForm); `quickCaptureEnabled`
+	// entscheidet, ob „Neuen Task anlegen" den Capture-Schritt zeigt oder direkt das Task-Formular.
+	const { aiEnabled, quickCaptureEnabled } = useAiPreferences();
+
 	// Toolbar-Buttons sind auf allen Viewports identisch — keine unterschiedliche Menüstruktur je nach
 	// Viewport-Breite (#691). `_label`s und Reihenfolge sind stabil, damit Accessible Names konsistent bleiben.
 	// Die KI-Modellwahl lebt seit dem Provider-System in den Einstellungen (Tab „KI-Provider“).
@@ -427,14 +433,20 @@ export const App = ({ user }: { user: AuthUser }) => {
 				_variant: 'secondary' as const,
 				_on: { onClick: openCreateDialog },
 			},
-			{
-				type: 'button' as const,
-				_label: 'Säulen-Berater',
-				_hideLabel: true,
-				_icons: ADVISOR_ICON,
-				_variant: 'secondary' as const,
-				_on: { onClick: openAdvisor },
-			},
+			// #1080: Ohne aktive KI wird der Säulen-Berater gar nicht erst gerendert (nicht nur
+			// ausgeblendet), damit er weder fokussierbar noch per Accessibility-Baum auffindbar ist.
+			...(aiEnabled
+				? [
+						{
+							type: 'button' as const,
+							_label: 'Säulen-Berater',
+							_hideLabel: true,
+							_icons: ADVISOR_ICON,
+							_variant: 'secondary' as const,
+							_on: { onClick: openAdvisor },
+						},
+					]
+				: []),
 			{
 				type: 'button' as const,
 				_label: 'Einstellungen',
@@ -461,7 +473,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 				_on: { onClick: (): void => void handleLogout() },
 			},
 		];
-	}, [logoutLoading, openSearch, openCreateDialog, openAdvisor, openSettings, openHelp, handleLogout]);
+	}, [logoutLoading, openSearch, openCreateDialog, openAdvisor, openSettings, openHelp, handleLogout, aiEnabled]);
 
 	if (showSettings) {
 		return (
@@ -649,15 +661,27 @@ export const App = ({ user }: { user: AuthUser }) => {
 				</KolTabs>
 			)}
 
-			{dialog?.kind === 'create' && (
-				<QuickCaptureModal
-					parentTask={dialog.parentTask ?? null}
-					initialText={dialog.initialText}
-					pillars={pillars}
-					onClose={closeDialog}
-					onSaved={afterMutation}
-				/>
-			)}
+			{dialog?.kind === 'create' &&
+				// #1080: Ohne Schnellerfassung entfällt der Capture-Schritt — direkt das Task-Formular
+				// (inkl. Übernahme eines Berater-Textes als Beschreibungs-Vorbelegung, #327).
+				(quickCaptureEnabled ? (
+					<QuickCaptureModal
+						parentTask={dialog.parentTask ?? null}
+						initialText={dialog.initialText}
+						pillars={pillars}
+						onClose={closeDialog}
+						onSaved={afterMutation}
+					/>
+				) : (
+					<TaskFormModal
+						task={null}
+						parentTask={dialog.parentTask ?? null}
+						initialValues={{ description: dialog.initialText }}
+						pillars={pillars}
+						onClose={closeDialog}
+						onSaved={afterMutation}
+					/>
+				))}
 			{dialog?.kind === 'search' && (
 				<SearchModal
 					onClose={closeDialog}

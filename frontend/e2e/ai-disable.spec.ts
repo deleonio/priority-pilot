@@ -91,7 +91,7 @@ test.describe('#1080 KI-Features deaktivierbar', () => {
 
 		// Task über die echte API anlegen (Vite-Proxy), damit der Bearbeiten-Dialog geöffnet werden kann.
 		const created = await page.request.post('/api/v1/tasks', {
-			data: { title: '#1080 KI aus — Bearbeiten', status: 'open' },
+			data: { title: '#1080 KI aus — Bearbeiten', status: 'Open' },
 		});
 		expect(created.ok()).toBeTruthy();
 		const task = (await created.json()) as { id: number };
@@ -99,6 +99,9 @@ test.describe('#1080 KI-Features deaktivierbar', () => {
 		try {
 			await page.goto('/');
 			await waitForStableView(page);
+			// Die Task-Liste liegt im „Aufgaben"-Tab (nicht im Dashboard); „Bearbeiten" liegt hinter „Weitere Aktionen".
+			await page.getByRole('tab', { name: 'Aufgaben', exact: true }).click();
+			await page.getByRole('button', { name: 'Weitere Aktionen' }).first().click();
 			await page.getByRole('button', { name: 'Bearbeiten' }).first().click();
 			await expect(page.getByRole('textbox', { name: 'Titel' })).toBeVisible();
 
@@ -162,9 +165,10 @@ test.describe('#1080 KI-Features deaktivierbar', () => {
 			expect(scrolled!.y).toBeGreaterThanOrEqual(0);
 			expect(scrolled!.y + scrolled!.height).toBeLessThanOrEqual(812);
 
-			// Bedienbar: Umschalten ändert den Zustand.
-			await switches.nth(i).click();
-			await expect(switches.nth(i)).not.toBeChecked();
+			// Bedienbar: Umschalten ändert den Zustand (Assertion auf das native Input im Shadow-DOM,
+			// da der `kol-input-checkbox`-Host selbst weder Checkbox noch Rolle `switch` trägt).
+			await switches.nth(i).locator('input').click();
+			await expect(switches.nth(i).locator('input')).not.toBeChecked();
 		}
 	});
 });

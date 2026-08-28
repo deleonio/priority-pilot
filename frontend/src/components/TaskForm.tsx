@@ -28,6 +28,7 @@ import { toApiError } from '../lib/apiError';
 import { useCtrlEnter } from '../lib/useCtrlEnter';
 import { readNumber, readString } from '../lib/inputValue';
 import { readVoiceAutostartPreference } from '../lib/voiceAutostart';
+import { readAiPreferences } from '../lib/aiPreferences';
 import { VoiceField } from './VoiceField';
 import { ConfirmSeriesActionModal } from './ConfirmSeriesActionModal';
 import { LektoratDiffModal } from './LektoratDiffModal';
@@ -222,6 +223,10 @@ export const TaskForm = ({
 	const seriesEdit = series != null;
 	const taskEdit = task !== null;
 	const isEdit = taskEdit || seriesEdit;
+
+	// #1080: Ohne aktive KI werden die Lektorat-Buttons (Titel/Beschreibung) nicht gerendert —
+	// die Präferenz ist clientseitig gespeichert und ändert sich nur über die Einstellungen.
+	const aiEnabled = useMemo(() => readAiPreferences().aiEnabled, []);
 
 	// Aktiver Formularmodus: „Serie" beim Serien-Edit fest vorgegeben, sonst Standard „Aufgabe".
 	// Im Anlege-Modus wechselt der Umschalter zwischen beiden; im Bearbeiten-Modus ist er gesperrt.
@@ -770,21 +775,24 @@ export const TaskForm = ({
 							</div>
 						</VoiceField>
 					</div>
-					<KolButton
-						ref={lektoratTitleTriggerRef}
-						_label="Titel lektorieren"
-						_hideLabel
-						_variant="minimal"
-						_disabled={saving || lektoratingTitle || lektoratingDescription || pendingLektorat !== null}
-						_icons={{ left: { icon: 'fa-solid fa-magic' } }}
-						_on={{
-							onClick: () => void runLektorat('title', 30),
-						}}
-						style={{
-							flexShrink: 0,
-						}}
-						className="lektorat-button-align"
-					/>
+					{/* #1080: Lektorat ist ein KI-Feature — ohne aktive KI wird der Button nicht gerendert. */}
+					{aiEnabled && (
+						<KolButton
+							ref={lektoratTitleTriggerRef}
+							_label="Titel lektorieren"
+							_hideLabel
+							_variant="minimal"
+							_disabled={saving || lektoratingTitle || lektoratingDescription || pendingLektorat !== null}
+							_icons={{ left: { icon: 'fa-solid fa-magic' } }}
+							_on={{
+								onClick: () => void runLektorat('title', 30),
+							}}
+							style={{
+								flexShrink: 0,
+							}}
+							className="lektorat-button-align"
+						/>
+					)}
 				</div>
 				{/* #727: Range-Inputs responsiv (vertikal ≤768px, horizontal >768px) */}
 				<div className="range-inputs-row">
@@ -978,21 +986,24 @@ export const TaskForm = ({
 							/>
 						</VoiceField>
 					</div>
-					<KolButton
-						ref={lektoratDescriptionTriggerRef}
-						_label="Beschreibung lektorieren"
-						_hideLabel
-						_variant="minimal"
-						_disabled={saving || lektoratingTitle || lektoratingDescription || pendingLektorat !== null}
-						_icons={{ left: { icon: 'fa-solid fa-magic' } }}
-						_on={{
-							onClick: () => void runLektorat('description'),
-						}}
-						style={{
-							flexShrink: 0,
-						}}
-						className="lektorat-button-align"
-					/>
+					{/* #1080: Lektorat ist ein KI-Feature — ohne aktive KI wird der Button nicht gerendert. */}
+					{aiEnabled && (
+						<KolButton
+							ref={lektoratDescriptionTriggerRef}
+							_label="Beschreibung lektorieren"
+							_hideLabel
+							_variant="minimal"
+							_disabled={saving || lektoratingTitle || lektoratingDescription || pendingLektorat !== null}
+							_icons={{ left: { icon: 'fa-solid fa-magic' } }}
+							_on={{
+								onClick: () => void runLektorat('description'),
+							}}
+							style={{
+								flexShrink: 0,
+							}}
+							className="lektorat-button-align"
+						/>
+					)}
 				</div>
 			</div>
 			{/* Säulen-Beiträge: je Säule ein Roh-Anteil 0,0–1,0 (#82), beim Speichern auf 100 % normiert. */}
