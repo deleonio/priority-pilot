@@ -1,5 +1,7 @@
 # Issue 1083 — Fixup PR #1086 (Phase 6), Stand 2026-08-28
 
+**ERGEBNIS: Fixup-Commit `dba567b3` gepusht, alle 4 Review-Threads beantwortet UND resolved, F4 im PR-Body.**
+
 ## Erledigt
 - Findings F1–F4 aus Review 5050526414 verarbeitet; **F1+F2+F3 im Code behoben, F4 im PR-Body**.
 - **F1** `frontend/src/lib/useAddressSearch.ts:53-55` — `setError(false)` direkt neben `setLoading(true)` im Timer-Callback (Kommentar verweist auf F1). Damit klebt die Warnung nicht mehr neben späteren Trefferlisten.
@@ -25,12 +27,16 @@
 - Playwright-MCP 375/1280-Layoutcheck — kein Layout-Change (nur Attribut-/Handler-Verschiebung, kein Markup-Stil geändert); e2e läuft in CI.
 
 ## Offen
-- `-`
+- Re-Review (MODE=FIXUP VERIFICATION) steht aus — F-Nummern F1–F4 stabil lassen.
+- Kein `ai-fixup-decisions`-Kommentar gepostet: keine Entscheidungs-Findings, kein CI-Fehler → die Struktur ist nur für needs-human vorgesehen.
+- `ai-review`-Sammelkommentar (issuecomment-5451804266) NICHT angefasst (gehört der Review-Phase).
 
 ## Nächster Schritt
 - Re-Review (MODE=FIXUP VERIFICATION) über den Fixup-Diff; F-Nummern F1–F4 stabil lassen. Danach ggf. CI abwarten (e2e `issue-1061-task-address.spec.ts` — Selektor `getByRole('option')` unverändert, sollte grün bleiben).
 
 ## Fallstricke
-- `getByRole('combobox')` liefert jetzt den CONTAINER — jede `fireEvent.change`/`fireEvent`-Eingabe darauf ist ein No-op („does not have a value setter"). Immer `getByRole('textbox')` fürs Tippen.
+- `getByRole('combobox')` liefert jetzt den CONTAINER — jede `fireEvent.change`-Eingabe darauf ist ein No-op („does not have a value setter"). Immer `getByRole('textbox')` fürs Tippen. replace_all über genau EINEN String-Literal erwischt nicht alle Stellen (`'munchen'` vs `'xyznichtstreffer'`) — nach replace_all IMMER nochmal grep'en.
 - `fireEvent.blur` feuert React-`onBlur` NICHT (bubbelt nicht) → `fireEvent.focusOut` verwenden.
 - Keine Key-Handler doppelt (Container + KoliBri-Prop) — sonst doppelte Ausführung durch Bubbling.
+- `git config user.name/user.email` fehlt in der Fixup-Sandbox → Commit schlägt fehl mit „empty ident name". Erst `git config user.name "priority-pipeline" && git config user.email "noreply@users.noreply.github.com"` (Identität aus `git log -1 --format='%an <%ae>'` eines früheren Commits übernehmen).
+- `gh api graphql -f t $tid` ist FALSCH (macht `$tid` zum positional arg → „accepts 1 arg(s), received 4"). Richtig: `-f "t=$tid"` (key=value in EINEM Argument). Shell-Quoting für deutsche Umlaute/Backticks in Kommentaren bricht sowieso → python-Skript nach /tmp schreiben und dort laufen lassen.
