@@ -19,11 +19,20 @@ REPORT (MANDATORY): write via bash heredoc to /tmp/prompt-audit.md. The workflow
   # Prompt-Audit {{AUDIT_DATE}}
   ## Gesamturteil
   2-3 sentences: overall state, biggest lever.
-  ## <file> — 🟢|🟡|🔴
-  per finding: short quote — problem — concrete suggestion — estimated savings.
-  🟢 only if there's genuinely nothing to gain.
+  ## Datei-Übersicht
+  One table row per reviewed prompt: | Datei | 🟢|🟡|🔴 | Anzahl Funde | — clean files stay visible.
+  ## Funde
+  ALL findings, sorted descending by expected saving (ties: severity). Per finding:
+  `### Rang <n> — <Datei> — <Kategorie>` (Redundanz|Kürzung|Widerspruch|Unklarheit|Fehler)
+  short quote — problem — concrete suggestion — expected saving — **Machbarkeit** (leicht/mittel/schwer) — **Aufwand** (geschätzte Stunden).
   ## Widersprüche (quer über die Phasen)
-  ## Token-Hebel (Rangfolge der Maßnahmen nach Wirkung)
+  ONLY contradictions spanning multiple files; single-file contradictions stay in Funde.
+  ## Optimierungsoptionen
+  1-3 self-contained packages bundling the important findings (never more than three).
+  Exactly ONE option marked **⭐ EMPFOHLEN** (one-sentence reason).
+  Per option: Titel — betroffene Dateien — erwartete Ersparnis — Aufwand — Umsetzungsschritte.
+  ## Entscheidung
+  One line: the human decides which option to implement (or none).
 
 ONLY substantiated findings with a quote — no speculation, no style nitpicks without measurable benefit.
 

@@ -186,6 +186,13 @@ jobs:
             exit 1
           fi
 
+          # Report ohne Empfehlung ist keine Entscheidungsgrundlage: mindestens eine Option
+          # muss den ASCII-Marker EMPFOHLEN tragen (grep-stabil, ⭐ ist nur Deko).
+          if ! grep -q 'EMPFOHLEN' /tmp/prompt-audit.md; then
+            echo "::error title=❌ Report ohne Empfehlung::Findings-Report muss genau eine Optimierungsoption als EMPFOHLEN auszeichnen."
+            exit 1
+          fi
+
           gh label create "ci:prompt-audit" --repo "$GITHUB_REPOSITORY" --color BFD4F2 \
             --description "Nightly LLM-Review der Pipeline-Phasen-Prompts (Token-Optimierung)" 2>/dev/null || true
 
