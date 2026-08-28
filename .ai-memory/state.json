@@ -23,6 +23,12 @@
       "runId": "33140268245",
       "branch": "main",
       "timestamp": "2026-08-28T04:21:28Z"
+    },
+    "fixup": {
+      "sessionId": "7eebc515-acab-4b8a-9eed-5ae7b3ad4760",
+      "runId": "33141820663",
+      "branch": "feat/issue-1080-ki-deaktivierbar",
+      "timestamp": "2026-08-28T04:38:58Z"
     }
   }
 }
