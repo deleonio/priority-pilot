@@ -1,6 +1,6 @@
 # Issue 1083 — Fixup PR #1086 (Phase 6), Stand 2026-08-28
 
-**ERGEBNIS: Fixup-Commit `dba567b3` gepusht, alle 4 Review-Threads beantwortet UND resolved, F4 im PR-Body.**
+**ERGEBNIS: Fixup `dba567b3` (F1–F4) + manuelle N1-Runde: Regressionstest gepusht, N1-Thread beantwortet + resolved. Re-Review über Push-Reset angestoßen.**
 
 ## Erledigt
 - Findings F1–F4 aus Review 5050526414 verarbeitet; **F1+F2+F3 im Code behoben, F4 im PR-Body**.
@@ -27,7 +27,7 @@
 - Playwright-MCP 375/1280-Layoutcheck — kein Layout-Change (nur Attribut-/Handler-Verschiebung, kein Markup-Stil geändert); e2e läuft in CI.
 
 ## Offen
-- Re-Review (MODE=FIXUP VERIFICATION) steht aus — F-Nummern F1–F4 stabil lassen.
+- Re-Review Runde 3 läuft (menschlicher Push → `pr-needs-review-label.yml` hat `ai:needs-review` gesetzt).
 - Kein `ai-fixup-decisions`-Kommentar gepostet: keine Entscheidungs-Findings, kein CI-Fehler → die Struktur ist nur für needs-human vorgesehen.
 - `ai-review`-Sammelkommentar (issuecomment-5451804266) NICHT angefasst (gehört der Review-Phase).
 
@@ -40,3 +40,9 @@
 - Keine Key-Handler doppelt (Container + KoliBri-Prop) — sonst doppelte Ausführung durch Bubbling.
 - `git config user.name/user.email` fehlt in der Fixup-Sandbox → Commit schlägt fehl mit „empty ident name". Erst `git config user.name "priority-pipeline" && git config user.email "noreply@users.noreply.github.com"` (Identität aus `git log -1 --format='%an <%ae>'` eines früheren Commits übernehmen).
 - `gh api graphql -f t $tid` ist FALSCH (macht `$tid` zum positional arg → „accepts 1 arg(s), received 4"). Richtig: `-f "t=$tid"` (key=value in EINEM Argument). Shell-Quoting für deutsche Umlaute/Backticks in Kommentaren bricht sowieso → python-Skript nach /tmp schreiben und dort laufen lassen.
+
+## Nachtrag 2026-08-28 (manuelle N1-Runde nach Stop-Guard)
+- Review Runde 2: F1–F4 bestätigt behoben, 1 neues Finding **N1** — F1-Fixzeile ohne Regressionstest. Stop-Guard parkte den Loop (13 Commits > 10, `ai:needs-human`).
+- N1 umgesetzt: neuer Test „AK5 — Fehlerzustand räumt sich ab" in `AddressAutocomplete.test.tsx` (ein Mount: Fehler → erfolgreiche Suche → Treffer ohne Warnung). **Rot verifiziert**: F1-Zeile entfernt → Test rot; wiederhergestellt → grün (8/8 der Datei).
+- Gate: format/prettier/lint/knip ✅, Frontend 443 passed (+1), Server nur pre-existing Redis-Store-Fehler (auf sauberem Stand per Stash verifiziert). CI vor Push: e2e 1–4 + verify grün.
+- Lokaler Push = menschlicher Akteur → Autolabeler entfernt `ai:needs-human`, setzt `ai:needs-review` → Review Runde 3.
