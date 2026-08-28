@@ -1,14 +1,14 @@
 # Continue-Sweep — hängende Pipeline-Phasen fortführen
 
-**Stand:** 2026-08-27
+**Stand:** 2026-08-28
 
 ## Ziel
 
-Stehengebliebene Pipeline-Workflows werden automatisch fortgesetzt: Alle 6 Stunden — jeweils 5 Minuten nach 0, 6, 12 und 18 Uhr Europe/Berlin — prüft der Sweep-Workflow `claude-continue-sweep.yml`, ob einer label-getriebenen Phase (01–06) ein Trigger-Label klebt, ohne dass ein Lauf existiert, und feuert das Trigger-Label dann neu.
+Stehengebliebene Pipeline-Workflows werden automatisch fortgesetzt: Alle 6 Stunden — jeweils 5 Minuten nach 0, 6, 12 und 18 Uhr Europe/Berlin — prüft der Sweep-Workflow `claude-continue-sweep.yml`, ob einer label-getriebenen Phase (01–05) ein Trigger-Label klebt, ohne dass ein Lauf existiert, und feuert das Trigger-Label dann neu.
 
 ## Hintergrund
 
-Die Phase-Workflows (01-claude-triage … 06-claude-pr-fixup) laufen auf `labeled`-Events. Der Soft-Abort-Selbstretrigger (Trigger-Label entfernen + sofort neu setzen) läuft im sterbenden Job. Stirbt der Lauf davor (Runner-Ausfall, Cancel, hartes Timeout, API-Fehler), klebt das Trigger-Label am Issue/PR, ohne dass ein Folge-Event die Phase wieder weckt. Der Continue-Sweep ist das Sicherheitsnetz dafür (analog zum Merge-Gate-Sweep `claude-pr-gate-sweep.yml`).
+Die Phase-Workflows 01-claude-triage, 02-claude-ux, 03-claude-spec, 04-claude-implement (Issue: `ai:needs-impl`, PR: `ai:needs-fixup`) und 05-claude-pr-review laufen auf `labeled`-Events. Der Soft-Abort-Selbstretrigger (Trigger-Label entfernen + sofort neu setzen) läuft im sterbenden Job. Stirbt der Lauf davor (Runner-Ausfall, Cancel, hartes Timeout, API-Fehler), klebt das Trigger-Label am Issue/PR, ohne dass ein Folge-Event die Phase wieder weckt. Der Continue-Sweep ist das Sicherheitsnetz dafür (analog zum Merge-Gate-Sweep `claude-pr-gate-sweep.yml`). 06-claude-pr-documenter.yml läuft auf `pull_request: closed` (Merge), nicht auf einem Trigger-Label, und liegt außerhalb des Sweep-Scopes.
 
 ## Vorbedingung
 

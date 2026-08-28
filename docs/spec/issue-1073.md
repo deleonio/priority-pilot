@@ -1,5 +1,7 @@
 # Issue 1073 — Fußbereich: Adresse statt Koordinaten anzeigen
 
+**Stand:** 2026-08-28
+
 ## Ziel
 
 Die Fußzeile zeigt statt der Roh-Koordinaten die lesbare Adresse aus dem Reverse Geocoding
@@ -20,7 +22,8 @@ Die Fußzeile zeigt statt der Roh-Koordinaten die lesbare Adresse aus dem Revers
    Geocoding-Fehler), zeigt die Fußzeile stattdessen die Koordinaten (`position.latitude`/`longitude`,
    bisheriges `toFixed(4)`-Format). Ist auch keine Position vorhanden, bleibt nur die Version.
 3. **AK3 — Separator:** Adresse (bzw. Fallback-Koordinaten) und Version werden durch den
-   Separator `" | "` getrennt (bisher: nur Abstand über `marginRight`).
+   Separator `" | "` getrennt. Der Separator steckt in einem eigenen `<span aria-hidden="true">`
+   (rein dekorativ, wird Screen-Readern nicht vorgelesen).
 4. **AK4 — Version:** Die übergebene Versionsnummer wird unverändert korrekt angezeigt
    (bereits durch bestehende Tests in `Footer.test.tsx` abgedeckt — Dedup, keine neuen Tests).
 5. **AK5 — Landmark:** `role="contentinfo"` bleibt erhalten

@@ -1,6 +1,6 @@
 # Issue 845 – Geolocation: Position alle 5 Minuten ermitteln + Einstellungs-Schalter
 
-**Stand:** 2026-08-27  
+**Stand:** 2026-08-28  
 **Ziel:** App ermittelt alle 5 Minuten die Geolocation-Position des Geräts und zeigt sie an, steuerbar über Einstellungs-Schalter (Default: deaktiviert)
 
 ---
@@ -55,15 +55,17 @@ Nutzer:in kann die Standorterfassung aktivieren/deaktivieren. Bei Aktivierung wi
 - **Default-Zustand:** Schalter ist AUS, kein `navigator.geolocation`-Call, keine Positionsanzeige
 - **Aktiviert (Permission granted):**
   - Schalter AN, erste Position sofort ermittelt
-  - Position im Footer sichtbar (Format: „52.5200° N, 13.4050° E"); Adresse (Reverse-Geocoding) in den Settings
+  - Fußzeile zeigt die per Reverse-Geocoding ermittelte Adresse; ist keine Adresse verfügbar (noch keine Ermittlung, Geocoding-Fehler/Rate-Limit), zeigt sie ersatzweise die Koordinaten (Format „52.5200° N, 13.4050° E")
+  - Einstellungen zeigen unter dem Schalter zusätzlich Adresse bzw. Ladezustand/Fehlermeldung
   - Intervall läuft alle 5 Minuten
 - **Deaktiviert:** Intervall stoppt sofort, keine weiteren Anfragen
 - **Permission denied:** Schalter AUS, KolAlert warning mit Handlungsaufforderung
 
 ## Technische Referenz
 
-- Positionsanzeige im Footer: „📍 {Lat}° N, {Lon}° E" (4 Dezimalstellen), nur bei aktivierter Erfassung mit ermittelter Position
+- Fußzeile: zeigt bei vorhandener Adresse diese an; ohne Adresse (keine Position, Geocoding-Fehler/Rate-Limit) ersatzweise die Koordinaten im Format „{Lat}° N, {Lon}° E" (4 Dezimalstellen). Nur sichtbar bei aktivierter Erfassung mit ermittelter Position.
 - Reverse-Geocoding: Server-Endpunkt `GET /reverse-geocode?lat={lat}&lon={lon}` (Nominatim) liefert eine Adresse; die Settings zeigen sie unter dem Schalter (ARIA-Live: „Adresse wird ermittelt…" / Adresse / „Keine Adresse für diesen Standort"). Fehler/Rate-Limit fallen auf „Keine Adresse" zurück, ohne die Positionserfassung zu stören.
+- Der Aktivierungszustand wird lokal gespeichert und bleibt über Seiten-Neuladen hinweg erhalten: War die Erfassung zuletzt aktiviert, ermittelt die App beim nächsten Laden sofort wieder die Position.
 - Berechtigungs-Flow analog Mikrofon-/Push-Berechtigung in den Einstellungen
 
 ## Nicht-Ziele (Out of Scope)
