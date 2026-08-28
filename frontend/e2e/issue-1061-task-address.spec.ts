@@ -25,6 +25,13 @@ const SUGGESTIONS = [
 	'Musterstraße 1b, 12345 Musterstadt, Landkreis Musterhausen, Brandenburg, Deutschland',
 ].map((address, index) => ({ address, lat: 52.5 + index / 100, lon: 13.4 + index / 100 }));
 
+/** #1083: Photon-/Nominatim-Treffer für die Tippfehler-Query „munchen" — kein Treffer enthält den Query-Substring. */
+const MUNICH_SUGGESTIONS = [
+	'München Hauptbahnhof, Bahnhofplatz 1, 80331 München, Bayern, Deutschland',
+	'München Ost, Orleanstraße 3, 81667 München, Bayern, Deutschland',
+	'München Marienplatz, Marienplatz 1, 80331 München, Bayern, Deutschland',
+].map((address, index) => ({ address, lat: 48.13 + index / 100, lon: 11.57 + index / 100 }));
+
 /** Öffnet das TaskForm (QuickCapture-Schritt übersprungen) und liefert das Adressfeld. */
 const openFormWithAddressField = async (page: Page) => {
 	await page.goto('/');
@@ -69,5 +76,40 @@ test.describe('#1061 Adress-Combobox im TaskForm', () => {
 		expect(optionBox).not.toBeNull();
 		expect(optionBox!.x).toBeGreaterThanOrEqual(0);
 		expect(optionBox!.x + optionBox!.width).toBeLessThanOrEqual(375);
+	});
+
+	// #1083: Die eigene Vorschlagsliste zeigt ALLE Server-Treffer — KolCombobox filtert intern per
+	// `includes`, deshalb bleibt „munchen" (kein Substring der München-Treffer) heute leer. Die
+	// Liste muss als In-Flow-Block unter dem Feld im Viewport bleiben (#1061-Messmethode).
+	test('375px: fuzzy „munchen" zeigt alle Server-Treffer ohne Substring-Gate, Liste bleibt im Viewport', async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 375, height: 667 });
+		await page.route('**/api/v1/geocode-search*', (route: Route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify(MUNICH_SUGGESTIONS),
+			}),
+		);
+
+		const addressInput = await openFormWithAddressField(page);
+		// „munchen" ist in keinem der Treffer-Strings enthalten — ein clientseitiges Substring-Gate
+		// würde die Liste leer lassen (rot bis die eigene Liste steht).
+		await addressInput.fill('munchen');
+
+		const options = page.getByRole('option');
+		await expect(options).toHaveCount(MUNICH_SUGGESTIONS.length, { timeout: 5000 });
+
+		for (let index = 0; index < MUNICH_SUGGESTIONS.length; index += 1) {
+			const option = options.nth(index);
+			await expect(option).toBeVisible();
+			const box = await option.boundingBox();
+			expect(box).not.toBeNull();
+			expect(box!.x).toBeGreaterThanOrEqual(0);
+			expect(box!.x + box!.width).toBeLessThanOrEqual(375);
+			// Touch-Ziel (mobile-ui-rules Regel 2): ganze Zeile klickbar, mindestens 44 px hoch.
+			expect(box!.height).toBeGreaterThanOrEqual(44);
+		}
 	});
 });
