@@ -1,45 +1,49 @@
 # Issue 1083 — Review (Phase 5), Stand 2026-08-28
 
 ## Erledigt
-- Kreuzverhör PR #1086, 1. Runde, MODE=CROSS-EXAMINATION (kein `<!-- ai-review -->`-Kommentar vorhanden). Closing-Issue #1083 vorhanden → AK1–AK7 aus dem KI-ANALYSE-Block verifiziert.
-- Vollständigen Diff gelesen (`gh pr diff 1086` → /tmp/pr1086.diff), 16 Dateien, 8 Commits; TDD-Reihenfolge bestätigt: `991f39dd3 test: red spec tests` (593+/33−, enthält die Test-Anpassungen) VOR `c6a616261 feat:` — Separation of Duties formal erfüllt.
-- KoliBri-First geprüft: `spec/input-text` via kolibri-mcp → **keine** Props für `role`/`aria-expanded`/`aria-controls`/`aria-activedescendant` in 4.3.0 → F2. (`spec/combobox` ohne Filter-Abschalt-Prop war schon in der UX-Phase verifiziert, PR-Begründung `AddressAutocomplete.tsx:5-14` vorhanden → kein Finding.)
-- **Bug F1 nachgewiesen**: `frontend/src/lib/useAddressSearch.ts:34,41-46,63-70` — `error` wird nur in der `< MIN_QUERY_LENGTH`-Abzweigung (Zeile 44) zurückgesetzt, nicht bei einer neuen Suche. Nach einem Fehlschlag rendert `AddressAutocomplete.tsx:114` (`!loading && error`) die Warnung dauerhaft und gleichzeitig mit späteren Trefferlisten.
-- **F2 nachgewiesen**: ARIA-Attribute landen auf dem `<kol-input-text>`-Host; `aria-activedescendant` (Zeile 99) zeigt auf ein `<li>`-Geschwister → kein Nachfahre des Combobox-Elements → ARIA-Verstoß. Unit-Test blind: Mock `AddressAutocomplete.test.tsx:177-197` spreaded `{...rest}` per Konstruktion auf natives `<input>`.
-- **F3 nachgewiesen**: `AddressAutocomplete.tsx:50-76` — kein `onBlur`, `keyDown` nur Arrow/Enter/Escape → Spec-AK5 „Tab/Blurfokus schließt" fehlt. Kollidiert nicht mit Options-Klick, weil `onMouseDown` (Zeile 142) `preventDefault()` ruft.
-- **F4 nachgewiesen**: PR-Body behauptet „kein Test wurde verändert", tatsächlich `geocode-search.test.ts:214,239` abgeschwächt (`length === 1` → `status === 200`) — Abschwächung begründbar, Begründung fehlt im PR.
-- **CI-E2E verifiziert**: Run 33164987843 (ci.yml, success) — `e2e (2) shard 2/4` log-Zeile `✓ e2e/issue-1061-task-address.spec.ts:84 … fuzzy „munchen" zeigt alle Server-Treffer` → AK7 grün; der e2e-Vorbehalt im PR-Body ist entkräftet. Auch `verify` (Vitest) grün.
-- Design-Token geprüft: `src/app.css` definiert `--pp-surface-0/1/2`, `--pp-border-strong`, `--pp-ink`, `--pp-focus-ring`, `--pp-space-2`, `--pp-radius-sm`, `--pp-motion-fast`; Dark-Theme über `:root[data-theme='dark']` (Zeile 141) → die `var(--pp-*, fallback)`-Nutzung im Componente ist korrekt, KEIN Finding.
-- Review gepostet: 4 Inline-Kommentare (review 5050526414, event=COMMENT) + Sammelkommentar `<!-- ai-review -->` (issuecomment-5451804266), Verdict **needs-fixup**.
-- Titel-Gate angewendet: `gh pr edit 1086 --title "feat(frontend): fuzzy address search via photon, nominatim fallback"` (war ohne CC-Type und deutsch).
+- **Runde 2 (MODE=FIXUP VERIFICATION, 2026-08-28)**: Marker gefunden (issuecomment-5451804266, updatedAt 11:12:21Z) → nur Fixup-Diff geprüft, KEIN neues Kreuzverhör. Fixup-Commit `dba567b3` (11:24:30Z, > updatedAt) über `git diff 4bf77aba..dba567b3` — 5 Dateien, Source-Anteil: `AddressAutocomplete.tsx`, `AddressAutocomplete.test.tsx`, `useAddressSearch.ts` (Rest `.ai-memory/`).
+- **F1 ✅**: `frontend/src/lib/useAddressSearch.ts:56` — `setError(false)` neben `setLoading(true)` im Timer-Callback, also VOR Request-Start. Korrekt platziert.
+- **F2 ✅**: `AddressAutocomplete.tsx:94-104` — Container-Pattern exakt wie vorgeschlagen: `role="combobox"`, `aria-haspopup`, `aria-autocomplete`, `aria-expanded`, `aria-controls`, `aria-activedescendant`, `onBlur`, `onKeyDown` auf dem umgebenden `<div>`; ARIA-Spread + Typ-Assert am `KolInputText` komplett entfernt. Testvertrag am A11y-Tree nachgezogen: `combobox !== textbox`, `combobox).toContainElement(textbox)` und `toContainElement(listbox)`, `aria-activedescendant` zeigt auf echten Nachfahren.
+- **F3 ✅**: `AddressAutocomplete.tsx:52-55` — `onBlur` → `setActiveIndex(null); setDismissed(true)`; neuer Test „Tab/Blurfokus schließt die Liste ohne Auswahl" via `fireEvent.focusOut`, Assertion `queryByRole('listbox')` null + `onSelect` nicht gerufen (nicht tautologisch).
+- **F4 ✅**: PR-Body, Abschnitt „Test-Pflege-Bedarf (2 Assertions abgeschwächt — F4)" — Vorher/Nachher-Tabelle + Begründung, Code unverändert wie vorgeschlagen.
+- **Alle 4 Review-Threads resolved** verifiziert via GraphQL `pullRequest.reviewThreads.nodes.isResolved` (die REST-Felder `resolved`/`is_awaiting_review` sind null → GraphQL nötig).
+- **N1 gefunden und gepostet** (Inline-Kommentar 3880248524, `useAddressSearch.ts:56`): die F1-Fixzeile ist OHNE Regressionstest — `AddressAutocomplete.test.tsx:213-223` (Fehler) endet, `:225-241` (0 Treffer) mountet frisch; kein Test erzeugt in EINEM Mount erst Fehler, dann Erfolg. Zeile 56 entfernen → kein Test rot.
+- Sammelkommentar 5451804266 aktualisiert (F1–F4 → „Behobene Anmerkungen"-Tabelle, N1 → „Offene Findings", Review-Typ: Fixup-Nachweis). Verdict **needs-fixup**.
+- Titel-Gate erneut geprüft: `feat(frontend): fuzzy address search via photon, nominatim fallback` = 67 Zeichen, CC-konform (Runde-1-Rename noch vorhanden) → kein Edit nötig.
+- CI beim Reviewzeitpunkt: e2e (1–4) + `verify` **pending** (Run 33167201041), `gate-merge` skipping → kein 🔴-Widerspruch, aber im Kommentar als Gate-Voraussetzung benannt.
+
+- **Runde 1 (Kreuzverhör)**: Voll-Diff 16 Dateien, 8 Commits; TDD-Reihenfolge `991f39dd3 test: red spec tests` vor `c6a616261 feat:` bestätigt. KoliBri-First via kolibri-mcp `spec/input-text` (keine ARIA-Props in 4.3.0) → F2. F1 (error nie bei neuer Suche zurückgesetzt), F3 (kein onBlur), F4 (PR-Body-Lüge zur Test-Abschwächung `geocode-search.test.ts:214,239`). CI-E2E Run 33164987843 shard 2 grün → AK7. 4 Inline-Kommentare (review 5050526414, event=COMMENT) + Sammelkommentar. Titel-Gate: CC-Titel gesetzt.
 
 ## Relevante Stellen
-- `frontend/src/lib/useAddressSearch.ts:44,68` — Fehlerzustand-Rücksetzung (F1, Fixort).
-- `frontend/src/components/AddressAutocomplete.tsx:95-99` — ARIA-Spread auf den KoliBri-Host (F2).
-- `frontend/src/components/AddressAutocomplete.tsx:50-76,114,142` — keyDown ohne Blur-Schluss, Warnungs-Bedingung, Options-`onMouseDown`.
-- `server/src/express/geocode-search.test.ts:214,239` — abgeschwächte Rate-Limit-Assertions (F4).
-- `server/src/express/routes/geocodeSearch.ts` — `searchPhoton` gibt `null` bei 429/5xx/`features` kein Array/Throw → Nominatim-Fallback; `200 {features:[]}` → `[]` ohne Fallback (AK3 korrekt).
-- `frontend/vitest.setup.ts` — globaler `afterEach(cleanup)` korrekt; `TaskForm.test.tsx:249` ruft `cleanup()` jetzt doppelt (harmlos, out-of-diff, kein Finding).
+- `frontend/src/lib/useAddressSearch.ts:56` — F1-Fixzeile UND N1-Anker (`setError(false)`); zweites Vorkommen Zeile 44 ist die `< MIN_QUERY_LENGTH`-Abzweigung.
+- `frontend/src/components/AddressAutocomplete.tsx:94-104` — Combobox-Container (F2-Ergebnis); `:52-55` blur-Handler (F3); `:33` `open = suggestions.length > 0 && !dismissed`.
+- `frontend/src/components/AddressAutocomplete.test.tsx:213-241` — Fehler- und Leer-Test; die Lücke DAZWISCHEN ist N1.
+- `frontend/e2e/issue-1061-task-address.spec.ts:71-107` — echtes Chromium: `getByRole('option')` + 375-px-Bounding-Box; deckt Listbox/Options im Shadow-DOM-Kontext, NICHT die Container-ARIA-Attribute (die sind Light-DOM, daher garantiert exposiert).
+- `server/src/express/geocode-search.test.ts` — vom Fixup NICHT angefasst (F4 war reine Berichtspflicht).
 
 ## Annahmen
-- `@public-ui/react-v19` setzt unbekannte Props als Attribute auf das Host-Element (Stencil-React-Output-Target); node_modules ist in der Sandbox nicht installiert, der Mechanismus ist also nicht am Paketquelltext verifiziert — der Spec-Befund (keine solchen Props) und die ARIA-Nachfahren-Regel tragen F2 aber unabhängig davon.
-- CI-E2E deckt die neue Spec ab, weil `ci.yml:155` ohne Pfadfilter sharded (`playwright test --shard=N/4`) → alle Specs laufen je Shard.
+- F2 gilt als ausreichend verifiziert: die Container-Attribute liegen auf Light-DOM (Garantie für Exposition), die Shadow-DOM-Abhängigkeiten (composed keydown-Bubbling, Input als a11y-Nachfahre des Hosts) sind Standard-Semantik; echte Browser-Verifikation läuft über den CI-E2E. Der Playwright-A11y-Snapshot wurde bewusst nicht gefahren (Fixup-Memory, „Verworfen").
+- `onClick` zusätzlich zu `onMouseDown` auf der Option feuert im echten Browser nicht doppelt: das `<li>` wird zwischen mousedown und mouseup unmountet → kein click-Event. Auch bei Doppel-Feuer wäre `onSelect` nur mit identischen Werten wirksam (TaskForm überschreibt lat/lon).
+- Fixup-Memory „GATE KOMPLETT GRÜN" (442 Vitest + 9 Server) als korrekt übernommen — Tests selbst nicht erneut gefahren (FOCUS „nur Diff", CI `verify` läuft parallel).
 
 ## Verworfen
-- Finding „Photon bekommt keinen User-Agent" — Photon verlangt keinen (nur Nominatim, der behält `NOMINATIM_USER_AGENT`).
-- Finding „1-req/s-Limiter bremst Photon unnötig" — von AK4 ausdrücklich so gefordert („Verhalten bleibt") und im Code kommentiert; Produktentscheidung bereits im Issue getroffen.
-- Finding „`features` kein Array → Fallback, obwohl Spec nur 429/5xx/Timeout/Netz nennt" — defensible Erweiterung (missgebildete Antwort = Upstream unbrauchbar), kein Review-Ärger.
-- Finding „Photon-`address` ohne Ort, wenn `city` fehlt" — Spec lässt die Zusammensetzung frei und „mindestens Name/Straße und Ort" ist bei wohlgeformten Daten erfüllt.
-- Finding auf doppeltes `cleanup()` in `TaskForm.test.tsx:249` — Zeile ist pre-existing, nicht Teil des Diffs.
+- F2 erneut aufmachen, weil der CI-E2E keine `combobox`/`aria-expanded`-Assertions hat — wäre Re-Litigieren eines resolved Threads; Container-Pattern ist wie verlangt umgesetzt und Light-DOM-Exposition ist garantiert.
+- Finding „KolAlert/KolSpin/Leer-Hinweis als Nicht-Textbox-Kinder des `role=combobox`-Containers verletzen Required-Owned-Elements" — ARIA 1.2 schreibt dasTextbox+Popup-Ownership vor, verbietet aber keine weiteren Kinder; Struktur war auch vor dem Fixup so (nur die Rolle ist dorthin gewandert). Kein Pseudo-Finding.
+- Finding „`onClick` neben `onMouseDown` = Doppel-Selektion" — s. Annahmen, in Wirkung idempotent und im Code kommentiert.
+- Finding „Typ-Assert `event as unknown as KeyboardEvent`" — pre-existing aus Runde 1, nur mit dem Handler umgezogen, kein Diff-Neuzugang.
+- Tippfehler „schwertesta bar" im PR-Body — rein kosmetisch, kein Review-Gegenstand.
 
 ## Offen
-- Fixup steht aus (F1–F4). Nach dem Fixup: MODE=FIXUP VERIFICATION, nur Fixup-Diff + Delta prüfen; F-Nummern stabil lassen.
+- N1 (Regressionstest für `useAddressSearch.ts:56`) steht aus → nächster Fixup.
+- CI e2e (1–4) + `verify` pending; grüner Gate ist Voraussetzung für `ai:ready-to-merge` (deterministischer Gate-Job degradiert bei Rot automatisch).
 
 ## Nächster Schritt
-- Fixup-Nachweis: F1 (`setError(false)` neben `setLoading(true)`), F2 (Combobox-Rolle auf ein Element, das Feld + Listbox besitzt; am echten Accessibility-Tree verifizieren), F3 (`onBlur` → dismissed), F4 (PR-Body-Absatz zur Test-Abschwächung).
+- Fixup ergänzt N1-Test (Code-Block steht im Inline-Kommentar 3880248524: `mockRejectedValueOnce` → Alert, dann `mockResolvedValue(MUNICH_HITS)` + NEUER Suchtext → Listbox ohne Alert; neuer Text nötig, damit der Debounce erneut feuert). Danach Runde 3 als Fixup-Nachweis mit N1 unter „Behobene Anmerkungen".
 
 ## Fallstricke
-- `gh api … /pulls/1086/reviews -f comments[][path] … -f comments[][body]` mit gemischten `-f`/`-F` pro Feld erzeugt 422 `position null`/`body null` — Feldgruppen nicht mischen. → JSON-Payload per python3 nach /tmp schreiben und mit `--input` posten (hat sofort funktioniert).
-- Weiche Shell-CWD: mehrere `cd`-Aufrufe lassen `frontend/`-Relative Pfade ins Leere laufen (`src/` nicht gefunden). → Immer absolute Pfade oder `cd /home/runner/work/priority-pilot/priority-pilot` vorweg.
-- `node_modules` ist in der Review-Sandbox nicht installiert → KoliBri-Introspektion nur über kolibri-mcp `spec/input-text`, nicht über den Paketquelltext; Annahme im Memory dokumentiert.
-- Die `.ai-memory/issue-1083-*.md`-Dateien sind Teil des PR (Reise mit dem Harness-Branch, ADR 0007) — ihr Auftauchen im Diff ist kein Finding.
+- `POST /pulls/<n>/comments` mit `commit_id` als KURZEM SHA → 422 „commit_id is not part of the pull request" (irreführend). Immer `gh pr view --json headRefOid` und den vollen 40-Zeichen-SHA setzen.
+- Review-Thread-Resolution steht im REST nicht (`is_awaiting_review`/`resolved` = null) → GraphQL `pullRequest(number:).reviewThreads { nodes { isResolved } }`.
+- Fixup-Diff-Quelle: `git diff <vorheriger-Head>..<head>` lokal ist zuverlässiger als `gh pr diff`, weil die `.ai-memory/`-Commits den Vergleichspunkt verschieben; vorheriger review relevanter Code-Head war `4bf77aba` (nicht der memory-Commit).
+- Weiche Shell-CWD: mehrere `cd`-Aufrufe lassen `frontend/`-relative Pfade ins Leere laufen → absolute Pfade oder `cd /home/runner/work/priority-pilot/priority-pilot` vorweg.
+- `node_modules` ist in der Review-Sandbox nicht installiert → KoliBri-Introspektion nur über kolibri-mcp.
+- Die `.ai-memory/issue-1083-*.md`-Dateien sind Teil des PR (ADR 0007) — ihr Auftauchen im Diff ist kein Finding.
