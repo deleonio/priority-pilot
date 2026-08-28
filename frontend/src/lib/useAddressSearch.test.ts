@@ -58,7 +58,10 @@ describe('useAddressSearch – Debounce, Mindestlänge, Überholschutz', () => {
 	});
 
 	it('Debounce: schnelle Eingaben führen zu genau einer Anfrage mit dem letzten Text', async () => {
-		geocodeSearchMock.mockResolvedValue([]);
+		// Nicht-leerer Treffer: nur so unterscheidet die State-Assertion unten den aktualisierten
+		// State vom Initial-State [] (Review-Finding 1 zu PR #1093).
+		const treffer = results(['Musterstraße 1, Musterstadt']);
+		geocodeSearchMock.mockResolvedValue(treffer);
 		const { result, rerender } = renderHook((q: string) => useAddressSearch(q), { initialProps: '' });
 
 		rerender('Mus');
@@ -73,11 +76,12 @@ describe('useAddressSearch – Debounce, Mindestlänge, Überholschutz', () => {
 		// Behavior-Check: Nur eine Anfrage mit dem letzten Text wurde ausgelöst
 		expect(geocodeSearchMock).toHaveBeenCalledTimes(1);
 		expect(geocodeSearchMock).toHaveBeenCalledWith({ q: 'Muster', signal: expect.any(AbortSignal) });
-		// Observable Outcome: State zeigt leere Vorschläge (da Mock [] zurückgibt)
+		// Observable Outcome: Die Antwort der EINEN Anfrage erreicht den State — ein weggefallenes
+		// State-Update (z. B. verlorenes await im Hook) lässt den Test nicht mehr grün.
 		await act(async () => {
 			await Promise.resolve();
 		});
-		expect(result.current.suggestions).toEqual([]);
+		expect(result.current.suggestions).toEqual(treffer);
 		expect(result.current.loading).toBe(false);
 	});
 
