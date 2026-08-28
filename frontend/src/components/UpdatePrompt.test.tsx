@@ -217,6 +217,92 @@ describe('vite.config.ts — PWA Update-Fluss (AK1, #353)', () => {
 });
 
 /**
+ * Spec-Tests (#1095, docs/spec/issue-1095.md) — garantierter Reload nach Update-Bestätigung.
+ *
+ * jsdom liefert kein `navigator.serviceWorker`; wir setzen für diese Suite einen echten
+ * `EventTarget`-Stubb ein, damit sich Listener-Registrierung (AK1) und ein simulierter
+ * Controller-Wechsel deterministisch beobachten lassen. `window.location.reload` ist in jsdom
+ * nicht redefinierbar/spypbar — daher wird `location` per `vi.stubGlobal` durch ein
+ * Stellvertreter-Objekt mit Reload-Spy ersetzt (in afterEach zurückgerollt).
+ */
+describe('UpdatePrompt — Reload-Fallback bei Controller-Wechsel (#1095)', () => {
+	let reloadMock: ReturnType<typeof vi.fn>;
+	let serviceWorkerStub: EventTarget;
+
+	const dispatchControllerChange = () => {
+		serviceWorkerStub.dispatchEvent(new Event('controllerchange'));
+	};
+
+	beforeEach(() => {
+		needRefreshValue = true;
+		reloadMock = vi.fn();
+		serviceWorkerStub = new EventTarget();
+		Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: serviceWorkerStub });
+		vi.stubGlobal('location', { reload: reloadMock });
+	});
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
+		Reflect.deleteProperty(navigator, 'serviceWorker');
+	});
+
+	// AK1 — Bestätigung verdrahtet den Fallback-Listener.
+	it('AK1: Klick auf „Jetzt neu laden" registriert einen controllerchange-Listener auf navigator.serviceWorker', () => {
+		const addEventListenerSpy = vi.spyOn(serviceWorkerStub, 'addEventListener');
+
+		render(<UpdatePrompt />);
+
+		expect(addEventListenerSpy).not.toHaveBeenCalled();
+
+		fireEvent.click(screen.getByTestId('pwa-update-reload'));
+
+		expect(addEventListenerSpy).toHaveBeenCalledTimes(1);
+		expect(addEventListenerSpy).toHaveBeenCalledWith('controllerchange', expect.any(Function));
+	});
+
+	// AK1 — Controller-Wechsel nach Bestätigung löst den Reload aus.
+	it('AK1: controllerchange nach Bestätigung ruft window.location.reload() auf', () => {
+		render(<UpdatePrompt />);
+
+		fireEvent.click(screen.getByTestId('pwa-update-reload'));
+
+		// Der Klick selbst darf noch nicht reloaden — erst der Controller-Wechsel.
+		expect(reloadMock).not.toHaveBeenCalled();
+
+		dispatchControllerChange();
+
+		expect(reloadMock).toHaveBeenCalledTimes(1);
+	});
+
+	// AK2 — Idempotenz-Guard: interner Workbox-Pfad + eigener Fallback dürfen nicht doppelt reloaden.
+	it('AK2: mehrfach feuender controllerchange führt zu genau einem location.reload()', () => {
+		render(<UpdatePrompt />);
+
+		fireEvent.click(screen.getByTestId('pwa-update-reload'));
+
+		dispatchControllerChange();
+		dispatchControllerChange();
+		dispatchControllerChange();
+
+		expect(reloadMock).toHaveBeenCalledTimes(1);
+	});
+
+	// AK3 — Kein Reload ohne Nutzerbestätigung; Regressionsschutz gegen Mount-Zeit-Registrierung.
+	it('AK3: ohne Bestätigung kein Listener und kein Reload — auch wenn controllerchange feuert', () => {
+		const addEventListenerSpy = vi.spyOn(serviceWorkerStub, 'addEventListener');
+
+		render(<UpdatePrompt />);
+
+		dispatchControllerChange();
+
+		expect(addEventListenerSpy).not.toHaveBeenCalled();
+		expect(reloadMock).not.toHaveBeenCalled();
+		// Dialog bleibt offen (kein automatisches Schließen).
+		expect(screen.getByTestId('pwa-update-reload')).toBeInTheDocument();
+	});
+});
+
+/**
  * Spec-Tests (#1034, docs/spec/issue-1034.md AK4/AK5) — beschreibende Texte statt Stichwort.
  * Ersetzt die bisherigen Stichwort-Assertions der #353-Suite (siehe „Test-Pflege-Bedarf" im Spec).
  */

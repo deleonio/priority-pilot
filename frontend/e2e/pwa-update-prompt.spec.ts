@@ -279,3 +279,79 @@ test.describe('Priority Pilot — UpdatePrompt Desktop-Ausrichtung (#1077)', () 
 		expect(m.right).toBe('0px');
 	});
 });
+
+/**
+ * Reload-Fallback nach Update-Bestätigung (#1095, docs/spec/issue-1095.md AK4).
+ *
+ * Auch hier gilt: der reale SW-Update-Zyklus (`needRefresh`) ist in Playwright nicht
+ * deterministisch reproduzierbar (Header oben). Der Browser-Mechanismus dahinter ist es aber
+ * sehr wohl — und genau der bricht in der echten PWA ab: Klick-Bestätigung → eigener
+ * `controllerchange`-Listener → `location.reload()`. Deshalb wird die reale Prompt-Struktur
+ * (`.update-prompt` > `kol-card` > `span[data-testid="pwa-update-reload"]`) als Stellvertreter
+ * injiziert und der Fallback-Pfad im echten Dokument gefahren: Dispatch von `controllerchange`
+ * auf dem echten `navigator.serviceWorker`, Nachweis des Reloads über einen `sessionStorage`-
+ * Zähler (überlebt den Reload im selben Tab), danach muss die App neu gestartet und der
+ * Update-Prompt weg sein. Die Komponentenlogik selbst (Listener-Registrierung, Idempotenz-Guard,
+ * Kein-Reload-ohne-Bestätigung) tragen die Vitest-Unit-Tests (AK1–AK3).
+ */
+test.describe('Priority Pilot — PWA Update-Reload-Fallback (#1095)', () => {
+	test('AK4: 375px — Bestätigung + Controller-Wechsel reloadet genau einmal, Prompt danach weg', async ({ page }) => {
+		await mockAuthenticated(page);
+		await page.setViewportSize({ width: 375, height: 667 });
+		await page.goto('/');
+
+		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
+		await page.evaluate(() => sessionStorage.setItem('pwa-reloads', '0'));
+
+		// Reale UpdatePrompt-Struktur als Stellvertreter; der Klick verdrahtet den Fallback-
+		// Listener (nur nach Bestätigung), der Controller-Wechsel reloadet genau einmal.
+		await page.evaluate(() => {
+			const container = document.createElement('div');
+			container.className = 'update-prompt';
+			container.innerHTML = `
+				<kol-card _label="Neue Version verfügbar">
+					<p>Priority Pilot wurde aktualisiert.</p>
+					<span data-testid="pwa-update-reload"><kol-button>Jetzt neu laden</kol-button></span>
+				</kol-card>
+			`;
+			document.body.appendChild(container);
+
+			const trigger = container.querySelector<HTMLElement>('[data-testid="pwa-update-reload"]')!;
+			trigger.addEventListener('click', () => {
+				navigator.serviceWorker.addEventListener('controllerchange', () => {
+					if (sessionStorage.getItem('pwa-reloads') === '1') return;
+					sessionStorage.setItem('pwa-reloads', '1');
+					window.location.reload();
+				});
+			});
+		});
+
+		await page.getByTestId('pwa-update-reload').click();
+
+		// Controller-Wechsel mehrfach feuern (Workbox-Pfad + eigener Fallback) — darf nur 1× reloaden.
+		await page.evaluate(() => {
+			for (let i = 0; i < 3; i++) {
+				navigator.serviceWorker.dispatchEvent(new Event('controllerchange'));
+			}
+		});
+
+		// Reload nachweisbar (Zähler steht nach dem Neustart auf genau 1). Während des Reloads
+		// wird die Execution-Context zerstört — der Fehlschlag wird abgefangen und neu gepollt.
+		await expect
+			.poll(
+				async () => {
+					try {
+						return await page.evaluate(() => sessionStorage.getItem('pwa-reloads'));
+					} catch {
+						return null;
+					}
+				},
+				{ timeout: 10_000 },
+			)
+			.toBe('1');
+
+		// App ist nach dem Reload wieder vollständig da — und der Update-Prompt ist weg.
+		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
+		await expect(page.locator('.update-prompt')).toHaveCount(0);
+	});
+});
