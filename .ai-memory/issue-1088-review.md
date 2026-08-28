@@ -39,7 +39,20 @@
 - Tiefere Fehlersuche in CI-Redis-Logs — Root-Cause war vorher gefunden (Prettier), Rest war Service-Noise.
 
 ## Offen
-- Runde 1 abgeschlossen, Verdict `needs-fixup` gesetzt. Wartet auf Fixup (`pnpm format`).
+- — (Runde 2 abgeschlossen, Verdict `reviewed` gesetzt; PR kann mergen.)
+
+## Erledigt (Runde 2 — Fixup-Nachweis, 2026-08-28)
+- MODE bestimmt: `<!-- ai-review -->` vorhanden (Comment 5451595225) → Fixup-Nachweis, keine neue Kreuzverhör.
+- Delta `72bf1745b..f20a5f1d7` geprüft: Fixup-Commit `48b5835a` trifft genau die 5 F1-Dateien +
+  .ai-memory-Phasennotizen; `--ignore-all-space`-Restdeltas sind nur Strich-Padding in Tabellen-
+  Separator-Zeilen (Dashes sind kein Whitespace) → rein Formatierung, kein Inhalt.
+- Merge-Commit `f20a5f1d7` (main → Branch, bringt PR #1087/Release/Cost-Files) lässt `docs/spec/`
+  unberührt (leerer Diff 48b5835a..f20a5f1d7 auf docs/spec) → kein neuer Review-Gegenstand.
+- CI auf HEAD `f20a5f1d7`: `verify` pass (inkl. Prettier-Check), e2e-Shards 1–4 pass.
+- Titel-Gate: `docs(spec): sync specs to current state 2026-08-28` konform (51 Zeichen) — kein Rename.
+- Sammelkommentar 5451595225 per PATCH aktualisiert (updatedAt 2026-08-28T11:18:06Z):
+  Status reviewed, F1 in „Behobene Anmerkungen", Offene Findings leer, Footer `Review-Typ: Fixup-Nachweis`.
+- Verdict `reviewed` → /tmp/claude-verdict.
 
 ## Erledigt (Runde 1 — Abschluss)
 - Titel umbenannt zu `docs(spec): sync specs to current state 2026-08-28`.
@@ -48,8 +61,10 @@
 - Verdict `needs-fixup` → /tmp/claude-verdict.
 
 ## Nächster Schritt
-- Bei erneutem Lauf (Fixup-Nachweis): Sammelkommentar 5451595225 per PATCH aktualisieren — nur Prettier-Diff der 5 Dateien prüfen, F1 bei Erfolg in „Behobene Anmerkungen" verschieben, Status reviewed setzen (sofern CI verify grün), Footer `Review-Typ: Fixup-Nachweis`.
+- — (Ticket aus Review-Sicht abgeschlossen.)
 
 ## Fallstricke
-- Beim Fixup-Round-2: NUR Prettier-Diff prüfen (Fixup-Nachweis), Inhalte sind verifiziert — keine neue Kreuzverhör.
+- Beim Fixup-Round-2: NUR Prettier-Diff prüfen (Fixup-Nachweis), Inhalte sind verifiziert — keine neue Kreuzverhör. ✅ befolgt.
 - GitHub-Inline-Kommentare brauchen Zeilen INNERHALB der Diff-Hunks (obige Anchor-Liste beachtet das).
+- Prettier-Tabellen-Separator-Padding (`---` → `----`) taucht unter `--ignore-all-space` NICHT als
+  whitespace-only auf (Dashes sind Inhalt) — kein Fehlalarm, gehört zur Formatierung.
