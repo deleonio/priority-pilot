@@ -284,6 +284,12 @@ Verdict (PR-Phasen: `/tmp/claude-verdict`), der Workflow setzt die Labels.
   - **Stop-Guard** (fixup): > 10 PR-Commits → Loop stoppt hart (s. o.).
   - **Label-Post-Assertion** (review): vergisst der Agent die Label-Umschaltung, setzt der Step
     den Safe-Default `ai:needs-fixup` (statt stiller PR-Stalle).
+  - **Template-Struktur-Post-Check** (triage): Die Analyse schreibt den Issue-Body komplett neu
+    (Copyedit + KI-ANALYSE-Block); der Güte-Gate-Vorab-Check skippt sich bei bestehendem
+    Analyse-Block selbst. Die Label-Post-Assertion prüft daher nach jedem Lauf mechanisch die
+    vier Template-Überschriften (`verify-template-structure.sh`) — fehlt eine, überschreibt das
+    den Verdict auf `needs-human` inkl. `ai-triage-decision`-Kommentar mit
+    Wiederherstellungs-Anleitung. Fail-safe wie beim Güte-Gate: nicht lesbar → Prüfung besteht.
   - **Doppel-Run-Guard** (spec/implement): existiert schon ein PR/ready-PR mit `Closes #N`, wird
     kein zweiter Branch erzeugt (Race bei schnell aufeinanderfolgenden Label-Events).
   - **Timeout-Alarm** (review/fixup): PR-Workflows vergeben kein `ai:to-big-issue` (AGENTS.md) —

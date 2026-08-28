@@ -606,3 +606,89 @@ describe('materializeDueSeries — Aggregat + Fehler-Isolation (AK6 #244)', () =
 		);
 	});
 });
+
+// Rote Spec-Tests für #1066 — Koordinaten-Snapshot an generierten Serien-Instanzen (AK6, Spec
+// docs/spec/issue-1066.md): `generateDueInstances` vererbt Template-latitude/longitude als
+// Snapshot (Semantik wie der `address`-Snapshot aus #1063). Coordinates-only (bindende
+// Entscheidung): die Adresse wird im UI per Reverse-Geocoding aufgelöst, die DB trägt lat/lon.
+//
+// `latitude`/`longitude` existieren am Serien-Modell noch nicht (rote Spec): Der Intersection-Typ
+// deklariert die neue API im Test optional, ohne den Produktiv-Typ anzufassen (Pre-Commit-Hook
+// läuft tsc über den Workspace — Memory-Learning 2026-08-23).
+type SeriesWithCoords = InstanceType<typeof Series> & { latitude?: number | null; longitude?: number | null };
+type TaskWithCoords = Task & { latitude?: number | null; longitude?: number | null };
+
+const withCoords = (t: Task): TaskWithCoords => t as TaskWithCoords;
+
+const createSeriesWithCoords = async (attrs: Record<string, unknown>): Promise<SeriesWithCoords> =>
+	(await Series.create(attrs as unknown as Parameters<typeof Series.create>[0])) as unknown as SeriesWithCoords;
+
+describe('generateDueInstances — Koordinaten-Snapshot (#1066, AK6)', () => {
+	it('Serie mit Koordinaten → jede generierte Instanz erbt latitude/longitude als Snapshot', async () => {
+		const series = await createSeriesWithCoords({
+			title: 'Wochenmarkt',
+			rhythm: 'weekly',
+			priority: 3,
+			estimatedEffort: 0.5,
+			active: true,
+			startDate: futureDate(1),
+			latitude: 52.5200066,
+			longitude: 13.4049541,
+		});
+
+		const instances = await generateDueInstances(series as unknown as Series, { until: futureDate(20) });
+		assert.ok(instances.length >= 1, 'es entstehen Instanzen');
+		for (const inst of instances.map(withCoords)) {
+			assert.equal(inst.latitude, 52.5200066, 'Instanz trägt die Template-Latitude');
+			assert.equal(inst.longitude, 13.4049541, 'Instanz trägt die Template-Longitude');
+		}
+	});
+
+	it('Serie ohne Koordinaten → generierte Instanzen erhalten latitude/longitude === null', async () => {
+		const series = await createSeriesWithCoords({
+			title: 'Ohne Ort',
+			rhythm: 'weekly',
+			priority: 3,
+			estimatedEffort: 0.5,
+			active: true,
+			startDate: futureDate(1),
+		});
+
+		const instances = await generateDueInstances(series as unknown as Series, { until: futureDate(20) });
+		assert.ok(instances.length >= 1, 'es entstehen Instanzen');
+		for (const inst of instances.map(withCoords)) {
+			assert.equal(inst.latitude, null, 'Instanz ohne Ortsbezug ist null');
+			assert.equal(inst.longitude, null, 'Instanz ohne Ortsbezug ist null');
+		}
+	});
+
+	it('Template-Änderung der Koordinaten wirkt nur auf künftige Instanzen (Snapshot, #553-Muster)', async () => {
+		const series = await createSeriesWithCoords({
+			title: 'Sport',
+			rhythm: 'weekly',
+			priority: 3,
+			estimatedEffort: 1,
+			active: true,
+			startDate: futureDate(1),
+			latitude: 52.52,
+			longitude: 13.405,
+		});
+
+		const first = await generateDueInstances(series as unknown as Series, { until: futureDate(7) });
+		assert.ok(first.length >= 1, 'erste Generation entstanden');
+
+		await series.update({ latitude: 48.137154, longitude: 11.576124 });
+
+		const second = await generateDueInstances(series as unknown as Series, {
+			until: futureDate(30),
+		});
+		const newer = second.filter((inst) => !first.some((old) => old.id === inst.id));
+		assert.ok(newer.length >= 1, 'zweite Generation entstanden');
+		for (const inst of first.map(withCoords)) {
+			assert.equal(inst.latitude, 52.52, 'bestehende Instanz behält den ursprünglichen Snapshot');
+		}
+		for (const inst of newer.map(withCoords)) {
+			assert.equal(inst.latitude, 48.137154, 'künftige Instanz trägt die neuen Template-Koordinaten');
+		}
+	});
+});

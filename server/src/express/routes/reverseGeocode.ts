@@ -1,6 +1,6 @@
 import express from 'express';
 import type { components } from '../../api.js';
-import { isNominatimRateLimited, NOMINATIM_USER_AGENT } from '../../logics/nominatim.js';
+import { isGeocodeRateLimited, NOMINATIM_USER_AGENT } from '../../logics/nominatim.js';
 
 type ReverseGeocodeDto = components['schemas']['ReverseGeocodeResponse'];
 type ErrorDto = components['schemas']['Error'];
@@ -63,7 +63,7 @@ reverseGeocodeRouter.get('/', async (req, res: express.Response<ReverseGeocodeDt
 	// Rate-Limit: 1 req/sec (Nominatim Policy)
 	const ip = req.ip || 'unknown';
 	const session = (req.headers['x-session-token'] as string) || '';
-	if (isNominatimRateLimited(ip, session)) {
+	if (isGeocodeRateLimited(ip, session)) {
 		// Rate-Limit verletzt → leere Adresse (Fallback)
 		res.json({ address: '' });
 		return;

@@ -9,7 +9,8 @@ jeder Lauf liest es, damit derselbe Fehler nicht zweimal passiert.
 verankert sind. Aufnahmekriterium, Format und Kuratierung: `AGENTS.md` → Memory.
 
 Abzugrenzen von den `issue-*.md` im selben Verzeichnis — das sind flüchtige Phasen-Notizen eines
-einzelnen Tickets (Soft-Abort-Resume), gitignored und nach dem Merge weg.
+  einzelnen Tickets (Soft-Abort-Resume) - committet, reisen im Harness-Branch
+  `ai/harness/{N}` mit dem PR nach main und bleiben dort dauerhaft (ADR 0007).
 
 ## Learnings & Erfahrungen
 
@@ -170,3 +171,9 @@ Konflikte, die er verhindern soll.
 - 2026-08-26 · Frontend/Tests — `pnpm --filter frontend test:e2e -- <grep-pattern>` filtert NICHT, playwright ignoriert das Argument nach `--` und laeuft die volle e2e-Suite (~10 Min statt Sekunden). → Fuer gezielte Spec-Verifikation direkt `npx playwright test e2e/<datei>.spec.ts` im `frontend`-Verzeichnis nutzen.
 - 2026-08-27 · Gate · `pnpm test` schlägt lokal an `session.test.ts` „AK-5 — Redis-Store“ fehl (Suite ✖ trotz fail 0, Test-Body läuft nach t.skip() weiter) → pre-existing/umgebungsbedingt (Redis nur als CI-Service); per `git stash` auf sauberem Stand verifizieren und im PR-Body dokumentieren, nicht fixen.
 - 2026-08-27 · Security/E2E — Neue Security-Middleware (CSRF, Rate-Limit) darf in Dev/E2E NICHT aktiv sein: die E2E-Suite seedet per Design über ~100 direkte page.request-POST/PUT/PATCH-DELETE-Aufrufe in ~40 Specs ohne Token → mit CSRF-API-Seeding wären massenhaft 403er. → Gates wie SESSION_SECRET/Allowlist auf `NODE_ENV === 'production'`; csrf-csrf v4 braucht getSecret+getSessionIdentifier (Pflicht), cookie-parser NACH express-session, der Cookie enthaelt den vollen Token (HMAC.random), Frontend-Token via openapi-fetch client.use-Middleware in api.ts.
+- 2026-08-28 · CI/Smoke-Test · run:-Bloecke der Composite-Actions lassen sich lokal
+  pruefen (yaml-extrahieren + bash -n + Minirepo), aber macOS-/bin/bash ist 3.2: `declare -A`
+  scheitert, assoziative-Array-Zugriffe liefern Muell → nur Teilpfade testbar (Erst-Anlage,
+  Idempotenz, leer), Blob-Diff-Pfade muessen der CI (bash 5) vertrauen. Nicht forensisch
+  jagen - Artefakt erkennen und einordnen.
+- 2026-08-28 · CI/Pipeline — menschlicher Push auf einen PR mit klebendem ai:needs-human verwirft die Autolabeler-Transition (Guard 3, PR #903): Der PR parkt weiter, ai:needs-review wird NICHT gesetzt. → Entblocken nur durch den Menschen: Label in der UI entfernen und ai:needs-review setzen (Entfernen allein startet nichts).

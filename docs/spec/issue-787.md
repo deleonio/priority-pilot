@@ -1,6 +1,6 @@
 # Issue 787 – Header-Layout
 
-**Stand:** 2026-08-27  
+**Stand:** 2026-08-28  
 **Ziel:** Header-Layout beschreiben: Reihenfolge, Responsivität, Bedienbarkeit
 
 ---
@@ -21,7 +21,9 @@ Der Header zeigt seine Elemente in der festen Reihenfolge Logo → Name → Tool
 1. **Header-Elemente identifizieren**
    - Logo (App-Icon, icon-only)
    - App-Name „Priority Pilot"
-   - Toolbar mit den sechs Kopf-Aktionen: „Suche", „Neuen Task anlegen", „Säulen-Berater", „Einstellungen", „Hilfe", „Abmelden"
+   - Toolbar mit den Kopf-Aktionen „Suche", „Neuen Task anlegen", „Säulen-Berater", „Einstellungen", „Hilfe", „Abmelden" —
+     sechs Aktionen bei aktivierter KI (Default); ist die KI-Nutzung in den Einstellungen deaktiviert, entfällt
+     „Säulen-Berater" ersatzlos (nicht nur ausgeblendet, sondern nicht gerendert) und es bleiben fünf
    - User-Avatar mit Profil-Bild
 
 2. **Reihenfolge prüfen**
@@ -44,8 +46,9 @@ eine Pfeiltasten-Navigation, die er nicht implementiert.
 ### Abgrenzung: Menüstruktur über alle Viewports
 
 Der Header zeigt auf allen Bildschirmbreiten (Desktop, Tablet, Mobile) dieselbe Menüstruktur:
-dieselben sechs Kopf-Aktionen, keine Elemente, die nur in bestimmten Breiten erscheinen.
-Responsives Verhalten entsteht nur durch Layout/Positionierung, nicht durch Entfernen von Menüpunkten.
+dieselben Kopf-Aktionen, keine Elemente, die nur in bestimmten Breiten erscheinen.
+Responsives Verhalten entsteht nur durch Layout/Positionierung, nicht durch Entfernen von Menüpunkten
+(die KI-abhängige Ein-/Ausblendung von „Säulen-Berater" ist viewport-unabhängig, siehe Journey 1).
 
 ### Abgrenzung: Tab-Leisten über alle Viewports
 
@@ -79,7 +82,7 @@ Der Header funktioniert auf allen Viewports.
    - Toolbar-Elemente passen in den Viewport
 
 2. **Breakpoint prüfen**
-   - Unter und ab 48rem (768px): alle sechs Kopf-Aktionen (icon-only) im Header
+   - Unter und ab 48rem (768px): alle Kopf-Aktionen (icon-only) im Header
    - Ab 64rem (1024px): zusätzlich der App-Name im Header
 
 ### Erwartetes Ergebnis
@@ -99,7 +102,7 @@ Während der Hydration wächst der Header erwartungsgemäß auf seine Endhöhe (
 Buttons asynchron im Shadow-DOM auf). Ist die Toolbar ausgelayoutet, darf keine Interaktion die
 Header-Höhe verändern.
 
-Auf 375px bleibt der Header einzeilig: Logo, Avatar und die sechs Kopf-Aktionen füllen die Zeile aus.
+Auf 375px bleibt der Header einzeilig: Logo, Avatar und die Kopf-Aktionen füllen die Zeile aus.
 Ein zweizeiliger Umbruch tritt nicht ein.
 
 ---

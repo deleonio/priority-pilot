@@ -1,7 +1,6 @@
 import {
 	KolAlert,
 	KolButton,
-	KolCombobox,
 	KolInputCheckbox,
 	KolInputDate,
 	KolInputRange,
@@ -28,7 +27,9 @@ import { toApiError } from '../lib/apiError';
 import { useCtrlEnter } from '../lib/useCtrlEnter';
 import { readNumber, readString } from '../lib/inputValue';
 import { readVoiceAutostartPreference } from '../lib/voiceAutostart';
+import { readAiPreferences } from '../lib/aiPreferences';
 import { VoiceField } from './VoiceField';
+import { AddressAutocomplete } from './AddressAutocomplete';
 import { ConfirmSeriesActionModal } from './ConfirmSeriesActionModal';
 import { LektoratDiffModal } from './LektoratDiffModal';
 import {
@@ -44,7 +45,7 @@ import {
 	weightToRaw,
 } from '../lib/pillar';
 import { deadlineToDateInput, formatNumber } from '../lib/task';
-import { useAddressSearch } from '../lib/useAddressSearch';
+import type { AddressSuggestion } from '../lib/useAddressSearch';
 import { TITLE_MAX_LENGTH } from '../lib/titleLengthValidation';
 
 /**
@@ -73,6 +74,10 @@ const hasSeriesCascadeChange = (update: SeriesUpdate, original: Series): boolean
 	if (update.estimatedEffort !== undefined && update.estimatedEffort !== original.estimatedEffort) return true;
 	if ((update.description ?? null) !== (original.description ?? null)) return true;
 	if ((update.address ?? null) !== (original.address ?? null)) return true;
+	// #1066: Geändertes Template-Koordinaten-Paar ist kaskadierbar wie die Adresse — nur mit
+	// Bestätigung wandert es auf offene Instanzen (AK6: Bestandsinstanzen bleiben Snapshot).
+	if ((update.latitude ?? null) !== (original.latitude ?? null)) return true;
+	if ((update.longitude ?? null) !== (original.longitude ?? null)) return true;
 	if ((update.autoDeleteAfterDeadline ?? false) !== (original.autoDeleteAfterDeadline ?? false)) return true;
 	if (update.pillars !== undefined && !pillarsEqual(update.pillars, original.pillars ?? [])) return true;
 	return false;
@@ -223,6 +228,10 @@ export const TaskForm = ({
 	const taskEdit = task !== null;
 	const isEdit = taskEdit || seriesEdit;
 
+	// #1080: Ohne aktive KI werden die Lektorat-Buttons (Titel/Beschreibung) nicht gerendert —
+	// die Präferenz ist clientseitig gespeichert und ändert sich nur über die Einstellungen.
+	const aiEnabled = useMemo(() => readAiPreferences().aiEnabled, []);
+
 	// Aktiver Formularmodus: „Serie" beim Serien-Edit fest vorgegeben, sonst Standard „Aufgabe".
 	// Im Anlege-Modus wechselt der Umschalter zwischen beiden; im Bearbeiten-Modus ist er gesperrt.
 	const [mode, setMode] = useState<'task' | 'series'>(seriesEdit ? 'series' : initialMode);
@@ -238,6 +247,9 @@ export const TaskForm = ({
 		estimatedEffort: number | null;
 		description: string;
 		address: string;
+		/** #1066: Koordinaten des gewählten Adress-Vorschlags (null bei Freitext/leer — AK1/AK10). */
+		latitude: number | null;
+		longitude: number | null;
 		deadline: string;
 		startDate: string;
 		rhythm: SeriesRhythm;
@@ -247,6 +259,8 @@ export const TaskForm = ({
 		estimatedEffort: task?.estimatedEffort ?? series?.estimatedEffort ?? initialValues?.estimatedEffort ?? 0.5,
 		description: task?.description ?? series?.description ?? initialValues?.description ?? '',
 		address: task?.address ?? series?.address ?? '',
+		latitude: task?.latitude ?? series?.latitude ?? null,
+		longitude: task?.longitude ?? series?.longitude ?? null,
 		deadline: task !== null ? deadlineToDateInput(task.deadline) : isoToDateInput(initialValues?.deadline),
 		startDate: series != null ? startDateToInput(series.startDate) : '',
 		rhythm: series?.rhythm ?? 'weekly',
@@ -271,9 +285,15 @@ export const TaskForm = ({
 	const [title, setTitle] = useState(form.current.title);
 	const [description, setDescription] = useState(form.current.description);
 	const [address, setAddress] = useState(form.current.address);
-	// Adresssuche (Forward Geocoding, Ortsbezug einer Aufgabe): Vorschläge zum aktuellen Adresstext.
-	// `loading` wird als Hint angezeigt — ohne Rückmeldung wirkt das Feld während Debounce + Suche kaputt.
-	const { suggestions: addressSuggestions, loading: addressLoading } = useAddressSearch(address);
+	// Adresssuche (#1083): die Vorschlagsliste lebt in `AddressAutocomplete`, das den Hook selbst
+	// aufruft (Debounce 400 ms) — hier doppelt zu suchen würde den geteilten 1-req/s-Limiter treffen.
+	// #1066 AK1/AK10: Übernimmt die Koordinaten des explizit gewählten Treffers. Freitext ohne
+	// Auswahl und geleertes Feld tragen bewusst KEINE Koordinate — die Aufgabe erscheint dann nicht
+	// in der Nearby-Card, das Speichern schlägt aber nicht fehl.
+	const applyAddressCoords = (hit: AddressSuggestion): void => {
+		form.current.latitude = hit.lat;
+		form.current.longitude = hit.lon;
+	};
 	// State-Mirror für Range-Slider: `KolInputRange` muss über `_value` + `_label` den aktuellen
 	// Wert erhalten — ohne State würde der Slider nach jedem Re-Render auf den Ref-Initialwert
 	// zurückspringen (bekannte KoliBri-Falle, vgl. PillarWeightsForm.tsx:107–109).
@@ -545,6 +565,8 @@ export const TaskForm = ({
 					estimatedEffort,
 					description: description === '' ? null : description,
 					address: form.current.address.trim() === '' ? null : form.current.address.trim(),
+					latitude: form.current.latitude,
+					longitude: form.current.longitude,
 					pillars,
 					startDate: form.current.startDate.trim() === '' ? undefined : startDate,
 					rhythm: form.current.rhythm,
@@ -566,6 +588,8 @@ export const TaskForm = ({
 					estimatedEffort,
 					description: description === '' ? null : description,
 					address: form.current.address.trim() === '' ? null : form.current.address.trim(),
+					latitude: form.current.latitude,
+					longitude: form.current.longitude,
 					pillars,
 					startDate,
 					rhythm: form.current.rhythm,
@@ -580,6 +604,8 @@ export const TaskForm = ({
 					estimatedEffort,
 					description: description === '' ? null : description,
 					address: form.current.address.trim() === '' ? null : form.current.address.trim(),
+					latitude: form.current.latitude,
+					longitude: form.current.longitude,
 					deadline,
 					autoDeleteAfterDeadline: autoDelete,
 					pillars,
@@ -593,6 +619,8 @@ export const TaskForm = ({
 					estimatedEffort,
 					description: description === '' ? null : description,
 					address: form.current.address.trim() === '' ? null : form.current.address.trim(),
+					latitude: form.current.latitude,
+					longitude: form.current.longitude,
 					deadline,
 					autoDeleteAfterDeadline: autoDelete,
 					pillars,
@@ -770,21 +798,24 @@ export const TaskForm = ({
 							</div>
 						</VoiceField>
 					</div>
-					<KolButton
-						ref={lektoratTitleTriggerRef}
-						_label="Titel lektorieren"
-						_hideLabel
-						_variant="minimal"
-						_disabled={saving || lektoratingTitle || lektoratingDescription || pendingLektorat !== null}
-						_icons={{ left: { icon: 'fa-solid fa-magic' } }}
-						_on={{
-							onClick: () => void runLektorat('title', 30),
-						}}
-						style={{
-							flexShrink: 0,
-						}}
-						className="lektorat-button-align"
-					/>
+					{/* #1080: Lektorat ist ein KI-Feature — ohne aktive KI wird der Button nicht gerendert. */}
+					{aiEnabled && (
+						<KolButton
+							ref={lektoratTitleTriggerRef}
+							_label="Titel lektorieren"
+							_hideLabel
+							_variant="minimal"
+							_disabled={saving || lektoratingTitle || lektoratingDescription || pendingLektorat !== null}
+							_icons={{ left: { icon: 'fa-solid fa-magic' } }}
+							_on={{
+								onClick: () => void runLektorat('title', 30),
+							}}
+							style={{
+								flexShrink: 0,
+							}}
+							className="lektorat-button-align"
+						/>
+					)}
 				</div>
 				{/* #727: Range-Inputs responsiv (vertikal ≤768px, horizontal >768px) */}
 				<div className="range-inputs-row">
@@ -827,49 +858,51 @@ export const TaskForm = ({
 						}}
 					/>
 				</div>
-				{isSeriesMode ? (
-					<>
-						{/* Serie-Modus (#316): Startdatum (Anker der Serie) + Rhythmus statt Deadline. */}
-						<KolInputDate
-							_label="Startdatum"
-							_type="date"
-							_value={startDateValue}
-							_on={{
-								onChange: (_event, value) => {
-									const next = value instanceof Date ? startDateToInput(value) : readString(value);
-									form.current.startDate = next;
-									setStartDateInput(next);
-								},
-								onInput: (_event, value) => {
-									const next = value instanceof Date ? startDateToInput(value) : readString(value);
-									form.current.startDate = next;
-									setStartDateInput(next);
-								},
-							}}
-						/>
-						<KolSingleSelect
-							_label="Rhythmus"
-							_options={RHYTHM_OPTIONS}
-							_value={form.current.rhythm}
-							_on={{
-								onChange: (_event, value) => {
-									const next = readString(value);
-									if (isSeriesRhythm(next)) {
-										form.current.rhythm = next;
-										setRhythm(next);
-									}
-								},
-							}}
-						/>
-						{weekdayMismatch !== null && (
-							<KolAlert
-								_type="warning"
-								_label={`Der Rhythmus ist ${WEEKDAY_ADVERB[weekdayMismatch]} gebunden — bitte wähle ein Startdatum, das auf einen ${WEEKDAY_NOUN[weekdayMismatch]} fällt.`}
+				{/* #1072: Deadline-Feld(er) + Auto-Lösch-Schalter (+ Hinweis) als logische Gruppe; die
+				    Adresse folgt erst danach (siehe unten). */}
+				<div className="deadline-group" data-testid="deadline-group">
+					{isSeriesMode ? (
+						<>
+							{/* Serie-Modus (#316): Startdatum (Anker der Serie) + Rhythmus statt Deadline. */}
+							<KolInputDate
+								_label="Startdatum"
+								_type="date"
+								_value={startDateValue}
+								_on={{
+									onChange: (_event, value) => {
+										const next = value instanceof Date ? startDateToInput(value) : readString(value);
+										form.current.startDate = next;
+										setStartDateInput(next);
+									},
+									onInput: (_event, value) => {
+										const next = value instanceof Date ? startDateToInput(value) : readString(value);
+										form.current.startDate = next;
+										setStartDateInput(next);
+									},
+								}}
 							/>
-						)}
-					</>
-				) : (
-					<>
+							<KolSingleSelect
+								_label="Rhythmus"
+								_options={RHYTHM_OPTIONS}
+								_value={form.current.rhythm}
+								_on={{
+									onChange: (_event, value) => {
+										const next = readString(value);
+										if (isSeriesRhythm(next)) {
+											form.current.rhythm = next;
+											setRhythm(next);
+										}
+									},
+								}}
+							/>
+							{weekdayMismatch !== null && (
+								<KolAlert
+									_type="warning"
+									_label={`Der Rhythmus ist ${WEEKDAY_ADVERB[weekdayMismatch]} gebunden — bitte wähle ein Startdatum, das auf einen ${WEEKDAY_NOUN[weekdayMismatch]} fällt.`}
+								/>
+							)}
+						</>
+					) : (
 						<KolInputDate
 							_label="Deadline (optional)"
 							_type="date"
@@ -887,51 +920,49 @@ export const TaskForm = ({
 								},
 							}}
 						/>
-					</>
-				)}
-				{/* Adressuche (Forward Geocoding): Ortsbezug der Aufgabe ODER Serie (#1063 — auch im
-				    Serie-Modus, die Adresse wird an generierte Instanzen vererbt). */}
-				<KolCombobox
-					_label="Adresse (optional)"
-					_placeholder="Straße, Hausnummer, Ort …"
-					_hint={addressLoading ? 'Adresse wird gesucht …' : undefined}
-					_suggestions={addressSuggestions}
-					_value={address}
-					_on={{
-						onChange: (_event, value) => {
-							const next = readString(value);
-							form.current.address = next;
-							setAddress(next);
-						},
-						onInput: (_event, value) => {
-							const next = readString(value);
-							form.current.address = next;
-							setAddress(next);
-						},
-					}}
-				/>
-				{/* #523/#534/#546: Auto-Löschung bei verpasster Deadline. Im Task-Modus an die Deadline-Präsenz
-				    gekoppelt (deaktiviert ohne Deadline, #534 Anforderung 2); bei Serien stets frei anwählbar,
-				    da das Startdatum als Deadline gilt (#534 Anforderung 1). #546: Statt nativer Checkbox wird
-				    KolInputCheckbox verwendet; der Hinweis im aktivierten Zustand wird als KolAlert gezeigt. */}
-				<KolInputCheckbox
-					className="auto-delete-toggle"
-					_label="Automatisch löschen nach 3 Tagen bei verpasster Deadline"
-					_checked={autoDelete}
-					_disabled={autoDeleteDisabled}
-					_on={{
-						// #534: Ohne Deadline darf der Schalter nicht aktivierbar sein — der `_disabled`-Prop
-						// reicht im Test-jsdom allein nicht aus (rohes dispatchEvent umgeht ihn), daher zusätzlich
-						// die Wertzurückweisung im onChange-Handler.
-						onChange: (_event, checked) => setAutoDelete(autoDeleteDisabled ? false : checked === true),
-					}}
-				/>
-				{autoDelete && (
-					<KolAlert
-						_type="info"
-						_label="Die Aufgabe wird bei verpasster Deadline automatisch nach 3 Tagen gelöscht, sofern sie bis dahin nicht erledigt ist."
+					)}
+					{/* #523/#534/#546: Auto-Löschung bei verpasster Deadline. Im Task-Modus an die Deadline-Präsenz
+					    gekoppelt (deaktiviert ohne Deadline, #534 Anforderung 2); bei Serien stets frei anwählbar,
+					    da das Startdatum als Deadline gilt (#534 Anforderung 1). #546: Statt nativer Checkbox wird
+					    KolInputCheckbox verwendet; der Hinweis im aktivierten Zustand wird als KolAlert gezeigt. */}
+					<KolInputCheckbox
+						className="auto-delete-toggle"
+						_label="Automatisch löschen nach 3 Tagen bei verpasster Deadline"
+						_checked={autoDelete}
+						_disabled={autoDeleteDisabled}
+						_on={{
+							// #534: Ohne Deadline darf der Schalter nicht aktivierbar sein — der `_disabled`-Prop
+							// reicht im Test-jsdom allein nicht aus (rohes dispatchEvent umgeht ihn), daher zusätzlich
+							// die Wertzurückweisung im onChange-Handler.
+							onChange: (_event, checked) => setAutoDelete(autoDeleteDisabled ? false : checked === true),
+						}}
 					/>
-				)}
+					{autoDelete && (
+						<KolAlert
+							_type="info"
+							_label="Die Aufgabe wird bei verpasster Deadline automatisch nach 3 Tagen gelöscht, sofern sie bis dahin nicht erledigt ist."
+						/>
+					)}
+				</div>
+				{/* Adressuche (Forward Geocoding): Ortsbezug der Aufgabe ODER Serie (#1063 — auch im
+				    Serie-Modus, die Adresse wird an generierte Instanzen vererbt). #1072: steht nach der
+				    kompletten Deadline-Gruppe. */}
+				<AddressAutocomplete
+					label="Adresse (optional)"
+					value={address}
+					onValueChange={(next) => {
+						form.current.address = next;
+						setAddress(next);
+						// Freitext: alte Treffer-Koordinate verwerfen, sonst bleibt sie stecken.
+						form.current.latitude = null;
+						form.current.longitude = null;
+					}}
+					onSelect={(hit) => {
+						form.current.address = hit.address;
+						setAddress(hit.address);
+						applyAddressCoords(hit);
+					}}
+				/>
 				{pendingLektorat !== null && (
 					<LektoratDiffModal
 						original={pendingLektorat.original}
@@ -975,21 +1006,24 @@ export const TaskForm = ({
 							/>
 						</VoiceField>
 					</div>
-					<KolButton
-						ref={lektoratDescriptionTriggerRef}
-						_label="Beschreibung lektorieren"
-						_hideLabel
-						_variant="minimal"
-						_disabled={saving || lektoratingTitle || lektoratingDescription || pendingLektorat !== null}
-						_icons={{ left: { icon: 'fa-solid fa-magic' } }}
-						_on={{
-							onClick: () => void runLektorat('description'),
-						}}
-						style={{
-							flexShrink: 0,
-						}}
-						className="lektorat-button-align"
-					/>
+					{/* #1080: Lektorat ist ein KI-Feature — ohne aktive KI wird der Button nicht gerendert. */}
+					{aiEnabled && (
+						<KolButton
+							ref={lektoratDescriptionTriggerRef}
+							_label="Beschreibung lektorieren"
+							_hideLabel
+							_variant="minimal"
+							_disabled={saving || lektoratingTitle || lektoratingDescription || pendingLektorat !== null}
+							_icons={{ left: { icon: 'fa-solid fa-magic' } }}
+							_on={{
+								onClick: () => void runLektorat('description'),
+							}}
+							style={{
+								flexShrink: 0,
+							}}
+							className="lektorat-button-align"
+						/>
+					)}
 				</div>
 			</div>
 			{/* Säulen-Beiträge: je Säule ein Roh-Anteil 0,0–1,0 (#82), beim Speichern auf 100 % normiert. */}

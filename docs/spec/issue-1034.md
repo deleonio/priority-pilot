@@ -1,6 +1,6 @@
 # PWA-Update-/Offline-Hinweis — Priority Pilot
 
-**Stand:** 2026-08-27  
+**Stand:** 2026-08-28  
 **Ziel:** Von außen sichtbares Verhalten der Update-/Offline-Cards am unteren Viewport-Rand
 
 ## Journey: Update-Hinweis und Offline-Hinweis bedienen
@@ -32,13 +32,13 @@ Bei neuer App-Version bzw. abgeschlossener Offline-Vorbereitung zeigt die App ei
    - Der Aktionsbutton je Card ist mindestens 44×44 px groß und füllt die Card-Innenbreite
 
 4. **Auf Desktop (ab 768 px) betrachten**
-   - Die Cards bleiben am unteren Viewport-Rand fixiert; der Button kehrt auf kompakte Standardbreite zurück
+   - Die Cards bleiben am unteren Viewport-Rand fixiert, sitzen aber rechtsbündig (rechte Kante am Viewport-Rand) statt vollbreit, mit einer maximalen Breite von 480 px; der Button kehrt auf kompakte Standardbreite zurück
 
 ### Erwartetes Ergebnis
 
 - Beide Cards tragen die oben genannten Labels, Texte und Button-Beschriftungen
 - Auf schmalen Viewports ist der Aktionsbutton eine volle-Breite-Tap-Fläche ≥ 44×44 px (WCAG 2.5.8); kein Kind-Element der Card läuft aus dem Viewport (320 px)
-- Ab 768 px: Card-Position unverändert `position: fixed; bottom: 0`, kein Mobile-Layout
+- Ab 768 px: Card bleibt `position: fixed; bottom: 0`, sitzt aber rechtsbündig mit auf 480 px begrenzter Breite statt vollbreit; kein Mobile-Layout
 - Ohne Update- und Offline-Ereignis rendern die Cards nicht
 
 ### Randfälle & Fehler

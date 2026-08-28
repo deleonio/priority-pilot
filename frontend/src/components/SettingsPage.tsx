@@ -7,6 +7,7 @@ import { useShadowDOMLayout } from '../lib/useShadowDOMLayout';
 import { useGeolocation } from '../lib/useGeolocation';
 import { usePushSubscription } from '../lib/push';
 import { useVoiceAutostart } from '../lib/voiceAutostart';
+import { useAiPreferences } from '../lib/aiPreferences';
 import { AppearanceSetting } from './AppearanceSetting';
 import { LlmSettings } from './LlmSettings';
 import { PillarList } from './PillarList';
@@ -76,6 +77,8 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 	// Mikrofon-Berechtigung angefordert; nur bei erteilter Berechtigung wird die Einstellung aktiviert
 	// und persistiert. Wird sie verweigert, bleibt der Schalter aus und ein Hinweis erscheint.
 	const { enabled: voiceAutostart, setEnabled: setVoiceAutostart } = useVoiceAutostart();
+	// #1080: Hauptschalter „KI-Features aktiv" und die unabhängige Option „Schnellerfassung aktiv".
+	const { aiEnabled, quickCaptureEnabled, setPreference: setAiPreference } = useAiPreferences();
 	const [micDenied, setMicDenied] = useState(false);
 	const [permissionPending, setPermissionPending] = useState(false);
 
@@ -303,6 +306,43 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 				<div slot="tab-2" className="settings-llm">
 					{/* KI-Provider: Radio-Auswahl (Custom + fixe Built-ins), Modellwahl, Verwaltung. */}
 					<KolHeading _label="KI-Provider" _level={2} />
+					{/* #1080: Hauptschalter — blendet die KI-Bedienelemente (Säulen-Berater, Lektorate) aus.
+							Muster `.settings-llm-switch-row` wie in „Allgemein" (#971): mobil Stack, desktop Zeile. */}
+					<div className="settings-llm-switch-row">
+						<KolInputCheckbox
+							_label="KI-Features aktiv"
+							_variant="switch"
+							_hint="Bei deaktivierter KI sind der Säulen-Berater und die Lektorat-Buttons ausgeblendet."
+							_checked={aiEnabled}
+							_on={{
+								onChange: (_event, value) => {
+									setAiPreference('aiEnabled', value === true);
+								},
+							}}
+						/>
+						{!aiEnabled && (
+							<KolAlert _type="info" _label="KI-Features deaktiviert">
+								Säulen-Berater und Lektorat-Buttons sind derzeit ausgeblendet. Auch die Schnellerfassung ist inaktiv,
+								solange die KI deaktiviert ist (#1085).
+							</KolAlert>
+						)}
+					</div>
+					{/* #1085: Schnellerfassung ist ein KI-Feature — bei deaktivierter KI wird der Schalter
+							deaktiviert, damit er nicht umschaltbar ist. */}
+					<div className="settings-llm-switch-row">
+						<KolInputCheckbox
+							_label="Schnellerfassung aktiv"
+							_variant="switch"
+							_hint="Bei deaktivierter Schnellerfassung öffnet „Neuen Task anlegen“ direkt das vollständige Formular. Erfordert aktive KI."
+							_checked={quickCaptureEnabled}
+							_disabled={!aiEnabled}
+							_on={{
+								onChange: (_event, value) => {
+									setAiPreference('quickCaptureEnabled', value === true);
+								},
+							}}
+						/>
+					</div>
 					<LlmSettings />
 				</div>
 			</KolTabs>

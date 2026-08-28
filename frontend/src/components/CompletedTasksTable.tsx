@@ -124,7 +124,13 @@ export const CompletedTasksTable = memo((props: CompletedTasksTableProps) => {
 							domNode,
 							<span className="done-title-cell">
 								{task.title}
-								{task.address != null && <GeoBadge address={task.address} />}
+								{(task.latitude != null || task.address != null) && (
+									<GeoBadge
+										latitude={task.latitude ?? null}
+										longitude={task.longitude ?? null}
+										address={task.address}
+									/>
+								)}
 							</span>,
 						);
 					},

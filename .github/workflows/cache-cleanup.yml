@@ -28,11 +28,12 @@ name: Cache-Aufraeumen
 # hier NICHT geloescht -- ihre Reduktion erfolgt ueber die Trigger-Aenderung in codeql.yml
 # (Schedule-only statt pro Push/PR). Sie fallen innerhalb von 7 Tagen an GitHubs Eviction.
 #
-# STATE-BRANCH-SWEEP (ADR 0006): Der Issue-Storage lebt auf Zweigen ai/state/issue-{N}. Der
-# Documenter-Teardown loescht sie regul;er nach der Dokumentation. Dieser Sweep ist der
-# Backstop fuer Tickets, die Phase 6 nie erreichen (ai:needs-human, Abbruch, ai:to-big-issue):
-# Ein ai/state/issue-*-Branch, dessen Issue GESCHLOSSEN ist und dessen letzter Commit aelter
-# als 7 Tage ist, wird entfernt. Offene Issues werden nie angefasst.
+# STORAGE-BRANCH-SWEEP (ADR 0007, Erbe aus ADR 0006): Der Issue-Storage lebt auf
+# Harness-Zweigen ai/harness/{N} (ab Spec zugleich PR-Branch, vom Merge automatisch
+# geloescht) sowie legacy auf ai/state/issue-{N}. Dieser Sweep ist der Backstop fuer
+# Tickets, die den geregelten Abbau nie erreichen (ai:needs-human, Abbruch,
+# ai:to-big-issue): Ein Branch beider Prefixe, dessen Issue/PR GESCHLOSSEN ist und dessen
+# letzter Commit aelter als 7 Tage ist, wird entfernt. Offene Issues werden nie angefasst.
 
 on:
   schedule:
@@ -99,9 +100,10 @@ jobs:
           echo "Caches behalten:  $kept (< 24h alt)"
           echo "Fehlschlaege:     $failed"
 
-      - name: Verwaiste Issue-Storage-Branches entfernen (ai/state/issue-*, Issue geschlossen, >7 Tage)
-        # ADR 0006: Backstop fuer State-Branches, deren Ticket den Documenter-Teardown nie
-        # erreicht hat. Ein geschlossenes Issue + 7 Tage Ruhe = nachweislich verwaisst.
+      - name: Verwaiste Issue-Storage-Branches entfernen (ai/state/* + ai/harness/*, Issue/PR geschlossen, >7 Tage)
+        # ADR 0007 (Erbe 0006): Backstop fuer Storage-Branches (ai/harness/* + legacy
+        # ai/state/*), deren Ticket den geregelten Abbau nie erreicht hat. Ein
+        # geschlossenes Issue/PR + 7 Tage Ruhe = nachweislich verwaisst.
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -116,8 +118,12 @@ jobs:
           while IFS=$'\t' read -r ref sha; do
             [ -z "$ref" ] && continue
             branch_total=$((branch_total + 1))
-            branch="${ref#refs/heads/}"                 # ai/state/issue-123
-            issue="${branch##*issue-}"                  # 123
+            branch="${ref#refs/heads/}"                 # ai/state/issue-123 | ai/harness/123
+            case "$branch" in
+              ai/state/*)   issue="${branch##*issue-}" ;;  # 123
+              ai/harness/*) issue="${branch##*/}" ;;      # 123
+              *) issue="" ;;
+            esac
             if ! [[ "$issue" =~ ^[0-9]+$ ]]; then
               echo "Ueberspringe $branch (keine Issue-Nr im Namen)"
               continue
@@ -145,11 +151,13 @@ jobs:
               echo "::warning::Loeschen von $branch fehlgeschlagen (uebersprungen)"
               branch_failed=$((branch_failed + 1))
             fi
-          done < <(gh api --paginate "repos/$GITHUB_REPOSITORY/git/matching-refs/heads/ai/state/" \
-            --jq '.[] | [.ref, .object.sha] | @tsv' 2>/dev/null || true)
+          done < <({ gh api --paginate "repos/$GITHUB_REPOSITORY/git/matching-refs/heads/ai/state/" \
+                       --jq '.[] | [.ref, .object.sha] | @tsv' 2>/dev/null || true
+                     gh api --paginate "repos/$GITHUB_REPOSITORY/git/matching-refs/heads/ai/harness/" \
+                       --jq '.[] | [.ref, .object.sha] | @tsv' 2>/dev/null || true; })
 
           echo ""
-          echo "=== Zusammenfassung State-Branches ==="
+          echo "=== Zusammenfassung Storage-Branches (ai/state + ai/harness) ==="
           echo "Branches geprueft: $branch_total"
           echo "Branches geloescht: $branch_deleted"
           echo "Fehlschlaege:       $branch_failed"

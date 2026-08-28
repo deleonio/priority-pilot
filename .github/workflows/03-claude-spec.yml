@@ -255,10 +255,9 @@ jobs:
           since-epoch: ${{ steps.starttime.outputs.epoch }}
           provider: ${{ steps.setup.outputs.llm-provider }}
 
-      - name: Issue-Storage sichern (State-Branch)
-        # ADR 0006: Fetch-then-Commit auf ai/state/issue-{N} — der Branch IST der Speicher
-        # (unbefristet, versioniert, kein Artefakt-/Cache-Transport mehr; Cache-Writes sind
-        # für diese Trigger platform-seitig gesperrt, s. setup-claude Kopf-Kommentar).
+      - name: Issue-Storage sichern (Harness-Branch)
+        # ADR 0007: Fetch-then-Commit auf ai/harness/{N} — derselbe Branch, auf dem
+        # Spec/Impl arbeiten; der Memory reist committet mit dem PR nach main.
         if: always() && steps.setup.outputs.configured == 'true'
         uses: ./.github/actions/issue-state-save
         with:

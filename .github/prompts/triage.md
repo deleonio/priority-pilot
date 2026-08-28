@@ -21,13 +21,9 @@ PROCEDURE:
    COLLECT all open questions and write them into this ONE comment — don't add them one by
    one, don't hide them in the analysis block, don't scatter them across ping comments.
 4. Split up (if too large, see skill step 3)
-5. Write the analysis block AND routing table into the issue body (skill step 4).
-   Routing table (its own ai-phase-routing block, ASCII, exact format in the skill):
-   impl+review ALWAYS `ja` (yes); model haiku|sonnet|opus, effort low|medium|high;
-   for Run=`nein` (no), set model/effort to '-'. It controls model+effort PER phase.
-   CI note: the workflow additionally sets the model of the `impl` row as an
-   `ai:model:<class>` label on the issue (manual override path; auto-escalation on
-   review loops remains in effect).
+5. Write the analysis block AND routing table into the issue body — values and format
+   per SKILL.md step 4 (its own ai-phase-routing block, ASCII; impl/review ALWAYS `ja`;
+   for Run=`nein` set model/effort to '-').
 
 NO ping comment: for an unambiguous outcome (spec-ready/analyzed), the body block +
 label change is the complete communication. NO extra comments, NO

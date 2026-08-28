@@ -196,3 +196,164 @@ test.describe('Priority Pilot — UpdatePrompt Mobile-Bedienbarkeit (#1034)', ()
 		expect(style.bottom).toBe('0px');
 	});
 });
+
+/**
+ * Desktop-Ausrichtung (#1077, docs/spec/issue-1077.md AK1-AK3).
+ *
+ * Gleiches Stellvertreter-Muster wie #373 oben: der reale Update-Zustand ist in Playwright
+ * nicht deterministisch, deshalb wird der reine CSS-Kontrakt der Klasse `.update-prompt`
+ * geprueft — Desktop (≥ 768px) rechtsbündig und breitenbegrenzt, Mobil (375px) vollbreit.
+ */
+interface ProxyMetrics {
+	left: string;
+	right: string;
+	maxWidth: string;
+	width: number;
+	rectLeft: number;
+	rectRight: number;
+	viewportWidth: number;
+}
+
+test.describe('Priority Pilot — UpdatePrompt Desktop-Ausrichtung (#1077)', () => {
+	/** Sub-Pixel-Rundungstoleranz. */
+	const TOLERANCE_PX = 1;
+
+	/** Liest Position und Breite eines injizierten `.update-prompt`-Stellvertreters aus. */
+	const measureProxy = `(() => {
+		const el = document.createElement('div');
+		el.className = 'update-prompt';
+		document.body.appendChild(el);
+		const style = getComputedStyle(el);
+		const rect = el.getBoundingClientRect();
+		const result = {
+			left: style.left,
+			right: style.right,
+			maxWidth: style.maxWidth,
+			width: rect.width,
+			rectLeft: rect.left,
+			rectRight: rect.right,
+			viewportWidth: document.documentElement.clientWidth,
+		};
+		el.remove();
+		return result;
+	})();`;
+
+	// AK1 — Desktop (≥ 768px): rechtsbündig, nicht mehr vollbreit.
+	// Computed `left` liefert die CSSOM bei positionierten Elementen als verwendeten px-Wert
+	// zurück — `left: auto` ist per getComputedStyle nicht beobachtbar, deshalb Geometrie prüfen.
+	test('AK1: .update-prompt ist bei 1280px rechtsbündig und nicht vollbreit', async ({ page }) => {
+		await mockAuthenticated(page);
+		await page.setViewportSize({ width: 1280, height: 800 });
+		await page.goto('/');
+
+		const m = await page.evaluate<ProxyMetrics>(measureProxy);
+
+		// Rechtsbündig: Element liegt in der rechten Hälfte, rechte Kante am Viewport-Rand.
+		expect(m.rectLeft).toBeGreaterThan(m.viewportWidth / 2);
+		expect(m.viewportWidth - m.rectRight).toBeLessThanOrEqual(TOLERANCE_PX);
+		expect(m.width).toBeLessThan(m.viewportWidth - TOLERANCE_PX);
+	});
+
+	// AK2 — Desktop (≥ 768px): Maximalbreite begrenzt (≤ 480px).
+	test('AK2: .update-prompt hat bei 1280px ein max-width ≤ 480px', async ({ page }) => {
+		await mockAuthenticated(page);
+		await page.setViewportSize({ width: 1280, height: 800 });
+		await page.goto('/');
+
+		const m = await page.evaluate<ProxyMetrics>(measureProxy);
+
+		// 'none' (Basiszustand) → RED; Begrenzung im Media-Query → GREEN.
+		expect(m.maxWidth).not.toBe('none');
+		expect(parseFloat(m.maxWidth)).toBeLessThanOrEqual(480);
+	});
+
+	// AK3 — Mobil (375px): volle Breite wie bisher (left/right je 0).
+	test('AK3: .update-prompt bleibt bei 375px vollbreit (left:0, right:0)', async ({ page }) => {
+		await mockAuthenticated(page);
+		await page.setViewportSize({ width: 375, height: 812 });
+		await page.goto('/');
+
+		const m = await page.evaluate<ProxyMetrics>(measureProxy);
+
+		expect(m.left).toBe('0px');
+		expect(m.right).toBe('0px');
+	});
+});
+
+/**
+ * Reload-Fallback nach Update-Bestätigung (#1095, docs/spec/issue-1095.md AK4).
+ *
+ * Auch hier gilt: der reale SW-Update-Zyklus (`needRefresh`) ist in Playwright nicht
+ * deterministisch reproduzierbar (Header oben). Der Browser-Mechanismus dahinter ist es aber
+ * sehr wohl — und genau der bricht in der echten PWA ab: Klick-Bestätigung → eigener
+ * `controllerchange`-Listener → `location.reload()`. Deshalb wird die reale Prompt-Struktur
+ * (`.update-prompt` > `kol-card` > `span[data-testid="pwa-update-reload"]`) als Stellvertreter
+ * injiziert und der Fallback-Pfad im echten Dokument gefahren: Dispatch von `controllerchange`
+ * auf dem echten `navigator.serviceWorker`, Nachweis des Reloads über einen `sessionStorage`-
+ * Zähler (überlebt den Reload im selben Tab), danach muss die App neu gestartet und der
+ * Update-Prompt weg sein. Die Komponentenlogik selbst (Listener-Registrierung, Idempotenz-Guard,
+ * Kein-Reload-ohne-Bestätigung) tragen die Vitest-Unit-Tests (AK1–AK3).
+ */
+test.describe('Priority Pilot — PWA Update-Reload-Fallback (#1095)', () => {
+	test('AK4: 375px — Bestätigung + Controller-Wechsel reloadet genau einmal, Prompt danach weg', async ({ page }) => {
+		await mockAuthenticated(page);
+		await page.setViewportSize({ width: 375, height: 667 });
+		await page.goto('/');
+
+		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
+		await page.evaluate(() => sessionStorage.setItem('pwa-reloads', '0'));
+
+		// Reale UpdatePrompt-Struktur als Stellvertreter; der Klick verdrahtet den Fallback-
+		// Listener (nur nach Bestätigung), der Controller-Wechsel reloadet genau einmal.
+		await page.evaluate(() => {
+			const container = document.createElement('div');
+			container.className = 'update-prompt';
+			container.innerHTML = `
+				<kol-card _label="Neue Version verfügbar">
+					<p>Priority Pilot wurde aktualisiert.</p>
+					<span data-testid="pwa-update-reload"><kol-button>Jetzt neu laden</kol-button></span>
+				</kol-card>
+			`;
+			document.body.appendChild(container);
+
+			const trigger = container.querySelector<HTMLElement>('[data-testid="pwa-update-reload"]')!;
+			trigger.addEventListener('click', () => {
+				navigator.serviceWorker.addEventListener('controllerchange', () => {
+					if (sessionStorage.getItem('pwa-reloads') === '1') return;
+					sessionStorage.setItem('pwa-reloads', '1');
+					window.location.reload();
+				});
+			});
+		});
+
+		await page.getByTestId('pwa-update-reload').click();
+
+		// Controller-Wechsel mehrfach feuern (Workbox-Pfad + eigener Fallback) — darf nur 1× reloaden.
+		await page.evaluate(() => {
+			for (let i = 0; i < 3; i++) {
+				navigator.serviceWorker.dispatchEvent(new Event('controllerchange'));
+			}
+		});
+
+		// Reload nachweisbar (Zähler steht nach dem Neustart auf genau 1). Während des Reloads
+		// wird die Execution-Context zerstört — der Fehlschlag wird abgefangen und neu gepollt.
+		await expect
+			.poll(
+				async () => {
+					try {
+						return await page.evaluate(() => sessionStorage.getItem('pwa-reloads'));
+					} catch {
+						return null;
+					}
+				},
+				{ timeout: 10_000 },
+			)
+			.toBe('1');
+
+		// App ist nach dem Reload wieder vollständig da. (Kein `.update-prompt`-Count-Check: das hier
+		// injizierte div stirbt mit dem Reload und der echte Prompt ist in diesem Test nie gemountet —
+		// die Assertion könnte nicht fehlschlagen. Das echte Verschwinden tragen AK1–AK3 in
+		// UpdatePrompt.test.tsx.)
+		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
+	});
+});

@@ -1,19 +1,21 @@
 # Spec #1067 — Fokus in Suchfeld nach dem Schließen des Suchdialogs
 
+**Stand:** 2026-08-28
+
 ## Ziel
 
 Nach dem Auslösen der Suche im SearchModal (Enter oder Button „Suche starten") wechselt die App
 auf den Aufgaben-Tab und filtert die Liste. Damit der Nutzer sofort weitertippen kann, liegt der
 Tastaturfokus anschließend im Filterfeld (`KolInputText.task-filter-search__field`,
-„Nach Titel filtern", `App.tsx:542`) — programmatisch gesetzt, ohne dass der Nutzer klickt.
+„Nach Titel filtern", `App.tsx:585`) — programmatisch gesetzt, ohne dass der Nutzer klickt.
 Schließen OHNE Suche (Escape, „Abbrechen", Backdrop) ändert sein Verhalten nicht: Der Fokus
 kehrt zum Auslöser (Toolbar-Button „Suche") zurück.
 
 ## Preconditions
 
 - Der Toolbar-Button „Suche" öffnet das SearchModal; die Suche wechselt auf den Aufgaben-Tab,
-  setzt `searchDraft` und wendet den Filter an (`App.tsx:638-646`).
-- Das Filterfeld im Aufgaben-Tab ist unkonditional gerendert (`App.tsx:527`, slot `tab-1`) und
+  setzt `searchDraft` und wendet den Filter an (`App.tsx:692-701`).
+- Das Filterfeld im Aufgaben-Tab ist unkonditional gerendert (`App.tsx:568`, slot `tab-1`) und
   existiert damit immer im DOM — auch bei aktivem anderem Tab.
 - Der `Modal`-Cleanup gibt beim Unmount den Fokus per `setTimeout(0)` an den Auslöser zurück
   (`Modal.tsx:136-145`) — der neue Filterfeld-Fokus muss NACH dieser Rückgabe greifen

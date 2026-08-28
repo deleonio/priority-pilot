@@ -65,6 +65,8 @@ interface SeriesAttributes {
 	startDate?: Date;
 	description?: string | null;
 	address?: string | null;
+	latitude?: number | null;
+	longitude?: number | null;
 	autoDeleteAfterDeadline?: boolean;
 }
 
@@ -109,6 +111,8 @@ const serializeSeries = (series: Series): SeriesDto => ({
 	startDate: series.startDate.toISOString(),
 	description: series.description ?? null,
 	address: series.address ?? null,
+	latitude: series.latitude ?? null,
+	longitude: series.longitude ?? null,
 	autoDeleteAfterDeadline: series.autoDeleteAfterDeadline ?? false,
 	pillars: (series.Pillars ?? [])
 		.map((pillar) => ({
@@ -221,6 +225,38 @@ const validateSeriesFields = (
 			return { ok: false, message: 'address muss ein String (max. 255 Zeichen) oder null sein.' };
 		}
 		attrs.address = input.address === null ? null : input.address.trim() === '' ? null : input.address.trim();
+	}
+
+	// Standort-Koordinaten der Serie (#1066), analog `Task.latitude/longitude`: Zahl im gültigen
+	// Bereich oder null; Freitext ohne Koordinat bleibt speicherbar (AK10).
+	// Standort-Koordinaten der Serie (#1066): nur bei Auswahl eines Adress-Vorschlags gesetzt (Coordinates-only);
+	// Freitext ohne Koordinat bleibt speicherbar (AK10). Lat/lon sind ein Paar: `null` auf einer
+	// Seite leert BEIDE Werte — eine Einzel-Koordinate wird paarweise zu null normalisiert.
+	if (input.latitude !== undefined || input.longitude !== undefined) {
+		if (
+			input.latitude !== null &&
+			input.latitude !== undefined &&
+			(typeof input.latitude !== 'number' ||
+				!Number.isFinite(input.latitude) ||
+				input.latitude < -90 ||
+				input.latitude > 90)
+		) {
+			return { ok: false, message: 'latitude muss eine Zahl zwischen -90 und 90 oder null sein.' };
+		}
+		if (
+			input.longitude !== null &&
+			input.longitude !== undefined &&
+			(typeof input.longitude !== 'number' ||
+				!Number.isFinite(input.longitude) ||
+				input.longitude < -180 ||
+				input.longitude > 180)
+		) {
+			return { ok: false, message: 'longitude muss eine Zahl zwischen -180 und 180 oder null sein.' };
+		}
+		const lat = input.latitude ?? null;
+		const lon = input.longitude ?? null;
+		attrs.latitude = lat !== null && lon !== null ? lat : null;
+		attrs.longitude = lat !== null && lon !== null ? lon : null;
 	}
 
 	if (input.autoDeleteAfterDeadline !== undefined) {
@@ -409,6 +445,8 @@ seriesRouter.patch('/series/:id', async (req: Request, res: Response<SeriesDto |
 				}
 				if (validation.attrs.description !== undefined) instanceAttrs.description = validation.attrs.description;
 				if (validation.attrs.address !== undefined) instanceAttrs.address = validation.attrs.address;
+				if (validation.attrs.latitude !== undefined) instanceAttrs.latitude = validation.attrs.latitude;
+				if (validation.attrs.longitude !== undefined) instanceAttrs.longitude = validation.attrs.longitude;
 				if (validation.attrs.autoDeleteAfterDeadline !== undefined) {
 					instanceAttrs.autoDeleteAfterDeadline = validation.attrs.autoDeleteAfterDeadline;
 				}

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { Transaction, ValidationError as SequelizeValidationError } from 'sequelize';
+import { Op, Transaction, ValidationError as SequelizeValidationError } from 'sequelize';
 import sequelize from '../../database.js';
 import { Pillar, ScoreEntry, Task, TaskPillar } from '../../models/index.js';
 import { wouldCreateCycle } from '../../logics/cycle.js';
@@ -13,6 +13,7 @@ import type { components } from '../../api';
 type TaskDto = components['schemas']['Task'];
 type ErrorDto = components['schemas']['Error'];
 type TaskStatus = components['schemas']['TaskStatus'];
+type NearbyTaskDto = components['schemas']['NearbyTask'];
 
 const VALID_STATUSES: readonly TaskStatus[] = ['Open', 'In process', 'Done'];
 
@@ -26,6 +27,8 @@ interface TaskAttributes {
 	description?: string | null;
 	deadline?: Date | null;
 	address?: string | null;
+	latitude?: number | null;
+	longitude?: number | null;
 	autoDeleteAfterDeadline?: boolean;
 	checklist?: ChecklistItem[];
 }
@@ -90,6 +93,8 @@ export const serializeTask = (task: Task): TaskDto => ({
 	actualEffort: task.actualEffort ?? null,
 	description: task.description ?? null,
 	address: task.address ?? null,
+	latitude: task.latitude ?? null,
+	longitude: task.longitude ?? null,
 	deadline: task.deadline ? task.deadline.toISOString() : null,
 	autoDeleteAfterDeadline: task.autoDeleteAfterDeadline ?? false,
 	checklist: task.checklist ?? [],
@@ -208,6 +213,38 @@ const validateTaskFields = (body: unknown, requireTitle: boolean): ValidationRes
 		attrs.address = input.address === null ? null : input.address.trim() === '' ? null : input.address.trim();
 	}
 
+	// Standort-Koordinaten (#1066): nur bei Auswahl eines Adress-Vorschlags gesetzt (Coordinates-only);
+	// Freitext ohne Koordinat bleibt speicherbar (AK10). `null` leert beide Werte.
+	// Standort-Koordinaten (#1066): nur bei Auswahl eines Adress-Vorschlags gesetzt (Coordinates-only);
+	// Freitext ohne Koordinat bleibt speicherbar (AK10). Lat/lon sind ein Paar: `null` auf einer
+	// Seite leert BEIDE Werte — eine Einzel-Koordinate wird paarweise zu null normalisiert.
+	if (input.latitude !== undefined || input.longitude !== undefined) {
+		if (
+			input.latitude !== null &&
+			input.latitude !== undefined &&
+			(typeof input.latitude !== 'number' ||
+				!Number.isFinite(input.latitude) ||
+				input.latitude < -90 ||
+				input.latitude > 90)
+		) {
+			return { ok: false, message: 'latitude muss eine Zahl zwischen -90 und 90 oder null sein.' };
+		}
+		if (
+			input.longitude !== null &&
+			input.longitude !== undefined &&
+			(typeof input.longitude !== 'number' ||
+				!Number.isFinite(input.longitude) ||
+				input.longitude < -180 ||
+				input.longitude > 180)
+		) {
+			return { ok: false, message: 'longitude muss eine Zahl zwischen -180 und 180 oder null sein.' };
+		}
+		const lat = input.latitude ?? null;
+		const lon = input.longitude ?? null;
+		attrs.latitude = lat !== null && lon !== null ? lat : null;
+		attrs.longitude = lat !== null && lon !== null ? lon : null;
+	}
+
 	if (input.deadline !== undefined) {
 		if (input.deadline === null) {
 			attrs.deadline = null;
@@ -286,6 +323,53 @@ tasksRouter.get('/tasks', async (req: Request, res: Response<TaskDto[] | ErrorDt
 	try {
 		const tasks = await Task.findAll({ where: ownerScope(getUserId(req)), include: [Pillar] });
 		res.json(tasks.map(serializeTask));
+	} catch (error) {
+		handleWriteError(res, error);
+	}
+});
+
+// GET /tasks/nearby — offene Tasks mit Koordinaten, aufsteigend nach Distanz zur Position (#1066).
+// Muss VOR `/tasks/:id` registriert sein, damit der Pfad nicht als id gefangen wird.
+const EARTH_RADIUS_KM = 6371;
+
+/** Großkreis-Distanz zweier Punkte in km (Haversine-Formel). */
+const haversineKm = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+	const toRad = (value: number): number => (value * Math.PI) / 180;
+	const dLat = toRad(lat2 - lat1);
+	const dLon = toRad(lon2 - lon1);
+	const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+	return 2 * EARTH_RADIUS_KM * Math.asin(Math.sqrt(a));
+};
+
+tasksRouter.get('/tasks/nearby', async (req: Request, res: Response<NearbyTaskDto[] | ErrorDto>) => {
+	// `Number('')` wäre 0 und damit fälschlich gültig — leere/fehlende/Array-Parameter ablehnen.
+	const parseCoord = (value: unknown): number =>
+		typeof value === 'string' && value.trim() !== '' ? Number(value) : Number.NaN;
+	const lat = parseCoord(req.query.lat);
+	const lon = parseCoord(req.query.lon);
+	if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lon) || lon < -180 || lon > 180) {
+		sendError(res, 400, 'lat und lon müssen Zahlen in gültigem Bereich sein.');
+		return;
+	}
+	try {
+		// AK2: nur offene Tasks MIT Koordinaten, owner-scoped (AK7), max. 10, nach Distanz aufsteigend.
+		const tasks = await Task.findAll({
+			where: {
+				status: { [Op.ne]: 'Done' },
+				latitude: { [Op.ne]: null },
+				longitude: { [Op.ne]: null },
+				...ownerScope(getUserId(req)),
+			},
+		});
+		const items = tasks
+			.map((task) => ({
+				id: task.id,
+				title: task.title,
+				distanceKm: Math.round(haversineKm(lat, lon, task.latitude as number, task.longitude as number) * 10) / 10,
+			}))
+			.sort((a, b) => a.distanceKm - b.distanceKm)
+			.slice(0, 10);
+		res.json(items);
 	} catch (error) {
 		handleWriteError(res, error);
 	}

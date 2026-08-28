@@ -11,7 +11,7 @@ export const NOMINATIM_USER_AGENT = 'Priority-Pilot (https://github.com/deleonio
 const rateLimitMap = new Map<string, number[]>();
 
 /** `true`, wenn der Aufrufer (IP+Session) das 1-req/sec-Limit gerade verletzt. */
-export const isNominatimRateLimited = (ip: string, session: string): boolean => {
+export const isGeocodeRateLimited = (ip: string, session: string): boolean => {
 	const now = Date.now();
 	const key = `${ip}:${session}`;
 	const timestamps = rateLimitMap.get(key) ?? [];

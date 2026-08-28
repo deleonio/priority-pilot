@@ -7,11 +7,20 @@ const DEBOUNCE_MS = 400;
 /** Suchtext muss mindestens so lang sein, bevor eine Anfrage rausgeht (vermeidet Rauschen bei 1–2 Zeichen). */
 const MIN_QUERY_LENGTH = 3;
 
+/** Adress-Vorschlag mit den Koordinaten des Treffers (#1066 AK1): die Auswahl übernimmt lat/lon. */
+export interface AddressSuggestion {
+	address: string;
+	lat: number;
+	lon: number;
+}
+
 interface UseAddressSearchResult {
 	/** Adress-Vorschläge zum aktuellen Suchtext (leer, solange nichts passendes gefunden/gesucht wurde). */
-	suggestions: string[];
+	suggestions: AddressSuggestion[];
 	/** Ob gerade eine Suche läuft. */
 	loading: boolean;
+	/** #1083 AK5: Suche fehlgeschlagen (Netzwerk/Server) — von „0 Treffer" unterscheidbar machen. */
+	error: boolean;
 }
 
 /**
@@ -20,8 +29,9 @@ interface UseAddressSearchResult {
  * ändert (kein Flackern durch spät eintreffende Antworten auf einen bereits überholten Text).
  */
 export const useAddressSearch = (query: string): UseAddressSearchResult => {
-	const [suggestions, setSuggestions] = useState<string[]>([]);
+	const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
 	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState(false);
 	const abortRef = useRef<AbortController | null>(null);
 
 	useEffect(() => {
@@ -31,6 +41,7 @@ export const useAddressSearch = (query: string): UseAddressSearchResult => {
 		if (trimmed.length < MIN_QUERY_LENGTH) {
 			setSuggestions([]);
 			setLoading(false);
+			setError(false);
 			return;
 		}
 
@@ -40,16 +51,24 @@ export const useAddressSearch = (query: string): UseAddressSearchResult => {
 			controller = current;
 			abortRef.current = current;
 			setLoading(true);
+			// Neue Anfrage = neuer Zustand: einen Fehler aus dem Vorgänger nicht in die frische
+			// Suche hinüberretten (F1 — sonst klebt die Warnung neben späteren Trefferlisten).
+			setError(false);
 			api
 				.geocodeSearch({ q: trimmed, signal: current.signal })
 				.then((results) => {
 					if (!current.signal.aborted) {
-						setSuggestions(results.map((entry) => entry.address));
+						// #1066 AK1: Koordinaten mitführen — vormals warf `map(entry => entry.address)`
+						// die Koordinaten weg und die Auswahl konnte lat/lon nicht übernehmen.
+						setSuggestions(results.map((entry) => ({ address: entry.address, lat: entry.lat, lon: entry.lon })));
 					}
 				})
 				.catch(() => {
 					if (!current.signal.aborted) {
+						// #1083 AK5: Fehler NICHT still zur leeren Liste machen — die Komponente
+						// unterscheidet „keine Treffer" (legitim) von „Suche nicht erreichbar".
 						setSuggestions([]);
+						setError(true);
 					}
 				})
 				.finally(() => {
@@ -67,5 +86,5 @@ export const useAddressSearch = (query: string): UseAddressSearchResult => {
 		};
 	}, [query]);
 
-	return { suggestions, loading };
+	return { suggestions, loading, error };
 };

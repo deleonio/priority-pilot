@@ -41,6 +41,12 @@ Issues = GitHub issues of `deleonio/priority-pilot`. Prerequisite: `gh` is authe
 - **Copyedit the issue description:** improve spelling, grammar, and clarity.
 - **The content must not be changed in the process:** no new or removed requirements,
   no change in meaning, no additional assumptions.
+- **Template headings are untouchable:** the four ticket-template headings
+  (`Was ist das Problem?`, `Wie soll es sein?`, `Wo tritt es auf?`, `Woran messen wir das?`)
+  survive every body rewrite word-for-word — copyedit their **content**, never rename,
+  merge, or drop the headings themselves. Insert or replace the analysis block and the
+  routing table **below** the template sections, never in between: every later phase
+  locates its input by these headings.
 - Apply the copyedited version — pass a multi-line body with **real line breaks**, e.g.
   `gh issue edit <nr> --body-file -` with a heredoc.
 - If the copyedit changes nothing substantively, leave the description untouched (no "pro forma" edit).
