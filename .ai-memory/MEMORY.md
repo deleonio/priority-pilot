@@ -9,7 +9,8 @@ jeder Lauf liest es, damit derselbe Fehler nicht zweimal passiert.
 verankert sind. Aufnahmekriterium, Format und Kuratierung: `AGENTS.md` → Memory.
 
 Abzugrenzen von den `issue-*.md` im selben Verzeichnis — das sind flüchtige Phasen-Notizen eines
-einzelnen Tickets (Soft-Abort-Resume), gitignored und nach dem Merge weg.
+  einzelnen Tickets (Soft-Abort-Resume) - committet, reisen im Harness-Branch
+  `ai/harness/{N}` mit dem PR nach main und bleiben dort dauerhaft (ADR 0007).
 
 ## Learnings & Erfahrungen
 
@@ -169,3 +170,8 @@ Konflikte, die er verhindern soll.
 - 2026-08-26 · CI-Shell — awk `gsub()` auf einem Feld ($2) baute $0 mit OFS neu auf, die Markdown-Pipes verschwanden und das Nachparsen der Zeile lieferte leer. → Felder in EINEM awk-Durchlauf extrahieren und per printf ausgeben, die Zeile nie zwischenspeichern und spaeter erneut parsen.
 - 2026-08-26 · Frontend/Tests — `pnpm --filter frontend test:e2e -- <grep-pattern>` filtert NICHT, playwright ignoriert das Argument nach `--` und laeuft die volle e2e-Suite (~10 Min statt Sekunden). → Fuer gezielte Spec-Verifikation direkt `npx playwright test e2e/<datei>.spec.ts` im `frontend`-Verzeichnis nutzen.
 - 2026-08-27 · Gate · `pnpm test` schlägt lokal an `session.test.ts` „AK-5 — Redis-Store“ fehl (Suite ✖ trotz fail 0, Test-Body läuft nach t.skip() weiter) → pre-existing/umgebungsbedingt (Redis nur als CI-Service); per `git stash` auf sauberem Stand verifizieren und im PR-Body dokumentieren, nicht fixen.
+- 2026-08-28 · CI/Smoke-Test · run:-Bloecke der Composite-Actions lassen sich lokal
+  pruefen (yaml-extrahieren + bash -n + Minirepo), aber macOS-/bin/bash ist 3.2: `declare -A`
+  scheitert, assoziative-Array-Zugriffe liefern Muell → nur Teilpfade testbar (Erst-Anlage,
+  Idempotenz, leer), Blob-Diff-Pfade muessen der CI (bash 5) vertrauen. Nicht forensisch
+  jagen - Artefakt erkennen und einordnen.
