@@ -343,12 +343,62 @@ jobs:
             exit 1
           fi
 
+          # TEMPLATE-STRUKTUR-POST-CHECK: Der Body wurde von der Analyse komplett neu
+          # geschrieben (Copyedit + KI-ANALYSE-Block) — der Vorab-Check des Güte-Gates
+          # skippt sich bei bestehendem Analyse-Block selbst, dieser Check läuft daher
+          # nach JEDEM Lauf (Erst- und Re-Triage). Fehlt eine der vier Template-
+          # Überschriften, überschreibt das unten den Verdict auf needs-human — die
+          # Folgearbeiten (UX/Spec/Implementierung) lokalisieren ihre Eingaben über
+          # genau diese Abschnitte.
+          printf '%s' "$BODY" > /tmp/structure-body.md
+          STRUCT_OUT="$(bash .github/scripts/verify-template-structure.sh --body-file /tmp/structure-body.md 2>/dev/null || true)"
+          STRUCT_OK="$(printf '%s' "$STRUCT_OUT" | sed -n 's/^ok=//p')"
+          STRUCT_MISSING="$(printf '%s' "$STRUCT_OUT" | sed -n 's/^missing=//p')"
+          # Leere Ausgabe (Skript nicht lauffähig) = Struktur gilt als intakt — fail-safe
+          # Richtung Pipeline wie beim Güte-Gate, nur sichtbar gewarnt.
+          if [ "$STRUCT_OK" != "true" ] && [ "$STRUCT_OK" != "false" ]; then
+            STRUCT_OK="true"
+            echo "::warning title=Struktur-Check::Prüfung nicht ermittelbar — übersprungen (fail-safe)."
+          fi
+
+          if [ "$STRUCT_OK" = "false" ]; then
+            # BSD/GNU-portable "; "-Liste in Bullets zerlegen (awk statt sed-\n-Trick).
+            MISSING_BULLETS="$(printf '%s' "$STRUCT_MISSING" | awk '{ n = split($0, a, "; "); for (i = 1; i <= n; i++) printf "- %s\n", a[i] }')"
+            # Marker-Kommentar FIRST: needs-human-explain.sh findet ihn beim Lookup
+            # (Begründungspflicht) — keine Ersatz-Diagnose nötig.
+            {
+              echo "<!-- ai-triage-decision -->"
+              echo "## ⛔ Analyse hat die Ticket-Struktur beschädigt"
+              echo ""
+              echo "Die Analyse hat den Issue-Body neu geschrieben und dabei Template-Überschriften entfernt:"
+              echo ""
+              printf '%s\n' "$MISSING_BULLETS"
+              echo ""
+              echo "**Was zu entscheiden ist:** Diese Abschnitte gehören zur Ticket-Struktur — die Folgearbeiten (UX/Spec/Implementierung) lesen ihre Eingaben aus genau diesen Abschnitten."
+              echo ""
+              echo "**Optionen:**"
+              echo "- Fehlende Abschnitte im Ticket wiederherstellen (Inhalte stehen eventuell noch im Body), dann \`ai:needs-human\` entfernen **und** \`ai:needs-analyse\` setzen."
+              echo "- Ticket gilt als veraltet: genauso vorgehen — \`ai:needs-human\` weg, \`ai:needs-analyse\` gesetzt."
+              echo ""
+              echo "> Das Entfernen von \`ai:needs-human\` hebt nur die Sperre auf und startet nichts."
+              echo "> Das Ticket trägt \`ai:analysed\`, aber keinen Phasen-Trigger — der Anstoß fehlt sonst."
+              echo ""
+              echo "---"
+              echo "_Diagnose des Workflows: Template-Struktur-Check nach der Analyse._"
+            } > /tmp/triage-structure-broken.md
+            gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file /tmp/triage-structure-broken.md || true
+          fi
+
           # VERDICT ist autoritativ für die Phasen-Freigabe (Issue #538):
           #   spec-ready (🟢) + AK vorhanden → Freigabe in die Spec-Stufe
           #   needs-human → harter Stopp, aber NUR mit Begründungs-Kommentar (s. u.)
           #   analyzed (🟡/🔴) oder leer/ungültig → beim Menschen bleiben (fail-safe)
           # HAS_AK wirkt nur als zusätzlicher Guard, nie als alleiniger Promoter.
-          if [ "$verdict" = "spec-ready" ] && [ "$HAS_AK" = "true" ]; then
+          # Strukturbruch schlägt ALLES — auch ein grünes Verdict: Ein Ticket ohne
+          # Template-Abschnitte ist für jede Folgephase unlesbar (s. Struktur-Check oben).
+          if [ "$STRUCT_OK" = "false" ]; then
+            final="needs-human"
+          elif [ "$verdict" = "spec-ready" ] && [ "$HAS_AK" = "true" ]; then
             final="spec-ready"
           elif [ "$verdict" = "needs-human" ]; then
             final="needs-human"
