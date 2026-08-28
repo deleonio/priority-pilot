@@ -1,6 +1,8 @@
 # Issue 1095 — Implement (Phase 3), Stand 2026-08-28T16:40Z
 
 ## Erledigt
+- **PHASE ABGESCHLOSSEN:** Commit e95bcb59 auf `ai/harness/1095` gepusht, PR **#1097** via `gh pr ready 1097` review-ready (isDraft=false), Body um Umsetzung + Gate-Tabelle erweitert (Ergebnis aller Schritte steht im PR-Body).
+- Gate: format/prettier/lint/knip exit 0 (knip nur bekannte Configuration-hints), `pnpm --filter frontend test` **451 passed/13 skipped**, E2E `pwa-update-prompt.spec.ts` **11/11** grün. `pnpm --filter server test` exit 1 — pre-existing (AK-5 Redis-Store, `git stash`-Gegenprobe auf unverändertem Stand identisch: 730 pass/fail 0/skipped 1), im PR-Body dokumentiert, nicht gefixt.
 - Spec-PR gefunden + gecheckt: Draft-PR **#1097** (`headRefName=ai/harness/1095`, closingIssuesReferences=[1095]); lokale untracked `.ai-memory/issue-1095-{spec,triage}.md` waren byte-identisch mit dem Branch-Stand → vor `git switch` gelöscht (sonst "Please move or remove them").
 - Quick-Check (Skill Schritt 2, KEIN Re-Triage): Analyse-Block im Body stand=2026-08-28T16:17:01Z, Ampel 🟢, AK1–AK4 + Testfälle intakt; betroffene Dateien existieren. KEIN KI-UX-Block im Body (ux=nein laut Routing-Tabelle).
 - Rot-Verifikation: `pnpm exec vitest run src/components/UpdatePrompt.test.tsx` (im `frontend/`) = **3 failed | 18 passed** — genau die drei neuen #1095-Verhaltenstests (AK1 Listener-Registrierung ~250, AK1 reload ~264, AK2 Idempotenz ~278); AK3 ~291 initial grün wie im Spec vorgesehen.
@@ -24,7 +26,7 @@
 - -
 
 ## Nächster Schritt
-- Gate (format → prettier --check → lint → knip → test), dann Commit + Push + `gh pr ready 1097` + PR-Body erweitern.
+- Review-Phase (Kreuzverhör) — Implementierung ist fertig, nichts offen.
 
 ## Fallstricke
 - `git switch ai/harness/1095` blockt auf untracked `.ai-memory/issue-1095-*.md`, wenn die Datei im Branch schon existiert → vorher byte-identisch prüfen (`git show origin/<branch>:<pfad> | diff - <pfad>`), dann löschen.
