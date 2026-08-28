@@ -209,6 +209,8 @@ interface ProxyMetrics {
 	right: string;
 	maxWidth: string;
 	width: number;
+	rectLeft: number;
+	rectRight: number;
 	viewportWidth: number;
 }
 
@@ -228,21 +230,27 @@ test.describe('Priority Pilot — UpdatePrompt Desktop-Ausrichtung (#1077)', () 
 			right: style.right,
 			maxWidth: style.maxWidth,
 			width: rect.width,
+			rectLeft: rect.left,
+			rectRight: rect.right,
 			viewportWidth: document.documentElement.clientWidth,
 		};
 		el.remove();
 		return result;
 	})();`;
 
-	// AK1 — Desktop (≥ 768px): rechtsbündig (left: auto), nicht mehr vollbreit.
-	test('AK1: .update-prompt ist bei 1280px rechtsbündig (left:auto) und nicht vollbreit', async ({ page }) => {
+	// AK1 — Desktop (≥ 768px): rechtsbündig, nicht mehr vollbreit.
+	// Computed `left` liefert die CSSOM bei positionierten Elementen als verwendeten px-Wert
+	// zurück — `left: auto` ist per getComputedStyle nicht beobachtbar, deshalb Geometrie prüfen.
+	test('AK1: .update-prompt ist bei 1280px rechtsbündig und nicht vollbreit', async ({ page }) => {
 		await mockAuthenticated(page);
 		await page.setViewportSize({ width: 1280, height: 800 });
 		await page.goto('/');
 
 		const m = await page.evaluate<ProxyMetrics>(measureProxy);
 
-		expect(m.left).toBe('auto');
+		// Rechtsbündig: Element liegt in der rechten Hälfte, rechte Kante am Viewport-Rand.
+		expect(m.rectLeft).toBeGreaterThan(m.viewportWidth / 2);
+		expect(m.viewportWidth - m.rectRight).toBeLessThanOrEqual(TOLERANCE_PX);
 		expect(m.width).toBeLessThan(m.viewportWidth - TOLERANCE_PX);
 	});
 

@@ -16,16 +16,20 @@ das Mobile-First-Verhalten (volle Breite, #353/#1034) unverändert.
 
 | AK  | Viewport | Erwartung                                                                                                          |
 | --- | -------- | ------------------------------------------------------------------------------------------------------------------ |
-| AK1 | ≥ 768px  | `left: auto` (statt `0`), Elementbreite (`getBoundingClientRect().width`) < Viewportbreite                         |
+| AK1 | ≥ 768px  | rechtsbündig (rechte Kante am Viewport-Rand, Element in der rechten Hälfte), Elementbreite < Viewportbreite        |
 | AK2 | ≥ 768px  | `max-width` gesetzt und ≤ 480px (Empfehlungswert 480px, Feinjustierung erlaubt)                                    |
 | AK3 | 375px    | volle Breite: computed `left: 0px` und `right: 0px` (unverändert)                                                  |
 | AK4 | 375px    | Aktionsbutton vollbreit, ≥ 44px hoch — durch bestehende #1034-Tests abgedeckt (Regressionsschutz, kein neuer Test) |
+
+Hinweis AK1: Computed `left` liefert die CSSOM bei positionierten Elementen als verwendeten
+px-Wert zurück — `left: auto` ist per `getComputedStyle()` nicht beobachtbar. Die Rechtsbündigung
+wird deshalb geometrisch geprüft (rechte Kante ≈ Viewport-Rand, Element in der rechten Hälfte).
 
 ## Schritte
 
 1. Stellvertreter-Element mit Klasse `.update-prompt` in das geladene Dokument injizieren
    (CSS-Kontrakt-Muster aus `frontend/e2e/pwa-update-prompt.spec.ts`, #373).
-2. Computed Styles (`left`, `right`, `max-width`) und `getBoundingClientRect().width` auslesen.
+2. Computed Styles (`left`, `right`, `max-width`) und `getBoundingClientRect()` auslesen.
 
 ## Erwartetes Ergebnis
 
