@@ -322,12 +322,12 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 						/>
 						{!aiEnabled && (
 							<KolAlert _type="info" _label="KI-Features deaktiviert">
-								Säulen-Berater und Lektorat-Buttons sind derzeit ausgeblendet. Die Schnellerfassung wird unabhängig von
-								dieser Einstellung gesteuert.
+								Säulen-Berater und Lektorat-Buttons sind derzeit ausgeblendet. Auch die Schnellerfassung ist inaktiv,
+								solange die KI deaktiviert ist (#1085).
 							</KolAlert>
 						)}
 					</div>
-					{/* #1080: Schnellerfassung ist ein KI-Feature — bei deaktivierter KI wird der Schalter
+					{/* #1085: Schnellerfassung ist ein KI-Feature — bei deaktivierter KI wird der Schalter
 							deaktiviert, damit er nicht umschaltbar ist. */}
 					<div className="settings-llm-switch-row">
 						<KolInputCheckbox
