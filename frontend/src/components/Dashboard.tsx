@@ -3,6 +3,7 @@ import { NearbyCard } from './NearbyCard';
 import type { Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useMemo } from 'react';
+import { useGeolocation } from '../lib/useGeolocation';
 import { collectTaskValues } from '../lib/forest';
 import { buildPillarSummaries, calculateMeterThreshold, calculateMeterHighThreshold } from '../lib/pillar';
 import { buildPillarBalances } from '../lib/score';
@@ -81,6 +82,9 @@ export const Dashboard = ({
 	onStartTask,
 }: DashboardProps) => {
 	const greeting = displayName.trim();
+	// #1098 AK4: eigene Hook-Instanz (wie Footer/SettingsPage) — entscheidet, ob die
+	// NearbyCard überhaupt gerendert wird.
+	const { enabled: geoEnabled } = useGeolocation();
 	const cards = useMemo<StatCard[]>(() => {
 		let openCount = 0;
 		let doneCount = 0;
@@ -219,7 +223,9 @@ export const Dashboard = ({
 			 * Sekundär-Widgets ohne Signal-Färbung; die Signalfläche gehört allein der
 			 * „Nächste Aufgabe"-Zeile (KI-UX-Platzierungsempfehlung).
 			 */}
-			<NearbyCard />
+			{/* #1098 AK4: „In der Nähe" nur rendern, wenn die Standorterfassung an ist —
+			    ausgeschaltet verschwindet die Card komplett (keine Hinweis-Card mehr). */}
+			{geoEnabled && <NearbyCard />}
 			<section className="dashboard-top-tasks">
 				<h3>Wichtigste Tasks</h3>
 				{topTasks.length === 0 ? (

@@ -43,7 +43,9 @@ export const PillarList = ({ onPillarChanged }: PillarListProps) => {
 	const loadPillars = useCallback(async () => {
 		try {
 			const data = await api.listPillars();
-			setPillars(data);
+			// Defensive gegen leere Antworten (z. B. API-Doubles in Tests): nie `undefined`
+			// in den State schreiben — `pillars.length` würde beim Rerender crashen.
+			setPillars(data ?? []);
 		} catch (reason) {
 			const apiError = await toApiError(reason);
 			setError(apiError.message);
