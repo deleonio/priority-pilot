@@ -88,17 +88,18 @@ inputs:
   # workflow_run-Läufe nur lese-only Cache-Token (belegt in den Persist-Runs 31891908903 …,
   # 31904169169; der frühere Begleitworkflow scheiterte in JEDEM Lauf still mit "cache write
   # denied"). Der Scope hängt am Trust-Level des Triggers, NICHT an den Permissions.
-  # Artefakte als Zwischenlösung sind seit 2026-08-23 durch den State-Branch ersetzt: unbefristet
-  # (keine Retention-Abwägung), versioniert (git log = Phasen-Protokoll) und ohne API-Suche nach
-  # dem jüngsten Exemplar. ci.yml/deploy.yml triggern nur auf push:[main] — der Branch feuert
-  # nichts und wird nie gemergt.
+  # Artefakte als Zwischenlösung sind seit 2026-08-23 ersetzt, seit 2026-08-28 (ADR 0007)
+  # durch den Harness-Branch ai/harness/{N}: unbefristet, versioniert (git log =
+  # Phasen-Protokoll), Memory reist committet im PR nach main (dauerhaftes Ticket-Gedächtnis).
+  # ci.yml/deploy.yml triggern nur auf push:[main] — der Branch feuert selbst nichts.
   #
   # Memory-Save passiert NICHT hier (die Action läuft nur pre-claude), sondern als
   # issue-state-save-Step (.github/actions/issue-state-save) im Workflow nach dem claude-Step.
   # Claude liest/schreibt seinen Memory NATIV nach .ai-memory (autoMemoryDirectory in
   # .claude/settings.json) — Isolierung pro Issue erfolgt NICHT über einen Subdir, sondern
-  # rein über den Branch-Namen ai/state/issue-{N}: jeder Lauf restored/saved den zum Issue
-  # passenden Stand in denselben flachen Pfad.
+  # rein über den Branch-Namen ai/harness/{N}: jeder Lauf restored den zum Issue passenden
+  # Stand in denselben flachen Pfad; ab Spec committet der Agent seine Notizen selbst mit
+  # (nicht mehr gitignored, ADR 0007), der Save-Step ist Sicherheitsnetz + Erst-Anlage.
   #
   # WARUM .ai-memory UND NICHT .claude/memory: Claude Code sperrt alles unterhalb von .claude/
   # als "sensitive file", BEVOR die --allowedTools-Allowlist ausgewertet wird. Eine Allow-Regel
@@ -109,7 +110,7 @@ inputs:
   # --dangerously-skip-permissions die Prüfung komplett überspringt. Ein gewöhnlicher Repo-Pfad
   # ausserhalb .claude/ plus Edit(path)-Allowlist löst das für alle Tiers.
   memory-load:
-    description: 'Memory-Load zu Beginn des Workflows (true = restauriert dateibasierte Memory für ticket-ref aus dem State-Branch ai/state/issue-{N}). Alle 6 Phasen-Workflows laden (auch Triage: Erst-Triage startet leer, Re-Triage nutzt den bisherigen Stand); false nur für bewusst stateless Helper-Workflows.'
+    description: 'Memory-Load zu Beginn des Workflows (true = restauriert dateibasierte Memory für ticket-ref aus dem Harness-Branch ai/harness/{N}; Fallback auf den Legacy-State-Branch ai/state/issue-{N}). Alle 6 Phasen-Workflows laden (auch Triage: Erst-Triage startet leer, Re-Triage nutzt den bisherigen Stand); false nur für bewusst stateless Helper-Workflows.'
     required: false
     default: 'false'
   expect-memory:
@@ -256,7 +257,7 @@ runs:
           if [ -z "$ISSUE_NR" ] || [ "$ISSUE_NR" = "null" ]; then
             ISSUE_NR="$TICKET_REF"
             # WARNING, nicht NOTICE: Der Fallback bedeutet ein ZWEITES Speicher-Silo
-            # (ai/state/issue-<PR> statt ai/state/issue-<Ticket>) — Fixup/Review/Documenter
+            # (ai/harness/<PR> statt ai/harness/<Ticket>) — Fixup/Review/Documenter
             # sehen dann nichts von Triage/UX/Spec/Umsetzung. Als Notice ist genau das eine
             # Woche lang in grünen Läufen untergegangen (PRs #988–#992).
             echo "::warning title=⚠️ Kein Closing-Issue am PR::PR #$TICKET_REF hat kein verlinktes Closing-Issue — Speicher-Schlüssel fällt auf die PR-Nummer zurück, der Memory der Vor-Phasen ist für diesen Lauf unerreichbar. Fehlt ein 'Closes #<Nr>' im PR-Body?"
@@ -268,17 +269,20 @@ runs:
         fi
         echo "issue-number=$ISSUE_NR" >> "$GITHUB_OUTPUT"
 
-    - name: Memory-Load (pro Issue, State-Branch ai/state/issue-{N})
-      # ADR 0006: Der Issue-Storage ist ein State-Branch — nie gemergt, triggert kein CI/Deploy
-      # (beide hören nur auf push:[main]). Hier: fetchen und die Storage-Pfade in den Workspace
-      # restoren. git restore OHNE --staged lässt den Index unberührt — die Storage-Dateien
-      # können so nie in ein Phasen-Commit des Agenten rutschen (zustätzlich hält .gitignore
-      # .ai-memory/state.json zurück). MEMORY.md wird via :(exclude) ausgespart: es ist einge-
-      # checkt und reist in den Phasen-Commits — ein alter Stand aus dem Storage dürfte es nie
-      # überschreiben. Fehlt der Branch (Erst-Triage/Erst-Phase) → found=false, Phase startet
-      # mit leerem Memory (fail-open, wie früher beim Artefakt-Miss). Dasselbe greift für
-      # State-Branches aus der Zeit vor dem .ai-memory-Umzug: dort matcht der Pathspec nicht,
+    - name: Memory-Load (pro Issue, Harness-Branch ai/harness/{N}, Fallback State-Branch)
+      # ADR 0007: Der Issue-Storage lebt im Harness-Branch — demselben Branch, auf dem
+      # Spec/Impl arbeiten und der per PR nach main gemergt wird. Hier: fetchen und die
+      # Storage-Pfade in den Workspace restoren. git restore OHNE --staged lässt den Index
+      # unberührt. MEMORY.md wird via :(exclude) ausgespart: es ist eingecheckt und reist in
+      # den Phasen-Commits — ein alter Stand aus dem Storage dürfte es nie überschreiben.
+      # Fehlt der Harness-Branch, wird der LEGACY-State-Branch ai/state/issue-{N} (ADR 0006,
+      # Bestand vor der Umstellung) probiert. Fehlen beide (Erst-Triage/Erst-Phase) →
+      # found=false, Phase startet mit leerem Memory (fail-open). Dasselbe greift für
+      # Branches aus der Zeit vor dem .ai-memory-Umzug: dort matcht der Pathspec nicht,
       # der Restore scheitert kontrolliert und die Phase startet leer statt mit Müll.
+      # WICHTIG für Phase 3 (Spec): Der Agent switched im weiteren Verlauf auf genau diesen
+      # Branch — die restaurierten Dateien sind dann identisch mit dem Branch-Stand, der
+      # Switch ist sauber; ab Spec committet der Agent seine Notizen selbst mit (ADR 0007).
       id: memory-load
       if: steps.preflight.outputs.configured == 'true' && inputs.memory-load == 'true'
       shell: bash
@@ -288,14 +292,20 @@ runs:
         set -uo pipefail
         mkdir -p .ai-memory
         found="false"
-        STATE="ai/state/issue-${ISSUE_NR}"
-        if git fetch --quiet origin "$STATE" 2>/dev/null \
-           && git rev-parse --verify -q FETCH_HEAD >/dev/null 2>&1 \
-           && git restore --source=FETCH_HEAD --worktree -- .ai-memory ':(exclude).ai-memory/MEMORY.md'; then
-          found="true"
-          echo "::notice title=🧠 Memory geladen::$STATE → .claude/ (worktree, Index unberührt)."
+        SOURCE=""
+        for BRANCH in "ai/harness/${ISSUE_NR}" "ai/state/issue-${ISSUE_NR}"; do
+          if git fetch --quiet origin "$BRANCH" 2>/dev/null \
+             && git rev-parse --verify -q FETCH_HEAD >/dev/null 2>&1 \
+             && git restore --source=FETCH_HEAD --worktree -- .ai-memory ':(exclude).ai-memory/MEMORY.md'; then
+            found="true"
+            SOURCE="$BRANCH"
+            break
+          fi
+        done
+        if [ "$found" = "true" ]; then
+          echo "::notice title=🧠 Memory geladen::$SOURCE → .ai-memory/ (worktree, Index unberührt)."
         else
-          echo "::notice title=🧠 Memory leer (kein State-Branch)::$STATE existiert (noch) nicht — erste Phase dieses Tickets oder Storage zwischenzeitlich abgeräumt."
+          echo "::notice title=🧠 Memory leer (kein Harness-/State-Branch)::ai/harness/${ISSUE_NR} und ai/state/issue-${ISSUE_NR} existieren (noch) nicht — erste Phase dieses Tickets oder Storage zwischenzeitlich abgeräumt."
         fi
         echo "found=$found" >> "$GITHUB_OUTPUT"
 
@@ -823,6 +833,7 @@ runs:
 
     # Memory-Save findet sich NICHT hier (die Action läuft ausschließlich pre-claude).
     # Phasen (01..05) sichern nach dem claude-Step den Issue-Storage über die Composite-Action
-    # issue-state-save als Fetch-then-Commit auf ai/state/issue-{N} (ADR 0006) — der Branch IST
-    # der Speicher, es folgt kein Artefakt-/Cache-Transport mehr (Cache-Writes sind für diese
+    # issue-state-save als Fetch-then-Commit auf ai/harness/{N} (ADR 0007) — derselbe Branch,
+    # auf dem Spec/Impl arbeiten und der per PR nach main gemergt wird (Memory reist mit);
+    # es folgt kein Artefakt-/Cache-Transport mehr (Cache-Writes sind fuer diese
     # Trigger platform-seitig gesperrt, s. Kopf-Kommentar).

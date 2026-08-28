@@ -16,7 +16,7 @@ PROCEDURE (STRICT):
      change/delete it; instead add a "Test-Pflege-Bedarf" (test maintenance needed) section in the
      PR body with file:line + justification.
   3b. DIRECT MODE (no draft PR exists — the analysis deliberately skipped the spec):
-     create the branch yourself, implement, commit, push, and create the PR YOURSELF
+     create the harness branch ai/harness/{{ISSUE_NR}} yourself if it does not exist (git fetch origin ai/harness/{{ISSUE_NR}} && git switch ai/harness/{{ISSUE_NR}} || git switch -c ai/harness/{{ISSUE_NR}}), implement, commit, push, and create the PR YOURSELF
      (gh pr create … Closes #{{ISSUE_NR}} …, NOT --draft). Test obligation for application code:
      SKILL.md step 3a.
   3.5. UI WORK on frontend changes: SKILL.md step 3b/3c (KoliBri-first incl.
@@ -29,7 +29,9 @@ PROCEDURE (STRICT):
      Put the commands' results in the PR body (AGENTS.md requirement: document format/lint/test results).
      e2e (pnpm --filter frontend test:e2e) ONLY if the change affects UI behavior and an
      e2e spec exists for it — otherwise skip and note it in the PR body.
-  5. Commit, push the branch. In spec mode, make the existing draft PR review-ready
+  5. Commit, push the branch. Include your phase note .ai-memory/issue-{{ISSUE_NR}}-implement.md
+     in the commit (it is tracked, NOT gitignored — the memory travels with the PR, ADR 0007).
+     In spec mode, make the existing draft PR review-ready
      (gh pr ready <nr>), extend the description. In direct mode, create the PR from step 3b
      (not as a draft). In BOTH cases, an open, non-draft PR with commits must exist at the
      end — the workflow checks exactly that before setting ai:needs-review.

@@ -1,9 +1,9 @@
 # ADR 0006 — Issue-Storage: ein State-Branch pro Issue (statt Artefakt und Cache)
 
-- **Status:** Accepted (2026-08-23) — umgesetzt am 2026-08-23 (`issue-state-save`-Action,
-  Memory-Load via `git fetch`/`git restore`, Documenter-Teardown + Hygiene-Sweep).
-  Laufzeit-Verifikation am ersten vollständigen Ticket steht aus
-  ([ADR 0001](0001-github-workflows-bleiben-ungetestet.md)).
+- **Status:** Superseded (2026-08-28) durch [ADR 0007](0007-issue-storage-harness-branch.md) —
+  der Storage reist seitdem committet im Harness-Branch `ai/harness/{N}` mit dem PR nach
+  `main`; dieser ADR beschreibt den Vorgänger-Mechanismus (Load-Fallback für Bestands-
+  Branches läuft über ihn weiter).
 - **Datum:** 2026-08-23
 - **Kontext:** [ADR 0001](0001-github-workflows-bleiben-ungetestet.md) (ungetestete Workflows),
   [ADR 0005](0005-fixup-und-umsetzung-sind-eine-phase.md) (eine Umsetzungsphase, zwei Eingänge)
