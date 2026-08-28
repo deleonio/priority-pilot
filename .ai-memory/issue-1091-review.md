@@ -1,33 +1,31 @@
-# Issue 1091 — Review (Phase 5), Stand 2026-08-28
+# Issue 1091 — Review (Phase 5), Stand 2026-08-28 (Runde 2: Fixup-Verifikation)
 
 ## Erledigt
-- MODE = Kreuzverhör (kein `<!-- ai-review -->`-Kommentar auf PR #1093 vorhanden, geprüft via issues/1093/comments).
-- PR #1093 gelesen: 2 Dateien, +39/−2 — `.ai-memory/issue-1091-implement.md` (neu, Phase-Notiz, konventionsgemäß) + `frontend/src/lib/useAddressSearch.test.ts` (Debounce-Test async gemacht, `result` destrukturiert, State-Assertions `suggestions toEqual []` + `loading toBe(false)` nach `await act`).
-- AK-Quelle: Issue #1091 hat KEINEN KI-ANALYSE-Block (nur `<!-- ai-quality -->`-Kommentar) → AKs direkt aus „Woran messen wir das?": (1) Mock-Prüfung UND State-Prüfung, (2) Stabilität bei Implementierungswechsel des Debounce-Mechanismus.
-- Befund: neue State-Assertion ist schwach — Mock liefert `[]`, Initial-State ist ebenfalls `[]` → Assertion kann die wahrscheinlichste Regression (State-Update bleibt aus) NICHT erkennen. Implement-Notiz kennt die Schwäche selbst („auch im Initial-State wahr"), hat sie aber nur im PR-Body dokumentiert statt zu fixen. Da das Issue exakt die Tautologie bekämpft, ist das ein needs-fixup-Finding (Mock mit Treffer füllen → Assertion bekommt Biss).
-- Verdict: **needs-fixup**. Review (event COMMENT, ID 5052449769) mit 1 Inline-Finding auf `useAddressSearch.test.ts:80` gepostet; Sammelkommentar `<!-- ai-review -->` angelegt (issuecomment-5454298375) — nächste Runde = FIXUP VERIFIKATION, diesen per PATCH updaten.
-- Titel-Gate: Titel war 105 Zeichen > 72 → umbenannt zu `test(frontend): assert state in useAddressSearch debounce test`. Verdict-Datei /tmp/claude-verdict = needs-fixup geschrieben.
+- Runde 1 (Kreuzverhör): needs-fixup, 1 Inline-Finding (`useAddressSearch.test.ts` State-Assertion tautologieschwach), Sammelkommentar `<!-- ai-review -->` angelegt (issuecomment-5454298375), Titel 105→62 Zeichen umbenannt.
+- Runde 2 (Fixup-Verifikation, dieser Lauf): MODE anhand vorhandenen Markers bestimmt. Delta geprüft = Commits nach 15:16:54Z: 8bdd6017 (Fix) + 9239e560 (nur Phase-Notiz) — KEIN Voll-Review erneut.
+- Fixup 8bdd6017 verifiziert am Dateistand: `geocodeSearchMock.mockResolvedValue(results(['Musterstraße 1, Musterstadt']))`, Assertion `expect(result.current.suggestions).toEqual(treffer)`; Helper `results` (test.ts:35) liefert `[{address, lat, lon}]`, Hook-Initial-State `suggestions = []` (useAddressSearch.ts:32) → Assertion hat Biss, Finding 1 wirklich behoben.
+- Sammelkommentar per PATCH auf **reviewed / 🟢** aktualisiert (Statuszeile nennt PR #1093 + Issue #1091, Behobene-Anmerkungen-Historie erhalten, Footer `Review-Typ: Fixup-Nachweis`).
+- Titel-Gate Runde 2: CC-konform (62 Zeichen), kein Rename nötig. Verdict-Datei /tmp/claude-verdict = reviewed geschrieben.
 
 ## Relevante Stellen
-- `frontend/src/lib/useAddressSearch.test.ts:60-80` — der geänderte Debounce-Test; Finding-Anker.
-- `frontend/src/lib/useAddressSearch.ts` — Hook unverändert (laut Issue korrekt), kein Produktionscode im PR.
-- `.ai-memory/issue-1091-implement.md` — Phase-Notiz der Impl-Phase im selben PR committed (ADR 0007).
+- `frontend/src/lib/useAddressSearch.test.ts:61-84` — fixup-Verifizierungsanker (Mock + State-Assertion).
+- `frontend/src/lib/useAddressSearch.ts:32` — Initial-State `[]`, Beleg für die Unterscheidbarkeit.
+- `.ai-memory/issue-1091-fixup.md` — Fixup-Phase-Notiz im PR (Mutation-Check-Dokumentation).
 
 ## Annahmen
-- Verdict needs-fixup (nicht needs-human): Finding ist ohne menschliche Entscheidung fixbar (Mock-Wert ändern).
-- `loading toBe(false)` und `suggestions toEqual([])` können zwar failen (z. B. loading hängt), decken aber nicht die Kernregression — deshalb schwach, nicht tautologisch im strengen Sinn.
-- Suite laut Impl-Notiz grün (47 passed lokal; Redis-rot in session.test.ts ist pre-existing, MEMORY 2026-08-27).
+- CI (verify/e2e/review) war bei Abgabe IN_PROGRESS, nicht rot → 🟢 zulässig; Merge-Gate degradiert bei späterem Rot selbst zu ai:needs-changes (SKILL.md Schritt 5).
+- Fixup-Agenten-Angabe „447 passed" nicht selbst nachgefahren (Zeit); CI-verify läuft ohnehin und ist die autoritative Instanz.
 
 ## Verworfen
-- AK2-Verletzung („stabil bei setTimeout→requestIdleCallback") als eigenes Finding — Fake-Timer-Nutzung (`advanceTimersByTime(400)`) ist die einzige deterministische Art, Debounce zu testen; Beispiel im Issue ist illustrativ, keine harte Anforderung.
-- Eigenes Nachfahren der Frontend-Suite im Review — Zeit (Soft-Deadline knapp), Impl-Notiz dokumentiert 447 passed, CI läuft ohnehin.
+- Erneutes Voll-Kreuzverhör des PR-Diffs — MODE Fixup-Verifikation verbietet es (nur Delta seit Sammelkommentar).
+- Warten auf grüne CI — Deadline knapp; Gate hält ai:ready-to-merge zurück, bis CI grün ist.
 
 ## Offen
-- -
+- `.ai-memory/issue-1091-review-comment.md` ist ein Wegwerf-Artefakt (Sammelkommentar-Body für den PATCH) und gehört NICHT in einen Commit.
 
 ## Nächster Schritt
-- Fixup-Runde: Mock auf nicht-leeren Treffer umstellen, `suggestions`-Assertion darauf zuschneiden; danach Fixup-Nachweis (MODE dann Fixup-Verifikation).
+- keiner aus Review-Sicht — Pipeline: Gate wartet auf grüne CI, dann ai:ready-to-merge/Auto-Merge; bei roter CI Fixup-Runde.
 
 ## Fallstricke
-- Branch heißt `vibe/fix-issue-1091-70cd86`, Draft-PR war schon vor Impl-Phase da (Spec-Modus) — Commits nicht dem Impl-Agent zuschreiben.
-- PR #1093 schließt Issue #1091 (closingIssuesReferences=[1091]) — NICHT „Review ohne Issue", aber auch ohne KI-ANALYSE-Block: AK-Quelle ist der Issue-Body-Abschnitt „Woran messen wir das?".
+- GraphQL-Node-ID (IC_kwDO…) ist für den REST-Endpoint issues/comments/<id> unbrauchbar (404) — numerische ID via issues/1093/comments-Listing holen.
+- Der Sammelkommentar war schon einmal gepatcht (Interims-Stand „fixup-angewendet, 🟡") — Struktur (Behobene-Anmerkungen-Historie) beim Update wieder mitführen, nicht verwerfen.
