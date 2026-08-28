@@ -1,5 +1,17 @@
 import '@testing-library/jest-dom/vitest';
+import { cleanup } from '@testing-library/react';
 import { JSDOM } from 'jsdom';
+import { afterEach } from 'vitest';
+
+/**
+ * Globaler RTL-Auto-Cleanup: `@testing-library/react` registriert seinen `afterEach(cleanup)`
+ * nur, wenn Vitest-Globals aktiv sind (`globals: true`) — hier ist das nicht der Fall, deshalb
+ * explizit. Ohne diesen Aufruf bleibt das gerenderte DOM über alle Tests einer Datei hinweg
+ * stehen und `getByRole`-Abfragen werden mehrdeutig (`Found multiple elements with the role …`).
+ */
+afterEach(() => {
+	cleanup();
+});
 
 /**
  * Web-Storage-Shim für das jsdom-Test-Environment.

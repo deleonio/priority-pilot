@@ -175,3 +175,4 @@ Konflikte, die er verhindern soll.
   scheitert, assoziative-Array-Zugriffe liefern Muell → nur Teilpfade testbar (Erst-Anlage,
   Idempotenz, leer), Blob-Diff-Pfade muessen der CI (bash 5) vertrauen. Nicht forensisch
   jagen - Artefakt erkennen und einordnen.
+- 2026-08-28 · CI/Pipeline — menschlicher Push auf einen PR mit klebendem ai:needs-human verwirft die Autolabeler-Transition (Guard 3, PR #903): Der PR parkt weiter, ai:needs-review wird NICHT gesetzt. → Entblocken nur durch den Menschen: Label in der UI entfernen und ai:needs-review setzen (Entfernen allein startet nichts).

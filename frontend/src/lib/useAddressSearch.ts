@@ -19,6 +19,8 @@ interface UseAddressSearchResult {
 	suggestions: AddressSuggestion[];
 	/** Ob gerade eine Suche läuft. */
 	loading: boolean;
+	/** #1083 AK5: Suche fehlgeschlagen (Netzwerk/Server) — von „0 Treffer" unterscheidbar machen. */
+	error: boolean;
 }
 
 /**
@@ -29,6 +31,7 @@ interface UseAddressSearchResult {
 export const useAddressSearch = (query: string): UseAddressSearchResult => {
 	const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
 	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState(false);
 	const abortRef = useRef<AbortController | null>(null);
 
 	useEffect(() => {
@@ -38,6 +41,7 @@ export const useAddressSearch = (query: string): UseAddressSearchResult => {
 		if (trimmed.length < MIN_QUERY_LENGTH) {
 			setSuggestions([]);
 			setLoading(false);
+			setError(false);
 			return;
 		}
 
@@ -47,6 +51,9 @@ export const useAddressSearch = (query: string): UseAddressSearchResult => {
 			controller = current;
 			abortRef.current = current;
 			setLoading(true);
+			// Neue Anfrage = neuer Zustand: einen Fehler aus dem Vorgänger nicht in die frische
+			// Suche hinüberretten (F1 — sonst klebt die Warnung neben späteren Trefferlisten).
+			setError(false);
 			api
 				.geocodeSearch({ q: trimmed, signal: current.signal })
 				.then((results) => {
@@ -58,7 +65,10 @@ export const useAddressSearch = (query: string): UseAddressSearchResult => {
 				})
 				.catch(() => {
 					if (!current.signal.aborted) {
+						// #1083 AK5: Fehler NICHT still zur leeren Liste machen — die Komponente
+						// unterscheidet „keine Treffer" (legitim) von „Suche nicht erreichbar".
 						setSuggestions([]);
+						setError(true);
 					}
 				})
 				.finally(() => {
@@ -76,5 +86,5 @@ export const useAddressSearch = (query: string): UseAddressSearchResult => {
 		};
 	}, [query]);
 
-	return { suggestions, loading };
+	return { suggestions, loading, error };
 };

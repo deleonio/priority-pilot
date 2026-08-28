@@ -1,7 +1,6 @@
 import {
 	KolAlert,
 	KolButton,
-	KolCombobox,
 	KolInputCheckbox,
 	KolInputDate,
 	KolInputRange,
@@ -30,6 +29,7 @@ import { readNumber, readString } from '../lib/inputValue';
 import { readVoiceAutostartPreference } from '../lib/voiceAutostart';
 import { readAiPreferences } from '../lib/aiPreferences';
 import { VoiceField } from './VoiceField';
+import { AddressAutocomplete } from './AddressAutocomplete';
 import { ConfirmSeriesActionModal } from './ConfirmSeriesActionModal';
 import { LektoratDiffModal } from './LektoratDiffModal';
 import {
@@ -45,7 +45,7 @@ import {
 	weightToRaw,
 } from '../lib/pillar';
 import { deadlineToDateInput, formatNumber } from '../lib/task';
-import { useAddressSearch, type AddressSuggestion } from '../lib/useAddressSearch';
+import type { AddressSuggestion } from '../lib/useAddressSearch';
 import { TITLE_MAX_LENGTH } from '../lib/titleLengthValidation';
 
 /**
@@ -285,19 +285,14 @@ export const TaskForm = ({
 	const [title, setTitle] = useState(form.current.title);
 	const [description, setDescription] = useState(form.current.description);
 	const [address, setAddress] = useState(form.current.address);
-	// Adresssuche (Forward Geocoding, Ortsbezug einer Aufgabe): Vorschläge zum aktuellen Adresstext.
-	// `loading` wird als Hint angezeigt — ohne Rückmeldung wirkt das Feld während Debounce + Suche kaputt.
-	const { suggestions: addressSuggestions, loading: addressLoading } = useAddressSearch(address);
-	// #1066 AK1/AK10: Übernimmt die Koordinaten des Treffers, wenn der Adresstext exakt einem
-	// Vorschlag entspricht (Auswahl aus der Dropdown-Liste). Freitext ohne Auswahl und geleertes
-	// Feld tragen bewusst KEINE Koordinate — die Aufgabe erscheint dann nicht in der Nearby-Card,
-	// das Speichern schlägt aber nicht fehl.
-	const findAddressSuggestion = (text: string): AddressSuggestion | undefined =>
-		addressSuggestions.find((entry) => entry.address === text);
-	const applyAddressCoords = (text: string): void => {
-		const hit = findAddressSuggestion(text);
-		form.current.latitude = hit ? hit.lat : null;
-		form.current.longitude = hit ? hit.lon : null;
+	// Adresssuche (#1083): die Vorschlagsliste lebt in `AddressAutocomplete`, das den Hook selbst
+	// aufruft (Debounce 400 ms) — hier doppelt zu suchen würde den geteilten 1-req/s-Limiter treffen.
+	// #1066 AK1/AK10: Übernimmt die Koordinaten des explizit gewählten Treffers. Freitext ohne
+	// Auswahl und geleertes Feld tragen bewusst KEINE Koordinate — die Aufgabe erscheint dann nicht
+	// in der Nearby-Card, das Speichern schlägt aber nicht fehl.
+	const applyAddressCoords = (hit: AddressSuggestion): void => {
+		form.current.latitude = hit.lat;
+		form.current.longitude = hit.lon;
 	};
 	// State-Mirror für Range-Slider: `KolInputRange` muss über `_value` + `_label` den aktuellen
 	// Wert erhalten — ohne State würde der Slider nach jedem Re-Render auf den Ref-Initialwert
@@ -952,25 +947,20 @@ export const TaskForm = ({
 				{/* Adressuche (Forward Geocoding): Ortsbezug der Aufgabe ODER Serie (#1063 — auch im
 				    Serie-Modus, die Adresse wird an generierte Instanzen vererbt). #1072: steht nach der
 				    kompletten Deadline-Gruppe. */}
-				<KolCombobox
-					_label="Adresse (optional)"
-					_placeholder="Straße, Hausnummer, Ort …"
-					_hint={addressLoading ? 'Adresse wird gesucht …' : undefined}
-					_suggestions={addressSuggestions.map((entry) => entry.address)}
-					_value={address}
-					_on={{
-						onChange: (_event, value) => {
-							const next = readString(value);
-							form.current.address = next;
-							setAddress(next);
-							applyAddressCoords(next);
-						},
-						onInput: (_event, value) => {
-							const next = readString(value);
-							form.current.address = next;
-							setAddress(next);
-							applyAddressCoords(next);
-						},
+				<AddressAutocomplete
+					label="Adresse (optional)"
+					value={address}
+					onValueChange={(next) => {
+						form.current.address = next;
+						setAddress(next);
+						// Freitext: alte Treffer-Koordinate verwerfen, sonst bleibt sie stecken.
+						form.current.latitude = null;
+						form.current.longitude = null;
+					}}
+					onSelect={(hit) => {
+						form.current.address = hit.address;
+						setAddress(hit.address);
+						applyAddressCoords(hit);
 					}}
 				/>
 				{pendingLektorat !== null && (

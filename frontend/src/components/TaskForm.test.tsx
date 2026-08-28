@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { Pillar, Series, SeriesRhythm, Task } from 'client';
 import { ResponseError, TaskStatus } from 'client';
 import type { ReactNode } from 'react';
@@ -197,6 +197,7 @@ const mockCreateTask = api.createTask as ReturnType<typeof vi.fn>;
 const mockUpdateTask = api.updateTask as ReturnType<typeof vi.fn>;
 const mockCreateSeries = api.createSeries as ReturnType<typeof vi.fn>;
 const mockUpdateSeries = api.updateSeries as ReturnType<typeof vi.fn>;
+const mockGeocodeSearch = api.geocodeSearch as ReturnType<typeof vi.fn>;
 
 // --- Fixtures ---
 
@@ -1400,6 +1401,39 @@ describe('TaskForm — Adressfeld (Ortsbezug einer Aufgabe)', () => {
 		expect(mockCreateTask).toHaveBeenCalledTimes(1);
 		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as [{ taskCreate: { address?: string | null } }];
 		expect(taskCreate.address).toBe('Musterstraße 1, 12345 Musterstadt');
+	});
+
+	it('#1083 AK6 — Auswahl eines Vorschlags übernimmt lat/lon in den Create-Payload', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockCreateTask.mockResolvedValue(minimalNewTask());
+		// „munchen" kommt im Treffer-String nicht vor — genau deshalb muss die eigene Liste die
+		// Server-Treffer ungefiltert zeigen (AK5), damit die Auswahl hier überhaupt möglich ist.
+		mockGeocodeSearch.mockResolvedValue([
+			{ address: 'München Hauptbahnhof, Bahnhofplatz 1, 80331 München', lat: 48.1402, lon: 11.56 },
+		]);
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+		await fillTitle('Aufgabe mit Koordinate');
+
+		await act(async () => {
+			fireEvent.change(screen.getByLabelText(/Adresse/i), { target: { value: 'munchen' } });
+		});
+		// Debounce 400 ms (useAddressSearch) — die Optionen erscheinen danach. Bewusst innerhalb
+		// der Adress-Listbox gesucht: das Säulen-Select rendert ebenfalls role="option".
+		await waitFor(() => expect(screen.getByRole('listbox')).toBeInTheDocument(), { timeout: 3000 });
+		await act(async () => {
+			fireEvent.click(within(screen.getByRole('listbox')).getByRole('option', { name: /München Hauptbahnhof/ }));
+		});
+
+		await clickSave();
+		expect(mockCreateTask).toHaveBeenCalledTimes(1);
+		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as unknown as [
+			{ taskCreate: { address?: string | null; latitude?: number | null; longitude?: number | null } },
+		];
+		expect(taskCreate.address).toBe('München Hauptbahnhof, Bahnhofplatz 1, 80331 München');
+		expect(taskCreate.latitude).toBe(48.1402);
+		expect(taskCreate.longitude).toBe(11.56);
 	});
 
 	it('vorbelegtes Adressfeld beim Bearbeiten eines Tasks mit gespeicherter Adresse', async () => {
