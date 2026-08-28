@@ -215,9 +215,13 @@ const validateTaskFields = (body: unknown, requireTitle: boolean): ValidationRes
 
 	// Standort-Koordinaten (#1066): nur bei Auswahl eines Adress-Vorschlags gesetzt (Coordinates-only);
 	// Freitext ohne Koordinat bleibt speicherbar (AK10). `null` leert beide Werte.
-	if (input.latitude !== undefined) {
+	// Standort-Koordinaten (#1066): nur bei Auswahl eines Adress-Vorschlags gesetzt (Coordinates-only);
+	// Freitext ohne Koordinat bleibt speicherbar (AK10). Lat/lon sind ein Paar: `null` auf einer
+	// Seite leert BEIDE Werte — eine Einzel-Koordinate wird paarweise zu null normalisiert.
+	if (input.latitude !== undefined || input.longitude !== undefined) {
 		if (
 			input.latitude !== null &&
+			input.latitude !== undefined &&
 			(typeof input.latitude !== 'number' ||
 				!Number.isFinite(input.latitude) ||
 				input.latitude < -90 ||
@@ -225,12 +229,9 @@ const validateTaskFields = (body: unknown, requireTitle: boolean): ValidationRes
 		) {
 			return { ok: false, message: 'latitude muss eine Zahl zwischen -90 und 90 oder null sein.' };
 		}
-		attrs.latitude = input.latitude;
-	}
-
-	if (input.longitude !== undefined) {
 		if (
 			input.longitude !== null &&
+			input.longitude !== undefined &&
 			(typeof input.longitude !== 'number' ||
 				!Number.isFinite(input.longitude) ||
 				input.longitude < -180 ||
@@ -238,7 +239,10 @@ const validateTaskFields = (body: unknown, requireTitle: boolean): ValidationRes
 		) {
 			return { ok: false, message: 'longitude muss eine Zahl zwischen -180 und 180 oder null sein.' };
 		}
-		attrs.longitude = input.longitude;
+		const lat = input.latitude ?? null;
+		const lon = input.longitude ?? null;
+		attrs.latitude = lat !== null && lon !== null ? lat : null;
+		attrs.longitude = lat !== null && lon !== null ? lon : null;
 	}
 
 	if (input.deadline !== undefined) {
@@ -338,8 +342,11 @@ const haversineKm = (lat1: number, lon1: number, lat2: number, lon2: number): nu
 };
 
 tasksRouter.get('/tasks/nearby', async (req: Request, res: Response<NearbyTaskDto[] | ErrorDto>) => {
-	const lat = Number(req.query.lat);
-	const lon = Number(req.query.lon);
+	// `Number('')` wäre 0 und damit fälschlich gültig — leere/fehlende/Array-Parameter ablehnen.
+	const parseCoord = (value: unknown): number =>
+		typeof value === 'string' && value.trim() !== '' ? Number(value) : Number.NaN;
+	const lat = parseCoord(req.query.lat);
+	const lon = parseCoord(req.query.lon);
 	if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lon) || lon < -180 || lon > 180) {
 		sendError(res, 400, 'lat und lon müssen Zahlen in gültigem Bereich sein.');
 		return;

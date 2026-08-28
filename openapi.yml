@@ -1915,7 +1915,7 @@ components:
           maximum: 90
           nullable: true
           description: >-
-            Breitengrad des Aufgabenorts (#1066). Wird nur bei Auswahl eines
+            Breitengrad des Serien-Orts (#1066). Wird nur bei Auswahl eines
             Adress-Vorschlags gesetzt; `null`, wenn kein Koordinaten-Bezug besteht.
         longitude:
           type: number
@@ -1924,7 +1924,7 @@ components:
           maximum: 180
           nullable: true
           description: >-
-            Längengrad des Aufgabenorts (#1066), analog `latitude`.
+            Längengrad des Serien-Orts (#1066), analog `latitude`.
         autoDeleteAfterDeadline:
           type: boolean
           description: >-
@@ -1981,7 +1981,7 @@ components:
           maximum: 90
           nullable: true
           description: >-
-            Breitengrad des Aufgabenorts (#1066). Wird nur bei Auswahl eines
+            Breitengrad des Serien-Orts (#1066). Wird nur bei Auswahl eines
             Adress-Vorschlags gesetzt; `null`, wenn kein Koordinaten-Bezug besteht.
         longitude:
           type: number
@@ -1990,7 +1990,7 @@ components:
           maximum: 180
           nullable: true
           description: >-
-            Längengrad des Aufgabenorts (#1066), analog `latitude`.
+            Längengrad des Serien-Orts (#1066), analog `latitude`.
         autoDeleteAfterDeadline:
           type: boolean
           description: >-
@@ -2043,7 +2043,7 @@ components:
           maximum: 90
           nullable: true
           description: >-
-            Breitengrad des Aufgabenorts (#1066). `null` entfernt den Koordinaten-Bezug;
+            Breitengrad des Serien-Orts (#1066). `null` entfernt den Koordinaten-Bezug;
             fehlt das Feld, bleibt er unverändert.
         longitude:
           type: number
@@ -2051,7 +2051,7 @@ components:
           minimum: -180
           maximum: 180
           nullable: true
-          description: Längengrad des Aufgabenorts (#1066), analog `latitude`.
+          description: Längengrad des Serien-Orts (#1066), analog `latitude`.
         autoDeleteAfterDeadline:
           type: boolean
           description: >-

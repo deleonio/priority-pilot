@@ -229,9 +229,13 @@ const validateSeriesFields = (
 
 	// Standort-Koordinaten der Serie (#1066), analog `Task.latitude/longitude`: Zahl im gültigen
 	// Bereich oder null; Freitext ohne Koordinat bleibt speicherbar (AK10).
-	if (input.latitude !== undefined) {
+	// Standort-Koordinaten der Serie (#1066): nur bei Auswahl eines Adress-Vorschlags gesetzt (Coordinates-only);
+	// Freitext ohne Koordinat bleibt speicherbar (AK10). Lat/lon sind ein Paar: `null` auf einer
+	// Seite leert BEIDE Werte — eine Einzel-Koordinate wird paarweise zu null normalisiert.
+	if (input.latitude !== undefined || input.longitude !== undefined) {
 		if (
 			input.latitude !== null &&
+			input.latitude !== undefined &&
 			(typeof input.latitude !== 'number' ||
 				!Number.isFinite(input.latitude) ||
 				input.latitude < -90 ||
@@ -239,12 +243,9 @@ const validateSeriesFields = (
 		) {
 			return { ok: false, message: 'latitude muss eine Zahl zwischen -90 und 90 oder null sein.' };
 		}
-		attrs.latitude = input.latitude;
-	}
-
-	if (input.longitude !== undefined) {
 		if (
 			input.longitude !== null &&
+			input.longitude !== undefined &&
 			(typeof input.longitude !== 'number' ||
 				!Number.isFinite(input.longitude) ||
 				input.longitude < -180 ||
@@ -252,7 +253,10 @@ const validateSeriesFields = (
 		) {
 			return { ok: false, message: 'longitude muss eine Zahl zwischen -180 und 180 oder null sein.' };
 		}
-		attrs.longitude = input.longitude;
+		const lat = input.latitude ?? null;
+		const lon = input.longitude ?? null;
+		attrs.latitude = lat !== null && lon !== null ? lat : null;
+		attrs.longitude = lat !== null && lon !== null ? lon : null;
 	}
 
 	if (input.autoDeleteAfterDeadline !== undefined) {

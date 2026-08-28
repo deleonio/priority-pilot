@@ -24,7 +24,7 @@ const formatKm = (km: number): string =>
 	km.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 export const NearbyCard = () => {
-	const { supported, enabled, pending, permissionDenied, position } = useGeolocation();
+	const { supported, enabled, pending, permissionDenied, unavailable, position } = useGeolocation();
 	const [nearby, setNearby] = useState<NearbyTask[] | null>(null);
 
 	useEffect(() => {
@@ -54,10 +54,11 @@ export const NearbyCard = () => {
 	return (
 		<section className="dashboard-nearby" aria-label="In der Nähe">
 			<KolCard _label="In der Nähe" _level={0} data-testid="nearby-card">
-				{permissionDenied || !supported ? (
+				{permissionDenied || !supported || unavailable ? (
 					<p className="dashboard-nearby-hint" data-testid="nearby-denied">
-						Der Browser hat die Standortfreigabe verweigert oder unterstützt keine Standortermittlung. Erlaube den
-						Standortzugriff in den Browser-Einstellungen, um Aufgaben in deiner Nähe zu sehen.
+						Der Browser hat die Standortfreigabe verweigert, ist nicht verfügbar oder unterstützt keine
+						Standortermittlung. Erlaube den Standortzugriff in den Browser-Einstellungen, um Aufgaben in deiner Nähe zu
+						sehen.
 					</p>
 				) : !enabled ? (
 					<p className="dashboard-nearby-hint" data-testid="nearby-preference-off">

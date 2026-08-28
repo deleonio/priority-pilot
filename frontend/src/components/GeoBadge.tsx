@@ -25,6 +25,8 @@ const ADDRESS_UNAVAILABLE = 'Adresse nicht verfügbar';
 
 /** Session-Cache: bereits aufgelöste Koordinaten nicht erneut anfragen (Nominatim 1 req/s). */
 const addressCache = new Map<string, string>();
+/** Parallele Reverse-Geocoding-Aufrufe pro Koordinate serialisieren (Rate-Limit 1 req/s). */
+const inflight = new Map<string, Promise<string>>();
 
 interface GeoBadgeProps {
 	/** Breite/Länge des Ortsbezugs — Basis des Reverse-Geocoding. */
@@ -50,21 +52,26 @@ export const GeoBadge = ({ latitude, longitude, address = null }: GeoBadgeProps)
 			return;
 		}
 		let cancelled = false;
-		api
-			.reverseGeocode({ lat: latitude, lon: longitude })
-			.then(({ address: hit }) => {
-				const text = hit === '' ? ADDRESS_UNAVAILABLE : hit;
-				addressCache.set(key, text);
-				if (!cancelled) {
-					setResolved(text);
-				}
-			})
-			.catch(() => {
-				// Fehler/Rate-Limit → kontrollierter Fallback statt Fehlerzustand (AK11).
-				if (!cancelled) {
-					setResolved(ADDRESS_UNAVAILABLE);
-				}
-			});
+		// Aufrufe pro Koordinate serialisieren und Fehler ERGEBNIS-cachen: sonst re-fetchen
+		// erneut gemountete Badges den gleichen Fehlschlag gegeneinander ins Rate-Limit
+		// (1 req/s) — kontrollierter Fallback statt Fehlerzustand (AK11).
+		const request: Promise<string> =
+			inflight.get(key) ??
+			api
+				.reverseGeocode({ lat: latitude, lon: longitude })
+				.then(({ address: hit }) => (hit === '' ? ADDRESS_UNAVAILABLE : hit))
+				.catch(() => ADDRESS_UNAVAILABLE)
+				.then((text) => {
+					addressCache.set(key, text);
+					inflight.delete(key);
+					return text;
+				});
+		inflight.set(key, request);
+		request.then((text) => {
+			if (!cancelled) {
+				setResolved(text);
+			}
+		});
 		return () => {
 			cancelled = true;
 		};
