@@ -32,3 +32,6 @@
 - Blanket-`replace()` über series.test.ts traf VORHANDENE `for (const inst of instances)`-Loops (Zeilen 52/430/464/481) — nur die neuen Blöcke casten; vor Commit per `git diff --stat` gegenprüfen.
 - `npx tsc --noEmit` im server ist auf frischem Checkout vorbestehend rot (generierte `src/api.ts` fehlt bis Codegen) — nicht als eigener Fehler werten, gezielt nach eigenen Dateinamen greppen.
 - Server-Tests mit Auth brauchen das Env-Set (SESSION_SECRET/GOOGLE_*) auf Modul-Ebene + Register-Cookie-Muster, sonst schlagen 401-Assertions aus dem falschen Grund an.
+
+## Re-Run 2026-08-28 (Spec-Phase erneut getriggert)
+- Zustand verifiziert, NICHTS neu gemacht: Branch `feat/issue-1066-nearby-card`, Commit c7ad22d6 (Spec + 5 Testdateien, gepusht), Draft PR #1071 (Titel wörtlich, `Closes #1066` im Body, labels=[]). Impl-Commits 0d950f87/d7b9a29e liegen darüber — Spec-Phase darf den Branch nicht rebasen/rewriten.
