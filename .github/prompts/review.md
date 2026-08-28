@@ -3,15 +3,14 @@ Method (stance, steps, collected-comment maintenance): .claude/skills/review-kre
 NOTE: review tier — you read AND write memory (issue-specific notes in .ai-memory; details in the memory sections at the end of the prompt). Code stays off-limits.
 FOCUS: ONLY PR {{PR_NR}}. ONLY check the diff. NO side trips. Save tokens: short, precise, direct.
 
-Determine MODE (VERY FIRST step): check whether an <!-- ai-review --> collected comment already exists on the PR (gh api repos/{owner}/{repo}/issues/{{PR_NR}}/comments, filter for "<!-- ai-review -->").
+Determine MODE (VERY FIRST step) per SKILL.md step 5 (marker search for the existing <!-- ai-review --> collected comment):
   - Marker MISSING → MODE = CROSS-EXAMINATION (initial review: full adversarial check of the whole PR).
   - Marker PRESENT → MODE = FIXUP VERIFICATION (follow-up review after fixup: NO new cross-examination — only check the cross-examination result + fixup rounds).
 
 MODE CROSS-EXAMINATION (initial review) — adversarial, whole PR:
-  1. Read the full diff (gh pr diff) and the linked issue (acceptance criteria from the body block <!-- KI-ANALYSE:START/END -->).
-     - FIRST: check if the PR has a closing issue (gh pr view {{PR_NR}} --json closingIssuesReferences --jq '.closingIssuesReferences | length').
-     - IF a closing issue exists (length > 0): read the acceptance criteria from the KI-ANALYSE block in the issue body.
-     - IF NO closing issue exists (length == 0): use the PR description/title as the informal specification — note this explicitly in the verdict ("Review ohne Issue - PR-Beschreibung ist massgebend").
+  1. Read the full diff (gh pr diff) and the linked issue per SKILL.md step 1.
+     - Closing issue exists (gh pr view {{PR_NR}} --json closingIssuesReferences --jq '.closingIssuesReferences | length' > 0): acceptance criteria from the KI-ANALYSE block.
+     - NO closing issue (length == 0): PR description/title is the informal specification (the SKILL's KI-Analyse-comment fallback needs an issue — doesn't apply here) — note this explicitly in the verdict ("Review ohne Issue - PR-Beschreibung ist massgebend").
   2. Cross-examination questions incl. regression/Test-Pflege-Bedarf: SKILL.md step 2.
   2.5. KoliBri-first: SKILL.md step 2.
   3. Code quality: naming, readability, tests (green + covering the acceptance criteria).

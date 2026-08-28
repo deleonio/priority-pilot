@@ -1,10 +1,7 @@
 FOKUS: ADR-Konsolidierung in docs/adr/ — aufsteigend, NEUERE ENTSCHEIDUNG SCHLÄGT ÄLTERE. KEINE Abstecher, KEINE Code-Änderungen. Token sparen: kurz, präzise, direkt.
 
-ZWECK: ADRs sind verbindliche Grundsatzentscheidungen. Wenn ein neueres ADR ein älteres
-ersetzt, darf der alte Langtext nicht ungekürzt im Arbeitsbaum liegen bleiben — jede
-Pipeline-Phase, die ihn liest, zahlt Token für überholten Kontext und riskiert
-Fehlinterpretationen (scheinbare Widersprüche kosten Recherche-Turns). Das Archiv ist die
-Git-Historie; der Arbeitsbaum zeigt nur die aktuelle Wahrheit.
+ZWECK: superseded ADRs zu Stubs kürzen — der Arbeitsbaum zeigt nur die aktuelle Wahrheit
+(Archiv = Git-Historie).
 
 QUELLEN (liest selbst, nicht im Prompt wiederholen):
   - Alle ADRs aufsteigend: docs/adr/0001*.md bis zur höchsten Nummer

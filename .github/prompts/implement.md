@@ -1,7 +1,7 @@
 {{RESUME_HINT}}
 FOCUS: ONLY issue {{ISSUE_NR}}. Only change the files/lines needed for the acceptance criteria, no incidental refactoring. NO side trips. Save tokens: short, precise, direct.
 
-⚠️ KI-UX block: if the issue has UX aspects (a KI-UX:END block present in the issue body), take the UX requirements from that block into account.
+⚠️ KI-UX block in the issue body (if present): take its UX requirements into account.
 
 Method, modes (spec/direct mode), and rules (binding, not repeated here): .claude/skills/ticket-implementation/SKILL.md — read it before starting.
 
@@ -19,16 +19,9 @@ PROCEDURE (STRICT):
      create the harness branch ai/harness/{{ISSUE_NR}} yourself if it does not exist (git fetch origin ai/harness/{{ISSUE_NR}} && git switch ai/harness/{{ISSUE_NR}} || git switch -c ai/harness/{{ISSUE_NR}}), implement, commit, push, and create the PR YOURSELF
      (gh pr create … Closes #{{ISSUE_NR}} …, NOT --draft). Test obligation for application code:
      SKILL.md step 3a.
-  3.5. UI WORK on frontend changes: SKILL.md step 3b/3c (KoliBri-first incl.
-     the mandatory justification in the PR body, deterministic tools first — Impeccable detector
-     + mobile-ui-rules.md —, Playwright MCP only for the short 375/1280 layout-break check).
-  4. GATE — run it in full, every command green, BEFORE the push:
-     pnpm format && pnpm exec prettier --check . && pnpm lint && pnpm knip && pnpm test
-     The tests SHOULD pass here (they are the contract from the spec phase and the primary
-     success indicator) — red means fix it, not pass it on.
-     Put the commands' results in the PR body (AGENTS.md requirement: document format/lint/test results).
-     e2e (pnpm --filter frontend test:e2e) ONLY if the change affects UI behavior and an
-     e2e spec exists for it — otherwise skip and note it in the PR body.
+  3.5. UI WORK on frontend changes: SKILL.md step 3b/3c.
+  4. GATE per SKILL.md step 3c (full local CI gate, every command green BEFORE the push;
+     test results in the PR body per AGENTS.md).
   5. Commit, push the branch. Include your phase note .ai-memory/issue-{{ISSUE_NR}}-implement.md
      in the commit (it is tracked, NOT gitignored — the memory travels with the PR, ADR 0007).
      In spec mode, make the existing draft PR review-ready
