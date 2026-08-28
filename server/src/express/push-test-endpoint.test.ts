@@ -146,7 +146,7 @@ describe('POST /push/test — Test-Push mit rotierendem Zitat (#386, AK2 + AK4)'
 
 		assert.equal(body.sent, 0, 'B hat keine eigene Subscription — es wird nichts zugestellt');
 		assert.ok(
-			!sentEndpoints.includes('https://push.example.com/a'),
+			!sentEndpoints.some((endpoint) => endpoint === 'https://push.example.com/a'),
 			'die Subscription von A darf durch B NICHT angesprochen werden',
 		);
 		assert.equal(await PushSubscription.count(), 1, 'A-Subscription bleibt unangetastet erhalten');
