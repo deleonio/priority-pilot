@@ -1,9 +1,10 @@
-# Issue 1095 — Triage (Phase 1), Stand 2026-08-28T16:17:01Z
+# Issue 1095 — Triage (Phase 1), Stand 2026-08-28T16:17:01Z (+ Re-Triage, s. Erledigt)
 
 **ERGEBNIS: VERDICT analyzed, Ampel 🟢.** Initial-Triage (kein KI-ANALYSE-Block; einziger Kommentar = github-actions-Qualitätscheck, keine Entscheidungen). Analyse-Block + Routing-Tabelle in den Body angehängt, Labels `ai:needs-analyse` entfernt, `ai:analysed` + `ai:needs-spec` gesetzt (ux=nein → direkt Spec). Kein Ping-Kommentar, kein Titel-/Body-Copyedit, kein Split (eine Komponente + Tests = ein PR). Issue offen gelassen (Schritt 6: Anforderung klar nicht erfüllt — kein controllerchange-Fallback im Code).
 
 ## Erledigt
 - Issue geladen (`gh issue view 1095`), Trigger als Initial-Triage bestimmt, kompletten Body analysiert.
+- **Re-Triage (Lauf nach Trigger-Reset, gleicher Tag):** Block vorhanden, stand=2026-08-28T16:17:01Z; einziger Kommentar (15:58:37Z, github-actions) liegt VOR stand → 0 Delta-Kommentare. Analyse passt unverändert (Body unverändert, Block + Routing-Tabelle intakt), KEIN Rewrite des Blocks (stand nicht angehoben — kein inhaltlicher Write). Auto-Close erneut geprüft: `grep controllerchange frontend/src` = 0 Treffer → offen. **Label-Drift korrigiert:** `ai:needs-analyse` war wieder drauf + `ai:needs-spec` fehlte (Workflow-Reset-Muster wie #1090) → `--remove-label ai:needs-analyse --add-label ai:needs-spec`; Endstand verifiziert: `ai:needs-spec`, `ai:analysed`, `ai:model:sonnet`. Kein Ping, kein Titel-/Body-Edit.
 - Code-Recherche: `frontend/src/components/UpdatePrompt.tsx` (komplett gelesen), `frontend/vite.config.ts:72-90` (VitePWA: registerType 'prompt', skipWaiting false, clientsClaim true, importScripts push-sw.js, navigateFallback+Denylist), `frontend/e2e/pwa-update-prompt.spec.ts:1-60` (Header: echter SW-Zyklus bewusst ungetestet), `frontend/src/components/UpdatePrompt.test.tsx:28-91` (Hook + KoliBri gemockt), `frontend/public/push-sw.js` (keine message/skipWaiting-Handler — sauber).
 - Analyse-Block + Routing-Tabelle (ux nein/-/-, spec ja/sonnet/medium, impl ja/sonnet/high, review ja/sonnet/high) via `.ai-memory/issue-1095-{body,block,new}.md` + `gh issue edit --body-file` in den Body geschrieben; Landing verifiziert (Tail zeigt ai-phase-routing:END, Labels korrekt).
 
@@ -30,7 +31,7 @@
 - MEMORY.md-Eintrag — kein neuer Fehler/Experience-Kriterium erfüllt.
 
 ## Offen
-- `.ai-memory/issue-1095-{body,block,new}.md` sind Wegwerf-Artefakte der Body-Zusammensetzung — NICHT committen; nur diese Datei hier ist die Phasen-Notiz (rm brauchte früher Freigabe, siehe 1083/1090-Präzedenz).
+- `.ai-memory/issue-1095-body-now.md` (Re-Triage-Diff-Basis) ist Wegwerf-Artefakt — NICHT committen; nur diese Datei hier ist die Phasen-Notiz. Die alten `{body,block,new}.md` aus dem Erstlauf existieren nicht mehr (bereits bereinigt).
 
 ## Nächster Schritt
 - Spec-Phase (Label `ai:needs-spec` gesetzt): rote Tests für AK1–AK3 in `UpdatePrompt.test.tsx` (Mock-Hook + jsdom `navigator.serviceWorker`-Events + `window.location.reload`-Spy; jsdom hat keinen echten SW — ggf. `navigator.serviceWorker` selbst stubben) und AK4-Entwurf in `pwa-update-prompt.spec.ts`.
