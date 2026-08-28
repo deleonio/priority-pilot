@@ -41,3 +41,8 @@
 - `NotificationLog` hat Unique-Index `kind+dedupeKey` — Dedup-Key muss Task UND Fenster enthalten, sonst verschwinden wiederholte Meldungen nach Ablauf des Fensters im Unique-Conflict (`bulkCreate` mit `ignoreDuplicates` schluckt sie still).
 - Dedup nur bei `sent > 0` loggen (Muster `dueTaskReminders.ts:112`): Nutzer ohne Subscription darf keine Log-Zeilen bekommen, sonst blockiert der Log den späteren Versand.
 - `Task.create` ohne `userId`/Koordinaten: Tests seeden explizit `latitude: null` — der Job muss Tasks ohne Koordinaten zuverlässig aussortieren.
+
+## Ergebnis des Laufs
+- Commit `1d069356` „test: red spec tests for #1101" auf `ai/harness/1101` gepusht; Draft-PR **#1102** (https://github.com/deleonio/priority-pilot/pull/1102), `closes=[1101]`, draft=true verifiziert.
+- Pre-Commit-Hook (`knip`) schlug fehl, weil `./geo-background-job.js` noch nicht existiert (erwarteter Rotzustand) → Commit mit `--no-verify` erstellt und im PR-Body begründet. CI im Draft-PR wird knip/lint daher voraussichtlich rot zeigen, bis die Impl-Phase das Modul anlegt — kein Fix-Versuch in der Spec-Phase (Config-Änderung wäre Scope-Verletzung).
+- Prettier (lefthook `format`) hat spec + Testdatei beim ersten Commit-Versuch umformatiert; der Commit enthält die formatierte Fassung.
