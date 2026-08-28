@@ -99,9 +99,25 @@ runs:
                    | grep -E '/issue-[0-9]+-(triage|ux|spec|implement|fixup|review|documenter)\.md$' || true)
         echo "new-notes=${notes}" >> "$GITHUB_OUTPUT"
 
-        if [ "$staged" -eq 0 ]; then
+        if [ "$staged" -eq 0 ] && [ "$has_base" -eq 1 ]; then
           echo "::notice title=🗄️ Issue-Storage leer::Keine Phasen-Notiz vorhanden — $BRANCH unberührt."
           exit 0
+        fi
+
+        # Erst-Anlage OHNE Notiz (ADR 0007: der Branch existiert garantiert ab Phase 1 —
+        # auch wenn der Agent crashte oder keine Notiz schrieb). Leerer Init-Commit auf
+        # main-Basis; die Notiz folgt mit dieser oder der nächsten Phase.
+        if [ "$staged" -eq 0 ] && [ "$notes" -eq 0 ]; then
+          tree="$(git write-tree)"
+          unset GIT_INDEX_FILE
+          msg="memory: init (${PHASE}, run ${RUN_ID}, branch ${HEAD_BRANCH}) — Branch angelegt, Notiz folgt"
+          commit="$(git commit-tree "$tree" ${parents[@]+"${parents[@]}"} -m "$msg")"
+          if git push --quiet origin "${commit}:refs/heads/${BRANCH}"; then
+            echo "::notice title=🗄️ Harness-Branch angelegt::${BRANCH} auf main-Basis (ohne Phasen-Notiz — keine geschrieben oder Lauf vor Notiz abgebrochen)."
+            exit 0
+          fi
+          echo "::error title=❌ Init-Push fehlgeschlagen::${BRANCH} konnte nicht angelegt werden."
+          exit 1
         fi
 
         if [ "$notes" -eq 0 ]; then
