@@ -1,0 +1,328 @@
+name: ADR-Sync (weekly)
+
+# Wöchentlicher LLM-Job (wie die Phasen 01–06 über setup-claude, aber KEINE Pipeline-Phase):
+# Konsolidiert die ADRs in docs/adr/ AUFSTEIGEND — neuere Entscheidungen schlagen ältere.
+#   - stubben: Als Superseded markierte ADRs werden auf einen Rumpf gestutzt (Status +
+#     Nachfolger-Verweis + Ein-Absatz-Kern + Git-Historie-SHA für den Volltext). Das Archiv
+#     ist die Git-Historie; der Arbeitsbaum zeigt nur die aktuelle Wahrheit. Jede Phase, die
+#     einen toten Langtext liest, zahlt otherwise Token für überholten Kontext und riskiert
+#     Recherche-Turns über scheinbare Widersprüche — genau das verteuert den Harness.
+#   - melden: Widersprüche zwischen AKTIVEN ADRs löst der Sync NICHT selbst (Entscheidungen
+#     trifft der Mensch) — sie landen als Konfliktliste im Report (VERDICT conflict).
+#   - nichts sonst: Aktive ADRs werden inhaltlich nicht angetastet; der Sync konsolidiert
+#     mechanisch nach dem, was die Status-Zeilen bereits besagen.
+#
+# DELIVERY: PR vom festen Branch chore/adr-sync. Der Branch wird je Lauf auf origin/main
+# zurückgesetzt und per Force-Push ersetzt — der offene PR zeigt immer exakt die aktuelle
+# Konsolidierungs-Drift. Der PR hängt an der KI-Pipeline (ai:needs-review per App-Token →
+# Review → Gate → Auto-Merge), gleiches Muster wie Guide-Sync.
+#
+# STATELESS: kein pro-Issue-Memory (memory-load/expect false). Der offene Sync-PR ist der
+# einzige Zustand; jeder Lauf verifiziert frisch.
+#
+# KEINE Nummer im Dateinamen: Nummern (01–06) sind lastend (Workflow-Name-Matching), dieser
+# Job ist ein Helper wie cache-cleanup und hängt nicht in der Label-Kette.
+
+on:
+  schedule:
+    - cron: '17 5 * * 6' # samstags 05:17 UTC, versetzt zu Spec-Sync (tägl. 03:37) und Guide-Sync (tägl. 04:27)
+  workflow_dispatch:
+    inputs:
+      force:
+        description: 'Skip-Guard ignorieren (Lauf erzwingen, auch wenn main unverändert ist)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: claude-adr-sync
+  cancel-in-progress: false
+  # queue: max — ein manueller workflow_dispatch während des geplanten Laufs würde sonst
+  # still verworfen (GitHub hält pro Gruppe ohne `queue` nur EINEN pending-Run).
+  queue: max
+
+permissions:
+  contents: write # Branch-Push chore/adr-sync
+  pull-requests: write # Sync-PR anlegen/aktualisieren + Labels
+  id-token: write # App-Token (setup-claude)
+  actions: read # Skip-Guard: letzte erfolgreiche Run-Historie lesen
+
+env:
+  SYNC_BRANCH: chore/adr-sync
+
+jobs:
+  adr-sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+    steps:
+      - name: Skip-Guard (main unverändert seit letztem erfolgreichem Sync)
+        # LLM-Budget sparen: Hat main seit dem letzten erfolgreichen Lauf dieses Workflows
+        # denselben SHA, ist das Konsolidierungsergebnis deterministisch dasselbe → kein Lauf.
+        # Fail-open bei API-Fehlern (leerer last_sha → Lauf): ein vergessener Sync ist
+        # billiger als ein stumm übersprungener. workflow_dispatch mit force=true umgeht
+        # den Guard (Re-Sync ohne Code-Änderung, z. B. nach Prompt-Anpassung).
+        id: guard
+        if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.force == true) }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          last_sha="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow claude-adr-sync.yml \
+            --status success --limit 1 --json headSha --jq '.[0].headSha // empty' 2>/dev/null || true)"
+          if [ -n "$last_sha" ] && [ "$last_sha" = "$GITHUB_SHA" ]; then
+            echo "::notice title=⏭️ ADR-Sync übersprungen::Main unverändert ($GITHUB_SHA) seit letztem erfolgreichem Sync."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: In-Flight-Guard (Pipeline arbeitet noch am offenen Sync-PR)
+        # Der Force-Push ersetzt den Branch komplett. Läuft auf dem offenen Sync-PR noch die
+        # Pipeline (ai:needs-review, ai:needs-fixup) oder wartet er auf den Menschen
+        # (ai:reviewed, ai:needs-human), wird der Push ausgesetzt — sonst reißt er
+        # Review/Fixup/Merge/Diskussion den Branch unter den Füßen weg. Fail-open wie beim
+        # Skip-Guard. force=true umgeht auch diesen Guard NICHT.
+        id: inflight
+        if: steps.guard.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          blocking="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$SYNC_BRANCH" --state open \
+            --json labels \
+            --jq '[.[0].labels[]?.name] | map(select(. == "ai:needs-review" or . == "ai:needs-fixup" or . == "ai:reviewed" or . == "ai:needs-human")) | join(", ")' \
+            2>/dev/null || true)"
+          if [ -n "$blocking" ] && [ "$blocking" != "null" ]; then
+            echo "::notice title=⏸️ ADR-Sync ausgesetzt::Offener Sync-PR ist noch in der Pipeline (${blocking}) — kein Force-Push in diesem Lauf."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0 # Vollhistorie: Stub-SHA-Ermittlung braucht git rev-list aufs alte File
+
+      - name: Startzeit merken (für weiches Zeitlimit)
+        id: starttime
+        if: steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true'
+        run: |
+          now=$(date +%s)
+          echo "epoch=$now" >> "$GITHUB_OUTPUT"
+          echo "soft_deadline_epoch=$((now + 720))" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Claude Code
+        id: setup
+        if: steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true'
+        uses: ./.github/actions/setup-claude
+        with:
+          needs-mcp: false
+          tools-tier: full # Write/Edit auf docs/adr/*.md + git commit nötig; Push/PR macht der Workflow
+          event-type: ${{ github.event_name }}
+          # ticket-ref ist Pflicht-Input, dieser Job hat kein Ticket: '0' fließt NUR in den
+          # ungenutzten Storage-Namen (ai/harness/0) — Memory ist komplett aus (memory-load: false).
+          ticket-ref: '0'
+          app-id: ${{ secrets.APP_ID }}
+          app-private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          llm-provider: ${{ vars.LLM_PROVIDER }}
+          model: ${{ vars.CLAUDE_MODEL_ADR_SYNC || 'sonnet' }}
+          zai-api-key: ${{ secrets.ZAI_API_KEY }}
+          claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
+          openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
+          zai-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_ZAI }}
+          openrouter-settings-json: ${{ vars.CLAUDE_CODE_SETTINGS_LOCAL_OPENROUTER }}
+          tailscale-authkey: ${{ secrets.TAILSCALE_AUTH_KEY }}
+          tailscale-exit-node: ${{ vars.TAILSCALE_EXIT_NODE }}
+          memory-load: 'false'
+          expect-memory: 'false'
+
+      - name: Sync-Branch frisch aufsetzen (Basis = origin/main) + Git-Identität
+        # Je Lauf neuer Basis-Stand: der Sync-PR zeigt danach immer nur die AKTUELLE Drift.
+        # Git-Identität aus dem App-Slug (Muster deploy.yml) — deterministische Attribution
+        # der Agent-Commits statt runner-abhängiger Default-Identität.
+        if: steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+        run: |
+          git switch -C "$SYNC_BRANCH" origin/main
+          slug="$(gh api app --jq .slug 2>/dev/null || true)"
+          user="${slug:-app}[bot]"
+          id="$(gh api "users/${user}%5Bbot%5D" --jq .id 2>/dev/null || true)"
+          email="${user}@users.noreply.github.com"
+          [ -n "$id" ] && email="${id}+${user}@users.noreply.github.com"
+          git config user.name "$user"
+          git config user.email "$email"
+
+      - name: ADR-Sync via Claude
+        id: claude
+        if: steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
+        run: |
+          cp .github/prompts/adr-sync.md /tmp/claude-prompt.txt
+
+          sed -i "s/{{SYNC_DATE}}/$(date -u +%F)/g" /tmp/claude-prompt.txt
+          sed -i "s/{{SOFT_DEADLINE}}/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
+          bash .github/scripts/assert-prompt-complete.sh /tmp/claude-prompt.txt
+
+          ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
+            ${{ steps.setup.outputs.invoke-args }} \
+            2>&1 | tee /tmp/claude-output.log
+          test "${PIPESTATUS[0]}" -eq 0 || exit "${PIPESTATUS[0]}"
+
+      - name: Post-Assertion (VERDICT ↔ Commits ↔ Scope ↔ Stub-Guard) + Push + PR-Pflege
+        # Ehrlichkeits-Kreuzcheck nach dem VERDICT-Muster der Phasen-Workflows: Der Agent
+        # behauptet synced/updated/conflict — die Mechanik verifiziert Commits, Datei-Scope
+        # und die Stub-Integrität und pusht/pflegt den PR deterministisch (Push/PR ist
+        # bewusst KEINE Agent-Aufgabe).
+        if: >-
+          ${{ always()
+              && steps.guard.outputs.skip != 'true'
+              && steps.inflight.outputs.skip != 'true'
+              && steps.setup.outputs.configured == 'true'
+              && (steps.claude.outcome == 'success' || steps.claude.outcome == 'failure') }}
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          OUTCOME: ${{ steps.claude.outcome }}
+        run: |
+          # Portables VERDICT-Parsen wie in 01 (BSD/GNU-grep-sicher): erster bekannter
+          # Token gewinnt, Prosa/Markdown nach dem Token ist egal (#1017-Klasse).
+          verdict=""
+          if [ -f /tmp/claude-output.log ]; then
+            verdict="$(grep 'VERDICT:' /tmp/claude-output.log | tail -1 | sed -E 's/^.*VERDICT:[[:space:]]*//' | grep -oE 'synced|updated|conflict' | head -1 || true)"
+          fi
+          echo "Claude-Verdict aus Output: '${verdict:-keins}'"
+
+          if [ "$OUTCOME" != "success" ]; then
+            echo "::error title=❌ ADR-Sync fehlgeschlagen::Claude-Lauf nicht erfolgreich — kein stiller „synced“."
+            exit 1
+          fi
+          if [ -z "$verdict" ]; then
+            echo "::error title=❌ ADR-Sync ohne Verdict::Weder „synced“ noch „updated“ noch „conflict“ — Lauf wiederholen."
+            exit 1
+          fi
+
+          count="$(git rev-list --count origin/main..HEAD)"
+          echo "Commits seit origin/main: $count"
+
+          # Scope-Guard: nur docs/adr/*.md ist erlaubt.
+          bad="$(git diff --name-only origin/main..HEAD | grep -v '^docs/adr/[0-9].*\.md$' || true)"
+          if [ -n "$bad" ]; then
+            echo "::error title=❌ Scope verletzt::Änderungen außerhalb docs/adr/: ${bad}"
+            exit 1
+          fi
+
+          # Stub-Guard: Jede geänderte ADR-Datei bleibt intakt — H1 mit Nummer, und jede
+          # Datei mit Superseded-Status nennt ihren Nachfolger (Link auf ein existierendes
+          # ADR). Verhindert zerstörte Stubs, bevor sie gepusht werden.
+          while IFS= read -r f; do
+            [ -n "$f" ] || continue
+            grep -qE '^# ADR [0-9]+' "$f" || { echo "::error title=❌ Stub-Guard::${f}: H1 mit ADR-Nummer fehlt."; exit 1; }
+            if grep -q 'Status:\*\* Superseded' "$f"; then
+              succ="$(grep -oE 'durch \[ADR [0-9]+\]' "$f" | head -1 || true)"
+              [ -n "$succ" ] || { echo "::error title=❌ Stub-Guard::${f}: Superseded ohne Nachfolger-Verweis."; exit 1; }
+              succ_nr="$(printf '%s' "$succ" | grep -oE '[0-9]+')"
+              ls docs/adr/ | grep -q "^${succ_nr}-" || { echo "::error title=❌ Stub-Guard::${f}: Nachfolger ADR ${succ_nr} existiert nicht."; exit 1; }
+            fi
+          done < <(git diff --name-only origin/main..HEAD)
+
+          # Verdict ↔ Commits konsistent? (conflict erlaubt Commits UND 0 Commits)
+          if [ "$verdict" = "updated" ] && [ "$count" -eq 0 ]; then
+            echo "::error title=❌ Verdict ohne Commits::VERDICT updated, aber kein Commit vorhanden."
+            exit 1
+          fi
+          if [ "$verdict" = "synced" ] && [ "$count" -gt 0 ]; then
+            echo "::error title=❌ Commits ohne Verdict::VERDICT synced, aber Commits vorhanden."
+            exit 1
+          fi
+
+          # Konflikt ohne Änderungen: sichtbar machen, kein PR (nichts zu reviewen).
+          if [ "$verdict" = "conflict" ] && [ "$count" -eq 0 ]; then
+            echo "::warning title=⚠️ ADR-Konflikt ohne Commits::Widerspruch aktiver ADRs gemeldet (Report im Claude-Output), aber keine Konsolidierungs-Änderung — kein PR. Menschliche Entscheidung nötig."
+            exit 0
+          fi
+
+          if [ "$count" -eq 0 ]; then
+            echo "::notice title=✅ ADRs konsolidiert::Keine Drift gefunden — kein Push, kein PR."
+            exit 0
+          fi
+
+          # Report Fallback: fehlt/leer der Agent-Report, ersetzt git log den PR-Body (laut Warning).
+          if [ ! -s /tmp/adr-sync-report.md ]; then
+            echo "::warning title=⚠️ Report fehlt::/tmp/adr-sync-report.md fehlt — Fallback-Body aus git log."
+            {
+              echo "## ADR-Sync $(date -u +%F)"
+              echo ""
+              echo "_Agent-Report fehlt — Fallback aus der Commit-Historie._"
+              echo ""
+              git log origin/main..HEAD --oneline --stat
+            } > /tmp/adr-sync-report.md
+          fi
+
+          git push --force origin "$SYNC_BRANCH"
+
+          title="docs(adr): Konsolidierungs-Sync $(date -u +%F)"
+          pr_number="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$SYNC_BRANCH" --state open \
+            --json number --jq '.[0].number // empty' 2>/dev/null || true)"
+          if [ -n "$pr_number" ]; then
+            gh pr edit "$pr_number" --repo "$GITHUB_REPOSITORY" --title "$title" --body-file /tmp/adr-sync-report.md
+            echo "::notice title=✅ Sync-PR aktualisiert::#$pr_number zeigt die Drift von heute."
+          else
+            # PR-Nummer aus der Create-Ausgabe (PR-URL) ziehen statt neu zu listen: ein direkt
+            # folgendes `gh pr list` kann durch API-Replikationsverzögerung noch leer sein und
+            # der Review würde nie angestoßen. List-Abruf nur als Fallback.
+            pr_url="$(gh pr create --repo "$GITHUB_REPOSITORY" --head "$SYNC_BRANCH" --base main \
+              --title "$title" --body-file /tmp/adr-sync-report.md)"
+            pr_number="$(printf '%s\n' "$pr_url" | sed -nE 's#.*/pull/([0-9]+).*#\1#p' | tail -1)"
+            if [ -z "$pr_number" ]; then
+              pr_number="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$SYNC_BRANCH" --state open \
+                --json number --jq '.[0].number // empty' 2>/dev/null || true)"
+            fi
+            echo "::notice title=✅ Sync-PR erstellt::${SYNC_BRANCH} → #${pr_number:-?}"
+          fi
+
+          if [ -z "$pr_number" ]; then
+            echo "::error title=❌ PR nicht auflösbar::Push erfolgt, aber kein offener PR auf ${SYNC_BRANCH} gefunden — Review nicht anstoßbar."
+            exit 1
+          fi
+          echo "PR_NUMBER=$pr_number" >> "$GITHUB_ENV"
+
+      - name: Review anstoßen (ai:needs-review per App-Token, Re-Arm-Muster #536)
+        # Der Sync-PR hängt an der KI-Pipeline: Review → Gate → Auto-Merge.
+        # pr-needs-review-label.yml labelt NUR menschliche Aktoren (sender.type != 'Bot') und
+        # springt hier deshalb nicht ein — das Label wird hier explizit gesetzt.
+        # ERST entfernen, DANN setzen (#536): klebt ai:needs-review noch vom Vorlauf, wäre ein
+        # reines --add-label ein No-op ohne `labeled`-Event → 05-claude-pr-review.yml startet nie.
+        # Ergebnis-Labels des Vormonats (needs-changes/ready-to-merge) werden mit abgeräumt.
+        # Von GITHUB_TOKEN gesetzte Labels triggern KEINE Folge-Workflows → App-Token ist Pflicht.
+        if: ${{ steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true' && steps.setup.outputs.configured == 'true' && env.PR_NUMBER != '' }}
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          gh label create "ai:needs-review" --repo "$REPO" --color 1D76DB \
+            --description "PR wartet auf KI-Review" 2>/dev/null || true
+
+          for label in ai:needs-fixup ai:reviewed ai:needs-review; do
+            gh pr edit "$PR_NUMBER" --repo "$REPO" --remove-label "$label" 2>/dev/null || true
+          done
+
+          for attempt in 1 2 3; do
+            if gh pr edit "$PR_NUMBER" --repo "$REPO" --add-label ai:needs-review; then
+              echo "::notice title=✅ Review angestoßen::PR #$PR_NUMBER → ai:needs-review gesetzt."
+              exit 0
+            fi
+            sleep $((attempt * 5))
+          done
+          echo "::error title=❌ Review-Trigger fehlgeschlagen::ai:needs-review für PR #$PR_NUMBER nach 3 Versuchen nicht gesetzt."
+          exit 1
+
+      - name: Token & Kosten erfassen
+        # always(): Auch ein abgebrochener Lauf hat Token verbraucht.
+        if: always() && steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
+        uses: ./.github/actions/record-cost
+        with:
+          issue: '0'
+          phase: adr-sync
+          since-epoch: ${{ steps.starttime.outputs.epoch }}
+          provider: ${{ steps.setup.outputs.llm-provider }}

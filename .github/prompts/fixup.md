@@ -4,7 +4,7 @@ PROCEDURE:
 1. **Conflicts** (if needed): `git status`, `git diff --name-only --diff-filter=U`, resolve, commit
 2. Read findings: PR diff, review threads, CI
 3. Fix:
-   - Unambiguous findings → change the code, run the GATE (`pnpm format && pnpm exec prettier --check . && pnpm lint && pnpm knip && pnpm test` — everything green before the push, otherwise the fixup loop keeps spinning), commit+push, resolve the thread
+   - Unambiguous findings → change the code, run the GATE (`pnpm format && pnpm exec prettier --check . && pnpm lint && pnpm knip && pnpm test` — everything green before the push, otherwise the fixup loop keeps spinning), commit+push (include your phase note .ai-memory/issue-{{ISSUE_NR}}-fixup.md in the commit — tracked, NOT gitignored, ADR 0007), resolve the thread
    - Ambiguous/decision findings → don't fix
 4. **Decision findings** (already chosen): follow the comment with the option ID, implement EXACTLY that option
 5. **CI red**:
