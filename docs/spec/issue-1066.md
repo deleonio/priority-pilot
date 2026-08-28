@@ -84,4 +84,3 @@ Test-Anker (Vertrag für Impl und Tests): `data-testid="nearby-card"` (Card),
 | AK6                           | `server/src/logics/series.test.ts` (Snapshot-Block)                     |
 | AK1 (Frontend)                | `frontend/src/lib/useAddressSearch.test.ts` (Vorschläge tragen lat/lon) |
 | AK2, AK4, AK5, AK8, AK9, AK11 | `frontend/e2e/issue-1066-nearby-card.spec.ts`                           |
-

@@ -36,6 +36,6 @@ Settings Screen verwendet einheitliche Layout-Werte für Abstände, Alignment un
 
 ## Randfälle & Fehler
 
-| Situation               | Erwartetes Verhalten                          |
-| ----------------------- | ---------------------------------------------- |
+| Situation               | Erwartetes Verhalten                              |
+| ----------------------- | ------------------------------------------------- |
 | Deskriptiver Text fehlt | Optional – wenn vorhanden, 14px und Farbe #616161 |

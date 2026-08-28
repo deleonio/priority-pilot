@@ -72,7 +72,7 @@ Viewport-Breite (Bounding-Box-Messung — die App-Shell clippt mit `overflow-x: 
 | `server/src/express/series-address.test.ts` (neu)       | AK1      | POST/PATCH-Roundtrip mit `address`, Default `null`, 255-Limit → 400, Zahl → 400, `null` löscht, GET liefert das Feld |
 | `server/src/logics/series.test.ts` (erweitert)          | AK2      | Serie mit `address` → Instanz erbt sie; ohne → `null`; Template-Änderung wirkt nur auf künftige Instanzen            |
 | `server/src/express/series.cascade.test.ts` (erweitert) | AK3      | `applyToInstances=true` übernimmt `address` auf offene Instanzen, erledigte bleiben unverändert                      |
-| `frontend/e2e/issue-1063-geo-badge.spec.ts` (neu)       | AK4, AK5 | Badge in Serienzeile / TaskTree-Zeile / Erledigt-Zeile nur bei Ortsbezug; `aria-label` „Standort"                     |
+| `frontend/e2e/issue-1063-geo-badge.spec.ts` (neu)       | AK4, AK5 | Badge in Serienzeile / TaskTree-Zeile / Erledigt-Zeile nur bei Ortsbezug; `aria-label` „Standort"                    |
 | `frontend/e2e/issue-1063-geo-badge.spec.ts` (neu)       | AK6      | 375px: Zeile (Serienliste/TaskTree) und Tabellen-Host (Erledigt) bleiben in der Viewport-Breite trotz Badge          |
 
 Die Task-`address`-API selbst ist durch `tasks-address.test.ts` gedeckt — kein Duplikat.
