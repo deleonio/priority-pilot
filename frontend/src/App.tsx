@@ -36,7 +36,7 @@ import { buildDependencyMap } from './lib/dependencies';
 import { collectTaskValues } from './lib/forest';
 import { buildPillarSummaries } from './lib/pillar';
 import { APP_VERSION } from './lib/version';
-import { readAiPreferences } from './lib/aiPreferences';
+import { isQuickCaptureEffective, readAiPreferences } from './lib/aiPreferences';
 
 type Dialog =
 	// `parentTask` gesetzt → die neu angelegte Aufgabe wird als Vorgänger mit ihr verknüpft (Unteraufgabe).
@@ -412,7 +412,11 @@ export const App = ({ user }: { user: AuthUser }) => {
 	// remountet beim „Zurück" nicht (`showSettings` ist interner State) — ein hier gepufferter Wert
 	// wäre veraltet. Jeder Render liest daher frisch aus dem `localStorage`; der Wechsel zurück aus
 	// den Einstellungen ist selbst ein Re-Render, sodass die Änderung sofort wirkt.
-	const { aiEnabled, quickCaptureEnabled } = readAiPreferences();
+	const preferences = readAiPreferences();
+	const { aiEnabled } = preferences;
+	// #1085: Die Schnellerfassung ist ein KI-Feature — bei deaktivierter KI wird die gespeicherte
+	// Präferenz ignoriert und „Neuen Task anlegen" öffnet direkt das Task-Formular.
+	const quickCaptureEnabled = isQuickCaptureEffective(preferences);
 
 	// Toolbar-Buttons sind auf allen Viewports identisch — keine unterschiedliche Menüstruktur je nach
 	// Viewport-Breite (#691). `_label`s und Reihenfolge sind stabil, damit Accessible Names konsistent bleiben.

@@ -10,6 +10,8 @@ import { headerAction, waitForStableView } from './helpers';
  * persistente Schalter — „KI-Features aktiv" (Hauptschalter) und „Schnellerfassung aktiv".
  * KI aus → Toolbar-Button „Säulen-Berater" und die Lektorat-Buttons im TaskForm verschwinden.
  * Schnellerfassung aus → „Neuen Task anlegen" öffnet direkt das Task-Formular.
+ * Seit #1085 ist die Schnellerfassung ein KI-Feature: bei deaktivierter KI ist ihr Schalter
+ * disabled und die gespeicherte Präferenz wird beim Anlegen ignoriert.
  *
  * **Präferenzen vor dem Seitenaufbau:** Die Storage-Keys werden per `page.addInitScript` gesetzt
  * (Muster `pp-voice-autostart` in `voice-autostart.spec.ts`) — die Keys müssen exakt denen in
@@ -42,7 +44,9 @@ const openLlmTab = async (page: Page): Promise<void> => {
 };
 
 test.describe('#1080 KI-Features deaktivierbar', () => {
-	test('AK1+AK3: beide Schalter existieren im Tab „KI-Provider", Default an, umschaltbar', async ({ page }) => {
+	test('AK1+AK3: beide Schalter existieren, Default an, unabhängig wählbar — bei KI-aus gesperrt (#1085)', async ({
+		page,
+	}) => {
 		await openLlmTab(page);
 
 		const aiSwitch = switchControl(page, /^KI-Features aktiv$/);
@@ -54,14 +58,18 @@ test.describe('#1080 KI-Features deaktivierbar', () => {
 		await expect(aiSwitch).toBeChecked();
 		await expect(quickCaptureSwitch).toBeChecked();
 
-		// AK1: Hauptschalter umschaltbar …
-		await aiSwitch.click();
-		await expect(aiSwitch).not.toBeChecked();
-
-		// AK3: … und die Schnellerfassung bleibt davon unabhängig wählbar (weiterhin an).
-		await expect(quickCaptureSwitch).toBeChecked();
+		// AK3: Bei aktiver KI bleibt die Schnellerfassung unabhängig vom Hauptschalter wählbar …
 		await quickCaptureSwitch.click();
 		await expect(quickCaptureSwitch).not.toBeChecked();
+		await quickCaptureSwitch.click();
+		await expect(quickCaptureSwitch).toBeChecked();
+
+		// AK1 (#1085): Hauptschalter aus — die Schnellerfassung ist ein KI-Feature, ihr Schalter wird
+		// disabled; der gespeicherte Wert bleibt sichtbar, ist aber nicht mehr umschaltbar.
+		await aiSwitch.click();
+		await expect(aiSwitch).not.toBeChecked();
+		await expect(quickCaptureSwitch).toBeChecked();
+		await expect(quickCaptureSwitch).toBeDisabled();
 	});
 
 	test('AK2: KI aus — „Säulen-Berater" fehlt in der Toolbar, keine Lektorat-Buttons im Formular', async ({ page }) => {
@@ -84,6 +92,21 @@ test.describe('#1080 KI-Features deaktivierbar', () => {
 		await headerAction(page, 'Neuen Task anlegen').then((button) => button.click());
 		await expect(page.getByRole('textbox', { name: 'Titel' })).toBeVisible();
 		await expect(page.getByRole('button', { name: /lektorieren/ })).toHaveCount(0);
+	});
+
+	test('AK2 (#1085): KI aus, Schnellerfassung gespeichert an — „Neuen Task anlegen" öffnet trotzdem das TaskForm', async ({
+		page,
+	}) => {
+		initPreferences(page, { aiEnabled: false, quickCaptureEnabled: true });
+
+		await page.goto('/');
+		await waitForStableView(page);
+
+		await headerAction(page, 'Neuen Task anlegen').then((button) => button.click());
+
+		// Kein Capture-Schritt (Beschreibungsfeld der Schnellerfassung), sondern das Task-Formular.
+		await expect(page.getByRole('textbox', { name: 'Titel' })).toBeVisible();
+		await expect(page.getByRole('textbox', { name: /Beschreibe/ })).toHaveCount(0);
 	});
 
 	test('AK2: KI aus — auch der Bearbeiten-Dialog enthält keine Lektorat-Buttons', async ({ page }) => {
@@ -166,10 +189,12 @@ test.describe('#1080 KI-Features deaktivierbar', () => {
 
 		const aiSwitch = switchControl(page, /^KI-Features aktiv$/);
 		const quickCaptureSwitch = switchControl(page, /^Schnellerfassung aktiv$/);
-		await aiSwitch.click();
+		// #1085: die Schnellerfassung zuerst umschalten — bei KI-aus wäre ihr Schalter disabled.
 		await quickCaptureSwitch.click();
-		await expect(aiSwitch).not.toBeChecked();
 		await expect(quickCaptureSwitch).not.toBeChecked();
+		await aiSwitch.click();
+		await expect(aiSwitch).not.toBeChecked();
+		await expect(quickCaptureSwitch).toBeDisabled();
 
 		await page.reload();
 		await waitForStableView(page, 'Priority Pilot');
@@ -220,9 +245,13 @@ test.describe('#1080 KI-Features deaktivierbar', () => {
 			expect(scrolled!.y + scrolled!.height).toBeLessThanOrEqual(812);
 
 			// Bedienbar: Umschalten ändert den Zustand (Assertion auf das native Input im Shadow-DOM,
-			// da der `kol-input-checkbox`-Host selbst weder Checkbox noch Rolle `switch` trägt).
+			// da der `kol-input-checkbox`-Host selbst weder Checkbox noch Rolle `switch` trägt). Je
+			// Schalter zurücksetzen — sonst würde der ausgeschaltete Hauptschalter (#1085) den
+			// Schnellerfassungs-Schalter im zweiten Durchlauf sperren.
 			await switches.nth(i).locator('input').click();
 			await expect(switches.nth(i).locator('input')).not.toBeChecked();
+			await switches.nth(i).locator('input').click();
+			await expect(switches.nth(i).locator('input')).toBeChecked();
 		}
 	});
 });
