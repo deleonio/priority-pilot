@@ -23,6 +23,12 @@
       "runId": "33121423613",
       "branch": "main",
       "timestamp": "2026-08-27T22:20:42Z"
+    },
+    "review": {
+      "sessionId": "f7beee5d-7d3f-4b0a-955a-d6b84a81e8dc",
+      "runId": "33134808570",
+      "branch": "feat/issue-1077-desktop-notification",
+      "timestamp": "2026-08-28T02:11:30Z"
     }
   }
 }
