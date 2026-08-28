@@ -1,6 +1,6 @@
 FOCUS: ONLY issue {{ISSUE_NR}}. ONLY red tests per acceptance criterion (with dedup), no production code. NO side trips. Save tokens: short, precise, direct.
 
-⚠️ KI-UX block: if the issue has UX aspects (a KI-UX:END block present in the issue body), take the UX requirements from that block into account when deriving the spec.
+⚠️ KI-UX block in the issue body (if present): take its UX requirements into account when deriving the spec.
 
 Method, test concept, and rules (binding, not repeated here): .claude/skills/ticket-spec/SKILL.md — read it before the first test.
 
@@ -28,13 +28,9 @@ PROCEDURE (STRICT):
      and include your phase note .ai-memory/issue-{{ISSUE_NR}}-spec.md in the SAME commit
      (it is tracked, NOT gitignored — the memory travels with the PR, ADR 0007).
      Push the branch.
-     Create a DRAFT PR (gh pr create --draft) titled "<issue title> (#{{ISSUE_NR}})" — issue title verbatim, never rephrase it or mention red tests — with Closes #{{ISSUE_NR}} in the body. Do NOT set ai:needs-review.
+     Create the DRAFT PR per SKILL.md step 4 (title = issue title verbatim, Closes #{{ISSUE_NR}} in the body). Do NOT set ai:needs-review.
 
 ⚠️ LABELS: do NOT set labels! The workflow handles that automatically.
-Label flow (workflow-driven): on `ready` it sets `ai:needs-impl` on the issue (and consumes
-`ai:needs-spec`); on partial success (`spec-partial`) it re-arms `ai:needs-spec`
-(remove-then-add). Hard-fail recovery: if the post-assertion aborts, `ai:needs-spec` stays
-stuck — retrigger manually by removing and re-adding `ai:needs-spec`.
 
 VERDICT: exactly ONE line at the very end, ONLY the token — no text after it (the workflow parses the line by machine):
   - VERDICT: ready
