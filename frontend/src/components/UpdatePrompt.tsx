@@ -1,5 +1,6 @@
 import { KolButton, KolCard } from '@public-ui/react-v19';
 import { useRegisterSW } from 'virtual:pwa-register/react';
+import { useRef } from 'react';
 
 /**
  * PWA-Update-/Offline-Hinweis (#373). Am unteren Viewport-Rand fixiert (`.update-prompt` in
@@ -22,6 +23,34 @@ export const UpdatePrompt = () => {
 		updateServiceWorker,
 	} = useRegisterSW();
 
+	// Reload-Fallback (#1095): `updateServiceWorker(true)` reloadet nur, wenn die interne
+	// Workbox-Kette (SKIP_WAITING → Aktivierung → `controlling`) vollständig durchläuft. Bricht
+	// sie in der installierten PWA ab, bleibt der Dialog offen und es passiert nichts. Die
+	// Bestätigung verdrahtet daher zusätzlich einen eigenen `controllerchange`-Listener, der den
+	// Reload garantiert auslöst. Die Registrierung erfolgt ausschließlich nach Bestätigung (kein
+	// Auto-Reload beim Mount) und nur einmalig — ein zweiter Klick darf keinen zweiten Listener
+	// erzeugen (bestätigtRef).
+	const bestätigtRef = useRef(false);
+	const reloadtRef = useRef(false);
+
+	const confirmUpdate = () => {
+		if (bestätigtRef.current) {
+			return;
+		}
+		bestätigtRef.current = true;
+		updateServiceWorker(true);
+		// Optional chaining: ohne Service-Worker-Unterstützung (z. B. unsicherer Kontext) gibt es
+		// keinen Controller-Wechsel — der Klick darf dann trotzdem nicht werfen.
+		navigator.serviceWorker?.addEventListener('controllerchange', () => {
+			// Idempotenz: mehrere Controller-Wechsel (Workbox-Pfad + eigener Fallback) → genau 1 Reload.
+			if (reloadtRef.current) {
+				return;
+			}
+			reloadtRef.current = true;
+			window.location.reload();
+		});
+	};
+
 	if (!needRefresh && !offlineReady) {
 		return null;
 	}
@@ -31,7 +60,7 @@ export const UpdatePrompt = () => {
 			{needRefresh && (
 				<KolCard _label="Neue Version verfügbar">
 					<p>Priority Pilot wurde aktualisiert. Lade die App neu, um die neue Version zu nutzen.</p>
-					<span data-testid="pwa-update-reload" onClick={() => updateServiceWorker(true)}>
+					<span data-testid="pwa-update-reload" onClick={confirmUpdate}>
 						<KolButton _label="Jetzt neu laden" _variant="primary" />
 					</span>
 				</KolCard>
