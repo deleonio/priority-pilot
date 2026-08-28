@@ -1,32 +1,36 @@
 ## Erledigt
-- Server GRÜN: `server/src/express/routes/geocodeSearch.ts` — `searchPhoton()` (AK1, GeoJSON `[lon,lat]`→`lat=coordinates[1]`, `lon=coordinates[0]`, `limit=5`, `accept-language=de`, Address aus properties name/street+housenumber/postcode+city) primär, `searchNominatim()` als Fallback (AK2); `null`-Konvention = Photon unbrauchbar → Fallback, 200 mit `features: []` = legitimes `[]` (AK3, kein Fallback). 9/9 Tests grün (`npx tsx --test src/express/geocode-search.test.ts`), `tsc --noEmit` clean.
-- `server/src/logics/nominatim.ts:14` + `reverseGeocode.ts:3,66` + `geocodeSearch.ts:55` → `isGeocodeRateLimited` (kein `isNominatimRateLimited` mehr in src/).
-- NOCH OFFEN (nicht committed): Frontend.
+- **Alle Spec-Tests GRÜN** (Frontend 72/72 in TaskForm.test.tsx + AddressAutocomplete.test.tsx, Server 9/9 geocode-search.test.ts).
+- Blocker aus dem Vorlauf behoben: `frontend/vitest.setup.ts:1-14` — `afterEach(cleanup)` ergänzt (`@testing-library/react` registriert Auto-Cleanup nur bei `globals: true`, das die Config nicht setzt → DOM-Stau → "Found multiple elements with the role combobox"). Test-Datei selbst NICHT angefasst.
+- `frontend/src/components/AddressAutocomplete.tsx` fertig: `aria-controls` zeigt auf einen Wrapper-`<div id={listId}>`, DER die listbox enthält (Test erwartet Container, nicht die listbox selbst); `onKeyDown` als React-Top-Level-Prop statt in `_on` (Mock-Kontrakt forwarded nur Top-Level-Props); neuer `dismissed`-State hält die Liste nach Auswahl/Escape zu; Escape schließt; Option reagiert auf mousedown UND click (Test nutzt `fireEvent.click`); `onSelect` optional (Test-Harness-Typ, tsc TS2322).
+- `frontend/src/components/TaskForm.tsx`: KolCombobox-Block (~955) durch `AddressAutocomplete` ersetzt; eigener `useAddressSearch`-Aufruf (Zeile 290) entfernt (Komponente sucht selbst, sonst doppelter Request gegen den 1-req/s-Limiter); `applyAddressCoords(hit)` setzt lat/lon, `onValueChange` cleared sie (Freitext = keine Koordinate, #1066-Vertrag); Imports `KolCombobox`/`useAddressSearch` entfernt.
+- Gate: format ✅, prettier --check ✅, knip ✅, frontend `tsc --noEmit` ✅. lint/test liefen davor rot (TS2322 bzw. pre-existing Redis) — **nach dem TS2322-Fix wurde lint/`pnpm test` GESAMT nicht erneut gefahren** (Soft-Deadline), nur `tsc --noEmit` grün.
+- e2e NICHT gefahren (Zeit) — `issue-1061-task-address.spec.ts` ist betroffen, muss im Review/CI nachlaufen.
 
 ## Relevante Stellen
-- `server/src/express/routes/geocodeSearch.ts:60-148` — neue Aufteilung Route→searchPhoton/searchNominatim.
-- `frontend/src/lib/useAddressSearch.ts:59-63` — `.catch` macht Fehler still leer; braucht `error: boolean` im Return (AK5 Zustände).
-- `frontend/src/components/TaskForm.tsx:290-299, 955-980` — `useAddressSearch` + `applyAddressCoords` + KolCombobox-Block; TaskForm.test.tsx:1424-1435 klickt `within(listbox).getByRole('option',{name:/München Hauptbahnhof/})` und erwartet `taskCreate.latitude === 48.1402` → Auswahl muss `form.current.latitude/longitude` setzen.
-- `frontend/src/components/AddressAutocomplete.test.tsx:21-49` — Mock-Kontrakt: `KolInputText` spreated `...rest` aufs native `<input>` → `role`/`aria-*`/`onKeyDown` werden durchgereicht; Option-`textContent` muss EXAKT die Adresse sein (Test 1 vergleicht Array-Gleichheit) → keine Text-Icons, Marker nur via CSS-Pseudo-Element.
+- `frontend/src/components/AddressAutocomplete.tsx` — neue Komponente, alle AK5/AK7-Anforderungen.
+- `frontend/src/components/TaskForm.tsx:949` — Einsatzstelle; `applyAddressCoords` (~288) Vertrag für AK6.
+- `frontend/vitest.setup.ts` — globaler RTL-Cleanup (Test-Infra).
+- `server/src/express/routes/geocodeSearch.ts` — searchPhoton/searchNominatim (bereits im Commit c6a61626).
 
 ## Annahmen
-- `AddressAutocomplete` ruft `useAddressSearch(value)` SELBST auf (Test mockt nur `../api`) → TaskForm darf nicht doppelt suchen (1-req/s-Limiter!) → TaskForm's eigener Hook-Zweig wird entfernt, Koordinaten kommen über `onSelect`.
-- Inline-`style` statt Tailwind (TaskForm nutzt durchgehend `style={{}}`, kein tailwind.config gefunden).
+- `onSelect` optional zu machen schwächt den Props-Vertrag nur formal — TaskForm übergibt ihn immer.
+- Der `dismissed`-State lässt nach einer Auswahl die Suche im Hintergrund weiterlaufen (ein entbehrlicher, debounce-geschützter Request); keine AK verlangt deren Abbruch.
 
 ## Verworfen
-- —
+- `globals: true` in vitest.config.ts als Cleanup-Fix — eingreifender (ändert globalThis-API für alle Tests), explizites `afterEach(cleanup)` ist enger begrenzt.
+- Auswahl-Abbruch des laufenden Requests in useAddressSearch — nicht AC-relevant, Scope halten.
 
 ## Offen
-- Frontend-Impl: `AddressAutocomplete.tsx` (neu), `useAddressSearch` Fehlerzustand, TaskForm-Block ersetzen — alles noch zu tun; Gate (format/prettier/lint/knip/test) + E2E + Commit/Push + `gh pr ready 1086` fehlen.
+- `pnpm lint` (full) und `pnpm test` (full) nach dem letzten Fix nicht erneut bestätigt; `pnpm test` blieb außerdem an `session.test.ts` „AK-5 — Redis-Store" hängen (pre-existing, umgebungsbedingt, siehe MEMORY.md 2026-08-27).
+- e2e `npx playwright test e2e/issue-1061-task-address.spec.ts` im `frontend`-Verzeichnis offen.
+- Playwright-MCP 375/1280-Layoutcheck offen (nur Unit-/E2E-Asserts vorhanden).
 
 ## Nächster Schritt
-- `AddressAutocomplete.tsx` bauen (Combobox-ARIA + listbox/option + 4 Zustände + Tastatur), dann TaskForm-Block ersetzen, dann Gate → `gh pr ready 1086`.
+- Follow-up-Run: `pnpm lint` + `pnpm test` (nur Redis-Test erwartet rot) + e2e `issue-1061-task-address.spec.ts` fahren, Ergebnis in den PR-Body (#1086) nachtragen.
 
 ## Fallstricke
-- `express.Response`-Typ: `searchNominatim` returnt statt `res.json` direkt — sonst kann der Fallback nicht in die gleiche Antwort geschrieben werden.
-- Server-Test-Log spuckt einen Stack für den `fail: true`-Photon-Mock (console.warn in searchPhoton) — harmlos, Test ist grün.
-- Pre-Commit-Hook (`tsc --noEmit` Frontend) läuft mit; solange `AddressAutocomplete.tsx` fehlt → TS2307 → `--no-verify` nötig (siehe Spec-Notiz).
-
-## Update (lauf-Ende, Soft-Deadline)
-- Frontend-COMPONENT vorhanden: `frontend/src/components/AddressAutocomplete.tsx` (KolInputText + eigene listbox/option, 4 Zustände, Tastatur, In-Flow-Liste, 44px, overflow-wrap:anywhere). `useAddressSearch` hat jetzt `error: boolean`.
-- **BLOCKER gefunden:** `frontend/src/components/AddressAutocomplete.test.tsx` — 5/6 Tests failen mit „Found multiple elements with the role combobox". Ursache: `vitest.config.ts` setzt KEIN `globals: true` und `vitest.setup.ts` registriert kein `cleanup()` → `@testing-library/react` kann den Auto-Cleanup-`afterEach` nicht registrieren → DOM häuft sich über die Tests der Datei an. Test 1 (kein getByRole('combobox')) grün, alle anderen rot. FIX = Test-Pflege (in `vitest.setup.ts` `afterEach(cleanup)` ergänzen ODER `globals: true` in vitest.config.ts) — Test-Datei selbst darf nicht angefasst werden → NOT-READY, Draft-PR bleibt Draft.
+- Der Mock-Kontrakt in AddressAutocomplete.test.tsx forwarded nur Top-Level-Props → alles, was kein `_`-Prop ist (auch `onKeyDown`), muss als React-Prop auf `KolInputText` landen, NICHT in `_on`.
+- `aria-controls` muss auf den CONTAINER zeigen; Test macht `within(getElementById(aria-controls)).getByRole('listbox')` — zeigt es auf die listbox selbst, findet `within` sie nicht.
+- Nach Auswahl/Escape muss die Liste ZU bleiben, obwohl `value` ≥ 3 Zeichen bleibt → ohne `dismissed` springt sie sofort wieder auf und der Test „Liste zu nach Auswahl" rotiert.
+- Option braucht `onClick` NEBEN `onMouseDown`: jsdom-`fireEvent.click` feuert kein mousedown.
+- `.ai-memory/issue-1083-prbody.md` ist ein Hilfsartefakt (PR-Body) und gehört NICHT in den Commit.
