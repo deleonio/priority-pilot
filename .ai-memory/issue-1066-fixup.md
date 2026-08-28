@@ -1,4 +1,4 @@
-# Issue 1066 — Fixup-Phase (2026-08-28, Run 1: F1–F5 committed+gepusht, GATE offen)
+# Issue 1066 — Fixup-Phase (2026-08-28, Run 2: Start NACH Deadline, keine Aktion — Stand = Run 1: F1–F5 committed+gepusht, GATE offen)
 
 ## Erledigt
 - Alle 5 Review-Findings (Sammelkommentar 5447797272) in Commit **c0735603** gefixt und gepusht (bbe80cf1..c0735603):
