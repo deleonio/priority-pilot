@@ -296,7 +296,7 @@ runs:
         for BRANCH in "ai/harness/${ISSUE_NR}" "ai/state/issue-${ISSUE_NR}"; do
           if git fetch --quiet origin "$BRANCH" 2>/dev/null \
              && git rev-parse --verify -q FETCH_HEAD >/dev/null 2>&1 \
-             && git restore --source=FETCH_HEAD --worktree -- .ai-memory ':(exclude).ai-memory/MEMORY.md'; then
+             && git restore --source=FETCH_HEAD --worktree -- .ai-memory ':(exclude).ai-memory/MEMORY.md' ':(exclude).ai-memory/state.json'; then
             found="true"
             SOURCE="$BRANCH"
             break
