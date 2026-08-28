@@ -3,7 +3,12 @@ name: Prompt-Audit (nightly)
 # Nächtlicher LLM-Job (wie die Phasen 01–06 über setup-claude, aber KEINE Pipeline-Phase):
 # Review der Phasen-Prompts der KI-Pipeline unter der Leitfrage: Wie lässt sich der
 # INITIALLE Token-Aufwand pro Phase minimieren, ohne dass Korrektheit, Vollständigkeit,
-# Präzision, Prägnanz, Klarheit oder Widerspruchsfreiheit leiden?
+# Präzision, Prägnanz, Klarheit oder Widerspruchsfreiheit leiden — und ohne dabei
+# Konkretisierung zu opfern? Effizienz wird NETTO über die Phasen-Kette gemessen: Je
+# konkreter ein Prompt die Umsetzung lenkt (Pfade, Befehle, Grenzen, erwartete Ausgaben),
+# desto weniger Folge-Turns (Klärung, Fixup, Review) verursacht er. Der Audit meldet daher
+# auch Funde, die Tokens hinzufügen, wenn die erwartete Ersparnis downstream die Mehrkosten
+# übersteigt (eine Fixup-Schleife ≈ 50 Turns).
 #
 # PRÜFOBJEKT: alle Prompts unter .github/prompts/ (Phasen-Prompts, Memory-Snippets
 # memory-{read,write}.md, Nightly-Helfer spec-sync/guide-sync/prompt-audit).

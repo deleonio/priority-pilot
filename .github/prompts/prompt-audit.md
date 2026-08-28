@@ -1,6 +1,6 @@
 FOCUS: review the AI pipeline's prompts for initial token cost. ONLY analysis + report — NO file changes, NO commit, NO label, NO issue (the workflow does that after you). Save tokens: short, precise, direct.
 
-FRAME (guiding question): how can the initial token cost per phase be minimized — without correctness, completeness, precision, concision, clarity, or freedom from contradiction suffering? The prompt is only ONE part of the initial context; duplication against the knowledge base counts toward the same total.
+FRAME (guiding question): how can tokens be spent most effectively per phase — initial cost minimized without correctness, completeness, precision, concision, clarity, or freedom from contradiction suffering, AND concreteness preserved wherever it pays off? The prompt is only ONE part of the initial context; duplication against the knowledge base counts toward the same total. The metric is NET cost over the whole phase chain, not the initial read alone: compression is only a win if the prompt stays equally actionable. Tokens that make the instruction concrete (target files, exact commands, boundaries, expected output, small examples) are the highest-leverage ones — a prompt vague enough to trigger one clarification round or fixup loop (~50 turns, measured, cf. .costs/) costs far more than hundreds of saved initial tokens. Cutting padding: good. Cutting specifics: regression, not saving.
 
 REVIEW TARGET (read it all yourself):
   1. CI prompts: all files under .github/prompts/ — phase prompts (triage, ux, spec, implement, fixup, review, documenter), memory snippets (memory-read.md, memory-write.md), and the nightly helper prompts (spec-sync, guide-sync, prompt-audit).
@@ -8,10 +8,11 @@ REVIEW TARGET (read it all yourself):
 
 REVIEW CRITERIA (per prompt):
   A. REDUNDANCY — is the content (whole sentences, rules, commands, templates) already in the SKILL.md of the same skill, in .ai-knowledge/, AGENTS.md, or verbatim in another prompt? → reference instead of repetition.
-  B. SHORTENABILITY — which paragraphs carry the same information content in half the length? Propose a concrete rewrite, name the estimated savings (bytes/lines).
+  B. SHORTENABILITY — which paragraphs carry the same information content in half the length? Propose a concrete rewrite, name the estimated savings (bytes/lines). Cut filler and verbal padding, NEVER concrete directives (paths, commands, values, boundaries, examples) — a rewrite that loses concreteness is a regression, not a saving.
   C. CONTRADICTION — does the prompt contradict other prompts, AGENTS.md, the knowledge base, or the workflow mechanics (label bans, verdict channels, soft deadline)?
   D. PRECISION/CLARITY — ambiguous or long-winded phrasing an agent could misunderstand.
   E. CORRECTNESS/COMPLETENESS — dead references (file doesn't exist), wrong commands, missing mandatory elements (verdict line, time limit, label ban).
+  F. CONCRETIZATION — the reverse lever: where does the prompt stay vague where a concrete instruction (target file, exact command, expected output format, boundary, small example) would let the executing phase hit the target in fewer turns? Such a finding may ADD initial tokens — it is valid if the expected downstream saving (avoided clarification/fixup/review rounds) clearly exceeds the added cost.
 
 ORDER: read ALL prompts first, THEN judge across them — finding contradictions needs the overview.
 
@@ -22,13 +23,13 @@ REPORT (MANDATORY): write via bash heredoc to /tmp/prompt-audit.md. The workflow
   ## Datei-Übersicht
   One table row per reviewed prompt: | Datei | 🟢|🟡|🔴 | Anzahl Funde | — clean files stay visible.
   ## Funde
-  ALL findings, sorted descending by expected saving (ties: severity). Per finding:
-  `### Rang <n> — <Datei> — <Kategorie>` (Redundanz|Kürzung|Widerspruch|Unklarheit|Fehler)
-  short quote — problem — concrete suggestion — expected saving — **Machbarkeit** (leicht/mittel/schwer) — **Aufwand** (geschätzte Stunden).
+  ALL findings, sorted descending by expected NET saving (ties: severity). NET saving = initial-token delta plus expected downstream effect (follow-up turns avoided or caused; one fixup loop ≈ 50 turns) — findings may save AND add tokens. Per finding:
+  `### Rang <n> — <Datei> — <Kategorie>` (Redundanz|Kürzung|Konkretisierung|Widerspruch|Unklarheit|Fehler)
+  short quote — problem — concrete suggestion — expected NET saving (initial delta + downstream effect) — **Machbarkeit** (leicht/mittel/schwer) — **Aufwand** (geschätzte Stunden).
   ## Widersprüche (quer über die Phasen)
   ONLY contradictions spanning multiple files; single-file contradictions stay in Funde.
   ## Optimierungsoptionen
-  1-3 self-contained packages bundling the important findings (never more than three).
+  1-3 self-contained packages bundling the important findings (never more than three; compression and concretization may share a package — each package states its net effect).
   Exactly ONE option marked **⭐ EMPFOHLEN** (one-sentence reason).
   Per option: Titel — betroffene Dateien — erwartete Ersparnis — Aufwand — Umsetzungsschritte.
   ## Entscheidung
