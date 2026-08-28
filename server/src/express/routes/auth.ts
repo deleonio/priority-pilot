@@ -1,4 +1,5 @@
 import { Router, type RequestHandler } from 'express';
+import rateLimit from 'express-rate-limit';
 import passport from 'passport';
 import { UniqueConstraintError } from 'sequelize';
 import { isEmailAllowed } from '../../logics/allowedEmails.js';
@@ -13,6 +14,17 @@ import { hasGoogleOAuth, isAuthActive } from '../requireAuth.js';
 const DUMMY_HASH = await hashPassword('__dummy__');
 
 const authRouter = Router();
+
+// Rate-Limit gegen Brute-Force auf Login/Register/OAuth (CodeQL js/missing-rate-limiting), nach
+// dem Muster des Transit-Limiters. Nur in Produktion aktiv — Dev/E2E wären sonst gedrosselt.
+const authLimiter = rateLimit({
+	windowMs: 60_000,
+	max: 30,
+	standardHeaders: true,
+	legacyHeaders: false,
+	skip: () => process.env.NODE_ENV !== 'production',
+});
+authRouter.use(authLimiter);
 
 // POST /auth/register — E-Mail-/Passwort-Registrierung (Issue #206, AK 1).
 // Legt einen neuen User an (409 bei bereits vergebener E-Mail), meldet ihn direkt

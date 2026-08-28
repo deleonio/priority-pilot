@@ -3,10 +3,12 @@ import { describe, expect, it, vi } from 'vitest';
 
 // vi.mock-Hoisting: Die Factory wird vor allen Imports ausgefuehrt, daher muessen
 // die Mock-Objekte ueber vi.hoisted() vorab deklariert werden.
-const { mockPOST, mockPATCH, mockDELETE } = vi.hoisted(() => ({
+const { mockPOST, mockPATCH, mockDELETE, mockUse } = vi.hoisted(() => ({
 	mockPOST: vi.fn(),
 	mockPATCH: vi.fn(),
 	mockDELETE: vi.fn(),
+	// CSRF-Middleware-Registrierung (api.ts ruft client.use() beim Import) — ohne Implementierung.
+	mockUse: vi.fn(),
 }));
 
 vi.mock('openapi-fetch', () => ({
@@ -14,6 +16,7 @@ vi.mock('openapi-fetch', () => ({
 		POST: mockPOST,
 		PATCH: mockPATCH,
 		DELETE: mockDELETE,
+		use: mockUse,
 	})),
 }));
 

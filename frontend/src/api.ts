@@ -36,6 +36,35 @@ import createClient from 'openapi-fetch';
 const baseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
 const client = createClient<paths>({ baseUrl });
 
+// CSRF-Schutz (Server: server/src/express/csrf.ts): Vor dem ersten schreibenden Aufruf holt der
+// Client einen Token von GET /auth/csrf und sendet ihn als `x-csrf-token`-Header mit. Bei 403
+// wird der Cache verworfen, damit der nächste Aufruf einen frischen Token holt.
+let csrfToken: string | null = null;
+
+const ensureCsrfToken = async (): Promise<string> => {
+	if (csrfToken === null) {
+		const response = await fetch(`${baseUrl}/auth/csrf`);
+		if (!response.ok) {
+			throw new Error(`CSRF-Token konnte nicht geladen werden (${response.status})`);
+		}
+		csrfToken = ((await response.json()) as { csrfToken: string }).csrfToken;
+	}
+	return csrfToken;
+};
+
+client.use({
+	onRequest: async ({ request }) => {
+		if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
+			request.headers.set('x-csrf-token', await ensureCsrfToken());
+		}
+	},
+	onResponse: ({ response }) => {
+		if (response.status === 403) {
+			csrfToken = null;
+		}
+	},
+});
+
 type RawTask = components['schemas']['Task'];
 type RawSeries = components['schemas']['Series'];
 type GeocodeSearchResultDto = components['schemas']['GeocodeSearchResult'];
@@ -287,7 +316,7 @@ export const api = {
 	async lektorat({ text, maxLength, signal }: { text: string; maxLength?: number } & Init): Promise<{ text: string }> {
 		const response = await fetch(`${baseUrl}/lektorat`, {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
+			headers: { 'Content-Type': 'application/json', 'x-csrf-token': await ensureCsrfToken() },
 			body: JSON.stringify({ text, maxLength }),
 			signal,
 		});
@@ -353,10 +382,15 @@ export const api = {
 	// der Aufrufer. Eigener fetch statt openapi-fetch, da /auth/* nicht in der OpenAPI-Spec steht —
 	// aber wie alle anderen Endpunkte unter dem proxied `/api/v1`-Präfix (s. checkAuth() in lib/auth.ts).
 	async logout(): Promise<void> {
-		const response = await fetch('/api/v1/auth/logout', { method: 'POST' });
+		const response = await fetch('/api/v1/auth/logout', {
+			method: 'POST',
+			headers: { 'x-csrf-token': await ensureCsrfToken() },
+		});
 		if (!response.ok) {
 			throw new Error(`Logout fehlgeschlagen (${response.status})`);
 		}
+		// Session ist serverseitig zerstört — den (an die alte Session gebundenen) Token verwerfen.
+		csrfToken = null;
 	},
 
 	// Materialisiert die bis `until` (inklusive) fälligen Instanzen einer Serie als eigenständige Tasks.
