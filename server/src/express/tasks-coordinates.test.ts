@@ -71,6 +71,16 @@ describe('Task-Koordinaten (#1066)', () => {
 		assert.equal(updated.longitude, null, 'Longitude muss geleert werden');
 	});
 
+	it('PATCH nur { latitude: null } setzt BEIDE auf null (paarweise Normalisierung, F1)', async () => {
+		const created = await post('/tasks', { title: 'Mit Standort', latitude: 48.137, longitude: 11.575 });
+		const { id } = (await created.json()) as { id: number };
+		const res = await patch(`/tasks/${id}`, { latitude: null });
+		assert.equal(res.status, 200);
+		const updated = (await res.json()) as { latitude: number | null; longitude: number | null };
+		assert.equal(updated.latitude, null, 'Latitude muss geleert werden');
+		assert.equal(updated.longitude, null, 'Longitude muss auch geleert werden (paarweise)');
+	});
+
 	it('latitude außerhalb [-90, 90] → 400', async () => {
 		const res = await post('/tasks', { title: 'Unmöglicher Ort', latitude: 91, longitude: 0 });
 		assert.equal(res.status, 400);
