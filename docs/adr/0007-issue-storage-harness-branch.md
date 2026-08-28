@@ -107,6 +107,20 @@ letzter Commit älter als 7 Tage. Der Sweep läuft über beide Prefixe (`ai/stat
   Phasen-Notiz-Prüfung warnt weiterhin, wenn eine Phase gar keinen Checkpoint schrieb.
 - Agenten-Commits können Storage-Dateien nicht „versehentlich" einschleusen — sie sollen
   es jetzt bewusst tun (Prompt-Instruktion); ein Vergessen fängt der Save-Step ab.
+- Der Save-Step committet nur Phasen-Notizen (`issue-{N}-<phase>.md`), nicht die
+  Body-/PR-Roundtrip-Fragmente (`-body.md`, `-block.md`, `-pr-body*.md`), die Phasen als
+  Write-Workaround anlegen — sie verfallen mit dem Runner.
+
+**Bekannte Kanten, bewusst in Kauf genommen:**
+
+- **Documenter-Klon:** Der Documenter läuft nach dem Merge — der Harness-Branch wurde von
+  `delete_branch_on_merge` bereits gelöscht. Sein Save-Step legt `ai/harness/{N}` neu auf
+  Basis von `origin/main` an (voller main-Baum + Documenter-Notiz); der Sweep räumt nach
+  7 Tagen. Kein zweiter Mechanismus für eine einmalige Notiz.
+- **Restore-Fallback-Kante:** Scheitert der Restore von `ai/harness/{N}` kontrollechnisch
+  (defekter Branch) und greift der Legacy-Fallback mit abweichendem Stand, kann der
+  `git switch` des Spec-Agenten auf untracked Dateien abbrechen. Die git-Fehlermeldung ist
+  eindeutig; der Agent löst das lokal (Dateien entfernen, erneut restaurieren).
 
 **Offen und ausdrücklich nicht behauptet:**
 

@@ -82,6 +82,11 @@ runs:
         # idempotent: schon committete Notizen erzeugen keinen zweiten Commit.
         staged=0
         notes=0
+        # Nur echte Phasen-Notizen committen (triage|ux|spec|implement|fixup|review|documenter)
+        # — NICHT die Body-/PR-Roundtrip-Fragmente (issue-{N}-body.md, -block.md, -pr-body*.md),
+        # die Phasen als Write-Workaround nebenbei anlegen (SKILL-Hinweis Triage/Spec). Sie
+        # bleiben lokal im Workspace und verfallen mit dem Runner (Kreuzverhör-Finding zum
+        # ersten ADR-0007-Commit: sonst reisten Arbeitsfragmente bis nach main).
         while IFS= read -r f; do
           [ -f "$f" ] || continue
           blob="$(git hash-object -w "$f")"
@@ -90,7 +95,8 @@ runs:
           if [ "$has_base" -eq 0 ] || [ "${old_hash[$f]:-}" != "$blob" ]; then
             notes=$((notes + 1))
           fi
-        done < <(find .ai-memory -maxdepth 1 -type f -name 'issue-*.md' 2>/dev/null)
+        done < <(find .ai-memory -maxdepth 1 -type f -name 'issue-*.md' 2>/dev/null \
+                   | grep -E '/issue-[0-9]+-(triage|ux|spec|implement|fixup|review|documenter)\.md$' || true)
         echo "new-notes=${notes}" >> "$GITHUB_OUTPUT"
 
         if [ "$staged" -eq 0 ]; then
