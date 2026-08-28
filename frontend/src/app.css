@@ -1553,6 +1553,38 @@ body {
 }
 
 /*
+ * #1080: Switch-Zeilen im Tab „KI-Provider" — gleiches Muster wie `.settings-switch-row` (#971),
+ * aber als eigene Klasse: Der #971-e2e-Guard zählt `.settings-switch-row` (genau 3 im Tab
+ * „Allgemein"), und `KolTabs` hält inaktive Panels gemountet, sodass die Zeilen hier sonst
+ * mitgezählt würden. Kein Full-Bleed nötig: `.settings-llm` trägt bewusst kein `padding-inline`.
+ */
+.settings-llm-switch-row {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem; /* 8dp */
+	width: auto;
+}
+
+@media (min-width: 768px) {
+	.settings-llm-switch-row {
+		flex-direction: row;
+		align-items: center;
+		gap: 1rem; /* 16dp */
+	}
+
+	.settings-llm-switch-row kol-input-checkbox[_variant='switch'] {
+		flex: 1 1 60%;
+		min-width: 0;
+	}
+
+	.settings-llm-switch-row kol-alert {
+		margin-left: auto; /* Alert nach rechts schieben */
+		flex: 0 1 40%;
+		max-width: 60%;
+	}
+}
+
+/*
  * #843 AK3: Typografie für deskriptiven Text.
  * Wir setzen --pp-text-muted auf #616161 für besseren Kontrast.
  * --pp-text-hint-font-size garantiert ≥16sp für deskriptive Texte.
