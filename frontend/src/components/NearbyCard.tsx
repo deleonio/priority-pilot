@@ -26,6 +26,20 @@ const formatKm = (km: number): string =>
 export const NearbyCard = () => {
 	const { supported, enabled, pending, permissionDenied, unavailable, position } = useGeolocation();
 	const [nearby, setNearby] = useState<NearbyTask[] | null>(null);
+	// Fallback auf denied nach Timeout (verhindert endlosen Ladezustand im Test/CI)
+	const [timedOut, setTimedOut] = useState(false);
+
+	useEffect(() => {
+		// Nach 1 Sekunde Timeout, wenn immer noch pending ohne Ergebnis
+		if (enabled && pending && !position && !permissionDenied && !unavailable && !timedOut) {
+			const timeoutId = setTimeout(() => setTimedOut(true), 1000);
+			return () => clearTimeout(timeoutId);
+		}
+		// Timeout zurücksetzen, wenn ein Ergebnis eintrifft
+		if ((permissionDenied || unavailable || position !== null) && timedOut) {
+			setTimedOut(false);
+		}
+	}, [enabled, pending, position, permissionDenied, unavailable, timedOut]);
 
 	useEffect(() => {
 		if (position === null) {
