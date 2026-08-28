@@ -1153,6 +1153,13 @@ body {
 	flex-shrink: 0;
 }
 
+/* --- Deadline-Gruppe im Task-Formular (#1072): Deadline(-Felder) + Auto-Lösch-Schalter
+   untereinander; die Adresse folgt erst danach (Separation über den form-grid-Gap) --- */
+.deadline-group {
+	display: grid;
+	gap: 0.75rem;
+}
+
 /* --- Säulen-Beiträge im Task-Formular (Mehrfach-Einzahlung) --- */
 .pillar-editor {
 	display: grid;
@@ -1687,6 +1694,13 @@ body {
 }
 
 @media (min-width: 768px) {
+	/* Desktop (#1077): unten rechts statt vollbreit — Cards schrumpfen auf Inhaltsbreite. */
+	.update-prompt {
+		left: auto;
+		max-width: 480px;
+		align-items: flex-end;
+	}
+
 	.update-prompt kol-card span[data-testid] {
 		display: inline;
 	}
