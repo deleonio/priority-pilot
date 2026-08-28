@@ -32,7 +32,18 @@ const GEO_INIT = (permission: 'granted' | 'denied', geoEnabled: boolean) => `
       clearWatch: () => {},
     };
     Object.defineProperty(navigator, 'geolocation', { value: mock, writable: true });
-    localStorage.setItem('pp-geolocation-enabled', String(${geoEnabled}));
+    // Präferenz pinnen: useGeolocation schreibt bei code-1-Fehlern 'false' zurück (storeGeolocation-
+    // Preference). Auf langsamen Runnern (CI) kann diese frühe Instanz-Schreiberei erfolgen, BEVOR die
+    // NearbyCard-Instanz ihren initialen State liest — die Card startete dann mit enabled=false und
+    // zeigte dauerhaft nearby-preference-off statt nearby-denied (Rennlauf, s. AK4). Schreibversuche
+    // auf genau diesen Schlüssel werden daher ignoriert: Die Card soll die Verweigerung über ihren
+    // EIGENEN Fetch erleben — genau das ist der AK4-Vertrag.
+    const PREF_KEY = 'pp-geolocation-enabled';
+    const nativeSetItem = localStorage.setItem.bind(localStorage);
+    localStorage.setItem = (key, value) => {
+      if (key !== PREF_KEY) nativeSetItem(key, value);
+    };
+    nativeSetItem(PREF_KEY, String(${geoEnabled}));
   })();`;
 
 /** Legt einen Task optional mit Koordinaten über die echte API an; gibt die `id` zurück. */
