@@ -1,5 +1,7 @@
 # Spec: Settings KI deaktivierbar (#1080)
 
+**Stand:** 2026-08-28
+
 ## Ziel
 
 Im Settings-Tab „KI-Provider" gibt es zwei voneinander unabhängige, clientseitig persistierte
@@ -23,9 +25,11 @@ Task-Formular statt des Capture-Schritts.
   Eintrag → Default. Server-Endpunkte bleiben erreichbar — die Deaktivierung ist reine
   UI-Ausblendung, keine API-Änderung.
 - Schalter im Tab „KI-Provider" (`SettingsPage.tsx`, `div.settings-llm`) als
-  `KolInputCheckbox _variant="switch"` in bestehenden `.settings-switch-row`-Zeilen (#971) —
-  **positiv** formuliert (KI-UX-Empfehlung: Switch-an = Funktion-da), Reihenfolge Hauptschalter →
-  Hinweis-Alert → Schnellerfassung-Option.
+  `KolInputCheckbox _variant="switch"` in `.settings-llm-switch-row`-Zeilen (analoges Muster zu
+  `.settings-switch-row` im Tab „Allgemein", #971, aber eigene Klasse: der #971-e2e-Guard zählt
+  `.settings-switch-row`-Vorkommen im Tab „Allgemein", und `KolTabs` hält inaktive Panels
+  gemountet) — **positiv** formuliert (KI-UX-Empfehlung: Switch-an = Funktion-da), Reihenfolge
+  Hauptschalter → Hinweis-Alert → Schnellerfassung-Option.
 
 ## Verhalten (AK1–AK6)
 

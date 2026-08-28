@@ -1,5 +1,7 @@
 # Spec #1066 — Dashboard-Card „In der Nähe“: max. 10 Tasks nach Geo-Distanz
 
+**Stand:** 2026-08-28
+
 Ziel: Wege-Erledigungen sichtbar machen. Ein Standort wird ausschließlich als Koordinate
 (`latitude`/`longitude`) gespeichert (bindende Entscheidung, Ticket-Autor 27.08.) und im UI immer
 aus den Koordinaten per Reverse-Geocoding aufgelöst. Das Dashboard erhält eine Card „In der
@@ -7,15 +9,16 @@ Nähe“ mit den bis zu 10 nächsten offenen Tasks.
 
 ## Datenmodell & Persistenz
 
-- Tasks und Serien erhalten die nullable Spalten `latitude` (REAL) und `longitude` (REAL) neben
+- Tasks und Serien erhalten die nullable Spalten `latitude` (FLOAT) und `longitude` (FLOAT) neben
   `address`; Migrations-Nachzug analog `address` (`server/src/logics/migrate.ts`). Bestand bleibt
   `NULL` (kein Bulk-Geocoding — kein Scope).
 - **AK1** Task-Anlage/Änderung mit Koordinaten: POST/PATCH `/tasks` akzeptieren `latitude`/
   `longitude` als Zahl (lat ∈ [-90, 90], lon ∈ [-180, 180], sonst 400), speichern beide Werte und
   liefern sie in GET/POST/PATCH-Responses zurück. `address` bleibt dabei unangetastet — es gibt
   **keinen** Adress-String als Geo-Datensatz.
-- **AK1** Leeren des Standorts (`latitude: null` und/oder `longitude: null`) setzt **beide** Werte
-  auf `NULL`.
+- **AK1** `latitude`/`longitude` sind ein Paar: Ein POST/PATCH, das nur eines der beiden Felder
+  sendet (als `null` oder als Zahl), normalisiert **beide** Werte auf `NULL` — nur ein Request mit
+  gültigen Werten für beide Felder speichert eine Koordinate.
 - **AK10** Freitext-Adresse ohne gewählten Vorschlag: `address` gesetzt, keine Koordinate → Task
   lässt sich speichern (kein Validierungsfehler), trägt `latitude === null` und erscheint nicht in
   der Card.
@@ -64,8 +67,8 @@ Test-Anker (Vertrag für Impl und Tests): `data-testid="nearby-card"` (Card),
   erst geholt, wenn die Präferenz an ist **und** die Card gerendert ist — kein Prompt beim
   reinen Dashboard-Aufruf, kein 5-Minuten-Intervall auf dem Dashboard.
 - **AK11** Adressen im UI stammen aus Reverse-Geocoding der Koordinaten. Für `GeoBadge`
-  (`aria-label`) gilt: niemals Rohkoordinaten — bei erfolgreicher Auflösung der Kurzort, sonst
-  neutrales „Standort gesetzt“/„Adresse nicht verfügbar“; kein Fehlerzustand.
+  (`aria-label`, Format `Standort: <Adresse>`) gilt: niemals Rohkoordinaten — bei erfolgreicher
+  Auflösung der Kurzort, sonst neutrales „Adresse nicht verfügbar“; kein Fehlerzustand.
 
 ## Vorbedingungen
 
@@ -82,7 +85,3 @@ Test-Anker (Vertrag für Impl und Tests): `data-testid="nearby-card"` (Card),
 | AK1 (Frontend)                | `frontend/src/lib/useAddressSearch.test.ts` (Vorschläge tragen lat/lon) |
 | AK2, AK4, AK5, AK8, AK9, AK11 | `frontend/e2e/issue-1066-nearby-card.spec.ts`                           |
 
-## Offene Fragen (an Impl/Review)
-
-- Wortlaut der Leer-/Hinweistexte (Anker sind die `data-testid`s, nicht die Texte) — final in der
-  Implementierung, im Zweifel mit UX abstimmen.

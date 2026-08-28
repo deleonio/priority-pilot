@@ -1,6 +1,6 @@
 # User Journeys – Priority Pilot
 
-**Stand:** 2026-08-27  
+**Stand:** 2026-08-28  
 **Ziel:** Reale Nutzerabläufe als Spezifikation des Ist-Zustands.
 
 Diese Journeys beschreiben **von außen sichtbares Verhalten** der laufenden Priority Pilot App. Sie sind die referenzierbare Quelle für neue Tests, implementierungsagnostisch und auf reale Abläufe fokussiert.
@@ -17,6 +17,7 @@ Neue Aufgabe in das System aufnehmen, mit allen relevanten Metadaten (Priorität
 
 - Nutzer ist angemeldet
 - Dashboard oder Aufgaben-Tab ist geöffnet
+- Die Einstellung „Schnellerfassung aktiv" ist eingeschaltet (Standard: an); ist sie ausgeschaltet, öffnet „Neuen Task anlegen" direkt das leere Formular ohne den Erfassungs-Schritt (Option A/B entfallen dann)
 
 ### Schritte
 
@@ -94,6 +95,7 @@ Zwei Aufgaben so verknüpfen, dass eine Aufgabe vom Erledigen der anderen abhän
 - Im Aufgaben-Baum ist der Vorgänger (die Unteraufgabe) eingerückt unter der abhängigen (Eltern-)Aufgabe sichtbar
 - Die abhängige Aufgabe lässt sich erst erledigen, wenn der Vorgänger „Done" ist
 - Zyklische Abhängigkeiten werden mit einem Hinweis abgelehnt (z. B. A → B → A)
+- Die Liste „Aktuelle Vorgänger" im Abhängigkeits-Dialog basiert auf dem Aufgabenwald und zeigt nur Vorgänger mit Status „Offen"/„In Bearbeitung"; ist ein Vorgänger bereits „Done", verschwindet er aus dieser Liste (die Abhängigkeit selbst bleibt gespeichert)
 
 ---
 
@@ -194,6 +196,7 @@ _Wert-Berechnung als beobachtbarer Effekt – ohne interne Formel:_
 | Aufgabe ohne Vorgänger                     | Im Abhängigkeits-Dialog: „Dieser Task hat keine Vorgänger."                                                |
 | Keine weiteren Tasks als Vorgänger wählbar | Hinweis: „Kein weiterer Task verfügbar, der als Vorgänger hinzugefügt werden könnte."                      |
 | Zyklische Abhängigkeit (z. B. A → B → A)   | Wird zurückgewiesen (HTTP 409): „… Es würde ein Zyklus entstehen."                                         |
+| Aufgabe mit offenen Unteraufgaben (Vorgängern) auf „Erledigt" setzen | Wird zurückgewiesen (HTTP 409): „Der Task kann nicht auf „Erledigt" gesetzt werden, solange noch offene Unteraufgaben existieren." |
 | Titel fehlt beim Anlegen                   | „Bitte einen Titel angeben."                                                                               |
 | Titel länger als 30 Zeichen                | „Titel darf maximal 30 Zeichen haben." (Eingabe wird blockiert)                                            |
 | Kantengewicht außerhalb 0,1–1              | „Das Gewicht muss eine Zahl zwischen 0,1 und 1 sein."                                                      |

@@ -1,6 +1,6 @@
 # Spec #933 — Geolokation manuell anstoßen und aktuelle Adresse stets sichtbar
 
-**Stand:** 2026-08-27
+**Stand:** 2026-08-28
 
 ## Ziel
 
@@ -20,6 +20,6 @@ Der Nutzer kann in den Einstellungen (Tab „Allgemein", Abschnitt „Standort e
 
 ## Erwartetes Ergebnis
 
-- Bei aktivierter Standorterfassung existiert genau dieser eine zusätzliche Test-Schalter pro Abschnitt
+- Bei aktivierter Standorterfassung erscheint zusätzlich zum Aktivierungsschalter genau ein Button „Standort jetzt ermitteln"
 - Adressanzeige und Zeitstempel aktualisieren sich ohne weiteren Interaktionsschritt
 - Fehler bei der Adressermittlung (Rate-Limit, Timeout) fallen auf „Keine Adresse für diesen Standort" zurück, ohne die Positionserfassung zu stören

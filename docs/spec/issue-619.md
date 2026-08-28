@@ -1,6 +1,6 @@
 # Startup-Fehlerbehandlung – Priority Pilot
 
-**Stand:** 2026-08-27
+**Stand:** 2026-08-28
 
 ## Journey: Kritischen Startup-Fehler sauber beenden
 
@@ -47,7 +47,7 @@ Bei kritischen Startup-Fehlern beendet sich der Server-Prozess sofort mit Exit-C
 
 | Situation                   | Erwartetes Verhalten       |
 | --------------------------- | -------------------------- |
-| Ungültige `DATABASE_URL`    | Log + Exit-Code 1          |
+| Ungültige/leere `DATABASE_STORAGE` | Log + Exit-Code 1   |
 | Port belegt                 | Log + Exit-Code 1          |
 | Rejected Promise beim Start | Log + Exit-Code 1          |
 | Nicht gefangene Exception   | Log + Exit-Code 1          |
