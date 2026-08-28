@@ -57,9 +57,9 @@ describe('useAddressSearch – Debounce, Mindestlänge, Überholschutz', () => {
 		expect(result.current.suggestions).toEqual([]);
 	});
 
-	it('Debounce: schnelle Eingaben führen zu genau einer Anfrage mit dem letzten Text', () => {
+	it('Debounce: schnelle Eingaben führen zu genau einer Anfrage mit dem letzten Text', async () => {
 		geocodeSearchMock.mockResolvedValue([]);
-		const { rerender } = renderHook((q: string) => useAddressSearch(q), { initialProps: '' });
+		const { result, rerender } = renderHook((q: string) => useAddressSearch(q), { initialProps: '' });
 
 		rerender('Mus');
 		act(() => {
@@ -70,8 +70,15 @@ describe('useAddressSearch – Debounce, Mindestlänge, Überholschutz', () => {
 			vi.advanceTimersByTime(400);
 		});
 
+		// Behavior-Check: Nur eine Anfrage mit dem letzten Text wurde ausgelöst
 		expect(geocodeSearchMock).toHaveBeenCalledTimes(1);
 		expect(geocodeSearchMock).toHaveBeenCalledWith({ q: 'Muster', signal: expect.any(AbortSignal) });
+		// Observable Outcome: State zeigt leere Vorschläge (da Mock [] zurückgibt)
+		await act(async () => {
+			await Promise.resolve();
+		});
+		expect(result.current.suggestions).toEqual([]);
+		expect(result.current.loading).toBe(false);
 	});
 
 	it('Überholschutz: Anfrage wird bei Textwechsel abgebrochen, späte Antwort verworfen', async () => {
