@@ -9,49 +9,44 @@
   Sektionen Behobene Anmerkungen (leer) / Entscheidungs-Findings (keine) / Offene Findings (F1, F2).
 - Title-Gate: PR umbenannt → `feat(frontend): make ai features disableable (#1080)` (war
   „Settings KI deaktivierbar (#1080)“, kein Conventional Commit).
-- CI bei Review-Zeit: precheck/verify SUCCESS, review + e2e(1..4) laufen noch (kein Abschluss-🟢 nötig,
-  da needs-fixup).
+- **Fixup-Nachweis (Runde 2, 2026-08-28)**: MODE=Fixup-Verifikation (Marker vorhanden, updatedAt
+  04:25:25Z). Nur Commit `3dedd201` (04:38:11) geprüft: App.tsx liest `readAiPreferences()` im
+  Renderkörper statt `useAiPreferences()`-State (F1 ✅), 2 neue e2e (AK2 Live-Apply nach „Zurück“,
+  AK4 Berater-Übernahme-Prefill mit `toHaveValue('Spaziergang am Fluss')`) (F2 ✅). Beide Tests
+  nicht tautologisch (F1-Test scheitert am alten gepufferten Zustand). CI auf 3dedd201: verify ✅,
+  e2e (1)–(4) ✅ (Run 33142386683, headSha verifiziert). Sammelkommentar 5448425575 per PATCH
+  aktualisiert: F1/F2 in Behobene Anmerkungen, verdict **reviewed**, Footer „Review-Typ:
+  Fixup-Nachweis“. Body-Datei: `.ai-memory/issue-1080-review-comment.md`.
 
 ## Relevante Stellen
-- `frontend/src/App.tsx:411` + `App.tsx:478` (`if (showSettings)`) + `closeSettings` — App bleibt beim
-  Settings-Besuch gemountet; `useAiPreferences()`-State in App ist stale → F1 (wirkt erst nach Reload).
-- `frontend/src/components/SettingsPage.tsx:418` — eigene Hook-Instanz, Toggle ändert nur ihren State.
-- `frontend/src/lib/aiPreferences.ts` — Muster voiceAutostart korrekt; `useAiPreferences` nur für
-  SettingsPage sinnvoll statebehaftet.
-- `frontend/src/components/TaskForm.tsx:228` — `useMemo(() => readAiPreferences(), [])`: pro Dialog-Mount
-  gelesen → von F1 NICHT betroffen (bewusst so belassen).
-- `frontend/e2e/ai-disable.spec.ts:114` (AK4-Test) — nur Toolbar-Einstieg; Berater-Prefill
-  `initialText` → `initialValues.description` (#327) wird nirgends geassertet → F2.
-- Positiv geprüft: `.settings-llm-switch-row` mit `min-width`-Query (Mobile-first), keine
-  `max-width`-Downgrades; Ausblendung per Nicht-Render (kein Fokus-Leak); #971-Count-Guard-Umgehung
-  im Code + PR-Body begründet; Spec-Testkorrekturen (status 'Open', Navigationsschritte,
-  Shadow-DOM-Input) im PR-Body dokumentiert → keine Separation-of-Duties-Verletzung.
+- `frontend/src/App.tsx:415` — `readAiPreferences()` im Renderkörper (Fixup); Begründung 408-414
+  im Kommentar dokumentiert (kein Remount beim „Zurück“, daher kein gepufferter State).
+- `frontend/e2e/ai-disable.spec.ts:127` (AK4-Prefill) und `:181` (AK2 Live-Apply) — neue Fixup-Tests.
+- `frontend/src/lib/aiPreferences.ts:33` — `readAiPreferences` best-effort (try/catch je Key),
+  Renderkörper-Read damit unkritisch.
+- `frontend/src/components/SettingsPage.tsx:81` / `TaskForm.tsx:229` — eigene Hook-Instanz bzw.
+  Mount-Read, von F1 unberührt.
 
 ## Annahmen
-- F1 ist real: kein `key`-Remount von App, keine storage-Event-Subscription (per Lesezugriff auf
-  App.tsx verifiziert; nicht im Browser ausgeführt).
-- Defaults = Status quo halten bestehende e2e grün (Impl-Phase hat quick-capture/lektorat
-  erfolgreich laufen lassen).
+- e2e-Shards decken `ai-disable.spec.ts` ab (4 Shards grün auf 3dedd201) — neue Tests nicht lokal
+  nachgelaufen, nur CI-Ergebnis + Diff-Lektüre.
 
 ## Verworfen
-- Architektur-Finding „KI-Ausblendung nur clientseitig, Server-Endpunkte offen“ — von AKs explizit
-  gedeckt (reine UI-Ausblendung, im Issue-Analyseblock + Spec dokumentiert).
-- Eigenes CSS statt `.settings-switch-row` — bewusst wegen #971-Guard, begründet, kein Finding.
-- AK2-Wortlaut-Irrtum im AK-Text („Ist der Hauptschalter **aktiv** … nicht gerendert“ = Tippfehler
-  im Issue, gemeint „deaktiviert“) — nicht als Finding geführt.
+- Architektur-Finding „KI-Ausblendung nur clientseitig“ — von AKs gedeckt (Runde 1).
+- „localStorage-Read je Render = Impurity-Finding“ — bewusst gewählt, im Code kommentiert, kein
+  Re-Render-Fehlerpfad (Settings-Toggle triggert selbst Re-Render).
+- Neuer Full-Diff-Walk in Runde 2 — Diff-Scoping gemäß SKILL.md step 5.
 
 ## Offen
-- Fixup für F1 + F2 steht aus; danach Fixup-Nachweis-Runde (MODE wechselt, da ai-review-Kommentar
-  jetzt existiert → Diff-Scoping ab `updatedAt` des Sammelkommentars).
+- -
 
 ## Nächster Schritt
-- Fixup implementiert F1 (Präferenz-Read in App render-frisch machen, z. B. `readAiPreferences()`
-  im Renderkörper) + F2 (Prefill-Assertion); danach Fixup-Nachweis-Review nur gegen diese Stellen.
+- Merge durch Mensch/Gate (verdict reviewed abgelegt); keine weitere Review-Runde nötig.
 
 ## Fallstricke
 - `gh api .../reviews -f body=… -F comments=…` splittert bei Inline-JSON → **JSON-Payload-Datei +
   `--input`** verwenden (hat hier funktioniert).
 - `gh pr edit` hat kein `--jq` Flag.
-- F1 ist leicht zu übersehen: Unit-Tests und alle e2e setzen die Präferenz VOR dem Laden — der
-  Live-Apply-Pfad (Toggle → Zurück) ist testseitig ungedeckt; im Fixup den e2e-Fall mitliefern.
-- Findings-Nummern F1/F2 stabil halten für die Fixup-Nachweis-Runde.
+- `gh pr checks` listet `review pending` (ist dieser Lauf selbst) — grün-Bewertung nur auf
+  verify/e2e beziehen, Run-headSha gegen den Fixup-Commit gegenprüfen.
+- Findings-Nummern F1/F2 stabil halten (in Runde 2 als erledigt übernommen, nicht neu nummeriert).
