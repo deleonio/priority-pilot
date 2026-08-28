@@ -33,6 +33,11 @@ class Series extends Model {
 	// jede Instanz vererbt. Nullable — die meisten Serien haben keinen Ortsbezug.
 	public address?: string | null;
 
+	// Standort-Koordinaten des Serien-Orts (#1066): werden wie `address` beim Generieren als
+	// Snapshot auf jede Instanz vererbt. Nullable — die meisten Serien haben keinen Ortsbezug.
+	public latitude?: number | null;
+	public longitude?: number | null;
+
 	// Auto-Löschung bei verpasster Deadline (Issue #523): wird beim Generieren auf jede Instanz
 	// vererbt, sodass die Cron-Löschlogik auch für Serien-Aufgaben greift. Default `false`.
 	public autoDeleteAfterDeadline!: boolean;
@@ -129,6 +134,26 @@ Series.init(
 			type: DataTypes.STRING(255),
 			allowNull: true,
 			defaultValue: null,
+		},
+		// Standort-Koordinaten des Serien-Orts (#1066), analog `Task.latitude/longitude`. Nullable;
+		// Bestand ohne Koordinaten bleibt `NULL`.
+		latitude: {
+			type: DataTypes.FLOAT,
+			allowNull: true,
+			defaultValue: null,
+			validate: {
+				min: -90,
+				max: 90,
+			},
+		},
+		longitude: {
+			type: DataTypes.FLOAT,
+			allowNull: true,
+			defaultValue: null,
+			validate: {
+				min: -180,
+				max: 180,
+			},
 		},
 		// Auto-Löschung bei verpasster Deadline (Issue #523). Default `false`; beim Generieren vererbt.
 		autoDeleteAfterDeadline: {

@@ -1,4 +1,5 @@
 import { KolBadge, KolButton, KolCard, KolMeter } from '@public-ui/react-v19';
+import { NearbyCard } from './NearbyCard';
 import type { Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useMemo } from 'react';
@@ -213,6 +214,12 @@ export const Dashboard = ({
 					</ol>
 				)}
 			</section>
+			{/*
+			 * #1066: „In der Nähe" — Distanzliste unter der Vorschlagsliste. Wie die anderen
+			 * Sekundär-Widgets ohne Signal-Färbung; die Signalfläche gehört allein der
+			 * „Nächste Aufgabe"-Zeile (KI-UX-Platzierungsempfehlung).
+			 */}
+			<NearbyCard />
 			<section className="dashboard-top-tasks">
 				<h3>Wichtigste Tasks</h3>
 				{topTasks.length === 0 ? (

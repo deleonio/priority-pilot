@@ -100,12 +100,13 @@ describe('useAddressSearch – Debounce, Mindestlänge, Überholschutz', () => {
 		});
 		expect(result.current.suggestions).toEqual([]);
 
-		// … die Antwort der aktuellen Anfrage schon.
+		// … die Antwort der aktuellen Anfrage schon. (#1066 AK1: Vorschläge sind Objekte mit lat/lon —
+		// alte String-Erwartung Test-pflegebedürftig geändert, siehe PR-Body „Test-Pflege-Bedarf".)
 		await act(async () => {
 			second.resolve(results(['Neu']));
 			await Promise.resolve();
 		});
-		expect(result.current.suggestions).toEqual(['Neu']);
+		expect(result.current.suggestions).toEqual(results(['Neu']));
 	});
 
 	it('Unmount: laufende Anfrage wird abgebrochen statt bis zum Timeout weiterzulaufen', () => {
@@ -121,5 +122,39 @@ describe('useAddressSearch – Debounce, Mindestlänge, Überholschutz', () => {
 
 		unmount();
 		expect(signal?.aborted).toBe(true);
+	});
+});
+
+// Rote Spec-Tests für #1066 (AK1, Spec docs/spec/issue-1066.md): Vorschläge tragen die
+// Koordinaten des Treffers, damit die Auswahl im TaskForm lat/lon übernehmen kann. Heute wirft
+// der Hook die Koordinaten weg (`results.map((entry) => entry.address)`) — genau der Defekt des
+// Tickets. KEIN Produktivcode.
+describe('useAddressSearch – Vorschläge tragen lat/lon (#1066, AK1)', () => {
+	beforeEach(() => {
+		vi.useFakeTimers();
+		vi.clearAllMocks();
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	it('jeder Vorschlag ist { address, lat, lon } — die Koordinate geht bei der Auswahl nicht verloren', async () => {
+		geocodeSearchMock.mockResolvedValue([
+			{ address: 'Alexanderplatz, Berlin', lat: 52.5219, lon: 13.4132 },
+			{ address: 'Hauptbahnhof, Berlin', lat: 52.5251, lon: 13.3694 },
+		]);
+		const { result, rerender } = renderHook((q: string) => useAddressSearch(q), { initialProps: '' });
+
+		rerender('Alexanderplatz');
+		await act(async () => {
+			vi.advanceTimersByTime(400);
+			await Promise.resolve();
+		});
+
+		expect(result.current.suggestions).toEqual([
+			{ address: 'Alexanderplatz, Berlin', lat: 52.5219, lon: 13.4132 },
+			{ address: 'Hauptbahnhof, Berlin', lat: 52.5251, lon: 13.3694 },
+		]);
 	});
 });

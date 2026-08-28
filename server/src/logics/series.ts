@@ -140,6 +140,10 @@ export const generateDueInstances = async (series: Series, options: GenerateOpti
 			// #1063: Serien-Ortsbezug wird als Snapshot auf jede Instanz vererbt (Semantik wie
 			// `description`): Template-Änderungen wirken nur auf künftige Instanzen.
 			address: series.address ?? null,
+			// #1066: Koordinaten-Snapshot analog `address` — Koordinaten sind stabil, spätere
+			// Template-Änderungen wirken nur auf künftige Instanzen (#553-Muster).
+			latitude: series.latitude ?? null,
+			longitude: series.longitude ?? null,
 			deadline: occurrence,
 			seriesId: series.id,
 			seriesOccurrence: occurrence,

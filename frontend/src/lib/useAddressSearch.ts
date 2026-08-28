@@ -7,9 +7,16 @@ const DEBOUNCE_MS = 400;
 /** Suchtext muss mindestens so lang sein, bevor eine Anfrage rausgeht (vermeidet Rauschen bei 1–2 Zeichen). */
 const MIN_QUERY_LENGTH = 3;
 
+/** Adress-Vorschlag mit den Koordinaten des Treffers (#1066 AK1): die Auswahl übernimmt lat/lon. */
+export interface AddressSuggestion {
+	address: string;
+	lat: number;
+	lon: number;
+}
+
 interface UseAddressSearchResult {
 	/** Adress-Vorschläge zum aktuellen Suchtext (leer, solange nichts passendes gefunden/gesucht wurde). */
-	suggestions: string[];
+	suggestions: AddressSuggestion[];
 	/** Ob gerade eine Suche läuft. */
 	loading: boolean;
 }
@@ -20,7 +27,7 @@ interface UseAddressSearchResult {
  * ändert (kein Flackern durch spät eintreffende Antworten auf einen bereits überholten Text).
  */
 export const useAddressSearch = (query: string): UseAddressSearchResult => {
-	const [suggestions, setSuggestions] = useState<string[]>([]);
+	const [suggestions, setSuggestions] = useState<AddressSuggestion[]>([]);
 	const [loading, setLoading] = useState(false);
 	const abortRef = useRef<AbortController | null>(null);
 
@@ -44,7 +51,9 @@ export const useAddressSearch = (query: string): UseAddressSearchResult => {
 				.geocodeSearch({ q: trimmed, signal: current.signal })
 				.then((results) => {
 					if (!current.signal.aborted) {
-						setSuggestions(results.map((entry) => entry.address));
+						// #1066 AK1: Koordinaten mitführen — vormals warf `map(entry => entry.address)`
+						// die Koordinaten weg und die Auswahl konnte lat/lon nicht übernehmen.
+						setSuggestions(results.map((entry) => ({ address: entry.address, lat: entry.lat, lon: entry.lon })));
 					}
 				})
 				.catch(() => {

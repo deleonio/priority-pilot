@@ -9,6 +9,7 @@ import type {
 	LlmProviderTestResult,
 	LlmProviderInput,
 	LlmProviderUpdate,
+	NearbyTask,
 	ParsedTask,
 	paths,
 	PillarCreate,
@@ -535,5 +536,19 @@ export const api = {
 			throw new ResponseError(response, error);
 		}
 		return data as GeocodeSearchResultDto[];
+	},
+
+	// --- Aufgaben in der Nähe (#1066) ---
+
+	// Offene Tasks mit Koordinaten, aufsteigend nach Distanz zur Position (max. 10, serverseitig sortiert).
+	async listNearbyTasks({ lat, lon, signal }: { lat: number; lon: number } & Init): Promise<NearbyTask[]> {
+		const { data, error, response } = await client.GET('/tasks/nearby', {
+			params: { query: { lat, lon } },
+			signal,
+		});
+		if (!response.ok || data === undefined) {
+			throw new ResponseError(response, error);
+		}
+		return data as NearbyTask[];
 	},
 };

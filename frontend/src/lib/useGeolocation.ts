@@ -45,6 +45,8 @@ interface UseGeolocationResult {
 	pending: boolean;
 	/** Ob die Berechtigung verweigert wurde. */
 	permissionDenied: boolean;
+	/** Ob die letzte Positionsermittlung technisch scheiterte (Timeout/nicht verfügbar) — das Intervall retryt. */
+	unavailable: boolean;
 	/** Aktuelle Position (oder null). */
 	position: GeolocationPosition | null;
 	/** Aktuelle Adresse (oder null/leer bei Fehler/Rate-Limit). */
@@ -69,6 +71,7 @@ export const useGeolocation = (): UseGeolocationResult => {
 	const [enabled, setEnabled] = useState(readGeolocationPreference());
 	const [pending, setPending] = useState(false);
 	const [permissionDenied, setPermissionDenied] = useState(false);
+	const [unavailable, setUnavailable] = useState(false);
 	const [position, setPosition] = useState<GeolocationPosition | null>(null);
 	const [address, setAddress] = useState<string | null>(null);
 	const [addressLoading, setAddressLoading] = useState(false);
@@ -128,12 +131,19 @@ export const useGeolocation = (): UseGeolocationResult => {
 			}
 			pendingRef.current = true;
 			fetchPosition()
-				.then((p) => applyPosition(p))
-				.catch((err) => {
+				.then((p) => {
+					applyPosition(p);
+					setUnavailable(false);
+				})
+				.catch((err: GeolocationPositionError) => {
 					if (err.code === 1) {
 						setPermissionDenied(true);
 						setEnabled(false);
 						storeGeolocationPreference(false);
+					} else {
+						// Timeout (3) / Position nicht verfügbar (2): Präferenz bleibt an und das Intervall
+						// retryt — die Card zeigt bis dahin einen Hinweis statt endlosem Ladezustand (AK4).
+						setUnavailable(true);
 					}
 				})
 				.finally(() => {
@@ -241,8 +251,9 @@ export const useGeolocation = (): UseGeolocationResult => {
 	return {
 		supported,
 		enabled,
-		pending,
 		permissionDenied,
+		unavailable,
+		pending,
 		position,
 		address,
 		addressLoading,
