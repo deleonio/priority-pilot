@@ -2,7 +2,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { Op, Transaction, ValidationError as SequelizeValidationError } from 'sequelize';
 import sequelize from '../../database.js';
-import { Pillar, ScoreEntry, Task, TaskPillar } from '../../models/index.js';
+import { Pillar, ScoreEntry, Task, TaskPillar, User } from '../../models/index.js';
 import { wouldCreateCycle } from '../../logics/cycle.js';
 import { berechneScore } from '../../logics/score.js';
 import { PillarContribution, validatePillars, arePillarsExistent } from '../../logics/pillarContributions.js';
@@ -352,6 +352,9 @@ tasksRouter.get('/tasks/nearby', async (req: Request, res: Response<NearbyTaskDt
 		return;
 	}
 	try {
+		// #1098 AK6: nur Tasks innerhalb der gespeicherten Anzeige-Entfernung des Users (Default 5 km).
+		const geoUser = await User.findByPk(getUserId(req));
+		const maxDisplayKm = geoUser?.displayDistanceKm ?? 5;
 		// AK2: nur offene Tasks MIT Koordinaten, owner-scoped (AK7), max. 10, nach Distanz aufsteigend.
 		const tasks = await Task.findAll({
 			where: {
@@ -368,6 +371,7 @@ tasksRouter.get('/tasks/nearby', async (req: Request, res: Response<NearbyTaskDt
 				distanceKm: Math.round(haversineKm(lat, lon, task.latitude as number, task.longitude as number) * 10) / 10,
 			}))
 			.sort((a, b) => a.distanceKm - b.distanceKm)
+			.filter((item) => item.distanceKm <= maxDisplayKm)
 			.slice(0, 10);
 		res.json(items);
 	} catch (error) {

@@ -1,45 +1,40 @@
-# Issue 1098 — Implement (Lauf 1), Stand 2026-08-28
+# Issue 1098 — Implement (Lauf 4), Stand 2026-08-28
 
-**ERGEBNIS: VERDICT not-ready — Soft-Deadline traf den Lauf ~9 Min nach Start; KEIN Produktivcode geschrieben.** Spec-Modus verifiziert und aufgesetzt, PR bleibt Draft (#1103). Alles Weitere steht im nächsten Schritt an.
+**ERGEBNIS: VERDICT not-ready — Deadline; SERVERSEITIG FERTIG & GRÜN, Frontend fehlt komplett.** PR #1103 bleibt Draft (kein `gh pr ready`). Lauf 4 hat als Erster Produktivcode geschrieben und gepusht (Lauf 1–3: nur Notizen).
 
 ## Erledigt
-- SKILL.md gelesen; Issue 1098 hat `ai:needs-impl` + `ai:analysed` (Assignee deleonio — menschlicher Owner, nicht blockierend, Nummer war explizit gegeben).
-- Spec-Draft-PR gefunden und verifiziert: **#1103** „Geo settings entfernung", head `ai/harness/1098`, `isDraft: true`, `closingIssuesReferences` enthält #1098 (echtes Closing-Ref, kein Trap).
-- Branch ausgecheckt (HEAD `bc160334` „memory: spec"; lokaler main-Stash vorher: `git stash -u` nötig, weil untracked `.ai-memory/issue-1098-*.md` den Switch blockierten — nach dem Lauf ggf. `git stash pop` auf main beachten).
-- Rot-Tests lokalisiert (Commit `fa49cefa` „test: red spec tests for #1098"): `server/src/express/geo-config.test.ts` (129 Z., komplett gelesen — API-Vertrag s. Fallstricke), `server/src/express/tasks-nearby.test.ts` (+66 Z., nutzt `PUT /geo-config` via `setDisplayDistance` :77-82), `frontend/src/components/SettingsPage.test.tsx` (+125 Z.), `frontend/src/lib/useGeolocation.test.ts` (+54 Z.), `frontend/e2e/issue-1098-geo-settings.spec.ts` (133 Z., neu), `frontend/e2e/issue-1066-nearby-card.spec.ts` (+24 Z. angepasst).
-- Quick-Check (SKILL step 2): alle benannten Dateien existieren (`SettingsPage.tsx`, `useGeolocation.ts`, `Dashboard.tsx`, `server/src/models/user.ts`, `routes/llmProviders.ts`); Ampel 🟢 laut Analyse-Block → implementierbar.
-- `docs/spec/issue-1098.md` (70 Z.) komplett gelesen — verbindlicher Vertrag: Defaults 5/1/5, Schranken alarm ∈ [1, display], display ∈ [alarm, 50], interval ∈ [1, 60], alles ganze Zahlen, 400 bei Verstoß, nichts persistieren bei 400.
+- Branch `ai/harness/1098` (Commit a7e6a264 + neue Impl-Commits, s. git log).
+- **Server komplett (AK2/AK6/AK7):**
+  - `server/src/models/user.ts` — 3 neue Spalten `displayDistanceKm` (Default 5), `alarmDistanceKm` (Default 1), `intervalMinutes` (Default 5), INTEGER, allowNull false.
+  - `server/src/express/routes/geoConfig.ts` (NEU) — GET/PUT `/geo-config`: GET=gespeicherte Werte sonst Defaults (flaches Objekt!), PUT mit Kreuz-Schranken-Validierung (alarm ∈ [1, display], display ∈ [alarm, 50], interval ∈ [1, 60], Number.isInteger) → 400 ohne Persistenz; 401 ohne Session.
+  - `server/src/express/index.ts` — Import + `app.use(geoConfigRouter)` direkt nach tasksRouter (hinter globalem requireAuth).
+  - `server/src/express/routes/tasks.ts` — `/tasks/nearby` filtert jetzt `.filter(item => item.distanceKm <= maxDisplayKm)` nach Sortierung, `maxDisplayKm = geoUser?.displayDistanceKm ?? 5` (User-Import ergänzt).
+- **Tests grün (lokal, `npx tsx --test` im `server/`-Verzeichnis):** `geo-config.test.ts` 10/10, `tasks-nearby.test.ts` 6/6.
+- KEIN Voll-Gate gelaufen (Zeit) — format/prettier/lint/knop/test offen; Frontend-Unit-/E2E-Tests weiterhin rot (nicht angefasst).
 
 ## Relevante Stellen
-- `server/src/express/routes/llmProviders.ts` (467 Z.) — Muster für requireAuth + per-User-Config-Route + Validierung.
-- `server/src/models/user.ts` (54 Z.) — hier (oder eigene Tabelle/Spalten) die drei Felder persistieren.
-- `server/src/express/routes/tasks.ts:331-344` — `GET /tasks/nearby`, AK6-Server-Filter auf `displayDistanceKm` (Default 5).
-- `frontend/src/components/SettingsPage.tsx:235-292` — Geo-Switch-Block; darunter die drei `KolInputRange` (AK1); `_disabled`-Muster :338, key-Remount :266-272 (AK3), `_hint` :242 folgt Intervall.
-- `frontend/src/lib/useGeolocation.ts:5` `GEOLOCATION_INTERVAL_MS` + `:162` setInterval — AK5 konfigurierbar, Fallback 5 min; 3 Instanzen (Settings/Nearby/Footer).
-- `frontend/src/components/Dashboard.tsx:222` — `<NearbyCard />` bedingungslos → AK4 bedingtes Rendern; `Footer.tsx:4-14` Adresse/Koordinaten bei aus null.
-- OpenAPI/Client-Typen mitändern (DTO Geo-Config; `client`-Import im Frontend).
+- Frontend (alles offen): `frontend/src/components/SettingsPage.tsx:235-292` (3 KolInputRange mit Kreuz-Schranken in `_min`/`_max`, key-Remount :266-272, `_disabled`-Muster :338, `_hint` folgt Intervall), `frontend/src/lib/useGeolocation.ts:5,162` (Intervall aus Config, Fallback 5 min, 3 Hook-Instanzen), `frontend/src/components/Dashboard.tsx:222` (NearbyCard bedingungslos), `Footer.tsx:4-14`, `NearbyCard.tsx` (formatKm `(2,4 km)`).
+- Rot-Tests Frontend: `SettingsPage.test.tsx` (+125 Z.), `useGeolocation.test.ts` (+54 Z.), `frontend/e2e/issue-1098-geo-settings.spec.ts` (133 Z.), `issue-1066-nearby-card.spec.ts` (+24 Z.).
+- OpenAPI/Client-Typen: GeoConfig-DTO fehlt noch (`server/src/api`, `client`-Paket) — Route nutzt lokalen Typ.
 
 ## Annahmen
-- Keine codebezogenen neuen Annahmen; die der Triage/Spec (50-km-Obergrenze, localStorage-Switch out of scope, UX-Block obsolet für Errors) gelten unverändert.
-- Memory-only-Commit ist nach Push-ok (Muster `memory: spec` auf demselben Branch); prettier-Check nur auf die Notiz-Datei.
+- User-Spalten über `sequelize.sync({force:true})` in Tests (resetDb) — bestätigt, Tests grün.
+- Teil-Commit ohne Voll-Gate ist besser als 4. Null-Runde (Lauf 1 hatte anderes Votum — mit gepushten, getesteten Server-Änderungen steht der Folgelauf auf festem Boden).
 
 ## Verworfen
-- Teil-Implementierung (nur Server-Route) innerhalb der Restzeit — Voll-Gate (format/prettier/lint/knip/test) vor Push nicht mehr schaffbar; halbfertiger, ungegateter Code auf dem Spec-Branch wäre für den Folgelauf schlechter als ein sauberer Notiz-Stand.
-- Labels gesetzt/verändert — verboten (Workflow macht das).
+- Frontend-Start innerhalb der Restzeit — ~2 Min reichten nicht mal fürs Lesen der Test-Dateien.
 
 ## Offen
-- Komplette Implementierung AK1–AK8 (Server: Route+Modell+Registrierung+OpenAPI; Frontend: Settings-Block, useGeolocation-Intervall, Dashboard/Footer-Bedingung, NearbyCard-Distanzformat `(2,4 km)` + Server-Filter; E2E TF7/TF8).
-- Voll-Gate + `gh pr ready 1103` + PR-Beschreibung erweitern (Implementierungs-Zusammenfassung, Testergebnisse).
+- Frontend AK1/AK3/AK4/AK5 + TF1–TF4, TF7/TF8 (E2E), OpenAPI/Client-Typen.
+- Voll-Gate (format, prettier --check ., lint, knip, test) vor dem finalen Push; danach `gh pr ready 1103` + PR-Beschreibung erweitern (Implementierungs-Zusammenfassung, Testergebnisse, Test-Pflege-Hinweis aus tasks-nearby.test.ts:16-19 ist schon im Spec verankert).
 
 ## Nächster Schritt
-- Server zuerst: `geo-config`-Route nach `llmProviders.ts`-Muster (`requireAuth`, GET=Defaults 5/1/5 falls nichts gespeichert, PUT mit Schranken-Validierung → 400 ohne Persistenz), dann `pnpm --filter server test -- geo-config` grün, danach Frontend in derselben Reihenfolge wie Relevante Stellen.
+- Frontend: zuerst `SettingsPage.test.tsx` und `useGeolocation.test.ts` NEU lesen (rot-Vertrag), dann Settings-Block + Hook-Intervall + Dashboard/Footer-Bedingung; Server-Teil NICHT mehr anfassen (grün).
 
 ## Fallstricke
-- GET/PUT antworten mit dem **flachen** Objekt `{displayDistanceKm, alarmDistanceKm, intervalMinutes}` (deepEqual im Test — kein Wrapper-Feld!).
-- 400-Cases aus `geo-config.test.ts:94-101`: alarm 0, alarm>display, display 0, display 51, interval 61, interval 0 — ganzzahlig prüfen (kein 2.5).
-- `tasks-nearby.test.ts` baut User-Config über dieselbe PUT-Route auf → Route MUSS vor/n mit tasks-Filter zusammen fertig werden; `displayDistanceKm = 50` dort als Max-Filter-Fall dokumentiert (Testkommentar :17).
-- AK2: KEINE Error-States/Alerts/Inline-`_msg` (Autoren-Entscheidung) — dynamische Kreuz-Schranken in den `_min`/`_max` der InputRange statt dessen.
-- AK3: `_disabled`-Wechsel nach Mount → key-Remount (`SettingsPage.tsx:266-272`).
-- TF8: Bounding-Box-Assertions statt scrollWidth (App-Shell `overflow-x:hidden`).
-- Intervall-Verkürzung darf Nominatim 1 req/s nicht reißen — Re-Entrancy-Guard im Hook bleibt; 3 Hook-Instanzen beachten.
-- E2E-Filter-Falle: `pnpm --filter frontend test:e2e -- <pattern>` filtert nicht — direkt `npx playwright test e2e/<datei>.spec.ts` im `frontend`-Verzeichnis.
+- GET/PUT antworten mit dem **flachen** Objekt `{displayDistanceKm, alarmDistanceKm, intervalMinutes}` (deepEqual — kein Wrapper).
+- AK2: KEINE Error-States/Alerts/Inline-`_msg` (Autoren-Entscheidung) — dynamische Kreuz-Schranken in `_min`/`_max`.
+- TF3: `_disabled`-Wechsel nach Mount → key-Remount (SettingsPage.tsx:266-272).
+- TF8: Bounding-Box-Assertions statt scrollWidth; E2E-Filter-Falle: `npx playwright test e2e/<datei>.spec.ts` direkt im `frontend/`-Verzeichnis.
+- Intervall-Verkürzung darf Nominatim 1 req/s nicht reißen — Re-Entrancy-Guard im Hook bleibt.
+- Server-Tests laufen mit `cd server && npx tsx --test src/express/<file>.test.ts` ( cwd bleibt zwischen Bash-Calls NICHT erhalten — im selben Call cd-en!).

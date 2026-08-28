@@ -12,6 +12,10 @@ class User extends Model {
 	public passwordHash!: string;
 	public displayName!: string;
 	public avatarUrl!: string | null;
+	/** Geo-Konfiguration pro User (#1098) — serverseitig statt localStorage. */
+	public displayDistanceKm!: number;
+	public alarmDistanceKm!: number;
+	public intervalMinutes!: number;
 
 	public readonly createdAt!: Date;
 	public readonly updatedAt!: Date;
@@ -41,6 +45,21 @@ User.init(
 		avatarUrl: {
 			type: DataTypes.STRING,
 			allowNull: true,
+		},
+		displayDistanceKm: {
+			type: DataTypes.INTEGER,
+			allowNull: false,
+			defaultValue: 5,
+		},
+		alarmDistanceKm: {
+			type: DataTypes.INTEGER,
+			allowNull: false,
+			defaultValue: 1,
+		},
+		intervalMinutes: {
+			type: DataTypes.INTEGER,
+			allowNull: false,
+			defaultValue: 5,
 		},
 	},
 	{
