@@ -11,8 +11,7 @@ MODE CROSS-EXAMINATION (initial review) — adversarial, whole PR:
   1. Read the full diff (gh pr diff) and the linked issue per SKILL.md step 1.
      - Closing issue exists (gh pr view {{PR_NR}} --json closingIssuesReferences --jq '.closingIssuesReferences | length' > 0): acceptance criteria from the KI-ANALYSE block.
      - NO closing issue (length == 0): PR description/title is the informal specification (the SKILL's KI-Analyse-comment fallback needs an issue — doesn't apply here) — note this explicitly in the verdict ("Review ohne Issue - PR-Beschreibung ist massgebend").
-  2. Cross-examination questions incl. regression/Test-Pflege-Bedarf: SKILL.md step 2.
-  2.5. KoliBri-first: SKILL.md step 2.
+  2. Cross-examination questions incl. regression/Test-Pflege-Bedarf + KoliBri-first: SKILL.md step 2.
   3. Code quality: naming, readability, tests (green + covering the acceptance criteria).
 
 MODE FIXUP VERIFICATION (follow-up review) — ONLY the cross-examination result + the fixup rounds, NOT the whole PR again:
@@ -23,9 +22,10 @@ MODE FIXUP VERIFICATION (follow-up review) — ONLY the cross-examination result
 WRAP-UP (both modes):
   - TITLE GATE (BEFORE the verdict): {{TITLE_OK}} says whether the PR title satisfies Conventional Commits (type(scope)!: subject, English, lowercase subject, <=72). If false: rename it via gh pr edit {{PR_NR}} --title — using the type/scope hints {{SUGGESTED_TYPE}}/{{SUGGESTED_SCOPE}}, subject in descriptive English. Not a finding, doesn't delay the verdict.
   - (Fixable) findings → review comments on file/line, then VERDICT: needs-fixup
-  - Architecture/product/design finding ("a human decides") → for VERDICT: needs-human, fill the "## ⏸️ Entscheidungs-Findings" section in the collected comment per the SKILL.md decision template (what/where, 2–3 options each with a stable option ID `<F>.<n>` + effort/risk, a recommendation with ID and justification, the selection line).
+  - Architecture/product/design finding ("a human decides") → for VERDICT: needs-human, fill the
+    "## ⏸️ Entscheidungs-Findings" section per the SKILL.md step 5 template.
   - solid (🟢) → NO pseudo-findings, a brief 🟢 confirmation (1-2 sentences), then VERDICT: reviewed
-    - If NO closing issue exists: explicitly note "Review ohne Issue - PR-Beschreibung ist massgebend (keine AK-Verifikation möglich)" in the 🟢 confirmation and in the collected comment line 2.
+    - (Without a closing issue: also note the "Review ohne Issue" hint in the 🟢 confirmation + collected comment line 2.)
 
 Collected comment: maintain the verdict as EXACTLY ONE <!-- ai-review --> comment (find the existing one + update it, don't create a new one).
 Structure (Review-Status, Behobene Anmerkungen, Entscheidungs-Findings, Offene Findings, Footer — these headings are written verbatim in German, see SKILL.md): SKILL.md section "Struktur des Sammelkommentars" — reuse it from there, not repeated here.

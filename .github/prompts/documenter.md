@@ -10,10 +10,6 @@ INPUTS (read them yourself):
 
 OUTPUT (`/tmp/doc.json`): structure per SKILL.md → Output.
 
-Rules (short form, details in SKILL.md):
-- `title`: empty if {{TITLE_OK}}=true and the type fits. Otherwise Conventional Commits, English, lowercase, ≤72.
-- `files`: the 3-8 most relevant files from the diff
-- `issues`: from {{LINKED_ISSUES}} + body ("Closes #", "Fixes #")
-- After writing: verify with `jq . /tmp/doc.json`
+Rules (`title`, `files`, `issues`, `jq` check) per SKILL.md → Rules.
 
 TIME LIMIT: {{SOFT_DEADLINE}}. If OVER: write a minimal snapshot.
