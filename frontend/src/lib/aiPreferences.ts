@@ -46,6 +46,14 @@ export const readAiPreferences = (): AiPreferences => {
 	};
 };
 
+/**
+ * Effektive Schnellerfassung (#1085): die Schnellerfassung ist ein KI-Feature — bei deaktivierter
+ * KI wird die gespeicherte Präferenz **ignoriert** (der in den Einstellungen gesperrte Schalter
+ * kann sie sonst auch nicht mehr abschalten). Gespeichert bleibt der Wert unverändert.
+ */
+export const isQuickCaptureEffective = (preferences: AiPreferences): boolean =>
+	preferences.aiEnabled && preferences.quickCaptureEnabled;
+
 /** Speichert beide Präferenzen (Best-Effort); Fehler (z. B. voller/gesperrter Storage) werden ignoriert. */
 export const storeAiPreferences = (preferences: AiPreferences): void => {
 	const write = (key: string, value: boolean): void => {

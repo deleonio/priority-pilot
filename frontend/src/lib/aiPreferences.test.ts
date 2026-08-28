@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
 	AI_ENABLED_STORAGE_KEY,
 	QUICK_CAPTURE_ENABLED_STORAGE_KEY,
+	isQuickCaptureEffective,
 	readAiPreferences,
 	storeAiPreferences,
 } from './aiPreferences';
@@ -76,5 +77,21 @@ describe('aiPreferences — readAiPreferences / storeAiPreferences', () => {
 			throw new Error('blocked');
 		});
 		expect(() => storeAiPreferences({ aiEnabled: false, quickCaptureEnabled: false })).not.toThrow();
+	});
+});
+
+/**
+ * AK 2 aus #1085: die Schnellerfassung ist ein KI-Feature — bei deaktivierter KI wird die
+ * gespeicherte Präferenz ignoriert. Die Wirklogik liegt in `aiPreferences.ts` (nicht in der
+ * Konsumstelle), damit „gespeichert" und „wirksam" nicht auseinanderlaufen können.
+ */
+describe('aiPreferences — isQuickCaptureEffective (#1085)', () => {
+	it.each([
+		['beide an', { aiEnabled: true, quickCaptureEnabled: true }, true],
+		['KI an, Schnellerfassung aus', { aiEnabled: true, quickCaptureEnabled: false }, false],
+		['KI aus, Schnellerfassung an', { aiEnabled: false, quickCaptureEnabled: true }, false],
+		['beide aus', { aiEnabled: false, quickCaptureEnabled: false }, false],
+	])('%s → %s', (_name, preferences, expected) => {
+		expect(isQuickCaptureEffective(preferences)).toBe(expected);
 	});
 });
