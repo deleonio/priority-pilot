@@ -1,10 +1,7 @@
-# Flüchtige Phasen-Notizen (Soft-Abort-Resume, Transport via State-Branch) – kein Repo-Inhalt.
-# Das Dauergedächtnis .ai-memory/MEMORY.md ist bewusst NICHT ignoriert und wird versioniert
-# (Verzeichnis-Ignore ginge nicht: ein ignoriertes Verzeichnis lässt sich nicht per ! wieder öffnen).
-.ai-memory/issue-*.md
-# Issue-Storage-Manifest (ADR 0006): wird pro Lauf von issue-state-save geschrieben und per
-# State-Branch transportiert — darf nie in ein Phasen-Commit des Agenten rutschen.
-.ai-memory/state.json
+# Phasen-Notizen (.ai-memory/issue-*.md) sind seit ADR 0007 NICHT mehr ignoriert: Sie reisen
+# committet im Harness-Branch ai/harness/{N} mit und gelangen per PR-Merge dauerhaft nach
+# main. Das Dauergedächtnis .ai-memory/MEMORY.md bleibt ebenfalls versioniert (Verzeichnis-
+# Ignore ginge nicht: ein ignoriertes Verzeichnis lässt sich nicht per ! wieder öffnen).
 .claude/worktrees/
 .claude/settings.local.json
 .zcode/

@@ -245,19 +245,22 @@ jeweiligen Skills (`.claude/skills/*/SKILL.md`).
 adressieren beide. `MEMORY.md` ist das **eingecheckte Dauergedächtnis** über Tickets hinweg — es
 reist im normalen Commit der Phasen mit Commit-Auftrag (Spec, Umsetzung, Fixup) und kommt nie in
 den Issue-Storage, sonst überschriebe ein alter Stand beim Restore der Folgephase die frisch
-committete Datei. `issue-<N>-<phase>.md` sind die **flüchtigen** Phasen-Notizen für den
-Soft-Abort-Resume (lokal gitignored). Vertrag und Aufnahmekriterium:
-[AGENTS.md → Memory](../AGENTS.md#memory).
+committete Datei. `issue-<N>-<phase>.md` sind die **Phasen-Notizen** für den
+Soft-Abort-Resume — seit ADR 0007 committet (nicht mehr gitignored): Sie reisen im
+Harness-Branch mit und gelangen per PR-Merge dauerhaft nach `main`. Vertrag und
+Aufnahmekriterium: [AGENTS.md → Memory](../AGENTS.md#memory).
 
-**Issue-Storage (Transport):** Der Zustand pro Issue liegt auf einem **State-Branch
-`ai/state/issue-{N}`** — Phasen-Notizen plus `state.json` (Phase → Session-ID, Run, Branch),
-Stufe 2 optional gefilterte Sessions. Jede Phase lädt per `git fetch` + `git restore` in den
-Workspace (Index unberührt) und sichert nach dem Claude-Lauf über die Composite-Action
-`issue-state-save` per Fetch-then-Commit zurück (App-Token); der Documenter-Teardown löscht den
-Branch, der Hygiene-Sweep in `cache-cleanup.yml` fängt Verwaiste (Issue geschlossen + 7 Tage
-Ruhe). Nie gemergt, triggert kein CI/Deploy (beide hören nur auf `push: [main]`).
-Entscheidung inkl. Cache-Ablehnung (read-only Cache-Tokens für Issue-/Label-/PR-Trigger):
-[ADR 0006](./adr/0006-issue-storage-state-branch.md).
+**Issue-Storage (Transport):** Der Zustand pro Issue liegt auf dem **Harness-Branch
+`ai/harness/{N}`** — demselben Branch, auf dem Spec/Impl arbeiten und der per PR nach
+`main` gemergt wird. Triage/UX legen ihn an bzw. schreiben ihn über die Composite-Action
+`issue-state-save` fort (Temp-Index, Basis `origin/main`); ab Spec committet der Agent
+seine Phasen-Notiz selbst mit, der Save-Step bleibt idempotentes Sicherheitsnetz.
+Jede Phase lädt per `git fetch` + `git restore` in den Workspace (Index unberührt,
+Legacy-Fallback auf `ai/state/issue-{N}`). `state.json` ist entfallen. Beim Merge löscht
+`delete_branch_on_merge` den Branch (Memory ist dann in `main`), der Hygiene-Sweep in
+`cache-cleanup.yml` fängt Verwaiste (Issue geschlossen + 7 Tage Ruhe) auf beiden Prefixen.
+Entscheidung inkl. Geschichte (Artefakt-/Cache-Ablehnung, read-only Cache-Tokens):
+[ADR 0007](./adr/0007-issue-storage-harness-branch.md), Vorgänger [ADR 0006](./adr/0006-issue-storage-state-branch.md).
 
 **VERDICT-Hinweis:** `claude -p` schreibt die finale Antwort (inkl. `VERDICT:`-Zeile) auf
 stdout → `tee /tmp/claude-output.log` → `grep -oP 'VERDICT:\s*\K.*'` in der
@@ -386,13 +389,16 @@ Suche ist nur Schicht 1 — Schicht 2 ist der globale Parker-Check im Phasen-Pre
 (`check-phase-label.sh`), der jede Phase (außer documenter) blockt, auch wenn ein Trigger-Label
 klebt (manuell gesetzt oder Suchindex-Lag), und damit die Endlosschleife unmöglich macht.
 
-### Named Session Resume (Stufe 2 aus ADR 0006, aktuell nicht aktiv)
+### Named Session Resume (Stufe 2, aktuell nicht aktiv)
 
 Die Session-Resume-Funktionalität (MIG-002) ist noch nicht aktiviert. Derzeit startet jeder Lauf
 frisch ohne Kontext aus vorherigen Läufen derselben Phase. Der Zielzustand ist als Stufe 2 in
 [ADR 0006](./adr/0006-issue-storage-state-branch.md) entschieden (nur jüngste Session je Phase,
 ~5-MB-Cap, `--resume` ausschließlich beim `ai:continued`-Folgelauf derselben Phase) — aktiviert
-wird sie erst, wenn `record-cost` belegt, dass Resumes nennenswert Wiederarbeit sparen.
+wird sie erst, wenn `record-cost` belegt, dass Resumes nennenswert Wiederarbeit sparen. Mit
+ADR 0007 ist der damalige Anker (`state.json` im Storage-Branch) entfallen; bei Aktivierung
+braucht Stufe 2 einen neuen Session-ID-Speicher außerhalb des Merge-Pfads (s.
+[ADR 0007](./adr/0007-issue-storage-harness-branch.md), Entscheidung Punkt 3).
 
 ## PR-Documenter: Arbeitsteilung Regel-Logik + LLM (Phase 7)
 

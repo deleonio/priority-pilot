@@ -289,7 +289,7 @@ jobs:
           issue="${issue:-$PR}"
           bash .github/scripts/seal-costs.sh --repo "$REPO" --issue "$issue"
 
-      - name: Issue-Storage sichern (State-Branch)
+      - name: Issue-Storage sichern (Harness-Branch)
         # Der Documenter schreibt jetzt ebenfalls: "am Ende jeder Phase speichern" gilt ohne
         # Ausnahme. Nutzen auch in der terminalen Phase: schlaegt er fehl und laeuft erneut,
         # setzt der Re-Run auf seinem eigenen Checkpoint auf statt bei null.
@@ -361,7 +361,7 @@ jobs:
           echo "::notice title=✅ Dokumentation abgeschlossen::PR #$PR — ai:documented gesetzt."
 
       - name: 🧹 Issue-Storage stehen lassen (Abbau macht der Hygiene-Sweep)
-        # GEÄNDERT gegenüber ADR 0006 Punkt 6: Der Documenter löscht den State-Branch NICHT mehr.
+        # GEÄNDERT gegenüber ADR 0006 Punkt 6: Der Documenter löscht den Storage-Branch NICHT.
         #
         # Grund: Er schreibt seit dieser Änderung selbst eine Phasen-Notiz — den Speicher im
         # selben Lauf anzulegen und wieder wegzuräumen ist widersprüchlich. Und ein Ticket ist
@@ -369,7 +369,7 @@ jobs:
         # fänden nach dem Löschen nichts mehr vor und begännen bei null.
         #
         # Der Abbau bleibt deterministisch, nur später: der Sweep in cache-cleanup.yml entfernt
-        # ai/state/issue-*-Branches, deren Issue GESCHLOSSEN ist und deren letzter Commit älter
+        # ai/state/issue-*- und ai/harness/*-Branches, deren Issue GESCHLOSSEN ist und deren letzter Commit älter
         # als 7 Tage ist. Damit räumt genau eine Stelle auf statt zweier, und das Zeitfenster
         # deckt Nacharbeit ab.
         if: steps.setup.outputs.configured == 'true'

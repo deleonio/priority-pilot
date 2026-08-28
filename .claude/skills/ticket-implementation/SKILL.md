@@ -32,7 +32,9 @@ Note: this file's prose is English; PR/comment text written to GitHub stays Germ
 
 ## Step 3 — Implement (test-driven: red-green)
 
-- **Branch:** in **spec mode** the branch is already checked out. In **fallback mode**, create your own branch: `git switch -c feat/issue-<nr>-<short-name>`.
+- **Branch:** in **spec mode** the branch is already checked out. In **fallback mode**, the
+  harness branch `ai/harness/<nr>` (usually already exists — `git fetch origin && git switch
+  ai/harness/<nr>`; otherwise `git switch -c ai/harness/<nr>`).
 - **(a) Red — tests exist before the code:**
   - **Spec mode:** the **red tests already exist** (from the spec stage). They are the **contract** and are **not changed**.
   - **Fallback/direct mode** (the analysis deliberately skipped the spec, field "Spec nötig: nein" [spec needed: no]): create the branch yourself, implement, commit, push, and create the PR **yourself** (`gh pr create`, **not** `--draft` — the PR goes straight into review; without this step there is nothing to review). **Test obligation in direct mode:** if, against expectations, application code is touched after all (`server/src/**`, `frontend/src/**`, `frontend/e2e/**`), write the tests yourself too — the test carve-out ([ticket-spec](../ticket-spec/SKILL.md) step 3, ADR 0001) applies ONLY to workflows, scripts, config, and markdown. If the scope turns out to be significantly larger than expected as a result, that's a sign the analysis misjudged it: end the run as not ready, with a justification in the PR body.
