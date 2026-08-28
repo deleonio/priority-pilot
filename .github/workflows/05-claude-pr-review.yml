@@ -102,15 +102,41 @@ jobs:
       - name: Modellzusammenfuehrung (Tabelle gewinnt, Label Fallback)
         if: steps.check.outputs.proceed == 'true'
         id: merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
         run: |
           if [ "${{ steps.routing.outputs.source }}" = "table" ]; then
             echo "model_final=${{ steps.routing.outputs.model }}"   >> "$GITHUB_OUTPUT"
             echo "effort_final=${{ steps.routing.outputs.effort }}" >> "$GITHUB_OUTPUT"
           else
-            # Label-Pfad: Effort bleibt Phasen-Default. Auto-Eskalation sitzt nicht
+            # Label-Pfad: Effort bleibt Phasen-Default (Setup-Fallback 'high' — Policy
+            # "min. medium" damit immer erfuellt). Auto-Eskalation sitzt nicht
             # hier, sondern im Fixup-Pfad von 04 (dort escalate=true, Runden-Zaehlung
             # am PR — s. resolve-model-label.sh).
-            echo "model_final=${{ steps.model.outputs.model }}" >> "$GITHUB_OUTPUT"
+            model="${{ steps.model.outputs.model }}"
+
+            # POLICY — PR ohne Closing-Issue: Der Kreuzverhors laeuft hier OHNE
+            # Analyse-Kontext (keine AKs, kein Spec, kein Routing) — das ist der
+            # anspruchsvollste Review-Fall und braucht mindestens opus. Ein
+            # haiku/sonnet-Label (Hand-Markierung oder falsch geerbt) oder ein leerer
+            # Label-Fund wird deshalb hochgesetzt; opus/fable bleiben unangetastet.
+            # Effort: Fallback 'high' >= medium, nichts anzuheben. Der manuelle
+            # Not-Override vars.CLAUDE_MODEL_PR_REVIEW bleibt bewusst ueber allem
+            # (bewusstes menschliches Handeln, z. B. Provider-Zwangsumleitung).
+            linked="$(gh pr view "$PR" --repo "$REPO" --json closingIssuesReferences \
+              --jq '[.closingIssuesReferences[].number] | first' 2>/dev/null || true)"
+            if [ -z "$linked" ] || [ "$linked" = "null" ]; then
+              case "$model" in
+                haiku|sonnet|"")
+                  echo "::notice title=U0001F53D::Modell-Policy::PR ohne Closing-Issue — Modell '${model:-leer}' auf opus angehoben (Kreuzverhoer ohne Analyse-Kontext, min. opus/medium; Effort-Fallback 'high')."
+                  model="opus"
+                  ;;
+              esac
+            fi
+
+            echo "model_final=$model" >> "$GITHUB_OUTPUT"
             echo "effort_final=" >> "$GITHUB_OUTPUT"
           fi
 
