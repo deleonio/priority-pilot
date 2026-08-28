@@ -177,3 +177,11 @@ Konflikte, die er verhindern soll.
   Idempotenz, leer), Blob-Diff-Pfade muessen der CI (bash 5) vertrauen. Nicht forensisch
   jagen - Artefakt erkennen und einordnen.
 - 2026-08-28 · CI/Pipeline — menschlicher Push auf einen PR mit klebendem ai:needs-human verwirft die Autolabeler-Transition (Guard 3, PR #903): Der PR parkt weiter, ai:needs-review wird NICHT gesetzt. → Entblocken nur durch den Menschen: Label in der UI entfernen und ai:needs-review setzen (Entfernen allein startet nichts).
+- 2026-08-28 · Playwright/E2E · `page.route`-Handler feuert asynchron NACH Aufloesung eines
+  parallelen `waitForRequest` — Assertions auf im Route-Handler kaptierte Werte einamlig zu lesen
+  ist eine deterministische Race; immer `await expect.poll(() => captured).toBe(...)` nehmen.
+  Zweite Falle desselben PR: Heading-Assertions auf den Capture-Schritt-Titel gate-n nicht, wenn
+  der Schritt schon gewechselt hat (QuickCaptureModal benennt den Titel um) — Einmal-Persistenz-
+  Checks (einmaliger GET+find) brauchen ein echtes Gate (Formular-Schritt-Titel) oder Poll.
+  Beides wurde erst sichtbar, weil der neue CSRF-Token-Fetch vor dem ersten Write ~10ms Timing
+  verschob (PR #1079, keyboard-shortcuts AK8 + logout AK-2).
