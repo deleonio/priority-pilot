@@ -222,6 +222,21 @@ describe('AddressAutocomplete (#1083)', () => {
 		expect(screen.queryByRole('listbox')).toBeNull();
 	});
 
+	it('AK5 — Fehlerzustand räumt sich ab: nach einem Fehlschlag zeigt eine erfolgreiche Suche wieder Treffer ohne Warnung', async () => {
+		// Regression F1/N1: `setError(false)` beim Start einer neuen Anfrage — ohne die Zeile klebt
+		// die Warnung neben allen späteren Trefferlisten desselben Mounts.
+		mockGeocodeSearch.mockRejectedValueOnce(new Error('Suche nicht erreichbar'));
+		render(<Harness />);
+
+		await typeQuery('munchen');
+		await screen.findByRole('alert', {}, { timeout: 2000 });
+
+		mockGeocodeSearch.mockResolvedValue(MUNICH_HITS);
+		await typeQuery('munchen haupt');
+		await screen.findByRole('listbox', {}, { timeout: 2000 });
+		expect(screen.queryByRole('alert')).toBeNull();
+	});
+
 	it('AK5 — Leer-Zustand: 0 Server-Treffer zeigt neutralen Hinweis statt Warnung', async () => {
 		mockGeocodeSearch.mockResolvedValue([]);
 		render(<Harness />);
