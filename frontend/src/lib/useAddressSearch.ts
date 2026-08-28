@@ -51,6 +51,9 @@ export const useAddressSearch = (query: string): UseAddressSearchResult => {
 			controller = current;
 			abortRef.current = current;
 			setLoading(true);
+			// Neue Anfrage = neuer Zustand: einen Fehler aus dem Vorgänger nicht in die frische
+			// Suche hinüberretten (F1 — sonst klebt die Warnung neben späteren Trefferlisten).
+			setError(false);
 			api
 				.geocodeSearch({ q: trimmed, signal: current.signal })
 				.then((results) => {

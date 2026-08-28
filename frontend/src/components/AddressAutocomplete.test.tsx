@@ -87,7 +87,7 @@ const Harness = ({
 };
 
 const typeQuery = async (query: string) => {
-	fireEvent.change(screen.getByRole('combobox'), { target: { value: query } });
+	fireEvent.change(screen.getByRole('textbox'), { target: { value: query } });
 	// Debounce 400 ms (useAddressSearch) — der API-Aufruf und die Liste folgen danach.
 	await waitFor(() => expect(mockGeocodeSearch).toHaveBeenCalled(), { timeout: 1500 });
 };
@@ -114,24 +114,34 @@ describe('AddressAutocomplete (#1083)', () => {
 		}
 	});
 
-	it('AK5 — ARIA-Combobox-Muster: expanded, aria-controls auf die listbox, Markierung via aria-activedescendant', async () => {
+	it('AK5 — ARIA-Combobox-Muster: Feld ohne Combobox-Rolle, State am Container, Listbox als Nachfahre', async () => {
 		mockGeocodeSearch.mockResolvedValue(MUNICH_HITS);
 		render(<Harness />);
 
-		const input = screen.getByRole('combobox');
-		expect(input).toHaveAttribute('aria-autocomplete', 'list');
+		// Fix F2: `role="combobox"` liegt NICHT auf dem Eingabefeld/KoliBri-Host, sondern auf einem
+		// Container, der Feld UND Listbox besitzt — sonst zeigt `aria-activedescendant` ins Leere.
+		const combobox = screen.getByRole('combobox');
+		const textbox = screen.getByRole('textbox');
+		expect(combobox).not.toBe(textbox);
+		expect(combobox).toHaveAttribute('aria-autocomplete', 'list');
+		expect(combobox).toContainElement(textbox);
+		expect(combobox).toHaveAttribute('aria-expanded', 'false');
 
 		await typeQuery('munchen');
 		const listbox = await screen.findByRole('listbox', {}, { timeout: 2000 });
 
-		expect(input).toHaveAttribute('aria-expanded', 'true');
-		const controls = input.getAttribute('aria-controls');
+		expect(combobox).toHaveAttribute('aria-expanded', 'true');
+		const controls = combobox.getAttribute('aria-controls');
 		expect(controls).toBeTruthy();
 		expect(within(document.getElementById(controls as string) as HTMLElement).getByRole('listbox')).toBe(listbox);
+		// `aria-activedescendant` braucht einen NACHFAHREN des Combobox-Elements.
+		expect(listbox).toBeVisible();
+		expect(combobox).toContainElement(listbox);
 
-		fireEvent.keyDown(input, { key: 'ArrowDown' });
-		expect(input).toHaveAttribute('aria-activedescendant');
-		const activeId = input.getAttribute('aria-activedescendant') as string;
+		// Tastatur kommt vom Feld und delegiert zum Combobox-Container (Shadow-DOM-Bubbling).
+		fireEvent.keyDown(textbox, { key: 'ArrowDown' });
+		expect(combobox).toHaveAttribute('aria-activedescendant');
+		const activeId = combobox.getAttribute('aria-activedescendant') as string;
 		expect(document.getElementById(activeId)).not.toBeNull();
 		expect(
 			within(listbox)
@@ -140,18 +150,31 @@ describe('AddressAutocomplete (#1083)', () => {
 		).toBe(true);
 	});
 
+	it('AK5 — Tab/Blurfokus schließt die Liste ohne Auswahl', async () => {
+		mockGeocodeSearch.mockResolvedValue(MUNICH_HITS);
+		const onSelect = vi.fn();
+		render(<Harness onSelect={onSelect} />);
+
+		await typeQuery('munchen');
+		await screen.findByRole('listbox', {}, { timeout: 2000 });
+
+		fireEvent.focusOut(screen.getByRole('textbox'));
+		expect(screen.queryByRole('listbox')).toBeNull();
+		expect(onSelect).not.toHaveBeenCalled();
+	});
+
 	it('AK5 — Tastatur: Enter wählt den markierten Treffer (inkl. lat/lon), ohne das Formular abzuschicken; Escape schließt', async () => {
 		mockGeocodeSearch.mockResolvedValue(MUNICH_HITS);
 		const onSelect = vi.fn();
 		const onSubmit = vi.fn();
 		render(<Harness onSelect={onSelect} onSubmit={onSubmit} />);
 
-		const input = screen.getByRole('combobox');
+		const textbox = screen.getByRole('textbox');
 		await typeQuery('munchen');
 		await screen.findByRole('listbox', {}, { timeout: 2000 });
 
-		fireEvent.keyDown(input, { key: 'ArrowDown' });
-		fireEvent.keyDown(input, { key: 'Enter' });
+		fireEvent.keyDown(textbox, { key: 'ArrowDown' });
+		fireEvent.keyDown(textbox, { key: 'Enter' });
 
 		expect(onSelect).toHaveBeenCalledTimes(1);
 		expect(onSelect).toHaveBeenCalledWith(MUNICH_HITS[0]);
@@ -159,9 +182,9 @@ describe('AddressAutocomplete (#1083)', () => {
 
 		// Nach der Auswahl ist die Liste zu; sie öffnet sich erst wieder mit neuer Eingabe.
 		expect(screen.queryByRole('listbox')).toBeNull();
-		fireEvent.change(input, { target: { value: 'munchen haupt' } });
+		fireEvent.change(textbox, { target: { value: 'munchen haupt' } });
 		await screen.findByRole('listbox', {}, { timeout: 2000 });
-		fireEvent.keyDown(input, { key: 'Escape' });
+		fireEvent.keyDown(textbox, { key: 'Escape' });
 		expect(screen.queryByRole('listbox')).toBeNull();
 	});
 
@@ -174,7 +197,7 @@ describe('AddressAutocomplete (#1083)', () => {
 		);
 		render(<Harness />);
 
-		const input = screen.getByRole('combobox');
+		const input = screen.getByRole('textbox');
 		fireEvent.change(input, { target: { value: 'munchen' } });
 		await waitFor(() => expect(mockGeocodeSearch).toHaveBeenCalled(), { timeout: 1500 });
 
@@ -191,7 +214,7 @@ describe('AddressAutocomplete (#1083)', () => {
 		mockGeocodeSearch.mockRejectedValue(new Error('Suche nicht erreichbar'));
 		render(<Harness />);
 
-		fireEvent.change(screen.getByRole('combobox'), { target: { value: 'munchen' } });
+		fireEvent.change(screen.getByRole('textbox'), { target: { value: 'munchen' } });
 		await waitFor(() => expect(mockGeocodeSearch).toHaveBeenCalled(), { timeout: 1500 });
 
 		const alert = await screen.findByRole('alert', {}, { timeout: 2000 });
@@ -203,7 +226,7 @@ describe('AddressAutocomplete (#1083)', () => {
 		mockGeocodeSearch.mockResolvedValue([]);
 		render(<Harness />);
 
-		fireEvent.change(screen.getByRole('combobox'), { target: { value: 'xyznichtstreffer' } });
+		fireEvent.change(screen.getByRole('textbox'), { target: { value: 'xyznichtstreffer' } });
 		await waitFor(() => expect(mockGeocodeSearch).toHaveBeenCalled(), { timeout: 1500 });
 
 		// Leer ist legitim (Photon 200 mit 0 Treffern) — keine Warnung, sondern Einladung zur Freitext-Übernahme.

@@ -47,6 +47,13 @@ export const AddressAutocomplete = ({ label, value, onValueChange, onSelect }: A
 		setDismissed(true);
 	};
 
+	// AK5: Tab/Blurfokus schließt ohne Auswahl. Kollidiert nicht mit dem Options-Klick, weil
+	// `onMouseDown` der Option den Blur per `preventDefault()` gar nicht erst zulässt.
+	const blur = () => {
+		setActiveIndex(null);
+		setDismissed(true);
+	};
+
 	const keyDown = (event: { key: string; preventDefault: () => void }) => {
 		if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
 			if (!open) {
@@ -78,10 +85,23 @@ export const AddressAutocomplete = ({ label, value, onValueChange, onSelect }: A
 	};
 
 	return (
-		<div style={{ position: 'relative' }}>
-			{/* ARIA-Props müssen auf das Eingabefeld selbst; KoliBri reicht sie als DOM-Attribute durch.
-			    onKeyDown als React-Prop (nicht in `_on`): keydown aus dem Shadow-DOM bubblingt composed
-			    an den Host, und der Mock-Kontrakt forwarded Top-Level-Props. */}
+		/* COMBOBOX-CONTAINER (ARIA-1.2, Fix F2): `role="combobox"` + State liegen auf einem echten
+		   DOM-Element, das Feld UND Listbox besitzt — `aria-activedescendant` zeigt dadurch auf
+		   echte Nachfahren. Auf dem KoliBri-Host wären die Props unbekannte Attribute und das
+		   fokussierte `<input>` im Shadow-DOM bekäme sie nie (KolInputText 4.3.0 hat diese Props
+		   nicht, siehe `spec/input-text`). Keydown/Blur delegiert der Container: Events aus dem
+		   Shadow-DOM bubbeln composed an den Host und weiter in das Licht-DOM. */
+		<div
+			style={{ position: 'relative' }}
+			role="combobox"
+			aria-haspopup="listbox"
+			aria-autocomplete="list"
+			aria-expanded={open}
+			aria-controls={open ? listId : undefined}
+			aria-activedescendant={activeIndex === null ? undefined : `${listId}-option-${activeIndex}`}
+			onBlur={blur}
+			onKeyDown={(event) => keyDown(event as unknown as KeyboardEvent)}
+		>
 			<KolInputText
 				_label={label}
 				_placeholder="Straße, Hausnummer, Ort …"
@@ -90,14 +110,6 @@ export const AddressAutocomplete = ({ label, value, onValueChange, onSelect }: A
 					onChange: (_event, next) => change(String(next ?? '')),
 					onInput: (_event, next) => change(String(next ?? '')),
 				}}
-				onKeyDown={(event) => keyDown(event as unknown as KeyboardEvent)}
-				{...({
-					role: 'combobox',
-					'aria-autocomplete': 'list',
-					'aria-expanded': open,
-					'aria-controls': open ? listId : undefined,
-					'aria-activedescendant': activeIndex === null ? undefined : `${listId}-option-${activeIndex}`,
-				} as Record<string, string | boolean | undefined>)}
 			/>
 
 			{/* Asynchrone Zustände (mobile-ui-rules Regel 7): Laden / Fehler / Leer / Erfolg. */}
