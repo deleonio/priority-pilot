@@ -127,6 +127,24 @@ describe('verify-template-structure.sh — beschädigte Bodies', () => {
 	});
 });
 
+describe('verify-template-structure.sh — grosse Bodies (SIGPIPE-Regression)', () => {
+	it('akzeptiert einen >64KB-Body mit Ueberschriften am Anfang', () => {
+		const gross = formBody({
+			'Was ist das Problem?': 'x',
+			'Wie soll es sein?': 'x',
+			'Wo tritt es auf?': 'x',
+			'Woran messen wir das?': 'x',
+		});
+		// Headings stehen im Ticket-Body IMMER oben — der Fuelle muss also hinter sie.
+		// Ueber die 64-KB-Pipe-Buffer-Grenze hinaus: `printf | grep -q` exitet grep nach
+		// dem Erstmatch, printf am anderen Ende kriegt SIGPIPE (141) und pipefail meldet
+		// die vorhandene Ueberschrift als fehlend (falsches needs-human).
+		const { ok, missing } = run(gross + '\n\n' + 'Fuelltext. '.repeat(30_000));
+		assert.equal(ok, 'true');
+		assert.equal(missing, '');
+	});
+});
+
 describe('verify-template-structure.sh — fail-safe Richtung Pipeline', () => {
 	it('besteht bei unlesbarer Datei (Infrastructure darf nicht blockieren)', () => {
 		const res = spawnSync('bash', [script, '--body-file', join(workDir, 'existiert-nicht.md')], {

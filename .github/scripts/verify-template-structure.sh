@@ -52,8 +52,11 @@ BODY="$(cat "$BODY_FILE" 2>/dev/null)" || {
 # Ueberschrift vorhanden? Markdown-Heading-Zeile (^#+ …), die den Text enthaelt.
 # -i: case-insensitive; Substring statt Anker: verhindert Fehlalarm bei "?"/Zusatztext,
 # verlangt aber zwingend das fuehrende "#" (Fliesstext-Nennungen zaehlen nicht).
+# KEINE Pipe: unter pipefail wuerde `printf | grep -q` bei Bodies groesser als der
+# Pipe-Buffer (64 KB) den SIGPIPE-Exit (141) von printf als "nicht gefunden" melden
+# (grep -q exitet nach dem Erstmatch) — Herestring liest grep aus einer temp. Datei.
 has_heading() {
-  printf '%s' "$BODY" | grep -qiE "^#+[[:space:]]*.*$1"
+  grep -qiE "^#+[[:space:]]*.*$1" <<<"$BODY"
 }
 
 MISSING=""
