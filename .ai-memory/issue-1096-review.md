@@ -1,34 +1,33 @@
-# Issue/PR 1096 — Review (Kreuzverhör, Erstrunde), Stand 2026-08-28
+# Issue/PR 1096 — Review (Fixup-Nachweis, Runde 2), Stand 2026-08-28
 
-**ERGEBNIS: VERDICT needs-fixup (🟡, 1 fixabler Fund F1).**
+**ERGEBNIS: VERDICT reviewed (🟢, F1 verifiziert behoben, keine neuen Funde).**
 
 ## Erledigt
-- MODE bestimmt: kein vorhandener `<!-- ai-review -->`-Kommentar auf PR 1096 → Kreuzverhör/Erstrunde; `closingIssuesReferences` = [] → „Review ohne Issue — PR-Beschreibung massgebend“ (Zeile 2 im Sammelkommentar vermerkt).
-- Volle Diff gelesen: nur `.github/prompts/prompt-audit.md` (+7/−6) und `.github/workflows/claude-prompt-audit.yml` (+6/−1, ausschließlich Kommentarblock Zeilen 4–11).
-- PR-Body-Behauptungen verifiziert: VERDICT-Grep (`findings|clean`, Workflow Zeile 164), EMPFOHLEN-Grep (Zeile 196), Issue-Handling (Zeilen 201–218), `{{AUDIT_DATE}}`/`{{SOFT_DEADLINE}}`-sed + assert-prompt-complete.sh — alles unberührt; `.costs/` existiert (FRAME-Referenz gültig); Kategorie-Enum (Redundanz|Kürzung|Konkretisierung|Widerspruch|Unklarheit|Fehler) deckt A–F konsistent ab.
-- Review als COMMENT mit Inline-Kommentar gepostet (Review-ID 5052931186): **F1** = `.github/prompts/prompt-audit.md:1` „initial token cost“ widerspricht neuer NET-Metrik aus FRAME (Zeile 3).
-- Sammelkommentar einmalig erstellt (issuecomment-5454934979) mit Marker, Review-Status needs-fixup, Offene Findings #1, Footer „Review-Typ: Kreuzverhör / Updated: 2026-08-28“.
-- Titel-Gate: Titel konform (ci(prompts): …, deutsch = Repo-Konvention, s. Git-Log) → NICHT umbenannt.
+- MODE bestimmt: `<!-- ai-review -->`-Marker vorhanden (issuecomment-5454934979, Stand der Erstrunde 2026-08-28T16:17:52Z) → Fixup-Nachweis, kein neues Kreuzverhör.
+- F1 verifiziert: `.github/prompts/prompt-audit.md:1` liest jetzt „net token efficiency (NET cost over the whole phase chain)“ — exakt der Vorschlag der Erstrunde, konsistent zur FRAME-NET-Metrik (Zeile 3), F-Scope (Konkretisierung darf Initial-Tokens erhöhen) jetzt gedeckt. `git diff 1763c61f..HEAD --stat`: nur 1 Zeile in prompt-audit.md geändert.
+- Delta geprüft: Rest = `.ai-memory/issue-{1091,1096}-*.md`, `.costs/1091.json`, `frontend/src/lib/useAddressSearch.test.ts`, `package.json` — alles über Merge 06490511 von main hereingekommen (nicht PR-eigene Änderung, kein Fund). Workflow-Assertionen (VERDICT-/EMPFOHLEN-Grep, Platzhalter, assert-prompt-complete.sh) unberührt.
+- CI zum Review-Zeitpunkt: pending (neuer Lauf nach Merge); e2e (2) war im Vorlauf (fa388991, run 33189831836) einmal rot — Markdown-only-Änderung, pipeline-eigenes Gate degradiert bei Rot auf ai:needs-changes; im Sammelkommentar so vermerkt.
+- Sammelkommentar 5454934979 per PATCH in-place aktualisiert: Status reviewed, #1 in „Behobene Anmerkungen“-Tabelle (fa388991), Footer „Review-Typ: Fixup-Nachweis / Updated: 2026-08-28“; Zeile-2-Hinweis „Review ohne Issue“ erhalten.
+- Titel-Gate: Titel unverändert belassen (Struktur konform ci(prompts): …, ≤72; deutsches Subjekt = Repo-Konvention laut Git-Log — gleiche Entscheidung wie Erstrunde, nicht re-litigiert).
 
 ## Relevante Stellen
-- `.github/prompts/prompt-audit.md:1` — offener Fund F1 (FOCUS-Zeile, einzeiliger Fix).
-- `.github/prompts/prompt-audit.md:3,15,26-28` — die neuen NET/Konkretisierungs-Teile (inhaltlich korrekt und vollständig).
-- `.github/workflows/claude-prompt-audit.yml:146-225` — maschinen gelesener Post-Assertion-Step (bei Fixup nicht berühren).
+- `.github/prompts/prompt-audit.md:1` — F1-Fix (fa388991), verifiziert.
+- `.github/prompts/prompt-audit.md:3` — FRAME/NET-Metrik, Referenz für den Fix.
+- GitHub-Kommentar 5454934979 — der eine Sammelkommentar (ID stabil).
 
 ## Annahmen
-- „~50 Turns pro Fixup-Schleife“ aus `.costs/` wurde nicht selbst nachgerechnet — Zitat-Charakter, für den Fund nicht entscheidend.
-- Server-Test-Rot in `session.test.ts` ist pre-existing (MEMORY 2026-08-27, Redis nur als CI-Service) — PR ändert nur Markdown + YAML-Kommentar.
+- CI wird vom deterministischen Gate bewertet; e2e(2)-Rot ist flaky/pre-existing (Markdown-only-Delta), kein Review-Blocker.
+- Merge-von-main-Dateien sind auf main bereits reviewt/gemerged — kein PR-Fund.
 
 ## Verworfen
-- „erwartete Ersparnis“ in der Options-Vorlage (prompt-audit.md:34) statt „NETTO“ als zweiten Fund — Zeile 32 deckt es („each package states its net effect“); Rauschen.
-- Titel-Rename auf Englisch — Repo-Konvention sind deutsche Subjekte; Struktur konform, kein false-Flag im Prompt.
+- Neues Kreuzverhör des Gesamtdiffs — MODE Fixup-Nachweis, Delta-Scoping greift.
+- Titel-Rename auf Englisch — Repo-Konvention deutsche Subjekte (Erstrunden-Entscheidung).
 
 ## Offen
-- Wegwerf-Artefakte untracked in `.ai-memory/`, gehören NICHT in einen Commit: `issue-1096-review-payload.json`, `issue-1096-review-comment.md` (`rm` braucht Freigabe, wie in 1083/1090).
+- `.ai-memory/issue-1096-review-comment.md` = Wegwerf-Payload (Sammelkommentar-Body), gehört NICHT in einen Commit.
 
 ## Nächster Schritt
-- Fixup-Runde: F1 beheben (Zeile 1 „initial token cost“ → z. B. „token efficiency (net effect over the phase chain)“), dann Fixup-Nachweis-Review (MODE anhand Markers, nur Delta + F1).
+- Phase abgeschlossen (verdict reviewed geschrieben); Weiterverarbeitung läuft über den Workflow (Gate → ai:ready-to-merge bei grünem CI).
 
 ## Fallstricke
-- Review-Post mit `--arg "…(…)"` crasht am Bash-Parser (Klammern) → Payload per Write als Datei + `gh api --input` (MEMORY 2026-08-24 analog).
-- Beim Fixup-Nachweis: wieder nur PR 1096, Delta seit Updated 2026-08-28; Finding-Nummer #1 stabil halten.
+- Falls ein weiterer Fixup nötig wird: Marker-Kommentar 5454934979 weiter in-place patchen, Finding-Nummern stabil halten; „Behoben via“-Tabelle nicht abschneiden.
