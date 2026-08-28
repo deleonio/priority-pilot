@@ -1,8 +1,6 @@
-# Issue 1098 — Implement (Läufe 1–3), Stand 2026-08-28
+# Issue 1098 — Implement (Lauf 1), Stand 2026-08-28
 
-**ERGEBNIS: VERDICT not-ready (3. Lauf in Folge) — Soft-Deadline traf jeden Lauf ~9–10 Min nach Start; KEIN Produktivcode geschrieben.** Spec-Modus verifiziert und aufgesetzt, PR bleibt Draft (#1103). Alles Weitere steht im nächsten Schritt an.
-
-**Hinweis für den Folgelauf:** Der Startzeitpunkt des Laufs liegt offensichtlich ~40 min nach dem Fenster-Start — die Deadline ist damit strukturell zu knapp für Implementierung + Voll-Gate. Falls der nächste Impl-Lauf wieder <15 Min Restzeit hat: nicht erneut nur die Notiz pushen, sondern dem Menschen im PR-Body (Draft-Beschreibung) melden, dass die Impl-Phase ein größeres Zeitfenster braucht.
+**ERGEBNIS: VERDICT not-ready — Soft-Deadline traf den Lauf ~9 Min nach Start; KEIN Produktivcode geschrieben.** Spec-Modus verifiziert und aufgesetzt, PR bleibt Draft (#1103). Alles Weitere steht im nächsten Schritt an.
 
 ## Erledigt
 - SKILL.md gelesen; Issue 1098 hat `ai:needs-impl` + `ai:analysed` (Assignee deleonio — menschlicher Owner, nicht blockierend, Nummer war explizit gegeben).
@@ -10,7 +8,6 @@
 - Branch ausgecheckt (HEAD `bc160334` „memory: spec"; lokaler main-Stash vorher: `git stash -u` nötig, weil untracked `.ai-memory/issue-1098-*.md` den Switch blockierten — nach dem Lauf ggf. `git stash pop` auf main beachten).
 - Rot-Tests lokalisiert (Commit `fa49cefa` „test: red spec tests for #1098"): `server/src/express/geo-config.test.ts` (129 Z., komplett gelesen — API-Vertrag s. Fallstricke), `server/src/express/tasks-nearby.test.ts` (+66 Z., nutzt `PUT /geo-config` via `setDisplayDistance` :77-82), `frontend/src/components/SettingsPage.test.tsx` (+125 Z.), `frontend/src/lib/useGeolocation.test.ts` (+54 Z.), `frontend/e2e/issue-1098-geo-settings.spec.ts` (133 Z., neu), `frontend/e2e/issue-1066-nearby-card.spec.ts` (+24 Z. angepasst).
 - Quick-Check (SKILL step 2): alle benannten Dateien existieren (`SettingsPage.tsx`, `useGeolocation.ts`, `Dashboard.tsx`, `server/src/models/user.ts`, `routes/llmProviders.ts`); Ampel 🟢 laut Analyse-Block → implementierbar.
-- Lauf 3 (Fortsetzungs-Lauf): Branchzustand verifiziert — `git diff --name-only fa49cefa..origin/ai/harness/1098` = NUR `.ai-memory/issue-1098-implement.md` (Lauf 2 hat dieselbe Notiz erneut gepusht, kein Code). Lokale untracked-Notiz war byte-identisch mit Branch-Version. Kein Code seit `fa49cefa` verloren gegangen.
 - `docs/spec/issue-1098.md` (70 Z.) komplett gelesen — verbindlicher Vertrag: Defaults 5/1/5, Schranken alarm ∈ [1, display], display ∈ [alarm, 50], interval ∈ [1, 60], alles ganze Zahlen, 400 bei Verstoß, nichts persistieren bei 400.
 
 ## Relevante Stellen
