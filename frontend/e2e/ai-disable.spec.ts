@@ -124,6 +124,43 @@ test.describe('#1080 KI-Features deaktivierbar', () => {
 		await expect(page.getByRole('textbox', { name: /Beschreibe/ })).toHaveCount(0);
 	});
 
+	test('AK4: Berater-Übernahme ohne Schnellerfassung — Vorschlagstext landet als Beschreibung', async ({ page }) => {
+		initPreferences(page, { aiEnabled: true, quickCaptureEnabled: false });
+
+		// Berater-Antwort mocken; die Säulen-Liste kommt vom echten Backend, damit die gemockte
+		// `pillarIds`-Referenz zur geladenen Liste passt (Muster `pillar-advisor-adopt.spec.ts`).
+		const pillarsResponse = await page.request.get('/api/v1/pillars');
+		const pillars = (await pillarsResponse.json()) as { id: number }[];
+		expect(pillars.length).toBeGreaterThan(0);
+
+		await page.route('**/api/v1/pillars/advisor', (route) =>
+			route.fulfill({
+				status: 200,
+				contentType: 'application/json',
+				body: JSON.stringify({
+					advice: [{ activity: 'Spaziergang am Fluss', reason: 'Ein guter Ausgleich.', pillarIds: [pillars[0].id] }],
+				}),
+			}),
+		);
+
+		await page.goto('/');
+		await waitForStableView(page);
+		await (await headerAction(page, 'Säulen-Berater')).click();
+		await expect(page.getByRole('heading', { name: 'Säulen-Berater' })).toBeVisible();
+
+		await page.getByRole('textbox', { name: /Deine Frage oder Situation/ }).fill('Was tut mir gut?');
+		await page.getByRole('button', { name: 'Beraten lassen' }).click();
+		await expect(page.locator('.advisor-results').getByText('Spaziergang am Fluss')).toBeVisible();
+
+		await page.getByRole('button', { name: 'Als Aufgabe übernehmen' }).click();
+
+		// Auch dieser Einstieg weicht der Schnellerfassung aus (#1080) und nimmt den Vorschlagstext
+		// als Beschreibungs-Vorbelegung mit (#327: `initialText` → `initialValues.description`).
+		await expect(page.getByRole('heading', { name: 'Aufgabe anlegen' })).toBeVisible();
+		await expect(page.getByRole('textbox', { name: /Beschreibe/ })).toHaveCount(0);
+		await expect(page.getByRole('textbox', { name: /^Beschreibung/ })).toHaveValue('Spaziergang am Fluss');
+	});
+
 	test('AK5: beide Einstellungen überleben das Neuladen unverändert', async ({ page }) => {
 		await openLlmTab(page);
 
@@ -139,6 +176,23 @@ test.describe('#1080 KI-Features deaktivierbar', () => {
 
 		await expect(aiSwitch).not.toBeChecked();
 		await expect(quickCaptureSwitch).not.toBeChecked();
+	});
+
+	test('AK2: in den Einstellungen umgeschaltet — „Säulen-Berater" ist nach „Zurück" sofort weg', async ({ page }) => {
+		await openLlmTab(page);
+
+		const aiSwitch = switchControl(page, /^KI-Features aktiv$/);
+		await aiSwitch.click();
+		await expect(aiSwitch).not.toBeChecked();
+
+		// Zurück in die Haupt-App: Der Button verschwindet ohne Seiten-Neuladen — die Einstellungen
+		// dürfen keinen veralteten Wert in der bereits gemounteten Haupt-App hinterlassen.
+		await page.getByRole('button', { name: 'Zurück' }).click();
+		await waitForStableView(page);
+
+		await expect(
+			page.getByRole('toolbar', { name: /Kopf-Aktionen/ }).getByRole('button', { name: 'Säulen-Berater' }),
+		).toHaveCount(0);
 	});
 
 	test('AK6: 375px — beide Schalter sind voll sichtbar, ≥44px hoch und in der Viewport-Breite', async ({ page }) => {

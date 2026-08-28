@@ -36,7 +36,7 @@ import { buildDependencyMap } from './lib/dependencies';
 import { collectTaskValues } from './lib/forest';
 import { buildPillarSummaries } from './lib/pillar';
 import { APP_VERSION } from './lib/version';
-import { useAiPreferences } from './lib/aiPreferences';
+import { readAiPreferences } from './lib/aiPreferences';
 
 type Dialog =
 	// `parentTask` gesetzt → die neu angelegte Aufgabe wird als Vorgänger mit ihr verknüpft (Unteraufgabe).
@@ -408,7 +408,11 @@ export const App = ({ user }: { user: AuthUser }) => {
 	// #1080: KI-Einstellungen (clientseitig, localStorage). `aiEnabled` blendet die KI-Bedienelemente
 	// aus (Toolbar-Button „Säulen-Berater", Lektorat-Buttons im TaskForm); `quickCaptureEnabled`
 	// entscheidet, ob „Neuen Task anlegen" den Capture-Schritt zeigt oder direkt das Task-Formular.
-	const { aiEnabled, quickCaptureEnabled } = useAiPreferences();
+	// Absichtlich **kein** State-Hook: `SettingsPage` besitzt die eigene Hook-Instanz und `App`
+	// remountet beim „Zurück" nicht (`showSettings` ist interner State) — ein hier gepufferter Wert
+	// wäre veraltet. Jeder Render liest daher frisch aus dem `localStorage`; der Wechsel zurück aus
+	// den Einstellungen ist selbst ein Re-Render, sodass die Änderung sofort wirkt.
+	const { aiEnabled, quickCaptureEnabled } = readAiPreferences();
 
 	// Toolbar-Buttons sind auf allen Viewports identisch — keine unterschiedliche Menüstruktur je nach
 	// Viewport-Breite (#691). `_label`s und Reihenfolge sind stabil, damit Accessible Names konsistent bleiben.
