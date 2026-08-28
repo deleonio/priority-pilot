@@ -1,41 +1,40 @@
-# Issue 1095 — Review/Kreuzverhör (PR #1097), Stand 2026-08-28T16:55Z
+# Issue 1095 — Review/Kreuzverhör (PR #1097), Stand 2026-08-28T17:12Z
 
-**ERGEBNIS: VERDICT needs-fixup, Ampel 🟡.** MODE = Kreuzverhör (kein `<!-- ai-review -->`-Kommentar vorhanden → erste Runde). Closing issue #1095 vorhanden → AKs aus dem KI-ANALYSE-Block (stand=2026-08-28T16:17:01Z, Ampel 🟢, AK1–AK4). 3 Findings gepostet als Review (event=COMMENT): F1 Verhalten (UpdatePrompt.tsx:38), F2 Naming (UpdatePrompt.tsx:33), F3 vakuer E2E-Assert (pwa-update-prompt.spec.ts:355).
+**ERGEBNIS: VERDICT reviewed, Ampel 🟢.** Runde 1 = Kreuzverhör (needs-fixup, 3 Findings F1–F3). Runde 2 = **Fixup-Nachweis** (Marker `<!-- ai-review -->` vorhanden, Kommentar-ID 5455350477). Fixup-Commit `f3abecf6` trägt F1–F3 vollständig ab, Delta-Prüfung `5d56af55..f3abecf6` (3 Dateien, +31/−10), keine neuen Findings.
 
 ## Erledigt
-- Marker-Suche: 0 Issue-Kommentare auf PR #1097, 0 Review-Kommentare → Kreuzverhör (volle Prüfung).
-- PR gelesen: head `ai/harness/1095`, base main, 7 Dateien (3× `.ai-memory`, docs/spec/issue-1095.md, UpdatePrompt.tsx, UpdatePrompt.test.tsx, pwa-update-prompt.spec.ts); 425 Diffzeilen; CI: precheck/verify/e2e(1-4) SUCCESS, `review` = laufender Job.
-- Issue #1095 KI-ANALYSE-Block geladen (AK1 Listener+updateServiceWorker, AK2 Idempotenz, AK3 kein Reload ohne Klick, AK4 E2E 375px).
-- Separation of Duties geprüft: `git diff de2c95ea HEAD -- UpdatePrompt.test.tsx pwa-update-prompt.spec.ts` = LEER → rote Spec-Tests (Commit de2c95ea „test: red spec tests for #1095", vor fix-Commit e95bcb59) wurden UNVERÄNDERT grün gemacht ✓; AK3 initial grün im PR-Body begründet ✓.
-- Testsubstanz gegenprüft: AK1-Test spy't `addEventListener` am EventTarget-Stubb + `toHaveBeenCalledWith('controllerchange', expect.any(Function))`; AK2 3× dispatch → 1× reload; AK3 kein Listener/Reload ohne Klick; Mutationsprobe im PR-Body plausibel.
-- Naming-Konvention gegen Codebase geprüft: `grep -rnE "const [a-zA-Z]*[äöüß...]"` → `bestätigtRef` ist der EINZIGE Nicht-ASCII-Bezeichner im `frontend/src`; alle Refs sonst englisch camelCase (App.tsx:257, Modal.tsx:59/74).
-- Findings als Review gepostet (gh api pulls/1097/reviews, event=COMMENT, 3 inline comments); Sammelkommentar `<!-- ai-review -->` erstmals angelegt; Titel-Gate: PR-Titel war Issue-Titel „Pwa update hängt oder geht nicht (#1095)" → umbenannt in `fix(frontend): guarantee reload after PWA update confirmation (#1095)`.
+- MODE-Bestimmung: `<!-- ai-review -->`-Kommentar vorhanden (Issue-Kommentar 5455350477, updatedAt 2026-08-28T16:58:48Z, Review-Typ Kreuzverhör) → Fixup-Verifikation, KEINE erneute Vollprüfung. Line 2 des Sammelkommentars nennt Issue #1095 → nicht „Review ohne Issue" (closingIssuesReferences length = 1).
+- Fixup-Commit identifiziert: PR-Commitliste → `f3abecf6` liegt NACH `5d56af55` (memory: review, dem Stand der Runde 1); Diff-Basis also `5d56af55..f3abecf6`, nicht base..head.
+- F1 ✓: `confirmUpdate` ruft `updateServiceWorker(true)` jetzt UNBEDINGT zuerst auf, nur die Listener-Registrierung ist über `listenerRegisteredRef` einmalig (UpdatePrompt.tsx:38-48). Neuer Test „mehrfacher Klick wiederholt updateServiceWorker, registriert den Listener aber nur einmal" (UpdatePrompt.test.tsx:291-306): 3 Klicks → `updateServiceWorker` 3×, `addEventListener` 1×.
+- F2 ✓: `bestätigtRef`/`reloadtRef` → `listenerRegisteredRef`/`reloadedRef` (ASCII camelCase, korrektes Partizip), Kommentarblock konsistent mitgezogen.
+- F3 ✓: nicht fehlbares `expect(page.locator('.update-prompt')).toHaveCount(0)` gestrichen (pwa-update-prompt.spec.ts:350-356) und durch einen Begründungs-Kommentar ersetzt — stärker als die empfohlene „dekorativ markieren"-Variante.
+- Neuer Test als sicher verifiziert: `updateServiceWorker.mockReset()` steht im `beforeEach` (UpdatePrompt.test.tsx:73) → `toHaveBeenCalledTimes(3)` kann nicht von Vor-Tests kontaminiert sein.
+- Titel-Gate: PR-Titel `fix(frontend): guarantee reload after PWA update confirmation (#1095)` = 67 Zeichen, Conventional Commits, englisch, lowercase → bestanden, KEIN Rename nötig (Runde 1 hatte ihn schon umbenannt).
+- Sammelkommentar aktualisiert (PATCH auf 5455350477, updated 2026-08-28T17:12:46Z): F1–F3 von „Offene Findings" in „Behobene Anmerkungen" (Nummern stabil), Review-Typ → Fixup-Nachweis.
 
 ## Relevante Stellen
-- `frontend/src/components/UpdatePrompt.tsx:37-41` — `bestätigtRef`-Early-Return blockt auch den erneuten `updateServiceWorker(true)`-Aufruf (F1).
-- `frontend/src/components/UpdatePrompt.tsx:33-34` — `bestätigtRef`/`reloadtRef` (F2, Naming).
-- `frontend/e2e/pwa-update-prompt.spec.ts:355` — `toHaveCount(0)` auf `.update-prompt` nach Reload: kann nie fehlschlagen (injizierter Container weg, echter Prompt nie gemountet) (F3).
-- `frontend/src/components/UpdatePrompt.test.tsx:216-303` — #1095-Suite (AK1×2/AK2/AK3), unverändert zur roten Version.
-- `frontend/src/components/UpdatePrompt.test.tsx:52-58` — #353-AK3-Test („Klick ruft updateServiceWorker(true)") bleibt grün, testet aber nur den ersten Klick.
+- `frontend/src/components/UpdatePrompt.tsx:38-48` — neue Guard-Reihenfolge: `updateServiceWorker(true)` vor dem `listenerRegisteredRef`-Return; der Guard schützt nur noch die Listener-Registrierung.
+- `frontend/src/components/UpdatePrompt.test.tsx:291-306` — F1-nagelnder Mehrfachklick-Test.
+- `frontend/src/components/UpdatePrompt.test.tsx:73` — `mockReset()`-Garantie für Count-Assertions.
+- `frontend/e2e/pwa-update-prompt.spec.ts:350-356` — E2E endet jetzt am `sessionStorage`-Reload-Zähler + Dashboard-Heading.
+- `.ai-memory/issue-1095-review.md` (Runde 1) — vollständige Kreuzverhör-Begründung zu F1–F3, Review-ID 5053249457.
 
 ## Annahmen
-- vite-plugin-pwa-Interna (interner `controlling`-Reload-Pfad) NICHT selbst gelesen (keine node_modules in der Sandbox) — F1 begründet rein über beobachtbares Verhalten: zweiter Klick = No-op, unabhängig vom internen Pfad.
-- Tests als grün über CI-Nachweis übernommen (verify SUCCESS, e2e 4× SUCCESS, PR-Body: 451 passed/13 skipped, 11/11 E2E) — kein lokaler Lauf möglich (kein node_modules).
+- CI (verify/e2e 1–4/review) war beim Lauf noch pending (Fixup frisch gepusht; precheck ✓) → Grün-Nachweis per Testtext + Mock-Hygiene statt eigenem Lauf (kein node_modules in der Sandbox).
+- Fixup-Commit ist der einzige Code-Commit seit Runde 1 (`memory: fixup` 6b3710ba ist nur Phasen-Notiz).
 
 ## Verworfen
-- F1 als needs-human/Entscheidungs-Finding — klar fixbarer Code-Fehler mit Empfehlung, keine Architekturfrage.
-- AK2-„Workbox-Pfad + eigener Fallback"-Lücke als eigenes Finding — interner Pfad ist prinzipiell nicht vom Komponenten-Guard erfassbar, im Spec/Impl-Note dokumentiert; E2E deckt die 3×-Kette.
-- Doppelklick-Guard als solches zu verwerfen, ohne Empfehlung — Fixup bekommt beide Optionen (Guard nur auf Listener-Registrierung ODER Test, der das Verhalten nagelt).
-- KoliBri-/Mobile-First-Prüfung als Finding — UI/Marup/CSS unverändert, 375px-E2E vorhanden.
+- Erneute Vollprüfung des PR — Fixup-Modus verbietet sie; nur Delta + neue Probleme.
+- Kritik an der Reihenfolge `updateServiceWorker(true)` vor dem Guard-Return — gewollt und korrekt, sonst würde der Wiederholklick gar nichts tun.
+- Eigener F1-Zweig-Test für „Klick ohne SW-Unterstützung" (Optional-chaining-Pfad) — durch AK3-Test und die bedingungslose Call-Abdeckung nicht mehr nötig.
 
 ## Offen
-- Fixup-Runde steht aus; F1–F3 nummernstabil halten (Review-ID 5053249457, Sammelkommentar-ID 5455350477).
-- Titel-Gate ausgeführt: PR-Titel war Issue-Titel → jetzt `fix(frontend): guarantee reload after PWA update confirmation (#1095)` (≤72, englisch, lowercase).
+-
 
 ## Nächster Schritt
-- Fixup-Nachweis: nur noch F1–F3 abhaken (Diff-Scope auf die Fixup-Commits), keine erneute Vollprüfung.
+- Kein weiterer Review-Lauf nötig; Issue geht mit `reviewed` in den Merge-Gate.
 
 ## Fallstricke
-- `git show <sha>:<pfad>` nötig für Anchor-Zeilen — die Diff-Hunk-Kopfzeilen (z. B. `+23,34`) sind nicht die finalen Dateizeilen.
-- gh-Review-JSON mit Codeblocks: per python3 json.dump bauen (nacktes Heredoc-JSON bricht an Newlines/Tabs in Vorschlägen).
-- Pre-existing rot: `pnpm --filter server test` exit 1 an session.test.ts Redis-Store (durch `git stash`-Gegenprobe im PR-Body als pre-existing belegt) — NICHT als Finding werten.
+- Fixup-Delta nicht gegen `base..head` bilden — die Review-Runde-1-Stand (memory-Commit `5d56af55`) ist die richtige Diff-Basis, sonst sieht man den ganzen PR nochmal.
+- Neue Count-Assertions auf modul-Level-`vi.fn()` sind nur dann belastbar, wenn `beforeEach` wirklich `mockReset()` ruft — vor dem Abnicken prüfen (hier: Zeile 73).
+- Sammelkommentar-Update per `gh api -X PATCH .../issues/comments/<ID> -F body=@datei` (nicht neu anlegen); `gh pr comment` würde einen Zweitkommentar erzeugen.
