@@ -350,8 +350,10 @@ test.describe('Priority Pilot — PWA Update-Reload-Fallback (#1095)', () => {
 			)
 			.toBe('1');
 
-		// App ist nach dem Reload wieder vollständig da — und der Update-Prompt ist weg.
+		// App ist nach dem Reload wieder vollständig da. (Kein `.update-prompt`-Count-Check: das hier
+		// injizierte div stirbt mit dem Reload und der echte Prompt ist in diesem Test nie gemountet —
+		// die Assertion könnte nicht fehlschlagen. Das echte Verschwinden tragen AK1–AK3 in
+		// UpdatePrompt.test.tsx.)
 		await expect(page.getByRole('heading', { name: 'Dashboard', level: 1 })).toBeVisible();
-		await expect(page.locator('.update-prompt')).toHaveCount(0);
 	});
 });

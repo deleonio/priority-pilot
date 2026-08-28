@@ -287,6 +287,23 @@ describe('UpdatePrompt — Reload-Fallback bei Controller-Wechsel (#1095)', () =
 		expect(reloadMock).toHaveBeenCalledTimes(1);
 	});
 
+	// Fixup zu F1: Nur die Listener-Registrierung ist einmalig — `updateServiceWorker(true)` läuft
+	// bei jedem Klick, damit der Button Wiederholungsmöglichkeit bleibt, wenn kein
+	// Controller-Wechsel eintrifft (z. B. neuer Service-Worker noch beim Installieren).
+	it('mehrfacher Klick wiederholt updateServiceWorker, registriert den Listener aber nur einmal', () => {
+		const addEventListenerSpy = vi.spyOn(serviceWorkerStub, 'addEventListener');
+
+		render(<UpdatePrompt />);
+
+		fireEvent.click(screen.getByTestId('pwa-update-reload'));
+		fireEvent.click(screen.getByTestId('pwa-update-reload'));
+		fireEvent.click(screen.getByTestId('pwa-update-reload'));
+
+		expect(updateServiceWorker).toHaveBeenCalledTimes(3);
+		expect(updateServiceWorker).toHaveBeenNthCalledWith(1, true);
+		expect(addEventListenerSpy).toHaveBeenCalledTimes(1);
+	});
+
 	// AK3 — Kein Reload ohne Nutzerbestätigung; Regressionsschutz gegen Mount-Zeit-Registrierung.
 	it('AK3: ohne Bestätigung kein Listener und kein Reload — auch wenn controllerchange feuert', () => {
 		const addEventListenerSpy = vi.spyOn(serviceWorkerStub, 'addEventListener');

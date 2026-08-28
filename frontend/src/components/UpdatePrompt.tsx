@@ -29,24 +29,26 @@ export const UpdatePrompt = () => {
 	// Bestätigung verdrahtet daher zusätzlich einen eigenen `controllerchange`-Listener, der den
 	// Reload garantiert auslöst. Die Registrierung erfolgt ausschließlich nach Bestätigung (kein
 	// Auto-Reload beim Mount) und nur einmalig — ein zweiter Klick darf keinen zweiten Listener
-	// erzeugen (bestätigtRef).
-	const bestätigtRef = useRef(false);
-	const reloadtRef = useRef(false);
+	// erzeugen (listenerRegisteredRef). `updateServiceWorker(true)` selbst läuft bei jedem Klick:
+	// trifft kein Controller-Wechsel ein (z. B. weil der neue Service-Worker noch installiert),
+	// bleibt der Button damit die einzige Wiederholungsmöglichkeit.
+	const listenerRegisteredRef = useRef(false);
+	const reloadedRef = useRef(false);
 
 	const confirmUpdate = () => {
-		if (bestätigtRef.current) {
+		updateServiceWorker(true);
+		if (listenerRegisteredRef.current) {
 			return;
 		}
-		bestätigtRef.current = true;
-		updateServiceWorker(true);
+		listenerRegisteredRef.current = true;
 		// Optional chaining: ohne Service-Worker-Unterstützung (z. B. unsicherer Kontext) gibt es
 		// keinen Controller-Wechsel — der Klick darf dann trotzdem nicht werfen.
 		navigator.serviceWorker?.addEventListener('controllerchange', () => {
 			// Idempotenz: mehrere Controller-Wechsel (Workbox-Pfad + eigener Fallback) → genau 1 Reload.
-			if (reloadtRef.current) {
+			if (reloadedRef.current) {
 				return;
 			}
-			reloadtRef.current = true;
+			reloadedRef.current = true;
 			window.location.reload();
 		});
 	};
