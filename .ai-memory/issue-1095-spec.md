@@ -24,7 +24,7 @@
 - Änderung an `vitest.config.ts` (globales location-Stubbing) — Config gehört nicht in den Spec-PR; Stubb lokal in der Suite reicht.
 
 ## Offen
-- E2E-Lauf (`npx playwright test e2e/pwa-update-prompt.spec.ts`) im Hintergrund gestartet — Ergebnis nachtragen; wenn rot: vermutlich Web-Component-`kol-button` ohne Shadow-Klickpfad auf den injizierten `span` (Klick geht direkt auf `[data-testid]`, sollte ok sein) oder Server-Boot.
+- E2E nachgeholt: Playwright-Browser fehlten im Runner (`npx playwright install chromium`, umgebungsbedingt — zunächst schlugen ALLE 11 Tests der Datei am fehlenden Executable fehl, auch die alten). Danach `e2e/pwa-update-prompt.spec.ts` 11/11 grün. AK4-Ersterfassung rot: „Execution context was destroyed" — der Reload zerstört den Kontext während `expect.poll(page.evaluate)` → poll mit try/catch (return null) gefixt.
 - Wegwerf-Artefakte aus Triage (`.ai-memory/issue-1095-{body,block,new}.md`) untracked, NICHT committen.
 
 ## Nächster Schritt
