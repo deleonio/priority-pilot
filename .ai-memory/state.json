@@ -23,6 +23,12 @@
       "runId": "33116902368",
       "branch": "main",
       "timestamp": "2026-08-27T21:36:52Z"
+    },
+    "review": {
+      "sessionId": "525da739-ae44-4b67-8f59-283f110073ee",
+      "runId": "33136952734",
+      "branch": "feat/issue-1066-nearby-card",
+      "timestamp": "2026-08-28T02:52:47Z"
     }
   }
 }
