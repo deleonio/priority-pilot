@@ -159,13 +159,15 @@ Peak-Fallback praktisch rein defensiv.
 
 ### Modell-Routing je Phase (ai-phase-routing-Tabelle)
 
-Die Triage schreibt neben dem Analyse-Block eine Routing-Tabelle in den Issue-Body
-(Marken `<!-- ai-phase-routing:START/END -->`): je Phase ux/spec/impl/review die Spalten
+Die Triage schreibt neben dem Analyse-Block eine Routing-Tabelle in den Harness-Kommentar
+(ADR 0009: der EINE Marker-Kommentar `<!-- ai-harness -->` am Issue — der Body bleibt
+unberührt; Marken `<!-- ai-phase-routing:START/END -->`): je Phase ux/spec/impl/review die Spalten
 Run (ja/nein), Modell (haiku/sonnet/opus) und Effort (low/medium/high). `impl` und `review`
 laufen immer; die Run-Spalte dokumentiert dieselbe Entscheidung wie die Label-Kette.
 
 **Vorrang:** Tabelle > `ai:model:*`-Label > Workflow-Default (`vars.CLAUDE_MODEL_*` bleibt
-manueller Not-Override). `resolve-phase-routing.sh` liest die Tabelle (am Issue; bei PRs über
+manueller Not-Override). `resolve-phase-routing.sh` liest die Tabelle (am Issue aus dem
+Harness-Kommentar, Legacy-Fallback Issue-Body; bei PRs über
 das Closing-Issue) und ist fail-open: fehlt sie oder ist eine Zeile ungültig, gelten Label bzw.
 Defaults unverändert — ein Tippfehler des LLM parkt die Pipeline nie. Details: ADR 0004.
 

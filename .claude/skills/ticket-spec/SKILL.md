@@ -18,7 +18,7 @@ This stage is the **separation of duties** of the TDD strategy (stage 3, see [td
 - Find open issues with `ai:needs-spec`: `gh issue list --state open --label "ai:needs-spec" --json number,title --jq '.[] | "\(.number)\t\(.title)"'`
 - A specifically given number takes priority; otherwise process in order (oldest first).
 - **Idempotency:** If an open PR with `Closes #<nr>` already exists for the issue, **do not** spec it again — end the run.
-- Load context + analysis: read the **acceptance criteria + test cases** block primarily from the issue's **body block** (`gh issue view <nr> --json body -q .body`, the section between `<!-- KI-ANALYSE:START … -->` and `<!-- KI-ANALYSE:END -->`). If the body block is missing (legacy issue), fall back to the most recent `🤖 KI-Analyse` comment.
+- Load context + analysis: read the **acceptance criteria + test cases** block primarily from the **harness marker comment** (ADR 0009 — the ONE comment whose body starts with `<!-- ai-harness -->`; fetch via `gh issue view <nr> --json comments`, section between `<!-- KI-ANALYSE:START … -->` and `<!-- KI-ANALYSE:END -->`). If the marker comment is missing (legacy issue), fall back to the issue body block (`gh issue view <nr> --json body -q .body`). The issue description is never edited by phases.
 - Create a branch: the harness branch `ai/harness/<nr>` (usually already exists — it carries
   the phase notes from triage/UX; `git fetch origin && git switch ai/harness/<nr>`).
   If it does not exist yet: `git switch -c ai/harness/<nr>`.
@@ -33,7 +33,7 @@ This stage is the **separation of duties** of the TDD strategy (stage 3, see [td
 ## Step 3 — Write red tests (the contract)
 
 - Tests are derived from the **spec** (not directly from the acceptance criteria). Every acceptance criterion must be covered by the spec; every test must reference the spec or an acceptance criterion.
-- **Mind the KI-UX block:** if the issue has UX aspects (a KI-UX block present in the body), let its requirements flow into the spec derivation.
+- **Mind the KI-UX block:** if the issue has UX aspects (a KI-UX block present in the harness marker comment), let its requirements flow into the spec derivation.
 - **For confirm/delete/destructive dialogs:** base tests on `docs/ux-pattern-sequential-confirmation.md` — sequential yes/no steps, mandatory focus management on transition.
 - Write the test case(s) for each acceptance criterion as **real, executable** tests — **only** for application code (`server/src/**`, `frontend/src/**`, `frontend/e2e/**`). Test level and target file by issue type:
   - **Backend logic / API** → `node:test` (`server/src/logics/*.test.ts`, `server/src/express/*.test.ts`).

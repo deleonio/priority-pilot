@@ -20,7 +20,7 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
 - [CI-Architektur](docs/ci-architecture.md) — Provider, Modelle, Soft-Abort, Label-Pipeline, KoliBri MCP
 - [Pipeline-Flow](docs/pipeline-flow.md) — Diagramm + Tabellen zum label-getriebenen Ticket-Flows
 - [Kosten-Baseline #912](docs/kosten-baseline-912.md) — Token/Kosten eines Tickets über alle Phasen
-- [ADRs](docs/adr/) — verbindliche Grundsatzentscheidungen: [0001 Workflows ungetestet](docs/adr/0001-github-workflows-bleiben-ungetestet.md), [0002 7-Phasen-Pipeline](docs/adr/0002-pipeline-7-phasen-ux-vor-spec.md), [0003 Label-Schema](docs/adr/0003-label-schema-ai-needs-und-past.md), [0004 Analyse-getriebenes Routing](docs/adr/0004-analyse-getriebenes-routing.md), [0005 Fixup+Umsetzung = eine Phase](docs/adr/0005-fixup-und-umsetzung-sind-eine-phase.md), [0006 Issue-Storage = State-Branch (superseded)](docs/adr/0006-issue-storage-state-branch.md), [0007 Issue-Storage = Harness-Branch](docs/adr/0007-issue-storage-harness-branch.md)
+- [ADRs](docs/adr/) — verbindliche Grundsatzentscheidungen: [0001 Workflows ungetestet](docs/adr/0001-github-workflows-bleiben-ungetestet.md), [0002 7-Phasen-Pipeline](docs/adr/0002-pipeline-7-phasen-ux-vor-spec.md), [0003 Label-Schema](docs/adr/0003-label-schema-ai-needs-und-past.md), [0004 Analyse-getriebenes Routing](docs/adr/0004-analyse-getriebenes-routing.md), [0005 Fixup+Umsetzung = eine Phase](docs/adr/0005-fixup-und-umsetzung-sind-eine-phase.md), [0006 Issue-Storage = State-Branch (superseded)](docs/adr/0006-issue-storage-state-branch.md), [0007 Issue-Storage = Harness-Branch](docs/adr/0007-issue-storage-harness-branch.md), [0009 Phasen-Ausgaben = Harness-Kommentar](docs/adr/0009-issue-storage-harness-kommentar.md)
 - [Tailscale Exit Node](docs/tailscale-exit-node.md) — CI-Traffic über Tailscale-Exit-Node
 - [UX-Pattern: Sequenzielle Bestätigung](docs/ux-pattern-sequential-confirmation.md) — verbindliche Referenz für destruktive Aktionen
 - [Mobile-UI-Regeln](docs/mobile-ui-rules.md) — Daumen-Zonen, Touch-Targets, async Zustände, Anti-Patterns (Schwesterdatei: Cockpit-Design)
@@ -118,7 +118,8 @@ Playwright-MCP in Umsetzung und Fixup): [CI-Architektur](docs/ci-architecture.md
 
 **Jede Phase liest nur ihren eigenen Phase-Skill** (siehe [Wissensbasis](#wissensbasis)) plus
 das Issue/PR — kein domänenübergreifendes Lesen. Routing (Modell-Label `ai:model:*`, Spec-Skip)
-entscheidet die Triage je Subtask im `KI-ANALYSE`-Block — Details:
+entscheidet die Triage je Subtask im `KI-ANALYSE`-Abschnitt des Harness-Kommentars
+(ADR 0009) — Details:
 [ADR 0004](docs/adr/0004-analyse-getriebenes-routing.md), [Triage-Skill](.claude/skills/ticket-triage/SKILL.md).
 
 ## Tests (Server)

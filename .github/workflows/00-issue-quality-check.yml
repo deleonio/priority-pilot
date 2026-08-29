@@ -47,9 +47,11 @@ jobs:
             --issue "${{ github.event.issue.number }}"
 
       - name: Feedback aktualisieren (Markerkommentar + Label)
-        # skipped=true = Ticket laeuft bereits in der Pipeline (Analyse-Block im
-        # Body) — kein Feedback, sonst wuerde jeder Phasen-Body-Edit einen
-        # Vorab-Check-Kommentar ueberschreiben.
+        # skipped=true = Ticket laeuft bereits in der Pipeline (Label ai:analysed;
+        # Legacy: Analyse-Block im Body) — kein Feedback, sonst wuerde jeder Edit
+        # einen Vorab-Check-Kommentar ueberschreiben. Seit ADR 0009 editieren die
+        # Phasen den Body gar nicht mehr (Ausgaben wandern in den Harness-
+        # Kommentar) — der Skip sichert v. a. Autoren-Edits waehrend der Pipeline.
         if: steps.verify.outputs.skipped != 'true'
         env:
           GH_TOKEN: ${{ github.token }}

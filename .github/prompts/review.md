@@ -9,7 +9,7 @@ Determine MODE (VERY FIRST step) per SKILL.md step 5 (marker search for the exis
 
 MODE CROSS-EXAMINATION (initial review) — adversarial, whole PR:
   1. Read the full diff (gh pr diff) and the linked issue per SKILL.md step 1.
-     - Closing issue exists (gh pr view {{PR_NR}} --json closingIssuesReferences --jq '.closingIssuesReferences | length' > 0): acceptance criteria from the KI-ANALYSE block.
+     - Closing issue exists (gh pr view {{PR_NR}} --json closingIssuesReferences --jq '.closingIssuesReferences | length' > 0): acceptance criteria from the KI-ANALYSE section of the harness marker comment (first line `<!-- ai-harness -->`; fetch via gh issue view <nr> --json comments) — legacy fallback: KI-ANALYSE block in the issue body.
      - NO closing issue (length == 0): PR description/title is the informal specification (the SKILL's KI-Analyse-comment fallback needs an issue — doesn't apply here) — note this explicitly in the verdict ("Review ohne Issue - PR-Beschreibung ist massgebend").
   2. Cross-examination questions incl. regression/Test-Pflege-Bedarf + KoliBri-first: SKILL.md step 2.
   3. Code quality: naming, readability, tests (green + covering the acceptance criteria).

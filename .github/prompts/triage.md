@@ -3,10 +3,12 @@ FOCUS: ONLY issue #{{ISSUE_NR}}. Research = issue body + delta comments since `s
 Method + details: .claude/skills/ticket-triage/SKILL.md
 
 TRIGGER:
-- Initial triage: no <!-- KI-ANALYSE:START --> block in the issue body.
-  Research = issue body + ALL comments (they may contain decisions).
-- Re-triage: block exists. Read ONLY delta comments since `stand`.
-- Re-triage after needs-human: no block, but an <!-- ai-triage-decision --> comment
+- Initial triage: no harness marker comment on the issue (no comment whose body
+  STARTS with `<!-- ai-harness -->`). Research = issue body + ALL comments (they may
+  contain decisions).
+- Re-triage: marker comment exists. Its KI-ANALYSE block carries `stand=` — read ONLY
+  the delta comments since `stand`, and SKIP the harness comment itself.
+- Re-triage after needs-human: no marker comment, but an <!-- ai-triage-decision --> comment
   exists. Read THIS comment and ALL comments after it — that's where the
   human decision is. It is BINDING, not a suggestion: don't ask
   again what was decided.
@@ -14,6 +16,9 @@ TRIGGER:
 PROCEDURE:
 1. Load the issue (gh issue view {{ISSUE_NR}} --json title,body)
 2. Only change the title if it's substantively wrong — ONE edit, not a copyedit.
+   NEVER edit the issue description: the body stays EXACTLY as validated (ADR 0009 —
+   every body edit re-triggers the issue validator and stalls the pipeline).
+   `gh issue edit --body` is forbidden in this phase.
 3. CLARIFY AMBIGUITY FIRST (BEFORE the analysis): if the task can't be resolved unambiguously
    (even after reading the code), do NOT guess an analysis. Instead:
    VERDICT: needs-human AND EXACTLY ONE comment with the <!-- ai-triage-decision --> marker
@@ -21,11 +26,27 @@ PROCEDURE:
    COLLECT all open questions and write them into this ONE comment — don't add them one by
    one, don't hide them in the analysis block, don't scatter them across ping comments.
 4. Split up (if too large, see skill step 3)
-5. Write the analysis block AND routing table into the issue body — values and format
-   per SKILL.md step 4 (its own ai-phase-routing block, ASCII; impl/review ALWAYS `ja`;
-   for Run=`nein` set model/effort to '-').
+5. Write the analysis block AND routing table into the ONE harness marker comment — values
+   and format per SKILL.md step 4 (its own ai-phase-routing block, ASCII; impl/review ALWAYS
+   `ja`; for Run=`nein` set model/effort to '-'). The comment body STARTS with the marker
+   line `<!-- ai-harness -->`; read-modify-write: replace ONLY the KI-ANALYSE +
+   ai-phase-routing sections, keep foreign sections (e.g. KI-UX) byte-for-byte.
+   `stand` resets on every write. gh-only mechanics (restricted tier):
+   a) Node-ID lookup (empty output = comment not created yet):
+   HID="$(gh issue view {{ISSUE_NR}} --json comments --jq '[.comments[] | select(.body | startswith("<!-- ai-harness -->"))] | .[0].id // ""')"
+   b) Update (heredoc carries the FULL comment body, marker line first — heredoc
+   lines start at column 0, the EOF terminator must too):
+   gh api graphql -f query='mutation($i:ID!,$b:String!){updateIssueComment(input:{id:$i,body:$b}){clientMutationId}}' -f i="$HID" -F b=@- <<'EOF'
+   <!-- ai-harness -->
+   …analysis block + routing table…
+   EOF
+   c) Create (no HID yet):
+   gh issue comment {{ISSUE_NR}} --body-file - <<'EOF'
+   <!-- ai-harness -->
+   …analysis block + routing table…
+   EOF
 
-NO ping comment: for an unambiguous outcome (spec-ready/analyzed), the body block +
+NO ping comment: for an unambiguous outcome (spec-ready/analyzed), the harness comment +
 label change is the complete communication. NO extra comments, NO
 summaries, NO follow-up questions outside the needs-human path.
 
