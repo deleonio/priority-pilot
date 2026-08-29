@@ -13,7 +13,8 @@ import { waitForStableView } from './helpers';
  *
  * Der Vertrag in Worten:
  *  1. Beim Öffnen liegt der Fokus auf „Abbrechen" — die irreversible Aktion ist nicht per Enter
- *     auslösbar (#472).
+ *     auslösbar (#472). Seit der #1106-Konsolidierung auf `ConfirmDeleteDialog` gilt das für alle
+ *     vier Lösch-Dialoge einschließlich des Serien-Dialogs (#553).
  *  2. „Endgültig löschen" ist dabei zu KEINEM Zeitpunkt fokussiert, auch nicht kurz (#479).
  *  3. Der Fokus bleibt danach frei beweglich — Tab funktioniert sofort (AK4, neu).
  *  4. Beim Abbrechen kehrt der Fokus zum auslösenden Element zurück (#182).
@@ -162,12 +163,15 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		await assertTabFreedomInOpenDeleteDialog(page);
 	});
 
-	// #553: Der Serien-Löschdialog hat eine eigene Struktur (Ja/Nein/Abbrechen, kein
-	// „Endgültig löschen") und damit einen bewusst ANDEREN Fokus-Vertrag als Task/Säule. Die shared
-	// Helpers (`installDeleteFocusWatcher`, `assertCancelFocusedWithoutJump`) schützen den Vertrag
-	// der unveränderten Task/Säule-Dialoge und werden hier bewusst NICHT verwendet — stattdessen
-	// INLINE-Assertions, die der neuen Serien-Struktur folgen (Initialfokus auf „Nein", nicht „Abbrechen").
-	test('AK3 — Serien-Löschen: Bestätigungsdialog statt Sofort-Löschung, Initialfokus auf „Nein"', async ({ page }) => {
+	// #553/#1106: Der Serien-Löschdialog hat drei Buttons (Abbrechen → Nein → Ja) und keinen
+	// „Endgültig löschen"-Button — seit der #1106-Konsolidierung auf `ConfirmDeleteDialog` gilt
+	// derselbe Fokus-Vertrag wie für Task/Säule (Initialfokus „Abbrechen", Danger zuletzt). Die
+	// shared Helpers (`installDeleteFocusWatcher`, `assertCancelFocusedWithoutJump`) horchen auf
+	// genau den Text „Endgültig löschen" und sind deshalb hier bedeutungslos — stattdessen
+	// INLINE-Assertions, die auf die Serien-Button-Texte zielen.
+	test('AK3 — Serien-Löschen: Bestätigungsdialog statt Sofort-Löschung, Initialfokus auf „Abbrechen"', async ({
+		page,
+	}) => {
 		const title = uniqueTitle('Serie');
 		const created = await page.request.post('/api/v1/series', {
 			data: {
@@ -200,20 +204,20 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		const afterClick = (await (await page.request.get('/api/v1/series')).json()) as { title: string }[];
 		expect(afterClick.some((entry) => entry.title === title)).toBeTruthy();
 
-		// #553: Initialfokus liegt auf „Nein (nur Serie, …)" (sicherer Default — die kaskadierende
-		// Löschung „Ja" ist nicht per Enter auslösbar). Der destruktive „Ja"-Button ist nicht fokussiert.
+		// #472/#1106: Initialfokus liegt auf „Abbrechen" — weder die kaskadierende Löschung „Ja" noch
+		// der sichere Default „Nein" ist per Enter auslösbar, bevor der Fokus bewusst verlagert wird.
 		await waitForStableView(page);
-		await expect(page.getByRole('button', { name: /^Nein/i })).toBeFocused();
+		await expect(page.getByRole('button', { name: 'Abbrechen' })).toBeFocused();
 		await expect(page.getByRole('button', { name: /^Ja \(Serie \+ alle Aufgaben\)/ })).not.toBeFocused();
 
-		// Issue 653: Tab-Freiheit — Fokus muss sich bewegen lassen. Tab von „Nein" landet in der
-		// DOM-Reihenfolge (Ja → Nein → Abbrechen) auf „Abbrechen". SETTLE_MS wie AK4: KoliBris
-		// setFocus-Loop zieht ein Tab im ersten ~100-ms-Fenster zurück.
+		// Issue 653: Tab-Freiheit — Fokus muss sich bewegen lassen. Tab von „Abbrechen" landet in der
+		// DOM-Reihenfolge (Abbrechen → Nein → Ja) auf dem sicheren Default „Nein". SETTLE_MS wie AK4:
+		// KoliBris setFocus-Loop zieht ein Tab im ersten ~100-ms-Fenster zurück.
 		const SETTLE_MS = 150;
 		await page.waitForTimeout(SETTLE_MS);
 		await page.keyboard.press('Tab');
-		await expect(page.getByRole('button', { name: 'Abbrechen' })).toBeFocused();
-		await expect(page.getByRole('button', { name: /^Nein/i })).not.toBeFocused();
+		await expect(page.getByRole('button', { name: /^Nein/i })).toBeFocused();
+		await expect(page.getByRole('button', { name: 'Abbrechen' })).not.toBeFocused();
 	});
 
 	/**
@@ -297,8 +301,9 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 	/**
 	 * Tab-Freiheit im offenen Task-/Säulen-Löschdialog — geteilter Vertrags-Check (AK1, AK2, AK4,
 	 * AK8; #522 hatte die Lücke ursprünglich für die Säulen-/Serien-Dialoge geflaggt, AK4 deckt den
-	 * Task-Dialog ab). AK9 (Serien) prüft inline — der Serien-Dialog hat einen anderen Aufbau
-	 * (Ja/Nein/Abbrechen statt Abbrechen/Endgültig löschen).
+	 * Task-Dialog ab). AK9 (Serien) prüft inline — der Serien-Dialog hat seit #1106 zwar denselben
+	 * Vertrag (Initialfokus „Abbrechen", Danger zuletzt), aber andere Button-Texte („Nein"/
+	 * „Ja (Serie + alle Aufgaben)" statt „Endgültig löschen"), auf die dieser Helper zielt.
 	 *
 	 * Mechanik — SETTLE_MS = 150 plus gestaffelte Tab-Anschläge (~100 ms Abstand, max. ~3 s):
 	 * KoliBris `setFocus()` (utils/element-focus.js) wiederholt den Fokus über bis zu 10 Frames
@@ -379,23 +384,24 @@ test.describe('Lösch-Dialoge — Fokus-Vertrag', () => {
 		await expect(page.getByText(title, { exact: true }).first()).toBeVisible();
 
 		await page.getByRole('button', { name: 'Löschen' }).first().click();
-		// #553: Der Serien-Löschdialog hat keinen „Endgültig löschen"-Button mehr (siehe AK3) und
-		// damit einen anderen Fokus-Vertrag — die shared Helper sind auf Task/Säule (Initialfokus
-		// „Abbrechen" + Tab nach „Endgültig löschen") zugeschnitten und greifen hier nicht. Statt-
-		// dessen INLINE-Assertions analog zu AK4: Initialfokus liegt auf „Nein", Tab muss den Fokus
-		// weiterbewegen (kein Fokus-Gefängnis). SETTLE_MS wie in AK4 bewusst auf 150 gewählt.
+		// #553/#1106: Der Serien-Löschdialog hat keinen „Endgültig löschen"-Button (siehe AK3) — die
+		// shared Helper horchen auf genau diesen Text und greifen hier nicht. Statt dessen INLINE-
+		// Assertions analog zu AK4: Initialfokus liegt auf „Abbrechen", Tab muss den Fokus weiter-
+		// bewegen (kein Fokus-Gefängnis). SETTLE_MS wie in AK4 bewusst auf 150 gewählt.
 		await expect(page.getByRole('button', { name: /^Ja \(Serie \+ alle Aufgaben\)/ })).toBeVisible();
 		await waitForStableView(page);
 
 		const SETTLE_MS = 150;
-		const noButton = page.getByRole('button', { name: /^Nein/i });
-		await expect(noButton).toBeFocused();
+		const cancelButton = page.getByRole('button', { name: 'Abbrechen' });
+		await expect(cancelButton).toBeFocused();
 
 		await page.waitForTimeout(SETTLE_MS);
 		await page.keyboard.press('Tab');
 
-		// Tab muss den Fokus weiterbewegt haben — „Nein" ist nicht mehr fokussiert, stattdessen
-		// liegt der Fokus auf einem anderen Dialog-Button (z. B. „Abbrechen" oder „Ja").
-		await expect(noButton, 'Tab muss den Fokus weiterbewegen dürfen').not.toBeFocused();
+		// Tab muss den Fokus weiterbewegt haben — „Abbrechen" ist nicht mehr fokussiert, sondern der
+		// nächste Dialog-Button in der DOM-Reihenfolge (Abbrechen → Nein → Ja): „Nein".
+		const noButton = page.getByRole('button', { name: /^Nein/i });
+		await expect(noButton, 'Tab muss den Fokus weiterbewegen dürfen').toBeFocused();
+		await expect(cancelButton).not.toBeFocused();
 	});
 });
