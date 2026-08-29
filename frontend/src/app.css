@@ -947,7 +947,9 @@ body {
 .task-tree-row-header {
 	display: flex;
 	align-items: center;
-	gap: var(--task-tree-row-gap);
+	/* #1121: hier kein gap — das U+00A0 zwischen Titel und Geo-Badge ist der einzige Trenner
+	   (sonst Doppeltrenner: gap + NBSP + gap). Der Header enthält nur Titel + NBSP + Badge. */
+	gap: 0;
 	flex: 1 1 auto;
 	min-width: 0;
 }
