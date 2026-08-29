@@ -1,10 +1,7 @@
-import { KolAlert, KolButton } from '@public-ui/react-v19';
 import type { Pillar } from 'client';
-import { useRef, useState, type RefObject } from 'react';
+import type { RefObject } from 'react';
 import { api } from '../api';
-import { toApiError } from '../lib/apiError';
-import { useCtrlEnter } from '../lib/useCtrlEnter';
-import { Modal } from './Modal';
+import { ConfirmDeleteDialog } from './ConfirmDeleteDialog';
 
 interface PillarDeleteDialogProps {
 	/** Säule, die gelöscht werden soll. */
@@ -17,61 +14,19 @@ interface PillarDeleteDialogProps {
 }
 
 /** Bestätigungsdialog vor dem Löschen einer Säule (`DELETE /pillars/{id}`). */
-export const PillarDeleteDialog = ({ pillar, onClose, onDeleted, fallbackFocusRef }: PillarDeleteDialogProps) => {
-	const [error, setError] = useState<string | null>(null);
-	const [deleting, setDeleting] = useState(false);
-
-	// „Abbrechen" ist der sicherere Initialfokus (#472): Die irreversible „Endgültig löschen"-Aktion
-	// soll nicht per Enter auslösbar sein, bevor der Nutzer den Fokus bewusst verlagert.
-	const cancelRef = useRef<HTMLKolButtonElement>(null);
-
-	const confirm = async (): Promise<void> => {
-		setError(null);
-		setDeleting(true);
-		try {
-			await api.deletePillar({ id: pillar.id });
-			onDeleted();
-		} catch (reason) {
-			const apiError = await toApiError(reason);
-			setError(apiError.message);
-			setDeleting(false);
-		}
-	};
-
-	// Strg+Enter (bzw. ⌘+Enter) löst den primären CTA „Endgültig löschen\" aus, solange kein Löschen läuft.
-	useCtrlEnter(() => void confirm(), !deleting);
-
-	return (
-		<Modal
-			title="Säule löschen"
-			onClose={onClose}
-			fallbackFocusRef={fallbackFocusRef}
-			initialFocusRef={cancelRef as RefObject<HTMLElement | null>}
-		>
-			{error !== null && (
-				<KolAlert _type="error" _label="Löschen fehlgeschlagen">
-					{error}
-				</KolAlert>
-			)}
+export const PillarDeleteDialog = ({ pillar, onClose, onDeleted, fallbackFocusRef }: PillarDeleteDialogProps) => (
+	<ConfirmDeleteDialog
+		title="Säule löschen"
+		body={
 			<p>
 				Soll die Säule <strong>„{pillar.name}“</strong> wirklich gelöscht werden? Diese Säule wird endgültig gelöscht.
 				Tasks und Serien, die dieser Säule zugeordnet sind, verlieren ihre Zuordnung.
 			</p>
-			<div className="modal-actions">
-				<KolButton
-					ref={cancelRef}
-					_label="Abbrechen"
-					_variant="secondary"
-					_disabled={deleting}
-					_on={{ onClick: () => onClose() }}
-				/>
-				<KolButton
-					_label={deleting ? 'Löschen…' : 'Endgültig löschen'}
-					_variant="danger"
-					_disabled={deleting}
-					_on={{ onClick: () => void confirm() }}
-				/>
-			</div>
-		</Modal>
-	);
-};
+		}
+		confirmLabel="Endgültig löschen"
+		onConfirm={() => api.deletePillar({ id: pillar.id })}
+		onClose={onClose}
+		onDeleted={onDeleted}
+		fallbackFocusRef={fallbackFocusRef}
+	/>
+);
