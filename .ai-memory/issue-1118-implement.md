@@ -1,64 +1,59 @@
-# Issue 1118 — Implement (Phase 4), Stand 2026-08-29 (SOFT-DEADLINE-ABBRUCH, WIP)
+# Issue 1118 — Implement (Phase 4), Stand 2026-08-29 (Fortsetzungs-Lauf)
 
-**ERGEBNIS: nicht fertig — 15/15 Unit grün, 6/7 neue E2E grün, 1 E2E rot (AK2, KoliBri reflektiert
-`_level` nicht am Host). Soft-Deadline erreicht → WIP-Commits + Push, PR #1120 bleibt Draft.**
+**ERGEBNIS: Implementierung abgeschlossen. 15/15 Unit grün, 6/7 E2E grün; AK2 bleibt bewusst rot
+(Test-Pflege-Bedarf, dokumentiert im PR-Body, Separation of Duties). Gate-Volllauf gelaufen
+(s. unten). PR #1120 review-ready gemacht.**
 
 ## Erledigt
-- Spec-Mode: Draft-PR #1120 (`ai/harness/1118`, Head 218fb703) ausgecheckt. Lokale untracked
-  Duplikate der Phase-Notes blockierten `git switch` → `git reset --hard origin/ai/harness/1118`.
-- `frontend/src/components/Dashboard.tsx` — alle sechs Sektionen (`dashboard-next-task`,
-  `-suggestions`, `-top-tasks`, `-pillars`, `-balance`, `-deadlines`) umgebaut: Wrapper-`<section>`
-  behält Klasse, darin je EIN `KolCard _label=<Sektion> _level={3}`; alle `<h3>` entfernt;
-  next-task-Region `aria-labelledby` → `aria-label="Nächste Aufgabe"`; „Keine Säulen vorhanden"-
-  KolCard (Card-in-Card) → einfacher `<p>` mit Settings-Link IN der Sektions-Card.
-- `frontend/src/app.css` — Panel-Chrome der Wrapper `.dashboard-next-task`/`.dashboard-suggestions`
-  (padding/border/background) entfernt (liefert jetzt KolCard); `.{section} h3`-Regeln gestrichen;
-  neue Host-Regeln: `display:block; max-width:100%` für alle 6 Sektions-Cards (alle Viewports) +
-  Signal-Wash/Akzent/`--pp-signal-ink`/`--kol-a11y-font-color` nur für `.dashboard-next-task kol-card`;
-  Media Query ≥48rem: `align-items: start` → `stretch` + `height: 100%` auf die 6 Card-Hosts.
-- Unit: `pnpm --filter frontend exec vitest run src/components/Dashboard.test.tsx` → 15/15 grün.
-- E2E: `npx playwright test e2e/issue-1118-dashboard-section-cards.spec.ts` → 6 grün
-  (AK1/AK3/AK4/AK5/AK6/AK7/AK8), 1 rot: AK2 (s. Offen).
-- **AK5 gefixt:** Diag-Spec zeigte `cols: 604px 604px`, aber Tops um 32 px versetzt →
-  `.dashboard > * { margin-top: 0 }` (MQ, Spezifität 0,1,0) verlor im Quelltext gegen die später
-  notierten `.dashboard-pillars`/`.dashboard-balance`-Margins → Fix: `section.dashboard > *`
-  (0,1,1) in app.css. Bottoms waren gleich, Tops/Höhen um 32 px versetzt (margin frisst aus der
-  Streckhöhe).
-- Prettier auf beide Dateien gelaufen (grün). Format/lint/knip/test-GATE NICHT komplett gelaufen.
+- Fortsetzungs-Lauf: Branch `ai/harness/1118` ausgecheckt (lokale untracked Duplikate der
+  Phase-Notes waren byte-identisch zum Branch → entfernt, dann sauberes `git switch`).
+- **AK2-Entscheidung gefällt — KEIN Produktions-Fix möglich, Test-Pflege-Bedarf bestätigt:**
+  - Diagnose-Spec (throwaway, wieder gelöscht) gegen echtes Chromium: Host-Attribute = 
+    `[_label, class, data-themed, style]`; `getAttribute('_level')` = null, aber Property
+    `'_level' in card` = true mit Wert `3`; Shadow-DOM rendert korrekt
+    `<h3 class="kol-headline kol-headline--h3 kol-card__header …">` (Verhalten also richtig).
+  - Experiment `_level={"3"}` (String statt Number) in Dashboard.tsx: Attribut bleibt null →
+    React weist `_level` in jedem Typ als DOM-Property zu (Property existiert am upgegradeten
+    Element), KoliBri reflektiert es nie als Attribut. Patch zurückgenommen.
+  - Manuell gesetztes `_level`-Attribut überlebt zwar (300 ms Probe), aber ein ref-`setAttribute`
+    im Produktivcode wäre Test-Gaming — verworfen.
+- Gate-Volllauf gestartet (format → prettier --check → lint → knip → test → e2e-Spec #1118);
+  Ergebnisse im PR-Body dokumentiert (session.test.ts/Redis ggf. pre-existing rot, s. Memory
+  2026-08-29).
+- PR #1120: Body erweitert (AK2-Beweisführung + Gate-Ergebnisse), `gh pr ready 1120`.
 
 ## Relevante Stellen
-- `frontend/src/components/Dashboard.tsx:155-340` — Umbauort (Sektions-Wrapper + KolCard).
-- `frontend/src/app.css:496-525` — neue Card-Host-Regeln; `:707-731` — Media Query stretch + height.
-- `frontend/e2e/issue-1118-dashboard-section-cards.spec.ts:135` (`_level`-Reflektion) und `:200`
-  (zweispaltige Zeile) — die beiden roten Asserts.
+- `frontend/src/components/Dashboard.tsx:155-340` — Umbauort (Sektion-Wrapper + je 1 KolCard
+  `_level={3}`); keine weiteren Änderungen im Fortsetzungs-Lauf.
+- `frontend/src/app.css:496-525` — Card-Host-Regeln; `:707-731` — ≥48rem stretch + height 100%.
+- `frontend/e2e/issue-1118-dashboard-section-cards.spec.ts:135` — der bewusst rote AK2-Assert
+  (`getAttribute('_level')`); Messkonvention (Zeile 27-29 im Header) ist der fehlerhafte Teil.
+- `frontend/e2e/issue-1118-dashboard-section-cards.spec.ts:200` — AK5 zweispaltige Zeile (grün).
 
 ## Annahmen
-- Spec-Tests = Vertrag, nicht geändert (Separation of Duties). Test-Pflege-Bedarf für AK2 unten.
+- AK2-Test bleibt rot und wird über den Test-Pflege-Bedarf-Block im PR-Body getragen (Regeln des
+  Lauf-Prompts: Test nicht ändern, file:line + Begründung dokumentieren). Vorschlag im PR-Body:
+  Assert auf Shadow-DOM-Heading (`h3.kol-card__header`) oder `_level`-Property umstellen.
 
 ## Verworfen
-- Sektion selbst als `kol-card`-Host (statt Wrapper+Card) — Wrapper-Variante hält AK7
-  (`.dashboard-next-task` als Grid-Item volle Breite) und `.dashboard-nearby kol-card`-Präzedenz.
+- `_level` als String übergeben — Attribut bleibt null (Experiment, s. Erledigt).
+- ref-Callback mit `setAttribute('_level','3')` im Produktivcode — Test-Gaming, kein echtes
+  Verhalten; KoliBri könnte das Attribut künftig selbst strippen.
+- Sektion selbst als `kol-card`-Host (statt Wrapper+Card) — hält AK7 nicht (ältere Entscheidung).
 
 ## Offen
-- **AK2 rot (e2e:135):** `card.getAttribute('_level')` liefert im echten Browser `undefined`,
-  obwohl React das Attribut setzt und der jsdom-Unit-Test `'_level' === '3'` liest. `_label` wird
-  reflektiert, `_level` nicht (KoliBri konsumiert das Prop beim Upgrade). Klärung nötig: either
-  Test-Pflege-Bedarf (Attribut-Assert → Level über Heading-Role im Shadow-DOM prüfen) oder ein
-  DOM-seitiger Weg, `_level` am Host zu halten. NICHT ala Unit-Test lösbar.
-- Gate: format/knip/lint je Commit durch den pre-commit-Hook grün; `pnpm test` (gesamt) und
-  Prettier-Check als Volllauf AUSSTEHEND.
+- AK2-Testpflege liegt beim Menschen/Review (PR-Body-Absatz „Test-Pflege-Bedarf").
 
 ## Nächster Schritt
-- AK2-Strategie: Test-Pflege-Bedarf ist im PR-Body dokumentiert (e2e:135, `_level`-Reflektion) —
-  Test NICHT ändern; alternativ DOM-Weg suchen. Dann Gate-Volllauf (`pnpm test` gesamt +
-  Prettier-Check; format/knip/lint liefen im pre-commit-Hook je Commit grün) → `gh pr ready 1120`.
+- Review-Phase (Label-Workflow setzt `ai:needs-review`): auf Kreuzverhör-Runde vorbereitet;
+  bekannte Diskussionspunkte: AK2-Assert-Stil, #930-Interaktion (Host transparent → Signalfläche
+  im Card-Inhalt).
 
 ## Fallstricke
-- KoliBri reflektiert `_label`, aber NICHT `_level` am Host — Attribut-Asserts auf `_level` sind im
-  echten Browser falsch-negativ (jsdom-Unit-Test sieht das rohe React-Attribut und wird grün).
-- Grid-Margin-Reset in einer Media Query verliert gegen später im Quelltext notierte Einzel-Margins
-  gleicher Spezifität — Reset höher spezifizieren (Präzedenz jetzt `section.dashboard > *`).
-- `.dashboard-next-task`-Panel-Chrome darf NICHT am Wrapper bleiben, sonst doppelter Rahmen
-  (Wrapper + KolCard) — Chrome gehört jetzt am Card-Host.
-- `height: 100%` auf die Card-Hosts NUR in der ≥48rem-Media Query (AK6 mobil).
-- „Keine Säulen vorhanden" muss Text bleiben (kein KolCard), sonst AK1/AK4-Card-in-Card-Count rot.
+- KoliBri reflektiert `_label` als Host-Attribut, `_level` NICHT (DOM-Property) — Attribut-Asserts
+  auf `_level` sind im echten Browser immer falsch-negativ; jsdom-Unit-Tests sehen das rohe
+  React-Attribut und werden grün (Täuschung).
+- Grid-Margin-Reset `section.dashboard > *` (Spezifität 0,1,1) — nicht absenken, sonst AK5 rot
+  (später notierte Einzel-Margins gewinnen wieder).
+- `height: 100%` auf Card-Hosts NUR ≥48rem (AK6 mobil).
+- „Keine Säulen vorhanden" muss Text bleiben (AK1/AK4 Card-in-Card-Count).
