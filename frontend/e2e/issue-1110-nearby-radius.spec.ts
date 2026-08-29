@@ -18,6 +18,10 @@ import { waitForStableView } from './helpers';
  * addInitScript gemockt (Muster issue-1098-geo-settings.spec.ts). Die Adresssuche wird per
  * `page.route` gestubbt (Muster issue-1061-task-address.spec.ts), damit der gewählte Treffer
  * eine bekannte Koordinate hat.
+ *
+ * Preconditions setzt jede Spec selbst: der E2E-User ist gemeinsame Infrastruktur, und Specs wie
+ * issue-1098 (AK7) erhöhen die Anzeige-Entfernung, ohne sie zurückzusetzen — je nach Shard- und
+ * Spec-Reihenfolge wäre der „Server-Default 5" sonst schon beim Laden dahin.
  */
 
 const LAT = 52.5219;
@@ -66,10 +70,13 @@ const cardTitle = (page: Page) => page.locator('kol-card[data-testid="nearby-car
 test.describe('Priority Pilot — #1110: Nearby-Card Radius + Distanzkette', () => {
 	test.afterEach(async ({ page }) => {
 		await deleteAllTasks(page);
+		// Keine Spur hinterlassen: auch der Config-Wert wird zurückgesetzt (Muster deleteAllTasks).
+		await setDisplayDistance(page, 5);
 	});
 
 	test('AK1 — Card-Titel nennt die gespeicherte Anzeige-Entfernung: „In der Nähe (5 km)"', async ({ page }) => {
 		await page.addInitScript(GEO_INIT(true));
+		await setDisplayDistance(page, 5);
 		await page.goto('/');
 		await waitForStableView(page);
 
@@ -78,6 +85,7 @@ test.describe('Priority Pilot — #1110: Nearby-Card Radius + Distanzkette', () 
 
 	test('AK2 — nach Umstellen auf 12 km zeigt die Card beim nächsten Laden „(12 km)"', async ({ page }) => {
 		await page.addInitScript(GEO_INIT(true));
+		await setDisplayDistance(page, 5);
 		await page.goto('/');
 		await waitForStableView(page);
 		await expect(cardTitle(page)).toHaveAttribute('_label', 'In der Nähe (5 km)');
@@ -91,6 +99,7 @@ test.describe('Priority Pilot — #1110: Nearby-Card Radius + Distanzkette', () 
 
 	test('AK3 — Task exakt an der Position zeigt „(0,0 km)"', async ({ page }) => {
 		await page.addInitScript(GEO_INIT(true));
+		await setDisplayDistance(page, 5);
 		await page.request.post('/api/v1/tasks', { data: { title: 'E2E 1110 exakt', latitude: LAT, longitude: LON } });
 		await page.goto('/');
 		await waitForStableView(page);
@@ -110,6 +119,7 @@ test.describe('Priority Pilot — #1110: Nearby-Card Radius + Distanzkette', () 
 		);
 
 		await page.addInitScript(GEO_INIT(true));
+		await setDisplayDistance(page, 5);
 		await page.goto('/');
 		await waitForStableView(page);
 

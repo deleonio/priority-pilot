@@ -672,9 +672,8 @@ export const TaskForm = ({
 			}
 			// #1110 (AK4): Die Nearby-Card lädt ihre Liste selbst und kennt den App-State nicht —
 			// Signal geben, damit eine neu angelegte Aufgabe ohne Reload in der Distanzliste steht.
-			if (!isSeriesMode) {
-				notifyTasksChanged();
-			}
+			// Auch Serien-Instanzen erben die Template-Koordinaten (series.ts) und gehören in die Liste.
+			notifyTasksChanged();
 			onSaved();
 		} catch (reason) {
 			const apiError = await toApiError(reason);
