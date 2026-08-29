@@ -19,11 +19,12 @@ interface DeleteSeriesDialogProps {
  * #472: Bislang erfolgte die Serien-Löschung aus der Serien-Verwaltung (`SeriesTab`) sofort ohne
  * Bestätigung. Dieser Dialog schaltet sich davor und bietet die Kaskaden-Auswahl (#553): „Ja“
  * löscht Serie + alle generierten Instanzen, „Nein“ nur die Serie. Der Initialfokus liegt auf
- * „Abbrechen“ (irreversible Aktion nicht per Enter auslösbar); Strg+Enter löst den Danger-Button
- * („Ja“ = Kaskade) aus.
+ * „Abbrechen“ (irreversible Aktion nicht per Enter auslösbar); Strg+Enter löst — wie vor der
+ * #1106-Konsolidierung — den sicheren Default „Nein“ (nur Serie) aus, niemals die Kaskade.
  */
 export const DeleteSeriesDialog = ({ series, onClose, onDeleted, fallbackFocusRef }: DeleteSeriesDialogProps) => (
 	<ConfirmDeleteDialog
+		hotkeyTarget="safeDefault"
 		title="Serie löschen"
 		body={
 			<p>

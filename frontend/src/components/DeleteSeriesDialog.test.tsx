@@ -43,7 +43,10 @@ vi.mock('./Modal', () => ({
 	Modal: ({ children }: { children: ReactNode }) => <div data-testid="modal">{children}</div>,
 }));
 
-vi.mock('../lib/useCtrlEnter', () => ({ useCtrlEnter: () => undefined }));
+const useCtrlEnter = vi.fn();
+vi.mock('../lib/useCtrlEnter', () => ({
+	useCtrlEnter: (cb: () => void, enabled: boolean) => useCtrlEnter(cb, enabled),
+}));
 vi.mock('../lib/apiError', () => ({ toApiError: async () => ({ message: 'Fehler' }) }));
 
 vi.mock('../api', () => ({
@@ -133,5 +136,28 @@ describe('DeleteSeriesDialog — Kaskade-Auswahl Ja/Nein (#553)', () => {
 		expect(mockDeleteSeries).not.toHaveBeenCalled();
 		expect(onDeleted).not.toHaveBeenCalled();
 		expect(onClose).toHaveBeenCalledTimes(1);
+	});
+
+	// #553/#1106: Strg+Enter darf die KASKADE nie auslösen — das Kürzel liegt wie vor der
+	// #1106-Konsolidierung auf dem sicheren Default „Nein" (nur Serie).
+	it('Strg+Enter löst den sicheren Default „Nein" (cascade=false) aus, niemals die Kaskade', async () => {
+		mockDeleteSeries.mockResolvedValue(undefined);
+
+		await act(async () => {
+			render(<DeleteSeriesDialog series={sampleSeries()} onClose={vi.fn()} onDeleted={vi.fn()} />);
+		});
+
+		// Registrierung gepinnt: Kürzel aktiv (`enabled` = `!deleting`), Ziel = sicherer Default.
+		expect(useCtrlEnter.mock.calls.at(-1)?.[1]).toBe(true);
+		const ctrlEnter = useCtrlEnter.mock.calls.at(-1)?.[0] as () => void;
+		expect(ctrlEnter).toBeDefined();
+
+		await act(async () => {
+			ctrlEnter();
+		});
+
+		expect(mockDeleteSeries).toHaveBeenCalledTimes(1);
+		expect(mockDeleteSeries).toHaveBeenCalledWith(expect.objectContaining({ id: sampleSeries().id, cascade: false }));
+		expect(mockDeleteSeries.mock.calls.every((call) => (call[0] as { cascade: boolean }).cascade === false)).toBe(true);
 	});
 });

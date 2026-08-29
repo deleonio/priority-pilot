@@ -25,6 +25,13 @@ interface ConfirmDeleteDialogProps {
 	 * abgewartet, obwohl der Vertrag `() => void` bleibt.
 	 */
 	secondaryAction?: { label: string; onClick: () => void };
+	/**
+	 * Wohin Strg+Enter (⌘+Enter) führt. `'confirm'` (Default) löst den Danger-Button aus.
+	 * `'safeDefault'` bindet das Kürzel an die `secondaryAction` — für Dialoge mit zwei
+	 * destruktiven Varianten (#553): die weiterreichende Kaskade darf nie per Tastenkürzel
+	 * auslösbar sein. Ohne `secondaryAction` bleibt das Kürzel wirkungslos.
+	 */
+	hotkeyTarget?: 'confirm' | 'safeDefault';
 }
 
 /**
@@ -43,6 +50,7 @@ export const ConfirmDeleteDialog = ({
 	onDeleted,
 	fallbackFocusRef,
 	secondaryAction,
+	hotkeyTarget = 'confirm',
 }: ConfirmDeleteDialogProps) => {
 	const [error, setError] = useState<string | null>(null);
 	const [deleting, setDeleting] = useState(false);
@@ -66,8 +74,16 @@ export const ConfirmDeleteDialog = ({
 		}
 	};
 
-	// Strg+Enter (bzw. ⌘+Enter) löst den primären CTA aus, solange kein Löschen läuft.
-	useCtrlEnter(() => void run(onConfirm), !deleting);
+	// Strg+Enter (bzw. ⌘+Enter) löst den primären CTA aus, solange kein Löschen läuft. Im
+	// Kaskaden-Fall (`hotkeyTarget="safeDefault"`, #553/#472) zeigt das Kürzel stattdessen auf den
+	// sicheren Default (`secondaryAction`) — keine versehentliche Kaskade über das Tastenkürzel.
+	const hotkeyAction =
+		hotkeyTarget === 'confirm'
+			? () => void run(onConfirm)
+			: secondaryAction
+				? () => void run(() => Promise.resolve(secondaryAction.onClick()))
+				: undefined;
+	useCtrlEnter(() => void hotkeyAction?.(), !deleting);
 
 	return (
 		<Modal

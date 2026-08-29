@@ -153,6 +153,9 @@ describe('ConfirmDeleteDialog (#1106, docs/spec/issue-1106.md)', () => {
 		const buttons = screen.getAllByRole('button');
 		expect(buttons.map((b) => (b as HTMLButtonElement).disabled)).toEqual([true, true]);
 		expect(screen.getByRole('button', { name: 'Löschen…' })).toBeDefined();
+		// Das Kürzel ist während des Löschens gesperrt (`enabled` = `!deleting`) — Strg+Enter kann
+		// keine zweite Löschung anstoßen, solange die erste läuft.
+		expect(useCtrlEnter.mock.calls.at(-1)?.[1]).toBe(false);
 
 		await act(async () => {
 			resolveConfirm();
