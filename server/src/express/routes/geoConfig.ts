@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { User } from '../../models/index.js';
-import { getUserId } from '../requireAuth.js';
+import { getUserId, isAuthActive } from '../requireAuth.js';
 
 /**
  * Pro-User Geo-Konfiguration (#1098 AK7): Anzeige-Entfernung (Default 5 km),
@@ -9,6 +9,41 @@ import { getUserId } from '../requireAuth.js';
  * serverseitig persistiert statt localStorage. Der Router hängt hinter dem globalen
  * `requireAuth` (siehe express/index.ts).
  */
+
+/**
+ * Nutzer der Geo-Konfiguration: der Session-Nutzer, sonst im lokalen Pass-Through-Modus ohne
+ * Auth-Kontext (Issue #207: „kein Gate, keine Nutzer-Bindung") ein gemeinsamer Entwicklungs-
+ * Nutzer — GET/PUT funktionieren dann auch ohne Login (Dev/E2E), analog zum leeren
+ * `ownerScope`-Filter der Task-Routen. Mit aktivem Auth-Kontext bleibt es beim 401-Weg.
+ * Bewusst ohne `findOrCreate` (verwaltete Transaktion): Der verwirft auf der einzigen
+ * SQLite-`:memory:`-Verbindung Transaction-Protokolle („cannot commit — no transaction is
+ * active") — `findOne` + `create` reicht, die Unique-E-Mail fängt Nebenläufigkeit ab.
+ */
+const DEV_USER_EMAIL = 'dev@local';
+
+const resolveGeoUser = async (req: Request): Promise<User | null> => {
+	const userId = getUserId(req);
+	if (userId !== undefined) {
+		return User.findByPk(userId);
+	}
+	if (!isAuthActive()) {
+		const existing = await User.findOne({ where: { email: DEV_USER_EMAIL } });
+		if (existing) {
+			return existing;
+		}
+		try {
+			return await User.create({
+				email: DEV_USER_EMAIL,
+				passwordHash: 'dev-no-login',
+				displayName: 'Entwicklung',
+			});
+		} catch {
+			// Nebenläufig angelegt (Unique-Verstoß) → den inzwischen existierenden Satz lesen.
+			return User.findOne({ where: { email: DEV_USER_EMAIL } });
+		}
+	}
+	return null;
+};
 
 type GeoConfigDto = { displayDistanceKm: number; alarmDistanceKm: number; intervalMinutes: number };
 
@@ -47,13 +82,8 @@ export const geoConfigRouter = Router();
 
 // GET /geo-config — gespeicherte Konfiguration des Users, sonst die Defaults.
 geoConfigRouter.get('/geo-config', async (req: Request, res: Response<GeoConfigDto | { message: string }>) => {
-	const userId = getUserId(req);
-	if (userId === null) {
-		sendError(res, 401, 'Anmeldung erforderlich.');
-		return;
-	}
 	try {
-		const user = await User.findByPk(userId);
+		const user = await resolveGeoUser(req);
 		if (!user) {
 			sendError(res, 401, 'Anmeldung erforderlich.');
 			return;
@@ -70,22 +100,22 @@ geoConfigRouter.get('/geo-config', async (req: Request, res: Response<GeoConfigD
 
 // PUT /geo-config — validierte Konfiguration speichern; bei Verstoß 400 ohne Persistenz.
 geoConfigRouter.put('/geo-config', async (req: Request, res: Response<GeoConfigDto | { message: string }>) => {
-	const userId = getUserId(req);
-	if (userId === null) {
-		sendError(res, 401, 'Anmeldung erforderlich.');
-		return;
-	}
-	const config = validateGeoConfig(req.body);
-	if (!config) {
-		sendError(
-			res,
-			400,
-			'Ungültige Geo-Konfiguration: alarmDistanceKm ∈ [1, displayDistanceKm], displayDistanceKm ∈ [alarmDistanceKm, 50], intervalMinutes ∈ [1, 60] (ganze Zahlen).',
-		);
-		return;
-	}
 	try {
-		await User.update(config, { where: { id: userId } });
+		const user = await resolveGeoUser(req);
+		if (!user) {
+			sendError(res, 401, 'Anmeldung erforderlich.');
+			return;
+		}
+		const config = validateGeoConfig(req.body);
+		if (!config) {
+			sendError(
+				res,
+				400,
+				'Ungültige Geo-Konfiguration: alarmDistanceKm ∈ [1, displayDistanceKm], displayDistanceKm ∈ [alarmDistanceKm, 50], intervalMinutes ∈ [1, 60] (ganze Zahlen).',
+			);
+			return;
+		}
+		await User.update(config, { where: { id: user.id } });
 		res.json(config);
 	} catch {
 		sendError(res, 500, 'Interner Serverfehler.');

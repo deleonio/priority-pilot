@@ -185,6 +185,12 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 		refresh: refreshGeo,
 	} = useGeolocation();
 
+	// #1098 AK3: Der KoliBri-React-Adapter übernimmt nur String-Props zusätzlich als Attribut am
+	// Host, Booleans nur als Element-Property — im Browser fehlte das `_disabled`-Attribut sonst
+	// (jsdom-Tests sahen es, weil React dort den Attribut-Pfad nimmt). Der String 'true' ist für
+	// KoliBri truthy-deaktiviert und landet wie `_label`/`_hint` als Attribut am Host (E2E-AK3).
+	const geoDisabled = geoEnabled ? undefined : ('true' as unknown as boolean);
+
 	return (
 		<main className="settings-page">
 			<header className="settings-page-header">
@@ -355,7 +361,7 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 									_min={geoConfig.alarmDistanceKm}
 									_max={50}
 									_step={1}
-									_disabled={!geoEnabled}
+									_disabled={geoDisabled}
 									_on={{
 										onChange: (_event, value) => {
 											applyGeoValue('displayDistanceKm', Number(value ?? geoConfig.displayDistanceKm));
@@ -375,7 +381,7 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 									_min={1}
 									_max={geoConfig.displayDistanceKm}
 									_step={1}
-									_disabled={!geoEnabled}
+									_disabled={geoDisabled}
 									_on={{
 										onChange: (_event, value) => {
 											applyGeoValue('alarmDistanceKm', Number(value ?? geoConfig.alarmDistanceKm));
@@ -393,7 +399,7 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 									_min={1}
 									_max={60}
 									_step={1}
-									_disabled={!geoEnabled}
+									_disabled={geoDisabled}
 									_on={{
 										onChange: (_event, value) => {
 											applyGeoValue('intervalMinutes', Number(value ?? geoConfig.intervalMinutes));
