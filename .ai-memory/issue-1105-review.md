@@ -42,3 +42,12 @@
 - `gh pr diff <n> -- file1 file2` akzeptiert nur 1 Argument → Diff in Datei schreiben und per `awk '/^diff --git a\/PFAD/,/^diff --git/'` extrahieren.
 - Sammelkommentar-Suche vor dem Posten: `gh api repos/…/issues/<n>/comments --jq '.[] | select(.body | contains("ai-review")) | .id'` — beim Erstlauf leer → `gh pr comment` (create), nicht PATCH.
 - AK5-Test deckt den SearchModal-Pfad NICHT ab (startet auf `/aufgaben`) — Fixup-Test muss aus einem anderen Tab starten, sonst ist die Lunge unsichtbar.
+
+## Fixup-Nachweis (Runde 2), 2026-08-29T05:29Z
+- Erledigt: MODE=Fixup-Verifikation (Marker `<!-- ai-review -->` vorhanden, Kommentar-ID 5460326274, Stand R1 = 2026-08-29T04:27:06Z). Fixup-Diff = `5da69f29d..795117538` (nur `frontend/src/App.tsx` + `frontend/e2e/search-modal.spec.ts`, Rest memory-commits). F1 behoben: `App.tsx:746-752` einzelnes `navigate({ pathname: '/aufgaben', search: next.toString() })`, `applyTaskFilter` entfernt (sicher, weil `taskSearch` = `searchParams.get('q')` in `App.tsx:98` selbst ableitet), e2e `search-modal.spec.ts:72-74` prüft `/\/aufgaben\?(.*&)?q=Match/`. Sammelkommentar per PATCH aktualisiert (Review-Typ: Fixup-Nachweis, F1 → Behobene Tabelle), VERDICT reviewed.
+- Relevante Stellen: `App.tsx:196-209` (onSelect trägt jetzt `searchParams.toString()` → Query bleibt beim Tab-Wechsel erhalten, deps um `searchParams` erweitert), `App.tsx:809` (`BrowserRouter future={{ v7_relativeSplatPath, v7_startTransition }}` gegen e2e-Vertrag #865 AK6), `e2e/issue-1105-routes.spec.ts:63/73/141` (AK2-Artefakte).
+- Annahmen: Query-Erhalt auf Nicht-Aufgaben-Tabs (`/wald?q=…`) ist gewollt (kommentiert, Parameter dort wirkungslos, Filter-Restore bei Rückkehr); CI (e2e 1–4, verify) war beim Abschluss noch pending — Gate entscheidet merge, Review-Urteil nur inhaltlich.
+- Verworfen: Neues Finding zu Query-Drift auf fremde Tabs — begründet, keine AK-Verletzung, kein testbarer Schaden.
+- Offen: -
+- Nächster Schritt: Merge/Gate übernimmt; kein weiterer Review-Lauf nötig, außer neue Commits landen.
+- Fallstricke: Kommentar-ID für PATCH ist numerisch (5460326274), das node-id-Format (`IC_…`) gibt 404 auf `issues/comments/<id>`.
