@@ -1,7 +1,7 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import type { SendResult } from 'web-push';
-import { Task, PushSubscription, NotificationLog } from '../models/index.js';
+import { Task, PushSubscription, NotificationLog, User } from '../models/index.js';
 import { resetDb, closeDb } from '../test/helpers.js';
 import {
 	DEFAULT_ALARM_DISTANCE_KM,
@@ -56,6 +56,16 @@ const createTask = (overrides: TaskOverrides = {}) =>
 
 const seedSubscription = (userId: number | null, endpoint: string) =>
 	PushSubscription.create({ endpoint, p256dh: 'p256dh', auth: 'auth', expirationTime: null, userId });
+
+/** User mit konfiguriertem Geo-Intervall (#1098) — für den F2-Dedup-Fenster-Test. */
+const seedUser = (userId: number, intervalMinutes: number) =>
+	User.create({
+		id: userId,
+		email: `geo-${userId}@example.com`,
+		passwordHash: 'x',
+		displayName: 'Test',
+		intervalMinutes,
+	});
 
 /** Erfolgs-Sender: zählt die Aufrufe und liefert die versendete Payload (Vorbild: push.test.ts). */
 const okSender =
@@ -160,18 +170,20 @@ describe('logics/geo-background-job — Geo-Push-Trigger (#1101)', () => {
 		assert.match(payload.url ?? '', new RegExp(`${task.id}`), 'Deep-Link führt zur konkreten Aufgabe');
 	});
 
-	it('AK5: Payload bei mehreren Tasks nennt die Anzahl und listet Titel mit Entfernung', async () => {
-		await createTask({ title: 'Bäckerei', latitude: LAT_NEAR, longitude: LON, userId: 1 });
-		await createTask({ title: 'Apotheke', latitude: LAT - 0.003, longitude: LON, userId: 1 });
+	it('AK5: Payload bei mehreren Tasks nennt die Anzahl und listet Titel mit Entfernung (F4: Deep-Link auf nächste Aufgabe)', async () => {
+		await createTask({ title: 'Bäckerei', latitude: LAT_NEAR, longitude: LON, userId: 1 }); // ~0,45 km
+		const apotheke = await createTask({ title: 'Apotheke', latitude: LAT - 0.003, longitude: LON, userId: 1 }); // ~0,33 km
 		await seedSubscription(1, 'https://push.example/a');
 		const calls: { endpoint: string; body: string }[] = [];
 
 		await runGeoPushNotifications([position], okSender(calls), NOW);
 
-		const payload = JSON.parse(calls[0].body) as { title: string; body?: string };
+		const payload = JSON.parse(calls[0].body) as { title: string; body?: string; url?: string };
 		assert.match(payload.title, /2/, 'Anzahl der nahen Aufgaben im Titel');
 		assert.match(payload.body ?? '', /Bäckerei/);
 		assert.match(payload.body ?? '', /Apotheke/);
+		// F4: Deep-Link auf die nächstgelegene Aufgabe — die Apotheke (~0,33 km) liegt näher als die Bäckerei (~0,45 km).
+		assert.equal(payload.url ?? '', `/tasks/${apotheke.id}`, 'Deep-Link führt zur nächsten Aufgabe');
 	});
 
 	it('AK6: Dedup — kein erneuter Versand innerhalb des Intervalls, wieder danach', async () => {
@@ -193,6 +205,27 @@ describe('logics/geo-background-job — Geo-Push-Trigger (#1101)', () => {
 		assert.equal(calls.length, 2, 'nach Ablauf des Fensters wird wieder gemeldet');
 	});
 
+	// F2 (#1102-Review): Das Dedup-Fenster ist das KONFIGURIERTE Intervall (User.intervalMinutes),
+	// nicht hart 5 Minuten — sonst ist der Schutz bei größerem Intervall nach 5 min weg.
+	it('F2: Dedup-Fenster folgt User.intervalMinutes (60 min), nicht dem 5-min-Default', async () => {
+		await seedUser(1, 60);
+		await createTask({ title: 'nah', latitude: LAT_NEAR, longitude: LON, userId: 1 });
+		await seedSubscription(1, 'https://push.example/a');
+		const calls: { endpoint: string; body: string }[] = [];
+		const send = okSender(calls);
+
+		await runGeoPushNotifications([position], send, NOW);
+		assert.equal(calls.length, 1, 'erster Lauf sendet');
+
+		// 10 min später: außerhalb des 5-min-Defaults, aber INNERHALB des 60-min-Intervalls.
+		await runGeoPushNotifications([position], send, new Date(NOW.getTime() + 10 * 60 * 1000));
+		assert.equal(calls.length, 1, 'innerhalb des konfigurierten 60-min-Fensters kein erneuter Versand');
+
+		// 61 min später: Fenster abgelaufen → erneuter Versand.
+		await runGeoPushNotifications([position], send, new Date(NOW.getTime() + 61 * 60 * 1000));
+		assert.equal(calls.length, 2, 'nach Ablauf des konfigurierten Fensters wird wieder gemeldet');
+	});
+
 	it('AK6: ohne Tasks im Alarmabstand bleibt der Lauf ein No-op', async () => {
 		await createTask({ title: 'zu weit weg', latitude: LAT_FAR, longitude: LON, userId: 1 });
 		const calls: { endpoint: string; body: string }[] = [];
@@ -203,5 +236,18 @@ describe('logics/geo-background-job — Geo-Push-Trigger (#1101)', () => {
 		assert.equal(calls.length, 0);
 		const logs = await NotificationLog.findAll({ where: { kind: 'geo-nearby-task' } });
 		assert.equal(logs.length, 0);
+	});
+
+	it('F3: parallele Läufe für denselben User werden serialisiert (kein Doppelpush)', async () => {
+		await createTask({ title: 'nah', latitude: LAT_NEAR, longitude: LON, userId: 1 });
+		await seedSubscription(1, 'https://push.example/a');
+		const calls: { endpoint: string; body: string }[] = [];
+		const send = okSender(calls);
+
+		// Parallele Aufrufe: Promise.all triggert beide gleichzeitig.
+		await Promise.all([runGeoPushNotifications([position], send, NOW), runGeoPushNotifications([position], send, NOW)]);
+
+		// Ohne Serialisierung wären es 2 Aufrufe; mit Queue nur 1.
+		assert.equal(calls.length, 1, 'parallele Läufe senden nicht doppelt');
 	});
 });

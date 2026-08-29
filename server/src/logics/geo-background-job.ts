@@ -18,6 +18,12 @@ const KIND = 'geo-nearby-task';
 /** Lauf-/Dedup-Fenster in ms — Default aus den Geo-Settings (`intervalMinutes`, #1098). */
 export const GEO_PUSH_INTERVAL_MS = 5 * 60 * 1000;
 
+// F3: In-Memory-Queue pro User zur Serialisierung von parallelen Läufen.
+// Mehrere Hook-Instanzen melden gleichzeitig Position → parallele runGeoPushNotifications
+// würden ohne Queue doppelt pushen (read-before-write auf NotificationLog).
+// Die Queue setzt sich bei jedem Process-Reset zurück (akzeptabel für das Race-Problem).
+const runningUserPushes = new Map<number, Promise<void>>();
+
 /** Alarmabstand in km — Default `alarmDistanceKm` aus den Geo-Settings (#1098). */
 export const DEFAULT_ALARM_DISTANCE_KM = 1;
 
@@ -42,8 +48,8 @@ interface GeoPushGroup {
 }
 
 /** Dedup-Schlüssel je Aufgabe und Intervallfenster (Unique-Index `kind+dedupeKey`). */
-const dedupeKeyFor = (taskId: number, now: Date): string =>
-	`${taskId}:${Math.floor(now.getTime() / GEO_PUSH_INTERVAL_MS)}`;
+const dedupeKeyFor = (taskId: number, now: Date, intervalMs: number): string =>
+	`${taskId}:${Math.floor(now.getTime() / intervalMs)}`;
 
 /** Alarmabstand des Nutzers aus den Geo-Settings (#1098), sonst der Default. */
 const alarmDistanceFor = async (userId: number): Promise<number> => {
@@ -51,15 +57,22 @@ const alarmDistanceFor = async (userId: number): Promise<number> => {
 	return user?.alarmDistanceKm ?? DEFAULT_ALARM_DISTANCE_KM;
 };
 
+/** Dedup-Fenster in ms für einen User (aus User.intervalMinutes oder Default). */
+const intervalMsFor = async (userId: number): Promise<number> => {
+	const user = await User.findByPk(userId);
+	return (user?.intervalMinutes ?? 5) * 60 * 1000;
+};
+
 /**
  * Ermittelt je gemeldeter Position die offenen Aufgaben (`status != 'Done'`) **mit** Koordinaten
  * im Alarmabstand des Nutzers (Haversine), gruppiert je Nutzer und um bereits gemeldete Aufgaben
- * bereinigt (Dedup-Fenster = {@link GEO_PUSH_INTERVAL_MS}).
+ * bereinigt (Dedup-Fenster = User-spezifisches Intervall #1098 F2).
  */
 export const collectGeoPushGroups = async (positions: GeoPosition[], now: Date): Promise<GeoPushGroup[]> => {
 	const groups = new Map<number, GeoPushGroup>();
 	for (const position of positions) {
 		const alarmDistanceKm = await alarmDistanceFor(position.userId);
+		const intervalMs = await intervalMsFor(position.userId);
 		const candidates = await Task.findAll({
 			where: {
 				userId: position.userId,
@@ -83,8 +96,13 @@ export const collectGeoPushGroups = async (positions: GeoPosition[], now: Date):
 
 		// Dedup (AK6): Aufgaben, die innerhalb des letzten Intervalls bereits gemeldet wurden,
 		// aussortieren — `sentAt` ist die Wahrheit, nicht das Epochen-Fenster des Schlüssels.
+		// F3: userId-Filter reduziert N+1 bei wachsender NotificationLog-Tabelle.
 		const recent = await NotificationLog.findAll({
-			where: { kind: KIND, sentAt: { [Op.gte]: new Date(now.getTime() - GEO_PUSH_INTERVAL_MS) } },
+			where: {
+				kind: KIND,
+				userId: position.userId,
+				sentAt: { [Op.gte]: new Date(now.getTime() - intervalMs) },
+			},
 		});
 		const recentlySent = new Set(recent.map((row) => Number(row.dedupeKey.split(':')[0])));
 		const pending = nearby.filter((task) => !recentlySent.has(task.id));
@@ -109,8 +127,10 @@ const buildPayload = (tasks: NearbyGeoTask[]): { title: string; body: string; ur
 		const [task] = tasks;
 		return { title: task.title, body: `${formatKm(task.distanceKm)} km`, url: `/tasks/${task.id}` };
 	}
+	// F4: Bei mehreren Tasks auf die nächstgelegene Aufgabe verlinken (Deep-Link nach AK5).
+	const nearest = tasks.reduce((min, task) => (task.distanceKm < min.distanceKm ? task : min));
 	const lines = tasks.map((task) => `${task.title} (${formatKm(task.distanceKm)} km)`);
-	return { title: `${tasks.length} Aufgaben in der Nähe`, body: lines.join(', '), url: '/' };
+	return { title: `${tasks.length} Aufgaben in der Nähe`, body: lines.join(', '), url: `/tasks/${nearest.id}` };
 };
 
 /**
@@ -127,20 +147,42 @@ export const runGeoPushNotifications = async (
 ): Promise<{ usersNotified: number }> => {
 	const groups = await collectGeoPushGroups(positions, now);
 	let usersNotified = 0;
-	for (const group of groups) {
+
+	// F3: Serialisierung pro User via In-Memory-Queue.
+	// Parallele Aufrufe für denselben User warten auf das bereits laufende Promise.
+	const processUserGroup = async (group: GeoPushGroup): Promise<void> => {
+		const intervalMs = await intervalMsFor(group.userId);
 		const { sent } = await sendPushToUser(group.userId, buildPayload(group.tasks), send);
 		if (sent > 0) {
 			await NotificationLog.bulkCreate(
 				group.tasks.map((task) => ({
 					userId: group.userId,
 					kind: KIND,
-					dedupeKey: dedupeKeyFor(task.id, now),
+					dedupeKey: dedupeKeyFor(task.id, now, intervalMs),
 					sentAt: now,
 				})),
 				{ ignoreDuplicates: true },
 			);
 			usersNotified++;
 		}
-	}
+	};
+
+	await Promise.all(
+		groups.map(async (group) => {
+			const existing = runningUserPushes.get(group.userId);
+			if (existing) {
+				// Ein paralleler Lauf läuft bereits → warten, nicht doppelt pushen.
+				await existing;
+				return;
+			}
+			// Neuer Lauf pro User → Promise speichern, ausführen, danach aufräumen.
+			const promise = processUserGroup(group).finally(() => {
+				runningUserPushes.delete(group.userId);
+			});
+			runningUserPushes.set(group.userId, promise);
+			await promise;
+		}),
+	);
+
 	return { usersNotified };
 };

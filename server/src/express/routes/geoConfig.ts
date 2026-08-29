@@ -144,7 +144,9 @@ geoConfigRouter.post('/geo/position', async (req: Request, res: Response<{ messa
 	const body = (req.body ?? {}) as { lat?: unknown; lon?: unknown };
 	const lat = parseCoord(body.lat);
 	const lon = parseCoord(body.lon);
-	if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+	// F1 (#1102-Review): NaN-Vergleche sind immer false — NaN muss explizit abgelehnt werden,
+	// sonst läuft `{"lat":"abc"}` ohne 400 in den Push-Job.
+	if (Number.isNaN(lat) || Number.isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
 		sendError(res, 400, 'lat und lon müssen Zahlen in gültigem Bereich sein.');
 		return;
 	}

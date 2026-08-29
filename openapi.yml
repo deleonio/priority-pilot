@@ -1133,6 +1133,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '401':
+          description: Anmeldung erforderlich (kein anmeldefreier Pass-Through-Modus aktiv)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
   parameters:
     SeriesId:

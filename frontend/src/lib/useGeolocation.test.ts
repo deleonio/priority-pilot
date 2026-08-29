@@ -7,11 +7,21 @@ import { GEO_CONFIG_CHANGED_EVENT, GEOLOCATION_INTERVAL_MS, useGeolocation } fro
 // (der #845-Block löst den Reverse-Geocoding-Effekt unbeabsichtigt mit aus).
 // #1098: getGeoConfig kommt hinzu (konfigurierbares Intervall, AK5) — per Default ohne Config
 // (Ablehnung), damit der 5-Minuten-Fallback greift und die Bestands-Tests unverändert gelten.
-const { getGeoConfigMock } = vi.hoisted(() => ({ getGeoConfigMock: vi.fn() }));
+// #933: api.reverseGeocode mocken — verhindert Netzwerk-Calls in ALLEN Tests dieser Datei
+// (der #845-Block löst den Reverse-Geocoding-Effekt unbeabsichtigt mit aus).
+// #1098: getGeoConfig kommt hinzu (konfigurierbares Intervall, AK5) — per Default ohne Config
+// (Ablehnung), damit der 5-Minuten-Fallback greift und die Bestands-Tests unverändert gelten.
+// #1101: reportGeoPosition mit Default-Auflösung — ohne sie gibt der Mock undefined zurück und
+// der Best-Effort-.catch im Hook wirft TypeError in JEDER Hook-Instanz (Effekt-Kette bricht).
+const { getGeoConfigMock, reportGeoPositionMock } = vi.hoisted(() => ({
+	getGeoConfigMock: vi.fn(),
+	reportGeoPositionMock: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock('../api', () => ({
 	api: {
 		reverseGeocode: vi.fn().mockResolvedValue({ address: 'Musterstraße 1, 10117 Berlin' }),
 		getGeoConfig: getGeoConfigMock,
+		reportGeoPosition: reportGeoPositionMock,
 	},
 }));
 
@@ -309,5 +319,55 @@ describe('useGeolocation – #1098: konfigurierbares Intervall (AK5)', () => {
 		window.dispatchEvent(new CustomEvent(GEO_CONFIG_CHANGED_EVENT));
 
 		await waitFor(() => expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 1 * 60 * 1000));
+	});
+});
+
+/**
+ * #1101 F5: Positionsmeldung an den Server — nur bei aktiviertem Geolocation
+ * (UX-Kopplung Geo-Opt-in ↔ Geo-Push), Best-Effort ohne Fehleranzeige.
+ */
+describe('useGeolocation – #1101: Positionsmeldung an den Server', () => {
+	const geoMock = {
+		getCurrentPosition: vi.fn(),
+		watchPosition: vi.fn(),
+		clearWatch: vi.fn(),
+	};
+
+	beforeEach(() => {
+		localStorage.clear();
+		vi.clearAllTimers();
+		vi.clearAllMocks();
+		getGeoConfigMock.mockRejectedValue(new Error('keine Geo-Config'));
+		reportGeoPositionMock.mockResolvedValue(undefined);
+		Object.defineProperty(global.navigator, 'geolocation', {
+			value: geoMock,
+			writable: true,
+		});
+	});
+
+	afterEach(() => {
+		localStorage.clear();
+	});
+
+	it('meldet die ermittelte Position an den Server, wenn Geolocation aktiviert ist', async () => {
+		localStorage.setItem('pp-geolocation-enabled', 'true');
+		geoMock.getCurrentPosition.mockImplementationOnce((success) => {
+			success({ coords: { latitude: 52.52, longitude: 13.405 } });
+		});
+
+		renderHook(() => useGeolocation());
+
+		await waitFor(() => {
+			expect(reportGeoPositionMock).toHaveBeenCalledWith({ lat: 52.52, lon: 13.405 });
+		});
+	});
+
+	it('meldet nichts, solange Geolocation deaktiviert ist (Default)', async () => {
+		// Kein localStorage-Eintrag → enabled=false → der Positions-Effekt läuft nie.
+		renderHook(() => useGeolocation());
+
+		// Ein Tick für Mount-Effekte (Config-Fallback), dann darf kein Report passiert haben.
+		await waitFor(() => expect(geoMock.getCurrentPosition).not.toHaveBeenCalled());
+		expect(reportGeoPositionMock).not.toHaveBeenCalled();
 	});
 });
