@@ -141,11 +141,10 @@ jobs:
           memory-load: 'false'
           expect-memory: 'false'
 
-      - name: Arbeits-Branch frisch aufsetzen (Basis = origin/main, wird NIE gepusht) + Git-Identität
+      - name: Arbeits-Branch frisch aufsetzen (Basis = origin/main, wird NIE gepusht)
         # Lokale Werkbank des Agenten; der Delivery-Branch chore/spec-sync-all entsteht
-        # erst im Post-Step diff-basiert daraus. Git-Identität aus dem App-Slug (Muster
-        # deploy.yml) — deterministische Attribution der Agent-Commits statt runner-abhängiger
-        # Default-Identität.
+        # erst im Post-Step diff-basiert daraus. Git-Identität stellt setup-claude zentral
+        # bereit (Repo-Owner, gültige noreply).
         if: steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
@@ -153,13 +152,6 @@ jobs:
         run: |
           git branch -D "$SYNC_BRANCH" 2>/dev/null || true
           git switch -C "$SYNC_BRANCH" origin/main
-          slug="$(gh api app --jq .slug 2>/dev/null || true)"
-          user="${slug:-app}[bot]"
-          id="$(gh api "users/${user}%5Bbot%5D" --jq .id 2>/dev/null || true)"
-          email="${user}@users.noreply.github.com"
-          [ -n "$id" ] && email="${id}+${user}@users.noreply.github.com"
-          git config user.name "$user"
-          git config user.email "$email"
 
       - name: Spec-Sync via Claude
         id: claude

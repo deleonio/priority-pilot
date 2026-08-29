@@ -240,6 +240,17 @@ runs:
         git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
         echo "::notice::origin-Remote auf App-Token umgestellt (Contents:Write für Push)."
 
+    - name: Git-Identität auf Repo-Owner stellen
+      # Commit-Attribution: Sämtliche Phasen-Commits (Spec/Implement/Fixup, Syncs, Auto-Merge)
+      # laufen unter der Identität des Repo-Owners statt der App-Bot-Identität — gültige
+      # noreply-Adresse, Commits verlinken auf den Owner-Account und zählen in dessen
+      # Beitragsdiagramm. Der PUSH selbst bleibt App-Token (App-only-Pipeline, s. Schritt oben).
+      if: steps.preflight.outputs.configured == 'true'
+      shell: bash
+      run: |
+        git config user.name "deleonio"
+        git config user.email "6279703+deleonio@users.noreply.github.com"
+
     - name: Ticket-ID auflösen (Issue-Nummer)
       id: ticket
       if: steps.preflight.outputs.configured == 'true'

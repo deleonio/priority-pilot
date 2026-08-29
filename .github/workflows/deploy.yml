@@ -72,21 +72,13 @@ jobs:
           client-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
-      - name: Git-Identitaet aus App-Slug ableiten
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+      - name: Git-Identität auf Repo-Owner stellen
+        # Release-Commits (Patch-Bump auf main) laufen unter der Identität des Repo-Owners
+        # statt der App-Bot-Identität — gültige noreply-Adresse, Commits verlinken auf den
+        # Owner-Account. Der PUSH bleibt App-Token (App-only-Pipeline).
         run: |
-          user="${APP_SLUG}[bot]"
-          id=$(curl -fsS -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/users/${APP_SLUG}%5Bbot%5D" | jq -r '.id // empty') || id=""
-          if [ -n "$id" ]; then
-            email="${id}+${user}@users.noreply.github.com"
-          else
-            email="${user}@users.noreply.github.com"
-          fi
-          git config user.name "$user"
-          git config user.email "$email"
+          git config user.name "deleonio"
+          git config user.email "6279703+deleonio@users.noreply.github.com"
 
       - name: Patch-Bump + Commit + Push auf main
         env:

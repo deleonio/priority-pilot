@@ -25,10 +25,10 @@ runs:
         PHASE: ${{ inputs.phase }}
         RUN_ID: ${{ github.run_id }}
         HEAD_BRANCH: ${{ github.head_ref || github.ref_name }}
-        GIT_AUTHOR_NAME: priority-pipeline
-        GIT_AUTHOR_EMAIL: noreply@users.noreply.github.com
-        GIT_COMMITTER_NAME: priority-pipeline
-        GIT_COMMITTER_EMAIL: noreply@users.noreply.github.com
+        GIT_AUTHOR_NAME: deleonio
+        GIT_AUTHOR_EMAIL: 6279703+deleonio@users.noreply.github.com
+        GIT_COMMITTER_NAME: deleonio
+        GIT_COMMITTER_EMAIL: 6279703+deleonio@users.noreply.github.com
       run: |
         set -uo pipefail
         BRANCH="ai/harness/${ISSUE_NR}"

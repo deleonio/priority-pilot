@@ -136,22 +136,14 @@ jobs:
           memory-load: 'false'
           expect-memory: 'false'
 
-      - name: Sync-Branch frisch aufsetzen (Basis = origin/main) + Git-Identität
+      - name: Sync-Branch frisch aufsetzen (Basis = origin/main)
         # Je Lauf neuer Basis-Stand: der Sync-PR zeigt danach immer nur die AKTUELLE Drift.
-        # Git-Identität aus dem App-Slug (Muster deploy.yml) — deterministische Attribution
-        # der Agent-Commits statt runner-abhängiger Default-Identität.
+        # Git-Identität stellt setup-claude zentral bereit (Repo-Owner, gültige noreply).
         if: steps.guard.outputs.skip != 'true' && steps.inflight.outputs.skip != 'true' && steps.setup.outputs.configured == 'true'
         env:
           GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
         run: |
           git switch -C "$SYNC_BRANCH" origin/main
-          slug="$(gh api app --jq .slug 2>/dev/null || true)"
-          user="${slug:-app}[bot]"
-          id="$(gh api "users/${user}%5Bbot%5D" --jq .id 2>/dev/null || true)"
-          email="${user}@users.noreply.github.com"
-          [ -n "$id" ] && email="${id}+${user}@users.noreply.github.com"
-          git config user.name "$user"
-          git config user.email "$email"
 
       - name: ADR-Sync via Claude
         id: claude
