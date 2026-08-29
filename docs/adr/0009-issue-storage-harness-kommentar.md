@@ -65,7 +65,10 @@ entfällt vollständig, statt sie (wie der alte Body-Block-Skip) nur in einem Fe
 umschiffen. Die Sicherheitsleine für Schwachmodelle (#566: „Block als Kommentar statt in
 den Body gepostet") kehrt ihre Richtung um und wird zur Normalfall-Mechanik: Der
 Post-Check der Triage migriert jeden Analyse-Block aus Body oder marker-losem Kommentar
-in den Harness-Kommentar und failt nur hart, wenn er nirgends existiert. Der
+in den Harness-Kommentar — per Upsert, wenn der Marker-Kommentar bereits blocklos
+existiert, damit es garantiert genau einen bleibt — und failt nur hart, wenn er nirgends
+existiert. Einen Legacy-Rest im Body entfernt der Post-Check auch im Happy-Case (nach
+dem `ai:analysed`-Ensure, damit der Validator das Body-Edit über das Label skippt). Der
 Template-Struktur-Post-Check bleibt als Sicherheitsleine für Autoren-Edits und die
 Legacy-Bereinigung.
 

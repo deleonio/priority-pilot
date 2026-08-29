@@ -349,8 +349,18 @@ jobs:
                 '[.comments[] | select(.body | test("KI-ANALYSE:START"))] | last | .body // ""' 2>/dev/null || true)"
             fi
             if [ -n "$SEGMENTS" ]; then
-              printf '<!-- ai-harness -->\n\n%s\n' "$SEGMENTS" \
-                | gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file - 2>/dev/null || true
+              # Upsert statt blindem Anlegen: Existiert der Marker-Kommentar bereits
+              # blocklos (z. B. abgebrochener Lauf mit korrekter Marker-Zeile), wuerde
+              # ein zweiter Kommentar angelegt — die first-Selektion aller Leser haette
+              # dann die LEERE Analyse. Per HID aktualisieren bleibt bei genau einem.
+              HARNESS_BODY="$(printf '<!-- ai-harness -->\n\n%s\n' "$SEGMENTS")"
+              HID="$(bash .github/scripts/harness-comment.sh --repo "$GITHUB_REPOSITORY" --issue "$ISSUE" --id 2>/dev/null || true)"
+              if [ -n "$HID" ]; then
+                gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$HID" -f body="$HARNESS_BODY" >/dev/null 2>&1 || true
+              else
+                printf '%s' "$HARNESS_BODY" \
+                  | gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file - 2>/dev/null || true
+              fi
               echo "::warning title=♻️ Block migriert::KI-ANALYSE-Block wurde nicht im Harness-Kommentar gefunden – automatisch dorthin migriert (ADR 0009)."
               # Legacy-Body bereinigen: validierte Beschreibung ohne Analyse-Reste
               if printf '%s' "$BODY" | grep -q "KI-ANALYSE:START"; then
@@ -517,6 +527,23 @@ jobs:
             --jq '[.labels[].name] | any(. == "ai:analysed")' 2>/dev/null || echo false)"
           if [ "$HAS_ANALYSED" != "true" ]; then
             gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --add-label "ai:analysed"
+          fi
+
+          # HAPPY-CASE-CLEANUP (ADR 0009): Trägt der Body noch einen Legacy-
+          # KI-ANALYSE-Block, OBWOHL der Harness-Kommentar den Block bereits führt,
+          # bliebe dieser Rest dauerhaft stehen — Menschen lesen dort eine veraltete
+          # Analyse. Bewusst erst NACH dem ai:analysed-Ensure: das Body-Edit feuert
+          # den Validator (00), der über das Label sicher skippt. Nur bei
+          # HAS_BLOCK=true — sonst existiert der Block noch nirgends und darf den
+          # Body nicht verlassen.
+          if [ "$HAS_BLOCK" = "true" ] && printf '%s' "$BODY" | grep -q "KI-ANALYSE:START"; then
+            printf '%s' "$BODY" | awk '
+              /KI-ANALYSE:START/,/KI-ANALYSE:END/ {next}
+              /ai-phase-routing:START/,/ai-phase-routing:END/ {next}
+              {print}' \
+              | gh issue edit "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file - 2>/dev/null || true
+            BODY="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json body -q .body 2>/dev/null || true)"
+            echo "::notice title=🧹 Legacy-Block aus dem Body entfernt::Analyse liegt im Harness-Kommentar (ADR 0009) — Body-Rest bereinigt."
           fi
 
           if [ "$final" = "spec-ready" ]; then

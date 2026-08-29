@@ -30,8 +30,12 @@ ISSUE=""
 MODE="body"
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --repo)  REPO="$2";  shift 2 ;;
-    --issue) ISSUE="$2"; shift 2 ;;
+    # Wert-Flags mit $#-Guard: Ohne Wert wuerde $2 unter set -u mit Exit 1
+    # crashen — nur Argumentfehler exiten laut Kopf hart, und zwar mit 2.
+    --repo)  [[ $# -ge 2 ]] || { echo "harness-comment: --repo braucht einen Wert" >&2; exit 2; }
+             REPO="$2";  shift 2 ;;
+    --issue) [[ $# -ge 2 ]] || { echo "harness-comment: --issue braucht einen Wert" >&2; exit 2; }
+             ISSUE="$2"; shift 2 ;;
     --id)    MODE="id";  shift ;;
     *) shift ;;
   esac
