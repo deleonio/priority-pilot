@@ -50,6 +50,13 @@ Bei Uneindeutigkeit wird nicht geraten: Die Analyse setzt `ai:needs-human` mit e
 der **was** zu entscheiden ist, **worauf** es sich bezieht und **welche Optionen** bestehen
 benennt. „Bitte prüfen" erfüllt das nicht.
 
+> **Nachtrag 2026-08-29:** Das Analyse-Modell ist inzwischen `opus` (Default von
+> `vars.CLAUDE_MODEL_TRIAGE`, [01-claude-triage.yml](../../.github/workflows/01-claude-triage.yml)
+> und [ci-architecture.md](../ci-architecture.md)). `fable` bleibt allowlistet und manuell
+> setzbar. Die Kostenargumente dieses ADR tragen unabhängig vom konkreten Topmodell — sie
+> gelten für jede teure Elternsession, die günstige Folgeläufe orchestriert (ebenso die
+> Passagen weiter unten, die der Lesbarkeit halber `fable` beim Namen nennen).
+
 ### 2. Die Klassifikation steuert das Modell — über ein Label, nicht über eine Variable
 
 Die Analyse stuft **je Subtask** ein und setzt genau ein Label `ai:model:haiku|sonnet|opus`. Die
@@ -82,6 +89,15 @@ stehenbleibt — das der Provider ablehnen kann (`unrecognized_model`, beobachte
 
 Ab der zweiten Review-Runde am selben PR wird eine Stufe hochgesetzt (`haiku` → `sonnet` →
 `opus`).
+
+> **Nachtrag 2026-08-29:** Die Modell-Allowlist lautet inzwischen
+> `fable | opus | sonnet | haiku` ([resolve-model-label.sh](../../.github/scripts/resolve-model-label.sh),
+> [setup-claude](../../.github/actions/setup-claude/action.yml)); die Eskalationsketten enden
+> weiter bei der jeweils höchsten Stufe. Zudem gibt es inzwischen **zwei** Eskalationsachsen:
+> die hier beschriebene Review-Runden-Eskalation (nur Fallback-/Label-Pfad, s. Ergänzung
+> unten) und [`resolve-escalation.sh`](../../.github/scripts/resolve-escalation.sh) für
+> `ai:continued`-Fortsetzungsläufe nach Soft-Abort — letztere stuft Modell **und** Effort hoch
+> und wirkt auf das gemergte Ergebnis aus Tabelle/Label/Default, also auch im Tabellen-Pfad.
 
 ### 3. Die Spec-Phase ist überspringbar — aber nur, wo sie ihren Vertrag nicht liefern kann
 
@@ -174,6 +190,11 @@ dem sie im Sinne des Ziels Token _sparen_ statt sie zu vervielfachen.
 - **Effort-Level für die Analyse** (`--effort xhigh`/`max`) ist **offen** — vor einer Entscheidung
   gegen die aktuelle Claude-Code-CLI und die eingesetzten Provider zu verifizieren.
 
+  > **Nachtrag 2026-08-29:** entschieden und verdrahtet — `--effort` ist ein
+  > setup-claude-Input (`low | medium | high | xhigh | max`), jede Phase trägt einen
+  > Effort-Default, und die Routing-Tabelle führt Effort als eigene Spalte (s. Ergänzung
+  > 2026-08-26 unten).
+
 ## Konsequenzen
 
 - **Die Analyse wird teurer und langsamer.** Sie liest jetzt Code, um Kontext anzureichern. Das
@@ -207,6 +228,13 @@ dem sie im Sinne des Ziels Token _sparen_ statt sie zu vervielfachen.
   > Kosten** ($1.95 von $2.42), weil sie auf `sonnet` läuft. Die Hypothesen selbst bleiben
   > unbelegt — ein Ticket ist keine Stichprobe, und ein Vorher-Wert existiert nicht.
 
+  > **Nachtrag 2026-08-29:** Mit wachsender Messreihe hat sich der Schwerpunkt verschoben:
+  > **Review + Fixup tragen 97 % des bewerteten Verbrauchs** (Begründung des
+  > Fixup-Runden-Deckels, Issue #993; Ausreißer #932: 10 Review- + 4 Fixup-Läufe,
+  > 34,5 Mio Token). Nicht-lokale Schleifen, nicht einmalige Phasenläufe, sind der
+  > Kostenhebel — daraus folgen die Delegations- und Mentor-Entscheidungen von
+  > [ADR 0008](0008-delegation-und-mentor-eskalation.md).
+
 ## Fortschreibung von ADR 0002 und ADR 0003
 
 **ADR 0002 (7 Phasen):** Die Phasenkette bleibt, wird aber bedingt. UX und Spec sind formell
@@ -223,6 +251,10 @@ weder Trigger (`ai:needs-*`) noch Done-Marker (`ai:<Vergangenheitsform>`), sonde
 | `ai:model:haiku`  | Folgephasen laufen auf `haiku`  | Analyse (impl-Zeile der Routing-Tabelle), Mensch, Eskalation | Fallback-Pfad (ohne Routing-Tabelle) |
 | `ai:model:sonnet` | Folgephasen laufen auf `sonnet` | dito                                                         | nie                                  |
 | `ai:model:opus`   | Folgephasen laufen auf `opus`   | dito                                                         | nie                                  |
+| `ai:model:fable`  | Folgephasen laufen auf `fable`  | Mensch (Topmodell bewusst gesetzt)                           | nie                                  |
+
+> **Nachtrag 2026-08-29:** `fable`-Zeile ergänzt — der Alias ist seit der
+> Allowlist-Erweiterung setzbar, ohne dass die Tabelle ihn aufführte.
 
 Genau eines muss gesetzt sein; keines oder mehrere brechen den Start ab. Das Label wird **nie**
 konsumiert und überlebt alle Phasen-Transitions.
@@ -257,3 +289,9 @@ fail-open), manueller Override (Label setzen statt Body-Edit) und Träger der Au
 Bei Tabellen-Tickets ist die Analyse phasenfein eingestuft; wiederholte Fixups lösen heute KEIN
 automatisches Hochstufen aus — der Mensch editiert die Tabelle (bestehender Override-Weg).
 Ob die Eskalation in den Tabellen-Pfad zieht, entscheiden wir mit Daten aus den nächsten Läufen.
+
+> **Nachtrag 2026-08-29:** Die Lücke besteht für die Review-Runden-Eskalation fort. Ergänzt
+> wurde eine zweite Achse: [`resolve-escalation.sh`](../../.github/scripts/resolve-escalation.sh)
+> stuft bei `ai:continued`-Fortsetzungsläufen (Soft-Abort) Modell und Effort hoch — auf das
+> gemergte Ergebnis und damit auch im Tabellen-Pfad. Für Blockaden, die keine Soft-Aborts
+> sind, entscheidet [ADR 0008](0008-delegation-und-mentor-eskalation.md) den Mentor-Vorlauf.

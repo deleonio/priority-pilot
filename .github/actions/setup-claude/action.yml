@@ -774,7 +774,6 @@ runs:
         MCP_TOOLS="mcp__kolibri-mcp__*"
         BROWSER_TOOLS="mcp__playwright__*"
         [ "$BROWSER_MCP" = "true" ] && MCP_TOOLS="$MCP_TOOLS,$BROWSER_TOOLS"
-        VOLLES_TOOLSET="Read,Glob,Grep,Bash,Write,Edit"
 
         case "${TOOLS_TIER:-full}" in
           restricted)
@@ -815,13 +814,20 @@ runs:
             # Tier. Bewusst KEIN Bypass+disallowTools mehr: einer globalen 'Edit'-Disallow
             # könnte keine Allow-Regel den Memory-Pfad wieder öffnen (Disallow gewinnt) —
             # die Allowlist hält Code schreibgeschützt UND Memory schreibbar zugleich.
-            ALLOWED_TOOLS="Read,Glob,Grep,Bash,Edit(.ai-memory/*),Edit(.ai-memory/**)"
+            # Task (Subagents) wie im restricted-Tier: Umfeldrecherche zum Diff (Aufrufer,
+            # Testabdeckung) ist leseintensiv und liefert ein kurzes Fazit — der Fan-out
+            # läuft auf dem Subagent-Modell (subagent-model), nicht auf dem Phasenmodell.
+            # Das Review-Urteil selbst bleibt im Parent: der Diff wird nie delegiert.
+            ALLOWED_TOOLS="Read,Glob,Grep,Task,Bash,Edit(.ai-memory/*),Edit(.ai-memory/**)"
             [ "$NEEDS_MCP" = "true" ] && ALLOWED_TOOLS="$ALLOWED_TOOLS,$MCP_TOOLS"
             echo "invoke-args=$COMPACT_FLAG $EFFORT_FLAG --allowedTools '$ALLOWED_TOOLS' $MODEL_FLAG" >> "$GITHUB_OUTPUT"
             ;;
           full)
             # Tier 2 — vollautonom (Bypass + volles Toolset inkl. Write/Edit).
-            ALLOWED_TOOLS="$VOLLES_TOOLSET"
+            # Task bewusst explizit dabei (unter dem Bypass ohnehin erlaubt): Gate-Ketten
+            # und Suchfragen gehen an haiku-Rollen (ADR 0008) — die Allowlist soll die
+            # Absicht abbilden, nicht auf dem Bypass-Verhalten ruhen.
+            ALLOWED_TOOLS="Read,Glob,Grep,Task,Bash,Write,Edit"
             [ "$NEEDS_MCP" = "true" ] && ALLOWED_TOOLS="$ALLOWED_TOOLS,$MCP_TOOLS"
             echo "invoke-args=$COMPACT_FLAG $EFFORT_FLAG --dangerously-skip-permissions --allowedTools '$ALLOWED_TOOLS' $MODEL_FLAG" >> "$GITHUB_OUTPUT"
             ;;

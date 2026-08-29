@@ -13,6 +13,7 @@ REVIEW CRITERIA (per prompt):
   D. PRECISION/CLARITY — ambiguous or long-winded phrasing an agent could misunderstand.
   E. CORRECTNESS/COMPLETENESS — dead references (file doesn't exist), wrong commands, missing mandatory elements (verdict line, time limit, label ban).
   F. CONCRETIZATION — the reverse lever: where does the prompt stay vague where a concrete instruction (target file, exact command, expected output format, boundary, small example) would let the executing phase hit the target in fewer turns? Such a finding may ADD initial tokens — it is valid if the expected downstream saving (avoided clarification/fixup/review rounds) clearly exceeds the added cost.
+  G. DELEGATION AND ESCALATION ECONOMY — does the prompt keep work in the expensive parent context that a cheaper subagent role could do (ADR 0008)? Test: the sub-task produces a lot of raw text but only a short result (running command chains, reading broadly, scanning logs) → it belongs in a delegation instruction, not in the parent. Conversely, for blocking and looping situations (gate red repeatedly with the same signature, third fixup round on the same finding, soft-abort repetition): does the prompt name a concrete way out, or does it only repeat the same attempt? And where a mentor advice block (═══ MENTOR-RAT ═══) is supplied, does the prompt BIND the phase to it instead of leaving it optional?
 
 ORDER: read ALL prompts first, THEN judge across them — finding contradictions needs the overview.
 
@@ -24,7 +25,7 @@ REPORT (MANDATORY): write via bash heredoc to /tmp/prompt-audit.md. The workflow
   One table row per reviewed prompt: | Datei | 🟢|🟡|🔴 | Anzahl Funde | — clean files stay visible.
   ## Funde
   ALL findings, sorted descending by expected NET saving (ties: severity). NET saving = initial-token delta plus expected downstream effect (follow-up turns avoided or caused; one fixup loop ≈ 50 turns) — findings may save AND add tokens. Per finding:
-  `### Rang <n> — <Datei> — <Kategorie>` (Redundanz|Kürzung|Konkretisierung|Widerspruch|Unklarheit|Fehler)
+  `### Rang <n> — <Datei> — <Kategorie>` (Redundanz|Kürzung|Konkretisierung|Delegation|Widerspruch|Unklarheit|Fehler)
   short quote — problem — concrete suggestion — expected NET saving (initial delta + downstream effect) — **Machbarkeit** (leicht/mittel/schwer) — **Aufwand** (geschätzte Stunden).
   ## Widersprüche (quer über die Phasen)
   ONLY contradictions spanning multiple files; single-file contradictions stay in Funde.

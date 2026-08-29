@@ -78,6 +78,10 @@ jobs:
       # danach ggf. Eskalationsstufe (ai:continued) — escalate mit Fallback auf merge.
       model_final: ${{ steps.escalate.outputs.model || steps.merge.outputs.model_final }}
       effort_final: ${{ steps.escalate.outputs.effort || steps.merge.outputs.effort_final }}
+      # escalated (ai:continued-Lauf): Der implement-Job startet dafür den Mentor-Vorlauf
+      # (ADR 0008). Escalate läuft mit || true — bei Skriptfehler bleibt der Output leer
+      # und der Konsument behandelt leer als false (kein Mentor, ganz normaler Lauf).
+      escalated: ${{ steps.escalate.outputs.escalated }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -250,6 +254,11 @@ jobs:
           # `unrecognized_model` abgelehnt werden kann (beobachtet an PR #916).
           model: ${{ vars.CLAUDE_MODEL_IMPLEMENT || needs.precheck.outputs.model_final || 'opus' }}
           effort: ${{ needs.precheck.outputs.effort_final || 'high' }}
+          # Subagent-Fan-out auf haiku (ADR 0008): Gate-Ketten und Suchfragen gehen an
+          # die Rollen gate-runner/recherche — nur ihr Fazit kehrt in den Phasenkontext
+          # zurück. Ohne Override liefen Subagents auf dem Phasenmodell (z.B. opus) und
+          # der Spareffekt kehrte sich um.
+          subagent-model: ${{ vars.CLAUDE_MODEL_IMPLEMENT_SUBAGENT || 'haiku' }}
           zai-api-key: ${{ secrets.ZAI_API_KEY }}
           claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
           openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
@@ -312,6 +321,109 @@ jobs:
           already="$(gh issue view "$ISSUE" --repo "$GITHUB_REPOSITORY" --json labels --jq 'any(.labels[]; .name == "ai:continued")' 2>/dev/null || echo false)"
           echo "already=${already:-false}" >> "$GITHUB_OUTPUT"
 
+      # ── Mentor-Vorlauf (ADR 0008): Rat vor dem Wiederholungslauf ────────────────
+      # Ein abgebrochener Erstlauf wird mit mehr Modell+Effort re-triggert — aber
+      # MEHR VOMSELBEN hilft nicht, wenn der Ansatz der Grund des Abbruchs war.
+      # Der Mentor (starkes Modell, read-only) diagnostiziert einmal die Ursache
+      # und schreibt /tmp/mentor-advice.md, das als VERBINDLICHER Markerblock in
+      # den Phasen-Prompt wandert. Auslöser rein deterministisch (mentor-gate.sh),
+      # der Lauf selbst fail-open (continue-on-error): ohne Rat läuft die Phase
+      # normal weiter.
+      - name: Mentor-Gate (ADR 0008)
+        id: mentor-gate
+        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
+        env:
+          ESCALATED: ${{ needs.precheck.outputs.escalated || 'false' }}
+        run: |
+          bash .github/scripts/mentor-gate.sh check --mode implement --escalated "$ESCALATED" \
+            | tee /tmp/mentor-gate.out
+          # Gate-Outputs durchreichen (run/reason) — bei Skriptfehler bleibt run leer
+          # und der Mentor-Step (Bedingung run == 'true') entfällt einfach.
+          echo "run=$(sed -n 's/^run=//p' /tmp/mentor-gate.out | tail -1)" >> "$GITHUB_OUTPUT"
+          echo "reason=$(sed -n 's/^reason=//p' /tmp/mentor-gate.out | tail -1)" >> "$GITHUB_OUTPUT"
+
+      - name: Mentor-Rat einholen (Vorlauf, ADR 0008)
+        id: mentor
+        if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true' && steps.mentor-gate.outputs.run == 'true'
+        continue-on-error: true # fail-open: ohne Rat läuft die Umsetzung normal weiter
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          MENTOR_MODEL: ${{ vars.CLAUDE_MODEL_MENTOR || 'opus' }}
+          PHASE_MODEL_ALIAS: ${{ vars.CLAUDE_MODEL_IMPLEMENT || needs.precheck.outputs.model_final || 'opus' }}
+          PROVIDER: ${{ steps.setup.outputs.llm-provider }}
+        run: |
+          # Eigene kurze Deadline — der Mentor frisst nicht das Phasenbudget (ADR 0008).
+          MENTOR_DEADLINE=$(( $(date +%s) + 480 ))
+          sed -e "s/{{KIND}}/issue/g" \
+              -e "s/{{TICKET_REF}}/${{ github.event.issue.number }}/g" \
+              -e "s/{{ISSUE_NR}}/${{ github.event.issue.number }}/g" \
+              -e "s/{{PHASE_NAME}}/implement/g" \
+              -e "s/{{ROUND_INFO}}/Wiederholung nach Soft-Abort/g" \
+              -e "s/{{SOFT_DEADLINE}}/${MENTOR_DEADLINE}/g" \
+              .github/prompts/mentor.md > /tmp/mentor-prompt.txt
+          bash .github/scripts/assert-prompt-complete.sh /tmp/mentor-prompt.txt
+
+          # Modell-Auflösung wie setup-claude (Pflegestelle der Alias-Tabelle,
+          # s. ci-architecture.md): claude nativ via --model; zai/openrouter via
+          # Alias in settings.local.json — dort lösen ANTHROPIC_DEFAULT_*_MODEL auf,
+          # die setup-claude bereits gesetzt hat. Der settings-Patch wird nach dem
+          # Lauf auf den PHASEN-Alias zurückgestellt (trap), sonst startete die
+          # Umsetzung auf dem Mentor-Modell.
+          MODEL_FLAG=""
+          PATCHED="false"
+          restore_model() {
+            if [ "$PATCHED" = "true" ] && [ -f .claude/settings.local.json ]; then
+              tmp="$(mktemp)"
+              jq --arg m "$PHASE_MODEL_ALIAS" '.model = $m' .claude/settings.local.json > "$tmp" \
+                && mv "$tmp" .claude/settings.local.json
+            fi
+          }
+          trap restore_model EXIT
+          case "$PROVIDER" in
+            claude)
+              case "$MENTOR_MODEL" in
+                fable)  MODEL_FLAG="--model claude-fable-5" ;;
+                opus)   MODEL_FLAG="--model claude-opus-5" ;;
+                sonnet) MODEL_FLAG="--model claude-sonnet-5" ;;
+                haiku)  MODEL_FLAG="--model claude-haiku-4-5-20251001" ;;
+                *)
+                  echo "::error title=Mentor-Modell::Unbekannter Alias '$MENTOR_MODEL' (vars.CLAUDE_MODEL_MENTOR) — erlaubt: fable | opus | sonnet | haiku. Mentor übersprungen (fail-open)."
+                  exit 1
+                  ;;
+              esac ;;
+            *)
+              if [ -f .claude/settings.local.json ]; then
+                tmp="$(mktemp)"
+                jq --arg m "$MENTOR_MODEL" '.model = $m' .claude/settings.local.json > "$tmp" \
+                  && mv "$tmp" .claude/settings.local.json && PATCHED="true"
+              fi ;;
+          esac
+
+          claude -p "$(cat /tmp/mentor-prompt.txt)" \
+            --effort high $MODEL_FLAG \
+            --allowedTools 'Read,Glob,Grep,Bash(gh *),Bash(git *)' \
+            2>&1 | tee /tmp/mentor-output.log || echo "::warning title=Mentor::claude-Exit ungleich 0 — Rat wird geprüft, Fail-open."
+
+          # Transkript-Abgrenzung für die Phasen-Kostenerfassung (record-cost summiert
+          # alles seit --since): Die Phase zählt ab JETZT, der Mentor-Datensatz wurde
+          # oben separat geschrieben. Leerer Output (Datei fehlt/leer) => Rat verwerfen.
+          echo "since_epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
+          test -s /tmp/mentor-advice.md || {
+            echo "::warning title=Mentor::Kein /tmp/mentor-advice.md geschrieben — Rat entfällt (fail-open)."
+            exit 1
+          }
+
+      - name: Token & Kosten erfassen (Mentor)
+        # Eigener Datensatz (phase: mentor) — der Mentor läuft auf der $-Stufe und muss
+        # in der Messreihe sichtbar bleiben, sonst ist die Mentor-Kostenfrage unbeantwortbar.
+        if: always() && steps.setup.outputs.configured == 'true' && steps.mentor-gate.outputs.run == 'true'
+        uses: ./.github/actions/record-cost
+        with:
+          issue: ${{ steps.setup.outputs.issue-number || github.event.issue.number }}
+          phase: mentor
+          since-epoch: ${{ steps.starttime.outputs.epoch }}
+          provider: ${{ steps.setup.outputs.llm-provider }}
+
       - name: Umsetzung via Claude
         id: claude
         if: steps.setup.outputs.configured == 'true' && steps.doppel-guard.outputs.skip != 'true'
@@ -340,6 +452,16 @@ jobs:
             sed -i "s/{{RESUME_HINT}}//g" /tmp/claude-prompt.txt
           fi
           sed -i "s/{{SOFT_DEADLINE}}/${{ steps.starttime.outputs.soft_deadline_epoch }}/g" /tmp/claude-prompt.txt
+          # Mentor-Rat als Markerblock ANHÄNGEN (ADR 0008) — bewusst kein sed-Platzhalter:
+          # Der Rat ist LLM-Freitext und darf {{...}} enthalten; assert-prompt-complete
+          # nimmt den Block aus (wie den Vor-Phasen-Kontext). Ohne Rat: keine Änderung.
+          if [ -s /tmp/mentor-advice.md ]; then
+            {
+              printf '\n═══ MENTOR-RAT (VERBINDLICH) ═══\n'
+              cat /tmp/mentor-advice.md
+              printf '\n═══ ENDE MENTOR-RAT ═══\n'
+            } >> /tmp/claude-prompt.txt
+          fi
           bash .github/scripts/assert-prompt-complete.sh /tmp/claude-prompt.txt
 
           ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
@@ -350,12 +472,15 @@ jobs:
       - name: Token & Kosten erfassen
         # always(): Auch ein abgebrochener Lauf hat Token verbraucht — gerade teure
         # Fehlläufe gehören in die Baseline, sonst sieht die alte Pipeline zu günstig aus.
+        # since: ab Mentor-ENDE, nicht ab Job-Start — record-cost summiert alle
+        # Transkriptzeilen seit --since, sonst verbuchte es die Mentor-Tokens (eigener
+        # Datensatz phase: mentor) zusätzlich als Umsetzungskosten (ADR 0008).
         if: always() && steps.setup.outputs.configured == 'true'
         uses: ./.github/actions/record-cost
         with:
           issue: ${{ steps.setup.outputs.issue-number || github.event.issue.number }}
           phase: implement
-          since-epoch: ${{ steps.starttime.outputs.epoch }}
+          since-epoch: ${{ steps.mentor.outputs.since_epoch || steps.starttime.outputs.epoch }}
           provider: ${{ steps.setup.outputs.llm-provider }}
 
       - name: Issue-Storage sichern (Harness-Branch)
@@ -553,6 +678,8 @@ jobs:
           # `unrecognized_model` abgelehnt werden kann (beobachtet an PR #916).
           model: ${{ vars.CLAUDE_MODEL_FIXUP || needs.precheck.outputs.model_final || 'sonnet' }}
           effort: ${{ needs.precheck.outputs.effort_final || 'medium' }}
+          # Subagent-Fan-out auf haiku (ADR 0008) — dieselbe Begründung wie im implement-Job.
+          subagent-model: ${{ vars.CLAUDE_MODEL_FIXUP_SUBAGENT || 'haiku' }}
           zai-api-key: ${{ secrets.ZAI_API_KEY }}
           claude-api-key: ${{ secrets.CLAUDE_API_KEY }}
           openrouter-api-key: ${{ secrets.OPENROUTER_API_KEY }}
@@ -691,6 +818,10 @@ jobs:
             gh pr comment "$PR" --repo "$REPO" --body "🛑 Stop-Guard: Fixup-Runden ließen sich nicht zählen (Timeline-Lesefehler) – fail-closed, bitte manuell prüfen." 2>/dev/null || true
             exit 0
           fi
+          # Rundenzahl durchreichen: Der Mentor-Gate entscheidet daraus (mit escalate-Flag)
+          # über den Mentor-Vorlauf (ADR 0008) — dieselbe Zahl, kein zweites Zählen.
+          ROUNDS_N="$(printf '%s\n' "$ROUNDS" | sed -n 's/^count=//p')"
+          echo "rounds=${ROUNDS_N:-}" >> "$GITHUB_OUTPUT"
           if [ "$(printf '%s\n' "$ROUNDS" | sed -n 's/^stop=//p')" = "true" ]; then
             N="$(printf '%s\n' "$ROUNDS" | sed -n 's/^count=//p')"
             M="$(printf '%s\n' "$ROUNDS" | sed -n 's/^max=//p')"
@@ -745,6 +876,105 @@ jobs:
           fi
           echo "stop=false" >> "$GITHUB_OUTPUT"
 
+      # ── Mentor-Vorlauf (ADR 0008): Rat ab der zweiten Fixup-Runde ───────────────
+      # Runde 1 ist normale Nacharbeit; ab Runde 2 wiederholt ein schwächeres Modell
+      # mutmaßlich denselben Ansatz. Der Mentor diagnostiziert einmal die Ursache
+      # (read-only, starkes Modell) und schreibt /tmp/mentor-advice.md, das als
+      # VERBINDLICHER Markerblock in den Fixup-Prompt wandert. Deterministischer
+      # Auslöser (mentor-gate.sh, Input: Rundenzahl aus dem Stop-Guard), Lauf
+      # fail-open (continue-on-error): ohne Rat läuft das Fixup normal weiter.
+      - name: Mentor-Gate (ADR 0008)
+        id: mentor-gate
+        if: steps.setup.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true' && steps.consume.outputs.proceed == 'true'
+        env:
+          ROUNDS: ${{ steps.stop-guard.outputs.rounds }}
+        run: |
+          bash .github/scripts/mentor-gate.sh check --mode fixup --rounds "$ROUNDS" \
+            | tee /tmp/mentor-gate.out
+          echo "run=$(sed -n 's/^run=//p' /tmp/mentor-gate.out | tail -1)" >> "$GITHUB_OUTPUT"
+          echo "reason=$(sed -n 's/^reason=//p' /tmp/mentor-gate.out | tail -1)" >> "$GITHUB_OUTPUT"
+
+      - name: Mentor-Rat einholen (Vorlauf, ADR 0008)
+        id: mentor
+        if: steps.setup.outputs.configured == 'true' && steps.stop-guard.outputs.stop != 'true' && steps.consume.outputs.proceed == 'true' && steps.mentor-gate.outputs.run == 'true'
+        continue-on-error: true # fail-open: ohne Rat läuft das Fixup normal weiter
+        env:
+          GH_TOKEN: ${{ steps.setup.outputs.gh-token }}
+          MENTOR_MODEL: ${{ vars.CLAUDE_MODEL_MENTOR || 'opus' }}
+          PHASE_MODEL_ALIAS: ${{ vars.CLAUDE_MODEL_FIXUP || needs.precheck.outputs.model_final || 'sonnet' }}
+          PROVIDER: ${{ steps.setup.outputs.llm-provider }}
+        run: |
+          # Eigene kurze Deadline — der Mentor frisst nicht das Fixup-Budget (ADR 0008).
+          MENTOR_DEADLINE=$(( $(date +%s) + 480 ))
+          RND="${{ steps.stop-guard.outputs.rounds || '?' }}"
+          sed -e "s/{{KIND}}/pr/g" \
+              -e "s/{{TICKET_REF}}/${{ github.event.pull_request.number }}/g" \
+              -e "s/{{ISSUE_NR}}/${{ steps.setup.outputs.issue-number }}/g" \
+              -e "s/{{PHASE_NAME}}/fixup/g" \
+              -e "s/{{ROUND_INFO}}/Fixup-Runde ${RND}/g" \
+              -e "s/{{SOFT_DEADLINE}}/${MENTOR_DEADLINE}/g" \
+              .github/prompts/mentor.md > /tmp/mentor-prompt.txt
+          bash .github/scripts/assert-prompt-complete.sh /tmp/mentor-prompt.txt
+
+          # Modell-Auflösung wie setup-claude (Pflegestelle der Alias-Tabelle):
+          # claude nativ via --model; zai/openrouter via Alias in settings.local.json
+          # (Auflösung über die von setup-claude gesetzten ANTHROPIC_DEFAULT_*_MODEL).
+          # Der settings-Patch wird per trap auf den PHASEN-Alias zurückgestellt,
+          # sonst startete das Fixup auf dem Mentor-Modell.
+          MODEL_FLAG=""
+          PATCHED="false"
+          restore_model() {
+            if [ "$PATCHED" = "true" ] && [ -f .claude/settings.local.json ]; then
+              tmp="$(mktemp)"
+              jq --arg m "$PHASE_MODEL_ALIAS" '.model = $m' .claude/settings.local.json > "$tmp" \
+                && mv "$tmp" .claude/settings.local.json
+            fi
+          }
+          trap restore_model EXIT
+          case "$PROVIDER" in
+            claude)
+              case "$MENTOR_MODEL" in
+                fable)  MODEL_FLAG="--model claude-fable-5" ;;
+                opus)   MODEL_FLAG="--model claude-opus-5" ;;
+                sonnet) MODEL_FLAG="--model claude-sonnet-5" ;;
+                haiku)  MODEL_FLAG="--model claude-haiku-4-5-20251001" ;;
+                *)
+                  echo "::error title=Mentor-Modell::Unbekannter Alias '$MENTOR_MODEL' (vars.CLAUDE_MODEL_MENTOR) — erlaubt: fable | opus | sonnet | haiku. Mentor übersprungen (fail-open)."
+                  exit 1
+                  ;;
+              esac ;;
+            *)
+              if [ -f .claude/settings.local.json ]; then
+                tmp="$(mktemp)"
+                jq --arg m "$MENTOR_MODEL" '.model = $m' .claude/settings.local.json > "$tmp" \
+                  && mv "$tmp" .claude/settings.local.json && PATCHED="true"
+              fi ;;
+          esac
+
+          claude -p "$(cat /tmp/mentor-prompt.txt)" \
+            --effort high $MODEL_FLAG \
+            --allowedTools 'Read,Glob,Grep,Bash(gh *),Bash(git *)' \
+            2>&1 | tee /tmp/mentor-output.log || echo "::warning title=Mentor::claude-Exit ungleich 0 — Rat wird geprüft, Fail-open."
+
+          # Transkript-Abgrenzung für die Phasen-Kostenerfassung: Das Fixup zählt ab
+          # JETZT (eigener Mentor-Datensatz unten), sonst Doppelzählung.
+          echo "since_epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
+          test -s /tmp/mentor-advice.md || {
+            echo "::warning title=Mentor::Kein /tmp/mentor-advice.md geschrieben — Rat entfällt (fail-open)."
+            exit 1
+          }
+
+      - name: Token & Kosten erfassen (Mentor)
+        # Eigener Datensatz (phase: mentor) — der Mentor läuft auf der $-Stufe und muss
+        # in der Messreihe sichtbar bleiben, sonst ist die Mentor-Kostenfrage unbeantwortbar.
+        if: always() && steps.setup.outputs.configured == 'true' && steps.mentor-gate.outputs.run == 'true'
+        uses: ./.github/actions/record-cost
+        with:
+          issue: ${{ steps.setup.outputs.issue-number || github.event.pull_request.number }}
+          phase: mentor
+          since-epoch: ${{ steps.starttime.outputs.epoch }}
+          provider: ${{ steps.setup.outputs.llm-provider }}
+
       # Kein Supersede-Check mehr: Die globale Phasen-Serialisierung (statische
       # concurrency-Gruppe) lässt Fixup-Läufe desselben Branches nie parallel laufen, und der
       # precheck dedupliziert über den Label-IST-Zustand. Ein Lauf-Listen-Guard würde hier nur
@@ -796,6 +1026,16 @@ jobs:
           sed -i "s/{{ISSUE_NR}}/${{ steps.setup.outputs.issue-number }}/g" /tmp/claude-prompt.txt
           sed -i "s/{{PHASE}}/fixup/g" /tmp/claude-prompt.txt
           sed -i "s/{{MEMORY_STATUS}}/${{ steps.setup.outputs.memory-status-text }}/g" /tmp/claude-prompt.txt
+          # Mentor-Rat als Markerblock ANHÄNGEN (ADR 0008) — bewusst kein sed-Platzhalter:
+          # Der Rat ist LLM-Freitext und darf {{...}} enthalten; assert-prompt-complete
+          # nimmt den Block aus (wie den Vor-Phasen-Kontext). Ohne Rat: keine Änderung.
+          if [ -s /tmp/mentor-advice.md ]; then
+            {
+              printf '\n═══ MENTOR-RAT (VERBINDLICH) ═══\n'
+              cat /tmp/mentor-advice.md
+              printf '\n═══ ENDE MENTOR-RAT ═══\n'
+            } >> /tmp/claude-prompt.txt
+          fi
           bash .github/scripts/assert-prompt-complete.sh /tmp/claude-prompt.txt
 
           ${{ steps.setup.outputs.invoke-cmd }} "$(cat /tmp/claude-prompt.txt)" \
@@ -811,12 +1051,14 @@ jobs:
         # phase bleibt `fixup` (nicht `implement`): Die Kostendatei ist eine Messreihe —
         # ein umbenannter Phasen-Schlüssel würde die Baseline gegen den alten Workflow
         # unvergleichbar machen, genau die Messung, für die sie angelegt wurde.
+        # since: ab Mentor-ENDE, nicht ab Job-Start — sonst zählte der Datensatz die
+        # Mentor-Tokens (eigener Datensatz phase: mentor) als Fixup-Kosten mit (ADR 0008).
         if: always() && steps.setup.outputs.configured == 'true'
         uses: ./.github/actions/record-cost
         with:
           issue: ${{ steps.setup.outputs.issue-number || github.event.pull_request.number }}
           phase: fixup
-          since-epoch: ${{ steps.starttime.outputs.epoch }}
+          since-epoch: ${{ steps.mentor.outputs.since_epoch || steps.starttime.outputs.epoch }}
           provider: ${{ steps.setup.outputs.llm-provider }}
 
       - name: Issue-Storage sichern (Harness-Branch)
