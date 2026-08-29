@@ -8,7 +8,9 @@
 - F1 (Kante 1): derselbe Workflow — neuer Happy-Case-Cleanup-Block NACH dem `ai:analysed`-Ensure: wenn `HAS_BLOCK = true` und der Body noch `KI-ANALYSE:START` trägt, werden beide Segmente (KI-ANALYSE + ai-phase-routing) aus dem Body geschnitten (gleiches awk wie im Legacy-Pfad), danach `BODY` neu gelesen. Damit gilt der Claim aus PR-Body/ADR 0009 („migriert jeden Analyse-Block") im Normalfall.
 - `docs/adr/0009-issue-storage-harness-kommentar.md` — Begründungssatz um den Upsert-per-HID-Fall ergänzt (blockloser Marker-Kommentar wird aktualisiert, nicht dupliziert).
 - Neuer Test `.github/scripts/harness-comment.test.ts` (Exit-2-Guards, Body-/ID-Modus, kein Marker → leer, unbekannte Flags ignoriert) — läuft über `pnpm test:scripts`.
-- Gate via gate-runner (format/prettier/lint/knip/test) vor Push.
+- Gate via gate-runner (format/prettier/lint/knip/test) vor Push — ALL GREEN (766 server / 481 frontend / 251 script tests).
+- Commit + Push: `21ddfc6f` auf `ci/harness-kommentar` (inkl. Phase-Note).
+- Beide Review-Threads beantwortet + resolved (GraphQL PRRT_kwDONloM186dZgt5 / PRRT_kwDONloM186dZgt9).
 
 ## Relevante Stellen
 - `.github/workflows/01-claude-triage.yml:335-381` — Migrations-/Self-Heal-Block (F1-Upsert hier).
@@ -27,10 +29,10 @@
 - Test für die Workflow-Inline-Bash (Cleanup/Upsert) — Workflow-YAML hat keinen Testmechanismus; die neue Script-Logik (harness-comment.sh) ist getestet.
 
 ## Offen
-- Review-Inline-Kommentare sind an Diff-Zeilen verankert (339/33) und altern mit dem Fix-Commit — Threads nach dem Push beantworten + resolven.
+- Sammelkommentar (ai-review, ID 5462044979) NICHT vom Fixup angefasst — Abhaken der Findings F1/F2 ist Aufgabe der Review-Phase (FIXUP-VERIFICATION, Delta-Grenze = Sammelkommentar-updatedAt 2026-08-29T11:18:52Z).
 
 ## Nächster Schritt
-- Push, CI beobachten; danach FIXUP-VERIFICATION (Sammelkommentar per PATCH updaten — Marker `<!-- ai-review -->` vorhanden, Findings F1/F2 abhaken).
+- Review-Phase: FIXUP-VERIFICATION — beide Threads resolved mit Fix-Referenz `21ddfc6f`, CI auf dem Fixup-Commit vollständig grün (e2e 1–4 + verify, Runs 33250489645/33250489667).
 
 ## Fallstricke
 - Sammelkommentar NICHT neu anlegen — PATCH auf ID 5462044979, Finding-Nummern F1/F2 stabil.
