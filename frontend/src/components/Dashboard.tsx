@@ -28,15 +28,15 @@ interface DashboardProps {
 	/** Nächste wichtige Aufgabe (`GET /next`) oder `null`, falls keine ansteht. */
 	nextTask: Task | null;
 	/**
-	 * „Was ist jetzt dran?"-Vorschlagsliste (`GET /suggestions`): nach Score sortiert und durch den
+	 * "Was ist jetzt dran?"-Vorschlagsliste (`GET /suggestions`): nach Score sortiert und durch den
 	 * Überlastungsschutz begrenzt (Konzept §4.3). Default leer, falls noch nicht geladen.
 	 */
 	suggestions?: Task[];
-	/** Die fünf Lebensbalance-Säulen samt Gewichtung (`GET /pillars`) für das Widget „Meine Themen". */
+	/** Die fünf Lebensbalance-Säulen samt Gewichtung (`GET /pillars`) für das Widget "Meine Themen". */
 	pillars: Pillar[];
 	/** Anzeigename des Nutzers für die personalisierte Begrüßung (aus `localStorage`). Leer → keine Begrüßung. */
 	displayName?: string;
-	/** Öffnet die nächste Aufgabe zum Bearbeiten („Jetzt starten" im Signal-Panel, P2-1). */
+	/** Öffnet die nächste Aufgabe zum Bearbeiten ("Jetzt starten" im Signal-Panel, P2-1). */
 	onStartTask?: (task: Task) => void;
 }
 
@@ -47,7 +47,7 @@ interface StatCard {
 	accent: string;
 }
 
-/** Anzahl der im Widget „Wichtigste Tasks" angezeigten Einträge. */
+/** Anzahl der im Widget "Wichtigste Tasks" angezeigten Einträge. */
 const TOP_TASKS_LIMIT = 5;
 
 /** Eine Aufgabe mit gesetzter, gültiger Deadline (für die Deadline-Liste). */
@@ -59,14 +59,14 @@ const hasDeadline = (task: Task): task is TaskWithDeadline =>
 
 /**
  * Dashboard-Startbereich mit Status-Kennzahlen als Karten (Gesamtzahl + Anzahl je Status), der
- * nächsten wichtigen Aufgabe (`GET /next`), dem Widget „Wichtigste Tasks" (Top-N nach Wert
+ * nächsten wichtigen Aufgabe (`GET /next`), dem Widget "Wichtigste Tasks" (Top-N nach Wert
  * absteigend) sowie den anstehenden Deadlines.
  *
  * Reine Ableitung aus den bereits geladenen Daten (keine eigene API-Anfrage). Die Status-Karten
  * zeigen genau drei Kacheln: Gesamt, Offen (Open+InProcess), Erledigt.
  * Der `forest` ist serverseitig bereits nach Wert absteigend sortiert, daher genügt das Abschneiden
  * der ersten `TOP_TASKS_LIMIT` Wurzeln. Die Deadline-Liste zeigt nur noch nicht erledigte Aufgaben
- * mit gesetzter Deadline, aufsteigend nach Datum. Das Widget „Meine Themen" zeigt je Säule die
+ * mit gesetzter Deadline, aufsteigend nach Datum. Das Widget "Meine Themen" zeigt je Säule die
  * aktuelle Gewichtung sowie Anzahl, Gesamtwert und Gesamtaufwand der zugeordneten Tasks (der Wert
  * stammt aus dem `forest`, umfasst also nur offene/in Arbeit befindliche Tasks). Anzahl und Aufwand
  * werden dabei je Säule nach Status aufgeschlüsselt (#124): offen (`Open`/`In process`) vs. erledigt
@@ -83,7 +83,7 @@ export const Dashboard = ({
 }: DashboardProps) => {
 	const greeting = displayName.trim();
 	// #1098 AK4: eigene Hook-Instanz (wie Footer/SettingsPage) — entscheidet, ob die
-	// NearbyCard überhaupt gerendert wird. Bei Verweigerung durch den Browser bleibt sie
+	// NearbyCard ueberhaupt gerendert wird. Bei Verweigerung durch den Browser bleibt sie
 	// gerendert: Die Card zeigt ihren eigenen Ablehn-Hinweis (#1066 AK4), statt spurlos zu
 	// verschwinden — der Nutzer wollte den Standort ja einschalten.
 	const { enabled: geoEnabled, permissionDenied: geoDenied } = useGeolocation();
@@ -137,7 +137,7 @@ export const Dashboard = ({
 
 	const upcomingDeadlines = useMemo<TaskWithDeadline[]>(
 		() =>
-			// `filter` liefert ein neues Array, daher ist das anschließende `sort` ohne Mutation der Props.
+			// `filter` liefert ein neues Array, daher ist das anschliessende `sort` ohne Mutation der Props.
 			tasks
 				.filter((task): task is TaskWithDeadline => task.status !== TaskStatus.Done && hasDeadline(task))
 				.sort((a, b) => a.deadline.getTime() - b.deadline.getTime()),
@@ -170,171 +170,181 @@ export const Dashboard = ({
 				))}
 			</ul>
 			{/*
-			 * P2-1: „Nächste Aufgabe" ist die EINE Hauptaussage einer Ansicht (ux-design.md §1).
+			 * P2-1: "Nächste Aufgabe" ist die EINE Hauptaussage einer Ansicht (ux-design.md §1).
 			 * Sie trägt die Signalfarbe `--pp-signal` / `--pp-signal-wash` und eine klare
-			 * Folgehandlung („Jetzt starten"). Die Säulen-Balance, Statistik-Karten und
+			 * Folgehandlung ("Jetzt starten"). Die Säulen-Balance, Statistik-Karten und
 			 * Deadline-Liste ordnen sich darunter.
 			 */}
-			<section className="dashboard-next-task" role="region" aria-labelledby="dashboard-next-task-heading">
-				<h3 id="dashboard-next-task-heading">Nächste Aufgabe</h3>
-				{nextTask === null ? (
-					<p className="dashboard-next-task-empty">
-						Aktuell steht keine Aufgabe an (alle erledigt oder durch offene Vorgänger blockiert).
-					</p>
-				) : (
-					<div className="dashboard-next-task-content">
-						<span className="dashboard-next-task-title">
-							#{nextTask.id} – {nextTask.title}
-						</span>
-						<span className="dashboard-next-task-priority">Priorität {nextTask.priority}</span>
-						{onStartTask !== undefined && (
-							<KolButton
-								_label="Jetzt starten"
-								_variant="primary"
-								_icons={{ left: { icon: 'fa-solid fa-play' } }}
-								_on={{ onClick: () => onStartTask(nextTask) }}
-							/>
-						)}
-					</div>
-				)}
-			</section>
+			<KolCard _label="Naechste Aufgabe" _level={0}>
+				<div className="dashboard-next-task" role="region" aria-labelledby="dashboard-next-task-heading">
+					<h3 id="dashboard-next-task-heading" className="dashboard-card-heading">Naechste Aufgabe</h3>
+					{nextTask === null ? (
+						<p className="dashboard-next-task-empty">
+							Aktuell steht keine Aufgabe an (alle erledigt oder durch offene Vorgaenger blockiert).
+						</p>
+					) : (
+						<div className="dashboard-next-task-content">
+							<span className="dashboard-next-task-title">
+								#{nextTask.id} - {nextTask.title}
+							</span>
+							<span className="dashboard-next-task-priority">Prioritaet {nextTask.priority}</span>
+							{onStartTask !== undefined && (
+								<KolButton
+									_label="Jetzt starten"
+									_variant="primary"
+									_icons={{ left: { icon: 'fa-solid fa-play' } }}
+									_on={{ onClick: () => onStartTask(nextTask) }}
+								/>
+							)}
+						</div>
+					)}
+				</div>
+			</KolCard>
 			{/*
-			 * P2-1: „Was ist jetzt dran?" — Vorschläge, die die nächste Aufgabe ausschließen,
+			 * P2-1: "Was ist jetzt dran?" - Vorschlaege, die die naechste Aufgabe ausschliessen,
 			 * um keine doppelte Hauptaussage zu erzeugen. Visuell eine schlichtere Liste ohne
-			 * Signal-Färbung; die Signalfläche gehört allein der „Nächste Aufgabe"-Zeile.
+			 * Signal-Faerbung; die Signalflaeche gehoert allein der "Naechste Aufgabe"-Zeile.
 			 */}
-			<section className="dashboard-suggestions" aria-label="Was ist jetzt dran?">
-				<h3>Was ist jetzt dran?</h3>
-				{suggestionsFiltered.length === 0 ? (
-					<p className="dashboard-suggestions-empty">Aktuell stehen keine weiteren Vorschläge an.</p>
-				) : (
-					<ol className="dashboard-suggestions-list">
-						{suggestionsFiltered.map((task) => (
-							<li key={task.id} className="dashboard-suggestion">
-								<span className="dashboard-suggestion-title">
-									#{task.id} – {task.title}
-								</span>
-								<span className="dashboard-suggestion-meta">(Priorität {task.priority})</span>
-							</li>
-						))}
-					</ol>
-				)}
-			</section>
-			{/*
-			 * #1066: „In der Nähe" — Distanzliste unter der Vorschlagsliste. Wie die anderen
-			 * Sekundär-Widgets ohne Signal-Färbung; die Signalfläche gehört allein der
-			 * „Nächste Aufgabe"-Zeile (KI-UX-Platzierungsempfehlung).
-			 */}
-			{/* #1098 AK4: „In der Nähe" nur rendern, wenn die Standorterfassung an ist —
-			    ausgeschaltet verschwindet die Card komplett (keine Hinweis-Card mehr).
-			    Bei Browser-Verweigerung (#1066 AK4) bleibt sie für den Ablehn-Hinweis stehen. */}
-			{(geoEnabled || geoDenied) && <NearbyCard />}
-			<section className="dashboard-top-tasks">
-				<h3>Wichtigste Tasks</h3>
-				{topTasks.length === 0 ? (
-					<p>Keine offenen Aufgaben vorhanden.</p>
-				) : (
-					<ol className="dashboard-top-tasks-list">
-						{topTasks.map((task) => (
-							<li key={task.id} className="dashboard-top-task">
-								<span className="dashboard-top-task-title">
-									#{task.id} – {task.title}
-								</span>
-								<span className="dashboard-top-task-meta">
-									(Priorität {task.priority}, Wert {formatNumber(task.value)})
-								</span>
-							</li>
-						))}
-					</ol>
-				)}
-			</section>
-			<section className="dashboard-pillars">
-				<h3>Meine Themen</h3>
-				{pillars.length === 0 ? (
-					<KolCard _label="Keine Säulen vorhanden" _level={0}>
-						<p>
-							Lege in den <a href="/settings">Einstellungen</a> deine ersten Säulen an, um hier den Überblick über deine
-							Themen zu behalten.
-						</p>
-					</KolCard>
-				) : (
-					<ul className="dashboard-pillars-list">
-						{pillarSummaries.map(
-							({
-								pillar,
-								taskCount,
-								openCount,
-								doneCount,
-								totalValue,
-								totalEstimatedEffort,
-								openEstimatedEffort,
-								doneEstimatedEffort,
-								actualShare,
-							}) => (
-								<li key={pillar.id} className="dashboard-pillar">
-									<KolMeter
-										_label={pillar.name}
-										_value={actualShare}
-										_max={1}
-										_low={calculateMeterThreshold(pillar.weight)}
-										_high={calculateMeterHighThreshold(pillar.weight)}
-									/>
-									<span className="dashboard-pillar-meta">
-										{`${taskCount} ${taskCount === 1 ? 'Aufgabe' : 'Aufgaben'} (${openCount} offen · ${doneCount} erledigt) · Wert ${formatNumber(totalValue)} · Aufwand ${formatNumber(totalEstimatedEffort)} Tage (${formatNumber(openEstimatedEffort)} offen · ${formatNumber(doneEstimatedEffort)} erledigt)`}
+			<KolCard _label="Was ist jetzt dran?" _level={0}>
+				<div className="dashboard-suggestions" aria-label="Was ist jetzt dran?">
+					<h3 className="dashboard-card-heading">Was ist jetzt dran?</h3>
+					{suggestionsFiltered.length === 0 ? (
+						<p className="dashboard-suggestions-empty">Aktuell stehen keine weiteren Vorschlaege an.</p>
+					) : (
+						<ol className="dashboard-suggestions-list">
+							{suggestionsFiltered.map((task) => (
+								<li key={task.id} className="dashboard-suggestion">
+									<span className="dashboard-suggestion-title">
+										#{task.id} - {task.title}
 									</span>
+									<span className="dashboard-suggestion-meta">(Prioritaet {task.priority})</span>
 								</li>
-							),
-						)}
-					</ul>
-				)}
-			</section>
-			<section className="dashboard-balance">
-				<h3>Gesamtguthaben</h3>
-				{gesamtPunkte === 0 ? (
-					<p>Noch keine Punkte vergeben — schließe Tasks ab, um dein Guthaben aufzubauen.</p>
-				) : (
-					<>
-						<p className="dashboard-balance-total">
-							<span data-testid="balance-total">{formatNumber(gesamtPunkte)}</span> Punkte
-						</p>
-						<ul className="dashboard-balance-list" data-testid="balance-pillar-list">
-							{pillarBalances.map(({ pillar, punkte, anteil }) => (
-								<li key={pillar.id} className="dashboard-balance-row" data-testid="balance-pillar-row">
-									<span className="dashboard-balance-name">{pillar.name}</span>
-									<span className="dashboard-balance-value">
-										{formatNumber(punkte)} Punkte ({Math.round(anteil * 100)} %)
+							))}
+						</ol>
+					)}
+				</div>
+			</KolCard>
+			{/*
+			 * #1066: "In der Naehe" - Distanzliste unter der Vorschlagsliste. Wie die anderen
+			 * Sekundaer-Widgets ohne Signal-Faerbung; die Signalflaeche gehoert allein der
+			 * "Naechste Aufgabe"-Zeile (KI-UX-Platzierungsempfehlung).
+			 */}
+			{/* #1098 AK4: "In der Naehe" nur rendern, wenn die Standorterfassung an ist -
+			    ausgeschaltet verschwindet die Card komplett (keine Hinweis-Card mehr).
+			    Bei Browser-Verweigerung (#1066 AK4) bleibt sie fuer den Ablehn-Hinweis stehen. */}
+			{(geoEnabled || geoDenied) && <NearbyCard />}
+			<KolCard _label="Wichtigste Tasks" _level={0}>
+				<div className="dashboard-top-tasks">
+					<h3 className="dashboard-card-heading">Wichtigste Tasks</h3>
+					{topTasks.length === 0 ? (
+						<p>Keine offenen Aufgaben vorhanden.</p>
+					) : (
+						<ol className="dashboard-top-tasks-list">
+							{topTasks.map((task) => (
+								<li key={task.id} className="dashboard-top-task">
+									<span className="dashboard-top-task-title">
+										#{task.id} - {task.title}
+									</span>
+									<span className="dashboard-top-task-meta">
+										(Prioritaet {task.priority}, Wert {formatNumber(task.value)})
 									</span>
 								</li>
 							))}
+						</ol>
+					)}
+				</div>
+			</KolCard>
+			<KolCard _label="Meine Themen" _level={0}>
+				<div className="dashboard-pillars">
+					<h3 className="dashboard-card-heading">Meine Themen</h3>
+					{pillars.length === 0 ? (
+						<p className="dashboard-pillars-empty">
+							Lege in den <a href="/settings">Einstellungen</a> deine ersten Saeulen an, um hier den Ueberblick ueber deine
+							Themen zu behalten.
+						</p>
+					) : (
+						<ul className="dashboard-pillars-list">
+							{pillarSummaries.map(
+								({
+									pillar,
+									taskCount,
+									openCount,
+									doneCount,
+									totalValue,
+									totalEstimatedEffort,
+									openEstimatedEffort,
+									doneEstimatedEffort,
+									actualShare,
+								}) => (
+									<li key={pillar.id} className="dashboard-pillar">
+										<KolMeter
+											_label={pillar.name}
+											_value={actualShare}
+											_max={1}
+											_low={calculateMeterThreshold(pillar.weight)}
+											_high={calculateMeterHighThreshold(pillar.weight)}
+										/>
+										<span className="dashboard-pillar-meta">
+											{`${taskCount} ${taskCount === 1 ? 'Aufgabe' : 'Aufgaben'} (${openCount} offen - ${doneCount} erledigt) - Wert ${formatNumber(totalValue)} - Aufwand ${formatNumber(totalEstimatedEffort)} Tage (${formatNumber(openEstimatedEffort)} offen - ${formatNumber(doneEstimatedEffort)} erledigt)`}
+										</span>
+									</li>
+								),
+								)}
 						</ul>
-					</>
-				)}
-			</section>
-			<section className="dashboard-deadlines">
-				<h3>Anstehende Deadlines</h3>
-				{upcomingDeadlines.length === 0 ? (
-					<p>Keine anstehenden Deadlines.</p>
-				) : (
-					<ul className="dashboard-deadlines-list">
-						{upcomingDeadlines.map((task) => {
-							const urgency = deadlineUrgency(task.deadline, now);
-							return (
-								<li key={task.id} className="dashboard-deadline">
-									<span className="dashboard-deadline-title">
-										#{task.id} – {task.title}
-									</span>
-									<span className="dashboard-deadline-aside">
-										{urgency !== 'later' && (
-											<KolBadge _label={formatRelativeDeadline(task.deadline, now)} _color={URGENCY_COLOR[urgency]} />
-										)}
-										<span className="dashboard-deadline-date">{formatDeadline(task.deadline)}</span>
-									</span>
-								</li>
-							);
-						})}
-					</ul>
-				)}
-			</section>
+					)}
+				</div>
+			</KolCard>
+			<KolCard _label="Gesamtguthaben" _level={0}>
+				<div className="dashboard-balance">
+					<h3 className="dashboard-card-heading">Gesamtguthaben</h3>
+					{gesamtPunkte === 0 ? (
+						<p className="dashboard-balance-empty">Noch keine Punkte vergeben - schliesse Tasks ab, um dein Guthaben aufzubauen.</p>
+					) : (
+						<>
+							<p className="dashboard-balance-total">
+								<span data-testid="balance-total">{formatNumber(gesamtPunkte)}</span> Punkte
+							</p>
+							<ul className="dashboard-balance-list" data-testid="balance-pillar-list">
+								{pillarBalances.map(({ pillar, punkte, anteil }) => (
+									<li key={pillar.id} className="dashboard-balance-row" data-testid="balance-pillar-row">
+										<span className="dashboard-balance-name">{pillar.name}</span>
+										<span className="dashboard-balance-value">
+											{formatNumber(punkte)} Punkte ({Math.round(anteil * 100)} %)
+										</span>
+									</li>
+								))}
+							</ul>
+						</>
+					)}
+				</div>
+			</KolCard>
+			<KolCard _label="Anstehende Deadlines" _level={0}>
+				<div className="dashboard-deadlines">
+					<h3 className="dashboard-card-heading">Anstehende Deadlines</h3>
+					{upcomingDeadlines.length === 0 ? (
+						<p className="dashboard-deadlines-empty">Keine anstehenden Deadlines.</p>
+					) : (
+						<ul className="dashboard-deadlines-list">
+							{upcomingDeadlines.map((task) => {
+								const urgency = deadlineUrgency(task.deadline, now);
+								return (
+									<li key={task.id} className="dashboard-deadline">
+										<span className="dashboard-deadline-title">
+											#{task.id} - {task.title}
+										</span>
+										<span className="dashboard-deadline-aside">
+											{urgency !== 'later' && (
+												<KolBadge _label={formatRelativeDeadline(task.deadline, now)} _color={URGENCY_COLOR[urgency]} />
+											)}
+											<span className="dashboard-deadline-date">{formatDeadline(task.deadline)}</span>
+										</span>
+									</li>
+								);
+							})}
+						</ul>
+					)}
+				</div>
+			</KolCard>
 		</section>
 	);
 };
