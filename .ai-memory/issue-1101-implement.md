@@ -29,7 +29,7 @@
 
 ## Offen
 - `POST /geo/position` hat keinen eigenen Routen-Test (lokales startTestServer-Hang, s. Erledigt) — Review möglicherweise auffordern; Nachlieferung als Fixup.
-- Voll-Gate: format ✓, prettier ✓, tsc server+frontend ✓, eslint server NICHT mehr gelaufen (Zeit), knip NICHT gelaufen, `pnpm test` nur zielgerichtet (Job-Tests 9/9 grün; Endpoint-Test verworfen). `session.test.ts` hat den bekannten lokalen Redis-Fehler (MEMORY 2026-08-29, CI hat Redis-Service).
+- Voll-Gate: format ✓, prettier ✓, tsc server+frontend ✓, eslint server+frontend ✓ (Pre-Commit-Hook), knip ✓ (nach Un-Export der 3 lokalen Interfaces in geo-background-job.ts — knip meldete „Unused exported types"), Job-Tests 9/9 grün (nach Knip-Fix erneut verifiziert). `pnpm test` (ganze Suite) nicht lokal gelaufen: bekannter Redis-Fehler `session.test.ts` (MEMORY 2026-08-29, CI hat Redis-Service).
 
 ## Nächster Schritt
 - Gate grün abschließen (Format/Lint/Knip), committen (inkl. dieser Notiz), pushen, `gh pr ready 1102` + Beschreibung erweitern (Zusammenfassung, Dateien, Testergebnisse, offene Punkte Deep-Link-Route + E2E-Verzicht laut Spec).
