@@ -25,7 +25,7 @@ name: ADR-Sync (weekly)
 
 on:
   schedule:
-    - cron: '17 5 * * 6' # samstags 05:17 UTC, versetzt zu Spec-Sync (tägl. 03:37) und Guide-Sync (tägl. 04:27)
+    - cron: '17 5 * * 6' # samstags 05:17 UTC (Wochenende = zai ganztägig Off-Peak), versetzt zu Spec-Sync (tägl. 02:37) und Guide-Sync (tägl. 03:07)
   workflow_dispatch:
     inputs:
       force:

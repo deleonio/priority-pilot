@@ -3,6 +3,12 @@ name: Nightly Architecture Optimization
 # Nightly: genau EINE Architektur-Optimierung (Stabilität/Wartbarkeit) via Claude Code suchen
 # und als pipeline-fähiges Ticket anlegen. Läuft täglich 03:57 UTC — nicht auf Push/PR.
 #
+# POSITION IM NACHTBLOCK (zai-Peak beachten, Mo–Fr 08–12 Berlin = 06:00–10:00 UTC sommers /
+# 07:00–11:00 UTC winters): Letzter LLM-Suchlauf nach Prompt-Audit (01:17), Spec-Sync (02:37)
+# und Guide-Sync (03:07) — das angelegte Ticket triggert die Triage (Setup mit Zeitfenster-
+# Check), deren Lauf inkl. 30-min-Timeout spätestens ~05:00 UTC endet und damit sicher vor
+# dem Peak-Fenster bleibt. Morgens liegt das komplette Nightly-Feedback bereit.
+#
 # APP-TOKEN-PFLICHT: Issue-Anlage inkl. Label `ai:needs-analyse` läuft über das GitHub-App-
 # Token (steps.setup.outputs.gh-token) — von GITHUB_TOKEN gesetzte Labels lösen KEINE Folge-
 # Workflows aus (gleiche Falle wie in claude-continue-sweep.yml dokumentiert), die Triage der

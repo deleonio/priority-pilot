@@ -30,7 +30,7 @@ name: Spec-Sync (nightly)
 
 on:
   schedule:
-    - cron: '37 3 * * *' # täglich 03:37 UTC, versetzt zu Cache-Aufräumen (03:17) und Renovate (Mo 04:00)
+    - cron: '37 2 * * *' # täglich 02:37 UTC, hinter Prompt-Audit (01:17 + 30-min-Timeout) und vor Guide-Sync (03:07)
   workflow_dispatch:
     inputs:
       force:
