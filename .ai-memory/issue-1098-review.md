@@ -1,39 +1,38 @@
-# Issue 1098 — Review (Kreuzverhör), Stand 2026-08-29
+# Issue 1098 — Review (Runde 1 Kreuzverhör + Runde 2 Fixup-Nachweis), Stand 2026-08-29
 
-**ERGEBNIS (vorläufig): VERDICT needs-fixup, Ampel 🔴.** MODE = Kreuzverhör (kein `<!-- ai-review -->`-Kommentar vorhanden, Closing-Issue #1098 vorhanden → AKs aus dem KI-ANALYSE-Block). PR = ai/harness/1098, 17 Commits, +1175/−41, 25 Dateien.
+**ERGEBNIS Runde 2 (Fixup-Nachweis): VERDICT needs-fixup, Ampel 🔴 unverändert.** Sammelkommentar `<!-- ai-review -->` (id 5459252697) gepatcht, `Review-Typ: Fixup-Nachweis`, Updated 2026-08-29T00:48:32Z. **Kein Fixup-Commit seit der 1. Runde** — einziger Delta-Commit `28a2617c` (nur `.ai-memory/issue-1098-review.md`). F1–F5 am Head re-verifiziert, alle offen, keine neu.
 
 ## Erledigt
-- Titel-Gate: PR-Titel „Geo settings entfernung (#1098)" verletzt Conventional Commits → Rename auf `feat(frontend): server-side geo config, alarm distance, interval (#1098)` (71 Zeichen).
-- Issue-Block (AK1–AK7, TF1–TF8) geladen; kompletter Diff (ohne .ai-memory-Notizen) gelesen.
-- Verifiziert: `.github/scripts/resolve-escalation.sh` existiert NICHT im Branch (`test -f` → missing), obwohl `04-claude-implement.yml:200-211` ihn aufruft (`|| true` maskiert den Fehler).
-- Verifiziert: Schema-Erstellung ausschließlich via `sequelize.sync({force: shouldReset})` (server/src/index.ts:199) OHNE `alter` — Repo-Präzedenz: jede neue Spalte braucht einen `migrateX`-Aufruf in `main()` VOR sync() (migrateUsersAvatarUrl, migrateTaskAddress, migrateLlmProviderKindColumns … aus `logics/migrate.ts`). Der PR fügt 3 neue User-Spalten OHNE Migration hinzu.
-- `.geo-range-field`/`.geo-range-value` sind in keinem CSS definiert (grep → 0 Treffer) — bewusst zurückgestellt laut Implement-Notiz.
-- TDD-Ordnung erkennbar: `fa49cefa` (rote Spec-Tests) vor den feat-Commits ✓.
+- MODE-Bestimmung: Marker `<!-- ai-review -->` vorhanden (Kommentar id 5459252697, first round posted 2026-08-29T00:42:40Z) → Fixup-Verifikation, kein neues Kreuzverhör.
+- Titel-Gate: Titel `feat(frontend): server-side geo config, alarm distance, interval (#1098)` = 72 Zeichen, Conventional Commits ok → kein Rename.
+- Runde 1 (aus der Notiz der vorherigen Laufes, alles gepostet): Full-Diff + Issue #1098 (AK1–AK7, TF1–TF8) geprüft; Inline-Findings F1–F5 + Sammelkommentar als eine Review mit event=COMMENT gepostet; Verdict needs-fixup. AK-Abdeckung gut (alle 7 AKs grün, TDD-Ordnung `fa49cefa` rot vor feat).
+- Runde 2 Re-Verifikation am Head `5f50d997d` (git grep): F1 kein `migrateUserGeoConfig*` in `server/src/logics/migrate.ts`/`index.ts`, nur `models/user.ts:16,49`; F2 `.github/scripts/resolve-escalation.sh` MISSING; F4 `('true' as unknown as boolean)` `SettingsPage.tsx:192`; F5 `tasks.ts:356` `User.findByPk(getUserId(req))` vs. `geoConfig.ts:24` `resolveGeoUser`.
 
-## Relevante Stellen (Findings, stabile Nummern)
-- F1 🔴 Migration fehlt: `server/src/models/user.ts:15-18` (3 neue INTEGER-Spalten, non-null + Default). Auf Bestands-DBs erzeugt JEDE User-Query (`User.findOne` im Login, `User.findByPk` in tasks.ts:356, geoConfig.ts) `no such column` → Login/Nearby/Geo-Config 500. Fix: `migrateUserGeoConfigColumns(sequelize)` in `server/src/logics/migrate.ts` + Aufruf in `index.ts` vor `sync()`, Muster `migrateTaskAddress`.
-- F2 🟠 `04-claude-implement.yml:200-211` ruft fehlendes `resolve-escalation.sh` (immer rot, maskiert); zudem Out-of-Scope für #1098 → reverten oder Script in eigenem Ticket.
-- F3 🟠 `frontend/src/components/LlmSettings.tsx:59` + `PillarList.tsx:46` — defensive `?? null`/`?? []` gegen das künstliche api-Proxy-Double (liefert undefined) statt das Double zu fixen; Out-of-Scope, maskiert Mock-Problem.
-- F4 🟡 `SettingsPage.tsx:189` `('true' as unknown as boolean)` — Type-Assertion zur Fehlerunterdrückung (Projekt-Konvention verbietet das).
-- F5 🟡 `tasks.ts:356-357` `User.findByPk(getUserId(req))` ohne Dev-Pass-Through-Fallback (geoConfig nutzt `resolveGeoUser` → dev@local): im Dev-Modus schreibt PUT /geo-config an dev@local, nearby filtert weiter auf hartcodiertes `?? 5`.
-- Hinweis (kein Finding): jede `useGeolocation`-Instanz holt jetzt selbst `GET /geo-config` (3–4 Requests/Seite) und der Intervall-Effekt verschiebt das erste `locate()` bis zum Config-Fetch.
+## Relevante Stellen (offene Findings, stabile Nummern)
+- F1 🔴 Blocker: 3 neue non-null User-Spalten ohne Startup-Migration → Login/`/tasks/nearby`/`/geo-config` brechen auf Bestands-DBs (`no such column`). Fix: `migrateUserGeoConfigColumns` in `server/src/logics/migrate.ts` + Aufruf in `index.ts` vor `sync()` (Muster `migrateTaskAddress`).
+- F2 🟠 `.github/workflows/04-claude-implement.yml:172` ruft fehlendes `resolve-escalation.sh`, `|| true` maskiert; Out-of-Scope.
+- F3 🟠 `LlmSettings.tsx:61`/`PillarList.tsx:48` `?? null`/`?? []` — Produktivcode ans künstliche api-Proxy-Double (`SettingsPage.test.tsx:40-46`) angepasst, Out-of-Scope.
+- F4 🟡 `SettingsPage.tsx:192` Type-Assertion zur Fehlerunterdrückung → `type DisabledProp = boolean | string`.
+- F5 🟡 `tasks.ts:357` User-Auflösung weicht von `resolveGeoUser` ab; `?? 5` dupliziert DEFAULTS.
+- Hinweis (kein Finding): jede `useGeolocation`-Instanz holt selbst `GET /geo-config` (3–4 Requests/Seite).
 
 ## Annahmen
-- `sync()` ohne `alter` fügt keine Spalten zu Bestandstabellen hinzu (Repo-Kommentare index.ts:155-175 bestätigen das als bekannten Fall).
-- CI auf dem PR: `verify` + `e2e (1-4)` ohne Conclusion im Rollup (laufend/pending) — Gate entscheidet separat; Inhaltswertung unabhängig davon.
+- `sync()` ohne `alter` fügt keine Spalten zu Bestandstabellen hinzu (Kommentarblock `index.ts:155-180`, Präzedenz #207/#217/#531/#951).
+- Der zweite Lauf wurde ohne vorgeschaltetes Fixup getriggert; Inhaltswertung unabhängig vom CI-Rollup.
 
 ## Verworfen
-- needs-human: alle Findings sind konkret fixbar; keine Architektur-/Produktfrage offen.
-- CSS-Klassen (`.geo-range-field`) als Finding — laut Implement-Notiz bewusst als Folge-Thema zurückgestellt, funktional ohne Wirkung.
-- e2e-AK7-Test als tautologisch — `expect(Number(afterChange)).toBeGreaterThan(5)` guardt den Fall „Pfeiltaste greift nicht".
+- Neues Kreuzverhör/Whole-Diff-Walk in Runde 2 — Marker vorhanden, Delta seither nur `.ai-memory/` (SKILL Step 5 Diff-Scoping).
+- Inline-Kommentare erneut posten — F1–F5 stehen noch am Diff, keine Duplikate.
+- needs-human: alle Findings konkret fixbar, keine Architektur-/Produktfrage.
 
 ## Offen
-- Review-Kommentare + Sammelkommentar noch zu posten; danach `/tmp/claude-verdict` = needs-fixup.
+- -
 
 ## Nächster Schritt
-- Sammelkommentar `<!-- ai-review -->` anlegen (Review-Typ: Kreuzverhör), Inline-Comments F1–F5, Verdict needs-fixup.
+- Fixup-Runde umsetzen (Label übernimmt der Workflow): F1 Migration (Blocker) zuerst, danach F2–F5; dann erneuter Fixup-Nachweis.
 
 ## Fallstricke
-- PR-Titel vor dem Verdict renamen (Titel-Gate), Labels NICHT setzen (Workflow macht das).
-- Review-Kommentare als EINE Review mit event=COMMENT posten, kein REQUEST_CHANGES.
-- Diff-Anker: Zeilen aus dem PR-Head (`git show FETCH_HEAD`) nehmen, nicht aus dem lokalen main-Workspace.
+- PR-Titel vor dem Verdict prüfen (72 Zeichen = Limit, kein Zeichen Luft); Labels NICHT setzen.
+- Review-Kommentare als EINE Review mit event=COMMENT, kein REQUEST_CHANGES.
+- Diff-Anker aus dem PR-Head nehmen, nicht aus dem lokalen main-Workspace.
+- Kein Fixup-Commit ≠ „PR schlecht geworden“ — nur Bestätigung, keine neuen Findings erfinden, Nummern stabil halten.
