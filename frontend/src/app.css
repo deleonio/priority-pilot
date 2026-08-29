@@ -972,10 +972,17 @@ body {
 	}
 }
 
+/* #1121: Titel wächst nicht mehr über die volle Zeile — das Globus-Icon steht unmittelbar hinter
+   dem Titeltext (getrennt durch ein geschütztes Leerzeichen) statt am rechten Zeilenende. */
 .task-tree-title {
-	flex: 1 1 auto;
+	flex: 0 1 auto;
 	min-width: 80px;
 	overflow-wrap: anywhere;
+}
+
+/* #1121: Der Geo-Badge-Chip schrumpft nicht; der Titel trägt den Umbruch (overflow-wrap). */
+.task-tree-row-header .geo-badge {
+	flex: none;
 }
 
 .task-tree-actions {

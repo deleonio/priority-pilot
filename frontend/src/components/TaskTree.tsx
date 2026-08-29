@@ -86,6 +86,13 @@ const LeafItem = ({
 			<div className="task-tree-row">
 				<div className="task-tree-row-header">
 					<KolHeading _label={node.title} _level={4} className="task-tree-title" />
+					{task !== null && (task.latitude != null || task.address != null) && (
+						<>
+							{/* geschütztes Leerzeichen (U+00A0): Titel + Globus-Icon sind eine Einheit (#1121). */}
+							{'\u00a0'}
+							<GeoBadge latitude={task.latitude ?? null} longitude={task.longitude ?? null} address={task.address} />
+						</>
+					)}
 				</div>
 				<div className="task-tree-row-controls">
 					<div className="task-tree-badges">
@@ -104,9 +111,6 @@ const LeafItem = ({
 								_color={priorityColor}
 								className="task-tree-badge task-tree-badge--priority"
 							/>
-						)}
-						{task !== null && (task.latitude != null || task.address != null) && (
-							<GeoBadge latitude={task.latitude ?? null} longitude={task.longitude ?? null} address={task.address} />
 						)}
 					</div>
 					{task !== null && (
