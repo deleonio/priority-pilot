@@ -127,3 +127,59 @@ describe('Geo-Konfiguration pro User (#1098 AK7)', () => {
 		);
 	});
 });
+
+describe('POST /geo/position (#1101 F5/F1)', () => {
+	const postPosition = (cookie: string, body: unknown): Promise<Response> =>
+		fetch(`${server.baseUrl}/geo/position`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Cookie: cookie },
+			body: JSON.stringify(body),
+		});
+
+	before(async () => {
+		server = await startTestServer();
+	});
+
+	beforeEach(async () => {
+		await resetDb();
+	});
+
+	after(async () => {
+		if (server) await server.close();
+		await closeDb();
+	});
+
+	it('ohne Session → 401', async () => {
+		const res = await postPosition('cookie=none', { lat: 52.5219, lon: 13.4132 });
+		assert.equal(res.status, 401);
+	});
+
+	// F1: `NaN < -90` ist false — der NaN-Fall muss explizit 400 liefern, nicht in den Push-Job laufen.
+	const nan: Array<[string, unknown]> = [
+		['lat als String', { lat: 'abc', lon: 13.4 }],
+		['lat null', { lat: null, lon: 13.4 }],
+		['lon fehlt', { lat: 52.5 }],
+	];
+	for (const [index, [label, body]] of nan.entries()) {
+		it(`weist nicht-numerische Koordinaten ab: ${label} (400)`, async () => {
+			const cookie = await register(`geo-pos-nan-${index}@example.com`);
+			const res = await postPosition(cookie, body);
+			assert.equal(res.status, 400, `${label} muss als „keine Zahl“ abgelehnt werden`);
+		});
+	}
+
+	it('weist Koordinaten außerhalb des Wertebereichs ab (400)', async () => {
+		const cookie = await register('geo-pos-range@example.com');
+		assert.equal((await postPosition(cookie, { lat: 91, lon: 13.4 })).status, 400);
+		assert.equal((await postPosition(cookie, { lat: -91, lon: 13.4 })).status, 400);
+		assert.equal((await postPosition(cookie, { lat: 52.5, lon: 181 })).status, 400);
+		assert.equal((await postPosition(cookie, { lat: 52.5, lon: -181 })).status, 400);
+	});
+
+	it('gültige Koordinaten → 204 ohne Body (Fire-and-forget)', async () => {
+		const cookie = await register('geo-pos-valid@example.com');
+		const res = await postPosition(cookie, { lat: 52.5219, lon: 13.4132 });
+		assert.equal(res.status, 204);
+		assert.equal(await res.text(), '', '204 hat keinen Body');
+	});
+});

@@ -224,6 +224,18 @@ export const useGeolocation = (): UseGeolocationResult => {
 			.finally(() => setAddressLoading(false));
 	}, [position, enabled]);
 
+	// Positionsmeldung an den Server (#1101 AK1): erst mit aktiviertem Geolocation (UX-Kopplung
+	// Geo-Opt-in ↔ Geo-Push) — der Server leitet daraus ggf. eine Push-Nachricht „Aufgaben in der
+	// Nähe" ab. Best-Effort ohne Fehleranzeige: ein fehlgeschlagener Push ist keine Positions-Störung.
+	useEffect(() => {
+		if (!position || !enabled) {
+			return;
+		}
+		api.reportGeoPosition({ lat: position.latitude, lon: position.longitude }).catch(() => {
+			// Best-Effort — das Intervall meldet die nächste Position erneut.
+		});
+	}, [position, enabled]);
+
 	const toggle = useCallback(
 		async (next: boolean): Promise<void> => {
 			if (pendingRef.current) {

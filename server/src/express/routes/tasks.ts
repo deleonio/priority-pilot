@@ -4,6 +4,7 @@ import { Op, Transaction, ValidationError as SequelizeValidationError } from 'se
 import sequelize from '../../database.js';
 import { Pillar, ScoreEntry, Task, TaskPillar } from '../../models/index.js';
 import { wouldCreateCycle } from '../../logics/cycle.js';
+import { haversineKm } from '../../logics/geo.js';
 import { berechneScore } from '../../logics/score.js';
 import { PillarContribution, validatePillars, arePillarsExistent } from '../../logics/pillarContributions.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
@@ -331,16 +332,6 @@ tasksRouter.get('/tasks', async (req: Request, res: Response<TaskDto[] | ErrorDt
 
 // GET /tasks/nearby — offene Tasks mit Koordinaten, aufsteigend nach Distanz zur Position (#1066).
 // Muss VOR `/tasks/:id` registriert sein, damit der Pfad nicht als id gefangen wird.
-const EARTH_RADIUS_KM = 6371;
-
-/** Großkreis-Distanz zweier Punkte in km (Haversine-Formel). */
-const haversineKm = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-	const toRad = (value: number): number => (value * Math.PI) / 180;
-	const dLat = toRad(lat2 - lat1);
-	const dLon = toRad(lon2 - lon1);
-	const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-	return 2 * EARTH_RADIUS_KM * Math.asin(Math.sqrt(a));
-};
 
 tasksRouter.get('/tasks/nearby', async (req: Request, res: Response<NearbyTaskDto[] | ErrorDto>) => {
 	// `Number('')` wäre 0 und damit fälschlich gültig — leere/fehlende/Array-Parameter ablehnen.

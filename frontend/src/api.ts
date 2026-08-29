@@ -606,4 +606,13 @@ export const api = {
 		}
 		return data;
 	},
+
+	// Meldet die aktuelle Position (#1101): der Server prüft Aufgaben im Alarmabstand und pusht ggf.
+	// Fire-and-forget — der Aufrufer erwartet keine Antwortdaten (204).
+	async reportGeoPosition({ lat, lon, signal }: { lat: number; lon: number } & Init): Promise<void> {
+		const { error, response } = await client.POST('/geo/position', { body: { lat, lon }, signal });
+		if (!response.ok) {
+			throw new ResponseError(response, error);
+		}
+	},
 };
