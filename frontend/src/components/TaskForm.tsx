@@ -21,7 +21,7 @@ import type {
 	TaskPillarContribution,
 	TaskUpdate,
 } from 'client';
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type RefObject } from 'react';
 import { api } from '../api';
 import { toApiError } from '../lib/apiError';
 import { useCtrlEnter } from '../lib/useCtrlEnter';
@@ -285,6 +285,14 @@ export const TaskForm = ({
 	const [title, setTitle] = useState(form.current.title);
 	const [description, setDescription] = useState(form.current.description);
 	const [address, setAddress] = useState(form.current.address);
+	// #1111: Anzeige-Spiegel des Ortsbezugs. `applyAddressCoords` schreibt nur den Ref — ohne
+	// State kein Re-Render und der gespeicherte Ort bliebe in der Box unsichtbar (AK3: ein
+	// zweiter Treffer muss die Anzeige vollständig ersetzen). Der Ref bleibt die Submit-Quelle.
+	const [coords, setCoords] = useState<{ latitude: number | null; longitude: number | null }>(() => ({
+		latitude: form.current.latitude,
+		longitude: form.current.longitude,
+	}));
+	const coordsBoxId = useId();
 	// Adresssuche (#1083): die Vorschlagsliste lebt in `AddressAutocomplete`, das den Hook selbst
 	// aufruft (Debounce 400 ms) — hier doppelt zu suchen würde den geteilten 1-req/s-Limiter treffen.
 	// #1066 AK1/AK10: Übernimmt die Koordinaten des explizit gewählten Treffers. Freitext ohne
@@ -293,6 +301,7 @@ export const TaskForm = ({
 	const applyAddressCoords = (hit: AddressSuggestion): void => {
 		form.current.latitude = hit.lat;
 		form.current.longitude = hit.lon;
+		setCoords({ latitude: hit.lat, longitude: hit.lon });
 	};
 	// State-Mirror für Range-Slider: `KolInputRange` muss über `_value` + `_label` den aktuellen
 	// Wert erhalten — ohne State würde der Slider nach jedem Re-Render auf den Ref-Initialwert
@@ -956,13 +965,68 @@ export const TaskForm = ({
 						// Freitext: alte Treffer-Koordinate verwerfen, sonst bleibt sie stecken.
 						form.current.latitude = null;
 						form.current.longitude = null;
+						setCoords({ latitude: null, longitude: null });
 					}}
 					onSelect={(hit) => {
 						form.current.address = hit.address;
 						setAddress(hit.address);
 						applyAddressCoords(hit);
 					}}
+					ariaDetails={coordsBoxId}
 				/>
+				{/* #1111: passive Anzeige des gespeicherten Ortsbezugs (Task UND Serie) — außerhalb des
+				    `role="combobox"`-Containers (dort gehören nur Feld + Listbox hinein) und ohne
+				    `aria-live` (Freitext-Tippen würde pro Tastenschlag ankündigen). Sichtbar nur bei
+				    Adresstext (AK5: geleertes Feld lässt die Box verschwinden); Freitext ohne Treffer
+				    ist erlaubt und wird als ruhiger Hinweis gezeigt, nicht als Fehler. */}
+				{address.trim() !== '' &&
+					(coords.latitude !== null && coords.longitude !== null ? (
+						<div
+							id={coordsBoxId}
+							role="group"
+							aria-label="Gespeicherter Ortsbezug"
+							style={{
+								marginTop: 'var(--pp-space-2, 8px)',
+								padding: 'var(--pp-space-2, 8px) var(--pp-space-3, 12px)',
+								background: 'var(--pp-surface-2, #f2f2f2)',
+								color: 'var(--pp-ink, #1a1a1a)',
+								borderRadius: 'var(--pp-radius-sm, 4px)',
+								fontSize: '0.875rem',
+							}}
+						>
+							<dl style={{ margin: 0 }}>
+								<div style={{ display: 'flex', gap: 'var(--pp-space-2, 8px)' }}>
+									<dt style={{ color: 'var(--pp-ink-muted, #555)' }}>Breitengrad</dt>
+									<dd style={{ margin: 0, fontVariantNumeric: 'tabular-nums' }}>{coords.latitude.toFixed(6)}</dd>
+								</div>
+								<div style={{ display: 'flex', gap: 'var(--pp-space-2, 8px)' }}>
+									<dt style={{ color: 'var(--pp-ink-muted, #555)' }}>Längengrad</dt>
+									<dd style={{ margin: 0, fontVariantNumeric: 'tabular-nums' }}>{coords.longitude.toFixed(6)}</dd>
+								</div>
+								<div style={{ display: 'flex', gap: 'var(--pp-space-2, 8px)' }}>
+									<dt style={{ color: 'var(--pp-ink-muted, #555)' }}>Adresse</dt>
+									<dd style={{ margin: 0, overflowWrap: 'anywhere' }}>{address}</dd>
+								</div>
+							</dl>
+						</div>
+					) : (
+						<div
+							id={coordsBoxId}
+							role="group"
+							aria-label="Gespeicherter Ortsbezug"
+							style={{
+								marginTop: 'var(--pp-space-2, 8px)',
+								padding: 'var(--pp-space-2, 8px) var(--pp-space-3, 12px)',
+								background: 'var(--pp-surface-2, #f2f2f2)',
+								color: 'var(--pp-ink-muted, #555)',
+								borderRadius: 'var(--pp-radius-sm, 4px)',
+								fontSize: '0.875rem',
+								overflowWrap: 'anywhere',
+							}}
+						>
+							Keine Koordinaten hinterlegt — die Aufgabe erscheint dann nicht in der „In der Nähe“-Liste.
+						</div>
+					))}
 				{pendingLektorat !== null && (
 					<LektoratDiffModal
 						original={pendingLektorat.original}
