@@ -495,18 +495,32 @@ body {
  */
 .dashboard-next-task {
 	margin-top: var(--pp-gap-generous);
-	padding: 1rem 1.25rem;
+	color: var(--pp-signal-ink);
+}
+
+/*
+ * #1118: Die sechs Dashboard-Sektionen sind Kolibri-Cards. Rahmen, Hintergrund und Padding
+ * liefert KoliBri intern; der Host (#930 transparent) trägt hier die Abweichungen.
+ */
+.dashboard-next-task kol-card,
+.dashboard-suggestions kol-card,
+.dashboard-top-tasks kol-card,
+.dashboard-pillars kol-card,
+.dashboard-balance kol-card,
+.dashboard-deadlines kol-card {
+	display: block;
+	max-width: 100%;
+}
+
+/* Signalfläche und -akzent der Hauptaussage wandern mit in die Card (#930: Host-Fläche). */
+.dashboard-next-task kol-card {
+	background-color: var(--pp-signal-wash);
+	color: var(--pp-signal-ink);
 	border: 1px solid var(--pp-border);
 	border-left-width: 0.375rem;
 	border-left-color: var(--pp-signal);
 	border-radius: 0.5rem;
-	background: var(--pp-signal-wash);
-	color: var(--pp-signal-ink);
-}
-
-.dashboard-next-task h3 {
-	margin: 0 0 0.5rem;
-	color: var(--pp-signal-ink);
+	--kol-a11y-font-color: var(--pp-signal-ink);
 }
 
 .dashboard-next-task p {
@@ -553,15 +567,7 @@ body {
  */
 .dashboard-suggestions {
 	margin-top: var(--pp-gap-generous);
-	padding: 1rem 1.25rem;
-	border: 1px solid var(--pp-border);
-	border-radius: 0.5rem;
-	background: var(--pp-bg-muted);
 	color: var(--pp-ink);
-}
-
-.dashboard-suggestions h3 {
-	margin: 0 0 0.5rem;
 }
 
 .dashboard-suggestions-empty {
@@ -658,16 +664,8 @@ body {
 	margin-top: var(--pp-gap-generous);
 }
 
-.dashboard-top-tasks h3 {
-	margin: 0 0 0.5rem;
-}
-
 .dashboard-deadlines {
 	margin-top: var(--pp-gap-generous);
-}
-
-.dashboard-deadlines h3 {
-	margin: 0 0 0.5rem;
 }
 
 .dashboard-deadlines-list {
@@ -709,7 +707,18 @@ body {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
 		gap: 1.5rem;
-		align-items: start;
+		align-items: stretch;
+	}
+
+	/* #1118: Gleichhöhe je Grid-Zeile — der Host reicht die Zeilenhöhe an die Card durch.
+	   Nur ab 48rem: mobil (einspaltig) wachsen die Karten nur mit ihrem Inhalt. */
+	.dashboard-next-task kol-card,
+	.dashboard-suggestions kol-card,
+	.dashboard-top-tasks kol-card,
+	.dashboard-pillars kol-card,
+	.dashboard-balance kol-card,
+	.dashboard-deadlines kol-card {
+		height: 100%;
 	}
 
 	/* Abstände steuert im Grid der gap, nicht die Eigenmargin der Widgets. */
@@ -761,10 +770,6 @@ body {
 	overflow-wrap: break-word;
 }
 
-.dashboard-pillars h3 {
-	margin: 0 0 0.5rem;
-}
-
 .dashboard-pillars-list {
 	list-style: none;
 	margin: 0;
@@ -794,10 +799,6 @@ body {
    gleiches Zeilenmuster wie Meine Themen/Deadlines (Border-getrennte Listenzeilen). */
 .dashboard-balance {
 	margin-top: var(--pp-gap-generous);
-}
-
-.dashboard-balance h3 {
-	margin: 0 0 0.5rem;
 }
 
 .dashboard-balance-total {
