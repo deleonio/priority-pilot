@@ -343,7 +343,10 @@ test.describe('#191 Logout-Button in Navigation', () => {
 		const request = await logoutRequest;
 
 		expect(request.method()).toBe('POST');
-		expect(logoutMethod).toBe('POST');
+		// Der page.route-Handler läuft asynchron zur Request-Beobachtung: waitForRequest löst auf,
+		// bevor der Handler feuerte (der CSRF-Token-Fetch vor dem Logout-POST verschiebt das Timing
+		// deterministisch in dieses Fenster) — pollen statt einmalig lesen.
+		await expect.poll(() => logoutMethod).toBe('POST');
 	});
 
 	/**

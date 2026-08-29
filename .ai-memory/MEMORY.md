@@ -170,9 +170,18 @@ Konflikte, die er verhindern soll.
 - 2026-08-26 · CI-Shell — awk `gsub()` auf einem Feld ($2) baute $0 mit OFS neu auf, die Markdown-Pipes verschwanden und das Nachparsen der Zeile lieferte leer. → Felder in EINEM awk-Durchlauf extrahieren und per printf ausgeben, die Zeile nie zwischenspeichern und spaeter erneut parsen.
 - 2026-08-26 · Frontend/Tests — `pnpm --filter frontend test:e2e -- <grep-pattern>` filtert NICHT, playwright ignoriert das Argument nach `--` und laeuft die volle e2e-Suite (~10 Min statt Sekunden). → Fuer gezielte Spec-Verifikation direkt `npx playwright test e2e/<datei>.spec.ts` im `frontend`-Verzeichnis nutzen.
 - 2026-08-27 · Gate · `pnpm test` schlägt lokal an `session.test.ts` „AK-5 — Redis-Store“ fehl (Suite ✖ trotz fail 0, Test-Body läuft nach t.skip() weiter) → pre-existing/umgebungsbedingt (Redis nur als CI-Service); per `git stash` auf sauberem Stand verifizieren und im PR-Body dokumentieren, nicht fixen.
+- 2026-08-27 · Security/E2E — Neue Security-Middleware (CSRF, Rate-Limit) darf in Dev/E2E NICHT aktiv sein: die E2E-Suite seedet per Design über ~100 direkte page.request-POST/PUT/PATCH-DELETE-Aufrufe in ~40 Specs ohne Token → mit CSRF-API-Seeding wären massenhaft 403er. → Gates wie SESSION_SECRET/Allowlist auf `NODE_ENV === 'production'`; csrf-csrf v4 braucht getSecret+getSessionIdentifier (Pflicht), cookie-parser NACH express-session, der Cookie enthaelt den vollen Token (HMAC.random), Frontend-Token via openapi-fetch client.use-Middleware in api.ts.
 - 2026-08-28 · CI/Smoke-Test · run:-Bloecke der Composite-Actions lassen sich lokal
   pruefen (yaml-extrahieren + bash -n + Minirepo), aber macOS-/bin/bash ist 3.2: `declare -A`
   scheitert, assoziative-Array-Zugriffe liefern Muell → nur Teilpfade testbar (Erst-Anlage,
   Idempotenz, leer), Blob-Diff-Pfade muessen der CI (bash 5) vertrauen. Nicht forensisch
   jagen - Artefakt erkennen und einordnen.
 - 2026-08-28 · CI/Pipeline — menschlicher Push auf einen PR mit klebendem ai:needs-human verwirft die Autolabeler-Transition (Guard 3, PR #903): Der PR parkt weiter, ai:needs-review wird NICHT gesetzt. → Entblocken nur durch den Menschen: Label in der UI entfernen und ai:needs-review setzen (Entfernen allein startet nichts).
+- 2026-08-28 · Playwright/E2E · `page.route`-Handler feuert asynchron NACH Aufloesung eines
+  parallelen `waitForRequest` — Assertions auf im Route-Handler kaptierte Werte einamlig zu lesen
+  ist eine deterministische Race; immer `await expect.poll(() => captured).toBe(...)` nehmen.
+  Zweite Falle desselben PR: Heading-Assertions auf den Capture-Schritt-Titel gate-n nicht, wenn
+  der Schritt schon gewechselt hat (QuickCaptureModal benennt den Titel um) — Einmal-Persistenz-
+  Checks (einmaliger GET+find) brauchen ein echtes Gate (Formular-Schritt-Titel) oder Poll.
+  Beides wurde erst sichtbar, weil der neue CSRF-Token-Fetch vor dem ersten Write ~10ms Timing
+  verschob (PR #1079, keyboard-shortcuts AK8 + logout AK-2).

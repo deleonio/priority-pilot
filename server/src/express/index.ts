@@ -1,5 +1,6 @@
 import express from 'express';
 import session from 'express-session';
+import cookieParser from 'cookie-parser';
 import passport from 'passport';
 import type { Store } from 'express-session';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
@@ -27,6 +28,7 @@ import { buildTaskForest } from '../logics/tree.js';
 import { findNextImportantTask, findSuggestedTasks } from '../logics/find.js';
 import { isEmailAllowed, getConfiguredEmails } from '../logics/allowedEmails.js';
 import { requireAuth, getUserId, hasGoogleOAuth } from './requireAuth.js';
+import { createCsrfUtilities } from './csrf.js';
 import { User } from '../models/index.js';
 
 type TaskTreeNodeDto = components['schemas']['TaskTreeNode'];
@@ -112,6 +114,20 @@ export const createApp = (deps: AppDeps = {}) => {
 			},
 		}),
 	);
+
+	// Cookie-Parser für csrf-csrf — bewusst NACH express-session registriert (letzeres parst
+	// seine Cookies selbst, siehe csrf-csrf-Doku).
+	app.use(cookieParser());
+
+	// CSRF-Schutz für alle schreibenden Endpunkte (siehe csrf.ts), Token-Ausstellung via
+	// GET /auth/csrf. Nur in Produktion aktiv — die E2E-Suite seedet Daten über direkte
+	// page.request-Aufrufe ohne Token, und Dev läuft mit 'dev-secret' ohne echte Sessions.
+	const csrf = createCsrfUtilities(sessionSecret ?? 'dev-secret');
+	app.get('/auth/csrf', csrf.issueCsrfToken);
+	if (process.env.NODE_ENV === 'production') {
+		app.use(csrf.doubleCsrfProtection);
+		app.use(csrf.csrfErrorHandler);
+	}
 
 	// Passport initialisieren (ohne persistente Sessions — wir speichern den User in express-session).
 	app.use(passport.initialize());

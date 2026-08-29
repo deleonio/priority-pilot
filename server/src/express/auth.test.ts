@@ -72,8 +72,9 @@ describe('Auth (Google OAuth Single-User-Gate)', () => {
 			assert.equal(res.status, 302);
 			const location = res.headers.get('location');
 			assert.ok(location, 'Location-Header sollte gesetzt sein');
-			assert.ok(
-				location.includes('accounts.google.com'),
+			assert.equal(
+				new URL(location).origin,
+				'https://accounts.google.com',
 				`Location sollte auf accounts.google.com zeigen, war: ${location}`,
 			);
 		});
