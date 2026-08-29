@@ -1,42 +1,42 @@
 # Issue 1106 — Review (Phase 5), Stand 2026-08-29
 
-**ERGEBNIS: VERDICT needs-fixup, Ampel 🔴.** MODE = Kreuzverhör (kein `<!-- ai-review -->`-Marker vorhanden, erste Runde). PR #1108 (Branch `ai/harness/1106`, +581/−246), Closing-Issue #1106 → AKs aus dem KI-ANALYSE-Block des Bodies (stand=2026-08-29T04:07:10Z). 3 Findings als Inline-Kommentare in EINER Review (ID 5056959815, event=COMMENT) + Sammelkommentar `<!-- ai-review -->` (issuecomment 5460449424) gepostet. Titel-Gate: „Vier Lösch-Bestätigungsdialoge …“ (kein Conventional Commit) → `refactor(frontend): unify delete dialogs in ConfirmDeleteDialog (#1106)` gesetzt (71 Zeichen).
+**ERGEBNIS:** Runde 1 = Kreuzverhör, `needs-fixup` (F1/F2/F3, Review-ID 5056959815, Sammelkommentar 5460449424). Fixup `f71781b8` (05:43Z) → Runde 2 = Fixup-Nachweis, **`reviewed` (🟢)**: alle 3 Findings gegen den Quelltext verifiziert, Sammelkommentar in-place gepatcht (gleiche ID, Review-Typ: Fixup-Nachweis). Keine Entscheidungs-Findings.
 
 ## Erledigt
-- Diff komplett gelesen (`/tmp/pr1108.diff`, 944 Zeilen), Issue-AKs aus dem Analyse-Block extrahiert.
-- AK-Verifikation selbst nachgezogen: AK2 `grep -c toApiError` in den vier Dialogen = 0/0/0/0 ✓; AK5 `wc -l` 76/77/87/88=328 → 31/32/45/43=151 = −177 ✓ (PR-Body-Dokumentation stimmt); AK1/AK4 durch `ConfirmDeleteDialog.test.tsx` (7 Cases) abgedeckt; AK3-Unit-Tests unverändert und grün (PR: 239/239).
-- F1 (🔴): Strg+Enter-Regression verifiziert — alter `DeleteSeriesDialog`-Code (im Diff sichtbar) band Strg+Enter an `confirm(false)` = „Nein“ mit Kommentar „keine versehentliche Kaskade über das Tastenkürzel“; neu: `ConfirmDeleteDialog.tsx:70` bindet `useCtrlEnter` fest an `run(onConfirm)` und `DeleteSeriesDialog.tsx:35` ist `cascade: true`.
-- F2 (🔴): beide roten E2E-Verletzungen am Quelltext gelesen — `delete-dialog-focus.spec.ts:206` („Nein“ muss fokussiert sein) und `:214` (Tab von „Nein“ → „Abbrechen“), dazu AK9-Fall ab `:360`; Pflicht-Charakter via Subagent bestätigt (`.github/workflows/ci.yml:122-172`, 4 Shards).
-- F3 (🟡): `ConfirmDeleteDialog.test.tsx:59-63` — Mock reicht `enabled` durch, kein Test nutzt es; `DeleteSeriesDialog.test.tsx:46` mockt `useCtrlEnter` als no-op → Kürzel-Ziel ungepinnt.
-- CI-Rollup zum Review-Zeitpunkt: precheck ✓, `verify`/`review`/`e2e (1-3)` in_progress, `e2e (4)` ✓ — das gate-entscheidende e2e-Ergebnis war noch offen.
+- MODE-Bestimmung: Marker `<!-- ai-review -->` gefunden (issuecomment 5460449424, updatedAt 2026-08-29T04:57:53Z) → Fixup-Verification, Delta-Review nur ab diesem Zeitpunkt.
+- Delta = genau 1 Commit: `f71781b8` „fix(frontend): Strg+Enter im Serien-Dialog auf den sicheren Default binden (#1106)" (6 Dateien, +123/−32).
+- F1 ✓: `ConfirmDeleteDialog.tsx` Prop `hotkeyTarget?: 'confirm' | 'safeDefault'` (Default `confirm`), `hotkeyAction`-Verzweigung, `DeleteSeriesDialog.tsx` setzt `safeDefault` → Strg+Enter = `run(secondaryAction.onClick)` = „Nein“/`cascade=false`; Kommandar im Dialog aktualisiert.
+- F2 ✓: `delete-dialog-focus.spec.ts` AK3 (:166-217) und AK9 (:360-400) auf DOM-Vertrag Abbrechen → Nein → Ja umgestellt (Initialfokus „Abbrechen“, Tab-Ziel „Nein“), Datei-Header + Helper-Kommentare konsistent korrigiert.
+- F3 ✓: `ConfirmDeleteDialog.test.tsx:156-158` pinnt `useCtrlEnter.mock.calls.at(-1)?.[1] === false`; `DeleteSeriesDialog.test.tsx` Mock auf durchreichendes `vi.fn()` umgestellt + neuer Test pinnt `enabled=true`, Ziel `cascade=false`, All-Call-Assertion `cascade === false` für jeden Call.
+- Title Gate: `refactor(frontend): unify delete dialogs in ConfirmDeleteDialog (#1106)` = gültig (type(scope), englisch, lowercase, ~71 Zeichen) → kein Rename.
+- Sammelkommentar 5460449424 per PATCH aktualisiert (Review-Status reviewed, F1-F3 in Behobene-Anmerkungen-Tabelle, Footer Fixup-Nachweis).
+- CI auf `f71781b8` war bei Verdict-Abgabe pending (e2e-Shards ~4 min) — nicht rot; finaler Entscheid liegt beim deterministischen Gate-/Auto-Merge-Schritt.
 
 ## Relevante Stellen
-- `frontend/src/components/ConfirmDeleteDialog.tsx:70` — `useCtrlEnter(() => void run(onConfirm), !deleting)`: Festverdrahtung Kürzel→Danger; Hebel für F1-Fix (Prop `confirmHotkey?: boolean = true`).
-- `frontend/src/components/DeleteSeriesDialog.tsx:35,39-43` — `onConfirm` = Kaskade, `secondaryAction` = „Nein“; `:42` gibt den API-Promise bewusst un-voided zurück (Feature, dokumentiert).
-- `frontend/e2e/delete-dialog-focus.spec.ts:165-169,206,214,360` — alter #553-Vertrag; F2-Fixorte.
-- `frontend/src/components/ConfirmDeleteDialog.test.tsx:61,198-199` — Kürzel-Mock; F3-Fixort.
-- PR-Body enthält die Latte „Test-Pflege-Bedarf“ + AK2/AK5-Nachweise + Gate-Report — konsistent mit dem Code, nur das E2E-Umsetzen fehlt.
+- `frontend/src/components/ConfirmDeleteDialog.tsx:32` (Prop), `:78-84` (`hotkeyAction` + `useCtrlEnter(() => void hotkeyAction?.(), !deleting)`) — F1-Kern.
+- `frontend/src/components/DeleteSeriesDialog.tsx:28` — `hotkeyTarget="safeDefault"` + neuer Kommandar.
+- `frontend/src/components/ConfirmDeleteDialog.test.tsx:153-158` — F3a.
+- `frontend/src/components/DeleteSeriesDialog.test.tsx:46-49` (Mock), `:143-162` (Kürzel-Ziel-Test) — F3b.
+- `frontend/e2e/delete-dialog-focus.spec.ts` — AK3 `:166-217`, AK9 `:360-400` — F2 (Datei liegt außerhalb des ursprünglichen PR-Diffs → kein Inline-Anker möglich).
 
 ## Annahmen
-- Die E2E-Fälle :206/:214/:360 schlagen wirklich fehl (nicht ausgeführt — Shard-Ergebnisse waren beim Review offen); die Assertions widersprechen dem neuen DOM-/Fokus-Vertrag zwingend.
-- `pnpm test` 239/239 (PR-Angabe) stimmt; `verify`-Job war in_progress.
-- „Review-Typ: Kreuzverhör“ korrekt (keine Fixup-Runde davor).
+- Fixup-Memo (`.ai-memory/issue-1106-fixup.md`) berichtet lokales GATE grün (format/prettier/lint/knip/test + `npx playwright test e2e/delete-dialog-focus.spec.ts` exit 0) — nicht selbst nachgefahren (Sandbox ohne Chromium-Setup, Zeitdeckel).
+- `hotkeyTarget` statt des im Finding zuerst genannten `confirmHotkey?: boolean` ist akzeptierte Lösungsform (Finding nannte beide Varianten; im F1-Thread begründet).
+- Fokus-Vertragsänderung Serien-Dialog („Nein“ → „Abbrechen“ als Initialfokus) ist durch AK4 gedeckt — Issue #1106 regelt Button-Reihenfolge/Fokus für ALLE vier Dialoge; #553 bleibt nur fürs Kürzel-Ziel bindend.
 
 ## Verworfen
-- `secondaryAction.onClick`-Promise-Vertrag (`() => void`, intern awaited) — bewusst, im Code-Kommentar und PR-Body dokumentiert, kein Finding.
-- Label-Wahl der Danger-/Secondary-Rollen im Serien-Dialog (Kaskade = Danger = `onConfirm`) — folgt zwingend aus AK4-Reihenfolge; nur das Kürzel-Binding ist der Fehler (F1).
-- `run()` setzt „Löschen…“ auch beim Sekundär-Click — kosmetisch, kein Finding.
-- KoliBri-first / Mobile-first / Format-Lint — nichts zu beanstanden (KolAlert/KolButton/Modal, keine Media-Queries, `pnpm format`/`lint` im Body dokumentiert).
+- Neue Kreuzverhör-Runde über den ganzen PR — MODE Fixup-Verification verbietet das (SKILL.md Diff-Scoping); nur Fixup-Diff + neue Probleme geprüft.
+- Warten auf CI vor dem Verdict — pending ist nicht rot (SKILL: „don't conclude 🟢 while CI is red“); Gate-Schritt degradiert bei Rot selbst auf ai:needs-changes. Zeitdeckel sprach zusätzlich dagegen.
+- Statische TDZ-Sorge am `vi.mock`-Factory-Muster (Const-Referenz in Factory) — empirisch durch grünen Lauf widerlegt, nicht als Finding erhoben.
 
 ## Offen
-- CI (verify, e2e 1-3) zum Zeitpunkt des Reviews noch laufend — Verdict `needs-fixup` unabhängig davon durch F1/F2 begründet.
-- Wegwerf-Artefakte in `/tmp` (`pr1108.diff`, `rev-body.md`, `c1-c3.md`, `review.json`, `collect.md`, `issue1106.md`) — außerhalb des Repos, kein Commit-Thema.
+- `.ai-memory/issue-1108-review-body.md` ist Wegwerf-Artefakt (Sammelkommentar-Body) — NICHT committen; `rm` brauchte bisher Freigabe (Muster #1083/#1095/#1098/#1106). Nur diese Datei hier ist die echte Phasen-Notiz.
 
 ## Nächster Schritt
-- Fixup (Label `ai:needs-changes`/`ai:needs-fixup` übernimmt der Workflow): F1 Kürzel-Binding entschärfen + F2 die drei E2E-Stellen (incl. Kommentare :165-169) auf den neuen Vertrag stellen + F3 zwei Test-Assertions ergänzen; danach Fixup-Nachweis-Review per bestehendem Sammelkommentar (Marker `<!-- ai-review -->`, issuecomment 5460449424, Review-Typ: Fixup-Nachweis).
+- `-`: PR #1108 ist review-seitig abgeschlossen (`reviewed`); merge-Entscheidung beim Gate/Menschen.
 
 ## Fallstricke
-- F2-Datei liegt AUSSERHALB des PR-Diffs → Inline-Anker unmöglich; F2 hängt deshalb an `ConfirmDeleteDialog.tsx:77` (`initialFocusRef`). Beim Fixup-Review die E2E-Stellen direkt am Quelltext prüfen.
-- Finding-Nummern F1-F3 und deren Verortung sind stabil zu halten (nicht umnummerieren), der Sammelkommentar wird per Marker in-place gepatcht.
-- `useCtrlEnter`-Mock in beiden Testdateien kapselt das Kürzel-Verhalten — wer das Kürzel-Ziel testet, muss entweder die Mock-Signatur erweitern (`enabled` zurückgeben/asserten) oder einen echten `keydown`-Event feuern.
-- DeleteSeriesDialog: „Nein“ läuft jetzt über `secondaryAction` → dasselbe `error`/`deleting`-Handling wie der Danger-Button; ein Fixup darf diese Fehlerbehandlung nicht verlieren (PR-Body „Hinweise“ Absatz 2).
+- Finding-Nummern F1-F3 stabil halten — Threads sind resolved und referenzieren sie; Umnummerieren bricht die Historie im Sammelkommentar.
+- Sammelkommentar in-place patchen (`PATCH /issues/comments/<id>`), NICHT neu anlegen — genau 1 `<!-- ai-review -->`-Kommentar pro PR.
+- `git show <sha>` im lokalen Checkout ist die schnellste Fixup-Diff-Quelle (`gh api .../commits` liefert `files: null` für diesen Commit-Typ) — Repo-Objekte lagen lokal vor.
+- E2E-Fokus-Verträge stehen in `delete-dialog-focus.spec.ts` AUSSERHALB des ursprünglichen PR-Diffs → Anker nur am Quelltext/Commit möglich.
