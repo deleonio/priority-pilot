@@ -43,6 +43,16 @@ const register = async (email: string, password: string): Promise<string> => {
 	return setCookie.split(';')[0];
 };
 
+/** Unabhängiger Haversine-Orakel (km) — absichtlich NICHT aus der Route importiert (AK3 #1110). */
+const haversineKm = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+	const R = 6371;
+	const toRad = (deg: number): number => (deg * Math.PI) / 180;
+	const dLat = toRad(lat2 - lat1);
+	const dLon = toRad(lon2 - lon1);
+	const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+	return 2 * R * Math.asin(Math.sqrt(a));
+};
+
 describe('GET /tasks/nearby (#1066)', () => {
 	before(async () => {
 		server = await startTestServer();
@@ -168,6 +178,34 @@ describe('GET /tasks/nearby (#1066)', () => {
 			['Nah', 'Fern (Potsdam)'],
 			'Anzeige-Entfernung 50 km: beide Tasks sichtbar',
 		);
+	});
+
+	// #1110 AK3: distanceKm muss der Haversine-Distanz zur Anfrage-Position entsprechen — auch im
+	// Grenzfall „Task liegt exakt an der Position" (dort exakt 0, niemals ein Rundungs-Artefakt),
+	// damit ein flächendeckendes „(0 km)" in der UI als Kettenbruch auffällt und nicht als
+	// „wird so gerechnet" durchgeht.
+	it('liefert exakt 0 für einen Task an der Position und die Haversine-Distanz sonst (AK3 #1110)', async () => {
+		const cookie = await register('nearby-haversine@example.com', 'password123');
+		// ~2,4 km nördlich der Referenzposition (1° Breite ≈ 111,32 km).
+		await createTask(cookie, { title: '2,4km', latitude: LAT + 0.0216, longitude: LON });
+		await createTask(cookie, { title: 'Exakt dort', latitude: LAT, longitude: LON });
+
+		const res = await nearby(cookie);
+		assert.equal(res.status, 200);
+		const items = (await res.json()) as { title: string; distanceKm: number }[];
+		const byTitle = Object.fromEntries(items.map((i) => [i.title, i.distanceKm]));
+
+		const expected = haversineKm(LAT, LON, LAT + 0.0216, LON);
+		assert.ok(
+			Math.abs(byTitle['2,4km'] - expected) < 0.05,
+			`distanceKm (${byTitle['2,4km']}) muss der Haversine-Distanz (${expected.toFixed(2)} km) entsprechen`,
+		);
+		assert.equal(
+			Math.round(byTitle['2,4km'] * 10) / 10,
+			byTitle['2,4km'],
+			'distanceKm ist auf eine Nachkommastelle gerundet',
+		);
+		assert.equal(byTitle['Exakt dort'], 0, 'Task exakt an der Position → distanceKm exakt 0');
 	});
 
 	it('Datenisolation: User A sieht keine Tasks von User B (AK7)', async () => {

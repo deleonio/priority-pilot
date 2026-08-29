@@ -1,8 +1,9 @@
 import { KolCard } from '@public-ui/react-v19';
-import type { NearbyTask } from 'client';
+import type { GeoConfig, NearbyTask } from 'client';
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import { useGeolocation } from '../lib/useGeolocation';
+import { TASKS_CHANGED_EVENT } from '../lib/tasksChanged';
 
 /**
  * Dashboard-Card „In der Nähe" (#1066): zeigt maximal 10 offene Tasks mit Koordinaten, aufsteigend
@@ -23,9 +24,46 @@ import { useGeolocation } from '../lib/useGeolocation';
 const formatKm = (km: number): string =>
 	km.toLocaleString('de-DE', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
+/** Titel ohne geladene Konfiguration (vor dem Fetch bzw. bei Fehler). */
+const baseTitle = 'In der Nähe';
+
 export const NearbyCard = () => {
 	const { supported, enabled, pending, permissionDenied, unavailable, position } = useGeolocation();
 	const [nearby, setNearby] = useState<NearbyTask[] | null>(null);
+	// #1110 (AK4): Nach dem Anlegen einer Aufgabe mit Adresse erscheint sie ohne Reload in der Liste.
+	const [refreshKey, setRefreshKey] = useState(0);
+	// #1110 (AK1/AK2): Der Titel nennt die gespeicherte Anzeige-Entfernung aus `GET /geo-config`
+	// statt eines hartcodierten Werts — beim nächsten Laden nach einer Änderung in den Einstellungen.
+	const [displayDistanceKm, setDisplayDistanceKm] = useState<number | null>(null);
+
+	useEffect(() => {
+		let cancelled = false;
+		api
+			.getGeoConfig()
+			// Ganzzahl ohne Nachkommastelle („(5 km)"), die Distanzkette bleibt unbezeichnet.
+			.then((config: GeoConfig) => {
+				if (!cancelled) {
+					setDisplayDistanceKm(Math.round(config.displayDistanceKm));
+				}
+			})
+			.catch(() => {
+				// Config nicht erreichbar → unverfänglicher Basistitel statt einer falschen Zahl.
+				if (!cancelled) {
+					setDisplayDistanceKm(null);
+				}
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, []);
+
+	useEffect(() => {
+		const onTasksChanged = () => setRefreshKey((key) => key + 1);
+		window.addEventListener(TASKS_CHANGED_EVENT, onTasksChanged);
+		return () => {
+			window.removeEventListener(TASKS_CHANGED_EVENT, onTasksChanged);
+		};
+	}, []);
 
 	useEffect(() => {
 		if (position === null) {
@@ -49,11 +87,15 @@ export const NearbyCard = () => {
 		return () => {
 			cancelled = true;
 		};
-	}, [position]);
+	}, [position, refreshKey]);
 
 	return (
 		<section className="dashboard-nearby" aria-label="In der Nähe">
-			<KolCard _label="In der Nähe" _level={0} data-testid="nearby-card">
+			<KolCard
+				_label={displayDistanceKm === null ? baseTitle : `In der Nähe (${displayDistanceKm} km)`}
+				_level={0}
+				data-testid="nearby-card"
+			>
 				{permissionDenied || !supported || unavailable ? (
 					<p className="dashboard-nearby-hint" data-testid="nearby-denied">
 						Der Browser hat die Standortfreigabe verweigert, ist nicht verfügbar oder unterstützt keine
