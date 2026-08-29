@@ -47,13 +47,12 @@ done
   exit 2
 }
 
-# ai:continued prüfen
+# ai:continued prüfen — Issue-Marker des Implement-Soft-Aborts. Der PR-Eingang
+# (Fixup) hat keinen Soft-Abort und damit nie ai:continued: HAS_CONTINUED bleibt
+# false, der gh-Call entfällt (Passthrough ohne API-Abhängigkeit).
 HAS_CONTINUED="false"
 if [ "$KIND" = "issue" ]; then
   HAS_CONTINUED="$(gh issue view "$TICKET" --repo "$REPO" --json labels \
-    --jq 'any(.labels[]; .name == "ai:continued")' 2>/dev/null || echo false)"
-else
-  HAS_CONTINUED="$(gh pr view "$TICKET" --repo "$REPO" --json labels \
     --jq 'any(.labels[]; .name == "ai:continued")' 2>/dev/null || echo false)"
 fi
 

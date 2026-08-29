@@ -185,3 +185,4 @@ Konflikte, die er verhindern soll.
   Checks (einmaliger GET+find) brauchen ein echtes Gate (Formular-Schritt-Titel) oder Poll.
   Beides wurde erst sichtbar, weil der neue CSRF-Token-Fetch vor dem ersten Write ~10ms Timing
   verschob (PR #1079, keyboard-shortcuts AK8 + logout AK-2).
+- 2026-08-29 · Server-Tests — session.test.ts (Redis-Integration) macht lokale Läufe rot: exit 1 trotz fail=0 (Skip mit Fehler-Record), kein lokaler Redis nötig/vorhanden. Auf dem Basisbranch identisch (PR #1104) → nicht jagen, CI stellt Redis als Service bereit; gates lokal auf frontend + test:scripts beschränken und im PR dokumentieren.

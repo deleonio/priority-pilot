@@ -127,10 +127,13 @@ describe('resolve-escalation.sh — Eskalation mit ai:continued', () => {
 });
 
 describe('resolve-escalation.sh — PR-Eingang', () => {
-	it('prüft ai:continued am PR (hier: nicht gesetzt → Passthrough)', () => {
-		const { status, out } = esc({ fixture: PLAIN, kind: 'pr', model: 'sonnet', effort: 'medium' });
+	it('PR-Eingang ist immer Passthrough — ai:continued ist ein Issue-Marker', () => {
+		// Selbst mit (manuell) gesetztem Label am PR: kein gh-Call, keine Eskalation —
+		// der Soft-Abort-Continuation-Mechanismus existiert nur am Issue.
+		const { status, out } = esc({ fixture: CONTINUED, kind: 'pr', model: 'sonnet', effort: 'medium' });
 		assert.strictEqual(status, 0);
 		assert.strictEqual(kv(out, 'model'), 'sonnet');
+		assert.strictEqual(kv(out, 'effort'), 'medium');
 		assert.strictEqual(kv(out, 'escalated'), 'false');
 	});
 });
