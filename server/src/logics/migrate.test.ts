@@ -1,7 +1,7 @@
 import { describe, it, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import sequelize from '../database.js';
-import { Task } from '../models/index.js';
+import { Task, User } from '../models/index.js';
 import {
 	migrateSeriesColumns,
 	migrateSeriesTable,
@@ -9,6 +9,7 @@ import {
 	migratePillarDescription,
 	migrateTaskChecklist,
 	migrateTaskAddress,
+	migrateUserGeoConfigColumns,
 	migrateLlmProviderKindColumns,
 } from './migrate.js';
 import { SEED_PILLARS } from '../models/pillarData.js';
@@ -469,6 +470,81 @@ describe('migrateLlmProviderKindColumns', () => {
 		const columns = await llmProviderColumns();
 		assert.ok(columns.includes('kind'), 'frische Tabelle enthält kind');
 		assert.ok(columns.includes('builtin_key'), 'frische Tabelle enthält builtin_key');
+	});
+});
+
+describe('migrateUserGeoConfigColumns', () => {
+	/** Spaltennamen der `users`-Tabelle (leer, falls die Tabelle nicht existiert). */
+	const userColumns = async (): Promise<string[]> => {
+		const [rows] = await sequelize.query("PRAGMA table_info('users')");
+		return (rows as { name: string }[]).map((row) => row.name);
+	};
+
+	/** Erzeugt eine `users`-Tabelle im Alt-Schema (vor #1098) — ohne die Geo-Config-Spalten. */
+	const createLegacyUsersTable = async (): Promise<void> => {
+		await sequelize.getQueryInterface().dropAllTables();
+		await sequelize.query(
+			'CREATE TABLE `users` (' +
+				'`id` INTEGER PRIMARY KEY AUTOINCREMENT, ' +
+				'`email` VARCHAR(255) NOT NULL UNIQUE, ' +
+				'`passwordHash` VARCHAR(255) NOT NULL, ' +
+				"`displayName` VARCHAR(255) NOT NULL DEFAULT '', " +
+				'`avatarUrl` VARCHAR(255), ' +
+				'`createdAt` DATETIME NOT NULL, ' +
+				'`updatedAt` DATETIME NOT NULL' +
+				')',
+		);
+	};
+
+	it('zieht auf einem Alt-Schema die Geo-Spalten nach, sodass User-Queries nicht mehr brechen', async () => {
+		await createLegacyUsersTable();
+		await sequelize.query(
+			'INSERT INTO users (email, passwordHash, displayName, createdAt, updatedAt) ' +
+				"VALUES ('alt@local', 'hash', 'Alt', '2026-01-01 00:00:00', '2026-01-01 00:00:00')",
+		);
+		for (const column of ['displayDistanceKm', 'alarmDistanceKm', 'intervalMinutes']) {
+			assert.ok(!(await userColumns()).includes(column), `Alt-Schema hat ${column} noch nicht`);
+		}
+
+		await migrateUserGeoConfigColumns(sequelize);
+		await sequelize.sync();
+
+		// Der eigentliche Vertrag (#1103 F1): jede User-Query selectiert die Modell-Spalten und
+		// bräche ohne Migration mit `no such column: displayDistanceKm` (Login, /geo-config,
+		// /tasks/nearby).
+		const users = await User.findAll();
+		assert.equal(users.length, 1, 'Bestands-Zeile bleibt erhalten');
+		assert.deepEqual(
+			{
+				displayDistanceKm: users[0].displayDistanceKm,
+				alarmDistanceKm: users[0].alarmDistanceKm,
+				intervalMinutes: users[0].intervalMinutes,
+			},
+			{ displayDistanceKm: 5, alarmDistanceKm: 1, intervalMinutes: 5 },
+			'Bestands-Zeile trägt nach der Migration die Defaults (NOT NULL DEFAULT)',
+		);
+	});
+
+	it('ist idempotent: erneuter Aufruf wirft nicht und erzeugt keine doppelte Spalte', async () => {
+		await createLegacyUsersTable();
+		await migrateUserGeoConfigColumns(sequelize);
+		await assert.doesNotReject(() => migrateUserGeoConfigColumns(sequelize), 'zweiter Lauf bleibt stabil');
+		const columns = await userColumns();
+		for (const column of ['displayDistanceKm', 'alarmDistanceKm', 'intervalMinutes']) {
+			assert.equal(columns.filter((name) => name === column).length, 1, `${column} genau einmal`);
+		}
+	});
+
+	it('ist auf einer DB ohne users-Tabelle ein No-op und sync() legt sie korrekt an', async () => {
+		assert.deepEqual(await userColumns(), [], 'Vorbedingung: keine users-Tabelle');
+
+		await assert.doesNotReject(() => migrateUserGeoConfigColumns(sequelize), 'Migration ohne Tabelle ist no-op');
+		await assert.doesNotReject(() => sequelize.sync(), 'sync() legt die Tabelle frisch an');
+
+		const columns = await userColumns();
+		for (const column of ['displayDistanceKm', 'alarmDistanceKm', 'intervalMinutes']) {
+			assert.ok(columns.includes(column), `frische Tabelle enthält ${column}`);
+		}
 	});
 });
 

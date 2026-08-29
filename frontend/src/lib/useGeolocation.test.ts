@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { api } from '../api';
-import { GEOLOCATION_INTERVAL_MS, useGeolocation } from './useGeolocation';
+import { GEO_CONFIG_CHANGED_EVENT, GEOLOCATION_INTERVAL_MS, useGeolocation } from './useGeolocation';
 
 // #933: api.reverseGeocode mocken — verhindert Netzwerk-Calls in ALLEN Tests dieser Datei
 // (der #845-Block löst den Reverse-Geocoding-Effekt unbeabsichtigt mit aus).
@@ -287,5 +287,27 @@ describe('useGeolocation – #1098: konfigurierbares Intervall (AK5)', () => {
 		await waitFor(() => expect(setIntervalSpy).toHaveBeenCalled());
 		expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 2 * 60 * 1000);
 		expect(setIntervalSpy).not.toHaveBeenCalledWith(expect.any(Function), GEOLOCATION_INTERVAL_MS);
+	});
+
+	// #1103 F6: Ein Config-PUT (SettingsPage dispatcht GEO_CONFIG_CHANGED_EVENT) erreicht auch
+	// bereits laufende Hook-Instanzen — das Intervall re-armt auf den neuen Wert, statt bis zum
+	// nächsten Mount beim Mount-Wert zu bleiben.
+	it('re-armt das laufende Intervall, nachdem die Geo-Config gespeichert wurde (Event)', async () => {
+		getGeoConfigMock.mockResolvedValueOnce({ displayDistanceKm: 5, alarmDistanceKm: 1, intervalMinutes: 5 });
+		getGeoConfigMock.mockResolvedValue({ displayDistanceKm: 5, alarmDistanceKm: 1, intervalMinutes: 1 });
+		localStorage.setItem('pp-geolocation-enabled', 'true');
+		geoMock.getCurrentPosition.mockImplementation((success) => {
+			success({ coords: { latitude: 52.52, longitude: 13.405 } });
+		});
+
+		const setIntervalSpy = vi.spyOn(window, 'setInterval');
+		renderHook(() => useGeolocation());
+
+		await waitFor(() => expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 5 * 60 * 1000));
+
+		// Erfolgreiches PUT simulieren: SettingsPage dispatched nach dem Speichern das Event.
+		window.dispatchEvent(new CustomEvent(GEO_CONFIG_CHANGED_EVENT));
+
+		await waitFor(() => expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 1 * 60 * 1000));
 	});
 });

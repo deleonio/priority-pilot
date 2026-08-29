@@ -58,3 +58,27 @@ rein Test-Pflege:
 Lokal verifiziert: 8 betroffene Specs (crud, keyboard-shortcuts, pillar-dynamic-cases, 763, 934,
 settings-tabs, 1098, 1066) — 48/48 grün; `pnpm format` + `pnpm lint` grün. MEMORY.md ergänzt
 (KolTabs-mounted-Panels-Falle).
+
+## Fixup nach Review Runde 5 (2026-08-29): F1–F6
+
+Alle offenen Findings aus dem manuellen Kreuzverhör (Runde 5) behoben:
+
+- **F1 (Blocker)**: `migrateUserGeoConfigColumns` in `server/src/logics/migrate.ts` (Muster
+  `migrateUserIdColumns`, PRAGMA + ALTER TABLE … INTEGER NOT NULL DEFAULT 5/1/5), gewired in
+  `server/src/index.ts` vor `sync()`. Vertragstest in `migrate.test.ts`: Alt-Schema ohne
+  Geo-Spalten → nach Migration läuft `User.findAll()` (der echte Bruch: `no such column`),
+  Bestands-Zeile trägt Defaults; Idempotenz + No-op auf frischer DB.
+- **F3**: `?? []`/`?? null` aus `PillarList.tsx`/`LlmSettings.tsx` zurückgebaut; der Proxy-Default
+  im `SettingsPage.test.tsx` liefert jetzt typ-passende Leerwerte (`apiDefaults` für
+  `listPillars`/`listLlmProviders`) — Produktivcode verteidigt nicht mehr gegen Test-Doubles.
+- **F4**: `as unknown as boolean` ersetzt durch `toKolibriDisabled`-Helper mit lokal geweitetem
+  `DisabledProp = boolean | string` (ein dokumentierter Cast statt Doppellüge über `unknown`).
+- **F5**: `/tasks/nearby` nutzt jetzt `resolveGeoUser` + `GEO_CONFIG_DEFAULTS` aus `geoConfig.ts`
+  (einheitliche User-Auflösung inkl. Dev-Pass-Through, keine duplizierte 5); `User`-Import aus
+  `tasks.ts` entfällt.
+- **F6**: `GEO_CONFIG_CHANGED_EVENT` — `applyGeoValue` dispatched nach erfolgreichem PUT, jede
+  `useGeolocation`-Instanz (Footer/NearbyCard/SettingsPage) lädt die Config neu und re-armt ihr
+  laufendes Intervall; Unit-Test deckt das Re-Armen ab (5 min → 1 min per Event).
+
+Gates: Server 747 pass/0 fail/1 Redis-Skip (bekannt), Frontend 460 pass/0 fail, e2e gezielt
+(1098/1066/geolocation/settings-tabs) 24/24 grün, format+lint+knip (Pre-Commit) grün.

@@ -18,10 +18,13 @@ import { getUserId, isAuthActive } from '../requireAuth.js';
  * Bewusst ohne `findOrCreate` (verwaltete Transaktion): Der verwirft auf der einzigen
  * SQLite-`:memory:`-Verbindung Transaction-Protokolle („cannot commit — no transaction is
  * active") — `findOne` + `create` reicht, die Unique-E-Mail fängt Nebenläufigkeit ab.
+ *
+ * Exportiert, weil auch `/tasks/nearby` dieselbe Auflösung braucht (#1103 F5: eine Wahrheit
+ * darüber, welcher User die Anzeige-Entfernung liefert — inkl. Dev-Pass-Through).
  */
 const DEV_USER_EMAIL = 'dev@local';
 
-const resolveGeoUser = async (req: Request): Promise<User | null> => {
+export const resolveGeoUser = async (req: Request): Promise<User | null> => {
 	const userId = getUserId(req);
 	if (userId !== undefined) {
 		return User.findByPk(userId);
@@ -47,7 +50,11 @@ const resolveGeoUser = async (req: Request): Promise<User | null> => {
 
 type GeoConfigDto = { displayDistanceKm: number; alarmDistanceKm: number; intervalMinutes: number };
 
-const DEFAULTS: GeoConfigDto = { displayDistanceKm: 5, alarmDistanceKm: 1, intervalMinutes: 5 };
+/**
+ * Defaults = heutiges Verhalten vor #1098. Exportiert, damit `/tasks/nearby` denselben Default
+ * nutzt statt einer zweiten hartkodierten 5 (#1103 F5).
+ */
+export const GEO_CONFIG_DEFAULTS: GeoConfigDto = { displayDistanceKm: 5, alarmDistanceKm: 1, intervalMinutes: 5 };
 
 /**
  * Kreuz-Schranken-Validierung (AK2): alarm ∈ [1, display], display ∈ [alarm, 50],
@@ -89,9 +96,9 @@ geoConfigRouter.get('/geo-config', async (req: Request, res: Response<GeoConfigD
 			return;
 		}
 		res.json({
-			displayDistanceKm: user.displayDistanceKm ?? DEFAULTS.displayDistanceKm,
-			alarmDistanceKm: user.alarmDistanceKm ?? DEFAULTS.alarmDistanceKm,
-			intervalMinutes: user.intervalMinutes ?? DEFAULTS.intervalMinutes,
+			displayDistanceKm: user.displayDistanceKm ?? GEO_CONFIG_DEFAULTS.displayDistanceKm,
+			alarmDistanceKm: user.alarmDistanceKm ?? GEO_CONFIG_DEFAULTS.alarmDistanceKm,
+			intervalMinutes: user.intervalMinutes ?? GEO_CONFIG_DEFAULTS.intervalMinutes,
 		});
 	} catch {
 		sendError(res, 500, 'Interner Serverfehler.');

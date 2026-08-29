@@ -17,6 +17,14 @@ export interface GeolocationPosition {
 const STORAGE_KEY = 'pp-geolocation-enabled';
 
 /**
+ * Fenster-Event nach erfolgreichem `PUT /geo-config` (#1098 AK5, #1103 F6): Der Hook läuft als
+ * eigene Instanz in SettingsPage/NearbyCard/Footer — ein PUT allein re-armt nur die speichernde
+ * Instanz. Mit dem Event laden alle Instanzen die Config neu und ihr laufendes Intervall
+ * übernimmt sofort das neue `intervalMinutes` (`intervalMs` ist Dep des Intervall-Effekts).
+ */
+export const GEO_CONFIG_CHANGED_EVENT = 'pp-geo-config-changed';
+
+/**
  * Liest die gespeicherte Wahl. Fehlt sie, gilt der Default **aus** (`false`).
  */
 export const readGeolocationPreference = (): boolean => {
@@ -79,30 +87,37 @@ export const useGeolocation = (): UseGeolocationResult => {
 
 	// #1098 AK5: Intervall kommt aus der serverseitigen Geo-Konfiguration (`null` = noch nicht
 	// geladen). Erst nach dem Config-Fetch wird das Intervall gestartet — ohne Config (Fehler,
-	// keine Werte) gilt der 5-Minuten-Fallback `GEOLOCATION_INTERVAL_MS`.
+	// keine Werte) gilt der 5-Minuten-Fallback `GEOLOCATION_INTERVAL_MS`. Nach einem Config-PUT
+	// (GEO_CONFIG_CHANGED_EVENT, #1103 F6) wird erneut geladen, damit laufende Intervalle
+	// aller Hook-Instanzen sofort das neue Intervall übernehmen.
 	const [intervalMs, setIntervalMs] = useState<number | null>(null);
 
 	useEffect(() => {
 		let cancelled = false;
-		Promise.resolve(api.getGeoConfig())
-			.then((config) => {
-				const minutes = config?.intervalMinutes;
-				if (!cancelled) {
-					setIntervalMs(
-						typeof minutes === 'number' && minutes >= 1 && minutes <= 60
-							? minutes * 60 * 1000
-							: GEOLOCATION_INTERVAL_MS,
-					);
-				}
-			})
-			.catch(() => {
-				// Keine Config (z. B. 401/Netzwerk) → fixer 5-Minuten-Fallback (#845-Vertrag bleibt).
-				if (!cancelled) {
-					setIntervalMs(GEOLOCATION_INTERVAL_MS);
-				}
-			});
+		const loadInterval = (): void => {
+			Promise.resolve(api.getGeoConfig())
+				.then((config) => {
+					const minutes = config?.intervalMinutes;
+					if (!cancelled) {
+						setIntervalMs(
+							typeof minutes === 'number' && minutes >= 1 && minutes <= 60
+								? minutes * 60 * 1000
+								: GEOLOCATION_INTERVAL_MS,
+						);
+					}
+				})
+				.catch(() => {
+					// Keine Config (z. B. 401/Netzwerk) → fixer 5-Minuten-Fallback (#845-Vertrag bleibt).
+					if (!cancelled) {
+						setIntervalMs(GEOLOCATION_INTERVAL_MS);
+					}
+				});
+		};
+		loadInterval();
+		window.addEventListener(GEO_CONFIG_CHANGED_EVENT, loadInterval);
 		return () => {
 			cancelled = true;
+			window.removeEventListener(GEO_CONFIG_CHANGED_EVENT, loadInterval);
 		};
 	}, []);
 

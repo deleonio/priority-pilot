@@ -143,6 +143,7 @@ export const main = async (): Promise<void> => {
 			migratePillarFeedbackUserId,
 			migrateTaskChecklist,
 			migrateTaskAddress,
+			migrateUserGeoConfigColumns,
 			migrateLlmProviderKindColumns,
 		} = await import('./logics/migrate.js');
 		const { buildTaskForest } = await import('./logics/tree.js');
@@ -182,6 +183,9 @@ export const main = async (): Promise<void> => {
 		// Fehlende address-Spalte an tasks nachziehen — vor sync(), damit Lese-/Schreibzugriffe auf
 		// bestehenden DBs nicht mit `no such column` brechen.
 		await migrateTaskAddress(sequelize);
+		// Fehlende Geo-Config-Spalten an users nachziehen (#1098) — vor sync(), damit Login,
+		// /geo-config und /tasks/nearby auf Bestands-DBs nicht mit `no such column` brechen.
+		await migrateUserGeoConfigColumns(sequelize);
 		// Fehlende kind/builtin_key-Spalten an llm_providers nachziehen (Built-in-Provider) — vor
 		// sync(), damit Provider-Zugriffe auf Bestands-DBs aus #951 nicht mit `no such column` brechen.
 		await migrateLlmProviderKindColumns(sequelize);

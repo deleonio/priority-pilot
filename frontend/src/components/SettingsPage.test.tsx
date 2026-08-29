@@ -35,14 +35,20 @@ vi.mock('../lib/useGeolocation', () => ({
 
 // api-Double: Proxy beantwortet jede Methode mit einem leeren Promise — verhindert
 // Netzwerk-Calls aus SettingsPage und eingebetteten Formularen (PillarList, LlmSettings).
+// Methoden mit strukturierten Rückgaben bekommen typ-passende Leerwerte, damit die
+// Produktionskomponenten keine Defensive gegen `undefined` brauchen (#1103 F3-Rückbau).
 // Seit #1098 wird der Mock gecacht: wiederholter Zugriff auf dieselbe Methode liefert
 // dieselbe Mock-Funktion, damit Einzeltests sie gezielt stemmen können (getGeoConfig).
+const apiDefaults: Record<string, unknown> = {
+	listPillars: [],
+	listLlmProviders: [],
+};
 const apiMocks: Record<string, ReturnType<typeof vi.fn>> = {};
 vi.mock('../api', () => ({
 	api: new Proxy(
 		{},
 		{
-			get: (_target, prop: string) => (apiMocks[prop] ??= vi.fn().mockResolvedValue(undefined)),
+			get: (_target, prop: string) => (apiMocks[prop] ??= vi.fn().mockResolvedValue(apiDefaults[prop])),
 		},
 	),
 }));

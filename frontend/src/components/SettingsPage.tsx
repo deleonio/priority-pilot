@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { requestMicrophonePermission } from '../lib/micPermission';
 import { useShadowDOMLayout } from '../lib/useShadowDOMLayout';
-import { useGeolocation } from '../lib/useGeolocation';
+import { useGeolocation, GEO_CONFIG_CHANGED_EVENT } from '../lib/useGeolocation';
 import { usePushSubscription } from '../lib/push';
 import { useVoiceAutostart } from '../lib/voiceAutostart';
 import { useAiPreferences } from '../lib/aiPreferences';
@@ -34,6 +34,14 @@ const formatGeoTimestamp = (updatedAt: number): string => {
 	const minutes = String(date.getMinutes()).padStart(2, '0');
 	return `${hours}:${minutes}`;
 };
+
+/** KoliBri `_disabled` ist zur Laufzeit auch als String gültig — nur so setzt der React-Adapter
+ * das Prop zusätzlich als Host-Attribut (Booleans nur als Element-Property). Der React-Typ ist
+ * enger (`DisabledPropType = boolean`), deshalb genau ein dokumentierter Cast an dieser Stelle
+ * statt `as unknown as boolean` am Verwendungsort (#1103 F4). */
+type DisabledProp = boolean | string;
+
+const toKolibriDisabled = (value: DisabledProp | undefined): boolean | undefined => value as boolean | undefined;
 
 /**
  * Einstellungen-Seite (#271) mit `KolTabs`-Navigation: „Allgemein" (Platzhalter), „Säulen"
@@ -165,9 +173,16 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 			next.displayDistanceKm = value;
 		}
 		setGeoConfig(next);
-		api.updateGeoConfig(next).catch(() => {
-			// Best-Effort: UI zeigt den gewählten Wert, der Server hält den letzten gültigen Stand.
-		});
+		api
+			.updateGeoConfig(next)
+			.then(() => {
+				// #1103 F6: alle Hook-Instanzen (Footer/NearbyCard/hier) laden die Config neu und
+				// re-armen ihr laufendes Intervall auf den gespeicherten Wert.
+				window.dispatchEvent(new CustomEvent(GEO_CONFIG_CHANGED_EVENT));
+			})
+			.catch(() => {
+				// Best-Effort: UI zeigt den gewählten Wert, der Server hält den letzten gültigen Stand.
+			});
 	};
 
 	// #845: Schalter „Standort erfassen" (Default aus). Beim Einschalten wird die
@@ -189,7 +204,7 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 	// Host, Booleans nur als Element-Property — im Browser fehlte das `_disabled`-Attribut sonst
 	// (jsdom-Tests sahen es, weil React dort den Attribut-Pfad nimmt). Der String 'true' ist für
 	// KoliBri truthy-deaktiviert und landet wie `_label`/`_hint` als Attribut am Host (E2E-AK3).
-	const geoDisabled = geoEnabled ? undefined : ('true' as unknown as boolean);
+	const geoDisabled = toKolibriDisabled(geoEnabled ? undefined : 'true');
 
 	return (
 		<main className="settings-page">

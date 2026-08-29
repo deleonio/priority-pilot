@@ -2,11 +2,12 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { Op, Transaction, ValidationError as SequelizeValidationError } from 'sequelize';
 import sequelize from '../../database.js';
-import { Pillar, ScoreEntry, Task, TaskPillar, User } from '../../models/index.js';
+import { Pillar, ScoreEntry, Task, TaskPillar } from '../../models/index.js';
 import { wouldCreateCycle } from '../../logics/cycle.js';
 import { berechneScore } from '../../logics/score.js';
 import { PillarContribution, validatePillars, arePillarsExistent } from '../../logics/pillarContributions.js';
 import { getUserId, ownerScope } from '../requireAuth.js';
+import { GEO_CONFIG_DEFAULTS, resolveGeoUser } from './geoConfig.js';
 import type { ChecklistItem } from '../../models/task.js';
 import type { components } from '../../api';
 
@@ -353,8 +354,10 @@ tasksRouter.get('/tasks/nearby', async (req: Request, res: Response<NearbyTaskDt
 	}
 	try {
 		// #1098 AK6: nur Tasks innerhalb der gespeicherten Anzeige-Entfernung des Users (Default 5 km).
-		const geoUser = await User.findByPk(getUserId(req));
-		const maxDisplayKm = geoUser?.displayDistanceKm ?? 5;
+		// Dieselbe User-Auflösung und derselbe Default wie /geo-config (#1103 F5) — inkl.
+		// Dev-Pass-Through-Nutzer, damit Dev/E2E die gespeicherte Config nicht still ignorieren.
+		const geoUser = await resolveGeoUser(req);
+		const maxDisplayKm = geoUser?.displayDistanceKm ?? GEO_CONFIG_DEFAULTS.displayDistanceKm;
 		// AK2: nur offene Tasks MIT Koordinaten, owner-scoped (AK7), max. 10, nach Distanz aufsteigend.
 		const tasks = await Task.findAll({
 			where: {

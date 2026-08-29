@@ -56,9 +56,7 @@ export const LlmSettings = ({ onChanged }: LlmSettingsProps) => {
 
 	const reloadProviders = useCallback(async (): Promise<void> => {
 		try {
-			// Defensive gegen leere Antworten (z. B. API-Doubles in Tests): `undefined` würde
-			// die `providers !== null`-Guard unten durchlassen und beim `.length` crashen.
-			setProviders((await api.listLlmProviders()) ?? null);
+			setProviders(await api.listLlmProviders());
 			setError(null);
 		} catch {
 			setError('Provider-Liste konnte nicht geladen werden.');
