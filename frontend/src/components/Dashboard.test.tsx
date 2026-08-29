@@ -137,8 +137,9 @@ describe('Dashboard — Empty-State bei 0 Säulen (Issue #440, AK1)', () => {
 	it('AK1: zeigt bei pillars=[] den Hinweistext innerhalb der Sektions-Card „Meine Themen" (#1118 AK3/AK4)', () => {
 		const { container } = render(<Dashboard tasks={[]} forest={[] as TaskTreeNode[]} nextTask={null} pillars={[]} />);
 
-		// Genau eine Card: die Sektions-Card selbst — kein verschachteltes kol-card.
-		const cards = container.querySelectorAll('.dashboard-pillars kol-card');
+		// Genau eine Card: die Sektions-Card selbst (Widget-Klasse sitzt am Card-Host) —
+		// kein verschachteltes kol-card.
+		const cards = container.querySelectorAll('.dashboard-pillars');
 		expect(cards).toHaveLength(1);
 		expect(cards[0].getAttribute('_label')).toBe('Meine Themen');
 
@@ -322,21 +323,21 @@ describe('Dashboard — Sektionen als Kolibri-Cards (Issue #1118)', () => {
 		);
 
 		for (const [className, label] of SECTIONS) {
-			const section = container.querySelector(`.${className}`);
-			expect(section, `Sektion .${className} fehlt`).not.toBeNull();
+			const widget = container.querySelector(`.${className}`);
+			expect(widget, `Sektion .${className} fehlt`).not.toBeNull();
 
-			// AK1/AK4: genau EIN kol-card pro Sektion (kein Card-in-Card).
-			const cards = section!.querySelectorAll('kol-card');
-			expect(cards, `.${className} erwartet genau eine Card`).toHaveLength(1);
+			// AK1/AK4: Das Widget IST der Card-Host (alte Außen-<section> entfernt) — kein Card-in-Card.
+			const card = widget!.matches('kol-card') ? widget! : widget!.querySelector('kol-card');
+			expect(card, `.${className} erwartet genau eine Card`).not.toBeNull();
 
 			// AK2: Sektionsüberschrift als Card-Label …
-			expect(cards[0].getAttribute('_label')).toBe(label);
+			expect(card!.getAttribute('_label')).toBe(label);
 
 			// … als dritte Ebene unter dem Dashboard-<h2> (KoliBri-Default _level=0 wäre KEINE Überschrift).
-			expect(cards[0].getAttribute('_level')).toBe('3');
+			expect(card!.getAttribute('_level')).toBe('3');
 
 			// AK2: kein separates <h3> mehr (keine doppelte Überschrift im Accessibility-Tree).
-			expect(section!.querySelector('h3')).toBeNull();
+			expect(widget!.querySelector('h3')).toBeNull();
 		}
 
 		// AK2: die Region „Nächste Aufgabe" bleibt benannt (Name muss „Nächste Aufgabe" lauten).
@@ -361,7 +362,8 @@ describe('Dashboard — Sektionen als Kolibri-Cards (Issue #1118)', () => {
 		];
 
 		for (const [className, pattern] of emptyExpectations) {
-			const card = container.querySelector(`.${className} kol-card`);
+			// Der Leerzustand steht innerhalb der Card — die Widget-Klasse sitzt am Card-Host.
+			const card = container.querySelector(`.${className}`);
 			expect(card, `.Leerzustand-Card .${className} fehlt`).not.toBeNull();
 			expect(card!.textContent ?? '').toMatch(pattern);
 		}

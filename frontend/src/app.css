@@ -498,15 +498,17 @@ body {
 }
 
 /*
- * #1118: Die sechs Dashboard-Sektionen sind Kolibri-Cards. Rahmen, Hintergrund und Padding
- * liefert KoliBri intern; der Host (#930 transparent) trägt hier die Abweichungen.
+ * #1118: Die sieben Dashboard-Widgets sind Kolibri-Cards — die Widget-Klasse sitzt direkt am
+ * Card-Host (die alte Außen-<section> ist entfernt). Rahmen, Hintergrund und Padding liefert
+ * KoliBri intern; der Host (#930 transparent) trägt hier die Abweichungen.
  */
-.dashboard-next-task kol-card,
-.dashboard-suggestions kol-card,
-.dashboard-top-tasks kol-card,
-.dashboard-pillars kol-card,
-.dashboard-balance kol-card,
-.dashboard-deadlines kol-card {
+.dashboard-nearby,
+.dashboard-next-task,
+.dashboard-suggestions,
+.dashboard-top-tasks,
+.dashboard-pillars,
+.dashboard-balance,
+.dashboard-deadlines {
 	display: block;
 	max-width: 100%;
 }
@@ -576,7 +578,9 @@ body {
  */
 .dashboard-suggestions {
 	margin-top: var(--pp-gap-generous);
-	color: var(--pp-ink);
+	/* Bewusst KEIN `color` mehr: die Klasse sitzt am Card-Host, eine direkte Farbe würde die
+	   Card-Textfarbe des Themes (schwarz auf weißer Fläche) übersteuern und im erzwungenen
+	   Dunkelmodus hell-auf-weiß malen (dark-mode-contrast.spec.ts, #1118-Folge). */
 }
 
 .dashboard-suggestions-empty {
@@ -620,11 +624,6 @@ body {
  */
 .dashboard-nearby {
 	margin-top: var(--pp-gap-generous);
-}
-
-.dashboard-nearby kol-card {
-	display: block;
-	max-width: 100%;
 }
 
 .dashboard-nearby-hint {
@@ -719,14 +718,15 @@ body {
 		align-items: stretch;
 	}
 
-	/* #1118: Gleichhöhe je Grid-Zeile — der Host reicht die Zeilenhöhe an die Card durch.
-	   Nur ab 48rem: mobil (einspaltig) wachsen die Karten nur mit ihrem Inhalt. */
-	.dashboard-next-task kol-card,
-	.dashboard-suggestions kol-card,
-	.dashboard-top-tasks kol-card,
-	.dashboard-pillars kol-card,
-	.dashboard-balance kol-card,
-	.dashboard-deadlines kol-card {
+	/* #1118: Gleichhöhe je Grid-Zeile — der Card-Host (trägt die Widget-Klasse direkt) füllt die
+	   Zeile. Nur ab 48rem: mobil (einspaltig) wachsen die Karten nur mit ihrem Inhalt. */
+	.dashboard-nearby,
+	.dashboard-next-task,
+	.dashboard-suggestions,
+	.dashboard-top-tasks,
+	.dashboard-pillars,
+	.dashboard-balance,
+	.dashboard-deadlines {
 		height: 100%;
 	}
 
