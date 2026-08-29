@@ -213,7 +213,7 @@ jobs:
             if [ -z "$checks" ]; then checks='[]'; fi
             # `.name != "precheck"` schliesst den Label-Pre-Check-Job aus: Er laeuft unter
             # demselben Workflow-NAMEN ("5/6 Review") und wuerde sonst doppelt zaehlen. Zwei
-            # Folgen ohne dem Filter: (1) ein Infrastruktur-Fehler im precheck (Checkout,
+            # Folgen ohne den Filter: (1) ein Infrastruktur-Fehler im precheck (Checkout,
             # Timeout, unbekannte Phase) faerbt any_fail rot und degradiert einen sauberen
             # Review zu ai:needs-fixup — ein Fixup-Loop fuer einen Job, der gar nicht
             # arbeitet; (2) has_review waere schon durch den precheck erfuellt und die
@@ -222,12 +222,19 @@ jobs:
             has_ci="$(echo "$allow" | jq -r 'any(.[]; .workflow == "CI")')"
             has_review="$(echo "$allow" | jq -r 'any(.[]; .workflow == "5/6 Review")')"
             # Review-Check-Bestimmung: Wenn Reviews alle "skipping" sind, gilt ai:reviewed als OK.
-            # Fix für PRs mit ai:reviewed, deren Review-Workflow bereits gelaufen ist (Jobs skipping).
+            # Fix fuer PRs mit ai:reviewed, deren Review-Workflow bereits gelaufen ist (Jobs
+            # skipping — sie erscheinen in `gh pr checks --json` als Eintrag mit bucket
+            # "skipping"). Doppelt abgesichert: (length > 0), damit eine NOCH LEERE Check-Liste
+            # (Review queued/nicht gepostet) nicht vakuum-true liefert und die Retry-Haertung
+            # darueber aushebelt; und gekoppelt an das ai:reviewed-Label, damit nach einem
+            # frischen Push nach abgeschlossener Review nichts ungeprueft durchrutscht
+            # (der Merge-Zweig unten verlangt das Label ohnehin).
             review_checks="$(echo "$checks" | jq '[.[] | select(.workflow == "5/6 Review" and .name != "precheck")]')"
-            review_skipping="$(echo "$review_checks" | jq -r 'all(.[]; .bucket == "skipping")')"
-            if [ "$has_review" != "true" ] && [ "$review_skipping" = "true" ]; then
+            reviewed_label="$(echo "$labels" | jq -r 'any(.[]; . == "ai:reviewed")')"
+            review_skipping="$(echo "$review_checks" | jq -r '(length > 0) and all(.[]; .bucket == "skipping")')"
+            if [ "$has_review" != "true" ] && [ "$reviewed_label" = "true" ] && [ "$review_skipping" = "true" ]; then
               has_review="true"
-              echo "Review-Checks alle skipping — akzeptiere, da abgeschlossen (No-Op im Wiederholungsfall)."
+              echo "Review-Checks alle skipping — akzeptiere, da abgeschlossen (ai:reviewed gesetzt)."
             fi
             if [ "$has_ci" = "true" ] && [ "$has_review" = "true" ]; then
               break
