@@ -77,6 +77,35 @@ export const useGeolocation = (): UseGeolocationResult => {
 	const [addressLoading, setAddressLoading] = useState(false);
 	const [positionUpdatedAt, setPositionUpdatedAt] = useState<number | null>(null);
 
+	// #1098 AK5: Intervall kommt aus der serverseitigen Geo-Konfiguration (`null` = noch nicht
+	// geladen). Erst nach dem Config-Fetch wird das Intervall gestartet — ohne Config (Fehler,
+	// keine Werte) gilt der 5-Minuten-Fallback `GEOLOCATION_INTERVAL_MS`.
+	const [intervalMs, setIntervalMs] = useState<number | null>(null);
+
+	useEffect(() => {
+		let cancelled = false;
+		Promise.resolve(api.getGeoConfig())
+			.then((config) => {
+				const minutes = config?.intervalMinutes;
+				if (!cancelled) {
+					setIntervalMs(
+						typeof minutes === 'number' && minutes >= 1 && minutes <= 60
+							? minutes * 60 * 1000
+							: GEOLOCATION_INTERVAL_MS,
+					);
+				}
+			})
+			.catch(() => {
+				// Keine Config (z. B. 401/Netzwerk) → fixer 5-Minuten-Fallback (#845-Vertrag bleibt).
+				if (!cancelled) {
+					setIntervalMs(GEOLOCATION_INTERVAL_MS);
+				}
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, []);
+
 	// Re-Entrancy-Guard als Ref (#933 AK5): `pending` als React-State reicht nicht — zwei synchrone
 	// Aufrufe (Doppelklick) würden beide noch `false` lesen, bevor ein Re-Render den State übernommen hat.
 	const pendingRef = useRef(false);
@@ -118,7 +147,7 @@ export const useGeolocation = (): UseGeolocationResult => {
 
 	/** Intervall starten, wenn enabled=true. */
 	useEffect(() => {
-		if (!enabled || !supported) {
+		if (!enabled || !supported || intervalMs === null) {
 			return;
 		}
 
@@ -158,13 +187,13 @@ export const useGeolocation = (): UseGeolocationResult => {
 			locate();
 		}
 
-		// Danach alle 5 Minuten erneut (Intervall).
-		const intervalId = window.setInterval(locate, GEOLOCATION_INTERVAL_MS);
+		// Danach im konfigurierten Intervall erneut (#1098 AK5; Default 5 Minuten).
+		const intervalId = window.setInterval(locate, intervalMs);
 
 		return () => {
 			clearInterval(intervalId);
 		};
-	}, [enabled, supported, fetchPosition, applyPosition]);
+	}, [enabled, supported, intervalMs, fetchPosition, applyPosition]);
 
 	/** Reverse Geocoding: Position → Adresse (Issue #866). */
 	useEffect(() => {

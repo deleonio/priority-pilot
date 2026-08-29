@@ -81,7 +81,8 @@ export const NearbyCard = () => {
 								<span className="dashboard-nearby-title">
 									#{task.id} – {task.title}
 								</span>
-								<span className="dashboard-nearby-distance">{formatKm(task.distanceKm)} km</span>
+								{/* #1098 AK6: Distanz in Klammern am Eintrag („(2,4 km)"). */}
+								<span className="dashboard-nearby-distance">({formatKm(task.distanceKm)} km)</span>
 							</li>
 						))}
 					</ol>

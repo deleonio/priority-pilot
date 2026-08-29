@@ -208,7 +208,7 @@ jobs:
           && needs.precheck.outputs.model_abort != 'true'
           && (needs.precheck.outputs.proceed == 'true' || needs.precheck.result == 'failure') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     env:
       PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     permissions:
@@ -228,7 +228,7 @@ jobs:
         run: |
           now=$(date +%s)
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
-          echo "soft_deadline_epoch=$((now + 840))" >> "$GITHUB_OUTPUT"
+          echo "soft_deadline_epoch=$((now + 1500))" >> "$GITHUB_OUTPUT"
 
       - name: Setup Claude Code (mit Memory-Load)
         id: setup
@@ -501,7 +501,7 @@ jobs:
           && needs.precheck.outputs.model_abort != 'true'
           && (needs.precheck.outputs.proceed == 'true' || needs.precheck.result == 'failure') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     env:
       PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       # Fixup-Runden-Deckel (Issue #993): Nach dieser Anzahl Fixup-Runden ohne
@@ -526,7 +526,7 @@ jobs:
         run: |
           now=$(date +%s)
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
-          echo "soft_deadline_epoch=$((now + 600))" >> "$GITHUB_OUTPUT"
+          echo "soft_deadline_epoch=$((now + 1200))" >> "$GITHUB_OUTPUT"
           # Erklärungs-Gate (needs-human-explain.sh): Als Erklärung für
           # ai:needs-human zählen nur Kommentare dieses Laufes. 5 min Toleranz
           # nach unten decken Queue-/Checkout-Zeit vor dem LLM-Lauf ab.

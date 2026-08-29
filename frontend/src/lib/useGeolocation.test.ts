@@ -5,9 +5,13 @@ import { GEOLOCATION_INTERVAL_MS, useGeolocation } from './useGeolocation';
 
 // #933: api.reverseGeocode mocken — verhindert Netzwerk-Calls in ALLEN Tests dieser Datei
 // (der #845-Block löst den Reverse-Geocoding-Effekt unbeabsichtigt mit aus).
+// #1098: getGeoConfig kommt hinzu (konfigurierbares Intervall, AK5) — per Default ohne Config
+// (Ablehnung), damit der 5-Minuten-Fallback greift und die Bestands-Tests unverändert gelten.
+const { getGeoConfigMock } = vi.hoisted(() => ({ getGeoConfigMock: vi.fn() }));
 vi.mock('../api', () => ({
 	api: {
 		reverseGeocode: vi.fn().mockResolvedValue({ address: 'Musterstraße 1, 10117 Berlin' }),
+		getGeoConfig: getGeoConfigMock,
 	},
 }));
 
@@ -233,5 +237,55 @@ describe('useGeolocation – #933: Initial-Fetch, refresh(), Zeitstempel', () =>
 		await waitFor(() => {
 			expect(result.current.positionUpdatedAt ?? 0).toBeGreaterThan(0);
 		});
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1098 — konfigurierbares Positionsermittlungs-Intervall (AK5).
+ *
+ * Spec-Bezug: docs/spec/issue-1098.md: `useGeolocation` nutzt das serverseitig gespeicherte
+ * `intervalMinutes` statt des fixen `GEOLOCATION_INTERVAL_MS`; ohne Config gilt der
+ * 5-Minuten-Fallback. Dedup: Den Fallback deckt der #845-Block oben bereits ab (AK2 testet den
+ * 5-Minuten-Intervall, ohne dass eine Config geladen ist) — hier NUR der konfigurierte Fall.
+ * Der Re-Entrancy-Guard bleibt (#933): kürzere Intervalle dürfen keine parallelen Fetches
+ * erzeugen (Nominatim-Rate-Limit 1 req/s).
+ */
+describe('useGeolocation – #1098: konfigurierbares Intervall (AK5)', () => {
+	const geoMock = {
+		getCurrentPosition: vi.fn(),
+		watchPosition: vi.fn(),
+		clearWatch: vi.fn(),
+	};
+
+	beforeEach(() => {
+		localStorage.clear();
+		vi.clearAllTimers();
+		vi.clearAllMocks();
+		getGeoConfigMock.mockRejectedValue(new Error('keine Geo-Config'));
+		Object.defineProperty(global.navigator, 'geolocation', {
+			value: geoMock,
+			writable: true,
+		});
+	});
+
+	afterEach(() => {
+		localStorage.clear();
+		vi.restoreAllMocks();
+	});
+
+	it('AK5: der Intervall läuft mit dem gespeicherten intervalMinutes, nicht mit dem fixen 5 Minuten', async () => {
+		getGeoConfigMock.mockResolvedValue({ displayDistanceKm: 5, alarmDistanceKm: 1, intervalMinutes: 2 });
+		localStorage.setItem('pp-geolocation-enabled', 'true');
+		geoMock.getCurrentPosition.mockImplementation((success) => {
+			success({ coords: { latitude: 52.52, longitude: 13.405 } });
+		});
+
+		const setIntervalSpy = vi.spyOn(window, 'setInterval');
+		renderHook(() => useGeolocation());
+
+		await waitFor(() => expect(getGeoConfigMock).toHaveBeenCalled());
+		await waitFor(() => expect(setIntervalSpy).toHaveBeenCalled());
+		expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 2 * 60 * 1000);
+		expect(setIntervalSpy).not.toHaveBeenCalledWith(expect.any(Function), GEOLOCATION_INTERVAL_MS);
 	});
 });

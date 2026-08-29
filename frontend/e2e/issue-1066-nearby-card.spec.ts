@@ -70,15 +70,16 @@ test.describe('Priority Pilot — #1066: Dashboard-Card „In der Nähe“', () 
 		await deleteAllTasks(page);
 	});
 
-	test('AK8 — Präferenz aus (Default): Hinweis statt Positionsabholung', async ({ page }) => {
+	// Test-Pflege #1098 AK4 (dokumentiert im PR-Body): der gestaltete Aus-Zustand
+	// `nearby-preference-off` entfällt — bei ausgeschaltetem Standort wird die Card gar nicht
+	// mehr gerendert (statt eines Hinweises in der Card).
+	test('AK8 — Präferenz aus (Default): Card wird gar nicht gerendert, keine Positionsabholung', async ({ page }) => {
 		await page.addInitScript(GEO_INIT('granted', false));
 		await page.goto('/');
 		await waitForStableView(page);
 
-		const hint = page.getByTestId('nearby-preference-off');
-		await expect(hint).toBeVisible({ timeout: 5000 });
-		const hint2 = await hint.textContent();
-		expect(hint2?.toLowerCase()).toContain('einstellung');
+		await expect(page.getByTestId('nearby-card')).toHaveCount(0);
+		await expect(page.getByTestId('nearby-preference-off')).toHaveCount(0);
 		const calls = await page.evaluate(() => (window as { __geoCalls?: number }).__geoCalls);
 		expect(calls, 'Präferenz aus → keine Positionsabholung').toBe(0);
 	});
@@ -104,10 +105,15 @@ test.describe('Priority Pilot — #1066: Dashboard-Card „In der Nähe“', () 
 		await expect(page.getByTestId('nearby-item')).toHaveCount(0);
 	});
 
-	test('AK2/AK3 — offene Tasks aufsteigend nach Distanz, Distanz in km mit einer Nachkommastelle', async ({ page }) => {
+	test('AK2/AK3 — offene Tasks aufsteigend nach Distanz, Distanz in Klammern mit einer Nachkommastelle', async ({
+		page,
+	}) => {
 		await page.addInitScript(GEO_INIT('granted', true));
-		await createTaskViaApi(page, 'E2E 1066 weit', { latitude: 53.5511, longitude: 9.9937 }); // Hamburg
-		await createTaskViaApi(page, 'E2E 1066 nah', { latitude: 52.3906, longitude: 13.0645 }); // Potsdam
+		// Test-Pflege #1098 AK6: Server-Filter auf die Anzeige-Entfernung (Default 5 km) —
+		// die früheren Referenzorte (Hamburg ~255 km, Potsdam ~26 km) fielen durch den Filter;
+		// jetzt zwei Punkte bei ~1 km und ~3 km nördlich der Referenzposition.
+		await createTaskViaApi(page, 'E2E 1066 weit', { latitude: 52.5489, longitude: 13.4132 });
+		await createTaskViaApi(page, 'E2E 1066 nah', { latitude: 52.5309, longitude: 13.4132 });
 		await page.goto('/');
 		await waitForStableView(page);
 
@@ -120,7 +126,7 @@ test.describe('Priority Pilot — #1066: Dashboard-Card „In der Nähe“', () 
 		const indexOf = (needle: string) => titles.findIndex((t) => t.includes(needle));
 		expect(indexOf('nah'), 'nächster Task zuerst').toBeLessThan(indexOf('weit'));
 		for (const text of titles) {
-			expect(text).toMatch(/,\d km/);
+			expect(text).toMatch(/\(\d+,\d km\)/);
 		}
 	});
 

@@ -1,6 +1,6 @@
-import { KolAlert, KolButton, KolHeading, KolInputCheckbox, KolTabs } from '@public-ui/react-v19';
-import type { Pillar } from 'client';
-import { useMemo, useRef, useState } from 'react';
+import { KolAlert, KolButton, KolHeading, KolInputCheckbox, KolInputRange, KolTabs } from '@public-ui/react-v19';
+import type { GeoConfig, Pillar } from 'client';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api';
 import { requestMicrophonePermission } from '../lib/micPermission';
 import { useShadowDOMLayout } from '../lib/useShadowDOMLayout';
@@ -117,6 +117,59 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 
 	const [pushTestResult, setPushTestResult] = useState<'success' | 'error' | null>(null);
 
+	// #1098 AK1: Geo-Konfiguration (Anzeige-/Alarm-Entfernung, Intervall) — serverseitig pro User
+	// gespeichert (AK7, kein localStorage). Initial die Server-Defaults 5 km / 1 km / 5 Minuten,
+	// der GET-Aufruf überschreibt sie mit den gespeicherten Werten.
+	const [geoConfig, setGeoConfig] = useState<GeoConfig>({
+		displayDistanceKm: 5,
+		alarmDistanceKm: 1,
+		intervalMinutes: 5,
+	});
+
+	// Nutzer-Änderung schlägt den nachlaufenden GET: Löst der Config-Fetch erst nach einer
+	// Regler-Bewegung auf (Test-Umgebung, langsames Netz), darf er die Wahl nicht überschreiben.
+	const geoUserEditedRef = useRef(false);
+
+	useEffect(() => {
+		api
+			.getGeoConfig()
+			.then((config) => {
+				if (
+					!geoUserEditedRef.current &&
+					config &&
+					typeof config.displayDistanceKm === 'number' &&
+					typeof config.alarmDistanceKm === 'number' &&
+					typeof config.intervalMinutes === 'number'
+				) {
+					setGeoConfig(config);
+				}
+			})
+			.catch(() => {
+				// Netzwerk-/Session-Fehler: Defaults stehen bleiben, Felder bleiben bedienbar.
+			});
+	}, []);
+
+	/**
+	 * #1098 AK2: Wert übernehmen und sofort per PUT speichern. Kreuz-Schranken werden als
+	 * dynamische `_min`/`_max` der Regler durchgesetzt (Autoren-Entscheidung: keine Alerts,
+	 * keine Inline-Fehler) — der mitgesendete Payload hält die Invarianten zusätzlich ein,
+	 * damit der Server nie mit 400 antworten muss. Speichern ist Best-Effort.
+	 */
+	const applyGeoValue = (key: keyof GeoConfig, value: number): void => {
+		geoUserEditedRef.current = true;
+		const next = { ...geoConfig, [key]: value };
+		if (key === 'displayDistanceKm' && next.alarmDistanceKm > value) {
+			next.alarmDistanceKm = value;
+		}
+		if (key === 'alarmDistanceKm' && next.displayDistanceKm < value) {
+			next.displayDistanceKm = value;
+		}
+		setGeoConfig(next);
+		api.updateGeoConfig(next).catch(() => {
+			// Best-Effort: UI zeigt den gewählten Wert, der Server hält den letzten gültigen Stand.
+		});
+	};
+
 	// #845: Schalter „Standort erfassen" (Default aus). Beim Einschalten wird die
 	// Geolocation-Berechtigung angefragt; nur bei erteilter Berechtigung wird die Einstellung
 	// aktiviert und alle 5 Minuten die Position ermittelt. Bei Verweigerung bleibt der Schalter aus.
@@ -131,6 +184,12 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 		toggle: toggleGeo,
 		refresh: refreshGeo,
 	} = useGeolocation();
+
+	// #1098 AK3: Der KoliBri-React-Adapter übernimmt nur String-Props zusätzlich als Attribut am
+	// Host, Booleans nur als Element-Property — im Browser fehlte das `_disabled`-Attribut sonst
+	// (jsdom-Tests sahen es, weil React dort den Attribut-Pfad nimmt). Der String 'true' ist für
+	// KoliBri truthy-deaktiviert und landet wie `_label`/`_hint` als Attribut am Host (E2E-AK3).
+	const geoDisabled = geoEnabled ? undefined : ('true' as unknown as boolean);
 
 	return (
 		<main className="settings-page">
@@ -239,7 +298,7 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 								_variant="switch"
 								_checked={geoEnabled}
 								_disabled={geoPending}
-								_hint="Ermittle alle 5 Minuten deine aktuelle Position (z. B. für ortsbezogene Aufgaben-Vorschläge)."
+								_hint={`Ermittle alle ${geoConfig.intervalMinutes} Minuten deine aktuelle Position (z. B. für ortsbezogene Aufgaben-Vorschläge).`}
 								_on={{
 									onChange: (_event, value) => {
 										void toggleGeo(value === true);
@@ -283,6 +342,71 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 							<div aria-live="polite" className="geo-address">
 								{addressLoading ? 'Adresse wird ermittelt…' : address || 'Keine Adresse für diesen Standort'}
 								{positionUpdatedAt !== null && ` (Stand: ${formatGeoTimestamp(positionUpdatedAt)})`}
+							</div>
+						</>
+					)}
+					{geoSupported && (
+						<>
+							{/* #1098 AK1–AK3: Geo-Regler unterhalb des Standort-Switches. Die Kreuz-Schranken
+								    (AK2) wirken als dynamische `_min`/`_max` — kein Fehlerzustand (Autoren-Entscheidung).
+								    Der `key`-Wechsel auf `geoEnabled` erzwingt wie beim Ermitteln-Button oben einen Remount:
+								    der KoliBri-Adapter setzt Props nach dem Mount als Element-Properties, der
+								    `_disabled`-Attributwechsel beim Rerender schlägt sonst nicht durch (AK3). */}
+							<div className="geo-range-field">
+								<KolInputRange
+									key={`geo-display-${geoEnabled}`}
+									_label="Anzeige-Entfernung (km)"
+									_hint={`Bis zu dieser Entfernung zeigt die „In der Nähe“-Liste Aufgaben. Aktuell ${geoConfig.displayDistanceKm} km.`}
+									_value={geoConfig.displayDistanceKm}
+									_min={geoConfig.alarmDistanceKm}
+									_max={50}
+									_step={1}
+									_disabled={geoDisabled}
+									_on={{
+										onChange: (_event, value) => {
+											applyGeoValue('displayDistanceKm', Number(value ?? geoConfig.displayDistanceKm));
+										},
+									}}
+								/>
+								{/* Sichtbarer aktueller Wert im Light-DOM (KI-UX Regel 4): Slider
+								    zeigen den gewählten Wert nicht selbst. */}
+								<span className="geo-range-value">{geoConfig.displayDistanceKm} km</span>
+							</div>
+							<div className="geo-range-field">
+								<KolInputRange
+									key={`geo-alarm-${geoEnabled}`}
+									_label="Alarm-Entfernung (km)"
+									_hint={`Ab dieser Entfernung zur Aufgabe erscheint der Alarm-Hinweis. Aktuell ${geoConfig.alarmDistanceKm} km.`}
+									_value={geoConfig.alarmDistanceKm}
+									_min={1}
+									_max={geoConfig.displayDistanceKm}
+									_step={1}
+									_disabled={geoDisabled}
+									_on={{
+										onChange: (_event, value) => {
+											applyGeoValue('alarmDistanceKm', Number(value ?? geoConfig.alarmDistanceKm));
+										},
+									}}
+								/>
+								<span className="geo-range-value">{geoConfig.alarmDistanceKm} km</span>
+							</div>
+							<div className="geo-range-field">
+								<KolInputRange
+									key={`geo-interval-${geoEnabled}`}
+									_label="Aktualisierungsintervall (Minuten)"
+									_hint={`Wie oft die Position im Hintergrund ermittelt wird. Aktuell ${geoConfig.intervalMinutes} Minuten.`}
+									_value={geoConfig.intervalMinutes}
+									_min={1}
+									_max={60}
+									_step={1}
+									_disabled={geoDisabled}
+									_on={{
+										onChange: (_event, value) => {
+											applyGeoValue('intervalMinutes', Number(value ?? geoConfig.intervalMinutes));
+										},
+									}}
+								/>
+								<span className="geo-range-value">{geoConfig.intervalMinutes} Minuten</span>
 							</div>
 						</>
 					)}
