@@ -35,6 +35,7 @@ export const NearbyCard = () => {
 	// #1110 (AK1/AK2): Der Titel nennt die gespeicherte Anzeige-Entfernung aus `GET /geo-config`
 	// statt eines hartcodierten Werts — beim nächsten Laden nach einer Änderung in den Einstellungen.
 	const [displayDistanceKm, setDisplayDistanceKm] = useState<number | null>(null);
+	const cardTitle = displayDistanceKm === null ? baseTitle : `In der Nähe (${displayDistanceKm} km)`;
 
 	useEffect(() => {
 		let cancelled = false;
@@ -94,7 +95,9 @@ export const NearbyCard = () => {
 		   die Widget-Klasse sitzt am Card-Host (gleiches Muster wie die Dashboard-Sektionen). */
 		<KolCard
 			className="dashboard-nearby"
-			_label={displayDistanceKm === null ? baseTitle : `In der Nähe (${displayDistanceKm} km)`}
+			role="region"
+			aria-label={cardTitle}
+			_label={cardTitle}
 			_level={0}
 			data-testid="nearby-card"
 		>

@@ -91,6 +91,9 @@ test.describe('Priority Pilot — #1066: Dashboard-Card „In der Nähe“', () 
 
 		const denied = page.getByTestId('nearby-denied');
 		await expect(denied).toBeVisible({ timeout: 5000 });
+		// Review #1125 Finding 1: nach dem Entfernen der Außen-<section> bleibt die Card
+		// selbst eine benannte Region (Vor dem Label-Fetch gilt der Basis-Titel).
+		await expect(page.getByRole('region', { name: 'In der Nähe' })).toBeVisible();
 		// Rest-Dashboard bleibt unbeeinträchtigt (exakter Name: /jetzt dran|nächste/ matcht
 		// strict-mode zwei Regions — „Nächste Aufgabe" und „Was ist jetzt dran?").
 		await expect(page.getByRole('region', { name: 'Nächste Aufgabe' })).toBeVisible();
@@ -119,6 +122,8 @@ test.describe('Priority Pilot — #1066: Dashboard-Card „In der Nähe“', () 
 
 		const card = page.getByTestId('nearby-card');
 		await expect(card).toBeVisible({ timeout: 5000 });
+		// Review #1125 Finding 1: das aria-label spiegelt den dynamischen Titel inkl. Entfernung.
+		await expect(page.getByRole('region', { name: /In der Nähe \(\d+([.,]\d+)? km\)/ })).toBeVisible();
 		const items = page.getByTestId('nearby-item');
 		await expect(items).toHaveCount(2, { timeout: 5000 });
 
