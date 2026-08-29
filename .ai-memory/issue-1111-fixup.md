@@ -1,6 +1,6 @@
 # Issue 1111 — Fixup PR #1113, Stand 2026-08-29T07:22:00Z
 
-**ERGEBNIS: beide Findings behoben, GATE komplett grün, Commit+Push (SHA s. git log), 2 Threads resolvt. Keine Entscheidungs-Findings → KEIN needs-human.**
+**ERGEBNIS: beide Findings behoben, GATE + CI komplett grün, Commit `aef73adb` gepusht, 2 Threads resolvt. Keine Entscheidungs-Findings → KEIN needs-human, KEIN Verdict.**
 
 ## Erledigt
 - Findings gelesen: Review (`my-github-action-bot`, 2026-08-29T07:07:40Z, Verdict **needs-fixup**) = genau 1 thematischer Fund in 2 Inline-Kommentaren; beide als "aus Review-Sicht freigegeben" markiert → **keine** Entscheidungs-Findings.
