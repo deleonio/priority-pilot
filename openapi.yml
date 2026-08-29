@@ -1054,6 +1054,50 @@ paths:
                 $ref: '#/components/schemas/Error'
         '502':
           $ref: '#/components/responses/BadGateway'
+  /geo-config:
+    get:
+      summary: Geo-Konfiguration des Users lesen
+      description: >-
+        Liefert die serverseitig pro User gespeicherte Geo-Konfiguration (#1098):
+        Anzeige-Entfernung, Alarm-Entfernung und Aktualisierungsintervall. Ohne
+        gespeicherte Werte gelten die Defaults 5 km / 1 km / 5 Minuten.
+      operationId: getGeoConfig
+      tags: [geo]
+      responses:
+        '200':
+          description: Aktuelle Geo-Konfiguration (inkl. Defaults)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeoConfig'
+    put:
+      summary: Geo-Konfiguration des Users speichern
+      description: >-
+        Speichert die Geo-Konfiguration (#1098). Kreuz-Schranken-Validierung:
+        `alarmDistanceKm` in [1, displayDistanceKm], `displayDistanceKm` in
+        [alarmDistanceKm, 50], `intervalMinutes` in [1, 60]; alle Werte ganze
+        Zahlen. Verstöße → HTTP 400 ohne Persistenz.
+      operationId: updateGeoConfig
+      tags: [geo]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeoConfig'
+      responses:
+        '200':
+          description: Gespeicherte Geo-Konfiguration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeoConfig'
+        '400':
+          description: Ungültige Werte (Schranken verletzt)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 components:
   parameters:
     SeriesId:
@@ -1115,6 +1159,30 @@ components:
           schema:
             $ref: '#/components/schemas/Error'
   schemas:
+    GeoConfig:
+      type: object
+      description: >-
+        Geo-Konfiguration pro User (#1098): Anzeige-Entfernung (max. Distanz der
+        Nearby-Liste), Alarm-Entfernung (ab hier Alarm) und
+        Aktualisierungsintervall der Positionsermittlung. Kreuz-Schranken:
+        1 <= alarmDistanceKm <= displayDistanceKm <= 50, intervalMinutes 1–60.
+      required: [displayDistanceKm, alarmDistanceKm, intervalMinutes]
+      properties:
+        displayDistanceKm:
+          type: integer
+          minimum: 1
+          maximum: 50
+          description: Anzeige-Entfernung in km (Default 5)
+        alarmDistanceKm:
+          type: integer
+          minimum: 1
+          maximum: 50
+          description: Alarm-Entfernung in km (Default 1)
+        intervalMinutes:
+          type: integer
+          minimum: 1
+          maximum: 60
+          description: Aktualisierungsintervall in Minuten (Default 5)
     Health:
       type: object
       required:

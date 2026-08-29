@@ -13,7 +13,7 @@ function mockTransitous(interceptors: Record<string, { status: number; body: unk
 	savedFetch = original;
 	globalThis.fetch = async function (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) {
 		const url = input instanceof Request ? input.url : String(input);
-		if (url.startsWith('https://api.transitous.org')) {
+		if (new URL(url).origin === 'https://api.transitous.org') {
 			for (const [pattern, { status, body }] of Object.entries(interceptors)) {
 				if (url.includes(pattern)) {
 					return new Response(JSON.stringify(body), {

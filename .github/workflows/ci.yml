@@ -19,6 +19,11 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 
+# Least-Privilege (CodeQL actions/missing-workflow-permissions): CI braucht nur Lesen — der
+# GITHUB_TOKEN darf standardmaessig nichts schreiben (Check-/Artifact-Uploads brauchen das nicht).
+permissions:
+  contents: read
+
 # Pro Branch/PR serialisieren und stale Laeufe IMMER abbrechen: ein neuer CI-Lauf im selben
 # Branch macht den vorherigen obsolet (nur der jeweils letzte Commit zaehlt). Das verhindert,
 # dass schnelle Fixup-Pushes (synchronize) oder Auto-Commits auf main mehrere schwere E2E-Laeufe

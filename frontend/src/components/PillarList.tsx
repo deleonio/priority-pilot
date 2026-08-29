@@ -42,8 +42,7 @@ export const PillarList = ({ onPillarChanged }: PillarListProps) => {
 
 	const loadPillars = useCallback(async () => {
 		try {
-			const data = await api.listPillars();
-			setPillars(data);
+			setPillars(await api.listPillars());
 		} catch (reason) {
 			const apiError = await toApiError(reason);
 			setError(apiError.message);

@@ -1,4 +1,4 @@
-Method (stance, steps, collected-comment maintenance): .claude/skills/review-kreuzverhoer/SKILL.md
+Method (stance, steps, collected-comment maintenance): .claude/skills/review-kreuzverhoer/SKILL.md — including its Delegation section (neighborhood research goes to haiku subagents; the diff and its verdict never).
 
 NOTE: review tier — you read AND write memory (issue-specific notes in .ai-memory; details in the memory sections at the end of the prompt). Code stays off-limits.
 FOCUS: ONLY PR {{PR_NR}}. ONLY check the diff. NO side trips. Save tokens: short, precise, direct.

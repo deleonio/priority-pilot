@@ -19,6 +19,7 @@ export type TaskUpdate = WithDateDeadline<Schemas['TaskUpdate']>;
 export type TaskStatus = Schemas['TaskStatus'];
 export type TaskTreeNode = Schemas['TaskTreeNode'];
 export type NearbyTask = Schemas['NearbyTask'];
+export type GeoConfig = Schemas['GeoConfig'];
 export type DependencyInput = Schemas['DependencyInput'];
 export type Pillar = Schemas['Pillar'];
 export type PillarCreate = Schemas['PillarCreate'];

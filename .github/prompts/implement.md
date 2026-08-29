@@ -3,7 +3,7 @@ FOCUS: ONLY issue {{ISSUE_NR}}. Only change the files/lines needed for the accep
 
 ⚠️ KI-UX block in the issue body (if present): take its UX requirements into account.
 
-Method, modes (spec/direct mode), and rules (binding, not repeated here): .claude/skills/ticket-implementation/SKILL.md — read it before starting.
+Method, modes (spec/direct mode), and rules (binding, not repeated here): .claude/skills/ticket-implementation/SKILL.md — read it before starting. Includes the Delegation section (gate runs and search questions go to haiku subagent roles).
 
 PROCEDURE (STRICT):
   1. Start IMMEDIATELY.
@@ -39,5 +39,7 @@ VERDICT: exactly ONE line at the very end, ONLY the token — no text after it (
 TIME LIMIT: soft deadline = {{SOFT_DEADLINE}}. Before every step: [ $(date +%s) -ge {{SOFT_DEADLINE}} ]. If OVER: commit+push the current state, end the turn.
 
 Idempotency: per SKILL.md step 1.
+
+MENTOR-RAT: if a block between "═══ MENTOR-RAT (VERBINDLICH) ═══" and "═══ ENDE MENTOR-RAT ═══" is present in this prompt, it is BINDING — this run already failed once; follow the mentor's Weg, avoid its Fallen. Deviate only with a justification in your phase note.
 
 NO ping comment: the PR + commits are the complete communication. For progress/problems: document in the PR body (draft + justification), not via comments. The traffic-light-🔴 rule from step 2 remains unaffected.

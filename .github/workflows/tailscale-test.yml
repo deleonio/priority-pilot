@@ -3,6 +3,10 @@ name: Test Tailscale Exit Node Route
 on:
   workflow_dispatch: # Erlaubt manuelles Starten über die GitHub-Oberfläche
 
+# Least-Privilege (CodeQL actions/missing-workflow-permissions): nur Lesen noetig.
+permissions:
+  contents: read
+
 jobs:
   test-vpn:
     runs-on: ubuntu-latest

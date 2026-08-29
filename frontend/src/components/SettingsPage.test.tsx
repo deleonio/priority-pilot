@@ -1,4 +1,4 @@
-import { cleanup, render } from '@testing-library/react';
+import { act, cleanup, render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SettingsPage } from './SettingsPage';
 
@@ -35,11 +35,20 @@ vi.mock('../lib/useGeolocation', () => ({
 
 // api-Double: Proxy beantwortet jede Methode mit einem leeren Promise — verhindert
 // Netzwerk-Calls aus SettingsPage und eingebetteten Formularen (PillarList, LlmSettings).
+// Methoden mit strukturierten Rückgaben bekommen typ-passende Leerwerte, damit die
+// Produktionskomponenten keine Defensive gegen `undefined` brauchen (#1103 F3-Rückbau).
+// Seit #1098 wird der Mock gecacht: wiederholter Zugriff auf dieselbe Methode liefert
+// dieselbe Mock-Funktion, damit Einzeltests sie gezielt stemmen können (getGeoConfig).
+const apiDefaults: Record<string, unknown> = {
+	listPillars: [],
+	listLlmProviders: [],
+};
+const apiMocks: Record<string, ReturnType<typeof vi.fn>> = {};
 vi.mock('../api', () => ({
 	api: new Proxy(
 		{},
 		{
-			get: () => vi.fn().mockResolvedValue(undefined),
+			get: (_target, prop: string) => (apiMocks[prop] ??= vi.fn().mockResolvedValue(apiDefaults[prop])),
 		},
 	),
 }));
@@ -159,5 +168,123 @@ describe('SettingsPage – #1017: Vereinheitlichtes Layout der Aktions-Buttons',
 		// Nicht leer — sonst wäre der Gleichheits-Spiegel über eine leere Menge grün.
 		expect(pushClass.trim().length).toBeGreaterThan(0);
 		expect(geoButton?.getAttribute('class')).toBe(pushClass);
+	});
+});
+
+/**
+ * Rote Spec-Tests für #1098 — Geo-Einstellungen (Anzeige-/Alarm-Entfernung, Intervall).
+ *
+ * Spec-Bezug: docs/spec/issue-1098.md. Der Geolocation-Hook bleibt gemockt (oben); die drei
+ * Geo-Werte kommen aus `api.getGeoConfig` (serverseitig pro User, AK7 — kein localStorage).
+ *
+ * - AK1: drei KolInputRange unterhalb des Standort-Switches, Defaults 5 km / 1 km / 5 min,
+ *   sichtbarer aktueller Wert mit Einheit.
+ * - AK2: dynamische Kreuz-Schranken — `_max` der Alarm-Entfernung folgt dem Anzeige-Wert,
+ *   `_min` der Anzeige-Entfernung folgt dem Alarm-Wert, sofort bei Änderung; kein Error-State.
+ * - AK3: Standort aus → alle drei Felder `_disabled`, Werte bleiben sichtbar; der Wechsel
+ *   wirkt nach dem Mount (rerender, key-Remount-Muster SettingsPage.tsx:266-272).
+ */
+describe('SettingsPage – #1098: Geo-Einstellungen (Anzeige-/Alarm-Entfernung, Intervall)', () => {
+	const LABELS = {
+		display: 'Anzeige-Entfernung (km)',
+		alarm: 'Alarm-Entfernung (km)',
+		interval: 'Aktualisierungsintervall (Minuten)',
+	};
+
+	const field = (container: HTMLElement, label: string): HTMLElement | null =>
+		container.querySelector(`kol-input-range[_label="${label}"]`);
+
+	/** KoliBri-Adapter setzt numerische Props je nach Adapter als Property oder Attribut. */
+	const bound = (el: Element, name: string): string => {
+		const value = (el as unknown as Record<string, unknown>)[name] ?? el.getAttribute(name);
+		return value === null || value === undefined ? '' : String(value);
+	};
+
+	beforeEach(() => {
+		apiMocks.getGeoConfig?.mockResolvedValue({
+			displayDistanceKm: 5,
+			alarmDistanceKm: 1,
+			intervalMinutes: 5,
+		});
+	});
+
+	it('AK1: drei InputRanges unterhalb des Standort-Switches mit Defaults 5 km / 1 km / 5 min', () => {
+		geoState.enabled = true;
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		const display = field(container, LABELS.display);
+		const alarm = field(container, LABELS.alarm);
+		const interval = field(container, LABELS.interval);
+		// Guard gegen einen dauerhaft grünen Test über eine leere Menge:
+		expect(display, 'Anzeige-Entfernung fehlt').not.toBeNull();
+		expect(alarm, 'Alarm-Entfernung fehlt').not.toBeNull();
+		expect(interval, 'Intervall fehlt').not.toBeNull();
+
+		expect(bound(display!, '_value')).toBe('5');
+		expect(bound(alarm!, '_value')).toBe('1');
+		expect(bound(interval!, '_value')).toBe('5');
+		expect(bound(interval!, '_min')).toBe('1');
+		expect(bound(interval!, '_max')).toBe('60');
+		expect(bound(interval!, '_step')).toBe('1');
+
+		// Unterhalb des Standort-Switches (Reihenfolge im Allgemein-Panel):
+		const geoSwitch = container.querySelector('kol-input-checkbox[_label="Standort erfassen"]');
+		expect(geoSwitch).not.toBeNull();
+		expect(display!.compareDocumentPosition(geoSwitch!) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+
+		// Sichtbarer aktueller Wert mit Einheit (KI-UX Regel 4: Zustand ohne Antippen sichtbar):
+		const text = container.textContent ?? '';
+		expect(text).toContain('5 km');
+		expect(text).toContain('1 km');
+		expect(text).toContain('5 Minuten');
+	});
+
+	it('AK2: _max der Alarm-Entfernung folgt dem Anzeige-Wert, _min der Anzeige-Entfernung dem Alarm-Wert', async () => {
+		geoState.enabled = true;
+		const { container } = render(<SettingsPage {...defaultProps} />);
+
+		const display = field(container, LABELS.display)!;
+		const alarm = field(container, LABELS.alarm)!;
+		expect(bound(alarm, '_max')).toBe('5');
+		expect(bound(display, '_min')).toBe('1');
+
+		// Anzeige-Entfernung auf 20 km → Alarm-_max sofort 20:
+		await act(async () => {
+			(display as unknown as { _on: { onChange: (e: unknown, v: number) => void } })._on.onChange(
+				{ target: display },
+				20,
+			);
+		});
+		expect(bound(alarm, '_max'), 'Alarm-_max folgt der Anzeige-Entfernung').toBe('20');
+
+		// Alarm-Entfernung auf 3 km → Anzeige-_min sofort 3:
+		await act(async () => {
+			(alarm as unknown as { _on: { onChange: (e: unknown, v: number) => void } })._on.onChange({ target: alarm }, 3);
+		});
+		expect(bound(display, '_min'), 'Anzeige-_min folgt der Alarm-Entfernung').toBe('3');
+
+		// Kein Fehlerzustand (Autoren-Entscheidung: Schranken statt Alerts):
+		expect(container.textContent ?? '').not.toContain('muss kleiner als die Anzeige-Entfernung');
+	});
+
+	it('AK3: Standort aus → alle drei Felder _disabled, Werte bleiben sichtbar; Wechsel wirkt nach dem Mount', () => {
+		geoState.enabled = true;
+		const { container, rerender } = render(<SettingsPage {...defaultProps} />);
+		const labels = Object.values(LABELS);
+		for (const label of labels) {
+			expect(field(container, label)?.hasAttribute('_disabled'), `${label} enabled`).toBe(false);
+		}
+
+		// Switch aus (Hook-State kippt → rerender, wie beim key-Remount nach dem Mount):
+		geoState.enabled = false;
+		rerender(<SettingsPage {...defaultProps} />);
+		for (const label of labels) {
+			const el = field(container, label);
+			expect(el, `${label} bleibt gerendert, nicht versteckt`).not.toBeNull();
+			expect(el?.hasAttribute('_disabled'), `${label} disabled`).toBe(true);
+		}
+		// Werte bleiben sichtbar erhalten (disabled, nicht entfernt):
+		expect(bound(field(container, LABELS.display)!, '_value')).toBe('5');
+		expect(bound(field(container, LABELS.alarm)!, '_value')).toBe('1');
 	});
 });

@@ -157,7 +157,9 @@ test.describe('#431 Säulen-Verwaltung — dynamische Grenzfälle', () => {
 		// (100 %) gesetzt → der Slider zeigt den Rohwert 1,0 (vgl. crud.spec.ts „Säulen-Gewicht
 		// ändern" Z.163). KoliBris KolInputRange exponiert kein role=slider, aber im offenen
 		// Shadow-DOM steckt ein natives input[type=range] (Playwright durchdringt das).
-		await expect(page.locator('input[type="range"]').first()).toHaveValue('1');
+		// Scoping auf `.pillar-weights-grid`, seit #1098 stehen Geo-Regler im ausgeblendeten
+		// Allgemein-Panel mit im DOM (document order vor den Säulen-Slidern).
+		await expect(page.locator('.pillar-weights-grid input[type="range"]').first()).toHaveValue('1');
 
 		// 3. Umbenennen
 		await page.getByRole('button', { name: 'Bearbeiten' }).first().click();

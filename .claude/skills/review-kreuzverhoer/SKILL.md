@@ -28,6 +28,20 @@ back every point with a concrete file/line reference.
 - Questions answerable through your own research or existing information should be **answered
   yourself** — only ask what genuinely cannot be figured out independently.
 
+## Delegation — neighborhood research only, never the verdict (ADR 0008)
+
+Reading the diff and judging it is the review — that stays in your context and is never
+delegated. What
+goes to the cheaper role (`recherche`, agent in `.claude/agents/`, haiku via subagent model)
+is the **neighborhood** around the diff, where broad reading produces a short answer:
+
+- "Where else is this function/symbol used?" — blast radius of a change.
+- "Which tests cover the touched files?" — coverage gaps behind a finding.
+- "How does the existing code solve the same problem elsewhere?" — pattern deviations.
+
+Return contract lives in the agent file (paths + findings, ≤ 30 lines). If the role isn't
+available locally, the same question to a general-purpose subagent works.
+
 ## Step 1 — Understand the PR
 
 - Read the title, description, and **full diff**:

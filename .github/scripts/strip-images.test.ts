@@ -257,8 +257,10 @@ before(() => {
 	// gh-Stub: Lesezugriffe aus Fixtures, Schreibzugriffe ins Log. Der Pfad ist das
 	// erste Argument mit repos/-Praefix; NUMMER-Extraktion schiebt PR 42 und Issue 77
 	// in dieselben Verzeichnisse. Body-Ausgaben erhalten wie das echte gh genau einen
-	// abschliessenden Newline (--jq druckt per Println) — der Sweep entfernt ihn per
-	// head -c -1 wieder (Issue-#1023-Review, Finding 3).
+	// abschliessenden Newline (--jq druckt per Println) — der Sweep entfernt genau
+	// diesen wieder (portabel via wc -c + positivem head -c-Count; GNU-only `head -c -1`
+	// bricht auf macOS-BSD-head ab — lokal schlug dadurch jeder fetch_body fehl und
+	// gh_retry-Sleeps machten den Sweep minutenlang, Issue-#1023-Review, Finding 3).
 	const gh = join(stubDir, 'gh');
 	writeFileSync(
 		gh,

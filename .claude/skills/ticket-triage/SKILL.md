@@ -24,8 +24,10 @@ Issues = GitHub issues of `deleonio/priority-pilot`. Prerequisite: `gh` is authe
 - Load details per issue: for **initial triage** title + description (`gh issue view <nr> --json title,body`);
   for **re-triage** additionally **only the delta comments** since the last `stand` (as-of) timestamp.
 - Design a solution from the issue's **title and description** together with the **repo**:
-  find relevant files via Grep/Glob/Read, take architecture/conventions from the knowledge base
-  into account — don't guess.
+  find relevant files, take architecture/conventions from the knowledge base into account —
+  don't guess. The file/convention research is read-heavy with a short result: delegate it to
+  the `recherche` subagent role (ADR 0008; falls back to general-purpose if the role isn't
+  available) and keep only its findings in your context.
 - Result: problem summary, affected files/areas, root cause/solution approach, open questions/risks, plus **verifiable acceptance criteria** and **test cases**.
 - **Re-triage of an existing analysis:** If the issue already carries `ai:analysed`, the analysis lives in a
   marked block in the **body** (`<!-- KI-ANALYSE:START stand=… -->` … `<!-- KI-ANALYSE:END -->`).
