@@ -10,7 +10,7 @@ import { SettingsPage } from './SettingsPage';
  * Der Geolocation-Hook wird wie in Footer.test.tsx per `vi.mock` ersetzt; die Hook-Logik
  * selbst (Initial-Fetch, refresh-Guard) testet useGeolocation.test.ts (#933-Block). Hier
  * geht es um den UI-Vertrag des Abschnitts „Standort erfassen":
- * - AK1: KolButton „Standort jetzt ermitteln" (secondary) nur bei enabled=true.
+ * - AK1: KolButton „Standort ermitteln" (secondary) nur bei enabled=true.
  * - AK2: Lade- und Ergebnis-Anzeige („Adresse wird ermittelt…", Adresse, Fallback).
  * - AK4: Zeitstempel „Stand: HH:MM" in der Adressanzeige (aus positionUpdatedAt).
  */
@@ -87,17 +87,17 @@ afterEach(cleanup);
 
 describe('SettingsPage – #933: Standort-Test-Schalter und Adressanzeige', () => {
 	// AK1: Button nur bei aktivierter Standorterfassung, als sekundärer KolButton.
-	it('AK1: enabled=true rendert KolButton „Standort jetzt ermitteln“ (secondary)', () => {
+	it('AK1: enabled=true rendert KolButton „Standort ermitteln" (secondary)', () => {
 		geoState.enabled = true;
 		const { container } = render(<SettingsPage {...defaultProps} />);
-		const button = container.querySelector('kol-button[_label="Standort jetzt ermitteln"]');
+		const button = container.querySelector('kol-button[_label="Standort ermitteln"]');
 		expect(button).not.toBeNull();
 		expect(button?.getAttribute('_variant')).toBe('secondary');
 	});
 
 	it('AK1: enabled=false rendert KEINEN Standort-Button', () => {
 		const { container } = render(<SettingsPage {...defaultProps} />);
-		expect(container.querySelector('kol-button[_label="Standort jetzt ermitteln"]')).toBeNull();
+		expect(container.querySelector('kol-button[_label="Standort ermitteln"]')).toBeNull();
 	});
 
 	// AK2: Async-Zustände vollständig (UX-Regel 7): Laden, Erfolg, Leer.
@@ -107,7 +107,7 @@ describe('SettingsPage – #933: Standort-Test-Schalter und Adressanzeige', () =
 		geoState.addressLoading = true;
 		const { container, rerender } = render(<SettingsPage {...defaultProps} />);
 
-		const button = container.querySelector('kol-button[_label="Standort jetzt ermitteln"]');
+		const button = container.querySelector('kol-button[_label="Standort ermitteln"]');
 		expect(container.querySelector('.geo-address')?.textContent).toContain('Adresse wird ermittelt…');
 		// Re-Entrancy am Button sichtbar (AK5/UX: Touch-Response < 100 ms):
 		expect(button?.hasAttribute('_disabled')).toBe(true);
@@ -119,9 +119,7 @@ describe('SettingsPage – #933: Standort-Test-Schalter und Adressanzeige', () =
 		rerender(<SettingsPage {...defaultProps} />);
 		expect(container.querySelector('.geo-address')?.textContent).toContain('Musterstraße 1');
 		expect(container.querySelector('.geo-address')?.textContent).not.toContain('Adresse wird ermittelt');
-		expect(container.querySelector('kol-button[_label="Standort jetzt ermitteln"]')?.hasAttribute('_disabled')).toBe(
-			false,
-		);
+		expect(container.querySelector('kol-button[_label="Standort ermitteln"]')?.hasAttribute('_disabled')).toBe(false);
 	});
 
 	it('AK2: ohne Adresse Fallback „Keine Adresse für diesen Standort“', () => {
@@ -146,7 +144,7 @@ describe('SettingsPage – #1017: Vereinheitlichtes Layout der Aktions-Buttons',
 	/**
 	 * Roter Spec-Test — Spec-Bezug: docs/spec/issue-1017.md AK1.
 	 *
-	 * Beide Aktions-Buttons („Push testen", „Standort jetzt ermitteln") tragen dieselbe nicht-leere
+	 * Beide Aktions-Buttons („Push testen", „Standort ermitteln") tragen dieselbe nicht-leere
 	 * Layout-Klasse; die heutige Einzelregel `.push-test-btn` (nur Push-Button) wird durch die
 	 * gemeinsame Regel ersetzt. Spiegel-Test: Der Sollwert (Klasse des Push-Buttons) wird aus der
 	 * führenden Quelle gelesen und auf den Geo-Button gespiegelt — kein Klassen-Literal im Test,
@@ -160,7 +158,7 @@ describe('SettingsPage – #1017: Vereinheitlichtes Layout der Aktions-Buttons',
 		const { container } = render(<SettingsPage {...defaultProps} />);
 
 		const pushButton = container.querySelector('kol-button[_label="Push testen"]');
-		const geoButton = container.querySelector('kol-button[_label="Standort jetzt ermitteln"]');
+		const geoButton = container.querySelector('kol-button[_label="Standort ermitteln"]');
 		expect(pushButton).not.toBeNull();
 		expect(geoButton).not.toBeNull();
 

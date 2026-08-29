@@ -1538,7 +1538,7 @@ body {
 
 /*
  * #1017: Die sekundären Aktions-Buttons im Tab „Allgemein" („Push testen",
- * „Standort jetzt ermitteln") teilen sich eine Layout-Klasse. Mobil (<768px, Default) füllt
+ * „Standort ermitteln") teilen sich eine Layout-Klasse. Mobil (<768px, Default) füllt
  * jeder Button die Container-Innenbreite (Flex-Default `align-self: stretch` in der
  * flex-column), desktop (≥768px) ist er inhaltsbreit linksbündig — #932 AK1 gilt damit
  * als Desktop-Zweig weiter, mobile Vollbreite ist bewusst gewollt.

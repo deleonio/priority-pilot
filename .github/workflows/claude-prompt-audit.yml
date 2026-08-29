@@ -30,7 +30,7 @@ name: Prompt-Audit (nightly)
 
 on:
   schedule:
-    - cron: '17 2 * * *' # täglich 02:17 UTC, vor Spec-Sync (03:37) und Guide-Sync (04:27)
+    - cron: '17 1 * * *' # täglich 01:17 UTC (Auftakt des LLM-Nachtblocks), vor Spec-Sync (02:37) und Guide-Sync (03:07)
   workflow_dispatch:
     inputs:
       force:

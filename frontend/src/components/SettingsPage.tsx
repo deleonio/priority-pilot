@@ -15,6 +15,10 @@ import { PillarWeightsForm } from './PillarWeightsForm';
 
 interface SettingsPageProps {
 	pillars: Pillar[];
+	/** #1105: Aktiver Tab, von `App` aus der Route `/settings/:tab` abgeleitet (AK4). */
+	tab?: number;
+	/** #1105: Tab-Wechsel → App navigiert auf `/settings/:tab` (URL ist die Quelle). */
+	onTabChange?: (tab: number) => void;
 	onBack: () => void;
 	onSaved: () => void;
 	/** Wird nach PillarList-Mutationen aufgerufen, damit App.tsx seine Pillar-Daten neu lädt (#439). */
@@ -49,17 +53,12 @@ const toKolibriDisabled = (value: DisabledProp | undefined): boolean | undefined
  * initialen Laden aus der URL abgeleitet: `/settings/general` → Allgemein (0), `/settings/llm` → KI-Provider (2),
  * alles andere → Säulen (1).
  */
-export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: SettingsPageProps) => {
-	// Aktiven Tab als kontrollierten State führen. Initialwert aus der URL; `setActiveTab` wird bei
-	// manuellem Tab-Wechsel (onSelect) aufgerufen, damit Re-Renders den gewählten Tab nicht zurücksetzen.
-	const [activeTab, setActiveTab] = useState(() => {
-		const path = window.location.pathname;
-		if (path.startsWith('/settings/general')) return 0;
-		// `/settings/llm` muss den KI-Provider-Tab öffnen — sonst zeigt der Direktaufruf den Säulen-Editor
-		// und das Provider-Formular bleibt im inaktiven Panel unsichtbar (#886).
-		if (path.startsWith('/settings/llm')) return 2;
-		return 1;
-	});
+export const SettingsPage = ({ pillars, tab, onTabChange, onBack, onSaved, onPillarChanged }: SettingsPageProps) => {
+	// #1105: Der aktive Tab wird aus der Route `/settings/:tab` abgeleitet und von `App` als `tab`
+	// übergeben (AK4) — `/settings/llm` öffnet damit den KI-Provider-Tab (#886). Ohne Prop (direkte
+	// Verwendung in Unit-Tests) gilt der Säulen-Tab als Default; `localTab` hält den letzten Select.
+	const [localTab, setLocalTab] = useState(1);
+	const activeTab = tab ?? localTab;
 
 	// #843: Ref für Settings-General Container
 	const settingsGeneralRef = useRef<HTMLDivElement>(null);
@@ -75,10 +74,11 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 	const tabsCallbacks = useMemo(
 		() => ({
 			onSelect: (_event: Event, selected: number): void => {
-				setActiveTab(selected);
+				setLocalTab(selected);
+				onTabChange?.(selected);
 			},
 		}),
-		[],
+		[onTabChange],
 	);
 
 	// #272: Schalter „Sprachaufnahme automatisch starten" (Default aus). Beim Einschalten wird die
@@ -344,7 +344,7 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 								    nicht durchschlägt — der Remount stellt den korrekten Zustand sicher. */}
 							<KolButton
 								key={geoPending ? 'geo-refresh-pending' : 'geo-refresh-idle'}
-								_label="Standort jetzt ermitteln"
+								_label="Standort ermitteln"
 								class="settings-action-btn"
 								_variant="secondary"
 								_disabled={geoPending}
