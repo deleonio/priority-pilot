@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { api } from '../api';
 import { GEO_CONFIG_CHANGED_EVENT, GEOLOCATION_INTERVAL_MS, useGeolocation } from './useGeolocation';
 
@@ -269,6 +269,10 @@ describe('useGeolocation – #1098: konfigurierbares Intervall (AK5)', () => {
 
 	beforeEach(() => {
 		localStorage.clear();
+		// Fake-Timer (mit echter Zeit für waitFor): Das Intervall-Timing wird verhaltensbasiert
+		// geprüft — Re-Fetch erst nach Ablauf des konfigurierten Intervalls (beobachtbar am
+		// Hook-State), nicht nur am setInterval-Spy (#1119).
+		vi.useFakeTimers({ shouldAdvanceTime: true });
 		vi.clearAllTimers();
 		vi.clearAllMocks();
 		getGeoConfigMock.mockRejectedValue(new Error('keine Geo-Config'));
@@ -280,6 +284,7 @@ describe('useGeolocation – #1098: konfigurierbares Intervall (AK5)', () => {
 
 	afterEach(() => {
 		localStorage.clear();
+		vi.useRealTimers();
 		vi.restoreAllMocks();
 	});
 
@@ -290,18 +295,34 @@ describe('useGeolocation – #1098: konfigurierbares Intervall (AK5)', () => {
 			success({ coords: { latitude: 52.52, longitude: 13.405 } });
 		});
 
-		const setIntervalSpy = vi.spyOn(window, 'setInterval');
-		renderHook(() => useGeolocation());
+		const { result } = renderHook(() => useGeolocation());
 
-		await waitFor(() => expect(getGeoConfigMock).toHaveBeenCalled());
-		await waitFor(() => expect(setIntervalSpy).toHaveBeenCalled());
-		expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 2 * 60 * 1000);
-		expect(setIntervalSpy).not.toHaveBeenCalledWith(expect.any(Function), GEOLOCATION_INTERVAL_MS);
+		// Beobachtbar: Der Initial-Fetch landet im Hook-State — das Intervall ist damit bewaffnet.
+		await waitFor(() => {
+			expect(result.current.position).toEqual({ latitude: 52.52, longitude: 13.405 });
+			expect(result.current.positionUpdatedAt ?? 0).toBeGreaterThan(0);
+		});
+		const updatedAtAfterMount = result.current.positionUpdatedAt ?? 0;
+		expect(geoMock.getCurrentPosition).toHaveBeenCalledTimes(1);
+
+		// 1 Minute (< konfigurierte 2): kein Re-Fetch — der Intervall-Wert ist wirksam.
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(60_000);
+		});
+		expect(geoMock.getCurrentPosition).toHaveBeenCalledTimes(1);
+
+		// Bei den konfigurierten 2 Minuten re-fetcht der Intervall: Der Zeitstempel rückt nach.
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(60_000);
+		});
+		await waitFor(() => expect(result.current.positionUpdatedAt ?? 0).toBeGreaterThan(updatedAtAfterMount));
+		expect(geoMock.getCurrentPosition).toHaveBeenCalledTimes(2);
 	});
 
 	// #1103 F6: Ein Config-PUT (SettingsPage dispatcht GEO_CONFIG_CHANGED_EVENT) erreicht auch
 	// bereits laufende Hook-Instanzen — das Intervall re-armt auf den neuen Wert, statt bis zum
-	// nächsten Mount beim Mount-Wert zu bleiben.
+	// nächsten Mount beim Mount-Wert zu bleiben. Beobachtbar (#1119): Der Re-Fetch, der beim alten
+	// 5-Minuten-Intervall noch nicht fällig wäre, passiert nach dem Event binnen einer Minute.
 	it('re-armt das laufende Intervall, nachdem die Geo-Config gespeichert wurde (Event)', async () => {
 		getGeoConfigMock.mockResolvedValueOnce({ displayDistanceKm: 5, alarmDistanceKm: 1, intervalMinutes: 5 });
 		getGeoConfigMock.mockResolvedValue({ displayDistanceKm: 5, alarmDistanceKm: 1, intervalMinutes: 1 });
@@ -310,15 +331,21 @@ describe('useGeolocation – #1098: konfigurierbares Intervall (AK5)', () => {
 			success({ coords: { latitude: 52.52, longitude: 13.405 } });
 		});
 
-		const setIntervalSpy = vi.spyOn(window, 'setInterval');
-		renderHook(() => useGeolocation());
-
-		await waitFor(() => expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 5 * 60 * 1000));
+		const { result } = renderHook(() => useGeolocation());
+		await waitFor(() => expect(result.current.positionUpdatedAt ?? 0).toBeGreaterThan(0));
+		const updatedAtAfterMount = result.current.positionUpdatedAt ?? 0;
 
 		// Erfolgreiches PUT simulieren: SettingsPage dispatched nach dem Speichern das Event.
 		window.dispatchEvent(new CustomEvent(GEO_CONFIG_CHANGED_EVENT));
+		// Config-Neulade-Kette (Promise → State → Effekt-Re-Run) abwarten, bevor die Uhr läuft.
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(0);
+		});
 
-		await waitFor(() => expect(setIntervalSpy).toHaveBeenCalledWith(expect.any(Function), 1 * 60 * 1000));
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(60_000);
+		});
+		await waitFor(() => expect(result.current.positionUpdatedAt ?? 0).toBeGreaterThan(updatedAtAfterMount));
 	});
 });
 
@@ -355,19 +382,27 @@ describe('useGeolocation – #1101: Positionsmeldung an den Server', () => {
 			success({ coords: { latitude: 52.52, longitude: 13.405 } });
 		});
 
-		renderHook(() => useGeolocation());
+		const { result } = renderHook(() => useGeolocation());
 
+		// Beobachtbar (#1119): Opt-in aktiv und die ermittelte Position ist im Hook-State angekommen …
 		await waitFor(() => {
-			expect(reportGeoPositionMock).toHaveBeenCalledWith({ lat: 52.52, lon: 13.405 });
+			expect(result.current.enabled).toBe(true);
+			expect(result.current.position).toEqual({ latitude: 52.52, longitude: 13.405 });
 		});
+		// … aus genau dieser Position entstand die Server-Meldung mit denselben Koordinaten.
+		expect(reportGeoPositionMock).toHaveBeenCalledWith({ lat: 52.52, lon: 13.405 });
 	});
 
 	it('meldet nichts, solange Geolocation deaktiviert ist (Default)', async () => {
 		// Kein localStorage-Eintrag → enabled=false → der Positions-Effekt läuft nie.
-		renderHook(() => useGeolocation());
+		const { result } = renderHook(() => useGeolocation());
+		await act(async () => {}); // Mount-Effekte (Config-Fetch) ausspielen
 
-		// Ein Tick für Mount-Effekte (Config-Fallback), dann darf kein Report passiert haben.
-		await waitFor(() => expect(geoMock.getCurrentPosition).not.toHaveBeenCalled());
+		// Beobachtbar (#1119): Der Hook-State bleibt leer — keine Position, kein Zeitstempel.
+		expect(result.current.enabled).toBe(false);
+		expect(result.current.position).toBeNull();
+		expect(result.current.positionUpdatedAt).toBeNull();
+		expect(geoMock.getCurrentPosition).not.toHaveBeenCalled();
 		expect(reportGeoPositionMock).not.toHaveBeenCalled();
 	});
 });
