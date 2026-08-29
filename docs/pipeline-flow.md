@@ -237,11 +237,14 @@ Verdict (PR-Phasen: `/tmp/claude-verdict`), der Workflow setzt die Labels.
   wegen Merge-Konflikt nicht mergebar (`mergeStateStatus == DIRTY`) → ebenfalls `ai:needs-fixup`;
   sind beide grün und `ai:reviewed` gesetzt UND keines der Labels `ai:needs-fixup`/`ai:needs-review`/
   `ai:needs-human` mehr vorhanden und der PR sauber mergebar → Merge. **Methode:** Squash
-  (`gh pr merge --squash`), damit die Fixup-Commits des review↔fixup-Loops als **ein** Commit auf
-  main landen; Subject ist explizit der (in Phase 5 gegen die CC-Regex geprüfte) PR-Titel +
-  `(#Nr)`, Body leer. Die erlaubten Methoden werden zur Laufzeit aus der Repo-API gelesen
-  (`allow_squash_merge`/`allow_merge_commit`) — ist Squash nicht erlaubt, fällt das Gate auf den
-  Merge-Commit (`gh pr merge --merge`) zurück; ist keine der beiden erlaubt, endet der Lauf rot.
+  (`gh pr merge --squash`) — seit dem Repo-Umstieg auf `allow_squash_merge=true` /
+  `allow_merge_commit=false` / `allow_rebase_merge=false` die einzig erlaubte Methode, und
+  fachlich die gewollte: die Fixup-Commits des review↔fixup-Loops landen so als **ein** Commit
+  auf main. Subject ist explizit der (in Phase 5 gegen die CC-Regex geprüfte) PR-Titel + `(#Nr)`,
+  Body leer. Die erlaubten Methoden werden trotzdem zur Laufzeit aus der Repo-API gelesen
+  (`allow_squash_merge`/`allow_merge_commit`), damit ein späteres Umstellen der Einstellung das
+  Gate nicht lautlos rot macht: ist Squash nicht (mehr) erlaubt, fällt es auf den Merge-Commit
+  (`gh pr merge --merge`) zurück; ist keine der beiden erlaubt, endet der Lauf sichtbar rot.
   Die Abwesenheits-Checks sind der Rename-Härtung geschuldet: `ai:reviewed` kann noch kleben,
   während eine needs-human-Entscheidung wartet oder ein Fixup läuft (bis dieser es abräumt) —
   ohne sie mergte das Gate auf dem Stale-Label. Der `workflow_run`-Trigger wird nur aus dem Default-Branch (main) gelesen
