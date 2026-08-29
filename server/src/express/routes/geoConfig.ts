@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { User } from '../../models/index.js';
 import { getUserId, isAuthActive } from '../requireAuth.js';
+import { runGeoPushNotifications } from '../../logics/geo-background-job.js';
 
 /**
  * Pro-User Geo-Konfiguration (#1098 AK7): Anzeige-Entfernung (Default 5 km),
@@ -127,4 +128,33 @@ geoConfigRouter.put('/geo-config', async (req: Request, res: Response<GeoConfigD
 	} catch {
 		sendError(res, 500, 'Interner Serverfehler.');
 	}
+});
+
+/**
+ * POST /geo/position — Positionsmeldung des Clients (Issue #1101 AK1): der Client ermittelt im
+ * konfigurierten Intervall (`intervalMinutes`, #1098) seine Position und meldet sie hier; der
+ * Server prüft daraufhin die Aufgaben im Alarmabstand und stößt ggf. die gebündelte Push-Nachricht
+ * an (`logics/geo-background-job.ts`). Fire-and-forget: die Antwort wartet nicht auf den Versand —
+ * ein Push-Fehler darf die Positionsbehandlung nicht blockieren.
+ */
+geoConfigRouter.post('/geo/position', async (req: Request, res: Response<{ message: string }>) => {
+	// `Number('')` wäre 0 und damit fälschlich gültig — leere/fehlende/Array-Parameter ablehnen.
+	const parseCoord = (value: unknown): number =>
+		typeof value === 'number' && Number.isFinite(value) ? value : Number.NaN;
+	const body = (req.body ?? {}) as { lat?: unknown; lon?: unknown };
+	const lat = parseCoord(body.lat);
+	const lon = parseCoord(body.lon);
+	if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+		sendError(res, 400, 'lat und lon müssen Zahlen in gültigem Bereich sein.');
+		return;
+	}
+	const user = await resolveGeoUser(req);
+	if (!user) {
+		sendError(res, 401, 'Anmeldung erforderlich.');
+		return;
+	}
+	runGeoPushNotifications([{ userId: user.id, lat, lon }]).catch((error: unknown) => {
+		console.error('Geo-Push nach Positionsmeldung fehlgeschlagen:', error);
+	});
+	res.status(204).send();
 });
