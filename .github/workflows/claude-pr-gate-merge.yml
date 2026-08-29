@@ -15,8 +15,28 @@ name: Claude PR Gate & Auto-Merge
 # loesen KEINE Folge-Workflows aus, vom App-Token gesetzte schon. Gleiches Preflight-Skip-Muster wie
 # Review/Fixup, damit der Lauf ohne Secrets sauber uebersprungen wird.
 #
-# Repo-Fakten (bestimmen die Merge-Strategie):
-#   - allow_merge_commit=true, squash/rebase=false -> `gh pr merge --merge` (einzig erlaubte Methode).
+# Merge-Strategie (SQUASH — Repo-Stand 2026-08-29):
+#   - Repo-Einstellung: allow_squash_merge=true, allow_merge_commit=false, allow_rebase_merge=false
+#     -> `gh pr merge --squash` ist die EINZIG erlaubte Methode. (Vorher galt das Gegenteil;
+#     der Merge-Commit-Zweig unten ist reiner Fallback, falls die Einstellung wieder kippt.)
+#   - Ziel ist EIN Commit pro PR auf main: der Review-/Fixup-Loop erzeugt regelmaessig mehrere
+#     "fixup"-Commits, die einzeln keinen Wert haben und die main-Historie (und damit die
+#     `--generate-notes`-Release-Notes) verrauschen. `--squash` faltet sie zu einem Commit,
+#     dessen Subject der bereits in Phase 5 auf Conventional Commits gepruefte PR-Titel ist.
+#   - Die erlaubten Methoden werden trotzdem zur Laufzeit aus der Repo-API gelesen
+#     (allow_squash_merge / allow_merge_commit) statt hier hart kodiert: die Repo-Einstellung ist
+#     ausserhalb dieses Repos aenderbar (dieser Wechsel ist der Beleg), eine hart kodierte Annahme
+#     wuerde beim naechsten Toggle lautlos jeden Auto-Merge rot machen. Squash gewinnt, wenn
+#     erlaubt; sonst Merge-Commit; ist keine der beiden erlaubt, endet der Lauf sichtbar rot
+#     (Konfigurationsfehler, kein No-op). Faellt die API-Abfrage aus, bleibt es beim aktuell
+#     einzig erlaubten `--squash` — ein `--merge`-Fallback waere heute ein garantierter Fehler.
+#   - Squash-Subject/-Body werden EXPLIZIT gesetzt, obwohl die Repo-Defaults
+#     (squash_merge_commit_title=PR_TITLE, squash_merge_commit_message=BLANK) dasselbe liefern:
+#     beide sind ebenfalls per Repo-Einstellung aenderbar, und GitHubs Werkseinstellung
+#     (COMMIT_OR_PR_TITLE) nimmt bei einem Einzel-Commit-PR dessen Commit-Message statt des
+#     PR-Titels — der Titel ist aber das einzige Feld, das der Reviewer vor dem Merge gegen die
+#     CC-Regex prueft. Body bewusst leer, damit die Fixup-Commit-Messages nicht doch wieder in
+#     der main-Historie landen.
 #   - main ist NICHT branch-protected -> direkter Merge nach expliziter mergeable+Checks-Pruefung
 #     (kein `--auto`; das braeuchte Branch-Protection mit Pflicht-Checks).
 #   - delete_branch_on_merge=true -> KEIN `--delete-branch` (GitHub loescht den Head-Branch selbst).
@@ -411,17 +431,38 @@ jobs:
           # workflow_run zur Expression-Zeit unbekannt, eine gemeinsame Gruppe daher nicht moeglich)
           # und koennen sich ueberlappen. Direkt vor dem Merge erneut pruefen, ob der PR noch offen
           # ist; sonst hat der Parallel-Lauf bereits gemergt -> sauberer No-op statt rotem Abbruch.
-          state_now="$(gh pr view "$pr" --repo "$REPO" --json state --jq '.state')"
-          if [ "$state_now" != "OPEN" ]; then
-            echo "PR #$pr ist nicht mehr offen (state=$state_now) — bereits gemergt/geschlossen (No-op)."
+          state_now="$(gh pr view "$pr" --repo "$REPO" --json state,title)"
+          if [ "$(echo "$state_now" | jq -r '.state')" != "OPEN" ]; then
+            echo "PR #$pr ist nicht mehr offen (state=$(echo "$state_now" | jq -r '.state')) — bereits gemergt/geschlossen (No-op)."
             exit 0
           fi
+          pr_title="$(echo "$state_now" | jq -r '.title')"
 
-          # Alles gruen -> mergen (Merge-Commit, kein --delete-branch; siehe Repo-Fakten oben). Den
+          # Merge-Methode aus den Repo-Einstellungen ableiten (s. Merge-Strategie oben): Squash ist
+          # aktuell die einzig erlaubte Methode, Merge-Commit nur Fallback, falls die Einstellung
+          # wieder kippt. Schlaegt die Abfrage fehl (Token/API), bleibt es bei `--squash`: das ist
+          # der aktuelle Repo-Stand, waehrend `--merge` heute garantiert abgelehnt wuerde.
+          repo_json="$(gh api "repos/$REPO" --jq '{squash: .allow_squash_merge, merge: .allow_merge_commit}' 2>/dev/null || echo '{}')"
+          allow_squash="$(echo "$repo_json" | jq -r '.squash // empty')"
+          allow_merge="$(echo "$repo_json" | jq -r '.merge // empty')"
+          if [ "$allow_squash" = "false" ] && [ "$allow_merge" = "false" ]; then
+            echo "::error title=Keine Merge-Methode erlaubt::Repo erlaubt weder Squash- noch Merge-Commit-Merges (allow_squash_merge=$allow_squash, allow_merge_commit=$allow_merge). Auto-Merge kann PR #$pr nicht mergen — bitte in den Repo-Einstellungen mindestens eine Methode aktivieren."
+            exit 1
+          fi
+          if [ "$allow_squash" = "false" ]; then
+            merge_method="Merge-Commit (\`gh pr merge --merge\`)"
+            merge_args=(--merge)
+          else
+            # Subject = PR-Titel + PR-Referenz (GitHub-Konvention), Body leer: s. Merge-Strategie.
+            merge_method="Squash (\`gh pr merge --squash\`)"
+            merge_args=(--squash --subject "$pr_title (#$pr)" --body "")
+          fi
+
+          # Alles gruen -> mergen (kein --delete-branch; delete_branch_on_merge=true, s. oben). Den
           # Merge zusaetzlich idempotent kapseln: Schlaegt er fehl, weil der PR im Rennen inzwischen
           # gemergt/geschlossen wurde, als No-op (gruen) behandeln statt rot abzubrechen.
-          echo "Alle Bedingungen erfuellt — merge PR #$pr per Merge-Commit."
-          if ! merge_out="$(gh pr merge "$pr" --repo "$REPO" --merge 2>&1)"; then
+          echo "Alle Bedingungen erfuellt — merge PR #$pr per $merge_method."
+          if ! merge_out="$(gh pr merge "$pr" --repo "$REPO" "${merge_args[@]}" 2>&1)"; then
             echo "$merge_out"
             state_after="$(gh pr view "$pr" --repo "$REPO" --json state --jq '.state' 2>/dev/null || echo UNKNOWN)"
             if [ "$state_after" != "OPEN" ]; then
@@ -437,5 +478,5 @@ jobs:
             echo "### Auto-Merge #${pr} — gemergt"
             echo ""
             echo "- CI + Reviewer gruen, ai:reviewed gesetzt, mergebar."
-            echo "- Methode: Merge-Commit (\`gh pr merge --merge\`)."
+            echo "- Methode: ${merge_method}."
           } >> "$GITHUB_STEP_SUMMARY"

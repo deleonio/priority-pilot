@@ -480,8 +480,9 @@ wäre durch den Precheck blockiert, ein roter Job also eine Sackgasse.
 **Sprachregel:** PR-Titel und Haupttexte englisch (Conventional Commits, Subject klein, ≤72
 Zeichen); die deutsche Zusammenfassung lebt in einer `<details>`-Box. Der Reviewer (Phase 5)
 bekommt dieselben Titelfakten (`--mode title-only`) und korrigiert non-konforme Titel schon
-**vor** dem Merge — post-merge ist ein Rename nur noch kosmetisch, der Merge-Commit-Subject
-steht bereits.
+**vor** dem Merge — post-merge ist ein Rename nur noch kosmetisch, das Commit-Subject auf main
+steht bereits. Beim Squash-Merge (Standard des Gates) ist der PR-Titel sogar wörtlich das
+Subject des einen Commits, den der PR auf main hinterlässt.
 
 ## Release-Notes-Kette
 
