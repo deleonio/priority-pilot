@@ -2,7 +2,7 @@ import { expect, test } from './fixtures';
 import { waitForStableView } from './helpers';
 
 /**
- * ROTE Spec-Tests für #1017 „Buttons ‚Push testen' + ‚Standort jetzt ermitteln' vereinheitlichen".
+ * ROTE Spec-Tests für #1017 „Buttons ‚Push testen' + ‚Standort ermitteln' vereinheitlichen".
  *
  * Spec-Bezug: docs/spec/issue-1017.md — Erwartetes Ergebnis AK2, AK3, AK4, AK5.
  *
@@ -10,7 +10,7 @@ import { waitForStableView } from './helpers';
  * Breiten-Layout bekommen: mobil (<768px) füllen sie die Container-Innenbreite je in eigener
  * Zeile, desktop (≥768px) sind sie inhaltsbreit linksbündig. Status quo: „Push testen" trägt
  * `.push-test-btn { align-self: flex-start }` (#932) und ist in ALLEN Viewports inhaltsbreit,
- * „Standort jetzt ermitteln" hat keine Layout-Klasse und füllt immer die volle Zeile.
+ * „Standort ermitteln" hat keine Layout-Klasse und füllt immer die volle Zeile.
  * → AK2 (Push-Button mobil) und AK3 (Geo-Button desktop) sind rot, bis die gemeinsame Regel existiert.
  *
  * Gemessen wird das HOST-Element `kol-button` (Repo-Konvention wie in issue-843.spec.ts —
@@ -96,7 +96,7 @@ async function openSettingsWithBothButtons(page: import('@playwright/test').Page
 	// Szene-Verifikation: Ohne sichtbare Buttons messen die Geometrie-Assertions über eine leere
 	// Menge und blieben dauerhaft grün (All-Quantor-Falle).
 	await expect(page.getByRole('button', { name: 'Push testen' })).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Standort jetzt ermitteln' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Standort ermitteln' })).toBeVisible();
 }
 
 /** Container-Geometrie aus dem gerenderten Style: Innenbreite + linker Innenrand (nicht hartkodiert). */

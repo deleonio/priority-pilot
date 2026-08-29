@@ -344,7 +344,7 @@ export const SettingsPage = ({ pillars, onBack, onSaved, onPillarChanged }: Sett
 								    nicht durchschlägt — der Remount stellt den korrekten Zustand sicher. */}
 							<KolButton
 								key={geoPending ? 'geo-refresh-pending' : 'geo-refresh-idle'}
-								_label="Standort jetzt ermitteln"
+								_label="Standort ermitteln"
 								class="settings-action-btn"
 								_variant="secondary"
 								_disabled={geoPending}
