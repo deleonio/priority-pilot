@@ -43,3 +43,4 @@
 - E2E-Run direkt `npx playwright test e2e/<datei>` im frontend-Verzeichnis (`--`-Filter funktioniert nicht).
 - Sammelkommentar des Reviews nicht neu anlegen — bestehenden per PATCH aktualisieren.
 - Keine Labels setzen (Workflow macht das).
+- `frontend/src/components/Dashboard.tsx:214-220` — Suggestions-Karte trägt jetzt ebenfalls `role="region"` + `aria-label` am Host (CI-Regression aus demselben PR-Muster: die entfernte Außen-`<section aria-label="Was ist jetzt dran?">` war in `suggestions.spec.ts:49` als Region verankert; der Review-Absatz „Verlust der Außen-aria-labels unproblematisch" galt nur für Heading-Navigation, nicht für diese Region-Assertion). Lokal 8/8 grün inkl. tasks-tab-filter (dort CI-Fail = Flaky, Spec läuft lokal grün, PR-unberührt).

@@ -211,7 +211,13 @@ export const Dashboard = ({
 			 * um keine doppelte Hauptaussage zu erzeugen. Visuell eine schlichtere Liste ohne
 			 * Signal-Färbung; die Signalfläche gehört allein der „Nächste Aufgabe"-Zeile.
 			 */}
-			<KolCard className="dashboard-suggestions" _label="Was ist jetzt dran?" _level={3}>
+			<KolCard
+				className="dashboard-suggestions"
+				role="region"
+				aria-label="Was ist jetzt dran?"
+				_label="Was ist jetzt dran?"
+				_level={3}
+			>
 				{suggestionsFiltered.length === 0 ? (
 					<p className="dashboard-suggestions-empty">Aktuell stehen keine weiteren Vorschläge an.</p>
 				) : (
