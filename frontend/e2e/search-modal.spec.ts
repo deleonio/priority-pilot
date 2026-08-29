@@ -69,6 +69,9 @@ test.describe('Priority Pilot — globale Suche über den Toolbar-Button', () =>
 
 		// Modal schließt, Aufgaben-Tab ist aktiv, Liste ist gefiltert.
 		await expect(page.getByRole('heading', { name: 'Suche', exact: true })).toBeHidden();
+		// #1105: Die Suche startet aus dem Dashboard — Ziel muss `/aufgaben?q=` sein, nicht `/?q=`
+		// (eine Navigation mit explizitem Pfad, keine konkurrierende Query-Änderung).
+		await expect(page).toHaveURL(/\/aufgaben\?(.*&)?q=Match/);
 		await expect(page.getByRole('tab', { name: 'Aufgaben', exact: true })).toHaveAttribute('aria-selected', 'true');
 		await expect(page.getByText(matchTitle, { exact: true })).toBeVisible();
 		await expect(page.getByText(otherTitle, { exact: true })).not.toBeVisible();

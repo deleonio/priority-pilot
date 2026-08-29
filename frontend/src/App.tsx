@@ -196,11 +196,17 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 	const tabsCallbacks = useMemo(
 		() => ({
 			onSelect: (_event: Event, selected: number): void => {
-				navigate(ROUTE_PATHS[selected] ?? '/');
+				// Query-Parameter (`?q=`, `?view=`) sind Aufgaben-Filterzustand und bleiben beim
+				// Tab-Wechsel erhalten — ein nackter Pfad würde sie verwerfen; der Klick auf den
+				// bereits aktiven Tab lieferte dann dasselbe Ziel ohne Query und rivalisierte mit
+				// dem Offen/Erledigt-Switch (CI-Bruch completed-tasks/issue-1063).
+				navigate({ pathname: ROUTE_PATHS[selected] ?? '/', search: searchParams.toString() });
 				void reload();
 			},
 		}),
-		[navigate, reload],
+		// `searchParams` in den Deps: nur so ist die mitgeschickte Query aktuell — der Preis ist,
+		// dass sich `onSelect` bei jeder Query-Änderung neu verdrahtet (Auswahl bleibt prop-getrieben).
+		[navigate, reload, searchParams],
 	);
 
 	const dependencyMap = useMemo(() => buildDependencyMap(forest), [forest]);
@@ -732,13 +738,22 @@ const AppShell = ({ user }: { user: AuthUser }) => {
 				<SearchModal
 					onClose={closeDialog}
 					onSearch={(query) => {
-						navigate('/aufgaben');
+						// Eine einzige Navigation mit explizitem Ziel: `navigate('/aufgaben')` +
+						// `applyTaskFilter()` (`setSearchParams`) konkurrieren sonst — `setSearchParams`
+						// löst `?q=` gegen die Location der Render-Closure auf (noch `/` oder `/wald`),
+						// nicht gegen das eben gesetzte Ziel, und der Suchbegriff geht verloren.
+						// Der View-Mode (`?view=`) bleibt beim Nutzer-Modus — beide Listen filtern über `taskSearch`.
+						const next = new URLSearchParams(searchParams);
+						if (query.trim() === '') {
+							next.delete('q');
+						} else {
+							next.set('q', query);
+						}
+						navigate({ pathname: '/aufgaben', search: next.toString() });
 						// `searchDraft` mitschreiben, damit das Filterfeld im Aufgaben-Tab den aktiven
-						// Suchbegriff anzeigt und „Filtern“ ihn nicht sofort verwirft; `applyTaskFilter`
-						// setzt `taskSearch` bereits selbst. Der View-Mode bleibt beim Nutzer-Modus —
-						// beide Listen filtern über `taskSearch`.
+						// Suchbegriff anzeigt und „Filtern“ ihn nicht sofort verwirft; `?q=` setzt
+						// `taskSearch` bereits selbst.
 						setSearchDraft(query);
-						applyTaskFilter(query);
 						focusTaskFilter();
 					}}
 				/>
@@ -791,7 +806,10 @@ const AppShell = ({ user }: { user: AuthUser }) => {
  * Säulen …) lebt außerhalb des Routers — eine Navigation remountet die App also nicht.
  */
 export const App = ({ user }: { user: AuthUser }) => (
-	<BrowserRouter>
+	// `future`-Flags opt-in: ohne sie loggt der Router bei jedem Start zwei Future-Flag-Warnings
+	// in die Konsole (e2e-Vertrag #865 AK6: keine console.warnings). Splat-Routen gibt es hier
+	// nicht, daher ist `v7_relativeSplatPath` verhaltensneutral.
+	<BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
 		<AppShell user={user} />
 	</BrowserRouter>
 );
