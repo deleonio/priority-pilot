@@ -22,15 +22,19 @@ vi.mock('@public-ui/react-v19', () => ({
 	KolInputText: ({
 		_label,
 		_value,
+		_type,
 		_on,
 		...rest
 	}: {
 		_label?: string;
 		_value?: string;
+		/** #1111: `_type` ist der native Input-Typ ("search" | "tel" | "text" | "url", spec/input-text). */
+		_type?: string;
 		_on?: { onChange?: (_e: unknown, v: string) => void; onInput?: (_e: unknown, v: string) => void };
 	}) => (
 		<input
 			aria-label={_label}
+			type={_type ?? 'text'}
 			value={_value ?? ''}
 			onChange={(e) => {
 				_on?.onChange?.(e.nativeEvent, e.target.value);
@@ -87,7 +91,7 @@ const Harness = ({
 };
 
 const typeQuery = async (query: string) => {
-	fireEvent.change(screen.getByRole('textbox'), { target: { value: query } });
+	fireEvent.change(screen.getByRole('searchbox'), { target: { value: query } });
 	// Debounce 400 ms (useAddressSearch) — der API-Aufruf und die Liste folgen danach.
 	await waitFor(() => expect(mockGeocodeSearch).toHaveBeenCalled(), { timeout: 1500 });
 };
@@ -98,6 +102,15 @@ afterEach(() => {
 });
 
 describe('AddressAutocomplete (#1083)', () => {
+	it('#1111 AK6 — das Adressfeld ist ein input type="search" (wie das Kopfzeilen-Suchfeld)', () => {
+		mockGeocodeSearch.mockResolvedValue([]);
+		render(<Harness />);
+
+		// Der Mock spiegelt `_type` auf den nativen Typ (KolInputText-Prop, spec/input-text) —
+		// rot solange `AddressAutocomplete` die Prop nicht an `KolInputText` durchreicht.
+		expect(screen.getByRole('searchbox')).toHaveAttribute('type', 'search');
+	});
+
 	it('AK5 — zeigt alle Server-Treffer ohne Substring-Gate („munchen" → München-Treffer)', async () => {
 		mockGeocodeSearch.mockResolvedValue(MUNICH_HITS);
 		render(<Harness />);
@@ -121,7 +134,7 @@ describe('AddressAutocomplete (#1083)', () => {
 		// Fix F2: `role="combobox"` liegt NICHT auf dem Eingabefeld/KoliBri-Host, sondern auf einem
 		// Container, der Feld UND Listbox besitzt — sonst zeigt `aria-activedescendant` ins Leere.
 		const combobox = screen.getByRole('combobox');
-		const textbox = screen.getByRole('textbox');
+		const textbox = screen.getByRole('searchbox');
 		expect(combobox).not.toBe(textbox);
 		expect(combobox).toHaveAttribute('aria-autocomplete', 'list');
 		expect(combobox).toContainElement(textbox);
@@ -158,7 +171,7 @@ describe('AddressAutocomplete (#1083)', () => {
 		await typeQuery('munchen');
 		await screen.findByRole('listbox', {}, { timeout: 2000 });
 
-		fireEvent.focusOut(screen.getByRole('textbox'));
+		fireEvent.focusOut(screen.getByRole('searchbox'));
 		expect(screen.queryByRole('listbox')).toBeNull();
 		expect(onSelect).not.toHaveBeenCalled();
 	});
@@ -169,7 +182,7 @@ describe('AddressAutocomplete (#1083)', () => {
 		const onSubmit = vi.fn();
 		render(<Harness onSelect={onSelect} onSubmit={onSubmit} />);
 
-		const textbox = screen.getByRole('textbox');
+		const textbox = screen.getByRole('searchbox');
 		await typeQuery('munchen');
 		await screen.findByRole('listbox', {}, { timeout: 2000 });
 
@@ -197,7 +210,7 @@ describe('AddressAutocomplete (#1083)', () => {
 		);
 		render(<Harness />);
 
-		const input = screen.getByRole('textbox');
+		const input = screen.getByRole('searchbox');
 		fireEvent.change(input, { target: { value: 'munchen' } });
 		await waitFor(() => expect(mockGeocodeSearch).toHaveBeenCalled(), { timeout: 1500 });
 
@@ -214,7 +227,7 @@ describe('AddressAutocomplete (#1083)', () => {
 		mockGeocodeSearch.mockRejectedValue(new Error('Suche nicht erreichbar'));
 		render(<Harness />);
 
-		fireEvent.change(screen.getByRole('textbox'), { target: { value: 'munchen' } });
+		fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'munchen' } });
 		await waitFor(() => expect(mockGeocodeSearch).toHaveBeenCalled(), { timeout: 1500 });
 
 		const alert = await screen.findByRole('alert', {}, { timeout: 2000 });
@@ -241,7 +254,7 @@ describe('AddressAutocomplete (#1083)', () => {
 		mockGeocodeSearch.mockResolvedValue([]);
 		render(<Harness />);
 
-		fireEvent.change(screen.getByRole('textbox'), { target: { value: 'xyznichtstreffer' } });
+		fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'xyznichtstreffer' } });
 		await waitFor(() => expect(mockGeocodeSearch).toHaveBeenCalled(), { timeout: 1500 });
 
 		// Leer ist legitim (Photon 200 mit 0 Treffern) — keine Warnung, sondern Einladung zur Freitext-Übernahme.

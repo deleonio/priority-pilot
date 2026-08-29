@@ -20,9 +20,17 @@ interface AddressAutocompleteProps {
 	onValueChange: (next: string) => void;
 	/** Explizite Auswahl eines Treffers — übernimmt `{address, lat, lon}` (#1066). */
 	onSelect?: (suggestion: AddressSuggestion) => void;
+	/** #1111: Element-ID des Koordinaten-Kastens, per `_ariaDetails` dem Feld zugeordnet. */
+	ariaDetails?: string;
 }
 
-export const AddressAutocomplete = ({ label, value, onValueChange, onSelect }: AddressAutocompleteProps) => {
+export const AddressAutocomplete = ({
+	label,
+	value,
+	onValueChange,
+	onSelect,
+	ariaDetails,
+}: AddressAutocompleteProps) => {
 	const { suggestions, loading, error } = useAddressSearch(value);
 	const [activeIndex, setActiveIndex] = useState<number | null>(null);
 	// `dismissed` hält die Liste nach Auswahl/Escape zu, obwohl `value` (die übernommene Adresse)
@@ -104,6 +112,8 @@ export const AddressAutocomplete = ({ label, value, onValueChange, onSelect }: A
 		>
 			<KolInputText
 				_label={label}
+				_type="search" // #1111 AK6: als Suchfeld ausgezeichnet (wie das Kopfzeilen-Suchfeld)
+				_ariaDetails={ariaDetails}
 				_placeholder="Straße, Hausnummer, Ort …"
 				_value={value}
 				_on={{

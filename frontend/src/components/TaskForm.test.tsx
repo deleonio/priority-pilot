@@ -1447,6 +1447,164 @@ describe('TaskForm — Adressfeld (Ortsbezug einer Aufgabe)', () => {
 });
 
 /**
+ * Rote Spec-Tests für #1111 — Koordinaten-Box „Gespeicherter Ortsbezug" unter dem Adressfeld.
+ *
+ * Der Ortsbezug (`latitude`/`longitude`) landet heute nur im `form.current`-Ref (kein State,
+ * kein Re-Render) — nach der Adresssuche und beim Öffnen gespeicherter Aufgaben ist er
+ * unsichtbar. Die Box spiegelt die drei DB-Werte (`latitude`, `longitude`, `address`)
+ * wahrheitsgetreu, ist rein passiv (keine eigenen Geocoding-Requests) und ändert nichts am
+ * Payload-Vertrag. Spec: `docs/spec/issue-1111.md`.
+ *
+ * Testebene: Vitest-Komponententest; das echte `AddressAutocomplete` (mit echtem
+ * `useAddressSearch`, Debounce 400 ms) läuft mit, nur die KoliBri-Komponenten sind wie oben
+ * durch natives HTML ersetzt und `api.geocodeSearch` gemockt.
+ */
+
+/** Treffer-Set für die Auswahl-Tests; Adressen enthalten die Lat nicht als Substring-Falle. */
+const COORD_HITS = [
+	{ address: 'München Hauptbahnhof, Bahnhofplatz 1, 80331 München', lat: 48.1402, lon: 11.56 },
+	{ address: 'München Ost, Orleanstraße 3, 81667 München', lat: 48.1286, lon: 11.6012 },
+];
+
+const coordsBox = () => screen.getByRole('group', { name: 'Gespeicherter Ortsbezug' });
+
+/** Tippt eine Query und wählt den passenden Treffer aus der Vorschlagsliste. */
+const selectAddressHit = async (query: string, hitName: RegExp): Promise<void> => {
+	await act(async () => {
+		fireEvent.change(screen.getByLabelText(/Adresse/i), { target: { value: query } });
+	});
+	// Debounce 400 ms (useAddressSearch) — die Optionen erscheinen danach; bewusst innerhalb der
+	// Adress-Listbox gesucht, das Säulen-Select rendert ebenfalls role="option".
+	await waitFor(() => expect(screen.getByRole('listbox')).toBeInTheDocument(), { timeout: 3000 });
+	await act(async () => {
+		fireEvent.click(within(screen.getByRole('listbox')).getByRole('option', { name: hitName }));
+	});
+};
+
+describe('TaskForm — Koordinaten-Box „Gespeicherter Ortsbezug" (#1111)', () => {
+	it('AK1 — nach Treffer-Auswahl zeigt die Box drei beschriftete Werte des Treffers', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockGeocodeSearch.mockResolvedValue([COORD_HITS[0]]);
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+
+		await selectAddressHit('munchen', /München Hauptbahnhof/);
+
+		const box = coordsBox();
+		// Beschriftete Werte (Information nie allein über Anordnung).
+		expect(within(box).getByText('Breitengrad')).toBeVisible();
+		expect(within(box).getByText('Längengrad')).toBeVisible();
+		expect(within(box).getByText(/Adresse/i)).toBeVisible();
+		// Werte = exakt die per onSelect übernommenen Treffer-Werte (deckungsgleich mit dem
+		// Payload-Vertrag, den der #1083-Test „Auswahl eines Vorschlags …" nagelt).
+		expect(within(box).getByText(/München Hauptbahnhof/)).toBeVisible();
+		expect(box.textContent).toMatch(/48\.1402/);
+		expect(box.textContent).toMatch(/11\.56/);
+	});
+
+	it('AK2 — beim Öffnen eines gespeicherten Tasks steht die Box ohne jede Eingabe', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		const task = {
+			...minimalNewTask(),
+			address: 'Alte Adresse 5, 10115 Berlin',
+			latitude: 52.52,
+			longitude: 13.405,
+		};
+		await act(async () => {
+			render(<TaskForm task={task} {...defaultProps} />);
+		});
+
+		const box = coordsBox();
+		expect(within(box).getByText(/Alte Adresse 5/)).toBeVisible();
+		expect(box.textContent).toMatch(/52\.52/);
+		expect(box.textContent).toMatch(/13\.405/);
+	});
+
+	it('AK2 — auch im Serie-Modus steht die Box mit den gespeicherten Werten da', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		const series = {
+			...minimalSeries(),
+			address: 'Serienadresse 7, 20095 Hamburg',
+			latitude: 53.5511,
+			longitude: 9.9937,
+		};
+		await act(async () => {
+			render(<SeriesEditForm task={null} series={series} {...defaultProps} />);
+		});
+
+		const box = coordsBox();
+		expect(within(box).getByText(/Serienadresse 7/)).toBeVisible();
+		expect(box.textContent).toMatch(/53\.5511/);
+		expect(box.textContent).toMatch(/9\.9937/);
+	});
+
+	it('AK3 — ein zweiter, anderer Treffer ersetzt die Werte vollständig', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockGeocodeSearch.mockResolvedValue(COORD_HITS);
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+		await selectAddressHit('munchen', /München Hauptbahnhof/);
+
+		await selectAddressHit('munchen ost', /München Ost/);
+
+		const box = coordsBox();
+		expect(within(box).getByText(/München Ost/)).toBeVisible();
+		expect(box.textContent).toMatch(/48\.1286/);
+		expect(box.textContent).toMatch(/11\.6012/);
+		expect(box.textContent).not.toMatch(/48\.1402/);
+		expect(within(box).queryByText(/Hauptbahnhof/)).toBeNull();
+	});
+
+	it('AK4 — Freitext ohne Treffer: Hinweis statt Zahlen, Speichern geht mit latitude/longitude null durch', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockGeocodeSearch.mockResolvedValue(COORD_HITS);
+		mockCreateTask.mockResolvedValue(minimalNewTask());
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+		await fillTitle('Freitext-Aufgabe');
+		await selectAddressHit('munchen', /München Hauptbahnhof/);
+
+		// Freitext-Änderung ohne Auswahl: alte Treffer-Koordinate wird verworfen (bestehendes
+		// Verhalten), die Box muss den „keine Koordinaten"-Zustand zeigen statt Zahlen.
+		await act(async () => {
+			fireEvent.change(screen.getByLabelText(/Adresse/i), { target: { value: 'Freitext ohne Treffer' } });
+		});
+
+		const box = coordsBox();
+		expect(within(box).getByText(/keine koordinaten/i)).toBeVisible();
+		expect(box.textContent).not.toMatch(/48\.\d/);
+
+		await clickSave();
+		expect(mockCreateTask).toHaveBeenCalledTimes(1);
+		const [{ taskCreate }] = mockCreateTask.mock.calls[0] as unknown as [
+			{ taskCreate: { address?: string | null; latitude?: number | null; longitude?: number | null } },
+		];
+		expect(taskCreate.address).toBe('Freitext ohne Treffer');
+		expect(taskCreate.latitude).toBeNull();
+		expect(taskCreate.longitude).toBeNull();
+	});
+
+	it('AK5 — geleertes Adressfeld: die Box verschwindet', async () => {
+		mockSuggestPillars.mockResolvedValue([]);
+		mockGeocodeSearch.mockResolvedValue(COORD_HITS);
+		await act(async () => {
+			render(<TaskForm task={null} {...defaultProps} />);
+		});
+		await selectAddressHit('munchen', /München Hauptbahnhof/);
+		expect(coordsBox()).toBeVisible();
+
+		await act(async () => {
+			fireEvent.change(screen.getByLabelText(/Adresse/i), { target: { value: '' } });
+		});
+
+		expect(screen.queryByRole('group', { name: 'Gespeicherter Ortsbezug' })).toBeNull();
+	});
+});
+
+/**
  * Rote Spec-Tests für #546 — „Automatisch löschen"-Checkbox auf KolInputCheckbox + KolAlert umstellen.
  *
  * **Ist (rot):** Der Auto-Löschen-Schalter ist eine native `<input type="checkbox">` (role="checkbox"),
