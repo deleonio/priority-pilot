@@ -721,8 +721,9 @@ body {
 		height: 100%;
 	}
 
-	/* Abstände steuert im Grid der gap, nicht die Eigenmargin der Widgets. */
-	.dashboard > * {
+	/* Abstände steuert im Grid der gap, nicht die Eigenmargin der Widgets. (Spezifität 0,1,1, damit
+	   der Reset auch die erst später im Quelltext liegenden Widget-Margins übersteht — #1118 AK5.) */
+	section.dashboard > * {
 		margin-top: 0;
 	}
 
