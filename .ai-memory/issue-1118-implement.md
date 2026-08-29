@@ -41,8 +41,19 @@
   Verhalten; KoliBri könnte das Attribut künftig selbst strippen.
 - Sektion selbst als `kol-card`-Host (statt Wrapper+Card) — hält AK7 nicht (ältere Entscheidung).
 
+## Fixup 2026-08-29 (CI rot, manuell angestoßen)
+- **Kontrast (dark-mode-contrast.spec.ts, issue-902.spec.ts, 1.85:1):** Signal-Wash/-Ink lagen am
+  Card-HOST; das `article.kol-card` im Shadow-DOM malt aber `--color-light` (auch im Dunkelmodus
+  weiß) darüber → Wash unsichtbar, Signal-Tinte auf Weiß. Fläche + Textfarbe liegen jetzt auf dem
+  Card-INHALT (`.dashboard-next-task-content`, `.dashboard-next-task-empty`, Light-DOM), inkl.
+  Signal-Border links; `--kol-a11y-font-color`-Override und Host-Hintergrund entfallen.
+- **AK2-Testpflege (jetzt erledigt, war „Offen"):** `_level` wird Attribut ODER DOM-Property
+  gelesen; der „kein separates `<h3>`"-Assert läuft über `document.querySelectorAll` statt
+  `page.locator` — Playwright-Selektoren durchdringen den offenen Shadow-DOM und trafen die
+  Card-Überschrift selbst.
+
 ## Offen
-- AK2-Testpflege liegt beim Menschen/Review (PR-Body-Absatz „Test-Pflege-Bedarf").
+- (nichts)
 
 ## Nächster Schritt
 - Review-Phase (Label-Workflow setzt `ai:needs-review`): auf Kreuzverhör-Runde vorbereitet;

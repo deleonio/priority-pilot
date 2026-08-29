@@ -495,7 +495,6 @@ body {
  */
 .dashboard-next-task {
 	margin-top: var(--pp-gap-generous);
-	color: var(--pp-signal-ink);
 }
 
 /*
@@ -512,22 +511,28 @@ body {
 	max-width: 100%;
 }
 
-/* Signalfläche und -akzent der Hauptaussage wandern mit in die Card (#930: Host-Fläche). */
-.dashboard-next-task kol-card {
-	background-color: var(--pp-signal-wash);
-	color: var(--pp-signal-ink);
-	border: 1px solid var(--pp-border);
-	border-left-width: 0.375rem;
-	border-left-color: var(--pp-signal);
-	border-radius: 0.5rem;
-	--kol-a11y-font-color: var(--pp-signal-ink);
-}
-
+/*
+ * Signalfläche und -akzent der Hauptaussage liegen im Card-INHALT (Light-DOM), nicht am Host:
+ * das `article.kol-card` im Shadow-DOM malt seine eigene Fläche (`--color-light`, im Dunkelmodus
+ * ebenfalls weiß) über jeden Host-Hintergrund. Eine Wash am Host blieb deshalb unsichtbar und die
+ * Signal-Tinte landete auf Card-Weiß — gemessene 1.85:1 statt 4.5:1 (dark-mode-contrast.spec.ts,
+ * issue-902.spec.ts). Fläche und Textfarbe reisen immer zusammen (P1-1); hier tun sie das auf dem
+ * Element, das auch wirklich malt.
+ */
 .dashboard-next-task p {
 	margin: 0;
 }
 
 /* P2-1: Hauptaussage im Signal-Panel — größere Schrift, fette Aufzählung. */
+.dashboard-next-task-content,
+.dashboard-next-task-empty {
+	background-color: var(--pp-signal-wash);
+	color: var(--pp-signal-ink);
+	border-left: 0.375rem solid var(--pp-signal);
+	border-radius: 0.5rem;
+	padding: var(--pp-gap-base);
+}
+
 .dashboard-next-task-content {
 	display: flex;
 	flex-direction: column;

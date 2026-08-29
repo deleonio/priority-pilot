@@ -14,8 +14,11 @@ import { waitForStableView } from './helpers';
  * Messkonventionen (KI-UX-Block + Memory 2026-08-24):
  *  - `document.documentElement.scrollWidth` taugt hier nicht (App-Shell clippt mit
  *    `overflow-x: hidden`) → horizontale Enthaltung über Bounding-Boxen messen.
- *  - KoliBri-Cards rendern in den Shadow-DOM → Label/Level über die reflektierten
- *    Host-Attribute `_label`/`_level` lesen, Höhen über den Host (`kol-card`) messen.
+ *  - KoliBri-Cards rendern in den Shadow-DOM → Label/Level am Host lesen, Höhen über den Host
+ *    (`kol-card`) messen. `_label` reflektiert KoliBri als Attribut, `_level` NICHT: React weist
+ *    `_level` am aufgewerteten Custom Element als DOM-Property zu (die Property existiert), das
+ *    Attribut bleibt `null`. Gemessen wird deshalb Attribut ODER Property — beide beschreiben
+ *    denselben Vertrag „dritte Überschriftenebene", und das Shadow-DOM rendert daraufhin `<h3>`.
  *  - Die Signalfläche lebt wegen der globalen #930-Regel (`kol-card` transparent) im
  *    Shadow-DOM bzw. Card-Inhalt → effektiv gemalten Hintergrund über Light-DOM UND
  *    Shadow-DOM einsammeln, nicht die Host-Property lesen.
@@ -84,10 +87,11 @@ const sectionCards = (page: Page) =>
 				const card = section.matches('kol-card') ? section : (section.querySelector<HTMLElement>('kol-card') ?? null);
 				if (card === null) return null;
 				const rect = card.getBoundingClientRect();
+				const levelProperty = (card as HTMLElement & { _level?: number | string })._level;
 				return {
 					cls,
 					label: card.getAttribute('_label'),
-					level: card.getAttribute('_level'),
+					level: card.getAttribute('_level') ?? (levelProperty === undefined ? null : String(levelProperty)),
 					top: rect.top,
 					left: rect.left,
 					right: rect.right,
@@ -133,8 +137,14 @@ test.describe('Dashboard — Sektionen als Kolibri-Cards (#1118)', () => {
 			expect(card!.label, `._label von .${cls}`).toBe(SECTION_LABELS[cls]);
 			// … als dritte Ebene (KoliBri-Default _level=0 wäre KEINE Überschrift).
 			expect(card!.level, `._level von .${cls}`).toBe('3');
-			// … und kein separates <h3> mehr in der Sektion (keine doppelte Überschrift).
-			const h3Count = await page.locator(`.${cls} h3`).count();
+			// … und kein separates <h3> mehr im Light-DOM der Sektion (keine doppelte Überschrift).
+			// Bewusst `querySelectorAll` statt `page.locator`: Playwright-Selektoren durchdringen den
+			// offenen Shadow-DOM und träfen damit die Card-Überschrift selbst (`h3.kol-card__header`) —
+			// genau die Überschrift, die AK2 fordert. Gemeint ist das eigene Markup der Sektion.
+			const h3Count = await page.evaluate(
+				(selector: string) => document.querySelectorAll(`${selector} h3`).length,
+				`.${cls}`,
+			);
 			expect(h3Count, `.${cls} rendert noch ein separates <h3>`).toBe(0);
 		}
 
