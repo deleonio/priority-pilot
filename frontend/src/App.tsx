@@ -11,6 +11,7 @@ import {
 import type { Pillar, Task, TaskTreeNode } from 'client';
 import { TaskStatus } from 'client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { BrowserRouter, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from './api';
 import { CompletedTasksTable } from './components/CompletedTasksTable';
 import { Footer } from './components/Footer';
@@ -53,6 +54,11 @@ type Dialog =
 // die Auswahl zurücksetzt.
 const VIEW_TABS = [{ _label: 'Dashboard' }, { _label: 'Aufgaben' }, { _label: 'Serien' }, { _label: 'Wald' }];
 
+// #1105: Pfad zu jedem Haupt-Tab (Index = Tab-Index) und Pfad-Segment je Settings-Tab. Der aktive
+// Tab ist damit eine reine Funktion der URL (Routen-Tabelle in `docs/spec/issue-1105.md`).
+const ROUTE_PATHS: string[] = ['/', '/aufgaben', '/serien', '/wald'];
+const SETTINGS_PATH_SEGMENTS: string[] = ['general', 'pillars', 'llm'];
+
 // Modulkonstanten für Toolbar-Icons: stabile Objektidentität pro Render, damit der Icon-Watcher
 // nicht unnötig erneut feuert (z. B. CREATE_ICON für „Neuen Task anlegen").
 const DONE_REMOVAL_DELAY_MS = 5000;
@@ -64,9 +70,14 @@ const HELP_ICON = { left: { icon: 'fa-solid fa-circle-question' } };
 const SETTINGS_ICON = { left: { icon: 'fa-solid fa-gear' } };
 const LOGOUT_ICON = { left: { icon: 'fa-solid fa-right-from-bracket' } };
 
-export const App = ({ user }: { user: AuthUser }) => {
-	const [showHelp, setShowHelp] = useState(() => window.location.pathname.startsWith('/hilfe'));
-	const [showSettings, setShowSettings] = useState(() => window.location.pathname.startsWith('/settings'));
+const AppShell = ({ user }: { user: AuthUser }) => {
+	const location = useLocation();
+	const navigate = useNavigate();
+	const [searchParams, setSearchParams] = useSearchParams();
+	// #1105: Hilfe und Einstellungen sind Routen statt State-Flags — Back/Forward und Deep-Links
+	// funktionieren dadurch browser-nativ (AK1–AK4).
+	const showHelp = location.pathname.startsWith('/hilfe');
+	const showSettings = location.pathname.startsWith('/settings');
 	const [tasks, setTasks] = useState<Task[] | null>(null);
 	const [forest, setForest] = useState<TaskTreeNode[]>([]);
 	const [nextTask, setNextTask] = useState<Task | null>(null);
@@ -78,17 +89,57 @@ export const App = ({ user }: { user: AuthUser }) => {
 	const [logoutLoading, setLogoutLoading] = useState(false);
 	const [logoutError, setLogoutError] = useState<string | null>(null);
 	const [updateError, setUpdateError] = useState<string | null>(null);
-	const [activeTab, setActiveTab] = useState(0);
 	const doneRemovalTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
 
-	// Aufgaben-Tab: Suchtext und Offen/Erledigt-Switch (State wird beim Umschalten erhalten, AK6).
-	// `searchDraft` ist der Eingabe-Entwurf im Suchfeld; der Filter wird erst per „Filtern"-Button
-	// oder Enter in `taskSearch` übernommen (deferred filter). `taskSearch` treibt die gefilterten Listen.
-	const [taskSearch, setTaskSearch] = useState('');
-	const [searchDraft, setSearchDraft] = useState('');
-	const [taskViewMode, setTaskViewMode] = useState<'open' | 'done'>('open');
-	// Übernimmt den aktuellen Eingabe-Entwurf als aktiven Filter (Button-Klick oder Enter im Suchfeld).
-	const applyTaskFilter = useCallback((value: string): void => setTaskSearch(value), []);
+	// Aufgaben-Tab: Suchtext und Offen/Erledigt-Switch (#1105 AK5) leben in den Query-Parametern von
+	// `/aufgaben` (`?q=` bzw. `?view=done`) — Deep-Links und Browser-Back stellen dadurch auch den
+	// Filterzustand wieder her. `searchDraft` bleibt lokaler State: der Eingabe-Entwurf im Suchfeld;
+	// der Filter wird erst per „Filtern"-Button oder Enter übernommen (deferred filter).
+	const taskSearch = searchParams.get('q') ?? '';
+	const taskViewMode: 'open' | 'done' = searchParams.get('view') === 'done' ? 'done' : 'open';
+	const [searchDraft, setSearchDraft] = useState(taskSearch);
+	// Hält den Entwurf mit der URL synchron (z. B. nach Back/Forward oder Suchdialog), ohne das Tippen zu stören.
+	useEffect(() => setSearchDraft(taskSearch), [taskSearch]);
+
+	// Übernimmt den aktuellen Eingabe-Entwurf als aktiven Filter und spiegelt ihn als `?q=` in die URL.
+	const applyTaskFilter = useCallback(
+		(value: string): void => {
+			setSearchParams((prev) => {
+				const next = new URLSearchParams(prev);
+				if (value.trim() === '') {
+					next.delete('q');
+				} else {
+					next.set('q', value);
+				}
+				return next;
+			});
+		},
+		[setSearchParams],
+	);
+
+	/** Aktiver Haupt-Tab: reine Funktion des Pfads (AK4). */
+	const activeTab = Math.max(0, ROUTE_PATHS.indexOf(location.pathname));
+
+	/** Aktiver Settings-Tab: aus `/settings/:tab` abgeleitet; unbekannter Pfad → Säulen (bisheriges Default). */
+	const settingsSegment = /\/settings\/([^/]+)/.exec(location.pathname)?.[1] ?? '';
+	const settingsTabIndex = SETTINGS_PATH_SEGMENTS.indexOf(settingsSegment);
+	const settingsTab = settingsTabIndex < 0 ? 1 : settingsTabIndex;
+
+	/** Offen/Erledigt umschalten und die Auswahl als `?view=` in die URL spiegeln. */
+	const changeTaskViewMode = useCallback(
+		(done: boolean): void => {
+			setSearchParams((prev) => {
+				const next = new URLSearchParams(prev);
+				if (done) {
+					next.set('view', 'done');
+				} else {
+					next.delete('view');
+				}
+				return next;
+			});
+		},
+		[setSearchParams],
+	);
 
 	const reload = useCallback(async (signal?: AbortSignal): Promise<void> => {
 		setLoading(true);
@@ -129,16 +180,6 @@ export const App = ({ user }: { user: AuthUser }) => {
 	}, [reload]);
 
 	useEffect(() => {
-		const onPop = () => {
-			const path = window.location.pathname;
-			setShowHelp(path.startsWith('/hilfe'));
-			setShowSettings(path.startsWith('/settings'));
-		};
-		window.addEventListener('popstate', onPop);
-		return () => window.removeEventListener('popstate', onPop);
-	}, []);
-
-	useEffect(() => {
 		const timers = doneRemovalTimers.current;
 		return () => {
 			for (const handle of timers.values()) {
@@ -155,11 +196,17 @@ export const App = ({ user }: { user: AuthUser }) => {
 	const tabsCallbacks = useMemo(
 		() => ({
 			onSelect: (_event: Event, selected: number): void => {
-				setActiveTab(selected);
+				// Query-Parameter (`?q=`, `?view=`) sind Aufgaben-Filterzustand und bleiben beim
+				// Tab-Wechsel erhalten — ein nackter Pfad würde sie verwerfen; der Klick auf den
+				// bereits aktiven Tab lieferte dann dasselbe Ziel ohne Query und rivalisierte mit
+				// dem Offen/Erledigt-Switch (CI-Bruch completed-tasks/issue-1063).
+				navigate({ pathname: ROUTE_PATHS[selected] ?? '/', search: searchParams.toString() });
 				void reload();
 			},
 		}),
-		[reload],
+		// `searchParams` in den Deps: nur so ist die mitgeschickte Query aktuell — der Preis ist,
+		// dass sich `onSelect` bei jeder Query-Änderung neu verdrahtet (Auswahl bleibt prop-getrieben).
+		[navigate, reload, searchParams],
 	);
 
 	const dependencyMap = useMemo(() => buildDependencyMap(forest), [forest]);
@@ -292,27 +339,22 @@ export const App = ({ user }: { user: AuthUser }) => {
 		});
 	}, [reload]);
 
-	const openHelp = useCallback((): void => {
-		window.history.pushState({}, '', '/hilfe');
-		setShowHelp(true);
-	}, []);
+	// #1105: Navigation läuft über React Router (kein handgestricktes pushState mehr, AK4).
+	const openHelp = useCallback((): void => navigate('/hilfe'), [navigate]);
 
-	const closeHelp = useCallback((): void => {
-		window.history.pushState({}, '', '/');
-		setShowHelp(false);
-		setActiveTab(0);
-	}, []);
+	const closeHelp = useCallback((): void => navigate('/'), [navigate]);
 
-	const openSettings = useCallback((): void => {
-		window.history.pushState({}, '', '/settings/general');
-		setShowSettings(true);
-	}, []);
+	const openSettings = useCallback((): void => navigate('/settings/general'), [navigate]);
 
-	const closeSettings = useCallback((): void => {
-		window.history.pushState({}, '', '/');
-		setShowSettings(false);
-		setActiveTab(0);
-	}, []);
+	const closeSettings = useCallback((): void => navigate('/'), [navigate]);
+
+	/** Settings-Tab-Wechsel: URL auf `/settings/:tab` bringen — der Tab folgt der Route. */
+	const changeSettingsTab = useCallback(
+		(selected: number): void => {
+			navigate(`/settings/${SETTINGS_PATH_SEGMENTS[selected] ?? 'pillars'}`);
+		},
+		[navigate],
+	);
 
 	// Nach dem Speichern auf der Einstellungen-Seite: zurück zum Dashboard (#270) und die Daten neu
 	// laden, damit die geänderten Säulen-Gewichte sofort in Dashboard und Ranking sichtbar sind.
@@ -388,9 +430,9 @@ export const App = ({ user }: { user: AuthUser }) => {
 	}, [reload]);
 
 	const handleLogoDashboard = useCallback((): void => {
-		setActiveTab(0);
+		navigate('/');
 		void reload();
-	}, [reload]);
+	}, [navigate, reload]);
 
 	const dependencyTask =
 		dialog?.kind === 'dependencies' ? (tasks?.find((task) => task.id === dialog.taskId) ?? null) : null;
@@ -487,6 +529,8 @@ export const App = ({ user }: { user: AuthUser }) => {
 		return (
 			<SettingsPage
 				pillars={pillars}
+				tab={settingsTab}
+				onTabChange={changeSettingsTab}
 				onBack={closeSettings}
 				onSaved={afterSettingsSaved}
 				onPillarChanged={handlePillarChanged}
@@ -579,7 +623,7 @@ export const App = ({ user }: { user: AuthUser }) => {
 									_checked={taskViewMode === 'done'}
 									_on={{
 										onChange: (_event, checked) => {
-											setTaskViewMode(checked === true ? 'done' : 'open');
+											changeTaskViewMode(checked === true);
 										},
 									}}
 								/>
@@ -694,13 +738,22 @@ export const App = ({ user }: { user: AuthUser }) => {
 				<SearchModal
 					onClose={closeDialog}
 					onSearch={(query) => {
-						setActiveTab(1);
+						// Eine einzige Navigation mit explizitem Ziel: `navigate('/aufgaben')` +
+						// `applyTaskFilter()` (`setSearchParams`) konkurrieren sonst — `setSearchParams`
+						// löst `?q=` gegen die Location der Render-Closure auf (noch `/` oder `/wald`),
+						// nicht gegen das eben gesetzte Ziel, und der Suchbegriff geht verloren.
+						// Der View-Mode (`?view=`) bleibt beim Nutzer-Modus — beide Listen filtern über `taskSearch`.
+						const next = new URLSearchParams(searchParams);
+						if (query.trim() === '') {
+							next.delete('q');
+						} else {
+							next.set('q', query);
+						}
+						navigate({ pathname: '/aufgaben', search: next.toString() });
 						// `searchDraft` mitschreiben, damit das Filterfeld im Aufgaben-Tab den aktiven
-						// Suchbegriff anzeigt und „Filtern“ ihn nicht sofort verwirft; `applyTaskFilter`
-						// setzt `taskSearch` bereits selbst. Der View-Mode bleibt beim Nutzer-Modus —
-						// beide Listen filtern über `taskSearch`.
+						// Suchbegriff anzeigt und „Filtern“ ihn nicht sofort verwirft; `?q=` setzt
+						// `taskSearch` bereits selbst.
 						setSearchDraft(query);
-						applyTaskFilter(query);
 						focusTaskFilter();
 					}}
 				/>
@@ -746,3 +799,17 @@ export const App = ({ user }: { user: AuthUser }) => {
 		</main>
 	);
 };
+
+/**
+ * #1105: Der `BrowserRouter` liegt bewusst um `AppShell` INNERHALB von `App` (statt in `main.tsx`),
+ * damit Bestands-Unit-Tests `App` weiterhin ohne Router rendern können. Der App-State (Tasks,
+ * Säulen …) lebt außerhalb des Routers — eine Navigation remountet die App also nicht.
+ */
+export const App = ({ user }: { user: AuthUser }) => (
+	// `future`-Flags opt-in: ohne sie loggt der Router bei jedem Start zwei Future-Flag-Warnings
+	// in die Konsole (e2e-Vertrag #865 AK6: keine console.warnings). Splat-Routen gibt es hier
+	// nicht, daher ist `v7_relativeSplatPath` verhaltensneutral.
+	<BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
+		<AppShell user={user} />
+	</BrowserRouter>
+);
