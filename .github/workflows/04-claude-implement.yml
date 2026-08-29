@@ -74,7 +74,8 @@ jobs:
       proceed: ${{ steps.check.outputs.proceed }}
       model: ${{ steps.model.outputs.model }}
       model_abort: ${{ steps.model.outputs.abort }}
-      # Tabelle > Label gemergtes Ergebnis (implement- UND fixup-Job, ADR-0005: eine Zeile)
+      # Tabelle > Label gemergtes Ergebnis (implement- UND fixup-Job, ADR-0005: eine Zeile),
+      # danach ggf. Eskalationsstufe (ai:continued) — escalate mit Fallback auf merge.
       model_final: ${{ steps.escalate.outputs.model || steps.merge.outputs.model_final }}
       effort_final: ${{ steps.escalate.outputs.effort || steps.merge.outputs.effort_final }}
     steps:
@@ -158,23 +159,34 @@ jobs:
             echo "model_final=${{ steps.routing.outputs.model }}"   >> "$GITHUB_OUTPUT"
             echo "effort_final=${{ steps.routing.outputs.effort }}" >> "$GITHUB_OUTPUT"
           else
-            # Label-Pfad: Effort bleibt Phasen-Default (das Label trägt keinen).
+            # Label-Pfad: Effort-Default nach Eingang (implement=high, fixup=medium) —
+            # bewusst nicht pauschal high, sonst stiege der Fixup-Default still auf high.
             echo "model_final=${{ steps.model.outputs.model }}" >> "$GITHUB_OUTPUT"
-            echo "effort_final=high" >> "$GITHUB_OUTPUT"  # Implement-Phase Default
+            if [ "${{ steps.route.outputs.kind }}" = "pr" ]; then
+              echo "effort_final=medium" >> "$GITHUB_OUTPUT"
+            else
+              echo "effort_final=high" >> "$GITHUB_OUTPUT"
+            fi
           fi
 
       - name: Eskalation bei Wiederholung (ai:continued)
+        # Fortsetzungs-Lauf nach Soft-Abort: ai:continued am Ticket => Modell+Effort je
+        # eine Stufe hoch (resolve-escalation.sh; ab opus nur noch Effort — Allowlist-Ende).
+        # Wirkt auf das gemergte Ergebnis aus Tabelle/Label. Fail-open (|| true): bei
+        # Fehler gilt das gemergte Ergebnis ungeaendert weiter.
         if: steps.check.outputs.proceed == 'true'
         id: escalate
         env:
           GH_TOKEN: ${{ github.token }}
+          CURRENT_MODEL: ${{ steps.merge.outputs.model_final }}
+          CURRENT_EFFORT: ${{ steps.merge.outputs.effort_final }}
         run: |
           bash .github/scripts/resolve-escalation.sh \
             --repo "$GITHUB_REPOSITORY" \
             --ticket "${{ steps.route.outputs.ticket }}" \
             --kind "${{ steps.route.outputs.kind }}" \
-            --current-model "${{ steps.merge.outputs.model_final }}" \
-            --current-effort "${{ steps.merge.outputs.effort_final }}" || true
+            --current-model "$CURRENT_MODEL" \
+            --current-effort "$CURRENT_EFFORT" || true
 
   # ---------------------------------------------------------------------------
   # Eingang 1: Issue + ai:needs-impl  →  Erstumsetzung

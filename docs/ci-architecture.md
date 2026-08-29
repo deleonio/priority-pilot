@@ -169,6 +169,14 @@ manueller Not-Override). `resolve-phase-routing.sh` liest die Tabelle (am Issue;
 das Closing-Issue) und ist fail-open: fehlt sie oder ist eine Zeile ungültig, gelten Label bzw.
 Defaults unverändert — ein Tippfehler des LLM parkt die Pipeline nie. Details: ADR 0004.
 
+**Eskalation bei Wiederholung (`ai:continued`):** Setzt der Soft-Abort der Umsetzung
+`ai:continued` und re-triggert `ai:needs-impl`, stuft der Precheck von 04 das gemergte
+Ergebnis (Tabelle/Label/Default) eine Stufe hoch ([`resolve-escalation.sh`](../.github/scripts/resolve-escalation.sh)):
+Modell `haiku → sonnet → opus` (ab `opus` unverändert — Allowlist-Ende, die Eskalation trägt
+dann allein der Effort), Effort `low → medium → high → xhigh → max`. Wirkt genau einmal —
+der zweite Soft-Abort geht ohnehin an den Menschen (`ai:to-big-issue`). Fail-open: bei
+Fehlern gilt das ungeescalatierte Ergebnis weiter.
+
 ### Modell-Allowlist & Freigabe neuer Modelle
 
 Pipeline-Phasen laufen nur mit erprobten Modell-Aliassen. Ein `ai:model:<alias>`-Label
