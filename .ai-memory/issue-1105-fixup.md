@@ -9,7 +9,8 @@
 - Fix 2 (CI/issue-865): `<BrowserRouter future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>` — schaltet beide Warnings ab; keine Splat-Routen im Tree.
 - Fix 3 (CI/uncheck-Rennen): `tabsCallbacks.onSelect` → `navigate({ pathname: ROUTE_PATHS[selected] ?? '/', search: searchParams.toString() })`, `searchParams` in die Memo-Deps (sonst stale Query). Query gehört damit zum Aufgaben-Zustand und überlebt Tab-Wechsel (wie vor der Router-Migration).
 - Fix 4 (Finding-geforderte Abdeckung): `frontend/e2e/search-modal.spec.ts` Test 1 um `toHaveURL(/\/aufgaben\?(.*&)?q=Match/)` ergänzt (Test startet bereits auf `/`).
-- Lokal verifiziert vor dem Push: `search-modal`, `issue-865`, `issue-1105-routes` grün; `completed-tasks`/`issue-1063`-Fix läuft (Stand siehe Nächster Schritt).
+- Lokal verifiziert vor dem Push: alle 5 Specs grün — `npx playwright test e2e/completed-tasks.spec.ts e2e/issue-1063-geo-badge.spec.ts e2e/issue-1105-routes.spec.ts e2e/search-modal.spec.ts e2e/tasks-tab-filter.spec.ts` = **33 passed (1.5m), EXIT=0**. Prettier (unchanged), ESLint (0), Pre-Commit-Hook: format/knip/lint ✔ (inkl. `tsc --noEmit` frontend+server).
+- **Commit `79511753` gepusht** (ai/harness/1105). Review-Thread `PRRT_kwDONloM186dXTLE` (Inline-Kommentar 3885578512) beantwortet (PRRC_kwDONloM187nmu5A) und **resolved=true**. Soft-Deadline war dabei überschritten (1787980946 ≥ 1787980330) → kein weiterer Kreislauf in diesem Lauf.
 
 ## Relevante Stellen
 - `frontend/src/App.tsx:~197-210` — `tabsCallbacks.onSelect` (Fix 3, Memo-Deps inkl. `searchParams`).
@@ -32,10 +33,11 @@
 
 ## Offen
 - Stencil-`nodeType`-console.error beim „Weitere Aktionen"-Popover (TaskTree) — pre-existing-Status ungeklärt (nicht gegen main gemessen), von den fixup-Findings unabhängig, blockt nichts (Tests grün). Folge-Ticket-Thema.
-- `.ai-memory/issue-1105-fixup.md`-Stand vor Commit aktualisieren; Wegwerf-Artefakt `frontend/e2e/tmp-debug-uncheck.spec.ts` löschen (nach Bestätigung der Fix-3-Grün) und NICHT committen.
+- CI des Fixup-Commits `79511753` läuft noch — falls weiterhin rot, nächster Fixup-Kreis (Kandidaten: e2e-Shard-Timing).
+- Wegwerf-Artefakt `frontend/e2e/tmp-debug-uncheck.spec.ts` vor dem Commit gelöscht (bestätigt via `git status`).
 
 ## Nächster Schritt
-- e2e-Ergebnis von `/tmp/e2e-fix.log` (completed-tasks, issue-1063, issue-1105-routes, search-modal, tasks-tab-filter) abwarten → bei grün: Debug-Spec löschen, Gate (SKILL 3c) via gate-runner, commit+push (inkl. Phasen-Notiz), Review-Thread beantworten + resolven.
+- Nächster Fixup-/Review-Kreis: CI von `79511753` prüfen (`gh pr checks 1107`); bei grün → Re-Review über `review-kreuzverhoer` (Verkehr-Licht), sonst Diagnose aus dem CI-Log.
 
 ## Fallstricke
 - **Tab-Navigation + Query-State**: ein nackter Pfad in `navigate()` verwirft `?q=`/`?view=` — und Klicks auf den aktiven Tab werden zur zweiten Navigation, die mit kontrollierten Inputs rivalisiert (Playwright „did not change its state").
