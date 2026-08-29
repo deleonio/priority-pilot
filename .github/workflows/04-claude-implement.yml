@@ -75,8 +75,8 @@ jobs:
       model: ${{ steps.model.outputs.model }}
       model_abort: ${{ steps.model.outputs.abort }}
       # Tabelle > Label gemergtes Ergebnis (implement- UND fixup-Job, ADR-0005: eine Zeile)
-      model_final: ${{ steps.merge.outputs.model_final }}
-      effort_final: ${{ steps.merge.outputs.effort_final }}
+      model_final: ${{ steps.escalate.outputs.model || steps.merge.outputs.model_final }}
+      effort_final: ${{ steps.escalate.outputs.effort || steps.merge.outputs.effort_final }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -160,8 +160,21 @@ jobs:
           else
             # Label-Pfad: Effort bleibt Phasen-Default (das Label trägt keinen).
             echo "model_final=${{ steps.model.outputs.model }}" >> "$GITHUB_OUTPUT"
-            echo "effort_final=" >> "$GITHUB_OUTPUT"
+            echo "effort_final=high" >> "$GITHUB_OUTPUT"  # Implement-Phase Default
           fi
+
+      - name: Eskalation bei Wiederholung (ai:continued)
+        if: steps.check.outputs.proceed == 'true'
+        id: escalate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bash .github/scripts/resolve-escalation.sh \
+            --repo "$GITHUB_REPOSITORY" \
+            --ticket "${{ steps.route.outputs.ticket }}" \
+            --kind "${{ steps.route.outputs.kind }}" \
+            --current-model "${{ steps.merge.outputs.model_final }}" \
+            --current-effort "${{ steps.merge.outputs.effort_final }}" || true
 
   # ---------------------------------------------------------------------------
   # Eingang 1: Issue + ai:needs-impl  →  Erstumsetzung
@@ -183,7 +196,7 @@ jobs:
           && needs.precheck.outputs.model_abort != 'true'
           && (needs.precheck.outputs.proceed == 'true' || needs.precheck.result == 'failure') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     env:
       PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
     permissions:
@@ -203,7 +216,7 @@ jobs:
         run: |
           now=$(date +%s)
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
-          echo "soft_deadline_epoch=$((now + 840))" >> "$GITHUB_OUTPUT"
+          echo "soft_deadline_epoch=$((now + 1500))" >> "$GITHUB_OUTPUT"
 
       - name: Setup Claude Code (mit Memory-Load)
         id: setup
@@ -476,7 +489,7 @@ jobs:
           && needs.precheck.outputs.model_abort != 'true'
           && (needs.precheck.outputs.proceed == 'true' || needs.precheck.result == 'failure') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     env:
       PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       # Fixup-Runden-Deckel (Issue #993): Nach dieser Anzahl Fixup-Runden ohne
@@ -501,7 +514,7 @@ jobs:
         run: |
           now=$(date +%s)
           echo "epoch=$now" >> "$GITHUB_OUTPUT"
-          echo "soft_deadline_epoch=$((now + 600))" >> "$GITHUB_OUTPUT"
+          echo "soft_deadline_epoch=$((now + 1200))" >> "$GITHUB_OUTPUT"
           # Erklärungs-Gate (needs-human-explain.sh): Als Erklärung für
           # ai:needs-human zählen nur Kommentare dieses Laufes. 5 min Toleranz
           # nach unten decken Queue-/Checkout-Zeit vor dem LLM-Lauf ab.
