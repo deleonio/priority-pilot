@@ -1,0 +1,44 @@
+[
+	{
+		"timestamp": "2026-08-29T08:42:49.418Z",
+		"tokensIn": 1500388,
+		"tokensOut": 13484,
+		"cost": 1.115027424,
+		"issueId": "1115",
+		"phase": "review",
+		"model": "glm-5.3",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 1334656,
+		"turns": 17,
+		"valueCost": 1.115027424
+	},
+	{
+		"timestamp": "2026-08-29T09:12:10.746Z",
+		"tokensIn": 1691158,
+		"tokensOut": 6244,
+		"cost": 0.9814042080000002,
+		"issueId": "1115",
+		"phase": "fixup",
+		"model": "glm-5.3-flash",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 1565632,
+		"turns": 20,
+		"valueCost": 0.9814042080000002
+	},
+	{
+		"timestamp": "2026-08-29T10:09:25.642Z",
+		"tokensIn": 1848116,
+		"tokensOut": 2007,
+		"cost": 0.28781101440000006,
+		"issueId": "1115",
+		"phase": "documenter",
+		"model": "glm-5-turbo",
+		"provider": "zai",
+		"cacheCreationTokens": 0,
+		"cacheReadTokens": 1814144,
+		"turns": 27,
+		"valueCost": 0.28781101440000006
+	}
+]
