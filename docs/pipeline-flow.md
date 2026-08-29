@@ -236,7 +236,12 @@ Verdict (PR-Phasen: `/tmp/claude-verdict`), der Workflow setzt die Labels.
   ist mind. ein Allowlist-Check (CI / Reviewer) rot → `ai:needs-fixup` (stößt fixup an); ist der PR
   wegen Merge-Konflikt nicht mergebar (`mergeStateStatus == DIRTY`) → ebenfalls `ai:needs-fixup`;
   sind beide grün und `ai:reviewed` gesetzt UND keines der Labels `ai:needs-fixup`/`ai:needs-review`/
-  `ai:needs-human` mehr vorhanden und der PR sauber mergebar → Merge (`gh pr merge --merge`).
+  `ai:needs-human` mehr vorhanden und der PR sauber mergebar → Merge. **Methode:** Squash
+  (`gh pr merge --squash`), damit die Fixup-Commits des review↔fixup-Loops als **ein** Commit auf
+  main landen; Subject ist explizit der (in Phase 5 gegen die CC-Regex geprüfte) PR-Titel +
+  `(#Nr)`, Body leer. Die erlaubten Methoden werden zur Laufzeit aus der Repo-API gelesen
+  (`allow_squash_merge`/`allow_merge_commit`) — ist Squash nicht erlaubt, fällt das Gate auf den
+  Merge-Commit (`gh pr merge --merge`) zurück; ist keine der beiden erlaubt, endet der Lauf rot.
   Die Abwesenheits-Checks sind der Rename-Härtung geschuldet: `ai:reviewed` kann noch kleben,
   während eine needs-human-Entscheidung wartet oder ein Fixup läuft (bis dieser es abräumt) —
   ohne sie mergte das Gate auf dem Stale-Label. Der `workflow_run`-Trigger wird nur aus dem Default-Branch (main) gelesen

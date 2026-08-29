@@ -289,7 +289,8 @@ jobs:
       - name: 🔍 Titel-Fakten deterministisch erheben
         # Conventional-Commits-Prüfung des PR-Titels VOR dem Merge (Regel-Logik, s.
         # .github/scripts/pr-doc-facts.sh --mode title-only). Post-Merge-Umbenennen im
-        # Documenter ist nur noch Backstop — der Merge-Commit-Subject steht dann schon.
+        # Documenter ist nur noch Backstop — das Commit-Subject auf main steht dann schon
+        # (beim Squash-Merge des Gates ist es woertlich dieser PR-Titel).
         # Bewusst KEIN eigener CI-Check-Job: ein roter Check setzt ai:needs-fixup →
         # Fixup läuft → Titelkorrektur erzeugt keinen Commit → No-Progress-Erkennung
         # schlägt zu → ai:needs-human. Sackgasse; der Reviewer hat gh + vollen Kontext.
