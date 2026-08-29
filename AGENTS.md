@@ -43,8 +43,8 @@ Agent-Kontext): [docs/ci-architecture.md](docs/ci-architecture.md).
   statt je Einzeländerung. Keine Bestätigungs-Rückfragen im Arbeitsfluss — der
   `needs-human`-Weg der Pipeline-Phasen bleibt davon unberührt.
   **Qualität geht vor:** Ein nachgebesserter Schritt kostet mehr Turns als ein gründlicher
-  erster — eine Fixup-Schleife kostet ~50 Turns (gemessen: 51,5 = Fixup 36,3 + Re-Review 15,2,
-  Quelle `.costs/`). Nie einen Prüfschritt überspringen, um Turns zu sparen: der Tausch geht
+  erster — eine Fixup-Schleife kostet ~27 Turns (Ø Fixup 17 + Re-Review 10 über 117 Tickets,
+  Stand 2026-08, Quelle `.costs/`). Nie einen Prüfschritt überspringen, um Turns zu sparen: der Tausch geht
   immer zulasten des Kontingents.
 - **Verbessern vs. Erweitern:** Soll Funktionierendes verbessert werden, zuerst fragen: Ist der
   Gewinn den zusätzlichen Code und seine Wartung wert — oder entsteht er durch Optimieren
@@ -114,7 +114,7 @@ Umsetzung (Erstumsetzung **und** Review-Nacharbeit, ADR 0005) → Review → PR-
 Merge). Gesteuert über die Label-Kette `ai:needs-*` → `ai:<Vergangenheitsform>`; Start immer manuell
 durch `ai:needs-analyse`. Ablauf, Trigger, Info-Labels: [Pipeline-Flow](docs/pipeline-flow.md).
 Provider, Modelle, Soft-Abort, MCP-Integration (KoliBri-MCP in allen Phasen außer Documenter,
-Playwright-MCP in UX und Umsetzung): [CI-Architektur](docs/ci-architecture.md).
+Playwright-MCP in Umsetzung und Fixup): [CI-Architektur](docs/ci-architecture.md).
 
 **Jede Phase liest nur ihren eigenen Phase-Skill** (siehe [Wissensbasis](#wissensbasis)) plus
 das Issue/PR — kein domänenübergreifendes Lesen. Routing (Modell-Label `ai:model:*`, Spec-Skip)

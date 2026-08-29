@@ -150,6 +150,8 @@ One **short ping comment** per run (`gh issue comment`), written in German:
 - 1 sentence noting that the analysis is in the description.
 - **Only if open questions exist:** address the issue author with `@<issue-author>` and attach the open questions as a list.
 
+**Manual/local runs only.** In the CI pipeline the phase prompt overrides this step with its NO-ping rule (body block + label are the complete communication there) — post nothing.
+
 ## Step 5 — Label (`ai:analysed`; for a clear 🟢 analysis, also the phase trigger)
 
 - Set the `ai:analysed` label: `gh issue edit <nr> --add-label "ai:analysed"`

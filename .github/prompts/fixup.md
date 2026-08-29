@@ -2,7 +2,7 @@ Fixup for PR {{PR_NR}}. Only fix reported findings. Fixup and implementation are
 
 PROCEDURE:
 1. **Conflicts** (if needed): `git status`, `git diff --name-only --diff-filter=U`, resolve, commit
-2. Read findings: PR diff, review threads, CI
+2. Read findings SCOPED (mirrors the review's own diff scoping, SKILL.md step 5): open findings from the collected ai-review comment (file/line anchors) + review threads + CI — NOT a full-diff walk. Read only the diff hunks around the anchors (git diff on the affected files); the review already judged the rest.
 3. Fix:
    - Unambiguous findings → change the code, run the GATE per SKILL.md step 3c (everything green before the push, otherwise the fixup loop keeps spinning), commit+push (include your phase note .ai-memory/issue-{{ISSUE_NR}}-fixup.md in the commit — tracked, NOT gitignored, ADR 0007), resolve the thread
    - Ambiguous/decision findings → don't fix

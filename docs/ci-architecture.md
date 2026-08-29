@@ -348,8 +348,9 @@ ist er nicht der Default-Pfad (`claude`).
 
 Der **KoliBri MCP-Server** (`kolibri-mcp`) ist in allen Phasen außer Documenter (06) via `needs-mcp: true`
 verfügbar und liefert KoliBri-Komponenten-Suche und Dokumentation. Der **Playwright MCP-Server**
-(`playwright`) steht zusätzlich in UX (02) und Umsetzung (04, beide Eingänge) via `browser-mcp: true`
-für Layout-Prüfung bei 375px/1280px Viewport auf der laufenden Inspect-Instanz (http://localhost:4174).
+(`playwright`) steht in Umsetzung und Fixup (04, beide Eingänge) via `browser-mcp: true`
+für Layout-Prüfung bei 375px/1280px Viewport auf der laufenden Inspect-Instanz (http://localhost:4174);
+die UX-Phase (02) läuft bewusst rein statisch (`browser-mcp: false`).
 
 **Einrichtung:** Beide Server sind in `.mcp.json` registriert (KoliBri: HTTP, Playwright: `@playwright/mcp@0.0.79`,
 `allowed-origins: localhost:4174;3001`). Die Setup-Action (`setup-claude`) hängt bei `needs-mcp: true` die
@@ -362,7 +363,7 @@ Playwright-Tools (`mcp__playwright__*`).
 - Playwright: `mcp__playwright__browser_navigate`, `mcp__playwright__browser_snapshot`,
   `mcp__playwright__browser_take_screenshot`, `mcp__playwright__browser_resize`, u.a.
 
-**Chromium + Hintergrund-App:** Die Phasen mit Browser-MCP (02/04/06) installieren Chromium (cached,
+**Chromium + Hintergrund-App:** Die Phasen mit Browser-MCP (04) installieren Chromium (cached,
 `pnpm --filter frontend exec playwright install --with-deps chromium`), bauen den Server vorab
 (`pnpm --filter server build`) und starten die Inspect-Instanz im Hintergrund
 (`INSPECT_NO_WATCH=1 nohup ./ui-inspect.sh` mit Readiness-Check auf http://localhost:4174, Timeout 120s —
