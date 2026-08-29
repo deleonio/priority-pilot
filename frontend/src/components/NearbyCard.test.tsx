@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NearbyCard } from './NearbyCard';
@@ -50,7 +50,10 @@ vi.mock('../api', () => ({
 const config = (displayDistanceKm: number): GeoConfig =>
 	({ displayDistanceKm, alarmDistanceKm: 1, intervalMinutes: 5 }) as GeoConfig;
 
-const card = (): HTMLElement => screen.getByText('In der Nähe (').closest('[data-comp="kol-card"]') as HTMLElement;
+// Test-Pflege (#1110, Impl-Phase): `getByText('In der Nähe (')` kann nie treffen — der Mock spiegelt
+// `_label` ausschließlich als Attribut, und `getNodeText` liest nur direkte Textkinder. Der Locator
+// geht daher direkt auf den Mock-Host; die Assertion selbst (data-label) ist unverändert.
+const card = (): HTMLElement => document.querySelector('[data-comp="kol-card"]') as HTMLElement;
 
 describe('NearbyCard — Titel mit Anzeige-Entfernung (#1110 AK1)', () => {
 	beforeEach(() => {

@@ -30,6 +30,7 @@ import { readVoiceAutostartPreference } from '../lib/voiceAutostart';
 import { readAiPreferences } from '../lib/aiPreferences';
 import { VoiceField } from './VoiceField';
 import { AddressAutocomplete } from './AddressAutocomplete';
+import { notifyTasksChanged } from '../lib/tasksChanged';
 import { ConfirmSeriesActionModal } from './ConfirmSeriesActionModal';
 import { LektoratDiffModal } from './LektoratDiffModal';
 import {
@@ -294,6 +295,13 @@ export const TaskForm = ({
 		form.current.latitude = hit.lat;
 		form.current.longitude = hit.lon;
 	};
+	// #1110 (AK4): Nach einer Auswahl spiegt KoliBri die Treffer-Adresse in das Feld zurück und löst
+	// dafür ein weiteres `onValueChange` aus (Wert-Sync bzw. natives change-Event beim Verlassen).
+	// Ohne Abgleich würfe dieser Echo-Aufruf die eben übernommenen Treffer-Koordinaten als „Freitext"
+	// weg — der Task wurde dann ohne lat/lon gespeichert und erschien nie in der Nearby-Card.
+	// Ref statt State: der Echo kann vor dem nächsten Render eintreffen, ein Closure über `address`
+	// wäre veraltet. Beim echten Freitext wird er zurückgesetzt, damit weiterhin gelöscht wird.
+	const selectedAddressRef = useRef<string | null>(null);
 	// State-Mirror für Range-Slider: `KolInputRange` muss über `_value` + `_label` den aktuellen
 	// Wert erhalten — ohne State würde der Slider nach jedem Re-Render auf den Ref-Initialwert
 	// zurückspringen (bekannte KoliBri-Falle, vgl. PillarWeightsForm.tsx:107–109).
@@ -662,6 +670,11 @@ export const TaskForm = ({
 					})
 					.catch(() => undefined);
 			}
+			// #1110 (AK4): Die Nearby-Card lädt ihre Liste selbst und kennt den App-State nicht —
+			// Signal geben, damit eine neu angelegte Aufgabe ohne Reload in der Distanzliste steht.
+			if (!isSeriesMode) {
+				notifyTasksChanged();
+			}
 			onSaved();
 		} catch (reason) {
 			const apiError = await toApiError(reason);
@@ -951,6 +964,13 @@ export const TaskForm = ({
 					label="Adresse (optional)"
 					value={address}
 					onValueChange={(next) => {
+						// #1110 (AK4): Echo der übernommenen Treffer-Adresse → Koordinaten behalten.
+						if (selectedAddressRef.current !== null && next === selectedAddressRef.current) {
+							form.current.address = next;
+							setAddress(next);
+							return;
+						}
+						selectedAddressRef.current = null;
 						form.current.address = next;
 						setAddress(next);
 						// Freitext: alte Treffer-Koordinate verwerfen, sonst bleibt sie stecken.
@@ -960,6 +980,7 @@ export const TaskForm = ({
 					onSelect={(hit) => {
 						form.current.address = hit.address;
 						setAddress(hit.address);
+						selectedAddressRef.current = hit.address;
 						applyAddressCoords(hit);
 					}}
 				/>
